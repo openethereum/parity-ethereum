@@ -1,24 +1,23 @@
-// Copyright 2015-2018 Parity Technologies (UK) Ltd.
-// This file is part of Parity.
+// Copyright 2015-2019 Parity Technologies (UK) Ltd.
+// This file is part of Parity Ethereum.
 
-// Parity is free software: you can redistribute it and/or modify
+// Parity Ethereum is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
 // the Free Software Foundation, either version 3 of the License, or
 // (at your option) any later version.
 
-// Parity is distributed in the hope that it will be useful,
+// Parity Ethereum is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 // GNU General Public License for more details.
 
 // You should have received a copy of the GNU General Public License
-// along with Parity.  If not, see <http://www.gnu.org/licenses/>.
+// along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
 //! Stratum protocol implementation for parity ethereum/bitcoin clients
 
 extern crate jsonrpc_tcp_server;
 extern crate jsonrpc_core;
-extern crate jsonrpc_macros;
 extern crate ethereum_types;
 extern crate keccak_hash as hash;
 extern crate parking_lot;
@@ -27,7 +26,7 @@ extern crate parking_lot;
 
 #[cfg(test)] extern crate tokio;
 #[cfg(test)] extern crate tokio_io;
-#[cfg(test)] extern crate ethcore_logger;
+#[cfg(test)] extern crate env_logger;
 
 mod traits;
 
@@ -39,8 +38,7 @@ use jsonrpc_tcp_server::{
 	Server as JsonRpcServer, ServerBuilder as JsonRpcServerBuilder,
 	RequestContext, MetaExtractor, Dispatcher, PushMessageError,
 };
-use jsonrpc_core::{MetaIoHandler, Params, to_value, Value, Metadata, Compatibility};
-use jsonrpc_macros::IoDelegate;
+use jsonrpc_core::{MetaIoHandler, Params, to_value, Value, Metadata, Compatibility, IoDelegate};
 use std::sync::Arc;
 
 use std::net::SocketAddr;
@@ -329,8 +327,6 @@ mod tests {
 	use tokio::{io, runtime::Runtime, timer::timeout::{self, Timeout}, net::TcpStream};
 	use jsonrpc_core::futures::{Future, future};
 
-	use ethcore_logger::init_log;
-
 	pub struct VoidManager;
 
 	impl JobDispatcher for VoidManager {
@@ -369,7 +365,7 @@ mod tests {
 
 	#[test]
 	fn records_subscriber() {
-		init_log();
+		let _ = ::env_logger::try_init();
 
 		let addr = "127.0.0.1:19985".parse().unwrap();
 		let stratum = Stratum::start(&addr, Arc::new(VoidManager), None).unwrap();
@@ -443,7 +439,7 @@ mod tests {
 
 	#[test]
 	fn can_push_work() {
-		init_log();
+		let _ = ::env_logger::try_init();
 
 		let addr = "127.0.0.1:19995".parse().unwrap();
 		let stratum = Stratum::start(

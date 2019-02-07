@@ -1,18 +1,18 @@
-// Copyright 2015-2018 Parity Technologies (UK) Ltd.
-// This file is part of Parity.
+// Copyright 2015-2019 Parity Technologies (UK) Ltd.
+// This file is part of Parity Ethereum.
 
-// Parity is free software: you can redistribute it and/or modify
+// Parity Ethereum is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
 // the Free Software Foundation, either version 3 of the License, or
 // (at your option) any later version.
 
-// Parity is distributed in the hope that it will be useful,
+// Parity Ethereum is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 // GNU General Public License for more details.
 
 // You should have received a copy of the GNU General Public License
-// along with Parity.  If not, see <http://www.gnu.org/licenses/>.
+// along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
 //! Encryption providers.
 
@@ -34,6 +34,7 @@ use bytes::{Bytes, ToPretty};
 use error::{Error, ErrorKind};
 use url::Url;
 use super::find_account_password;
+use super::key_server_keys::address_to_key;
 
 /// Initialization vector length.
 const INIT_VEC_LEN: usize = 16;
@@ -188,11 +189,9 @@ impl SecretStoreEncryptor {
 	}
 
 	fn sign_contract_address(&self, contract_address: &Address, accounts: &AccountProvider) -> Result<Signature, Error> {
-		// key id in SS is H256 && we have H160 here => expand with assitional zeros
-		let contract_address_extended: H256 = contract_address.into();
 		let key_server_account = self.config.key_server_account.ok_or_else(|| ErrorKind::KeyServerAccountNotSet)?;
 		let password = find_account_password(&self.config.passwords, accounts, &key_server_account);
-		Ok(accounts.sign(key_server_account, password, H256::from_slice(&contract_address_extended))?)
+		Ok(accounts.sign(key_server_account, password, address_to_key(contract_address))?)
 	}
 }
 

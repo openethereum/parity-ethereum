@@ -1,18 +1,18 @@
-// Copyright 2015-2018 Parity Technologies (UK) Ltd.
-// This file is part of Parity.
+// Copyright 2015-2019 Parity Technologies (UK) Ltd.
+// This file is part of Parity Ethereum.
 
-// Parity is free software: you can redistribute it and/or modify
+// Parity Ethereum is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
 // the Free Software Foundation, either version 3 of the License, or
 // (at your option) any later version.
 
-// Parity is distributed in the hope that it will be useful,
+// Parity Ethereum is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 // GNU General Public License for more details.
 
 // You should have received a copy of the GNU General Public License
-// along with Parity.  If not, see <http://www.gnu.org/licenses/>.
+// along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
 //! Note that all the structs and functions here are documented in `parity.h`, to avoid
 //! duplicating documentation.
@@ -54,6 +54,7 @@ pub struct ParityParams {
 	pub configuration: *mut c_void,
 	pub on_client_restart_cb: Callback,
 	pub on_client_restart_cb_custom: *mut c_void,
+	pub logger: *mut c_void
 }
 
 #[no_mangle]
@@ -112,6 +113,7 @@ pub unsafe extern fn parity_start(cfg: *const ParityParams, output: *mut *mut c_
 		*output = ptr::null_mut();
 		let cfg: &ParityParams = &*cfg;
 
+		let logger = Arc::from_raw(cfg.logger as *mut parity_ethereum::RotatingLogger);
 		let config = Box::from_raw(cfg.configuration as *mut parity_ethereum::Configuration);
 
 		let on_client_restart_cb = {
@@ -122,7 +124,7 @@ pub unsafe extern fn parity_start(cfg: *const ParityParams, output: *mut *mut c_
 			move |new_chain: String| { cb.call(new_chain.as_bytes()); }
 		};
 
-		let action = match parity_ethereum::start(*config, on_client_restart_cb, || {}) {
+		let action = match parity_ethereum::start(*config, logger, on_client_restart_cb, || {}) {
 			Ok(action) => action,
 			Err(_) => return 1,
 		};
@@ -145,7 +147,6 @@ pub unsafe extern fn parity_destroy(client: *mut c_void) {
 		client.shutdown();
 	});
 }
-
 
 unsafe fn parity_rpc_query_checker<'a>(client: *const c_void, query: *const c_char, len: usize)
 	-> Option<CheckedQuery<'a>>
@@ -261,6 +262,25 @@ pub unsafe extern fn parity_set_panic_hook(callback: Callback, param: *mut c_voi
 	panic_hook::set_with(move |panic_msg| {
 		cb.call(panic_msg.as_bytes());
 	});
+}
+
+#[no_mangle]
+pub unsafe extern fn parity_set_logger(
+	logger_mode: *const u8,
+	logger_mode_len: usize,
+	log_file: *const u8,
+	log_file_len: usize,
+	logger: *mut *mut c_void) {
+
+	let mut logger_cfg = parity_ethereum::LoggerConfig::default();
+	logger_cfg.mode = String::from_utf8(slice::from_raw_parts(logger_mode, logger_mode_len).to_owned()).ok();
+
+	// Make sure an empty string is not constructed as file name (to prevent panic)
+	if log_file_len != 0 && !log_file.is_null() {
+		logger_cfg.file = String::from_utf8(slice::from_raw_parts(log_file, log_file_len).to_owned()).ok();
+	}
+
+	*logger = Arc::into_raw(parity_ethereum::setup_log(&logger_cfg).expect("Logger initialized only once; qed")) as *mut _;
 }
 
 // Internal structure for handling callbacks that get passed a string.

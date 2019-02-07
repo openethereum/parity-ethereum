@@ -1,18 +1,18 @@
-// Copyright 2015-2018 Parity Technologies (UK) Ltd.
-// This file is part of Parity.
+// Copyright 2015-2019 Parity Technologies (UK) Ltd.
+// This file is part of Parity Ethereum.
 
-// Parity is free software: you can redistribute it and/or modify
+// Parity Ethereum is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
 // the Free Software Foundation, either version 3 of the License, or
 // (at your option) any later version.
 
-// Parity is distributed in the hope that it will be useful,
+// Parity Ethereum is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 // GNU General Public License for more details.
 
 // You should have received a copy of the GNU General Public License
-// along with Parity.  If not, see <http://www.gnu.org/licenses/>.
+// along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
 use std::io::{Read, Write};
 use serde::de::Error;
@@ -106,6 +106,11 @@ mod test {
 	use serde_json;
 	use json::{VaultKeyFile, Version, Crypto, Cipher, Aes128Ctr, Kdf, Pbkdf2, Prf,
 		insert_vault_name_to_json_meta, remove_vault_name_from_json_meta};
+	use std::num::NonZeroU32;
+
+	lazy_static! {
+		static ref ITERATIONS: NonZeroU32 = NonZeroU32::new(10240).expect("10240 > 0; qed");
+	}
 
 	#[test]
 	fn to_and_from_json() {
@@ -118,7 +123,7 @@ mod test {
 				}),
 				ciphertext: "4befe0a66d9a4b6fec8e39eb5c90ac5dafdeaab005fff1af665fd1f9af925c91".into(),
 				kdf: Kdf::Pbkdf2(Pbkdf2 {
-					c: 10240,
+					c: *ITERATIONS,
 					dklen: 32,
 					prf: Prf::HmacSha256,
 					salt: "f17731e84ecac390546692dbd4ccf6a3a2720dc9652984978381e61c28a471b2".into(),
@@ -131,7 +136,7 @@ mod test {
 				}),
 				ciphertext: "fef0d113d7576c1702daf380ad6f4c5408389e57991cae2a174facd74bd549338e1014850bddbab7eb486ff5f5c9c5532800c6a6d4db2be2212cd5cd3769244ab230e1f369e8382a9e6d7c0a".into(),
 				kdf: Kdf::Pbkdf2(Pbkdf2 {
-					c: 10240,
+					c: *ITERATIONS,
 					dklen: 32,
 					prf: Prf::HmacSha256,
 					salt: "aca82865174a82249a198814b263f43a631f272cbf7ed329d0f0839d259c652a".into(),

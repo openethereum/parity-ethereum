@@ -1,18 +1,18 @@
-// Copyright 2015-2018 Parity Technologies (UK) Ltd.
-// This file is part of Parity.
+// Copyright 2015-2019 Parity Technologies (UK) Ltd.
+// This file is part of Parity Ethereum.
 
-// Parity is free software: you can redistribute it and/or modify
+// Parity Ethereum is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
 // the Free Software Foundation, either version 3 of the License, or
 // (at your option) any later version.
 
-// Parity is distributed in the hope that it will be useful,
+// Parity Ethereum is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 // GNU General Public License for more details.
 
 // You should have received a copy of the GNU General Public License
-// along with Parity.  If not, see <http://www.gnu.org/licenses/>.
+// along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
 use std::sync::Arc;
 use hash::keccak;
@@ -24,7 +24,7 @@ use ethcore::CreateContractAddress;
 use types::transaction::{Transaction, Action};
 use ethcore::executive::{contract_address};
 use ethcore::test_helpers::{push_block_with_transactions};
-use ethcore_private_tx::{Provider, ProviderConfig, NoopEncryptor, Importer, SignedPrivateTransaction};
+use ethcore_private_tx::{Provider, ProviderConfig, NoopEncryptor, Importer, SignedPrivateTransaction, StoringKeyProvider};
 use ethcore::account_provider::AccountProvider;
 use ethkey::{KeyPair};
 use tests::helpers::{TestNet, TestIoHandler};
@@ -78,6 +78,8 @@ fn send_private_transaction() {
 		passwords: vec!["".into()],
 	};
 
+	let private_keys = Arc::new(StoringKeyProvider::default());
+
 	let pm0 = Arc::new(Provider::new(
 			client0.clone(),
 			net.peer(0).miner.clone(),
@@ -85,6 +87,7 @@ fn send_private_transaction() {
 			Box::new(NoopEncryptor::default()),
 			signer_config,
 			IoChannel::to_handler(Arc::downgrade(&io_handler0)),
+			private_keys.clone(),
 	));
 	pm0.add_notify(net.peers[0].clone());
 
@@ -95,6 +98,7 @@ fn send_private_transaction() {
 			Box::new(NoopEncryptor::default()),
 			validator_config,
 			IoChannel::to_handler(Arc::downgrade(&io_handler1)),
+			private_keys.clone(),
 	));
 	pm1.add_notify(net.peers[1].clone());
 

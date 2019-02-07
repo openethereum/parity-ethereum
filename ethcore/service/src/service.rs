@@ -1,18 +1,18 @@
-// Copyright 2015-2018 Parity Technologies (UK) Ltd.
-// This file is part of Parity.
+// Copyright 2015-2019 Parity Technologies (UK) Ltd.
+// This file is part of Parity Ethereum.
 
-// Parity is free software: you can redistribute it and/or modify
+// Parity Ethereum is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
 // the Free Software Foundation, either version 3 of the License, or
 // (at your option) any later version.
 
-// Parity is distributed in the hope that it will be useful,
+// Parity Ethereum is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 // GNU General Public License for more details.
 
 // You should have received a copy of the GNU General Public License
-// along with Parity.  If not, see <http://www.gnu.org/licenses/>.
+// along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
 //! Creates and registers client and network services.
 
@@ -99,6 +99,7 @@ impl ClientService {
 		account_provider: Arc<AccountProvider>,
 		encryptor: Box<ethcore_private_tx::Encryptor>,
 		private_tx_conf: ethcore_private_tx::ProviderConfig,
+		private_encryptor_conf: ethcore_private_tx::EncryptorConfig,
 		) -> Result<ClientService, Error>
 	{
 		let io_service = IoService::<ClientIoMessage>::start()?;
@@ -127,13 +128,18 @@ impl ClientService {
 		};
 		let snapshot = Arc::new(SnapshotService::new(snapshot_params)?);
 
+		let private_keys = Arc::new(ethcore_private_tx::SecretStoreKeys::new(
+			client.clone(),
+			private_encryptor_conf.key_server_account,
+		));
 		let provider = Arc::new(ethcore_private_tx::Provider::new(
-				client.clone(),
-				miner,
-				account_provider,
-				encryptor,
-				private_tx_conf,
-				io_service.channel(),
+			client.clone(),
+			miner,
+			account_provider,
+			encryptor,
+			private_tx_conf,
+			io_service.channel(),
+			private_keys,
 		));
 		let private_tx = Arc::new(PrivateTxService::new(provider));
 
@@ -313,6 +319,7 @@ mod tests {
 			Arc::new(Miner::new_for_tests(&spec, None)),
 			Arc::new(AccountProvider::transient_provider()),
 			Box::new(ethcore_private_tx::NoopEncryptor),
+			Default::default(),
 			Default::default(),
 		);
 		assert!(service.is_ok());

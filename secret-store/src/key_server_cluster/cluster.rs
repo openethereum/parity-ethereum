@@ -1,18 +1,18 @@
-// Copyright 2015-2018 Parity Technologies (UK) Ltd.
-// This file is part of Parity.
+// Copyright 2015-2019 Parity Technologies (UK) Ltd.
+// This file is part of Parity Ethereum.
 
-// Parity is free software: you can redistribute it and/or modify
+// Parity Ethereum is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
 // the Free Software Foundation, either version 3 of the License, or
 // (at your option) any later version.
 
-// Parity is distributed in the hope that it will be useful,
+// Parity Ethereum is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 // GNU General Public License for more details.
 
 // You should have received a copy of the GNU General Public License
-// along with Parity.  If not, see <http://www.gnu.org/licenses/>.
+// along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
 use std::io;
 use std::time::{Duration, Instant};
@@ -1360,7 +1360,7 @@ pub mod tests {
 
 	#[test]
 	fn error_in_generation_session_broadcasted_to_all_other_nodes() {
-		//::logger::init_log();
+		let _ = ::env_logger::try_init();
 		let runtime = new_runtime();
 		let clusters = make_clusters(&runtime, 6016, 3);
 		run_clusters(&clusters);
@@ -1395,7 +1395,7 @@ pub mod tests {
 
 	#[test]
 	fn generation_session_completion_signalled_if_failed_on_master() {
-		//::logger::init_log();
+		let _ = ::env_logger::try_init();
 		let runtime = new_runtime();
 		let clusters = make_clusters(&runtime, 6025, 3);
 		run_clusters(&clusters);
@@ -1430,7 +1430,7 @@ pub mod tests {
 
 	#[test]
 	fn generation_session_is_removed_when_succeeded() {
-		//::logger::init_log();
+		let _ = ::env_logger::try_init();
 		let runtime = new_runtime();
 		let clusters = make_clusters(&runtime, 6019, 3);
 		run_clusters(&clusters);
@@ -1506,7 +1506,7 @@ pub mod tests {
 	#[test]
 	#[ignore]
 	fn schnorr_signing_session_completes_if_node_does_not_have_a_share() {
-		//::logger::init_log();
+		let _ = ::env_logger::try_init();
 		let runtime = new_runtime();
 		let clusters = make_clusters(&runtime, 6028, 3);
 		run_clusters(&clusters);
@@ -1568,7 +1568,7 @@ pub mod tests {
 	#[test]
 	#[ignore]
 	fn ecdsa_signing_session_completes_if_node_does_not_have_a_share() {
-		//::logger::init_log();
+		let _ = ::env_logger::try_init();
 		let runtime = new_runtime();
 		let clusters = make_clusters(&runtime, 6041, 4);
 		run_clusters(&clusters);

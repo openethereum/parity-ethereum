@@ -1,24 +1,26 @@
-// Copyright 2015-2018 Parity Technologies (UK) Ltd.
-// This file is part of Parity.
+// Copyright 2015-2019 Parity Technologies (UK) Ltd.
+// This file is part of Parity Ethereum.
 
-// Parity is free software: you can redistribute it and/or modify
+// Parity Ethereum is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
 // the Free Software Foundation, either version 3 of the License, or
 // (at your option) any later version.
 
-// Parity is distributed in the hope that it will be useful,
+// Parity Ethereum is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 // GNU General Public License for more details.
 
 // You should have received a copy of the GNU General Public License
-// along with Parity.  If not, see <http://www.gnu.org/licenses/>.
+// along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
 use std::time::Duration;
 use std::io::Read;
 use std::net::SocketAddr;
+use std::num::NonZeroU32;
 use std::path::PathBuf;
-use std::collections::BTreeMap;
+use std::collections::{HashSet, BTreeMap};
+use std::iter::FromIterator;
 use std::cmp;
 use cli::{Args, ArgsError};
 use hash::keccak;
@@ -48,7 +50,7 @@ use ethcore_private_tx::{ProviderConfig, EncryptorConfig};
 use secretstore::{NodeSecretKey, Configuration as SecretStoreConfiguration, ContractAddress as SecretStoreContractAddress};
 use updater::{UpdatePolicy, UpdateFilter, ReleaseTrack};
 use run::RunCmd;
-use blockchain::{BlockchainCmd, ImportBlockchain, ExportBlockchain, KillBlockchain, ExportState, DataFormat};
+use blockchain::{BlockchainCmd, ImportBlockchain, ExportBlockchain, KillBlockchain, ExportState, DataFormat, ResetBlockchain};
 use export_hardcoded_sync::ExportHsyncCmd;
 use presale::ImportWallet;
 use account::{AccountCmd, NewAccount, ListAccounts, ImportAccounts, ImportFromGethAccounts};
@@ -142,6 +144,8 @@ impl Configuration {
 		let ipfs_conf = self.ipfs_config();
 		let secretstore_conf = self.secretstore_config()?;
 		let format = self.format()?;
+		let keys_iterations = NonZeroU32::new(self.args.arg_keys_iterations)
+			.ok_or_else(|| "--keys-iterations must be non-zero")?;
 
 		let cmd = if self.args.flag_version {
 			Cmd::Version
@@ -176,6 +180,19 @@ impl Configuration {
 			}
 		} else if self.args.cmd_tools && self.args.cmd_tools_hash {
 			Cmd::Hash(self.args.arg_tools_hash_file)
+		} else if self.args.cmd_db && self.args.cmd_db_reset {
+			Cmd::Blockchain(BlockchainCmd::Reset(ResetBlockchain {
+				dirs,
+				spec,
+				pruning,
+				pruning_history,
+				pruning_memory: self.args.arg_pruning_memory,
+				tracing,
+				fat_db,
+				compaction,
+				cache_config,
+				num: self.args.arg_db_reset_num,
+			}))
 		} else if self.args.cmd_db && self.args.cmd_db_kill {
 			Cmd::Blockchain(BlockchainCmd::Kill(KillBlockchain {
 				spec: spec,
@@ -185,7 +202,7 @@ impl Configuration {
 		} else if self.args.cmd_account {
 			let account_cmd = if self.args.cmd_account_new {
 				let new_acc = NewAccount {
-					iterations: self.args.arg_keys_iterations,
+					iterations: keys_iterations,
 					path: dirs.keys,
 					spec: spec,
 					password_file: self.accounts_config()?.password_files.first().map(|x| x.to_owned()),
@@ -219,7 +236,7 @@ impl Configuration {
 			Cmd::Account(account_cmd)
 		} else if self.args.cmd_wallet {
 			let presale_cmd = ImportWallet {
-				iterations: self.args.arg_keys_iterations,
+				iterations: keys_iterations,
 				path: dirs.keys,
 				spec: spec,
 				wallet_path: self.args.arg_wallet_import_path.clone().unwrap(),
@@ -459,7 +476,8 @@ impl Configuration {
 		}
 	}
 
-	fn logger_config(&self) -> LogConfig {
+	/// returns logger config
+	pub fn logger_config(&self) -> LogConfig {
 		LogConfig {
 			mode: self.args.arg_logging.clone(),
 			color: !self.args.flag_no_color && !cfg!(windows),
@@ -513,8 +531,10 @@ impl Configuration {
 	}
 
 	fn accounts_config(&self) -> Result<AccountsConfig, String> {
+		let keys_iterations = NonZeroU32::new(self.args.arg_keys_iterations)
+			.ok_or_else(|| "--keys-iterations must be non-zero")?;
 		let cfg = AccountsConfig {
-			iterations: self.args.arg_keys_iterations,
+			iterations: keys_iterations,
 			refresh_time: self.args.arg_accounts_refresh,
 			testnet: self.args.flag_testnet,
 			password_files: self.args.arg_password.iter().map(|s| replace_home(&self.directories().base, s)).collect(),
@@ -559,6 +579,7 @@ impl Configuration {
 			infinite_pending_block: self.args.flag_infinite_pending_block,
 
 			tx_queue_penalization: to_queue_penalization(self.args.arg_tx_time_limit)?,
+			tx_queue_locals: HashSet::from_iter(to_addresses(&self.args.arg_tx_queue_locals)?.into_iter()),
 			tx_queue_strategy: to_queue_strategy(&self.args.arg_tx_queue_strategy)?,
 			tx_queue_no_unfamiliar_locals: self.args.flag_tx_queue_no_unfamiliar_locals,
 			refuse_service_transactions: self.args.flag_refuse_service_transactions,
@@ -1196,6 +1217,10 @@ mod tests {
 
 	use super::*;
 
+	lazy_static! {
+		static ref ITERATIONS: NonZeroU32 = NonZeroU32::new(10240).expect("10240 > 0; qed");
+	}
+
 	#[derive(Debug, PartialEq)]
 	struct TestPasswordReader(&'static str);
 
@@ -1217,7 +1242,7 @@ mod tests {
 		let args = vec!["parity", "account", "new"];
 		let conf = parse(&args);
 		assert_eq!(conf.into_command().unwrap().cmd, Cmd::Account(AccountCmd::New(NewAccount {
-			iterations: 10240,
+			iterations: *ITERATIONS,
 			path: Directories::default().keys,
 			password_file: None,
 			spec: SpecType::default(),
@@ -1252,7 +1277,7 @@ mod tests {
 		let args = vec!["parity", "wallet", "import", "my_wallet.json", "--password", "pwd"];
 		let conf = parse(&args);
 		assert_eq!(conf.into_command().unwrap().cmd, Cmd::ImportPresaleWallet(ImportWallet {
-			iterations: 10240,
+			iterations: *ITERATIONS,
 			path: Directories::default().keys,
 			wallet_path: "my_wallet.json".into(),
 			password_file: Some("pwd".into()),

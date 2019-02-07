@@ -1,18 +1,18 @@
-// Copyright 2015-2018 Parity Technologies (UK) Ltd.
-// This file is part of Parity.
+// Copyright 2015-2019 Parity Technologies (UK) Ltd.
+// This file is part of Parity Ethereum.
 
-// Parity is free software: you can redistribute it and/or modify
+// Parity Ethereum is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
 // the Free Software Foundation, either version 3 of the License, or
 // (at your option) any later version.
 
-// Parity is distributed in the hope that it will be useful,
+// Parity Ethereum is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 // GNU General Public License for more details.
 
 // You should have received a copy of the GNU General Public License
-// along with Parity.  If not, see <http://www.gnu.org/licenses/>.
+// along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
 use std::any::Any;
 use std::sync::{Arc, Weak, atomic};
@@ -21,8 +21,9 @@ use std::thread;
 
 use ansi_term::Colour;
 use bytes::Bytes;
+use call_contract::CallContract;
 use ethcore::account_provider::{AccountProvider, AccountProviderSettings};
-use ethcore::client::{BlockId, CallContract, Client, Mode, DatabaseCompactionProfile, VMType, BlockChainClient, BlockInfo};
+use ethcore::client::{BlockId, Client, Mode, DatabaseCompactionProfile, VMType, BlockChainClient, BlockInfo};
 use ethstore::ethkey;
 use ethcore::miner::{stratum, Miner, MinerService, MinerOptions};
 use ethcore::snapshot::{self, SnapshotConfiguration};
@@ -376,7 +377,7 @@ fn execute_light_impl(cmd: RunCmd, logger: Arc<RotatingLogger>) -> Result<Runnin
 			rpc: rpc_direct,
 			informant,
 			client,
-			keep_alive: Box::new((runtime, service, ws_server, http_server, ipc_server)),
+			keep_alive: Box::new((service, ws_server, http_server, ipc_server, runtime)),
 		}
 	})
 }
@@ -487,14 +488,6 @@ fn execute_impl<Cr, Rr>(cmd: RunCmd, logger: Arc<RotatingLogger>, on_client_rq: 
 
 	let passwords = passwords_from_files(&cmd.acc_conf.password_files)?;
 
-	// Run in daemon mode.
-	// Note, that it should be called before we leave any file descriptor open,
-	// since `daemonize` will close them.
-	if let Some(pid_file) = cmd.daemon {
-		info!("Running as a daemon process!");
-		daemonize(pid_file)?;
-	}
-
 	// prepare account provider
 	let account_provider = Arc::new(prepare_account_provider(&cmd.spec, &cmd.dirs, &spec.data_dir, cmd.acc_conf, &passwords)?);
 
@@ -589,8 +582,9 @@ fn execute_impl<Cr, Rr>(cmd: RunCmd, logger: Arc<RotatingLogger>, on_client_rq: 
 		&cmd.dirs.ipc_path(),
 		miner.clone(),
 		account_provider.clone(),
-		Box::new(SecretStoreEncryptor::new(cmd.private_encryptor_conf, fetch.clone()).map_err(|e| e.to_string())?),
+		Box::new(SecretStoreEncryptor::new(cmd.private_encryptor_conf.clone(), fetch.clone()).map_err(|e| e.to_string())?),
 		cmd.private_provider_conf,
+		cmd.private_encryptor_conf,
 	).map_err(|e| format!("Client service error: {:?}", e))?;
 
 	let connection_filter_address = spec.params().node_permission_contract;
@@ -951,23 +945,6 @@ pub fn execute<Cr, Rr>(cmd: RunCmd, logger: Arc<RotatingLogger>,
 	} else {
 		execute_impl(cmd, logger, on_client_rq, on_updater_rq)
 	}
-}
-
-#[cfg(not(windows))]
-fn daemonize(pid_file: String) -> Result<(), String> {
-	extern crate daemonize;
-
-	daemonize::Daemonize::new()
-		.pid_file(pid_file)
-		.chown_pid_file(true)
-		.start()
-		.map(|_| ())
-		.map_err(|e| format!("Couldn't daemonize; {}", e))
-}
-
-#[cfg(windows)]
-fn daemonize(_pid_file: String) -> Result<(), String> {
-	Err("daemon is no supported on windows".into())
 }
 
 fn print_running_environment(data_dir: &str, dirs: &Directories, db_dirs: &DatabaseDirectories) {

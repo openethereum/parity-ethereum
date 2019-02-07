@@ -1,18 +1,18 @@
-// Copyright 2015-2018 Parity Technologies (UK) Ltd.
-// This file is part of Parity.
+// Copyright 2015-2019 Parity Technologies (UK) Ltd.
+// This file is part of Parity Ethereum.
 
-// Parity is free software: you can redistribute it and/or modify
+// Parity Ethereum is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
 // the Free Software Foundation, either version 3 of the License, or
 // (at your option) any later version.
 
-// Parity is distributed in the hope that it will be useful,
+// Parity Ethereum is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 // GNU General Public License for more details.
 
 // You should have received a copy of the GNU General Public License
-// along with Parity.  If not, see <http://www.gnu.org/licenses/>.
+// along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
 #![warn(missing_docs, unused_extern_crates)]
 
@@ -66,6 +66,7 @@ extern crate ethabi;
 extern crate ethash;
 extern crate ethcore_blockchain as blockchain;
 extern crate ethcore_bloom_journal as bloom_journal;
+extern crate ethcore_call_contract as call_contract;
 extern crate ethcore_db as db;
 extern crate ethcore_io as io;
 extern crate ethcore_miner;
@@ -108,19 +109,17 @@ extern crate wasm;
 
 #[cfg(feature = "stratum")]
 extern crate ethcore_stratum;
-#[cfg(any(test, feature = "json-tests", feature = "test-helpers"))]
+#[cfg(any(test, feature = "tempdir"))]
 extern crate tempdir;
-#[cfg(any(test, feature = "json-tests"))]
-extern crate ethcore_logger;
-#[cfg(any(test, feature = "test-helpers"))]
+#[cfg(any(test, feature = "kvdb-rocksdb"))]
 extern crate kvdb_rocksdb;
-#[cfg(any(test, feature = "test-helpers"))]
+#[cfg(any(test, feature = "blooms-db"))]
 extern crate blooms_db;
 
-#[cfg(any(target_os = "linux", target_os = "macos", target_os = "windows", target_os = "android"))]
+#[cfg(any(target_os = "linux", target_os = "macos", target_os = "windows"))]
 extern crate hardware_wallet;
 
-#[cfg(not(any(target_os = "linux", target_os = "macos", target_os = "windows", target_os = "android")))]
+#[cfg(not(any(target_os = "linux", target_os = "macos", target_os = "windows")))]
 extern crate fake_hardware_wallet as hardware_wallet;
 
 #[macro_use]
@@ -145,7 +144,7 @@ extern crate serde_derive;
 #[cfg_attr(test, macro_use)]
 extern crate evm;
 
-#[cfg(test)]
+#[cfg(any(test, feature = "env_logger"))]
 extern crate env_logger;
 #[cfg(test)]
 extern crate rlp_compress;

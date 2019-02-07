@@ -1,10 +1,26 @@
+// Copyright 2015-2019 Parity Technologies (UK) Ltd.
+// This file is part of Parity Ethereum.
+
+// Parity Ethereum is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+
+// Parity Ethereum is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
+
+// You should have received a copy of the GNU General Public License
+// along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
+
 use std::{mem, ptr};
 use std::sync::Arc;
 use std::time::Duration;
 use std::thread;
 use std::os::raw::c_void;
 
-use {parity_config_from_cli, parity_destroy, parity_start, parity_unsubscribe_ws, ParityParams, error};
+use {parity_config_from_cli, parity_destroy, parity_set_logger, parity_start, parity_unsubscribe_ws, ParityParams, error};
 
 use futures::{Future, Stream};
 use futures::sync::mpsc;
@@ -80,11 +96,23 @@ pub unsafe extern "system" fn Java_io_parity_ethereum_Parity_configFromCli(env: 
 }
 
 #[no_mangle]
-pub unsafe extern "system" fn Java_io_parity_ethereum_Parity_build(env: JNIEnv, _: JClass, config: va_list) -> jlong {
-	let params = ParityParams {
+pub unsafe extern "system" fn Java_io_parity_ethereum_Parity_build(
+	env: JNIEnv,
+	_: JClass,
+	config: va_list,
+	logger_mode: JString,
+	logger_file: JString
+) -> jlong {
+	let mut params = ParityParams {
 		configuration: config,
 		.. mem::zeroed()
 	};
+
+	let logger_mode: String = env.get_string(logger_mode).expect("valid JString; qed").into();
+	let logger_file: String = env.get_string(logger_file).expect("valid JString; qed").into();
+
+	parity_set_logger(logger_mode.as_ptr(), logger_mode.as_bytes().len(), logger_file.as_ptr(),
+					  logger_file.as_bytes().len(), &mut params.logger);
 
 	let mut out = ptr::null_mut();
 	match parity_start(&params, &mut out) {

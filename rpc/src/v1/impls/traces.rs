@@ -1,18 +1,18 @@
-// Copyright 2015-2018 Parity Technologies (UK) Ltd.
-// This file is part of Parity.
+// Copyright 2015-2019 Parity Technologies (UK) Ltd.
+// This file is part of Parity Ethereum.
 
-// Parity is free software: you can redistribute it and/or modify
+// Parity Ethereum is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
 // the Free Software Foundation, either version 3 of the License, or
 // (at your option) any later version.
 
-// Parity is distributed in the hope that it will be useful,
+// Parity Ethereum is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 // GNU General Public License for more details.
 
 // You should have received a copy of the GNU General Public License
-// along with Parity.  If not, see <http://www.gnu.org/licenses/>.
+// along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
 //! Traces api implementation.
 
@@ -23,7 +23,6 @@ use rlp::Rlp;
 use types::transaction::SignedTransaction;
 
 use jsonrpc_core::Result;
-use jsonrpc_macros::Trailing;
 use v1::Metadata;
 use v1::traits::Traces;
 use v1::helpers::{errors, fake_sign};
@@ -87,7 +86,7 @@ impl<C, S> Traces for TracesClient<C> where
 			.map(LocalizedTrace::from))
 	}
 
-	fn call(&self, request: CallRequest, flags: TraceOptions, block: Trailing<BlockNumber>) -> Result<TraceResults> {
+	fn call(&self, request: CallRequest, flags: TraceOptions, block: Option<BlockNumber>) -> Result<TraceResults> {
 		let block = block.unwrap_or_default();
 
 		let request = CallRequest::into(request);
@@ -109,7 +108,7 @@ impl<C, S> Traces for TracesClient<C> where
 			.map_err(errors::call)
 	}
 
-	fn call_many(&self, requests: Vec<(CallRequest, TraceOptions)>, block: Trailing<BlockNumber>) -> Result<Vec<TraceResults>> {
+	fn call_many(&self, requests: Vec<(CallRequest, TraceOptions)>, block: Option<BlockNumber>) -> Result<Vec<TraceResults>> {
 		let block = block.unwrap_or_default();
 
 		let requests = requests.into_iter()
@@ -136,7 +135,7 @@ impl<C, S> Traces for TracesClient<C> where
 			.map_err(errors::call)
 	}
 
-	fn raw_transaction(&self, raw_transaction: Bytes, flags: TraceOptions, block: Trailing<BlockNumber>) -> Result<TraceResults> {
+	fn raw_transaction(&self, raw_transaction: Bytes, flags: TraceOptions, block: Option<BlockNumber>) -> Result<TraceResults> {
 		let block = block.unwrap_or_default();
 
 		let tx = Rlp::new(&raw_transaction.into_vec()).as_val().map_err(|e| errors::invalid_params("Transaction is not valid RLP", e))?;

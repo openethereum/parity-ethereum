@@ -1,18 +1,18 @@
-// Copyright 2015-2018 Parity Technologies (UK) Ltd.
-// This file is part of Parity.
+// Copyright 2015-2019 Parity Technologies (UK) Ltd.
+// This file is part of Parity Ethereum.
 
-// Parity is free software: you can redistribute it and/or modify
+// Parity Ethereum is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
 // the Free Software Foundation, either version 3 of the License, or
 // (at your option) any later version.
 
-// Parity is distributed in the hope that it will be useful,
+// Parity Ethereum is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 // GNU General Public License for more details.
 
 // You should have received a copy of the GNU General Public License
-// along with Parity.  If not, see <http://www.gnu.org/licenses/>.
+// along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
 //! Helpers for fetching blockchain data either from the light client or the network.
 
@@ -29,7 +29,6 @@ use ethcore::executed::ExecutionError;
 use jsonrpc_core::{Result, Error};
 use jsonrpc_core::futures::{future, Future};
 use jsonrpc_core::futures::future::Either;
-use jsonrpc_macros::Trailing;
 
 use light::cache::Cache;
 use light::client::LightChainClient;
@@ -202,7 +201,7 @@ impl LightFetch {
 	}
 
 	/// Helper for getting proved execution.
-	pub fn proved_read_only_execution(&self, req: CallRequest, num: Trailing<BlockNumber>) -> impl Future<Item = ExecutionResult, Error = Error> + Send {
+	pub fn proved_read_only_execution(&self, req: CallRequest, num: Option<BlockNumber>) -> impl Future<Item = ExecutionResult, Error = Error> + Send {
 		const DEFAULT_GAS_PRICE: u64 = 21_000;
 		// (21000 G_transaction + 32000 G_create + some marginal to allow a few operations)
 		const START_GAS: u64 = 60_000;
@@ -376,7 +375,6 @@ impl LightFetch {
 				}
 			})
 	}
-
 
 	/// Get transaction logs
 	pub fn logs(&self, filter: EthcoreFilter) -> impl Future<Item = Vec<Log>, Error = Error> + Send {

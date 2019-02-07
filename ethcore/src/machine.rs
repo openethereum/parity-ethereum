@@ -1,18 +1,18 @@
-// Copyright 2015-2018 Parity Technologies (UK) Ltd.
-// This file is part of Parity.
+// Copyright 2015-2019 Parity Technologies (UK) Ltd.
+// This file is part of Parity Ethereum.
 
-// Parity is free software: you can redistribute it and/or modify
+// Parity Ethereum is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
 // the Free Software Foundation, either version 3 of the License, or
 // (at your option) any later version.
 
-// Parity is distributed in the hope that it will be useful,
+// Parity Ethereum is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 // GNU General Public License for more details.
 
 // You should have received a copy of the GNU General Public License
-// along with Parity.  If not, see <http://www.gnu.org/licenses/>.
+// along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
 //! Ethereum-like state machine definition.
 
@@ -30,7 +30,8 @@ use vm::{EnvInfo, Schedule, CreateContractAddress};
 
 use block::{ExecutedBlock, IsBlock};
 use builtin::Builtin;
-use client::{BlockInfo, CallContract};
+use call_contract::CallContract;
+use client::BlockInfo;
 use error::Error;
 use executive::Executive;
 use spec::CommonParams;
@@ -437,14 +438,7 @@ impl ::parity_machine::Machine for EthereumMachine {
 	type AncestryAction = ::types::ancestry_action::AncestryAction;
 
 	type Error = Error;
-}
 
-impl<'a> ::parity_machine::LocalizedMachine<'a> for EthereumMachine {
-	type StateContext = Call<'a>;
-	type AuxiliaryData = AuxiliaryData<'a>;
-}
-
-impl ::parity_machine::WithBalances for EthereumMachine {
 	fn balance(&self, live: &ExecutedBlock, address: &Address) -> Result<U256, Error> {
 		live.state().balance(address).map_err(Into::into)
 	}
@@ -452,6 +446,11 @@ impl ::parity_machine::WithBalances for EthereumMachine {
 	fn add_balance(&self, live: &mut ExecutedBlock, address: &Address, amount: &U256) -> Result<(), Error> {
 		live.state_mut().add_balance(address, amount, CleanupMode::NoEmpty).map_err(Into::into)
 	}
+}
+
+impl<'a> ::parity_machine::LocalizedMachine<'a> for EthereumMachine {
+	type StateContext = Call<'a>;
+	type AuxiliaryData = AuxiliaryData<'a>;
 }
 
 /// A state machine that uses block rewards.

@@ -1,18 +1,18 @@
-// Copyright 2015-2018 Parity Technologies (UK) Ltd.
-// This file is part of Parity.
+// Copyright 2015-2019 Parity Technologies (UK) Ltd.
+// This file is part of Parity Ethereum.
 
-// Parity is free software: you can redistribute it and/or modify
+// Parity Ethereum is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
 // the Free Software Foundation, either version 3 of the License, or
 // (at your option) any later version.
 
-// Parity is distributed in the hope that it will be useful,
+// Parity Ethereum is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 // GNU General Public License for more details.
 
 // You should have received a copy of the GNU General Public License
-// along with Parity.  If not, see <http://www.gnu.org/licenses/>.
+// along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
 #include <chrono>
 #include <parity.h>
@@ -53,10 +53,8 @@ const std::vector<std::string> ws_subscriptions {
 void callback(void* user_data, const char* response, size_t _len) {
 	Callback* cb = static_cast<Callback*>(user_data);
 	if (cb->type == CALLBACK_RPC) {
-		printf("rpc response: %s\r\n", response);
 		cb->counter -= 1;
 	} else if (cb->type == CALLBACK_WS) {
-		printf("websocket response: %s\r\n", response);
 		std::regex is_subscription ("\\{\"jsonrpc\":\"2.0\",\"result\":\"0[xX][a-fA-F0-9]{16}\",\"id\":1\\}");
 		if (std::regex_match(response, is_subscription) == true) {
 			cb->counter -= 1;
@@ -153,7 +151,8 @@ void* parity_run(std::vector<const char*> args) {
 	ParityParams cfg = {
 		.configuration = nullptr,
 		.on_client_restart_cb = callback,
-		.on_client_restart_cb_custom = nullptr
+		.on_client_restart_cb_custom = nullptr,
+		.logger = nullptr
 	};
 
 	std::vector<size_t> str_lens;
@@ -172,6 +171,10 @@ void* parity_run(std::vector<const char*> args) {
 			return nullptr;
 		}
 	}
+
+	// enable logging but only the `rpc module` and don't write it to a file
+	char log_mode [] = "rpc=trace";
+	parity_set_logger(log_mode, strlen(log_mode), nullptr, 0, &cfg.logger);
 
 	void *parity = nullptr;
 	if (parity_start(&cfg, &parity) != 0) {

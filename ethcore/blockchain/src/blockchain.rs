@@ -1,18 +1,18 @@
-// Copyright 2015-2018 Parity Technologies (UK) Ltd.
-// This file is part of Parity.
+// Copyright 2015-2019 Parity Technologies (UK) Ltd.
+// This file is part of Parity Ethereum.
 
-// Parity is free software: you can redistribute it and/or modify
+// Parity Ethereum is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
 // the Free Software Foundation, either version 3 of the License, or
 // (at your option) any later version.
 
-// Parity is distributed in the hope that it will be useful,
+// Parity Ethereum is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 // GNU General Public License for more details.
 
 // You should have received a copy of the GNU General Public License
-// along with Parity.  If not, see <http://www.gnu.org/licenses/>.
+// along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
 //! Blockchain database.
 
@@ -666,6 +666,21 @@ impl BlockChain {
 	/// (though not necessarily a part of the canon chain).
 	fn is_known_child(&self, parent: &H256, hash: &H256) -> bool {
 		self.db.key_value().read_with_cache(db::COL_EXTRA, &self.block_details, parent).map_or(false, |d| d.children.contains(hash))
+	}
+
+	/// fetches the list of blocks from best block to n, and n's parent hash
+	/// where n > 0
+	pub fn block_headers_from_best_block(&self, n: u32) -> Option<(Vec<encoded::Header>, H256)> {
+		let mut blocks = Vec::with_capacity(n as usize);
+		let mut hash = self.best_block_hash();
+
+		for _ in 0..n {
+			let current_hash = self.block_header_data(&hash)?;
+			hash = current_hash.parent_hash();
+			blocks.push(current_hash);
+		}
+
+		Some((blocks, hash))
 	}
 
 	/// Returns a tree route between `from` and `to`, which is a tuple of:

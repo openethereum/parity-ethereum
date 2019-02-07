@@ -33,6 +33,7 @@ trace-time = "0.1"
 triehash-ethereum = {version = "0.2", path = "../../util/triehash-ethereum" }
 
 [dev-dependencies]
+env_logger = "0.5"
 ethcore-io = { path = "../../util/io", features = ["mio"] }
 ethkey = { path = "../../accounts/ethkey" }
 kvdb-memorydb = "0.1"

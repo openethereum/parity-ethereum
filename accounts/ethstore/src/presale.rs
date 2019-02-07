@@ -1,20 +1,21 @@
-// Copyright 2015-2018 Parity Technologies (UK) Ltd.
-// This file is part of Parity.
+// Copyright 2015-2019 Parity Technologies (UK) Ltd.
+// This file is part of Parity Ethereum.
 
-// Parity is free software: you can redistribute it and/or modify
+// Parity Ethereum is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
 // the Free Software Foundation, either version 3 of the License, or
 // (at your option) any later version.
 
-// Parity is distributed in the hope that it will be useful,
+// Parity Ethereum is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 // GNU General Public License for more details.
 
 // You should have received a copy of the GNU General Public License
-// along with Parity.  If not, see <http://www.gnu.org/licenses/>.
+// along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
 use std::fs;
+use std::num::NonZeroU32;
 use std::path::Path;
 use json;
 use ethkey::{Address, Secret, KeyPair, Password};
@@ -58,7 +59,8 @@ impl PresaleWallet {
 		let mut derived_key = [0u8; 32];
 		let salt = pbkdf2::Salt(password.as_bytes());
 		let sec = pbkdf2::Secret(password.as_bytes());
-		pbkdf2::sha256(2000, salt, sec, &mut derived_key);
+		let iter = NonZeroU32::new(2000).expect("2000 > 0; qed");
+		pbkdf2::sha256(iter, salt, sec, &mut derived_key);
 
 		let mut key = vec![0; self.ciphertext.len()];
 		let len = crypto::aes::decrypt_128_cbc(&derived_key[0..16], &self.iv, &self.ciphertext, &mut key)

@@ -1,18 +1,18 @@
-// Copyright 2015-2018 Parity Technologies (UK) Ltd.
-// This file is part of Parity.
+// Copyright 2015-2019 Parity Technologies (UK) Ltd.
+// This file is part of Parity Ethereum.
 
-// Parity is free software: you can redistribute it and/or modify
+// Parity Ethereum is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
 // the Free Software Foundation, either version 3 of the License, or
 // (at your option) any later version.
 
-// Parity is distributed in the hope that it will be useful,
+// Parity Ethereum is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 // GNU General Public License for more details.
 
 // You should have received a copy of the GNU General Public License
-// along with Parity.  If not, see <http://www.gnu.org/licenses/>.
+// along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
 use ethkey::{self, KeyPair, sign, Address, Password, Signature, Message, Public, Secret};
 use ethkey::crypto::ecdh::agree;
@@ -20,6 +20,7 @@ use {json, Error};
 use account::Version;
 use crypto;
 use super::crypto::Crypto;
+use std::num::NonZeroU32;
 
 /// Account representation.
 #[derive(Debug, PartialEq, Clone)]
@@ -59,7 +60,7 @@ impl SafeAccount {
 		keypair: &KeyPair,
 		id: [u8; 16],
 		password: &Password,
-		iterations: u32,
+		iterations: NonZeroU32,
 		name: String,
 		meta: String
 	) -> Result<Self, crypto::Error> {
@@ -135,7 +136,7 @@ impl SafeAccount {
 	}
 
 	/// Create a new `VaultKeyFile` from the given `self`
-	pub fn into_vault_file(self, iterations: u32, password: &Password) -> Result<json::VaultKeyFile, Error> {
+	pub fn into_vault_file(self, iterations: NonZeroU32, password: &Password) -> Result<json::VaultKeyFile, Error> {
 		let meta_plain = json::VaultKeyMeta {
 			address: self.address.into(),
 			name: Some(self.name),
@@ -177,7 +178,7 @@ impl SafeAccount {
 	}
 
 	/// Change account's password.
-	pub fn change_password(&self, old_password: &Password, new_password: &Password, iterations: u32) -> Result<Self, Error> {
+	pub fn change_password(&self, old_password: &Password, new_password: &Password, iterations: NonZeroU32) -> Result<Self, Error> {
 		let secret = self.crypto.secret(old_password)?;
 		let result = SafeAccount {
 			id: self.id.clone(),
@@ -200,14 +201,19 @@ impl SafeAccount {
 #[cfg(test)]
 mod tests {
 	use ethkey::{Generator, Random, verify_public, Message};
-	use super::SafeAccount;
+	use super::{SafeAccount, NonZeroU32};
+
+	lazy_static! {
+		static ref ITERATIONS: NonZeroU32 = NonZeroU32::new(10240).expect("10240 > 0; qed");
+	}
+
 
 	#[test]
 	fn sign_and_verify_public() {
 		let keypair = Random.generate().unwrap();
 		let password = "hello world".into();
 		let message = Message::default();
-		let account = SafeAccount::create(&keypair, [0u8; 16], &password, 10240, "Test".to_owned(), "{}".to_owned());
+		let account = SafeAccount::create(&keypair, [0u8; 16], &password, *ITERATIONS, "Test".to_owned(), "{}".to_owned());
 		let signature = account.unwrap().sign(&password, &message).unwrap();
 		assert!(verify_public(keypair.public(), &signature, &message).unwrap());
 	}
@@ -217,10 +223,9 @@ mod tests {
 		let keypair = Random.generate().unwrap();
 		let first_password = "hello world".into();
 		let sec_password = "this is sparta".into();
-		let i = 10240;
 		let message = Message::default();
-		let account = SafeAccount::create(&keypair, [0u8; 16], &first_password, i, "Test".to_owned(), "{}".to_owned()).unwrap();
-		let new_account = account.change_password(&first_password, &sec_password, i).unwrap();
+		let account = SafeAccount::create(&keypair, [0u8; 16], &first_password, *ITERATIONS, "Test".to_owned(), "{}".to_owned()).unwrap();
+		let new_account = account.change_password(&first_password, &sec_password, *ITERATIONS).unwrap();
 		assert!(account.sign(&first_password, &message).is_ok());
 		assert!(account.sign(&sec_password, &message).is_err());
 		assert!(new_account.sign(&first_password, &message).is_err());

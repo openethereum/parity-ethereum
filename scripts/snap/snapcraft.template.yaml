@@ -1,0 +1,57 @@
+name:               parity
+version:            $VERSION
+architectures:      [$BUILD_ARCH]
+grade:              $GRADE
+confinement:        strict
+
+summary:            Fast, light, robust Ethereum implementation
+description:        |
+  Parity's goal is to be the fastest, lightest, and most secure Ethereum
+  client. We are developing Parity using the sophisticated and cutting-edge
+  Rust programming language. Parity is licensed under the GPLv3, and can be
+  used for all your Ethereum needs.
+
+apps:
+  parity:
+    command:        parity
+    plugs:          [home, network, network-bind, mount-observe, x11, unity7, desktop, desktop-legacy, wayland]
+    desktop:        ./usr/share/applications/parity.desktop
+  parity-evm:
+    command:        parity-evm
+    plugs:          [home, network, network-bind]
+  ethkey:
+    command:        ethkey
+    plugs:          [home]
+  ethstore:
+    command:        ethstore
+    plugs:          [home]
+  whisper:
+    command:        whisper
+    plugs:          [home, network-bind]
+
+icon:               ./scripts/snap/icon.png
+
+parts:
+  desktop-icon:
+    source:         ./scripts/snap
+    plugin:         nil
+    override-build:        |
+      mkdir -p $SNAPCRAFT_PART_INSTALL/usr/share/applications
+      mkdir -p $SNAPCRAFT_PART_INSTALL/usr/share/pixmaps
+      cp -v ./parity.desktop $SNAPCRAFT_PART_INSTALL/usr/share/applications/
+      cp -v ./icon.png $SNAPCRAFT_PART_INSTALL/usr/share/pixmaps/
+  parity:
+    source:         ./artifacts/$CARGO_TARGET
+    plugin:         nil
+    override-build:        |
+      mkdir -p $SNAPCRAFT_PART_INSTALL/usr/bin
+      cp -v parity $SNAPCRAFT_PART_INSTALL/usr/bin/parity
+      cp -v parity-evm $SNAPCRAFT_PART_INSTALL/usr/bin/parity-evm
+      cp -v ethkey $SNAPCRAFT_PART_INSTALL/usr/bin/ethkey
+      cp -v ethstore $SNAPCRAFT_PART_INSTALL/usr/bin/ethstore
+      cp -v whisper $SNAPCRAFT_PART_INSTALL/usr/bin/whisper
+    stage-packages: [libc6, libudev1, libstdc++6, cmake, libdb]
+  df:
+    plugin:         nil
+    stage-packages: [coreutils]
+    stage:          [bin/df]

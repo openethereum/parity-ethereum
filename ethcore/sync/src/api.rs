@@ -1,23 +1,23 @@
-// Copyright 2015-2018 Parity Technologies (UK) Ltd.
-// This file is part of Parity.
+// Copyright 2015-2019 Parity Technologies (UK) Ltd.
+// This file is part of Parity Ethereum.
 
-// Parity is free software: you can redistribute it and/or modify
+// Parity Ethereum is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
 // the Free Software Foundation, either version 3 of the License, or
 // (at your option) any later version.
 
-// Parity is distributed in the hope that it will be useful,
+// Parity Ethereum is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 // GNU General Public License for more details.
 
 // You should have received a copy of the GNU General Public License
-// along with Parity.  If not, see <http://www.gnu.org/licenses/>.
+// along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
 use std::sync::{Arc, mpsc, atomic};
 use std::collections::{HashMap, BTreeMap};
 use std::io;
-use std::ops::Range;
+use std::ops::RangeInclusive;
 use std::time::Duration;
 use bytes::Bytes;
 use devp2p::NetworkService;
@@ -615,9 +615,7 @@ pub trait ManageNetwork : Send + Sync {
 	/// Stop network
 	fn stop_network(&self);
 	/// Returns the minimum and maximum peers.
-	/// Note that `range.end` is *exclusive*.
-	// TODO: Range should be changed to RangeInclusive once stable (https://github.com/rust-lang/rust/pull/50758)
-	fn num_peers_range(&self) -> Range<u32>;
+	fn num_peers_range(&self) -> RangeInclusive<u32>;
 	/// Get network context for protocol.
 	fn with_proto_context(&self, proto: ProtocolId, f: &mut FnMut(&NetworkContext));
 }
@@ -656,7 +654,7 @@ impl ManageNetwork for EthSync {
 		self.stop();
 	}
 
-	fn num_peers_range(&self) -> Range<u32> {
+	fn num_peers_range(&self) -> RangeInclusive<u32> {
 		self.network.num_peers_range()
 	}
 
@@ -935,7 +933,7 @@ impl ManageNetwork for LightSync {
 		self.network.stop();
 	}
 
-	fn num_peers_range(&self) -> Range<u32> {
+	fn num_peers_range(&self) -> RangeInclusive<u32> {
 		self.network.num_peers_range()
 	}
 
@@ -948,12 +946,12 @@ impl LightSyncProvider for LightSync {
 	fn peer_numbers(&self) -> PeerNumbers {
 		let (connected, active) = self.proto.peer_count();
 		let peers_range = self.num_peers_range();
-		debug_assert!(peers_range.end > peers_range.start);
+		debug_assert!(peers_range.end() >= peers_range.start());
 		PeerNumbers {
 			connected: connected,
 			active: active,
-			max: peers_range.end as usize - 1,
-			min: peers_range.start as usize,
+			max: *peers_range.end() as usize,
+			min: *peers_range.start() as usize,
 		}
 	}
 

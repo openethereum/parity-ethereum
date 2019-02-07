@@ -1,18 +1,18 @@
-// Copyright 2015-2018 Parity Technologies (UK) Ltd.
-// This file is part of Parity.
+// Copyright 2015-2019 Parity Technologies (UK) Ltd.
+// This file is part of Parity Ethereum.
 
-// Parity is free software: you can redistribute it and/or modify
+// Parity Ethereum is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
 // the Free Software Foundation, either version 3 of the License, or
 // (at your option) any later version.
 
-// Parity is distributed in the hope that it will be useful,
+// Parity Ethereum is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 // GNU General Public License for more details.
 
 // You should have received a copy of the GNU General Public License
-// along with Parity.  If not, see <http://www.gnu.org/licenses/>.
+// along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
 //! Parity RPC.
 
@@ -37,6 +37,7 @@ extern crate tokio_timer;
 extern crate transient_hashmap;
 
 extern crate jsonrpc_core;
+extern crate jsonrpc_derive;
 extern crate jsonrpc_http_server as http;
 extern crate jsonrpc_ipc_server as ipc;
 extern crate jsonrpc_pubsub;
@@ -67,15 +68,13 @@ extern crate rlp;
 extern crate stats;
 extern crate vm;
 
-#[cfg(any(target_os = "linux", target_os = "macos", target_os = "windows", target_os = "android"))]
+#[cfg(any(target_os = "linux", target_os = "macos", target_os = "windows"))]
 extern crate hardware_wallet;
-#[cfg(not(any(target_os = "linux", target_os = "macos", target_os = "windows", target_os = "android")))]
+#[cfg(not(any(target_os = "linux", target_os = "macos", target_os = "windows")))]
 extern crate fake_hardware_wallet as hardware_wallet;
 
 #[macro_use]
 extern crate log;
-#[macro_use]
-extern crate jsonrpc_macros;
 #[macro_use]
 extern crate serde_derive;
 
@@ -114,7 +113,7 @@ pub use ipc::{Server as IpcServer, MetaExtractor as IpcMetaExtractor, RequestCon
 pub use http::{
 	hyper,
 	RequestMiddleware, RequestMiddlewareAction,
-	AccessControlAllowOrigin, Host, DomainsValidation
+	AccessControlAllowOrigin, Host, DomainsValidation, cors::AccessControlAllowHeaders
 };
 
 pub use v1::{NetworkSettings, Metadata, Origin, informant, dispatch, signer};
@@ -151,6 +150,7 @@ pub fn start_http<M, S, H, T>(
 		.cors(cors_domains.into())
 		.allowed_hosts(allowed_hosts.into())
 		.health_api(("/api/health", "parity_nodeStatus"))
+		.cors_allow_headers(AccessControlAllowHeaders::Any)
 		.max_request_body_size(max_payload * 1024 * 1024)
 		.start_http(addr)?)
 }
@@ -180,6 +180,7 @@ pub fn start_http_with_middleware<M, S, H, T, R>(
 		.threads(threads)
 		.cors(cors_domains.into())
 		.allowed_hosts(allowed_hosts.into())
+		.cors_allow_headers(AccessControlAllowHeaders::Any)
 		.max_request_body_size(max_payload * 1024 * 1024)
 		.request_middleware(middleware)
 		.start_http(addr)?)

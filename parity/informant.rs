@@ -1,18 +1,18 @@
-// Copyright 2015-2018 Parity Technologies (UK) Ltd.
-// This file is part of Parity.
+// Copyright 2015-2019 Parity Technologies (UK) Ltd.
+// This file is part of Parity Ethereum.
 
-// Parity is free software: you can redistribute it and/or modify
+// Parity Ethereum is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
 // the Free Software Foundation, either version 3 of the License, or
 // (at your option) any later version.
 
-// Parity is distributed in the hope that it will be useful,
+// Parity Ethereum is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 // GNU General Public License for more details.
 
 // You should have received a copy of the GNU General Public License
-// along with Parity.  If not, see <http://www.gnu.org/licenses/>.
+// along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
 extern crate ansi_term;
 use self::ansi_term::Colour::{White, Yellow, Green, Cyan, Blue};
@@ -146,7 +146,7 @@ impl InformantData for FullNodeInformantData {
 			(Some(sync), Some(net)) => {
 				let status = sync.status();
 				let num_peers_range = net.num_peers_range();
-				debug_assert!(num_peers_range.end > num_peers_range.start);
+				debug_assert!(num_peers_range.end() >= num_peers_range.start());
 
 				cache_sizes.insert("sync", status.mem_used);
 
@@ -154,7 +154,7 @@ impl InformantData for FullNodeInformantData {
 					last_imported_block_number: status.last_imported_block_number.unwrap_or(chain_info.best_block_number),
 					last_imported_old_block_number: status.last_imported_old_block_number,
 					num_peers: status.num_peers,
-					max_peers: status.current_max_peers(num_peers_range.start, num_peers_range.end - 1),
+					max_peers: status.current_max_peers(*num_peers_range.start(), *num_peers_range.end()),
 					snapshot_sync: status.is_snapshot_syncing(),
 				})
 			}

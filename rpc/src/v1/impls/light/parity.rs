@@ -1,18 +1,18 @@
-// Copyright 2015-2018 Parity Technologies (UK) Ltd.
-// This file is part of Parity.
+// Copyright 2015-2019 Parity Technologies (UK) Ltd.
+// This file is part of Parity Ethereum.
 
-// Parity is free software: you can redistribute it and/or modify
+// Parity Ethereum is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
 // the Free Software Foundation, either version 3 of the License, or
 // (at your option) any later version.
 
-// Parity is distributed in the hope that it will be useful,
+// Parity Ethereum is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 // GNU General Public License for more details.
 
 // You should have received a copy of the GNU General Public License
-// along with Parity.  If not, see <http://www.gnu.org/licenses/>.
+// along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
 //! Parity-specific rpc implementation.
 use std::sync::Arc;
@@ -29,7 +29,6 @@ use ethcore_logger::RotatingLogger;
 
 use jsonrpc_core::{Result, BoxFuture};
 use jsonrpc_core::futures::{future, Future};
-use jsonrpc_macros::Trailing;
 use v1::helpers::{self, errors, ipfs, SigningQueue, SignerService, NetworkSettings, verify_signature};
 use v1::helpers::dispatch::LightDispatcher;
 use v1::helpers::light_fetch::{LightFetch, light_all_transactions};
@@ -232,11 +231,11 @@ impl Parity for ParityClient {
 		Ok(Brain::new(phrase).generate().unwrap().address().into())
 	}
 
-	fn list_accounts(&self, _: u64, _: Option<H160>, _: Trailing<BlockNumber>) -> Result<Option<Vec<H160>>> {
+	fn list_accounts(&self, _: u64, _: Option<H160>, _: Option<BlockNumber>) -> Result<Option<Vec<H160>>> {
 		Err(errors::light_unimplemented(None))
 	}
 
-	fn list_storage_keys(&self, _: H160, _: u64, _: Option<H256>, _: Trailing<BlockNumber>) -> Result<Option<Vec<H256>>> {
+	fn list_storage_keys(&self, _: H160, _: u64, _: Option<H256>, _: Option<BlockNumber>) -> Result<Option<Vec<H256>>> {
 		Err(errors::light_unimplemented(None))
 	}
 
@@ -246,7 +245,7 @@ impl Parity for ParityClient {
 			.map(Into::into)
 	}
 
-	fn pending_transactions(&self, limit: Trailing<usize>) -> Result<Vec<Transaction>> {
+	fn pending_transactions(&self, limit: Option<usize>) -> Result<Vec<Transaction>> {
 		let txq = self.light_dispatch.transaction_queue.read();
 		let chain_info = self.light_dispatch.client.chain_info();
 		Ok(
@@ -365,7 +364,7 @@ impl Parity for ParityClient {
 		})
 	}
 
-	fn block_header(&self, number: Trailing<BlockNumber>) -> BoxFuture<RichHeader> {
+	fn block_header(&self, number: Option<BlockNumber>) -> BoxFuture<RichHeader> {
 		use types::encoded;
 
 		let engine = self.light_dispatch.client.engine().clone();
@@ -399,7 +398,7 @@ impl Parity for ParityClient {
 		Box::new(self.fetcher().header(id).and_then(from_encoded))
 	}
 
-	fn block_receipts(&self, number: Trailing<BlockNumber>) -> BoxFuture<Vec<Receipt>> {
+	fn block_receipts(&self, number: Option<BlockNumber>) -> BoxFuture<Vec<Receipt>> {
 		let id = number.unwrap_or_default().to_block_id();
 		Box::new(self.fetcher().receipts(id).and_then(|receipts| Ok(receipts.into_iter().map(Into::into).collect())))
 	}
@@ -408,7 +407,7 @@ impl Parity for ParityClient {
 		ipfs::cid(content)
 	}
 
-	fn call(&self, _requests: Vec<CallRequest>, _block: Trailing<BlockNumber>) -> Result<Vec<Bytes>> {
+	fn call(&self, _requests: Vec<CallRequest>, _block: Option<BlockNumber>) -> Result<Vec<Bytes>> {
 		Err(errors::light_unimplemented(None))
 	}
 
