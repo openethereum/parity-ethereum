@@ -31,16 +31,12 @@ use_contract!(service_transaction, "res/contracts/service_transaction.json");
 const SERVICE_TRANSACTION_CONTRACT_REGISTRY_NAME: &'static str = "service_transaction_checker";
 
 /// Service transactions checker.
-#[derive(Clone)]
+#[derive(Default, Clone)]
 pub struct ServiceTransactionChecker {
 	certified_addresses_cache: Arc<RwLock<HashMap<Address, bool>>>
 }
 
 impl ServiceTransactionChecker {
-	/// Create new ServiceTransactionChecker instance
-	pub fn new() -> ServiceTransactionChecker {
-		ServiceTransactionChecker {certified_addresses_cache: Arc::new(RwLock::new(HashMap::default()))}
-	}
 
 	/// Checks if given address in tx is whitelisted to send service transactions.
 	pub fn check<C: CallContract + RegistryInfo>(&self, client: &C, tx: &SignedTransaction) -> Result<bool, String> {
@@ -56,7 +52,7 @@ impl ServiceTransactionChecker {
 	/// Checks if given address is whitelisted to send service transactions.
 	pub fn check_address<C: CallContract + RegistryInfo>(&self, client: &C, sender: Address) -> Result<bool, String> {
 		trace!(target: "txqueue", "Checking service transaction checker contract from {}", sender);
-		if let Some(allowed) = self.certified_addresses_cache.try_read().as_ref().and_then(|c| c.get(&sender)){
+		if let Some(allowed) = self.certified_addresses_cache.try_read().as_ref().and_then(|c| c.get(&sender)) {
 			return Ok(*allowed);
 		}
 		let contract_address = client.registry_address(SERVICE_TRANSACTION_CONTRACT_REGISTRY_NAME.to_owned(), BlockId::Latest)

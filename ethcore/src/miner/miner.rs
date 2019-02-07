@@ -260,7 +260,7 @@ impl Miner {
 		let verifier_options = options.pool_verification_options.clone();
 		let tx_queue_strategy = options.tx_queue_strategy;
 		let nonce_cache_size = cmp::max(4096, limits.max_count / 4);
-		let refuse_service_transactions = options.refuse_service_transactions.clone();
+		let refuse_service_transactions = options.refuse_service_transactions;
 
 		Miner {
 			sealing: Mutex::new(SealingWork {
@@ -284,7 +284,7 @@ impl Miner {
 			service_transaction_checker: if refuse_service_transactions {
 				None
 			} else {
-				Some(ServiceTransactionChecker::new())
+				Some(ServiceTransactionChecker::default())
 			},
 		}
 	}
@@ -1281,8 +1281,8 @@ impl miner::MinerService for Miner {
 				self.transaction_queue.cull(client);
 			}
 		}
-		if self.service_transaction_checker.is_some() {
-			match self.service_transaction_checker.clone().unwrap().refresh_cache(chain) {
+		if let Some(ref service_transaction_checker) = self.service_transaction_checker {
+			match service_transaction_checker.refresh_cache(chain) {
 				Ok(true) => {
 					trace!(target: "client", "Service transaction cache was refreshed successfully");
 				},

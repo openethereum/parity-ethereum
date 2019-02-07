@@ -109,7 +109,7 @@ C: BlockInfo + CallContract,
 			engine,
 			accounts,
 			best_block_header,
-			service_transaction_checker
+			service_transaction_checker,
 		}
 	}
 
