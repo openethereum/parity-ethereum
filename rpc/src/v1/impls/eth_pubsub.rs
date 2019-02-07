@@ -21,7 +21,8 @@ use std::collections::BTreeMap;
 
 use jsonrpc_core::{BoxFuture, Result, Error};
 use jsonrpc_core::futures::{self, Future, IntoFuture, Stream};
-use jsonrpc_pubsub::{SubscriptionId, typed::{Sink, Subscriber}};
+use jsonrpc_pubsub::typed::{Sink, Subscriber};
+use jsonrpc_pubsub::SubscriptionId;
 
 use v1::helpers::{errors, limit_logs, Subscribers, };
 use v1::helpers::light_fetch::LightFetch;

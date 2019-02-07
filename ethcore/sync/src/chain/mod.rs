@@ -720,7 +720,7 @@ impl ChainSync {
 
 	fn notify_sync_state(&mut self, state: SyncState) {
 		for sender in &mut self.status_sink {
-			let result = sender.unbounded_send(state);
+			let _ = sender.unbounded_send(state);
 		}
 	}
 

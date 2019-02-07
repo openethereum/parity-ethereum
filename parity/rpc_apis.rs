@@ -554,7 +554,7 @@ impl<C: LightChainClient + 'static> LightDependencies<C> {
 					}
 				}
 				Api::EthPubSub => {
-					let client = EthPubSubClient::light(
+					let mut client = EthPubSubClient::light(
 						self.client.clone(),
 						self.on_demand.clone(),
 						self.sync.clone(),
@@ -562,6 +562,7 @@ impl<C: LightChainClient + 'static> LightDependencies<C> {
 						self.executor.clone(),
 						self.gas_price_percentile,
 					);
+					client.add_light_sync_notifier(self.sync.sync_notification());
 					self.client.add_listener(client.handler() as Weak<_>);
 					let h = client.handler();
 					self.transaction_queue
