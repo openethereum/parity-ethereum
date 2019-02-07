@@ -28,8 +28,7 @@ use light::client::LightChainClient;
 use light::{cht, TransactionQueue};
 use light::on_demand::{request, OnDemand};
 
-use ethcore::account_provider::AccountProvider;
-use ethereum_types::U256;
+use ethereum_types::{U256, Address};
 use hash::{KECCAK_NULL_RLP, KECCAK_EMPTY_LIST_RLP};
 use parking_lot::{RwLock, Mutex};
 use rlp::Rlp;
@@ -42,6 +41,7 @@ use types::ids::BlockId;
 use v1::impls::eth_filter::Filterable;
 use v1::helpers::{errors, limit_logs};
 use v1::helpers::{SyncPollFilter, PollManager};
+use v1::helpers::deprecated::{self, DeprecationNotice};
 use v1::helpers::light_fetch::{self, LightFetch};
 use v1::traits::Eth;
 use v1::types::{
@@ -60,11 +60,12 @@ pub struct EthClient<T> {
 	client: Arc<T>,
 	on_demand: Arc<OnDemand>,
 	transaction_queue: Arc<RwLock<TransactionQueue>>,
-	accounts: Arc<AccountProvider>,
+	accounts: Arc<Fn() -> Vec<Address> + Send + Sync>,
 	cache: Arc<Mutex<LightDataCache>>,
 	polls: Mutex<PollManager<SyncPollFilter>>,
 	poll_lifetime: u32,
 	gas_price_percentile: usize,
+	deprecation_notice: DeprecationNotice,
 }
 
 impl<T> Clone for EthClient<T> {
@@ -80,6 +81,7 @@ impl<T> Clone for EthClient<T> {
 			polls: Mutex::new(PollManager::new(self.poll_lifetime)),
 			poll_lifetime: self.poll_lifetime,
 			gas_price_percentile: self.gas_price_percentile,
+			deprecation_notice: Default::default(),
 		}
 	}
 }
@@ -92,7 +94,7 @@ impl<T: LightChainClient + 'static> EthClient<T> {
 		client: Arc<T>,
 		on_demand: Arc<OnDemand>,
 		transaction_queue: Arc<RwLock<TransactionQueue>>,
-		accounts: Arc<AccountProvider>,
+		accounts: Arc<Fn() -> Vec<Address> + Send + Sync>,
 		cache: Arc<Mutex<LightDataCache>>,
 		gas_price_percentile: usize,
 		poll_lifetime: u32
@@ -107,6 +109,7 @@ impl<T: LightChainClient + 'static> EthClient<T> {
 			polls: Mutex::new(PollManager::new(poll_lifetime)),
 			poll_lifetime,
 			gas_price_percentile,
+			deprecation_notice: Default::default(),
 		}
 	}
 
@@ -235,9 +238,9 @@ impl<T: LightChainClient + 'static> Eth for EthClient<T> {
 	}
 
 	fn author(&self) -> Result<RpcH160> {
-		self.accounts.accounts()
-			.ok()
-			.and_then(|a| a.first().cloned())
+		(self.accounts)()
+			.first()
+			.cloned()
 			.map(From::from)
 			.ok_or_else(|| errors::account("No accounts were found", ""))
 	}
@@ -262,9 +265,12 @@ impl<T: LightChainClient + 'static> Eth for EthClient<T> {
 	}
 
 	fn accounts(&self) -> Result<Vec<RpcH160>> {
-		self.accounts.accounts()
-			.map_err(|e| errors::account("Could not fetch accounts.", e))
-			.map(|accs| accs.into_iter().map(Into::<RpcH160>::into).collect())
+		self.deprecation_notice.print("eth_accounts", deprecated::msgs::ACCOUNTS);
+
+		Ok((self.accounts)()
+			.into_iter()
+			.map(Into::into)
+			.collect())
 	}
 
 	fn block_number(&self) -> Result<RpcU256> {

@@ -17,10 +17,10 @@
 use ethereum_types::Address;
 use rlp::DecoderError;
 use ethtrie::TrieError;
-use ethcore::account_provider::SignError;
 use ethcore::error::{Error as EthcoreError, ExecutionError};
 use types::transaction::Error as TransactionError;
 use ethkey::Error as KeyError;
+use ethkey::crypto::Error as CryptoError;
 use txpool::Error as TxPoolError;
 
 error_chain! {
@@ -29,6 +29,7 @@ error_chain! {
 		Decoder(DecoderError) #[doc = "RLP decoding error."];
 		Trie(TrieError) #[doc = "Error concerning TrieDBs."];
 		Txpool(TxPoolError) #[doc = "Tx pool error."];
+		Crypto(CryptoError) #[doc = "Crypto error."];
 	}
 
 	errors {
@@ -152,12 +153,6 @@ error_chain! {
 			display("General signing error {}", err),
 		}
 
-		#[doc = "Account provider signing error."]
-		Sign(err: SignError) {
-			description("Account provider signing error."),
-			display("Account provider signing error {}", err),
-		}
-
 		#[doc = "Error of transactions processing."]
 		Transaction(err: TransactionError) {
 			description("Error of transactions processing."),
@@ -169,12 +164,6 @@ error_chain! {
 			description("General ethcore error."),
 			display("General ethcore error {}", err),
 		}
-	}
-}
-
-impl From<SignError> for Error {
-	fn from(err: SignError) -> Self {
-		ErrorKind::Sign(err).into()
 	}
 }
 

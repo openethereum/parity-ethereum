@@ -14,11 +14,10 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
-use ethereum_types::{U256, Address};
+use ethereum_types::{U256, H256, Address};
 use bytes::Bytes;
 
 use v1::types::{Origin, TransactionCondition};
-use ethereum_types::H256;
 
 /// Transaction request coming from RPC
 #[derive(Debug, Clone, Default, Eq, PartialEq, Hash)]

@@ -29,7 +29,7 @@ use network::client_version::ClientVersion;
 use types::pruning_info::PruningInfo;
 use ethereum_types::{H256, H512, U256};
 use io::{TimerToken};
-use ethstore::ethkey::Secret;
+use ethkey::Secret;
 use ethcore::client::{BlockChainClient, ChainNotify, NewBlocks, ChainMessageType};
 use ethcore::snapshot::SnapshotService;
 use types::BlockNumber;

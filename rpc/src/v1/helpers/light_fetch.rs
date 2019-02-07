@@ -231,7 +231,7 @@ impl LightFetch {
 		let gas_price_percentile = self.gas_price_percentile;
 		let gas_price_fut = match req.gas_price {
 			Some(price) => Either::A(future::ok(price)),
-			None => Either::B(dispatch::fetch_gas_price_corpus(
+			None => Either::B(dispatch::light::fetch_gas_price_corpus(
 				self.sync.clone(),
 				self.client.clone(),
 				self.on_demand.clone(),

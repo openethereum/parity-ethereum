@@ -19,7 +19,7 @@ use std::str::FromStr;
 
 use bytes::ToPretty;
 use ethereum_types::{U256, Address};
-use ethcore::account_provider::AccountProvider;
+use accounts::AccountProvider;
 use ethcore::client::TestBlockChainClient;
 use jsonrpc_core::IoHandler;
 use parking_lot::Mutex;

@@ -25,11 +25,10 @@ use ethtrie::TrieError;
 use rlp;
 use snappy::InvalidInput;
 use snapshot::Error as SnapshotError;
-use types::transaction::Error as TransactionError;
 use types::BlockNumber;
+use types::transaction::Error as TransactionError;
 use unexpected::{Mismatch, OutOfBounds};
 
-use account_provider::SignError as AccountsError;
 use engines::EngineError;
 
 pub use executed::{ExecutionError, CallError};
@@ -244,12 +243,6 @@ error_chain! {
 			display("Snapshot error {}", err)
 		}
 
-		#[doc = "Account Provider error"]
-		AccountProvider(err: AccountsError) {
-			description("Accounts Provider error")
-			display("Accounts Provider error {}", err)
-		}
-
 		#[doc = "PoW hash is invalid or out of date."]
 		PowHashInvalid {
 			description("PoW hash is invalid or out of date.")
@@ -267,12 +260,6 @@ error_chain! {
 			description("Unknown engine name")
 			display("Unknown engine name ({})", name)
 		}
-	}
-}
-
-impl From<AccountsError> for Error {
-	fn from(err: AccountsError) -> Error {
-		ErrorKind::AccountProvider(err).into()
 	}
 }
 

@@ -15,7 +15,6 @@
 // along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
 use std::sync::Arc;
-use ethcore::account_provider::AccountProvider;
 use ethcore::client::{TestBlockChainClient, Executed, TransactionId};
 use ethcore_logger::RotatingLogger;
 use ethereum_types::{Address, U256, H256};
@@ -27,7 +26,8 @@ use types::receipt::{LocalizedReceipt, TransactionOutcome};
 use jsonrpc_core::IoHandler;
 use v1::{Parity, ParityClient};
 use v1::metadata::Metadata;
-use v1::helpers::{SignerService, NetworkSettings};
+use v1::helpers::NetworkSettings;
+use v1::helpers::external_signer::SignerService;
 use v1::tests::helpers::{TestSyncProvider, Config, TestMinerService, TestUpdater};
 use super::manage_network::TestManageNetwork;
 use Host;
@@ -42,7 +42,6 @@ pub struct Dependencies {
 	pub logger: Arc<RotatingLogger>,
 	pub settings: Arc<NetworkSettings>,
 	pub network: Arc<ManageNetwork>,
-	pub accounts: Arc<AccountProvider>,
 	pub ws_address: Option<Host>,
 }
 
@@ -67,7 +66,6 @@ impl Dependencies {
 				rpc_port: 8545,
 			}),
 			network: Arc::new(TestManageNetwork),
-			accounts: Arc::new(AccountProvider::transient_provider()),
 			ws_address: Some("127.0.0.1:18546".into()),
 		}
 	}
@@ -79,7 +77,6 @@ impl Dependencies {
 			self.sync.clone(),
 			self.updater.clone(),
 			self.network.clone(),
-			self.accounts.clone(),
 			self.logger.clone(),
 			self.settings.clone(),
 			signer,
@@ -99,47 +96,6 @@ impl Dependencies {
 		io.extend_with(self.client(Some(Arc::new(signer))).to_delegate());
 		io
 	}
-}
-
-#[test]
-fn rpc_parity_accounts_info() {
-	let deps = Dependencies::new();
-	let io = deps.default_client();
-
-	deps.accounts.new_account(&"".into()).unwrap();
-	let accounts = deps.accounts.accounts().unwrap();
-	assert_eq!(accounts.len(), 1);
-	let address = accounts[0];
-
-	deps.accounts.set_address_name(1.into(), "XX".into());
-	deps.accounts.set_account_name(address.clone(), "Test".into()).unwrap();
-	deps.accounts.set_account_meta(address.clone(), "{foo: 69}".into()).unwrap();
-
-	let request = r#"{"jsonrpc": "2.0", "method": "parity_accountsInfo", "params": [], "id": 1}"#;
-	let response = format!("{{\"jsonrpc\":\"2.0\",\"result\":{{\"0x{:x}\":{{\"name\":\"Test\"}}}},\"id\":1}}", address);
-	assert_eq!(io.handle_request_sync(request), Some(response));
-}
-
-#[test]
-fn rpc_parity_default_account() {
-	let deps = Dependencies::new();
-	let io = deps.default_client();
-
-	// Check empty
-	let address = Address::default();
-	let request = r#"{"jsonrpc": "2.0", "method": "parity_defaultAccount", "params": [], "id": 1}"#;
-	let response = format!("{{\"jsonrpc\":\"2.0\",\"result\":\"0x{:x}\",\"id\":1}}", address);
-	assert_eq!(io.handle_request_sync(request), Some(response));
-
-	// With account
-	deps.accounts.new_account(&"".into()).unwrap();
-	let accounts = deps.accounts.accounts().unwrap();
-	assert_eq!(accounts.len(), 1);
-	let address = accounts[0];
-
-	let request = r#"{"jsonrpc": "2.0", "method": "parity_defaultAccount", "params": [], "id": 1}"#;
-	let response = format!("{{\"jsonrpc\":\"2.0\",\"result\":\"0x{:x}\",\"id\":1}}", address);
-	assert_eq!(io.handle_request_sync(request), Some(response));
 }
 
 #[test]

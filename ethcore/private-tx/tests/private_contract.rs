@@ -34,7 +34,6 @@ use rustc_hex::{FromHex, ToHex};
 use types::ids::BlockId;
 use types::transaction::{Transaction, Action};
 use ethcore::CreateContractAddress;
-use ethcore::account_provider::AccountProvider;
 use ethcore::client::BlockChainClient;
 use ethcore::executive::{contract_address};
 use ethcore::miner::Miner;
@@ -54,15 +53,12 @@ fn private_contract() {
 	let _key2 = KeyPair::from_secret(Secret::from("0000000000000000000000000000000000000000000000000000000000000012")).unwrap();
 	let key3 = KeyPair::from_secret(Secret::from("0000000000000000000000000000000000000000000000000000000000000013")).unwrap();
 	let key4 = KeyPair::from_secret(Secret::from("0000000000000000000000000000000000000000000000000000000000000014")).unwrap();
-	let ap = Arc::new(AccountProvider::transient_provider());
-	ap.insert_account(key1.secret().clone(), &"".into()).unwrap();
-	ap.insert_account(key3.secret().clone(), &"".into()).unwrap();
-	ap.insert_account(key4.secret().clone(), &"".into()).unwrap();
+
+	let signer = Arc::new(ethcore_private_tx::KeyPairSigner(vec![key1.clone(), key3.clone(), key4.clone()]));
 
 	let config = ProviderConfig{
 		validator_accounts: vec![key3.address(), key4.address()],
 		signer_account: None,
-		passwords: vec!["".into()],
 	};
 
 	let io = ethcore_io::IoChannel::disconnected();
@@ -71,7 +67,7 @@ fn private_contract() {
 	let pm = Arc::new(Provider::new(
 			client.clone(),
 			miner,
-			ap.clone(),
+			signer.clone(),
 			Box::new(NoopEncryptor::default()),
 			config,
 			io,
@@ -192,15 +188,11 @@ fn call_other_private_contract() {
 	let _key2 = KeyPair::from_secret(Secret::from("0000000000000000000000000000000000000000000000000000000000000012")).unwrap();
 	let key3 = KeyPair::from_secret(Secret::from("0000000000000000000000000000000000000000000000000000000000000013")).unwrap();
 	let key4 = KeyPair::from_secret(Secret::from("0000000000000000000000000000000000000000000000000000000000000014")).unwrap();
-	let ap = Arc::new(AccountProvider::transient_provider());
-	ap.insert_account(key1.secret().clone(), &"".into()).unwrap();
-	ap.insert_account(key3.secret().clone(), &"".into()).unwrap();
-	ap.insert_account(key4.secret().clone(), &"".into()).unwrap();
+	let signer = Arc::new(ethcore_private_tx::KeyPairSigner(vec![key1.clone(), key3.clone(), key4.clone()]));
 
 	let config = ProviderConfig{
 		validator_accounts: vec![key3.address(), key4.address()],
 		signer_account: None,
-		passwords: vec!["".into()],
 	};
 
 	let io = ethcore_io::IoChannel::disconnected();
@@ -209,7 +201,7 @@ fn call_other_private_contract() {
 	let pm = Arc::new(Provider::new(
 			client.clone(),
 			miner,
-			ap.clone(),
+			signer.clone(),
 			Box::new(NoopEncryptor::default()),
 			config,
 			io,
