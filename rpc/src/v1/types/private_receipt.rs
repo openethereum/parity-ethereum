@@ -24,7 +24,7 @@ pub struct PrivateTransactionReceipt {
 	/// Transaction Hash
 	pub transaction_hash: H256,
 	/// Private contract address
-	pub contract_address: Option<H160>,
+	pub contract_address: H160,
 	/// Status code
 	#[serde(rename = "status")]
 	pub status_code: u8,
@@ -34,7 +34,7 @@ impl From<EthPrivateReceipt> for PrivateTransactionReceipt {
 	fn from(r: EthPrivateReceipt) -> Self {
 		PrivateTransactionReceipt {
 			transaction_hash: r.hash.into(),
-			contract_address: r.contract_address.map(Into::into),
+			contract_address: r.contract_address.into(),
 			status_code: r.status_code.into(),
 		}
 	}

@@ -94,7 +94,7 @@ impl Private for PrivateClient {
 			transaction: request,
 			receipt: PrivateTransactionReceipt {
 				transaction_hash: tx_hash.into(),
-				contract_address: contract_address.map(|address| address.into()),
+				contract_address: contract_address.into(),
 				status_code: 0,
 			}
 		})

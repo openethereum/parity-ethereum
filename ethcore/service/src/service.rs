@@ -99,6 +99,7 @@ impl ClientService {
 		account_provider: Arc<AccountProvider>,
 		encryptor: Box<ethcore_private_tx::Encryptor>,
 		private_tx_conf: ethcore_private_tx::ProviderConfig,
+		private_encryptor_conf: ethcore_private_tx::EncryptorConfig,
 		) -> Result<ClientService, Error>
 	{
 		let io_service = IoService::<ClientIoMessage>::start()?;
@@ -127,13 +128,18 @@ impl ClientService {
 		};
 		let snapshot = Arc::new(SnapshotService::new(snapshot_params)?);
 
+		let private_keys = Arc::new(ethcore_private_tx::SecretStoreKeys::new(
+			client.clone(),
+			private_encryptor_conf.key_server_account,
+		));
 		let provider = Arc::new(ethcore_private_tx::Provider::new(
-				client.clone(),
-				miner,
-				account_provider,
-				encryptor,
-				private_tx_conf,
-				io_service.channel(),
+			client.clone(),
+			miner,
+			account_provider,
+			encryptor,
+			private_tx_conf,
+			io_service.channel(),
+			private_keys,
 		));
 		let private_tx = Arc::new(PrivateTxService::new(provider));
 
@@ -313,6 +319,7 @@ mod tests {
 			Arc::new(Miner::new_for_tests(&spec, None)),
 			Arc::new(AccountProvider::transient_provider()),
 			Box::new(ethcore_private_tx::NoopEncryptor),
+			Default::default(),
 			Default::default(),
 		);
 		assert!(service.is_ok());

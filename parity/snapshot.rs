@@ -202,6 +202,7 @@ impl SnapshotCommand {
 			Arc::new(AccountProvider::transient_provider()),
 			Box::new(ethcore_private_tx::NoopEncryptor),
 			Default::default(),
+			Default::default(),
 		).map_err(|e| format!("Client service error: {:?}", e))?;
 
 		Ok(service)
