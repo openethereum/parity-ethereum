@@ -22,28 +22,27 @@ use std::thread;
 use ansi_term::Colour;
 use bytes::Bytes;
 use call_contract::CallContract;
-use ethcore::account_provider::{AccountProvider, AccountProviderSettings};
 use ethcore::client::{BlockId, Client, Mode, DatabaseCompactionProfile, VMType, BlockChainClient, BlockInfo};
-use ethstore::ethkey;
-use ethcore::miner::{stratum, Miner, MinerService, MinerOptions};
+use ethcore::miner::{self, stratum, Miner, MinerService, MinerOptions};
 use ethcore::snapshot::{self, SnapshotConfiguration};
 use ethcore::spec::{SpecParams, OptimizeFor};
 use ethcore::verification::queue::VerifierSettings;
 use ethcore_logger::{Config as LogConfig, RotatingLogger};
 use ethcore_service::ClientService;
 use ethereum_types::Address;
-use sync::{self, SyncConfig, PrivateTxHandler};
-use miner::work_notify::WorkPoster;
 use futures::IntoFuture;
 use hash_fetch::{self, fetch};
 use informant::{Informant, LightNodeInformantData, FullNodeInformantData};
 use journaldb::Algorithm;
 use light::Cache as LightDataCache;
 use miner::external::ExternalMiner;
+use miner::work_notify::WorkPoster;
 use node_filter::NodeFilter;
 use parity_runtime::Runtime;
-use parity_rpc::{Origin, Metadata, NetworkSettings, informant, is_major_importing, PubSubSession, FutureResult,
-	FutureResponse, FutureOutput};
+use sync::{self, SyncConfig, PrivateTxHandler};
+use parity_rpc::{
+	Origin, Metadata, NetworkSettings, informant, is_major_importing, PubSubSession, FutureResult, FutureResponse, FutureOutput
+};
 use updater::{UpdatePolicy, Updater};
 use parity_version::version;
 use ethcore_private_tx::{ProviderConfig, EncryptorConfig, SecretStoreEncryptor};
@@ -51,8 +50,8 @@ use params::{
 	SpecType, Pruning, AccountsConfig, GasPricerConfig, MinerExtras, Switch,
 	tracing_switch_to_bool, fatdb_switch_to_bool, mode_switch_to_bool
 };
+use account_utils;
 use helpers::{to_client_config, execute_upgrades, passwords_from_files};
-use upgrade::upgrade_key_location;
 use dir::{Directories, DatabaseDirectories};
 use cache::CacheConfig;
 use user_defaults::UserDefaults;
@@ -65,7 +64,6 @@ use rpc_apis;
 use secretstore;
 use signer;
 use db;
-use ethkey::Password;
 
 // how often to take periodic snapshots.
 const SNAPSHOT_PERIOD: u64 = 5000;
@@ -76,9 +74,6 @@ const SNAPSHOT_HISTORY: u64 = 100;
 // Number of minutes before a given gas price corpus should expire.
 // Light client only.
 const GAS_CORPUS_EXPIRATION_MINUTES: u64 = 60 * 6;
-
-// Pops along with error messages when a password is missing or invalid.
-const VERIFY_PASSWORD_HINT: &str = "Make sure valid password is present in files passed using `--password` or in the configuration file.";
 
 // Full client number of DNS threads
 const FETCH_FULL_NUM_DNS_THREADS: usize = 4;
@@ -317,7 +312,7 @@ fn execute_light_impl(cmd: RunCmd, logger: Arc<RotatingLogger>) -> Result<Runnin
 	let passwords = passwords_from_files(&cmd.acc_conf.password_files)?;
 
 	// prepare account provider
-	let account_provider = Arc::new(prepare_account_provider(&cmd.spec, &cmd.dirs, &spec.data_dir, cmd.acc_conf, &passwords)?);
+	let account_provider = Arc::new(account_utils::prepare_account_provider(&cmd.spec, &cmd.dirs, &spec.data_dir, cmd.acc_conf, &passwords)?);
 	let rpc_stats = Arc::new(informant::RpcStats::default());
 
 	// the dapps server
@@ -329,7 +324,7 @@ fn execute_light_impl(cmd: RunCmd, logger: Arc<RotatingLogger>) -> Result<Runnin
 		client: client.clone(),
 		sync: light_sync.clone(),
 		net: light_sync.clone(),
-		secret_store: account_provider,
+		accounts: account_provider,
 		logger: logger,
 		settings: Arc::new(cmd.net_settings),
 		on_demand: on_demand,
@@ -489,7 +484,7 @@ fn execute_impl<Cr, Rr>(cmd: RunCmd, logger: Arc<RotatingLogger>, on_client_rq: 
 	let passwords = passwords_from_files(&cmd.acc_conf.password_files)?;
 
 	// prepare account provider
-	let account_provider = Arc::new(prepare_account_provider(&cmd.spec, &cmd.dirs, &spec.data_dir, cmd.acc_conf, &passwords)?);
+	let account_provider = Arc::new(account_utils::prepare_account_provider(&cmd.spec, &cmd.dirs, &spec.data_dir, cmd.acc_conf, &passwords)?);
 
 	// spin up event loop
 	let runtime = Runtime::with_default_thread_count();
@@ -503,9 +498,12 @@ fn execute_impl<Cr, Rr>(cmd: RunCmd, logger: Arc<RotatingLogger>, on_client_rq: 
 		cmd.miner_options,
 		cmd.gas_pricer_conf.to_gas_pricer(fetch.clone(), runtime.executor()),
 		&spec,
-		Some(account_provider.clone()),
+		(
+			cmd.miner_extras.local_accounts,
+			account_utils::miner_local_accounts(account_provider.clone()),
+		)
 	));
-	miner.set_author(cmd.miner_extras.author, None).expect("Fails only if password is Some; password is None; qed");
+	miner.set_author(miner::Author::External(cmd.miner_extras.author));
 	miner.set_gas_range_target(cmd.miner_extras.gas_range_target);
 	miner.set_extra_data(cmd.miner_extras.extra_data);
 
@@ -517,19 +515,8 @@ fn execute_impl<Cr, Rr>(cmd: RunCmd, logger: Arc<RotatingLogger>, on_client_rq: 
 
 	let engine_signer = cmd.miner_extras.engine_signer;
 	if engine_signer != Default::default() {
-		// Check if engine signer exists
-		if !account_provider.has_account(engine_signer) {
-			return Err(format!("Consensus signer account not found for the current chain. {}", build_create_account_hint(&cmd.spec, &cmd.dirs.keys)));
-		}
-
-		// Check if any passwords have been read from the password file(s)
-		if passwords.is_empty() {
-			return Err(format!("No password found for the consensus signer {}. {}", engine_signer, VERIFY_PASSWORD_HINT));
-		}
-
-		// Attempt to sign in the engine signer.
-		if !passwords.iter().any(|p| miner.set_author(engine_signer, Some(p.to_owned())).is_ok()) {
-			return Err(format!("No valid password for the consensus signer {}. {}", engine_signer, VERIFY_PASSWORD_HINT));
+		if let Some(author) = account_utils::miner_author(&cmd.spec, &cmd.dirs, &account_provider, engine_signer, &passwords)? {
+			miner.set_author(author);
 		}
 	}
 
@@ -572,6 +559,8 @@ fn execute_impl<Cr, Rr>(cmd: RunCmd, logger: Arc<RotatingLogger>, on_client_rq: 
 	let client_db = restoration_db_handler.open(&client_path)
 		.map_err(|e| format!("Failed to open database {:?}", e))?;
 
+	let private_tx_signer = account_utils::private_tx_signer(account_provider.clone(), &passwords)?;
+
 	// create client service.
 	let service = ClientService::start(
 		client_config,
@@ -581,8 +570,8 @@ fn execute_impl<Cr, Rr>(cmd: RunCmd, logger: Arc<RotatingLogger>, on_client_rq: 
 		restoration_db_handler,
 		&cmd.dirs.ipc_path(),
 		miner.clone(),
-		account_provider.clone(),
-		Box::new(SecretStoreEncryptor::new(cmd.private_encryptor_conf.clone(), fetch.clone()).map_err(|e| e.to_string())?),
+		private_tx_signer.clone(),
+		Box::new(SecretStoreEncryptor::new(cmd.private_encryptor_conf.clone(), fetch.clone(), private_tx_signer).map_err(|e| e.to_string())?),
 		cmd.private_provider_conf,
 		cmd.private_encryptor_conf,
 	).map_err(|e| format!("Client service error: {:?}", e))?;
@@ -743,7 +732,7 @@ fn execute_impl<Cr, Rr>(cmd: RunCmd, logger: Arc<RotatingLogger>, on_client_rq: 
 		client: client.clone(),
 		sync: sync_provider.clone(),
 		net: manage_network.clone(),
-		secret_store: secret_store,
+		accounts: secret_store,
 		miner: miner.clone(),
 		external_miner: external_miner.clone(),
 		logger: logger.clone(),
@@ -779,7 +768,7 @@ fn execute_impl<Cr, Rr>(cmd: RunCmd, logger: Arc<RotatingLogger>, on_client_rq: 
 		client: client.clone(),
 		sync: sync_provider.clone(),
 		miner: miner.clone(),
-		account_provider: account_provider,
+		account_provider,
 		accounts_passwords: &passwords,
 	};
 	let secretstore_key_server = secretstore::start(cmd.secretstore_conf.clone(), secretstore_deps, runtime.executor())?;
@@ -953,80 +942,6 @@ fn print_running_environment(data_dir: &str, dirs: &Directories, db_dirs: &Datab
 	info!("DB path {}", Colour::White.bold().paint(db_dirs.db_root_path().to_string_lossy().into_owned()));
 }
 
-fn prepare_account_provider(spec: &SpecType, dirs: &Directories, data_dir: &str, cfg: AccountsConfig, passwords: &[Password]) -> Result<AccountProvider, String> {
-	use ethstore::EthStore;
-	use ethstore::accounts_dir::RootDiskDirectory;
-
-	let path = dirs.keys_path(data_dir);
-	upgrade_key_location(&dirs.legacy_keys_path(cfg.testnet), &path);
-	let dir = Box::new(RootDiskDirectory::create(&path).map_err(|e| format!("Could not open keys directory: {}", e))?);
-	let account_settings = AccountProviderSettings {
-		enable_hardware_wallets: cfg.enable_hardware_wallets,
-		hardware_wallet_classic_key: spec == &SpecType::Classic,
-		unlock_keep_secret: cfg.enable_fast_unlock,
-		blacklisted_accounts: 	match *spec {
-			SpecType::Morden | SpecType::Ropsten | SpecType::Kovan | SpecType::Sokol | SpecType::Dev => vec![],
-			_ => vec![
-				"00a329c0648769a73afac7f9381e08fb43dbea72".into()
-			],
-		},
-	};
-
-	let ethstore = EthStore::open_with_iterations(dir, cfg.iterations).map_err(|e| format!("Could not open keys directory: {}", e))?;
-	if cfg.refresh_time > 0 {
-		ethstore.set_refresh_time(::std::time::Duration::from_secs(cfg.refresh_time));
-	}
-	let account_provider = AccountProvider::new(
-		Box::new(ethstore),
-		account_settings,
-	);
-
-	// Add development account if running dev chain:
-	if let SpecType::Dev = *spec {
-		insert_dev_account(&account_provider);
-	}
-
-	for a in cfg.unlocked_accounts {
-		// Check if the account exists
-		if !account_provider.has_account(a) {
-			return Err(format!("Account {} not found for the current chain. {}", a, build_create_account_hint(spec, &dirs.keys)));
-		}
-
-		// Check if any passwords have been read from the password file(s)
-		if passwords.is_empty() {
-			return Err(format!("No password found to unlock account {}. {}", a, VERIFY_PASSWORD_HINT));
-		}
-
-		if !passwords.iter().any(|p| account_provider.unlock_account_permanently(a, (*p).clone()).is_ok()) {
-			return Err(format!("No valid password to unlock account {}. {}", a, VERIFY_PASSWORD_HINT));
-		}
-	}
-
-	Ok(account_provider)
-}
-
-fn insert_dev_account(account_provider: &AccountProvider) {
-	let secret: ethkey::Secret = "4d5db4107d237df6a3d58ee5f70ae63d73d7658d4026f2eefd2f204c81682cb7".into();
-	let dev_account = ethkey::KeyPair::from_secret(secret.clone()).expect("Valid secret produces valid key;qed");
-	if !account_provider.has_account(dev_account.address()) {
-		match account_provider.insert_account(secret, &Password::from(String::new())) {
-			Err(e) => warn!("Unable to add development account: {}", e),
-			Ok(address) => {
-				let _ = account_provider.set_account_name(address.clone(), "Development Account".into());
-				let _ = account_provider.set_account_meta(address, ::serde_json::to_string(&(vec![
-					("description", "Never use this account outside of development chain!"),
-					("passwordHint","Password is empty string"),
-				].into_iter().collect::<::std::collections::HashMap<_,_>>())).expect("Serialization of hashmap does not fail."));
-			},
-		}
-	}
-}
-
-// Construct an error `String` with an adaptive hint on how to create an account.
-fn build_create_account_hint(spec: &SpecType, keys: &str) -> String {
-	format!("You can create an account via RPC, UI or `parity account new --chain {} --keys-path {}`.", spec, keys)
-}
-
 fn wait_for_drop<T>(w: Weak<T>) {
 	let sleep_duration = Duration::from_secs(1);
 	let warn_timeout = Duration::from_secs(60);
@@ -1050,3 +965,4 @@ fn wait_for_drop<T>(w: Weak<T>) {
 
 	warn!("Shutdown timeout reached, exiting uncleanly.");
 }
+

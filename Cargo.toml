@@ -30,9 +30,10 @@ futures = "0.1"
 fdlimit = "0.1"
 ctrlc = { git = "https://github.com/paritytech/rust-ctrlc.git" }
 jsonrpc-core = "10.0.1"
-ethcore = { path = "ethcore", features = ["parity"] }
 parity-bytes = "0.1"
 common-types = { path = "ethcore/types" }
+ethcore = { path = "ethcore", features = ["parity"] }
+ethcore-accounts = { path = "accounts", optional = true }
 ethcore-blockchain = { path = "ethcore/blockchain" }
 ethcore-call-contract = { path = "ethcore/call-contract"}
 ethcore-db = { path = "ethcore/db" }
@@ -44,10 +45,10 @@ ethcore-network = { path = "util/network" }
 ethcore-private-tx = { path = "ethcore/private-tx" }
 ethcore-service = { path = "ethcore/service" }
 ethcore-sync = { path = "ethcore/sync" }
-ethstore = { path = "accounts/ethstore" }
 ethereum-types = "0.4"
-node-filter = { path = "ethcore/node-filter" }
 ethkey = { path = "accounts/ethkey" }
+ethstore = { path = "accounts/ethstore" }
+node-filter = { path = "ethcore/node-filter" }
 rlp = { version = "0.3.0", features = ["ethereum"] }
 cli-signer= { path = "cli-signer" }
 parity-daemonize = "0.2"
@@ -86,6 +87,8 @@ lazy_static = "1.2.0"
 winapi = { version = "0.3.4", features = ["winsock2", "winuser", "shellapi"] }
 
 [features]
+default = ["accounts"]
+accounts = ["ethcore-accounts", "parity-rpc/accounts"]
 miner-debug = ["ethcore/miner-debug"]
 json-tests = ["ethcore/json-tests"]
 ci-skip-issue = ["ethcore/ci-skip-issue"]
@@ -93,7 +96,7 @@ test-heavy = ["ethcore/test-heavy"]
 evm-debug = ["ethcore/evm-debug"]
 evm-debug-tests = ["ethcore/evm-debug-tests"]
 slow-blocks = ["ethcore/slow-blocks"]
-secretstore = ["ethcore-secretstore"]
+secretstore = ["ethcore-secretstore", "ethcore-secretstore/accounts"]
 final = ["parity-version/final"]
 deadlock_detection = ["parking_lot/deadlock_detection"]
 # to create a memory profile (requires nightly rust), use e.g.

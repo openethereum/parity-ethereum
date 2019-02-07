@@ -14,93 +14,54 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
+#![warn(missing_docs)]
+
 //! Account management.
 
+mod account_data;
+mod error;
 mod stores;
 
+#[cfg(not(any(target_os = "linux", target_os = "macos", target_os = "windows")))]
+extern crate fake_hardware_wallet as hardware_wallet;
+
+use self::account_data::{Unlock, AccountData};
 use self::stores::AddressBook;
 
 use std::collections::HashMap;
-use std::fmt;
 use std::time::{Instant, Duration};
 
+use common_types::transaction::{Action, Transaction};
+use ethkey::{Address, Message, Public, Secret, Password, Random, Generator};
 use ethstore::accounts_dir::MemoryDirectory;
-use ethstore::ethkey::{Address, Message, Public, Secret, Password, Random, Generator};
-use ethjson::misc::AccountMeta;
 use ethstore::{
-	SimpleSecretStore, SecretStore, Error as SSError, EthStore, EthMultiStore,
+	SimpleSecretStore, SecretStore, EthStore, EthMultiStore,
 	random_string, SecretVaultRef, StoreAccountRef, OpaqueSecret,
 };
+use log::{warn, debug};
 use parking_lot::RwLock;
-use types::transaction::{Action, Transaction};
 
-pub use ethstore::ethkey::Signature;
-pub use ethstore::{Derivation, IndexDerivation, KeyFile};
+pub use ethkey::Signature;
+pub use ethstore::{Derivation, IndexDerivation, KeyFile, Error};
 pub use hardware_wallet::{Error as HardwareError, HardwareWalletManager, KeyPath, TransactionInfo};
 
-/// Type of unlock.
-#[derive(Clone, PartialEq)]
-enum Unlock {
-	/// If account is unlocked temporarily, it should be locked after first usage.
-	OneTime,
-	/// Account unlocked permanently can always sign message.
-	/// Use with caution.
-	Perm,
-	/// Account unlocked with a timeout
-	Timed(Instant),
-}
-
-/// Data associated with account.
-#[derive(Clone)]
-struct AccountData {
-	unlock: Unlock,
-	password: Password,
-}
-
-/// Signing error
-#[derive(Debug)]
-pub enum SignError {
-	/// Account is not unlocked
-	NotUnlocked,
-	/// Account does not exist.
-	NotFound,
-	/// Low-level hardware device error.
-	Hardware(HardwareError),
-	/// Low-level error from store
-	SStore(SSError),
-}
-
-impl fmt::Display for SignError {
-	fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
-		match *self {
-			SignError::NotUnlocked => write!(f, "Account is locked"),
-			SignError::NotFound => write!(f, "Account does not exist"),
-			SignError::Hardware(ref e) => write!(f, "{}", e),
-			SignError::SStore(ref e) => write!(f, "{}", e),
-		}
-	}
-}
-
-impl From<HardwareError> for SignError {
-	fn from(e: HardwareError) -> Self {
-		SignError::Hardware(e)
-	}
-}
-
-impl From<SSError> for SignError {
-	fn from(e: SSError) -> Self {
-		SignError::SStore(e)
-	}
-}
-
-/// `AccountProvider` errors.
-pub type Error = SSError;
-
-fn transient_sstore() -> EthMultiStore {
-	EthMultiStore::open(Box::new(MemoryDirectory::default())).expect("MemoryDirectory load always succeeds; qed")
-}
+pub use self::account_data::AccountMeta;
+pub use self::error::SignError;
 
 type AccountToken = Password;
+
+/// Account management settings.
+#[derive(Debug, Default)]
+pub struct AccountProviderSettings {
+	/// Enable hardware wallet support.
+	pub enable_hardware_wallets: bool,
+	/// Use the classic chain key on the hardware wallet.
+	pub hardware_wallet_classic_key: bool,
+	/// Store raw account secret when unlocking the account permanently.
+	pub unlock_keep_secret: bool,
+	/// Disallowed accounts.
+	pub blacklisted_accounts: Vec<Address>,
+}
 
 /// Account management.
 /// Responsible for unlocking accounts.
@@ -124,27 +85,8 @@ pub struct AccountProvider {
 	blacklisted_accounts: Vec<Address>,
 }
 
-/// Account management settings.
-pub struct AccountProviderSettings {
-	/// Enable hardware wallet support.
-	pub enable_hardware_wallets: bool,
-	/// Use the classic chain key on the hardware wallet.
-	pub hardware_wallet_classic_key: bool,
-	/// Store raw account secret when unlocking the account permanently.
-	pub unlock_keep_secret: bool,
-	/// Disallowed accounts.
-	pub blacklisted_accounts: Vec<Address>,
-}
-
-impl Default for AccountProviderSettings {
-	fn default() -> Self {
-		AccountProviderSettings {
-			enable_hardware_wallets: false,
-			hardware_wallet_classic_key: false,
-			unlock_keep_secret: false,
-			blacklisted_accounts: vec![],
-		}
-	}
+fn transient_sstore() -> EthMultiStore {
+	EthMultiStore::open(Box::new(MemoryDirectory::default())).expect("MemoryDirectory load always succeeds; qed")
 }
 
 impl AccountProvider {
@@ -221,7 +163,7 @@ impl AccountProvider {
 		let account = self.sstore.insert_account(SecretVaultRef::Root, secret, password)?;
 		if self.blacklisted_accounts.contains(&account.address) {
 			self.sstore.remove_account(&account, password)?;
-			return Err(SSError::InvalidAccount.into());
+			return Err(Error::InvalidAccount.into());
 		}
 		Ok(account.address)
 	}
@@ -251,7 +193,7 @@ impl AccountProvider {
 		let account = self.sstore.import_wallet(SecretVaultRef::Root, json, password, gen_id)?;
 		if self.blacklisted_accounts.contains(&account.address) {
 			self.sstore.remove_account(&account, password)?;
-			return Err(SSError::InvalidAccount.into());
+			return Err(Error::InvalidAccount.into());
 		}
 		Ok(Address::from(account.address).into())
 	}
@@ -284,7 +226,7 @@ impl AccountProvider {
 				return Ok(accounts.into_iter().map(|a| a.address).collect());
 			}
 		}
-		Err(SSError::Custom("No hardware wallet accounts were found".into()))
+		Err(Error::Custom("No hardware wallet accounts were found".into()))
 	}
 
 	/// Get a list of paths to locked hardware wallets
@@ -669,7 +611,7 @@ impl AccountProvider {
 mod tests {
 	use super::{AccountProvider, Unlock};
 	use std::time::{Duration, Instant};
-	use ethstore::ethkey::{Generator, Random, Address};
+	use ethkey::{Generator, Random, Address};
 	use ethstore::{StoreAccountRef, Derivation};
 	use ethereum_types::H256;
 

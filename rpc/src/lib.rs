@@ -68,10 +68,8 @@ extern crate rlp;
 extern crate stats;
 extern crate vm;
 
-#[cfg(any(target_os = "linux", target_os = "macos", target_os = "windows"))]
-extern crate hardware_wallet;
-#[cfg(not(any(target_os = "linux", target_os = "macos", target_os = "windows")))]
-extern crate fake_hardware_wallet as hardware_wallet;
+#[cfg(any(test, feature = "ethcore-accounts"))]
+extern crate ethcore_accounts as accounts;
 
 #[macro_use]
 extern crate log;

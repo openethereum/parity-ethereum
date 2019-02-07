@@ -25,9 +25,9 @@ use hash::{keccak, KECCAK_NULL_RLP};
 use ethereum_types::{U256, H256, Address};
 use bytes::ToPretty;
 use rlp::PayloadInfo;
-use ethcore::account_provider::AccountProvider;
-use ethcore::client::{Mode, DatabaseCompactionProfile, VMType, Nonce, Balance, BlockChainClient, BlockId, BlockInfo,
-	ImportBlock, BlockChainReset};
+use ethcore::client::{
+	Mode, DatabaseCompactionProfile, VMType, Nonce, Balance, BlockChainClient, BlockId, BlockInfo, ImportBlock, BlockChainReset
+};
 use ethcore::error::{ImportErrorKind, ErrorKind as EthcoreErrorKind, Error as EthcoreError};
 use ethcore::miner::Miner;
 use ethcore::verification::queue::VerifierSettings;
@@ -395,7 +395,7 @@ fn execute_import(cmd: ImportBlockchain) -> Result<(), String> {
 		// TODO [ToDr] don't use test miner here
 		// (actually don't require miner at all)
 		Arc::new(Miner::new_for_tests(&spec, None)),
-		Arc::new(AccountProvider::transient_provider()),
+		Arc::new(ethcore_private_tx::DummySigner),
 		Box::new(ethcore_private_tx::NoopEncryptor),
 		Default::default(),
 		Default::default(),
@@ -587,7 +587,7 @@ fn start_client(
 		// It's fine to use test version here,
 		// since we don't care about miner parameters at all
 		Arc::new(Miner::new_for_tests(&spec, None)),
-		Arc::new(AccountProvider::transient_provider()),
+		Arc::new(ethcore_private_tx::DummySigner),
 		Box::new(ethcore_private_tx::NoopEncryptor),
 		Default::default(),
 		Default::default(),

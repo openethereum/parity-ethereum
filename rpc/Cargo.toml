@@ -37,9 +37,7 @@ jsonrpc-pubsub = "10.0.1"
 common-types = { path = "../ethcore/types" }
 ethash = { path = "../ethash" }
 ethcore = { path = "../ethcore", features = ["test-helpers"] }
-fastmap = { path = "../util/fastmap" }
-parity-bytes = "0.1"
-parity-crypto = "0.3.0"
+ethcore-accounts = { path = "../accounts", optional = true }
 ethcore-io = { path = "../util/io" }
 ethcore-light = { path = "../ethcore/light" }
 ethcore-logger = { path = "../parity/logger" }
@@ -47,7 +45,11 @@ ethcore-miner = { path = "../miner" }
 ethcore-private-tx = { path = "../ethcore/private-tx" }
 ethcore-sync = { path = "../ethcore/sync" }
 ethereum-types = "0.4"
+fastmap = { path = "../util/fastmap" }
+parity-bytes = "0.1"
+parity-crypto = "0.3.0"
 
+eip-712 = { path = "../util/EIP-712" }
 ethjson = { path = "../json" }
 ethkey = { path = "../accounts/ethkey" }
 ethstore = { path = "../accounts/ethstore" }
@@ -58,21 +60,18 @@ parity-updater = { path = "../updater" }
 parity-version = { path = "../util/version" }
 patricia-trie = "0.3.0"
 rlp = { version = "0.3.0", features = ["ethereum"] }
-eip-712 = { path = "../util/EIP-712" }
 stats = { path = "../util/stats" }
 vm = { path = "../ethcore/vm" }
 
-[target.'cfg(any(target_os = "linux", target_os = "macos", target_os = "windows"))'.dependencies]
-hardware-wallet = { path = "../accounts/hw" }
-
-[target.'cfg(not(any(target_os = "linux", target_os = "macos", target_os = "windows")))'.dependencies]
-fake-hardware-wallet = { path = "../accounts/fake-hardware-wallet" }
-
 [dev-dependencies]
 ethcore = { path = "../ethcore", features = ["test-helpers"] }
+ethcore-accounts = { path = "../accounts" }
 ethcore-network = { path = "../util/network" }
 fake-fetch = { path = "../util/fake-fetch" }
 kvdb-memorydb = "0.1"
 macros = { path = "../util/macros" }
 pretty_assertions = "0.1"
 transaction-pool = "1.13"
+
+[features]
+accounts = ["ethcore-accounts"]

@@ -20,16 +20,17 @@ mod authority_round;
 mod basic_authority;
 mod instant_seal;
 mod null_engine;
-mod signer;
 mod validator_set;
 
 pub mod block_reward;
+pub mod signer;
 
 pub use self::authority_round::AuthorityRound;
 pub use self::basic_authority::BasicAuthority;
 pub use self::epoch::{EpochVerifier, Transition as EpochTransition};
 pub use self::instant_seal::{InstantSeal, InstantSealParams};
 pub use self::null_engine::NullEngine;
+pub use self::signer::EngineSigner;
 
 // TODO [ToDr] Remove re-export (#10130)
 pub use types::engines::ForkChoice;
@@ -39,7 +40,6 @@ use std::sync::{Weak, Arc};
 use std::collections::{BTreeMap, HashMap};
 use std::{fmt, error};
 
-use account_provider::AccountProvider;
 use builtin::Builtin;
 use vm::{EnvInfo, Schedule, CreateContractAddress, CallType, ActionValue};
 use error::Error;
@@ -49,7 +49,7 @@ use snapshot::SnapshotComponents;
 use spec::CommonParams;
 use types::transaction::{self, UnverifiedTransaction, SignedTransaction};
 
-use ethkey::{Password, Signature};
+use ethkey::{Signature};
 use parity_machine::{Machine, LocalizedMachine as Localized, TotalScoredHeader};
 use ethereum_types::{H256, U256, Address};
 use unexpected::{Mismatch, OutOfBounds};
@@ -380,8 +380,8 @@ pub trait Engine<M: Machine>: Sync + Send {
 	/// Takes a header of a fully verified block.
 	fn is_proposal(&self, _verified_header: &M::Header) -> bool { false }
 
-	/// Register an account which signs consensus messages.
-	fn set_signer(&self, _account_provider: Arc<AccountProvider>, _address: Address, _password: Password) {}
+	/// Register a component which signs consensus messages.
+	fn set_signer(&self, _signer: Box<EngineSigner>) {}
 
 	/// Sign using the EngineSigner, to be used for consensus tx signing.
 	fn sign(&self, _hash: H256) -> Result<Signature, M::Error> { unimplemented!() }

@@ -43,7 +43,6 @@ extern crate toml;
 extern crate blooms_db;
 extern crate cli_signer;
 extern crate common_types as types;
-extern crate parity_bytes as bytes;
 extern crate ethcore;
 extern crate ethcore_call_contract as call_contract;
 extern crate ethcore_db;
@@ -56,25 +55,29 @@ extern crate ethcore_private_tx;
 extern crate ethcore_service;
 extern crate ethcore_sync as sync;
 extern crate ethereum_types;
-extern crate ethstore;
 extern crate ethkey;
+extern crate ethstore;
+extern crate journaldb;
+extern crate keccak_hash as hash;
 extern crate kvdb;
+extern crate node_filter;
+extern crate parity_bytes as bytes;
 extern crate parity_hash_fetch as hash_fetch;
 extern crate parity_ipfs_api;
 extern crate parity_local_store as local_store;
-extern crate parity_runtime;
+extern crate parity_path as path;
 extern crate parity_rpc;
+extern crate parity_runtime;
 extern crate parity_updater as updater;
 extern crate parity_version;
 extern crate parity_whisper;
-extern crate parity_path as path;
-extern crate node_filter;
-extern crate keccak_hash as hash;
-extern crate journaldb;
 extern crate registrar;
 
 #[macro_use]
 extern crate log as rlog;
+
+#[cfg(feature = "ethcore-accounts")]
+extern crate ethcore_accounts as accounts;
 
 #[cfg(feature = "secretstore")]
 extern crate ethcore_secretstore;
@@ -91,6 +94,7 @@ extern crate tempdir;
 extern crate lazy_static;
 
 mod account;
+mod account_utils;
 mod blockchain;
 mod cache;
 mod cli;

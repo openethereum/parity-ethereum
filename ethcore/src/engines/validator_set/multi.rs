@@ -150,15 +150,15 @@ mod tests {
 	use std::sync::Arc;
 	use std::collections::BTreeMap;
 	use hash::keccak;
-	use account_provider::AccountProvider;
+	use accounts::AccountProvider;
 	use client::{BlockChainClient, ChainInfo, BlockInfo, ImportBlock};
 	use engines::EpochChange;
 	use engines::validator_set::ValidatorSet;
 	use ethkey::Secret;
 	use types::header::Header;
-	use miner::MinerService;
+	use miner::{self, MinerService};
 	use spec::Spec;
-	use test_helpers::{generate_dummy_client_with_spec_and_accounts, generate_dummy_client_with_spec_and_data};
+	use test_helpers::{generate_dummy_client_with_spec, generate_dummy_client_with_spec_and_data};
 	use types::ids::BlockId;
 	use ethereum_types::Address;
 	use verification::queue::kind::blocks::Unverified;
@@ -171,26 +171,29 @@ mod tests {
 		let s0: Secret = keccak("0").into();
 		let v0 = tap.insert_account(s0.clone(), &"".into()).unwrap();
 		let v1 = tap.insert_account(keccak("1").into(), &"".into()).unwrap();
-		let client = generate_dummy_client_with_spec_and_accounts(Spec::new_validator_multi, Some(tap));
+		let client = generate_dummy_client_with_spec(Spec::new_validator_multi);
 		client.engine().register_client(Arc::downgrade(&client) as _);
 
 		// Make sure txs go through.
 		client.miner().set_gas_range_target((1_000_000.into(), 1_000_000.into()));
 
 		// Wrong signer for the first block.
-		client.miner().set_author(v1, Some("".into())).unwrap();
+		let signer = Box::new((tap.clone(), v1, "".into()));
+		client.miner().set_author(miner::Author::Sealer(signer));
 		client.transact_contract(Default::default(), Default::default()).unwrap();
 		::client::EngineClient::update_sealing(&*client);
 		assert_eq!(client.chain_info().best_block_number, 0);
 		// Right signer for the first block.
-		client.miner().set_author(v0, Some("".into())).unwrap();
+		let signer = Box::new((tap.clone(), v0, "".into()));
+		client.miner().set_author(miner::Author::Sealer(signer));
 		::client::EngineClient::update_sealing(&*client);
 		assert_eq!(client.chain_info().best_block_number, 1);
 		// This time v0 is wrong.
 		client.transact_contract(Default::default(), Default::default()).unwrap();
 		::client::EngineClient::update_sealing(&*client);
 		assert_eq!(client.chain_info().best_block_number, 1);
-		client.miner().set_author(v1, Some("".into())).unwrap();
+		let signer = Box::new((tap.clone(), v1, "".into()));
+		client.miner().set_author(miner::Author::Sealer(signer));
 		::client::EngineClient::update_sealing(&*client);
 		assert_eq!(client.chain_info().best_block_number, 2);
 		// v1 is still good.

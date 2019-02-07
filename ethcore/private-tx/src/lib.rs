@@ -87,13 +87,11 @@ use ethcore::client::{
 	Client, ChainNotify, NewBlocks, ChainMessageType, ClientIoMessage, BlockId,
 	Call, BlockInfo
 };
-use ethcore::account_provider::AccountProvider;
 use ethcore::miner::{self, Miner, MinerService, pool_client::NonceCache};
 use ethcore::{state, state_db};
 use ethcore::trace::{Tracer, VMTracer};
 use call_contract::CallContract;
 use rustc_hex::FromHex;
-use ethkey::Password;
 use ethabi::FunctionOutputDecoder;
 
 // Source avaiable at https://github.com/parity-contracts/private-tx/blob/master/contracts/PrivateContract.sol
@@ -120,8 +118,6 @@ pub struct ProviderConfig {
 	pub validator_accounts: Vec<Address>,
 	/// Account used for signing public transactions created from private transactions
 	pub signer_account: Option<Address>,
-	/// Passwords used to unlock accounts
-	pub passwords: Vec<Password>,
 }
 
 #[derive(Debug)]
@@ -135,18 +131,51 @@ pub struct Receipt {
 	pub status_code: u8,
 }
 
+/// Payload signing and decrypting capabilities.
+pub trait Signer: Send + Sync {
+	/// Decrypt payload using private key of given address.
+	fn decrypt(&self, account: Address, shared_mac: &[u8], payload: &[u8]) -> Result<Vec<u8>, Error>;
+	/// Sign given hash using provided account.
+	fn sign(&self, account: Address, hash: ethkey::Message) -> Result<Signature, Error>;
+}
+
+/// Signer implementation that errors on any request.
+pub struct DummySigner;
+impl Signer for DummySigner {
+	fn decrypt(&self, _account: Address, _shared_mac: &[u8], _payload: &[u8]) -> Result<Vec<u8>, Error> {
+		Err("Decrypting is not supported.".to_owned())?
+	}
+
+	fn sign(&self, _account: Address, _hash: ethkey::Message) -> Result<Signature, Error> {
+		Err("Signing is not supported.".to_owned())?
+	}
+}
+
+/// Signer implementation using multiple keypairs
+pub struct KeyPairSigner(pub Vec<ethkey::KeyPair>);
+impl Signer for KeyPairSigner {
+	fn decrypt(&self, account: Address, shared_mac: &[u8], payload: &[u8]) -> Result<Vec<u8>, Error> {
+		let kp = self.0.iter().find(|k| k.address() == account).ok_or(ethkey::Error::InvalidAddress)?;
+		Ok(ethkey::crypto::ecies::decrypt(kp.secret(), shared_mac, payload)?)
+	}
+
+	fn sign(&self, account: Address, hash: ethkey::Message) -> Result<Signature, Error> {
+		let kp = self.0.iter().find(|k| k.address() == account).ok_or(ethkey::Error::InvalidAddress)?;
+		Ok(ethkey::sign(kp.secret(), &hash)?)
+	}
+}
+
 /// Manager of private transactions
 pub struct Provider {
 	encryptor: Box<Encryptor>,
 	validator_accounts: HashSet<Address>,
 	signer_account: Option<Address>,
-	passwords: Vec<Password>,
 	notify: RwLock<Vec<Weak<ChainNotify>>>,
 	transactions_for_signing: RwLock<SigningStore>,
 	transactions_for_verification: VerificationStore,
 	client: Arc<Client>,
 	miner: Arc<Miner>,
-	accounts: Arc<AccountProvider>,
+	accounts: Arc<Signer>,
 	channel: IoChannel<ClientIoMessage>,
 	keys_provider: Arc<KeyProvider>,
 }
@@ -159,12 +188,12 @@ pub struct PrivateExecutionResult<T, V> where T: Tracer, V: VMTracer {
 	result: Executed<T::Output, V::Output>,
 }
 
-impl Provider where {
+impl Provider {
 	/// Create a new provider.
 	pub fn new(
 		client: Arc<Client>,
 		miner: Arc<Miner>,
-		accounts: Arc<AccountProvider>,
+		accounts: Arc<Signer>,
 		encryptor: Box<Encryptor>,
 		config: ProviderConfig,
 		channel: IoChannel<ClientIoMessage>,
@@ -175,7 +204,6 @@ impl Provider where {
 			encryptor,
 			validator_accounts: config.validator_accounts.into_iter().collect(),
 			signer_account: config.signer_account,
-			passwords: config.passwords,
 			notify: RwLock::default(),
 			transactions_for_signing: RwLock::default(),
 			transactions_for_verification: VerificationStore::default(),
@@ -248,21 +276,20 @@ impl Provider where {
 		keccak(&state_buf.as_ref())
 	}
 
-	fn pool_client<'a>(&'a self, nonce_cache: &'a NonceCache) -> miner::pool_client::PoolClient<'a, Client> {
+	fn pool_client<'a>(&'a self, nonce_cache: &'a NonceCache, local_accounts: &'a HashSet<Address>) -> miner::pool_client::PoolClient<'a, Client> {
 		let engine = self.client.engine();
 		let refuse_service_transactions = true;
 		miner::pool_client::PoolClient::new(
 			&*self.client,
 			nonce_cache,
 			engine,
-			Some(&*self.accounts),
+			local_accounts,
 			refuse_service_transactions,
 		)
 	}
 
 	/// Retrieve and verify the first available private transaction for every sender
 	fn process_verification_queue(&self) -> Result<(), Error> {
-		let nonce_cache = NonceCache::new(NONCE_CACHE_SIZE);
 		let process_transaction = |transaction: &VerifiedPrivateTransaction| -> Result<_, String> {
 			let private_hash = transaction.private_transaction.hash();
 			match transaction.validator_account {
@@ -292,8 +319,7 @@ impl Provider where {
 					let private_state = private_state.expect("Error was checked before");
 					let private_state_hash = self.calculate_state_hash(&private_state, contract_nonce);
 					trace!(target: "privatetx", "Hashed effective private state for validator: {:?}", private_state_hash);
-					let password = find_account_password(&self.passwords, &*self.accounts, &validator_account);
-					let signed_state = self.accounts.sign(validator_account, password, private_state_hash);
+					let signed_state = self.accounts.sign(validator_account, private_state_hash);
 					if let Err(e) = signed_state {
 						bail!("Cannot sign the state: {:?}", e);
 					}
@@ -305,7 +331,9 @@ impl Provider where {
 			}
 			Ok(())
 		};
-		let ready_transactions = self.transactions_for_verification.drain(self.pool_client(&nonce_cache));
+		let nonce_cache = NonceCache::new(NONCE_CACHE_SIZE);
+		let local_accounts = HashSet::new();
+		let ready_transactions = self.transactions_for_verification.drain(self.pool_client(&nonce_cache, &local_accounts));
 		for transaction in ready_transactions {
 			if let Err(e) = process_transaction(&transaction) {
 				warn!(target: "privatetx", "Error: {:?}", e);
@@ -346,8 +374,7 @@ impl Provider where {
 			let chain_id = desc.original_transaction.chain_id();
 			let hash = public_tx.hash(chain_id);
 			let signer_account = self.signer_account.ok_or_else(|| ErrorKind::SignerAccountNotSet)?;
-			let password = find_account_password(&self.passwords, &*self.accounts, &signer_account);
-			let signature = self.accounts.sign(signer_account, password, hash)?;
+			let signature = self.accounts.sign(signer_account, hash)?;
 			let signed = SignedTransaction::new(public_tx.with_signature(signature, chain_id))?;
 			match self.miner.import_own_transaction(&*self.client, signed.into()) {
 				Ok(_) => trace!(target: "privatetx", "Public transaction added to queue"),
@@ -442,12 +469,12 @@ impl Provider where {
 
 	fn encrypt(&self, contract_address: &Address, initialisation_vector: &H128, data: &[u8]) -> Result<Bytes, Error> {
 		trace!(target: "privatetx", "Encrypt data using key(address): {:?}", contract_address);
-		Ok(self.encryptor.encrypt(contract_address, &*self.accounts, initialisation_vector, data)?)
+		Ok(self.encryptor.encrypt(contract_address, initialisation_vector, data)?)
 	}
 
 	fn decrypt(&self, contract_address: &Address, data: &[u8]) -> Result<Bytes, Error> {
 		trace!(target: "privatetx", "Decrypt data using key(address): {:?}", contract_address);
-		Ok(self.encryptor.decrypt(contract_address, &*self.accounts, data)?)
+		Ok(self.encryptor.decrypt(contract_address, data)?)
 	}
 
 	fn get_decrypted_state(&self, address: &Address, block: BlockId) -> Result<Bytes, Error> {
@@ -702,12 +729,13 @@ impl Importer for Arc<Provider> {
 		let transaction_bytes = self.decrypt(&contract, &encrypted_data)?;
 		let original_tx: UnverifiedTransaction = Rlp::new(&transaction_bytes).as_val()?;
 		let nonce_cache = NonceCache::new(NONCE_CACHE_SIZE);
+		let local_accounts = HashSet::new();
 		// Add to the queue for further verification
 		self.transactions_for_verification.add_transaction(
 			original_tx,
 			validation_account.map(|&account| account),
 			private_tx,
-			self.pool_client(&nonce_cache),
+			self.pool_client(&nonce_cache, &local_accounts),
 		)?;
 		let provider = Arc::downgrade(self);
 		let result = self.channel.send(ClientIoMessage::execute(move |_| {
@@ -740,16 +768,6 @@ impl Importer for Arc<Provider> {
 		}
 		Ok(private_hash)
 	}
-}
-
-/// Try to unlock account using stored password, return found password if any
-fn find_account_password(passwords: &Vec<Password>, account_provider: &AccountProvider, account: &Address) -> Option<Password> {
-	for password in passwords {
-		if let Ok(true) = account_provider.test_password(account, password) {
-			return Some(password.clone());
-		}
-	}
-	None
 }
 
 impl ChainNotify for Provider {

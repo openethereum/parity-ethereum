@@ -23,6 +23,7 @@ use std::{
 };
 
 use ethereum_types::{H256, U256, Address};
+use ethcore_miner::local_accounts::LocalAccounts;
 use ethcore_miner::pool;
 use ethcore_miner::pool::client::NonceClient;
 use ethcore_miner::service_transaction_checker::ServiceTransactionChecker;
@@ -34,7 +35,6 @@ use types::transaction::{
 use types::header::Header;
 use parking_lot::RwLock;
 
-use account_provider::AccountProvider;
 use call_contract::CallContract;
 use client::{TransactionId, BlockInfo, Nonce};
 use engines::EthEngine;
@@ -73,7 +73,7 @@ pub struct PoolClient<'a, C: 'a> {
 	chain: &'a C,
 	cached_nonces: CachedNonceClient<'a, C>,
 	engine: &'a EthEngine,
-	accounts: Option<&'a AccountProvider>,
+	accounts: &'a LocalAccounts,
 	best_block_header: Header,
 	service_transaction_checker: Option<ServiceTransactionChecker>,
 }
@@ -92,14 +92,14 @@ impl<'a, C: 'a> Clone for PoolClient<'a, C> {
 }
 
 impl<'a, C: 'a> PoolClient<'a, C> where
-C: BlockInfo + CallContract,
+	C: BlockInfo + CallContract,
 {
 	/// Creates new client given chain, nonce cache, accounts and service transaction verifier.
 	pub fn new(
 		chain: &'a C,
 		cache: &'a NonceCache,
 		engine: &'a EthEngine,
-		accounts: Option<&'a AccountProvider>,
+		accounts: &'a LocalAccounts,
 		refuse_service_transactions: bool,
 	) -> Self {
 		let best_block_header = chain.best_block_header();
@@ -151,7 +151,7 @@ impl<'a, C: 'a> pool::client::Client for PoolClient<'a, C> where
 		pool::client::AccountDetails {
 			nonce: self.cached_nonces.account_nonce(address),
 			balance: self.chain.latest_balance(address),
-			is_local: self.accounts.map_or(false, |accounts| accounts.has_account(*address)),
+			is_local: self.accounts.is_local(address),
 		}
 	}
 

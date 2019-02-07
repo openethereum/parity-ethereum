@@ -26,7 +26,7 @@ use v1::types::{
 	TransactionStats, LocalTransactionStatus,
 	BlockNumber, ConsensusCapability, VersionInfo,
 	OperationsInfo, ChainStatus, Log, Filter,
-	AccountInfo, HwAccountInfo, RichHeader, Receipt,
+	RichHeader, Receipt,
 };
 
 /// Parity-specific rpc interface.
@@ -34,22 +34,6 @@ use v1::types::{
 pub trait Parity {
 	/// RPC Metadata
 	type Metadata;
-
-	/// Returns accounts information.
-	#[rpc(name = "parity_accountsInfo")]
-	fn accounts_info(&self) -> Result<BTreeMap<H160, AccountInfo>>;
-
-	/// Returns hardware accounts information.
-	#[rpc(name = "parity_hardwareAccountsInfo")]
-	fn hardware_accounts_info(&self) -> Result<BTreeMap<H160, HwAccountInfo>>;
-
-	/// Get a list of paths to locked hardware wallets
-	#[rpc(name = "parity_lockedHardwareAccountsInfo")]
-	fn locked_hardware_accounts_info(&self) -> Result<Vec<String>>;
-
-	/// Returns default account for dapp.
-	#[rpc(name = "parity_defaultAccount")]
-	fn default_account(&self) -> Result<H160>;
 
 	/// Returns current transactions limit.
 	#[rpc(name = "parity_transactionsLimit")]

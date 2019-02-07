@@ -17,18 +17,15 @@
 //! Parity-specific rpc implementation.
 use std::sync::Arc;
 use std::str::FromStr;
-use std::collections::{BTreeMap, HashSet};
-
-use ethereum_types::Address;
-use version::version_data;
+use std::collections::BTreeMap;
 
 use crypto::DEFAULT_MAC;
-use ethcore::account_provider::AccountProvider;
 use ethcore::client::{BlockChainClient, StateClient, Call};
 use ethcore::miner::{self, MinerService};
 use ethcore::snapshot::{SnapshotService, RestorationStatus};
 use ethcore::state::StateInfo;
 use ethcore_logger::RotatingLogger;
+use ethereum_types::Address;
 use ethkey::{crypto::ecies, Brain, Generator};
 use ethstore::random_phrase;
 use jsonrpc_core::futures::future;
@@ -36,9 +33,11 @@ use jsonrpc_core::{BoxFuture, Result};
 use sync::{SyncProvider, ManageNetwork};
 use types::ids::BlockId;
 use updater::{Service as UpdateService};
+use version::version_data;
 
 use v1::helpers::block_import::is_major_importing;
-use v1::helpers::{self, errors, fake_sign, ipfs, SigningQueue, SignerService, NetworkSettings, verify_signature};
+use v1::helpers::{self, errors, fake_sign, ipfs, NetworkSettings, verify_signature};
+use v1::helpers::external_signer::{SigningQueue, SignerService};
 use v1::metadata::Metadata;
 use v1::traits::Parity;
 use v1::types::{
@@ -47,7 +46,7 @@ use v1::types::{
 	TransactionStats, LocalTransactionStatus,
 	BlockNumber, ConsensusCapability, VersionInfo,
 	OperationsInfo, ChainStatus, Log, Filter,
-	AccountInfo, HwAccountInfo, RichHeader, Receipt, RecoveredAccount,
+	RichHeader, Receipt, RecoveredAccount,
 	block_number_to_id
 };
 use Host;
@@ -59,7 +58,6 @@ pub struct ParityClient<C, M, U> {
 	updater: Arc<U>,
 	sync: Arc<SyncProvider>,
 	net: Arc<ManageNetwork>,
-	accounts: Arc<AccountProvider>,
 	logger: Arc<RotatingLogger>,
 	settings: Arc<NetworkSettings>,
 	signer: Option<Arc<SignerService>>,
@@ -77,7 +75,6 @@ impl<C, M, U> ParityClient<C, M, U> where
 		sync: Arc<SyncProvider>,
 		updater: Arc<U>,
 		net: Arc<ManageNetwork>,
-		accounts: Arc<AccountProvider>,
 		logger: Arc<RotatingLogger>,
 		settings: Arc<NetworkSettings>,
 		signer: Option<Arc<SignerService>>,
@@ -90,7 +87,6 @@ impl<C, M, U> ParityClient<C, M, U> where
 			sync,
 			updater,
 			net,
-			accounts,
 			logger,
 			settings,
 			signer,
@@ -107,43 +103,6 @@ impl<C, M, U, S> Parity for ParityClient<C, M, U> where
 	U: UpdateService + 'static,
 {
 	type Metadata = Metadata;
-
-	fn accounts_info(&self) -> Result<BTreeMap<H160, AccountInfo>> {
-		let dapp_accounts = self.accounts.accounts()
-			.map_err(|e| errors::account("Could not fetch accounts.", e))?
-			.into_iter().collect::<HashSet<_>>();
-
-		let info = self.accounts.accounts_info().map_err(|e| errors::account("Could not fetch account info.", e))?;
-		let other = self.accounts.addresses_info();
-
-		Ok(info
-			.into_iter()
-			.chain(other.into_iter())
-			.filter(|&(ref a, _)| dapp_accounts.contains(a))
-			.map(|(a, v)| (H160::from(a), AccountInfo { name: v.name }))
-			.collect()
-		)
-	}
-
-	fn hardware_accounts_info(&self) -> Result<BTreeMap<H160, HwAccountInfo>> {
-		let info = self.accounts.hardware_accounts_info().map_err(|e| errors::account("Could not fetch account info.", e))?;
-		Ok(info
-			.into_iter()
-			.map(|(a, v)| (H160::from(a), HwAccountInfo { name: v.name, manufacturer: v.meta }))
-			.collect()
-		)
-	}
-
-	fn locked_hardware_accounts_info(&self) -> Result<Vec<String>> {
-		self.accounts.locked_hardware_accounts().map_err(|e| errors::account("Error communicating with hardware wallet.", e))
-	}
-
-	fn default_account(&self) -> Result<H160> {
-		Ok(self.accounts.default_account()
-			.map(Into::into)
-			.ok()
-			.unwrap_or_default())
-	}
 
 	fn transactions_limit(&self) -> Result<usize> {
 		Ok(self.miner.queue_status().limits.max_count)

@@ -25,7 +25,6 @@ use ethcore::client::{TestBlockChainClient, BlockChainClient, Client as EthcoreC
 	ClientConfig, ChainNotify, NewBlocks, ChainMessageType, ClientIoMessage};
 use ethcore::snapshot::SnapshotService;
 use ethcore::spec::Spec;
-use ethcore::account_provider::AccountProvider;
 use ethcore::miner::Miner;
 use ethcore::test_helpers;
 use sync_io::SyncIo;
@@ -367,11 +366,10 @@ impl TestNet<EthPeer<TestBlockChainClient>> {
 }
 
 impl TestNet<EthPeer<EthcoreClient>> {
-	pub fn with_spec_and_accounts<F>(
+	pub fn with_spec<F>(
 		n: usize,
 		config: SyncConfig,
 		spec_factory: F,
-		accounts: Option<Arc<AccountProvider>>
 	) -> Self
 		where F: Fn() -> Spec
 	{
@@ -381,14 +379,14 @@ impl TestNet<EthPeer<EthcoreClient>> {
 			disconnect_events: Vec::new(),
 		};
 		for _ in 0..n {
-			net.add_peer_with_private_config(config.clone(), spec_factory(), accounts.clone());
+			net.add_peer_with_private_config(config.clone(), spec_factory());
 		}
 		net
 	}
 
-	pub fn add_peer_with_private_config(&mut self, config: SyncConfig, spec: Spec, accounts: Option<Arc<AccountProvider>>) {
+	pub fn add_peer_with_private_config(&mut self, config: SyncConfig, spec: Spec) {
 		let channel = IoChannel::disconnected();
-		let miner = Arc::new(Miner::new_for_tests(&spec, accounts.clone()));
+		let miner = Arc::new(Miner::new_for_tests(&spec, None));
 		let client = EthcoreClient::new(
 			ClientConfig::default(),
 			&spec,
