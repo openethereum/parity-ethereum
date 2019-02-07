@@ -16,11 +16,11 @@
 
 //! Façade crate for `patricia_trie` for Ethereum specific impls
 
-pub extern crate patricia_trie as trie; // `pub` because we need to import this crate for the tests in `patricia_trie` and there were issues: https://gist.github.com/dvdplm/869251ee557a1b4bd53adc7c971979aa
+pub extern crate trie_db as trie; // `pub` because we need to import this crate for the tests in `patricia_trie` and there were issues: https://gist.github.com/dvdplm/869251ee557a1b4bd53adc7c971979aa
 extern crate elastic_array;
 extern crate parity_bytes;
 extern crate ethereum_types;
-extern crate hashdb;
+extern crate hash_db;
 extern crate keccak_hasher;
 extern crate rlp;
 
@@ -42,18 +42,19 @@ pub type RlpCodec = RlpNodeCodec<KeccakHasher>;
 ///
 /// # Example
 /// ```
-/// extern crate patricia_trie as trie;
+/// extern crate trie_db as trie;
 /// extern crate patricia_trie_ethereum as ethtrie;
-/// extern crate hashdb;
+/// extern crate hash_db;
 /// extern crate keccak_hasher;
-/// extern crate memorydb;
+/// extern crate memory_db;
 /// extern crate ethereum_types;
 /// extern crate elastic_array;
+/// extern crate journaldb;
 ///
 /// use trie::*;
-/// use hashdb::*;
+/// use hash_db::*;
 /// use keccak_hasher::KeccakHasher;
-/// use memorydb::*;
+/// use memory_db::*;
 /// use ethereum_types::H256;
 /// use ethtrie::{TrieDB, TrieDBMut};
 /// use elastic_array::ElasticArray128;
@@ -61,7 +62,7 @@ pub type RlpCodec = RlpNodeCodec<KeccakHasher>;
 /// type DBValue = ElasticArray128<u8>;
 ///
 /// fn main() {
-///   let mut memdb = MemoryDB::<KeccakHasher, DBValue>::new();
+///   let mut memdb = journaldb::new_memory_db();
 ///   let mut root = H256::new();
 ///   TrieDBMut::new(&mut memdb, &mut root).insert(b"foo", b"bar").unwrap();
 ///   let t = TrieDB::new(&memdb, &root).unwrap();
@@ -85,26 +86,27 @@ pub type FatDB<'db> = trie::FatDB<'db, KeccakHasher, RlpCodec>;
 
 /// # Example
 /// ```
-/// extern crate patricia_trie as trie;
+/// extern crate trie_db as trie;
 /// extern crate patricia_trie_ethereum as ethtrie;
-/// extern crate hashdb;
+/// extern crate hash_db;
 /// extern crate keccak_hash;
 /// extern crate keccak_hasher;
-/// extern crate memorydb;
+/// extern crate memory_db;
 /// extern crate ethereum_types;
 /// extern crate elastic_array;
+/// extern crate journaldb;
 ///
 /// use keccak_hash::KECCAK_NULL_RLP;
 /// use ethtrie::{TrieDBMut, trie::TrieMut};
 /// use keccak_hasher::KeccakHasher;
-/// use memorydb::*;
+/// use memory_db::*;
 /// use ethereum_types::H256;
 /// use elastic_array::ElasticArray128;
 ///
 /// type DBValue = ElasticArray128<u8>;
 ///
 /// fn main() {
-///   let mut memdb = MemoryDB::<KeccakHasher, DBValue>::new();
+///   let mut memdb = journaldb::new_memory_db();
 ///   let mut root = H256::new();
 ///   let mut t = TrieDBMut::new(&mut memdb, &mut root);
 ///   assert!(t.is_empty());
