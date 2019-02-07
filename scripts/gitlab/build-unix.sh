@@ -37,6 +37,8 @@ else
  cp -v ../../target/$CARGO_TARGET/release/ethstore ./ethstore
  cp -v ../../target/$CARGO_TARGET/release/ethkey ./ethkey
  cp -v ../../target/$CARGO_TARGET/release/whisper ./whisper
+ echo "_____ Cache status _____"
+ sccache -s
 fi
 
 echo "_____ Calculating checksums _____"
@@ -50,7 +52,3 @@ do
     ./parity tools hash $binary > $binary.sha3
   fi
 done
-
-echo "_____ Cache status _____"
-sccache -s
-
