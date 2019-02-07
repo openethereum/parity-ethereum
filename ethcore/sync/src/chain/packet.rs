@@ -3,7 +3,7 @@ use network::{PacketId, ProtocolId};
 
 enum_from_primitive! {
 #[derive(Clone, Copy, Debug, PartialEq)]
-pub enum PacketIds {
+pub enum SyncPacketId {
 	StatusPacket = 0x00,
 	NewBlockHashesPacket = 0x01,
 	TransactionsPacket = 0x02,
@@ -29,14 +29,14 @@ pub enum PacketIds {
 }
 
 
-use self::PacketIds::*;
+use self::SyncPacketId::*;
 
 pub trait Packet {
 	fn id(&self) -> PacketId;
 	fn protocol(&self) -> ProtocolId;
 }
 
-impl Packet for PacketIds {
+impl Packet for SyncPacketId {
 	fn protocol(&self) -> ProtocolId {
 		match self {
 			StatusPacket |
@@ -81,17 +81,17 @@ mod tests {
 
 	#[test]
 	fn packet_ids_from_u8_when_from_primitive_zero_then_equals_status_packet() {
-		assert_eq!(PacketIds::from_u8(0x00), Some(StatusPacket));
+		assert_eq!(SyncPacketId::from_u8(0x00), Some(StatusPacket));
 	}
 
 	#[test]
 	fn packet_ids_from_u8_when_from_primitive_eleven_then_equals_get_snapshot_manifest_packet() {
-		assert_eq!(PacketIds::from_u8(0x11), Some(GetSnapshotManifestPacket));
+		assert_eq!(SyncPacketId::from_u8(0x11), Some(GetSnapshotManifestPacket));
 	}
 
 	#[test]
 	fn packet_ids_from_u8_when_invalid_packet_id_then_none() {
-		assert!(PacketIds::from_u8(0x99).is_none());
+		assert!(SyncPacketId::from_u8(0x99).is_none());
 	}
 
 	#[test]
