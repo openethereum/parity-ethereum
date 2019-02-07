@@ -10,6 +10,7 @@ authors = ["Parity Technologies <admin@parity.io>"]
 [dependencies]
 common-types = { path = "../types" }
 env_logger = "0.5"
+enum_primitive = "*"
 ethcore = { path = ".." }
 ethcore-io = { path = "../../util/io" }
 ethcore-light = { path = "../light" }

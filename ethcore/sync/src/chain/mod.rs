@@ -88,6 +88,7 @@
 //! All other messages are ignored.
 
 mod handler;
+mod packet;
 mod propagator;
 mod requester;
 mod supplier;
