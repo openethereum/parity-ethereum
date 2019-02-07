@@ -51,3 +51,6 @@ do
   fi
 done
 
+echo "_____ Cache status _____"
+sccache -s
+

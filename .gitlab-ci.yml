@@ -2,6 +2,7 @@ stages:
   - test
   - build
   - publish
+  - publish-onchain
   - optional
 
 image:                             parity/rust-parity-ethereum-build:stretch
@@ -117,7 +118,7 @@ publish-snap:
   <<:                              *collect_artifacts
 
 publish:onnet:update:
-  stage:                           publish
+  stage:                           publish-onchain
   only:                            *releaseable_branches
   cache:                           {}
   dependencies:
