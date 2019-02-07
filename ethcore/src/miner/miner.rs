@@ -29,7 +29,6 @@ use ethcore_miner::service_transaction_checker::ServiceTransactionChecker;
 #[cfg(feature = "work-notify")]
 use ethcore_miner::work_notify::NotifyWork;
 use ethereum_types::{H256, U256, Address};
-use ethkey::Password;
 use io::IoChannel;
 use miner::pool_client::{PoolClient, CachedNonceClient, NonceCache};
 use miner;
@@ -48,7 +47,6 @@ use types::header::Header;
 use types::receipt::RichReceipt;
 use using_queue::{UsingQueue, GetAction};
 
-use account_provider::{AccountProvider, SignError as AccountError};
 use block::{ClosedBlock, IsBlock, SealedBlock};
 use client::{
 	BlockChain, ChainInfo, BlockProducer, SealedBlockImporter, Nonce, TransactionInfo, TransactionId
