@@ -188,8 +188,7 @@ fn parse_parity_format(client_version: &str) -> Result<ParityClientData, ()> {
 			semver,
 			os.to_owned(),
 			compiler.to_owned(),
-		)
-		)
+		))
 		.ok_or(())
 }
 
