@@ -61,6 +61,7 @@ build-linux:
   only:                            *releaseable_branches
   script:
     - scripts/gitlab/build-unix.sh
+    - sccache -s
   <<:                              *collect_artifacts
   tags:
     - linux-docker
