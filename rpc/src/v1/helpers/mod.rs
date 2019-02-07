@@ -18,21 +18,22 @@
 pub mod errors;
 
 pub mod block_import;
+pub mod deprecated;
 pub mod dispatch;
+pub mod eip191;
+#[cfg(any(test, feature = "accounts"))]
+pub mod engine_signer;
+pub mod external_signer;
 pub mod fake_sign;
 pub mod ipfs;
 pub mod light_fetch;
 pub mod nonce;
-pub mod oneshot;
 pub mod secretstore;
-pub mod eip191;
 
 mod network_settings;
 mod poll_filter;
 mod poll_manager;
 mod requests;
-mod signer;
-mod signing_queue;
 mod subscribers;
 mod subscription_manager;
 mod work;
@@ -46,12 +47,6 @@ pub use self::poll_filter::{PollFilter, SyncPollFilter, limit_logs};
 pub use self::requests::{
 	TransactionRequest, FilledTransactionRequest, ConfirmationRequest, ConfirmationPayload, CallRequest,
 };
-pub use self::signing_queue::{
-	ConfirmationsQueue, ConfirmationReceiver, ConfirmationResult, ConfirmationSender,
-	SigningQueue, QueueEvent, DefaultAccount,
-	QUEUE_LIMIT as SIGNING_QUEUE_LIMIT,
-};
-pub use self::signer::SignerService;
 pub use self::subscribers::Subscribers;
 pub use self::subscription_manager::GenericPollManager;
 pub use self::work::submit_work_detail;

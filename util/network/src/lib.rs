@@ -24,12 +24,22 @@ extern crate rlp;
 extern crate ipnetwork;
 extern crate parity_snappy as snappy;
 extern crate libc;
+extern crate semver;
+extern crate serde;
+
+#[macro_use]
+extern crate serde_derive;
 
 #[cfg(test)] #[macro_use]
 extern crate assert_matches;
 
 #[macro_use]
 extern crate error_chain;
+
+#[macro_use]
+extern crate lazy_static;
+
+pub mod client_version;
 
 mod connection_filter;
 mod error;
@@ -38,6 +48,7 @@ pub use connection_filter::{ConnectionFilter, ConnectionDirection};
 pub use io::TimerToken;
 pub use error::{Error, ErrorKind, DisconnectReason};
 
+use client_version::ClientVersion;
 use std::cmp::Ordering;
 use std::collections::HashMap;
 use std::net::{SocketAddr, SocketAddrV4, Ipv4Addr};
@@ -97,7 +108,7 @@ pub struct SessionInfo {
 	/// Peer public key
 	pub id: Option<NodeId>,
 	/// Peer client ID
-	pub client_version: String,
+	pub client_version: ClientVersion,
 	/// Peer RLPx protocol version
 	pub protocol_version: u32,
 	/// Session protocol capabilities
@@ -275,7 +286,7 @@ pub trait NetworkContext {
 	fn register_timer(&self, token: TimerToken, delay: Duration) -> Result<(), Error>;
 
 	/// Returns peer identification string
-	fn peer_client_version(&self, peer: PeerId) -> String;
+	fn peer_client_version(&self, peer: PeerId) -> ClientVersion;
 
 	/// Returns information on p2p session
 	fn session_info(&self, peer: PeerId) -> Option<SessionInfo>;
@@ -322,7 +333,7 @@ impl<'a, T> NetworkContext for &'a T where T: ?Sized + NetworkContext {
 		(**self).register_timer(token, delay)
 	}
 
-	fn peer_client_version(&self, peer: PeerId) -> String {
+	fn peer_client_version(&self, peer: PeerId) -> ClientVersion {
 		(**self).peer_client_version(peer)
 	}
 

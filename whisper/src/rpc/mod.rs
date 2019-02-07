@@ -24,8 +24,8 @@
 use std::sync::Arc;
 
 use jsonrpc_core::{Error, ErrorCode, Metadata};
-use jsonrpc_pubsub::{Session, PubSubMetadata, SubscriptionId};
-use jsonrpc_macros::pubsub;
+use jsonrpc_derive::rpc;
+use jsonrpc_pubsub::{Session, PubSubMetadata, SubscriptionId, typed::Subscriber};
 
 use ethereum_types::H256;
 use memzero::Memzero;
@@ -68,81 +68,78 @@ fn abridge_topic(topic: &[u8]) -> Topic {
 	abridged.into()
 }
 
-build_rpc_trait! {
-	/// Whisper RPC interface.
-	pub trait Whisper {
-		/// Info about the node.
-		#[rpc(name = "shh_info")]
-		fn info(&self) -> Result<types::NodeInfo, Error>;
+/// Whisper RPC interface.
+#[rpc]
+pub trait Whisper {
+	/// Info about the node.
+	#[rpc(name = "shh_info")]
+	fn info(&self) -> Result<types::NodeInfo, Error>;
 
-		/// Generate a new asymmetric key pair and return an identity.
-		#[rpc(name = "shh_newKeyPair")]
-		fn new_key_pair(&self) -> Result<types::Identity, Error>;
+	/// Generate a new asymmetric key pair and return an identity.
+	#[rpc(name = "shh_newKeyPair")]
+	fn new_key_pair(&self) -> Result<types::Identity, Error>;
 
-		/// Import the given SECP2561k private key and return an identity.
-		#[rpc(name = "shh_addPrivateKey")]
-		fn add_private_key(&self, types::Private) -> Result<types::Identity, Error>;
+	/// Import the given SECP2561k private key and return an identity.
+	#[rpc(name = "shh_addPrivateKey")]
+	fn add_private_key(&self, types::Private) -> Result<types::Identity, Error>;
 
-		/// Generate a new symmetric key and return an identity.
-		#[rpc(name = "shh_newSymKey")]
-		fn new_sym_key(&self) -> Result<types::Identity, Error>;
+	/// Generate a new symmetric key and return an identity.
+	#[rpc(name = "shh_newSymKey")]
+	fn new_sym_key(&self) -> Result<types::Identity, Error>;
 
-		/// Import the given symmetric key and return an identity.
-		#[rpc(name = "shh_addSymKey")]
-		fn add_sym_key(&self, types::Symmetric) -> Result<types::Identity, Error>;
+	/// Import the given symmetric key and return an identity.
+	#[rpc(name = "shh_addSymKey")]
+	fn add_sym_key(&self, types::Symmetric) -> Result<types::Identity, Error>;
 
-		/// Get public key. Succeeds if identity is stored and asymmetric.
-		#[rpc(name = "shh_getPublicKey")]
-		fn get_public(&self, types::Identity) -> Result<types::Public, Error>;
+	/// Get public key. Succeeds if identity is stored and asymmetric.
+	#[rpc(name = "shh_getPublicKey")]
+	fn get_public(&self, types::Identity) -> Result<types::Public, Error>;
 
-		/// Get private key. Succeeds if identity is stored and asymmetric.
-		#[rpc(name = "shh_getPrivateKey")]
-		fn get_private(&self, types::Identity) -> Result<types::Private, Error>;
+	/// Get private key. Succeeds if identity is stored and asymmetric.
+	#[rpc(name = "shh_getPrivateKey")]
+	fn get_private(&self, types::Identity) -> Result<types::Private, Error>;
 
-		#[rpc(name = "shh_getSymKey")]
-		fn get_symmetric(&self, types::Identity) -> Result<types::Symmetric, Error>;
+	#[rpc(name = "shh_getSymKey")]
+	fn get_symmetric(&self, types::Identity) -> Result<types::Symmetric, Error>;
 
-		/// Delete key pair denoted by given identity.
-		///
-		/// Return true if successfully removed, false if unknown,
-		/// and error otherwise.
-		#[rpc(name = "shh_deleteKey")]
-		fn remove_key(&self, types::Identity) -> Result<bool, Error>;
+	/// Delete key pair denoted by given identity.
+	///
+	/// Return true if successfully removed, false if unknown,
+	/// and error otherwise.
+	#[rpc(name = "shh_deleteKey")]
+	fn remove_key(&self, types::Identity) -> Result<bool, Error>;
 
-		/// Post a message to the network with given parameters.
-		#[rpc(name = "shh_post")]
-		fn post(&self, types::PostRequest) -> Result<bool, Error>;
+	/// Post a message to the network with given parameters.
+	#[rpc(name = "shh_post")]
+	fn post(&self, types::PostRequest) -> Result<bool, Error>;
 
-		/// Create a new polled filter.
-		#[rpc(name = "shh_newMessageFilter")]
-		fn new_filter(&self, types::FilterRequest) -> Result<types::Identity, Error>;
+	/// Create a new polled filter.
+	#[rpc(name = "shh_newMessageFilter")]
+	fn new_filter(&self, types::FilterRequest) -> Result<types::Identity, Error>;
 
-		/// Poll changes on a polled filter.
-		#[rpc(name = "shh_getFilterMessages")]
-		fn poll_changes(&self, types::Identity) -> Result<Vec<types::FilterItem>, Error>;
+	/// Poll changes on a polled filter.
+	#[rpc(name = "shh_getFilterMessages")]
+	fn poll_changes(&self, types::Identity) -> Result<Vec<types::FilterItem>, Error>;
 
-		/// Delete polled filter. Return bool indicating success.
-		#[rpc(name = "shh_deleteMessageFilter")]
-		fn delete_filter(&self, types::Identity) -> Result<bool, Error>;
-	}
+	/// Delete polled filter. Return bool indicating success.
+	#[rpc(name = "shh_deleteMessageFilter")]
+	fn delete_filter(&self, types::Identity) -> Result<bool, Error>;
 }
 
-build_rpc_trait! {
-	/// Whisper RPC pubsub.
-	pub trait WhisperPubSub {
-		type Metadata;
+/// Whisper RPC pubsub.
+#[rpc]
+pub trait WhisperPubSub {
+	// RPC Metadata
+	type Metadata;
 
-		#[pubsub(name = "shh_subscription")] {
-			/// Subscribe to messages matching the filter.
-			#[rpc(name = "shh_subscribe")]
-			fn subscribe(&self, Self::Metadata, pubsub::Subscriber<types::FilterItem>, types::FilterRequest);
+	/// Subscribe to messages matching the filter.
+	#[pubsub(subscription = "shh_subscription", subscribe, name = "shh_subscribe")]
+	fn subscribe(&self, Self::Metadata, Subscriber<types::FilterItem>, types::FilterRequest);
 
-			/// Unsubscribe from filter matching given ID. Return
-			/// true on success, error otherwise.
-			#[rpc(name = "shh_unsubscribe")]
-			fn unsubscribe(&self, SubscriptionId) -> Result<bool, Error>;
-		}
-	}
+	/// Unsubscribe from filter matching given ID. Return
+	/// true on success, error otherwise.
+	#[pubsub(subscription = "shh_subscription", unsubscribe, name = "shh_unsubscribe")]
+	fn unsubscribe(&self, Option<Self::Metadata>, SubscriptionId) -> Result<bool, Error>;
 }
 
 /// Something which can send messages to the network.
@@ -364,7 +361,7 @@ impl<P: PoolHandle + 'static, M: Send + Sync + PubSubMetadata> WhisperPubSub for
 	fn subscribe(
 		&self,
 		_meta: Self::Metadata,
-		subscriber: pubsub::Subscriber<types::FilterItem>,
+		subscriber: Subscriber<types::FilterItem>,
 		req: types::FilterRequest,
 	) {
 		match Filter::new(req) {
@@ -377,7 +374,7 @@ impl<P: PoolHandle + 'static, M: Send + Sync + PubSubMetadata> WhisperPubSub for
 		}
 	}
 
-	fn unsubscribe(&self, id: SubscriptionId) -> Result<bool, Error> {
+	fn unsubscribe(&self, _: Option<Self::Metadata>, id: SubscriptionId) -> Result<bool, Error> {
 		use std::str::FromStr;
 
 		let res = match id {

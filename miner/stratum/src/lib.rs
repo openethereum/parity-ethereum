@@ -18,7 +18,6 @@
 
 extern crate jsonrpc_tcp_server;
 extern crate jsonrpc_core;
-extern crate jsonrpc_macros;
 extern crate ethereum_types;
 extern crate keccak_hash as hash;
 extern crate parking_lot;
@@ -39,8 +38,7 @@ use jsonrpc_tcp_server::{
 	Server as JsonRpcServer, ServerBuilder as JsonRpcServerBuilder,
 	RequestContext, MetaExtractor, Dispatcher, PushMessageError,
 };
-use jsonrpc_core::{MetaIoHandler, Params, to_value, Value, Metadata, Compatibility};
-use jsonrpc_macros::IoDelegate;
+use jsonrpc_core::{MetaIoHandler, Params, to_value, Value, Metadata, Compatibility, IoDelegate};
 use std::sync::Arc;
 
 use std::net::SocketAddr;

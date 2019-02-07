@@ -17,25 +17,22 @@
 //! Eth PUB-SUB rpc interface.
 
 use jsonrpc_core::Result;
-use jsonrpc_macros::Trailing;
-use jsonrpc_macros::pubsub::Subscriber;
-use jsonrpc_pubsub::SubscriptionId;
+use jsonrpc_derive::rpc;
+use jsonrpc_pubsub::{typed, SubscriptionId};
 
 use v1::types::pubsub;
 
-build_rpc_trait! {
-	/// Eth PUB-SUB rpc interface.
-	pub trait EthPubSub {
-		type Metadata;
+/// Eth PUB-SUB rpc interface.
+#[rpc]
+pub trait EthPubSub {
+	/// RPC Metadata
+	type Metadata;
 
-		#[pubsub(name = "eth_subscription")] {
-			/// Subscribe to Eth subscription.
-			#[rpc(name = "eth_subscribe")]
-			fn subscribe(&self, Self::Metadata, Subscriber<pubsub::Result>, pubsub::Kind, Trailing<pubsub::Params>);
+	/// Subscribe to Eth subscription.
+	#[pubsub(subscription = "eth_subscription", subscribe, name = "eth_subscribe")]
+	fn subscribe(&self, Self::Metadata, typed::Subscriber<pubsub::Result>, pubsub::Kind, Option<pubsub::Params>);
 
-			/// Unsubscribe from existing Eth subscription.
-			#[rpc(name = "eth_unsubscribe")]
-			fn unsubscribe(&self, SubscriptionId) -> Result<bool>;
-		}
-	}
+	/// Unsubscribe from existing Eth subscription.
+	#[pubsub(subscription = "eth_subscription", unsubscribe, name = "eth_unsubscribe")]
+	fn unsubscribe(&self, Option<Self::Metadata>, SubscriptionId) -> Result<bool>;
 }

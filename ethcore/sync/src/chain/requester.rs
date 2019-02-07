@@ -62,6 +62,7 @@ impl SyncRequester {
 		for h in &hashes {
 			rlp.append(&h.clone());
 		}
+
 		SyncRequester::send_request(sync, io, peer_id, PeerAsking::BlockBodies, GET_BLOCK_BODIES_PACKET, rlp.out());
 		let peer = sync.peers.get_mut(&peer_id).expect("peer_id may originate either from on_packet, where it is already validated or from enumerating self.peers. qed");
 		peer.asking_blocks = hashes;

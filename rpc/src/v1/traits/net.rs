@@ -16,21 +16,21 @@
 
 //! Net rpc interface.
 use jsonrpc_core::Result;
+use jsonrpc_derive::rpc;
 
-build_rpc_trait! {
-	/// Net rpc interface.
-	pub trait Net {
-		/// Returns protocol version.
-		#[rpc(name = "net_version")]
-		fn version(&self) -> Result<String>;
+/// Net rpc interface.
+#[rpc]
+pub trait Net {
+	/// Returns protocol version.
+	#[rpc(name = "net_version")]
+	fn version(&self) -> Result<String>;
 
-		/// Returns number of peers connected to node.
-		#[rpc(name = "net_peerCount")]
-		fn peer_count(&self) -> Result<String>;
+	/// Returns number of peers connected to node.
+	#[rpc(name = "net_peerCount")]
+	fn peer_count(&self) -> Result<String>;
 
-		/// Returns true if client is actively listening for network connections.
-		/// Otherwise false.
-		#[rpc(name = "net_listening")]
-		fn is_listening(&self) -> Result<bool>;
-	}
+	/// Returns true if client is actively listening for network connections.
+	/// Otherwise false.
+	#[rpc(name = "net_listening")]
+	fn is_listening(&self) -> Result<bool>;
 }
