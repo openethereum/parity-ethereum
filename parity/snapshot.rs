@@ -201,6 +201,7 @@ impl SnapshotCommand {
 			Arc::new(ethcore_private_tx::DummySigner),
 			Box::new(ethcore_private_tx::NoopEncryptor),
 			Default::default(),
+			Default::default(),
 		).map_err(|e| format!("Client service error: {:?}", e))?;
 
 		Ok(service)

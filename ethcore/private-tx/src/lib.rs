@@ -21,6 +21,7 @@
 #![recursion_limit="256"]
 
 mod encryptor;
+mod key_server_keys;
 mod private_transactions;
 mod messages;
 mod error;
@@ -64,6 +65,7 @@ extern crate rand;
 extern crate env_logger;
 
 pub use encryptor::{Encryptor, SecretStoreEncryptor, EncryptorConfig, NoopEncryptor};
+pub use key_server_keys::{KeyProvider, SecretStoreKeys, StoringKeyProvider};
 pub use private_transactions::{VerifiedPrivateTransaction, VerificationStore, PrivateTransactionSigningDesc, SigningStore};
 pub use messages::{PrivateTransaction, SignedPrivateTransaction};
 pub use error::{Error, ErrorKind};
@@ -86,6 +88,7 @@ use ethcore::client::{
 	Call, BlockInfo
 };
 use ethcore::miner::{self, Miner, MinerService, pool_client::NonceCache};
+use ethcore::{state, state_db};
 use ethcore::trace::{Tracer, VMTracer};
 use call_contract::CallContract;
 use rustc_hex::FromHex;
@@ -122,8 +125,8 @@ pub struct ProviderConfig {
 pub struct Receipt {
 	/// Private transaction hash.
 	pub hash: H256,
-	/// Created contract address if any.
-	pub contract_address: Option<Address>,
+	/// Contract address.
+	pub contract_address: Address,
 	/// Execution status.
 	pub status_code: u8,
 }
@@ -174,13 +177,14 @@ pub struct Provider {
 	miner: Arc<Miner>,
 	accounts: Arc<Signer>,
 	channel: IoChannel<ClientIoMessage>,
+	keys_provider: Arc<KeyProvider>,
 }
 
 #[derive(Debug)]
 pub struct PrivateExecutionResult<T, V> where T: Tracer, V: VMTracer {
 	code: Option<Bytes>,
 	state: Bytes,
-	contract_address: Option<Address>,
+	contract_address: Address,
 	result: Executed<T::Output, V::Output>,
 }
 
@@ -193,7 +197,9 @@ impl Provider {
 		encryptor: Box<Encryptor>,
 		config: ProviderConfig,
 		channel: IoChannel<ClientIoMessage>,
+		keys_provider: Arc<KeyProvider>,
 	) -> Self {
+		keys_provider.update_acl_contract();
 		Provider {
 			encryptor,
 			validator_accounts: config.validator_accounts.into_iter().collect(),
@@ -205,6 +211,7 @@ impl Provider {
 			miner,
 			accounts,
 			channel,
+			keys_provider,
 		}
 	}
 
@@ -255,7 +262,7 @@ impl Provider {
 		self.broadcast_private_transaction(private.hash(), private.rlp_bytes());
 		Ok(Receipt {
 			hash: tx_hash,
-			contract_address: Some(contract),
+			contract_address: contract,
 			status_code: 0,
 		})
 	}
@@ -511,6 +518,14 @@ impl Provider {
 		raw
 	}
 
+	fn patch_account_state(&self, contract_address: &Address, block: BlockId, state: &mut state::State<state_db::StateDB>) -> Result<(), Error> {
+		let contract_code = Arc::new(self.get_decrypted_code(contract_address, block)?);
+		let contract_state = self.get_decrypted_state(contract_address, block)?;
+		trace!(target: "privatetx", "Patching contract at {:?}, code: {:?}, state: {:?}", contract_address, contract_code, contract_state);
+		state.patch_account(contract_address, contract_code, Self::snapshot_to_storage(contract_state))?;
+		Ok(())
+	}
+
 	pub fn execute_private<T, V>(&self, transaction: &SignedTransaction, options: TransactOptions<T, V>, block: BlockId) -> Result<PrivateExecutionResult<T, V>, Error>
 		where
 			T: Tracer,
@@ -523,41 +538,48 @@ impl Provider {
 		// TODO #9825 in case of BlockId::Latest these need to operate on the same state
 		let contract_address = match transaction.action {
 			Action::Call(ref contract_address) => {
-				let contract_code = Arc::new(self.get_decrypted_code(contract_address, block)?);
-				let contract_state = self.get_decrypted_state(contract_address, block)?;
-				trace!(target: "privatetx", "Patching contract at {:?}, code: {:?}, state: {:?}", contract_address, contract_code, contract_state);
-				state.patch_account(contract_address, contract_code, Self::snapshot_to_storage(contract_state))?;
+				// Patch current contract state
+				self.patch_account_state(contract_address, block, &mut state)?;
 				Some(*contract_address)
 			},
 			Action::Create => None,
 		};
 
 		let engine = self.client.engine();
-		let contract_address = contract_address.or({
-			let sender = transaction.sender();
-			let nonce = state.nonce(&sender)?;
+		let sender = transaction.sender();
+		let nonce = state.nonce(&sender)?;
+		let contract_address = contract_address.unwrap_or_else(|| {
 			let (new_address, _) = ethcore_contract_address(engine.create_address_scheme(env_info.number), &sender, &nonce, &transaction.data);
-			Some(new_address)
+			new_address
 		});
+		// Patch other available private contracts' states as well
+		// TODO: #10133 patch only required for the contract states
+		if let Some(key_server_account) = self.keys_provider.key_server_account() {
+			if let Some(available_contracts) = self.keys_provider.available_keys(block, &key_server_account) {
+				for private_contract in available_contracts {
+					if private_contract == contract_address {
+						continue;
+					}
+					self.patch_account_state(&private_contract, block, &mut state)?;
+				}
+			}
+		}
 		let machine = engine.machine();
 		let schedule = machine.schedule(env_info.number);
 		let result = Executive::new(&mut state, &env_info, &machine, &schedule).transact_virtual(transaction, options)?;
-		let (encrypted_code, encrypted_storage) = match contract_address {
-			None => bail!(ErrorKind::ContractDoesNotExist),
-			Some(address) => {
-				let (code, storage) = state.into_account(&address)?;
-				trace!(target: "privatetx", "Private contract executed. code: {:?}, state: {:?}, result: {:?}", code, storage, result.output);
-				let enc_code = match code {
-					Some(c) => Some(self.encrypt(&address, &Self::iv_from_address(&address), &c)?),
-					None => None,
-				};
-				(enc_code, self.encrypt(&address, &Self::iv_from_transaction(transaction), &Self::snapshot_from_storage(&storage))?)
-			},
+		let (encrypted_code, encrypted_storage) = {
+			let (code, storage) = state.into_account(&contract_address)?;
+			trace!(target: "privatetx", "Private contract executed. code: {:?}, state: {:?}, result: {:?}", code, storage, result.output);
+			let enc_code = match code {
+				Some(c) => Some(self.encrypt(&contract_address, &Self::iv_from_address(&contract_address), &c)?),
+				None => None,
+			};
+			(enc_code, self.encrypt(&contract_address, &Self::iv_from_transaction(transaction), &Self::snapshot_from_storage(&storage))?)
 		};
 		Ok(PrivateExecutionResult {
 			code: encrypted_code,
 			state: encrypted_storage,
-			contract_address,
+			contract_address: contract_address,
 			result,
 		})
 	}
@@ -582,14 +604,11 @@ impl Provider {
 
 	/// Returns the key from the key server associated with the contract
 	pub fn contract_key_id(&self, contract_address: &Address) -> Result<H256, Error> {
-		// Current solution uses contract address extended with 0 as id
-		let contract_address_extended: H256 = contract_address.into();
-
-		Ok(H256::from_slice(&contract_address_extended))
+		Ok(key_server_keys::address_to_key(contract_address))
 	}
 
 	/// Create encrypted public contract deployment transaction.
-	pub fn public_creation_transaction(&self, block: BlockId, source: &SignedTransaction, validators: &[Address], gas_price: U256) -> Result<(Transaction, Option<Address>), Error> {
+	pub fn public_creation_transaction(&self, block: BlockId, source: &SignedTransaction, validators: &[Address], gas_price: U256) -> Result<(Transaction, Address), Error> {
 		if let Action::Call(_) = source.action {
 			bail!(ErrorKind::BadTransactonType);
 		}
@@ -758,5 +777,6 @@ impl ChainNotify for Provider {
 		if let Err(err) = self.process_verification_queue() {
 			warn!(target: "privatetx", "Cannot prune private transactions queue. error: {:?}", err);
 		}
+		self.keys_provider.update_acl_contract();
 	}
 }
