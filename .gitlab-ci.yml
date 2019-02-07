@@ -4,7 +4,7 @@ stages:
   - publish
   - optional
 
-image:                             parity/rust-linux:stretch
+image:                             parity/rust-parity-ethereum-build:stretch
 
 variables:
   GIT_STRATEGY:                    fetch
@@ -44,7 +44,7 @@ test-linux:
   script:
     - scripts/gitlab/test-all.sh
   tags:
-    - rust-stable
+    - linux-docker
 
 test-audit:
   stage:                           test
@@ -53,7 +53,7 @@ test-audit:
     - set -u
     - cargo audit
   tags:
-    - rust-stable
+    - linux-docker
 
 build-linux:
   stage:                           build
@@ -62,7 +62,7 @@ build-linux:
     - scripts/gitlab/build-unix.sh
   <<:                              *collect_artifacts
   tags:
-    - rust-stable
+    - linux-docker
 
 build-darwin:
   stage:                           build
@@ -116,19 +116,65 @@ publish-snap:
   allow_failure:                   true
   <<:                              *collect_artifacts
 
-publish-awss3:
+publish:onnet:update:
   stage:                           publish
   only:                            *releaseable_branches
-  cache: {}
+  cache:                           {}
   dependencies:
     - build-linux
     - build-darwin
     - build-windows
   before_script:                   *determine_version
   script:
-    - scripts/gitlab/publish-awss3.sh
+    - scripts/gitlab/publish-onnet-update.sh
   tags:
-    - shell
+    - linux-docker
+
+# configures aws for fast uploads/syncs
+.s3_before_script:                &s3_before_script
+  before_script:
+    - mkdir -p ${HOME}/.aws
+    - |
+      cat > ${HOME}/.aws/config <<EOC
+      [default]
+      s3 =
+        max_concurrent_requests = 20
+        max_queue_size = 10000
+        multipart_threshold = 64MB
+        multipart_chunksize = 16MB
+        max_bandwidth = 50MB/s
+        use_accelerate_endpoint = false
+        addressing_style = path
+      EOC
+
+publish:awss3:release:
+  image:                           parity/awscli:latest
+  stage:                           publish
+  only:                            *releaseable_branches
+  cache:                           {}
+  dependencies:
+    - build-linux
+    - build-darwin
+    - build-windows
+  variables:
+    GIT_STRATEGY:                  none
+  <<:                              *s3_before_script
+  script:
+    - echo "__________Push binaries to AWS S3____________"
+    - case "${SCHEDULE_TAG:-${CI_COMMIT_REF_NAME}}" in
+        (beta|stable|nightly)
+          export BUCKET=releases.parity.io/ethereum;
+          ;;
+        (*)
+          export BUCKET=builds-parity;
+          ;;
+      esac
+    - aws s3 sync ./artifacts s3://${BUCKET}/${SCHEDULE_TAG:-${CI_COMMIT_REF_NAME}}/
+  after_script:
+    - aws s3 ls s3://${BUCKET}/latest/
+        --recursive --human-readable --summarize
+  tags:
+  - linux-docker
 
 publish-docs:
   stage:                            publish
