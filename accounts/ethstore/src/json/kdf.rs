@@ -15,6 +15,7 @@
 // along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
 use std::fmt;
+use std::num::NonZeroU32;
 use serde::{Serialize, Serializer, Deserialize, Deserializer};
 use serde::de::{Visitor, Error as SerdeError};
 use super::{Error, Bytes};
@@ -108,7 +109,7 @@ impl<'a> Visitor<'a> for PrfVisitor {
 
 #[derive(Debug, PartialEq, Serialize, Deserialize)]
 pub struct Pbkdf2 {
-	pub c: u32,
+	pub c: NonZeroU32,
 	pub dklen: u32,
 	pub prf: Prf,
 	pub salt: Bytes,

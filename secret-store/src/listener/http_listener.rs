@@ -334,7 +334,7 @@ fn parse_request(method: &HttpMethod, uri_path: &str, body: &[u8]) -> Request {
 		Err(_) => return Request::Invalid,
 	};
 
-	let path: Vec<String> = uri_path.trim_left_matches('/').split('/').map(Into::into).collect();
+	let path: Vec<String> = uri_path.trim_start_matches('/').split('/').map(Into::into).collect();
 	if path.len() == 0 {
 		return Request::Invalid;
 	}

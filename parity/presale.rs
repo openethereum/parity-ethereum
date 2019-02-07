@@ -19,10 +19,11 @@ use ethkey::Password;
 use ethstore::PresaleWallet;
 use helpers::{password_prompt, password_from_file};
 use params::SpecType;
+use std::num::NonZeroU32;
 
 #[derive(Debug, PartialEq)]
 pub struct ImportWallet {
-	pub iterations: u32,
+	pub iterations: NonZeroU32,
 	pub path: String,
 	pub spec: SpecType,
 	pub wallet_path: String,

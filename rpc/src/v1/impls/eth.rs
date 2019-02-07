@@ -38,7 +38,6 @@ use types::filter::Filter as EthcoreFilter;
 
 use jsonrpc_core::{BoxFuture, Result};
 use jsonrpc_core::futures::future;
-use jsonrpc_macros::Trailing;
 
 use v1::helpers::{self, errors, limit_logs, fake_sign};
 use v1::helpers::deprecated::{self, DeprecationNotice};
@@ -571,7 +570,7 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM, T: StateInfo + 'static> Eth for EthClient<
 		Ok(RpcU256::from(self.client.chain_info().best_block_number))
 	}
 
-	fn balance(&self, address: RpcH160, num: Trailing<BlockNumber>) -> BoxFuture<RpcU256> {
+	fn balance(&self, address: RpcH160, num: Option<BlockNumber>) -> BoxFuture<RpcU256> {
 		let address = address.into();
 
 		let num = num.unwrap_or_default();
@@ -585,7 +584,7 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM, T: StateInfo + 'static> Eth for EthClient<
 		Box::new(future::done(res))
 	}
 
-	fn proof(&self, address: RpcH160, values: Vec<RpcH256>, num: Trailing<BlockNumber>) -> BoxFuture<EthAccount> {
+	fn proof(&self, address: RpcH160, values: Vec<RpcH256>, num: Option<BlockNumber>) -> BoxFuture<EthAccount> {
 		try_bf!(errors::require_experimental(self.options.allow_experimental_rpcs, "1186"));
 
 		let a: H160 = address.clone().into();
@@ -628,7 +627,7 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM, T: StateInfo + 'static> Eth for EthClient<
 		Box::new(future::done(res))
 	}
 
-	fn storage_at(&self, address: RpcH160, pos: RpcU256, num: Trailing<BlockNumber>) -> BoxFuture<RpcH256> {
+	fn storage_at(&self, address: RpcH160, pos: RpcU256, num: Option<BlockNumber>) -> BoxFuture<RpcH256> {
 		let address: Address = RpcH160::into(address);
 		let position: U256 = RpcU256::into(pos);
 
@@ -643,7 +642,7 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM, T: StateInfo + 'static> Eth for EthClient<
 		Box::new(future::done(res))
 	}
 
-	fn transaction_count(&self, address: RpcH160, num: Trailing<BlockNumber>) -> BoxFuture<RpcU256> {
+	fn transaction_count(&self, address: RpcH160, num: Option<BlockNumber>) -> BoxFuture<RpcU256> {
 		let address: Address = RpcH160::into(address);
 
 		let res = match num.unwrap_or_default() {
@@ -726,7 +725,7 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM, T: StateInfo + 'static> Eth for EthClient<
 		}))
 	}
 
-	fn code_at(&self, address: RpcH160, num: Trailing<BlockNumber>) -> BoxFuture<Bytes> {
+	fn code_at(&self, address: RpcH160, num: Option<BlockNumber>) -> BoxFuture<Bytes> {
 		let address: Address = RpcH160::into(address);
 
 		let num = num.unwrap_or_default();
@@ -835,7 +834,7 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM, T: StateInfo + 'static> Eth for EthClient<
 		base_logs(&*self.client, &*self.miner, filter.into())
 	}
 
-	fn work(&self, no_new_work_timeout: Trailing<u64>) -> Result<Work> {
+	fn work(&self, no_new_work_timeout: Option<u64>) -> Result<Work> {
 		let no_new_work_timeout = no_new_work_timeout.unwrap_or_default();
 
 		// check if we're still syncing and return empty strings in that case
@@ -921,7 +920,7 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM, T: StateInfo + 'static> Eth for EthClient<
 		self.send_raw_transaction(raw)
 	}
 
-	fn call(&self, request: CallRequest, num: Trailing<BlockNumber>) -> BoxFuture<Bytes> {
+	fn call(&self, request: CallRequest, num: Option<BlockNumber>) -> BoxFuture<Bytes> {
 		let request = CallRequest::into(request);
 		let signed = try_bf!(fake_sign::sign_call(request));
 
@@ -961,7 +960,7 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM, T: StateInfo + 'static> Eth for EthClient<
 		))
 	}
 
-	fn estimate_gas(&self, request: CallRequest, num: Trailing<BlockNumber>) -> BoxFuture<RpcU256> {
+	fn estimate_gas(&self, request: CallRequest, num: Option<BlockNumber>) -> BoxFuture<RpcU256> {
 		let request = CallRequest::into(request);
 		let signed = try_bf!(fake_sign::sign_call(request));
 		let num = num.unwrap_or_default();

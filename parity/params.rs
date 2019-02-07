@@ -17,6 +17,7 @@
 use std::collections::HashSet;
 use std::time::Duration;
 use std::{str, fs, fmt};
+use std::num::NonZeroU32;
 
 use ethcore::client::Mode;
 use ethcore::ethereum;
@@ -215,7 +216,7 @@ impl str::FromStr for ResealPolicy {
 
 #[derive(Debug, PartialEq)]
 pub struct AccountsConfig {
-	pub iterations: u32,
+	pub iterations: NonZeroU32,
 	pub refresh_time: u64,
 	pub testnet: bool,
 	pub password_files: Vec<String>,
@@ -227,7 +228,7 @@ pub struct AccountsConfig {
 impl Default for AccountsConfig {
 	fn default() -> Self {
 		AccountsConfig {
-			iterations: 10240,
+			iterations: NonZeroU32::new(10240).expect("10240 > 0; qed"),
 			refresh_time: 5,
 			testnet: false,
 			password_files: Vec::new(),
