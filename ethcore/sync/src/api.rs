@@ -39,7 +39,7 @@ use std::str::FromStr;
 use parking_lot::{RwLock, Mutex};
 use chain::{ETH_PROTOCOL_VERSION_63, ETH_PROTOCOL_VERSION_62,
 			PAR_PROTOCOL_VERSION_1, PAR_PROTOCOL_VERSION_2, PAR_PROTOCOL_VERSION_3};
-use chain::packet::SyncPacketId::*;
+use chain::syncpacketid::SyncPacketId::*;
 use light::client::AsLightClient;
 use light::Provider;
 use light::net::{

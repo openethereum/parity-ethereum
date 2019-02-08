@@ -28,7 +28,7 @@ use types::transaction::SignedTransaction;
 use types::BlockNumber;
 use types::blockchain_info::BlockChainInfo;
 
-use super::packet::{Packet, SyncPacketId, SyncPacketId::*};
+use super::syncpacketid::{Packet, SyncPacketId, SyncPacketId::*};
 use super::{
 	random,
 	ChainSync,
