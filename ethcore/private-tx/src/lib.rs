@@ -73,7 +73,7 @@ pub use key_server_keys::{KeyProvider, SecretStoreKeys, StoringKeyProvider};
 pub use private_transactions::{VerifiedPrivateTransaction, VerificationStore, PrivateTransactionSigningDesc, SigningStore};
 pub use messages::{PrivateTransaction, SignedPrivateTransaction};
 pub use error::{Error, ErrorKind};
-pub use log::{Logging, TransactionLog, ValidatorLog, PrivateTxStatus, FileLogsSerializer};
+pub use log::{Logging, TransactionLog, ValidatorLog, PrivateTxStatus, FileLogsSerializer, SystemTimestamp};
 
 use std::sync::{Arc, Weak};
 use std::collections::{HashMap, HashSet, BTreeMap};
@@ -220,7 +220,7 @@ impl Provider {
 			accounts,
 			channel,
 			keys_provider,
-			logging: Logging::new(Box::new(FileLogsSerializer::new(config.logs_path))),
+			logging: Logging::new(Arc::new(FileLogsSerializer::new(config.logs_path)), Box::new(SystemTimestamp {})),
 		}
 	}
 
