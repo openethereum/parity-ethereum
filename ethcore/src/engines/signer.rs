@@ -16,49 +16,68 @@
 
 //! A signer used by Engines which need to sign messages.
 
-use std::sync::Arc;
 use ethereum_types::{H256, Address};
-use ethkey::{Password, Signature};
-use account_provider::{self, AccountProvider};
+use ethkey::{self, Signature};
 
 /// Everything that an Engine needs to sign messages.
-pub struct EngineSigner {
-	account_provider: Arc<AccountProvider>,
-	address: Option<Address>,
-	password: Option<Password>,
-}
-
-impl Default for EngineSigner {
-	fn default() -> Self {
-		EngineSigner {
-			account_provider: Arc::new(AccountProvider::transient_provider()),
-			address: Default::default(),
-			password: Default::default(),
-		}
-	}
-}
-
-impl EngineSigner {
-	/// Set up the signer to sign with given address and password.
-	pub fn set(&mut self, ap: Arc<AccountProvider>, address: Address, password: Password) {
-		self.account_provider = ap;
-		self.address = Some(address);
-		self.password = Some(password);
-		debug!(target: "poa", "Setting Engine signer to {}", address);
-	}
-
+pub trait EngineSigner: Send + Sync {
 	/// Sign a consensus message hash.
-	pub fn sign(&self, hash: H256) -> Result<Signature, account_provider::SignError> {
-		self.account_provider.sign(self.address.unwrap_or_else(Default::default), self.password.clone(), hash)
+	fn sign(&self, hash: H256) -> Result<Signature, ethkey::Error>;
+
+	/// Signing address
+	fn address(&self) -> Address;
+}
+
+/// Creates a new `EngineSigner` from given key pair.
+pub fn from_keypair(keypair: ethkey::KeyPair) -> Box<EngineSigner> {
+	Box::new(Signer(keypair))
+}
+
+struct Signer(ethkey::KeyPair);
+
+impl EngineSigner for Signer {
+	fn sign(&self, hash: H256) -> Result<Signature, ethkey::Error> {
+		ethkey::sign(self.0.secret(), &hash)
 	}
 
-	/// Signing address.
-	pub fn address(&self) -> Option<Address> {
-		self.address.clone()
+	fn address(&self) -> Address {
+		self.0.address()
 	}
+}
 
-	/// Check if the signing address was set.
-	pub fn is_some(&self) -> bool {
-		self.address.is_some()
+#[cfg(test)]
+mod test_signer {
+	use std::sync::Arc;
+
+	use ethkey::Password;
+	use accounts::{self, AccountProvider, SignError};
+
+	use super::*;
+
+	impl EngineSigner for (Arc<AccountProvider>, Address, Password) {
+		fn sign(&self, hash: H256) -> Result<Signature, ethkey::Error> {
+			match self.0.sign(self.1, Some(self.2.clone()), hash) {
+				Err(SignError::NotUnlocked) => unreachable!(),
+				Err(SignError::NotFound) => Err(ethkey::Error::InvalidAddress),
+				Err(SignError::Hardware(err)) => {
+					warn!("Error using hardware wallet for engine: {:?}", err);
+					Err(ethkey::Error::InvalidSecret)
+				},
+				Err(SignError::SStore(accounts::Error::EthKey(err))) => Err(err),
+				Err(SignError::SStore(accounts::Error::EthKeyCrypto(err))) => {
+					warn!("Low level crypto error: {:?}", err);
+					Err(ethkey::Error::InvalidSecret)
+				},
+				Err(SignError::SStore(err)) => {
+					warn!("Error signing for engine: {:?}", err);
+					Err(ethkey::Error::InvalidSignature)
+				},
+				Ok(ok) => Ok(ok),
+			}
+		}
+
+		fn address(&self) -> Address {
+			self.1
+		}
 	}
 }
