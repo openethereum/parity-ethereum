@@ -280,7 +280,7 @@ mod tests {
 	use ethereum_types::{H256};
 	use std::collections::{HashMap, BTreeMap};
 	use std::sync::{Arc};
-	use transaction::{Transaction};
+	use types::transaction::{Transaction};
 	use parking_lot::{RwLock};
 	use super::{TransactionLog, Logging, PrivateTxStatus, LogsSerializer, TimestampSource};
 
