@@ -56,7 +56,7 @@ use client::{
 	TransactionId, UncleId, TraceId, TraceFilter, LastHashes, CallAnalytics,
 	ProvingBlockChainClient, ScheduleInfo, ImportSealedBlock, BroadcastProposalBlock, ImportBlock, StateOrBlock,
 	Call, StateClient, EngineInfo, AccountData, BlockChain, BlockProducer, SealedBlockImporter, IoClient,
-	BadBlocks,
+	BadBlocks, QueueInfo
 };
 use engines::EthEngine;
 use error::{Error, EthcoreResult};
@@ -68,7 +68,7 @@ use spec::Spec;
 use state::StateInfo;
 use state_db::StateDB;
 use trace::LocalizedTrace;
-use verification::queue::QueueInfo;
+use verification::queue::QueueInfo as BlockQueueInfo;
 use verification::queue::kind::blocks::Unverified;
 
 /// Test client.
@@ -817,17 +817,6 @@ impl BlockChainClient for TestBlockChainClient {
 		None
 	}
 
-	fn queue_info(&self) -> QueueInfo {
-		QueueInfo {
-			verified_queue_size: self.queue_size.load(AtomicOrder::Relaxed),
-			unverified_queue_size: 0,
-			verifying_queue_size: 0,
-			max_queue_size: 0,
-			max_mem_use: 0,
-			mem_used: 0,
-		}
-	}
-
 	fn clear_queue(&self) {
 	}
 
@@ -891,6 +880,19 @@ impl BlockChainClient for TestBlockChainClient {
 	}
 
 	fn registrar_address(&self) -> Option<Address> { None }
+}
+
+impl QueueInfo for TestBlockChainClient {
+	fn queue_info(&self) -> BlockQueueInfo {
+		BlockQueueInfo {
+			verified_queue_size: self.queue_size.load(AtomicOrder::Relaxed),
+			unverified_queue_size: 0,
+			verifying_queue_size: 0,
+			max_queue_size: 0,
+			max_mem_use: 0,
+			mem_used: 0,
+		}
+	}
 }
 
 impl IoClient for TestBlockChainClient {

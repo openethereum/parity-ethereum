@@ -18,7 +18,7 @@
 
 use std::sync::{Weak, Arc};
 
-use ethcore::client::{ClientReport, EnvInfo, ClientIoMessage};
+use ethcore::client::{ClientReport, EnvInfo, ClientIoMessage, QueueInfo};
 use ethcore::engines::{epoch, EthEngine, EpochChange, EpochTransition, Proof};
 use ethcore::machine::EthereumMachine;
 use ethcore::error::{Error, EthcoreResult};
@@ -77,7 +77,7 @@ impl Default for Config {
 }
 
 /// Trait for interacting with the header chain abstractly.
-pub trait LightChainClient: Send + Sync {
+pub trait LightChainClient: Send + Sync + QueueInfo {
 	/// Adds a new `LightChainNotify` listener.
 	fn add_listener(&self, listener: Weak<LightChainNotify>);
 
@@ -124,9 +124,6 @@ pub trait LightChainClient: Send + Sync {
 
 	/// Flush the queue.
 	fn flush_queue(&self);
-
-	/// Get queue info.
-	fn queue_info(&self) -> queue::QueueInfo;
 
 	/// Get the `i`th CHT root.
 	fn cht_root(&self, i: usize) -> Option<H256>;
@@ -534,6 +531,12 @@ impl<T: ChainDataFetcher> Client<T> {
 	}
 }
 
+impl<T: ChainDataFetcher> QueueInfo for Client<T> {
+	fn queue_info(&self) -> queue::QueueInfo {
+		self.queue.queue_info()
+	}
+}
+
 impl<T: ChainDataFetcher> LightChainClient for Client<T> {
 	fn add_listener(&self, listener: Weak<LightChainNotify>) {
 		Client::add_listener(self, listener)
@@ -598,10 +601,6 @@ impl<T: ChainDataFetcher> LightChainClient for Client<T> {
 
 	fn flush_queue(&self) {
 		Client::flush_queue(self);
-	}
-
-	fn queue_info(&self) -> queue::QueueInfo {
-		self.queue.queue_info()
 	}
 
 	fn cht_root(&self, i: usize) -> Option<H256> {

@@ -31,7 +31,7 @@ use v1::traits::EthPubSub;
 use v1::types::{pubsub, RichHeader, Log};
 
 use sync::{SyncState, Notification};
-use ethcore::client::{BlockChainClient, ChainNotify, NewBlocks, ChainRouteType, BlockId};
+use ethcore::client::{BlockChainClient, ChainNotify, QueueInfo, NewBlocks, ChainRouteType, BlockId};
 use ethereum_types::H256;
 use light::cache::Cache;
 use light::client::{LightChainClient, LightChainNotify};
@@ -47,7 +47,7 @@ use types::filter::Filter as EthFilter;
 type Client = Sink<pubsub::Result>;
 
 /// Eth PubSub implementation.
-pub struct EthPubSubClient<C: 'static + Send + Sync> {
+pub struct EthPubSubClient<C> {
 	handler: Arc<ChainNotificationHandler<C>>,
 	heads_subscribers: Arc<RwLock<Subscribers<Client>>>,
 	logs_subscribers: Arc<RwLock<Subscribers<(Client, EthFilter)>>>,
@@ -55,11 +55,12 @@ pub struct EthPubSubClient<C: 'static + Send + Sync> {
 	sync_subscribers: Arc<RwLock<Subscribers<Client>>>,
 }
 
-impl <C: BlockChainClient> EthPubSubClient<C> {
+impl <C: 'static + QueueInfo> EthPubSubClient<C> {
 	/// adds a sync notification channel to the pubsub client
 	pub fn add_sync_notifier(&mut self, receiver: Notification<SyncState>) {
 		let handler = self.handler.clone();
-		let client = self.handler.client.clone() as Arc<BlockChainClient>;
+		let client = self.handler.client.clone() as Arc<QueueInfo>;
+
 		self.handler.executor.spawn(
 			receiver.for_each(move |state| {
 				let queue_info = client.queue_info();
@@ -72,24 +73,7 @@ impl <C: BlockChainClient> EthPubSubClient<C> {
 	}
 }
 
-impl <C: LightChainClient> EthPubSubClient<C> {
-	/// add a light chain sync notification channel to the pubsub client
-	pub fn add_light_sync_notifier(&mut self, receiver: Notification<SyncState>) {
-		let handler = self.handler.clone();
-		let client = self.handler.client.clone() as Arc<LightChainClient>;
-		self.handler.executor.spawn(
-			receiver.for_each(move |state| {
-				let queue_info = client.queue_info();
-				let is_syncing_state = match state { SyncState::Idle | SyncState::NewBlocks => false, _ => true };
-				let is_verifying = queue_info.unverified_queue_size + queue_info.verified_queue_size > 3;
-				handler.notify_syncing(pubsub::PubSubSyncStatus { is_syncing: is_verifying || is_syncing_state });
-				Ok(())
-			})
-		)
-	}
-}
-
-impl<C: Send + Sync> EthPubSubClient<C> {
+impl<C> EthPubSubClient<C> {
 	/// Creates new `EthPubSubClient`.
 	pub fn new(client: Arc<C>, executor: Executor) -> Self {
 		let heads_subscribers = Arc::new(RwLock::new(Subscribers::default()));
@@ -359,7 +343,8 @@ impl<C: Send + Sync + 'static> EthPubSub for EthPubSubClient<C> {
 		let res = self.heads_subscribers.write().remove(&id).is_some();
 		let res2 = self.logs_subscribers.write().remove(&id).is_some();
 		let res3 = self.transactions_subscribers.write().remove(&id).is_some();
+		let res4 = self.sync_subscribers.write().remove(&id).is_some();
 
-		Ok(res || res2 || res3)
+		Ok(res || res2 || res3 || res4)
 	}
 }

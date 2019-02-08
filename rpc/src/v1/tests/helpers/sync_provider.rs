@@ -128,4 +128,8 @@ impl SyncProvider for TestSyncProvider {
 	fn sync_notification(&self) -> mpsc::UnboundedReceiver<SyncState> {
 		unimplemented!()
 	}
+
+	fn is_major_syncing(&self) -> bool {
+		true
+	}
 }

@@ -29,6 +29,7 @@ use network::client_version::ClientVersion;
 use types::pruning_info::PruningInfo;
 use ethereum_types::{H256, H512, U256};
 use futures::sync::mpsc as futures_mpsc;
+use futures::{Stream};
 use io::{TimerToken};
 use ethkey::Secret;
 use ethcore::client::{BlockChainClient, ChainNotify, NewBlocks, ChainMessageType};
@@ -48,6 +49,8 @@ use light::net::{
 	self as light_net, LightProtocol, Params as LightParams,
 	Capabilities, Handler as LightHandler, EventContext, SampleStore,
 };
+use parity_runtime::Executor;
+use std::sync::atomic::{AtomicBool, Ordering};
 use network::IpFilter;
 use private_tx::PrivateTxHandler;
 use types::transaction::UnverifiedTransaction;
@@ -132,6 +135,7 @@ impl Default for SyncConfig {
 	}
 }
 
+/// receiving end of a futures::mpsc channel
 pub type Notification<T> = futures_mpsc::UnboundedReceiver<T>;
 
 /// Current sync status
@@ -150,6 +154,9 @@ pub trait SyncProvider: Send + Sync {
 
 	/// Returns propagation count for pending transactions.
 	fn transactions_stats(&self) -> BTreeMap<H256, TransactionStats>;
+
+	/// gets
+	fn is_major_syncing(&self) -> bool;
 }
 
 /// Transaction stats
@@ -272,6 +279,8 @@ impl PriorityTask {
 pub struct Params {
 	/// Configuration.
 	pub config: SyncConfig,
+	/// Runtime executor
+	pub executor: Executor,
 	/// Blockchain client.
 	pub chain: Arc<BlockChainClient>,
 	/// Snapshot service.
@@ -302,6 +311,8 @@ pub struct EthSync {
 	light_subprotocol_name: [u8; 3],
 	/// Priority tasks notification channel
 	priority_tasks: Mutex<mpsc::Sender<PriorityTask>>,
+
+	is_major_syncing: Arc<AtomicBool>
 }
 
 fn light_params(
@@ -361,6 +372,27 @@ impl EthSync {
 			params.private_tx_handler.as_ref().cloned(),
 			priority_tasks_rx,
 		);
+
+		let is_major_syncing = Arc::new(AtomicBool::default());
+
+		{
+			// spawn task that constantly updates EthSync.is_major_sync
+			let notifications = sync.write().sync_notifications();
+			let moved_client = Arc::downgrade(&params.chain);
+			let moved_is_major_syncing = is_major_syncing.clone();
+
+			params.executor.spawn(notifications.for_each(move |sync_status| {
+				if let Some(queue_info) = moved_client.upgrade().map(|client| client.queue_info()) {
+					let is_syncing_state = match sync_status { SyncState::Idle | SyncState::NewBlocks => false, _ => true };
+					let is_verifying = queue_info.unverified_queue_size + queue_info.verified_queue_size > 3;
+					moved_is_major_syncing.store(is_verifying || is_syncing_state, Ordering::SeqCst);
+					return Ok(())
+				}
+
+				// client has been dropped
+				return Err(())
+			}));
+		}
 		let service = NetworkService::new(params.network_config.clone().into_basic()?, connection_filter)?;
 
 		let sync = Arc::new(EthSync {
@@ -376,6 +408,7 @@ impl EthSync {
 			light_subprotocol_name: params.config.light_subprotocol_name,
 			attached_protos: params.attached_protos,
 			priority_tasks: Mutex::new(priority_tasks_tx),
+			is_major_syncing
 		});
 
 		Ok(sync)
@@ -429,6 +462,10 @@ impl SyncProvider for EthSync {
 
 	fn sync_notification(&self) -> Notification<SyncState> {
 		self.eth_handler.sync.write().sync_notifications()
+	}
+
+	fn is_major_syncing(&self) -> bool {
+		self.is_major_syncing.load(Ordering::SeqCst)
 	}
 }
 

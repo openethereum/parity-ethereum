@@ -205,9 +205,15 @@ pub trait BadBlocks {
 	fn bad_blocks(&self) -> Vec<(Unverified, String)>;
 }
 
+/// provides block queue information
+pub trait QueueInfo: Send + Sync {
+	/// Get block queue information.
+	fn queue_info(&self) -> BlockQueueInfo;
+}
+
 /// Blockchain database client. Owns and manages a blockchain and a block queue.
 pub trait BlockChainClient : Sync + Send + AccountData + BlockChain + CallContract + RegistryInfo + ImportBlock
-+ IoClient + BadBlocks {
++ IoClient + BadBlocks + QueueInfo {
 	/// Look up the block number for the given block ID.
 	fn block_number(&self, id: BlockId) -> Option<BlockNumber>;
 
@@ -284,9 +290,6 @@ pub trait BlockChainClient : Sync + Send + AccountData + BlockChain + CallContra
 
 	/// Get block receipts data by block header hash.
 	fn block_receipts(&self, hash: &H256) -> Option<BlockReceipts>;
-
-	/// Get block queue information.
-	fn queue_info(&self) -> BlockQueueInfo;
 
 	/// Returns true if block queue is empty.
 	fn is_queue_empty(&self) -> bool {

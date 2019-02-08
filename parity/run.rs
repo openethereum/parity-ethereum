@@ -660,6 +660,7 @@ fn execute_impl<Cr, Rr>(cmd: RunCmd, logger: Arc<RotatingLogger>, on_client_rq: 
 
 	// create sync object
 	let (sync_provider, manage_network, chain_notify, priority_tasks) = modules::sync(
+		runtime.executor(),
 		sync_config,
 		net_conf.clone().into(),
 		client.clone(),
@@ -818,7 +819,7 @@ fn execute_impl<Cr, Rr>(cmd: RunCmd, logger: Arc<RotatingLogger>, on_client_rq: 
 			let client = client.clone();
 			let watcher = Arc::new(snapshot::Watcher::new(
 				service.client(),
-				move || is_major_importing(Some(sync.status().state), client.queue_info()),
+				move || sync.is_major_syncing(),
 				service.io().channel(),
 				SNAPSHOT_PERIOD,
 				SNAPSHOT_HISTORY,

@@ -36,6 +36,7 @@ extern crate parking_lot;
 extern crate rand;
 extern crate rlp;
 extern crate triehash_ethereum;
+extern crate parity_runtime;
 extern crate futures;
 
 extern crate ethcore_light as light;
