@@ -1,32 +1,11 @@
 #!/bin/sh
 # Running Parity Full Test Suite
+echo "________Running test.sh________"
 
 FEATURES="json-tests,ci-skip-issue"
 OPTIONS="--release"
 VALIDATE=1
 THREADS=8
-
-case $1 in
-  --no-json)
-    FEATURES="ipc"
-    shift # past argument=value
-    ;;
-  --no-release)
-    OPTIONS=""
-    shift
-    ;;
-  --no-validate)
-    VALIDATE=0
-    shift
-    ;;
-  --no-run)
-    OPTIONS="--no-run"
-    shift
-    ;;
-  *)
-    # unknown option
-    ;;
-esac
 
 set -e
 
@@ -57,8 +36,8 @@ cpp_test () {
       cd $DIR
       cmake ..
       make -j $THREADS
-      ./parity-example > example.logs
-      tail --lines 100 example.logs
+      # Note: we don't try to run the example because it tries to sync Kovan, and we don't want
+      #       that to happen on CI
       cd -
       rm -rf $DIR
       ;;

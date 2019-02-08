@@ -24,11 +24,12 @@ use devp2p::NetworkService;
 use network::{NetworkProtocolHandler, NetworkContext, PeerId, ProtocolId,
 	NetworkConfiguration as BasicNetworkConfiguration, NonReservedPeerMode, Error, ErrorKind,
 	ConnectionFilter};
+use network::client_version::ClientVersion;
 
 use types::pruning_info::PruningInfo;
 use ethereum_types::{H256, H512, U256};
 use io::{TimerToken};
-use ethstore::ethkey::Secret;
+use ethkey::Secret;
 use ethcore::client::{BlockChainClient, ChainNotify, NewBlocks, ChainMessageType};
 use ethcore::snapshot::SnapshotService;
 use types::BlockNumber;
@@ -158,7 +159,7 @@ pub struct PeerInfo {
 	/// Public node id
 	pub id: Option<String>,
 	/// Node client ID
-	pub client_version: String,
+	pub client_version: ClientVersion,
 	/// Capabilities
 	pub capabilities: Vec<String>,
 	/// Remote endpoint address
@@ -576,9 +577,9 @@ impl ChainNotify for EthSync {
 			match message_type {
 				ChainMessageType::Consensus(message) => self.eth_handler.sync.write().propagate_consensus_packet(&mut sync_io, message),
 				ChainMessageType::PrivateTransaction(transaction_hash, message) =>
-					self.eth_handler.sync.write().propagate_private_transaction(&mut sync_io, transaction_hash, PRIVATE_TRANSACTION_PACKET, message),
+					self.eth_handler.sync.write().propagate_private_transaction(&mut sync_io, transaction_hash, WARP_SYNC_PROTOCOL_ID, PRIVATE_TRANSACTION_PACKET, message),
 				ChainMessageType::SignedPrivateTransaction(transaction_hash, message) =>
-					self.eth_handler.sync.write().propagate_private_transaction(&mut sync_io, transaction_hash, SIGNED_PRIVATE_TRANSACTION_PACKET, message),
+					self.eth_handler.sync.write().propagate_private_transaction(&mut sync_io, transaction_hash, WARP_SYNC_PROTOCOL_ID, SIGNED_PRIVATE_TRANSACTION_PACKET, message),
 			}
 		});
 	}

@@ -445,19 +445,19 @@ mod tests {
 	use ethereum_types::Address;
 	use types::ids::BlockId;
 	use spec::Spec;
-	use account_provider::AccountProvider;
+	use accounts::AccountProvider;
 	use types::transaction::{Transaction, Action};
 	use client::{ChainInfo, BlockInfo, ImportBlock};
 	use ethkey::Secret;
-	use miner::MinerService;
-	use test_helpers::{generate_dummy_client_with_spec_and_accounts, generate_dummy_client_with_spec_and_data};
+	use miner::{self, MinerService};
+	use test_helpers::{generate_dummy_client_with_spec, generate_dummy_client_with_spec_and_data};
 	use super::super::ValidatorSet;
 	use super::{ValidatorSafeContract, EVENT_NAME_HASH};
 	use verification::queue::kind::blocks::Unverified;
 
 	#[test]
 	fn fetches_validators() {
-		let client = generate_dummy_client_with_spec_and_accounts(Spec::new_validator_safe_contract, None);
+		let client = generate_dummy_client_with_spec(Spec::new_validator_safe_contract);
 		let vc = Arc::new(ValidatorSafeContract::new("0000000000000000000000000000000000000005".parse::<Address>().unwrap()));
 		vc.register_client(Arc::downgrade(&client) as _);
 		let last_hash = client.best_block_header().hash();
@@ -472,11 +472,12 @@ mod tests {
 		let v0 = tap.insert_account(s0.clone(), &"".into()).unwrap();
 		let v1 = tap.insert_account(keccak("0").into(), &"".into()).unwrap();
 		let chain_id = Spec::new_validator_safe_contract().chain_id();
-		let client = generate_dummy_client_with_spec_and_accounts(Spec::new_validator_safe_contract, Some(tap));
+		let client = generate_dummy_client_with_spec(Spec::new_validator_safe_contract);
 		client.engine().register_client(Arc::downgrade(&client) as _);
 		let validator_contract = "0000000000000000000000000000000000000005".parse::<Address>().unwrap();
+		let signer = Box::new((tap.clone(), v1, "".into()));
 
-		client.miner().set_author(v1, Some("".into())).unwrap();
+		client.miner().set_author(miner::Author::Sealer(signer));
 		// Remove "1" validator.
 		let tx = Transaction {
 			nonce: 0.into(),
@@ -504,11 +505,13 @@ mod tests {
 		assert_eq!(client.chain_info().best_block_number, 1);
 
 		// Switch to the validator that is still there.
-		client.miner().set_author(v0, Some("".into())).unwrap();
+		let signer = Box::new((tap.clone(), v0, "".into()));
+		client.miner().set_author(miner::Author::Sealer(signer));
 		::client::EngineClient::update_sealing(&*client);
 		assert_eq!(client.chain_info().best_block_number, 2);
 		// Switch back to the added validator, since the state is updated.
-		client.miner().set_author(v1, Some("".into())).unwrap();
+		let signer = Box::new((tap.clone(), v1, "".into()));
+		client.miner().set_author(miner::Author::Sealer(signer));
 		let tx = Transaction {
 			nonce: 2.into(),
 			gas_price: 0.into(),
@@ -539,7 +542,7 @@ mod tests {
 		use types::header::Header;
 		use types::log_entry::LogEntry;
 
-		let client = generate_dummy_client_with_spec_and_accounts(Spec::new_validator_safe_contract, None);
+		let client = generate_dummy_client_with_spec(Spec::new_validator_safe_contract);
 		let engine = client.engine().clone();
 		let validator_contract = "0000000000000000000000000000000000000005".parse::<Address>().unwrap();
 
@@ -576,7 +579,7 @@ mod tests {
 		use types::header::Header;
 		use engines::{EpochChange, Proof};
 
-		let client = generate_dummy_client_with_spec_and_accounts(Spec::new_validator_safe_contract, None);
+		let client = generate_dummy_client_with_spec(Spec::new_validator_safe_contract);
 		let engine = client.engine().clone();
 
 		let mut new_header = Header::default();

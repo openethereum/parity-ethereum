@@ -20,12 +20,12 @@ use std::cell::RefCell;
 use std::sync::Arc;
 use std::str::FromStr;
 
-use account_provider::AccountProvider;
+use accounts::AccountProvider;
 use client::{Client, BlockChainClient, ChainInfo};
 use ethkey::Secret;
 use snapshot::tests::helpers as snapshot_helpers;
 use spec::Spec;
-use test_helpers::generate_dummy_client_with_spec_and_accounts;
+use test_helpers::generate_dummy_client_with_spec;
 use types::transaction::{Transaction, Action, SignedTransaction};
 use tempdir::TempDir;
 
@@ -88,8 +88,7 @@ enum Transition {
 
 // create a chain with the given transitions and some blocks beyond that transition.
 fn make_chain(accounts: Arc<AccountProvider>, blocks_beyond: usize, transitions: Vec<Transition>) -> Arc<Client> {
-	let client = generate_dummy_client_with_spec_and_accounts(
-		spec_fixed_to_contract, Some(accounts.clone()));
+	let client = generate_dummy_client_with_spec(spec_fixed_to_contract);
 
 	let mut cur_signers = vec![*RICH_ADDR];
 	{
@@ -100,13 +99,14 @@ fn make_chain(accounts: Arc<AccountProvider>, blocks_beyond: usize, transitions:
 	{
 		// push a block with given number, signed by one of the signers, with given transactions.
 		let push_block = |signers: &[Address], n, txs: Vec<SignedTransaction>| {
-			use miner::MinerService;
+			use miner::{self, MinerService};
 
 			let idx = n as usize % signers.len();
 			trace!(target: "snapshot", "Pushing block #{}, {} txs, author={}",
 				n, txs.len(), signers[idx]);
 
-			client.miner().set_author(signers[idx], Some(PASS.into())).unwrap();
+			let signer = Box::new((accounts.clone(), signers[idx], PASS.into()));
+			client.miner().set_author(miner::Author::Sealer(signer));
 			client.miner().import_external_transactions(&*client,
 				txs.into_iter().map(Into::into).collect());
 

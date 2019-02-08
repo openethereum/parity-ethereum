@@ -22,12 +22,15 @@ mod eth_filter;
 mod eth_pubsub;
 mod net;
 mod parity;
+#[cfg(any(test, feature = "accounts"))]
 mod parity_accounts;
 mod parity_set;
+#[cfg(any(test, feature = "accounts"))]
 mod personal;
 mod private;
 mod pubsub;
 mod rpc;
+#[cfg(any(test, feature = "accounts"))]
 mod secretstore;
 mod signer;
 mod signing;
@@ -43,12 +46,17 @@ pub use self::eth_filter::EthFilterClient;
 pub use self::eth_pubsub::EthPubSubClient;
 pub use self::net::NetClient;
 pub use self::parity::ParityClient;
+#[cfg(any(test, feature = "accounts"))]
 pub use self::parity_accounts::ParityAccountsClient;
 pub use self::parity_set::ParitySetClient;
+#[cfg(any(test, feature = "accounts"))]
+pub use self::parity_set::accounts::ParitySetAccountsClient;
+#[cfg(any(test, feature = "accounts"))]
 pub use self::personal::PersonalClient;
 pub use self::private::PrivateClient;
 pub use self::pubsub::PubSubClient;
 pub use self::rpc::RpcClient;
+#[cfg(any(test, feature = "accounts"))]
 pub use self::secretstore::SecretStoreClient;
 pub use self::signer::SignerClient;
 pub use self::signing::SigningQueueClient;

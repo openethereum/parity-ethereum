@@ -29,7 +29,6 @@ use ethcore::executed::ExecutionError;
 use jsonrpc_core::{Result, Error};
 use jsonrpc_core::futures::{future, Future};
 use jsonrpc_core::futures::future::Either;
-use jsonrpc_macros::Trailing;
 
 use light::cache::Cache;
 use light::client::LightChainClient;
@@ -202,7 +201,7 @@ impl LightFetch {
 	}
 
 	/// Helper for getting proved execution.
-	pub fn proved_read_only_execution(&self, req: CallRequest, num: Trailing<BlockNumber>) -> impl Future<Item = ExecutionResult, Error = Error> + Send {
+	pub fn proved_read_only_execution(&self, req: CallRequest, num: Option<BlockNumber>) -> impl Future<Item = ExecutionResult, Error = Error> + Send {
 		const DEFAULT_GAS_PRICE: u64 = 21_000;
 		// (21000 G_transaction + 32000 G_create + some marginal to allow a few operations)
 		const START_GAS: u64 = 60_000;
@@ -232,7 +231,7 @@ impl LightFetch {
 		let gas_price_percentile = self.gas_price_percentile;
 		let gas_price_fut = match req.gas_price {
 			Some(price) => Either::A(future::ok(price)),
-			None => Either::B(dispatch::fetch_gas_price_corpus(
+			None => Either::B(dispatch::light::fetch_gas_price_corpus(
 				self.sync.clone(),
 				self.client.clone(),
 				self.on_demand.clone(),

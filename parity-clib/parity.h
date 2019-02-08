@@ -35,6 +35,9 @@ struct ParityParams {
 
 	/// Custom parameter passed to the `on_client_restart_cb` callback as first parameter.
 	void *on_client_restart_cb_custom;
+
+	/// Logger object which must be created by the `parity_config_logger` function
+	void *logger;
 };
 
 #ifdef __cplusplus
@@ -62,6 +65,33 @@ extern "C" {
 /// ```
 ///
 int parity_config_from_cli(char const* const* args, size_t const* arg_lens, size_t len, void** out);
+
+/// Builds a new logger object which should be a member of the `ParityParams struct`
+///
+///	- log_mode		: String representing the log mode according to `Rust LOG` or nullptr to disable logging.
+///					  See module documentation for `ethcore-logger` for more info.
+///	- log_mode_len	: Length of the log_mode or zero to disable logging
+///	- log_file		: String respresenting the file name to write to log to or nullptr to disable logging to a file
+///	- log_mode_len	: Length of the log_file or zero to disable logging to a file
+///	- logger		: Pointer to point to the created `Logger` object
+
+/// **Important**: This function must only be called exactly once otherwise it will panic. If you want to disable a
+/// logging mode or logging to a file make sure that you pass the `length` as zero
+///
+/// # Example
+///
+/// ```no_run
+/// void* cfg;
+/// const char *args[] = {"--light", "--can-restart"};
+/// size_t str_lens[] = {7, 13};
+/// if (parity_config_from_cli(args, str_lens, 2, &cfg) != 0) {
+///		return 1;
+/// }
+/// char[] logger_mode = "rpc=trace";
+/// parity_set_logger(logger_mode, strlen(logger_mode), nullptr, 0, &cfg.logger);
+/// ```
+///
+int parity_set_logger(const char* log_mode, size_t log_mode_len, const char* log_file, size_t log_file_len, void** logger);
 
 /// Destroys a configuration object created earlier.
 ///

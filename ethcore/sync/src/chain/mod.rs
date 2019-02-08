@@ -103,7 +103,8 @@ use fastmap::{H256FastMap, H256FastSet};
 use parking_lot::{Mutex, RwLock, RwLockWriteGuard};
 use bytes::Bytes;
 use rlp::{RlpStream, DecoderError};
-use network::{self, PeerId, PacketId};
+use network::{self, PeerId, PacketId, ProtocolId};
+use network::client_version::ClientVersion;
 use ethcore::client::{BlockChainClient, BlockStatus, BlockId, BlockChainInfo, BlockQueueInfo};
 use ethcore::snapshot::{RestorationStatus};
 use sync_io::SyncIo;
@@ -111,7 +112,7 @@ use super::{WarpSync, SyncConfig};
 use block_sync::{BlockDownloader, DownloadAction};
 use rand::Rng;
 use snapshot::{Snapshot};
-use api::{EthProtocolInfo as PeerInfoDigest, WARP_SYNC_PROTOCOL_ID, PriorityTask};
+use api::{EthProtocolInfo as PeerInfoDigest, ETH_PROTOCOL, WARP_SYNC_PROTOCOL_ID, PriorityTask};
 use private_tx::PrivateTxHandler;
 use transactions_stats::{TransactionsStats, Stats as TransactionStats};
 use types::transaction::UnverifiedTransaction;
@@ -153,7 +154,7 @@ const MAX_TRANSACTION_PACKET_SIZE: usize = 5 * 1024 * 1024;
 const SNAPSHOT_RESTORE_THRESHOLD: BlockNumber = 30000;
 const SNAPSHOT_MIN_PEERS: usize = 3;
 
-const STATUS_PACKET: u8 = 0x00;
+pub const STATUS_PACKET: u8 = 0x00;
 const NEW_BLOCK_HASHES_PACKET: u8 = 0x01;
 const TRANSACTIONS_PACKET: u8 = 0x02;
 pub const GET_BLOCK_HEADERS_PACKET: u8 = 0x03;
@@ -342,6 +343,8 @@ pub struct PeerInfo {
 	snapshot_number: Option<BlockNumber>,
 	/// Block set requested
 	block_set: Option<BlockSet>,
+	/// Version of the software the peer is running
+	client_version: ClientVersion,
 }
 
 impl PeerInfo {
@@ -481,7 +484,7 @@ impl ChainSyncApi {
 					for peers in sync.get_peers(&chain_info, PeerState::SameBlock).chunks(10) {
 						check_deadline(deadline)?;
 						for peer in peers {
-							SyncPropagator::send_packet(io, *peer, NEW_BLOCK_PACKET, rlp.clone());
+							SyncPropagator::send_packet(io, ETH_PROTOCOL, *peer, NEW_BLOCK_PACKET, rlp.clone());
 							if let Some(ref mut peer) = sync.peers.get_mut(peer) {
 								peer.latest_hash = hash;
 							}
@@ -964,7 +967,7 @@ impl ChainSync {
 					if !have_latest && (higher_difficulty || force || self.state == SyncState::NewBlocks) {
 						// check if got new blocks to download
 						trace!(target: "sync", "Syncing with peer {}, force={}, td={:?}, our td={}, state={:?}", peer_id, force, peer_difficulty, syncing_difficulty, self.state);
-						if let Some(request) = self.new_blocks.request_blocks(io, num_active_peers) {
+						if let Some(request) = self.new_blocks.request_blocks(peer_id, io, num_active_peers) {
 							SyncRequester::request_blocks(self, io, peer_id, request, BlockSet::NewBlocks);
 							if self.state == SyncState::Idle {
 								self.state = SyncState::Blocks;
@@ -977,7 +980,7 @@ impl ChainSync {
 					let equal_or_higher_difficulty = peer_difficulty.map_or(false, |pd| pd >= syncing_difficulty);
 
 					if force || equal_or_higher_difficulty {
-						if let Some(request) = self.old_blocks.as_mut().and_then(|d| d.request_blocks(io, num_active_peers)) {
+						if let Some(request) = self.old_blocks.as_mut().and_then(|d| d.request_blocks(peer_id, io, num_active_peers)) {
 							SyncRequester::request_blocks(self, io, peer_id, request, BlockSet::OldBlocks);
 							return;
 						}
@@ -1328,8 +1331,8 @@ impl ChainSync {
 	}
 
 	/// Broadcast private transaction message to peers.
-	pub fn propagate_private_transaction(&mut self, io: &mut SyncIo, transaction_hash: H256, packet_id: PacketId, packet: Bytes) {
-		SyncPropagator::propagate_private_transaction(self, io, transaction_hash, packet_id, packet);
+	pub fn propagate_private_transaction(&mut self, io: &mut SyncIo, transaction_hash: H256, protocol: ProtocolId, packet_id: PacketId, packet: Bytes) {
+		SyncPropagator::propagate_private_transaction(self, io, transaction_hash, protocol, packet_id, packet);
 	}
 }
 
@@ -1459,6 +1462,7 @@ pub mod tests {
 				snapshot_hash: None,
 				asking_snapshot_data: None,
 				block_set: None,
+				client_version: ClientVersion::from(""),
 			});
 
 	}
