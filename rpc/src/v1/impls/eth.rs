@@ -25,7 +25,6 @@ use ethereum_types::{U256, H256, H160, Address};
 use parking_lot::Mutex;
 
 use ethash::{self, SeedHashCompute};
-use ethcore::account_provider::AccountProvider;
 use ethcore::client::{BlockChainClient, BlockId, TransactionId, UncleId, StateOrBlock, StateClient, StateInfo, Call, EngineInfo, ProvingBlockChainClient};
 use ethcore::miner::{self, MinerService};
 use ethcore::snapshot::SnapshotService;
@@ -41,6 +40,7 @@ use jsonrpc_core::{BoxFuture, Result};
 use jsonrpc_core::futures::future;
 
 use v1::helpers::{self, errors, limit_logs, fake_sign};
+use v1::helpers::deprecated::{self, DeprecationNotice};
 use v1::helpers::dispatch::{FullDispatcher, default_gas_price};
 use v1::helpers::block_import::is_major_importing;
 use v1::traits::Eth;
@@ -105,11 +105,12 @@ pub struct EthClient<C, SN: ?Sized, S: ?Sized, M, EM> where
 	client: Arc<C>,
 	snapshot: Arc<SN>,
 	sync: Arc<S>,
-	accounts: Arc<AccountProvider>,
+	accounts: Arc<Fn() -> Vec<Address> + Send + Sync>,
 	miner: Arc<M>,
 	external_miner: Arc<EM>,
 	seed_compute: Mutex<SeedHashCompute>,
 	options: EthClientOptions,
+	deprecation_notice: DeprecationNotice,
 }
 
 #[derive(Debug)]
@@ -184,7 +185,7 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM, T: StateInfo + 'static> EthClient<C, SN, S
 		client: &Arc<C>,
 		snapshot: &Arc<SN>,
 		sync: &Arc<S>,
-		accounts: &Arc<AccountProvider>,
+		accounts: &Arc<Fn() -> Vec<Address> + Send + Sync>,
 		miner: &Arc<M>,
 		em: &Arc<EM>,
 		options: EthClientOptions
@@ -198,6 +199,7 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM, T: StateInfo + 'static> EthClient<C, SN, S
 			external_miner: em.clone(),
 			seed_compute: Mutex::new(SeedHashCompute::default()),
 			options: options,
+			deprecation_notice: Default::default(),
 		}
 	}
 
@@ -531,9 +533,9 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM, T: StateInfo + 'static> Eth for EthClient<
 	fn author(&self) -> Result<RpcH160> {
 		let miner = self.miner.authoring_params().author;
 		if miner == 0.into() {
-			self.accounts.accounts()
-				.ok()
-				.and_then(|a| a.first().cloned())
+			(self.accounts)()
+				.first()
+				.cloned()
 				.map(From::from)
 				.ok_or_else(|| errors::account("No accounts were found", ""))
 		} else {
@@ -558,8 +560,9 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM, T: StateInfo + 'static> Eth for EthClient<
 	}
 
 	fn accounts(&self) -> Result<Vec<RpcH160>> {
-		let accounts = self.accounts.accounts()
-			.map_err(|e| errors::account("Could not fetch accounts.", e))?;
+		self.deprecation_notice.print("eth_accounts", deprecated::msgs::ACCOUNTS);
+
+		let accounts = (self.accounts)();
 		Ok(accounts.into_iter().map(Into::into).collect())
 	}
 
@@ -593,7 +596,7 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM, T: StateInfo + 'static> Eth for EthClient<
 			BlockNumber::Earliest => BlockId::Earliest,
 			BlockNumber::Latest => BlockId::Latest,
 			BlockNumber::Pending => {
-				warn!("`Pending` is deprecated and may be removed in future versions. Falling back to `Latest`");
+				self.deprecation_notice.print("`Pending`", Some("falling back to `Latest`"));
 				BlockId::Latest
 			}
 		};

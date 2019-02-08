@@ -20,12 +20,12 @@ use ethereum_types::H256;
 use parking_lot::{RwLock, Mutex};
 use bytes::Bytes;
 use network::{self, PeerId, ProtocolId, PacketId, SessionInfo};
+use network::client_version::ClientVersion;
 use tests::snapshot::*;
 use ethcore::client::{TestBlockChainClient, BlockChainClient, Client as EthcoreClient,
 	ClientConfig, ChainNotify, NewBlocks, ChainMessageType, ClientIoMessage};
 use ethcore::snapshot::SnapshotService;
 use ethcore::spec::Spec;
-use ethcore::account_provider::AccountProvider;
 use ethcore::miner::Miner;
 use ethcore::test_helpers;
 use sync_io::SyncIo;
@@ -119,10 +119,12 @@ impl<'p, C> SyncIo for TestIo<'p, C> where C: FlushingBlockChainClient, C: 'p {
 		&*self.chain
 	}
 
-	fn peer_info(&self, peer_id: PeerId) -> String {
-		self.peers_info.get(&peer_id)
+	fn peer_version(&self, peer_id: PeerId) -> ClientVersion {
+		let client_id = self.peers_info.get(&peer_id)
 			.cloned()
-			.unwrap_or_else(|| peer_id.to_string())
+			.unwrap_or_else(|| peer_id.to_string());
+
+		ClientVersion::from(client_id)
 	}
 
 	fn snapshot_service(&self) -> &SnapshotService {
@@ -367,11 +369,10 @@ impl TestNet<EthPeer<TestBlockChainClient>> {
 }
 
 impl TestNet<EthPeer<EthcoreClient>> {
-	pub fn with_spec_and_accounts<F>(
+	pub fn with_spec<F>(
 		n: usize,
 		config: SyncConfig,
 		spec_factory: F,
-		accounts: Option<Arc<AccountProvider>>
 	) -> Self
 		where F: Fn() -> Spec
 	{
@@ -381,14 +382,14 @@ impl TestNet<EthPeer<EthcoreClient>> {
 			disconnect_events: Vec::new(),
 		};
 		for _ in 0..n {
-			net.add_peer_with_private_config(config.clone(), spec_factory(), accounts.clone());
+			net.add_peer_with_private_config(config.clone(), spec_factory());
 		}
 		net
 	}
 
-	pub fn add_peer_with_private_config(&mut self, config: SyncConfig, spec: Spec, accounts: Option<Arc<AccountProvider>>) {
+	pub fn add_peer_with_private_config(&mut self, config: SyncConfig, spec: Spec) {
 		let channel = IoChannel::disconnected();
-		let miner = Arc::new(Miner::new_for_tests(&spec, accounts.clone()));
+		let miner = Arc::new(Miner::new_for_tests(&spec, None));
 		let client = EthcoreClient::new(
 			ClientConfig::default(),
 			&spec,

@@ -20,10 +20,12 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use ethcore::client::{BlockChainClient, Mode};
-use ethcore::miner::MinerService;
-use sync::ManageNetwork;
+use ethcore::miner::{self, MinerService};
+use ethereum_types::H256 as EthH256;
+use ethkey;
 use fetch::{self, Fetch};
 use hash::keccak_buffer;
+use sync::ManageNetwork;
 use updater::{Service as UpdateService};
 
 use jsonrpc_core::{BoxFuture, Result};
@@ -31,6 +33,53 @@ use jsonrpc_core::futures::Future;
 use v1::helpers::errors;
 use v1::traits::ParitySet;
 use v1::types::{Bytes, H160, H256, U256, ReleaseInfo, Transaction};
+
+#[cfg(any(test, feature = "accounts"))]
+pub mod accounts {
+	use super::*;
+	use accounts::AccountProvider;
+	use v1::traits::ParitySetAccounts;
+	use v1::helpers::deprecated::DeprecationNotice;
+	use v1::helpers::engine_signer::EngineSigner;
+
+	/// Parity-specific account-touching RPC interfaces.
+	pub struct ParitySetAccountsClient<M> {
+		miner: Arc<M>,
+		accounts: Arc<AccountProvider>,
+		deprecation_notice: DeprecationNotice,
+	}
+
+	impl<M> ParitySetAccountsClient<M> {
+		/// Creates new ParitySetAccountsClient
+		pub fn new(
+			accounts: &Arc<AccountProvider>,
+			miner: &Arc<M>,
+		) -> Self {
+			ParitySetAccountsClient {
+				accounts: accounts.clone(),
+				miner: miner.clone(),
+				deprecation_notice: Default::default(),
+			}
+		}
+	}
+
+	impl<M: MinerService + 'static> ParitySetAccounts for ParitySetAccountsClient<M> {
+		fn set_engine_signer(&self, address: H160, password: String) -> Result<bool> {
+			self.deprecation_notice.print(
+				"parity_setEngineSigner",
+				"use `parity_setEngineSignerSecret` instead. See #9997 for context."
+			);
+
+			let signer = Box::new(EngineSigner::new(
+				self.accounts.clone(),
+				address.clone().into(),
+				password.into(),
+			));
+			self.miner.set_author(miner::Author::Sealer(signer));
+			Ok(true)
+		}
+	}
+}
 
 /// Parity-specific rpc interface for operations altering the settings.
 pub struct ParitySetClient<C, M, U, F = fetch::Client> {
@@ -57,7 +106,7 @@ impl<C, M, U, F> ParitySetClient<C, M, U, F>
 			miner: miner.clone(),
 			updater: updater.clone(),
 			net: net.clone(),
-			fetch: fetch,
+			fetch,
 		}
 	}
 }
@@ -104,12 +153,14 @@ impl<C, M, U, F> ParitySet for ParitySetClient<C, M, U, F> where
 	}
 
 	fn set_author(&self, address: H160) -> Result<bool> {
-		self.miner.set_author(address.into(), None).map_err(Into::into).map_err(errors::password)?;
+		self.miner.set_author(miner::Author::External(address.into()));
 		Ok(true)
 	}
 
-	fn set_engine_signer(&self, address: H160, password: String) -> Result<bool> {
-		self.miner.set_author(address.into(), Some(password.into())).map_err(Into::into).map_err(errors::password)?;
+	fn set_engine_signer_secret(&self, secret: H256) -> Result<bool> {
+		let secret: EthH256 = secret.into();
+		let keypair = ethkey::KeyPair::from_secret(secret.into()).map_err(|e| errors::account("Invalid secret", e))?;
+		self.miner.set_author(miner::Author::Sealer(ethcore::engines::signer::from_keypair(keypair)));
 		Ok(true)
 	}
 

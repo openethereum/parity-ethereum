@@ -23,11 +23,11 @@ use ansi_term::Colour;
 use bytes::Bytes;
 use call_contract::CallContract;
 use ethcore_miner::gas_pricer::GasPricer;
+use ethcore_miner::local_accounts::LocalAccounts;
 use ethcore_miner::pool::{self, TransactionQueue, VerifiedTransaction, QueueStatus, PrioritizationStrategy};
 #[cfg(feature = "work-notify")]
 use ethcore_miner::work_notify::NotifyWork;
 use ethereum_types::{H256, U256, Address};
-use ethkey::Password;
 use io::IoChannel;
 use miner::pool_client::{PoolClient, CachedNonceClient, NonceCache};
 use miner;
@@ -46,13 +46,12 @@ use types::header::Header;
 use types::receipt::RichReceipt;
 use using_queue::{UsingQueue, GetAction};
 
-use account_provider::{AccountProvider, SignError as AccountError};
 use block::{ClosedBlock, IsBlock, SealedBlock};
 use client::{
 	BlockChain, ChainInfo, BlockProducer, SealedBlockImporter, Nonce, TransactionInfo, TransactionId
 };
 use client::{BlockId, ClientIoMessage};
-use engines::{EthEngine, Seal};
+use engines::{EthEngine, Seal, EngineSigner};
 use error::{Error, ErrorKind};
 use executed::ExecutionError;
 use executive::contract_address;
@@ -140,8 +139,6 @@ pub struct MinerOptions {
 	/// will be invalid if mined.
 	pub infinite_pending_block: bool,
 
-	/// Prioritized Local Addresses
-	pub tx_queue_locals: HashSet<Address>,
 	/// Strategy to use for prioritizing transactions in the queue.
 	pub tx_queue_strategy: PrioritizationStrategy,
 	/// Simple senders penalization.
@@ -169,7 +166,6 @@ impl Default for MinerOptions {
 			work_queue_size: 20,
 			enable_resubmission: true,
 			infinite_pending_block: false,
-			tx_queue_locals: HashSet::new(),
 			tx_queue_strategy: PrioritizationStrategy::GasPriceOnly,
 			tx_queue_penalization: Penalization::Disabled,
 			tx_queue_no_unfamiliar_locals: false,
@@ -199,6 +195,25 @@ pub struct AuthoringParams {
 	/// Block extra data
 	pub extra_data: Bytes,
 }
+
+/// Block sealing mechanism
+pub enum Author {
+	/// Sealing block is external and we only need a reward beneficiary (i.e. PoW)
+	External(Address),
+	/// Sealing is done internally, we need a way to create signatures to seal block (i.e. PoA)
+	Sealer(Box<EngineSigner>),
+}
+
+impl Author {
+	/// Get author's address.
+	pub fn address(&self) -> Address {
+		match *self {
+			Author::External(address) => address,
+			Author::Sealer(ref sealer) => sealer.address(),
+		}
+	}
+}
+
 
 struct SealingWork {
 	queue: UsingQueue<ClosedBlock>,
@@ -230,7 +245,7 @@ pub struct Miner {
 	// TODO [ToDr] Arc is only required because of price updater
 	transaction_queue: Arc<TransactionQueue>,
 	engine: Arc<EthEngine>,
-	accounts: Option<Arc<AccountProvider>>,
+	accounts: Arc<LocalAccounts>,
 	io_channel: RwLock<Option<IoChannel<ClientIoMessage>>>,
 }
 
@@ -248,11 +263,11 @@ impl Miner {
 	}
 
 	/// Creates new instance of miner Arc.
-	pub fn new(
+	pub fn new<A: LocalAccounts + 'static>(
 		options: MinerOptions,
 		gas_pricer: GasPricer,
 		spec: &Spec,
-		accounts: Option<Arc<AccountProvider>>,
+		accounts: A,
 	) -> Self {
 		let limits = options.pool_limits.clone();
 		let verifier_options = options.pool_verification_options.clone();
@@ -275,7 +290,7 @@ impl Miner {
 			nonce_cache: NonceCache::new(nonce_cache_size),
 			options,
 			transaction_queue: Arc::new(TransactionQueue::new(limits, verifier_options, tx_queue_strategy)),
-			accounts,
+			accounts: Arc::new(accounts),
 			engine: spec.engine.clone(),
 			io_channel: RwLock::new(None),
 		}
@@ -284,7 +299,7 @@ impl Miner {
 	/// Creates new instance of miner with given spec and accounts.
 	///
 	/// NOTE This should be only used for tests.
-	pub fn new_for_tests(spec: &Spec, accounts: Option<Arc<AccountProvider>>) -> Miner {
+	pub fn new_for_tests(spec: &Spec, accounts: Option<HashSet<Address>>) -> Miner {
 		let minimal_gas_price = 0.into();
 		Miner::new(MinerOptions {
 			pool_verification_options: pool::verifier::Options {
@@ -295,7 +310,7 @@ impl Miner {
 			},
 			reseal_min_period: Duration::from_secs(0),
 			..Default::default()
-		}, GasPricer::new_fixed(minimal_gas_price), spec, accounts)
+		}, GasPricer::new_fixed(minimal_gas_price), spec, accounts.unwrap_or_default())
 	}
 
 	/// Sets `IoChannel`
@@ -362,7 +377,7 @@ impl Miner {
 			chain,
 			&self.nonce_cache,
 			&*self.engine,
-			self.accounts.as_ref().map(|x| &**x),
+			&*self.accounts,
 			self.options.refuse_service_transactions,
 		)
 	}
@@ -830,14 +845,11 @@ impl miner::MinerService for Miner {
 		self.params.write().extra_data = extra_data;
 	}
 
-	fn set_author(&self, address: Address, password: Option<Password>) -> Result<(), AccountError> {
-		self.params.write().author = address;
+	fn set_author(&self, author: Author) {
+		self.params.write().author = author.address();
 
-		if self.engine.seals_internally().is_some() && password.is_some() {
-			if let Some(ref ap) = self.accounts {
-				let password = password.unwrap_or_else(|| Password::from(String::new()));
-				// Sign test message
-				ap.sign(address.clone(), Some(password.clone()), Default::default())?;
+		if let Author::Sealer(signer) = author {
+			if self.engine.seals_internally().is_some() {
 				// Enable sealing
 				self.sealing.lock().enabled = true;
 				// --------------------------------------------------------------------------
@@ -845,14 +857,10 @@ impl miner::MinerService for Miner {
 				// | (some `Engine`s call `EngineClient.update_sealing()`)                  |
 				// | Make sure to release the locks before calling that method.             |
 				// --------------------------------------------------------------------------
-				self.engine.set_signer(ap.clone(), address, password);
-				Ok(())
+				self.engine.set_signer(signer);
 			} else {
-				warn!(target: "miner", "No account provider");
-				Err(AccountError::NotFound)
+				warn!("Setting an EngineSigner while Engine does not require one.");
 			}
-		} else {
-			Ok(())
 		}
 	}
 
@@ -925,8 +933,7 @@ impl miner::MinerService for Miner {
 		let sender = pending.sender();
 		let treat_as_local = trusted
 			|| !self.options.tx_queue_no_unfamiliar_locals
-			|| self.accounts.as_ref().map(|accts| accts.has_account(sender)).unwrap_or(false)
-			|| self.options.tx_queue_locals.contains(&sender);
+			|| self.accounts.is_local(&sender);
 
 		if treat_as_local {
 			self.import_own_transaction(chain, pending)
@@ -1255,7 +1262,7 @@ impl miner::MinerService for Miner {
 						chain,
 						&nonce_cache,
 						&*engine,
-						accounts.as_ref().map(|x| &**x),
+						&*accounts,
 						refuse_service_transactions,
 					);
 					queue.cull(client);
@@ -1292,6 +1299,7 @@ mod tests {
 	use std::iter::FromIterator;
 
 	use super::*;
+	use accounts::AccountProvider;
 	use ethkey::{Generator, Random};
 	use hash::keccak;
 	use rustc_hex::FromHex;
@@ -1299,7 +1307,7 @@ mod tests {
 
 	use client::{TestBlockChainClient, EachBlockWith, ChainInfo, ImportSealedBlock};
 	use miner::{MinerService, PendingOrdering};
-	use test_helpers::{generate_dummy_client, generate_dummy_client_with_spec_and_accounts};
+	use test_helpers::{generate_dummy_client, generate_dummy_client_with_spec};
 	use types::transaction::{Transaction};
 
 	#[test]
@@ -1349,7 +1357,6 @@ mod tests {
 				enable_resubmission: true,
 				infinite_pending_block: false,
 				tx_queue_penalization: Penalization::Disabled,
-				tx_queue_locals: HashSet::new(),
 				tx_queue_strategy: PrioritizationStrategy::GasPriceOnly,
 				tx_queue_no_unfamiliar_locals: false,
 				refuse_service_transactions: false,
@@ -1363,7 +1370,7 @@ mod tests {
 			},
 			GasPricer::new_fixed(0u64.into()),
 			&Spec::new_test(),
-			None, // accounts provider
+			::std::collections::HashSet::new(), // local accounts
 		)
 	}
 
@@ -1476,8 +1483,8 @@ mod tests {
 		// given
 		let keypair = Random.generate().unwrap();
 		let client = TestBlockChainClient::default();
-		let account_provider = AccountProvider::transient_provider();
-		account_provider.insert_account(keypair.secret().clone(), &"".into()).expect("can add accounts to the provider we just created");
+		let mut local_accounts = ::std::collections::HashSet::new();
+		local_accounts.insert(keypair.address());
 
 		let miner = Miner::new(
 			MinerOptions {
@@ -1486,7 +1493,7 @@ mod tests {
 			},
 			GasPricer::new_fixed(0u64.into()),
 			&Spec::new_test(),
-			Some(Arc::new(account_provider)),
+			local_accounts,
 		);
 		let transaction = transaction();
 		let best_block = 0;
@@ -1520,22 +1527,16 @@ mod tests {
 
 	#[test]
 	fn should_prioritize_locals() {
-		let keypair = Random.generate().unwrap();
 		let client = TestBlockChainClient::default();
-		let account_provider = AccountProvider::transient_provider();
-		account_provider.insert_account(keypair.secret().clone(), &"".into())
-		    .expect("can add accounts to the provider we just created");
-
 		let transaction = transaction();
 		let miner = Miner::new(
 			MinerOptions {
 				tx_queue_no_unfamiliar_locals: true, // should work even with this enabled
-				tx_queue_locals: HashSet::from_iter(vec![transaction.sender()].into_iter()),
 				..miner().options
 			},
 			GasPricer::new_fixed(0u64.into()),
 			&Spec::new_test(),
-			Some(Arc::new(account_provider)),
+			HashSet::from_iter(vec![transaction.sender()].into_iter()),
 		);
 		let best_block = 0;
 
@@ -1587,12 +1588,19 @@ mod tests {
 	}
 
 	#[test]
-	fn should_fail_setting_engine_signer_without_account_provider() {
-		let spec = Spec::new_instant;
+	fn should_not_fail_setting_engine_signer_without_account_provider() {
+		let spec = Spec::new_test_round;
 		let tap = Arc::new(AccountProvider::transient_provider());
 		let addr = tap.insert_account(keccak("1").into(), &"".into()).unwrap();
-		let client = generate_dummy_client_with_spec_and_accounts(spec, None);
-		assert!(match client.miner().set_author(addr, Some("".into())) { Err(AccountError::NotFound) => true, _ => false });
+		let client = generate_dummy_client_with_spec(spec);
+		let engine_signer = Box::new((tap.clone(), addr, "".into()));
+		let msg = Default::default();
+		assert!(client.engine().sign(msg).is_err());
+
+		// should set engine signer and miner author
+		client.miner().set_author(Author::Sealer(engine_signer));
+		assert_eq!(client.miner().authoring_params().author, addr);
+		assert!(client.engine().sign(msg).is_ok());
 	}
 
 	#[test]

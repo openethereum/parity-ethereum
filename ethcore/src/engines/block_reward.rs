@@ -170,17 +170,14 @@ mod test {
 	use client::PrepareOpenBlock;
 	use ethereum_types::U256;
 	use spec::Spec;
-	use test_helpers::generate_dummy_client_with_spec_and_accounts;
+	use test_helpers::generate_dummy_client_with_spec;
 
 	use engines::SystemOrCodeCallKind;
 	use super::{BlockRewardContract, RewardKind};
 
 	#[test]
 	fn block_reward_contract() {
-		let client = generate_dummy_client_with_spec_and_accounts(
-			Spec::new_test_round_block_reward_contract,
-			None,
-		);
+		let client = generate_dummy_client_with_spec(Spec::new_test_round_block_reward_contract);
 
 		let machine = Spec::new_test_machine();
 

@@ -13,9 +13,13 @@ ethcore-io = { path = "../io" }
 ethereum-types = "0.4"
 ethkey = { path = "../../accounts/ethkey" }
 ipnetwork = "0.12.6"
+lazy_static = "1.0"
 rlp = { version = "0.3.0", features = ["ethereum"] }
 libc = "0.2"
 parity-snappy = "0.1"
+semver = {version="0.9.0", features=["serde"]}
+serde = "1.0"
+serde_derive = "1.0"
 
 [dev-dependencies]
 assert_matches = "1.2"

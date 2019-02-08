@@ -22,6 +22,27 @@ use jsonrpc_derive::rpc;
 use ethkey::Password;
 use ethstore::KeyFile;
 use v1::types::{H160, H256, H520, DeriveHash, DeriveHierarchical, ExtAccountInfo};
+use v1::types::{AccountInfo, HwAccountInfo};
+
+/// Parity-specific read-only accounts rpc interface.
+#[rpc]
+pub trait ParityAccountsInfo {
+	/// Returns accounts information.
+	#[rpc(name = "parity_accountsInfo")]
+	fn accounts_info(&self) -> Result<BTreeMap<H160, AccountInfo>>;
+
+	/// Returns hardware accounts information.
+	#[rpc(name = "parity_hardwareAccountsInfo")]
+	fn hardware_accounts_info(&self) -> Result<BTreeMap<H160, HwAccountInfo>>;
+
+	/// Get a list of paths to locked hardware wallets
+	#[rpc(name = "parity_lockedHardwareAccountsInfo")]
+	fn locked_hardware_accounts_info(&self) -> Result<Vec<String>>;
+
+	/// Returns default account for dapp.
+	#[rpc(name = "parity_defaultAccount")]
+	fn default_account(&self) -> Result<H160>;
+}
 
 /// Personal Parity rpc interface.
 #[rpc]
