@@ -15,7 +15,7 @@
 // along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
 use std::collections::HashMap;
-use chain::syncpacketid::{Packet, SyncPacketId};
+use chain::syncpacketid::{PacketInfo, SyncPacketId};
 use network::{NetworkContext, PeerId, PacketId, Error, SessionInfo, ProtocolId};
 use bytes::Bytes;
 use ethcore::client::BlockChainClient;

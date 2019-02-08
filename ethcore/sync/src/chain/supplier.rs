@@ -26,7 +26,7 @@ use types::ids::BlockId;
 
 use sync_io::SyncIo;
 
-use super::syncpacketid::{Packet, SyncPacketId, SyncPacketId::*};
+use super::syncpacketid::{PacketInfo, SyncPacketId, SyncPacketId::*};
 
 use super::{
 	ChainSync,

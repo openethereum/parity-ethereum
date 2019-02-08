@@ -119,7 +119,7 @@ use types::transaction::UnverifiedTransaction;
 use types::BlockNumber;
 
 use self::handler::SyncHandler;
-use self::syncpacketid::{Packet, SyncPacketId, SyncPacketId::*};
+use self::syncpacketid::{PacketInfo, SyncPacketId, SyncPacketId::*};
 use self::propagator::SyncPropagator;
 use self::requester::SyncRequester;
 pub(crate) use self::supplier::SyncSupplier;

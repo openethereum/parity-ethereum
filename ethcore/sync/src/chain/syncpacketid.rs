@@ -31,12 +31,12 @@ pub enum SyncPacketId {
 
 use self::SyncPacketId::*;
 
-pub trait Packet {
+pub trait PacketInfo {
 	fn id(&self) -> PacketId;
 	fn protocol(&self) -> ProtocolId;
 }
 
-impl Packet for SyncPacketId {
+impl PacketInfo for SyncPacketId {
 	fn protocol(&self) -> ProtocolId {
 		match self {
 			StatusPacket |
