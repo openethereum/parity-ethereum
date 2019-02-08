@@ -15,7 +15,6 @@
 // along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
 use std::collections::HashMap;
-use chain::syncpacketid::{PacketInfo, SyncPacketId};
 use network::{NetworkContext, PeerId, PacketId, Error, SessionInfo, ProtocolId};
 use bytes::Bytes;
 use ethcore::client::BlockChainClient;
@@ -34,7 +33,7 @@ pub trait SyncIo {
 	/// Respond to current request with a packet. Can be called from an IO handler for incoming packet.
 	fn respond(&mut self, packet_id: PacketId, data: Vec<u8>) -> Result<(), Error>;
 	/// Send a packet to a peer using specified protocol.
-	fn send(&mut self, peer_id: PeerId, packet_id: SyncPacketId, data: Vec<u8>) -> Result<(), Error>;
+	fn send_protocol(&mut self, protocol: ProtocolId, peer_id: PeerId, packet_id: PacketId, data: Vec<u8>) -> Result<(), Error>;
 	/// Get the blockchain
 	fn chain(&self) -> &BlockChainClient;
 	/// Get the snapshot service.
@@ -97,8 +96,8 @@ impl<'s> SyncIo for NetSyncIo<'s> {
 		self.network.respond(packet_id, data)
 	}
 
-	fn send(&mut self, peer_id: PeerId, packet_id: SyncPacketId, data: Vec<u8>) -> Result<(), Error>{
-		self.network.send_protocol(packet_id.protocol(), peer_id, packet_id.id(), data)
+	fn send_protocol(&mut self, protocol: ProtocolId, peer_id: PeerId, packet_id: PacketId, data: Vec<u8>) -> Result<(), Error>{
+		self.network.send_protocol(protocol, peer_id, packet_id, data)
 	}
 
 	fn chain(&self) -> &BlockChainClient {

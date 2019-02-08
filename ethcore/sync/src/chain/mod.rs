@@ -88,7 +88,6 @@
 //! All other messages are ignored.
 
 mod handler;
-pub mod syncpacketid;
 mod propagator;
 mod requester;
 mod supplier;
@@ -104,7 +103,7 @@ use fastmap::{H256FastMap, H256FastSet};
 use parking_lot::{Mutex, RwLock, RwLockWriteGuard};
 use bytes::Bytes;
 use rlp::{RlpStream, DecoderError};
-use network::{self, PeerId, PacketId};
+use network::{self, PeerId, PacketId, ProtocolId};
 use ethcore::client::{BlockChainClient, BlockStatus, BlockId, BlockChainInfo, BlockQueueInfo};
 use ethcore::snapshot::{RestorationStatus};
 use sync_io::SyncIo;
@@ -112,14 +111,13 @@ use super::{WarpSync, SyncConfig};
 use block_sync::{BlockDownloader, DownloadAction};
 use rand::Rng;
 use snapshot::{Snapshot};
-use api::{EthProtocolInfo as PeerInfoDigest, WARP_SYNC_PROTOCOL_ID, PriorityTask};
+use api::{EthProtocolInfo as PeerInfoDigest, ETH_PROTOCOL, WARP_SYNC_PROTOCOL_ID, PriorityTask};
 use private_tx::PrivateTxHandler;
 use transactions_stats::{TransactionsStats, Stats as TransactionStats};
 use types::transaction::UnverifiedTransaction;
 use types::BlockNumber;
 
 use self::handler::SyncHandler;
-use self::syncpacketid::{PacketInfo, SyncPacketId, SyncPacketId::*};
 use self::propagator::SyncPropagator;
 use self::requester::SyncRequester;
 pub(crate) use self::supplier::SyncSupplier;
@@ -154,6 +152,28 @@ const MAX_TRANSACTION_PACKET_SIZE: usize = 5 * 1024 * 1024;
 // Min number of blocks to be behind for a snapshot sync
 const SNAPSHOT_RESTORE_THRESHOLD: BlockNumber = 30000;
 const SNAPSHOT_MIN_PEERS: usize = 3;
+
+pub const STATUS_PACKET: u8 = 0x00;
+const NEW_BLOCK_HASHES_PACKET: u8 = 0x01;
+const TRANSACTIONS_PACKET: u8 = 0x02;
+pub const GET_BLOCK_HEADERS_PACKET: u8 = 0x03;
+pub const BLOCK_HEADERS_PACKET: u8 = 0x04;
+pub const GET_BLOCK_BODIES_PACKET: u8 = 0x05;
+const BLOCK_BODIES_PACKET: u8 = 0x06;
+const NEW_BLOCK_PACKET: u8 = 0x07;
+
+pub const GET_NODE_DATA_PACKET: u8 = 0x0d;
+pub const NODE_DATA_PACKET: u8 = 0x0e;
+pub const GET_RECEIPTS_PACKET: u8 = 0x0f;
+pub const RECEIPTS_PACKET: u8 = 0x10;
+
+pub const GET_SNAPSHOT_MANIFEST_PACKET: u8 = 0x11;
+pub const SNAPSHOT_MANIFEST_PACKET: u8 = 0x12;
+pub const GET_SNAPSHOT_DATA_PACKET: u8 = 0x13;
+pub const SNAPSHOT_DATA_PACKET: u8 = 0x14;
+pub const CONSENSUS_DATA_PACKET: u8 = 0x15;
+pub const PRIVATE_TRANSACTION_PACKET: u8 = 0x16;
+pub const SIGNED_PRIVATE_TRANSACTION_PACKET: u8 = 0x17;
 
 const MAX_SNAPSHOT_CHUNKS_DOWNLOAD_AHEAD: usize = 3;
 
@@ -461,7 +481,7 @@ impl ChainSyncApi {
 					for peers in sync.get_peers(&chain_info, PeerState::SameBlock).chunks(10) {
 						check_deadline(deadline)?;
 						for peer in peers {
-							SyncPropagator::send_packet(io, *peer, NewBlockPacket, rlp.clone());
+							SyncPropagator::send_packet(io, ETH_PROTOCOL, *peer, NEW_BLOCK_PACKET, rlp.clone());
 							if let Some(ref mut peer) = sync.peers.get_mut(peer) {
 								peer.latest_hash = hash;
 							}
@@ -1123,7 +1143,7 @@ impl ChainSync {
 			}
 		}
 		packet.complete_unbounded_list();
-		io.respond(StatusPacket.id(), packet.out())
+		io.respond(STATUS_PACKET, packet.out())
 	}
 
 	pub fn maintain_peers(&mut self, io: &mut SyncIo) {
@@ -1308,8 +1328,8 @@ impl ChainSync {
 	}
 
 	/// Broadcast private transaction message to peers.
-	pub fn propagate_private_transaction(&mut self, io: &mut SyncIo, transaction_hash: H256, packet_id: SyncPacketId, packet: Bytes) {
-		SyncPropagator::propagate_private_transaction(self, io, transaction_hash, packet_id, packet);
+	pub fn propagate_private_transaction(&mut self, io: &mut SyncIo, transaction_hash: H256, protocol: ProtocolId, packet_id: PacketId, packet: Bytes) {
+		SyncPropagator::propagate_private_transaction(self, io, transaction_hash, protocol, packet_id, packet);
 	}
 }
 
