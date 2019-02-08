@@ -119,7 +119,7 @@ publish-snap:
   allow_failure:                   true
   <<:                              *collect_artifacts
 
-publish:onnet:update:
+publish-onnet-update:
   stage:                           publish-onchain
   only:                            *releaseable_branches
   cache:                           {}
@@ -127,7 +127,7 @@ publish:onnet:update:
     - build-linux
     - build-darwin
     - build-windows
-    - publish:awss3:release
+    - publish-awss3-release
   before_script:                   *determine_version
   script:
     - scripts/gitlab/publish-onnet-update.sh
@@ -135,7 +135,7 @@ publish:onnet:update:
     - linux-docker
 
 # configures aws for fast uploads/syncs
-.s3_before_script:                &s3_before_script
+.s3-before-script:                &s3-before-script
   before_script:
     - mkdir -p ${HOME}/.aws
     - |
@@ -151,7 +151,7 @@ publish:onnet:update:
         addressing_style = path
       EOC
 
-publish:awss3:release:
+publish-awss3-release:
   image:                           parity/awscli:latest
   stage:                           publish
   only:                            *releaseable_branches
@@ -162,7 +162,7 @@ publish:awss3:release:
     - build-windows
   variables:
     GIT_STRATEGY:                  none
-  <<:                              *s3_before_script
+  <<:                              *s3-before-script
   script:
     - echo "__________Push binaries to AWS S3____________"
     - case "${SCHEDULE_TAG:-${CI_COMMIT_REF_NAME}}" in
