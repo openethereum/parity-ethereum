@@ -33,8 +33,6 @@ pub trait SyncIo {
 	fn disconnect_peer(&mut self, peer_id: PeerId);
 	/// Respond to current request with a packet. Can be called from an IO handler for incoming packet.
 	fn respond(&mut self, packet_id: PacketId, data: Vec<u8>) -> Result<(), Error>;
-	/// Send a packet to a peer.
-	fn send(&mut self, peer_id: PeerId, packet_id: PacketId, data: Vec<u8>) -> Result<(), Error>;
 	/// Send a packet to a peer using specified protocol.
 	fn send_protocol(&mut self, protocol: ProtocolId, peer_id: PeerId, packet_id: PacketId, data: Vec<u8>) -> Result<(), Error>;
 	/// Get the blockchain
@@ -97,10 +95,6 @@ impl<'s> SyncIo for NetSyncIo<'s> {
 
 	fn respond(&mut self, packet_id: PacketId, data: Vec<u8>) -> Result<(), Error>{
 		self.network.respond(packet_id, data)
-	}
-
-	fn send(&mut self, peer_id: PeerId, packet_id: PacketId, data: Vec<u8>) -> Result<(), Error>{
-		self.network.send(peer_id, packet_id, data)
 	}
 
 	fn send_protocol(&mut self, protocol: ProtocolId, peer_id: PeerId, packet_id: PacketId, data: Vec<u8>) -> Result<(), Error>{

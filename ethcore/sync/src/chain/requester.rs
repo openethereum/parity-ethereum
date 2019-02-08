@@ -14,11 +14,11 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
-use api::WARP_SYNC_PROTOCOL_ID;
+use api::{ETH_PROTOCOL, WARP_SYNC_PROTOCOL_ID};
 use block_sync::BlockRequest;
 use bytes::Bytes;
 use ethereum_types::H256;
-use network::{PeerId, PacketId};
+use network::{PeerId, PacketId, ProtocolId};
 use rlp::RlpStream;
 use std::time::Instant;
 use sync_io::SyncIo;
@@ -28,7 +28,6 @@ use super::{
 	BlockSet,
 	ChainSync,
 	PeerAsking,
-	ETH_PROTOCOL_VERSION_63,
 	GET_BLOCK_BODIES_PACKET,
 	GET_BLOCK_HEADERS_PACKET,
 	GET_RECEIPTS_PACKET,
@@ -63,7 +62,8 @@ impl SyncRequester {
 			rlp.append(&h.clone());
 		}
 
-		SyncRequester::send_request(sync, io, peer_id, PeerAsking::BlockBodies, GET_BLOCK_BODIES_PACKET, rlp.out());
+    SyncRequester::send_request(sync, io, peer_id, PeerAsking::BlockBodies, ETH_PROTOCOL, GET_BLOCK_BODIES_PACKET, rlp.out());
+
 		let peer = sync.peers.get_mut(&peer_id).expect("peer_id may originate either from on_packet, where it is already validated or from enumerating self.peers. qed");
 		peer.asking_blocks = hashes;
 		peer.block_set = Some(set);
@@ -77,7 +77,7 @@ impl SyncRequester {
 		rlp.append(&1u32);
 		rlp.append(&0u32);
 		rlp.append(&0u32);
-		SyncRequester::send_request(sync, io, peer_id, PeerAsking::ForkHeader, GET_BLOCK_HEADERS_PACKET, rlp.out());
+		SyncRequester::send_request(sync, io, peer_id, PeerAsking::ForkHeader, ETH_PROTOCOL, GET_BLOCK_HEADERS_PACKET, rlp.out());
 	}
 
 	/// Find some headers or blocks to download for a peer.
@@ -95,7 +95,7 @@ impl SyncRequester {
 	pub fn request_snapshot_manifest(sync: &mut ChainSync, io: &mut SyncIo, peer_id: PeerId) {
 		trace!(target: "sync", "{} <- GetSnapshotManifest", peer_id);
 		let rlp = RlpStream::new_list(0);
-		SyncRequester::send_request(sync, io, peer_id, PeerAsking::SnapshotManifest, GET_SNAPSHOT_MANIFEST_PACKET, rlp.out());
+		SyncRequester::send_request(sync, io, peer_id, PeerAsking::SnapshotManifest, WARP_SYNC_PROTOCOL_ID, GET_SNAPSHOT_MANIFEST_PACKET, rlp.out());
 	}
 
 	/// Request headers from a peer by block hash
@@ -106,7 +106,7 @@ impl SyncRequester {
 		rlp.append(&count);
 		rlp.append(&skip);
 		rlp.append(&if reverse {1u32} else {0u32});
-		SyncRequester::send_request(sync, io, peer_id, PeerAsking::BlockHeaders, GET_BLOCK_HEADERS_PACKET, rlp.out());
+		SyncRequester::send_request(sync, io, peer_id, PeerAsking::BlockHeaders, ETH_PROTOCOL, GET_BLOCK_HEADERS_PACKET, rlp.out());
 		let peer = sync.peers.get_mut(&peer_id).expect("peer_id may originate either from on_packet, where it is already validated or from enumerating self.peers. qed");
 		peer.asking_hash = Some(h.clone());
 		peer.block_set = Some(set);
@@ -119,7 +119,7 @@ impl SyncRequester {
 		for h in &hashes {
 			rlp.append(&h.clone());
 		}
-		SyncRequester::send_request(sync, io, peer_id, PeerAsking::BlockReceipts, GET_RECEIPTS_PACKET, rlp.out());
+		SyncRequester::send_request(sync, io, peer_id, PeerAsking::BlockReceipts, ETH_PROTOCOL, GET_RECEIPTS_PACKET, rlp.out());
 		let peer = sync.peers.get_mut(&peer_id).expect("peer_id may originate either from on_packet, where it is already validated or from enumerating self.peers. qed");
 		peer.asking_blocks = hashes;
 		peer.block_set = Some(set);
@@ -130,23 +130,20 @@ impl SyncRequester {
 		trace!(target: "sync", "{} <- GetSnapshotData {:?}", peer_id, chunk);
 		let mut rlp = RlpStream::new_list(1);
 		rlp.append(chunk);
-		SyncRequester::send_request(sync, io, peer_id, PeerAsking::SnapshotData, GET_SNAPSHOT_DATA_PACKET, rlp.out());
+		SyncRequester::send_request(sync, io, peer_id, PeerAsking::SnapshotData, WARP_SYNC_PROTOCOL_ID, GET_SNAPSHOT_DATA_PACKET, rlp.out());
 	}
 
 	/// Generic request sender
-	fn send_request(sync: &mut ChainSync, io: &mut SyncIo, peer_id: PeerId, asking: PeerAsking,  packet_id: PacketId, packet: Bytes) {
+	fn send_request(sync: &mut ChainSync, io: &mut SyncIo, peer_id: PeerId, asking: PeerAsking,  protocol: ProtocolId, packet_id: PacketId, packet: Bytes) {
 		if let Some(ref mut peer) = sync.peers.get_mut(&peer_id) {
 			if peer.asking != PeerAsking::Nothing {
 				warn!(target:"sync", "Asking {:?} while requesting {:?}", peer.asking, asking);
 			}
 			peer.asking = asking;
 			peer.ask_time = Instant::now();
-			// TODO [ToDr] This seems quite fragile. Be careful when protocol is updated.
-			let result = if packet_id >= ETH_PROTOCOL_VERSION_63.1 {
-				io.send_protocol(WARP_SYNC_PROTOCOL_ID, peer_id, packet_id, packet)
-			} else {
-				io.send(peer_id, packet_id, packet)
-			};
+
+			let result = io.send_protocol(protocol, peer_id, packet_id, packet);
+
 			if let Err(e) = result {
 				debug!(target:"sync", "Error sending request: {:?}", e);
 				io.disconnect_peer(peer_id);
