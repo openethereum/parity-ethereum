@@ -45,6 +45,8 @@ extern crate ethcore_light as light;
 #[cfg(test)] extern crate rustc_hex;
 
 #[macro_use]
+extern crate enum_primitive;
+#[macro_use]
 extern crate macros;
 #[macro_use]
 extern crate log;
