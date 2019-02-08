@@ -266,7 +266,7 @@ impl NodeTable {
 		node.last_contact = self.nodes.get(&node.id).and_then(|n| n.last_contact);
 		let id = node.id;
 		if self.ordered_ids.len() == MAX_NODES_IN_TABLE {
-			self.nodes.remove(&self.ordered_ids.pop().unwrap());
+			self.nodes.remove(&self.ordered_ids.pop().expect("ordered_ids is not empty; qed"));
 		};
 		let index = self.get_index_to_insert(node.last_contact);
 		if self.nodes.insert(node.id, node).is_none() {
@@ -281,7 +281,7 @@ impl NodeTable {
 		match last_contact {
 			Some(NodeContact::Success(last_contact_time)) => {
 				if let Some(i) = self.ordered_ids.iter().position(|&item| {
-					match self.nodes.get(&item).unwrap().last_contact {
+					match self.nodes.get(&item).expect("nodes and ordered_ids do not get out of sync; qed").last_contact {
 						Some(NodeContact::Success(last)) => last > last_contact_time,
 						_ => true
 					}
@@ -289,7 +289,7 @@ impl NodeTable {
 			},
 			None => {
 				if let Some(i) = self.ordered_ids.iter().position(|&item| {
-					match self.nodes.get(&item).unwrap().last_contact {
+					match self.nodes.get(&item).expect("nodes and ordered_ids do not get out of sync; qed").last_contact {
 						Some(NodeContact::Success(_)) => false,
 						_ => true
 					}
@@ -297,7 +297,7 @@ impl NodeTable {
 			},
 			Some(NodeContact::Failure(last_contact_time)) => {
 				if let Some(i) = self.ordered_ids.iter().rev().position(|&item| {
-					match self.nodes.get(&item).unwrap().last_contact {
+					match self.nodes.get(&item).expect("nodes and ordered_ids do not get out of sync; qed").last_contact {
 						Some(NodeContact::Failure(last)) if last >= last_contact_time => false,
 						_ => true
 					}
@@ -313,7 +313,7 @@ impl NodeTable {
 			self.ordered_ids
 				.iter()
 				.filter(|id| !self.useless_nodes.contains(&id))
-				.map(|id| self.nodes.get(&id).expect("Id to remove should exist"))
+				.map(|id| self.nodes.get(&id).expect("id to remove should exist; qed"))
 		)
 	}
 
@@ -405,7 +405,7 @@ impl NodeTable {
 			}
 			if add {
 				if self.ordered_ids.len() == MAX_NODES_IN_TABLE {
-					self.nodes.remove(&self.ordered_ids.pop().unwrap());
+					self.nodes.remove(&self.ordered_ids.pop().expect("ordered_ids is not empty; qed"));
 				};
 				let index = self.get_index_to_insert(None);
 				self.ordered_ids.insert(index, node.id);
