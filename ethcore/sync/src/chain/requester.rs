@@ -23,7 +23,7 @@ use std::time::Instant;
 use sync_io::SyncIo;
 use types::BlockNumber;
 
-use super::syncpacketid::{Packet, SyncPacketId, SyncPacketId::*};
+use super::syncpacketid::{SyncPacketId, SyncPacketId::*};
 use super::{
 	BlockSet,
 	ChainSync,
@@ -135,7 +135,7 @@ impl SyncRequester {
 			peer.asking = asking;
 			peer.ask_time = Instant::now();
 
-			let result = io.send_protocol(packet_id.protocol(), peer_id, packet_id.id(), packet);
+			let result = io.send(peer_id, packet_id, packet);
 
 			if let Err(e) = result {
 				debug!(target:"sync", "Error sending request: {:?}", e);

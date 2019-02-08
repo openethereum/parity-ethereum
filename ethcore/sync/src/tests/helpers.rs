@@ -32,7 +32,7 @@ use sync_io::SyncIo;
 use io::{IoChannel, IoContext, IoHandler};
 use api::WARP_SYNC_PROTOCOL_ID;
 use chain::{ChainSync, SyncSupplier, ETH_PROTOCOL_VERSION_63, PAR_PROTOCOL_VERSION_3};
-use chain::packet::SyncPacketId::*;
+use chain::syncpacketid::{Packet, SyncPacketId, SyncPacketId::*};
 use SyncConfig;
 use private_tx::SimplePrivateTxHandler;
 use types::BlockNumber;
@@ -103,10 +103,10 @@ impl<'p, C> SyncIo for TestIo<'p, C> where C: FlushingBlockChainClient, C: 'p {
 		Ok(())
 	}
 
-	fn send_protocol(&mut self, _protocol: ProtocolId, peer_id: PeerId, packet_id: PacketId, data: Vec<u8>) -> Result<(), network::Error> {
+	fn send(&mut self,peer_id: PeerId, packet_id: SyncPacketId, data: Vec<u8>) -> Result<(), network::Error> {
 		self.packets.push(TestPacket {
 			data: data,
-			packet_id: packet_id,
+			packet_id: packet_id.id(),
 			recipient: peer_id,
 		});
 		Ok(())

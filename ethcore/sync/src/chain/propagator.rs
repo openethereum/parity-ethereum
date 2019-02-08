@@ -28,7 +28,7 @@ use types::transaction::SignedTransaction;
 use types::BlockNumber;
 use types::blockchain_info::BlockChainInfo;
 
-use super::syncpacketid::{Packet, SyncPacketId, SyncPacketId::*};
+use super::syncpacketid::{SyncPacketId, SyncPacketId::*};
 use super::{
 	random,
 	ChainSync,
@@ -340,7 +340,7 @@ impl SyncPropagator {
 
 	/// Generic packet sender
 	pub fn send_packet(sync: &mut SyncIo, peer_id: PeerId, packet_id: SyncPacketId, packet: Bytes) {
-		if let Err(e) = sync.send_protocol(packet_id.protocol(), peer_id, packet_id.id(), packet) {
+		if let Err(e) = sync.send(peer_id, packet_id, packet) {
 			debug!(target:"sync", "Error sending packet: {:?}", e);
 			sync.disconnect_peer(peer_id);
 		}
