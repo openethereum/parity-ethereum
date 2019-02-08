@@ -58,7 +58,7 @@ pub struct ParityParams {
 }
 
 /// Trait representing a callback that passes a string
-pub trait Callback: Send + Sync {
+pub(crate) trait Callback: Send + Sync {
 	fn call(&self, msg: &str);
 }
 
