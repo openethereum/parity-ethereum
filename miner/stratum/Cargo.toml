@@ -8,9 +8,8 @@ authors = ["Parity Technologies <admin@parity.io>"]
 [dependencies]
 ethereum-types = "0.4"
 keccak-hash = "0.1"
-jsonrpc-core = { git = "https://github.com/paritytech/jsonrpc.git", branch = "parity-2.2" }
-jsonrpc-macros = { git = "https://github.com/paritytech/jsonrpc.git", branch = "parity-2.2" }
-jsonrpc-tcp-server = { git = "https://github.com/paritytech/jsonrpc.git", branch = "parity-2.2" }
+jsonrpc-core = "10.0.1"
+jsonrpc-tcp-server = "10.0.1"
 log = "0.4"
 parking_lot = "0.7"
 

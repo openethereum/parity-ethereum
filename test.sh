@@ -1,32 +1,11 @@
 #!/bin/sh
 # Running Parity Full Test Suite
+echo "________Running test.sh________"
 
 FEATURES="json-tests,ci-skip-issue"
 OPTIONS="--release"
 VALIDATE=1
 THREADS=8
-
-case $1 in
-  --no-json)
-    FEATURES="ipc"
-    shift # past argument=value
-    ;;
-  --no-release)
-    OPTIONS=""
-    shift
-    ;;
-  --no-validate)
-    VALIDATE=0
-    shift
-    ;;
-  --no-run)
-    OPTIONS="--no-run"
-    shift
-    ;;
-  *)
-    # unknown option
-    ;;
-esac
 
 set -e
 

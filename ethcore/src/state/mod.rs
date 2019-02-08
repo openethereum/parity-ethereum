@@ -1284,6 +1284,13 @@ impl<B: Backend> fmt::Debug for State<B> {
 	}
 }
 
+impl State<StateDB> {
+	/// Get a reference to the underlying state DB.
+	pub fn db(&self) -> &StateDB {
+		&self.db
+	}
+}
+
 // TODO: cloning for `State` shouldn't be possible in general; Remove this and use
 // checkpoints where possible.
 impl Clone for State<StateDB> {

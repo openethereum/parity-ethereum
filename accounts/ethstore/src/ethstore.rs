@@ -15,12 +15,12 @@
 // along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
 use std::collections::{BTreeMap, HashMap};
+use std::num::NonZeroU32;
 use std::mem;
 use std::path::PathBuf;
 use parking_lot::{Mutex, RwLock};
 use std::time::{Instant, Duration};
 
-use crypto::KEY_ITERATIONS;
 use random::Random;
 use ethkey::{self, Signature, Password, Address, Message, Secret, Public, KeyPair, ExtendedKeyPair};
 use accounts_dir::{KeyDirectory, VaultKeyDirectory, VaultKey, SetKeyError};
@@ -28,6 +28,12 @@ use account::SafeAccount;
 use presale::PresaleWallet;
 use json::{self, Uuid, OpaqueKeyFile};
 use {import, Error, SimpleSecretStore, SecretStore, SecretVaultRef, StoreAccountRef, Derivation, OpaqueSecret};
+
+
+lazy_static! {
+	static ref KEY_ITERATIONS: NonZeroU32 =
+		NonZeroU32::new(crypto::KEY_ITERATIONS as u32).expect("KEY_ITERATIONS > 0; qed");
+}
 
 /// Accounts store.
 pub struct EthStore {
@@ -37,11 +43,11 @@ pub struct EthStore {
 impl EthStore {
 	/// Open a new accounts store with given key directory backend.
 	pub fn open(directory: Box<KeyDirectory>) -> Result<Self, Error> {
-		Self::open_with_iterations(directory, KEY_ITERATIONS as u32)
+		Self::open_with_iterations(directory, *KEY_ITERATIONS)
 	}
 
 	/// Open a new account store with given key directory backend and custom number of iterations.
-	pub fn open_with_iterations(directory: Box<KeyDirectory>, iterations: u32) -> Result<Self, Error> {
+	pub fn open_with_iterations(directory: Box<KeyDirectory>, iterations: NonZeroU32) -> Result<Self, Error> {
 		Ok(EthStore {
 			store: EthMultiStore::open_with_iterations(directory, iterations)?,
 		})
@@ -257,7 +263,7 @@ impl SecretStore for EthStore {
 /// Similar to `EthStore` but may store many accounts (with different passwords) for the same `Address`
 pub struct EthMultiStore {
 	dir: Box<KeyDirectory>,
-	iterations: u32,
+	iterations: NonZeroU32,
 	// order lock: cache, then vaults
 	cache: RwLock<BTreeMap<StoreAccountRef, Vec<SafeAccount>>>,
 	vaults: Mutex<HashMap<String, Box<VaultKeyDirectory>>>,
@@ -273,11 +279,11 @@ struct Timestamp {
 impl EthMultiStore {
 	/// Open new multi-accounts store with given key directory backend.
 	pub fn open(directory: Box<KeyDirectory>) -> Result<Self, Error> {
-		Self::open_with_iterations(directory, KEY_ITERATIONS as u32)
+		Self::open_with_iterations(directory, *KEY_ITERATIONS)
 	}
 
 	/// Open new multi-accounts store with given key directory backend and custom number of iterations for new keys.
-	pub fn open_with_iterations(directory: Box<KeyDirectory>, iterations: u32) -> Result<Self, Error> {
+	pub fn open_with_iterations(directory: Box<KeyDirectory>, iterations: NonZeroU32) -> Result<Self, Error> {
 		let store = EthMultiStore {
 			dir: directory,
 			vaults: Mutex::new(HashMap::new()),

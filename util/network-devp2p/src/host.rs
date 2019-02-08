@@ -42,6 +42,7 @@ use network::{NetworkConfiguration, NetworkIoMessage, ProtocolId, PeerId, Packet
 use network::{NonReservedPeerMode, NetworkContext as NetworkContextTrait};
 use network::{SessionInfo, Error, ErrorKind, DisconnectReason, NetworkProtocolHandler};
 use discovery::{Discovery, TableUpdates, NodeEntry, MAX_DATAGRAM_SIZE};
+use network::client_version::ClientVersion;
 use ip_utils::{map_external_address, select_public_address};
 use parity_path::restrict_permissions_owner;
 use parking_lot::{Mutex, RwLock};
@@ -180,8 +181,8 @@ impl<'s> NetworkContextTrait for NetworkContext<'s> {
 		Ok(())
 	}
 
-	fn peer_client_version(&self, peer: PeerId) -> String {
-		self.resolve_session(peer).map_or("unknown".to_owned(), |s| s.lock().info.client_version.clone())
+	fn peer_client_version(&self, peer: PeerId) -> ClientVersion {
+		self.resolve_session(peer).map_or(ClientVersion::from("unknown").to_owned(), |s| s.lock().info.client_version.clone())
 	}
 
 	fn session_info(&self, peer: PeerId) -> Option<SessionInfo> {

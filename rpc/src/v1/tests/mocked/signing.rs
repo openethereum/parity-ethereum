@@ -25,14 +25,15 @@ use jsonrpc_core::futures::Future;
 use v1::impls::SigningQueueClient;
 use v1::metadata::Metadata;
 use v1::traits::{EthSigning, ParitySigning, Parity};
-use v1::helpers::{nonce, SignerService, SigningQueue, FullDispatcher};
+use v1::helpers::{nonce, dispatch, FullDispatcher};
+use v1::helpers::external_signer::{SignerService, SigningQueue};
 use v1::types::{ConfirmationResponse, RichRawTransaction};
 use v1::tests::helpers::TestMinerService;
 use v1::tests::mocked::parity;
 
-use ethereum_types::{U256, Address};
+use accounts::AccountProvider;
 use bytes::ToPretty;
-use ethcore::account_provider::AccountProvider;
+use ethereum_types::{U256, Address};
 use ethcore::client::TestBlockChainClient;
 use ethkey::Secret;
 use ethstore::ethkey::{Generator, Random};
@@ -57,6 +58,7 @@ impl Default for SigningTester {
 		let client = Arc::new(TestBlockChainClient::default());
 		let miner = Arc::new(TestMinerService::default());
 		let accounts = Arc::new(AccountProvider::transient_provider());
+		let account_signer = Arc::new(dispatch::Signer::new(accounts.clone())) as _;
 		let reservations = Arc::new(Mutex::new(nonce::Reservations::new(runtime.executor())));
 		let mut io = IoHandler::default();
 
@@ -64,9 +66,9 @@ impl Default for SigningTester {
 
 		let executor = Executor::new_thread_per_future();
 
-		let rpc = SigningQueueClient::new(&signer, dispatcher.clone(), executor.clone(), &accounts);
+		let rpc = SigningQueueClient::new(&signer, dispatcher.clone(), executor.clone(), &account_signer);
 		io.extend_with(EthSigning::to_delegate(rpc));
-		let rpc = SigningQueueClient::new(&signer, dispatcher, executor, &accounts);
+		let rpc = SigningQueueClient::new(&signer, dispatcher, executor, &account_signer);
 		io.extend_with(ParitySigning::to_delegate(rpc));
 
 		SigningTester {
@@ -82,6 +84,30 @@ impl Default for SigningTester {
 
 fn eth_signing() -> SigningTester {
 	SigningTester::default()
+}
+
+#[test]
+fn rpc_eth_sign() {
+	use rustc_hex::FromHex;
+
+	let tester = eth_signing();
+
+	let account = tester.accounts.insert_account(Secret::from([69u8; 32]), &"abcd".into()).unwrap();
+	tester.accounts.unlock_account_permanently(account, "abcd".into()).unwrap();
+	let _message = "0cc175b9c0f1b6a831c399e26977266192eb5ffee6ae2fec3ad71c777531578f".from_hex().unwrap();
+
+	let req = r#"{
+		"jsonrpc": "2.0",
+		"method": "eth_sign",
+		"params": [
+			""#.to_owned() + &format!("0x{:x}", account) + r#"",
+			"0x0cc175b9c0f1b6a831c399e26977266192eb5ffee6ae2fec3ad71c777531578f"
+		],
+		"id": 1
+	}"#;
+	let res = r#"{"jsonrpc":"2.0","result":"0xa2870db1d0c26ef93c7b72d2a0830fa6b841e0593f7186bc6c7cc317af8cf3a42fda03bd589a49949aa05db83300cdb553116274518dbe9d90c65d0213f4af491b","id":1}"#;
+
+	assert_eq!(tester.io.handle_request_sync(&req), Some(res.into()));
 }
 
 #[test]

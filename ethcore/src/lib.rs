@@ -73,7 +73,6 @@ extern crate ethcore_miner;
 extern crate ethereum_types;
 extern crate ethjson;
 extern crate ethkey;
-extern crate ethstore;
 extern crate hashdb;
 extern crate heapsize;
 extern crate itertools;
@@ -107,6 +106,8 @@ extern crate using_queue;
 extern crate vm;
 extern crate wasm;
 
+#[cfg(test)]
+extern crate ethcore_accounts as accounts;
 #[cfg(feature = "stratum")]
 extern crate ethcore_stratum;
 #[cfg(any(test, feature = "tempdir"))]
@@ -115,12 +116,10 @@ extern crate tempdir;
 extern crate kvdb_rocksdb;
 #[cfg(any(test, feature = "blooms-db"))]
 extern crate blooms_db;
-
-#[cfg(any(target_os = "linux", target_os = "macos", target_os = "windows"))]
-extern crate hardware_wallet;
-
-#[cfg(not(any(target_os = "linux", target_os = "macos", target_os = "windows")))]
-extern crate fake_hardware_wallet as hardware_wallet;
+#[cfg(any(test, feature = "env_logger"))]
+extern crate env_logger;
+#[cfg(test)]
+extern crate rlp_compress;
 
 #[macro_use]
 extern crate ethabi_derive;
@@ -144,12 +143,6 @@ extern crate serde_derive;
 #[cfg_attr(test, macro_use)]
 extern crate evm;
 
-#[cfg(any(test, feature = "env_logger"))]
-extern crate env_logger;
-#[cfg(test)]
-extern crate rlp_compress;
-
-pub mod account_provider;
 pub mod block;
 pub mod builtin;
 pub mod client;

@@ -16,13 +16,14 @@
 
 use std::sync::Arc;
 
-use ethcore::account_provider::{AccountProvider, AccountProviderSettings};
+use accounts::{AccountProvider, AccountProviderSettings};
+use ethereum_types::Address;
 use ethstore::EthStore;
 use ethstore::accounts_dir::RootDiskDirectory;
 use tempdir::TempDir;
 
 use jsonrpc_core::IoHandler;
-use v1::{ParityAccounts, ParityAccountsClient};
+use v1::{ParityAccounts, ParityAccountsInfo, ParityAccountsClient};
 
 struct ParityAccountsTester {
 	accounts: Arc<AccountProvider>,
@@ -42,8 +43,10 @@ fn accounts_provider_with_vaults_support(temp_path: &str) -> Arc<AccountProvider
 fn setup_with_accounts_provider(accounts_provider: Arc<AccountProvider>) -> ParityAccountsTester {
 	let opt_ap = accounts_provider.clone();
 	let parity_accounts = ParityAccountsClient::new(&opt_ap);
+	let parity_accounts2 = ParityAccountsClient::new(&opt_ap);
 	let mut io = IoHandler::default();
-	io.extend_with(parity_accounts.to_delegate());
+	io.extend_with(ParityAccounts::to_delegate(parity_accounts));
+	io.extend_with(ParityAccountsInfo::to_delegate(parity_accounts2));
 
 	let tester = ParityAccountsTester {
 		accounts: accounts_provider,
@@ -59,6 +62,47 @@ fn setup() -> ParityAccountsTester {
 
 fn setup_with_vaults_support(temp_path: &str) -> ParityAccountsTester {
 	setup_with_accounts_provider(accounts_provider_with_vaults_support(temp_path))
+}
+
+#[test]
+fn rpc_parity_accounts_info() {
+	let tester = setup();
+	let io = tester.io;
+
+	tester.accounts.new_account(&"".into()).unwrap();
+	let accounts = tester.accounts.accounts().unwrap();
+	assert_eq!(accounts.len(), 1);
+	let address = accounts[0];
+
+	tester.accounts.set_address_name(1.into(), "XX".into());
+	tester.accounts.set_account_name(address.clone(), "Test".into()).unwrap();
+	tester.accounts.set_account_meta(address.clone(), "{foo: 69}".into()).unwrap();
+
+	let request = r#"{"jsonrpc": "2.0", "method": "parity_accountsInfo", "params": [], "id": 1}"#;
+	let response = format!("{{\"jsonrpc\":\"2.0\",\"result\":{{\"0x{:x}\":{{\"name\":\"Test\"}}}},\"id\":1}}", address);
+	assert_eq!(io.handle_request_sync(request), Some(response));
+}
+
+#[test]
+fn rpc_parity_default_account() {
+	let tester = setup();
+	let io = tester.io;
+
+	// Check empty
+	let address = Address::default();
+	let request = r#"{"jsonrpc": "2.0", "method": "parity_defaultAccount", "params": [], "id": 1}"#;
+	let response = format!("{{\"jsonrpc\":\"2.0\",\"result\":\"0x{:x}\",\"id\":1}}", address);
+	assert_eq!(io.handle_request_sync(request), Some(response));
+
+	// With account
+	tester.accounts.new_account(&"".into()).unwrap();
+	let accounts = tester.accounts.accounts().unwrap();
+	assert_eq!(accounts.len(), 1);
+	let address = accounts[0];
+
+	let request = r#"{"jsonrpc": "2.0", "method": "parity_defaultAccount", "params": [], "id": 1}"#;
+	let response = format!("{{\"jsonrpc\":\"2.0\",\"result\":\"0x{:x}\",\"id\":1}}", address);
+	assert_eq!(io.handle_request_sync(request), Some(response));
 }
 
 #[test]

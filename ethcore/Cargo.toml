@@ -29,7 +29,6 @@ ethcore-stratum = { path = "../miner/stratum", optional = true }
 ethereum-types = "0.4"
 ethjson = { path = "../json" }
 ethkey = { path = "../accounts/ethkey" }
-ethstore = { path = "../accounts/ethstore" }
 evm = { path = "evm" }
 hashdb = "0.3.0"
 heapsize = "0.4"
@@ -50,7 +49,7 @@ memorydb = "0.3.0"
 num = { version = "0.1", default-features = false, features = ["bigint"] }
 num_cpus = "1.2"
 parity-bytes = "0.1"
-parity-crypto = "0.2"
+parity-crypto = "0.3.0"
 parity-machine = { path = "../machine" }
 parity-snappy = "0.1"
 parking_lot = "0.7"
@@ -72,16 +71,11 @@ using_queue = { path = "../miner/using-queue" }
 vm = { path = "vm" }
 wasm = { path = "wasm" }
 
-[target.'cfg(any(target_os = "linux", target_os = "macos", target_os = "windows"))'.dependencies]
-hardware-wallet = { path = "../accounts/hw" }
-
-[target.'cfg(not(any(target_os = "linux", target_os = "macos", target_os = "windows")))'.dependencies]
-fake-hardware-wallet = { path = "../accounts/fake-hardware-wallet" }
-
 [dev-dependencies]
 blooms-db = { path = "../util/blooms-db" }
 criterion = "0.2"
 env_logger = "0.5"
+ethcore-accounts = { path = "../accounts" }
 kvdb-rocksdb = "0.1.3"
 rlp_compress = { path = "../util/rlp-compress" }
 tempdir = "0.3"
