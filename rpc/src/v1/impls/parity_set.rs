@@ -238,7 +238,7 @@ impl<C, M, U, F> ParitySet for ParitySetClient<C, M, U, F> where
 		let hash = hash.into();
 
 		Ok(self.miner.remove_transaction(&hash)
-		   .map(|t| Transaction::from_pending(t.pending().clone()))
+			 .map(|t| Transaction::from_pending(t.pending().clone()))
 		)
 	}
 }

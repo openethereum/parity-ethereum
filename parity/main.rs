@@ -248,7 +248,7 @@ fn main_direct(force_can_restart: bool) -> i32 {
 						};
 						e.1.notify_all();
 					}
-          Ok(())
+					Ok(())
 				}
 			},
 			{

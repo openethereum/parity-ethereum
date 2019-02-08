@@ -382,7 +382,7 @@ impl Parity for ParityClient {
 	}
 
 	fn logs_no_tx_hash(&self, filter: Filter) -> BoxFuture<Vec<Log>> {
-    let filter = match filter.try_into() {
+		let filter = match filter.try_into() {
 			Ok(value) => value,
 			Err(err) => return Box::new(future::err(err)),
 		};

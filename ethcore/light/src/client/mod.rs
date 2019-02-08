@@ -583,7 +583,7 @@ impl<T: ChainDataFetcher> LightChainClient for Client<T> {
 			(*h)(new_spec_name)
 		} else {
 			warn!("Not hypervised; cannot change chain.");
-      Err(())
+			Err(())
 		}
 	}
 

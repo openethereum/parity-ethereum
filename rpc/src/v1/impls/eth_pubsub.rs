@@ -48,7 +48,7 @@ type Client = Sink<pubsub::Result>;
 pub struct EthPubSubClient<CNH>
 {
 	handler: Arc<CNH>,
-  ethpubsub_notifier: Arc<EthPubSubNotifier>
+	ethpubsub_notifier: Arc<EthPubSubNotifier>
 }
 
 impl<CNH> EthPubSubClient<CNH>
@@ -61,34 +61,34 @@ impl<CNH> EthPubSubClient<CNH>
 
 impl<C> EthPubSubClient<ChainNotificationHandlerFull<C>>
 {
-  /// Creates new `EthPubSubClient` for full node
-  pub fn new_full(client: Arc<C>, snapshot: Arc<SnapshotService>, sync: Arc<SyncProvider>, executor: Executor) -> Self {
-    let ethpubsub_notifier = Arc::new(EthPubSubNotifier::new(executor));
+	/// Creates new `EthPubSubClient` for full node
+	pub fn new_full(client: Arc<C>, snapshot: Arc<SnapshotService>, sync: Arc<SyncProvider>, executor: Executor) -> Self {
+		let ethpubsub_notifier = Arc::new(EthPubSubNotifier::new(executor));
 
-    EthPubSubClient {
-      ethpubsub_notifier: ethpubsub_notifier.clone(),
-      handler: Arc::new(ChainNotificationHandlerFull {
-        client,
-        snapshot,
-        sync,
-        ethpubsub_notifier,
-      })
-    }
-  }
+		EthPubSubClient {
+			ethpubsub_notifier: ethpubsub_notifier.clone(),
+			handler: Arc::new(ChainNotificationHandlerFull {
+				client,
+				snapshot,
+				sync,
+				ethpubsub_notifier,
+			})
+		}
+	}
 
 	/// Creates new `EthPubSubClient` with deterministic subscription ids.
 	#[cfg(test)]
 	pub fn new_test<C>(client: Arc<C>, snapshot: Arc<SnapshotService>, executor: Executor) -> Self {
 
-    let ethpubsub_notifier = Arc::new(EthPubSubNotifier::new(executor));
+		let ethpubsub_notifier = Arc::new(EthPubSubNotifier::new(executor));
 
 		EthPubSubClient {
-      ethpubsub_notifier: ethpubsub_notifier.clone(),
+			ethpubsub_notifier: ethpubsub_notifier.clone(),
 			handler: Arc::new(ChainNotificationHandlerFull {
-        ethpubsub_notifier,
+				ethpubsub_notifier,
 				client,
-        snapshot,
-        sync,
+				snapshot,
+				sync,
 			})
 		}
 	}
@@ -96,7 +96,7 @@ impl<C> EthPubSubClient<ChainNotificationHandlerFull<C>>
 
 impl EthPubSubClient<ChainNotificationHandlerLight>
 {
-  /// Creates new `EthPubSubClient` for `LightClient`.
+	/// Creates new `EthPubSubClient` for `LightClient`.
 	pub fn new_light(
 		client: Arc<LightChainClient>,
 		on_demand: Arc<OnDemand>,
@@ -113,14 +113,14 @@ impl EthPubSubClient<ChainNotificationHandlerLight>
 			gas_price_percentile,
 		};
 
-    let ethpubsub_notifier = Arc::new(EthPubSubNotifier::new(executor));
+		let ethpubsub_notifier = Arc::new(EthPubSubNotifier::new(executor));
 
 		EthPubSubClient {
-      ethpubsub_notifier: ethpubsub_notifier.clone(),
+			ethpubsub_notifier: ethpubsub_notifier.clone(),
 			handler: Arc::new(ChainNotificationHandlerLight {
 				client: Arc::new(fetch),
-        sync,
-        ethpubsub_notifier,
+				sync,
+				ethpubsub_notifier,
 			})
 		}
 	}
@@ -128,7 +128,7 @@ impl EthPubSubClient<ChainNotificationHandlerLight>
 
 /// Stores and manages EthPubSub subscriptions
 pub struct EthPubSubNotifier {
-  executor: Executor,
+	executor: Executor,
 	heads_subscribers: Arc<RwLock<Subscribers<Client>>>,
 	syncing_subscribers: Arc<RwLock<Subscribers<Client>>>,
 	logs_subscribers: Arc<RwLock<Subscribers<(Client, EthFilter)>>>,
@@ -136,22 +136,22 @@ pub struct EthPubSubNotifier {
 }
 
 impl EthPubSubNotifier {
-  fn new(executor: Executor) -> Self {
-    let heads_subscribers = Arc::new(RwLock::new(Subscribers::default()));
+	fn new(executor: Executor) -> Self {
+		let heads_subscribers = Arc::new(RwLock::new(Subscribers::default()));
 		let syncing_subscribers = Arc::new(RwLock::new(Subscribers::default()));
 		let logs_subscribers = Arc::new(RwLock::new(Subscribers::default()));
 		let transactions_subscribers = Arc::new(RwLock::new(Subscribers::default()));
 
-    EthPubSubNotifier {
-      executor,
-      heads_subscribers,
-      syncing_subscribers,
-      logs_subscribers,
-      transactions_subscribers
-    }
-  }
+		EthPubSubNotifier {
+			executor,
+			heads_subscribers,
+			syncing_subscribers,
+			logs_subscribers,
+			transactions_subscribers
+		}
+	}
 
-  fn notify(executor: &Executor, subscriber: &Client, result: pubsub::Result) {
+	fn notify(executor: &Executor, subscriber: &Client, result: pubsub::Result) {
 		executor.spawn(subscriber
 			.notify(Ok(result))
 			.map(|_| ())
@@ -201,7 +201,7 @@ impl EthPubSubNotifier {
 					let logs = logs.into_iter().flat_map(|log| log).collect();
 
 					for log in limit_logs(logs, limit) {
-            Self::notify(&executor, &subscriber, pubsub::Result::Log(log))
+						Self::notify(&executor, &subscriber, pubsub::Result::Log(log))
 					}
 				})
 				.map_err(|e| warn!("Unable to fetch latest logs: {:?}", e))
@@ -218,9 +218,9 @@ impl EthPubSubNotifier {
 		}
 	}
 
-  pub fn no_new_blocks_listeners(&self) -> bool {
-    self.heads_subscribers.read().is_empty() && self.logs_subscribers.read().is_empty() && self.syncing_subscribers.read().is_empty()
-  }
+	pub fn no_new_blocks_listeners(&self) -> bool {
+		self.heads_subscribers.read().is_empty() && self.logs_subscribers.read().is_empty() && self.syncing_subscribers.read().is_empty()
+	}
 }
 
 /// Receives blockchain notifications and sends them to EthPubSubNotifier
@@ -230,7 +230,7 @@ pub struct ChainNotificationHandlerFull<C>
 	client: Arc<C>,
 	snapshot: Arc<SnapshotService>,
 	sync: Arc<SyncProvider>,
-  pub ethpubsub_notifier: Arc<EthPubSubNotifier>,
+	pub ethpubsub_notifier: Arc<EthPubSubNotifier>,
 }
 
 impl<C: BlockChainClient> ChainNotify for ChainNotificationHandlerFull<C>
@@ -269,39 +269,39 @@ impl<C: BlockChainClient> ChainNotify for ChainNotificationHandlerFull<C>
 			}
 		});
 
-    // Sync status
-    let sync_status = {
-      use ethcore::snapshot::RestorationStatus;
+		// Sync status
+		let sync_status = {
+			use ethcore::snapshot::RestorationStatus;
 
-      let status = self.sync.status();
-      let client = &self.client;
-      let snapshot_status = self.snapshot.status();
+			let status = self.sync.status();
+			let client = &self.client;
+			let snapshot_status = self.snapshot.status();
 
-      let (warping, warp_chunks_amount, warp_chunks_processed) = match snapshot_status {
-        RestorationStatus::Ongoing { state_chunks, block_chunks, state_chunks_done, block_chunks_done } =>
-          (true, Some(block_chunks + state_chunks), Some(block_chunks_done + state_chunks_done)),
-        _ => (false, None, None),
-      };
+			let (warping, warp_chunks_amount, warp_chunks_processed) = match snapshot_status {
+				RestorationStatus::Ongoing { state_chunks, block_chunks, state_chunks_done, block_chunks_done } =>
+					(true, Some(block_chunks + state_chunks), Some(block_chunks_done + state_chunks_done)),
+				_ => (false, None, None),
+			};
 
-      if warping || is_major_importing(Some(status.state), client.queue_info()) {
-        let chain_info = client.chain_info();
-        let current_block = U256::from(chain_info.best_block_number);
-        let highest_block = U256::from(status.highest_block_number.unwrap_or(status.start_block_number));
+			if warping || is_major_importing(Some(status.state), client.queue_info()) {
+				let chain_info = client.chain_info();
+				let current_block = U256::from(chain_info.best_block_number);
+				let highest_block = U256::from(status.highest_block_number.unwrap_or(status.start_block_number));
 
-        let info = SyncInfo {
-          starting_block: status.start_block_number.into(),
-          current_block: current_block.into(),
-          highest_block: highest_block.into(),
-          warp_chunks_amount: warp_chunks_amount.map(|x| U256::from(x as u64)).map(Into::into),
-          warp_chunks_processed: warp_chunks_processed.map(|x| U256::from(x as u64)).map(Into::into),
-        };
-        SyncStatus::Info(info)
-      } else {
-        SyncStatus::None
-      }
-    };
+				let info = SyncInfo {
+					starting_block: status.start_block_number.into(),
+					current_block: current_block.into(),
+					highest_block: highest_block.into(),
+					warp_chunks_amount: warp_chunks_amount.map(|x| U256::from(x as u64)).map(Into::into),
+					warp_chunks_processed: warp_chunks_processed.map(|x| U256::from(x as u64)).map(Into::into),
+				};
+				SyncStatus::Info(info)
+			} else {
+				SyncStatus::None
+			}
+		};
 
-    self.ethpubsub_notifier.notify_syncing(sync_status);
+		self.ethpubsub_notifier.notify_syncing(sync_status);
 	}
 }
 
@@ -330,7 +330,7 @@ pub struct ChainNotificationHandlerLight
 {
 	client: Arc<LightFetch>,
 	sync: Arc<LightSync>,
-  pub ethpubsub_notifier: Arc<EthPubSubNotifier>,
+	pub ethpubsub_notifier: Arc<EthPubSubNotifier>,
 }
 
 impl LightChainNotify for ChainNotificationHandlerLight
@@ -347,35 +347,35 @@ impl LightChainNotify for ChainNotificationHandlerLight
 
 		self.ethpubsub_notifier.notify_heads(&headers);
 		self.ethpubsub_notifier.notify_logs(&enacted.iter().map(|h| (*h, ())).collect::<Vec<_>>(), |filter, _| self.client.logs(filter));
-    
-    // Update sync status
-    let sync_status = {
-      if self.sync.is_major_importing() {
-        let chain_info = self.client.client.chain_info();
-        let current_block = U256::from(chain_info.best_block_number);
-        let highest_block = self.sync.highest_block().map(U256::from)
-          .unwrap_or_else(|| current_block);
 
-        SyncStatus::Info(SyncInfo {
-          starting_block: U256::from(self.sync.start_block()).into(),
-          current_block: current_block.into(),
-          highest_block: highest_block.into(),
-          warp_chunks_amount: None,
-          warp_chunks_processed: None,
-        })
-      } else {
-        SyncStatus::None
-      }
-    };
+		// Update sync status
+		let sync_status = {
+			if self.sync.is_major_importing() {
+				let chain_info = self.client.client.chain_info();
+				let current_block = U256::from(chain_info.best_block_number);
+				let highest_block = self.sync.highest_block().map(U256::from)
+					.unwrap_or_else(|| current_block);
 
-    self.ethpubsub_notifier.notify_syncing(sync_status);
+				SyncStatus::Info(SyncInfo {
+					starting_block: U256::from(self.sync.start_block()).into(),
+					current_block: current_block.into(),
+					highest_block: highest_block.into(),
+					warp_chunks_amount: None,
+					warp_chunks_processed: None,
+				})
+			} else {
+				SyncStatus::None
+			}
+		};
+
+		self.ethpubsub_notifier.notify_syncing(sync_status);
 	}
 }
 
 impl<CNH> EthPubSub for EthPubSubClient<CNH>
 where
-  CNH: Send + Sync + 'static
-  {
+	CNH: Send + Sync + 'static
+	{
 	type Metadata = Metadata;
 
 	fn subscribe(
@@ -412,7 +412,7 @@ where
 			(pubsub::Kind::NewPendingTransactions, _) => {
 				errors::invalid_params("newPendingTransactions", "Expected no parameters.")
 			},
-      (pubsub::Kind::Syncing, None) => {
+			(pubsub::Kind::Syncing, None) => {
 				self.ethpubsub_notifier.syncing_subscribers.write().push(subscriber);
 				return;
 			},

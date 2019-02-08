@@ -166,7 +166,7 @@ type LightClient = ::light::client::Client<::light_helpers::EpochFetch>;
 
 // helper for light execution.
 fn execute_light_impl<Cr>(cmd: RunCmd, logger: Arc<RotatingLogger>, on_client_rq: Cr) -> Result<RunningClient, String>
-  where Cr: Fn(String) -> Result<(), ()> + 'static + Send
+	where Cr: Fn(String) -> Result<(), ()> + 'static + Send
 {
 	use light::client as light_client;
 	use sync::{LightSyncParams, LightSync, ManageNetwork};

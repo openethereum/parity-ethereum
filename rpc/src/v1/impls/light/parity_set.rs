@@ -33,7 +33,7 @@ use v1::types::{Bytes, H160, H256, U256, ReleaseInfo, Transaction};
 
 /// Parity-specific rpc interface for operations altering the settings.
 pub struct ParitySetClient<F> {
-  client: Arc<LightChainClient>,
+	client: Arc<LightChainClient>,
 	net: Arc<ManageNetwork>,
 	fetch: F,
 }
