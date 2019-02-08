@@ -43,29 +43,6 @@ use super::{
 	TRANSACTIONS_PACKET,
 };
 
-/// Checks if peer is able to process service transactions
-fn accepts_service_transaction(client_id: &str) -> bool {
-	// Parity versions starting from this will accept service-transactions
-	const SERVICE_TRANSACTIONS_VERSION: (u32, u32) = (1u32, 6u32);
-	// Parity client string prefix
-	const LEGACY_CLIENT_ID_PREFIX: &'static str = "Parity/";
-	const PARITY_CLIENT_ID_PREFIX: &'static str = "Parity-Ethereum/";
-	const VERSION_PREFIX: &'static str = "/v";
-
-	let idx = client_id.rfind(VERSION_PREFIX).map(|idx| idx + VERSION_PREFIX.len()).unwrap_or(client_id.len());
-	let splitted = if client_id.starts_with(LEGACY_CLIENT_ID_PREFIX) || client_id.starts_with(PARITY_CLIENT_ID_PREFIX) {
-		client_id[idx..].split('.')
-	} else {
-		return false;
-	};
-
-	let ver: Vec<u32> = splitted
-			.take(2)
-			.filter_map(|s| s.parse().ok())
-			.collect();
-	ver.len() == 2 && (ver[0] > SERVICE_TRANSACTIONS_VERSION.0 || (ver[0] == SERVICE_TRANSACTIONS_VERSION.0 && ver[1] >= SERVICE_TRANSACTIONS_VERSION.1))
-}
-
 /// The Chain Sync Propagator: propagates data to peers
 pub struct SyncPropagator;
 
