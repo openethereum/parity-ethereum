@@ -1,6 +1,36 @@
+// Copyright 2015-2019 Parity Technologies (UK) Ltd.
+// This file is part of Parity Ethereum.
+
+// Parity Ethereum is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+
+// Parity Ethereum is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
+
+// You should have received a copy of the GNU General Public License
+// along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
+
+//! When sending packets over p2p we specify both which subprotocol
+//! to use and what kind of packet we are sending (through a packet id).
+//! Likewise when receiving packets from other peers we decode the
+//! subprotocol and the packet id. This module helps coupling both
+//! pieces of information together and provides an easy mechanism
+//! to convert to/from the packet id values transmitted over the
+//! wire.
+
 use api::{ETH_PROTOCOL, WARP_SYNC_PROTOCOL_ID};
 use network::{PacketId, ProtocolId};
 
+/// An enum that defines all known packet ids in the context of
+/// synchronization and provides a mechanism to convert from
+/// packet ids (of type PacketId or u8) directly read from the network
+/// to enum variants. This implicitly provides a mechanism to
+/// check whether a given packet id is known, and to prevent
+/// packet id clashes when defining new ids.
 enum_from_primitive! {
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub enum SyncPacketId {
@@ -28,14 +58,17 @@ pub enum SyncPacketId {
 }
 }
 
-
 use self::SyncPacketId::*;
 
+/// Provide both subprotocol and packet id information within the
+/// same object.
 pub trait PacketInfo {
 	fn id(&self) -> PacketId;
 	fn protocol(&self) -> ProtocolId;
 }
 
+// The mechanism to match packet ids and protocol may be improved
+// through some macro magic, but for now this works.
 impl PacketInfo for SyncPacketId {
 	fn protocol(&self) -> ProtocolId {
 		match self {
