@@ -55,7 +55,7 @@ impl ParityAccountsClient {
 }
 
 impl ParityAccountsInfo for ParityAccountsClient {
-	fn accounts_info(&self) -> Result<BTreeMap<RpcH160, AccountInfo>> {
+	fn accounts_info(&self) -> Result<BTreeMap<H160, AccountInfo>> {
 		self.deprecation_notice("parity_accountsInfo");
 
 		let dapp_accounts = self.accounts.accounts()
@@ -69,18 +69,18 @@ impl ParityAccountsInfo for ParityAccountsClient {
 			.into_iter()
 			.chain(other.into_iter())
 			.filter(|&(ref a, _)| dapp_accounts.contains(a))
-			.map(|(a, v)| (RpcH160::from(a), AccountInfo { name: v.name }))
+			.map(|(a, v)| (H160::from(a), AccountInfo { name: v.name }))
 			.collect()
 		)
 	}
 
-	fn hardware_accounts_info(&self) -> Result<BTreeMap<RpcH160, HwAccountInfo>> {
+	fn hardware_accounts_info(&self) -> Result<BTreeMap<H160, HwAccountInfo>> {
 		self.deprecation_notice("parity_hardwareAccountsInfo");
 
 		let info = self.accounts.hardware_accounts_info().map_err(|e| errors::account("Could not fetch account info.", e))?;
 		Ok(info
 			.into_iter()
-			.map(|(a, v)| (RpcH160::from(a), HwAccountInfo { name: v.name, manufacturer: v.meta }))
+			.map(|(a, v)| (H160::from(a), HwAccountInfo { name: v.name, manufacturer: v.meta }))
 			.collect()
 		)
 	}
@@ -91,7 +91,7 @@ impl ParityAccountsInfo for ParityAccountsClient {
 		self.accounts.locked_hardware_accounts().map_err(|e| errors::account("Error communicating with hardware wallet.", e))
 	}
 
-	fn default_account(&self) -> Result<RpcH160> {
+	fn default_account(&self) -> Result<H160> {
 		self.deprecation_notice("parity_defaultAccount");
 
 		Ok(self.accounts.default_account()

@@ -17,7 +17,6 @@
 //! Eth rpc interface.
 use jsonrpc_core::{Result, BoxFuture};
 use jsonrpc_derive::rpc;
-use jsonrpc_macros::Trailing;
 use ethereum_types::{H64, H160, H256, U64, U256};
 
 use v1::types::{RichBlock, BlockNumber, Bytes, CallRequest, Filter, FilterChanges, Index, EthAccount};

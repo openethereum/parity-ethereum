@@ -19,16 +19,13 @@ use std::sync::Arc;
 use std::str::FromStr;
 use std::collections::BTreeMap;
 
-use ethereum_types::{Address, H64, H160, H256, H512, U64, U256};
-use version::version_data;
-
 use crypto::DEFAULT_MAC;
+use ethereum_types::{Address, H64, H160, H256, H512, U64, U256};
 use ethcore::client::{BlockChainClient, StateClient, Call};
 use ethcore::miner::{self, MinerService};
 use ethcore::snapshot::{SnapshotService, RestorationStatus};
 use ethcore::state::StateInfo;
 use ethcore_logger::RotatingLogger;
-use ethereum_types::Address;
 use ethkey::{crypto::ecies, Brain, Generator};
 use ethstore::random_phrase;
 use jsonrpc_core::futures::future;

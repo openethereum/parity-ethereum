@@ -569,7 +569,7 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM, T: StateInfo + 'static> Eth for EthClient<
 		Ok(U256::from(self.client.chain_info().best_block_number))
 	}
 
-	fn balance(&self, address: H160, num: Trailing<BlockNumber>) -> BoxFuture<U256> {
+	fn balance(&self, address: H160, num: Option<BlockNumber>) -> BoxFuture<U256> {
 		let num = num.unwrap_or_default();
 
 		try_bf!(check_known(&*self.client, num.clone()));
@@ -581,7 +581,7 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM, T: StateInfo + 'static> Eth for EthClient<
 		Box::new(future::done(res))
 	}
 
-	fn proof(&self, address: H160, values: Vec<H256>, num: Trailing<BlockNumber>) -> BoxFuture<EthAccount> {
+	fn proof(&self, address: H160, values: Vec<H256>, num: Option<BlockNumber>) -> BoxFuture<EthAccount> {
 		try_bf!(errors::require_experimental(self.options.allow_experimental_rpcs, "1186"));
 
 		let key1 = keccak(address);
@@ -623,7 +623,7 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM, T: StateInfo + 'static> Eth for EthClient<
 		Box::new(future::done(res))
 	}
 
-	fn storage_at(&self, address: H160, pos: U256, num: Trailing<BlockNumber>) -> BoxFuture<H256> {
+	fn storage_at(&self, address: H160, position: U256, num: Option<BlockNumber>) -> BoxFuture<H256> {
 		let address: Address = address.into();
 		let num = num.unwrap_or_default();
 
@@ -636,7 +636,7 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM, T: StateInfo + 'static> Eth for EthClient<
 		Box::new(future::done(res))
 	}
 
-	fn transaction_count(&self, address: H160, num: Trailing<BlockNumber>) -> BoxFuture<U256> {
+	fn transaction_count(&self, address: H160, num: Option<BlockNumber>) -> BoxFuture<U256> {
 		let address: Address = address.into();
 
 		let res = match num.unwrap_or_default() {
@@ -719,7 +719,7 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM, T: StateInfo + 'static> Eth for EthClient<
 		}))
 	}
 
-	fn code_at(&self, address: H160, num: Trailing<BlockNumber>) -> BoxFuture<Bytes> {
+	fn code_at(&self, address: H160, num: Option<BlockNumber>) -> BoxFuture<Bytes> {
 		let address: Address = H160::into(address);
 
 		let num = num.unwrap_or_default();
@@ -951,7 +951,7 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM, T: StateInfo + 'static> Eth for EthClient<
 		))
 	}
 
-	fn estimate_gas(&self, request: CallRequest, num: Trailing<BlockNumber>) -> BoxFuture<U256> {
+	fn estimate_gas(&self, request: CallRequest, num: Option<BlockNumber>) -> BoxFuture<U256> {
 		let request = CallRequest::into(request);
 		let signed = try_bf!(fake_sign::sign_call(request));
 		let num = num.unwrap_or_default();

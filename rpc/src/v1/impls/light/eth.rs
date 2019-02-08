@@ -28,7 +28,7 @@ use light::client::LightChainClient;
 use light::{cht, TransactionQueue};
 use light::on_demand::{request, OnDemand};
 
-use ethereum_types::{H64, H160, H256, U64, U256};
+use ethereum_types::{Address, H64, H160, H256, U64, U256};
 use hash::{KECCAK_NULL_RLP, KECCAK_EMPTY_LIST_RLP};
 use parking_lot::{RwLock, Mutex};
 use rlp::Rlp;
@@ -252,6 +252,8 @@ where
 		(self.accounts)()
 			.first()
 			.cloned()
+			.map(From::from)
+			.ok_or_else(|| errors::account("No accounts were found", ""))
 	}
 
 	fn is_mining(&self) -> Result<bool> {
@@ -286,12 +288,12 @@ where
 		Ok(self.client.chain_info().best_block_number.into())
 	}
 
-	fn balance(&self, address: H160, num: Trailing<BlockNumber>) -> BoxFuture<U256> {
+	fn balance(&self, address: H160, num: Option<BlockNumber>) -> BoxFuture<U256> {
 		Box::new(self.fetcher().account(address.into(), num.unwrap_or_default().to_block_id())
 			.map(|acc| acc.map_or(0.into(), |a| a.balance).into()))
 	}
 
-	fn storage_at(&self, _address: H160, _key: U256, _num: Trailing<BlockNumber>) -> BoxFuture<H256> {
+	fn storage_at(&self, _address: H160, _key: U256, _num: Option<BlockNumber>) -> BoxFuture<H256> {
 		Box::new(future::err(errors::unimplemented(None)))
 	}
 
@@ -303,7 +305,7 @@ where
 		Box::new(self.rich_block(num.to_block_id(), include_txs).map(Some))
 	}
 
-	fn transaction_count(&self, address: H160, num: Trailing<BlockNumber>) -> BoxFuture<U256> {
+	fn transaction_count(&self, address: H160, num: Option<BlockNumber>) -> BoxFuture<U256> {
 		Box::new(self.fetcher().account(address.into(), num.unwrap_or_default().to_block_id())
 			.map(|acc| acc.map_or(0.into(), |a| a.nonce).into()))
 	}
@@ -372,7 +374,7 @@ where
 		}))
 	}
 
-	fn code_at(&self, address: H160, num: Trailing<BlockNumber>) -> BoxFuture<Bytes> {
+	fn code_at(&self, address: H160, num: Option<BlockNumber>) -> BoxFuture<Bytes> {
 		Box::new(self.fetcher().code(address.into(), num.unwrap_or_default().to_block_id()).map(Into::into))
 	}
 
@@ -408,7 +410,7 @@ where
 		}))
 	}
 
-	fn estimate_gas(&self, req: CallRequest, num: Trailing<BlockNumber>) -> BoxFuture<U256> {
+	fn estimate_gas(&self, req: CallRequest, num: Option<BlockNumber>) -> BoxFuture<U256> {
 		// TODO: binary chop for more accurate estimates.
 		Box::new(self.fetcher().proved_read_only_execution(req, num).and_then(|res| {
 			match res {
@@ -489,7 +491,7 @@ where
 		}))
 	}
 
-	fn proof(&self, _address: H160, _values:Vec<H256>, _num: Trailing<BlockNumber>) -> BoxFuture<EthAccount> {
+	fn proof(&self, _address: H160, _values:Vec<H256>, _num: Option<BlockNumber>) -> BoxFuture<EthAccount> {
 		Box::new(future::err(errors::unimplemented(None)))
 	}
 
