@@ -27,16 +27,11 @@ pub struct CliqueParams {
 	pub epoch: u64,
 }
 
-fn to_duration(ms: ethjson::uint::Uint) -> Duration {
-	let ms: usize = ms.into();
-	Duration::from_millis(ms as u64)
-}
-
 impl From<ethjson::spec::CliqueParams> for CliqueParams {
 	fn from(p: ethjson::spec::CliqueParams) -> Self {
 		CliqueParams {
-			period: p.period.map_or_else(Default::default, Into::into),
-			epoch: p.epoch.map_or_else(Default::default, Into::into),
+			period: p.period.map_or_else(30000 as u64, Into::into),
+			epoch: p.epoch.map_or_else(15 as u64, Into::into),
 		}
 	}
 }

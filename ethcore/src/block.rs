@@ -658,7 +658,7 @@ mod tests {
 	) -> Result<SealedBlock, Error> {
 		let header = Unverified::from_rlp(block_bytes.clone())?.header;
 		Ok(enact_bytes(block_bytes, engine, tracing, db, parent, last_hashes, factories)?
-			 .seal(engine, header.seal().to_vec())?)
+			.seal(engine, header.seal().to_vec())?)
 	}
 
 	#[test]
