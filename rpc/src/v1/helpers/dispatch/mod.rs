@@ -201,6 +201,7 @@ pub enum SignWith {
 }
 
 impl SignWith {
+	#[cfg(any(test, feature = "accounts"))]
 	fn is_password(&self) -> bool {
 		if let SignWith::Password(_) = *self {
 			true
