@@ -4,7 +4,7 @@ cd $TRAVIS_BUILD_DIR
 
 echo "________________________________________________________________________________"
 echo "BUILD PARITY: cargo build --features final"
-cargo build --features final
+cargo build --release --features final
 TIMEOUT=$(echo 50*60-1800-$SECONDS|bc)
 
 echo "________________________________________________________________________________"
