@@ -400,8 +400,7 @@ impl Engine<EthereumMachine> for Clique {
 
 	/// Returns if we are ready to seal, the real sealing (signing extra_data) is actually done in `on_seal_block()`.
 	fn generate_seal(&self, block: &ExecutedBlock, parent: &Header) -> Seal {
-		// make this pub
-		let NULL_SEAL = vec!(encode(&NULL_MIXHASH.to_vec()), encode(&NULL_NONCE.to_vec()));
+		let null_seal = vec!(encode(&NULL_MIXHASH.to_vec()), encode(&NULL_NONCE.to_vec()));
 
 		trace!(target: "engine", "tried to generate seal");
 
@@ -415,7 +414,7 @@ impl Engine<EthereumMachine> for Clique {
 			if block.transactions.is_empty() && block.header.number() % self.epoch_length != 0 {
 				return Seal::None;
 			}
-			return Seal::Regular(NULL_SEAL);
+			return Seal::Regular(null_seal);
 		}
 
 		// Check we actually have authority to seal.
@@ -447,7 +446,7 @@ impl Engine<EthereumMachine> for Clique {
 
 					trace!(target: "engine", "generate_seal: seal ready for block {}, txs: {}.",
 					       block.header.number(), block.transactions.len());
-					return Seal::Regular(NULL_SEAL);
+					return Seal::Regular(null_seal);
 				}
 			}
 		}

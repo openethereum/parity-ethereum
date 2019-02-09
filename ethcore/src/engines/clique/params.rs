@@ -16,8 +16,6 @@
 
 //! Clique specific parameters.
 
-use std::time::Duration;
-
 use ethjson;
 
 /// `Clique` params.
@@ -30,8 +28,8 @@ pub struct CliqueParams {
 impl From<ethjson::spec::CliqueParams> for CliqueParams {
 	fn from(p: ethjson::spec::CliqueParams) -> Self {
 		CliqueParams {
-			period: p.period.map_or_else(30000 as u64, Into::into),
-			epoch: p.epoch.map_or_else(15 as u64, Into::into),
+			period: p.period.map_or_else(|| 30000 as u64, Into::into),
+			epoch: p.epoch.map_or_else(|| 15 as u64, Into::into),
 		}
 	}
 }
