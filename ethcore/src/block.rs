@@ -519,6 +519,14 @@ fn enact(
 	is_epoch_begin: bool,
 	ancestry: &mut Iterator<Item=ExtendedHeader>,
 ) -> Result<LockedBlock, Error> {
+	// For trace log
+	let s: Option<State<StateDB>>;
+	if log_enabled!(target: "enact", ::log::Level::Trace) {
+		s = Some(State::from_existing(db.boxed_clone(), parent.state_root().clone(), engine.account_start_nonce(parent.number() + 1), factories.clone())?);
+	} else {
+		s = Default::default();
+	}
+
 	let mut b = OpenBlock::new(
 		engine,
 		factories,
@@ -540,14 +548,13 @@ fn enact(
 	b.block.header.set_uncles_hash(*header.uncles_hash());
 	b.block.header.set_transactions_root(*header.transactions_root());
 
-//	{
-//		if ::log::max_level() >= ::log::Level::Trace {
-//			let env = b.env_info();
-//			let s = State::from_existing(db.boxed_clone(), parent.state_root().clone(), engine.account_start_nonce(parent.number() + 1), factories.clone())?;
-//			trace!(target: "enact", "num={}, root={}, author={}, author_balance={}\n",
-//				   b.block.header.number(), s.root(), env.author, s.balance(&env.author)?);
-//		}
-//	}
+	if log_enabled!(target: "enact", ::log::Level::Trace) && s.is_some() {
+		let env = b.env_info();
+		let root = s.as_ref().unwrap().root();
+		let author_balance = s.as_ref().unwrap().balance(&env.author)?;
+		trace!(target: "enact", "num={}, root={}, author={}, author_balance={}\n",
+		       b.block.header.number(), root, env.author, author_balance);
+	}
 
 	b.push_transactions(transactions)?;
 
