@@ -46,13 +46,12 @@ use builtin::Builtin;
 use vm::{EnvInfo, Schedule, CreateContractAddress, CallType, ActionValue};
 use error::Error;
 use types::BlockNumber;
-use types::header::Header;
 use snapshot::SnapshotComponents;
 use spec::CommonParams;
 use types::transaction::{self, UnverifiedTransaction, SignedTransaction};
-
 use ethkey::{Signature};
-use parity_machine::{Machine, LocalizedMachine as Localized, TotalScoredHeader};
+use types::header::Header;
+use parity_machine::{Machine, LocalizedMachine as Localized, TotalScoredHeader, Header as MachineHeader};
 use ethereum_types::{H256, U256, Address};
 use unexpected::{Mismatch, OutOfBounds};
 use bytes::Bytes;
@@ -268,7 +267,7 @@ pub trait Engine<M: Machine>: Sync + Send {
 	}
 
 	/// Allow returning new block header after seal generation. Currently only used by Clique.
-	fn on_seal_block(&self, _block: &M::LiveBlock) -> Result<Option<Header>, M::Error> { Ok(None) }
+	fn on_seal_block(&self, _block: &M::LiveBlock) -> Result<Option<M::Header>, M::Error> { Ok(None) }
 
 	/// None means that it requires external input (e.g. PoW) to seal a block.
 	/// Some(true) means the engine is currently prime for seal generation (i.e. node is the current validator).

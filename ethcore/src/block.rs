@@ -153,9 +153,6 @@ impl ExecutedBlock {
 	pub fn traces_mut(&mut self) -> &mut Tracing {
 		&mut self.traces
 	}
-
-	/// Get mutable reference to header.
-	pub fn header_mut(&mut self) -> &mut Header { &mut self.header }
 }
 
 /// Trait for a object that is a `ExecutedBlock`.
@@ -288,7 +285,9 @@ impl<'x> OpenBlock<'x> {
 	}
 
 	/// Get the environment info concerning this block.
-	pub fn env_info(&self) -> EnvInfo { self.block.env_info() }
+	pub fn env_info(&self) -> EnvInfo {
+		self.block.env_info()
+	}
 
 	/// Push a transaction into the block.
 	///

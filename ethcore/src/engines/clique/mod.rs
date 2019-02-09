@@ -59,7 +59,7 @@
 /// 6. Implement `engine.on_seal_block()`, which is the new hook that allow modifying header after block is locked.
 /// 7. `engine.verify_local_seal()` will later be called, then normal syncing code path will also be called to import
 ///    the new block.
-use core::borrow::BorrowMut;
+
 use std::cmp;
 use std::collections::VecDeque;
 use std::sync::{Arc, Weak};
@@ -75,13 +75,12 @@ use lru_cache::LruCache;
 use parking_lot::RwLock;
 use rlp::encode;
 
-use account_provider::AccountProvider;
 use block::*;
 use client::{BlockId, EngineClient};
 use engines::{Engine, Seal};
 use engines::clique::util::{extract_signers, recover_creator};
 use error::Error;
-use ethkey::{Password, Signature};
+use ethkey::Signature;
 use io::IoService;
 use machine::{Call, EthereumMachine};
 use types::BlockNumber;
@@ -133,7 +132,7 @@ pub struct Clique {
 	client: RwLock<Option<Weak<EngineClient>>>,
 	block_state_by_hash: RwLock<LruCache<H256, CliqueBlockState>>,
 	proposals: RwLock<HashMap<Address, VoteType>>,
-	signer: RwLock<EngineSigner>,
+	signer: RwLock<Option<Box<EngineSigner>>>,
 	step_service: IoService<Duration>,
 }
 
@@ -154,24 +153,33 @@ impl Clique {
 
 		if engine.period > 0 {
 			let handler = StepService::new(Arc::downgrade(&engine) as Weak<Engine<_>>,
-			                               Duration::from_secs(our_params.period) / 2 + Duration::from_millis(10) );
-			engine.step_service.register_handler(Arc::new(handler))?;
+			                               Duration::from_secs(our_params.period) / 2 + Duration::from_millis(10));
+			engine.step_service.register_handler(Arc::new(handler)).expect("set_signer: Error registering timeout handler.");
 		}
 
 		return Ok(engine);
 	}
 
 	fn sign_header(&self, header: &Header) -> Result<(Signature, H256), Error> {
-		let digest = header.hash();
-
-		match (*self.signer.read()).sign(digest) {
-			Ok(sig) => { Ok((sig, digest)) }
-			Err(e) => { Err(Box::new(format!("sign_header: failed to sign header, error: {}", e)).into()) }
+		match self.signer.read().as_ref() {
+			None => {
+				return Err(Box::new("sign_header: No signer available.").into());
+			}
+			Some(signer) => {
+				let digest = header.hash();
+				match signer.sign(digest) {
+					Ok(sig) => {
+						return Ok((sig, digest));
+					}
+					Err(e) => {
+						return Err(Box::new(format!("sign_header: failed to sign header, error: {}", e)).into());
+					}
+				}
+			}
 		}
 	}
 
 	/// Construct an new state from given checkpoint header.
-	#[inline]
 	fn new_checkpoint_state(&self, header: &Header) -> Result<CliqueBlockState, Error> {
 		assert_eq!(header.number() % self.epoch_length, 0);
 
@@ -223,9 +231,10 @@ impl Clique {
 				while last.number() != last_checkpoint_number + 1 {
 					match c.block_header(BlockId::Hash(*last.parent_hash())) {
 						None => {
-							return Err(From::from(format!("parent block {} of {} could not be recovered.",
-							                              &last.parent_hash(),
-							                              &last.hash())));
+							return Err(Box::new(
+								format!("parent block {} of {} could not be recovered.",
+								        &last.parent_hash(),&last.hash())
+							).into());
 						}
 						Some(next) => {
 							chain.push_front(next.decode().unwrap().clone());
@@ -410,41 +419,39 @@ impl Engine<EthereumMachine> for Clique {
 		}
 
 		// Check we actually have authority to seal.
-		let author = self.signer.read().address();
-		if author.is_none() {
-			return Seal::None;
-		}
-
-		// ensure the voting state exists
-		match self.state(&parent) {
-			Err(e) => {
-				warn!(target: "engine", "generate_seal: can't get parent state(number: {}, hash: {}): {} ",
-				      parent.number(), parent.hash(), e);
-				return Seal::None;
-			}
-			Ok(state) => {
-				// Are we authorized to seal?
-				if !state.is_authoirzed(&author.unwrap()) {
-					trace!(target: "engine", "generate_seal: Not authorized to sign right now.");
+		if let Some(author) = self.signer.read().as_ref().map(|x| x.address()) {
+			// ensure the voting state exists
+			match self.state(&parent) {
+				Err(e) => {
+					warn!(target: "engine", "generate_seal: can't get parent state(number: {}, hash: {}): {} ",
+					      parent.number(), parent.hash(), e);
 					return Seal::None;
 				}
+				Ok(state) => {
+					// Are we authorized to seal?
+					if !state.is_authoirzed(&author) {
+						trace!(target: "engine", "generate_seal: Not authorized to sign right now.");
+						return Seal::None;
+					}
 
-				// If we are too early
-				let inturn = state.inturn(block.header.number(), &author.unwrap());
-				let now = SystemTime::now();
+					// If we are too early
+					let inturn = state.inturn(block.header.number(), &author);
+					let now = SystemTime::now();
 
-				if (now < UNIX_EPOCH + Duration::from_secs(block.header().timestamp())) ||
-					(inturn && now < state.next_timestamp_inturn.unwrap()) ||
-					(!inturn && now < state.next_timestamp_noturn.unwrap()) {
-					trace!(target: "engine", "generate_seal: too early to sign right now.");
-					return Seal::None;
+					if (now < UNIX_EPOCH + Duration::from_secs(block.header().timestamp())) ||
+						(inturn && now < state.next_timestamp_inturn.unwrap()) ||
+						(!inturn && now < state.next_timestamp_noturn.unwrap()) {
+						trace!(target: "engine", "generate_seal: too early to sign right now.");
+						return Seal::None;
+					}
+
+					trace!(target: "engine", "generate_seal: seal ready for block {}, txs: {}.",
+					       block.header.number(), block.transactions.len());
+					return Seal::Regular(NULL_SEAL);
 				}
-
-				trace!(target: "engine", "generate_seal: seal ready for block {}, txs: {}.",
-				       block.header.number(), block.transactions.len());
-				return Seal::Regular(NULL_SEAL);
 			}
 		}
+		Seal::None
 	}
 
 	fn verify_local_seal(&self, _header: &Header) -> Result<(), Error> { Ok(()) }
@@ -574,14 +581,14 @@ impl Engine<EthereumMachine> for Clique {
 
 				// It's unclear how to prevent creating new blocks unless we are authorized, the best way (and geth does this too)
 				// it's just to ignore setting an correct difficulty here, we will check authorization in next step in generate_seal anyway.
-				if let Some(signer) = self.signer.read().address() {
+				if let Some(signer) = self.signer.read().as_ref() {
 					match self.state(&parent) {
 						Err(e) => {
 							trace!(target: "engine", "populate_from_parent: Unable to find parent state: {}, ignored.", e);
 						}
 						Ok(state) => {
-							if state.is_authoirzed(&signer) {
-								if state.inturn(header.number(), &signer) {
+							if state.is_authoirzed(&signer.address()) {
+								if state.inturn(header.number(), &signer.address()) {
 									header.set_difficulty(DIFF_INTURN);
 								} else {
 									header.set_difficulty(DIFF_NOTURN);
@@ -594,9 +601,8 @@ impl Engine<EthereumMachine> for Clique {
 		}
 	}
 
-	fn set_signer(&self, ap: Arc<AccountProvider>, address: Address, password: Password) {
-		trace!(target: "engine", "called set_signer");
-		self.signer.write().set(ap, address, password);
+	fn set_signer(&self, signer: Box<EngineSigner>) {
+		*self.signer.write() = Some(signer);
 	}
 
 	fn register_client(&self, client: Weak<EngineClient>) {
@@ -614,7 +620,7 @@ impl Engine<EthereumMachine> for Clique {
 	}
 
 	fn stop(&mut self) {
-		self.step_service.borrow_mut().stop();
+		(&mut self.step_service).stop();
 	}
 
 	/// Clique timestamp is set to parent + period , or current time which ever is higher.
