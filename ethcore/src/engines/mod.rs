@@ -21,16 +21,17 @@ mod basic_authority;
 mod clique;
 mod instant_seal;
 mod null_engine;
-mod signer;
 mod validator_set;
 
 pub mod block_reward;
+pub mod signer;
 
 pub use self::authority_round::AuthorityRound;
 pub use self::basic_authority::BasicAuthority;
 pub use self::epoch::{EpochVerifier, Transition as EpochTransition};
 pub use self::instant_seal::{InstantSeal, InstantSealParams};
 pub use self::null_engine::NullEngine;
+pub use self::signer::EngineSigner;
 pub use self::clique::Clique;
 
 // TODO [ToDr] Remove re-export (#10130)
@@ -41,7 +42,6 @@ use std::sync::{Weak, Arc};
 use std::collections::{BTreeMap, HashMap};
 use std::{fmt, error};
 
-use account_provider::AccountProvider;
 use builtin::Builtin;
 use vm::{EnvInfo, Schedule, CreateContractAddress, CallType, ActionValue};
 use error::Error;
@@ -51,8 +51,8 @@ use snapshot::SnapshotComponents;
 use spec::CommonParams;
 use types::transaction::{self, UnverifiedTransaction, SignedTransaction};
 
-use ethkey::{Password, Signature};
-use parity_machine::{Machine, LocalizedMachine as Localized, TotalScoredHeader, Header as LiveHeader};
+use ethkey::{Signature};
+use parity_machine::{Machine, LocalizedMachine as Localized, TotalScoredHeader};
 use ethereum_types::{H256, U256, Address};
 use unexpected::{Mismatch, OutOfBounds};
 use bytes::Bytes;
@@ -83,6 +83,8 @@ pub enum EngineError {
 	MalformedMessage(String),
 	/// Requires client ref, but none registered.
 	RequiresClient,
+	/// Invalid engine specification or implementation.
+	InvalidEngine,
 }
 
 impl fmt::Display for EngineError {
@@ -98,6 +100,7 @@ impl fmt::Display for EngineError {
 			FailedSystemCall(ref msg) => format!("Failed to make system call: {}", msg),
 			MalformedMessage(ref msg) => format!("Received malformed consensus message: {}", msg),
 			RequiresClient => format!("Call requires client but none registered"),
+			InvalidEngine => format!("Invalid engine specification or implementation"),
 		};
 
 		f.write_fmt(format_args!("Engine error ({})", msg))
@@ -264,7 +267,7 @@ pub trait Engine<M: Machine>: Sync + Send {
 		Ok(())
 	}
 
-	/// Allow modifying block header after seal generation. Currently only used by Clique.
+	/// Allow returning new block header after seal generation. Currently only used by Clique.
 	fn on_seal_block(&self, _block: &M::LiveBlock) -> Result<Option<Header>, M::Error> { Ok(None) }
 
 	/// None means that it requires external input (e.g. PoW) to seal a block.
@@ -378,8 +381,12 @@ pub trait Engine<M: Machine>: Sync + Send {
 	/// updating consensus state and potentially issuing a new one.
 	fn handle_message(&self, _message: &[u8]) -> Result<(), EngineError> { Err(EngineError::UnexpectedMessage) }
 
-	/// Register an account which signs consensus messages.
-	fn set_signer(&self, _account_provider: Arc<AccountProvider>, _address: Address, _password: Password) {}
+	/// Find out if the block is a proposal block and should not be inserted into the DB.
+	/// Takes a header of a fully verified block.
+	fn is_proposal(&self, _verified_header: &M::Header) -> bool { false }
+
+	/// Register a component which signs consensus messages.
+	fn set_signer(&self, _signer: Box<EngineSigner>) {}
 
 	/// Sign using the EngineSigner, to be used for consensus tx signing.
 	fn sign(&self, _hash: H256) -> Result<Signature, M::Error> { unimplemented!() }
@@ -428,10 +435,6 @@ pub trait Engine<M: Machine>: Sync + Send {
 
 	/// Return author should used in executing txns for this block.
 	fn executive_author(&self, header: &M::Header) -> Address { header.author().clone() }
-
-	/// Called after block was applied to the blockchain
-	fn on_block_applied(&self, _header: &M::Header) -> Result<(), M::Error> { Ok(()) }
-
 }
 
 /// Check whether a given block is the best block based on the default total difficulty rule.

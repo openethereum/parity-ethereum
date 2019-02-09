@@ -41,7 +41,7 @@ pub mod informant;
 pub mod metadata;
 pub mod traits;
 
-pub use self::traits::{Debug, Eth, EthFilter, EthPubSub, EthSigning, Net, Parity, ParityAccounts, ParitySet, ParitySigning, Personal, PubSub, Private, Rpc, SecretStore, Signer, Traces, Web3};
+pub use self::traits::{Debug, Eth, EthFilter, EthPubSub, EthSigning, Net, Parity, ParityAccountsInfo, ParityAccounts, ParitySet, ParitySetAccounts, ParitySigning, Personal, PubSub, Private, Rpc, SecretStore, Signer, Traces, Web3};
 pub use self::impls::*;
 pub use self::helpers::{NetworkSettings, block_import, dispatch};
 pub use self::metadata::Metadata;
@@ -50,6 +50,8 @@ pub use self::extractors::{RpcExtractor, WsExtractor, WsStats, WsDispatcher};
 
 /// Signer utilities
 pub mod signer {
-	pub use super::helpers::{SigningQueue, SignerService, ConfirmationsQueue};
+	#[cfg(any(test, feature = "accounts"))]
+	pub use super::helpers::engine_signer::EngineSigner;
+	pub use super::helpers::external_signer::{SignerService, ConfirmationsQueue};
 	pub use super::types::{ConfirmationRequest, TransactionModification, U256, TransactionCondition};
 }

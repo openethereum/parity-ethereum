@@ -19,7 +19,7 @@ use std::str::FromStr;
 use ethereum_types::{U256, Address};
 use bytes::ToPretty;
 
-use ethcore::account_provider::AccountProvider;
+use accounts::AccountProvider;
 use ethcore::client::TestBlockChainClient;
 use parity_runtime::Runtime;
 use parking_lot::Mutex;
@@ -32,8 +32,9 @@ use v1::{SignerClient, Signer, Origin};
 use v1::metadata::Metadata;
 use v1::tests::helpers::TestMinerService;
 use v1::types::{Bytes as RpcBytes, H520};
-use v1::helpers::{nonce, SigningQueue, SignerService, FilledTransactionRequest, ConfirmationPayload};
-use v1::helpers::dispatch::{FullDispatcher, eth_data_hash};
+use v1::helpers::{nonce, FilledTransactionRequest, ConfirmationPayload};
+use v1::helpers::external_signer::{SigningQueue, SignerService};
+use v1::helpers::dispatch::{self, FullDispatcher, eth_data_hash};
 
 struct SignerTester {
 	_runtime: Runtime,
@@ -60,13 +61,14 @@ fn signer_tester() -> SignerTester {
 	let runtime = Runtime::with_thread_count(1);
 	let signer = Arc::new(SignerService::new_test(false));
 	let accounts = accounts_provider();
+	let account_signer = Arc::new(dispatch::Signer::new(accounts.clone()));
 	let client = blockchain_client();
 	let miner = miner_service();
 	let reservations = Arc::new(Mutex::new(nonce::Reservations::new(runtime.executor())));
 
 	let dispatcher = FullDispatcher::new(client, miner.clone(), reservations, 50);
 	let mut io = IoHandler::default();
-	io.extend_with(SignerClient::new(&accounts, dispatcher, &signer, runtime.executor()).to_delegate());
+	io.extend_with(SignerClient::new(account_signer, dispatcher, &signer, runtime.executor()).to_delegate());
 
 	SignerTester {
 		_runtime: runtime,
@@ -554,30 +556,4 @@ fn should_generate_new_token() {
 
 	// then
 	assert_eq!(tester.io.handle_request_sync(&request), Some(response.to_owned()));
-}
-
-#[test]
-fn should_generate_new_web_proxy_token() {
-	use jsonrpc_core::{Response, Output, Value};
-	// given
-	let tester = signer_tester();
-
-	// when
-	let request = r#"{
-		"jsonrpc":"2.0",
-		"method":"signer_generateWebProxyAccessToken",
-		"params":["https://parity.io"],
-		"id":1
-	}"#;
-	let response = tester.io.handle_request_sync(&request).unwrap();
-	let result = serde_json::from_str(&response).unwrap();
-
-	if let Response::Single(Output::Success(ref success)) = result {
-		if let Value::String(ref token) = success.result {
-			assert_eq!(tester.signer.web_proxy_access_token_domain(&token), Some("https://parity.io".into()));
-			return;
-		}
-	}
-
-	assert!(false, "Expected successful response, got: {:?}", result);
 }

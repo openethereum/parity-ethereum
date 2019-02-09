@@ -21,6 +21,14 @@ use jsonrpc_derive::rpc;
 
 use v1::types::{Bytes, H160, H256, U256, ReleaseInfo, Transaction};
 
+/// Parity-specific rpc interface for operations altering the account-related settings.
+#[rpc]
+pub trait ParitySetAccounts {
+	/// Sets account for signing consensus messages.
+	#[rpc(name = "parity_setEngineSigner")]
+	fn set_engine_signer(&self, H160, String) -> Result<bool>;
+}
+
 /// Parity-specific rpc interface for operations altering the settings.
 #[rpc]
 pub trait ParitySet {
@@ -44,9 +52,9 @@ pub trait ParitySet {
 	#[rpc(name = "parity_setAuthor")]
 	fn set_author(&self, H160) -> Result<bool>;
 
-	/// Sets account for signing consensus messages.
-	#[rpc(name = "parity_setEngineSigner")]
-	fn set_engine_signer(&self, H160, String) -> Result<bool>;
+	/// Sets the secret of engine signer account.
+	#[rpc(name = "parity_setEngineSignerSecret")]
+	fn set_engine_signer_secret(&self, H256) -> Result<bool>;
 
 	/// Sets the limits for transaction queue.
 	#[rpc(name = "parity_setTransactionsLimit")]

@@ -32,9 +32,8 @@ use ethcore::miner::Miner;
 use ethcore::snapshot::service::{Service as SnapshotService, ServiceParams as SnapServiceParams};
 use ethcore::snapshot::{SnapshotService as _SnapshotService, RestorationStatus};
 use ethcore::spec::Spec;
-use ethcore::account_provider::AccountProvider;
 
-use ethcore_private_tx::{self, Importer};
+use ethcore_private_tx::{self, Importer, Signer};
 use Error;
 
 pub struct PrivateTxService {
@@ -96,9 +95,10 @@ impl ClientService {
 		restoration_db_handler: Box<BlockChainDBHandler>,
 		_ipc_path: &Path,
 		miner: Arc<Miner>,
-		account_provider: Arc<AccountProvider>,
+		signer: Arc<Signer>,
 		encryptor: Box<ethcore_private_tx::Encryptor>,
 		private_tx_conf: ethcore_private_tx::ProviderConfig,
+		private_encryptor_conf: ethcore_private_tx::EncryptorConfig,
 		) -> Result<ClientService, Error>
 	{
 		let io_service = IoService::<ClientIoMessage>::start()?;
@@ -127,13 +127,18 @@ impl ClientService {
 		};
 		let snapshot = Arc::new(SnapshotService::new(snapshot_params)?);
 
+		let private_keys = Arc::new(ethcore_private_tx::SecretStoreKeys::new(
+			client.clone(),
+			private_encryptor_conf.key_server_account,
+		));
 		let provider = Arc::new(ethcore_private_tx::Provider::new(
-				client.clone(),
-				miner,
-				account_provider,
-				encryptor,
-				private_tx_conf,
-				io_service.channel(),
+			client.clone(),
+			miner,
+			signer,
+			encryptor,
+			private_tx_conf,
+			io_service.channel(),
+			private_keys,
 		));
 		let private_tx = Arc::new(PrivateTxService::new(provider));
 
@@ -276,7 +281,6 @@ mod tests {
 	use tempdir::TempDir;
 
 	use ethcore_db::NUM_COLUMNS;
-	use ethcore::account_provider::AccountProvider;
 	use ethcore::client::ClientConfig;
 	use ethcore::miner::Miner;
 	use ethcore::spec::Spec;
@@ -311,8 +315,9 @@ mod tests {
 			restoration_db_handler,
 			tempdir.path(),
 			Arc::new(Miner::new_for_tests(&spec, None)),
-			Arc::new(AccountProvider::transient_provider()),
+			Arc::new(ethcore_private_tx::DummySigner),
 			Box::new(ethcore_private_tx::NoopEncryptor),
+			Default::default(),
 			Default::default(),
 		);
 		assert!(service.is_ok());

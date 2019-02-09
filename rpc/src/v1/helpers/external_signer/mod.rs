@@ -14,23 +14,22 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
+//! An list of requests to be confirmed or signed by an external approver/signer.
+
 use std::sync::Arc;
 use std::ops::Deref;
-use http::Origin;
-use parking_lot::Mutex;
-use transient_hashmap::TransientHashMap;
 
-use ethstore::random_string;
+mod oneshot;
+mod signing_queue;
 
-use v1::helpers::signing_queue::{ConfirmationsQueue};
-
-const TOKEN_LIFETIME_SECS: u32 = 3600;
+pub use self::signing_queue::{SigningQueue, ConfirmationsQueue, ConfirmationReceiver, ConfirmationResult};
+#[cfg(test)]
+pub use self::signing_queue::QueueEvent;
 
 /// Manages communication with Signer crate
 pub struct SignerService {
 	is_enabled: bool,
 	queue: Arc<ConfirmationsQueue>,
-	web_proxy_tokens: Mutex<TransientHashMap<String, Origin>>,
 	generate_new_token: Box<Fn() -> Result<String, String> + Send + Sync + 'static>,
 }
 
@@ -40,24 +39,9 @@ impl SignerService {
 		where F: Fn() -> Result<String, String> + Send + Sync + 'static {
 		SignerService {
 			queue: Arc::new(ConfirmationsQueue::default()),
-			web_proxy_tokens: Mutex::new(TransientHashMap::new(TOKEN_LIFETIME_SECS)),
 			generate_new_token: Box::new(new_token),
 			is_enabled: is_enabled,
 		}
-	}
-
-	/// Checks if the token is valid web proxy access token.
-	pub fn web_proxy_access_token_domain(&self, token: &String) -> Option<Origin> {
-		self.web_proxy_tokens.lock().get(token).cloned()
-	}
-
-	/// Generates a new web proxy access token.
-	pub fn generate_web_proxy_access_token(&self, domain: Origin) -> String {
-		let token = random_string(16);
-		let mut tokens = self.web_proxy_tokens.lock();
-		tokens.prune();
-		tokens.insert(token.clone(), domain);
-		token
 	}
 
 	/// Generates new signer authorization token.

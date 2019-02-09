@@ -61,7 +61,8 @@ use client::{
 	IoClient, BadBlocks,
 };
 use client::bad_blocks;
-use engines::{EthEngine, EpochTransition, ForkChoice};
+use engines::{EthEngine, EpochTransition, ForkChoice, EngineError};
+use engines::epoch::PendingTransition;
 use error::{
 	ImportErrorKind, ExecutionError, CallError, BlockError,
 	QueueError, QueueErrorKind, Error as EthcoreError, EthcoreResult, ErrorKind as EthcoreErrorKind
@@ -295,16 +296,21 @@ impl Importer {
 					continue;
 				}
 
-				match self.check_and_lock_block(block, client) {
-					Ok(closed_block) => {
-						imported_blocks.push(hash);
+				match self.check_and_lock_block(&bytes, block, client) {
+					Ok((closed_block, pending)) => {
+						if self.engine.is_proposal(&header) {
+							self.block_queue.mark_as_good(&[hash]);
+							proposed_blocks.push(bytes);
+						} else {
+							imported_blocks.push(hash);
 
-						let transactions_len = closed_block.transactions().len();
+							let transactions_len = closed_block.transactions().len();
 
-						let route = self.commit_block(closed_block, &header, encoded::Block::new(bytes), client);
-						import_results.push(route);
+							let route = self.commit_block(closed_block, &header, encoded::Block::new(bytes), pending, client);
+							import_results.push(route);
 
-						client.report.write().accrue_block(&header, transactions_len);
+							client.report.write().accrue_block(&header, transactions_len);
+						}
 					},
 					Err(err) => {
 						self.bad_blocks.report(bytes, format!("{:?}", err));
@@ -352,7 +358,7 @@ impl Importer {
 		imported
 	}
 
-	fn check_and_lock_block(&self, block: PreverifiedBlock, client: &Client) -> EthcoreResult<LockedBlock> {
+	fn check_and_lock_block(&self, bytes: &[u8], block: PreverifiedBlock, client: &Client) -> EthcoreResult<(LockedBlock, Option<PendingTransition>)> {
 		let engine = &*self.engine;
 		let header = block.header.clone();
 
@@ -436,7 +442,15 @@ impl Importer {
 			bail!(e);
 		}
 
-		Ok(locked_block)
+		let pending = self.check_epoch_end_signal(
+			&header,
+			bytes,
+			locked_block.receipts(),
+			locked_block.state().db(),
+			client
+		)?;
+
+		Ok((locked_block, pending))
 	}
 
 	/// Import a block with transaction receipts.
@@ -469,7 +483,7 @@ impl Importer {
 	//
 	// The header passed is from the original block data and is sealed.
 	// TODO: should return an error if ImportRoute is none, issue #9910
-	fn commit_block<B>(&self, block: B, header: &Header, block_data: encoded::Block, client: &Client) -> ImportRoute where B: Drain {
+	fn commit_block<B>(&self, block: B, header: &Header, block_data: encoded::Block, pending: Option<PendingTransition>, client: &Client) -> ImportRoute where B: Drain {
 		let hash = &header.hash();
 		let number = header.number();
 		let parent = header.parent_hash();
@@ -524,15 +538,9 @@ impl Importer {
 
 		// check epoch end signal, potentially generating a proof on the current
 		// state.
-		self.check_epoch_end_signal(
-			&header,
-			block_data.raw(),
-			&receipts,
-			&state,
-			&chain,
-			&mut batch,
-			client
-		);
+		if let Some(pending) = pending {
+			chain.insert_pending_transition(&mut batch, header.hash(), pending);
+		}
 
 		state.journal_under(&mut batch, number, hash).expect("DB commit failed");
 
@@ -548,8 +556,6 @@ impl Importer {
 
 			a
 		}).collect();
-
-		self.engine.on_block_applied(&header).expect("Engine apply failed.");
 
 		let route = chain.insert_block(&mut batch, block_data, receipts.clone(), ExtrasInsert {
 			fork_choice: fork_choice,
@@ -589,10 +595,8 @@ impl Importer {
 		block_bytes: &[u8],
 		receipts: &[Receipt],
 		state_db: &StateDB,
-		chain: &BlockChain,
-		batch: &mut DBTransaction,
 		client: &Client,
-	) {
+	) -> EthcoreResult<Option<PendingTransition>> {
 		use engines::EpochChange;
 
 		let hash = header.hash();
@@ -603,7 +607,6 @@ impl Importer {
 
 		match self.engine.signals_epoch_end(header, auxiliary) {
 			EpochChange::Yes(proof) => {
-				use engines::epoch::PendingTransition;
 				use engines::Proof;
 
 				let proof = match proof {
@@ -640,11 +643,9 @@ impl Importer {
 								.transact(&transaction, options);
 
 							let res = match res {
-								Err(ExecutionError::Internal(e)) =>
-									Err(format!("Internal error: {}", e)),
 								Err(e) => {
 									trace!(target: "client", "Proved call failed: {}", e);
-									Ok((Vec::new(), state.drop().1.extract_proof()))
+									Err(e.to_string())
 								}
 								Ok(res) => Ok((res.output, state.drop().1.extract_proof())),
 							};
@@ -657,7 +658,7 @@ impl Importer {
 							Err(e) => {
 								warn!(target: "client", "Failed to generate transition proof for block {}: {}", hash, e);
 								warn!(target: "client", "Snapshots produced by this client may be incomplete");
-								Vec::new()
+								return Err(EngineError::FailedSystemCall(e).into())
 							}
 						}
 					}
@@ -665,13 +666,13 @@ impl Importer {
 
 				debug!(target: "client", "Block {} signals epoch end.", hash);
 
-				let pending = PendingTransition { proof: proof };
-				chain.insert_pending_transition(batch, hash, pending);
+				Ok(Some(PendingTransition { proof: proof }))
 			},
-			EpochChange::No => {},
+			EpochChange::No => Ok(None),
 			EpochChange::Unsure(_) => {
 				warn!(target: "client", "Detected invalid engine implementation.");
 				warn!(target: "client", "Engine claims to require more block data, but everything provided.");
+				Err(EngineError::InvalidEngine.into())
 			}
 		}
 	}
@@ -2377,7 +2378,20 @@ impl ImportSealedBlock for Client {
 
 			let block_data = block.rlp_bytes();
 
-			let route = self.importer.commit_block(block, &header, encoded::Block::new(block_data), self);
+			let pending = self.importer.check_epoch_end_signal(
+				&header,
+				&block_data,
+				block.receipts(),
+				block.state().db(),
+				self
+			)?;
+			let route = self.importer.commit_block(
+				block,
+				&header,
+				encoded::Block::new(block_data),
+				pending,
+				self
+			);
 			trace!(target: "client", "Imported sealed block #{} ({})", header.number(), hash);
 			self.state_db.write().sync_cache(&route.enacted, &route.retracted, false);
 			route

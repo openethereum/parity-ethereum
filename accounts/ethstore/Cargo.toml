@@ -16,12 +16,13 @@ tiny-keccak = "1.4"
 time = "0.1.34"
 itertools = "0.5"
 parking_lot = "0.7"
-parity-crypto = "0.2"
+parity-crypto = "0.3.0"
 ethereum-types = "0.4"
 dir = { path = "../../util/dir" }
 smallvec = "0.6"
 parity-wordlist = "1.0"
 tempdir = "0.3"
+lazy_static = "1.2.0"
 
 [dev-dependencies]
 matches = "0.1"
