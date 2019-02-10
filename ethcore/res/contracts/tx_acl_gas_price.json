@@ -59,6 +59,10 @@
 			{
 				"name": "gasPrice",
 				"type": "uint256"
+			},
+			{
+				"name": "data",
+				"type": "bytes"
 			}
 		],
 		"name": "allowedTxTypes",
