@@ -571,13 +571,13 @@ impl<'a> Discovery<'a> {
 				// but `on_packet` happens synchronously, so doing the full TCP handshake ceremony here is a bad idea.
 				// So instead we just LRU-caching most recently seen nodes to avoid unnecessary pinging
 				match validity {
-					NodeValidity::UnknownNode | NodeValidity::ExpiredNode(NodeCategory::Observed) => {
+					NodeValidity::ValidNode(NodeCategory::Bucket) | NodeValidity::ExpiredNode(NodeCategory::Bucket) => { self.update_node(node); },
+					NodeValidity::UnknownNode | NodeValidity::ExpiredNode(NodeCategory::Observed) | NodeValidity::ValidNode(NodeCategory::Observed)=> {
 						self.other_observed_nodes.insert(node.id, (node.endpoint, Instant::now()));
-						Ok(None)
 					},
-					NodeValidity::ExpiredNode(NodeCategory::Bucket) => Ok(self.update_node(node)),
-					_ => Ok(None)
+					NodeValidity::Ourselves => (),
 				}
+				Ok(None)
 			} else {
 				Ok(self.update_node(node))
 			}
