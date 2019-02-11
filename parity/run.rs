@@ -41,7 +41,7 @@ use node_filter::NodeFilter;
 use parity_runtime::Runtime;
 use sync::{self, SyncConfig, PrivateTxHandler};
 use parity_rpc::{
-	Origin, Metadata, NetworkSettings, informant, is_major_importing, PubSubSession, FutureResult, FutureResponse, FutureOutput
+	Origin, Metadata, NetworkSettings, informant, PubSubSession, FutureResult, FutureResponse, FutureOutput
 };
 use updater::{UpdatePolicy, Updater};
 use parity_version::version;
@@ -660,8 +660,8 @@ fn execute_impl<Cr, Rr>(cmd: RunCmd, logger: Arc<RotatingLogger>, on_client_rq: 
 
 	// create sync object
 	let (sync_provider, manage_network, chain_notify, priority_tasks) = modules::sync(
-		runtime.executor(),
 		sync_config,
+		runtime.executor(),
 		net_conf.clone().into(),
 		client.clone(),
 		snapshot_service.clone(),
@@ -816,7 +816,6 @@ fn execute_impl<Cr, Rr>(cmd: RunCmd, logger: Arc<RotatingLogger>, on_client_rq: 
 		true => None,
 		false => {
 			let sync = sync_provider.clone();
-			let client = client.clone();
 			let watcher = Arc::new(snapshot::Watcher::new(
 				service.client(),
 				move || sync.is_major_syncing(),
