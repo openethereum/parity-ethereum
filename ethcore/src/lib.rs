@@ -143,11 +143,6 @@ extern crate serde_derive;
 #[cfg_attr(test, macro_use)]
 extern crate evm;
 
-#[cfg(any(test, feature = "env_logger"))]
-extern crate env_logger;
-#[cfg(test)]
-extern crate rlp_compress;
-
 #[cfg(all(test, feature = "price-info"))]
 extern crate fetch;
 
