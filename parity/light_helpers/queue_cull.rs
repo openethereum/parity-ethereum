@@ -20,7 +20,7 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use ethcore::client::ClientIoMessage;
-use sync::LightSync;
+use sync::{LightSync, LightNetworkDispatcher};
 use io::{IoContext, IoHandler, TimerToken};
 
 use light::client::LightChainClient;
