@@ -56,6 +56,8 @@ const REQUEST_BACKOFF: [Duration; 4] = [
 
 const NODE_LAST_SEEN_TIMEOUT: Duration = Duration::from_secs(24*60*60);
 
+const OBSERVED_NODES_MAX_SIZE: usize = 10000;
+
 #[derive(Clone, Debug)]
 pub struct NodeEntry {
 	pub id: NodeId,
@@ -96,7 +98,21 @@ struct FindNodeRequest {
 #[derive(Clone, Copy)]
 enum PingReason {
 	Default,
-	FromDiscoveryRequest(NodeId)
+	FromDiscoveryRequest(NodeId, NodeValidity)
+}
+
+#[derive(Clone, Copy, PartialEq)]
+enum NodeCategory {
+	Bucket,
+	Observed
+}
+
+#[derive(Clone, Copy, PartialEq)]
+enum NodeValidity {
+	Ourselves,
+	ValidNode(NodeCategory),
+	ExpiredNode(NodeCategory),
+	UnknownNode
 }
 
 struct PingRequest {
@@ -146,7 +162,8 @@ pub struct Discovery<'a> {
 	discovery_id: NodeId,
 	discovery_nodes: HashSet<NodeId>,
 	node_buckets: Vec<NodeBucket>,
-	other_observerd_nodes: LruCache<NodeId, NodeEndpoint>, // Sometimes we don't want to add nodes to the NodeTable, but still want to
+	other_observed_nodes: LruCache<NodeId, (NodeEndpoint, Instant)>, // Sometimes we don't want to add nodes to the NodeTable, but still want to
+	// keep track of them to avoid excessive pinging (happens when an unknown node sends a discovery request to us -- the node might be on a different net).
 	in_flight_pings: HashMap<NodeId, PingRequest>,
 	in_flight_find_nodes: HashMap<NodeId, FindNodeRequest>,
 	send_queue: VecDeque<Datagram>,
@@ -173,7 +190,7 @@ impl<'a> Discovery<'a> {
 			discovery_id: NodeId::new(),
 			discovery_nodes: HashSet::new(),
 			node_buckets: (0..ADDRESS_BITS).map(|_| NodeBucket::new()).collect(),
-			other_observerd_nodes: LruCache::new(256),
+			other_observed_nodes: LruCache::new(OBSERVED_NODES_MAX_SIZE),
 			in_flight_pings: HashMap::new(),
 			in_flight_find_nodes: HashMap::new(),
 			send_queue: VecDeque::new(),
@@ -544,13 +561,19 @@ impl<'a> Discovery<'a> {
 		};
 
 		if let Some((node, ping_reason)) = expected_node {
-			if let PingReason::FromDiscoveryRequest(target) = ping_reason {
+			if let PingReason::FromDiscoveryRequest(target, validity) = ping_reason {
 				self.respond_with_discovery(target, &node)?;
 				// kirushik: I would prefer to probe the network id of the remote node here, and add it to the nodes list if it's on "our" net --
 				// but `on_packet` happens synchronously, so doing the full TCP handshake ceremony here is a bad idea.
-				// So instead we just LRU-caching 256 most recently seen nodes to avoid unnecessary pinging
-				self.other_observerd_nodes.insert(node.id, node.endpoint);
-				Ok(None)
+				// So instead we just LRU-caching most recently seen nodes to avoid unnecessary pinging
+				match validity {
+					NodeValidity::UnknownNode | NodeValidity::ExpiredNode(NodeCategory::Observed) => {
+						self.other_observed_nodes.insert(node.id, (node.endpoint, Instant::now()));
+						Ok(None)
+					},
+					NodeValidity::ExpiredNode(NodeCategory::Bucket) => Ok(self.update_node(node)),
+					_ => Ok(None)
+				}
 			} else {
 				Ok(self.update_node(node))
 			}
@@ -574,31 +597,40 @@ impl<'a> Discovery<'a> {
 			}
 		};
 
-		if self.is_a_valid_known_node(&node) {
-			self.respond_with_discovery(target, &node)?;
-		} else {
+		match self.check_validity(&node) {
+			NodeValidity::ValidNode(_) => self.respond_with_discovery(target, &node)?,
 			// Make sure the request source is actually there and responds to pings before actually responding
-			self.try_ping(node, PingReason::FromDiscoveryRequest(target));
+			invalidity_reason => self.try_ping(node, PingReason::FromDiscoveryRequest(target, invalidity_reason))
 		}
 		Ok(None)
 	}
 
-	fn is_a_valid_known_node(&mut self, node: &NodeEntry) -> bool {
+	fn check_validity(&mut self, node: &NodeEntry) -> NodeValidity {
 		let id_hash = keccak(node.id);
 		let dist = match Discovery::distance(&self.id_hash, &id_hash) {
 			Some(dist) => dist,
 			None => {
 				debug!(target: "discovery", "Got an incoming discovery request from self: {:?}", node);
-				return false;
+				return NodeValidity::Ourselves;
 			}
 		};
 
 		let bucket = &self.node_buckets[dist];
 		if let Some(known_node) = bucket.nodes.iter().find(|n| n.address.id == node.id) {
 			debug!(target: "discovery", "Found a known node in a bucket when processing discovery: {:?}/{:?}", known_node, node);
-			(known_node.address.endpoint == node.endpoint) && (known_node.last_seen.elapsed() < NODE_LAST_SEEN_TIMEOUT)
+			match ((known_node.address.endpoint == node.endpoint), (known_node.last_seen.elapsed() < NODE_LAST_SEEN_TIMEOUT)) {
+				(true, true) => NodeValidity::ValidNode(NodeCategory::Bucket),
+				(true, false) => NodeValidity::ExpiredNode(NodeCategory::Bucket),
+				_ => NodeValidity::UnknownNode
+			}
 		} else {
-			self.other_observerd_nodes.get_mut(&node.id).map_or(false, |endpoint| node.endpoint==*endpoint)
+			self.other_observed_nodes.get_mut(&node.id).map_or(NodeValidity::UnknownNode, |(endpoint, observed_at)| {
+				match ((node.endpoint==*endpoint), (observed_at.elapsed() < NODE_LAST_SEEN_TIMEOUT)) {
+					(true, true) => NodeValidity::ValidNode(NodeCategory::Observed),
+					(true, false) => NodeValidity::ExpiredNode(NodeCategory::Observed),
+					_ => NodeValidity::UnknownNode
+				}
+			})
 		}
 	}
 
