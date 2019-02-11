@@ -574,7 +574,7 @@ impl<Cost: CostType> Interpreter<Cost> {
 				let call_gas = call_gas + value.map_or_else(|| Cost::from(0), |val| match val.is_zero() {
 					false => Cost::from(ext.schedule().call_stipend),
 					true => Cost::from(0),
-				});
+				}); // ECHECH costless saturating add
 
 				// Get sender & receive addresses, check if we have balance
 				let (sender_address, receive_address, has_balance, call_type) = match instruction {

@@ -95,7 +95,7 @@ impl<C: NonceClient> txpool::Ready<VerifiedTransaction> for State<C> {
 			},
 			cmp::Ordering::Less => txpool::Readiness::Stale,
 			cmp::Ordering::Equal => {
-				*nonce = *nonce + 1;
+				*nonce = *nonce + 1; // ECHECH
 				txpool::Readiness::Ready
 			},
 		}
@@ -159,7 +159,7 @@ impl<C: Fn(&Address) -> Option<U256>> txpool::Ready<VerifiedTransaction> for Opt
 			cmp::Ordering::Greater => txpool::Readiness::Future,
 			cmp::Ordering::Less => txpool::Readiness::Stale,
 			cmp::Ordering::Equal => {
-				*nonce = *nonce + 1;
+				*nonce = *nonce + 1; // ECHECH terminal nonce ignore?
 				txpool::Readiness::Ready
 			},
 		}

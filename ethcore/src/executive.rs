@@ -312,7 +312,7 @@ impl<'a> CallCreateExecutive<'a> {
 		let prev_bal = state.balance(&params.address)?;
 		if let ActionValue::Transfer(val) = params.value {
 			state.sub_balance(&params.sender, &val, &mut substate.to_cleanup_mode(&schedule))?;
-			state.new_contract(&params.address, val + prev_bal, nonce_offset)?;
+			state.new_contract(&params.address, val + prev_bal, nonce_offset)?; /// ECHECH
 		} else {
 			state.new_contract(&params.address, prev_bal, nonce_offset)?;
 		}
@@ -1103,9 +1103,9 @@ impl<'a, B: 'a + StateBackend> Executive<'a, B> {
 		let refunded = cmp::min(refunds_bound, (t.gas - gas_left_prerefund) >> 1);
 		let gas_left = gas_left_prerefund + refunded;
 
-		let gas_used = t.gas - gas_left;
-		let refund_value = gas_left * t.gas_price;
-		let fees_value = gas_used * t.gas_price;
+		let gas_used = t.gas - gas_left; // ECHECH
+		let refund_value = gas_left * t.gas_price; // ECHECH obvious overflow here at left close toh h256 max and price same
+		let fees_value = gas_used * t.gas_price; // ECHECH overflow when close to H256
 
 		trace!("exec::finalize: t.gas={}, sstore_refunds={}, suicide_refunds={}, refunds_bound={}, gas_left_prerefund={}, refunded={}, gas_left={}, gas_used={}, refund_value={}, fees_value={}\n",
 			t.gas, sstore_refunds, suicide_refunds, refunds_bound, gas_left_prerefund, refunded, gas_left, gas_used, refund_value, fees_value);
@@ -1123,7 +1123,7 @@ impl<'a, B: 'a + StateBackend> Executive<'a, B> {
 		}
 
 		// perform garbage-collection
-		let min_balance = if schedule.kill_dust != CleanDustMode::Off { Some(U256::from(schedule.tx_gas) * t.gas_price) } else { None };
+		let min_balance = if schedule.kill_dust != CleanDustMode::Off { Some(U256::from(schedule.tx_gas) * t.gas_price) } else { None }; // ECHECH overflow next (as gas price from tx
 		self.state.kill_garbage(&substate.touched, schedule.kill_empty, &min_balance, schedule.kill_dust == CleanDustMode::WithCodeAndStorage)?;
 
 		match result {
@@ -2177,4 +2177,12 @@ mod tests {
 		// Since transaction errored due to wasm was not activated, result is just empty
 		assert_eq!(output[..], [0u8; 20][..]);
 	}
+}
+
+#[test]
+fn assert_no_overflow() {
+  let gas_price = U256::from(&vec![255u8;32][..]);
+  let gas = U256::from(&vec![255u8;32][..]);
+	let gas_cost = gas.full_mul(gas_price);
+	let total_cost = U512::from(U256::from(&vec![255u8;32][..])) + gas_cost;
 }

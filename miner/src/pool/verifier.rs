@@ -283,7 +283,8 @@ impl<C: Client> txpool::Verifier<Transaction> for Verifier<C, ::pool::scoring::N
 			}
 		}
 
-		let cost = transaction.value + transaction.gas_price * transaction.gas;
+		let cost = transaction.value + transaction.gas_price * transaction.gas; // ECHECH overflow here !!
+		println!("{:x}, {:x}, {:x}", transaction.value, transaction.gas_price, transaction.gas); // ECHECH overflow here !!
 		if account_details.balance < cost {
 			debug!(
 				target: "txqueue",

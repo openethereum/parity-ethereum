@@ -466,12 +466,12 @@ impl Account {
 
 	/// Increment the nonce of the account by one.
 	pub fn inc_nonce(&mut self) {
-		self.nonce = self.nonce + U256::from(1u8);
+		self.nonce = self.nonce + U256::from(1u8); // ECHECH overflow check here for case of nonce set by raw tx at U256.max
 	}
 
 	/// Increase account balance.
 	pub fn add_balance(&mut self, x: &U256) {
-		self.balance = self.balance + *x;
+		self.balance = self.balance + *x; // ECHECH overflow check even if not needed here
 	}
 
 	/// Decrease account balance.

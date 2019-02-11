@@ -193,6 +193,65 @@ fn rpc_eth_sign_transaction() {
 	assert_eq!(tester.io.handle_request_sync(&request), Some(response));
 }
 
+/// ECHECH
+#[test]
+fn rpc_eth_sign_transaction2() {
+	let tester = EthTester::default();
+	let address = tester.accounts_provider.new_account(&"".into()).unwrap();
+	tester.accounts_provider.unlock_account_permanently(address, "".into()).unwrap();
+	let request = r#"{
+		"jsonrpc": "2.0",
+		"method": "eth_signTransaction",
+		"params": [{
+			"from": ""#.to_owned() + format!("0x{:x}", address).as_ref() + r#"",
+			"to": "0xd46e8dd67c5d32be8058bb8eb970870f07244567",
+			"gas": "0x76c0",
+			"gasPrice": "0xd46e8dd67c5d32be8058bb8eb970870f07244567000d46e8dd67c5d32be8058b",
+			"value": "0x9184e72a"
+		}],
+		"id": 1
+	}"#;
+
+	let t = Transaction {
+		nonce: U256::one(),
+		gas_price: U256::from(0x9184e72a000u64),
+		gas: U256::from(0x76c0),
+		action: Action::Call(Address::from_str("d46e8dd67c5d32be8058bb8eb970870f07244567").unwrap()),
+		value: U256::from(0x9184e72au64),
+		data: vec![]
+	};
+	let signature = tester.accounts_provider.sign(address, None, t.hash(None)).unwrap();
+	let t = t.with_signature(signature, None);
+	let signature = t.signature();
+	let rlp = rlp::encode(&t);
+
+	let response = r#"{"jsonrpc":"2.0","result":{"#.to_owned() +
+		r#""raw":"0x"# + &rlp.to_hex() + r#"","# +
+		r#""tx":{"# +
+		r#""blockHash":null,"blockNumber":null,"# +
+		&format!("\"chainId\":{},", t.chain_id().map_or("null".to_owned(), |n| format!("{}", n))) +
+		r#""condition":null,"creates":null,"# +
+		&format!("\"from\":\"0x{:x}\",", &address) +
+		r#""gas":"0x76c0","gasPrice":"0x9184e72a000","# +
+		&format!("\"hash\":\"0x{:x}\",", t.hash()) +
+		r#""input":"0x","# +
+		r#""nonce":"0x1","# +
+		&format!("\"publicKey\":\"0x{:x}\",", t.recover_public().unwrap()) +
+		&format!("\"r\":\"0x{:x}\",", U256::from(signature.r())) +
+		&format!("\"raw\":\"0x{}\",", rlp.to_hex()) +
+		&format!("\"s\":\"0x{:x}\",", U256::from(signature.s())) +
+		&format!("\"standardV\":\"0x{:x}\",", U256::from(t.standard_v())) +
+		r#""to":"0xd46e8dd67c5d32be8058bb8eb970870f07244567","transactionIndex":null,"# +
+		&format!("\"v\":\"0x{:x}\",", U256::from(t.original_v())) +
+		r#""value":"0x9184e72a""# +
+		r#"}},"id":1}"#;
+
+	tester.miner.increment_nonce(&address);
+
+	assert_eq!(tester.io.handle_request_sync(&request), Some(response));
+}
+
+
 #[test]
 fn rpc_eth_send_transaction_with_bad_to() {
 	let tester = EthTester::default();
