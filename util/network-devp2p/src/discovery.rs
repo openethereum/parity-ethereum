@@ -56,7 +56,7 @@ const REQUEST_BACKOFF: [Duration; 4] = [
 
 const NODE_LAST_SEEN_TIMEOUT: Duration = Duration::from_secs(24*60*60);
 
-const OBSERVED_NODES_MAX_SIZE: usize = 10000;
+const OBSERVED_NODES_MAX_SIZE: usize = 10_000;
 
 #[derive(Clone, Debug)]
 pub struct NodeEntry {
@@ -98,7 +98,7 @@ struct FindNodeRequest {
 #[derive(Clone, Copy)]
 enum PingReason {
 	Default,
-	FromDiscoveryRequest(NodeId, NodeValidity)
+	FromDiscoveryRequest(NodeId, NodeValidity),
 }
 
 #[derive(Clone, Copy, PartialEq)]
@@ -162,8 +162,12 @@ pub struct Discovery<'a> {
 	discovery_id: NodeId,
 	discovery_nodes: HashSet<NodeId>,
 	node_buckets: Vec<NodeBucket>,
-	other_observed_nodes: LruCache<NodeId, (NodeEndpoint, Instant)>, // Sometimes we don't want to add nodes to the NodeTable, but still want to
-	// keep track of them to avoid excessive pinging (happens when an unknown node sends a discovery request to us -- the node might be on a different net).
+
+	// Sometimes we don't want to add nodes to the NodeTable, but still want to
+	// keep track of them to avoid excessive pinging (happens when an unknown node sends
+	// a discovery request to us -- the node might be on a different net).
+	other_observed_nodes: LruCache<NodeId, (NodeEndpoint, Instant)>,
+
 	in_flight_pings: HashMap<NodeId, PingRequest>,
 	in_flight_find_nodes: HashMap<NodeId, FindNodeRequest>,
 	send_queue: VecDeque<Datagram>,
