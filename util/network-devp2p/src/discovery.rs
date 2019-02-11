@@ -598,6 +598,7 @@ impl<'a> Discovery<'a> {
 		};
 
 		match self.check_validity(&node) {
+			NodeValidity::Ourselves => (), // It makes no sense to respond to the discovery request from ourselves
 			NodeValidity::ValidNode(_) => self.respond_with_discovery(target, &node)?,
 			// Make sure the request source is actually there and responds to pings before actually responding
 			invalidity_reason => self.try_ping(node, PingReason::FromDiscoveryRequest(target, invalidity_reason))
