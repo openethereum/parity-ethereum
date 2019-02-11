@@ -474,7 +474,7 @@ impl TransactionQueue {
 
 		self.pool.read().pending_from_sender(state_readiness, address)
 			.last()
-			.map(|tx| tx.signed().nonce + 1) // ECHECH this seems risky
+			.map(|tx| tx.signed().nonce.saturating_add(U256::from(1)))
 	}
 
 	/// Retrieve a transaction from the pool.
