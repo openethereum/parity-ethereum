@@ -32,7 +32,9 @@ use sync_io::SyncIo;
 use io::{IoChannel, IoContext, IoHandler};
 use api::WARP_SYNC_PROTOCOL_ID;
 use chain::{ChainSync, SyncSupplier, ETH_PROTOCOL_VERSION_63, PAR_PROTOCOL_VERSION_3};
-use chain::syncpacketid::{PacketInfo, SyncPacketId, SyncPacketId::*};
+use chain::syncpacketid::{PacketInfo, SyncPacketId};
+use chain::syncpacketid::SyncPacketId::{PrivateTransactionPacket, SignedPrivateTransactionPacket};
+
 use SyncConfig;
 use private_tx::SimplePrivateTxHandler;
 use types::BlockNumber;

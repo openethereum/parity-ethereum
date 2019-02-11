@@ -23,7 +23,15 @@ use std::time::Instant;
 use sync_io::SyncIo;
 use types::BlockNumber;
 
-use super::syncpacketid::{SyncPacketId, SyncPacketId::*};
+use super::syncpacketid::SyncPacketId;
+use super::syncpacketid::SyncPacketId::{
+	GetBlockHeadersPacket,
+	GetBlockBodiesPacket,
+	GetReceiptsPacket,
+	GetSnapshotManifestPacket,
+	GetSnapshotDataPacket,
+};
+
 use super::{
 	BlockSet,
 	ChainSync,

@@ -34,7 +34,20 @@ use types::BlockNumber;
 use types::block_status::BlockStatus;
 use types::ids::BlockId;
 
-use super::syncpacketid::{PacketInfo, SyncPacketId, SyncPacketId::*};
+use super::syncpacketid::{PacketInfo, SyncPacketId};
+use super::syncpacketid::SyncPacketId::{
+	StatusPacket,
+	NewBlockHashesPacket,
+	BlockHeadersPacket,
+	BlockBodiesPacket,
+	NewBlockPacket,
+	ReceiptsPacket,
+	SnapshotManifestPacket,
+	SnapshotDataPacket,
+	PrivateTransactionPacket,
+	SignedPrivateTransactionPacket,
+};
+
 use super::{
 	BlockSet,
 	ChainSync,

@@ -29,7 +29,14 @@ use types::transaction::SignedTransaction;
 use types::BlockNumber;
 use types::blockchain_info::BlockChainInfo;
 
-use super::syncpacketid::{SyncPacketId, SyncPacketId::*};
+use super::syncpacketid::SyncPacketId;
+use super::syncpacketid::SyncPacketId::{
+	NewBlockHashesPacket,
+	TransactionsPacket,
+	NewBlockPacket,
+	ConsensusDataPacket,
+};
+
 use super::{
 	random,
 	ChainSync,

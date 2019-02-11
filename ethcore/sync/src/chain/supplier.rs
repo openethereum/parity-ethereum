@@ -26,7 +26,24 @@ use types::ids::BlockId;
 
 use sync_io::SyncIo;
 
-use super::syncpacketid::{PacketInfo, SyncPacketId, SyncPacketId::*};
+use super::syncpacketid::{PacketInfo, SyncPacketId};
+use super::syncpacketid::SyncPacketId::{
+	StatusPacket,
+	TransactionsPacket,
+	GetBlockHeadersPacket,
+	BlockHeadersPacket,
+	GetBlockBodiesPacket,
+	BlockBodiesPacket,
+	GetNodeDataPacket,
+	NodeDataPacket,
+	GetReceiptsPacket,
+	ReceiptsPacket,
+	GetSnapshotManifestPacket,
+	SnapshotManifestPacket,
+	GetSnapshotDataPacket,
+	SnapshotDataPacket,
+	ConsensusDataPacket,
+};
 
 use super::{
 	ChainSync,
