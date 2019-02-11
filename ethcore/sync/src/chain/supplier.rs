@@ -26,8 +26,8 @@ use types::ids::BlockId;
 
 use sync_io::SyncIo;
 
-use super::syncpacketid::{PacketInfo, SyncPacketId};
-use super::syncpacketid::SyncPacketId::{
+use super::sync_packet::{PacketInfo, SyncPacket};
+use super::sync_packet::SyncPacket::{
 	StatusPacket,
 	TransactionsPacket,
 	GetBlockHeadersPacket,
@@ -66,7 +66,7 @@ impl SyncSupplier {
 	pub fn dispatch_packet(sync: &RwLock<ChainSync>, io: &mut SyncIo, peer: PeerId, packet_id: u8, data: &[u8]) {
 		let rlp = Rlp::new(data);
 
-		if let Some(id) = SyncPacketId::from_u8(packet_id) {
+		if let Some(id) = SyncPacket::from_u8(packet_id) {
 			let result = match id {
 				GetBlockBodiesPacket => SyncSupplier::return_rlp(
 					io, &rlp, peer,

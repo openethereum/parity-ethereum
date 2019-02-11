@@ -34,8 +34,8 @@ use types::BlockNumber;
 use types::block_status::BlockStatus;
 use types::ids::BlockId;
 
-use super::syncpacketid::{PacketInfo, SyncPacketId};
-use super::syncpacketid::SyncPacketId::{
+use super::sync_packet::{PacketInfo, SyncPacket};
+use super::sync_packet::SyncPacket::{
 	StatusPacket,
 	NewBlockHashesPacket,
 	BlockHeadersPacket,
@@ -72,7 +72,7 @@ impl SyncHandler {
 	/// Handle incoming packet from peer
 	pub fn on_packet(sync: &mut ChainSync, io: &mut SyncIo, peer: PeerId, packet_id: u8, data: &[u8]) {
 		let rlp = Rlp::new(data);
-		if let Some(packet_id) = SyncPacketId::from_u8(packet_id) {
+		if let Some(packet_id) = SyncPacket::from_u8(packet_id) {
 			let result = match packet_id {
 				StatusPacket => SyncHandler::on_peer_status(sync, io, peer, &rlp),
 				BlockHeadersPacket => SyncHandler::on_peer_block_headers(sync, io, peer, &rlp),

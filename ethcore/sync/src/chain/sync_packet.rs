@@ -33,7 +33,7 @@ use network::{PacketId, ProtocolId};
 /// packet id clashes when defining new ids.
 enum_from_primitive! {
 #[derive(Clone, Copy, Debug, PartialEq)]
-pub enum SyncPacketId {
+pub enum SyncPacket {
 	StatusPacket = 0x00,
 	NewBlockHashesPacket = 0x01,
 	TransactionsPacket = 0x02,
@@ -58,7 +58,7 @@ pub enum SyncPacketId {
 }
 }
 
-use self::SyncPacketId::*;
+use self::SyncPacket::*;
 
 /// Provide both subprotocol and packet id information within the
 /// same object.
@@ -69,7 +69,7 @@ pub trait PacketInfo {
 
 // The mechanism to match packet ids and protocol may be improved
 // through some macro magic, but for now this works.
-impl PacketInfo for SyncPacketId {
+impl PacketInfo for SyncPacket {
 	fn protocol(&self) -> ProtocolId {
 		match self {
 			StatusPacket |
@@ -114,17 +114,17 @@ mod tests {
 
 	#[test]
 	fn packet_ids_from_u8_when_from_primitive_zero_then_equals_status_packet() {
-		assert_eq!(SyncPacketId::from_u8(0x00), Some(StatusPacket));
+		assert_eq!(SyncPacket::from_u8(0x00), Some(StatusPacket));
 	}
 
 	#[test]
 	fn packet_ids_from_u8_when_from_primitive_eleven_then_equals_get_snapshot_manifest_packet() {
-		assert_eq!(SyncPacketId::from_u8(0x11), Some(GetSnapshotManifestPacket));
+		assert_eq!(SyncPacket::from_u8(0x11), Some(GetSnapshotManifestPacket));
 	}
 
 	#[test]
 	fn packet_ids_from_u8_when_invalid_packet_id_then_none() {
-		assert!(SyncPacketId::from_u8(0x99).is_none());
+		assert!(SyncPacket::from_u8(0x99).is_none());
 	}
 
 	#[test]

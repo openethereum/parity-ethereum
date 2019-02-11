@@ -88,7 +88,7 @@
 //! All other messages are ignored.
 
 mod handler;
-pub mod syncpacketid;
+pub mod sync_packet;
 mod propagator;
 mod requester;
 mod supplier;
@@ -120,8 +120,8 @@ use types::transaction::UnverifiedTransaction;
 use types::BlockNumber;
 
 use self::handler::SyncHandler;
-use self::syncpacketid::{PacketInfo, SyncPacketId};
-use self::syncpacketid:: SyncPacketId::{
+use self::sync_packet::{PacketInfo, SyncPacket};
+use self::sync_packet::SyncPacket::{
 	NewBlockPacket,
 	StatusPacket,
 };
@@ -1316,7 +1316,7 @@ impl ChainSync {
 	}
 
 	/// Broadcast private transaction message to peers.
-	pub fn propagate_private_transaction(&mut self, io: &mut SyncIo, transaction_hash: H256, packet_id: SyncPacketId, packet: Bytes) {
+	pub fn propagate_private_transaction(&mut self, io: &mut SyncIo, transaction_hash: H256, packet_id: SyncPacket, packet: Bytes) {
 		SyncPropagator::propagate_private_transaction(self, io, transaction_hash, packet_id, packet);
 	}
 }

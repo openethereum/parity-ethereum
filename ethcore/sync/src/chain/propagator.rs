@@ -29,8 +29,8 @@ use types::transaction::SignedTransaction;
 use types::BlockNumber;
 use types::blockchain_info::BlockChainInfo;
 
-use super::syncpacketid::SyncPacketId;
-use super::syncpacketid::SyncPacketId::{
+use super::sync_packet::SyncPacket;
+use super::sync_packet::SyncPacket::{
 	NewBlockHashesPacket,
 	TransactionsPacket,
 	NewBlockPacket,
@@ -294,7 +294,7 @@ impl SyncPropagator {
 	}
 
 	/// Broadcast private transaction message to peers.
-	pub fn propagate_private_transaction(sync: &mut ChainSync, io: &mut SyncIo, transaction_hash: H256, packet_id: SyncPacketId, packet: Bytes) {
+	pub fn propagate_private_transaction(sync: &mut ChainSync, io: &mut SyncIo, transaction_hash: H256, packet_id: SyncPacket, packet: Bytes) {
 		let lucky_peers = ChainSync::select_random_peers(&sync.get_private_transaction_peers(&transaction_hash));
 		if lucky_peers.is_empty() {
 			error!(target: "privatetx", "Cannot propagate the packet, no peers with private tx enabled connected");
@@ -325,7 +325,7 @@ impl SyncPropagator {
 	}
 
 	/// Generic packet sender
-	pub fn send_packet(sync: &mut SyncIo, peer_id: PeerId, packet_id: SyncPacketId, packet: Bytes) {
+	pub fn send_packet(sync: &mut SyncIo, peer_id: PeerId, packet_id: SyncPacket, packet: Bytes) {
 		if let Err(e) = sync.send(peer_id, packet_id, packet) {
 			debug!(target:"sync", "Error sending packet: {:?}", e);
 			sync.disconnect_peer(peer_id);

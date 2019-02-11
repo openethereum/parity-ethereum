@@ -32,8 +32,8 @@ use sync_io::SyncIo;
 use io::{IoChannel, IoContext, IoHandler};
 use api::WARP_SYNC_PROTOCOL_ID;
 use chain::{ChainSync, SyncSupplier, ETH_PROTOCOL_VERSION_63, PAR_PROTOCOL_VERSION_3};
-use chain::syncpacketid::{PacketInfo, SyncPacketId};
-use chain::syncpacketid::SyncPacketId::{PrivateTransactionPacket, SignedPrivateTransactionPacket};
+use chain::sync_packet::{PacketInfo, SyncPacket};
+use chain::sync_packet::SyncPacket::{PrivateTransactionPacket, SignedPrivateTransactionPacket};
 
 use SyncConfig;
 use private_tx::SimplePrivateTxHandler;
@@ -105,7 +105,7 @@ impl<'p, C> SyncIo for TestIo<'p, C> where C: FlushingBlockChainClient, C: 'p {
 		Ok(())
 	}
 
-	fn send(&mut self,peer_id: PeerId, packet_id: SyncPacketId, data: Vec<u8>) -> Result<(), network::Error> {
+	fn send(&mut self,peer_id: PeerId, packet_id: SyncPacket, data: Vec<u8>) -> Result<(), network::Error> {
 		self.packets.push(TestPacket {
 			data: data,
 			packet_id: packet_id.id(),

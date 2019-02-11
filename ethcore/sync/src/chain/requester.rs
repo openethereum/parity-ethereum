@@ -23,8 +23,8 @@ use std::time::Instant;
 use sync_io::SyncIo;
 use types::BlockNumber;
 
-use super::syncpacketid::SyncPacketId;
-use super::syncpacketid::SyncPacketId::{
+use super::sync_packet::SyncPacket;
+use super::sync_packet::SyncPacket::{
 	GetBlockHeadersPacket,
 	GetBlockBodiesPacket,
 	GetReceiptsPacket,
@@ -135,7 +135,7 @@ impl SyncRequester {
 	}
 
 	/// Generic request sender
-	fn send_request(sync: &mut ChainSync, io: &mut SyncIo, peer_id: PeerId, asking: PeerAsking, packet_id: SyncPacketId, packet: Bytes) {
+	fn send_request(sync: &mut ChainSync, io: &mut SyncIo, peer_id: PeerId, asking: PeerAsking, packet_id: SyncPacket, packet: Bytes) {
 		if let Some(ref mut peer) = sync.peers.get_mut(&peer_id) {
 			if peer.asking != PeerAsking::Nothing {
 				warn!(target:"sync", "Asking {:?} while requesting {:?}", peer.asking, asking);
