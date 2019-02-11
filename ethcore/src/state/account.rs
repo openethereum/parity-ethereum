@@ -466,12 +466,12 @@ impl Account {
 
 	/// Increment the nonce of the account by one.
 	pub fn inc_nonce(&mut self) {
-		self.nonce = self.nonce + U256::from(1u8);
+		self.nonce = self.nonce.saturating_add(U256::from(1u8));
 	}
 
 	/// Increase account balance.
 	pub fn add_balance(&mut self, x: &U256) {
-		self.balance = self.balance + *x;
+		self.balance = self.balance.saturating_add(*x);
 	}
 
 	/// Decrease account balance.

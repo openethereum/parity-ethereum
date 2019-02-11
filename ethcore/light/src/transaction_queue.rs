@@ -95,7 +95,7 @@ impl AccountTransactions {
 	}
 
 	fn next_nonce(&self) -> U256 {
-		self.current.last().map(|last| last.nonce + 1)
+		self.current.last().map(|last| last.nonce.saturating_add(1.into()))
 			.unwrap_or_else(|| *self.cur_nonce.value())
 	}
 
@@ -107,7 +107,7 @@ impl AccountTransactions {
 		while let Some(tx) = self.future.remove(&next_nonce) {
 			promoted.push(tx.hash);
 			self.current.push(tx);
-			next_nonce = next_nonce + 1;
+			next_nonce = next_nonce.saturating_add(1.into());
 		}
 
 		promoted
