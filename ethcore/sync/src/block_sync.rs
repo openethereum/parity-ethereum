@@ -29,10 +29,13 @@ use ethcore::error::{ImportErrorKind, QueueErrorKind, BlockError, Error as Ethco
 use sync_io::SyncIo;
 use blocks::{BlockCollection, SyncBody, SyncHeader};
 use chain::BlockSet;
+use network::PeerId;
+use network::client_version::ClientCapabilities;
 
 const MAX_HEADERS_TO_REQUEST: usize = 128;
-const MAX_BODIES_TO_REQUEST: usize = 32;
-const MAX_RECEPITS_TO_REQUEST: usize = 128;
+const MAX_BODIES_TO_REQUEST_LARGE: usize = 128;
+const MAX_BODIES_TO_REQUEST_SMALL: usize = 32; // Size request for parity clients prior to 2.4.0
+const MAX_RECEPITS_TO_REQUEST: usize = 256;
 const SUBCHAIN_SIZE: u64 = 256;
 const MAX_ROUND_PARENTS: usize = 16;
 const MAX_PARALLEL_SUBCHAIN_DOWNLOAD: usize = 5;
@@ -464,12 +467,12 @@ impl BlockDownloader {
 	}
 
 	/// Find some headers or blocks to download for a peer.
-	pub fn request_blocks(&mut self, io: &mut SyncIo, num_active_peers: usize) -> Option<BlockRequest> {
+	pub fn request_blocks(&mut self, peer_id: PeerId, io: &mut SyncIo, num_active_peers: usize) -> Option<BlockRequest> {
 		match self.state {
 			State::Idle => {
 				self.start_sync_round(io);
 				if self.state == State::ChainHead {
-					return self.request_blocks(io, num_active_peers);
+					return self.request_blocks(peer_id, io, num_active_peers);
 				}
 			},
 			State::ChainHead => {
@@ -487,7 +490,15 @@ impl BlockDownloader {
 			},
 			State::Blocks => {
 				// check to see if we need to download any block bodies first
-				let needed_bodies = self.blocks.needed_bodies(MAX_BODIES_TO_REQUEST, false);
+				let client_version = io.peer_version(peer_id);
+
+				let number_of_bodies_to_request = if client_version.can_handle_large_requests() {
+					MAX_BODIES_TO_REQUEST_LARGE
+				} else {
+					MAX_BODIES_TO_REQUEST_SMALL
+				};
+
+				let needed_bodies = self.blocks.needed_bodies(number_of_bodies_to_request, false);
 				if !needed_bodies.is_empty() {
 					return Some(BlockRequest::Bodies {
 						hashes: needed_bodies,

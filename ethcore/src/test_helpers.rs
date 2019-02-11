@@ -39,7 +39,6 @@ use types::header::Header;
 use types::view;
 use types::views::BlockView;
 
-use account_provider::AccountProvider;
 use block::{OpenBlock, Drain};
 use client::{Client, ClientConfig, ChainInfo, ImportBlock, ChainNotify, ChainMessageType, PrepareOpenBlock};
 use factory::Factories;
@@ -109,18 +108,15 @@ pub fn generate_dummy_client_with_data(block_number: u32, txs_per_block: usize, 
 	generate_dummy_client_with_spec_and_data(Spec::new_null, block_number, txs_per_block, tx_gas_prices)
 }
 
-/// Generates dummy client (not test client) with corresponding amount of blocks, txs per block and spec
-pub fn generate_dummy_client_with_spec_and_data<F>(test_spec: F, block_number: u32, txs_per_block: usize, tx_gas_prices: &[U256]) -> Arc<Client> where F: Fn()->Spec {
-	generate_dummy_client_with_spec_accounts_and_data(test_spec, None, block_number, txs_per_block, tx_gas_prices)
-}
-
 /// Generates dummy client (not test client) with corresponding spec and accounts
-pub fn generate_dummy_client_with_spec_and_accounts<F>(test_spec: F, accounts: Option<Arc<AccountProvider>>) -> Arc<Client> where F: Fn()->Spec {
-	generate_dummy_client_with_spec_accounts_and_data(test_spec, accounts, 0, 0, &[])
+pub fn generate_dummy_client_with_spec<F>(test_spec: F) -> Arc<Client> where F: Fn()->Spec {
+	generate_dummy_client_with_spec_and_data(test_spec, 0, 0, &[])
 }
 
-/// Generates dummy client (not test client) with corresponding blocks, accounts and spec
-pub fn generate_dummy_client_with_spec_accounts_and_data<F>(test_spec: F, accounts: Option<Arc<AccountProvider>>, block_number: u32, txs_per_block: usize, tx_gas_prices: &[U256]) -> Arc<Client> where F: Fn()->Spec {
+/// Generates dummy client (not test client) with corresponding amount of blocks, txs per block and spec
+pub fn generate_dummy_client_with_spec_and_data<F>(test_spec: F, block_number: u32, txs_per_block: usize, tx_gas_prices: &[U256]) -> Arc<Client> where
+	F: Fn() -> Spec
+{
 	let test_spec = test_spec();
 	let client_db = new_db();
 
@@ -128,7 +124,7 @@ pub fn generate_dummy_client_with_spec_accounts_and_data<F>(test_spec: F, accoun
 		ClientConfig::default(),
 		&test_spec,
 		client_db,
-		Arc::new(Miner::new_for_tests(&test_spec, accounts)),
+		Arc::new(Miner::new_for_tests(&test_spec, None)),
 		IoChannel::disconnected(),
 	).unwrap();
 	let test_engine = &*test_spec.engine;

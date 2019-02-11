@@ -14,14 +14,30 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
-use std::sync::Arc;
-use ethcore::account_provider::AccountProvider;
-use jsonrpc_core::Error;
-use v1::helpers::errors;
+//! Local Accounts checker
 
-pub fn unwrap_provider(provider: &Option<Arc<AccountProvider>>) -> Result<Arc<AccountProvider>, Error> {
-	match *provider {
-		Some(ref arc) => Ok(arc.clone()),
-		None => Err(errors::public_unsupported(None)),
+use std::collections::HashSet;
+
+use ethereum_types::Address;
+
+/// Local accounts checker
+pub trait LocalAccounts: Send + Sync {
+	/// Returns true if given address should be considered local account.
+	fn is_local(&self, &Address) -> bool;
+}
+
+impl LocalAccounts for HashSet<Address> {
+	fn is_local(&self, address: &Address) -> bool {
+		self.contains(address)
 	}
 }
+
+impl<A, B> LocalAccounts for (A, B) where
+	A: LocalAccounts,
+	B: LocalAccounts,
+{
+	fn is_local(&self, address: &Address) -> bool {
+		self.0.is_local(address) || self.1.is_local(address)
+	}
+}
+

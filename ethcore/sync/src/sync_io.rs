@@ -16,6 +16,7 @@
 
 use std::collections::HashMap;
 use network::{NetworkContext, PeerId, PacketId, Error, SessionInfo, ProtocolId};
+use network::client_version::ClientVersion;
 use bytes::Bytes;
 use ethcore::client::BlockChainClient;
 use types::BlockNumber;
@@ -32,17 +33,15 @@ pub trait SyncIo {
 	fn disconnect_peer(&mut self, peer_id: PeerId);
 	/// Respond to current request with a packet. Can be called from an IO handler for incoming packet.
 	fn respond(&mut self, packet_id: PacketId, data: Vec<u8>) -> Result<(), Error>;
-	/// Send a packet to a peer.
-	fn send(&mut self, peer_id: PeerId, packet_id: PacketId, data: Vec<u8>) -> Result<(), Error>;
 	/// Send a packet to a peer using specified protocol.
 	fn send_protocol(&mut self, protocol: ProtocolId, peer_id: PeerId, packet_id: PacketId, data: Vec<u8>) -> Result<(), Error>;
 	/// Get the blockchain
 	fn chain(&self) -> &BlockChainClient;
 	/// Get the snapshot service.
 	fn snapshot_service(&self) -> &SnapshotService;
-	/// Returns peer identifier string
-	fn peer_info(&self, peer_id: PeerId) -> String {
-		peer_id.to_string()
+	/// Returns peer version identifier
+	fn peer_version(&self, peer_id: PeerId) -> ClientVersion {
+		ClientVersion::from(peer_id.to_string())
 	}
 	/// Returns information on p2p session
 	fn peer_session_info(&self, peer_id: PeerId) -> Option<SessionInfo>;
@@ -98,10 +97,6 @@ impl<'s> SyncIo for NetSyncIo<'s> {
 		self.network.respond(packet_id, data)
 	}
 
-	fn send(&mut self, peer_id: PeerId, packet_id: PacketId, data: Vec<u8>) -> Result<(), Error>{
-		self.network.send(peer_id, packet_id, data)
-	}
-
 	fn send_protocol(&mut self, protocol: ProtocolId, peer_id: PeerId, packet_id: PacketId, data: Vec<u8>) -> Result<(), Error>{
 		self.network.send_protocol(protocol, peer_id, packet_id, data)
 	}
@@ -134,7 +129,7 @@ impl<'s> SyncIo for NetSyncIo<'s> {
 		self.network.protocol_version(*protocol, peer_id).unwrap_or(0)
 	}
 
-	fn peer_info(&self, peer_id: PeerId) -> String {
+	fn peer_version(&self, peer_id: PeerId) -> ClientVersion {
 		self.network.peer_client_version(peer_id)
 	}
 
