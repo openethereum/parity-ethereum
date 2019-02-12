@@ -223,13 +223,15 @@ impl Clique {
 				let last_checkpoint_number = (header.number() / self.epoch_length as u64) * self.epoch_length;
 				assert_ne!(last_checkpoint_number, header.number());
 
-				let mut chain: &mut VecDeque<Header> = &mut VecDeque::with_capacity((header.number() - last_checkpoint_number + 1) as usize);
+				let mut chain: &mut VecDeque<Header> = &mut VecDeque::with_capacity(
+					(header.number() - last_checkpoint_number + 1) as usize);
 
 				// Put ourselves in.
 				chain.push_front(header.clone());
 
 				// populate chain to last checkpoint
-				let mut last = chain.front().ok_or("Backfill error")?.clone();
+				let mut last = chain.front().ok_or(
+					"just pushed to front, reference must exist;")?.clone();
 
 				while last.number() != last_checkpoint_number + 1 {
 					match c.block_header(BlockId::Hash(*last.parent_hash())) {
@@ -241,7 +243,8 @@ impl Clique {
 						}
 						Some(next) => {
 							chain.push_front(next.decode()?.clone());
-							last = chain.front().ok_or("Backfill error")?.clone();
+							last = chain.front().ok_or(
+								"just pushed to front, reference must exist;")?.clone();
 						}
 					}
 				}
@@ -254,7 +257,9 @@ impl Clique {
 				       last_checkpoint_number, header.number(), header.hash());
 
 				// Get the state for last checkpoint.
-				let last_checkpoint_hash = *(chain.front().expect("Should exists").parent_hash());
+				let last_checkpoint_hash = *(chain.front().ok_or(
+					"just pushed to front, reference must exist; qed"
+				).parent_hash());
 				let last_checkpoint_header = match c.block_header(BlockId::Hash(last_checkpoint_hash)) {
 					None => return Err(From::from("Unable to find last checkpoint block")),
 					Some(header) => header.decode()?,
@@ -331,21 +336,21 @@ impl Engine<EthereumMachine> for Clique {
 		// cast an random Vote if not checkpoint
 		if !is_checkpoint {
 			let votes = self.proposals.read().iter()
-				.filter(|item| state.is_valid_vote(item.0, *item.1))
-				.map(|item| (*item.0, *item.1))
+				.filter(|(address, vote_type)| state.is_valid_vote(*address, **vote_type))
+				.map(|(address, vote_type)| (*address, *vote_type))
 				.collect_vec();
 
 			if !votes.is_empty() {
 				// Pick an random vote.
-				let i = rand::thread_rng().gen_range(0 as usize, votes.len());
-				let vote = votes[i];
+				let random_vote = rand::thread_rng().gen_range(0 as usize, votes.len());
+				let (beneficiary, vote_type) = votes[random_vote];
 
-				trace!(target: "engine", "Casting vote: beneficiary {}, type {:?} ", vote.0, vote.1);
+				trace!(target: "engine", "Casting vote: beneficiary {}, type {:?} ", beneficiary, vote_type);
 
-				header.set_author(vote.0);
+				header.set_author(beneficiary);
 
 				header.set_seal(
-					match vote.1 {
+					match vote_type {
 						VoteType::Add => { vec!(encode(&NULL_MIXHASH.to_vec()), encode(&NONCE_AUTH_VOTE.to_vec())) }
 						VoteType::Remove => {vec!(encode(&NULL_MIXHASH.to_vec()), encode(&NONCE_DROP_VOTE.to_vec()))}
 					}
