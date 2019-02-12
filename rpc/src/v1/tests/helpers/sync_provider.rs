@@ -35,6 +35,8 @@ pub struct Config {
 pub struct TestSyncProvider {
 	/// Sync status.
 	pub status: RwLock<SyncStatus>,
+	/// is major importing?
+	is_importing: RwLock<bool>
 }
 
 impl TestSyncProvider {
@@ -57,12 +59,14 @@ impl TestSyncProvider {
 				snapshot_chunks_done: 0,
 				last_imported_old_block_number: None,
 			}),
+			is_importing: RwLock::new(false)
 		}
 	}
 
 	/// Simulate importing blocks.
 	pub fn increase_imported_block_number(&self, count: u64) {
 		let mut status =  self.status.write();
+		*self.is_importing.write() = true;
 		let current_number = status.last_imported_block_number.unwrap_or(0);
 		status.last_imported_block_number = Some(current_number + count);
 	}
@@ -130,6 +134,10 @@ impl SyncProvider for TestSyncProvider {
 	}
 
 	fn is_major_syncing(&self) -> bool {
-		true
+		match (self.status.read().state, *self.is_importing.read()) {
+			(SyncState::Idle, _) => false,
+			(_, true) => true,
+			_ => false
+		}
 	}
 }
