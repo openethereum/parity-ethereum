@@ -6,8 +6,6 @@ extern crate syn;
 #[macro_use]
 extern crate quote;
 
-
-
 use self::proc_macro::TokenStream;
 
 /// The SyncPackets derive-macro will provide an enum with this attribute:
@@ -24,7 +22,6 @@ pub fn sync_packets(input: TokenStream) -> TokenStream {
 	gen.into()
 }
 
-
 fn impl_sync_packets(ast: &syn::DeriveInput) -> proc_macro2::TokenStream {
 	let body = match ast.data {
 		syn::Data::Enum(ref e) => e,
@@ -33,8 +30,13 @@ fn impl_sync_packets(ast: &syn::DeriveInput) -> proc_macro2::TokenStream {
 
 	let enum_name = &ast.ident;
 
-	let eths: Vec<_> = body.variants.iter().filter(|v| v.attrs[0].path.is_ident("eth")).map(|v| &v.ident).collect();
-	let pars: Vec<_> = body.variants.iter().filter(|v| v.attrs[0].path.is_ident("par")).map(|v| &v.ident).collect();
+	let eths: Vec<_> = body.variants.iter()
+		.filter(|v| v.attrs[0].path.is_ident("eth"))
+		.map(|v| &v.ident).collect();
+
+	let pars: Vec<_> = body.variants.iter()
+		.filter(|v| v.attrs[0].path.is_ident("par"))
+		.map(|v| &v.ident).collect();
 
 	let idents: Vec<_> = body.variants.iter().map(|v| &v.ident).collect();
 	let values: Vec<_> = body.variants.iter().map(|v| v.discriminant.clone().unwrap().1).collect();
@@ -71,6 +73,5 @@ fn impl_sync_packets(ast: &syn::DeriveInput) -> proc_macro2::TokenStream {
 				(*self) as PacketId
 			}
 		}
-
 	}
 }
