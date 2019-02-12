@@ -35,27 +35,46 @@ use network::{PacketId, ProtocolId};
 /// packet id clashes when defining new ids.
 #[derive(Clone, Copy, Debug, SyncPackets, PartialEq)]
 pub enum SyncPacket {
-	#[eth] StatusPacket = 0x00,
-	#[eth] NewBlockHashesPacket = 0x01,
-	#[eth] TransactionsPacket = 0x02,
-	#[eth] GetBlockHeadersPacket = 0x03,
-	#[eth] BlockHeadersPacket = 0x04,
-	#[eth] GetBlockBodiesPacket = 0x05,
-	#[eth] BlockBodiesPacket = 0x06,
-	#[eth] NewBlockPacket = 0x07,
+	#[eth]
+	StatusPacket = 0x00,
+	#[eth]
+	NewBlockHashesPacket = 0x01,
+	#[eth]
+	TransactionsPacket = 0x02,
+	#[eth]
+	GetBlockHeadersPacket = 0x03,
+	#[eth]
+	BlockHeadersPacket = 0x04,
+	#[eth]
+	GetBlockBodiesPacket = 0x05,
+	#[eth]
+	BlockBodiesPacket = 0x06,
+	#[eth]
+	NewBlockPacket = 0x07,
 
-	#[eth] GetNodeDataPacket = 0x0d,
-	#[eth] NodeDataPacket = 0x0e,
-	#[eth] GetReceiptsPacket = 0x0f,
-	#[eth] ReceiptsPacket = 0x10,
+	#[eth]
+	GetNodeDataPacket = 0x0d,
+	#[eth]
+	NodeDataPacket = 0x0e,
+	#[eth]
+	GetReceiptsPacket = 0x0f,
+	#[eth]
+	ReceiptsPacket = 0x10,
 
-	#[par] GetSnapshotManifestPacket = 0x11,
-	#[par] SnapshotManifestPacket = 0x12,
-	#[par] GetSnapshotDataPacket = 0x13,
-	#[par] SnapshotDataPacket = 0x14,
-	#[par] ConsensusDataPacket = 0x15,
-	#[par] PrivateTransactionPacket = 0x16,
-	#[par] SignedPrivateTransactionPacket = 0x17,
+	#[par]
+	GetSnapshotManifestPacket = 0x11,
+	#[par]
+	SnapshotManifestPacket = 0x12,
+	#[par]
+	GetSnapshotDataPacket = 0x13,
+	#[par]
+	SnapshotDataPacket = 0x14,
+	#[par]
+	ConsensusDataPacket = 0x15,
+	#[par]
+	PrivateTransactionPacket = 0x16,
+	#[par]
+	SignedPrivateTransactionPacket = 0x17,
 }
 
 

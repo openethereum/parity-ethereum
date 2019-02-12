@@ -10,6 +10,13 @@ extern crate quote;
 
 use self::proc_macro::TokenStream;
 
+/// The SyncPackets derive-macro will provide an enum with this attribute:
+///
+/// * With a method "from_u8" which will optionally convert a u8 value to
+///   one of the variants or None if the value is unknown.
+///
+/// * With an implementation of a trait PacketInfo to get the packet id and
+///   the protocol from instances of the enum.
 #[proc_macro_derive(SyncPackets, attributes(eth, par))]
 pub fn sync_packets(input: TokenStream) -> TokenStream {
 	let ast = syn::parse(input).unwrap();
@@ -21,8 +28,10 @@ pub fn sync_packets(input: TokenStream) -> TokenStream {
 fn impl_sync_packets(ast: &syn::DeriveInput) -> proc_macro2::TokenStream {
 	let body = match ast.data {
 		syn::Data::Enum(ref e) => e,
-		_ => panic!("#[derive(RlpEncodable)] is only defined for enums."),
+		_ => panic!("#[derive(SyncPackets)] is only defined for enums."),
 	};
+
+	let enum_name = &ast.ident;
 
 	let eths: Vec<_> = body.variants.iter().filter(|v| v.attrs[0].path.is_ident("eth")).map(|v| &v.ident).collect();
 	let pars: Vec<_> = body.variants.iter().filter(|v| v.attrs[0].path.is_ident("par")).map(|v| &v.ident).collect();
@@ -31,7 +40,7 @@ fn impl_sync_packets(ast: &syn::DeriveInput) -> proc_macro2::TokenStream {
 	let values: Vec<_> = body.variants.iter().map(|v| v.discriminant.clone().unwrap().1).collect();
 
 	quote!{
-		impl SyncPacket {
+		impl #enum_name {
 			pub fn from_u8(id: u8) -> Option<SyncPacket> {
 				match id {
 					#(#values => Some(#idents)),*,
@@ -50,9 +59,7 @@ fn impl_sync_packets(ast: &syn::DeriveInput) -> proc_macro2::TokenStream {
 			fn protocol(&self) -> ProtocolId;
 		}
 
-		// The mechanism to match packet ids and protocol may be improved
-		// through some macro magic, but for now this works.
-		impl PacketInfo for SyncPacket {
+		impl PacketInfo for #enum_name {
 			fn protocol(&self) -> ProtocolId {
 				match self {
 					#(#eths)|* => ETH_PROTOCOL,
