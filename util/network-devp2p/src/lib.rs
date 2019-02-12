@@ -84,6 +84,7 @@ extern crate keccak_hash as hash;
 extern crate serde;
 extern crate serde_json;
 extern crate parity_snappy as snappy;
+extern crate lru_cache;
 
 #[macro_use]
 extern crate error_chain;
