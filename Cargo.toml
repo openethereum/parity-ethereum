@@ -50,7 +50,7 @@ node-filter = { path = "ethcore/node-filter" }
 ethkey = { path = "accounts/ethkey" }
 rlp = { version = "0.3.0", features = ["ethereum"] }
 cli-signer= { path = "cli-signer" }
-parity-daemonize = "0.1.1"
+parity-daemonize = "0.2"
 parity-hash-fetch = { path = "updater/hash-fetch" }
 parity-ipfs-api = { path = "ipfs" }
 parity-local-store = { path = "miner/local-store" }
