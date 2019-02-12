@@ -26,8 +26,8 @@
 /// How syncing code path works:
 /// 1. Client calls `engine.verify_block_basic()` then `engine.verify_block_unordered()`.
 /// 2. Client calls `engine.verify_block_family(header, parent)`.
-/// 3. Engine first need to find parent state: `state = self.state(parent.hash())`
-///    if not found, trigger an back-fill from last checkpoint.
+/// 3. Engine first needs to find parent state: `state = self.state(parent.hash())`
+///    if not found, trigger a back-fill from last checkpoint.
 /// 4. Engine calls `state.apply(header)` and record the new state.
 
 /// About executive_author()
@@ -97,14 +97,23 @@ mod util;
 pub const SIGNER_VANITY_LENGTH: usize = 32;
 /// Fixed number of extra-data suffix bytes reserved for signer signature
 pub const SIGNER_SIG_LENGTH: usize = 65;
+/// Nonce value for DROP vote
 pub const NONCE_DROP_VOTE: [u8; 8] = [0x00; 8];
+/// Nonce value for AUTH vote
 pub const NONCE_AUTH_VOTE: [u8; 8] = [0xff; 8];
+/// Difficulty for INTURN block
 pub const DIFF_INTURN: U256 = U256([2, 0, 0, 0]);
+/// Difficulty for NOTURN block
 pub const DIFF_NOTURN: U256 = U256([1, 0, 0, 0]);
+/// Default empty author field value
 pub const NULL_AUTHOR: Address = H160([0x00; 20]);
+/// Default empty nonce value
 pub const NULL_NONCE: [u8; 8] = NONCE_DROP_VOTE;
+/// Default value for mixhash
 pub const NULL_MIXHASH: [u8; 32] = [0x00; 32];
+/// Default value for uncles hash
 pub const NULL_UNCLES_HASH: H256 = KECCAK_EMPTY_LIST_RLP;
+/// Default noturn block wiggle factor defined in spec.
 pub const SIGNING_DELAY_NOTURN_MS: u64 = 500;
 
 #[derive(PartialEq, Clone, Debug, Copy)]
@@ -131,7 +140,7 @@ pub struct Clique {
 }
 
 impl Clique {
-	/// initialize Clique engine from empty state.
+	/// Initialize Clique engine from empty state.
 	pub fn new(our_params: CliqueParams, machine: EthereumMachine) -> Result<Arc<Self>, Error> {
 		let engine = Arc::new(
 			Clique {
@@ -220,7 +229,7 @@ impl Clique {
 				chain.push_front(header.clone());
 
 				// populate chain to last checkpoint
-				let mut last = chain.front().unwrap().clone();
+				let mut last = chain.front().ok_or("Backfill error")?.clone();
 
 				while last.number() != last_checkpoint_number + 1 {
 					match c.block_header(BlockId::Hash(*last.parent_hash())) {
@@ -231,8 +240,8 @@ impl Clique {
 							).into());
 						}
 						Some(next) => {
-							chain.push_front(next.decode().unwrap().clone());
-							last = chain.front().unwrap().clone();
+							chain.push_front(next.decode()?.clone());
+							last = chain.front().ok_or("Backfill error")?.clone();
 						}
 					}
 				}
@@ -245,10 +254,10 @@ impl Clique {
 				       last_checkpoint_number, header.number(), header.hash());
 
 				// Get the state for last checkpoint.
-				let last_checkpoint_hash = *(chain.front().unwrap().parent_hash());
+				let last_checkpoint_hash = *(chain.front().expect("Should exists").parent_hash());
 				let last_checkpoint_header = match c.block_header(BlockId::Hash(last_checkpoint_hash)) {
 					None => return Err(From::from("Unable to find last checkpoint block")),
-					Some(header) => header.decode().unwrap(),
+					Some(header) => header.decode()?,
 				};
 
 				let last_checkpoint_state: CliqueBlockState;
@@ -432,8 +441,8 @@ impl Engine<EthereumMachine> for Clique {
 					let now = SystemTime::now();
 
 					if (now < UNIX_EPOCH + Duration::from_secs(block.header().timestamp())) ||
-						(inturn && now < state.next_timestamp_inturn.unwrap()) ||
-						(!inturn && now < state.next_timestamp_noturn.unwrap()) {
+						(inturn && now < state.next_timestamp_inturn.unwrap_or(now)) ||
+						(!inturn && now < state.next_timestamp_noturn.unwrap_or(now)) {
 						trace!(target: "engine", "generate_seal: too early to sign right now.");
 						return Seal::None;
 					}
@@ -632,6 +641,6 @@ impl Engine<EthereumMachine> for Clique {
 
 	fn executive_author(&self, header: &Header) -> Address {
 		// Should have been verified now.
-		return recover_creator(header).unwrap();
+		return recover_creator(header).expect("Unable to extract creator.");
 	}
 }
