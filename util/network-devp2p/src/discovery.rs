@@ -260,8 +260,8 @@ impl<'a> Discovery<'a> {
         }.map(|(node_entry, bucket_distance)| {
 			trace!(target: "discovery", "Adding a new node {:?} into our bucket {}", &node_entry, bucket_distance);
 
-            let mut added_map = HashMap::with_capacity(1);
-            added_map.insert(node_entry.id, node_entry.clone());
+            let mut added = HashMap::with_capacity(1);
+            added.insert(node_entry.id, node_entry.clone());
 
 			let node_to_ping = {
 				let bucket = &mut self.node_buckets[bucket_distance];
@@ -272,8 +272,10 @@ impl<'a> Discovery<'a> {
 					None
 				}
 			};
-			node_to_ping.map(|node| self.try_ping(node, PingReason::Default));
-            TableUpdates{added: added_map, removed: HashSet::new()}
+			if let Some(node) = node_to_ping {
+				self.try_ping(node, PingReason::Default);
+			};
+            TableUpdates{added, removed: HashSet::new()}
         })
 	}
 
