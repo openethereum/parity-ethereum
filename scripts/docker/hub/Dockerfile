@@ -1,5 +1,5 @@
-FROM ubuntu:xenial
-MAINTAINER Parity Technologies <devops@parity.io>
+FROM debian:stretch
+MAINTAINER Parity Technologies <devops-team@parity.io>
 #set ENVIROMENT
 ARG TARGET
 ENV TARGET ${TARGET}
