@@ -45,8 +45,6 @@ extern crate ethcore_light as light;
 #[cfg(test)] extern crate rustc_hex;
 
 #[macro_use]
-extern crate enum_primitive;
-#[macro_use]
 extern crate macros;
 #[macro_use]
 extern crate log;
@@ -54,6 +52,8 @@ extern crate log;
 extern crate heapsize;
 #[macro_use]
 extern crate trace_time;
+#[macro_use]
+extern crate syncpacketid_derive;
 
 mod chain;
 mod blocks;

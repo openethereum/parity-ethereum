@@ -1,0 +1,13 @@
+[package]
+name = "syncpacketid_derive"
+version = "0.1.0"
+authors = ["Fernando Herrero Carrón <fernando@parity.io>"]
+
+[lib]
+name = "syncpacketid_derive"
+proc-macro = true
+
+[dependencies]
+syn = "0.15"
+quote = "0.6"
+proc-macro2 = "0.4"
