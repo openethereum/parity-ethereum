@@ -63,6 +63,7 @@ struct Cache {
 	order: VecDeque<NodeId>
 }
 
+// Increase cache size due to possible reserved peers, which do not count in the node table size
 pub const CACHE_SIZE: usize = MAX_NODES_IN_TABLE + 1024;
 
 impl NodeFilter {
@@ -85,7 +86,7 @@ impl ConnectionFilter for NodeFilter {
 			Some(client) => client,
 			None => return false,
 		};
-	
+
 		if let Some(allowed) = self.cache.read().cache.get(connecting_id) {
 			return *allowed;
 		}
