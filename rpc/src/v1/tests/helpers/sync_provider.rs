@@ -136,6 +136,7 @@ impl SyncProvider for TestSyncProvider {
 	fn is_major_syncing(&self) -> bool {
 		match (self.status.read().state, *self.is_importing.read()) {
 			(SyncState::Idle, _) => false,
+			(SyncState::Blocks, _) => true,
 			(_, true) => true,
 			_ => false
 		}
