@@ -1,4 +1,4 @@
-FROM debian:stretch
+FROM ubuntu:xenial
 LABEL MAINTAINER="Parity Technologies <devops-team@parity.io>"
 
 # install tools and dependencies
