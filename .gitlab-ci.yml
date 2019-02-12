@@ -5,7 +5,7 @@ stages:
   - publish-onchain
   - optional
 
-image:                             parity/rust-parity-ethereum-build:stretch
+image:                             parity/rust:gitlab-ci
 
 variables:
   GIT_STRATEGY:                    fetch
@@ -134,23 +134,6 @@ publish-onnet-update:
   tags:
     - linux-docker
 
-# configures aws for fast uploads/syncs
-.s3-before-script:                &s3-before-script
-  before_script:
-    - mkdir -p ${HOME}/.aws
-    - |
-      cat > ${HOME}/.aws/config <<EOC
-      [default]
-      s3 =
-        max_concurrent_requests = 20
-        max_queue_size = 10000
-        multipart_threshold = 64MB
-        multipart_chunksize = 16MB
-        max_bandwidth = 50MB/s
-        use_accelerate_endpoint = false
-        addressing_style = path
-      EOC
-
 publish-awss3-release:
   image:                           parity/awscli:latest
   stage:                           publish
@@ -162,7 +145,6 @@ publish-awss3-release:
     - build-windows
   variables:
     GIT_STRATEGY:                  none
-  <<:                              *s3-before-script
   script:
     - echo "__________Push binaries to AWS S3____________"
     - case "${SCHEDULE_TAG:-${CI_COMMIT_REF_NAME}}" in
