@@ -41,28 +41,18 @@ use types::transaction::SignedTransaction;
 use verification::queue::kind::blocks::Unverified;
 
 
-/// FIXME: @niklasad1 - remove this when and use `SystemTime::checked_add`
-/// when https://github.com/rust-lang/rust/issues/55940 is stabilized
+/// Returns `Ok<SystemTime>` when the result less or equal to `i32::max_value` to prevent `SystemTime` to panic because
+/// it is platform specific, may be i32 or i64.
+///
+/// `Err<BlockError::TimestampOver` otherwise.
+///
+// FIXME: @niklasad1 - remove this when and use `SystemTime::checked_add`
+// when https://github.com/rust-lang/rust/issues/55940 is stabilized.
 pub fn timestamp_checked_add(sys: SystemTime, d2: Duration) -> Result<SystemTime, BlockError> {
-	const NSEC_PER_SEC: u32 = 1_000_000_000;
 	let d1 = sys.duration_since(UNIX_EPOCH).map_err(|_| BlockError::TimestampOverflow)?;
+	let total_time = d1.checked_add(d2).ok_or(BlockError::TimestampOverflow)?;
 
-	// dummy thing just to get correct size of the struct fields (to use libc's conditional compilation)
-	let t = libc::timespec { tv_sec: 0, tv_nsec: 0 };
-
-	let mut secs: u64 = d1.as_secs().checked_add(d2.as_secs()).ok_or(BlockError::TimestampOverflow)?;
-	// Nano calculations can't overflow because nanos are <1B which fit in a u32.
-	let mut nsecs = d1.subsec_nanos() + d2.subsec_nanos() as u32;
-	if nsecs >= NSEC_PER_SEC {
-		nsecs -= NSEC_PER_SEC;
-		secs = secs.checked_add(1).ok_or(BlockError::TimestampOverflow)?;
-	}
-
-	// calculate max_value for signed value (2**n - 1) where n is the number of bits
-	let size_in_bits = std::mem::size_of_val(&t.tv_sec) as u32 * 8;
-	let max = (2_u64 << (size_in_bits - 2)) - 1;
-
-	if secs <= max {
+	if total_time.as_secs() <= i32::max_value() as u64 {
 		Ok(sys + d2)
 	} else {
 		Err(BlockError::TimestampOverflow)
@@ -772,7 +762,8 @@ mod tests {
 		check_fail_timestamp(family_test(&create_test_block_with_data(&header, &good_transactions, &good_uncles), engine, &bc), false);
 
 		header = good.clone();
-		header.set_timestamp(2450000000);
+		// will return `BlockError::TimestampOverflow` when timestamp > `i32::max_value()`
+		header.set_timestamp(i32::max_value() as u64);
 		check_fail_timestamp(basic_test(&create_test_block_with_data(&header, &good_transactions, &good_uncles), engine), false);
 
 		header = good.clone();
@@ -847,8 +838,8 @@ mod tests {
 
 	#[test]
 	fn checked_add_systime_dur() {
-		assert!(timestamp_checked_add(UNIX_EPOCH, Duration::new(i64::max_value() as u64 + 1, 0)).is_err());
-		assert!(timestamp_checked_add(UNIX_EPOCH, Duration::new(i64::max_value() as u64, 0)).is_ok());
-		assert!(timestamp_checked_add(UNIX_EPOCH, Duration::new(i64::max_value() as u64 - 1, 1_000_000_000)).is_ok());
+		assert!(timestamp_checked_add(UNIX_EPOCH, Duration::new(i32::max_value() as u64 + 1, 0)).is_err());
+		assert!(timestamp_checked_add(UNIX_EPOCH, Duration::new(i32::max_value() as u64, 0)).is_ok());
+		assert!(timestamp_checked_add(UNIX_EPOCH, Duration::new(i32::max_value() as u64 - 1, 1_000_000_000)).is_ok());
 	}
 }
