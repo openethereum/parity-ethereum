@@ -45,7 +45,7 @@ use types::receipt::{Receipt, LocalizedReceipt};
 use types::{BlockNumber, header::{Header, ExtendedHeader}};
 use vm::{EnvInfo, LastHashes};
 
-use block::{IsBlock, LockedBlock, Drain, ClosedBlock, OpenBlock, enact_verified, SealedBlock};
+use block::{IsBlock, LockedBlock, Drain, ClosedBlock, OpenBlock, enact, SealedBlock};
 use client::ancient_import::AncientVerifier;
 use client::{
 	Nonce, Balance, ChainInfo, BlockInfo, TransactionInfo,
@@ -407,8 +407,11 @@ impl Importer {
 		let db = client.state_db.read().boxed_clone_canon(header.parent_hash());
 
 		let is_epoch_begin = chain.epoch_transition(parent.number(), *header.parent_hash()).is_some();
-		let enact_result = enact_verified(
-			block,
+
+		let enact_result = enact(
+			block.header,
+			block.transactions,
+			block.uncles,
 			engine,
 			client.tracedb.read().tracing_enabled(),
 			db,

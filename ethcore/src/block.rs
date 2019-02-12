@@ -46,7 +46,6 @@ use state::State;
 use trace::Tracing;
 use triehash::ordered_trie_root;
 use unexpected::{Mismatch, OutOfBounds};
-use verification::PreverifiedBlock;
 use vm::{EnvInfo, LastHashes};
 
 use hash::keccak;
@@ -506,7 +505,7 @@ impl IsBlock for SealedBlock {
 }
 
 /// Enact the block given by block header, transactions and uncles
-fn enact(
+pub fn enact(
 	header: Header,
 	transactions: Vec<SignedTransaction>,
 	uncles: Vec<Header>,
@@ -534,8 +533,9 @@ fn enact(
 		db,
 		parent,
 		last_hashes,
-		engine.executive_author(&header), // Engine such as Clique will calculate author from extra_data.  this is only important for executing contracts as the 'executive_author'
-		//(*header.gas_limit(), *header.gas_limit()),
+		// Engine such as Clique will calculate author from extra_data.
+		// this is only important for executing contracts as the 'executive_author'.
+		engine.executive_author(&header),
 		(3141562.into(), 31415620.into()),
 		header.extra_data().clone(),
 		is_epoch_begin,
@@ -563,34 +563,6 @@ fn enact(
 	}
 
 	b.close_and_lock()
-}
-
-/// Enact the PreverifiedBlock given using `engine` on the database `db` with given `parent` block header
-pub fn enact_verified(
-	block: PreverifiedBlock,
-	engine: &EthEngine,
-	tracing: bool,
-	db: StateDB,
-	parent: &Header,
-	last_hashes: Arc<LastHashes>,
-	factories: Factories,
-	is_epoch_begin: bool,
-	ancestry: &mut Iterator<Item=ExtendedHeader>,
-) -> Result<LockedBlock, Error> {
-
-	enact(
-		block.header,
-		block.transactions,
-		block.uncles,
-		engine,
-		tracing,
-		db,
-		parent,
-		last_hashes,
-		factories,
-		is_epoch_begin,
-		ancestry,
-	)
 }
 
 #[cfg(test)]

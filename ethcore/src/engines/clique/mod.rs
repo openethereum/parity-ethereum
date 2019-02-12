@@ -17,17 +17,10 @@
 //! Implementation of Clique (POA) Engine.
 //!
 //! mod.rs -> CliqueEngine, the engine api implementation, with additional block state tracking.
-//!
-//! CliqueEngine -> {
-//!   block_state_by_hash  -> block state indexed by header hash.
-//!   ...rest
-//! }
-//!
 //! block_state.rs -> CliqueBlockState , record clique state for given block.
 //! param.rs -> Clique Params.
 //! step_service.rs -> an event loop to trigger sealing.
 //! util.rs -> various standalone util functions
-//!
 //!
 
 /// How syncing code path works:
@@ -39,7 +32,7 @@
 
 /// About executive_author()
 /// Clique use author field for voting, the real author is hidden in the extra_data field. So
-/// When executing transactions (in `enact_verified()`, it will calls engine.executive_author() and use that.
+/// When executing transactions (in `enact()`, it will calls engine.executive_author() and use that.
 
 /// How sealing works:
 /// 1. implement `engine.set_signer()`. on startup, if miner account was setup on config/cli,
@@ -125,6 +118,7 @@ pub enum VoteType {
 pub const STATE_CACHE_NUM: usize = 128;
 
 /// Clique Engine implementation
+/// block_state_by_hash -> block state indexed by header hash.
 pub struct Clique {
 	epoch_length: u64,
 	period: u64,
@@ -569,7 +563,7 @@ impl Engine<EthereumMachine> for Clique {
 
 	// Our task here is to set difficulty
 	fn populate_from_parent(&self, header: &mut Header, parent: &Header) {
-		// TODO: this is a horrible hack, it is due to the fact that enact_verified and miner both use
+		// TODO: this is a horrible hack, it is due to the fact that enact and miner both use
 		// OpenBlock::new() which will both call this function. more refactoring is definitely needed.
 		match header.extra_data().len() >= SIGNER_VANITY_LENGTH + SIGNER_SIG_LENGTH {
 			true => {
