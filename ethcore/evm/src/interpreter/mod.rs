@@ -571,10 +571,10 @@ impl<Cost: CostType> Interpreter<Cost> {
 				let out_size = self.stack.pop_back();
 
 				// Add stipend (only CALL|CALLCODE when value > 0)
-				let call_gas = call_gas + value.map_or_else(|| Cost::from(0), |val| match val.is_zero() {
+				let call_gas = call_gas.overflow_add(value.map_or_else(|| Cost::from(0), |val| match val.is_zero() {
 					false => Cost::from(ext.schedule().call_stipend),
 					true => Cost::from(0),
-				});
+				})).0;
 
 				// Get sender & receive addresses, check if we have balance
 				let (sender_address, receive_address, has_balance, call_type) = match instruction {
