@@ -1,8 +1,5 @@
 FROM ubuntu:xenial
-MAINTAINER Parity Technologies <devops@parity.io>
-#set ENVIROMENT
-ARG TARGET
-ENV TARGET ${TARGET}
+LABEL MAINTAINER="Parity Technologies devops-team@parity.io"
 
 # install tools and dependencies
 RUN apt update && apt install -y --no-install-recommends openssl libudev-dev file curl jq
@@ -10,27 +7,23 @@ RUN apt update && apt install -y --no-install-recommends openssl libudev-dev fil
 # show backtraces
 ENV RUST_BACKTRACE 1
 
-#cleanup Docker image
-RUN apt autoremove -y
-RUN apt clean -y
-RUN rm -rf /tmp/* /var/tmp/* /var/lib/apt/lists/*
+# cleanup Docker image
+RUN apt autoremove -y \
+  && apt clean -y \
+  && rm -rf /tmp/* /var/tmp/* /var/lib/apt/lists/*
 
 RUN groupadd -g 1000 parity \
   && useradd -m -u 1000 -g parity -s /bin/sh parity
 
-
-#add TARGET to docker image
-COPY artifacts/x86_64-unknown-linux-gnu/$TARGET /bin/$TARGET
-
-# Build a shell script because the ENTRYPOINT command doesn't like using ENV
-RUN echo "#!/bin/bash \n ${TARGET} \$@" > ./entrypoint.sh
-RUN chmod +x ./entrypoint.sh
-
+# add parity to docker image
+COPY artifacts/x86_64-unknown-linux-gnu/parity /bin/parity
+RUN echo "#!/bin/bash \n /bin/parity \$@" > ./entrypoint.sh
 COPY scripts/docker/hub/check_sync.sh /check_sync.sh
 
 # switch to user parity here
 USER parity
 
-# setup ENTRYPOINT
+VOLUME [ "/home/parity/.local/share/io.parity.ethereum" ]
 EXPOSE 5001 8080 8082 8083 8545 8546 8180 30303/tcp 30303/udp
-ENTRYPOINT ["./entrypoint.sh"]
+# setup ENTRYPOINT
+ENTRYPOINT ["/bin/parity"]
