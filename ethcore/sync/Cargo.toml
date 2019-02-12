@@ -9,7 +9,6 @@ authors = ["Parity Technologies <admin@parity.io>"]
 
 [dependencies]
 common-types = { path = "../types" }
-enum_primitive = "0.1.1"
 ethcore = { path = ".." }
 ethcore-io = { path = "../../util/io" }
 ethcore-light = { path = "../light" }
@@ -30,6 +29,7 @@ parity-bytes = "0.1"
 parking_lot = "0.7"
 rand = "0.4"
 rlp = { version = "0.3.0", features = ["ethereum"] }
+syncpacketid_derive = { path = "../../util/syncpacketid_derive" }
 trace-time = "0.1"
 triehash-ethereum = {version = "0.2", path = "../../util/triehash-ethereum" }
 

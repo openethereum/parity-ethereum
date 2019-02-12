@@ -15,7 +15,6 @@
 // along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
 use bytes::Bytes;
-use enum_primitive::FromPrimitive;
 use ethereum_types::H256;
 use network::{self, PeerId};
 use parking_lot::RwLock;
