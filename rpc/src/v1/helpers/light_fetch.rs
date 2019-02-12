@@ -109,7 +109,10 @@ where
 }
 
 
-impl QueueInfo for LightFetch {
+impl<S> QueueInfo for LightFetch<S>
+	where
+		S: LightSyncProvider + LightNetworkDispatcher + ManageNetwork + 'static
+{
 	fn queue_info(&self) -> BlockQueueInfo {
 		self.client.queue_info()
 	}
