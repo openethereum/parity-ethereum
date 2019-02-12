@@ -97,7 +97,7 @@ publish-docker:
 
 publish-snap:
   stage:                           optional #publish
-  # only:                            *releaseable_branches
+  only:                            *releaseable_branches
   image:                           snapcore/snapcraft
   variables:
     BUILD_ARCH:                  amd64
