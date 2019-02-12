@@ -259,7 +259,7 @@ impl Clique {
 				// Get the state for last checkpoint.
 				let last_checkpoint_hash = *(chain.front().ok_or(
 					"just pushed to front, reference must exist; qed"
-				).parent_hash());
+				)?.parent_hash());
 				let last_checkpoint_header = match c.block_header(BlockId::Hash(last_checkpoint_hash)) {
 					None => return Err(From::from("Unable to find last checkpoint block")),
 					Some(header) => header.decode()?,
