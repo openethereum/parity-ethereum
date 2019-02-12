@@ -18,6 +18,7 @@ RUN rm -rf /tmp/* /var/tmp/* /var/lib/apt/lists/*
 RUN groupadd -g 1000 parity \
   && useradd -m -u 1000 -g parity -s /bin/sh parity
 
+WORKDIR /home/parity
 
 #add TARGET to docker image
 COPY artifacts/x86_64-unknown-linux-gnu/$TARGET /bin/$TARGET
