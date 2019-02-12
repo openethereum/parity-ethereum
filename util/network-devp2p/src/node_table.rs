@@ -313,7 +313,7 @@ impl NodeTable {
 			self.ordered_ids
 				.iter()
 				.filter(|id| !self.useless_nodes.contains(&id))
-				.map(|id| self.nodes.get(&id).expect("id to remove should exist; qed"))
+				.map(|id| self.nodes.get(&id).expect("nodes and ordered_ids do not get out of sync; qed"))
 		)
 	}
 
@@ -426,9 +426,11 @@ impl NodeTable {
 			node.last_contact = Some(NodeContact::failure());
 			last_contact = node.last_contact
 		}
-		self.ordered_ids.iter().position(|i| id == i).map(|p| self.ordered_ids.remove(p));
-		let index = self.get_index_to_insert(last_contact);
-		self.ordered_ids.insert(index, *id);
+		if let Some(pos) = self.ordered_ids.iter().position(|i| id == i) {
+			self.ordered_ids.remove(pos);
+			let index = self.get_index_to_insert(last_contact);
+			self.ordered_ids.insert(index, *id);
+		}
 	}
 
 	/// Set last contact as success for a node
@@ -438,9 +440,11 @@ impl NodeTable {
 			node.last_contact = Some(NodeContact::success());
 			last_contact = node.last_contact
 		}
-		self.ordered_ids.iter().position(|i| id == i).map(|p| self.ordered_ids.remove(p));
-		let index = self.get_index_to_insert(last_contact);
-		self.ordered_ids.insert(index, *id);
+		if let Some(pos) = self.ordered_ids.iter().position(|i| id == i) {
+			self.ordered_ids.remove(pos);
+			let index = self.get_index_to_insert(last_contact);
+			self.ordered_ids.insert(index, *id);
+		}
 	}
 
 	/// Mark as useless, no further attempts to connect until next call to `clear_useless`.
