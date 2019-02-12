@@ -5,7 +5,7 @@ stages:
   - publish-onchain
   - optional
 
-image:                             parity/rust-parity-ethereum-build:stretch
+image:                             parity/rust:gitlab-ci
 
 variables:
   GIT_STRATEGY:                    fetch
