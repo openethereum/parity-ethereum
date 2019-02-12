@@ -48,7 +48,7 @@ use verification::queue::kind::blocks::Unverified;
 ///
 // FIXME: @niklasad1 - remove this when and use `SystemTime::checked_add`
 // when https://github.com/rust-lang/rust/issues/55940 is stabilized.
-pub fn timestamp_checked_add(sys: SystemTime, d2: Duration) -> Result<SystemTime, BlockError> {
+fn timestamp_checked_add(sys: SystemTime, d2: Duration) -> Result<SystemTime, BlockError> {
 	let d1 = sys.duration_since(UNIX_EPOCH).map_err(|_| BlockError::TimestampOverflow)?;
 	let total_time = d1.checked_add(d2).ok_or(BlockError::TimestampOverflow)?;
 
