@@ -25,7 +25,6 @@ use blockchain::{BlockReceipts, BlockChain, BlockChainDB, BlockProvider, TreeRou
 use bytes::Bytes;
 use call_contract::{CallContract, RegistryInfo};
 use ethcore_miner::pool::VerifiedTransaction;
-use ethcore_miner::service_transaction_checker::ServiceTransactionChecker;
 use ethereum_types::{H256, Address, U256};
 use evm::Schedule;
 use hash::keccak;
