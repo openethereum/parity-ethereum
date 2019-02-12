@@ -178,7 +178,8 @@ impl CliqueBlockState {
 
 		self.next_timestamp_inturn = Some(base_time + Duration::from_secs(period));
 
-		let delay = Duration::from_millis(rand::thread_rng().gen_range(0u64, (self.signers.len() as u64 / 2 + 1) * SIGNING_DELAY_NOTURN_MS));
+		let delay = Duration::from_millis(
+			rand::thread_rng().gen_range(0u64, (self.signers.len() as u64 / 2 + 1) * SIGNING_DELAY_NOTURN_MS));
 		self.next_timestamp_noturn = Some(base_time + Duration::from_secs(period) + delay);
 	}
 

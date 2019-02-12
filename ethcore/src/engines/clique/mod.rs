@@ -445,10 +445,20 @@ impl Engine<EthereumMachine> for Clique {
 					let inturn = state.inturn(block.header.number(), &author);
 					let now = SystemTime::now();
 
-					if (now < UNIX_EPOCH + Duration::from_secs(block.header().timestamp())) ||
-						(inturn && now < state.next_timestamp_inturn.unwrap_or(now)) ||
-						(!inturn && now < state.next_timestamp_noturn.unwrap_or(now)) {
+					if now < UNIX_EPOCH + Duration::from_secs(block.header().timestamp()) {
 						trace!(target: "engine", "generate_seal: too early to sign right now.");
+						return Seal::None;
+					}
+
+					let limit = match inturn {
+						true => state.next_timestamp_inturn.unwrap_or(now),
+						false => state.next_timestamp_noturn.unwrap_or(now),
+					};
+
+					if now < limit {
+						trace!(target: "engine",
+							   "generate_seal: too early to sign right now, inturn: {}, now: {:?}, expected: {:?}.",
+							   inturn, now, limit);
 						return Seal::None;
 					}
 
