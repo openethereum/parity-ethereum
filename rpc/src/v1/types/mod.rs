@@ -16,6 +16,9 @@
 
 //! RPC types
 
+#[cfg(test)]
+mod eth_types;
+
 mod account_info;
 mod block;
 mod block_number;
