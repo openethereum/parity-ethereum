@@ -18,7 +18,7 @@ use std::sync::{Arc, Weak};
 
 use ethcore::engines::{EthEngine, StateDependentProof};
 use ethcore::machine::EthereumMachine;
-use sync::LightSync;
+use sync::{LightSync, LightNetworkDispatcher};
 use types::encoded;
 use types::header::Header;
 use types::receipt::Receipt;
