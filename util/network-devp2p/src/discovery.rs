@@ -590,8 +590,9 @@ impl<'a> Discovery<'a> {
 					NodeValidity::ValidNode(NodeCategory::Bucket) | NodeValidity::ExpiredNode(NodeCategory::Bucket) => {
 						trace!(target: "discovery", "Updating node {:?} in our Kad buckets", &node);
 						self.update_bucket_record(node).unwrap_or_else(|error| {
-							debug!(target: "discovery", "Error occured when proessing ping from a bucket node: {:?}", &error);
-						});},
+							debug!(target: "discovery", "Error occured when processing ping from a bucket node: {:?}", &error);
+						});
+					},
 					NodeValidity::UnknownNode | NodeValidity::ExpiredNode(NodeCategory::Observed) | NodeValidity::ValidNode(NodeCategory::Observed)=> {
 						trace!(target: "discovery", "Updating node {:?} in the list of other_observed_nodes", &node);
 						self.other_observed_nodes.insert(node.id, (node.endpoint, Instant::now()));
