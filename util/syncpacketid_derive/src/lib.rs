@@ -42,6 +42,9 @@ fn impl_sync_packets(ast: &syn::DeriveInput) -> proc_macro2::TokenStream {
 	let values: Vec<_> = body.variants.iter().map(|v| v.discriminant.clone().unwrap().1).collect();
 
 	quote!{
+		use api::{ETH_PROTOCOL, WARP_SYNC_PROTOCOL_ID};
+		use network::{PacketId, ProtocolId};
+
 		impl #enum_name {
 			pub fn from_u8(id: u8) -> Option<SyncPacket> {
 				match id {
