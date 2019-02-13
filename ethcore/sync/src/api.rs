@@ -51,6 +51,8 @@ use network::IpFilter;
 use private_tx::PrivateTxHandler;
 use types::transaction::UnverifiedTransaction;
 
+use super::light_sync::SyncInfo;
+
 /// Parity sync protocol
 pub const WARP_SYNC_PROTOCOL_ID: ProtocolId = *b"par";
 /// Ethereum sync protocol
@@ -804,6 +806,24 @@ pub trait LightSyncProvider {
 	fn transactions_stats(&self) -> BTreeMap<H256, TransactionStats>;
 }
 
+/// Wrapper around `light_sync::SyncInfo` to expose those methods without the concrete type `LightSync`
+pub trait LightSyncInfo: Send + Sync {
+	/// Get the highest block advertised on the network.
+	fn highest_block(&self) -> Option<u64>;
+
+	/// Get the block number at the time of sync start.
+	fn start_block(&self) -> u64;
+
+	/// Whether major sync is underway.
+	fn is_major_importing(&self) -> bool;
+}
+
+/// Execute a closure with a protocol context.
+pub trait LightNetworkDispatcher {
+	/// Execute a closure with a protocol context.
+	fn with_context<F, T>(&self, f: F) -> Option<T> where F: FnOnce(&::light::net::BasicContext) -> T;
+}
+
 /// Configuration for the light sync.
 pub struct LightSyncParams<L> {
 	/// Network configuration.
@@ -823,7 +843,7 @@ pub struct LightSyncParams<L> {
 /// Service for light synchronization.
 pub struct LightSync {
 	proto: Arc<LightProtocol>,
-	sync: Arc<::light_sync::SyncInfo + Sync + Send>,
+	sync: Arc<SyncInfo + Sync + Send>,
 	attached_protos: Vec<AttachedProtocol>,
 	network: NetworkService,
 	subprotocol_name: [u8; 3],
@@ -874,21 +894,22 @@ impl LightSync {
 		})
 	}
 
-	/// Execute a closure with a protocol context.
-	pub fn with_context<F, T>(&self, f: F) -> Option<T>
-		where F: FnOnce(&::light::net::BasicContext) -> T
-	{
-		self.network.with_context_eval(
-			self.subprotocol_name,
-			move |ctx| self.proto.with_context(&ctx, f),
-		)
-	}
 }
 
 impl ::std::ops::Deref for LightSync {
 	type Target = ::light_sync::SyncInfo;
 
 	fn deref(&self) -> &Self::Target { &*self.sync }
+}
+
+
+impl LightNetworkDispatcher for LightSync {
+	fn with_context<F, T>(&self, f: F) -> Option<T> where F: FnOnce(&::light::net::BasicContext) -> T {
+		self.network.with_context_eval(
+			self.subprotocol_name,
+			move |ctx| self.proto.with_context(&ctx, f),
+		)
+	}
 }
 
 impl ManageNetwork for LightSync {
@@ -989,5 +1010,19 @@ impl LightSyncProvider for LightSync {
 
 	fn transactions_stats(&self) -> BTreeMap<H256, TransactionStats> {
 		Default::default() // TODO
+	}
+}
+
+impl LightSyncInfo for LightSync {
+	fn highest_block(&self) -> Option<u64> {
+		(*self.sync).highest_block()
+	}
+
+	fn start_block(&self) -> u64 {
+		(*self.sync).start_block()
+	}
+
+	fn is_major_importing(&self) -> bool {
+		(*self.sync).is_major_importing()
 	}
 }

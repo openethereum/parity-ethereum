@@ -113,11 +113,9 @@ impl FromStr for Api {
 
 #[derive(Debug, Clone)]
 pub enum ApiSet {
-	// Safe context (like token-protected WS interface)
-	SafeContext,
 	// Unsafe context (like jsonrpc over http)
 	UnsafeContext,
-	// All possible APIs
+	// All possible APIs (safe context like token-protected WS interface)
 	All,
 	// Local "unsafe" context and accounts access
 	IpcContext,
@@ -723,16 +721,6 @@ impl ApiSet {
 				public_list.insert(Api::ParityAccounts);
 				public_list
 			}
-			ApiSet::SafeContext => {
-				public_list.insert(Api::Debug);
-				public_list.insert(Api::Traces);
-				public_list.insert(Api::ParityPubSub);
-				public_list.insert(Api::ParityAccounts);
-				public_list.insert(Api::ParitySet);
-				public_list.insert(Api::Signer);
-				public_list.insert(Api::SecretStore);
-				public_list
-			}
 			ApiSet::All => {
 				public_list.insert(Api::Debug);
 				public_list.insert(Api::Traces);
@@ -836,33 +824,6 @@ mod test {
 		].into_iter()
 		.collect();
 		assert_eq!(ApiSet::IpcContext.list_apis(), expected);
-	}
-
-	#[test]
-	fn test_api_set_safe_context() {
-		let expected = vec![
-			// safe
-			Api::Web3,
-			Api::Net,
-			Api::Eth,
-			Api::EthPubSub,
-			Api::Parity,
-			Api::ParityPubSub,
-			Api::Traces,
-			Api::Rpc,
-			Api::SecretStore,
-			Api::Whisper,
-			Api::WhisperPubSub,
-			Api::Private,
-			// semi-safe
-			Api::ParityAccounts,
-			// Unsafe
-			Api::ParitySet,
-			Api::Signer,
-			Api::Debug,
-		].into_iter()
-		.collect();
-		assert_eq!(ApiSet::SafeContext.list_apis(), expected);
 	}
 
 	#[test]
