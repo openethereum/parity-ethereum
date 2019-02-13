@@ -16,6 +16,7 @@ case ${TRACK} in
   *) echo "No release" && exit 0;;
 esac
 
+VERSION="v"$VERSION
 SNAP_PACKAGE="parity_"$VERSION"_"$BUILD_ARCH".snap"
 
 echo "__________Create snap package__________"
