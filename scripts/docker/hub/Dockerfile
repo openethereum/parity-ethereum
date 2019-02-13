@@ -29,4 +29,3 @@ VOLUME [ "/home/parity/.local/share/io.parity.ethereum" ]
 EXPOSE 5001 8080 8082 8083 8545 8546 8180 30303/tcp 30303/udp
 
 ENTRYPOINT ["/bin/parity"]
-
