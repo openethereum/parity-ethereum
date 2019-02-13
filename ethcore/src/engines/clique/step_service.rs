@@ -14,51 +14,59 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
-use std::sync::Weak;
-use std::time::Duration;
-use io::{IoContext, IoHandler, TimerToken};
 use engines::Engine;
 use parity_machine::Machine;
-use std::fmt::Debug;
+use std::sync::Weak;
+use std::time::Duration;
+use std::thread;
+use std::sync::Arc;
+use parking_lot::RwLock;
 
-pub struct StepService<M: Machine> {
-  timeout: Duration,
-  engine: Weak<Engine<M>>
+pub struct StepService {
+	shutdown: Arc<RwLock<bool>>,
+	thread: Option<thread::JoinHandle<()>>,
 }
 
-impl<M: Machine> StepService<M> {
-	/// New step caller by timeouts.
-	pub fn new(engine: Weak<Engine<M>>, timeout: Duration) -> Self {
-		StepService {
-			engine: engine,
-			timeout: timeout,
+impl StepService {
+	pub fn start<M: Machine + 'static>(engine: Weak<Engine<M>>) -> Arc<Self> {
+		let shutdown = Arc::new(RwLock::new(false));
+		let shutdown1 = shutdown.clone();
+
+		let thread = thread::Builder::new()
+			.name("CliqueMiner".into())
+			.spawn(move || {
+				// startup delay.
+				thread::sleep(Duration::from_secs(5));
+
+				loop {
+					// see if we are in shutdown.
+					if *shutdown.read() == true {
+							trace!(target:"miner", "StepService: received shutdown signal!");
+							break;
+					}
+
+					trace!(target: "miner", "StepService: triggering sealing");
+
+					// Try sealing
+					engine.upgrade().map(|x| x.step());
+
+					// Yield
+					thread::sleep(Duration::from_millis(2000));
+				}
+				trace!(target: "miner", "StepService: shut down.");
+			}).expect("Unable to launch thread.");
+
+		Arc::new(StepService {
+			shutdown: shutdown1,
+			thread: Some(thread),
+		})
+	}
+
+	pub fn stop(&mut self) {
+		trace!(target: "miner", "StepService: shutting down.");
+		*self.shutdown.write() = true;
+		if let Some(t) = self.thread.take() {
+			t.join().expect("Thread panicked!");
 		}
-	}
-}
-
-fn set_timeout<S: Sync + Send + Clone + 'static + Debug> (io: &IoContext<S>, timeout: Duration) {
-	io.register_timer_once((1 as usize).into(), timeout)
-		.unwrap_or_else(|e| warn!(target: "engine", "Failed to set consensus step timeout: {}.", e))
-}
-
-impl<S, M> IoHandler<S> for StepService<M>
-	where S: Sync + Send + Clone + 'static + Debug, M: Machine {
-
-	fn initialize(&self, io: &IoContext<S>) {
-		trace!(target: "engine", "Setting the step timeout to {:?}.", self.timeout);
-		set_timeout(io, self.timeout);
-	}
-
-	/// Call step after timeout.
-	fn timeout(&self, io: &IoContext<S>, _timer: TimerToken) {
-		if let Some(engine) = self.engine.upgrade() {
-			engine.step();
-			set_timeout(io, self.timeout);
-		}
-	}
-
-	/// Set a new timer on message.
-	fn message(&self, _io: &IoContext<S>, _next: &S) {
-		warn!(target: "engine", "Cannot set step timer")
 	}
 }
