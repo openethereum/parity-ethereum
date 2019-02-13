@@ -31,7 +31,7 @@ fn impl_sync_packets(ast: &syn::DeriveInput) -> proc_macro2::TokenStream {
 	let enum_name = &ast.ident;
 
 	let eths: Vec<_> = body.variants.iter()
-		.filter(|v| v.attrs[0].path.is_ident("eth"))
+		.filter(|v| v.attrs.get(0).expect("attribute is missing; annotate your enum patterns with #[eth] or #[par]).path.is_ident("eth"))
 		.map(|v| &v.ident).collect();
 
 	let pars: Vec<_> = body.variants.iter()
