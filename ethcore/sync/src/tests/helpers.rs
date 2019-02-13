@@ -30,8 +30,11 @@ use ethcore::miner::Miner;
 use ethcore::test_helpers;
 use sync_io::SyncIo;
 use io::{IoChannel, IoContext, IoHandler};
-use api::{ETH_PROTOCOL, WARP_SYNC_PROTOCOL_ID};
-use chain::{ChainSync, ETH_PROTOCOL_VERSION_63, PAR_PROTOCOL_VERSION_3, PRIVATE_TRANSACTION_PACKET, SyncSupplier, STATUS_PACKET, RECEIPTS_PACKET, GET_SNAPSHOT_MANIFEST_PACKET, SIGNED_PRIVATE_TRANSACTION_PACKET};
+use api::WARP_SYNC_PROTOCOL_ID;
+use chain::{ChainSync, SyncSupplier, ETH_PROTOCOL_VERSION_63, PAR_PROTOCOL_VERSION_3};
+use chain::sync_packet::{PacketInfo, SyncPacket};
+use chain::sync_packet::SyncPacket::{PrivateTransactionPacket, SignedPrivateTransactionPacket};
+
 use SyncConfig;
 use private_tx::SimplePrivateTxHandler;
 use types::BlockNumber;
@@ -80,16 +83,6 @@ impl<'p, C> Drop for TestIo<'p, C> where C: FlushingBlockChainClient, C: 'p {
 	}
 }
 
-fn assert_packet_id_matches_protocol(protocol: &ProtocolId, packet_id: &PacketId) {
-	match packet_id {
-		STATUS_PACKET ... RECEIPTS_PACKET => assert_eq!(*protocol, ETH_PROTOCOL),
-		GET_SNAPSHOT_MANIFEST_PACKET ... SIGNED_PRIVATE_TRANSACTION_PACKET => assert_eq!(*protocol, WARP_SYNC_PROTOCOL_ID),
-		// What about light?
-		_ => assert!(false)
-	}
-}
-
-
 impl<'p, C> SyncIo for TestIo<'p, C> where C: FlushingBlockChainClient, C: 'p {
 	fn disable_peer(&mut self, peer_id: PeerId) {
 		self.disconnect_peer(peer_id);
@@ -112,12 +105,10 @@ impl<'p, C> SyncIo for TestIo<'p, C> where C: FlushingBlockChainClient, C: 'p {
 		Ok(())
 	}
 
-	fn send_protocol(&mut self, protocol: ProtocolId, peer_id: PeerId, packet_id: PacketId, data: Vec<u8>) -> Result<(), network::Error> {
-		assert_packet_id_matches_protocol(&protocol, &packet_id);
-
+	fn send(&mut self,peer_id: PeerId, packet_id: SyncPacket, data: Vec<u8>) -> Result<(), network::Error> {
 		self.packets.push(TestPacket {
 			data: data,
-			packet_id: packet_id,
+			packet_id: packet_id.id(),
 			recipient: peer_id,
 		});
 		Ok(())
@@ -244,9 +235,9 @@ impl<C> EthPeer<C> where C: FlushingBlockChainClient {
 		match message {
 			ChainMessageType::Consensus(data) => self.sync.write().propagate_consensus_packet(&mut io, data),
 			ChainMessageType::PrivateTransaction(transaction_hash, data) =>
-				self.sync.write().propagate_private_transaction(&mut io, transaction_hash, WARP_SYNC_PROTOCOL_ID, PRIVATE_TRANSACTION_PACKET, data),
+				self.sync.write().propagate_private_transaction(&mut io, transaction_hash, PrivateTransactionPacket, data),
 			ChainMessageType::SignedPrivateTransaction(transaction_hash, data) =>
-				self.sync.write().propagate_private_transaction(&mut io, transaction_hash, WARP_SYNC_PROTOCOL_ID, SIGNED_PRIVATE_TRANSACTION_PACKET, data),
+				self.sync.write().propagate_private_transaction(&mut io, transaction_hash, SignedPrivateTransactionPacket, data),
 		}
 	}
 

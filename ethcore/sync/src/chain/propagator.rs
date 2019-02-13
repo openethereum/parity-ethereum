@@ -17,18 +17,25 @@
 use std::cmp;
 use std::collections::HashSet;
 
-use api::{ETH_PROTOCOL, WARP_SYNC_PROTOCOL_ID};
 use bytes::Bytes;
 use ethereum_types::H256;
 use fastmap::H256FastSet;
-use network::{PeerId, PacketId, ProtocolId};
 use network::client_version::ClientCapabilities;
+use network::PeerId;
 use rand::Rng;
 use rlp::{Encodable, RlpStream};
 use sync_io::SyncIo;
 use types::transaction::SignedTransaction;
 use types::BlockNumber;
 use types::blockchain_info::BlockChainInfo;
+
+use super::sync_packet::SyncPacket;
+use super::sync_packet::SyncPacket::{
+	NewBlockHashesPacket,
+	TransactionsPacket,
+	NewBlockPacket,
+	ConsensusDataPacket,
+};
 
 use super::{
 	random,
@@ -37,10 +44,6 @@ use super::{
 	MAX_PEER_LAG_PROPAGATION,
 	MAX_PEERS_PROPAGATION,
 	MIN_PEERS_PROPAGATION,
-	CONSENSUS_DATA_PACKET,
-	NEW_BLOCK_HASHES_PACKET,
-	NEW_BLOCK_PACKET,
-	TRANSACTIONS_PACKET,
 };
 
 /// The Chain Sync Propagator: propagates data to peers
@@ -53,7 +56,8 @@ impl SyncPropagator {
 		let sent = peers.len();
 		let mut send_packet = |io: &mut SyncIo, rlp: Bytes| {
 			for peer_id in peers {
-				SyncPropagator::send_packet(io, ETH_PROTOCOL, *peer_id, NEW_BLOCK_PACKET, rlp.clone());
+				SyncPropagator::send_packet(io, *peer_id, NewBlockPacket, rlp.clone());
+
 				if let Some(ref mut peer) = sync.peers.get_mut(peer_id) {
 					peer.latest_hash = chain_info.best_block_hash.clone();
 				}
@@ -88,7 +92,7 @@ impl SyncPropagator {
 			if let Some(ref mut peer) = sync.peers.get_mut(peer_id) {
 				peer.latest_hash = best_block_hash;
 			}
-			SyncPropagator::send_packet(io, ETH_PROTOCOL, *peer_id, NEW_BLOCK_HASHES_PACKET, rlp.clone());
+			SyncPropagator::send_packet(io, *peer_id, NewBlockHashesPacket, rlp.clone());
 		}
 		sent
 	}
@@ -156,7 +160,7 @@ impl SyncPropagator {
 
 		let send_packet = |io: &mut SyncIo, peer_id: PeerId, sent: usize, rlp: Bytes| {
 			let size = rlp.len();
-			SyncPropagator::send_packet(io, ETH_PROTOCOL, peer_id, TRANSACTIONS_PACKET, rlp);
+			SyncPropagator::send_packet(io, peer_id, TransactionsPacket, rlp);
 			trace!(target: "sync", "{:02} <- Transactions ({} entries; {} bytes)", peer_id, sent, size);
 		};
 
@@ -275,7 +279,7 @@ impl SyncPropagator {
 				io.chain().chain_info().total_difficulty
 			);
 			for peer_id in &peers {
-				SyncPropagator::send_packet(io, ETH_PROTOCOL, *peer_id, NEW_BLOCK_PACKET, rlp.clone());
+				SyncPropagator::send_packet(io, *peer_id, NewBlockPacket, rlp.clone());
 			}
 		}
 	}
@@ -285,12 +289,12 @@ impl SyncPropagator {
 		let lucky_peers = ChainSync::select_random_peers(&sync.get_consensus_peers());
 		trace!(target: "sync", "Sending consensus packet to {:?}", lucky_peers);
 		for peer_id in lucky_peers {
-			SyncPropagator::send_packet(io, WARP_SYNC_PROTOCOL_ID, peer_id, CONSENSUS_DATA_PACKET, packet.clone());
+			SyncPropagator::send_packet(io, peer_id, ConsensusDataPacket, packet.clone());
 		}
 	}
 
 	/// Broadcast private transaction message to peers.
-	pub fn propagate_private_transaction(sync: &mut ChainSync, io: &mut SyncIo, transaction_hash: H256, protocol: ProtocolId, packet_id: PacketId, packet: Bytes) {
+	pub fn propagate_private_transaction(sync: &mut ChainSync, io: &mut SyncIo, transaction_hash: H256, packet_id: SyncPacket, packet: Bytes) {
 		let lucky_peers = ChainSync::select_random_peers(&sync.get_private_transaction_peers(&transaction_hash));
 		if lucky_peers.is_empty() {
 			error!(target: "privatetx", "Cannot propagate the packet, no peers with private tx enabled connected");
@@ -300,7 +304,7 @@ impl SyncPropagator {
 				if let Some(ref mut peer) = sync.peers.get_mut(&peer_id) {
 					peer.last_sent_private_transactions.insert(transaction_hash);
 				}
-				SyncPropagator::send_packet(io, protocol, peer_id, packet_id, packet.clone());
+				SyncPropagator::send_packet(io, peer_id, packet_id, packet.clone());
 			}
 		}
 	}
@@ -321,8 +325,8 @@ impl SyncPropagator {
 	}
 
 	/// Generic packet sender
-	pub fn send_packet(sync: &mut SyncIo, protocol: ProtocolId, peer_id: PeerId, packet_id: PacketId, packet: Bytes) {
-		if let Err(e) = sync.send_protocol(protocol, peer_id, packet_id, packet) {
+	pub fn send_packet(sync: &mut SyncIo, peer_id: PeerId, packet_id: SyncPacket, packet: Bytes) {
+		if let Err(e) = sync.send(peer_id, packet_id, packet) {
 			debug!(target:"sync", "Error sending packet: {:?}", e);
 			sync.disconnect_peer(peer_id);
 		}
