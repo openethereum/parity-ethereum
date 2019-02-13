@@ -49,6 +49,17 @@ fn should_fail_to_deserialize_decimals() {
 }
 
 #[test]
+fn should_fail_to_deserialize_bad_hex_strings() {
+	let deserialized1: Result<H256, serde_json::Error> = serde_json::from_str(r#""0""#);
+	let deserialized2: Result<H256, serde_json::Error> = serde_json::from_str(r#""0x""#);
+	let deserialized3: Result<H256, serde_json::Error> = serde_json::from_str(r#""0x∀∂0000000000000000000000000000000000000000000000000000000000""#);
+
+	assert!(deserialized1.is_err(), "hex string should start with 0x");
+	assert!(deserialized2.is_err(), "0x-prefixed hex string of length 64");
+	assert!(deserialized3.is_err(), "hex string should only contain hex chars");
+}
+
+#[test]
 fn should_deserialize_u256() {
 	let deserialized1: U256 = serde_json::from_str(r#""0x0""#).unwrap();
 	let deserialized2: U256 = serde_json::from_str(r#""0x1""#).unwrap();
@@ -59,4 +70,15 @@ fn should_deserialize_u256() {
 	assert_eq!(deserialized2, 1.into());
 	assert_eq!(deserialized3, 1.into());
 	assert_eq!(deserialized4, 256.into());
+}
+
+#[test]
+fn should_deserialize_h256() {
+	let deserialized1: H256 = serde_json::from_str(r#""0x0000000000000000000000000000000000000000000000000000000000000000""#).unwrap();
+	let deserialized2: H256 = serde_json::from_str(r#""0x0000000000000000000000000000000000000000000000000000000000000001""#).unwrap();
+	let deserialized3: H256 = serde_json::from_str(r#""0x0000000000000000000000000000000000000000000000000000000000000100""#).unwrap();
+
+	assert_eq!(deserialized1, 0.into());
+	assert_eq!(deserialized2, 1.into());
+	assert_eq!(deserialized3, 256.into());
 }
