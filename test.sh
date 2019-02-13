@@ -36,8 +36,7 @@ cpp_test () {
       cd $DIR
       cmake ..
       make -j $THREADS
-      # Note: we don't try to run the example because it tries to sync Kovan, and we don't want
-      #       that to happen on CI
+      ./parity-example
       cd -
       rm -rf $DIR
       ;;
@@ -53,27 +52,26 @@ cargo_test () {
   time cargo test $OPTIONS --features "$FEATURES" --locked --all $@ -- --test-threads $THREADS
 }
 
-
-if [ "$CARGO_TARGET" ]
-then
-  validate --target $CARGO_TARGET
-else
-  validate
-fi
-
+# if [ "$CARGO_TARGET" ]
+# then
+#   validate --target $CARGO_TARGET
+# else
+#   validate
+# fi
+#
 test "${RUN_TESTS}" = "all" && cpp_test
-
-if [ "$CARGO_TARGET" ]
-then
-
-  case "${RUN_TESTS}" in
-    (cargo|all)
-      cargo_test --target $CARGO_TARGET $@
-      ;;
-    ('')
-      cargo_test --no-run --target $CARGO_TARGET $@
-      ;;
-  esac
-else
-  cargo_test $@
-fi
+#
+# if [ "$CARGO_TARGET" ]
+# then
+#
+#   case "${RUN_TESTS}" in
+#     (cargo|all)
+#       cargo_test --target $CARGO_TARGET $@
+#       ;;
+#     ('')
+#       cargo_test --no-run --target $CARGO_TARGET $@
+#       ;;
+#   esac
+# else
+#   cargo_test $@
+# fi
