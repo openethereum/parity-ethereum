@@ -1,6 +1,4 @@
 #!/bin/bash
-# ARGUMENT $1 Rust flavor to test with (stable/beta/nightly)
-
 set -e # fail on any error
 set -u # treat unset variables as error
 
@@ -27,9 +25,6 @@ then
   exit 0
 fi
 
-rustup default $1
-
-git submodule update --init --recursive
 rustup show
 
 exec ./test.sh

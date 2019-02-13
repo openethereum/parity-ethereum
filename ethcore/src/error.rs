@@ -89,6 +89,8 @@ pub enum BlockError {
 	InvalidNumber(Mismatch<BlockNumber>),
 	/// Block number isn't sensible.
 	RidiculousNumber(OutOfBounds<BlockNumber>),
+	/// Timestamp header overflowed
+	TimestampOverflow,
 	/// Too many transactions from a particular address.
 	TooManyTransactions(Address),
 	/// Parent given is unknown.
@@ -138,6 +140,7 @@ impl fmt::Display for BlockError {
 			UnknownParent(ref hash) => format!("Unknown parent: {}", hash),
 			UnknownUncleParent(ref hash) => format!("Unknown uncle parent: {}", hash),
 			UnknownEpochTransition(ref num) => format!("Unknown transition to epoch number: {}", num),
+			TimestampOverflow => format!("Timestamp overflow"),
 			TooManyTransactions(ref address) => format!("Too many transactions from: {}", address),
 		};
 
