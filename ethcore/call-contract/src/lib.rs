@@ -14,35 +14,14 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
-//! No-op verifier.
+#![warn(missing_docs)]
 
-use call_contract::CallContract;
-use client::BlockInfo;
-use engines::EthEngine;
-use error::Error;
-use types::header::Header;
-use super::{verification, Verifier};
+//! Call Contract module
+//! 
+//! This crate exposes traits required to call contracts at particular block.
+//! All utilities that depend on on-chain data should use those traits to access it.
 
-/// A no-op verifier -- this will verify everything it's given immediately.
-#[allow(dead_code)]
-pub struct NoopVerifier;
+pub mod call_contract;
 
-impl<C: BlockInfo + CallContract> Verifier<C> for NoopVerifier {
-	fn verify_block_family(
-		&self,
-		_: &Header,
-		_t: &Header,
-		_: &EthEngine,
-		_: Option<verification::FullFamilyParams<C>>
-	) -> Result<(), Error> {
-		Ok(())
-	}
-
-	fn verify_block_final(&self, _expected: &Header, _got: &Header) -> Result<(), Error> {
-		Ok(())
-	}
-
-	fn verify_block_external(&self, _header: &Header, _engine: &EthEngine) -> Result<(), Error> {
-		Ok(())
-	}
-}
+// Re-export
+pub use self::call_contract::*;

@@ -2,7 +2,7 @@
 description = "Parity Ethereum client"
 name = "parity-ethereum"
 # NOTE Make sure to update util/version/Cargo.toml as well
-version = "2.3.2"
+version = "2.3.3"
 license = "GPL-3.0"
 authors = ["Parity Technologies <admin@parity.io>"]
 
@@ -34,6 +34,7 @@ ethcore = { path = "ethcore", features = ["parity"] }
 parity-bytes = "0.1"
 common-types = { path = "ethcore/types" }
 ethcore-blockchain = { path = "ethcore/blockchain" }
+ethcore-call-contract = { path = "ethcore/call-contract"}
 ethcore-db = { path = "ethcore/db" }
 ethcore-io = { path = "util/io" }
 ethcore-light = { path = "ethcore/light" }
@@ -79,11 +80,11 @@ ipnetwork = "0.12.6"
 tempdir = "0.3"
 fake-fetch = { path = "util/fake-fetch" }
 
-[target.'cfg(windows)'.dependencies]
-winapi = { version = "0.3.4", features = ["winsock2", "winuser", "shellapi"] }
-
 [target.'cfg(not(windows))'.dependencies]
 daemonize = "0.3"
+
+[target.'cfg(windows)'.dependencies]
+winapi = { version = "0.3.4", features = ["winsock2", "winuser", "shellapi"] }
 
 [features]
 miner-debug = ["ethcore/miner-debug"]
@@ -132,6 +133,10 @@ members = [
 	"evmbin",
 	"parity-clib",
 	"whisper/cli",
+	"util/triehash-ethereum",
+	"util/keccak-hasher",
+	"util/patricia-trie-ethereum",
+	"util/fastmap"
 ]
 
 [patch.crates-io]

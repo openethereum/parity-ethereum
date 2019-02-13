@@ -50,8 +50,4 @@ parts:
       cp -v ethkey $SNAPCRAFT_PART_INSTALL/usr/bin/ethkey
       cp -v ethstore $SNAPCRAFT_PART_INSTALL/usr/bin/ethstore
       cp -v whisper $SNAPCRAFT_PART_INSTALL/usr/bin/whisper
-    stage-packages: [libc6, libudev1, libstdc++6, cmake, libdb]
-  df:
-    plugin:         nil
-    stage-packages: [coreutils]
-    stage:          [bin/df]
+    stage-packages: [libc6, libudev1, libstdc++6, cmake, libdb5.3]

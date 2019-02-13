@@ -30,6 +30,7 @@ pub enum ForkSpec {
 	Homestead,
 	Byzantium,
 	Constantinople,
+	ConstantinopleFix,
 	EIP158ToByzantiumAt5,
 	FrontierToHomesteadAt5,
 	HomesteadToDaoAt5,

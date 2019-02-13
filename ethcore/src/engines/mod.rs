@@ -81,6 +81,8 @@ pub enum EngineError {
 	MalformedMessage(String),
 	/// Requires client ref, but none registered.
 	RequiresClient,
+	/// Invalid engine specification or implementation.
+	InvalidEngine,
 }
 
 impl fmt::Display for EngineError {
@@ -96,6 +98,7 @@ impl fmt::Display for EngineError {
 			FailedSystemCall(ref msg) => format!("Failed to make system call: {}", msg),
 			MalformedMessage(ref msg) => format!("Received malformed consensus message: {}", msg),
 			RequiresClient => format!("Call requires client but none registered"),
+			InvalidEngine => format!("Invalid engine specification or implementation"),
 		};
 
 		f.write_fmt(format_args!("Engine error ({})", msg))

@@ -14,35 +14,20 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
-//! No-op verifier.
+//! Provides CallContract and RegistryInfo traits
 
-use call_contract::CallContract;
-use client::BlockInfo;
-use engines::EthEngine;
-use error::Error;
-use types::header::Header;
-use super::{verification, Verifier};
+use bytes::Bytes;
+use ethereum_types::Address;
+use types::ids::BlockId;
 
-/// A no-op verifier -- this will verify everything it's given immediately.
-#[allow(dead_code)]
-pub struct NoopVerifier;
+/// Provides `call_contract` method
+pub trait CallContract {
+	/// Like `call`, but with various defaults. Designed to be used for calling contracts.
+	fn call_contract(&self, id: BlockId, address: Address, data: Bytes) -> Result<Bytes, String>;
+}
 
-impl<C: BlockInfo + CallContract> Verifier<C> for NoopVerifier {
-	fn verify_block_family(
-		&self,
-		_: &Header,
-		_t: &Header,
-		_: &EthEngine,
-		_: Option<verification::FullFamilyParams<C>>
-	) -> Result<(), Error> {
-		Ok(())
-	}
-
-	fn verify_block_final(&self, _expected: &Header, _got: &Header) -> Result<(), Error> {
-		Ok(())
-	}
-
-	fn verify_block_external(&self, _header: &Header, _engine: &EthEngine) -> Result<(), Error> {
-		Ok(())
-	}
+/// Provides information on a blockchain service and it's registry
+pub trait RegistryInfo {
+	/// Get the address of a particular blockchain service, if available.
+	fn registry_address(&self, name: String, block: BlockId) -> Option<Address>;
 }

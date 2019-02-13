@@ -16,7 +16,8 @@
 
 //! A generic verifier trait.
 
-use client::{BlockInfo, CallContract};
+use call_contract::CallContract;
+use client::BlockInfo;
 use engines::EthEngine;
 use error::Error;
 use types::header::Header;
