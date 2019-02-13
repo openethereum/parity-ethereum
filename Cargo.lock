@@ -2642,7 +2642,6 @@ dependencies = [
  "common-types 0.1.0",
  "eip-712 0.1.0",
  "ethash 1.12.0",
- "ethbloom 0.5.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "ethcore 1.12.0",
  "ethcore-accounts 0.1.0",
  "ethcore-io 1.12.0",

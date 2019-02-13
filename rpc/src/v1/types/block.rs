@@ -17,12 +17,10 @@
 use std::ops::Deref;
 use std::collections::BTreeMap;
 
-use ethbloom::Bloom as H2048;
-use ethereum_types::{H160, H256, U256};
+use ethereum_types::{H160, H256, U256, Bloom as H2048};
 use serde::ser::Error;
 use serde::{Serialize, Serializer};
 use types::encoded::Header as EthHeader;
-
 use v1::types::{Bytes, Transaction};
 
 /// Block Transactions
@@ -207,8 +205,7 @@ impl<T: Serialize> Serialize for Rich<T> {
 #[cfg(test)]
 mod tests {
 	use std::collections::BTreeMap;
-	use ethbloom::Bloom as H2048;
-	use ethereum_types::{H64, H160, H256, U256};
+	use ethereum_types::{H64, H160, H256, U256, Bloom as H2048};
 	use serde_json;
 	use v1::types::{Transaction, Bytes};
 	use super::{Block, RichBlock, BlockTransactions, Header, RichHeader};
