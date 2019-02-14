@@ -241,7 +241,7 @@ impl Provider {
 			bail!(ErrorKind::SignerAccountNotSet);
 		}
 		let tx_hash = signed_transaction.hash();
-		let contract = Self::contract_address_from_transaction(&signed_transaction).map_err(|_| ErrorKind::BadTransactonType)?;
+		let contract = Self::contract_address_from_transaction(&signed_transaction).map_err(|_| ErrorKind::BadTransactionType)?;
 		let data = signed_transaction.rlp_bytes();
 		let encrypted_transaction = self.encrypt(&contract, &Self::iv_from_transaction(&signed_transaction), &data)?;
 		let private = PrivateTransaction::new(encrypted_transaction, contract);
@@ -415,7 +415,7 @@ impl Provider {
 			Action::Call(contract) => Ok(contract),
 			_ => {
 				warn!(target: "privatetx", "Incorrect type of action for the transaction");
-				bail!(ErrorKind::BadTransactonType);
+				bail!(ErrorKind::BadTransactionType);
 			}
 		}
 	}
@@ -610,7 +610,7 @@ impl Provider {
 	/// Create encrypted public contract deployment transaction.
 	pub fn public_creation_transaction(&self, block: BlockId, source: &SignedTransaction, validators: &[Address], gas_price: U256) -> Result<(Transaction, Address), Error> {
 		if let Action::Call(_) = source.action {
-			bail!(ErrorKind::BadTransactonType);
+			bail!(ErrorKind::BadTransactionType);
 		}
 		let sender = source.sender();
 		let state = self.client.state_at(block).ok_or(ErrorKind::StatePruned)?;
@@ -649,7 +649,7 @@ impl Provider {
 	/// Create encrypted public contract deployment transaction. Returns updated encrypted state.
 	pub fn execute_private_transaction(&self, block: BlockId, source: &SignedTransaction) -> Result<Bytes, Error> {
 		if let Action::Create = source.action {
-			bail!(ErrorKind::BadTransactonType);
+			bail!(ErrorKind::BadTransactionType);
 		}
 		let result = self.execute_private(source, TransactOptions::with_no_tracing(), block)?;
 		Ok(result.state)
