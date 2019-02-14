@@ -38,7 +38,7 @@ fn impl_sync_packets(ast: &syn::DeriveInput) -> proc_macro2::TokenStream {
 		.map(|v| &v.ident).collect();
 
 	let idents: Vec<_> = body.variants.iter().map(|v| &v.ident).collect();
-	let values: Vec<_> = body.variants.iter().map(|v| v.discriminant.clone().unwrap().1).collect();
+	let values: Vec<_> = body.variants.iter().map(|v| v.discriminant.clone().expect("enum pattern is not discriminant; should have assigned unique value such as #[eth] Foo = 1").1).collect();
 
 	quote!{
 		use crate::api::{ETH_PROTOCOL, WARP_SYNC_PROTOCOL_ID};
