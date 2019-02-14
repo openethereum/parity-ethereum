@@ -454,8 +454,8 @@ impl Engine<EthereumMachine> for Clique {
 					// Wait for the right moment.
 					if now < limit {
 						trace!(target: "engine",
-										"generate_seal: sleeping to sign: inturn: {}, now: {:?}, to: {:?}.",
-										inturn, now, limit);
+								"generate_seal: sleeping to sign: inturn: {}, now: {:?}, to: {:?}.",
+								inturn, now, limit);
 						match limit.duration_since(SystemTime::now()) {
 							Ok(duration) => {
 								thread::sleep(duration);
@@ -468,7 +468,7 @@ impl Engine<EthereumMachine> for Clique {
 					}
 
 					trace!(target: "engine", "generate_seal: seal ready for block {}, txs: {}.",
-									block.header.number(), block.transactions.len());
+							block.header.number(), block.transactions.len());
 					return Seal::Regular(null_seal);
 				}
 			}
