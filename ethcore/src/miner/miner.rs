@@ -214,7 +214,6 @@ impl Author {
 	}
 }
 
-
 struct SealingWork {
 	queue: UsingQueue<ClosedBlock>,
 	enabled: bool,

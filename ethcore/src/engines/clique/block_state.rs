@@ -26,7 +26,6 @@ use engines::clique::util::{extract_signers, recover_creator};
 use error::Error;
 use types::header::Header;
 
-
 #[derive(Clone, Debug)]
 pub struct CliqueBlockState {
 	pub votes: HashMap<(Address, Address), VoteType>, // k: (Voter, beneficiary), VoteType)
