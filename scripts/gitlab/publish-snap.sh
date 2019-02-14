@@ -4,7 +4,7 @@ set -e # fail on any error
 set -u # treat unset variables as error
 
 # some necromancy:
-# gsub(/"/, "", $2) deletes "qoutes" 
+# gsub(/"/, "", $2) deletes "qoutes"
 # gsub(/ /, "", $2) deletes whitespaces
 TRACK=`awk -F '=' '/^track/ {gsub(/"/, "", $2); gsub(/ /, "", $2); print $2}' ./util/version/Cargo.toml`
 echo Track is: $TRACK
@@ -16,6 +16,7 @@ case ${TRACK} in
   *) echo "No release" && exit 0;;
 esac
 
+VERSION="v"$VERSION
 SNAP_PACKAGE="parity_"$VERSION"_"$BUILD_ARCH".snap"
 
 echo "__________Create snap package__________"
@@ -48,5 +49,8 @@ echo "Release channel :" $CHANNEL " Branch/tag: " $CI_COMMIT_REF_NAME
 echo $SNAPCRAFT_LOGIN_PARITY_BASE64 | base64 --decode > snapcraft.login
 snapcraft login --with snapcraft.login
 snapcraft push --release $CHANNEL $SNAP_PACKAGE
+case ${CHANNEL} in
+  beta) snapcraft push --release candidate $SNAP_PACKAGE;;
+esac
 snapcraft status parity
 snapcraft logout
