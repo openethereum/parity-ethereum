@@ -1142,7 +1142,7 @@ impl miner::MinerService for Miner {
 		if block.block().header().number() == 1 {
 			if let Some(name) = self.engine.params().nonzero_bugfix_hard_fork() {
 				warn!("Your chain specification contains one or more hard forks which are required to be \
-						 on by default. Please remove these forks and start your chain again: {}.", name);
+							on by default. Please remove these forks and start your chain again: {}.", name);
 				return;
 			}
 		}

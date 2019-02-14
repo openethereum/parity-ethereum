@@ -553,7 +553,7 @@ pub fn enact(
 		let root = s.as_ref().unwrap().root();
 		let author_balance = s.as_ref().unwrap().balance(&env.author)?;
 		trace!(target: "enact", "num={}, root={}, author={}, author_balance={}\n",
-					 b.block.header.number(), root, env.author, author_balance);
+				b.block.header.number(), root, env.author, author_balance);
 	}
 
 	b.push_transactions(transactions)?;
