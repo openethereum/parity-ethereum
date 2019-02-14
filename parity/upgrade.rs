@@ -139,6 +139,7 @@ fn file_exists(path: &Path) -> bool {
 	}
 }
 
+#[cfg(any(test, feature = "accounts"))]
 pub fn upgrade_key_location(from: &PathBuf, to: &PathBuf) {
 	match fs::create_dir_all(&to).and_then(|()| fs::read_dir(from)) {
 		Ok(entries) => {
