@@ -23,6 +23,7 @@
 //! wire.
 
 use syncpacketid_derive::SyncPackets;
+use crate::api::{ETH_PROTOCOL, WARP_SYNC_PROTOCOL_ID};
 
 /// An enum that defines all known packet ids in the context of
 /// synchronization and provides a mechanism to convert from
@@ -32,27 +33,27 @@ use syncpacketid_derive::SyncPackets;
 /// packet id clashes when defining new ids.
 #[derive(SyncPackets, Clone, Copy, Debug, PartialEq)]
 pub enum SyncPacket {
-	#[eth] StatusPacket = 0x00,
-	#[eth] NewBlockHashesPacket = 0x01,
-	#[eth] TransactionsPacket = 0x02,
-	#[eth] GetBlockHeadersPacket = 0x03,
-	#[eth] BlockHeadersPacket = 0x04,
-	#[eth] GetBlockBodiesPacket = 0x05,
-	#[eth] BlockBodiesPacket = 0x06,
-	#[eth] NewBlockPacket = 0x07,
+	#[protocol(ETH_PROTOCOL)] StatusPacket = 0x00,
+	#[protocol(ETH_PROTOCOL)] NewBlockHashesPacket = 0x01,
+	#[protocol(ETH_PROTOCOL)] TransactionsPacket = 0x02,
+	#[protocol(ETH_PROTOCOL)] GetBlockHeadersPacket = 0x03,
+	#[protocol(ETH_PROTOCOL)] BlockHeadersPacket = 0x04,
+	#[protocol(ETH_PROTOCOL)] GetBlockBodiesPacket = 0x05,
+	#[protocol(ETH_PROTOCOL)] BlockBodiesPacket = 0x06,
+	#[protocol(ETH_PROTOCOL)] NewBlockPacket = 0x07,
 
-	#[eth] GetNodeDataPacket = 0x0d,
-	#[eth] NodeDataPacket = 0x0e,
-	#[eth] GetReceiptsPacket = 0x0f,
-	#[eth] ReceiptsPacket = 0x10,
+	#[protocol(ETH_PROTOCOL)] GetNodeDataPacket = 0x0d,
+	#[protocol(ETH_PROTOCOL)] NodeDataPacket = 0x0e,
+	#[protocol(ETH_PROTOCOL)] GetReceiptsPacket = 0x0f,
+	#[protocol(ETH_PROTOCOL)] ReceiptsPacket = 0x10,
 
-	#[par] GetSnapshotManifestPacket = 0x11,
-	#[par] SnapshotManifestPacket = 0x12,
-	#[par] GetSnapshotDataPacket = 0x13,
-	#[par] SnapshotDataPacket = 0x14,
-	#[par] ConsensusDataPacket = 0x15,
-	#[par] PrivateTransactionPacket = 0x16,
-	#[par] SignedPrivateTransactionPacket = 0x17,
+	#[protocol(WARP_SYNC_PROTOCOL_ID)] GetSnapshotManifestPacket = 0x11,
+	#[protocol(WARP_SYNC_PROTOCOL_ID)] SnapshotManifestPacket = 0x12,
+	#[protocol(WARP_SYNC_PROTOCOL_ID)] GetSnapshotDataPacket = 0x13,
+	#[protocol(WARP_SYNC_PROTOCOL_ID)] SnapshotDataPacket = 0x14,
+	#[protocol(WARP_SYNC_PROTOCOL_ID)] ConsensusDataPacket = 0x15,
+	#[protocol(WARP_SYNC_PROTOCOL_ID)] PrivateTransactionPacket = 0x16,
+	#[protocol(WARP_SYNC_PROTOCOL_ID)] SignedPrivateTransactionPacket = 0x17,
 }
 
 #[cfg(test)]

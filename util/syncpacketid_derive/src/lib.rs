@@ -14,11 +14,26 @@ use quote::quote;
 ///
 /// * With an implementation of a trait PacketInfo to get the packet id and
 ///   the protocol from instances of the enum.
-#[proc_macro_derive(SyncPackets, attributes(eth, par))]
+#[proc_macro_derive(SyncPackets, attributes(protocol))]
 pub fn sync_packets(input: TokenStream) -> TokenStream {
 	let ast = syn::parse(input).unwrap();
 	let gen = impl_sync_packets(&ast);
 	gen.into()
+}
+
+fn parse_protocol_attribute(input: proc_macro2::TokenStream) -> proc_macro2::Ident {
+	let groups: Vec<_> = input.into_iter().take(1).collect();
+
+	let group: Vec<_> = match &groups[0] {
+		proc_macro2::TokenTree::Group(g) => g.stream().into_iter().take(1).collect(),
+		_ => panic!()
+	};
+
+	if let proc_macro2::TokenTree::Ident(ref i) = group[0] {
+		proc_macro2::Ident::new(i.to_string().as_ref(), i.span())
+	} else {
+		panic!("Should be an Ident");
+	}
 }
 
 fn impl_sync_packets(ast: &syn::DeriveInput) -> proc_macro2::TokenStream {
@@ -29,25 +44,22 @@ fn impl_sync_packets(ast: &syn::DeriveInput) -> proc_macro2::TokenStream {
 
 	let enum_name = &ast.ident;
 
-	let eths: Vec<_> = body.variants.iter()
-		.filter(|v| v.attrs.get(0).expect("attribute is missing; annotate your enum patterns with #[eth] or #[par]").path.is_ident("eth"))
-		.map(|v| &v.ident).collect();
+	let idents1: Vec<_> = body.variants.iter().map(|v| &v.ident).collect();
+	let idents2 = idents1.clone();
 
-	let pars: Vec<_> = body.variants.iter()
-		.filter(|v| v.attrs.get(0).expect("attribute is missing; annotate your enum patterns with #[eth] or #[par]").path.is_ident("par"))
-		.map(|v| &v.ident).collect();
+	let prots:Vec<_> = body.variants.iter()
+		.filter(|v| v.attrs.get(0).expect("attribute is missing; annotate your enum patterns with #[eth] or #[par]").path.is_ident("protocol"))
+		.map(|v| parse_protocol_attribute(v.attrs.get(0).unwrap().tts.clone())).collect();
 
-	let idents: Vec<_> = body.variants.iter().map(|v| &v.ident).collect();
 	let values: Vec<_> = body.variants.iter().map(|v| v.discriminant.clone().expect("enum pattern is not discriminant; should have assigned unique value such as #[eth] Foo = 1").1).collect();
 
 	quote!{
-		use crate::api::{ETH_PROTOCOL, WARP_SYNC_PROTOCOL_ID};
 		use network::{PacketId, ProtocolId};
 
 		impl #enum_name {
 			pub fn from_u8(id: u8) -> Option<SyncPacket> {
 				match id {
-					#(#values => Some(#idents)),*,
+					#(#values => Some(#idents1)),*,
 					_ => None
 
 				}
@@ -66,8 +78,7 @@ fn impl_sync_packets(ast: &syn::DeriveInput) -> proc_macro2::TokenStream {
 		impl PacketInfo for #enum_name {
 			fn protocol(&self) -> ProtocolId {
 				match self {
-					#(#eths)|* => ETH_PROTOCOL,
-					#(#pars)|* => WARP_SYNC_PROTOCOL_ID,
+					#(#idents2 => #prots),*
 				}
 			}
 
