@@ -391,7 +391,7 @@ impl Engine<EthereumMachine> for Clique {
 
 		// locally sealed block don't go through valid_block_family(), so we have to record state here.
 		let mut new_state = state.clone();
-		new_state.apply(&header, header.number() % self.epoch_length == 0)?;
+		new_state.apply(&header, is_checkpoint)?;
 		new_state.calc_next_timestamp(&header, self.period);
 		self.block_state_by_hash.write().insert(header.hash(), new_state);
 
@@ -442,7 +442,7 @@ impl Engine<EthereumMachine> for Clique {
 						return Seal::None;
 					}
 
-					let inturn = state.inturn(block.header.number(), &author);
+					let inturn = state.is_inturn(block.header.number(), &author);
 
 					let now = SystemTime::now();
 
@@ -610,7 +610,7 @@ impl Engine<EthereumMachine> for Clique {
 						}
 						Ok(state) => {
 							if state.is_authoirzed(&signer.address()) {
-								if state.inturn(header.number(), &signer.address()) {
+								if state.is_inturn(header.number(), &signer.address()) {
 									header.set_difficulty(DIFF_INTURN);
 								} else {
 									header.set_difficulty(DIFF_NOTURN);

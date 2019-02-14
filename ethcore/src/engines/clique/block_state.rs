@@ -73,7 +73,7 @@ impl CliqueBlockState {
 		}
 
 		// Ensure that the difficulty corresponds to the turn-ness of the signer
-		let inturn = self.inturn(header.number(), &creator);
+		let inturn = self.is_inturn(header.number(), &creator);
 
 		if (inturn && *header.difficulty() != DIFF_INTURN) ||
 			(!inturn && *header.difficulty() != DIFF_NOTURN) {
@@ -119,7 +119,9 @@ impl CliqueBlockState {
 			return Ok(creator);
 		}
 
-		let nonce = header.decode_seal::<Vec<&[u8]>>().unwrap()[1];
+		let nonce = *header.decode_seal::<Vec<&[u8]>>()?.get(1).ok_or(
+			"Error decoding seal"
+		)?;
 
 		let vote_type: VoteType;
 
@@ -183,7 +185,7 @@ impl CliqueBlockState {
 		self.next_timestamp_noturn = Some(base_time + Duration::from_secs(period) + delay);
 	}
 
-	pub fn inturn(&self, current_block_number: u64, author: &Address) -> bool {
+	pub fn is_inturn(&self, current_block_number: u64, author: &Address) -> bool {
 		if let Some(pos) = self.signers.iter().position(|x| *author == *x) {
 			return current_block_number % self.signers.len() as u64 == pos as u64;
 		}
