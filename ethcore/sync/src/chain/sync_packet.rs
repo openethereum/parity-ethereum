@@ -22,6 +22,8 @@
 //! to convert to/from the packet id values transmitted over the
 //! wire.
 
+use syncpacketid_derive::SyncPackets;
+
 /// An enum that defines all known packet ids in the context of
 /// synchronization and provides a mechanism to convert from
 /// packet ids (of type PacketId or u8) directly read from the network

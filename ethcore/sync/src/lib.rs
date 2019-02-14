@@ -35,6 +35,7 @@ extern crate parity_bytes as bytes;
 extern crate parking_lot;
 extern crate rand;
 extern crate rlp;
+extern crate syncpacketid_derive;
 extern crate triehash_ethereum;
 
 extern crate ethcore_light as light;
@@ -52,8 +53,6 @@ extern crate log;
 extern crate heapsize;
 #[macro_use]
 extern crate trace_time;
-#[macro_use]
-extern crate syncpacketid_derive;
 
 mod chain;
 mod blocks;

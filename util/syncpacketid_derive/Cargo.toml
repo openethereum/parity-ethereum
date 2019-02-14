@@ -2,6 +2,7 @@
 name = "syncpacketid_derive"
 version = "0.1.0"
 authors = ["Fernando Herrero Carrón <fernando@parity.io>"]
+edition = "2018"
 
 [lib]
 name = "syncpacketid_derive"

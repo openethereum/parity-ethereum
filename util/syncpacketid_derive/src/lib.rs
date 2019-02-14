@@ -1,12 +1,11 @@
 #![recursion_limit="128"]
 
+// Needs to be "extern crate" even in rust 2018:
+// https://blog.rust-lang.org/2018/12/21/Procedural-Macros-in-Rust-2018.html
 extern crate proc_macro;
-extern crate proc_macro2;
-extern crate syn;
-#[macro_use]
-extern crate quote;
 
-use self::proc_macro::TokenStream;
+use proc_macro::TokenStream;
+use quote::quote;
 
 /// The SyncPackets derive-macro will provide an enum with this attribute:
 ///
@@ -31,18 +30,18 @@ fn impl_sync_packets(ast: &syn::DeriveInput) -> proc_macro2::TokenStream {
 	let enum_name = &ast.ident;
 
 	let eths: Vec<_> = body.variants.iter()
-		.filter(|v| v.attrs.get(0).expect("attribute is missing; annotate your enum patterns with #[eth] or #[par]).path.is_ident("eth"))
+		.filter(|v| v.attrs.get(0).expect("attribute is missing; annotate your enum patterns with #[eth] or #[par]").path.is_ident("eth"))
 		.map(|v| &v.ident).collect();
 
 	let pars: Vec<_> = body.variants.iter()
-		.filter(|v| v.attrs.get(0).expect("attribute is missing; annotate your enum patterns with #[eth] or #[par]).path.is_ident("par")))
+		.filter(|v| v.attrs.get(0).expect("attribute is missing; annotate your enum patterns with #[eth] or #[par]").path.is_ident("par"))
 		.map(|v| &v.ident).collect();
 
 	let idents: Vec<_> = body.variants.iter().map(|v| &v.ident).collect();
 	let values: Vec<_> = body.variants.iter().map(|v| v.discriminant.clone().unwrap().1).collect();
 
 	quote!{
-		use api::{ETH_PROTOCOL, WARP_SYNC_PROTOCOL_ID};
+		use crate::api::{ETH_PROTOCOL, WARP_SYNC_PROTOCOL_ID};
 		use network::{PacketId, ProtocolId};
 
 		impl #enum_name {
