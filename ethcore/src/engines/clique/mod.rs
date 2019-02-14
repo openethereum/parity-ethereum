@@ -252,8 +252,8 @@ impl Clique {
 				// for speed.
 				let backfill_start = time::Instant::now();
 				info!(target: "engine",
-					  "Back-filling block state. last_checkpoint_number: {}, target: {}({}).",
-					  last_checkpoint_number, header.number(), header.hash());
+						"Back-filling block state. last_checkpoint_number: {}, target: {}({}).",
+						last_checkpoint_number, header.number(), header.hash());
 
 				// Get the state for last checkpoint.
 				let last_checkpoint_hash = *(chain.front().ok_or(
@@ -284,8 +284,8 @@ impl Clique {
 
 				let elapsed = backfill_start.elapsed();
 				info!(target: "engine",
-					  "Back-filling succeed, took {} ms.",
-					  elapsed.as_secs() * 1000 + elapsed.subsec_millis() as u64,
+						"Back-filling succeed, took {} ms.",
+						elapsed.as_secs() * 1000 + elapsed.subsec_millis() as u64,
 				);
 
 				Ok(new_state)
@@ -430,7 +430,7 @@ impl Engine<EthereumMachine> for Clique {
 			match self.state(&parent) {
 				Err(e) => {
 					warn!(target: "engine", "generate_seal: can't get parent state(number: {}, hash: {}): {} ",
-						  parent.number(), parent.hash(), e);
+							parent.number(), parent.hash(), e);
 					return Seal::None;
 				}
 				Ok(state) => {
@@ -454,8 +454,8 @@ impl Engine<EthereumMachine> for Clique {
 					// Wait for the right moment.
 					if now < limit {
 						trace!(target: "engine",
-							   "generate_seal: sleeping to sign: inturn: {}, now: {:?}, to: {:?}.",
-							   inturn, now, limit);
+								 "generate_seal: sleeping to sign: inturn: {}, now: {:?}, to: {:?}.",
+								 inturn, now, limit);
 						match limit.duration_since(SystemTime::now()) {
 							Ok(duration) => {
 								thread::sleep(duration);
@@ -468,7 +468,7 @@ impl Engine<EthereumMachine> for Clique {
 					}
 
 					trace!(target: "engine", "generate_seal: seal ready for block {}, txs: {}.",
-						   block.header.number(), block.transactions.len());
+							 block.header.number(), block.transactions.len());
 					return Seal::Regular(null_seal);
 				}
 			}
