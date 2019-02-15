@@ -144,11 +144,12 @@ mod state_tests {
 	declare_test!{GeneralStateTest_stCreate2Test, "GeneralStateTests/stCreate2/"}
 	declare_test!{GeneralStateTest_stCreateTest, "GeneralStateTests/stCreateTest/"}
 	declare_test!{GeneralStateTest_stDelegatecallTestHomestead, "GeneralStateTests/stDelegatecallTestHomestead/"}
-	declare_test!{GeneralStateTest_stEIP150singleCodeGasPrices, "GeneralStateTests/stEIP150singleCodeGasPrices/"}
 	declare_test!{GeneralStateTest_stEIP150Specific, "GeneralStateTests/stEIP150Specific/"}
+	declare_test!{GeneralStateTest_stEIP150singleCodeGasPrices, "GeneralStateTests/stEIP150singleCodeGasPrices/"}
 	declare_test!{GeneralStateTest_stEIP158Specific, "GeneralStateTests/stEIP158Specific/"}
 	declare_test!{GeneralStateTest_stEWASMTests, "GeneralStateTests/stEWASMTests/"}
 	declare_test!{GeneralStateTest_stExample, "GeneralStateTests/stExample/"}
+	declare_test!{GeneralStateTest_stExtCodeHash, "GeneralStateTests/stExtCodeHash/"}
 	declare_test!{GeneralStateTest_stHomesteadSpecific, "GeneralStateTests/stHomesteadSpecific/"}
 	declare_test!{GeneralStateTest_stInitCodeTest, "GeneralStateTests/stInitCodeTest/"}
 	declare_test!{GeneralStateTest_stLogTests, "GeneralStateTests/stLogTests/"}
