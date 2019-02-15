@@ -26,7 +26,6 @@ use engines::clique::util::{extract_signers, recover_creator};
 use error::Error;
 use types::header::Header;
 
-
 #[derive(Clone, Debug)]
 pub struct CliqueBlockState {
 	pub votes: HashMap<(Address, Address), VoteType>, // k: (Voter, beneficiary), VoteType)
@@ -58,18 +57,18 @@ impl CliqueBlockState {
 		if !self.signers.contains(&creator) {
 			trace!(target: "engine", "current state: {:?}", self);
 			return Err(From::from(format!("Error applying #{}({}): {} is not in the signer list!",
-			                              header.number(),
-			                              header.hash(),
-				                          creator)));
+											header.number(),
+											header.hash(),
+											creator)));
 		}
 
 		// Check recent signer.
 		if self.recent_signers.contains(&creator) {
 			trace!(target: "engine", "current state: {:?}", self);
 			return Err(From::from(format!("Error applying #{}({}): {} is in the recent_signer list!",
-			                              header.number(),
-			                              header.hash(),
-			                              creator)));
+											header.number(),
+											header.hash(),
+											creator)));
 		}
 
 		// Ensure that the difficulty corresponds to the turn-ness of the signer
@@ -78,8 +77,8 @@ impl CliqueBlockState {
 		if (inturn && *header.difficulty() != DIFF_INTURN) ||
 			(!inturn && *header.difficulty() != DIFF_NOTURN) {
 			return Err(From::from(format!("Error applying #{}({}): wrong difficulty!",
-			                              header.number(),
-			                              header.hash())));
+											header.number(),
+											header.hash())));
 		}
 
 		Ok(creator)
