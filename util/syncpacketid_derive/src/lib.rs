@@ -1,21 +1,38 @@
+// Copyright 2015-2019 Parity Technologies (UK) Ltd.
+// This file is part of Parity Ethereum.
+
+// Parity Ethereum is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+
+// Parity Ethereum is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
+
+// You should have received a copy of the GNU General Public License
+// along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
+
 #![recursion_limit="128"]
 
 // Needs to be "extern crate" even in rust 2018:
 // https://blog.rust-lang.org/2018/12/21/Procedural-Macros-in-Rust-2018.html
 extern crate proc_macro;
 
-use proc_macro::TokenStream;
+use proc_macro2::Ident;
 use quote::quote;
+use syn::{Data, DeriveInput, Meta, MetaList, NestedMeta};
 
-fn parse_protocol_arguments(args: syn::MetaList) -> proc_macro2::Ident {
+fn parse_protocol_arguments(args: MetaList) -> Ident {
 	if args.nested.len() != 1 {
 		panic!("protocol attribute should have exactly one argument");
 	}
 
 	match args.nested.first().expect("protocol attribute without value").value() {
 		// Meta argument
-		syn::NestedMeta::Meta(meta) => match meta {
-			syn::Meta::Word(ident) => ident.clone(),
+		NestedMeta::Meta(meta) => match meta {
+			Meta::Word(ident) => ident.clone(),
 			_ => panic!("nested arguments to protocol are not allowed"),
 		},
 		// Quoted string
@@ -25,11 +42,11 @@ fn parse_protocol_arguments(args: syn::MetaList) -> proc_macro2::Ident {
 
 /// Helper function to parse arguments to the protocol attribute.
 /// Syntax should be #[protocol(P)] PacketName = 0xNN,
-fn parse_protocol_attribute(input: syn::Meta) -> proc_macro2::Ident {
+fn parse_protocol_attribute(input: Meta) -> Ident {
 	// Arguments to invocation attributes are delivered as a list
 	match input {
-		syn::Meta::Word(_) => panic!("protocol attribute without argument"),
-		syn::Meta::List(args) => parse_protocol_arguments(args),
+		Meta::Word(_) => panic!("protocol attribute without argument"),
+		Meta::List(args) => parse_protocol_arguments(args),
 		_ => panic!("unsupported syntax")
 	}
 }
@@ -42,15 +59,15 @@ fn parse_protocol_attribute(input: syn::Meta) -> proc_macro2::Ident {
 /// * With an implementation of a trait PacketInfo to get the packet id and
 ///   the protocol from instances of the enum.
 #[proc_macro_derive(SyncPackets, attributes(protocol))]
-pub fn sync_packets(input: TokenStream) -> TokenStream {
+pub fn sync_packets(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
 	let ast = syn::parse(input).expect("invalid enum syntax");
 	let gen = impl_sync_packets(&ast);
 	gen.into()
 }
 
-fn impl_sync_packets(ast: &syn::DeriveInput) -> proc_macro2::TokenStream {
+fn impl_sync_packets(ast: &DeriveInput) -> proc_macro2::TokenStream {
 	let body = match ast.data {
-		syn::Data::Enum(ref e) => e,
+		Data::Enum(ref e) => e,
 		_ => panic!("#[derive(SyncPackets)] is only defined for enums."),
 	};
 
@@ -85,7 +102,7 @@ fn impl_sync_packets(ast: &syn::DeriveInput) -> proc_macro2::TokenStream {
 		.map(
 			|v| v.discriminant
 				.clone()
-				.expect("enum pattern is not discriminant; should have assigned unique value such as Foo = 1")
+				.expect("enum pattern is not discriminant; should have assigned a unique value such as Foo = 1")
 				.1
 		)
 		.collect();
