@@ -309,32 +309,38 @@ impl<'a> EvmTestClient<'a> {
 	}
 }
 
+/// To be returned inside a std::result::Result::Ok after a successful
+/// transaction completed.
+#[allow(dead_code)]
 pub struct TransactSuccess<T, V> {
 	/// State root
-	state_root: H256,
+	pub state_root: H256,
 	/// Amount of gas left
-	gas_left: U256,
+	pub gas_left: U256,
 	/// Output
-	output: Vec<u8>,
+	pub output: Vec<u8>,
 	/// Traces
-	trace: Vec<T>,
+	pub trace: Vec<T>,
 	/// VM Traces
-	vm_trace: Option<V>,
+	pub vm_trace: Option<V>,
 	/// Created contract address (if any)
-	contract_address: Option<H160>,
+	pub contract_address: Option<H160>,
 	/// Generated logs
-	logs: Vec<log_entry::LogEntry>,
+	pub logs: Vec<log_entry::LogEntry>,
 	/// outcome
-	outcome: receipt::TransactionOutcome,
+	pub outcome: receipt::TransactionOutcome,
 	/// end state if needed
-	end_state: Option<pod_state::PodState>,
+	pub end_state: Option<pod_state::PodState>,
 }
 
+/// To be returned inside a std::result::Result::Err after a failed
+/// transaction.
+#[allow(dead_code)]
 pub struct TransactErr {
 	/// State root
-	state_root: H256,
+	pub state_root: H256,
 	/// Execution error
-	error: ::error::Error,
+	pub error: ::error::Error,
 	/// end state if needed
-	end_state: Option<pod_state::PodState>,
+	pub end_state: Option<pod_state::PodState>,
 }
