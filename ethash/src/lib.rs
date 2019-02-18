@@ -34,13 +34,20 @@ extern crate serde_json;
 #[cfg(test)]
 extern crate tempdir;
 
-// FIXME [andre]: should all be private
+#[cfg(feature = "bench")]
 pub mod compute;
+#[cfg(not(feature = "bench"))]
+mod compute;
+
 mod seed_compute;
 mod cache;
 mod keccak;
-pub mod shared;
+mod shared;
+
+#[cfg(feature = "bench")]
 pub mod progpow;
+#[cfg(not(feature = "bench"))]
+mod progpow;
 
 pub use cache::{NodeCacheBuilder, OptimizeFor};
 pub use compute::{ProofOfWork, quick_get_difficulty, slow_hash_block_number};

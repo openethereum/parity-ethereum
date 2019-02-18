@@ -7,7 +7,6 @@ extern crate tempdir;
 use criterion::Criterion;
 use ethash::progpow;
 
-
 use tempdir::TempDir;
 use rustc_hex::FromHex;
 use ethash::{NodeCacheBuilder, OptimizeFor};
@@ -21,7 +20,7 @@ fn bench_hashimoto_light(c: &mut Criterion) {
 	let mut hash = [0; 32];
 	hash.copy_from_slice(&h);
 
-    c.bench_function("hashimoto_light", move |b| {
+	c.bench_function("hashimoto_light", move |b| {
 		b.iter(|| light_compute(&light, &hash, 0))
 	});
 }
@@ -35,7 +34,7 @@ fn bench_progpow_light(c: &mut Criterion) {
 	let mut hash = [0; 32];
 	hash.copy_from_slice(&h);
 
-    c.bench_function("progpow_light", move |b| {
+	c.bench_function("progpow_light", move |b| {
 		b.iter(|| {
 			let c_dag = progpow::generate_cdag(cache.as_ref());
 			progpow::progpow(
@@ -59,7 +58,7 @@ fn bench_progpow_optimal_light(c: &mut Criterion) {
 	let mut hash = [0; 32];
 	hash.copy_from_slice(&h);
 
-    c.bench_function("progpow_optimal_light", move |b| {
+	c.bench_function("progpow_optimal_light", move |b| {
 		b.iter(|| {
 			progpow::progpow(
 				hash,
@@ -73,7 +72,7 @@ fn bench_progpow_optimal_light(c: &mut Criterion) {
 }
 
 fn bench_keccak_f800_long(c: &mut Criterion) {
-    c.bench_function("keccak_f800_long(0, 0, 0)", |b| {
+	c.bench_function("keccak_f800_long(0, 0, 0)", |b| {
 		b.iter(|| progpow::keccak_f800_long([0; 32], 0, [0; 8]))
 	});
 }
