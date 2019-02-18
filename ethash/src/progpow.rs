@@ -63,23 +63,14 @@ fn keccak_f800_round(st: &mut [u32; 25], r: usize) {
 	}
 
 	// Rho Pi
-	let mut _t = st[1];
+	let mut t = st[1];
 
 	debug_assert_eq!(KECCAKF_ROTC.len(), 24);
-	unroll! {
-		for i in 0..24 {
-			let j = KECCAKF_PILN[i];
-			unsafe {
-				// NOTE: `KECCAKF_PILN` only contains elements that are < 25,
-				// therefore this index is always within bounds (although rustc
-				// can't prove it).
-				bc[0] = *st.get_unchecked(j);
-				*st.get_unchecked_mut(j) = _t.rotate_left(KECCAKF_ROTC[i]);
-			}
-			// This variable is declared with _ since rustc complains about the
-			// value assigned not being read, this is because of the unroll macro.
-			_t = bc[0];
-		}
+	for i in 0..24 {
+		let j = KECCAKF_PILN[i];
+		bc[0] = st[j];
+		st[j] = t.rotate_left(KECCAKF_ROTC[i]);
+		t = bc[0];
 	}
 
 	// Chi
@@ -94,60 +85,45 @@ fn keccak_f800_round(st: &mut [u32; 25], r: usize) {
 
 	// Iota
 	debug_assert!(r < KECCAKF_RNDC.len());
-	unsafe {
-		// NOTE: This function is always called with `r` < `KECCAKF_RNDC.len()`.
-		st[0] ^= KECCAKF_RNDC.get_unchecked(r);
+	st[0] ^= KECCAKF_RNDC[r];
+}
+
+fn keccak_f800(header_hash: H256, nonce: u64, result: [u32; 8], st: &mut [u32; 25]) {
+	for i in 0..8 {
+		st[i] = (header_hash[4 * i] as u32) +
+			((header_hash[4 * i + 1] as u32) << 8) +
+			((header_hash[4 * i + 2] as u32) << 16) +
+			((header_hash[4 * i + 3] as u32) << 24);
+	}
+
+	st[8] = nonce as u32;
+	st[9] = (nonce >> 32) as u32;
+
+	for i in 0..8 {
+		st[10 + i] = result[i];
+	}
+
+	for r in 0..22 {
+		keccak_f800_round(st, r);
 	}
 }
 
 pub fn keccak_f800_short(header_hash: H256, nonce: u64, result: [u32; 8]) -> u64 {
 	let mut st = [0u32; 25];
-
-	for i in 0..8 {
-		st[i] = (header_hash[4 * i] as u32) +
-			((header_hash[4 * i + 1] as u32) << 8) +
-			((header_hash[4 * i + 2] as u32) << 16) +
-			((header_hash[4 * i + 3] as u32) << 24);
-	}
-
-	st[8] = nonce as u32;
-	st[9] = (nonce >> 32) as u32;
-
-	for i in 0..8 {
-		st[10 + i] = result[i];
-	}
-
-	for r in 0..22 {
-		keccak_f800_round(&mut st, r);
-	}
-
+	keccak_f800(header_hash, nonce, result, &mut st);
 	(st[0].swap_bytes() as u64) << 32 | st[1].swap_bytes() as u64
 }
 
 pub fn keccak_f800_long(header_hash: H256, nonce: u64, result: [u32; 8]) -> H256 {
 	let mut st = [0u32; 25];
+	keccak_f800(header_hash, nonce, result, &mut st);
 
-	for i in 0..8 {
-		st[i] = (header_hash[4 * i] as u32) +
-			((header_hash[4 * i + 1] as u32) << 8) +
-			((header_hash[4 * i + 2] as u32) << 16) +
-			((header_hash[4 * i + 3] as u32) << 24);
+	// NOTE: transmute from `[u32; 8]` to `[u8; 32]`
+	unsafe {
+		std::mem::transmute(
+			[st[0], st[1], st[2], st[3], st[4], st[5], st[6], st[7]]
+		)
 	}
-
-	st[8] = nonce as u32;
-	st[9] = (nonce >> 32) as u32;
-
-	for i in 0..8 {
-		st[10 + i] = result[i];
-	}
-
-	for r in 0..22 {
-		keccak_f800_round(&mut st, r);
-	}
-
-	let res: [u32; 8] = [st[0], st[1], st[2], st[3], st[4], st[5], st[6], st[7]];
-	// NOTE: transmute to little endian bytes
-	unsafe { ::std::mem::transmute(res) }
 }
 
 #[inline]
@@ -155,6 +131,7 @@ fn fnv1a_hash(h: u32, d: u32) -> u32 {
 	(h ^ d).wrapping_mul(FNV_PRIME)
 }
 
+#[derive(Clone)]
 struct Kiss99 {
 	z: u32,
 	w: u32,
@@ -194,10 +171,8 @@ fn fill_mix(seed: u64, lane_id: u32) -> [u32; PROGPOW_REGS] {
 	let mut mix = [0; PROGPOW_REGS];
 
 	debug_assert_eq!(PROGPOW_REGS, 32);
-	unroll! {
-		for i in 0..32 {
-			mix[i] = rnd.next_u32();
-		}
+	for i in 0..32 {
+		mix[i] = rnd.next_u32();
 	}
 
 	mix
@@ -250,17 +225,11 @@ fn progpow_init(seed: u64) -> (Kiss99, [u32; PROGPOW_REGS], [u32; PROGPOW_REGS])
 	}
 
 	for i in (1..mix_seq_dst.len()).rev() {
-		unsafe {
-			// NOTE: `i` takes values from the range [1..PROGPOW_REGS] and `j`
-			// takes values from the the range [0..i]. This way it is guaranteed
-			// that the indices are always within the range of `mix_seq_dst` and
-			// `mix_seq_cache` and we can skip the bounds checking.
-			let j = rnd.next_u32() as usize % (i + 1);
-			::std::ptr::swap(&mut mix_seq_dst[i], mix_seq_dst.get_unchecked_mut(j));
+		let j = rnd.next_u32() as usize % (i + 1);
+		mix_seq_dst.swap(i, j);
 
-			let j = rnd.next_u32() as usize % (i + 1);
-			::std::ptr::swap(&mut mix_seq_cache[i], mix_seq_cache.get_unchecked_mut(j));
-		}
+		let j = rnd.next_u32() as usize % (i + 1);
+		mix_seq_cache.swap(i, j);
 	}
 
 	(rnd, mix_seq_dst, mix_seq_cache)
@@ -291,10 +260,13 @@ fn progpow_loop(
 		dag_item[l * 16..(l + 1) * 16].clone_from_slice(node.as_words());
 	}
 
+	let (rnd, mix_seq_dst, mix_seq_cache) = progpow_init(seed);
+
 	// Lanes can execute in parallel and will be convergent
 	for l in 0..mix.len() {
+		let mut rnd = rnd.clone();
+
 		// Initialize the seed and mix destination sequence
-		let (mut rnd, mix_seq_dst, mix_seq_cache) = progpow_init(seed);
 		let mut mix_seq_dst_cnt = 0;
 		let mut mix_seq_cache_cnt = 0;
 
@@ -317,14 +289,7 @@ fn progpow_loop(
 				let data = c_dag[offset];
 				let dst = mix_dst();
 
-				unsafe {
-					// NOTE: `dst` is taken from `mix_seq` whose values are
-					// always defined in the range [0..15] (they are initialised
-					// in `progpow_init` and we bind it as immutable). Thus, it
-					// is guaranteed that the index is always within range of
-					// `mix[l][dst]`.
-					*mix[l].get_unchecked_mut(dst) = merge(*mix[l].get_unchecked(dst), data, rnd.next_u32());
-				}
+				mix[l][dst] = merge(mix[l][dst], data, rnd.next_u32());
 			}
 
 			if i < PROGPOW_CNT_MATH {
@@ -340,10 +305,7 @@ fn progpow_loop(
 				let data = math(mix[l][src1 as usize], mix[l][src2 as usize], rnd.next_u32());
 				let dst = mix_dst();
 
-				unsafe {
-					// NOTE: Same as above.
-					*mix[l].get_unchecked_mut(dst) = merge(*mix[l].get_unchecked(dst), data, rnd.next_u32());
-				}
+				mix[l][dst] = merge(mix[l][dst], data, rnd.next_u32());
 			}
 		}
 
@@ -360,10 +322,7 @@ fn progpow_loop(
 		mix[l][0] = merge(mix[l][0], data_g[0], rnd.next_u32());
 		for i in 1..PROGPOW_DAG_LOADS {
 			let dst = mix_dst();
-			unsafe {
-				// NOTE: Same as above.
-				*mix[l].get_unchecked_mut(dst) = merge(*mix[l].get_unchecked(dst), data_g[i], rnd.next_u32());
-			}
+			mix[l][dst] = merge(mix[l][dst], data_g[i], rnd.next_u32());
 		}
 	}
 }
@@ -421,7 +380,7 @@ pub fn progpow(
 
 	let digest = keccak_f800_long(header_hash, seed, result);
 
-	// NOTE: transmute to little endian bytes
+	// NOTE: transmute from `[u32; 8]` to `[u8; 32]`
 	let result = unsafe { ::std::mem::transmute(result) };
 
 	(digest, result)
