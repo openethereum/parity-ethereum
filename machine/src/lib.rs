@@ -1,18 +1,18 @@
-// Copyright 2015-2018 Parity Technologies (UK) Ltd.
-// This file is part of Parity.
+// Copyright 2015-2019 Parity Technologies (UK) Ltd.
+// This file is part of Parity Ethereum.
 
-// Parity is free software: you can redistribute it and/or modify
+// Parity Ethereum is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
 // the Free Software Foundation, either version 3 of the License, or
 // (at your option) any later version.
 
-// Parity is distributed in the hope that it will be useful,
+// Parity Ethereum is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 // GNU General Public License for more details.
 
 // You should have received a copy of the GNU General Public License
-// along with Parity.  If not, see <http://www.gnu.org/licenses/>.
+// along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
 //! Generalization of a state machine for a consensus engine.
 //! This will define traits for the header, block, and state of a blockchain.
@@ -112,6 +112,13 @@ pub trait Machine: for<'a> LocalizedMachine<'a> {
 
 	/// Errors which can occur when querying or interacting with the machine.
 	type Error;
+
+	/// Get the balance, in base units, associated with an account.
+	/// Extracts data from the live block.
+	fn balance(&self, live: &Self::LiveBlock, address: &Address) -> Result<U256, Self::Error>;
+
+	/// Increment the balance of an account in the state of the live block.
+	fn add_balance(&self, live: &mut Self::LiveBlock, address: &Address, amount: &U256) -> Result<(), Self::Error>;
 }
 
 /// Machine-related types localized to a specific lifetime.
@@ -122,14 +129,4 @@ pub trait LocalizedMachine<'a>: Sync + Send {
 	/// A context providing access to the state in a controlled capacity.
 	/// Generally also provides verifiable proofs.
 	type StateContext: ?Sized + 'a;
-}
-
-/// A state machine that uses balances.
-pub trait WithBalances: Machine {
-	/// Get the balance, in base units, associated with an account.
-	/// Extracts data from the live block.
-	fn balance(&self, live: &Self::LiveBlock, address: &Address) -> Result<U256, Self::Error>;
-
-	/// Increment the balance of an account in the state of the live block.
-	fn add_balance(&self, live: &mut Self::LiveBlock, address: &Address, amount: &U256) -> Result<(), Self::Error>;
 }

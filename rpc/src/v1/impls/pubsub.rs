@@ -1,18 +1,18 @@
-// Copyright 2015-2018 Parity Technologies (UK) Ltd.
-// This file is part of Parity.
+// Copyright 2015-2019 Parity Technologies (UK) Ltd.
+// This file is part of Parity Ethereum.
 
-// Parity is free software: you can redistribute it and/or modify
+// Parity Ethereum is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
 // the Free Software Foundation, either version 3 of the License, or
 // (at your option) any later version.
 
-// Parity is distributed in the hope that it will be useful,
+// Parity Ethereum is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 // GNU General Public License for more details.
 
 // You should have received a copy of the GNU General Public License
-// along with Parity.  If not, see <http://www.gnu.org/licenses/>.
+// along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
 //! Parity-specific PUB-SUB rpc implementation.
 
@@ -22,8 +22,7 @@ use parking_lot::RwLock;
 
 use jsonrpc_core::{self as core, Result, MetaIoHandler};
 use jsonrpc_core::futures::{future, Future, Stream, Sink};
-use jsonrpc_macros::Trailing;
-use jsonrpc_macros::pubsub::Subscriber;
+use jsonrpc_pubsub::typed::Subscriber;
 use jsonrpc_pubsub::SubscriptionId;
 use tokio_timer;
 
@@ -81,7 +80,7 @@ impl PubSubClient<core::NoopMiddleware> {
 impl<S: core::Middleware<Metadata>> PubSub for PubSubClient<S> {
 	type Metadata = Metadata;
 
-	fn parity_subscribe(&self, mut meta: Metadata, subscriber: Subscriber<core::Value>, method: String, params: Trailing<core::Params>) {
+	fn parity_subscribe(&self, mut meta: Metadata, subscriber: Subscriber<core::Value>, method: String, params: Option<core::Params>) {
 		let params = params.unwrap_or(core::Params::Array(vec![]));
 		// Make sure to get rid of PubSub session otherwise it will never be dropped.
 		meta.session = None;
@@ -100,7 +99,7 @@ impl<S: core::Middleware<Metadata>> PubSub for PubSubClient<S> {
 		}
 	}
 
-	fn parity_unsubscribe(&self, id: SubscriptionId) -> Result<bool> {
+	fn parity_unsubscribe(&self, _: Option<Self::Metadata>, id: SubscriptionId) -> Result<bool> {
 		let res = self.poll_manager.write().unsubscribe(&id);
 		Ok(res)
 	}

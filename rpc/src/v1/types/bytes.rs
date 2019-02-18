@@ -1,18 +1,18 @@
-// Copyright 2015-2018 Parity Technologies (UK) Ltd.
-// This file is part of Parity.
+// Copyright 2015-2019 Parity Technologies (UK) Ltd.
+// This file is part of Parity Ethereum.
 
-// Parity is free software: you can redistribute it and/or modify
+// Parity Ethereum is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
 // the Free Software Foundation, either version 3 of the License, or
 // (at your option) any later version.
 
-// Parity is distributed in the hope that it will be useful,
+// Parity Ethereum is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 // GNU General Public License for more details.
 
 // You should have received a copy of the GNU General Public License
-// along with Parity.  If not, see <http://www.gnu.org/licenses/>.
+// along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
 //! Serializable wrapper around vector of bytes
 
@@ -74,7 +74,7 @@ impl<'a> Visitor<'a> for BytesVisitor {
 	}
 
 	fn visit_str<E>(self, value: &str) -> Result<Self::Value, E> where E: Error {
-		if value.len() >= 2 && &value[0..2] == "0x" && value.len() & 1 == 0 {
+		if value.len() >= 2 && value.starts_with("0x") && value.len() & 1 == 0 {
 			Ok(Bytes::new(FromHex::from_hex(&value[2..]).map_err(|e| Error::custom(format!("Invalid hex: {}", e)))?))
 		} else {
 			Err(Error::custom("Invalid bytes format. Expected a 0x-prefixed hex string with even length"))
@@ -101,6 +101,7 @@ mod tests {
 
 	#[test]
 	fn test_bytes_deserialize() {
+		let bytes0: Result<Bytes, serde_json::Error> = serde_json::from_str(r#""∀∂""#);
 		let bytes1: Result<Bytes, serde_json::Error> = serde_json::from_str(r#""""#);
 		let bytes2: Result<Bytes, serde_json::Error> = serde_json::from_str(r#""0x123""#);
 		let bytes3: Result<Bytes, serde_json::Error> = serde_json::from_str(r#""0xgg""#);
@@ -109,6 +110,7 @@ mod tests {
 		let bytes5: Bytes = serde_json::from_str(r#""0x12""#).unwrap();
 		let bytes6: Bytes = serde_json::from_str(r#""0x0123""#).unwrap();
 
+		assert!(bytes0.is_err());
 		assert!(bytes1.is_err());
 		assert!(bytes2.is_err());
 		assert!(bytes3.is_err());

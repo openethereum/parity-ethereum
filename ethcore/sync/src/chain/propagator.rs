@@ -1,31 +1,41 @@
-// Copyright 2015-2018 Parity Technologies (UK) Ltd.
-// This file is part of Parity.
+// Copyright 2015-2019 Parity Technologies (UK) Ltd.
+// This file is part of Parity Ethereum.
 
-// Parity is free software: you can redistribute it and/or modify
+// Parity Ethereum is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
 // the Free Software Foundation, either version 3 of the License, or
 // (at your option) any later version.
 
-// Parity is distributed in the hope that it will be useful,
+// Parity Ethereum is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 // GNU General Public License for more details.
 
 // You should have received a copy of the GNU General Public License
-// along with Parity.  If not, see <http://www.gnu.org/licenses/>.
+// along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
+
+use std::cmp;
+use std::collections::HashSet;
 
 use bytes::Bytes;
 use ethereum_types::H256;
-use ethcore::client::BlockChainInfo;
-use ethcore::header::BlockNumber;
 use fastmap::H256FastSet;
-use network::{PeerId, PacketId};
+use network::client_version::ClientCapabilities;
+use network::PeerId;
 use rand::Rng;
 use rlp::{Encodable, RlpStream};
 use sync_io::SyncIo;
-use std::cmp;
-use std::collections::HashSet;
-use transaction::SignedTransaction;
+use types::transaction::SignedTransaction;
+use types::BlockNumber;
+use types::blockchain_info::BlockChainInfo;
+
+use super::sync_packet::SyncPacket;
+use super::sync_packet::SyncPacket::{
+	NewBlockHashesPacket,
+	TransactionsPacket,
+	NewBlockPacket,
+	ConsensusDataPacket,
+};
 
 use super::{
 	random,
@@ -34,34 +44,7 @@ use super::{
 	MAX_PEER_LAG_PROPAGATION,
 	MAX_PEERS_PROPAGATION,
 	MIN_PEERS_PROPAGATION,
-	CONSENSUS_DATA_PACKET,
-	NEW_BLOCK_HASHES_PACKET,
-	NEW_BLOCK_PACKET,
-	TRANSACTIONS_PACKET,
 };
-
-/// Checks if peer is able to process service transactions
-fn accepts_service_transaction(client_id: &str) -> bool {
-	// Parity versions starting from this will accept service-transactions
-	const SERVICE_TRANSACTIONS_VERSION: (u32, u32) = (1u32, 6u32);
-	// Parity client string prefix
-	const LEGACY_CLIENT_ID_PREFIX: &'static str = "Parity/v";
-	const PARITY_CLIENT_ID_PREFIX: &'static str = "Parity-Ethereum/v";
-
-	let splitted = if client_id.starts_with(LEGACY_CLIENT_ID_PREFIX) {
-		client_id[LEGACY_CLIENT_ID_PREFIX.len()..].split('.')
-	} else if client_id.starts_with(PARITY_CLIENT_ID_PREFIX) {
-		client_id[PARITY_CLIENT_ID_PREFIX.len()..].split('.')
-	} else {
-		return false;
-	};
-
-	let ver: Vec<u32> = splitted
-			.take(2)
-			.filter_map(|s| s.parse().ok())
-			.collect();
-	ver.len() == 2 && (ver[0] > SERVICE_TRANSACTIONS_VERSION.0 || (ver[0] == SERVICE_TRANSACTIONS_VERSION.0 && ver[1] >= SERVICE_TRANSACTIONS_VERSION.1))
-}
 
 /// The Chain Sync Propagator: propagates data to peers
 pub struct SyncPropagator;
@@ -73,7 +56,8 @@ impl SyncPropagator {
 		let sent = peers.len();
 		let mut send_packet = |io: &mut SyncIo, rlp: Bytes| {
 			for peer_id in peers {
-				SyncPropagator::send_packet(io, *peer_id, NEW_BLOCK_PACKET, rlp.clone());
+				SyncPropagator::send_packet(io, *peer_id, NewBlockPacket, rlp.clone());
+
 				if let Some(ref mut peer) = sync.peers.get_mut(peer_id) {
 					peer.latest_hash = chain_info.best_block_hash.clone();
 				}
@@ -108,7 +92,7 @@ impl SyncPropagator {
 			if let Some(ref mut peer) = sync.peers.get_mut(peer_id) {
 				peer.latest_hash = best_block_hash;
 			}
-			SyncPropagator::send_packet(io, *peer_id, NEW_BLOCK_HASHES_PACKET, rlp.clone());
+			SyncPropagator::send_packet(io, *peer_id, NewBlockHashesPacket, rlp.clone());
 		}
 		sent
 	}
@@ -145,7 +129,7 @@ impl SyncPropagator {
 		// most of times service_transactions will be empty
 		// => there's no need to merge packets
 		if !service_transactions.is_empty() {
-			let service_transactions_peers = SyncPropagator::select_peers_for_transactions(sync, |peer_id| accepts_service_transaction(&io.peer_info(*peer_id)));
+			let service_transactions_peers = SyncPropagator::select_peers_for_transactions(sync, |peer_id| io.peer_version(*peer_id).accepts_service_transaction());
 			let service_transactions_affected_peers = SyncPropagator::propagate_transactions_to_peers(
 				sync, io, service_transactions_peers, service_transactions, &mut should_continue
 			);
@@ -176,7 +160,7 @@ impl SyncPropagator {
 
 		let send_packet = |io: &mut SyncIo, peer_id: PeerId, sent: usize, rlp: Bytes| {
 			let size = rlp.len();
-			SyncPropagator::send_packet(io, peer_id, TRANSACTIONS_PACKET, rlp);
+			SyncPropagator::send_packet(io, peer_id, TransactionsPacket, rlp);
 			trace!(target: "sync", "{:02} <- Transactions ({} entries; {} bytes)", peer_id, sent, size);
 		};
 
@@ -295,7 +279,7 @@ impl SyncPropagator {
 				io.chain().chain_info().total_difficulty
 			);
 			for peer_id in &peers {
-				SyncPropagator::send_packet(io, *peer_id, NEW_BLOCK_PACKET, rlp.clone());
+				SyncPropagator::send_packet(io, *peer_id, NewBlockPacket, rlp.clone());
 			}
 		}
 	}
@@ -305,19 +289,23 @@ impl SyncPropagator {
 		let lucky_peers = ChainSync::select_random_peers(&sync.get_consensus_peers());
 		trace!(target: "sync", "Sending consensus packet to {:?}", lucky_peers);
 		for peer_id in lucky_peers {
-			SyncPropagator::send_packet(io, peer_id, CONSENSUS_DATA_PACKET, packet.clone());
+			SyncPropagator::send_packet(io, peer_id, ConsensusDataPacket, packet.clone());
 		}
 	}
 
 	/// Broadcast private transaction message to peers.
-	pub fn propagate_private_transaction(sync: &mut ChainSync, io: &mut SyncIo, transaction_hash: H256, packet_id: PacketId, packet: Bytes) {
+	pub fn propagate_private_transaction(sync: &mut ChainSync, io: &mut SyncIo, transaction_hash: H256, packet_id: SyncPacket, packet: Bytes) {
 		let lucky_peers = ChainSync::select_random_peers(&sync.get_private_transaction_peers(&transaction_hash));
-		trace!(target: "sync", "Sending private transaction packet to {:?}", lucky_peers);
-		for peer_id in lucky_peers {
-			if let Some(ref mut peer) = sync.peers.get_mut(&peer_id) {
-				peer.last_sent_private_transactions.insert(transaction_hash);
+		if lucky_peers.is_empty() {
+			error!(target: "privatetx", "Cannot propagate the packet, no peers with private tx enabled connected");
+		} else {
+			trace!(target: "privatetx", "Sending private transaction packet to {:?}", lucky_peers);
+			for peer_id in lucky_peers {
+				if let Some(ref mut peer) = sync.peers.get_mut(&peer_id) {
+					peer.last_sent_private_transactions.insert(transaction_hash);
+				}
+				SyncPropagator::send_packet(io, peer_id, packet_id, packet.clone());
 			}
-			SyncPropagator::send_packet(io, peer_id, packet_id, packet.clone());
 		}
 	}
 
@@ -337,7 +325,7 @@ impl SyncPropagator {
 	}
 
 	/// Generic packet sender
-	pub fn send_packet(sync: &mut SyncIo, peer_id: PeerId, packet_id: PacketId, packet: Bytes) {
+	pub fn send_packet(sync: &mut SyncIo, peer_id: PeerId, packet_id: SyncPacket, packet: Bytes) {
 		if let Err(e) = sync.send(peer_id, packet_id, packet) {
 			debug!(target:"sync", "Error sending packet: {:?}", e);
 			sync.disconnect_peer(peer_id);
@@ -349,7 +337,6 @@ impl SyncPropagator {
 mod tests {
 	use ethcore::client::{BlockInfo, ChainInfo, EachBlockWith, TestBlockChainClient};
 	use parking_lot::RwLock;
-	use private_tx::NoopPrivateTxHandler;
 	use rlp::{Rlp};
 	use std::collections::{VecDeque};
 	use tests::helpers::{TestIo};
@@ -425,7 +412,7 @@ mod tests {
 		client.add_blocks(2, EachBlockWith::Uncle);
 		let queue = RwLock::new(VecDeque::new());
 		let block = client.block(BlockId::Latest).unwrap().into_inner();
-		let mut sync = ChainSync::new(SyncConfig::default(), &client, Arc::new(NoopPrivateTxHandler));
+		let mut sync = ChainSync::new(SyncConfig::default(), &client, None);
 		sync.peers.insert(0,
 			PeerInfo {
 				// Messaging protocol
@@ -441,11 +428,13 @@ mod tests {
 				last_sent_transactions: Default::default(),
 				last_sent_private_transactions: Default::default(),
 				expired: false,
+				private_tx_enabled: false,
 				confirmation: ForkConfirmation::Confirmed,
 				snapshot_number: None,
 				snapshot_hash: None,
 				asking_snapshot_data: None,
 				block_set: None,
+				client_version: ClientVersion::from(""),
 			});
 		let ss = TestSnapshotService::new();
 		let mut io = TestIo::new(&mut client, &ss, &queue, None);
@@ -513,7 +502,7 @@ mod tests {
 		client.add_blocks(100, EachBlockWith::Uncle);
 		client.insert_transaction_to_queue();
 		// Sync with no peers
-		let mut sync = ChainSync::new(SyncConfig::default(), &client, Arc::new(NoopPrivateTxHandler));
+		let mut sync = ChainSync::new(SyncConfig::default(), &client, None);
 		let queue = RwLock::new(VecDeque::new());
 		let ss = TestSnapshotService::new();
 		let mut io = TestIo::new(&mut client, &ss, &queue, None);
@@ -583,7 +572,7 @@ mod tests {
 		let mut client = TestBlockChainClient::new();
 		client.insert_transaction_with_gas_price_to_queue(U256::zero());
 		let block_hash = client.block_hash_delta_minus(1);
-		let mut sync = ChainSync::new(SyncConfig::default(), &client, Arc::new(NoopPrivateTxHandler));
+		let mut sync = ChainSync::new(SyncConfig::default(), &client, None);
 		let queue = RwLock::new(VecDeque::new());
 		let ss = TestSnapshotService::new();
 		let mut io = TestIo::new(&mut client, &ss, &queue, None);
@@ -593,20 +582,17 @@ mod tests {
 		io.peers_info.insert(1, "Geth".to_owned());
 		// and peer#2 is Parity, accepting service transactions
 		insert_dummy_peer(&mut sync, 2, block_hash);
-		io.peers_info.insert(2, "Parity-Ethereum/v2.6".to_owned());
-		// and peer#3 is Parity, discarding service transactions
+		io.peers_info.insert(2, "Parity-Ethereum/v2.6.0/linux/rustc".to_owned());
+		// and peer#3 is Parity, accepting service transactions
 		insert_dummy_peer(&mut sync, 3, block_hash);
-		io.peers_info.insert(3, "Parity/v1.5".to_owned());
-		// and peer#4 is Parity, accepting service transactions
-		insert_dummy_peer(&mut sync, 4, block_hash);
-		io.peers_info.insert(4, "Parity-Ethereum/v2.7.3-ABCDEFGH".to_owned());
+		io.peers_info.insert(3, "Parity-Ethereum/ABCDEFGH/v2.7.3/linux/rustc".to_owned());
 
 		// and new service transaction is propagated to peers
 		SyncPropagator::propagate_new_transactions(&mut sync, &mut io, || true);
 
-		// peer#2 && peer#4 are receiving service transaction
+		// peer#2 && peer#3 are receiving service transaction
 		assert!(io.packets.iter().any(|p| p.packet_id == 0x02 && p.recipient == 2)); // TRANSACTIONS_PACKET
-		assert!(io.packets.iter().any(|p| p.packet_id == 0x02 && p.recipient == 4)); // TRANSACTIONS_PACKET
+		assert!(io.packets.iter().any(|p| p.packet_id == 0x02 && p.recipient == 3)); // TRANSACTIONS_PACKET
 		assert_eq!(io.packets.len(), 2);
 	}
 
@@ -616,14 +602,14 @@ mod tests {
 		let tx1_hash = client.insert_transaction_to_queue();
 		let tx2_hash = client.insert_transaction_with_gas_price_to_queue(U256::zero());
 		let block_hash = client.block_hash_delta_minus(1);
-		let mut sync = ChainSync::new(SyncConfig::default(), &client, Arc::new(NoopPrivateTxHandler));
+		let mut sync = ChainSync::new(SyncConfig::default(), &client, None);
 		let queue = RwLock::new(VecDeque::new());
 		let ss = TestSnapshotService::new();
 		let mut io = TestIo::new(&mut client, &ss, &queue, None);
 
 		// when peer#1 is Parity, accepting service transactions
 		insert_dummy_peer(&mut sync, 1, block_hash);
-		io.peers_info.insert(1, "Parity-Ethereum/v2.6".to_owned());
+		io.peers_info.insert(1, "Parity-Ethereum/v2.6.0/linux/rustc".to_owned());
 
 		// and service + non-service transactions are propagated to peers
 		SyncPropagator::propagate_new_transactions(&mut sync, &mut io, || true);

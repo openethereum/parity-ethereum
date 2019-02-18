@@ -1,22 +1,25 @@
-// Copyright 2015-2018 Parity Technologies (UK) Ltd.
-// This file is part of Parity.
+// Copyright 2015-2019 Parity Technologies (UK) Ltd.
+// This file is part of Parity Ethereum.
 
-// Parity is free software: you can redistribute it and/or modify
+// Parity Ethereum is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
 // the Free Software Foundation, either version 3 of the License, or
 // (at your option) any later version.
 
-// Parity is distributed in the hope that it will be useful,
+// Parity Ethereum is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 // GNU General Public License for more details.
 
 // You should have received a copy of the GNU General Public License
-// along with Parity.  If not, see <http://www.gnu.org/licenses/>.
+// along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
 #[macro_use]
 mod usage;
 mod presets;
+
+use std::collections::HashSet;
+use super::helpers;
 
 usage! {
 	{
@@ -217,6 +220,15 @@ usage! {
 			CMD cmd_db_kill {
 				"Clean the database of the given --chain (default: mainnet)",
 			}
+
+			CMD cmd_db_reset {
+				"Removes NUM latests blocks from the db",
+
+				ARG arg_db_reset_num: (u32) = 10u32,
+				"<NUM>",
+				"Number of blocks to revert",
+			}
+
 		}
 
 		CMD cmd_export_hardcoded_sync
@@ -309,7 +321,7 @@ usage! {
 		["Convenience Options"]
 			FLAG flag_unsafe_expose: (bool) = false, or |c: &Config| c.misc.as_ref()?.unsafe_expose,
 			"--unsafe-expose",
-			"All servers will listen on external interfaces and will be remotely accessible. It's equivalent with setting the following: --[ws,jsonrpc,ui,ipfs-api,secretstore,stratum,dapps,secretstore-http]-interface=all --*-hosts=all    This option is UNSAFE and should be used with great care!",
+			"All servers will listen on external interfaces and will be remotely accessible. It's equivalent with setting the following: --[ws,jsonrpc,ipfs-api,secretstore,stratum,dapps,secretstore-http]-interface=all --*-hosts=all    This option is UNSAFE and should be used with great care!",
 
 			ARG arg_config: (String) = "$BASE/config.toml", or |_| None,
 			"-c, --config=[CONFIG]",
@@ -460,7 +472,6 @@ usage! {
 
 				Ok(())
 			},
-
 
 		["API and Console Options – HTTP JSON-RPC"]
 			FLAG flag_jsonrpc_allow_missing_blocks: (bool) = false, or |c: &Config| c.rpc.as_ref()?.allow_missing_blocks.clone(),
@@ -760,6 +771,10 @@ usage! {
 			ARG arg_tx_queue_per_sender: (Option<usize>) = None, or |c: &Config| c.mining.as_ref()?.tx_queue_per_sender.clone(),
 			"--tx-queue-per-sender=[LIMIT]",
 			"Maximum number of transactions per sender in the queue. By default it's 1% of the entire queue, but not less than 16.",
+
+			ARG arg_tx_queue_locals: (Option<String>) = None, or |c: &Config| helpers::join_set(c.mining.as_ref()?.tx_queue_locals.as_ref()),
+			"--tx-queue-locals=[ACCOUNTS]",
+			"Specify local accounts for which transactions are prioritized in the queue. ACCOUNTS is a comma-delimited list of addresses.",
 
 			ARG arg_tx_queue_strategy: (String) = "gas_price", or |c: &Config| c.mining.as_ref()?.tx_queue_strategy.clone(),
 			"--tx-queue-strategy=[S]",
@@ -1348,6 +1363,7 @@ struct Mining {
 	tx_queue_size: Option<usize>,
 	tx_queue_per_sender: Option<usize>,
 	tx_queue_mem_limit: Option<u32>,
+	tx_queue_locals: Option<HashSet<String>>,
 	tx_queue_strategy: Option<String>,
 	tx_queue_ban_count: Option<u16>,
 	tx_queue_ban_time: Option<u16>,
@@ -1613,6 +1629,7 @@ mod tests {
 			cmd_tools_hash: false,
 			cmd_db: false,
 			cmd_db_kill: false,
+			cmd_db_reset: false,
 			cmd_export_hardcoded_sync: false,
 
 			// Arguments
@@ -1632,6 +1649,7 @@ mod tests {
 			arg_dapp_path: None,
 			arg_account_import_path: None,
 			arg_wallet_import_path: None,
+			arg_db_reset_num: 10,
 
 			// -- Operating Options
 			arg_mode: "last".into(),
@@ -1789,6 +1807,7 @@ mod tests {
 			arg_tx_queue_size: 8192usize,
 			arg_tx_queue_per_sender: None,
 			arg_tx_queue_mem_limit: 4u32,
+			arg_tx_queue_locals: Some("0xdeadbeefcafe0000000000000000000000000000".into()),
 			arg_tx_queue_strategy: "gas_factor".into(),
 			arg_tx_queue_ban_count: Some(1u16),
 			arg_tx_queue_ban_time: Some(180u16),
@@ -2062,6 +2081,7 @@ mod tests {
 				tx_queue_size: Some(8192),
 				tx_queue_per_sender: None,
 				tx_queue_mem_limit: None,
+				tx_queue_locals: None,
 				tx_queue_strategy: None,
 				tx_queue_ban_count: None,
 				tx_queue_ban_time: None,

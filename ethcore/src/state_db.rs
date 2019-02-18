@@ -1,18 +1,18 @@
-// Copyright 2015-2018 Parity Technologies (UK) Ltd.
-// This file is part of Parity.
+// Copyright 2015-2019 Parity Technologies (UK) Ltd.
+// This file is part of Parity Ethereum.
 
-// Parity is free software: you can redistribute it and/or modify
+// Parity Ethereum is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
 // the Free Software Foundation, either version 3 of the License, or
 // (at your option) any later version.
 
-// Parity is distributed in the hope that it will be useful,
+// Parity Ethereum is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 // GNU General Public License for more details.
 
 // You should have received a copy of the GNU General Public License
-// along with Parity.  If not, see <http://www.gnu.org/licenses/>.
+// along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
 //! State database abstraction. For more info, see the doc for `StateDB`
 
@@ -26,13 +26,14 @@ use db::COL_ACCOUNT_BLOOM;
 use ethereum_types::{H256, Address};
 use hash::keccak;
 use hashdb::HashDB;
-use keccak_hasher::KeccakHasher;
-use header::BlockNumber;
 use journaldb::JournalDB;
+use keccak_hasher::KeccakHasher;
 use kvdb::{KeyValueDB, DBTransaction, DBValue};
 use lru_cache::LruCache;
 use memory_cache::MemoryLruCache;
 use parking_lot::Mutex;
+use types::BlockNumber;
+
 use state::{self, Account};
 
 /// Value used to initialize bloom bitmap size.
@@ -378,14 +379,7 @@ impl StateDB {
 
 	/// Check if the account can be returned from cache by matching current block parent hash against canonical
 	/// state and filtering out account modified in later blocks.
-	fn is_allowed(addr: &Address, parent_hash: &Option<H256>, modifications: &VecDeque<BlockChanges>) -> bool {
-		let mut parent = match *parent_hash {
-			None => {
-				trace!("Cache lookup skipped for {:?}: no parent hash", addr);
-				return false;
-			}
-			Some(ref parent) => parent,
-		};
+	fn is_allowed(addr: &Address, parent_hash: &H256, modifications: &VecDeque<BlockChanges>) -> bool {
 		if modifications.is_empty() {
 			return true;
 		}
@@ -394,6 +388,7 @@ impl StateDB {
 		// We search for our parent in that list first and then for
 		// all its parent until we hit the canonical block,
 		// checking against all the intermediate modifications.
+		let mut parent = parent_hash;
 		for m in modifications {
 			if &m.hash == parent {
 				if m.is_canon {
@@ -433,20 +428,25 @@ impl state::Backend for StateDB {
 	}
 
 	fn get_cached_account(&self, addr: &Address) -> Option<Option<Account>> {
-		let mut cache = self.account_cache.lock();
-		if !Self::is_allowed(addr, &self.parent_hash, &cache.modifications) {
-			return None;
-		}
-		cache.accounts.get_mut(addr).map(|a| a.as_ref().map(|a| a.clone_basic()))
+		self.parent_hash.as_ref().and_then(|parent_hash| {
+			let mut cache = self.account_cache.lock();
+			if !Self::is_allowed(addr, parent_hash, &cache.modifications) {
+				return None;
+			}
+			cache.accounts.get_mut(addr).map(|a| a.as_ref().map(|a| a.clone_basic()))
+		})
 	}
 
 	fn get_cached<F, U>(&self, a: &Address, f: F) -> Option<U>
-		where F: FnOnce(Option<&mut Account>) -> U {
-		let mut cache = self.account_cache.lock();
-		if !Self::is_allowed(a, &self.parent_hash, &cache.modifications) {
-			return None;
-		}
-		cache.accounts.get_mut(a).map(|c| f(c.as_mut()))
+		where F: FnOnce(Option<&mut Account>) -> U
+	{
+		self.parent_hash.as_ref().and_then(|parent_hash| {
+			let mut cache = self.account_cache.lock();
+			if !Self::is_allowed(a, parent_hash, &cache.modifications) {
+				return None;
+			}
+			cache.accounts.get_mut(a).map(|c| f(c.as_mut()))
+		})
 	}
 
 	fn get_cached_code(&self, hash: &H256) -> Option<Arc<Vec<u8>>> {
@@ -482,11 +482,10 @@ mod tests {
 	use kvdb::DBTransaction;
 	use test_helpers::get_temp_state_db;
 	use state::{Account, Backend};
-	use ethcore_logger::init_log;
 
 	#[test]
 	fn state_db_smoke() {
-		init_log();
+		let _ = ::env_logger::try_init();
 
 		let state_db = get_temp_state_db();
 		let root_parent = H256::random();

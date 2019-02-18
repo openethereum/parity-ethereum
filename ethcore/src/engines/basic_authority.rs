@@ -1,34 +1,33 @@
-// Copyright 2015-2018 Parity Technologies (UK) Ltd.
-// This file is part of Parity.
+// Copyright 2015-2019 Parity Technologies (UK) Ltd.
+// This file is part of Parity Ethereum.
 
-// Parity is free software: you can redistribute it and/or modify
+// Parity Ethereum is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
 // the Free Software Foundation, either version 3 of the License, or
 // (at your option) any later version.
 
-// Parity is distributed in the hope that it will be useful,
+// Parity Ethereum is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 // GNU General Public License for more details.
 
 // You should have received a copy of the GNU General Public License
-// along with Parity.  If not, see <http://www.gnu.org/licenses/>.
+// along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
 //! A blockchain engine that supports a basic, non-BFT proof-of-authority.
 
-use std::sync::{Weak, Arc};
-use ethereum_types::{H256, H520, Address};
+use std::sync::Weak;
+use ethereum_types::{H256, H520};
 use parking_lot::RwLock;
-use ethkey::{self, Password, Signature};
-use account_provider::AccountProvider;
+use ethkey::{self, Signature};
 use block::*;
 use engines::{Engine, Seal, ConstructedVerifier, EngineError};
+use engines::signer::EngineSigner;
 use error::{BlockError, Error};
 use ethjson;
-use header::{Header, ExtendedHeader};
 use client::EngineClient;
 use machine::{AuxiliaryData, Call, EthereumMachine};
-use super::signer::EngineSigner;
+use types::header::{Header, ExtendedHeader};
 use super::validator_set::{ValidatorSet, SimpleList, new_validator_set};
 
 /// `BasicAuthority` params.
@@ -76,7 +75,7 @@ fn verify_external(header: &Header, validators: &ValidatorSet) -> Result<(), Err
 /// Engine using `BasicAuthority`, trivial proof-of-authority consensus.
 pub struct BasicAuthority {
 	machine: EthereumMachine,
-	signer: RwLock<EngineSigner>,
+	signer: RwLock<Option<Box<EngineSigner>>>,
 	validators: Box<ValidatorSet>,
 }
 
@@ -85,7 +84,7 @@ impl BasicAuthority {
 	pub fn new(our_params: BasicAuthorityParams, machine: EthereumMachine) -> Self {
 		BasicAuthority {
 			machine: machine,
-			signer: Default::default(),
+			signer: RwLock::new(None),
 			validators: new_validator_set(our_params.validators),
 		}
 	}
@@ -190,12 +189,16 @@ impl Engine<EthereumMachine> for BasicAuthority {
 		self.validators.register_client(client);
 	}
 
-	fn set_signer(&self, ap: Arc<AccountProvider>, address: Address, password: Password) {
-		self.signer.write().set(ap, address, password);
+	fn set_signer(&self, signer: Box<EngineSigner>) {
+		*self.signer.write() = Some(signer);
 	}
 
 	fn sign(&self, hash: H256) -> Result<Signature, Error> {
-		Ok(self.signer.read().sign(hash)?)
+		Ok(self.signer.read()
+			.as_ref()
+			.ok_or_else(|| ethkey::Error::InvalidAddress)?
+			.sign(hash)?
+		)
 	}
 
 	fn snapshot_components(&self) -> Option<Box<::snapshot::SnapshotComponents>> {
@@ -214,8 +217,8 @@ mod tests {
 	use ethereum_types::H520;
 	use block::*;
 	use test_helpers::get_temp_state_db;
-	use account_provider::AccountProvider;
-	use header::Header;
+	use accounts::AccountProvider;
+	use types::header::Header;
 	use spec::Spec;
 	use engines::Seal;
 	use tempdir::TempDir;
@@ -257,7 +260,7 @@ mod tests {
 
 		let spec = new_test_authority();
 		let engine = &*spec.engine;
-		engine.set_signer(Arc::new(tap), addr, "".into());
+		engine.set_signer(Box::new((Arc::new(tap), addr, "".into())));
 		let genesis_header = spec.genesis_header();
 		let db = spec.ensure_db_good(get_temp_state_db(), &Default::default()).unwrap();
 		let last_hashes = Arc::new(vec![genesis_header.hash()]);
@@ -275,7 +278,7 @@ mod tests {
 
 		let engine = new_test_authority().engine;
 		assert!(!engine.seals_internally().unwrap());
-		engine.set_signer(Arc::new(tap), authority, "".into());
+		engine.set_signer(Box::new((Arc::new(tap), authority, "".into())));
 		assert!(engine.seals_internally().unwrap());
 	}
 }

@@ -1,18 +1,18 @@
-// Copyright 2015-2018 Parity Technologies (UK) Ltd.
-// This file is part of Parity.
+// Copyright 2015-2019 Parity Technologies (UK) Ltd.
+// This file is part of Parity Ethereum.
 
-// Parity is free software: you can redistribute it and/or modify
+// Parity Ethereum is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
 // the Free Software Foundation, either version 3 of the License, or
 // (at your option) any later version.
 
-// Parity is distributed in the hope that it will be useful,
+// Parity Ethereum is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 // GNU General Public License for more details.
 
 // You should have received a copy of the GNU General Public License
-// along with Parity.  If not, see <http://www.gnu.org/licenses/>.
+// along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
 //! Single account in the system.
 
@@ -31,7 +31,7 @@ use ethtrie::{TrieFactory, TrieDB, SecTrieDB, Result as TrieResult};
 use pod_account::*;
 use rlp::{RlpStream, encode};
 use lru_cache::LruCache;
-use basic_account::BasicAccount;
+use types::basic_account::BasicAccount;
 
 use std::cell::{RefCell, Cell};
 
@@ -451,6 +451,11 @@ impl Account {
 		}
 	}
 
+	/// Whether the base storage root of this account is unchanged.
+	pub fn is_base_storage_root_unchanged(&self) -> bool {
+		self.original_storage_cache.is_none()
+	}
+
 	/// Storage root where the account changes are based upon.
 	pub fn base_storage_root(&self) -> H256 {
 		self.storage_root
@@ -461,12 +466,12 @@ impl Account {
 
 	/// Increment the nonce of the account by one.
 	pub fn inc_nonce(&mut self) {
-		self.nonce = self.nonce + U256::from(1u8);
+		self.nonce = self.nonce.saturating_add(U256::from(1u8));
 	}
 
 	/// Increase account balance.
 	pub fn add_balance(&mut self, x: &U256) {
-		self.balance = self.balance + *x;
+		self.balance = self.balance.saturating_add(*x);
 	}
 
 	/// Decrease account balance.

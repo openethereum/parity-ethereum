@@ -1,30 +1,27 @@
-// Copyright 2015-2018 Parity Technologies (UK) Ltd.
-// This file is part of Parity.
+// Copyright 2015-2019 Parity Technologies (UK) Ltd.
+// This file is part of Parity Ethereum.
 
-// Parity is free software: you can redistribute it and/or modify
+// Parity Ethereum is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
 // the Free Software Foundation, either version 3 of the License, or
 // (at your option) any later version.
 
-// Parity is distributed in the hope that it will be useful,
+// Parity Ethereum is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 // GNU General Public License for more details.
 
 // You should have received a copy of the GNU General Public License
-// along with Parity.  If not, see <http://www.gnu.org/licenses/>.
+// along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
 //! Eth PUB-SUB rpc implementation.
 
 use std::sync::{Arc, Weak};
 use std::collections::BTreeMap;
-use std::time::Duration;
 
 use jsonrpc_core::{BoxFuture, Result, Error};
 use jsonrpc_core::futures::{self, Future, IntoFuture};
-use jsonrpc_macros::Trailing;
-use jsonrpc_macros::pubsub::{Sink, Subscriber};
-use jsonrpc_pubsub::SubscriptionId;
+use jsonrpc_pubsub::{SubscriptionId, typed::{Sink, Subscriber}};
 
 use v1::helpers::{errors, limit_logs, Subscribers};
 use v1::helpers::light_fetch::LightFetch;
@@ -32,17 +29,18 @@ use v1::metadata::Metadata;
 use v1::traits::EthPubSub;
 use v1::types::{pubsub, RichHeader, Log};
 
-use ethcore::encoded;
-use ethcore::filter::Filter as EthFilter;
-use ethcore::client::{BlockChainClient, ChainNotify, ChainRoute, ChainRouteType, BlockId};
-use sync::LightSync;
-use light::cache::Cache;
-use light::on_demand::OnDemand;
-use light::client::{LightChainClient, LightChainNotify};
-use parity_runtime::Executor;
+use ethcore::client::{BlockChainClient, ChainNotify, NewBlocks, ChainRouteType, BlockId};
 use ethereum_types::H256;
-use bytes::Bytes;
+use light::cache::Cache;
+use light::client::{LightChainClient, LightChainNotify};
+use light::on_demand::OnDemand;
+use parity_runtime::Executor;
 use parking_lot::{RwLock, Mutex};
+
+use sync::{LightSyncProvider, LightNetworkDispatcher, ManageNetwork};
+
+use types::encoded;
+use types::filter::Filter as EthFilter;
 
 type Client = Sink<pubsub::Result>;
 
@@ -91,12 +89,15 @@ impl<C> EthPubSubClient<C> {
 	}
 }
 
-impl EthPubSubClient<LightFetch> {
+impl<S> EthPubSubClient<LightFetch<S>>
+where
+	S: LightSyncProvider + LightNetworkDispatcher + ManageNetwork + 'static
+{
 	/// Creates a new `EthPubSubClient` for `LightClient`.
 	pub fn light(
 		client: Arc<LightChainClient>,
 		on_demand: Arc<OnDemand>,
-		sync: Arc<LightSync>,
+		sync: Arc<S>,
 		cache: Arc<Mutex<Cache>>,
 		executor: Executor,
 		gas_price_percentile: usize,
@@ -193,7 +194,10 @@ pub trait LightClient: Send + Sync {
 	fn logs(&self, filter: EthFilter) -> BoxFuture<Vec<Log>>;
 }
 
-impl LightClient for LightFetch {
+impl<S> LightClient for LightFetch<S>
+where
+	S: LightSyncProvider + LightNetworkDispatcher + ManageNetwork + 'static
+{
 	fn block_header(&self, id: BlockId) -> Option<encoded::Header> {
 		self.client.block_header(id)
 	}
@@ -204,10 +208,7 @@ impl LightClient for LightFetch {
 }
 
 impl<C: LightClient> LightChainNotify for ChainNotificationHandler<C> {
-	fn new_headers(
-		&self,
-		enacted: &[H256],
-	) {
+	fn new_headers(&self, enacted: &[H256]) {
 		let headers = enacted
 			.iter()
 			.filter_map(|hash| self.client.block_header(BlockId::Hash(*hash)))
@@ -220,18 +221,10 @@ impl<C: LightClient> LightChainNotify for ChainNotificationHandler<C> {
 }
 
 impl<C: BlockChainClient> ChainNotify for ChainNotificationHandler<C> {
-	fn new_blocks(
-		&self,
-		_imported: Vec<H256>,
-		_invalid: Vec<H256>,
-		route: ChainRoute,
-		_sealed: Vec<H256>,
-		// Block bytes.
-		_proposed: Vec<Bytes>,
-		_duration: Duration,
-	) {
+	fn new_blocks(&self, new_blocks: NewBlocks) {
+		if self.heads_subscribers.read().is_empty() && self.logs_subscribers.read().is_empty() { return }
 		const EXTRA_INFO_PROOF: &'static str = "Object exists in in blockchain (fetched earlier), extra_info is always available if object exists; qed";
-		let headers = route.route()
+		let headers = new_blocks.route.route()
 			.iter()
 			.filter_map(|&(hash, ref typ)| {
 				match typ {
@@ -249,7 +242,7 @@ impl<C: BlockChainClient> ChainNotify for ChainNotificationHandler<C> {
 		self.notify_heads(&headers);
 
 		// We notify logs enacting and retracting as the order in route.
-		self.notify_logs(route.route(), |filter, ex| {
+		self.notify_logs(new_blocks.route.route(), |filter, ex| {
 			match ex {
 				&ChainRouteType::Enacted =>
 					Ok(self.client.logs(filter).unwrap_or_default().into_iter().map(Into::into).collect()),
@@ -272,7 +265,7 @@ impl<C: Send + Sync + 'static> EthPubSub for EthPubSubClient<C> {
 		_meta: Metadata,
 		subscriber: Subscriber<pubsub::Result>,
 		kind: pubsub::Kind,
-		params: Trailing<pubsub::Params>,
+		params: Option<pubsub::Params>,
 	) {
 		let error = match (kind, params.into()) {
 			(pubsub::Kind::NewHeads, None) => {
@@ -309,7 +302,7 @@ impl<C: Send + Sync + 'static> EthPubSub for EthPubSubClient<C> {
 		let _ = subscriber.reject(error);
 	}
 
-	fn unsubscribe(&self, id: SubscriptionId) -> Result<bool> {
+	fn unsubscribe(&self, _: Option<Self::Metadata>, id: SubscriptionId) -> Result<bool> {
 		let res = self.heads_subscribers.write().remove(&id).is_some();
 		let res2 = self.logs_subscribers.write().remove(&id).is_some();
 		let res3 = self.transactions_subscribers.write().remove(&id).is_some();

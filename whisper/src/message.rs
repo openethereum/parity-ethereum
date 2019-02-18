@@ -1,18 +1,18 @@
-// Copyright 2015-2018 Parity Technologies (UK) Ltd.
-// This file is part of Parity.
+// Copyright 2015-2019 Parity Technologies (UK) Ltd.
+// This file is part of Parity Ethereum.
 
-// Parity is free software: you can redistribute it and/or modify
+// Parity Ethereum is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
 // the Free Software Foundation, either version 3 of the License, or
 // (at your option) any later version.
 
-// Parity is distributed in the hope that it will be useful,
+// Parity Ethereum is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 // GNU General Public License for more details.
 
 // You should have received a copy of the GNU General Public License
-// along with Parity.  If not, see <http://www.gnu.org/licenses/>.
+// along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
 //! Whisper message parsing, handlers, and construction.
 
@@ -32,12 +32,13 @@ pub fn work_factor_proved(size: u64, ttl: u64, hash: H256) -> f64 {
 	assert!(size != 0 && ttl != 0);
 
 	let leading_zeros = {
-		let leading_zeros = hash.iter().take_while(|&&x| x == 0).count();
-		(leading_zeros * 8) + hash.get(leading_zeros + 1).map_or(0, |b| b.leading_zeros() as usize)
+		let leading_bytes = hash.iter().take_while(|&&x| x == 0).count();
+		let remaining_leading_bits = hash.get(leading_bytes).map_or(0, |byte| byte.leading_zeros() as usize);
+		(leading_bytes * 8) + remaining_leading_bits
 	};
 	let spacetime = size as f64 * ttl as f64;
 
-	(1u64 << leading_zeros) as f64 / spacetime
+	2.0_f64.powi(leading_zeros as i32) / spacetime
 }
 
 /// A topic of a message.
@@ -416,6 +417,7 @@ impl Message {
 
 #[cfg(test)]
 mod tests {
+	use ethereum_types::H256;
 	use super::*;
 	use std::time::{self, Duration, SystemTime};
 	use rlp::Rlp;
@@ -517,5 +519,15 @@ mod tests {
 
 		let now = unix_time(95_000);
 		Message::decode(Rlp::new(&*encoded), now).unwrap();
+	}
+
+	#[test]
+	fn work_factor() {
+		// 256 leading zeros -> 2^256 / 1
+		assert_eq!(work_factor_proved(1, 1, H256::from(0)), 115792089237316200000000000000000000000000000000000000000000000000000000000000.0);
+		// 255 leading zeros -> 2^255 / 1
+		assert_eq!(work_factor_proved(1, 1, H256::from(1)), 57896044618658100000000000000000000000000000000000000000000000000000000000000.0);
+		// 0 leading zeros -> 2^0 / 1
+		assert_eq!(work_factor_proved(1, 1, serde_json::from_str::<H256>("\"0xff00000000000000000000000000000000000000000000000000000000000000\"").unwrap()), 1.0);
 	}
 }

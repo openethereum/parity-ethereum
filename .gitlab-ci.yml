@@ -2,11 +2,14 @@ stages:
   - test
   - build
   - publish
+  - publish-onchain
   - optional
 
 image:                             parity/rust:gitlab-ci
 
 variables:
+  GIT_STRATEGY:                    fetch
+  GIT_SUBMODULE_STRATEGY:          recursive
   CI_SERVER_NAME:                  "GitLab CI"
   CARGO_HOME:                      "${CI_PROJECT_DIR}/.cargo"
   CARGO_TARGET:                    x86_64-unknown-linux-gnu
@@ -40,27 +43,29 @@ test-linux:
   variables:
     RUN_TESTS:                     all
   script:
-    - scripts/gitlab/test-all.sh stable
+    - scripts/gitlab/test-all.sh
+    - sccache -s
   tags:
-    - rust-stable
+    - linux-docker
 
 test-audit:
   stage:                           test
   script:
-    - scripts/gitlab/cargo-audit.sh
+    - set -e
+    - set -u
+    - cargo audit
   tags:
-    - rust-stable
+    - linux-docker
 
 build-linux:
   stage:                           build
   only:                            *releaseable_branches
-  variables:
-    CARGO_TARGET:                  x86_64-unknown-linux-gnu
   script:
     - scripts/gitlab/build-unix.sh
+    - sccache -s
   <<:                              *collect_artifacts
   tags:
-    - rust-stable
+    - linux-docker
 
 build-darwin:
   stage:                           build
@@ -97,19 +102,83 @@ publish-docker:
   script:
     - scripts/gitlab/publish-docker.sh parity
 
-publish-awss3:
-  stage:                           publish
+publish-snap:
+  stage:                           optional #publish
   only:                            *releaseable_branches
+  image:                           snapcore/snapcraft
+  variables:
+    BUILD_ARCH:                  amd64
   cache: {}
+  before_script:                   *determine_version
+  dependencies:
+    - build-linux
+  tags:
+    - rust-stable
+  script:
+    - scripts/gitlab/publish-snap.sh
+  allow_failure:                   true
+  <<:                              *collect_artifacts
+
+publish-onnet-update:
+  stage:                           publish-onchain
+  only:                            *releaseable_branches
+  cache:                           {}
   dependencies:
     - build-linux
     - build-darwin
     - build-windows
+    - publish-awss3-release
   before_script:                   *determine_version
   script:
-    - scripts/gitlab/publish-awss3.sh
+    - scripts/gitlab/publish-onnet-update.sh
   tags:
-    - shell
+    - linux-docker
+
+# configures aws for fast uploads/syncs
+.s3-before-script:                &s3-before-script
+  before_script:
+    - mkdir -p ${HOME}/.aws
+    - |
+      cat > ${HOME}/.aws/config <<EOC
+      [default]
+      s3 =
+        max_concurrent_requests = 20
+        max_queue_size = 10000
+        multipart_threshold = 64MB
+        multipart_chunksize = 16MB
+        max_bandwidth = 50MB/s
+        use_accelerate_endpoint = false
+        addressing_style = path
+      EOC
+
+publish-awss3-release:
+  image:                           parity/awscli:latest
+  stage:                           publish
+  only:                            *releaseable_branches
+  cache:                           {}
+  dependencies:
+    - build-linux
+    - build-darwin
+    - build-windows
+  variables:
+    GIT_STRATEGY:                  none
+  <<:                              *s3-before-script
+  script:
+    - echo "__________Push binaries to AWS S3____________"
+    - case "${SCHEDULE_TAG:-${CI_COMMIT_REF_NAME}}" in
+        (beta|stable|nightly)
+          export BUCKET=releases.parity.io/ethereum;
+          ;;
+        (*)
+          export BUCKET=builds-parity;
+          ;;
+      esac
+    - aws s3 sync ./artifacts s3://${BUCKET}/${SCHEDULE_TAG:-${CI_COMMIT_REF_NAME}}/
+  after_script:
+    - aws s3 ls s3://${BUCKET}/${SCHEDULE_TAG:-${CI_COMMIT_REF_NAME}}/
+        --recursive --human-readable --summarize
+  tags:
+  - linux-docker
 
 publish-docs:
   stage:                            publish
@@ -121,7 +190,7 @@ publish-docs:
   script:
     - scripts/gitlab/publish-docs.sh
   tags:
-    - shell
+    - linux-docker
 
 build-android:
   stage:                           optional
@@ -131,25 +200,7 @@ build-android:
   script:
     - scripts/gitlab/build-unix.sh
   tags:
-    - rust-arm
+    - linux-docker
   allow_failure:                   true
+  <<:                              *collect_artifacts
 
-test-beta:
-  stage:                           optional
-  variables:
-    RUN_TESTS:                     cargo
-  script:
-    - scripts/gitlab/test-all.sh beta
-  tags:
-    - rust-beta
-  allow_failure:                   true
-
-test-nightly:
-  stage:                           optional
-  variables:
-    RUN_TESTS:                     all
-  script:
-    - scripts/gitlab/test-all.sh nightly
-  tags:
-    - rust-nightly
-  allow_failure:                   true

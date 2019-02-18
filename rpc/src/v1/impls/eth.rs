@@ -1,18 +1,18 @@
-// Copyright 2015-2018 Parity Technologies (UK) Ltd.
-// This file is part of Parity.
+// Copyright 2015-2019 Parity Technologies (UK) Ltd.
+// This file is part of Parity Ethereum.
 
-// Parity is free software: you can redistribute it and/or modify
+// Parity Ethereum is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
 // the Free Software Foundation, either version 3 of the License, or
 // (at your option) any later version.
 
-// Parity is distributed in the hope that it will be useful,
+// Parity Ethereum is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 // GNU General Public License for more details.
 
 // You should have received a copy of the GNU General Public License
-// along with Parity.  If not, see <http://www.gnu.org/licenses/>.
+// along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
 //! Eth rpc implementation.
 
@@ -25,23 +25,22 @@ use ethereum_types::{U256, H256, H160, Address};
 use parking_lot::Mutex;
 
 use ethash::{self, SeedHashCompute};
-use ethcore::account_provider::AccountProvider;
 use ethcore::client::{BlockChainClient, BlockId, TransactionId, UncleId, StateOrBlock, StateClient, StateInfo, Call, EngineInfo, ProvingBlockChainClient};
-use ethcore::filter::Filter as EthcoreFilter;
-use ethcore::header::{BlockNumber as EthBlockNumber};
 use ethcore::miner::{self, MinerService};
 use ethcore::snapshot::SnapshotService;
-use ethcore::encoded;
-use sync::SyncProvider;
-use miner::external::ExternalMinerService;
-use transaction::{SignedTransaction, LocalizedTransaction};
 use hash::keccak;
+use miner::external::ExternalMinerService;
+use sync::SyncProvider;
+use types::transaction::{SignedTransaction, LocalizedTransaction};
+use types::BlockNumber as EthBlockNumber;
+use types::encoded;
+use types::filter::Filter as EthcoreFilter;
 
 use jsonrpc_core::{BoxFuture, Result};
 use jsonrpc_core::futures::future;
-use jsonrpc_macros::Trailing;
 
 use v1::helpers::{self, errors, limit_logs, fake_sign};
+use v1::helpers::deprecated::{self, DeprecationNotice};
 use v1::helpers::dispatch::{FullDispatcher, default_gas_price};
 use v1::helpers::block_import::is_major_importing;
 use v1::traits::Eth;
@@ -106,11 +105,12 @@ pub struct EthClient<C, SN: ?Sized, S: ?Sized, M, EM> where
 	client: Arc<C>,
 	snapshot: Arc<SN>,
 	sync: Arc<S>,
-	accounts: Arc<AccountProvider>,
+	accounts: Arc<Fn() -> Vec<Address> + Send + Sync>,
 	miner: Arc<M>,
 	external_miner: Arc<EM>,
 	seed_compute: Mutex<SeedHashCompute>,
 	options: EthClientOptions,
+	deprecation_notice: DeprecationNotice,
 }
 
 #[derive(Debug)]
@@ -146,6 +146,33 @@ enum PendingTransactionId {
 	Location(PendingOrBlock, usize)
 }
 
+pub fn base_logs<C, M, T: StateInfo + 'static> (client: &C, miner: &M, filter: Filter) -> BoxFuture<Vec<Log>> where
+	C: miner::BlockChainClient + BlockChainClient + StateClient<State=T> + Call<State=T>,
+	M: MinerService<State=T> {
+	let include_pending = filter.to_block == Some(BlockNumber::Pending);
+	let filter: EthcoreFilter = match filter.try_into() {
+		Ok(value) => value,
+		Err(err) => return Box::new(future::err(err)),
+	};
+	let mut logs = match client.logs(filter.clone()) {
+		Ok(logs) => logs
+			.into_iter()
+			.map(From::from)
+			.collect::<Vec<Log>>(),
+		Err(id) => return Box::new(future::err(errors::filter_block_not_found(id))),
+	};
+
+	if include_pending {
+		let best_block = client.chain_info().best_block_number;
+		let pending = pending_logs(&*miner, best_block, &filter);
+		logs.extend(pending);
+	}
+
+	let logs = limit_logs(logs, filter.limit);
+
+	Box::new(future::ok(logs))
+}
+
 impl<C, SN: ?Sized, S: ?Sized, M, EM, T: StateInfo + 'static> EthClient<C, SN, S, M, EM> where
 	C: miner::BlockChainClient + BlockChainClient + StateClient<State=T> + Call<State=T> + EngineInfo,
 	SN: SnapshotService,
@@ -158,7 +185,7 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM, T: StateInfo + 'static> EthClient<C, SN, S
 		client: &Arc<C>,
 		snapshot: &Arc<SN>,
 		sync: &Arc<S>,
-		accounts: &Arc<AccountProvider>,
+		accounts: &Arc<Fn() -> Vec<Address> + Send + Sync>,
 		miner: &Arc<M>,
 		em: &Arc<EM>,
 		options: EthClientOptions
@@ -172,6 +199,7 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM, T: StateInfo + 'static> EthClient<C, SN, S
 			external_miner: em.clone(),
 			seed_compute: Mutex::new(SeedHashCompute::default()),
 			options: options,
+			deprecation_notice: Default::default(),
 		}
 	}
 
@@ -439,7 +467,7 @@ pub fn pending_logs<M>(miner: &M, best_block: EthBlockNumber, filter: &EthcoreFi
 }
 
 fn check_known<C>(client: &C, number: BlockNumber) -> Result<()> where C: BlockChainClient {
-	use ethcore::block_status::BlockStatus;
+	use types::block_status::BlockStatus;
 
 	let id = match number {
 		BlockNumber::Pending => return Ok(()),
@@ -505,9 +533,9 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM, T: StateInfo + 'static> Eth for EthClient<
 	fn author(&self) -> Result<RpcH160> {
 		let miner = self.miner.authoring_params().author;
 		if miner == 0.into() {
-			self.accounts.accounts()
-				.ok()
-				.and_then(|a| a.first().cloned())
+			(self.accounts)()
+				.first()
+				.cloned()
 				.map(From::from)
 				.ok_or_else(|| errors::account("No accounts were found", ""))
 		} else {
@@ -532,8 +560,9 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM, T: StateInfo + 'static> Eth for EthClient<
 	}
 
 	fn accounts(&self) -> Result<Vec<RpcH160>> {
-		let accounts = self.accounts.accounts()
-			.map_err(|e| errors::account("Could not fetch accounts.", e))?;
+		self.deprecation_notice.print("eth_accounts", deprecated::msgs::ACCOUNTS);
+
+		let accounts = (self.accounts)();
 		Ok(accounts.into_iter().map(Into::into).collect())
 	}
 
@@ -541,7 +570,7 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM, T: StateInfo + 'static> Eth for EthClient<
 		Ok(RpcU256::from(self.client.chain_info().best_block_number))
 	}
 
-	fn balance(&self, address: RpcH160, num: Trailing<BlockNumber>) -> BoxFuture<RpcU256> {
+	fn balance(&self, address: RpcH160, num: Option<BlockNumber>) -> BoxFuture<RpcU256> {
 		let address = address.into();
 
 		let num = num.unwrap_or_default();
@@ -555,7 +584,7 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM, T: StateInfo + 'static> Eth for EthClient<
 		Box::new(future::done(res))
 	}
 
-	fn proof(&self, address: RpcH160, values: Vec<RpcH256>, num: Trailing<BlockNumber>) -> BoxFuture<EthAccount> {
+	fn proof(&self, address: RpcH160, values: Vec<RpcH256>, num: Option<BlockNumber>) -> BoxFuture<EthAccount> {
 		try_bf!(errors::require_experimental(self.options.allow_experimental_rpcs, "1186"));
 
 		let a: H160 = address.clone().into();
@@ -567,7 +596,7 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM, T: StateInfo + 'static> Eth for EthClient<
 			BlockNumber::Earliest => BlockId::Earliest,
 			BlockNumber::Latest => BlockId::Latest,
 			BlockNumber::Pending => {
-				warn!("`Pending` is deprecated and may be removed in future versions. Falling back to `Latest`");
+				self.deprecation_notice.print("`Pending`", Some("falling back to `Latest`"));
 				BlockId::Latest
 			}
 		};
@@ -598,8 +627,7 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM, T: StateInfo + 'static> Eth for EthClient<
 		Box::new(future::done(res))
 	}
 
-	
-	fn storage_at(&self, address: RpcH160, pos: RpcU256, num: Trailing<BlockNumber>) -> BoxFuture<RpcH256> {
+	fn storage_at(&self, address: RpcH160, pos: RpcU256, num: Option<BlockNumber>) -> BoxFuture<RpcH256> {
 		let address: Address = RpcH160::into(address);
 		let position: U256 = RpcU256::into(pos);
 
@@ -614,7 +642,7 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM, T: StateInfo + 'static> Eth for EthClient<
 		Box::new(future::done(res))
 	}
 
-	fn transaction_count(&self, address: RpcH160, num: Trailing<BlockNumber>) -> BoxFuture<RpcU256> {
+	fn transaction_count(&self, address: RpcH160, num: Option<BlockNumber>) -> BoxFuture<RpcU256> {
 		let address: Address = RpcH160::into(address);
 
 		let res = match num.unwrap_or_default() {
@@ -697,7 +725,7 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM, T: StateInfo + 'static> Eth for EthClient<
 		}))
 	}
 
-	fn code_at(&self, address: RpcH160, num: Trailing<BlockNumber>) -> BoxFuture<Bytes> {
+	fn code_at(&self, address: RpcH160, num: Option<BlockNumber>) -> BoxFuture<Bytes> {
 		let address: Address = RpcH160::into(address);
 
 		let num = num.unwrap_or_default();
@@ -803,31 +831,10 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM, T: StateInfo + 'static> Eth for EthClient<
 	}
 
 	fn logs(&self, filter: Filter) -> BoxFuture<Vec<Log>> {
-		let include_pending = filter.to_block == Some(BlockNumber::Pending);
-		let filter: EthcoreFilter = match filter.try_into() {
-			Ok(value) => value,
-			Err(err) => return Box::new(future::err(err)),
-		};
-		let mut logs = match self.client.logs(filter.clone()) {
-			Ok(logs) => logs
-				.into_iter()
-				.map(From::from)
-				.collect::<Vec<Log>>(),
-			Err(id) => return Box::new(future::err(errors::filter_block_not_found(id))),
-		};
-
-		if include_pending {
-			let best_block = self.client.chain_info().best_block_number;
-			let pending = pending_logs(&*self.miner, best_block, &filter);
-			logs.extend(pending);
-		}
-
-		let logs = limit_logs(logs, filter.limit);
-
-		Box::new(future::ok(logs))
+		base_logs(&*self.client, &*self.miner, filter.into())
 	}
 
-	fn work(&self, no_new_work_timeout: Trailing<u64>) -> Result<Work> {
+	fn work(&self, no_new_work_timeout: Option<u64>) -> Result<Work> {
 		let no_new_work_timeout = no_new_work_timeout.unwrap_or_default();
 
 		// check if we're still syncing and return empty strings in that case
@@ -913,7 +920,7 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM, T: StateInfo + 'static> Eth for EthClient<
 		self.send_raw_transaction(raw)
 	}
 
-	fn call(&self, request: CallRequest, num: Trailing<BlockNumber>) -> BoxFuture<Bytes> {
+	fn call(&self, request: CallRequest, num: Option<BlockNumber>) -> BoxFuture<Bytes> {
 		let request = CallRequest::into(request);
 		let signed = try_bf!(fake_sign::sign_call(request));
 
@@ -953,7 +960,7 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM, T: StateInfo + 'static> Eth for EthClient<
 		))
 	}
 
-	fn estimate_gas(&self, request: CallRequest, num: Trailing<BlockNumber>) -> BoxFuture<RpcU256> {
+	fn estimate_gas(&self, request: CallRequest, num: Option<BlockNumber>) -> BoxFuture<RpcU256> {
 		let request = CallRequest::into(request);
 		let signed = try_bf!(fake_sign::sign_call(request));
 		let num = num.unwrap_or_default();

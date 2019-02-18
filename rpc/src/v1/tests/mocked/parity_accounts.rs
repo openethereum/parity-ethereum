@@ -1,28 +1,29 @@
-// Copyright 2015-2018 Parity Technologies (UK) Ltd.
-// This file is part of Parity.
+// Copyright 2015-2019 Parity Technologies (UK) Ltd.
+// This file is part of Parity Ethereum.
 
-// Parity is free software: you can redistribute it and/or modify
+// Parity Ethereum is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
 // the Free Software Foundation, either version 3 of the License, or
 // (at your option) any later version.
 
-// Parity is distributed in the hope that it will be useful,
+// Parity Ethereum is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 // GNU General Public License for more details.
 
 // You should have received a copy of the GNU General Public License
-// along with Parity.  If not, see <http://www.gnu.org/licenses/>.
+// along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
 use std::sync::Arc;
 
-use ethcore::account_provider::{AccountProvider, AccountProviderSettings};
+use accounts::{AccountProvider, AccountProviderSettings};
+use ethereum_types::Address;
 use ethstore::EthStore;
 use ethstore::accounts_dir::RootDiskDirectory;
 use tempdir::TempDir;
 
 use jsonrpc_core::IoHandler;
-use v1::{ParityAccounts, ParityAccountsClient};
+use v1::{ParityAccounts, ParityAccountsInfo, ParityAccountsClient};
 
 struct ParityAccountsTester {
 	accounts: Arc<AccountProvider>,
@@ -42,8 +43,10 @@ fn accounts_provider_with_vaults_support(temp_path: &str) -> Arc<AccountProvider
 fn setup_with_accounts_provider(accounts_provider: Arc<AccountProvider>) -> ParityAccountsTester {
 	let opt_ap = accounts_provider.clone();
 	let parity_accounts = ParityAccountsClient::new(&opt_ap);
+	let parity_accounts2 = ParityAccountsClient::new(&opt_ap);
 	let mut io = IoHandler::default();
-	io.extend_with(parity_accounts.to_delegate());
+	io.extend_with(ParityAccounts::to_delegate(parity_accounts));
+	io.extend_with(ParityAccountsInfo::to_delegate(parity_accounts2));
 
 	let tester = ParityAccountsTester {
 		accounts: accounts_provider,
@@ -59,6 +62,47 @@ fn setup() -> ParityAccountsTester {
 
 fn setup_with_vaults_support(temp_path: &str) -> ParityAccountsTester {
 	setup_with_accounts_provider(accounts_provider_with_vaults_support(temp_path))
+}
+
+#[test]
+fn rpc_parity_accounts_info() {
+	let tester = setup();
+	let io = tester.io;
+
+	tester.accounts.new_account(&"".into()).unwrap();
+	let accounts = tester.accounts.accounts().unwrap();
+	assert_eq!(accounts.len(), 1);
+	let address = accounts[0];
+
+	tester.accounts.set_address_name(1.into(), "XX".into());
+	tester.accounts.set_account_name(address.clone(), "Test".into()).unwrap();
+	tester.accounts.set_account_meta(address.clone(), "{foo: 69}".into()).unwrap();
+
+	let request = r#"{"jsonrpc": "2.0", "method": "parity_accountsInfo", "params": [], "id": 1}"#;
+	let response = format!("{{\"jsonrpc\":\"2.0\",\"result\":{{\"0x{:x}\":{{\"name\":\"Test\"}}}},\"id\":1}}", address);
+	assert_eq!(io.handle_request_sync(request), Some(response));
+}
+
+#[test]
+fn rpc_parity_default_account() {
+	let tester = setup();
+	let io = tester.io;
+
+	// Check empty
+	let address = Address::default();
+	let request = r#"{"jsonrpc": "2.0", "method": "parity_defaultAccount", "params": [], "id": 1}"#;
+	let response = format!("{{\"jsonrpc\":\"2.0\",\"result\":\"0x{:x}\",\"id\":1}}", address);
+	assert_eq!(io.handle_request_sync(request), Some(response));
+
+	// With account
+	tester.accounts.new_account(&"".into()).unwrap();
+	let accounts = tester.accounts.accounts().unwrap();
+	assert_eq!(accounts.len(), 1);
+	let address = accounts[0];
+
+	let request = r#"{"jsonrpc": "2.0", "method": "parity_defaultAccount", "params": [], "id": 1}"#;
+	let response = format!("{{\"jsonrpc\":\"2.0\",\"result\":\"0x{:x}\",\"id\":1}}", address);
+	assert_eq!(io.handle_request_sync(request), Some(response));
 }
 
 #[test]

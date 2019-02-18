@@ -1,18 +1,18 @@
-// Copyright 2015-2018 Parity Technologies (UK) Ltd.
-// This file is part of Parity.
+// Copyright 2015-2019 Parity Technologies (UK) Ltd.
+// This file is part of Parity Ethereum.
 
-// Parity is free software: you can redistribute it and/or modify
+// Parity Ethereum is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
 // the Free Software Foundation, either version 3 of the License, or
 // (at your option) any later version.
 
-// Parity is distributed in the hope that it will be useful,
+// Parity Ethereum is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 // GNU General Public License for more details.
 
 // You should have received a copy of the GNU General Public License
-// along with Parity.  If not, see <http://www.gnu.org/licenses/>.
+// along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
 use network::{Error, NetworkConfiguration, NetworkProtocolHandler, NonReservedPeerMode};
 use network::{NetworkContext, PeerId, ProtocolId, NetworkIoMessage};
@@ -20,7 +20,7 @@ use host::Host;
 use io::*;
 use parking_lot::RwLock;
 use std::net::SocketAddr;
-use std::ops::Range;
+use std::ops::RangeInclusive;
 use std::sync::Arc;
 use ansi_term::Colour;
 use network::ConnectionFilter;
@@ -95,12 +95,8 @@ impl NetworkService {
 	}
 
 	/// Returns the number of peers allowed.
-	///
-	/// Keep in mind that `range.end` is *exclusive*.
-	pub fn num_peers_range(&self) -> Range<u32> {
-		let start = self.config.min_peers;
-		let end = self.config.max_peers + 1;
-		start .. end
+	pub fn num_peers_range(&self) -> RangeInclusive<u32> {
+		self.config.min_peers..=self.config.max_peers
 	}
 
 	/// Returns external url if available.

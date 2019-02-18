@@ -1,18 +1,18 @@
-// Copyright 2015-2018 Parity Technologies (UK) Ltd.
-// This file is part of Parity.
+// Copyright 2015-2019 Parity Technologies (UK) Ltd.
+// This file is part of Parity Ethereum.
 
-// Parity is free software: you can redistribute it and/or modify
+// Parity Ethereum is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
 // the Free Software Foundation, either version 3 of the License, or
 // (at your option) any later version.
 
-// Parity is distributed in the hope that it will be useful,
+// Parity Ethereum is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 // GNU General Public License for more details.
 
 // You should have received a copy of the GNU General Public License
-// along with Parity.  If not, see <http://www.gnu.org/licenses/>.
+// along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
 //! Block and transaction verification functions
 //!
@@ -32,12 +32,32 @@ use triehash::ordered_trie_root;
 use unexpected::{Mismatch, OutOfBounds};
 
 use blockchain::*;
-use client::{BlockInfo, CallContract};
+use call_contract::CallContract;
+use client::BlockInfo;
 use engines::EthEngine;
 use error::{BlockError, Error};
-use header::{BlockNumber, Header};
-use transaction::SignedTransaction;
+use types::{BlockNumber, header::Header};
+use types::transaction::SignedTransaction;
 use verification::queue::kind::blocks::Unverified;
+
+
+/// Returns `Ok<SystemTime>` when the result less or equal to `i32::max_value` to prevent `SystemTime` to panic because
+/// it is platform specific, may be i32 or i64.
+///
+/// `Err<BlockError::TimestampOver` otherwise.
+///
+// FIXME: @niklasad1 - remove this when and use `SystemTime::checked_add`
+// when https://github.com/rust-lang/rust/issues/55940 is stabilized.
+fn timestamp_checked_add(sys: SystemTime, d2: Duration) -> Result<SystemTime, BlockError> {
+	let d1 = sys.duration_since(UNIX_EPOCH).map_err(|_| BlockError::TimestampOverflow)?;
+	let total_time = d1.checked_add(d2).ok_or(BlockError::TimestampOverflow)?;
+
+	if total_time.as_secs() <= i32::max_value() as u64 {
+		Ok(sys + d2)
+	} else {
+		Err(BlockError::TimestampOverflow)
+	}
+}
 
 /// Preprocessed block data gathered in `verify_block_unordered` call
 pub struct PreverifiedBlock {
@@ -305,7 +325,7 @@ pub fn verify_header_params(header: &Header, engine: &EthEngine, is_full: bool, 
 		const ACCEPTABLE_DRIFT: Duration = Duration::from_secs(15);
 		let max_time = SystemTime::now() + ACCEPTABLE_DRIFT;
 		let invalid_threshold = max_time + ACCEPTABLE_DRIFT * 9;
-		let timestamp = UNIX_EPOCH + Duration::from_secs(header.timestamp());
+		let timestamp = timestamp_checked_add(UNIX_EPOCH, Duration::from_secs(header.timestamp()))?;
 
 		if timestamp > invalid_threshold {
 			return Err(From::from(BlockError::InvalidTimestamp(OutOfBounds { max: Some(max_time), min: None, found: timestamp })))
@@ -327,8 +347,8 @@ fn verify_parent(header: &Header, parent: &Header, engine: &EthEngine) -> Result
 	let gas_limit_divisor = engine.params().gas_limit_bound_divisor;
 
 	if !engine.is_timestamp_valid(header.timestamp(), parent.timestamp()) {
-		let min = SystemTime::now() + Duration::from_secs(parent.timestamp() + 1);
-		let found = SystemTime::now() + Duration::from_secs(header.timestamp());
+		let min = timestamp_checked_add(SystemTime::now(), Duration::from_secs(parent.timestamp().saturating_add(1)))?;
+		let found = timestamp_checked_add(SystemTime::now(), Duration::from_secs(header.timestamp()))?;
 		return Err(From::from(BlockError::InvalidTimestamp(OutOfBounds { max: None, min: Some(min), found })))
 	}
 	if header.number() != parent.number() + 1 {
@@ -378,7 +398,7 @@ mod tests {
 	use std::time::{SystemTime, UNIX_EPOCH};
 	use ethereum_types::{H256, BloomRef, U256};
 	use blockchain::{BlockDetails, TransactionAddress, BlockReceipts};
-	use encoded;
+	use types::encoded;
 	use hash::keccak;
 	use engines::EthEngine;
 	use error::BlockError::*;
@@ -386,7 +406,7 @@ mod tests {
 	use ethkey::{Random, Generator};
 	use spec::{CommonParams, Spec};
 	use test_helpers::{create_test_block_with_data, create_test_block};
-	use transaction::{SignedTransaction, Transaction, UnverifiedTransaction, Action};
+	use types::transaction::{SignedTransaction, Transaction, UnverifiedTransaction, Action};
 	use types::log_entry::{LogEntry, LocalizedLogEntry};
 	use rlp;
 	use triehash::ordered_trie_root;
@@ -638,14 +658,18 @@ mod tests {
 		good_uncle1.set_parent_hash(parent8.hash());
 		good_uncle1.set_difficulty(parent8.difficulty().clone() + diff_inc);
 		good_uncle1.set_timestamp(parent8.timestamp() + 10);
-		good_uncle1.extra_data_mut().push(1u8);
+		let mut ex = good_uncle1.extra_data().to_vec();
+		ex.push(1u8);
+		good_uncle1.set_extra_data(ex);
 
 		let mut good_uncle2 = good.clone();
 		good_uncle2.set_number(8);
 		good_uncle2.set_parent_hash(parent7.hash());
 		good_uncle2.set_difficulty(parent7.difficulty().clone() + diff_inc);
 		good_uncle2.set_timestamp(parent7.timestamp() + 10);
-		good_uncle2.extra_data_mut().push(2u8);
+		let mut ex = good_uncle2.extra_data().to_vec();
+		ex.push(2u8);
+		good_uncle2.set_extra_data(ex);
 
 		let good_uncles = vec![ good_uncle1.clone(), good_uncle2.clone() ];
 		let mut uncles_rlp = RlpStream::new();
@@ -702,12 +726,16 @@ mod tests {
 			TooMuchGasUsed(OutOfBounds { max: Some(header.gas_limit().clone()), min: None, found: header.gas_used().clone() }));
 
 		header = good.clone();
-		header.extra_data_mut().resize(engine.maximum_extra_data_size() + 1, 0u8);
+		let mut ex = header.extra_data().to_vec();
+		ex.resize(engine.maximum_extra_data_size() + 1, 0u8);
+		header.set_extra_data(ex);
 		check_fail(basic_test(&create_test_block(&header), engine),
 			ExtraDataOutOfBounds(OutOfBounds { max: Some(engine.maximum_extra_data_size()), min: None, found: header.extra_data().len() }));
 
 		header = good.clone();
-		header.extra_data_mut().resize(engine.maximum_extra_data_size() + 1, 0u8);
+		let mut ex = header.extra_data().to_vec();
+		ex.resize(engine.maximum_extra_data_size() + 1, 0u8);
+		header.set_extra_data(ex);
 		check_fail(basic_test(&create_test_block(&header), engine),
 			ExtraDataOutOfBounds(OutOfBounds { max: Some(engine.maximum_extra_data_size()), min: None, found: header.extra_data().len() }));
 
@@ -734,7 +762,8 @@ mod tests {
 		check_fail_timestamp(family_test(&create_test_block_with_data(&header, &good_transactions, &good_uncles), engine, &bc), false);
 
 		header = good.clone();
-		header.set_timestamp(2450000000);
+		// will return `BlockError::TimestampOverflow` when timestamp > `i32::max_value()`
+		header.set_timestamp(i32::max_value() as u64);
 		check_fail_timestamp(basic_test(&create_test_block_with_data(&header, &good_transactions, &good_uncles), engine), false);
 
 		header = good.clone();
@@ -778,7 +807,7 @@ mod tests {
 	#[test]
 	fn dust_protection() {
 		use ethkey::{Generator, Random};
-		use transaction::{Transaction, Action};
+		use types::transaction::{Transaction, Action};
 		use machine::EthereumMachine;
 		use engines::NullEngine;
 
@@ -805,5 +834,12 @@ mod tests {
 		let engine = NullEngine::new(Default::default(), machine);
 		check_fail(unordered_test(&create_test_block_with_data(&header, &bad_transactions, &[]), &engine), TooManyTransactions(keypair.address()));
 		unordered_test(&create_test_block_with_data(&header, &good_transactions, &[]), &engine).unwrap();
+	}
+
+	#[test]
+	fn checked_add_systime_dur() {
+		assert!(timestamp_checked_add(UNIX_EPOCH, Duration::new(i32::max_value() as u64 + 1, 0)).is_err());
+		assert!(timestamp_checked_add(UNIX_EPOCH, Duration::new(i32::max_value() as u64, 0)).is_ok());
+		assert!(timestamp_checked_add(UNIX_EPOCH, Duration::new(i32::max_value() as u64 - 1, 1_000_000_000)).is_ok());
 	}
 }

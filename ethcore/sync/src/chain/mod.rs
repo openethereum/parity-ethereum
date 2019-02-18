@@ -1,18 +1,18 @@
-// Copyright 2015-2018 Parity Technologies (UK) Ltd.
-// This file is part of Parity.
+// Copyright 2015-2019 Parity Technologies (UK) Ltd.
+// This file is part of Parity Ethereum.
 
-// Parity is free software: you can redistribute it and/or modify
+// Parity Ethereum is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
 // the Free Software Foundation, either version 3 of the License, or
 // (at your option) any later version.
 
-// Parity is distributed in the hope that it will be useful,
+// Parity Ethereum is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 // GNU General Public License for more details.
 
 // You should have received a copy of the GNU General Public License
-// along with Parity.  If not, see <http://www.gnu.org/licenses/>.
+// along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
 //! `BlockChain` synchronization strategy.
 //! Syncs to peers and keeps up to date.
@@ -88,6 +88,7 @@
 //! All other messages are ignored.
 
 mod handler;
+pub mod sync_packet;
 mod propagator;
 mod requester;
 mod supplier;
@@ -104,7 +105,7 @@ use parking_lot::{Mutex, RwLock, RwLockWriteGuard};
 use bytes::Bytes;
 use rlp::{RlpStream, DecoderError};
 use network::{self, PeerId, PacketId};
-use ethcore::header::{BlockNumber};
+use network::client_version::ClientVersion;
 use ethcore::client::{BlockChainClient, BlockStatus, BlockId, BlockChainInfo, BlockQueueInfo};
 use ethcore::snapshot::{RestorationStatus};
 use sync_io::SyncIo;
@@ -115,9 +116,16 @@ use snapshot::{Snapshot};
 use api::{EthProtocolInfo as PeerInfoDigest, WARP_SYNC_PROTOCOL_ID, PriorityTask};
 use private_tx::PrivateTxHandler;
 use transactions_stats::{TransactionsStats, Stats as TransactionStats};
-use transaction::UnverifiedTransaction;
+use types::transaction::UnverifiedTransaction;
+use types::BlockNumber;
 
 use self::handler::SyncHandler;
+use self::sync_packet::{PacketInfo, SyncPacket};
+use self::sync_packet::SyncPacket::{
+	NewBlockPacket,
+	StatusPacket,
+};
+
 use self::propagator::SyncPropagator;
 use self::requester::SyncRequester;
 pub(crate) use self::supplier::SyncSupplier;
@@ -140,7 +148,6 @@ pub const PAR_PROTOCOL_VERSION_3: (u8, u8) = (3, 0x18);
 pub const MAX_BODIES_TO_SEND: usize = 256;
 pub const MAX_HEADERS_TO_SEND: usize = 512;
 pub const MAX_NODE_DATA_TO_SEND: usize = 1024;
-pub const MAX_RECEIPTS_TO_SEND: usize = 1024;
 pub const MAX_RECEIPTS_HEADERS_TO_SEND: usize = 256;
 const MIN_PEERS_PROPAGATION: usize = 4;
 const MAX_PEERS_PROPAGATION: usize = 128;
@@ -153,28 +160,6 @@ const MAX_TRANSACTION_PACKET_SIZE: usize = 5 * 1024 * 1024;
 // Min number of blocks to be behind for a snapshot sync
 const SNAPSHOT_RESTORE_THRESHOLD: BlockNumber = 30000;
 const SNAPSHOT_MIN_PEERS: usize = 3;
-
-const STATUS_PACKET: u8 = 0x00;
-const NEW_BLOCK_HASHES_PACKET: u8 = 0x01;
-const TRANSACTIONS_PACKET: u8 = 0x02;
-pub const GET_BLOCK_HEADERS_PACKET: u8 = 0x03;
-pub const BLOCK_HEADERS_PACKET: u8 = 0x04;
-pub const GET_BLOCK_BODIES_PACKET: u8 = 0x05;
-const BLOCK_BODIES_PACKET: u8 = 0x06;
-const NEW_BLOCK_PACKET: u8 = 0x07;
-
-pub const GET_NODE_DATA_PACKET: u8 = 0x0d;
-pub const NODE_DATA_PACKET: u8 = 0x0e;
-pub const GET_RECEIPTS_PACKET: u8 = 0x0f;
-pub const RECEIPTS_PACKET: u8 = 0x10;
-
-pub const GET_SNAPSHOT_MANIFEST_PACKET: u8 = 0x11;
-pub const SNAPSHOT_MANIFEST_PACKET: u8 = 0x12;
-pub const GET_SNAPSHOT_DATA_PACKET: u8 = 0x13;
-pub const SNAPSHOT_DATA_PACKET: u8 = 0x14;
-pub const CONSENSUS_DATA_PACKET: u8 = 0x15;
-pub const PRIVATE_TRANSACTION_PACKET: u8 = 0x16;
-pub const SIGNED_PRIVATE_TRANSACTION_PACKET: u8 = 0x17;
 
 const MAX_SNAPSHOT_CHUNKS_DOWNLOAD_AHEAD: usize = 3;
 
@@ -333,6 +318,8 @@ pub struct PeerInfo {
 	last_sent_private_transactions: H256FastSet,
 	/// Pending request is expired and result should be ignored
 	expired: bool,
+	/// Private transactions enabled
+	private_tx_enabled: bool,
 	/// Peer fork confirmation status
 	confirmation: ForkConfirmation,
 	/// Best snapshot hash
@@ -341,6 +328,8 @@ pub struct PeerInfo {
 	snapshot_number: Option<BlockNumber>,
 	/// Block set requested
 	block_set: Option<BlockSet>,
+	/// Version of the software the peer is running
+	client_version: ClientVersion,
 }
 
 impl PeerInfo {
@@ -395,7 +384,7 @@ impl ChainSyncApi {
 	pub fn new(
 		config: SyncConfig,
 		chain: &BlockChainClient,
-		private_tx_handler: Arc<PrivateTxHandler>,
+		private_tx_handler: Option<Arc<PrivateTxHandler>>,
 		priority_tasks: mpsc::Receiver<PriorityTask>,
 	) -> Self {
 		ChainSyncApi {
@@ -480,7 +469,7 @@ impl ChainSyncApi {
 					for peers in sync.get_peers(&chain_info, PeerState::SameBlock).chunks(10) {
 						check_deadline(deadline)?;
 						for peer in peers {
-							SyncPropagator::send_packet(io, *peer, NEW_BLOCK_PACKET, rlp.clone());
+							SyncPropagator::send_packet(io, *peer, NewBlockPacket, rlp.clone());
 							if let Some(ref mut peer) = sync.peers.get_mut(peer) {
 								peer.latest_hash = hash;
 							}
@@ -626,7 +615,7 @@ pub struct ChainSync {
 	/// Enable ancient block downloading
 	download_old_blocks: bool,
 	/// Shared private tx service.
-	private_tx_handler: Arc<PrivateTxHandler>,
+	private_tx_handler: Option<Arc<PrivateTxHandler>>,
 	/// Enable warp sync.
 	warp_sync: WarpSync,
 }
@@ -636,7 +625,7 @@ impl ChainSync {
 	pub fn new(
 		config: SyncConfig,
 		chain: &BlockChainClient,
-		private_tx_handler: Arc<PrivateTxHandler>,
+		private_tx_handler: Option<Arc<PrivateTxHandler>>,
 	) -> Self {
 		let chain_info = chain.chain_info();
 		let best_block = chain.chain_info().best_block_number;
@@ -963,7 +952,7 @@ impl ChainSync {
 					if !have_latest && (higher_difficulty || force || self.state == SyncState::NewBlocks) {
 						// check if got new blocks to download
 						trace!(target: "sync", "Syncing with peer {}, force={}, td={:?}, our td={}, state={:?}", peer_id, force, peer_difficulty, syncing_difficulty, self.state);
-						if let Some(request) = self.new_blocks.request_blocks(io, num_active_peers) {
+						if let Some(request) = self.new_blocks.request_blocks(peer_id, io, num_active_peers) {
 							SyncRequester::request_blocks(self, io, peer_id, request, BlockSet::NewBlocks);
 							if self.state == SyncState::Idle {
 								self.state = SyncState::Blocks;
@@ -976,7 +965,7 @@ impl ChainSync {
 					let equal_or_higher_difficulty = peer_difficulty.map_or(false, |pd| pd >= syncing_difficulty);
 
 					if force || equal_or_higher_difficulty {
-						if let Some(request) = self.old_blocks.as_mut().and_then(|d| d.request_blocks(io, num_active_peers)) {
+						if let Some(request) = self.old_blocks.as_mut().and_then(|d| d.request_blocks(peer_id, io, num_active_peers)) {
 							SyncRequester::request_blocks(self, io, peer_id, request, BlockSet::OldBlocks);
 							return;
 						}
@@ -1120,9 +1109,11 @@ impl ChainSync {
 	fn send_status(&mut self, io: &mut SyncIo, peer: PeerId) -> Result<(), network::Error> {
 		let warp_protocol_version = io.protocol_version(&WARP_SYNC_PROTOCOL_ID, peer);
 		let warp_protocol = warp_protocol_version != 0;
+		let private_tx_protocol = warp_protocol_version >= PAR_PROTOCOL_VERSION_3.0;
 		let protocol = if warp_protocol { warp_protocol_version } else { ETH_PROTOCOL_VERSION_63.0 };
 		trace!(target: "sync", "Sending status to {}, protocol version {}", peer, protocol);
-		let mut packet = RlpStream::new_list(if warp_protocol { 7 } else { 5 });
+		let mut packet = RlpStream::new();
+		packet.begin_unbounded_list();
 		let chain = io.chain().chain_info();
 		packet.append(&(protocol as u32));
 		packet.append(&self.network_id);
@@ -1135,8 +1126,12 @@ impl ChainSync {
 			let manifest_hash = manifest.map_or(H256::new(), |m| keccak(m.into_rlp()));
 			packet.append(&manifest_hash);
 			packet.append(&block_number);
+			if private_tx_protocol {
+				packet.append(&self.private_tx_handler.is_some());
+			}
 		}
-		io.respond(STATUS_PACKET, packet.out())
+		packet.complete_unbounded_list();
+		io.respond(StatusPacket.id(), packet.out())
 	}
 
 	pub fn maintain_peers(&mut self, io: &mut SyncIo) {
@@ -1246,7 +1241,8 @@ impl ChainSync {
 	fn get_private_transaction_peers(&self, transaction_hash: &H256) -> Vec<PeerId> {
 		self.peers.iter().filter_map(
 			|(id, p)| if p.protocol_version >= PAR_PROTOCOL_VERSION_3.0
-				&& !p.last_sent_private_transactions.contains(transaction_hash) {
+				&& !p.last_sent_private_transactions.contains(transaction_hash)
+				&& p.private_tx_enabled {
 					Some(*id)
 				} else {
 					None
@@ -1320,7 +1316,7 @@ impl ChainSync {
 	}
 
 	/// Broadcast private transaction message to peers.
-	pub fn propagate_private_transaction(&mut self, io: &mut SyncIo, transaction_hash: H256, packet_id: PacketId, packet: Bytes) {
+	pub fn propagate_private_transaction(&mut self, io: &mut SyncIo, transaction_hash: H256, packet_id: SyncPacket, packet: Bytes) {
 		SyncPropagator::propagate_private_transaction(self, io, transaction_hash, packet_id, packet);
 	}
 }
@@ -1339,10 +1335,9 @@ pub mod tests {
 	use super::*;
 	use ::SyncConfig;
 	use super::{PeerInfo, PeerAsking};
-	use ethcore::header::*;
 	use ethcore::client::{BlockChainClient, EachBlockWith, TestBlockChainClient, ChainInfo, BlockInfo};
 	use ethcore::miner::{MinerService, PendingOrdering};
-	use private_tx::NoopPrivateTxHandler;
+	use types::header::Header;
 
 	pub fn get_dummy_block(order: u32, parent_hash: H256) -> Bytes {
 		let mut header = Header::new();
@@ -1426,7 +1421,7 @@ pub mod tests {
 	}
 
 	pub fn dummy_sync_with_peer(peer_latest_hash: H256, client: &BlockChainClient) -> ChainSync {
-		let mut sync = ChainSync::new(SyncConfig::default(), client, Arc::new(NoopPrivateTxHandler));
+		let mut sync = ChainSync::new(SyncConfig::default(), client, None);
 		insert_dummy_peer(&mut sync, 0, peer_latest_hash);
 		sync
 	}
@@ -1446,11 +1441,13 @@ pub mod tests {
 				last_sent_transactions: Default::default(),
 				last_sent_private_transactions: Default::default(),
 				expired: false,
+				private_tx_enabled: false,
 				confirmation: super::ForkConfirmation::Confirmed,
 				snapshot_number: None,
 				snapshot_hash: None,
 				asking_snapshot_data: None,
 				block_set: None,
+				client_version: ClientVersion::from(""),
 			});
 
 	}
@@ -1599,4 +1596,3 @@ pub mod tests {
 		assert_eq!(status.status.transaction_count, 0);
 	}
 }
-

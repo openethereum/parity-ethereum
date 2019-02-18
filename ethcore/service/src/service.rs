@@ -1,18 +1,18 @@
-// Copyright 2015-2018 Parity Technologies (UK) Ltd.
-// This file is part of Parity.
+// Copyright 2015-2019 Parity Technologies (UK) Ltd.
+// This file is part of Parity Ethereum.
 
-// Parity is free software: you can redistribute it and/or modify
+// Parity Ethereum is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
 // the Free Software Foundation, either version 3 of the License, or
 // (at your option) any later version.
 
-// Parity is distributed in the hope that it will be useful,
+// Parity Ethereum is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 // GNU General Public License for more details.
 
 // You should have received a copy of the GNU General Public License
-// along with Parity.  If not, see <http://www.gnu.org/licenses/>.
+// along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
 //! Creates and registers client and network services.
 
@@ -26,15 +26,14 @@ use io::{IoContext, TimerToken, IoHandler, IoService, IoError};
 use stop_guard::StopGuard;
 
 use sync::PrivateTxHandler;
-use ethcore::{BlockChainDB, BlockChainDBHandler};
+use blockchain::{BlockChainDB, BlockChainDBHandler};
 use ethcore::client::{Client, ClientConfig, ChainNotify, ClientIoMessage};
 use ethcore::miner::Miner;
 use ethcore::snapshot::service::{Service as SnapshotService, ServiceParams as SnapServiceParams};
 use ethcore::snapshot::{SnapshotService as _SnapshotService, RestorationStatus};
 use ethcore::spec::Spec;
-use ethcore::account_provider::AccountProvider;
 
-use ethcore_private_tx::{self, Importer};
+use ethcore_private_tx::{self, Importer, Signer};
 use Error;
 
 pub struct PrivateTxService {
@@ -96,9 +95,10 @@ impl ClientService {
 		restoration_db_handler: Box<BlockChainDBHandler>,
 		_ipc_path: &Path,
 		miner: Arc<Miner>,
-		account_provider: Arc<AccountProvider>,
+		signer: Arc<Signer>,
 		encryptor: Box<ethcore_private_tx::Encryptor>,
 		private_tx_conf: ethcore_private_tx::ProviderConfig,
+		private_encryptor_conf: ethcore_private_tx::EncryptorConfig,
 		) -> Result<ClientService, Error>
 	{
 		let io_service = IoService::<ClientIoMessage>::start()?;
@@ -127,13 +127,18 @@ impl ClientService {
 		};
 		let snapshot = Arc::new(SnapshotService::new(snapshot_params)?);
 
+		let private_keys = Arc::new(ethcore_private_tx::SecretStoreKeys::new(
+			client.clone(),
+			private_encryptor_conf.key_server_account,
+		));
 		let provider = Arc::new(ethcore_private_tx::Provider::new(
-				client.clone(),
-				miner,
-				account_provider,
-				encryptor,
-				private_tx_conf,
-				io_service.channel(),
+			client.clone(),
+			miner,
+			signer,
+			encryptor,
+			private_tx_conf,
+			io_service.channel(),
+			private_keys,
 		));
 		let private_tx = Arc::new(PrivateTxService::new(provider));
 
@@ -275,11 +280,10 @@ mod tests {
 
 	use tempdir::TempDir;
 
-	use ethcore::account_provider::AccountProvider;
+	use ethcore_db::NUM_COLUMNS;
 	use ethcore::client::ClientConfig;
 	use ethcore::miner::Miner;
 	use ethcore::spec::Spec;
-	use ethcore::db::NUM_COLUMNS;
 	use ethcore::test_helpers;
 	use kvdb_rocksdb::{DatabaseConfig, CompactionProfile};
 	use super::*;
@@ -311,8 +315,9 @@ mod tests {
 			restoration_db_handler,
 			tempdir.path(),
 			Arc::new(Miner::new_for_tests(&spec, None)),
-			Arc::new(AccountProvider::transient_provider()),
+			Arc::new(ethcore_private_tx::DummySigner),
 			Box::new(ethcore_private_tx::NoopEncryptor),
+			Default::default(),
 			Default::default(),
 		);
 		assert!(service.is_ok());

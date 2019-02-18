@@ -1,18 +1,18 @@
-// Copyright 2015-2018 Parity Technologies (UK) Ltd.
-// This file is part of Parity.
+// Copyright 2015-2019 Parity Technologies (UK) Ltd.
+// This file is part of Parity Ethereum.
 
-// Parity is free software: you can redistribute it and/or modify
+// Parity Ethereum is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
 // the Free Software Foundation, either version 3 of the License, or
 // (at your option) any later version.
 
-// Parity is distributed in the hope that it will be useful,
+// Parity Ethereum is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 // GNU General Public License for more details.
 
 // You should have received a copy of the GNU General Public License
-// along with Parity.  If not, see <http://www.gnu.org/licenses/>.
+// along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
 use std::sync::Arc;
 use std::collections::HashMap;
@@ -35,7 +35,7 @@ macro_rules! reqrep_test {
 	};
 	($name: expr, $input: expr, $info: expr, $block_hashes: expr) => {
 		{
-			::ethcore_logger::init_log();
+			let _ = ::env_logger::try_init();
 			let code = load_sample!($name);
 
 			let mut params = ActionParams::default();
@@ -94,7 +94,7 @@ fn empty() {
 //   logger.wasm writes all these provided fixed header fields to some arbitrary storage keys.
 #[test]
 fn logger() {
-	::ethcore_logger::init_log();
+	let _ = ::env_logger::try_init();
 
 	let code = load_sample!("logger.wasm");
 	let address: Address = "0f572e5295c57f15886f9b263e2f6d2d6c7b5ec6".parse().unwrap();
@@ -148,7 +148,7 @@ fn logger() {
 //      if it has any result.
 #[test]
 fn identity() {
-	::ethcore_logger::init_log();
+	let _ = ::env_logger::try_init();
 
 	let code = load_sample!("identity.wasm");
 	let sender: Address = "01030507090b0d0f11131517191b1d1f21232527".parse().unwrap();
@@ -182,7 +182,7 @@ fn identity() {
 // This also tests byte-perfect memory allocation and in/out ptr lifecycle.
 #[test]
 fn dispersion() {
-	::ethcore_logger::init_log();
+	let _ = ::env_logger::try_init();
 
 	let code = load_sample!("dispersion.wasm");
 
@@ -240,7 +240,7 @@ fn suicide_not() {
 
 #[test]
 fn suicide() {
-	::ethcore_logger::init_log();
+	let _ = ::env_logger::try_init();
 
 	let code = load_sample!("suicidal.wasm");
 
@@ -272,7 +272,7 @@ fn suicide() {
 
 #[test]
 fn create() {
-	::ethcore_logger::init_log();
+	let _ = ::env_logger::try_init();
 
 	let mut params = ActionParams::default();
 	params.gas = U256::from(100_000);
@@ -328,7 +328,7 @@ fn create() {
 
 #[test]
 fn call_msg() {
-	::ethcore_logger::init_log();
+	let _ = ::env_logger::try_init();
 
 	let sender: Address = "01030507090b0d0f11131517191b1d1f21232527".parse().unwrap();
 	let receiver: Address = "0f572e5295c57f15886f9b263e2f6d2d6c7b5ec6".parse().unwrap();
@@ -375,7 +375,7 @@ fn call_msg() {
 // value as `gas` argument to the inner pwasm_ethereum::call
 #[test]
 fn call_msg_gasleft() {
-	::ethcore_logger::init_log();
+	let _ = ::env_logger::try_init();
 
 	let sender: Address = "01030507090b0d0f11131517191b1d1f21232527".parse().unwrap();
 	let receiver: Address = "0f572e5295c57f15886f9b263e2f6d2d6c7b5ec6".parse().unwrap();
@@ -421,7 +421,7 @@ fn call_msg_gasleft() {
 
 #[test]
 fn call_code() {
-	::ethcore_logger::init_log();
+	let _ = ::env_logger::try_init();
 
 	let sender: Address = "01030507090b0d0f11131517191b1d1f21232527".parse().unwrap();
 	let receiver: Address = "0f572e5295c57f15886f9b263e2f6d2d6c7b5ec6".parse().unwrap();
@@ -467,7 +467,7 @@ fn call_code() {
 
 #[test]
 fn call_static() {
-	::ethcore_logger::init_log();
+	let _ = ::env_logger::try_init();
 
 	let sender: Address = "0f572e5295c57f15886f9b263e2f6d2d6c7b5ec6".parse().unwrap();
 	let receiver: Address = "01030507090b0d0f11131517191b1d1f21232527".parse().unwrap();
@@ -563,7 +563,7 @@ fn alloc() {
 // Test prepopulates address into storage, than executes a contract which read that address from storage and write this address into result
 #[test]
 fn storage_read() {
-	::ethcore_logger::init_log();
+	let _ = ::env_logger::try_init();
 
 	let code = load_sample!("storage_read.wasm");
 	let address: Address = "0f572e5295c57f15886f9b263e2f6d2d6c7b5ec6".parse().unwrap();
@@ -591,7 +591,7 @@ fn storage_read() {
 // keccak.wasm runs wasm-std::keccak function on data param and returns hash
 #[test]
 fn keccak() {
-	::ethcore_logger::init_log();
+	let _ = ::env_logger::try_init();
 	let code = load_sample!("keccak.wasm");
 
 	let mut params = ActionParams::default();
@@ -730,7 +730,7 @@ fn math_div() {
 
 #[test]
 fn storage_metering() {
-	::ethcore_logger::init_log();
+	let _ = ::env_logger::try_init();
 
 	// #1
 	let mut ext = FakeExt::new().with_wasm();
@@ -866,7 +866,7 @@ fn externs() {
 // This test checks the ability of wasm contract to invoke gasleft
 #[test]
 fn gasleft() {
-	::ethcore_logger::init_log();
+	let _ = ::env_logger::try_init();
 
 	let mut params = ActionParams::default();
 	params.gas = U256::from(100_000);
@@ -891,7 +891,7 @@ fn gasleft() {
 // ext.schedule.wasm.as_mut().unwrap().have_gasleft = false;
 #[test]
 fn gasleft_fail() {
-	::ethcore_logger::init_log();
+	let _ = ::env_logger::try_init();
 
 	let mut params = ActionParams::default();
 	params.gas = U256::from(100_000);
@@ -906,7 +906,7 @@ fn gasleft_fail() {
 
 #[test]
 fn embedded_keccak() {
-	::ethcore_logger::init_log();
+	let _ = ::env_logger::try_init();
 	let mut code = load_sample!("keccak.wasm");
 	code.extend_from_slice(b"something");
 
@@ -935,7 +935,7 @@ fn embedded_keccak() {
 /// and reversed input as a data
 #[test]
 fn events() {
-	::ethcore_logger::init_log();
+	let _ = ::env_logger::try_init();
 	let code = load_sample!("events.wasm");
 
 	let mut params = ActionParams::default();
@@ -967,7 +967,7 @@ fn events() {
 
 #[test]
 fn recursive() {
-	::ethcore_logger::init_log();
+	let _ = ::env_logger::try_init();
 	let code = load_sample!("recursive.wasm");
 
 	let mut params = ActionParams::default();

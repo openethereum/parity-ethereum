@@ -1,18 +1,18 @@
-// Copyright 2015-2018 Parity Technologies (UK) Ltd.
-// This file is part of Parity.
+// Copyright 2015-2019 Parity Technologies (UK) Ltd.
+// This file is part of Parity Ethereum.
 
-// Parity is free software: you can redistribute it and/or modify
+// Parity Ethereum is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
 // the Free Software Foundation, either version 3 of the License, or
 // (at your option) any later version.
 
-// Parity is distributed in the hope that it will be useful,
+// Parity Ethereum is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 // GNU General Public License for more details.
 
 // You should have received a copy of the GNU General Public License
-// along with Parity.  If not, see <http://www.gnu.org/licenses/>.
+// along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
 //! Simple Client used for EVM tests.
 
@@ -21,7 +21,8 @@ use std::sync::Arc;
 use ethereum_types::{H256, U256, H160};
 use {factory, journaldb, trie, kvdb_memorydb};
 use kvdb::{self, KeyValueDB};
-use {state, state_db, client, executive, trace, transaction, db, spec, pod_state, log_entry, receipt};
+use {state, state_db, client, executive, trace, db, spec, pod_state};
+use types::{log_entry, receipt, transaction};
 use factory::Factories;
 use evm::{VMType, FinalizationResult};
 use vm::{self, ActionParams};
@@ -92,6 +93,7 @@ impl<'a> EvmTestClient<'a> {
 			ForkSpec::EIP158 => Some(ethereum::new_eip161_test()),
 			ForkSpec::Byzantium => Some(ethereum::new_byzantium_test()),
 			ForkSpec::Constantinople => Some(ethereum::new_constantinople_test()),
+			ForkSpec::ConstantinopleFix => Some(ethereum::new_constantinople_fix_test()),
 			ForkSpec::EIP158ToByzantiumAt5 => Some(ethereum::new_transition_test()),
 			ForkSpec::FrontierToHomesteadAt5 | ForkSpec::HomesteadToDaoAt5 | ForkSpec::HomesteadToEIP150At5 => None,
 		}

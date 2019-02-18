@@ -1,18 +1,18 @@
-// Copyright 2015-2018 Parity Technologies (UK) Ltd.
-// This file is part of Parity.
+// Copyright 2015-2019 Parity Technologies (UK) Ltd.
+// This file is part of Parity Ethereum.
 
-// Parity is free software: you can redistribute it and/or modify
+// Parity Ethereum is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
 // the Free Software Foundation, either version 3 of the License, or
 // (at your option) any later version.
 
-// Parity is distributed in the hope that it will be useful,
+// Parity Ethereum is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 // GNU General Public License for more details.
 
 // You should have received a copy of the GNU General Public License
-// along with Parity.  If not, see <http://www.gnu.org/licenses/>.
+// along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
 use std::str::{FromStr, from_utf8};
 use std::{io, fs};
@@ -25,8 +25,9 @@ use hash::{keccak, KECCAK_NULL_RLP};
 use ethereum_types::{U256, H256, Address};
 use bytes::ToPretty;
 use rlp::PayloadInfo;
-use ethcore::account_provider::AccountProvider;
-use ethcore::client::{Mode, DatabaseCompactionProfile, VMType, Nonce, Balance, BlockChainClient, BlockId, BlockInfo, ImportBlock};
+use ethcore::client::{
+	Mode, DatabaseCompactionProfile, VMType, Nonce, Balance, BlockChainClient, BlockId, BlockInfo, ImportBlock, BlockChainReset
+};
 use ethcore::error::{ImportErrorKind, ErrorKind as EthcoreErrorKind, Error as EthcoreError};
 use ethcore::miner::Miner;
 use ethcore::verification::queue::VerifierSettings;
@@ -40,6 +41,7 @@ use dir::Directories;
 use user_defaults::UserDefaults;
 use ethcore_private_tx;
 use db;
+use ansi_term::Colour;
 
 #[derive(Debug, PartialEq)]
 pub enum DataFormat {
@@ -71,6 +73,21 @@ pub enum BlockchainCmd {
 	Import(ImportBlockchain),
 	Export(ExportBlockchain),
 	ExportState(ExportState),
+	Reset(ResetBlockchain)
+}
+
+#[derive(Debug, PartialEq)]
+pub struct ResetBlockchain {
+	pub dirs: Directories,
+	pub spec: SpecType,
+	pub pruning: Pruning,
+	pub pruning_history: u64,
+	pub pruning_memory: usize,
+	pub tracing: Switch,
+	pub fat_db: Switch,
+	pub compaction: DatabaseCompactionProfile,
+	pub cache_config: CacheConfig,
+	pub num: u32,
 }
 
 #[derive(Debug, PartialEq)]
@@ -153,6 +170,7 @@ pub fn execute(cmd: BlockchainCmd) -> Result<(), String> {
 		}
 		BlockchainCmd::Export(export_cmd) => execute_export(export_cmd),
 		BlockchainCmd::ExportState(export_cmd) => execute_export_state(export_cmd),
+		BlockchainCmd::Reset(reset_cmd) => execute_reset(reset_cmd),
 	}
 }
 
@@ -196,7 +214,7 @@ fn execute_import_light(cmd: ImportBlockchain) -> Result<(), String> {
 
 	let mut config = LightClientConfig {
 		queue: Default::default(),
-		chain_column: ::ethcore::db::COL_LIGHT_CHAIN,
+		chain_column: ethcore_db::COL_LIGHT_CHAIN,
 		verify_full: true,
 		check_seal: cmd.check_seal,
 		no_hardcoded_sync: true,
@@ -244,7 +262,7 @@ fn execute_import_light(cmd: ImportBlockchain) -> Result<(), String> {
 	let do_import = |bytes: Vec<u8>| {
 		while client.queue_info().is_full() { sleep(Duration::from_secs(1)); }
 
-		let header: ::ethcore::header::Header = ::rlp::Rlp::new(&bytes).val_at(0)
+		let header: ::types::header::Header = ::rlp::Rlp::new(&bytes).val_at(0)
 			.map_err(|e| format!("Bad block: {}", e))?;
 
 		if client.best_block_header().number() >= header.number() { return Ok(()) }
@@ -377,8 +395,9 @@ fn execute_import(cmd: ImportBlockchain) -> Result<(), String> {
 		// TODO [ToDr] don't use test miner here
 		// (actually don't require miner at all)
 		Arc::new(Miner::new_for_tests(&spec, None)),
-		Arc::new(AccountProvider::transient_provider()),
+		Arc::new(ethcore_private_tx::DummySigner),
 		Box::new(ethcore_private_tx::NoopEncryptor),
+		Default::default(),
 		Default::default(),
 	).map_err(|e| format!("Client service error: {:?}", e))?;
 
@@ -568,8 +587,9 @@ fn start_client(
 		// It's fine to use test version here,
 		// since we don't care about miner parameters at all
 		Arc::new(Miner::new_for_tests(&spec, None)),
-		Arc::new(AccountProvider::transient_provider()),
+		Arc::new(ethcore_private_tx::DummySigner),
 		Box::new(ethcore_private_tx::NoopEncryptor),
+		Default::default(),
 		Default::default(),
 	).map_err(|e| format!("Client service error: {:?}", e))?;
 
@@ -706,6 +726,28 @@ fn execute_export_state(cmd: ExportState) -> Result<(), String> {
 	}
 	out.write_fmt(format_args!("\n}}}}")).expect("Write error");
 	info!("Export completed.");
+	Ok(())
+}
+
+fn execute_reset(cmd: ResetBlockchain) -> Result<(), String> {
+	let service = start_client(
+		cmd.dirs,
+		cmd.spec,
+		cmd.pruning,
+		cmd.pruning_history,
+		cmd.pruning_memory,
+		cmd.tracing,
+		cmd.fat_db,
+		cmd.compaction,
+		cmd.cache_config,
+		false,
+		0,
+	)?;
+
+	let client = service.client();
+	client.reset(cmd.num)?;
+	info!("{}", Colour::Green.bold().paint("Successfully reset db!"));
+
 	Ok(())
 }
 

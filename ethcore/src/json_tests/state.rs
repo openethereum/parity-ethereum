@@ -1,18 +1,18 @@
-// Copyright 2015-2018 Parity Technologies (UK) Ltd.
-// This file is part of Parity.
+// Copyright 2015-2019 Parity Technologies (UK) Ltd.
+// This file is part of Parity Ethereum.
 
-// Parity is free software: you can redistribute it and/or modify
+// Parity Ethereum is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
 // the Free Software Foundation, either version 3 of the License, or
 // (at your option) any later version.
 
-// Parity is distributed in the hope that it will be useful,
+// Parity Ethereum is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 // GNU General Public License for more details.
 
 // You should have received a copy of the GNU General Public License
-// along with Parity.  If not, see <http://www.gnu.org/licenses/>.
+// along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
 use std::path::Path;
 use super::test_common::*;
@@ -20,7 +20,7 @@ use pod_state::PodState;
 use trace;
 use client::{EvmTestClient, EvmTestError, TransactResult};
 use ethjson;
-use transaction::SignedTransaction;
+use types::transaction::SignedTransaction;
 use vm::EnvInfo;
 use super::SKIP_TEST_STATE;
 use super::HookType;
@@ -48,7 +48,7 @@ fn skip_test(subname: &str, chain: &String, number: usize) -> bool {
 }
 
 pub fn json_chain_test<H: FnMut(&str, HookType)>(json_data: &[u8], start_stop_hook: &mut H) -> Vec<String> {
-	::ethcore_logger::init_log();
+	let _ = ::env_logger::try_init();
 	let tests = ethjson::state::test::Test::load(json_data).unwrap();
 	let mut failed = Vec::new();
 
@@ -165,6 +165,7 @@ mod state_tests {
 	declare_test!{GeneralStateTest_stRefundTest, "GeneralStateTests/stRefundTest/"}
 	declare_test!{GeneralStateTest_stReturnDataTest, "GeneralStateTests/stReturnDataTest/"}
 	declare_test!{GeneralStateTest_stRevertTest, "GeneralStateTests/stRevertTest/"}
+	declare_test!{GeneralStateTest_stSStoreTest, "GeneralStateTests/stSStoreTest/"}
 	declare_test!{GeneralStateTest_stShift, "GeneralStateTests/stShift/"}
 	declare_test!{GeneralStateTest_stSolidityTest, "GeneralStateTests/stSolidityTest/"}
 	declare_test!{GeneralStateTest_stSpecialTest, "GeneralStateTests/stSpecialTest/"}
@@ -177,7 +178,6 @@ mod state_tests {
 	declare_test!{GeneralStateTest_stZeroCallsRevert, "GeneralStateTests/stZeroCallsRevert/"}
 	declare_test!{GeneralStateTest_stZeroCallsTest, "GeneralStateTests/stZeroCallsTest/"}
 	declare_test!{GeneralStateTest_stZeroKnowledge, "GeneralStateTests/stZeroKnowledge/"}
-	declare_test!{GeneralStateTest_stSStoreTest, "GeneralStateTests/stSStoreTest/"}
 
 	// Attempts to send a transaction that requires more than current balance:
 	// Tx:
