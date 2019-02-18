@@ -103,7 +103,7 @@ impl EthashManager {
 		let light = {
 			let mut lights = self.cache.lock();
 			let light = if block_number == self.progpow_transition {
-				// we need to regenerate the cache to trigger generation of progpow cdag inside `Light`
+				// we need to regenerate the cache to trigger algorithm change to progpow inside `Light`
 				None
 			} else {
 				match lights.recent_epoch.clone() {

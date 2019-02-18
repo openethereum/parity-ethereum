@@ -41,10 +41,15 @@ pub struct ProofOfWork {
 	pub mix_hash: H256,
 }
 
+enum Algorithm {
+	Hashimoto,
+	Progpow(CDag),
+}
+
 pub struct Light {
 	block_number: u64,
 	cache: NodeCache,
-	c_dag: Option<CDag>,
+	algorithm: Algorithm,
 }
 
 /// Light cache structure
@@ -57,21 +62,21 @@ impl Light {
 	) -> Self {
 		let cache = builder.new_cache(cache_dir.to_path_buf(), block_number);
 
-		let c_dag = if block_number >= progpow_transition {
-			Some(generate_cdag(cache.as_ref()))
+		let algorithm = if block_number >= progpow_transition {
+			Algorithm::Progpow(generate_cdag(cache.as_ref()))
 		} else {
-			None
+			Algorithm::Hashimoto
 		};
 
-		Light { block_number, cache, c_dag }
+		Light { block_number, cache, algorithm }
 	}
 
 	/// Calculate the light boundary data
 	/// `header_hash` - The header hash to pack into the mix
 	/// `nonce` - The nonce to pack into the mix
 	pub fn compute(&self, header_hash: &H256, nonce: u64, block_number: u64) -> ProofOfWork {
-		match self.c_dag {
-			Some(ref c_dag) => {
+		match self.algorithm {
+			Algorithm::Progpow(ref c_dag) => {
 				let (value, mix_hash) = progpow(
 					*header_hash,
 					nonce,
@@ -82,7 +87,7 @@ impl Light {
 
 				ProofOfWork { value, mix_hash }
 			},
-			_ => light_compute(self, header_hash, nonce),
+			Algorithm::Hashimoto => light_compute(self, header_hash, nonce),
 		}
 
 	}
@@ -95,13 +100,13 @@ impl Light {
 	) -> io::Result<Self> {
 		let cache = builder.from_file(cache_dir.to_path_buf(), block_number)?;
 
-		let c_dag = if block_number >= progpow_transition {
-			Some(generate_cdag(cache.as_ref()))
+		let algorithm = if block_number >= progpow_transition {
+			Algorithm::Progpow(generate_cdag(cache.as_ref()))
 		} else {
-			None
+			Algorithm::Hashimoto
 		};
 
-		Ok(Light { block_number, cache, c_dag })
+		Ok(Light { block_number, cache, algorithm })
 	}
 
 	pub fn to_file(&mut self) -> io::Result<&Path> {
