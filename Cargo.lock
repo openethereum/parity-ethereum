@@ -2458,7 +2458,7 @@ dependencies = [
 
 [[package]]
 name = "parity-daemonize"
-version = "0.2.0"
+version = "0.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 dependencies = [
  "ansi_term 0.11.0 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -2515,7 +2515,7 @@ dependencies = [
  "number_prefix 0.2.8 (registry+https://github.com/rust-lang/crates.io-index)",
  "panic_hook 0.1.0",
  "parity-bytes 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "parity-daemonize 0.2.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "parity-daemonize 0.3.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "parity-hash-fetch 1.12.0",
  "parity-ipfs-api 1.12.0",
  "parity-local-store 0.1.0",
@@ -4641,7 +4641,7 @@ dependencies = [
 "checksum owning_ref 0.3.3 (registry+https://github.com/rust-lang/crates.io-index)" = "cdf84f41639e037b484f93433aa3897863b561ed65c6e59c7073d7c561710f37"
 "checksum parity-bytes 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)" = "fa5168b4cf41f3835e4bc6ffb32f51bc9365dc50cb351904595b3931d917fd0c"
 "checksum parity-crypto 0.3.0 (registry+https://github.com/rust-lang/crates.io-index)" = "17b9db194dfbcfe3b398d63d765437a5c7232d59906e203055f0e993f6458ff1"
-"checksum parity-daemonize 0.2.0 (registry+https://github.com/rust-lang/crates.io-index)" = "9b337f62998c855fe263e504fcf883c6a0f94370ba0afc731922e8bc23419cfb"
+"checksum parity-daemonize 0.3.0 (registry+https://github.com/rust-lang/crates.io-index)" = "69b1910b2793ff52713fca0a4ee92544ebec59ccd218ea74560be6f947b4ca77"
 "checksum parity-path 0.1.1 (registry+https://github.com/rust-lang/crates.io-index)" = "5962540f99d3895d9addf535f37ab1397886bc2c68e59efd040ef458e5f8c3f7"
 "checksum parity-rocksdb 0.5.0 (registry+https://github.com/rust-lang/crates.io-index)" = "cd55d2d6d6000ec99f021cf52c9acc7d2a402e14f95ced4c5de230696fabe00b"
 "checksum parity-rocksdb-sys 0.5.5 (registry+https://github.com/rust-lang/crates.io-index)" = "5bbb241262c768522f6460f0e2672dee185c8504d4d0a5a5bab45c1147981c4f"

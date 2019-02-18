@@ -39,13 +39,15 @@ use std::path::PathBuf;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::{process, env};
+
 use ansi_term::Colour;
 use ctrlc::CtrlC;
 use dir::default_hypervisor_path;
 use fdlimit::raise_fd_limit;
-use parity_ethereum::{start, ExecutionAction};
-use parking_lot::{Condvar, Mutex};
 use ethcore_logger::setup_log;
+use parity_ethereum::{start, ExecutionAction};
+use parity_daemonize::AsHandle;
+use parking_lot::{Condvar, Mutex};
 
 const PLEASE_RESTART_EXIT_CODE: i32 = 69;
 const PARITY_EXECUTABLE_NAME: &str = "parity";
@@ -195,7 +197,9 @@ fn main_direct(force_can_restart: bool) -> i32 {
 		conf.args.arg_chain = spec_override;
 	}
 
-	let handle = if let Some(ref pid) = conf.args.arg_daemon_pid_file {
+	// FIXME: `pid_file` shouldn't need to cloned here
+	// see: `https://github.com/paritytech/parity-daemonize/pull/13` for more info
+	let handle = if let Some(pid) = conf.args.arg_daemon_pid_file.clone() {
 		info!("{}", Colour::Blue.paint("starting in daemon mode").to_string());
 		let _ = std::io::stdout().flush();
 
