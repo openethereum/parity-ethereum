@@ -3,7 +3,8 @@
 echo "________Running test.sh________"
 
 FEATURES="json-tests,ci-skip-issue"
-OPTIONS="--release"
+# OPTIONS="--release"
+OPTIONS=""
 VALIDATE=1
 THREADS=8
 

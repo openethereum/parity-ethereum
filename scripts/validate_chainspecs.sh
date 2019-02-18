@@ -1,7 +1,8 @@
 #!/usr/bin/env sh
 
 ERR=0
-cargo build --release -p chainspec
+# cargo build --release -p chainspec
+cargo build -p chainspec
 
 for spec in ethcore/res/*.json; do
     if ! ./target/release/chainspec "$spec"; then ERR=1; fi
