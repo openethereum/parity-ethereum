@@ -28,9 +28,9 @@ use journaldb::Algorithm;
 
 #[derive(Debug)]
 pub enum Error {
-	CannotCreateConfigPath,
-	CannotWriteVersionFile,
-	CannotUpdateVersionFile,
+	CannotCreateConfigPath(io::Error),
+	CannotWriteVersionFile(io::Error),
+	CannotUpdateVersionFile(io::Error),
 	SemVer(SemVerError),
 }
 
@@ -105,7 +105,7 @@ fn with_locked_version<F>(db_path: &str, script: F) -> Result<usize, Error>
 	where F: Fn(&Version) -> Result<usize, Error>
 {
 	let mut path = PathBuf::from(db_path);
-	create_dir_all(&path).map_err(|_| Error::CannotCreateConfigPath)?;
+	create_dir_all(&path).map_err(Error::CannotCreateConfigPath)?;
 	path.push("ver.lock");
 
 	let version =
@@ -118,11 +118,11 @@ fn with_locked_version<F>(db_path: &str, script: F) -> Result<usize, Error>
 			})
 			.unwrap_or(Version::new(0, 9, 0));
 
-	let mut lock = File::create(&path).map_err(|_| Error::CannotWriteVersionFile)?;
+	let mut lock = File::create(&path).map_err(Error::CannotWriteVersionFile)?;
 	let result = script(&version);
 
 	let written_version = Version::parse(CURRENT_VERSION)?;
-	lock.write_all(written_version.to_string().as_bytes()).map_err(|_| Error::CannotUpdateVersionFile)?;
+	lock.write_all(written_version.to_string().as_bytes()).map_err(Error::CannotUpdateVersionFile)?;
 	result
 }
 
