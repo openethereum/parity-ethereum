@@ -2110,12 +2110,17 @@ impl BlockChainClient for Client {
 		}
 	}
 
-	fn transact(&self, action: Action, data: Bytes, gas: Option<U256>, gas_price: Option<U256>)
-		-> Result<(), transaction::Error>
-	{
+	fn create_transaction(
+		&self,
+		action: Action,
+		data: Bytes,
+		gas: Option<U256>,
+		gas_price: Option<U256>,
+		nonce: Option<U256>
+	) -> Result<SignedTransaction, transaction::Error> {
 		let authoring_params = self.importer.miner.authoring_params();
 		let transaction = Transaction {
-			nonce: self.latest_nonce(&authoring_params.author),
+			nonce: nonce.unwrap_or_else(|| self.latest_nonce(&authoring_params.author)),
 			action,
 			gas: gas.unwrap_or_else(|| self.importer.miner.sensible_gas_limit()),
 			gas_price: gas_price.unwrap_or_else(|| self.importer.miner.sensible_gas_price()),
@@ -2125,7 +2130,13 @@ impl BlockChainClient for Client {
 		let chain_id = self.engine.signing_chain_id(&self.latest_env_info());
 		let signature = self.engine.sign(transaction.hash(chain_id))
 			.map_err(|e| transaction::Error::InvalidSignature(e.to_string()))?;
-		let signed = SignedTransaction::new(transaction.with_signature(signature, chain_id))?;
+		Ok(SignedTransaction::new(transaction.with_signature(signature, chain_id))?)
+	}
+
+	fn transact(&self, action: Action, data: Bytes, gas: Option<U256>, gas_price: Option<U256>)
+		-> Result<(), transaction::Error>
+	{
+		let signed = self.create_transaction(action, data, gas, gas_price, None)?;
 		self.importer.miner.import_own_transaction(self, signed.into())
 	}
 

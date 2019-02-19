@@ -392,6 +392,16 @@ pub trait BlockChainClient : Sync + Send + AccountData + BlockChain + CallContra
 		self.transact(Action::Call(address), data, None, None)
 	}
 
+	/// Returns a signed transaction. If gas limit, gas price, or nonce are not specified, the defaults are used.
+	fn create_transaction(
+		&self,
+		action: Action,
+		data: Bytes,
+		gas: Option<U256>,
+		gas_price: Option<U256>,
+		nonce: Option<U256>
+	) -> Result<SignedTransaction, transaction::Error>;
+
 	/// Schedule state-altering transaction to be executed on the next pending block with the given gas parameters.
 	///
 	/// If they are `None`, sensible values are selected automatically.
