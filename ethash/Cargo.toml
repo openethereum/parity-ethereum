@@ -22,8 +22,6 @@ tempdir = "0.3"
 [features]
 default = []
 bench = []
-# Skip slow progpow test vectors
-ci-skip-tests = []
 
 [[bench]]
 name = "basic"
