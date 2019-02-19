@@ -23,7 +23,7 @@ use version::version_data;
 use crypto::DEFAULT_MAC;
 use ethkey::{crypto::ecies, Brain, Generator};
 use ethstore::random_phrase;
-use sync::LightSyncProvider;
+use sync::{LightSyncInfo, LightSyncProvider, LightNetworkDispatcher, ManageNetwork};
 use ethcore_logger::RotatingLogger;
 
 use jsonrpc_core::{Result, BoxFuture};
@@ -46,8 +46,8 @@ use v1::types::{
 use Host;
 
 /// Parity implementation for light client.
-pub struct ParityClient {
-	light_dispatch: Arc<LightDispatcher>,
+pub struct ParityClient<S: LightSyncProvider + LightNetworkDispatcher + ManageNetwork + 'static> {
+	light_dispatch: Arc<LightDispatcher<S>>,
 	logger: Arc<RotatingLogger>,
 	settings: Arc<NetworkSettings>,
 	signer: Option<Arc<SignerService>>,
@@ -55,10 +55,13 @@ pub struct ParityClient {
 	gas_price_percentile: usize,
 }
 
-impl ParityClient {
+impl<S> ParityClient<S>
+where
+	S: LightSyncProvider + LightNetworkDispatcher + ManageNetwork + 'static
+{
 	/// Creates new `ParityClient`.
 	pub fn new(
-		light_dispatch: Arc<LightDispatcher>,
+		light_dispatch: Arc<LightDispatcher<S>>,
 		logger: Arc<RotatingLogger>,
 		settings: Arc<NetworkSettings>,
 		signer: Option<Arc<SignerService>>,
@@ -76,7 +79,8 @@ impl ParityClient {
 	}
 
 	/// Create a light blockchain data fetcher.
-	fn fetcher(&self) -> LightFetch {
+	fn fetcher(&self) -> LightFetch<S>
+	{
 		LightFetch {
 			client: self.light_dispatch.client.clone(),
 			on_demand: self.light_dispatch.on_demand.clone(),
@@ -87,7 +91,10 @@ impl ParityClient {
 	}
 }
 
-impl Parity for ParityClient {
+impl<S> Parity for ParityClient<S>
+where
+	S: LightSyncInfo + LightSyncProvider + LightNetworkDispatcher + ManageNetwork + 'static
+{
 	type Metadata = Metadata;
 
 	fn transactions_limit(&self) -> Result<usize> {
@@ -371,7 +378,7 @@ impl Parity for ParityClient {
 
 	fn status(&self) -> Result<()> {
 		let has_peers = self.settings.is_dev_chain || self.light_dispatch.sync.peer_numbers().connected > 0;
-		let is_importing = self.light_dispatch.sync.is_major_importing();
+		let is_importing = (*self.light_dispatch.sync).is_major_importing();
 
 		if has_peers && !is_importing {
 			Ok(())

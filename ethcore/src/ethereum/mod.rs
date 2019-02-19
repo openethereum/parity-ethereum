@@ -148,6 +148,9 @@ pub fn new_byzantium_test() -> Spec { load(None, include_bytes!("../../res/ether
 /// Create a new Foundation Constantinople era spec.
 pub fn new_constantinople_test() -> Spec { load(None, include_bytes!("../../res/ethereum/constantinople_test.json")) }
 
+/// Create a new Foundation St. Peter's (Contantinople Fix) era spec.
+pub fn new_constantinople_fix_test() -> Spec { load(None, include_bytes!("../../res/ethereum/st_peters_test.json")) }
+
 /// Create a new Musicoin-MCIP3-era spec.
 pub fn new_mcip3_test() -> Spec { load(None, include_bytes!("../../res/ethereum/mcip3_test.json")) }
 
@@ -167,6 +170,9 @@ pub fn new_byzantium_test_machine() -> EthereumMachine { load_machine(include_by
 
 /// Create a new Foundation Constantinople era spec.
 pub fn new_constantinople_test_machine() -> EthereumMachine { load_machine(include_bytes!("../../res/ethereum/constantinople_test.json")) }
+
+/// Create a new Foundation St. Peter's (Contantinople Fix) era spec.
+pub fn new_constantinople_fix_test_machine() -> EthereumMachine { load_machine(include_bytes!("../../res/ethereum/st_peters_test.json")) }
 
 /// Create a new Musicoin-MCIP3-era spec.
 pub fn new_mcip3_test_machine() -> EthereumMachine { load_machine(include_bytes!("../../res/ethereum/mcip3_test.json")) }

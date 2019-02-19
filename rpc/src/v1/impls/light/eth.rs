@@ -32,7 +32,6 @@ use ethereum_types::{U256, Address};
 use hash::{KECCAK_NULL_RLP, KECCAK_EMPTY_LIST_RLP};
 use parking_lot::{RwLock, Mutex};
 use rlp::Rlp;
-use sync::LightSync;
 use types::transaction::SignedTransaction;
 use types::encoded;
 use types::filter::Filter as EthcoreFilter;
@@ -45,19 +44,22 @@ use v1::helpers::deprecated::{self, DeprecationNotice};
 use v1::helpers::light_fetch::{self, LightFetch};
 use v1::traits::Eth;
 use v1::types::{
-	RichBlock, Block, BlockTransactions, BlockNumber, LightBlockNumber, Bytes, SyncStatus, SyncInfo,
+	RichBlock, Block, BlockTransactions, BlockNumber, LightBlockNumber, Bytes,
+	SyncStatus as RpcSyncStatus, SyncInfo as RpcSyncInfo,
 	Transaction, CallRequest, Index, Filter, Log, Receipt, Work, EthAccount,
 	H64 as RpcH64, H256 as RpcH256, H160 as RpcH160, U256 as RpcU256,
 	U64 as RpcU64,
 };
 use v1::metadata::Metadata;
 
+use sync::{LightSyncInfo, LightSyncProvider, LightNetworkDispatcher, ManageNetwork};
+
 const NO_INVALID_BACK_REFS: &str = "Fails only on invalid back-references; back-references here known to be valid; qed";
 
 /// Light client `ETH` (and filter) RPC.
-pub struct EthClient<T> {
-	sync: Arc<LightSync>,
-	client: Arc<T>,
+pub struct EthClient<C, S: LightSyncProvider + LightNetworkDispatcher + 'static> {
+	sync: Arc<S>,
+	client: Arc<C>,
 	on_demand: Arc<OnDemand>,
 	transaction_queue: Arc<RwLock<TransactionQueue>>,
 	accounts: Arc<Fn() -> Vec<Address> + Send + Sync>,
@@ -68,7 +70,10 @@ pub struct EthClient<T> {
 	deprecation_notice: DeprecationNotice,
 }
 
-impl<T> Clone for EthClient<T> {
+impl<C, S> Clone for EthClient<C, S>
+where
+	S: LightSyncProvider + LightNetworkDispatcher + 'static
+{
 	fn clone(&self) -> Self {
 		// each instance should have its own poll manager.
 		EthClient {
@@ -86,12 +91,16 @@ impl<T> Clone for EthClient<T> {
 	}
 }
 
-impl<T: LightChainClient + 'static> EthClient<T> {
+impl<C, S> EthClient<C, S>
+where
+	C: LightChainClient + 'static,
+	S: LightSyncProvider + LightNetworkDispatcher + ManageNetwork + 'static
+{
 	/// Create a new `EthClient` with a handle to the light sync instance, client,
 	/// and on-demand request service, which is assumed to be attached as a handler.
 	pub fn new(
-		sync: Arc<LightSync>,
-		client: Arc<T>,
+		sync: Arc<S>,
+		client: Arc<C>,
 		on_demand: Arc<OnDemand>,
 		transaction_queue: Arc<RwLock<TransactionQueue>>,
 		accounts: Arc<Fn() -> Vec<Address> + Send + Sync>,
@@ -114,7 +123,8 @@ impl<T: LightChainClient + 'static> EthClient<T> {
 	}
 
 	/// Create a light data fetcher instance.
-	fn fetcher(&self) -> LightFetch {
+	fn fetcher(&self) -> LightFetch<S>
+	{
 		LightFetch {
 			client: self.client.clone(),
 			on_demand: self.on_demand.clone(),
@@ -211,21 +221,25 @@ impl<T: LightChainClient + 'static> EthClient<T> {
 	}
 }
 
-impl<T: LightChainClient + 'static> Eth for EthClient<T> {
+impl<C, S> Eth for EthClient<C, S>
+where
+	C: LightChainClient + 'static,
+	S: LightSyncInfo + LightSyncProvider + LightNetworkDispatcher + ManageNetwork + 'static
+{
 	type Metadata = Metadata;
 
 	fn protocol_version(&self) -> Result<String> {
 		Ok(format!("{}", ::light::net::MAX_PROTOCOL_VERSION))
 	}
 
-	fn syncing(&self) -> Result<SyncStatus> {
+	fn syncing(&self) -> Result<RpcSyncStatus> {
 		if self.sync.is_major_importing() {
 			let chain_info = self.client.chain_info();
 			let current_block = U256::from(chain_info.best_block_number);
 			let highest_block = self.sync.highest_block().map(U256::from)
 				.unwrap_or_else(|| current_block);
 
-			Ok(SyncStatus::Info(SyncInfo {
+			Ok(RpcSyncStatus::Info(RpcSyncInfo {
 				starting_block: U256::from(self.sync.start_block()).into(),
 				current_block: current_block.into(),
 				highest_block: highest_block.into(),
@@ -233,7 +247,7 @@ impl<T: LightChainClient + 'static> Eth for EthClient<T> {
 				warp_chunks_processed: None,
 			}))
 		} else {
-			Ok(SyncStatus::None)
+			Ok(RpcSyncStatus::None)
 		}
 	}
 
@@ -524,7 +538,11 @@ impl<T: LightChainClient + 'static> Eth for EthClient<T> {
 }
 
 // This trait implementation triggers a blanked impl of `EthFilter`.
-impl<T: LightChainClient + 'static> Filterable for EthClient<T> {
+impl<C, S> Filterable for EthClient<C, S>
+where
+	C: LightChainClient + 'static,
+	S: LightSyncProvider + LightNetworkDispatcher + ManageNetwork + 'static
+{
 	fn best_block_number(&self) -> u64 { self.client.chain_info().best_block_number }
 
 	fn block_hash(&self, id: BlockId) -> Option<::ethereum_types::H256> {

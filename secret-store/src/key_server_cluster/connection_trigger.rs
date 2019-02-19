@@ -21,10 +21,12 @@ use std::sync::Arc;
 use ethereum_types::H256;
 use ethkey::Public;
 use key_server_cluster::{KeyServerSet, KeyServerSetSnapshot};
-use key_server_cluster::cluster::{ClusterClient, ClusterConnectionsData};
+use key_server_cluster::cluster::{ClusterConfiguration, ServersSetChangeParams};
 use key_server_cluster::cluster_sessions::AdminSession;
+use key_server_cluster::cluster_connections::{Connection};
+use key_server_cluster::cluster_connections_net::{NetConnectionsContainer};
 use types::{Error, NodeId};
-use {NodeKeyPair};
+use NodeKeyPair;
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 /// Describes which maintain() call is required.
@@ -45,10 +47,10 @@ pub trait ConnectionTrigger: Send + Sync {
 	fn on_connection_established(&mut self, node: &NodeId) -> Option<Maintain>;
 	/// When connection is closed.
 	fn on_connection_closed(&mut self, node: &NodeId) -> Option<Maintain>;
-	/// Maintain active sessions.
-	fn maintain_session(&mut self, sessions: &ClusterClient);
+	/// Maintain active sessions. Returns Some if servers set session creation required.
+	fn maintain_session(&mut self) -> Option<ServersSetChangeParams>;
 	/// Maintain active connections.
-	fn maintain_connections(&mut self, connections: &mut ClusterConnectionsData);
+	fn maintain_connections(&mut self, connections: &mut NetConnectionsContainer);
 	/// Return connector for the servers set change session creator.
 	fn servers_set_change_creator_connector(&self) -> Arc<ServersSetChangeSessionCreatorConnector>;
 }
@@ -95,6 +97,11 @@ pub struct TriggerConnections {
 }
 
 impl SimpleConnectionTrigger {
+	/// Create new simple from cluster configuration.
+	pub fn with_config(config: &ClusterConfiguration) -> Self {
+		Self::new(config.key_server_set.clone(), config.self_key_pair.clone(), config.admin_public)
+	}
+
 	/// Create new simple connection trigger.
 	pub fn new(key_server_set: Arc<KeyServerSet>, self_key_pair: Arc<NodeKeyPair>, admin_public: Option<Public>) -> Self {
 		SimpleConnectionTrigger {
@@ -124,10 +131,11 @@ impl ConnectionTrigger for SimpleConnectionTrigger {
 		None
 	}
 
-	fn maintain_session(&mut self, _sessions: &ClusterClient) {
+	fn maintain_session(&mut self) -> Option<ServersSetChangeParams> {
+		None
 	}
 
-	fn maintain_connections(&mut self, connections: &mut ClusterConnectionsData) {
+	fn maintain_connections(&mut self, connections: &mut NetConnectionsContainer) {
 		self.connections.maintain(ConnectionsAction::ConnectToCurrentSet, connections, &self.key_server_set.snapshot())
 	}
 
@@ -146,7 +154,7 @@ impl ServersSetChangeSessionCreatorConnector for SimpleServersSetChangeSessionCr
 }
 
 impl TriggerConnections {
-	pub fn maintain(&self, action: ConnectionsAction, data: &mut ClusterConnectionsData, server_set: &KeyServerSetSnapshot) {
+	pub fn maintain(&self, action: ConnectionsAction, data: &mut NetConnectionsContainer, server_set: &KeyServerSetSnapshot) {
 		match action {
 			ConnectionsAction::ConnectToCurrentSet => {
 				adjust_connections(self.self_key_pair.public(), data, &server_set.current_set);
@@ -159,7 +167,11 @@ impl TriggerConnections {
 	}
 }
 
-fn adjust_connections(self_node_id: &NodeId, data: &mut ClusterConnectionsData, required_set: &BTreeMap<NodeId, SocketAddr>) {
+fn adjust_connections(
+	self_node_id: &NodeId,
+	data: &mut NetConnectionsContainer,
+	required_set: &BTreeMap<NodeId, SocketAddr>
+) {
 	if !required_set.contains_key(self_node_id) {
 		if !data.is_isolated {
 			trace!(target: "secretstore_net", "{}: isolated from cluser", self_node_id);
@@ -204,13 +216,13 @@ mod tests {
 	use std::collections::BTreeSet;
 	use std::sync::Arc;
 	use ethkey::{Random, Generator};
-	use key_server_cluster::cluster::ClusterConnectionsData;
 	use key_server_cluster::{MapKeyServerSet, PlainNodeKeyPair, KeyServerSetSnapshot, KeyServerSetMigration};
+	use key_server_cluster::cluster_connections_net::NetConnectionsContainer;
 	use super::{Maintain, TriggerConnections, ConnectionsAction, ConnectionTrigger, SimpleConnectionTrigger,
 		select_nodes_to_disconnect, adjust_connections};
 
-	fn default_connection_data() -> ClusterConnectionsData {
-		ClusterConnectionsData {
+	fn default_connection_data() -> NetConnectionsContainer {
+		NetConnectionsContainer {
 			is_isolated: false,
 			nodes: Default::default(),
 			connections: Default::default(),

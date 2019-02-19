@@ -43,7 +43,9 @@ mod codes {
 	pub const EXECUTION_ERROR: i64 = -32015;
 	pub const EXCEPTION_ERROR: i64 = -32016;
 	pub const DATABASE_ERROR: i64 = -32017;
+	#[cfg(any(test, feature = "accounts"))]
 	pub const ACCOUNT_LOCKED: i64 = -32020;
+	#[cfg(any(test, feature = "accounts"))]
 	pub const PASSWORD_INVALID: i64 = -32021;
 	pub const ACCOUNT_ERROR: i64 = -32023;
 	pub const PRIVATE_ERROR: i64 = -32024;
@@ -336,6 +338,7 @@ pub fn fetch<T: fmt::Debug>(error: T) -> Error {
 	}
 }
 
+#[cfg(any(test, feature = "accounts"))]
 pub fn invalid_call_data<T: fmt::Display>(error: T) -> Error {
 	Error {
 		code: ErrorCode::ServerError(codes::ENCODING_ERROR),

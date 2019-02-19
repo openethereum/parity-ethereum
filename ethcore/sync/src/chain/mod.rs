@@ -88,6 +88,7 @@
 //! All other messages are ignored.
 
 mod handler;
+pub mod sync_packet;
 mod propagator;
 mod requester;
 mod supplier;
@@ -119,6 +120,12 @@ use types::transaction::UnverifiedTransaction;
 use types::BlockNumber;
 
 use self::handler::SyncHandler;
+use self::sync_packet::{PacketInfo, SyncPacket};
+use self::sync_packet::SyncPacket::{
+	NewBlockPacket,
+	StatusPacket,
+};
+
 use self::propagator::SyncPropagator;
 use self::requester::SyncRequester;
 pub(crate) use self::supplier::SyncSupplier;
@@ -153,28 +160,6 @@ const MAX_TRANSACTION_PACKET_SIZE: usize = 5 * 1024 * 1024;
 // Min number of blocks to be behind for a snapshot sync
 const SNAPSHOT_RESTORE_THRESHOLD: BlockNumber = 30000;
 const SNAPSHOT_MIN_PEERS: usize = 3;
-
-const STATUS_PACKET: u8 = 0x00;
-const NEW_BLOCK_HASHES_PACKET: u8 = 0x01;
-const TRANSACTIONS_PACKET: u8 = 0x02;
-pub const GET_BLOCK_HEADERS_PACKET: u8 = 0x03;
-pub const BLOCK_HEADERS_PACKET: u8 = 0x04;
-pub const GET_BLOCK_BODIES_PACKET: u8 = 0x05;
-const BLOCK_BODIES_PACKET: u8 = 0x06;
-const NEW_BLOCK_PACKET: u8 = 0x07;
-
-pub const GET_NODE_DATA_PACKET: u8 = 0x0d;
-pub const NODE_DATA_PACKET: u8 = 0x0e;
-pub const GET_RECEIPTS_PACKET: u8 = 0x0f;
-pub const RECEIPTS_PACKET: u8 = 0x10;
-
-pub const GET_SNAPSHOT_MANIFEST_PACKET: u8 = 0x11;
-pub const SNAPSHOT_MANIFEST_PACKET: u8 = 0x12;
-pub const GET_SNAPSHOT_DATA_PACKET: u8 = 0x13;
-pub const SNAPSHOT_DATA_PACKET: u8 = 0x14;
-pub const CONSENSUS_DATA_PACKET: u8 = 0x15;
-pub const PRIVATE_TRANSACTION_PACKET: u8 = 0x16;
-pub const SIGNED_PRIVATE_TRANSACTION_PACKET: u8 = 0x17;
 
 const MAX_SNAPSHOT_CHUNKS_DOWNLOAD_AHEAD: usize = 3;
 
@@ -484,7 +469,7 @@ impl ChainSyncApi {
 					for peers in sync.get_peers(&chain_info, PeerState::SameBlock).chunks(10) {
 						check_deadline(deadline)?;
 						for peer in peers {
-							SyncPropagator::send_packet(io, *peer, NEW_BLOCK_PACKET, rlp.clone());
+							SyncPropagator::send_packet(io, *peer, NewBlockPacket, rlp.clone());
 							if let Some(ref mut peer) = sync.peers.get_mut(peer) {
 								peer.latest_hash = hash;
 							}
@@ -1146,7 +1131,7 @@ impl ChainSync {
 			}
 		}
 		packet.complete_unbounded_list();
-		io.respond(STATUS_PACKET, packet.out())
+		io.respond(StatusPacket.id(), packet.out())
 	}
 
 	pub fn maintain_peers(&mut self, io: &mut SyncIo) {
@@ -1331,7 +1316,7 @@ impl ChainSync {
 	}
 
 	/// Broadcast private transaction message to peers.
-	pub fn propagate_private_transaction(&mut self, io: &mut SyncIo, transaction_hash: H256, packet_id: PacketId, packet: Bytes) {
+	pub fn propagate_private_transaction(&mut self, io: &mut SyncIo, transaction_hash: H256, packet_id: SyncPacket, packet: Bytes) {
 		SyncPropagator::propagate_private_transaction(self, io, transaction_hash, packet_id, packet);
 	}
 }

@@ -873,6 +873,32 @@ impl miner::MinerService for Miner {
 		self.params.read().gas_range_target.0 / 5
 	}
 
+	fn set_minimal_gas_price(&self, new_price: U256) -> Result<bool, &str> {
+		match *self.gas_pricer.lock() {
+			// Binding the gas pricer to `gp` here to prevent
+			// a deadlock when calling recalibrate()
+			ref mut gp @ GasPricer::Fixed(_) => {
+				trace!(target: "miner", "minimal_gas_price: recalibrating fixed...");
+				*gp = GasPricer::new_fixed(new_price);
+
+				let txq = self.transaction_queue.clone();
+				let mut options = self.options.pool_verification_options.clone();
+				gp.recalibrate(move |gas_price| {
+					debug!(target: "miner", "minimal_gas_price: Got gas price! {}", gas_price);
+					options.minimal_gas_price = gas_price;
+					txq.set_verifier_options(options);
+				});
+
+				Ok(true)
+			},
+			#[cfg(feature = "price-info")]
+			GasPricer::Calibrated(_) => {
+				let error_msg = "Can't update fixed gas price while automatic gas calibration is enabled.";
+				return Err(error_msg);
+			},
+		}
+	}
+
 	fn import_external_transactions<C: miner::BlockChainClient>(
 		&self,
 		chain: &C,
@@ -1653,5 +1679,61 @@ mod tests {
 		miner.update_sealing(&*client);
 
 		assert!(miner.is_currently_sealing());
+	}
+
+	#[test]
+	fn should_set_new_minimum_gas_price() {
+		// Creates a new GasPricer::Fixed behind the scenes
+		let miner = Miner::new_for_tests(&Spec::new_test(), None);
+
+		let expected_minimum_gas_price: U256 = 0x1337.into();
+		miner.set_minimal_gas_price(expected_minimum_gas_price).unwrap();
+
+		let txq_options = miner.transaction_queue.status().options;
+		let current_minimum_gas_price = txq_options.minimal_gas_price;
+
+		assert!(current_minimum_gas_price == expected_minimum_gas_price);
+	}
+
+	#[cfg(feature = "price-info")]
+	fn dynamic_gas_pricer() -> GasPricer {
+		use std::time::Duration;
+		use parity_runtime::Executor;
+		use fetch::Client as FetchClient;
+		use ethcore_miner::gas_price_calibrator::{GasPriceCalibrator, GasPriceCalibratorOptions};
+
+		// Don't really care about any of these settings since
+		// the gas pricer is never actually going to be used
+		let fetch = FetchClient::new(1).unwrap();
+		let p = Executor::new_sync();
+
+		GasPricer::new_calibrated(
+			GasPriceCalibrator::new(
+				GasPriceCalibratorOptions {
+					usd_per_tx: 0.0,
+					recalibration_period: Duration::from_secs(0),
+				},
+				fetch,
+				p,
+			)
+		)
+	}
+
+	#[test]
+	#[cfg(feature = "price-info")]
+	fn should_fail_to_set_new_minimum_gas_price() {
+		// We get a fixed gas pricer by default, need to change that
+		let miner = Miner::new_for_tests(&Spec::new_test(), None);
+		let calibrated_gas_pricer = dynamic_gas_pricer();
+		*miner.gas_pricer.lock() = calibrated_gas_pricer;
+
+		let expected_minimum_gas_price: U256 = 0x1337.into();
+		let result = miner.set_minimal_gas_price(expected_minimum_gas_price);
+		assert!(result.is_err());
+
+		let received_error_msg = result.unwrap_err();
+		let expected_error_msg = "Can't update fixed gas price while automatic gas calibration is enabled.";
+
+		assert!(received_error_msg == expected_error_msg);
 	}
 }

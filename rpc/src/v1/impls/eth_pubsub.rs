@@ -36,7 +36,9 @@ use light::client::{LightChainClient, LightChainNotify};
 use light::on_demand::OnDemand;
 use parity_runtime::Executor;
 use parking_lot::{RwLock, Mutex};
-use sync::LightSync;
+
+use sync::{LightSyncProvider, LightNetworkDispatcher, ManageNetwork};
+
 use types::encoded;
 use types::filter::Filter as EthFilter;
 
@@ -87,12 +89,15 @@ impl<C> EthPubSubClient<C> {
 	}
 }
 
-impl EthPubSubClient<LightFetch> {
+impl<S> EthPubSubClient<LightFetch<S>>
+where
+	S: LightSyncProvider + LightNetworkDispatcher + ManageNetwork + 'static
+{
 	/// Creates a new `EthPubSubClient` for `LightClient`.
 	pub fn light(
 		client: Arc<LightChainClient>,
 		on_demand: Arc<OnDemand>,
-		sync: Arc<LightSync>,
+		sync: Arc<S>,
 		cache: Arc<Mutex<Cache>>,
 		executor: Executor,
 		gas_price_percentile: usize,
@@ -189,7 +194,10 @@ pub trait LightClient: Send + Sync {
 	fn logs(&self, filter: EthFilter) -> BoxFuture<Vec<Log>>;
 }
 
-impl LightClient for LightFetch {
+impl<S> LightClient for LightFetch<S>
+where
+	S: LightSyncProvider + LightNetworkDispatcher + ManageNetwork + 'static
+{
 	fn block_header(&self, id: BlockId) -> Option<encoded::Header> {
 		self.client.block_header(id)
 	}
@@ -200,10 +208,7 @@ impl LightClient for LightFetch {
 }
 
 impl<C: LightClient> LightChainNotify for ChainNotificationHandler<C> {
-	fn new_headers(
-		&self,
-		enacted: &[H256],
-	) {
+	fn new_headers(&self, enacted: &[H256]) {
 		let headers = enacted
 			.iter()
 			.filter_map(|hash| self.client.block_header(BlockId::Hash(*hash)))

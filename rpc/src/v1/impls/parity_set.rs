@@ -118,9 +118,11 @@ impl<C, M, U, F> ParitySet for ParitySetClient<C, M, U, F> where
 	F: Fetch + 'static,
 {
 
-	fn set_min_gas_price(&self, _gas_price: U256) -> Result<bool> {
-		warn!("setMinGasPrice is deprecated. Ignoring request.");
-		Ok(false)
+	fn set_min_gas_price(&self, gas_price: U256) -> Result<bool> {
+		match self.miner.set_minimal_gas_price(gas_price.into()) {
+			Ok(success) => Ok(success),
+			Err(e) => Err(errors::unsupported(e, None)),
+		}
 	}
 
 	fn set_transactions_limit(&self, _limit: usize) -> Result<bool> {
