@@ -18,9 +18,6 @@
 
 use ethjson;
 
-#[cfg(all(not(test), feature = "ci-skip-tests"))]
-compile_error!("ci-skip-tests can only be enabled for testing builds.");
-
 #[cfg(feature="ci-skip-tests")]
 lazy_static!{
 	pub static ref SKIP_TEST_STATE: ethjson::test::SkipStates = {
