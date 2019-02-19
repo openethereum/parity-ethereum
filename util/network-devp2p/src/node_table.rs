@@ -598,6 +598,8 @@ mod tests {
 	use super::*;
 	use std::net::{SocketAddr, SocketAddrV4, Ipv4Addr};
 	use ethereum_types::H512;
+	use std::thread::sleep;
+	use std::time::Duration;
 	use std::str::FromStr;
 	use tempdir::TempDir;
 	use ipnetwork::IpNetwork;
@@ -683,27 +685,39 @@ mod tests {
 		assert_eq!(table.get_index_to_insert(Some(NodeContact::failure())), 0);
 		assert_eq!(table.get_index_to_insert(None), 0);
 
+		// sleep 1 mcs is added because nanosecond precision was lost since mac os x high sierra update
+		// https://github.com/paritytech/parity-ethereum/issues/9632
+
 		table.add_node(node1);
+		sleep(Duration::from_micros(1));
 
 		assert_eq!(table.get_index_to_insert(Some(NodeContact::success())), 0);
 		assert_eq!(table.get_index_to_insert(Some(NodeContact::failure())), 1);
 		assert_eq!(table.get_index_to_insert(None), 0);
 
 		table.add_node(node2);
+		sleep(Duration::from_micros(1));
 
 		assert_eq!(table.get_index_to_insert(Some(NodeContact::success())), 0);
 		assert_eq!(table.get_index_to_insert(Some(NodeContact::failure())), 2);
 		assert_eq!(table.get_index_to_insert(None), 0);
 
 		table.add_node(node3);
+		sleep(Duration::from_micros(1));
 		table.add_node(node4);
+		sleep(Duration::from_micros(1));
 		table.add_node(node5);
+		sleep(Duration::from_micros(1));
 		table.add_node(node6);
+		sleep(Duration::from_micros(1));
 
 		// failures - nodes 1 & 2
 		table.note_failure(&id1);
+		sleep(Duration::from_micros(1));
 		let time_in_between = SystemTime::now();
+		sleep(Duration::from_micros(1));
 		table.note_failure(&id2);
+		sleep(Duration::from_micros(1));
 
 		assert_eq!(table.get_index_to_insert(Some(NodeContact::success())), 0);
 		assert_eq!(table.get_index_to_insert(Some(NodeContact::failure())), 6);
@@ -713,13 +727,17 @@ mod tests {
 
 		// success - nodes 3,4,5 (5 - the oldest)
 		table.note_success(&id5);
+		sleep(Duration::from_micros(1));
 		table.note_success(&id3);
+		sleep(Duration::from_micros(1));
 
 		assert_eq!(table.get_index_to_insert(Some(NodeContact::Success(time::UNIX_EPOCH))), 2);
 		assert_eq!(table.get_index_to_insert(None), 2);
 
 		let time_in_between = SystemTime::now();
+		sleep(Duration::from_micros(1));
 		table.note_success(&id4);
+		sleep(Duration::from_micros(1));
 
 		assert_eq!(table.get_index_to_insert(Some(NodeContact::success())), 0);
 		assert_eq!(table.get_index_to_insert(Some(NodeContact::Success(time_in_between))), 1);
@@ -729,28 +747,19 @@ mod tests {
 		// unknown - node 6
 
 		// nodes are also ordered according to their addition time
-		//
-		// nanosecond precision lost since mac os x high sierra update so let's not compare their order
-		// https://github.com/paritytech/parity-ethereum/issues/9632
 		let r = table.nodes(&IpFilter::default());
 
-		// most recent success
-		assert!(
-			(r[0] == id4 && r[1] == id3) ||
-			(r[0] == id3 && r[1] == id4)
-		);
+		assert_eq!(r[0][..], id4[..]); // most recent success
+		assert_eq!(r[1][..], id3[..]);
 
 		// unknown (old contacts and new nodes), randomly shuffled
 		assert!(
-			(r[2] == id5 && r[3] == id6) ||
-			(r[2] == id6 && r[3] == id5)
+			r[2][..] == id5[..] && r[3][..] == id6[..] ||
+			r[2][..] == id6[..] && r[3][..] == id5[..]
 		);
 
-		// oldest failure
-		assert!(
-			(r[4] == id1 && r[5] == id2) ||
-			(r[4] == id2 && r[5] == id1)
-		);
+		assert_eq!(r[4][..], id1[..]); // oldest failure
+		assert_eq!(r[5][..], id2[..]);
 	}
 
 	#[test]
