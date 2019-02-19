@@ -43,7 +43,7 @@ pub struct ProofOfWork {
 
 enum Algorithm {
 	Hashimoto,
-	Progpow(CDag),
+	Progpow(Box<CDag>),
 }
 
 pub struct Light {
@@ -63,7 +63,7 @@ impl Light {
 		let cache = builder.new_cache(cache_dir.to_path_buf(), block_number);
 
 		let algorithm = if block_number >= progpow_transition {
-			Algorithm::Progpow(generate_cdag(cache.as_ref()))
+			Algorithm::Progpow(Box::new(generate_cdag(cache.as_ref())))
 		} else {
 			Algorithm::Hashimoto
 		};
@@ -101,7 +101,7 @@ impl Light {
 		let cache = builder.from_file(cache_dir.to_path_buf(), block_number)?;
 
 		let algorithm = if block_number >= progpow_transition {
-			Algorithm::Progpow(generate_cdag(cache.as_ref()))
+			Algorithm::Progpow(Box::new(generate_cdag(cache.as_ref())))
 		} else {
 			Algorithm::Hashimoto
 		};
