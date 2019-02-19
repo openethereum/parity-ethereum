@@ -422,12 +422,9 @@ impl NodeTable {
 		}
 	}
 
-	/// Set last contact as failure for a node
-	pub fn note_failure(&mut self, id: &NodeId) {
-		let mut last_contact = None;
+	fn update_ordered_ids(&mut self, id: &NodeId, last_contact: Option<NodeContact>) {
 		if let Some(node) = self.nodes.get_mut(id) {
-			node.last_contact = Some(NodeContact::failure());
-			last_contact = node.last_contact
+			node.last_contact = last_contact;
 		}
 		if let Some(pos) = self.ordered_ids.iter().position(|i| id == i) {
 			self.ordered_ids.remove(pos);
@@ -436,18 +433,14 @@ impl NodeTable {
 		}
 	}
 
+	/// Set last contact as failure for a node
+	pub fn note_failure(&mut self, id: &NodeId) {
+		self.update_ordered_ids(id, Some(NodeContact::failure()));
+	}
+
 	/// Set last contact as success for a node
 	pub fn note_success(&mut self, id: &NodeId) {
-		let mut last_contact = None;
-		if let Some(node) = self.nodes.get_mut(id) {
-			node.last_contact = Some(NodeContact::success());
-			last_contact = node.last_contact
-		}
-		if let Some(pos) = self.ordered_ids.iter().position(|i| id == i) {
-			self.ordered_ids.remove(pos);
-			let index = self.get_index_to_insert(last_contact);
-			self.ordered_ids.insert(index, *id);
-		}
+		self.update_ordered_ids(id, Some(NodeContact::success()));
 	}
 
 	/// Mark as useless, no further attempts to connect until next call to `clear_useless`.
