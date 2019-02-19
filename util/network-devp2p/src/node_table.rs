@@ -298,7 +298,7 @@ impl NodeTable {
 			Some(NodeContact::Failure(last_contact_time)) => {
 				if let Some(i) = self.ordered_ids.iter().rev().position(|&item| {
 					match self.nodes.get(&item).expect("nodes and ordered_ids do not get out of sync; qed").last_contact {
-						Some(NodeContact::Failure(last)) if last >= last_contact_time => false,
+						Some(NodeContact::Failure(last)) => last < last_contact_time,
 						_ => true
 					}
 				}) { index = len - i; };
