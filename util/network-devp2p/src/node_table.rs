@@ -386,8 +386,8 @@ impl NodeTable {
 	}
 
 	/// Get particular node
-	pub fn get_mut(&mut self, id: &NodeId) -> Option<&mut Node> {
-		self.nodes.get_mut(id)
+	pub fn get(&self, id: &NodeId) -> Option<&Node> {
+		self.nodes.get(id)
 	}
 
 	/// Check if a node exists in the table.
@@ -711,22 +711,20 @@ mod tests {
 		assert_eq!(table.get_index_to_insert(Some(NodeContact::Failure(time::UNIX_EPOCH))), 4);
 		assert_eq!(table.get_index_to_insert(None), 0);
 
-		// success - nodes 3 & 4
+		// success - nodes 3,4,5 (5 - the oldest)
+		table.note_success(&id5);
 		table.note_success(&id3);
 
-		assert_eq!(table.get_index_to_insert(Some(NodeContact::Success(time::UNIX_EPOCH))), 1);
-		assert_eq!(table.get_index_to_insert(None), 1);
+		assert_eq!(table.get_index_to_insert(Some(NodeContact::Success(time::UNIX_EPOCH))), 2);
+		assert_eq!(table.get_index_to_insert(None), 2);
 
 		let time_in_between = SystemTime::now();
 		table.note_success(&id4);
 
 		assert_eq!(table.get_index_to_insert(Some(NodeContact::success())), 0);
 		assert_eq!(table.get_index_to_insert(Some(NodeContact::Success(time_in_between))), 1);
-		assert_eq!(table.get_index_to_insert(Some(NodeContact::Success(time::UNIX_EPOCH))), 2);
-		assert_eq!(table.get_index_to_insert(None), 2);
-
-		// success - node 5 (old contact)
-		table.get_mut(&id5).unwrap().last_contact = Some(NodeContact::Success(time::UNIX_EPOCH));
+		assert_eq!(table.get_index_to_insert(Some(NodeContact::Success(time::UNIX_EPOCH))), 3);
+		assert_eq!(table.get_index_to_insert(None), 3);
 
 		// unknown - node 6
 
