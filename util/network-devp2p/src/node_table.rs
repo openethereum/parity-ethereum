@@ -679,8 +679,22 @@ mod tests {
 		let id6 = H512::from_str("f979fb575495b8d6db44f750317d0f4622bf4c2aa3365d6af7c284339968eef29b69ad0dce72a4d8db5ebb4968de0e3bec910127f134779fbcb0cb6d3331163c").unwrap();
 		let mut table = NodeTable::new(None);
 
+		assert_eq!(table.get_index_to_insert(Some(NodeContact::success())), 0);
+		assert_eq!(table.get_index_to_insert(Some(NodeContact::failure())), 0);
+		assert_eq!(table.get_index_to_insert(None), 0);
+
 		table.add_node(node1);
+
+		assert_eq!(table.get_index_to_insert(Some(NodeContact::success())), 0);
+		assert_eq!(table.get_index_to_insert(Some(NodeContact::failure())), 1);
+		assert_eq!(table.get_index_to_insert(None), 0);
+
 		table.add_node(node2);
+
+		assert_eq!(table.get_index_to_insert(Some(NodeContact::success())), 0);
+		assert_eq!(table.get_index_to_insert(Some(NodeContact::failure())), 2);
+		assert_eq!(table.get_index_to_insert(None), 0);
+
 		table.add_node(node3);
 		table.add_node(node4);
 		table.add_node(node5);
@@ -688,11 +702,28 @@ mod tests {
 
 		// failures - nodes 1 & 2
 		table.note_failure(&id1);
+		let time_in_between = SystemTime::now();
 		table.note_failure(&id2);
+
+		assert_eq!(table.get_index_to_insert(Some(NodeContact::success())), 0);
+		assert_eq!(table.get_index_to_insert(Some(NodeContact::failure())), 6);
+		assert_eq!(table.get_index_to_insert(Some(NodeContact::Failure(time_in_between))), 5);
+		assert_eq!(table.get_index_to_insert(Some(NodeContact::Failure(time::UNIX_EPOCH))), 4);
+		assert_eq!(table.get_index_to_insert(None), 0);
 
 		// success - nodes 3 & 4
 		table.note_success(&id3);
+
+		assert_eq!(table.get_index_to_insert(Some(NodeContact::Success(time::UNIX_EPOCH))), 1);
+		assert_eq!(table.get_index_to_insert(None), 1);
+
+		let time_in_between = SystemTime::now();
 		table.note_success(&id4);
+
+		assert_eq!(table.get_index_to_insert(Some(NodeContact::success())), 0);
+		assert_eq!(table.get_index_to_insert(Some(NodeContact::Success(time_in_between))), 1);
+		assert_eq!(table.get_index_to_insert(Some(NodeContact::Success(time::UNIX_EPOCH))), 2);
+		assert_eq!(table.get_index_to_insert(None), 2);
 
 		// success - node 5 (old contact)
 		table.get_mut(&id5).unwrap().last_contact = Some(NodeContact::Success(time::UNIX_EPOCH));
