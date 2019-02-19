@@ -322,7 +322,7 @@ impl FullDependencies {
 					if !for_generic_pubsub {
 						let mut client =
 							EthPubSubClient::new(self.client.clone(), self.executor.clone());
-						client.add_sync_notifier(self.sync.sync_notification());
+						client.add_sync_notifier(self.sync.sync_notification(), self.sync.clone());
 						let h = client.handler();
 						self.miner
 							.add_transactions_listener(Box::new(move |hashes| {
@@ -562,7 +562,7 @@ impl<C: LightChainClient + 'static> LightDependencies<C> {
 						self.executor.clone(),
 						self.gas_price_percentile,
 					);
-					client.add_sync_notifier(self.sync.sync_notification());
+					client.add_light_sync_notifier(self.sync.sync_notification(), self.sync.clone());
 					self.client.add_listener(client.handler() as Weak<_>);
 					let h = client.handler();
 					self.transaction_queue

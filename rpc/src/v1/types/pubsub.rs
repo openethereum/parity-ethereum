@@ -20,7 +20,7 @@ use ethereum_types::H256;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use serde::de::Error;
 use serde_json::{Value, from_value};
-use v1::types::{RichHeader, Filter, Log};
+use v1::types::{RichHeader, Filter, Log, H256, U64};
 
 /// Subscription result.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -31,17 +31,21 @@ pub enum Result {
 	Log(Box<Log>),
 	/// Transaction hash
 	TransactionHash(H256),
-	///
+	/// SyncStatus
 	SyncState(PubSubSyncStatus)
 }
 
 #[derive(Debug, Serialize, Eq, PartialEq, Clone)]
 #[serde(rename_all="camelCase")]
 pub struct PubSubSyncStatus {
-	//	starting_block: U64,
+	/// starting block number
+	pub	starting_block: U64,
+	/// is_major_syncing?
 	pub is_syncing: bool,
-//	current_block: U64,
-//	highest_block: U64
+	/// current block number
+	pub current_block: U64,
+	/// highest block number
+	pub highest_block: U64,
 }
 
 impl Serialize for Result {

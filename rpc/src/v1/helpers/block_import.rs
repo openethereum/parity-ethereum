@@ -31,16 +31,10 @@ pub fn is_major_importing_or_waiting(sync_state: Option<SyncState>, queue_info: 
 	is_verifying || is_syncing_state
 }
 
-/// Check if client is during major sync or during block import.
-pub fn is_major_importing(sync_state: Option<SyncState>, queue_info: BlockQueueInfo) -> bool {
-	is_major_importing_or_waiting(sync_state, queue_info, true)
-}
-
 #[cfg(test)]
 mod tests {
 	use ethcore::client::BlockQueueInfo;
 	use sync::SyncState;
-	use super::is_major_importing;
 
 	fn queue_info(unverified: usize, verified: usize) -> BlockQueueInfo {
 		BlockQueueInfo {
@@ -53,15 +47,4 @@ mod tests {
 		}
 	}
 
-	#[test]
-	fn is_still_verifying() {
-		assert!(!is_major_importing(None, queue_info(2, 1)));
-		assert!(is_major_importing(None, queue_info(2, 2)));
-	}
-
-	#[test]
-	fn is_synced_state() {
-		assert!(is_major_importing(Some(SyncState::Blocks), queue_info(0, 0)));
-		assert!(!is_major_importing(Some(SyncState::Idle), queue_info(0, 0)));
-	}
 }

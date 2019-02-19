@@ -36,7 +36,7 @@ pub struct TestSyncProvider {
 	/// Sync status.
 	pub status: RwLock<SyncStatus>,
 	/// is major importing?
-	is_importing: RwLock<bool>
+	is_importing: RwLock<bool>,
 }
 
 impl TestSyncProvider {

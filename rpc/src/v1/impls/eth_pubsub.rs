@@ -28,10 +28,10 @@ use v1::helpers::{errors, limit_logs, Subscribers, };
 use v1::helpers::light_fetch::LightFetch;
 use v1::metadata::Metadata;
 use v1::traits::EthPubSub;
-use v1::types::{pubsub, RichHeader, Log};
+use v1::types::{pubsub, RichHeader, Log, U64};
 
 use sync::{SyncState, Notification};
-use ethcore::client::{BlockChainClient, ChainNotify, QueueInfo, NewBlocks, ChainRouteType, BlockId};
+use ethcore::client::{BlockChainClient, ChainNotify, NewBlocks, ChainRouteType, BlockId};
 use ethereum_types::H256;
 use light::cache::Cache;
 use light::client::{LightChainClient, LightChainNotify};
@@ -39,7 +39,7 @@ use light::on_demand::OnDemandRequester;
 use parity_runtime::Executor;
 use parking_lot::{RwLock, Mutex};
 
-use sync::{LightSyncProvider, LightNetworkDispatcher, ManageNetwork};
+use sync::{LightSyncProvider, LightNetworkDispatcher, ManageNetwork, SyncProvider, LightSyncInfo};
 
 use types::encoded;
 use types::filter::Filter as EthFilter;
@@ -55,18 +55,63 @@ pub struct EthPubSubClient<C> {
 	sync_subscribers: Arc<RwLock<Subscribers<Client>>>,
 }
 
-impl <C: 'static + QueueInfo> EthPubSubClient<C> {
+impl<C> EthPubSubClient<C>
+	where
+		C: 'static + BlockChainClient
+{
 	/// adds a sync notification channel to the pubsub client
-	pub fn add_sync_notifier(&mut self, receiver: Notification<SyncState>) {
+	pub fn add_sync_notifier(&mut self, receiver: Notification<SyncState>, sync: Arc<SyncProvider>) {
 		let handler = self.handler.clone();
-		let client = self.handler.client.clone() as Arc<QueueInfo>;
+		let client = self.handler.client.clone() as Arc<BlockChainClient>;
 
 		self.handler.executor.spawn(
 			receiver.for_each(move |state| {
 				let queue_info = client.queue_info();
+				let status = sync.status();
+
 				let is_syncing_state = match state { SyncState::Idle | SyncState::NewBlocks => false, _ => true };
 				let is_verifying = queue_info.unverified_queue_size + queue_info.verified_queue_size > 3;
-				handler.notify_syncing(pubsub::PubSubSyncStatus { is_syncing: is_verifying || is_syncing_state });
+
+				let highest_block = U64::from(status.highest_block_number.unwrap_or(status.start_block_number));
+
+				let sync_state = pubsub::PubSubSyncStatus {
+					is_syncing: is_verifying || is_syncing_state,
+					starting_block: status.start_block_number.into(),
+					current_block: client.chain_info().best_block_number.into(),
+					highest_block: highest_block.into(),
+				};
+				handler.notify_syncing(sync_state);
+				Ok(())
+			})
+		)
+	}
+}
+
+impl<C> EthPubSubClient<LightFetch<C>>
+	where
+		C: 'static + LightSyncProvider + LightNetworkDispatcher + ManageNetwork
+{
+	/// adds a sync notification channel to the pubsub client
+	pub fn add_light_sync_notifier(&mut self, receiver: Notification<SyncState>, sync: Arc<LightSyncInfo>) {
+		let handler = self.handler.clone();
+		let client = self.handler.client.client.clone();
+
+		self.handler.executor.spawn(
+			receiver.for_each(move |state| {
+				let queue_info = client.queue_info();
+
+				let is_syncing_state = match state { SyncState::Idle | SyncState::NewBlocks => false, _ => true };
+				let is_verifying = queue_info.unverified_queue_size + queue_info.verified_queue_size > 3;
+
+				let highest_block = U64::from(sync.highest_block().unwrap_or(sync.start_block()));
+
+				let status = pubsub::PubSubSyncStatus {
+					is_syncing: is_verifying || is_syncing_state,
+					starting_block: sync.start_block().into(),
+					current_block: client.chain_info().best_block_number.into(),
+					highest_block: highest_block.into(),
+				};
+				handler.notify_syncing(status);
 				Ok(())
 			})
 		)
