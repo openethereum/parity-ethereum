@@ -229,10 +229,6 @@ impl rlp::Decodable for Envelope {
 	}
 }
 
-/// Error indicating no topics.
-#[derive(Debug, Copy, Clone)]
-pub struct EmptyTopics;
-
 /// Message creation parameters.
 /// Pass this to `Message::create` to make a message.
 pub struct CreateParams {
