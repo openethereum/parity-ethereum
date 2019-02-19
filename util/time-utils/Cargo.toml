@@ -1,0 +1,9 @@
+[package]
+name = "time-utils"
+version = "0.1.0"
+authors = ["Parity Technologies <admin@parity.io>"]
+description = "Time utilities for checked arithmetic"
+license = "GPL3"
+edition = "2018"
+
+[dependencies]

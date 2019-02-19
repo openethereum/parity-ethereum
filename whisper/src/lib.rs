@@ -32,6 +32,7 @@ extern crate serde;
 extern crate slab;
 extern crate smallvec;
 extern crate tiny_keccak;
+extern crate time_utils;
 
 extern crate jsonrpc_core;
 extern crate jsonrpc_derive;

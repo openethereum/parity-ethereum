@@ -42,6 +42,7 @@ use itertools::{self, Itertools};
 use rlp::{encode, Decodable, DecoderError, Encodable, RlpStream, Rlp};
 use ethereum_types::{H256, H520, Address, U128, U256};
 use parking_lot::{Mutex, RwLock};
+use time_utils::CheckedSystemTime;
 use types::BlockNumber;
 use types::header::{Header, ExtendedHeader};
 use types::ancestry_action::AncestryAction;
@@ -574,8 +575,16 @@ fn verify_timestamp(step: &Step, header_step: u64) -> Result<(), BlockError> {
 			// NOTE This error might be returned only in early stage of verification (Stage 1).
 			// Returning it further won't recover the sync process.
 			trace!(target: "engine", "verify_timestamp: block too early");
-			let oob = oob.map(|n| SystemTime::now() + Duration::from_secs(n));
-			Err(BlockError::TemporarilyInvalid(oob).into())
+
+			let now = SystemTime::now();
+			let found = CheckedSystemTime::checked_add(now, Duration::from_secs(oob.found))
+				.ok_or(BlockError::TimestampOverflow)?;
+			let max = oob.max.and_then(|m| CheckedSystemTime::checked_add(now, Duration::from_secs(m)));
+			let min = oob.max.and_then(|m| CheckedSystemTime::checked_add(now, Duration::from_secs(m)));
+
+			let new_oob = OutOfBounds { min, max, found };
+
+			Err(BlockError::TemporarilyInvalid(new_oob).into())
 		},
 		Ok(_) => Ok(()),
 	}
@@ -611,6 +620,7 @@ fn combine_proofs(signal_number: BlockNumber, set_proof: &[u8], finality_proof: 
 	stream.out()
 }
 
+
 fn destructure_proofs(combined: &[u8]) -> Result<(BlockNumber, &[u8], &[u8]), Error> {
 	let rlp = Rlp::new(combined);
 	Ok((
@@ -626,7 +636,7 @@ trait AsMillis {
 
 impl AsMillis for Duration {
 	fn as_millis(&self) -> u64 {
-		self.as_secs()*1_000 + (self.subsec_nanos()/1_000_000) as u64
+		self.as_secs() * 1_000 + (self.subsec_nanos() / 1_000_000) as u64
 	}
 }
 
