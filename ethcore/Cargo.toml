@@ -107,7 +107,7 @@ slow-blocks = []
 # Run JSON consensus tests.
 json-tests = ["env_logger", "test-helpers", "to-pod-full"]
 # Skip JSON consensus tests with pending issues.
-ci-skip-issue = []
+ci-skip-tests = []
 # Run memory/cpu heavy tests.
 test-heavy = []
 # Compile test helpers

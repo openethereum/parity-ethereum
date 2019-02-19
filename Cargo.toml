@@ -32,6 +32,7 @@ ctrlc = { git = "https://github.com/paritytech/rust-ctrlc.git" }
 jsonrpc-core = "10.0.1"
 parity-bytes = "0.1"
 common-types = { path = "ethcore/types" }
+ethash = { path = "ethash" }
 ethcore = { path = "ethcore", features = ["parity"] }
 ethcore-accounts = { path = "accounts", optional = true }
 ethcore-blockchain = { path = "ethcore/blockchain" }
@@ -91,7 +92,7 @@ default = ["accounts"]
 accounts = ["ethcore-accounts", "parity-rpc/accounts"]
 miner-debug = ["ethcore/miner-debug"]
 json-tests = ["ethcore/json-tests"]
-ci-skip-issue = ["ethcore/ci-skip-issue"]
+ci-skip-tests = ["ethcore/ci-skip-tests", "ethash/ci-skip-tests"]
 test-heavy = ["ethcore/test-heavy"]
 evm-debug = ["ethcore/evm-debug"]
 evm-debug-tests = ["ethcore/evm-debug-tests"]

@@ -543,6 +543,7 @@ mod test {
 		);
 	}
 
+	#[cfg(not(feature = "ci-skip-tests"))]
 	#[test]
 	fn test_progpow_testvectors() {
 		struct ProgpowTest {
