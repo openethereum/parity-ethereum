@@ -400,7 +400,10 @@ impl NodeTable {
 		for (_, node) in update.added.drain() {
 			let mut add = false;
 			{
-				let entry = self.nodes.entry(node.id).or_insert_with(|| {add = true; Node::new(node.id, node.endpoint.clone())});
+				let entry = self.nodes.entry(node.id).or_insert_with(|| {
+					add = true;
+					Node::new(node.id, node.endpoint.clone())
+				});
 				entry.endpoint = node.endpoint;
 			}
 			if add {
