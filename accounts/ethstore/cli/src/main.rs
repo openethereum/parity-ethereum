@@ -147,7 +147,7 @@ impl fmt::Display for Error {
 }
 
 fn main() {
-	panic_hook::set_abort();
+	panic_hook::set();
 	if env::var("RUST_LOG").is_err() {
 		env::set_var("RUST_LOG", "warn")
 	}

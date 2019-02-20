@@ -123,6 +123,7 @@ name = "parity"
 [profile.release]
 debug = false
 lto = true
+panic = "abort"
 
 [workspace]
 # This should only list projects that are not

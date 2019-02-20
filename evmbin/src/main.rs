@@ -99,7 +99,7 @@ Display result state dump in standardized JSON format.
 "#;
 
 fn main() {
-	panic_hook::set_abort();
+	panic_hook::set();
 	env_logger::init();
 
 	let args: Args = Docopt::new(USAGE).and_then(|d| d.deserialize()).unwrap_or_else(|e| e.exit());

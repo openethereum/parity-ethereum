@@ -368,7 +368,7 @@ macro_rules! trace_main {
 }
 
 fn main() {
-	panic_hook::set_abort();
+	panic_hook::set();
 
 	// the user has specified to run its originally installed binary (not via `parity-updater`)
 	let force_direct = std::env::args().any(|arg| arg == "--force-direct");
