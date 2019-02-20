@@ -19,6 +19,7 @@ variables:
     - beta
     - tags
     - schedules
+    - pr-10386
 
 
 .collect_artifacts:                &collect_artifacts
@@ -74,7 +75,6 @@ build-snap-i386:
 build-snap-arm64:
   <<:                              *build-linux
   image:                           parity/rust-parity-ethereum-build:arm64
-  only:                            pr-10386
   variables:
     CARGO_TARGET:                  aarch64-unknown-linux-gnu
 
