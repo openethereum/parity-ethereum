@@ -59,7 +59,7 @@ keccak-hash = "0.1.2"
 parity-runtime = { path = "../util/runtime" }
 parity-updater = { path = "../updater" }
 parity-version = { path = "../util/version" }
-patricia-trie = "0.3.0"
+trie-db = "0.11.0"
 rlp = { version = "0.3.0", features = ["ethereum"] }
 stats = { path = "../util/stats" }
 vm = { path = "../ethcore/vm" }

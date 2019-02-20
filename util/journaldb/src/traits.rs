@@ -21,13 +21,28 @@ use std::sync::Arc;
 
 use bytes::Bytes;
 use ethereum_types::H256;
-use hashdb::HashDB;
+use hash_db::{HashDB, AsHashDB};
 use keccak_hasher::KeccakHasher;
 use kvdb::{self, DBTransaction, DBValue};
+use std::collections::HashMap;
+
+
+/// expose keys of a hashDB for debugging or tests (slow).
+pub trait KeyedHashDB: HashDB<KeccakHasher, DBValue> {
+	/// Primarily use for tests, highly inefficient.
+	fn keys(&self) -> HashMap<H256, i32>;
+}
+
+/// Upcast to `KeyedHashDB`
+pub trait AsKeyedHashDB: AsHashDB<KeccakHasher, DBValue> {
+	/// Perform upcast to KeyedHashDB.
+	fn as_keyed_hash_db(&self) -> &KeyedHashDB;
+}
 
 /// A `HashDB` which can manage a short-term journal potentially containing many forks of mutually
 /// exclusive actions.
-pub trait JournalDB: HashDB<KeccakHasher, DBValue> {
+pub trait JournalDB: KeyedHashDB {
+
 	/// Return a copy of ourself, in a box.
 	fn boxed_clone(&self) -> Box<JournalDB>;
 
@@ -78,7 +93,7 @@ pub trait JournalDB: HashDB<KeccakHasher, DBValue> {
 	fn flush(&self) {}
 
 	/// Consolidate all the insertions and deletions in the given memory overlay.
-	fn consolidate(&mut self, overlay: ::memorydb::MemoryDB<KeccakHasher, DBValue>);
+	fn consolidate(&mut self, overlay: ::memory_db::MemoryDB<KeccakHasher, DBValue>);
 
 	/// Commit all changes in a single batch
 	#[cfg(test)]

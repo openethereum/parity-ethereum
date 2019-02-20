@@ -30,9 +30,8 @@ use ethcore::state::{self, ProvedExecution};
 use ethereum_types::{H256, U256, Address};
 use ethtrie::{TrieError, TrieDB};
 use hash::{KECCAK_NULL_RLP, KECCAK_EMPTY, KECCAK_EMPTY_LIST_RLP, keccak};
-use hashdb::HashDB;
+use hash_db::HashDB;
 use kvdb::DBValue;
-use memorydb::MemoryDB;
 use parking_lot::Mutex;
 use request::{self as net_request, IncompleteRequest, CompleteRequest, Output, OutputKind, Field};
 use rlp::{RlpStream, Rlp};
@@ -981,7 +980,7 @@ impl Account {
 		let header = self.header.as_ref()?;
 		let state_root = header.state_root();
 
-		let mut db = MemoryDB::new();
+		let mut db = journaldb::new_memory_db();
 		for node in proof { db.insert(&node[..]); }
 
 		match TrieDB::new(&db, &state_root).and_then(|t| t.get(&keccak(&self.address)))? {
@@ -1101,7 +1100,6 @@ mod tests {
 	use super::*;
 	use std::time::Duration;
 	use ethereum_types::{H256, Address};
-	use memorydb::MemoryDB;
 	use parking_lot::Mutex;
 	use trie::{Trie, TrieMut};
 	use ethtrie::{SecTrieDB, SecTrieDBMut};
@@ -1281,7 +1279,7 @@ mod tests {
 		use rlp::RlpStream;
 
 		let mut root = H256::default();
-		let mut db = MemoryDB::new();
+		let mut db = journaldb::new_memory_db();
 		let mut header = Header::new();
 		header.set_number(123_456);
 		header.set_extra_data(b"test_header".to_vec());
