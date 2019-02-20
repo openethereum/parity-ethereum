@@ -5,8 +5,7 @@ stages:
   - publish-onchain
   - optional
 
-image:                             parity/rust:gitlab-ci
-
+image:                             parity/rust-parity-ethereum-build:xenial
 variables:
   GIT_STRATEGY:                    fetch
   GIT_SUBMODULE_STRATEGY:          recursive
@@ -74,6 +73,8 @@ build-snap-i386:
 
 build-snap-arm64:
   <<:                              *build-linux
+  image:                           parity/rust-parity-ethereum-build:arm64
+  only:                            pr-10386
   variables:
     CARGO_TARGET:                  aarch64-unknown-linux-gnu
 
