@@ -362,7 +362,6 @@ fn println_trace_main(s: String) {
 	}
 }
 
-#[macro_export]
 macro_rules! trace_main {
 	($arg:expr) => (println_trace_main($arg.into()));
 	($($arg:tt)*) => (println_trace_main(format!("{}", format_args!($($arg)*))));
