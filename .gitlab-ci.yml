@@ -122,7 +122,7 @@ publish-snap:
   only:                            *releaseable_branches
   image:                           snapcore/snapcraft
   variables:
-    BUILD_ARCH:                  amd64
+    BUILD_ARCH:                    amd64
   cache: {}
   before_script:                   *determine_version
   dependencies:
@@ -136,21 +136,21 @@ publish-snap:
 publish-snap-i386:
   <<:                              *publish-snap
   variables:
-    BUILD_ARCH:                  i386
+    BUILD_ARCH:                    i386
   dependencies:
     - build-snap-i386
 
 publish-snap-arm64:
   <<:                              *publish-snap
   variables:
-    BUILD_ARCH:                  arm64
+    BUILD_ARCH:                    arm64
   dependencies:
     - build-snap-arm64
 
 publish-snap-armhf:
   <<:                              *publish-snap
   variables:
-    BUILD_ARCH:                  armhf
+    BUILD_ARCH:                    armhf
   dependencies:
     - build-snap-armhf
 
