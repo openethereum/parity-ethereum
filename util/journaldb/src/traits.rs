@@ -29,7 +29,7 @@ use std::collections::HashMap;
 
 /// expose keys of a hashDB for debugging or tests (slow).
 pub trait KeyedHashDB: HashDB<KeccakHasher, DBValue> {
-  /// Primarily use for tests, highly inefficient.
+	/// Primarily use for tests, highly inefficient.
 	fn keys(&self) -> HashMap<H256, i32>;
 }
 
