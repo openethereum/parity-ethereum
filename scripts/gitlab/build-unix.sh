@@ -11,6 +11,11 @@ echo "CC:               " $CC
 echo "CXX:              " $CXX
 #strip ON
 export RUSTFLAGS=" -C link-arg=-s"
+# Linker for crosscomile
+echo "[target.$PLATFORM]" >> .cargo/config
+echo "linker= \"$CC\"" >> .cargo/config
+echo "_____ Linker _____"
+cat .cargo/config
 
 echo "_____ Building target: "$CARGO_TARGET" _____"
 if [ "${CARGO_TARGET}" = "armv7-linux-androideabi" ]
