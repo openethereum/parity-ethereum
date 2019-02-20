@@ -67,19 +67,21 @@ build-linux:                       &build-linux
   tags:
     - linux-docker
 
-build-snap-i386:
+build-linux-i386:
   <<:                              *build-linux
+  image:                           parity/rust-parity-ethereum-build:i386
   variables:
     CARGO_TARGET:                  i686-unknown-linux-gnu
 
-build-snap-arm64:
+build-linux-arm64:
   <<:                              *build-linux
   image:                           parity/rust-parity-ethereum-build:arm64
   variables:
     CARGO_TARGET:                  aarch64-unknown-linux-gnu
 
-build-snap-armhf:
+build-linux-armhf:
   <<:                              *build-linux
+  image:                           parity/rust-parity-ethereum-build:armhf
   variables:
     CARGO_TARGET:                  armv7-unknown-linux-gnueabihf
 
@@ -139,21 +141,21 @@ publish-snap-i386:
   variables:
     BUILD_ARCH:                    i386
   dependencies:
-    - build-snap-i386
+    - build-linux-i386
 
 publish-snap-arm64:
   <<:                              *publish-snap
   variables:
     BUILD_ARCH:                    arm64
   dependencies:
-    - build-snap-arm64
+    - build-linux-arm64
 
 publish-snap-armhf:
   <<:                              *publish-snap
   variables:
     BUILD_ARCH:                    armhf
   dependencies:
-    - build-snap-armhf
+    - build-linux-armhf
 
 publish-onnet-update:
   stage:                           publish-onchain
