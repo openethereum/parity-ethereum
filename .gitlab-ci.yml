@@ -57,7 +57,7 @@ test-audit:
   tags:
     - linux-docker
 
-build-linux:
+build-linux:                       &build-linux
   stage:                           build
   only:                            *releaseable_branches
   script:
@@ -117,7 +117,7 @@ publish-docker:
   script:
     - scripts/gitlab/publish-docker.sh parity
 
-publish-snap:
+publish-snap:                      &publish-snap
   stage:                           publish
   only:                            *releaseable_branches
   image:                           snapcore/snapcraft
