@@ -26,7 +26,7 @@ VERSION="v"$VERSION
 SNAP_PACKAGE="parity_"$VERSION"_"$BUILD_ARCH".snap"
 
 echo "__________Create snap package__________"
-ls artifacts
+CARGO_TARGET="$(ls artifacts)"
 echo "Release channel :" $GRADE " Branch/tag: " $CI_COMMIT_REF_NAME
 echo $VERSION:$GRADE:$BUILD_ARCH:$CARGO_TARGET
 # cat scripts/snap/snapcraft.template.yaml | envsubst '$VERSION:$GRADE:$BUILD_ARCH:$CARGO_TARGET' > snapcraft.yaml
