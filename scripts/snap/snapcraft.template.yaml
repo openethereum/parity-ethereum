@@ -14,20 +14,20 @@ description:        |
 apps:
   parity:
     command:        parity
-    plugs:          [home, network, network-bind, mount-observe, x11, unity7, desktop, desktop-legacy, wayland]
+    plugs:          [home, network, network-bind, mount-observe, removable-media, x11, unity7, desktop, desktop-legacy, wayland]
     desktop:        ./usr/share/applications/parity.desktop
   parity-evm:
     command:        parity-evm
-    plugs:          [home, network, network-bind]
+    plugs:          [home, network, network-bind, removable-media]
   ethkey:
     command:        ethkey
-    plugs:          [home]
+    plugs:          [home, removable-media]
   ethstore:
     command:        ethstore
-    plugs:          [home]
+    plugs:          [home, removable-media]
   whisper:
     command:        whisper
-    plugs:          [home, network-bind]
+    plugs:          [home, network-bind, removable-media]
 
 icon:               ./scripts/snap/icon.png
 
