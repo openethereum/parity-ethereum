@@ -24,7 +24,7 @@ use types::basic_account::BasicAccount;
 use snapshot::account;
 use snapshot::{chunk_state, Error as SnapshotError, Progress, StateRebuilder, SNAPSHOT_SUBPARTS};
 use snapshot::io::{PackedReader, PackedWriter, SnapshotReader, SnapshotWriter};
-use super::helpers::{StateProducer};
+use super::helpers::StateProducer;
 
 use error::{Error, ErrorKind};
 
