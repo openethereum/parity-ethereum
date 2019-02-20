@@ -67,6 +67,21 @@ build-linux:
   tags:
     - linux-docker
 
+build-snap-i386:
+  <<:                              *build-linux
+  variables:
+    CARGO_TARGET:                  i686-unknown-linux-gnu
+
+build-snap-arm64:
+  <<:                              *build-linux
+  variables:
+    CARGO_TARGET:                  aarch64-unknown-linux-gnu
+
+build-snap-armhf:
+  <<:                              *build-linux
+  variables:
+    CARGO_TARGET:                  armv7-unknown-linux-gnueabihf
+
 build-darwin:
   stage:                           build
   only:                            *releaseable_branches
@@ -103,7 +118,7 @@ publish-docker:
     - scripts/gitlab/publish-docker.sh parity
 
 publish-snap:
-  stage:                           optional #publish
+  stage:                           publish
   only:                            *releaseable_branches
   image:                           snapcore/snapcraft
   variables:
@@ -116,8 +131,28 @@ publish-snap:
     - rust-stable
   script:
     - scripts/gitlab/publish-snap.sh
-  allow_failure:                   true
   <<:                              *collect_artifacts
+
+publish-snap-i386:
+  <<:                              *publish-snap
+  variables:
+    BUILD_ARCH:                  i386
+  dependencies:
+    - build-snap-i386
+
+publish-snap-arm64:
+  <<:                              *publish-snap
+  variables:
+    BUILD_ARCH:                  arm64
+  dependencies:
+    - build-snap-arm64
+
+publish-snap-armhf:
+  <<:                              *publish-snap
+  variables:
+    BUILD_ARCH:                  armhf
+  dependencies:
+    - build-snap-armhf
 
 publish-onnet-update:
   stage:                           publish-onchain
