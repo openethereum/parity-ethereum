@@ -22,7 +22,7 @@
 //! to convert to/from the packet id values transmitted over the
 //! wire.
 
-use syncpacketid_derive::SyncPackets;
+use syncpacket::SyncPackets;
 use crate::api::{ETH_PROTOCOL, WARP_SYNC_PROTOCOL_ID};
 
 /// An enum that defines all known packet ids in the context of

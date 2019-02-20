@@ -35,7 +35,7 @@ extern crate parity_bytes as bytes;
 extern crate parking_lot;
 extern crate rand;
 extern crate rlp;
-extern crate syncpacketid_derive;
+extern crate syncpacket;
 extern crate triehash_ethereum;
 
 extern crate ethcore_light as light;
