@@ -1,3 +1,13 @@
+Note: Parity Ethereum 2.2 reached End-of-Life on 2019-02-25 (EOL).
+
+## Parity-Ethereum [v2.2.11](https://github.com/paritytech/parity-ethereum/releases/tag/v2.2.11) (2019-02-21)
+
+## Parity-Ethereum [v2.2.10](https://github.com/paritytech/parity-ethereum/releases/tag/v2.2.10) (2019-02-13)
+
+## Parity-Ethereum [v2.2.9](https://github.com/paritytech/parity-ethereum/releases/tag/v2.2.9) (2019-02-03)
+
+## Parity-Ethereum [v2.2.8](https://github.com/paritytech/parity-ethereum/releases/tag/v2.2.8) (2019-02-01)
+
 ## Parity-Ethereum [v2.2.7](https://github.com/paritytech/parity-ethereum/releases/tag/v2.2.7) (2019-01-15)
 
 Parity-Ethereum 2.2.7-stable is a consensus-relevant security release that reverts Constantinople on the Ethereum network. Upgrading is mandatory for Ethereum, and strongly recommended for other networks.
