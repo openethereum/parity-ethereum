@@ -22,8 +22,12 @@ extern crate proc_macro;
 
 use proc_macro2::Ident;
 use quote::quote;
-use syn::{Attribute, Data, DeriveInput, Meta, MetaList, NestedMeta, Result};
+use syn::{Attribute, Data, DeriveInput, Expr, Meta, MetaList, NestedMeta, Result, Variant};
+use syn::punctuated::Punctuated;
+use syn::token::Comma;
 
+/// Given a list of arguments to the "protocol" attribute, check
+/// that there is only one argument and return it
 fn parse_protocol_arguments(args: &MetaList) -> Result<&Ident> {
 	if args.nested.len() != 1 {
 		return Err(syn::Error::new_spanned(args, "protocol attribute should have exactly one argument"));
@@ -57,6 +61,33 @@ fn parse_protocol_attribute(input: &Attribute) -> Result<Ident> {
 	}
 }
 
+/// For each variant in the enum check that it has a "protocol"
+/// attribute. If found, parse its arguments and return one
+/// single protocol id.
+fn get_variant_protocol_idents(variants: &Punctuated<Variant, Comma>) -> Result<Vec<Ident>> {
+	variants.iter()
+		.map(
+			|v| v.attrs
+				.iter()
+				.find(|&x| x.path.is_ident("protocol"))
+				.ok_or(syn::Error::new_spanned(v, format!("enum variant without protocol attribute {}", &v.ident)))
+				.and_then(|ref a| parse_protocol_attribute(a))
+		).collect()
+}
+
+/// For each variant in the enum make sure it has a numeric value
+/// assigned and return it
+fn get_variant_values(variants: &Punctuated<Variant, Comma>) -> Result<Vec<&Expr>> {
+	variants.iter()
+		.map(
+			|v| v.discriminant
+				.as_ref()
+				.map(|d| &d.1)
+				.ok_or(syn::Error::new_spanned(v, "enum pattern is not discriminant; should have assigned a unique value such as Foo = 1"))
+		)
+		.collect()
+}
+
 /// The SyncPackets derive-macro will provide an enum with this attribute:
 ///
 /// * With a method "from_u8" which will optionally convert a u8 value to
@@ -75,6 +106,7 @@ pub fn sync_packets(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
 	}
 }
 
+/// Actual implementation of the macro SyncPackets
 fn impl_sync_packets(ast: &DeriveInput) -> Result<proc_macro2::TokenStream> {
 	let body = match ast.data {
 		Data::Enum(ref e) => e,
@@ -92,33 +124,8 @@ fn impl_sync_packets(ast: &DeriveInput) -> Result<proc_macro2::TokenStream> {
 	let idents_from_u8: Vec<_> = body.variants.iter().map(|v| &v.ident).collect();
 	let idents_enum = idents_from_u8.clone();
 
-	// Within each variant of the enum find the first "protocol" attribute
-	// and extract its argument
-	let protocols:Vec<_> = match body.variants.iter()
-		.map(
-			|v| v.attrs
-				.iter()
-				.find(|&x| x.path.is_ident("protocol"))
-				.ok_or(syn::Error::new_spanned(v, format!("enum variant without protocol attribute {}", &v.ident)))
-				.and_then(|ref a| parse_protocol_attribute(a))
-		).collect() {
-			Ok(v) => v,
-			Err(err) => return Err(err),
-		};
-
-
-	// Values asigned to the variants in the enum
-	let values: Vec<_> = match body.variants.iter()
-		.map(
-			|v| v.discriminant
-				.as_ref()
-				.map(|d| &d.1)
-				.ok_or(syn::Error::new_spanned(v, "enum pattern is not discriminant; should have assigned a unique value such as Foo = 1"))
-		)
-		.collect() {
-			Ok(v) => v,
-			Err(err) => return Err(err),
-		};
+	let protocols = get_variant_protocol_idents(&body.variants)?;
+	let values = get_variant_values(&body.variants)?;
 
 	Ok(quote!{
 			use network::{PacketId, ProtocolId};

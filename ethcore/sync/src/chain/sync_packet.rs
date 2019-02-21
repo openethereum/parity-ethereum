@@ -31,9 +31,10 @@ use crate::api::{ETH_PROTOCOL, WARP_SYNC_PROTOCOL_ID};
 /// to enum variants. This implicitly provides a mechanism to
 /// check whether a given packet id is known, and to prevent
 /// packet id clashes when defining new ids.
+
 #[derive(SyncPackets, Clone, Copy, Debug, PartialEq)]
 pub enum SyncPacket {
-	#[protocol(ETH_PROTOCOL)]  StatusPacket = 0x00,
+	#[protocol(ETH_PROTOCOL)] StatusPacket = 0x00,
 	#[protocol(ETH_PROTOCOL)] NewBlockHashesPacket = 0x01,
 	#[protocol(ETH_PROTOCOL)] TransactionsPacket = 0x02,
 	#[protocol(ETH_PROTOCOL)] GetBlockHeadersPacket = 0x03,
