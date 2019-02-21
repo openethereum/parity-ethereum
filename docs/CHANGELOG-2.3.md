@@ -1,39 +1,113 @@
 ## Parity-Ethereum [v2.3.5](https://github.com/paritytech/parity-ethereum/releases/tag/v2.3.5) (2019-02-25)
 
+Parity-Ethereum 2.3.5-stable is a ...
+
+The full list of included changes:
+
 ## Parity-Ethereum [v2.3.4](https://github.com/paritytech/parity-ethereum/releases/tag/v2.3.4) (2019-02-21)
+
+Parity-Ethereum 2.3.4-beta is a maintenance release that fixes snap and docker installations.
+
+The full list of included changes:
+- Beta: snap: release untagged versions from branches to the candidate ([#10357](https://github.com/paritytech/parity-ethereum/pull/10357)) ([#10373](https://github.com/paritytech/parity-ethereum/pull/10373))
+  - Snap: release untagged versions from branches to the candidate snap channel ([#10357](https://github.com/paritytech/parity-ethereum/pull/10357))
+  - Snap: add the removable-media plug ([#10377](https://github.com/paritytech/parity-ethereum/pull/10377))
+  - Exchanged old(azure) bootnodes with new(ovh) ones ([#10309](https://github.com/paritytech/parity-ethereum/pull/10309))
+- Beta Backports ([#10354](https://github.com/paritytech/parity-ethereum/pull/10354))
+  - Version: bump beta to 2.3.4
+  - Snap: prefix version and populate candidate channel ([#10343](https://github.com/paritytech/parity-ethereum/pull/10343))
+  - Snap: populate candidate releases with beta snaps to avoid stale channel
+  - Snap: prefix version with v*
+  - No volumes are needed, just run -v volume:/path/in/the/container ([#10345](https://github.com/paritytech/parity-ethereum/pull/10345))
 
 ## Parity-Ethereum [v2.3.3](https://github.com/paritytech/parity-ethereum/releases/tag/v2.3.3) (2019-02-13)
 
+Parity-Ethereum 2.3.3-beta is a security-relevant release. A bug in the JSONRPC-deserialization module can cause crashes of all versions of Parity Ethereum nodes if an attacker is able to submit a specially-crafted RPC to certain publicly available endpoints.
+
+- https://www.parity.io/new-parity-ethereum-update-fixes-several-rpc-vulnerabilities/
+
+The full list of included changes:
+
+- Additional error for invalid gas ([#10327](https://github.com/paritytech/parity-ethereum/pull/10327)) ([#10328](https://github.com/paritytech/parity-ethereum/pull/10328))
+- Backports for Beta 2.3.3 ([#10333](https://github.com/paritytech/parity-ethereum/pull/10333))
+    - Properly handle check_epoch_end_signal errors ([#10015](https://github.com/paritytech/parity-ethereum/pull/10015))
+    - import rpc transactions sequentially ([#10051](https://github.com/paritytech/parity-ethereum/pull/10051))
+    - fix(docker): fix not receives SIGINT ([#10059](https://github.com/paritytech/parity-ethereum/pull/10059))
+    - snap: official image / test ([#10168](https://github.com/paritytech/parity-ethereum/pull/10168))
+    - Extract CallContract and RegistryInfo traits into their own crate ([#10178](https://github.com/paritytech/parity-ethereum/pull/10178))
+    - perform stripping during build ([#10208](https://github.com/paritytech/parity-ethereum/pull/10208))
+    - Remove CallContract and RegistryInfo re-exports from `ethcore/client` ([#10205](https://github.com/paritytech/parity-ethereum/pull/10205))
+    - fixed: types::transaction::SignedTransaction; ([#10229](https://github.com/paritytech/parity-ethereum/pull/10229))
+    - Additional tests for uint/hash/bytes deserialization. ([#10279](https://github.com/paritytech/parity-ethereum/pull/10279))
+    - Fix Windows build ([#10284](https://github.com/paritytech/parity-ethereum/pull/10284))
+    - Don't run the CPP example on CI ([#10285](https://github.com/paritytech/parity-ethereum/pull/10285))
+    - CI optimizations ([#10297](https://github.com/paritytech/parity-ethereum/pull/10297))
+    - fix publish job ([#10317](https://github.com/paritytech/parity-ethereum/pull/10317))
+    - Add Statetest support for Constantinople Fix ([#10323](https://github.com/paritytech/parity-ethereum/pull/10323))
+    - Add helper for Timestamp overflows ([#10330](https://github.com/paritytech/parity-ethereum/pull/10330))
+    - Don't add discovery initiators to the node table ([#10305](https://github.com/paritytech/parity-ethereum/pull/10305))
+    - change docker image based on debian instead of ubuntu due to the chan ([#10336](https://github.com/paritytech/parity-ethereum/pull/10336))
+    - role back docker build image and docker deploy image to ubuntu:xenial based ([#10338](https://github.com/paritytech/parity-ethereum/pull/10338))
+
 ## Parity-Ethereum [v2.3.2](https://github.com/paritytech/parity-ethereum/releases/tag/v2.3.2) (2019-02-03)
 
+Parity-Ethereum 2.3.2-stable is a security-relevant release. A bug in the JSONRPC-deserialization module can cause crashes of all versions of Parity Ethereum nodes if an attacker is able to submit a specially-crafted RPC to certain publicly available endpoints.
+
+- https://www.parity.io/security-alert-parity-ethereum-03-02/
+
+The full list of included changes:
+- Version: bump beta to 2.3.2 ([#10283](https://github.com/paritytech/parity-ethereum/pull/10283))
+- Additional tests for uint deserialization. ([#10279](https://github.com/paritytech/parity-ethereum/pull/10279)) ([#10280](https://github.com/paritytech/parity-ethereum/pull/10280))
+- Backport [#10285](https://github.com/paritytech/parity-ethereum/pull/10285) to beta ([#10286](https://github.com/paritytech/parity-ethereum/pull/10286))
+
 ## Parity-Ethereum [v2.3.1](https://github.com/paritytech/parity-ethereum/releases/tag/v2.3.1) (2019-02-01)
+
+Parity-Ethereum 2.3.1-beta is a consensus-relevant release that enables _St. Petersfork_ on:
+
+- Ethereum Block `7280000` (along with Constantinople)
+- Kovan Block `10255201`
+- Ropsten Block `4939394`
+- POA Sokol Block `7026400`
+
+In addition to this, Constantinople is cancelled for the POA Core network. Upgrading is mandatory for clients on any of these chains.
+
+The full list of included changes:
+
+- Backports for beta 2.3.1 ([#10225](https://github.com/paritytech/parity-ethereum/pull/10225))
+  - Fix _cannot recursively call into `Core`_ issue ([#10144](https://github.com/paritytech/parity-ethereum/pull/10144))
+  - Update for Android cross-compilation. ([#10180](https://github.com/paritytech/parity-ethereum/pull/10180))
+  - Fix _cannot recursively call into `Core`_ - Part 2 ([#10195](https://github.com/paritytech/parity-ethereum/pull/10195))
+  - Cancel Constantinople HF on POA Core ([#10198](https://github.com/paritytech/parity-ethereum/pull/10198))
+  - Add EIP-1283 disable transition ([#10214](https://github.com/paritytech/parity-ethereum/pull/10214))
+  - Enable St-Peters-Fork ("Constantinople Fix") ([#10223](https://github.com/paritytech/parity-ethereum/pull/10223))
+- Beta: Macos heapsize force jemalloc ([#10234](https://github.com/paritytech/parity-ethereum/pull/10234)) ([#10259](https://github.com/paritytech/parity-ethereum/pull/10259))
 
 ## Parity-Ethereum [v2.3.0](https://github.com/paritytech/parity-ethereum/releases/tag/v2.3.0) (2019-01-16)
 
 Parity-Ethereum 2.3.0-beta is a consensus-relevant security release that reverts Constantinople on the Ethereum network. Upgrading is mandatory for Ethereum, and strongly recommended for other networks.
 
-- **Consensus** - Ethereum Network: Pull Constantinople protocol upgrade on Ethereum (#10189)
+- **Consensus** - Ethereum Network: Pull Constantinople protocol upgrade on Ethereum ([#10189](https://github.com/paritytech/parity-ethereum/pull/10189))
   - Read more: [Security Alert: Ethereum Constantinople Postponement](https://blog.ethereum.org/2019/01/15/security-alert-ethereum-constantinople-postponement/)
-- **Networking** - All networks: Ping nodes from discovery (#10167)
-- **Wasm** - Kovan Network: Update pwasm-utils to 0.6.1 (#10134)
+- **Networking** - All networks: Ping nodes from discovery ([#10167](https://github.com/paritytech/parity-ethereum/pull/10167))
+- **Wasm** - Kovan Network: Update pwasm-utils to 0.6.1 ([#10134](https://github.com/paritytech/parity-ethereum/pull/10134))
 
 Other notable changes:
 
-- Existing blocks in the database are now kept when restoring a Snapshot. (#8643)
-- Block and transaction propagation is improved significantly. (#9954)
-- The ERC-191 Signed Data Standard is now supported by `personal_sign191`. (#9701)
-- Add support for ERC-191/712 `eth_signTypedData` as a standard for machine-verifiable and human-readable typed data signing with Ethereum keys. (#9631)
-- Add support for ERC-1186 `eth_getProof` (#9001)
-- Add experimental RPCs flag to enable ERC-191, ERC-712, and ERC-1186 APIs via `--jsonrpc-experimental` (#9928)
-- Make `CALLCODE` to trace value to be the code address. (#9881)
+- Existing blocks in the database are now kept when restoring a Snapshot. ([#8643](https://github.com/paritytech/parity-ethereum/pull/8643))
+- Block and transaction propagation is improved significantly. ([#9954](https://github.com/paritytech/parity-ethereum/pull/9954))
+- The ERC-191 Signed Data Standard is now supported by `personal_sign191`. ([#9701](https://github.com/paritytech/parity-ethereum/pull/9701))
+- Add support for ERC-191/712 `eth_signTypedData` as a standard for machine-verifiable and human-readable typed data signing with Ethereum keys. ([#9631](https://github.com/paritytech/parity-ethereum/pull/9631))
+- Add support for ERC-1186 `eth_getProof` ([#9001](https://github.com/paritytech/parity-ethereum/pull/9001))
+- Add experimental RPCs flag to enable ERC-191, ERC-712, and ERC-1186 APIs via `--jsonrpc-experimental` ([#9928](https://github.com/paritytech/parity-ethereum/pull/9928))
+- Make `CALLCODE` to trace value to be the code address. ([#9881](https://github.com/paritytech/parity-ethereum/pull/9881))
 
 Configuration changes:
 
-- The EIP-98 transition is now disabled by default. If you previously had no `eip98transition` specified in your chain specification, you would enable this now manually on block `0x0`. (#9955)
-- Also, unknown fields in chain specs are now rejected. (#9972)
-- The Tendermint engine was removed from Parity Ethereum and is no longer available and maintained. (#9980)
-- Ropsten testnet data and keys moved from `test/` to `ropsten/` subdir. To reuse your old keys and data either copy or symlink them to the new location.  (#10123)
-- Strict empty steps validation (#10041)
+- The EIP-98 transition is now disabled by default. If you previously had no `eip98transition` specified in your chain specification, you would enable this now manually on block `0x0`. ([#9955](https://github.com/paritytech/parity-ethereum/pull/9955))
+- Also, unknown fields in chain specs are now rejected. ([#9972](https://github.com/paritytech/parity-ethereum/pull/9972))
+- The Tendermint engine was removed from Parity Ethereum and is no longer available and maintained. ([#9980](https://github.com/paritytech/parity-ethereum/pull/9980))
+- Ropsten testnet data and keys moved from `test/` to `ropsten/` subdir. To reuse your old keys and data either copy or symlink them to the new location.  ([#10123](https://github.com/paritytech/parity-ethereum/pull/10123))
+- Strict empty steps validation ([#10041](https://github.com/paritytech/parity-ethereum/pull/10041))
   - If you have a chain with`empty_steps` already running, some blocks most likely contain non-strict entries (unordered or duplicated empty steps). In this release `strict_empty_steps_transition` is enabled by default at block `0x0` for any chain with `empty_steps`.
   - If your network uses `empty_steps` you **must** (A) plan a hard fork and change `strict_empty_steps_transition` to the desired fork block and (B) update the clients of the whole network to 2.2.7-stable / 2.3.0-beta. If for some reason you don't want to do this please set`strict_empty_steps_transition` to `0xfffffffff` to disable it.
 
