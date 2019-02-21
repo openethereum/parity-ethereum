@@ -32,7 +32,7 @@ variables:
     when:                          on_success
     expire_in:                     1 mos
     paths:
-    - artifacts/
+      - artifacts/
 
 test-linux:
   stage:                           test
@@ -168,23 +168,6 @@ publish-onchain:
   tags:
     - linux-docker
 
-# configures aws for fast uploads/syncs
-.s3-before-script:                &s3-before-script
-  before_script:
-    - mkdir -p ${HOME}/.aws
-    - |
-      cat > ${HOME}/.aws/config <<EOC
-      [default]
-      s3 =
-        max_concurrent_requests = 20
-        max_queue_size = 10000
-        multipart_threshold = 64MB
-        multipart_chunksize = 16MB
-        max_bandwidth = 50MB/s
-        use_accelerate_endpoint = false
-        addressing_style = path
-      EOC
-
 publish-awss3-release:
   image:                           parity/awscli:latest
   stage:                           publish
@@ -195,9 +178,6 @@ publish-awss3-release:
     - build-linux
     - build-darwin
     - build-windows
-  variables:
-    GIT_STRATEGY:                  none
-  <<:                              *s3-before-script
   script:
     - echo "__________Push binaries to AWS S3____________"
     - case "${SCHEDULE_TAG:-${CI_COMMIT_REF_NAME}}" in
@@ -213,10 +193,11 @@ publish-awss3-release:
     - aws s3 ls s3://${BUCKET}/${SCHEDULE_TAG:-${CI_COMMIT_REF_NAME}}/
         --recursive --human-readable --summarize
   tags:
-  - linux-docker
+    - linux-docker
 
 publish-docs:
   stage:                            publish
+  # <<:                              *no_git
   only:
     - tags
   except:
