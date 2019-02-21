@@ -99,7 +99,7 @@ build-windows:
 publish-docker:
   stage:                           publish
   only:                            *releaseable_branches
-  <<:                              *no_git
+  # <<:                              *no_git
   cache: {}
   dependencies:
     - build-linux
