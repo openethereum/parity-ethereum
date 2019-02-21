@@ -2,7 +2,6 @@ stages:
   - test
   - build
   - publish
-  - publish-onchain
   - optional
 
 image:                             parity/rust:gitlab-ci
@@ -13,6 +12,12 @@ variables:
   CI_SERVER_NAME:                  "GitLab CI"
   CARGO_HOME:                      "${CI_PROJECT_DIR}/.cargo"
   CARGO_TARGET:                    x86_64-unknown-linux-gnu
+
+.no_git:                           &no_git
+  variables:
+    GIT_STRATEGY:                  none
+    GIT_SUBMODULE_STRATEGY:        none
+
 
 .releaseable_branches:             # list of git refs for building GitLab artifacts (think "pre-release binaries")
   only:                            &releaseable_branches
@@ -94,6 +99,7 @@ build-windows:
 publish-docker:
   stage:                           publish
   only:                            *releaseable_branches
+  <<:                              *no_git
   cache: {}
   dependencies:
     - build-linux
@@ -103,11 +109,12 @@ publish-docker:
     - scripts/gitlab/publish-docker.sh parity
 
 publish-snap:
-  stage:                           optional #publish
+  stage:                           publish
   only:                            *releaseable_branches
+  # <<:                              *no_git
   image:                           snapcore/snapcraft
   variables:
-    BUILD_ARCH:                  amd64
+    BUILD_ARCH:                    amd64
   cache: {}
   before_script:                   *determine_version
   dependencies:
@@ -119,18 +126,17 @@ publish-snap:
   allow_failure:                   true
   <<:                              *collect_artifacts
 
-publish-onnet-update:
-  stage:                           publish-onchain
+publish-onchain:
+  stage:                           publish
   only:                            *releaseable_branches
+  <<:                              *no_git
   cache:                           {}
   dependencies:
     - build-linux
     - build-darwin
     - build-windows
-    - publish-awss3-release
-  before_script:                   *determine_version
   script:
-    - scripts/gitlab/publish-onnet-update.sh
+    - scripts/gitlab/publish-onchain.sh
   tags:
     - linux-docker
 
@@ -155,6 +161,7 @@ publish-awss3-release:
   image:                           parity/awscli:latest
   stage:                           publish
   only:                            *releaseable_branches
+  <<:                              *no_git
   cache:                           {}
   dependencies:
     - build-linux
