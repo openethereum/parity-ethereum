@@ -1787,7 +1787,7 @@ dependencies = [
 
 [[package]]
 name = "jni"
-version = "0.10.2"
+version = "0.11.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 dependencies = [
  "cesu8 1.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -2439,7 +2439,7 @@ name = "parity-clib"
 version = "1.12.0"
 dependencies = [
  "futures 0.1.25 (registry+https://github.com/rust-lang/crates.io-index)",
- "jni 0.10.2 (registry+https://github.com/rust-lang/crates.io-index)",
+ "jni 0.11.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "panic_hook 0.1.0",
  "parity-ethereum 2.4.0",
  "tokio 0.1.11 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -4578,7 +4578,7 @@ dependencies = [
 "checksum itoa 0.4.3 (registry+https://github.com/rust-lang/crates.io-index)" = "1306f3464951f30e30d12373d31c79fbd52d236e5e896fd92f96ec7babbbe60b"
 "checksum jemalloc-sys 0.1.8 (registry+https://github.com/rust-lang/crates.io-index)" = "bfc62c8e50e381768ce8ee0428ee53741929f7ebd73e4d83f669bcf7693e00ae"
 "checksum jemallocator 0.1.9 (registry+https://github.com/rust-lang/crates.io-index)" = "9f0cd42ac65f758063fea55126b0148b1ce0a6354ff78e07a4d6806bc65c4ab3"
-"checksum jni 0.10.2 (registry+https://github.com/rust-lang/crates.io-index)" = "1ecfa3b81afc64d9a6539c4eece96ac9a93c551c713a313800dade8e33d7b5c1"
+"checksum jni 0.11.0 (registry+https://github.com/rust-lang/crates.io-index)" = "294eca097d1dc0bf59de5ab9f7eafa5f77129e9f6464c957ed3ddeb705fb4292"
 "checksum jni-sys 0.3.0 (registry+https://github.com/rust-lang/crates.io-index)" = "8eaf4bc02d17cbdd7ff4c7438cafcdf7fb9a4613313ad11b4f8fefe7d3fa0130"
 "checksum jsonrpc-core 10.0.1 (registry+https://github.com/rust-lang/crates.io-index)" = "7a5152c3fda235dfd68341b3edf4121bc4428642c93acbd6de88c26bf95fc5d7"
 "checksum jsonrpc-derive 10.0.2 (registry+https://github.com/rust-lang/crates.io-index)" = "c14be84e86c75935be83a34c6765bf31f97ed6c9163bb0b83007190e9703940a"
