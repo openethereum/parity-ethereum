@@ -327,17 +327,15 @@ impl FullDependencies {
 						let weak_client = Arc::downgrade(&self.client);
 
 						client.add_sync_notifier(self.sync.sync_notification(), move |state| {
-							if let Some(client) = weak_client.upgrade() {
-								let queue_info = client.queue_info();
+							let client = weak_client.upgrade()?;
+							let queue_info = client.queue_info();
 
-								let is_syncing_state = match state { SyncState::Idle | SyncState::NewBlocks => false, _ => true };
-								let is_verifying = queue_info.unverified_queue_size + queue_info.verified_queue_size > 3;
+							let is_syncing_state = match state { SyncState::Idle | SyncState::NewBlocks => false, _ => true };
+							let is_verifying = queue_info.unverified_queue_size + queue_info.verified_queue_size > 3;
 
-								return Some(PubSubSyncStatus {
-									is_syncing: is_verifying || is_syncing_state,
-								})
-							}
-							None
+							Some(PubSubSyncStatus {
+								is_syncing: is_verifying || is_syncing_state,
+							})
 						});
 
 						let h = client.handler();
@@ -583,17 +581,15 @@ impl<C: LightChainClient + 'static> LightDependencies<C> {
 					let weak_client = Arc::downgrade(&self.client);
 
 					client.add_sync_notifier(self.sync.sync_notification(), move |state| {
-						if let Some(client) = weak_client.upgrade() {
-							let queue_info = client.queue_info();
+						let client = weak_client.upgrade()?;
+						let queue_info = client.queue_info();
 
-							let is_syncing_state = match state { SyncState::Idle | SyncState::NewBlocks => false, _ => true };
-							let is_verifying = queue_info.unverified_queue_size + queue_info.verified_queue_size > 3;
+						let is_syncing_state = match state { SyncState::Idle | SyncState::NewBlocks => false, _ => true };
+						let is_verifying = queue_info.unverified_queue_size + queue_info.verified_queue_size > 3;
 
-							return Some(PubSubSyncStatus {
-								is_syncing: is_verifying || is_syncing_state,
-							})
-						}
-						None
+						Some(PubSubSyncStatus {
+							is_syncing: is_verifying || is_syncing_state,
+						})
 					});
 
 					self.client.add_listener(client.handler() as Weak<_>);
