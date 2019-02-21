@@ -50,7 +50,7 @@ use client::{
 	Nonce, Balance, ChainInfo, BlockInfo, TransactionInfo,
 	ReopenBlock, PrepareOpenBlock, ScheduleInfo, ImportSealedBlock,
 	BroadcastProposalBlock, ImportBlock, StateOrBlock, StateInfo, StateClient, Call,
-	AccountData, BlockChain as BlockChainTrait, BlockProducer, SealedBlockImporter, QueueInfo,
+	AccountData, BlockChain as BlockChainTrait, BlockProducer, SealedBlockImporter,
 	ClientIoMessage, BlockChainReset
 };
 use client::{
@@ -1672,6 +1672,10 @@ impl BlockChainClient for Client {
 		r
 	}
 
+	fn queue_info(&self) -> BlockQueueInfo {
+		self.importer.block_queue.queue_info()
+	}
+
 	fn disable(&self) {
 		self.set_mode(Mode::Off);
 		self.enabled.store(false, AtomicOrdering::Relaxed);
@@ -2178,12 +2182,6 @@ impl BlockChainClient for Client {
 
 	fn registrar_address(&self) -> Option<Address> {
 		self.registrar_address.clone()
-	}
-}
-
-impl QueueInfo for Client {
-	fn queue_info(&self) -> BlockQueueInfo {
-		self.importer.block_queue.queue_info()
 	}
 }
 

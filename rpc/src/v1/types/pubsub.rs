@@ -38,14 +38,8 @@ pub enum Result {
 #[derive(Debug, Serialize, Eq, PartialEq, Clone)]
 #[serde(rename_all="camelCase")]
 pub struct PubSubSyncStatus {
-	/// starting block number
-	pub	starting_block: U64,
 	/// is_major_syncing?
 	pub is_syncing: bool,
-	/// current block number
-	pub current_block: U64,
-	/// highest block number
-	pub highest_block: U64,
 }
 
 impl Serialize for Result {
@@ -56,7 +50,7 @@ impl Serialize for Result {
 			Result::Header(ref header) => header.serialize(serializer),
 			Result::Log(ref log) => log.serialize(serializer),
 			Result::TransactionHash(ref hash) => hash.serialize(serializer),
-			Result::SyncState(ref sync) => sync.serialize(serializer)
+			Result::SyncState(ref sync) => sync.serialize(serializer),
 		}
 	}
 }

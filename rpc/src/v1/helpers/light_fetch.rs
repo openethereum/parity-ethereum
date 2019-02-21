@@ -26,7 +26,6 @@ use types::filter::Filter as EthcoreFilter;
 use types::ids::BlockId;
 use types::receipt::Receipt;
 use ethcore::executed::ExecutionError;
-use ethcore::client::QueueInfo;
 use ethcore::verification::QueueInfo as BlockQueueInfo;
 
 use jsonrpc_core::{Result, Error};
@@ -105,16 +104,6 @@ where
 			cache: self.cache.clone(),
 			gas_price_percentile: self.gas_price_percentile,
 		}
-	}
-}
-
-
-impl<S> QueueInfo for LightFetch<S>
-	where
-		S: LightSyncProvider + LightNetworkDispatcher + ManageNetwork + 'static
-{
-	fn queue_info(&self) -> BlockQueueInfo {
-		self.client.queue_info()
 	}
 }
 

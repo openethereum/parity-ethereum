@@ -18,7 +18,7 @@
 
 use std::sync::{Weak, Arc};
 
-use ethcore::client::{ClientReport, EnvInfo, ClientIoMessage, QueueInfo};
+use ethcore::client::{ClientReport, EnvInfo, ClientIoMessage};
 use ethcore::engines::{epoch, EthEngine, EpochChange, EpochTransition, Proof};
 use ethcore::machine::EthereumMachine;
 use ethcore::error::{Error, EthcoreResult};
@@ -34,6 +34,7 @@ use common_types::blockchain_info::BlockChainInfo;
 use common_types::encoded;
 use common_types::header::Header;
 use common_types::ids::BlockId;
+use common_types::verification_queue_info::VerificationQueueInfo as BlockQueueInfo;
 
 use kvdb::KeyValueDB;
 
@@ -77,7 +78,7 @@ impl Default for Config {
 }
 
 /// Trait for interacting with the header chain abstractly.
-pub trait LightChainClient: Send + Sync + QueueInfo {
+pub trait LightChainClient: Send + Sync {
 	/// Adds a new `LightChainNotify` listener.
 	fn add_listener(&self, listener: Weak<LightChainNotify>);
 
@@ -90,6 +91,9 @@ pub trait LightChainClient: Send + Sync + QueueInfo {
 
 	/// Attempt to get a block hash by block id.
 	fn block_hash(&self, id: BlockId) -> Option<H256>;
+
+	/// Get block queue information.
+	fn queue_info(&self) -> BlockQueueInfo;
 
 	/// Attempt to get block header by block id.
 	fn block_header(&self, id: BlockId) -> Option<encoded::Header>;
@@ -531,11 +535,6 @@ impl<T: ChainDataFetcher> Client<T> {
 	}
 }
 
-impl<T: ChainDataFetcher> QueueInfo for Client<T> {
-	fn queue_info(&self) -> queue::QueueInfo {
-		self.queue.queue_info()
-	}
-}
 
 impl<T: ChainDataFetcher> LightChainClient for Client<T> {
 	fn add_listener(&self, listener: Weak<LightChainNotify>) {
@@ -543,6 +542,10 @@ impl<T: ChainDataFetcher> LightChainClient for Client<T> {
 	}
 
 	fn chain_info(&self) -> BlockChainInfo { Client::chain_info(self) }
+
+	fn queue_info(&self) -> queue::QueueInfo {
+		self.queue.queue_info()
+	}
 
 	fn queue_header(&self, header: Header) -> EthcoreResult<H256> {
 		self.import_header(header)

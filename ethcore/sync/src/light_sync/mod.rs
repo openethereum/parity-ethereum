@@ -40,7 +40,6 @@ use std::time::{Instant, Duration};
 
 use types::encoded;
 use light::client::{AsLightClient, LightChainClient};
-use ethcore::client::QueueInfo;
 use light::net::{
 	PeerStatus, Announcement, Handler, BasicContext,
 	EventContext, Capabilities, ReqId, Status,

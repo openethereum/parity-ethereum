@@ -155,7 +155,7 @@ pub trait SyncProvider: Send + Sync {
 	/// Returns propagation count for pending transactions.
 	fn transactions_stats(&self) -> BTreeMap<H256, TransactionStats>;
 
-	/// gets
+	/// are we in the middle of a major sync?
 	fn is_major_syncing(&self) -> bool;
 }
 
