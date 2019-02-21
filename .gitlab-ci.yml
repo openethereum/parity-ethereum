@@ -19,7 +19,6 @@ variables:
     - beta
     - tags
     - schedules
-    - pr-10386
 
 
 .collect_artifacts:                &collect_artifacts
@@ -29,14 +28,6 @@ variables:
     expire_in:                     1 mos
     paths:
     - artifacts/
-
-.determine_version:                &determine_version
-  - VERSION="$(sed -r -n '1,/^version/s/^version = "([^"]+)".*$/\1/p' Cargo.toml)"
-  - DATE_STR="$(date +%Y%m%d)"
-  - ID_SHORT="$(echo ${CI_COMMIT_SHA} | cut -c 1-7)"
-  - test "${SCHEDULE_TAG:-${CI_COMMIT_REF_NAME}}" = "nightly" && VERSION="${VERSION}-${ID_SHORT}-${DATE_STR}"
-  - export VERSION
-  - echo "Version = ${VERSION}"
 
 test-linux:
   stage:                           test
@@ -127,11 +118,10 @@ publish-snap:                      &publish-snap
   variables:
     BUILD_ARCH:                    amd64
   cache: {}
-  before_script:                   *determine_version
   dependencies:
     - build-linux
   tags:
-    - rust-stable
+    - linux-docker
   script:
     - scripts/gitlab/publish-snap.sh
   <<:                              *collect_artifacts
@@ -166,7 +156,6 @@ publish-onnet-update:
     - build-darwin
     - build-windows
     - publish-awss3-release
-  before_script:                   *determine_version
   script:
     - scripts/gitlab/publish-onnet-update.sh
   tags:
@@ -241,4 +230,3 @@ build-android:
     - linux-docker
   allow_failure:                   true
   <<:                              *collect_artifacts
-

@@ -9,7 +9,7 @@ set -u # treat unset variables as error
 TRACK=`awk -F '=' '/^track/ {gsub(/"/, "", $2); gsub(/ /, "", $2); print $2}' ./util/version/Cargo.toml`
 echo Track is: $TRACK
 # prepare variables
-VERSION="v""$(sed -r -n '1,/^version/s/^version = "([^"]+)".*$/\1/p' Cargo.toml)"
+VERSION=v"$(sed -r -n '1,/^version/s/^version = "([^"]+)".*$/\1/p' Cargo.toml)"
 SNAP_PACKAGE="parity_"$VERSION"_"$BUILD_ARCH".snap"
 CARGO_TARGET="$(ls artifacts)"
 # Choose snap release channel based on parity ethereum version track
@@ -27,15 +27,13 @@ esac
 echo "__________Create snap package__________"
 echo "Release channel :" $GRADE " Branch/tag: " $CI_COMMIT_REF_NAME
 echo $VERSION:$GRADE:$BUILD_ARCH:$CARGO_TARGET
-pwd
-cd /builds/$CI_PROJECT_PATH/scripts/snap/
+
 sed -e 's/$VERSION/'"$VERSION"'/g' \
     -e 's/$GRADE/'"$GRADE"'/g' \
     -e 's/$BUILD_ARCH/'"$BUILD_ARCH"'/g' \
     -e 's/$CARGO_TARGET/'"$CARGO_TARGET"'/g' \
-    snapcraft.template.yaml > /builds/$CI_PROJECT_PATH/snapcraft.yaml
-cd /builds/$CI_PROJECT_PATH
-pwd
+    scripts/snap/snapcraft.template.yaml > snapcraft.yaml
+
 apt update
 apt install -y --no-install-recommends rhash
 cat snapcraft.yaml
