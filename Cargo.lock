@@ -3660,6 +3660,7 @@ dependencies = [
 name = "syncpacket"
 version = "0.1.0"
 dependencies = [
+ "ethcore-network 1.12.0",
  "proc-macro2 0.4.20 (registry+https://github.com/rust-lang/crates.io-index)",
  "quote 0.6.8 (registry+https://github.com/rust-lang/crates.io-index)",
  "syn 0.15.26 (registry+https://github.com/rust-lang/crates.io-index)",

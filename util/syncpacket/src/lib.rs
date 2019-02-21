@@ -83,7 +83,7 @@ fn get_variant_values(variants: &Punctuated<Variant, Comma>) -> Result<Vec<&Expr
 			|v| v.discriminant
 				.as_ref()
 				.map(|d| &d.1)
-				.ok_or(syn::Error::new_spanned(v, "enum pattern is not discriminant; should have assigned a unique value such as Foo = 1"))
+				.ok_or(syn::Error::new_spanned(v, format!("enum pattern {} is not discriminant; should have assigned a unique value such as Foo = 1", &v.ident)))
 		)
 		.collect()
 }
@@ -128,38 +128,37 @@ fn impl_sync_packets(ast: &DeriveInput) -> Result<proc_macro2::TokenStream> {
 	let values = get_variant_values(&body.variants)?;
 
 	Ok(quote!{
-			use network::{PacketId, ProtocolId};
+		use ethcore_network::{PacketId, ProtocolId};
 
-			impl #enum_name {
-				pub fn from_u8(id: u8) -> Option<SyncPacket> {
-					match id {
-						#(#values => Some(#idents_from_u8)),*,
-						_ => None
+		impl #enum_name {
+			pub fn from_u8(id: u8) -> Option<#enum_name> {
+				match id {
+					#(#values => Some(#idents_from_u8)),*,
+					_ => None
 
-					}
-				}
-			}
-
-			use self::SyncPacket::*;
-
-			/// Provide both subprotocol and packet id information within the
-			/// same object.
-			pub trait PacketInfo {
-				fn id(&self) -> PacketId;
-				fn protocol(&self) -> ProtocolId;
-			}
-
-			impl PacketInfo for #enum_name {
-				fn protocol(&self) -> ProtocolId {
-					match self {
-						#(#idents_enum => #protocols),*
-					}
-				}
-
-				fn id(&self) -> PacketId {
-					(*self) as PacketId
 				}
 			}
 		}
-	)
+
+		use self::#enum_name::*;
+
+		/// Provide both subprotocol and packet id information within the
+		/// same object.
+		pub trait PacketInfo {
+			fn id(&self) -> PacketId;
+			fn protocol(&self) -> ProtocolId;
+		}
+
+		impl PacketInfo for #enum_name {
+			fn protocol(&self) -> ProtocolId {
+				match self {
+					#(#idents_enum => #protocols),*
+				}
+			}
+
+			fn id(&self) -> PacketId {
+				(*self) as PacketId
+			}
+		}
+	})
 }

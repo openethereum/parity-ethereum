@@ -32,7 +32,7 @@ use crate::api::{ETH_PROTOCOL, WARP_SYNC_PROTOCOL_ID};
 /// check whether a given packet id is known, and to prevent
 /// packet id clashes when defining new ids.
 
-#[derive(SyncPackets, Clone, Copy, Debug, PartialEq)]
+#[derive(SyncPackets, Clone, Copy)]
 pub enum SyncPacket {
 	#[protocol(ETH_PROTOCOL)] StatusPacket = 0x00,
 	#[protocol(ETH_PROTOCOL)] NewBlockHashesPacket = 0x01,
@@ -55,36 +55,4 @@ pub enum SyncPacket {
 	#[protocol(WARP_SYNC_PROTOCOL_ID)] ConsensusDataPacket = 0x15,
 	#[protocol(WARP_SYNC_PROTOCOL_ID)] PrivateTransactionPacket = 0x16,
 	#[protocol(WARP_SYNC_PROTOCOL_ID)] SignedPrivateTransactionPacket = 0x17,
-}
-
-#[cfg(test)]
-mod tests {
-	use super::*;
-
-	#[test]
-	fn packet_ids_from_u8_when_from_primitive_zero_then_equals_status_packet() {
-		assert_eq!(SyncPacket::from_u8(0x00), Some(StatusPacket));
-	}
-
-	#[test]
-	fn packet_ids_from_u8_when_from_primitive_eleven_then_equals_get_snapshot_manifest_packet() {
-		assert_eq!(SyncPacket::from_u8(0x11), Some(GetSnapshotManifestPacket));
-	}
-
-	#[test]
-	fn packet_ids_from_u8_when_invalid_packet_id_then_none() {
-		assert!(SyncPacket::from_u8(0x99).is_none());
-	}
-
-	#[test]
-	fn when_status_packet_then_id_and_protocol_match() {
-		assert_eq!(StatusPacket.id(), StatusPacket as PacketId);
-		assert_eq!(StatusPacket.protocol(), ETH_PROTOCOL);
-	}
-
-	#[test]
-	fn when_consensus_data_packet_then_id_and_protocol_match() {
-		assert_eq!(ConsensusDataPacket.id(), ConsensusDataPacket as PacketId);
-		assert_eq!(ConsensusDataPacket.protocol(), WARP_SYNC_PROTOCOL_ID);
-	}
 }
