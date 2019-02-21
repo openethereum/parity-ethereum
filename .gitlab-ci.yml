@@ -2,7 +2,6 @@ stages:
   - test
   - build
   - publish
-  - publish-onchain
   - optional
 
 image:                             parity/rust:gitlab-ci
@@ -110,12 +109,12 @@ publish-docker:
     - scripts/gitlab/publish-docker.sh parity
 
 publish-snap:
-  stage:                           optional #publish
+  stage:                           publish
   only:                            *releaseable_branches
   <<:                              *no_git
   image:                           snapcore/snapcraft
   variables:
-    BUILD_ARCH:                  amd64
+    BUILD_ARCH:                    amd64
   cache: {}
   before_script:                   *determine_version
   dependencies:
@@ -127,8 +126,8 @@ publish-snap:
   allow_failure:                   true
   <<:                              *collect_artifacts
 
-publish-onchain-update:
-  stage:                           publish-onchain
+publish-onchain:
+  stage:                           publish
   only:                            *releaseable_branches
   <<:                              *no_git
   cache:                           {}
