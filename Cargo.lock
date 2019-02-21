@@ -299,7 +299,7 @@ dependencies = [
 name = "common-types"
 version = "0.1.0"
 dependencies = [
- "ethereum-types 0.4.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "ethereum-types 0.4.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "ethjson 0.1.0",
  "ethkey 0.3.0",
  "heapsize 0.4.2 (git+https://github.com/cheme/heapsize.git?branch=ec-macfix)",
@@ -531,7 +531,7 @@ name = "dir"
 version = "0.1.2"
 dependencies = [
  "app_dirs 1.2.1 (git+https://github.com/paritytech/app-dirs-rs)",
- "ethereum-types 0.4.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "ethereum-types 0.4.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "home 0.3.3 (registry+https://github.com/rust-lang/crates.io-index)",
  "journaldb 0.2.0",
 ]
@@ -558,7 +558,7 @@ name = "eip-712"
 version = "0.1.0"
 dependencies = [
  "ethabi 6.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "ethereum-types 0.4.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "ethereum-types 0.4.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "failure 0.1.3 (registry+https://github.com/rust-lang/crates.io-index)",
  "indexmap 1.0.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "itertools 0.7.8 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -633,7 +633,7 @@ version = "6.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 dependencies = [
  "error-chain 0.12.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "ethereum-types 0.4.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "ethereum-types 0.4.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "rustc-hex 2.0.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "serde 1.0.80 (registry+https://github.com/rust-lang/crates.io-index)",
  "serde_derive 1.0.80 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -665,7 +665,7 @@ dependencies = [
  "criterion 0.2.5 (registry+https://github.com/rust-lang/crates.io-index)",
  "crunchy 0.1.6 (registry+https://github.com/rust-lang/crates.io-index)",
  "either 1.5.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "ethereum-types 0.4.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "ethereum-types 0.4.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "keccak-hash 0.1.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "log 0.4.5 (registry+https://github.com/rust-lang/crates.io-index)",
  "memmap 0.6.2 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -682,7 +682,7 @@ version = "0.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 dependencies = [
  "crunchy 0.1.6 (registry+https://github.com/rust-lang/crates.io-index)",
- "ethereum-types-serialize 0.2.1 (registry+https://github.com/rust-lang/crates.io-index)",
+ "ethereum-types-serialize 0.2.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "fixed-hash 0.2.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "serde 1.0.80 (registry+https://github.com/rust-lang/crates.io-index)",
  "tiny-keccak 1.4.2 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -713,7 +713,7 @@ dependencies = [
  "ethcore-io 1.12.0",
  "ethcore-miner 1.12.0",
  "ethcore-stratum 1.12.0",
- "ethereum-types 0.4.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "ethereum-types 0.4.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "ethjson 0.1.0",
  "ethkey 0.3.0",
  "evm 0.1.0",
@@ -768,7 +768,7 @@ name = "ethcore-accounts"
 version = "0.1.0"
 dependencies = [
  "common-types 0.1.0",
- "ethereum-types 0.4.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "ethereum-types 0.4.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "ethkey 0.3.0",
  "ethstore 0.2.1",
  "fake-hardware-wallet 0.0.1",
@@ -790,7 +790,7 @@ dependencies = [
  "common-types 0.1.0",
  "env_logger 0.5.13 (registry+https://github.com/rust-lang/crates.io-index)",
  "ethcore-db 0.1.0",
- "ethereum-types 0.4.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "ethereum-types 0.4.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "ethkey 0.3.0",
  "heapsize 0.4.2 (git+https://github.com/cheme/heapsize.git?branch=ec-macfix)",
  "itertools 0.5.10 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -820,7 +820,7 @@ name = "ethcore-call-contract"
 version = "0.1.0"
 dependencies = [
  "common-types 0.1.0",
- "ethereum-types 0.4.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "ethereum-types 0.4.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "parity-bytes 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
@@ -829,7 +829,7 @@ name = "ethcore-db"
 version = "0.1.0"
 dependencies = [
  "common-types 0.1.0",
- "ethereum-types 0.4.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "ethereum-types 0.4.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "heapsize 0.4.2 (git+https://github.com/cheme/heapsize.git?branch=ec-macfix)",
  "kvdb 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "parking_lot 0.7.0 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -866,7 +866,7 @@ dependencies = [
  "ethcore-db 0.1.0",
  "ethcore-io 1.12.0",
  "ethcore-network 1.12.0",
- "ethereum-types 0.4.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "ethereum-types 0.4.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "failsafe 0.3.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "fastmap 0.1.0",
  "futures 0.1.25 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -925,7 +925,7 @@ dependencies = [
  "ethabi-derive 6.0.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "ethash 1.12.0",
  "ethcore-call-contract 0.1.0",
- "ethereum-types 0.4.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "ethereum-types 0.4.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "ethkey 0.3.0",
  "fetch 0.1.0",
  "futures 0.1.25 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -951,7 +951,7 @@ dependencies = [
  "assert_matches 1.3.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "error-chain 0.12.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "ethcore-io 1.12.0",
- "ethereum-types 0.4.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "ethereum-types 0.4.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "ethkey 0.3.0",
  "ipnetwork 0.12.8 (registry+https://github.com/rust-lang/crates.io-index)",
  "lazy_static 1.2.0 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -975,7 +975,7 @@ dependencies = [
  "error-chain 0.12.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "ethcore-io 1.12.0",
  "ethcore-network 1.12.0",
- "ethereum-types 0.4.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "ethereum-types 0.4.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "ethkey 0.3.0",
  "igd 0.7.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "ipnetwork 0.12.8 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -1015,7 +1015,7 @@ dependencies = [
  "ethcore-call-contract 0.1.0",
  "ethcore-io 1.12.0",
  "ethcore-miner 1.12.0",
- "ethereum-types 0.4.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "ethereum-types 0.4.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "ethjson 0.1.0",
  "ethkey 0.3.0",
  "fetch 0.1.0",
@@ -1054,7 +1054,7 @@ dependencies = [
  "ethcore-accounts 0.1.0",
  "ethcore-call-contract 0.1.0",
  "ethcore-sync 1.12.0",
- "ethereum-types 0.4.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "ethereum-types 0.4.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "ethkey 0.3.0",
  "futures 0.1.25 (registry+https://github.com/rust-lang/crates.io-index)",
  "hyper 0.12.19 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -1091,7 +1091,7 @@ dependencies = [
  "ethcore-io 1.12.0",
  "ethcore-private-tx 1.0.0",
  "ethcore-sync 1.12.0",
- "ethereum-types 0.4.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "ethereum-types 0.4.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "kvdb 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "kvdb-rocksdb 0.1.4 (registry+https://github.com/rust-lang/crates.io-index)",
  "log 0.4.5 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -1104,7 +1104,7 @@ name = "ethcore-stratum"
 version = "1.12.0"
 dependencies = [
  "env_logger 0.5.13 (registry+https://github.com/rust-lang/crates.io-index)",
- "ethereum-types 0.4.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "ethereum-types 0.4.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "jsonrpc-core 10.0.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "jsonrpc-tcp-server 10.0.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "keccak-hash 0.1.2 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -1127,7 +1127,7 @@ dependencies = [
  "ethcore-network 1.12.0",
  "ethcore-network-devp2p 1.12.0",
  "ethcore-private-tx 1.0.0",
- "ethereum-types 0.4.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "ethereum-types 0.4.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "ethkey 0.3.0",
  "ethstore 0.2.1",
  "fastmap 0.1.0",
@@ -1150,12 +1150,12 @@ dependencies = [
 
 [[package]]
 name = "ethereum-types"
-version = "0.4.0"
+version = "0.4.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 dependencies = [
  "crunchy 0.1.6 (registry+https://github.com/rust-lang/crates.io-index)",
  "ethbloom 0.5.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "ethereum-types-serialize 0.2.1 (registry+https://github.com/rust-lang/crates.io-index)",
+ "ethereum-types-serialize 0.2.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "fixed-hash 0.2.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "serde 1.0.80 (registry+https://github.com/rust-lang/crates.io-index)",
  "uint 0.4.1 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -1163,7 +1163,7 @@ dependencies = [
 
 [[package]]
 name = "ethereum-types-serialize"
-version = "0.2.1"
+version = "0.2.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 dependencies = [
  "serde 1.0.80 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -1173,7 +1173,7 @@ dependencies = [
 name = "ethjson"
 version = "0.1.0"
 dependencies = [
- "ethereum-types 0.4.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "ethereum-types 0.4.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "rustc-hex 1.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "serde 1.0.80 (registry+https://github.com/rust-lang/crates.io-index)",
  "serde_derive 1.0.80 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -1187,7 +1187,7 @@ dependencies = [
  "byteorder 1.2.6 (registry+https://github.com/rust-lang/crates.io-index)",
  "edit-distance 2.0.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "eth-secp256k1 0.5.7 (git+https://github.com/paritytech/rust-secp256k1)",
- "ethereum-types 0.4.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "ethereum-types 0.4.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "lazy_static 1.2.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "log 0.4.5 (registry+https://github.com/rust-lang/crates.io-index)",
  "memzero 0.1.0",
@@ -1221,7 +1221,7 @@ name = "ethstore"
 version = "0.2.1"
 dependencies = [
  "dir 0.1.2",
- "ethereum-types 0.4.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "ethereum-types 0.4.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "ethkey 0.3.0",
  "itertools 0.5.10 (registry+https://github.com/rust-lang/crates.io-index)",
  "lazy_static 1.2.0 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -1265,7 +1265,7 @@ version = "0.1.0"
 dependencies = [
  "bit-set 0.4.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "criterion 0.2.5 (registry+https://github.com/rust-lang/crates.io-index)",
- "ethereum-types 0.4.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "ethereum-types 0.4.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "heapsize 0.4.2 (git+https://github.com/cheme/heapsize.git?branch=ec-macfix)",
  "keccak-hash 0.1.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "lazy_static 1.2.0 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -1285,7 +1285,7 @@ dependencies = [
  "docopt 1.0.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "env_logger 0.5.13 (registry+https://github.com/rust-lang/crates.io-index)",
  "ethcore 1.12.0",
- "ethereum-types 0.4.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "ethereum-types 0.4.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "ethjson 0.1.0",
  "evm 0.1.0",
  "panic_hook 0.1.0",
@@ -1342,7 +1342,7 @@ dependencies = [
 name = "fake-hardware-wallet"
 version = "0.0.1"
 dependencies = [
- "ethereum-types 0.4.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "ethereum-types 0.4.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "ethkey 0.3.0",
 ]
 
@@ -1355,7 +1355,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 name = "fastmap"
 version = "0.1.0"
 dependencies = [
- "ethereum-types 0.4.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "ethereum-types 0.4.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "plain_hasher 0.2.0 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
@@ -1528,7 +1528,7 @@ dependencies = [
 name = "hardware-wallet"
 version = "1.12.0"
 dependencies = [
- "ethereum-types 0.4.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "ethereum-types 0.4.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "ethkey 0.3.0",
  "hidapi 0.3.1 (git+https://github.com/paritytech/hidapi-rs)",
  "libusb 0.3.0 (git+https://github.com/paritytech/libusb-rs)",
@@ -1808,7 +1808,7 @@ name = "journaldb"
 version = "0.2.0"
 dependencies = [
  "env_logger 0.5.13 (registry+https://github.com/rust-lang/crates.io-index)",
- "ethereum-types 0.4.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "ethereum-types 0.4.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "fastmap 0.1.0",
  "hash-db 0.11.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "heapsize 0.4.2 (git+https://github.com/cheme/heapsize.git?branch=ec-macfix)",
@@ -1929,7 +1929,7 @@ name = "keccak-hash"
 version = "0.1.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 dependencies = [
- "ethereum-types 0.4.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "ethereum-types 0.4.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "tiny-keccak 1.4.2 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
@@ -1937,7 +1937,7 @@ dependencies = [
 name = "keccak-hasher"
 version = "0.1.1"
 dependencies = [
- "ethereum-types 0.4.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "ethereum-types 0.4.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "hash-db 0.11.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "plain_hasher 0.2.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "tiny-keccak 1.4.2 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -2305,7 +2305,7 @@ dependencies = [
  "ethcore-io 1.12.0",
  "ethcore-network 1.12.0",
  "ethcore-network-devp2p 1.12.0",
- "ethereum-types 0.4.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "ethereum-types 0.4.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "kvdb-memorydb 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "log 0.4.5 (registry+https://github.com/rust-lang/crates.io-index)",
  "lru-cache 0.1.1 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -2336,7 +2336,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 dependencies = [
  "num-integer 0.1.39 (registry+https://github.com/rust-lang/crates.io-index)",
  "num-traits 0.2.6 (registry+https://github.com/rust-lang/crates.io-index)",
- "rand 0.4.3 (registry+https://github.com/rust-lang/crates.io-index)",
+ "rand 0.3.22 (registry+https://github.com/rust-lang/crates.io-index)",
  "rustc-serialize 0.3.24 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
@@ -2496,7 +2496,7 @@ dependencies = [
  "ethcore-secretstore 1.0.0",
  "ethcore-service 0.1.0",
  "ethcore-sync 1.12.0",
- "ethereum-types 0.4.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "ethereum-types 0.4.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "ethkey 0.3.0",
  "ethstore 0.2.1",
  "fake-fetch 0.0.1",
@@ -2552,7 +2552,7 @@ dependencies = [
  "ethabi 6.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "ethabi-contract 6.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "ethabi-derive 6.0.2 (registry+https://github.com/rust-lang/crates.io-index)",
- "ethereum-types 0.4.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "ethereum-types 0.4.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "fake-fetch 0.0.1",
  "fetch 0.1.0",
  "futures 0.1.25 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -2574,7 +2574,7 @@ version = "1.12.0"
 dependencies = [
  "cid 0.3.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "ethcore 1.12.0",
- "ethereum-types 0.4.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "ethereum-types 0.4.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "jsonrpc-core 10.0.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "jsonrpc-http-server 10.0.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "multihash 0.8.0 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -2603,7 +2603,7 @@ dependencies = [
 name = "parity-machine"
 version = "0.1.0"
 dependencies = [
- "ethereum-types 0.4.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "ethereum-types 0.4.2 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]
@@ -2650,7 +2650,7 @@ dependencies = [
  "ethcore-network 1.12.0",
  "ethcore-private-tx 1.0.0",
  "ethcore-sync 1.12.0",
- "ethereum-types 0.4.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "ethereum-types 0.4.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "ethjson 0.1.0",
  "ethkey 0.3.0",
  "ethstore 0.2.1",
@@ -2765,7 +2765,7 @@ dependencies = [
  "ethabi-derive 6.0.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "ethcore 1.12.0",
  "ethcore-sync 1.12.0",
- "ethereum-types 0.4.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "ethereum-types 0.4.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "keccak-hash 0.1.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "lazy_static 1.2.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "log 0.4.5 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -2808,7 +2808,7 @@ dependencies = [
  "bitflags 0.9.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "byteorder 1.2.6 (registry+https://github.com/rust-lang/crates.io-index)",
  "ethcore-network 1.12.0",
- "ethereum-types 0.4.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "ethereum-types 0.4.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "ethkey 0.3.0",
  "hex 0.2.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "jsonrpc-core 10.0.1 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -2906,7 +2906,7 @@ name = "patricia-trie-ethereum"
 version = "0.1.0"
 dependencies = [
  "elastic-array 0.10.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "ethereum-types 0.4.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "ethereum-types 0.4.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "hash-db 0.11.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "journaldb 0.2.0",
  "keccak-hash 0.1.2 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -3079,7 +3079,7 @@ version = "0.1.0"
 dependencies = [
  "clap 2.32.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "env_logger 0.5.13 (registry+https://github.com/rust-lang/crates.io-index)",
- "ethereum-types 0.4.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "ethereum-types 0.4.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "ethjson 0.1.0",
  "rustc-hex 1.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "serde 1.0.80 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -3341,7 +3341,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 dependencies = [
  "byteorder 1.2.6 (registry+https://github.com/rust-lang/crates.io-index)",
  "elastic-array 0.10.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "ethereum-types 0.4.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "ethereum-types 0.4.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "rustc-hex 2.0.1 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
@@ -3351,7 +3351,7 @@ version = "0.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 dependencies = [
  "byteorder 1.2.6 (registry+https://github.com/rust-lang/crates.io-index)",
- "ethereum-types 0.4.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "ethereum-types 0.4.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "rustc-hex 2.0.1 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
@@ -4083,7 +4083,7 @@ name = "trie-standardmap"
 version = "0.1.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 dependencies = [
- "ethereum-types 0.4.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "ethereum-types 0.4.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "keccak-hash 0.1.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "parity-bytes 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "rlp 0.2.4 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -4102,7 +4102,7 @@ dependencies = [
 name = "triehash-ethereum"
 version = "0.2.0"
 dependencies = [
- "ethereum-types 0.4.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "ethereum-types 0.4.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "keccak-hasher 0.1.1",
  "triehash 0.4.0 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
@@ -4275,7 +4275,7 @@ name = "vm"
 version = "0.1.0"
 dependencies = [
  "byteorder 1.2.6 (registry+https://github.com/rust-lang/crates.io-index)",
- "ethereum-types 0.4.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "ethereum-types 0.4.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "ethjson 0.1.0",
  "keccak-hash 0.1.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "log 0.4.5 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -4326,7 +4326,7 @@ version = "0.1.0"
 dependencies = [
  "byteorder 1.2.6 (registry+https://github.com/rust-lang/crates.io-index)",
  "env_logger 0.5.13 (registry+https://github.com/rust-lang/crates.io-index)",
- "ethereum-types 0.4.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "ethereum-types 0.4.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "libc 0.2.48 (registry+https://github.com/rust-lang/crates.io-index)",
  "log 0.4.5 (registry+https://github.com/rust-lang/crates.io-index)",
  "parity-wasm 0.31.3 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -4528,8 +4528,8 @@ dependencies = [
 "checksum ethabi-contract 6.0.0 (registry+https://github.com/rust-lang/crates.io-index)" = "795e25fd868e12a59ca235dbe1f6cc8f1eba8f67d6a39438b29535e0126e0c27"
 "checksum ethabi-derive 6.0.2 (registry+https://github.com/rust-lang/crates.io-index)" = "66a587250c8190be9d6ae28d67b8957ed97cb9eee2e272173a20593ab054a075"
 "checksum ethbloom 0.5.0 (registry+https://github.com/rust-lang/crates.io-index)" = "1a93a43ce2e9f09071449da36bfa7a1b20b950ee344b6904ff23de493b03b386"
-"checksum ethereum-types 0.4.0 (registry+https://github.com/rust-lang/crates.io-index)" = "35b3c5a18bc5e73a32a110ac743ec04b02bbbcd3b71d3118d40a6113d509378a"
-"checksum ethereum-types-serialize 0.2.1 (registry+https://github.com/rust-lang/crates.io-index)" = "4ac59a21a9ce98e188f3dace9eb67a6c4a3c67ec7fbc7218cb827852679dc002"
+"checksum ethereum-types 0.4.2 (registry+https://github.com/rust-lang/crates.io-index)" = "6e742184dc63a01c8ea0637369f8faa27c40f537949908a237f95c05e68d2c96"
+"checksum ethereum-types-serialize 0.2.2 (registry+https://github.com/rust-lang/crates.io-index)" = "1873d77b32bc1891a79dad925f2acbc318ee942b38b9110f9dbc5fbeffcea350"
 "checksum failsafe 0.3.0 (registry+https://github.com/rust-lang/crates.io-index)" = "ad3bf1642583ea2f1fa38a1e8546613a7488816941b33e5f0fccceac61879118"
 "checksum failure 0.1.3 (registry+https://github.com/rust-lang/crates.io-index)" = "6dd377bcc1b1b7ce911967e3ec24fa19c3224394ec05b54aa7b083d498341ac7"
 "checksum failure_derive 0.1.3 (registry+https://github.com/rust-lang/crates.io-index)" = "64c2d913fe8ed3b6c6518eedf4538255b989945c14c2a7d5cbff62a5e2120596"
