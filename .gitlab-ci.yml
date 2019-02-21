@@ -14,9 +14,10 @@ variables:
   CARGO_HOME:                      "${CI_PROJECT_DIR}/.cargo"
   CARGO_TARGET:                    x86_64-unknown-linux-gnu
 
-.no-git:                           &no-git
-  GIT_STRATEGY:                    none
-  GIT_SUBMODULE_STRATEGY:          none
+.no_git:                           &no_git
+  variables:
+    GIT_STRATEGY:                  none
+    GIT_SUBMODULE_STRATEGY:        none
 
 
 .releaseable_branches:             # list of git refs for building GitLab artifacts (think "pre-release binaries")
@@ -99,7 +100,7 @@ build-windows:
 publish-docker:
   stage:                           publish
   only:                            *releaseable_branches
-  <<:                              &no-git
+  <<:                              *no_git
   cache: {}
   dependencies:
     - build-linux
@@ -111,7 +112,7 @@ publish-docker:
 publish-snap:
   stage:                           optional #publish
   only:                            *releaseable_branches
-  <<:                              &no-git
+  <<:                              *no_git
   image:                           snapcore/snapcraft
   variables:
     BUILD_ARCH:                  amd64
@@ -129,7 +130,7 @@ publish-snap:
 publish-onchain-update:
   stage:                           publish-onchain
   only:                            *releaseable_branches
-  <<:                              &no-git
+  <<:                              *no_git
   cache:                           {}
   dependencies:
     - build-linux
@@ -163,7 +164,7 @@ publish-awss3-release:
   image:                           parity/awscli:latest
   stage:                           publish
   only:                            *releaseable_branches
-  <<:                              &no-git
+  <<:                              *no_git
   cache:                           {}
   dependencies:
     - build-linux
