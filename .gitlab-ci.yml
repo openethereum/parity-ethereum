@@ -135,7 +135,6 @@ publish-onchain:
     - build-linux
     - build-darwin
     - build-windows
-    - publish-awss3-release
   before_script:                   *determine_version
   script:
     - scripts/gitlab/publish-onnet-update.sh
