@@ -22,32 +22,38 @@ extern crate proc_macro;
 
 use proc_macro2::Ident;
 use quote::quote;
-use syn::{Data, DeriveInput, Meta, MetaList, NestedMeta};
+use syn::{Attribute, Data, DeriveInput, Meta, MetaList, NestedMeta, Result};
 
-fn parse_protocol_arguments(args: MetaList) -> Ident {
+fn parse_protocol_arguments(args: &MetaList) -> Result<&Ident> {
 	if args.nested.len() != 1 {
-		panic!("protocol attribute should have exactly one argument");
+		return Err(syn::Error::new_spanned(args, "protocol attribute should have exactly one argument"));
 	}
 
+	// We have exactly one argument, should not panic
 	match args.nested.first().expect("protocol attribute without value").value() {
 		// Meta argument
 		NestedMeta::Meta(meta) => match meta {
-			Meta::Word(ident) => ident.clone(),
-			_ => panic!("nested arguments to protocol are not allowed"),
+			Meta::Word(ident) => Ok(&ident),
+			_ => return Err(syn::Error::new_spanned(meta, "nested arguments to protocol are not allowed")),
 		},
 		// Quoted string
-		_ => panic!("protocol argument must be an unquoted identifier")
+		a @ _ => return Err(syn::Error::new_spanned(a, "protocol argument must be an unquoted identifier"))
 	}
 }
 
 /// Helper function to parse arguments to the protocol attribute.
 /// Syntax should be #[protocol(P)] PacketName = 0xNN,
-fn parse_protocol_attribute(input: Meta) -> Ident {
+fn parse_protocol_attribute(input: &Attribute) -> Result<Ident> {
+	let argument = match input.parse_meta() {
+		Ok(arg) => arg,
+		Err(err) => return Err(err)
+	};
+
 	// Arguments to invocation attributes are delivered as a list
-	match input {
-		Meta::Word(_) => panic!("protocol attribute without argument"),
-		Meta::List(args) => parse_protocol_arguments(args),
-		_ => panic!("unsupported syntax")
+	match argument {
+		Meta::Word(_) => Err(syn::Error::new_spanned(input, "protocol attribute without argument")),
+		Meta::List(args) => parse_protocol_arguments(&args).map(|ok| ok.clone()),
+		_ => Err(syn::Error::new_spanned(input, "unsupported syntax"))
 	}
 }
 
@@ -60,21 +66,25 @@ fn parse_protocol_attribute(input: Meta) -> Ident {
 ///   the protocol from instances of the enum.
 #[proc_macro_derive(SyncPackets, attributes(protocol))]
 pub fn sync_packets(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
+	// Can we ever panic here?
 	let ast = syn::parse(input).expect("invalid enum syntax");
-	let gen = impl_sync_packets(&ast);
-	gen.into()
+
+	match impl_sync_packets(&ast) {
+		Ok(output) => output.into(),
+		Err(err) => err.to_compile_error().into(),
+	}
 }
 
-fn impl_sync_packets(ast: &DeriveInput) -> proc_macro2::TokenStream {
+fn impl_sync_packets(ast: &DeriveInput) -> Result<proc_macro2::TokenStream> {
 	let body = match ast.data {
 		Data::Enum(ref e) => e,
-		_ => panic!("#[derive(SyncPackets)] is only defined for enums."),
+		_ => return Err(syn::Error::new_spanned(ast, "#[derive(SyncPackets)] is only defined for enums.")),
 	};
 
 	let enum_name = &ast.ident;
 
 	if body.variants.is_empty() {
-		panic!("enum {} has no variants defined", enum_name);
+		return Err(syn::Error::new_spanned(enum_name, format!("enum {} has no variants defined", enum_name)));
 	}
 
 	// Apparently quote! consumes interpolated variables. Clone ids
@@ -84,61 +94,65 @@ fn impl_sync_packets(ast: &DeriveInput) -> proc_macro2::TokenStream {
 
 	// Within each variant of the enum find the first "protocol" attribute
 	// and extract its argument
-	let protocols:Vec<_> = body.variants.iter()
-		.filter_map(
+	let protocols:Vec<_> = match body.variants.iter()
+		.map(
 			|v| v.attrs
 				.iter()
 				.find(|&x| x.path.is_ident("protocol"))
-				.or_else(|| panic!("enum variant without protocol attribute in {}", &enum_name))
-		).map(|a| parse_protocol_attribute(a
-										   .parse_meta()
-										   .clone()
-										   .expect("unknown arguments passed to protocol"))
-		).collect();
+				.ok_or(syn::Error::new_spanned(v, format!("enum variant without protocol attribute {}", &v.ident)))
+				.and_then(|ref a| parse_protocol_attribute(a))
+		).collect() {
+			Ok(v) => v,
+			Err(err) => return Err(err),
+		};
 
 
 	// Values asigned to the variants in the enum
-	let values: Vec<_> = body.variants.iter()
+	let values: Vec<_> = match body.variants.iter()
 		.map(
 			|v| v.discriminant
-				.clone()
-				.expect("enum pattern is not discriminant; should have assigned a unique value such as Foo = 1")
-				.1
+				.as_ref()
+				.map(|d| &d.1)
+				.ok_or(syn::Error::new_spanned(v, "enum pattern is not discriminant; should have assigned a unique value such as Foo = 1"))
 		)
-		.collect();
+		.collect() {
+			Ok(v) => v,
+			Err(err) => return Err(err),
+		};
 
-	quote!{
-		use network::{PacketId, ProtocolId};
+	Ok(quote!{
+			use network::{PacketId, ProtocolId};
 
-		impl #enum_name {
-			pub fn from_u8(id: u8) -> Option<SyncPacket> {
-				match id {
-					#(#values => Some(#idents_from_u8)),*,
-					_ => None
+			impl #enum_name {
+				pub fn from_u8(id: u8) -> Option<SyncPacket> {
+					match id {
+						#(#values => Some(#idents_from_u8)),*,
+						_ => None
 
-				}
-			}
-		}
-
-		use self::SyncPacket::*;
-
-		/// Provide both subprotocol and packet id information within the
-		/// same object.
-		pub trait PacketInfo {
-			fn id(&self) -> PacketId;
-			fn protocol(&self) -> ProtocolId;
-		}
-
-		impl PacketInfo for #enum_name {
-			fn protocol(&self) -> ProtocolId {
-				match self {
-					#(#idents_enum => #protocols),*
+					}
 				}
 			}
 
-			fn id(&self) -> PacketId {
-				(*self) as PacketId
+			use self::SyncPacket::*;
+
+			/// Provide both subprotocol and packet id information within the
+			/// same object.
+			pub trait PacketInfo {
+				fn id(&self) -> PacketId;
+				fn protocol(&self) -> ProtocolId;
+			}
+
+			impl PacketInfo for #enum_name {
+				fn protocol(&self) -> ProtocolId {
+					match self {
+						#(#idents_enum => #protocols),*
+					}
+				}
+
+				fn id(&self) -> PacketId {
+					(*self) as PacketId
+				}
 			}
 		}
-	}
+	)
 }
