@@ -39,7 +39,7 @@ pub enum Result {
 #[serde(rename_all="camelCase")]
 pub struct PubSubSyncStatus {
 	/// is_major_syncing?
-	pub is_syncing: bool,
+	pub syncing: bool,
 }
 
 impl Serialize for Result {

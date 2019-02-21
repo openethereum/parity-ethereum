@@ -334,7 +334,7 @@ impl FullDependencies {
 							let is_verifying = queue_info.unverified_queue_size + queue_info.verified_queue_size > 3;
 
 							Some(PubSubSyncStatus {
-								is_syncing: is_verifying || is_syncing_state,
+								syncing: is_verifying || is_syncing_state,
 							})
 						});
 
@@ -588,7 +588,7 @@ impl<C: LightChainClient + 'static> LightDependencies<C> {
 						let is_verifying = queue_info.unverified_queue_size + queue_info.verified_queue_size > 3;
 
 						Some(PubSubSyncStatus {
-							is_syncing: is_verifying || is_syncing_state,
+							syncing: is_verifying || is_syncing_state,
 						})
 					});
 
