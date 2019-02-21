@@ -1,7 +1,7 @@
 [package]
 name = "syncpacket"
 version = "0.1.0"
-authors = ["Fernando Herrero Carrón <fernando@parity.io>"]
+authors = ["Parity Technologies <admin@parity.io>"]
 edition = "2018"
 
 [lib]
