@@ -184,7 +184,7 @@ fn keep_ancient_blocks() {
 	let start_header = bc.block_header_data(&best_hash).unwrap();
 	let state_root = start_header.state_root();
 	let state_hashes = chunk_state(
-		state_db.as_hashdb(),
+		state_db.as_hash_db(),
 		&state_root,
 		&writer,
 		&Progress::default(),

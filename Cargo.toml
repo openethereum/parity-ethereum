@@ -2,7 +2,7 @@
 description = "Parity Ethereum client"
 name = "parity-ethereum"
 # NOTE Make sure to update util/version/Cargo.toml as well
-version = "2.4.0"
+version = "2.5.0"
 license = "GPL-3.0"
 authors = ["Parity Technologies <admin@parity.io>"]
 
@@ -91,7 +91,7 @@ default = ["accounts"]
 accounts = ["ethcore-accounts", "parity-rpc/accounts"]
 miner-debug = ["ethcore/miner-debug"]
 json-tests = ["ethcore/json-tests"]
-ci-skip-issue = ["ethcore/ci-skip-issue"]
+ci-skip-tests = ["ethcore/ci-skip-tests"]
 test-heavy = ["ethcore/test-heavy"]
 evm-debug = ["ethcore/evm-debug"]
 evm-debug-tests = ["ethcore/evm-debug-tests"]

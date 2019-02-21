@@ -624,7 +624,7 @@ impl Importer {
 
 						let call = move |addr, data| {
 							let mut state_db = state_db.boxed_clone();
-							let backend = ::state::backend::Proving::new(state_db.as_hashdb_mut());
+							let backend = ::state::backend::Proving::new(state_db.as_hash_db_mut());
 
 							let transaction =
 								client.contract_call_tx(BlockId::Hash(*header.parent_hash()), addr, data);
@@ -1176,7 +1176,7 @@ impl Client {
 		};
 
 		let processing_threads = self.config.snapshot.processing_threads;
-		snapshot::take_snapshot(&*self.engine, &self.chain.read(), start_hash, db.as_hashdb(), writer, p, processing_threads)?;
+		snapshot::take_snapshot(&*self.engine, &self.chain.read(), start_hash, db.as_hash_db(), writer, p, processing_threads)?;
 
 		Ok(())
 	}
@@ -1781,7 +1781,8 @@ impl BlockChainClient for Client {
 		};
 
 		let (root, db) = state.drop();
-		let trie = match self.factories.trie.readonly(db.as_hashdb(), &root) {
+		let db = &db.as_hash_db();
+		let trie = match self.factories.trie.readonly(db, &root) {
 			Ok(trie) => trie,
 			_ => {
 				trace!(target: "fatdb", "list_accounts: Couldn't open the DB");
@@ -1827,8 +1828,9 @@ impl BlockChainClient for Client {
 		};
 
 		let (_, db) = state.drop();
-		let account_db = self.factories.accountdb.readonly(db.as_hashdb(), keccak(account));
-		let trie = match self.factories.trie.readonly(account_db.as_hashdb(), &root) {
+		let account_db = &self.factories.accountdb.readonly(db.as_hash_db(), keccak(account));
+		let account_db = &account_db.as_hash_db();
+		let trie = match self.factories.trie.readonly(account_db, &root) {
 			Ok(trie) => trie,
 			_ => {
 				trace!(target: "fatdb", "list_storage: Couldn't open the DB");
@@ -2499,7 +2501,7 @@ impl ProvingBlockChainClient for Client {
 		let mut jdb = self.state_db.read().journal_db().boxed_clone();
 
 		state::prove_transaction_virtual(
-			jdb.as_hashdb_mut(),
+			jdb.as_hash_db_mut(),
 			header.state_root().clone(),
 			&transaction,
 			self.engine.machine(),

@@ -42,7 +42,7 @@ extern crate keccak_hash as hash;
 extern crate parity_bytes as bytes;
 extern crate parity_crypto as crypto;
 extern crate parking_lot;
-extern crate patricia_trie as trie;
+extern crate trie_db as trie;
 extern crate patricia_trie_ethereum as ethtrie;
 extern crate rlp;
 extern crate rustc_hex;

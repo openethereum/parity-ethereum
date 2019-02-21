@@ -43,7 +43,7 @@ use state_db::StateDB;
 use factory::VmFactory;
 
 use ethereum_types::{H256, U256, Address};
-use hashdb::{HashDB, AsHashDB};
+use hash_db::{HashDB, AsHashDB};
 use keccak_hasher::KeccakHasher;
 use kvdb::DBValue;
 use bytes::Bytes;
@@ -366,7 +366,7 @@ impl<B: Backend> State<B> {
 		let mut root = H256::new();
 		{
 			// init trie and reset root to null
-			let _ = factories.trie.create(db.as_hashdb_mut(), &mut root);
+			let _ = factories.trie.create(db.as_hash_db_mut(), &mut root);
 		}
 
 		State {
@@ -381,7 +381,7 @@ impl<B: Backend> State<B> {
 
 	/// Creates new state with existing state root
 	pub fn from_existing(db: B, root: H256, account_start_nonce: U256, factories: Factories) -> TrieResult<State<B>> {
-		if !db.as_hashdb().contains(&root) {
+		if !db.as_hash_db().contains(&root) {
 			return Err(Box::new(TrieError::InvalidStateRoot(root)));
 		}
 
@@ -665,8 +665,8 @@ impl<B: Backend> State<B> {
 			let trie_res = self.db.get_cached(address, |acc| match acc {
 				None => Ok(H256::new()),
 				Some(a) => {
-					let account_db = self.factories.accountdb.readonly(self.db.as_hashdb(), a.address_hash(address));
-					f_at(a, account_db.as_hashdb(), key)
+					let account_db = self.factories.accountdb.readonly(self.db.as_hash_db(), a.address_hash(address));
+					f_at(a, account_db.as_hash_db(), key)
 				}
 			});
 
@@ -677,8 +677,8 @@ impl<B: Backend> State<B> {
 			// otherwise cache the account localy and cache storage key there.
 			if let Some(ref mut acc) = local_account {
 				if let Some(ref account) = acc.account {
-					let account_db = self.factories.accountdb.readonly(self.db.as_hashdb(), account.address_hash(address));
-					return f_at(account, account_db.as_hashdb(), key)
+					let account_db = self.factories.accountdb.readonly(self.db.as_hash_db(), account.address_hash(address));
+					return f_at(account, account_db.as_hash_db(), key)
 				} else {
 					return Ok(H256::new())
 				}
@@ -689,12 +689,13 @@ impl<B: Backend> State<B> {
 		if self.db.is_known_null(address) { return Ok(H256::zero()) }
 
 		// account is not found in the global cache, get from the DB and insert into local
-		let db = self.factories.trie.readonly(self.db.as_hashdb(), &self.root).expect(SEC_TRIE_DB_UNWRAP_STR);
+		let db = &self.db.as_hash_db();
+		let db = self.factories.trie.readonly(db, &self.root).expect(SEC_TRIE_DB_UNWRAP_STR);
 		let from_rlp = |b: &[u8]| Account::from_rlp(b).expect("decoding db value failed");
 		let maybe_acc = db.get_with(address, from_rlp)?;
 		let r = maybe_acc.as_ref().map_or(Ok(H256::new()), |a| {
-			let account_db = self.factories.accountdb.readonly(self.db.as_hashdb(), a.address_hash(address));
-			f_at(a, account_db.as_hashdb(), key)
+			let account_db = self.factories.accountdb.readonly(self.db.as_hash_db(), a.address_hash(address));
+			f_at(a, account_db.as_hash_db(), key)
 		});
 		self.insert_cache(address, AccountEntry::new_clean(maybe_acc));
 		r
@@ -887,9 +888,9 @@ impl<B: Backend> State<B> {
 			if let Some(ref mut account) = a.account {
 				let addr_hash = account.address_hash(address);
 				{
-					let mut account_db = self.factories.accountdb.create(self.db.as_hashdb_mut(), addr_hash);
-					account.commit_storage(&self.factories.trie, account_db.as_hashdb_mut())?;
-					account.commit_code(account_db.as_hashdb_mut());
+					let mut account_db = self.factories.accountdb.create(self.db.as_hash_db_mut(), addr_hash);
+					account.commit_storage(&self.factories.trie, account_db.as_hash_db_mut())?;
+					account.commit_code(account_db.as_hash_db_mut());
 				}
 				if !account.is_empty() {
 					self.db.note_non_null_account(address);
@@ -898,7 +899,7 @@ impl<B: Backend> State<B> {
 		}
 
 		{
-			let mut trie = self.factories.trie.from_existing(self.db.as_hashdb_mut(), &mut self.root)?;
+			let mut trie = self.factories.trie.from_existing(self.db.as_hash_db_mut(), &mut self.root)?;
 			for (address, ref mut a) in accounts.iter_mut().filter(|&(_, ref a)| a.is_dirty()) {
 				a.state = AccountState::Committed;
 				match a.account {
@@ -981,7 +982,8 @@ impl<B: Backend> State<B> {
 
 		let mut result = BTreeMap::new();
 
-		let trie = self.factories.trie.readonly(self.db.as_hashdb(), &self.root)?;
+		let db = &self.db.as_hash_db();
+		let trie = self.factories.trie.readonly(db, &self.root)?;
 
 		// put trie in cache
 		for item in trie.iter()? {
@@ -1011,10 +1013,11 @@ impl<B: Backend> State<B> {
 	fn account_to_pod_account(&self, account: &Account, address: &Address) -> Result<PodAccount, Error> {
 		let mut pod_storage = BTreeMap::new();
 		let addr_hash = account.address_hash(address);
-		let accountdb = self.factories.accountdb.readonly(self.db.as_hashdb(), addr_hash);
+		let accountdb = self.factories.accountdb.readonly(self.db.as_hash_db(), addr_hash);
 		let root = account.base_storage_root();
 
-		let trie = self.factories.trie.readonly(accountdb.as_hashdb(), &root)?;
+		let accountdb = &accountdb.as_hash_db();
+		let trie = self.factories.trie.readonly(accountdb, &root)?;
 		for o_kv in trie.iter()? {
 			if let Ok((key, val)) = o_kv {
 				pod_storage.insert(key[..].into(), U256::from(&val[..]).into());
@@ -1134,8 +1137,8 @@ impl<B: Backend> State<B> {
 		// check local cache first
 		if let Some(ref mut maybe_acc) = self.cache.borrow_mut().get_mut(a) {
 			if let Some(ref mut account) = maybe_acc.account {
-				let accountdb = self.factories.accountdb.readonly(self.db.as_hashdb(), account.address_hash(a));
-				if Self::update_account_cache(require, account, &self.db, accountdb.as_hashdb()) {
+				let accountdb = self.factories.accountdb.readonly(self.db.as_hash_db(), account.address_hash(a));
+				if Self::update_account_cache(require, account, &self.db, accountdb.as_hash_db()) {
 					return Ok(f(Some(account)));
 				} else {
 					return Err(Box::new(TrieError::IncompleteDatabase(H256::from(a))));
@@ -1146,8 +1149,8 @@ impl<B: Backend> State<B> {
 		// check global cache
 		let result = self.db.get_cached(a, |mut acc| {
 			if let Some(ref mut account) = acc {
-				let accountdb = self.factories.accountdb.readonly(self.db.as_hashdb(), account.address_hash(a));
-				if !Self::update_account_cache(require, account, &self.db, accountdb.as_hashdb()) {
+				let accountdb = self.factories.accountdb.readonly(self.db.as_hash_db(), account.address_hash(a));
+				if !Self::update_account_cache(require, account, &self.db, accountdb.as_hash_db()) {
 					return Err(Box::new(TrieError::IncompleteDatabase(H256::from(a))));
 				}
 			}
@@ -1160,12 +1163,13 @@ impl<B: Backend> State<B> {
 				if check_null && self.db.is_known_null(a) { return Ok(f(None)); }
 
 				// not found in the global cache, get from the DB and insert into local
-				let db = self.factories.trie.readonly(self.db.as_hashdb(), &self.root)?;
+				let db = &self.db.as_hash_db();
+				let db = self.factories.trie.readonly(db, &self.root)?;
 				let from_rlp = |b: &[u8]| Account::from_rlp(b).expect("decoding db value failed");
 				let mut maybe_acc = db.get_with(a, from_rlp)?;
 				if let Some(ref mut account) = maybe_acc.as_mut() {
-					let accountdb = self.factories.accountdb.readonly(self.db.as_hashdb(), account.address_hash(a));
-					if !Self::update_account_cache(require, account, &self.db, accountdb.as_hashdb()) {
+					let accountdb = self.factories.accountdb.readonly(self.db.as_hash_db(), account.address_hash(a));
+					if !Self::update_account_cache(require, account, &self.db, accountdb.as_hash_db()) {
 						return Err(Box::new(TrieError::IncompleteDatabase(H256::from(a))));
 					}
 				}
@@ -1192,7 +1196,8 @@ impl<B: Backend> State<B> {
 				Some(acc) => self.insert_cache(a, AccountEntry::new_clean_cached(acc)),
 				None => {
 					let maybe_acc = if !self.db.is_known_null(a) {
-						let db = self.factories.trie.readonly(self.db.as_hashdb(), &self.root)?;
+						let db = &self.db.as_hash_db();
+						let db = self.factories.trie.readonly(db, &self.root)?;
 						let from_rlp = |b:&[u8]| { Account::from_rlp(b).expect("decoding db value failed") };
 						AccountEntry::new_clean(db.get_with(a, from_rlp)?)
 					} else {
@@ -1220,9 +1225,9 @@ impl<B: Backend> State<B> {
 
 		if require_code {
 			let addr_hash = account.address_hash(a);
-			let accountdb = self.factories.accountdb.readonly(self.db.as_hashdb(), addr_hash);
+			let accountdb = self.factories.accountdb.readonly(self.db.as_hash_db(), addr_hash);
 
-			if !Self::update_account_cache(RequireCache::Code, &mut account, &self.db, accountdb.as_hashdb()) {
+			if !Self::update_account_cache(RequireCache::Code, &mut account, &self.db, accountdb.as_hash_db()) {
 				return Err(Box::new(TrieError::IncompleteDatabase(H256::from(a))))
 			}
 		}
@@ -1245,7 +1250,8 @@ impl<B: Backend> State<B> {
 	/// `account_key` == keccak(address)
 	pub fn prove_account(&self, account_key: H256) -> TrieResult<(Vec<Bytes>, BasicAccount)> {
 		let mut recorder = Recorder::new();
-		let trie = TrieDB::new(self.db.as_hashdb(), &self.root)?;
+		let db = &self.db.as_hash_db();
+		let trie = TrieDB::new(db, &self.root)?;
 		let maybe_account: Option<BasicAccount> = {
 			let panicky_decoder = |bytes: &[u8]| {
 				::rlp::decode(bytes).expect(&format!("prove_account, could not query trie for account key={}", &account_key))
@@ -1271,15 +1277,16 @@ impl<B: Backend> State<B> {
 	pub fn prove_storage(&self, account_key: H256, storage_key: H256) -> TrieResult<(Vec<Bytes>, H256)> {
 		// TODO: probably could look into cache somehow but it's keyed by
 		// address, not keccak(address).
-		let trie = TrieDB::new(self.db.as_hashdb(), &self.root)?;
+		let db = &self.db.as_hash_db();
+		let trie = TrieDB::new(db, &self.root)?;
 		let from_rlp = |b: &[u8]| Account::from_rlp(b).expect("decoding db value failed");
 		let acc = match trie.get_with(&account_key, from_rlp)? {
 			Some(acc) => acc,
 			None => return Ok((Vec::new(), H256::new())),
 		};
 
-		let account_db = self.factories.accountdb.readonly(self.db.as_hashdb(), account_key);
-		acc.prove_storage(account_db.as_hashdb(), storage_key)
+		let account_db = self.factories.accountdb.readonly(self.db.as_hash_db(), account_key);
+		acc.prove_storage(account_db.as_hash_db(), storage_key)
 	}
 }
 

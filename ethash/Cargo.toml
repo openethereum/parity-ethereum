@@ -14,9 +14,19 @@ parking_lot = "0.7"
 primal = "0.2.3"
 
 [dev-dependencies]
-tempdir = "0.3"
 criterion = "0.2"
+rustc-hex = "1.0"
+serde_json = "1.0"
+tempdir = "0.3"
+
+[features]
+default = []
+bench = []
 
 [[bench]]
 name = "basic"
+harness = false
+
+[[bench]]
+name = "progpow"
 harness = false
