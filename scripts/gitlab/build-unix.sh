@@ -30,6 +30,7 @@ else
 fi
 
 echo "_____ Post-processing binaries _____"
+rm -rf artifacts/*
 mkdir -p artifacts/$CARGO_TARGET
 cd artifacts/$CARGO_TARGET
 

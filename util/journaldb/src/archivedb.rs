@@ -23,12 +23,12 @@ use std::sync::Arc;
 
 use bytes::Bytes;
 use ethereum_types::H256;
-use hashdb::*;
+use hash_db::{HashDB};
 use keccak_hasher::KeccakHasher;
 use kvdb::{KeyValueDB, DBTransaction, DBValue};
 use rlp::{encode, decode};
 use super::{DB_PREFIX_LEN, LATEST_ERA_KEY, error_key_already_exists, error_negatively_reference_hash};
-use super::memorydb::*;
+use super::memory_db::*;
 use traits::JournalDB;
 
 /// Implementation of the `HashDB` trait for a disk-backed database with a memory overlay
@@ -52,7 +52,7 @@ impl ArchiveDB {
 			.expect("Low-level database error.")
 			.map(|val| decode::<u64>(&val).expect("decoding db value failed"));
 		ArchiveDB {
-			overlay: MemoryDB::new(),
+			overlay: ::new_memory_db(),
 			backing,
 			latest_era,
 			column,
@@ -62,31 +62,14 @@ impl ArchiveDB {
 	fn payload(&self, key: &H256) -> Option<DBValue> {
 		self.backing.get(self.column, key).expect("Low-level database error. Some issue with your hard disk?")
 	}
+
 }
 
 impl HashDB<KeccakHasher, DBValue> for ArchiveDB {
-	fn keys(&self) -> HashMap<H256, i32> {
-		let mut ret: HashMap<H256, i32> = self.backing.iter(self.column)
-			.map(|(key, _)| (H256::from_slice(&*key), 1))
-			.collect();
-
-		for (key, refs) in self.overlay.keys() {
-			match ret.entry(key) {
-				Entry::Occupied(mut entry) => {
-					*entry.get_mut() += refs;
-				},
-				Entry::Vacant(entry) => {
-					entry.insert(refs);
-				}
-			}
-		}
-		ret
-	}
-
 	fn get(&self, key: &H256) -> Option<DBValue> {
 		if let Some((d, rc)) = self.overlay.raw(key) {
 			if rc > 0 {
-				return Some(d);
+				return Some(d.clone());
 			}
 		}
 		self.payload(key)
@@ -109,7 +92,28 @@ impl HashDB<KeccakHasher, DBValue> for ArchiveDB {
 	}
 }
 
+impl ::traits::KeyedHashDB for ArchiveDB {
+	fn keys(&self) -> HashMap<H256, i32> {
+		let mut ret: HashMap<H256, i32> = self.backing.iter(self.column)
+			.map(|(key, _)| (H256::from_slice(&*key), 1))
+			.collect();
+
+		for (key, refs) in self.overlay.keys() {
+			match ret.entry(key) {
+				Entry::Occupied(mut entry) => {
+					*entry.get_mut() += refs;
+				},
+				Entry::Vacant(entry) => {
+					entry.insert(refs);
+				}
+			}
+		}
+		ret
+	}
+}
+
 impl JournalDB for ArchiveDB {
+
 	fn boxed_clone(&self) -> Box<JournalDB> {
 		Box::new(ArchiveDB {
 			overlay: self.overlay.clone(),
@@ -202,7 +206,7 @@ impl JournalDB for ArchiveDB {
 mod tests {
 
 	use keccak::keccak;
-	use hashdb::HashDB;
+	use hash_db::HashDB;
 	use super::*;
 	use {kvdb_memorydb, JournalDB};
 

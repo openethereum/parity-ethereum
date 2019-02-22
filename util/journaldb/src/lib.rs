@@ -22,10 +22,10 @@ extern crate log;
 
 extern crate ethereum_types;
 extern crate parity_bytes as bytes;
-extern crate hashdb;
+extern crate hash_db;
 extern crate keccak_hasher;
 extern crate kvdb;
-extern crate memorydb;
+extern crate memory_db;
 extern crate parking_lot;
 extern crate fastmap;
 extern crate rlp;
@@ -53,6 +53,11 @@ pub mod overlaydb;
 
 /// Export the `JournalDB` trait.
 pub use self::traits::JournalDB;
+
+/// Export keyed hash trait
+pub use self::traits::KeyedHashDB;
+/// Export as keyed hash trait
+pub use self::traits::AsKeyedHashDB;
 
 /// Journal database operating strategy.
 #[derive(Debug, PartialEq, Clone, Copy)]
@@ -156,6 +161,10 @@ fn error_key_already_exists(hash: &ethereum_types::H256) -> io::Error {
 
 fn error_negatively_reference_hash(hash: &ethereum_types::H256) -> io::Error {
 	io::Error::new(io::ErrorKind::Other, format!("Entry {} removed from database more times than it was added.", hash))
+}
+
+pub fn new_memory_db() -> memory_db::MemoryDB<keccak_hasher::KeccakHasher, kvdb::DBValue> {
+	memory_db::MemoryDB::from_null_node(&rlp::NULL_RLP, rlp::NULL_RLP.as_ref().into())
 }
 
 #[cfg(test)]

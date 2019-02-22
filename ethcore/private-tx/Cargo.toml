@@ -26,7 +26,7 @@ log = "0.4"
 parity-bytes = "0.1"
 parity-crypto = "0.3.0"
 parking_lot = "0.7"
-patricia-trie = "0.3.0"
+trie-db = "0.11.0"
 patricia-trie-ethereum = { path = "../../util/patricia-trie-ethereum" }
 rand = "0.3"
 rlp = { version = "0.3.0", features = ["ethereum"] }

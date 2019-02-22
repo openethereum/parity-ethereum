@@ -22,7 +22,7 @@ use std::collections::{HashMap, BTreeMap};
 use hash::{KECCAK_EMPTY, KECCAK_NULL_RLP, keccak};
 use ethereum_types::{H256, U256, Address};
 use error::Error;
-use hashdb::HashDB;
+use hash_db::HashDB;
 use keccak_hasher::KeccakHasher;
 use kvdb::DBValue;
 use bytes::{Bytes, ToPretty};
@@ -253,7 +253,7 @@ impl Account {
 	}
 
 	fn get_and_cache_storage(storage_root: &H256, storage_cache: &mut LruCache<H256, H256>, db: &HashDB<KeccakHasher, DBValue>, key: &H256) -> TrieResult<H256> {
-		let db = SecTrieDB::new(db, storage_root)?;
+		let db = SecTrieDB::new(&db, storage_root)?;
 		let panicky_decoder = |bytes:&[u8]| ::rlp::decode(&bytes).expect("decoding db value failed");
 		let item: U256 = db.get_with(key, panicky_decoder)?.unwrap_or_else(U256::zero);
 		let value: H256 = item.into();
@@ -591,7 +591,7 @@ impl Account {
 	pub fn prove_storage(&self, db: &HashDB<KeccakHasher, DBValue>, storage_key: H256) -> TrieResult<(Vec<Bytes>, H256)> {
 		let mut recorder = Recorder::new();
 
-		let trie = TrieDB::new(db, &self.storage_root)?;
+		let trie = TrieDB::new(&db, &self.storage_root)?;
 		let item: U256 = {
 			let panicky_decoder = |bytes:&[u8]| ::rlp::decode(bytes).expect("decoding db value failed");
 			let query = (&mut recorder, panicky_decoder);
@@ -617,7 +617,7 @@ impl fmt::Debug for Account {
 mod tests {
 	use rlp_compress::{compress, decompress, snapshot_swapper};
 	use ethereum_types::{H256, Address};
-	use memorydb::MemoryDB;
+	use journaldb::new_memory_db;
 	use bytes::Bytes;
 	use super::*;
 	use account_db::*;
@@ -633,7 +633,7 @@ mod tests {
 
 	#[test]
 	fn storage_at() {
-		let mut db = MemoryDB::new();
+		let mut db = new_memory_db();
 		let mut db = AccountDBMut::new(&mut db, &Address::new());
 		let rlp = {
 			let mut a = Account::new_contract(69.into(), 0.into(), KECCAK_NULL_RLP);
@@ -652,7 +652,7 @@ mod tests {
 
 	#[test]
 	fn note_code() {
-		let mut db = MemoryDB::new();
+		let mut db = new_memory_db();
 		let mut db = AccountDBMut::new(&mut db, &Address::new());
 
 		let rlp = {
@@ -672,7 +672,7 @@ mod tests {
 	#[test]
 	fn commit_storage() {
 		let mut a = Account::new_contract(69.into(), 0.into(), KECCAK_NULL_RLP);
-		let mut db = MemoryDB::new();
+		let mut db = new_memory_db();
 		let mut db = AccountDBMut::new(&mut db, &Address::new());
 		a.set_storage(0.into(), 0x1234.into());
 		assert_eq!(a.storage_root(), None);
@@ -683,7 +683,7 @@ mod tests {
 	#[test]
 	fn commit_remove_commit_storage() {
 		let mut a = Account::new_contract(69.into(), 0.into(), KECCAK_NULL_RLP);
-		let mut db = MemoryDB::new();
+		let mut db = new_memory_db();
 		let mut db = AccountDBMut::new(&mut db, &Address::new());
 		a.set_storage(0.into(), 0x1234.into());
 		a.commit_storage(&Default::default(), &mut db).unwrap();
@@ -697,7 +697,7 @@ mod tests {
 	#[test]
 	fn commit_code() {
 		let mut a = Account::new_contract(69.into(), 0.into(), KECCAK_NULL_RLP);
-		let mut db = MemoryDB::new();
+		let mut db = new_memory_db();
 		let mut db = AccountDBMut::new(&mut db, &Address::new());
 		a.init_code(vec![0x55, 0x44, 0xffu8]);
 		assert_eq!(a.code_filth, Filth::Dirty);
@@ -709,7 +709,7 @@ mod tests {
 	#[test]
 	fn reset_code() {
 		let mut a = Account::new_contract(69.into(), 0.into(), KECCAK_NULL_RLP);
-		let mut db = MemoryDB::new();
+		let mut db = new_memory_db();
 		let mut db = AccountDBMut::new(&mut db, &Address::new());
 		a.init_code(vec![0x55, 0x44, 0xffu8]);
 		assert_eq!(a.code_filth, Filth::Dirty);
