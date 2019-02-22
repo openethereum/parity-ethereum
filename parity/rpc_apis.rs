@@ -323,14 +323,15 @@ impl FullDependencies {
 				Api::EthPubSub => {
 					if !for_generic_pubsub {
 						let client =
-							EthPubSubClient::new_full(self.client.clone(), self.snapshot.clone(), self.sync.clone(), self.executor.clone());
+							EthPubSubClient::new(self.client.clone(), self.executor.clone());
 						let h = client.handler();
 						self.miner
 							.add_transactions_listener(Box::new(move |hashes| {
 								if let Some(h) = h.upgrade() {
-									h.ethpubsub_notifier.notify_new_transactions(hashes);
+									h.notify_new_transactions(hashes);
 								}
 							}));
+
 						if let Some(h) = client.handler().upgrade() {
 							self.client.add_notify(h);
 						}
@@ -554,7 +555,7 @@ impl<C: LightChainClient + 'static> LightDependencies<C> {
 					}
 				}
 				Api::EthPubSub => {
-					let client = EthPubSubClient::new_light(
+					let client = EthPubSubClient::light(
 						self.client.clone(),
 						self.on_demand.clone(),
 						self.sync.clone(),
@@ -568,7 +569,7 @@ impl<C: LightChainClient + 'static> LightDependencies<C> {
 						.write()
 						.add_listener(Box::new(move |transactions| {
 							if let Some(h) = h.upgrade() {
-								h.ethpubsub_notifier.notify_new_transactions(transactions);
+								h.notify_new_transactions(transactions);
 							}
 						}));
 					handler.extend_with(EthPubSub::to_delegate(client));
