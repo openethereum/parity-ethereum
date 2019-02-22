@@ -21,7 +21,7 @@ use std::collections::BTreeMap;
 use itertools::Itertools;
 use hash::{keccak};
 use ethereum_types::{H256, U256};
-use hashdb::HashDB;
+use hash_db::HashDB;
 use kvdb::DBValue;
 use keccak_hasher::KeccakHasher;
 use triehash::sec_trie_root;

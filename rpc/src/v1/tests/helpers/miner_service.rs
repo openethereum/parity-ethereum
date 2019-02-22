@@ -49,6 +49,8 @@ pub struct TestMinerService {
 	pub pending_receipts: Mutex<Vec<RichReceipt>>,
 	/// Next nonces.
 	pub next_nonces: RwLock<HashMap<Address, U256>>,
+	/// Minimum gas price
+	pub min_gas_price: RwLock<Option<U256>>,
 	/// Signer (if any)
 	pub signer: RwLock<Option<Box<EngineSigner>>>,
 
@@ -63,6 +65,7 @@ impl Default for TestMinerService {
 			local_transactions: Default::default(),
 			pending_receipts: Default::default(),
 			next_nonces: Default::default(),
+			min_gas_price: RwLock::new(Some(0.into())),
 			authoring_params: RwLock::new(AuthoringParams {
 				author: Address::zero(),
 				gas_range_target: (12345.into(), 54321.into()),
@@ -278,5 +281,19 @@ impl MinerService for TestMinerService {
 
 	fn sensible_gas_limit(&self) -> U256 {
 		0x5208.into()
+	}
+
+	fn set_minimal_gas_price(&self, gas_price: U256) -> Result<bool, &str> {
+		let mut new_price = self.min_gas_price.write();
+		match *new_price {
+			Some(ref mut v) => {
+				*v = gas_price;
+				Ok(true)
+			},
+			None => {
+				let error_msg = "Can't update fixed gas price while automatic gas calibration is enabled.";
+				Err(error_msg)
+			},
+		}
 	}
 }

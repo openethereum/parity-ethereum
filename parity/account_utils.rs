@@ -30,12 +30,12 @@ mod accounts {
 	pub struct AccountProvider;
 
 	impl ::ethcore::miner::LocalAccounts for AccountProvider {
-		fn is_local(&self, address: &Address) -> bool {
+		fn is_local(&self, _address: &Address) -> bool {
 			false
 		}
 	}
 
-	pub fn prepare_account_provider(_spec: &SpecType, _dirs: &Directories, _data_dir: &str, cfg: AccountsConfig, _passwords: &[Password]) -> Result<AccountProvider, String> {
+	pub fn prepare_account_provider(_spec: &SpecType, _dirs: &Directories, _data_dir: &str, _cfg: AccountsConfig, _passwords: &[Password]) -> Result<AccountProvider, String> {
 		warn!("Note: Your instance of Parity Ethereum is running without account support. Some CLI options are ignored.");
 		Ok(AccountProvider)
 	}

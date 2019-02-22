@@ -1061,140 +1061,65 @@ impl JobTransport for SigningJobTransport {
 #[cfg(test)]
 mod tests {
 	use std::sync::Arc;
-	use std::collections::{BTreeSet, BTreeMap, VecDeque};
 	use ethereum_types::H256;
-	use ethkey::{self, Random, Generator, KeyPair, verify_public, public_to_address};
-	use acl_storage::DummyAclStorage;
-	use key_server_cluster::{NodeId, DummyKeyStorage, SessionId, SessionMeta, Error, KeyStorage};
-	use key_server_cluster::cluster_sessions::ClusterSession;
-	use key_server_cluster::cluster::tests::DummyCluster;
-	use key_server_cluster::generation_session::tests::MessageLoop as KeyGenerationMessageLoop;
-	use key_server_cluster::message::Message;
-	use key_server_cluster::signing_session_ecdsa::{SessionImpl, SessionParams};
+	use ethkey::{self, Random, Generator, Public, verify_public, public_to_address};
+	use key_server_cluster::{SessionId, Error, KeyStorage};
+	use key_server_cluster::cluster::tests::{MessageLoop as ClusterMessageLoop};
+	use key_server_cluster::signing_session_ecdsa::SessionImpl;
+	use key_server_cluster::generation_session::tests::MessageLoop as GenerationMessageLoop;
 
-	struct Node {
-		pub node_id: NodeId,
-		pub cluster: Arc<DummyCluster>,
-		pub key_storage: Arc<DummyKeyStorage>,
-		pub session: SessionImpl,
-	}
-
-	struct MessageLoop {
-		pub session_id: SessionId,
-		pub requester: KeyPair,
-		pub nodes: BTreeMap<NodeId, Node>,
-		pub queue: VecDeque<(NodeId, NodeId, Message)>,
-		pub acl_storages: Vec<Arc<DummyAclStorage>>,
-		pub version: H256,
-	}
+	#[derive(Debug)]
+	pub struct MessageLoop(pub ClusterMessageLoop);
 
 	impl MessageLoop {
-		pub fn new(gl: &KeyGenerationMessageLoop) -> Self {
-			let version = gl.nodes.values().nth(0).unwrap().key_storage.get(&Default::default()).unwrap().unwrap().versions.iter().last().unwrap().hash;
-			let mut nodes = BTreeMap::new();
-			let session_id = gl.session_id.clone();
+		pub fn new(num_nodes: usize, threshold: usize) -> Result<Self, Error> {
+			let ml = GenerationMessageLoop::new(num_nodes).init(threshold)?;
+			ml.0.loop_until(|| ml.0.is_empty()); // complete generation session
+
+			Ok(MessageLoop(ml.0))
+		}
+
+		pub fn init_with_version(self, key_version: Option<H256>) -> Result<(Self, Public, H256), Error> {
+			let message_hash = H256::random();
 			let requester = Random.generate().unwrap();
-			let signature = Some(ethkey::sign(requester.secret(), &SessionId::default()).unwrap());
-			let master_node_id = gl.nodes.keys().nth(0).unwrap().clone();
-			let mut acl_storages = Vec::new();
-			for (i, (gl_node_id, gl_node)) in gl.nodes.iter().enumerate() {
-				let acl_storage = Arc::new(DummyAclStorage::default());
-				acl_storages.push(acl_storage.clone());
-				let cluster = Arc::new(DummyCluster::new(gl_node_id.clone()));
-				let session = SessionImpl::new(SessionParams {
-					meta: SessionMeta {
-						id: session_id.clone(),
-						self_node_id: gl_node_id.clone(),
-						master_node_id: master_node_id.clone(),
-						threshold: gl_node.key_storage.get(&session_id).unwrap().unwrap().threshold,
-						configured_nodes_count: gl.nodes.len(),
-						connected_nodes_count: gl.nodes.len(),
-					},
-					access_key: "834cb736f02d9c968dfaf0c37658a1d86ff140554fc8b59c9fdad5a8cf810eec".parse().unwrap(),
-					key_share: Some(gl_node.key_storage.get(&session_id).unwrap().unwrap()),
-					acl_storage: acl_storage,
-					cluster: cluster.clone(),
-					nonce: 0,
-				}, if i == 0 { signature.clone().map(Into::into) } else { None }).unwrap();
-				nodes.insert(gl_node_id.clone(), Node { node_id: gl_node_id.clone(), cluster: cluster, key_storage: gl_node.key_storage.clone(), session: session });
-			}
-
-			let nodes_ids: Vec<_> = nodes.keys().cloned().collect();
-			for node in nodes.values() {
-				for node_id in &nodes_ids {
-					node.cluster.add_node(node_id.clone());
-				}
-			}
-
-			MessageLoop {
-				session_id: session_id,
-				requester: requester,
-				nodes: nodes,
-				queue: VecDeque::new(),
-				acl_storages: acl_storages,
-				version: version,
-			}
+			let signature = ethkey::sign(requester.secret(), &SessionId::default()).unwrap();
+			self.0.cluster(0).client()
+				.new_ecdsa_signing_session(Default::default(), signature.into(), key_version, message_hash)
+				.map(|_| (self, *requester.public(), message_hash))
 		}
 
-		pub fn master(&self) -> &SessionImpl {
-			&self.nodes.values().nth(0).unwrap().session
+		pub fn init(self) -> Result<(Self, Public, H256), Error> {
+			let key_version = self.0.key_storage(0).get(&Default::default())
+				.unwrap().unwrap().versions.iter().last().unwrap().hash;
+			self.init_with_version(Some(key_version))
 		}
 
-		pub fn take_message(&mut self) -> Option<(NodeId, NodeId, Message)> {
-			self.nodes.values()
-				.filter_map(|n| n.cluster.take_message().map(|m| (n.node_id.clone(), m.0, m.1)))
-				.nth(0)
-				.or_else(|| self.queue.pop_front())
+		pub fn init_delegated(self) -> Result<(Self, Public, H256), Error> {
+			self.0.key_storage(0).remove(&Default::default()).unwrap();
+			self.init_with_version(None)
 		}
 
-		pub fn process_message(&mut self, mut msg: (NodeId, NodeId, Message)) -> Result<(), Error> {
-			let mut is_queued_message = false;
-			loop {
-				match self.nodes[&msg.1].session.on_message(&msg.0, &msg.2) {
-					Ok(_) => {
-						if let Some(message) = self.queue.pop_front() {
-							msg = message;
-							is_queued_message = true;
-							continue;
-						}
-						return Ok(());
-					},
-					Err(Error::TooEarlyForRequest) => {
-						if is_queued_message {
-							self.queue.push_front(msg);
-						} else {
-							self.queue.push_back(msg);
-						}
-						return Ok(());
-					},
-					Err(err) => return Err(err),
-				}
-			}
-		}
-	}
-
-	fn prepare_signing_sessions(threshold: usize, num_nodes: usize) -> (KeyGenerationMessageLoop, MessageLoop) {
-		// run key generation sessions
-		let mut gl = KeyGenerationMessageLoop::new(num_nodes);
-		gl.master().initialize(Default::default(), Default::default(), false, threshold, gl.nodes.keys().cloned().collect::<BTreeSet<_>>().into()).unwrap();
-		while let Some((from, to, message)) = gl.take_message() {
-			gl.process_message((from, to, message)).unwrap();
+		pub fn init_with_isolated(self) -> Result<(Self, Public, H256), Error> {
+			self.0.isolate(1);
+			self.init()
 		}
 
-		// run signing session
-		let sl = MessageLoop::new(&gl);
-		(gl, sl)
+		pub fn session_at(&self, idx: usize) -> Arc<SessionImpl> {
+			self.0.sessions(idx).ecdsa_signing_sessions.first().unwrap()
+		}
+
+		pub fn ensure_completed(&self) {
+			self.0.loop_until(|| self.0.is_empty());
+			assert!(self.session_at(0).wait().is_ok());
+		}
 	}
 
 	#[test]
 	fn failed_gen_ecdsa_sign_session_when_threshold_is_too_low() {
 		let test_cases = [(1, 2), (2, 4), (3, 6), (4, 6)];
 		for &(threshold, num_nodes) in &test_cases {
-			let (_, sl) = prepare_signing_sessions(threshold, num_nodes);
-
-			// run signing session
-			let message_hash = H256::random();
-			assert_eq!(sl.master().initialize(sl.version.clone(), message_hash).unwrap_err(), Error::ConsensusUnreachable);
+			assert_eq!(MessageLoop::new(num_nodes, threshold).unwrap().init().unwrap_err(),
+				Error::ConsensusUnreachable);
 		}
 	}
 
@@ -1202,112 +1127,46 @@ mod tests {
 	fn complete_gen_ecdsa_sign_session() {
 		let test_cases = [(0, 1), (2, 5), (2, 6), (3, 11), (4, 11)];
 		for &(threshold, num_nodes) in &test_cases {
-			let (gl, mut sl) = prepare_signing_sessions(threshold, num_nodes);
-			let key_pair = gl.compute_key_pair(threshold);
+			let (ml, _, message) = MessageLoop::new(num_nodes, threshold).unwrap().init().unwrap();
+			ml.0.loop_until(|| ml.0.is_empty());
 
-			// run signing session
-			let message_hash = H256::random();
-			sl.master().initialize(sl.version.clone(), message_hash).unwrap();
-			while let Some((from, to, message)) = sl.take_message() {
-				sl.process_message((from, to, message)).unwrap();
-			}
-
-			// verify signature
-			let signature = sl.master().wait().unwrap();
-			assert!(verify_public(key_pair.public(), &signature, &message_hash).unwrap());
+			let signer_public = ml.0.key_storage(0).get(&Default::default()).unwrap().unwrap().public;
+			let signature = ml.session_at(0).wait().unwrap();
+			assert!(verify_public(&signer_public, &signature, &message).unwrap());
 		}
 	}
 
 	#[test]
 	fn ecdsa_complete_signing_session_with_single_node_failing() {
-		let (_, mut sl) = prepare_signing_sessions(1, 4);
-		sl.master().initialize(sl.version.clone(), 777.into()).unwrap();
+		let (ml, requester, _) = MessageLoop::new(4, 1).unwrap().init().unwrap();
 
 		// we need at least 3-of-4 nodes to agree to reach consensus
 		// let's say 1 of 4 nodes disagee
-		sl.acl_storages[1].prohibit(public_to_address(sl.requester.public()), SessionId::default());
+		ml.0.acl_storage(1).prohibit(public_to_address(&requester), Default::default());
 
 		// then consensus reachable, but single node will disagree
-		while let Some((from, to, message)) = sl.take_message() {
-			sl.process_message((from, to, message)).unwrap();
-		}
-
-		let data = sl.master().data.lock();
-		match data.result {
-			Some(Ok(_)) => (),
-			_ => unreachable!(),
-		}
+		ml.ensure_completed();
 	}
 
 	#[test]
 	fn ecdsa_complete_signing_session_with_acl_check_failed_on_master() {
-		let (_, mut sl) = prepare_signing_sessions(1, 4);
-		sl.master().initialize(sl.version.clone(), 777.into()).unwrap();
+		let (ml, requester, _) = MessageLoop::new(4, 1).unwrap().init().unwrap();
 
 		// we need at least 3-of-4 nodes to agree to reach consensus
-		// let's say 1 of 4 nodes disagee
-		sl.acl_storages[0].prohibit(public_to_address(sl.requester.public()), SessionId::default());
+		// let's say 1 of 4 nodes (here: master) disagee
+		ml.0.acl_storage(0).prohibit(public_to_address(&requester), Default::default());
 
 		// then consensus reachable, but single node will disagree
-		while let Some((from, to, message)) = sl.take_message() {
-			sl.process_message((from, to, message)).unwrap();
-		}
-
-		let data = sl.master().data.lock();
-		match data.result {
-			Some(Ok(_)) => (),
-			_ => unreachable!(),
-		}
+		ml.ensure_completed();
 	}
 
 	#[test]
 	fn ecdsa_signing_works_when_delegated_to_other_node() {
-		let (_, mut sl) = prepare_signing_sessions(1, 4);
-
-		// let's say node1 doesn't have a share && delegates decryption request to node0
-		// initially session is created on node1 => node1 is master for itself, but for other nodes node0 is still master
-		let actual_master = sl.nodes.keys().nth(0).cloned().unwrap();
-		let requested_node = sl.nodes.keys().skip(1).nth(0).cloned().unwrap();
-		let version = sl.nodes[&actual_master].key_storage.get(&Default::default()).unwrap().unwrap().last_version().unwrap().hash.clone();
-		sl.nodes[&requested_node].key_storage.remove(&Default::default()).unwrap();
-		sl.nodes.get_mut(&requested_node).unwrap().session.core.key_share = None;
-		sl.nodes.get_mut(&requested_node).unwrap().session.core.meta.master_node_id = sl.nodes[&requested_node].session.core.meta.self_node_id.clone();
-		sl.nodes[&requested_node].session.data.lock().consensus_session.consensus_job_mut().executor_mut().set_requester(
-			sl.nodes[&actual_master].session.data.lock().consensus_session.consensus_job().executor().requester().unwrap().clone()
-		);
-
-		// now let's try to do a decryption
-		sl.nodes[&requested_node].session.delegate(actual_master, version, H256::random()).unwrap();
-
-		// then consensus reachable, but single node will disagree
-		while let Some((from, to, message)) = sl.take_message() {
-			sl.process_message((from, to, message)).unwrap();
-		}
+		MessageLoop::new(4, 1).unwrap().init_delegated().unwrap().0.ensure_completed();
 	}
 
 	#[test]
 	fn ecdsa_signing_works_when_share_owners_are_isolated() {
-		let (_, mut sl) = prepare_signing_sessions(2, 6);
-
-		// we need 5 out of 6 nodes to agree to do a decryption
-		// let's say that 1 of these nodes (master) is isolated
-		let isolated_node_id = sl.nodes.keys().skip(2).nth(0).cloned().unwrap();
-		for node in sl.nodes.values() {
-			node.cluster.remove_node(&isolated_node_id);
-		}
-
-		// now let's try to do a signing
-		sl.master().initialize(sl.version.clone(), H256::random()).unwrap();
-
-		// then consensus reachable, but single node will disagree
-		while let Some((from, to, message)) = sl.take_message() {
-			sl.process_message((from, to, message)).unwrap();
-		}
-
-		let data = sl.master().data.lock();
-		match data.result {
-			Some(Ok(_)) => (),
-			_ => unreachable!(),
-		}
+		MessageLoop::new(6, 2).unwrap().init_with_isolated().unwrap().0.ensure_completed();
 	}
 }

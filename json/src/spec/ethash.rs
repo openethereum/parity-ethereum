@@ -95,6 +95,9 @@ pub struct EthashParams {
 	pub expip2_transition: Option<Uint>,
 	/// EXPIP-2 duration limit
 	pub expip2_duration_limit: Option<Uint>,
+	/// Block to transition to progpow
+	#[serde(rename="progpowTransition")]
+	pub progpow_transition: Option<Uint>,
 }
 
 /// Ethash engine deserialization.
@@ -200,6 +203,7 @@ mod tests {
 				ecip1017_era_rounds: None,
 				expip2_transition: None,
 				expip2_duration_limit: None,
+				progpow_transition: None,
 				difficulty_bomb_delays: None,
 			}
 		});
@@ -239,6 +243,7 @@ mod tests {
 				ecip1017_era_rounds: None,
 				expip2_transition: None,
 				expip2_duration_limit: None,
+				progpow_transition: None,
 				difficulty_bomb_delays: None,
 			}
 		});

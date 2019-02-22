@@ -205,4 +205,8 @@ pub trait MinerService : Send + Sync {
 
 	/// Suggested gas limit.
 	fn sensible_gas_limit(&self) -> U256;
+
+	/// Set a new minimum gas limit.
+	/// Will not work if dynamic gas calibration is set.
+	fn set_minimal_gas_price(&self, gas_price: U256) -> Result<bool, &str>;
 }

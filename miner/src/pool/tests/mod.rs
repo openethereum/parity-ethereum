@@ -97,7 +97,7 @@ fn should_return_correct_nonces_when_dropped_because_of_limit() {
 			   Ok(())
 	]);
 	assert_eq!(txq.status().status.transaction_count, 3);
-	// tx2 transacton got dropped because of limit
+	// tx2 transaction got dropped because of limit
 	// tx1 and tx1' are kept, because they have lower insertion_ids so they are preferred.
 	assert_eq!(txq.next_nonce(TestClient::new(), &sender), None);
 }

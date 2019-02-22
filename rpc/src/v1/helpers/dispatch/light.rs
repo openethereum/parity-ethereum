@@ -23,7 +23,7 @@ use light::client::LightChainClient;
 use light::on_demand::{request, OnDemand};
 use parking_lot::{Mutex, RwLock};
 use stats::Corpus;
-use sync::LightSync;
+use sync::{LightSyncProvider, LightNetworkDispatcher, ManageNetwork};
 use types::basic_account::BasicAccount;
 use types::ids::BlockId;
 use types::transaction::{SignedTransaction, PendingTransaction, Error as TransactionError};
@@ -37,10 +37,9 @@ use v1::types::{RichRawTransaction as RpcRichRawTransaction,};
 use super::{Dispatcher, Accounts, SignWith, PostSign};
 
 /// Dispatcher for light clients -- fetches default gas price, next nonce, etc. from network.
-#[derive(Clone)]
-pub struct LightDispatcher {
+pub struct LightDispatcher<S: LightSyncProvider + LightNetworkDispatcher + ManageNetwork + 'static> {
 	/// Sync service.
-	pub sync: Arc<LightSync>,
+	pub sync: Arc<S>,
 	/// Header chain client.
 	pub client: Arc<LightChainClient>,
 	/// On-demand request service.
@@ -55,12 +54,15 @@ pub struct LightDispatcher {
 	pub gas_price_percentile: usize,
 }
 
-impl LightDispatcher {
+impl<S> LightDispatcher<S>
+where
+	S: LightSyncProvider + LightNetworkDispatcher + ManageNetwork + 'static
+{
 	/// Create a new `LightDispatcher` from its requisite parts.
 	///
 	/// For correct operation, the OnDemand service is assumed to be registered as a network handler,
 	pub fn new(
-		sync: Arc<LightSync>,
+		sync: Arc<S>,
 		client: Arc<LightChainClient>,
 		on_demand: Arc<OnDemand>,
 		cache: Arc<Mutex<LightDataCache>>,
@@ -115,7 +117,27 @@ impl LightDispatcher {
 	}
 }
 
-impl Dispatcher for LightDispatcher {
+impl<S> Clone for LightDispatcher<S>
+where
+	S: LightSyncProvider + LightNetworkDispatcher + ManageNetwork + 'static
+{
+	fn clone(&self) -> Self {
+		Self {
+			sync: self.sync.clone(),
+			client: self.client.clone(),
+			on_demand: self.on_demand.clone(),
+			cache: self.cache.clone(),
+			transaction_queue: self.transaction_queue.clone(),
+			nonces: self.nonces.clone(),
+			gas_price_percentile: self.gas_price_percentile
+		}
+	}
+}
+
+impl<S> Dispatcher for LightDispatcher<S>
+where
+	S: LightSyncProvider + LightNetworkDispatcher + ManageNetwork + 'static
+{
 	// Ignore the `force_nonce` flag in order to always query the network when fetching the nonce and
 	// the account state. If the nonce is specified in the transaction use that nonce instead but do the
 	// network request anyway to the account state (balance)
@@ -217,8 +239,8 @@ impl Dispatcher for LightDispatcher {
 
 /// Get a recent gas price corpus.
 // TODO: this could be `impl Trait`.
-pub fn fetch_gas_price_corpus(
-	sync: Arc<LightSync>,
+pub fn fetch_gas_price_corpus<S: LightSyncProvider + LightNetworkDispatcher + ManageNetwork + 'static>(
+	sync: Arc<S>,
 	client: Arc<LightChainClient>,
 	on_demand: Arc<OnDemand>,
 	cache: Arc<Mutex<LightDataCache>>,

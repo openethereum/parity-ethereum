@@ -14,12 +14,12 @@ ethcore = { path = ".."}
 ethcore-db = { path = "../db" }
 ethcore-blockchain = { path = "../blockchain" }
 ethereum-types = "0.4"
-memorydb = "0.3.0"
-patricia-trie = "0.3.0"
+memory-db = "0.11.0"
+trie-db = "0.11.0"
 patricia-trie-ethereum = { path = "../../util/patricia-trie-ethereum" }
 ethcore-network = { path = "../../util/network" }
 ethcore-io = { path = "../../util/io" }
-hashdb = "0.3.0"
+hash-db = "0.11.0"
 heapsize = "0.4"
 vm = { path = "../vm" }
 fastmap = { path = "../../util/fastmap" }
@@ -41,6 +41,7 @@ triehash-ethereum = { version = "0.2",  path = "../../util/triehash-ethereum" }
 kvdb = "0.1"
 memory-cache = { path = "../../util/memory-cache" }
 error-chain = { version = "0.12", default-features = false }
+journaldb = { path = "../../util/journaldb" }
 
 [dev-dependencies]
 ethcore = { path = "..", features = ["test-helpers"] }

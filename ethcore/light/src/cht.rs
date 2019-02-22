@@ -25,10 +25,11 @@
 
 use common_types::ids::BlockId;
 use ethereum_types::{H256, U256};
-use hashdb::HashDB;
+use hash_db::HashDB;
 use keccak_hasher::KeccakHasher;
 use kvdb::DBValue;
-use memorydb::MemoryDB;
+use memory_db::MemoryDB;
+use journaldb::new_memory_db;
 use bytes::Bytes;
 use trie::{TrieMut, Trie, Recorder};
 use ethtrie::{self, TrieDB, TrieDBMut};
@@ -73,7 +74,8 @@ impl<DB: HashDB<KeccakHasher, DBValue>> CHT<DB> {
 		if block_to_cht_number(num) != Some(self.number) { return Ok(None) }
 
 		let mut recorder = Recorder::with_depth(from_level);
-		let t = TrieDB::new(&self.db, &self.root)?;
+		let db: &HashDB<_,_> = &self.db;
+		let t = TrieDB::new(&db, &self.root)?;
 		t.get_with(&key!(num), &mut recorder)?;
 
 		Ok(Some(recorder.drain().into_iter().map(|x| x.data).collect()))
@@ -96,7 +98,7 @@ pub struct BlockInfo {
 pub fn build<F>(cht_num: u64, mut fetcher: F) -> Option<CHT<MemoryDB<KeccakHasher, DBValue>>>
 	where F: FnMut(BlockId) -> Option<BlockInfo>
 {
-	let mut db = MemoryDB::<KeccakHasher, DBValue>::new();
+	let mut db = new_memory_db();
 
 	// start from the last block by number and work backwards.
 	let last_num = start_number(cht_num + 1) - 1;
@@ -150,7 +152,7 @@ pub fn compute_root<I>(cht_num: u64, iterable: I) -> Option<H256>
 /// verify the given trie branch and extract the canonical hash and total difficulty.
 // TODO: better support for partially-checked queries.
 pub fn check_proof(proof: &[Bytes], num: u64, root: H256) -> Option<(H256, U256)> {
-	let mut db = MemoryDB::<KeccakHasher, DBValue>::new();
+	let mut db = new_memory_db();
 
 	for node in proof { db.insert(&node[..]); }
 	let res = match TrieDB::new(&db, &root) {

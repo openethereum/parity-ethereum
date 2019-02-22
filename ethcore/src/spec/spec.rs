@@ -25,7 +25,6 @@ use bytes::Bytes;
 use ethereum_types::{H256, Bloom, U256, Address};
 use ethjson;
 use hash::{KECCAK_NULL_RLP, keccak};
-use memorydb::MemoryDB;
 use parking_lot::RwLock;
 use rlp::{Rlp, RlpStream};
 use rustc_hex::{FromHex, ToHex};
@@ -556,7 +555,7 @@ fn load_from(spec_params: SpecParams, s: ethjson::spec::Spec) -> Result<Spec, Er
 		None => {
 			let _ = s.run_constructors(
 				&Default::default(),
-				BasicBackend(MemoryDB::new()),
+				BasicBackend(journaldb::new_memory_db()),
 			)?;
 		}
 	}
@@ -624,7 +623,7 @@ impl Spec {
 
 		// basic accounts in spec.
 		{
-			let mut t = factories.trie.create(db.as_hashdb_mut(), &mut root);
+			let mut t = factories.trie.create(db.as_hash_db_mut(), &mut root);
 
 			for (address, account) in self.genesis_state.get().iter() {
 				t.insert(&**address, &account.rlp())?;
@@ -635,7 +634,7 @@ impl Spec {
 			db.note_non_null_account(address);
 			account.insert_additional(
 				&mut *factories.accountdb.create(
-					db.as_hashdb_mut(),
+					db.as_hash_db_mut(),
 					keccak(address),
 				),
 				&factories.trie,
@@ -792,7 +791,7 @@ impl Spec {
 		self.genesis_state = s;
 		let _ = self.run_constructors(
 			&Default::default(),
-			BasicBackend(MemoryDB::new()),
+			BasicBackend(journaldb::new_memory_db()),
 		)?;
 
 		Ok(())
@@ -813,7 +812,7 @@ impl Spec {
 
 	/// Ensure that the given state DB has the trie nodes in for the genesis state.
 	pub fn ensure_db_good<T: Backend>(&self, db: T, factories: &Factories) -> Result<T, Error> {
-		if db.as_hashdb().contains(&self.state_root()) {
+		if db.as_hash_db().contains(&self.state_root()) {
 			return Ok(db);
 		}
 
@@ -860,7 +859,7 @@ impl Spec {
 			None,
 		);
 
-		self.ensure_db_good(BasicBackend(db.as_hashdb_mut()), &factories)
+		self.ensure_db_good(BasicBackend(db.as_hash_db_mut()), &factories)
 			.map_err(|e| format!("Unable to initialize genesis state: {}", e))?;
 
 		let call = |a, d| {
@@ -886,7 +885,7 @@ impl Spec {
 			}.fake_sign(from);
 
 			let res = ::state::prove_transaction_virtual(
-				db.as_hashdb_mut(),
+				db.as_hash_db_mut(),
 				*genesis.state_root(),
 				&tx,
 				self.engine.machine(),
