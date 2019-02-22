@@ -1020,7 +1020,7 @@ impl<B: Backend> State<B> {
 		let trie = self.factories.trie.readonly(accountdb, &root)?;
 		for o_kv in trie.iter()? {
 			if let Ok((key, val)) = o_kv {
-				pod_storage.insert(key[..].into(), U256::from(&val[..]).into());
+				pod_storage.insert(key[..].into(), rlp::decode::<U256>(&val[..]).expect("Decoded from trie which was encoded from the same type; qed").into());
 			}
 		}
 
