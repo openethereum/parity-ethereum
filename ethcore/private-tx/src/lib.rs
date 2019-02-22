@@ -362,18 +362,20 @@ impl Provider {
 			signatures.push(signed_tx.signature());
 			let rsv: Vec<Signature> = signatures.into_iter().map(|sign| sign.into_electrum().into()).collect();
 			// Create public transaction
+			let signer_account = self.signer_account.ok_or_else(|| ErrorKind::SignerAccountNotSet)?;
+			let state = self.client.state_at(BlockId::Latest).ok_or(ErrorKind::StatePruned)?;
+			let nonce = state.nonce(&signer_account)?;
 			let public_tx = self.public_transaction(
 				desc.state.clone(),
 				&desc.original_transaction,
 				&rsv,
-				desc.original_transaction.nonce,
+				nonce,
 				desc.original_transaction.gas_price
 			)?;
 			trace!(target: "privatetx", "Last required signature received, public transaction created: {:?}", public_tx);
 			// Sign and add it to the queue
 			let chain_id = desc.original_transaction.chain_id();
 			let hash = public_tx.hash(chain_id);
-			let signer_account = self.signer_account.ok_or_else(|| ErrorKind::SignerAccountNotSet)?;
 			let signature = self.accounts.sign(signer_account, hash)?;
 			let signed = SignedTransaction::new(public_tx.with_signature(signature, chain_id))?;
 			match self.miner.import_own_transaction(&*self.client, signed.into()) {
