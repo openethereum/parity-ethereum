@@ -18,10 +18,7 @@
 
 use ethjson;
 
-#[cfg(all(not(test), feature = "ci-skip-tests"))]
-compile_error!("ci-skip-tests can only be enabled for testing builds.");
-
-#[cfg(feature="ci-skip-issue")]
+#[cfg(feature="ci-skip-tests")]
 lazy_static!{
 	pub static ref SKIP_TEST_STATE: ethjson::test::SkipStates = {
 		let skip_data = include_bytes!("../../res/ethereum/tests-issues/currents.json");
@@ -29,7 +26,7 @@ lazy_static!{
 	};
 }
 
-#[cfg(not(feature="ci-skip-issue"))]
+#[cfg(not(feature="ci-skip-tests"))]
 lazy_static!{
 	pub static ref SKIP_TEST_STATE: ethjson::test::SkipStates = {
 		ethjson::test::SkipStates::empty()

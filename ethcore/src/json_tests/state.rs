@@ -165,6 +165,7 @@ mod state_tests {
 	declare_test!{GeneralStateTest_stRefundTest, "GeneralStateTests/stRefundTest/"}
 	declare_test!{GeneralStateTest_stReturnDataTest, "GeneralStateTests/stReturnDataTest/"}
 	declare_test!{GeneralStateTest_stRevertTest, "GeneralStateTests/stRevertTest/"}
+	declare_test!{GeneralStateTest_stSStoreTest, "GeneralStateTests/stSStoreTest/"}
 	declare_test!{GeneralStateTest_stShift, "GeneralStateTests/stShift/"}
 	declare_test!{GeneralStateTest_stSolidityTest, "GeneralStateTests/stSolidityTest/"}
 	declare_test!{GeneralStateTest_stSpecialTest, "GeneralStateTests/stSpecialTest/"}
@@ -177,7 +178,6 @@ mod state_tests {
 	declare_test!{GeneralStateTest_stZeroCallsRevert, "GeneralStateTests/stZeroCallsRevert/"}
 	declare_test!{GeneralStateTest_stZeroCallsTest, "GeneralStateTests/stZeroCallsTest/"}
 	declare_test!{GeneralStateTest_stZeroKnowledge, "GeneralStateTests/stZeroKnowledge/"}
-	declare_test!{GeneralStateTest_stSStoreTest, "GeneralStateTests/stSStoreTest/"}
 
 	// Attempts to send a transaction that requires more than current balance:
 	// Tx:

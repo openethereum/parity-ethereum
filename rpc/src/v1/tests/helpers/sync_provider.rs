@@ -20,6 +20,7 @@ use std::collections::BTreeMap;
 use ethereum_types::H256;
 use parking_lot::RwLock;
 use sync::{SyncProvider, EthProtocolInfo, SyncStatus, SyncState, PeerInfo, TransactionStats};
+use network::client_version::ClientVersion;
 
 /// TestSyncProvider config.
 pub struct Config {
@@ -75,7 +76,7 @@ impl SyncProvider for TestSyncProvider {
 		vec![
 			PeerInfo {
 				id: Some("node1".to_owned()),
-				client_version: "Parity-Ethereum/1".to_owned(),
+				client_version: ClientVersion::from("Parity-Ethereum/1/v2.4.0/linux/rustc"),
 				capabilities: vec!["eth/62".to_owned(), "eth/63".to_owned()],
 				remote_address: "127.0.0.1:7777".to_owned(),
 				local_address: "127.0.0.1:8888".to_owned(),
@@ -88,7 +89,7 @@ impl SyncProvider for TestSyncProvider {
 			},
 			PeerInfo {
 				id: None,
-				client_version: "Parity-Ethereum/2".to_owned(),
+				client_version: ClientVersion::from("Parity-Ethereum/2/v2.4.0/linux/rustc"),
 				capabilities: vec!["eth/63".to_owned(), "eth/64".to_owned()],
 				remote_address: "Handshake".to_owned(),
 				local_address: "127.0.0.1:3333".to_owned(),

@@ -22,11 +22,11 @@ use std::sync::Arc;
 
 use bytes::Bytes;
 use ethereum_types::H256;
-use hashdb::*;
+use hash_db::{HashDB};
 use heapsize::HeapSizeOf;
 use keccak_hasher::KeccakHasher;
 use kvdb::{KeyValueDB, DBTransaction, DBValue};
-use memorydb::MemoryDB;
+use memory_db::MemoryDB;
 use overlaydb::OverlayDB;
 use rlp::{encode, decode};
 use super::{DB_PREFIX_LEN, LATEST_ERA_KEY};
@@ -81,12 +81,15 @@ impl RefCountedDB {
 }
 
 impl HashDB<KeccakHasher, DBValue> for RefCountedDB {
-	fn keys(&self) -> HashMap<H256, i32> { self.forward.keys() }
 	fn get(&self, key: &H256) -> Option<DBValue> { self.forward.get(key) }
 	fn contains(&self, key: &H256) -> bool { self.forward.contains(key) }
 	fn insert(&mut self, value: &[u8]) -> H256 { let r = self.forward.insert(value); self.inserts.push(r.clone()); r }
 	fn emplace(&mut self, key: H256, value: DBValue) { self.inserts.push(key.clone()); self.forward.emplace(key, value); }
 	fn remove(&mut self, key: &H256) { self.removes.push(key.clone()); }
+}
+
+impl ::traits::KeyedHashDB for RefCountedDB {
+	fn keys(&self) -> HashMap<H256, i32> { self.forward.keys() }
 }
 
 impl JournalDB for RefCountedDB {
@@ -216,7 +219,7 @@ impl JournalDB for RefCountedDB {
 mod tests {
 
 	use keccak::keccak;
-	use hashdb::HashDB;
+	use hash_db::HashDB;
 	use super::*;
 	use {JournalDB, kvdb_memorydb};
 

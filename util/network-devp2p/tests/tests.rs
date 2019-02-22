@@ -80,7 +80,7 @@ impl NetworkProtocolHandler for TestProtocol {
 	}
 
 	fn connected(&self, io: &NetworkContext, peer: &PeerId) {
-		assert!(io.peer_client_version(*peer).contains("Parity"));
+		assert!(io.peer_client_version(*peer).to_string().contains("Parity"));
 		if self.drop_session {
 			io.disconnect_peer(*peer)
 		} else {

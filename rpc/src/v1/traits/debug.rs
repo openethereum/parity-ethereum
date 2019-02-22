@@ -17,14 +17,14 @@
 //! Debug RPC interface.
 
 use jsonrpc_core::Result;
+use jsonrpc_derive::rpc;
 
 use v1::types::RichBlock;
 
-build_rpc_trait! {
-	/// Debug RPC interface.
-	pub trait Debug {
-		/// Returns recently seen bad blocks.
-		#[rpc(name = "debug_getBadBlocks")]
-		fn bad_blocks(&self) -> Result<Vec<RichBlock>>;
-	}
+/// Debug RPC interface.
+#[rpc]
+pub trait Debug {
+	/// Returns recently seen bad blocks.
+	#[rpc(name = "debug_getBadBlocks")]
+	fn bad_blocks(&self) -> Result<Vec<RichBlock>>;
 }

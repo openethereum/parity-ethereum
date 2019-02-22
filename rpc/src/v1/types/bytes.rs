@@ -74,7 +74,7 @@ impl<'a> Visitor<'a> for BytesVisitor {
 	}
 
 	fn visit_str<E>(self, value: &str) -> Result<Self::Value, E> where E: Error {
-		if value.len() >= 2 && &value[0..2] == "0x" && value.len() & 1 == 0 {
+		if value.len() >= 2 && value.starts_with("0x") && value.len() & 1 == 0 {
 			Ok(Bytes::new(FromHex::from_hex(&value[2..]).map_err(|e| Error::custom(format!("Invalid hex: {}", e)))?))
 		} else {
 			Err(Error::custom("Invalid bytes format. Expected a 0x-prefixed hex string with even length"))
@@ -101,6 +101,7 @@ mod tests {
 
 	#[test]
 	fn test_bytes_deserialize() {
+		let bytes0: Result<Bytes, serde_json::Error> = serde_json::from_str(r#""∀∂""#);
 		let bytes1: Result<Bytes, serde_json::Error> = serde_json::from_str(r#""""#);
 		let bytes2: Result<Bytes, serde_json::Error> = serde_json::from_str(r#""0x123""#);
 		let bytes3: Result<Bytes, serde_json::Error> = serde_json::from_str(r#""0xgg""#);
@@ -109,6 +110,7 @@ mod tests {
 		let bytes5: Bytes = serde_json::from_str(r#""0x12""#).unwrap();
 		let bytes6: Bytes = serde_json::from_str(r#""0x0123""#).unwrap();
 
+		assert!(bytes0.is_err());
 		assert!(bytes1.is_err());
 		assert!(bytes2.is_err());
 		assert!(bytes3.is_err());

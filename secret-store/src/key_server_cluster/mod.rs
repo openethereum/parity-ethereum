@@ -23,7 +23,8 @@ pub use super::key_storage::{KeyStorage, DocumentKeyShare, DocumentKeyShareVersi
 pub use super::key_server_set::{is_migration_required, KeyServerSet, KeyServerSetSnapshot, KeyServerSetMigration};
 pub use super::serialization::{SerializableSignature, SerializableH256, SerializableSecret, SerializablePublic,
 	SerializableRequester, SerializableMessageHash, SerializableAddress};
-pub use self::cluster::{ClusterCore, ClusterConfiguration, ClusterClient};
+pub use self::cluster::{new_network_cluster, ClusterCore, ClusterConfiguration, ClusterClient};
+pub use self::cluster_connections_net::NetConnectionsManagerConfig;
 pub use self::cluster_sessions::{ClusterSession, ClusterSessionsListener};
 #[cfg(test)]
 pub use self::cluster::tests::DummyClusterClient;
@@ -70,6 +71,9 @@ pub use self::client_sessions::signing_session_ecdsa;
 pub use self::client_sessions::signing_session_schnorr;
 
 mod cluster;
+mod cluster_connections;
+mod cluster_connections_net;
+mod cluster_message_processor;
 mod cluster_sessions;
 mod cluster_sessions_creator;
 mod connection_trigger;
