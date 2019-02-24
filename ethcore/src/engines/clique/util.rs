@@ -41,6 +41,10 @@ pub fn recover_creator(header: &Header) -> Result<Address, Error> {
 	}
 
 	let data = header.extra_data();
+	if data.len() < SIGNER_VANITY_LENGTH + SIGNER_SIG_LENGTH {
+		return Err(From::from("extra_data length is not enough!"));
+	}
+
 	let mut sig_data = data[data.len() - SIGNER_SIG_LENGTH..].to_vec();
 	sig_data.resize(SIGNER_SIG_LENGTH, 0);
 
@@ -76,7 +80,8 @@ pub fn extract_signers(header: &Header) -> Result<Vec<Address>, Error> {
 	// extract only the portion of extra_data which includes the signer list
 	let signers_raw = &data[(SIGNER_VANITY_LENGTH)..data.len() - (SIGNER_SIG_LENGTH)];
 
-	if signers_raw.len() % 20 != 0 {
+	let address_length = 20;
+	if signers_raw.len() % address_length != 0 {
 		return Err(Box::new("bad signer list.").into());
 	}
 
@@ -85,7 +90,7 @@ pub fn extract_signers(header: &Header) -> Result<Vec<Address>, Error> {
 
 	for i in 0..num_signers {
 		let mut signer = Address::default();
-		signer.copy_from_slice(&signers_raw[i * 20..(i + 1) * 20]);
+		signer.copy_from_slice(&signers_raw[i * address_length..(i + 1) * address_length]);
 		signers_list.push(signer);
 	}
 
