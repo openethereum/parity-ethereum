@@ -16,13 +16,13 @@
 
 //! Clique params deserialization.
 
-use uint::Uint;
+use std::num::NonZeroU64;
 
 /// Clique params deserialization.
 #[derive(Debug, PartialEq, Deserialize)]
 pub struct CliqueParams {
-	pub period: Option<Uint>,
-	pub epoch: Option<Uint>
+	pub period: Option<u64>,
+	pub epoch: Option<NonZeroU64>
 }
 
 /// Clique engine deserialization.

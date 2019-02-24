@@ -20,16 +20,22 @@ use ethjson;
 
 /// `Clique` params.
 pub struct CliqueParams {
-	/// List of validators.
+	/// Period as defined in EIP
 	pub period: u64,
+	/// Epoch length as defined in EIP
 	pub epoch: u64,
 }
 
 impl From<ethjson::spec::CliqueParams> for CliqueParams {
 	fn from(p: ethjson::spec::CliqueParams) -> Self {
+		let period = p.period.map_or_else(|| 30000 as u64, Into::into);
+		let epoch =  p.epoch.map_or_else(|| 15 as u64, Into::into);
+
+		assert!(epoch > 0);
+
 		CliqueParams {
-			period: p.period.map_or_else(|| 30000 as u64, Into::into),
-			epoch: p.epoch.map_or_else(|| 15 as u64, Into::into),
+			period,
+			epoch,
 		}
 	}
 }

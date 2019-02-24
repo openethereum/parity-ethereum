@@ -110,7 +110,7 @@ pub const NULL_AUTHOR: Address = H160([0x00; 20]);
 /// Default empty nonce value
 pub const NULL_NONCE: &[u8] = NONCE_DROP_VOTE;
 /// Default value for mixhash
-pub const NULL_MIXHASH: [u8; 32] = [0x00; 32];
+pub const NULL_MIXHASH: &[u8] = &[0x00; 32];
 /// Default value for uncles hash
 pub const NULL_UNCLES_HASH: H256 = KECCAK_EMPTY_LIST_RLP;
 /// Default noturn block wiggle factor defined in spec.
@@ -193,7 +193,7 @@ impl Clique {
 
 	/// Construct an new state from given checkpoint header.
 	fn new_checkpoint_state(&self, header: &Header) -> Result<CliqueBlockState, Error> {
-		assert_eq!(header.number() % self.epoch_length, 0);
+		debug_assert_eq!(header.number() % self.epoch_length, 0);
 
 		let mut state = CliqueBlockState::new(
 			extract_signers(header)?);
@@ -216,17 +216,17 @@ impl Clique {
 		// If we are looking for an checkpoint block state, we can directly reconstruct it.
 		if header.number() % self.epoch_length == 0 {
 			let state = self.new_checkpoint_state(header)?;
-			block_state_by_hash.insert(header.hash().clone(), state.clone());
+			block_state_by_hash.insert(header.hash(), state.clone());
 			return Ok(state);
 		}
 		// BlockState is not found in memory, which means we need to reconstruct state from last checkpoint.
-		match self.client.read().as_ref().and_then(|w| { w.upgrade() }) {
+		match self.client.read().as_ref().and_then(|w| w.upgrade()) {
 			None => {
 				return Err(From::from("failed to upgrade client reference"));
 			}
 			Some(c) => {
-				let last_checkpoint_number = (header.number() / self.epoch_length as u64) * self.epoch_length;
-				assert_ne!(last_checkpoint_number, header.number());
+				let last_checkpoint_number = header.number() - header.number() % self.epoch_length as u64;
+				debug_assert_ne!(last_checkpoint_number, header.number());
 
 				let mut chain: &mut VecDeque<Header> = &mut VecDeque::with_capacity(
 					(header.number() - last_checkpoint_number + 1) as usize);
@@ -235,21 +235,21 @@ impl Clique {
 				chain.push_front(header.clone());
 
 				// populate chain to last checkpoint
-				let mut last = chain.front().ok_or(
-					"just pushed to front, reference must exist;")?.clone();
+				loop {
+					let (last_parent_hash, last_hash, last_num)  = {
+						let l = chain.front().expect("chain has at least one element; qed");
+						(*l.parent_hash(), l.hash(), l.number())
+					};
 
-				while last.number() != last_checkpoint_number + 1 {
-					match c.block_header(BlockId::Hash(*last.parent_hash())) {
+					if last_num == last_checkpoint_number + 1 {
+						break;
+					}
+					match c.block_header(BlockId::Hash(last_parent_hash)) {
 						None => {
-							return Err(Box::new(
-								format!("parent block {} of {} could not be recovered.",
-										&last.parent_hash(), &last.hash())
-							).into());
+							return Err(Box::new(format!("parent block {} of {} could not be recovered.", last_parent_hash, last_hash)).into());
 						}
 						Some(next) => {
-							chain.push_front(next.decode()?.clone());
-							last = chain.front().ok_or(
-								"just pushed to front, reference must exist;")?.clone();
+							chain.push_front(next.decode()?);
 						}
 					}
 				}
@@ -270,15 +270,12 @@ impl Clique {
 					Some(header) => header.decode()?,
 				};
 
-				let last_checkpoint_state: CliqueBlockState;
+				let last_checkpoint_state = match block_state_by_hash.get_mut(&last_checkpoint_hash) {
+					Some(state) => state.clone(),
+					None => self.new_checkpoint_state(&last_checkpoint_header)?,
+				};
 
-				// We probably don't have it cached, but try anyway.
-				if let Some(st) = block_state_by_hash.get_mut(&last_checkpoint_hash) {
-					last_checkpoint_state = (*st).clone();
-				} else {
-					last_checkpoint_state = self.new_checkpoint_state(&last_checkpoint_header)?;
-				}
-				block_state_by_hash.insert(last_checkpoint_header.hash().clone(), last_checkpoint_state.clone());
+				block_state_by_hash.insert(last_checkpoint_header.hash(), last_checkpoint_state.clone());
 
 				// Backfill!
 				let mut new_state = last_checkpoint_state.clone();
@@ -291,7 +288,8 @@ impl Clique {
 				let elapsed = backfill_start.elapsed();
 				info!(target: "engine",
 						"Back-filling succeed, took {} ms.",
-						elapsed.as_secs() * 1000 + elapsed.subsec_millis() as u64,
+						// replace with Duration::as_millis after rust 1.33
+						elapsed.as_secs() as u128 * 1000 + elapsed.subsec_millis() as u128,
 				);
 
 				Ok(new_state)
@@ -369,7 +367,7 @@ impl Engine<EthereumMachine> for Clique {
 
 		// At this point, extra_data should only contain miner vanity.
 		if header.extra_data().len() > SIGNER_VANITY_LENGTH {
-			warn!(target: "engine", "on_seal_block: unexpected extra extra_data: {:?}", header);
+			panic!("on_seal_block: unexpected extra extra_data: {:?}", header);
 		}
 		// vanity
 		{
@@ -509,24 +507,26 @@ impl Engine<EthereumMachine> for Clique {
 		}
 
 		// Nonce must be 0x00..0 or 0xff..f
-		let nonce = header.decode_seal::<Vec<&[u8]>>()?[1];
-		if nonce != NONCE_DROP_VOTE && nonce != NONCE_AUTH_VOTE {
+		let seal_fields = header.decode_seal::<Vec<&[u8]>>()?;
+		let mixhash = seal_fields.get(0).ok_or("No mixhash field.")?;
+		let nonce = seal_fields.get(1).ok_or("No nonce field.")?;
+		if *nonce != NONCE_DROP_VOTE && *nonce != NONCE_AUTH_VOTE {
 			return Err(Box::new("nonce must be 0x00..0 or 0xff..f").into());
 		}
-		if is_checkpoint && nonce != NULL_NONCE {
+		if is_checkpoint && *nonce != NULL_NONCE {
 			return Err(Box::new("Checkpoint block must have zero nonce").into());
 		}
 
 		// Ensure that the extra-data contains a signer list on checkpoint, but none otherwise.
+		let address_length = 20;
 		if (!is_checkpoint && header.extra_data().len() != (SIGNER_VANITY_LENGTH + SIGNER_SIG_LENGTH))
 			|| (is_checkpoint && header.extra_data().len() <= (SIGNER_VANITY_LENGTH + SIGNER_SIG_LENGTH))
-			|| (is_checkpoint && (header.extra_data().len() - (SIGNER_VANITY_LENGTH + SIGNER_SIG_LENGTH)) % 20 != 0) {
+			|| (is_checkpoint && (header.extra_data().len() - (SIGNER_VANITY_LENGTH + SIGNER_SIG_LENGTH)) % address_length != 0) {
 			return Err(Box::new(format!("Invalid extra_data length, got {}", header.extra_data().len())).into());
 		}
 
-		// Ensure that the mix digest is zero as we don't have fork protection currently
-		let mixhash = header.decode_seal::<Vec<&[u8]>>()?[0];
-		if mixhash != NULL_MIXHASH {
+		// Ensure that the mix digest is zero as Clique don't have fork protection currently
+		if *mixhash != NULL_MIXHASH {
 			return Err(Box::new("mixhash must be 0x00..0 or 0xff..f.").into());
 		}
 
@@ -572,7 +572,7 @@ impl Engine<EthereumMachine> for Clique {
 		}
 
 		// Ensure that the block's timestamp isn't too close to it's parent
-		if parent.timestamp() + self.period > header.timestamp() {
+		if parent.timestamp().saturating_add(self.period) > header.timestamp() {
 			return Err(Box::new("invalid timestamp").into());
 		}
 
@@ -593,13 +593,15 @@ impl Engine<EthereumMachine> for Clique {
 		state.calc_next_timestamp(header, self.period);
 		self.block_state_by_hash.write().insert(header.hash(), state);
 
+		// no proof.
 		Ok(Vec::new())
 	}
 
 	// Our task here is to set difficulty
 	fn populate_from_parent(&self, header: &mut Header, parent: &Header) {
-		// TODO: this is a horrible hack, it is due to the fact that enact and miner both use
-		// OpenBlock::new() which will both call this function. more refactoring is definitely needed.
+		// TODO(https://github.com/paritytech/parity-ethereum/issues/10410): this is a horrible hack,
+		// it is due to the fact that enact and miner both use OpenBlock::new() which will both call
+		// this function. more refactoring is definitely needed.
 		match header.extra_data().len() >= SIGNER_VANITY_LENGTH + SIGNER_SIG_LENGTH {
 			true => {
 				// we are importing blocks, do nothing.
@@ -658,11 +660,11 @@ impl Engine<EthereumMachine> for Clique {
 	/// Clique timestamp is set to parent + period , or current time which ever is higher.
 	fn open_block_header_timestamp(&self, parent_timestamp: u64) -> u64 {
 		let now = time::SystemTime::now().duration_since(time::UNIX_EPOCH).unwrap_or_default();
-		cmp::max(now.as_secs() as u64, parent_timestamp + self.period)
+		cmp::max(now.as_secs() as u64, parent_timestamp.saturating_add(self.period))
 	}
 
 	fn is_timestamp_valid(&self, header_timestamp: u64, parent_timestamp: u64) -> bool {
-		header_timestamp >= parent_timestamp + self.period
+		header_timestamp >= parent_timestamp.saturating_add(self.period)
 	}
 
 	fn fork_choice(&self, new: &ExtendedHeader, current: &ExtendedHeader) -> super::ForkChoice {
