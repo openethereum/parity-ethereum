@@ -21,32 +21,35 @@ use std::time::UNIX_EPOCH;
 use ethereum_types::Address;
 use rand::Rng;
 
-use engines::clique::{VoteType, DIFF_INTURN, DIFF_NOTURN, NONCE_AUTH_VOTE, NONCE_DROP_VOTE, NULL_AUTHOR, SIGNING_DELAY_NOTURN_MS};
+use engines::clique::{VoteType, DIFF_INTURN, DIFF_NOTURN, NULL_AUTHOR, SIGNING_DELAY_NOTURN_MS};
 use engines::clique::util::{extract_signers, recover_creator};
 use error::Error;
 use types::header::Header;
 
-#[derive(Clone, Debug)]
+/// Clique state for each block.
+#[derive(Clone, Debug, Default)]
 pub struct CliqueBlockState {
-	pub votes: HashMap<(Address, Address), VoteType>, // k: (Voter, beneficiary), VoteType)
-	pub votes_history: Vec<(u64, Address, VoteType, Address)>, // blockNumber, Voter, VoteType, beneficiary
-	pub signers: Vec<Address>,
-	pub recent_signers: VecDeque<Address>,
-	pub next_timestamp_inturn: Option<SystemTime>, // inturn signing should wait until this time
-	pub next_timestamp_noturn: Option<SystemTime>, // noturn signing should wait until this time
+	/// all recorded votes before this blocks, k: (Voter, beneficiary), v: VoteType
+	votes: HashMap<(Address, Address), VoteType>,
+	/// a list of all vote happened before this block, item is an 4 item tuple: blockNumber, Voter, VoteType, beneficiary
+	votes_history: Vec<(u64, Address, VoteType, Address)>,
+	/// a list of all valid signer, sorted by ascending order.
+	signers: Vec<Address>,
+	/// a deque of recent signer, new entry should be pushed front, apply() modifies this.
+	recent_signers: VecDeque<Address>,
+	/// inturn signing should wait until this time
+	pub next_timestamp_inturn: Option<SystemTime>,
+	/// noturn signing should wait until this time
+	pub next_timestamp_noturn: Option<SystemTime>,
 }
 
 impl CliqueBlockState {
 	/// Create new state with given information, this is used creating new state from Checkpoint block.
-	pub fn new(_author: Address, signers_sorted: Vec<Address>) -> Self {
-		return CliqueBlockState {
-			votes: Default::default(),
-			votes_history: Default::default(),
+	pub fn new(signers_sorted: Vec<Address>) -> Self {
+		CliqueBlockState {
 			signers: signers_sorted,
-			recent_signers: Default::default(),
-			next_timestamp_inturn: None,
-			next_timestamp_noturn: None,
-		};
+			..Default::default()
+		}
 	}
 
 	// see https://github.com/ethereum/go-ethereum/blob/master/consensus/clique/clique.go#L474
@@ -89,7 +92,7 @@ impl CliqueBlockState {
 		let creator = self.verify(header)?;
 
 		// rotate recent signers.
-		self.recent_signers.push_front(creator.clone());
+		self.recent_signers.push_front(creator);
 		if self.recent_signers.len() >= ( self.signers.len() / 2 ) + 1 {
 			self.recent_signers.pop_back();
 		}
@@ -122,19 +125,11 @@ impl CliqueBlockState {
 			"Error decoding seal"
 		)?;
 
-		let vote_type: VoteType;
-
-		if NONCE_AUTH_VOTE == nonce {
-			vote_type = VoteType::Add;
-		} else if NONCE_DROP_VOTE == nonce {
-			vote_type = VoteType::Remove;
-		} else {
-			return Err(From::from("beneficiary specified but nonce was not AUTH or DROP"));
-		};
+		let vote_type = VoteType::from_nonce(nonce)?;
 
 		// Record this vote, also since we are using an hashmap, it will override previous vote.
-		self.votes.insert((creator.clone(), beneficiary), vote_type);
-		self.votes_history.push((header.number(), creator.clone(), vote_type, beneficiary));
+		self.votes.insert((creator, beneficiary), vote_type);
+		self.votes_history.push((header.number(), creator, vote_type, beneficiary));
 
 		// Tally up current target votes.
 		let threshold = self.signers.len() / 2;
@@ -148,23 +143,23 @@ impl CliqueBlockState {
 					self.signers.push(beneficiary);
 				},
 				VoteType::Remove => {
-					let pos = self.signers.binary_search(&beneficiary);
-					if pos.is_ok() {
-						self.signers.remove(pos.unwrap());
-					}
+					let pos = self.signers.binary_search(&beneficiary)
+						.map_err(|_| "Unable to find beneficiary in signer list when removing".to_string())?;
+					self.signers.remove(pos);
 				}
 			}
 
+			// signers are highly likely to be < 10.
 			self.signers.sort();
 
 			// Remove all votes about or made by this beneficiary
 			{
-				let votes_copy = self.votes.clone();
-				let items: Vec<_> = votes_copy.iter().filter(|(key, _value)| {
-					(**key).0 == beneficiary || (**key).1 == beneficiary
-				}).collect();
+				let items: Vec<_> = self.votes.keys()
+					.filter(|key| (**key).0 == beneficiary || (**key).1 == beneficiary)
+					.cloned()
+					.collect();
 
-				for (key, _) in items {
+				for key in items {
 					self.votes.remove(&key);
 				}
 			}
@@ -188,11 +183,11 @@ impl CliqueBlockState {
 		if let Some(pos) = self.signers.iter().position(|x| *author == *x) {
 			return current_block_number % self.signers.len() as u64 == pos as u64;
 		}
-		return false;
+		false
 	}
 
-	pub fn is_authoirzed(&self, author: &Address) -> bool {
-		return self.signers.contains(author) && !self.recent_signers.contains(author);
+	pub fn is_authorized(&self, author: &Address) -> bool {
+		self.signers.contains(author) && !self.recent_signers.contains(author)
 	}
 
 	// returns whether it makes sense to cast the specified vote in the
@@ -200,8 +195,12 @@ impl CliqueBlockState {
 	pub fn is_valid_vote(&self, address: &Address, vote_type: VoteType) -> bool {
 		let res = self.signers.binary_search(address);
 		match vote_type {
-			VoteType::Add => { return res.is_ok(); },
-			VoteType::Remove => { return res.is_err(); },
+			VoteType::Add => res.is_ok(),
+			VoteType::Remove => res.is_err(),
 		}
+	}
+
+	pub fn signers(&self) -> &Vec<Address> {
+		return &self.signers;
 	}
 }

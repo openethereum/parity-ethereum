@@ -98,9 +98,9 @@ pub const SIGNER_VANITY_LENGTH: usize = 32;
 /// Fixed number of extra-data suffix bytes reserved for signer signature
 pub const SIGNER_SIG_LENGTH: usize = 65;
 /// Nonce value for DROP vote
-pub const NONCE_DROP_VOTE: [u8; 8] = [0x00; 8];
+pub const NONCE_DROP_VOTE: &[u8] = &[0x00; 8];
 /// Nonce value for AUTH vote
-pub const NONCE_AUTH_VOTE: [u8; 8] = [0xff; 8];
+pub const NONCE_AUTH_VOTE: &[u8] = &[0xff; 8];
 /// Difficulty for INTURN block
 pub const DIFF_INTURN: U256 = U256([2, 0, 0, 0]);
 /// Difficulty for NOTURN block
@@ -108,7 +108,7 @@ pub const DIFF_NOTURN: U256 = U256([1, 0, 0, 0]);
 /// Default empty author field value
 pub const NULL_AUTHOR: Address = H160([0x00; 20]);
 /// Default empty nonce value
-pub const NULL_NONCE: [u8; 8] = NONCE_DROP_VOTE;
+pub const NULL_NONCE: &[u8] = NONCE_DROP_VOTE;
 /// Default value for mixhash
 pub const NULL_MIXHASH: [u8; 32] = [0x00; 32];
 /// Default value for uncles hash
@@ -120,6 +120,16 @@ pub const SIGNING_DELAY_NOTURN_MS: u64 = 500;
 pub enum VoteType {
 	Add,
 	Remove,
+}
+
+impl VoteType {
+	pub fn from_nonce(nonce: &[u8]) -> Result<Self, Error> {
+		match nonce {
+			NONCE_AUTH_VOTE => Ok(VoteType::Add),
+			NONCE_DROP_VOTE => Ok(VoteType::Remove),
+			_ => Err(From::from("nonce was not AUTH or DROP"))
+		}
+	}
 }
 
 // Caches
@@ -186,10 +196,6 @@ impl Clique {
 		assert_eq!(header.number() % self.epoch_length, 0);
 
 		let mut state = CliqueBlockState::new(
-			match header.number() {
-				0 => NULL_AUTHOR,
-				_ => recover_creator(header)?,
-			},
 			extract_signers(header)?);
 
 		state.calc_next_timestamp(header, self.period);
@@ -374,8 +380,8 @@ impl Engine<EthereumMachine> for Clique {
 
 		// If we are building an checkpoint block, add all signers now.
 		if is_checkpoint {
-			seal.reserve(state.signers.len() * 20);
-			state.signers.iter().foreach(|addr| {
+			seal.reserve(state.signers().len() * 20);
+			state.signers().iter().foreach(|addr| {
 				seal.extend_from_slice(&addr[..]);
 			});
 		}
@@ -435,7 +441,7 @@ impl Engine<EthereumMachine> for Clique {
 				}
 				Ok(state) => {
 					// Are we authorized to seal?
-					if !state.is_authoirzed(&author) {
+					if !state.is_authorized(&author) {
 						trace!(target: "engine", "generate_seal: Not authorized to sign right now.");
 						// wait for one third of period to try again.
 						thread::sleep(Duration::from_secs(self.period / 3 + 1));
@@ -504,10 +510,10 @@ impl Engine<EthereumMachine> for Clique {
 
 		// Nonce must be 0x00..0 or 0xff..f
 		let nonce = header.decode_seal::<Vec<&[u8]>>()?[1];
-		if *nonce != NONCE_DROP_VOTE && *nonce != NONCE_AUTH_VOTE {
+		if nonce != NONCE_DROP_VOTE && nonce != NONCE_AUTH_VOTE {
 			return Err(Box::new("nonce must be 0x00..0 or 0xff..f").into());
 		}
-		if is_checkpoint && *nonce != NULL_NONCE[..] {
+		if is_checkpoint && nonce != NULL_NONCE {
 			return Err(Box::new("Checkpoint block must have zero nonce").into());
 		}
 
@@ -609,7 +615,7 @@ impl Engine<EthereumMachine> for Clique {
 							trace!(target: "engine", "populate_from_parent: Unable to find parent state: {}, ignored.", e);
 						}
 						Ok(state) => {
-							if state.is_authoirzed(&signer.address()) {
+							if state.is_authorized(&signer.address()) {
 								if state.is_inturn(header.number(), &signer.address()) {
 									header.set_difficulty(DIFF_INTURN);
 								} else {
