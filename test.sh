@@ -2,7 +2,7 @@
 # Running Parity Full Test Suite
 echo "________Running test.sh________"
 
-FEATURES="json-tests,ci-skip-issue"
+FEATURES="json-tests,ci-skip-tests"
 OPTIONS="--release"
 VALIDATE=1
 THREADS=8

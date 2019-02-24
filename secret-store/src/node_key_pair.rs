@@ -29,6 +29,11 @@ impl PlainNodeKeyPair {
 			key_pair: key_pair,
 		}
 	}
+
+	#[cfg(test)]
+	pub fn key_pair(&self) -> &KeyPair {
+		&self.key_pair
+	}
 }
 
 impl NodeKeyPair for PlainNodeKeyPair {

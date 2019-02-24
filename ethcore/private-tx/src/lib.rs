@@ -42,7 +42,7 @@ extern crate keccak_hash as hash;
 extern crate parity_bytes as bytes;
 extern crate parity_crypto as crypto;
 extern crate parking_lot;
-extern crate patricia_trie as trie;
+extern crate trie_db as trie;
 extern crate patricia_trie_ethereum as ethtrie;
 extern crate rlp;
 extern crate rustc_hex;
@@ -241,7 +241,7 @@ impl Provider {
 			bail!(ErrorKind::SignerAccountNotSet);
 		}
 		let tx_hash = signed_transaction.hash();
-		let contract = Self::contract_address_from_transaction(&signed_transaction).map_err(|_| ErrorKind::BadTransactonType)?;
+		let contract = Self::contract_address_from_transaction(&signed_transaction).map_err(|_| ErrorKind::BadTransactionType)?;
 		let data = signed_transaction.rlp_bytes();
 		let encrypted_transaction = self.encrypt(&contract, &Self::iv_from_transaction(&signed_transaction), &data)?;
 		let private = PrivateTransaction::new(encrypted_transaction, contract);
@@ -362,18 +362,20 @@ impl Provider {
 			signatures.push(signed_tx.signature());
 			let rsv: Vec<Signature> = signatures.into_iter().map(|sign| sign.into_electrum().into()).collect();
 			// Create public transaction
+			let signer_account = self.signer_account.ok_or_else(|| ErrorKind::SignerAccountNotSet)?;
+			let state = self.client.state_at(BlockId::Latest).ok_or(ErrorKind::StatePruned)?;
+			let nonce = state.nonce(&signer_account)?;
 			let public_tx = self.public_transaction(
 				desc.state.clone(),
 				&desc.original_transaction,
 				&rsv,
-				desc.original_transaction.nonce,
+				nonce,
 				desc.original_transaction.gas_price
 			)?;
 			trace!(target: "privatetx", "Last required signature received, public transaction created: {:?}", public_tx);
 			// Sign and add it to the queue
 			let chain_id = desc.original_transaction.chain_id();
 			let hash = public_tx.hash(chain_id);
-			let signer_account = self.signer_account.ok_or_else(|| ErrorKind::SignerAccountNotSet)?;
 			let signature = self.accounts.sign(signer_account, hash)?;
 			let signed = SignedTransaction::new(public_tx.with_signature(signature, chain_id))?;
 			match self.miner.import_own_transaction(&*self.client, signed.into()) {
@@ -415,7 +417,7 @@ impl Provider {
 			Action::Call(contract) => Ok(contract),
 			_ => {
 				warn!(target: "privatetx", "Incorrect type of action for the transaction");
-				bail!(ErrorKind::BadTransactonType);
+				bail!(ErrorKind::BadTransactionType);
 			}
 		}
 	}
@@ -610,7 +612,7 @@ impl Provider {
 	/// Create encrypted public contract deployment transaction.
 	pub fn public_creation_transaction(&self, block: BlockId, source: &SignedTransaction, validators: &[Address], gas_price: U256) -> Result<(Transaction, Address), Error> {
 		if let Action::Call(_) = source.action {
-			bail!(ErrorKind::BadTransactonType);
+			bail!(ErrorKind::BadTransactionType);
 		}
 		let sender = source.sender();
 		let state = self.client.state_at(block).ok_or(ErrorKind::StatePruned)?;
@@ -649,7 +651,7 @@ impl Provider {
 	/// Create encrypted public contract deployment transaction. Returns updated encrypted state.
 	pub fn execute_private_transaction(&self, block: BlockId, source: &SignedTransaction) -> Result<Bytes, Error> {
 		if let Action::Create = source.action {
-			bail!(ErrorKind::BadTransactonType);
+			bail!(ErrorKind::BadTransactionType);
 		}
 		let result = self.execute_private(source, TransactOptions::with_no_tracing(), block)?;
 		Ok(result.state)

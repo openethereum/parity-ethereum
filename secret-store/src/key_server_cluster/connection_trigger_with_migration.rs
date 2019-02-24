@@ -21,7 +21,8 @@ use ethereum_types::H256;
 use ethkey::Public;
 use parking_lot::Mutex;
 use key_server_cluster::{KeyServerSet, KeyServerSetSnapshot, KeyServerSetMigration, is_migration_required};
-use key_server_cluster::cluster::{ClusterClient, ClusterConnectionsData};
+use key_server_cluster::cluster::{ClusterConfiguration, ServersSetChangeParams};
+use key_server_cluster::cluster_connections_net::NetConnectionsContainer;
 use key_server_cluster::cluster_sessions::{AdminSession, ClusterSession};
 use key_server_cluster::jobs::servers_set_change_access_job::ordered_nodes_hash;
 use key_server_cluster::connection_trigger::{Maintain, ConnectionsAction, ConnectionTrigger,
@@ -110,6 +111,11 @@ struct TriggerSession {
 }
 
 impl ConnectionTriggerWithMigration {
+	/// Create new simple from cluster configuration.
+	pub fn with_config(config: &ClusterConfiguration) -> Self {
+		Self::new(config.key_server_set.clone(), config.self_key_pair.clone())
+	}
+
 	/// Create new trigge with migration.
 	pub fn new(key_server_set: Arc<KeyServerSet>, self_key_pair: Arc<NodeKeyPair>) -> Self {
 		let snapshot = key_server_set.snapshot();
@@ -187,13 +193,11 @@ impl ConnectionTrigger for ConnectionTriggerWithMigration {
 		self.do_maintain()
 	}
 
-	fn maintain_session(&mut self, sessions: &ClusterClient) {
-		if let Some(action) = self.session_action {
-			self.session.maintain(action, sessions, &self.snapshot);
-		}
+	fn maintain_session(&mut self) -> Option<ServersSetChangeParams> {
+		self.session_action.and_then(|action| self.session.maintain(action, &self.snapshot))
 	}
 
-	fn maintain_connections(&mut self, connections: &mut ClusterConnectionsData) {
+	fn maintain_connections(&mut self, connections: &mut NetConnectionsContainer) {
 		if let Some(action) = self.connections_action {
 			self.connections.maintain(action, connections, &self.snapshot);
 		}
@@ -255,30 +259,42 @@ impl TriggerSession {
 	}
 
 	/// Maintain session.
-	pub fn maintain(&mut self, action: SessionAction, sessions: &ClusterClient, server_set: &KeyServerSetSnapshot) {
-		if action == SessionAction::Start { // all other actions are processed in maintain
-			let migration = server_set.migration.as_ref()
-				.expect("action is Start only when migration is started (see maintain_session); qed");
+	pub fn maintain(
+		&mut self,
+		action: SessionAction,
+		server_set: &KeyServerSetSnapshot
+	) -> Option<ServersSetChangeParams> {
+		if action != SessionAction::Start { // all other actions are processed in maintain
+			return None;
+		}
+		let migration = server_set.migration.as_ref()
+			.expect("action is Start only when migration is started (see maintain_session); qed");
 
-			// we assume that authorities that are removed from the servers set are either offline, or malicious
-			// => they're not involved in ServersSetChangeSession
-			// => both sets are the same
-			let old_set: BTreeSet<_> = migration.set.keys().cloned().collect();
-			let new_set = old_set.clone();
+		// we assume that authorities that are removed from the servers set are either offline, or malicious
+		// => they're not involved in ServersSetChangeSession
+		// => both sets are the same
+		let old_set: BTreeSet<_> = migration.set.keys().cloned().collect();
+		let new_set = old_set.clone();
 
-			let signatures = self.self_key_pair.sign(&ordered_nodes_hash(&old_set))
-				.and_then(|old_set_signature| self.self_key_pair.sign(&ordered_nodes_hash(&new_set))
-					.map(|new_set_signature| (old_set_signature, new_set_signature)))
-				.map_err(Into::into);
-			let session = signatures.and_then(|(old_set_signature, new_set_signature)|
-				sessions.new_servers_set_change_session(None, Some(migration.id.clone()), new_set, old_set_signature, new_set_signature));
+		let signatures = self.self_key_pair.sign(&ordered_nodes_hash(&old_set))
+			.and_then(|old_set_signature| self.self_key_pair.sign(&ordered_nodes_hash(&new_set))
+				.map(|new_set_signature| (old_set_signature, new_set_signature)));
 
-			match session {
-				Ok(_) => trace!(target: "secretstore_net", "{}: started auto-migrate session",
-					self.self_key_pair.public()),
-				Err(err) => trace!(target: "secretstore_net", "{}: failed to start auto-migrate session with: {}",
-					self.self_key_pair.public(), err),
-			}
+		match signatures {
+			Ok((old_set_signature, new_set_signature)) => Some(ServersSetChangeParams {
+				session_id: None,
+				migration_id: Some(migration.id),
+				new_nodes_set: new_set,
+				old_set_signature,
+				new_set_signature,
+			}),
+			Err(err) => {
+				trace!(
+					target: "secretstore_net",
+					"{}: failed to sign servers set for auto-migrate session with: {}",
+					self.self_key_pair.public(), err);
+				None
+			},
 		}
 	}
 }

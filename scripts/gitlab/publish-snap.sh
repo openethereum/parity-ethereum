@@ -9,11 +9,17 @@ set -u # treat unset variables as error
 TRACK=`awk -F '=' '/^track/ {gsub(/"/, "", $2); gsub(/ /, "", $2); print $2}' ./util/version/Cargo.toml`
 echo Track is: $TRACK
 
+# Choose snap release channel based on parity ethereum version track
 case ${TRACK} in
   nightly) export GRADE="devel" CHANNEL="edge";;
   beta) export GRADE="stable" CHANNEL="beta";;
   stable) export GRADE="stable" CHANNEL="stable";;
   *) echo "No release" && exit 0;;
+esac
+
+# Release untagged versions from branches to the candidate snap channel
+case ${CI_COMMIT_REF_NAME} in
+  beta|stable) export GRADE="stable" CHANNEL="candidate";;
 esac
 
 VERSION="v"$VERSION
@@ -49,8 +55,5 @@ echo "Release channel :" $CHANNEL " Branch/tag: " $CI_COMMIT_REF_NAME
 echo $SNAPCRAFT_LOGIN_PARITY_BASE64 | base64 --decode > snapcraft.login
 snapcraft login --with snapcraft.login
 snapcraft push --release $CHANNEL $SNAP_PACKAGE
-case ${CHANNEL} in
-  beta) snapcraft push --release candidate $SNAP_PACKAGE;;
-esac
 snapcraft status parity
 snapcraft logout

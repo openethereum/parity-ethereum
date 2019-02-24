@@ -76,7 +76,7 @@ error_chain! {
 		}
 
 		#[doc = "Wrong private transaction type."]
-		BadTransactonType {
+		BadTransactionType {
 			description("Wrong private transaction type."),
 			display("Wrong private transaction type"),
 		}
