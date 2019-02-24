@@ -36,7 +36,7 @@ impl str::FromStr for Id {
 	}
 }
 impl Id {
-	// FIXME: [niklasad1] replace `format` with `serde_json::to_string_pretty`
+	// TODO: replace `format!` see [#10412](https://github.com/paritytech/parity-ethereum/issues/10412)
 	pub fn as_string(&self) -> String {
 		format!("{:?}", self.0)
 	}
