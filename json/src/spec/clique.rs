@@ -21,13 +21,16 @@ use std::num::NonZeroU64;
 /// Clique params deserialization.
 #[derive(Debug, PartialEq, Deserialize)]
 pub struct CliqueParams {
+	/// period as defined in EIP
 	pub period: Option<u64>,
+	/// epoch length as defined in EIP
 	pub epoch: Option<NonZeroU64>
 }
 
 /// Clique engine deserialization.
 #[derive(Debug, PartialEq, Deserialize)]
 pub struct Clique {
+	/// CliqueEngine params
 	pub params: CliqueParams,
 }
 

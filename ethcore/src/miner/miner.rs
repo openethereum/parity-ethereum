@@ -629,8 +629,10 @@ impl Miner {
 		}
 	}
 
-	// TODO: This is only used in authority_round path, and should be refactored to merge with the other seal() path.
-	/// Attempts to perform internal sealing (one that does not require work) and handles the result depending on the type of Seal.
+	// TODO: (https://github.com/paritytech/parity-ethereum/issues/10407)
+	// This is only used in authority_round path, and should be refactored to merge with the other seal() path.
+	// Attempts to perform internal sealing (one that does not require work) and handles the result depending on the
+	// type of Seal.
 	fn seal_and_import_block_internally<C>(&self, chain: &C, block: ClosedBlock) -> bool
 		where C: BlockChain + SealedBlockImporter,
 	{
