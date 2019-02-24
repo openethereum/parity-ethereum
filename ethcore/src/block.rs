@@ -459,7 +459,7 @@ impl LockedBlock {
 	/// Provide a valid seal in order to turn this into a `SealedBlock`.
 	/// This does check the validity of `seal` with the engine.
 	/// Returns the `ClosedBlock` back again if the seal is no good.
-	/// TODO(sunyc): This is currently only used in POW chain call paths, we should really merge it with seal() above.
+	/// TODO(https://github.com/paritytech/parity-ethereum/issues/10407): This is currently only used in POW chain call paths, we should really merge it with seal() above.
 	pub fn try_seal(
 		self,
 		engine: &EthEngine,
@@ -505,7 +505,7 @@ impl IsBlock for SealedBlock {
 }
 
 /// Enact the block given by block header, transactions and uncles
-pub fn enact(
+pub (crate) fn enact(
 	header: Header,
 	transactions: Vec<SignedTransaction>,
 	uncles: Vec<Header>,
@@ -519,12 +519,11 @@ pub fn enact(
 	ancestry: &mut Iterator<Item=ExtendedHeader>,
 ) -> Result<LockedBlock, Error> {
 	// For trace log
-	let s: Option<State<StateDB>>;
-	if log_enabled!(target: "enact", ::log::Level::Trace) {
-		s = Some(State::from_existing(db.boxed_clone(), parent.state_root().clone(), engine.account_start_nonce(parent.number() + 1), factories.clone())?);
+	let trace_state = if log_enabled!(target: "enact", ::log::Level::Trace) {
+		Some(State::from_existing(db.boxed_clone(), parent.state_root().clone(), engine.account_start_nonce(parent.number() + 1), factories.clone())?)
 	} else {
-		s = Default::default();
-	}
+		None
+	};
 
 	let mut b = OpenBlock::new(
 		engine,
@@ -548,10 +547,10 @@ pub fn enact(
 	b.block.header.set_uncles_hash(*header.uncles_hash());
 	b.block.header.set_transactions_root(*header.transactions_root());
 
-	if log_enabled!(target: "enact", ::log::Level::Trace) && s.is_some() {
+	if let Some(ref s) = trace_state {
 		let env = b.env_info();
-		let root = s.as_ref().unwrap().root();
-		let author_balance = s.as_ref().unwrap().balance(&env.author)?;
+		let root = s.root();
+		let author_balance = s.balance(&env.author)?;
 		trace!(target: "enact", "num={}, root={}, author={}, author_balance={}\n",
 				b.block.header.number(), root, env.author, author_balance);
 	}
@@ -592,8 +591,8 @@ mod tests {
 		last_hashes: Arc<LastHashes>,
 		factories: Factories,
 	) -> Result<LockedBlock, Error> {
-		let mut block = Unverified::from_rlp(block_bytes)?;
-		let mut header = block.header;
+		let block = Unverified::from_rlp(block_bytes)?;
+		let header = block.header;
 
 		let transactions: Result<Vec<_>, Error> = block
 			.transactions
