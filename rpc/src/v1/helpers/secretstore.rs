@@ -16,12 +16,13 @@
 
 use std::collections::BTreeSet;
 use rand::{Rng, OsRng};
+use ethereum_types::{H256, H512};
 use ethkey::{self, Public, Secret, Random, Generator, math};
 use crypto;
 use bytes::Bytes;
 use jsonrpc_core::Error;
 use v1::helpers::errors;
-use v1::types::{H256, H512, EncryptedDocumentKey};
+use v1::types::EncryptedDocumentKey;
 use tiny_keccak::Keccak;
 
 /// Initialization vector length.

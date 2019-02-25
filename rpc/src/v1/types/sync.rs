@@ -16,9 +16,10 @@
 
 use network::client_version::ClientVersion;
 use std::collections::BTreeMap;
+
+use ethereum_types::{U256, H512};
 use sync::{self, PeerInfo as SyncPeerInfo, TransactionStats as SyncTransactionStats};
 use serde::{Serialize, Serializer};
-use v1::types::{U256, H512};
 
 /// Sync info
 #[derive(Default, Debug, Serialize, PartialEq)]

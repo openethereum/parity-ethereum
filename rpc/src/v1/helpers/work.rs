@@ -20,17 +20,13 @@ use std::sync::Arc;
 
 use rlp;
 use ethcore::miner::{BlockChainClient, MinerService};
-use ethereum_types::{H64 as EthcoreH64, H256 as EthcoreH256};
+use ethereum_types::{H64, H256};
 use jsonrpc_core::Error;
-use v1::types::{H64, H256};
 use v1::helpers::errors;
 
 // Submit a POW work and return the block's hash
 pub fn submit_work_detail<C: BlockChainClient, M: MinerService>(client: &Arc<C>, miner: &Arc<M>, nonce: H64, pow_hash: H256, mix_hash: H256) -> Result<H256, Error> {
 	// TODO [ToDr] Should disallow submissions in case of PoA?
-	let nonce: EthcoreH64 = nonce.into();
-	let pow_hash: EthcoreH256 = pow_hash.into();
-	let mix_hash: EthcoreH256 = mix_hash.into();
 	trace!(target: "miner", "submit_work_detail: Decoded: nonce={}, pow_hash={}, mix_hash={}", nonce, pow_hash, mix_hash);
 	let seal = vec![rlp::encode(&mix_hash), rlp::encode(&nonce)];
 	let import = miner.submit_seal(pow_hash, seal)

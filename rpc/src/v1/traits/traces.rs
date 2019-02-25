@@ -16,9 +16,11 @@
 
 //! Traces specific rpc interface.
 
+use ethereum_types::H256;
 use jsonrpc_core::Result;
 use jsonrpc_derive::rpc;
-use v1::types::{TraceFilter, LocalizedTrace, BlockNumber, Index, CallRequest, Bytes, TraceResults, TraceResultsWithTransactionHash, H256, TraceOptions};
+use v1::types::{TraceFilter, LocalizedTrace, BlockNumber, Index, CallRequest, Bytes, TraceResults,
+	TraceResultsWithTransactionHash, TraceOptions};
 
 /// Traces specific rpc interface.
 #[rpc]

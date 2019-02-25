@@ -14,7 +14,8 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
-use v1::types::{Log, H160, H256, H2048, U256, U64};
+use ethereum_types::{H160, H256, U64, U256, Bloom as H2048};
+use v1::types::Log;
 use types::receipt::{Receipt as EthReceipt, RichReceipt, LocalizedReceipt, TransactionOutcome};
 
 /// Receipt

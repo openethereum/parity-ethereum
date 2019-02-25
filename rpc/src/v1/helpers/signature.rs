@@ -15,8 +15,9 @@
 // along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
 use ethkey::{recover, public_to_address, Signature};
+use ethereum_types::{H256, U64};
 use jsonrpc_core::Result;
-use v1::types::{Bytes, RecoveredAccount, H256, U64};
+use v1::types::{Bytes, RecoveredAccount};
 use v1::helpers::errors;
 use v1::helpers::dispatch::eth_data_hash;
 use hash::keccak;
@@ -35,7 +36,7 @@ pub fn verify_signature(
 	} else {
 		keccak(message.0)
 	};
-	let v: u64 = v.into();
+	let v = v.as_u64();
 	let is_valid_for_current_chain = match (chain_id, v) {
 		(None, v) if v == 0 || v == 1 => true,
 		(Some(chain_id), v) if v >= 35 => (v - 35) / 2 == chain_id,
@@ -54,7 +55,7 @@ pub fn verify_signature(
 mod tests {
 	use super::*;
 	use ethkey::Generator;
-	use v1::types::H160;
+	use ethereum_types::{H160, U64};
 
 	pub fn add_chain_replay_protection(v: u64, chain_id: Option<u64>) -> u64 {
 		v + if let Some(n) = chain_id { 35 + n * 2 } else { 0 }

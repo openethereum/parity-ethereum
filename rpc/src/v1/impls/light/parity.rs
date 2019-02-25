@@ -25,6 +25,7 @@ use ethkey::{crypto::ecies, Brain, Generator};
 use ethstore::random_phrase;
 use sync::{LightSyncInfo, LightSyncProvider, LightNetworkDispatcher, ManageNetwork};
 use updater::VersionInfo as UpdaterVersionInfo;
+use ethereum_types::{H64, H160, H256, H512, U64, U256};
 use ethcore_logger::RotatingLogger;
 
 use jsonrpc_core::{Result, BoxFuture};
@@ -36,7 +37,7 @@ use v1::helpers::light_fetch::{LightFetch, light_all_transactions};
 use v1::metadata::Metadata;
 use v1::traits::Parity;
 use v1::types::{
-	Bytes, U256, U64, H64, H160, H256, H512, CallRequest,
+	Bytes, CallRequest,
 	Peers, Transaction, RpcSettings, Histogram,
 	TransactionStats, LocalTransactionStatus,
 	LightBlockNumber, ChainStatus, Receipt,
