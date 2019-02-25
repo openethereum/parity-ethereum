@@ -54,38 +54,35 @@
 ///    the new block.
 
 use std::cmp;
+use std::collections::HashMap;
 use std::collections::VecDeque;
 use std::sync::{Arc, Weak};
+use std::thread;
 use std::time;
-use std::time::SystemTime;
-use std::time::UNIX_EPOCH;
-
-use ethereum_types::{Address, H160, H256, U256};
-use hash::KECCAK_EMPTY_LIST_RLP;
-use itertools::Itertools;
-use lru_cache::LruCache;
-use parking_lot::RwLock;
-use rlp::encode;
+use std::time::Duration;
+use std::time::{SystemTime, UNIX_EPOCH};
 
 use block::*;
 use client::{BlockId, EngineClient};
-use engines::{Engine, Seal};
 use engines::clique::util::{extract_signers, recover_creator};
+use engines::{Engine, Seal};
 use error::Error;
+use ethereum_types::{Address, H160, H256, U256};
 use ethkey::Signature;
+use hash::KECCAK_EMPTY_LIST_RLP;
+use itertools::Itertools;
+use lru_cache::LruCache;
 use machine::{Call, EthereumMachine};
+use parking_lot::RwLock;
+use rand::Rng;
+use rlp::encode;
+use super::signer::EngineSigner;
 use types::BlockNumber;
 use types::header::{ExtendedHeader, Header};
-
-use super::signer::EngineSigner;
 
 use self::block_state::CliqueBlockState;
 use self::params::CliqueParams;
 use self::step_service::StepService;
-use std::collections::HashMap;
-use rand::Rng;
-use std::thread;
-use std::time::Duration;
 
 mod params;
 mod block_state;
@@ -155,10 +152,10 @@ impl Clique {
 		let mut engine = Clique {
 			epoch_length: our_params.epoch,
 			period: our_params.period,
-			client: RwLock::new(Option::default()),
+			client: Default::default(),
 			block_state_by_hash: RwLock::new(LruCache::new(STATE_CACHE_NUM)),
-			proposals: RwLock::new(Default::default()),
-			signer: RwLock::new(Default::default()),
+			proposals: Default::default(),
+			signer: Default::default(),
 			machine,
 			step_service: None,
 		};
@@ -673,6 +670,6 @@ impl Engine<EthereumMachine> for Clique {
 
 	fn executive_author(&self, header: &Header) -> Address {
 		// Should have been verified now.
-		return recover_creator(header).expect("Unable to extract creator.");
+		recover_creator(header).expect("Unable to extract creator.")
 	}
 }
