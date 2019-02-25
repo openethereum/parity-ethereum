@@ -53,5 +53,5 @@ pub mod signer {
 	#[cfg(any(test, feature = "accounts"))]
 	pub use super::helpers::engine_signer::EngineSigner;
 	pub use super::helpers::external_signer::{SignerService, ConfirmationsQueue};
-	pub use super::types::{ConfirmationRequest, TransactionModification, U256, TransactionCondition};
+	pub use super::types::{ConfirmationRequest, TransactionModification, TransactionCondition};
 }

@@ -21,7 +21,7 @@ use std::time::{Instant, Duration, SystemTime, UNIX_EPOCH};
 use std::sync::Arc;
 
 use rlp::Rlp;
-use ethereum_types::{U256, H256, H160, Address};
+use ethereum_types::{Address, H64, H160, H256, U64, U256};
 use parking_lot::Mutex;
 
 use ethash::{self, SeedHashCompute};
@@ -47,8 +47,7 @@ use v1::traits::Eth;
 use v1::types::{
 	RichBlock, Block, BlockTransactions, BlockNumber, Bytes, SyncStatus, SyncInfo,
 	Transaction, CallRequest, Index, Filter, Log, Receipt, Work, EthAccount, StorageProof,
-	H64 as RpcH64, H256 as RpcH256, H160 as RpcH160, U256 as RpcU256, block_number_to_id,
-	U64 as RpcU64,
+	block_number_to_id
 };
 use v1::metadata::Metadata;
 
@@ -530,7 +529,7 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM, T: StateInfo + 'static> Eth for EthClient<
 		}
 	}
 
-	fn author(&self) -> Result<RpcH160> {
+	fn author(&self) -> Result<H160> {
 		let miner = self.miner.authoring_params().author;
 		if miner == 0.into() {
 			(self.accounts)()
@@ -539,7 +538,7 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM, T: StateInfo + 'static> Eth for EthClient<
 				.map(From::from)
 				.ok_or_else(|| errors::account("No accounts were found", ""))
 		} else {
-			Ok(RpcH160::from(miner))
+			Ok(H160::from(miner))
 		}
 	}
 
@@ -547,32 +546,30 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM, T: StateInfo + 'static> Eth for EthClient<
 		Ok(self.miner.is_currently_sealing())
 	}
 
-	fn chain_id(&self) -> Result<Option<RpcU64>> {
-		Ok(self.client.signing_chain_id().map(RpcU64::from))
+	fn chain_id(&self) -> Result<Option<U64>> {
+		Ok(self.client.signing_chain_id().map(U64::from))
 	}
 
-	fn hashrate(&self) -> Result<RpcU256> {
-		Ok(RpcU256::from(self.external_miner.hashrate()))
+	fn hashrate(&self) -> Result<U256> {
+		Ok(U256::from(self.external_miner.hashrate()))
 	}
 
-	fn gas_price(&self) -> Result<RpcU256> {
-		Ok(RpcU256::from(default_gas_price(&*self.client, &*self.miner, self.options.gas_price_percentile)))
+	fn gas_price(&self) -> Result<U256> {
+		Ok(U256::from(default_gas_price(&*self.client, &*self.miner, self.options.gas_price_percentile)))
 	}
 
-	fn accounts(&self) -> Result<Vec<RpcH160>> {
+	fn accounts(&self) -> Result<Vec<H160>> {
 		self.deprecation_notice.print("eth_accounts", deprecated::msgs::ACCOUNTS);
 
 		let accounts = (self.accounts)();
 		Ok(accounts.into_iter().map(Into::into).collect())
 	}
 
-	fn block_number(&self) -> Result<RpcU256> {
-		Ok(RpcU256::from(self.client.chain_info().best_block_number))
+	fn block_number(&self) -> Result<U256> {
+		Ok(U256::from(self.client.chain_info().best_block_number))
 	}
 
-	fn balance(&self, address: RpcH160, num: Option<BlockNumber>) -> BoxFuture<RpcU256> {
-		let address = address.into();
-
+	fn balance(&self, address: H160, num: Option<BlockNumber>) -> BoxFuture<U256> {
 		let num = num.unwrap_or_default();
 
 		try_bf!(check_known(&*self.client, num.clone()));
@@ -584,11 +581,10 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM, T: StateInfo + 'static> Eth for EthClient<
 		Box::new(future::done(res))
 	}
 
-	fn proof(&self, address: RpcH160, values: Vec<RpcH256>, num: Option<BlockNumber>) -> BoxFuture<EthAccount> {
+	fn proof(&self, address: H160, values: Vec<H256>, num: Option<BlockNumber>) -> BoxFuture<EthAccount> {
 		try_bf!(errors::require_experimental(self.options.allow_experimental_rpcs, "1186"));
 
-		let a: H160 = address.clone().into();
-		let key1 = keccak(a);
+		let key1 = keccak(address);
 
 		let num = num.unwrap_or_default();
 		let id = match num {
@@ -603,7 +599,7 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM, T: StateInfo + 'static> Eth for EthClient<
 
 		try_bf!(check_known(&*self.client, num.clone()));
 		let res = match self.client.prove_account(key1, id) {
-			Some((proof,account)) => Ok(EthAccount {
+			Some((proof, account)) => Ok(EthAccount {
 				address: address,
 				balance: account.balance.into(),
 				nonce: account.nonce.into(),
@@ -627,10 +623,8 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM, T: StateInfo + 'static> Eth for EthClient<
 		Box::new(future::done(res))
 	}
 
-	fn storage_at(&self, address: RpcH160, pos: RpcU256, num: Option<BlockNumber>) -> BoxFuture<RpcH256> {
-		let address: Address = RpcH160::into(address);
-		let position: U256 = RpcU256::into(pos);
-
+	fn storage_at(&self, address: H160, position: U256, num: Option<BlockNumber>) -> BoxFuture<H256> {
+		let address: Address = address.into();
 		let num = num.unwrap_or_default();
 
 		try_bf!(check_known(&*self.client, num.clone()));
@@ -642,8 +636,8 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM, T: StateInfo + 'static> Eth for EthClient<
 		Box::new(future::done(res))
 	}
 
-	fn transaction_count(&self, address: RpcH160, num: Option<BlockNumber>) -> BoxFuture<RpcU256> {
-		let address: Address = RpcH160::into(address);
+	fn transaction_count(&self, address: H160, num: Option<BlockNumber>) -> BoxFuture<U256> {
+		let address: Address = address.into();
 
 		let res = match num.unwrap_or_default() {
 			BlockNumber::Pending if self.options.pending_nonce_from_queue => {
@@ -676,7 +670,7 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM, T: StateInfo + 'static> Eth for EthClient<
 		Box::new(future::done(res))
 	}
 
-	fn block_transaction_count_by_hash(&self, hash: RpcH256) -> BoxFuture<Option<RpcU256>> {
+	fn block_transaction_count_by_hash(&self, hash: H256) -> BoxFuture<Option<U256>> {
 		let trx_count = self.client.block(BlockId::Hash(hash.into()))
 			.map(|block| block.transactions_count().into());
 		let result = Ok(trx_count)
@@ -684,7 +678,7 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM, T: StateInfo + 'static> Eth for EthClient<
 		Box::new(future::done(result))
 	}
 
-	fn block_transaction_count_by_number(&self, num: BlockNumber) -> BoxFuture<Option<RpcU256>> {
+	fn block_transaction_count_by_number(&self, num: BlockNumber) -> BoxFuture<Option<U256>> {
 		Box::new(future::done(match num {
 			BlockNumber::Pending =>
 				Ok(Some(self.miner.pending_transaction_hashes(&*self.client).len().into())),
@@ -701,7 +695,7 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM, T: StateInfo + 'static> Eth for EthClient<
 		}))
 	}
 
-	fn block_uncles_count_by_hash(&self, hash: RpcH256) -> BoxFuture<Option<RpcU256>> {
+	fn block_uncles_count_by_hash(&self, hash: H256) -> BoxFuture<Option<U256>> {
 		let uncle_count = self.client.block(BlockId::Hash(hash.into()))
 			.map(|block| block.uncles_count().into());
 		let result = Ok(uncle_count)
@@ -709,7 +703,7 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM, T: StateInfo + 'static> Eth for EthClient<
 		Box::new(future::done(result))
 	}
 
-	fn block_uncles_count_by_number(&self, num: BlockNumber) -> BoxFuture<Option<RpcU256>> {
+	fn block_uncles_count_by_number(&self, num: BlockNumber) -> BoxFuture<Option<U256>> {
 		Box::new(future::done(match num {
 			BlockNumber::Pending => Ok(Some(0.into())),
 			_ => {
@@ -725,8 +719,8 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM, T: StateInfo + 'static> Eth for EthClient<
 		}))
 	}
 
-	fn code_at(&self, address: RpcH160, num: Option<BlockNumber>) -> BoxFuture<Bytes> {
-		let address: Address = RpcH160::into(address);
+	fn code_at(&self, address: H160, num: Option<BlockNumber>) -> BoxFuture<Bytes> {
+		let address: Address = H160::into(address);
 
 		let num = num.unwrap_or_default();
 		try_bf!(check_known(&*self.client, num.clone()));
@@ -739,7 +733,7 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM, T: StateInfo + 'static> Eth for EthClient<
 		Box::new(future::done(res))
 	}
 
-	fn block_by_hash(&self, hash: RpcH256, include_txs: bool) -> BoxFuture<Option<RichBlock>> {
+	fn block_by_hash(&self, hash: H256, include_txs: bool) -> BoxFuture<Option<RichBlock>> {
 		let result = self.rich_block(BlockId::Hash(hash.into()).into(), include_txs)
 			.and_then(errors::check_block_gap(&*self.client, self.options.allow_missing_blocks));
 		Box::new(future::done(result))
@@ -751,8 +745,7 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM, T: StateInfo + 'static> Eth for EthClient<
 		Box::new(future::done(result))
 	}
 
-	fn transaction_by_hash(&self, hash: RpcH256) -> BoxFuture<Option<Transaction>> {
-		let hash: H256 = hash.into();
+	fn transaction_by_hash(&self, hash: H256) -> BoxFuture<Option<Transaction>> {
 		let tx = try_bf!(self.transaction(PendingTransactionId::Hash(hash))).or_else(|| {
 			self.miner.transaction(&hash)
 				.map(|t| Transaction::from_pending(t.pending().clone()))
@@ -762,7 +755,7 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM, T: StateInfo + 'static> Eth for EthClient<
 		Box::new(future::done(result))
 	}
 
-	fn transaction_by_block_hash_and_index(&self, hash: RpcH256, index: Index) -> BoxFuture<Option<Transaction>> {
+	fn transaction_by_block_hash_and_index(&self, hash: H256, index: Index) -> BoxFuture<Option<Transaction>> {
 		let id = PendingTransactionId::Location(PendingOrBlock::Block(BlockId::Hash(hash.into())), index.value());
 		let result = self.transaction(id).and_then(
 			errors::check_block_gap(&*self.client, self.options.allow_missing_blocks));
@@ -783,9 +776,7 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM, T: StateInfo + 'static> Eth for EthClient<
 		Box::new(future::done(result))
 	}
 
-	fn transaction_receipt(&self, hash: RpcH256) -> BoxFuture<Option<Receipt>> {
-		let hash: H256 = hash.into();
-
+	fn transaction_receipt(&self, hash: H256) -> BoxFuture<Option<Receipt>> {
 		if self.options.allow_pending_receipt_query {
 			let best_block = self.client.chain_info().best_block_number;
 			if let Some(receipt) = self.miner.pending_receipt(best_block, &hash) {
@@ -799,7 +790,7 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM, T: StateInfo + 'static> Eth for EthClient<
 		Box::new(future::done(result))
 	}
 
-	fn uncle_by_block_hash_and_index(&self, hash: RpcH256, index: Index) -> BoxFuture<Option<RichBlock>> {
+	fn uncle_by_block_hash_and_index(&self, hash: H256, index: Index) -> BoxFuture<Option<RichBlock>> {
 		let result = self.uncle(PendingUncleId {
 			id: PendingOrBlock::Block(BlockId::Hash(hash.into())),
 			position: index.value()
@@ -889,19 +880,19 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM, T: StateInfo + 'static> Eth for EthClient<
 		}
 	}
 
-	fn submit_work(&self, nonce: RpcH64, pow_hash: RpcH256, mix_hash: RpcH256) -> Result<bool> {
+	fn submit_work(&self, nonce: H64, pow_hash: H256, mix_hash: H256) -> Result<bool> {
 		match helpers::submit_work_detail(&self.client, &self.miner, nonce, pow_hash, mix_hash) {
 			Ok(_)  => Ok(true),
 			Err(_) => Ok(false),
 		}
 	}
 
-	fn submit_hashrate(&self, rate: RpcU256, id: RpcH256) -> Result<bool> {
+	fn submit_hashrate(&self, rate: U256, id: H256) -> Result<bool> {
 		self.external_miner.submit_hashrate(rate.into(), id.into());
 		Ok(true)
 	}
 
-	fn send_raw_transaction(&self, raw: Bytes) -> Result<RpcH256> {
+	fn send_raw_transaction(&self, raw: Bytes) -> Result<H256> {
 		Rlp::new(&raw.into_vec()).as_val()
 			.map_err(errors::rlp)
 			.and_then(|tx| SignedTransaction::new(tx).map_err(errors::transaction))
@@ -916,7 +907,7 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM, T: StateInfo + 'static> Eth for EthClient<
 			.map(Into::into)
 	}
 
-	fn submit_transaction(&self, raw: Bytes) -> Result<RpcH256> {
+	fn submit_transaction(&self, raw: Bytes) -> Result<H256> {
 		self.send_raw_transaction(raw)
 	}
 
@@ -960,7 +951,7 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM, T: StateInfo + 'static> Eth for EthClient<
 		))
 	}
 
-	fn estimate_gas(&self, request: CallRequest, num: Option<BlockNumber>) -> BoxFuture<RpcU256> {
+	fn estimate_gas(&self, request: CallRequest, num: Option<BlockNumber>) -> BoxFuture<U256> {
 		let request = CallRequest::into(request);
 		let signed = try_bf!(fake_sign::sign_call(request));
 		let num = num.unwrap_or_default();

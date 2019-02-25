@@ -16,7 +16,7 @@
 
 use std::sync::Arc;
 use std::str::FromStr;
-use ethereum_types::{U256, Address};
+use ethereum_types::{H520, U256, Address};
 use bytes::ToPretty;
 
 use accounts::AccountProvider;
@@ -31,7 +31,7 @@ use jsonrpc_core::IoHandler;
 use v1::{SignerClient, Signer, Origin};
 use v1::metadata::Metadata;
 use v1::tests::helpers::TestMinerService;
-use v1::types::{Bytes as RpcBytes, H520};
+use v1::types::Bytes as RpcBytes;
 use v1::helpers::{nonce, FilledTransactionRequest, ConfirmationPayload};
 use v1::helpers::external_signer::{SigningQueue, SignerService};
 use v1::helpers::dispatch::{self, FullDispatcher, eth_data_hash};
@@ -495,7 +495,7 @@ fn should_confirm_data_sign_with_signature() {
 
 	let data_hash = eth_data_hash(vec![1, 2, 3, 4].into());
 	let signature = H520(tester.accounts.sign(address, Some("test".into()), data_hash).unwrap().into_electrum());
-	let signature = format!("0x{:?}", signature);
+	let signature = format!("{:?}", signature);
 
 	// when
 	let request = r#"{

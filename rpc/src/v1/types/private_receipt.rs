@@ -14,8 +14,9 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
-use v1::types::{H160, H256, TransactionRequest};
 use ethcore_private_tx::{Receipt as EthPrivateReceipt};
+use ethereum_types::{H160, H256};
+use v1::types::TransactionRequest;
 
 /// Receipt
 #[derive(Debug, Serialize)]

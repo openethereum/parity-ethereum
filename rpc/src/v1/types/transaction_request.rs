@@ -16,7 +16,8 @@
 
 //! `TransactionRequest` type
 
-use v1::types::{Bytes, H160, U256, TransactionCondition};
+use ethereum_types::{H160, U256};
+use v1::types::{Bytes, TransactionCondition};
 use v1::helpers;
 use ansi_term::Colour;
 
@@ -137,7 +138,8 @@ mod tests {
 	use std::str::FromStr;
 	use rustc_hex::FromHex;
 	use serde_json;
-	use v1::types::{U256, H160, TransactionCondition};
+	use v1::types::TransactionCondition;
+	use ethereum_types::{H160, U256};
 	use super::*;
 
 	#[test]
