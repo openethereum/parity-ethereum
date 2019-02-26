@@ -28,6 +28,7 @@ extern crate parity_ethereum;
 extern crate parking_lot;
 
 #[cfg(windows)] extern crate winapi;
+extern crate ethcore_logger;
 
 use std::ffi::OsString;
 use std::fs::{remove_file, metadata, File, create_dir_all};
@@ -42,6 +43,7 @@ use dir::default_hypervisor_path;
 use fdlimit::raise_fd_limit;
 use parity_ethereum::{start, ExecutionAction};
 use parking_lot::{Condvar, Mutex};
+use ethcore_logger::setup_log;
 
 const PLEASE_RESTART_EXIT_CODE: i32 = 69;
 const PARITY_EXECUTABLE_NAME: &str = "parity";
@@ -183,6 +185,11 @@ fn main_direct(force_can_restart: bool) -> i32 {
 		let args = std::env::args().collect::<Vec<_>>();
 		parity_ethereum::Configuration::parse_cli(&args).unwrap_or_else(|e| e.exit())
 	};
+
+	let logger = setup_log(&conf.logger_config()).unwrap_or_else(|e| {
+		eprintln!("{}", e);
+		process::exit(2)
+	});
 
 	if let Some(spec_override) = take_spec_name_override() {
 		conf.args.flag_testnet = false;
