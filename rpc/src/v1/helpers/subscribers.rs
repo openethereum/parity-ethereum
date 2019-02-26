@@ -19,8 +19,8 @@
 use std::{ops, str};
 use std::collections::HashMap;
 use jsonrpc_pubsub::{typed::{Subscriber, Sink}, SubscriptionId};
+use ethereum_types::H64;
 use rand::{Rng, StdRng};
-use v1::types::H64;
 
 #[derive(Debug, Clone, Hash, Eq, PartialEq)]
 pub struct Id(H64);
@@ -36,8 +36,9 @@ impl str::FromStr for Id {
 	}
 }
 impl Id {
+	// TODO: replace `format!` see [#10412](https://github.com/paritytech/parity-ethereum/issues/10412)
 	pub fn as_string(&self) -> String {
-		format!("0x{:?}", self.0)
+		format!("{:?}", self.0)
 	}
 }
 

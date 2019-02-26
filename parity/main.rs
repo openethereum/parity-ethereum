@@ -190,7 +190,10 @@ fn main_direct(force_can_restart: bool) -> i32 {
 		parity_ethereum::Configuration::parse_cli(&args).unwrap_or_else(|e| e.exit())
 	};
 
-	let logger = setup_log(&conf.logger_config()).expect("Logger is initialized only once; qed");
+	let logger = setup_log(&conf.logger_config()).unwrap_or_else(|e| {
+		eprintln!("{}", e);
+		process::exit(2)
+	});
 
 	if let Some(spec_override) = take_spec_name_override() {
 		conf.args.flag_testnet = false;

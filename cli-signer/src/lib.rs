@@ -14,13 +14,15 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
+extern crate ethereum_types;
 extern crate futures;
 extern crate rpassword;
 
 extern crate parity_rpc as rpc;
 extern crate parity_rpc_client as client;
 
-use rpc::signer::{U256, ConfirmationRequest};
+use ethereum_types::U256;
+use rpc::signer::ConfirmationRequest;
 use client::signer_client::SignerRpc;
 use std::io::{Write, BufRead, BufReader, stdout, stdin};
 use std::path::PathBuf;
