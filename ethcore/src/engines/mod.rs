@@ -160,6 +160,17 @@ pub enum Seal {
 	None,
 }
 
+/// The type of sealing the engine is currently able to perform.
+#[derive(Debug, PartialEq, Eq)]
+pub enum SealingState {
+	/// The engine is ready to seal a block.
+	Ready,
+	/// The engine can't seal at the moment, and no block should be prepared and queued.
+	NotReady,
+	/// The engine does not seal internally.
+	External,
+}
+
 /// A system-calling closure. Enacts calls on a block's state from the system address.
 pub type SystemCall<'a> = FnMut(Address, Vec<u8>) -> Result<Vec<u8>, String> + 'a;
 
@@ -302,10 +313,8 @@ pub trait Engine<M: Machine>: Sync + Send {
 	/// Allow mutating the header during seal generation. Currently only used by Clique.
 	fn on_seal_block(&self, _block: &mut ExecutedBlock) -> Result<(), Error> { Ok(()) }
 
-	/// None means that it requires external input (e.g. PoW) to seal a block.
-	/// Some(true) means the engine is currently prime for seal generation (i.e. node is the current validator).
-	/// Some(false) means that the node might seal internally but is not qualified now.
-	fn seals_internally(&self) -> Option<bool> { None }
+	/// Returns the engine's current sealing state.
+	fn sealing_state(&self) -> SealingState { SealingState::External }
 
 	/// Attempt to seal the block internally.
 	///
