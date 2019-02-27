@@ -20,15 +20,16 @@
 use std::io;
 use std::sync::Arc;
 
-use sync::ManageNetwork;
+use ethereum_types::{H160, H256, U256};
 use fetch::{self, Fetch};
 use hash::keccak_buffer;
+use sync::ManageNetwork;
 
 use jsonrpc_core::{Result, BoxFuture};
 use jsonrpc_core::futures::Future;
 use v1::helpers::errors;
 use v1::traits::ParitySet;
-use v1::types::{Bytes, H160, H256, U256, ReleaseInfo, Transaction};
+use v1::types::{Bytes, ReleaseInfo, Transaction};
 
 /// Parity-specific rpc interface for operations altering the settings.
 pub struct ParitySetClient<F> {
@@ -67,7 +68,7 @@ impl<F: Fetch> ParitySet for ParitySetClient<F> {
 		Err(errors::light_unimplemented(None))
 	}
 
-	fn set_engine_signer(&self, _address: H160, _password: String) -> Result<bool> {
+	fn set_engine_signer_secret(&self, _secret: H256) -> Result<bool> {
 		Err(errors::light_unimplemented(None))
 	}
 

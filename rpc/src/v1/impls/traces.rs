@@ -19,15 +19,16 @@
 use std::sync::Arc;
 
 use ethcore::client::{BlockChainClient, CallAnalytics, TransactionId, TraceId, StateClient, StateInfo, Call, BlockId};
+use ethereum_types::H256;
 use rlp::Rlp;
 use types::transaction::SignedTransaction;
 
 use jsonrpc_core::Result;
-use jsonrpc_macros::Trailing;
 use v1::Metadata;
 use v1::traits::Traces;
 use v1::helpers::{errors, fake_sign};
-use v1::types::{TraceFilter, LocalizedTrace, BlockNumber, Index, CallRequest, Bytes, TraceResults, TraceResultsWithTransactionHash, TraceOptions, H256, block_number_to_id};
+use v1::types::{TraceFilter, LocalizedTrace, BlockNumber, Index, CallRequest, Bytes, TraceResults,
+	TraceResultsWithTransactionHash, TraceOptions, block_number_to_id};
 
 fn to_call_analytics(flags: TraceOptions) -> CallAnalytics {
 	CallAnalytics {
@@ -87,7 +88,7 @@ impl<C, S> Traces for TracesClient<C> where
 			.map(LocalizedTrace::from))
 	}
 
-	fn call(&self, request: CallRequest, flags: TraceOptions, block: Trailing<BlockNumber>) -> Result<TraceResults> {
+	fn call(&self, request: CallRequest, flags: TraceOptions, block: Option<BlockNumber>) -> Result<TraceResults> {
 		let block = block.unwrap_or_default();
 
 		let request = CallRequest::into(request);
@@ -109,7 +110,7 @@ impl<C, S> Traces for TracesClient<C> where
 			.map_err(errors::call)
 	}
 
-	fn call_many(&self, requests: Vec<(CallRequest, TraceOptions)>, block: Trailing<BlockNumber>) -> Result<Vec<TraceResults>> {
+	fn call_many(&self, requests: Vec<(CallRequest, TraceOptions)>, block: Option<BlockNumber>) -> Result<Vec<TraceResults>> {
 		let block = block.unwrap_or_default();
 
 		let requests = requests.into_iter()
@@ -136,7 +137,7 @@ impl<C, S> Traces for TracesClient<C> where
 			.map_err(errors::call)
 	}
 
-	fn raw_transaction(&self, raw_transaction: Bytes, flags: TraceOptions, block: Trailing<BlockNumber>) -> Result<TraceResults> {
+	fn raw_transaction(&self, raw_transaction: Bytes, flags: TraceOptions, block: Option<BlockNumber>) -> Result<TraceResults> {
 		let block = block.unwrap_or_default();
 
 		let tx = Rlp::new(&raw_transaction.into_vec()).as_val().map_err(|e| errors::invalid_params("Transaction is not valid RLP", e))?;

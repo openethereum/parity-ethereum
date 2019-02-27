@@ -18,7 +18,8 @@
 
 use ethcore::client::BlockId;
 use ethcore::client;
-use v1::types::{BlockNumber, H160};
+use ethereum_types::H160;
+use v1::types::BlockNumber;
 
 /// Trace filter
 #[derive(Debug, PartialEq, Deserialize)]

@@ -16,12 +16,13 @@
 
 //! Traces api implementation.
 
+use ethereum_types::H256;
 use jsonrpc_core::Result;
-use jsonrpc_macros::Trailing;
 use v1::Metadata;
 use v1::traits::Traces;
 use v1::helpers::errors;
-use v1::types::{TraceFilter, LocalizedTrace, BlockNumber, Index, CallRequest, Bytes, TraceResults, TraceResultsWithTransactionHash, TraceOptions, H256};
+use v1::types::{TraceFilter, LocalizedTrace, BlockNumber, Index, CallRequest, Bytes, TraceResults,
+	TraceResultsWithTransactionHash, TraceOptions};
 
 /// Traces api implementation.
 // TODO: all calling APIs should be possible w. proved remote TX execution.
@@ -46,15 +47,15 @@ impl Traces for TracesClient {
 		Err(errors::light_unimplemented(None))
 	}
 
-	fn call(&self, _request: CallRequest, _flags: TraceOptions, _block: Trailing<BlockNumber>) -> Result<TraceResults> {
+	fn call(&self, _request: CallRequest, _flags: TraceOptions, _block: Option<BlockNumber>) -> Result<TraceResults> {
 		Err(errors::light_unimplemented(None))
 	}
 
-	fn call_many(&self, _request: Vec<(CallRequest, TraceOptions)>, _block: Trailing<BlockNumber>) -> Result<Vec<TraceResults>> {
+	fn call_many(&self, _request: Vec<(CallRequest, TraceOptions)>, _block: Option<BlockNumber>) -> Result<Vec<TraceResults>> {
 		Err(errors::light_unimplemented(None))
 	}
 
-	fn raw_transaction(&self, _raw_transaction: Bytes, _flags: TraceOptions, _block: Trailing<BlockNumber>) -> Result<TraceResults> {
+	fn raw_transaction(&self, _raw_transaction: Bytes, _flags: TraceOptions, _block: Option<BlockNumber>) -> Result<TraceResults> {
 		Err(errors::light_unimplemented(None))
 	}
 

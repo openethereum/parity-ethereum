@@ -2,7 +2,7 @@
 description = "Parity Ethereum client"
 name = "parity-ethereum"
 # NOTE Make sure to update util/version/Cargo.toml as well
-version = "2.4.0"
+version = "2.5.0"
 license = "GPL-3.0"
 authors = ["Parity Technologies <admin@parity.io>"]
 
@@ -29,10 +29,11 @@ serde_derive = "1.0"
 futures = "0.1"
 fdlimit = "0.1"
 ctrlc = { git = "https://github.com/paritytech/rust-ctrlc.git" }
-jsonrpc-core = { git = "https://github.com/paritytech/jsonrpc.git", branch = "parity-2.2" }
-ethcore = { path = "ethcore", features = ["parity"] }
+jsonrpc-core = "10.0.1"
 parity-bytes = "0.1"
 common-types = { path = "ethcore/types" }
+ethcore = { path = "ethcore", features = ["parity"] }
+ethcore-accounts = { path = "accounts", optional = true }
 ethcore-blockchain = { path = "ethcore/blockchain" }
 ethcore-call-contract = { path = "ethcore/call-contract"}
 ethcore-db = { path = "ethcore/db" }
@@ -44,12 +45,13 @@ ethcore-network = { path = "util/network" }
 ethcore-private-tx = { path = "ethcore/private-tx" }
 ethcore-service = { path = "ethcore/service" }
 ethcore-sync = { path = "ethcore/sync" }
-ethstore = { path = "accounts/ethstore" }
 ethereum-types = "0.4"
-node-filter = { path = "ethcore/node-filter" }
 ethkey = { path = "accounts/ethkey" }
+ethstore = { path = "accounts/ethstore" }
+node-filter = { path = "ethcore/node-filter" }
 rlp = { version = "0.3.0", features = ["ethereum"] }
 cli-signer= { path = "cli-signer" }
+parity-daemonize = "0.3"
 parity-hash-fetch = { path = "updater/hash-fetch" }
 parity-ipfs-api = { path = "ipfs" }
 parity-local-store = { path = "miner/local-store" }
@@ -81,22 +83,22 @@ pretty_assertions = "0.1"
 ipnetwork = "0.12.6"
 tempdir = "0.3"
 fake-fetch = { path = "util/fake-fetch" }
+lazy_static = "1.2.0"
 
 [target.'cfg(windows)'.dependencies]
 winapi = { version = "0.3.4", features = ["winsock2", "winuser", "shellapi"] }
 
-[target.'cfg(not(windows))'.dependencies]
-daemonize = "0.3"
-
 [features]
+default = ["accounts"]
+accounts = ["ethcore-accounts", "parity-rpc/accounts"]
 miner-debug = ["ethcore/miner-debug"]
 json-tests = ["ethcore/json-tests"]
-ci-skip-issue = ["ethcore/ci-skip-issue"]
+ci-skip-tests = ["ethcore/ci-skip-tests"]
 test-heavy = ["ethcore/test-heavy"]
 evm-debug = ["ethcore/evm-debug"]
 evm-debug-tests = ["ethcore/evm-debug-tests"]
 slow-blocks = ["ethcore/slow-blocks"]
-secretstore = ["ethcore-secretstore"]
+secretstore = ["ethcore-secretstore", "ethcore-secretstore/accounts"]
 final = ["parity-version/final"]
 deadlock_detection = ["parking_lot/deadlock_detection"]
 # to create a memory profile (requires nightly rust), use e.g.
@@ -135,4 +137,13 @@ members = [
 	"evmbin",
 	"parity-clib",
 	"whisper/cli",
+	"util/triehash-ethereum",
+	"util/keccak-hasher",
+	"util/patricia-trie-ethereum",
+	"util/fastmap",
 ]
+
+[patch.crates-io]
+memory-db = { git = "https://github.com/cheme/trie", branch = "deprecate_heapsize" }
+trie-db = { git = "https://github.com/cheme/trie", branch = "deprecate_heapsize" }
+hash-db = { git = "https://github.com/cheme/trie", branch = "deprecate_heapsize" }

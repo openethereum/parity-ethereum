@@ -16,8 +16,8 @@
 
 //! Return types for RPC calls
 
-use ethereum_types::{Public, Address};
-use v1::types::{H160, H256, U256, Bytes};
+use ethereum_types::{Public, Address, H160, H256, U256};
+use v1::types::Bytes;
 
 /// Account information.
 #[derive(Debug, Default, Clone, PartialEq, Serialize)]

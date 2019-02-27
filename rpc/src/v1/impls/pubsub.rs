@@ -22,8 +22,7 @@ use parking_lot::RwLock;
 
 use jsonrpc_core::{self as core, Result, MetaIoHandler};
 use jsonrpc_core::futures::{future, Future, Stream, Sink};
-use jsonrpc_macros::Trailing;
-use jsonrpc_macros::pubsub::Subscriber;
+use jsonrpc_pubsub::typed::Subscriber;
 use jsonrpc_pubsub::SubscriptionId;
 use tokio_timer;
 
@@ -81,7 +80,7 @@ impl PubSubClient<core::NoopMiddleware> {
 impl<S: core::Middleware<Metadata>> PubSub for PubSubClient<S> {
 	type Metadata = Metadata;
 
-	fn parity_subscribe(&self, mut meta: Metadata, subscriber: Subscriber<core::Value>, method: String, params: Trailing<core::Params>) {
+	fn parity_subscribe(&self, mut meta: Metadata, subscriber: Subscriber<core::Value>, method: String, params: Option<core::Params>) {
 		let params = params.unwrap_or(core::Params::Array(vec![]));
 		// Make sure to get rid of PubSub session otherwise it will never be dropped.
 		meta.session = None;
@@ -100,7 +99,7 @@ impl<S: core::Middleware<Metadata>> PubSub for PubSubClient<S> {
 		}
 	}
 
-	fn parity_unsubscribe(&self, id: SubscriptionId) -> Result<bool> {
+	fn parity_unsubscribe(&self, _: Option<Self::Metadata>, id: SubscriptionId) -> Result<bool> {
 		let res = self.poll_manager.write().unsubscribe(&id);
 		Ok(res)
 	}

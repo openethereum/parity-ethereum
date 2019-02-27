@@ -20,8 +20,10 @@ use std::{fs, fmt, hash, ops};
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 
-use ethstore::ethkey::Address;
-use ethjson::misc::AccountMeta;
+use ethkey::Address;
+use log::{trace, warn};
+
+use crate::AccountMeta;
 
 /// Disk-backed map from Address to String. Uses JSON.
 pub struct AddressBook {
@@ -153,8 +155,8 @@ impl<K: hash::Hash + Eq, V> DiskMap<K, V> {
 mod tests {
 	use super::AddressBook;
 	use std::collections::HashMap;
-	use ethjson::misc::AccountMeta;
 	use tempdir::TempDir;
+	use crate::account_data::AccountMeta;
 
 	#[test]
 	fn should_save_and_reload_address_book() {
@@ -163,7 +165,9 @@ mod tests {
 		b.set_name(1.into(), "One".to_owned());
 		b.set_meta(1.into(), "{1:1}".to_owned());
 		let b = AddressBook::new(tempdir.path());
-		assert_eq!(b.get(), hash_map![1.into() => AccountMeta{name: "One".to_owned(), meta: "{1:1}".to_owned(), uuid: None}]);
+		assert_eq!(b.get(), vec![
+		   (1, AccountMeta {name: "One".to_owned(), meta: "{1:1}".to_owned(), uuid: None})
+		].into_iter().map(|(a, b)| (a.into(), b)).collect::<HashMap<_, _>>());
 	}
 
 	#[test]
@@ -177,9 +181,9 @@ mod tests {
 		b.remove(2.into());
 
 		let b = AddressBook::new(tempdir.path());
-		assert_eq!(b.get(), hash_map![
-			1.into() => AccountMeta{name: "One".to_owned(), meta: "{}".to_owned(), uuid: None},
-			3.into() => AccountMeta{name: "Three".to_owned(), meta: "{}".to_owned(), uuid: None}
-		]);
+		assert_eq!(b.get(), vec![
+			(1, AccountMeta{name: "One".to_owned(), meta: "{}".to_owned(), uuid: None}),
+			(3, AccountMeta{name: "Three".to_owned(), meta: "{}".to_owned(), uuid: None}),
+		].into_iter().map(|(a, b)| (a.into(), b)).collect::<HashMap<_, _>>());
 	}
 }

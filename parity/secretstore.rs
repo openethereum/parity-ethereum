@@ -16,12 +16,12 @@
 
 use std::collections::BTreeMap;
 use std::sync::Arc;
+use account_utils::AccountProvider;
 use dir::default_data_path;
 use dir::helpers::replace_home;
-use ethcore::account_provider::AccountProvider;
 use ethcore::client::Client;
 use ethcore::miner::Miner;
-use ethkey::{Secret, Public};
+use ethkey::{Secret, Public, Password};
 use sync::SyncProvider;
 use ethereum_types::Address;
 use parity_runtime::Executor;
@@ -32,6 +32,7 @@ pub enum NodeSecretKey {
 	/// Stored as plain text in configuration file.
 	Plain(Secret),
 	/// Stored as account in key store.
+	#[cfg(feature = "accounts")]
 	KeyStore(Address),
 }
 
@@ -141,6 +142,7 @@ mod server {
 			let self_secret: Arc<ethcore_secretstore::NodeKeyPair> = match conf.self_secret.take() {
 				Some(NodeSecretKey::Plain(secret)) => Arc::new(ethcore_secretstore::PlainNodeKeyPair::new(
 					KeyPair::from_secret(secret).map_err(|e| format!("invalid secret: {}", e))?)),
+				#[cfg(feature = "accounts")]
 				Some(NodeSecretKey::KeyStore(account)) => {
 					// Check if account exists
 					if !deps.account_provider.has_account(account.clone()) {
@@ -209,7 +211,6 @@ mod server {
 }
 
 pub use self::server::KeyServer;
-use ethkey::Password;
 
 impl Default for Configuration {
 	fn default() -> Self {

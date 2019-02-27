@@ -17,12 +17,14 @@
 use api::WARP_SYNC_PROTOCOL_ID;
 use block_sync::{BlockDownloaderImportError as DownloaderImportError, DownloadAction};
 use bytes::Bytes;
+use enum_primitive::FromPrimitive;
 use ethcore::error::{Error as EthcoreError, ErrorKind as EthcoreErrorKind, ImportErrorKind, BlockError};
 use ethcore::snapshot::{ManifestData, RestorationStatus};
 use ethcore::verification::queue::kind::blocks::Unverified;
 use ethereum_types::{H256, U256};
 use hash::keccak;
 use network::PeerId;
+use network::client_version::ClientVersion;
 use rlp::Rlp;
 use snapshot::ChunkType;
 use std::time::Instant;
@@ -31,6 +33,20 @@ use sync_io::SyncIo;
 use types::BlockNumber;
 use types::block_status::BlockStatus;
 use types::ids::BlockId;
+
+use super::sync_packet::{PacketInfo, SyncPacket};
+use super::sync_packet::SyncPacket::{
+	StatusPacket,
+	NewBlockHashesPacket,
+	BlockHeadersPacket,
+	BlockBodiesPacket,
+	NewBlockPacket,
+	ReceiptsPacket,
+	SnapshotManifestPacket,
+	SnapshotDataPacket,
+	PrivateTransactionPacket,
+	SignedPrivateTransactionPacket,
+};
 
 use super::{
 	BlockSet,
@@ -47,16 +63,6 @@ use super::{
 	MAX_NEW_HASHES,
 	PAR_PROTOCOL_VERSION_1,
 	PAR_PROTOCOL_VERSION_3,
-	BLOCK_BODIES_PACKET,
-	BLOCK_HEADERS_PACKET,
-	NEW_BLOCK_HASHES_PACKET,
-	NEW_BLOCK_PACKET,
-	PRIVATE_TRANSACTION_PACKET,
-	RECEIPTS_PACKET,
-	SIGNED_PRIVATE_TRANSACTION_PACKET,
-	SNAPSHOT_DATA_PACKET,
-	SNAPSHOT_MANIFEST_PACKET,
-	STATUS_PACKET,
 };
 
 /// The Chain Sync Handler: handles responses from peers
@@ -66,36 +72,40 @@ impl SyncHandler {
 	/// Handle incoming packet from peer
 	pub fn on_packet(sync: &mut ChainSync, io: &mut SyncIo, peer: PeerId, packet_id: u8, data: &[u8]) {
 		let rlp = Rlp::new(data);
-		let result = match packet_id {
-			STATUS_PACKET => SyncHandler::on_peer_status(sync, io, peer, &rlp),
-			BLOCK_HEADERS_PACKET => SyncHandler::on_peer_block_headers(sync, io, peer, &rlp),
-			BLOCK_BODIES_PACKET => SyncHandler::on_peer_block_bodies(sync, io, peer, &rlp),
-			RECEIPTS_PACKET => SyncHandler::on_peer_block_receipts(sync, io, peer, &rlp),
-			NEW_BLOCK_PACKET => SyncHandler::on_peer_new_block(sync, io, peer, &rlp),
-			NEW_BLOCK_HASHES_PACKET => SyncHandler::on_peer_new_hashes(sync, io, peer, &rlp),
-			SNAPSHOT_MANIFEST_PACKET => SyncHandler::on_snapshot_manifest(sync, io, peer, &rlp),
-			SNAPSHOT_DATA_PACKET => SyncHandler::on_snapshot_data(sync, io, peer, &rlp),
-			PRIVATE_TRANSACTION_PACKET => SyncHandler::on_private_transaction(sync, io, peer, &rlp),
-			SIGNED_PRIVATE_TRANSACTION_PACKET => SyncHandler::on_signed_private_transaction(sync, io, peer, &rlp),
-			_ => {
-				debug!(target: "sync", "{}: Unknown packet {}", peer, packet_id);
-				Ok(())
-			}
-		};
+		if let Some(packet_id) = SyncPacket::from_u8(packet_id) {
+			let result = match packet_id {
+				StatusPacket => SyncHandler::on_peer_status(sync, io, peer, &rlp),
+				BlockHeadersPacket => SyncHandler::on_peer_block_headers(sync, io, peer, &rlp),
+				BlockBodiesPacket => SyncHandler::on_peer_block_bodies(sync, io, peer, &rlp),
+				ReceiptsPacket => SyncHandler::on_peer_block_receipts(sync, io, peer, &rlp),
+				NewBlockPacket => SyncHandler::on_peer_new_block(sync, io, peer, &rlp),
+				NewBlockHashesPacket => SyncHandler::on_peer_new_hashes(sync, io, peer, &rlp),
+				SnapshotManifestPacket => SyncHandler::on_snapshot_manifest(sync, io, peer, &rlp),
+				SnapshotDataPacket => SyncHandler::on_snapshot_data(sync, io, peer, &rlp),
+				PrivateTransactionPacket => SyncHandler::on_private_transaction(sync, io, peer, &rlp),
+				SignedPrivateTransactionPacket => SyncHandler::on_signed_private_transaction(sync, io, peer, &rlp),
+				_ => {
+					debug!(target: "sync", "{}: Unknown packet {}", peer, packet_id.id());
+					Ok(())
+				}
+			};
 
-		match result {
-			Err(DownloaderImportError::Invalid) => {
-				debug!(target:"sync", "{} -> Invalid packet {}", peer, packet_id);
-				io.disable_peer(peer);
-				sync.deactivate_peer(io, peer);
-			},
-			Err(DownloaderImportError::Useless) => {
-				sync.deactivate_peer(io, peer);
-			},
-			Ok(()) => {
-				// give a task to the same peer first
-				sync.sync_peer(io, peer, false);
-			},
+			match result {
+				Err(DownloaderImportError::Invalid) => {
+					debug!(target:"sync", "{} -> Invalid packet {}", peer, packet_id.id());
+					io.disable_peer(peer);
+					sync.deactivate_peer(io, peer);
+				},
+				Err(DownloaderImportError::Useless) => {
+					sync.deactivate_peer(io, peer);
+				},
+				Ok(()) => {
+					// give a task to the same peer first
+					sync.sync_peer(io, peer, false);
+				},
+			}
+		} else {
+			debug!(target: "sync", "{}: Unknown packet {}", peer, packet_id);
 		}
 	}
 
@@ -107,7 +117,7 @@ impl SyncHandler {
 
 	/// Called by peer when it is disconnecting
 	pub fn on_peer_aborting(sync: &mut ChainSync, io: &mut SyncIo, peer_id: PeerId) {
-		trace!(target: "sync", "== Disconnecting {}: {}", peer_id, io.peer_info(peer_id));
+		trace!(target: "sync", "== Disconnecting {}: {}", peer_id, io.peer_version(peer_id));
 		sync.handshaking_peers.remove(&peer_id);
 		if sync.peers.contains_key(&peer_id) {
 			debug!(target: "sync", "Disconnected {}", peer_id);
@@ -133,7 +143,7 @@ impl SyncHandler {
 
 	/// Called when a new peer is connected
 	pub fn on_peer_connected(sync: &mut ChainSync, io: &mut SyncIo, peer: PeerId) {
-		trace!(target: "sync", "== Connected {}: {}", peer, io.peer_info(peer));
+		trace!(target: "sync", "== Connected {}: {}", peer, io.peer_version(peer));
 		if let Err(e) = sync.send_status(io, peer) {
 			debug!(target:"sync", "Error sending status request: {:?}", e);
 			io.disconnect_peer(peer);
@@ -579,6 +589,7 @@ impl SyncHandler {
 			snapshot_number: if warp_protocol { Some(r.val_at(6)?) } else { None },
 			block_set: None,
 			private_tx_enabled: if private_tx_protocol { r.val_at(7).unwrap_or(false) } else { false },
+			client_version: ClientVersion::from(io.peer_version(peer_id)),
 		};
 
 		trace!(target: "sync", "New peer {} (\
@@ -599,12 +610,12 @@ impl SyncHandler {
 			peer.private_tx_enabled
 		);
 		if io.is_expired() {
-			trace!(target: "sync", "Status packet from expired session {}:{}", peer_id, io.peer_info(peer_id));
+			trace!(target: "sync", "Status packet from expired session {}:{}", peer_id, io.peer_version(peer_id));
 			return Ok(());
 		}
 
 		if sync.peers.contains_key(&peer_id) {
-			debug!(target: "sync", "Unexpected status packet from {}:{}", peer_id, io.peer_info(peer_id));
+			debug!(target: "sync", "Unexpected status packet from {}:{}", peer_id, io.peer_version(peer_id));
 			return Ok(());
 		}
 		let chain_info = io.chain().chain_info();
@@ -633,7 +644,7 @@ impl SyncHandler {
 		// Don't activate peer immediatelly when searching for common block.
 		// Let the current sync round complete first.
 		sync.active_peers.insert(peer_id.clone());
-		debug!(target: "sync", "Connected {}:{}", peer_id, io.peer_info(peer_id));
+		debug!(target: "sync", "Connected {}:{}", peer_id, io.peer_version(peer_id));
 
 		if let Some((fork_block, _)) = sync.fork_block {
 			SyncRequester::request_fork_header(sync, io, peer_id, fork_block);

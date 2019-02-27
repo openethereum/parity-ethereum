@@ -14,10 +14,12 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
+use network::client_version::ClientVersion;
 use std::collections::BTreeMap;
+
+use ethereum_types::{U256, H512};
 use sync::{self, PeerInfo as SyncPeerInfo, TransactionStats as SyncTransactionStats};
 use serde::{Serialize, Serializer};
-use v1::types::{U256, H512};
 
 /// Sync info
 #[derive(Default, Debug, Serialize, PartialEq)]
@@ -54,7 +56,7 @@ pub struct PeerInfo {
 	/// Public node id
 	pub id: Option<String>,
 	/// Node client ID
-	pub name: String,
+	pub name: ClientVersion,
 	/// Capabilities
 	pub caps: Vec<String>,
 	/// Network information

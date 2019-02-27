@@ -18,20 +18,22 @@
 use std::sync::Arc;
 use std::time::Duration;
 
+use accounts::AccountProvider;
 use bytes::Bytes;
-use ethcore::account_provider::AccountProvider;
-use types::transaction::PendingTransaction;
-use types::transaction::SignedTransaction;
-use ethereum_types::{H520, U128, Address};
+use eip_712::{EIP712, hash_structured_data};
+use ethereum_types::{H160, H256, H520, U128, Address};
 use ethkey::{public_to_address, recover, Signature};
+use types::transaction::{PendingTransaction, SignedTransaction};
 
-use jsonrpc_core::{BoxFuture, Result};
 use jsonrpc_core::futures::{future, Future};
-use v1::helpers::{errors, eip191};
+use jsonrpc_core::types::Value;
+use jsonrpc_core::{BoxFuture, Result};
+use v1::helpers::deprecated::{self, DeprecationNotice};
 use v1::helpers::dispatch::{self, eth_data_hash, Dispatcher, SignWith, PostSign, WithToken};
+use v1::helpers::{errors, eip191};
+use v1::metadata::Metadata;
 use v1::traits::Personal;
 use v1::types::{
-	H160 as RpcH160, H256 as RpcH256, H520 as RpcH520, U128 as RpcU128,
 	Bytes as RpcBytes,
 	ConfirmationPayload as RpcConfirmationPayload,
 	ConfirmationResponse as RpcConfirmationResponse,
@@ -39,9 +41,6 @@ use v1::types::{
 	RichRawTransaction as RpcRichRawTransaction,
 	EIP191Version,
 };
-use v1::metadata::Metadata;
-use eip_712::{EIP712, hash_structured_data};
-use jsonrpc_core::types::Value;
 
 /// Account management (personal) rpc implementation.
 pub struct PersonalClient<D: Dispatcher> {
@@ -49,6 +48,7 @@ pub struct PersonalClient<D: Dispatcher> {
 	dispatcher: D,
 	allow_perm_unlock: bool,
 	allow_experimental_rpcs: bool,
+	deprecation_notice: DeprecationNotice,
 }
 
 impl<D: Dispatcher> PersonalClient<D> {
@@ -64,6 +64,7 @@ impl<D: Dispatcher> PersonalClient<D> {
 			dispatcher,
 			allow_perm_unlock,
 			allow_experimental_rpcs,
+			deprecation_notice: DeprecationNotice::default(),
 		}
 	}
 }
@@ -94,9 +95,10 @@ impl<D: Dispatcher + 'static> PersonalClient<D> {
 			Err(e) => return Box::new(future::err(e)),
 		};
 
+		let accounts = Arc::new(dispatch::Signer::new(accounts)) as _;
 		Box::new(dispatcher.fill_optional_fields(request.into(), default, false)
 			.and_then(move |filled| {
-				dispatcher.sign(accounts, filled, SignWith::Password(password.into()), post_sign)
+				dispatcher.sign(filled, &accounts, SignWith::Password(password.into()), post_sign)
 			})
 		)
 	}
@@ -105,18 +107,21 @@ impl<D: Dispatcher + 'static> PersonalClient<D> {
 impl<D: Dispatcher + 'static> Personal for PersonalClient<D> {
 	type Metadata = Metadata;
 
-	fn accounts(&self) -> Result<Vec<RpcH160>> {
+	fn accounts(&self) -> Result<Vec<H160>> {
+		self.deprecation_notice.print("personal_accounts", deprecated::msgs::ACCOUNTS);
 		let accounts = self.accounts.accounts().map_err(|e| errors::account("Could not fetch accounts.", e))?;
-		Ok(accounts.into_iter().map(Into::into).collect::<Vec<RpcH160>>())
+		Ok(accounts.into_iter().map(Into::into).collect::<Vec<H160>>())
 	}
 
-	fn new_account(&self, pass: String) -> Result<RpcH160> {
+	fn new_account(&self, pass: String) -> Result<H160> {
+		self.deprecation_notice.print("personal_newAccount", deprecated::msgs::ACCOUNTS);
 		self.accounts.new_account(&pass.into())
 			.map(Into::into)
 			.map_err(|e| errors::account("Could not create account.", e))
 	}
 
-	fn unlock_account(&self, account: RpcH160, account_pass: String, duration: Option<RpcU128>) -> Result<bool> {
+	fn unlock_account(&self, account: H160, account_pass: String, duration: Option<U128>) -> Result<bool> {
+		self.deprecation_notice.print("personal_unlockAccount", deprecated::msgs::ACCOUNTS);
 		let account: Address = account.into();
 		let store = self.accounts.clone();
 		let duration = match duration {
@@ -148,15 +153,16 @@ impl<D: Dispatcher + 'static> Personal for PersonalClient<D> {
 		}
 	}
 
-	fn sign(&self, data: RpcBytes, account: RpcH160, password: String) -> BoxFuture<RpcH520> {
+	fn sign(&self, data: RpcBytes, account: H160, password: String) -> BoxFuture<H520> {
+		self.deprecation_notice.print("personal_sign", deprecated::msgs::ACCOUNTS);
 		let dispatcher = self.dispatcher.clone();
-		let accounts = self.accounts.clone();
+		let accounts = Arc::new(dispatch::Signer::new(self.accounts.clone())) as _;
 
 		let payload = RpcConfirmationPayload::EthSignMessage((account.clone(), data).into());
 
 		Box::new(dispatch::from_rpc(payload, account.into(), &dispatcher)
-				 .and_then(|payload| {
-					 dispatch::execute(dispatcher, accounts, payload, dispatch::SignWith::Password(password.into()))
+				 .and_then(move |payload| {
+					 dispatch::execute(dispatcher, &accounts, payload, dispatch::SignWith::Password(password.into()))
 				 })
 				 .map(|v| v.into_value())
 				 .then(|res| match res {
@@ -166,18 +172,19 @@ impl<D: Dispatcher + 'static> Personal for PersonalClient<D> {
 				 }))
 	}
 
-	fn sign_191(&self, version: EIP191Version, data: Value, account: RpcH160, password: String) -> BoxFuture<RpcH520> {
+	fn sign_191(&self, version: EIP191Version, data: Value, account: H160, password: String) -> BoxFuture<H520> {
+		self.deprecation_notice.print("personal_sign191", deprecated::msgs::ACCOUNTS);
 		try_bf!(errors::require_experimental(self.allow_experimental_rpcs, "191"));
 
 		let data = try_bf!(eip191::hash_message(version, data));
 		let dispatcher = self.dispatcher.clone();
-		let accounts = self.accounts.clone();
+		let accounts = Arc::new(dispatch::Signer::new(self.accounts.clone())) as _;
 
 		let payload = RpcConfirmationPayload::EIP191SignMessage((account.clone(), data.into()).into());
 
 		Box::new(dispatch::from_rpc(payload, account.into(), &dispatcher)
-			.and_then(|payload| {
-				dispatch::execute(dispatcher, accounts, payload, dispatch::SignWith::Password(password.into()))
+			.and_then(move |payload| {
+				dispatch::execute(dispatcher, &accounts, payload, dispatch::SignWith::Password(password.into()))
 			})
 			.map(|v| v.into_value())
 			.then(|res| match res {
@@ -188,7 +195,8 @@ impl<D: Dispatcher + 'static> Personal for PersonalClient<D> {
 		)
 	}
 
-	fn sign_typed_data(&self, typed_data: EIP712, account: RpcH160, password: String) -> BoxFuture<RpcH520> {
+	fn sign_typed_data(&self, typed_data: EIP712, account: H160, password: String) -> BoxFuture<H520> {
+		self.deprecation_notice.print("personal_signTypedData", deprecated::msgs::ACCOUNTS);
 		try_bf!(errors::require_experimental(self.allow_experimental_rpcs, "712"));
 
 		let data = match hash_structured_data(typed_data) {
@@ -196,13 +204,13 @@ impl<D: Dispatcher + 'static> Personal for PersonalClient<D> {
 			Err(err) => return Box::new(future::err(errors::invalid_call_data(err.kind()))),
 		};
 		let dispatcher = self.dispatcher.clone();
-		let accounts = self.accounts.clone();
+		let accounts = Arc::new(dispatch::Signer::new(self.accounts.clone())) as _;
 
 		let payload = RpcConfirmationPayload::EIP191SignMessage((account.clone(), data.into()).into());
 
 		Box::new(dispatch::from_rpc(payload, account.into(), &dispatcher)
-			.and_then(|payload| {
-				dispatch::execute(dispatcher, accounts, payload, dispatch::SignWith::Password(password.into()))
+			.and_then(move |payload| {
+				dispatch::execute(dispatcher, &accounts, payload, dispatch::SignWith::Password(password.into()))
 			})
 			.map(|v| v.into_value())
 			.then(|res| match res {
@@ -213,7 +221,7 @@ impl<D: Dispatcher + 'static> Personal for PersonalClient<D> {
 		)
 	}
 
-	fn ec_recover(&self, data: RpcBytes, signature: RpcH520) -> BoxFuture<RpcH160> {
+	fn ec_recover(&self, data: RpcBytes, signature: H520) -> BoxFuture<H160> {
 		let signature: H520 = signature.into();
 		let signature = Signature::from_electrum(&signature);
 		let data: Bytes = data.into();
@@ -229,6 +237,8 @@ impl<D: Dispatcher + 'static> Personal for PersonalClient<D> {
 	}
 
 	fn sign_transaction(&self, meta: Metadata, request: TransactionRequest, password: String) -> BoxFuture<RpcRichRawTransaction> {
+		self.deprecation_notice.print("personal_signTransaction", deprecated::msgs::ACCOUNTS);
+
 		let condition = request.condition.clone().map(Into::into);
 		let dispatcher = self.dispatcher.clone();
 		Box::new(self.do_sign_transaction(meta, request, password, ())
@@ -236,24 +246,24 @@ impl<D: Dispatcher + 'static> Personal for PersonalClient<D> {
 			.map(move |pending_tx| dispatcher.enrich(pending_tx.transaction)))
 	}
 
-	fn send_transaction(&self, meta: Metadata, request: TransactionRequest, password: String) -> BoxFuture<RpcH256> {
+	fn send_transaction(&self, meta: Metadata, request: TransactionRequest, password: String) -> BoxFuture<H256> {
+		self.deprecation_notice.print("personal_sendTransaction", deprecated::msgs::ACCOUNTS);
 		let condition = request.condition.clone().map(Into::into);
 		let dispatcher = self.dispatcher.clone();
-		Box::new(self.do_sign_transaction(meta, request, password,  move |signed: WithToken<SignedTransaction>| {
-			dispatcher.dispatch_transaction(
-				PendingTransaction::new(
-					signed.into_value(),
-					condition
+		Box::new(
+			self.do_sign_transaction(meta, request, password, move |signed: WithToken<SignedTransaction>| {
+				dispatcher.dispatch_transaction(
+					PendingTransaction::new(
+						signed.into_value(),
+						condition
+					)
 				)
-			)
-		})
-			.and_then(|hash| {
-				Ok(RpcH256::from(hash))
 			})
 		)
 	}
 
-	fn sign_and_send_transaction(&self, meta: Metadata, request: TransactionRequest, password: String) -> BoxFuture<RpcH256> {
+	fn sign_and_send_transaction(&self, meta: Metadata, request: TransactionRequest, password: String) -> BoxFuture<H256> {
+		self.deprecation_notice.print("personal_signAndSendTransaction", Some("use personal_sendTransaction instead."));
 		warn!("Using deprecated personal_signAndSendTransaction, use personal_sendTransaction instead.");
 		self.send_transaction(meta, request, password)
 	}

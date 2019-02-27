@@ -37,6 +37,7 @@ extern crate tokio_timer;
 extern crate transient_hashmap;
 
 extern crate jsonrpc_core;
+extern crate jsonrpc_derive;
 extern crate jsonrpc_http_server as http;
 extern crate jsonrpc_ipc_server as ipc;
 extern crate jsonrpc_pubsub;
@@ -51,6 +52,7 @@ extern crate ethcore_io as io;
 extern crate ethcore_light as light;
 extern crate ethcore_logger;
 extern crate ethcore_miner as miner;
+extern crate ethcore_network as network;
 extern crate ethcore_private_tx;
 extern crate ethcore_sync as sync;
 extern crate ethereum_types;
@@ -61,21 +63,17 @@ extern crate keccak_hash as hash;
 extern crate parity_runtime;
 extern crate parity_updater as updater;
 extern crate parity_version as version;
-extern crate patricia_trie as trie;
+extern crate trie_db as trie;
 extern crate eip_712;
 extern crate rlp;
 extern crate stats;
 extern crate vm;
 
-#[cfg(any(target_os = "linux", target_os = "macos", target_os = "windows"))]
-extern crate hardware_wallet;
-#[cfg(not(any(target_os = "linux", target_os = "macos", target_os = "windows")))]
-extern crate fake_hardware_wallet as hardware_wallet;
+#[cfg(any(test, feature = "ethcore-accounts"))]
+extern crate ethcore_accounts as accounts;
 
 #[macro_use]
 extern crate log;
-#[macro_use]
-extern crate jsonrpc_macros;
 #[macro_use]
 extern crate serde_derive;
 

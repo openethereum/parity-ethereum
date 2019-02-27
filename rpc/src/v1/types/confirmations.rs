@@ -21,7 +21,8 @@ use serde::{Serialize, Serializer};
 use ansi_term::Colour;
 use bytes::ToPretty;
 
-use v1::types::{U256, TransactionRequest, RichRawTransaction, H160, H256, H520, Bytes, TransactionCondition, Origin};
+use ethereum_types::{H160, H256, H520, U256};
+use v1::types::{TransactionRequest, RichRawTransaction, Bytes, TransactionCondition, Origin};
 use v1::helpers;
 use ethkey::Password;
 
@@ -281,8 +282,9 @@ impl<A, B> Serialize for Either<A, B>  where
 #[cfg(test)]
 mod tests {
 	use std::str::FromStr;
+    use ethereum_types::{H256, U256};
 	use serde_json;
-	use v1::types::{U256, H256, TransactionCondition};
+	use v1::types::TransactionCondition;
 	use v1::helpers;
 	use super::*;
 

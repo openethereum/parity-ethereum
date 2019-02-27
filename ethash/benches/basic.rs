@@ -40,28 +40,28 @@ criterion_main!(basic);
 fn bench_light_compute_memmap(b: &mut Criterion) {
 	use std::env;
 
-	let builder = NodeCacheBuilder::new(OptimizeFor::Memory);
+	let builder = NodeCacheBuilder::new(OptimizeFor::Memory, u64::max_value());
 	let light = builder.light(&env::temp_dir(), 486382);
 
-	b.bench_function("bench_light_compute_memmap", move |b| b.iter(|| light.compute(&HASH, NONCE)));
+	b.bench_function("bench_light_compute_memmap", move |b| b.iter(|| light.compute(&HASH, NONCE, u64::max_value())));
 }
 
 fn bench_light_compute_memory(b: &mut Criterion) {
 	use std::env;
 
-	let builder = NodeCacheBuilder::new(OptimizeFor::Cpu);
+	let builder = NodeCacheBuilder::new(OptimizeFor::Cpu, u64::max_value());
 	let light = builder.light(&env::temp_dir(), 486382);
 
-	b.bench_function("bench_light_compute_memmap", move |b| b.iter(|| light.compute(&HASH, NONCE)));
+	b.bench_function("bench_light_compute_memmap", move |b| b.iter(|| light.compute(&HASH, NONCE, u64::max_value())));
 }
 
 fn bench_light_new_round_trip_memmap(b: &mut Criterion) {
 	use std::env;
 
 	b.bench_function("bench_light_compute_memmap", move |b| b.iter(|| {
-		let builder = NodeCacheBuilder::new(OptimizeFor::Memory);
+		let builder = NodeCacheBuilder::new(OptimizeFor::Memory, u64::max_value());
 		let light = builder.light(&env::temp_dir(), 486382);
-		light.compute(&HASH, NONCE);
+		light.compute(&HASH, NONCE, u64::max_value());
 	}));
 }
 
@@ -69,9 +69,9 @@ fn bench_light_new_round_trip_memory(b: &mut Criterion) {
 	use std::env;
 
 	b.bench_function("bench_light_compute_memmap", move |b| b.iter(|| {
-		let builder = NodeCacheBuilder::new(OptimizeFor::Cpu);
+		let builder = NodeCacheBuilder::new(OptimizeFor::Cpu, u64::max_value());
 		let light = builder.light(&env::temp_dir(), 486382);
-		light.compute(&HASH, NONCE);
+		light.compute(&HASH, NONCE, u64::max_value());
 	}));
 }
 
@@ -81,15 +81,15 @@ fn bench_light_from_file_round_trip_memory(b: &mut Criterion) {
 	let dir = env::temp_dir();
 	let height = 486382;
 	{
-		let builder = NodeCacheBuilder::new(OptimizeFor::Cpu);
+		let builder = NodeCacheBuilder::new(OptimizeFor::Cpu, u64::max_value());
 		let mut dummy = builder.light(&dir, height);
 		dummy.to_file().unwrap();
 	}
 
 	b.bench_function("bench_light_compute_memmap", move |b| b.iter(|| {
-		let builder = NodeCacheBuilder::new(OptimizeFor::Cpu);
+		let builder = NodeCacheBuilder::new(OptimizeFor::Cpu, u64::max_value());
 		let light = builder.light_from_file(&dir, 486382).unwrap();
-		light.compute(&HASH, NONCE);
+		light.compute(&HASH, NONCE, u64::max_value());
 	}));
 }
 
@@ -100,14 +100,14 @@ fn bench_light_from_file_round_trip_memmap(b: &mut Criterion) {
 	let height = 486382;
 
 	{
-		let builder = NodeCacheBuilder::new(OptimizeFor::Memory);
+		let builder = NodeCacheBuilder::new(OptimizeFor::Memory, u64::max_value());
 		let mut dummy = builder.light(&dir, height);
 		dummy.to_file().unwrap();
 	}
 
 	b.bench_function("bench_light_compute_memmap", move |b| b.iter(|| {
-		let builder = NodeCacheBuilder::new(OptimizeFor::Memory);
+		let builder = NodeCacheBuilder::new(OptimizeFor::Memory, u64::max_value());
 		let light = builder.light_from_file(&dir, 486382).unwrap();
-		light.compute(&HASH, NONCE);
+		light.compute(&HASH, NONCE, u64::max_value());
 	}));
 }

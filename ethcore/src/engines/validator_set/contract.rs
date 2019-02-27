@@ -141,10 +141,10 @@ mod tests {
 	use rlp::encode;
 	use spec::Spec;
 	use types::header::Header;
-	use account_provider::AccountProvider;
-	use miner::MinerService;
+	use accounts::AccountProvider;
+	use miner::{self, MinerService};
 	use types::ids::BlockId;
-	use test_helpers::generate_dummy_client_with_spec_and_accounts;
+	use test_helpers::generate_dummy_client_with_spec;
 	use call_contract::CallContract;
 	use client::{BlockChainClient, ChainInfo, BlockInfo};
 	use super::super::ValidatorSet;
@@ -152,7 +152,7 @@ mod tests {
 
 	#[test]
 	fn fetches_validators() {
-		let client = generate_dummy_client_with_spec_and_accounts(Spec::new_validator_contract, None);
+		let client = generate_dummy_client_with_spec(Spec::new_validator_contract);
 		let vc = Arc::new(ValidatorContract::new("0000000000000000000000000000000000000005".parse::<Address>().unwrap()));
 		vc.register_client(Arc::downgrade(&client) as _);
 		let last_hash = client.best_block_header().hash();
@@ -164,13 +164,14 @@ mod tests {
 	fn reports_validators() {
 		let tap = Arc::new(AccountProvider::transient_provider());
 		let v1 = tap.insert_account(keccak("1").into(), &"".into()).unwrap();
-		let client = generate_dummy_client_with_spec_and_accounts(Spec::new_validator_contract, Some(tap.clone()));
+		let client = generate_dummy_client_with_spec(Spec::new_validator_contract);
 		client.engine().register_client(Arc::downgrade(&client) as _);
 		let validator_contract = "0000000000000000000000000000000000000005".parse::<Address>().unwrap();
 
 		// Make sure reporting can be done.
 		client.miner().set_gas_range_target((1_000_000.into(), 1_000_000.into()));
-		client.miner().set_author(v1, Some("".into())).unwrap();
+		let signer = Box::new((tap.clone(), v1, "".into()));
+		client.miner().set_author(miner::Author::Sealer(signer));
 
 		// Check a block that is a bit in future, reject it but don't report the validator.
 		let mut header = Header::default();

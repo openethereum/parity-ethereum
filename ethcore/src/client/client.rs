@@ -25,6 +25,7 @@ use blockchain::{BlockReceipts, BlockChain, BlockChainDB, BlockProvider, TreeRou
 use bytes::Bytes;
 use call_contract::{CallContract, RegistryInfo};
 use ethcore_miner::pool::VerifiedTransaction;
+use ethcore_miner::service_transaction_checker::ServiceTransactionChecker;
 use ethereum_types::{H256, Address, U256};
 use evm::Schedule;
 use hash::keccak;
@@ -60,7 +61,8 @@ use client::{
 	IoClient, BadBlocks,
 };
 use client::bad_blocks;
-use engines::{EthEngine, EpochTransition, ForkChoice};
+use engines::{EthEngine, EpochTransition, ForkChoice, EngineError};
+use engines::epoch::PendingTransition;
 use error::{
 	ImportErrorKind, ExecutionError, CallError, BlockError,
 	QueueError, QueueErrorKind, Error as EthcoreError, EthcoreResult, ErrorKind as EthcoreErrorKind
@@ -294,8 +296,8 @@ impl Importer {
 					continue;
 				}
 
-				match self.check_and_lock_block(block, client) {
-					Ok(closed_block) => {
+				match self.check_and_lock_block(&bytes, block, client) {
+					Ok((closed_block, pending)) => {
 						if self.engine.is_proposal(&header) {
 							self.block_queue.mark_as_good(&[hash]);
 							proposed_blocks.push(bytes);
@@ -304,7 +306,7 @@ impl Importer {
 
 							let transactions_len = closed_block.transactions().len();
 
-							let route = self.commit_block(closed_block, &header, encoded::Block::new(bytes), client);
+							let route = self.commit_block(closed_block, &header, encoded::Block::new(bytes), pending, client);
 							import_results.push(route);
 
 							client.report.write().accrue_block(&header, transactions_len);
@@ -356,7 +358,7 @@ impl Importer {
 		imported
 	}
 
-	fn check_and_lock_block(&self, block: PreverifiedBlock, client: &Client) -> EthcoreResult<LockedBlock> {
+	fn check_and_lock_block(&self, bytes: &[u8], block: PreverifiedBlock, client: &Client) -> EthcoreResult<(LockedBlock, Option<PendingTransition>)> {
 		let engine = &*self.engine;
 		let header = block.header.clone();
 
@@ -440,7 +442,15 @@ impl Importer {
 			bail!(e);
 		}
 
-		Ok(locked_block)
+		let pending = self.check_epoch_end_signal(
+			&header,
+			bytes,
+			locked_block.receipts(),
+			locked_block.state().db(),
+			client
+		)?;
+
+		Ok((locked_block, pending))
 	}
 
 	/// Import a block with transaction receipts.
@@ -473,7 +483,7 @@ impl Importer {
 	//
 	// The header passed is from the original block data and is sealed.
 	// TODO: should return an error if ImportRoute is none, issue #9910
-	fn commit_block<B>(&self, block: B, header: &Header, block_data: encoded::Block, client: &Client) -> ImportRoute where B: Drain {
+	fn commit_block<B>(&self, block: B, header: &Header, block_data: encoded::Block, pending: Option<PendingTransition>, client: &Client) -> ImportRoute where B: Drain {
 		let hash = &header.hash();
 		let number = header.number();
 		let parent = header.parent_hash();
@@ -528,15 +538,9 @@ impl Importer {
 
 		// check epoch end signal, potentially generating a proof on the current
 		// state.
-		self.check_epoch_end_signal(
-			&header,
-			block_data.raw(),
-			&receipts,
-			&state,
-			&chain,
-			&mut batch,
-			client
-		);
+		if let Some(pending) = pending {
+			chain.insert_pending_transition(&mut batch, header.hash(), pending);
+		}
 
 		state.journal_under(&mut batch, number, hash).expect("DB commit failed");
 
@@ -591,10 +595,8 @@ impl Importer {
 		block_bytes: &[u8],
 		receipts: &[Receipt],
 		state_db: &StateDB,
-		chain: &BlockChain,
-		batch: &mut DBTransaction,
 		client: &Client,
-	) {
+	) -> EthcoreResult<Option<PendingTransition>> {
 		use engines::EpochChange;
 
 		let hash = header.hash();
@@ -605,7 +607,6 @@ impl Importer {
 
 		match self.engine.signals_epoch_end(header, auxiliary) {
 			EpochChange::Yes(proof) => {
-				use engines::epoch::PendingTransition;
 				use engines::Proof;
 
 				let proof = match proof {
@@ -623,7 +624,7 @@ impl Importer {
 
 						let call = move |addr, data| {
 							let mut state_db = state_db.boxed_clone();
-							let backend = ::state::backend::Proving::new(state_db.as_hashdb_mut());
+							let backend = ::state::backend::Proving::new(state_db.as_hash_db_mut());
 
 							let transaction =
 								client.contract_call_tx(BlockId::Hash(*header.parent_hash()), addr, data);
@@ -642,11 +643,9 @@ impl Importer {
 								.transact(&transaction, options);
 
 							let res = match res {
-								Err(ExecutionError::Internal(e)) =>
-									Err(format!("Internal error: {}", e)),
 								Err(e) => {
 									trace!(target: "client", "Proved call failed: {}", e);
-									Ok((Vec::new(), state.drop().1.extract_proof()))
+									Err(e.to_string())
 								}
 								Ok(res) => Ok((res.output, state.drop().1.extract_proof())),
 							};
@@ -659,7 +658,7 @@ impl Importer {
 							Err(e) => {
 								warn!(target: "client", "Failed to generate transition proof for block {}: {}", hash, e);
 								warn!(target: "client", "Snapshots produced by this client may be incomplete");
-								Vec::new()
+								return Err(EngineError::FailedSystemCall(e).into())
 							}
 						}
 					}
@@ -667,13 +666,13 @@ impl Importer {
 
 				debug!(target: "client", "Block {} signals epoch end.", hash);
 
-				let pending = PendingTransition { proof: proof };
-				chain.insert_pending_transition(batch, hash, pending);
+				Ok(Some(PendingTransition { proof: proof }))
 			},
-			EpochChange::No => {},
+			EpochChange::No => Ok(None),
 			EpochChange::Unsure(_) => {
 				warn!(target: "client", "Detected invalid engine implementation.");
 				warn!(target: "client", "Engine claims to require more block data, but everything provided.");
+				Err(EngineError::InvalidEngine.into())
 			}
 		}
 	}
@@ -1177,7 +1176,7 @@ impl Client {
 		};
 
 		let processing_threads = self.config.snapshot.processing_threads;
-		snapshot::take_snapshot(&*self.engine, &self.chain.read(), start_hash, db.as_hashdb(), writer, p, processing_threads)?;
+		snapshot::take_snapshot(&*self.engine, &self.chain.read(), start_hash, db.as_hash_db(), writer, p, processing_threads)?;
 
 		Ok(())
 	}
@@ -1782,7 +1781,8 @@ impl BlockChainClient for Client {
 		};
 
 		let (root, db) = state.drop();
-		let trie = match self.factories.trie.readonly(db.as_hashdb(), &root) {
+		let db = &db.as_hash_db();
+		let trie = match self.factories.trie.readonly(db, &root) {
 			Ok(trie) => trie,
 			_ => {
 				trace!(target: "fatdb", "list_accounts: Couldn't open the DB");
@@ -1828,8 +1828,9 @@ impl BlockChainClient for Client {
 		};
 
 		let (_, db) = state.drop();
-		let account_db = self.factories.accountdb.readonly(db.as_hashdb(), keccak(account));
-		let trie = match self.factories.trie.readonly(account_db.as_hashdb(), &root) {
+		let account_db = &self.factories.accountdb.readonly(db.as_hash_db(), keccak(account));
+		let account_db = &account_db.as_hash_db();
+		let trie = match self.factories.trie.readonly(account_db, &root) {
 			Ok(trie) => trie,
 			_ => {
 				trace!(target: "fatdb", "list_storage: Couldn't open the DB");
@@ -2156,11 +2157,16 @@ impl BlockChainClient for Client {
 
 	fn transact_contract(&self, address: Address, data: Bytes) -> Result<(), transaction::Error> {
 		let authoring_params = self.importer.miner.authoring_params();
+		let service_transaction_checker = ServiceTransactionChecker::default();
+		let gas_price = match service_transaction_checker.check_address(self, authoring_params.author) {
+			Ok(true) => U256::zero(),
+			_ => self.importer.miner.sensible_gas_price(),
+		};
 		let transaction = transaction::Transaction {
 			nonce: self.latest_nonce(&authoring_params.author),
 			action: Action::Call(address),
 			gas: self.importer.miner.sensible_gas_limit(),
-			gas_price: self.importer.miner.sensible_gas_price(),
+			gas_price,
 			value: U256::zero(),
 			data: data,
 		};
@@ -2374,7 +2380,20 @@ impl ImportSealedBlock for Client {
 
 			let block_data = block.rlp_bytes();
 
-			let route = self.importer.commit_block(block, &header, encoded::Block::new(block_data), self);
+			let pending = self.importer.check_epoch_end_signal(
+				&header,
+				&block_data,
+				block.receipts(),
+				block.state().db(),
+				self
+			)?;
+			let route = self.importer.commit_block(
+				block,
+				&header,
+				encoded::Block::new(block_data),
+				pending,
+				self
+			);
 			trace!(target: "client", "Imported sealed block #{} ({})", header.number(), hash);
 			self.state_db.write().sync_cache(&route.enacted, &route.retracted, false);
 			route
@@ -2482,7 +2501,7 @@ impl ProvingBlockChainClient for Client {
 		let mut jdb = self.state_db.read().journal_db().boxed_clone();
 
 		state::prove_transaction_virtual(
-			jdb.as_hashdb_mut(),
+			jdb.as_hash_db_mut(),
 			header.state_root().clone(),
 			&transaction,
 			self.engine.machine(),

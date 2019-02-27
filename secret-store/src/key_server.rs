@@ -23,11 +23,11 @@ use parity_runtime::Executor;
 use super::acl_storage::AclStorage;
 use super::key_storage::KeyStorage;
 use super::key_server_set::KeyServerSet;
-use key_server_cluster::{math, ClusterCore};
+use key_server_cluster::{math, new_network_cluster};
 use traits::{AdminSessionsServer, ServerKeyGenerator, DocumentKeyServer, MessageSigner, KeyServer, NodeKeyPair};
 use types::{Error, Public, RequestSignature, Requester, ServerKeyId, EncryptedDocumentKey, EncryptedDocumentKeyShadow,
 	ClusterConfiguration, MessageHash, EncryptedMessageSignature, NodeId};
-use key_server_cluster::{ClusterClient, ClusterConfiguration as NetClusterConfiguration};
+use key_server_cluster::{ClusterClient, ClusterConfiguration as NetClusterConfiguration, NetConnectionsManagerConfig};
 
 /// Secret store key server implementation
 pub struct KeyServerImpl {
@@ -175,20 +175,23 @@ impl KeyServerCore {
 	pub fn new(config: &ClusterConfiguration, key_server_set: Arc<KeyServerSet>, self_key_pair: Arc<NodeKeyPair>,
 		acl_storage: Arc<AclStorage>, key_storage: Arc<KeyStorage>, executor: Executor) -> Result<Self, Error>
 	{
-		let config = NetClusterConfiguration {
+		let cconfig = NetClusterConfiguration {
 			self_key_pair: self_key_pair.clone(),
-			listen_address: (config.listener_address.address.clone(), config.listener_address.port),
 			key_server_set: key_server_set,
-			allow_connecting_to_higher_nodes: config.allow_connecting_to_higher_nodes,
 			acl_storage: acl_storage,
 			key_storage: key_storage,
-			admin_public: config.admin_public.clone(),
+			admin_public: config.admin_public,
+			preserve_sessions: false,
+		};
+		let net_config = NetConnectionsManagerConfig {
+			listen_address: (config.listener_address.address.clone(), config.listener_address.port),
+			allow_connecting_to_higher_nodes: config.allow_connecting_to_higher_nodes,
 			auto_migrate_enabled: config.auto_migrate_enabled,
 		};
 
-		let cluster = ClusterCore::new(executor, config)
-			.and_then(|c| c.run().map(|_| c.client()))
-			.map_err(|err| Error::from(err))?;
+		let core = new_network_cluster(executor, cconfig, net_config)?;
+		let cluster = core.client();
+		core.run()?;
 
 		Ok(KeyServerCore {
 			cluster,
@@ -297,14 +300,14 @@ pub mod tests {
 		let start = time::Instant::now();
 		let mut tried_reconnections = false;
 		loop {
-			if key_servers.iter().all(|ks| ks.cluster().cluster_state().connected.len() == num_nodes - 1) {
+			if key_servers.iter().all(|ks| ks.cluster().is_fully_connected()) {
 				break;
 			}
 
 			let old_tried_reconnections = tried_reconnections;
 			let mut fully_connected = true;
 			for key_server in &key_servers {
-				if key_server.cluster().cluster_state().connected.len() != num_nodes - 1 {
+				if !key_server.cluster().is_fully_connected() {
 					fully_connected = false;
 					if !old_tried_reconnections {
 						tried_reconnections = true;
@@ -434,7 +437,7 @@ pub mod tests {
 	#[test]
 	fn decryption_session_is_delegated_when_node_does_not_have_key_share() {
 		let _ = ::env_logger::try_init();
-		let (key_servers, _, runtime) = make_key_servers(6110, 3);
+		let (key_servers, key_storages, runtime) = make_key_servers(6110, 3);
 
 		// generate document key
 		let threshold = 0;
@@ -445,7 +448,7 @@ pub mod tests {
 		let generated_key = crypto::ecies::decrypt(&secret, &DEFAULT_MAC, &generated_key).unwrap();
 
 		// remove key from node0
-		key_servers[0].cluster().key_storage().remove(&document).unwrap();
+		key_storages[0].remove(&document).unwrap();
 
 		// now let's try to retrieve key back by requesting it from node0, so that session must be delegated
 		let retrieved_key = key_servers[0].restore_document_key(&document, &signature.into()).unwrap();
@@ -457,7 +460,7 @@ pub mod tests {
 	#[test]
 	fn schnorr_signing_session_is_delegated_when_node_does_not_have_key_share() {
 		let _ = ::env_logger::try_init();
-		let (key_servers, _, runtime) = make_key_servers(6114, 3);
+		let (key_servers, key_storages, runtime) = make_key_servers(6114, 3);
 		let threshold = 1;
 
 		// generate server key
@@ -467,7 +470,7 @@ pub mod tests {
 		let server_public = key_servers[0].generate_key(&server_key_id, &signature.clone().into(), threshold).unwrap();
 
 		// remove key from node0
-		key_servers[0].cluster().key_storage().remove(&server_key_id).unwrap();
+		key_storages[0].remove(&server_key_id).unwrap();
 
 		// sign message
 		let message_hash = H256::from(42);
@@ -484,7 +487,7 @@ pub mod tests {
 	#[test]
 	fn ecdsa_signing_session_is_delegated_when_node_does_not_have_key_share() {
 		let _ = ::env_logger::try_init();
-		let (key_servers, _, runtime) = make_key_servers(6117, 4);
+		let (key_servers, key_storages, runtime) = make_key_servers(6117, 4);
 		let threshold = 1;
 
 		// generate server key
@@ -494,7 +497,7 @@ pub mod tests {
 		let server_public = key_servers[0].generate_key(&server_key_id, &signature.clone().into(), threshold).unwrap();
 
 		// remove key from node0
-		key_servers[0].cluster().key_storage().remove(&server_key_id).unwrap();
+		key_storages[0].remove(&server_key_id).unwrap();
 
 		// sign message
 		let message_hash = H256::random();

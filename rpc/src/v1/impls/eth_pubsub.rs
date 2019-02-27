@@ -21,9 +21,7 @@ use std::collections::BTreeMap;
 
 use jsonrpc_core::{BoxFuture, Result, Error};
 use jsonrpc_core::futures::{self, Future, IntoFuture};
-use jsonrpc_macros::Trailing;
-use jsonrpc_macros::pubsub::{Sink, Subscriber};
-use jsonrpc_pubsub::SubscriptionId;
+use jsonrpc_pubsub::{SubscriptionId, typed::{Sink, Subscriber}};
 
 use v1::helpers::{errors, limit_logs, Subscribers};
 use v1::helpers::light_fetch::LightFetch;
@@ -38,7 +36,9 @@ use light::client::{LightChainClient, LightChainNotify};
 use light::on_demand::OnDemand;
 use parity_runtime::Executor;
 use parking_lot::{RwLock, Mutex};
-use sync::LightSync;
+
+use sync::{LightSyncProvider, LightNetworkDispatcher, ManageNetwork};
+
 use types::encoded;
 use types::filter::Filter as EthFilter;
 
@@ -89,12 +89,15 @@ impl<C> EthPubSubClient<C> {
 	}
 }
 
-impl EthPubSubClient<LightFetch> {
+impl<S> EthPubSubClient<LightFetch<S>>
+where
+	S: LightSyncProvider + LightNetworkDispatcher + ManageNetwork + 'static
+{
 	/// Creates a new `EthPubSubClient` for `LightClient`.
 	pub fn light(
 		client: Arc<LightChainClient>,
 		on_demand: Arc<OnDemand>,
-		sync: Arc<LightSync>,
+		sync: Arc<S>,
 		cache: Arc<Mutex<Cache>>,
 		executor: Executor,
 		gas_price_percentile: usize,
@@ -191,7 +194,10 @@ pub trait LightClient: Send + Sync {
 	fn logs(&self, filter: EthFilter) -> BoxFuture<Vec<Log>>;
 }
 
-impl LightClient for LightFetch {
+impl<S> LightClient for LightFetch<S>
+where
+	S: LightSyncProvider + LightNetworkDispatcher + ManageNetwork + 'static
+{
 	fn block_header(&self, id: BlockId) -> Option<encoded::Header> {
 		self.client.block_header(id)
 	}
@@ -202,10 +208,7 @@ impl LightClient for LightFetch {
 }
 
 impl<C: LightClient> LightChainNotify for ChainNotificationHandler<C> {
-	fn new_headers(
-		&self,
-		enacted: &[H256],
-	) {
+	fn new_headers(&self, enacted: &[H256]) {
 		let headers = enacted
 			.iter()
 			.filter_map(|hash| self.client.block_header(BlockId::Hash(*hash)))
@@ -262,7 +265,7 @@ impl<C: Send + Sync + 'static> EthPubSub for EthPubSubClient<C> {
 		_meta: Metadata,
 		subscriber: Subscriber<pubsub::Result>,
 		kind: pubsub::Kind,
-		params: Trailing<pubsub::Params>,
+		params: Option<pubsub::Params>,
 	) {
 		let error = match (kind, params.into()) {
 			(pubsub::Kind::NewHeads, None) => {
@@ -299,7 +302,7 @@ impl<C: Send + Sync + 'static> EthPubSub for EthPubSubClient<C> {
 		let _ = subscriber.reject(error);
 	}
 
-	fn unsubscribe(&self, id: SubscriptionId) -> Result<bool> {
+	fn unsubscribe(&self, _: Option<Self::Metadata>, id: SubscriptionId) -> Result<bool> {
 		let res = self.heads_subscribers.write().remove(&id).is_some();
 		let res2 = self.logs_subscribers.write().remove(&id).is_some();
 		let res3 = self.transactions_subscribers.write().remove(&id).is_some();

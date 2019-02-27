@@ -14,13 +14,6 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
-macro_rules! println_stderr(
-    ($($arg:tt)*) => { {
-        let r = writeln!(&mut ::std::io::stderr(), $($arg)*);
-        r.expect("failed printing to stderr");
-    } }
-);
-
 macro_rules! return_if_parse_error {
 	($e:expr) => (
 		match $e {
@@ -143,7 +136,7 @@ macro_rules! usage {
 	) => {
 		use toml;
 		use std::{fs, io, process, cmp};
-		use std::io::{Read, Write};
+		use std::io::Read;
 		use parity_version::version;
 		use clap::{Arg, App, SubCommand, AppSettings, ArgSettings, Error as ClapError, ErrorKind as ClapErrorKind};
 		use dir::helpers::replace_home;
@@ -172,17 +165,17 @@ macro_rules! usage {
 				match self {
 					ArgsError::Clap(e) => e.exit(),
 					ArgsError::Decode(e) => {
-						println_stderr!("You might have supplied invalid parameters in config file.");
-						println_stderr!("{}", e);
+						eprintln!("You might have supplied invalid parameters in config file.");
+						eprintln!("{}", e);
 						process::exit(2)
 					},
 					ArgsError::Config(path, e) => {
-						println_stderr!("There was an error reading your config file at: {}", path);
-						println_stderr!("{}", e);
+						eprintln!("There was an error reading your config file at: {}", path);
+						eprintln!("{}", e);
 						process::exit(2)
 					},
 					ArgsError::PeerConfiguration => {
-						println_stderr!("You have supplied `min_peers` > `max_peers`");
+						eprintln!("You have supplied `min_peers` > `max_peers`");
 						process::exit(2)
 					}
 				}
@@ -332,7 +325,7 @@ macro_rules! usage {
 				let args = match (fs::File::open(&config_file), raw_args.arg_config.clone()) {
 					// Load config file
 					(Ok(mut file), _) => {
-						println_stderr!("Loading config file from {}", &config_file);
+						eprintln!("Loading config file from {}", &config_file);
 						let mut config = String::new();
 						file.read_to_string(&mut config).map_err(|e| ArgsError::Config(config_file, e))?;
 						Ok(raw_args.into_args(Self::parse_config(&config)?))

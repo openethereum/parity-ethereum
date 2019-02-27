@@ -14,6 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
+use ethereum_types::{H160, H256};
 use jsonrpc_core::{Error as RpcError};
 use serde::de::{Error, DeserializeOwned};
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
@@ -21,7 +22,7 @@ use serde_json::{Value, from_value};
 use types::filter::Filter as EthFilter;
 use types::ids::BlockId;
 
-use v1::types::{BlockNumber, H160, H256, Log};
+use v1::types::{BlockNumber, Log};
 use v1::helpers::errors::invalid_params;
 
 /// Variadic value

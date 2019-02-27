@@ -940,406 +940,315 @@ fn check_threshold(threshold: usize, nodes: &BTreeSet<NodeId>) -> Result<(), Err
 #[cfg(test)]
 pub mod tests {
 	use std::sync::Arc;
-	use std::collections::{BTreeSet, BTreeMap, VecDeque};
-	use std::time::Duration;
-	use ethereum_types::Address;
-	use ethkey::{Random, Generator, KeyPair};
-	use key_server_cluster::{NodeId, SessionId, Error, KeyStorage, DummyKeyStorage};
-	use key_server_cluster::message::{self, Message, GenerationMessage};
-	use key_server_cluster::cluster::tests::{DummyCluster, make_clusters, run_clusters, loop_until,
-		all_connections_established, new_runtime};
+	use ethereum_types::H256;
+	use ethkey::{Random, Generator, KeyPair, Secret};
+	use key_server_cluster::{NodeId, Error, KeyStorage};
+	use key_server_cluster::message::{self, Message, GenerationMessage, KeysDissemination,
+		PublicKeyShare, ConfirmInitialization};
+	use key_server_cluster::cluster::tests::{MessageLoop as ClusterMessageLoop, make_clusters_and_preserve_sessions};
 	use key_server_cluster::cluster_sessions::ClusterSession;
-	use key_server_cluster::generation_session::{SessionImpl, SessionState, SessionParams};
+	use key_server_cluster::generation_session::{SessionImpl, SessionState};
 	use key_server_cluster::math;
 	use key_server_cluster::math::tests::do_encryption_and_decryption;
 
-	pub struct Node {
-		pub cluster: Arc<DummyCluster>,
-		pub key_storage: Arc<DummyKeyStorage>,
-		pub session: SessionImpl,
-	}
-
-	pub struct MessageLoop {
-		pub session_id: SessionId,
-		pub nodes: BTreeMap<NodeId, Node>,
-		pub queue: VecDeque<(NodeId, NodeId, Message)>,
-	}
-
-	pub fn generate_nodes_ids(n: usize) -> BTreeSet<NodeId> {
-		(0..n).map(|_| math::generate_random_point().unwrap()).collect()
-	}
+	#[derive(Debug)]
+	pub struct MessageLoop(pub ClusterMessageLoop);
 
 	impl MessageLoop {
-		pub fn new(nodes_num: usize) -> Self {
-			Self::with_nodes_ids(generate_nodes_ids(nodes_num))
+		pub fn new(num_nodes: usize) -> Self {
+			MessageLoop(make_clusters_and_preserve_sessions(num_nodes))
 		}
 
-		pub fn with_nodes_ids(nodes_ids: BTreeSet<NodeId>) -> Self {
-			let mut nodes = BTreeMap::new();
-			let session_id = SessionId::default();
-			for node_id in nodes_ids {
-				let cluster = Arc::new(DummyCluster::new(node_id.clone()));
-				let key_storage = Arc::new(DummyKeyStorage::default());
-				let session = SessionImpl::new(SessionParams {
-					id: session_id.clone(),
-					self_node_id: node_id.clone(),
-					key_storage: Some(key_storage.clone()),
-					cluster: cluster.clone(),
-					nonce: Some(0),
-				});
-				nodes.insert(node_id, Node { cluster: cluster, key_storage: key_storage, session: session });
-			}
+		pub fn init(self, threshold: usize) -> Result<Self, Error> {
+			self.0.cluster(0).client().new_generation_session(Default::default(), None, Default::default(), threshold)
+				.map(|_| self)
+		}
 
-			let nodes_ids: Vec<_> = nodes.keys().cloned().collect();
-			for node in nodes.values() {
-				for node_id in &nodes_ids {
-					node.cluster.add_node(node_id.clone());
-				}
-			}
+		pub fn session_at(&self, idx: usize) -> Arc<SessionImpl> {
+			self.0.sessions(idx).generation_sessions.first().unwrap()
+		}
 
-			MessageLoop {
-				session_id: session_id,
-				nodes: nodes,
-				queue: VecDeque::new(),
+		pub fn session_of(&self, node: &NodeId) -> Arc<SessionImpl> {
+			self.0.sessions_of(node).generation_sessions.first().unwrap()
+		}
+
+		pub fn take_message_confirm_initialization(&self) -> (NodeId, NodeId, ConfirmInitialization) {
+			match self.0.take_message() {
+				Some((from, to, Message::Generation(GenerationMessage::ConfirmInitialization(msg)))) =>
+					(from, to, msg),
+				_ => panic!("unexpected"),
 			}
 		}
 
-		pub fn master(&self) -> &SessionImpl {
-			&self.nodes.values().nth(0).unwrap().session
-		}
-
-		pub fn first_slave(&self) -> &SessionImpl {
-			&self.nodes.values().nth(1).unwrap().session
-		}
-
-		pub fn second_slave(&self) -> &SessionImpl {
-			&self.nodes.values().nth(2).unwrap().session
-		}
-
-		pub fn take_message(&mut self) -> Option<(NodeId, NodeId, Message)> {
-			self.nodes.values()
-				.filter_map(|n| n.cluster.take_message().map(|m| (n.session.node().clone(), m.0, m.1)))
-				.nth(0)
-				.or_else(|| self.queue.pop_front())
-		}
-
-		pub fn process_message(&mut self, msg: (NodeId, NodeId, Message)) -> Result<(), Error> {
-			match {
-				match msg.2 {
-					Message::Generation(GenerationMessage::InitializeSession(ref message)) => self.nodes[&msg.1].session.on_initialize_session(msg.0.clone(), &message),
-					Message::Generation(GenerationMessage::ConfirmInitialization(ref message)) => self.nodes[&msg.1].session.on_confirm_initialization(msg.0.clone(), &message),
-					Message::Generation(GenerationMessage::CompleteInitialization(ref message)) => self.nodes[&msg.1].session.on_complete_initialization(msg.0.clone(), &message),
-					Message::Generation(GenerationMessage::KeysDissemination(ref message)) => self.nodes[&msg.1].session.on_keys_dissemination(msg.0.clone(), &message),
-					Message::Generation(GenerationMessage::PublicKeyShare(ref message)) => self.nodes[&msg.1].session.on_public_key_share(msg.0.clone(), &message),
-					Message::Generation(GenerationMessage::SessionCompleted(ref message)) => self.nodes[&msg.1].session.on_session_completed(msg.0.clone(), &message),
-					_ => panic!("unexpected"),
-				}
-			} {
-				Ok(_) => Ok(()),
-				Err(Error::TooEarlyForRequest) => {
-					self.queue.push_back(msg);
-					Ok(())
-				},
-				Err(err) => Err(err),
+		pub fn take_message_keys_dissemination(&self) -> (NodeId, NodeId, KeysDissemination) {
+			match self.0.take_message() {
+				Some((from, to, Message::Generation(GenerationMessage::KeysDissemination(msg)))) =>
+					(from, to, msg),
+				_ => panic!("unexpected"),
 			}
 		}
 
-		pub fn take_and_process_message(&mut self) -> Result<(), Error> {
-			let msg = self.take_message().unwrap();
-			self.process_message(msg)
+		pub fn take_message_public_key_share(&self) -> (NodeId, NodeId, PublicKeyShare) {
+			match self.0.take_message() {
+				Some((from, to, Message::Generation(GenerationMessage::PublicKeyShare(msg)))) =>
+					(from, to, msg),
+				_ => panic!("unexpected"),
+			}
 		}
 
-		pub fn compute_key_pair(&self, t: usize) -> KeyPair {
-			let secret_shares = self.nodes.values()
-				.map(|nd| nd.key_storage.get(&SessionId::default()).unwrap().unwrap().last_version().unwrap().secret_share.clone())
-				.take(t + 1)
-				.collect::<Vec<_>>();
-			let secret_shares = secret_shares.iter().collect::<Vec<_>>();
-			let id_numbers = self.nodes.iter()
-				.map(|(n, nd)| nd.key_storage.get(&SessionId::default()).unwrap().unwrap().last_version().unwrap().id_numbers[n].clone())
-				.take(t + 1)
-				.collect::<Vec<_>>();
-			let id_numbers = id_numbers.iter().collect::<Vec<_>>();
-			let joint_secret1 = math::compute_joint_secret_from_shares(t, &secret_shares, &id_numbers).unwrap();
-
-			let secret_values: Vec<_> = self.nodes.values().map(|s| s.session.joint_public_and_secret().unwrap().unwrap().1).collect();
-			let joint_secret2 = math::compute_joint_secret(secret_values.iter()).unwrap();
-			assert_eq!(joint_secret1, joint_secret2);
-
-			KeyPair::from_secret(joint_secret1).unwrap()
+		pub fn nodes_id_numbers(&self) -> Vec<Secret> {
+			let session = self.session_at(0);
+			let session_data = session.data.lock();
+			session_data.nodes.values().map(|n| n.id_number.clone()).collect()
 		}
-	}
 
-	fn make_simple_cluster(threshold: usize, num_nodes: usize) -> Result<(SessionId, NodeId, NodeId, MessageLoop), Error> {
-		let l = MessageLoop::new(num_nodes);
-		l.master().initialize(Default::default(), Default::default(), false, threshold, l.nodes.keys().cloned().collect::<BTreeSet<_>>().into())?;
+		pub fn nodes_secret_shares(&self) -> Vec<Secret> {
+			(0..self.0.nodes().len()).map(|i| {
+				let session = self.session_at(i);
+				let session_data = session.data.lock();
+				session_data.secret_share.as_ref().unwrap().clone()
+			}).collect()
+		}
 
-		let session_id = l.session_id.clone();
-		let master_id = l.master().node().clone();
-		let slave_id = l.first_slave().node().clone();
-		Ok((session_id, master_id, slave_id, l))
+		pub fn compute_key_pair(&self) -> KeyPair {
+			let t = self.0.key_storage(0).get(&Default::default()).unwrap().unwrap().threshold;
+			let secret_shares = self.nodes_secret_shares();
+			let id_numbers = self.nodes_id_numbers();
+			let secret_shares = secret_shares.iter().take(t + 1).collect::<Vec<_>>();
+			let id_numbers = id_numbers.iter().take(t + 1).collect::<Vec<_>>();
+			let joint_secret = math::compute_joint_secret_from_shares(t, &secret_shares, &id_numbers).unwrap();
+
+			KeyPair::from_secret(joint_secret).unwrap()
+		}
+
+		pub fn key_version(&self) -> H256 {
+			self.0.key_storage(0).get(&Default::default())
+				.unwrap().unwrap().versions.iter().last().unwrap().hash
+		}
 	}
 
 	#[test]
 	fn initializes_in_cluster_of_single_node() {
-		let l = MessageLoop::new(1);
-		assert!(l.master().initialize(Default::default(), Default::default(), false, 0, l.nodes.keys().cloned().collect::<BTreeSet<_>>().into()).is_ok());
+		MessageLoop::new(1).init(0).unwrap();
 	}
 
 	#[test]
 	fn fails_to_initialize_if_threshold_is_wrong() {
-		match make_simple_cluster(2, 2) {
-			Err(Error::NotEnoughNodesForThreshold) => (),
-			_ => panic!("unexpected"),
-		}
+		assert_eq!(MessageLoop::new(2).init(2).unwrap_err(), Error::NotEnoughNodesForThreshold);
 	}
 
 	#[test]
 	fn fails_to_initialize_when_already_initialized() {
-		let (_, _, _, l) = make_simple_cluster(0, 2).unwrap();
-		assert_eq!(l.master().initialize(Default::default(), Default::default(), false, 0, l.nodes.keys().cloned().collect::<BTreeSet<_>>().into()).unwrap_err(),
-			Error::InvalidStateForRequest);
+		let ml = MessageLoop::new(2).init(0).unwrap();
+		assert_eq!(
+			ml.session_at(0).initialize(Default::default(), Default::default(), false, 0, ml.0.nodes().into()),
+			Err(Error::InvalidStateForRequest),
+		);
 	}
 
 	#[test]
 	fn fails_to_accept_initialization_when_already_initialized() {
-		let (_, _, _, mut l) = make_simple_cluster(0, 2).unwrap();
-		let message = l.take_message().unwrap();
-		l.process_message(message.clone()).unwrap();
-		assert_eq!(l.process_message(message.clone()).unwrap_err(), Error::InvalidStateForRequest);
+		let ml = MessageLoop::new(2).init(0).unwrap();
+		let (from, to, msg) = ml.0.take_message().unwrap();
+		ml.0.process_message(from, to, msg.clone());
+		assert_eq!(
+			ml.session_of(&to).on_message(&from, &msg),
+			Err(Error::InvalidStateForRequest),
+		);
 	}
 
 	#[test]
 	fn slave_updates_derived_point_on_initialization() {
-		let (_, _, _, mut l) = make_simple_cluster(0, 2).unwrap();
-		let passed_point = match l.take_message().unwrap() {
-			(f, t, Message::Generation(GenerationMessage::InitializeSession(message))) => {
-				let point = message.derived_point.clone();
-				l.process_message((f, t, Message::Generation(GenerationMessage::InitializeSession(message)))).unwrap();
-				point
+		let ml = MessageLoop::new(2).init(0).unwrap();
+		let original_point = match ml.0.take_message().unwrap() {
+			(from, to, Message::Generation(GenerationMessage::InitializeSession(msg))) => {
+				let original_point = msg.derived_point.clone();
+				let msg = Message::Generation(GenerationMessage::InitializeSession(msg));
+				ml.0.process_message(from, to, msg);
+				original_point
 			},
 			_ => panic!("unexpected"),
 		};
 
-		match l.take_message().unwrap() {
-			(_, _, Message::Generation(GenerationMessage::ConfirmInitialization(message))) => assert!(passed_point != message.derived_point),
+		match ml.0.take_message().unwrap() {
+			(_, _, Message::Generation(GenerationMessage::ConfirmInitialization(msg))) =>
+				assert!(original_point != msg.derived_point),
 			_ => panic!("unexpected"),
 		}
 	}
 
 	#[test]
 	fn fails_to_accept_initialization_confirmation_if_already_accepted_from_the_same_node() {
-		let (sid, _, s, mut l) = make_simple_cluster(0, 3).unwrap();
-		l.take_and_process_message().unwrap();
-		l.take_and_process_message().unwrap();
-		l.take_and_process_message().unwrap();
-		assert_eq!(l.master().on_confirm_initialization(s, &message::ConfirmInitialization {
-			session: sid.into(),
-			session_nonce: 0,
-			derived_point: math::generate_random_point().unwrap().into(),
-		}).unwrap_err(), Error::InvalidStateForRequest);
+		let ml = MessageLoop::new(3).init(0).unwrap();
+		ml.0.take_and_process_message();
+
+		let (from, to, msg) = ml.take_message_confirm_initialization();
+		ml.0.process_message(from, to, Message::Generation(GenerationMessage::ConfirmInitialization(msg.clone())));
+		assert_eq!(ml.session_of(&to).on_confirm_initialization(from, &msg), Err(Error::InvalidStateForRequest));
 	}
 
 	#[test]
 	fn fails_to_accept_initialization_confirmation_if_initialization_already_completed() {
-		let (sid, _, s, mut l) = make_simple_cluster(0, 2).unwrap();
-		l.take_and_process_message().unwrap();
-		l.take_and_process_message().unwrap();
-		assert_eq!(l.master().on_confirm_initialization(s, &message::ConfirmInitialization {
-			session: sid.into(),
+		let ml = MessageLoop::new(2).init(0).unwrap();
+		ml.0.take_and_process_message();
+		ml.0.take_and_process_message();
+		assert_eq!(ml.session_at(0).on_confirm_initialization(ml.0.node(1), &message::ConfirmInitialization {
+			session: Default::default(),
 			session_nonce: 0,
 			derived_point: math::generate_random_point().unwrap().into(),
-		}).unwrap_err(), Error::InvalidStateForRequest);
+		}), Err(Error::InvalidStateForRequest));
 	}
 
 	#[test]
 	fn master_updates_derived_point_on_initialization_completion() {
-		let (_, _, _, mut l) = make_simple_cluster(0, 2).unwrap();
-		l.take_and_process_message().unwrap();
-		let passed_point = match l.take_message().unwrap() {
-			(f, t, Message::Generation(GenerationMessage::ConfirmInitialization(message))) => {
-				let point = message.derived_point.clone();
-				l.process_message((f, t, Message::Generation(GenerationMessage::ConfirmInitialization(message)))).unwrap();
-				point
+		let ml = MessageLoop::new(2).init(0).unwrap();
+		ml.0.take_and_process_message();
+		let original_point = match ml.0.take_message().unwrap() {
+			(from, to, Message::Generation(GenerationMessage::ConfirmInitialization(msg))) => {
+				let original_point = msg.derived_point.clone();
+				let msg = Message::Generation(GenerationMessage::ConfirmInitialization(msg));
+				ml.session_of(&to).on_message(&from, &msg).unwrap();
+				original_point
 			},
 			_ => panic!("unexpected"),
 		};
 
-		assert!(l.master().derived_point().unwrap() != passed_point.into());
-	}
-
-	#[test]
-	fn fails_to_complete_initialization_if_threshold_is_wrong() {
-		let (sid, m, s, l) = make_simple_cluster(0, 2).unwrap();
-		let mut nodes = BTreeMap::new();
-		nodes.insert(m, math::generate_random_scalar().unwrap());
-		nodes.insert(s, math::generate_random_scalar().unwrap());
-		assert_eq!(l.first_slave().on_initialize_session(m, &message::InitializeSession {
-			session: sid.into(),
-			session_nonce: 0,
-			origin: None,
-			author: Address::default().into(),
-			nodes: nodes.into_iter().map(|(k, v)| (k.into(), v.into())).collect(),
-			is_zero: false,
-			threshold: 2,
-			derived_point: math::generate_random_point().unwrap().into(),
-		}).unwrap_err(), Error::NotEnoughNodesForThreshold);
+		assert!(ml.session_at(0).derived_point().unwrap() != original_point.into());
 	}
 
 	#[test]
 	fn fails_to_complete_initialization_if_not_waiting_for_it() {
-		let (sid, m, _, l) = make_simple_cluster(0, 2).unwrap();
-		assert_eq!(l.first_slave().on_complete_initialization(m, &message::CompleteInitialization {
-			session: sid.into(),
+		let ml = MessageLoop::new(2).init(0).unwrap();
+		ml.0.take_and_process_message();
+		assert_eq!(ml.session_at(0).on_complete_initialization(ml.0.node(1), &message::CompleteInitialization {
+			session: Default::default(),
 			session_nonce: 0,
 			derived_point: math::generate_random_point().unwrap().into(),
-		}).unwrap_err(), Error::InvalidStateForRequest);
+		}), Err(Error::InvalidStateForRequest));
 	}
 
 	#[test]
 	fn fails_to_complete_initialization_from_non_master_node() {
-		let (sid, _, _, mut l) = make_simple_cluster(0, 3).unwrap();
-		l.take_and_process_message().unwrap();
-		l.take_and_process_message().unwrap();
-		l.take_and_process_message().unwrap();
-		l.take_and_process_message().unwrap();
-		assert_eq!(l.first_slave().on_complete_initialization(l.second_slave().node().clone(), &message::CompleteInitialization {
-			session: sid.into(),
+		let ml = MessageLoop::new(3).init(0).unwrap();
+		ml.0.take_and_process_message();
+		ml.0.take_and_process_message();
+		ml.0.take_and_process_message();
+		ml.0.take_and_process_message();
+		assert_eq!(ml.session_at(1).on_complete_initialization(ml.0.node(2), &message::CompleteInitialization {
+			session: Default::default(),
 			session_nonce: 0,
 			derived_point: math::generate_random_point().unwrap().into(),
-		}).unwrap_err(), Error::InvalidMessage);
+		}), Err(Error::InvalidMessage));
 	}
 
 	#[test]
 	fn fails_to_accept_keys_dissemination_if_not_waiting_for_it() {
-		let (sid, _, s, l) = make_simple_cluster(0, 2).unwrap();
-		assert_eq!(l.master().on_keys_dissemination(s, &message::KeysDissemination {
-			session: sid.into(),
+		let ml = MessageLoop::new(2).init(0).unwrap();
+		assert_eq!(ml.session_at(0).on_keys_dissemination(ml.0.node(1), &message::KeysDissemination {
+			session: Default::default(),
 			session_nonce: 0,
 			secret1: math::generate_random_scalar().unwrap().into(),
 			secret2: math::generate_random_scalar().unwrap().into(),
 			publics: vec![math::generate_random_point().unwrap().into()],
-		}).unwrap_err(), Error::TooEarlyForRequest);
+		}), Err(Error::TooEarlyForRequest));
 	}
 
 	#[test]
 	fn fails_to_accept_keys_dissemination_if_wrong_number_of_publics_passed() {
-		let (sid, m, _, mut l) = make_simple_cluster(0, 3).unwrap();
-		l.take_and_process_message().unwrap(); // m -> s1: InitializeSession
-		l.take_and_process_message().unwrap(); // m -> s2: InitializeSession
-		l.take_and_process_message().unwrap(); // s1 -> m: ConfirmInitialization
-		l.take_and_process_message().unwrap(); // s2 -> m: ConfirmInitialization
-		l.take_and_process_message().unwrap(); // m -> s1: CompleteInitialization
-		l.take_and_process_message().unwrap(); // m -> s2: CompleteInitialization
-		l.take_and_process_message().unwrap(); // m -> s1: KeysDissemination
-		assert_eq!(l.first_slave().on_keys_dissemination(m, &message::KeysDissemination {
-			session: sid.into(),
-			session_nonce: 0,
-			secret1: math::generate_random_scalar().unwrap().into(),
-			secret2: math::generate_random_scalar().unwrap().into(),
-			publics: vec![math::generate_random_point().unwrap().into(), math::generate_random_point().unwrap().into()],
-		}).unwrap_err(), Error::InvalidMessage);
+		let ml = MessageLoop::new(3).init(0).unwrap();
+		ml.0.take_and_process_message(); // m -> s1: InitializeSession
+		ml.0.take_and_process_message(); // m -> s2: InitializeSession
+		ml.0.take_and_process_message(); // s1 -> m: ConfirmInitialization
+		ml.0.take_and_process_message(); // s2 -> m: ConfirmInitialization
+		ml.0.take_and_process_message(); // m -> s1: CompleteInitialization
+		ml.0.take_and_process_message(); // m -> s2: CompleteInitialization
+
+		let (from, to, mut msg) = ml.take_message_keys_dissemination();
+		msg.publics.clear();
+		assert_eq!(ml.session_of(&to).on_keys_dissemination(from, &msg), Err(Error::InvalidMessage));
 	}
 
 	#[test]
 	fn fails_to_accept_keys_dissemination_second_time_from_the_same_node() {
-		let (sid, m, _, mut l) = make_simple_cluster(0, 3).unwrap();
-		l.take_and_process_message().unwrap(); // m -> s1: InitializeSession
-		l.take_and_process_message().unwrap(); // m -> s2: InitializeSession
-		l.take_and_process_message().unwrap(); // s1 -> m: ConfirmInitialization
-		l.take_and_process_message().unwrap(); // s2 -> m: ConfirmInitialization
-		l.take_and_process_message().unwrap(); // m -> s1: CompleteInitialization
-		l.take_and_process_message().unwrap(); // m -> s2: CompleteInitialization
-		l.take_and_process_message().unwrap(); // m -> s1: KeysDissemination
-		assert_eq!(l.first_slave().on_keys_dissemination(m, &message::KeysDissemination {
-			session: sid.into(),
-			session_nonce: 0,
-			secret1: math::generate_random_scalar().unwrap().into(),
-			secret2: math::generate_random_scalar().unwrap().into(),
-			publics: vec![math::generate_random_point().unwrap().into()],
-		}).unwrap_err(), Error::InvalidStateForRequest);
+		let ml = MessageLoop::new(3).init(0).unwrap();
+		ml.0.take_and_process_message(); // m -> s1: InitializeSession
+		ml.0.take_and_process_message(); // m -> s2: InitializeSession
+		ml.0.take_and_process_message(); // s1 -> m: ConfirmInitialization
+		ml.0.take_and_process_message(); // s2 -> m: ConfirmInitialization
+		ml.0.take_and_process_message(); // m -> s1: CompleteInitialization
+		ml.0.take_and_process_message(); // m -> s2: CompleteInitialization
+
+		let (from, to, msg) = ml.take_message_keys_dissemination();
+		ml.0.process_message(from, to, Message::Generation(GenerationMessage::KeysDissemination(msg.clone())));
+		assert_eq!(ml.session_of(&to).on_keys_dissemination(from, &msg), Err(Error::InvalidStateForRequest));
 	}
 
 	#[test]
 	fn should_not_accept_public_key_share_when_is_not_waiting_for_it() {
-		let (sid, _, s, l) = make_simple_cluster(1, 3).unwrap();
-		assert_eq!(l.master().on_public_key_share(s, &message::PublicKeyShare {
-			session: sid.into(),
+		let ml = MessageLoop::new(3).init(1).unwrap();
+		assert_eq!(ml.session_at(0).on_public_key_share(ml.0.node(1), &message::PublicKeyShare {
+			session: Default::default(),
 			session_nonce: 0,
 			public_share: math::generate_random_point().unwrap().into(),
-		}).unwrap_err(), Error::InvalidStateForRequest);
+		}), Err(Error::InvalidStateForRequest));
 	}
 
 	#[test]
 	fn should_not_accept_public_key_share_when_receiving_twice() {
-		let (sid, m, _, mut l) = make_simple_cluster(0, 3).unwrap();
-		l.take_and_process_message().unwrap(); // m -> s1: InitializeSession
-		l.take_and_process_message().unwrap(); // m -> s2: InitializeSession
-		l.take_and_process_message().unwrap(); // s1 -> m: ConfirmInitialization
-		l.take_and_process_message().unwrap(); // s2 -> m: ConfirmInitialization
-		l.take_and_process_message().unwrap(); // m -> s1: CompleteInitialization
-		l.take_and_process_message().unwrap(); // m -> s2: CompleteInitialization
-		l.take_and_process_message().unwrap(); // m -> s1: KeysDissemination
-		l.take_and_process_message().unwrap(); // m -> s2: KeysDissemination
-		l.take_and_process_message().unwrap(); // s1 -> m: KeysDissemination
-		l.take_and_process_message().unwrap(); // s1 -> s2: KeysDissemination
-		l.take_and_process_message().unwrap(); // s2 -> m: KeysDissemination
-		l.take_and_process_message().unwrap(); // s2 -> s1: KeysDissemination
-		let (f, t, msg) = match l.take_message() {
-			Some((f, t, Message::Generation(GenerationMessage::PublicKeyShare(msg)))) => (f, t, msg),
-			_ => panic!("unexpected"),
-		};
-		assert_eq!(&f, l.master().node());
-		assert_eq!(&t, l.second_slave().node());
-		l.process_message((f, t, Message::Generation(GenerationMessage::PublicKeyShare(msg.clone())))).unwrap();
-		assert_eq!(l.second_slave().on_public_key_share(m, &message::PublicKeyShare {
-			session: sid.into(),
-			session_nonce: 0,
-			public_share: math::generate_random_point().unwrap().into(),
-		}).unwrap_err(), Error::InvalidMessage);
+		let ml = MessageLoop::new(3).init(0).unwrap();
+		ml.0.take_and_process_message(); // m -> s1: InitializeSession
+		ml.0.take_and_process_message(); // m -> s2: InitializeSession
+		ml.0.take_and_process_message(); // s1 -> m: ConfirmInitialization
+		ml.0.take_and_process_message(); // s2 -> m: ConfirmInitialization
+		ml.0.take_and_process_message(); // m -> s1: CompleteInitialization
+		ml.0.take_and_process_message(); // m -> s2: CompleteInitialization
+		ml.0.take_and_process_message(); // m -> s1: KeysDissemination
+		ml.0.take_and_process_message(); // m -> s2: KeysDissemination
+		ml.0.take_and_process_message(); // s1 -> m: KeysDissemination
+		ml.0.take_and_process_message(); // s1 -> s2: KeysDissemination
+		ml.0.take_and_process_message(); // s2 -> m: KeysDissemination
+		ml.0.take_and_process_message(); // s2 -> s1: KeysDissemination
+
+		let (from, to, msg) = ml.take_message_public_key_share();
+		ml.0.process_message(from, to, Message::Generation(GenerationMessage::PublicKeyShare(msg.clone())));
+		assert_eq!(ml.session_of(&to).on_public_key_share(from, &msg), Err(Error::InvalidMessage));
 	}
 
 	#[test]
 	fn encryption_fails_on_session_timeout() {
-		let (_, _, _, l) = make_simple_cluster(0, 2).unwrap();
-		assert!(l.master().joint_public_and_secret().is_none());
-		l.master().on_session_timeout();
-		assert!(l.master().joint_public_and_secret().unwrap().unwrap_err() == Error::NodeDisconnected);
+		let ml = MessageLoop::new(2).init(0).unwrap();
+		assert!(ml.session_at(0).joint_public_and_secret().is_none());
+		ml.session_at(0).on_session_timeout();
+		assert_eq!(ml.session_at(0).joint_public_and_secret().unwrap(), Err(Error::NodeDisconnected));
 	}
 
 	#[test]
 	fn encryption_fails_on_node_timeout() {
-		let (_, _, _, l) = make_simple_cluster(0, 2).unwrap();
-		assert!(l.master().joint_public_and_secret().is_none());
-		l.master().on_node_timeout(l.first_slave().node());
-		assert!(l.master().joint_public_and_secret().unwrap().unwrap_err() == Error::NodeDisconnected);
+		let ml = MessageLoop::new(2).init(0).unwrap();
+		assert!(ml.session_at(0).joint_public_and_secret().is_none());
+		ml.session_at(0).on_node_timeout(&ml.0.node(1));
+		assert_eq!(ml.session_at(0).joint_public_and_secret().unwrap(), Err(Error::NodeDisconnected));
 	}
 
 	#[test]
 	fn complete_enc_dec_session() {
 		let test_cases = [(0, 5), (2, 5), (3, 5)];
 		for &(threshold, num_nodes) in &test_cases {
-			let mut l = MessageLoop::new(num_nodes);
-			l.master().initialize(Default::default(), Default::default(), false, threshold, l.nodes.keys().cloned().collect::<BTreeSet<_>>().into()).unwrap();
-			assert_eq!(l.nodes.len(), num_nodes);
-
-			// let nodes do initialization + keys dissemination
-			while let Some((from, to, message)) = l.take_message() {
-				l.process_message((from, to, message)).unwrap();
-			}
+			let ml = MessageLoop::new(num_nodes).init(threshold).unwrap();
+			ml.0.loop_until(|| ml.0.is_empty());
 
 			// check that all nodes has finished joint public generation
-			let joint_public_key = l.master().joint_public_and_secret().unwrap().unwrap().0;
-			for node in l.nodes.values() {
-				let state = node.session.state();
-				assert_eq!(state, SessionState::Finished);
-				assert_eq!(node.session.joint_public_and_secret().map(|p| p.map(|p| p.0)), Some(Ok(joint_public_key)));
+			let joint_public_key = ml.session_at(0).joint_public_and_secret().unwrap().unwrap().0;
+			for i in 0..num_nodes {
+				let session = ml.session_at(i);
+				assert_eq!(session.state(), SessionState::Finished);
+				assert_eq!(session.joint_public_and_secret().map(|p| p.map(|p| p.0)), Some(Ok(joint_public_key)));
 			}
 
 			// now let's encrypt some secret (which is a point on EC)
 			let document_secret_plain = Random.generate().unwrap().public().clone();
-			let all_nodes_id_numbers: Vec<_> = l.master().data.lock().nodes.values().map(|n| n.id_number.clone()).collect();
-			let all_nodes_secret_shares: Vec<_> = l.nodes.values().map(|n| n.session.data.lock().secret_share.as_ref().unwrap().clone()).collect();
+			let all_nodes_id_numbers = ml.nodes_id_numbers();
+			let all_nodes_secret_shares = ml.nodes_secret_shares();
 			let document_secret_decrypted = do_encryption_and_decryption(threshold, &joint_public_key,
 				&all_nodes_id_numbers,
 				&all_nodes_secret_shares,
@@ -1351,40 +1260,17 @@ pub mod tests {
 	}
 
 	#[test]
-	fn encryption_session_works_over_network() {
-		const CONN_TIMEOUT: Duration = Duration::from_millis(300);
-		const SESSION_TIMEOUT: Duration = Duration::from_millis(1000);
-
-		let test_cases = [(1, 3)];
-		for &(threshold, num_nodes) in &test_cases {
-			let mut core = new_runtime();
-
-			// prepare cluster objects for each node
-			let clusters = make_clusters(&core, 6031, num_nodes);
-			run_clusters(&clusters);
-
-			// `clusters` contains `Arc<ClusterCore>` and clones will refer to the same cores.
-			let clusters_clone = clusters.clone();
-
-			// establish connections
-			loop_until(&core.executor(), CONN_TIMEOUT, move || clusters_clone.iter().all(all_connections_established));
-
-			// run session to completion
-			let session_id = SessionId::default();
-			let session = clusters[0].client().new_generation_session(session_id, Default::default(), Default::default(), threshold).unwrap();
-			loop_until(&core.executor(), SESSION_TIMEOUT, move || session.joint_public_and_secret().is_some());
-		}
-	}
-
-	#[test]
 	fn generation_message_fails_when_nonce_is_wrong() {
-		let (sid, m, _, l) = make_simple_cluster(0, 2).unwrap();
-		assert_eq!(l.first_slave().process_message(&m, &message::GenerationMessage::KeysDissemination(message::KeysDissemination {
-			session: sid.into(),
+		let ml = MessageLoop::new(2).init(0).unwrap();
+		ml.0.take_and_process_message();
+
+		let msg = message::GenerationMessage::KeysDissemination(message::KeysDissemination {
+			session: Default::default(),
 			session_nonce: 10,
 			secret1: math::generate_random_scalar().unwrap().into(),
 			secret2: math::generate_random_scalar().unwrap().into(),
 			publics: vec![math::generate_random_point().unwrap().into()],
-		})).unwrap_err(), Error::ReplayProtection);
+		});
+		assert_eq!(ml.session_at(1).process_message(&ml.0.node(0), &msg).unwrap_err(), Error::ReplayProtection);
 	}
 }

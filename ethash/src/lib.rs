@@ -26,13 +26,28 @@ extern crate crunchy;
 extern crate log;
 
 #[cfg(test)]
+extern crate rustc_hex;
+
+#[cfg(test)]
+extern crate serde_json;
+
+#[cfg(test)]
 extern crate tempdir;
 
+#[cfg(feature = "bench")]
+pub mod compute;
+#[cfg(not(feature = "bench"))]
 mod compute;
+
 mod seed_compute;
 mod cache;
 mod keccak;
 mod shared;
+
+#[cfg(feature = "bench")]
+pub mod progpow;
+#[cfg(not(feature = "bench"))]
+mod progpow;
 
 pub use cache::{NodeCacheBuilder, OptimizeFor};
 pub use compute::{ProofOfWork, quick_get_difficulty, slow_hash_block_number};
@@ -59,14 +74,16 @@ pub struct EthashManager {
 	nodecache_builder: NodeCacheBuilder,
 	cache: Mutex<LightCache>,
 	cache_dir: PathBuf,
+	progpow_transition: u64,
 }
 
 impl EthashManager {
 	/// Create a new new instance of ethash manager
-	pub fn new<T: Into<Option<OptimizeFor>>>(cache_dir: &Path, optimize_for: T) -> EthashManager {
+	pub fn new<T: Into<Option<OptimizeFor>>>(cache_dir: &Path, optimize_for: T, progpow_transition: u64) -> EthashManager {
 		EthashManager {
 			cache_dir: cache_dir.to_path_buf(),
-			nodecache_builder: NodeCacheBuilder::new(optimize_for.into().unwrap_or_default()),
+			nodecache_builder: NodeCacheBuilder::new(optimize_for.into().unwrap_or_default(), progpow_transition),
+			progpow_transition: progpow_transition,
 			cache: Mutex::new(LightCache {
 				recent_epoch: None,
 				recent: None,
@@ -85,27 +102,33 @@ impl EthashManager {
 		let epoch = block_number / ETHASH_EPOCH_LENGTH;
 		let light = {
 			let mut lights = self.cache.lock();
-			let light = match lights.recent_epoch.clone() {
-				Some(ref e) if *e == epoch => lights.recent.clone(),
-				_ => match lights.prev_epoch.clone() {
-					Some(e) if e == epoch => {
-						// don't swap if recent is newer.
-						if lights.recent_epoch > lights.prev_epoch {
-							None
-						} else {
-							// swap
-							let t = lights.prev_epoch;
-							lights.prev_epoch = lights.recent_epoch;
-							lights.recent_epoch = t;
-							let t = lights.prev.clone();
-							lights.prev = lights.recent.clone();
-							lights.recent = t;
-							lights.recent.clone()
+			let light = if block_number == self.progpow_transition {
+				// we need to regenerate the cache to trigger algorithm change to progpow inside `Light`
+				None
+			} else {
+				match lights.recent_epoch.clone() {
+					Some(ref e) if *e == epoch => lights.recent.clone(),
+					_ => match lights.prev_epoch.clone() {
+						Some(e) if e == epoch => {
+							// don't swap if recent is newer.
+							if lights.recent_epoch > lights.prev_epoch {
+								None
+							} else {
+								// swap
+								let t = lights.prev_epoch;
+								lights.prev_epoch = lights.recent_epoch;
+								lights.recent_epoch = t;
+								let t = lights.prev.clone();
+								lights.prev = lights.recent.clone();
+								lights.recent = t;
+								lights.recent.clone()
+							}
 						}
-					}
-					_ => None,
-				},
+						_ => None,
+					},
+				}
 			};
+
 			match light {
 				None => {
 					let light = match self.nodecache_builder.light_from_file(
@@ -132,7 +155,7 @@ impl EthashManager {
 				Some(light) => light,
 			}
 		};
-		light.compute(header_hash, nonce)
+		light.compute(header_hash, nonce, block_number)
 	}
 }
 
@@ -164,7 +187,7 @@ fn test_lru() {
 	use tempdir::TempDir;
 
 	let tempdir = TempDir::new("").unwrap();
-	let ethash = EthashManager::new(tempdir.path(), None);
+	let ethash = EthashManager::new(tempdir.path(), None, u64::max_value());
 	let hash = [0u8; 32];
 	ethash.compute_light(1, &hash, 1);
 	ethash.compute_light(50000, &hash, 1);

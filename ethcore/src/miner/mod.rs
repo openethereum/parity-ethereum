@@ -25,7 +25,8 @@ pub mod pool_client;
 #[cfg(feature = "stratum")]
 pub mod stratum;
 
-pub use self::miner::{Miner, MinerOptions, Penalization, PendingSet, AuthoringParams};
+pub use self::miner::{Miner, MinerOptions, Penalization, PendingSet, AuthoringParams, Author};
+pub use ethcore_miner::local_accounts::LocalAccounts;
 pub use ethcore_miner::pool::PendingOrdering;
 
 use std::sync::Arc;
@@ -34,7 +35,6 @@ use std::collections::{BTreeSet, BTreeMap};
 use bytes::Bytes;
 use ethcore_miner::pool::{VerifiedTransaction, QueueStatus, local_transactions};
 use ethereum_types::{H256, U256, Address};
-use ethkey::Password;
 use types::transaction::{self, UnverifiedTransaction, SignedTransaction, PendingTransaction};
 use types::BlockNumber;
 use types::block::Block;
@@ -130,8 +130,8 @@ pub trait MinerService : Send + Sync {
 
 	/// Set info necessary to sign consensus messages and block authoring.
 	///
-	/// On PoW password is optional.
-	fn set_author(&self, address: Address, password: Option<Password>) -> Result<(), ::account_provider::SignError>;
+	/// On chains where sealing is done externally (e.g. PoW) we provide only reward beneficiary.
+	fn set_author(&self, author: Author);
 
 	// Transaction Pool
 
@@ -205,4 +205,8 @@ pub trait MinerService : Send + Sync {
 
 	/// Suggested gas limit.
 	fn sensible_gas_limit(&self) -> U256;
+
+	/// Set a new minimum gas limit.
+	/// Will not work if dynamic gas calibration is set.
+	fn set_minimal_gas_price(&self, gas_price: U256) -> Result<bool, &str>;
 }

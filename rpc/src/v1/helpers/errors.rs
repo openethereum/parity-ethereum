@@ -18,7 +18,6 @@
 
 use std::fmt;
 
-use ethcore::account_provider::SignError as AccountError;
 use ethcore::error::{Error as EthcoreError, ErrorKind, CallError};
 use ethcore::client::BlockId;
 use jsonrpc_core::{futures, Result as RpcResult, Error, ErrorCode, Value};
@@ -44,7 +43,9 @@ mod codes {
 	pub const EXECUTION_ERROR: i64 = -32015;
 	pub const EXCEPTION_ERROR: i64 = -32016;
 	pub const DATABASE_ERROR: i64 = -32017;
+	#[cfg(any(test, feature = "accounts"))]
 	pub const ACCOUNT_LOCKED: i64 = -32020;
+	#[cfg(any(test, feature = "accounts"))]
 	pub const PASSWORD_INVALID: i64 = -32021;
 	pub const ACCOUNT_ERROR: i64 = -32023;
 	pub const PRIVATE_ERROR: i64 = -32024;
@@ -337,14 +338,7 @@ pub fn fetch<T: fmt::Debug>(error: T) -> Error {
 	}
 }
 
-pub fn signing(error: AccountError) -> Error {
-	Error {
-		code: ErrorCode::ServerError(codes::ACCOUNT_LOCKED),
-		message: "Your account is locked. Unlock the account via CLI, personal_unlockAccount or use Trusted Signer.".into(),
-		data: Some(Value::String(format!("{:?}", error))),
-	}
-}
-
+#[cfg(any(test, feature = "accounts"))]
 pub fn invalid_call_data<T: fmt::Display>(error: T) -> Error {
 	Error {
 		code: ErrorCode::ServerError(codes::ENCODING_ERROR),
@@ -353,7 +347,17 @@ pub fn invalid_call_data<T: fmt::Display>(error: T) -> Error {
 	}
 }
 
-pub fn password(error: AccountError) -> Error {
+#[cfg(any(test, feature = "accounts"))]
+pub fn signing(error: ::accounts::SignError) -> Error {
+	Error {
+		code: ErrorCode::ServerError(codes::ACCOUNT_LOCKED),
+		message: "Your account is locked. Unlock the account via CLI, personal_unlockAccount or use Trusted Signer.".into(),
+		data: Some(Value::String(format!("{:?}", error))),
+	}
+}
+
+#[cfg(any(test, feature = "accounts"))]
+pub fn password(error: ::accounts::SignError) -> Error {
 	Error {
 		code: ErrorCode::ServerError(codes::PASSWORD_INVALID),
 		message: "Account password is invalid or account does not exist.".into(),

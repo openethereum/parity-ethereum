@@ -21,8 +21,9 @@ use std::collections::{VecDeque, BTreeMap, BTreeSet};
 use parking_lot::{Mutex, RwLock, Condvar};
 use ethereum_types::H256;
 use ethkey::Secret;
-use key_server_cluster::{Error, NodeId, SessionId, Requester};
-use key_server_cluster::cluster::{Cluster, ClusterData, ClusterConfiguration, ClusterView};
+use key_server_cluster::{Error, NodeId, SessionId, Requester, NodeKeyPair};
+use key_server_cluster::cluster::{Cluster, ClusterConfiguration, ClusterView};
+use key_server_cluster::cluster_connections::ConnectionProvider;
 use key_server_cluster::connection_trigger::ServersSetChangeSessionCreatorConnector;
 use key_server_cluster::message::{self, Message};
 use key_server_cluster::generation_session::{SessionImpl as GenerationSessionImpl};
@@ -158,6 +159,8 @@ pub struct ClusterSessionsContainer<S: ClusterSession, SC: ClusterSessionCreator
 	listeners: Mutex<Vec<Weak<ClusterSessionsListener<S>>>>,
 	/// Sessions container state.
 	container_state: Arc<Mutex<ClusterSessionsContainerState>>,
+	/// Do not actually remove sessions.
+	preserve_sessions: bool,
 	/// Phantom data.
 	_pd: ::std::marker::PhantomData<D>,
 }
@@ -229,6 +232,17 @@ impl ClusterSessions {
 		self.generation_sessions.creator.make_faulty_generation_sessions();
 	}
 
+	#[cfg(test)]
+	pub fn preserve_sessions(&mut self) {
+		self.generation_sessions.preserve_sessions = true;
+		self.encryption_sessions.preserve_sessions = true;
+		self.decryption_sessions.preserve_sessions = true;
+		self.schnorr_signing_sessions.preserve_sessions = true;
+		self.ecdsa_signing_sessions.preserve_sessions = true;
+		self.negotiation_sessions.preserve_sessions = true;
+		self.admin_sessions.preserve_sessions = true;
+	}
+
 	/// Send session-level keep-alive messages.
 	pub fn sessions_keep_alive(&self) {
 		self.admin_sessions.send_keep_alive(&*SERVERS_SET_CHANGE_SESSION_ID, &self.self_node_id);
@@ -272,6 +286,7 @@ impl<S, SC, D> ClusterSessionsContainer<S, SC, D> where S: ClusterSession, SC: C
 			sessions: RwLock::new(BTreeMap::new()),
 			listeners: Mutex::new(Vec::new()),
 			container_state: container_state,
+			preserve_sessions: false,
 			_pd: Default::default(),
 		}
 	}
@@ -379,9 +394,11 @@ impl<S, SC, D> ClusterSessionsContainer<S, SC, D> where S: ClusterSession, SC: C
 	}
 
 	fn do_remove(&self, session_id: &S::Id, sessions: &mut BTreeMap<S::Id, QueuedSession<S>>) {
-		if let Some(session) = sessions.remove(session_id) {
-			self.container_state.lock().on_session_completed();
-			self.notify_listeners(|l| l.on_session_removed(session.session.clone()));
+		if !self.preserve_sessions {
+			if let Some(session) = sessions.remove(session_id) {
+				self.container_state.lock().on_session_completed();
+				self.notify_listeners(|l| l.on_session_removed(session.session.clone()));
+			}
 		}
 	}
 
@@ -551,19 +568,22 @@ impl ClusterSession for AdminSession {
 		}
 	}
 }
-pub fn create_cluster_view(data: &Arc<ClusterData>, requires_all_connections: bool) -> Result<Arc<Cluster>, Error> {
-	let disconnected_nodes_count = data.connections.disconnected_nodes().len();
+
+pub fn create_cluster_view(self_key_pair: Arc<NodeKeyPair>, connections: Arc<ConnectionProvider>, requires_all_connections: bool) -> Result<Arc<Cluster>, Error> {
+	let mut connected_nodes = connections.connected_nodes()?;
+	let disconnected_nodes = connections.disconnected_nodes();
+
+	let disconnected_nodes_count = disconnected_nodes.len();
 	if requires_all_connections {
 		if disconnected_nodes_count != 0 {
 			return Err(Error::NodeDisconnected);
 		}
 	}
 
-	let mut connected_nodes = data.connections.connected_nodes()?;
-	connected_nodes.insert(data.self_key_pair.public().clone());
+	connected_nodes.insert(self_key_pair.public().clone());
 
 	let connected_nodes_count = connected_nodes.len();
-	Ok(Arc::new(ClusterView::new(data.clone(), connected_nodes, connected_nodes_count + disconnected_nodes_count)))
+	Ok(Arc::new(ClusterView::new(self_key_pair, connections, connected_nodes, connected_nodes_count + disconnected_nodes_count)))
 }
 
 #[cfg(test)]
@@ -583,13 +603,11 @@ mod tests {
 		let key_pair = Random.generate().unwrap();
 		let config = ClusterConfiguration {
 			self_key_pair: Arc::new(PlainNodeKeyPair::new(key_pair.clone())),
-			listen_address: ("127.0.0.1".to_owned(), 100_u16),
 			key_server_set: Arc::new(MapKeyServerSet::new(false, vec![(key_pair.public().clone(), format!("127.0.0.1:{}", 100).parse().unwrap())].into_iter().collect())),
-			allow_connecting_to_higher_nodes: false,
 			key_storage: Arc::new(DummyKeyStorage::default()),
 			acl_storage: Arc::new(DummyAclStorage::default()),
 			admin_public: Some(Random.generate().unwrap().public().clone()),
-			auto_migrate_enabled: false,
+			preserve_sessions: false,
 		};
 		ClusterSessions::new(&config, Arc::new(SimpleServersSetChangeSessionCreatorConnector {
 			admin_public: Some(Random.generate().unwrap().public().clone()),
