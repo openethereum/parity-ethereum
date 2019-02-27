@@ -34,7 +34,7 @@ extern crate ethcore_logger;
 
 use std::ffi::OsString;
 use std::fs::{remove_file, metadata, File, create_dir_all};
-use std::io::{self as stdio, Read, Write};
+use std::io::{Read, Write};
 use std::path::PathBuf;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -213,8 +213,6 @@ fn main_direct(force_can_restart: bool) -> i32 {
 					"{}",
 					Colour::Red.paint(format!("{}", e))
 				);
-				// flush before returning
-				let _ = std::io::stderr().flush();
 				return 1;
 			}
 		}
@@ -287,7 +285,7 @@ fn main_direct(force_can_restart: bool) -> i32 {
 					let e = exit.clone();
 					let exiting = exiting.clone();
 					move |panic_msg| {
-						let _ = stdio::stderr().write_all(panic_msg.as_bytes());
+						eprintln!("{}", panic_msg);
 						if !exiting.swap(true, Ordering::SeqCst) {
 							*e.0.lock() = ExitStatus {
 								panicking: true,
@@ -350,7 +348,7 @@ fn main_direct(force_can_restart: bool) -> i32 {
 			if let Some(mut handle) = handle {
 				handle.detach_with_msg(format!("{}", Colour::Red.paint(&err)))
 			}
-			writeln!(&mut stdio::stderr(), "{}", err).expect("StdErr available; qed");
+			eprintln!("{}", err);
 			1
 		},
 	};
