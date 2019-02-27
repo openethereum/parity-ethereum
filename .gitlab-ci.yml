@@ -108,7 +108,6 @@ build-windows:
 publish-docker:
   stage:                           publish
   only:                            *releaseable_branches
-  # <<:                              *no_git
   cache: {}
   dependencies:
     - build-linux
@@ -120,7 +119,6 @@ publish-docker:
 publish-snap:                      &publish-snap
   stage:                           publish
   only:                            *releaseable_branches
-  # <<:                              *no_git
   image:                           snapcore/snapcraft
   variables:
     BUILD_ARCH:                    amd64
@@ -157,7 +155,6 @@ publish-snap-armhf:
 publish-onchain:
   stage:                           publish
   only:                            *releaseable_branches
-  # <<:                              *no_git
   cache:                           {}
   dependencies:
     - build-linux
@@ -197,7 +194,6 @@ publish-awss3-release:
 
 publish-docs:
   stage:                            publish
-  # <<:                              *no_git
   only:
     - tags
   except:
