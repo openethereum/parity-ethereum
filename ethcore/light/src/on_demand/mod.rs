@@ -70,6 +70,10 @@ pub const DEFAULT_NUM_CONSECUTIVE_FAILED_REQUESTS: usize = 1;
 
 /// OnDemand related errors
 pub mod error {
+	// Silence: `use of deprecated item 'std::error::Error::cause': replaced by Error::source, which can support downcasting`
+	// https://github.com/paritytech/parity-ethereum/issues/10302
+	#![allow(deprecated)]
+
 	use futures::sync::oneshot::Canceled;
 
 	error_chain! {
