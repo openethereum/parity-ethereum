@@ -21,11 +21,11 @@ use std::sync::Arc;
 use rlp::Rlp;
 
 use ethcore_private_tx::Provider as PrivateTransactionManager;
-use ethereum_types::Address;
+use ethereum_types::{Address, H160, H256, U256};
 use types::transaction::SignedTransaction;
 
 use jsonrpc_core::{Error};
-use v1::types::{Bytes, PrivateTransactionReceipt, H160, H256, TransactionRequest, U256,
+use v1::types::{Bytes, PrivateTransactionReceipt, TransactionRequest,
 	BlockNumber, PrivateTransactionReceiptAndTransaction, CallRequest, block_number_to_id};
 use v1::traits::Private;
 use v1::metadata::Metadata;

@@ -18,7 +18,7 @@ use std::path::Path;
 use super::test_common::*;
 use pod_state::PodState;
 use trace;
-use client::{EvmTestClient, EvmTestError, TransactResult};
+use client::{EvmTestClient, EvmTestError, TransactErr, TransactSuccess};
 use ethjson;
 use types::transaction::SignedTransaction;
 use vm::EnvInfo;
@@ -90,18 +90,18 @@ pub fn json_chain_test<H: FnMut(&str, HookType)>(json_data: &[u8], start_stop_ho
 							flushln!("{} fail", info);
 							failed.push(name.clone());
 						},
-						Ok(TransactResult::Ok { state_root, .. }) if state_root != post_root => {
+						Ok(Ok(TransactSuccess { state_root, .. })) if state_root != post_root => {
 							println!("{} !!! State mismatch (got: {}, expect: {}", info, state_root, post_root);
 							flushln!("{} fail", info);
 							failed.push(name.clone());
 						},
-						Ok(TransactResult::Err { state_root, ref error, .. }) if state_root != post_root => {
+						Ok(Err(TransactErr { state_root, ref error, .. })) if state_root != post_root => {
 							println!("{} !!! State mismatch (got: {}, expect: {}", info, state_root, post_root);
 							println!("{} !!! Execution error: {:?}", info, error);
 							flushln!("{} fail", info);
 							failed.push(name.clone());
 						},
-						Ok(TransactResult::Err { error, .. }) => {
+						Ok(Err(TransactErr { error, .. })) => {
 							flushln!("{} ok ({:?})", info, error);
 						},
 						Ok(_) => {

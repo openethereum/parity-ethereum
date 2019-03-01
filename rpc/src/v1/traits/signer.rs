@@ -15,11 +15,13 @@
 // along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
 //! Parity Signer-related rpc interface.
+
+use ethereum_types::U256;
 use jsonrpc_core::{BoxFuture, Result};
 use jsonrpc_pubsub::{typed::Subscriber, SubscriptionId};
 use jsonrpc_derive::rpc;
 
-use v1::types::{U256, Bytes, TransactionModification, ConfirmationRequest, ConfirmationResponse, ConfirmationResponseWithToken};
+use v1::types::{Bytes, TransactionModification, ConfirmationRequest, ConfirmationResponse, ConfirmationResponseWithToken};
 
 /// Signer extension for confirmations rpc interface.
 #[rpc]
