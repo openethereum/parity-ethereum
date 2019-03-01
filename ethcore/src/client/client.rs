@@ -359,6 +359,7 @@ impl Importer {
 	}
 
 	fn check_and_lock_block(&self, bytes: &[u8], block: PreverifiedBlock, client: &Client) -> EthcoreResult<(LockedBlock, Option<PendingTransition>)> {
+		trace!(target: "enact", "check_and_lock_block");
 		let engine = &*self.engine;
 		let header = block.header.clone();
 

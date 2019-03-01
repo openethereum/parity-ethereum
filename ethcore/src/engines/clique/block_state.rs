@@ -56,6 +56,10 @@ impl CliqueBlockState {
 	fn verify(&self, header: &Header) -> Result<(Address), Error>{
 		let creator = recover_creator(header)?.clone();
 
+		println!("signers: {:?}", self.signers);
+		println!("header: {:?}", header.number());
+		println!("signer: {:?}", creator);
+
 		// Check signer list
 		if !self.signers.contains(&creator) {
 			trace!(target: "engine", "current state: {:?}", self);
@@ -121,7 +125,7 @@ impl CliqueBlockState {
 			return Ok(creator);
 		}
 
-		let nonce = *header.decode_seal::<Vec<&[u8]>>()?.get(1).ok_or(
+		let nonce = *header.decode_seal::<Vec<_>>()?.get(1).ok_or(
 			"Error decoding seal"
 		)?;
 

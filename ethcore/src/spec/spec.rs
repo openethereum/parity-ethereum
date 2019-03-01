@@ -989,6 +989,12 @@ impl Spec {
 	pub fn new_validator_multi() -> Self {
 		load_bundled!("validator_multi")
 	}
+
+	/// Create a new spec for `Clique Engine` with `extra data` configured according the spec
+	#[cfg(any(test, feature = "test-helpers"))]
+	pub fn new_clique() -> Self {
+		load_bundled!("clique_test")
+	}
 }
 
 #[cfg(test)]
