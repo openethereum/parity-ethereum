@@ -10,9 +10,10 @@ env:
 before_script:
 
 script:
-  - docker build -t "oceanprotocol/${IMAGE_NAME}:${TRAVIS_BRANCH}" -f scripts/docker/centos-ocean/Dockerfile .
+  - docker_tag=${TRAVIS_BRANCH//\//-}
+  - docker build -t "oceanprotocol/${IMAGE_NAME}:${docker_tag}" -f scripts/docker/centos-ocean/Dockerfile .
 
 after_script:
   - docker images
   - docker login -u "${DOCKERHUB_USER}" -p "${DOCKERHUB_PASS}"
-  - docker push "oceanprotocol/${IMAGE_NAME}:${TRAVIS_BRANCH}"
+  - docker push "oceanprotocol/${IMAGE_NAME}:${docker_tag}"
