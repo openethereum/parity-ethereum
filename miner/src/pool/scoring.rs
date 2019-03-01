@@ -109,6 +109,13 @@ impl<P> txpool::Scoring<P> for NonceAndGasPrice where P: ScoredTransaction + txp
 			}
 		};
 
+		// helper for the asserts at the beginning of match
+		let get_score = |index: usize, tx_length: usize, score_length: usize, target: usize| -> U256 {
+			assert!(index < tx_length);
+			assert!(index< score_length);
+			*txs[target].transaction.gas_price() << boost(target)
+		};
+
 		match self.0 {
 			PrioritizationStrategy::GasPriceOnly => {
 				match change {
@@ -116,9 +123,7 @@ impl<P> txpool::Scoring<P> for NonceAndGasPrice where P: ScoredTransaction + txp
 					Change::RemovedAt(_) => {}
 					Change::InsertedAt(i) | Change::ReplacedAt(i) => {
 						// calculate base score + boost
-						assert!(i < txs.len());
-						assert!(i < scores.len());
-						scores[i] = *txs[i].transaction.gas_price() << boost(i);
+						scores[i] = get_score(i, txs.len(), scores.len(), i);
 					},
 					// We are only sending an event in case of penalization.
 					// So just lower the priority of all non-local transactions.
@@ -133,13 +138,12 @@ impl<P> txpool::Scoring<P> for NonceAndGasPrice where P: ScoredTransaction + txp
 						U256::zero()
 					}
 				};
+
 				match change {
 					Change::Culled(_) => {},
-					Change::RemovedAt(i) | Change::InsertedAt(i) | Change::ReplacedAt(i) => {
-						assert!(i < txs.len());
-						assert!(i < scores.len());
+					Change::RemovedAt(_) | Change::InsertedAt(_) | Change::ReplacedAt(_) => {
 						let last_index = txs.len() - 1;
-						scores[last_index] = *txs[last_index].transaction.gas_price() << boost(last_index);
+						scores[last_index] = get_score(last_index, txs.len(), scores.len(), last_index);
 						for idx in (1..txs.len()).rev() {
 							let prev_idx = idx - 1;
 							let consecutive_bump = is_consecutive(prev_idx) *
