@@ -131,9 +131,9 @@ impl<P> txpool::Scoring<P> for NonceAndGasPrice where P: ScoredTransaction + txp
 				}
 			},
 			PrioritizationStrategy::Consecutive => {
-				let is_consecutive = |i: usize| {
-					if (txs[i].nonce() + U256::one()) == txs[i+1].nonce() {
-						U256::one()
+				let is_consecutive = |previous: usize, current: usize, score: U256| {
+					if (txs[previous].nonce() + U256::one()) == txs[current].nonce() {
+						(U256::from(21_000) * score) / txs[previous].transaction.gas()
 					} else {
 						U256::zero()
 					}
@@ -146,9 +146,7 @@ impl<P> txpool::Scoring<P> for NonceAndGasPrice where P: ScoredTransaction + txp
 						scores[last_index] = get_score(last_index, txs.len(), scores.len(), last_index);
 						for idx in (1..txs.len()).rev() {
 							let prev_idx = idx - 1;
-							let consecutive_bump = is_consecutive(prev_idx) *
-								((U256::from(21_000) * scores[idx]) /
-								txs[prev_idx].transaction.gas());
+							let consecutive_bump = is_consecutive(prev_idx, idx, scores[idx]);
 							scores[prev_idx] = (txs[prev_idx].transaction.gas_price() << boost(prev_idx)) + (consecutive_bump / 1000);
 						}
 					},
