@@ -14,6 +14,10 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
+// Silence: `use of deprecated item 'std::error::Error::cause': replaced by Error::source, which can support downcasting`
+// https://github.com/paritytech/parity-ethereum/issues/10302
+#![allow(deprecated)]
+
 use std::{io, net, fmt};
 use libc::{ENFILE, EMFILE};
 use io::IoError;
