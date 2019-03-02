@@ -29,6 +29,13 @@ extern crate jni;
 #[cfg(feature = "jni")]
 mod java;
 
+#[cfg(feature = "pyo3")]
+#[macro_use]
+extern crate pyo3;
+
+#[cfg(feature = "pyo3")]
+mod python;
+
 use std::ffi::CString;
 use std::os::raw::{c_char, c_void, c_int};
 use std::{panic, ptr, slice, str, thread};

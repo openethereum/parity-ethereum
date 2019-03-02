@@ -14,6 +14,7 @@ futures = "0.1.6"
 jni = { version = "0.11", optional = true }
 panic_hook = { path = "../util/panic-hook" }
 parity-ethereum = { path = "../", default-features = false }
+pyo3 = { version = "0.6.0-alpha.4", optional = true, features = ["extension-module"] }
 tokio = "0.1.11"
 tokio-current-thread = "0.1.3"
 
