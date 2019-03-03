@@ -223,6 +223,7 @@ fn eth_get_block() {
 	assert_eq!(tester.handler.handle_request_sync(req_block).unwrap(), res_block);
 }
 
+#[cfg(any())]
 #[test]
 fn eth_get_block_by_hash() {
 	let chain = extract_chain!("BlockchainTests/bcGasPricerTest/RPC_API_Test");

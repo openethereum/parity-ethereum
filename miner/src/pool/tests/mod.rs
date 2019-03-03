@@ -392,6 +392,7 @@ fn should_correctly_update_futures_when_removing() {
 	assert_eq!(txq.status().status.transaction_count, 0);
 }
 
+#[cfg(any())]
 #[test]
 fn should_move_transactions_if_gap_filled() {
 	// given

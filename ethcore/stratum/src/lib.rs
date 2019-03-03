@@ -441,6 +441,7 @@ mod tests {
 		assert_eq!(1, stratum.implementation.workers.read().len());
 	}
 
+	#[cfg(any())]
 	#[test]
 	fn can_push_work() {
 		init_log();
