@@ -144,7 +144,7 @@ mod tests {
 	use std::sync::Arc;
 	use rustc_hex::FromHex;
 	use hash::keccak;
-	use ethereum_types::{H520, Address};
+	use ethereum_types::{U256, H520, Address};
 	use bytes::ToPretty;
 	use rlp::encode;
 	use spec::Spec;
@@ -199,16 +199,21 @@ mod tests {
 		header.set_author(v1);
 		header.set_number(2);
 		header.set_parent_hash(client.chain_info().best_block_hash);
-		// `reportBenign` when the designated proposer releases block from the future (bad clock).
-		assert!(client.engine().verify_block_basic(&header).is_err());
+
+		// Regression test: Check that the removed method `reportBenign` was not called. `reportBenign` was previously
+		// called when the designated proposer would release a block from the future (bad clock).
+		let verify_block_basic = client.engine().verify_block_basic(&header);
+		assert!(verify_block_basic.is_err());
 		// Seal a block.
 		client.engine().step();
 		assert_eq!(client.chain_info().best_block_number, 1);
-		// Check if the unresponsive validator is `disliked`.
+		// "d8f2e0bf" accesses the field `disliked`.
 		assert_eq!(
-			client.call_contract(BlockId::Latest, validator_contract, "d8f2e0bf".from_hex().unwrap()).unwrap().to_hex(),
-			"0000000000000000000000007d577a597b2742b498cb5cf0c26cdcd726d39e6e"
+			client.call_contract(BlockId::Latest, validator_contract,
+								 "d8f2e0bf".from_hex().unwrap()).unwrap().to_hex(),
+			format!("{:x}", U256::from(0))
 		);
+
 		// Simulate a misbehaving validator by handling a double proposal.
 		let header = client.best_block_header();
 		assert!(client.engine().verify_block_family(&header, &header).is_err());
