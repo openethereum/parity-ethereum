@@ -1,10 +1,13 @@
 ## Parity-Ethereum [v2.4.0](https://github.com/paritytech/parity-ethereum/releases/tag/v2.4.0) (2019-02-25)
 
-Parity-Ethereum 2.4.0-beta is a ...
+Parity-Ethereum 2.4.0-beta is our trifortnightly minor version release coming with a lot of new features as well as bugfixes and performance improvements.
 
-Other notable changes:
-
-Configuration changes:
+Notable changes:
+- Account management is now deprecated (#10213)
+- Local accounts can now be specified via CLI (#9960)
+- Chains can now be reset to a particular block via CLI (#9782)
+- Ethash now additionally implements ProgPoW (#9762) 
+- The `eip1283DisableTransition` flag was added to revert EIP-1283 (#10214)
 
 The full list of included changes:
 -
