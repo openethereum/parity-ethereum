@@ -109,7 +109,7 @@ impl<P> txpool::Scoring<P> for NonceAndGasPrice where P: ScoredTransaction + txp
 			}
 		};
 
-		// helper for the asserts at the beginning of match
+		// helper for the asserts at the beginning of PrioritizationStrategy matches
 		let get_score = |index: usize, tx_length: usize, score_length: usize, target: usize| -> U256 {
 			assert!(index < tx_length);
 			assert!(index< score_length);
