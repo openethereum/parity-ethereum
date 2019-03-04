@@ -165,7 +165,9 @@ impl ::local_store::NodeInfo for FullNodeInfo {
 type LightClient = ::light::client::Client<::light_helpers::EpochFetch>;
 
 // helper for light execution.
-fn execute_light_impl(cmd: RunCmd, logger: Arc<RotatingLogger>) -> Result<RunningClient, String> {
+fn execute_light_impl<Cr>(cmd: RunCmd, logger: Arc<RotatingLogger>, on_client_rq: Cr) -> Result<RunningClient, String>
+	where Cr: Fn(String) + 'static + Send
+{
 	use light::client as light_client;
 	use sync::{LightSyncParams, LightSync, ManageNetwork};
 	use parking_lot::{Mutex, RwLock};
@@ -366,6 +368,8 @@ fn execute_light_impl(cmd: RunCmd, logger: Arc<RotatingLogger>) -> Result<Runnin
 	));
 	service.add_notify(informant.clone());
 	service.register_handler(informant.clone()).map_err(|_| "Unable to register informant handler".to_owned())?;
+
+	client.set_exit_handler(on_client_rq);
 
 	Ok(RunningClient {
 		inner: RunningClientInner::Light {
@@ -930,7 +934,7 @@ pub fn execute<Cr, Rr>(cmd: RunCmd, logger: Arc<RotatingLogger>,
 		Rr: Fn() + 'static + Send
 {
 	if cmd.light {
-		execute_light_impl(cmd, logger)
+		execute_light_impl(cmd, logger, on_client_rq)
 	} else {
 		execute_impl(cmd, logger, on_client_rq, on_updater_rq)
 	}

@@ -211,8 +211,7 @@ impl<C, M, U, F> ParitySet for ParitySetClient<C, M, U, F> where
 	}
 
 	fn set_spec_name(&self, spec_name: String) -> Result<bool> {
-		self.client.set_spec_name(spec_name);
-		Ok(true)
+		self.client.set_spec_name(spec_name).map(|_| true).map_err(|()| errors::cannot_restart())
 	}
 
 	fn hash_content(&self, url: String) -> BoxFuture<H256> {
@@ -240,7 +239,7 @@ impl<C, M, U, F> ParitySet for ParitySetClient<C, M, U, F> where
 		let hash = hash.into();
 
 		Ok(self.miner.remove_transaction(&hash)
-		   .map(|t| Transaction::from_pending(t.pending().clone()))
+			.map(|t| Transaction::from_pending(t.pending().clone()))
 		)
 	}
 }
