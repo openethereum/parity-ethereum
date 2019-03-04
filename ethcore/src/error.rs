@@ -16,6 +16,10 @@
 
 //! General error types for use in ethcore.
 
+// Silence: `use of deprecated item 'std::error::Error::cause': replaced by Error::source, which can support downcasting`
+// https://github.com/paritytech/parity-ethereum/issues/10302
+#![allow(deprecated)]
+
 use std::{fmt, error};
 use std::time::SystemTime;
 
