@@ -3,11 +3,11 @@
 Parity-Ethereum 2.4.0-beta is our trifortnightly minor version release coming with a lot of new features as well as bugfixes and performance improvements.
 
 Notable changes:
-- Account management is now deprecated (#10213)
-- Local accounts can now be specified via CLI (#9960)
-- Chains can now be reset to a particular block via CLI (#9782)
-- Ethash now additionally implements ProgPoW (#9762) 
-- The `eip1283DisableTransition` flag was added to revert EIP-1283 (#10214)
+- Account management is now deprecated ([#10213](https://github.com/paritytech/parity-ethereum/pull/10213))
+- Local accounts can now be specified via CLI ([#9960](https://github.com/paritytech/parity-ethereum/pull/9960))
+- Chains can now be reset to a particular block via CLI ([#9782](https://github.com/paritytech/parity-ethereum/pull/9782))
+- Ethash now additionally implements ProgPoW ([#9762](https://github.com/paritytech/parity-ethereum/pull/9762)) 
+- The `eip1283DisableTransition` flag was added to revert EIP-1283 ([#10214](https://github.com/paritytech/parity-ethereum/pull/10214))
 
 The full list of included changes:
 -
