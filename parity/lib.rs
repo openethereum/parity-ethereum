@@ -195,7 +195,7 @@ fn execute<Cr, Rr>(
 	command: Execute,
 	logger: Arc<RotatingLogger>,
 	on_client_rq: Cr, on_updater_rq: Rr) -> Result<ExecutionAction, String>
-	where Cr: Fn(String) -> Result<(), ()> + 'static + Send,
+	where Cr: Fn(String) + 'static + Send,
 		  Rr: Fn() + 'static + Send
 {
 	#[cfg(feature = "deadlock_detection")]
@@ -239,7 +239,7 @@ pub fn start<Cr, Rr>(
 	on_updater_rq: Rr
 ) -> Result<ExecutionAction, String>
 	where
-		Cr: Fn(String) -> Result<(), ()> + 'static + Send,
+		Cr: Fn(String) + 'static + Send,
 		Rr: Fn() + 'static + Send
 {
 	let deprecated = find_deprecated(&conf.args);

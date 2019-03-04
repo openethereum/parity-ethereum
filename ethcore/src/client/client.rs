@@ -238,7 +238,7 @@ pub struct Client {
 	registrar_address: Option<Address>,
 
 	/// A closure to call when we want to restart the client
-	exit_handler: Mutex<Option<Box<Fn(String) -> Result<(), ()> + 'static + Send>>>,
+	exit_handler: Mutex<Option<Box<Fn(String) + 'static + Send>>>,
 
 	importer: Importer,
 }
@@ -860,7 +860,7 @@ impl Client {
 	///
 	/// The parameter passed to the callback is the name of the new chain spec to use after
 	/// the restart.
-	pub fn set_exit_handler<F>(&self, f: F) where F: Fn(String) -> Result<(), ()> + 'static + Send {
+	pub fn set_exit_handler<F>(&self, f: F) where F: Fn(String) + 'static + Send {
 		*self.exit_handler.lock() = Some(Box::new(f));
 	}
 
@@ -1712,7 +1712,8 @@ impl BlockChainClient for Client {
 			return Err(());
 		}
 		if let Some(ref h) = *self.exit_handler.lock() {
-			(*h)(new_spec_name)
+			(*h)(new_spec_name);
+			Ok(())
 		} else {
 			warn!("Not hypervised; cannot change chain.");
 			Err(())
