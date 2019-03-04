@@ -197,6 +197,7 @@ build-android:
   image:                           parity/rust-android:gitlab-ci
   variables:
     CARGO_TARGET:                  armv7-linux-androideabi
+  dependencies:
   script:
     - scripts/gitlab/build-unix.sh
   tags:

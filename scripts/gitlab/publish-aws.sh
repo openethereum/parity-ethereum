@@ -13,5 +13,6 @@ case "${SCHEDULE_TAG:-${CI_COMMIT_REF_NAME}}" in
       ;;
   esac
 aws s3 sync ./artifacts s3://${BUCKET}/${SCHEDULE_TAG:-${CI_COMMIT_REF_NAME}}/
+echo "__________Read from S3____________"
 aws s3 ls s3://${BUCKET}/${SCHEDULE_TAG:-${CI_COMMIT_REF_NAME}}/
     --recursive --human-readable --summarize
