@@ -1,26 +1,25 @@
-// Copyright 2015-2018 Parity Technologies (UK) Ltd.
-// This file is part of Parity.
+// Copyright 2015-2019 Parity Technologies (UK) Ltd.
+// This file is part of Parity Ethereum.
 
-// Parity is free software: you can redistribute it and/or modify
+// Parity Ethereum is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
 // the Free Software Foundation, either version 3 of the License, or
 // (at your option) any later version.
 
-// Parity is distributed in the hope that it will be useful,
+// Parity Ethereum is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 // GNU General Public License for more details.
 
 // You should have received a copy of the GNU General Public License
-// along with Parity.  If not, see <http://www.gnu.org/licenses/>.
+// along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
 use std::fmt;
 use serde::{Deserialize, Deserializer};
 use serde::de::{Error, Visitor};
 
+use ethereum_types::H256;
 use ethstore;
-
-use super::hash::H256;
 
 /// Type of derivation
 pub enum DerivationType {
@@ -70,6 +69,7 @@ impl From<DeriveHash> for Derive {
 }
 
 /// Error converting request data
+#[cfg(any(test, feature = "accounts"))]
 #[derive(Debug)]
 pub enum ConvertError {
 	IndexOverlfow(u64),
@@ -77,6 +77,7 @@ pub enum ConvertError {
 
 impl Derive {
 	/// Convert to account provider struct dealing with possible overflows
+	#[cfg(any(test, feature = "accounts"))]
 	pub fn to_derivation(self) -> Result<ethstore::Derivation, ConvertError> {
 		Ok(match self {
 			Derive::Hierarchical(drv) => {

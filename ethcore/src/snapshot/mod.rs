@@ -1,18 +1,18 @@
-// Copyright 2015-2018 Parity Technologies (UK) Ltd.
-// This file is part of Parity.
+// Copyright 2015-2019 Parity Technologies (UK) Ltd.
+// This file is part of Parity Ethereum.
 
-// Parity is free software: you can redistribute it and/or modify
+// Parity Ethereum is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
 // the Free Software Foundation, either version 3 of the License, or
 // (at your option) any later version.
 
-// Parity is distributed in the hope that it will be useful,
+// Parity Ethereum is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 // GNU General Public License for more details.
 
 // You should have received a copy of the GNU General Public License
-// along with Parity.  If not, see <http://www.gnu.org/licenses/>.
+// along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
 //! Snapshot creation, restoration, and network service.
 //!
@@ -28,11 +28,11 @@ use hash::{keccak, KECCAK_NULL_RLP, KECCAK_EMPTY};
 use account_db::{AccountDB, AccountDBMut};
 use blockchain::{BlockChain, BlockProvider};
 use engines::EthEngine;
-use header::Header;
-use ids::BlockId;
+use types::header::Header;
+use types::ids::BlockId;
 
 use ethereum_types::{H256, U256};
-use hashdb::HashDB;
+use hash_db::HashDB;
 use keccak_hasher::KeccakHasher;
 use snappy;
 use bytes::Bytes;
@@ -322,7 +322,7 @@ impl<'a> StateChunker<'a> {
 /// Returns a list of hashes of chunks created, or any error it may
 /// have encountered.
 pub fn chunk_state<'a>(db: &HashDB<KeccakHasher, DBValue>, root: &H256, writer: &Mutex<SnapshotWriter + 'a>, progress: &'a Progress, part: Option<usize>) -> Result<Vec<H256>, Error> {
-	let account_trie = TrieDB::new(db, &root)?;
+	let account_trie = TrieDB::new(&db, &root)?;
 
 	let mut chunker = StateChunker {
 		hashes: Vec::new(),
@@ -414,7 +414,7 @@ impl StateRebuilder {
 		pairs.resize(rlp.item_count()?, (H256::new(), Vec::new()));
 
 		let status = rebuild_accounts(
-			self.db.as_hashdb_mut(),
+			self.db.as_hash_db_mut(),
 			rlp,
 			&mut pairs,
 			&self.known_code,
@@ -429,7 +429,7 @@ impl StateRebuilder {
 		// patch up all missing code. must be done after collecting all new missing code entries.
 		for (code_hash, code, first_with) in status.new_code {
 			for addr_hash in self.missing_code.remove(&code_hash).unwrap_or_else(Vec::new) {
-				let mut db = AccountDBMut::from_hash(self.db.as_hashdb_mut(), addr_hash);
+				let mut db = AccountDBMut::from_hash(self.db.as_hash_db_mut(), addr_hash);
 				db.emplace(code_hash, DBValue::from_slice(&code));
 			}
 
@@ -441,9 +441,9 @@ impl StateRebuilder {
 		// batch trie writes
 		{
 			let mut account_trie = if self.state_root != KECCAK_NULL_RLP {
-				TrieDBMut::from_existing(self.db.as_hashdb_mut(), &mut self.state_root)?
+				TrieDBMut::from_existing(self.db.as_hash_db_mut(), &mut self.state_root)?
 			} else {
-				TrieDBMut::new(self.db.as_hashdb_mut(), &mut self.state_root)
+				TrieDBMut::new(self.db.as_hash_db_mut(), &mut self.state_root)
 			};
 
 			for (hash, thin_rlp) in pairs {

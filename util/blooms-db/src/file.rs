@@ -1,18 +1,18 @@
-// Copyright 2015-2018 Parity Technologies (UK) Ltd.
-// This file is part of Parity.
+// Copyright 2015-2019 Parity Technologies (UK) Ltd.
+// This file is part of Parity Ethereum.
 
-// Parity is free software: you can redistribute it and/or modify
+// Parity Ethereum is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
 // the Free Software Foundation, either version 3 of the License, or
 // (at your option) any later version.
 
-// Parity is distributed in the hope that it will be useful,
+// Parity Ethereum is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 // GNU General Public License for more details.
 
 // You should have received a copy of the GNU General Public License
-// along with Parity.  If not, see <http://www.gnu.org/licenses/>.
+// along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
 use std::io::{Seek, SeekFrom, Write, Read};
 use std::path::Path;
@@ -92,8 +92,9 @@ impl File {
 	/// This function needs to be mutable `fs::File` is just a shared reference a system file handle.
 	/// https://users.rust-lang.org/t/how-to-handle-match-with-irrelevant-ok--/6291/15
 	pub fn iterator_from(&mut self, pos: u64) -> io::Result<FileIterator> {
+		let start = std::cmp::min(self.len, pos * 256);
 		let mut buf_reader = io::BufReader::new(&self.file);
-		buf_reader.seek(SeekFrom::Start(pos * 256))?;
+		buf_reader.seek(SeekFrom::Start(start))?;
 
 		let iter = FileIterator {
 			file: buf_reader,

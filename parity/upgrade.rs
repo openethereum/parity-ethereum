@@ -1,18 +1,18 @@
-// Copyright 2015-2018 Parity Technologies (UK) Ltd.
-// This file is part of Parity.
+// Copyright 2015-2019 Parity Technologies (UK) Ltd.
+// This file is part of Parity Ethereum.
 
-// Parity is free software: you can redistribute it and/or modify
+// Parity Ethereum is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
 // the Free Software Foundation, either version 3 of the License, or
 // (at your option) any later version.
 
-// Parity is distributed in the hope that it will be useful,
+// Parity Ethereum is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 // GNU General Public License for more details.
 
 // You should have received a copy of the GNU General Public License
-// along with Parity.  If not, see <http://www.gnu.org/licenses/>.
+// along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
 //! Parity upgrade logic
 
@@ -28,9 +28,9 @@ use journaldb::Algorithm;
 
 #[derive(Debug)]
 pub enum Error {
-	CannotCreateConfigPath,
-	CannotWriteVersionFile,
-	CannotUpdateVersionFile,
+	CannotCreateConfigPath(io::Error),
+	CannotWriteVersionFile(io::Error),
+	CannotUpdateVersionFile(io::Error),
 	SemVer(SemVerError),
 }
 
@@ -105,7 +105,7 @@ fn with_locked_version<F>(db_path: &str, script: F) -> Result<usize, Error>
 	where F: Fn(&Version) -> Result<usize, Error>
 {
 	let mut path = PathBuf::from(db_path);
-	create_dir_all(&path).map_err(|_| Error::CannotCreateConfigPath)?;
+	create_dir_all(&path).map_err(Error::CannotCreateConfigPath)?;
 	path.push("ver.lock");
 
 	let version =
@@ -118,11 +118,11 @@ fn with_locked_version<F>(db_path: &str, script: F) -> Result<usize, Error>
 			})
 			.unwrap_or(Version::new(0, 9, 0));
 
-	let mut lock = File::create(&path).map_err(|_| Error::CannotWriteVersionFile)?;
+	let mut lock = File::create(&path).map_err(Error::CannotWriteVersionFile)?;
 	let result = script(&version);
 
 	let written_version = Version::parse(CURRENT_VERSION)?;
-	lock.write_all(written_version.to_string().as_bytes()).map_err(|_| Error::CannotUpdateVersionFile)?;
+	lock.write_all(written_version.to_string().as_bytes()).map_err(Error::CannotUpdateVersionFile)?;
 	result
 }
 
@@ -139,6 +139,7 @@ fn file_exists(path: &Path) -> bool {
 	}
 }
 
+#[cfg(any(test, feature = "accounts"))]
 pub fn upgrade_key_location(from: &PathBuf, to: &PathBuf) {
 	match fs::create_dir_all(&to).and_then(|()| fs::read_dir(from)) {
 		Ok(entries) => {

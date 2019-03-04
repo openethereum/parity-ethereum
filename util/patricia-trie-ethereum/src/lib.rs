@@ -1,26 +1,26 @@
-// Copyright 2015-2018 Parity Technologies (UK) Ltd.
-// This file is part of Parity.
+// Copyright 2015-2019 Parity Technologies (UK) Ltd.
+// This file is part of Parity Ethereum.
 
-// Parity is free software: you can redistribute it and/or modify
+// Parity Ethereum is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
 // the Free Software Foundation, either version 3 of the License, or
 // (at your option) any later version.
 
-// Parity is distributed in the hope that it will be useful,
+// Parity Ethereum is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 // GNU General Public License for more details.
 
 // You should have received a copy of the GNU General Public License
-// along with Parity.  If not, see <http://www.gnu.org/licenses/>.
+// along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
 //! Façade crate for `patricia_trie` for Ethereum specific impls
 
-pub extern crate patricia_trie as trie; // `pub` because we need to import this crate for the tests in `patricia_trie` and there were issues: https://gist.github.com/dvdplm/869251ee557a1b4bd53adc7c971979aa
+pub extern crate trie_db as trie; // `pub` because we need to import this crate for the tests in `patricia_trie` and there were issues: https://gist.github.com/dvdplm/869251ee557a1b4bd53adc7c971979aa
 extern crate elastic_array;
 extern crate parity_bytes;
 extern crate ethereum_types;
-extern crate hashdb;
+extern crate hash_db;
 extern crate keccak_hasher;
 extern crate rlp;
 
@@ -42,18 +42,19 @@ pub type RlpCodec = RlpNodeCodec<KeccakHasher>;
 ///
 /// # Example
 /// ```
-/// extern crate patricia_trie as trie;
+/// extern crate trie_db as trie;
 /// extern crate patricia_trie_ethereum as ethtrie;
-/// extern crate hashdb;
+/// extern crate hash_db;
 /// extern crate keccak_hasher;
-/// extern crate memorydb;
+/// extern crate memory_db;
 /// extern crate ethereum_types;
 /// extern crate elastic_array;
+/// extern crate journaldb;
 ///
 /// use trie::*;
-/// use hashdb::*;
+/// use hash_db::*;
 /// use keccak_hasher::KeccakHasher;
-/// use memorydb::*;
+/// use memory_db::*;
 /// use ethereum_types::H256;
 /// use ethtrie::{TrieDB, TrieDBMut};
 /// use elastic_array::ElasticArray128;
@@ -61,7 +62,7 @@ pub type RlpCodec = RlpNodeCodec<KeccakHasher>;
 /// type DBValue = ElasticArray128<u8>;
 ///
 /// fn main() {
-///   let mut memdb = MemoryDB::<KeccakHasher, DBValue>::new();
+///   let mut memdb = journaldb::new_memory_db();
 ///   let mut root = H256::new();
 ///   TrieDBMut::new(&mut memdb, &mut root).insert(b"foo", b"bar").unwrap();
 ///   let t = TrieDB::new(&memdb, &root).unwrap();
@@ -85,26 +86,27 @@ pub type FatDB<'db> = trie::FatDB<'db, KeccakHasher, RlpCodec>;
 
 /// # Example
 /// ```
-/// extern crate patricia_trie as trie;
+/// extern crate trie_db as trie;
 /// extern crate patricia_trie_ethereum as ethtrie;
-/// extern crate hashdb;
+/// extern crate hash_db;
 /// extern crate keccak_hash;
 /// extern crate keccak_hasher;
-/// extern crate memorydb;
+/// extern crate memory_db;
 /// extern crate ethereum_types;
 /// extern crate elastic_array;
+/// extern crate journaldb;
 ///
 /// use keccak_hash::KECCAK_NULL_RLP;
 /// use ethtrie::{TrieDBMut, trie::TrieMut};
 /// use keccak_hasher::KeccakHasher;
-/// use memorydb::*;
+/// use memory_db::*;
 /// use ethereum_types::H256;
 /// use elastic_array::ElasticArray128;
 ///
 /// type DBValue = ElasticArray128<u8>;
 ///
 /// fn main() {
-///   let mut memdb = MemoryDB::<KeccakHasher, DBValue>::new();
+///   let mut memdb = journaldb::new_memory_db();
 ///   let mut root = H256::new();
 ///   let mut t = TrieDBMut::new(&mut memdb, &mut root);
 ///   assert!(t.is_empty());

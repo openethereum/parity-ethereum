@@ -1,32 +1,33 @@
-// Copyright 2015-2018 Parity Technologies (UK) Ltd.
-// This file is part of Parity.
+// Copyright 2015-2019 Parity Technologies (UK) Ltd.
+// This file is part of Parity Ethereum.
 
-// Parity is free software: you can redistribute it and/or modify
+// Parity Ethereum is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
 // the Free Software Foundation, either version 3 of the License, or
 // (at your option) any later version.
 
-// Parity is distributed in the hope that it will be useful,
+// Parity Ethereum is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 // GNU General Public License for more details.
 
 // You should have received a copy of the GNU General Public License
-// along with Parity.  If not, see <http://www.gnu.org/licenses/>.
+// along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
 use std::sync::Arc;
 use hash::keccak;
 use io::{IoHandler, IoChannel};
-use ethcore::client::{BlockChainClient, BlockId, ClientIoMessage};
-use ethcore::spec::Spec;
-use ethcore::miner::MinerService;
+use types::transaction::{Transaction, Action};
+use types::ids::BlockId;
 use ethcore::CreateContractAddress;
-use transaction::{Transaction, Action};
+use ethcore::client::{ClientIoMessage, BlockChainClient};
 use ethcore::executive::{contract_address};
+use ethcore::engines;
+use ethcore::miner::{self, MinerService};
+use ethcore::spec::Spec;
 use ethcore::test_helpers::{push_block_with_transactions};
-use ethcore_private_tx::{Provider, ProviderConfig, NoopEncryptor, Importer, SignedPrivateTransaction};
-use ethcore::account_provider::AccountProvider;
-use ethkey::{KeyPair};
+use ethcore_private_tx::{Provider, ProviderConfig, NoopEncryptor, Importer, SignedPrivateTransaction, StoringKeyProvider};
+use ethkey::KeyPair;
 use tests::helpers::{TestNet, TestIoHandler};
 use rustc_hex::FromHex;
 use rlp::Rlp;
@@ -42,18 +43,17 @@ fn send_private_transaction() {
 	// Setup two clients
 	let s0 = KeyPair::from_secret_slice(&keccak("1")).unwrap();
 	let s1 = KeyPair::from_secret_slice(&keccak("0")).unwrap();
-	let ap = Arc::new(AccountProvider::transient_provider());
-	ap.insert_account(s0.secret().clone(), &"".into()).unwrap();
-	ap.insert_account(s1.secret().clone(), &"".into()).unwrap();
 
-	let mut net = TestNet::with_spec_and_accounts(2, SyncConfig::default(), seal_spec, Some(ap.clone()));
+	let signer = Arc::new(ethcore_private_tx::KeyPairSigner(vec![s0.clone(), s1.clone()]));
+
+	let mut net = TestNet::with_spec(2, SyncConfig::default(), seal_spec);
 	let client0 = net.peer(0).chain.clone();
 	let client1 = net.peer(1).chain.clone();
 	let io_handler0: Arc<IoHandler<ClientIoMessage>> = Arc::new(TestIoHandler::new(net.peer(0).chain.clone()));
 	let io_handler1: Arc<IoHandler<ClientIoMessage>> = Arc::new(TestIoHandler::new(net.peer(1).chain.clone()));
 
-	net.peer(0).miner.set_author(s0.address(), Some("".into())).unwrap();
-	net.peer(1).miner.set_author(s1.address(), Some("".into())).unwrap();
+	net.peer(0).miner.set_author(miner::Author::Sealer(engines::signer::from_keypair(s0.clone())));
+	net.peer(1).miner.set_author(miner::Author::Sealer(engines::signer::from_keypair(s1.clone())));
 	net.peer(0).chain.engine().register_client(Arc::downgrade(&net.peer(0).chain) as _);
 	net.peer(1).chain.engine().register_client(Arc::downgrade(&net.peer(1).chain) as _);
 	net.peer(0).chain.set_io_channel(IoChannel::to_handler(Arc::downgrade(&io_handler0)));
@@ -69,32 +69,34 @@ fn send_private_transaction() {
 	let validator_config = ProviderConfig{
 		validator_accounts: vec![s1.address()],
 		signer_account: None,
-		passwords: vec!["".into()],
 	};
 
 	let signer_config = ProviderConfig{
 		validator_accounts: Vec::new(),
 		signer_account: Some(s0.address()),
-		passwords: vec!["".into()],
 	};
+
+	let private_keys = Arc::new(StoringKeyProvider::default());
 
 	let pm0 = Arc::new(Provider::new(
 			client0.clone(),
 			net.peer(0).miner.clone(),
-			ap.clone(),
+			signer.clone(),
 			Box::new(NoopEncryptor::default()),
 			signer_config,
 			IoChannel::to_handler(Arc::downgrade(&io_handler0)),
+			private_keys.clone(),
 	));
 	pm0.add_notify(net.peers[0].clone());
 
 	let pm1 = Arc::new(Provider::new(
 			client1.clone(),
 			net.peer(1).miner.clone(),
-			ap.clone(),
+			signer.clone(),
 			Box::new(NoopEncryptor::default()),
 			validator_config,
 			IoChannel::to_handler(Arc::downgrade(&io_handler1)),
+			private_keys.clone(),
 	));
 	pm1.add_notify(net.peers[1].clone());
 

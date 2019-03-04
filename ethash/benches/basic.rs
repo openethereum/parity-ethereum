@@ -1,18 +1,18 @@
-// Copyright 2015-2018 Parity Technologies (UK) Ltd.
-// This file is part of Parity.
+// Copyright 2015-2019 Parity Technologies (UK) Ltd.
+// This file is part of Parity Ethereum.
 
-// Parity is free software: you can redistribute it and/or modify
+// Parity Ethereum is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
 // the Free Software Foundation, either version 3 of the License, or
 // (at your option) any later version.
 
-// Parity is distributed in the hope that it will be useful,
+// Parity Ethereum is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 // GNU General Public License for more details.
 
 // You should have received a copy of the GNU General Public License
-// along with Parity.  If not, see <http://www.gnu.org/licenses/>.
+// along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
 #[macro_use]
 extern crate criterion;
@@ -37,48 +37,43 @@ criterion_group!(
 );
 criterion_main!(basic);
 
-
 fn bench_light_compute_memmap(b: &mut Criterion) {
 	use std::env;
 
-	let builder = NodeCacheBuilder::new(OptimizeFor::Memory);
+	let builder = NodeCacheBuilder::new(OptimizeFor::Memory, u64::max_value());
 	let light = builder.light(&env::temp_dir(), 486382);
 
-	b.bench_function("bench_light_compute_memmap", move |b| b.iter(|| light.compute(&HASH, NONCE)));
+	b.bench_function("bench_light_compute_memmap", move |b| b.iter(|| light.compute(&HASH, NONCE, u64::max_value())));
 }
-
 
 fn bench_light_compute_memory(b: &mut Criterion) {
 	use std::env;
 
-	let builder = NodeCacheBuilder::new(OptimizeFor::Cpu);
+	let builder = NodeCacheBuilder::new(OptimizeFor::Cpu, u64::max_value());
 	let light = builder.light(&env::temp_dir(), 486382);
 
-	b.bench_function("bench_light_compute_memmap", move |b| b.iter(|| light.compute(&HASH, NONCE)));
+	b.bench_function("bench_light_compute_memmap", move |b| b.iter(|| light.compute(&HASH, NONCE, u64::max_value())));
 }
-
 
 fn bench_light_new_round_trip_memmap(b: &mut Criterion) {
 	use std::env;
 
 	b.bench_function("bench_light_compute_memmap", move |b| b.iter(|| {
-		let builder = NodeCacheBuilder::new(OptimizeFor::Memory);
+		let builder = NodeCacheBuilder::new(OptimizeFor::Memory, u64::max_value());
 		let light = builder.light(&env::temp_dir(), 486382);
-		light.compute(&HASH, NONCE);
+		light.compute(&HASH, NONCE, u64::max_value());
 	}));
 }
-
 
 fn bench_light_new_round_trip_memory(b: &mut Criterion) {
 	use std::env;
 
 	b.bench_function("bench_light_compute_memmap", move |b| b.iter(|| {
-		let builder = NodeCacheBuilder::new(OptimizeFor::Cpu);
+		let builder = NodeCacheBuilder::new(OptimizeFor::Cpu, u64::max_value());
 		let light = builder.light(&env::temp_dir(), 486382);
-		light.compute(&HASH, NONCE);
+		light.compute(&HASH, NONCE, u64::max_value());
 	}));
 }
-
 
 fn bench_light_from_file_round_trip_memory(b: &mut Criterion) {
 	use std::env;
@@ -86,18 +81,17 @@ fn bench_light_from_file_round_trip_memory(b: &mut Criterion) {
 	let dir = env::temp_dir();
 	let height = 486382;
 	{
-		let builder = NodeCacheBuilder::new(OptimizeFor::Cpu);
+		let builder = NodeCacheBuilder::new(OptimizeFor::Cpu, u64::max_value());
 		let mut dummy = builder.light(&dir, height);
 		dummy.to_file().unwrap();
 	}
 
 	b.bench_function("bench_light_compute_memmap", move |b| b.iter(|| {
-		let builder = NodeCacheBuilder::new(OptimizeFor::Cpu);
+		let builder = NodeCacheBuilder::new(OptimizeFor::Cpu, u64::max_value());
 		let light = builder.light_from_file(&dir, 486382).unwrap();
-		light.compute(&HASH, NONCE);
+		light.compute(&HASH, NONCE, u64::max_value());
 	}));
 }
-
 
 fn bench_light_from_file_round_trip_memmap(b: &mut Criterion) {
 	use std::env;
@@ -106,14 +100,14 @@ fn bench_light_from_file_round_trip_memmap(b: &mut Criterion) {
 	let height = 486382;
 
 	{
-		let builder = NodeCacheBuilder::new(OptimizeFor::Memory);
+		let builder = NodeCacheBuilder::new(OptimizeFor::Memory, u64::max_value());
 		let mut dummy = builder.light(&dir, height);
 		dummy.to_file().unwrap();
 	}
 
 	b.bench_function("bench_light_compute_memmap", move |b| b.iter(|| {
-		let builder = NodeCacheBuilder::new(OptimizeFor::Memory);
+		let builder = NodeCacheBuilder::new(OptimizeFor::Memory, u64::max_value());
 		let light = builder.light_from_file(&dir, 486382).unwrap();
-		light.compute(&HASH, NONCE);
+		light.compute(&HASH, NONCE, u64::max_value());
 	}));
 }

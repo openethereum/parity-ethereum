@@ -1,18 +1,18 @@
-// Copyright 2015-2018 Parity Technologies (UK) Ltd.
-// This file is part of Parity.
+// Copyright 2015-2019 Parity Technologies (UK) Ltd.
+// This file is part of Parity Ethereum.
 
-// Parity is free software: you can redistribute it and/or modify
+// Parity Ethereum is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
 // the Free Software Foundation, either version 3 of the License, or
 // (at your option) any later version.
 
-// Parity is distributed in the hope that it will be useful,
+// Parity Ethereum is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 // GNU General Public License for more details.
 
 // You should have received a copy of the GNU General Public License
-// along with Parity.  If not, see <http://www.gnu.org/licenses/>.
+// along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
 //! Single account in the system.
 
@@ -22,7 +22,7 @@ use std::collections::{HashMap, BTreeMap};
 use hash::{KECCAK_EMPTY, KECCAK_NULL_RLP, keccak};
 use ethereum_types::{H256, U256, Address};
 use error::Error;
-use hashdb::HashDB;
+use hash_db::HashDB;
 use keccak_hasher::KeccakHasher;
 use kvdb::DBValue;
 use bytes::{Bytes, ToPretty};
@@ -31,7 +31,7 @@ use ethtrie::{TrieFactory, TrieDB, SecTrieDB, Result as TrieResult};
 use pod_account::*;
 use rlp::{RlpStream, encode};
 use lru_cache::LruCache;
-use basic_account::BasicAccount;
+use types::basic_account::BasicAccount;
 
 use std::cell::{RefCell, Cell};
 
@@ -253,7 +253,7 @@ impl Account {
 	}
 
 	fn get_and_cache_storage(storage_root: &H256, storage_cache: &mut LruCache<H256, H256>, db: &HashDB<KeccakHasher, DBValue>, key: &H256) -> TrieResult<H256> {
-		let db = SecTrieDB::new(db, storage_root)?;
+		let db = SecTrieDB::new(&db, storage_root)?;
 		let panicky_decoder = |bytes:&[u8]| ::rlp::decode(&bytes).expect("decoding db value failed");
 		let item: U256 = db.get_with(key, panicky_decoder)?.unwrap_or_else(U256::zero);
 		let value: H256 = item.into();
@@ -451,6 +451,11 @@ impl Account {
 		}
 	}
 
+	/// Whether the base storage root of this account is unchanged.
+	pub fn is_base_storage_root_unchanged(&self) -> bool {
+		self.original_storage_cache.is_none()
+	}
+
 	/// Storage root where the account changes are based upon.
 	pub fn base_storage_root(&self) -> H256 {
 		self.storage_root
@@ -461,12 +466,12 @@ impl Account {
 
 	/// Increment the nonce of the account by one.
 	pub fn inc_nonce(&mut self) {
-		self.nonce = self.nonce + U256::from(1u8);
+		self.nonce = self.nonce.saturating_add(U256::from(1u8));
 	}
 
 	/// Increase account balance.
 	pub fn add_balance(&mut self, x: &U256) {
-		self.balance = self.balance + *x;
+		self.balance = self.balance.saturating_add(*x);
 	}
 
 	/// Decrease account balance.
@@ -586,7 +591,7 @@ impl Account {
 	pub fn prove_storage(&self, db: &HashDB<KeccakHasher, DBValue>, storage_key: H256) -> TrieResult<(Vec<Bytes>, H256)> {
 		let mut recorder = Recorder::new();
 
-		let trie = TrieDB::new(db, &self.storage_root)?;
+		let trie = TrieDB::new(&db, &self.storage_root)?;
 		let item: U256 = {
 			let panicky_decoder = |bytes:&[u8]| ::rlp::decode(bytes).expect("decoding db value failed");
 			let query = (&mut recorder, panicky_decoder);
@@ -612,7 +617,7 @@ impl fmt::Debug for Account {
 mod tests {
 	use rlp_compress::{compress, decompress, snapshot_swapper};
 	use ethereum_types::{H256, Address};
-	use memorydb::MemoryDB;
+	use journaldb::new_memory_db;
 	use bytes::Bytes;
 	use super::*;
 	use account_db::*;
@@ -628,7 +633,7 @@ mod tests {
 
 	#[test]
 	fn storage_at() {
-		let mut db = MemoryDB::new();
+		let mut db = new_memory_db();
 		let mut db = AccountDBMut::new(&mut db, &Address::new());
 		let rlp = {
 			let mut a = Account::new_contract(69.into(), 0.into(), KECCAK_NULL_RLP);
@@ -647,7 +652,7 @@ mod tests {
 
 	#[test]
 	fn note_code() {
-		let mut db = MemoryDB::new();
+		let mut db = new_memory_db();
 		let mut db = AccountDBMut::new(&mut db, &Address::new());
 
 		let rlp = {
@@ -667,7 +672,7 @@ mod tests {
 	#[test]
 	fn commit_storage() {
 		let mut a = Account::new_contract(69.into(), 0.into(), KECCAK_NULL_RLP);
-		let mut db = MemoryDB::new();
+		let mut db = new_memory_db();
 		let mut db = AccountDBMut::new(&mut db, &Address::new());
 		a.set_storage(0.into(), 0x1234.into());
 		assert_eq!(a.storage_root(), None);
@@ -678,7 +683,7 @@ mod tests {
 	#[test]
 	fn commit_remove_commit_storage() {
 		let mut a = Account::new_contract(69.into(), 0.into(), KECCAK_NULL_RLP);
-		let mut db = MemoryDB::new();
+		let mut db = new_memory_db();
 		let mut db = AccountDBMut::new(&mut db, &Address::new());
 		a.set_storage(0.into(), 0x1234.into());
 		a.commit_storage(&Default::default(), &mut db).unwrap();
@@ -692,7 +697,7 @@ mod tests {
 	#[test]
 	fn commit_code() {
 		let mut a = Account::new_contract(69.into(), 0.into(), KECCAK_NULL_RLP);
-		let mut db = MemoryDB::new();
+		let mut db = new_memory_db();
 		let mut db = AccountDBMut::new(&mut db, &Address::new());
 		a.init_code(vec![0x55, 0x44, 0xffu8]);
 		assert_eq!(a.code_filth, Filth::Dirty);
@@ -704,7 +709,7 @@ mod tests {
 	#[test]
 	fn reset_code() {
 		let mut a = Account::new_contract(69.into(), 0.into(), KECCAK_NULL_RLP);
-		let mut db = MemoryDB::new();
+		let mut db = new_memory_db();
 		let mut db = AccountDBMut::new(&mut db, &Address::new());
 		a.init_code(vec![0x55, 0x44, 0xffu8]);
 		assert_eq!(a.code_filth, Filth::Dirty);
@@ -736,11 +741,4 @@ mod tests {
 		assert_eq!(a.code_hash(), KECCAK_EMPTY);
 		assert_eq!(a.storage_root().unwrap(), KECCAK_NULL_RLP);
 	}
-
-	#[test]
-	fn create_account() {
-		let a = Account::new(69u8.into(), 0u8.into(), HashMap::new(), Bytes::new());
-		assert_eq!(a.rlp().to_hex(), "f8448045a056e81f171bcc55a6ff8345e692c0f86e5b48e01b996cadc001622fb5e363b421a0c5d2460186f7233c927e7db2dcc703c0e500b653ca82273b7bfad8045d85a470");
-	}
-
 }

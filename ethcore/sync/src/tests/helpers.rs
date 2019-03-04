@@ -1,18 +1,18 @@
-// Copyright 2015-2018 Parity Technologies (UK) Ltd.
-// This file is part of Parity.
+// Copyright 2015-2019 Parity Technologies (UK) Ltd.
+// This file is part of Parity Ethereum.
 
-// Parity is free software: you can redistribute it and/or modify
+// Parity Ethereum is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
 // the Free Software Foundation, either version 3 of the License, or
 // (at your option) any later version.
 
-// Parity is distributed in the hope that it will be useful,
+// Parity Ethereum is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 // GNU General Public License for more details.
 
 // You should have received a copy of the GNU General Public License
-// along with Parity.  If not, see <http://www.gnu.org/licenses/>.
+// along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
 use std::collections::{VecDeque, HashSet, HashMap};
 use std::sync::Arc;
@@ -20,21 +20,24 @@ use ethereum_types::H256;
 use parking_lot::{RwLock, Mutex};
 use bytes::Bytes;
 use network::{self, PeerId, ProtocolId, PacketId, SessionInfo};
+use network::client_version::ClientVersion;
 use tests::snapshot::*;
 use ethcore::client::{TestBlockChainClient, BlockChainClient, Client as EthcoreClient,
 	ClientConfig, ChainNotify, NewBlocks, ChainMessageType, ClientIoMessage};
-use ethcore::header::BlockNumber;
 use ethcore::snapshot::SnapshotService;
 use ethcore::spec::Spec;
-use ethcore::account_provider::AccountProvider;
 use ethcore::miner::Miner;
 use ethcore::test_helpers;
 use sync_io::SyncIo;
 use io::{IoChannel, IoContext, IoHandler};
 use api::WARP_SYNC_PROTOCOL_ID;
-use chain::{ChainSync, ETH_PROTOCOL_VERSION_63, PAR_PROTOCOL_VERSION_3, PRIVATE_TRANSACTION_PACKET, SIGNED_PRIVATE_TRANSACTION_PACKET, SyncSupplier};
+use chain::{ChainSync, SyncSupplier, ETH_PROTOCOL_VERSION_63, PAR_PROTOCOL_VERSION_3};
+use chain::sync_packet::{PacketInfo, SyncPacket};
+use chain::sync_packet::SyncPacket::{PrivateTransactionPacket, SignedPrivateTransactionPacket};
+
 use SyncConfig;
 use private_tx::SimplePrivateTxHandler;
+use types::BlockNumber;
 
 pub trait FlushingBlockChainClient: BlockChainClient {
 	fn flush(&self) {}
@@ -102,27 +105,25 @@ impl<'p, C> SyncIo for TestIo<'p, C> where C: FlushingBlockChainClient, C: 'p {
 		Ok(())
 	}
 
-	fn send(&mut self, peer_id: PeerId, packet_id: PacketId, data: Vec<u8>) -> Result<(), network::Error> {
+	fn send(&mut self,peer_id: PeerId, packet_id: SyncPacket, data: Vec<u8>) -> Result<(), network::Error> {
 		self.packets.push(TestPacket {
 			data: data,
-			packet_id: packet_id,
+			packet_id: packet_id.id(),
 			recipient: peer_id,
 		});
 		Ok(())
-	}
-
-	fn send_protocol(&mut self, _protocol: ProtocolId, peer_id: PeerId, packet_id: PacketId, data: Vec<u8>) -> Result<(), network::Error> {
-		self.send(peer_id, packet_id, data)
 	}
 
 	fn chain(&self) -> &BlockChainClient {
 		&*self.chain
 	}
 
-	fn peer_info(&self, peer_id: PeerId) -> String {
-		self.peers_info.get(&peer_id)
+	fn peer_version(&self, peer_id: PeerId) -> ClientVersion {
+		let client_id = self.peers_info.get(&peer_id)
 			.cloned()
-			.unwrap_or_else(|| peer_id.to_string())
+			.unwrap_or_else(|| peer_id.to_string());
+
+		ClientVersion::from(client_id)
 	}
 
 	fn snapshot_service(&self) -> &SnapshotService {
@@ -143,6 +144,10 @@ impl<'p, C> SyncIo for TestIo<'p, C> where C: FlushingBlockChainClient, C: 'p {
 
 	fn chain_overlay(&self) -> &RwLock<HashMap<BlockNumber, Bytes>> {
 		&self.overlay
+	}
+
+	fn payload_soft_limit(&self) -> usize {
+		100_000
 	}
 }
 
@@ -230,9 +235,9 @@ impl<C> EthPeer<C> where C: FlushingBlockChainClient {
 		match message {
 			ChainMessageType::Consensus(data) => self.sync.write().propagate_consensus_packet(&mut io, data),
 			ChainMessageType::PrivateTransaction(transaction_hash, data) =>
-				self.sync.write().propagate_private_transaction(&mut io, transaction_hash, PRIVATE_TRANSACTION_PACKET, data),
+				self.sync.write().propagate_private_transaction(&mut io, transaction_hash, PrivateTransactionPacket, data),
 			ChainMessageType::SignedPrivateTransaction(transaction_hash, data) =>
-				self.sync.write().propagate_private_transaction(&mut io, transaction_hash, SIGNED_PRIVATE_TRANSACTION_PACKET, data),
+				self.sync.write().propagate_private_transaction(&mut io, transaction_hash, SignedPrivateTransactionPacket, data),
 		}
 	}
 
@@ -341,7 +346,7 @@ impl TestNet<EthPeer<TestBlockChainClient>> {
 			let chain = TestBlockChainClient::new();
 			let ss = Arc::new(TestSnapshotService::new());
 			let private_tx_handler = Arc::new(SimplePrivateTxHandler::default());
-			let sync = ChainSync::new(config.clone(), &chain, private_tx_handler.clone());
+			let sync = ChainSync::new(config.clone(), &chain, Some(private_tx_handler.clone()));
 			net.peers.push(Arc::new(EthPeer {
 				sync: RwLock::new(sync),
 				snapshot_service: ss,
@@ -363,11 +368,10 @@ impl TestNet<EthPeer<TestBlockChainClient>> {
 }
 
 impl TestNet<EthPeer<EthcoreClient>> {
-	pub fn with_spec_and_accounts<F>(
+	pub fn with_spec<F>(
 		n: usize,
 		config: SyncConfig,
 		spec_factory: F,
-		accounts: Option<Arc<AccountProvider>>
 	) -> Self
 		where F: Fn() -> Spec
 	{
@@ -377,14 +381,14 @@ impl TestNet<EthPeer<EthcoreClient>> {
 			disconnect_events: Vec::new(),
 		};
 		for _ in 0..n {
-			net.add_peer_with_private_config(config.clone(), spec_factory(), accounts.clone());
+			net.add_peer_with_private_config(config.clone(), spec_factory());
 		}
 		net
 	}
 
-	pub fn add_peer_with_private_config(&mut self, config: SyncConfig, spec: Spec, accounts: Option<Arc<AccountProvider>>) {
+	pub fn add_peer_with_private_config(&mut self, config: SyncConfig, spec: Spec) {
 		let channel = IoChannel::disconnected();
-		let miner = Arc::new(Miner::new_for_tests(&spec, accounts.clone()));
+		let miner = Arc::new(Miner::new_for_tests(&spec, None));
 		let client = EthcoreClient::new(
 			ClientConfig::default(),
 			&spec,
@@ -395,7 +399,7 @@ impl TestNet<EthPeer<EthcoreClient>> {
 
 		let private_tx_handler = Arc::new(SimplePrivateTxHandler::default());
 		let ss = Arc::new(TestSnapshotService::new());
-		let sync = ChainSync::new(config, &*client, private_tx_handler.clone());
+		let sync = ChainSync::new(config, &*client, Some(private_tx_handler.clone()));
 		let peer = Arc::new(EthPeer {
 			sync: RwLock::new(sync),
 			snapshot_service: ss,

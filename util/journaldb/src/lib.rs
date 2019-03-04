@@ -1,18 +1,18 @@
-// Copyright 2015-2018 Parity Technologies (UK) Ltd.
-// This file is part of Parity.
+// Copyright 2015-2019 Parity Technologies (UK) Ltd.
+// This file is part of Parity Ethereum.
 
-// Parity is free software: you can redistribute it and/or modify
+// Parity Ethereum is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
 // the Free Software Foundation, either version 3 of the License, or
 // (at your option) any later version.
 
-// Parity is distributed in the hope that it will be useful,
+// Parity Ethereum is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 // GNU General Public License for more details.
 
 // You should have received a copy of the GNU General Public License
-// along with Parity.  If not, see <http://www.gnu.org/licenses/>.
+// along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
 //! `JournalDB` interface and implementation.
 
@@ -22,16 +22,16 @@ extern crate log;
 
 extern crate ethereum_types;
 extern crate parity_bytes as bytes;
-extern crate hashdb;
+extern crate hash_db;
 extern crate keccak_hasher;
 extern crate kvdb;
-extern crate memorydb;
+extern crate memory_db;
 extern crate parking_lot;
 extern crate fastmap;
 extern crate rlp;
 
 #[cfg(test)]
-extern crate ethcore_logger;
+extern crate env_logger;
 #[cfg(test)]
 extern crate keccak_hash as keccak;
 #[cfg(test)]
@@ -53,6 +53,11 @@ pub mod overlaydb;
 
 /// Export the `JournalDB` trait.
 pub use self::traits::JournalDB;
+
+/// Export keyed hash trait
+pub use self::traits::KeyedHashDB;
+/// Export as keyed hash trait
+pub use self::traits::AsKeyedHashDB;
 
 /// Journal database operating strategy.
 #[derive(Debug, PartialEq, Clone, Copy)]
@@ -156,6 +161,10 @@ fn error_key_already_exists(hash: &ethereum_types::H256) -> io::Error {
 
 fn error_negatively_reference_hash(hash: &ethereum_types::H256) -> io::Error {
 	io::Error::new(io::ErrorKind::Other, format!("Entry {} removed from database more times than it was added.", hash))
+}
+
+pub fn new_memory_db() -> memory_db::MemoryDB<keccak_hasher::KeccakHasher, kvdb::DBValue> {
+	memory_db::MemoryDB::from_null_node(&rlp::NULL_RLP, rlp::NULL_RLP.as_ref().into())
 }
 
 #[cfg(test)]

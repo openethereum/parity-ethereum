@@ -1,18 +1,18 @@
-// Copyright 2015-2018 Parity Technologies (UK) Ltd.
-// This file is part of Parity.
+// Copyright 2015-2019 Parity Technologies (UK) Ltd.
+// This file is part of Parity Ethereum.
 
-// Parity is free software: you can redistribute it and/or modify
+// Parity Ethereum is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
 // the Free Software Foundation, either version 3 of the License, or
 // (at your option) any later version.
 
-// Parity is distributed in the hope that it will be useful,
+// Parity Ethereum is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 // GNU General Public License for more details.
 
 // You should have received a copy of the GNU General Public License
-// along with Parity.  If not, see <http://www.gnu.org/licenses/>.
+// along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
 //! Client tests of tracing
 
@@ -26,14 +26,15 @@ use client::*;
 use test_helpers::get_temp_state_db;
 use client::{BlockChainClient, Client, ClientConfig};
 use std::sync::Arc;
-use header::Header;
 use miner::Miner;
-use transaction::{Action, Transaction};
-use views::BlockView;
+use types::transaction::{Action, Transaction};
 use trace::{RewardType, LocalizedTrace};
 use trace::trace::Action::Reward;
 use test_helpers;
 use verification::queue::kind::blocks::Unverified;
+use types::header::Header;
+use types::view;
+use types::views::BlockView;
 
 #[test]
 fn can_trace_block_and_uncle_reward() {

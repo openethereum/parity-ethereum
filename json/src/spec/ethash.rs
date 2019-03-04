@@ -1,18 +1,18 @@
-// Copyright 2015-2018 Parity Technologies (UK) Ltd.
-// This file is part of Parity.
+// Copyright 2015-2019 Parity Technologies (UK) Ltd.
+// This file is part of Parity Ethereum.
 
-// Parity is free software: you can redistribute it and/or modify
+// Parity Ethereum is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
 // the Free Software Foundation, either version 3 of the License, or
 // (at your option) any later version.
 
-// Parity is distributed in the hope that it will be useful,
+// Parity Ethereum is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 // GNU General Public License for more details.
 
 // You should have received a copy of the GNU General Public License
-// along with Parity.  If not, see <http://www.gnu.org/licenses/>.
+// along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
 //! Ethash params deserialization.
 
@@ -95,6 +95,9 @@ pub struct EthashParams {
 	pub expip2_transition: Option<Uint>,
 	/// EXPIP-2 duration limit
 	pub expip2_duration_limit: Option<Uint>,
+	/// Block to transition to progpow
+	#[serde(rename="progpowTransition")]
+	pub progpow_transition: Option<Uint>,
 }
 
 /// Ethash engine deserialization.
@@ -200,6 +203,7 @@ mod tests {
 				ecip1017_era_rounds: None,
 				expip2_transition: None,
 				expip2_duration_limit: None,
+				progpow_transition: None,
 				difficulty_bomb_delays: None,
 			}
 		});
@@ -239,6 +243,7 @@ mod tests {
 				ecip1017_era_rounds: None,
 				expip2_transition: None,
 				expip2_duration_limit: None,
+				progpow_transition: None,
 				difficulty_bomb_delays: None,
 			}
 		});

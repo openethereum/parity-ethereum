@@ -1,29 +1,29 @@
-// Copyright 2015-2018 Parity Technologies (UK) Ltd.
-// This file is part of Parity.
+// Copyright 2015-2019 Parity Technologies (UK) Ltd.
+// This file is part of Parity Ethereum.
 
-// Parity is free software: you can redistribute it and/or modify
+// Parity Ethereum is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
 // the Free Software Foundation, either version 3 of the License, or
 // (at your option) any later version.
 
-// Parity is distributed in the hope that it will be useful,
+// Parity Ethereum is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 // GNU General Public License for more details.
 
 // You should have received a copy of the GNU General Public License
-// along with Parity.  If not, see <http://www.gnu.org/licenses/>.
+// along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
 use std::sync::Arc;
 use std::str::FromStr;
 
 use bytes::ToPretty;
-use ethereum_types::{U256, Address};
-use ethcore::account_provider::AccountProvider;
+use accounts::AccountProvider;
+use ethereum_types::{Address, H520, U256};
 use ethcore::client::TestBlockChainClient;
 use jsonrpc_core::IoHandler;
 use parking_lot::Mutex;
-use transaction::{Action, Transaction};
+use types::transaction::{Action, Transaction};
 use parity_runtime::Runtime;
 use hash::keccak;
 
@@ -31,7 +31,7 @@ use v1::{PersonalClient, Personal, Metadata};
 use v1::helpers::{nonce, eip191};
 use v1::helpers::dispatch::{eth_data_hash, FullDispatcher};
 use v1::tests::helpers::TestMinerService;
-use v1::types::{EIP191Version, PresignedTransaction, H520};
+use v1::types::{EIP191Version, PresignedTransaction};
 use rustc_hex::ToHex;
 use serde_json::to_value;
 use ethkey::Secret;
@@ -156,7 +156,7 @@ fn sign() {
 
 	let hash = eth_data_hash(data);
 	let signature = H520(tester.accounts.sign(address, Some("password123".into()), hash).unwrap().into_electrum());
-	let signature = format!("0x{:?}", signature);
+	let signature = format!("{:?}", signature);
 
 	let response = r#"{"jsonrpc":"2.0","result":""#.to_owned() + &signature + r#"","id":1}"#;
 
@@ -264,7 +264,7 @@ fn ec_recover() {
 
 	let hash = eth_data_hash(data.clone());
 	let signature = H520(tester.accounts.sign(address, Some("password123".into()), hash).unwrap().into_electrum());
-	let signature = format!("0x{:?}", signature);
+	let signature = format!("{:?}", signature);
 
 	let request = r#"{
 		"jsonrpc": "2.0",
@@ -303,7 +303,7 @@ fn ec_recover_invalid_signature() {
 }
 
 #[test]
-fn should_unlock_not_account_temporarily_if_allow_perm_is_disabled() {
+fn should_not_unlock_account_temporarily_if_allow_perm_is_disabled() {
 	let tester = setup();
 	let address = tester.accounts.new_account(&"password123".into()).unwrap();
 
@@ -317,7 +317,7 @@ fn should_unlock_not_account_temporarily_if_allow_perm_is_disabled() {
 		],
 		"id": 1
 	}"#;
-	let response = r#"{"jsonrpc":"2.0","error":{"code":-32000,"message":"Time-unlocking is only supported in --geth compatibility mode.","data":"Restart your client with --geth flag or use personal_sendTransaction instead."},"id":1}"#;
+	let response = r#"{"jsonrpc":"2.0","error":{"code":-32000,"message":"Time-unlocking is not supported when permanent unlock is disabled.","data":"Use personal_sendTransaction or enable permanent unlocking, instead."},"id":1}"#;
 	assert_eq!(tester.io.handle_request_sync(&request), Some(response.into()));
 
 	assert!(tester.accounts.sign(address, None, Default::default()).is_err(), "Should not unlock account.");

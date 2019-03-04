@@ -1,18 +1,18 @@
-// Copyright 2015-2018 Parity Technologies (UK) Ltd.
-// This file is part of Parity.
+// Copyright 2015-2019 Parity Technologies (UK) Ltd.
+// This file is part of Parity Ethereum.
 
-// Parity is free software: you can redistribute it and/or modify
+// Parity Ethereum is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
 // the Free Software Foundation, either version 3 of the License, or
 // (at your option) any later version.
 
-// Parity is distributed in the hope that it will be useful,
+// Parity Ethereum is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 // GNU General Public License for more details.
 
 // You should have received a copy of the GNU General Public License
-// along with Parity.  If not, see <http://www.gnu.org/licenses/>.
+// along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
 //! Transaction Scoring and Ordering
 //!
@@ -123,15 +123,16 @@ impl<P> txpool::Scoring<P> for NonceAndGasPrice where P: ScoredTransaction + txp
 	}
 
 	fn should_replace(&self, old: &P, new: &P) -> scoring::Choice {
+		let both_local = old.priority().is_local() && new.priority().is_local();
 		if old.sender() == new.sender() {
 			// prefer earliest transaction
 			match new.nonce().cmp(&old.nonce()) {
+				cmp::Ordering::Equal => self.choose(old, new),
+				_ if both_local => scoring::Choice::InsertNew,
 				cmp::Ordering::Less => scoring::Choice::ReplaceOld,
 				cmp::Ordering::Greater => scoring::Choice::RejectNew,
-				cmp::Ordering::Equal => self.choose(old, new),
 			}
-		} else if old.priority().is_local() && new.priority().is_local() {
-			// accept local transactions over the limit
+		} else if both_local {
 			scoring::Choice::InsertNew
 		} else {
 			let old_score = (old.priority(), old.gas_price());
@@ -141,7 +142,7 @@ impl<P> txpool::Scoring<P> for NonceAndGasPrice where P: ScoredTransaction + txp
 			} else {
 				scoring::Choice::RejectNew
 			}
-	 	}
+		}
 	}
 
 	fn should_ignore_sender_limit(&self, new: &P) -> bool {
@@ -154,10 +155,65 @@ mod tests {
 	use super::*;
 
 	use std::sync::Arc;
-	use ethkey::{Random, Generator};
+	use ethkey::{Random, Generator, KeyPair};
 	use pool::tests::tx::{Tx, TxExt};
 	use txpool::Scoring;
 	use txpool::scoring::Choice::*;
+
+	fn local_tx_verified(tx: Tx, keypair: &KeyPair) -> VerifiedTransaction {
+		let mut verified_tx = tx.unsigned().sign(keypair.secret(), None).verified();
+		verified_tx.priority = ::pool::Priority::Local;
+		verified_tx
+	}
+
+	#[test]
+	fn should_always_accept_local_transactions_unless_same_sender_and_nonce() {
+		let scoring = NonceAndGasPrice(PrioritizationStrategy::GasPriceOnly);
+
+		// same sender txs
+		let keypair = Random.generate().unwrap();
+
+		let same_sender_tx1 = local_tx_verified(Tx {
+			nonce: 1,
+			gas_price: 1,
+			..Default::default()
+		}, &keypair);
+
+		let same_sender_tx2 = local_tx_verified(Tx {
+			nonce: 2,
+			gas_price: 100,
+			..Default::default()
+		}, &keypair);
+
+		let same_sender_tx3 = local_tx_verified(Tx {
+			nonce: 2,
+			gas_price: 200,
+			..Default::default()
+		}, &keypair);
+
+		// different sender txs
+		let different_sender_tx1 = local_tx_verified(Tx {
+			nonce: 2,
+			gas_price: 1,
+			..Default::default()
+		}, &Random.generate().unwrap());
+
+		let different_sender_tx2 = local_tx_verified(Tx {
+			nonce: 1,
+			gas_price: 10,
+			..Default::default()
+		}, &Random.generate().unwrap());
+
+		assert_eq!(scoring.should_replace(&same_sender_tx1, &same_sender_tx2), InsertNew);
+		assert_eq!(scoring.should_replace(&same_sender_tx2, &same_sender_tx1), InsertNew);
+
+		assert_eq!(scoring.should_replace(&different_sender_tx1, &different_sender_tx2), InsertNew);
+		assert_eq!(scoring.should_replace(&different_sender_tx2, &different_sender_tx1), InsertNew);
+
+		// txs with same sender and nonce
+		assert_eq!(scoring.should_replace(&same_sender_tx2, &same_sender_tx3), ReplaceOld);
+		assert_eq!(scoring.should_replace(&same_sender_tx3, &same_sender_tx2), RejectNew);
+	}
 
 	#[test]
 	fn should_replace_same_sender_by_nonce() {

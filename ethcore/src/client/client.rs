@@ -1,45 +1,58 @@
-// Copyright 2015-2018 Parity Technologies (UK) Ltd.
-// This file is part of Parity.
+// Copyright 2015-2019 Parity Technologies (UK) Ltd.
+// This file is part of Parity Ethereum.
 
-// Parity is free software: you can redistribute it and/or modify
+// Parity Ethereum is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
 // the Free Software Foundation, either version 3 of the License, or
 // (at your option) any later version.
 
-// Parity is distributed in the hope that it will be useful,
+// Parity Ethereum is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 // GNU General Public License for more details.
 
 // You should have received a copy of the GNU General Public License
-// along with Parity.  If not, see <http://www.gnu.org/licenses/>.
+// along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
-use std::collections::{HashSet, BTreeMap, VecDeque};
 use std::cmp;
+use std::collections::{HashSet, BTreeMap, VecDeque};
 use std::str::FromStr;
 use std::sync::atomic::{AtomicUsize, AtomicBool, Ordering as AtomicOrdering};
 use std::sync::{Arc, Weak};
 use std::time::{Instant, Duration};
 
-// util
-use hash::keccak;
+use blockchain::{BlockReceipts, BlockChain, BlockChainDB, BlockProvider, TreeRoute, ImportRoute, TransactionAddress, ExtrasInsert, BlockNumberKey};
 use bytes::Bytes;
+use call_contract::{CallContract, RegistryInfo};
+use ethcore_miner::pool::VerifiedTransaction;
+use ethcore_miner::service_transaction_checker::ServiceTransactionChecker;
+use ethereum_types::{H256, Address, U256};
+use evm::Schedule;
+use hash::keccak;
+use io::IoChannel;
 use itertools::Itertools;
 use journaldb;
-use trie::{TrieSpec, TrieFactory, Trie};
 use kvdb::{DBValue, KeyValueDB, DBTransaction};
+use parking_lot::{Mutex, RwLock};
+use rand::OsRng;
+use types::transaction::{self, LocalizedTransaction, UnverifiedTransaction, SignedTransaction, Action};
+use trie::{TrieSpec, TrieFactory, Trie};
+use types::ancestry_action::AncestryAction;
+use types::encoded;
+use types::filter::Filter;
+use types::log_entry::LocalizedLogEntry;
+use types::receipt::{Receipt, LocalizedReceipt};
+use types::{BlockNumber, header::{Header, ExtendedHeader}};
+use vm::{EnvInfo, LastHashes};
 
-// other
-use ethereum_types::{H256, Address, U256};
 use block::{IsBlock, LockedBlock, Drain, ClosedBlock, OpenBlock, enact_verified, SealedBlock};
-use blockchain::{BlockReceipts, BlockChain, BlockChainDB, BlockProvider, TreeRoute, ImportRoute, TransactionAddress, ExtrasInsert};
 use client::ancient_import::AncientVerifier;
 use client::{
-	Nonce, Balance, ChainInfo, BlockInfo, CallContract, TransactionInfo,
-	RegistryInfo, ReopenBlock, PrepareOpenBlock, ScheduleInfo, ImportSealedBlock,
+	Nonce, Balance, ChainInfo, BlockInfo, TransactionInfo,
+	ReopenBlock, PrepareOpenBlock, ScheduleInfo, ImportSealedBlock,
 	BroadcastProposalBlock, ImportBlock, StateOrBlock, StateInfo, StateClient, Call,
 	AccountData, BlockChain as BlockChainTrait, BlockProducer, SealedBlockImporter,
-	ClientIoMessage,
+	ClientIoMessage, BlockChainReset
 };
 use client::{
 	BlockId, TransactionId, UncleId, TraceId, ClientConfig, BlockChainClient,
@@ -48,43 +61,33 @@ use client::{
 	IoClient, BadBlocks,
 };
 use client::bad_blocks;
-use encoded;
-use engines::{EthEngine, EpochTransition, ForkChoice};
+use engines::{EthEngine, EpochTransition, ForkChoice, EngineError};
+use engines::epoch::PendingTransition;
 use error::{
 	ImportErrorKind, ExecutionError, CallError, BlockError,
 	QueueError, QueueErrorKind, Error as EthcoreError, EthcoreResult, ErrorKind as EthcoreErrorKind
 };
-use vm::{EnvInfo, LastHashes};
-use evm::Schedule;
 use executive::{Executive, Executed, TransactOptions, contract_address};
 use factory::{Factories, VmFactory};
-use header::{BlockNumber, Header, ExtendedHeader};
-use io::IoChannel;
-use log_entry::LocalizedLogEntry;
 use miner::{Miner, MinerService};
-use ethcore_miner::pool::VerifiedTransaction;
-use parking_lot::{Mutex, RwLock};
-use rand::OsRng;
-use receipt::{Receipt, LocalizedReceipt};
 use snapshot::{self, io as snapshot_io, SnapshotClient};
 use spec::Spec;
-use state_db::StateDB;
 use state::{self, State};
-use trace;
-use trace::{TraceDB, ImportRequest as TraceImportRequest, LocalizedTrace, Database as TraceDatabase};
-use transaction::{self, LocalizedTransaction, UnverifiedTransaction, SignedTransaction, Transaction, Action};
-use types::filter::Filter;
-use types::ancestry_action::AncestryAction;
-use verification;
-use verification::{PreverifiedBlock, Verifier, BlockQueue};
-use verification::queue::kind::blocks::Unverified;
+use state_db::StateDB;
+use trace::{self, TraceDB, ImportRequest as TraceImportRequest, LocalizedTrace, Database as TraceDatabase};
+use transaction_ext::Transaction;
 use verification::queue::kind::BlockLike;
+use verification::queue::kind::blocks::Unverified;
+use verification::{PreverifiedBlock, Verifier, BlockQueue};
+use verification;
+use ansi_term::Colour;
 
 // re-export
 pub use types::blockchain_info::BlockChainInfo;
 pub use types::block_status::BlockStatus;
 pub use blockchain::CacheSize as BlockChainCacheSize;
 pub use verification::QueueInfo as BlockQueueInfo;
+use db::Writable;
 
 use_contract!(registry, "res/contracts/registrar.json");
 
@@ -293,8 +296,8 @@ impl Importer {
 					continue;
 				}
 
-				match self.check_and_lock_block(block, client) {
-					Ok(closed_block) => {
+				match self.check_and_lock_block(&bytes, block, client) {
+					Ok((closed_block, pending)) => {
 						if self.engine.is_proposal(&header) {
 							self.block_queue.mark_as_good(&[hash]);
 							proposed_blocks.push(bytes);
@@ -303,7 +306,7 @@ impl Importer {
 
 							let transactions_len = closed_block.transactions().len();
 
-							let route = self.commit_block(closed_block, &header, encoded::Block::new(bytes), client);
+							let route = self.commit_block(closed_block, &header, encoded::Block::new(bytes), pending, client);
 							import_results.push(route);
 
 							client.report.write().accrue_block(&header, transactions_len);
@@ -355,7 +358,7 @@ impl Importer {
 		imported
 	}
 
-	fn check_and_lock_block(&self, block: PreverifiedBlock, client: &Client) -> EthcoreResult<LockedBlock> {
+	fn check_and_lock_block(&self, bytes: &[u8], block: PreverifiedBlock, client: &Client) -> EthcoreResult<(LockedBlock, Option<PendingTransition>)> {
 		let engine = &*self.engine;
 		let header = block.header.clone();
 
@@ -439,7 +442,15 @@ impl Importer {
 			bail!(e);
 		}
 
-		Ok(locked_block)
+		let pending = self.check_epoch_end_signal(
+			&header,
+			bytes,
+			locked_block.receipts(),
+			locked_block.state().db(),
+			client
+		)?;
+
+		Ok((locked_block, pending))
 	}
 
 	/// Import a block with transaction receipts.
@@ -471,7 +482,8 @@ impl Importer {
 	// it is for reconstructing the state transition.
 	//
 	// The header passed is from the original block data and is sealed.
-	fn commit_block<B>(&self, block: B, header: &Header, block_data: encoded::Block, client: &Client) -> ImportRoute where B: Drain {
+	// TODO: should return an error if ImportRoute is none, issue #9910
+	fn commit_block<B>(&self, block: B, header: &Header, block_data: encoded::Block, pending: Option<PendingTransition>, client: &Client) -> ImportRoute where B: Drain {
 		let hash = &header.hash();
 		let number = header.number();
 		let parent = header.parent_hash();
@@ -526,15 +538,9 @@ impl Importer {
 
 		// check epoch end signal, potentially generating a proof on the current
 		// state.
-		self.check_epoch_end_signal(
-			&header,
-			block_data.raw(),
-			&receipts,
-			&state,
-			&chain,
-			&mut batch,
-			client
-		);
+		if let Some(pending) = pending {
+			chain.insert_pending_transition(&mut batch, header.hash(), pending);
+		}
 
 		state.journal_under(&mut batch, number, hash).expect("DB commit failed");
 
@@ -589,10 +595,8 @@ impl Importer {
 		block_bytes: &[u8],
 		receipts: &[Receipt],
 		state_db: &StateDB,
-		chain: &BlockChain,
-		batch: &mut DBTransaction,
 		client: &Client,
-	) {
+	) -> EthcoreResult<Option<PendingTransition>> {
 		use engines::EpochChange;
 
 		let hash = header.hash();
@@ -603,7 +607,6 @@ impl Importer {
 
 		match self.engine.signals_epoch_end(header, auxiliary) {
 			EpochChange::Yes(proof) => {
-				use engines::epoch::PendingTransition;
 				use engines::Proof;
 
 				let proof = match proof {
@@ -621,7 +624,7 @@ impl Importer {
 
 						let call = move |addr, data| {
 							let mut state_db = state_db.boxed_clone();
-							let backend = ::state::backend::Proving::new(state_db.as_hashdb_mut());
+							let backend = ::state::backend::Proving::new(state_db.as_hash_db_mut());
 
 							let transaction =
 								client.contract_call_tx(BlockId::Hash(*header.parent_hash()), addr, data);
@@ -640,11 +643,9 @@ impl Importer {
 								.transact(&transaction, options);
 
 							let res = match res {
-								Err(ExecutionError::Internal(e)) =>
-									Err(format!("Internal error: {}", e)),
 								Err(e) => {
 									trace!(target: "client", "Proved call failed: {}", e);
-									Ok((Vec::new(), state.drop().1.extract_proof()))
+									Err(e.to_string())
 								}
 								Ok(res) => Ok((res.output, state.drop().1.extract_proof())),
 							};
@@ -657,7 +658,7 @@ impl Importer {
 							Err(e) => {
 								warn!(target: "client", "Failed to generate transition proof for block {}: {}", hash, e);
 								warn!(target: "client", "Snapshots produced by this client may be incomplete");
-								Vec::new()
+								return Err(EngineError::FailedSystemCall(e).into())
 							}
 						}
 					}
@@ -665,13 +666,13 @@ impl Importer {
 
 				debug!(target: "client", "Block {} signals epoch end.", hash);
 
-				let pending = PendingTransition { proof: proof };
-				chain.insert_pending_transition(batch, hash, pending);
+				Ok(Some(PendingTransition { proof: proof }))
 			},
-			EpochChange::No => {},
+			EpochChange::No => Ok(None),
 			EpochChange::Unsure(_) => {
 				warn!(target: "client", "Detected invalid engine implementation.");
 				warn!(target: "client", "Engine claims to require more block data, but everything provided.");
+				Err(EngineError::InvalidEngine.into())
 			}
 		}
 	}
@@ -1175,7 +1176,7 @@ impl Client {
 		};
 
 		let processing_threads = self.config.snapshot.processing_threads;
-		snapshot::take_snapshot(&*self.engine, &self.chain.read(), start_hash, db.as_hashdb(), writer, p, processing_threads)?;
+		snapshot::take_snapshot(&*self.engine, &self.chain.read(), start_hash, db.as_hash_db(), writer, p, processing_threads)?;
 
 		Ok(())
 	}
@@ -1231,7 +1232,7 @@ impl Client {
 	// from the null sender, with 50M gas.
 	fn contract_call_tx(&self, block_id: BlockId, address: Address, data: Bytes) -> SignedTransaction {
 		let from = Address::default();
-		Transaction {
+		transaction::Transaction {
 			nonce: self.nonce(&from, block_id).unwrap_or_else(|| self.engine.account_start_nonce(0)),
 			action: Action::Call(address),
 			gas: U256::from(50_000_000),
@@ -1326,6 +1327,48 @@ impl snapshot::DatabaseRestore for Client {
 		*state_db = StateDB::new(journaldb::new(db.key_value().clone(), self.pruning, ::db::COL_STATE), cache_size);
 		*chain = Arc::new(BlockChain::new(self.config.blockchain.clone(), &[], db.clone()));
 		*tracedb = TraceDB::new(self.config.tracing.clone(), db.clone(), chain.clone());
+		Ok(())
+	}
+}
+
+impl BlockChainReset for Client {
+	fn reset(&self, num: u32) -> Result<(), String> {
+		if num as u64 > self.pruning_history() {
+			return Err("Attempting to reset to block with pruned state".into())
+		}
+
+		let (blocks_to_delete, best_block_hash) = self.chain.read()
+			.block_headers_from_best_block(num)
+			.ok_or("Attempted to reset past genesis block")?;
+
+		let mut db_transaction = DBTransaction::with_capacity((num + 1) as usize);
+
+		for hash in &blocks_to_delete {
+			db_transaction.delete(::db::COL_HEADERS, &hash.hash());
+			db_transaction.delete(::db::COL_BODIES, &hash.hash());
+			db_transaction.delete(::db::COL_EXTRA, &hash.hash());
+			Writable::delete::<H256, BlockNumberKey>
+				(&mut db_transaction, ::db::COL_EXTRA, &hash.number());
+		}
+
+		// update the new best block hash
+		db_transaction.put(::db::COL_EXTRA, b"best", &*best_block_hash);
+
+		self.db.read()
+			.key_value()
+			.write(db_transaction)
+			.map_err(|err| format!("could not complete reset operation; io error occured: {}", err))?;
+
+		let hashes = blocks_to_delete.iter().map(|b| b.hash()).collect::<Vec<_>>();
+
+		info!("Deleting block hashes {}",
+			Colour::Red
+				.bold()
+				.paint(format!("{:#?}", hashes))
+		);
+
+		info!("New best block hash {}", Colour::Green.bold().paint(format!("{:?}", best_block_hash)));
+
 		Ok(())
 	}
 }
@@ -1738,7 +1781,8 @@ impl BlockChainClient for Client {
 		};
 
 		let (root, db) = state.drop();
-		let trie = match self.factories.trie.readonly(db.as_hashdb(), &root) {
+		let db = &db.as_hash_db();
+		let trie = match self.factories.trie.readonly(db, &root) {
 			Ok(trie) => trie,
 			_ => {
 				trace!(target: "fatdb", "list_accounts: Couldn't open the DB");
@@ -1784,8 +1828,9 @@ impl BlockChainClient for Client {
 		};
 
 		let (_, db) = state.drop();
-		let account_db = self.factories.accountdb.readonly(db.as_hashdb(), keccak(account));
-		let trie = match self.factories.trie.readonly(account_db.as_hashdb(), &root) {
+		let account_db = &self.factories.accountdb.readonly(db.as_hash_db(), keccak(account));
+		let account_db = &account_db.as_hash_db();
+		let trie = match self.factories.trie.readonly(account_db, &root) {
 			Ok(trie) => trie,
 			_ => {
 				trace!(target: "fatdb", "list_storage: Couldn't open the DB");
@@ -2112,11 +2157,16 @@ impl BlockChainClient for Client {
 
 	fn transact_contract(&self, address: Address, data: Bytes) -> Result<(), transaction::Error> {
 		let authoring_params = self.importer.miner.authoring_params();
-		let transaction = Transaction {
+		let service_transaction_checker = ServiceTransactionChecker::default();
+		let gas_price = match service_transaction_checker.check_address(self, authoring_params.author) {
+			Ok(true) => U256::zero(),
+			_ => self.importer.miner.sensible_gas_price(),
+		};
+		let transaction = transaction::Transaction {
 			nonce: self.latest_nonce(&authoring_params.author),
 			action: Action::Call(address),
 			gas: self.importer.miner.sensible_gas_limit(),
-			gas_price: self.importer.miner.sensible_gas_price(),
+			gas_price,
 			value: U256::zero(),
 			data: data,
 		};
@@ -2167,11 +2217,8 @@ impl IoClient for Client {
 			// NOTE To prevent race condition with import, make sure to check queued blocks first
 			// (and attempt to acquire lock)
 			let is_parent_pending = self.queued_ancient_blocks.read().0.contains(&parent_hash);
-			if !is_parent_pending {
-				let status = self.block_status(BlockId::Hash(parent_hash));
-				if  status == BlockStatus::Unknown {
-					bail!(EthcoreErrorKind::Block(BlockError::UnknownParent(parent_hash)));
-				}
+			if !is_parent_pending && !self.chain.read().is_known(&parent_hash) {
+				bail!(EthcoreErrorKind::Block(BlockError::UnknownParent(parent_hash)));
 			}
 		}
 
@@ -2201,6 +2248,10 @@ impl IoClient for Client {
 					);
 					if let Err(e) = result {
 						error!(target: "client", "Error importing ancient block: {}", e);
+
+						let mut queued = queued.write();
+						queued.0.clear();
+						queued.1.clear();
 					}
 					// remove from pending
 					queued.write().0.remove(&hash);
@@ -2329,7 +2380,20 @@ impl ImportSealedBlock for Client {
 
 			let block_data = block.rlp_bytes();
 
-			let route = self.importer.commit_block(block, &header, encoded::Block::new(block_data), self);
+			let pending = self.importer.check_epoch_end_signal(
+				&header,
+				&block_data,
+				block.receipts(),
+				block.state().db(),
+				self
+			)?;
+			let route = self.importer.commit_block(
+				block,
+				&header,
+				encoded::Block::new(block_data),
+				pending,
+				self
+			);
 			trace!(target: "client", "Imported sealed block #{} ({})", header.number(), hash);
 			self.state_db.write().sync_cache(&route.enacted, &route.retracted, false);
 			route
@@ -2411,7 +2475,7 @@ impl super::traits::EngineClient for Client {
 		BlockChainClient::block_number(self, id)
 	}
 
-	fn block_header(&self, id: BlockId) -> Option<::encoded::Header> {
+	fn block_header(&self, id: BlockId) -> Option<encoded::Header> {
 		BlockChainClient::block_header(self, id)
 	}
 }
@@ -2437,7 +2501,7 @@ impl ProvingBlockChainClient for Client {
 		let mut jdb = self.state_db.read().journal_db().boxed_clone();
 
 		state::prove_transaction_virtual(
-			jdb.as_hashdb_mut(),
+			jdb.as_hash_db_mut(),
 			header.state_root().clone(),
 			&transaction,
 			self.engine.machine(),
@@ -2520,7 +2584,7 @@ mod tests {
 		use std::sync::atomic::{AtomicBool, Ordering};
 		use kvdb::DBTransaction;
 		use blockchain::ExtrasInsert;
-		use encoded;
+		use types::encoded;
 
 		let client = generate_dummy_client(0);
 		let genesis = client.chain_info().best_block_hash;
@@ -2566,7 +2630,6 @@ mod tests {
 		assert_eq!(receipts[1].cumulative_gas_used, 106_000.into());
 		assert_eq!(receipts[1].gas_used, 53_000.into());
 
-
 		let receipt = client.transaction_receipt(TransactionId::Hash(receipts[0].transaction_hash));
 		assert_eq!(receipt, Some(receipts[0].clone()));
 
@@ -2579,9 +2642,9 @@ mod tests {
 		use hash::keccak;
 		use super::transaction_receipt;
 		use ethkey::KeyPair;
-		use log_entry::{LogEntry, LocalizedLogEntry};
-		use receipt::{Receipt, LocalizedReceipt, TransactionOutcome};
-		use transaction::{Transaction, LocalizedTransaction, Action};
+		use types::log_entry::{LogEntry, LocalizedLogEntry};
+		use types::receipt::{Receipt, LocalizedReceipt, TransactionOutcome};
+		use types::transaction::{Transaction, LocalizedTransaction, Action};
 
 		// given
 		let key = KeyPair::from_secret_slice(&keccak("test")).unwrap();

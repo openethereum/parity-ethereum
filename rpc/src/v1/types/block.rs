@@ -1,27 +1,27 @@
-// Copyright 2015-2018 Parity Technologies (UK) Ltd.
-// This file is part of Parity.
+// Copyright 2015-2019 Parity Technologies (UK) Ltd.
+// This file is part of Parity Ethereum.
 
-// Parity is free software: you can redistribute it and/or modify
+// Parity Ethereum is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
 // the Free Software Foundation, either version 3 of the License, or
 // (at your option) any later version.
 
-// Parity is distributed in the hope that it will be useful,
+// Parity Ethereum is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 // GNU General Public License for more details.
 
 // You should have received a copy of the GNU General Public License
-// along with Parity.  If not, see <http://www.gnu.org/licenses/>.
+// along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
 use std::ops::Deref;
 use std::collections::BTreeMap;
 
-use ethcore::encoded::Header as EthHeader;
-
-use serde::{Serialize, Serializer};
+use ethereum_types::{H160, H256, U256, Bloom as H2048};
 use serde::ser::Error;
-use v1::types::{Bytes, Transaction, H160, H256, H2048, U256};
+use serde::{Serialize, Serializer};
+use types::encoded::Header as EthHeader;
+use v1::types::{Bytes, Transaction};
 
 /// Block Transactions
 #[derive(Debug)]
@@ -205,8 +205,9 @@ impl<T: Serialize> Serialize for Rich<T> {
 #[cfg(test)]
 mod tests {
 	use std::collections::BTreeMap;
+	use ethereum_types::{H64, H160, H256, U256, Bloom as H2048};
 	use serde_json;
-	use v1::types::{Transaction, H64, H160, H256, H2048, Bytes, U256};
+	use v1::types::{Transaction, Bytes};
 	use super::{Block, RichBlock, BlockTransactions, Header, RichHeader};
 
 	#[test]
@@ -248,8 +249,8 @@ mod tests {
 		let rich_block = RichBlock {
 			inner: block,
 			extra_info: map![
-				"mixHash".into() => format!("0x{:?}", H256::default()),
-				"nonce".into() => format!("0x{:?}", H64::default())
+				"mixHash".into() => format!("{:?}", H256::default()),
+				"nonce".into() => format!("{:?}", H64::default())
 			],
 		};
 		let serialized_rich_block = serde_json::to_string(&rich_block).unwrap();
@@ -286,8 +287,8 @@ mod tests {
 		let rich_block = RichBlock {
 			inner: block,
 			extra_info: map![
-				"mixHash".into() => format!("0x{:?}", H256::default()),
-				"nonce".into() => format!("0x{:?}", H64::default())
+				"mixHash".into() => format!("{:?}", H256::default()),
+				"nonce".into() => format!("{:?}", H64::default())
 			],
 		};
 		let serialized_rich_block = serde_json::to_string(&rich_block).unwrap();
@@ -321,8 +322,8 @@ mod tests {
 		let rich_header = RichHeader {
 			inner: header,
 			extra_info: map![
-				"mixHash".into() => format!("0x{:?}", H256::default()),
-				"nonce".into() => format!("0x{:?}", H64::default())
+				"mixHash".into() => format!("{:?}", H256::default()),
+				"nonce".into() => format!("{:?}", H64::default())
 			],
 		};
 		let serialized_rich_header = serde_json::to_string(&rich_header).unwrap();

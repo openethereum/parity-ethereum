@@ -1,18 +1,18 @@
-// Copyright 2015-2018 Parity Technologies (UK) Ltd.
-// This file is part of Parity.
+// Copyright 2015-2019 Parity Technologies (UK) Ltd.
+// This file is part of Parity Ethereum.
 
-// Parity is free software: you can redistribute it and/or modify
+// Parity Ethereum is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
 // the Free Software Foundation, either version 3 of the License, or
 // (at your option) any later version.
 
-// Parity is distributed in the hope that it will be useful,
+// Parity Ethereum is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 // GNU General Public License for more details.
 
 // You should have received a copy of the GNU General Public License
-// along with Parity.  If not, see <http://www.gnu.org/licenses/>.
+// along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
 use compute::Light;
 use either::Either;
@@ -69,6 +69,7 @@ pub struct NodeCacheBuilder {
 	// TODO: Remove this locking and just use an `Rc`?
 	seedhash: Arc<Mutex<SeedHashCompute>>,
 	optimize_for: OptimizeFor,
+	progpow_transition: u64,
 }
 
 // TODO: Abstract the "optimize for" logic
@@ -82,17 +83,18 @@ pub struct NodeCache {
 
 impl NodeCacheBuilder {
 	pub fn light(&self, cache_dir: &Path, block_number: u64) -> Light {
-		Light::new_with_builder(self, cache_dir, block_number)
+		Light::new_with_builder(self, cache_dir, block_number, self.progpow_transition)
 	}
 
 	pub fn light_from_file(&self, cache_dir: &Path, block_number: u64) -> io::Result<Light> {
-		Light::from_file_with_builder(self, cache_dir, block_number)
+		Light::from_file_with_builder(self, cache_dir, block_number, self.progpow_transition)
 	}
 
-	pub fn new<T: Into<Option<OptimizeFor>>>(optimize_for: T) -> Self {
+	pub fn new<T: Into<Option<OptimizeFor>>>(optimize_for: T, progpow_transition: u64) -> Self {
 		NodeCacheBuilder {
 			seedhash: Arc::new(Mutex::new(SeedHashCompute::default())),
 			optimize_for: optimize_for.into().unwrap_or_default(),
+			progpow_transition
 		}
 	}
 

@@ -1,18 +1,18 @@
-// Copyright 2015-2018 Parity Technologies (UK) Ltd.
-// This file is part of Parity.
+// Copyright 2015-2019 Parity Technologies (UK) Ltd.
+// This file is part of Parity Ethereum.
 
-// Parity is free software: you can redistribute it and/or modify
+// Parity Ethereum is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
 // the Free Software Foundation, either version 3 of the License, or
 // (at your option) any later version.
 
-// Parity is distributed in the hope that it will be useful,
+// Parity Ethereum is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 // GNU General Public License for more details.
 
 // You should have received a copy of the GNU General Public License
-// along with Parity.  If not, see <http://www.gnu.org/licenses/>.
+// along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
 ///
 /// Blockchain downloader
@@ -23,16 +23,19 @@ use std::cmp;
 use heapsize::HeapSizeOf;
 use ethereum_types::H256;
 use rlp::{self, Rlp};
-use ethcore::header::BlockNumber;
+use types::BlockNumber;
 use ethcore::client::{BlockStatus, BlockId};
 use ethcore::error::{ImportErrorKind, QueueErrorKind, BlockError, Error as EthcoreError, ErrorKind as EthcoreErrorKind};
 use sync_io::SyncIo;
 use blocks::{BlockCollection, SyncBody, SyncHeader};
 use chain::BlockSet;
+use network::PeerId;
+use network::client_version::ClientCapabilities;
 
 const MAX_HEADERS_TO_REQUEST: usize = 128;
-const MAX_BODIES_TO_REQUEST: usize = 32;
-const MAX_RECEPITS_TO_REQUEST: usize = 128;
+const MAX_BODIES_TO_REQUEST_LARGE: usize = 128;
+const MAX_BODIES_TO_REQUEST_SMALL: usize = 32; // Size request for parity clients prior to 2.4.0
+const MAX_RECEPITS_TO_REQUEST: usize = 256;
 const SUBCHAIN_SIZE: u64 = 256;
 const MAX_ROUND_PARENTS: usize = 16;
 const MAX_PARALLEL_SUBCHAIN_DOWNLOAD: usize = 5;
@@ -464,12 +467,12 @@ impl BlockDownloader {
 	}
 
 	/// Find some headers or blocks to download for a peer.
-	pub fn request_blocks(&mut self, io: &mut SyncIo, num_active_peers: usize) -> Option<BlockRequest> {
+	pub fn request_blocks(&mut self, peer_id: PeerId, io: &mut SyncIo, num_active_peers: usize) -> Option<BlockRequest> {
 		match self.state {
 			State::Idle => {
 				self.start_sync_round(io);
 				if self.state == State::ChainHead {
-					return self.request_blocks(io, num_active_peers);
+					return self.request_blocks(peer_id, io, num_active_peers);
 				}
 			},
 			State::ChainHead => {
@@ -487,7 +490,15 @@ impl BlockDownloader {
 			},
 			State::Blocks => {
 				// check to see if we need to download any block bodies first
-				let needed_bodies = self.blocks.needed_bodies(MAX_BODIES_TO_REQUEST, false);
+				let client_version = io.peer_version(peer_id);
+
+				let number_of_bodies_to_request = if client_version.can_handle_large_requests() {
+					MAX_BODIES_TO_REQUEST_LARGE
+				} else {
+					MAX_BODIES_TO_REQUEST_SMALL
+				};
+
+				let needed_bodies = self.blocks.needed_bodies(number_of_bodies_to_request, false);
 				if !needed_bodies.is_empty() {
 					return Some(BlockRequest::Bodies {
 						hashes: needed_bodies,
@@ -621,7 +632,6 @@ fn all_expected<A, B, F>(values: &[A], expected_values: &[B], is_expected: F) ->
 mod tests {
 	use super::*;
 	use ethcore::client::TestBlockChainClient;
-	use ethcore::header::Header as BlockHeader;
 	use ethcore::spec::Spec;
 	use ethkey::{Generator,Random};
 	use hash::keccak;
@@ -629,8 +639,9 @@ mod tests {
 	use rlp::{encode_list,RlpStream};
 	use tests::helpers::TestIo;
 	use tests::snapshot::TestSnapshotService;
-	use transaction::{Transaction,SignedTransaction};
+	use types::transaction::{Transaction,SignedTransaction};
 	use triehash_ethereum::ordered_trie_root;
+	use types::header::Header as BlockHeader;
 
 	fn dummy_header(number: u64, parent_hash: H256) -> BlockHeader {
 		let mut header = BlockHeader::new();

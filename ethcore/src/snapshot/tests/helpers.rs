@@ -1,18 +1,18 @@
-// Copyright 2015-2018 Parity Technologies (UK) Ltd.
-// This file is part of Parity.
+// Copyright 2015-2019 Parity Technologies (UK) Ltd.
+// This file is part of Parity Ethereum.
 
-// Parity is free software: you can redistribute it and/or modify
+// Parity Ethereum is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
 // the Free Software Foundation, either version 3 of the License, or
 // (at your option) any later version.
 
-// Parity is distributed in the hope that it will be useful,
+// Parity Ethereum is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 // GNU General Public License for more details.
 
 // You should have received a copy of the GNU General Public License
-// along with Parity.  If not, see <http://www.gnu.org/licenses/>.
+// along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
 //! Snapshot test helpers. These are used to build blockchains and state tries
 //! which can be queried before and after a full snapshot/restore cycle.
@@ -23,7 +23,7 @@ use std::sync::Arc;
 use hash::{KECCAK_NULL_RLP};
 
 use account_db::AccountDBMut;
-use basic_account::BasicAccount;
+use types::basic_account::BasicAccount;
 use blockchain::{BlockChain, BlockChainDB};
 use client::{Client, ChainInfo};
 use engines::EthEngine;
@@ -35,7 +35,7 @@ use rand::Rng;
 
 use kvdb::DBValue;
 use ethereum_types::H256;
-use hashdb::HashDB;
+use hash_db::HashDB;
 use keccak_hasher::KeccakHasher;
 use journaldb;
 use trie::{TrieMut, Trie};
@@ -65,7 +65,7 @@ impl StateProducer {
 	pub fn tick<R: Rng>(&mut self, rng: &mut R, db: &mut HashDB<KeccakHasher, DBValue>) {
 		// modify existing accounts.
 		let mut accounts_to_modify: Vec<_> = {
-			let trie = TrieDB::new(&*db, &self.state_root).unwrap();
+			let trie = TrieDB::new(&db, &self.state_root).unwrap();
 			let temp = trie.iter().unwrap() // binding required due to complicated lifetime stuff
 				.filter(|_| rng.gen::<f32>() < ACCOUNT_CHURN)
 				.map(Result::unwrap)
@@ -130,19 +130,10 @@ pub fn fill_storage(mut db: AccountDBMut, root: &mut H256, seed: &mut H256) {
 	}
 }
 
-/// Compare two state dbs.
-pub fn compare_dbs(one: &HashDB<KeccakHasher, DBValue>, two: &HashDB<KeccakHasher, DBValue>) {
-	let keys = one.keys();
-
-	for key in keys.keys() {
-		assert_eq!(one.get(&key).unwrap(), two.get(&key).unwrap());
-	}
-}
-
 /// Take a snapshot from the given client into a temporary file.
 /// Return a snapshot reader for it.
 pub fn snap(client: &Client) -> (Box<SnapshotReader>, TempDir) {
-	use ids::BlockId;
+	use types::ids::BlockId;
 
 	let tempdir = TempDir::new("").unwrap();
 	let path = tempdir.path().join("file");

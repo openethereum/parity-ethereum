@@ -1,18 +1,18 @@
-// Copyright 2015-2018 Parity Technologies (UK) Ltd.
-// This file is part of Parity.
+// Copyright 2015-2019 Parity Technologies (UK) Ltd.
+// This file is part of Parity Ethereum.
 
-// Parity is free software: you can redistribute it and/or modify
+// Parity Ethereum is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
 // the Free Software Foundation, either version 3 of the License, or
 // (at your option) any later version.
 
-// Parity is distributed in the hope that it will be useful,
+// Parity Ethereum is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 // GNU General Public License for more details.
 
 // You should have received a copy of the GNU General Public License
-// along with Parity.  If not, see <http://www.gnu.org/licenses/>.
+// along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
 //! Transaction Readiness indicator
 //!
@@ -42,8 +42,8 @@ use std::cmp;
 use std::collections::HashMap;
 
 use ethereum_types::{U256, H160 as Address};
-use transaction;
 use txpool::{self, VerifiedTransaction as PoolVerifiedTransaction};
+use types::transaction;
 
 use super::client::NonceClient;
 use super::VerifiedTransaction;
@@ -95,7 +95,7 @@ impl<C: NonceClient> txpool::Ready<VerifiedTransaction> for State<C> {
 			},
 			cmp::Ordering::Less => txpool::Readiness::Stale,
 			cmp::Ordering::Equal => {
-				*nonce = *nonce + 1;
+				*nonce = nonce.saturating_add(U256::from(1));
 				txpool::Readiness::Ready
 			},
 		}
@@ -159,7 +159,7 @@ impl<C: Fn(&Address) -> Option<U256>> txpool::Ready<VerifiedTransaction> for Opt
 			cmp::Ordering::Greater => txpool::Readiness::Future,
 			cmp::Ordering::Less => txpool::Readiness::Stale,
 			cmp::Ordering::Equal => {
-				*nonce = *nonce + 1;
+				*nonce = nonce.saturating_add(U256::from(1));
 				txpool::Readiness::Ready
 			},
 		}

@@ -1,18 +1,18 @@
-// Copyright 2015-2018 Parity Technologies (UK) Ltd.
-// This file is part of Parity.
+// Copyright 2015-2019 Parity Technologies (UK) Ltd.
+// This file is part of Parity Ethereum.
 
-// Parity is free software: you can redistribute it and/or modify
+// Parity Ethereum is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
 // the Free Software Foundation, either version 3 of the License, or
 // (at your option) any later version.
 
-// Parity is distributed in the hope that it will be useful,
+// Parity Ethereum is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 // GNU General Public License for more details.
 
 // You should have received a copy of the GNU General Public License
-// along with Parity.  If not, see <http://www.gnu.org/licenses/>.
+// along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
 //! Canonical hash trie definitions and helper functions.
 //!
@@ -23,12 +23,13 @@
 //! root has. A correct proof implies that the claimed block is identical to the one
 //! we discarded.
 
-use ethcore::ids::BlockId;
+use common_types::ids::BlockId;
 use ethereum_types::{H256, U256};
-use hashdb::HashDB;
+use hash_db::HashDB;
 use keccak_hasher::KeccakHasher;
 use kvdb::DBValue;
-use memorydb::MemoryDB;
+use memory_db::MemoryDB;
+use journaldb::new_memory_db;
 use bytes::Bytes;
 use trie::{TrieMut, Trie, Recorder};
 use ethtrie::{self, TrieDB, TrieDBMut};
@@ -73,7 +74,8 @@ impl<DB: HashDB<KeccakHasher, DBValue>> CHT<DB> {
 		if block_to_cht_number(num) != Some(self.number) { return Ok(None) }
 
 		let mut recorder = Recorder::with_depth(from_level);
-		let t = TrieDB::new(&self.db, &self.root)?;
+		let db: &HashDB<_,_> = &self.db;
+		let t = TrieDB::new(&db, &self.root)?;
 		t.get_with(&key!(num), &mut recorder)?;
 
 		Ok(Some(recorder.drain().into_iter().map(|x| x.data).collect()))
@@ -96,7 +98,7 @@ pub struct BlockInfo {
 pub fn build<F>(cht_num: u64, mut fetcher: F) -> Option<CHT<MemoryDB<KeccakHasher, DBValue>>>
 	where F: FnMut(BlockId) -> Option<BlockInfo>
 {
-	let mut db = MemoryDB::<KeccakHasher, DBValue>::new();
+	let mut db = new_memory_db();
 
 	// start from the last block by number and work backwards.
 	let last_num = start_number(cht_num + 1) - 1;
@@ -150,7 +152,7 @@ pub fn compute_root<I>(cht_num: u64, iterable: I) -> Option<H256>
 /// verify the given trie branch and extract the canonical hash and total difficulty.
 // TODO: better support for partially-checked queries.
 pub fn check_proof(proof: &[Bytes], num: u64, root: H256) -> Option<(H256, U256)> {
-	let mut db = MemoryDB::<KeccakHasher, DBValue>::new();
+	let mut db = new_memory_db();
 
 	for node in proof { db.insert(&node[..]); }
 	let res = match TrieDB::new(&db, &root) {

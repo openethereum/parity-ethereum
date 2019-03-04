@@ -1,30 +1,32 @@
-// Copyright 2015-2018 Parity Technologies (UK) Ltd.
-// This file is part of Parity.
+// Copyright 2015-2019 Parity Technologies (UK) Ltd.
+// This file is part of Parity Ethereum.
 
-// Parity is free software: you can redistribute it and/or modify
+// Parity Ethereum is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
 // the Free Software Foundation, either version 3 of the License, or
 // (at your option) any later version.
 
-// Parity is distributed in the hope that it will be useful,
+// Parity Ethereum is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 // GNU General Public License for more details.
 
 // You should have received a copy of the GNU General Public License
-// along with Parity.  If not, see <http://www.gnu.org/licenses/>.
+// along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
 use std::collections::BTreeMap;
-use serde::{Serialize, Serializer};
-use serde::ser::SerializeStruct;
-use ethcore::trace::{FlatTrace, LocalizedTrace as EthLocalizedTrace, trace, TraceError};
-use ethcore::trace as et;
-use ethcore::state_diff;
-use ethcore::account_diff;
+
 use ethcore::client::Executed;
-use ethereum_types::H256 as EthH256;
+use ethcore::trace as et;
+use ethcore::trace::{FlatTrace, LocalizedTrace as EthLocalizedTrace, trace, TraceError};
+use ethereum_types::{H160, H256, U256};
+use serde::ser::SerializeStruct;
+use serde::{Serialize, Serializer};
+use types::account_diff;
+use types::state_diff;
 use vm;
-use v1::types::{Bytes, H160, H256, U256};
+
+use v1::types::Bytes;
 
 #[derive(Debug, Serialize)]
 /// A diff of some chunk of memory.
@@ -637,8 +639,8 @@ pub struct TraceResultsWithTransactionHash {
 	pub transaction_hash: H256,
 }
 
-impl From<(EthH256, Executed)> for TraceResultsWithTransactionHash {
-	fn from(t: (EthH256, Executed)) -> Self {
+impl From<(H256, Executed)> for TraceResultsWithTransactionHash {
+	fn from(t: (H256, Executed)) -> Self {
 		TraceResultsWithTransactionHash {
 			output: t.1.output.into(),
 			trace: t.1.trace.into_iter().map(Into::into).collect(),

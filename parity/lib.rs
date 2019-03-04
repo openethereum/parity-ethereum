@@ -1,18 +1,18 @@
-// Copyright 2015-2018 Parity Technologies (UK) Ltd.
-// This file is part of Parity.
+// Copyright 2015-2019 Parity Technologies (UK) Ltd.
+// This file is part of Parity Ethereum.
 
-// Parity is free software: you can redistribute it and/or modify
+// Parity Ethereum is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
 // the Free Software Foundation, either version 3 of the License, or
 // (at your option) any later version.
 
-// Parity is distributed in the hope that it will be useful,
+// Parity Ethereum is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 // GNU General Public License for more details.
 
 // You should have received a copy of the GNU General Public License
-// along with Parity.  If not, see <http://www.gnu.org/licenses/>.
+// along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
 //! Ethcore client application.
 
@@ -23,7 +23,6 @@ extern crate docopt;
 #[macro_use]
 extern crate clap;
 extern crate dir;
-extern crate env_logger;
 extern crate futures;
 extern crate atty;
 extern crate jsonrpc_core;
@@ -42,8 +41,11 @@ extern crate serde_derive;
 extern crate toml;
 
 extern crate blooms_db;
+extern crate cli_signer;
+extern crate common_types as types;
 extern crate ethcore;
-extern crate parity_bytes as bytes;
+extern crate ethcore_call_contract as call_contract;
+extern crate ethcore_db;
 extern crate ethcore_io as io;
 extern crate ethcore_light as light;
 extern crate ethcore_logger;
@@ -52,27 +54,30 @@ extern crate ethcore_network as network;
 extern crate ethcore_private_tx;
 extern crate ethcore_service;
 extern crate ethcore_sync as sync;
-extern crate ethcore_transaction as transaction;
 extern crate ethereum_types;
 extern crate ethkey;
+extern crate ethstore;
+extern crate journaldb;
+extern crate keccak_hash as hash;
 extern crate kvdb;
+extern crate node_filter;
+extern crate parity_bytes as bytes;
 extern crate parity_hash_fetch as hash_fetch;
 extern crate parity_ipfs_api;
 extern crate parity_local_store as local_store;
-extern crate parity_runtime;
+extern crate parity_path as path;
 extern crate parity_rpc;
+extern crate parity_runtime;
 extern crate parity_updater as updater;
 extern crate parity_version;
 extern crate parity_whisper;
-extern crate parity_path as path;
-extern crate rpc_cli;
-extern crate node_filter;
-extern crate keccak_hash as hash;
-extern crate journaldb;
 extern crate registrar;
 
 #[macro_use]
 extern crate log as rlog;
+
+#[cfg(feature = "ethcore-accounts")]
+extern crate ethcore_accounts as accounts;
 
 #[cfg(feature = "secretstore")]
 extern crate ethcore_secretstore;
@@ -84,7 +89,12 @@ extern crate pretty_assertions;
 #[cfg(test)]
 extern crate tempdir;
 
+#[cfg(test)]
+#[macro_use]
+extern crate lazy_static;
+
 mod account;
+mod account_utils;
 mod blockchain;
 mod cache;
 mod cli;
@@ -109,18 +119,22 @@ mod user_defaults;
 mod whisper;
 mod db;
 
-use std::io::BufReader;
 use std::fs::File;
-use hash::keccak_buffer;
+use std::io::BufReader;
+use std::sync::Arc;
+
 use cli::Args;
 use configuration::{Cmd, Execute};
 use deprecated::find_deprecated;
-use ethcore_logger::setup_log;
+use hash::keccak_buffer;
+
 #[cfg(feature = "memory_profiling")]
 use std::alloc::System;
 
 pub use self::configuration::Configuration;
 pub use self::run::RunningClient;
+pub use parity_rpc::PubSubSession;
+pub use ethcore_logger::{Config as LoggerConfig, setup_log, RotatingLogger};
 
 #[cfg(feature = "memory_profiling")]
 #[global_allocator]
@@ -165,7 +179,6 @@ fn run_deadlock_detection_thread() {
 	});
 }
 
-
 /// Action that Parity performed when running `start`.
 pub enum ExecutionAction {
 	/// The execution didn't require starting a node, and thus has finished.
@@ -178,14 +191,13 @@ pub enum ExecutionAction {
 	Running(RunningClient),
 }
 
-fn execute<Cr, Rr>(command: Execute, on_client_rq: Cr, on_updater_rq: Rr) -> Result<ExecutionAction, String>
+fn execute<Cr, Rr>(
+	command: Execute,
+	logger: Arc<RotatingLogger>,
+	on_client_rq: Cr, on_updater_rq: Rr) -> Result<ExecutionAction, String>
 	where Cr: Fn(String) + 'static + Send,
 		  Rr: Fn() + 'static + Send
 {
-	// TODO: move this to `main()` and expose in the C API so that users can setup logging the way
-	// 		they want
-	let logger = setup_log(&command.logger).expect("Logger is initialized only once; qed");
-
 	#[cfg(feature = "deadlock_detection")]
 	run_deadlock_detection_thread();
 
@@ -200,9 +212,9 @@ fn execute<Cr, Rr>(command: Execute, on_client_rq: Cr, on_updater_rq: Rr) -> Res
 		Cmd::ImportPresaleWallet(presale_cmd) => presale::execute(presale_cmd).map(|s| ExecutionAction::Instant(Some(s))),
 		Cmd::Blockchain(blockchain_cmd) => blockchain::execute(blockchain_cmd).map(|_| ExecutionAction::Instant(None)),
 		Cmd::SignerToken(ws_conf, logger_config) => signer::execute(ws_conf, logger_config).map(|s| ExecutionAction::Instant(Some(s))),
-		Cmd::SignerSign { id, pwfile, port, authfile } => rpc_cli::signer_sign(id, pwfile, port, authfile).map(|s| ExecutionAction::Instant(Some(s))),
-		Cmd::SignerList { port, authfile } => rpc_cli::signer_list(port, authfile).map(|s| ExecutionAction::Instant(Some(s))),
-		Cmd::SignerReject { id, port, authfile } => rpc_cli::signer_reject(id, port, authfile).map(|s| ExecutionAction::Instant(Some(s))),
+		Cmd::SignerSign { id, pwfile, port, authfile } => cli_signer::signer_sign(id, pwfile, port, authfile).map(|s| ExecutionAction::Instant(Some(s))),
+		Cmd::SignerList { port, authfile } => cli_signer::signer_list(port, authfile).map(|s| ExecutionAction::Instant(Some(s))),
+		Cmd::SignerReject { id, port, authfile } => cli_signer::signer_reject(id, port, authfile).map(|s| ExecutionAction::Instant(Some(s))),
 		Cmd::Snapshot(snapshot_cmd) => snapshot::execute(snapshot_cmd).map(|s| ExecutionAction::Instant(Some(s))),
 		Cmd::ExportHardcodedSync(export_hs_cmd) => export_hardcoded_sync::execute(export_hs_cmd).map(|s| ExecutionAction::Instant(Some(s))),
 	}
@@ -219,14 +231,21 @@ fn execute<Cr, Rr>(command: Execute, on_client_rq: Cr, on_updater_rq: Rr) -> Res
 /// binary.
 ///
 /// On error, returns what to print on stderr.
-pub fn start<Cr, Rr>(conf: Configuration, on_client_rq: Cr, on_updater_rq: Rr) -> Result<ExecutionAction, String>
-	where Cr: Fn(String) + 'static + Send,
-			Rr: Fn() + 'static + Send
+// FIXME: totally independent logging capability, see https://github.com/paritytech/parity-ethereum/issues/10252
+pub fn start<Cr, Rr>(
+	conf: Configuration,
+	logger: Arc<RotatingLogger>,
+	on_client_rq: Cr,
+	on_updater_rq: Rr
+) -> Result<ExecutionAction, String>
+	where
+		Cr: Fn(String) + 'static + Send,
+		Rr: Fn() + 'static + Send
 {
 	let deprecated = find_deprecated(&conf.args);
 	for d in deprecated {
 		println!("{}", d);
 	}
 
-	execute(conf.into_command()?, on_client_rq, on_updater_rq)
+	execute(conf.into_command()?, logger, on_client_rq, on_updater_rq)
 }

@@ -1,18 +1,18 @@
-// Copyright 2015-2018 Parity Technologies (UK) Ltd.
-// This file is part of Parity.
+// Copyright 2015-2019 Parity Technologies (UK) Ltd.
+// This file is part of Parity Ethereum.
 
-// Parity is free software: you can redistribute it and/or modify
+// Parity Ethereum is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
 // the Free Software Foundation, either version 3 of the License, or
 // (at your option) any later version.
 
-// Parity is distributed in the hope that it will be useful,
+// Parity Ethereum is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 // GNU General Public License for more details.
 
 // You should have received a copy of the GNU General Public License
-// along with Parity.  If not, see <http://www.gnu.org/licenses/>.
+// along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
 //! Light client header chain.
 //!
@@ -30,12 +30,12 @@ use std::sync::Arc;
 
 use cache::Cache;
 use cht;
-use ethcore::block_status::BlockStatus;
-use ethcore::encoded;
+use common_types::block_status::BlockStatus;
+use common_types::encoded;
+use common_types::header::Header;
+use common_types::ids::BlockId;
 use ethcore::engines::epoch::{Transition as EpochTransition, PendingTransition as PendingEpochTransition};
 use ethcore::error::{Error, EthcoreResult, ErrorKind as EthcoreErrorKind, BlockError};
-use ethcore::header::Header;
-use ethcore::ids::BlockId;
 use ethcore::spec::{Spec, SpecHardcodedSync};
 use ethereum_types::{H256, H264, U256};
 use heapsize::HeapSizeOf;
@@ -862,11 +862,11 @@ mod tests {
 	use super::{HeaderChain, HardcodedSync};
 	use std::sync::Arc;
 
-	use ethereum_types::U256;
-	use ethcore::ids::BlockId;
-	use ethcore::header::Header;
-	use ethcore::spec::Spec;
 	use cache::Cache;
+	use common_types::header::Header;
+	use common_types::ids::BlockId;
+	use ethcore::spec::Spec;
+	use ethereum_types::U256;
 	use kvdb::KeyValueDB;
 	use kvdb_memorydb;
 

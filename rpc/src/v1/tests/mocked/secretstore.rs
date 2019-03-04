@@ -1,23 +1,24 @@
-// Copyright 2015-2018 Parity Technologies (UK) Ltd.
-// This file is part of Parity.
+// Copyright 2015-2019 Parity Technologies (UK) Ltd.
+// This file is part of Parity Ethereum.
 
-// Parity is free software: you can redistribute it and/or modify
+// Parity Ethereum is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
 // the Free Software Foundation, either version 3 of the License, or
 // (at your option) any later version.
 
-// Parity is distributed in the hope that it will be useful,
+// Parity Ethereum is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 // GNU General Public License for more details.
 
 // You should have received a copy of the GNU General Public License
-// along with Parity.  If not, see <http://www.gnu.org/licenses/>.
+// along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
 use std::sync::Arc;
 
 use crypto::DEFAULT_MAC;
-use ethcore::account_provider::AccountProvider;
+use accounts::AccountProvider;
+use ethereum_types::H256;
 use ethkey::{KeyPair, Signature, verify_public};
 
 use serde_json;
@@ -26,7 +27,7 @@ use v1::metadata::Metadata;
 use v1::SecretStoreClient;
 use v1::traits::secretstore::SecretStore;
 use v1::helpers::secretstore::ordered_servers_keccak;
-use v1::types::{H256, EncryptedDocumentKey};
+use v1::types::EncryptedDocumentKey;
 
 struct Dependencies {
 	pub accounts: Arc<AccountProvider>,

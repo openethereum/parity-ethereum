@@ -1,28 +1,31 @@
-// Copyright 2015-2018 Parity Technologies (UK) Ltd.
-// This file is part of Parity.
+// Copyright 2015-2019 Parity Technologies (UK) Ltd.
+// This file is part of Parity Ethereum.
 
-// Parity is free software: you can redistribute it and/or modify
+// Parity Ethereum is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
 // the Free Software Foundation, either version 3 of the License, or
 // (at your option) any later version.
 
-// Parity is distributed in the hope that it will be useful,
+// Parity Ethereum is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 // GNU General Public License for more details.
 
 // You should have received a copy of the GNU General Public License
-// along with Parity.  If not, see <http://www.gnu.org/licenses/>.
+// along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
 /// Validator set changing at fork blocks.
 
 use std::collections::BTreeMap;
 use std::sync::Weak;
+
+use bytes::Bytes;
 use ethereum_types::{H256, Address};
 use parking_lot::RwLock;
-use bytes::Bytes;
-use ids::BlockId;
-use header::{BlockNumber, Header};
+use types::BlockNumber;
+use types::header::Header;
+use types::ids::BlockId;
+
 use client::EngineClient;
 use machine::{AuxiliaryData, Call, EthereumMachine};
 use super::{SystemCall, ValidatorSet};
@@ -147,15 +150,15 @@ mod tests {
 	use std::sync::Arc;
 	use std::collections::BTreeMap;
 	use hash::keccak;
-	use account_provider::AccountProvider;
+	use accounts::AccountProvider;
 	use client::{BlockChainClient, ChainInfo, BlockInfo, ImportBlock};
 	use engines::EpochChange;
 	use engines::validator_set::ValidatorSet;
 	use ethkey::Secret;
-	use header::Header;
-	use miner::MinerService;
+	use types::header::Header;
+	use miner::{self, MinerService};
 	use spec::Spec;
-	use test_helpers::{generate_dummy_client_with_spec_and_accounts, generate_dummy_client_with_spec_and_data};
+	use test_helpers::{generate_dummy_client_with_spec, generate_dummy_client_with_spec_and_data};
 	use types::ids::BlockId;
 	use ethereum_types::Address;
 	use verification::queue::kind::blocks::Unverified;
@@ -168,26 +171,29 @@ mod tests {
 		let s0: Secret = keccak("0").into();
 		let v0 = tap.insert_account(s0.clone(), &"".into()).unwrap();
 		let v1 = tap.insert_account(keccak("1").into(), &"".into()).unwrap();
-		let client = generate_dummy_client_with_spec_and_accounts(Spec::new_validator_multi, Some(tap));
+		let client = generate_dummy_client_with_spec(Spec::new_validator_multi);
 		client.engine().register_client(Arc::downgrade(&client) as _);
 
 		// Make sure txs go through.
 		client.miner().set_gas_range_target((1_000_000.into(), 1_000_000.into()));
 
 		// Wrong signer for the first block.
-		client.miner().set_author(v1, Some("".into())).unwrap();
+		let signer = Box::new((tap.clone(), v1, "".into()));
+		client.miner().set_author(miner::Author::Sealer(signer));
 		client.transact_contract(Default::default(), Default::default()).unwrap();
 		::client::EngineClient::update_sealing(&*client);
 		assert_eq!(client.chain_info().best_block_number, 0);
 		// Right signer for the first block.
-		client.miner().set_author(v0, Some("".into())).unwrap();
+		let signer = Box::new((tap.clone(), v0, "".into()));
+		client.miner().set_author(miner::Author::Sealer(signer));
 		::client::EngineClient::update_sealing(&*client);
 		assert_eq!(client.chain_info().best_block_number, 1);
 		// This time v0 is wrong.
 		client.transact_contract(Default::default(), Default::default()).unwrap();
 		::client::EngineClient::update_sealing(&*client);
 		assert_eq!(client.chain_info().best_block_number, 1);
-		client.miner().set_author(v1, Some("".into())).unwrap();
+		let signer = Box::new((tap.clone(), v1, "".into()));
+		client.miner().set_author(miner::Author::Sealer(signer));
 		::client::EngineClient::update_sealing(&*client);
 		assert_eq!(client.chain_info().best_block_number, 2);
 		// v1 is still good.

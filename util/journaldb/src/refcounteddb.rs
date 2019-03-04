@@ -1,18 +1,18 @@
-// Copyright 2015-2018 Parity Technologies (UK) Ltd.
-// This file is part of Parity.
+// Copyright 2015-2019 Parity Technologies (UK) Ltd.
+// This file is part of Parity Ethereum.
 
-// Parity is free software: you can redistribute it and/or modify
+// Parity Ethereum is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
 // the Free Software Foundation, either version 3 of the License, or
 // (at your option) any later version.
 
-// Parity is distributed in the hope that it will be useful,
+// Parity Ethereum is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 // GNU General Public License for more details.
 
 // You should have received a copy of the GNU General Public License
-// along with Parity.  If not, see <http://www.gnu.org/licenses/>.
+// along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
 //! Disk-backed, ref-counted `JournalDB` implementation.
 
@@ -22,11 +22,11 @@ use std::sync::Arc;
 
 use bytes::Bytes;
 use ethereum_types::H256;
-use hashdb::*;
+use hash_db::{HashDB};
 use heapsize::HeapSizeOf;
 use keccak_hasher::KeccakHasher;
 use kvdb::{KeyValueDB, DBTransaction, DBValue};
-use memorydb::MemoryDB;
+use memory_db::MemoryDB;
 use overlaydb::OverlayDB;
 use rlp::{encode, decode};
 use super::{DB_PREFIX_LEN, LATEST_ERA_KEY};
@@ -81,12 +81,15 @@ impl RefCountedDB {
 }
 
 impl HashDB<KeccakHasher, DBValue> for RefCountedDB {
-	fn keys(&self) -> HashMap<H256, i32> { self.forward.keys() }
 	fn get(&self, key: &H256) -> Option<DBValue> { self.forward.get(key) }
 	fn contains(&self, key: &H256) -> bool { self.forward.contains(key) }
 	fn insert(&mut self, value: &[u8]) -> H256 { let r = self.forward.insert(value); self.inserts.push(r.clone()); r }
 	fn emplace(&mut self, key: H256, value: DBValue) { self.inserts.push(key.clone()); self.forward.emplace(key, value); }
 	fn remove(&mut self, key: &H256) { self.removes.push(key.clone()); }
+}
+
+impl ::traits::KeyedHashDB for RefCountedDB {
+	fn keys(&self) -> HashMap<H256, i32> { self.forward.keys() }
 }
 
 impl JournalDB for RefCountedDB {
@@ -216,7 +219,7 @@ impl JournalDB for RefCountedDB {
 mod tests {
 
 	use keccak::keccak;
-	use hashdb::HashDB;
+	use hash_db::HashDB;
 	use super::*;
 	use {JournalDB, kvdb_memorydb};
 

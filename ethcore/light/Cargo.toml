@@ -8,22 +8,24 @@ authors = ["Parity Technologies <admin@parity.io>"]
 
 [dependencies]
 log = "0.4"
-ethcore = { path = ".."}
 parity-bytes = "0.1"
-ethcore-transaction = { path = "../transaction" }
+common-types = { path = "../types" }
+ethcore = { path = ".."}
+ethcore-db = { path = "../db" }
+ethcore-blockchain = { path = "../blockchain" }
 ethereum-types = "0.4"
-memorydb = "0.3.0"
-patricia-trie = "0.3.0"
+memory-db = "0.11.0"
+trie-db = "0.11.0"
 patricia-trie-ethereum = { path = "../../util/patricia-trie-ethereum" }
 ethcore-network = { path = "../../util/network" }
 ethcore-io = { path = "../../util/io" }
-hashdb = "0.3.0"
+hash-db = "0.11.0"
 heapsize = "0.4"
 vm = { path = "../vm" }
 fastmap = { path = "../../util/fastmap" }
 failsafe = { version = "0.3.0", default-features = false, features = ["parking_lot_mutex"] }
 rlp = { version = "0.3.0", features = ["ethereum"] }
-rlp_derive = { path = "../../util/rlp_derive" }
+rlp_derive = { path = "../../util/rlp-derive" }
 smallvec = "0.6"
 futures = "0.1"
 rand = "0.4"
@@ -37,8 +39,9 @@ keccak-hash = "0.1"
 keccak-hasher = { path = "../../util/keccak-hasher" }
 triehash-ethereum = { version = "0.2",  path = "../../util/triehash-ethereum" }
 kvdb = "0.1"
-memory-cache = { path = "../../util/memory_cache" }
+memory-cache = { path = "../../util/memory-cache" }
 error-chain = { version = "0.12", default-features = false }
+journaldb = { path = "../../util/journaldb" }
 
 [dev-dependencies]
 ethcore = { path = "..", features = ["test-helpers"] }

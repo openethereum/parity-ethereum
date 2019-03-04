@@ -1,18 +1,18 @@
-// Copyright 2015-2018 Parity Technologies (UK) Ltd.
-// This file is part of Parity.
+// Copyright 2015-2019 Parity Technologies (UK) Ltd.
+// This file is part of Parity Ethereum.
 
-// Parity is free software: you can redistribute it and/or modify
+// Parity Ethereum is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
 // the Free Software Foundation, either version 3 of the License, or
 // (at your option) any later version.
 
-// Parity is distributed in the hope that it will be useful,
+// Parity Ethereum is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 // GNU General Public License for more details.
 
 // You should have received a copy of the GNU General Public License
-// along with Parity.  If not, see <http://www.gnu.org/licenses/>.
+// along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
 //! `JournalDB` over in-memory overlay
 
@@ -23,11 +23,11 @@ use std::sync::Arc;
 
 use bytes::Bytes;
 use ethereum_types::H256;
-use hashdb::*;
+use hash_db::{HashDB};
 use heapsize::HeapSizeOf;
 use keccak_hasher::KeccakHasher;
 use kvdb::{KeyValueDB, DBTransaction, DBValue};
-use memorydb::*;
+use memory_db::*;
 use parking_lot::RwLock;
 use fastmap::H256FastMap;
 use rlp::{Rlp, RlpStream, encode, decode, DecoderError, Decodable, Encodable};
@@ -157,7 +157,7 @@ impl OverlayRecentDB {
 	pub fn new(backing: Arc<KeyValueDB>, col: Option<u32>) -> OverlayRecentDB {
 		let journal_overlay = Arc::new(RwLock::new(OverlayRecentDB::read_overlay(&*backing, col)));
 		OverlayRecentDB {
-			transaction_overlay: MemoryDB::new(),
+			transaction_overlay: ::new_memory_db(),
 			backing: backing,
 			journal_overlay: journal_overlay,
 			column: col,
@@ -181,7 +181,7 @@ impl OverlayRecentDB {
 
 	fn read_overlay(db: &KeyValueDB, col: Option<u32>) -> JournalOverlay {
 		let mut journal = HashMap::new();
-		let mut overlay = MemoryDB::new();
+		let mut overlay = ::new_memory_db();
 		let mut count = 0;
 		let mut latest_era = None;
 		let mut earliest_era = None;
@@ -233,6 +233,7 @@ impl OverlayRecentDB {
 			cumulative_size: cumulative_size,
 		}
 	}
+
 }
 
 #[inline]
@@ -242,7 +243,28 @@ fn to_short_key(key: &H256) -> H256 {
 	k
 }
 
+impl ::traits::KeyedHashDB for OverlayRecentDB {
+	fn keys(&self) -> HashMap<H256, i32> {
+		let mut ret: HashMap<H256, i32> = self.backing.iter(self.column)
+			.map(|(key, _)| (H256::from_slice(&*key), 1))
+			.collect();
+
+		for (key, refs) in self.transaction_overlay.keys() {
+			match ret.entry(key) {
+				Entry::Occupied(mut entry) => {
+					*entry.get_mut() += refs;
+				},
+				Entry::Vacant(entry) => {
+					entry.insert(refs);
+				}
+			}
+		}
+		ret
+	}
+}
+
 impl JournalDB for OverlayRecentDB {
+
 	fn boxed_clone(&self) -> Box<JournalDB> {
 		Box::new(self.clone())
 	}
@@ -365,7 +387,7 @@ impl JournalDB for OverlayRecentDB {
 						for h in &journal.insertions {
 							if let Some((d, rc)) = journal_overlay.backing_overlay.raw(&to_short_key(h)) {
 								if rc > 0 {
-									canon_insertions.push((h.clone(), d)); //TODO: optimize this to avoid data copy
+									canon_insertions.push((h.clone(), d.clone())); //TODO: optimize this to avoid data copy
 								}
 							}
 						}
@@ -440,28 +462,10 @@ impl JournalDB for OverlayRecentDB {
 }
 
 impl HashDB<KeccakHasher, DBValue> for OverlayRecentDB {
-	fn keys(&self) -> HashMap<H256, i32> {
-		let mut ret: HashMap<H256, i32> = self.backing.iter(self.column)
-			.map(|(key, _)| (H256::from_slice(&*key), 1))
-			.collect();
-
-		for (key, refs) in self.transaction_overlay.keys() {
-			match ret.entry(key) {
-				Entry::Occupied(mut entry) => {
-					*entry.get_mut() += refs;
-				},
-				Entry::Vacant(entry) => {
-					entry.insert(refs);
-				}
-			}
-		}
-		ret
-	}
-
 	fn get(&self, key: &H256) -> Option<DBValue> {
 		if let Some((d, rc)) = self.transaction_overlay.raw(key) {
 			if rc > 0 {
-				return Some(d)
+				return Some(d.clone())
 			}
 		}
 		let v = {
@@ -493,8 +497,7 @@ mod tests {
 
 	use keccak::keccak;
 	use super::*;
-	use hashdb::HashDB;
-	use ethcore_logger::init_log;
+	use hash_db::HashDB;
 	use {kvdb_memorydb, JournalDB};
 
 	fn new_db() -> OverlayRecentDB {
@@ -772,7 +775,7 @@ mod tests {
 
 	#[test]
 	fn insert_delete_insert_delete_insert_expunge() {
-		init_log();
+		let _ = ::env_logger::try_init();
 		let mut jdb = new_db();
 
 		// history is 4
@@ -798,7 +801,7 @@ mod tests {
 
 	#[test]
 	fn forked_insert_delete_insert_delete_insert_expunge() {
-		init_log();
+		let _ = ::env_logger::try_init();
 		let mut jdb = new_db();
 
 		// history is 4
@@ -905,7 +908,7 @@ mod tests {
 
 	#[test]
 	fn reopen_remove_three() {
-		init_log();
+		let _ = ::env_logger::try_init();
 
 		let shared_db = Arc::new(kvdb_memorydb::create(0));
 		let foo = keccak(b"foo");

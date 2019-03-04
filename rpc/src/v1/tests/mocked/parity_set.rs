@@ -1,18 +1,18 @@
-// Copyright 2015-2018 Parity Technologies (UK) Ltd.
-// This file is part of Parity.
+// Copyright 2015-2019 Parity Technologies (UK) Ltd.
+// This file is part of Parity Ethereum.
 
-// Parity is free software: you can redistribute it and/or modify
+// Parity Ethereum is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
 // the Free Software Foundation, either version 3 of the License, or
 // (at your option) any later version.
 
-// Parity is distributed in the hope that it will be useful,
+// Parity Ethereum is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 // GNU General Public License for more details.
 
 // You should have received a copy of the GNU General Public License
-// along with Parity.  If not, see <http://www.gnu.org/licenses/>.
+// along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
 use std::sync::Arc;
 use std::str::FromStr;
@@ -54,7 +54,13 @@ fn parity_set_client(
 	updater: &Arc<TestUpdater>,
 	net: &Arc<TestManageNetwork>,
 ) -> TestParitySetClient {
-	ParitySetClient::new(client, miner, updater, &(net.clone() as Arc<ManageNetwork>), FakeFetch::new(Some(1)))
+	ParitySetClient::new(
+		client,
+		miner,
+		updater,
+		&(net.clone() as Arc<ManageNetwork>),
+		FakeFetch::new(Some(1)),
+	)
 }
 
 #[test]
@@ -106,7 +112,25 @@ fn rpc_parity_set_min_gas_price() {
 	io.extend_with(parity_set_client(&client, &miner, &updater, &network).to_delegate());
 
 	let request = r#"{"jsonrpc": "2.0", "method": "parity_setMinGasPrice", "params":["0xcd1722f3947def4cf144679da39c4c32bdc35681"], "id": 1}"#;
-	let response = r#"{"jsonrpc":"2.0","result":false,"id":1}"#;
+	let response = r#"{"jsonrpc":"2.0","result":true,"id":1}"#;
+
+	assert_eq!(io.handle_request_sync(request), Some(response.to_owned()));
+}
+
+#[test]
+fn rpc_parity_set_min_gas_price_with_automated_calibration_enabled() {
+	let miner = miner_service();
+	*miner.min_gas_price.write() = None;
+
+	let client = client_service();
+	let network = network_service();
+	let updater = updater_service();
+
+	let mut io = IoHandler::new();
+	io.extend_with(parity_set_client(&client, &miner, &updater, &network).to_delegate());
+
+	let request = r#"{"jsonrpc": "2.0", "method": "parity_setMinGasPrice", "params":["0xdeadbeef"], "id": 1}"#;
+	let response = r#"{"jsonrpc":"2.0","error":{"code":-32000,"message":"Can't update fixed gas price while automatic gas calibration is enabled."},"id":1}"#;
 
 	assert_eq!(io.handle_request_sync(request), Some(response.to_owned()));
 }
@@ -162,23 +186,6 @@ fn rpc_parity_set_author() {
 }
 
 #[test]
-fn rpc_parity_set_engine_signer() {
-	let miner = miner_service();
-	let client = client_service();
-	let network = network_service();
-	let updater = updater_service();
-	let mut io = IoHandler::new();
-	io.extend_with(parity_set_client(&client, &miner, &updater, &network).to_delegate());
-
-	let request = r#"{"jsonrpc": "2.0", "method": "parity_setEngineSigner", "params":["0xcd1722f3947def4cf144679da39c4c32bdc35681", "password"], "id": 1}"#;
-	let response = r#"{"jsonrpc":"2.0","result":true,"id":1}"#;
-
-	assert_eq!(io.handle_request_sync(request), Some(response.to_owned()));
-	assert_eq!(miner.authoring_params().author, Address::from_str("cd1722f3947def4cf144679da39c4c32bdc35681").unwrap());
-	assert_eq!(*miner.password.read(), "password".into());
-}
-
-#[test]
 fn rpc_parity_set_transactions_limit() {
 	let miner = miner_service();
 	let client = client_service();
@@ -210,7 +217,7 @@ fn rpc_parity_set_hash_content() {
 
 #[test]
 fn rpc_parity_remove_transaction() {
-	use transaction::{Transaction, Action};
+	use types::transaction::{Transaction, Action};
 
 	let miner = miner_service();
 	let client = client_service();
@@ -236,3 +243,29 @@ fn rpc_parity_remove_transaction() {
 	miner.pending_transactions.lock().insert(hash, signed);
 	assert_eq!(io.handle_request_sync(&request), Some(response.to_owned()));
 }
+
+#[test]
+fn rpc_parity_set_engine_signer() {
+	use accounts::AccountProvider;
+	use bytes::ToPretty;
+	use v1::impls::ParitySetAccountsClient;
+	use v1::traits::ParitySetAccounts;
+
+	let account_provider = Arc::new(AccountProvider::transient_provider());
+	account_provider.insert_account(::hash::keccak("cow").into(), &"password".into()).unwrap();
+
+	let miner = miner_service();
+	let mut io = IoHandler::new();
+	io.extend_with(
+		ParitySetAccountsClient::new(&account_provider, &miner).to_delegate()
+	);
+
+	let request = r#"{"jsonrpc": "2.0", "method": "parity_setEngineSigner", "params":["0xcd2a3d9f938e13cd947ec05abc7fe734df8dd826", "password"], "id": 1}"#;
+	let response = r#"{"jsonrpc":"2.0","result":true,"id":1}"#;
+
+	assert_eq!(io.handle_request_sync(request), Some(response.to_owned()));
+	assert_eq!(miner.authoring_params().author, Address::from_str("cd2a3d9f938e13cd947ec05abc7fe734df8dd826").unwrap());
+	let signature = miner.signer.read().as_ref().unwrap().sign(::hash::keccak("x")).unwrap().to_vec();
+	assert_eq!(&format!("{}", signature.pretty()), "6f46069ded2154af6e806706e4f7f6fd310ac45f3c6dccb85f11c0059ee20a09245df0a0008bb84a10882b1298284bc93058e7bc5938ea728e77620061687a6401");
+}
+

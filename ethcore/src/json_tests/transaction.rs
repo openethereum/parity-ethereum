@@ -1,26 +1,27 @@
-// Copyright 2015-2018 Parity Technologies (UK) Ltd.
-// This file is part of Parity.
+// Copyright 2015-2019 Parity Technologies (UK) Ltd.
+// This file is part of Parity Ethereum.
 
-// Parity is free software: you can redistribute it and/or modify
+// Parity Ethereum is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
 // the Free Software Foundation, either version 3 of the License, or
 // (at your option) any later version.
 
-// Parity is distributed in the hope that it will be useful,
+// Parity Ethereum is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 // GNU General Public License for more details.
 
 // You should have received a copy of the GNU General Public License
-// along with Parity.  If not, see <http://www.gnu.org/licenses/>.
+// along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
 use std::path::Path;
 use super::test_common::*;
 use client::EvmTestClient;
-use header::Header;
 use ethjson;
 use rlp::Rlp;
-use transaction::UnverifiedTransaction;
+use types::header::Header;
+use types::transaction::UnverifiedTransaction;
+use transaction_ext::Transaction;
 
 /// Run transaction jsontests on a given folder.
 pub fn run_test_path<H: FnMut(&str, HookType)>(p: &Path, skip: &[&'static str], h: &mut H) {
@@ -67,7 +68,7 @@ fn do_json_test<H: FnMut(&str, HookType)>(json_data: &[u8], start_stop_hook: &mu
 
 					let minimal = t.gas_required(&spec.engine.schedule(header.number())).into();
 					if t.gas < minimal {
-						return Err(::transaction::Error::InsufficientGas {
+						return Err(::types::transaction::Error::InsufficientGas {
 							minimal, got: t.gas,
 						}.into());
 					}
@@ -109,4 +110,3 @@ declare_test!{TransactionTests_ttSignature, "TransactionTests/ttSignature"}
 declare_test!{TransactionTests_ttValue, "TransactionTests/ttValue"}
 declare_test!{TransactionTests_ttVValue, "TransactionTests/ttVValue"}
 declare_test!{TransactionTests_ttWrongRLP, "TransactionTests/ttWrongRLP"}
-

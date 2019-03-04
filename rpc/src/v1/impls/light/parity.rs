@@ -1,55 +1,54 @@
-// Copyright 2015-2018 Parity Technologies (UK) Ltd.
-// This file is part of Parity.
+// Copyright 2015-2019 Parity Technologies (UK) Ltd.
+// This file is part of Parity Ethereum.
 
-// Parity is free software: you can redistribute it and/or modify
+// Parity Ethereum is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
 // the Free Software Foundation, either version 3 of the License, or
 // (at your option) any later version.
 
-// Parity is distributed in the hope that it will be useful,
+// Parity Ethereum is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 // GNU General Public License for more details.
 
 // You should have received a copy of the GNU General Public License
-// along with Parity.  If not, see <http://www.gnu.org/licenses/>.
+// along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
 //! Parity-specific rpc implementation.
 use std::sync::Arc;
-use std::collections::{BTreeMap, HashSet};
+use std::collections::BTreeMap;
 
 use version::version_data;
 
 use crypto::DEFAULT_MAC;
 use ethkey::{crypto::ecies, Brain, Generator};
 use ethstore::random_phrase;
-use sync::LightSyncProvider;
-use ethcore::account_provider::AccountProvider;
+use sync::{LightSyncInfo, LightSyncProvider, LightNetworkDispatcher, ManageNetwork};
+use ethereum_types::{H64, H160, H256, H512, U64, U256};
 use ethcore_logger::RotatingLogger;
 
 use jsonrpc_core::{Result, BoxFuture};
 use jsonrpc_core::futures::{future, Future};
-use jsonrpc_macros::Trailing;
-use v1::helpers::{self, errors, ipfs, SigningQueue, SignerService, NetworkSettings, verify_signature};
+use v1::helpers::{self, errors, ipfs, NetworkSettings, verify_signature};
+use v1::helpers::external_signer::{SignerService, SigningQueue};
 use v1::helpers::dispatch::LightDispatcher;
 use v1::helpers::light_fetch::{LightFetch, light_all_transactions};
 use v1::metadata::Metadata;
 use v1::traits::Parity;
 use v1::types::{
-	Bytes, U256, U64, H64, H160, H256, H512, CallRequest,
+	Bytes, CallRequest,
 	Peers, Transaction, RpcSettings, Histogram,
 	TransactionStats, LocalTransactionStatus,
 	LightBlockNumber, ChainStatus, Receipt,
 	BlockNumber, ConsensusCapability, VersionInfo,
-	OperationsInfo, AccountInfo, HwAccountInfo, Header, RichHeader, RecoveredAccount,
+	OperationsInfo, Header, RichHeader, RecoveredAccount,
 	Log, Filter,
 };
 use Host;
 
 /// Parity implementation for light client.
-pub struct ParityClient {
-	light_dispatch: Arc<LightDispatcher>,
-	accounts: Arc<AccountProvider>,
+pub struct ParityClient<S: LightSyncProvider + LightNetworkDispatcher + ManageNetwork + 'static> {
+	light_dispatch: Arc<LightDispatcher<S>>,
 	logger: Arc<RotatingLogger>,
 	settings: Arc<NetworkSettings>,
 	signer: Option<Arc<SignerService>>,
@@ -57,11 +56,13 @@ pub struct ParityClient {
 	gas_price_percentile: usize,
 }
 
-impl ParityClient {
+impl<S> ParityClient<S>
+where
+	S: LightSyncProvider + LightNetworkDispatcher + ManageNetwork + 'static
+{
 	/// Creates new `ParityClient`.
 	pub fn new(
-		light_dispatch: Arc<LightDispatcher>,
-		accounts: Arc<AccountProvider>,
+		light_dispatch: Arc<LightDispatcher<S>>,
 		logger: Arc<RotatingLogger>,
 		settings: Arc<NetworkSettings>,
 		signer: Option<Arc<SignerService>>,
@@ -70,7 +71,6 @@ impl ParityClient {
 	) -> Self {
 		ParityClient {
 			light_dispatch,
-			accounts,
 			logger,
 			settings,
 			signer,
@@ -80,7 +80,8 @@ impl ParityClient {
 	}
 
 	/// Create a light blockchain data fetcher.
-	fn fetcher(&self) -> LightFetch {
+	fn fetcher(&self) -> LightFetch<S>
+	{
 		LightFetch {
 			client: self.light_dispatch.client.clone(),
 			on_demand: self.light_dispatch.on_demand.clone(),
@@ -91,51 +92,11 @@ impl ParityClient {
 	}
 }
 
-impl Parity for ParityClient {
+impl<S> Parity for ParityClient<S>
+where
+	S: LightSyncInfo + LightSyncProvider + LightNetworkDispatcher + ManageNetwork + 'static
+{
 	type Metadata = Metadata;
-
-	fn accounts_info(&self) -> Result<BTreeMap<H160, AccountInfo>> {
-		let store = &self.accounts;
-		let dapp_accounts = store
-			.accounts()
-			.map_err(|e| errors::account("Could not fetch accounts.", e))?
-			.into_iter().collect::<HashSet<_>>();
-
-		let info = store.accounts_info().map_err(|e| errors::account("Could not fetch account info.", e))?;
-		let other = store.addresses_info();
-
-		Ok(info
-			.into_iter()
-			.chain(other.into_iter())
-			.filter(|&(ref a, _)| dapp_accounts.contains(a))
-			.map(|(a, v)| (H160::from(a), AccountInfo { name: v.name }))
-			.collect()
-		)
-	}
-
-	fn hardware_accounts_info(&self) -> Result<BTreeMap<H160, HwAccountInfo>> {
-		let store = &self.accounts;
-		let info = store.hardware_accounts_info().map_err(|e| errors::account("Could not fetch account info.", e))?;
-		Ok(info
-			.into_iter()
-			.map(|(a, v)| (H160::from(a), HwAccountInfo { name: v.name, manufacturer: v.meta }))
-			.collect()
-		)
-	}
-
-	fn locked_hardware_accounts_info(&self) -> Result<Vec<String>> {
-		let store = &self.accounts;
-		Ok(store.locked_hardware_accounts().map_err(|e| errors::account("Error communicating with hardware wallet.", e))?)
-	}
-
-	fn default_account(&self) -> Result<H160> {
-		Ok(self.accounts
-			.accounts()
-			.ok()
-			.and_then(|accounts| accounts.get(0).cloned())
-			.map(|acc| acc.into())
-			.unwrap_or_default())
-	}
 
 	fn transactions_limit(&self) -> Result<usize> {
 		Ok(usize::max_value())
@@ -232,11 +193,11 @@ impl Parity for ParityClient {
 		Ok(Brain::new(phrase).generate().unwrap().address().into())
 	}
 
-	fn list_accounts(&self, _: u64, _: Option<H160>, _: Trailing<BlockNumber>) -> Result<Option<Vec<H160>>> {
+	fn list_accounts(&self, _: u64, _: Option<H160>, _: Option<BlockNumber>) -> Result<Option<Vec<H160>>> {
 		Err(errors::light_unimplemented(None))
 	}
 
-	fn list_storage_keys(&self, _: H160, _: u64, _: Option<H256>, _: Trailing<BlockNumber>) -> Result<Option<Vec<H256>>> {
+	fn list_storage_keys(&self, _: H160, _: u64, _: Option<H256>, _: Option<BlockNumber>) -> Result<Option<Vec<H256>>> {
 		Err(errors::light_unimplemented(None))
 	}
 
@@ -246,7 +207,7 @@ impl Parity for ParityClient {
 			.map(Into::into)
 	}
 
-	fn pending_transactions(&self, limit: Trailing<usize>) -> Result<Vec<Transaction>> {
+	fn pending_transactions(&self, limit: Option<usize>) -> Result<Vec<Transaction>> {
 		let txq = self.light_dispatch.transaction_queue.read();
 		let chain_info = self.light_dispatch.client.chain_info();
 		Ok(
@@ -365,8 +326,8 @@ impl Parity for ParityClient {
 		})
 	}
 
-	fn block_header(&self, number: Trailing<BlockNumber>) -> BoxFuture<RichHeader> {
-		use ethcore::encoded;
+	fn block_header(&self, number: Option<BlockNumber>) -> BoxFuture<RichHeader> {
+		use types::encoded;
 
 		let engine = self.light_dispatch.client.engine().clone();
 		let from_encoded = move |encoded: encoded::Header| {
@@ -399,7 +360,7 @@ impl Parity for ParityClient {
 		Box::new(self.fetcher().header(id).and_then(from_encoded))
 	}
 
-	fn block_receipts(&self, number: Trailing<BlockNumber>) -> BoxFuture<Vec<Receipt>> {
+	fn block_receipts(&self, number: Option<BlockNumber>) -> BoxFuture<Vec<Receipt>> {
 		let id = number.unwrap_or_default().to_block_id();
 		Box::new(self.fetcher().receipts(id).and_then(|receipts| Ok(receipts.into_iter().map(Into::into).collect())))
 	}
@@ -408,7 +369,7 @@ impl Parity for ParityClient {
 		ipfs::cid(content)
 	}
 
-	fn call(&self, _requests: Vec<CallRequest>, _block: Trailing<BlockNumber>) -> Result<Vec<Bytes>> {
+	fn call(&self, _requests: Vec<CallRequest>, _block: Option<BlockNumber>) -> Result<Vec<Bytes>> {
 		Err(errors::light_unimplemented(None))
 	}
 
@@ -418,7 +379,7 @@ impl Parity for ParityClient {
 
 	fn status(&self) -> Result<()> {
 		let has_peers = self.settings.is_dev_chain || self.light_dispatch.sync.peer_numbers().connected > 0;
-		let is_importing = self.light_dispatch.sync.is_major_importing();
+		let is_importing = (*self.light_dispatch.sync).is_major_importing();
 
 		if has_peers && !is_importing {
 			Ok(())

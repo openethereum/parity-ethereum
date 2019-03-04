@@ -1,18 +1,18 @@
-// Copyright 2015-2018 Parity Technologies (UK) Ltd.
-// This file is part of Parity.
+// Copyright 2015-2019 Parity Technologies (UK) Ltd.
+// This file is part of Parity Ethereum.
 
-// Parity is free software: you can redistribute it and/or modify
+// Parity Ethereum is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
 // the Free Software Foundation, either version 3 of the License, or
 // (at your option) any later version.
 
-// Parity is distributed in the hope that it will be useful,
+// Parity Ethereum is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 // GNU General Public License for more details.
 
 // You should have received a copy of the GNU General Public License
-// along with Parity.  If not, see <http://www.gnu.org/licenses/>.
+// along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
 #![recursion_limit="128"]
 
@@ -24,12 +24,22 @@ extern crate rlp;
 extern crate ipnetwork;
 extern crate parity_snappy as snappy;
 extern crate libc;
+extern crate semver;
+extern crate serde;
+
+#[macro_use]
+extern crate serde_derive;
 
 #[cfg(test)] #[macro_use]
 extern crate assert_matches;
 
 #[macro_use]
 extern crate error_chain;
+
+#[macro_use]
+extern crate lazy_static;
+
+pub mod client_version;
 
 mod connection_filter;
 mod error;
@@ -38,6 +48,7 @@ pub use connection_filter::{ConnectionFilter, ConnectionDirection};
 pub use io::TimerToken;
 pub use error::{Error, ErrorKind, DisconnectReason};
 
+use client_version::ClientVersion;
 use std::cmp::Ordering;
 use std::collections::HashMap;
 use std::net::{SocketAddr, SocketAddrV4, Ipv4Addr};
@@ -97,7 +108,7 @@ pub struct SessionInfo {
 	/// Peer public key
 	pub id: Option<NodeId>,
 	/// Peer client ID
-	pub client_version: String,
+	pub client_version: ClientVersion,
 	/// Peer RLPx protocol version
 	pub protocol_version: u32,
 	/// Session protocol capabilities
@@ -275,7 +286,7 @@ pub trait NetworkContext {
 	fn register_timer(&self, token: TimerToken, delay: Duration) -> Result<(), Error>;
 
 	/// Returns peer identification string
-	fn peer_client_version(&self, peer: PeerId) -> String;
+	fn peer_client_version(&self, peer: PeerId) -> ClientVersion;
 
 	/// Returns information on p2p session
 	fn session_info(&self, peer: PeerId) -> Option<SessionInfo>;
@@ -288,6 +299,9 @@ pub trait NetworkContext {
 
 	/// Returns whether the given peer ID is a reserved peer.
 	fn is_reserved_peer(&self, peer: PeerId) -> bool;
+
+	/// Returns the size the payload shouldn't exceed
+	fn payload_soft_limit(&self) -> usize;
 }
 
 impl<'a, T> NetworkContext for &'a T where T: ?Sized + NetworkContext {
@@ -319,7 +333,7 @@ impl<'a, T> NetworkContext for &'a T where T: ?Sized + NetworkContext {
 		(**self).register_timer(token, delay)
 	}
 
-	fn peer_client_version(&self, peer: PeerId) -> String {
+	fn peer_client_version(&self, peer: PeerId) -> ClientVersion {
 		(**self).peer_client_version(peer)
 	}
 
@@ -337,6 +351,10 @@ impl<'a, T> NetworkContext for &'a T where T: ?Sized + NetworkContext {
 
 	fn is_reserved_peer(&self, peer: PeerId) -> bool {
 		(**self).is_reserved_peer(peer)
+	}
+
+	fn payload_soft_limit(&self) -> usize {
+		(**self).payload_soft_limit()
 	}
 }
 

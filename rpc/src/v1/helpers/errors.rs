@@ -1,34 +1,33 @@
-// Copyright 2015-2018 Parity Technologies (UK) Ltd.
-// This file is part of Parity.
+// Copyright 2015-2019 Parity Technologies (UK) Ltd.
+// This file is part of Parity Ethereum.
 
-// Parity is free software: you can redistribute it and/or modify
+// Parity Ethereum is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
 // the Free Software Foundation, either version 3 of the License, or
 // (at your option) any later version.
 
-// Parity is distributed in the hope that it will be useful,
+// Parity Ethereum is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 // GNU General Public License for more details.
 
 // You should have received a copy of the GNU General Public License
-// along with Parity.  If not, see <http://www.gnu.org/licenses/>.
+// along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
 //! RPC Error codes and error objects
 
 use std::fmt;
 
-use ethcore::account_provider::SignError as AccountError;
 use ethcore::error::{Error as EthcoreError, ErrorKind, CallError};
 use ethcore::client::BlockId;
 use jsonrpc_core::{futures, Result as RpcResult, Error, ErrorCode, Value};
 use rlp::DecoderError;
-use transaction::Error as TransactionError;
+use types::transaction::Error as TransactionError;
 use ethcore_private_tx::Error as PrivateTransactionError;
 use vm::Error as VMError;
 use light::on_demand::error::{Error as OnDemandError, ErrorKind as OnDemandErrorKind};
 use ethcore::client::BlockChainClient;
-use ethcore::blockchain_info::BlockChainInfo;
+use types::blockchain_info::BlockChainInfo;
 use v1::types::BlockNumber;
 
 mod codes {
@@ -44,7 +43,9 @@ mod codes {
 	pub const EXECUTION_ERROR: i64 = -32015;
 	pub const EXCEPTION_ERROR: i64 = -32016;
 	pub const DATABASE_ERROR: i64 = -32017;
+	#[cfg(any(test, feature = "accounts"))]
 	pub const ACCOUNT_LOCKED: i64 = -32020;
+	#[cfg(any(test, feature = "accounts"))]
 	pub const PASSWORD_INVALID: i64 = -32021;
 	pub const ACCOUNT_ERROR: i64 = -32023;
 	pub const PRIVATE_ERROR: i64 = -32024;
@@ -337,14 +338,7 @@ pub fn fetch<T: fmt::Debug>(error: T) -> Error {
 	}
 }
 
-pub fn signing(error: AccountError) -> Error {
-	Error {
-		code: ErrorCode::ServerError(codes::ACCOUNT_LOCKED),
-		message: "Your account is locked. Unlock the account via CLI, personal_unlockAccount or use Trusted Signer.".into(),
-		data: Some(Value::String(format!("{:?}", error))),
-	}
-}
-
+#[cfg(any(test, feature = "accounts"))]
 pub fn invalid_call_data<T: fmt::Display>(error: T) -> Error {
 	Error {
 		code: ErrorCode::ServerError(codes::ENCODING_ERROR),
@@ -353,7 +347,17 @@ pub fn invalid_call_data<T: fmt::Display>(error: T) -> Error {
 	}
 }
 
-pub fn password(error: AccountError) -> Error {
+#[cfg(any(test, feature = "accounts"))]
+pub fn signing(error: ::accounts::SignError) -> Error {
+	Error {
+		code: ErrorCode::ServerError(codes::ACCOUNT_LOCKED),
+		message: "Your account is locked. Unlock the account via CLI, personal_unlockAccount or use Trusted Signer.".into(),
+		data: Some(Value::String(format!("{:?}", error))),
+	}
+}
+
+#[cfg(any(test, feature = "accounts"))]
+pub fn password(error: ::accounts::SignError) -> Error {
 	Error {
 		code: ErrorCode::ServerError(codes::PASSWORD_INVALID),
 		message: "Account password is invalid or account does not exist.".into(),

@@ -1,26 +1,23 @@
-// Copyright 2015-2018 Parity Technologies (UK) Ltd.
-// This file is part of Parity.
+// Copyright 2015-2019 Parity Technologies (UK) Ltd.
+// This file is part of Parity Ethereum.
 
-// Parity is free software: you can redistribute it and/or modify
+// Parity Ethereum is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
 // the Free Software Foundation, either version 3 of the License, or
 // (at your option) any later version.
 
-// Parity is distributed in the hope that it will be useful,
+// Parity Ethereum is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 // GNU General Public License for more details.
 
 // You should have received a copy of the GNU General Public License
-// along with Parity.  If not, see <http://www.gnu.org/licenses/>.
+// along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
 use ethjson;
 use trie::{TrieFactory, TrieSpec};
 use ethtrie::RlpCodec;
 use ethereum_types::H256;
-use memorydb::MemoryDB;
-use keccak_hasher::KeccakHasher;
-use kvdb::DBValue;
 
 use super::HookType;
 
@@ -37,7 +34,7 @@ fn test_trie<H: FnMut(&str, HookType)>(json: &[u8], trie: TrieSpec, start_stop_h
 	for (name, test) in tests.into_iter() {
 		start_stop_hook(&name, HookType::OnStart);
 
-		let mut memdb = MemoryDB::<KeccakHasher, DBValue>::new();
+		let mut memdb = journaldb::new_memory_db();
 		let mut root = H256::default();
 		let mut t = factory.create(&mut memdb, &mut root);
 

@@ -1,27 +1,26 @@
-// Copyright 2015-2018 Parity Technologies (UK) Ltd.
-// This file is part of Parity.
+// Copyright 2015-2019 Parity Technologies (UK) Ltd.
+// This file is part of Parity Ethereum.
 
-// Parity is free software: you can redistribute it and/or modify
+// Parity Ethereum is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
 // the Free Software Foundation, either version 3 of the License, or
 // (at your option) any later version.
 
-// Parity is distributed in the hope that it will be useful,
+// Parity Ethereum is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 // GNU General Public License for more details.
 
 // You should have received a copy of the GNU General Public License
-// along with Parity.  If not, see <http://www.gnu.org/licenses/>.
+// along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
 //! DB backend wrapper for Account trie
 use ethereum_types::H256;
 use hash::{KECCAK_NULL_RLP, keccak};
-use hashdb::{HashDB, AsHashDB};
+use hash_db::{HashDB, AsHashDB};
 use keccak_hasher::KeccakHasher;
 use kvdb::DBValue;
 use rlp::NULL_RLP;
-use std::collections::HashMap;
 
 #[cfg(test)]
 use ethereum_types::Address;
@@ -99,15 +98,11 @@ impl<'db> AccountDB<'db> {
 }
 
 impl<'db> AsHashDB<KeccakHasher, DBValue> for AccountDB<'db> {
-	fn as_hashdb(&self) -> &HashDB<KeccakHasher, DBValue> { self }
-	fn as_hashdb_mut(&mut self) -> &mut HashDB<KeccakHasher, DBValue> { self }
+	fn as_hash_db(&self) -> &HashDB<KeccakHasher, DBValue> { self }
+	fn as_hash_db_mut(&mut self) -> &mut HashDB<KeccakHasher, DBValue> { self }
 }
 
 impl<'db> HashDB<KeccakHasher, DBValue> for AccountDB<'db> {
-	fn keys(&self) -> HashMap<H256, i32> {
-		unimplemented!()
-	}
-
 	fn get(&self, key: &H256) -> Option<DBValue> {
 		if key == &KECCAK_NULL_RLP {
 			return Some(DBValue::from_slice(&NULL_RLP));
@@ -163,10 +158,6 @@ impl<'db> AccountDBMut<'db> {
 }
 
 impl<'db> HashDB<KeccakHasher, DBValue> for AccountDBMut<'db>{
-	fn keys(&self) -> HashMap<H256, i32> {
-		unimplemented!()
-	}
-
 	fn get(&self, key: &H256) -> Option<DBValue> {
 		if key == &KECCAK_NULL_RLP {
 			return Some(DBValue::from_slice(&NULL_RLP));
@@ -209,22 +200,18 @@ impl<'db> HashDB<KeccakHasher, DBValue> for AccountDBMut<'db>{
 }
 
 impl<'db> AsHashDB<KeccakHasher, DBValue> for AccountDBMut<'db> {
-	fn as_hashdb(&self) -> &HashDB<KeccakHasher, DBValue> { self }
-	fn as_hashdb_mut(&mut self) -> &mut HashDB<KeccakHasher, DBValue> { self }
+	fn as_hash_db(&self) -> &HashDB<KeccakHasher, DBValue> { self }
+	fn as_hash_db_mut(&mut self) -> &mut HashDB<KeccakHasher, DBValue> { self }
 }
 
 struct Wrapping<'db>(&'db HashDB<KeccakHasher, DBValue>);
 
 impl<'db> AsHashDB<KeccakHasher, DBValue> for Wrapping<'db> {
-	fn as_hashdb(&self) -> &HashDB<KeccakHasher, DBValue> { self }
-	fn as_hashdb_mut(&mut self) -> &mut HashDB<KeccakHasher, DBValue> { self }
+	fn as_hash_db(&self) -> &HashDB<KeccakHasher, DBValue> { self }
+	fn as_hash_db_mut(&mut self) -> &mut HashDB<KeccakHasher, DBValue> { self }
 }
 
 impl<'db> HashDB<KeccakHasher, DBValue> for Wrapping<'db> {
-	fn keys(&self) -> HashMap<H256, i32> {
-		unimplemented!()
-	}
-
 	fn get(&self, key: &H256) -> Option<DBValue> {
 		if key == &KECCAK_NULL_RLP {
 			return Some(DBValue::from_slice(&NULL_RLP));
@@ -254,15 +241,11 @@ impl<'db> HashDB<KeccakHasher, DBValue> for Wrapping<'db> {
 
 struct WrappingMut<'db>(&'db mut HashDB<KeccakHasher, DBValue>);
 impl<'db> AsHashDB<KeccakHasher, DBValue> for WrappingMut<'db> {
-	fn as_hashdb(&self) -> &HashDB<KeccakHasher, DBValue> { self }
-	fn as_hashdb_mut(&mut self) -> &mut HashDB<KeccakHasher, DBValue> { self }
+	fn as_hash_db(&self) -> &HashDB<KeccakHasher, DBValue> { self }
+	fn as_hash_db_mut(&mut self) -> &mut HashDB<KeccakHasher, DBValue> { self }
 }
 
 impl<'db> HashDB<KeccakHasher, DBValue> for WrappingMut<'db>{
-	fn keys(&self) -> HashMap<H256, i32> {
-		unimplemented!()
-	}
-
 	fn get(&self, key: &H256) -> Option<DBValue> {
 		if key == &KECCAK_NULL_RLP {
 			return Some(DBValue::from_slice(&NULL_RLP));

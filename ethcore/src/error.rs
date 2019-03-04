@@ -1,35 +1,39 @@
-// Copyright 2015-2018 Parity Technologies (UK) Ltd.
-// This file is part of Parity.
+// Copyright 2015-2019 Parity Technologies (UK) Ltd.
+// This file is part of Parity Ethereum.
 
-// Parity is free software: you can redistribute it and/or modify
+// Parity Ethereum is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
 // the Free Software Foundation, either version 3 of the License, or
 // (at your option) any later version.
 
-// Parity is distributed in the hope that it will be useful,
+// Parity Ethereum is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 // GNU General Public License for more details.
 
 // You should have received a copy of the GNU General Public License
-// along with Parity.  If not, see <http://www.gnu.org/licenses/>.
+// along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
 //! General error types for use in ethcore.
 
+// Silence: `use of deprecated item 'std::error::Error::cause': replaced by Error::source, which can support downcasting`
+// https://github.com/paritytech/parity-ethereum/issues/10302
+#![allow(deprecated)]
+
 use std::{fmt, error};
 use std::time::SystemTime;
+
 use ethereum_types::{H256, U256, Address, Bloom};
-use snappy::InvalidInput;
-use unexpected::{Mismatch, OutOfBounds};
-use ethtrie::TrieError;
-use io::*;
-use header::BlockNumber;
-use snapshot::Error as SnapshotError;
-use engines::EngineError;
 use ethkey::Error as EthkeyError;
-use account_provider::SignError as AccountsError;
-use transaction::Error as TransactionError;
+use ethtrie::TrieError;
 use rlp;
+use snappy::InvalidInput;
+use snapshot::Error as SnapshotError;
+use types::BlockNumber;
+use types::transaction::Error as TransactionError;
+use unexpected::{Mismatch, OutOfBounds};
+
+use engines::EngineError;
 
 pub use executed::{ExecutionError, CallError};
 
@@ -89,6 +93,8 @@ pub enum BlockError {
 	InvalidNumber(Mismatch<BlockNumber>),
 	/// Block number isn't sensible.
 	RidiculousNumber(OutOfBounds<BlockNumber>),
+	/// Timestamp header overflowed
+	TimestampOverflow,
 	/// Too many transactions from a particular address.
 	TooManyTransactions(Address),
 	/// Parent given is unknown.
@@ -138,6 +144,7 @@ impl fmt::Display for BlockError {
 			UnknownParent(ref hash) => format!("Unknown parent: {}", hash),
 			UnknownUncleParent(ref hash) => format!("Unknown uncle parent: {}", hash),
 			UnknownEpochTransition(ref num) => format!("Unknown transition to epoch number: {}", num),
+			TimestampOverflow => format!("Timestamp overflow"),
 			TooManyTransactions(ref address) => format!("Too many transactions from: {}", address),
 		};
 
@@ -165,7 +172,7 @@ error_chain! {
 	}
 
 	foreign_links {
-		Channel(IoError) #[doc = "Io channel error"];
+		Channel(::io::IoError) #[doc = "Io channel error"];
 	}
 }
 
@@ -224,7 +231,7 @@ error_chain! {
 	}
 
 	foreign_links {
-		Io(IoError) #[doc = "Io create error"];
+		Io(::io::IoError) #[doc = "Io create error"];
 		StdIo(::std::io::Error) #[doc = "Error concerning the Rust standard library's IO subsystem."];
 		Trie(TrieError) #[doc = "Error concerning TrieDBs."];
 		Execution(ExecutionError) #[doc = "Error concerning EVM code execution."];
@@ -241,12 +248,6 @@ error_chain! {
 		Snapshot(err: SnapshotError) {
 			description("Snapshot error.")
 			display("Snapshot error {}", err)
-		}
-
-		#[doc = "Account Provider error"]
-		AccountProvider(err: AccountsError) {
-			description("Accounts Provider error")
-			display("Accounts Provider error {}", err)
 		}
 
 		#[doc = "PoW hash is invalid or out of date."]
@@ -266,12 +267,6 @@ error_chain! {
 			description("Unknown engine name")
 			display("Unknown engine name ({})", name)
 		}
-	}
-}
-
-impl From<AccountsError> for Error {
-	fn from(err: AccountsError) -> Error {
-		ErrorKind::AccountProvider(err).into()
 	}
 }
 

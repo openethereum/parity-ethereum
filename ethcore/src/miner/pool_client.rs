@@ -1,18 +1,18 @@
-// Copyright 2015-2018 Parity Technologies (UK) Ltd.
-// This file is part of Parity.
+// Copyright 2015-2019 Parity Technologies (UK) Ltd.
+// This file is part of Parity Ethereum.
 
-// Parity is free software: you can redistribute it and/or modify
+// Parity Ethereum is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
 // the Free Software Foundation, either version 3 of the License, or
 // (at your option) any later version.
 
-// Parity is distributed in the hope that it will be useful,
+// Parity Ethereum is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 // GNU General Public License for more details.
 
 // You should have received a copy of the GNU General Public License
-// along with Parity.  If not, see <http://www.gnu.org/licenses/>.
+// along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
 //! Blockchain access for transaction pool.
 
@@ -23,21 +23,23 @@ use std::{
 };
 
 use ethereum_types::{H256, U256, Address};
+use ethcore_miner::local_accounts::LocalAccounts;
 use ethcore_miner::pool;
 use ethcore_miner::pool::client::NonceClient;
-use transaction::{
+use ethcore_miner::service_transaction_checker::ServiceTransactionChecker;
+use types::transaction::{
 	self,
 	UnverifiedTransaction,
 	SignedTransaction,
 };
+use types::header::Header;
 use parking_lot::RwLock;
 
-use account_provider::AccountProvider;
-use client::{TransactionId, BlockInfo, CallContract, Nonce};
+use call_contract::CallContract;
+use client::{TransactionId, BlockInfo, Nonce};
 use engines::EthEngine;
-use header::Header;
 use miner;
-use miner::service_transaction_checker::ServiceTransactionChecker;
+use transaction_ext::Transaction;
 
 /// Cache for state nonces.
 #[derive(Debug, Clone)]
@@ -71,7 +73,7 @@ pub struct PoolClient<'a, C: 'a> {
 	chain: &'a C,
 	cached_nonces: CachedNonceClient<'a, C>,
 	engine: &'a EthEngine,
-	accounts: Option<&'a AccountProvider>,
+	accounts: &'a LocalAccounts,
 	best_block_header: Header,
 	service_transaction_checker: Option<ServiceTransactionChecker>,
 }
@@ -90,14 +92,14 @@ impl<'a, C: 'a> Clone for PoolClient<'a, C> {
 }
 
 impl<'a, C: 'a> PoolClient<'a, C> where
-C: BlockInfo + CallContract,
+	C: BlockInfo + CallContract,
 {
 	/// Creates new client given chain, nonce cache, accounts and service transaction verifier.
 	pub fn new(
 		chain: &'a C,
 		cache: &'a NonceCache,
 		engine: &'a EthEngine,
-		accounts: Option<&'a AccountProvider>,
+		accounts: &'a LocalAccounts,
 		refuse_service_transactions: bool,
 	) -> Self {
 		let best_block_header = chain.best_block_header();
@@ -149,7 +151,7 @@ impl<'a, C: 'a> pool::client::Client for PoolClient<'a, C> where
 		pool::client::AccountDetails {
 			nonce: self.cached_nonces.account_nonce(address),
 			balance: self.chain.latest_balance(address),
-			is_local: self.accounts.map_or(false, |accounts| accounts.has_account(*address)),
+			is_local: self.accounts.is_local(address),
 		}
 	}
 

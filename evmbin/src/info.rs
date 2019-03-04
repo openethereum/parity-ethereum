@@ -1,27 +1,27 @@
-// Copyright 2015-2018 Parity Technologies (UK) Ltd.
-// This file is part of Parity.
+// Copyright 2015-2019 Parity Technologies (UK) Ltd.
+// This file is part of Parity Ethereum.
 
-// Parity is free software: you can redistribute it and/or modify
+// Parity Ethereum is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
 // the Free Software Foundation, either version 3 of the License, or
 // (at your option) any later version.
 
-// Parity is distributed in the hope that it will be useful,
+// Parity Ethereum is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 // GNU General Public License for more details.
 
 // You should have received a copy of the GNU General Public License
-// along with Parity.  If not, see <http://www.gnu.org/licenses/>.
+// along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
 //! VM runner.
 
 use std::time::{Instant, Duration};
 use ethereum_types::{H256, U256};
-use ethcore::client::{self, EvmTestClient, EvmTestError, TransactResult};
+use ethcore::client::{self, EvmTestClient, EvmTestError, TransactErr, TransactSuccess};
 use ethcore::{state, state_db, trace, spec, pod_state, TrieSpec};
 use ethjson;
-use transaction;
+use types::transaction;
 use vm::ActionParams;
 
 /// VM execution informant
@@ -130,7 +130,7 @@ pub fn run_transaction<T: Informant>(
 	let result = run(&spec, trie_spec, transaction.gas, pre_state, |mut client| {
 		let result = client.transact(env_info, transaction, trace::NoopTracer, informant);
 		match result {
-			TransactResult::Ok { state_root, gas_left, output, vm_trace, end_state, .. } => {
+			Ok(TransactSuccess { state_root, gas_left, output, vm_trace, end_state, .. }) => {
 				if state_root != post_root {
 					(Err(EvmTestError::PostCondition(format!(
 						"State root mismatch (got: {:#x}, expected: {:#x})",
@@ -141,7 +141,7 @@ pub fn run_transaction<T: Informant>(
 					(Ok(output), state_root, end_state, Some(gas_left), vm_trace)
 				}
 			},
-			TransactResult::Err { state_root, error, end_state } => {
+			Err(TransactErr { state_root, error, end_state }) => {
 				(Err(EvmTestError::PostCondition(format!(
 					"Unexpected execution error: {:?}", error
 				))), state_root, end_state, None, None)

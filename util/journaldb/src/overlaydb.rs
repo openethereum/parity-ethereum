@@ -1,18 +1,18 @@
-// Copyright 2015-2018 Parity Technologies (UK) Ltd.
-// This file is part of Parity.
+// Copyright 2015-2019 Parity Technologies (UK) Ltd.
+// This file is part of Parity Ethereum.
 
-// Parity is free software: you can redistribute it and/or modify
+// Parity Ethereum is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
 // the Free Software Foundation, either version 3 of the License, or
 // (at your option) any later version.
 
-// Parity is distributed in the hope that it will be useful,
+// Parity Ethereum is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 // GNU General Public License for more details.
 
 // You should have received a copy of the GNU General Public License
-// along with Parity.  If not, see <http://www.gnu.org/licenses/>.
+// along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
 //! Disk-backed `HashDB` implementation.
 
@@ -23,9 +23,9 @@ use std::sync::Arc;
 
 use ethereum_types::H256;
 use rlp::{Rlp, RlpStream, Encodable, DecoderError, Decodable, encode, decode};
-use hashdb::*;
+use hash_db::{HashDB};
 use keccak_hasher::KeccakHasher;
-use memorydb::*;
+use memory_db::*;
 use kvdb::{KeyValueDB, DBTransaction, DBValue};
 use super::{error_negatively_reference_hash};
 
@@ -80,7 +80,7 @@ impl Decodable for Payload {
 impl OverlayDB {
 	/// Create a new instance of OverlayDB given a `backing` database.
 	pub fn new(backing: Arc<KeyValueDB>, col: Option<u32>) -> OverlayDB {
-		OverlayDB{ overlay: MemoryDB::new(), backing: backing, column: col }
+		OverlayDB{ overlay: ::new_memory_db(), backing: backing, column: col }
 	}
 
 	/// Create a new instance of OverlayDB with an anonymous temporary database.
@@ -153,9 +153,10 @@ impl OverlayDB {
 			true
 		}
 	}
+
 }
 
-impl HashDB<KeccakHasher, DBValue> for OverlayDB {
+impl crate::KeyedHashDB for OverlayDB {
 	fn keys(&self) -> HashMap<H256, i32> {
 		let mut ret: HashMap<H256, i32> = self.backing.iter(self.column)
 			.map(|(key, _)| {
@@ -178,13 +179,16 @@ impl HashDB<KeccakHasher, DBValue> for OverlayDB {
 		ret
 	}
 
+}
+
+impl HashDB<KeccakHasher, DBValue> for OverlayDB {
 	fn get(&self, key: &H256) -> Option<DBValue> {
 		// return ok if positive; if negative, check backing - might be enough references there to make
 		// it positive again.
 		let k = self.overlay.raw(key);
 		let memrc = {
 			if let Some((d, rc)) = k {
-				if rc > 0 { return Some(d); }
+				if rc > 0 { return Some(d.clone()); }
 				rc
 			} else {
 				0

@@ -1,25 +1,25 @@
-// Copyright 2015-2018 Parity Technologies (UK) Ltd.
-// This file is part of Parity.
+// Copyright 2015-2019 Parity Technologies (UK) Ltd.
+// This file is part of Parity Ethereum.
 
-// Parity is free software: you can redistribute it and/or modify
+// Parity Ethereum is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
 // the Free Software Foundation, either version 3 of the License, or
 // (at your option) any later version.
 
-// Parity is distributed in the hope that it will be useful,
+// Parity Ethereum is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 // GNU General Public License for more details.
 
 // You should have received a copy of the GNU General Public License
-// along with Parity.  If not, see <http://www.gnu.org/licenses/>.
+// along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
-use devtools::http_client;
 use jsonrpc_core::MetaIoHandler;
 use http::{self, hyper};
 
 use {HttpServer};
 use tests::helpers::Server;
+use tests::http_client;
 use v1::{extractors, Metadata};
 
 fn serve(handler: Option<MetaIoHandler<Metadata>>) -> Server<HttpServer> {
@@ -116,4 +116,31 @@ mod tests {
 		res.assert_status("HTTP/1.1 200 OK");
 		assert_eq!(res.body, expected);
 	}
+
+	#[test]
+	fn should_respond_valid_to_any_requested_header() {
+		// given
+		let (server, address) = serve();
+		let headers = "Something, Anything, Xyz, 123, _?";
+
+		// when
+		let res = request(server,
+		&format!("\
+				OPTIONS / HTTP/1.1\r\n\
+				Host: {}\r\n\
+				Origin: http://parity.io\r\n\
+				Content-Length: 0\r\n\
+				Content-Type: application/json\r\n\
+				Connection: close\r\n\
+				Access-Control-Request-Headers: {}\r\n\
+				\r\n\
+			", address, headers)
+		);
+
+		// then
+		assert_eq!(res.status, "HTTP/1.1 200 OK".to_owned());
+		let expected = format!("access-control-allow-headers: {}", headers);
+		assert!(res.headers.contains(&expected), "Headers missing in {:?}", res.headers);
+	}
+
 }
