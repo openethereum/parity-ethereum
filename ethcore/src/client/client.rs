@@ -1706,15 +1706,17 @@ impl BlockChainClient for Client {
 		self.config.spec_name.clone()
 	}
 
-	fn set_spec_name(&self, new_spec_name: String) {
+	fn set_spec_name(&self, new_spec_name: String) -> Result<(), ()> {
 		trace!(target: "mode", "Client::set_spec_name({:?})", new_spec_name);
 		if !self.enabled.load(AtomicOrdering::Relaxed) {
-			return;
+			return Err(());
 		}
 		if let Some(ref h) = *self.exit_handler.lock() {
 			(*h)(new_spec_name);
+			Ok(())
 		} else {
 			warn!("Not hypervised; cannot change chain.");
+			Err(())
 		}
 	}
 
