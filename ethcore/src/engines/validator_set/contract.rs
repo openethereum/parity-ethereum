@@ -211,7 +211,7 @@ mod tests {
 		assert_eq!(
 			client.call_contract(BlockId::Latest, validator_contract,
 								 "d8f2e0bf".from_hex().unwrap()).unwrap().to_hex(),
-			format!("{:x}", U256::from(0))
+			"0000000000000000000000000000000000000000000000000000000000000000"
 		);
 
 		// Simulate a misbehaving validator by handling a double proposal.
