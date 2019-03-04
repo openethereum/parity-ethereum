@@ -1,8 +1,24 @@
 ## Parity-Ethereum [v2.3.5](https://github.com/paritytech/parity-ethereum/releases/tag/v2.3.5) (2019-02-25)
 
-Parity-Ethereum 2.3.5-stable is a ...
+Parity-Ethereum 2.3.5-stable is a bugfix release that improves performance and stability.
+
+Note, all 2.2 releases and older are now unsupported and upgrading is recommended.
 
 The full list of included changes:
+
+- More Backports for Stable 2.3.5 ([#10430](https://github.com/paritytech/parity-ethereum/pull/10430))
+  - Revert some changes, could be buggy ([#10399](https://github.com/paritytech/parity-ethereum/pull/10399))
+  - Ci: clean up gitlab-ci.yml leftovers from previous merge ([#10429](https://github.com/paritytech/parity-ethereum/pull/10429))
+  - 10000 > 5000 ([#10422](https://github.com/paritytech/parity-ethereum/pull/10422))
+  - Fix underflow in pip, closes [#10419](https://github.com/paritytech/parity-ethereum/pull/10419) ([#10423](https://github.com/paritytech/parity-ethereum/pull/10423))
+  - Fix panic when logging directory does not exist, closes [#10420](https://github.com/paritytech/parity-ethereum/pull/10420) ([#10424](https://github.com/paritytech/parity-ethereum/pull/10424))
+  - Update hardcoded headers for Foundation, Ropsten, Kovan and Classic ([#10417](https://github.com/paritytech/parity-ethereum/pull/10417))
+- Backports for Stable 2.3.5 ([#10414](https://github.com/paritytech/parity-ethereum/pull/10414))
+  - No-git for publish jobs, empty artifacts dir ([#10393](https://github.com/paritytech/parity-ethereum/pull/10393))
+  - Snap: reenable i386, arm64, armhf architecture publishing ([#10386](https://github.com/paritytech/parity-ethereum/pull/10386))
+  - Tx pool: always accept local transactions ([#10375](https://github.com/paritytech/parity-ethereum/pull/10375))
+  - Fix to_pod storage trie value decoding ([#10368)](https://github.com/paritytech/parity-ethereum/pull/10368))
+- Version: mark 2.3.5 as stable 
 
 ## Parity-Ethereum [v2.3.4](https://github.com/paritytech/parity-ethereum/releases/tag/v2.3.4) (2019-02-21)
 
