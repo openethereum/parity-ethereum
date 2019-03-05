@@ -12,11 +12,6 @@ variables:
   CARGO_HOME:                      "${CI_PROJECT_DIR}/.cargo"
   CARGO_TARGET:                    x86_64-unknown-linux-gnu
 
-.no_git:                           &no_git
-  variables:
-    GIT_STRATEGY:                  none
-    GIT_SUBMODULE_STRATEGY:        none
-
 
 .releaseable_branches:             # list of git refs for building GitLab artifacts (think "pre-release binaries")
   only:                            &releaseable_branches
@@ -102,7 +97,7 @@ build-windows:
   script:
     - sh scripts/gitlab/build-windows.sh
   tags:
-   - rust-windows
+    - rust-windows
   <<:                              *collect_artifacts
 
 publish-docker:
@@ -169,7 +164,6 @@ publish-awss3-release:
   image:                           parity/awscli:latest
   stage:                           publish
   only:                            *releaseable_branches
-  <<:                              *no_git
   cache:                           {}
   dependencies:
     - build-linux
@@ -197,7 +191,7 @@ build-android:
   image:                           parity/rust-android:gitlab-ci
   variables:
     CARGO_TARGET:                  armv7-linux-androideabi
-  dependencies:
+  dependencies:                    []
   script:
     - scripts/gitlab/build-unix.sh
   tags:
