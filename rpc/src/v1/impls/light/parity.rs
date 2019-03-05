@@ -24,6 +24,7 @@ use crypto::DEFAULT_MAC;
 use ethkey::{crypto::ecies, Brain, Generator};
 use ethstore::random_phrase;
 use sync::{LightSyncInfo, LightSyncProvider, LightNetworkDispatcher, ManageNetwork};
+use updater::VersionInfo as UpdaterVersionInfo;
 use ethereum_types::{H64, H160, H256, H512, U64, U256};
 use ethcore_logger::RotatingLogger;
 
@@ -299,7 +300,7 @@ where
 	}
 
 	fn version_info(&self) -> Result<VersionInfo> {
-		Err(errors::light_unimplemented(None))
+		Ok(UpdaterVersionInfo::this().into())
 	}
 
 	fn releases_info(&self) -> Result<Option<OperationsInfo>> {
@@ -389,7 +390,7 @@ where
 	}
 
 	fn logs_no_tx_hash(&self, filter: Filter) -> BoxFuture<Vec<Log>> {
-    let filter = match filter.try_into() {
+		let filter = match filter.try_into() {
 			Ok(value) => value,
 			Err(err) => return Box::new(future::err(err)),
 		};
