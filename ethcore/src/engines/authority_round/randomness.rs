@@ -97,6 +97,8 @@ pub enum PhaseError {
 	Crypto(ethkey::crypto::Error),
 	/// Failed to decrypt stored secret.
 	Decrypt(ethkey::crypto::Error),
+	/// Failed to get the engine signer's public key.
+	MissingPublicKey,
 }
 
 impl RandomnessPhase {
@@ -190,7 +192,8 @@ impl RandomnessPhase {
 				// Generate a new secret. Compute the secret's hash, and encrypt the secret to ourselves.
 				let secret: Secret = rng.gen();
 				let secret_hash: Hash = keccak(secret.as_ref());
-				let cipher = ecies::encrypt(&signer.public(), &secret_hash, &secret).map_err(PhaseError::Crypto)?;
+				let public = signer.public().ok_or(PhaseError::MissingPublicKey)?;
+				let cipher = ecies::encrypt(&public, &secret_hash, &secret).map_err(PhaseError::Crypto)?;
 
 				// Schedule the transaction that commits the hash and the encrypted secret.
 				let (data, _decoder) = aura_random::functions::commit_hash::call(secret_hash, cipher);

@@ -44,8 +44,22 @@ impl ethcore::engines::EngineSigner for EngineSigner {
 		}
 	}
 
+	fn decrypt(&self, auth_data: &[u8], cipher: &[u8]) -> Result<Vec<u8>, ethkey::crypto::Error> {
+		match self.accounts.decrypt(self.address, None, auth_data, cipher) {
+			Ok(plain) => Ok(plain),
+			Err(e) => {
+				warn!("Unable to decrypt message: {:?}", e);
+				Err(ethkey::crypto::Error::InvalidMessage)
+			},
+		}
+	}
+
 	fn address(&self) -> Address {
 		self.address
+	}
+
+	fn public(&self) -> Option<ethkey::Public> {
+		self.accounts.account_public(self.address, &self.password).ok()
 	}
 }
 
