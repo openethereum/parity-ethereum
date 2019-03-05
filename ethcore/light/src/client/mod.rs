@@ -116,6 +116,9 @@ pub trait LightChainClient: Send + Sync {
 	/// Query whether a block is known.
 	fn is_known(&self, hash: &H256) -> bool;
 
+	/// Set the chain via a spec name.
+	fn set_spec_name(&self, new_spec_name: String) -> Result<(), ()>;
+
 	/// Clear the queue.
 	fn clear_queue(&self);
 
@@ -164,6 +167,8 @@ pub struct Client<T> {
 	listeners: RwLock<Vec<Weak<LightChainNotify>>>,
 	fetcher: T,
 	verify_full: bool,
+	/// A closure to call when we want to restart the client
+	exit_handler: Mutex<Option<Box<Fn(String) + 'static + Send>>>,
 }
 
 impl<T: ChainDataFetcher> Client<T> {
@@ -190,6 +195,7 @@ impl<T: ChainDataFetcher> Client<T> {
 			listeners: RwLock::new(vec![]),
 			fetcher,
 			verify_full: config.verify_full,
+			exit_handler: Mutex::new(None),
 		})
 	}
 
@@ -358,6 +364,14 @@ impl<T: ChainDataFetcher> Client<T> {
 		use heapsize::HeapSizeOf;
 
 		self.chain.heap_size_of_children()
+	}
+
+	/// Set a closure to call when the client wants to be restarted.
+	///
+	/// The parameter passed to the callback is the name of the new chain spec to use after
+	/// the restart.
+	pub fn set_exit_handler<F>(&self, f: F) where F: Fn(String) + 'static + Send {
+		*self.exit_handler.lock() = Some(Box::new(f));
 	}
 
 	/// Get a handle to the verification engine.
@@ -561,6 +575,17 @@ impl<T: ChainDataFetcher> LightChainClient for Client<T> {
 
 	fn engine(&self) -> &Arc<EthEngine> {
 		Client::engine(self)
+	}
+
+	fn set_spec_name(&self, new_spec_name: String) -> Result<(), ()> {
+		trace!(target: "mode", "Client::set_spec_name({:?})", new_spec_name);
+		if let Some(ref h) = *self.exit_handler.lock() {
+			(*h)(new_spec_name);
+			Ok(())
+		} else {
+			warn!("Not hypervised; cannot change chain.");
+			Err(())
+		}
 	}
 
 	fn is_known(&self, hash: &H256) -> bool {

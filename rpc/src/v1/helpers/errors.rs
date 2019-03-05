@@ -59,6 +59,7 @@ mod codes {
 	pub const NO_PEERS: i64 = -32066;
 	pub const DEPRECATED: i64 = -32070;
 	pub const EXPERIMENTAL_RPC: i64 = -32071;
+	pub const CANNOT_RESTART: i64 = -32080;
 }
 
 pub fn unimplemented(details: Option<String>) -> Error {
@@ -122,6 +123,14 @@ pub fn account<T: fmt::Debug>(error: &str, details: T) -> Error {
 		code: ErrorCode::ServerError(codes::ACCOUNT_ERROR),
 		message: error.into(),
 		data: Some(Value::String(format!("{:?}", details))),
+	}
+}
+
+pub fn cannot_restart() -> Error {
+	Error {
+		code: ErrorCode::ServerError(codes::CANNOT_RESTART),
+		message: "Parity could not be restarted. This feature is disabled in development mode and if the binary name isn't parity.".into(),
+		data: None,
 	}
 }
 
