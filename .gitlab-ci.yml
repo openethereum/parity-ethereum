@@ -169,7 +169,6 @@ publish-awss3-release:
   image:                           parity/awscli:latest
   stage:                           publish
   only:                            *releaseable_branches
-  <<:                              *no_git
   cache:                           {}
   dependencies:
     - build-linux
