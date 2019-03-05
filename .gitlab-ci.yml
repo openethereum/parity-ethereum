@@ -102,7 +102,7 @@ build-windows:
   script:
     - sh scripts/gitlab/build-windows.sh
   tags:
-   - rust-windows
+    - rust-windows
   <<:                              *collect_artifacts
 
 publish-docker:
@@ -196,7 +196,7 @@ build-android:
   image:                           parity/rust-android:gitlab-ci
   variables:
     CARGO_TARGET:                  armv7-linux-androideabi
-  dependencies:
+  dependencies:                    []
   script:
     - scripts/gitlab/build-unix.sh
   tags:
