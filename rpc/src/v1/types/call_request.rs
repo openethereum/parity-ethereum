@@ -14,8 +14,9 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
+use ethereum_types::{H160, U256};
 use v1::helpers::CallRequest as Request;
-use v1::types::{Bytes, H160, U256};
+use v1::types::Bytes;
 
 /// Call request
 #[derive(Debug, Default, PartialEq, Deserialize)]
@@ -57,7 +58,7 @@ mod tests {
 	use std::str::FromStr;
 	use rustc_hex::FromHex;
 	use serde_json;
-	use v1::types::{U256, H160};
+	use ethereum_types::{U256, H160};
 	use super::CallRequest;
 
 	#[test]

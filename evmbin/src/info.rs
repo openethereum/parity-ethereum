@@ -18,7 +18,7 @@
 
 use std::time::{Instant, Duration};
 use ethereum_types::{H256, U256};
-use ethcore::client::{self, EvmTestClient, EvmTestError, TransactResult};
+use ethcore::client::{self, EvmTestClient, EvmTestError, TransactErr, TransactSuccess};
 use ethcore::{state, state_db, trace, spec, pod_state, TrieSpec};
 use ethjson;
 use types::transaction;
@@ -130,7 +130,7 @@ pub fn run_transaction<T: Informant>(
 	let result = run(&spec, trie_spec, transaction.gas, pre_state, |mut client| {
 		let result = client.transact(env_info, transaction, trace::NoopTracer, informant);
 		match result {
-			TransactResult::Ok { state_root, gas_left, output, vm_trace, end_state, .. } => {
+			Ok(TransactSuccess { state_root, gas_left, output, vm_trace, end_state, .. }) => {
 				if state_root != post_root {
 					(Err(EvmTestError::PostCondition(format!(
 						"State root mismatch (got: {:#x}, expected: {:#x})",
@@ -141,7 +141,7 @@ pub fn run_transaction<T: Informant>(
 					(Ok(output), state_root, end_state, Some(gas_left), vm_trace)
 				}
 			},
-			TransactResult::Err { state_root, error, end_state } => {
+			Err(TransactErr { state_root, error, end_state }) => {
 				(Err(EvmTestError::PostCondition(format!(
 					"Unexpected execution error: {:?}", error
 				))), state_root, end_state, None, None)

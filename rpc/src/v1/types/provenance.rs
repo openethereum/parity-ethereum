@@ -17,7 +17,7 @@
 //! Request Provenance
 
 use std::fmt;
-use v1::types::H256;
+use ethereum_types::H256;
 
 /// RPC request origin
 #[derive(Clone, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]

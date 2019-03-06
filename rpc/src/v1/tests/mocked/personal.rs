@@ -18,8 +18,8 @@ use std::sync::Arc;
 use std::str::FromStr;
 
 use bytes::ToPretty;
-use ethereum_types::{U256, Address};
 use accounts::AccountProvider;
+use ethereum_types::{Address, H520, U256};
 use ethcore::client::TestBlockChainClient;
 use jsonrpc_core::IoHandler;
 use parking_lot::Mutex;
@@ -31,7 +31,7 @@ use v1::{PersonalClient, Personal, Metadata};
 use v1::helpers::{nonce, eip191};
 use v1::helpers::dispatch::{eth_data_hash, FullDispatcher};
 use v1::tests::helpers::TestMinerService;
-use v1::types::{EIP191Version, PresignedTransaction, H520};
+use v1::types::{EIP191Version, PresignedTransaction};
 use rustc_hex::ToHex;
 use serde_json::to_value;
 use ethkey::Secret;
@@ -156,7 +156,7 @@ fn sign() {
 
 	let hash = eth_data_hash(data);
 	let signature = H520(tester.accounts.sign(address, Some("password123".into()), hash).unwrap().into_electrum());
-	let signature = format!("0x{:?}", signature);
+	let signature = format!("{:?}", signature);
 
 	let response = r#"{"jsonrpc":"2.0","result":""#.to_owned() + &signature + r#"","id":1}"#;
 
@@ -264,7 +264,7 @@ fn ec_recover() {
 
 	let hash = eth_data_hash(data.clone());
 	let signature = H520(tester.accounts.sign(address, Some("password123".into()), hash).unwrap().into_electrum());
-	let signature = format!("0x{:?}", signature);
+	let signature = format!("{:?}", signature);
 
 	let request = r#"{
 		"jsonrpc": "2.0",

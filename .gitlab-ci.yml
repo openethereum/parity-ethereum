@@ -4,19 +4,13 @@ stages:
   - publish
   - optional
 
-image:                             parity/rust:gitlab-ci
-
+image:                             parity/rust-parity-ethereum-build:xenial
 variables:
   GIT_STRATEGY:                    fetch
   GIT_SUBMODULE_STRATEGY:          recursive
   CI_SERVER_NAME:                  "GitLab CI"
   CARGO_HOME:                      "${CI_PROJECT_DIR}/.cargo"
   CARGO_TARGET:                    x86_64-unknown-linux-gnu
-
-.no_git:                           &no_git
-  variables:
-    GIT_STRATEGY:                  none
-    GIT_SUBMODULE_STRATEGY:        none
 
 
 .releaseable_branches:             # list of git refs for building GitLab artifacts (think "pre-release binaries")
@@ -34,14 +28,6 @@ variables:
     expire_in:                     1 mos
     paths:
       - artifacts/
-
-.determine_version:                &determine_version
-  - VERSION="$(sed -r -n '1,/^version/s/^version = "([^"]+)".*$/\1/p' Cargo.toml)"
-  - DATE_STR="$(date +%Y%m%d)"
-  - ID_SHORT="$(echo ${CI_COMMIT_SHA} | cut -c 1-7)"
-  - test "${SCHEDULE_TAG:-${CI_COMMIT_REF_NAME}}" = "nightly" && VERSION="${VERSION}-${ID_SHORT}-${DATE_STR}"
-  - export VERSION
-  - echo "Version = ${VERSION}"
 
 test-linux:
   stage:                           test
@@ -62,7 +48,7 @@ test-audit:
   tags:
     - linux-docker
 
-build-linux:
+build-linux:                       &build-linux
   stage:                           build
   only:                            *releaseable_branches
   script:
@@ -71,6 +57,24 @@ build-linux:
   <<:                              *collect_artifacts
   tags:
     - linux-docker
+
+build-linux-i386:
+  <<:                              *build-linux
+  image:                           parity/rust-parity-ethereum-build:i386
+  variables:
+    CARGO_TARGET:                  i686-unknown-linux-gnu
+
+build-linux-arm64:
+  <<:                              *build-linux
+  image:                           parity/rust-parity-ethereum-build:arm64
+  variables:
+    CARGO_TARGET:                  aarch64-unknown-linux-gnu
+
+build-linux-armhf:
+  <<:                              *build-linux
+  image:                           parity/rust-parity-ethereum-build:armhf
+  variables:
+    CARGO_TARGET:                  armv7-unknown-linux-gnueabihf
 
 build-darwin:
   stage:                           build
@@ -93,13 +97,12 @@ build-windows:
   script:
     - sh scripts/gitlab/build-windows.sh
   tags:
-   - rust-windows
+    - rust-windows
   <<:                              *collect_artifacts
 
 publish-docker:
   stage:                           publish
   only:                            *releaseable_branches
-  # <<:                              *no_git
   cache: {}
   dependencies:
     - build-linux
@@ -108,28 +111,45 @@ publish-docker:
   script:
     - scripts/gitlab/publish-docker.sh parity
 
-publish-snap:
+publish-snap:                      &publish-snap
   stage:                           publish
   only:                            *releaseable_branches
-  # <<:                              *no_git
   image:                           snapcore/snapcraft
   variables:
     BUILD_ARCH:                    amd64
   cache: {}
-  before_script:                   *determine_version
   dependencies:
     - build-linux
   tags:
-    - rust-stable
+    - linux-docker
   script:
     - scripts/gitlab/publish-snap.sh
-  allow_failure:                   true
   <<:                              *collect_artifacts
+
+publish-snap-i386:
+  <<:                              *publish-snap
+  variables:
+    BUILD_ARCH:                    i386
+  dependencies:
+    - build-linux-i386
+
+publish-snap-arm64:
+  <<:                              *publish-snap
+  variables:
+    BUILD_ARCH:                    arm64
+  dependencies:
+    - build-linux-arm64
+
+publish-snap-armhf:
+  <<:                              *publish-snap
+  variables:
+    BUILD_ARCH:                    armhf
+  dependencies:
+    - build-linux-armhf
 
 publish-onchain:
   stage:                           publish
   only:                            *releaseable_branches
-  # <<:                              *no_git
   cache:                           {}
   dependencies:
     - build-linux
@@ -144,32 +164,18 @@ publish-awss3-release:
   image:                           parity/awscli:latest
   stage:                           publish
   only:                            *releaseable_branches
-  <<:                              *no_git
   cache:                           {}
   dependencies:
     - build-linux
     - build-darwin
     - build-windows
   script:
-    - echo "__________Push binaries to AWS S3____________"
-    - case "${SCHEDULE_TAG:-${CI_COMMIT_REF_NAME}}" in
-        (beta|stable|nightly)
-          export BUCKET=releases.parity.io/ethereum;
-          ;;
-        (*)
-          export BUCKET=builds-parity;
-          ;;
-      esac
-    - aws s3 sync ./artifacts s3://${BUCKET}/${SCHEDULE_TAG:-${CI_COMMIT_REF_NAME}}/
-  after_script:
-    - aws s3 ls s3://${BUCKET}/${SCHEDULE_TAG:-${CI_COMMIT_REF_NAME}}/
-        --recursive --human-readable --summarize
+    - scripts/gitlab/publish-aws.sh
   tags:
     - linux-docker
 
 publish-docs:
   stage:                            publish
-  # <<:                              *no_git
   only:
     - tags
   except:
@@ -185,10 +191,10 @@ build-android:
   image:                           parity/rust-android:gitlab-ci
   variables:
     CARGO_TARGET:                  armv7-linux-androideabi
+  dependencies:                    []
   script:
     - scripts/gitlab/build-unix.sh
   tags:
     - linux-docker
   allow_failure:                   true
   <<:                              *collect_artifacts
-

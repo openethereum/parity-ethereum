@@ -19,14 +19,14 @@ use std::collections::BTreeMap;
 use ethcore::client::Executed;
 use ethcore::trace as et;
 use ethcore::trace::{FlatTrace, LocalizedTrace as EthLocalizedTrace, trace, TraceError};
-use ethereum_types::H256 as EthH256;
+use ethereum_types::{H160, H256, U256};
 use serde::ser::SerializeStruct;
 use serde::{Serialize, Serializer};
 use types::account_diff;
 use types::state_diff;
 use vm;
 
-use v1::types::{Bytes, H160, H256, U256};
+use v1::types::Bytes;
 
 #[derive(Debug, Serialize)]
 /// A diff of some chunk of memory.
@@ -639,8 +639,8 @@ pub struct TraceResultsWithTransactionHash {
 	pub transaction_hash: H256,
 }
 
-impl From<(EthH256, Executed)> for TraceResultsWithTransactionHash {
-	fn from(t: (EthH256, Executed)) -> Self {
+impl From<(H256, Executed)> for TraceResultsWithTransactionHash {
+	fn from(t: (H256, Executed)) -> Self {
 		TraceResultsWithTransactionHash {
 			output: t.1.output.into(),
 			trace: t.1.trace.into_iter().map(Into::into).collect(),

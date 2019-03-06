@@ -863,7 +863,7 @@ impl BlockChainClient for TestBlockChainClient {
 
 	fn spec_name(&self) -> String { "foundation".into() }
 
-	fn set_spec_name(&self, _: String) { unimplemented!(); }
+	fn set_spec_name(&self, _: String) -> Result<(), ()> { unimplemented!(); }
 
 	fn disable(&self) { self.disabled.store(true, AtomicOrder::Relaxed); }
 

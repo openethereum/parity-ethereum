@@ -20,12 +20,12 @@ use std::str::FromStr;
 use std::collections::BTreeMap;
 
 use crypto::DEFAULT_MAC;
+use ethereum_types::{Address, H64, H160, H256, H512, U64, U256};
 use ethcore::client::{BlockChainClient, StateClient, Call};
 use ethcore::miner::{self, MinerService};
 use ethcore::snapshot::{SnapshotService, RestorationStatus};
 use ethcore::state::StateInfo;
 use ethcore_logger::RotatingLogger;
-use ethereum_types::Address;
 use ethkey::{crypto::ecies, Brain, Generator};
 use ethstore::random_phrase;
 use jsonrpc_core::futures::future;
@@ -41,7 +41,7 @@ use v1::helpers::external_signer::{SigningQueue, SignerService};
 use v1::metadata::Metadata;
 use v1::traits::Parity;
 use v1::types::{
-	Bytes, U256, H64, U64, H160, H256, H512, CallRequest,
+	Bytes, CallRequest,
 	Peers, Transaction, RpcSettings, Histogram,
 	TransactionStats, LocalTransactionStatus,
 	BlockNumber, ConsensusCapability, VersionInfo,
