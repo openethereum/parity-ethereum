@@ -40,37 +40,6 @@ pub trait Header {
 	fn number(&self) -> u64;
 }
 
-/// A header with an associated score (difficulty in PoW terms)
-pub trait ScoredHeader: Header {
-	type Value;
-
-	/// Get the score of this header.
-	fn score(&self) -> &Self::Value;
-
-	/// Set the score of this header.
-	fn set_score(&mut self, score: Self::Value);
-}
-
-/// A header with associated total score.
-pub trait TotalScoredHeader: Header {
-	type Value;
-
-	/// Get the total score of this header.
-	fn total_score(&self) -> Self::Value;
-}
-
-/// A header with finalized information.
-pub trait FinalizableHeader: Header {
-	/// Get whether this header is considered finalized, so that it will never be replaced in reorganization.
-	fn is_finalized(&self) -> bool;
-}
-
-/// A header with metadata information.
-pub trait WithMetadataHeader: Header {
-	/// Get the current header metadata.
-	fn metadata(&self) -> Option<&[u8]>;
-}
-
 /// A "live" block is one which is in the process of the transition.
 /// The state of this block can be mutated by arbitrary rules of the
 /// state transition function.
@@ -101,8 +70,6 @@ pub trait Machine: for<'a> LocalizedMachine<'a> {
 	type Header: Header;
 	/// The live block type.
 	type LiveBlock: LiveBlock<Header=Self::Header>;
-	/// Block header with metadata information.
-	type ExtendedHeader: Header;
 	/// A handle to a blockchain client for this machine.
 	type EngineClient: ?Sized;
 	/// A description of needed auxiliary data.
