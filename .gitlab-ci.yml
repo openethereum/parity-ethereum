@@ -32,6 +32,8 @@ variables:
 test-rust-changes:
   stage:                           test
   script:
+    - pwd
+    - ls -la
     - scripts/gitlab/rust-changes.sh
   tags:
     - linux-docker
@@ -48,7 +50,7 @@ test-cpp:
 test-validate-chainspecs:
   stage:                           test
   script:
-    - scripts/validate_cahinspecks.sh
+    - scripts/validate_chainspecks.sh
     - sccache -s
   tags:
     - linux-docker
