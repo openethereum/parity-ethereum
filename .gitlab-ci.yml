@@ -46,6 +46,14 @@ test-validate-chainspecs:
   tags:
     - linux-docker
 
+cargo-check:
+  stage:                           test
+  script:
+    - ./scripts/gitlab/cargo_check.sh
+    - sccache -s
+  tags:
+    - linux-docker
+
 test-rust-changes:
   stage:                           test
   script:
@@ -57,7 +65,7 @@ test-rust-changes:
 test-cpp:
   stage:                           build
   dependencies:
-  - test-rust-changes
+    - test-rust-changes
   script:
     - ./scripts/gitlab/test-cpp.sh
     - sccache -s
@@ -67,7 +75,7 @@ test-cpp:
 test-linux:
   stage:                           build
   dependencies:
-  - test-rust-changes
+    - test-rust-changes
   script:
     - ./scripts/gitlab/test.sh
     - sccache -s
