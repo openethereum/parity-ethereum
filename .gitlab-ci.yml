@@ -29,12 +29,35 @@ variables:
     paths:
       - artifacts/
 
+test-rust-changes:
+  stage:                           test
+  script:
+    - scripts/gitlab/rust-changes.sh
+  tags:
+    - linux-docker
+  allow_failure:                   true
+
+test-cpp:
+  stage:                           test
+  script:
+    - test-cpp.sh
+    - sccache -s
+  tags:
+    - linux-docker
+
+test-validate-chainspecs:
+  stage:                           test
+  script:
+    - scripts/validate_cahinspecks.sh
+    - sccache -s
+  tags:
+    - linux-docker
+
+
 test-linux:
   stage:                           test
-  variables:
-    RUN_TESTS:                     all
   script:
-    - scripts/gitlab/test-all.sh
+    - test.sh
     - sccache -s
   tags:
     - linux-docker
