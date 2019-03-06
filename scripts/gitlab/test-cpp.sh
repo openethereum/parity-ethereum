@@ -2,8 +2,8 @@
 echo "________Running test-cpp.sh________"
 set -e # fail on any error
 set -u # treat unset variables as error
-
-THREADS=8
+#use nproc `linux only
+THREADS=$(nproc)
 
 echo "________Running the C++ example________"
 DIR=parity-clib/examples/cpp/build
