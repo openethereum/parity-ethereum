@@ -29,6 +29,23 @@ variables:
     paths:
       - artifacts/
 
+test-audit:
+  stage:                           test
+  script:
+    - set -e
+    - set -u
+    - cargo audit
+  tags:
+    - linux-docker
+
+test-validate-chainspecs:
+  stage:                           test
+  script:
+    - ./scripts/gitlab/validate_chainspecs.sh
+    - sccache -s
+  tags:
+    - linux-docker
+
 test-rust-changes:
   stage:                           test
   script:
@@ -38,36 +55,22 @@ test-rust-changes:
   allow_failure:                   true
 
 test-cpp:
-  stage:                           test
+  stage:                           build
+  dependencies:
+  - test-rust-changes
   script:
-    - ./test-cpp.sh
+    - ./scripts/gitlab/test-cpp.sh
     - sccache -s
   tags:
     - linux-docker
-
-test-validate-chainspecs:
-  stage:                           test
-  script:
-    - ./scripts/validate_chainspecs.sh
-    - sccache -s
-  tags:
-    - linux-docker
-
 
 test-linux:
-  stage:                           test
+  stage:                           build
+  dependencies:
+  - test-rust-changes
   script:
-    - ./test.sh
+    - ./scripts/gitlab/test.sh
     - sccache -s
-  tags:
-    - linux-docker
-
-test-audit:
-  stage:                           test
-  script:
-    - set -e
-    - set -u
-    - cargo audit
   tags:
     - linux-docker
 
