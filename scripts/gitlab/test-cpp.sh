@@ -2,13 +2,15 @@
 echo "________Running test-cpp.sh________"
 set -e # fail on any error
 set -u # treat unset variables as error
+#use nproc `linux only
+THREADS=$(nproc)
 
 echo "________Running the C++ example________"
 DIR=parity-clib/examples/cpp/build
 mkdir -p $DIR
 cd $DIR
 cmake ..
-make -j
+make -j $THREADS
 # Note: we don't try to run the example because it tries to sync Kovan, and we don't want
 #       that to happen on CI
 cd -
