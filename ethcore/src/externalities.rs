@@ -117,7 +117,7 @@ impl<'a, T: 'a, V: 'a, B: 'a> Ext for Externalities<'a, T, V, B>
 {
 	fn initial_storage_at(&self, key: &H256) -> vm::Result<H256> {
 		if self.state.is_base_storage_root_unchanged(&self.origin_info.address)? {
-			self.state.checkpoint_storage_at(0, &self.origin_info.address, key).map(|v| v.unwrap_or(H256::zero())).map_err(Into::into)
+			self.state.checkpoint_storage_at(0, &self.origin_info.address, key).map(|v| v.unwrap_or_default()).map_err(Into::into)
 		} else {
 			warn!(target: "externalities", "Detected existing account {:#x} where a forced contract creation happened.", self.origin_info.address);
 			Ok(H256::zero())

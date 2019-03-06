@@ -274,7 +274,7 @@ pub fn verify_block_final(expected: &Header, got: &Header) -> Result<(), Error> 
 		return Err(From::from(BlockError::InvalidGasUsed(Mismatch { expected: *expected.gas_used(), found: *got.gas_used() })))
 	}
 	if expected.log_bloom() != got.log_bloom() {
-		return Err(From::from(BlockError::InvalidLogBloom(Mismatch { expected: *expected.log_bloom(), found: *got.log_bloom() })))
+		return Err(From::from(BlockError::InvalidLogBloom(Box::new(Mismatch { expected: *expected.log_bloom(), found: *got.log_bloom() }))))
 	}
 	if expected.receipts_root() != got.receipts_root() {
 		return Err(From::from(BlockError::InvalidReceiptsRoot(Mismatch { expected: *expected.receipts_root(), found: *got.receipts_root() })))
