@@ -214,6 +214,7 @@ publish-docs:
 
 build-android:
   stage:                           optional
+  only:                            *releaseable_branches
   image:                           parity/rust-android:gitlab-ci
   variables:
     CARGO_TARGET:                  armv7-linux-androideabi
