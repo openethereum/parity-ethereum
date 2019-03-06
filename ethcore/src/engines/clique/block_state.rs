@@ -27,6 +27,7 @@ use error::Error;
 use types::header::Header;
 
 /// Clique state for each block.
+#[cfg(not(test))]
 #[derive(Clone, Debug, Default)]
 pub struct CliqueBlockState {
 	/// all recorded votes before this blocks, k: (Voter, beneficiary), v: VoteType
@@ -37,6 +38,23 @@ pub struct CliqueBlockState {
 	signers: Vec<Address>,
 	/// a deque of recent signer, new entry should be pushed front, apply() modifies this.
 	recent_signers: VecDeque<Address>,
+	/// inturn signing should wait until this time
+	pub next_timestamp_inturn: Option<SystemTime>,
+	/// noturn signing should wait until this time
+	pub next_timestamp_noturn: Option<SystemTime>,
+}
+
+#[cfg(test)]
+#[derive(Clone, Debug, Default)]
+pub struct CliqueBlockState {
+	/// all recorded votes before this blocks, k: (Voter, beneficiary), v: VoteType
+	pub votes: HashMap<(Address, Address), VoteType>,
+	/// a list of all vote happened before this block, item is an 4 item tuple: blockNumber, Voter, VoteType, beneficiary
+	pub votes_history: Vec<(u64, Address, VoteType, Address)>,
+	/// a list of all valid signer, sorted by ascending order.
+	pub signers: Vec<Address>,
+	/// a deque of recent signer, new entry should be pushed front, apply() modifies this.
+	pub recent_signers: VecDeque<Address>,
 	/// inturn signing should wait until this time
 	pub next_timestamp_inturn: Option<SystemTime>,
 	/// noturn signing should wait until this time
@@ -55,10 +73,6 @@ impl CliqueBlockState {
 	// see https://github.com/ethereum/go-ethereum/blob/master/consensus/clique/clique.go#L474
 	fn verify(&self, header: &Header) -> Result<(Address), Error>{
 		let creator = recover_creator(header)?.clone();
-
-		println!("signers: {:?}", self.signers);
-		println!("header: {:?}", header.number());
-		println!("signer: {:?}", creator);
 
 		// Check signer list
 		if !self.signers.contains(&creator) {
@@ -155,6 +169,11 @@ impl CliqueBlockState {
 
 			// signers are highly likely to be < 10.
 			self.signers.sort();
+
+			// make sure `recent_signers` is updated after add/remove
+			if self.recent_signers.len() >= ( self.signers.len() / 2 ) + 1 {
+				self.recent_signers.pop_back();
+			}
 
 			// Remove all votes about or made by this beneficiary
 			{
