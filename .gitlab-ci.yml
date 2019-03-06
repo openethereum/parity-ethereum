@@ -32,7 +32,7 @@ variables:
 test-rust-changes:
   stage:                           test
   script:
-    - ./scripts/gitlab/rust-changes.sh
+    - ./scripts/gitlab/rust_changes.sh
   tags:
     - linux-docker
   allow_failure:                   true
@@ -48,7 +48,7 @@ test-cpp:
 test-validate-chainspecs:
   stage:                           test
   script:
-    - ./scripts/validate_chainspecks.sh
+    - ./scripts/validate_chainspecs.sh
     - sccache -s
   tags:
     - linux-docker
