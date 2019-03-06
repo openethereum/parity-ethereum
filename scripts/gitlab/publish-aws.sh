@@ -6,10 +6,10 @@ set -u # treat unset variables as error
 echo "__________Push binaries to AWS S3____________"
 case "${SCHEDULE_TAG:-${CI_COMMIT_REF_NAME}}" in
     (beta|stable|nightly)
-      BUCKET=releases.parity.io/ethereum;
+      export BUCKET=releases.parity.io/ethereum;
       ;;
     (*)
-      BUCKET=builds-parity;
+      export BUCKET=builds-parity;
       ;;
   esac
 aws s3 sync ./artifacts s3://${BUCKET}/${SCHEDULE_TAG:-${CI_COMMIT_REF_NAME}}/
