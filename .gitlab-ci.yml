@@ -56,8 +56,6 @@ cargo-check:
 
 test-cpp:
   stage:                           build
-  dependencies:
-    - rust-changes
   script:
     - sccache -s
     - ./scripts/gitlab/rust-changes.sh
@@ -68,8 +66,6 @@ test-cpp:
 
 test-linux:
   stage:                           build
-  dependencies:
-    - rust-changes
   script:
     - sccache -s
     - ./scripts/gitlab/rust-changes.sh
