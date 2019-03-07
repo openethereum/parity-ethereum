@@ -18,7 +18,7 @@ use keccak::Keccak256;
 use super::{KeyPair, Generator, Secret};
 use parity_wordlist;
 
-/// Simple brainwallet.
+/// Simple brainwallet.s
 pub struct Brain(String);
 
 impl Brain {
