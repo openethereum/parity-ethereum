@@ -1149,7 +1149,7 @@ impl Client {
 	pub fn take_snapshot<W: snapshot_io::SnapshotWriter + Send>(&self, writer: W, at: BlockId, p: &snapshot::Progress) -> Result<(), EthcoreError> {
 		let db = self.state_db.read().journal_db().boxed_clone();
 		let best_block_number = self.chain_info().best_block_number;
-		let block_number = self.block_number(at).ok_or(snapshot::Error::InvalidStartingBlock(at))?;
+		let block_number = self.block_number(at).ok_or_else(|| snapshot::Error::InvalidStartingBlock(at))?;
 
 		if db.is_pruned() && self.pruning_info().earliest_state > block_number {
 			return Err(snapshot::Error::OldBlockPrunedDB.into());

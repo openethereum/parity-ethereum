@@ -24,7 +24,6 @@ use std::marker::PhantomData;
 use std::sync::Arc;
 use std::time::Duration;
 
-use ethcore::executed::{Executed, ExecutionError};
 use futures::{Poll, Future, Async};
 use futures::sync::oneshot::{self, Receiver};
 use network::PeerId;
@@ -41,10 +40,10 @@ use cache::Cache;
 use request::{self as basic_request, Request as NetworkRequest};
 use self::request::CheckedRequest;
 
+pub use ethcore::executed::ExecutionResult;
 pub use self::request::{Request, Response, HeaderRef, Error as ValidityError};
 pub use self::request_guard::{RequestGuard, Error as RequestError};
 pub use self::response_guard::{ResponseGuard, Error as ResponseGuardError, Inner as ResponseGuardInner};
-
 pub use types::request::ResponseError;
 
 #[cfg(test)]
@@ -53,9 +52,6 @@ mod tests;
 pub mod request;
 mod request_guard;
 mod response_guard;
-
-/// The result of execution
-pub type ExecutionResult = Result<Executed, ExecutionError>;
 
 /// The initial backoff interval for OnDemand queries
 pub const DEFAULT_REQUEST_MIN_BACKOFF_DURATION: Duration = Duration::from_secs(10);

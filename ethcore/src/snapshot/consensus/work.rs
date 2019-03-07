@@ -116,7 +116,7 @@ impl<'a> PowWorker<'a> {
 
 			let (block, receipts) = self.chain.block(&self.current_hash)
 				.and_then(|b| self.chain.block_receipts(&self.current_hash).map(|r| (b, r)))
-				.ok_or(Error::BlockNotFound(self.current_hash))?;
+				.ok_or_else(|| Error::BlockNotFound(self.current_hash))?;
 
 			let abridged_rlp = AbridgedBlock::from_block_view(&block.view()).into_inner();
 
@@ -160,7 +160,7 @@ impl<'a> PowWorker<'a> {
 
 		let (last_header, last_details) = self.chain.block_header_data(&last)
 			.and_then(|n| self.chain.block_details(&last).map(|d| (n, d)))
-			.ok_or(Error::BlockNotFound(last))?;
+			.ok_or_else(|| Error::BlockNotFound(last))?;
 
 		let parent_number = last_header.number() - 1;
 		let parent_hash = last_header.parent_hash();

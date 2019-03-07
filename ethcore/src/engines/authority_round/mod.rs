@@ -512,15 +512,19 @@ fn header_expected_seal_fields(header: &Header, empty_steps_transition: u64) -> 
 }
 
 fn header_step(header: &Header, empty_steps_transition: u64) -> Result<u64, ::rlp::DecoderError> {
-	let expected_seal_fields = header_expected_seal_fields(header, empty_steps_transition);
-	Rlp::new(&header.seal().get(0).expect(
-		&format!("was either checked with verify_block_basic or is genesis; has {} fields; qed (Make sure the spec file has a correct genesis seal)", expected_seal_fields))).as_val()
+	Rlp::new(&header.seal().get(0).unwrap_or_else(||
+		panic!("was either checked with verify_block_basic or is genesis; has {} fields; qed (Make sure the spec
+				file has a correct genesis seal)", header_expected_seal_fields(header, empty_steps_transition))
+	))
+	.as_val()
 }
 
 fn header_signature(header: &Header, empty_steps_transition: u64) -> Result<Signature, ::rlp::DecoderError> {
-	let expected_seal_fields = header_expected_seal_fields(header, empty_steps_transition);
-	Rlp::new(&header.seal().get(1).expect(
-		&format!("was checked with verify_block_basic; has {} fields; qed", expected_seal_fields))).as_val::<H520>().map(Into::into)
+	Rlp::new(&header.seal().get(1).unwrap_or_else(||
+		panic!("was checked with verify_block_basic; has {} fields; qed",
+			   header_expected_seal_fields(header, empty_steps_transition))
+	))
+	.as_val::<H520>().map(Into::into)
 }
 
 // extracts the raw empty steps vec from the header seal. should only be called when there are 3 fields in the seal
@@ -934,8 +938,12 @@ impl Engine<EthereumMachine> for AuthorityRound {
 			return BTreeMap::default();
 		}
 
-		let step = header_step(header, self.empty_steps_transition).as_ref().map(ToString::to_string).unwrap_or("".into());
-		let signature = header_signature(header, self.empty_steps_transition).as_ref().map(ToString::to_string).unwrap_or("".into());
+		let step = header_step(header, self.empty_steps_transition).as_ref()
+			.map(ToString::to_string)
+			.unwrap_or_default();
+		let signature = header_signature(header, self.empty_steps_transition).as_ref()
+			.map(ToString::to_string)
+			.unwrap_or_default();
 
 		let mut info = map![
 			"step".into() => step,
