@@ -124,36 +124,34 @@ impl CliqueBlockState {
 
 			self.votes.clear();
 			self.votes_history.clear();
-
-			// maybe release some memory.
-			self.votes.shrink_to_fit();
-			self.votes_history.shrink_to_fit();
-
-			return Ok(creator);
 		}
 
-		let beneficiary = *header.author();
-
-		// No vote, ignore.
-		if beneficiary == NULL_AUTHOR {
-			return Ok(creator);
+		// Contains vote
+		if *header.author() != NULL_AUTHOR {
+			let nonce = *header.decode_seal::<Vec<_>>()?.get(1).ok_or("Error decoding seal")?;
+			self.update_signers_on_vote(VoteType::from_nonce(nonce)?, creator, *header.author(), header.number())?;
 		}
 
-		let nonce = *header.decode_seal::<Vec<_>>()?.get(1).ok_or(
-			"Error decoding seal"
-		)?;
+		Ok(creator)
+	}
 
-		let vote_type = VoteType::from_nonce(nonce)?;
+	fn update_signers_on_vote(
+		&mut self,
+		vote_type: VoteType,
+		creator: Address,
+		beneficiary: Address,
+		block_number: u64
+	) -> Result<(), Error> {
 
 		// Record this vote, also since we are using an hashmap, it will override previous vote.
 		self.votes.insert((creator, beneficiary), vote_type);
-		self.votes_history.push((header.number(), creator, vote_type, beneficiary));
+		self.votes_history.push((block_number, creator, vote_type, beneficiary));
 
 		// Tally up current target votes.
 		let threshold = self.signers.len() / 2;
-		let vote = self.votes.iter().filter(|(key, value)| {
-			(**key).1 == beneficiary && **value == vote_type
-		}).count();
+		let vote = self.votes.iter()
+			.filter(|(key, value)| (**key).1 == beneficiary && **value == vote_type)
+			.count();
 
 		if vote > threshold {
 			match vote_type {
@@ -188,8 +186,7 @@ impl CliqueBlockState {
 			}
 		}
 
-		// No cascading votes.
-		Ok(creator)
+		Ok(())
 	}
 
 	pub fn calc_next_timestamp(&mut self, header: &Header, period: u64) {
