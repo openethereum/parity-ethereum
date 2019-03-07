@@ -11,7 +11,17 @@ variables:
   CI_SERVER_NAME:                  "GitLab CI"
   CARGO_HOME:                      "${CI_PROJECT_DIR}/.cargo"
   CARGO_TARGET:                    x86_64-unknown-linux-gnu
-  RUST_FILES_MODIFIED:             1567
+  
+ .rust_changes: &rust_changes      #exceptions to search for modified files
+  except:
+    changes:
+      - LICENSE
+      - README.md 
+      - CHANGELOG.md 
+      - test.sh 
+      - scripts/** /*
+      - docs/** /* 
+      #- .gitlab-ci.yml
 
 
 .releaseable_branches:             # list of git refs for building GitLab artifacts (think "pre-release binaries")
@@ -32,6 +42,7 @@ variables:
 
 cargo-audit:
   stage:                           test
+  <<: *rust_changes
   script:
     - cargo audit
   tags:
@@ -39,6 +50,7 @@ cargo-audit:
 
 validate-chainspecs:
   stage:                           test
+  <<: *rust_changes
   script:
     - sccache -s
     - ./scripts/gitlab/validate-chainspecs.sh
@@ -48,6 +60,7 @@ validate-chainspecs:
 
 cargo-check:
   stage:                           test
+  <<: *rust_changes
   script:
     - sccache -s
     - ./scripts/gitlab/cargo-check.sh
@@ -55,17 +68,9 @@ cargo-check:
   tags:
     - linux-docker
 
-rust-changes:
-  stage:                           test
-  script:
-    - echo $RUST_FILES_MODIFIED
-    - ./scripts/gitlab/rust-changes.sh
-  tags:
-    - linux-docker
-  allow_failure:                   true
-
 test-cpp:
   stage:                           build
+  <<: *rust_changes
   script:
     - sccache -s
     - ./scripts/gitlab/test-cpp.sh
@@ -83,6 +88,7 @@ test-cpp:
 
 test-linux:
   stage:                           build
+  <<: *rust_changes
   script:
     - sccache -s
     - ./scripts/gitlab/test-linux.sh
@@ -239,6 +245,7 @@ publish-docs:
 
 build-android:
   stage:                           build
+  <<: *rust_changes
   image:                           parity/rust-android:gitlab-ci
   variables:
     CARGO_TARGET:                  armv7-linux-androideabi
