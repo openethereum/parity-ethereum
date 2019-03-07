@@ -12,7 +12,7 @@ variables:
   CARGO_HOME:                      "${CI_PROJECT_DIR}/.cargo"
   CARGO_TARGET:                    x86_64-unknown-linux-gnu
   
- .rust_changes: &rust_changes      #exceptions to search for modified files
+.rust_changes:                    &rust_changes      #exceptions to search for modified files
   except:
     changes:
       - LICENSE
