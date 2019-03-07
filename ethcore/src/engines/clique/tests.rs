@@ -181,10 +181,8 @@ fn one_signer_with_no_votes() {
 
 	let empty_block = tester.new_block_and_import(CliqueBlockType::Empty, &tester.genesis, None, 'A').unwrap();
 
-	let signers = tester.clique_signers(&empty_block.header().hash());
-
-	assert_eq!(signers.len(), 1);
-	assert_eq!(signers[0], tester.signers[&'A'].address());
+	let tags = tester.tags_from_vec(&tester.clique_signers(&empty_block.header().hash()));
+	assert_eq!(&tags, &['A']);
 }
 
 #[test]
@@ -202,11 +200,8 @@ fn one_signer_two_votes() {
 	let vote = tester.new_block_and_import(CliqueBlockType::Vote(VoteType::Add), &empty.header(),
 										   Some(tester.signers[&'C'].address()), 'A').unwrap();
 
-	let signers = tester.clique_signers(&vote.header().hash());
-	assert_eq!(signers.len(), 2);
-	assert!(signers.contains(&tester.signers[&'A'].address());
-	assert!(signers.contains(&tester.signers[&'B'].address());
-	assert!(!signers.contains(&tester.signers[&'C'].address());
+	let tags = tester.tags_from_vec(&tester.clique_signers(&vote.header().hash()));
+	assert_eq!(&tags, &['A', 'B']);
 }
 
 #[test]
@@ -240,14 +235,8 @@ fn two_signers_six_votes_deny_last() {
 		prev_header = vote.header().clone();
 	}
 
-	let signers = tester.clique_signers(&prev_header.hash());
-
-	assert!(signers.len() == 4);
-	assert!(signers.contains(&tester.signers[&'A'].address());
-	assert!(signers.contains(&tester.signers[&'B'].address());
-	assert!(signers.contains(&tester.signers[&'C'].address());
-	assert!(signers.contains(&tester.signers[&'D']].address());
-	assert!(!signers.contains(&tester.signers[&'E'].address());
+	let tags = tester.tags_from_vec(&tester.clique_signers(&prev_header.hash()));
+	assert_eq!(&tags, &['A', 'B', 'C', 'D']);
 }
 
 #[test]
@@ -265,10 +254,8 @@ fn two_signers_one_remove_vote_no_consensus() {
 	let vote = tester.new_block_and_import(CliqueBlockType::Vote(VoteType::Remove), &tester.genesis,
 										   Some(tester.signers[&'B'].address()), 'A').unwrap();
 
-	let signers = tester.clique_signers(&vote.header().hash());
-	assert!(signers.len() == 2);
-	assert!(signers.contains(&tester.signers[&'A'].address());
-	assert!(signers.contains(&tester.signers[&'B'].address());
+	let tags = tester.tags_from_vec(&tester.clique_signers(&vote.header().hash()));
+	assert_eq!(&tags, &['A', 'B']);
 }
 
 #[test]
@@ -279,10 +266,8 @@ fn two_signers_consensus_remove_b() {
 	let second_vote = tester.new_block_and_import(CliqueBlockType::Vote(VoteType::Remove), &first_vote.header(),
 												 Some(tester.signers[&'B'].address()), 'B').unwrap();
 
-	let signers = tester.clique_signers(&second_vote.header().hash());
-	assert!(signers.len() == 1);
-	assert!(signers.contains(&tester.signers[&'A'].address());
-	assert!(!signers.contains(&tester.signers[&'B'].address());
+	let tags = tester.tags_from_vec(&tester.clique_signers(&second_vote.header().hash()));
+	assert_eq!(&tags, &['A']);
 }
 
 #[test]
@@ -293,11 +278,8 @@ fn three_signers_consensus_remove_c() {
 	let second_vote = tester.new_block_and_import(CliqueBlockType::Vote(VoteType::Remove), &first_vote.header(),
 												 Some(tester.signers[&'C'].address()), 'B').unwrap();
 
-	let signers = tester.clique_signers(&second_vote.header().hash());
-	assert!(signers.len() == 2);
-	assert!(signers.contains(&tester.signers[&'A'].address());
-	assert!(signers.contains(&tester.signers[&'B'].address());
-	assert!(!signers.contains(&tester.signers[&'C'].address());
+	let tags = tester.tags_from_vec(&tester.clique_signers(&second_vote.header().hash()));
+	assert_eq!(&tags, &['A', 'B']);
 }
 
 #[test]
@@ -309,12 +291,8 @@ fn four_signers_half_no_consensus() {
 	let second_vote = tester.new_block_and_import(CliqueBlockType::Vote(VoteType::Remove), &first_vote.header(),
 												  Some(tester.signers[&'C'].address()), 'B').unwrap();
 
-	let signers = tester.clique_signers(&second_vote.header().hash());
-	assert!(signers.len() == 4);
-	assert!(signers.contains(&tester.signers[&'A'].address());
-	assert!(signers.contains(&tester.signers[&'B'].address());
-	assert!(signers.contains(&tester.signers[&'C'].address());
-	assert!(signers.contains(&tester.signers[&'D'].address());
+	let tags = tester.tags_from_vec(&tester.clique_signers(&second_vote.header().hash()));
+	assert_eq!(&tags, &['A', 'B', 'C', 'D']);
 }
 
 #[test]
@@ -330,12 +308,8 @@ fn four_signers_three_consensus_rm() {
 		prev_header = vote.header().clone();
 	}
 
-	let signers = tester.clique_signers(&prev_header.hash());
-	assert!(signers.len() == 3);
-	assert!(signers.contains(&tester.signers[&'A'].address());
-	assert!(signers.contains(&tester.signers[&'B'].address());
-	assert!(signers.contains(&tester.signers[&'C'].address());
-	assert!(!signers.contains(&tester.signers[&'D'].address());
+	let tags = tester.tags_from_vec(&tester.clique_signers(&prev_header.hash()));
+	assert_eq!(&tags, &['A', 'B', 'C']);
 }
 
 #[test]
@@ -358,11 +332,8 @@ fn vote_add_only_counted_once_per_signer() {
 	let vote = tester.new_block_and_import(CliqueBlockType::Vote(VoteType::Add), &empty.header(),
 										   Some(tester.signers[&'C'].address()), 'A').unwrap();
 
-	let signers = tester.clique_signers(&vote.header().hash());
-	assert_eq!(signers.len(), 2);
-	assert!(signers.contains(&tester.signers[&'A'].address());
-	assert!(signers.contains(&tester.signers[&'B'].address());
-	assert!(!signers.contains(&tester.signers[&'C'].address());
+	let tags = tester.tags_from_vec(&tester.clique_signers(&vote.header().hash()));
+	assert_eq!(&tags, &['A', 'B']);
 }
 
 #[test]
@@ -397,12 +368,8 @@ fn vote_add_concurrently_is_permitted() {
 	let b = tester.new_block_and_import(CliqueBlockType::Vote(VoteType::Add), &b.header(),
 										   Some(tester.signers[&'C'].address()), 'B').unwrap();
 
-	let signers = tester.clique_signers(&b.header().hash());
-	assert_eq!(signers.len(), 4);
-	assert!(signers.contains(&tester.signers[&'A'].address());
-	assert!(signers.contains(&tester.signers[&'B'].address());
-	assert!(signers.contains(&tester.signers[&'C'].address());
-	assert!(signers.contains(&tester.signers[&'D'].address());
+	let tags = tester.tags_from_vec(&tester.clique_signers(&b.header().hash()));
+	assert_eq!(&tags, &['A', 'B', 'C', 'D']);
 }
 
 #[test]
@@ -425,10 +392,8 @@ fn vote_rm_only_counted_once_per_signer() {
 	let b = tester.new_block_and_import(CliqueBlockType::Vote(VoteType::Remove), &prev_header,
 										   Some(tester.signers[&'B'].address()), 'A').unwrap();
 
-	let signers = tester.clique_signers(&b.header().hash());
-	assert_eq!(signers.len(), 2);
-	assert!(signers.contains(&tester.signers[&'A'].address());
-	assert!(signers.contains(&tester.signers[&'B'].address());
+	let tags = tester.tags_from_vec(&tester.clique_signers(&b.header().hash()));
+	assert_eq!(&tags, &['A', 'B']);
 }
 
 #[test]
@@ -468,12 +433,8 @@ fn vote_rm_concurrently_is_permitted() {
 	let block = tester.new_block_and_import(CliqueBlockType::Vote(VoteType::Remove), &block.header(),
 											Some(tester.signers[&'C'].address()), 'B').unwrap();
 
-	let signers = tester.clique_signers(&block.header().hash());
-	assert_eq!(signers.len(), 2);
-	assert!(signers.contains(&tester.signers[&'A'].address());
-	assert!(signers.contains(&tester.signers[&'B'].address());
-	assert!(!signers.contains(&tester.signers[&'C'].address());
-	assert!(!signers.contains(&tester.signers[&'D'.address());
+	let tags = tester.tags_from_vec(&tester.clique_signers(&block.header().hash()));
+	assert_eq!(&tags, &['A', 'B']);
 }
 
 #[test]
@@ -493,11 +454,8 @@ fn vote_to_rm_are_immediate_and_ensure_votes_are_rm() {
 	let block = tester.new_block_and_import(CliqueBlockType::Vote(VoteType::Remove), &block.header(),
 											Some(tester.signers[&'B'].address()), 'A').unwrap();
 
-	let signers = tester.clique_signers(&block.header().hash());
-	assert!(signers.len() == 2);
-	assert!(signers.contains(&tester.signers[&'A'].address());
-	assert!(signers.contains(&tester.signers[&'B'].address());
-	assert!(!signers.contains(&tester.signers[&'C'].address());
+	let tags = tester.tags_from_vec(&tester.clique_signers(&block.header().hash()));
+	assert_eq!(&tags, &['A', 'B']);
 }
 
 #[test]
@@ -519,12 +477,8 @@ fn vote_to_rm_are_immediate_and_votes_should_be_dropped_from_kicked_signer() {
 	let block = tester.new_block_and_import(CliqueBlockType::Vote(VoteType::Add), &block.header(),
 											Some(tester.signers[&'D'].address()), 'A').unwrap();
 
-	let signers = tester.clique_signers(&block.header().hash());
-	assert!(signers.len() == 2);
-	assert!(signers.contains(&tester.signers[&'A'].address());
-	assert!(signers.contains(&tester.signers[&'B'].address());
-	assert!(!signers.contains(&tester.signers[&'C'].address());
-	assert!(!signers.contains(&tester.signers[&'D'].address());
+	let tags = tester.tags_from_vec(&tester.clique_signers(&block.header().hash()));
+	assert_eq!(&tags, &['A', 'B']);
 }
 
 #[test]
@@ -563,15 +517,12 @@ fn cascading_not_allowed() {
 	let block = tester.new_block_and_import(CliqueBlockType::Vote(VoteType::Remove), &block.header(),
 											Some(tester.signers[&'D'].address()), 'C').unwrap();
 
-	let signers = tester.clique_signers(&block.header().hash());
-	assert!(signers.len() == 3);
-	assert!(signers.contains(&tester.signers[&'A'].address());
-	assert!(signers.contains(&tester.signers[&'B'].address());
-	assert!(signers.contains(&tester.signers[&'C'].address());
-	assert!(!signers.contains(&tester.signers[&'D'].address());
+	let tags = tester.tags_from_vec(&tester.clique_signers(&block.header().hash()));
+	assert_eq!(&tags, &['A', 'B', 'C']);
 }
 
 #[test]
+#[ignore]
 fn consensus_out_of_bounds_on_touch() {
 	let tester = Tester::with(100, 1, vec![('A', true), ('B', true), ('C', true), ('D', true)]);
 
@@ -667,12 +618,8 @@ fn consensus_out_of_bounds_first_touch() {
 	let block = tester.new_block_and_import(CliqueBlockType::Vote(VoteType::Add), &block.header(),
 											Some(tester.signers[&'C'].address()), 'B').unwrap();
 
-	let signers = tester.clique_signers(&block.header().hash());
-	assert!(signers.len() == 3);
-	assert_eq!(signers.contains(&tester.signers[&'A'].address()), true);
-	assert_eq!(signers.contains(&tester.signers[&'B'].address()), true);
-	assert_eq!(signers.contains(&tester.signers[&'C'].address()), true);
-	assert_eq!(signers.contains(&tester.signers[&'D'].address()), false);
+	let tags = tester.tags_from_vec(&tester.clique_signers(&block.header().hash()));
+	assert_eq!(&tags, &['A', 'B', 'C']);
 }
 
 #[test]
@@ -736,7 +683,7 @@ fn epoch_transition_reset_all_votes() {
 	let block = tester.new_block_and_import(CliqueBlockType::Empty, &block.header(), None, 'B').unwrap();
 	let block = tester.new_block_and_import(CliqueBlockType::Checkpoint, &block.header(), None, 'A').unwrap();
 
-	let block = tester.new_block_and_import(CliqueBlockType::Vote(VoteType::Add), &tester.genesis,
+	let block = tester.new_block_and_import(CliqueBlockType::Vote(VoteType::Add), &block.header(),
 											Some(tester.signers[&'C'].address()), 'B').unwrap();
 
 	let tags = tester.tags_from_vec(&tester.clique_signers(&block.header().hash()));
