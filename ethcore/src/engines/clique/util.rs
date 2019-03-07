@@ -80,7 +80,6 @@ pub fn recover_creator(header: &Header) -> Result<Address, Error> {
 pub fn extract_signers(header: &Header) -> Result<Vec<Address>, Error> {
 	let data = header.extra_data();
 
-	println!("extra_data: {}", data.len());
 	if data.len() <= VANITY_LENGTH + SIGNATURE_LENGTH {
 		return Err(Box::new("Invalid extra_data size.").into());
 	}
@@ -110,5 +109,3 @@ pub fn extract_signers(header: &Header) -> Result<Vec<Address>, Error> {
 pub fn null_seal() -> Vec<Vec<u8>> {
 	vec![encode(&NULL_MIXHASH.to_vec()), encode(&NULL_NONCE.to_vec())]
 }
-
-
