@@ -54,20 +54,13 @@ cargo-check:
   tags:
     - linux-docker
 
-rust-changes:
-  stage:                           test
-  script:
-    - ./scripts/gitlab/rust-changes.sh
-  tags:
-    - linux-docker
-  allow_failure:                   true
-
 test-cpp:
   stage:                           build
   dependencies:
     - rust-changes
   script:
     - sccache -s
+    - ./scripts/gitlab/rust-changes.sh
     - ./scripts/gitlab/test-cpp.sh
     - sccache -s
   tags:
@@ -79,6 +72,7 @@ test-linux:
     - rust-changes
   script:
     - sccache -s
+    - ./scripts/gitlab/rust-changes.sh
     - ./scripts/gitlab/test-linux.sh
     - sccache -s
   tags:
