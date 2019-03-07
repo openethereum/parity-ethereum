@@ -70,6 +70,14 @@ test-cpp:
     - sccache -s
     - ./scripts/gitlab/test-cpp.sh
     - sccache -s
+  except:
+    changes:
+      - ^LICENSE
+      - ^README.md 
+      - ^CHANGELOG.md 
+      - ^test.sh 
+      - ^scripts/ 
+      - ^docs/ 
   tags:
     - linux-docker
 
@@ -79,6 +87,14 @@ test-linux:
     - sccache -s
     - ./scripts/gitlab/test-linux.sh
     - sccache -s
+  except:
+    changes:
+      - ^LICENSE
+      - ^README.md 
+      - ^CHANGELOG.md 
+      - ^test.sh 
+      - ^scripts/ 
+      - ^docs/ 
   tags:
     - linux-docker
 
