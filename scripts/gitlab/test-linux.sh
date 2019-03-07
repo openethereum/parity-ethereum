@@ -8,5 +8,12 @@ OPTIONS="--release"
 #use nproc `linux only
 THREADS=$(nproc)
 
+echo $RUST_FILES_MODIFIED
+if [ "${RUST_FILES_MODIFIED}" = "0" ]
+then
+  echo "__________Skipping Rust tests since no Rust files modified__________";
+  exit 0
+fi
+
 echo "________Running Parity Full Test Suite________"
 time cargo test $OPTIONS --features "$FEATURES" --locked --all --target $CARGO_TARGET -- --test-threads $THREADS
