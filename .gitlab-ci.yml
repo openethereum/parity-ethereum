@@ -32,6 +32,30 @@ variables:
     paths:
       - artifacts/
 
+.cargo-check:                      &cargo-check
+  stage:                           test
+  before_script:
+    - sccache -s
+  after_script:
+    - sccache -s
+  tags:
+    - linux-docker
+
+
+cargo-check 0 3:
+  <<:                              *cargo-check
+  script:
+    - time cargo check --target $CARGO_TARGET --locked --no-default-features
+
+cargo-check 1 3:
+  <<:                              *cargo-check
+  script:
+    - time cargo check --target $CARGO_TARGET --locked --manifest-path util/io/Cargo.toml --no-default-features
+
+cargo-check 2 3:
+  <<:                              *cargo-check
+  script:
+    - time cargo check --target $CARGO_TARGET --locked --manifest-path util/io/Cargo.toml --features "mio"
 
 cargo-audit:
   stage:                           test
@@ -45,33 +69,6 @@ validate-chainspecs:
   script:
     - sccache -s
     - ./scripts/gitlab/validate-chainspecs.sh
-    - sccache -s
-  tags:
-    - linux-docker
-
-cargo-check 0 3:
-  stage:                           test
-  script:
-    - sccache -s
-    - time cargo check --target $CARGO_TARGET --locked --manifest-path util/io/Cargo.toml --no-default-features
-    - sccache -s
-  tags:
-    - linux-docker
-
-cargo-check 1 3:
-  stage:                           test
-  script:
-    - sccache -s
-    - time cargo check --target $CARGO_TARGET --locked --no-default-features
-    - sccache -s
-  tags:
-    - linux-docker
-
-cargo-check 2 3:
-  stage:                           test
-  script:
-    - sccache -s
-    - time cargo check --target $CARGO_TARGET --locked --manifest-path util/io/Cargo.toml --features "mio"
     - sccache -s
   tags:
     - linux-docker
