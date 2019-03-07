@@ -20,7 +20,7 @@ variables:
       - CHANGELOG.md
       - scripts/** /*
       - docs/** /*
-      - .gitlab-ci.yml
+      # - .gitlab-ci.yml
 
 
 .releaseable_branches:             # list of git refs for building GitLab artifacts (think "pre-release binaries")
