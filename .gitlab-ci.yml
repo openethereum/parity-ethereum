@@ -29,19 +29,18 @@ variables:
     paths:
       - artifacts/
 
-test-audit:
+cargo-audit:
   stage:                           test
   script:
-    - set -e
-    - set -u
     - cargo audit
   tags:
     - linux-docker
 
-test-validate-chainspecs:
+validate-chainspecs:
   stage:                           test
   script:
-    - ./scripts/gitlab/validate_chainspecs.sh
+    - sccache -s
+    - ./scripts/gitlab/validate-chainspecs.sh
     - sccache -s
   tags:
     - linux-docker
@@ -49,15 +48,16 @@ test-validate-chainspecs:
 cargo-check:
   stage:                           test
   script:
-    - ./scripts/gitlab/cargo_check.sh
+    - sccache -s
+    - ./scripts/gitlab/cargo-check.sh
     - sccache -s
   tags:
     - linux-docker
 
-test-rust-changes:
+rust-changes:
   stage:                           test
   script:
-    - ./scripts/gitlab/rust_changes.sh
+    - ./scripts/gitlab/rust-changes.sh
   tags:
     - linux-docker
   allow_failure:                   true
@@ -65,8 +65,9 @@ test-rust-changes:
 test-cpp:
   stage:                           build
   dependencies:
-    - test-rust-changes
+    - rust-changes
   script:
+    - sccache -s
     - ./scripts/gitlab/test-cpp.sh
     - sccache -s
   tags:
@@ -75,18 +76,20 @@ test-cpp:
 test-linux:
   stage:                           build
   dependencies:
-    - test-rust-changes
+    - rust-changes
   script:
-    - ./scripts/gitlab/test.sh
+    - sccache -s
+    - ./scripts/gitlab/test-linux.sh
     - sccache -s
   tags:
     - linux-docker
 
 build-linux:                       &build-linux
-  stage:                           build
+  stage:                           test
   only:                            *releaseable_branches
   script:
-    - scripts/gitlab/build-unix.sh
+    - sccache -s
+    - scripts/gitlab/build-linux.sh
     - sccache -s
   <<:                              *collect_artifacts
   tags:
@@ -118,7 +121,7 @@ build-darwin:
     CC:                            gcc
     CXX:                           g++
   script:
-    - scripts/gitlab/build-unix.sh
+    - scripts/gitlab/build-linux.sh
   tags:
     - rust-osx
   <<:                              *collect_artifacts
@@ -221,14 +224,13 @@ publish-docs:
     - linux-docker
 
 build-android:
-  stage:                           optional
-  only:                            *releaseable_branches
+  stage:                           test
   image:                           parity/rust-android:gitlab-ci
   variables:
     CARGO_TARGET:                  armv7-linux-androideabi
   dependencies:                    []
   script:
-    - scripts/gitlab/build-unix.sh
+    - scripts/gitlab/build-linux.sh
   tags:
     - linux-docker
   allow_failure:                   true
