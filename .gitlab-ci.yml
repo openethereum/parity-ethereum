@@ -78,6 +78,7 @@ cargo-check 2 3:
 
 test-cpp:
   stage:                           build
+  dependencies:                    []
   script:
     - sccache -s
     - ./scripts/gitlab/test-cpp.sh
@@ -87,6 +88,7 @@ test-cpp:
 
 test-linux:
   stage:                           build
+  dependencies:                    []
   script:
     - sccache -s
     - ./scripts/gitlab/test-linux.sh
