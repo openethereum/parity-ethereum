@@ -522,7 +522,6 @@ fn cascading_not_allowed() {
 }
 
 #[test]
-#[ignore]
 fn consensus_out_of_bounds_on_touch() {
 	let tester = Tester::with(100, 1, vec![('A', true), ('B', true), ('C', true), ('D', true)]);
 

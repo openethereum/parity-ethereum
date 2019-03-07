@@ -157,7 +157,7 @@ impl CliqueBlockState {
 			match vote_type {
 				VoteType::Add => {
 					self.signers.push(beneficiary);
-				},
+				}
 				VoteType::Remove => {
 					let pos = self.signers.binary_search(&beneficiary)
 						.map_err(|_| "Unable to find beneficiary in signer list when removing".to_string())?;
@@ -175,14 +175,10 @@ impl CliqueBlockState {
 
 			// Remove all votes about or made by this beneficiary
 			{
-				let items: Vec<_> = self.votes.keys()
-					.filter(|key| (**key).0 == beneficiary || (**key).1 == beneficiary)
-					.cloned()
+				self.votes = std::mem::replace(&mut self.votes, HashMap::new())
+					.into_iter()
+					.filter(|((v, b), _)| *v != beneficiary && *b != beneficiary)
 					.collect();
-
-				for key in items {
-					self.votes.remove(&key);
-				}
 			}
 		}
 
@@ -213,10 +209,10 @@ impl CliqueBlockState {
 	// returns whether it makes sense to cast the specified vote in the
 	// current state (e.g. don't try to add an already authorized signer).
 	pub fn is_valid_vote(&self, address: &Address, vote_type: VoteType) -> bool {
-		let res = self.signers.binary_search(address);
+		let in_signer = self.signers.contains(address);
 		match vote_type {
-			VoteType::Add => res.is_ok(),
-			VoteType::Remove => res.is_err(),
+			VoteType::Add => !in_signer,
+			VoteType::Remove => in_signer,
 		}
 	}
 
