@@ -135,6 +135,9 @@ impl CliqueBlockState {
 		Ok(creator)
 	}
 
+	// TODO(niklasad1): this function is wrong
+	// 1) We should validate `votes` via `is_valid_vote`
+	// 2) We should not use the `parameter vote_type` to filter and search for votes
 	fn update_signers_on_vote(
 		&mut self,
 		vote_type: VoteType,

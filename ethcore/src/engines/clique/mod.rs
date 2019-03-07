@@ -380,6 +380,7 @@ impl Engine<EthereumMachine> for Clique {
 
 		// cast an random Vote if not checkpoint
 		if !is_checkpoint {
+			// TODO(niklasad1): this will always be false because `proposals` is never written to
 			let votes = self.proposals.read().iter()
 				.filter(|(address, vote_type)| state.is_valid_vote(*address, **vote_type))
 				.map(|(address, vote_type)| (*address, *vote_type))
