@@ -44,11 +44,29 @@ validate-chainspecs:
   tags:
     - linux-docker
 
-cargo-check:
+cargo-check 0 1:
   stage:                           test
   script:
     - sccache -s
-    - ./scripts/gitlab/cargo-check.sh
+    - time cargo check --target $CARGO_TARGET --locked --no-default-features
+    - sccache -s
+  tags:
+    - linux-docker
+
+cargo-check 0 2:
+  stage:                           test
+  script:
+    - sccache -s
+    - time cargo check --target $CARGO_TARGET --locked --manifest-path util/io/Cargo.toml --no-default-features
+    - sccache -s
+  tags:
+    - linux-docker
+
+cargo-check 0 3:
+  stage:                           test
+  script:
+    - sccache -s
+    - time cargo check --target $CARGO_TARGET --locked --manifest-path util/io/Cargo.toml --features "mio"
     - sccache -s
   tags:
     - linux-docker
