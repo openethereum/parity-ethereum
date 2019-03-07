@@ -85,7 +85,7 @@ test-linux:
     - linux-docker
 
 build-linux:                       &build-linux
-  stage:                           test
+  stage:                           build
   only:                            *releaseable_branches
   script:
     - sccache -s
@@ -224,7 +224,7 @@ publish-docs:
     - linux-docker
 
 build-android:
-  stage:                           test
+  stage:                           build
   image:                           parity/rust-android:gitlab-ci
   variables:
     CARGO_TARGET:                  armv7-linux-androideabi
