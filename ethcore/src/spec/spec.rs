@@ -515,7 +515,7 @@ fn load_from(spec_params: SpecParams, s: ethjson::spec::Spec) -> Result<Spec, Er
 				chts: s.hardcoded_sync
 					.as_ref()
 					.map(|s| s.chts.iter().map(|c| c.clone().into()).collect())
-					.unwrap_or(Vec::new()),
+					.unwrap_or_default()
 			})
 		} else {
 			None

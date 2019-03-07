@@ -82,8 +82,8 @@ pub enum ProvedExecution {
 	BadProof,
 	/// The transaction failed, but not due to a bad proof.
 	Failed(ExecutionError),
-	/// The transaction successfully completd with the given proof.
-	Complete(Executed),
+	/// The transaction successfully completed with the given proof.
+	Complete(Box<Executed>),
 }
 
 #[derive(Eq, PartialEq, Clone, Copy, Debug)]
@@ -218,7 +218,7 @@ pub fn check_proof(
 
 	let options = TransactOptions::with_no_tracing().save_output_from_contract();
 	match state.execute(env_info, machine, transaction, options, true) {
-		Ok(executed) => ProvedExecution::Complete(executed),
+		Ok(executed) => ProvedExecution::Complete(Box::new(executed)),
 		Err(ExecutionError::Internal(_)) => ProvedExecution::BadProof,
 		Err(e) => ProvedExecution::Failed(e),
 	}
@@ -1254,7 +1254,7 @@ impl<B: Backend> State<B> {
 		let trie = TrieDB::new(db, &self.root)?;
 		let maybe_account: Option<BasicAccount> = {
 			let panicky_decoder = |bytes: &[u8]| {
-				::rlp::decode(bytes).expect(&format!("prove_account, could not query trie for account key={}", &account_key))
+				::rlp::decode(bytes).unwrap_or_else(|_| panic!("prove_account, could not query trie for account key={}", &account_key))
 			};
 			let query = (&mut recorder, panicky_decoder);
 			trie.get_with(&account_key, query)?

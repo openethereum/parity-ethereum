@@ -173,7 +173,7 @@ impl EthereumMachine {
 			origin: SYSTEM_ADDRESS,
 			gas,
 			gas_price: 0.into(),
-			value: value.unwrap_or(ActionValue::Transfer(0.into())),
+			value: value.unwrap_or_else(|| ActionValue::Transfer(0.into())),
 			code,
 			code_hash,
 			data,
