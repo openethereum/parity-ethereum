@@ -11,17 +11,16 @@ variables:
   CI_SERVER_NAME:                  "GitLab CI"
   CARGO_HOME:                      "${CI_PROJECT_DIR}/.cargo"
   CARGO_TARGET:                    x86_64-unknown-linux-gnu
-  
+
 .rust_changes:                    &rust_changes      #exceptions to search for modified files
   except:
     changes:
       - LICENSE
-      - README.md 
-      - CHANGELOG.md 
-      - test.sh 
+      - README.md
+      - CHANGELOG.md
       - scripts/** /*
-      - docs/** /* 
-      #- .gitlab-ci.yml
+      - docs/** /*
+      - .gitlab-ci.yml
 
 
 .releaseable_branches:             # list of git refs for building GitLab artifacts (think "pre-release binaries")
@@ -42,7 +41,7 @@ variables:
 
 cargo-audit:
   stage:                           test
-  <<: *rust_changes
+  <<:                              *rust_changes
   script:
     - cargo audit
   tags:
@@ -50,7 +49,7 @@ cargo-audit:
 
 validate-chainspecs:
   stage:                           test
-  <<: *rust_changes
+  <<:                              *rust_changes
   script:
     - sccache -s
     - ./scripts/gitlab/validate-chainspecs.sh
@@ -60,7 +59,7 @@ validate-chainspecs:
 
 cargo-check:
   stage:                           test
-  <<: *rust_changes
+  <<:                              *rust_changes
   script:
     - sccache -s
     - ./scripts/gitlab/cargo-check.sh
@@ -70,37 +69,21 @@ cargo-check:
 
 test-cpp:
   stage:                           build
-  <<: *rust_changes
+  <<:                              *rust_changes
   script:
     - sccache -s
     - ./scripts/gitlab/test-cpp.sh
     - sccache -s
-  except:
-    changes:
-      - ^LICENSE
-      - ^README.md 
-      - ^CHANGELOG.md 
-      - ^test.sh 
-      - ^scripts/ 
-      - ^docs/ 
   tags:
     - linux-docker
 
 test-linux:
   stage:                           build
-  <<: *rust_changes
+  <<:                              *rust_changes
   script:
     - sccache -s
     - ./scripts/gitlab/test-linux.sh
     - sccache -s
-  except:
-    changes:
-      - ^LICENSE
-      - ^README.md 
-      - ^CHANGELOG.md 
-      - ^test.sh 
-      - ^scripts/ 
-      - ^docs/ 
   tags:
     - linux-docker
 
@@ -245,7 +228,7 @@ publish-docs:
 
 build-android:
   stage:                           build
-  <<: *rust_changes
+  <<:                              *rust_changes
   image:                           parity/rust-android:gitlab-ci
   variables:
     CARGO_TARGET:                  armv7-linux-androideabi

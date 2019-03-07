@@ -5,13 +5,6 @@ set -u # treat unset variables as error
 #use nproc `linux only
 THREADS=$(nproc)
 
-echo $RUST_FILES_MODIFIED
-if [ "${RUST_FILES_MODIFIED}" = "0" ]
-then
-  echo "__________Skipping Rust tests since no Rust files modified__________";
-  exit 0
-fi
-
 echo "________Running the C++ example________"
 DIR=parity-clib/examples/cpp/build
 mkdir -p $DIR
