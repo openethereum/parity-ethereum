@@ -18,8 +18,8 @@ variables:
       - LICENSE
       - README.md
       - CHANGELOG.md
-      - scripts/** /*
-      - docs/** /*
+      - scripts/**/*
+      - docs/**/*
       # - .gitlab-ci.yml
 
 
