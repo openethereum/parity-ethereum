@@ -572,9 +572,6 @@ fn cascading_not_allowed() {
 }
 
 #[test]
-#[ignore]
-// TODO(niklasad1): verify if the test case is correct, why is C dropped?
-// I guess because A and B voted on them before an that state should be applied after D is removed?!
 fn consensus_out_of_bounds_on_touch() {
 	let tester = Tester::with(100, 1, vec![('A', true), ('B', true), ('C', true), ('D', true)]);
 
@@ -610,9 +607,8 @@ fn consensus_out_of_bounds_on_touch() {
 	let block = tester.new_block_and_import(CliqueBlockType::Vote(VoteType::Remove), &block.header(),
 											Some(tester.signers[&'D'].address()), 'C').unwrap();
 
-	let signers = tester.clique_signers(&block.header().hash());
-	assert!(signers.len() == 3, "D should be dropped");
-	assert_eq!(signers.contains(&tester.signers[&'D'].address()), false);
+	let tags = tester.tags_from_vec(&tester.clique_signers(&block.header().hash()));
+	assert_eq!(&tags, &['A', 'B', 'C'], "D should have been removed after 3/4 remove votes");
 
 	// Empty block signed by `A`
 	let block = tester.new_block_and_import(CliqueBlockType::Empty, &block.header(), None, 'A').unwrap();
@@ -621,13 +617,8 @@ fn consensus_out_of_bounds_on_touch() {
 	let block = tester.new_block_and_import(CliqueBlockType::Vote(VoteType::Add), &block.header(),
 											Some(tester.signers[&'C'].address()), 'C').unwrap();
 
-	let signers = tester.clique_signers(&block.header().hash());
-	println!("{:?}", tester.tags_from_vec(&signers));
-	assert!(signers.len() == 2);
-	assert_eq!(signers.contains(&tester.signers[&'A'].address()), true);
-	assert_eq!(signers.contains(&tester.signers[&'B'].address()), true);
-	assert_eq!(signers.contains(&tester.signers[&'C'].address()), false);
-	assert_eq!(signers.contains(&tester.signers[&'D'].address()), false);
+	let tags = tester.tags_from_vec(&tester.clique_signers(&block.header().hash()));
+	assert_eq!(&tags, &['A', 'B']);
 }
 
 #[test]
@@ -771,7 +762,6 @@ fn recent_signers_should_not_reset_on_checkpoint() {
 
 	let block = tester.new_block_and_import(CliqueBlockType::Empty, &tester.genesis, None, 'A').unwrap();
 	let block = tester.new_block_and_import(CliqueBlockType::Empty, &block.header(), None, 'B').unwrap();
-	// let block = tester.new_block_and_import(CliqueBlockType::Checkpoint, &block.header(), None, 'C').unwrap();
-	// assert!(tester.new_block_and_import(CliqueBlockType::Empty, &block.header(), None, 'A').is_err());
-
+	let block = tester.new_block_and_import(CliqueBlockType::Checkpoint, &block.header(), None, 'A').unwrap();
+	assert!(tester.new_block_and_import(CliqueBlockType::Empty, &block.header(), None, 'A').is_err());
 }
