@@ -215,7 +215,6 @@ impl Clique {
 	}
 
 	fn sign_header(&self, header: &Header) -> Result<(Signature, H256), Error> {
-		info!(target: "engine", "sign header");
 		match self.signer.read().as_ref() {
 			None => {
 				return Err(Box::new("sign_header: No signer available.").into());
@@ -236,7 +235,6 @@ impl Clique {
 
 	/// Construct an new state from given checkpoint header.
 	fn new_checkpoint_state(&self, header: &Header) -> Result<CliqueBlockState, Error> {
-		info!(target: "engine", "new_checkpoint header_num: {:?}", header.number());
 		debug_assert_eq!(header.number() % self.epoch_length, 0);
 
 		let mut state = CliqueBlockState::new(
@@ -447,7 +445,7 @@ impl Engine<EthereumMachine> for Clique {
 
 	/// Returns if we are ready to seal, the real sealing (signing extra_data) is actually done in `on_seal_block()`.
 	fn generate_seal(&self, block: &ExecutedBlock, parent: &Header) -> Seal {
-		trace!(target: "engine", "generate_seal");
+		trace!(target: "engine", "tried to generate_seal");
 		let null_seal = util::null_seal();
 
 		if block.header.number() == 0 {
@@ -623,7 +621,6 @@ impl Engine<EthereumMachine> for Clique {
 	}
 
 	fn genesis_epoch_data(&self, header: &Header, _call: &Call) -> Result<Vec<u8>, String> {
-		info!("genesis_epoch, header num: {:?}", header.number());
 		let mut state = self.new_checkpoint_state(header).expect("Unable to parse genesis data.");
 		state.calc_next_timestamp(header, self.period);
 		self.block_state_by_hash.write().insert(header.hash(), state);
