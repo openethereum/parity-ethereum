@@ -117,7 +117,7 @@ pub const NULL_UNCLES_HASH: H256 = KECCAK_EMPTY_LIST_RLP;
 /// Default noturn block wiggle factor defined in spec.
 pub const SIGNING_DELAY_NOTURN_MS: u64 = 500;
 
-#[derive(PartialEq, Clone, Debug, Copy)]
+#[derive(Copy, Clone, Debug, PartialEq, PartialOrd)]
 pub enum VoteType {
 	Add,
 	Remove,

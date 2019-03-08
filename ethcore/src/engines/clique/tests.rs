@@ -103,18 +103,6 @@ impl Tester {
 		tags
 	}
 
-	fn tags_from_deq(&self, addr: &std::collections::VecDeque<Address>) -> Vec<char> {
-		addr.iter().filter_map(|addr| {
-			for (t, kp) in self.signers.iter() {
-				if addr == &kp.address() {
-					return Some(*t)
-				}
-			}
-			None
-		})
-		.collect()
-	}
-
 	fn new_block_and_import(
 		&self,
 		block_type: CliqueBlockType,

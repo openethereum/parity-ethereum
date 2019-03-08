@@ -25,15 +25,33 @@ use engines::clique::{VoteType, DIFF_INTURN, DIFF_NOTURN, NULL_AUTHOR, SIGNING_D
 use engines::clique::util::{extract_signers, recover_creator};
 use error::Error;
 use types::header::Header;
+use types::BlockNumber;
+
+/// Type that represent a pending vote
+/// Votes that go against the proposal aren't counted since it's equivalent to not voting
+#[derive(Copy, Clone, Debug, PartialEq, PartialOrd)]
+pub struct PendingVote {
+	kind: VoteType,
+	beneficiary: Address,
+}
+
+/// Type that represent a vote
+#[derive(Copy, Clone, Debug, PartialEq, PartialOrd)]
+pub struct Vote {
+	block_number: BlockNumber,
+	beneficiary: Address,
+	kind: VoteType,
+	signer: Address,
+}
 
 /// Clique state for each block.
 #[cfg(not(test))]
 #[derive(Clone, Debug, Default)]
 pub struct CliqueBlockState {
-	/// all recorded votes before this blocks, k: (Voter, beneficiary), v: VoteType
-	votes: HashMap<(Address, Address), VoteType>,
-	/// a list of all vote happened before this block, item is an 4 item tuple: blockNumber, Voter, VoteType, beneficiary
-	votes_history: Vec<(u64, Address, VoteType, Address)>,
+	/// All recorded votes for a given signer, `Vec<PendingVote>` is a stack of votes
+	votes: HashMap<Address, Vec<PendingVote>>,
+	/// A list of all votes for the given epoch
+	votes_history: Vec<Vote>,
 	/// a list of all valid signer, sorted by ascending order.
 	signers: Vec<Address>,
 	/// a deque of recent signer, new entry should be pushed front, apply() modifies this.
@@ -47,10 +65,10 @@ pub struct CliqueBlockState {
 #[cfg(test)]
 #[derive(Clone, Debug, Default)]
 pub struct CliqueBlockState {
-	/// all recorded votes before this blocks, k: (Voter, beneficiary), v: VoteType
-	pub votes: HashMap<(Address, Address), VoteType>,
-	/// a list of all vote happened before this block, item is an 4 item tuple: blockNumber, Voter, VoteType, beneficiary
-	pub votes_history: Vec<(u64, Address, VoteType, Address)>,
+	/// All recorded votes for a given signer, `Vec<PendingVote>` is a stack of votes
+	pub votes: HashMap<Address, Vec<PendingVote>>,
+	/// A list of all votes for the given epoch
+	pub votes_history: Vec<Vote>,
 	/// a list of all valid signer, sorted by ascending order.
 	pub signers: Vec<Address>,
 	/// a deque of recent signer, new entry should be pushed front, apply() modifies this.
@@ -71,7 +89,7 @@ impl CliqueBlockState {
 	}
 
 	// see https://github.com/ethereum/go-ethereum/blob/master/consensus/clique/clique.go#L474
-	fn verify(&self, header: &Header) -> Result<(Address), Error>{
+	fn verify(&self, header: &Header) -> Result<Address, Error> {
 		let creator = recover_creator(header)?.clone();
 
 		// Check signer list
@@ -135,29 +153,47 @@ impl CliqueBlockState {
 		Ok(creator)
 	}
 
-	// TODO(niklasad1): this function is wrong
-	// 1) We should validate `votes` via `is_valid_vote`
-	// 2) We should not use the `parameter vote_type` to filter and search for votes
+	// TODO(niklasad1): this could be more efficient
 	fn update_signers_on_vote(
 		&mut self,
 		vote_type: VoteType,
-		creator: Address,
+		signer: Address,
 		beneficiary: Address,
 		block_number: u64
 	) -> Result<(), Error> {
 
-		// Record this vote, also since we are using an hashmap, it will override previous vote.
-		self.votes.insert((creator, beneficiary), vote_type);
-		self.votes_history.push((block_number, creator, vote_type, beneficiary));
+		// Add all votes to the history
+		self.votes_history.push(Vote {block_number, beneficiary, kind: vote_type, signer} );
+
+		// Vote is valid either build a new `stack` or push to the stack
+		if self.is_valid_vote(&beneficiary, vote_type) {
+			let v = PendingVote { kind: vote_type, beneficiary };
+			self.votes.entry(signer)
+				.and_modify(|t| {
+					t.push(v);
+				})
+				.or_insert_with(|| vec![v]);
+
+		} else {
+			// Invalid vote revert previous vote if there was one!
+			self.votes.entry(signer).and_modify(|votes| {
+				if let Some(idx) = votes.iter().rposition(|v| v.beneficiary == beneficiary) {
+					votes.remove(idx);
+				}
+			});
+		}
 
 		// Tally up current target votes.
 		let threshold = self.signers.len() / 2;
-		let vote = self.votes.iter()
-			.filter(|(key, value)| (**key).1 == beneficiary && **value == vote_type)
-			.count();
+		let votes: Vec<PendingVote> = self.votes.values()
+			.filter_map(|votes| votes.last())
+			.filter(|vote| vote.beneficiary == beneficiary)
+			.cloned()
+			.collect();
 
-		if vote > threshold {
-			match vote_type {
+		if votes.len() > threshold {
+			// This is not `very elegant` to get the `kind` but it safe because votes must be bigger than 0 to get here
+			match votes[0].kind {
 				VoteType::Add => {
 					self.signers.push(beneficiary);
 				}
@@ -180,8 +216,12 @@ impl CliqueBlockState {
 			{
 				self.votes = std::mem::replace(&mut self.votes, HashMap::new())
 					.into_iter()
-					.filter(|((v, b), _)| *v != beneficiary && *b != beneficiary)
+					.filter(|(signer, _votes)| *signer != beneficiary)
 					.collect();
+
+				for votes in self.votes.values_mut() {
+					votes.retain(|v| v.beneficiary != beneficiary);
+				}
 			}
 		}
 
