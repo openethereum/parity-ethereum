@@ -61,7 +61,7 @@ use std::thread;
 use std::time;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
-use block::*;
+use block::{ExecutedBlock, IsBlock};
 use client::{BlockId, EngineClient};
 use engines::clique::util::{extract_signers, recover_creator};
 use engines::{Engine, Seal};
@@ -138,7 +138,6 @@ impl VoteType {
 			VoteType::Remove => vec![encode(&NULL_MIXHASH.to_vec()), encode(&NONCE_DROP_VOTE.to_vec())],
 		}
 	}
-
 }
 
 // Caches
@@ -249,7 +248,7 @@ impl Clique {
 		self.block_state_by_hash.write().get_mut(hash).cloned()
 	}
 
-	/// get CliqueBlockState for given header, backfill from last checkpoint if needed.
+	/// Get `CliqueBlockState` for given header, backfill from last checkpoint if needed.
 	fn state(&self, header: &Header) -> Result<CliqueBlockState, Error> {
 		let mut block_state_by_hash = self.block_state_by_hash.write();
 		if let Some(state) = block_state_by_hash.get_mut(&header.hash()) {

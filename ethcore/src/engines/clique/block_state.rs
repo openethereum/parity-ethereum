@@ -153,7 +153,8 @@ impl CliqueBlockState {
 		Ok(creator)
 	}
 
-	// TODO(niklasad1): this could be more efficient
+	// TODO(niklasad1): this could be more efficient (very naive)
+	// do it like `geth` with a counter per beneficiary
 	fn update_signers_on_vote(
 		&mut self,
 		vote_type: VoteType,
@@ -162,6 +163,7 @@ impl CliqueBlockState {
 		block_number: u64
 	) -> Result<(), Error> {
 
+		trace!(target: "engine", "Attempt vote {:?} {:?}", vote_type, beneficiary);
 		// Add all votes to the history
 		self.votes_history.push(Vote {block_number, beneficiary, kind: vote_type, signer} );
 
@@ -191,15 +193,20 @@ impl CliqueBlockState {
 			.cloned()
 			.collect();
 
+		debug!(target: "engine", "{}/{} votes to have consensus", votes.len(), threshold + 1);
+		trace!(target: "engine", "votes: {:?}", votes);
+
 		if votes.len() > threshold {
 			// This is not `very elegant` to get the `kind` but it safe because votes must be bigger than 0 to get here
 			match votes[0].kind {
 				VoteType::Add => {
+					debug!(target: "engine", "added new signer: {}", beneficiary);
 					self.signers.push(beneficiary);
 				}
 				VoteType::Remove => {
 					let pos = self.signers.binary_search(&beneficiary)
 						.map_err(|_| "Unable to find beneficiary in signer list when removing".to_string())?;
+					debug!(target: "engine", "removed signer: {}", beneficiary);
 					self.signers.remove(pos);
 				}
 			}
@@ -214,16 +221,16 @@ impl CliqueBlockState {
 
 			// Remove all votes about or made by this beneficiary
 			{
-				self.votes = std::mem::replace(&mut self.votes, HashMap::new())
-					.into_iter()
-					.filter(|(signer, _votes)| *signer != beneficiary)
-					.collect();
+				self.votes.remove(&beneficiary);
 
 				for votes in self.votes.values_mut() {
 					votes.retain(|v| v.beneficiary != beneficiary);
 				}
 			}
 		}
+
+		let signers: Vec<_> = self.signers().iter().map(|s| format!("{}", s)).collect();
+		trace!(target: "engine", "signers {:?}", signers);
 
 		Ok(())
 	}
