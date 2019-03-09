@@ -14,6 +14,8 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
+//! Consensus tests for `PoA Clique Engine`, see http://eips.ethereum.org/EIPS/eip-225 for more information
+
 use engines::Engine;
 use error::Error;
 use ethereum_types::{Address, H256};
@@ -717,8 +719,9 @@ fn recent_signers_should_not_reset_on_checkpoint() {
 	assert!(tester.new_block_and_import(CliqueBlockType::Empty, &block.header(), None, 'A').is_err());
 }
 
+// Not part of http://eips.ethereum.org/EIPS/eip-225
 #[test]
-fn na_lolz() {
+fn bonus_consensus_should_keep_track_of_votes_before_latest_per_signer() {
 	let tester = Tester::with(100, 1, vec![('A', true), ('B', true), ('C', true), ('D', true), ('E', false), ('F', false)]);
 
 	// Add a vote for `E` signed by A
