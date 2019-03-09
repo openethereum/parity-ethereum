@@ -1,0 +1,51 @@
+dist: xenial
+language: rust
+sudo: required
+services: docker
+
+addons:
+  apt:
+    packages:
+      - binutils-dev
+      - cmake
+      - file
+      - g++
+      - gcc
+      - libcurl4-openssl-dev
+      - libdw-dev
+      - libelf-dev
+      - libiberty-dev
+      - libudev-dev
+      - make
+      - pkg-config
+      - software-properties-common
+
+matrix:
+  include:
+
+    - env:
+      - CARGO_TARGET=x86_64-unknown-linux-gnu
+      - TARGET=x86_64-unknown-linux-gnu
+      name: Linux x64 Rust Stable
+      rust: stable
+      script:
+        - cargo build -p ethkey-cli
+        - cargo build -p ethstore-cli
+        - cargo build -p evmbin
+        - cargo build -p whisper-cli
+        - cargo build -p parity-ethereum
+
+cache:
+  timeout: 600
+  cargo: true
+  directories:
+  - $HOME/.rustup
+  - $HOME/.cargo
+  - $TRAVIS_BUILD_DIR/target
+
+before_cache:
+  - sudo chmod -R a+r $HOME
+
+before_script:
+  - rustup self update
+  - source ~/.cargo/env || true
