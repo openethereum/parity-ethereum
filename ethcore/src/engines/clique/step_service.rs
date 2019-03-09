@@ -66,7 +66,7 @@ impl StepService {
 		trace!(target: "miner", "StepService: shutting down.");
 		*self.shutdown.write() = true;
 		if let Some(t) = self.thread.take() {
-			t.join().expect("Thread panicked!");
+			t.join().expect("CliqueMiner thread panicked!");
 		}
 	}
 }

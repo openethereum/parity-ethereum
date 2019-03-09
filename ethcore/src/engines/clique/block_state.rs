@@ -16,17 +16,15 @@
 
 use std::collections::{HashMap, VecDeque};
 use std::fmt;
-use std::time::{Duration, SystemTime};
-use std::time::UNIX_EPOCH;
+use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
+use engines::clique::util::{extract_signers, recover_creator};
+use engines::clique::{VoteType, DIFF_INTURN, DIFF_NOTURN, NULL_AUTHOR, SIGNING_DELAY_NOTURN_MS};
+use error::Error;
 use ethereum_types::Address;
 use rand::Rng;
-
-use engines::clique::{VoteType, DIFF_INTURN, DIFF_NOTURN, NULL_AUTHOR, SIGNING_DELAY_NOTURN_MS};
-use engines::clique::util::{extract_signers, recover_creator};
-use error::Error;
-use types::header::Header;
 use types::BlockNumber;
+use types::header::Header;
 
 /// Type that represent a pending vote
 /// Votes that go against the proposal aren't counted since it's equivalent to not voting
@@ -158,7 +156,7 @@ impl CliqueBlockState {
 			};
 
 			// TODO(niklasad1): I'm not sure if we should shrink here because it is likely that next epoch
-			// will need some memory and might be better for allocation algorithm to decide whether to shrink or
+			// will need some memory and might be better for allocation algorithm to decide whether to shrink or not
 			// (typically double or halves the allocted memory when necessary)
 			self.votes.clear();
 			self.votes_history.clear();
@@ -192,7 +190,7 @@ impl CliqueBlockState {
 		} else {
 			// This case only happens if a `signer` wants to revert their previous vote
 			// (does nothing if no previous vote was found)
-			self.revert_vote(signer, kind)
+			self.revert_vote(signer)
 		};
 
 		// Add all votes to the history
@@ -207,6 +205,7 @@ impl CliqueBlockState {
 
 		let threshold = self.signers.len() / 2;
 		// Make it explicit that that we ignore the `vote_kind` if votes == 0
+		// (see if statement below)
 		let (votes, vote_kind) = match self.get_current_votes_and_kind(beneficiary) {
 			Some((v, k)) => (v, k),
 			None => (0, VoteType::Add),
@@ -229,7 +228,7 @@ impl CliqueBlockState {
 			}
 
 			// signers are highly likely to be < 10.
-			// TODO(niklasad1): only sort when pushing
+			// TODO(niklasad1): only sort when `adding` new signers
 			self.signers.sort();
 			self.rotate_recent_signers();
 			self.remove_all_votes_from(beneficiary);
@@ -259,7 +258,7 @@ impl CliqueBlockState {
 		self.signers.contains(author) && !self.recent_signers.contains(author)
 	}
 
-	// returns whether it makes sense to cast the specified vote in the
+	// Returns whether it makes sense to cast the specified vote in the
 	// current state (e.g. don't try to add an already authorized signer).
 	pub fn is_valid_vote(&self, address: &Address, vote_type: VoteType) -> bool {
 		let in_signer = self.signers.contains(address);
@@ -273,7 +272,7 @@ impl CliqueBlockState {
 		return &self.signers;
 	}
 
-	// Note this method will always return `true` but it is intendend for a unifrom `API`
+	// Note this method will always return `true` but it is intended for a unifrom `API`
 	fn add_vote(&mut self, signer: Address, beneficiary: Address, kind: VoteType) -> bool {
 		let new_vote = PendingVote {
 			kind,
@@ -287,21 +286,19 @@ impl CliqueBlockState {
 		true
 	}
 
-	fn revert_vote(&mut self, signer: Address, kind: VoteType) -> bool {
+	fn revert_vote(&mut self, signer: Address) -> bool {
 		let mut revert = false;
 
 		self.votes.entry(signer).and_modify(|votes| {
-			trace!(target: "engine", "signer {} attempted to revert its vote with stack_len: {}", signer, votes.len());
-			if let Some(v) = votes.pop() {
+			trace!(target: "engine", "signer {} attempted to revert its vote with stack len: {}", signer, votes.len());
+			if let Some(_v) = votes.pop() {
 				revert = true;
-				assert!(v.kind != kind);
 			}
 		});
 		revert
 	}
 
 	fn get_current_votes_and_kind(&self, beneficiary: Address) -> Option<(usize, VoteType)> {
-		// Tally up current target votes.
 		let kind = self.votes.values()
 			.filter_map(|votes| votes.iter().find(|v| v.beneficiary == beneficiary))
 			.nth(0)?

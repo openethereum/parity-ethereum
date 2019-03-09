@@ -41,7 +41,7 @@
 /// 3. on Clique::new setup IOService that implement an timer that just calls `engine.step()`,
 ///    which just calls `engine.client.update_sealing()` which triggers generating an new block.
 /// 4. `engine.generate_seal()` will be called by miner, which should return either Seal::None or Seal:Regular.
-///   a. return `Seal::None` if no signer is available or no signer is not authorized.
+///   a. return `Seal::None` if no signer is available or the signer is not authorized.
 ///   b. if period == 0 and block has transactions -> Seal::Regular, else Seal::None
 ///   c. if we INTURN, wait for at least `period` since last block, otherwise wait for an random using algorithm as
 ///      specified in the EIP.
@@ -196,8 +196,8 @@ impl Clique {
 
 	#[cfg(test)]
 	/// Initialize test variant of `CliqueEngine`,
-	/// Note we need to `mock` miner and is introduced to test block verification to trigger new blocks
-	/// to test consensus edge cases
+	/// Note we need to `mock` the miner and it is introduced to test block verification to trigger new blocks
+	/// to mainly test consensus edge cases
 	pub fn with_test(epoch_length: u64, period: u64) -> Self {
 		use spec::Spec;
 
