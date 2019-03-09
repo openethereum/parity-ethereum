@@ -24,20 +24,10 @@ matrix:
   include:
 
     - env:
-      - BUILD_ARCH=amd64
-      - CARGO_HOME=$HOME/.cargo
-      - CARGO_TARGET=x86_64-unknown-linux-gnu
-      - CI_SERVER_NAME="Travis CI"
-      - TARGET=x86_64-unknown-linux-gnu
-      name: Compile
-      rust: stable
-      script: $TRAVIS_BUILD_DIR/scripts/gitlab/build-unix.sh
-
-    - env:
       - CARGO_TARGET=x86_64-unknown-linux-gnu
       - RUN_TESTS=all
       - TARGET=x86_64-unknown-linux-gnu
-      name: Run Tests
+      name: Linux x64 Rust Stable Tests
       rust: stable
       script: $TRAVIS_BUILD_DIR/test.sh
 
@@ -47,6 +37,7 @@ cache:
   directories:
   - $HOME/.rustup
   - $HOME/.cargo
+  - $TRAVIS_BUILD_DIR/target
 
 before_cache:
   - sudo chmod -R a+r $HOME
