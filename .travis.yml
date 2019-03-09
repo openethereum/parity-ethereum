@@ -1,0 +1,56 @@
+dist: xenial
+language: rust
+sudo: required
+services: docker
+
+addons:
+  apt:
+    packages:
+      - binutils-dev
+      - cmake
+      - file
+      - g++
+      - gcc
+      - libcurl4-openssl-dev
+      - libdw-dev
+      - libelf-dev
+      - libiberty-dev
+      - libudev-dev
+      - make
+      - pkg-config
+      - software-properties-common
+
+matrix:
+  include:
+
+    - env:
+      - BUILD_ARCH=amd64
+      - CARGO_HOME=$HOME/.cargo
+      - CARGO_TARGET=x86_64-unknown-linux-gnu
+      - CI_SERVER_NAME="Travis CI"
+      - TARGET=x86_64-unknown-linux-gnu
+      name: Compile
+      rust: stable
+      script: $TRAVIS_BUILD_DIR/scripts/gitlab/build-unix.sh
+
+    - env:
+      - CARGO_TARGET=x86_64-unknown-linux-gnu
+      - RUN_TESTS=all
+      - TARGET=x86_64-unknown-linux-gnu
+      name: Run Tests
+      rust: stable
+      script: $TRAVIS_BUILD_DIR/test.sh
+
+cache:
+  timeout: 600
+  cargo: true
+  directories:
+  - $HOME/.rustup
+  - $HOME/.cargo
+
+before_cache:
+  - sudo chmod -R a+r $HOME
+
+before_script:
+  - rustup self update
+  - source ~/.cargo/env || true
