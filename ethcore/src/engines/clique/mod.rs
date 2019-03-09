@@ -298,7 +298,7 @@ impl Clique {
 				// Catching up state, note that we don't really store block state for intermediary blocks,
 				// for speed.
 				let backfill_start = time::Instant::now();
-				info!(target: "engine",
+				trace!(target: "engine",
 						"Back-filling block state. last_checkpoint_number: {}, target: {}({}).",
 						last_checkpoint_number, header.number(), header.hash());
 
