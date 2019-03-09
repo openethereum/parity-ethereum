@@ -195,8 +195,10 @@ fn one_signer_two_votes() {
 	// Add a vote for `B` signed by A
 	let vote = tester.new_block_and_import(CliqueBlockType::Vote(VoteType::Add), &tester.genesis,
 										   Some(tester.signers[&'B'].address()), 'A').unwrap();
+	let tags = tester.tags_from_vec(&tester.clique_signers(&vote.header().hash()));
+	assert_eq!(&tags, &['A', 'B']);
 
-	// Empty block signed by `B` (not in the signer list)
+	// Add a empty block signed by `B`
 	let empty = tester.new_block_and_import(CliqueBlockType::Empty, &vote.header(), None, 'B').unwrap();
 
 	// Add vote for `C` signed by A but should not be accepted
