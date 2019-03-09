@@ -26,12 +26,12 @@ use rand::Rng;
 use types::BlockNumber;
 use types::header::Header;
 
-/// Type that represent a pending vote
-/// Votes that go against the proposal aren't counted since it's equivalent to not voting
+/// Type that keeps track of the state for a given vote
+// Votes that go against the proposal aren't counted since it's equivalent to not voting
 #[derive(Copy, Clone, Debug, PartialEq, PartialOrd)]
-pub struct PendingVote {
+pub struct VoteState {
 	kind: VoteType,
-	beneficiary: Address,
+	votes: u64,
 }
 
 /// Type that represent a vote
@@ -44,12 +44,19 @@ pub struct Vote {
 	reverted: bool,
 }
 
+/// Type that represent a pending vote
+#[derive(Copy, Clone, Debug, Eq, Hash, PartialEq, PartialOrd)]
+pub struct PendingVote {
+	signer: Address,
+	beneficiary: Address,
+}
+
 /// Clique state for each block.
 #[cfg(not(test))]
 #[derive(Clone, Debug, Default)]
 pub struct CliqueBlockState {
-	/// All recorded votes for a given signer, `Vec<PendingVote>` is a stack of votes
-	votes: HashMap<Address, Vec<PendingVote>>,
+	/// Current votes for a beneficiary
+	votes: HashMap<PendingVote, VoteState>,
 	/// A list of all votes for the given epoch
 	votes_history: Vec<Vote>,
 	/// a list of all valid signer, sorted by ascending order.
@@ -66,7 +73,7 @@ pub struct CliqueBlockState {
 #[derive(Clone, Debug, Default)]
 pub struct CliqueBlockState {
 	/// All recorded votes for a given signer, `Vec<PendingVote>` is a stack of votes
-	pub votes: HashMap<Address, Vec<PendingVote>>,
+	pub votes: HashMap<PendingVote, VoteState>,
 	/// A list of all votes for the given epoch
 	pub votes_history: Vec<Vote>,
 	/// a list of all valid signer, sorted by ascending order.
@@ -82,7 +89,13 @@ pub struct CliqueBlockState {
 impl fmt::Display for CliqueBlockState {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
 		let signers: Vec<String> = self.signers.iter()
-			.map(|s| format!("{} vote_stack len: {}", s, self.votes.get(s).map_or(0, |v| v.len())))
+			.map(|s|
+				 format!("{} votes: {:?}",
+					s,
+					self.votes.iter().map(|(v, s)| format!("[beneficiary {}, votes: {}]", v.beneficiary, s.votes))
+					.collect::<Vec<_>>()
+				)
+			)
 			.collect();
 
 		let recent_signers: Vec<String> = self.recent_signers.iter().map(|s| format!("{}", s)).collect();
@@ -92,9 +105,9 @@ impl fmt::Display for CliqueBlockState {
 		let reverted_votes = self.votes_history.iter().filter(|v| v.reverted).count();
 
         write!(f,
-		"Votes {{ \n signers: {:?} \n recent_signers: {:?} \n number of votes: {} \n number of add votes {}
-		\r number of remove votes {} \n number of reverted votes: {}}}",
-		signers, recent_signers, num_votes, add_votes, rm_votes, reverted_votes)
+			"Votes {{ \n signers: {:?} \n recent_signers: {:?} \n number of votes: {} \n number of add votes {}
+			\r number of remove votes {} \n number of reverted votes: {}}}",
+			signers, recent_signers, num_votes, add_votes, rm_votes, reverted_votes)
     }
 }
 
@@ -173,7 +186,6 @@ impl CliqueBlockState {
 		Ok(creator)
 	}
 
-	// TODO(niklasad1): this could be more efficient (very naive)
 	fn update_signers_on_vote(
 		&mut self,
 		kind: VoteType,
@@ -184,13 +196,15 @@ impl CliqueBlockState {
 
 		trace!(target: "engine", "Attempt vote {:?} {:?}", kind, beneficiary);
 
+		let pending_vote = PendingVote { signer, beneficiary };
+
 		// Vote is valid either build a new `stack` or push to the existing stack
 		let reverted = if self.is_valid_vote(&beneficiary, kind) {
-			self.add_vote(signer, beneficiary, kind)
+			self.add_vote(pending_vote, kind)
 		} else {
 			// This case only happens if a `signer` wants to revert their previous vote
 			// (does nothing if no previous vote was found)
-			self.revert_vote(signer)
+			self.revert_vote(pending_vote)
 		};
 
 		// Add all votes to the history
@@ -273,39 +287,39 @@ impl CliqueBlockState {
 	}
 
 	// Note this method will always return `true` but it is intended for a unifrom `API`
-	fn add_vote(&mut self, signer: Address, beneficiary: Address, kind: VoteType) -> bool {
-		let new_vote = PendingVote {
-			kind,
-			beneficiary
-		};
+	fn add_vote(&mut self, pending_vote: PendingVote, kind: VoteType) -> bool {
 
-		self.votes.entry(signer).and_modify(|vote_stack| {
-			vote_stack.push(new_vote);
-		})
-		.or_insert_with(|| vec![new_vote]);
+		self.votes.entry(pending_vote)
+			.and_modify(|state| {
+				state.votes += 1;
+			})
+			.or_insert_with(|| VoteState { kind, votes: 1 });
 		true
 	}
 
-	fn revert_vote(&mut self, signer: Address) -> bool {
+	fn revert_vote(&mut self, pending_vote: PendingVote) -> bool {
 		let mut revert = false;
+		let mut remove = false;
 
-		self.votes.entry(signer).and_modify(|votes| {
-			trace!(target: "engine", "signer {} attempted to revert its vote with stack len: {}", signer, votes.len());
-			if let Some(_v) = votes.pop() {
-				revert = true;
+		self.votes.entry(pending_vote).and_modify(|state| {
+			state.votes -= 1;
+			if state.votes == 0 {
+				remove = true;
 			}
+			revert = true;
 		});
+
+		self.votes.remove(&pending_vote);
 		revert
 	}
 
 	fn get_current_votes_and_kind(&self, beneficiary: Address) -> Option<(usize, VoteType)> {
-		let kind = self.votes.values()
-			.filter_map(|votes| votes.iter().find(|v| v.beneficiary == beneficiary))
-			.nth(0)?
-			.kind;
+		let kind = self.votes.iter()
+			.find(|(v, _t)| v.beneficiary == beneficiary)
+			.map(|(_v, t)| t.kind)?;
 
-		let votes = self.votes.values()
-			.filter_map(|votes| votes.iter().find(|v| v.beneficiary == beneficiary))
+		let votes = self.votes.keys()
+			.filter(|vote| vote.beneficiary == beneficiary)
 			.count();
 
 		Some((votes, kind))
@@ -318,10 +332,9 @@ impl CliqueBlockState {
 	}
 
 	fn remove_all_votes_from(&mut self, beneficiary: Address) {
-		self.votes.remove(&beneficiary);
-
-		for votes in self.votes.values_mut() {
-			votes.retain(|v| v.beneficiary != beneficiary);
-		}
+		self.votes = std::mem::replace(&mut self.votes, HashMap::new())
+			.into_iter()
+			.filter(|(v, _t)| v.signer != beneficiary && v.beneficiary != beneficiary)
+			.collect();
 	}
 }
