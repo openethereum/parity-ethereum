@@ -26,9 +26,14 @@ matrix:
     - env:
       - CARGO_TARGET=x86_64-unknown-linux-gnu
       - TARGET=x86_64-unknown-linux-gnu
-      name: Linux x64 Rust Stable Tests
+      name: Linux x64 Rust Stable
       rust: stable
-      script: cargo test --release --features "json-tests,ci-skip-tests,final" --no-run --locked --all
+      script:
+        - cargo build -p ethkey-cli
+        - cargo build -p ethstore-cli
+        - cargo build -p evmbin
+        - cargo build -p whisper-cli
+        - cargo build -p parity-ethereum
 
 cache:
   timeout: 600
