@@ -137,7 +137,6 @@ impl Tester {
 				for signer in signers {
 					extra_data.extend(&*signer);
 				}
-				{}
 			}
 			CliqueBlockType::Vote(v) => seal = v.as_rlp(),
 			CliqueBlockType::Empty => (),
