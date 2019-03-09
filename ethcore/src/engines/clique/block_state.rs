@@ -303,14 +303,12 @@ impl CliqueBlockState {
 	fn get_current_votes_and_kind(&self, beneficiary: Address) -> Option<(usize, VoteType)> {
 		// Tally up current target votes.
 		let kind = self.votes.values()
-			.filter_map(|votes| votes.last())
-			.filter(|vote| vote.beneficiary == beneficiary)
+			.filter_map(|votes| votes.iter().find(|v| v.beneficiary == beneficiary))
 			.nth(0)?
 			.kind;
 
 		let votes = self.votes.values()
-			.filter_map(|votes| votes.last())
-			.filter(|vote| vote.beneficiary == beneficiary)
+			.filter_map(|votes| votes.iter().find(|v| v.beneficiary == beneficiary))
 			.count();
 
 		Some((votes, kind))

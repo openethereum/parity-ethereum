@@ -699,3 +699,55 @@ fn recent_signers_should_not_reset_on_checkpoint() {
 	let block = tester.new_block_and_import(CliqueBlockType::Checkpoint, &block.header(), None, 'A').unwrap();
 	assert!(tester.new_block_and_import(CliqueBlockType::Empty, &block.header(), None, 'A').is_err());
 }
+
+#[test]
+fn na_lolz() {
+	let tester = Tester::with(100, 1, vec![('A', true), ('B', true), ('C', true), ('D', true), ('E', false), ('F', false)]);
+
+	// Add a vote for `E` signed by A
+	let vote = tester.new_block_and_import(CliqueBlockType::Vote(VoteType::Add), &tester.genesis,
+										   Some(tester.signers[&'E'].address()), 'A').unwrap();
+	// Empty block signed by B`
+	let vote = tester.new_block_and_import(CliqueBlockType::Empty, &vote.header(), None, 'B').unwrap();
+
+	// Empty block signed by C`
+	let vote = tester.new_block_and_import(CliqueBlockType::Empty, &vote.header(), None, 'C').unwrap();
+
+	// Empty block signed by D`
+	let vote = tester.new_block_and_import(CliqueBlockType::Empty, &vote.header(), None, 'D').unwrap();
+
+	// Add a vote for `E` signed by A
+	let vote = tester.new_block_and_import(CliqueBlockType::Vote(VoteType::Add), &vote.header(),
+										   Some(tester.signers[&'F'].address()), 'A').unwrap();
+	// Empty block signed by C`
+	let vote = tester.new_block_and_import(CliqueBlockType::Empty, &vote.header(), None, 'C').unwrap();
+
+	// Empty block signed by D`
+	let vote = tester.new_block_and_import(CliqueBlockType::Empty, &vote.header(), None, 'D').unwrap();
+
+	// Add a vote for `E` signed by B
+	let vote = tester.new_block_and_import(CliqueBlockType::Vote(VoteType::Add), &vote.header(),
+										   Some(tester.signers[&'E'].address()), 'B').unwrap();
+	// Empty block signed by A`
+	let vote = tester.new_block_and_import(CliqueBlockType::Empty, &vote.header(), None, 'A').unwrap();
+
+	// Empty block signed by C`
+	let vote = tester.new_block_and_import(CliqueBlockType::Empty, &vote.header(), None, 'C').unwrap();
+
+	// Empty block signed by D`
+	let vote = tester.new_block_and_import(CliqueBlockType::Empty, &vote.header(), None, 'D').unwrap();
+
+	// Add a vote for `E` signed by B
+	let vote = tester.new_block_and_import(CliqueBlockType::Vote(VoteType::Add), &vote.header(),
+										   Some(tester.signers[&'F'].address()), 'B').unwrap();
+
+	// Empty block signed by A`
+	let vote = tester.new_block_and_import(CliqueBlockType::Empty, &vote.header(), None, 'A').unwrap();
+
+	// Add a vote for `E` signed by C
+	let vote = tester.new_block_and_import(CliqueBlockType::Vote(VoteType::Add), &vote.header(),
+										   Some(tester.signers[&'E'].address()), 'C').unwrap();
+
+	let tags = tester.tags_from_vec(&tester.clique_signers(&vote.header().hash()));
+	assert_eq!(&tags, &['A', 'B', 'C', 'D', 'E']);
+}
