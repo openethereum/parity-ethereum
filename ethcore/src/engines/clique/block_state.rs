@@ -170,7 +170,7 @@ impl CliqueBlockState {
 
 			// TODO(niklasad1): I'm not sure if we should shrink here because it is likely that next epoch
 			// will need some memory and might be better for allocation algorithm to decide whether to shrink or not
-			// (typically double or halves the allocted memory when necessary)
+			// (typically doubles or halves the allocted memory when necessary)
 			self.votes.clear();
 			self.votes_history.clear();
 			self.votes.shrink_to_fit();
@@ -198,7 +198,6 @@ impl CliqueBlockState {
 
 		let pending_vote = PendingVote { signer, beneficiary };
 
-		// Vote is valid either build a new `stack` or push to the existing stack
 		let reverted = if self.is_valid_vote(&beneficiary, kind) {
 			self.add_vote(pending_vote, kind)
 		} else {
@@ -217,13 +216,13 @@ impl CliqueBlockState {
 			reverted,
 		});
 
-		let threshold = self.signers.len() / 2;
-		// Make it explicit that that we ignore the `vote_kind` if votes == 0
-		// (see if statement below)
+		// If no vote was found for the beneficiary return `early` but don't propogate an error
 		let (votes, vote_kind) = match self.get_current_votes_and_kind(beneficiary) {
 			Some((v, k)) => (v, k),
-			None => (0, VoteType::Add),
+			None => return Ok(()),
 		};
+		let threshold = self.signers.len() / 2;
+
 		debug!(target: "engine", "{}/{} votes to have consensus", votes, threshold + 1);
 		trace!(target: "engine", "votes: {:?}", votes);
 
