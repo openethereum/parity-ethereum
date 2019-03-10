@@ -88,6 +88,7 @@ mod block_state;
 mod step_service;
 mod util;
 
+// TODO(niklasad1): extract tester types into a separate mod to be shared in the code base
 #[cfg(test)]
 mod tests;
 
