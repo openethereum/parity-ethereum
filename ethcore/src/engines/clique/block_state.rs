@@ -308,7 +308,10 @@ impl CliqueBlockState {
 			revert = true;
 		});
 
-		self.votes.remove(&pending_vote);
+		if remove {
+			self.votes.remove(&pending_vote);
+		}
+
 		revert
 	}
 
