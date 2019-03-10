@@ -90,7 +90,7 @@ impl fmt::Display for CliqueBlockState {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
 		let signers: Vec<String> = self.signers.iter()
 			.map(|s|
-				 format!("{} votes: {:?}",
+				 format!("{} {:?}",
 					s,
 					self.votes.iter().map(|(v, s)| format!("[beneficiary {}, votes: {}]", v.beneficiary, s.votes))
 					.collect::<Vec<_>>()
@@ -290,7 +290,7 @@ impl CliqueBlockState {
 
 		self.votes.entry(pending_vote)
 			.and_modify(|state| {
-				state.votes += 1;
+				state.votes = state.votes.saturating_add(1);
 			})
 			.or_insert_with(|| VoteState { kind, votes: 1 });
 		true
@@ -301,8 +301,7 @@ impl CliqueBlockState {
 		let mut remove = false;
 
 		self.votes.entry(pending_vote).and_modify(|state| {
-			state.votes -= 1;
-			if state.votes == 0 {
+			if state.votes.saturating_sub(1) == 0 {
 				remove = true;
 			}
 			revert = true;
