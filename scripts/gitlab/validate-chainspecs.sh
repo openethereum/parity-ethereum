@@ -1,7 +1,12 @@
-#!/usr/bin/env sh
+#!/bin/bash
+set -e # fail on any error
+set -u # treat unset variables as error
+echo "________Running validate_chainspecs.sh________"
 
 ERR=0
-cargo build --release -p chainspec
+
+echo "________Validate chainspecs________"
+time cargo build --release -p chainspec
 
 for spec in ethcore/res/*.json; do
     if ! ./target/release/chainspec "$spec"; then ERR=1; fi
