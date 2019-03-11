@@ -32,8 +32,8 @@ variables:
     paths:
       - artifacts/
 
-.cargo-check:                      &cargo-check
-  stage:                           test
+.docker-cache-status:                      &docker-cache-status
+  dependencies:                    []
   before_script:
     - sccache -s
   after_script:
@@ -43,17 +43,20 @@ variables:
 
 
 cargo-check 0 3:
-  <<:                              *cargo-check
+  stage:                           test
+  <<:                              *docker-cache-status
   script:
     - time cargo check --target $CARGO_TARGET --locked --no-default-features
 
 cargo-check 1 3:
-  <<:                              *cargo-check
+  stage:                           test
+  <<:                              *docker-cache-status
   script:
     - time cargo check --target $CARGO_TARGET --locked --manifest-path util/io/Cargo.toml --no-default-features
 
 cargo-check 2 3:
-  <<:                              *cargo-check
+  stage:                           test
+  <<:                              *docker-cache-status
   script:
     - time cargo check --target $CARGO_TARGET --locked --manifest-path util/io/Cargo.toml --features "mio"
 
@@ -66,43 +69,29 @@ cargo-audit:
 
 validate-chainspecs:
   stage:                           test
+  <<:                              *docker-cache-status
   script:
-    - sccache -s
     - ./scripts/gitlab/validate-chainspecs.sh
-    - sccache -s
-  tags:
-    - linux-docker
 
 test-cpp:
   stage:                           build
-  dependencies:                    []
+  <<:                              *docker-cache-status
   script:
-    - sccache -s
     - ./scripts/gitlab/test-cpp.sh
-    - sccache -s
-  tags:
-    - linux-docker
 
 test-linux:
   stage:                           build
-  dependencies:                    []
+  <<:                              *docker-cache-status
   script:
-    - sccache -s
     - ./scripts/gitlab/test-linux.sh
-    - sccache -s
-  tags:
-    - linux-docker
 
 build-linux:                       &build-linux
   stage:                           build
   only:                            *releaseable_branches
+  <<:                              *docker-cache-status
   script:
-    - sccache -s
     - scripts/gitlab/build-linux.sh
-    - sccache -s
   <<:                              *collect_artifacts
-  tags:
-    - linux-docker
 
 build-linux-i386:
   <<:                              *build-linux
@@ -249,10 +238,8 @@ build-android:
   image:                           parity/rust-android:gitlab-ci
   variables:
     CARGO_TARGET:                  armv7-linux-androideabi
-  dependencies:                    []
   script:
     - scripts/gitlab/build-linux.sh
   tags:
     - linux-docker
-  allow_failure:                   true
   <<:                              *collect_artifacts
