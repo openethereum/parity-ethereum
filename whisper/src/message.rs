@@ -23,6 +23,8 @@ use ethereum_types::{H256, H512};
 use rlp::{self, DecoderError, RlpStream, Rlp};
 use smallvec::SmallVec;
 use tiny_keccak::{keccak256, Keccak};
+
+#[cfg(not(feature = "time_checked_add"))]
 use time_utils::CheckedSystemTime;
 
 /// Work-factor proved. Takes 3 parameters: size of message, time to live,
@@ -269,8 +271,8 @@ impl Message {
 		assert!(params.ttl > 0);
 
 		let expiry = {
-			let after_mining = CheckedSystemTime::checked_add(SystemTime::now(), Duration::from_millis(params.work)).
-				ok_or(Error::TimestampOverflow)?;
+			let after_mining = SystemTime::now().checked_sub(Duration::from_millis(params.work))
+				.ok_or(Error::TimestampOverflow)?;
 			let since_epoch = after_mining.duration_since(time::UNIX_EPOCH)
 				.expect("time after now is after unix epoch; qed");
 
@@ -357,7 +359,7 @@ impl Message {
 			(envelope.expiry - envelope.ttl).saturating_sub(LEEWAY_SECONDS)
 		);
 
-		let issue_time_adjusted = CheckedSystemTime::checked_add(time::UNIX_EPOCH, issue_time_adjusted)
+		let issue_time_adjusted = time::UNIX_EPOCH.checked_add(issue_time_adjusted)
 			.ok_or(Error::TimestampOverflow)?;
 
 		if issue_time_adjusted > now {
@@ -404,7 +406,7 @@ impl Message {
 
 	/// Get the expiry time.
 	pub fn expiry(&self) -> Option<SystemTime> {
-		CheckedSystemTime::checked_add(time::UNIX_EPOCH, Duration::from_secs(self.envelope.expiry))
+		time::UNIX_EPOCH.checked_add(Duration::from_secs(self.envelope.expiry))
 	}
 
 	/// Get the topics.

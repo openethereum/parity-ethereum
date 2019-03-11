@@ -1,6 +1,6 @@
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
-/// Temporary trait for `SystemTime::checked_add` until `Rust 1.33` is available
+/// Temporary trait for `checked operations` on SystemTime until these are available in standard library
 pub trait CheckedSystemTime {
 	/// Returns `Some<SystemTime>` when the result less or equal to `i32::max_value` to prevent `SystemTime` to panic because
 	/// it is platform specific, possible representations are i32, i64, u64 and Duration. `None` otherwise
@@ -30,18 +30,6 @@ impl CheckedSystemTime for SystemTime {
 		} else {
 			None
 		}
-	}
-}
-
-/// Temporary trait for `Duration::as_millis` until `Rust 1.33` is available
-pub trait AsMillis {
-	/// Duration represented as milliseconds
-	fn as_millis(&self) -> u128;
-}
-
-impl AsMillis for Duration {
-	fn as_millis(&self) -> u128 {
-		self.as_secs() as u128 * 1_000 + (self.subsec_nanos() / 1_000_000) as u128
 	}
 }
 
