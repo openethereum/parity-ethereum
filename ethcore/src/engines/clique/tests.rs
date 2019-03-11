@@ -28,9 +28,10 @@ use test_helpers::get_temp_state_db;
 use std::sync::Arc;
 use std::collections::HashMap;
 
-// Possible signers
+/// Possible signers
 pub const SIGNER_TAGS: [char; 6] = ['A', 'B', 'C', 'D', 'E', 'F'];
 
+/// Clique block types
 pub enum CliqueBlockType {
 	/// Epoch transition block must contain list of signers
 	Checkpoint,
@@ -40,14 +41,20 @@ pub enum CliqueBlockType {
 	Vote(VoteType),
 }
 
+/// Clique tester
 pub struct CliqueTester {
+	/// Mocked Clique
 	pub clique: Clique,
+	/// Mocked genesis state
 	pub genesis: Header,
+	/// StateDB
 	pub db: StateDB,
+	/// List of signers
 	pub signers: HashMap<char, KeyPair>,
 }
 
 impl CliqueTester {
+	/// Create a `Clique` tester with settings
 	pub fn with(epoch: u64, period: u64, initial_signers: Vec<char>) -> Self {
 		assert_eq!(initial_signers.iter().all(|s| SIGNER_TAGS.contains(s)), true,
 				   "Not all the initial signers is in SIGNER_TAGS, possible keys are 'A' ..= 'F'");
@@ -83,6 +90,7 @@ impl CliqueTester {
 		Self {clique, genesis, db: get_temp_state_db(), signers}
 	}
 
+	/// Get difficulty for a given block
 	pub fn get_difficulty(&self, block_num: BlockNumber, header: &Header, signer: &Address) -> U256 {
 		let state = self.clique.state(header).unwrap();
 		if state.is_inturn(block_num, signer) {
@@ -92,6 +100,7 @@ impl CliqueTester {
 		}
 	}
 
+	/// Get the state of a given block
 	// Note, this will read the cache and `will` not work with more than 128 blocks
 	pub fn get_state_at_block(&self, hash: &H256) -> CliqueBlockState {
 		self.clique.block_state_by_hash.write()
@@ -100,16 +109,16 @@ impl CliqueTester {
 			.clone()
 	}
 
-	// Get signers after a certain state
+	/// Get signers after a certain state
 	// This is generally used to fetch the state after a test has been executed and checked against
 	// the intial list of signers provided in the test
 	pub fn clique_signers(&self, hash: &H256) -> Vec<Address> {
 		self.get_state_at_block(hash).signers().to_vec()
 	}
 
-	// Fetches all addresses at current `block` and converts them back to `tags (char)` and sorts them
-	// Addresses are supposed sorted based on address but these tests are using `tags` just for simplicity
-	// and the order is not important!
+	/// Fetches all addresses at current `block` and converts them back to `tags (char)` and sorts them
+	/// Addresses are supposed sorted based on address but these tests are using `tags` just for simplicity
+	/// and the order is not important!
 	pub fn into_tags(&self, addr: &[Address]) -> Vec<char> {
 		let mut tags: Vec<char> = addr.iter().filter_map(|addr| {
 			for (t, kp) in self.signers.iter() {
@@ -125,13 +134,14 @@ impl CliqueTester {
 		tags
 	}
 
+	/// Create a new `Clique` block and import
 	pub fn new_block_and_import(
 		&self,
 		block_type: CliqueBlockType,
 		last_header: &Header,
 		beneficary: Option<Address>,
 		signer: char,
-		) -> Result<OpenBlock, Error> {
+		) -> Result<Header, Error> {
 
 		let mut extra_data = vec![0; VANITY_LENGTH];
 		let mut seal = util::null_seal();
@@ -177,10 +187,11 @@ impl CliqueTester {
 			b.header.set_extra_data(extra_data);
 		}
 
-		self.clique.verify_block_basic(block.header())?;
-		self.clique.verify_block_family(block.header(), &last_header)?;
+		let current_header = block.header();
+		self.clique.verify_block_basic(current_header)?;
+		self.clique.verify_block_family(current_header, &last_header)?;
 
-		Ok(block)
+		Ok(current_header.clone())
 	}
 }
 
@@ -190,7 +201,7 @@ fn one_signer_with_no_votes() {
 
 	let empty_block = tester.new_block_and_import(CliqueBlockType::Empty, &tester.genesis, None, 'A').unwrap();
 
-	let tags = tester.into_tags(&tester.clique_signers(&empty_block.header().hash()));
+	let tags = tester.into_tags(&tester.clique_signers(&empty_block.hash()));
 	assert_eq!(&tags, &['A']);
 }
 
@@ -198,20 +209,20 @@ fn one_signer_with_no_votes() {
 fn one_signer_two_votes() {
 	let tester = CliqueTester::with(10, 1, vec!['A']);
 
-	// Add a vote for `B` signed by A
+	// Add a vote for `B` signed by `A`
 	let vote = tester.new_block_and_import(CliqueBlockType::Vote(VoteType::Add), &tester.genesis,
 										   Some(tester.signers[&'B'].address()), 'A').unwrap();
-	let tags = tester.into_tags(&tester.clique_signers(&vote.header().hash()));
+	let tags = tester.into_tags(&tester.clique_signers(&vote.hash()));
 	assert_eq!(&tags, &['A', 'B']);
 
 	// Add a empty block signed by `B`
-	let empty = tester.new_block_and_import(CliqueBlockType::Empty, &vote.header(), None, 'B').unwrap();
+	let empty = tester.new_block_and_import(CliqueBlockType::Empty, &vote, None, 'B').unwrap();
 
 	// Add vote for `C` signed by A but should not be accepted
-	let vote = tester.new_block_and_import(CliqueBlockType::Vote(VoteType::Add), &empty.header(),
+	let vote = tester.new_block_and_import(CliqueBlockType::Vote(VoteType::Add), &empty,
 										   Some(tester.signers[&'C'].address()), 'A').unwrap();
 
-	let tags = tester.into_tags(&tester.clique_signers(&vote.header().hash()));
+	let tags = tester.into_tags(&tester.clique_signers(&vote.hash()));
 	assert_eq!(&tags, &['A', 'B']);
 }
 
@@ -221,29 +232,29 @@ fn two_signers_six_votes_deny_last() {
 
 	let mut prev_header = tester.genesis.clone();
 
-	// Add two votes for `C` signed by A and B
+	// Add two votes for `C` signed by `A` and `B`
 	for &signer in SIGNER_TAGS.iter().take(2) {
 		let vote = tester.new_block_and_import(CliqueBlockType::Vote(VoteType::Add), &prev_header,
 											   Some(tester.signers[&'C'].address()), signer).unwrap();
-		prev_header = vote.header().clone();
+		prev_header = vote.clone();
 	}
 
-	// Add two votes for `D` signed by A and B
+	// Add two votes for `D` signed by `A` and `B`
 	for &signer in SIGNER_TAGS.iter().take(2) {
 		let vote = tester.new_block_and_import(CliqueBlockType::Vote(VoteType::Add), &prev_header,
 											   Some(tester.signers[&'D'].address()), signer).unwrap();
-		prev_header = vote.header().clone();
+		prev_header = vote.clone();
 	}
 
 	// Add a empty block signed by `C`
 	let empty = tester.new_block_and_import(CliqueBlockType::Empty, &prev_header, None, 'C').unwrap();
-	prev_header = empty.header().clone();
+	prev_header = empty.clone();
 
-	// Add two votes for `E` signed by A and B
+	// Add two votes for `E` signed by `A` and `B`
 	for &signer in SIGNER_TAGS.iter().take(2) {
 		let vote = tester.new_block_and_import(CliqueBlockType::Vote(VoteType::Add), &prev_header,
 											   Some(tester.signers[&'E'].address()), signer).unwrap();
-		prev_header = vote.header().clone();
+		prev_header = vote.clone();
 	}
 
 	let tags = tester.into_tags(&tester.clique_signers(&prev_header.hash()));
@@ -255,7 +266,7 @@ fn one_signer_dropping_itself() {
 	let tester = CliqueTester::with(10, 1, vec!['A']);
 	let vote = tester.new_block_and_import(CliqueBlockType::Vote(VoteType::Remove), &tester.genesis,
 										   Some(tester.signers[&'A'].address()), 'A').unwrap();
-	let signers = tester.clique_signers(&vote.header().hash());
+	let signers = tester.clique_signers(&vote.hash());
 	assert!(signers.is_empty());
 }
 
@@ -265,7 +276,7 @@ fn two_signers_one_remove_vote_no_consensus() {
 	let vote = tester.new_block_and_import(CliqueBlockType::Vote(VoteType::Remove), &tester.genesis,
 										   Some(tester.signers[&'B'].address()), 'A').unwrap();
 
-	let tags = tester.into_tags(&tester.clique_signers(&vote.header().hash()));
+	let tags = tester.into_tags(&tester.clique_signers(&vote.hash()));
 	assert_eq!(&tags, &['A', 'B']);
 }
 
@@ -274,10 +285,10 @@ fn two_signers_consensus_remove_b() {
 	let tester = CliqueTester::with(10, 1, vec!['A', 'B']);
 	let first_vote = tester.new_block_and_import(CliqueBlockType::Vote(VoteType::Remove), &tester.genesis,
 												 Some(tester.signers[&'B'].address()), 'A').unwrap();
-	let second_vote = tester.new_block_and_import(CliqueBlockType::Vote(VoteType::Remove), &first_vote.header(),
+	let second_vote = tester.new_block_and_import(CliqueBlockType::Vote(VoteType::Remove), &first_vote,
 												 Some(tester.signers[&'B'].address()), 'B').unwrap();
 
-	let tags = tester.into_tags(&tester.clique_signers(&second_vote.header().hash()));
+	let tags = tester.into_tags(&tester.clique_signers(&second_vote.hash()));
 	assert_eq!(&tags, &['A']);
 }
 
@@ -286,10 +297,10 @@ fn three_signers_consensus_remove_c() {
 	let tester = CliqueTester::with(10, 1, vec!['A', 'B', 'C']);
 	let first_vote = tester.new_block_and_import(CliqueBlockType::Vote(VoteType::Remove), &tester.genesis,
 												 Some(tester.signers[&'C'].address()), 'A').unwrap();
-	let second_vote = tester.new_block_and_import(CliqueBlockType::Vote(VoteType::Remove), &first_vote.header(),
+	let second_vote = tester.new_block_and_import(CliqueBlockType::Vote(VoteType::Remove), &first_vote,
 												 Some(tester.signers[&'C'].address()), 'B').unwrap();
 
-	let tags = tester.into_tags(&tester.clique_signers(&second_vote.header().hash()));
+	let tags = tester.into_tags(&tester.clique_signers(&second_vote.hash()));
 	assert_eq!(&tags, &['A', 'B']);
 }
 
@@ -299,10 +310,10 @@ fn four_signers_half_no_consensus() {
 	let first_vote = tester.new_block_and_import(CliqueBlockType::Vote(VoteType::Remove), &tester.genesis,
 												 Some(tester.signers[&'C'].address()), 'A').unwrap();
 
-	let second_vote = tester.new_block_and_import(CliqueBlockType::Vote(VoteType::Remove), &first_vote.header(),
+	let second_vote = tester.new_block_and_import(CliqueBlockType::Vote(VoteType::Remove), &first_vote,
 												  Some(tester.signers[&'C'].address()), 'B').unwrap();
 
-	let tags = tester.into_tags(&tester.clique_signers(&second_vote.header().hash()));
+	let tags = tester.into_tags(&tester.clique_signers(&second_vote.hash()));
 	assert_eq!(&tags, &['A', 'B', 'C', 'D']);
 }
 
@@ -316,7 +327,7 @@ fn four_signers_three_consensus_rm() {
 	for signer in SIGNER_TAGS.iter().take(3) {
 		let vote = tester.new_block_and_import(CliqueBlockType::Vote(VoteType::Remove), &prev_header,
 											   Some(tester.signers[&'D'].address()), *signer).unwrap();
-		prev_header = vote.header().clone();
+		prev_header = vote.clone();
 	}
 
 	let tags = tester.into_tags(&tester.clique_signers(&prev_header.hash()));
@@ -327,23 +338,23 @@ fn four_signers_three_consensus_rm() {
 fn vote_add_only_counted_once_per_signer() {
 	let tester = CliqueTester::with(10, 1, vec!['A', 'B']);
 
-	// Add a vote for `C` signed by A
+	// Add a vote for `C` signed by `A`
 	let vote = tester.new_block_and_import(CliqueBlockType::Vote(VoteType::Add), &tester.genesis,
 										   Some(tester.signers[&'C'].address()), 'A').unwrap();
 	// Empty block signed by B`
-	let empty = tester.new_block_and_import(CliqueBlockType::Empty, &vote.header(), None, 'B').unwrap();
+	let empty = tester.new_block_and_import(CliqueBlockType::Empty, &vote, None, 'B').unwrap();
 
-	// Add a vote for `C` signed by A
-	let vote = tester.new_block_and_import(CliqueBlockType::Vote(VoteType::Add), &empty.header(),
+	// Add a vote for `C` signed by `A`
+	let vote = tester.new_block_and_import(CliqueBlockType::Vote(VoteType::Add), &empty,
 										   Some(tester.signers[&'C'].address()), 'A').unwrap();
-	// Empty block signed by B`
-	let empty = tester.new_block_and_import(CliqueBlockType::Empty, &vote.header(), None, 'B').unwrap();
+	// Empty block signed by `B`
+	let empty = tester.new_block_and_import(CliqueBlockType::Empty, &vote, None, 'B').unwrap();
 
-	// Add a vote for `C` signed by A
-	let vote = tester.new_block_and_import(CliqueBlockType::Vote(VoteType::Add), &empty.header(),
+	// Add a vote for `C` signed by `A`
+	let vote = tester.new_block_and_import(CliqueBlockType::Vote(VoteType::Add), &empty,
 										   Some(tester.signers[&'C'].address()), 'A').unwrap();
 
-	let tags = tester.into_tags(&tester.clique_signers(&vote.header().hash()));
+	let tags = tester.into_tags(&tester.clique_signers(&vote.hash()));
 	assert_eq!(&tags, &['A', 'B']);
 }
 
@@ -351,35 +362,35 @@ fn vote_add_only_counted_once_per_signer() {
 fn vote_add_concurrently_is_permitted() {
 	let tester = CliqueTester::with(10, 1, vec!['A', 'B']);
 
-	// Add a vote for `C` signed by A
+	// Add a vote for `C` signed by `A`
 	let b = tester.new_block_and_import(CliqueBlockType::Vote(VoteType::Add), &tester.genesis,
 										   Some(tester.signers[&'C'].address()), 'A').unwrap();
 
-	// Empty block signed by B`
-	let b = tester.new_block_and_import(CliqueBlockType::Empty, &b.header(), None, 'B').unwrap();
+	// Empty block signed by `B`
+	let b = tester.new_block_and_import(CliqueBlockType::Empty, &b, None, 'B').unwrap();
 
-	// Add a vote for `D` signed by A
-	let b = tester.new_block_and_import(CliqueBlockType::Vote(VoteType::Add), &b.header(),
+	// Add a vote for `D` signed by `A`
+	let b = tester.new_block_and_import(CliqueBlockType::Vote(VoteType::Add), &b,
 										   Some(tester.signers[&'D'].address()), 'A').unwrap();
 
-	// Empty block signed by B`
-	let b = tester.new_block_and_import(CliqueBlockType::Empty, &b.header(), None, 'B').unwrap();
+	// Empty block signed by `B`
+	let b = tester.new_block_and_import(CliqueBlockType::Empty, &b, None, 'B').unwrap();
 
-	// Empty block signed by A`
-	let b = tester.new_block_and_import(CliqueBlockType::Empty, &b.header(), None, 'A').unwrap();
+	// Empty block signed by `A`
+	let b = tester.new_block_and_import(CliqueBlockType::Empty, &b, None, 'A').unwrap();
 
-	// Add a vote for `D` signed by B
-	let b = tester.new_block_and_import(CliqueBlockType::Vote(VoteType::Add), &b.header(),
+	// Add a vote for `D` signed by `B`
+	let b = tester.new_block_and_import(CliqueBlockType::Vote(VoteType::Add), &b,
 										   Some(tester.signers[&'D'].address()), 'B').unwrap();
 
-	// Empty block signed by A`
-	let b = tester.new_block_and_import(CliqueBlockType::Empty, &b.header(), None, 'A').unwrap();
+	// Empty block signed by `A`
+	let b = tester.new_block_and_import(CliqueBlockType::Empty, &b, None, 'A').unwrap();
 
-	// Add a vote for `C` signed by B
-	let b = tester.new_block_and_import(CliqueBlockType::Vote(VoteType::Add), &b.header(),
+	// Add a vote for `C` signed by `B`
+	let b = tester.new_block_and_import(CliqueBlockType::Vote(VoteType::Add), &b,
 										   Some(tester.signers[&'C'].address()), 'B').unwrap();
 
-	let tags = tester.into_tags(&tester.clique_signers(&b.header().hash()));
+	let tags = tester.into_tags(&tester.clique_signers(&b.hash()));
 	assert_eq!(&tags, &['A', 'B', 'C', 'D']);
 }
 
@@ -390,20 +401,20 @@ fn vote_rm_only_counted_once_per_signer() {
 	let mut prev_header = tester.genesis.clone();
 
 	for _ in 0..2 {
-		// Vote to remove `B` signed by A
+		// Vote to remove `B` signed by `A`
 		let b = tester.new_block_and_import(CliqueBlockType::Vote(VoteType::Remove), &prev_header,
 											   Some(tester.signers[&'B'].address()), 'A').unwrap();
-		// Empty block signed by B`
-		let b = tester.new_block_and_import(CliqueBlockType::Empty, &b.header(), None, 'B').unwrap();
+		// Empty block signed by `B`
+		let b = tester.new_block_and_import(CliqueBlockType::Empty, &b, None, 'B').unwrap();
 
-		prev_header = b.header().clone();
+		prev_header = b.clone();
 	}
 
-	// Add a vote for `B` signed by A
+	// Add a vote for `B` signed by `A`
 	let b = tester.new_block_and_import(CliqueBlockType::Vote(VoteType::Remove), &prev_header,
 										   Some(tester.signers[&'B'].address()), 'A').unwrap();
 
-	let tags = tester.into_tags(&tester.clique_signers(&b.header().hash()));
+	let tags = tester.into_tags(&tester.clique_signers(&b.hash()));
 	assert_eq!(&tags, &['A', 'B']);
 }
 
@@ -411,40 +422,40 @@ fn vote_rm_only_counted_once_per_signer() {
 fn vote_rm_concurrently_is_permitted() {
 	let tester = CliqueTester::with(100, 1, vec!['A', 'B', 'C', 'D']);
 
-	// Add a vote for `C` signed by A
+	// Add a vote for `C` signed by `A`
 	let block = tester.new_block_and_import(CliqueBlockType::Vote(VoteType::Remove), &tester.genesis,
 											Some(tester.signers[&'C'].address()), 'A').unwrap();
 
 	// Empty block signed by `B`
-	let block = tester.new_block_and_import(CliqueBlockType::Empty, &block.header(), None, 'B').unwrap();
+	let block = tester.new_block_and_import(CliqueBlockType::Empty, &block, None, 'B').unwrap();
 	// Empty block signed by `C`
-	let block = tester.new_block_and_import(CliqueBlockType::Empty, &block.header(), None, 'C').unwrap();
+	let block = tester.new_block_and_import(CliqueBlockType::Empty, &block, None, 'C').unwrap();
 
-	// Add a vote for `D` signed by A
-	let block = tester.new_block_and_import(CliqueBlockType::Vote(VoteType::Remove), &block.header(),
+	// Add a vote for `D` signed by `A`
+	let block = tester.new_block_and_import(CliqueBlockType::Vote(VoteType::Remove), &block,
 											Some(tester.signers[&'D'].address()), 'A').unwrap();
 
 	// Empty block signed by `B`
-	let block = tester.new_block_and_import(CliqueBlockType::Empty, &block.header(), None, 'B').unwrap();
+	let block = tester.new_block_and_import(CliqueBlockType::Empty, &block, None, 'B').unwrap();
 	// Empty block signed by `C`
-	let block = tester.new_block_and_import(CliqueBlockType::Empty, &block.header(), None, 'C').unwrap();
-	// Empty block signed by A`
-	let block = tester.new_block_and_import(CliqueBlockType::Empty, &block.header(), None, 'A').unwrap();
+	let block = tester.new_block_and_import(CliqueBlockType::Empty, &block, None, 'C').unwrap();
+	// Empty block signed by `A`
+	let block = tester.new_block_and_import(CliqueBlockType::Empty, &block, None, 'A').unwrap();
 
-	// Add a vote for `D` signed by B
-	let block = tester.new_block_and_import(CliqueBlockType::Vote(VoteType::Remove), &block.header(),
+	// Add a vote for `D` signed by `B`
+	let block = tester.new_block_and_import(CliqueBlockType::Vote(VoteType::Remove), &block,
 											Some(tester.signers[&'D'].address()), 'B').unwrap();
-	// Add a vote for `D` signed by C
-	let block = tester.new_block_and_import(CliqueBlockType::Vote(VoteType::Remove), &block.header(),
+	// Add a vote for `D` signed by `C`
+	let block = tester.new_block_and_import(CliqueBlockType::Vote(VoteType::Remove), &block,
 											Some(tester.signers[&'D'].address()), 'C').unwrap();
 
 	// Empty block signed by `A`
-	let block = tester.new_block_and_import(CliqueBlockType::Empty, &block.header(), None, 'A').unwrap();
-	// Add a vote for `C` signed by B
-	let block = tester.new_block_and_import(CliqueBlockType::Vote(VoteType::Remove), &block.header(),
+	let block = tester.new_block_and_import(CliqueBlockType::Empty, &block, None, 'A').unwrap();
+	// Add a vote for `C` signed by `B`
+	let block = tester.new_block_and_import(CliqueBlockType::Vote(VoteType::Remove), &block,
 											Some(tester.signers[&'C'].address()), 'B').unwrap();
 
-	let tags = tester.into_tags(&tester.clique_signers(&block.header().hash()));
+	let tags = tester.into_tags(&tester.clique_signers(&block.hash()));
 	assert_eq!(&tags, &['A', 'B']);
 }
 
@@ -456,16 +467,16 @@ fn vote_to_rm_are_immediate_and_ensure_votes_are_rm() {
 	let block = tester.new_block_and_import(CliqueBlockType::Vote(VoteType::Remove), &tester.genesis,
 											Some(tester.signers[&'B'].address()), 'C').unwrap();
 	// Vote to remove `C` signed by `A`
-	let block = tester.new_block_and_import(CliqueBlockType::Vote(VoteType::Remove), &block.header(),
+	let block = tester.new_block_and_import(CliqueBlockType::Vote(VoteType::Remove), &block,
 											Some(tester.signers[&'C'].address()), 'A').unwrap();
 	// Vote to remove `C` signed by `B`
-	let block = tester.new_block_and_import(CliqueBlockType::Vote(VoteType::Remove), &block.header(),
+	let block = tester.new_block_and_import(CliqueBlockType::Vote(VoteType::Remove), &block,
 											Some(tester.signers[&'C'].address()), 'B').unwrap();
 	// Vote to remove `B` signed by `A`
-	let block = tester.new_block_and_import(CliqueBlockType::Vote(VoteType::Remove), &block.header(),
+	let block = tester.new_block_and_import(CliqueBlockType::Vote(VoteType::Remove), &block,
 											Some(tester.signers[&'B'].address()), 'A').unwrap();
 
-	let tags = tester.into_tags(&tester.clique_signers(&block.header().hash()));
+	let tags = tester.into_tags(&tester.clique_signers(&block.hash()));
 	assert_eq!(&tags, &['A', 'B']);
 }
 
@@ -477,18 +488,18 @@ fn vote_to_rm_are_immediate_and_votes_should_be_dropped_from_kicked_signer() {
 	let block = tester.new_block_and_import(CliqueBlockType::Vote(VoteType::Add), &tester.genesis,
 											Some(tester.signers[&'D'].address()), 'C').unwrap();
 	// Vote to remove `C` signed by `A`
-	let block = tester.new_block_and_import(CliqueBlockType::Vote(VoteType::Remove), &block.header(),
+	let block = tester.new_block_and_import(CliqueBlockType::Vote(VoteType::Remove), &block,
 											Some(tester.signers[&'C'].address()), 'A').unwrap();
 
 	// Vote to remove `C` signed by `B`
-	let block = tester.new_block_and_import(CliqueBlockType::Vote(VoteType::Remove), &block.header(),
+	let block = tester.new_block_and_import(CliqueBlockType::Vote(VoteType::Remove), &block,
 											Some(tester.signers[&'C'].address()), 'B').unwrap();
 
 	// Vote to add `D` signed by `A`
-	let block = tester.new_block_and_import(CliqueBlockType::Vote(VoteType::Add), &block.header(),
+	let block = tester.new_block_and_import(CliqueBlockType::Vote(VoteType::Add), &block,
 											Some(tester.signers[&'D'].address()), 'A').unwrap();
 
-	let tags = tester.into_tags(&tester.clique_signers(&block.header().hash()));
+	let tags = tester.into_tags(&tester.clique_signers(&block.hash()));
 	assert_eq!(&tags, &['A', 'B']);
 }
 
@@ -501,39 +512,39 @@ fn cascading_not_allowed() {
 											Some(tester.signers[&'C'].address()), 'A').unwrap();
 
 	// Empty block signed by `B`
-	let block = tester.new_block_and_import(CliqueBlockType::Empty, &block.header(), None, 'B').unwrap();
+	let block = tester.new_block_and_import(CliqueBlockType::Empty, &block, None, 'B').unwrap();
 
 	// Empty block signed by `C`
-	let block = tester.new_block_and_import(CliqueBlockType::Empty, &block.header(), None, 'C').unwrap();
+	let block = tester.new_block_and_import(CliqueBlockType::Empty, &block, None, 'C').unwrap();
 
 	// Vote against `D` signed by `A`
-	let block = tester.new_block_and_import(CliqueBlockType::Vote(VoteType::Remove), &block.header(),
+	let block = tester.new_block_and_import(CliqueBlockType::Vote(VoteType::Remove), &block,
 											Some(tester.signers[&'D'].address()), 'A').unwrap();
 
 	// Vote against `C` signed by `B`
-	let block = tester.new_block_and_import(CliqueBlockType::Vote(VoteType::Remove), &block.header(),
+	let block = tester.new_block_and_import(CliqueBlockType::Vote(VoteType::Remove), &block,
 											Some(tester.signers[&'C'].address()), 'B').unwrap();
 
 	// Empty block signed by `C`
-	let block = tester.new_block_and_import(CliqueBlockType::Empty, &block.header(), None, 'C').unwrap();
+	let block = tester.new_block_and_import(CliqueBlockType::Empty, &block, None, 'C').unwrap();
 
 	// Empty block signed by `A`
-	let block = tester.new_block_and_import(CliqueBlockType::Empty, &block.header(), None, 'A').unwrap();
+	let block = tester.new_block_and_import(CliqueBlockType::Empty, &block, None, 'A').unwrap();
 
 	// Vote against `D` signed by `B`
-	let block = tester.new_block_and_import(CliqueBlockType::Vote(VoteType::Remove), &block.header(),
+	let block = tester.new_block_and_import(CliqueBlockType::Vote(VoteType::Remove), &block,
 											Some(tester.signers[&'D'].address()), 'B').unwrap();
 
 	// Vote against `D` signed by `C`
-	let block = tester.new_block_and_import(CliqueBlockType::Vote(VoteType::Remove), &block.header(),
+	let block = tester.new_block_and_import(CliqueBlockType::Vote(VoteType::Remove), &block,
 											Some(tester.signers[&'D'].address()), 'C').unwrap();
 
-	let tags = tester.into_tags(&tester.clique_signers(&block.header().hash()));
+	let tags = tester.into_tags(&tester.clique_signers(&block.hash()));
 	assert_eq!(&tags, &['A', 'B', 'C']);
 }
 
 #[test]
-fn consensus_out_of_bounds_on_touch() {
+fn consensus_out_of_bounds_consensus_execute_on_touch() {
 	let tester = CliqueTester::with(100, 1, vec!['A', 'B', 'C', 'D']);
 
 	// Vote against `C` signed by `A`
@@ -541,44 +552,44 @@ fn consensus_out_of_bounds_on_touch() {
 											Some(tester.signers[&'C'].address()), 'A').unwrap();
 
 	// Empty block signed by `B`
-	let block = tester.new_block_and_import(CliqueBlockType::Empty, &block.header(), None, 'B').unwrap();
+	let block = tester.new_block_and_import(CliqueBlockType::Empty, &block, None, 'B').unwrap();
 
 	// Empty block signed by `C`
-	let block = tester.new_block_and_import(CliqueBlockType::Empty, &block.header(), None, 'C').unwrap();
+	let block = tester.new_block_and_import(CliqueBlockType::Empty, &block, None, 'C').unwrap();
 
 	// Vote against `D` signed by `A`
-	let block = tester.new_block_and_import(CliqueBlockType::Vote(VoteType::Remove), &block.header(),
+	let block = tester.new_block_and_import(CliqueBlockType::Vote(VoteType::Remove), &block,
 											Some(tester.signers[&'D'].address()), 'A').unwrap();
 
 	// Vote against `C` signed by `B`
-	let block = tester.new_block_and_import(CliqueBlockType::Vote(VoteType::Remove), &block.header(),
+	let block = tester.new_block_and_import(CliqueBlockType::Vote(VoteType::Remove), &block,
 											Some(tester.signers[&'C'].address()), 'B').unwrap();
 
 	// Empty block signed by `C`
-	let block = tester.new_block_and_import(CliqueBlockType::Empty, &block.header(), None, 'C').unwrap();
+	let block = tester.new_block_and_import(CliqueBlockType::Empty, &block, None, 'C').unwrap();
 
 	// Empty block signed by `A`
-	let block = tester.new_block_and_import(CliqueBlockType::Empty, &block.header(), None, 'A').unwrap();
+	let block = tester.new_block_and_import(CliqueBlockType::Empty, &block, None, 'A').unwrap();
 
 	// Vote against `D` signed by `B`
-	let block = tester.new_block_and_import(CliqueBlockType::Vote(VoteType::Remove), &block.header(),
+	let block = tester.new_block_and_import(CliqueBlockType::Vote(VoteType::Remove), &block,
 											Some(tester.signers[&'D'].address()), 'B').unwrap();
 
 	// Vote against `D` signed by `C`
-	let block = tester.new_block_and_import(CliqueBlockType::Vote(VoteType::Remove), &block.header(),
+	let block = tester.new_block_and_import(CliqueBlockType::Vote(VoteType::Remove), &block,
 											Some(tester.signers[&'D'].address()), 'C').unwrap();
 
-	let tags = tester.into_tags(&tester.clique_signers(&block.header().hash()));
+	let tags = tester.into_tags(&tester.clique_signers(&block.hash()));
 	assert_eq!(&tags, &['A', 'B', 'C'], "D should have been removed after 3/4 remove votes");
 
 	// Empty block signed by `A`
-	let block = tester.new_block_and_import(CliqueBlockType::Empty, &block.header(), None, 'A').unwrap();
+	let block = tester.new_block_and_import(CliqueBlockType::Empty, &block, None, 'A').unwrap();
 
 	// Vote for `C` signed by `C`
-	let block = tester.new_block_and_import(CliqueBlockType::Vote(VoteType::Add), &block.header(),
+	let block = tester.new_block_and_import(CliqueBlockType::Vote(VoteType::Add), &block,
 											Some(tester.signers[&'C'].address()), 'C').unwrap();
 
-	let tags = tester.into_tags(&tester.clique_signers(&block.header().hash()));
+	let tags = tester.into_tags(&tester.clique_signers(&block.hash()));
 	assert_eq!(&tags, &['A', 'B']);
 }
 
@@ -591,44 +602,44 @@ fn consensus_out_of_bounds_first_touch() {
 											Some(tester.signers[&'C'].address()), 'A').unwrap();
 
 	// Empty block signed by `B`
-	let block = tester.new_block_and_import(CliqueBlockType::Empty, &block.header(), None, 'B').unwrap();
+	let block = tester.new_block_and_import(CliqueBlockType::Empty, &block, None, 'B').unwrap();
 
 	// Empty block signed by `C`
-	let block = tester.new_block_and_import(CliqueBlockType::Empty, &block.header(), None, 'C').unwrap();
+	let block = tester.new_block_and_import(CliqueBlockType::Empty, &block, None, 'C').unwrap();
 
 	// Vote against `D` signed by `A`
-	let block = tester.new_block_and_import(CliqueBlockType::Vote(VoteType::Remove), &block.header(),
+	let block = tester.new_block_and_import(CliqueBlockType::Vote(VoteType::Remove), &block,
 											Some(tester.signers[&'D'].address()), 'A').unwrap();
 
 	// Vote against `C` signed by `B`
-	let block = tester.new_block_and_import(CliqueBlockType::Vote(VoteType::Remove), &block.header(),
+	let block = tester.new_block_and_import(CliqueBlockType::Vote(VoteType::Remove), &block,
 											Some(tester.signers[&'C'].address()), 'B').unwrap();
 
 	// Empty block signed by `C`
-	let block = tester.new_block_and_import(CliqueBlockType::Empty, &block.header(), None, 'C').unwrap();
+	let block = tester.new_block_and_import(CliqueBlockType::Empty, &block, None, 'C').unwrap();
 
 	// Empty block signed by `A`
-	let block = tester.new_block_and_import(CliqueBlockType::Empty, &block.header(), None, 'A').unwrap();
+	let block = tester.new_block_and_import(CliqueBlockType::Empty, &block, None, 'A').unwrap();
 
 	// Vote against `D` signed by `B`
-	let block = tester.new_block_and_import(CliqueBlockType::Vote(VoteType::Remove), &block.header(),
+	let block = tester.new_block_and_import(CliqueBlockType::Vote(VoteType::Remove), &block,
 											Some(tester.signers[&'D'].address()), 'B').unwrap();
 
 	// Vote against `D` signed by `C`
-	let block = tester.new_block_and_import(CliqueBlockType::Vote(VoteType::Remove), &block.header(),
+	let block = tester.new_block_and_import(CliqueBlockType::Vote(VoteType::Remove), &block,
 											Some(tester.signers[&'D'].address()), 'C').unwrap();
 
-	let tags = tester.into_tags(&tester.clique_signers(&block.header().hash()));
+	let tags = tester.into_tags(&tester.clique_signers(&block.hash()));
 	assert_eq!(&tags, &['A', 'B', 'C']);
 
 	// Empty block signed by `A`
-	let block = tester.new_block_and_import(CliqueBlockType::Empty, &block.header(), None, 'A').unwrap();
+	let block = tester.new_block_and_import(CliqueBlockType::Empty, &block, None, 'A').unwrap();
 
 	// Vote for `C` signed by `B`
-	let block = tester.new_block_and_import(CliqueBlockType::Vote(VoteType::Add), &block.header(),
+	let block = tester.new_block_and_import(CliqueBlockType::Vote(VoteType::Add), &block,
 											Some(tester.signers[&'C'].address()), 'B').unwrap();
 
-	let tags = tester.into_tags(&tester.clique_signers(&block.header().hash()));
+	let tags = tester.into_tags(&tester.clique_signers(&block.hash()));
 	assert_eq!(&tags, &['A', 'B', 'C']);
 }
 
@@ -642,7 +653,7 @@ fn pending_votes_doesnt_survive_authorization_changes() {
 	for sign in SIGNER_TAGS.iter().take(3) {
 		let block = tester.new_block_and_import(CliqueBlockType::Vote(VoteType::Add), &prev_header,
 												Some(tester.signers[&'F'].address()), *sign).unwrap();
-		prev_header = block.header().clone();
+		prev_header = block.clone();
 	}
 
 	let tags = tester.into_tags(&tester.clique_signers(&prev_header.hash()));
@@ -652,7 +663,7 @@ fn pending_votes_doesnt_survive_authorization_changes() {
 	for sign in SIGNER_TAGS.iter().skip(3).chain(SIGNER_TAGS.iter().skip(1).take(2)) {
 		let block = tester.new_block_and_import(CliqueBlockType::Vote(VoteType::Remove), &prev_header,
 												Some(tester.signers[&'F'].address()), *sign).unwrap();
-		prev_header = block.header().clone();
+		prev_header = block.clone();
 	}
 
 	let tags = tester.into_tags(&tester.clique_signers(&prev_header.hash()));
@@ -662,14 +673,14 @@ fn pending_votes_doesnt_survive_authorization_changes() {
 	for sign in SIGNER_TAGS.iter().skip(3).take(2) {
 		let block = tester.new_block_and_import(CliqueBlockType::Vote(VoteType::Add), &prev_header,
 												Some(tester.signers[&'F'].address()), *sign).unwrap();
-		prev_header = block.header().clone();
+		prev_header = block.clone();
 	}
 
 	// Vote against `A` from [`B`, `C`, `D`]
 	for sign in SIGNER_TAGS.iter().skip(1).take(3) {
 		let block = tester.new_block_and_import(CliqueBlockType::Vote(VoteType::Remove), &prev_header,
 												Some(tester.signers[&'A'].address()), *sign).unwrap();
-		prev_header = block.header().clone();
+		prev_header = block.clone();
 	}
 
 	let tags = tester.into_tags(&tester.clique_signers(&prev_header.hash()));
@@ -678,7 +689,7 @@ fn pending_votes_doesnt_survive_authorization_changes() {
 	let block = tester.new_block_and_import(CliqueBlockType::Vote(VoteType::Add), &prev_header,
 											Some(tester.signers[&'F'].address()), 'B').unwrap();
 
-	let tags = tester.into_tags(&tester.clique_signers(&block.header().hash()));
+	let tags = tester.into_tags(&tester.clique_signers(&block.hash()));
 	assert_eq!(&tags, &['B', 'C', 'D', 'E', 'F'], "F should have been added again");
 }
 
@@ -689,13 +700,13 @@ fn epoch_transition_reset_all_votes() {
 	let block = tester.new_block_and_import(CliqueBlockType::Vote(VoteType::Add), &tester.genesis,
 											Some(tester.signers[&'C'].address()), 'A').unwrap();
 
-	let block = tester.new_block_and_import(CliqueBlockType::Empty, &block.header(), None, 'B').unwrap();
-	let block = tester.new_block_and_import(CliqueBlockType::Checkpoint, &block.header(), None, 'A').unwrap();
+	let block = tester.new_block_and_import(CliqueBlockType::Empty, &block, None, 'B').unwrap();
+	let block = tester.new_block_and_import(CliqueBlockType::Checkpoint, &block, None, 'A').unwrap();
 
-	let block = tester.new_block_and_import(CliqueBlockType::Vote(VoteType::Add), &block.header(),
+	let block = tester.new_block_and_import(CliqueBlockType::Vote(VoteType::Add), &block,
 											Some(tester.signers[&'C'].address()), 'B').unwrap();
 
-	let tags = tester.into_tags(&tester.clique_signers(&block.header().hash()));
+	let tags = tester.into_tags(&tester.clique_signers(&block.hash()));
 	assert_eq!(&tags, &['A', 'B'], "Votes should have been reset after checkpoint");
 }
 
@@ -709,17 +720,17 @@ fn unauthorized_signer_should_not_be_able_to_sign_block() {
 fn signer_should_not_be_able_to_sign_two_consequtive_blocks() {
 	let tester = CliqueTester::with(3, 1, vec!['A', 'B']);
 	let b = tester.new_block_and_import(CliqueBlockType::Empty, &tester.genesis, None, 'A').unwrap();
-	assert!(tester.new_block_and_import(CliqueBlockType::Empty, &b.header(), None, 'A').is_err());
+	assert!(tester.new_block_and_import(CliqueBlockType::Empty, &b, None, 'A').is_err());
 }
 
 #[test]
 fn recent_signers_should_not_reset_on_checkpoint() {
-	let tester = CliqueTester::with(3, 1, vec!['A', 'B']);
+	let tester = CliqueTester::with(3, 1, vec!['A', 'B', 'C']);
 
 	let block = tester.new_block_and_import(CliqueBlockType::Empty, &tester.genesis, None, 'A').unwrap();
-	let block = tester.new_block_and_import(CliqueBlockType::Empty, &block.header(), None, 'B').unwrap();
-	let block = tester.new_block_and_import(CliqueBlockType::Checkpoint, &block.header(), None, 'A').unwrap();
-	assert!(tester.new_block_and_import(CliqueBlockType::Empty, &block.header(), None, 'A').is_err());
+	let block = tester.new_block_and_import(CliqueBlockType::Empty, &block, None, 'B').unwrap();
+	let block = tester.new_block_and_import(CliqueBlockType::Checkpoint, &block, None, 'A').unwrap();
+	assert!(tester.new_block_and_import(CliqueBlockType::Empty, &block, None, 'A').is_err());
 }
 
 // Not part of http://eips.ethereum.org/EIPS/eip-225
@@ -727,50 +738,50 @@ fn recent_signers_should_not_reset_on_checkpoint() {
 fn bonus_consensus_should_keep_track_of_votes_before_latest_per_signer() {
 	let tester = CliqueTester::with(100, 1, vec!['A', 'B', 'C', 'D']);
 
-	// Add a vote for `E` signed by A
+	// Add a vote for `E` signed by `A`
 	let vote = tester.new_block_and_import(CliqueBlockType::Vote(VoteType::Add), &tester.genesis,
 										   Some(tester.signers[&'E'].address()), 'A').unwrap();
-	// Empty block signed by B`
-	let vote = tester.new_block_and_import(CliqueBlockType::Empty, &vote.header(), None, 'B').unwrap();
+	// Empty block signed by `B`
+	let vote = tester.new_block_and_import(CliqueBlockType::Empty, &vote, None, 'B').unwrap();
 
-	// Empty block signed by C`
-	let vote = tester.new_block_and_import(CliqueBlockType::Empty, &vote.header(), None, 'C').unwrap();
+	// Empty block signed by `C`
+	let vote = tester.new_block_and_import(CliqueBlockType::Empty, &vote, None, 'C').unwrap();
 
-	// Empty block signed by D`
-	let vote = tester.new_block_and_import(CliqueBlockType::Empty, &vote.header(), None, 'D').unwrap();
+	// Empty block signed by `D`
+	let vote = tester.new_block_and_import(CliqueBlockType::Empty, &vote, None, 'D').unwrap();
 
-	// Add a vote for `E` signed by A
-	let vote = tester.new_block_and_import(CliqueBlockType::Vote(VoteType::Add), &vote.header(),
+	// Add a vote for `F` signed by `A`
+	let vote = tester.new_block_and_import(CliqueBlockType::Vote(VoteType::Add), &vote,
 										   Some(tester.signers[&'F'].address()), 'A').unwrap();
-	// Empty block signed by C`
-	let vote = tester.new_block_and_import(CliqueBlockType::Empty, &vote.header(), None, 'C').unwrap();
+	// Empty block signed by `C`
+	let vote = tester.new_block_and_import(CliqueBlockType::Empty, &vote, None, 'C').unwrap();
 
-	// Empty block signed by D`
-	let vote = tester.new_block_and_import(CliqueBlockType::Empty, &vote.header(), None, 'D').unwrap();
+	// Empty block signed by `D`
+	let vote = tester.new_block_and_import(CliqueBlockType::Empty, &vote, None, 'D').unwrap();
 
-	// Add a vote for `E` signed by B
-	let vote = tester.new_block_and_import(CliqueBlockType::Vote(VoteType::Add), &vote.header(),
+	// Add a vote for `E` signed by `B`
+	let vote = tester.new_block_and_import(CliqueBlockType::Vote(VoteType::Add), &vote,
 										   Some(tester.signers[&'E'].address()), 'B').unwrap();
-	// Empty block signed by A`
-	let vote = tester.new_block_and_import(CliqueBlockType::Empty, &vote.header(), None, 'A').unwrap();
+	// Empty block signed by `A`
+	let vote = tester.new_block_and_import(CliqueBlockType::Empty, &vote, None, 'A').unwrap();
 
-	// Empty block signed by C`
-	let vote = tester.new_block_and_import(CliqueBlockType::Empty, &vote.header(), None, 'C').unwrap();
+	// Empty block signed by `C`
+	let vote = tester.new_block_and_import(CliqueBlockType::Empty, &vote, None, 'C').unwrap();
 
-	// Empty block signed by D`
-	let vote = tester.new_block_and_import(CliqueBlockType::Empty, &vote.header(), None, 'D').unwrap();
+	// Empty block signed by `D`
+	let vote = tester.new_block_and_import(CliqueBlockType::Empty, &vote, None, 'D').unwrap();
 
-	// Add a vote for `E` signed by B
-	let vote = tester.new_block_and_import(CliqueBlockType::Vote(VoteType::Add), &vote.header(),
+	// Add a vote for `F` signed by `B`
+	let vote = tester.new_block_and_import(CliqueBlockType::Vote(VoteType::Add), &vote,
 										   Some(tester.signers[&'F'].address()), 'B').unwrap();
 
 	// Empty block signed by A`
-	let vote = tester.new_block_and_import(CliqueBlockType::Empty, &vote.header(), None, 'A').unwrap();
+	let vote = tester.new_block_and_import(CliqueBlockType::Empty, &vote, None, 'A').unwrap();
 
-	// Add a vote for `E` signed by C
-	let vote = tester.new_block_and_import(CliqueBlockType::Vote(VoteType::Add), &vote.header(),
+	// Add a vote for `E` signed by `C`
+	let vote = tester.new_block_and_import(CliqueBlockType::Vote(VoteType::Add), &vote,
 										   Some(tester.signers[&'E'].address()), 'C').unwrap();
 
-	let tags = tester.into_tags(&tester.clique_signers(&vote.header().hash()));
+	let tags = tester.into_tags(&tester.clique_signers(&vote.hash()));
 	assert_eq!(&tags, &['A', 'B', 'C', 'D', 'E']);
 }

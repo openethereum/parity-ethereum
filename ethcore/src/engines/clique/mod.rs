@@ -118,6 +118,7 @@ pub const NULL_UNCLES_HASH: H256 = KECCAK_EMPTY_LIST_RLP;
 /// Default noturn block wiggle factor defined in spec.
 pub const SIGNING_DELAY_NOTURN_MS: u64 = 500;
 
+/// Vote to add or remove the beneficiary
 #[derive(Copy, Clone, Debug, PartialEq, PartialOrd)]
 pub enum VoteType {
 	Add,
@@ -133,6 +134,7 @@ impl VoteType {
 		}
 	}
 
+	/// Get the rlp encoding of the vote
 	pub fn as_rlp(&self) -> Vec<Vec<u8>> {
 		match self {
 			VoteType::Add => vec![encode(&NULL_MIXHASH.to_vec()), encode(&NONCE_AUTH_VOTE.to_vec())],
