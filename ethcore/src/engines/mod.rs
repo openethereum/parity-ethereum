@@ -44,13 +44,13 @@ use builtin::Builtin;
 use vm::{EnvInfo, Schedule, CreateContractAddress, CallType, ActionValue};
 use error::Error;
 use types::BlockNumber;
-use types::header::Header;
+use types::header::{Header, ExtendedHeader};
 use snapshot::SnapshotComponents;
 use spec::CommonParams;
 use types::transaction::{self, UnverifiedTransaction, SignedTransaction};
 
 use ethkey::{Signature};
-use parity_machine::{Machine, LocalizedMachine as Localized, TotalScoredHeader};
+use parity_machine::{Machine, LocalizedMachine as Localized};
 use ethereum_types::{H256, U256, Address};
 use unexpected::{Mismatch, OutOfBounds};
 use bytes::Bytes;
@@ -255,7 +255,7 @@ pub trait Engine<M: Machine>: Sync + Send {
 		&self,
 		_block: &mut M::LiveBlock,
 		_epoch_begin: bool,
-		_ancestry: &mut Iterator<Item=M::ExtendedHeader>,
+		_ancestry: &mut Iterator<Item = ExtendedHeader>,
 	) -> Result<(), M::Error> {
 		Ok(())
 	}
@@ -421,16 +421,16 @@ pub trait Engine<M: Machine>: Sync + Send {
 
 	/// Gather all ancestry actions. Called at the last stage when a block is committed. The Engine must guarantee that
 	/// the ancestry exists.
-	fn ancestry_actions(&self, _header: &M::Header, _ancestry: &mut Iterator<Item=M::ExtendedHeader>) -> Vec<AncestryAction> {
+	fn ancestry_actions(&self, _header: &M::Header, _ancestry: &mut Iterator<Item = ExtendedHeader>) -> Vec<AncestryAction> {
 		Vec::new()
 	}
 
 	/// Check whether the given new block is the best block, after finalization check.
-	fn fork_choice(&self, new: &M::ExtendedHeader, best: &M::ExtendedHeader) -> ForkChoice;
+	fn fork_choice(&self, new: &ExtendedHeader, best: &ExtendedHeader) -> ForkChoice;
 }
 
 /// Check whether a given block is the best block based on the default total difficulty rule.
-pub fn total_difficulty_fork_choice<T: TotalScoredHeader>(new: &T, best: &T) -> ForkChoice where <T as TotalScoredHeader>::Value: Ord {
+pub fn total_difficulty_fork_choice(new: &ExtendedHeader, best: &ExtendedHeader) -> ForkChoice {
 	if new.total_score() > best.total_score() {
 		ForkChoice::New
 	} else {
