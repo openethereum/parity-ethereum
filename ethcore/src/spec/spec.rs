@@ -999,7 +999,6 @@ mod tests {
 	use types::view;
 	use types::views::BlockView;
 
-	// https://github.com/paritytech/parity-ethereum/issues/1840
 	#[test]
 	fn test_load_empty() {
 		let tempdir = TempDir::new("").unwrap();
