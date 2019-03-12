@@ -162,7 +162,6 @@ pub fn apply_block_rewards<M: Machine>(
 		machine.add_balance(block, author, block_reward)?;
 	}
 
-	// TODO: this should be moved to a different module
 	if let Tracing::Enabled(ref mut traces) = *block.traces_mut() {
 		let mut tracer = ExecutiveTracer::default();
 
