@@ -64,9 +64,9 @@ use std::time::{Duration, SystemTime, UNIX_EPOCH};
 use block::{ExecutedBlock, IsBlock};
 use client::{BlockId, EngineClient};
 use engines::clique::util::{extract_signers, recover_creator};
-use engines::{Engine, Seal};
-use error::Error;
-use ethereum_types::{Address, H160, H256, U256};
+use engines::{Engine, EngineError, Seal};
+use error::{BlockError, Error};
+use ethereum_types::{Address, H64, H160, H256, U256};
 use ethkey::Signature;
 use hash::KECCAK_EMPTY_LIST_RLP;
 use itertools::Itertools;
@@ -74,8 +74,8 @@ use lru_cache::LruCache;
 use machine::{Call, EthereumMachine};
 use parking_lot::RwLock;
 use rand::Rng;
-use rlp::encode;
 use super::signer::EngineSigner;
+use unexpected::{Mismatch, OutOfBounds};
 use types::BlockNumber;
 use types::header::{ExtendedHeader, Header};
 
@@ -92,7 +92,7 @@ mod util;
 #[cfg(test)]
 mod tests;
 
-// protocol constants
+// Protocol constants
 /// Fixed number of extra-data prefix bytes reserved for signer vanity
 pub const VANITY_LENGTH: usize = 32;
 /// Fixed number of extra-data suffix bytes reserved for signer signature
@@ -100,9 +100,9 @@ pub const SIGNATURE_LENGTH: usize = 65;
 /// Address length of signer
 pub const ADDRESS_LENGTH: usize = 20;
 /// Nonce value for DROP vote
-pub const NONCE_DROP_VOTE: &[u8] = &[0x00; 8];
+pub const NONCE_DROP_VOTE: H64 = H64([0; 8]);
 /// Nonce value for AUTH vote
-pub const NONCE_AUTH_VOTE: &[u8] = &[0xff; 8];
+pub const NONCE_AUTH_VOTE: H64 = H64([0xff; 8]);
 /// Difficulty for INTURN block
 pub const DIFF_INTURN: U256 = U256([2, 0, 0, 0]);
 /// Difficulty for NOTURN block
@@ -110,13 +110,16 @@ pub const DIFF_NOTURN: U256 = U256([1, 0, 0, 0]);
 /// Default empty author field value
 pub const NULL_AUTHOR: Address = H160([0x00; 20]);
 /// Default empty nonce value
-pub const NULL_NONCE: &[u8] = NONCE_DROP_VOTE;
+pub const NULL_NONCE: H64 = NONCE_DROP_VOTE;
 /// Default value for mixhash
-pub const NULL_MIXHASH: &[u8] = &[0x00; 32];
+pub const NULL_MIXHASH: H256 = H256([0; 32]);
 /// Default value for uncles hash
 pub const NULL_UNCLES_HASH: H256 = KECCAK_EMPTY_LIST_RLP;
 /// Default noturn block wiggle factor defined in spec.
 pub const SIGNING_DELAY_NOTURN_MS: u64 = 500;
+
+/// How many CliqueBlockState to cache in the memory.
+pub const STATE_CACHE_NUM: usize = 128;
 
 /// Vote to add or remove the beneficiary
 #[derive(Copy, Clone, Debug, PartialEq, PartialOrd)]
@@ -126,26 +129,25 @@ pub enum VoteType {
 }
 
 impl VoteType {
-	pub fn from_nonce(nonce: &[u8]) -> Result<Self, Error> {
-		match nonce {
-			NONCE_AUTH_VOTE => Ok(VoteType::Add),
-			NONCE_DROP_VOTE => Ok(VoteType::Remove),
-			_ => Err(From::from("nonce was not AUTH or DROP"))
+	/// Try to construct a `Vote` from a nonce
+	pub fn from_nonce(nonce: H64) -> Result<Self, Error> {
+		if nonce == NONCE_AUTH_VOTE {
+			Ok(VoteType::Add)
+		} else if nonce == NONCE_DROP_VOTE {
+			Ok(VoteType::Remove)
+		} else {
+			Err(EngineError::CliqueInvalidNonce(nonce))?
 		}
 	}
 
 	/// Get the rlp encoding of the vote
 	pub fn as_rlp(&self) -> Vec<Vec<u8>> {
 		match self {
-			VoteType::Add => vec![encode(&NULL_MIXHASH.to_vec()), encode(&NONCE_AUTH_VOTE.to_vec())],
-			VoteType::Remove => vec![encode(&NULL_MIXHASH.to_vec()), encode(&NONCE_DROP_VOTE.to_vec())],
+			VoteType::Add => vec![rlp::encode(&NULL_MIXHASH), rlp::encode(&NONCE_AUTH_VOTE)],
+			VoteType::Remove => vec![rlp::encode(&NULL_MIXHASH), rlp::encode(&NONCE_DROP_VOTE)],
 		}
 	}
 }
-
-// Caches
-/// How many CliqueBlockState to cache in the memory.
-pub const STATE_CACHE_NUM: usize = 128;
 
 /// Clique Engine implementation
 /// block_state_by_hash -> block state indexed by header hash.
@@ -217,19 +219,16 @@ impl Clique {
 	}
 
 	fn sign_header(&self, header: &Header) -> Result<(Signature, H256), Error> {
+
 		match self.signer.read().as_ref() {
 			None => {
-				return Err(Box::new("sign_header: No signer available.").into());
+				Err(EngineError::RequiresSigner)?
 			}
 			Some(signer) => {
 				let digest = header.hash();
 				match signer.sign(digest) {
-					Ok(sig) => {
-						return Ok((sig, digest));
-					}
-					Err(e) => {
-						return Err(Box::new(format!("sign_header: failed to sign header, error: {}", e)).into());
-					}
+					Ok(sig) => Ok((sig, digest)),
+					Err(e) => Err(EngineError::Custom(e.into()))?,
 				}
 			}
 		}
@@ -266,7 +265,7 @@ impl Clique {
 		// BlockState is not found in memory, which means we need to reconstruct state from last checkpoint.
 		match self.client.read().as_ref().and_then(|w| w.upgrade()) {
 			None => {
-				return Err(From::from("failed to upgrade client reference"));
+				return Err(EngineError::RequiresClient)?;
 			}
 			Some(c) => {
 				let last_checkpoint_number = header.number() - header.number() % self.epoch_length as u64;
@@ -280,9 +279,9 @@ impl Clique {
 
 				// populate chain to last checkpoint
 				loop {
-					let (last_parent_hash, last_hash, last_num) = {
+					let (last_parent_hash, last_num) = {
 						let l = chain.front().expect("chain has at least one element; qed");
-						(*l.parent_hash(), l.hash(), l.number())
+						(*l.parent_hash(), l.number())
 					};
 
 					if last_num == last_checkpoint_number + 1 {
@@ -290,7 +289,7 @@ impl Clique {
 					}
 					match c.block_header(BlockId::Hash(last_parent_hash)) {
 						None => {
-							return Err(Box::new(format!("parent block {} of {} could not be recovered.", last_parent_hash, last_hash)).into());
+							return Err(BlockError::UnknownParent(last_parent_hash))?;
 						}
 						Some(next) => {
 							chain.push_front(next.decode()?);
@@ -301,16 +300,17 @@ impl Clique {
 				// Catching up state, note that we don't really store block state for intermediary blocks,
 				// for speed.
 				let backfill_start = time::Instant::now();
-				trace!(target: "engine",
+				info!(target: "engine",
 						"Back-filling block state. last_checkpoint_number: {}, target: {}({}).",
 						last_checkpoint_number, header.number(), header.hash());
 
 				// Get the state for last checkpoint.
-				let last_checkpoint_hash = *(chain.front().ok_or(
-					"just pushed to front, reference must exist; qed"
-				)?.parent_hash());
+				let last_checkpoint_hash = *chain.front()
+											 .expect("chain has at least one element; qed")
+											 .parent_hash();
+
 				let last_checkpoint_header = match c.block_header(BlockId::Hash(last_checkpoint_hash)) {
-					None => return Err(From::from("Unable to find last checkpoint block")),
+					None => return Err(EngineError::CliqueMissingCheckpoint(last_checkpoint_hash))?,
 					Some(header) => header.decode()?,
 				};
 
@@ -372,9 +372,8 @@ impl Engine<EthereumMachine> for Clique {
 
 		let mut header = block.header().clone();
 
-		let state = self.state_no_backfill(header.parent_hash()).ok_or_else(
-			|| format!("on_seal_block: Unable to get parent state: {}", header.parent_hash())
-		)?;
+		let state = self.state_no_backfill(header.parent_hash())
+			.ok_or_else(|| BlockError::UnknownParent(*header.parent_hash()))?;
 
 		let is_checkpoint = header.number() % self.epoch_length == 0;
 
@@ -406,7 +405,11 @@ impl Engine<EthereumMachine> for Clique {
 
 		// At this point, extra_data should only contain miner vanity.
 		if header.extra_data().len() > VANITY_LENGTH {
-			panic!("on_seal_block: unexpected extra_data: {:?}", header);
+			return Err(EngineError::BadExtraDataFieldSize(OutOfBounds {
+				min: Some(0),
+				max: Some(VANITY_LENGTH),
+				found: header.extra_data().len()
+			}))?;
 		}
 		// vanity
 		{
@@ -529,60 +532,92 @@ impl Engine<EthereumMachine> for Clique {
 
 		// Don't waste time checking blocks from the future
 		{
-			let limit = SystemTime::now().duration_since(UNIX_EPOCH).unwrap_or_default().as_secs() + self.period;
-			if header.timestamp() > limit {
-				return Err(Box::new(
-					format!("Block is too far in the future, timestamp: {}, limit: {}", header.timestamp(), limit)
-				).into());
+			// TODO(niklasad): checked_add
+			let limit = SystemTime::now().duration_since(UNIX_EPOCH).unwrap_or_default() + Duration::from_secs(self.period);
+			let hdr = Duration::from_secs(header.timestamp());
+			if hdr > limit {
+				return Err(BlockError::TemporarilyInvalid(OutOfBounds {
+					min: None,
+					max: Some(UNIX_EPOCH + limit),
+					found: UNIX_EPOCH + Duration::from_secs(header.timestamp()),
+				}))?;
 			}
 		}
 
 		let is_checkpoint = header.number() % self.epoch_length == 0;
 
 		if is_checkpoint && *header.author() != NULL_AUTHOR {
-			return Err(Box::new("Checkpoint block must enforce zero beneficiary").into());
+			return Err(EngineError::CliqueWrongAuthorCheckpoint(Mismatch {
+				expected: 0.into(),
+				found: *header.author(),
+			}))?;
 		}
+
+		let seal_fields = header.decode_seal::<Vec<_>>()?;
+		if seal_fields.len() != 2 {
+			Err(BlockError::InvalidSealArity(Mismatch {
+				expected: 2,
+				found: seal_fields.len(),
+			}))?
+		}
+
+		let mixhash: H256 = seal_fields[0].into();
+		let nonce: H64 = seal_fields[1].into();
 
 		// Nonce must be 0x00..0 or 0xff..f
-		let seal_fields = header.decode_seal::<Vec<_>>()?;
-		let mixhash = seal_fields.get(0).ok_or("No mixhash field.")?;
-		let nonce = seal_fields.get(1).ok_or("No nonce field.")?;
-		if *nonce != NONCE_DROP_VOTE && *nonce != NONCE_AUTH_VOTE {
-			return Err(Box::new("nonce must be 0x00..0 or 0xff..f").into());
-		}
-		if is_checkpoint && *nonce != NULL_NONCE {
-			return Err(Box::new("Checkpoint block must have zero nonce").into());
+		if nonce != NONCE_DROP_VOTE && nonce != NONCE_AUTH_VOTE {
+			Err(EngineError::CliqueInvalidNonce(nonce))?;
 		}
 
-		// Ensure that the extra-data contains a signer list on checkpoint, but none otherwise.
-		if (!is_checkpoint && header.extra_data().len() != (VANITY_LENGTH + SIGNATURE_LENGTH))
-			|| (is_checkpoint && header.extra_data().len() <= (VANITY_LENGTH + SIGNATURE_LENGTH))
-			|| (is_checkpoint && (header.extra_data().len() - (VANITY_LENGTH + SIGNATURE_LENGTH)) % ADDRESS_LENGTH != 0) {
-			return Err(Box::new(format!("Invalid extra_data length, got {}", header.extra_data().len())).into());
+		if is_checkpoint && nonce != NULL_NONCE {
+			Err(EngineError::CliqueInvalidNonce(nonce))?;
 		}
 
 		// Ensure that the mix digest is zero as Clique don't have fork protection currently
-		if *mixhash != NULL_MIXHASH {
-			return Err(Box::new("mixhash must be 0x00..0 or 0xff..f.").into());
+		if mixhash != NULL_MIXHASH {
+			Err(BlockError::MismatchedH256SealElement(Mismatch {
+				expected: NULL_MIXHASH,
+				found: mixhash,
+			}))?
+		}
+
+		let extra_data_len = header.extra_data().len();
+
+		if extra_data_len < VANITY_LENGTH {
+			Err(EngineError::CliqueMissingVanity)?
+		}
+
+		if extra_data_len < VANITY_LENGTH + SIGNATURE_LENGTH {
+			Err(EngineError::CliqueMissingSignature)?
+		}
+
+		let signers = extra_data_len - (VANITY_LENGTH + SIGNATURE_LENGTH);
+
+		// Checkpoint blocks must at least contain one signer
+		if is_checkpoint && signers == 0 {
+			Err(EngineError::CliqueCheckpointNoSigner)?
+		}
+
+		// Addresses must be be divisable by 20
+		if is_checkpoint && signers % ADDRESS_LENGTH != 0 {
+			Err(EngineError::CliqueCheckpointInvalidSigners(signers))?
 		}
 
 		// Ensure that the block doesn't contain any uncles which are meaningless in PoA
 		if *header.uncles_hash() != NULL_UNCLES_HASH {
-			return Err(Box::new(format!(
-				"Invalid uncle hash, got: {}, expected: {}.",
-				header.uncles_hash(),
-				NULL_UNCLES_HASH,
-			)).into());
+			Err(BlockError::InvalidUnclesHash(Mismatch {
+				expected: NULL_UNCLES_HASH,
+				found: *header.uncles_hash(),
+			}))?
 		}
 
 		// Ensure that the block's difficulty is meaningful (may not be correct at this point)
 		if *header.difficulty() != DIFF_INTURN && *header.difficulty() != DIFF_NOTURN {
-			return Err(Box::new(format!(
-				"invalid difficulty: expected {} or {}, got: {}.",
-				DIFF_INTURN,
-				DIFF_NOTURN,
-				header.difficulty(),
-			)).into());
+			Err(BlockError::DifficultyOutOfBounds(OutOfBounds {
+				min: Some(DIFF_NOTURN),
+				max: Some(DIFF_INTURN),
+				found: *header.difficulty(),
+			}))?
 		}
 
 		// All basic checks passed, continue to next phase
@@ -604,12 +639,16 @@ impl Engine<EthereumMachine> for Clique {
 
 		// parent sanity check
 		if parent.hash() != *header.parent_hash() || header.number() != parent.number() + 1 {
-			return Err(Box::new("invalid parent").into());
+			Err(BlockError::UnknownParent(parent.hash()))?
 		}
 
 		// Ensure that the block's timestamp isn't too close to it's parent
 		if parent.timestamp().saturating_add(self.period) > header.timestamp() {
-			return Err(Box::new("invalid timestamp").into());
+			Err(BlockError::InvalidTimestamp(OutOfBounds {
+				min: Some(UNIX_EPOCH + Duration::from_secs(parent.timestamp().saturating_add(self.period))),
+				max: None,
+				found: UNIX_EPOCH + Duration::from_secs(header.timestamp())
+			}))?
 		}
 
 		// Retrieve the parent state
@@ -633,42 +672,41 @@ impl Engine<EthereumMachine> for Clique {
 	}
 
 	// Our task here is to set difficulty
+	// TODO:(niklasad1): Return `Result<(), Error>` here instead
 	fn populate_from_parent(&self, header: &mut Header, parent: &Header) {
 		// TODO(https://github.com/paritytech/parity-ethereum/issues/10410): this is a horrible hack,
 		// it is due to the fact that enact and miner both use OpenBlock::new() which will both call
 		// this function. more refactoring is definitely needed.
-		match header.extra_data().len() >= VANITY_LENGTH + SIGNATURE_LENGTH {
-			true => {
-				// we are importing blocks, do nothing.
-			}
-			false => {
-				trace!(target: "engine", "populate_from_parent in sealing");
+		if header.extra_data().len() < VANITY_LENGTH + SIGNATURE_LENGTH {
+			trace!(target: "engine", "populate_from_parent in sealing");
 
-				// It's unclear how to prevent creating new blocks unless we are authorized, the best way (and geth does this too)
-				// it's just to ignore setting an correct difficulty here, we will check authorization in next step in generate_seal anyway.
-				if let Some(signer) = self.signer.read().as_ref() {
-					match self.state(&parent) {
-						Err(e) => {
-							trace!(target: "engine", "populate_from_parent: Unable to find parent state: {}, ignored.", e);
-						}
-						Ok(state) => {
-							if state.is_authorized(&signer.address()) {
-								if state.is_inturn(header.number(), &signer.address()) {
-									header.set_difficulty(DIFF_INTURN);
-								} else {
-									header.set_difficulty(DIFF_NOTURN);
-								}
-							}
-						}
+			let state = match self.state(&parent) {
+				Err(e) =>  {
+					trace!(target: "engine", "populate_from_parent: Unable to find parent state: {}, ignored.", e);
+					return;
+				}
+				Ok(state) => state,
+			};
+
+
+			// It's unclear how to prevent creating new blocks unless we are authorized, the best way (and geth does this too)
+			// it's just to ignore setting an correct difficulty here, we will check authorization in next step in generate_seal anyway.
+			if let Some(signer) = self.signer.read().as_ref() {
+				if state.is_authorized(&signer.address()) {
+					if state.is_inturn(header.number(), &signer.address()) {
+						header.set_difficulty(DIFF_INTURN);
+					} else {
+						header.set_difficulty(DIFF_NOTURN);
 					}
 				}
+			} else {
+				trace!(target: "engine", "populate_from_parent: no signer registered");
 			}
 		}
 	}
 
 	fn set_signer(&self, signer: Box<EngineSigner>) {
 		trace!(target: "engine", "set_signer: {}", signer.address());
-
 		*self.signer.write() = Some(signer);
 	}
 
