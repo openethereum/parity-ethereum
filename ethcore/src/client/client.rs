@@ -2526,9 +2526,11 @@ impl SnapshotClient for Client {}
 
 impl Drop for Client {
 	fn drop(&mut self) {
-		Arc::get_mut(&mut self.engine)
-			.and_then(|x| Some(x.stop()))
-			.or_else(|| { trace!(target: "shutdown", "unable to get mut ref for engine for shutdown."); None });
+		if let Some(c) = Arc::get_mut(&mut self.engine) {
+			c.stop()
+		} else {
+			trace!(target: "shutdown", "unable to get mut ref for engine for shutdown.");
+		}
 	}
 }
 

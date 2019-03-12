@@ -17,8 +17,9 @@
 use ethereum_types::{Address, H256};
 use lru_cache::LruCache;
 use parking_lot::RwLock;
+use rlp::encode;
 
-use engines::clique::{SIGNER_SIG_LENGTH, SIGNER_VANITY_LENGTH};
+use engines::clique::{ADDRESS_LENGTH, SIGNATURE_LENGTH, VANITY_LENGTH, NULL_NONCE, NULL_MIXHASH};
 use error::Error;
 use ethkey::{public_to_address, recover as ec_recover, Signature};
 use types::header::Header;
@@ -41,21 +42,27 @@ pub fn recover_creator(header: &Header) -> Result<Address, Error> {
 	}
 
 	let data = header.extra_data();
-	if data.len() < SIGNER_VANITY_LENGTH + SIGNER_SIG_LENGTH {
+	if data.len() < VANITY_LENGTH + SIGNATURE_LENGTH {
 		return Err(From::from("extra_data length is not enough!"));
 	}
 
-	let mut sig_data = data[data.len() - SIGNER_SIG_LENGTH..].to_vec();
-	sig_data.resize(SIGNER_SIG_LENGTH, 0);
+	// Get vanity and signature data from `header.extra_data`
+	// Note, this shouldn't have a list of signers because this is only called on `non-checkpoints`
+	let (vanity_slice, signature_slice) = data.split_at(data.len() - SIGNATURE_LENGTH);
 
-	let mut sig = [0; SIGNER_SIG_LENGTH];
-	sig.copy_from_slice(&sig_data[..]);
+	// convert `&[u8]` to `[u8; 65]`
+	let signature = {
+		let mut s = [0; SIGNATURE_LENGTH];
+		s.copy_from_slice(signature_slice);
+		s
+	};
 
-	let reduced_header = &mut header.clone();
-	reduced_header.set_extra_data(data[..data.len() - SIGNER_SIG_LENGTH].to_vec());
+	// modify header and hash it
+	let unsigned_header = &mut header.clone();
+	unsigned_header.set_extra_data(vanity_slice.to_vec());
+	let msg = unsigned_header.hash();
 
-	let msg = reduced_header.hash();
-	let pubkey = ec_recover(&Signature::from(sig), &msg)?;
+	let pubkey = ec_recover(&Signature::from(signature), &msg)?;
 	let creator = public_to_address(&pubkey);
 
 	cache.insert(header.hash(), creator.clone());
@@ -73,15 +80,14 @@ pub fn recover_creator(header: &Header) -> Result<Address, Error> {
 pub fn extract_signers(header: &Header) -> Result<Vec<Address>, Error> {
 	let data = header.extra_data();
 
-	if data.len() <= SIGNER_VANITY_LENGTH + SIGNER_SIG_LENGTH {
+	if data.len() <= VANITY_LENGTH + SIGNATURE_LENGTH {
 		return Err(Box::new("Invalid extra_data size.").into());
 	}
 
 	// extract only the portion of extra_data which includes the signer list
-	let signers_raw = &data[(SIGNER_VANITY_LENGTH)..data.len() - (SIGNER_SIG_LENGTH)];
+	let signers_raw = &data[(VANITY_LENGTH)..data.len() - (SIGNATURE_LENGTH)];
 
-	let address_length = 20;
-	if signers_raw.len() % address_length != 0 {
+	if signers_raw.len() % ADDRESS_LENGTH != 0 {
 		return Err(Box::new("bad signer list.").into());
 	}
 
@@ -90,7 +96,7 @@ pub fn extract_signers(header: &Header) -> Result<Vec<Address>, Error> {
 
 	for i in 0..num_signers {
 		let mut signer = Address::default();
-		signer.copy_from_slice(&signers_raw[i * address_length..(i + 1) * address_length]);
+		signer.copy_from_slice(&signers_raw[i * ADDRESS_LENGTH..(i + 1) * ADDRESS_LENGTH]);
 		signers_list.push(signer);
 	}
 
@@ -98,4 +104,8 @@ pub fn extract_signers(header: &Header) -> Result<Vec<Address>, Error> {
 	signers_list.sort();
 
 	Ok(signers_list)
+}
+
+pub fn null_seal() -> Vec<Vec<u8>> {
+	vec![encode(&NULL_MIXHASH.to_vec()), encode(&NULL_NONCE.to_vec())]
 }

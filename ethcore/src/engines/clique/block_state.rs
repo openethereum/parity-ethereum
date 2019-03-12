@@ -15,24 +15,50 @@
 // along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
 use std::collections::{HashMap, VecDeque};
-use std::time::{Duration, SystemTime};
-use std::time::UNIX_EPOCH;
+use std::fmt;
+use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
+use engines::clique::util::{extract_signers, recover_creator};
+use engines::clique::{VoteType, DIFF_INTURN, DIFF_NOTURN, NULL_AUTHOR, SIGNING_DELAY_NOTURN_MS};
+use error::Error;
 use ethereum_types::Address;
 use rand::Rng;
-
-use engines::clique::{VoteType, DIFF_INTURN, DIFF_NOTURN, NULL_AUTHOR, SIGNING_DELAY_NOTURN_MS};
-use engines::clique::util::{extract_signers, recover_creator};
-use error::Error;
+use types::BlockNumber;
 use types::header::Header;
 
+/// Type that keeps track of the state for a given vote
+// Votes that go against the proposal aren't counted since it's equivalent to not voting
+#[derive(Copy, Clone, Debug, PartialEq, PartialOrd)]
+pub struct VoteState {
+	kind: VoteType,
+	votes: u64,
+}
+
+/// Type that represent a vote
+#[derive(Copy, Clone, Debug, PartialEq, PartialOrd)]
+pub struct Vote {
+	block_number: BlockNumber,
+	beneficiary: Address,
+	kind: VoteType,
+	signer: Address,
+	reverted: bool,
+}
+
+/// Type that represent a pending vote
+#[derive(Copy, Clone, Debug, Eq, Hash, PartialEq, PartialOrd)]
+pub struct PendingVote {
+	signer: Address,
+	beneficiary: Address,
+}
+
 /// Clique state for each block.
+#[cfg(not(test))]
 #[derive(Clone, Debug, Default)]
 pub struct CliqueBlockState {
-	/// all recorded votes before this blocks, k: (Voter, beneficiary), v: VoteType
-	votes: HashMap<(Address, Address), VoteType>,
-	/// a list of all vote happened before this block, item is an 4 item tuple: blockNumber, Voter, VoteType, beneficiary
-	votes_history: Vec<(u64, Address, VoteType, Address)>,
+	/// Current votes for a beneficiary
+	votes: HashMap<PendingVote, VoteState>,
+	/// A list of all votes for the given epoch
+	votes_history: Vec<Vote>,
 	/// a list of all valid signer, sorted by ascending order.
 	signers: Vec<Address>,
 	/// a deque of recent signer, new entry should be pushed front, apply() modifies this.
@@ -41,6 +67,48 @@ pub struct CliqueBlockState {
 	pub next_timestamp_inturn: Option<SystemTime>,
 	/// noturn signing should wait until this time
 	pub next_timestamp_noturn: Option<SystemTime>,
+}
+
+#[cfg(test)]
+#[derive(Clone, Debug, Default)]
+pub struct CliqueBlockState {
+	/// All recorded votes for a given signer, `Vec<PendingVote>` is a stack of votes
+	pub votes: HashMap<PendingVote, VoteState>,
+	/// A list of all votes for the given epoch
+	pub votes_history: Vec<Vote>,
+	/// a list of all valid signer, sorted by ascending order.
+	pub signers: Vec<Address>,
+	/// a deque of recent signer, new entry should be pushed front, apply() modifies this.
+	pub recent_signers: VecDeque<Address>,
+	/// inturn signing should wait until this time
+	pub next_timestamp_inturn: Option<SystemTime>,
+	/// noturn signing should wait until this time
+	pub next_timestamp_noturn: Option<SystemTime>,
+}
+
+impl fmt::Display for CliqueBlockState {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+		let signers: Vec<String> = self.signers.iter()
+			.map(|s|
+				 format!("{} {:?}",
+					s,
+					self.votes.iter().map(|(v, s)| format!("[beneficiary {}, votes: {}]", v.beneficiary, s.votes))
+					.collect::<Vec<_>>()
+				)
+			)
+			.collect();
+
+		let recent_signers: Vec<String> = self.recent_signers.iter().map(|s| format!("{}", s)).collect();
+		let num_votes = self.votes_history.len();
+		let add_votes = self.votes_history.iter().filter(|v| v.kind == VoteType::Add).count();
+		let rm_votes = self.votes_history.iter().filter(|v| v.kind == VoteType::Remove).count();
+		let reverted_votes = self.votes_history.iter().filter(|v| v.reverted).count();
+
+        write!(f,
+			"Votes {{ \n signers: {:?} \n recent_signers: {:?} \n number of votes: {} \n number of add votes {}
+			\r number of remove votes {} \n number of reverted votes: {}}}",
+			signers, recent_signers, num_votes, add_votes, rm_votes, reverted_votes)
+    }
 }
 
 impl CliqueBlockState {
@@ -53,12 +121,12 @@ impl CliqueBlockState {
 	}
 
 	// see https://github.com/ethereum/go-ethereum/blob/master/consensus/clique/clique.go#L474
-	fn verify(&self, header: &Header) -> Result<(Address), Error>{
+	fn verify(&self, header: &Header) -> Result<Address, Error> {
 		let creator = recover_creator(header)?.clone();
 
 		// Check signer list
 		if !self.signers.contains(&creator) {
-			trace!(target: "engine", "current state: {:?}", self);
+			trace!(target: "engine", "current state: {}", self);
 			return Err(From::from(format!("Error applying #{}({}): {} is not in the signer list!",
 											header.number(),
 											header.hash(),
@@ -67,7 +135,7 @@ impl CliqueBlockState {
 
 		// Check recent signer.
 		if self.recent_signers.contains(&creator) {
-			trace!(target: "engine", "current state: {:?}", self);
+			trace!(target: "engine", "current state: {}", self);
 			return Err(From::from(format!("Error applying #{}({}): {} is in the recent_signer list!",
 											header.number(),
 											header.hash(),
@@ -90,12 +158,8 @@ impl CliqueBlockState {
 	/// Verify and apply an new header to current state, might fail with error.
 	pub fn apply(&mut self, header: &Header, is_checkpoint: bool) -> Result<Address, Error> {
 		let creator = self.verify(header)?;
-
-		// rotate recent signers.
 		self.recent_signers.push_front(creator);
-		if self.recent_signers.len() >= ( self.signers.len() / 2 ) + 1 {
-			self.recent_signers.pop_back();
-		}
+		self.rotate_recent_signers();
 
 		if is_checkpoint {
 			// checkpoint block should not affect previous tallying, so we check that.
@@ -104,69 +168,86 @@ impl CliqueBlockState {
 				return Err(From::from("checkpoint block signers is different than expected"));
 			};
 
+			// TODO(niklasad1): I'm not sure if we should shrink here because it is likely that next epoch
+			// will need some memory and might be better for allocation algorithm to decide whether to shrink or not
+			// (typically doubles or halves the allocted memory when necessary)
 			self.votes.clear();
 			self.votes_history.clear();
-
-			// maybe release some memory.
 			self.votes.shrink_to_fit();
 			self.votes_history.shrink_to_fit();
-
-			return Ok(creator);
 		}
 
-		let beneficiary = *header.author();
-
-		// No vote, ignore.
-		if beneficiary == NULL_AUTHOR {
-			return Ok(creator);
+		// Contains vote
+		if *header.author() != NULL_AUTHOR {
+			let nonce = *header.decode_seal::<Vec<_>>()?.get(1).ok_or("Error decoding seal")?;
+			self.update_signers_on_vote(VoteType::from_nonce(nonce)?, creator, *header.author(), header.number())?;
 		}
 
-		let nonce = *header.decode_seal::<Vec<&[u8]>>()?.get(1).ok_or(
-			"Error decoding seal"
-		)?;
+		Ok(creator)
+	}
 
-		let vote_type = VoteType::from_nonce(nonce)?;
+	fn update_signers_on_vote(
+		&mut self,
+		kind: VoteType,
+		signer: Address,
+		beneficiary: Address,
+		block_number: u64
+	) -> Result<(), Error> {
 
-		// Record this vote, also since we are using an hashmap, it will override previous vote.
-		self.votes.insert((creator, beneficiary), vote_type);
-		self.votes_history.push((header.number(), creator, vote_type, beneficiary));
+		trace!(target: "engine", "Attempt vote {:?} {:?}", kind, beneficiary);
 
-		// Tally up current target votes.
+		let pending_vote = PendingVote { signer, beneficiary };
+
+		let reverted = if self.is_valid_vote(&beneficiary, kind) {
+			self.add_vote(pending_vote, kind)
+		} else {
+			// This case only happens if a `signer` wants to revert their previous vote
+			// (does nothing if no previous vote was found)
+			self.revert_vote(pending_vote)
+		};
+
+		// Add all votes to the history
+		self.votes_history.push(
+			Vote {
+			block_number,
+			beneficiary,
+			kind,
+			signer,
+			reverted,
+		});
+
+		// If no vote was found for the beneficiary return `early` but don't propogate an error
+		let (votes, vote_kind) = match self.get_current_votes_and_kind(beneficiary) {
+			Some((v, k)) => (v, k),
+			None => return Ok(()),
+		};
 		let threshold = self.signers.len() / 2;
-		let vote = self.votes.iter().filter(|(key, value)| {
-			(**key).1 == beneficiary && **value == vote_type
-		}).count();
 
-		if vote > threshold {
-			match vote_type {
+		debug!(target: "engine", "{}/{} votes to have consensus", votes, threshold + 1);
+		trace!(target: "engine", "votes: {:?}", votes);
+
+		if votes > threshold {
+			match vote_kind {
 				VoteType::Add => {
+					debug!(target: "engine", "added new signer: {}", beneficiary);
 					self.signers.push(beneficiary);
-				},
+				}
 				VoteType::Remove => {
 					let pos = self.signers.binary_search(&beneficiary)
 						.map_err(|_| "Unable to find beneficiary in signer list when removing".to_string())?;
+					debug!(target: "engine", "removed signer: {}", beneficiary);
 					self.signers.remove(pos);
 				}
 			}
 
 			// signers are highly likely to be < 10.
+			// TODO(niklasad1): only sort when `adding` new signers
 			self.signers.sort();
-
-			// Remove all votes about or made by this beneficiary
-			{
-				let items: Vec<_> = self.votes.keys()
-					.filter(|key| (**key).0 == beneficiary || (**key).1 == beneficiary)
-					.cloned()
-					.collect();
-
-				for key in items {
-					self.votes.remove(&key);
-				}
-			}
+			self.rotate_recent_signers();
+			self.remove_all_votes_from(beneficiary);
 		}
 
-		// No cascading votes.
-		Ok(creator)
+		Ok(())
 	}
 
 	pub fn calc_next_timestamp(&mut self, header: &Header, period: u64) {
@@ -190,17 +271,71 @@ impl CliqueBlockState {
 		self.signers.contains(author) && !self.recent_signers.contains(author)
 	}
 
-	// returns whether it makes sense to cast the specified vote in the
+	// Returns whether it makes sense to cast the specified vote in the
 	// current state (e.g. don't try to add an already authorized signer).
 	pub fn is_valid_vote(&self, address: &Address, vote_type: VoteType) -> bool {
-		let res = self.signers.binary_search(address);
+		let in_signer = self.signers.contains(address);
 		match vote_type {
-			VoteType::Add => res.is_ok(),
-			VoteType::Remove => res.is_err(),
+			VoteType::Add => !in_signer,
+			VoteType::Remove => in_signer,
 		}
 	}
 
 	pub fn signers(&self) -> &Vec<Address> {
 		return &self.signers;
+	}
+
+	// Note this method will always return `true` but it is intended for a unifrom `API`
+	fn add_vote(&mut self, pending_vote: PendingVote, kind: VoteType) -> bool {
+
+		self.votes.entry(pending_vote)
+			.and_modify(|state| {
+				state.votes = state.votes.saturating_add(1);
+			})
+			.or_insert_with(|| VoteState { kind, votes: 1 });
+		true
+	}
+
+	fn revert_vote(&mut self, pending_vote: PendingVote) -> bool {
+		let mut revert = false;
+		let mut remove = false;
+
+		self.votes.entry(pending_vote).and_modify(|state| {
+			if state.votes.saturating_sub(1) == 0 {
+				remove = true;
+			}
+			revert = true;
+		});
+
+		if remove {
+			self.votes.remove(&pending_vote);
+		}
+
+		revert
+	}
+
+	fn get_current_votes_and_kind(&self, beneficiary: Address) -> Option<(usize, VoteType)> {
+		let kind = self.votes.iter()
+			.find(|(v, _t)| v.beneficiary == beneficiary)
+			.map(|(_v, t)| t.kind)?;
+
+		let votes = self.votes.keys()
+			.filter(|vote| vote.beneficiary == beneficiary)
+			.count();
+
+		Some((votes, kind))
+	}
+
+	fn rotate_recent_signers(&mut self) {
+		if self.recent_signers.len() >= ( self.signers.len() / 2 ) + 1 {
+			self.recent_signers.pop_back();
+		}
+	}
+
+	fn remove_all_votes_from(&mut self, beneficiary: Address) {
+		self.votes = std::mem::replace(&mut self.votes, HashMap::new())
+			.into_iter()
+			.filter(|(v, _t)| v.signer != beneficiary && v.beneficiary != beneficiary)
+			.collect();
 	}
 }

@@ -38,10 +38,10 @@
 /// 1. implement `engine.set_signer()`. on startup, if miner account was setup on config/cli,
 ///    `miner.set_author()` which will eventually be pass to here.
 /// 2. make `engine.seals_internally()` return Some(true).
-/// 3. on Clique::new setup IOService that impalement an timer that just calls `engine.step()`,
+/// 3. on Clique::new setup IOService that implement an timer that just calls `engine.step()`,
 ///    which just calls `engine.client.update_sealing()` which triggers generating an new block.
 /// 4. `engine.generate_seal()` will be called by miner, which should return either Seal::None or Seal:Regular.
-///   a. return `Seal::None` if no signer or signer is not authorized.
+///   a. return `Seal::None` if no signer is available or the signer is not authorized.
 ///   b. if period == 0 and block has transactions -> Seal::Regular, else Seal::None
 ///   c. if we INTURN, wait for at least `period` since last block, otherwise wait for an random using algorithm as
 ///      specified in the EIP.
@@ -54,49 +54,51 @@
 ///    the new block.
 
 use std::cmp;
+use std::collections::HashMap;
 use std::collections::VecDeque;
 use std::sync::{Arc, Weak};
+use std::thread;
 use std::time;
-use std::time::SystemTime;
-use std::time::UNIX_EPOCH;
+use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
+use block::{ExecutedBlock, IsBlock};
+use client::{BlockId, EngineClient};
+use engines::clique::util::{extract_signers, recover_creator};
+use engines::{Engine, Seal};
+use error::Error;
 use ethereum_types::{Address, H160, H256, U256};
+use ethkey::Signature;
 use hash::KECCAK_EMPTY_LIST_RLP;
 use itertools::Itertools;
 use lru_cache::LruCache;
-use parking_lot::RwLock;
-use rlp::encode;
-
-use block::*;
-use client::{BlockId, EngineClient};
-use engines::{Engine, Seal};
-use engines::clique::util::{extract_signers, recover_creator};
-use error::Error;
-use ethkey::Signature;
 use machine::{Call, EthereumMachine};
+use parking_lot::RwLock;
+use rand::Rng;
+use rlp::encode;
+use super::signer::EngineSigner;
 use types::BlockNumber;
 use types::header::{ExtendedHeader, Header};
-
-use super::signer::EngineSigner;
 
 use self::block_state::CliqueBlockState;
 use self::params::CliqueParams;
 use self::step_service::StepService;
-use std::collections::HashMap;
-use rand::Rng;
-use std::thread;
-use std::time::Duration;
 
 mod params;
 mod block_state;
 mod step_service;
 mod util;
 
+// TODO(niklasad1): extract tester types into a separate mod to be shared in the code base
+#[cfg(test)]
+mod tests;
+
 // protocol constants
 /// Fixed number of extra-data prefix bytes reserved for signer vanity
-pub const SIGNER_VANITY_LENGTH: usize = 32;
+pub const VANITY_LENGTH: usize = 32;
 /// Fixed number of extra-data suffix bytes reserved for signer signature
-pub const SIGNER_SIG_LENGTH: usize = 65;
+pub const SIGNATURE_LENGTH: usize = 65;
+/// Address length of signer
+pub const ADDRESS_LENGTH: usize = 20;
 /// Nonce value for DROP vote
 pub const NONCE_DROP_VOTE: &[u8] = &[0x00; 8];
 /// Nonce value for AUTH vote
@@ -116,7 +118,8 @@ pub const NULL_UNCLES_HASH: H256 = KECCAK_EMPTY_LIST_RLP;
 /// Default noturn block wiggle factor defined in spec.
 pub const SIGNING_DELAY_NOTURN_MS: u64 = 500;
 
-#[derive(PartialEq, Clone, Debug, Copy)]
+/// Vote to add or remove the beneficiary
+#[derive(Copy, Clone, Debug, PartialEq, PartialOrd)]
 pub enum VoteType {
 	Add,
 	Remove,
@@ -130,6 +133,14 @@ impl VoteType {
 			_ => Err(From::from("nonce was not AUTH or DROP"))
 		}
 	}
+
+	/// Get the rlp encoding of the vote
+	pub fn as_rlp(&self) -> Vec<Vec<u8>> {
+		match self {
+			VoteType::Add => vec![encode(&NULL_MIXHASH.to_vec()), encode(&NONCE_AUTH_VOTE.to_vec())],
+			VoteType::Remove => vec![encode(&NULL_MIXHASH.to_vec()), encode(&NONCE_DROP_VOTE.to_vec())],
+		}
+	}
 }
 
 // Caches
@@ -138,6 +149,7 @@ pub const STATE_CACHE_NUM: usize = 128;
 
 /// Clique Engine implementation
 /// block_state_by_hash -> block state indexed by header hash.
+#[cfg(not(test))]
 pub struct Clique {
 	epoch_length: u64,
 	period: u64,
@@ -149,27 +161,59 @@ pub struct Clique {
 	step_service: Option<Arc<StepService>>,
 }
 
+#[cfg(test)]
+/// Test version of `CliqueEngine` to make all fields public
+pub struct Clique {
+	pub epoch_length: u64,
+	pub period: u64,
+	pub machine: EthereumMachine,
+	pub client: RwLock<Option<Weak<EngineClient>>>,
+	pub block_state_by_hash: RwLock<LruCache<H256, CliqueBlockState>>,
+	pub proposals: RwLock<HashMap<Address, VoteType>>,
+	pub signer: RwLock<Option<Box<EngineSigner>>>,
+	pub step_service: Option<Arc<StepService>>,
+}
+
 impl Clique {
 	/// Initialize Clique engine from empty state.
 	pub fn new(our_params: CliqueParams, machine: EthereumMachine) -> Result<Arc<Self>, Error> {
 		let mut engine = Clique {
 			epoch_length: our_params.epoch,
 			period: our_params.period,
-			client: RwLock::new(Option::default()),
+			client: Default::default(),
 			block_state_by_hash: RwLock::new(LruCache::new(STATE_CACHE_NUM)),
-			proposals: RwLock::new(Default::default()),
-			signer: RwLock::new(Default::default()),
+			proposals: Default::default(),
+			signer: Default::default(),
 			machine,
 			step_service: None,
 		};
 
-		let res =  Arc::new(engine);
+		let res = Arc::new(engine);
 
 		if our_params.period > 0 {
 			engine.step_service = Some(StepService::start(Arc::downgrade(&res) as Weak<Engine<_>>));
 		}
 
 		Ok(res)
+	}
+
+	#[cfg(test)]
+	/// Initialize test variant of `CliqueEngine`,
+	/// Note we need to `mock` the miner and it is introduced to test block verification to trigger new blocks
+	/// to mainly test consensus edge cases
+	pub fn with_test(epoch_length: u64, period: u64) -> Self {
+		use spec::Spec;
+
+		Self {
+			epoch_length,
+			period,
+			client: Default::default(),
+			block_state_by_hash: RwLock::new(LruCache::new(STATE_CACHE_NUM)),
+			proposals: Default::default(),
+			signer: Default::default(),
+			machine: Spec::new_test_machine(),
+			step_service: None,
+		}
 	}
 
 	fn sign_header(&self, header: &Header) -> Result<(Signature, H256), Error> {
@@ -204,10 +248,10 @@ impl Clique {
 	}
 
 	fn state_no_backfill(&self, hash: &H256) -> Option<CliqueBlockState> {
-		return self.block_state_by_hash.write().get_mut(hash).cloned();
+		self.block_state_by_hash.write().get_mut(hash).cloned()
 	}
 
-	/// get CliqueBlockState for given header, backfill from last checkpoint if needed.
+	/// Get `CliqueBlockState` for given header, backfill from last checkpoint if needed.
 	fn state(&self, header: &Header) -> Result<CliqueBlockState, Error> {
 		let mut block_state_by_hash = self.block_state_by_hash.write();
 		if let Some(state) = block_state_by_hash.get_mut(&header.hash()) {
@@ -236,7 +280,7 @@ impl Clique {
 
 				// populate chain to last checkpoint
 				loop {
-					let (last_parent_hash, last_hash, last_num)  = {
+					let (last_parent_hash, last_hash, last_num) = {
 						let l = chain.front().expect("chain has at least one element; qed");
 						(*l.parent_hash(), l.hash(), l.number())
 					};
@@ -257,7 +301,7 @@ impl Clique {
 				// Catching up state, note that we don't really store block state for intermediary blocks,
 				// for speed.
 				let backfill_start = time::Instant::now();
-				info!(target: "engine",
+				trace!(target: "engine",
 						"Back-filling block state. last_checkpoint_number: {}, target: {}({}).",
 						last_checkpoint_number, header.number(), header.hash());
 
@@ -338,6 +382,7 @@ impl Engine<EthereumMachine> for Clique {
 
 		// cast an random Vote if not checkpoint
 		if !is_checkpoint {
+			// TODO(niklasad1): this will always be false because `proposals` is never written to
 			let votes = self.proposals.read().iter()
 				.filter(|(address, vote_type)| state.is_valid_vote(*address, **vote_type))
 				.map(|(address, vote_type)| (*address, *vote_type))
@@ -351,29 +396,21 @@ impl Engine<EthereumMachine> for Clique {
 				trace!(target: "engine", "Casting vote: beneficiary {}, type {:?} ", beneficiary, vote_type);
 
 				header.set_author(beneficiary);
-
-				header.set_seal(
-					match vote_type {
-						VoteType::Add => { vec!(encode(&NULL_MIXHASH.to_vec()), encode(&NONCE_AUTH_VOTE.to_vec())) }
-						VoteType::Remove => { vec!(encode(&NULL_MIXHASH.to_vec()), encode(&NONCE_DROP_VOTE.to_vec())) }
-					}
-				)
+				header.set_seal(vote_type.as_rlp());
 			}
 		}
 
 		// Work on clique seal.
 
-		let mut seal: Vec<u8> = Vec::with_capacity(SIGNER_VANITY_LENGTH + SIGNER_SIG_LENGTH);
+		let mut seal: Vec<u8> = Vec::with_capacity(VANITY_LENGTH + SIGNATURE_LENGTH);
 
 		// At this point, extra_data should only contain miner vanity.
-		if header.extra_data().len() > SIGNER_VANITY_LENGTH {
-			panic!("on_seal_block: unexpected extra extra_data: {:?}", header);
+		if header.extra_data().len() > VANITY_LENGTH {
+			panic!("on_seal_block: unexpected extra_data: {:?}", header);
 		}
 		// vanity
 		{
-			let mut vanity = header.extra_data()[0..SIGNER_VANITY_LENGTH - 1].to_vec();
-			vanity.resize(SIGNER_VANITY_LENGTH, 0u8);
-			seal.extend_from_slice(&vanity[..]);
+			seal.extend_from_slice(&header.extra_data()[0..VANITY_LENGTH]);
 		}
 
 		// If we are building an checkpoint block, add all signers now.
@@ -411,9 +448,8 @@ impl Engine<EthereumMachine> for Clique {
 
 	/// Returns if we are ready to seal, the real sealing (signing extra_data) is actually done in `on_seal_block()`.
 	fn generate_seal(&self, block: &ExecutedBlock, parent: &Header) -> Seal {
-		let null_seal = vec!(encode(&NULL_MIXHASH.to_vec()), encode(&NULL_NONCE.to_vec()));
-
-		trace!(target: "engine", "tried to generate seal");
+		trace!(target: "engine", "tried to generate_seal");
+		let null_seal = util::null_seal();
 
 		if block.header.number() == 0 {
 			trace!(target: "engine", "attempted to seal genesis block");
@@ -430,6 +466,7 @@ impl Engine<EthereumMachine> for Clique {
 
 		// Check we actually have authority to seal.
 		if let Some(author) = self.signer.read().as_ref().map(|x| x.address()) {
+
 			// ensure the voting state exists
 			match self.state(&parent) {
 				Err(e) => {
@@ -507,7 +544,7 @@ impl Engine<EthereumMachine> for Clique {
 		}
 
 		// Nonce must be 0x00..0 or 0xff..f
-		let seal_fields = header.decode_seal::<Vec<&[u8]>>()?;
+		let seal_fields = header.decode_seal::<Vec<_>>()?;
 		let mixhash = seal_fields.get(0).ok_or("No mixhash field.")?;
 		let nonce = seal_fields.get(1).ok_or("No nonce field.")?;
 		if *nonce != NONCE_DROP_VOTE && *nonce != NONCE_AUTH_VOTE {
@@ -518,10 +555,9 @@ impl Engine<EthereumMachine> for Clique {
 		}
 
 		// Ensure that the extra-data contains a signer list on checkpoint, but none otherwise.
-		let address_length = 20;
-		if (!is_checkpoint && header.extra_data().len() != (SIGNER_VANITY_LENGTH + SIGNER_SIG_LENGTH))
-			|| (is_checkpoint && header.extra_data().len() <= (SIGNER_VANITY_LENGTH + SIGNER_SIG_LENGTH))
-			|| (is_checkpoint && (header.extra_data().len() - (SIGNER_VANITY_LENGTH + SIGNER_SIG_LENGTH)) % address_length != 0) {
+		if (!is_checkpoint && header.extra_data().len() != (VANITY_LENGTH + SIGNATURE_LENGTH))
+			|| (is_checkpoint && header.extra_data().len() <= (VANITY_LENGTH + SIGNATURE_LENGTH))
+			|| (is_checkpoint && (header.extra_data().len() - (VANITY_LENGTH + SIGNATURE_LENGTH)) % ADDRESS_LENGTH != 0) {
 			return Err(Box::new(format!("Invalid extra_data length, got {}", header.extra_data().len())).into());
 		}
 
@@ -578,7 +614,6 @@ impl Engine<EthereumMachine> for Clique {
 
 		// Retrieve the parent state
 		let parent_state = self.state(&parent)?;
-
 		// Try to apply current state, apply() will further check signer and recent signer.
 		let mut new_state = parent_state.clone();
 		new_state.apply(header, header.number() % self.epoch_length == 0)?;
@@ -602,7 +637,7 @@ impl Engine<EthereumMachine> for Clique {
 		// TODO(https://github.com/paritytech/parity-ethereum/issues/10410): this is a horrible hack,
 		// it is due to the fact that enact and miner both use OpenBlock::new() which will both call
 		// this function. more refactoring is definitely needed.
-		match header.extra_data().len() >= SIGNER_VANITY_LENGTH + SIGNER_SIG_LENGTH {
+		match header.extra_data().len() >= VANITY_LENGTH + SIGNATURE_LENGTH {
 			true => {
 				// we are importing blocks, do nothing.
 			}
@@ -673,6 +708,6 @@ impl Engine<EthereumMachine> for Clique {
 
 	fn executive_author(&self, header: &Header) -> Address {
 		// Should have been verified now.
-		return recover_creator(header).expect("Unable to extract creator.");
+		recover_creator(header).expect("Unable to extract creator.")
 	}
 }
