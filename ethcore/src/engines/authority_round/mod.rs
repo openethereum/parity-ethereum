@@ -1413,8 +1413,10 @@ impl Engine<EthereumMachine> for AuthorityRound {
 
 		let first = chain_head.number() == 0;
 
-		// apply immediate transitions.
+		// Apply transitions that don't require finality and should be enacted immediately (e.g from chain spec)
 		if let Some(change) = self.validators.is_epoch_end(first, chain_head) {
+			info!(target: "engine", "Immediately applying validator set change signalled at block {}", chain_head.number());
+			self.epoch_manager.lock().note_new_epoch();
 			let change = combine_proofs(chain_head.number(), &change, &[]);
 			return Some(change)
 		}
