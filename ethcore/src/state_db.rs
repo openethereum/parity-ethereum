@@ -115,7 +115,7 @@ pub struct StateDB {
 	/// Local dirty cache.
 	local_cache: Vec<CacheQueueItem>,
 	/// Shared account bloom. Does not handle chain reorganizations.
-	account_bloom: Arc<Mutex<Bloom>>,
+	account_bloom: Bloom,
 	cache_size: usize,
 	/// Hash of the block on top of which this instance was created or
 	/// `None` if cache is disabled
@@ -146,7 +146,7 @@ impl StateDB {
 			})),
 			code_cache: Arc::new(Mutex::new(MemoryLruCache::new(code_cache_size))),
 			local_cache: Vec::new(),
-			account_bloom: Arc::new(Mutex::new(bloom)),
+			account_bloom: Arc::new(bloom),
 			cache_size: cache_size,
 			parent_hash: None,
 			commit_hash: None,
@@ -200,9 +200,8 @@ impl StateDB {
 	/// Journal all recent operations under the given era and ID.
 	pub fn journal_under(&mut self, batch: &mut DBTransaction, now: u64, id: &H256) -> io::Result<u32> {
 		{
- 			let mut bloom_lock = self.account_bloom.lock();
- 			Self::commit_bloom(batch, bloom_lock.drain_journal())?;
- 		}
+			Self::commit_bloom(batch, Arc::get_mut(&mut self.account_bloom).expect("Failed in journal under").drain_journal())?;
+		}
 		let records = self.db.journal_under(batch, now, id)?;
 		self.commit_hash = Some(id.clone());
 		self.commit_number = Some(now);
@@ -455,16 +454,14 @@ impl state::Backend for StateDB {
 		cache.get_mut(hash).map(|code| code.clone())
 	}
 
-	fn note_non_null_account(&self, address: &Address) {
+	fn note_non_null_account(&mut self, address: &Address) {
 		trace!(target: "account_bloom", "Note account bloom: {:?}", address);
-		let mut bloom = self.account_bloom.lock();
-		bloom.set(&*keccak(address));
+		Arc::get_mut(&mut self.account_bloom).expect("Failed when noting non-null account").set(&*keccak(address))
 	}
 
 	fn is_known_null(&self, address: &Address) -> bool {
 		trace!(target: "account_bloom", "Check account bloom: {:?}", address);
-		let bloom = self.account_bloom.lock();
-		let is_null = !bloom.check(&*keccak(address));
+		let is_null = !self.account_bloom.check(&*keccak(address));
 		is_null
 	}
 }
