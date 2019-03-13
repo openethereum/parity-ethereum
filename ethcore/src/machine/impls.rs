@@ -442,10 +442,6 @@ impl super::Machine for EthereumMachine {
 	}
 }
 
-impl<'a> super::LocalizedMachine<'a> for EthereumMachine {
-	type StateContext = Call<'a>;
-}
-
 // Try to round gas_limit a bit so that:
 // 1) it will still be in desired range
 // 2) it will be a nearest (with tendency to increase) multiple of PARITY_GAS_LIMIT_DETERMINANT

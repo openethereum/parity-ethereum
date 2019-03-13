@@ -49,13 +49,12 @@ use spec::CommonParams;
 use types::transaction::{self, UnverifiedTransaction, SignedTransaction};
 
 use ethkey::{Signature};
-use machine::{Machine, LocalizedMachine as Localized, AuxiliaryRequest, AuxiliaryData};
+use machine::{self, Machine, AuxiliaryRequest, AuxiliaryData};
 use ethereum_types::{H256, U256, Address};
 use unexpected::{Mismatch, OutOfBounds};
 use bytes::Bytes;
 use types::ancestry_action::AncestryAction;
 use block::ExecutedBlock;
-use machine;
 
 /// Default EIP-210 contract code.
 /// As defined in https://github.com/ethereum/EIPs/pull/210
@@ -177,8 +176,7 @@ pub type PendingTransitionStore<'a> = Fn(H256) -> Option<epoch::PendingTransitio
 /// Proof dependent on state.
 pub trait StateDependentProof<M: Machine>: Send + Sync {
 	/// Generate a proof, given the state.
-	// TODO: make this into an &M::StateContext
-	fn generate_proof<'a>(&self, state: &<M as Localized<'a>>::StateContext) -> Result<Vec<u8>, String>;
+	fn generate_proof<'a>(&self, state: &machine::Call) -> Result<Vec<u8>, String>;
 	/// Check a proof generated elsewhere (potentially by a peer).
 	// `engine` needed to check state proofs, while really this should
 	// just be state machine params.
@@ -310,7 +308,7 @@ pub trait Engine<M: Machine>: Sync + Send {
 	fn verify_block_external(&self, _header: &Header) -> Result<(), M::Error> { Ok(()) }
 
 	/// Genesis epoch data.
-	fn genesis_epoch_data<'a>(&self, _header: &Header, _state: &<M as Localized<'a>>::StateContext) -> Result<Vec<u8>, String> { Ok(Vec::new()) }
+	fn genesis_epoch_data<'a>(&self, _header: &Header, _state: &machine::Call) -> Result<Vec<u8>, String> { Ok(Vec::new()) }
 
 	/// Whether an epoch change is signalled at the given header but will require finality.
 	/// If a change can be enacted immediately then return `No` from this function but
