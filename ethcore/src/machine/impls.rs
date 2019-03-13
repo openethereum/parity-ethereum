@@ -430,7 +430,6 @@ pub enum AuxiliaryRequest {
 
 impl super::Machine for EthereumMachine {
 	type EngineClient = ::client::EngineClient;
-	type AuxiliaryRequest = AuxiliaryRequest;
 	type AncestryAction = ::types::ancestry_action::AncestryAction;
 
 	type Error = Error;

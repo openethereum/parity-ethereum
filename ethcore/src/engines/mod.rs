@@ -49,7 +49,7 @@ use spec::CommonParams;
 use types::transaction::{self, UnverifiedTransaction, SignedTransaction};
 
 use ethkey::{Signature};
-use machine::{Machine, LocalizedMachine as Localized};
+use machine::{Machine, LocalizedMachine as Localized, AuxiliaryRequest};
 use ethereum_types::{H256, U256, Address};
 use unexpected::{Mismatch, OutOfBounds};
 use bytes::Bytes;
@@ -218,7 +218,7 @@ impl<'a, M: Machine> ConstructedVerifier<'a, M> {
 /// Results of a query of whether an epoch change occurred at the given block.
 pub enum EpochChange<M: Machine> {
 	/// Cannot determine until more data is passed.
-	Unsure(M::AuxiliaryRequest),
+	Unsure(AuxiliaryRequest),
 	/// No epoch change.
 	No,
 	/// The epoch will change, with proof.
