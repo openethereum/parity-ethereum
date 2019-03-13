@@ -444,7 +444,6 @@ impl super::Machine for EthereumMachine {
 
 impl<'a> super::LocalizedMachine<'a> for EthereumMachine {
 	type StateContext = Call<'a>;
-	type AuxiliaryData = AuxiliaryData<'a>;
 }
 
 // Try to round gas_limit a bit so that:

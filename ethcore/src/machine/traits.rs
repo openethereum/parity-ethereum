@@ -39,8 +39,6 @@ pub trait Machine: for<'a> LocalizedMachine<'a> {
 /// Machine-related types localized to a specific lifetime.
 // TODO: this is a workaround for a lack of associated type constructors in the language.
 pub trait LocalizedMachine<'a>: Sync + Send {
-	/// Definition of auxiliary data associated to a specific block.
-	type AuxiliaryData: 'a;
 	/// A context providing access to the state in a controlled capacity.
 	/// Generally also provides verifiable proofs.
 	type StateContext: ?Sized + 'a;

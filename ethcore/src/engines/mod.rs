@@ -49,7 +49,7 @@ use spec::CommonParams;
 use types::transaction::{self, UnverifiedTransaction, SignedTransaction};
 
 use ethkey::{Signature};
-use machine::{Machine, LocalizedMachine as Localized, AuxiliaryRequest};
+use machine::{Machine, LocalizedMachine as Localized, AuxiliaryRequest, AuxiliaryData};
 use ethereum_types::{H256, U256, Address};
 use unexpected::{Mismatch, OutOfBounds};
 use bytes::Bytes;
@@ -321,7 +321,7 @@ pub trait Engine<M: Machine>: Sync + Send {
 	/// Return `Yes` or `No` when the answer is definitively known.
 	///
 	/// Should not interact with state.
-	fn signals_epoch_end<'a>(&self, _header: &Header, _aux: <M as Localized<'a>>::AuxiliaryData)
+	fn signals_epoch_end<'a>(&self, _header: &Header, _aux: AuxiliaryData<'a>)
 		-> EpochChange<M>
 	{
 		EpochChange::No
