@@ -15,7 +15,8 @@
 // along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
 use engines::{Engine, Seal};
-use parity_machine::{Machine, Transactions, TotalScoredHeader};
+use parity_machine::{Machine, Transactions};
+use types::header::ExtendedHeader;
 
 /// `InstantSeal` params.
 #[derive(Default, Debug, PartialEq)]
@@ -48,11 +49,7 @@ impl<M> InstantSeal<M> {
 	}
 }
 
-impl<M: Machine> Engine<M> for InstantSeal<M>
-  where M::LiveBlock: Transactions,
-        M::ExtendedHeader: TotalScoredHeader,
-        <M::ExtendedHeader as TotalScoredHeader>::Value: Ord
-{
+impl<M: Machine> Engine<M> for InstantSeal<M> where M::LiveBlock: Transactions {
 	fn name(&self) -> &str {
 		"InstantSeal"
 	}
@@ -84,7 +81,7 @@ impl<M: Machine> Engine<M> for InstantSeal<M>
 		header_timestamp >= parent_timestamp
 	}
 
-	fn fork_choice(&self, new: &M::ExtendedHeader, current: &M::ExtendedHeader) -> super::ForkChoice {
+	fn fork_choice(&self, new: &ExtendedHeader, current: &ExtendedHeader) -> super::ForkChoice {
 		super::total_difficulty_fork_choice(new, current)
 	}
 }

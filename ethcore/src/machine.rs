@@ -24,7 +24,7 @@ use ethereum_types::{U256, H256, Address};
 use rlp::Rlp;
 use types::transaction::{self, SYSTEM_ADDRESS, UNSIGNED_SENDER, UnverifiedTransaction, SignedTransaction};
 use types::BlockNumber;
-use types::header::{Header, ExtendedHeader};
+use types::header::Header;
 use vm::{CallType, ActionParams, ActionValue, ParamsType};
 use vm::{EnvInfo, Schedule, CreateContractAddress};
 
@@ -173,7 +173,7 @@ impl EthereumMachine {
 			origin: SYSTEM_ADDRESS,
 			gas,
 			gas_price: 0.into(),
-			value: value.unwrap_or(ActionValue::Transfer(0.into())),
+			value: value.unwrap_or_else(|| ActionValue::Transfer(0.into())),
 			code,
 			code_hash,
 			data,
@@ -430,7 +430,6 @@ pub enum AuxiliaryRequest {
 
 impl ::parity_machine::Machine for EthereumMachine {
 	type Header = Header;
-	type ExtendedHeader = ExtendedHeader;
 
 	type LiveBlock = ExecutedBlock;
 	type EngineClient = ::client::EngineClient;

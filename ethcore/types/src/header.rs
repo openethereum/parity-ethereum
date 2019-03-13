@@ -376,13 +376,6 @@ impl ::parity_machine::Header for Header {
 	fn number(&self) -> BlockNumber { Header::number(self) }
 }
 
-impl ::parity_machine::ScoredHeader for Header {
-	type Value = U256;
-
-	fn score(&self) -> &U256 { self.difficulty() }
-	fn set_score(&mut self, score: U256) { self.set_difficulty(score) }
-}
-
 impl ::parity_machine::Header for ExtendedHeader {
 	fn bare_hash(&self) -> H256 { self.header.bare_hash() }
 	fn hash(&self) -> H256 { self.header.hash() }
@@ -391,21 +384,11 @@ impl ::parity_machine::Header for ExtendedHeader {
 	fn number(&self) -> BlockNumber { self.header.number() }
 }
 
-impl ::parity_machine::ScoredHeader for ExtendedHeader {
-	type Value = U256;
-
-	fn score(&self) -> &U256 { self.header.difficulty() }
-	fn set_score(&mut self, score: U256) { self.header.set_difficulty(score) }
-}
-
-impl ::parity_machine::TotalScoredHeader for ExtendedHeader {
-	type Value = U256;
-
-	fn total_score(&self) -> U256 { self.parent_total_difficulty + *self.header.difficulty() }
-}
-
-impl ::parity_machine::FinalizableHeader for ExtendedHeader {
-	fn is_finalized(&self) -> bool { self.is_finalized }
+impl ExtendedHeader {
+	/// Returns combined difficulty of all ancestors together with the difficulty of this header.
+	pub fn total_score(&self) -> U256 {
+		self.parent_total_difficulty + *self.header.difficulty()
+	}
 }
 
 #[cfg(test)]

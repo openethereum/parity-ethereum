@@ -18,8 +18,9 @@ use engines::Engine;
 use engines::block_reward::{self, RewardKind};
 use ethereum_types::U256;
 use machine::WithRewards;
-use parity_machine::{Machine, Header, LiveBlock, TotalScoredHeader};
+use parity_machine::{Machine, Header, LiveBlock};
 use types::BlockNumber;
+use types::header::ExtendedHeader;
 
 /// Params for a null engine.
 #[derive(Clone, Default)]
@@ -58,10 +59,7 @@ impl<M: Default> Default for NullEngine<M> {
 	}
 }
 
-impl<M: Machine + WithRewards> Engine<M> for NullEngine<M>
-  where M::ExtendedHeader: TotalScoredHeader,
-        <M::ExtendedHeader as TotalScoredHeader>::Value: Ord
-{
+impl<M: Machine + WithRewards> Engine<M> for NullEngine<M> {
 	fn name(&self) -> &str {
 		"NullEngine"
 	}
@@ -105,7 +103,7 @@ impl<M: Machine + WithRewards> Engine<M> for NullEngine<M>
 		Some(Box::new(::snapshot::PowSnapshot::new(10000, 10000)))
 	}
 
-	fn fork_choice(&self, new: &M::ExtendedHeader, current: &M::ExtendedHeader) -> super::ForkChoice {
+	fn fork_choice(&self, new: &ExtendedHeader, current: &ExtendedHeader) -> super::ForkChoice {
 		super::total_difficulty_fork_choice(new, current)
 	}
 }

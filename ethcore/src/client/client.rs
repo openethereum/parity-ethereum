@@ -1149,7 +1149,7 @@ impl Client {
 	pub fn take_snapshot<W: snapshot_io::SnapshotWriter + Send>(&self, writer: W, at: BlockId, p: &snapshot::Progress) -> Result<(), EthcoreError> {
 		let db = self.state_db.read().journal_db().boxed_clone();
 		let best_block_number = self.chain_info().best_block_number;
-		let block_number = self.block_number(at).ok_or(snapshot::Error::InvalidStartingBlock(at))?;
+		let block_number = self.block_number(at).ok_or_else(|| snapshot::Error::InvalidStartingBlock(at))?;
 
 		if db.is_pruned() && self.pruning_info().earliest_state > block_number {
 			return Err(snapshot::Error::OldBlockPrunedDB.into());
@@ -1706,15 +1706,17 @@ impl BlockChainClient for Client {
 		self.config.spec_name.clone()
 	}
 
-	fn set_spec_name(&self, new_spec_name: String) {
+	fn set_spec_name(&self, new_spec_name: String) -> Result<(), ()> {
 		trace!(target: "mode", "Client::set_spec_name({:?})", new_spec_name);
 		if !self.enabled.load(AtomicOrdering::Relaxed) {
-			return;
+			return Err(());
 		}
 		if let Some(ref h) = *self.exit_handler.lock() {
 			(*h)(new_spec_name);
+			Ok(())
 		} else {
 			warn!("Not hypervised; cannot change chain.");
+			Err(())
 		}
 	}
 
