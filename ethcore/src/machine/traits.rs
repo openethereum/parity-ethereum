@@ -24,8 +24,6 @@ use block::ExecutedBlock;
 pub trait Machine: for<'a> LocalizedMachine<'a> {
 	/// A handle to a blockchain client for this machine.
 	type EngineClient: ?Sized;
-	/// Actions taken on ancestry blocks when commiting a new block.
-	type AncestryAction;
 
 	/// Errors which can occur when querying or interacting with the machine.
 	type Error;
