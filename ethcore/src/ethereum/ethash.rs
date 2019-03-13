@@ -241,17 +241,16 @@ impl Engine<EthereumMachine> for Arc<Ethash> {
 	/// This assumes that all uncles are valid uncles (i.e. of at least one generation before the current).
 	fn on_close_block(&self, block: &mut ExecutedBlock) -> Result<(), Error> {
 		use std::ops::Shr;
-		use parity_machine::LiveBlock;
 
-		let author = *LiveBlock::header(&*block).author();
-		let number = LiveBlock::header(&*block).number();
+		let author = *block.header.author();
+		let number = block.header.number();
 
 		let rewards = match self.ethash_params.block_reward_contract {
 			Some(ref c) if number >= self.ethash_params.block_reward_contract_transition => {
 				let mut beneficiaries = Vec::new();
 
 				beneficiaries.push((author, RewardKind::Author));
-				for u in LiveBlock::uncles(&*block) {
+				for u in &block.uncles {
 					let uncle_author = u.author();
 					beneficiaries.push((*uncle_author, RewardKind::uncle(number, u.number())));
 				}
@@ -274,7 +273,8 @@ impl Engine<EthereumMachine> for Arc<Ethash> {
 				let eras_rounds = self.ethash_params.ecip1017_era_rounds;
 				let (eras, reward) = ecip1017_eras_block_reward(eras_rounds, reward, number);
 
-				let n_uncles = LiveBlock::uncles(&*block).len();
+				//let n_uncles = LiveBlock::uncles(&*block).len();
+				let n_uncles = block.uncles.len();
 
 				// Bestow block rewards.
 				let mut result_block_reward = reward + reward.shr(5) * U256::from(n_uncles);
@@ -282,7 +282,7 @@ impl Engine<EthereumMachine> for Arc<Ethash> {
 				rewards.push((author, RewardKind::Author, result_block_reward));
 
 				// Bestow uncle rewards.
-				for u in LiveBlock::uncles(&*block) {
+				for u in &block.uncles {
 					let uncle_author = u.author();
 					let result_uncle_reward = if eras == 0 {
 						(reward * U256::from(8 + u.number() - number)).shr(3)

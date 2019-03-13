@@ -17,10 +17,10 @@
 use engines::Engine;
 use engines::block_reward::{self, RewardKind};
 use ethereum_types::U256;
-use machine::WithRewards;
-use parity_machine::{Machine, Header, LiveBlock};
+use machine::Machine;
 use types::BlockNumber;
-use types::header::ExtendedHeader;
+use types::header::{Header, ExtendedHeader};
+use block::ExecutedBlock;
 
 /// Params for a null engine.
 #[derive(Clone, Default)]
@@ -59,23 +59,23 @@ impl<M: Default> Default for NullEngine<M> {
 	}
 }
 
-impl<M: Machine + WithRewards> Engine<M> for NullEngine<M> {
+impl<M: Machine> Engine<M> for NullEngine<M> {
 	fn name(&self) -> &str {
 		"NullEngine"
 	}
 
 	fn machine(&self) -> &M { &self.machine }
 
-	fn on_close_block(&self, block: &mut M::LiveBlock) -> Result<(), M::Error> {
+	fn on_close_block(&self, block: &mut ExecutedBlock) -> Result<(), M::Error> {
 		use std::ops::Shr;
 
-		let author = *LiveBlock::header(&*block).author();
-		let number = LiveBlock::header(&*block).number();
+		let author = *block.header.author();
+		let number = block.header.number();
 
 		let reward = self.params.block_reward;
 		if reward == U256::zero() { return Ok(()) }
 
-		let n_uncles = LiveBlock::uncles(&*block).len();
+		let n_uncles = block.uncles.len();
 
 		let mut rewards = Vec::new();
 
@@ -84,7 +84,7 @@ impl<M: Machine + WithRewards> Engine<M> for NullEngine<M> {
 		rewards.push((author, RewardKind::Author, result_block_reward));
 
 		// bestow uncle rewards.
-		for u in LiveBlock::uncles(&*block) {
+		for u in &block.uncles {
 			let uncle_author = u.author();
 			let result_uncle_reward = (reward * U256::from(8 + u.number() - number)).shr(3);
 			rewards.push((*uncle_author, RewardKind::uncle(number, u.number()), result_uncle_reward));
@@ -95,7 +95,7 @@ impl<M: Machine + WithRewards> Engine<M> for NullEngine<M> {
 
 	fn maximum_uncle_count(&self, _block: BlockNumber) -> usize { 2 }
 
-	fn verify_local_seal(&self, _header: &M::Header) -> Result<(), M::Error> {
+	fn verify_local_seal(&self, _header: &Header) -> Result<(), M::Error> {
 		Ok(())
 	}
 

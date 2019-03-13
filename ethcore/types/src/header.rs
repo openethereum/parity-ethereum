@@ -368,22 +368,6 @@ impl HeapSizeOf for Header {
 	}
 }
 
-impl ::parity_machine::Header for Header {
-	fn bare_hash(&self) -> H256 { Header::bare_hash(self) }
-	fn hash(&self) -> H256 { Header::hash(self) }
-	fn seal(&self) -> &[Vec<u8>] { Header::seal(self) }
-	fn author(&self) -> &Address { Header::author(self) }
-	fn number(&self) -> BlockNumber { Header::number(self) }
-}
-
-impl ::parity_machine::Header for ExtendedHeader {
-	fn bare_hash(&self) -> H256 { self.header.bare_hash() }
-	fn hash(&self) -> H256 { self.header.hash() }
-	fn seal(&self) -> &[Vec<u8>] { self.header.seal() }
-	fn author(&self) -> &Address { self.header.author() }
-	fn number(&self) -> BlockNumber { self.header.number() }
-}
-
 impl ExtendedHeader {
 	/// Returns combined difficulty of all ancestors together with the difficulty of this header.
 	pub fn total_score(&self) -> U256 {

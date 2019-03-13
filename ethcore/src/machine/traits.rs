@@ -17,59 +17,11 @@
 //! Generalization of a state machine for a consensus engine.
 //! This will define traits for the header, block, and state of a blockchain.
 
-extern crate ethereum_types;
-
-use ethereum_types::{H256, U256, Address};
-
-/// A header. This contains important metadata about the block, as well as a
-/// "seal" that indicates validity to a consensus engine.
-pub trait Header {
-	/// Cryptographic hash of the header, excluding the seal.
-	fn bare_hash(&self) -> H256;
-
-	/// Cryptographic hash of the header, including the seal.
-	fn hash(&self) -> H256;
-
-	/// Get a reference to the seal fields.
-	fn seal(&self) -> &[Vec<u8>];
-
-	/// The author of the header.
-	fn author(&self) -> &Address;
-
-	/// The number of the header.
-	fn number(&self) -> u64;
-}
-
-/// A "live" block is one which is in the process of the transition.
-/// The state of this block can be mutated by arbitrary rules of the
-/// state transition function.
-pub trait LiveBlock: 'static {
-	/// The block header type;
-	type Header: Header;
-
-	/// Get a reference to the header.
-	fn header(&self) -> &Self::Header;
-
-	/// Get a reference to the uncle headers. If the block type doesn't
-	/// support uncles, return the empty slice.
-	fn uncles(&self) -> &[Self::Header];
-}
-
-/// Trait for blocks which have a transaction type.
-pub trait Transactions: LiveBlock {
-	/// The transaction type.
-	type Transaction;
-
-	/// Get a reference to the transactions in this block.
-	fn transactions(&self) -> &[Self::Transaction];
-}
+use ethereum_types::{U256, Address};
+use block::ExecutedBlock;
 
 /// Generalization of types surrounding blockchain-suitable state machines.
 pub trait Machine: for<'a> LocalizedMachine<'a> {
-	/// The block header type.
-	type Header: Header;
-	/// The live block type.
-	type LiveBlock: LiveBlock<Header=Self::Header>;
 	/// A handle to a blockchain client for this machine.
 	type EngineClient: ?Sized;
 	/// A description of needed auxiliary data.
@@ -82,10 +34,10 @@ pub trait Machine: for<'a> LocalizedMachine<'a> {
 
 	/// Get the balance, in base units, associated with an account.
 	/// Extracts data from the live block.
-	fn balance(&self, live: &Self::LiveBlock, address: &Address) -> Result<U256, Self::Error>;
+	fn balance(&self, live: &ExecutedBlock, address: &Address) -> Result<U256, Self::Error>;
 
 	/// Increment the balance of an account in the state of the live block.
-	fn add_balance(&self, live: &mut Self::LiveBlock, address: &Address, amount: &U256) -> Result<(), Self::Error>;
+	fn add_balance(&self, live: &mut ExecutedBlock, address: &Address, amount: &U256) -> Result<(), Self::Error>;
 }
 
 /// Machine-related types localized to a specific lifetime.

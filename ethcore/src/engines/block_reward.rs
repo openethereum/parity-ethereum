@@ -24,11 +24,12 @@ use ethereum_types::{H160, Address, U256};
 use std::sync::Arc;
 use hash::keccak;
 use error::Error;
-use machine::WithRewards;
-use parity_machine::Machine;
+use machine::Machine;
 use trace;
 use types::BlockNumber;
 use super::{SystemOrCodeCall, SystemOrCodeCallKind};
+use trace::{Tracer, ExecutiveTracer, Tracing};
+use block::ExecutedBlock;
 
 use_contract!(block_reward_contract, "res/contracts/block_reward.json");
 
@@ -152,17 +153,26 @@ impl BlockRewardContract {
 
 /// Applies the given block rewards, i.e. adds the given balance to each beneficiary' address.
 /// If tracing is enabled the operations are recorded.
-pub fn apply_block_rewards<M: Machine + WithRewards>(
+pub fn apply_block_rewards<M: Machine>(
 	rewards: &[(Address, RewardKind, U256)],
-	block: &mut M::LiveBlock,
+	block: &mut ExecutedBlock,
 	machine: &M,
 ) -> Result<(), M::Error> {
 	for &(ref author, _, ref block_reward) in rewards {
 		machine.add_balance(block, author, block_reward)?;
 	}
 
-	let rewards: Vec<_> = rewards.into_iter().map(|&(a, k, r)| (a, k.into(), r)).collect();
-	machine.note_rewards(block, &rewards)
+	if let Tracing::Enabled(ref mut traces) = *block.traces_mut() {
+		let mut tracer = ExecutiveTracer::default();
+
+		for &(address, reward_kind, amount) in rewards {
+			tracer.trace_reward(address, amount, reward_kind.into());
+		}
+
+		traces.push(tracer.drain().into());
+	}
+
+	Ok(())
 }
 
 #[cfg(test)]

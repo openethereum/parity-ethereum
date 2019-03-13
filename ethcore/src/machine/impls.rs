@@ -36,7 +36,7 @@ use error::Error;
 use executive::Executive;
 use spec::CommonParams;
 use state::{CleanupMode, Substate};
-use trace::{NoopTracer, NoopVMTracer, Tracer, ExecutiveTracer, RewardType, Tracing};
+use trace::{NoopTracer, NoopVMTracer};
 use tx_filter::TransactionFilter;
 
 /// Parity tries to round block.gas_limit to multiple of this constant
@@ -428,10 +428,7 @@ pub enum AuxiliaryRequest {
 	Both,
 }
 
-impl ::parity_machine::Machine for EthereumMachine {
-	type Header = Header;
-
-	type LiveBlock = ExecutedBlock;
+impl super::Machine for EthereumMachine {
 	type EngineClient = ::client::EngineClient;
 	type AuxiliaryRequest = AuxiliaryRequest;
 	type AncestryAction = ::types::ancestry_action::AncestryAction;
@@ -447,40 +444,9 @@ impl ::parity_machine::Machine for EthereumMachine {
 	}
 }
 
-impl<'a> ::parity_machine::LocalizedMachine<'a> for EthereumMachine {
+impl<'a> super::LocalizedMachine<'a> for EthereumMachine {
 	type StateContext = Call<'a>;
 	type AuxiliaryData = AuxiliaryData<'a>;
-}
-
-/// A state machine that uses block rewards.
-pub trait WithRewards: ::parity_machine::Machine {
-	/// Note block rewards, traces each reward storing information about benefactor, amount and type
-	/// of reward.
-	fn note_rewards(
-		&self,
-		live: &mut Self::LiveBlock,
-		rewards: &[(Address, RewardType, U256)],
-	) -> Result<(), Self::Error>;
-}
-
-impl WithRewards for EthereumMachine {
-	fn note_rewards(
-		&self,
-		live: &mut Self::LiveBlock,
-		rewards: &[(Address, RewardType, U256)],
-	) -> Result<(), Self::Error> {
-		if let Tracing::Enabled(ref mut traces) = *live.traces_mut() {
-			let mut tracer = ExecutiveTracer::default();
-
-			for &(address, ref reward_type, amount) in rewards {
-				tracer.trace_reward(address, amount, reward_type.clone());
-			}
-
-			traces.push(tracer.drain().into());
-		}
-
-		Ok(())
-	}
 }
 
 // Try to round gas_limit a bit so that:

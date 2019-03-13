@@ -195,26 +195,6 @@ impl IsBlock for ExecutedBlock {
 	fn block(&self) -> &ExecutedBlock { self }
 }
 
-impl ::parity_machine::LiveBlock for ExecutedBlock {
-	type Header = Header;
-
-	fn header(&self) -> &Header {
-		&self.header
-	}
-
-	fn uncles(&self) -> &[Header] {
-		&self.uncles
-	}
-}
-
-impl ::parity_machine::Transactions for ExecutedBlock {
-	type Transaction = SignedTransaction;
-
-	fn transactions(&self) -> &[SignedTransaction] {
-		&self.transactions
-	}
-}
-
 impl<'x> OpenBlock<'x> {
 	/// Create a new `OpenBlock` ready for transaction pushing.
 	pub fn new<'a>(
