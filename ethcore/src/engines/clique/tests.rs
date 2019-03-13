@@ -112,17 +112,17 @@ impl CliqueTester {
 	/// Get signers after a certain state
 	// This is generally used to fetch the state after a test has been executed and checked against
 	// the intial list of signers provided in the test
-	pub fn clique_signers(&self, hash: &H256) -> Vec<Address> {
-		self.get_state_at_block(hash).signers().to_vec()
+	pub fn clique_signers(&self, hash: &H256) -> impl Iterator<Item = Address> {
+		self.get_state_at_block(hash).signers().clone().into_iter()
 	}
 
 	/// Fetches all addresses at current `block` and converts them back to `tags (char)` and sorts them
 	/// Addresses are supposed sorted based on address but these tests are using `tags` just for simplicity
 	/// and the order is not important!
-	pub fn into_tags(&self, addr: &[Address]) -> Vec<char> {
-		let mut tags: Vec<char> = addr.iter().filter_map(|addr| {
+	pub fn into_tags<T: Iterator<Item = Address>>(&self, addr: T) -> Vec<char> {
+		let mut tags: Vec<char> = addr.filter_map(|addr| {
 			for (t, kp) in self.signers.iter() {
-				if addr == &kp.address() {
+				if addr == kp.address() {
 					return Some(*t)
 				}
 			}
@@ -201,7 +201,7 @@ fn one_signer_with_no_votes() {
 
 	let empty_block = tester.new_block_and_import(CliqueBlockType::Empty, &tester.genesis, None, 'A').unwrap();
 
-	let tags = tester.into_tags(&tester.clique_signers(&empty_block.hash()));
+	let tags = tester.into_tags(tester.clique_signers(&empty_block.hash()));
 	assert_eq!(&tags, &['A']);
 }
 
@@ -212,7 +212,7 @@ fn one_signer_two_votes() {
 	// Add a vote for `B` signed by `A`
 	let vote = tester.new_block_and_import(CliqueBlockType::Vote(VoteType::Add), &tester.genesis,
 										   Some(tester.signers[&'B'].address()), 'A').unwrap();
-	let tags = tester.into_tags(&tester.clique_signers(&vote.hash()));
+	let tags = tester.into_tags(tester.clique_signers(&vote.hash()));
 	assert_eq!(&tags, &['A', 'B']);
 
 	// Add a empty block signed by `B`
@@ -222,7 +222,7 @@ fn one_signer_two_votes() {
 	let vote = tester.new_block_and_import(CliqueBlockType::Vote(VoteType::Add), &empty,
 										   Some(tester.signers[&'C'].address()), 'A').unwrap();
 
-	let tags = tester.into_tags(&tester.clique_signers(&vote.hash()));
+	let tags = tester.into_tags(tester.clique_signers(&vote.hash()));
 	assert_eq!(&tags, &['A', 'B']);
 }
 
@@ -257,7 +257,7 @@ fn two_signers_six_votes_deny_last() {
 		prev_header = vote.clone();
 	}
 
-	let tags = tester.into_tags(&tester.clique_signers(&prev_header.hash()));
+	let tags = tester.into_tags(tester.clique_signers(&prev_header.hash()));
 	assert_eq!(&tags, &['A', 'B', 'C', 'D']);
 }
 
@@ -267,7 +267,7 @@ fn one_signer_dropping_itself() {
 	let vote = tester.new_block_and_import(CliqueBlockType::Vote(VoteType::Remove), &tester.genesis,
 										   Some(tester.signers[&'A'].address()), 'A').unwrap();
 	let signers = tester.clique_signers(&vote.hash());
-	assert!(signers.is_empty());
+	assert!(signers.count() == 0);
 }
 
 #[test]
@@ -276,7 +276,7 @@ fn two_signers_one_remove_vote_no_consensus() {
 	let vote = tester.new_block_and_import(CliqueBlockType::Vote(VoteType::Remove), &tester.genesis,
 										   Some(tester.signers[&'B'].address()), 'A').unwrap();
 
-	let tags = tester.into_tags(&tester.clique_signers(&vote.hash()));
+	let tags = tester.into_tags(tester.clique_signers(&vote.hash()));
 	assert_eq!(&tags, &['A', 'B']);
 }
 
@@ -288,7 +288,7 @@ fn two_signers_consensus_remove_b() {
 	let second_vote = tester.new_block_and_import(CliqueBlockType::Vote(VoteType::Remove), &first_vote,
 												 Some(tester.signers[&'B'].address()), 'B').unwrap();
 
-	let tags = tester.into_tags(&tester.clique_signers(&second_vote.hash()));
+	let tags = tester.into_tags(tester.clique_signers(&second_vote.hash()));
 	assert_eq!(&tags, &['A']);
 }
 
@@ -300,7 +300,7 @@ fn three_signers_consensus_remove_c() {
 	let second_vote = tester.new_block_and_import(CliqueBlockType::Vote(VoteType::Remove), &first_vote,
 												 Some(tester.signers[&'C'].address()), 'B').unwrap();
 
-	let tags = tester.into_tags(&tester.clique_signers(&second_vote.hash()));
+	let tags = tester.into_tags(tester.clique_signers(&second_vote.hash()));
 	assert_eq!(&tags, &['A', 'B']);
 }
 
@@ -313,7 +313,7 @@ fn four_signers_half_no_consensus() {
 	let second_vote = tester.new_block_and_import(CliqueBlockType::Vote(VoteType::Remove), &first_vote,
 												  Some(tester.signers[&'C'].address()), 'B').unwrap();
 
-	let tags = tester.into_tags(&tester.clique_signers(&second_vote.hash()));
+	let tags = tester.into_tags(tester.clique_signers(&second_vote.hash()));
 	assert_eq!(&tags, &['A', 'B', 'C', 'D']);
 }
 
@@ -330,7 +330,7 @@ fn four_signers_three_consensus_rm() {
 		prev_header = vote.clone();
 	}
 
-	let tags = tester.into_tags(&tester.clique_signers(&prev_header.hash()));
+	let tags = tester.into_tags(tester.clique_signers(&prev_header.hash()));
 	assert_eq!(&tags, &['A', 'B', 'C']);
 }
 
@@ -354,7 +354,7 @@ fn vote_add_only_counted_once_per_signer() {
 	let vote = tester.new_block_and_import(CliqueBlockType::Vote(VoteType::Add), &empty,
 										   Some(tester.signers[&'C'].address()), 'A').unwrap();
 
-	let tags = tester.into_tags(&tester.clique_signers(&vote.hash()));
+	let tags = tester.into_tags(tester.clique_signers(&vote.hash()));
 	assert_eq!(&tags, &['A', 'B']);
 }
 
@@ -390,7 +390,7 @@ fn vote_add_concurrently_is_permitted() {
 	let b = tester.new_block_and_import(CliqueBlockType::Vote(VoteType::Add), &b,
 										   Some(tester.signers[&'C'].address()), 'B').unwrap();
 
-	let tags = tester.into_tags(&tester.clique_signers(&b.hash()));
+	let tags = tester.into_tags(tester.clique_signers(&b.hash()));
 	assert_eq!(&tags, &['A', 'B', 'C', 'D']);
 }
 
@@ -414,7 +414,7 @@ fn vote_rm_only_counted_once_per_signer() {
 	let b = tester.new_block_and_import(CliqueBlockType::Vote(VoteType::Remove), &prev_header,
 										   Some(tester.signers[&'B'].address()), 'A').unwrap();
 
-	let tags = tester.into_tags(&tester.clique_signers(&b.hash()));
+	let tags = tester.into_tags(tester.clique_signers(&b.hash()));
 	assert_eq!(&tags, &['A', 'B']);
 }
 
@@ -455,7 +455,7 @@ fn vote_rm_concurrently_is_permitted() {
 	let block = tester.new_block_and_import(CliqueBlockType::Vote(VoteType::Remove), &block,
 											Some(tester.signers[&'C'].address()), 'B').unwrap();
 
-	let tags = tester.into_tags(&tester.clique_signers(&block.hash()));
+	let tags = tester.into_tags(tester.clique_signers(&block.hash()));
 	assert_eq!(&tags, &['A', 'B']);
 }
 
@@ -476,7 +476,7 @@ fn vote_to_rm_are_immediate_and_ensure_votes_are_rm() {
 	let block = tester.new_block_and_import(CliqueBlockType::Vote(VoteType::Remove), &block,
 											Some(tester.signers[&'B'].address()), 'A').unwrap();
 
-	let tags = tester.into_tags(&tester.clique_signers(&block.hash()));
+	let tags = tester.into_tags(tester.clique_signers(&block.hash()));
 	assert_eq!(&tags, &['A', 'B']);
 }
 
@@ -499,7 +499,7 @@ fn vote_to_rm_are_immediate_and_votes_should_be_dropped_from_kicked_signer() {
 	let block = tester.new_block_and_import(CliqueBlockType::Vote(VoteType::Add), &block,
 											Some(tester.signers[&'D'].address()), 'A').unwrap();
 
-	let tags = tester.into_tags(&tester.clique_signers(&block.hash()));
+	let tags = tester.into_tags(tester.clique_signers(&block.hash()));
 	assert_eq!(&tags, &['A', 'B']);
 }
 
@@ -539,7 +539,7 @@ fn cascading_not_allowed() {
 	let block = tester.new_block_and_import(CliqueBlockType::Vote(VoteType::Remove), &block,
 											Some(tester.signers[&'D'].address()), 'C').unwrap();
 
-	let tags = tester.into_tags(&tester.clique_signers(&block.hash()));
+	let tags = tester.into_tags(tester.clique_signers(&block.hash()));
 	assert_eq!(&tags, &['A', 'B', 'C']);
 }
 
@@ -579,7 +579,7 @@ fn consensus_out_of_bounds_consensus_execute_on_touch() {
 	let block = tester.new_block_and_import(CliqueBlockType::Vote(VoteType::Remove), &block,
 											Some(tester.signers[&'D'].address()), 'C').unwrap();
 
-	let tags = tester.into_tags(&tester.clique_signers(&block.hash()));
+	let tags = tester.into_tags(tester.clique_signers(&block.hash()));
 	assert_eq!(&tags, &['A', 'B', 'C'], "D should have been removed after 3/4 remove votes");
 
 	// Empty block signed by `A`
@@ -589,7 +589,7 @@ fn consensus_out_of_bounds_consensus_execute_on_touch() {
 	let block = tester.new_block_and_import(CliqueBlockType::Vote(VoteType::Add), &block,
 											Some(tester.signers[&'C'].address()), 'C').unwrap();
 
-	let tags = tester.into_tags(&tester.clique_signers(&block.hash()));
+	let tags = tester.into_tags(tester.clique_signers(&block.hash()));
 	assert_eq!(&tags, &['A', 'B']);
 }
 
@@ -629,7 +629,7 @@ fn consensus_out_of_bounds_first_touch() {
 	let block = tester.new_block_and_import(CliqueBlockType::Vote(VoteType::Remove), &block,
 											Some(tester.signers[&'D'].address()), 'C').unwrap();
 
-	let tags = tester.into_tags(&tester.clique_signers(&block.hash()));
+	let tags = tester.into_tags(tester.clique_signers(&block.hash()));
 	assert_eq!(&tags, &['A', 'B', 'C']);
 
 	// Empty block signed by `A`
@@ -639,7 +639,7 @@ fn consensus_out_of_bounds_first_touch() {
 	let block = tester.new_block_and_import(CliqueBlockType::Vote(VoteType::Add), &block,
 											Some(tester.signers[&'C'].address()), 'B').unwrap();
 
-	let tags = tester.into_tags(&tester.clique_signers(&block.hash()));
+	let tags = tester.into_tags(tester.clique_signers(&block.hash()));
 	assert_eq!(&tags, &['A', 'B', 'C']);
 }
 
@@ -656,7 +656,7 @@ fn pending_votes_doesnt_survive_authorization_changes() {
 		prev_header = block.clone();
 	}
 
-	let tags = tester.into_tags(&tester.clique_signers(&prev_header.hash()));
+	let tags = tester.into_tags(tester.clique_signers(&prev_header.hash()));
 	assert_eq!(&tags, &['A', 'B', 'C', 'D', 'E', 'F'], "F should have been added");
 
 	// Vote against `F` from [`D`, `E`, `B`, `C`]
@@ -666,7 +666,7 @@ fn pending_votes_doesnt_survive_authorization_changes() {
 		prev_header = block.clone();
 	}
 
-	let tags = tester.into_tags(&tester.clique_signers(&prev_header.hash()));
+	let tags = tester.into_tags(tester.clique_signers(&prev_header.hash()));
 	assert_eq!(&tags, &['A', 'B', 'C', 'D', 'E'], "F should have been removed");
 
 	// Vote for `F` from [`D`, `E`]
@@ -683,13 +683,13 @@ fn pending_votes_doesnt_survive_authorization_changes() {
 		prev_header = block.clone();
 	}
 
-	let tags = tester.into_tags(&tester.clique_signers(&prev_header.hash()));
+	let tags = tester.into_tags(tester.clique_signers(&prev_header.hash()));
 	assert_eq!(&tags, &['B', 'C', 'D', 'E'], "A should have been removed");
 
 	let block = tester.new_block_and_import(CliqueBlockType::Vote(VoteType::Add), &prev_header,
 											Some(tester.signers[&'F'].address()), 'B').unwrap();
 
-	let tags = tester.into_tags(&tester.clique_signers(&block.hash()));
+	let tags = tester.into_tags(tester.clique_signers(&block.hash()));
 	assert_eq!(&tags, &['B', 'C', 'D', 'E', 'F'], "F should have been added again");
 }
 
@@ -706,7 +706,7 @@ fn epoch_transition_reset_all_votes() {
 	let block = tester.new_block_and_import(CliqueBlockType::Vote(VoteType::Add), &block,
 											Some(tester.signers[&'C'].address()), 'B').unwrap();
 
-	let tags = tester.into_tags(&tester.clique_signers(&block.hash()));
+	let tags = tester.into_tags(tester.clique_signers(&block.hash()));
 	assert_eq!(&tags, &['A', 'B'], "Votes should have been reset after checkpoint");
 }
 
@@ -799,6 +799,6 @@ fn bonus_consensus_should_keep_track_of_votes_before_latest_per_signer() {
 	let vote = tester.new_block_and_import(CliqueBlockType::Vote(VoteType::Add), &vote,
 										   Some(tester.signers[&'E'].address()), 'C').unwrap();
 
-	let tags = tester.into_tags(&tester.clique_signers(&vote.hash()));
+	let tags = tester.into_tags(tester.clique_signers(&vote.hash()));
 	assert_eq!(&tags, &['A', 'B', 'C', 'D', 'E']);
 }
