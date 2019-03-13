@@ -14,6 +14,8 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
+use std::collections::BTreeSet;
+
 use engines::EngineError;
 use engines::clique::{ADDRESS_LENGTH, SIGNATURE_LENGTH, VANITY_LENGTH, NULL_NONCE, NULL_MIXHASH};
 use error::Error;
@@ -107,6 +109,7 @@ pub fn extract_signers(header: &Header) -> Result<BTreeSet<Address>, Error> {
 	Ok(signers)
 }
 
+/// Retrieve `null_seal`
 pub fn null_seal() -> Vec<Vec<u8>> {
 	vec![encode(&NULL_MIXHASH.to_vec()), encode(&NULL_NONCE.to_vec())]
 }

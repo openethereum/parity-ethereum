@@ -241,17 +241,17 @@ impl CliqueBlockState {
 		if votes > threshold {
 			match vote_kind {
 				VoteType::Add => {
-					debug!(target: "engine", "added new signer: {}", beneficiary);
-					self.signers.insert(beneficiary);
+					if self.signers.insert(beneficiary) {
+						debug!(target: "engine", "added new signer: {}", beneficiary);
+					}
 				}
 				VoteType::Remove => {
-					debug!(target: "engine", "removed signer: {}", beneficiary);
-					self.signers.remove(&beneficiary);
+					if self.signers.remove(&beneficiary) {
+						debug!(target: "engine", "removed signer: {}", beneficiary);
+					}
 				}
 			}
 
-			// signers are highly likely to be < 10.
-			// TODO(niklasad1): only sort when `adding` new signers
 			self.rotate_recent_signers();
 			self.remove_all_votes_from(beneficiary);
 		}
