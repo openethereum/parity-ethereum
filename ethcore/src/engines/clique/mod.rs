@@ -680,17 +680,17 @@ impl Engine<EthereumMachine> for Clique {
 		if header.extra_data().len() < VANITY_LENGTH + SIGNATURE_LENGTH {
 			trace!(target: "engine", "populate_from_parent in sealing");
 
-			let state = match self.state(&parent) {
-				Err(e) =>  {
-					trace!(target: "engine", "populate_from_parent: Unable to find parent state: {}, ignored.", e);
-					return;
-				}
-				Ok(state) => state,
-			};
-
 			// It's unclear how to prevent creating new blocks unless we are authorized, the best way (and geth does this too)
 			// it's just to ignore setting an correct difficulty here, we will check authorization in next step in generate_seal anyway.
 			if let Some(signer) = self.signer.read().as_ref() {
+				let state = match self.state(&parent) {
+					Err(e) =>  {
+						trace!(target: "engine", "populate_from_parent: Unable to find parent state: {}, ignored.", e);
+						return;
+					}
+					Ok(state) => state,
+				};
+
 				if state.is_authorized(&signer.address()) {
 					if state.is_inturn(header.number(), &signer.address()) {
 						header.set_difficulty(DIFF_INTURN);
