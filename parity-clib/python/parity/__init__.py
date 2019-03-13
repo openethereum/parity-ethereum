@@ -81,7 +81,7 @@ class Parity(object):
         config = _parity.config_from_cli(options)
         self.handle = _parity.build(config, logger_mode, logger_file)
 
-    def rpc_query_cb(self, query, cb, timeout_ms=1000):
+    def rpc_query_async(self, query, cb, timeout_ms=1000):
         """Perform a RPC query, return immediately, cb will be invoked with the result asynchronously
 
         :param query: Query to perform
@@ -90,7 +90,7 @@ class Parity(object):
         """
         _parity.rpc_query(self.handle, query, timeout_ms, cb)
 
-    def rpc_query(self, query, timeout_ms=1000):
+    def rpc_query_sync(self, query, timeout_ms=1000):
         """Perform a RPC query and return the result synchronously
 
         :param query: Query to perform
@@ -98,7 +98,7 @@ class Parity(object):
         :return: Result of the rpc call
         """
         cb = _CallbackGenerator()
-        self.rpc_query_cb(query, cb, timeout_ms)
+        self.rpc_query_async(query, cb, timeout_ms)
         return next(cb)
 
     def subscribe_ws_cb(self, query, cb):

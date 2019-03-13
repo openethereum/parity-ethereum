@@ -24,7 +24,7 @@ p = Parity(opts)
 
 # Run a RPC query and print the results
 query = "{\"method\":\"parity_versionInfo\",\"params\":[],\"id\":1,\"jsonrpc\":\"2.0\"}"
-print('version info:', p.rpc_query(query))
+print('version info:', p.rpc_query_sync(query))
 
 # Subscribe to a websocket event
 ws_query = "{\"method\":\"parity_subscribe\",\"params\":[\"parity_netPeers\"],\"id\":1,\"jsonrpc\":\"2.0\"}"

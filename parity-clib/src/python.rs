@@ -21,7 +21,9 @@ use std::sync::Arc;
 
 use parity_ethereum::RunningClient;
 use pyo3::exceptions::{RuntimeError, ValueError};
-use pyo3::prelude::*;
+use pyo3::prelude::{
+	pyclass, pyfunction, pymethods, pymodule, ObjectProtocol, PyModule, PyObject, PyResult, Python,
+};
 use pyo3::types::PyList;
 use {
 	parity_config_destroy, parity_config_from_cli, parity_destroy, parity_rpc_worker,
@@ -177,8 +179,10 @@ fn rpc_query(
 	timeout_ms: u64,
 	callback: PyObject,
 ) -> PyResult<()> {
-	if parity.inner == ptr::null_mut() {
-		return Err(ValueError::py_err("Parity execution completed"));
+	if parity.inner.is_null() {
+		return Err(ValueError::py_err(
+			"Attempt to query RPC when ParityClient is not running",
+		));
 	}
 
 	let client = unsafe { &*(parity.inner as *const RunningClient) };
@@ -195,8 +199,10 @@ fn subscribe_ws(
 	rpc: &str,
 	callback: PyObject,
 ) -> PyResult<SubscriptionHandle> {
-	if parity.inner == ptr::null_mut() {
-		return Err(ValueError::py_err("Parity execution completed"));
+	if parity.inner.is_null() {
+		return Err(ValueError::py_err(
+			"Attempt to subscribe to WebSocket when ParityClient is not running",
+		));
 	}
 
 	let client = unsafe { &*(parity.inner as *const RunningClient) };
