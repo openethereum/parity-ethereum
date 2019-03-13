@@ -18,7 +18,7 @@
 
 use block::*;
 use engines::Engine;
-use error::Error;
+use error::{Error, ErrorKind};
 use ethereum_types::{Address, H256};
 use ethkey::{Secret, KeyPair};
 use state_db::StateDB;
@@ -713,15 +713,26 @@ fn epoch_transition_reset_all_votes() {
 #[test]
 fn unauthorized_signer_should_not_be_able_to_sign_block() {
 	let tester = CliqueTester::with(3, 1, vec!['A']);
-	assert!(tester.new_block_and_import(CliqueBlockType::Empty, &tester.genesis, None, 'B').is_err());
+	let err = tester.new_block_and_import(CliqueBlockType::Empty, &tester.genesis, None, 'B').unwrap_err();
+
+	match err.kind() {
+		ErrorKind::Engine(EngineError::NotAuthorized(_)) => (),
+		_ => assert!(true == false, "Wrong error kind"),
+	}
 }
 
 #[test]
 fn signer_should_not_be_able_to_sign_two_consequtive_blocks() {
 	let tester = CliqueTester::with(3, 1, vec!['A', 'B']);
 	let b = tester.new_block_and_import(CliqueBlockType::Empty, &tester.genesis, None, 'A').unwrap();
-	assert!(tester.new_block_and_import(CliqueBlockType::Empty, &b, None, 'A').is_err());
+	let err = tester.new_block_and_import(CliqueBlockType::Empty, &b, None, 'A').unwrap_err();
+
+	match err.kind() {
+		ErrorKind::Engine(EngineError::CliqueTooRecentlySigned(_)) => (),
+		_ => assert!(true == false, "Wrong error kind"),
+	}
 }
+
 
 #[test]
 fn recent_signers_should_not_reset_on_checkpoint() {
@@ -730,7 +741,13 @@ fn recent_signers_should_not_reset_on_checkpoint() {
 	let block = tester.new_block_and_import(CliqueBlockType::Empty, &tester.genesis, None, 'A').unwrap();
 	let block = tester.new_block_and_import(CliqueBlockType::Empty, &block, None, 'B').unwrap();
 	let block = tester.new_block_and_import(CliqueBlockType::Checkpoint, &block, None, 'A').unwrap();
-	assert!(tester.new_block_and_import(CliqueBlockType::Empty, &block, None, 'A').is_err());
+
+	let err = tester.new_block_and_import(CliqueBlockType::Empty, &block, None, 'A').unwrap_err();
+
+	match err.kind() {
+		ErrorKind::Engine(EngineError::CliqueTooRecentlySigned(_)) => (),
+		_ => assert!(true == false, "Wrong error kind"),
+	}
 }
 
 // Not part of http://eips.ethereum.org/EIPS/eip-225

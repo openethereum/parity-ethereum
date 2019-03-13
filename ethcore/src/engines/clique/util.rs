@@ -14,14 +14,14 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
+use engines::EngineError;
+use engines::clique::{ADDRESS_LENGTH, SIGNATURE_LENGTH, VANITY_LENGTH, NULL_NONCE, NULL_MIXHASH};
+use error::Error;
 use ethereum_types::{Address, H256};
+use ethkey::{public_to_address, recover as ec_recover, Signature};
 use lru_cache::LruCache;
 use parking_lot::RwLock;
 use rlp::encode;
-
-use engines::clique::{ADDRESS_LENGTH, SIGNATURE_LENGTH, VANITY_LENGTH, NULL_NONCE, NULL_MIXHASH};
-use error::Error;
-use ethkey::{public_to_address, recover as ec_recover, Signature};
 use types::header::Header;
 
 /// How many recovered signature to cache in the memory.
@@ -42,13 +42,16 @@ pub fn recover_creator(header: &Header) -> Result<Address, Error> {
 	}
 
 	let data = header.extra_data();
-	if data.len() < VANITY_LENGTH + SIGNATURE_LENGTH {
-		return Err(From::from("extra_data length is not enough!"));
+	if data.len() < VANITY_LENGTH {
+		Err(EngineError::CliqueMissingVanity)?
 	}
 
-	// Get vanity and signature data from `header.extra_data`
-	// Note, this shouldn't have a list of signers because this is only called on `non-checkpoints`
-	let (vanity_slice, signature_slice) = data.split_at(data.len() - SIGNATURE_LENGTH);
+	if data.len() < VANITY_LENGTH + SIGNATURE_LENGTH {
+		Err(EngineError::CliqueMissingSignature)?
+	}
+
+	// Split `signed_extra data` and `signature`
+	let (signed_data_slice, signature_slice) = data.split_at(data.len() - SIGNATURE_LENGTH);
 
 	// convert `&[u8]` to `[u8; 65]`
 	let signature = {
@@ -59,7 +62,7 @@ pub fn recover_creator(header: &Header) -> Result<Address, Error> {
 
 	// modify header and hash it
 	let unsigned_header = &mut header.clone();
-	unsigned_header.set_extra_data(vanity_slice.to_vec());
+	unsigned_header.set_extra_data(signed_data_slice.to_vec());
 	let msg = unsigned_header.hash();
 
 	let pubkey = ec_recover(&Signature::from(signature), &msg)?;
@@ -81,14 +84,14 @@ pub fn extract_signers(header: &Header) -> Result<Vec<Address>, Error> {
 	let data = header.extra_data();
 
 	if data.len() <= VANITY_LENGTH + SIGNATURE_LENGTH {
-		return Err(Box::new("Invalid extra_data size.").into());
+		Err(EngineError::CliqueCheckpointNoSigner)?
 	}
 
 	// extract only the portion of extra_data which includes the signer list
 	let signers_raw = &data[(VANITY_LENGTH)..data.len() - (SIGNATURE_LENGTH)];
 
 	if signers_raw.len() % ADDRESS_LENGTH != 0 {
-		return Err(Box::new("bad signer list.").into());
+		Err(EngineError::CliqueCheckpointInvalidSigners(signers_raw.len()))?
 	}
 
 	let num_signers = signers_raw.len() / 20;

@@ -18,13 +18,15 @@ use std::collections::{HashMap, VecDeque};
 use std::fmt;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
+use engines::EngineError;
 use engines::clique::util::{extract_signers, recover_creator};
 use engines::clique::{VoteType, DIFF_INTURN, DIFF_NOTURN, NULL_AUTHOR, SIGNING_DELAY_NOTURN_MS};
-use error::Error;
-use ethereum_types::Address;
+use error::{Error, BlockError};
+use ethereum_types::{Address, H64};
 use rand::Rng;
 use types::BlockNumber;
 use types::header::Header;
+use unexpected::Mismatch;
 
 /// Type that keeps track of the state for a given vote
 // Votes that go against the proposal aren't counted since it's equivalent to not voting
@@ -124,32 +126,33 @@ impl CliqueBlockState {
 	fn verify(&self, header: &Header) -> Result<Address, Error> {
 		let creator = recover_creator(header)?.clone();
 
-		// Check signer list
+		// The signer is not authorized
 		if !self.signers.contains(&creator) {
 			trace!(target: "engine", "current state: {}", self);
-			return Err(From::from(format!("Error applying #{}({}): {} is not in the signer list!",
-											header.number(),
-											header.hash(),
-											creator)));
+			Err(EngineError::NotAuthorized(creator))?
 		}
 
-		// Check recent signer.
+		// The signer has signed a block too recently
 		if self.recent_signers.contains(&creator) {
 			trace!(target: "engine", "current state: {}", self);
-			return Err(From::from(format!("Error applying #{}({}): {} is in the recent_signer list!",
-											header.number(),
-											header.hash(),
-											creator)));
+			Err(EngineError::CliqueTooRecentlySigned(creator))?
 		}
 
-		// Ensure that the difficulty corresponds to the turn-ness of the signer
+		// Wrong difficulty
 		let inturn = self.is_inturn(header.number(), &creator);
 
-		if (inturn && *header.difficulty() != DIFF_INTURN) ||
-			(!inturn && *header.difficulty() != DIFF_NOTURN) {
-			return Err(From::from(format!("Error applying #{}({}): wrong difficulty!",
-											header.number(),
-											header.hash())));
+		if inturn && *header.difficulty() != DIFF_INTURN {
+			Err(BlockError::InvalidDifficulty(Mismatch {
+				expected: DIFF_INTURN,
+				found: *header.difficulty(),
+			}))?
+		}
+
+		if !inturn && *header.difficulty() != DIFF_NOTURN {
+			Err(BlockError::InvalidDifficulty(Mismatch {
+				expected: DIFF_NOTURN,
+				found: *header.difficulty(),
+			}))?
 		}
 
 		Ok(creator)
@@ -165,7 +168,11 @@ impl CliqueBlockState {
 			// checkpoint block should not affect previous tallying, so we check that.
 			let signers = extract_signers(header)?;
 			if self.signers != signers {
-				return Err(From::from("checkpoint block signers is different than expected"));
+				let invalid_signers: Vec<String> = signers.into_iter()
+					.filter(|s| !self.signers.contains(s))
+					.map(|s| format!("{}", s))
+					.collect();
+				Err(EngineError::CliqueFaultyRecoveredSigners(invalid_signers))?
 			};
 
 			// TODO(niklasad1): I'm not sure if we should shrink here because it is likely that next epoch
@@ -179,7 +186,12 @@ impl CliqueBlockState {
 
 		// Contains vote
 		if *header.author() != NULL_AUTHOR {
-			let nonce = *header.decode_seal::<Vec<_>>()?.get(1).ok_or("Error decoding seal")?;
+			let decoded_seal = header.decode_seal::<Vec<_>>()?;
+			if decoded_seal.len() != 2 {
+				Err(BlockError::InvalidSealArity(Mismatch { expected: 2, found: decoded_seal.len() }))?
+			}
+
+			let nonce: H64 = decoded_seal[1].into();
 			self.update_signers_on_vote(VoteType::from_nonce(nonce)?, creator, *header.author(), header.number())?;
 		}
 
@@ -234,7 +246,7 @@ impl CliqueBlockState {
 				}
 				VoteType::Remove => {
 					let pos = self.signers.binary_search(&beneficiary)
-						.map_err(|_| "Unable to find beneficiary in signer list when removing".to_string())?;
+						.expect("signer is in signer_list ensured by `is_valid_vote`; qed");
 					debug!(target: "engine", "removed signer: {}", beneficiary);
 					self.signers.remove(pos);
 				}
@@ -268,13 +280,13 @@ impl CliqueBlockState {
 	}
 
 	pub fn is_authorized(&self, author: &Address) -> bool {
-		self.signers.contains(author) && !self.recent_signers.contains(author)
+		self.signers.binary_search(author).is_ok() && !self.recent_signers.contains(author)
 	}
 
 	// Returns whether it makes sense to cast the specified vote in the
 	// current state (e.g. don't try to add an already authorized signer).
 	pub fn is_valid_vote(&self, address: &Address, vote_type: VoteType) -> bool {
-		let in_signer = self.signers.contains(address);
+		let in_signer = self.signers.binary_search(address).is_ok();
 		match vote_type {
 			VoteType::Add => !in_signer,
 			VoteType::Remove => in_signer,
