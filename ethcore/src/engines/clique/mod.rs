@@ -300,7 +300,7 @@ impl Clique {
 				// Catching up state, note that we don't really store block state for intermediary blocks,
 				// for speed.
 				let backfill_start = time::Instant::now();
-				info!(target: "engine",
+				trace!(target: "engine",
 						"Back-filling block state. last_checkpoint_number: {}, target: {}({}).",
 						last_checkpoint_number, header.number(), header.hash());
 
@@ -404,9 +404,9 @@ impl Engine<EthereumMachine> for Clique {
 		let mut seal: Vec<u8> = Vec::with_capacity(VANITY_LENGTH + SIGNATURE_LENGTH);
 
 		// At this point, extra_data should only contain miner vanity.
-		if header.extra_data().len() > VANITY_LENGTH {
-			return Err(EngineError::BadExtraDataFieldSize(OutOfBounds {
-				min: Some(0),
+		if header.extra_data().len() != VANITY_LENGTH {
+			Err(BlockError::ExtraDataOutOfBounds(OutOfBounds {
+				min: Some(VANITY_LENGTH),
 				max: Some(VANITY_LENGTH),
 				found: header.extra_data().len()
 			}))?;
@@ -687,7 +687,6 @@ impl Engine<EthereumMachine> for Clique {
 				}
 				Ok(state) => state,
 			};
-
 
 			// It's unclear how to prevent creating new blocks unless we are authorized, the best way (and geth does this too)
 			// it's just to ignore setting an correct difficulty here, we will check authorization in next step in generate_seal anyway.

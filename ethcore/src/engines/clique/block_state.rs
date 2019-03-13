@@ -138,7 +138,6 @@ impl CliqueBlockState {
 			Err(EngineError::CliqueTooRecentlySigned(creator))?
 		}
 
-
 		// Wrong difficulty
 		let inturn = self.is_inturn(header.number(), &creator);
 
@@ -187,11 +186,12 @@ impl CliqueBlockState {
 
 		// Contains vote
 		if *header.author() != NULL_AUTHOR {
-			let nonce: H64 = header.decode_seal::<Vec<_>>()?.get(1)
-				.cloned()
-				.map(Into::into)
-				.ok_or(BlockError::InvalidSeal)?;
+			let decoded_seal = header.decode_seal::<Vec<_>>()?;
+			if decoded_seal.len() != 2 {
+				Err(BlockError::InvalidSealArity(Mismatch { expected: 2, found: decoded_seal.len() }))?
+			}
 
+			let nonce: H64 = decoded_seal[1].into();
 			self.update_signers_on_vote(VoteType::from_nonce(nonce)?, creator, *header.author(), header.number())?;
 		}
 

@@ -72,8 +72,6 @@ pub enum EngineError {
 	NotProposer(Mismatch<Address>),
 	/// Message was not expected.
 	UnexpectedMessage,
-	/// Extra data field has an unexpected size.
-	BadExtraDataFieldSize(OutOfBounds<usize>),
 	/// Seal field has an unexpected size.
 	BadSealFieldSize(OutOfBounds<usize>),
 	/// Validation proof insufficient.
@@ -129,7 +127,6 @@ impl fmt::Display for EngineError {
 			NotProposer(ref mis) => format!("Author is not a current proposer: {}", mis),
 			NotAuthorized(ref address) => format!("Signer {} is not authorized.", address),
 			UnexpectedMessage => "This Engine should not be fed messages.".into(),
-			BadExtraDataFieldSize(ref oob) => format!("Extra data field has an unexpected length: {}", oob),
 			BadSealFieldSize(ref oob) => format!("Seal field has an unexpected length: {}", oob),
 			InsufficientProof(ref msg) => format!("Insufficient validation proof: {}", msg),
 			FailedSystemCall(ref msg) => format!("Failed to make system call: {}", msg),
