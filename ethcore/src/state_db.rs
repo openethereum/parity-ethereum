@@ -146,7 +146,7 @@ impl StateDB {
 			})),
 			code_cache: Arc::new(Mutex::new(MemoryLruCache::new(code_cache_size))),
 			local_cache: Vec::new(),
-			account_bloom: Arc::new(bloom),
+			account_bloom: bloom,
 			cache_size: cache_size,
 			parent_hash: None,
 			commit_hash: None,
@@ -200,7 +200,7 @@ impl StateDB {
 	/// Journal all recent operations under the given era and ID.
 	pub fn journal_under(&mut self, batch: &mut DBTransaction, now: u64, id: &H256) -> io::Result<u32> {
 		{
-			Self::commit_bloom(batch, Arc::get_mut(&mut self.account_bloom).expect("Failed in journal under").drain_journal())?;
+			Self::commit_bloom(batch, self.account_bloom.drain_journal())?;
 		}
 		let records = self.db.journal_under(batch, now, id)?;
 		self.commit_hash = Some(id.clone());
@@ -456,7 +456,7 @@ impl state::Backend for StateDB {
 
 	fn note_non_null_account(&mut self, address: &Address) {
 		trace!(target: "account_bloom", "Note account bloom: {:?}", address);
-		Arc::get_mut(&mut self.account_bloom).expect("Failed when noting non-null account").set(&*keccak(address))
+		self.account_bloom.set(&*keccak(address))
 	}
 
 	fn is_known_null(&self, address: &Address) -> bool {
