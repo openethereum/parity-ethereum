@@ -40,7 +40,7 @@ use types::{BlockNumber, header::Header};
 use types::transaction::SignedTransaction;
 use verification::queue::kind::blocks::Unverified;
 
-#[cfg(not(feature = "time_checked_add"))]
+#[cfg(not(time_checked_add))]
 use time_utils::CheckedSystemTime;
 
 /// Preprocessed block data gathered in `verify_block_unordered` call

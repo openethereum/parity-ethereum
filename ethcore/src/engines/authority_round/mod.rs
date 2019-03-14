@@ -47,7 +47,7 @@ use types::header::{Header, ExtendedHeader};
 use types::ancestry_action::AncestryAction;
 use unexpected::{Mismatch, OutOfBounds};
 
-#[cfg(not(feature = "time_checked_add"))]
+#[cfg(not(time_checked_add))]
 use time_utils::CheckedSystemTime;
 
 mod finality;

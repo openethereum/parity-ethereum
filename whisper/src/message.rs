@@ -24,7 +24,7 @@ use rlp::{self, DecoderError, RlpStream, Rlp};
 use smallvec::SmallVec;
 use tiny_keccak::{keccak256, Keccak};
 
-#[cfg(not(feature = "time_checked_add"))]
+#[cfg(not(time_checked_add))]
 use time_utils::CheckedSystemTime;
 
 /// Work-factor proved. Takes 3 parameters: size of message, time to live,
