@@ -34,7 +34,7 @@ variables:
 
 .docker-cache-status:              &docker-cache-status
   variables:
-    CARGO_HOME:                    ${CARGO_HOME}/${CI_JOB_NAME}
+    CARGO_HOME:                    "/cargo/${CI_JOB_NAME}"
   before_script:
     - sccache -s
   after_script:
