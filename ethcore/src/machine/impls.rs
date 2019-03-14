@@ -430,8 +430,6 @@ pub enum AuxiliaryRequest {
 
 impl super::Machine for EthereumMachine {
 	type EngineClient = ::client::EngineClient;
-	type AuxiliaryRequest = AuxiliaryRequest;
-	type AncestryAction = ::types::ancestry_action::AncestryAction;
 
 	type Error = Error;
 
@@ -442,11 +440,6 @@ impl super::Machine for EthereumMachine {
 	fn add_balance(&self, live: &mut ExecutedBlock, address: &Address, amount: &U256) -> Result<(), Error> {
 		live.state_mut().add_balance(address, amount, CleanupMode::NoEmpty).map_err(Into::into)
 	}
-}
-
-impl<'a> super::LocalizedMachine<'a> for EthereumMachine {
-	type StateContext = Call<'a>;
-	type AuxiliaryData = AuxiliaryData<'a>;
 }
 
 // Try to round gas_limit a bit so that:

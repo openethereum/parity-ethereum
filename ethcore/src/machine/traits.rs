@@ -21,13 +21,9 @@ use ethereum_types::{U256, Address};
 use block::ExecutedBlock;
 
 /// Generalization of types surrounding blockchain-suitable state machines.
-pub trait Machine: for<'a> LocalizedMachine<'a> {
+pub trait Machine: Send + Sync {
 	/// A handle to a blockchain client for this machine.
 	type EngineClient: ?Sized;
-	/// A description of needed auxiliary data.
-	type AuxiliaryRequest;
-	/// Actions taken on ancestry blocks when commiting a new block.
-	type AncestryAction;
 
 	/// Errors which can occur when querying or interacting with the machine.
 	type Error;
@@ -38,14 +34,4 @@ pub trait Machine: for<'a> LocalizedMachine<'a> {
 
 	/// Increment the balance of an account in the state of the live block.
 	fn add_balance(&self, live: &mut ExecutedBlock, address: &Address, amount: &U256) -> Result<(), Self::Error>;
-}
-
-/// Machine-related types localized to a specific lifetime.
-// TODO: this is a workaround for a lack of associated type constructors in the language.
-pub trait LocalizedMachine<'a>: Sync + Send {
-	/// Definition of auxiliary data associated to a specific block.
-	type AuxiliaryData: 'a;
-	/// A context providing access to the state in a controlled capacity.
-	/// Generally also provides verifiable proofs.
-	type StateContext: ?Sized + 'a;
 }
