@@ -34,7 +34,7 @@ use unexpected::{Mismatch, OutOfBounds};
 use blockchain::*;
 use call_contract::CallContract;
 use client::BlockInfo;
-use engines::EthEngine;
+use engines::{EthEngine, MAX_UNCLE_AGE};
 use error::{BlockError, Error};
 use types::{BlockNumber, header::Header};
 use types::transaction::SignedTransaction;
@@ -192,7 +192,7 @@ fn verify_uncles(block: &PreverifiedBlock, bc: &BlockProvider, engine: &EthEngin
 		excluded.insert(header.hash());
 		let mut hash = header.parent_hash().clone();
 		excluded.insert(hash.clone());
-		for _ in 0..engine.maximum_uncle_age() {
+		for _ in 0..MAX_UNCLE_AGE {
 			match bc.block_details(&hash) {
 				Some(details) => {
 					excluded.insert(details.parent);
@@ -225,7 +225,7 @@ fn verify_uncles(block: &PreverifiedBlock, bc: &BlockProvider, engine: &EthEngin
 			//												(8 Invalid)
 
 			let depth = if header.number() > uncle.number() { header.number() - uncle.number() } else { 0 };
-			if depth > engine.maximum_uncle_age() as u64 {
+			if depth > MAX_UNCLE_AGE as u64 {
 				return Err(From::from(BlockError::UncleTooOld(OutOfBounds { min: Some(header.number() - depth), max: Some(header.number() - 1), found: uncle.number() })));
 			}
 			else if depth < 1 {
