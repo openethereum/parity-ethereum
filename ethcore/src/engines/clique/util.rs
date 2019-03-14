@@ -14,6 +14,8 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
+use std::collections::BTreeSet;
+
 use engines::EngineError;
 use engines::clique::{ADDRESS_LENGTH, SIGNATURE_LENGTH, VANITY_LENGTH, NULL_NONCE, NULL_MIXHASH};
 use error::Error;
@@ -80,7 +82,7 @@ pub fn recover_creator(header: &Header) -> Result<Address, Error> {
 /// Signers: N * 32 bytes as hex encoded (20 characters)
 /// Signature: 65 bytes
 /// --
-pub fn extract_signers(header: &Header) -> Result<Vec<Address>, Error> {
+pub fn extract_signers(header: &Header) -> Result<BTreeSet<Address>, Error> {
 	let data = header.extra_data();
 
 	if data.len() <= VANITY_LENGTH + SIGNATURE_LENGTH {
@@ -95,20 +97,19 @@ pub fn extract_signers(header: &Header) -> Result<Vec<Address>, Error> {
 	}
 
 	let num_signers = signers_raw.len() / 20;
-	let mut signers_list: Vec<Address> = Vec::with_capacity(num_signers);
 
-	for i in 0..num_signers {
-		let mut signer = Address::default();
-		signer.copy_from_slice(&signers_raw[i * ADDRESS_LENGTH..(i + 1) * ADDRESS_LENGTH]);
-		signers_list.push(signer);
-	}
+	let signers: BTreeSet<Address> = (0..num_signers)
+		.map(|i| {
+			let start = i * ADDRESS_LENGTH;
+			let end = start + ADDRESS_LENGTH;
+			signers_raw[start..end].into()
+		})
+		.collect();
 
-	// NOTE: signers list must be sorted by ascending order.
-	signers_list.sort();
-
-	Ok(signers_list)
+	Ok(signers)
 }
 
+/// Retrieve `null_seal`
 pub fn null_seal() -> Vec<Vec<u8>> {
 	vec![encode(&NULL_MIXHASH.to_vec()), encode(&NULL_NONCE.to_vec())]
 }

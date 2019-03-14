@@ -14,7 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
-use std::collections::{HashMap, VecDeque};
+use std::collections::{HashMap, BTreeSet, VecDeque};
 use std::fmt;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
@@ -62,7 +62,7 @@ pub struct CliqueBlockState {
 	/// A list of all votes for the given epoch
 	votes_history: Vec<Vote>,
 	/// a list of all valid signer, sorted by ascending order.
-	signers: Vec<Address>,
+	signers: BTreeSet<Address>,
 	/// a deque of recent signer, new entry should be pushed front, apply() modifies this.
 	recent_signers: VecDeque<Address>,
 	/// inturn signing should wait until this time
@@ -79,7 +79,7 @@ pub struct CliqueBlockState {
 	/// A list of all votes for the given epoch
 	pub votes_history: Vec<Vote>,
 	/// a list of all valid signer, sorted by ascending order.
-	pub signers: Vec<Address>,
+	pub signers: BTreeSet<Address>,
 	/// a deque of recent signer, new entry should be pushed front, apply() modifies this.
 	pub recent_signers: VecDeque<Address>,
 	/// inturn signing should wait until this time
@@ -115,9 +115,9 @@ impl fmt::Display for CliqueBlockState {
 
 impl CliqueBlockState {
 	/// Create new state with given information, this is used creating new state from Checkpoint block.
-	pub fn new(signers_sorted: Vec<Address>) -> Self {
+	pub fn new(signers: BTreeSet<Address>) -> Self {
 		CliqueBlockState {
-			signers: signers_sorted,
+			signers,
 			..Default::default()
 		}
 	}
@@ -241,20 +241,17 @@ impl CliqueBlockState {
 		if votes > threshold {
 			match vote_kind {
 				VoteType::Add => {
-					debug!(target: "engine", "added new signer: {}", beneficiary);
-					self.signers.push(beneficiary);
+					if self.signers.insert(beneficiary) {
+						debug!(target: "engine", "added new signer: {}", beneficiary);
+					}
 				}
 				VoteType::Remove => {
-					let pos = self.signers.binary_search(&beneficiary)
-						.expect("signer is in signer_list ensured by `is_valid_vote`; qed");
-					debug!(target: "engine", "removed signer: {}", beneficiary);
-					self.signers.remove(pos);
+					if self.signers.remove(&beneficiary) {
+						debug!(target: "engine", "removed signer: {}", beneficiary);
+					}
 				}
 			}
 
-			// signers are highly likely to be < 10.
-			// TODO(niklasad1): only sort when `adding` new signers
-			self.signers.sort();
 			self.rotate_recent_signers();
 			self.remove_all_votes_from(beneficiary);
 		}
@@ -280,21 +277,21 @@ impl CliqueBlockState {
 	}
 
 	pub fn is_authorized(&self, author: &Address) -> bool {
-		self.signers.binary_search(author).is_ok() && !self.recent_signers.contains(author)
+		self.signers.contains(author) && !self.recent_signers.contains(author)
 	}
 
 	// Returns whether it makes sense to cast the specified vote in the
 	// current state (e.g. don't try to add an already authorized signer).
 	pub fn is_valid_vote(&self, address: &Address, vote_type: VoteType) -> bool {
-		let in_signer = self.signers.binary_search(address).is_ok();
+		let in_signer = self.signers.contains(address);
 		match vote_type {
 			VoteType::Add => !in_signer,
 			VoteType::Remove => in_signer,
 		}
 	}
 
-	pub fn signers(&self) -> &Vec<Address> {
-		return &self.signers;
+	pub fn signers(&self) -> &BTreeSet<Address> {
+		&self.signers
 	}
 
 	// Note this method will always return `true` but it is intended for a unifrom `API`
