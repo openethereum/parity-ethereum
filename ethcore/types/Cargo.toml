@@ -11,7 +11,6 @@ ethkey = { path = "../../accounts/ethkey" }
 heapsize = "0.4"
 keccak-hash = "0.1"
 parity-bytes = "0.1"
-parity-machine = { path = "../../machine" }
 rlp = { version = "0.3.0", features = ["ethereum"] }
 rlp_derive = { path = "../../util/rlp-derive" }
 unexpected = { path = "../../util/unexpected" }

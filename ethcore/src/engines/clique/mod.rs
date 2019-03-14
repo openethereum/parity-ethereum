@@ -346,8 +346,10 @@ impl Engine<EthereumMachine> for Clique {
 	fn name(&self) -> &str { "Clique" }
 
 	fn machine(&self) -> &EthereumMachine { &self.machine }
-	/// Clique use same fields, nonce + mixHash
+
+	// Clique use same fields, nonce + mixHash
 	fn seal_fields(&self, _header: &Header) -> usize { 2 }
+
 	fn maximum_uncle_count(&self, _block: BlockNumber) -> usize { 0 }
 
 	// No Uncle in Clique
@@ -362,8 +364,8 @@ impl Engine<EthereumMachine> for Clique {
 		Ok(())
 	}
 
+	// Clique has no block reward.
 	fn on_close_block(&self, _block: &mut ExecutedBlock) -> Result<(), Error> {
-		// Clique has no block reward.
 		Ok(())
 	}
 

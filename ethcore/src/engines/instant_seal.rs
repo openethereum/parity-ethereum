@@ -15,7 +15,9 @@
 // along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
 use engines::{Engine, Seal};
-use parity_machine::{Machine, Transactions, TotalScoredHeader};
+use machine::Machine;
+use types::header::{Header, ExtendedHeader};
+use block::ExecutedBlock;
 
 /// `InstantSeal` params.
 #[derive(Default, Debug, PartialEq)]
@@ -48,11 +50,7 @@ impl<M> InstantSeal<M> {
 	}
 }
 
-impl<M: Machine> Engine<M> for InstantSeal<M>
-  where M::LiveBlock: Transactions,
-        M::ExtendedHeader: TotalScoredHeader,
-        <M::ExtendedHeader as TotalScoredHeader>::Value: Ord
-{
+impl<M: Machine> Engine<M> for InstantSeal<M> {
 	fn name(&self) -> &str {
 		"InstantSeal"
 	}
@@ -61,11 +59,15 @@ impl<M: Machine> Engine<M> for InstantSeal<M>
 
 	fn seals_internally(&self) -> Option<bool> { Some(true) }
 
-	fn generate_seal(&self, block: &M::LiveBlock, _parent: &M::Header) -> Seal {
-		if block.transactions().is_empty() { Seal::None } else { Seal::Regular(Vec::new()) }
+	fn generate_seal(&self, block: &ExecutedBlock, _parent: &Header) -> Seal {
+		if block.transactions.is_empty() {
+			Seal::None
+		} else {
+			Seal::Regular(Vec::new())
+		}
 	}
 
-	fn verify_local_seal(&self, _header: &M::Header) -> Result<(), M::Error> {
+	fn verify_local_seal(&self, _header: &Header) -> Result<(), M::Error> {
 		Ok(())
 	}
 
@@ -84,7 +86,7 @@ impl<M: Machine> Engine<M> for InstantSeal<M>
 		header_timestamp >= parent_timestamp
 	}
 
-	fn fork_choice(&self, new: &M::ExtendedHeader, current: &M::ExtendedHeader) -> super::ForkChoice {
+	fn fork_choice(&self, new: &ExtendedHeader, current: &ExtendedHeader) -> super::ForkChoice {
 		super::total_difficulty_fork_choice(new, current)
 	}
 }

@@ -14,12 +14,14 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
-use engines::Engine;
-use parity_machine::Machine;
+
 use std::sync::Weak;
 use std::time::Duration;
 use std::thread;
 use std::sync::Arc;
+
+use engines::Engine;
+use machine::Machine;
 use parking_lot::RwLock;
 
 pub struct StepService {

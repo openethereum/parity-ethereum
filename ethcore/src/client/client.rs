@@ -298,19 +298,11 @@ impl Importer {
 
 				match self.check_and_lock_block(&bytes, block, client) {
 					Ok((closed_block, pending)) => {
-						if self.engine.is_proposal(&header) {
-							self.block_queue.mark_as_good(&[hash]);
-							proposed_blocks.push(bytes);
-						} else {
-							imported_blocks.push(hash);
-
-							let transactions_len = closed_block.transactions().len();
-
-							let route = self.commit_block(closed_block, &header, encoded::Block::new(bytes), pending, client);
-							import_results.push(route);
-
-							client.report.write().accrue_block(&header, transactions_len);
-						}
+						imported_blocks.push(hash);
+						let transactions_len = closed_block.transactions().len();
+						let route = self.commit_block(closed_block, &header, encoded::Block::new(bytes), pending, client);
+						import_results.push(route);
+						client.report.write().accrue_block(&header, transactions_len);
 					},
 					Err(err) => {
 						self.bad_blocks.report(bytes, format!("{:?}", err));
