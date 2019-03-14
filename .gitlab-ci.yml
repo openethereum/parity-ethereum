@@ -38,7 +38,8 @@ variables:
   after_script:
     - sccache -s
   tags:
-    - linux-docker
+    # - linux-docker
+    - qa
 
 
 cargo-check 0 3:
@@ -64,7 +65,8 @@ cargo-audit:
   script:
     - cargo audit
   tags:
-    - linux-docker
+    # - linux-docker
+    - qa
 
 validate-chainspecs:
   stage:                           test
@@ -92,7 +94,8 @@ build-android:
   script:
     - scripts/gitlab/build-linux.sh
   tags:
-    - linux-docker
+    # - linux-docker
+    - qa
   <<:                              *collect_artifacts
 
 build-linux:                       &build-linux
@@ -166,7 +169,8 @@ publish-snap:                      &publish-snap
   dependencies:
     - build-linux
   tags:
-    - linux-docker
+    # - linux-docker
+    - qa
   script:
     - scripts/gitlab/publish-snap.sh
   <<:                              *collect_artifacts
@@ -203,7 +207,8 @@ publish-onchain:
   script:
     - scripts/gitlab/publish-onchain.sh
   tags:
-    - linux-docker
+    # - linux-docker
+    - qa
 
 publish-awss3-release:
   image:                           parity/awscli:latest
@@ -229,7 +234,8 @@ publish-awss3-release:
     - echo "__________Read from S3____________"
     - aws s3 ls s3://${BUCKET}/${SCHEDULE_TAG:-${CI_COMMIT_REF_NAME}} --recursive --human-readable --summarize
   tags:
-    - linux-docker
+    # - linux-docker
+    - qa
 
 publish-docs:
   stage:                            publish
@@ -241,5 +247,6 @@ publish-docs:
   script:
     - scripts/gitlab/publish-docs.sh
   tags:
-    - linux-docker
+    # - linux-docker
+    - qa
 
