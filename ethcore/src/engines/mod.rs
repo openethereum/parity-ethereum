@@ -375,10 +375,6 @@ pub trait Engine<M: Machine>: Sync + Send {
 	/// updating consensus state and potentially issuing a new one.
 	fn handle_message(&self, _message: &[u8]) -> Result<(), EngineError> { Err(EngineError::UnexpectedMessage) }
 
-	/// Find out if the block is a proposal block and should not be inserted into the DB.
-	/// Takes a header of a fully verified block.
-	fn is_proposal(&self, _verified_header: &Header) -> bool { false }
-
 	/// Register a component which signs consensus messages.
 	fn set_signer(&self, _signer: Box<EngineSigner>) {}
 
