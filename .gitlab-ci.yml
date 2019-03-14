@@ -9,10 +9,10 @@ variables:
   GIT_STRATEGY:                    fetch
   GIT_SUBMODULE_STRATEGY:          recursive
   CI_SERVER_NAME:                  "GitLab CI"
-  CARGO_HOME:                      "${CI_PROJECT_DIR}/.cargo"
+  # CARGO_HOME:                      is already set in the docker container
   CARGO_TARGET:                    x86_64-unknown-linux-gnu
 
-.no_git:                           &no_git #disable git strategy
+.no_git:                           &no_git # disable git strategy
   variables:
     GIT_STRATEGY:                  none
     GIT_SUBMODULE_STRATEGY:        none
@@ -32,8 +32,7 @@ variables:
     paths:
       - artifacts/
 
-.docker-cache-status:                      &docker-cache-status
-  dependencies:                    []
+.docker-cache-status:              &docker-cache-status
   before_script:
     - sccache -s
   after_script:
@@ -84,6 +83,17 @@ test-linux:
   <<:                              *docker-cache-status
   script:
     - ./scripts/gitlab/test-linux.sh
+
+build-android:
+  stage:                           build
+  image:                           parity/rust-android:gitlab-ci
+  variables:
+    CARGO_TARGET:                  armv7-linux-androideabi
+  script:
+    - scripts/gitlab/build-linux.sh
+  tags:
+    - linux-docker
+  <<:                              *collect_artifacts
 
 build-linux:                       &build-linux
   stage:                           build
@@ -138,7 +148,7 @@ build-windows:
 publish-docker:
   stage:                           publish
   only:                            *releaseable_branches
-  cache: {}
+  cache:                           {}
   dependencies:
     - build-linux
   tags:
@@ -152,7 +162,7 @@ publish-snap:                      &publish-snap
   image:                           snapcore/snapcraft
   variables:
     BUILD_ARCH:                    amd64
-  cache: {}
+  cache:                           {}
   dependencies:
     - build-linux
   tags:
@@ -227,19 +237,9 @@ publish-docs:
     - tags
   except:
     - nightly
-  cache: {}
+  cache:                            {}
   script:
     - scripts/gitlab/publish-docs.sh
   tags:
     - linux-docker
 
-build-android:
-  stage:                           build
-  image:                           parity/rust-android:gitlab-ci
-  variables:
-    CARGO_TARGET:                  armv7-linux-androideabi
-  script:
-    - scripts/gitlab/build-linux.sh
-  tags:
-    - linux-docker
-  <<:                              *collect_artifacts
