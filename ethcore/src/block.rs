@@ -31,7 +31,7 @@
 //! `ExecutedBlock` is an underlaying data structure used by all structs above to store block
 //! related info.
 
-use std::cmp;
+use std::{cmp, ops};
 use std::collections::HashSet;
 use std::sync::Arc;
 
@@ -52,7 +52,6 @@ use vm::{EnvInfo, LastHashes};
 use hash::keccak;
 use rlp::{RlpStream, Encodable, encode_list};
 use types::transaction::{SignedTransaction, Error as TransactionError};
-use types::block::Block;
 use types::header::{Header, ExtendedHeader};
 use types::receipt::{Receipt, TransactionOutcome};
 
@@ -155,44 +154,10 @@ impl ExecutedBlock {
 	}
 }
 
-/// Trait for a object that is a `ExecutedBlock`.
-pub trait IsBlock {
-	/// Get the `ExecutedBlock` associated with this object.
-	fn block(&self) -> &ExecutedBlock;
-
-	/// Get the base `Block` object associated with this.
-	fn to_base(&self) -> Block {
-		Block {
-			header: self.header().clone(),
-			transactions: self.transactions().iter().cloned().map(Into::into).collect(),
-			uncles: self.uncles().to_vec(),
-		}
-	}
-
-	/// Get the header associated with this object's block.
-	fn header(&self) -> &Header { &self.block().header }
-
-	/// Get the final state associated with this object's block.
-	fn state(&self) -> &State<StateDB> { &self.block().state }
-
-	/// Get all information on transactions in this block.
-	fn transactions(&self) -> &[SignedTransaction] { &self.block().transactions }
-
-	/// Get all information on receipts in this block.
-	fn receipts(&self) -> &[Receipt] { &self.block().receipts }
-
-	/// Get all uncles in this block.
-	fn uncles(&self) -> &[Header] { &self.block().uncles }
-}
-
 /// Trait for an object that owns an `ExecutedBlock`
 pub trait Drain {
 	/// Returns `ExecutedBlock`
 	fn drain(self) -> ExecutedBlock;
-}
-
-impl IsBlock for ExecutedBlock {
-	fn block(&self) -> &ExecutedBlock { self }
 }
 
 impl<'x> OpenBlock<'x> {
@@ -250,7 +215,7 @@ impl<'x> OpenBlock<'x> {
 	/// NOTE Will check chain constraints and the uncle number but will NOT check
 	/// that the header itself is actually valid.
 	pub fn push_uncle(&mut self, valid_uncle_header: Header) -> Result<(), BlockError> {
-		let max_uncles = self.engine.maximum_uncle_count(self.block.header().number());
+		let max_uncles = self.engine.maximum_uncle_count(self.block.header.number());
 		if self.block.uncles.len() + 1 > max_uncles {
 			return Err(BlockError::TooManyUncles(OutOfBounds{
 				min: None,
@@ -264,11 +229,6 @@ impl<'x> OpenBlock<'x> {
 		Ok(())
 	}
 
-	/// Get the environment info concerning this block.
-	pub fn env_info(&self) -> EnvInfo {
-		self.block.env_info()
-	}
-
 	/// Push a transaction into the block.
 	///
 	/// If valid, it will be executed, and archived together with the receipt.
@@ -277,7 +237,7 @@ impl<'x> OpenBlock<'x> {
 			return Err(TransactionError::AlreadyImported.into());
 		}
 
-		let env_info = self.env_info();
+		let env_info = self.block.env_info();
 		let outcome = self.block.state.apply(&env_info, self.engine.machine(), &t, self.block.traces.is_enabled())?;
 
 		self.block.transactions_set.insert(h.unwrap_or_else(||t.hash()));
@@ -374,22 +334,39 @@ impl<'x> OpenBlock<'x> {
 	pub fn block_mut(&mut self) -> &mut ExecutedBlock { &mut self.block }
 }
 
-impl<'x> IsBlock for OpenBlock<'x> {
-	fn block(&self) -> &ExecutedBlock { &self.block }
+impl<'a> ops::Deref for OpenBlock<'a> {
+	type Target = ExecutedBlock;
+
+	fn deref(&self) -> &Self::Target {
+		&self.block
+	}
 }
 
-impl IsBlock for ClosedBlock {
-	fn block(&self) -> &ExecutedBlock { &self.block }
+impl ops::Deref for ClosedBlock {
+	type Target = ExecutedBlock;
+
+	fn deref(&self) -> &Self::Target {
+		&self.block
+	}
 }
 
-impl IsBlock for LockedBlock {
-	fn block(&self) -> &ExecutedBlock { &self.block }
+impl ops::Deref for LockedBlock {
+	type Target = ExecutedBlock;
+
+	fn deref(&self) -> &Self::Target {
+		&self.block
+	}
+}
+
+impl ops::Deref for SealedBlock {
+	type Target = ExecutedBlock;
+
+	fn deref(&self) -> &Self::Target {
+		&self.block
+	}
 }
 
 impl ClosedBlock {
-	/// Get the hash of the header without seal arguments.
-	pub fn hash(&self) -> H256 { self.header().bare_hash() }
-
 	/// Turn this into a `LockedBlock`, unable to be reopened again.
 	pub fn lock(self) -> LockedBlock {
 		LockedBlock {
@@ -423,18 +400,13 @@ impl LockedBlock {
 		self.block.header.set_receipts_root(
 			ordered_trie_root(self.block.receipts.iter().map(|r| r.rlp_bytes()))
 		);
-		// compute hash and cache it.
-		self.block.header.compute_hash();
 	}
-
-	/// Get the hash of the header without seal arguments.
-	pub fn hash(&self) -> H256 { self.header().bare_hash() }
 
 	/// Provide a valid seal in order to turn this into a `SealedBlock`.
 	///
 	/// NOTE: This does not check the validity of `seal` with the engine.
 	pub fn seal(self, engine: &EthEngine, seal: Vec<Bytes>) -> Result<SealedBlock, BlockError> {
-		let expected_seal_fields = engine.seal_fields(self.header());
+		let expected_seal_fields = engine.seal_fields(&self.block.header);
 		let mut s = self;
 		if seal.len() != expected_seal_fields {
 			return Err(BlockError::InvalidSealArity(
@@ -488,10 +460,6 @@ impl Drain for SealedBlock {
 	fn drain(self) -> ExecutedBlock {
 		self.block
 	}
-}
-
-impl IsBlock for SealedBlock {
-	fn block(&self) -> &ExecutedBlock { &self.block }
 }
 
 /// Enact the block given by block header, transactions and uncles
