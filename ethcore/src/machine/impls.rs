@@ -24,7 +24,7 @@ use ethereum_types::{U256, H256, Address};
 use rlp::Rlp;
 use types::transaction::{self, SYSTEM_ADDRESS, UNSIGNED_SENDER, UnverifiedTransaction, SignedTransaction};
 use types::BlockNumber;
-use types::header::{Header, ExtendedHeader};
+use types::header::Header;
 use vm::{CallType, ActionParams, ActionValue, ParamsType};
 use vm::{EnvInfo, Schedule, CreateContractAddress};
 
@@ -36,7 +36,7 @@ use error::Error;
 use executive::Executive;
 use spec::CommonParams;
 use state::{CleanupMode, Substate};
-use trace::{NoopTracer, NoopVMTracer, Tracer, ExecutiveTracer, RewardType, Tracing};
+use trace::{NoopTracer, NoopVMTracer};
 use tx_filter::TransactionFilter;
 
 /// Parity tries to round block.gas_limit to multiple of this constant
@@ -428,14 +428,8 @@ pub enum AuxiliaryRequest {
 	Both,
 }
 
-impl ::parity_machine::Machine for EthereumMachine {
-	type Header = Header;
-	type ExtendedHeader = ExtendedHeader;
-
-	type LiveBlock = ExecutedBlock;
+impl super::Machine for EthereumMachine {
 	type EngineClient = ::client::EngineClient;
-	type AuxiliaryRequest = AuxiliaryRequest;
-	type AncestryAction = ::types::ancestry_action::AncestryAction;
 
 	type Error = Error;
 
@@ -445,42 +439,6 @@ impl ::parity_machine::Machine for EthereumMachine {
 
 	fn add_balance(&self, live: &mut ExecutedBlock, address: &Address, amount: &U256) -> Result<(), Error> {
 		live.state_mut().add_balance(address, amount, CleanupMode::NoEmpty).map_err(Into::into)
-	}
-}
-
-impl<'a> ::parity_machine::LocalizedMachine<'a> for EthereumMachine {
-	type StateContext = Call<'a>;
-	type AuxiliaryData = AuxiliaryData<'a>;
-}
-
-/// A state machine that uses block rewards.
-pub trait WithRewards: ::parity_machine::Machine {
-	/// Note block rewards, traces each reward storing information about benefactor, amount and type
-	/// of reward.
-	fn note_rewards(
-		&self,
-		live: &mut Self::LiveBlock,
-		rewards: &[(Address, RewardType, U256)],
-	) -> Result<(), Self::Error>;
-}
-
-impl WithRewards for EthereumMachine {
-	fn note_rewards(
-		&self,
-		live: &mut Self::LiveBlock,
-		rewards: &[(Address, RewardType, U256)],
-	) -> Result<(), Self::Error> {
-		if let Tracing::Enabled(ref mut traces) = *live.traces_mut() {
-			let mut tracer = ExecutiveTracer::default();
-
-			for &(address, ref reward_type, amount) in rewards {
-				tracer.trace_reward(address, amount, reward_type.clone());
-			}
-
-			traces.push(tracer.drain().into());
-		}
-
-		Ok(())
 	}
 }
 
