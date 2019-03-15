@@ -9,7 +9,6 @@ variables:
   GIT_STRATEGY:                    fetch
   GIT_SUBMODULE_STRATEGY:          recursive
   CI_SERVER_NAME:                  "GitLab CI"
-  # CARGO_HOME:                      is already set in the docker container
   CARGO_TARGET:                    x86_64-unknown-linux-gnu
 
 .no_git:                           &no_git # disable git strategy
