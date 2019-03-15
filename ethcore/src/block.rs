@@ -367,9 +367,6 @@ impl ops::Deref for SealedBlock {
 }
 
 impl ClosedBlock {
-	/// Get the hash of the header without seal arguments.
-	pub fn hash(&self) -> H256 { self.header.bare_hash() }
-
 	/// Turn this into a `LockedBlock`, unable to be reopened again.
 	pub fn lock(self) -> LockedBlock {
 		LockedBlock {

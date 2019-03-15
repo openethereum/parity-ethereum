@@ -1194,9 +1194,9 @@ impl miner::MinerService for Miner {
 				} else {
 					GetAction::Take
 				},
-				|b| &b.hash() == &block_hash
+				|b| &b.header.bare_hash() == &block_hash
 			) {
-				trace!(target: "miner", "Submitted block {}={}={} with seal {:?}", block_hash, b.hash(), b.header.bare_hash(), seal);
+				trace!(target: "miner", "Submitted block {}={} with seal {:?}", block_hash, b.header.bare_hash(), seal);
 				b.lock().try_seal(&*self.engine, seal).or_else(|e| {
 					warn!(target: "miner", "Mined solution rejected: {}", e);
 					Err(ErrorKind::PowInvalid.into())
