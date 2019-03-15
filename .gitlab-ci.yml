@@ -64,11 +64,9 @@ cargo-check 2 3:
 
 cargo-audit:
   stage:                           test
+  <<:                              *docker-cache-status
   script:
     - cargo audit
-  tags:
-    # - linux-docker
-    - qa
 
 validate-chainspecs:
   stage:                           test
