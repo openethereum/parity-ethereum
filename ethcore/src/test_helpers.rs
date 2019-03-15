@@ -155,7 +155,7 @@ pub fn generate_dummy_client_with_spec_and_data<F>(test_spec: F, block_number: u
 			(3141562.into(), 31415620.into()),
 			vec![],
 			false,
-			&mut Vec::new().into_iter(),
+			None,
 		).unwrap();
 		rolling_timestamp += 10;
 		b.set_timestamp(rolling_timestamp);

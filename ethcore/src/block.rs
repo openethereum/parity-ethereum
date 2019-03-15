@@ -162,7 +162,7 @@ pub trait Drain {
 
 impl<'x> OpenBlock<'x> {
 	/// Create a new `OpenBlock` ready for transaction pushing.
-	pub fn new<'a>(
+	pub fn new<'a, I: IntoIterator<Item = ExtendedHeader>>(
 		engine: &'x EthEngine,
 		factories: Factories,
 		tracing: bool,
@@ -173,7 +173,7 @@ impl<'x> OpenBlock<'x> {
 		gas_range_target: (U256, U256),
 		extra_data: Bytes,
 		is_epoch_begin: bool,
-		ancestry: &mut Iterator<Item=ExtendedHeader>,
+		ancestry: I,
 	) -> Result<Self, Error> {
 		let number = parent.number() + 1;
 		let state = State::from_existing(db, parent.state_root().clone(), engine.account_start_nonce(number), factories)?;
@@ -195,7 +195,7 @@ impl<'x> OpenBlock<'x> {
 		engine.populate_from_parent(&mut r.block.header, parent);
 
 		engine.machine().on_new_block(&mut r.block)?;
-		engine.on_new_block(&mut r.block, is_epoch_begin, ancestry)?;
+		engine.on_new_block(&mut r.block, is_epoch_begin, &mut ancestry.into_iter())?;
 
 		Ok(r)
 	}
@@ -592,7 +592,7 @@ mod tests {
 			(3141562.into(), 31415620.into()),
 			vec![],
 			false,
-			&mut Vec::new().into_iter(),
+			None,
 		)?;
 
 		b.populate_from(&header);
@@ -627,7 +627,7 @@ mod tests {
 		let genesis_header = spec.genesis_header();
 		let db = spec.ensure_db_good(get_temp_state_db(), &Default::default()).unwrap();
 		let last_hashes = Arc::new(vec![genesis_header.hash()]);
-		let b = OpenBlock::new(&*spec.engine, Default::default(), false, db, &genesis_header, last_hashes, Address::zero(), (3141562.into(), 31415620.into()), vec![], false, &mut Vec::new().into_iter()).unwrap();
+		let b = OpenBlock::new(&*spec.engine, Default::default(), false, db, &genesis_header, last_hashes, Address::zero(), (3141562.into(), 31415620.into()), vec![], false, None).unwrap();
 		let b = b.close_and_lock().unwrap();
 		let _ = b.seal(&*spec.engine, vec![]);
 	}
@@ -641,7 +641,7 @@ mod tests {
 
 		let db = spec.ensure_db_good(get_temp_state_db(), &Default::default()).unwrap();
 		let last_hashes = Arc::new(vec![genesis_header.hash()]);
-		let b = OpenBlock::new(engine, Default::default(), false, db, &genesis_header, last_hashes.clone(), Address::zero(), (3141562.into(), 31415620.into()), vec![], false, &mut Vec::new().into_iter()).unwrap()
+		let b = OpenBlock::new(engine, Default::default(), false, db, &genesis_header, last_hashes.clone(), Address::zero(), (3141562.into(), 31415620.into()), vec![], false, None).unwrap()
 			.close_and_lock().unwrap().seal(engine, vec![]).unwrap();
 		let orig_bytes = b.rlp_bytes();
 		let orig_db = b.drain().state.drop().1;
@@ -665,7 +665,7 @@ mod tests {
 
 		let db = spec.ensure_db_good(get_temp_state_db(), &Default::default()).unwrap();
 		let last_hashes = Arc::new(vec![genesis_header.hash()]);
-		let mut open_block = OpenBlock::new(engine, Default::default(), false, db, &genesis_header, last_hashes.clone(), Address::zero(), (3141562.into(), 31415620.into()), vec![], false, &mut Vec::new().into_iter()).unwrap();
+		let mut open_block = OpenBlock::new(engine, Default::default(), false, db, &genesis_header, last_hashes.clone(), Address::zero(), (3141562.into(), 31415620.into()), vec![], false, None).unwrap();
 		let mut uncle1_header = Header::new();
 		uncle1_header.set_extra_data(b"uncle1".to_vec());
 		let mut uncle2_header = Header::new();

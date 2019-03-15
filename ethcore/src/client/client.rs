@@ -2321,7 +2321,7 @@ impl PrepareOpenBlock for Client {
 			gas_range_target,
 			extra_data,
 			is_epoch_begin,
-			&mut chain.ancestry_with_metadata_iter(best_header.hash()),
+			chain.ancestry_with_metadata_iter(best_header.hash()),
 		)?;
 
 		// Add uncles
