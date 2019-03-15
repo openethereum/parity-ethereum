@@ -439,8 +439,10 @@ impl LockedBlock {
 	pub fn seal(self, engine: &EthEngine, seal: Vec<Bytes>) -> Result<SealedBlock, Error> {
 		let expected_seal_fields = engine.seal_fields(self.header());
 		if seal.len() != expected_seal_fields {
-			return Err(Box::new(BlockError::InvalidSealArity(
-				Mismatch { expected: expected_seal_fields, found: seal.len() })).into());
+			Err(BlockError::InvalidSealArity(Mismatch {
+				expected: expected_seal_fields,
+				found: seal.len()
+			}))?;
 		}
 		let mut s = self;
 
