@@ -542,7 +542,7 @@ mod tests {
 		let last_hashes = Arc::new(vec![genesis_header.hash()]);
 		let b = OpenBlock::new(engine, Default::default(), false, db, &genesis_header, last_hashes, Address::zero(), (3141562.into(), 31415620.into()), vec![], false, &mut Vec::new().into_iter()).unwrap();
 		let b = b.close().unwrap();
-		assert_eq!(b.state().balance(&Address::zero()).unwrap(), U256::from_str("4563918244f40000").unwrap());
+		assert_eq!(b.state.balance(&Address::zero()).unwrap(), U256::from_str("4563918244f40000").unwrap());
 	}
 
 	#[test]
@@ -596,8 +596,8 @@ mod tests {
 		b.push_uncle(uncle).unwrap();
 
 		let b = b.close().unwrap();
-		assert_eq!(b.state().balance(&Address::zero()).unwrap(), "478eae0e571ba000".into());
-		assert_eq!(b.state().balance(&uncle_author).unwrap(), "3cb71f51fc558000".into());
+		assert_eq!(b.state.balance(&Address::zero()).unwrap(), "478eae0e571ba000".into());
+		assert_eq!(b.state.balance(&uncle_author).unwrap(), "3cb71f51fc558000".into());
 	}
 
 	#[test]
@@ -612,9 +612,9 @@ mod tests {
 
 		let ubi_contract: Address = "00efdd5883ec628983e9063c7d969fe268bbf310".into();
 		let dev_contract: Address = "00756cf8159095948496617f5fb17ed95059f536".into();
-		assert_eq!(b.state().balance(&Address::zero()).unwrap(), U256::from_str("d8d726b7177a80000").unwrap());
-		assert_eq!(b.state().balance(&ubi_contract).unwrap(), U256::from_str("2b5e3af16b1880000").unwrap());
-		assert_eq!(b.state().balance(&dev_contract).unwrap(), U256::from_str("c249fdd327780000").unwrap());
+		assert_eq!(b.state.balance(&Address::zero()).unwrap(), U256::from_str("d8d726b7177a80000").unwrap());
+		assert_eq!(b.state.balance(&ubi_contract).unwrap(), U256::from_str("2b5e3af16b1880000").unwrap());
+		assert_eq!(b.state.balance(&dev_contract).unwrap(), U256::from_str("c249fdd327780000").unwrap());
 	}
 
 	#[test]
