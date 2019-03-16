@@ -34,10 +34,10 @@ variables:
 .docker-cache-status:              &docker-cache-status
   variables:
     CARGO_HOME:                    "/cargo/${CI_JOB_NAME}"
-  before_script:
-    - sccache -s
-  after_script:
-    - sccache -s
+  # before_script:
+  #   - sccache -s
+  # after_script:
+  #   - sccache -s
   tags:
     #    - linux-docker
     - qa
@@ -47,43 +47,57 @@ cargo-check 0 3:
   stage:                           test
   <<:                              *docker-cache-status
   script:
+    - sccache -s
     - time cargo check --target $CARGO_TARGET --locked --no-default-features
+    - sccache -s
 
 cargo-check 1 3:
   stage:                           test
   <<:                              *docker-cache-status
   script:
+    - sccache -s
     - time cargo check --target $CARGO_TARGET --locked --manifest-path util/io/Cargo.toml --no-default-features
+    - sccache -s
 
 cargo-check 2 3:
   stage:                           test
   <<:                              *docker-cache-status
   script:
+    - sccache -s
     - time cargo check --target $CARGO_TARGET --locked --manifest-path util/io/Cargo.toml --features "mio"
+    - sccache -s
 
 cargo-audit:
   stage:                           test
   <<:                              *docker-cache-status
   script:
+    - sccache -s
     - cargo audit
+    - sccache -s
 
 validate-chainspecs:
   stage:                           test
   <<:                              *docker-cache-status
   script:
+    - sccache -s
     - ./scripts/gitlab/validate-chainspecs.sh
+    - sccache -s
 
 test-cpp:
   stage:                           build
   <<:                              *docker-cache-status
   script:
+    - sccache -s
     - ./scripts/gitlab/test-cpp.sh
+    - sccache -s
 
 test-linux:
   stage:                           build
   <<:                              *docker-cache-status
   script:
+    - sccache -s
     - ./scripts/gitlab/test-linux.sh
+    - sccache -s
 
 build-android:
   stage:                           build
@@ -102,7 +116,9 @@ build-linux:                       &build-linux
   only:                            *releaseable_branches
   <<:                              *docker-cache-status
   script:
+    - sccache -s
     - scripts/gitlab/build-linux.sh
+    - sccache -s
   <<:                              *collect_artifacts
 
 build-linux-i386:
