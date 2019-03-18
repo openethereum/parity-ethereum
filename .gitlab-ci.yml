@@ -35,7 +35,8 @@ variables:
   variables:
     CARGO_HOME:                    "/cargo/${CI_JOB_NAME}"
   before_script:
-    - watch sccache -s
+    - RUST_LOG=sccache=trace
+    - sccache -s
   # after_script:
   #   - sccache -s
   tags:
