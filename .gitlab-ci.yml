@@ -46,9 +46,7 @@ variables:
     - echo "Non-cacheable reasons:";
     - grep CannotCache sccache_error.log | sed -re 's/.*CannotCache\((.+)\).*/\1/' | sort | uniq -c;
   tags:
-    #     - linux-docker
-    - qa
-
+    - linux-docker
 
 cargo-check 0 3:
   stage:                           test
@@ -106,8 +104,7 @@ build-android:
   script:
     - scripts/gitlab/build-linux.sh
   tags:
-    # - linux-docker
-    - qa
+    - linux-docker
   <<:                              *collect_artifacts
 
 build-linux:                       &build-linux
@@ -182,8 +179,7 @@ publish-snap:                      &publish-snap
   dependencies:
     - build-linux
   tags:
-    # - linux-docker
-    - qa
+    - linux-docker
   script:
     - scripts/gitlab/publish-snap.sh
   <<:                              *collect_artifacts
@@ -220,13 +216,12 @@ publish-onchain:
   script:
     - scripts/gitlab/publish-onchain.sh
   tags:
-    # - linux-docker
-    - qa
+    - linux-docker
 
 publish-awss3-release:
   image:                           parity/awscli:latest
   stage:                           publish
-  only:                            *releaseable_branches
+  only:                            *reqaeaseable_branches
   <<:                              *no_git
   cache:                           {}
   dependencies:
@@ -247,8 +242,7 @@ publish-awss3-release:
     - echo "__________Read from S3____________"
     - aws s3 ls s3://${BUCKET}/${SCHEDULE_TAG:-${CI_COMMIT_REF_NAME}} --recursive --human-readable --summarize
   tags:
-    # - linux-docker
-    - qa
+    - linux-docker
 
 publish-docs:
   stage:                            publish
@@ -260,6 +254,5 @@ publish-docs:
   script:
     - scripts/gitlab/publish-docs.sh
   tags:
-    # - linux-docker
-    - qa
+    - linux-docker
 
