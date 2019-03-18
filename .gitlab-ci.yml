@@ -32,14 +32,12 @@ variables:
       - artifacts/
 
 .docker-cache-status:              &docker-cache-status
-  # variables:
-    # CARGO_HOME:                    "/cargo/${CI_JOB_NAME}"
+  variables:
+    CARGO_HOME:                    "/cargo/${CI_JOB_NAME}"
   before_script:
-    # - SCCACHE_ERROR_LOG=sccache.log
-    # - RUST_LOG=sccache=trace
     # - sccache --stop-server
-    # - SCCACHE_ERROR_LOG=/builds/parity/parity-ethereum/sccache_error.log RUST_LOG=sccache::compiler=debug sccache --start-server
-    - SCCACHE_ERROR_LOG=/builds/parity/parity-ethereum/sccache_error.log RUST_LOG=sccache=trace sccache --start-server
+    - SCCACHE_ERROR_LOG=/builds/parity/parity-ethereum/sccache_error.log RUST_LOG=sccache::server=debug sccache --start-server
+    # - SCCACHE_ERROR_LOG=/builds/parity/parity-ethereum/sccache_error.log RUST_LOG=sccache=trace sccache --start-server
     - sccache -s
   # after_script:
     # - sccache -s
@@ -53,56 +51,63 @@ cargo-check 0 3:
   <<:                              *docker-cache-status
   script:
     - time cargo check --target $CARGO_TARGET --locked --no-default-features
-    - cat /builds/parity/parity-ethereum/sccache_error.log
     - sccache -s
+    - grep 'parse_arguments.*--crate-type' sccache_error.log | sed -re 's/.*"--crate-type", "([^"]+)".*/\1/' | sort | uniq -c
+    - grep CannotCache sccache_error.log | sed -re 's/.*CannotCache\((.+)\).*/\1/' | sort | uniq -c
 
 cargo-check 1 3:
   stage:                           test
   <<:                              *docker-cache-status
   script:
     - time cargo check --target $CARGO_TARGET --locked --manifest-path util/io/Cargo.toml --no-default-features
-    - cat /builds/parity/parity-ethereum/sccache_error.log
     - sccache -s
+    - grep 'parse_arguments.*--crate-type' sccache_error.log | sed -re 's/.*"--crate-type", "([^"]+)".*/\1/' | sort | uniq -c
+    - grep CannotCache sccache_error.log | sed -re 's/.*CannotCache\((.+)\).*/\1/' | sort | uniq -c
 
 cargo-check 2 3:
   stage:                           test
   <<:                              *docker-cache-status
   script:
     - time cargo check --target $CARGO_TARGET --locked --manifest-path util/io/Cargo.toml --features "mio"
-    - cat /builds/parity/parity-ethereum/sccache_error.log
     - sccache -s
+    - grep 'parse_arguments.*--crate-type' sccache_error.log | sed -re 's/.*"--crate-type", "([^"]+)".*/\1/' | sort | uniq -c
+    - grep CannotCache sccache_error.log | sed -re 's/.*CannotCache\((.+)\).*/\1/' | sort | uniq -c
 
 cargo-audit:
   stage:                           test
   <<:                              *docker-cache-status
   script:
     - cargo audit
-    - cat /builds/parity/parity-ethereum/sccache_error.log
     - sccache -s
+    - grep 'parse_arguments.*--crate-type' sccache_error.log | sed -re 's/.*"--crate-type", "([^"]+)".*/\1/' | sort | uniq -c
+    - grep CannotCache sccache_error.log | sed -re 's/.*CannotCache\((.+)\).*/\1/' | sort | uniq -c
 
 validate-chainspecs:
   stage:                           test
   <<:                              *docker-cache-status
   script:
     - ./scripts/gitlab/validate-chainspecs.sh
-    - cat /builds/parity/parity-ethereum/sccache_error.log
     - sccache -s
+    - grep 'parse_arguments.*--crate-type' sccache_error.log | sed -re 's/.*"--crate-type", "([^"]+)".*/\1/' | sort | uniq -c
+    - grep CannotCache sccache_error.log | sed -re 's/.*CannotCache\((.+)\).*/\1/' | sort | uniq -c
 
 test-cpp:
   stage:                           build
   <<:                              *docker-cache-status
   script:
     - ./scripts/gitlab/test-cpp.sh
-    - cat /builds/parity/parity-ethereum/sccache_error.log
     - sccache -s
+    - grep 'parse_arguments.*--crate-type' sccache_error.log | sed -re 's/.*"--crate-type", "([^"]+)".*/\1/' | sort | uniq -c
+    - grep CannotCache sccache_error.log | sed -re 's/.*CannotCache\((.+)\).*/\1/' | sort | uniq -c
 
 test-linux:
   stage:                           build
   <<:                              *docker-cache-status
   script:
     - ./scripts/gitlab/test-linux.sh
-    - cat /builds/parity/parity-ethereum/sccache_error.log
     - sccache -s
+    - grep 'parse_arguments.*--crate-type' sccache_error.log | sed -re 's/.*"--crate-type", "([^"]+)".*/\1/' | sort | uniq -c
+    - grep CannotCache sccache_error.log | sed -re 's/.*CannotCache\((.+)\).*/\1/' | sort | uniq -c
 
 build-android:
   stage:                           build
@@ -122,8 +127,9 @@ build-linux:                       &build-linux
   <<:                              *docker-cache-status
   script:
     - scripts/gitlab/build-linux.sh
-    - cat /builds/parity/parity-ethereum/sccache_error.log
     - sccache -s
+    - grep 'parse_arguments.*--crate-type' sccache_error.log | sed -re 's/.*"--crate-type", "([^"]+)".*/\1/' | sort | uniq -c
+    - grep CannotCache sccache_error.log | sed -re 's/.*CannotCache\((.+)\).*/\1/' | sort | uniq -c
   <<:                              *collect_artifacts
 
 build-linux-i386:
