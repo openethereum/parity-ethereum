@@ -579,13 +579,13 @@ impl TransactionQueue {
 	}
 }
 
-fn convert_error(err: txpool::Error) -> transaction::Error {
-	use self::txpool::ErrorKind;
+fn convert_error<H: fmt::Debug + fmt::LowerHex>(err: txpool::Error<H>) -> transaction::Error {
+	use self::txpool::Error;
 
-	match *err.kind() {
-		ErrorKind::AlreadyImported(..) => transaction::Error::AlreadyImported,
-		ErrorKind::TooCheapToEnter(..) => transaction::Error::LimitReached,
-		ErrorKind::TooCheapToReplace(..) => transaction::Error::TooCheapToReplace,
+	match err {
+		Error::AlreadyImported(..) => transaction::Error::AlreadyImported,
+		Error::TooCheapToEnter(..) => transaction::Error::LimitReached,
+		Error::TooCheapToReplace(..) => transaction::Error::TooCheapToReplace,
 		ref e => {
 			warn!(target: "txqueue", "Unknown import error: {:?}", e);
 			transaction::Error::NotAllowed
