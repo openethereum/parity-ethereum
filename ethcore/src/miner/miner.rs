@@ -27,7 +27,7 @@ use ethcore_miner::local_accounts::LocalAccounts;
 use ethcore_miner::pool::{self, TransactionQueue, VerifiedTransaction, QueueStatus, PrioritizationStrategy};
 #[cfg(feature = "work-notify")]
 use ethcore_miner::work_notify::NotifyWork;
-use ethereum_types::{H256, U256, Address};
+use ethereum_types::{H160, H256, U256, Address};
 use io::IoChannel;
 use miner::pool_client::{PoolClient, CachedNonceClient, NonceCache};
 use miner;
@@ -1019,6 +1019,15 @@ impl miner::MinerService for Miner {
 	where
 		C: ChainInfo + Nonce + Sync,
 	{
+		// No special filtering options applied (tx_hash, receiver or sender)
+		self.ready_transactions_filtered(chain, max_len, None, None, None, ordering)
+	}
+
+	fn ready_transactions_filtered<C>(&self, chain: &C, max_len: usize, tx_hash: Option<H256>, receiver: Option<H160>, sender: Option<H160>, ordering: miner::PendingOrdering)
+		-> Vec<Arc<VerifiedTransaction>>
+	where
+		C: ChainInfo + Nonce + Sync,
+	{
 		let chain_info = chain.chain_info();
 
 		let from_queue = || {
@@ -1045,6 +1054,10 @@ impl miner::MinerService for Miner {
 					.iter()
 					.map(|signed| pool::VerifiedTransaction::from_pending_block_transaction(signed.clone()))
 					.map(Arc::new)
+					.filter(|tx| {
+						let _ = tx.pending();
+						true
+					})
 					.take(max_len)
 					.collect()
 			}, chain_info.best_block_number)
