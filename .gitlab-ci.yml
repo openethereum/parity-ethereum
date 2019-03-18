@@ -221,7 +221,7 @@ publish-onchain:
 publish-awss3-release:
   image:                           parity/awscli:latest
   stage:                           publish
-  only:                            *reqaeaseable_branches
+  only:                            *releaseable_branches
   <<:                              *no_git
   cache:                           {}
   dependencies:
