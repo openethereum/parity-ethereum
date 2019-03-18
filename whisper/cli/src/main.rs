@@ -143,6 +143,8 @@ enum Error {
 	JsonRpc(jsonrpc_core::Error),
 	Network(net::Error),
 	SockAddr(std::net::AddrParseError),
+	FromHex(rustc_hex::FromHexError),
+	ParseInt(std::num::ParseIntError),
 }
 
 impl From<std::net::AddrParseError> for Error {
@@ -175,6 +177,18 @@ impl From<jsonrpc_core::Error> for Error {
 	}
 }
 
+impl From<rustc_hex::FromHexError> for Error {
+	fn from(err: rustc_hex::FromHexError) -> Self {
+		Error::FromHex(err)
+	}
+}
+
+impl From<std::num::ParseIntError> for Error {
+	fn from(err: std::num::ParseIntError) -> Self {
+		Error::ParseInt(err)
+	}
+}
+
 impl fmt::Display for Error {
 	fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
 		match *self {
@@ -183,6 +197,8 @@ impl fmt::Display for Error {
 			Error::Io(ref e) => write!(f, "{}", e),
 			Error::JsonRpc(ref e) => write!(f, "{:?}", e),
 			Error::Network(ref e) => write!(f, "{}", e),
+			Error::ParseInt(ref e) => write!(f, "Invalid port: {}", e),
+			Error::FromHex(ref e) => write!(f, "Error decyphering key: {}", e),
 		}
 	}
 }
@@ -223,7 +239,7 @@ fn execute<S, I>(command: I) -> Result<(), Error> where I: IntoIterator<Item=S>,
 		let mut cfg = net::NetworkConfiguration::new();
 		let port = match args.flag_port.as_str() {
 			"random" => 0 as u16,
-			port => port.parse::<u16>().map_err(|e| e.to_string())?,
+			port => port.parse::<u16>()?,
 
 		};
 		let addr = Ipv4Addr::from_str(&args.flag_address[..])?;
@@ -232,8 +248,7 @@ fn execute<S, I>(command: I) -> Result<(), Error> where I: IntoIterator<Item=S>,
 			"" => None,
 			fname => {
 				let key_text = std::fs::read_to_string(fname)?;
-				let key = FromHex::from_hex(key_text.as_str())
-					.map_err(|e| format!("Error converting key: {}", e.to_string()))?;
+				let key = FromHex::from_hex(key_text.as_str())?;
 				Secret::from_slice(key.as_slice())
 			}
 		};
