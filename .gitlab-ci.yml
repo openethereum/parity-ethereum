@@ -4,7 +4,7 @@ stages:
   - publish
   - optional
 
-image:                             parity/rust-parity-ethereum-build:volatile
+image:                             parity/rust-parity-ethereum-build:xenial
 variables:
   GIT_STRATEGY:                    fetch
   GIT_SUBMODULE_STRATEGY:          recursive
