@@ -41,7 +41,6 @@ variables:
     - SCCACHE_ERROR_LOG=~/sccache_error.log
     - RUST_LOG=sccache::compiler=debug
     - sccache --start-server
-    - time cargo check --target $CARGO_TARGET --locked --manifest-path util/io/Cargo.toml --no-default-features
     # - sccache -s
   after_script:
     # - sccache -s
