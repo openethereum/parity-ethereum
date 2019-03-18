@@ -45,19 +45,6 @@ variables:
     #     - linux-docker
     - qa
 
-.debug-script:                     &debug-script
-  - sccache -s
-  - if [ -e ./sccache_error.log ];
-    then
-      echo "Non-cacheable crate-types:";
-      grep 'parse_arguments.*--crate-type' sccache_error.log | sed -re 's/.*"--crate-type", "([^"]+)".*/\1/' | sort | uniq -c;
-      echo "Non-cacheable reasons:";
-      grep CannotCache sccache_error.log | sed -re 's/.*CannotCache\((.+)\).*/\1/' | sort | uniq -c;
-    else
-      echo "no log file";
-    fi
-
-
 
 cargo-check 0 3:
   stage:                           test
@@ -65,15 +52,10 @@ cargo-check 0 3:
   script:
     - time cargo check --target $CARGO_TARGET --locked --no-default-features
     - sccache -s
-    - if [ -e ./sccache_error.log ];
-      then
-        echo "Non-cacheable crate-types:";
-        grep 'parse_arguments.*--crate-type' sccache_error.log | sed -re 's/.*"--crate-type", "([^"]+)".*/\1/' | sort | uniq -c;
-        echo "Non-cacheable reasons:";
-        grep CannotCache sccache_error.log | sed -re 's/.*CannotCache\((.+)\).*/\1/' | sort | uniq -c;
-      else
-        echo "no log file";
-      fi
+    - echo "Non-cacheable crate-types:";
+    - grep 'parse_arguments.*--crate-type' sccache_error.log | sed -re 's/.*"--crate-type", "([^"]+)".*/\1/' | sort | uniq -c;
+    - echo "Non-cacheable reasons:";
+    - grep CannotCache sccache_error.log | sed -re 's/.*CannotCache\((.+)\).*/\1/' | sort | uniq -c;
 
 cargo-check 1 3:
   stage:                           test
@@ -81,31 +63,20 @@ cargo-check 1 3:
   script:
     - time cargo check --target $CARGO_TARGET --locked --manifest-path util/io/Cargo.toml --no-default-features
     - sccache -s
-    - if [ -e ./sccache_error.log ];
-      then
-        echo "Non-cacheable crate-types:";
-        grep 'parse_arguments.*--crate-type' sccache_error.log | sed -re 's/.*"--crate-type", "([^"]+)".*/\1/' | sort | uniq -c;
-        echo "Non-cacheable reasons:";
-        grep CannotCache sccache_error.log | sed -re 's/.*CannotCache\((.+)\).*/\1/' | sort | uniq -c;
-      else
-        echo "no log file";
-      fi
-
+    - echo "Non-cacheable crate-types:";
+    - grep 'parse_arguments.*--crate-type' sccache_error.log | sed -re 's/.*"--crate-type", "([^"]+)".*/\1/' | sort | uniq -c;
+    - echo "Non-cacheable reasons:";
+    - grep CannotCache sccache_error.log | sed -re 's/.*CannotCache\((.+)\).*/\1/' | sort | uniq -c;
 cargo-check 2 3:
   stage:                           test
   <<:                              *docker-cache-status
   script:
     - time cargo check --target $CARGO_TARGET --locked --manifest-path util/io/Cargo.toml --features "mio"
     - sccache -s
-    - if [ -e ./sccache_error.log ];
-      then
-        echo "Non-cacheable crate-types:";
-        grep 'parse_arguments.*--crate-type' sccache_error.log | sed -re 's/.*"--crate-type", "([^"]+)".*/\1/' | sort | uniq -c;
-        echo "Non-cacheable reasons:";
-        grep CannotCache sccache_error.log | sed -re 's/.*CannotCache\((.+)\).*/\1/' | sort | uniq -c;
-      else
-        echo "no log file";
-      fi
+    - echo "Non-cacheable crate-types:";
+    - grep 'parse_arguments.*--crate-type' sccache_error.log | sed -re 's/.*"--crate-type", "([^"]+)".*/\1/' | sort | uniq -c;
+    - echo "Non-cacheable reasons:";
+    - grep CannotCache sccache_error.log | sed -re 's/.*CannotCache\((.+)\).*/\1/' | sort | uniq -c;
 
 cargo-audit:
   stage:                           test
@@ -113,15 +84,6 @@ cargo-audit:
   script:
     - cargo audit
     - sccache -s
-    - if [ -e ./sccache_error.log ];
-      then
-        echo "Non-cacheable crate-types:";
-        grep 'parse_arguments.*--crate-type' sccache_error.log | sed -re 's/.*"--crate-type", "([^"]+)".*/\1/' | sort | uniq -c;
-        echo "Non-cacheable reasons:";
-        grep CannotCache sccache_error.log | sed -re 's/.*CannotCache\((.+)\).*/\1/' | sort | uniq -c;
-      else
-        echo "no log file";
-      fi
 
 validate-chainspecs:
   stage:                           test
@@ -129,15 +91,10 @@ validate-chainspecs:
   script:
     - ./scripts/gitlab/validate-chainspecs.sh
     - sccache -s
-    - if [ -e ./sccache_error.log ];
-      then
-        echo "Non-cacheable crate-types:";
-        grep 'parse_arguments.*--crate-type' sccache_error.log | sed -re 's/.*"--crate-type", "([^"]+)".*/\1/' | sort | uniq -c;
-        echo "Non-cacheable reasons:";
-        grep CannotCache sccache_error.log | sed -re 's/.*CannotCache\((.+)\).*/\1/' | sort | uniq -c;
-      else
-        echo "no log file";
-      fi
+    - echo "Non-cacheable crate-types:";
+    - grep 'parse_arguments.*--crate-type' sccache_error.log | sed -re 's/.*"--crate-type", "([^"]+)".*/\1/' | sort | uniq -c;
+    - echo "Non-cacheable reasons:";
+    - grep CannotCache sccache_error.log | sed -re 's/.*CannotCache\((.+)\).*/\1/' | sort | uniq -c;
 
 test-cpp:
   stage:                           build
@@ -145,15 +102,10 @@ test-cpp:
   script:
     - ./scripts/gitlab/test-cpp.sh
     - sccache -s
-    - if [ -e ./sccache_error.log ];
-      then
-        echo "Non-cacheable crate-types:";
-        grep 'parse_arguments.*--crate-type' sccache_error.log | sed -re 's/.*"--crate-type", "([^"]+)".*/\1/' | sort | uniq -c;
-        echo "Non-cacheable reasons:";
-        grep CannotCache sccache_error.log | sed -re 's/.*CannotCache\((.+)\).*/\1/' | sort | uniq -c;
-      else
-        echo "no log file";
-      fi
+    - echo "Non-cacheable crate-types:";
+    - grep 'parse_arguments.*--crate-type' sccache_error.log | sed -re 's/.*"--crate-type", "([^"]+)".*/\1/' | sort | uniq -c;
+    - echo "Non-cacheable reasons:";
+    - grep CannotCache sccache_error.log | sed -re 's/.*CannotCache\((.+)\).*/\1/' | sort | uniq -c;
 
 test-linux:
   stage:                           build
@@ -161,15 +113,10 @@ test-linux:
   script:
     - ./scripts/gitlab/test-linux.sh
     - sccache -s
-    - if [ -e ./sccache_error.log ];
-      then
-        echo "Non-cacheable crate-types:";
-        grep 'parse_arguments.*--crate-type' sccache_error.log | sed -re 's/.*"--crate-type", "([^"]+)".*/\1/' | sort | uniq -c;
-        echo "Non-cacheable reasons:";
-        grep CannotCache sccache_error.log | sed -re 's/.*CannotCache\((.+)\).*/\1/' | sort | uniq -c;
-      else
-        echo "no log file";
-      fi
+    - echo "Non-cacheable crate-types:";
+    - grep 'parse_arguments.*--crate-type' sccache_error.log | sed -re 's/.*"--crate-type", "([^"]+)".*/\1/' | sort | uniq -c;
+    - echo "Non-cacheable reasons:";
+    - grep CannotCache sccache_error.log | sed -re 's/.*CannotCache\((.+)\).*/\1/' | sort | uniq -c;
 
 build-android:
   stage:                           build
@@ -190,15 +137,10 @@ build-linux:                       &build-linux
   script:
     - scripts/gitlab/build-linux.sh
     - sccache -s
-    - if [ -e ./sccache_error.log ];
-      then
-        echo "Non-cacheable crate-types:";
-        grep 'parse_arguments.*--crate-type' sccache_error.log | sed -re 's/.*"--crate-type", "([^"]+)".*/\1/' | sort | uniq -c;
-        echo "Non-cacheable reasons:";
-        grep CannotCache sccache_error.log | sed -re 's/.*CannotCache\((.+)\).*/\1/' | sort | uniq -c;
-      else
-        echo "no log file";
-      fi
+    - echo "Non-cacheable crate-types:";
+    - grep 'parse_arguments.*--crate-type' sccache_error.log | sed -re 's/.*"--crate-type", "([^"]+)".*/\1/' | sort | uniq -c;
+    - echo "Non-cacheable reasons:";
+    - grep CannotCache sccache_error.log | sed -re 's/.*CannotCache\((.+)\).*/\1/' | sort | uniq -c;
   <<:                              *collect_artifacts
 
 build-linux-i386:
