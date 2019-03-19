@@ -752,6 +752,7 @@ dependencies = [
  "serde_derive 1.0.80 (registry+https://github.com/rust-lang/crates.io-index)",
  "stats 0.1.0",
  "tempdir 0.3.7 (registry+https://github.com/rust-lang/crates.io-index)",
+ "time-utils 0.1.0",
  "trace-time 0.1.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "trie-db 0.11.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "trie-standardmap 0.1.1 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -2817,6 +2818,7 @@ dependencies = [
  "serde_json 1.0.32 (registry+https://github.com/rust-lang/crates.io-index)",
  "slab 0.3.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "smallvec 0.6.5 (registry+https://github.com/rust-lang/crates.io-index)",
+ "time-utils 0.1.0",
  "tiny-keccak 1.4.2 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
@@ -3771,6 +3773,10 @@ dependencies = [
  "redox_syscall 0.1.40 (registry+https://github.com/rust-lang/crates.io-index)",
  "winapi 0.3.6 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
+
+[[package]]
+name = "time-utils"
+version = "0.1.0"
 
 [[package]]
 name = "timer"
