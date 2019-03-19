@@ -41,7 +41,7 @@ pub struct ConfirmationRequest {
 impl From<helpers::ConfirmationRequest> for ConfirmationRequest {
 	fn from(c: helpers::ConfirmationRequest) -> Self {
 		ConfirmationRequest {
-			id: c.id.into(),
+			id: c.id,
 			payload: c.payload.into(),
 			origin: c.origin,
 		}
@@ -214,15 +214,15 @@ impl From<helpers::ConfirmationPayload> for ConfirmationPayload {
 			helpers::ConfirmationPayload::SendTransaction(t) => ConfirmationPayload::SendTransaction(t.into()),
 			helpers::ConfirmationPayload::SignTransaction(t) => ConfirmationPayload::SignTransaction(t.into()),
 			helpers::ConfirmationPayload::EthSignMessage(address, data) => ConfirmationPayload::EthSignMessage(EthSignRequest {
-				address: address.into(),
+				address,
 				data: data.into(),
 			}),
 			helpers::ConfirmationPayload::SignMessage(address, data) => ConfirmationPayload::EIP191SignMessage(EIP191SignRequest {
-				address: address.into(),
-				data: data.into(),
+				address,
+				data,
 			}),
 			helpers::ConfirmationPayload::Decrypt(address, msg) => ConfirmationPayload::Decrypt(DecryptRequest {
-				address: address.into(),
+				address,
 				msg: msg.into(),
 			}),
 		}

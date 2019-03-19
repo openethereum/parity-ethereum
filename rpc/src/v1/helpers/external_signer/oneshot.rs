@@ -28,7 +28,7 @@ pub struct Sender<T> {
 impl<T> Sender<T> {
 	pub fn send(self, data: Res<T>) {
 		let res = self.sender.send(data);
-		if let Err(_) = res {
+		if res.is_err() {
 			debug!(target: "rpc", "Responding to a no longer active request.");
 		}
 	}

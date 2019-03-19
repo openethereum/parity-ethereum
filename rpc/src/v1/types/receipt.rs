@@ -56,7 +56,7 @@ impl Receipt {
 	fn outcome_to_state_root(outcome: TransactionOutcome) -> Option<H256> {
 		match outcome {
 			TransactionOutcome::Unknown | TransactionOutcome::StatusCode(_) => None,
-			TransactionOutcome::StateRoot(root) => Some(root.into()),
+			TransactionOutcome::StateRoot(root) => Some(root),
 		}
 	}
 
@@ -72,18 +72,18 @@ impl From<LocalizedReceipt> for Receipt {
 	fn from(r: LocalizedReceipt) -> Self {
 		Receipt {
 			to: r.to.map(Into::into),
-			from: Some(r.from.into()),
-			transaction_hash: Some(r.transaction_hash.into()),
+			from: Some(r.from),
+			transaction_hash: Some(r.transaction_hash),
 			transaction_index: Some(r.transaction_index.into()),
-			block_hash: Some(r.block_hash.into()),
+			block_hash: Some(r.block_hash),
 			block_number: Some(r.block_number.into()),
-			cumulative_gas_used: r.cumulative_gas_used.into(),
-			gas_used: Some(r.gas_used.into()),
+			cumulative_gas_used: r.cumulative_gas_used,
+			gas_used: Some(r.gas_used),
 			contract_address: r.contract_address.map(Into::into),
 			logs: r.logs.into_iter().map(Into::into).collect(),
 			status_code: Self::outcome_to_status_code(&r.outcome),
 			state_root: Self::outcome_to_state_root(r.outcome),
-			logs_bloom: r.log_bloom.into(),
+			logs_bloom: r.log_bloom,
 		}
 	}
 }
@@ -93,17 +93,17 @@ impl From<RichReceipt> for Receipt {
 		Receipt {
 			from: None,
 			to: None,
-			transaction_hash: Some(r.transaction_hash.into()),
+			transaction_hash: Some(r.transaction_hash),
 			transaction_index: Some(r.transaction_index.into()),
 			block_hash: None,
 			block_number: None,
-			cumulative_gas_used: r.cumulative_gas_used.into(),
-			gas_used: Some(r.gas_used.into()),
+			cumulative_gas_used: r.cumulative_gas_used,
+			gas_used: Some(r.gas_used),
 			contract_address: r.contract_address.map(Into::into),
 			logs: r.logs.into_iter().map(Into::into).collect(),
 			status_code: Self::outcome_to_status_code(&r.outcome),
 			state_root: Self::outcome_to_state_root(r.outcome),
-			logs_bloom: r.log_bloom.into(),
+			logs_bloom: r.log_bloom,
 		}
 	}
 }
@@ -117,13 +117,13 @@ impl From<EthReceipt> for Receipt {
 			transaction_index: None,
 			block_hash: None,
 			block_number: None,
-			cumulative_gas_used: r.gas_used.into(),
+			cumulative_gas_used: r.gas_used,
 			gas_used: None,
 			contract_address: None,
 			logs: r.logs.into_iter().map(Into::into).collect(),
 			status_code: Self::outcome_to_status_code(&r.outcome),
 			state_root: Self::outcome_to_state_root(r.outcome),
-			logs_bloom: r.log_bloom.into(),
+			logs_bloom: r.log_bloom,
 		}
 	}
 }

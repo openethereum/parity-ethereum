@@ -81,7 +81,7 @@ impl<S: core::Middleware<Metadata>> PubSub for PubSubClient<S> {
 	type Metadata = Metadata;
 
 	fn parity_subscribe(&self, mut meta: Metadata, subscriber: Subscriber<core::Value>, method: String, params: Option<core::Params>) {
-		let params = params.unwrap_or(core::Params::Array(vec![]));
+		let params = params.unwrap_or_else(|| core::Params::Array(vec![]));
 		// Make sure to get rid of PubSub session otherwise it will never be dropped.
 		meta.session = None;
 

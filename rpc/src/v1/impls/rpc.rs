@@ -33,7 +33,7 @@ impl RpcClient {
 
 		RpcClient {
 			modules: modules,
-			valid_apis: valid_apis.into_iter().map(|x| x.to_owned()).collect(),
+			valid_apis: valid_apis.into_iter().map(ToOwned::to_owned).collect(),
 		}
 	}
 }

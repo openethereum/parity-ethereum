@@ -41,8 +41,8 @@ impl HttpMetaExtractor for RpcExtractor {
 		Metadata {
 			origin: Origin::Rpc(
 				format!("{} / {}",
-						origin.unwrap_or("unknown origin".to_string()),
-						user_agent.unwrap_or("unknown agent".to_string()))
+						origin.unwrap_or_else(|| "unknown origin".to_string()),
+						user_agent.unwrap_or_else(|| "unknown agent".to_string()))
 			),
 			session: None,
 		}
@@ -67,7 +67,7 @@ impl WsExtractor {
 	/// Creates new `WsExtractor` with given authcodes path.
 	pub fn new(path: Option<&Path>) -> Self {
 		WsExtractor {
-			authcodes_path: path.map(|p| p.to_owned()),
+			authcodes_path: path.map(ToOwned::to_owned),
 		}
 	}
 }
@@ -80,7 +80,7 @@ impl ws::MetaExtractor<Metadata> for WsExtractor {
 			Some(ref path) => {
 				let authorization = req.protocols.get(0).and_then(|p| auth_token_hash(&path, p, true));
 				match authorization {
-					Some(id) => Origin::Signer { session: id.into() },
+					Some(id) => Origin::Signer { session: id },
 					None => Origin::Ws { session: id.into() },
 				}
 			},
@@ -229,7 +229,7 @@ impl<M: core::Middleware<Metadata>> core::Middleware<Metadata> for WsDispatcher<
 		X: core::futures::Future<Item=Option<core::Response>, Error=()> + Send + 'static,
 	{
 		let use_full = match &meta.origin {
-			&Origin::Signer { .. } => true,
+			Origin::Signer { .. } => true,
 			_ => false,
 		};
 

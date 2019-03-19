@@ -60,8 +60,8 @@ pub struct GuardedAuthCodes {
 	pub path: PathBuf,
 }
 
-impl GuardedAuthCodes {
-	pub fn new() -> Self {
+impl Default for GuardedAuthCodes {
+	fn default() -> Self {
 		let tempdir = TempDir::new("").unwrap();
 		let path = tempdir.path().join("file");
 

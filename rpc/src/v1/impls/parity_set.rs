@@ -119,7 +119,7 @@ impl<C, M, U, F> ParitySet for ParitySetClient<C, M, U, F> where
 {
 
 	fn set_min_gas_price(&self, gas_price: U256) -> Result<bool> {
-		match self.miner.set_minimal_gas_price(gas_price.into()) {
+		match self.miner.set_minimal_gas_price(gas_price) {
 			Ok(success) => Ok(success),
 			Err(e) => Err(errors::unsupported(e, None)),
 		}
@@ -136,15 +136,15 @@ impl<C, M, U, F> ParitySet for ParitySetClient<C, M, U, F> where
 	}
 
 	fn set_gas_floor_target(&self, target: U256) -> Result<bool> {
-		let mut range = self.miner.authoring_params().gas_range_target.clone();
-		range.0 = target.into();
+		let mut range = self.miner.authoring_params().gas_range_target;
+		range.0 = target;
 		self.miner.set_gas_range_target(range);
 		Ok(true)
 	}
 
 	fn set_gas_ceil_target(&self, target: U256) -> Result<bool> {
-		let mut range = self.miner.authoring_params().gas_range_target.clone();
-		range.1 = target.into();
+		let mut range = self.miner.authoring_params().gas_range_target;
+		range.1 = target;
 		self.miner.set_gas_range_target(range);
 		Ok(true)
 	}
@@ -155,7 +155,7 @@ impl<C, M, U, F> ParitySet for ParitySetClient<C, M, U, F> where
 	}
 
 	fn set_author(&self, address: H160) -> Result<bool> {
-		self.miner.set_author(miner::Author::External(address.into()));
+		self.miner.set_author(miner::Author::External(address));
 		Ok(true)
 	}
 
@@ -236,8 +236,6 @@ impl<C, M, U, F> ParitySet for ParitySetClient<C, M, U, F> where
 	}
 
 	fn remove_transaction(&self, hash: H256) -> Result<Option<Transaction>> {
-		let hash = hash.into();
-
 		Ok(self.miner.remove_transaction(&hash)
 			.map(|t| Transaction::from_pending(t.pending().clone()))
 		)
