@@ -9,10 +9,9 @@ variables:
   GIT_STRATEGY:                    fetch
   GIT_SUBMODULE_STRATEGY:          recursive
   CI_SERVER_NAME:                  "GitLab CI"
-  CARGO_HOME:                      "${CI_PROJECT_DIR}/.cargo"
   CARGO_TARGET:                    x86_64-unknown-linux-gnu
 
-.no_git:                           &no_git #disable git strategy
+.no_git:                           &no_git # disable git strategy
   variables:
     GIT_STRATEGY:                  none
     GIT_SUBMODULE_STRATEGY:        none
@@ -32,12 +31,17 @@ variables:
     paths:
       - artifacts/
 
-.docker-cache-status:                      &docker-cache-status
-  dependencies:                    []
+.docker-cache-status:              &docker-cache-status
+  variables:
+    CARGO_HOME:                    "/cargo/${CI_JOB_NAME}"
   before_script:
+    - SCCACHE_ERROR_LOG=/builds/parity/parity-ethereum/sccache_error.log RUST_LOG=sccache::server=debug sccache --start-server
     - sccache -s
   after_script:
-    - sccache -s
+    - echo "All crate-types:"
+    - grep 'parse_arguments.*--crate-type' sccache_error.log | sed -re 's/.*"--crate-type", "([^"]+)".*/\1/' | sort | uniq -c
+    - echo "Non-cacheable reasons:"
+    - grep CannotCache sccache_error.log | sed -re 's/.*CannotCache\((.+)\).*/\1/' | sort | uniq -c
   tags:
     - linux-docker
 
@@ -47,43 +51,60 @@ cargo-check 0 3:
   <<:                              *docker-cache-status
   script:
     - time cargo check --target $CARGO_TARGET --locked --no-default-features
+    - sccache -s
 
 cargo-check 1 3:
   stage:                           test
   <<:                              *docker-cache-status
   script:
     - time cargo check --target $CARGO_TARGET --locked --manifest-path util/io/Cargo.toml --no-default-features
+    - sccache -s
 
 cargo-check 2 3:
   stage:                           test
   <<:                              *docker-cache-status
   script:
     - time cargo check --target $CARGO_TARGET --locked --manifest-path util/io/Cargo.toml --features "mio"
+    - sccache -s
 
 cargo-audit:
   stage:                           test
+  <<:                              *docker-cache-status
   script:
     - cargo audit
-  tags:
-    - linux-docker
+    - sccache -s
 
 validate-chainspecs:
   stage:                           test
   <<:                              *docker-cache-status
   script:
     - ./scripts/gitlab/validate-chainspecs.sh
+    - sccache -s
 
 test-cpp:
   stage:                           build
   <<:                              *docker-cache-status
   script:
     - ./scripts/gitlab/test-cpp.sh
+    - sccache -s
 
 test-linux:
   stage:                           build
   <<:                              *docker-cache-status
   script:
     - ./scripts/gitlab/test-linux.sh
+    - sccache -s
+
+build-android:
+  stage:                           build
+  image:                           parity/rust-android:gitlab-ci
+  variables:
+    CARGO_TARGET:                  armv7-linux-androideabi
+  script:
+    - scripts/gitlab/build-linux.sh
+  tags:
+    - linux-docker
+  <<:                              *collect_artifacts
 
 build-linux:                       &build-linux
   stage:                           build
@@ -91,6 +112,7 @@ build-linux:                       &build-linux
   <<:                              *docker-cache-status
   script:
     - scripts/gitlab/build-linux.sh
+    - sccache -s
   <<:                              *collect_artifacts
 
 build-linux-i386:
@@ -138,7 +160,7 @@ build-windows:
 publish-docker:
   stage:                           publish
   only:                            *releaseable_branches
-  cache: {}
+  cache:                           {}
   dependencies:
     - build-linux
   tags:
@@ -152,7 +174,7 @@ publish-snap:                      &publish-snap
   image:                           snapcore/snapcraft
   variables:
     BUILD_ARCH:                    amd64
-  cache: {}
+  cache:                           {}
   dependencies:
     - build-linux
   tags:
@@ -227,19 +249,9 @@ publish-docs:
     - tags
   except:
     - nightly
-  cache: {}
+  cache:                            {}
   script:
     - scripts/gitlab/publish-docs.sh
   tags:
     - linux-docker
 
-build-android:
-  stage:                           build
-  image:                           parity/rust-android:gitlab-ci
-  variables:
-    CARGO_TARGET:                  armv7-linux-androideabi
-  script:
-    - scripts/gitlab/build-linux.sh
-  tags:
-    - linux-docker
-  <<:                              *collect_artifacts
