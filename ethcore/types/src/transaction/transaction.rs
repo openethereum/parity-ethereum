@@ -460,6 +460,19 @@ impl SignedTransaction {
 		self.sender
 	}
 
+	/// Returns transaction receiver, if any
+	pub fn receiver(&self) -> Option<Address> {
+		match self.transaction.unsigned.action {
+			Action::Create => None,
+			Action::Call(receiver) => Some(receiver),
+		}
+	}
+
+	/// Returns transaction hash
+	pub fn hash(&self) -> H256 {
+		self.transaction.hash
+	}
+
 	/// Returns a public key of the sender.
 	pub fn public_key(&self) -> Option<Public> {
 		self.public
