@@ -247,9 +247,12 @@ impl<C, M, U, S> Parity for ParityClient<C, M, U> where
 	}
 
 	fn pending_transactions(&self, limit: Option<usize>, tx_hash: Option<H256>, sender: Option<H160>, receiver: Option<H160>) -> Result<Vec<Transaction>> {
-		let ready_transactions = self.miner.ready_transactions(
+		let ready_transactions = self.miner.ready_transactions_filtered(
 			&*self.client,
 			limit.unwrap_or_else(usize::max_value),
+			tx_hash,
+			sender,
+			receiver,
 			miner::PendingOrdering::Priority,
 		);
 
