@@ -1,7 +1,9 @@
 #!/bin/bash
+echo "________Running rust_changes.sh________"
 set -e # fail on any error
 set -u # treat unset variables as error
 
+echo "__________Checking if Rust files were changed__________"
 git log --graph --oneline --decorate=short -n 10
 
 case ${SCHEDULE_TAG:-${CI_COMMIT_REF_NAME}} in
@@ -26,5 +28,3 @@ then
 fi
 
 rustup show
-
-exec ./test.sh
