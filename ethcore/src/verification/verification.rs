@@ -40,24 +40,8 @@ use types::{BlockNumber, header::Header};
 use types::transaction::SignedTransaction;
 use verification::queue::kind::blocks::Unverified;
 
-
-/// Returns `Ok<SystemTime>` when the result less or equal to `i32::max_value` to prevent `SystemTime` to panic because
-/// it is platform specific, may be i32 or i64.
-///
-/// `Err<BlockError::TimestampOver` otherwise.
-///
-// FIXME: @niklasad1 - remove this when and use `SystemTime::checked_add`
-// when https://github.com/rust-lang/rust/issues/55940 is stabilized.
-fn timestamp_checked_add(sys: SystemTime, d2: Duration) -> Result<SystemTime, BlockError> {
-	let d1 = sys.duration_since(UNIX_EPOCH).map_err(|_| BlockError::TimestampOverflow)?;
-	let total_time = d1.checked_add(d2).ok_or(BlockError::TimestampOverflow)?;
-
-	if total_time.as_secs() <= i32::max_value() as u64 {
-		Ok(sys + d2)
-	} else {
-		Err(BlockError::TimestampOverflow)
-	}
-}
+#[cfg(not(time_checked_add))]
+use time_utils::CheckedSystemTime;
 
 /// Preprocessed block data gathered in `verify_block_unordered` call
 pub struct PreverifiedBlock {
@@ -323,9 +307,11 @@ pub fn verify_header_params(header: &Header, engine: &EthEngine, is_full: bool, 
 
 	if is_full {
 		const ACCEPTABLE_DRIFT: Duration = Duration::from_secs(15);
+		// this will resist overflow until `year 2037`
 		let max_time = SystemTime::now() + ACCEPTABLE_DRIFT;
 		let invalid_threshold = max_time + ACCEPTABLE_DRIFT * 9;
-		let timestamp = timestamp_checked_add(UNIX_EPOCH, Duration::from_secs(header.timestamp()))?;
+		let timestamp = UNIX_EPOCH.checked_add(Duration::from_secs(header.timestamp()))
+			.ok_or(BlockError::TimestampOverflow)?;
 
 		if timestamp > invalid_threshold {
 			return Err(From::from(BlockError::InvalidTimestamp(OutOfBounds { max: Some(max_time), min: None, found: timestamp })))
@@ -347,8 +333,11 @@ fn verify_parent(header: &Header, parent: &Header, engine: &EthEngine) -> Result
 	let gas_limit_divisor = engine.params().gas_limit_bound_divisor;
 
 	if !engine.is_timestamp_valid(header.timestamp(), parent.timestamp()) {
-		let min = timestamp_checked_add(SystemTime::now(), Duration::from_secs(parent.timestamp().saturating_add(1)))?;
-		let found = timestamp_checked_add(SystemTime::now(), Duration::from_secs(header.timestamp()))?;
+		let now = SystemTime::now();
+		let min = now.checked_add(Duration::from_secs(parent.timestamp().saturating_add(1)))
+			.ok_or(BlockError::TimestampOverflow)?;
+		let found = now.checked_add(Duration::from_secs(header.timestamp()))
+			.ok_or(BlockError::TimestampOverflow)?;
 		return Err(From::from(BlockError::InvalidTimestamp(OutOfBounds { max: None, min: Some(min), found })))
 	}
 	if header.number() != parent.number() + 1 {
@@ -834,12 +823,5 @@ mod tests {
 		let engine = NullEngine::new(Default::default(), machine);
 		check_fail(unordered_test(&create_test_block_with_data(&header, &bad_transactions, &[]), &engine), TooManyTransactions(keypair.address()));
 		unordered_test(&create_test_block_with_data(&header, &good_transactions, &[]), &engine).unwrap();
-	}
-
-	#[test]
-	fn checked_add_systime_dur() {
-		assert!(timestamp_checked_add(UNIX_EPOCH, Duration::new(i32::max_value() as u64 + 1, 0)).is_err());
-		assert!(timestamp_checked_add(UNIX_EPOCH, Duration::new(i32::max_value() as u64, 0)).is_ok());
-		assert!(timestamp_checked_add(UNIX_EPOCH, Duration::new(i32::max_value() as u64 - 1, 1_000_000_000)).is_ok());
 	}
 }
