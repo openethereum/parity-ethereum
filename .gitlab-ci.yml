@@ -138,6 +138,7 @@ build-darwin:
   only:                            *releaseable_branches
   variables:
     CARGO_TARGET:                  x86_64-apple-darwin
+    CARGO_HOME:                      "${CI_PROJECT_DIR}/.cargo"
     CC:                            gcc
     CXX:                           g++
   script:
@@ -151,6 +152,7 @@ build-windows:
   only:                            *releaseable_branches
   variables:
     CARGO_TARGET:                  x86_64-pc-windows-msvc
+    CARGO_HOME:                      "${CI_PROJECT_DIR}/.cargo"
   script:
     - sh scripts/gitlab/build-windows.sh
   tags:
