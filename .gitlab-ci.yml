@@ -156,6 +156,10 @@ build-windows:
     CARGO_HOME:                    "${CI_PROJECT_DIR}/.cargo"
   script:
     - sh scripts/gitlab/build-windows.sh
+  # debug
+  variables:
+    - RUST_BACKTRACE:              1
+  # debug
   tags:
     # - rust-windows
     - ci-win-qa
