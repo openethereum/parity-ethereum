@@ -63,6 +63,7 @@ serde = "1.0"
 serde_derive = "1.0"
 stats = { path = "../util/stats" }
 tempdir = {version="0.3", optional = true}
+time-utils = { path = "../util/time-utils" }
 trace-time = "0.1"
 triehash-ethereum = { version = "0.2",  path = "../util/triehash-ethereum" }
 unexpected = { path = "../util/unexpected" }
