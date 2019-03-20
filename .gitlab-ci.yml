@@ -153,9 +153,13 @@ build-windows:
   # only:                            *releaseable_branches
   variables:
     CARGO_TARGET:                  x86_64-pc-windows-msvc
-    CARGO_HOME:                    "${CI_PROJECT_DIR}/.cargo"
+    CARGO_HOME:                    "C:/cargo/${CI_JOB_NAME}"
+    RUSTC_WRAPPER:                 sccache
+    SCCACHE_DIR:                   "C:/sccache"
   script:
+    - sccache -s
     - sh scripts/gitlab/build-windows.sh
+    - sccache -s
   # debug
   variables:
     RUST_BACKTRACE:              1
@@ -164,6 +168,23 @@ build-windows:
     # - rust-windows
     - ci-win-qa
   # <<:                              *collect_artifacts
+
+# test-windows:
+#   stage:                           test
+#   only:
+#     - master
+#   variables:
+#     CARGO_TARGET:                  x86_64-pc-windows-msvc
+#     CARGO_HOME:                    "C:/cargo/${CI_JOB_NAME}"
+#     RUSTC_WRAPPER:                 sccache
+#     SCCACHE_DIR:                   "C:/sccache"
+#   script:
+#     - sccache -s
+#     - sh scripts/gitlab/test-linux.sh
+#     - sccache -s
+#   tags:
+#     - ci-win-qa
+
 
 # publish-docker:
 #   stage:                           publish
