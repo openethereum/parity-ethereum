@@ -158,7 +158,7 @@ build-windows:
     - sh scripts/gitlab/build-windows.sh
   # debug
   variables:
-    - RUST_BACKTRACE:              1
+    RUST_BACKTRACE:              1
   # debug
   tags:
     # - rust-windows
