@@ -61,7 +61,7 @@ use std::thread;
 use std::time;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
-use block::{ExecutedBlock, IsBlock};
+use block::ExecutedBlock;
 use client::{BlockId, EngineClient};
 use engines::clique::util::{extract_signers, recover_creator};
 use engines::{Engine, EngineError, Seal};
@@ -352,9 +352,6 @@ impl Engine<EthereumMachine> for Clique {
 
 	fn maximum_uncle_count(&self, _block: BlockNumber) -> usize { 0 }
 
-	// No Uncle in Clique
-	fn maximum_uncle_age(&self) -> usize { 0 }
-
 	fn on_new_block(
 		&self,
 		_block: &mut ExecutedBlock,
@@ -372,7 +369,7 @@ impl Engine<EthereumMachine> for Clique {
 	fn on_seal_block(&self, block: &ExecutedBlock) -> Result<Option<Header>, Error> {
 		trace!(target: "engine", "on_seal_block");
 
-		let mut header = block.header().clone();
+		let mut header = block.header.clone();
 
 		let state = self.state_no_backfill(header.parent_hash())
 			.ok_or_else(|| BlockError::UnknownParent(*header.parent_hash()))?;

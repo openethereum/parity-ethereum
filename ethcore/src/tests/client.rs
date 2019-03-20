@@ -27,7 +27,6 @@ use types::filter::Filter;
 use types::view;
 use types::views::BlockView;
 
-use block::IsBlock;
 use client::{BlockChainClient, Client, ClientConfig, BlockId, ChainInfo, BlockInfo, PrepareOpenBlock, ImportSealedBlock, ImportBlock};
 use ethereum;
 use executive::{Executive, TransactOptions};
@@ -254,7 +253,7 @@ fn can_mine() {
 
 	let b = client.prepare_open_block(Address::default(), (3141562.into(), 31415620.into()), vec![]).unwrap().close().unwrap();
 
-	assert_eq!(*b.block().header().parent_hash(), view!(BlockView, &dummy_blocks[0]).header_view().hash());
+	assert_eq!(*b.header.parent_hash(), view!(BlockView, &dummy_blocks[0]).header_view().hash());
 }
 
 #[test]

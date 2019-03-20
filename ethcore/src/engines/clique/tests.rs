@@ -171,11 +171,11 @@ impl CliqueTester {
 			(3141562.into(), 31415620.into()),
 			extra_data,
 			false,
-			&mut Vec::new().into_iter(),
+			None,
 		).unwrap();
 
 		{
-			let difficulty = self.get_difficulty(block.header().number(), last_header, &self.signers[&signer].address());
+			let difficulty = self.get_difficulty(block.header.number(), last_header, &self.signers[&signer].address());
 			let b = block.block_mut();
 			b.header.set_timestamp(last_header.timestamp() + self.clique.period);
 			b.header.set_difficulty(difficulty);
@@ -187,7 +187,7 @@ impl CliqueTester {
 			b.header.set_extra_data(extra_data);
 		}
 
-		let current_header = block.header();
+		let current_header = &block.header;
 		self.clique.verify_block_basic(current_header)?;
 		self.clique.verify_block_family(current_header, &last_header)?;
 

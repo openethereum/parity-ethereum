@@ -16,7 +16,7 @@
 
 //! Parity RPC.
 
-#![warn(missing_docs)]
+#![warn(missing_docs, unused_extern_crates)]
 
 #[macro_use]
 extern crate futures;
@@ -32,7 +32,6 @@ extern crate rustc_hex;
 extern crate semver;
 extern crate serde;
 extern crate serde_json;
-extern crate tiny_keccak;
 extern crate tokio_timer;
 extern crate transient_hashmap;
 
@@ -48,7 +47,6 @@ extern crate ethcore;
 extern crate fastmap;
 extern crate parity_bytes as bytes;
 extern crate parity_crypto as crypto;
-extern crate ethcore_io as io;
 extern crate ethcore_light as light;
 extern crate ethcore_logger;
 extern crate ethcore_miner as miner;
@@ -63,14 +61,17 @@ extern crate keccak_hash as hash;
 extern crate parity_runtime;
 extern crate parity_updater as updater;
 extern crate parity_version as version;
-extern crate trie_db as trie;
 extern crate eip_712;
 extern crate rlp;
 extern crate stats;
+extern crate tempdir;
 extern crate vm;
 
 #[cfg(any(test, feature = "ethcore-accounts"))]
 extern crate ethcore_accounts as accounts;
+
+#[cfg(any(test, feature = "ethcore-accounts"))]
+extern crate tiny_keccak;
 
 #[macro_use]
 extern crate log;
@@ -91,12 +92,10 @@ extern crate pretty_assertions;
 extern crate macros;
 
 #[cfg(test)]
-extern crate kvdb_memorydb;
-
-#[cfg(test)]
 extern crate fake_fetch;
 
-extern crate tempdir;
+#[cfg(test)]
+extern crate ethcore_io as io;
 
 pub extern crate jsonrpc_ws_server as ws;
 
