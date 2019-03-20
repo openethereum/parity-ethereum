@@ -1,3 +1,27 @@
+## Parity-Ethereum [v2.3.7](https://github.com/paritytech/parity-ethereum/releases/tag/v2.3.7) (2019-03-20)
+
+Parity-Ethereum 2.3.7-stable is a bugfix release that improves performance and stability.
+
+The full list of included changes:
+- 2.3.7 stable backports ([#10487](https://github.com/paritytech/parity-ethereum/pull/10487))
+  - Version: bump stable
+  - Сaching through docker volume ([#10477](https://github.com/paritytech/parity-ethereum/pull/10477))
+  - fix win&mac build ([#10486](https://github.com/paritytech/parity-ethereum/pull/10486))
+  - fix(extract `timestamp_checked_add` as lib) ([#10383](https://github.com/paritytech/parity-ethereum/pull/10383))
+
+## Parity-Ethereum [v2.3.6](https://github.com/paritytech/parity-ethereum/releases/tag/v2.3.6) (2019-03-19)
+
+Parity-Ethereum 2.3.6-stable is a bugfix release that improves performance and stability.
+
+The full list of included changes:
+- 2.3.6 stable backports ([#10470](https://github.com/paritytech/parity-ethereum/pull/10470))
+  - Version: bump stable
+  - CI publish to aws ([#10446](https://github.com/paritytech/parity-ethereum/pull/10446))
+  - Ensure static validator set changes are recognized ([#10467](https://github.com/paritytech/parity-ethereum/pull/10467))
+  - CI aws git checkout ([#10451](https://github.com/paritytech/parity-ethereum/pull/10451))
+  - Revert "CI aws git checkout ([#10451](https://github.com/paritytech/parity-ethereum/pull/10451))" ([#10456](https://github.com/paritytech/parity-ethereum/pull/10456))
+  - Tests parallelized ([#10452](https://github.com/paritytech/parity-ethereum/pull/10452))
+
 ## Parity-Ethereum [v2.3.5](https://github.com/paritytech/parity-ethereum/releases/tag/v2.3.5) (2019-02-25)
 
 Parity-Ethereum 2.3.5-stable is a bugfix release that improves performance and stability.
@@ -18,7 +42,7 @@ The full list of included changes:
   - Snap: reenable i386, arm64, armhf architecture publishing ([#10386](https://github.com/paritytech/parity-ethereum/pull/10386))
   - Tx pool: always accept local transactions ([#10375](https://github.com/paritytech/parity-ethereum/pull/10375))
   - Fix to_pod storage trie value decoding ([#10368)](https://github.com/paritytech/parity-ethereum/pull/10368))
-- Version: mark 2.3.5 as stable 
+- Version: mark 2.3.5 as stable
 
 ## Parity-Ethereum [v2.3.4](https://github.com/paritytech/parity-ethereum/releases/tag/v2.3.4) (2019-02-21)
 

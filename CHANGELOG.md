@@ -1,3 +1,28 @@
+## Parity-Ethereum [v2.4.2](https://github.com/paritytech/parity-ethereum/releases/tag/v2.4.2) (2019-03-20)
+
+Parity-Ethereum 2.4.2-beta is a bugfix release that improves performance and stability.
+
+The full list of included changes:
+- 2.4.2 beta backports ([#10488](https://github.com/paritytech/parity-ethereum/pull/10488))
+  - Version: bump beta
+  - Сaching through docker volume ([#10477](https://github.com/paritytech/parity-ethereum/pull/10477))
+  - fix win&mac build ([#10486](https://github.com/paritytech/parity-ethereum/pull/10486))
+  - fix(extract `timestamp_checked_add` as lib) ([#10383](https://github.com/paritytech/parity-ethereum/pull/10383))
+
+## Parity-Ethereum [v2.4.1](https://github.com/paritytech/parity-ethereum/releases/tag/v2.4.1) (2019-03-19)
+
+Parity-Ethereum 2.4.1-beta is a bugfix release that improves performance and stability.
+
+The full list of included changes:
+- 2.4.1 beta backports ([#10471](https://github.com/paritytech/parity-ethereum/pull/10471))
+  - Version: bump beta
+  - Implement parity_versionInfo & parity_setChain on LC; fix parity_setChain ([#10312](https://github.com/paritytech/parity-ethereum/pull/10312))
+  - CI publish to aws ([#10446](https://github.com/paritytech/parity-ethereum/pull/10446))
+  - CI aws git checkout ([#10451](https://github.com/paritytech/parity-ethereum/pull/10451))
+  - Revert "CI aws git checkout ([#10451](https://github.com/paritytech/parity-ethereum/pull/10451))" ([#10456](https://github.com/paritytech/parity-ethereum/pull/10456))
+  - Tests parallelized ([#10452](https://github.com/paritytech/parity-ethereum/pull/10452))
+  - Ensure static validator set changes are recognized ([#10467](https://github.com/paritytech/parity-ethereum/pull/10467))
+
 ## Parity-Ethereum [v2.4.0](https://github.com/paritytech/parity-ethereum/releases/tag/v2.4.0) (2019-02-25)
 
 Parity-Ethereum 2.4.0-beta is our trifortnightly minor version release coming with a lot of new features as well as bugfixes and performance improvements.
@@ -6,7 +31,7 @@ Notable changes:
 - Account management is now deprecated ([#10213](https://github.com/paritytech/parity-ethereum/pull/10213))
 - Local accounts can now be specified via CLI ([#9960](https://github.com/paritytech/parity-ethereum/pull/9960))
 - Chains can now be reset to a particular block via CLI ([#9782](https://github.com/paritytech/parity-ethereum/pull/9782))
-- Ethash now additionally implements ProgPoW ([#9762](https://github.com/paritytech/parity-ethereum/pull/9762)) 
+- Ethash now additionally implements ProgPoW ([#9762](https://github.com/paritytech/parity-ethereum/pull/9762))
 - The `eip1283DisableTransition` flag was added to revert EIP-1283 ([#10214](https://github.com/paritytech/parity-ethereum/pull/10214))
 
 The full list of included changes:
