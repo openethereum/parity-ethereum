@@ -248,7 +248,7 @@ fn execute<S, I>(command: I) -> Result<(), Error> where I: IntoIterator<Item=S>,
 			"" => None,
 			fname => {
 				let key_text = std::fs::read_to_string(fname)?;
-				let key = FromHex::from_hex(key_text.as_str())?;
+				let key : Vec<u8> = FromHex::from_hex(key_text.as_str())?;
 				Secret::from_slice(key.as_slice())
 			}
 		};
