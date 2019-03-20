@@ -15,6 +15,7 @@
 // along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
 #![warn(missing_docs, unused_extern_crates)]
+#![cfg_attr(feature = "time_checked_add", feature(time_checked_add))]
 
 //! Ethcore library
 //!
@@ -115,7 +116,6 @@ extern crate tempdir;
 extern crate kvdb_rocksdb;
 #[cfg(any(test, feature = "blooms-db"))]
 extern crate blooms_db;
-
 #[cfg(any(target_os = "linux", target_os = "macos", target_os = "windows", target_os = "android"))]
 extern crate hardware_wallet;
 
@@ -148,6 +148,9 @@ extern crate evm;
 extern crate env_logger;
 #[cfg(test)]
 extern crate rlp_compress;
+
+#[cfg(not(time_checked_add))]
+extern crate time_utils;
 
 pub mod account_provider;
 pub mod block;
