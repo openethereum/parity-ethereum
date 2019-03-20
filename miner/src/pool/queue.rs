@@ -27,7 +27,7 @@ use txpool::{self, Verifier};
 use types::transaction;
 
 use pool::{
-	self, scoring, verifier, client, ready, listener,
+	self, replace, scoring, verifier, client, ready, listener,
 	PrioritizationStrategy, PendingOrdering, PendingSettings,
 };
 use pool::local_transactions::LocalTransactionsList;
@@ -240,7 +240,7 @@ impl TransactionQueue {
 	///
 	/// Given blockchain and state access (Client)
 	/// verifies and imports transactions to the pool.
-	pub fn import<C: client::Client>(
+	pub fn import<C: client::Client + client::NonceClient + Clone>(
 		&self,
 		client: C,
 		transactions: Vec<verifier::Transaction>,
@@ -263,11 +263,13 @@ impl TransactionQueue {
 		};
 
 		let verifier = verifier::Verifier::new(
-			client,
+			client.clone(),
 			options,
 			self.insertion_id.clone(),
 			transaction_to_replace,
 		);
+
+		let mut replace = replace::NonceAndGasPriceAndReadiness::new(self.pool.read().scoring().clone(), client);
 
 		let results = transactions
 			.into_iter()
@@ -286,7 +288,7 @@ impl TransactionQueue {
 				let imported = verifier
 					.verify_transaction(transaction)
 					.and_then(|verified| {
-						self.pool.write().import(verified).map_err(convert_error)
+						self.pool.write().import(verified, &mut replace).map_err(convert_error)
 					});
 
 				match imported {

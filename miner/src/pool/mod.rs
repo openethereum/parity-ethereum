@@ -24,6 +24,7 @@ use txpool;
 mod listener;
 mod queue;
 mod ready;
+mod replace;
 
 pub mod client;
 pub mod local_transactions;
