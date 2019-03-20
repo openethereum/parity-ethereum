@@ -198,7 +198,7 @@ impl fmt::Display for Error {
 			Error::JsonRpc(ref e) => write!(f, "{:?}", e),
 			Error::Network(ref e) => write!(f, "{}", e),
 			Error::ParseInt(ref e) => write!(f, "Invalid port: {}", e),
-			Error::FromHex(ref e) => write!(f, "Error decyphering key: {}", e),
+			Error::FromHex(ref e) => write!(f, "Error deciphering key: {}", e),
 		}
 	}
 }
