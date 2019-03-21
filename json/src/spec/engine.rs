@@ -143,7 +143,7 @@ mod tests {
 		}"#;
 		let deserialized: Engine = serde_json::from_str(s).unwrap();
 		match deserialized {
-			Engine::Clique(_) => {}, // AuthorityRound is unit tested in its own file.
+			Engine::Clique(_) => {}, // Clique is unit tested in its own file.
 			_ => panic!(),
 		};
 	}
