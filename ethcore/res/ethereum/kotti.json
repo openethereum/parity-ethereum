@@ -4,8 +4,8 @@
 	"engine": {
 		"clique": {
 			"params": {
-				"period":15,
-				"epoch":30000
+				"period": 15,
+				"epoch": 30000
 			}
 		}
 	},
@@ -62,8 +62,8 @@
 				"name": "sha256",
 				"pricing": {
 					"linear": {
-						"base":60,
-						"word":12
+						"base": 60,
+						"word": 12
 					}
 				}
 			}
@@ -74,8 +74,8 @@
 				"name": "ripemd160",
 				"pricing": {
 					"linear": {
-						"base":600,
-						"word":120
+						"base": 600,
+						"word": 120
 					}
 				}
 			}
