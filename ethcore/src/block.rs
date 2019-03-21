@@ -471,7 +471,7 @@ impl Drain for SealedBlock {
 }
 
 /// Enact the block given by block header, transactions and uncles
-pub (crate) fn enact(
+pub(crate) fn enact(
 	header: Header,
 	transactions: Vec<SignedTransaction>,
 	uncles: Vec<Header>,
