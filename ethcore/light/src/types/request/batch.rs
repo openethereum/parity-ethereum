@@ -255,4 +255,78 @@ mod tests {
 			hash: Field::BackReference(0, 0),
 		})).unwrap();
 	}
+
+	#[test]
+	fn batch_tx_index_backreference() {
+		let mut builder = Builder::default();
+		builder.push(Request::HeaderProof(IncompleteHeaderProofRequest {
+			num: 100.into(), // header proof puts hash at output 0.
+		})).unwrap();
+		builder.push(Request::TransactionIndex(IncompleteTransactionIndexRequest {
+			hash: Field::BackReference(0, 0),
+		})).unwrap();
+
+		let mut batch = builder.build();
+		batch.requests[1].fill(|_req_idx, _out_idx| Ok(Output::Hash(42.into())));
+
+		assert!(batch.next_complete().is_some());
+		batch.answered += 1;
+		assert!(batch.next_complete().is_some());
+	}
+
+	#[test]
+	#[should_panic]
+	fn batch_tx_index_backreference_wrong_output() {
+		let mut builder = Builder::default();
+		builder.push(Request::HeaderProof(IncompleteHeaderProofRequest {
+			num: 100.into(), // header proof puts hash at output 0.
+		})).unwrap();
+		builder.push(Request::TransactionIndex(IncompleteTransactionIndexRequest {
+			hash: Field::BackReference(0, 0),
+		})).unwrap();
+
+		let mut batch = builder.build();
+		batch.requests[1].fill(|_req_idx, _out_idx| Ok(Output::Number(42)));
+
+		batch.next_complete();
+		batch.answered += 1;
+		batch.next_complete();
+	}
+
+	#[test]
+	fn batch_receipts_backreference() {
+		let mut builder = Builder::default();
+		builder.push(Request::HeaderProof(IncompleteHeaderProofRequest {
+			num: 100.into(), // header proof puts hash at output 0.
+		})).unwrap();
+		builder.push(Request::Receipts(IncompleteReceiptsRequest {
+			hash: Field::BackReference(0, 0),
+		})).unwrap();
+
+		let mut batch = builder.build();
+		batch.requests[1].fill(|_req_idx, _out_idx| Ok(Output::Hash(42.into())));
+
+		assert!(batch.next_complete().is_some());
+		batch.answered += 1;
+		assert!(batch.next_complete().is_some());
+	}
+
+	#[test]
+	#[should_panic]
+	fn batch_receipts_backreference_wrong_output() {
+		let mut builder = Builder::default();
+		builder.push(Request::HeaderProof(IncompleteHeaderProofRequest {
+			num: 100.into(), // header proof puts hash at output 0.
+		})).unwrap();
+		builder.push(Request::Receipts(IncompleteReceiptsRequest {
+			hash: Field::BackReference(0, 0),
+		})).unwrap();
+
+		let mut batch = builder.build();
+		batch.requests[1].fill(|_req_idx, _out_idx| Ok(Output::Number(42)));
+
+		batch.next_complete();
+		batch.answered += 1;
+		batch.next_complete();
+	}
 }
