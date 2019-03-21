@@ -70,6 +70,7 @@ impl<S, C> txpool::ShouldReplace<VerifiedTransaction> for NonceAndGasPriceAndRea
 								}
 							})
 						});
+					println!("{} {}", nonce, replace.transaction.transaction.nonce());
 					nonce == replace.transaction.transaction.nonce()
 				};
 
@@ -116,7 +117,8 @@ mod tests {
 	#[test]
 	fn should_always_accept_local_transactions_unless_same_sender_and_nonce() {
 		let scoring = NonceAndGasPrice(PrioritizationStrategy::GasPriceOnly);
-		let mut replace = NonceAndGasPriceAndReadiness::new(scoring, TestClient::new());
+		let client = TestClient::new().with_nonce(1);
+		let mut replace = NonceAndGasPriceAndReadiness::new(scoring, client);
 
 		// same sender txs
 		let keypair = Random.generate().unwrap();
@@ -168,7 +170,8 @@ mod tests {
 	#[test]
 	fn should_replace_same_sender_by_nonce() {
 		let scoring = NonceAndGasPrice(PrioritizationStrategy::GasPriceOnly);
-		let mut replace = NonceAndGasPriceAndReadiness::new(scoring, TestClient::new());
+		let client = TestClient::new().with_nonce(1);
+		let mut replace = NonceAndGasPriceAndReadiness::new(scoring, client);
 
 		let tx1 = Tx {
 			nonce: 1,
@@ -210,7 +213,8 @@ mod tests {
 	fn should_replace_different_sender_by_priority_and_gas_price() {
 		// given
 		let scoring = NonceAndGasPrice(PrioritizationStrategy::GasPriceOnly);
-		let mut replace = NonceAndGasPriceAndReadiness::new(scoring, TestClient::new());
+		let client = TestClient::new().with_nonce(0);
+		let mut replace = NonceAndGasPriceAndReadiness::new(scoring, client);
 
 		let tx_regular_low_gas = {
 			let tx = Tx {
@@ -259,26 +263,29 @@ mod tests {
 		assert_eq!(replace.should_replace(&tx_local_high_gas, &tx_regular_low_gas), RejectNew);
 	}
 
-//	#[test]
-//	fn should_not_replace_ready_transaction_with_future_transaction() {
-//		let scoring = NonceAndGasPrice(PrioritizationStrategy::GasPriceOnly);
-//		let tx_ready_low_score = {
-//			let tx = Tx {
-//				nonce: 1,
-//				gas_price: 1,
-//				..Default::default()
-//			};
-//			tx.signed().verified()
-//		};
-//		let tx_future_high_score = {
-//			let tx = Tx {
-//				nonce: 3, // future nonce
-//				gas_price: 10,
-//				..Default::default()
-//			};
-//			tx.signed().verified()
-//		};
-//
-//		assert_eq!(should_replace(&scoring, &tx_ready_low_score, &tx_future_high_score), RejectNew);
-//	}
+	#[test]
+	fn should_not_replace_ready_transaction_with_future_transaction() {
+		let scoring = NonceAndGasPrice(PrioritizationStrategy::GasPriceOnly);
+		let client = TestClient::new().with_nonce(1);
+		let mut replace = NonceAndGasPriceAndReadiness::new(scoring, client);
+
+		let tx_ready_low_score = {
+			let tx = Tx {
+				nonce: 1,
+				gas_price: 1,
+				..Default::default()
+			};
+			replace_tx(tx.signed().verified())
+		};
+		let tx_future_high_score = {
+			let tx = Tx {
+				nonce: 3, // future nonce
+				gas_price: 10,
+				..Default::default()
+			};
+			replace_tx(tx.signed().verified())
+		};
+
+		assert_eq!(replace.should_replace(&tx_ready_low_score, &tx_future_high_score), RejectNew);
+	}
 }
