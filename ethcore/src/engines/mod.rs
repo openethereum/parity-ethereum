@@ -300,7 +300,7 @@ pub trait Engine<M: Machine>: Sync + Send {
 	}
 
 	/// Allow returning new block header after seal generation. Currently only used by Clique.
-	fn on_seal_block(&self, _block: &ExecutedBlock) -> Result<Option<Header>, Error> { Ok(None) }
+	fn on_seal_block(&self, _block: &mut ExecutedBlock) -> Result<(), Error> { Ok(()) }
 
 	/// None means that it requires external input (e.g. PoW) to seal a block.
 	/// Some(true) means the engine is currently prime for seal generation (i.e. node is the current validator).
