@@ -24,7 +24,7 @@ use engines::Engine;
 use machine::Machine;
 use parking_lot::RwLock;
 
-/// Service that is managing stepping the engine
+/// Service that is managing the engine
 pub struct StepService {
 	shutdown: Arc<RwLock<bool>>,
 	thread: Option<thread::JoinHandle<()>>,
