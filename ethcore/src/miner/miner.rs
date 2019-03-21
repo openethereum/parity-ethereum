@@ -1455,8 +1455,9 @@ mod tests {
 		}.sign(keypair.secret(), Some(chain_id))
 	}
 
+	// TODO...
 	fn transactions() -> Vec<SignedTransaction> {
-		// Create a single, reproducible keypair (sender)
+		// Create two different, reproducible keypairs (senders)
 		let keypair1 = Secret::from(H256::from(1));
 		let keypair2 = Secret::from(H256::from(2));
 
@@ -1818,5 +1819,6 @@ mod tests {
 		// then
 		let res = miner.ready_transactions_filtered(&client, 10, None, None, None, PendingOrdering::Unordered);
 		// ... ready_transactions() always seems to return only two transactions?
+		// TODO...
 	}
 }

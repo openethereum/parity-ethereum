@@ -184,6 +184,11 @@ pub trait MinerService : Send + Sync {
 	fn ready_transactions<C>(&self, chain: &C, max_len: usize, ordering: PendingOrdering) -> Vec<Arc<VerifiedTransaction>>
 		where C: ChainInfo + Nonce + Sync;
 
+	/// Get a list of all ready transactions either ordered by priority or unordered (cheaper), optionally filtered by hash, sender or receiver.
+	///
+	/// Depending on the settings may look in transaction pool or only in pending block.
+	/// If you don't need a full set of transactions, you can add `max_len` and create only a limited set of
+	/// transactions.
 	fn ready_transactions_filtered<C>(&self, chain: &C, max_len: usize, tx_hash: Option<H256>, receiver: Option<H160>, sender: Option<H160>, ordering: PendingOrdering) -> Vec<Arc<VerifiedTransaction>>
 		where C: ChainInfo + Nonce + Sync;
 
