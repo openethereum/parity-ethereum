@@ -306,8 +306,8 @@ impl Clique {
 
 				// Get the state for last checkpoint.
 				let last_checkpoint_hash = *chain.front()
-											 .expect("chain has at least one element; qed")
-											 .parent_hash();
+					.expect("chain has at least one element; qed")
+					.parent_hash();
 
 				let last_checkpoint_header = match c.block_header(BlockId::Hash(last_checkpoint_hash)) {
 					None => return Err(EngineError::CliqueMissingCheckpoint(last_checkpoint_hash))?,
