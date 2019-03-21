@@ -24,12 +24,14 @@ use engines::Engine;
 use machine::Machine;
 use parking_lot::RwLock;
 
+/// Service that is managing the engine
 pub struct StepService {
 	shutdown: Arc<RwLock<bool>>,
 	thread: Option<thread::JoinHandle<()>>,
 }
 
 impl StepService {
+	/// Start the `StepService`
 	pub fn start<M: Machine + 'static>(engine: Weak<Engine<M>>) -> Arc<Self> {
 		let shutdown = Arc::new(RwLock::new(false));
 		let shutdown1 = shutdown.clone();
@@ -64,6 +66,7 @@ impl StepService {
 		})
 	}
 
+	/// Stop the `StepService`
 	pub fn stop(&mut self) {
 		trace!(target: "miner", "StepService: shutting down.");
 		*self.shutdown.write() = true;

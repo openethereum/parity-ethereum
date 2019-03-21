@@ -119,7 +119,7 @@ impl fmt::Display for EngineError {
 			CliqueMissingVanity => format!("Extra data is missing vanity data"),
 			CliqueMissingSignature => format!("Extra data is missing signature"),
 			CliqueCheckpointInvalidSigners(len) => format!("Checkpoint block list was of length: {} of checkpoint but
-															it needs to be bigger than zero and a divisable by 20", len),
+															it needs to be bigger than zero and a divisible by 20", len),
 			CliqueCheckpointNoSigner => format!("Checkpoint block list of signers was empty"),
 			CliqueInvalidNonce(ref mis) => format!("Unexpected nonce {} expected {} or {}", mis, 0_u64, u64::max_value()),
 			CliqueWrongAuthorCheckpoint(ref oob) => format!("Unexpected checkpoint author: {}", oob),
