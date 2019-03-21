@@ -59,19 +59,18 @@ impl<S, C> txpool::ShouldReplace<VerifiedTransaction> for NonceAndGasPriceAndRea
 				let state = &self.client;
 				// calculate readiness based on state nonce + pooled txs from same sender
 				let is_ready = |replace: &ReplaceTransaction<VerifiedTransaction>| {
-					let state_nonce = state.account_nonce(replace.transaction.sender());
+					let state_nonce = state.account_nonce(replace.sender());
 					let nonce =
 						replace.pooled_by_sender.map_or(state_nonce, |txs| {
 							txs.iter().fold(state_nonce, |nonce, tx| {
-								if nonce == tx.transaction.nonce() && tx.transaction != replace.transaction.transaction {
+								if nonce == tx.nonce() && tx.transaction != *replace.transaction {
 									nonce.saturating_add(U256::from(1))
 								} else {
 									nonce
 								}
 							})
 						});
-					println!("{} {}", nonce, replace.transaction.transaction.nonce());
-					nonce == replace.transaction.transaction.nonce()
+					nonce == replace.nonce()
 				};
 
 				if !is_ready(new) && is_ready(old) {
