@@ -1,3 +1,13 @@
+## Parity-Ethereum [v2.3.8](https://github.com/paritytech/parity-ethereum/releases/tag/v2.3.8) (2019-03-22)
+
+Parity-Ethereum 2.3.8-stable is a bugfix release that improves performance and stability. This patch release contains a critical bug fix where serving light clients previously led to client crashes. Upgrading is highly recommended.
+
+The full list of included changes:
+
+- 2.3.8 stable backports (]#10507](https://github.com/paritytech/parity-ethereum/pull/10507))
+  - Version: bump stable
+  - Add additional request tests (]#10503](https://github.com/paritytech/parity-ethereum/pull/10503))
+
 ## Parity-Ethereum [v2.3.7](https://github.com/paritytech/parity-ethereum/releases/tag/v2.3.7) (2019-03-20)
 
 Parity-Ethereum 2.3.7-stable is a bugfix release that improves performance and stability.
