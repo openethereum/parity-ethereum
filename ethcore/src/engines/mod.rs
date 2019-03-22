@@ -299,7 +299,7 @@ pub trait Engine<M: Machine>: Sync + Send {
 		Ok(())
 	}
 
-	/// Allow returning new block header after seal generation. Currently only used by Clique.
+	/// Allow mutating the header during seal generation. Currently only used by Clique.
 	fn on_seal_block(&self, _block: &mut ExecutedBlock) -> Result<(), Error> { Ok(()) }
 
 	/// None means that it requires external input (e.g. PoW) to seal a block.
