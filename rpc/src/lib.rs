@@ -21,7 +21,6 @@
 #![cfg_attr(
 	feature = "cargo-clippy",
 	allow(
-		clippy::empty_enum,
 		clippy::redundant_field_names,
 		// things are often more readable this way
 		clippy::cast_lossless,
@@ -29,7 +28,6 @@
 		clippy::single_match_else,
 		clippy::type_complexity,
 		clippy::use_self,
-		clippy::zero_prefixed_literal,
 		// not practical
 		clippy::match_bool,
 		clippy::needless_pass_by_value,
