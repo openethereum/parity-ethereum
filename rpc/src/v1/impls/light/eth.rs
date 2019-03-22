@@ -26,7 +26,7 @@ use jsonrpc_core::futures::future::Either;
 use light::cache::Cache as LightDataCache;
 use light::client::LightChainClient;
 use light::{cht, TransactionQueue};
-use light::on_demand::{request, OnDemand};
+use light::on_demand::{request, OnDemandRequester};
 
 use ethereum_types::{Address, H64, H160, H256, U64, U256};
 use hash::{KECCAK_NULL_RLP, KECCAK_EMPTY_LIST_RLP};
@@ -54,10 +54,10 @@ use sync::{LightSyncInfo, LightSyncProvider, LightNetworkDispatcher, ManageNetwo
 const NO_INVALID_BACK_REFS: &str = "Fails only on invalid back-references; back-references here known to be valid; qed";
 
 /// Light client `ETH` (and filter) RPC.
-pub struct EthClient<C, S: LightSyncProvider + LightNetworkDispatcher + 'static> {
+pub struct EthClient<C, S: LightSyncProvider + LightNetworkDispatcher + 'static, OD: OnDemandRequester + 'static> {
 	sync: Arc<S>,
 	client: Arc<C>,
-	on_demand: Arc<OnDemand>,
+	on_demand: Arc<OD>,
 	transaction_queue: Arc<RwLock<TransactionQueue>>,
 	accounts: Arc<Fn() -> Vec<Address> + Send + Sync>,
 	cache: Arc<Mutex<LightDataCache>>,
@@ -67,9 +67,10 @@ pub struct EthClient<C, S: LightSyncProvider + LightNetworkDispatcher + 'static>
 	deprecation_notice: DeprecationNotice,
 }
 
-impl<C, S> Clone for EthClient<C, S>
+impl<C, S, OD> Clone for EthClient<C, S, OD>
 where
-	S: LightSyncProvider + LightNetworkDispatcher + 'static
+	S: LightSyncProvider + LightNetworkDispatcher + 'static,
+	OD: OnDemandRequester + 'static
 {
 	fn clone(&self) -> Self {
 		// each instance should have its own poll manager.
@@ -88,17 +89,18 @@ where
 	}
 }
 
-impl<C, S> EthClient<C, S>
+impl<C, S, OD> EthClient<C, S, OD>
 where
 	C: LightChainClient + 'static,
-	S: LightSyncProvider + LightNetworkDispatcher + ManageNetwork + 'static
+	S: LightSyncProvider + LightNetworkDispatcher + ManageNetwork + 'static,
+	OD: OnDemandRequester + 'static
 {
 	/// Create a new `EthClient` with a handle to the light sync instance, client,
 	/// and on-demand request service, which is assumed to be attached as a handler.
 	pub fn new(
 		sync: Arc<S>,
 		client: Arc<C>,
-		on_demand: Arc<OnDemand>,
+		on_demand: Arc<OD>,
 		transaction_queue: Arc<RwLock<TransactionQueue>>,
 		accounts: Arc<Fn() -> Vec<Address> + Send + Sync>,
 		cache: Arc<Mutex<LightDataCache>>,
@@ -120,7 +122,7 @@ where
 	}
 
 	/// Create a light data fetcher instance.
-	fn fetcher(&self) -> LightFetch<S>
+	fn fetcher(&self) -> LightFetch<S, OD>
 	{
 		LightFetch {
 			client: self.client.clone(),
@@ -218,10 +220,11 @@ where
 	}
 }
 
-impl<C, S> Eth for EthClient<C, S>
+impl<C, S, OD> Eth for EthClient<C, S, OD>
 where
 	C: LightChainClient + 'static,
-	S: LightSyncInfo + LightSyncProvider + LightNetworkDispatcher + ManageNetwork + 'static
+	S: LightSyncInfo + LightSyncProvider + LightNetworkDispatcher + ManageNetwork + 'static,
+	OD: OnDemandRequester + 'static
 {
 	type Metadata = Metadata;
 
@@ -533,10 +536,11 @@ where
 }
 
 // This trait implementation triggers a blanked impl of `EthFilter`.
-impl<C, S> Filterable for EthClient<C, S>
+impl<C, S, OD> Filterable for EthClient<C, S, OD>
 where
 	C: LightChainClient + 'static,
-	S: LightSyncProvider + LightNetworkDispatcher + ManageNetwork + 'static
+	S: LightSyncProvider + LightNetworkDispatcher + ManageNetwork + 'static,
+	OD: OnDemandRequester + 'static
 {
 	fn best_block_number(&self) -> u64 { self.client.chain_info().best_block_number }
 
