@@ -54,7 +54,6 @@ extern crate log;
 extern crate ethabi_derive;
 #[macro_use]
 extern crate ethabi_contract;
-#[macro_use]
 extern crate derive_more;
 #[macro_use]
 extern crate rlp_derive;
@@ -309,19 +308,19 @@ impl Provider {
 					// TODO #9825 [ToDr] Usage of BlockId::Latest
 					let contract_nonce = self.get_contract_nonce(&contract, BlockId::Latest);
 					if let Err(e) = contract_nonce {
-						return Err("Cannot retrieve contract nonce: {:?}", e);
+						return Err(format!("Cannot retrieve contract nonce: {:?}", e).into());
 					}
 					let contract_nonce = contract_nonce.expect("Error was checked before");
 					let private_state = self.execute_private_transaction(BlockId::Latest, &transaction.transaction);
 					if let Err(e) = private_state {
-						return Err("Cannot retrieve private state: {:?}", e);
+						return Err(format!("Cannot retrieve private state: {:?}", e).into());
 					}
 					let private_state = private_state.expect("Error was checked before");
 					let private_state_hash = self.calculate_state_hash(&private_state, contract_nonce);
 					trace!(target: "privatetx", "Hashed effective private state for validator: {:?}", private_state_hash);
 					let signed_state = self.accounts.sign(validator_account, private_state_hash);
 					if let Err(e) = signed_state {
-						return Err("Cannot sign the state: {:?}", e);
+						return Err(format!("Cannot sign the state: {:?}", e).into());
 					}
 					let signed_state = signed_state.expect("Error was checked before");
 					let signed_private_transaction = SignedPrivateTransaction::new(private_hash, signed_state, None);
@@ -382,7 +381,7 @@ impl Provider {
 				Ok(_) => trace!(target: "privatetx", "Public transaction added to queue"),
 				Err(err) => {
 					warn!(target: "privatetx", "Failed to add transaction to queue, error: {:?}", err);
-					return Err(err);
+					return Err(err.into());
 				}
 			}
 			// Notify about state changes
@@ -442,7 +441,7 @@ impl Provider {
 			}
 			Err(err) => {
 				warn!(target: "privatetx", "Sender's state doesn't correspond to validator's, error {:?}", err);
-				return Err(err);
+				return Err(err.into());
 			}
 		}
 	}

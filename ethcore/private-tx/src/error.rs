@@ -14,7 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
-use std::{error, result};
+use std::error;
 use derive_more::Display;
 use ethereum_types::Address;
 use rlp::DecoderError;
@@ -109,10 +109,10 @@ pub enum Error {
 	/// General ethcore error.
 	#[display(fmt = "General ethcore error {}", _0)]
 	Ethcore(EthcoreError),
+	/// A convenient variant for String.
+	#[display(fmt = "{}", _0)]
+	Msg(String),
 }
-
-/// Private Transactions Result
-pub type Result<T> = result::Result<T, Error>;
 
 impl error::Error for Error {
 	fn source(&self) -> Option<&(error::Error + 'static)> {
@@ -131,9 +131,33 @@ impl error::Error for Error {
 	}
 }
 
+impl From<String> for Error {
+	fn from(s: String) -> Self {
+		Error::Msg(s)
+	}
+}
+
+impl From<std::io::Error> for Error {
+	fn from(err: std::io::Error) -> Self {
+		Error::Io(err).into()
+	}
+}
+
 impl From<KeyError> for Error {
 	fn from(err: KeyError) -> Self {
 		Error::Key(err).into()
+	}
+}
+
+impl From<CryptoError> for Error {
+	fn from(err: CryptoError) -> Self {
+		Error::Crypto(err).into()
+	}
+}
+
+impl From<DecoderError> for Error {
+	fn from(err: DecoderError) -> Self {
+		Error::Decoder(err).into()
 	}
 }
 
@@ -146,6 +170,18 @@ impl From<ExecutionError> for Error {
 impl From<TransactionError> for Error {
 	fn from(err: TransactionError) -> Self {
 		Error::Transaction(err).into()
+	}
+}
+
+impl From<TrieError> for Error {
+	fn from(err: TrieError) -> Self {
+		Error::Trie(err).into()
+	}
+}
+
+impl From<TxPoolError<<VerifiedPrivateTransaction as VerifiedTransaction>::Hash>> for Error {
+	fn from(err: TxPoolError<<VerifiedPrivateTransaction as VerifiedTransaction>::Hash>) -> Self {
+		Error::TxPool(err).into()
 	}
 }
 
