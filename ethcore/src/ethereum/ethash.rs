@@ -241,17 +241,16 @@ impl Engine<EthereumMachine> for Arc<Ethash> {
 	/// This assumes that all uncles are valid uncles (i.e. of at least one generation before the current).
 	fn on_close_block(&self, block: &mut ExecutedBlock) -> Result<(), Error> {
 		use std::ops::Shr;
-		use parity_machine::LiveBlock;
 
-		let author = *LiveBlock::header(&*block).author();
-		let number = LiveBlock::header(&*block).number();
+		let author = *block.header.author();
+		let number = block.header.number();
 
 		let rewards = match self.ethash_params.block_reward_contract {
 			Some(ref c) if number >= self.ethash_params.block_reward_contract_transition => {
 				let mut beneficiaries = Vec::new();
 
 				beneficiaries.push((author, RewardKind::Author));
-				for u in LiveBlock::uncles(&*block) {
+				for u in &block.uncles {
 					let uncle_author = u.author();
 					beneficiaries.push((*uncle_author, RewardKind::uncle(number, u.number())));
 				}
@@ -274,7 +273,8 @@ impl Engine<EthereumMachine> for Arc<Ethash> {
 				let eras_rounds = self.ethash_params.ecip1017_era_rounds;
 				let (eras, reward) = ecip1017_eras_block_reward(eras_rounds, reward, number);
 
-				let n_uncles = LiveBlock::uncles(&*block).len();
+				//let n_uncles = LiveBlock::uncles(&*block).len();
+				let n_uncles = block.uncles.len();
 
 				// Bestow block rewards.
 				let mut result_block_reward = reward + reward.shr(5) * U256::from(n_uncles);
@@ -282,7 +282,7 @@ impl Engine<EthereumMachine> for Arc<Ethash> {
 				rewards.push((author, RewardKind::Author, result_block_reward));
 
 				// Bestow uncle rewards.
-				for u in LiveBlock::uncles(&*block) {
+				for u in &block.uncles {
 					let uncle_author = u.author();
 					let result_uncle_reward = if eras == 0 {
 						(reward * U256::from(8 + u.number() - number)).shr(3)
@@ -540,9 +540,9 @@ mod tests {
 		let genesis_header = spec.genesis_header();
 		let db = spec.ensure_db_good(get_temp_state_db(), &Default::default()).unwrap();
 		let last_hashes = Arc::new(vec![genesis_header.hash()]);
-		let b = OpenBlock::new(engine, Default::default(), false, db, &genesis_header, last_hashes, Address::zero(), (3141562.into(), 31415620.into()), vec![], false, &mut Vec::new().into_iter()).unwrap();
+		let b = OpenBlock::new(engine, Default::default(), false, db, &genesis_header, last_hashes, Address::zero(), (3141562.into(), 31415620.into()), vec![], false, None).unwrap();
 		let b = b.close().unwrap();
-		assert_eq!(b.state().balance(&Address::zero()).unwrap(), U256::from_str("4563918244f40000").unwrap());
+		assert_eq!(b.state.balance(&Address::zero()).unwrap(), U256::from_str("4563918244f40000").unwrap());
 	}
 
 	#[test]
@@ -589,15 +589,15 @@ mod tests {
 		let genesis_header = spec.genesis_header();
 		let db = spec.ensure_db_good(get_temp_state_db(), &Default::default()).unwrap();
 		let last_hashes = Arc::new(vec![genesis_header.hash()]);
-		let mut b = OpenBlock::new(engine, Default::default(), false, db, &genesis_header, last_hashes, Address::zero(), (3141562.into(), 31415620.into()), vec![], false, &mut Vec::new().into_iter()).unwrap();
+		let mut b = OpenBlock::new(engine, Default::default(), false, db, &genesis_header, last_hashes, Address::zero(), (3141562.into(), 31415620.into()), vec![], false, None).unwrap();
 		let mut uncle = Header::new();
 		let uncle_author: Address = "ef2d6d194084c2de36e0dabfce45d046b37d1106".into();
 		uncle.set_author(uncle_author);
 		b.push_uncle(uncle).unwrap();
 
 		let b = b.close().unwrap();
-		assert_eq!(b.state().balance(&Address::zero()).unwrap(), "478eae0e571ba000".into());
-		assert_eq!(b.state().balance(&uncle_author).unwrap(), "3cb71f51fc558000".into());
+		assert_eq!(b.state.balance(&Address::zero()).unwrap(), "478eae0e571ba000".into());
+		assert_eq!(b.state.balance(&uncle_author).unwrap(), "3cb71f51fc558000".into());
 	}
 
 	#[test]
@@ -607,14 +607,14 @@ mod tests {
 		let genesis_header = spec.genesis_header();
 		let db = spec.ensure_db_good(get_temp_state_db(), &Default::default()).unwrap();
 		let last_hashes = Arc::new(vec![genesis_header.hash()]);
-		let b = OpenBlock::new(engine, Default::default(), false, db, &genesis_header, last_hashes, Address::zero(), (3141562.into(), 31415620.into()), vec![], false, &mut Vec::new().into_iter()).unwrap();
+		let b = OpenBlock::new(engine, Default::default(), false, db, &genesis_header, last_hashes, Address::zero(), (3141562.into(), 31415620.into()), vec![], false, None).unwrap();
 		let b = b.close().unwrap();
 
 		let ubi_contract: Address = "00efdd5883ec628983e9063c7d969fe268bbf310".into();
 		let dev_contract: Address = "00756cf8159095948496617f5fb17ed95059f536".into();
-		assert_eq!(b.state().balance(&Address::zero()).unwrap(), U256::from_str("d8d726b7177a80000").unwrap());
-		assert_eq!(b.state().balance(&ubi_contract).unwrap(), U256::from_str("2b5e3af16b1880000").unwrap());
-		assert_eq!(b.state().balance(&dev_contract).unwrap(), U256::from_str("c249fdd327780000").unwrap());
+		assert_eq!(b.state.balance(&Address::zero()).unwrap(), U256::from_str("d8d726b7177a80000").unwrap());
+		assert_eq!(b.state.balance(&ubi_contract).unwrap(), U256::from_str("2b5e3af16b1880000").unwrap());
+		assert_eq!(b.state.balance(&dev_contract).unwrap(), U256::from_str("c249fdd327780000").unwrap());
 	}
 
 	#[test]
