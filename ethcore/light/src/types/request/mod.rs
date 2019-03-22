@@ -907,7 +907,7 @@ pub mod transaction_index {
 		fn fill<F>(&mut self, oracle: F) where F: Fn(usize, usize) -> Result<Output, NoSuchOutput> {
 			if let Field::BackReference(req, idx) = self.hash {
 				self.hash = match oracle(req, idx) {
-					Ok(Output::Number(hash)) => Field::Scalar(hash.into()),
+					Ok(Output::Hash(hash)) => Field::Scalar(hash.into()),
 					_ => Field::BackReference(req, idx),
 				}
 			}
@@ -982,7 +982,7 @@ pub mod block_receipts {
 		fn fill<F>(&mut self, oracle: F) where F: Fn(usize, usize) -> Result<Output, NoSuchOutput> {
 			if let Field::BackReference(req, idx) = self.hash {
 				self.hash = match oracle(req, idx) {
-					Ok(Output::Number(hash)) => Field::Scalar(hash.into()),
+					Ok(Output::Hash(hash)) => Field::Scalar(hash.into()),
 					_ => Field::BackReference(req, idx),
 				}
 			}
