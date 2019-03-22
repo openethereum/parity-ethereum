@@ -6,7 +6,7 @@ The full list of included changes:
 
 - 2.3.8 stable backports (]#10507](https://github.com/paritytech/parity-ethereum/pull/10507))
   - Version: bump stable
-  - Add additional request tests (]#10503](https://github.com/paritytech/parity-ethereum/pull/10503))
+  - Add additional request tests ([#10503](https://github.com/paritytech/parity-ethereum/pull/10503))
 
 ## Parity-Ethereum [v2.3.7](https://github.com/paritytech/parity-ethereum/releases/tag/v2.3.7) (2019-03-20)
 
