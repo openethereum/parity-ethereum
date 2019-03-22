@@ -206,8 +206,7 @@ impl<C, M, U, S> Parity for ParityClient<C, M, U> where
 	}
 
 	fn phrase_to_address(&self, phrase: String) -> Result<H160> {
-		// TODO(niklasad1): replace `unwrap`
-		Ok(Brain::new(phrase).generate().unwrap().address())
+		Ok(Brain::new(phrase).generate().expect("Brain::generate always returns Ok; qed").address())
 	}
 
 	fn list_accounts(&self, count: u64, after: Option<H160>, block_number: Option<BlockNumber>) -> Result<Option<Vec<H160>>> {
