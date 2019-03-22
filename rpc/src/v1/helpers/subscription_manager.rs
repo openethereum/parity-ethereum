@@ -52,7 +52,7 @@ impl<S: core::Middleware<Metadata>> GenericPollManager<S> {
 	pub fn new(rpc: MetaIoHandler<Metadata, S>) -> Self {
 		GenericPollManager {
 			subscribers: Default::default(),
-			rpc: rpc,
+			rpc,
 		}
 	}
 

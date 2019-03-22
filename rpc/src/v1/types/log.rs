@@ -51,12 +51,12 @@ pub struct Log {
 impl From<LocalizedLogEntry> for Log {
 	fn from(e: LocalizedLogEntry) -> Log {
 		Log {
-			address: e.entry.address.into(),
+			address: e.entry.address,
 			topics: e.entry.topics.into_iter().map(Into::into).collect(),
 			data: e.entry.data.into(),
-			block_hash: Some(e.block_hash.into()),
+			block_hash: Some(e.block_hash),
 			block_number: Some(e.block_number.into()),
-			transaction_hash: Some(e.transaction_hash.into()),
+			transaction_hash: Some(e.transaction_hash),
 			transaction_index: Some(e.transaction_index.into()),
 			log_index: Some(e.log_index.into()),
 			transaction_log_index: Some(e.transaction_log_index.into()),
@@ -69,7 +69,7 @@ impl From<LocalizedLogEntry> for Log {
 impl From<LogEntry> for Log {
 	fn from(e: LogEntry) -> Log {
 		Log {
-			address: e.address.into(),
+			address: e.address,
 			topics: e.topics.into_iter().map(Into::into).collect(),
 			data: e.data.into(),
 			block_hash: None,

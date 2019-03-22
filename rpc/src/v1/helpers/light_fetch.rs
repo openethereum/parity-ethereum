@@ -121,7 +121,7 @@ pub fn extract_transaction_at_index(block: encoded::Block, index: usize) -> Opti
 				cached_sender,
 			}
 		})
-		.map(|tx| Transaction::from_localized(tx))
+		.map(Transaction::from_localized)
 }
 
 // extract the header indicated by the given `HeaderRef` from the given responses.
@@ -159,7 +159,7 @@ where
 						let idx = reqs.len();
 						let hash_ref = Field::back_ref(idx, 0);
 						reqs.push(req.into());
-						reqs.push(request::HeaderByHash(hash_ref.clone()).into());
+						reqs.push(request::HeaderByHash(hash_ref).into());
 
 						Ok(HeaderRef::Unresolved(idx + 1, hash_ref))
 					}
@@ -197,7 +197,7 @@ where
 			Err(e) => return Either::A(future::err(e)),
 		};
 
-		reqs.push(request::Account { header: header_ref.clone(), address: address }.into());
+		reqs.push(request::Account { header: header_ref.clone(), address }.into());
 		let account_idx = reqs.len() - 1;
 		reqs.push(request::Code { header: header_ref, code_hash: Field::back_ref(account_idx, 0) }.into());
 
@@ -216,7 +216,7 @@ where
 			Err(e) => return Either::A(future::err(e)),
 		};
 
-		reqs.push(request::Account { header: header_ref, address: address }.into());
+		reqs.push(request::Account { header: header_ref, address }.into());
 
 		Either::B(self.send_requests(reqs, |mut res|match res.pop() {
 			Some(OnDemandResponse::Account(acc)) => acc,
@@ -246,7 +246,7 @@ where
 			}
 		};
 
-		let from = req.from.unwrap_or_else(|| Address::zero());
+		let from = req.from.unwrap_or_default();
 		let nonce_fut = match req.nonce {
 			Some(nonce) => Either::A(future::ok(Some(nonce))),
 			None => Either::B(self.account(from, id).map(|acc| acc.map(|a| a.nonce))),
@@ -370,10 +370,10 @@ where
 								for (transaction_log_index, log) in receipt.logs.into_iter().enumerate() {
 									if filter.matches(&log) {
 										matches.insert((num, block_index), Log {
-											address: log.address.into(),
+											address: log.address,
 											topics: log.topics.into_iter().map(Into::into).collect(),
 											data: log.data.into(),
-											block_hash: Some(hash.into()),
+											block_hash: Some(hash),
 											block_number: Some(num.into()),
 											// No way to easily retrieve transaction hash, so let's just skip it.
 											transaction_hash: None,
@@ -410,8 +410,8 @@ where
 				let mut blocks = BTreeMap::new();
 				for log in result.iter() {
 						let block_hash = log.block_hash.as_ref().expect("Previously initialized with value; qed");
-						blocks.entry(block_hash.clone()).or_insert_with(|| {
-							fetcher_block.block(BlockId::Hash(block_hash.clone().into()))
+						blocks.entry(*block_hash).or_insert_with(|| {
+							fetcher_block.block(BlockId::Hash(*block_hash))
 						});
 				}
 				// future get blocks (unordered it)
@@ -419,12 +419,12 @@ where
 					let transactions_per_block: BTreeMap<_, _> = blocks.iter()
 						.map(|block| (block.hash(), block.transactions())).collect();
 					for log in result.iter_mut() {
-						let log_index: U256 = log.transaction_index.expect("Previously initialized with value; qed").into();
-						let block_hash = log.block_hash.clone().expect("Previously initialized with value; qed").into();
+						let log_index = log.transaction_index.expect("Previously initialized with value; qed");
+						let block_hash = log.block_hash.expect("Previously initialized with value; qed");
 						let tx_hash = transactions_per_block.get(&block_hash)
 							// transaction index is from an enumerate call in log common so not need to check value
 							.and_then(|txs| txs.get(log_index.as_usize()))
-							.map(|tr| tr.hash().into());
+							.map(types::transaction::UnverifiedTransaction::hash);
 						log.transaction_hash = tx_hash;
 					}
 					result
@@ -442,7 +442,7 @@ where
 
 		Box::new(future::loop_fn(params, move |(sync, on_demand)| {
 			let maybe_future = sync.with_context(|ctx| {
-				let req = request::TransactionIndex(tx_hash.clone().into());
+				let req = request::TransactionIndex(tx_hash.into());
 				on_demand.request(ctx, req)
 			});
 
@@ -468,7 +468,7 @@ where
 						let index = index.index as usize;
 						let transaction = extract_transaction_at_index(blk, index);
 
-						if transaction.as_ref().map_or(true, |tx| tx.hash != tx_hash.into()) {
+						if transaction.as_ref().map_or(true, |tx| tx.hash != tx_hash) {
 							// index is actively wrong: indicated block has
 							// fewer transactions than necessary or the transaction
 							// at that index had a different hash.
@@ -522,7 +522,7 @@ where
 	) -> impl Future<Item = Vec<encoded::Header>, Error = Error> {
 		let fetch_hashes = [from_block, to_block].iter()
 			.filter_map(|block_id| match block_id {
-				BlockId::Hash(hash) => Some(hash.clone()),
+				BlockId::Hash(hash) => Some(*hash),
 				_ => None,
 			})
 			.collect::<Vec<_>>();
@@ -533,14 +533,14 @@ where
 		self.headers_by_hash(&fetch_hashes[..]).and_then(move |mut header_map| {
 			let (from_block_num, to_block_num) = {
 				let block_number = |id| match id {
-					&BlockId::Earliest => 0,
-					&BlockId::Latest => best_number,
-					&BlockId::Hash(ref h) =>
-						header_map.get(h).map(|hdr| hdr.number())
+					BlockId::Earliest => 0,
+					BlockId::Latest => best_number,
+					BlockId::Hash(ref h) =>
+						header_map.get(h).map(types::encoded::Header::number)
 						.expect("from_block and to_block headers are fetched by hash; this closure is only called on from_block and to_block; qed"),
-					&BlockId::Number(x) => x,
+					BlockId::Number(x) => x,
 				};
-				(block_number(&from_block), block_number(&to_block))
+				(block_number(from_block), block_number(to_block))
 			};
 
 			if to_block_num < from_block_num {
@@ -557,7 +557,7 @@ where
 			let headers_fut = fetcher.headers_range(from_block_num, to_block_num, to_header_hint);
 			Either::B(headers_fut.map(move |headers| {
 				// Validate from_block if it's a hash
-				let last_hash = headers.last().map(|hdr| hdr.hash());
+				let last_hash = headers.last().map(types::encoded::Header::hash);
 				match (last_hash, from_block) {
 					(Some(h1), BlockId::Hash(h2)) if h1 != h2 => Vec::new(),
 					_ => headers,
@@ -578,15 +578,13 @@ where
 		}
 
 		self.send_requests(reqs, move |res| {
-			let headers = refs.drain()
-				.map(|(hash, header_ref)| {
+			refs.into_iter().map(|(hash, header_ref)| {
 					let hdr = extract_header(&res, header_ref)
 						.expect("these responses correspond to requests that header_ref belongs to; \
 								qed");
 					(hash, hdr)
-				})
-				.collect();
-			headers
+			})
+			.collect()
 		})
 	}
 
@@ -678,7 +676,7 @@ where
 {
 	fn clone(&self) -> Self {
 		Self {
-			from: self.from.clone(),
+			from: self.from,
 			tx: self.tx.clone(),
 			hdr: self.hdr.clone(),
 			env_info: self.env_info.clone(),
@@ -719,7 +717,7 @@ where
 							   required, got);
 						if required <= params.hdr.gas_limit() {
 							params.tx.gas = required;
-							return Ok(future::Loop::Continue(params))
+							Ok(future::Loop::Continue(params))
 						} else {
 							warn!(target: "light_fetch",
 								  "Required gas is bigger than block header's gas dropping the request");
