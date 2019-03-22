@@ -115,7 +115,7 @@ impl AuthCodes<DefaultTimeProvider> {
 			})
 			.collect();
 		Ok(AuthCodes {
-			codes: codes,
+			codes,
 			now: time_provider,
 		})
 	}
@@ -183,7 +183,7 @@ impl<T: TimeProvider> AuthCodes<T> {
 			.join("-");
 		trace!(target: "signer", "New authentication token generated.");
 		self.codes.push(Code {
-			code: code,
+			code,
 			created_at: time::Duration::from_secs(self.now.now()),
 			last_used_at: None,
 		});

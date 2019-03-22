@@ -140,7 +140,7 @@ where
 			active: peer_numbers.active,
 			connected: peer_numbers.connected,
 			max: peer_numbers.max as u32,
-			peers: peers,
+			peers,
 		})
 	}
 

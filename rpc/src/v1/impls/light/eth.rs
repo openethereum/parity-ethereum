@@ -238,8 +238,8 @@ where
 
 			Ok(RpcSyncStatus::Info(RpcSyncInfo {
 				starting_block: U256::from(self.sync.start_block()),
-				current_block: current_block,
-				highest_block: highest_block,
+				current_block,
+				highest_block,
 				warp_chunks_amount: None,
 				warp_chunks_processed: None,
 			}))

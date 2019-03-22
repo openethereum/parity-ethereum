@@ -197,7 +197,7 @@ where
 			Err(e) => return Either::A(future::err(e)),
 		};
 
-		reqs.push(request::Account { header: header_ref.clone(), address: address }.into());
+		reqs.push(request::Account { header: header_ref.clone(), address }.into());
 		let account_idx = reqs.len() - 1;
 		reqs.push(request::Code { header: header_ref, code_hash: Field::back_ref(account_idx, 0) }.into());
 
@@ -216,7 +216,7 @@ where
 			Err(e) => return Either::A(future::err(e)),
 		};
 
-		reqs.push(request::Account { header: header_ref, address: address }.into());
+		reqs.push(request::Account { header: header_ref, address }.into());
 
 		Either::B(self.send_requests(reqs, |mut res|match res.pop() {
 			Some(OnDemandResponse::Account(acc)) => acc,

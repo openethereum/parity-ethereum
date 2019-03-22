@@ -152,7 +152,7 @@ impl<C, M, U, S> Parity for ParityClient<C, M, U> where
 			active: sync_status.num_active_peers,
 			connected: sync_status.num_peers,
 			max: sync_status.current_max_peers(*num_peers_range.start(), *num_peers_range.end()),
-			peers: peers
+			peers,
 		})
 	}
 

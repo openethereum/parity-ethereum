@@ -197,7 +197,7 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM, T: StateInfo + 'static> EthClient<C, SN, S
 			accounts: accounts.clone(),
 			external_miner: em.clone(),
 			seed_compute: Mutex::new(SeedHashCompute::default()),
-			options: options,
+			options,
 			deprecation_notice: Default::default(),
 		}
 	}
@@ -517,8 +517,8 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM, T: StateInfo + 'static> Eth for EthClient<
 
 			let info = SyncInfo {
 				starting_block: status.start_block_number.into(),
-				current_block: current_block,
-				highest_block: highest_block,
+				current_block,
+				highest_block,
 				warp_chunks_amount: warp_chunks_amount.map(|x| U256::from(x as u64)).map(Into::into),
 				warp_chunks_processed: warp_chunks_processed.map(|x| U256::from(x as u64)).map(Into::into),
 			};
@@ -867,7 +867,7 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM, T: StateInfo + 'static> Eth for EthClient<
 			})
 		} else {
 			Ok(Work {
-				pow_hash: pow_hash,
+				pow_hash,
 				seed_hash: seed_hash.into(),
 				target,
 				number: None

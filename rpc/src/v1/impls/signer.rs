@@ -190,7 +190,7 @@ impl<D: Dispatcher + 'static> Signer for SignerClient<D> {
 			WithToken::No(_) => Err(errors::internal("Unexpected response without token.", "")),
 			WithToken::Yes(response, token) => Ok(ConfirmationResponseWithToken {
 				result: response,
-				token: token,
+				token,
 			}),
 		}))
 	}

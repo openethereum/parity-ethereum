@@ -102,10 +102,10 @@ pub fn request(address: &SocketAddr, request: &str) -> Response {
 	let body = read_block(&mut lines, true);
 
 	Response {
-		status: status,
-		headers: headers,
-		headers_raw: headers_raw,
-		body: body,
+		status,
+		headers,
+		headers_raw,
+		body,
 	}
 }
 

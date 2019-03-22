@@ -39,7 +39,7 @@ impl<T> Server<T> {
 
 		Server {
 			server: f(remote),
-			event_loop: event_loop,
+			event_loop,
 		}
 	}
 }

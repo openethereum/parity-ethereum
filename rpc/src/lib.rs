@@ -21,7 +21,6 @@
 #![cfg_attr(
 	feature = "cargo-clippy",
 	allow(
-		clippy::redundant_field_names,
 		// things are often more readable this way
 		clippy::cast_lossless,
 		clippy::module_name_repetitions,

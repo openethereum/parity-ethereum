@@ -68,8 +68,8 @@ impl<C, M> EthFilterClient<C, M> {
 	/// Creates new Eth filter client.
 	pub fn new(client: Arc<C>, miner: Arc<M>, poll_lifetime: u32) -> Self {
 		EthFilterClient {
-			client: client,
-			miner: miner,
+			client,
+			miner,
 			polls: Mutex::new(PollManager::new(poll_lifetime)),
 		}
 	}

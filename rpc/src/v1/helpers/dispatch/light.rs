@@ -157,7 +157,7 @@ where
 				used_default_from: request.from.is_none(),
 				to: request.to,
 				nonce: request.nonce,
-				gas_price: gas_price,
+				gas_price,
 				gas: request.gas.unwrap_or_else(|| gas_limit / 3),
 				value: request.value.unwrap_or_default(),
 				data: request.data.unwrap_or_else(Vec::new),

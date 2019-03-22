@@ -186,7 +186,7 @@ impl WsStats {
 	/// Creates new WS usage tracker.
 	pub fn new(stats: Arc<RpcStats>) -> Self {
 		WsStats {
-			stats: stats,
+			stats,
 		}
 	}
 }
@@ -210,7 +210,7 @@ impl<M: core::Middleware<Metadata>> WsDispatcher<M> {
 	/// Create new `WsDispatcher` with given full handler.
 	pub fn new(full_handler: core::MetaIoHandler<Metadata, M>) -> Self {
 		WsDispatcher {
-			full_handler: full_handler,
+			full_handler,
 		}
 	}
 }
