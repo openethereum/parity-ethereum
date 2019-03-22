@@ -26,7 +26,7 @@ use ethkey::crypto::Error as CryptoError;
 use txpool::{Error as TxPoolError, VerifiedTransaction};
 use private_transactions::VerifiedPrivateTransaction;
 
-#[derive(Display)]
+#[derive(Debug, Display)]
 pub enum Error {
 	/// Error concerning the Rust standard library's IO subsystem.
 	#[display(fmt = "Io Error: {}", _0)]
@@ -133,25 +133,25 @@ impl error::Error for Error {
 
 impl From<KeyError> for Error {
 	fn from(err: KeyError) -> Self {
-		ErrorKind::Key(err).into()
+		Error::Key(err).into()
 	}
 }
 
 impl From<ExecutionError> for Error {
 	fn from(err: ExecutionError) -> Self {
-		ErrorKind::Execution(err).into()
+		Error::Execution(err).into()
 	}
 }
 
 impl From<TransactionError> for Error {
 	fn from(err: TransactionError) -> Self {
-		ErrorKind::Transaction(err).into()
+		Error::Transaction(err).into()
 	}
 }
 
 impl From<EthcoreError> for Error {
 	fn from(err: EthcoreError) -> Self {
-		ErrorKind::Ethcore(err).into()
+		Error::Ethcore(err).into()
 	}
 }
 
