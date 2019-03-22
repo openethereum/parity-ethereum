@@ -3,7 +3,6 @@
 Parity-Ethereum 2.4.3-beta is a bugfix release that improves performance and stability. This patch release contains a critical bug fix where serving light clients previously led to client crashes. Upgrading is highly recommended.
 
 The full list of included changes:
-
 - 2.4.3 beta backports ([#10508](https://github.com/paritytech/parity-ethereum/pull/10508))
   - Version: bump beta
   - Add additional request tests ([#10503](https://github.com/paritytech/parity-ethereum/pull/10503))
