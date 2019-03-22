@@ -26,6 +26,7 @@ use siphasher::sip::SipHasher;
 /// BitVec structure with journalling
 /// Every time any of the blocks is getting set it's index is tracked
 /// and can be then drained by `drain` method
+#[derive(Clone)]
 struct BitVecJournal {
     elems: Vec<u64>,
     journal: HashSet<usize>,
@@ -72,6 +73,7 @@ impl BitVecJournal {
 }
 
 /// Bloom filter structure
+#[derive(Clone)]
 pub struct Bloom {
 	bitmap: BitVecJournal,
 	bitmap_bits: u64,
