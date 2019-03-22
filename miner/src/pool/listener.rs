@@ -92,7 +92,7 @@ impl txpool::Listener<Transaction> for Logger {
 		}
 	}
 
-	fn rejected<H: fmt::Debug + fmt::LowerHex>(&mut self, _tx: &Arc<Transaction>, reason: &txpool::Error<H>) {
+	fn rejected(&mut self, _tx: &Arc<Transaction>, reason: &txpool::ErrorKind) {
 		trace!(target: "txqueue", "Rejected {}.", reason);
 	}
 

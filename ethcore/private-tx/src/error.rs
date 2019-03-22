@@ -23,8 +23,7 @@ use ethcore::error::{Error as EthcoreError, ExecutionError};
 use types::transaction::Error as TransactionError;
 use ethkey::Error as KeyError;
 use ethkey::crypto::Error as CryptoError;
-use txpool::{Error as TxPoolError, VerifiedTransaction};
-use private_transactions::VerifiedPrivateTransaction;
+use txpool::{Error as TxPoolError};
 
 #[derive(Debug, Display)]
 pub enum Error {
@@ -39,7 +38,7 @@ pub enum Error {
 	Trie(TrieError),
 	/// Transaction pool error.
 	#[display(fmt = "Transaction Pool Error: {}", _0)]
-	TxPool(TxPoolError<<VerifiedPrivateTransaction as VerifiedTransaction>::Hash>),
+	TxPool(TxPoolError),
 	/// Crypto error.
 	#[display(fmt = "Crypto Error {}", _0)]
 	Crypto(CryptoError),
@@ -179,8 +178,8 @@ impl From<TrieError> for Error {
 	}
 }
 
-impl From<TxPoolError<<VerifiedPrivateTransaction as VerifiedTransaction>::Hash>> for Error {
-	fn from(err: TxPoolError<<VerifiedPrivateTransaction as VerifiedTransaction>::Hash>) -> Self {
+impl From<TxPoolError> for Error {
+	fn from(err: TxPoolError) -> Self {
 		Error::TxPool(err).into()
 	}
 }
