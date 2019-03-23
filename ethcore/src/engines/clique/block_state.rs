@@ -28,6 +28,9 @@ use types::BlockNumber;
 use types::header::Header;
 use unexpected::Mismatch;
 
+#[cfg(not(feature = "time_checked_add"))]
+use time_utils::CheckedSystemTime;
+
 /// Type that keeps track of the state for a given vote
 // Votes that go against the proposal aren't counted since it's equivalent to not voting
 #[derive(Copy, Clone, Debug, PartialEq, PartialOrd)]
@@ -259,16 +262,30 @@ impl CliqueBlockState {
 		Ok(())
 	}
 
-	pub fn calc_next_timestamp(&mut self, header: &Header, period: u64) {
-		let base_time = UNIX_EPOCH + Duration::from_secs(header.timestamp());
+	/// Calculate the next timestamp for `inturn` and `noturn` fails if any of them can't be represented as
+	/// `SystemTime`
+	// TODO(niklasad1): refactor this method to be in constructor of `CliqueBlockState` instead.
+	// This is a quite bad API because we must mutate both variables even when already `inturn` fails
+	// That's why we can't return early and must have the `if-else` in the end
+	pub fn calc_next_timestamp(&mut self, timestamp: u64, period: u64) -> Result<(), Error> {
+		let inturn = UNIX_EPOCH.checked_add(Duration::from_secs(timestamp.saturating_add(period)));
 
-		self.next_timestamp_inturn = Some(base_time + Duration::from_secs(period));
+		self.next_timestamp_inturn = inturn;
 
 		let delay = Duration::from_millis(
 			rand::thread_rng().gen_range(0u64, (self.signers.len() as u64 / 2 + 1) * SIGNING_DELAY_NOTURN_MS));
-		self.next_timestamp_noturn = Some(base_time + Duration::from_secs(period) + delay);
+		self.next_timestamp_noturn = inturn.map(|inturn|  {
+			inturn + delay
+		});
+
+		if self.next_timestamp_inturn.is_some() && self.next_timestamp_noturn.is_some() {
+			Ok(())
+		} else {
+			Err(BlockError::TimestampOverflow)?
+		}
 	}
 
+	/// Returns true if the block difficulty should be `inturn`
 	pub fn is_inturn(&self, current_block_number: u64, author: &Address) -> bool {
 		if let Some(pos) = self.signers.iter().position(|x| *author == *x) {
 			return current_block_number % self.signers.len() as u64 == pos as u64;
@@ -276,12 +293,13 @@ impl CliqueBlockState {
 		false
 	}
 
+	/// Returns whether the signer is authorized to sign a block
 	pub fn is_authorized(&self, author: &Address) -> bool {
 		self.signers.contains(author) && !self.recent_signers.contains(author)
 	}
 
-	// Returns whether it makes sense to cast the specified vote in the
-	// current state (e.g. don't try to add an already authorized signer).
+	/// Returns whether it makes sense to cast the specified vote in the
+	/// current state (e.g. don't try to add an already authorized signer).
 	pub fn is_valid_vote(&self, address: &Address, vote_type: VoteType) -> bool {
 		let in_signer = self.signers.contains(address);
 		match vote_type {
@@ -290,11 +308,12 @@ impl CliqueBlockState {
 		}
 	}
 
+	/// Returns the list of current signers
 	pub fn signers(&self) -> &BTreeSet<Address> {
 		&self.signers
 	}
 
-	// Note this method will always return `true` but it is intended for a unifrom `API`
+	// Note this method will always return `true` but it is intended for a uniform `API`
 	fn add_vote(&mut self, pending_vote: PendingVote, kind: VoteType) -> bool {
 
 		self.votes.entry(pending_vote)

@@ -79,6 +79,9 @@ use unexpected::{Mismatch, OutOfBounds};
 use types::BlockNumber;
 use types::header::{ExtendedHeader, Header};
 
+#[cfg(not(feature = "time_checked_add"))]
+use time_utils::CheckedSystemTime;
+
 use self::block_state::CliqueBlockState;
 use self::params::CliqueParams;
 use self::step_service::StepService;
@@ -241,7 +244,8 @@ impl Clique {
 		let mut state = CliqueBlockState::new(
 			extract_signers(header)?);
 
-		state.calc_next_timestamp(header, self.period);
+		// TODO(niklasad1): refactor to perform this check in the `CliqueBlockState` constructor instead
+		state.calc_next_timestamp(header.timestamp(), self.period)?;
 
 		Ok(state)
 	}
@@ -326,7 +330,7 @@ impl Clique {
 				for item in chain {
 					new_state.apply(item, false)?;
 				}
-				new_state.calc_next_timestamp(header, self.period);
+				new_state.calc_next_timestamp(header.timestamp(), self.period)?;
 				block_state_by_hash.insert(header.hash(), new_state.clone());
 
 				let elapsed = backfill_start.elapsed();
@@ -435,7 +439,7 @@ impl Engine<EthereumMachine> for Clique {
 		// locally sealed block don't go through valid_block_family(), so we have to record state here.
 		let mut new_state = state.clone();
 		new_state.apply(&header, is_checkpoint)?;
-		new_state.calc_next_timestamp(&header, self.period);
+		new_state.calc_next_timestamp(header.timestamp(), self.period)?;
 		self.block_state_by_hash.write().insert(header.hash(), new_state);
 
 		trace!(target: "engine", "on_seal_block: finished, final header: {:?}", header);
@@ -531,15 +535,23 @@ impl Engine<EthereumMachine> for Clique {
 
 		// Don't waste time checking blocks from the future
 		{
-			// TODO(niklasad): checked_add
-			let limit = SystemTime::now().duration_since(UNIX_EPOCH).unwrap_or_default() + Duration::from_secs(self.period);
+			let limit = SystemTime::now().checked_add(Duration::from_secs(self.period))
+				.ok_or(BlockError::TimestampOverflow)?;
+
+			// This should succeed under the contraints that the system clock works
+			let limit_as_dur = limit.duration_since(UNIX_EPOCH).map_err(|e| {
+				Box::new(format!("Converting SystemTime to Duration failed: {}", e))
+			})?;
+
 			let hdr = Duration::from_secs(header.timestamp());
-			if hdr > limit {
-				return Err(BlockError::TemporarilyInvalid(OutOfBounds {
+			if hdr > limit_as_dur {
+				let found = UNIX_EPOCH.checked_add(hdr).ok_or(BlockError::TimestampOverflow)?;
+
+				Err(BlockError::TemporarilyInvalid(OutOfBounds {
 					min: None,
-					max: Some(UNIX_EPOCH + limit),
-					found: UNIX_EPOCH + Duration::from_secs(header.timestamp()),
-				}))?;
+					max: Some(limit),
+					found,
+				}))?
 			}
 		}
 
@@ -642,11 +654,16 @@ impl Engine<EthereumMachine> for Clique {
 		}
 
 		// Ensure that the block's timestamp isn't too close to it's parent
-		if parent.timestamp().saturating_add(self.period) > header.timestamp() {
+		let limit = parent.timestamp().saturating_add(self.period);
+		if limit > header.timestamp() {
+			let max = UNIX_EPOCH.checked_add(Duration::from_secs(header.timestamp()));
+			let found = UNIX_EPOCH.checked_add(Duration::from_secs(limit))
+				.ok_or(BlockError::TimestampOverflow)?;
+
 			Err(BlockError::InvalidTimestamp(OutOfBounds {
-				min: Some(UNIX_EPOCH + Duration::from_secs(parent.timestamp().saturating_add(self.period))),
-				max: None,
-				found: UNIX_EPOCH + Duration::from_secs(header.timestamp())
+				min: None,
+				max,
+				found,
 			}))?
 		}
 
@@ -655,7 +672,7 @@ impl Engine<EthereumMachine> for Clique {
 		// Try to apply current state, apply() will further check signer and recent signer.
 		let mut new_state = parent_state.clone();
 		new_state.apply(header, header.number() % self.epoch_length == 0)?;
-		new_state.calc_next_timestamp(header, self.period);
+		new_state.calc_next_timestamp(header.timestamp(), self.period)?;
 		self.block_state_by_hash.write().insert(header.hash(), new_state);
 
 		Ok(())
@@ -663,7 +680,7 @@ impl Engine<EthereumMachine> for Clique {
 
 	fn genesis_epoch_data(&self, header: &Header, _call: &Call) -> Result<Vec<u8>, String> {
 		let mut state = self.new_checkpoint_state(header).expect("Unable to parse genesis data.");
-		state.calc_next_timestamp(header, self.period);
+		state.calc_next_timestamp(header.timestamp(), self.period).map_err(|e| format!("{}", e))?;
 		self.block_state_by_hash.write().insert(header.hash(), state);
 
 		// no proof.
