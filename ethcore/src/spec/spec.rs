@@ -91,7 +91,7 @@ pub struct CommonParams {
 	pub eip161d_transition: BlockNumber,
 	/// Number of first block where EIP-98 rules begin.
 	pub eip98_transition: BlockNumber,
-	/// Number of first block where EIP-658 (BYZANTIUM) rules begin.
+	/// Number of first block where EIP-658 rules begin.
 	pub eip658_transition: BlockNumber,
 	/// Number of first block where EIP-155 rules begin.
 	pub eip155_transition: BlockNumber,
@@ -99,9 +99,9 @@ pub struct CommonParams {
 	pub validate_receipts_transition: BlockNumber,
 	/// Validate transaction chain id.
 	pub validate_chain_id_transition: BlockNumber,
-	/// Number of first block where EIP-140 (BYZANTIUM: REVERT opcode) rules begin.
+	/// Number of first block where EIP-140 rules begin.
 	pub eip140_transition: BlockNumber,
-	/// Number of first block where EIP-210 (CONSTANTINOPLE: BLOCKHASH changes) rules begin.
+	/// Number of first block where EIP-210 rules begin.
 	pub eip210_transition: BlockNumber,
 	/// EIP-210 Blockhash contract address.
 	pub eip210_contract_address: Address,
@@ -109,18 +109,17 @@ pub struct CommonParams {
 	pub eip210_contract_code: Bytes,
 	/// Gas allocated for EIP-210 blockhash update.
 	pub eip210_contract_gas: U256,
-	/// Number of first block where EIP-211 (BYZANTIUM: RETURNDATASIZE/RETURNDATACOPY) rules
-	/// begin.
+	/// Number of first block where EIP-211 rules begin.
 	pub eip211_transition: BlockNumber,
-	/// Number of first block where EIP-214 (BYZANTIUM) rules begin.
+	/// Number of first block where EIP-214 rules begin.
 	pub eip214_transition: BlockNumber,
-	/// Number of first block where EIP-145 (CONSTANTINOPLE) rules begin.
+	/// Number of first block where EIP-145 rules begin.
 	pub eip145_transition: BlockNumber,
-	/// Number of first block where EIP-1052 (CONSTANTINOPLE) rules begin.
+	/// Number of first block where EIP-1052 rules begin.
 	pub eip1052_transition: BlockNumber,
-	/// Number of first block where EIP-1283 (CONSTANTINOPLE) rules begin.
+	/// Number of first block where EIP-1283 rules begin.
 	pub eip1283_transition: BlockNumber,
-	/// Number of first block where EIP-1283 rules end. (CONSTANTINOPLE)
+	/// Number of first block where EIP-1283 rules end.
 	pub eip1283_disable_transition: BlockNumber,
 	/// Number of first block where EIP-1014 rules begin.
 	pub eip1014_transition: BlockNumber,
