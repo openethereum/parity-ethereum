@@ -2519,7 +2519,7 @@ impl Drop for Client {
 		if let Some(c) = Arc::get_mut(&mut self.engine) {
 			c.stop()
 		} else {
-			trace!(target: "shutdown", "unable to get mut ref for engine for shutdown.");
+			warn!(target: "shutdown", "unable to get mut ref for engine for shutdown.");
 		}
 	}
 }
