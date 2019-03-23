@@ -88,10 +88,7 @@ impl Filter {
 		};
 
 		let (from_block, to_block) = match self.block_hash {
-			Some(hash) => {
-				let hash = hash.into();
-				(BlockId::Hash(hash), BlockId::Hash(hash))
-			},
+			Some(hash) => (BlockId::Hash(hash), BlockId::Hash(hash)),
 			None =>
 				(self.from_block.map_or_else(|| BlockId::Latest, &num_to_id),
 				 self.to_block.map_or_else(|| BlockId::Latest, &num_to_id)),
@@ -101,14 +98,14 @@ impl Filter {
 			from_block, to_block,
 			address: self.address.and_then(|address| match address {
 				VariadicValue::Null => None,
-				VariadicValue::Single(a) => Some(vec![a.into()]),
-				VariadicValue::Multiple(a) => Some(a.into_iter().map(Into::into).collect())
+				VariadicValue::Single(a) => Some(vec![a]),
+				VariadicValue::Multiple(a) => Some(a)
 			}),
 			topics: {
 				let mut iter = self.topics.map_or_else(Vec::new, |topics| topics.into_iter().take(4).map(|topic| match topic {
 					VariadicValue::Null => None,
-					VariadicValue::Single(t) => Some(vec![t.into()]),
-					VariadicValue::Multiple(t) => Some(t.into_iter().map(Into::into).collect())
+					VariadicValue::Single(t) => Some(vec![t]),
+					VariadicValue::Multiple(t) => Some(t)
 				}).collect()).into_iter();
 
 				vec![

@@ -85,7 +85,6 @@ impl<D: Dispatcher + 'static> SignerClient<D> {
 		T: IntoFuture<Item=WithToken<ConfirmationResponse>, Error=Error>,
 		T::Future: Send + 'static
 	{
-		let id = id.into();
 		let dispatcher = self.dispatcher.clone();
 		let signer = self.signer.clone();
 
@@ -94,15 +93,15 @@ impl<D: Dispatcher + 'static> SignerClient<D> {
 			// Modify payload
 			if let ConfirmationPayload::SendTransaction(ref mut request) = payload {
 				if let Some(sender) = modification.sender {
-					request.from = sender.into();
+					request.from = sender;
 					// Altering sender should always reset the nonce.
 					request.nonce = None;
 				}
 				if let Some(gas_price) = modification.gas_price {
-					request.gas_price = gas_price.into();
+					request.gas_price = gas_price;
 				}
 				if let Some(gas) = modification.gas {
-					request.gas = gas.into();
+					request.gas = gas;
 				}
 				if let Some(ref condition) = modification.condition {
 					request.condition = condition.clone().map(Into::into);
@@ -177,7 +176,7 @@ impl<D: Dispatcher + 'static> Signer for SignerClient<D> {
 
 		Box::new(self.confirm_internal(id, modification, move |dis, accounts, payload| {
 			dispatch::execute(dis, accounts, payload, dispatch::SignWith::Password(pass.into()))
-		}).map(|v| v.into_value()))
+		}).map(dispatch::WithToken::into_value))
 	}
 
 	fn confirm_request_with_token(&self, id: U256, modification: TransactionModification, token: String)
@@ -191,15 +190,13 @@ impl<D: Dispatcher + 'static> Signer for SignerClient<D> {
 			WithToken::No(_) => Err(errors::internal("Unexpected response without token.", "")),
 			WithToken::Yes(response, token) => Ok(ConfirmationResponseWithToken {
 				result: response,
-				token: token,
+				token,
 			}),
 		}))
 	}
 
 	fn confirm_request_raw(&self, id: U256, bytes: Bytes) -> Result<ConfirmationResponse> {
 		self.deprecation_notice.print("signer_confirmRequestRaw", deprecated::msgs::ACCOUNTS);
-
-		let id = id.into();
 
 		self.signer.take(&id).map(|sender| {
 			let payload = sender.request.payload.clone();
@@ -251,7 +248,7 @@ impl<D: Dispatcher + 'static> Signer for SignerClient<D> {
 	fn reject_request(&self, id: U256) -> Result<bool> {
 		self.deprecation_notice.print("signer_rejectRequest", deprecated::msgs::ACCOUNTS);
 
-		let res = self.signer.take(&id.into()).map(|sender| self.signer.request_rejected(sender));
+		let res = self.signer.take(&id).map(|sender| self.signer.request_rejected(sender));
 		Ok(res.is_some())
 	}
 
@@ -259,7 +256,7 @@ impl<D: Dispatcher + 'static> Signer for SignerClient<D> {
 		self.deprecation_notice.print("signer_generateAuthorizationToken", deprecated::msgs::ACCOUNTS);
 
 		self.signer.generate_token()
-			.map_err(|e| errors::token(e))
+			.map_err(errors::token)
 	}
 
 	fn subscribe_pending(&self, _meta: Self::Metadata, sub: Subscriber<Vec<ConfirmationRequest>>) {

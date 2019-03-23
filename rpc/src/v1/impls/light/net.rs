@@ -29,7 +29,7 @@ impl<S: ?Sized> NetClient<S> where S: LightSyncProvider {
 	/// Creates new NetClient.
 	pub fn new(sync: Arc<S>) -> Self {
 		NetClient {
-			sync: sync,
+			sync,
 		}
 	}
 }

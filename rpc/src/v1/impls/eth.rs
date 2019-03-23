@@ -197,7 +197,7 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM, T: StateInfo + 'static> EthClient<C, SN, S
 			accounts: accounts.clone(),
 			external_miner: em.clone(),
 			seed_compute: Mutex::new(SeedHashCompute::default()),
-			options: options,
+			options,
 			deprecation_notice: Default::default(),
 		}
 	}
@@ -257,34 +257,34 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM, T: StateInfo + 'static> EthClient<C, SN, S
 					inner: Block {
 						hash: match is_pending {
 							true => None,
-							false => Some(view.hash().into()),
+							false => Some(view.hash()),
 						},
 						size: Some(block.rlp().as_raw().len().into()),
-						parent_hash: view.parent_hash().into(),
-						uncles_hash: view.uncles_hash().into(),
-						author: view.author().into(),
-						miner: view.author().into(),
-						state_root: view.state_root().into(),
-						transactions_root: view.transactions_root().into(),
-						receipts_root: view.receipts_root().into(),
+						parent_hash: view.parent_hash(),
+						uncles_hash: view.uncles_hash(),
+						author: view.author(),
+						miner: view.author(),
+						state_root: view.state_root(),
+						transactions_root: view.transactions_root(),
+						receipts_root: view.receipts_root(),
 						number: match is_pending {
 							true => None,
 							false => Some(view.number().into()),
 						},
-						gas_used: view.gas_used().into(),
-						gas_limit: view.gas_limit().into(),
+						gas_used: view.gas_used(),
+						gas_limit: view.gas_limit(),
 						logs_bloom: match is_pending {
 							true => None,
-							false => Some(view.log_bloom().into()),
+							false => Some(view.log_bloom()),
 						},
 						timestamp: view.timestamp().into(),
-						difficulty: view.difficulty().into(),
-						total_difficulty: Some(total_difficulty.into()),
+						difficulty: view.difficulty(),
+						total_difficulty: Some(total_difficulty),
 						seal_fields: view.seal().into_iter().map(Into::into).collect(),
-						uncles: block.uncle_hashes().into_iter().map(Into::into).collect(),
+						uncles: block.uncle_hashes(),
 						transactions: match include_txs {
-							true => BlockTransactions::Full(block.view().localized_transactions().into_iter().map(|t| Transaction::from_localized(t)).collect()),
-							false => BlockTransactions::Hashes(block.transaction_hashes().into_iter().map(Into::into).collect()),
+							true => BlockTransactions::Full(block.view().localized_transactions().into_iter().map(Transaction::from_localized).collect()),
+							false => BlockTransactions::Hashes(block.transaction_hashes()),
 						},
 						extra_data: Bytes::new(view.extra_data()),
 					},
@@ -334,7 +334,7 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM, T: StateInfo + 'static> EthClient<C, SN, S
 							cached_sender,
 						}
 					})
-					.map(|tx| Transaction::from_localized(tx));
+					.map(Transaction::from_localized);
 
 				Ok(transaction)
 			}
@@ -385,7 +385,7 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM, T: StateInfo + 'static> EthClient<C, SN, S
 					None => { return Ok(None); }
 				};
 
-				let parent_difficulty = match client.block_total_difficulty(BlockId::Hash(uncle.parent_hash().clone())) {
+				let parent_difficulty = match client.block_total_difficulty(BlockId::Hash(*uncle.parent_hash())) {
 					Some(difficulty) => difficulty,
 					None => { return Ok(None); }
 				};
@@ -398,29 +398,28 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM, T: StateInfo + 'static> EthClient<C, SN, S
 
 		let size = client.block(BlockId::Hash(uncle.hash()))
 			.map(|block| block.into_inner().len())
-			.map(U256::from)
-			.map(Into::into);
+			.map(U256::from);
 
 		let block = RichBlock {
 			inner: Block {
-				hash: Some(uncle.hash().into()),
-				size: size,
-				parent_hash: uncle.parent_hash().clone().into(),
-				uncles_hash: uncle.uncles_hash().clone().into(),
-				author: uncle.author().clone().into(),
-				miner: uncle.author().clone().into(),
-				state_root: uncle.state_root().clone().into(),
-				transactions_root: uncle.transactions_root().clone().into(),
+				hash: Some(uncle.hash()),
+				size,
+				parent_hash: *uncle.parent_hash(),
+				uncles_hash: *uncle.uncles_hash(),
+				author: *uncle.author(),
+				miner: *uncle.author(),
+				state_root: *uncle.state_root(),
+				transactions_root: *uncle.transactions_root(),
 				number: Some(uncle.number().into()),
-				gas_used: uncle.gas_used().clone().into(),
-				gas_limit: uncle.gas_limit().clone().into(),
-				logs_bloom: Some(uncle.log_bloom().clone().into()),
+				gas_used: *uncle.gas_used(),
+				gas_limit: *uncle.gas_limit(),
+				logs_bloom: Some(*uncle.log_bloom()),
 				timestamp: uncle.timestamp().into(),
-				difficulty: uncle.difficulty().clone().into(),
-				total_difficulty: Some((uncle.difficulty().clone() + parent_difficulty).into()),
-				receipts_root: uncle.receipts_root().clone().into(),
+				difficulty: *uncle.difficulty(),
+				total_difficulty: Some(uncle.difficulty() + parent_difficulty),
+				receipts_root: *uncle.receipts_root(),
 				extra_data: uncle.extra_data().clone().into(),
-				seal_fields: uncle.seal().into_iter().cloned().map(Into::into).collect(),
+				seal_fields: uncle.seal().iter().cloned().map(Into::into).collect(),
 				uncles: vec![],
 				transactions: BlockTransactions::Hashes(vec![]),
 			},
@@ -459,7 +458,7 @@ pub fn pending_logs<M>(miner: &M, best_block: EthBlockNumber, filter: &EthcoreFi
 		.filter(|pair| filter.matches(&pair.1))
 		.map(|pair| {
 			let mut log = Log::from(pair.1);
-			log.transaction_hash = Some(pair.0.into());
+			log.transaction_hash = Some(pair.0);
 			log
 		})
 		.collect()
@@ -518,8 +517,8 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM, T: StateInfo + 'static> Eth for EthClient<
 
 			let info = SyncInfo {
 				starting_block: status.start_block_number.into(),
-				current_block: current_block.into(),
-				highest_block: highest_block.into(),
+				current_block,
+				highest_block,
 				warp_chunks_amount: warp_chunks_amount.map(|x| U256::from(x as u64)).map(Into::into),
 				warp_chunks_processed: warp_chunks_processed.map(|x| U256::from(x as u64)).map(Into::into),
 			};
@@ -535,10 +534,9 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM, T: StateInfo + 'static> Eth for EthClient<
 			(self.accounts)()
 				.first()
 				.cloned()
-				.map(From::from)
 				.ok_or_else(|| errors::account("No accounts were found", ""))
 		} else {
-			Ok(H160::from(miner))
+			Ok(miner)
 		}
 	}
 
@@ -551,18 +549,18 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM, T: StateInfo + 'static> Eth for EthClient<
 	}
 
 	fn hashrate(&self) -> Result<U256> {
-		Ok(U256::from(self.external_miner.hashrate()))
+		Ok(self.external_miner.hashrate())
 	}
 
 	fn gas_price(&self) -> Result<U256> {
-		Ok(U256::from(default_gas_price(&*self.client, &*self.miner, self.options.gas_price_percentile)))
+		Ok(default_gas_price(&*self.client, &*self.miner, self.options.gas_price_percentile))
 	}
 
 	fn accounts(&self) -> Result<Vec<H160>> {
 		self.deprecation_notice.print("eth_accounts", deprecated::msgs::ACCOUNTS);
 
 		let accounts = (self.accounts)();
-		Ok(accounts.into_iter().map(Into::into).collect())
+		Ok(accounts)
 	}
 
 	fn block_number(&self) -> Result<U256> {
@@ -574,7 +572,7 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM, T: StateInfo + 'static> Eth for EthClient<
 
 		try_bf!(check_known(&*self.client, num.clone()));
 		let res = match self.client.balance(&address, self.get_state(num)) {
-			Some(balance) => Ok(balance.into()),
+			Some(balance) => Ok(balance),
 			None => Err(errors::state_pruned()),
 		};
 
@@ -600,16 +598,16 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM, T: StateInfo + 'static> Eth for EthClient<
 		try_bf!(check_known(&*self.client, num.clone()));
 		let res = match self.client.prove_account(key1, id) {
 			Some((proof, account)) => Ok(EthAccount {
-				address: address,
-				balance: account.balance.into(),
-				nonce: account.nonce.into(),
-				code_hash: account.code_hash.into(),
-				storage_hash: account.storage_root.into(),
+				address,
+				balance: account.balance,
+				nonce: account.nonce,
+				code_hash: account.code_hash,
+				storage_hash: account.storage_root,
 				account_proof: proof.into_iter().map(Bytes::new).collect(),
 				storage_proof: values.into_iter().filter_map(|storage_index| {
-					let key2: H256 = storage_index.into();
+					let key2: H256 = storage_index;
 					self.client.prove_storage(key1, keccak(key2), id)
-					    .map(|(storage_proof,storage_value)| StorageProof {
+					    .map(|(storage_proof, storage_value)| StorageProof {
 							key: key2.into(),
 							value: storage_value.into(),
 							proof: storage_proof.into_iter().map(Bytes::new).collect()
@@ -624,12 +622,11 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM, T: StateInfo + 'static> Eth for EthClient<
 	}
 
 	fn storage_at(&self, address: H160, position: U256, num: Option<BlockNumber>) -> BoxFuture<H256> {
-		let address: Address = address.into();
 		let num = num.unwrap_or_default();
 
 		try_bf!(check_known(&*self.client, num.clone()));
 		let res = match self.client.storage_at(&address, &H256::from(position), self.get_state(num)) {
-			Some(s) => Ok(s.into()),
+			Some(s) => Ok(s),
 			None => Err(errors::state_pruned()),
 		};
 
@@ -637,11 +634,9 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM, T: StateInfo + 'static> Eth for EthClient<
 	}
 
 	fn transaction_count(&self, address: H160, num: Option<BlockNumber>) -> BoxFuture<U256> {
-		let address: Address = address.into();
-
 		let res = match num.unwrap_or_default() {
 			BlockNumber::Pending if self.options.pending_nonce_from_queue => {
-				Ok(self.miner.next_nonce(&*self.client, &address).into())
+				Ok(self.miner.next_nonce(&*self.client, &address))
 			}
 			BlockNumber::Pending => {
 				let info = self.client.chain_info();
@@ -654,14 +649,14 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM, T: StateInfo + 'static> Eth for EthClient<
 					});
 
 				match nonce {
-					Some(nonce) => Ok(nonce.into()),
+					Some(nonce) => Ok(nonce),
 					None => Err(errors::database("latest nonce missing"))
 				}
 			},
 			number => {
 				try_bf!(check_known(&*self.client, number.clone()));
 				match self.client.nonce(&address, block_number_to_id(number)) {
-					Some(nonce) => Ok(nonce.into()),
+					Some(nonce) => Ok(nonce),
 					None => Err(errors::state_pruned()),
 				}
 			}
@@ -671,7 +666,7 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM, T: StateInfo + 'static> Eth for EthClient<
 	}
 
 	fn block_transaction_count_by_hash(&self, hash: H256) -> BoxFuture<Option<U256>> {
-		let trx_count = self.client.block(BlockId::Hash(hash.into()))
+		let trx_count = self.client.block(BlockId::Hash(hash))
 			.map(|block| block.transactions_count().into());
 		let result = Ok(trx_count)
 			.and_then(errors::check_block_gap(&*self.client, self.options.allow_missing_blocks));
@@ -696,7 +691,7 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM, T: StateInfo + 'static> Eth for EthClient<
 	}
 
 	fn block_uncles_count_by_hash(&self, hash: H256) -> BoxFuture<Option<U256>> {
-		let uncle_count = self.client.block(BlockId::Hash(hash.into()))
+		let uncle_count = self.client.block(BlockId::Hash(hash))
 			.map(|block| block.uncles_count().into());
 		let result = Ok(uncle_count)
 			.and_then(errors::check_block_gap(&*self.client, self.options.allow_missing_blocks));
@@ -734,7 +729,7 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM, T: StateInfo + 'static> Eth for EthClient<
 	}
 
 	fn block_by_hash(&self, hash: H256, include_txs: bool) -> BoxFuture<Option<RichBlock>> {
-		let result = self.rich_block(BlockId::Hash(hash.into()).into(), include_txs)
+		let result = self.rich_block(BlockId::Hash(hash).into(), include_txs)
 			.and_then(errors::check_block_gap(&*self.client, self.options.allow_missing_blocks));
 		Box::new(future::done(result))
 	}
@@ -756,7 +751,7 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM, T: StateInfo + 'static> Eth for EthClient<
 	}
 
 	fn transaction_by_block_hash_and_index(&self, hash: H256, index: Index) -> BoxFuture<Option<Transaction>> {
-		let id = PendingTransactionId::Location(PendingOrBlock::Block(BlockId::Hash(hash.into())), index.value());
+		let id = PendingTransactionId::Location(PendingOrBlock::Block(BlockId::Hash(hash)), index.value());
 		let result = self.transaction(id).and_then(
 			errors::check_block_gap(&*self.client, self.options.allow_missing_blocks));
 		Box::new(future::done(result))
@@ -792,7 +787,7 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM, T: StateInfo + 'static> Eth for EthClient<
 
 	fn uncle_by_block_hash_and_index(&self, hash: H256, index: Index) -> BoxFuture<Option<RichBlock>> {
 		let result = self.uncle(PendingUncleId {
-			id: PendingOrBlock::Block(BlockId::Hash(hash.into())),
+			id: PendingOrBlock::Block(BlockId::Hash(hash)),
 			position: index.value()
 		}).and_then(errors::check_block_gap(&*self.client, self.options.allow_missing_blocks));
 		Box::new(future::done(result))
@@ -822,7 +817,7 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM, T: StateInfo + 'static> Eth for EthClient<
 	}
 
 	fn logs(&self, filter: Filter) -> BoxFuture<Vec<Log>> {
-		base_logs(&*self.client, &*self.miner, filter.into())
+		base_logs(&*self.client, &*self.miner, filter)
 	}
 
 	fn work(&self, no_new_work_timeout: Option<u64>) -> Result<Work> {
@@ -865,16 +860,16 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM, T: StateInfo + 'static> Eth for EthClient<
 			Err(errors::no_new_work())
 		} else if self.options.send_block_number_in_get_work {
 			Ok(Work {
-				pow_hash: pow_hash.into(),
+				pow_hash,
 				seed_hash: seed_hash.into(),
-				target: target.into(),
+				target,
 				number: Some(number),
 			})
 		} else {
 			Ok(Work {
-				pow_hash: pow_hash.into(),
+				pow_hash,
 				seed_hash: seed_hash.into(),
-				target: target.into(),
+				target,
 				number: None
 			})
 		}
@@ -888,7 +883,7 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM, T: StateInfo + 'static> Eth for EthClient<
 	}
 
 	fn submit_hashrate(&self, rate: U256, id: H256) -> Result<bool> {
-		self.external_miner.submit_hashrate(rate.into(), id.into());
+		self.external_miner.submit_hashrate(rate, id);
 		Ok(true)
 	}
 
@@ -919,8 +914,8 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM, T: StateInfo + 'static> Eth for EthClient<
 
 		let (mut state, header) = if num == BlockNumber::Pending {
 			let info = self.client.chain_info();
-			let state = try_bf!(self.miner.pending_state(info.best_block_number).ok_or(errors::state_pruned()));
-			let header = try_bf!(self.miner.pending_block_header(info.best_block_number).ok_or(errors::state_pruned()));
+			let state = try_bf!(self.miner.pending_state(info.best_block_number).ok_or_else(errors::state_pruned));
+			let header = try_bf!(self.miner.pending_block_header(info.best_block_number).ok_or_else(errors::state_pruned));
 
 			(state, header)
 		} else {
@@ -931,8 +926,8 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM, T: StateInfo + 'static> Eth for EthClient<
 				BlockNumber::Pending => unreachable!(), // Already covered
 			};
 
-			let state = try_bf!(self.client.state_at(id).ok_or(errors::state_pruned()));
-			let header = try_bf!(self.client.block_header(id).ok_or(errors::state_pruned()).and_then(|h| h.decode().map_err(errors::decode)));
+			let state = try_bf!(self.client.state_at(id).ok_or_else(errors::state_pruned));
+			let header = try_bf!(self.client.block_header(id).ok_or_else(errors::state_pruned).and_then(|h| h.decode().map_err(errors::decode)));
 
 			(state, header)
 		};
@@ -958,8 +953,10 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM, T: StateInfo + 'static> Eth for EthClient<
 
 		let (state, header) = if num == BlockNumber::Pending {
 			let info = self.client.chain_info();
-			let state = try_bf!(self.miner.pending_state(info.best_block_number).ok_or(errors::state_pruned()));
-			let header = try_bf!(self.miner.pending_block_header(info.best_block_number).ok_or(errors::state_pruned()));
+			let state = try_bf!(self.miner.pending_state(info.best_block_number)
+								.ok_or_else(errors::state_pruned));
+			let header = try_bf!(self.miner.pending_block_header(info.best_block_number)
+								 .ok_or_else(errors::state_pruned));
 
 			(state, header)
 		} else {
@@ -970,14 +967,15 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM, T: StateInfo + 'static> Eth for EthClient<
 				BlockNumber::Pending => unreachable!(), // Already covered
 			};
 
-			let state = try_bf!(self.client.state_at(id).ok_or(errors::state_pruned()));
-			let header = try_bf!(self.client.block_header(id).ok_or(errors::state_pruned()).and_then(|h| h.decode().map_err(errors::decode)));
-
+			let state = try_bf!(self.client.state_at(id)
+								.ok_or_else(errors::state_pruned));
+			let header = try_bf!(self.client.block_header(id)
+								 .ok_or_else(errors::state_pruned)
+								 .and_then(|h| h.decode().map_err(errors::decode)));
 			(state, header)
 		};
 
 		Box::new(future::done(self.client.estimate_gas(&signed, &state, &header)
-			.map(Into::into)
 			.map_err(errors::call)
 		))
 	}
