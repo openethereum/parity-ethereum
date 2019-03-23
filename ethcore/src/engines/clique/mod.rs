@@ -370,10 +370,10 @@ impl Engine<EthereumMachine> for Clique {
 		Ok(())
 	}
 
-	fn on_seal_block(&self, block: &ExecutedBlock) -> Result<Option<Header>, Error> {
+	fn on_seal_block(&self, block: &mut ExecutedBlock) -> Result<(), Error> {
 		trace!(target: "engine", "on_seal_block");
 
-		let mut header = block.header.clone();
+		let header = &mut block.header;
 
 		let state = self.state_no_backfill(header.parent_hash())
 			.ok_or_else(|| BlockError::UnknownParent(*header.parent_hash()))?;
@@ -444,7 +444,7 @@ impl Engine<EthereumMachine> for Clique {
 
 		trace!(target: "engine", "on_seal_block: finished, final header: {:?}", header);
 
-		Ok(Some(header))
+		Ok(())
 	}
 
 	/// Clique doesn't require external work to seal, so we always return true here.

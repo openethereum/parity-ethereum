@@ -415,12 +415,9 @@ impl LockedBlock {
 		}
 
 		s.block.header.set_seal(seal);
-
-		if let Some(new_header) = engine.on_seal_block(&s.block)? {
-			s.block.header = new_header;
-		}
-
+		engine.on_seal_block(&mut s.block)?;
 		s.block.header.compute_hash();
+
 		Ok(SealedBlock {
 			block: s.block
 		})
