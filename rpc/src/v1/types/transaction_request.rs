@@ -63,7 +63,7 @@ pub fn format_ether(i: U256) -> String {
 
 impl fmt::Display for TransactionRequest {
 	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-		let eth = self.value.unwrap_or(U256::from(0));
+		let eth = self.value.unwrap_or_default();
 		match self.to {
 			Some(ref to) => write!(
 				f,
@@ -106,14 +106,14 @@ impl From<helpers::TransactionRequest> for TransactionRequest {
 impl From<helpers::FilledTransactionRequest> for TransactionRequest {
 	fn from(r: helpers::FilledTransactionRequest) -> Self {
 		TransactionRequest {
-			from: Some(r.from.into()),
-			to: r.to.map(Into::into),
-			gas_price: Some(r.gas_price.into()),
-			gas: Some(r.gas.into()),
-			value: Some(r.value.into()),
+			from: Some(r.from),
+			to: r.to,
+			gas_price: Some(r.gas_price),
+			gas: Some(r.gas),
+			value: Some(r.value),
 			data: Some(r.data.into()),
-			nonce: r.nonce.map(Into::into),
-			condition: r.condition.map(Into::into),
+			nonce: r.nonce,
+			condition: r.condition,
 		}
 	}
 }

@@ -135,7 +135,7 @@ impl Create {
 }
 
 /// Reward type.
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Clone, Copy)]
 pub enum RewardType {
 	/// Block
 	Block,

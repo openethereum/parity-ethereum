@@ -74,13 +74,13 @@ impl<C, S> Traces for TracesClient<C> where
 	}
 
 	fn transaction_traces(&self, transaction_hash: H256) -> Result<Option<Vec<LocalizedTrace>>> {
-		Ok(self.client.transaction_traces(TransactionId::Hash(transaction_hash.into()))
+		Ok(self.client.transaction_traces(TransactionId::Hash(transaction_hash))
 			.map(|traces| traces.into_iter().map(LocalizedTrace::from).collect()))
 	}
 
 	fn trace(&self, transaction_hash: H256, address: Vec<Index>) -> Result<Option<LocalizedTrace>> {
 		let id = TraceId {
-			transaction: TransactionId::Hash(transaction_hash.into()),
+			transaction: TransactionId::Hash(transaction_hash),
 			address: address.into_iter().map(|i| i.value()).collect()
 		};
 
@@ -102,8 +102,8 @@ impl<C, S> Traces for TracesClient<C> where
 			BlockNumber::Pending => return Err(errors::invalid_params("`BlockNumber::Pending` is not supported", ())),
 		};
 
-		let mut state = self.client.state_at(id).ok_or(errors::state_pruned())?;
-		let header = self.client.block_header(id).ok_or(errors::state_pruned())?;
+		let mut state = self.client.state_at(id).ok_or_else(errors::state_pruned)?;
+		let header = self.client.block_header(id).ok_or_else(errors::state_pruned)?;
 
 		self.client.call(&signed, to_call_analytics(flags), &mut state, &header.decode().map_err(errors::decode)?)
 			.map(TraceResults::from)
@@ -129,8 +129,8 @@ impl<C, S> Traces for TracesClient<C> where
 			BlockNumber::Pending => return Err(errors::invalid_params("`BlockNumber::Pending` is not supported", ())),
 		};
 
-		let mut state = self.client.state_at(id).ok_or(errors::state_pruned())?;
-		let header = self.client.block_header(id).ok_or(errors::state_pruned())?;
+		let mut state = self.client.state_at(id).ok_or_else(errors::state_pruned)?;
+		let header = self.client.block_header(id).ok_or_else(errors::state_pruned)?;
 
 		self.client.call_many(&requests, &mut state, &header.decode().map_err(errors::decode)?)
 			.map(|results| results.into_iter().map(TraceResults::from).collect())
@@ -151,8 +151,8 @@ impl<C, S> Traces for TracesClient<C> where
 			BlockNumber::Pending => return Err(errors::invalid_params("`BlockNumber::Pending` is not supported", ())),
 		};
 
-		let mut state = self.client.state_at(id).ok_or(errors::state_pruned())?;
-		let header = self.client.block_header(id).ok_or(errors::state_pruned())?;
+		let mut state = self.client.state_at(id).ok_or_else(errors::state_pruned)?;
+		let header = self.client.block_header(id).ok_or_else(errors::state_pruned)?;
 
 		self.client.call(&signed, to_call_analytics(flags), &mut state, &header.decode().map_err(errors::decode)?)
 			.map(TraceResults::from)
@@ -160,7 +160,7 @@ impl<C, S> Traces for TracesClient<C> where
 	}
 
 	fn replay_transaction(&self, transaction_hash: H256, flags: TraceOptions) -> Result<TraceResults> {
-		self.client.replay(TransactionId::Hash(transaction_hash.into()), to_call_analytics(flags))
+		self.client.replay(TransactionId::Hash(transaction_hash), to_call_analytics(flags))
 			.map(TraceResults::from)
 			.map_err(errors::call)
 	}
@@ -175,7 +175,7 @@ impl<C, S> Traces for TracesClient<C> where
 		};
 
 		self.client.replay_block_transactions(id, to_call_analytics(flags))
-			.map(|results| results.into_iter().map(TraceResultsWithTransactionHash::from).collect())
+			.map(|results| results.map(TraceResultsWithTransactionHash::from).collect())
 			.map_err(errors::call)
 	}
 }

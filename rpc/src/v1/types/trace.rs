@@ -58,8 +58,8 @@ pub struct StorageDiff {
 impl From<et::StorageDiff> for StorageDiff {
 	fn from(c: et::StorageDiff) -> Self {
 		StorageDiff {
-			key: c.location.into(),
-			val: c.value.into(),
+			key: c.location,
+			val: c.value,
 		}
 	}
 }
@@ -190,7 +190,7 @@ impl From<account_diff::AccountDiff> for AccountDiff {
 			balance: c.balance.into(),
 			nonce: c.nonce.into(),
 			code: c.code.into(),
-			storage: c.storage.into_iter().map(|(k, v)| (k.into(), v.into())).collect(),
+			storage: c.storage.into_iter().map(|(k, v)| (k, v.into())).collect(),
 		}
 	}
 }
@@ -208,7 +208,7 @@ impl Serialize for StateDiff {
 
 impl From<state_diff::StateDiff> for StateDiff {
 	fn from(c: state_diff::StateDiff) -> Self {
-		StateDiff(c.raw.into_iter().map(|(k, v)| (k.into(), v.into())).collect())
+		StateDiff(c.raw.into_iter().map(|(k, v)| (k, v.into())).collect())
 	}
 }
 
@@ -228,9 +228,9 @@ pub struct Create {
 impl From<trace::Create> for Create {
 	fn from(c: trace::Create) -> Self {
 		Create {
-			from: c.from.into(),
-			value: c.value.into(),
-			gas: c.gas.into(),
+			from: c.from,
+			value: c.value,
+			gas: c.gas,
 			init: Bytes::new(c.init),
 		}
 	}
@@ -285,10 +285,10 @@ pub struct Call {
 impl From<trace::Call> for Call {
 	fn from(c: trace::Call) -> Self {
 		Call {
-			from: c.from.into(),
-			to: c.to.into(),
-			value: c.value.into(),
-			gas: c.gas.into(),
+			from: c.from,
+			to: c.to,
+			value: c.value,
+			gas: c.gas,
 			input: c.input.into(),
 			call_type: c.call_type.into(),
 		}
@@ -335,8 +335,8 @@ pub struct Reward {
 impl From<trace::Reward> for Reward {
 	fn from(r: trace::Reward) -> Self {
 		Reward {
-			author: r.author.into(),
-			value: r.value.into(),
+			author: r.author,
+			value: r.value,
 			reward_type: r.reward_type.into(),
 		}
 	}
@@ -357,9 +357,9 @@ pub struct Suicide {
 impl From<trace::Suicide> for Suicide {
 	fn from(s: trace::Suicide) -> Self {
 		Suicide {
-			address: s.address.into(),
-			refund_address: s.refund_address.into(),
-			balance: s.balance.into(),
+			address: s.address,
+			refund_address: s.refund_address,
+			balance: s.balance,
 		}
 	}
 }
@@ -401,7 +401,7 @@ pub struct CallResult {
 impl From<trace::CallResult> for CallResult {
 	fn from(c: trace::CallResult) -> Self {
 		CallResult {
-			gas_used: c.gas_used.into(),
+			gas_used: c.gas_used,
 			output: c.output.into(),
 		}
 	}
@@ -422,9 +422,9 @@ pub struct CreateResult {
 impl From<trace::CreateResult> for CreateResult {
 	fn from(c: trace::CreateResult) -> Self {
 		CreateResult {
-			gas_used: c.gas_used.into(),
+			gas_used: c.gas_used,
 			code: c.code.into(),
-			address: c.address.into(),
+			address: c.address,
 		}
 	}
 }
@@ -526,11 +526,11 @@ impl From<EthLocalizedTrace> for LocalizedTrace {
 			action: t.action.into(),
 			result: t.result.into(),
 			trace_address: t.trace_address.into_iter().map(Into::into).collect(),
-			subtraces: t.subtraces.into(),
+			subtraces: t.subtraces,
 			transaction_position: t.transaction_number.map(Into::into),
 			transaction_hash: t.transaction_hash.map(Into::into),
-			block_number: t.block_number.into(),
-			block_hash: t.block_hash.into(),
+			block_number: t.block_number,
+			block_hash: t.block_hash,
 		}
 	}
 }
@@ -591,7 +591,7 @@ impl From<FlatTrace> for Trace {
 	fn from(t: FlatTrace) -> Self {
 		Trace {
 			trace_address: t.trace_address.into_iter().map(Into::into).collect(),
-			subtraces: t.subtraces.into(),
+			subtraces: t.subtraces,
 			action: t.action.into(),
 			result: t.result.into(),
 		}
@@ -646,7 +646,7 @@ impl From<(H256, Executed)> for TraceResultsWithTransactionHash {
 			trace: t.1.trace.into_iter().map(Into::into).collect(),
 			vm_trace: t.1.vm_trace.map(Into::into),
 			state_diff: t.1.state_diff.map(Into::into),
-			transaction_hash: t.0.into(),
+			transaction_hash: t.0,
 		}
 	}
 }

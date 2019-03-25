@@ -360,7 +360,7 @@ pub trait BlockChainClient : Sync + Send + AccountData + BlockChain + CallContra
 	fn spec_name(&self) -> String;
 
 	/// Set the chain via a spec name.
-	fn set_spec_name(&self, spec_name: String);
+	fn set_spec_name(&self, spec_name: String) -> Result<(), ()>;
 
 	/// Disable the client from importing blocks. This cannot be undone in this session and indicates
 	/// that a subsystem has reason to believe this executable incapable of syncing the chain.

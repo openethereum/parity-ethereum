@@ -157,7 +157,7 @@ pub fn take_snapshot<W: SnapshotWriter + Send>(
 	processing_threads: usize,
 ) -> Result<(), Error> {
 	let start_header = chain.block_header_data(&block_at)
-		.ok_or(Error::InvalidStartingBlock(BlockId::Hash(block_at)))?;
+		.ok_or_else(|| Error::InvalidStartingBlock(BlockId::Hash(block_at)))?;
 	let state_root = start_header.state_root();
 	let number = start_header.number();
 
@@ -512,7 +512,7 @@ fn rebuild_accounts(
 			// fill out the storage trie and code while decoding.
 			let (acc, maybe_code) = {
 				let mut acct_db = AccountDBMut::from_hash(db, hash);
-				let storage_root = known_storage_roots.get(&hash).cloned().unwrap_or(H256::zero());
+				let storage_root = known_storage_roots.get(&hash).cloned().unwrap_or_default();
 				account::from_fat_rlp(&mut acct_db, fat_rlp, storage_root)?
 			};
 

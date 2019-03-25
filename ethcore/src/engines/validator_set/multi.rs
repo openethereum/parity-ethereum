@@ -74,7 +74,7 @@ impl Multi {
 impl ValidatorSet for Multi {
 	fn default_caller(&self, block_id: BlockId) -> Box<Call> {
 		self.correct_set(block_id).map(|set| set.default_caller(block_id))
-			.unwrap_or(Box::new(|_, _| Err("No validator set for given ID.".into())))
+			.unwrap_or_else(|| Box::new(|_, _| Err("No validator set for given ID.".into())))
 	}
 
 	fn on_epoch_begin(&self, _first: bool, header: &Header, call: &mut SystemCall) -> Result<(), ::error::Error> {
@@ -141,7 +141,7 @@ impl ValidatorSet for Multi {
 		*self.block_number.write() = Box::new(move |id| client
 			.upgrade()
 			.ok_or_else(|| "No client!".into())
-			.and_then(|c| c.block_number(id).ok_or("Unknown block".into())));
+			.and_then(|c| c.block_number(id).ok_or_else(|| "Unknown block".into())));
 	}
 }
 

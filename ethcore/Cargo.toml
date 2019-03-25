@@ -50,7 +50,6 @@ num = { version = "0.1", default-features = false, features = ["bigint"] }
 num_cpus = "1.2"
 parity-bytes = "0.1"
 parity-crypto = "0.3.0"
-parity-machine = { path = "../machine" }
 parity-snappy = "0.1"
 parking_lot = "0.7"
 trie-db = "0.11.0"
@@ -64,6 +63,7 @@ serde = "1.0"
 serde_derive = "1.0"
 stats = { path = "../util/stats" }
 tempdir = {version="0.3", optional = true}
+time-utils = { path = "../util/time-utils" }
 trace-time = "0.1"
 triehash-ethereum = { version = "0.2",  path = "../util/triehash-ethereum" }
 unexpected = { path = "../util/unexpected" }

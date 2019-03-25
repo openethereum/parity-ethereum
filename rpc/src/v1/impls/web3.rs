@@ -23,12 +23,8 @@ use v1::traits::Web3;
 use v1::types::Bytes;
 
 /// Web3 rpc implementation.
+#[derive(Default)]
 pub struct Web3Client;
-
-impl Web3Client {
-	/// Creates new Web3Client.
-	pub fn new() -> Self { Web3Client }
-}
 
 impl Web3 for Web3Client {
 	fn client_version(&self) -> Result<String> {
@@ -36,6 +32,6 @@ impl Web3 for Web3Client {
 	}
 
 	fn sha3(&self, data: Bytes) -> Result<H256> {
-		Ok(keccak(&data.0).into())
+		Ok(keccak(&data.0))
 	}
 }

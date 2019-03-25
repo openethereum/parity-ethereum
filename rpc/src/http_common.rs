@@ -44,7 +44,7 @@ impl<M, T> http::MetaExtractor<M> for MetaExtractor<T> where
 {
 	fn read_metadata(&self, req: &hyper::Request<hyper::Body>) -> M {
 		let as_string = |header: Option<&hyper::header::HeaderValue>| {
-			header.and_then(|val| val.to_str().ok().map(|s| s.to_owned()))
+			header.and_then(|val| val.to_str().ok().map(ToOwned::to_owned))
 		};
 
 		let origin = as_string(req.headers().get("origin"));
