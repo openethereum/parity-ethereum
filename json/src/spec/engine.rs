@@ -136,7 +136,7 @@ mod tests {
 		let s = r#"{
 			"clique": {
 				"params": {
-					"peorid" : 15,
+					"period": 15,
 					"epoch": 30000
 				}
 			}

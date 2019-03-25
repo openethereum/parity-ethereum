@@ -153,7 +153,7 @@ impl VoteType {
 }
 
 /// Clique Engine implementation
-/// block_state_by_hash -> block state indexed by header hash.
+// block_state_by_hash -> block state indexed by header hash.
 #[cfg(not(test))]
 pub struct Clique {
 	epoch_length: u64,
@@ -688,7 +688,6 @@ impl Engine<EthereumMachine> for Clique {
 	}
 
 	// Our task here is to set difficulty
-	// TODO:(niklasad1): Return `Result<(), Error>` here instead
 	fn populate_from_parent(&self, header: &mut Header, parent: &Header) {
 		// TODO(https://github.com/paritytech/parity-ethereum/issues/10410): this is a horrible hack,
 		// it is due to the fact that enact and miner both use OpenBlock::new() which will both call
@@ -742,6 +741,8 @@ impl Engine<EthereumMachine> for Clique {
 	fn stop(&mut self) {
 		if let Some(mut s) = self.step_service.as_mut() {
 			Arc::get_mut(&mut s).map(|x| x.stop());
+		} else {
+			warn!(target: "engine", "Stopping `CliqueStepService` failed requires mutable access");
 		}
 	}
 
@@ -759,8 +760,7 @@ impl Engine<EthereumMachine> for Clique {
 		super::total_difficulty_fork_choice(new, current)
 	}
 
-	fn executive_author(&self, header: &Header) -> Address {
-		// Should have been verified now.
-		recover_creator(header).expect("Unable to extract creator.")
+	fn executive_author(&self, header: &Header) -> Result<Address, Error> {
+		recover_creator(header)
 	}
 }
