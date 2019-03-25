@@ -1640,7 +1640,7 @@ mod tests {
 		assert_eq!(args.flag_stratum, true);
 		assert_eq!(args.arg_stratum_interface, "some_interface".to_owned());
 		assert_eq!(args.arg_stratum_port, 8007u16);
-		assert_eq!(args.arg_stratum_secret, Some("Yello".to_owned()));
+		assert_eq!(args.arg_stratum_secret, Some("Yellow".to_owned()));
 	}
 
 	#[test]
