@@ -716,7 +716,7 @@ usage! {
 			"--no-persistent-txqueue",
 			"Don't save pending local transactions to disk to be restored whenever the node restarts.",
 
-			FLAG flag_stratum: (bool) = false, or |c: &Config| Some(c.stratum.is_some()),
+			FLAG flag_stratum: (bool) = false, or |c: &Config| Some(c.stratum.as_ref().map(|s| s.disable != Some(true)).unwrap_or(false)),
 			"--stratum",
 			"Run Stratum server for miner push notification.",
 
@@ -1379,6 +1379,7 @@ struct Mining {
 #[derive(Default, Debug, PartialEq, Deserialize)]
 #[serde(deny_unknown_fields)]
 struct Stratum {
+	disable: Option<bool>,
 	interface: Option<String>,
 	port: Option<u16>,
 	secret: Option<String>,
