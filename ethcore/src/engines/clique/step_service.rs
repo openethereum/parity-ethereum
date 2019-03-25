@@ -16,40 +16,40 @@
 
 
 use std::sync::Weak;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::Duration;
 use std::thread;
 use std::sync::Arc;
 
 use engines::Engine;
 use machine::Machine;
-use parking_lot::RwLock;
 
 /// Service that is managing the engine
 pub struct StepService {
-	shutdown: Arc<RwLock<bool>>,
+	shutdown: Arc<AtomicBool>,
 	thread: Option<thread::JoinHandle<()>>,
 }
 
 impl StepService {
 	/// Start the `StepService`
 	pub fn start<M: Machine + 'static>(engine: Weak<Engine<M>>) -> Arc<Self> {
-		let shutdown = Arc::new(RwLock::new(false));
-		let shutdown1 = shutdown.clone();
+		let shutdown = Arc::new(AtomicBool::new(false));
+		let s = shutdown.clone();
 
 		let thread = thread::Builder::new()
-			.name("CliqueMiner".into())
+			.name("CliqueStepService".into())
 			.spawn(move || {
 				// startup delay.
 				thread::sleep(Duration::from_secs(5));
 
 				loop {
 					// see if we are in shutdown.
-					if *shutdown.read() == true {
-							trace!(target:"miner", "StepService: received shutdown signal!");
+					if shutdown.load(Ordering::Acquire) {
+							trace!(target: "miner", "CliqueStepService: received shutdown signal!");
 							break;
 					}
 
-					trace!(target: "miner", "StepService: triggering sealing");
+					trace!(target: "miner", "CliqueStepService: triggering sealing");
 
 					// Try sealing
 					engine.upgrade().map(|x| x.step());
@@ -57,21 +57,21 @@ impl StepService {
 					// Yield
 					thread::sleep(Duration::from_millis(2000));
 				}
-				trace!(target: "miner", "StepService: shut down.");
-			}).expect("Unable to launch thread.");
+				trace!(target: "miner", "CliqueStepService: shutdown.");
+			}).expect("CliqueStepService thread failed");
 
 		Arc::new(StepService {
-			shutdown: shutdown1,
+			shutdown: s,
 			thread: Some(thread),
 		})
 	}
 
 	/// Stop the `StepService`
 	pub fn stop(&mut self) {
-		trace!(target: "miner", "StepService: shutting down.");
-		*self.shutdown.write() = true;
+		trace!(target: "miner", "CliqueStepService: shutting down.");
+		self.shutdown.store(true, Ordering::Release);
 		if let Some(t) = self.thread.take() {
-			t.join().expect("CliqueMiner thread panicked!");
+			t.join().expect("CliqueStepService thread panicked!");
 		}
 	}
 }
