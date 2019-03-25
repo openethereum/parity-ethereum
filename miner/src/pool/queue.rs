@@ -362,7 +362,7 @@ impl TransactionQueue {
 		// In case we don't have a cached set, but we don't care about order
 		// just return the unordered set.
 		if let PendingOrdering::Unordered = ordering {
-			let ready = Self::ready(client, block_number, current_timestamp, nonce_cap);
+			let ready = Self::ready(&client, block_number, current_timestamp, nonce_cap);
 			return self.pool.read().unordered_pending(ready).take(max_len).collect();
 		}
 
@@ -404,12 +404,12 @@ impl TransactionQueue {
 	{
 		debug!(target: "txqueue", "Re-computing pending set for block: {}", block_number);
 		trace_time!("pool::collect_pending");
-		let ready = Self::ready(client, block_number, current_timestamp, nonce_cap);
+		let ready = Self::ready(&client, block_number, current_timestamp, nonce_cap);
 		collect(self.pool.read().pending(ready))
 	}
 
 	fn ready<C>(
-		client: C,
+		client: &C,
 		block_number: u64,
 		current_timestamp: u64,
 		nonce_cap: Option<U256>,
@@ -454,7 +454,7 @@ impl TransactionQueue {
 		};
 		for chunk in senders.chunks(CULL_SENDERS_CHUNK) {
 			trace_time!("pool::cull::chunk");
-			let state_readiness = ready::State::new(client.clone(), stale_id, nonce_cap);
+			let state_readiness = ready::State::new(&client, stale_id, nonce_cap);
 			removed += self.pool.write().cull(Some(chunk), state_readiness);
 		}
 		debug!(target: "txqueue", "Removed {} stalled transactions. {}", removed, self.status());
@@ -472,7 +472,7 @@ impl TransactionQueue {
 		// Also we ignore stale transactions in the queue.
 		let stale_id = None;
 
-		let state_readiness = ready::State::new(client, stale_id, nonce_cap);
+		let state_readiness = ready::State::new(&client, stale_id, nonce_cap);
 
 		self.pool.read().pending_from_sender(state_readiness, address)
 			.last()
@@ -588,10 +588,6 @@ fn convert_error<H: fmt::Debug + fmt::LowerHex>(err: txpool::Error<H>) -> transa
 		Error::AlreadyImported(..) => transaction::Error::AlreadyImported,
 		Error::TooCheapToEnter(..) => transaction::Error::LimitReached,
 		Error::TooCheapToReplace(..) => transaction::Error::TooCheapToReplace,
-		ref e => {
-			warn!(target: "txqueue", "Unknown import error: {:?}", e);
-			transaction::Error::NotAllowed
-		},
 	}
 }
 

@@ -16,10 +16,9 @@
 
 use std::cmp;
 
-use ethereum_types::U256;
-use txpool::{self, scoring::{Choice, Scoring}, ReplaceTransaction};
+use txpool::{self, scoring::{Choice, Scoring}, Readiness, Ready, ReplaceTransaction};
 use txpool::{VerifiedTransaction as PoolVerifiedTransaction};
-use super::{client, ScoredTransaction, VerifiedTransaction};
+use super::{client, ready::State, ScoredTransaction, VerifiedTransaction};
 
 #[derive(Debug)]
 pub struct NonceAndGasPriceAndReadiness<S, C> {
@@ -34,7 +33,9 @@ impl<S, C> NonceAndGasPriceAndReadiness<S, C> {
 }
 
 impl<S, C> txpool::ShouldReplace<VerifiedTransaction> for NonceAndGasPriceAndReadiness<S, C>
-	where S: Scoring<VerifiedTransaction>, C: client::NonceClient {
+where
+	S: Scoring<VerifiedTransaction>,
+	C: client::NonceClient {
 
 	fn should_replace(
 		&mut self,
@@ -56,21 +57,21 @@ impl<S, C> txpool::ShouldReplace<VerifiedTransaction> for NonceAndGasPriceAndRea
 			let old_score = (old.priority(), old.gas_price());
 			let new_score = (new.priority(), new.gas_price());
 			if new_score > old_score {
-				let state = &self.client;
+				let client = &self.client;
+				let mut state_readiness = State::new(client, None, None);
+
 				// calculate readiness based on state nonce + pooled txs from same sender
-				let is_ready = |replace: &ReplaceTransaction<VerifiedTransaction>| {
-					let state_nonce = state.account_nonce(replace.sender());
-					let nonce =
-						replace.pooled_by_sender.map_or(state_nonce, |txs| {
-							txs.iter().fold(state_nonce, |nonce, tx| {
-								if nonce == tx.nonce() && tx.transaction != *replace.transaction {
-									nonce.saturating_add(U256::from(1))
-								} else {
-									nonce
-								}
-							})
-						});
-					nonce == replace.nonce()
+				let mut is_ready = |replace: &ReplaceTransaction<VerifiedTransaction>| {
+					if let Some(txs) = replace.pooled_by_sender {
+						// replay the readiness of currently pooled txs from the same sender
+						for tx in txs {
+							if *tx.transaction != ***replace.transaction {
+								state_readiness.is_ready(tx);
+							}
+						}
+					};
+					let readiness = state_readiness.is_ready(replace.transaction);
+					readiness == Readiness::Ready
 				};
 
 				if !is_ready(new) && is_ready(old) {
@@ -99,18 +100,18 @@ mod tests {
 	use txpool::scoring::Choice::*;
 	use txpool::ShouldReplace;
 
-	fn local_tx_verified(tx: Tx, keypair: &KeyPair) -> ReplaceTransaction<VerifiedTransaction> {
+	fn local_tx_verified(tx: Tx, keypair: &KeyPair) -> VerifiedTransaction {
 		let mut verified_tx = tx.unsigned().sign(keypair.secret(), None).verified();
 		verified_tx.priority = ::pool::Priority::Local;
-		replace_tx(verified_tx)
+		verified_tx
 	}
 
-	fn replace_tx<'a>(tx: VerifiedTransaction, ) -> ReplaceTransaction<'a, VerifiedTransaction> {
-		let tx = txpool::Transaction {
-			insertion_id: 0,
-			transaction: Arc::new(tx),
-		};
-		ReplaceTransaction::new(tx, Default::default())
+	fn should_replace(replace: &mut ShouldReplace<VerifiedTransaction>, old: VerifiedTransaction, new: VerifiedTransaction) -> Choice {
+		let old_tx = txpool::Transaction { insertion_id: 0, transaction: Arc::new(old) };
+		let new_tx = txpool::Transaction { insertion_id: 0, transaction: Arc::new(new) };
+		let old = ReplaceTransaction::new(&old_tx, Default::default());
+		let new = ReplaceTransaction::new(&new_tx, Default::default());
+		replace.should_replace(&old, &new)
 	}
 
 	#[test]
@@ -155,15 +156,15 @@ mod tests {
 			..Default::default()
 		}, &sender2);
 
-		assert_eq!(replace.should_replace(&same_sender_tx1, &same_sender_tx2), InsertNew);
-		assert_eq!(replace.should_replace(&same_sender_tx2, &same_sender_tx1), InsertNew);
+		assert_eq!(should_replace(&mut replace, same_sender_tx1.clone(), same_sender_tx2.clone()), InsertNew);
+		assert_eq!(should_replace(&mut replace, same_sender_tx2.clone(), same_sender_tx1.clone()), InsertNew);
 
-		assert_eq!(replace.should_replace(&different_sender_tx1, &different_sender_tx2), InsertNew);
-		assert_eq!(replace.should_replace(&different_sender_tx2, &different_sender_tx1), InsertNew);
+		assert_eq!(should_replace(&mut replace, different_sender_tx1.clone(), different_sender_tx2.clone()), InsertNew);
+		assert_eq!(should_replace(&mut replace, different_sender_tx2.clone(), different_sender_tx1.clone()), InsertNew);
 
 		// txs with same sender and nonce
-		assert_eq!(replace.should_replace(&same_sender_tx2, &same_sender_tx3), ReplaceOld);
-		assert_eq!(replace.should_replace(&same_sender_tx3, &same_sender_tx2), RejectNew);
+		assert_eq!(should_replace(&mut replace, same_sender_tx2.clone(), same_sender_tx3.clone()), ReplaceOld);
+		assert_eq!(should_replace(&mut replace, same_sender_tx3.clone(), same_sender_tx2.clone()), RejectNew);
 	}
 
 	#[test]
@@ -195,17 +196,17 @@ mod tests {
 
 		let keypair = Random.generate().unwrap();
 		let txs = vec![tx1, tx2, tx3, tx4].into_iter().map(|tx| {
-			replace_tx(tx.unsigned().sign(keypair.secret(), None).verified())
+			tx.unsigned().sign(keypair.secret(), None).verified()
 		}).collect::<Vec<_>>();
 
-		assert_eq!(replace.should_replace(&txs[0], &txs[1]), RejectNew);
-		assert_eq!(replace.should_replace(&txs[1], &txs[0]), ReplaceOld);
+		assert_eq!(should_replace(&mut replace, txs[0].clone(), txs[1].clone()), RejectNew);
+		assert_eq!(should_replace(&mut replace, txs[1].clone(), txs[0].clone()), ReplaceOld);
 
-		assert_eq!(replace.should_replace(&txs[1], &txs[2]), RejectNew);
-		assert_eq!(replace.should_replace(&txs[2], &txs[1]), RejectNew);
+		assert_eq!(should_replace(&mut replace, txs[1].clone(), txs[2].clone()), RejectNew);
+		assert_eq!(should_replace(&mut replace, txs[2].clone(), txs[1].clone()), RejectNew);
 
-		assert_eq!(replace.should_replace(&txs[1], &txs[3]), ReplaceOld);
-		assert_eq!(replace.should_replace(&txs[3], &txs[1]), RejectNew);
+		assert_eq!(should_replace(&mut replace, txs[1].clone(), txs[3].clone()), ReplaceOld);
+		assert_eq!(should_replace(&mut replace, txs[3].clone(), txs[1].clone()), RejectNew);
 	}
 
 	#[test]
@@ -221,7 +222,7 @@ mod tests {
 				gas_price: 1,
 				..Default::default()
 			};
-			replace_tx(tx.signed().verified())
+			tx.signed().verified()
 		};
 		let tx_regular_high_gas = {
 			let tx = Tx {
@@ -229,7 +230,7 @@ mod tests {
 				gas_price: 10,
 				..Default::default()
 			};
-			replace_tx(tx.signed().verified())
+			tx.signed().verified()
 		};
 		let tx_local_low_gas = {
 			let tx = Tx {
@@ -239,7 +240,7 @@ mod tests {
 			};
 			let mut verified_tx = tx.signed().verified();
 			verified_tx.priority = ::pool::Priority::Local;
-			replace_tx(verified_tx)
+			verified_tx
 		};
 		let tx_local_high_gas = {
 			let tx = Tx {
@@ -249,17 +250,17 @@ mod tests {
 			};
 			let mut verified_tx = tx.signed().verified();
 			verified_tx.priority = ::pool::Priority::Local;
-			replace_tx(verified_tx)
+			verified_tx
 		};
 
-		assert_eq!(replace.should_replace(&tx_regular_low_gas, &tx_regular_high_gas), ReplaceOld);
-		assert_eq!(replace.should_replace(&tx_regular_high_gas, &tx_regular_low_gas), RejectNew);
+		assert_eq!(should_replace(&mut replace, tx_regular_low_gas.clone(), tx_regular_high_gas.clone()), ReplaceOld);
+		assert_eq!(should_replace(&mut replace, tx_regular_high_gas.clone(), tx_regular_low_gas.clone()), RejectNew);
 
-		assert_eq!(replace.should_replace(&tx_regular_high_gas, &tx_local_low_gas), ReplaceOld);
-		assert_eq!(replace.should_replace(&tx_local_low_gas, &tx_regular_high_gas), RejectNew);
+		assert_eq!(should_replace(&mut replace, tx_regular_high_gas.clone(), tx_local_low_gas.clone()), ReplaceOld);
+		assert_eq!(should_replace(&mut replace, tx_local_low_gas.clone(), tx_regular_high_gas.clone()), RejectNew);
 
-		assert_eq!(replace.should_replace(&tx_local_low_gas, &tx_local_high_gas), InsertNew);
-		assert_eq!(replace.should_replace(&tx_local_high_gas, &tx_regular_low_gas), RejectNew);
+		assert_eq!(should_replace(&mut replace, tx_local_low_gas.clone(), tx_local_high_gas.clone()), InsertNew);
+		assert_eq!(should_replace(&mut replace, tx_local_high_gas.clone(), tx_regular_low_gas.clone()), RejectNew);
 	}
 
 	#[test]
@@ -274,7 +275,7 @@ mod tests {
 				gas_price: 1,
 				..Default::default()
 			};
-			replace_tx(tx.signed().verified())
+			tx.signed().verified()
 		};
 		let tx_future_high_score = {
 			let tx = Tx {
@@ -282,9 +283,9 @@ mod tests {
 				gas_price: 10,
 				..Default::default()
 			};
-			replace_tx(tx.signed().verified())
+			tx.signed().verified()
 		};
 
-		assert_eq!(replace.should_replace(&tx_ready_low_score, &tx_future_high_score), RejectNew);
+		assert_eq!(should_replace(&mut replace, tx_ready_low_score, tx_future_high_score), RejectNew);
 	}
 }

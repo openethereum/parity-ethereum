@@ -939,7 +939,7 @@ dependencies = [
  "rlp 0.3.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "rustc-hex 1.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "trace-time 0.1.1 (registry+https://github.com/rust-lang/crates.io-index)",
- "transaction-pool 1.13.3 (registry+https://github.com/rust-lang/crates.io-index)",
+ "transaction-pool 2.0.0",
  "url 1.7.1 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
@@ -4031,6 +4031,13 @@ dependencies = [
 [[package]]
 name = "trace-time"
 version = "0.1.1"
+dependencies = [
+ "log 0.4.5 (registry+https://github.com/rust-lang/crates.io-index)",
+]
+
+[[package]]
+name = "trace-time"
+version = "0.1.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 dependencies = [
  "log 0.4.5 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -4045,6 +4052,15 @@ dependencies = [
  "log 0.4.5 (registry+https://github.com/rust-lang/crates.io-index)",
  "smallvec 0.6.5 (registry+https://github.com/rust-lang/crates.io-index)",
  "trace-time 0.1.1 (registry+https://github.com/rust-lang/crates.io-index)",
+]
+
+[[package]]
+name = "transaction-pool"
+version = "2.0.0"
+dependencies = [
+ "log 0.4.5 (registry+https://github.com/rust-lang/crates.io-index)",
+ "smallvec 0.6.5 (registry+https://github.com/rust-lang/crates.io-index)",
+ "trace-time 0.1.1",
 ]
 
 [[package]]
