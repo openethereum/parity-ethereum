@@ -497,7 +497,7 @@ pub(crate) fn enact(
 		last_hashes,
 		// Engine such as Clique will calculate author from extra_data.
 		// this is only important for executing contracts as the 'executive_author'.
-		engine.executive_author(&header),
+		engine.executive_author(&header)?,
 		(3141562.into(), 31415620.into()),
 		vec![],
 		is_epoch_begin,

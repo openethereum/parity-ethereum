@@ -135,7 +135,7 @@ impl fmt::Display for EngineError {
 			FailedSystemCall(ref msg) => format!("Failed to make system call: {}", msg),
 			MalformedMessage(ref msg) => format!("Received malformed consensus message: {}", msg),
 			RequiresClient => format!("Call requires client but none registered"),
-			RequiresSigner => format!("Call requires client but none registered"),
+			RequiresSigner => format!("Call requires signer but none registered"),
 			InvalidEngine => format!("Invalid engine specification or implementation"),
 		};
 
@@ -462,7 +462,9 @@ pub trait Engine<M: Machine>: Sync + Send {
 	fn fork_choice(&self, new: &ExtendedHeader, best: &ExtendedHeader) -> ForkChoice;
 
 	/// Returns author should used when executing tx's for this block.
-	fn executive_author(&self, header: &Header) -> Address { *header.author() }
+	fn executive_author(&self, header: &Header) -> Result<Address, Error> {
+		Ok(*header.author())
+	}
 }
 
 /// Check whether a given block is the best block based on the default total difficulty rule.
