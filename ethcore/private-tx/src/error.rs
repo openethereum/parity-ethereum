@@ -25,7 +25,9 @@ use ethcore::error::{Error as EthcoreError, ExecutionError};
 use types::transaction::Error as TransactionError;
 use ethkey::Error as KeyError;
 use ethkey::crypto::Error as CryptoError;
-use txpool::Error as TxPoolError;
+use txpool::VerifiedTransaction;
+
+type TxPoolError = txpool::Error<<super::VerifiedPrivateTransaction as VerifiedTransaction>::Hash>;
 
 error_chain! {
 	foreign_links {
