@@ -288,4 +288,115 @@ mod tests {
 
 		assert_eq!(should_replace(&mut replace, tx_ready_low_score, tx_future_high_score), RejectNew);
 	}
+
+	#[test]
+	fn should_compute_readiness_with_pooled_transactions_from_the_same_sender_as_the_existing_transaction() {
+		let scoring = NonceAndGasPrice(PrioritizationStrategy::GasPriceOnly);
+		let client = TestClient::new().with_nonce(1);
+		let mut replace = NonceAndGasPriceAndReadiness::new(scoring, client);
+
+		let old_sender = Random.generate().unwrap();
+		let tx_old_ready_1 = {
+			let tx = Tx {
+				nonce: 1,
+				gas_price: 1,
+				..Default::default()
+			};
+			tx.unsigned().sign(&old_sender.secret(), None).verified()
+		};
+		let tx_old_ready_2 = {
+			let tx = Tx {
+				nonce: 2,
+				gas_price: 1,
+				..Default::default()
+			};
+			tx.unsigned().sign(&old_sender.secret(), None).verified()
+		};
+		let tx_old_ready_3 = {
+			let tx = Tx {
+				nonce: 3,
+				gas_price: 1,
+				..Default::default()
+			};
+			tx.unsigned().sign(&old_sender.secret(), None).verified()
+		};
+
+		let new_tx = {
+			let tx = Tx {
+				nonce: 3, // future nonce
+				gas_price: 10,
+				..Default::default()
+			};
+			tx.signed().verified()
+		};
+
+		let old_tx = txpool::Transaction { insertion_id: 0, transaction: Arc::new(tx_old_ready_3) };
+		let pooled_txs = [
+			txpool::Transaction { insertion_id: 0, transaction: Arc::new(tx_old_ready_1) },
+			txpool::Transaction { insertion_id: 0, transaction: Arc::new(tx_old_ready_2) },
+		];
+
+		let new_tx = txpool::Transaction { insertion_id: 0, transaction: Arc::new(new_tx) };
+
+		let old = ReplaceTransaction::new(&old_tx, Some(&pooled_txs));
+		let new = ReplaceTransaction::new(&new_tx, Default::default());
+
+		assert_eq!(replace.should_replace(&old, &new), RejectNew);
+	}
+
+	#[test]
+	fn should_compute_readiness_with_pooled_transactions_from_the_same_sender_as_the_new_transaction() {
+		let scoring = NonceAndGasPrice(PrioritizationStrategy::GasPriceOnly);
+		let client = TestClient::new().with_nonce(1);
+		let mut replace = NonceAndGasPriceAndReadiness::new(scoring, client);
+
+		// current transaction is ready but has a lower gas price than the new one
+		let old_tx = {
+			let tx = Tx {
+				nonce: 1,
+				gas_price: 1,
+				..Default::default()
+			};
+			tx.signed().verified()
+		};
+
+		let new_sender = Random.generate().unwrap();
+		let tx_new_ready_1 = {
+			let tx = Tx {
+				nonce: 1,
+				gas_price: 1,
+				..Default::default()
+			};
+			tx.unsigned().sign(&new_sender.secret(), None).verified()
+		};
+		let tx_new_ready_2 = {
+			let tx = Tx {
+				nonce: 2,
+				gas_price: 1,
+				..Default::default()
+			};
+			tx.unsigned().sign(&new_sender.secret(), None).verified()
+		};
+		let tx_new_ready_3 = {
+			let tx = Tx {
+				nonce: 3,
+				gas_price: 10, // hi
+				..Default::default()
+			};
+			tx.unsigned().sign(&new_sender.secret(), None).verified()
+		};
+
+		let old_tx = txpool::Transaction { insertion_id: 0, transaction: Arc::new(old_tx) };
+
+		let new_tx = txpool::Transaction { insertion_id: 0, transaction: Arc::new(tx_new_ready_3) };
+		let pooled_txs = [
+			txpool::Transaction { insertion_id: 0, transaction: Arc::new(tx_new_ready_1) },
+			txpool::Transaction { insertion_id: 0, transaction: Arc::new(tx_new_ready_2) },
+		];
+
+		let old = ReplaceTransaction::new(&old_tx, None);
+		let new = ReplaceTransaction::new(&new_tx, Some(&pooled_txs));
+
+		assert_eq!(replace.should_replace(&old, &new), ReplaceOld);
+	}
 }
