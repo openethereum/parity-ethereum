@@ -1583,8 +1583,8 @@ impl Call for Client {
 			upper = max_upper;
 			match exec(upper) {
 				Ok(v) => {
-					if v.exception.is_some() {
-						return Err(CallError::Exceptional(v.exception.unwrap()))
+					if let Some(exception) = v.exception {
+						return Err(CallError::Exceptional(exception))
 					}
 				},
 				Err(_e) => {
