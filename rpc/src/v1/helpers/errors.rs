@@ -173,7 +173,7 @@ pub fn state_corrupt() -> Error {
 	internal("State corrupt", "")
 }
 
-pub fn exceptional<T: fmt::Debug>(data: T) -> Error {
+pub fn exceptional<T: fmt::Display>(data: T) -> Error {
 	Error {
 		code: ErrorCode::ServerError(codes::EXCEPTION_ERROR),
 		message: "The execution failed due to an exception.".into(),
