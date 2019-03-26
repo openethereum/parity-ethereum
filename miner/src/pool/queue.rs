@@ -269,7 +269,7 @@ impl TransactionQueue {
 			transaction_to_replace,
 		);
 
-		let mut replace = replace::NonceAndGasPriceAndReadiness::new(self.pool.read().scoring().clone(), client);
+		let mut replace = replace::ReplaceByScoreAndReadiness::new(self.pool.read().scoring().clone(), client);
 
 		let results = transactions
 			.into_iter()

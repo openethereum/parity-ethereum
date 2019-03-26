@@ -179,7 +179,7 @@ impl VerificationStore {
 		};
 		let mut pool = self.verification_pool.write();
 		let mut replace =
-			pool::replace::NonceAndGasPriceAndReadiness::new(self.verification_pool.read().scoring().clone(), client);
+			pool::replace::ReplaceByScoreAndReadiness::new(self.verification_pool.read().scoring().clone(), client);
 		pool.import(verified, &mut replace)?;
 		Ok(())
 	}

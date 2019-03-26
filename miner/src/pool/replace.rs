@@ -14,6 +14,15 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
+//! Replacing Transactions
+//!
+//! When queue limits are reached, a new transaction may replace one already
+//! in the pool. The decision whether to reject, replace or retain both is
+//! delegated to an implementation of `ShouldReplace`.
+//!
+//! Here we decide based on the sender, the nonce and gas price, and finally
+//! on the `Readiness` of the transactions when comparing them
+
 use std::cmp;
 
 use ethereum_types::{U256, H160 as Address};
@@ -21,19 +30,22 @@ use txpool::{self, scoring::{Choice, Scoring}, ReplaceTransaction};
 use txpool::VerifiedTransaction;
 use super::{client, ScoredTransaction};
 
+/// Choose whether to replace based on the sender, the score and finally the
+/// `Readiness` of the transactions being compared.
 #[derive(Debug)]
-pub struct NonceAndGasPriceAndReadiness<S, C> {
+pub struct ReplaceByScoreAndReadiness<S, C> {
 	scoring: S,
 	client: C,
 }
 
-impl<S, C> NonceAndGasPriceAndReadiness<S, C> {
+impl<S, C> ReplaceByScoreAndReadiness<S, C> {
+	/// Create a new `ReplaceByScoreAndReadiness`
 	pub fn new(scoring: S, client: C) -> Self {
-		NonceAndGasPriceAndReadiness { scoring, client }
+		ReplaceByScoreAndReadiness { scoring, client }
 	}
 }
 
-impl<T, S, C> txpool::ShouldReplace<T> for NonceAndGasPriceAndReadiness<S, C>
+impl<T, S, C> txpool::ShouldReplace<T> for ReplaceByScoreAndReadiness<S, C>
 where
 	T: VerifiedTransaction<Sender = Address> + ScoredTransaction + PartialEq,
 	S: Scoring<T>,
@@ -120,7 +132,7 @@ mod tests {
 	fn should_always_accept_local_transactions_unless_same_sender_and_nonce() {
 		let scoring = NonceAndGasPrice(PrioritizationStrategy::GasPriceOnly);
 		let client = TestClient::new().with_nonce(1);
-		let mut replace = NonceAndGasPriceAndReadiness::new(scoring, client);
+		let mut replace = ReplaceByScoreAndReadiness::new(scoring, client);
 
 		// same sender txs
 		let keypair = Random.generate().unwrap();
@@ -173,7 +185,7 @@ mod tests {
 	fn should_replace_same_sender_by_nonce() {
 		let scoring = NonceAndGasPrice(PrioritizationStrategy::GasPriceOnly);
 		let client = TestClient::new().with_nonce(1);
-		let mut replace = NonceAndGasPriceAndReadiness::new(scoring, client);
+		let mut replace = ReplaceByScoreAndReadiness::new(scoring, client);
 
 		let tx1 = Tx {
 			nonce: 1,
@@ -216,7 +228,7 @@ mod tests {
 		// given
 		let scoring = NonceAndGasPrice(PrioritizationStrategy::GasPriceOnly);
 		let client = TestClient::new().with_nonce(0);
-		let mut replace = NonceAndGasPriceAndReadiness::new(scoring, client);
+		let mut replace = ReplaceByScoreAndReadiness::new(scoring, client);
 
 		let tx_regular_low_gas = {
 			let tx = Tx {
@@ -269,7 +281,7 @@ mod tests {
 	fn should_not_replace_ready_transaction_with_future_transaction() {
 		let scoring = NonceAndGasPrice(PrioritizationStrategy::GasPriceOnly);
 		let client = TestClient::new().with_nonce(1);
-		let mut replace = NonceAndGasPriceAndReadiness::new(scoring, client);
+		let mut replace = ReplaceByScoreAndReadiness::new(scoring, client);
 
 		let tx_ready_low_score = {
 			let tx = Tx {
@@ -295,7 +307,7 @@ mod tests {
 	fn should_compute_readiness_with_pooled_transactions_from_the_same_sender_as_the_existing_transaction() {
 		let scoring = NonceAndGasPrice(PrioritizationStrategy::GasPriceOnly);
 		let client = TestClient::new().with_nonce(1);
-		let mut replace = NonceAndGasPriceAndReadiness::new(scoring, client);
+		let mut replace = ReplaceByScoreAndReadiness::new(scoring, client);
 
 		let old_sender = Random.generate().unwrap();
 		let tx_old_ready_1 = {
@@ -350,7 +362,7 @@ mod tests {
 	fn should_compute_readiness_with_pooled_transactions_from_the_same_sender_as_the_new_transaction() {
 		let scoring = NonceAndGasPrice(PrioritizationStrategy::GasPriceOnly);
 		let client = TestClient::new().with_nonce(1);
-		let mut replace = NonceAndGasPriceAndReadiness::new(scoring, client);
+		let mut replace = ReplaceByScoreAndReadiness::new(scoring, client);
 
 		// current transaction is ready but has a lower gas price than the new one
 		let old_tx = {
