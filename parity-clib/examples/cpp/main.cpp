@@ -14,6 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
+#include <atomic>
 #include <chrono>
 #include <parity.h>
 #include <regex>
@@ -31,13 +32,11 @@ const unsigned int CALLBACK_WS = 2;
 
 struct Callback {
 	unsigned int type;
-	long unsigned int counter;
 };
 
 // list of rpc queries
 const std::vector<std::string> rpc_queries {
 	"{\"method\":\"parity_versionInfo\",\"params\":[],\"id\":1,\"jsonrpc\":\"2.0\"}",
-	"{\"method\":\"eth_getTransactionReceipt\",\"params\":[\"0x444172bef57ad978655171a8af2cfd89baa02a97fcb773067aef7794d6913fff\"],\"id\":1,\"jsonrpc\":\"2.0\"}",
 	"{\"method\":\"eth_estimateGas\",\"params\":[{\"from\":\"0x0066Dc48bb833d2B59f730F33952B3c29fE926F5\"}],\"id\":1,\"jsonrpc\":\"2.0\"}",
 	"{\"method\":\"eth_getBalance\",\"params\":[\"0x0066Dc48bb833d2B59f730F33952B3c29fE926F5\"],\"id\":1,\"jsonrpc\":\"2.0\"}"
 };
@@ -49,58 +48,38 @@ const std::vector<std::string> ws_subscriptions {
 	"{\"method\":\"eth_subscribe\",\"params\":[\"newHeads\"],\"id\":1,\"jsonrpc\":\"2.0\"}"
 };
 
+std::atomic<int> callback_counter;
+
 // callback that gets invoked upon an event
 void callback(void* user_data, const char* response, size_t _len) {
 	Callback* cb = static_cast<Callback*>(user_data);
 	if (cb->type == CALLBACK_RPC) {
-		cb->counter -= 1;
+		callback_counter -= 1;
 	} else if (cb->type == CALLBACK_WS) {
 		std::regex is_subscription ("\\{\"jsonrpc\":\"2.0\",\"result\":\"0[xX][a-fA-F0-9]{16}\",\"id\":1\\}");
 		if (std::regex_match(response, is_subscription) == true) {
-			cb->counter -= 1;
+			callback_counter -= 1;
 		}
 	}
 }
 
 int main() {
-	// run full-client
-	{
-		std::vector<const char*> config = {"--no-ipc" , "--jsonrpc-apis=all", "--chain", "kovan"};
-		void* parity = parity_run(config);
-		if (parity_rpc_queries(parity)) {
-			printf("rpc_queries failed\r\n");
-			return 1;
-		}
-
-		if (parity_subscribe_to_websocket(parity)) {
-			printf("ws_queries failed\r\n");
-			return 1;
-		}
-
-		if (parity != nullptr) {
-			parity_destroy(parity);
-		}
+	std::vector<const char*> config = {"--no-ipc" , "--jsonrpc-apis=all", "--chain", "kovan"};
+	void* parity = parity_run(config);
+	if (parity_rpc_queries(parity)) {
+		printf("rpc_queries failed\r\n");
+		return 1;
 	}
 
-	// run light-client
-	{
-		std::vector<const char*> light_config = {"--no-ipc", "--light", "--jsonrpc-apis=all", "--chain", "kovan"};
-		void* parity = parity_run(light_config);
-
-		if (parity_rpc_queries(parity)) {
-			printf("rpc_queries failed\r\n");
-			return 1;
-		}
-
-		if (parity_subscribe_to_websocket(parity)) {
-			printf("ws_queries failed\r\n");
-			return 1;
-		}
-
-		if (parity != nullptr) {
-			parity_destroy(parity);
-		}
+	if (parity_subscribe_to_websocket(parity)) {
+		printf("ws_queries failed\r\n");
+		return 1;
 	}
+
+	if (parity != nullptr) {
+		parity_destroy(parity);
+	}
+
 	return 0;
 }
 
@@ -109,7 +88,8 @@ int parity_rpc_queries(void* parity) {
 		return 1;
 	}
 
-	Callback cb { .type = CALLBACK_RPC, .counter = rpc_queries.size() };
+	Callback cb { .type = CALLBACK_RPC };
+	callback_counter = rpc_queries.size();
 
 	for (auto query : rpc_queries) {
 		if (parity_rpc(parity, query.c_str(), query.length(), TIMEOUT_ONE_MIN_AS_MILLIS, callback, &cb) != 0) {
@@ -117,8 +97,8 @@ int parity_rpc_queries(void* parity) {
 		}
 	}
 
-	while(cb.counter != 0);
-	return 0;
+	std::this_thread::sleep_for(std::chrono::seconds(15));
+	return callback_counter.load();
 }
 
 
@@ -129,7 +109,8 @@ int parity_subscribe_to_websocket(void* parity) {
 
 	std::vector<const void*> sessions;
 
-	Callback cb { .type = CALLBACK_WS, .counter = ws_subscriptions.size() };
+	Callback cb { .type = CALLBACK_WS };
+	callback_counter = ws_subscriptions.size();
 
 	for (auto sub : ws_subscriptions) {
 		void *const session = parity_subscribe_ws(parity, sub.c_str(), sub.length(), callback, &cb);
@@ -139,12 +120,11 @@ int parity_subscribe_to_websocket(void* parity) {
 		sessions.push_back(session);
 	}
 
-	while(cb.counter != 0);
-	std::this_thread::sleep_for(std::chrono::seconds(60));
+	std::this_thread::sleep_for(std::chrono::seconds(15));
 	for (auto session : sessions) {
 		parity_unsubscribe_ws(session);
 	}
-	return 0;
+	return callback_counter.load();
 }
 
 void* parity_run(std::vector<const char*> args) {
@@ -172,9 +152,9 @@ void* parity_run(std::vector<const char*> args) {
 		}
 	}
 
-	// enable logging but only the `rpc module` and don't write it to a file
-	char log_mode [] = "rpc=trace";
-	parity_set_logger(log_mode, strlen(log_mode), nullptr, 0, &cfg.logger);
+	// enable logging but don't write it to a file
+	char logger[] = "rpc,pubsub=trace";
+	parity_set_logger(logger, strlen(logger), nullptr, 0, &cfg.logger);
 
 	void *parity = nullptr;
 	if (parity_start(&cfg, &parity) != 0) {
