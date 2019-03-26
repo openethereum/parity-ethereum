@@ -334,12 +334,7 @@ impl Clique {
 				block_state_by_hash.insert(header.hash(), new_state.clone());
 
 				let elapsed = backfill_start.elapsed();
-				trace!(target: "engine",
-						"Back-filling succeed, took {} ms.",
-						// replace with Duration::as_millis after rust 1.33
-						elapsed.as_secs() as u128 * 1000 + elapsed.subsec_millis() as u128,
-				);
-
+				trace!(target: "engine", "Back-filling succeed, took {} ms.", elapsed.as_millis());
 				Ok(new_state)
 			}
 		}
