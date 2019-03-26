@@ -11,7 +11,6 @@ mkdir -p $DIR
 cd $DIR
 cmake ..
 make VERBOSE=1 -j $THREADS
-# Note: we don't try to run the example because it tries to sync Kovan, and we don't want
-#       that to happen on CI
+./parity-example
 cd -
 rm -rf $DIR
