@@ -52,7 +52,7 @@ where
 	C: client::NonceClient,
 {
 	fn should_replace(
-		&mut self,
+		&self,
 		old: &ReplaceTransaction<T>,
 		new: &ReplaceTransaction<T>,
 	) -> Choice {
@@ -120,7 +120,7 @@ mod tests {
 		verified_tx
 	}
 
-	fn should_replace(replace: &mut ShouldReplace<VerifiedTransaction>, old: VerifiedTransaction, new: VerifiedTransaction) -> Choice {
+	fn should_replace(replace: &ShouldReplace<VerifiedTransaction>, old: VerifiedTransaction, new: VerifiedTransaction) -> Choice {
 		let old_tx = txpool::Transaction { insertion_id: 0, transaction: Arc::new(old) };
 		let new_tx = txpool::Transaction { insertion_id: 0, transaction: Arc::new(new) };
 		let old = ReplaceTransaction::new(&old_tx, Default::default());
@@ -132,7 +132,7 @@ mod tests {
 	fn should_always_accept_local_transactions_unless_same_sender_and_nonce() {
 		let scoring = NonceAndGasPrice(PrioritizationStrategy::GasPriceOnly);
 		let client = TestClient::new().with_nonce(1);
-		let mut replace = ReplaceByScoreAndReadiness::new(scoring, client);
+		let replace = ReplaceByScoreAndReadiness::new(scoring, client);
 
 		// same sender txs
 		let keypair = Random.generate().unwrap();
@@ -170,22 +170,22 @@ mod tests {
 			..Default::default()
 		}, &sender2);
 
-		assert_eq!(should_replace(&mut replace, same_sender_tx1.clone(), same_sender_tx2.clone()), InsertNew);
-		assert_eq!(should_replace(&mut replace, same_sender_tx2.clone(), same_sender_tx1.clone()), InsertNew);
+		assert_eq!(should_replace(&replace, same_sender_tx1.clone(), same_sender_tx2.clone()), InsertNew);
+		assert_eq!(should_replace(&replace, same_sender_tx2.clone(), same_sender_tx1.clone()), InsertNew);
 
-		assert_eq!(should_replace(&mut replace, different_sender_tx1.clone(), different_sender_tx2.clone()), InsertNew);
-		assert_eq!(should_replace(&mut replace, different_sender_tx2.clone(), different_sender_tx1.clone()), InsertNew);
+		assert_eq!(should_replace(&replace, different_sender_tx1.clone(), different_sender_tx2.clone()), InsertNew);
+		assert_eq!(should_replace(&replace, different_sender_tx2.clone(), different_sender_tx1.clone()), InsertNew);
 
 		// txs with same sender and nonce
-		assert_eq!(should_replace(&mut replace, same_sender_tx2.clone(), same_sender_tx3.clone()), ReplaceOld);
-		assert_eq!(should_replace(&mut replace, same_sender_tx3.clone(), same_sender_tx2.clone()), RejectNew);
+		assert_eq!(should_replace(&replace, same_sender_tx2.clone(), same_sender_tx3.clone()), ReplaceOld);
+		assert_eq!(should_replace(&replace, same_sender_tx3.clone(), same_sender_tx2.clone()), RejectNew);
 	}
 
 	#[test]
 	fn should_replace_same_sender_by_nonce() {
 		let scoring = NonceAndGasPrice(PrioritizationStrategy::GasPriceOnly);
 		let client = TestClient::new().with_nonce(1);
-		let mut replace = ReplaceByScoreAndReadiness::new(scoring, client);
+		let replace = ReplaceByScoreAndReadiness::new(scoring, client);
 
 		let tx1 = Tx {
 			nonce: 1,
@@ -213,14 +213,14 @@ mod tests {
 			tx.unsigned().sign(keypair.secret(), None).verified()
 		}).collect::<Vec<_>>();
 
-		assert_eq!(should_replace(&mut replace, txs[0].clone(), txs[1].clone()), RejectNew);
-		assert_eq!(should_replace(&mut replace, txs[1].clone(), txs[0].clone()), ReplaceOld);
+		assert_eq!(should_replace(&replace, txs[0].clone(), txs[1].clone()), RejectNew);
+		assert_eq!(should_replace(&replace, txs[1].clone(), txs[0].clone()), ReplaceOld);
 
-		assert_eq!(should_replace(&mut replace, txs[1].clone(), txs[2].clone()), RejectNew);
-		assert_eq!(should_replace(&mut replace, txs[2].clone(), txs[1].clone()), RejectNew);
+		assert_eq!(should_replace(&replace, txs[1].clone(), txs[2].clone()), RejectNew);
+		assert_eq!(should_replace(&replace, txs[2].clone(), txs[1].clone()), RejectNew);
 
-		assert_eq!(should_replace(&mut replace, txs[1].clone(), txs[3].clone()), ReplaceOld);
-		assert_eq!(should_replace(&mut replace, txs[3].clone(), txs[1].clone()), RejectNew);
+		assert_eq!(should_replace(&replace, txs[1].clone(), txs[3].clone()), ReplaceOld);
+		assert_eq!(should_replace(&replace, txs[3].clone(), txs[1].clone()), RejectNew);
 	}
 
 	#[test]
@@ -228,7 +228,7 @@ mod tests {
 		// given
 		let scoring = NonceAndGasPrice(PrioritizationStrategy::GasPriceOnly);
 		let client = TestClient::new().with_nonce(0);
-		let mut replace = ReplaceByScoreAndReadiness::new(scoring, client);
+		let replace = ReplaceByScoreAndReadiness::new(scoring, client);
 
 		let tx_regular_low_gas = {
 			let tx = Tx {
@@ -267,21 +267,21 @@ mod tests {
 			verified_tx
 		};
 
-		assert_eq!(should_replace(&mut replace, tx_regular_low_gas.clone(), tx_regular_high_gas.clone()), ReplaceOld);
-		assert_eq!(should_replace(&mut replace, tx_regular_high_gas.clone(), tx_regular_low_gas.clone()), RejectNew);
+		assert_eq!(should_replace(&replace, tx_regular_low_gas.clone(), tx_regular_high_gas.clone()), ReplaceOld);
+		assert_eq!(should_replace(&replacej, tx_regular_high_gas.clone(), tx_regular_low_gas.clone()), RejectNew);
 
-		assert_eq!(should_replace(&mut replace, tx_regular_high_gas.clone(), tx_local_low_gas.clone()), ReplaceOld);
-		assert_eq!(should_replace(&mut replace, tx_local_low_gas.clone(), tx_regular_high_gas.clone()), RejectNew);
+		assert_eq!(should_replace(&replace, tx_regular_high_gas.clone(), tx_local_low_gas.clone()), ReplaceOld);
+		assert_eq!(should_replace(&replace, tx_local_low_gas.clone(), tx_regular_high_gas.clone()), RejectNew);
 
-		assert_eq!(should_replace(&mut replace, tx_local_low_gas.clone(), tx_local_high_gas.clone()), InsertNew);
-		assert_eq!(should_replace(&mut replace, tx_local_high_gas.clone(), tx_regular_low_gas.clone()), RejectNew);
+		assert_eq!(should_replace(&replace, tx_local_low_gas.clone(), tx_local_high_gas.clone()), InsertNew);
+		assert_eq!(should_replace(&replace, tx_local_high_gas.clone(), tx_regular_low_gas.clone()), RejectNew);
 	}
 
 	#[test]
 	fn should_not_replace_ready_transaction_with_future_transaction() {
 		let scoring = NonceAndGasPrice(PrioritizationStrategy::GasPriceOnly);
 		let client = TestClient::new().with_nonce(1);
-		let mut replace = ReplaceByScoreAndReadiness::new(scoring, client);
+		let replace = ReplaceByScoreAndReadiness::new(scoring, client);
 
 		let tx_ready_low_score = {
 			let tx = Tx {
@@ -300,14 +300,14 @@ mod tests {
 			tx.signed().verified()
 		};
 
-		assert_eq!(should_replace(&mut replace, tx_ready_low_score, tx_future_high_score), RejectNew);
+		assert_eq!(should_replace(&replace, tx_ready_low_score, tx_future_high_score), RejectNew);
 	}
 
 	#[test]
 	fn should_compute_readiness_with_pooled_transactions_from_the_same_sender_as_the_existing_transaction() {
 		let scoring = NonceAndGasPrice(PrioritizationStrategy::GasPriceOnly);
 		let client = TestClient::new().with_nonce(1);
-		let mut replace = ReplaceByScoreAndReadiness::new(scoring, client);
+		let replace = ReplaceByScoreAndReadiness::new(scoring, client);
 
 		let old_sender = Random.generate().unwrap();
 		let tx_old_ready_1 = {
@@ -362,7 +362,7 @@ mod tests {
 	fn should_compute_readiness_with_pooled_transactions_from_the_same_sender_as_the_new_transaction() {
 		let scoring = NonceAndGasPrice(PrioritizationStrategy::GasPriceOnly);
 		let client = TestClient::new().with_nonce(1);
-		let mut replace = ReplaceByScoreAndReadiness::new(scoring, client);
+		let replace = ReplaceByScoreAndReadiness::new(scoring, client);
 
 		// current transaction is ready but has a lower gas price than the new one
 		let old_tx = {

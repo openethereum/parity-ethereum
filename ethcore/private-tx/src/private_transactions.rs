@@ -178,9 +178,9 @@ impl VerificationStore {
 			transaction_sender: signed_sender,
 		};
 		let mut pool = self.verification_pool.write();
-		let mut replace =
-			pool::replace::ReplaceByScoreAndReadiness::new(self.verification_pool.read().scoring().clone(), client);
-		pool.import(verified, &mut replace)?;
+		let replace = pool::replace::ReplaceByScoreAndReadiness::new(
+			self.verification_pool.read().scoring().clone(), client);
+		pool.import(verified, &replace)?;
 		Ok(())
 	}
 
