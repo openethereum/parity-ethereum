@@ -284,7 +284,6 @@ impl<'x> OpenBlock<'x> {
 		self.block.header.set_difficulty(*header.difficulty());
 		self.block.header.set_gas_limit(*header.gas_limit());
 		self.block.header.set_timestamp(header.timestamp());
-		self.block.header.set_author(*header.author());
 		self.block.header.set_uncles_hash(*header.uncles_hash());
 		self.block.header.set_transactions_root(*header.transactions_root());
 		// TODO: that's horrible. set only for backwards compatibility
@@ -405,15 +404,20 @@ impl LockedBlock {
 	/// Provide a valid seal in order to turn this into a `SealedBlock`.
 	///
 	/// NOTE: This does not check the validity of `seal` with the engine.
-	pub fn seal(self, engine: &EthEngine, seal: Vec<Bytes>) -> Result<SealedBlock, BlockError> {
-		let expected_seal_fields = engine.seal_fields(&self.block.header);
+	pub fn seal(self, engine: &EthEngine, seal: Vec<Bytes>) -> Result<SealedBlock, Error> {
+		let expected_seal_fields = engine.seal_fields(&self.header);
 		let mut s = self;
 		if seal.len() != expected_seal_fields {
-			return Err(BlockError::InvalidSealArity(
-				Mismatch { expected: expected_seal_fields, found: seal.len() }));
+			Err(BlockError::InvalidSealArity(Mismatch {
+				expected: expected_seal_fields,
+				found: seal.len()
+			}))?;
 		}
+
 		s.block.header.set_seal(seal);
+		engine.on_seal_block(&mut s.block)?;
 		s.block.header.compute_hash();
+
 		Ok(SealedBlock {
 			block: s.block
 		})
@@ -422,6 +426,7 @@ impl LockedBlock {
 	/// Provide a valid seal in order to turn this into a `SealedBlock`.
 	/// This does check the validity of `seal` with the engine.
 	/// Returns the `ClosedBlock` back again if the seal is no good.
+	/// TODO(https://github.com/paritytech/parity-ethereum/issues/10407): This is currently only used in POW chain call paths, we should really merge it with seal() above.
 	pub fn try_seal(
 		self,
 		engine: &EthEngine,
@@ -463,7 +468,7 @@ impl Drain for SealedBlock {
 }
 
 /// Enact the block given by block header, transactions and uncles
-fn enact(
+pub(crate) fn enact(
 	header: Header,
 	transactions: Vec<SignedTransaction>,
 	uncles: Vec<Header>,
@@ -476,13 +481,12 @@ fn enact(
 	is_epoch_begin: bool,
 	ancestry: &mut Iterator<Item=ExtendedHeader>,
 ) -> Result<LockedBlock, Error> {
-	{
-		if ::log::max_level() >= ::log::Level::Trace {
-			let s = State::from_existing(db.boxed_clone(), parent.state_root().clone(), engine.account_start_nonce(parent.number() + 1), factories.clone())?;
-			trace!(target: "enact", "num={}, root={}, author={}, author_balance={}\n",
-				header.number(), s.root(), header.author(), s.balance(&header.author())?);
-		}
-	}
+	// For trace log
+	let trace_state = if log_enabled!(target: "enact", ::log::Level::Trace) {
+		Some(State::from_existing(db.boxed_clone(), parent.state_root().clone(), engine.account_start_nonce(parent.number() + 1), factories.clone())?)
+	} else {
+		None
+	};
 
 	let mut b = OpenBlock::new(
 		engine,
@@ -491,12 +495,22 @@ fn enact(
 		db,
 		parent,
 		last_hashes,
-		Address::new(),
+		// Engine such as Clique will calculate author from extra_data.
+		// this is only important for executing contracts as the 'executive_author'.
+		engine.executive_author(&header)?,
 		(3141562.into(), 31415620.into()),
 		vec![],
 		is_epoch_begin,
 		ancestry,
 	)?;
+
+	if let Some(ref s) = trace_state {
+		let env = b.env_info();
+		let root = s.root();
+		let author_balance = s.balance(&env.author)?;
+		trace!(target: "enact", "num={}, root={}, author={}, author_balance={}\n",
+				b.block.header.number(), root, env.author, author_balance);
+	}
 
 	b.populate_from(&header);
 	b.push_transactions(transactions)?;
@@ -563,6 +577,7 @@ mod tests {
 		last_hashes: Arc<LastHashes>,
 		factories: Factories,
 	) -> Result<LockedBlock, Error> {
+
 		let block = Unverified::from_rlp(block_bytes)?;
 		let header = block.header;
 		let transactions: Result<Vec<_>, Error> = block
@@ -617,7 +632,7 @@ mod tests {
 	) -> Result<SealedBlock, Error> {
 		let header = Unverified::from_rlp(block_bytes.clone())?.header;
 		Ok(enact_bytes(block_bytes, engine, tracing, db, parent, last_hashes, factories)?
-		   .seal(engine, header.seal().to_vec())?)
+			.seal(engine, header.seal().to_vec())?)
 	}
 
 	#[test]

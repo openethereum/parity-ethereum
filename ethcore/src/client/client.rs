@@ -399,6 +399,7 @@ impl Importer {
 		let db = client.state_db.read().boxed_clone_canon(header.parent_hash());
 
 		let is_epoch_begin = chain.epoch_transition(parent.number(), *header.parent_hash()).is_some();
+
 		let enact_result = enact_verified(
 			block,
 			engine,
@@ -2515,7 +2516,11 @@ impl SnapshotClient for Client {}
 
 impl Drop for Client {
 	fn drop(&mut self) {
-		self.engine.stop();
+		if let Some(c) = Arc::get_mut(&mut self.engine) {
+			c.stop()
+		} else {
+			warn!(target: "shutdown", "unable to get mut ref for engine for shutdown.");
+		}
 	}
 }
 
