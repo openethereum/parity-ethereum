@@ -14,44 +14,49 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
-//! Implementation of Clique (POA) Engine.
+//! Implementation of the Clique PoA Engine.
 //!
-//! mod.rs -> CliqueEngine, the engine api implementation, with additional block state tracking.
-//! block_state.rs -> CliqueBlockState , record clique state for given block.
-//! param.rs -> Clique Params.
-//! step_service.rs -> an event loop to trigger sealing.
-//! util.rs -> various standalone util functions
-//!
+//! File structure:
+//! - mod.rs -> Provides the engine API implementation, with additional block state tracking
+//! - block_state.rs -> Records the Clique state for given block.
+//! - params.rs -> Contains the parameters for the Clique engine.
+//! - step_service.rs -> An event loop to trigger sealing.
+//! - util.rs -> Various standalone utility functions.
+//! - tests.rs -> Consensus tests as defined in EIP-225.
 
-/// How syncing code path works:
-/// 1. Client calls `engine.verify_block_basic()` then `engine.verify_block_unordered()`.
-/// 2. Client calls `engine.verify_block_family(header, parent)`.
-/// 3. Engine first needs to find parent state: `state = self.state(parent.hash())`
-///    if not found, trigger a back-fill from last checkpoint.
-/// 4. Engine calls `state.apply(header)` and record the new state.
-
-/// About executive_author()
-/// Clique use author field for voting, the real author is hidden in the extra_data field. So
-/// When executing transactions (in `enact()`, it will calls engine.executive_author() and use that.
+/// How syncing works:
+///
+/// 1. Client will call:
+///    - `Clique::verify_block_basic()`
+///    - `Clique::verify_block_unordered()`
+///    - `Clique::verify_block_family()`
+/// 2. Using `Clique::state()` we try and retrieve the parent state. If this isn't found
+///    we need to back-fill it from the last known checkpoint.
+/// 3. Once we have a good state, we can record it using `CliqueBlockState::apply()`.
 
 /// How sealing works:
-/// 1. implement `engine.set_signer()`. on startup, if miner account was setup on config/cli,
-///    `miner.set_author()` which will eventually be pass to here.
-/// 2. make `engine.seals_internally()` return Some(true).
-/// 3. on Clique::new setup IOService that implement an timer that just calls `engine.step()`,
-///    which just calls `engine.client.update_sealing()` which triggers generating an new block.
-/// 4. `engine.generate_seal()` will be called by miner, which should return either Seal::None or Seal:Regular.
-///   a. return `Seal::None` if no signer is available or the signer is not authorized.
-///   b. if period == 0 and block has transactions -> Seal::Regular, else Seal::None
-///   c. if we INTURN, wait for at least `period` since last block, otherwise wait for an random using algorithm as
-///      specified in the EIP.
-/// 5. Miner will create new block, in process it will call several engine method, which they need to do following:
-///   a. `engine_open_header_timestamp()` must set timestamp correctly.
-///   b. `engine.populate_from_parent()` must set difficulty to correct value. NOTE: this is used both in SYNCing and
-///       SEALing code path, for now we use an ugly hack to differentiate.
-/// 6. Implement `engine.on_seal_block()`, which is the new hook that allow modifying header after block is locked.
-/// 7. `engine.verify_local_seal()` will later be called, then normal syncing code path will also be called to import
-///    the new block.
+///
+/// 1. Set a signer using `Engine::set_signer()`. If a miner account was set up through
+///    a config file or CLI flag `MinerService::set_author()` will eventually set the signer
+/// 2. We check that the engine seals internally through `Clique::seals_internally()`
+///    Note: This is always true for Clique
+/// 3. Calling `Clique::new()` will spawn a `StepService` thread. This thread will call `Engine::step()`
+///    periodically. Internally, the Clique `step()` function calls `Client::update_sealing()`, which is
+///    what makes and seals a block.
+/// 4. `Clique::generate_seal()` will then be called by `miner`. This will return a `Seal` which
+///     is either a `Seal::None` or `Seal:Regular`. The following shows how a `Seal` variant is chosen:
+///       a. We return `Seal::None` if no signer is available or the signer is not authorized.
+///       b. If period == 0 and block has transactions, we return `Seal::Regular`, otherwise return `Seal::None`.
+///       c. If we're `INTURN`, wait for at least `period` since last block before trying to seal.
+///       d. If we're not `INTURN`, we wait for a random amount of time using the algorithm specified
+///          in EIP-225 before trying to seal again.
+/// 5. Miner will create new block, in process it will call several engine methods to do following:
+///   a. `Clique::open_block_header_timestamp()` must set timestamp correctly.
+///   b. `Clique::populate_from_parent()` must set difficulty to correct value.
+///       Note: `Clique::populate_from_parent()` is used in both the syncing and sealing code paths.
+/// 6. We call `Clique::on_seal_block()` which will allow us to modify the block header during seal generation.
+/// 7. Finally, `Clique::verify_local_seal()` is called. After this, the syncing code path will be followed
+///    in order to import the new block.
 
 use std::cmp;
 use std::collections::HashMap;
@@ -382,7 +387,7 @@ impl Engine<EthereumMachine> for Clique {
 
 		header.set_author(NULL_AUTHOR);
 
-		// cast an random Vote if not checkpoint
+		// Cast a random Vote if not checkpoint
 		if !is_checkpoint {
 			// TODO(niklasad1): this will always be false because `proposals` is never written to
 			let votes = self.proposals.read().iter()
@@ -391,7 +396,7 @@ impl Engine<EthereumMachine> for Clique {
 				.collect_vec();
 
 			if !votes.is_empty() {
-				// Pick an random vote.
+				// Pick a random vote.
 				let random_vote = rand::thread_rng().gen_range(0 as usize, votes.len());
 				let (beneficiary, vote_type) = votes[random_vote];
 
@@ -760,6 +765,8 @@ impl Engine<EthereumMachine> for Clique {
 		super::total_difficulty_fork_choice(new, current)
 	}
 
+	// Clique uses the author field for voting, the real author is hidden in the `extra_data` field.
+	// So when executing tx's (like in `enact()`) we want to use the executive author
 	fn executive_author(&self, header: &Header) -> Result<Address, Error> {
 		recover_creator(header)
 	}
