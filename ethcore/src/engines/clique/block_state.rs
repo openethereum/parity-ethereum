@@ -161,7 +161,7 @@ impl CliqueBlockState {
 		Ok(creator)
 	}
 
-	/// Verify and apply an new header to current state, might fail with error.
+	/// Verify and apply a new header to current state
 	pub fn apply(&mut self, header: &Header, is_checkpoint: bool) -> Result<Address, Error> {
 		let creator = self.verify(header)?;
 		self.recent_signers.push_front(creator);
