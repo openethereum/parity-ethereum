@@ -122,7 +122,7 @@ pub trait ScoredTransaction {
 }
 
 /// Verified transaction stored in the pool.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq)]
 pub struct VerifiedTransaction {
 	transaction: transaction::PendingTransaction,
 	// TODO [ToDr] hash and sender should go directly from the transaction
