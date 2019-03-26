@@ -177,7 +177,7 @@ pub fn exceptional<T: fmt::Display>(data: T) -> Error {
 	Error {
 		code: ErrorCode::ServerError(codes::EXCEPTION_ERROR),
 		message: "The execution failed due to an exception.".into(),
-		data: Some(Value::String(format!("{:?}", data))),
+		data: Some(Value::String(data.to_string())),
 	}
 }
 
