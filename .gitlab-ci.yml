@@ -156,9 +156,7 @@ build-windows:
     RUSTC_WRAPPER:                 sccache
     SCCACHE_DIR:                   "C:/ci-cache/parity-ethereum/sccache"
   script:
-    - sccache -s
     - sh scripts/gitlab/build-windows.sh
-    - sccache -s
   tags:
     - rust-windows
   <<:                              *collect_artifacts
@@ -173,9 +171,7 @@ build-windows:
 #       RUSTC_WRAPPER:                 sccache
 #       SCCACHE_DIR:                   C:/ci-cache/parity-ethereum/sccache
 #   script:
-#     - sccache -s
 #     - sh scripts/gitlab/test-linux.sh
-#     - sccache -s
 #   tags:
 #     - rust-windows
 
