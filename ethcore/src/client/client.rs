@@ -1575,8 +1575,7 @@ impl Call for Client {
 		let cond = |gas| {
 			exec(gas)
 				.ok()
-				.map(|r| r.exception.is_none())
-				.unwrap_or(false)
+				.map_or(false, |r| r.exception.is_none())
 		};
 
 		if !cond(upper) {
