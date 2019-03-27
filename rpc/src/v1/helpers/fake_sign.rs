@@ -15,6 +15,7 @@
 // along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
 use types::transaction::{Transaction, SignedTransaction, Action};
+use std::cmp::min;
 
 use ethereum_types::U256;
 use jsonrpc_core::Error;
@@ -22,10 +23,7 @@ use v1::helpers::CallRequest;
 
 pub fn sign_call(request: CallRequest) -> Result<SignedTransaction, Error> {
 	let max_gas = U256::from(50_000_000);
-	let gas = match request.gas {
-		Some(gas) => gas,
-		None => max_gas * 10_u32,
-	};
+	let gas = min(request.gas.unwrap_or(max_gas), max_gas);
 	let from = request.from.unwrap_or_default();
 
 	Ok(Transaction {
