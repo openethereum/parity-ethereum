@@ -43,7 +43,7 @@ use light::request::Field;
 
 use sync::{LightNetworkDispatcher, ManageNetwork, LightSyncProvider};
 
-use ethereum_types::Address;
+use ethereum_types::{Address, U256};
 use hash::H256;
 use parking_lot::Mutex;
 use fastmap::H256FastMap;
