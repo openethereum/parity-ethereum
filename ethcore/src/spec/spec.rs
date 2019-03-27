@@ -25,7 +25,6 @@ use bytes::Bytes;
 use ethereum_types::{H256, Bloom, U256, Address};
 use ethjson;
 use hash::{KECCAK_NULL_RLP, keccak};
-use memorydb::MemoryDB;
 use parking_lot::RwLock;
 use rlp::{Rlp, RlpStream};
 use rustc_hex::{FromHex, ToHex};
@@ -36,7 +35,7 @@ use vm::{EnvInfo, CallType, ActionValue, ActionParams, ParamsType};
 
 use builtin::Builtin;
 use engines::{
-	EthEngine, NullEngine, InstantSeal, InstantSealParams, BasicAuthority,
+	EthEngine, NullEngine, InstantSeal, InstantSealParams, BasicAuthority, Clique,
 	AuthorityRound, DEFAULT_BLOCKHASH_CONTRACT
 };
 use error::Error;
@@ -100,9 +99,9 @@ pub struct CommonParams {
 	pub validate_receipts_transition: BlockNumber,
 	/// Validate transaction chain id.
 	pub validate_chain_id_transition: BlockNumber,
-	/// Number of first block where EIP-140 (Metropolis: REVERT opcode) rules begin.
+	/// Number of first block where EIP-140 rules begin.
 	pub eip140_transition: BlockNumber,
-	/// Number of first block where EIP-210 (Metropolis: BLOCKHASH changes) rules begin.
+	/// Number of first block where EIP-210 rules begin.
 	pub eip210_transition: BlockNumber,
 	/// EIP-210 Blockhash contract address.
 	pub eip210_contract_address: Address,
@@ -110,8 +109,7 @@ pub struct CommonParams {
 	pub eip210_contract_code: Bytes,
 	/// Gas allocated for EIP-210 blockhash update.
 	pub eip210_contract_gas: U256,
-	/// Number of first block where EIP-211 (Metropolis: RETURNDATASIZE/RETURNDATACOPY) rules
-	/// begin.
+	/// Number of first block where EIP-211 rules begin.
 	pub eip211_transition: BlockNumber,
 	/// Number of first block where EIP-214 rules begin.
 	pub eip214_transition: BlockNumber,
@@ -516,7 +514,7 @@ fn load_from(spec_params: SpecParams, s: ethjson::spec::Spec) -> Result<Spec, Er
 				chts: s.hardcoded_sync
 					.as_ref()
 					.map(|s| s.chts.iter().map(|c| c.clone().into()).collect())
-					.unwrap_or(Vec::new()),
+					.unwrap_or_default()
 			})
 		} else {
 			None
@@ -556,7 +554,7 @@ fn load_from(spec_params: SpecParams, s: ethjson::spec::Spec) -> Result<Spec, Er
 		None => {
 			let _ = s.run_constructors(
 				&Default::default(),
-				BasicBackend(MemoryDB::new()),
+				BasicBackend(journaldb::new_memory_db()),
 			)?;
 		}
 	}
@@ -612,6 +610,8 @@ impl Spec {
 			ethjson::spec::Engine::InstantSeal(Some(instant_seal)) => Arc::new(InstantSeal::new(instant_seal.params.into(), machine)),
 			ethjson::spec::Engine::InstantSeal(None) => Arc::new(InstantSeal::new(InstantSealParams::default(), machine)),
 			ethjson::spec::Engine::BasicAuthority(basic_authority) => Arc::new(BasicAuthority::new(basic_authority.params.into(), machine)),
+			ethjson::spec::Engine::Clique(clique) => Clique::new(clique.params.into(), machine)
+								.expect("Failed to start Clique consensus engine."),
 			ethjson::spec::Engine::AuthorityRound(authority_round) => AuthorityRound::new(authority_round.params.into(), machine)
 				.expect("Failed to start AuthorityRound consensus engine."),
 		}
@@ -624,7 +624,7 @@ impl Spec {
 
 		// basic accounts in spec.
 		{
-			let mut t = factories.trie.create(db.as_hashdb_mut(), &mut root);
+			let mut t = factories.trie.create(db.as_hash_db_mut(), &mut root);
 
 			for (address, account) in self.genesis_state.get().iter() {
 				t.insert(&**address, &account.rlp())?;
@@ -635,7 +635,7 @@ impl Spec {
 			db.note_non_null_account(address);
 			account.insert_additional(
 				&mut *factories.accountdb.create(
-					db.as_hashdb_mut(),
+					db.as_hash_db_mut(),
 					keccak(address),
 				),
 				&factories.trie,
@@ -792,7 +792,7 @@ impl Spec {
 		self.genesis_state = s;
 		let _ = self.run_constructors(
 			&Default::default(),
-			BasicBackend(MemoryDB::new()),
+			BasicBackend(journaldb::new_memory_db()),
 		)?;
 
 		Ok(())
@@ -813,7 +813,7 @@ impl Spec {
 
 	/// Ensure that the given state DB has the trie nodes in for the genesis state.
 	pub fn ensure_db_good<T: Backend>(&self, db: T, factories: &Factories) -> Result<T, Error> {
-		if db.as_hashdb().contains(&self.state_root()) {
+		if db.as_hash_db().contains(&self.state_root()) {
 			return Ok(db);
 		}
 
@@ -828,7 +828,6 @@ impl Spec {
 		ethjson::spec::Spec::load(reader)
 			.map_err(fmt_err)
 			.map(load_machine_from)
-
 	}
 
 	/// Loads spec from json file. Provide factories for executing contracts and ensuring
@@ -860,7 +859,7 @@ impl Spec {
 			None,
 		);
 
-		self.ensure_db_good(BasicBackend(db.as_hashdb_mut()), &factories)
+		self.ensure_db_good(BasicBackend(db.as_hash_db_mut()), &factories)
 			.map_err(|e| format!("Unable to initialize genesis state: {}", e))?;
 
 		let call = |a, d| {
@@ -886,7 +885,7 @@ impl Spec {
 			}.fake_sign(from);
 
 			let res = ::state::prove_transaction_virtual(
-				db.as_hashdb_mut(),
+				db.as_hash_db_mut(),
 				*genesis.state_root(),
 				&tx,
 				self.engine.machine(),
@@ -1000,7 +999,6 @@ mod tests {
 	use types::view;
 	use types::views::BlockView;
 
-	// https://github.com/paritytech/parity-ethereum/issues/1840
 	#[test]
 	fn test_load_empty() {
 		let tempdir = TempDir::new("").unwrap();

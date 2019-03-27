@@ -15,6 +15,7 @@
 // along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
 #![warn(missing_docs, unused_extern_crates)]
+#![cfg_attr(feature = "time_checked_add", feature(time_checked_add))]
 
 //! Ethcore library
 //!
@@ -73,7 +74,7 @@ extern crate ethcore_miner;
 extern crate ethereum_types;
 extern crate ethjson;
 extern crate ethkey;
-extern crate hashdb;
+extern crate hash_db;
 extern crate heapsize;
 extern crate itertools;
 extern crate journaldb;
@@ -84,15 +85,14 @@ extern crate kvdb_memorydb;
 extern crate len_caching_lock;
 extern crate lru_cache;
 extern crate memory_cache;
-extern crate memorydb;
+extern crate memory_db;
 extern crate num;
 extern crate num_cpus;
 extern crate parity_bytes as bytes;
 extern crate parity_crypto;
-extern crate parity_machine;
 extern crate parity_snappy as snappy;
 extern crate parking_lot;
-extern crate patricia_trie as trie;
+extern crate trie_db as trie;
 extern crate patricia_trie_ethereum as ethtrie;
 extern crate rand;
 extern crate rayon;
@@ -148,6 +148,9 @@ extern crate fetch;
 
 #[cfg(all(test, feature = "price-info"))]
 extern crate parity_runtime;
+
+#[cfg(not(time_checked_add))]
+extern crate time_utils;
 
 pub mod block;
 pub mod builtin;

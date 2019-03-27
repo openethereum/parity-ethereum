@@ -11,6 +11,9 @@ echo "CC:               " $CC
 echo "CXX:              " $CXX
 #strip ON
 export RUSTFLAGS=" -C link-arg=-s"
+# Linker for crosscomile
+echo "_____ Linker _____"
+cat .cargo/config
 
 echo "_____ Building target: "$CARGO_TARGET" _____"
 if [ "${CARGO_TARGET}" = "armv7-linux-androideabi" ]
@@ -25,6 +28,7 @@ else
 fi
 
 echo "_____ Post-processing binaries _____"
+rm -rf artifacts/*
 mkdir -p artifacts/$CARGO_TARGET
 cd artifacts/$CARGO_TARGET
 
@@ -42,11 +46,11 @@ fi
 echo "_____ Calculating checksums _____"
 for binary in $(ls)
 do
-  rhash --sha256 $binary -o $binary.sha256
-  if [ "${CARGO_TARGET}" = "armv7-linux-androideabi" ]
+  rhash --sha256 $binary -o $binary.sha256 #do we still need this hash (SHA2)?
+  if [[ $CARGO_TARGET == *"x86_64"* ]];
   then
-    echo "> ${binary} cannot be hashed with cross-compiled binary"
+      ./parity tools hash $binary > $binary.sha3
   else
-    ./parity tools hash $binary > $binary.sha3
+      echo "> ${binary} cannot be hashed with cross-compiled binary (keccak256)"
   fi
 done

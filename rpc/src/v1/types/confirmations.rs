@@ -21,7 +21,8 @@ use serde::{Serialize, Serializer};
 use ansi_term::Colour;
 use bytes::ToPretty;
 
-use v1::types::{U256, TransactionRequest, RichRawTransaction, H160, H256, H520, Bytes, TransactionCondition, Origin};
+use ethereum_types::{H160, H256, H520, U256};
+use v1::types::{TransactionRequest, RichRawTransaction, Bytes, TransactionCondition, Origin};
 use v1::helpers;
 use ethkey::Password;
 
@@ -40,7 +41,7 @@ pub struct ConfirmationRequest {
 impl From<helpers::ConfirmationRequest> for ConfirmationRequest {
 	fn from(c: helpers::ConfirmationRequest) -> Self {
 		ConfirmationRequest {
-			id: c.id.into(),
+			id: c.id,
 			payload: c.payload.into(),
 			origin: c.origin,
 		}
@@ -213,15 +214,15 @@ impl From<helpers::ConfirmationPayload> for ConfirmationPayload {
 			helpers::ConfirmationPayload::SendTransaction(t) => ConfirmationPayload::SendTransaction(t.into()),
 			helpers::ConfirmationPayload::SignTransaction(t) => ConfirmationPayload::SignTransaction(t.into()),
 			helpers::ConfirmationPayload::EthSignMessage(address, data) => ConfirmationPayload::EthSignMessage(EthSignRequest {
-				address: address.into(),
+				address,
 				data: data.into(),
 			}),
 			helpers::ConfirmationPayload::SignMessage(address, data) => ConfirmationPayload::EIP191SignMessage(EIP191SignRequest {
-				address: address.into(),
-				data: data.into(),
+				address,
+				data,
 			}),
 			helpers::ConfirmationPayload::Decrypt(address, msg) => ConfirmationPayload::Decrypt(DecryptRequest {
-				address: address.into(),
+				address,
 				msg: msg.into(),
 			}),
 		}
@@ -281,8 +282,9 @@ impl<A, B> Serialize for Either<A, B>  where
 #[cfg(test)]
 mod tests {
 	use std::str::FromStr;
+    use ethereum_types::{H256, U256};
 	use serde_json;
-	use v1::types::{U256, H256, TransactionCondition};
+	use v1::types::TransactionCondition;
 	use v1::helpers;
 	use super::*;
 

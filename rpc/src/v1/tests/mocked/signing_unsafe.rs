@@ -210,7 +210,7 @@ fn rpc_eth_send_transaction_with_bad_to() {
 		"id": 1
 	}"#;
 
-	let response = r#"{"jsonrpc":"2.0","error":{"code":-32602,"message":"Invalid params: expected a hex-encoded hash with 0x prefix."},"id":1}"#;
+	let response = r#"{"jsonrpc":"2.0","error":{"code":-32602,"message":"Invalid params: prefix is missing."},"id":1}"#;
 
 	assert_eq!(tester.io.handle_request_sync(&request), Some(response.into()));
 }

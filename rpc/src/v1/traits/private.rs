@@ -16,10 +16,11 @@
 
 //! SecretStore-specific rpc interface.
 
+use ethereum_types::{H160, H256, U256};
 use jsonrpc_core::Error;
 use jsonrpc_derive::rpc;
 
-use v1::types::{Bytes, PrivateTransactionReceipt, H160, H256, U256, BlockNumber,
+use v1::types::{Bytes, PrivateTransactionReceipt, BlockNumber,
 	PrivateTransactionReceiptAndTransaction, CallRequest};
 
 /// Private transaction management RPC interface.

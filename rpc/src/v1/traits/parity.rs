@@ -18,10 +18,11 @@
 
 use std::collections::BTreeMap;
 
+use ethereum_types::{H64, H160, H256, H512, U64, U256};
 use jsonrpc_core::{BoxFuture, Result};
 use jsonrpc_derive::rpc;
 use v1::types::{
-	H160, H256, H512, U256, U64, H64, Bytes, CallRequest,
+	Bytes, CallRequest,
 	Peers, Transaction, RpcSettings, Histogram, RecoveredAccount,
 	TransactionStats, LocalTransactionStatus,
 	BlockNumber, ConsensusCapability, VersionInfo,

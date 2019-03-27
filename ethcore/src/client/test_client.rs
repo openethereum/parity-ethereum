@@ -416,7 +416,7 @@ impl PrepareOpenBlock for TestBlockChainClient {
 			gas_range_target,
 			extra_data,
 			false,
-			&mut Vec::new().into_iter(),
+			None,
 		)?;
 		// TODO [todr] Override timestamp for predictability
 		open_block.set_timestamp(*self.latest_block_timestamp.read());
@@ -863,7 +863,7 @@ impl BlockChainClient for TestBlockChainClient {
 
 	fn spec_name(&self) -> String { "foundation".into() }
 
-	fn set_spec_name(&self, _: String) { unimplemented!(); }
+	fn set_spec_name(&self, _: String) -> Result<(), ()> { unimplemented!(); }
 
 	fn disable(&self) { self.disabled.store(true, AtomicOrder::Relaxed); }
 

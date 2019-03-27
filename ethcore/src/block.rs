@@ -31,7 +31,7 @@
 //! `ExecutedBlock` is an underlaying data structure used by all structs above to store block
 //! related info.
 
-use std::cmp;
+use std::{cmp, ops};
 use std::collections::HashSet;
 use std::sync::Arc;
 
@@ -52,7 +52,6 @@ use vm::{EnvInfo, LastHashes};
 use hash::keccak;
 use rlp::{RlpStream, Encodable, encode_list};
 use types::transaction::{SignedTransaction, Error as TransactionError};
-use types::block::Block;
 use types::header::{Header, ExtendedHeader};
 use types::receipt::{Receipt, TransactionOutcome};
 
@@ -155,69 +154,15 @@ impl ExecutedBlock {
 	}
 }
 
-/// Trait for a object that is a `ExecutedBlock`.
-pub trait IsBlock {
-	/// Get the `ExecutedBlock` associated with this object.
-	fn block(&self) -> &ExecutedBlock;
-
-	/// Get the base `Block` object associated with this.
-	fn to_base(&self) -> Block {
-		Block {
-			header: self.header().clone(),
-			transactions: self.transactions().iter().cloned().map(Into::into).collect(),
-			uncles: self.uncles().to_vec(),
-		}
-	}
-
-	/// Get the header associated with this object's block.
-	fn header(&self) -> &Header { &self.block().header }
-
-	/// Get the final state associated with this object's block.
-	fn state(&self) -> &State<StateDB> { &self.block().state }
-
-	/// Get all information on transactions in this block.
-	fn transactions(&self) -> &[SignedTransaction] { &self.block().transactions }
-
-	/// Get all information on receipts in this block.
-	fn receipts(&self) -> &[Receipt] { &self.block().receipts }
-
-	/// Get all uncles in this block.
-	fn uncles(&self) -> &[Header] { &self.block().uncles }
-}
-
 /// Trait for an object that owns an `ExecutedBlock`
 pub trait Drain {
 	/// Returns `ExecutedBlock`
 	fn drain(self) -> ExecutedBlock;
 }
 
-impl IsBlock for ExecutedBlock {
-	fn block(&self) -> &ExecutedBlock { self }
-}
-
-impl ::parity_machine::LiveBlock for ExecutedBlock {
-	type Header = Header;
-
-	fn header(&self) -> &Header {
-		&self.header
-	}
-
-	fn uncles(&self) -> &[Header] {
-		&self.uncles
-	}
-}
-
-impl ::parity_machine::Transactions for ExecutedBlock {
-	type Transaction = SignedTransaction;
-
-	fn transactions(&self) -> &[SignedTransaction] {
-		&self.transactions
-	}
-}
-
 impl<'x> OpenBlock<'x> {
 	/// Create a new `OpenBlock` ready for transaction pushing.
-	pub fn new<'a>(
+	pub fn new<'a, I: IntoIterator<Item = ExtendedHeader>>(
 		engine: &'x EthEngine,
 		factories: Factories,
 		tracing: bool,
@@ -228,7 +173,7 @@ impl<'x> OpenBlock<'x> {
 		gas_range_target: (U256, U256),
 		extra_data: Bytes,
 		is_epoch_begin: bool,
-		ancestry: &mut Iterator<Item=ExtendedHeader>,
+		ancestry: I,
 	) -> Result<Self, Error> {
 		let number = parent.number() + 1;
 		let state = State::from_existing(db, parent.state_root().clone(), engine.account_start_nonce(number), factories)?;
@@ -250,7 +195,7 @@ impl<'x> OpenBlock<'x> {
 		engine.populate_from_parent(&mut r.block.header, parent);
 
 		engine.machine().on_new_block(&mut r.block)?;
-		engine.on_new_block(&mut r.block, is_epoch_begin, ancestry)?;
+		engine.on_new_block(&mut r.block, is_epoch_begin, &mut ancestry.into_iter())?;
 
 		Ok(r)
 	}
@@ -270,7 +215,7 @@ impl<'x> OpenBlock<'x> {
 	/// NOTE Will check chain constraints and the uncle number but will NOT check
 	/// that the header itself is actually valid.
 	pub fn push_uncle(&mut self, valid_uncle_header: Header) -> Result<(), BlockError> {
-		let max_uncles = self.engine.maximum_uncle_count(self.block.header().number());
+		let max_uncles = self.engine.maximum_uncle_count(self.block.header.number());
 		if self.block.uncles.len() + 1 > max_uncles {
 			return Err(BlockError::TooManyUncles(OutOfBounds{
 				min: None,
@@ -284,11 +229,6 @@ impl<'x> OpenBlock<'x> {
 		Ok(())
 	}
 
-	/// Get the environment info concerning this block.
-	pub fn env_info(&self) -> EnvInfo {
-		self.block.env_info()
-	}
-
 	/// Push a transaction into the block.
 	///
 	/// If valid, it will be executed, and archived together with the receipt.
@@ -297,7 +237,7 @@ impl<'x> OpenBlock<'x> {
 			return Err(TransactionError::AlreadyImported.into());
 		}
 
-		let env_info = self.env_info();
+		let env_info = self.block.env_info();
 		let outcome = self.block.state.apply(&env_info, self.engine.machine(), &t, self.block.traces.is_enabled())?;
 
 		self.block.transactions_set.insert(h.unwrap_or_else(||t.hash()));
@@ -344,7 +284,6 @@ impl<'x> OpenBlock<'x> {
 		self.block.header.set_difficulty(*header.difficulty());
 		self.block.header.set_gas_limit(*header.gas_limit());
 		self.block.header.set_timestamp(header.timestamp());
-		self.block.header.set_author(*header.author());
 		self.block.header.set_uncles_hash(*header.uncles_hash());
 		self.block.header.set_transactions_root(*header.transactions_root());
 		// TODO: that's horrible. set only for backwards compatibility
@@ -394,22 +333,39 @@ impl<'x> OpenBlock<'x> {
 	pub fn block_mut(&mut self) -> &mut ExecutedBlock { &mut self.block }
 }
 
-impl<'x> IsBlock for OpenBlock<'x> {
-	fn block(&self) -> &ExecutedBlock { &self.block }
+impl<'a> ops::Deref for OpenBlock<'a> {
+	type Target = ExecutedBlock;
+
+	fn deref(&self) -> &Self::Target {
+		&self.block
+	}
 }
 
-impl IsBlock for ClosedBlock {
-	fn block(&self) -> &ExecutedBlock { &self.block }
+impl ops::Deref for ClosedBlock {
+	type Target = ExecutedBlock;
+
+	fn deref(&self) -> &Self::Target {
+		&self.block
+	}
 }
 
-impl IsBlock for LockedBlock {
-	fn block(&self) -> &ExecutedBlock { &self.block }
+impl ops::Deref for LockedBlock {
+	type Target = ExecutedBlock;
+
+	fn deref(&self) -> &Self::Target {
+		&self.block
+	}
+}
+
+impl ops::Deref for SealedBlock {
+	type Target = ExecutedBlock;
+
+	fn deref(&self) -> &Self::Target {
+		&self.block
+	}
 }
 
 impl ClosedBlock {
-	/// Get the hash of the header without seal arguments.
-	pub fn hash(&self) -> H256 { self.header().bare_hash() }
-
 	/// Turn this into a `LockedBlock`, unable to be reopened again.
 	pub fn lock(self) -> LockedBlock {
 		LockedBlock {
@@ -443,25 +399,25 @@ impl LockedBlock {
 		self.block.header.set_receipts_root(
 			ordered_trie_root(self.block.receipts.iter().map(|r| r.rlp_bytes()))
 		);
-		// compute hash and cache it.
-		self.block.header.compute_hash();
 	}
-
-	/// Get the hash of the header without seal arguments.
-	pub fn hash(&self) -> H256 { self.header().bare_hash() }
 
 	/// Provide a valid seal in order to turn this into a `SealedBlock`.
 	///
 	/// NOTE: This does not check the validity of `seal` with the engine.
-	pub fn seal(self, engine: &EthEngine, seal: Vec<Bytes>) -> Result<SealedBlock, BlockError> {
-		let expected_seal_fields = engine.seal_fields(self.header());
+	pub fn seal(self, engine: &EthEngine, seal: Vec<Bytes>) -> Result<SealedBlock, Error> {
+		let expected_seal_fields = engine.seal_fields(&self.header);
 		let mut s = self;
 		if seal.len() != expected_seal_fields {
-			return Err(BlockError::InvalidSealArity(
-				Mismatch { expected: expected_seal_fields, found: seal.len() }));
+			Err(BlockError::InvalidSealArity(Mismatch {
+				expected: expected_seal_fields,
+				found: seal.len()
+			}))?;
 		}
+
 		s.block.header.set_seal(seal);
+		engine.on_seal_block(&mut s.block)?;
 		s.block.header.compute_hash();
+
 		Ok(SealedBlock {
 			block: s.block
 		})
@@ -470,6 +426,7 @@ impl LockedBlock {
 	/// Provide a valid seal in order to turn this into a `SealedBlock`.
 	/// This does check the validity of `seal` with the engine.
 	/// Returns the `ClosedBlock` back again if the seal is no good.
+	/// TODO(https://github.com/paritytech/parity-ethereum/issues/10407): This is currently only used in POW chain call paths, we should really merge it with seal() above.
 	pub fn try_seal(
 		self,
 		engine: &EthEngine,
@@ -510,12 +467,8 @@ impl Drain for SealedBlock {
 	}
 }
 
-impl IsBlock for SealedBlock {
-	fn block(&self) -> &ExecutedBlock { &self.block }
-}
-
 /// Enact the block given by block header, transactions and uncles
-fn enact(
+pub(crate) fn enact(
 	header: Header,
 	transactions: Vec<SignedTransaction>,
 	uncles: Vec<Header>,
@@ -528,13 +481,12 @@ fn enact(
 	is_epoch_begin: bool,
 	ancestry: &mut Iterator<Item=ExtendedHeader>,
 ) -> Result<LockedBlock, Error> {
-	{
-		if ::log::max_level() >= ::log::Level::Trace {
-			let s = State::from_existing(db.boxed_clone(), parent.state_root().clone(), engine.account_start_nonce(parent.number() + 1), factories.clone())?;
-			trace!(target: "enact", "num={}, root={}, author={}, author_balance={}\n",
-				header.number(), s.root(), header.author(), s.balance(&header.author())?);
-		}
-	}
+	// For trace log
+	let trace_state = if log_enabled!(target: "enact", ::log::Level::Trace) {
+		Some(State::from_existing(db.boxed_clone(), parent.state_root().clone(), engine.account_start_nonce(parent.number() + 1), factories.clone())?)
+	} else {
+		None
+	};
 
 	let mut b = OpenBlock::new(
 		engine,
@@ -543,12 +495,22 @@ fn enact(
 		db,
 		parent,
 		last_hashes,
-		Address::new(),
+		// Engine such as Clique will calculate author from extra_data.
+		// this is only important for executing contracts as the 'executive_author'.
+		engine.executive_author(&header)?,
 		(3141562.into(), 31415620.into()),
 		vec![],
 		is_epoch_begin,
 		ancestry,
 	)?;
+
+	if let Some(ref s) = trace_state {
+		let env = b.env_info();
+		let root = s.root();
+		let author_balance = s.balance(&env.author)?;
+		trace!(target: "enact", "num={}, root={}, author={}, author_balance={}\n",
+				b.block.header.number(), root, env.author, author_balance);
+	}
 
 	b.populate_from(&header);
 	b.push_transactions(transactions)?;
@@ -615,6 +577,7 @@ mod tests {
 		last_hashes: Arc<LastHashes>,
 		factories: Factories,
 	) -> Result<LockedBlock, Error> {
+
 		let block = Unverified::from_rlp(block_bytes)?;
 		let header = block.header;
 		let transactions: Result<Vec<_>, Error> = block
@@ -644,7 +607,7 @@ mod tests {
 			(3141562.into(), 31415620.into()),
 			vec![],
 			false,
-			&mut Vec::new().into_iter(),
+			None,
 		)?;
 
 		b.populate_from(&header);
@@ -669,7 +632,7 @@ mod tests {
 	) -> Result<SealedBlock, Error> {
 		let header = Unverified::from_rlp(block_bytes.clone())?.header;
 		Ok(enact_bytes(block_bytes, engine, tracing, db, parent, last_hashes, factories)?
-		   .seal(engine, header.seal().to_vec())?)
+			.seal(engine, header.seal().to_vec())?)
 	}
 
 	#[test]
@@ -679,7 +642,7 @@ mod tests {
 		let genesis_header = spec.genesis_header();
 		let db = spec.ensure_db_good(get_temp_state_db(), &Default::default()).unwrap();
 		let last_hashes = Arc::new(vec![genesis_header.hash()]);
-		let b = OpenBlock::new(&*spec.engine, Default::default(), false, db, &genesis_header, last_hashes, Address::zero(), (3141562.into(), 31415620.into()), vec![], false, &mut Vec::new().into_iter()).unwrap();
+		let b = OpenBlock::new(&*spec.engine, Default::default(), false, db, &genesis_header, last_hashes, Address::zero(), (3141562.into(), 31415620.into()), vec![], false, None).unwrap();
 		let b = b.close_and_lock().unwrap();
 		let _ = b.seal(&*spec.engine, vec![]);
 	}
@@ -693,7 +656,7 @@ mod tests {
 
 		let db = spec.ensure_db_good(get_temp_state_db(), &Default::default()).unwrap();
 		let last_hashes = Arc::new(vec![genesis_header.hash()]);
-		let b = OpenBlock::new(engine, Default::default(), false, db, &genesis_header, last_hashes.clone(), Address::zero(), (3141562.into(), 31415620.into()), vec![], false, &mut Vec::new().into_iter()).unwrap()
+		let b = OpenBlock::new(engine, Default::default(), false, db, &genesis_header, last_hashes.clone(), Address::zero(), (3141562.into(), 31415620.into()), vec![], false, None).unwrap()
 			.close_and_lock().unwrap().seal(engine, vec![]).unwrap();
 		let orig_bytes = b.rlp_bytes();
 		let orig_db = b.drain().state.drop().1;
@@ -717,7 +680,7 @@ mod tests {
 
 		let db = spec.ensure_db_good(get_temp_state_db(), &Default::default()).unwrap();
 		let last_hashes = Arc::new(vec![genesis_header.hash()]);
-		let mut open_block = OpenBlock::new(engine, Default::default(), false, db, &genesis_header, last_hashes.clone(), Address::zero(), (3141562.into(), 31415620.into()), vec![], false, &mut Vec::new().into_iter()).unwrap();
+		let mut open_block = OpenBlock::new(engine, Default::default(), false, db, &genesis_header, last_hashes.clone(), Address::zero(), (3141562.into(), 31415620.into()), vec![], false, None).unwrap();
 		let mut uncle1_header = Header::new();
 		uncle1_header.set_extra_data(b"uncle1".to_vec());
 		let mut uncle2_header = Header::new();

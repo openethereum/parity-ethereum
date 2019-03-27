@@ -59,6 +59,7 @@ mod codes {
 	pub const NO_PEERS: i64 = -32066;
 	pub const DEPRECATED: i64 = -32070;
 	pub const EXPERIMENTAL_RPC: i64 = -32071;
+	pub const CANNOT_RESTART: i64 = -32080;
 }
 
 pub fn unimplemented(details: Option<String>) -> Error {
@@ -125,6 +126,14 @@ pub fn account<T: fmt::Debug>(error: &str, details: T) -> Error {
 	}
 }
 
+pub fn cannot_restart() -> Error {
+	Error {
+		code: ErrorCode::ServerError(codes::CANNOT_RESTART),
+		message: "Parity could not be restarted. This feature is disabled in development mode and if the binary name isn't parity.".into(),
+		data: None,
+	}
+}
+
 /// Internal error signifying a logic error in code.
 /// Should not be used when function can just fail
 /// because of invalid parameters or incomplete node state.
@@ -164,11 +173,11 @@ pub fn state_corrupt() -> Error {
 	internal("State corrupt", "")
 }
 
-pub fn exceptional() -> Error {
+pub fn exceptional<T: fmt::Display>(data: T) -> Error {
 	Error {
 		code: ErrorCode::ServerError(codes::EXCEPTION_ERROR),
 		message: "The execution failed due to an exception.".into(),
-		data: None,
+		data: Some(Value::String(data.to_string())),
 	}
 }
 
@@ -458,7 +467,7 @@ pub fn call(error: CallError) -> Error {
 	match error {
 		CallError::StatePruned => state_pruned(),
 		CallError::StateCorrupt => state_corrupt(),
-		CallError::Exceptional => exceptional(),
+		CallError::Exceptional(e) => exceptional(e),
 		CallError::Execution(e) => execution(e),
 		CallError::TransactionNotFound => internal("{}, this should not be the case with eth_call, most likely a bug.", CallError::TransactionNotFound),
 	}

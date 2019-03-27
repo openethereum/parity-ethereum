@@ -15,7 +15,8 @@
 // along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
 use client::{Rpc, RpcError};
-use rpc::signer::{ConfirmationRequest, TransactionModification, U256, TransactionCondition};
+use ethereum_types::U256;
+use rpc::signer::{ConfirmationRequest, TransactionModification, TransactionCondition};
 use serde;
 use serde_json::{Value as JsonValue, to_value};
 use std::path::PathBuf;

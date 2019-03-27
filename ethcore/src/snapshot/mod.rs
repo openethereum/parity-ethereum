@@ -32,7 +32,7 @@ use types::header::Header;
 use types::ids::BlockId;
 
 use ethereum_types::{H256, U256};
-use hashdb::HashDB;
+use hash_db::HashDB;
 use keccak_hasher::KeccakHasher;
 use snappy;
 use bytes::Bytes;
@@ -157,7 +157,7 @@ pub fn take_snapshot<W: SnapshotWriter + Send>(
 	processing_threads: usize,
 ) -> Result<(), Error> {
 	let start_header = chain.block_header_data(&block_at)
-		.ok_or(Error::InvalidStartingBlock(BlockId::Hash(block_at)))?;
+		.ok_or_else(|| Error::InvalidStartingBlock(BlockId::Hash(block_at)))?;
 	let state_root = start_header.state_root();
 	let number = start_header.number();
 
@@ -322,7 +322,7 @@ impl<'a> StateChunker<'a> {
 /// Returns a list of hashes of chunks created, or any error it may
 /// have encountered.
 pub fn chunk_state<'a>(db: &HashDB<KeccakHasher, DBValue>, root: &H256, writer: &Mutex<SnapshotWriter + 'a>, progress: &'a Progress, part: Option<usize>) -> Result<Vec<H256>, Error> {
-	let account_trie = TrieDB::new(db, &root)?;
+	let account_trie = TrieDB::new(&db, &root)?;
 
 	let mut chunker = StateChunker {
 		hashes: Vec::new(),
@@ -414,7 +414,7 @@ impl StateRebuilder {
 		pairs.resize(rlp.item_count()?, (H256::new(), Vec::new()));
 
 		let status = rebuild_accounts(
-			self.db.as_hashdb_mut(),
+			self.db.as_hash_db_mut(),
 			rlp,
 			&mut pairs,
 			&self.known_code,
@@ -429,7 +429,7 @@ impl StateRebuilder {
 		// patch up all missing code. must be done after collecting all new missing code entries.
 		for (code_hash, code, first_with) in status.new_code {
 			for addr_hash in self.missing_code.remove(&code_hash).unwrap_or_else(Vec::new) {
-				let mut db = AccountDBMut::from_hash(self.db.as_hashdb_mut(), addr_hash);
+				let mut db = AccountDBMut::from_hash(self.db.as_hash_db_mut(), addr_hash);
 				db.emplace(code_hash, DBValue::from_slice(&code));
 			}
 
@@ -441,9 +441,9 @@ impl StateRebuilder {
 		// batch trie writes
 		{
 			let mut account_trie = if self.state_root != KECCAK_NULL_RLP {
-				TrieDBMut::from_existing(self.db.as_hashdb_mut(), &mut self.state_root)?
+				TrieDBMut::from_existing(self.db.as_hash_db_mut(), &mut self.state_root)?
 			} else {
-				TrieDBMut::new(self.db.as_hashdb_mut(), &mut self.state_root)
+				TrieDBMut::new(self.db.as_hash_db_mut(), &mut self.state_root)
 			};
 
 			for (hash, thin_rlp) in pairs {
@@ -512,7 +512,7 @@ fn rebuild_accounts(
 			// fill out the storage trie and code while decoding.
 			let (acc, maybe_code) = {
 				let mut acct_db = AccountDBMut::from_hash(db, hash);
-				let storage_root = known_storage_roots.get(&hash).cloned().unwrap_or(H256::zero());
+				let storage_root = known_storage_roots.get(&hash).cloned().unwrap_or_default();
 				account::from_fat_rlp(&mut acct_db, fat_rlp, storage_root)?
 			};
 

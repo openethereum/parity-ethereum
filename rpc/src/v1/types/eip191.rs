@@ -15,9 +15,11 @@
 // along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
 //! EIP-191 specific types
+
+use ethereum_types::H160;
 use serde::{Deserialize, Deserializer};
 use serde::de;
-use v1::types::{H160, Bytes};
+use v1::types::Bytes;
 
 /// EIP-191 version specifier
 #[derive(Debug)]

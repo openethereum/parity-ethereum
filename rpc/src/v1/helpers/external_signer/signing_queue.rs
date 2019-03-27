@@ -15,6 +15,7 @@
 // along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
 use std::collections::BTreeMap;
+
 use ethereum_types::U256;
 use parking_lot::{Mutex, RwLock};
 use super::oneshot;
@@ -120,7 +121,7 @@ impl ConfirmationsQueue {
 		));
 
 		// notify confirmation receiver about resolution
-		let result = result.ok_or(errors::request_rejected());
+		let result = result.ok_or_else(errors::request_rejected);
 		sender.sender.send(result);
 
 		Some(sender.request)
@@ -149,7 +150,7 @@ impl SigningQueue for ConfirmationsQueue {
 		// Increment id
 		let id = {
 			let mut last_id = self.id.lock();
-			*last_id = *last_id + U256::from(1);
+			*last_id += U256::from(1);
 			*last_id
 		};
 		// Add request to queue
