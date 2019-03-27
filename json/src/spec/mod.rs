@@ -31,6 +31,7 @@ pub mod authority_round;
 pub mod null_engine;
 pub mod instant_seal;
 pub mod hardcoded_sync;
+pub mod clique;
 
 pub use self::account::Account;
 pub use self::builtin::{Builtin, Pricing, Linear};
@@ -44,6 +45,7 @@ pub use self::ethash::{Ethash, EthashParams, BlockReward};
 pub use self::validator_set::ValidatorSet;
 pub use self::basic_authority::{BasicAuthority, BasicAuthorityParams};
 pub use self::authority_round::{AuthorityRound, AuthorityRoundParams};
+pub use self::clique::{Clique, CliqueParams};
 pub use self::null_engine::{NullEngine, NullEngineParams};
 pub use self::instant_seal::{InstantSeal, InstantSealParams};
 pub use self::hardcoded_sync::HardcodedSync;

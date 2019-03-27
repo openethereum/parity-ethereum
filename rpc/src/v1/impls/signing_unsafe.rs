@@ -60,7 +60,7 @@ impl<D: Dispatcher + 'static> SigningUnsafeClient<D> {
 			.and_then(move |payload| {
 				dispatch::execute(dis, &accounts, payload, dispatch::SignWith::Nothing)
 			})
-			.map(|v| v.into_value()))
+			.map(dispatch::WithToken::into_value))
 	}
 }
 
@@ -70,7 +70,7 @@ impl<D: Dispatcher + 'static> EthSigning for SigningUnsafeClient<D>
 
 	fn sign(&self, _: Metadata, address: H160, data: RpcBytes) -> BoxFuture<H520> {
 		self.deprecation_notice.print("eth_sign", deprecated::msgs::ACCOUNTS);
-		Box::new(self.handle(RpcConfirmationPayload::EthSignMessage((address.clone(), data).into()), address.into())
+		Box::new(self.handle(RpcConfirmationPayload::EthSignMessage((address, data).into()), address)
 			.then(|res| match res {
 				Ok(RpcConfirmationResponse::Signature(signature)) => Ok(signature),
 				Err(e) => Err(e),
@@ -111,7 +111,7 @@ impl<D: Dispatcher + 'static> ParitySigning for SigningUnsafeClient<D> {
 
 	fn decrypt_message(&self, _: Metadata, address: H160, data: RpcBytes) -> BoxFuture<RpcBytes> {
 		self.deprecation_notice.print("parity_decryptMessage", deprecated::msgs::ACCOUNTS);
-		Box::new(self.handle(RpcConfirmationPayload::Decrypt((address.clone(), data).into()), address.into())
+		Box::new(self.handle(RpcConfirmationPayload::Decrypt((address, data).into()), address)
 			.then(|res| match res {
 				Ok(RpcConfirmationResponse::Decrypt(data)) => Ok(data),
 				Err(e) => Err(e),

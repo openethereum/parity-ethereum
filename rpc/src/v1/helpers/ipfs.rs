@@ -28,5 +28,5 @@ pub fn cid(content: Bytes) -> Result<String, Error> {
 	let hash = digest::sha256(&content.0);
 	let mh = multihash::encode(multihash::Hash::SHA2256, &*hash).map_err(errors::encoding)?;
 	let cid = Cid::new(Codec::DagProtobuf, Version::V0, &mh);
-	Ok(cid.to_string().into())
+	Ok(cid.to_string())
 }

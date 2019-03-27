@@ -47,5 +47,10 @@ echo "_____ Calculating checksums _____"
 for binary in $(ls)
 do
   rhash --sha256 $binary -o $binary.sha256 #do we still need this hash (SHA2)?
-  rhash --sha3-256 $binary -o $binary.sha3
+  if [[ $CARGO_TARGET == *"x86_64"* ]];
+  then
+      ./parity tools hash $binary > $binary.sha3
+  else
+      echo "> ${binary} cannot be hashed with cross-compiled binary (keccak256)"
+  fi
 done

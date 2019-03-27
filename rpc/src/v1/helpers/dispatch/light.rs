@@ -147,19 +147,19 @@ where
 		const DEFAULT_GAS_PRICE: U256 = U256([0, 0, 0, 21_000_000]);
 
 		let gas_limit = self.client.best_block_header().gas_limit();
-		let request_gas_price = request.gas_price.clone();
+		let request_gas_price = request.gas_price;
 		let from = request.from.unwrap_or(default_sender);
 
 		let with_gas_price = move |gas_price| {
 			let request = request;
 			FilledTransactionRequest {
-				from: from.clone(),
+				from,
 				used_default_from: request.from.is_none(),
 				to: request.to,
 				nonce: request.nonce,
-				gas_price: gas_price,
+				gas_price,
 				gas: request.gas.unwrap_or_else(|| gas_limit / 3),
-				value: request.value.unwrap_or_else(|| 0.into()),
+				value: request.value.unwrap_or_default(),
 				data: request.data.unwrap_or_else(Vec::new),
 				condition: request.condition,
 			}

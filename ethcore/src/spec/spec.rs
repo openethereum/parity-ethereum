@@ -35,7 +35,7 @@ use vm::{EnvInfo, CallType, ActionValue, ActionParams, ParamsType};
 
 use builtin::Builtin;
 use engines::{
-	EthEngine, NullEngine, InstantSeal, InstantSealParams, BasicAuthority,
+	EthEngine, NullEngine, InstantSeal, InstantSealParams, BasicAuthority, Clique,
 	AuthorityRound, DEFAULT_BLOCKHASH_CONTRACT
 };
 use error::Error;
@@ -99,9 +99,9 @@ pub struct CommonParams {
 	pub validate_receipts_transition: BlockNumber,
 	/// Validate transaction chain id.
 	pub validate_chain_id_transition: BlockNumber,
-	/// Number of first block where EIP-140 (Metropolis: REVERT opcode) rules begin.
+	/// Number of first block where EIP-140 rules begin.
 	pub eip140_transition: BlockNumber,
-	/// Number of first block where EIP-210 (Metropolis: BLOCKHASH changes) rules begin.
+	/// Number of first block where EIP-210 rules begin.
 	pub eip210_transition: BlockNumber,
 	/// EIP-210 Blockhash contract address.
 	pub eip210_contract_address: Address,
@@ -109,8 +109,7 @@ pub struct CommonParams {
 	pub eip210_contract_code: Bytes,
 	/// Gas allocated for EIP-210 blockhash update.
 	pub eip210_contract_gas: U256,
-	/// Number of first block where EIP-211 (Metropolis: RETURNDATASIZE/RETURNDATACOPY) rules
-	/// begin.
+	/// Number of first block where EIP-211 rules begin.
 	pub eip211_transition: BlockNumber,
 	/// Number of first block where EIP-214 rules begin.
 	pub eip214_transition: BlockNumber,
@@ -611,6 +610,8 @@ impl Spec {
 			ethjson::spec::Engine::InstantSeal(Some(instant_seal)) => Arc::new(InstantSeal::new(instant_seal.params.into(), machine)),
 			ethjson::spec::Engine::InstantSeal(None) => Arc::new(InstantSeal::new(InstantSealParams::default(), machine)),
 			ethjson::spec::Engine::BasicAuthority(basic_authority) => Arc::new(BasicAuthority::new(basic_authority.params.into(), machine)),
+			ethjson::spec::Engine::Clique(clique) => Clique::new(clique.params.into(), machine)
+								.expect("Failed to start Clique consensus engine."),
 			ethjson::spec::Engine::AuthorityRound(authority_round) => AuthorityRound::new(authority_round.params.into(), machine)
 				.expect("Failed to start AuthorityRound consensus engine."),
 		}
@@ -827,7 +828,6 @@ impl Spec {
 		ethjson::spec::Spec::load(reader)
 			.map_err(fmt_err)
 			.map(load_machine_from)
-
 	}
 
 	/// Loads spec from json file. Provide factories for executing contracts and ensuring

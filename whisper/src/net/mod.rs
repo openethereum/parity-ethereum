@@ -223,7 +223,10 @@ impl Messages {
 			}
 		}
 
-		let expiry = message.expiry();
+		let expiry = match message.expiry() {
+			Some(time) => time,
+			_ => return false,
+		};
 
 		self.cumulative_size += message.encoded_size();
 
@@ -232,8 +235,8 @@ impl Messages {
 
 		let sorted_entry = SortedEntry {
 			slab_id: id,
-			work_proved: work_proved,
-			expiry: expiry,
+			work_proved,
+			expiry,
 		};
 
 		match self.sorted.binary_search(&sorted_entry) {

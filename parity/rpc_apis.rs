@@ -283,7 +283,7 @@ impl FullDependencies {
 					handler.extend_with(DebugClient::new(self.client.clone()).to_delegate());
 				}
 				Api::Web3 => {
-					handler.extend_with(Web3Client::new().to_delegate());
+					handler.extend_with(Web3Client::default().to_delegate());
 				}
 				Api::Net => {
 					handler.extend_with(NetClient::new(&self.sync).to_delegate());
@@ -529,7 +529,7 @@ impl<C: LightChainClient + 'static> LightDependencies<C> {
 					warn!(target: "rpc", "Debug API is not available in light client mode.")
 				}
 				Api::Web3 => {
-					handler.extend_with(Web3Client::new().to_delegate());
+					handler.extend_with(Web3Client::default().to_delegate());
 				}
 				Api::Net => {
 					handler.extend_with(light::NetClient::new(self.sync.clone()).to_delegate());

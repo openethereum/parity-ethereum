@@ -15,8 +15,9 @@
 // along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
 use engines::{Engine, Seal};
-use parity_machine::{Machine, Transactions};
-use types::header::ExtendedHeader;
+use machine::Machine;
+use types::header::{Header, ExtendedHeader};
+use block::ExecutedBlock;
 
 /// `InstantSeal` params.
 #[derive(Default, Debug, PartialEq)]
@@ -49,7 +50,7 @@ impl<M> InstantSeal<M> {
 	}
 }
 
-impl<M: Machine> Engine<M> for InstantSeal<M> where M::LiveBlock: Transactions {
+impl<M: Machine> Engine<M> for InstantSeal<M> {
 	fn name(&self) -> &str {
 		"InstantSeal"
 	}
@@ -58,11 +59,15 @@ impl<M: Machine> Engine<M> for InstantSeal<M> where M::LiveBlock: Transactions {
 
 	fn seals_internally(&self) -> Option<bool> { Some(true) }
 
-	fn generate_seal(&self, block: &M::LiveBlock, _parent: &M::Header) -> Seal {
-		if block.transactions().is_empty() { Seal::None } else { Seal::Regular(Vec::new()) }
+	fn generate_seal(&self, block: &ExecutedBlock, _parent: &Header) -> Seal {
+		if block.transactions.is_empty() {
+			Seal::None
+		} else {
+			Seal::Regular(Vec::new())
+		}
 	}
 
-	fn verify_local_seal(&self, _header: &M::Header) -> Result<(), M::Error> {
+	fn verify_local_seal(&self, _header: &Header) -> Result<(), M::Error> {
 		Ok(())
 	}
 
@@ -103,9 +108,9 @@ mod tests {
 		let db = spec.ensure_db_good(get_temp_state_db(), &Default::default()).unwrap();
 		let genesis_header = spec.genesis_header();
 		let last_hashes = Arc::new(vec![genesis_header.hash()]);
-		let b = OpenBlock::new(engine, Default::default(), false, db, &genesis_header, last_hashes, Address::default(), (3141562.into(), 31415620.into()), vec![], false, &mut Vec::new().into_iter()).unwrap();
+		let b = OpenBlock::new(engine, Default::default(), false, db, &genesis_header, last_hashes, Address::default(), (3141562.into(), 31415620.into()), vec![], false, None).unwrap();
 		let b = b.close_and_lock().unwrap();
-		if let Seal::Regular(seal) = engine.generate_seal(b.block(), &genesis_header) {
+		if let Seal::Regular(seal) = engine.generate_seal(&b, &genesis_header) {
 			assert!(b.try_seal(engine, seal).is_ok());
 		}
 	}

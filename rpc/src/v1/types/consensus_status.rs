@@ -109,7 +109,7 @@ impl Into<VersionInfo> for updater::VersionInfo {
 		VersionInfo {
 			track: self.track.into(),
 			version: self.version.into(),
-			hash: self.hash.into(),
+			hash: self.hash,
 		}
 	}
 }

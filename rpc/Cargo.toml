@@ -38,7 +38,6 @@ common-types = { path = "../ethcore/types" }
 ethash = { path = "../ethash" }
 ethcore = { path = "../ethcore", features = ["test-helpers"] }
 ethcore-accounts = { path = "../accounts", optional = true }
-ethcore-io = { path = "../util/io" }
 ethcore-light = { path = "../ethcore/light" }
 ethcore-logger = { path = "../parity/logger" }
 ethcore-miner = { path = "../miner" }
@@ -59,7 +58,6 @@ keccak-hash = "0.1.2"
 parity-runtime = { path = "../util/runtime" }
 parity-updater = { path = "../updater" }
 parity-version = { path = "../util/version" }
-trie-db = "0.11.0"
 rlp = { version = "0.3.0", features = ["ethereum"] }
 stats = { path = "../util/stats" }
 vm = { path = "../ethcore/vm" }
@@ -67,9 +65,9 @@ vm = { path = "../ethcore/vm" }
 [dev-dependencies]
 ethcore = { path = "../ethcore", features = ["test-helpers"] }
 ethcore-accounts = { path = "../accounts" }
+ethcore-io = { path = "../util/io" }
 ethcore-network = { path = "../util/network" }
 fake-fetch = { path = "../util/fake-fetch" }
-kvdb-memorydb = "0.1"
 macros = { path = "../util/macros" }
 pretty_assertions = "0.1"
 transaction-pool = "1.13"

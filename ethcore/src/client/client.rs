@@ -45,7 +45,7 @@ use types::receipt::{Receipt, LocalizedReceipt};
 use types::{BlockNumber, header::{Header, ExtendedHeader}};
 use vm::{EnvInfo, LastHashes};
 
-use block::{IsBlock, LockedBlock, Drain, ClosedBlock, OpenBlock, enact_verified, SealedBlock};
+use block::{LockedBlock, Drain, ClosedBlock, OpenBlock, enact_verified, SealedBlock};
 use client::ancient_import::AncientVerifier;
 use client::{
 	Nonce, Balance, ChainInfo, BlockInfo, TransactionInfo,
@@ -61,7 +61,7 @@ use client::{
 	IoClient, BadBlocks,
 };
 use client::bad_blocks;
-use engines::{EthEngine, EpochTransition, ForkChoice, EngineError};
+use engines::{MAX_UNCLE_AGE, EthEngine, EpochTransition, ForkChoice, EngineError};
 use engines::epoch::PendingTransition;
 use error::{
 	ImportErrorKind, ExecutionError, CallError, BlockError,
@@ -298,19 +298,11 @@ impl Importer {
 
 				match self.check_and_lock_block(&bytes, block, client) {
 					Ok((closed_block, pending)) => {
-						if self.engine.is_proposal(&header) {
-							self.block_queue.mark_as_good(&[hash]);
-							proposed_blocks.push(bytes);
-						} else {
-							imported_blocks.push(hash);
-
-							let transactions_len = closed_block.transactions().len();
-
-							let route = self.commit_block(closed_block, &header, encoded::Block::new(bytes), pending, client);
-							import_results.push(route);
-
-							client.report.write().accrue_block(&header, transactions_len);
-						}
+						imported_blocks.push(hash);
+						let transactions_len = closed_block.transactions.len();
+						let route = self.commit_block(closed_block, &header, encoded::Block::new(bytes), pending, client);
+						import_results.push(route);
+						client.report.write().accrue_block(&header, transactions_len);
 					},
 					Err(err) => {
 						self.bad_blocks.report(bytes, format!("{:?}", err));
@@ -407,6 +399,7 @@ impl Importer {
 		let db = client.state_db.read().boxed_clone_canon(header.parent_hash());
 
 		let is_epoch_begin = chain.epoch_transition(parent.number(), *header.parent_hash()).is_some();
+
 		let enact_result = enact_verified(
 			block,
 			engine,
@@ -431,13 +424,13 @@ impl Importer {
 		// if the expected receipts root header does not match.
 		// (i.e. allow inconsistency in receipts outcome before the transition block)
 		if header.number() < engine.params().validate_receipts_transition
-			&& header.receipts_root() != locked_block.block().header().receipts_root()
+			&& header.receipts_root() != locked_block.header.receipts_root()
 		{
 			locked_block.strip_receipts_outcomes();
 		}
 
 		// Final Verification
-		if let Err(e) = self.verifier.verify_block_final(&header, locked_block.block().header()) {
+		if let Err(e) = self.verifier.verify_block_final(&header, &locked_block.header) {
 			warn!(target: "client", "Stage 5 block verification failed for #{} ({})\nError: {:?}", header.number(), header.hash(), e);
 			bail!(e);
 		}
@@ -445,8 +438,8 @@ impl Importer {
 		let pending = self.check_epoch_end_signal(
 			&header,
 			bytes,
-			locked_block.receipts(),
-			locked_block.state().db(),
+			&locked_block.receipts,
+			locked_block.state.db(),
 			client
 		)?;
 
@@ -1926,7 +1919,7 @@ impl BlockChainClient for Client {
 	}
 
 	fn find_uncles(&self, hash: &H256) -> Option<Vec<H256>> {
-		self.chain.read().find_uncle_hashes(hash, self.engine.maximum_uncle_age())
+		self.chain.read().find_uncle_hashes(hash, MAX_UNCLE_AGE)
 	}
 
 	fn state_data(&self, hash: &H256) -> Option<Bytes> {
@@ -2284,24 +2277,24 @@ impl ReopenBlock for Client {
 	fn reopen_block(&self, block: ClosedBlock) -> OpenBlock {
 		let engine = &*self.engine;
 		let mut block = block.reopen(engine);
-		let max_uncles = engine.maximum_uncle_count(block.header().number());
-		if block.uncles().len() < max_uncles {
+		let max_uncles = engine.maximum_uncle_count(block.header.number());
+		if block.uncles.len() < max_uncles {
 			let chain = self.chain.read();
 			let h = chain.best_block_hash();
 			// Add new uncles
 			let uncles = chain
-				.find_uncle_hashes(&h, engine.maximum_uncle_age())
+				.find_uncle_hashes(&h, MAX_UNCLE_AGE)
 				.unwrap_or_else(Vec::new);
 
 			for h in uncles {
-				if !block.uncles().iter().any(|header| header.hash() == h) {
+				if !block.uncles.iter().any(|header| header.hash() == h) {
 					let uncle = chain.block_header_data(&h).expect("find_uncle_hashes only returns hashes for existing headers; qed");
 					let uncle = uncle.decode().expect("decoding failure");
 					block.push_uncle(uncle).expect("pushing up to maximum_uncle_count;
 												push_uncle is not ok only if more than maximum_uncle_count is pushed;
 												so all push_uncle are Ok;
 												qed");
-					if block.uncles().len() >= max_uncles { break }
+					if block.uncles.len() >= max_uncles { break }
 				}
 			}
 
@@ -2329,15 +2322,15 @@ impl PrepareOpenBlock for Client {
 			gas_range_target,
 			extra_data,
 			is_epoch_begin,
-			&mut chain.ancestry_with_metadata_iter(best_header.hash()),
+			chain.ancestry_with_metadata_iter(best_header.hash()),
 		)?;
 
 		// Add uncles
 		chain
-			.find_uncle_headers(&h, engine.maximum_uncle_age())
+			.find_uncle_headers(&h, MAX_UNCLE_AGE)
 			.unwrap_or_else(Vec::new)
 			.into_iter()
-			.take(engine.maximum_uncle_count(open_block.header().number()))
+			.take(engine.maximum_uncle_count(open_block.header.number()))
 			.foreach(|h| {
 				open_block.push_uncle(h.decode().expect("decoding failure")).expect("pushing maximum_uncle_count;
 												open_block was just created;
@@ -2362,7 +2355,7 @@ impl ImportSealedBlock for Client {
 	fn import_sealed_block(&self, block: SealedBlock) -> EthcoreResult<H256> {
 		let start = Instant::now();
 		let raw = block.rlp_bytes();
-		let header = block.header().clone();
+		let header = block.header.clone();
 		let hash = header.hash();
 		self.notify(|n| n.block_pre_import(&raw, &hash, header.difficulty()));
 
@@ -2385,8 +2378,8 @@ impl ImportSealedBlock for Client {
 			let pending = self.importer.check_epoch_end_signal(
 				&header,
 				&block_data,
-				block.receipts(),
-				block.state().db(),
+				&block.receipts,
+				block.state.db(),
 				self
 			)?;
 			let route = self.importer.commit_block(
@@ -2523,7 +2516,11 @@ impl SnapshotClient for Client {}
 
 impl Drop for Client {
 	fn drop(&mut self) {
-		self.engine.stop();
+		if let Some(c) = Arc::get_mut(&mut self.engine) {
+			c.stop()
+		} else {
+			warn!(target: "shutdown", "unable to get mut ref for engine for shutdown.");
+		}
 	}
 }
 

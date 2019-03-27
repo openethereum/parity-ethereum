@@ -140,7 +140,7 @@ where
 			active: peer_numbers.active,
 			connected: peer_numbers.connected,
 			max: peer_numbers.max as u32,
-			peers: peers,
+			peers,
 		})
 	}
 
@@ -157,7 +157,7 @@ where
 		if reg == Default::default() {
 			Ok(None)
 		} else {
-			Ok(Some(reg.into()))
+			Ok(Some(reg))
 		}
 	}
 
@@ -191,7 +191,7 @@ where
 	}
 
 	fn phrase_to_address(&self, phrase: String) -> Result<H160> {
-		Ok(Brain::new(phrase).generate().unwrap().address().into())
+		Ok(Brain::new(phrase).generate().expect("Brain::generate always returns Ok; qed").address())
 	}
 
 	fn list_accounts(&self, _: u64, _: Option<H160>, _: Option<BlockNumber>) -> Result<Option<Vec<H160>>> {
@@ -203,7 +203,7 @@ where
 	}
 
 	fn encrypt_message(&self, key: H512, phrase: Bytes) -> Result<Bytes> {
-		ecies::encrypt(&key.into(), &DEFAULT_MAC, &phrase.0)
+		ecies::encrypt(&key, &DEFAULT_MAC, &phrase.0)
 			.map_err(errors::encryption)
 			.map(Into::into)
 	}
@@ -215,7 +215,7 @@ where
 			txq.ready_transactions(chain_info.best_block_number, chain_info.best_block_timestamp)
 				.into_iter()
 				.take(limit.unwrap_or_else(usize::max_value))
-				.map(|tx| Transaction::from_pending(tx))
+				.map(Transaction::from_pending)
 				.collect::<Vec<_>>()
 		)
 	}
@@ -223,7 +223,7 @@ where
 	fn all_transactions(&self) -> Result<Vec<Transaction>> {
 		Ok(
 			light_all_transactions(&self.light_dispatch)
-				.map(|tx| Transaction::from_pending(tx))
+				.map(Transaction::from_pending)
 				.collect()
 		)
 	}
@@ -231,7 +231,7 @@ where
 	fn all_transaction_hashes(&self) -> Result<Vec<H256>> {
 		Ok(
 			light_all_transactions(&self.light_dispatch)
-				.map(|tx| tx.transaction.hash().into())
+				.map(|tx| tx.transaction.hash())
 				.collect()
 		)
 	}
@@ -242,7 +242,7 @@ where
 		Ok(
 			txq.future_transactions(chain_info.best_block_number, chain_info.best_block_timestamp)
 				.into_iter()
-				.map(|tx| Transaction::from_pending(tx))
+				.map(Transaction::from_pending)
 				.collect::<Vec<_>>()
 		)
 	}
@@ -250,7 +250,7 @@ where
 	fn pending_transactions_stats(&self) -> Result<BTreeMap<H256, TransactionStats>> {
 		let stats = self.light_dispatch.sync.transactions_stats();
 		Ok(stats.into_iter()
-			.map(|(hash, stats)| (hash.into(), stats.into()))
+			.map(|(hash, stats)| (hash, stats.into()))
 			.collect()
 		)
 	}
@@ -262,11 +262,11 @@ where
 		let txq = self.light_dispatch.transaction_queue.read();
 
 		for pending in txq.ready_transactions(best_num, best_tm) {
-			map.insert(pending.hash().into(), LocalTransactionStatus::Pending);
+			map.insert(pending.hash(), LocalTransactionStatus::Pending);
 		}
 
 		for future in txq.future_transactions(best_num, best_tm) {
-			map.insert(future.hash().into(), LocalTransactionStatus::Future);
+			map.insert(future.hash(), LocalTransactionStatus::Future);
 		}
 
 		// TODO: other types?
@@ -276,11 +276,11 @@ where
 
 	fn ws_url(&self) -> Result<String> {
 		helpers::to_url(&self.ws_address)
-			.ok_or_else(|| errors::ws_disabled())
+			.ok_or_else(errors::ws_disabled)
 	}
 
 	fn next_nonce(&self, address: H160) -> BoxFuture<U256> {
-		Box::new(self.light_dispatch.next_nonce(address.into()).map(Into::into))
+		Box::new(self.light_dispatch.next_nonce(address))
 	}
 
 	fn mode(&self) -> Result<String> {
@@ -314,7 +314,7 @@ where
 			.and_then(|first| chain_info.first_block_number.map(|last| (first, U256::from(last))));
 
 		Ok(ChainStatus {
-			block_gap: gap.map(|(x, y)| (x.into(), y.into())),
+			block_gap: gap,
 		})
 	}
 
@@ -336,25 +336,25 @@ where
 			let extra_info = engine.extra_info(&header);
 			Ok(RichHeader {
 				inner: Header {
-					hash: Some(header.hash().into()),
+					hash: Some(header.hash()),
 					size: Some(encoded.rlp().as_raw().len().into()),
-					parent_hash: header.parent_hash().clone().into(),
-					uncles_hash: header.uncles_hash().clone().into(),
-					author: header.author().clone().into(),
-					miner: header.author().clone().into(),
-					state_root: header.state_root().clone().into(),
-					transactions_root: header.transactions_root().clone().into(),
-					receipts_root: header.receipts_root().clone().into(),
+					parent_hash: *header.parent_hash(),
+					uncles_hash: *header.uncles_hash(),
+					author: *header.author(),
+					miner: *header.author(),
+					state_root: *header.state_root(),
+					transactions_root: *header.transactions_root(),
+					receipts_root: *header.receipts_root(),
 					number: Some(header.number().into()),
-					gas_used: header.gas_used().clone().into(),
-					gas_limit: header.gas_limit().clone().into(),
-					logs_bloom: header.log_bloom().clone().into(),
+					gas_used: *header.gas_used(),
+					gas_limit: *header.gas_limit(),
+					logs_bloom: *header.log_bloom(),
 					timestamp: header.timestamp().into(),
-					difficulty: header.difficulty().clone().into(),
+					difficulty: *header.difficulty(),
 					seal_fields: header.seal().iter().cloned().map(Into::into).collect(),
 					extra_data: Bytes::new(header.extra_data().clone()),
 				},
-				extra_info: extra_info,
+				extra_info,
 			})
 		};
 		let id = number.unwrap_or_default().to_block_id();
