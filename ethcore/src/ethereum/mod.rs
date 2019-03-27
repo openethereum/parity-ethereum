@@ -79,16 +79,6 @@ pub fn new_ellaism<'a, T: Into<SpecParams<'a>>>(params: T) -> Spec {
 	load(params.into(), include_bytes!("../../res/ethereum/ellaism.json"))
 }
 
-/// Create a new Easthub mainnet chain spec.
-pub fn new_easthub<'a, T: Into<SpecParams<'a>>>(params: T) -> Spec {
-	load(params.into(), include_bytes!("../../res/ethereum/easthub.json"))
-}
-
-/// Create a new Ethereum Social mainnet chain spec.
-pub fn new_social<'a, T: Into<SpecParams<'a>>>(params: T) -> Spec {
-	load(params.into(), include_bytes!("../../res/ethereum/social.json"))
-}
-
 /// Create a new MIX mainnet chain spec.
 pub fn new_mix<'a, T: Into<SpecParams<'a>>>(params: T) -> Spec {
 	load(params.into(), include_bytes!("../../res/ethereum/mix.json"))
