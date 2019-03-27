@@ -14,10 +14,8 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
-// Silence: `use of deprecated item 'std::error::Error::cause': replaced by Error::source, which can support downcasting`
-// https://github.com/paritytech/parity-ethereum/issues/10302
-#![allow(deprecated)]
-
+use std::error;
+use derive_more::Display;
 use ethereum_types::Address;
 use rlp::DecoderError;
 use ethtrie::TrieError;
@@ -25,173 +23,170 @@ use ethcore::error::{Error as EthcoreError, ExecutionError};
 use types::transaction::Error as TransactionError;
 use ethkey::Error as KeyError;
 use ethkey::crypto::Error as CryptoError;
-use txpool::Error as TxPoolError;
+use txpool::{Error as TxPoolError};
 
-error_chain! {
-	foreign_links {
-		Io(::std::io::Error) #[doc = "Error concerning the Rust standard library's IO subsystem."];
-		Decoder(DecoderError) #[doc = "RLP decoding error."];
-		Trie(TrieError) #[doc = "Error concerning TrieDBs."];
-		Txpool(TxPoolError) #[doc = "Tx pool error."];
-		Crypto(CryptoError) #[doc = "Crypto error."];
+#[derive(Debug, Display)]
+pub enum Error {
+	/// Error concerning the Rust standard library's IO subsystem.
+	#[display(fmt = "Io Error: {}", _0)]
+	Io(::std::io::Error),
+	/// RLP decoding error.
+	#[display(fmt = "Decoder Error: {}", _0)]
+	Decoder(DecoderError),
+	/// Error concerning TrieDBs.
+	#[display(fmt = "Trie Error: {}", _0)]
+	Trie(TrieError),
+	/// Transaction pool error.
+	#[display(fmt = "Transaction Pool Error: {}", _0)]
+	TxPool(TxPoolError),
+	/// Crypto error.
+	#[display(fmt = "Crypto Error {}", _0)]
+	Crypto(CryptoError),
+	/// Encryption error.
+	#[display(fmt = "Encryption error. ({})", _0)]
+	Encrypt(String),
+	/// Decryption error.
+	#[display(fmt = "Decryption error. ({})", _0)]
+	Decrypt(String),
+	/// Address not authorized.
+	#[display(fmt = "Private transaction execution is not authorised for {}", _0)]
+	NotAuthorised(Address),
+	/// Transaction creates more than one contract.
+	#[display(fmt = "Private transaction created too many contracts")]
+	TooManyContracts,
+	/// Contract call error.
+	#[display(fmt = "Contract call error. ({})", _0)]
+	Call(String),
+	/// State is not available.
+	#[display(fmt = "State is not available")]
+	StatePruned,
+	/// State is incorrect.
+	#[display(fmt = "State is incorrect")]
+	StateIncorrect,
+	/// Wrong private transaction type.
+	#[display(fmt = "Wrong private transaction type")]
+	BadTransactionType,
+	/// Contract does not exist or was not created.
+	#[display(fmt = "Contract does not exist or was not created")]
+	ContractDoesNotExist,
+	/// Reference to the client is corrupted.
+	#[display(fmt = "Reference to the client is corrupted")]
+	ClientIsMalformed,
+	/// Queue of private transactions for verification is full.
+	#[display(fmt = "Queue of private transactions for verification is full")]
+	QueueIsFull,
+	/// The transaction already exists in queue of private transactions.
+	#[display(fmt = "The transaction already exists in queue of private transactions.")]
+	PrivateTransactionAlreadyImported,
+	/// The information about private transaction is not found in the store.
+	#[display(fmt = "The information about private transaction is not found in the store.")]
+	PrivateTransactionNotFound,
+	/// Account for signing public transactions not set.
+	#[display(fmt = "Account for signing public transactions not set.")]
+	SignerAccountNotSet,
+	/// Account for validating private transactions not set.
+	#[display(fmt = "Account for validating private transactions not set.")]
+	ValidatorAccountNotSet,
+	/// Account for signing requests to key server not set.
+	#[display(fmt = "Account for signing requests to key server not set.")]
+	KeyServerAccountNotSet,
+	/// Encryption key is not found on key server.
+	#[display(fmt = "Encryption key is not found on key server for {}", _0)]
+	EncryptionKeyNotFound(Address),
+	/// Key server URL is not set.
+	#[display(fmt = "Key server URL is not set.")]
+	KeyServerNotSet,
+	/// VM execution error.
+	#[display(fmt = "VM execution error {}", _0)]
+	Execution(ExecutionError),
+	/// General signing error.
+	#[display(fmt = "General signing error {}", _0)]
+	Key(KeyError),
+	/// Error of transactions processing.
+	#[display(fmt = "Error of transactions processing {}", _0)]
+	Transaction(TransactionError),
+	/// General ethcore error.
+	#[display(fmt = "General ethcore error {}", _0)]
+	Ethcore(EthcoreError),
+	/// A convenient variant for String.
+	#[display(fmt = "{}", _0)]
+	Msg(String),
+}
+
+impl error::Error for Error {
+	fn source(&self) -> Option<&(error::Error + 'static)> {
+		match self {
+			Error::Io(e) => Some(e),
+			Error::Decoder(e) => Some(e),
+			Error::Trie(e) => Some(e),
+			Error::TxPool(e) => Some(e),
+			Error::Crypto(e) => Some(e),
+			Error::Execution(e) => Some(e),
+			Error::Key(e) => Some(e),
+			Error::Transaction(e) => Some(e),
+			Error::Ethcore(e) => Some(e),
+			_ => None,
+		}
 	}
+}
 
-	errors {
-		#[doc = "Encryption error."]
-		Encrypt(err: String) {
-			description("Encryption error"),
-			display("Encryption error. ({})", err),
-		}
+impl From<String> for Error {
+	fn from(s: String) -> Self {
+		Error::Msg(s)
+	}
+}
 
-		#[doc = "Decryption error."]
-		Decrypt(err: String) {
-			description("Decryption error"),
-			display("Decryption error. ({})", err),
-		}
-
-		#[doc = "Address not authorized."]
-		NotAuthorised(address: Address) {
-			description("Address not authorized"),
-			display("Private transaction execution is not authorised for {}", address),
-		}
-
-		#[doc = "Transaction creates more than one contract."]
-		TooManyContracts {
-			description("Transaction creates more than one contract."),
-			display("Private transaction created too many contracts"),
-		}
-
-		#[doc = "Contract call error."]
-		Call(err: String) {
-			description("Contract call error."),
-			display("Contract call error. ({})", err),
-		}
-
-		#[doc = "State is not available."]
-		StatePruned {
-			description("State is not available."),
-			display("State is not available"),
-		}
-
-		#[doc = "State is incorrect."]
-		StateIncorrect {
-			description("State is incorrect."),
-			display("State is incorrect"),
-		}
-
-		#[doc = "Wrong private transaction type."]
-		BadTransactionType {
-			description("Wrong private transaction type."),
-			display("Wrong private transaction type"),
-		}
-
-		#[doc = "Contract does not exist or was not created."]
-		ContractDoesNotExist {
-			description("Contract does not exist or was not created."),
-			display("Contract does not exist or was not created"),
-		}
-
-		#[doc = "Reference to the client is corrupted."]
-		ClientIsMalformed {
-			description("Reference to the client is corrupted."),
-			display("Reference to the client is corrupted"),
-		}
-
-		#[doc = "Queue of private transactions for verification is full."]
-		QueueIsFull {
-			description("Queue of private transactions for verification is full."),
-			display("Queue of private transactions for verification is full"),
-		}
-
-		#[doc = "The transaction already exists in queue of private transactions."]
-		PrivateTransactionAlreadyImported {
-			description("The transaction already exists in queue of private transactions."),
-			display("The transaction already exists in queue of private transactions."),
-		}
-
-		#[doc = "The information about private transaction is not found in the store."]
-		PrivateTransactionNotFound {
-			description("The information about private transaction is not found in the store."),
-			display("The information about private transaction is not found in the store."),
-		}
-
-		#[doc = "Account for signing public transactions not set."]
-		SignerAccountNotSet {
-			description("Account for signing public transactions not set."),
-			display("Account for signing public transactions not set."),
-		}
-
-		#[doc = "Account for validating private transactions not set."]
-		ValidatorAccountNotSet {
-			description("Account for validating private transactions not set."),
-			display("Account for validating private transactions not set."),
-		}
-
-		#[doc = "Account for signing requests to key server not set."]
-		KeyServerAccountNotSet {
-			description("Account for signing requests to key server not set."),
-			display("Account for signing requests to key server not set."),
-		}
-
-		#[doc = "Encryption key is not found on key server."]
-		EncryptionKeyNotFound(address: Address) {
-			description("Encryption key is not found on key server"),
-			display("Encryption key is not found on key server for {}", address),
-		}
-
-		#[doc = "Key server URL is not set."]
-		KeyServerNotSet {
-			description("Key server URL is not set."),
-			display("Key server URL is not set."),
-		}
-
-		#[doc = "VM execution error."]
-		Execution(err: ExecutionError) {
-			description("VM execution error."),
-			display("VM execution error {}", err),
-		}
-
-		#[doc = "General signing error."]
-		Key(err: KeyError) {
-			description("General signing error."),
-			display("General signing error {}", err),
-		}
-
-		#[doc = "Error of transactions processing."]
-		Transaction(err: TransactionError) {
-			description("Error of transactions processing."),
-			display("Error of transactions processing {}", err),
-		}
-
-		#[doc = "General ethcore error."]
-		Ethcore(err: EthcoreError) {
-			description("General ethcore error."),
-			display("General ethcore error {}", err),
-		}
+impl From<std::io::Error> for Error {
+	fn from(err: std::io::Error) -> Self {
+		Error::Io(err).into()
 	}
 }
 
 impl From<KeyError> for Error {
 	fn from(err: KeyError) -> Self {
-		ErrorKind::Key(err).into()
+		Error::Key(err).into()
+	}
+}
+
+impl From<CryptoError> for Error {
+	fn from(err: CryptoError) -> Self {
+		Error::Crypto(err).into()
+	}
+}
+
+impl From<DecoderError> for Error {
+	fn from(err: DecoderError) -> Self {
+		Error::Decoder(err).into()
 	}
 }
 
 impl From<ExecutionError> for Error {
 	fn from(err: ExecutionError) -> Self {
-		ErrorKind::Execution(err).into()
+		Error::Execution(err).into()
 	}
 }
 
 impl From<TransactionError> for Error {
 	fn from(err: TransactionError) -> Self {
-		ErrorKind::Transaction(err).into()
+		Error::Transaction(err).into()
+	}
+}
+
+impl From<TrieError> for Error {
+	fn from(err: TrieError) -> Self {
+		Error::Trie(err).into()
+	}
+}
+
+impl From<TxPoolError> for Error {
+	fn from(err: TxPoolError) -> Self {
+		Error::TxPool(err).into()
 	}
 }
 
 impl From<EthcoreError> for Error {
 	fn from(err: EthcoreError) -> Self {
-		ErrorKind::Ethcore(err).into()
+		Error::Ethcore(err).into()
 	}
 }
 

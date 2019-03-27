@@ -514,6 +514,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "derive_more"
+version = "0.14.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+dependencies = [
+ "proc-macro2 0.4.20 (registry+https://github.com/rust-lang/crates.io-index)",
+ "quote 0.6.8 (registry+https://github.com/rust-lang/crates.io-index)",
+ "rustc_version 0.2.3 (registry+https://github.com/rust-lang/crates.io-index)",
+ "syn 0.15.26 (registry+https://github.com/rust-lang/crates.io-index)",
+]
+
+[[package]]
 name = "difference"
 version = "1.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1006,8 +1017,8 @@ name = "ethcore-private-tx"
 version = "1.0.0"
 dependencies = [
  "common-types 0.1.0",
+ "derive_more 0.14.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "env_logger 0.5.13 (registry+https://github.com/rust-lang/crates.io-index)",
- "error-chain 0.12.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "ethabi 6.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "ethabi-contract 6.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "ethabi-derive 6.0.2 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -4513,6 +4524,7 @@ dependencies = [
 "checksum csv-core 0.1.4 (registry+https://github.com/rust-lang/crates.io-index)" = "4dd8e6d86f7ba48b4276ef1317edc8cc36167546d8972feb4a2b5fec0b374105"
 "checksum ct-logs 0.5.1 (registry+https://github.com/rust-lang/crates.io-index)" = "1b4660f8b07a560a88c02d76286edb9f0d5d64e495d2b0f233186155aa51be1f"
 "checksum ctrlc 1.1.1 (git+https://github.com/paritytech/rust-ctrlc.git)" = "<none>"
+"checksum derive_more 0.14.0 (registry+https://github.com/rust-lang/crates.io-index)" = "fbe9f11be34f800b3ecaaed0ec9ec2e015d1d0ba0c8644c1310f73d6e8994615"
 "checksum difference 1.0.0 (registry+https://github.com/rust-lang/crates.io-index)" = "b3304d19798a8e067e48d8e69b2c37f0b5e9b4e462504ad9e27e9f3fce02bba8"
 "checksum digest 0.7.6 (registry+https://github.com/rust-lang/crates.io-index)" = "03b072242a8cbaf9c145665af9d250c59af3b958f83ed6824e13533cf76d5b90"
 "checksum docopt 1.0.2 (registry+https://github.com/rust-lang/crates.io-index)" = "db2906c2579b5b7207fc1e328796a9a8835dc44e22dbe8e460b1d636f9a7b225"
