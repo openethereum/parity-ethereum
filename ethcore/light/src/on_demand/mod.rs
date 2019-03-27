@@ -101,8 +101,7 @@ pub trait OnDemandRequester: Send + Sync {
 	/// Fails if back-reference are not coherent.
 	fn request<T>(&self, ctx: &BasicContext, requests: T) -> Result<OnResponses<T>, basic_request::NoSuchOutput>
 	where
-		T: request::RequestAdapter,
-		Self: Sized;
+		T: request::RequestAdapter;
 
 	/// Submit a vector of requests to be processed together.
 	///
