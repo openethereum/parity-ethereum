@@ -27,7 +27,7 @@ use futures::{future, Future};
 use futures::future::Either;
 
 use light::client::fetch::ChainDataFetcher;
-use light::on_demand::{request, OnDemand};
+use light::on_demand::{request, OnDemand, OnDemandRequester};
 
 use parking_lot::RwLock;
 use ethereum_types::H256;

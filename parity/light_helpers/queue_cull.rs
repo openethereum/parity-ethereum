@@ -24,7 +24,7 @@ use sync::{LightSync, LightNetworkDispatcher};
 use io::{IoContext, IoHandler, TimerToken};
 
 use light::client::LightChainClient;
-use light::on_demand::{request, OnDemand};
+use light::on_demand::{request, OnDemand, OnDemandRequester};
 use light::TransactionQueue;
 
 use futures::{future, Future};
