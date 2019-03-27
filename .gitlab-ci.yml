@@ -33,7 +33,7 @@ variables:
 
 .docker-cache-status:              &docker-cache-status
   variables:
-    CARGO_HOME:                    "/cargo/${CI_JOB_NAME}"
+    CARGO_HOME:                    "/ci-cache/parity-ethereum/cargo/${CI_JOB_NAME}"
   before_script:
     - SCCACHE_ERROR_LOG=/builds/parity/parity-ethereum/sccache_error.log RUST_LOG=sccache::server=debug sccache --start-server
     - sccache -s
@@ -102,18 +102,18 @@ build-android:
     CARGO_TARGET:                  armv7-linux-androideabi
   script:
     - scripts/gitlab/build-linux.sh
+  <<:                              *collect_artifacts
   tags:
     - linux-docker
-  <<:                              *collect_artifacts
 
 build-linux:                       &build-linux
   stage:                           build
   only:                            *releaseable_branches
   <<:                              *docker-cache-status
+  <<:                              *collect_artifacts
   script:
     - scripts/gitlab/build-linux.sh
     - sccache -s
-  <<:                              *collect_artifacts
 
 build-linux-i386:
   <<:                              *build-linux
@@ -136,6 +136,7 @@ build-linux-armhf:
 build-darwin:
   stage:                           build
   only:                            *releaseable_branches
+  <<:                              *collect_artifacts
   variables:
     CARGO_TARGET:                  x86_64-apple-darwin
     CARGO_HOME:                      "${CI_PROJECT_DIR}/.cargo"
@@ -145,19 +146,20 @@ build-darwin:
     - scripts/gitlab/build-linux.sh
   tags:
     - rust-osx
-  <<:                              *collect_artifacts
 
 build-windows:
   stage:                           build
+  <<:                              *collect_artifacts
   only:                            *releaseable_branches
   variables:
     CARGO_TARGET:                  x86_64-pc-windows-msvc
-    CARGO_HOME:                      "${CI_PROJECT_DIR}/.cargo"
+    CARGO_HOME:                    "C:/ci-cache/parity-ethereum/cargo/%CI_JOB_NAME%"
+    RUSTC_WRAPPER:                 sccache
+    SCCACHE_DIR:                   "C:/ci-cache/parity-ethereum/sccache"
   script:
     - sh scripts/gitlab/build-windows.sh
   tags:
     - rust-windows
-  <<:                              *collect_artifacts
 
 publish-docker:
   stage:                           publish
@@ -173,6 +175,7 @@ publish-docker:
 publish-snap:                      &publish-snap
   stage:                           publish
   only:                            *releaseable_branches
+  <<:                              *collect_artifacts
   image:                           snapcore/snapcraft
   variables:
     BUILD_ARCH:                    amd64
@@ -183,7 +186,6 @@ publish-snap:                      &publish-snap
     - linux-docker
   script:
     - scripts/gitlab/publish-snap.sh
-  <<:                              *collect_artifacts
 
 publish-snap-i386:
   <<:                              *publish-snap
