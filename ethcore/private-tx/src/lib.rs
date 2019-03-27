@@ -54,8 +54,7 @@ extern crate log;
 extern crate ethabi_derive;
 #[macro_use]
 extern crate ethabi_contract;
-#[macro_use]
-extern crate error_chain;
+extern crate derive_more;
 #[macro_use]
 extern crate rlp_derive;
 
@@ -68,7 +67,7 @@ pub use encryptor::{Encryptor, SecretStoreEncryptor, EncryptorConfig, NoopEncryp
 pub use key_server_keys::{KeyProvider, SecretStoreKeys, StoringKeyProvider};
 pub use private_transactions::{VerifiedPrivateTransaction, VerificationStore, PrivateTransactionSigningDesc, SigningStore};
 pub use messages::{PrivateTransaction, SignedPrivateTransaction};
-pub use error::{Error, ErrorKind};
+pub use error::Error;
 
 use std::sync::{Arc, Weak};
 use std::collections::{HashMap, HashSet, BTreeMap};
@@ -238,10 +237,10 @@ impl Provider {
 		trace!(target: "privatetx", "Creating private transaction from regular transaction: {:?}", signed_transaction);
 		if self.signer_account.is_none() {
 			warn!(target: "privatetx", "Signing account not set");
-			bail!(ErrorKind::SignerAccountNotSet);
+			return Err(Error::SignerAccountNotSet);
 		}
 		let tx_hash = signed_transaction.hash();
-		let contract = Self::contract_address_from_transaction(&signed_transaction).map_err(|_| ErrorKind::BadTransactionType)?;
+		let contract = Self::contract_address_from_transaction(&signed_transaction).map_err(|_| Error::BadTransactionType)?;
 		let data = signed_transaction.rlp_bytes();
 		let encrypted_transaction = self.encrypt(&contract, &Self::iv_from_transaction(&signed_transaction), &data)?;
 		let private = PrivateTransaction::new(encrypted_transaction, contract);
@@ -309,19 +308,19 @@ impl Provider {
 					// TODO #9825 [ToDr] Usage of BlockId::Latest
 					let contract_nonce = self.get_contract_nonce(&contract, BlockId::Latest);
 					if let Err(e) = contract_nonce {
-						bail!("Cannot retrieve contract nonce: {:?}", e);
+						return Err(format!("Cannot retrieve contract nonce: {:?}", e).into());
 					}
 					let contract_nonce = contract_nonce.expect("Error was checked before");
 					let private_state = self.execute_private_transaction(BlockId::Latest, &transaction.transaction);
 					if let Err(e) = private_state {
-						bail!("Cannot retrieve private state: {:?}", e);
+						return Err(format!("Cannot retrieve private state: {:?}", e).into());
 					}
 					let private_state = private_state.expect("Error was checked before");
 					let private_state_hash = self.calculate_state_hash(&private_state, contract_nonce);
 					trace!(target: "privatetx", "Hashed effective private state for validator: {:?}", private_state_hash);
 					let signed_state = self.accounts.sign(validator_account, private_state_hash);
 					if let Err(e) = signed_state {
-						bail!("Cannot sign the state: {:?}", e);
+						return Err(format!("Cannot sign the state: {:?}", e).into());
 					}
 					let signed_state = signed_state.expect("Error was checked before");
 					let signed_private_transaction = SignedPrivateTransaction::new(private_hash, signed_state, None);
@@ -362,8 +361,8 @@ impl Provider {
 			signatures.push(signed_tx.signature());
 			let rsv: Vec<Signature> = signatures.into_iter().map(|sign| sign.into_electrum().into()).collect();
 			// Create public transaction
-			let signer_account = self.signer_account.ok_or_else(|| ErrorKind::SignerAccountNotSet)?;
-			let state = self.client.state_at(BlockId::Latest).ok_or(ErrorKind::StatePruned)?;
+			let signer_account = self.signer_account.ok_or_else(|| Error::SignerAccountNotSet)?;
+			let state = self.client.state_at(BlockId::Latest).ok_or(Error::StatePruned)?;
 			let nonce = state.nonce(&signer_account)?;
 			let public_tx = self.public_transaction(
 				desc.state.clone(),
@@ -382,7 +381,7 @@ impl Provider {
 				Ok(_) => trace!(target: "privatetx", "Public transaction added to queue"),
 				Err(err) => {
 					warn!(target: "privatetx", "Failed to add transaction to queue, error: {:?}", err);
-					bail!(err);
+					return Err(err.into());
 				}
 			}
 			// Notify about state changes
@@ -397,7 +396,7 @@ impl Provider {
 			// Remove from store for signing
 			if let Err(err) = self.transactions_for_signing.write().remove(&private_hash) {
 				warn!(target: "privatetx", "Failed to remove transaction from signing store, error: {:?}", err);
-				bail!(err);
+				return Err(err);
 			}
 		} else {
 			// Add signature to the store
@@ -405,7 +404,7 @@ impl Provider {
 				Ok(_) => trace!(target: "privatetx", "Signature stored for private transaction"),
 				Err(err) => {
 					warn!(target: "privatetx", "Failed to add signature to signing store, error: {:?}", err);
-					bail!(err);
+					return Err(err);
 				}
 			}
 		}
@@ -417,7 +416,7 @@ impl Provider {
 			Action::Call(contract) => Ok(contract),
 			_ => {
 				warn!(target: "privatetx", "Incorrect type of action for the transaction");
-				bail!(ErrorKind::BadTransactionType);
+				return Err(Error::BadTransactionType);
 			}
 		}
 	}
@@ -436,13 +435,13 @@ impl Provider {
 					}
 					false => {
 						warn!(target: "privatetx", "Sender's state doesn't correspond to validator's");
-						bail!(ErrorKind::StateIncorrect);
+						return Err(Error::StateIncorrect);
 					}
 				}
 			}
 			Err(err) => {
 				warn!(target: "privatetx", "Sender's state doesn't correspond to validator's, error {:?}", err);
-				bail!(err);
+				return Err(err.into());
 			}
 		}
 	}
@@ -482,21 +481,21 @@ impl Provider {
 	fn get_decrypted_state(&self, address: &Address, block: BlockId) -> Result<Bytes, Error> {
 		let (data, decoder) = private_contract::functions::state::call();
 		let value = self.client.call_contract(block, *address, data)?;
-		let state = decoder.decode(&value).map_err(|e| ErrorKind::Call(format!("Contract call failed {:?}", e)))?;
+		let state = decoder.decode(&value).map_err(|e| Error::Call(format!("Contract call failed {:?}", e)))?;
 		self.decrypt(address, &state)
 	}
 
 	fn get_decrypted_code(&self, address: &Address, block: BlockId) -> Result<Bytes, Error> {
 		let (data, decoder) = private_contract::functions::code::call();
 		let value = self.client.call_contract(block, *address, data)?;
-		let state = decoder.decode(&value).map_err(|e| ErrorKind::Call(format!("Contract call failed {:?}", e)))?;
+		let state = decoder.decode(&value).map_err(|e| Error::Call(format!("Contract call failed {:?}", e)))?;
 		self.decrypt(address, &state)
 	}
 
 	pub fn get_contract_nonce(&self, address: &Address, block: BlockId) -> Result<U256, Error> {
 		let (data, decoder) = private_contract::functions::nonce::call();
 		let value = self.client.call_contract(block, *address, data)?;
-		decoder.decode(&value).map_err(|e| ErrorKind::Call(format!("Contract call failed {:?}", e)).into())
+		decoder.decode(&value).map_err(|e| Error::Call(format!("Contract call failed {:?}", e)).into())
 	}
 
 	fn snapshot_to_storage(raw: Bytes) -> HashMap<H256, H256> {
@@ -533,10 +532,10 @@ impl Provider {
 			T: Tracer,
 			V: VMTracer,
 	{
-		let mut env_info = self.client.env_info(block).ok_or(ErrorKind::StatePruned)?;
+		let mut env_info = self.client.env_info(block).ok_or(Error::StatePruned)?;
 		env_info.gas_limit = transaction.gas;
 
-		let mut state = self.client.state_at(block).ok_or(ErrorKind::StatePruned)?;
+		let mut state = self.client.state_at(block).ok_or(Error::StatePruned)?;
 		// TODO #9825 in case of BlockId::Latest these need to operate on the same state
 		let contract_address = match transaction.action {
 			Action::Call(ref contract_address) => {
@@ -612,15 +611,15 @@ impl Provider {
 	/// Create encrypted public contract deployment transaction.
 	pub fn public_creation_transaction(&self, block: BlockId, source: &SignedTransaction, validators: &[Address], gas_price: U256) -> Result<(Transaction, Address), Error> {
 		if let Action::Call(_) = source.action {
-			bail!(ErrorKind::BadTransactionType);
+			return Err(Error::BadTransactionType);
 		}
 		let sender = source.sender();
-		let state = self.client.state_at(block).ok_or(ErrorKind::StatePruned)?;
+		let state = self.client.state_at(block).ok_or(Error::StatePruned)?;
 		let nonce = state.nonce(&sender)?;
 		let executed = self.execute_private(source, TransactOptions::with_no_tracing(), block)?;
 		let header = self.client.block_header(block)
-			.ok_or(ErrorKind::StatePruned)
-			.and_then(|h| h.decode().map_err(|_| ErrorKind::StateIncorrect).into())?;
+			.ok_or(Error::StatePruned)
+			.and_then(|h| h.decode().map_err(|_| Error::StateIncorrect).into())?;
 		let (executed_code, executed_state) = (executed.code.unwrap_or_default(), executed.state);
 		let tx_data = Self::generate_constructor(validators, executed_code.clone(), executed_state.clone());
 		let mut tx = Transaction {
@@ -651,7 +650,7 @@ impl Provider {
 	/// Create encrypted public contract deployment transaction. Returns updated encrypted state.
 	pub fn execute_private_transaction(&self, block: BlockId, source: &SignedTransaction) -> Result<Bytes, Error> {
 		if let Action::Create = source.action {
-			bail!(ErrorKind::BadTransactionType);
+			return Err(Error::BadTransactionType);
 		}
 		let result = self.execute_private(source, TransactOptions::with_no_tracing(), block)?;
 		Ok(result.state)
@@ -680,7 +679,7 @@ impl Provider {
 	pub fn get_validators(&self, block: BlockId, address: &Address) -> Result<Vec<Address>, Error> {
 		let (data, decoder) = private_contract::functions::get_validators::call();
 		let value = self.client.call_contract(block, *address, data)?;
-		decoder.decode(&value).map_err(|e| ErrorKind::Call(format!("Contract call failed {:?}", e)).into())
+		decoder.decode(&value).map_err(|e| Error::Call(format!("Contract call failed {:?}", e)).into())
 	}
 
 	fn get_contract_version(&self, block: BlockId, address: &Address) -> usize {
