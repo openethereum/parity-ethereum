@@ -23,7 +23,10 @@ use ethcore::error::{Error as EthcoreError, ExecutionError};
 use types::transaction::Error as TransactionError;
 use ethkey::Error as KeyError;
 use ethkey::crypto::Error as CryptoError;
-use txpool::{Error as TxPoolError};
+use txpool::VerifiedTransaction;
+use private_transactions::VerifiedPrivateTransaction;
+
+type TxPoolError = txpool::Error<<VerifiedPrivateTransaction as VerifiedTransaction>::Hash>;
 
 #[derive(Debug, Display)]
 pub enum Error {
