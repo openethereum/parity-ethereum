@@ -288,7 +288,7 @@ where
 	}
 
 	fn balance(&self, address: H160, num: Option<BlockNumber>) -> BoxFuture<U256> {
-		Box::new(self.fetcher().account(address, num.unwrap_or_default().to_block_id())
+		Box::new(self.fetcher().account(address, num.unwrap_or_default().to_block_id(), self.transaction_queue.clone())
 			.map(|acc| acc.map_or(0.into(), |a| a.balance)))
 	}
 
@@ -305,7 +305,7 @@ where
 	}
 
 	fn transaction_count(&self, address: H160, num: Option<BlockNumber>) -> BoxFuture<U256> {
-		Box::new(self.fetcher().account(address, num.unwrap_or_default().to_block_id())
+		Box::new(self.fetcher().account(address, num.unwrap_or_default().to_block_id(), self.transaction_queue.clone())
 			.map(|acc| acc.map_or(0.into(), |a| a.nonce)))
 	}
 
@@ -401,7 +401,7 @@ where
 	}
 
 	fn call(&self, req: CallRequest, num: Option<BlockNumber>) -> BoxFuture<Bytes> {
-		Box::new(self.fetcher().proved_read_only_execution(req, num).and_then(|res| {
+		Box::new(self.fetcher().proved_read_only_execution(req, num, self.transaction_queue.clone()).and_then(|res| {
 			match res {
 				Ok(exec) => Ok(exec.output.into()),
 				Err(e) => Err(errors::execution(e)),
@@ -411,7 +411,7 @@ where
 
 	fn estimate_gas(&self, req: CallRequest, num: Option<BlockNumber>) -> BoxFuture<U256> {
 		// TODO: binary chop for more accurate estimates.
-		Box::new(self.fetcher().proved_read_only_execution(req, num).and_then(|res| {
+		Box::new(self.fetcher().proved_read_only_execution(req, num, self.transaction_queue.clone()).and_then(|res| {
 			match res {
 				Ok(exec) => Ok(exec.refunded + exec.gas_used),
 				Err(e) => Err(errors::execution(e)),
