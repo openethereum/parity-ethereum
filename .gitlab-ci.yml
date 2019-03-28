@@ -97,12 +97,13 @@ test-linux:
 
 build-android:
   stage:                           build
-  image:                           parity/rust-android:gitlab-ci
+  image:                           parity/rust-parity-ethereum-android-build:stretch
   variables:
     CARGO_TARGET:                  armv7-linux-androideabi
+  <<:                              *docker-cache-status
+  <<:                              *collect_artifacts
   script:
     - scripts/gitlab/build-linux.sh
-  <<:                              *collect_artifacts
   tags:
     - linux-docker
 
