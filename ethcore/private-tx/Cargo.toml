@@ -7,7 +7,7 @@ authors = ["Parity Technologies <admin@parity.io>"]
 
 [dependencies]
 common-types = { path = "../types" }
-error-chain = { version = "0.12", default-features = false }
+derive_more = "0.14.0"
 ethabi = "6.0"
 ethabi-contract = "6.0"
 ethabi-derive = "6.0"

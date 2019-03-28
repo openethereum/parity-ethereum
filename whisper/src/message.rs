@@ -24,6 +24,9 @@ use rlp::{self, DecoderError, RlpStream, Rlp};
 use smallvec::SmallVec;
 use tiny_keccak::{keccak256, Keccak};
 
+#[cfg(not(time_checked_add))]
+use time_utils::CheckedSystemTime;
+
 /// Work-factor proved. Takes 3 parameters: size of message, time to live,
 /// and hash.
 ///
@@ -117,6 +120,7 @@ pub enum Error {
 	EmptyTopics,
 	LivesTooLong,
 	IssuedInFuture,
+	TimestampOverflow,
 	ZeroTTL,
 }
 
@@ -133,6 +137,7 @@ impl fmt::Display for Error {
 			Error::LivesTooLong => write!(f, "Message claims to be issued before the unix epoch."),
 			Error::IssuedInFuture => write!(f, "Message issued in future."),
 			Error::ZeroTTL => write!(f, "Message live for zero time."),
+			Error::TimestampOverflow => write!(f, "Timestamp overflow"),
 			Error::EmptyTopics => write!(f, "Message has no topics."),
 		}
 	}
@@ -226,10 +231,6 @@ impl rlp::Decodable for Envelope {
 	}
 }
 
-/// Error indicating no topics.
-#[derive(Debug, Copy, Clone)]
-pub struct EmptyTopics;
-
 /// Message creation parameters.
 /// Pass this to `Message::create` to make a message.
 pub struct CreateParams {
@@ -255,11 +256,11 @@ pub struct Message {
 impl Message {
 	/// Create a message from creation parameters.
 	/// Panics if TTL is 0.
-	pub fn create(params: CreateParams) -> Result<Self, EmptyTopics> {
+	pub fn create(params: CreateParams) -> Result<Self, Error> {
 		use byteorder::{BigEndian, ByteOrder};
 		use rand::{Rng, SeedableRng, XorShiftRng};
 
-		if params.topics.is_empty() { return Err(EmptyTopics) }
+		if params.topics.is_empty() { return Err(Error::EmptyTopics) }
 
 		let mut rng = {
 			let mut thread_rng = ::rand::thread_rng();
@@ -270,7 +271,8 @@ impl Message {
 		assert!(params.ttl > 0);
 
 		let expiry = {
-			let after_mining = SystemTime::now() + Duration::from_millis(params.work);
+			let after_mining = SystemTime::now().checked_sub(Duration::from_millis(params.work))
+				.ok_or(Error::TimestampOverflow)?;
 			let since_epoch = after_mining.duration_since(time::UNIX_EPOCH)
 				.expect("time after now is after unix epoch; qed");
 
@@ -357,7 +359,10 @@ impl Message {
 			(envelope.expiry - envelope.ttl).saturating_sub(LEEWAY_SECONDS)
 		);
 
-		if time::UNIX_EPOCH + issue_time_adjusted > now {
+		let issue_time_adjusted = time::UNIX_EPOCH.checked_add(issue_time_adjusted)
+			.ok_or(Error::TimestampOverflow)?;
+
+		if issue_time_adjusted > now {
 			return Err(Error::IssuedInFuture);
 		}
 
@@ -400,8 +405,8 @@ impl Message {
 	}
 
 	/// Get the expiry time.
-	pub fn expiry(&self) -> SystemTime {
-		time::UNIX_EPOCH + Duration::from_secs(self.envelope.expiry)
+	pub fn expiry(&self) -> Option<SystemTime> {
+		time::UNIX_EPOCH.checked_add(Duration::from_secs(self.envelope.expiry))
 	}
 
 	/// Get the topics.

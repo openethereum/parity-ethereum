@@ -214,7 +214,6 @@ impl Author {
 	}
 }
 
-
 struct SealingWork {
 	queue: UsingQueue<ClosedBlock>,
 	enabled: bool,
@@ -630,7 +629,10 @@ impl Miner {
 		}
 	}
 
-	/// Attempts to perform internal sealing (one that does not require work) and handles the result depending on the type of Seal.
+	// TODO: (https://github.com/paritytech/parity-ethereum/issues/10407)
+	// This is only used in authority_round path, and should be refactored to merge with the other seal() path.
+	// Attempts to perform internal sealing (one that does not require work) and handles the result depending on the
+	// type of Seal.
 	fn seal_and_import_block_internally<C>(&self, chain: &C, block: ClosedBlock) -> bool
 		where C: BlockChain + SealedBlockImporter,
 	{
@@ -1142,7 +1144,7 @@ impl miner::MinerService for Miner {
 		if block.header.number() == 1 {
 			if let Some(name) = self.engine.params().nonzero_bugfix_hard_fork() {
 				warn!("Your chain specification contains one or more hard forks which are required to be \
-					   on by default. Please remove these forks and start your chain again: {}.", name);
+						on by default. Please remove these forks and start your chain again: {}.", name);
 				return;
 			}
 		}

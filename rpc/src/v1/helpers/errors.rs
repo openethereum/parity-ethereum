@@ -173,11 +173,11 @@ pub fn state_corrupt() -> Error {
 	internal("State corrupt", "")
 }
 
-pub fn exceptional() -> Error {
+pub fn exceptional<T: fmt::Display>(data: T) -> Error {
 	Error {
 		code: ErrorCode::ServerError(codes::EXCEPTION_ERROR),
 		message: "The execution failed due to an exception.".into(),
-		data: None,
+		data: Some(Value::String(data.to_string())),
 	}
 }
 
@@ -467,7 +467,7 @@ pub fn call(error: CallError) -> Error {
 	match error {
 		CallError::StatePruned => state_pruned(),
 		CallError::StateCorrupt => state_corrupt(),
-		CallError::Exceptional => exceptional(),
+		CallError::Exceptional(e) => exceptional(e),
 		CallError::Execution(e) => execution(e),
 		CallError::TransactionNotFound => internal("{}, this should not be the case with eth_call, most likely a bug.", CallError::TransactionNotFound),
 	}

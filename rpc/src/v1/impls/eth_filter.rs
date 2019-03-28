@@ -68,8 +68,8 @@ impl<C, M> EthFilterClient<C, M> {
 	/// Creates new Eth filter client.
 	pub fn new(client: Arc<C>, miner: Arc<M>, poll_lifetime: u32) -> Self {
 		EthFilterClient {
-			client: client,
-			miner: miner,
+			client,
+			miner,
 			polls: Mutex::new(PollManager::new(poll_lifetime)),
 		}
 	}
@@ -188,17 +188,14 @@ impl<T: Filterable + Send + Sync + 'static> EthFilter for T {
 				let mut hashes = Vec::new();
 				for n in (*last_block_number + 1)..=current_number {
 					let block_number = BlockId::Number(n);
-					match self.block_hash(block_number) {
-						Some(hash) => {
-							*last_block_number = n;
-							hashes.push(H256::from(hash));
-							// Only keep the most recent history
-							if recent_reported_hashes.len() >= PollFilter::MAX_BLOCK_HISTORY_SIZE {
-								recent_reported_hashes.pop_back();
-							}
-							recent_reported_hashes.push_front((n, hash));
-						},
-						None => (),
+					if let Some(hash) = self.block_hash(block_number) {
+						*last_block_number = n;
+						hashes.push(hash);
+						// Only keep the most recent history
+						if recent_reported_hashes.len() >= PollFilter::MAX_BLOCK_HISTORY_SIZE {
+							recent_reported_hashes.pop_back();
+						}
+						recent_reported_hashes.push_front((n, hash));
 					}
 				}
 

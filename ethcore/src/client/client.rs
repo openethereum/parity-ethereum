@@ -399,6 +399,7 @@ impl Importer {
 		let db = client.state_db.read().boxed_clone_canon(header.parent_hash());
 
 		let is_epoch_begin = chain.epoch_transition(parent.number(), *header.parent_hash()).is_some();
+
 		let enact_result = enact_verified(
 			block,
 			engine,
@@ -1570,22 +1571,27 @@ impl Call for Client {
 			let schedule = machine.schedule(env_info.number);
 			Executive::new(&mut clone, &env_info, &machine, &schedule)
 				.transact_virtual(&tx, options())
-				.ok()
-				.map(|r| r.exception.is_none())
 		};
 
-		let cond = |gas| exec(gas).unwrap_or(false);
+		let cond = |gas| {
+			exec(gas)
+				.ok()
+				.map_or(false, |r| r.exception.is_none())
+		};
 
 		if !cond(upper) {
 			upper = max_upper;
 			match exec(upper) {
-				Some(false) => return Err(CallError::Exceptional),
-				None => {
+				Ok(v) => {
+					if let Some(exception) = v.exception {
+						return Err(CallError::Exceptional(exception))
+					}
+				},
+				Err(_e) => {
 					trace!(target: "estimate_gas", "estimate_gas failed with {}", upper);
 					let err = ExecutionError::Internal(format!("Requires higher than upper limit of {}", upper));
 					return Err(err.into())
-				},
-				_ => {},
+				}
 			}
 		}
 		let lower = t.gas_required(&self.engine.schedule(env_info.number)).into();
@@ -2515,7 +2521,11 @@ impl SnapshotClient for Client {}
 
 impl Drop for Client {
 	fn drop(&mut self) {
-		self.engine.stop();
+		if let Some(c) = Arc::get_mut(&mut self.engine) {
+			c.stop()
+		} else {
+			warn!(target: "shutdown", "unable to get mut ref for engine for shutdown.");
+		}
 	}
 }
 
