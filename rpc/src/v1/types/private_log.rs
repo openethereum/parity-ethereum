@@ -14,7 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-use v1::types::{H160, H256};
+use ethereum_types::{H160, H256};
 use ethcore_private_tx::{TransactionLog as EthTransactionLog, ValidatorLog as EthValidatorLog, PrivateTxStatus as EthStatus};
 
 /// Current status of the private transaction

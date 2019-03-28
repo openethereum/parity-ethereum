@@ -100,7 +100,7 @@ impl FileLogsSerializer {
 					Ok(file) => file,
 					Err(err) => {
 						trace!(target: "privatetx", "Cannot open logs file: {}", err);
-						bail!("Cannot open logs file: {:?}", err);
+						return Err(format!("Cannot open logs file: {:?}", err).into());
 					}
 				}
 			}
@@ -122,7 +122,7 @@ impl LogsSerializer for FileLogsSerializer {
 					Ok(logs) => logs,
 					Err(err) => {
 						error!(target: "privatetx", "Cannot deserialize logs from file: {}", err);
-						bail!("Cannot deserialize logs from file: {:?}", err);
+						return Err(format!("Cannot deserialize logs from file: {:?}", err).into());
 					}
 				};
 				Ok(transaction_logs)

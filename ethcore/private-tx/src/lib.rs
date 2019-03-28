@@ -72,7 +72,7 @@ pub use encryptor::{Encryptor, SecretStoreEncryptor, EncryptorConfig, NoopEncryp
 pub use key_server_keys::{KeyProvider, SecretStoreKeys, StoringKeyProvider};
 pub use private_transactions::{VerifiedPrivateTransaction, VerificationStore, PrivateTransactionSigningDesc, SigningStore};
 pub use messages::{PrivateTransaction, SignedPrivateTransaction};
-pub use error::{Error, ErrorKind};
+pub use error::Error;
 pub use log::{Logging, TransactionLog, ValidatorLog, PrivateTxStatus, FileLogsSerializer, SystemTimestamp};
 
 use std::sync::{Arc, Weak};
@@ -691,7 +691,7 @@ impl Provider {
 
 	/// Retrieves log information about private transaction
 	pub fn private_log(&self, tx_hash: H256) -> Result<TransactionLog, Error> {
-		self.logging.tx_log(&tx_hash).ok_or_else(|| ErrorKind::TxNotFoundInLog.into())
+		self.logging.tx_log(&tx_hash).ok_or_else(|| Error::TxNotFoundInLog.into())
 	}
 
 	/// Returns private validators for a contract.
