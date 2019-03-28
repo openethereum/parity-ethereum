@@ -16,7 +16,7 @@
 
 use std::cmp;
 use std::time::{Instant, Duration};
-use std::collections::{BTreeMap, BTreeSet, HashSet};
+use std::collections::{BTreeMap, BTreeSet, HashSet, HashMap};
 use std::sync::Arc;
 
 use ansi_term::Colour;
@@ -260,6 +260,11 @@ impl Miner {
 	/// Set a callback to be notified about imported transactions' hashes.
 	pub fn add_transactions_listener(&self, f: Box<Fn(&[H256]) + Send + Sync>) {
 		self.transaction_queue.add_listener(f);
+	}
+
+	/// Set a callback to be notified
+	pub fn add_transactions_pool_listener(&self, f: Box<Fn(HashMap<H256, String>) + Send + Sync>) {
+		self.transaction_queue.add_transactions_pool_listener(f);
 	}
 
 	/// Creates new instance of miner Arc.

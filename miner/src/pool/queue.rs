@@ -32,7 +32,7 @@ use pool::{
 };
 use pool::local_transactions::LocalTransactionsList;
 
-type Listener = (LocalTransactionsList, (listener::Notifier, listener::Logger));
+type Listener = (LocalTransactionsList, (listener::Notifier, (listener::Logger, listener::TransactionsPoolNotifier)));
 type Pool = txpool::Pool<pool::VerifiedTransaction, scoring::NonceAndGasPrice, Listener>;
 
 /// Max cache time in milliseconds for pending transactions.
@@ -570,6 +570,11 @@ impl TransactionQueue {
 	pub fn add_listener(&self, f: Box<Fn(&[H256]) + Send + Sync>) {
 		let mut pool = self.pool.write();
 		(pool.listener_mut().1).0.add(f);
+	}
+
+	pub fn add_transactions_pool_listener(&self, f: Box<Fn(HashMap<H256,String>) + Send + Sync>) {
+		let mut pool = self.pool.write();
+		((pool.listener_mut().1).1).1.add(f);
 	}
 
 	/// Check if pending set is cached.

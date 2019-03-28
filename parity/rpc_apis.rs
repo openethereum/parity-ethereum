@@ -36,6 +36,7 @@ use miner::external::ExternalMiner;
 use parity_rpc::dispatch::{FullDispatcher, LightDispatcher};
 use parity_rpc::informant::{ActivityNotifier, ClientNotifier};
 use parity_rpc::{Host, Metadata, NetworkSettings};
+use parity_rpc::v1::traits::TransactionsPool;
 use parity_runtime::Executor;
 use parking_lot::{Mutex, RwLock};
 use sync::{LightSync, ManageNetwork, SyncProvider};
@@ -80,6 +81,7 @@ pub enum Api {
 	/// Geth-compatible (best-effort) debug API (Potentially UNSAFE)
 	/// NOTE We don't aim to support all methods, only the ones that are useful.
 	Debug,
+	TransactionsPool,
 }
 
 impl FromStr for Api {
@@ -106,6 +108,7 @@ impl FromStr for Api {
 			"signer" => Ok(Signer),
 			"traces" => Ok(Traces),
 			"web3" => Ok(Web3),
+			"transactions_pool" => Ok(TransactionsPool),
 			api => Err(format!("Unknown api: {}", api)),
 		}
 	}
@@ -189,6 +192,7 @@ fn to_modules(apis: &HashSet<Api>) -> BTreeMap<String, String> {
 			Api::Web3 => ("web3", "1.0"),
 			Api::Whisper => ("shh", "1.0"),
 			Api::WhisperPubSub => ("shh_pubsub", "1.0"),
+			Api::TransactionsPool => ("transactions_pool", "1.0"),
 		};
 		modules.insert(name.into(), version.into());
 	}
@@ -334,6 +338,19 @@ impl FullDependencies {
 							self.client.add_notify(h);
 						}
 						handler.extend_with(client.to_delegate());
+					}
+				}
+				Api::TransactionsPool => {
+					if !for_generic_pubsub {
+						let client = TransactionsPoolClient::new(self.client.clone(), self.executor.clone());
+						let h = client.handler();
+						self.miner.add_transactions_pool_listener(Box::new(move |hash| {
+							if let Some(handler) = h.upgrade() {
+								handler.notify_transactions(hash);
+							}
+						}));
+
+						handler.extend_with(TransactionsPoolClient::to_delegate(client));
 					}
 				}
 				Api::Personal => {
@@ -572,6 +589,20 @@ impl<C: LightChainClient + 'static> LightDependencies<C> {
 						}));
 					handler.extend_with(EthPubSub::to_delegate(client));
 				}
+				Api::TransactionsPool => {
+					if !for_generic_pubsub {
+						let client = TransactionsPoolClient::new(self.client.clone(), self.executor.clone());
+						let h = client.handler();
+						self.transaction_queue
+							.write().add_transactions_pool_listener(Box::new(move |hash| {
+							if let Some(handler) = h.upgrade() {
+								handler.notify_transactions(hash);
+							}
+						}));
+
+						handler.extend_with(TransactionsPoolClient::to_delegate(client));
+					}
+				}
 				Api::Personal => {
 					#[cfg(feature = "accounts")]
 					handler.extend_with(
@@ -703,6 +734,7 @@ impl ApiSet {
 			Api::Whisper,
 			Api::WhisperPubSub,
 			Api::Private,
+			Api::TransactionsPool,
 		]
 			.into_iter()
 			.cloned()
@@ -768,6 +800,7 @@ mod test {
 		assert_eq!(Api::Private, "private".parse().unwrap());
 		assert_eq!(Api::Whisper, "shh".parse().unwrap());
 		assert_eq!(Api::WhisperPubSub, "shh_pubsub".parse().unwrap());
+		assert_eq!(Api::TransactionsPool, "transactions_pool".parse().unwrap());
 		assert!("rp".parse::<Api>().is_err());
 	}
 
@@ -799,6 +832,7 @@ mod test {
 			Api::Whisper,
 			Api::WhisperPubSub,
 			Api::Private,
+			Api::TransactionsPool,
 		].into_iter()
 		.collect();
 		assert_eq!(ApiSet::UnsafeContext.list_apis(), expected);

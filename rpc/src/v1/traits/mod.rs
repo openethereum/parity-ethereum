@@ -32,6 +32,7 @@ pub mod rpc;
 pub mod secretstore;
 pub mod signer;
 pub mod traces;
+pub mod transactions_pool;
 pub mod web3;
 
 pub use self::debug::Debug;
@@ -50,4 +51,5 @@ pub use self::rpc::Rpc;
 pub use self::secretstore::SecretStore;
 pub use self::signer::Signer;
 pub use self::traces::Traces;
+pub use self::transactions_pool::TransactionsPool;
 pub use self::web3::Web3;

@@ -36,6 +36,7 @@ mod signer;
 mod signing;
 mod signing_unsafe;
 mod traces;
+mod transactions_pool;
 mod web3;
 
 pub mod light;
@@ -44,6 +45,7 @@ pub use self::debug::DebugClient;
 pub use self::eth::{EthClient, EthClientOptions};
 pub use self::eth_filter::EthFilterClient;
 pub use self::eth_pubsub::EthPubSubClient;
+pub use self::transactions_pool::TransactionsPoolClient;
 pub use self::net::NetClient;
 pub use self::parity::ParityClient;
 #[cfg(any(test, feature = "accounts"))]

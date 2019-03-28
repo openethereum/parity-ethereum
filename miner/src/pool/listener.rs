@@ -18,6 +18,7 @@
 
 use std::fmt;
 use std::sync::Arc;
+use std::collections::HashMap;
 
 use ethereum_types::H256;
 use txpool::{self, VerifiedTransaction};
@@ -25,6 +26,7 @@ use txpool::{self, VerifiedTransaction};
 use pool::VerifiedTransaction as Transaction;
 
 type Listener = Box<Fn(&[H256]) + Send + Sync>;
+type PoolListener = Box<Fn(HashMap<H256, String>) + Send + Sync>;
 
 /// Manages notifications to pending transaction listeners.
 #[derive(Default)]
@@ -113,6 +115,76 @@ impl txpool::Listener<Transaction> for Logger {
 
 	fn culled(&mut self, tx: &Arc<Transaction>) {
 		debug!(target: "txqueue", "[{:?}] Culled or mined.", tx.hash());
+	}
+}
+
+#[derive(Default)]
+pub struct TransactionsPoolNotifier {
+	listeners: Vec<PoolListener>,
+}
+
+impl TransactionsPoolNotifier {
+	/// Add new listener to receive notifications.
+	pub fn add(&mut self, f: PoolListener) {
+		self.listeners.push(f)
+	}
+}
+
+impl fmt::Debug for TransactionsPoolNotifier {
+	fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
+		fmt.debug_struct("TransactionsPoolNotifier")
+			.field("listeners", &self.listeners.len())
+			.finish()
+	}
+}
+
+impl txpool::Listener<Transaction> for TransactionsPoolNotifier {
+	fn added(&mut self, tx: &Arc<Transaction>, _old: Option<&Arc<Transaction>>) {
+		for l in &self.listeners {
+			let mut hash_map = HashMap::new();
+			hash_map.insert(tx.hash, "added".to_string());
+			(l)(hash_map);
+		}
+	}
+
+	fn rejected(&mut self, tx: &Arc<Transaction>, _reason: &txpool::ErrorKind) {
+		for l in &self.listeners {
+			let mut hash_map = HashMap::new();
+			hash_map.insert( tx.hash, "rejected".to_string());
+			(l)(hash_map);
+		}
+	}
+
+	fn dropped(&mut self, tx: &Arc<Transaction>, _new: Option<&Transaction>) {
+		for l in &self.listeners {
+			let mut hash_map = HashMap::new();
+			hash_map.insert(tx.hash, "dropped".to_string());
+			(l)(hash_map);
+		}
+	}
+
+	fn invalid(&mut self, tx: &Arc<Transaction>) {
+		for l in &self.listeners {
+			let mut hash_map = HashMap::new();
+			hash_map.insert(tx.hash, "invalid".to_string());
+			(l)(hash_map);
+		}
+	}
+
+	fn canceled(&mut self, tx: &Arc<Transaction>) {
+		for l in &self.listeners {
+			let mut hash_map = HashMap::new();
+			hash_map.insert(tx.hash, "canceled".to_string());
+			(l)(hash_map);
+		}
+	}
+
+	fn culled(&mut self, tx: &Arc<Transaction>) {
+		for l in &self.listeners {
+			let mut hash_map = HashMap::new();
+			hash_map.insert(tx.hash, "culled".to_string());
+			(l)(hash_map);
+		}
 	}
 }
 
