@@ -46,9 +46,7 @@ impl From<EthStatus> for Status {
 pub struct ValidatorLog {
 	/// Account of the validator
 	pub account: H160,
-	/// Validation flag
-	pub validated: bool,
-	/// Validation timestamp
+	/// Validation timestamp, None, if the transaction is not validated yet
 	pub validation_timestamp: Option<u64>,
 }
 
@@ -56,7 +54,6 @@ impl From<EthValidatorLog> for ValidatorLog {
 	fn from(r: EthValidatorLog) -> Self {
 		ValidatorLog {
 			account: r.account.into(),
-			validated: r.validated.into(),
 			validation_timestamp: r.validation_timestamp.into(),
 		}
 	}

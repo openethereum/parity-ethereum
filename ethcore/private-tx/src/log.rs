@@ -17,20 +17,20 @@
 //! Private transactions logs.
 
 use ethereum_types::{H256, Address};
-use std::collections::{HashMap};
-use std::fs::{File};
-use std::path::{PathBuf};
-use std::sync::{Arc};
+use std::collections::HashMap;
+use std::fs::File;
+use std::path::PathBuf;
+use std::sync::Arc;
 use std::time::{SystemTime, UNIX_EPOCH};
-use parking_lot::{RwLock};
+use parking_lot::RwLock;
 use serde::ser::{Serializer, SerializeSeq};
-use error::{Error};
+use error::Error;
 
 /// Maximum amount of stored private transaction logs.
 const MAX_JOURNAL_LEN: usize = 1000;
 
 /// Maximum period for storing private transaction logs.
-/// Older logs will not be processed, 20 days
+/// Logs older than 20 days will not be processed
 const MAX_STORING_TIME: u64 = 60 * 60 * 24 * 20;
 
 /// Current status of the private transaction
@@ -40,7 +40,7 @@ pub enum PrivateTxStatus {
 	Created,
 	/// Several validators (but not all) validated the transaction
 	Validating,
-	/// All validators validated the private tx
+	/// All validators has validated the private tx
 	/// Corresponding public tx was created and added into the pool
 	Deployed,
 }
@@ -50,9 +50,7 @@ pub enum PrivateTxStatus {
 pub struct ValidatorLog {
 	/// Account of the validator
 	pub account: Address,
-	/// Validation flag
-	pub validated: bool,
-	/// Validation timestamp
+	/// Validation timestamp, None if the transaction is not validated
 	pub validation_timestamp: Option<u64>,
 }
 
@@ -87,7 +85,7 @@ pub struct FileLogsSerializer {
 }
 
 impl FileLogsSerializer {
-	pub fn new(logs_dir: Option<String>) -> Self {
+	pub fn with_path(logs_dir: Option<String>) -> Self {
 		FileLogsSerializer {
 			logs_dir: logs_dir.map(|dir| PathBuf::from(dir)),
 		}
@@ -154,16 +152,16 @@ impl LogsSerializer for FileLogsSerializer {
 }
 
 /// Timestamp source for logs
-pub trait TimestampSource: Send + Sync + 'static {
+pub trait CurrentTime: Send + Sync + 'static {
 	/// Returns current timestamp in seconds
-	fn current_timestamp(&self) -> u64;
+	fn timestamp(&self) -> u64;
 }
 
 /// Timesource on the base of system time
 pub struct SystemTimestamp {}
 
-impl TimestampSource for SystemTimestamp {
-	fn current_timestamp(&self) -> u64 {
+impl CurrentTime for SystemTimestamp {
+	fn timestamp(&self) -> u64 {
 		SystemTime::now().duration_since(UNIX_EPOCH).unwrap_or_default().as_secs()
 	}
 }
@@ -172,12 +170,12 @@ impl TimestampSource for SystemTimestamp {
 pub struct Logging {
 	logs: RwLock<HashMap<H256, TransactionLog>>,
 	logs_serializer: Arc<LogsSerializer>,
-	timestamp_source: Box<TimestampSource>,
+	timestamp_source: Box<CurrentTime>,
 }
 
 impl Logging {
 	/// Creates the logging object
-	pub fn new(logs_serializer: Arc<LogsSerializer>, timestamp_source: Box<TimestampSource>) -> Self {
+	pub fn new(logs_serializer: Arc<LogsSerializer>, timestamp_source: Box<CurrentTime>) -> Self {
 		let logging = Logging {
 			logs: RwLock::new(HashMap::new()),
 			logs_serializer,
@@ -194,13 +192,12 @@ impl Logging {
 		self.logs.read().get(&tx_hash).cloned()
 	}
 
-	/// Logs the creation of private transaction
-	pub fn private_tx_created<'a>(&self, tx_hash: &H256, validators: &Vec<Address>) {
+	/// Logs the creation of the private transaction
+	pub fn private_tx_created(&self, tx_hash: &H256, validators: &[Address]) {
 		let mut validator_logs = Vec::new();
 		for account in validators {
 			validator_logs.push(ValidatorLog {
 				account: *account,
-				validated: false,
 				validation_timestamp: None,
 			});
 		}
@@ -217,21 +214,20 @@ impl Logging {
 		logs.insert(*tx_hash, TransactionLog {
 			tx_hash: *tx_hash,
 			status: PrivateTxStatus::Created,
-			creation_timestamp: self.timestamp_source.current_timestamp(),
+			creation_timestamp: self.timestamp_source.timestamp(),
 			validators: validator_logs,
 			deployment_timestamp: None,
 			public_tx_hash: None,
 		});
 	}
 
-	/// Logs the obtaining of the signature for the private transaction
+	/// Logs the validation of the private transaction by one of its validators
 	pub fn signature_added(&self, tx_hash: &H256, validator: &Address) {
 		let mut logs = self.logs.write();
 		if let Some(transaction_log) = logs.get_mut(&tx_hash) {
-			transaction_log.status = PrivateTxStatus::Validating;
 			if let Some(ref mut validator_log) = transaction_log.validators.iter_mut().find(|log| log.account == *validator) {
-				validator_log.validated = true;
-				validator_log.validation_timestamp = Some(self.timestamp_source.current_timestamp());
+				transaction_log.status = PrivateTxStatus::Validating;
+				validator_log.validation_timestamp = Some(self.timestamp_source.timestamp());
 			}
 		}
 	}
@@ -241,7 +237,7 @@ impl Logging {
 		let mut logs = self.logs.write();
 		if let Some(log) = logs.get_mut(&tx_hash) {
 			log.status = PrivateTxStatus::Deployed;
-			log.deployment_timestamp = Some(self.timestamp_source.current_timestamp());
+			log.deployment_timestamp = Some(self.timestamp_source.timestamp());
 			log.public_tx_hash = Some(*public_tx_hash);
 		}
 	}
@@ -249,7 +245,7 @@ impl Logging {
 	fn read_logs(&self) -> Result<(), Error> {
 		let mut transaction_logs = self.logs_serializer.read_logs()?;
 		// Drop old logs
-		let current_timestamp = self.timestamp_source.current_timestamp();
+		let current_timestamp = self.timestamp_source.timestamp();
 		transaction_logs.retain(|tx_log| current_timestamp - tx_log.creation_timestamp < MAX_STORING_TIME);
 		let mut logs = self.logs.write();
 		for log in transaction_logs {
@@ -282,7 +278,7 @@ mod tests {
 	use std::sync::{Arc};
 	use types::transaction::{Transaction};
 	use parking_lot::{RwLock};
-	use super::{TransactionLog, Logging, PrivateTxStatus, LogsSerializer, TimestampSource};
+	use super::{TransactionLog, Logging, PrivateTxStatus, LogsSerializer, CurrentTime};
 
 	struct StringLogSerializer {
 		string_log: RwLock<String>,
@@ -323,8 +319,8 @@ mod tests {
 		counter: RwLock<u64>,
 	}
 
-	impl TimestampSource for CounterTimestamp {
-		fn current_timestamp(&self) -> u64 {
+	impl CurrentTime for CounterTimestamp {
+		fn timestamp(&self) -> u64 {
 			let current = *self.counter.read();
 			*self.counter.write() = current + 1;
 			current
@@ -339,7 +335,6 @@ mod tests {
 			"creation_timestamp":1544528180,
 			"validators":[{
 				"account":"0x82a978b3f5962a5b0957d9ee9eef472ee55b42f1",
-				"validated":true,
 				"validation_timestamp":1544528181
 			}],
 			"deployment_timestamp":1544528181,
@@ -369,7 +364,6 @@ mod tests {
 			"creation_timestamp":0,
 			"validators":[{
 				"account":"0x82a978b3f5962a5b0957d9ee9eef472ee55b42f1",
-				"validated":true,
 				"validation_timestamp":1
 			}],
 			"deployment_timestamp":2,
@@ -389,7 +383,6 @@ mod tests {
 				"creation_timestamp":6,
 				"validators":[{
 					"account":"0x7ffbe3512782069be388f41be4d8eb350672d3a5",
-					"validated":true,
 					"validation_timestamp":7
 				}],
 				"deployment_timestamp":8,
@@ -400,7 +393,6 @@ mod tests {
 				"creation_timestamp":0,
 				"validators":[{
 					"account":"0x82a978b3f5962a5b0957d9ee9eef472ee55b42f1",
-					"validated":true,
 					"validation_timestamp":1
 				}],
 				"deployment_timestamp":2,

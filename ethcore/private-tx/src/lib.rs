@@ -220,7 +220,7 @@ impl Provider {
 			accounts,
 			channel,
 			keys_provider,
-			logging: Logging::new(Arc::new(FileLogsSerializer::new(config.logs_path)), Box::new(SystemTimestamp {})),
+			logging: Logging::new(Arc::new(FileLogsSerializer::with_path(config.logs_path)), Box::new(SystemTimestamp {})),
 		}
 	}
 
@@ -691,7 +691,7 @@ impl Provider {
 
 	/// Retrieves log information about private transaction
 	pub fn private_log(&self, tx_hash: H256) -> Result<TransactionLog, Error> {
-		self.logging.tx_log(&tx_hash).ok_or(ErrorKind::TxNotFoundInLog.into())
+		self.logging.tx_log(&tx_hash).ok_or_else(|| ErrorKind::TxNotFoundInLog.into())
 	}
 
 	/// Returns private validators for a contract.
