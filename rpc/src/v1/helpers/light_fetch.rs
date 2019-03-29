@@ -35,16 +35,15 @@ use light::cache::Cache;
 use light::client::LightChainClient;
 use light::{cht, MAX_HEADERS_PER_REQUEST};
 use light::on_demand::{
-	request, OnDemand, HeaderRef, Request as OnDemandRequest,
+	request, OnDemandRequester, HeaderRef, Request as OnDemandRequest,
 	Response as OnDemandResponse, ExecutionResult,
 };
 use light::on_demand::error::Error as OnDemandError;
 use light::request::Field;
 
-
 use sync::{LightNetworkDispatcher, ManageNetwork, LightSyncProvider};
 
-use ethereum_types::{U256, Address};
+use ethereum_types::Address;
 use hash::H256;
 use parking_lot::Mutex;
 use fastmap::H256FastMap;
@@ -57,9 +56,10 @@ use v1::types::{BlockNumber, CallRequest, Log, Transaction};
 const NO_INVALID_BACK_REFS_PROOF: &str = "Fails only on invalid back-references; back-references here known to be valid; qed";
 const WRONG_RESPONSE_AMOUNT_TYPE_PROOF: &str = "responses correspond directly with requests in amount and type; qed";
 
-pub fn light_all_transactions<S>(dispatch: &Arc<dispatch::LightDispatcher<S>>) -> impl Iterator<Item=PendingTransaction>
+pub fn light_all_transactions<S, OD>(dispatch: &Arc<dispatch::LightDispatcher<S, OD>>) -> impl Iterator<Item=PendingTransaction>
 where
-	S: LightSyncProvider + LightNetworkDispatcher + ManageNetwork + 'static
+	S: LightSyncProvider + LightNetworkDispatcher + ManageNetwork + 'static,
+	OD: OnDemandRequester + 'static
 {
 	let txq = dispatch.transaction_queue.read();
 	let chain_info = dispatch.client.chain_info();
@@ -71,12 +71,15 @@ where
 
 /// Helper for fetching blockchain data either from the light client or the network
 /// as necessary.
-pub struct LightFetch<S: LightSyncProvider + LightNetworkDispatcher + ManageNetwork + 'static>
+pub struct LightFetch<S, OD>
+where
+	S: LightSyncProvider + LightNetworkDispatcher + ManageNetwork + 'static,
+	OD: OnDemandRequester + 'static
 {
 	/// The light client.
 	pub client: Arc<LightChainClient>,
 	/// The on-demand request service.
-	pub on_demand: Arc<OnDemand>,
+	pub on_demand: Arc<OD>,
 	/// Handle to the network.
 	pub sync: Arc<S>,
 	/// The light data cache.
@@ -85,9 +88,10 @@ pub struct LightFetch<S: LightSyncProvider + LightNetworkDispatcher + ManageNetw
 	pub gas_price_percentile: usize,
 }
 
-impl<S> Clone for LightFetch<S>
+impl<S, OD> Clone for LightFetch<S, OD>
 where
-	S: LightSyncProvider + LightNetworkDispatcher + ManageNetwork + 'static
+	S: LightSyncProvider + LightNetworkDispatcher + ManageNetwork + 'static,
+	OD: OnDemandRequester + 'static
 {
 	fn clone(&self) -> Self {
 		Self {
@@ -136,9 +140,10 @@ fn extract_header(res: &[OnDemandResponse], header: HeaderRef) -> Option<encoded
 	}
 }
 
-impl<S> LightFetch<S>
+impl<S, OD> LightFetch<S, OD>
 where
-	S: LightSyncProvider + LightNetworkDispatcher + ManageNetwork + 'static
+	S: LightSyncProvider + LightNetworkDispatcher + ManageNetwork + 'static,
+	OD: OnDemandRequester + 'static
 {
 	// push the necessary requests onto the request chain to get the header by the given ID.
 	// yield a header reference which other requests can use.
@@ -277,7 +282,7 @@ where
 					action: req.to.map_or(Action::Create, Action::Call),
 					gas: req.gas.unwrap_or_else(|| START_GAS.into()),
 					gas_price,
-					value: req.value.unwrap_or_else(U256::zero),
+					value: req.value.unwrap_or_default(),
 					data: req.data.unwrap_or_default(),
 				}))
 			)
@@ -387,7 +392,7 @@ where
 									block_index += 1;
 								}
 							}
-							future::ok::<_,OnDemandError>(matches)
+							future::ok::<_, OnDemandError>(matches)
 						})
 						.map_err(errors::on_demand_error)
 						.map(|matches| matches.into_iter().map(|(_, v)| v).collect())
@@ -657,22 +662,24 @@ where
 	}
 }
 
-struct ExecuteParams<S>
+struct ExecuteParams<S, OD>
 where
-	S: LightSyncProvider + LightNetworkDispatcher + ManageNetwork + 'static
+	S: LightSyncProvider + LightNetworkDispatcher + ManageNetwork + 'static,
+	OD: OnDemandRequester + 'static
 {
 	from: Address,
 	tx: EthTransaction,
 	hdr: encoded::Header,
 	env_info: ::vm::EnvInfo,
 	engine: Arc<::ethcore::engines::EthEngine>,
-	on_demand: Arc<OnDemand>,
+	on_demand: Arc<OD>,
 	sync: Arc<S>,
 }
 
-impl<S> Clone for ExecuteParams<S>
+impl<S, OD> Clone for ExecuteParams<S, OD>
 where
-	S: LightSyncProvider + LightNetworkDispatcher + ManageNetwork + 'static
+	S: LightSyncProvider + LightNetworkDispatcher + ManageNetwork + 'static,
+	OD: OnDemandRequester + 'static
 {
 	fn clone(&self) -> Self {
 		Self {
@@ -689,9 +696,10 @@ where
 
 // Has a peer execute the transaction with given params. If `gas_known` is false, this will set the `gas value` to the
 // `required gas value` unless it exceeds the block gas limit
-fn execute_read_only_tx<S>(gas_known: bool, params: ExecuteParams<S>) -> impl Future<Item = ExecutionResult, Error = Error> + Send
+fn execute_read_only_tx<S, OD>(gas_known: bool, params: ExecuteParams<S, OD>) -> impl Future<Item = ExecutionResult, Error = Error> + Send
 where
-	S: LightSyncProvider + LightNetworkDispatcher + ManageNetwork + 'static
+	S: LightSyncProvider + LightNetworkDispatcher + ManageNetwork + 'static,
+	OD: OnDemandRequester + 'static
 {
 	if !gas_known {
 		Box::new(future::loop_fn(params, |mut params| {

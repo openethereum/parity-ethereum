@@ -28,7 +28,7 @@ use parking_lot::RwLock;
 use types::transaction::{UnverifiedTransaction, SignedTransaction};
 use txpool;
 use txpool::{VerifiedTransaction, Verifier};
-use error::{Error, ErrorKind};
+use error::Error;
 
 type Pool = txpool::Pool<VerifiedPrivateTransaction, pool::scoring::NonceAndGasPrice>;
 
@@ -228,7 +228,7 @@ impl SigningStore {
 		contract_nonce: U256,
 	) -> Result<(), Error> {
 		if self.transactions.len() > MAX_QUEUE_LEN {
-			bail!(ErrorKind::QueueIsFull);
+			return Err(Error::QueueIsFull);
 		}
 
 		self.transactions.insert(private_hash, PrivateTransactionSigningDesc {
@@ -254,7 +254,7 @@ impl SigningStore {
 
 	/// Adds received signature for the stored private transaction
 	pub fn add_signature(&mut self, private_hash: &H256, signature: Signature) -> Result<(), Error> {
-		let desc = self.transactions.get_mut(private_hash).ok_or_else(|| ErrorKind::PrivateTransactionNotFound)?;
+		let desc = self.transactions.get_mut(private_hash).ok_or_else(|| Error::PrivateTransactionNotFound)?;
 		if !desc.received_signatures.contains(&signature) {
 			desc.received_signatures.push(signature);
 		}

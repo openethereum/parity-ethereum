@@ -33,7 +33,7 @@ use ethcore::client::{BlockChainClient, ChainNotify, NewBlocks, ChainRouteType, 
 use ethereum_types::H256;
 use light::cache::Cache;
 use light::client::{LightChainClient, LightChainNotify};
-use light::on_demand::OnDemand;
+use light::on_demand::OnDemandRequester;
 use parity_runtime::Executor;
 use parking_lot::{RwLock, Mutex};
 
@@ -89,14 +89,15 @@ impl<C> EthPubSubClient<C> {
 	}
 }
 
-impl<S> EthPubSubClient<LightFetch<S>>
+impl<S, OD> EthPubSubClient<LightFetch<S, OD>>
 where
-	S: LightSyncProvider + LightNetworkDispatcher + ManageNetwork + 'static
+	S: LightSyncProvider + LightNetworkDispatcher + ManageNetwork + 'static,
+	OD: OnDemandRequester + 'static
 {
 	/// Creates a new `EthPubSubClient` for `LightClient`.
 	pub fn light(
 		client: Arc<LightChainClient>,
-		on_demand: Arc<OnDemand>,
+		on_demand: Arc<OD>,
 		sync: Arc<S>,
 		cache: Arc<Mutex<Cache>>,
 		executor: Executor,
@@ -194,9 +195,10 @@ pub trait LightClient: Send + Sync {
 	fn logs(&self, filter: EthFilter) -> BoxFuture<Vec<Log>>;
 }
 
-impl<S> LightClient for LightFetch<S>
+impl<S, OD> LightClient for LightFetch<S, OD>
 where
-	S: LightSyncProvider + LightNetworkDispatcher + ManageNetwork + 'static
+	S: LightSyncProvider + LightNetworkDispatcher + ManageNetwork + 'static,
+	OD: OnDemandRequester + 'static
 {
 	fn block_header(&self, id: BlockId) -> Option<encoded::Header> {
 		self.client.block_header(id)

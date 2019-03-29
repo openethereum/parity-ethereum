@@ -18,6 +18,7 @@
 
 mod authority_round;
 mod basic_authority;
+mod clique;
 mod instant_seal;
 mod null_engine;
 mod validator_set;
@@ -30,6 +31,7 @@ pub use self::basic_authority::BasicAuthority;
 pub use self::instant_seal::{InstantSeal, InstantSealParams};
 pub use self::null_engine::NullEngine;
 pub use self::signer::EngineSigner;
+pub use self::clique::Clique;
 
 // TODO [ToDr] Remove re-export (#10130)
 pub use types::engines::ForkChoice;
@@ -50,7 +52,7 @@ use types::transaction::{self, UnverifiedTransaction, SignedTransaction};
 
 use ethkey::{Signature};
 use machine::{self, Machine, AuxiliaryRequest, AuxiliaryData};
-use ethereum_types::{H256, U256, Address};
+use ethereum_types::{H64, H256, U256, Address};
 use unexpected::{Mismatch, OutOfBounds};
 use bytes::Bytes;
 use types::ancestry_action::AncestryAction;
@@ -85,12 +87,45 @@ pub enum EngineError {
 	RequiresClient,
 	/// Invalid engine specification or implementation.
 	InvalidEngine,
+	/// Requires signer ref, but none registered.
+	RequiresSigner,
+	/// Checkpoint is missing
+	CliqueMissingCheckpoint(H256),
+	/// Missing vanity data
+	CliqueMissingVanity,
+	/// Missing signature
+	CliqueMissingSignature,
+	/// Missing signers
+	CliqueCheckpointNoSigner,
+	/// List of signers is invalid
+	CliqueCheckpointInvalidSigners(usize),
+	/// Wrong author on a checkpoint
+	CliqueWrongAuthorCheckpoint(Mismatch<Address>),
+	/// Wrong checkpoint authors recovered
+	CliqueFaultyRecoveredSigners(Vec<String>),
+	/// Invalid nonce (should contain vote)
+	CliqueInvalidNonce(H64),
+	/// The signer signed a block to recently
+	CliqueTooRecentlySigned(Address),
+	/// Custom
+	Custom(String),
 }
 
 impl fmt::Display for EngineError {
 	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
 		use self::EngineError::*;
 		let msg = match *self {
+			CliqueMissingCheckpoint(ref hash) => format!("Missing checkpoint block: {}", hash),
+			CliqueMissingVanity => format!("Extra data is missing vanity data"),
+			CliqueMissingSignature => format!("Extra data is missing signature"),
+			CliqueCheckpointInvalidSigners(len) => format!("Checkpoint block list was of length: {} of checkpoint but
+															it needs to be bigger than zero and a divisible by 20", len),
+			CliqueCheckpointNoSigner => format!("Checkpoint block list of signers was empty"),
+			CliqueInvalidNonce(ref mis) => format!("Unexpected nonce {} expected {} or {}", mis, 0_u64, u64::max_value()),
+			CliqueWrongAuthorCheckpoint(ref oob) => format!("Unexpected checkpoint author: {}", oob),
+			CliqueFaultyRecoveredSigners(ref mis) => format!("Faulty recovered signers {:?}", mis),
+			CliqueTooRecentlySigned(ref address) => format!("The signer: {} has signed a block too recently", address),
+			Custom(ref s) => s.clone(),
 			DoubleVote(ref address) => format!("Author {} issued too many blocks.", address),
 			NotProposer(ref mis) => format!("Author is not a current proposer: {}", mis),
 			NotAuthorized(ref address) => format!("Signer {} is not authorized.", address),
@@ -100,6 +135,7 @@ impl fmt::Display for EngineError {
 			FailedSystemCall(ref msg) => format!("Failed to make system call: {}", msg),
 			MalformedMessage(ref msg) => format!("Received malformed consensus message: {}", msg),
 			RequiresClient => format!("Call requires client but none registered"),
+			RequiresSigner => format!("Call requires signer but none registered"),
 			InvalidEngine => format!("Invalid engine specification or implementation"),
 		};
 
@@ -120,7 +156,7 @@ pub enum Seal {
 	Proposal(Vec<Bytes>),
 	/// Regular block seal; should be part of the blockchain.
 	Regular(Vec<Bytes>),
-	/// Engine does generate seal for this block right now.
+	/// Engine does not generate seal for this block right now.
 	None,
 }
 
@@ -263,6 +299,9 @@ pub trait Engine<M: Machine>: Sync + Send {
 		Ok(())
 	}
 
+	/// Allow mutating the header during seal generation. Currently only used by Clique.
+	fn on_seal_block(&self, _block: &mut ExecutedBlock) -> Result<(), Error> { Ok(()) }
+
 	/// None means that it requires external input (e.g. PoW) to seal a block.
 	/// Some(true) means the engine is currently prime for seal generation (i.e. node is the current validator).
 	/// Some(false) means that the node might seal internally but is not qualified now.
@@ -387,7 +426,7 @@ pub trait Engine<M: Machine>: Sync + Send {
 	fn step(&self) {}
 
 	/// Stops any services that the may hold the Engine and makes it safe to drop.
-	fn stop(&self) {}
+	fn stop(&mut self) {}
 
 	/// Create a factory for building snapshot chunks and restoring from them.
 	/// Returning `None` indicates that this engine doesn't support snapshot creation.
@@ -421,6 +460,11 @@ pub trait Engine<M: Machine>: Sync + Send {
 
 	/// Check whether the given new block is the best block, after finalization check.
 	fn fork_choice(&self, new: &ExtendedHeader, best: &ExtendedHeader) -> ForkChoice;
+
+	/// Returns author should used when executing tx's for this block.
+	fn executive_author(&self, header: &Header) -> Result<Address, Error> {
+		Ok(*header.author())
+	}
 }
 
 /// Check whether a given block is the best block based on the default total difficulty rule.
