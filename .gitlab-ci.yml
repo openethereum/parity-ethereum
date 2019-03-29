@@ -249,6 +249,7 @@ publish-awss3-release:
 
 publish-docs:
   stage:                            publish
+  image:                            parity/rust-parity-ethereum-docs:xenial
   only:
     - tags
   except:
@@ -258,4 +259,3 @@ publish-docs:
     - scripts/gitlab/publish-docs.sh
   tags:
     - linux-docker
-
