@@ -74,17 +74,16 @@ where
 				let state = &self.client;
 				// calculate readiness based on state nonce + pooled txs from same sender
 				let is_ready = |replace: &ReplaceTransaction<T>| {
-					let state_nonce = state.account_nonce(replace.sender());
-					let nonce =
-						replace.pooled_by_sender.map_or(state_nonce, |txs| {
-							txs.iter().fold(state_nonce, |nonce, tx| {
-								if nonce == tx.nonce() && *tx.transaction != ***replace.transaction {
-									nonce.saturating_add(U256::from(1))
-								} else {
-									nonce
-								}
-							})
-						});
+					let mut nonce = state.account_nonce(replace.sender());
+					if let Some(txs) = replace.pooled_by_sender {
+						for tx in txs.iter() {
+							if nonce == tx.nonce() && *tx.transaction != ***replace.transaction {
+								nonce = nonce.saturating_add(U256::from(1))
+							} else {
+								break
+							}
+						}
+					}
 					nonce == replace.nonce()
 				};
 
@@ -268,7 +267,7 @@ mod tests {
 		};
 
 		assert_eq!(should_replace(&replace, tx_regular_low_gas.clone(), tx_regular_high_gas.clone()), ReplaceOld);
-		assert_eq!(should_replace(&replacej, tx_regular_high_gas.clone(), tx_regular_low_gas.clone()), RejectNew);
+		assert_eq!(should_replace(&replace, tx_regular_high_gas.clone(), tx_regular_low_gas.clone()), RejectNew);
 
 		assert_eq!(should_replace(&replace, tx_regular_high_gas.clone(), tx_local_low_gas.clone()), ReplaceOld);
 		assert_eq!(should_replace(&replace, tx_local_low_gas.clone(), tx_regular_high_gas.clone()), RejectNew);
