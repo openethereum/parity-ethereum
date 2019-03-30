@@ -57,6 +57,7 @@ mod codes {
 	pub const FETCH_ERROR: i64 = -32060;
 	pub const NO_LIGHT_PEERS: i64 = -32065;
 	pub const NO_PEERS: i64 = -32066;
+	pub const NO_LIGHT_TRANSACTIONS: i64 = -32066;
 	pub const DEPRECATED: i64 = -32070;
 	pub const EXPERIMENTAL_RPC: i64 = -32071;
 	pub const CANNOT_RESTART: i64 = -32080;
@@ -500,6 +501,14 @@ pub fn no_light_peers() -> Error {
 	Error {
 		code: ErrorCode::ServerError(codes::NO_LIGHT_PEERS),
 		message: "No light peers who can serve data".into(),
+		data: None,
+	}
+}
+
+pub fn no_light_transactions() -> Error {
+	Error {
+		code: ErrorCode::ServerError(codes::NO_LIGHT_TRANSACTIONS),
+		message: "No pending transactions in the light transaction queue".into(),
 		data: None,
 	}
 }
