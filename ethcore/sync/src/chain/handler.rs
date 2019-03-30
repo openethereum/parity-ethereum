@@ -112,7 +112,7 @@ impl SyncHandler {
 	/// Called when peer sends us new consensus packet
 	pub fn on_consensus_packet(io: &mut SyncIo, peer_id: PeerId, r: &Rlp) {
 		trace!(target: "sync", "Received consensus packet from {:?}", peer_id);
-		io.chain().queue_consensus_message(r.as_raw().to_vec());
+		io.chain().queue_consensus_message(r.as_raw().to_vec(), peer_id);
 	}
 
 	/// Called by peer when it is disconnecting
