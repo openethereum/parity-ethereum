@@ -28,7 +28,7 @@ use v1::helpers::{errors, limit_logs, Subscribers, };
 use v1::helpers::light_fetch::LightFetch;
 use v1::metadata::Metadata;
 use v1::traits::EthPubSub;
-use v1::types::{pubsub, RichHeader, Log, U64};
+use v1::types::{pubsub, RichHeader, Log};
 
 use sync::{SyncState, Notification};
 use ethcore::client::{BlockChainClient, ChainNotify, NewBlocks, ChainRouteType, BlockId};
@@ -39,7 +39,7 @@ use light::on_demand::OnDemandRequester;
 use parity_runtime::Executor;
 use parking_lot::{RwLock, Mutex};
 
-use sync::{LightSyncProvider, LightNetworkDispatcher, ManageNetwork, SyncProvider, LightSyncInfo};
+use sync::{LightSyncProvider, LightNetworkDispatcher, ManageNetwork};
 
 use types::encoded;
 use types::filter::Filter as EthFilter;

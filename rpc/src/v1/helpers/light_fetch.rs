@@ -26,7 +26,6 @@ use types::filter::Filter as EthcoreFilter;
 use types::ids::BlockId;
 use types::receipt::Receipt;
 use ethcore::executed::ExecutionError;
-use ethcore::verification::QueueInfo as BlockQueueInfo;
 
 use jsonrpc_core::{Result, Error};
 use jsonrpc_core::futures::{future, Future};
