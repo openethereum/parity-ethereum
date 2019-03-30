@@ -97,12 +97,13 @@ test-linux:
 
 build-android:
   stage:                           build
-  image:                           parity/rust-android:gitlab-ci
+  image:                           parity/rust-parity-ethereum-android-build:stretch
   variables:
     CARGO_TARGET:                  armv7-linux-androideabi
+  <<:                              *docker-cache-status
+  <<:                              *collect_artifacts
   script:
     - scripts/gitlab/build-linux.sh
-  <<:                              *collect_artifacts
   tags:
     - linux-docker
 
@@ -153,9 +154,8 @@ build-windows:
   only:                            *releaseable_branches
   variables:
     CARGO_TARGET:                  x86_64-pc-windows-msvc
-    CARGO_HOME:                    "C:/ci-cache/parity-ethereum/cargo/%CI_JOB_NAME%"
-    RUSTC_WRAPPER:                 sccache
-    SCCACHE_DIR:                   "C:/ci-cache/parity-ethereum/sccache"
+    CARGO_HOME:                    "C:/ci-cache/parity-ethereum/cargo/$CI_JOB_NAME"
+    GIT_SUBMODULE_STRATEGY:        none
   script:
     - sh scripts/gitlab/build-windows.sh
   tags:
