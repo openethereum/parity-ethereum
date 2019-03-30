@@ -453,6 +453,9 @@ pub trait EngineClient: Sync + Send + ChainInfo + Nonce {
 	/// Broadcast a consensus message to the network.
 	fn broadcast_consensus_message(&self, message: Bytes);
 
+	/// Send a consensus message to the specified peer
+	fn send_consensus_message(&self, message: Bytes, _peer_id: usize);
+
 	/// Get the transition to the epoch the given parent hash is part of
 	/// or transitions to.
 	/// This will give the epoch that any children of this parent belong to.

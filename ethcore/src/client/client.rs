@@ -2482,6 +2482,10 @@ impl super::traits::EngineClient for Client {
 		self.notify(|notify| notify.broadcast(ChainMessageType::Consensus(message.clone())));
 	}
 
+	fn send_consensus_message(&self, _message: Bytes, _peer_id: usize) {
+		// TODO: send to the specified peer only
+	}
+
 	fn epoch_transition_for(&self, parent_hash: H256) -> Option<::engines::EpochTransition> {
 		self.chain.read().epoch_transition_for(parent_hash)
 	}

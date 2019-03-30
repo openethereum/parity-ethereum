@@ -959,6 +959,9 @@ impl super::traits::EngineClient for TestBlockChainClient {
 	}
 
 	fn broadcast_consensus_message(&self, _message: Bytes) {}
+	fn send_consensus_message(&self, _message: Bytes, _peer_id: usize) {
+		// TODO: allow test to intercept the message to relay it to other test clients
+	}
 
 	fn epoch_transition_for(&self, _block_hash: H256) -> Option<::engines::EpochTransition> {
 		None
