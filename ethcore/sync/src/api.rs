@@ -29,7 +29,7 @@ use network::client_version::ClientVersion;
 use types::pruning_info::PruningInfo;
 use ethereum_types::{H256, H512, U256};
 use futures::sync::mpsc as futures_mpsc;
-use futures::{Stream};
+use futures::Stream;
 use io::{TimerToken};
 use ethkey::Secret;
 use ethcore::client::{BlockChainClient, ChainNotify, NewBlocks, ChainMessageType};
@@ -373,7 +373,7 @@ impl EthSync {
 			priority_tasks_rx,
 		);
 
-		let is_major_syncing = Arc::new(AtomicBool::default());
+		let is_major_syncing = Arc::new(AtomicBool::new(false));
 
 		{
 			// spawn task that constantly updates EthSync.is_major_sync
@@ -383,7 +383,10 @@ impl EthSync {
 
 			params.executor.spawn(notifications.for_each(move |sync_status| {
 				if let Some(queue_info) = moved_client.upgrade().map(|client| client.queue_info()) {
-					let is_syncing_state = match sync_status { SyncState::Idle | SyncState::NewBlocks => false, _ => true };
+					let is_syncing_state = match sync_status {
+						SyncState::Idle | SyncState::NewBlocks => false,
+						_ => true
+					};
 					let is_verifying = queue_info.unverified_queue_size + queue_info.verified_queue_size > 3;
 					moved_is_major_syncing.store(is_verifying || is_syncing_state, Ordering::SeqCst);
 					return Ok(())

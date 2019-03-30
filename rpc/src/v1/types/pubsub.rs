@@ -35,6 +35,7 @@ pub enum Result {
 	SyncState(PubSubSyncStatus)
 }
 
+/// PubSbub sync status
 #[derive(Debug, Serialize, Eq, PartialEq, Clone)]
 #[serde(rename_all="camelCase")]
 pub struct PubSubSyncStatus {
