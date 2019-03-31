@@ -86,7 +86,7 @@ pub trait Eth {
 	#[rpc(name = "eth_getBlockByNumber")]
 	fn block_by_number(&self, BlockNumber, bool) -> BoxFuture<Option<RichBlock>>;
 
-	/// Returns block with given number.
+	/// Returns raw block with given number. No extras included.
 	#[rpc(name = "eth_getRawBlockByNumber")]
 	fn raw_block_by_number(&self, BlockNumber, bool) -> BoxFuture<Option<Bytes>>;
 
