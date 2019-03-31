@@ -740,6 +740,10 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM, T: StateInfo + 'static> Eth for EthClient<
 		Box::new(future::done(result))
 	}
 
+	fn raw_block_by_number(&self, _num: BlockNumber, _include_txs: bool) -> BoxFuture<Option<Bytes>> {
+		Box::new(future::done(Ok(None)))
+	}
+
 	fn transaction_by_hash(&self, hash: H256) -> BoxFuture<Option<Transaction>> {
 		let tx = try_bf!(self.transaction(PendingTransactionId::Hash(hash))).or_else(|| {
 			self.miner.transaction(&hash)

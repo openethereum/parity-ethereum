@@ -305,6 +305,10 @@ where
 		Box::new(self.rich_block(num.to_block_id(), include_txs).map(Some))
 	}
 
+	fn raw_block_by_number(&self, _num: BlockNumber, _include_txs: bool) -> BoxFuture<Option<Bytes>> {
+		Box::new(future::done(Ok(None)))
+	}
+
 	fn transaction_count(&self, address: H160, num: Option<BlockNumber>) -> BoxFuture<U256> {
 		Box::new(self.fetcher().account(address, num.unwrap_or_default().to_block_id())
 			.map(|acc| acc.map_or(0.into(), |a| a.nonce)))
