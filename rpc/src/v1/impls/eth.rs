@@ -19,6 +19,7 @@
 use std::thread;
 use std::time::{Instant, Duration, SystemTime, UNIX_EPOCH};
 use std::sync::Arc;
+use std::collections::BTreeMap;
 
 use rlp::Rlp;
 use ethereum_types::{Address, H64, H160, H256, U64, U256};
@@ -202,12 +203,17 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM, T: StateInfo + 'static> EthClient<C, SN, S
 		}
 	}
 
-	fn rich_block(&self, id: BlockNumberOrId, include_txs: bool) -> Result<Option<RichBlock>> {
+	fn encoded_block(&self, id: BlockNumberOrId) -> (
+			Option<encoded::Block>,
+			Option<U256>,
+			Option<BTreeMap<String, String>>,
+			bool
+		) {
 		let client = &self.client;
 
 		let client_query = |id| (client.block(id), client.block_total_difficulty(id), client.block_extra_info(id), false);
 
-		let (block, difficulty, extra, is_pending) = match id {
+		match id {
 			BlockNumberOrId::Number(BlockNumber::Pending) => {
 				let info = self.client.chain_info();
 				match self.miner.pending_block(info.best_block_number) {
@@ -248,7 +254,11 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM, T: StateInfo + 'static> EthClient<C, SN, S
 			},
 
 			BlockNumberOrId::Id(id) => client_query(id),
-		};
+		}
+	}
+
+	fn rich_block(&self, id: BlockNumberOrId, include_txs: bool) -> Result<Option<RichBlock>> {
+		let (block, difficulty, extra, is_pending) = self.encoded_block(id);
 
 		match (block, difficulty) {
 			(Some(block), Some(total_difficulty)) => {
