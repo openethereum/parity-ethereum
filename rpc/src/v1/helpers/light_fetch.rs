@@ -43,7 +43,7 @@ use light::request::Field;
 
 use sync::{LightNetworkDispatcher, ManageNetwork, LightSyncProvider};
 
-use ethereum_types::Address;
+use ethereum_types::{Address, U256};
 use hash::H256;
 use parking_lot::Mutex;
 use fastmap::H256FastMap;
@@ -55,6 +55,7 @@ use v1::types::{BlockNumber, CallRequest, Log, Transaction};
 
 const NO_INVALID_BACK_REFS_PROOF: &str = "Fails only on invalid back-references; back-references here known to be valid; qed";
 const WRONG_RESPONSE_AMOUNT_TYPE_PROOF: &str = "responses correspond directly with requests in amount and type; qed";
+const DEFAULT_GAS_PRICE: u64 = 21_000;
 
 pub fn light_all_transactions<S, OD>(dispatch: &Arc<dispatch::LightDispatcher<S, OD>>) -> impl Iterator<Item=PendingTransaction>
 where
@@ -231,7 +232,6 @@ where
 
 	/// Helper for getting proved execution.
 	pub fn proved_read_only_execution(&self, req: CallRequest, num: Option<BlockNumber>) -> impl Future<Item = ExecutionResult, Error = Error> + Send {
-		const DEFAULT_GAS_PRICE: u64 = 21_000;
 		// (21000 G_transaction + 32000 G_create + some marginal to allow a few operations)
 		const START_GAS: u64 = 60_000;
 
@@ -257,18 +257,9 @@ where
 			None => Either::B(self.account(from, id).map(|acc| acc.map(|a| a.nonce))),
 		};
 
-		let gas_price_percentile = self.gas_price_percentile;
 		let gas_price_fut = match req.gas_price {
 			Some(price) => Either::A(future::ok(price)),
-			None => Either::B(dispatch::light::fetch_gas_price_corpus(
-				self.sync.clone(),
-				self.client.clone(),
-				self.on_demand.clone(),
-				self.cache.clone(),
-			).map(move |corp| match corp.percentile(gas_price_percentile) {
-				Some(percentile) => *percentile,
-				None => DEFAULT_GAS_PRICE.into(),
-			}))
+			None => Either::B(self.gas_price()),
 		};
 
 		// if nonce resolves, this should too since it'll be in the LRU-cache.
@@ -305,6 +296,23 @@ where
 				sync,
 			}))
 		}))
+	}
+
+	/// Helper to fetch the corpus gas price from 1) the cache 2) the network then it tries to estimate the percentile
+	/// using `gas_price_percentile` if the estimated percentile is zero the `DEFAULT_GAS_PRICE` is returned
+	pub fn gas_price(&self) -> impl Future<Item = U256, Error = Error> + Send {
+		let gas_price_percentile = self.gas_price_percentile;
+
+		dispatch::light::fetch_gas_price_corpus(
+			self.sync.clone(),
+			self.client.clone(),
+			self.on_demand.clone(),
+			self.cache.clone(),
+		)
+		.map(move |corp| {
+			corp.percentile(gas_price_percentile)
+				.map_or_else(|| DEFAULT_GAS_PRICE.into(), |percentile| *percentile)
+		})
 	}
 
 	/// Get a block itself. Fails on unknown block ID.
