@@ -133,14 +133,13 @@ where
 
 	// get a "rich" block structure. Fails on unknown block.
 	fn rich_block(&self, id: BlockId, include_txs: bool) -> BoxFuture<RichBlock> {
-		let (on_demand, sync) = (self.on_demand.clone(), self.sync.clone());
-		let (client, engine) = (self.client.clone(), self.client.engine().clone());
+		let engine = self.client.engine().clone();
 
-		// helper for filling out a rich block once we've got a block and a score.
-		let fill_rich = move |block: encoded::Block, score: Option<U256>| {
+		// Get the raw block, fill it into a rich block
+		Box::new(self.encoded_block(id, include_txs).and_then(move |(block, score)| {
 			let header = block.decode_header();
 			let extra_info = engine.extra_info(&header);
-			RichBlock {
+			future::ok(RichBlock {
 				inner: Block {
 					hash: Some(header.hash()),
 					size: Some(block.rlp().as_raw().len().into()),
@@ -167,14 +166,19 @@ where
 					extra_data: Bytes::new(header.extra_data().clone()),
 				},
 				extra_info,
-			}
-		};
+			})
+		}))
+	}
+
+	fn encoded_block(&self, id: BlockId, include_txs: bool) -> BoxFuture<(encoded::Block, Option<U256>)> {
+		let (on_demand, sync) = (self.on_demand.clone(), self.sync.clone());
+		let client = self.client.clone();
 
 		// get the block itself.
 		Box::new(self.fetcher().block(id).and_then(move |block| {
 			// then fetch the total difficulty (this is much easier after getting the block).
 			match client.score(id) {
-				Some(score) => Either::A(future::ok(fill_rich(block, Some(score)))),
+				Some(score) => Either::A(future::ok((block, Some(score)))),
 				None => {
 					// make a CHT request to fetch the chain score.
 					let req = cht::block_to_cht_number(block.number())
@@ -190,7 +194,7 @@ where
 								.expect("genesis always stored; qed")
 								.difficulty();
 
-							return Either::A(future::ok(fill_rich(block, Some(score))))
+							return Either::A(future::ok((block, Some(score))))
 						}
 					};
 
@@ -208,7 +212,7 @@ where
 									None
 								};
 
-								fill_rich(block, score)
+								(block, score)
 							}).map_err(errors::on_demand_error)),
 						None => Either::A(future::err(errors::network_disabled())),
 					}
