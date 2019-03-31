@@ -204,10 +204,10 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM, T: StateInfo + 'static> EthClient<C, SN, S
 	}
 
 	fn encoded_block(&self, id: BlockNumberOrId) -> (
-			Option<encoded::Block>,
-			Option<U256>,
-			Option<BTreeMap<String, String>>,
-			bool
+			Option<encoded::Block>, // block
+			Option<U256>, // difficulty
+			Option<BTreeMap<String, String>>, // extra
+			bool // is_pending
 		) {
 		let client = &self.client;
 
@@ -750,8 +750,20 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM, T: StateInfo + 'static> Eth for EthClient<
 		Box::new(future::done(result))
 	}
 
-	fn raw_block_by_number(&self, _num: BlockNumber, _include_txs: bool) -> BoxFuture<Option<Bytes>> {
-		Box::new(future::done(Ok(None)))
+	fn raw_block_by_number(&self, num: BlockNumber, include_txs: bool) -> BoxFuture<Option<Bytes>> {
+		let result = Ok(self.encoded_block(num.clone().into()).0)
+			.and_then(
+				errors::check_block_number_existence(&*self.client, num, self.options.allow_missing_blocks)
+			)
+			.map(|try_block| {
+				if let Some(block) = try_block { // block found
+					Some(Bytes::from(block.rlp().as_raw().to_vec()))
+				} else { // block not found
+					None
+				}
+			});
+
+		Box::new(future::done(result))
 	}
 
 	fn transaction_by_hash(&self, hash: H256) -> BoxFuture<Option<Transaction>> {
