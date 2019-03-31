@@ -136,7 +136,7 @@ where
 		let engine = self.client.engine().clone();
 
 		// Get the raw block, fill it into a rich block
-		Box::new(self.encoded_block(id, include_txs).and_then(move |(block, score)| {
+		Box::new(self.encoded_block(id).and_then(move |(block, score)| {
 			let header = block.decode_header();
 			let extra_info = engine.extra_info(&header);
 			future::ok(RichBlock {
@@ -170,7 +170,7 @@ where
 		}))
 	}
 
-	fn encoded_block(&self, id: BlockId, include_txs: bool) -> BoxFuture<(encoded::Block, Option<U256>)> {
+	fn encoded_block(&self, id: BlockId) -> BoxFuture<(encoded::Block, Option<U256>)> {
 		let (on_demand, sync) = (self.on_demand.clone(), self.sync.clone());
 		let client = self.client.clone();
 
@@ -309,8 +309,8 @@ where
 		Box::new(self.rich_block(num.to_block_id(), include_txs).map(Some))
 	}
 
-	fn raw_block_by_number(&self, num: BlockNumber, include_txs: bool) -> BoxFuture<Option<Bytes>> {
-		Box::new(self.encoded_block(num.to_block_id(), include_txs).map(|(block, _)|
+	fn raw_block_by_number(&self, num: BlockNumber, _include_txs: bool) -> BoxFuture<Option<Bytes>> {
+		Box::new(self.encoded_block(num.to_block_id()).map(|(block, _)|
 			Some(Bytes::new(block
 				.rlp()
 				.as_raw()

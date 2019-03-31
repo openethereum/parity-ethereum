@@ -750,7 +750,7 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM, T: StateInfo + 'static> Eth for EthClient<
 		Box::new(future::done(result))
 	}
 
-	fn raw_block_by_number(&self, num: BlockNumber, include_txs: bool) -> BoxFuture<Option<Bytes>> {
+	fn raw_block_by_number(&self, num: BlockNumber, _include_txs: bool) -> BoxFuture<Option<Bytes>> {
 		let result = Ok(self.encoded_block(num.clone().into()).0)
 			.and_then(
 				errors::check_block_number_existence(&*self.client, num, self.options.allow_missing_blocks)
