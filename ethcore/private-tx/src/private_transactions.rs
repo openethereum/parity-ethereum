@@ -177,10 +177,9 @@ impl VerificationStore {
 			transaction_hash: signed_hash,
 			transaction_sender: signed_sender,
 		};
-		let mut pool = self.verification_pool.write();
 		let replace = pool::replace::ReplaceByScoreAndReadiness::new(
-			pool.scoring().clone(), client);
-		pool.import(verified, &replace)?;
+			self.verification_pool.read().scoring().clone(), client);
+		self.verification_pool.write().import(verified, &replace)?;
 		Ok(())
 	}
 
