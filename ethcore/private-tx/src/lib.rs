@@ -277,13 +277,12 @@ impl Provider {
 
 	fn pool_client<'a>(&'a self, nonce_cache: &'a NonceCache, local_accounts: &'a HashSet<Address>) -> miner::pool_client::PoolClient<'a, Client> {
 		let engine = self.client.engine();
-		let refuse_service_transactions = true;
 		miner::pool_client::PoolClient::new(
 			&*self.client,
 			nonce_cache,
 			engine,
 			local_accounts,
-			refuse_service_transactions,
+			None,  // refuse_service_transactions = true
 		)
 	}
 
