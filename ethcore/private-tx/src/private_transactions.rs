@@ -179,7 +179,7 @@ impl VerificationStore {
 		};
 		let mut pool = self.verification_pool.write();
 		let replace = pool::replace::ReplaceByScoreAndReadiness::new(
-			self.verification_pool.read().scoring().clone(), client);
+			pool.scoring().clone(), client);
 		pool.import(verified, &replace)?;
 		Ok(())
 	}
