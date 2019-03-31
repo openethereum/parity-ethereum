@@ -40,12 +40,13 @@ use light::on_demand::{
 };
 use light::on_demand::error::Error as OnDemandError;
 use light::request::Field;
+use light::TransactionQueue;
 
 use sync::{LightNetworkDispatcher, ManageNetwork, LightSyncProvider};
 
 use ethereum_types::{Address, U256};
 use hash::H256;
-use parking_lot::Mutex;
+use parking_lot::{Mutex, RwLock};
 use fastmap::H256FastMap;
 use std::collections::BTreeMap;
 use types::transaction::{Action, Transaction as EthTransaction, PendingTransaction, SignedTransaction, LocalizedTransaction};
@@ -100,7 +101,7 @@ where
 			on_demand: self.on_demand.clone(),
 			sync: self.sync.clone(),
 			cache: self.cache.clone(),
-			gas_price_percentile: self.gas_price_percentile
+			gas_price_percentile: self.gas_price_percentile,
 		}
 	}
 }
@@ -215,7 +216,13 @@ where
 
 	/// Helper for getting account info at a given block.
 	/// `None` indicates the account doesn't exist at the given block.
-	pub fn account(&self, address: Address, id: BlockId) -> impl Future<Item = Option<BasicAccount>, Error = Error> + Send {
+	pub fn account(
+		&self,
+		address: Address,
+		id: BlockId,
+		tx_queue: Arc<RwLock<TransactionQueue>>
+	) -> impl Future<Item = Option<BasicAccount>, Error = Error> + Send {
+
 		let mut reqs = Vec::new();
 		let header_ref = match self.make_header_requests(id, &mut reqs) {
 			Ok(r) => r,
@@ -224,14 +231,26 @@ where
 
 		reqs.push(request::Account { header: header_ref, address }.into());
 
-		Either::B(self.send_requests(reqs, |mut res|match res.pop() {
-			Some(OnDemandResponse::Account(acc)) => acc,
+		Either::B(self.send_requests(reqs, move |mut res| match res.pop() {
+			Some(OnDemandResponse::Account(maybe_account)) => {
+				if let Some(ref acc) = maybe_account {
+					let mut txq = tx_queue.write();
+					txq.cull(address, acc.nonce);
+				}
+				maybe_account
+			}
 			_ => panic!(WRONG_RESPONSE_AMOUNT_TYPE_PROOF),
 		}))
 	}
 
 	/// Helper for getting proved execution.
-	pub fn proved_read_only_execution(&self, req: CallRequest, num: Option<BlockNumber>) -> impl Future<Item = ExecutionResult, Error = Error> + Send {
+	pub fn proved_read_only_execution(
+		&self,
+		req: CallRequest,
+		num: Option<BlockNumber>,
+		txq: Arc<RwLock<TransactionQueue>>
+	) -> impl Future<Item = ExecutionResult, Error = Error> + Send {
+
 		// (21000 G_transaction + 32000 G_create + some marginal to allow a few operations)
 		const START_GAS: u64 = 60_000;
 
@@ -254,7 +273,7 @@ where
 		let from = req.from.unwrap_or_default();
 		let nonce_fut = match req.nonce {
 			Some(nonce) => Either::A(future::ok(Some(nonce))),
-			None => Either::B(self.account(from, id).map(|acc| acc.map(|a| a.nonce))),
+			None => Either::B(self.account(from, id, txq).map(|acc| acc.map(|a| a.nonce))),
 		};
 
 		let gas_price_fut = match req.gas_price {
