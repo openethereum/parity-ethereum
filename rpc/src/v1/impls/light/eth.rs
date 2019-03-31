@@ -309,8 +309,14 @@ where
 		Box::new(self.rich_block(num.to_block_id(), include_txs).map(Some))
 	}
 
-	fn raw_block_by_number(&self, _num: BlockNumber, _include_txs: bool) -> BoxFuture<Option<Bytes>> {
-		Box::new(future::done(Ok(None)))
+	fn raw_block_by_number(&self, num: BlockNumber, include_txs: bool) -> BoxFuture<Option<Bytes>> {
+		Box::new(self.encoded_block(num.to_block_id(), include_txs).map(|(block, _)|
+			Some(Bytes::new(block
+				.rlp()
+				.as_raw()
+				.to_vec()
+			))
+		))
 	}
 
 	fn transaction_count(&self, address: H160, num: Option<BlockNumber>) -> BoxFuture<U256> {
