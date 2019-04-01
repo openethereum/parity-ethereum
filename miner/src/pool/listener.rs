@@ -116,6 +116,7 @@ impl txpool::Listener<Transaction> for Logger {
 	}
 }
 
+/// Transactions pool notifier
 #[derive(Default)]
 pub struct TransactionsPoolNotifier {
 	listeners: Vec<Arc<Mutex<mpsc::Sender<(H256, String)>>>>,
