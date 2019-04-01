@@ -176,8 +176,11 @@ impl SyncPropagator {
 			}
 
 			let stats = &mut sync.transactions_stats;
-			let peer_info = sync.peers.get_mut(&peer_id)
-				.expect("peer_id is form peers; peers is result of select_peers_for_transactions; select_peers_for_transactions selects peers from self.peers; qed");
+
+			let peer_info = match sync.peers.get_mut(&peer_id) {
+				Some(info) => info,
+				None => continue,
+			};
 
 			// Send all transactions, if the peer doesn't know about anything
 			if peer_info.last_sent_transactions.is_empty() {
@@ -309,19 +312,27 @@ impl SyncPropagator {
 		}
 	}
 
-	fn select_peers_for_transactions<F>(sync: &ChainSync, filter: F) -> Vec<PeerId>
+	fn select_peers_for_transactions<F>(sync: &mut ChainSync, filter: F) -> Vec<PeerId>
 		where F: Fn(&PeerId) -> bool {
 		// sqrt(x)/x scaled to max u32
 		let fraction = ((sync.peers.len() as f64).powf(-0.5) * (u32::max_value() as f64).round()) as u32;
 		let small = sync.peers.len() < MIN_PEERS_PROPAGATION;
+		let peers = sync.peers.keys().cloned();
 
-		let mut random = random::new();
-		sync.peers.keys()
-			.cloned()
+		let update_selection = || {
+			let mut rng = random::new();
+			peers.filter(|_| small || rng.next_u32() < fraction)
+				.take(MAX_PEERS_PROPAGATION)
+				.collect()
+		};
+
+		let v = sync.peers_for_txn_propagation
+			.get(update_selection)
+			.into_iter()
 			.filter(filter)
-			.filter(|_| small || random.next_u32() < fraction)
-			.take(MAX_PEERS_PROPAGATION)
-			.collect()
+			.collect();
+		debug!(target: "sync", "selected peers for txn propagation {:?}", v);
+		v
 	}
 
 	/// Generic packet sender
