@@ -16,8 +16,9 @@
 
 use std::cmp;
 use std::time::{Instant, Duration};
-use std::collections::{BTreeMap, BTreeSet, HashSet, HashMap};
+use std::collections::{BTreeMap, BTreeSet, HashSet};
 use std::sync::Arc;
+use std::sync::mpsc;
 
 use ansi_term::Colour;
 use bytes::Bytes;
@@ -263,8 +264,10 @@ impl Miner {
 	}
 
 	/// Set a callback to be notified
-	pub fn add_transactions_pool_listener(&self, f: Box<Fn(HashMap<H256, String>) + Send + Sync>) {
-		self.transaction_queue.add_transactions_pool_listener(f);
+	pub fn get_tx_pool_receiver(&self) -> mpsc::Receiver<(H256, String)> {
+		let (sender, receiver) = mpsc::channel();
+		self.transaction_queue.add_tx_pool_listener(sender);
+		receiver
 	}
 
 	/// Creates new instance of miner Arc.

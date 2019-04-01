@@ -19,6 +19,7 @@
 use std::{cmp, fmt};
 use std::sync::Arc;
 use std::sync::atomic::{self, AtomicUsize};
+use std::sync::mpsc;
 use std::collections::{BTreeMap, BTreeSet, HashMap};
 
 use ethereum_types::{H256, U256, Address};
@@ -572,7 +573,8 @@ impl TransactionQueue {
 		(pool.listener_mut().1).0.add(f);
 	}
 
-	pub fn add_transactions_pool_listener(&self, f: Box<Fn(HashMap<H256,String>) + Send + Sync>) {
+	/// Add a listener to be notified about all transactions the pool
+	pub fn add_tx_pool_listener(&self, f: mpsc::Sender<(H256, String)>) {
 		let mut pool = self.pool.write();
 		((pool.listener_mut().1).1).1.add(f);
 	}

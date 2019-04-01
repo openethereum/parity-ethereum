@@ -17,8 +17,7 @@
 //! Notifier for new transaction hashes.
 
 use std::fmt;
-use std::sync::Arc;
-use std::collections::HashMap;
+use std::sync::{Arc, mpsc, Mutex};
 
 use ethereum_types::H256;
 use txpool::{self, VerifiedTransaction};
@@ -26,7 +25,6 @@ use txpool::{self, VerifiedTransaction};
 use pool::VerifiedTransaction as Transaction;
 
 type Listener = Box<Fn(&[H256]) + Send + Sync>;
-type PoolListener = Box<Fn(HashMap<H256, String>) + Send + Sync>;
 
 /// Manages notifications to pending transaction listeners.
 #[derive(Default)]
@@ -120,13 +118,24 @@ impl txpool::Listener<Transaction> for Logger {
 
 #[derive(Default)]
 pub struct TransactionsPoolNotifier {
-	listeners: Vec<PoolListener>,
+	listeners: Vec<Arc<Mutex<mpsc::Sender<(H256, String)>>>>,
 }
 
 impl TransactionsPoolNotifier {
 	/// Add new listener to receive notifications.
-	pub fn add(&mut self, f: PoolListener) {
-		self.listeners.push(f)
+	pub fn add(&mut self, f: mpsc::Sender<(H256, String)>) {
+		self.listeners.push(Arc::new(Mutex::new(f)));
+	}
+
+	/// Notify listeners about all currently transactions.
+	fn notify(& mut self, hash: H256, status: String) {
+		for l in &self.listeners {
+			let l = l.lock();
+			if let Ok(l) = l {
+				let pair = (hash.clone(), status.clone());
+				let _ = l.send(pair);
+			}
+		}
 	}
 }
 
@@ -140,51 +149,33 @@ impl fmt::Debug for TransactionsPoolNotifier {
 
 impl txpool::Listener<Transaction> for TransactionsPoolNotifier {
 	fn added(&mut self, tx: &Arc<Transaction>, _old: Option<&Arc<Transaction>>) {
-		for l in &self.listeners {
-			let mut hash_map = HashMap::new();
-			hash_map.insert(tx.hash, "added".to_string());
-			(l)(hash_map);
-		}
+		let hash = tx.hash.clone();
+		self.notify(hash, "added".to_string());
 	}
 
 	fn rejected(&mut self, tx: &Arc<Transaction>, _reason: &txpool::ErrorKind) {
-		for l in &self.listeners {
-			let mut hash_map = HashMap::new();
-			hash_map.insert( tx.hash, "rejected".to_string());
-			(l)(hash_map);
-		}
+		let hash = tx.hash.clone();
+		self.notify(hash, "rejected".to_string());
 	}
 
 	fn dropped(&mut self, tx: &Arc<Transaction>, _new: Option<&Transaction>) {
-		for l in &self.listeners {
-			let mut hash_map = HashMap::new();
-			hash_map.insert(tx.hash, "dropped".to_string());
-			(l)(hash_map);
-		}
+		let hash = tx.hash.clone();
+		self.notify(hash, "dropped".to_string());
 	}
 
 	fn invalid(&mut self, tx: &Arc<Transaction>) {
-		for l in &self.listeners {
-			let mut hash_map = HashMap::new();
-			hash_map.insert(tx.hash, "invalid".to_string());
-			(l)(hash_map);
-		}
+		let hash = tx.hash.clone();
+		self.notify(hash, "invalid".to_string());
 	}
 
 	fn canceled(&mut self, tx: &Arc<Transaction>) {
-		for l in &self.listeners {
-			let mut hash_map = HashMap::new();
-			hash_map.insert(tx.hash, "canceled".to_string());
-			(l)(hash_map);
-		}
+		let hash = tx.hash.clone();
+		self.notify(hash, "canceled".to_string());
 	}
 
 	fn culled(&mut self, tx: &Arc<Transaction>) {
-		for l in &self.listeners {
-			let mut hash_map = HashMap::new();
-			hash_map.insert(tx.hash, "culled".to_string());
-			(l)(hash_map);
-		}
+		let hash = tx.hash.clone();
+		self.notify(hash, "culled".to_string());
 	}
 }
 

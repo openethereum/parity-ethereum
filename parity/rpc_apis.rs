@@ -342,14 +342,9 @@ impl FullDependencies {
 				}
 				Api::TransactionsPool => {
 					if !for_generic_pubsub {
-						let client = TransactionsPoolClient::new(self.client.clone(), self.executor.clone());
-						let h = client.handler();
-						self.miner.add_transactions_pool_listener(Box::new(move |hash| {
-							if let Some(handler) = h.upgrade() {
-								handler.notify_transactions(hash);
-							}
-						}));
-
+						let receiver = self.miner.get_tx_pool_receiver();
+						let client = TransactionsPoolClient::new(self.executor.clone());
+						client.run(receiver);
 						handler.extend_with(TransactionsPoolClient::to_delegate(client));
 					}
 				}
@@ -590,18 +585,7 @@ impl<C: LightChainClient + 'static> LightDependencies<C> {
 					handler.extend_with(EthPubSub::to_delegate(client));
 				}
 				Api::TransactionsPool => {
-					if !for_generic_pubsub {
-						let client = TransactionsPoolClient::new(self.client.clone(), self.executor.clone());
-						let h = client.handler();
-						self.transaction_queue
-							.write().add_transactions_pool_listener(Box::new(move |hash| {
-							if let Some(handler) = h.upgrade() {
-								handler.notify_transactions(hash);
-							}
-						}));
-
-						handler.extend_with(TransactionsPoolClient::to_delegate(client));
-					}
+					if !for_generic_pubsub {}
 				}
 				Api::Personal => {
 					#[cfg(feature = "accounts")]

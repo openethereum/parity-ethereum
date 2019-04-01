@@ -1,56 +1,68 @@
-use std::sync::{Arc, Weak};
-use std::collections::HashMap;
+use std::sync::{Arc, mpsc};
+use std::thread;
 
-use jsonrpc_core::{BoxFuture, Result, Error};
-use jsonrpc_core::futures::{self, Future, IntoFuture};
+use jsonrpc_core::Result;
+use jsonrpc_core::futures::Future;
 use jsonrpc_pubsub::{SubscriptionId, typed::{Sink, Subscriber}};
 
 use v1::helpers::{errors, Subscribers};
 use v1::metadata::Metadata;
 use v1::traits::TransactionsPool;
-use v1::types::{pubsub, RichHeader, Log};
+use v1::types::pubsub;
 
 use parity_runtime::Executor;
-use parking_lot::{RwLock, Mutex};
-use std::fs::read;
+use parking_lot::RwLock;
 use ethereum_types::H256;
-use futures::future::err;
 
 type Client = Sink<pubsub::Result>;
 
-pub struct TransactionsPoolClient<C> {
-    handler: Arc<TransactionsNotificationHandler<C>>,
+/// Transactions pool PubSub implementation.
+pub struct TransactionsPoolClient {
+    handler: Arc<TransactionsNotificationHandler>,
     transactions_pool_subscribers: Arc<RwLock<Subscribers<Client>>>,
 }
 
-impl<C> TransactionsPoolClient<C> {
+impl TransactionsPoolClient {
     /// Creates new `TransactionsPoolClient`.
-    pub fn new(client: Arc<C>, executor: Executor) -> Self {
+    pub fn new(executor: Executor) -> Self {
         let transactions_pool_subscribers = Arc::new(RwLock::new(Subscribers::default()));
+        let handler = Arc::new(
+            TransactionsNotificationHandler::new(
+                executor,
+                transactions_pool_subscribers.clone(),
+                )
+        );
 
         TransactionsPoolClient {
-            handler: Arc::new(TransactionsNotificationHandler {
-                client,
-                executor,
-                transactions_pool_subscribers: transactions_pool_subscribers.clone(),
-            }),
+            handler,
             transactions_pool_subscribers,
         }
     }
-
-    /// Returns a transactions notification handler.
-    pub fn handler(&self) -> Weak<TransactionsNotificationHandler<C>> {
-        Arc::downgrade(&self.handler)
+    pub fn run(&self, pool_receiver: mpsc::Receiver<(H256, String)>) {
+        let handler = self.handler.clone();
+        thread::spawn(move || loop {
+            let res = pool_receiver.recv();
+            if let Ok(res) = res {
+                handler.notify_transaction(res)
+            }
+        });
     }
+
 }
 
-pub struct TransactionsNotificationHandler<C> {
-    client: Arc<C>,
+pub struct TransactionsNotificationHandler {
     executor: Executor,
     transactions_pool_subscribers: Arc<RwLock<Subscribers<Client>>>,
 }
 
-impl<C> TransactionsNotificationHandler<C> {
+impl TransactionsNotificationHandler {
+    fn new(executor: Executor, transactions_pool_subscribers: Arc<RwLock<Subscribers<Client>>>) -> Self {
+        TransactionsNotificationHandler {
+            executor,
+            transactions_pool_subscribers,
+        }
+    }
+
     fn notify(executor: &Executor, subscriber: &Client, result: pubsub::Result) {
         executor.spawn(subscriber
             .notify(Ok(result))
@@ -59,14 +71,15 @@ impl<C> TransactionsNotificationHandler<C> {
         );
     }
 
-    pub fn notify_transactions(&self, hash: HashMap<H256, String>) {
+    pub fn notify_transaction(&self, status: (H256, String)) {
         for subscriber in self.transactions_pool_subscribers.read().values() {
-            Self::notify(&self.executor, subscriber, pubsub::Result::TransactionsHashMap(hash.clone()));
+            let status = (status.0.clone(), status.1.clone());
+            Self::notify(&self.executor, subscriber, pubsub::Result::TransactionStatus(status));
         }
     }
 }
 
-impl <C: Send + Sync + 'static> TransactionsPool for TransactionsPoolClient<C> {
+impl TransactionsPool for TransactionsPoolClient {
     type Metadata = Metadata;
 
     fn subscribe(&self, _meta: Metadata, subscriber: Subscriber<pubsub::Result>, params: Option<pubsub::Params>) {
@@ -74,10 +87,10 @@ impl <C: Send + Sync + 'static> TransactionsPool for TransactionsPoolClient<C> {
             None => {
                 self.transactions_pool_subscribers.write().push(subscriber);
                 return;
-            },
+            }
             _ => {
                 errors::invalid_params("parity_watchTransactionsPool", "Expected no parameters.")
-            },
+            }
         };
 
         let _ = subscriber.reject(error);

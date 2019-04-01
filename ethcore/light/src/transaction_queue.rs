@@ -127,7 +127,6 @@ pub enum ImportDestination {
 }
 
 type Listener = Box<Fn(&[H256]) + Send + Sync>;
-type PoolListener = Box<Fn(HashMap<H256, String>) + Send + Sync>;
 
 /// Light transaction queue. See module docs for more details.
 #[derive(Default)]
@@ -357,11 +356,6 @@ impl TransactionQueue {
 	/// Add a transaction queue listener.
 	pub fn add_listener(&mut self, f: Listener) {
 		self.listeners.push(f);
-	}
-
-	/// add
-	pub fn add_transactions_pool_listener(&mut self, f: PoolListener) {
-//		self.listeners.push(f);
 	}
 
 	/// Notifies all listeners about new pending transaction.

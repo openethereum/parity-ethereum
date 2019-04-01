@@ -16,8 +16,6 @@
 
 //! Pub-Sub types.
 
-use std::collections::HashMap;
-
 use ethereum_types::H256;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use serde::de::Error;
@@ -34,8 +32,8 @@ pub enum Result {
 	Log(Box<Log>),
 	/// Transaction hash
 	TransactionHash(H256),
-	/// Transactions HashMap
-	TransactionsHashMap(HashMap<H256, String>)
+	/// Transaction status
+	TransactionStatus((H256, String)),
 }
 
 impl Serialize for Result {
@@ -46,11 +44,9 @@ impl Serialize for Result {
 			Result::Header(ref header) => header.serialize(serializer),
 			Result::Log(ref log) => log.serialize(serializer),
 			Result::TransactionHash(ref hash) => hash.serialize(serializer),
-			Result::TransactionsHashMap(ref hash_map) => {
-				let mut seq = serializer.serialize_map(Some(hash_map.len()))?;
-				for (k, v) in hash_map {
-					seq.serialize_entry(&k, &v)?;
-				}
+			Result::TransactionStatus(ref status) => {
+				let mut seq = serializer.serialize_map(Some(1))?;
+				seq.serialize_entry(&status.0, &status.1)?;
 				seq.end()
 			}
 		}
