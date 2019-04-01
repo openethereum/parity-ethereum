@@ -154,7 +154,7 @@ impl Default for VerificationStore {
 
 impl VerificationStore {
 	/// Adds private transaction for verification into the store
-	pub fn add_transaction<C: pool::client::Client>(
+	pub fn add_transaction<C: pool::client::Client + pool::client::NonceClient + Clone>(
 		&self,
 		transaction: UnverifiedTransaction,
 		validator_account: Option<Address>,
@@ -164,7 +164,7 @@ impl VerificationStore {
 
 		let options = self.verification_options.clone();
 		// Use pool's verifying pipeline for original transaction's verification
-		let verifier = pool::verifier::Verifier::new(client, options, Default::default(), None);
+		let verifier = pool::verifier::Verifier::new(client.clone(), options, Default::default(), None);
 		let unverified = pool::verifier::Transaction::Unverified(transaction);
 		let verified_tx = verifier.verify_transaction(unverified)?;
 		let signed_tx: SignedTransaction = verified_tx.signed().clone();
@@ -177,8 +177,9 @@ impl VerificationStore {
 			transaction_hash: signed_hash,
 			transaction_sender: signed_sender,
 		};
-		let mut pool = self.verification_pool.write();
-		pool.import(verified)?;
+		let replace = pool::replace::ReplaceByScoreAndReadiness::new(
+			self.verification_pool.read().scoring().clone(), client);
+		self.verification_pool.write().import(verified, &replace)?;
 		Ok(())
 	}
 
