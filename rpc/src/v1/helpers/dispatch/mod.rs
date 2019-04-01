@@ -86,7 +86,7 @@ use jsonrpc_core::{BoxFuture, Result, Error};
 use jsonrpc_core::futures::{future, Future, IntoFuture};
 use v1::helpers::{TransactionRequest, FilledTransactionRequest, ConfirmationPayload};
 use v1::types::{
-	H520 as RpcH520, Bytes as RpcBytes,
+	Bytes as RpcBytes,
 	RichRawTransaction as RpcRichRawTransaction,
 	ConfirmationPayload as RpcConfirmationPayload,
 	ConfirmationResponse,
@@ -309,7 +309,6 @@ pub fn execute<D: Dispatcher + 'static>(
 			let res = signer.sign_message(address, pass, SignMessage::Data(data))
 				.map(|result| result
 					.map(|s| H520(s.into_electrum()))
-			 		.map(RpcH520::from)
 					.map(ConfirmationResponse::Signature)
 				);
 
@@ -319,7 +318,6 @@ pub fn execute<D: Dispatcher + 'static>(
 			let res = signer.sign_message(address, pass, SignMessage::Hash(data))
 				.map(|result| result
 					.map(|rsv| H520(rsv.into_electrum()))
-					.map(RpcH520::from)
 					.map(ConfirmationResponse::Signature)
 				);
 

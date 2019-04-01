@@ -16,6 +16,9 @@
 
 //! RPC types
 
+#[cfg(test)]
+mod eth_types;
+
 mod account_info;
 mod block;
 mod block_number;
@@ -25,7 +28,6 @@ mod confirmations;
 mod consensus_status;
 mod derivation;
 mod filter;
-mod hash;
 mod histogram;
 mod index;
 mod log;
@@ -40,7 +42,6 @@ mod trace_filter;
 mod transaction;
 mod transaction_request;
 mod transaction_condition;
-mod uint;
 mod work;
 mod private_receipt;
 mod eip191;
@@ -60,7 +61,6 @@ pub use self::confirmations::{
 pub use self::consensus_status::*;
 pub use self::derivation::{DeriveHash, DeriveHierarchical, Derive};
 pub use self::filter::{Filter, FilterChanges};
-pub use self::hash::{H64, H160, H256, H512, H520, H2048};
 pub use self::histogram::Histogram;
 pub use self::index::Index;
 pub use self::log::Log;
@@ -78,7 +78,6 @@ pub use self::trace_filter::TraceFilter;
 pub use self::transaction::{Transaction, RichRawTransaction, LocalTransactionStatus};
 pub use self::transaction_request::TransactionRequest;
 pub use self::transaction_condition::TransactionCondition;
-pub use self::uint::{U128, U256, U64};
 pub use self::work::Work;
 pub use self::private_receipt::{PrivateTransactionReceipt, PrivateTransactionReceiptAndTransaction};
 

@@ -17,10 +17,10 @@
 //! Eth rpc interface.
 use jsonrpc_core::{Result, BoxFuture};
 use jsonrpc_derive::rpc;
+use ethereum_types::{H64, H160, H256, U64, U256};
 
 use v1::types::{RichBlock, BlockNumber, Bytes, CallRequest, Filter, FilterChanges, Index, EthAccount};
 use v1::types::{Log, Receipt, SyncStatus, Transaction, Work};
-use v1::types::{H64, H160, H256, U256, U64};
 
 /// Eth rpc interface.
 #[rpc]
@@ -56,7 +56,7 @@ pub trait Eth {
 
 	/// Returns current gas_price.
 	#[rpc(name = "eth_gasPrice")]
-	fn gas_price(&self) -> Result<U256>;
+	fn gas_price(&self) -> BoxFuture<U256>;
 
 	/// Returns accounts list.
 	#[rpc(name = "eth_accounts")]
