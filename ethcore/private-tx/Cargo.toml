@@ -36,7 +36,7 @@ serde = "1.0"
 serde_derive = "1.0"
 serde_json = "1.0"
 tiny-keccak = "1.4"
-transaction-pool = "1.13.2"
+transaction-pool = "2.0"
 url = "1"
 
 [dev-dependencies]
