@@ -552,8 +552,8 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM, T: StateInfo + 'static> Eth for EthClient<
 		Ok(self.external_miner.hashrate())
 	}
 
-	fn gas_price(&self) -> Result<U256> {
-		Ok(default_gas_price(&*self.client, &*self.miner, self.options.gas_price_percentile))
+	fn gas_price(&self) -> BoxFuture<U256> {
+		Box::new(future::ok(default_gas_price(&*self.client, &*self.miner, self.options.gas_price_percentile)))
 	}
 
 	fn accounts(&self) -> Result<Vec<H160>> {

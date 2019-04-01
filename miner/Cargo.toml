@@ -32,7 +32,7 @@ parking_lot = "0.7"
 price-info = { path = "./price-info", optional = true }
 rlp = { version = "0.3.0", features = ["ethereum"] }
 trace-time = "0.1"
-transaction-pool = "1.13"
+transaction-pool = "2.0"
 
 [dev-dependencies]
 env_logger = "0.5"
