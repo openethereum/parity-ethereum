@@ -1626,6 +1626,10 @@ impl Engine for AuthorityRound {
 		*self.signer.write() = Some(signer);
 	}
 
+	fn clear_signer(&self) {
+		*self.signer.write() = Default::default();
+	}
+
 	fn sign(&self, hash: H256) -> Result<Signature, Error> {
 		Ok(self.signer.read()
 			.as_ref()
@@ -1773,9 +1777,65 @@ mod tests {
 
 		engine.set_signer(Box::new((tap, addr2, "2".into())));
 		if let Seal::Regular(seal) = engine.generate_seal(&b2, &genesis_header) {
+			// FIXME: This branch is unreachable because the call to `generate_seal` above always
+			// returns `Seal::None`. Meanwhile it looks as if the intention of the test writer was
+			// to receive a `Seal::Regular` here. This can be achieved similarly to how it's done in
+			// `generates_seal_iff_sealer_is_set()`, by stepping the engine and issuing a block in
+			// the new step signed by `keccak("0")`.
 			assert!(b2.clone().try_seal(engine, seal).is_ok());
 			// Second proposal is forbidden.
 			assert!(engine.generate_seal(&b2, &genesis_header) == Seal::None);
+		}
+	}
+
+	#[test]
+	fn generates_seal_iff_sealer_is_set() {
+		let tap = Arc::new(AccountProvider::transient_provider());
+		let addr1 = tap.insert_account(keccak("1").into(), &"1".into()).unwrap();
+		let spec = Spec::new_test_round();
+		let engine = &*spec.engine;
+		let genesis_header = spec.genesis_header();
+		let db1 = spec.ensure_db_good(get_temp_state_db(), &Default::default()).unwrap();
+		let last_hashes = Arc::new(vec![genesis_header.hash()]);
+		let b1 = OpenBlock::new(engine, Default::default(), false, db1, &genesis_header,
+								last_hashes.clone(), addr1, (3141562.into(), 31415620.into()),
+								vec![], false)
+			.unwrap().close_and_lock().unwrap();
+		// Not a signer. A seal cannot be generated.
+		assert!(engine.generate_seal(&b1, &genesis_header) == Seal::None);
+		// Become a signer.
+		engine.set_signer(Box::new((tap.clone(), addr1, "1".into())));
+		if let Seal::Regular(seal) = engine.generate_seal(&b1, &genesis_header) {
+			assert!(b1.clone().try_seal(engine, seal).is_ok());
+			// Second proposal is forbidden.
+			assert!(engine.generate_seal(&b1, &genesis_header) == Seal::None);
+		} else {
+			panic!("block 1 not sealed");
+		}
+		// Stop being a signer.
+		engine.clear_signer();
+		// Make a step first and then create a new block in that new step.
+		engine.step();
+		let addr2 = tap.insert_account(keccak("0").into(), &"0".into()).unwrap();
+		let mut header2 = genesis_header.clone();
+		header2.set_number(2);
+		header2.set_author(addr2);
+		header2.set_parent_hash(header2.hash());
+		let db2 = spec.ensure_db_good(get_temp_state_db(), &Default::default()).unwrap();
+		let b2 = OpenBlock::new(engine, Default::default(), false, db2, &header2,
+								last_hashes, addr2, (3141562.into(), 31415620.into()),
+								vec![], false)
+			.unwrap().close_and_lock().unwrap();
+		// Not a signer. A seal cannot be generated.
+		assert!(engine.generate_seal(&b2, &header2) == Seal::None);
+		// Become a signer once more.
+		engine.set_signer(Box::new((tap, addr2, "0".into())));
+		if let Seal::Regular(seal) = engine.generate_seal(&b2, &header2) {
+			assert!(b2.clone().try_seal(engine, seal).is_ok());
+			// Second proposal is forbidden.
+			assert!(engine.generate_seal(&b2, &header2) == Seal::None);
+		} else {
+			panic!("block 2 not sealed");
 		}
 	}
 

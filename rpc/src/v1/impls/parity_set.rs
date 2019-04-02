@@ -166,6 +166,11 @@ impl<C, M, U, F> ParitySet for ParitySetClient<C, M, U, F> where
 		Ok(true)
 	}
 
+	fn clear_engine_signer(&self) -> Result<bool> {
+		self.miner.clear_author();
+		Ok(true)
+	}
+
 	fn add_reserved_peer(&self, peer: String) -> Result<bool> {
 		match self.net.add_reserved_peer(peer) {
 			Ok(()) => Ok(true),

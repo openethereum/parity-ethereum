@@ -134,6 +134,9 @@ pub trait MinerService : Send + Sync {
 	/// On chains where sealing is done externally (e.g. PoW) we provide only reward beneficiary.
 	fn set_author(&self, author: Author);
 
+	/// Clears the engine signer and stops signing.
+	fn clear_author(&self);
+
 	// Transaction Pool
 
 	/// Imports transactions to transaction queue.

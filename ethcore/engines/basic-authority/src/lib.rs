@@ -198,6 +198,10 @@ impl Engine for BasicAuthority {
 		*self.signer.write() = Some(signer);
 	}
 
+	fn clear_signer(&self) {
+		*self.signer.write() = Default::default();
+	}
+
 	fn sign(&self, hash: H256) -> Result<Signature, Error> {
 		Ok(self.signer.read()
 			.as_ref()
@@ -289,5 +293,7 @@ mod tests {
 		assert_eq!(SealingState::NotReady, engine.sealing_state());
 		engine.set_signer(Box::new((Arc::new(tap), authority, "".into())));
 		assert_eq!(SealingState::Ready, engine.sealing_state());
+		engine.clear_signer();
+		assert_eq!(SealingState::NotReady, engine.sealing_state());
 	}
 }

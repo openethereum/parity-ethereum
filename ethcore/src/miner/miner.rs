@@ -912,6 +912,14 @@ impl miner::MinerService for Miner {
 		}
 	}
 
+	fn clear_author(&self) {
+		self.params.write().author = Default::default();
+		if self.engine.sealing_state() == SealingState::Ready {
+			self.sealing.lock().enabled = false;
+			self.engine.clear_signer();
+		}
+	}
+
 	fn sensible_gas_price(&self) -> U256 {
 		// 10% above our minimum.
 		self.transaction_queue.current_worst_gas_price() * 110u32 / 100
