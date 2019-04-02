@@ -57,6 +57,10 @@ pub trait ParitySet {
 	#[rpc(name = "parity_setEngineSignerSecret")]
 	fn set_engine_signer_secret(&self, H256) -> Result<bool>;
 
+	/// Unsets the engine signer account address.
+	#[rpc(name = "parity_clearEngineSigner")]
+	fn clear_engine_signer(&self) -> Result<bool>;
+
 	/// Sets the limits for transaction queue.
 	#[rpc(name = "parity_setTransactionsLimit")]
 	fn set_transactions_limit(&self, usize) -> Result<bool>;

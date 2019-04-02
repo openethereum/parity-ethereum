@@ -193,6 +193,10 @@ impl Engine<EthereumMachine> for BasicAuthority {
 		*self.signer.write() = Some(signer);
 	}
 
+	fn clear_signer(&self) {
+		*self.signer.write() = Default::default();
+	}
+
 	fn sign(&self, hash: H256) -> Result<Signature, Error> {
 		Ok(self.signer.read()
 			.as_ref()
@@ -280,5 +284,7 @@ mod tests {
 		assert!(!engine.seals_internally().unwrap());
 		engine.set_signer(Box::new((Arc::new(tap), authority, "".into())));
 		assert!(engine.seals_internally().unwrap());
+		engine.clear_signer();
+		assert!(!engine.seals_internally().unwrap());
 	}
 }

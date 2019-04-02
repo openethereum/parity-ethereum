@@ -401,6 +401,9 @@ pub trait Engine<M: Machine>: Sync + Send {
 	/// Register a component which signs consensus messages.
 	fn set_signer(&self, _signer: Box<EngineSigner>) {}
 
+	/// Unregisters the engine signer address to stop signing consensus messages.
+	fn clear_signer(&self) {}
+
 	/// Sign using the EngineSigner, to be used for consensus tx signing.
 	fn sign(&self, _hash: H256) -> Result<Signature, M::Error> { unimplemented!() }
 
