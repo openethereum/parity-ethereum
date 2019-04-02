@@ -1363,7 +1363,7 @@ mod tests {
 
 	use super::*;
 	use accounts::AccountProvider;
-	use ethkey::{Generator, Random, Secret};
+	use ethkey::{Generator, Random};
 	use hash::keccak;
 	use rustc_hex::FromHex;
 	use types::BlockNumber;
@@ -1453,36 +1453,6 @@ mod tests {
 			gas_price: U256::zero(),
 			nonce: U256::zero(),
 		}.sign(keypair.secret(), Some(chain_id))
-	}
-
-	// TODO...
-	fn transactions() -> Vec<SignedTransaction> {
-		// Create two different, reproducible keypairs (senders)
-		let keypair1 = Secret::from(H256::from(1));
-		let keypair2 = Secret::from(H256::from(2));
-
-		// Create two different, reproducible addresses (receivers)
-		let address1 = H160::from(1);
-		let address2 = H160::from(2);
-
-		vec![
-			Transaction {
-				action: Action::Call(address1),
-				value: U256::zero(),
-				data: "3331600055".from_hex().unwrap(),
-				gas: U256::from(100_000),
-				gas_price: U256::zero(),
-				nonce: U256::zero(),
-			}.sign(&keypair1, Some(TEST_CHAIN_ID)),
-			Transaction {
-				action: Action::Call(address2),
-				value: U256::zero(),
-				data: "3331600055".from_hex().unwrap(),
-				gas: U256::from(100_000),
-				gas_price: U256::zero(),
-				nonce: U256::zero(),
-			}.sign(&keypair2, Some(TEST_CHAIN_ID)),
-		]
 	}
 
 	#[test]
@@ -1802,23 +1772,5 @@ mod tests {
 		let expected_error_msg = "Can't update fixed gas price while automatic gas calibration is enabled.";
 
 		assert!(received_error_msg == expected_error_msg);
-	}
-
-	#[test]
-	fn filter_pending_transactions_by_tx_hash() {
-		// given
-		let client = TestBlockChainClient::default();
-		let miner = miner();
-		let pending_transactions = transactions();
-		// when
-		for transaction in pending_transactions {
-			let res = miner.import_own_transaction(&client, PendingTransaction::new(transaction, None));
-			assert_eq!(res.unwrap(), ());
-		}
-
-		// then
-		let res = miner.ready_transactions_filtered(&client, 10, None, None, None, PendingOrdering::Unordered);
-		// ... ready_transactions() always seems to return only two transactions?
-		// TODO...
 	}
 }
