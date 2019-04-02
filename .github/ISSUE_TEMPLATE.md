@@ -1,6 +1,8 @@
 _Before filing a new issue, please **provide the following information**._
 
-_If you think that your issue is an exploitable security vulnerability, please mail your bugreport to security@parity.io instead._
+_If you think that your issue is an exploitable security vulnerability, please mail your bugreport to security@parity.io instead; your submission might be eligible for our Bug Bounty._
+_You can find mode info on the reporting process in https://github.com/paritytech/parity-ethereum/blob/master/SECURITY.md _
+
 
 - **Parity Ethereum version**: 0.0.0
 - **Operating system**: Windows / MacOS / Linux
