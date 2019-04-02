@@ -35,7 +35,6 @@ use types::ids::BlockId;
 use updater::{Service as UpdateService};
 use version::version_data;
 
-use v1::helpers::block_import::is_major_importing;
 use v1::helpers::{self, errors, fake_sign, ipfs, NetworkSettings, verify_signature};
 use v1::helpers::external_signer::{SigningQueue, SignerService};
 use v1::metadata::Metadata;
@@ -445,8 +444,7 @@ impl<C, M, U, S> Parity for ParityClient<C, M, U> where
 			_ => false,
 		};
 		let is_not_syncing =
-			!is_warping &&
-			!is_major_importing(Some(self.sync.status().state), self.client.queue_info());
+			!is_warping && !self.sync.is_major_syncing();
 
 		if has_peers && is_not_syncing {
 			Ok(())

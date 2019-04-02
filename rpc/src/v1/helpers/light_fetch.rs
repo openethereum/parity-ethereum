@@ -106,7 +106,6 @@ where
 	}
 }
 
-
 /// Extract a transaction at given index.
 pub fn extract_transaction_at_index(block: encoded::Block, index: usize) -> Option<Transaction> {
 	block.transactions().into_iter().nth(index)

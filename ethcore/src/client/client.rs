@@ -1672,6 +1672,10 @@ impl BlockChainClient for Client {
 		r
 	}
 
+	fn queue_info(&self) -> BlockQueueInfo {
+		self.importer.block_queue.queue_info()
+	}
+
 	fn disable(&self) {
 		self.set_mode(Mode::Off);
 		self.enabled.store(false, AtomicOrdering::Relaxed);
@@ -1932,10 +1936,6 @@ impl BlockChainClient for Client {
 
 	fn block_receipts(&self, hash: &H256) -> Option<BlockReceipts> {
 		self.chain.read().block_receipts(hash)
-	}
-
-	fn queue_info(&self) -> BlockQueueInfo {
-		self.importer.block_queue.queue_info()
 	}
 
 	fn is_queue_empty(&self) -> bool {
