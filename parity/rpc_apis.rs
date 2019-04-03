@@ -81,7 +81,8 @@ pub enum Api {
 	/// Geth-compatible (best-effort) debug API (Potentially UNSAFE)
 	/// NOTE We don't aim to support all methods, only the ones that are useful.
 	Debug,
-	TransactionsPool,
+	/// Parity Transactions pool PubSub
+	ParityTransactionsPool,
 }
 
 impl FromStr for Api {
@@ -108,7 +109,7 @@ impl FromStr for Api {
 			"signer" => Ok(Signer),
 			"traces" => Ok(Traces),
 			"web3" => Ok(Web3),
-			"transactions_pool" => Ok(TransactionsPool),
+			"parity_transactions_pool" => Ok(ParityTransactionsPool),
 			api => Err(format!("Unknown api: {}", api)),
 		}
 	}
@@ -192,7 +193,7 @@ fn to_modules(apis: &HashSet<Api>) -> BTreeMap<String, String> {
 			Api::Web3 => ("web3", "1.0"),
 			Api::Whisper => ("shh", "1.0"),
 			Api::WhisperPubSub => ("shh_pubsub", "1.0"),
-			Api::TransactionsPool => ("transactions_pool", "1.0"),
+			Api::ParityTransactionsPool => ("parity_transactions_pool", "1.0"),
 		};
 		modules.insert(name.into(), version.into());
 	}
@@ -340,7 +341,7 @@ impl FullDependencies {
 						handler.extend_with(client.to_delegate());
 					}
 				}
-				Api::TransactionsPool => {
+				Api::ParityTransactionsPool => {
 					if !for_generic_pubsub {
 						let receiver = self.miner.tx_pool_receiver();
 						let client = TransactionsPoolClient::new(self.executor.clone());
@@ -584,7 +585,7 @@ impl<C: LightChainClient + 'static> LightDependencies<C> {
 						}));
 					handler.extend_with(EthPubSub::to_delegate(client));
 				}
-				Api::TransactionsPool => {
+				Api::ParityTransactionsPool => {
 					if !for_generic_pubsub {}
 				}
 				Api::Personal => {
@@ -718,7 +719,7 @@ impl ApiSet {
 			Api::Whisper,
 			Api::WhisperPubSub,
 			Api::Private,
-			Api::TransactionsPool,
+			Api::ParityTransactionsPool,
 		]
 			.into_iter()
 			.cloned()
@@ -784,7 +785,7 @@ mod test {
 		assert_eq!(Api::Private, "private".parse().unwrap());
 		assert_eq!(Api::Whisper, "shh".parse().unwrap());
 		assert_eq!(Api::WhisperPubSub, "shh_pubsub".parse().unwrap());
-		assert_eq!(Api::TransactionsPool, "transactions_pool".parse().unwrap());
+		assert_eq!(Api::ParityTransactionsPool, "parity_transactions_pool".parse().unwrap());
 		assert!("rp".parse::<Api>().is_err());
 	}
 
@@ -816,7 +817,7 @@ mod test {
 			Api::Whisper,
 			Api::WhisperPubSub,
 			Api::Private,
-			Api::TransactionsPool,
+			Api::ParityTransactionsPool,
 		].into_iter()
 		.collect();
 		assert_eq!(ApiSet::UnsafeContext.list_apis(), expected);
