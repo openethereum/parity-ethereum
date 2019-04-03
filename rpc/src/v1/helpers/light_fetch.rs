@@ -542,7 +542,7 @@ where
 
 			// when they come in, update each sender to the new nonce.
 			on_demand.request(ctx, nonce_reqs)
-				.expect("No back-references; therefore all back-references are valid; qed")
+				.expect(NO_INVALID_BACK_REFS_PROOF)
 				.map(move |accs| {
 					let mut txq = txq.write();
 					accs.into_iter()
