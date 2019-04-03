@@ -586,6 +586,10 @@ impl ChainNotify for EthSync {
 		});
 	}
 
+	fn send(&self, _message_type: ChainMessageType, _peer_id: usize) {
+		unimplemented!("TODO: Send message to _peer_id.");
+	}
+
 	fn transactions_received(&self, txs: &[UnverifiedTransaction], peer_id: PeerId) {
 		let mut sync = self.eth_handler.sync.write();
 		sync.transactions_received(txs, peer_id);

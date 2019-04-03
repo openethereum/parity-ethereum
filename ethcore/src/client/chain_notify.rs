@@ -177,6 +177,11 @@ pub trait ChainNotify : Send + Sync {
 		// does nothing by default
 	}
 
+	/// fires when chain sends a message to a specific peer
+	fn send(&self, _message_type: ChainMessageType, _peer_id: usize) {
+		// does nothing by default
+	}
+
 	/// fires when new block is about to be imported
 	/// implementations should be light
 	fn block_pre_import(&self, _bytes: &Bytes, _hash: &H256, _difficulty: &U256) {

@@ -503,6 +503,8 @@ pub fn get_bad_state_dummy_block() -> Bytes {
 pub struct TestNotify {
 	/// Messages store
 	pub messages: RwLock<Vec<Bytes>>,
+	/// Targeted messages store
+	pub targeted_messages: RwLock<Vec<(Bytes, usize)>>,
 }
 
 impl ChainNotify for TestNotify {
@@ -513,5 +515,14 @@ impl ChainNotify for TestNotify {
 			ChainMessageType::PrivateTransaction(_, data) => data,
 		};
 		self.messages.write().push(data);
+	}
+
+	fn send(&self, message: ChainMessageType, peer_id: usize) {
+		let data = match message {
+			ChainMessageType::Consensus(data) => data,
+			ChainMessageType::SignedPrivateTransaction(_, data) => data,
+			ChainMessageType::PrivateTransaction(_, data) => data,
+		};
+		self.targeted_messages.write().push((data, peer_id));
 	}
 }
