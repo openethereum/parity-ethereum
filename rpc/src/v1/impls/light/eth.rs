@@ -424,8 +424,6 @@ where
 
 		// The transaction is in the `local txqueue` then fetch the latest state from the network and attempt
 		// to cull the transaction queue.
-		//
-		// If it fails return the local transaction
 		if in_txqueue {
 			// Note, this will block (relies on HTTP timeout) to make sure `cull` will finish to avoid having to call
 			// `eth_getTransactionByHash` more than once to ensure the `txqueue` is up to `date` when it is called
