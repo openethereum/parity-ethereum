@@ -23,6 +23,7 @@ use ethereum_types::H256;
 use txpool::{self, VerifiedTransaction};
 
 use pool::VerifiedTransaction as Transaction;
+use pool::TxStatus;
 
 type Listener = Box<Fn(&[H256]) + Send + Sync>;
 
@@ -119,22 +120,21 @@ impl txpool::Listener<Transaction> for Logger {
 /// Transactions pool notifier
 #[derive(Default)]
 pub struct TransactionsPoolNotifier {
-	listeners: Vec<Arc<Mutex<mpsc::Sender<(H256, String)>>>>,
+	listeners: Vec<Mutex<mpsc::Sender<(H256, TxStatus)>>>,
 }
 
 impl TransactionsPoolNotifier {
 	/// Add new listener to receive notifications.
-	pub fn add(&mut self, f: mpsc::Sender<(H256, String)>) {
-		self.listeners.push(Arc::new(Mutex::new(f)));
+	pub fn add(&mut self, f: mpsc::Sender<(H256, TxStatus)>) {
+		self.listeners.push(Mutex::new(f));
 	}
 
 	/// Notify listeners about all currently transactions.
-	fn notify(& mut self, hash: H256, status: String) {
+	fn notify(& mut self, hash: H256, status: TxStatus) {
 		for l in &self.listeners {
 			let l = l.lock();
 			if let Ok(l) = l {
-				let pair = (hash.clone(), status.clone());
-				let _ = l.send(pair);
+				let _ = l.send((hash, status.clone()));
 			}
 		}
 	}
@@ -151,32 +151,32 @@ impl fmt::Debug for TransactionsPoolNotifier {
 impl txpool::Listener<Transaction> for TransactionsPoolNotifier {
 	fn added(&mut self, tx: &Arc<Transaction>, _old: Option<&Arc<Transaction>>) {
 		let hash = tx.hash.clone();
-		self.notify(hash, "added".to_string());
+		self.notify(hash, TxStatus::Added);
 	}
 
 	fn rejected(&mut self, tx: &Arc<Transaction>, _reason: &txpool::ErrorKind) {
 		let hash = tx.hash.clone();
-		self.notify(hash, "rejected".to_string());
+		self.notify(hash, TxStatus::Rejected);
 	}
 
 	fn dropped(&mut self, tx: &Arc<Transaction>, _new: Option<&Transaction>) {
 		let hash = tx.hash.clone();
-		self.notify(hash, "dropped".to_string());
+		self.notify(hash, TxStatus::Dropped);
 	}
 
 	fn invalid(&mut self, tx: &Arc<Transaction>) {
 		let hash = tx.hash.clone();
-		self.notify(hash, "invalid".to_string());
+		self.notify(hash, TxStatus::Invalid);
 	}
 
 	fn canceled(&mut self, tx: &Arc<Transaction>) {
 		let hash = tx.hash.clone();
-		self.notify(hash, "canceled".to_string());
+		self.notify(hash, TxStatus::Canceled);
 	}
 
 	fn culled(&mut self, tx: &Arc<Transaction>) {
 		let hash = tx.hash.clone();
-		self.notify(hash, "culled".to_string());
+		self.notify(hash, TxStatus::Culled);
 	}
 }
 

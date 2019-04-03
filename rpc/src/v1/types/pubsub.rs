@@ -17,6 +17,7 @@
 //! Pub-Sub types.
 
 use ethereum_types::H256;
+use miner::pool::TxStatus;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use serde::de::Error;
 use serde::ser::SerializeMap;
@@ -33,7 +34,7 @@ pub enum Result {
 	/// Transaction hash
 	TransactionHash(H256),
 	/// Transaction status
-	TransactionStatus((H256, String)),
+	TransactionStatus((H256, TxStatus)),
 }
 
 impl Serialize for Result {

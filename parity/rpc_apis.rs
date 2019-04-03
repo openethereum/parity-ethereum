@@ -342,7 +342,7 @@ impl FullDependencies {
 				}
 				Api::TransactionsPool => {
 					if !for_generic_pubsub {
-						let receiver = self.miner.get_tx_pool_receiver();
+						let receiver = self.miner.tx_pool_receiver();
 						let client = TransactionsPoolClient::new(self.executor.clone());
 						client.run(receiver);
 						handler.extend_with(TransactionsPoolClient::to_delegate(client));

@@ -10,6 +10,7 @@ use v1::metadata::Metadata;
 use v1::traits::TransactionsPool;
 use v1::types::pubsub;
 
+use miner::pool::TxStatus;
 use parity_runtime::Executor;
 use parking_lot::RwLock;
 use ethereum_types::H256;
@@ -39,7 +40,7 @@ impl TransactionsPoolClient {
 		}
 	}
 
-	pub fn run(&self, pool_receiver: mpsc::Receiver<(H256, String)>) {
+	pub fn run(&self, pool_receiver: mpsc::Receiver<(H256, TxStatus)>) {
 		let handler = self.handler.clone();
 		thread::spawn(move || loop {
 			let res = pool_receiver.recv();
@@ -72,7 +73,7 @@ impl TransactionsNotificationHandler {
 		);
 	}
 
-	pub fn notify_transaction(&self, status: (H256, String)) {
+	pub fn notify_transaction(&self, status: (H256, TxStatus)) {
 		for subscriber in self.transactions_pool_subscribers.read().values() {
 			Self::notify(&self.executor, subscriber, pubsub::Result::TransactionStatus(status.clone()));
 		}

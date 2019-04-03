@@ -29,7 +29,7 @@ use types::transaction;
 
 use pool::{
 	self, scoring, verifier, client, ready, listener,
-	PrioritizationStrategy, PendingOrdering, PendingSettings,
+	PrioritizationStrategy, PendingOrdering, PendingSettings, TxStatus
 };
 use pool::local_transactions::LocalTransactionsList;
 
@@ -574,7 +574,7 @@ impl TransactionQueue {
 	}
 
 	/// Add a listener to be notified about all transactions the pool
-	pub fn add_tx_pool_listener(&self, f: mpsc::Sender<(H256, String)>) {
+	pub fn add_tx_pool_listener(&self, f: mpsc::Sender<(H256, TxStatus)>) {
 		let mut pool = self.pool.write();
 		((pool.listener_mut().1).1).1.add(f);
 	}

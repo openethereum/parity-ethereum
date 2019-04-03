@@ -25,7 +25,7 @@ use bytes::Bytes;
 use call_contract::CallContract;
 use ethcore_miner::gas_pricer::GasPricer;
 use ethcore_miner::local_accounts::LocalAccounts;
-use ethcore_miner::pool::{self, TransactionQueue, VerifiedTransaction, QueueStatus, PrioritizationStrategy};
+use ethcore_miner::pool::{self, TransactionQueue, VerifiedTransaction, QueueStatus, PrioritizationStrategy, TxStatus};
 #[cfg(feature = "work-notify")]
 use ethcore_miner::work_notify::NotifyWork;
 use ethereum_types::{H256, U256, Address};
@@ -264,7 +264,7 @@ impl Miner {
 	}
 
 	/// Set a callback to be notified
-	pub fn get_tx_pool_receiver(&self) -> mpsc::Receiver<(H256, String)> {
+	pub fn tx_pool_receiver(&self) -> mpsc::Receiver<(H256, TxStatus)> {
 		let (sender, receiver) = mpsc::channel();
 		self.transaction_queue.add_tx_pool_listener(sender);
 		receiver
