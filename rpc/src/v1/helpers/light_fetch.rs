@@ -522,10 +522,11 @@ where
 		}))
 	}
 
+	/// Helper to cull the `light` transaction queue of mined transactions
 	pub fn light_cull(&self, txq: Arc<RwLock<TransactionQueue>>) -> impl Future <Item = (), Error = Error> + Send {
 		let senders = txq.read().queued_senders();
 		if senders.is_empty() {
-			return Either::B(future::err(errors::no_light_transactions()));
+			return Either::B(future::err(errors::internal("No pending local transactions", "")));
 		}
 
 		let sync = self.sync.clone();

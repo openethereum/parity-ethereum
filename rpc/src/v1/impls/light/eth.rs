@@ -422,10 +422,10 @@ where
 	fn transaction_by_hash(&self, hash: H256) -> BoxFuture<Option<Transaction>> {
 		let in_txqueue = self.transaction_queue.read().get(&hash).is_some();
 
-		// The transaction is in the `local txqueue`
-		// Check if the nonce on the accounts are still fresh and return result from
-		// the `local txqueue` if it is still fresh.
-		// Otherwise make a network request to fetch the transaction from the network
+		// The transaction is in the `local txqueue` then fetch the latest state from the network and attempt
+		// to cull the transaction queue.
+		//
+		// If it fails return the local transaction
 		if in_txqueue {
 			// Note, this will block (relies on HTTP timeout) to make sure `cull` will finish to avoid having to call
 			// `eth_getTransactionByHash` more than once to ensure the `txqueue` is up to `date` when it is called
