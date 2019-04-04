@@ -295,17 +295,6 @@ fn execute_light_impl<Cr>(cmd: RunCmd, logger: Arc<RotatingLogger>, on_client_rq
 	// spin up event loop
 	let runtime = Runtime::with_default_thread_count();
 
-	// queue cull service.
-	let queue_cull = Arc::new(::light_helpers::QueueCull {
-		client: client.clone(),
-		sync: light_sync.clone(),
-		on_demand: on_demand.clone(),
-		txq: txq.clone(),
-		executor: runtime.executor(),
-	});
-
-	service.register_handler(queue_cull).map_err(|e| format!("Error attaching service: {:?}", e))?;
-
 	// start the network.
 	light_sync.start_network();
 
