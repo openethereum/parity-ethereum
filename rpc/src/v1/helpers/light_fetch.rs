@@ -16,8 +16,9 @@
 
 //! Helpers for fetching blockchain data either from the light client or the network.
 
-use std::cmp;
 use std::clone::Clone;
+use std::cmp;
+use std::collections::BTreeMap;
 use std::sync::Arc;
 
 use types::basic_account::BasicAccount;
@@ -48,7 +49,6 @@ use ethereum_types::{Address, U256};
 use hash::H256;
 use parking_lot::{Mutex, RwLock};
 use fastmap::H256FastMap;
-use std::collections::BTreeMap;
 use types::transaction::{Action, Transaction as EthTransaction, PendingTransaction, SignedTransaction, LocalizedTransaction};
 
 use v1::helpers::{CallRequest as CallRequestHelper, errors, dispatch};
@@ -520,6 +520,46 @@ where
 
 			Either::B(extract_transaction)
 		}))
+	}
+
+	/// Helper to cull the `light` transaction queue of mined transactions
+	pub fn light_cull(&self, txq: Arc<RwLock<TransactionQueue>>) -> impl Future <Item = (), Error = Error> + Send {
+		let senders = txq.read().queued_senders();
+		if senders.is_empty() {
+			return Either::B(future::err(errors::internal("No pending local transactions", "")));
+		}
+
+		let sync = self.sync.clone();
+		let on_demand = self.on_demand.clone();
+		let best_header = self.client.best_block_header();
+		let start_nonce = self.client.engine().account_start_nonce(best_header.number());
+
+		let account_request = sync.with_context(move |ctx| {
+			// fetch the nonce of each sender in the queue.
+			let nonce_reqs = senders.iter()
+				.map(|&address| request::Account { header: best_header.clone().into(), address })
+				.collect::<Vec<_>>();
+
+			// when they come in, update each sender to the new nonce.
+			on_demand.request(ctx, nonce_reqs)
+				.expect(NO_INVALID_BACK_REFS_PROOF)
+				.map(move |accs| {
+					let mut txq = txq.write();
+					accs.into_iter()
+						.map(|maybe_acc| maybe_acc.map_or(start_nonce, |acc| acc.nonce))
+						.zip(senders)
+						.for_each(|(nonce, addr)| {
+							txq.cull(addr, nonce);
+						});
+				})
+				.map_err(errors::on_demand_error)
+		});
+
+		if let Some(fut) = account_request {
+			Either::A(fut)
+		} else {
+			Either::B(future::err(errors::network_disabled()))
+		}
 	}
 
 	fn send_requests<T, F>(&self, reqs: Vec<OnDemandRequest>, parse_response: F) -> impl Future<Item = T, Error = Error> + Send where
