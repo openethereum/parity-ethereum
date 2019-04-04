@@ -73,9 +73,10 @@ pub use key_server_keys::{KeyProvider, SecretStoreKeys, StoringKeyProvider};
 pub use private_transactions::{VerifiedPrivateTransaction, VerificationStore, PrivateTransactionSigningDesc, SigningStore};
 pub use messages::{PrivateTransaction, SignedPrivateTransaction};
 pub use error::Error;
-pub use log::{Logging, TransactionLog, ValidatorLog, PrivateTxStatus, FileLogsSerializer, SystemTimestamp};
+pub use log::{Logging, TransactionLog, ValidatorLog, PrivateTxStatus, FileLogsSerializer};
 
 use std::sync::{Arc, Weak};
+use std::time::SystemTime;
 use std::collections::{HashMap, HashSet, BTreeMap};
 use ethereum_types::{H128, H256, U256, Address};
 use hash::keccak;
@@ -220,7 +221,7 @@ impl Provider {
 			accounts,
 			channel,
 			keys_provider,
-			logging: Logging::new(Arc::new(FileLogsSerializer::with_path(config.logs_path)), Box::new(SystemTimestamp {})),
+			logging: Logging::new(Arc::new(FileLogsSerializer::with_path(config.logs_path)), Box::new(SystemTime::now())),
 		}
 	}
 

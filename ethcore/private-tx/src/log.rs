@@ -158,13 +158,20 @@ pub trait CurrentTime: Send + Sync + 'static {
 }
 
 /// Timesource on the base of system time
+impl CurrentTime for SystemTime {
+	fn timestamp(&self) -> u64 {
+		self.duration_since(UNIX_EPOCH).unwrap_or_default().as_secs()
+	}
+}
+
+/*/// Timesource on the base of system time
 pub struct SystemTimestamp {}
 
 impl CurrentTime for SystemTimestamp {
 	fn timestamp(&self) -> u64 {
 		SystemTime::now().duration_since(UNIX_EPOCH).unwrap_or_default().as_secs()
 	}
-}
+}*/
 
 /// Private transactions logging
 pub struct Logging {
