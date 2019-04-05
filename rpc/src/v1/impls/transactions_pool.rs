@@ -1,5 +1,4 @@
-use std::sync::{Arc, mpsc};
-use std::thread;
+use std::sync::{Arc, Weak};
 
 use jsonrpc_core::Result;
 use jsonrpc_core::futures::Future;
@@ -8,14 +7,14 @@ use jsonrpc_pubsub::{SubscriptionId, typed::{Sink, Subscriber}};
 use v1::helpers::Subscribers;
 use v1::metadata::Metadata;
 use v1::traits::TransactionsPool;
-use v1::types::pubsub;
 
 use miner::pool::TxStatus;
 use parity_runtime::Executor;
 use parking_lot::RwLock;
 use ethereum_types::H256;
+use futures::{Stream, sync::mpsc};
 
-type Client = Sink<pubsub::Result>;
+type Client = Sink<(H256, TxStatus)>;
 
 /// Transactions pool PubSub implementation.
 pub struct TransactionsPoolClient {
@@ -25,13 +24,24 @@ pub struct TransactionsPoolClient {
 
 impl TransactionsPoolClient {
 	/// Creates new `TransactionsPoolClient`.
-	pub fn new(executor: Executor) -> Self {
+	pub fn new(executor: Executor, pool_receiver: mpsc::UnboundedReceiver<Arc<Vec<(H256, TxStatus)>>>) -> Self {
 		let transactions_pool_subscribers = Arc::new(RwLock::new(Subscribers::default()));
 		let handler = Arc::new(
 			TransactionsNotificationHandler::new(
-				executor,
+				executor.clone(),
 				transactions_pool_subscribers.clone(),
 			)
+		);
+		let handler2 = Arc::downgrade(&handler);
+
+		executor.spawn(pool_receiver
+			.for_each(move |tx_status| {
+				if let Some(handler2) = handler2.upgrade() {
+					handler2.notify_transaction(tx_status);
+				}
+				Ok(())
+			})
+			.map_err(|e| warn!("Key server listener error: {:?}", e))
 		);
 
 		TransactionsPoolClient {
@@ -40,14 +50,9 @@ impl TransactionsPoolClient {
 		}
 	}
 
-	pub fn run(&self, pool_receiver: mpsc::Receiver<(H256, TxStatus)>) {
-		let handler = self.handler.clone();
-		thread::spawn(move || loop {
-			let res = pool_receiver.recv();
-			if let Ok(res) = res {
-				handler.notify_transaction(res)
-			}
-		});
+	/// Returns a chain notification handler.
+	pub fn handler(&self) -> Weak<TransactionsNotificationHandler> {
+		Arc::downgrade(&self.handler)
 	}
 }
 
@@ -65,7 +70,7 @@ impl TransactionsNotificationHandler {
 		}
 	}
 
-	fn notify(executor: &Executor, subscriber: &Client, result: pubsub::Result) {
+	fn notify(executor: &Executor, subscriber: &Client, result: (H256, TxStatus)) {
 		executor.spawn(subscriber
 			.notify(Ok(result))
 			.map(|_| ())
@@ -73,9 +78,11 @@ impl TransactionsNotificationHandler {
 		);
 	}
 
-	pub fn notify_transaction(&self, status: (H256, TxStatus)) {
+	pub fn notify_transaction(&self, tx_statuses: Arc<Vec<(H256, TxStatus)>>) {
 		for subscriber in self.transactions_pool_subscribers.read().values() {
-			Self::notify(&self.executor, subscriber, pubsub::Result::TransactionStatus(status.clone()));
+			for tx_status in tx_statuses.to_vec() {
+				Self::notify(&self.executor, subscriber, tx_status.clone());
+			}
 		}
 	}
 }
@@ -83,7 +90,7 @@ impl TransactionsNotificationHandler {
 impl TransactionsPool for TransactionsPoolClient {
 	type Metadata = Metadata;
 
-	fn subscribe(&self, _meta: Metadata, subscriber: Subscriber<pubsub::Result>) {
+	fn subscribe(&self, _meta: Metadata, subscriber: Subscriber<(H256, TxStatus)>) {
 		self.transactions_pool_subscribers.write().push(subscriber);
 	}
 

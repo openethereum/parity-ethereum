@@ -19,10 +19,10 @@
 use std::{cmp, fmt};
 use std::sync::Arc;
 use std::sync::atomic::{self, AtomicUsize};
-use std::sync::mpsc;
 use std::collections::{BTreeMap, BTreeSet, HashMap};
 
 use ethereum_types::{H256, U256, Address};
+use futures::sync::mpsc;
 use parking_lot::RwLock;
 use txpool::{self, Verifier};
 use types::transaction;
@@ -303,6 +303,8 @@ impl TransactionQueue {
 		// Notify about imported transactions.
 		(self.pool.write().listener_mut().1).0.notify();
 
+		((self.pool.write().listener_mut().1).1).1.notify();
+
 		if results.iter().any(|r| r.is_ok()) {
 			self.cached_pending.write().clear();
 		}
@@ -574,7 +576,7 @@ impl TransactionQueue {
 	}
 
 	/// Add a listener to be notified about all transactions the pool
-	pub fn add_tx_pool_listener(&self, f: mpsc::Sender<(H256, TxStatus)>) {
+	pub fn add_tx_pool_listener(&self, f: mpsc::UnboundedSender<Arc<Vec<(H256, TxStatus)>>>) {
 		let mut pool = self.pool.write();
 		((pool.listener_mut().1).1).1.add(f);
 	}

@@ -18,7 +18,6 @@ use std::cmp;
 use std::time::{Instant, Duration};
 use std::collections::{BTreeMap, BTreeSet, HashSet};
 use std::sync::Arc;
-use std::sync::mpsc;
 
 use ansi_term::Colour;
 use bytes::Bytes;
@@ -29,6 +28,7 @@ use ethcore_miner::pool::{self, TransactionQueue, VerifiedTransaction, QueueStat
 #[cfg(feature = "work-notify")]
 use ethcore_miner::work_notify::NotifyWork;
 use ethereum_types::{H256, U256, Address};
+use futures::sync::mpsc;
 use io::IoChannel;
 use miner::pool_client::{PoolClient, CachedNonceClient, NonceCache};
 use miner;
@@ -264,8 +264,8 @@ impl Miner {
 	}
 
 	/// Set a callback to be notified
-	pub fn tx_pool_receiver(&self) -> mpsc::Receiver<(H256, TxStatus)> {
-		let (sender, receiver) = mpsc::channel();
+	pub fn tx_pool_receiver(&self) -> mpsc::UnboundedReceiver<Arc<Vec<(H256, TxStatus)>>> {
+		let (sender, receiver) = mpsc::unbounded();
 		self.transaction_queue.add_tx_pool_listener(sender);
 		receiver
 	}

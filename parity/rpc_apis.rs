@@ -344,8 +344,7 @@ impl FullDependencies {
 				Api::ParityTransactionsPool => {
 					if !for_generic_pubsub {
 						let receiver = self.miner.tx_pool_receiver();
-						let client = TransactionsPoolClient::new(self.executor.clone());
-						client.run(receiver);
+						let client = TransactionsPoolClient::new(self.executor.clone(), receiver);
 						handler.extend_with(TransactionsPoolClient::to_delegate(client));
 					}
 				}
