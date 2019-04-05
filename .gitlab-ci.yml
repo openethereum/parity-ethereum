@@ -249,7 +249,7 @@ publish-awss3-release:
 
 publish-docs:
   stage:                            publish
-  # <<:                              *no_git
+  image:                            parity/rust-parity-ethereum-docs:xenial
   only:
     - tags
   except:
