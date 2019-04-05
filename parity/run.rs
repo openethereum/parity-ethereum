@@ -583,7 +583,9 @@ fn execute_impl<Cr, Rr>(cmd: RunCmd, logger: Arc<RotatingLogger>, on_client_rq: 
 	let private_tx_provider = private_tx_service.provider();
 	let connection_filter = connection_filter_address.map(|a| Arc::new(NodeFilter::new(Arc::downgrade(&client) as Weak<BlockChainClient>, a)));
 	let snapshot_service = service.snapshot_service();
-
+	if let Some(filter) = connection_filter.clone() {
+		service.add_notify(filter.clone());
+	}
 	// initialize the local node information store.
 	let store = {
 		let db = service.db();
