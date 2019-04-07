@@ -28,7 +28,7 @@ use ethcore_miner::pool::{self, TransactionQueue, VerifiedTransaction, QueueStat
 use ethcore_miner::service_transaction_checker::ServiceTransactionChecker;
 #[cfg(feature = "work-notify")]
 use ethcore_miner::work_notify::NotifyWork;
-use ethereum_types::{H256, U256, Address};
+use ethereum_types::{H160, H256, U256, Address};
 use io::IoChannel;
 use miner::pool_client::{PoolClient, CachedNonceClient, NonceCache};
 use miner;
@@ -1034,6 +1034,15 @@ impl miner::MinerService for Miner {
 	where
 		C: ChainInfo + Nonce + Sync,
 	{
+		// No special filtering options applied (neither tx_hash, receiver or sender)
+		self.ready_transactions_filtered(chain, max_len, None, None, None, ordering)
+	}
+
+	fn ready_transactions_filtered<C>(&self, chain: &C, max_len: usize, tx_hash: Option<H256>, receiver: Option<H160>, sender: Option<H160>, ordering: miner::PendingOrdering)
+		-> Vec<Arc<VerifiedTransaction>>
+	where
+		C: ChainInfo + Nonce + Sync,
+	{
 		let chain_info = chain.chain_info();
 
 		let from_queue = || {
@@ -1060,6 +1069,34 @@ impl miner::MinerService for Miner {
 					.iter()
 					.map(|signed| pool::VerifiedTransaction::from_pending_block_transaction(signed.clone()))
 					.map(Arc::new)
+					// Filter by transaction hash
+					.filter(|tx| {
+						if let Some(tx_hash) = tx_hash {
+							tx.signed().hash() == tx_hash
+						} else {
+							true // do not filter if None was passed
+						}
+					})
+					// Filter by sender
+					.filter(|tx| {
+						if let Some(sender) = sender {
+							tx.signed().sender() == sender
+						} else {
+							true // do not filter if None was passed
+						}
+					})
+					// Filter by receiver
+					.filter(|tx| {
+						if let Some(receiver) = receiver {
+							if let Some(tx_has_receiver) = tx.signed().receiver() {
+								tx_has_receiver == receiver
+							} else {
+								false // in case of Action::Create
+							}
+						} else {
+							true // do not filter if None was passed
+						}
+					})
 					.take(max_len)
 					.collect()
 			}, chain_info.best_block_number)

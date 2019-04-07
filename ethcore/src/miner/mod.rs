@@ -34,7 +34,7 @@ use std::collections::{BTreeSet, BTreeMap};
 
 use bytes::Bytes;
 use ethcore_miner::pool::{VerifiedTransaction, QueueStatus, local_transactions};
-use ethereum_types::{H256, U256, Address};
+use ethereum_types::{H160, H256, U256, Address};
 use types::transaction::{self, UnverifiedTransaction, SignedTransaction, PendingTransaction};
 use types::BlockNumber;
 use types::block::Block;
@@ -182,6 +182,14 @@ pub trait MinerService : Send + Sync {
 	/// If you don't need a full set of transactions, you can add `max_len` and create only a limited set of
 	/// transactions.
 	fn ready_transactions<C>(&self, chain: &C, max_len: usize, ordering: PendingOrdering) -> Vec<Arc<VerifiedTransaction>>
+		where C: ChainInfo + Nonce + Sync;
+
+	/// Get a list of all ready transactions either ordered by priority or unordered (cheaper), optionally filtered by hash, sender or receiver.
+	///
+	/// Depending on the settings may look in transaction pool or only in pending block.
+	/// If you don't need a full set of transactions, you can add `max_len` and create only a limited set of
+	/// transactions.
+	fn ready_transactions_filtered<C>(&self, chain: &C, max_len: usize, tx_hash: Option<H256>, receiver: Option<H160>, sender: Option<H160>, ordering: PendingOrdering) -> Vec<Arc<VerifiedTransaction>>
 		where C: ChainInfo + Nonce + Sync;
 
 	/// Get a list of all transactions in the pool (some of them might not be ready for inclusion yet).
