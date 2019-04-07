@@ -10,7 +10,10 @@ use ethcore::engines::registry::EnginePlugin;
 
 pub use hbbft_engine::HoneyBadgerBFT;
 
-inventory::submit!(EnginePlugin("HoneyBadgerBFT", HoneyBadgerBFT::new));
+/// Registers the `HoneyBadgerBFT` engine. This must be called before parsing the chain spec.
+pub fn init() {
+	inventory::submit(EnginePlugin("HoneyBadgerBFT", HoneyBadgerBFT::new));
+}
 
 #[cfg(test)]
 mod tests {

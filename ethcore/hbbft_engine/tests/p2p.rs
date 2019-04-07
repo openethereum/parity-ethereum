@@ -6,11 +6,10 @@ use ethcore::engines::registry::EnginePlugin;
 use ethcore::spec::Spec;
 use hbbft_engine::HoneyBadgerBFT;
 
-// TODO: This shouldn't be necessary, since `submit!` is also called in `lib.rs`.
-inventory::submit!(EnginePlugin("HoneyBadgerBFT", HoneyBadgerBFT::new));
-
 #[test]
 fn test_nodes_p2p() {
+	hbbft_engine::init();
+
 	// Load the chain specification.
 	let spec = Spec::load(
 		&::std::env::temp_dir(),
