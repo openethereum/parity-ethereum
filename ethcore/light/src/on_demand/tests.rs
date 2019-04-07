@@ -29,7 +29,7 @@ use std::sync::Arc;
 use std::time::{Duration, Instant};
 use std::thread;
 
-use super::{request, OnDemand, Peer, HeaderRef};
+use super::{request, OnDemand, OnDemandRequester, Peer, HeaderRef};
 
 // useful contexts to give the service.
 enum Context {

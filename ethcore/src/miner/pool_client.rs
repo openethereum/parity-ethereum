@@ -75,7 +75,7 @@ pub struct PoolClient<'a, C: 'a> {
 	engine: &'a EthEngine,
 	accounts: &'a LocalAccounts,
 	best_block_header: Header,
-	service_transaction_checker: Option<ServiceTransactionChecker>,
+	service_transaction_checker: Option<&'a ServiceTransactionChecker>,
 }
 
 impl<'a, C: 'a> Clone for PoolClient<'a, C> {
@@ -100,7 +100,7 @@ impl<'a, C: 'a> PoolClient<'a, C> where
 		cache: &'a NonceCache,
 		engine: &'a EthEngine,
 		accounts: &'a LocalAccounts,
-		refuse_service_transactions: bool,
+		service_transaction_checker: Option<&'a ServiceTransactionChecker>,
 	) -> Self {
 		let best_block_header = chain.best_block_header();
 		PoolClient {
@@ -109,11 +109,7 @@ impl<'a, C: 'a> PoolClient<'a, C> where
 			engine,
 			accounts,
 			best_block_header,
-			service_transaction_checker: if refuse_service_transactions {
-				None
-			} else {
-				Some(Default::default())
-			},
+			service_transaction_checker,
 		}
 	}
 

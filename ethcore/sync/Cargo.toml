@@ -32,6 +32,8 @@ rand = "0.4"
 rlp = { version = "0.3.0", features = ["ethereum"] }
 trace-time = "0.1"
 triehash-ethereum = {version = "0.2", path = "../../util/triehash-ethereum" }
+futures = "0.1"
+parity-runtime = { path = "../../util/runtime" }
 
 [dev-dependencies]
 env_logger = "0.5"

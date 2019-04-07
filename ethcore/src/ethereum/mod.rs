@@ -79,19 +79,14 @@ pub fn new_ellaism<'a, T: Into<SpecParams<'a>>>(params: T) -> Spec {
 	load(params.into(), include_bytes!("../../res/ethereum/ellaism.json"))
 }
 
-/// Create a new Easthub mainnet chain spec.
-pub fn new_easthub<'a, T: Into<SpecParams<'a>>>(params: T) -> Spec {
-	load(params.into(), include_bytes!("../../res/ethereum/easthub.json"))
-}
-
-/// Create a new Ethereum Social mainnet chain spec.
-pub fn new_social<'a, T: Into<SpecParams<'a>>>(params: T) -> Spec {
-	load(params.into(), include_bytes!("../../res/ethereum/social.json"))
-}
-
 /// Create a new MIX mainnet chain spec.
 pub fn new_mix<'a, T: Into<SpecParams<'a>>>(params: T) -> Spec {
 	load(params.into(), include_bytes!("../../res/ethereum/mix.json"))
+}
+
+/// Create a new Callisto chain spec
+pub fn new_callisto<'a, T: Into<SpecParams<'a>>>(params: T) -> Spec {
+	load(params.into(), include_bytes!("../../res/ethereum/callisto.json"))
 }
 
 /// Create a new Morden testnet chain spec.
@@ -109,14 +104,24 @@ pub fn new_kovan<'a, T: Into<SpecParams<'a>>>(params: T) -> Spec {
 	load(params.into(), include_bytes!("../../res/ethereum/kovan.json"))
 }
 
+/// Create a new Rinkeby testnet chain spec.
+pub fn new_rinkeby<'a, T: Into<SpecParams<'a>>>(params: T) -> Spec {
+	load(params.into(), include_bytes!("../../res/ethereum/rinkeby.json"))
+}
+
+/// Create a new Görli testnet chain spec.
+pub fn new_goerli<'a, T: Into<SpecParams<'a>>>(params: T) -> Spec {
+	load(params.into(), include_bytes!("../../res/ethereum/goerli.json"))
+}
+
+/// Create a new Kotti testnet chain spec.
+pub fn new_kotti<'a, T: Into<SpecParams<'a>>>(params: T) -> Spec {
+	load(params.into(), include_bytes!("../../res/ethereum/kotti.json"))
+}
+
 /// Create a new POA Sokol testnet chain spec.
 pub fn new_sokol<'a, T: Into<SpecParams<'a>>>(params: T) -> Spec {
 	load(params.into(), include_bytes!("../../res/ethereum/poasokol.json"))
-}
-
-/// Create a new Callisto chaun spec
-pub fn new_callisto<'a, T: Into<SpecParams<'a>>>(params: T) -> Spec {
-	load(params.into(), include_bytes!("../../res/ethereum/callisto.json"))
 }
 
 // For tests

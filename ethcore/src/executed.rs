@@ -167,7 +167,7 @@ pub enum CallError {
 	/// Couldn't find requested block's state in the chain.
 	StatePruned,
 	/// Couldn't find an amount of gas that didn't result in an exception.
-	Exceptional,
+	Exceptional(vm::Error),
 	/// Corrupt state.
 	StateCorrupt,
 	/// Error executing.
@@ -187,7 +187,7 @@ impl fmt::Display for CallError {
 		let msg = match *self {
 			TransactionNotFound => "Transaction couldn't be found in the chain".into(),
 			StatePruned => "Couldn't find the transaction block's state in the chain".into(),
-			Exceptional => "An exception happened in the execution".into(),
+			Exceptional(ref e) => format!("An exception ({}) happened in the execution", e),
 			StateCorrupt => "Stored state found to be corrupted.".into(),
 			Execution(ref e) => format!("{}", e),
 		};

@@ -19,8 +19,9 @@
 use std::collections::BTreeMap;
 use ethereum_types::H256;
 use parking_lot::RwLock;
-use sync::{SyncProvider, EthProtocolInfo, SyncStatus, SyncState, PeerInfo, TransactionStats};
 use network::client_version::ClientVersion;
+use futures::sync::mpsc;
+use sync::{SyncProvider, EthProtocolInfo, SyncStatus, PeerInfo, TransactionStats, SyncState};
 
 /// TestSyncProvider config.
 pub struct Config {
@@ -34,6 +35,8 @@ pub struct Config {
 pub struct TestSyncProvider {
 	/// Sync status.
 	pub status: RwLock<SyncStatus>,
+	/// is major importing?
+	is_importing: RwLock<bool>,
 }
 
 impl TestSyncProvider {
@@ -56,12 +59,14 @@ impl TestSyncProvider {
 				snapshot_chunks_done: 0,
 				last_imported_old_block_number: None,
 			}),
+			is_importing: RwLock::new(false)
 		}
 	}
 
 	/// Simulate importing blocks.
 	pub fn increase_imported_block_number(&self, count: u64) {
 		let mut status =  self.status.write();
+		*self.is_importing.write() = true;
 		let current_number = status.last_imported_block_number.unwrap_or(0);
 		status.last_imported_block_number = Some(current_number + count);
 	}
@@ -122,5 +127,18 @@ impl SyncProvider for TestSyncProvider {
 				],
 			}
 		]
+	}
+
+	fn sync_notification(&self) -> mpsc::UnboundedReceiver<SyncState> {
+		unimplemented!()
+	}
+
+	fn is_major_syncing(&self) -> bool {
+		match (self.status.read().state, *self.is_importing.read()) {
+			(SyncState::Idle, _) => false,
+			(SyncState::Blocks, _) => true,
+			(_, true) => true,
+			_ => false
+		}
 	}
 }
