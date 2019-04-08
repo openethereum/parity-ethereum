@@ -41,9 +41,10 @@ variables:
     - echo "All crate-types:"
     - grep 'parse_arguments.*--crate-type' sccache_error.log | sed -re 's/.*"--crate-type", "([^"]+)".*/\1/' | sort | uniq -c
     - echo "Non-cacheable reasons:"
-    - grep CannotCache sccache_error.log | sed -re 's/.*CannotCache\((.+)\).*/\1/' | sort | uniq -c
+    - test -x sccache_error.log && grep CannotCache sccache_error.log | sed -re 's/.*CannotCache\((.+)\).*/\1/' | sort | uniq -c
   tags:
-    - linux-docker
+    # - linux-docker
+    - qa
 
 
 cargo-check 0 3:
