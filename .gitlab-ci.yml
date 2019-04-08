@@ -45,11 +45,16 @@ variables:
     - sccache -s
   after_script:
     # sccache debug info
-    - echo "All crate-types:"
-    - grep 'parse_arguments.*--crate-type' sccache_error.log | sed -re 's/.*"--crate-type", "([^"]+)".*/\1/' | sort | uniq -c
-    - echo "Non-cacheable reasons:"
-    - test -e sccache_error.log &&
-        grep CannotCache sccache_error.log | sed -re 's/.*CannotCache\((.+)\).*/\1/' | sort | uniq -c || true
+    - if test -e sccache_error.log;
+      then
+        echo "All crate-types:";
+        grep 'parse_arguments.*--crate-type' sccache_error.log | sed -re 's/.*"--crate-type", "([^"]+)".*/\1/' | sort | uniq -c;
+        echo "Non-cacheable reasons:";
+        grep CannotCache sccache_error.log | sed -re 's/.*CannotCache\((.+)\).*/\1/' | sort | uniq -c;
+      else
+        echo "No logs from sccache";
+        exit 0;
+      fi
     # collect log files
     - pwd
     - find . -name "*.log"
