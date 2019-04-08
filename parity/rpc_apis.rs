@@ -718,7 +718,6 @@ impl ApiSet {
 			Api::Whisper,
 			Api::WhisperPubSub,
 			Api::Private,
-			Api::ParityTransactionsPool,
 		]
 			.into_iter()
 			.cloned()
@@ -729,12 +728,14 @@ impl ApiSet {
 			ApiSet::UnsafeContext => {
 				public_list.insert(Api::Traces);
 				public_list.insert(Api::ParityPubSub);
+				public_list.insert(Api::ParityTransactionsPool);
 				public_list
 			}
 			ApiSet::IpcContext => {
 				public_list.insert(Api::Traces);
 				public_list.insert(Api::ParityPubSub);
 				public_list.insert(Api::ParityAccounts);
+				public_list.insert(Api::ParityTransactionsPool);
 				public_list
 			}
 			ApiSet::All => {
@@ -746,6 +747,7 @@ impl ApiSet {
 				public_list.insert(Api::Signer);
 				public_list.insert(Api::Personal);
 				public_list.insert(Api::SecretStore);
+				public_list.insert(Api::ParityTransactionsPool);
 				public_list
 			}
 			ApiSet::PubSub => [
@@ -754,6 +756,7 @@ impl ApiSet {
 				Api::ParityAccounts,
 				Api::ParitySet,
 				Api::Traces,
+				Api::ParityTransactionsPool,
 			]
 				.into_iter()
 				.cloned()
@@ -837,6 +840,7 @@ mod test {
 			Api::Whisper,
 			Api::WhisperPubSub,
 			Api::Private,
+			Api::ParityTransactionsPool,
 			// semi-safe
 			Api::ParityAccounts,
 		].into_iter()
@@ -867,6 +871,7 @@ mod test {
 					Api::Personal,
 					Api::Private,
 					Api::Debug,
+					Api::ParityTransactionsPool,
 				].into_iter()
 				.collect()
 			)
@@ -895,6 +900,7 @@ mod test {
 					Api::Signer,
 					Api::Private,
 					Api::Debug,
+					Api::ParityTransactionsPool,
 				].into_iter()
 				.collect()
 			)
@@ -918,6 +924,7 @@ mod test {
 					Api::Whisper,
 					Api::WhisperPubSub,
 					Api::Private,
+					Api::ParityTransactionsPool,
 				].into_iter()
 				.collect()
 			)
