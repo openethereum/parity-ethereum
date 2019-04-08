@@ -48,11 +48,14 @@ variables:
     - echo "All crate-types:"
     - grep 'parse_arguments.*--crate-type' sccache_error.log | sed -re 's/.*"--crate-type", "([^"]+)".*/\1/' | sort | uniq -c
     - echo "Non-cacheable reasons:"
-    - test -x sccache_error.log && grep CannotCache sccache_error.log | sed -re 's/.*CannotCache\((.+)\).*/\1/' | sort | uniq -c
+    - test -e sccache_error.log &&
+        grep CannotCache sccache_error.log | sed -re 's/.*CannotCache\((.+)\).*/\1/' | sort | uniq -c || true
     # collect log files
     - pwd
+    - find . -name "*.log"
+    - find . -name "*.log" | xargs tar --append -f ./artifacts/logs.tar
+    - echo "ls artifacts"
     - ls ./artifacts
-    - find . -name "*.log" | xargs  tar --append -f ./artifacts/logs.tar
   tags:
     # - linux-docker
     - qa
