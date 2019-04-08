@@ -56,11 +56,9 @@ variables:
         exit 0;
       fi
     # collect log files
-    - pwd
+    - mkdir -p ./artifacts
     - find . -name "*.log"
     - find . -name "*.log" | xargs tar --append -f ./artifacts/logs.tar
-    - echo "ls artifacts"
-    - ls ./artifacts
   tags:
     # - linux-docker
     - qa
