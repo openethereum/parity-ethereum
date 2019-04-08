@@ -9,4 +9,4 @@ OPTIONS="--release"
 THREADS=$(nproc)
 
 echo "________Running Parity Full Test Suite________"
-time cargo test $OPTIONS --features "$FEATURES" --locked --all --target $CARGO_TARGET -- --test-threads $THREADS
+time cargo test $OPTIONS --features "$FEATURES" --locked --all --target $CARGO_TARGET --verbose -- --test-threads $THREADS
