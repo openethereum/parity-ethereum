@@ -16,7 +16,6 @@
 
 //! Block header.
 
-use std::cmp;
 use hash::{KECCAK_NULL_RLP, KECCAK_EMPTY_LIST_RLP, keccak};
 use heapsize::HeapSizeOf;
 use ethereum_types::{H256, U256, Address, Bloom};
@@ -342,7 +341,7 @@ impl Decodable for Header {
 			number: r.val_at(8)?,
 			gas_limit: r.val_at(9)?,
 			gas_used: r.val_at(10)?,
-			timestamp: cmp::min(r.val_at::<U256>(11)?, u64::max_value().into()).as_u64(),
+			timestamp: r.val_at(11)?,
 			extra_data: r.val_at(12)?,
 			seal: vec![],
 			hash: keccak(r.as_raw()).into(),
@@ -411,5 +410,16 @@ mod tests {
 		let encoded_header = rlp::encode(&header);
 
 		assert_eq!(header_rlp, encoded_header);
+	}
+
+	#[test]
+	fn reject_header_with_large_timestamp() {
+		// that's rlp of block header created with ethash engine.
+		// The encoding contains a large timestamp (295147905179352825856)
+		let header_rlp = "f901f9a0d405da4e66f1445d455195229624e133f5baafe72b5cf7b3c36c12c8146e98b7a01dcc4de8dec75d7aab85b567b6ccd41ad312451b948a7413f0a142fd40d49347948888f1f195afa192cfee860698584c030f4c9db1a05fb2b4bfdef7b314451cb138a534d225c922fc0e5fbe25e451142732c3e25c25a088d2ec6b9860aae1a2c3b299f72b6a5d70d7f7ba4722c78f2c49ba96273c2158a007c6fdfa8eea7e86b81f5b0fc0f78f90cc19f4aa60d323151e0cac660199e9a1b90100000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000008302008003832fefba82524d891000000000000000000080a0a0349d8c3df71f1a48a9df7d03fd5f14aeee7d91332c009ecaff0a71ead405bd88ab4e252a7e8c2a23".from_hex().unwrap();
+
+		// This should fail decoding timestamp
+		let header: Result<Header, _> = rlp::decode(&header_rlp);
+		assert_eq!(header.unwrap_err(), rlp::DecoderError::RlpIsTooBig);
 	}
 }
