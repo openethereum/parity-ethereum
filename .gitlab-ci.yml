@@ -42,7 +42,7 @@ variables:
   before_script:
     - SCCACHE_ERROR_LOG=/builds/parity/parity-ethereum/sccache_error.log
         RUST_LOG=sccache::server=debug
-        SCCACHE_CACHE_SIZE=5G
+        SCCACHE_CACHE_SIZE=3G
         sccache --start-server
     - sccache -s
   after_script:
