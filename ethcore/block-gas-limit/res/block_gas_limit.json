@@ -1,0 +1,16 @@
+[
+	{
+		"constant": true,
+		"inputs": [],
+		"name": "blockGasLimit",
+		"outputs": [
+			{
+				"name": "",
+				"type": "uint256"
+			}
+		],
+		"payable": false,
+		"stateMutability": "view",
+		"type": "function"
+	}
+]
