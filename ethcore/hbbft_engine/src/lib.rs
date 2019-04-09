@@ -12,6 +12,9 @@ extern crate common_types as types;
 
 mod hbbft_engine;
 
+#[cfg(any(test, feature = "test-helpers"))]
+pub mod test_helpers;
+
 use ethcore::engines::registry::EnginePlugin;
 
 pub use hbbft_engine::HoneyBadgerBFT;
@@ -23,43 +26,11 @@ pub fn init() {
 
 #[cfg(test)]
 mod tests {
-	use rustc_hex::FromHex;
 	use std::sync::Arc;
 
-	use ethereum_types::U256;
-	use ethkey::{Generator, Random};
+	use ethcore::client::{BlockId, BlockInfo};
 
-	use ethcore::client::{BlockId, BlockInfo, Client};
-	use ethcore::miner::{Miner, MinerService};
-	use ethcore::spec::Spec;
-	use ethcore::test_helpers::{generate_dummy_client_with_spec_and_accounts, TestNotify};
-	use transaction::{Action, Transaction};
-
-	fn hbbft_spec() -> Spec {
-		Spec::load(
-			&::std::env::temp_dir(),
-			include_bytes!("../res/honey_badger_bft.json") as &[u8],
-		)
-		.expect(concat!("Chain spec is invalid."))
-	}
-
-	fn hbbft_client() -> std::sync::Arc<ethcore::client::Client> {
-		generate_dummy_client_with_spec_and_accounts(hbbft_spec, None)
-	}
-
-	fn hbbft_client_setup() -> (Arc<Client>, Arc<TestNotify>, Arc<Miner>) {
-		// Create client
-		let client = hbbft_client();
-
-		// Register notify object for capturing consensus messages
-		let notify = Arc::new(TestNotify::default());
-		client.add_notify(notify.clone());
-
-		// Get miner reference
-		let miner = client.miner();
-
-		(client, notify, miner)
-	}
+	use crate::test_helpers::{hbbft_client_setup, inject_transaction};
 
 	#[test]
 	fn test_client_miner_engine() {
@@ -70,22 +41,6 @@ mod tests {
 		// Get hbbft Engine reference and initialize it with a back-reference to the Client
 		let engine = client.engine();
 		engine.register_client(Arc::downgrade(&client) as _);
-	}
-
-	fn inject_transaction(client: &Arc<Client>, miner: &Arc<Miner>) {
-		let keypair = Random.generate().unwrap();
-		let transaction = Transaction {
-			action: Action::Create,
-			value: U256::zero(),
-			data: "3331600055".from_hex().unwrap(),
-			gas: U256::from(100_000),
-			gas_price: U256::zero(),
-			nonce: U256::zero(),
-		}
-		.sign(keypair.secret(), None);
-		miner
-			.import_own_transaction(client.as_ref(), transaction.into())
-			.unwrap();
 	}
 
 	#[test]
