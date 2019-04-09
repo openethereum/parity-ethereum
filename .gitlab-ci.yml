@@ -36,6 +36,7 @@ variables:
     CARGO_HOME:                    "/ci-cache/parity-ethereum/cargo/${CI_JOB_NAME}"
   artifacts:
     name:                          "${CI_JOB_NAME}"
+    when:                          always
     expire_in:                     7 days
     paths:
       - artifacts/
