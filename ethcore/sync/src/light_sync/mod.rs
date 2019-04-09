@@ -45,13 +45,16 @@ use light::net::{
 	EventContext, Capabilities, ReqId, Status,
 	Error as NetError,
 };
+use chain::SyncState as ChainSyncState;
 use light::request::{self, CompleteHeadersRequest as HeadersRequest};
 use network::PeerId;
 use ethereum_types::{H256, U256};
 use parking_lot::{Mutex, RwLock};
 use rand::{Rng, OsRng};
+use futures::sync::mpsc;
 
 use self::sync_round::{AbortReason, SyncRound, ResponseContext};
+use api::Notification;
 
 mod response;
 mod sync_round;
@@ -275,6 +278,7 @@ pub struct LightSync<L: AsLightClient> {
 	client: Arc<L>,
 	rng: Mutex<OsRng>,
 	state: Mutex<SyncStateWrapper>,
+	senders: RwLock<Vec<mpsc::UnboundedSender<ChainSyncState>>>,
 	// We duplicate this state tracking to avoid deadlocks in `is_major_importing`.
 	is_idle: Mutex<bool>,
 }
@@ -454,7 +458,19 @@ impl<L: AsLightClient> LightSync<L> {
 	/// Sets the LightSync's state, and update
 	/// `is_idle`
 	fn set_state(&self, state: &mut SyncStateWrapper, next_state: SyncState) {
+
+		match next_state {
+			SyncState::Idle => self.notify_senders(ChainSyncState::Idle),
+			_ => self.notify_senders(ChainSyncState::Blocks)
+		};
+
 		state.set(next_state, &mut self.is_idle.lock());
+	}
+
+	fn notify_senders(&self, state: ChainSyncState) {
+		self.senders.write().retain(|sender| {
+			sender.unbounded_send(state).is_ok()
+		})
 	}
 
 	// Begins a search for the common ancestor and our best block.
@@ -667,6 +683,14 @@ impl<L: AsLightClient> LightSync<L> {
 			self.set_state(&mut state, next_state);
 		}
 	}
+
+	// returns receiving end of futures::mpsc::unbounded channel
+	// poll the channel for changes to sync state.
+	fn sync_notification(&self) -> Notification<ChainSyncState> {
+		let (sender, receiver) = futures::sync::mpsc::unbounded();
+		self.senders.write().push(sender);
+		receiver
+	}
 }
 
 // public API
@@ -683,6 +707,7 @@ impl<L: AsLightClient> LightSync<L> {
 			pending_reqs: Mutex::new(HashMap::new()),
 			client: client,
 			rng: Mutex::new(OsRng::new()?),
+			senders: RwLock::new(Vec::new()),
 			state: Mutex::new(SyncStateWrapper::idle()),
 			is_idle: Mutex::new(true),
 		})
@@ -699,6 +724,10 @@ pub trait SyncInfo {
 
 	/// Whether major sync is underway.
 	fn is_major_importing(&self) -> bool;
+
+	/// returns the receieving end of a futures::mpsc unbounded channel
+	/// poll the channel for changes to sync state
+	fn sync_notification(&self) -> Notification<ChainSyncState>;
 }
 
 impl<L: AsLightClient> SyncInfo for LightSync<L> {
@@ -720,4 +749,7 @@ impl<L: AsLightClient> SyncInfo for LightSync<L> {
 		is_verifying || is_syncing
 	}
 
+	fn sync_notification(&self) -> Notification<ChainSyncState> {
+		self.sync_notification()
+	}
 }

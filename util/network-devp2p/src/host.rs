@@ -616,8 +616,8 @@ impl Host {
 
 		let socket = {
 			let address = {
-				let mut nodes = self.nodes.write();
-				if let Some(node) = nodes.get_mut(id) {
+				let mut nodes = self.nodes.read();
+				if let Some(node) = nodes.get(id) {
 					node.endpoint.address
 				} else {
 					debug!(target: "network", "Connection to expired node aborted");

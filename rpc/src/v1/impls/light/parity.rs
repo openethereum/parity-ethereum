@@ -30,6 +30,7 @@ use ethcore_logger::RotatingLogger;
 
 use jsonrpc_core::{Result, BoxFuture};
 use jsonrpc_core::futures::{future, Future};
+use light::on_demand::OnDemandRequester;
 use v1::helpers::{self, errors, ipfs, NetworkSettings, verify_signature};
 use v1::helpers::external_signer::{SignerService, SigningQueue};
 use v1::helpers::dispatch::LightDispatcher;
@@ -48,8 +49,12 @@ use v1::types::{
 use Host;
 
 /// Parity implementation for light client.
-pub struct ParityClient<S: LightSyncProvider + LightNetworkDispatcher + ManageNetwork + 'static> {
-	light_dispatch: Arc<LightDispatcher<S>>,
+pub struct ParityClient<S, OD>
+where
+	S: LightSyncProvider + LightNetworkDispatcher + ManageNetwork + 'static,
+	OD: OnDemandRequester + 'static
+{
+	light_dispatch: Arc<LightDispatcher<S, OD>>,
 	logger: Arc<RotatingLogger>,
 	settings: Arc<NetworkSettings>,
 	signer: Option<Arc<SignerService>>,
@@ -57,13 +62,14 @@ pub struct ParityClient<S: LightSyncProvider + LightNetworkDispatcher + ManageNe
 	gas_price_percentile: usize,
 }
 
-impl<S> ParityClient<S>
+impl<S, OD> ParityClient<S, OD>
 where
-	S: LightSyncProvider + LightNetworkDispatcher + ManageNetwork + 'static
+	S: LightSyncProvider + LightNetworkDispatcher + ManageNetwork + 'static,
+	OD: OnDemandRequester + 'static
 {
 	/// Creates new `ParityClient`.
 	pub fn new(
-		light_dispatch: Arc<LightDispatcher<S>>,
+		light_dispatch: Arc<LightDispatcher<S, OD>>,
 		logger: Arc<RotatingLogger>,
 		settings: Arc<NetworkSettings>,
 		signer: Option<Arc<SignerService>>,
@@ -81,7 +87,7 @@ where
 	}
 
 	/// Create a light blockchain data fetcher.
-	fn fetcher(&self) -> LightFetch<S>
+	fn fetcher(&self) -> LightFetch<S, OD>
 	{
 		LightFetch {
 			client: self.light_dispatch.client.clone(),
@@ -93,9 +99,10 @@ where
 	}
 }
 
-impl<S> Parity for ParityClient<S>
+impl<S, OD> Parity for ParityClient<S, OD>
 where
-	S: LightSyncInfo + LightSyncProvider + LightNetworkDispatcher + ManageNetwork + 'static
+	S: LightSyncInfo + LightSyncProvider + LightNetworkDispatcher + ManageNetwork + 'static,
+	OD: OnDemandRequester + 'static
 {
 	type Metadata = Metadata;
 

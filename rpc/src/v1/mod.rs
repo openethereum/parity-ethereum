@@ -46,6 +46,7 @@ pub use self::impls::*;
 pub use self::helpers::{NetworkSettings, block_import, dispatch};
 pub use self::metadata::Metadata;
 pub use self::types::Origin;
+pub use self::types::pubsub::PubSubSyncStatus;
 pub use self::extractors::{RpcExtractor, WsExtractor, WsStats, WsDispatcher};
 
 /// Signer utilities

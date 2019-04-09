@@ -23,12 +23,9 @@ use io;
 use ethcore_private_tx;
 
 error_chain! {
-	links {
-		PrivateTransactions(ethcore_private_tx::Error, ethcore_private_tx::ErrorKind);
-	}
-
 	foreign_links {
 		Ethcore(ethcore::error::Error);
 		IoError(io::IoError);
+		PrivateTransactions(ethcore_private_tx::Error);
 	}
 }

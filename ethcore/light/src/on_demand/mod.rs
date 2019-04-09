@@ -94,6 +94,24 @@ pub mod error {
 	}
 }
 
+/// Public interface for performing network requests `OnDemand`
+pub trait OnDemandRequester: Send + Sync {
+	/// Submit a strongly-typed batch of requests.
+	///
+	/// Fails if back-reference are not coherent.
+	fn request<T>(&self, ctx: &BasicContext, requests: T) -> Result<OnResponses<T>, basic_request::NoSuchOutput>
+	where
+		T: request::RequestAdapter;
+
+	/// Submit a vector of requests to be processed together.
+	///
+	/// Fails if back-references are not coherent.
+	/// The returned vector of responses will correspond to the requests exactly.
+	fn request_raw(&self, ctx: &BasicContext, requests: Vec<Request>)
+		-> Result<Receiver<PendingResponse>, basic_request::NoSuchOutput>;
+}
+
+
 // relevant peer info.
 #[derive(Debug, Clone, PartialEq, Eq)]
 struct Peer {
@@ -355,6 +373,74 @@ pub struct OnDemand {
 	request_number_of_consecutive_errors: usize
 }
 
+impl OnDemandRequester for OnDemand {
+	fn request_raw(&self, ctx: &BasicContext, requests: Vec<Request>)
+		-> Result<Receiver<PendingResponse>, basic_request::NoSuchOutput>
+	{
+		let (sender, receiver) = oneshot::channel();
+		if requests.is_empty() {
+			assert!(sender.send(Ok(Vec::new())).is_ok(), "receiver still in scope; qed");
+			return Ok(receiver);
+		}
+
+		let mut builder = basic_request::Builder::default();
+
+		let responses = Vec::with_capacity(requests.len());
+
+		let mut header_producers = HashMap::new();
+		for (i, request) in requests.into_iter().enumerate() {
+			let request = CheckedRequest::from(request);
+
+			// ensure that all requests needing headers will get them.
+			if let Some((idx, field)) = request.needs_header() {
+				// a request chain with a header back-reference is valid only if it both
+				// points to a request that returns a header and has the same back-reference
+				// for the block hash.
+				match header_producers.get(&idx) {
+					Some(ref f) if &field == *f => {}
+					_ => return Err(basic_request::NoSuchOutput),
+				}
+			}
+			if let CheckedRequest::HeaderByHash(ref req, _) = request {
+				header_producers.insert(i, req.0);
+			}
+
+			builder.push(request)?;
+		}
+
+		let requests = builder.build();
+		let net_requests = requests.clone().map_requests(|req| req.into_net_request());
+		let capabilities = guess_capabilities(requests.requests());
+
+		self.submit_pending(ctx, Pending {
+			requests,
+			net_requests,
+			required_capabilities: capabilities,
+			responses,
+			sender,
+			request_guard: RequestGuard::new(
+				self.request_number_of_consecutive_errors as u32,
+				self.request_backoff_rounds_max,
+				self.request_backoff_start,
+				self.request_backoff_max,
+			),
+			response_guard: ResponseGuard::new(self.response_time_window),
+		});
+
+		Ok(receiver)
+	}
+
+	fn request<T>(&self, ctx: &BasicContext, requests: T) -> Result<OnResponses<T>, basic_request::NoSuchOutput>
+		where T: request::RequestAdapter
+	{
+		self.request_raw(ctx, requests.make_requests()).map(|recv| OnResponses {
+			receiver: recv,
+			_marker: PhantomData,
+		})
+	}
+
+}
+
 impl OnDemand {
 
 	/// Create a new `OnDemand` service with the given cache.
@@ -415,77 +501,6 @@ impl OnDemand {
 		me
 	}
 
-	/// Submit a vector of requests to be processed together.
-	///
-	/// Fails if back-references are not coherent.
-	/// The returned vector of responses will correspond to the requests exactly.
-	pub fn request_raw(&self, ctx: &BasicContext, requests: Vec<Request>)
-		-> Result<Receiver<PendingResponse>, basic_request::NoSuchOutput>
-	{
-		let (sender, receiver) = oneshot::channel();
-		if requests.is_empty() {
-			assert!(sender.send(Ok(Vec::new())).is_ok(), "receiver still in scope; qed");
-			return Ok(receiver);
-		}
-
-		let mut builder = basic_request::Builder::default();
-
-		let responses = Vec::with_capacity(requests.len());
-
-		let mut header_producers = HashMap::new();
-		for (i, request) in requests.into_iter().enumerate() {
-			let request = CheckedRequest::from(request);
-
-			// ensure that all requests needing headers will get them.
-			if let Some((idx, field)) = request.needs_header() {
-				// a request chain with a header back-reference is valid only if it both
-				// points to a request that returns a header and has the same back-reference
-				// for the block hash.
-				match header_producers.get(&idx) {
-					Some(ref f) if &field == *f => {}
-					_ => return Err(basic_request::NoSuchOutput),
-				}
-			}
-			if let CheckedRequest::HeaderByHash(ref req, _) = request {
-				header_producers.insert(i, req.0);
-			}
-
-			builder.push(request)?;
-		}
-
-		let requests = builder.build();
-		let net_requests = requests.clone().map_requests(|req| req.into_net_request());
-		let capabilities = guess_capabilities(requests.requests());
-
-		self.submit_pending(ctx, Pending {
-			requests,
-			net_requests,
-			required_capabilities: capabilities,
-			responses,
-			sender,
-			request_guard: RequestGuard::new(
-				self.request_number_of_consecutive_errors as u32,
-				self.request_backoff_rounds_max,
-				self.request_backoff_start,
-				self.request_backoff_max,
-			),
-			response_guard: ResponseGuard::new(self.response_time_window),
-		});
-
-		Ok(receiver)
-	}
-
-	/// Submit a strongly-typed batch of requests.
-	///
-	/// Fails if back-reference are not coherent.
-	pub fn request<T>(&self, ctx: &BasicContext, requests: T) -> Result<OnResponses<T>, basic_request::NoSuchOutput>
-		where T: request::RequestAdapter
-	{
-		self.request_raw(ctx, requests.make_requests()).map(|recv| OnResponses {
-			receiver: recv,
-			_marker: PhantomData,
-		})
-	}
 
 	// maybe dispatch pending requests.
 	// sometimes

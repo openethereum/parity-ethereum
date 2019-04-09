@@ -41,7 +41,7 @@ use node_filter::NodeFilter;
 use parity_runtime::Runtime;
 use sync::{self, SyncConfig, PrivateTxHandler};
 use parity_rpc::{
-	Origin, Metadata, NetworkSettings, informant, is_major_importing, PubSubSession, FutureResult, FutureResponse, FutureOutput
+	Origin, Metadata, NetworkSettings, informant, PubSubSession, FutureResult, FutureResponse, FutureOutput
 };
 use updater::{UpdatePolicy, Updater};
 use parity_version::version;
@@ -294,17 +294,6 @@ fn execute_light_impl<Cr>(cmd: RunCmd, logger: Arc<RotatingLogger>, on_client_rq
 
 	// spin up event loop
 	let runtime = Runtime::with_default_thread_count();
-
-	// queue cull service.
-	let queue_cull = Arc::new(::light_helpers::QueueCull {
-		client: client.clone(),
-		sync: light_sync.clone(),
-		on_demand: on_demand.clone(),
-		txq: txq.clone(),
-		executor: runtime.executor(),
-	});
-
-	service.register_handler(queue_cull).map_err(|e| format!("Error attaching service: {:?}", e))?;
 
 	// start the network.
 	light_sync.start_network();
@@ -594,7 +583,9 @@ fn execute_impl<Cr, Rr>(cmd: RunCmd, logger: Arc<RotatingLogger>, on_client_rq: 
 	let private_tx_provider = private_tx_service.provider();
 	let connection_filter = connection_filter_address.map(|a| Arc::new(NodeFilter::new(Arc::downgrade(&client) as Weak<BlockChainClient>, a)));
 	let snapshot_service = service.snapshot_service();
-
+	if let Some(filter) = connection_filter.clone() {
+		service.add_notify(filter.clone());
+	}
 	// initialize the local node information store.
 	let store = {
 		let db = service.db();
@@ -661,6 +652,7 @@ fn execute_impl<Cr, Rr>(cmd: RunCmd, logger: Arc<RotatingLogger>, on_client_rq: 
 	// create sync object
 	let (sync_provider, manage_network, chain_notify, priority_tasks) = modules::sync(
 		sync_config,
+		runtime.executor(),
 		net_conf.clone().into(),
 		client.clone(),
 		snapshot_service.clone(),
@@ -815,10 +807,9 @@ fn execute_impl<Cr, Rr>(cmd: RunCmd, logger: Arc<RotatingLogger>, on_client_rq: 
 		true => None,
 		false => {
 			let sync = sync_provider.clone();
-			let client = client.clone();
 			let watcher = Arc::new(snapshot::Watcher::new(
 				service.client(),
-				move || is_major_importing(Some(sync.status().state), client.queue_info()),
+				move || sync.is_major_syncing(),
 				service.io().channel(),
 				SNAPSHOT_PERIOD,
 				SNAPSHOT_HISTORY,

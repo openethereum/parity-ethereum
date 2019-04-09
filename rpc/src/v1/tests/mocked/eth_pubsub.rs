@@ -23,7 +23,6 @@ use jsonrpc_pubsub::Session;
 use std::time::Duration;
 
 use v1::{EthPubSub, EthPubSubClient, Metadata};
-
 use ethcore::client::{TestBlockChainClient, EachBlockWith, ChainNotify, NewBlocks, ChainRoute, ChainRouteType};
 use parity_runtime::Runtime;
 
@@ -201,7 +200,7 @@ fn should_subscribe_to_pending_transactions() {
 }
 
 #[test]
-fn should_return_unimplemented() {
+fn eth_subscribe_syncing() {
 	// given
 	let el = Runtime::with_thread_count(1);
 	let client = TestBlockChainClient::new();
@@ -216,7 +215,7 @@ fn should_return_unimplemented() {
 	metadata.session = Some(Arc::new(Session::new(sender)));
 
 	// Subscribe
-	let response = r#"{"jsonrpc":"2.0","error":{"code":-32000,"message":"This request is not implemented yet. Please create an issue on Github repo."},"id":1}"#;
+	let response = r#"{"jsonrpc":"2.0","result":"0x416d77337e24399d","id":1}"#;
 	let request = r#"{"jsonrpc": "2.0", "method": "eth_subscribe", "params": ["syncing"], "id": 1}"#;
 	assert_eq!(io.handle_request_sync(request, metadata.clone()), Some(response.to_owned()));
 }

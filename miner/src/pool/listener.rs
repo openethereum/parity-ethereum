@@ -94,7 +94,7 @@ impl txpool::Listener<Transaction> for Logger {
 		}
 	}
 
-	fn rejected(&mut self, _tx: &Arc<Transaction>, reason: &txpool::ErrorKind) {
+	fn rejected<H: fmt::Debug + fmt::LowerHex>(&mut self, _tx: &Arc<Transaction>, reason: &txpool::Error<H>) {
 		trace!(target: "txqueue", "Rejected {}.", reason);
 	}
 
@@ -156,7 +156,7 @@ impl txpool::Listener<Transaction> for TransactionsPoolNotifier {
 		self.tx_statuses.push((tx.hash.clone(), TxStatus::Added));
 	}
 
-	fn rejected(&mut self, tx: &Arc<Transaction>, _reason: &txpool::ErrorKind) {
+	fn rejected<H: fmt::Debug + fmt::LowerHex>(&mut self, tx: &Arc<Transaction>, _reason: &txpool::Error<H>) {
 		self.tx_statuses.push((tx.hash.clone(), TxStatus::Rejected));
 	}
 

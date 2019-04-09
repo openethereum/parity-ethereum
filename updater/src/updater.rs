@@ -670,8 +670,8 @@ impl<O: OperationsClient, F: HashFetch, T: TimeProvider, R: GenRange> Updater<O,
 impl ChainNotify for Updater {
 	fn new_blocks(&self, new_blocks: NewBlocks) {
 		if new_blocks.has_more_blocks_to_import { return }
-		match (self.client.upgrade(), self.sync.as_ref().and_then(Weak::upgrade)) {
-			(Some(ref c), Some(ref s)) if !s.status().is_syncing(c.queue_info()) => self.poll(),
+		match self.sync.as_ref().and_then(Weak::upgrade) {
+			Some(ref s) if !s.is_major_syncing() => self.poll(),
 			_ => {},
 		}
 	}
