@@ -585,7 +585,11 @@ impl<C: LightChainClient + 'static> LightDependencies<C> {
 					handler.extend_with(EthPubSub::to_delegate(client));
 				}
 				Api::ParityTransactionsPool => {
-					if !for_generic_pubsub {}
+					if !for_generic_pubsub {
+						let receiver = self.transaction_queue.write().tx_statuses_receiver();
+						let client = TransactionsPoolClient::new(self.executor.clone(), receiver);
+						handler.extend_with(TransactionsPoolClient::to_delegate(client));
+					}
 				}
 				Api::Personal => {
 					#[cfg(feature = "accounts")]
