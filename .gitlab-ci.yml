@@ -112,8 +112,25 @@ test-linux:
   stage:                           build
   <<:                              *docker-cache-status
   script:
-    - ./scripts/gitlab/test-linux.sh
+    - ./scripts/gitlab/test-linux.sh stable
     - sccache -s
+
+test-linux-beta:
+  stage:                           build
+  # only:                            *releaseable_branches
+  <<:                              *docker-cache-status
+  script:
+    - ./scripts/gitlab/test-linux.sh beta
+    - sccache -s
+
+test-linux-nightly:
+  stage:                           build
+  # only:                            *releaseable_branches
+  <<:                              *docker-cache-status
+  script:
+    - ./scripts/gitlab/test-linux.sh nightly
+    - sccache -s
+  allow_failure:                   true
 
 build-android:
   stage:                           build
