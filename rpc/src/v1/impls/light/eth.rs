@@ -26,7 +26,7 @@ use jsonrpc_core::futures::future::Either;
 use light::cache::Cache as LightDataCache;
 use light::client::LightChainClient;
 use light::{cht, TransactionQueue};
-use light::on_demand::{request, OnDemand};
+use light::on_demand::{request, OnDemandRequester};
 
 use ethereum_types::{Address, H64, H160, H256, U64, U256};
 use hash::{KECCAK_NULL_RLP, KECCAK_EMPTY_LIST_RLP};
@@ -38,8 +38,7 @@ use types::filter::Filter as EthcoreFilter;
 use types::ids::BlockId;
 
 use v1::impls::eth_filter::Filterable;
-use v1::helpers::{errors, limit_logs};
-use v1::helpers::{SyncPollFilter, PollManager};
+use v1::helpers::{errors, limit_logs, SyncPollFilter, PollManager};
 use v1::helpers::deprecated::{self, DeprecationNotice};
 use v1::helpers::light_fetch::{self, LightFetch};
 use v1::traits::Eth;
@@ -54,10 +53,10 @@ use sync::{LightSyncInfo, LightSyncProvider, LightNetworkDispatcher, ManageNetwo
 const NO_INVALID_BACK_REFS: &str = "Fails only on invalid back-references; back-references here known to be valid; qed";
 
 /// Light client `ETH` (and filter) RPC.
-pub struct EthClient<C, S: LightSyncProvider + LightNetworkDispatcher + 'static> {
+pub struct EthClient<C, S: LightSyncProvider + LightNetworkDispatcher + 'static, OD: OnDemandRequester + 'static> {
 	sync: Arc<S>,
 	client: Arc<C>,
-	on_demand: Arc<OnDemand>,
+	on_demand: Arc<OD>,
 	transaction_queue: Arc<RwLock<TransactionQueue>>,
 	accounts: Arc<Fn() -> Vec<Address> + Send + Sync>,
 	cache: Arc<Mutex<LightDataCache>>,
@@ -67,9 +66,10 @@ pub struct EthClient<C, S: LightSyncProvider + LightNetworkDispatcher + 'static>
 	deprecation_notice: DeprecationNotice,
 }
 
-impl<C, S> Clone for EthClient<C, S>
+impl<C, S, OD> Clone for EthClient<C, S, OD>
 where
-	S: LightSyncProvider + LightNetworkDispatcher + 'static
+	S: LightSyncProvider + LightNetworkDispatcher + 'static,
+	OD: OnDemandRequester + 'static
 {
 	fn clone(&self) -> Self {
 		// each instance should have its own poll manager.
@@ -88,17 +88,18 @@ where
 	}
 }
 
-impl<C, S> EthClient<C, S>
+impl<C, S, OD> EthClient<C, S, OD>
 where
 	C: LightChainClient + 'static,
-	S: LightSyncProvider + LightNetworkDispatcher + ManageNetwork + 'static
+	S: LightSyncProvider + LightNetworkDispatcher + ManageNetwork + 'static,
+	OD: OnDemandRequester + 'static
 {
 	/// Create a new `EthClient` with a handle to the light sync instance, client,
 	/// and on-demand request service, which is assumed to be attached as a handler.
 	pub fn new(
 		sync: Arc<S>,
 		client: Arc<C>,
-		on_demand: Arc<OnDemand>,
+		on_demand: Arc<OD>,
 		transaction_queue: Arc<RwLock<TransactionQueue>>,
 		accounts: Arc<Fn() -> Vec<Address> + Send + Sync>,
 		cache: Arc<Mutex<LightDataCache>>,
@@ -120,7 +121,7 @@ where
 	}
 
 	/// Create a light data fetcher instance.
-	fn fetcher(&self) -> LightFetch<S>
+	fn fetcher(&self) -> LightFetch<S, OD>
 	{
 		LightFetch {
 			client: self.client.clone(),
@@ -218,10 +219,11 @@ where
 	}
 }
 
-impl<C, S> Eth for EthClient<C, S>
+impl<C, S, OD> Eth for EthClient<C, S, OD>
 where
 	C: LightChainClient + 'static,
-	S: LightSyncInfo + LightSyncProvider + LightNetworkDispatcher + ManageNetwork + 'static
+	S: LightSyncInfo + LightSyncProvider + LightNetworkDispatcher + ManageNetwork + 'static,
+	OD: OnDemandRequester + 'static
 {
 	type Metadata = Metadata;
 
@@ -268,11 +270,8 @@ where
 		Ok(Default::default())
 	}
 
-	fn gas_price(&self) -> Result<U256> {
-		Ok(self.cache.lock().gas_price_corpus()
-			.and_then(|c| c.percentile(self.gas_price_percentile).cloned())
-			.map(U256::from)
-			.unwrap_or_else(Default::default))
+	fn gas_price(&self) -> BoxFuture<U256> {
+		Box::new(self.fetcher().gas_price())
 	}
 
 	fn accounts(&self) -> Result<Vec<H160>> {
@@ -289,7 +288,7 @@ where
 	}
 
 	fn balance(&self, address: H160, num: Option<BlockNumber>) -> BoxFuture<U256> {
-		Box::new(self.fetcher().account(address, num.unwrap_or_default().to_block_id())
+		Box::new(self.fetcher().account(address, num.unwrap_or_default().to_block_id(), self.transaction_queue.clone())
 			.map(|acc| acc.map_or(0.into(), |a| a.balance)))
 	}
 
@@ -306,7 +305,7 @@ where
 	}
 
 	fn transaction_count(&self, address: H160, num: Option<BlockNumber>) -> BoxFuture<U256> {
-		Box::new(self.fetcher().account(address, num.unwrap_or_default().to_block_id())
+		Box::new(self.fetcher().account(address, num.unwrap_or_default().to_block_id(), self.transaction_queue.clone())
 			.map(|acc| acc.map_or(0.into(), |a| a.nonce)))
 	}
 
@@ -402,7 +401,7 @@ where
 	}
 
 	fn call(&self, req: CallRequest, num: Option<BlockNumber>) -> BoxFuture<Bytes> {
-		Box::new(self.fetcher().proved_read_only_execution(req, num).and_then(|res| {
+		Box::new(self.fetcher().proved_read_only_execution(req, num, self.transaction_queue.clone()).and_then(|res| {
 			match res {
 				Ok(exec) => Ok(exec.output.into()),
 				Err(e) => Err(errors::execution(e)),
@@ -412,7 +411,7 @@ where
 
 	fn estimate_gas(&self, req: CallRequest, num: Option<BlockNumber>) -> BoxFuture<U256> {
 		// TODO: binary chop for more accurate estimates.
-		Box::new(self.fetcher().proved_read_only_execution(req, num).and_then(|res| {
+		Box::new(self.fetcher().proved_read_only_execution(req, num, self.transaction_queue.clone()).and_then(|res| {
 			match res {
 				Ok(exec) => Ok(exec.refunded + exec.gas_used),
 				Err(e) => Err(errors::execution(e)),
@@ -421,15 +420,22 @@ where
 	}
 
 	fn transaction_by_hash(&self, hash: H256) -> BoxFuture<Option<Transaction>> {
-		{
-			let tx_queue = self.transaction_queue.read();
-			if let Some(tx) = tx_queue.get(&hash) {
+		let in_txqueue = self.transaction_queue.read().get(&hash).is_some();
+
+		// The transaction is in the `local txqueue` then fetch the latest state from the network and attempt
+		// to cull the transaction queue.
+		if in_txqueue {
+			// Note, this will block (relies on HTTP timeout) to make sure `cull` will finish to avoid having to call
+			// `eth_getTransactionByHash` more than once to ensure the `txqueue` is up to `date` when it is called
+			if let Err(e) = self.fetcher().light_cull(self.transaction_queue.clone()).wait() {
+				debug!(target: "cull", "failed because of: {:?}", e);
+			}
+			if let Some(tx) = self.transaction_queue.read().get(&hash) {
 				return Box::new(future::ok(Some(Transaction::from_pending(
 					tx.clone(),
 				))));
 			}
 		}
-
 		Box::new(self.fetcher().transaction_by_hash(hash).map(|x| x.map(|(tx, _)| tx)))
 	}
 
@@ -533,10 +539,11 @@ where
 }
 
 // This trait implementation triggers a blanked impl of `EthFilter`.
-impl<C, S> Filterable for EthClient<C, S>
+impl<C, S, OD> Filterable for EthClient<C, S, OD>
 where
 	C: LightChainClient + 'static,
-	S: LightSyncProvider + LightNetworkDispatcher + ManageNetwork + 'static
+	S: LightSyncProvider + LightNetworkDispatcher + ManageNetwork + 'static,
+	OD: OnDemandRequester + 'static
 {
 	fn best_block_number(&self) -> u64 { self.client.chain_info().best_block_number }
 

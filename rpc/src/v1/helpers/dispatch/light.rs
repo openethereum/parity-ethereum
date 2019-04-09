@@ -20,7 +20,7 @@ use ethereum_types::{H256, Address, U256};
 use light::TransactionQueue as LightTransactionQueue;
 use light::cache::Cache as LightDataCache;
 use light::client::LightChainClient;
-use light::on_demand::{request, OnDemand};
+use light::on_demand::{request, OnDemandRequester};
 use parking_lot::{Mutex, RwLock};
 use stats::Corpus;
 use sync::{LightSyncProvider, LightNetworkDispatcher, ManageNetwork};
@@ -37,13 +37,17 @@ use v1::types::{RichRawTransaction as RpcRichRawTransaction,};
 use super::{Dispatcher, Accounts, SignWith, PostSign};
 
 /// Dispatcher for light clients -- fetches default gas price, next nonce, etc. from network.
-pub struct LightDispatcher<S: LightSyncProvider + LightNetworkDispatcher + ManageNetwork + 'static> {
+pub struct LightDispatcher<S, OD>
+where
+	S: LightSyncProvider + LightNetworkDispatcher + ManageNetwork + 'static,
+	OD: OnDemandRequester + 'static
+{
 	/// Sync service.
 	pub sync: Arc<S>,
 	/// Header chain client.
 	pub client: Arc<LightChainClient>,
 	/// On-demand request service.
-	pub on_demand: Arc<OnDemand>,
+	pub on_demand: Arc<OD>,
 	/// Data cache.
 	pub cache: Arc<Mutex<LightDataCache>>,
 	/// Transaction queue.
@@ -54,9 +58,10 @@ pub struct LightDispatcher<S: LightSyncProvider + LightNetworkDispatcher + Manag
 	pub gas_price_percentile: usize,
 }
 
-impl<S> LightDispatcher<S>
+impl<S, OD> LightDispatcher<S, OD>
 where
-	S: LightSyncProvider + LightNetworkDispatcher + ManageNetwork + 'static
+	S: LightSyncProvider + LightNetworkDispatcher + ManageNetwork + 'static,
+	OD: OnDemandRequester + 'static
 {
 	/// Create a new `LightDispatcher` from its requisite parts.
 	///
@@ -64,7 +69,7 @@ where
 	pub fn new(
 		sync: Arc<S>,
 		client: Arc<LightChainClient>,
-		on_demand: Arc<OnDemand>,
+		on_demand: Arc<OD>,
 		cache: Arc<Mutex<LightDataCache>>,
 		transaction_queue: Arc<RwLock<LightTransactionQueue>>,
 		nonces: Arc<Mutex<nonce::Reservations>>,
@@ -117,9 +122,10 @@ where
 	}
 }
 
-impl<S> Clone for LightDispatcher<S>
+impl<S, OD> Clone for LightDispatcher<S, OD>
 where
-	S: LightSyncProvider + LightNetworkDispatcher + ManageNetwork + 'static
+	S: LightSyncProvider + LightNetworkDispatcher + ManageNetwork + 'static,
+	OD: OnDemandRequester + 'static
 {
 	fn clone(&self) -> Self {
 		Self {
@@ -134,9 +140,10 @@ where
 	}
 }
 
-impl<S> Dispatcher for LightDispatcher<S>
+impl<S, OD> Dispatcher for LightDispatcher<S, OD>
 where
-	S: LightSyncProvider + LightNetworkDispatcher + ManageNetwork + 'static
+	S: LightSyncProvider + LightNetworkDispatcher + ManageNetwork + 'static,
+	OD: OnDemandRequester + 'static
 {
 	// Ignore the `force_nonce` flag in order to always query the network when fetching the nonce and
 	// the account state. If the nonce is specified in the transaction use that nonce instead but do the
@@ -239,12 +246,16 @@ where
 
 /// Get a recent gas price corpus.
 // TODO: this could be `impl Trait`.
-pub fn fetch_gas_price_corpus<S: LightSyncProvider + LightNetworkDispatcher + ManageNetwork + 'static>(
+pub fn fetch_gas_price_corpus<S, OD>(
 	sync: Arc<S>,
 	client: Arc<LightChainClient>,
-	on_demand: Arc<OnDemand>,
+	on_demand: Arc<OD>,
 	cache: Arc<Mutex<LightDataCache>>,
-) -> BoxFuture<Corpus<U256>> {
+) -> BoxFuture<Corpus<U256>>
+where
+	S: LightSyncProvider + LightNetworkDispatcher + ManageNetwork + 'static,
+	OD: OnDemandRequester + 'static
+{
 	const GAS_PRICE_SAMPLE_SIZE: usize = 100;
 
 	if let Some(cached) = { cache.lock().gas_price_corpus() } {

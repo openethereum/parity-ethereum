@@ -19,7 +19,7 @@ use bytes::Bytes;
 use call_contract::RegistryInfo;
 use common_types::transaction::{Transaction, SignedTransaction, Action};
 use ethereum_types::Address;
-use ethcore::client::{Client, BlockChainClient, ChainInfo, Nonce, BlockId};
+use ethcore::client::{Client, ChainInfo, Nonce, BlockId};
 use ethcore::miner::{Miner, MinerService};
 use sync::SyncProvider;
 use helpers::{get_confirmed_block_hash, REQUEST_CONFIRMATIONS_REQUIRED};
@@ -54,7 +54,7 @@ impl TrustedClient {
 		self.client.upgrade()
 			.and_then(|client| self.sync.upgrade().map(|sync| (client, sync)))
 			.and_then(|(client, sync)| {
-				let is_synced = !sync.status().is_syncing(client.queue_info());
+				let is_synced = !sync.is_major_syncing();
 				let is_trusted = client.chain_info().security_level().is_full();
 				match is_synced && is_trusted {
 					true => Some(client),

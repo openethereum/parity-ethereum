@@ -25,7 +25,6 @@ use blockchain::{BlockReceipts, BlockChain, BlockChainDB, BlockProvider, TreeRou
 use bytes::Bytes;
 use call_contract::{CallContract, RegistryInfo};
 use ethcore_miner::pool::VerifiedTransaction;
-use ethcore_miner::service_transaction_checker::ServiceTransactionChecker;
 use ethereum_types::{H256, Address, U256};
 use evm::Schedule;
 use hash::keccak;
@@ -1571,22 +1570,27 @@ impl Call for Client {
 			let schedule = machine.schedule(env_info.number);
 			Executive::new(&mut clone, &env_info, &machine, &schedule)
 				.transact_virtual(&tx, options())
-				.ok()
-				.map(|r| r.exception.is_none())
 		};
 
-		let cond = |gas| exec(gas).unwrap_or(false);
+		let cond = |gas| {
+			exec(gas)
+				.ok()
+				.map_or(false, |r| r.exception.is_none())
+		};
 
 		if !cond(upper) {
 			upper = max_upper;
 			match exec(upper) {
-				Some(false) => return Err(CallError::Exceptional),
-				None => {
+				Ok(v) => {
+					if let Some(exception) = v.exception {
+						return Err(CallError::Exceptional(exception))
+					}
+				},
+				Err(_e) => {
 					trace!(target: "estimate_gas", "estimate_gas failed with {}", upper);
 					let err = ExecutionError::Internal(format!("Requires higher than upper limit of {}", upper));
 					return Err(err.into())
-				},
-				_ => {},
+				}
 			}
 		}
 		let lower = t.gas_required(&self.engine.schedule(env_info.number)).into();
@@ -1666,6 +1670,10 @@ impl BlockChainClient for Client {
 		let r = self.mode.lock().clone().into();
 		trace!(target: "mode", "Asked for mode = {:?}. returning {:?}", &*self.mode.lock(), r);
 		r
+	}
+
+	fn queue_info(&self) -> BlockQueueInfo {
+		self.importer.block_queue.queue_info()
 	}
 
 	fn disable(&self) {
@@ -1930,10 +1938,6 @@ impl BlockChainClient for Client {
 		self.chain.read().block_receipts(hash)
 	}
 
-	fn queue_info(&self) -> BlockQueueInfo {
-		self.importer.block_queue.queue_info()
-	}
-
 	fn is_queue_empty(&self) -> bool {
 		self.importer.block_queue.is_empty()
 	}
@@ -2152,10 +2156,14 @@ impl BlockChainClient for Client {
 
 	fn transact_contract(&self, address: Address, data: Bytes) -> Result<(), transaction::Error> {
 		let authoring_params = self.importer.miner.authoring_params();
-		let service_transaction_checker = ServiceTransactionChecker::default();
-		let gas_price = match service_transaction_checker.check_address(self, authoring_params.author) {
-			Ok(true) => U256::zero(),
-			_ => self.importer.miner.sensible_gas_price(),
+		let service_transaction_checker = self.importer.miner.service_transaction_checker();
+		let gas_price = if let Some(checker) = service_transaction_checker {
+			match checker.check_address(self, authoring_params.author) {
+				Ok(true) => U256::zero(),
+				_ => self.importer.miner.sensible_gas_price(),
+			}
+		} else {
+			self.importer.miner.sensible_gas_price()
 		};
 		let transaction = transaction::Transaction {
 			nonce: self.latest_nonce(&authoring_params.author),

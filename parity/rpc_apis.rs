@@ -25,6 +25,8 @@ use account_utils::{self, AccountProvider};
 use ethcore::client::Client;
 use ethcore::miner::Miner;
 use ethcore::snapshot::SnapshotService;
+use ethcore::client::BlockChainClient;
+use sync::SyncState;
 use ethcore_logger::RotatingLogger;
 use ethcore_private_tx::Provider as PrivateTransactionManager;
 use ethcore_service::PrivateTxService;
@@ -320,8 +322,22 @@ impl FullDependencies {
 				}
 				Api::EthPubSub => {
 					if !for_generic_pubsub {
-						let client =
+						let mut client =
 							EthPubSubClient::new(self.client.clone(), self.executor.clone());
+						let weak_client = Arc::downgrade(&self.client);
+
+						client.add_sync_notifier(self.sync.sync_notification(), move |state| {
+							let client = weak_client.upgrade()?;
+							let queue_info = client.queue_info();
+
+							let is_syncing_state = match state { SyncState::Idle | SyncState::NewBlocks => false, _ => true };
+							let is_verifying = queue_info.unverified_queue_size + queue_info.verified_queue_size > 3;
+
+							Some(PubSubSyncStatus {
+								syncing: is_verifying || is_syncing_state,
+							})
+						});
+
 						let h = client.handler();
 						self.miner
 							.add_transactions_listener(Box::new(move |hashes| {
@@ -553,7 +569,7 @@ impl<C: LightChainClient + 'static> LightDependencies<C> {
 					}
 				}
 				Api::EthPubSub => {
-					let client = EthPubSubClient::light(
+					let mut client = EthPubSubClient::light(
 						self.client.clone(),
 						self.on_demand.clone(),
 						self.sync.clone(),
@@ -561,6 +577,21 @@ impl<C: LightChainClient + 'static> LightDependencies<C> {
 						self.executor.clone(),
 						self.gas_price_percentile,
 					);
+
+					let weak_client = Arc::downgrade(&self.client);
+
+					client.add_sync_notifier(self.sync.sync_notification(), move |state| {
+						let client = weak_client.upgrade()?;
+						let queue_info = client.queue_info();
+
+						let is_syncing_state = match state { SyncState::Idle | SyncState::NewBlocks => false, _ => true };
+						let is_verifying = queue_info.unverified_queue_size + queue_info.verified_queue_size > 3;
+
+						Some(PubSubSyncStatus {
+							syncing: is_verifying || is_syncing_state,
+						})
+					});
+
 					self.client.add_listener(client.handler() as Weak<_>);
 					let h = client.handler();
 					self.transaction_queue

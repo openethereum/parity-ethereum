@@ -7,7 +7,7 @@ authors = ["Parity Technologies <admin@parity.io>"]
 
 [dependencies]
 common-types = { path = "../types" }
-error-chain = { version = "0.12", default-features = false }
+derive_more = "0.14.0"
 ethabi = "6.0"
 ethabi-contract = "6.0"
 ethabi-derive = "6.0"
@@ -36,7 +36,7 @@ serde = "1.0"
 serde_derive = "1.0"
 serde_json = "1.0"
 tiny-keccak = "1.4"
-transaction-pool = "1.13.2"
+transaction-pool = "2.0"
 url = "1"
 
 [dev-dependencies]
