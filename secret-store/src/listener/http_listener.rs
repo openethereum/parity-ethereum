@@ -88,7 +88,6 @@ struct KeyServerSharedHttpHandler {
 impl KeyServerHttpListener {
 	/// Start KeyServer http listener
 	pub fn start(listener_address: NodeAddress, cors: Option<Vec<String>>, key_server: Weak<KeyServer>, executor: Executor) -> Result<Self, Error> {
-		debug!(target: "secretstore", "CORS: {:?}", cors);
 		let shared_handler = Arc::new(KeyServerSharedHttpHandler {
 			key_server: key_server,
 			cors: cors
