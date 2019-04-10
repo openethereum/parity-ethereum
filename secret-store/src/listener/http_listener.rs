@@ -446,7 +446,7 @@ mod tests {
 		let key_server: Arc<KeyServer> = Arc::new(DummyKeyServer::default());
 		let address = NodeAddress { address: "127.0.0.1".into(), port: 9000 };
 		let runtime = Runtime::with_thread_count(1);
-		let listener = KeyServerHttpListener::start(address, Arc::downgrade(&key_server),
+		let listener = KeyServerHttpListener::start(address, None, Arc::downgrade(&key_server),
 			runtime.executor()).unwrap();
 		drop(listener);
 	}
