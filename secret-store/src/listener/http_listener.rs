@@ -85,6 +85,11 @@ struct KeyServerSharedHttpHandler {
 	cors: Option<Vec<String>>
 }
 
+enum Cors {
+	CorsAuthorized(Option<HeaderValue>),
+	CorsRejected
+} 
+
 impl KeyServerHttpListener {
 	/// Start KeyServer http listener
 	pub fn start(listener_address: NodeAddress, cors: Option<Vec<String>>, key_server: Weak<KeyServer>, executor: Executor) -> Result<Self, Error> {
@@ -123,10 +128,10 @@ impl KeyServerHttpListener {
 }
 
 impl KeyServerHttpHandler {
-	fn process(self, req_method: HttpMethod, req_uri: Uri, path: &str, req_body: &[u8]) -> HttpResponse<Body> {
+	fn process(self, req_method: HttpMethod, req_uri: Uri, path: &str, req_body: &[u8], origin: Option<HeaderValue>) -> HttpResponse<Body> {
 		match parse_request(&req_method, &path, &req_body) {
 			Request::GenerateServerKey(document, signature, threshold) => {
-				return_server_public_key(&req_uri, self.handler.key_server.upgrade()
+				return_server_public_key(&req_uri, origin, self.handler.key_server.upgrade()
 					.map(|key_server| key_server.generate_key(&document, &signature.into(), threshold))
 					.unwrap_or(Err(Error::Internal("KeyServer is already destroyed".into())))
 					.map_err(|err| {
@@ -135,7 +140,7 @@ impl KeyServerHttpHandler {
 					}))
 			},
 			Request::StoreDocumentKey(document, signature, common_point, encrypted_document_key) => {
-				return_empty(&req_uri, self.handler.key_server.upgrade()
+				return_empty(&req_uri, origin, self.handler.key_server.upgrade()
 					.map(|key_server| key_server.store_document_key(&document, &signature.into(), common_point, encrypted_document_key))
 					.unwrap_or(Err(Error::Internal("KeyServer is already destroyed".into())))
 					.map_err(|err| {
@@ -144,7 +149,7 @@ impl KeyServerHttpHandler {
 					}))
 			},
 			Request::GenerateDocumentKey(document, signature, threshold) => {
-				return_document_key(&req_uri, self.handler.key_server.upgrade()
+				return_document_key(&req_uri, origin, self.handler.key_server.upgrade()
 					.map(|key_server| key_server.generate_document_key(&document, &signature.into(), threshold))
 					.unwrap_or(Err(Error::Internal("KeyServer is already destroyed".into())))
 					.map_err(|err| {
@@ -153,7 +158,7 @@ impl KeyServerHttpHandler {
 					}))
 			},
 			Request::GetDocumentKey(document, signature) => {
-				return_document_key(&req_uri, self.handler.key_server.upgrade()
+				return_document_key(&req_uri, origin, self.handler.key_server.upgrade()
 					.map(|key_server| key_server.restore_document_key(&document, &signature.into()))
 					.unwrap_or(Err(Error::Internal("KeyServer is already destroyed".into())))
 					.map_err(|err| {
@@ -162,7 +167,7 @@ impl KeyServerHttpHandler {
 					}))
 			},
 			Request::GetDocumentKeyShadow(document, signature) => {
-				return_document_key_shadow(&req_uri, self.handler.key_server.upgrade()
+				return_document_key_shadow(&req_uri, origin, self.handler.key_server.upgrade()
 					.map(|key_server| key_server.restore_document_key_shadow(&document, &signature.into()))
 					.unwrap_or(Err(Error::Internal("KeyServer is already destroyed".into())))
 					.map_err(|err| {
@@ -171,7 +176,7 @@ impl KeyServerHttpHandler {
 					}))
 			},
 			Request::SchnorrSignMessage(document, signature, message_hash) => {
-				return_message_signature(&req_uri, self.handler.key_server.upgrade()
+				return_message_signature(&req_uri, origin, self.handler.key_server.upgrade()
 					.map(|key_server| key_server.sign_message_schnorr(&document, &signature.into(), message_hash))
 					.unwrap_or(Err(Error::Internal("KeyServer is already destroyed".into())))
 					.map_err(|err| {
@@ -180,7 +185,7 @@ impl KeyServerHttpHandler {
 					}))
 				},
 			Request::EcdsaSignMessage(document, signature, message_hash) => {
-				return_message_signature(&req_uri, self.handler.key_server.upgrade()
+				return_message_signature(&req_uri, origin, self.handler.key_server.upgrade()
 					.map(|key_server| key_server.sign_message_ecdsa(&document, &signature.into(), message_hash))
 					.unwrap_or(Err(Error::Internal("KeyServer is already destroyed".into())))
 					.map_err(|err| {
@@ -189,7 +194,7 @@ impl KeyServerHttpHandler {
 					}))
 			},
 			Request::ChangeServersSet(old_set_signature, new_set_signature, new_servers_set) => {
-				return_empty(&req_uri, self.handler.key_server.upgrade()
+				return_empty(&req_uri, origin, self.handler.key_server.upgrade()
 					.map(|key_server| key_server.change_servers_set(old_set_signature, new_set_signature, new_servers_set))
 					.unwrap_or(Err(Error::Internal("KeyServer is already destroyed".into())))
 					.map_err(|err| {
@@ -207,24 +212,19 @@ impl KeyServerHttpHandler {
 		}
 	}
 
-	fn cors(&self, req: &HttpRequest<Body>) -> Option<HttpResponse<Body>> {		
+	fn cors(&self, req: &HttpRequest<Body>) -> Cors {		
 		match req.headers().get(header::ORIGIN) {
-			None => None,
+			None => Cors::CorsAuthorized(None),
 			Some(origin) => {
-				let is_authorized = 
-					self.handler.cors.clone()
+				let is_authorized = self.handler.cors.clone()
 						.map(|domains| {
 							domains.iter().any(|domain| domain == origin)
 						})
 						.unwrap_or(true);
 				if is_authorized {
-					None
+					Cors::CorsAuthorized(Some(origin.clone()))
 				}  else {
-					Some(HttpResponse::builder()
-						.status(HttpStatusCode::NOT_FOUND)
-						.body(Body::empty())
-						.expect("Nothing to parse, cannot fail; qed")
-					)
+					Cors::CorsRejected
 				}
 			}
 		}
@@ -238,66 +238,75 @@ impl Service for KeyServerHttpHandler {
 	type Future = Box<Future<Item = HttpResponse<Self::ResBody>, Error=Self::Error> + Send>;
 
 	fn call(&mut self, req: HttpRequest<Body>) -> Self::Future {
-		if let Some(error_resp) = self.cors(&req) {
-			warn!(target: "secretstore", "Ignoring {}-request {} with not authorized Origin header", req.method(), req.uri());
-			return Box::new(future::ok(error_resp));
-		}
+		match self.cors(&req) {
+			Cors::CorsRejected => {
+				warn!(target: "secretstore", "Ignoring {}-request {} with not authorized Origin header", req.method(), req.uri());
+				Box::new(future::ok(HttpResponse::builder()
+						.status(HttpStatusCode::NOT_FOUND)
+						.body(Body::empty())
+						.expect("Nothing to parse, cannot fail; qed")
+					))
+			},
+			Cors::CorsAuthorized(origin) => {
+				let req_method = req.method().clone();
+				let req_uri = req.uri().clone();
+				// We cannot consume Self because of the Service trait requirement.
+				let this = self.clone();
 
-		let req_method = req.method().clone();
-		let req_uri = req.uri().clone();
-		// We cannot consume Self because of the Service trait requirement.
-		let this = self.clone();
-
-		Box::new(req.into_body().concat2().map(move |body| {
-			let path = req_uri.path().to_string();
-			if path.starts_with("/") {
-				this.process(req_method, req_uri, &path, &body)
-			} else {
-				warn!(target: "secretstore", "Ignoring invalid {}-request {}", req_method, req_uri);
-				HttpResponse::builder()
-					.status(HttpStatusCode::NOT_FOUND)
-					.body(Body::empty())
-					.expect("Nothing to parse, cannot fail; qed")
+				Box::new(req.into_body().concat2().map(move |body| {
+					let path = req_uri.path().to_string();
+					if path.starts_with("/") {
+						this.process(req_method, req_uri, &path, &body, origin)
+					} else {
+						warn!(target: "secretstore", "Ignoring invalid {}-request {}", req_method, req_uri);
+						HttpResponse::builder()
+							.status(HttpStatusCode::NOT_FOUND)
+							.body(Body::empty())
+							.expect("Nothing to parse, cannot fail; qed")
+					}
+				}))
 			}
-		}))
+		}		
 	}
 }
 
-fn return_empty(req_uri: &Uri, empty: Result<(), Error>) -> HttpResponse<Body> {
-	return_bytes::<i32>(req_uri, empty.map(|_| None))
+fn return_empty(req_uri: &Uri, origin: Option<HeaderValue>, empty: Result<(), Error>) -> HttpResponse<Body> {
+	return_bytes::<i32>(req_uri, origin, empty.map(|_| None))
 }
 
-fn return_server_public_key(req_uri: &Uri, server_public: Result<Public, Error>) -> HttpResponse<Body> {
-	return_bytes(req_uri, server_public.map(|k| Some(SerializablePublic(k))))
+fn return_server_public_key(req_uri: &Uri, origin: Option<HeaderValue>, server_public: Result<Public, Error>) -> HttpResponse<Body> {
+	return_bytes(req_uri, origin, server_public.map(|k| Some(SerializablePublic(k))))
 }
 
-fn return_message_signature(req_uri: &Uri, signature: Result<EncryptedDocumentKey, Error>) -> HttpResponse<Body> {
-	return_bytes(req_uri, signature.map(|s| Some(SerializableBytes(s))))
+fn return_message_signature(req_uri: &Uri, origin: Option<HeaderValue>, signature: Result<EncryptedDocumentKey, Error>) -> HttpResponse<Body> {
+	return_bytes(req_uri, origin, signature.map(|s| Some(SerializableBytes(s))))
 }
 
-fn return_document_key(req_uri: &Uri, document_key: Result<EncryptedDocumentKey, Error>) -> HttpResponse<Body> {
-	return_bytes(req_uri, document_key.map(|k| Some(SerializableBytes(k))))
+fn return_document_key(req_uri: &Uri, origin: Option<HeaderValue>, document_key: Result<EncryptedDocumentKey, Error>) -> HttpResponse<Body> {
+	return_bytes(req_uri, origin, document_key.map(|k| Some(SerializableBytes(k))))
 }
 
-fn return_document_key_shadow(req_uri: &Uri, document_key_shadow: Result<EncryptedDocumentKeyShadow, Error>)
+fn return_document_key_shadow(req_uri: &Uri, origin: Option<HeaderValue>, document_key_shadow: Result<EncryptedDocumentKeyShadow, Error>)
 	-> HttpResponse<Body>
 {
-	return_bytes(req_uri, document_key_shadow.map(|k| Some(SerializableEncryptedDocumentKeyShadow {
+	return_bytes(req_uri, origin, document_key_shadow.map(|k| Some(SerializableEncryptedDocumentKeyShadow {
 		decrypted_secret: k.decrypted_secret.into(),
 		common_point: k.common_point.expect("always filled when requesting document_key_shadow; qed").into(),
-		decrypt_shadows: k.decrypt_shadows.expect("always filled when requesting document_key_shadow; qed").into_iter().map(Into::into).collect(),
+		decrypt_shadows: k.decrypt_shadows.expect("always filled when requesting document_key_shadow; qed").into_iter().map(Into::into).collect()
 	})))
 }
 
-fn return_bytes<T: Serialize>(req_uri: &Uri, result: Result<Option<T>, Error>) -> HttpResponse<Body> {
+fn return_bytes<T: Serialize>(req_uri: &Uri, origin: Option<HeaderValue>, result: Result<Option<T>, Error>) -> HttpResponse<Body> {
 	match result {
 		Ok(Some(result)) => match serde_json::to_vec(&result) {
 			Ok(result) => {
 				let body: Body = result.into();
-				HttpResponse::builder()
-					.header(header::CONTENT_TYPE, HeaderValue::from_static("application/json; charset=utf-8"))
-					.body(body)
-					.expect("Error creating http response")
+				let mut builder = HttpResponse::builder();
+				builder.header(header::CONTENT_TYPE, HeaderValue::from_static("application/json; charset=utf-8"));
+				if let Some(origin) = origin {
+					builder.header(header::ACCESS_CONTROL_ALLOW_ORIGIN, origin);
+				}
+				builder.body(body).expect("Error creating http response")
 			},
 			Err(err) => {
 				warn!(target: "secretstore", "response to request {} has failed with: {}", req_uri, err);
@@ -308,10 +317,12 @@ fn return_bytes<T: Serialize>(req_uri: &Uri, result: Result<Option<T>, Error>) -
 			}
 		},
 		Ok(None) => {
-			HttpResponse::builder()
-					.status(HttpStatusCode::OK)
-					.body(Body::empty())
-					.expect("Nothing to parse, cannot fail; qed")
+			let mut builder = HttpResponse::builder();
+			builder.status(HttpStatusCode::OK);
+			if let Some(origin) = origin {
+				builder.header(header::ACCESS_CONTROL_ALLOW_ORIGIN, origin);
+			}
+			builder.body(Body::empty()).expect("Nothing to parse, cannot fail; qed")
 		},
 		Err(err) => return_error(err),
 	}
