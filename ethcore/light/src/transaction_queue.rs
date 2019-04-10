@@ -377,9 +377,13 @@ impl TransactionQueue {
 			listener(hashes)
 		}
 
-		let to_send: Vec<(H256, TxStatus)> = hashes.into_iter().map(|hash| (hash.clone(), status)).collect();
+		let to_send: Arc<Vec<(H256, TxStatus)>> = Arc::new(
+			hashes
+				.into_iter()
+				.map(|hash| (hash.clone(), status)).collect()
+		);
 
-		self.tx_statuses_listeners.retain(| listener| listener.unbounded_send(Arc::new(to_send.clone())).is_ok());
+		self.tx_statuses_listeners.retain(| listener| listener.unbounded_send(to_send.clone()).is_ok());
 	}
 }
 
