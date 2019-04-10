@@ -82,13 +82,16 @@ struct KeyServerHttpHandler {
 /// Shared http handler
 struct KeyServerSharedHttpHandler {
 	key_server: Weak<KeyServer>,
+	cors: Option<Vec<String>>
 }
 
 impl KeyServerHttpListener {
 	/// Start KeyServer http listener
-	pub fn start(listener_address: NodeAddress, key_server: Weak<KeyServer>, executor: Executor) -> Result<Self, Error> {
+	pub fn start(listener_address: NodeAddress, cors: Option<Vec<String>>, key_server: Weak<KeyServer>, executor: Executor) -> Result<Self, Error> {
+		debug!(target: "secretstore", "CORS: {:?}", cors);
 		let shared_handler = Arc::new(KeyServerSharedHttpHandler {
 			key_server: key_server,
+			cors: cors
 		});
 
 		let listener_address = format!("{}:{}", listener_address.address, listener_address.port).parse()?;
@@ -204,6 +207,29 @@ impl KeyServerHttpHandler {
 			},
 		}
 	}
+
+	fn cors(&self, req: &HttpRequest<Body>) -> Option<HttpResponse<Body>> {		
+		match req.headers().get(header::ORIGIN) {
+			None => None,
+			Some(origin) => {
+				let is_authorized = 
+					self.handler.cors.clone()
+						.map(|domains| {
+							domains.iter().any(|domain| domain == origin)
+						})
+						.unwrap_or(true);
+				if is_authorized {
+					None
+				}  else {
+					Some(HttpResponse::builder()
+						.status(HttpStatusCode::NOT_FOUND)
+						.body(Body::empty())
+						.expect("Nothing to parse, cannot fail; qed")
+					)
+				}
+			}
+		}
+	}
 }
 
 impl Service for KeyServerHttpHandler {
@@ -213,12 +239,9 @@ impl Service for KeyServerHttpHandler {
 	type Future = Box<Future<Item = HttpResponse<Self::ResBody>, Error=Self::Error> + Send>;
 
 	fn call(&mut self, req: HttpRequest<Body>) -> Self::Future {
-		if req.headers().contains_key(header::ORIGIN) {
-			warn!(target: "secretstore", "Ignoring {}-request {} with Origin header", req.method(), req.uri());
-			return Box::new(future::ok(HttpResponse::builder()
-					.status(HttpStatusCode::NOT_FOUND)
-					.body(Body::empty())
-					.expect("Nothing to parse, cannot fail; qed")))
+		if let Some(error_resp) = self.cors(&req) {
+			warn!(target: "secretstore", "Ignoring {}-request {} with not authorized Origin header", req.method(), req.uri());
+			return Box::new(future::ok(error_resp));
 		}
 
 		let req_method = req.method().clone();
