@@ -39,7 +39,7 @@ variables:
     when:                          always
     expire_in:                     7 days
     paths:
-      - artifacts/
+      - "*.log"
   before_script:
     # RUST_LOG=sccache::server=debug
     - SCCACHE_ERROR_LOG=/builds/parity/parity-ethereum/sccache_error.log
@@ -60,9 +60,9 @@ variables:
         exit 0;
       fi
     # collect log files
-    - mkdir -p ./artifacts
-    - find . -name "*.log"
-    - find . -name "*.log" | xargs tar --append -f ./artifacts/logs.tar
+    # - mkdir -p ./artifacts
+    # - find . -name "*.log"
+    # - find . -name "*.log" | xargs tar --append -f ./artifacts/logs.tar
   tags:
     # - linux-docker
     - qa
