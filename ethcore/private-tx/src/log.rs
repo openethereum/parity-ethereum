@@ -164,15 +164,6 @@ impl CurrentTime for SystemTime {
 	}
 }
 
-/*/// Timesource on the base of system time
-pub struct SystemTimestamp {}
-
-impl CurrentTime for SystemTimestamp {
-	fn timestamp(&self) -> u64 {
-		SystemTime::now().duration_since(UNIX_EPOCH).unwrap_or_default().as_secs()
-	}
-}*/
-
 /// Private transactions logging
 pub struct Logging {
 	logs: RwLock<HashMap<H256, TransactionLog>>,
