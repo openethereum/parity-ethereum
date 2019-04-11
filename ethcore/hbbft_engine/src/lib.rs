@@ -1,6 +1,6 @@
+extern crate common_types as types;
 extern crate ethcore;
 extern crate ethcore_miner;
-extern crate ethcore_transaction as transaction;
 extern crate ethereum_types;
 extern crate ethkey;
 extern crate inventory;
@@ -8,8 +8,6 @@ extern crate keccak_hash as hash;
 extern crate parking_lot;
 extern crate rustc_hex;
 extern crate serde_json;
-
-extern crate common_types as types;
 
 mod hbbft_engine;
 

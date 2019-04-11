@@ -6,9 +6,9 @@ use ethcore::block::ExecutedBlock;
 use ethcore::client::EngineClient;
 use ethcore::engines::{total_difficulty_fork_choice, Engine, EthEngine, ForkChoice, Seal};
 use ethcore::error::Error;
-use types::header::{ExtendedHeader, Header};
 use ethcore::machine::EthereumMachine;
-use transaction::SignedTransaction;
+use types::header::{ExtendedHeader, Header};
+use types::transaction::SignedTransaction;
 
 pub struct HoneyBadgerBFT {
 	client: Arc<RwLock<Option<Weak<EngineClient>>>>,

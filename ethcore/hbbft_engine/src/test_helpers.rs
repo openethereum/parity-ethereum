@@ -5,11 +5,11 @@ use rustc_hex::FromHex;
 use ethcore::client::Client;
 use ethcore::miner::{Miner, MinerService};
 use ethcore::spec::Spec;
-use ethcore::test_helpers::generate_dummy_client_with_spec_and_accounts;
+use ethcore::test_helpers::generate_dummy_client_with_spec;
 use ethcore::test_helpers::TestNotify;
 use ethereum_types::U256;
 use ethkey::{Generator, Random};
-use transaction::{Action, Transaction};
+use types::transaction::{Action, Transaction};
 
 pub fn hbbft_spec() -> Spec {
 	Spec::load(
@@ -20,7 +20,7 @@ pub fn hbbft_spec() -> Spec {
 }
 
 pub fn hbbft_client() -> std::sync::Arc<ethcore::client::Client> {
-	generate_dummy_client_with_spec_and_accounts(hbbft_spec, None)
+	generate_dummy_client_with_spec(hbbft_spec)
 }
 
 pub fn hbbft_client_setup() -> (Arc<Client>, Arc<TestNotify>, Arc<Miner>) {
