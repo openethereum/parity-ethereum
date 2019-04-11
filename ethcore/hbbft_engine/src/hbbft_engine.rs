@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use ethcore::engines::{total_difficulty_fork_choice, Engine, ForkChoice};
+use ethcore::engines::{total_difficulty_fork_choice, Engine, EthEngine, ForkChoice};
 use ethcore::error::Error;
 use types::header::{ExtendedHeader, Header};
 use ethcore::machine::EthereumMachine;
@@ -10,7 +10,10 @@ pub struct HoneyBadgerBFT {
 }
 
 impl HoneyBadgerBFT {
-	pub fn new(machine: EthereumMachine) -> Result<Arc<Self>, Error> {
+	pub fn new(
+		params: &serde_json::Value,
+		machine: EthereumMachine,
+	) -> Result<Arc<EthEngine>, Box<Error>> {
 		let engine = Arc::new(HoneyBadgerBFT { machine: machine });
 		Ok(engine)
 	}

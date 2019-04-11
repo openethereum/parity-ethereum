@@ -16,6 +16,7 @@
 
 //! Engine deserialization.
 
+use serde_json::Value;
 use super::{Ethash, BasicAuthority, AuthorityRound, NullEngine, InstantSeal};
 
 /// Engine deserialization.
@@ -34,11 +35,20 @@ pub enum Engine {
 	BasicAuthority(BasicAuthority),
 	/// AuthorityRound engine.
 	AuthorityRound(AuthorityRound),
+	/// External engine. This needs to be registered under the specified name, and parse its JSON config.
+	External {
+		/// The engine name.
+		name: String,
+		/// The engine configuration, in JSON format.
+		params: Value,
+	}
 }
 
 #[cfg(test)]
 mod tests {
-	use serde_json;
+	use std::iter;
+
+	use serde_json::{self, Value};
 	use spec::Engine;
 
 	#[test]
@@ -128,6 +138,24 @@ mod tests {
 		let deserialized: Engine = serde_json::from_str(s).unwrap();
 		match deserialized {
 			Engine::AuthorityRound(_) => {}, // AuthorityRound is unit tested in its own file.
+			_ => panic!(),
+		};
+
+		let s = r#"{
+			"external": {
+				"name": "myEngine",
+				"params": {
+					"my_param": 42
+				}
+			}
+		}"#;
+		let deserialized: Engine = serde_json::from_str(s).unwrap();
+		match deserialized {
+			Engine::External { name, params } => {
+				assert_eq!("myEngine", &name);
+				let json = Value::Object(iter::once(("my_param".to_string(), 42.into())).collect());
+				assert_eq!(json, params);
+			},
 			_ => panic!(),
 		};
 	}

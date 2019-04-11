@@ -24,6 +24,7 @@ mod validator_set;
 
 pub mod block_reward;
 pub mod signer;
+pub mod registry;
 
 pub use self::authority_round::{AuthorityRound, RandomnessPhaseError};
 pub use self::basic_authority::BasicAuthority;
