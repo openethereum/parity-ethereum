@@ -37,18 +37,13 @@ variables:
     when:                          always
     expire_in:                     7 days
     paths:
-      - logs/
+      - artifacts/
 
 .docker-cache-status:              &docker-cache-status
   variables:
     CARGO_HOME:                    "/ci-cache/parity-ethereum/cargo/${CI_JOB_NAME}"
-  <<:                              *collect_logs
   dependencies:                    []
   before_script:
-    - git status
-    - ls -l
-    - find . -name "*.log"
-    # ^^ debug
     - SCCACHE_ERROR_LOG=/builds/parity/parity-ethereum/sccache_debug.log
         RUST_LOG=sccache::server=debug
         SCCACHE_CACHE_SIZE=50G
@@ -57,8 +52,6 @@ variables:
     - sccache -s
   after_script:
     # sccache debug info
-    - sccache --start-server
-    - sccache -s
     - if test -e sccache_debug.log;
       then
         echo "All crate-types:";
@@ -70,15 +63,16 @@ variables:
         exit 0;
       fi
     # collect log files
-    - mkdir -p ./logs
+    - mkdir -p ./artifacts
     - find . -name "*.log"
-    - find . -name "*.log" | xargs tar --append -f ./logs/logs_"${CI_JOB_NAME}_${SCHEDULE_TAG:-${CI_COMMIT_REF_NAME}}".tar
+    - find . -name "*.log" | xargs tar --append -f ./artifacts/logs_"${CI_JOB_NAME}_${SCHEDULE_TAG:-${CI_COMMIT_REF_NAME}}".tar
   tags:
     - linux-docker
 
 cargo-check 0 3:
   stage:                           test
   <<:                              *docker-cache-status
+  <<:                              *collect_logs
   script:
     - time cargo check --target $CARGO_TARGET --locked --no-default-features --verbose
     - sccache -s
@@ -86,6 +80,7 @@ cargo-check 0 3:
 cargo-check 1 3:
   stage:                           test
   <<:                              *docker-cache-status
+  <<:                              *collect_logs
   script:
     - time cargo check --target $CARGO_TARGET --locked --manifest-path util/io/Cargo.toml --no-default-features --verbose
     - sccache -s
@@ -93,6 +88,7 @@ cargo-check 1 3:
 cargo-check 2 3:
   stage:                           test
   <<:                              *docker-cache-status
+  <<:                              *collect_logs
   script:
     - time cargo check --target $CARGO_TARGET --locked --manifest-path util/io/Cargo.toml --features "mio" --verbose
     - sccache -s
@@ -107,6 +103,7 @@ cargo-audit:
 validate-chainspecs:
   stage:                           test
   <<:                              *docker-cache-status
+  <<:                              *collect_logs
   script:
     - ./scripts/gitlab/validate-chainspecs.sh
     - sccache -s
@@ -114,6 +111,7 @@ validate-chainspecs:
 test-cpp:
   stage:                           build
   <<:                              *docker-cache-status
+  <<:                              *collect_logs
   script:
     - ./scripts/gitlab/test-cpp.sh
     - sccache -s
@@ -121,6 +119,7 @@ test-cpp:
 test-linux:
   stage:                           build
   <<:                              *docker-cache-status
+  <<:                              *collect_logs
   script:
     - ./scripts/gitlab/test-linux.sh stable
     - sccache -s
@@ -129,6 +128,7 @@ test-linux-beta:
   stage:                           build
   # only:                            *releaseable_branches
   <<:                              *docker-cache-status
+  <<:                              *collect_logs
   script:
     - ./scripts/gitlab/test-linux.sh beta
     - sccache -s
@@ -137,6 +137,7 @@ test-linux-nightly:
   stage:                           build
   # only:                            *releaseable_branches
   <<:                              *docker-cache-status
+  <<:                              *collect_logs
   script:
     - ./scripts/gitlab/test-linux.sh nightly
     - sccache -s
@@ -156,7 +157,7 @@ build-android:
 
 build-linux:                       &build-linux
   stage:                           build
-  only:                            *releaseable_branches
+  # only:                            *releaseable_branches
   <<:                              *docker-cache-status
   <<:                              *collect_artifacts
   script:
