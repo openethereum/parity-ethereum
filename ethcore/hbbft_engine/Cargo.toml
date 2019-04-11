@@ -9,10 +9,9 @@ authors = ["David Forstenlechner <dforsten@gmail.com>"]
 
 [dependencies]
 ethcore = { path = ".." }
-# Commented out until the incompatibility with the "byteorder" crate version is resolved.
-# At the moment Parity is using v1.2.6 while the poanetwork threshold_encryption crate
-# requires 1.2.7 or above
-#hbbft = { git = "https://github.com/poanetwork/hbbft" }
+hbbft = { git = "https://github.com/poanetwork/hbbft" }
+
+common-types = { path = "../types" }
 
 [dev-dependencies]
 ethcore = { path = "..", features = ["test-helpers"] }

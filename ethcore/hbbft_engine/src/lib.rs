@@ -1,5 +1,7 @@
 extern crate ethcore;
 
+extern crate common_types as types;
+
 pub mod hbbft_engine;
 
 #[cfg(test)]

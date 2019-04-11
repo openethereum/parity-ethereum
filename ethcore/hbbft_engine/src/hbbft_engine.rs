@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use ethcore::engines::{total_difficulty_fork_choice, Engine, ForkChoice};
 use ethcore::error::Error;
-use ethcore::header::{ExtendedHeader, Header};
+use types::header::{ExtendedHeader, Header};
 use ethcore::machine::EthereumMachine;
 
 pub struct HoneyBadgerBFT {
