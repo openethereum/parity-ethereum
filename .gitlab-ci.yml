@@ -125,7 +125,7 @@ test-linux:
 
 test-linux-beta:
   stage:                           build
-  # only:                            *releaseable_branches
+  only:                            *releaseable_branches
   <<:                              *docker-cache-status
   <<:                              *collect_logs
   script:
@@ -134,7 +134,7 @@ test-linux-beta:
 
 test-linux-nightly:
   stage:                           build
-  # only:                            *releaseable_branches
+  only:                            *releaseable_branches
   <<:                              *docker-cache-status
   <<:                              *collect_logs
   script:
@@ -142,52 +142,51 @@ test-linux-nightly:
     - sccache -s
   allow_failure:                   true
 
-build-android:
+.build-on-linux:                   &build-on-linux
   stage:                           build
-  image:                           parity/rust-parity-ethereum-android-build:stretch
-  variables:
-    CARGO_TARGET:                  armv7-linux-androideabi
-  <<:                              *docker-cache-status
-  <<:                              *collect_artifacts
-  script:
-    - scripts/gitlab/build-linux.sh
-  tags:
-    - linux-docker
-
-build-linux:                       &build-linux
-  stage:                           build
-  # only:                            *releaseable_branches
   <<:                              *docker-cache-status
   <<:                              *collect_artifacts
   script:
     - scripts/gitlab/build-linux.sh
     - sccache -s
 
+build-linux:
+  <<:                              *build-on-linux
+
+build-android:
+  <<:                              *build-on-linux
+  image:                           parity/rust-parity-ethereum-android-build:stretch
+  variables:
+    CARGO_TARGET:                  armv7-linux-androideabi
+
 build-linux-i386:
-  <<:                              *build-linux
+  <<:                              *build-on-linux
+  only:                            *releaseable_branches
   image:                           parity/rust-parity-ethereum-build:i386
   variables:
     CARGO_TARGET:                  i686-unknown-linux-gnu
 
 build-linux-arm64:
-  <<:                              *build-linux
+  <<:                              *build-on-linux
+  only:                            *releaseable_branches
   image:                           parity/rust-parity-ethereum-build:arm64
   variables:
     CARGO_TARGET:                  aarch64-unknown-linux-gnu
 
 build-linux-armhf:
-  <<:                              *build-linux
+  <<:                              *build-on-linux
+  only:                            *releaseable_branches
   image:                           parity/rust-parity-ethereum-build:armhf
   variables:
     CARGO_TARGET:                  armv7-unknown-linux-gnueabihf
 
 build-darwin:
   stage:                           build
-  only:                            *releaseable_branches
   <<:                              *collect_artifacts
+  only:                            *releaseable_branches
   variables:
     CARGO_TARGET:                  x86_64-apple-darwin
-    CARGO_HOME:                      "${CI_PROJECT_DIR}/.cargo"
+    CARGO_HOME:                    "${CI_PROJECT_DIR}/.cargo"
     CC:                            gcc
     CXX:                           g++
   script:
