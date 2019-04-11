@@ -1,0 +1,15 @@
+[package]
+description = "hbbft consensus protocol Engine"
+name = "hbbft"
+version = "0.0.1"
+license = "GPL-3.0"
+authors = ["David Forstenlechner <dforsten@gmail.com>"]
+
+[lib]
+
+[dependencies]
+ethcore = { path = ".." }
+
+[dev-dependencies]
+ethcore = { path = "..", features = ["test-helpers"] }
+

@@ -1607,6 +1607,13 @@ version = "0.11.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 
 [[package]]
+name = "hbbft"
+version = "0.0.1"
+dependencies = [
+ "ethcore 1.12.0",
+]
+
+[[package]]
 name = "heapsize"
 version = "0.4.2"
 source = "git+https://github.com/cheme/heapsize.git?branch=ec-macfix#421df390a930cb523a09e5528e6fe57b534b3b26"
