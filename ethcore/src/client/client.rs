@@ -2281,9 +2281,9 @@ impl IoClient for Client {
 		Ok(hash)
 	}
 
-	fn queue_consensus_message(&self, message: Bytes, _peer_id: usize) {
+	fn queue_consensus_message(&self, message: Bytes, peer_id: usize) {
 		match self.queue_consensus_message.queue(&self.io_channel.read(), 1, move |client| {
-			if let Err(e) = client.engine().handle_message(&message) {
+			if let Err(e) = client.engine().handle_message(&message, peer_id) {
 				debug!(target: "poa", "Invalid message received: {}", e);
 			}
 		}) {

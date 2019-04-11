@@ -1071,7 +1071,7 @@ impl Engine<EthereumMachine> for AuthorityRound {
 		SealingState::Ready
 	}
 
-	fn handle_message(&self, rlp: &[u8]) -> Result<(), EngineError> {
+	fn handle_message(&self, rlp: &[u8], _peer_id: usize) -> Result<(), EngineError> {
 		fn fmt_err<T: ::std::fmt::Debug>(x: T) -> EngineError {
 			EngineError::MalformedMessage(format!("{:?}", x))
 		}

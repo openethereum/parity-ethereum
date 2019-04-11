@@ -401,7 +401,7 @@ pub trait Engine<M: Machine>: Sync + Send {
 
 	/// Handle any potential consensus messages;
 	/// updating consensus state and potentially issuing a new one.
-	fn handle_message(&self, _message: &[u8]) -> Result<(), EngineError> { Err(EngineError::UnexpectedMessage) }
+	fn handle_message(&self, _message: &[u8], _peer_id: usize) -> Result<(), EngineError> { Err(EngineError::UnexpectedMessage) }
 
 	/// Find out if the block is a proposal block and should not be inserted into the DB.
 	/// Takes a header of a fully verified block.

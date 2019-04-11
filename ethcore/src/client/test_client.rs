@@ -923,8 +923,8 @@ impl IoClient for TestBlockChainClient {
 		self.import_block(unverified)
 	}
 
-	fn queue_consensus_message(&self, message: Bytes, _peer_id: usize) {
-		self.spec.engine.handle_message(&message).unwrap();
+	fn queue_consensus_message(&self, message: Bytes, peer_id: usize) {
+		self.spec.engine.handle_message(&message, peer_id).unwrap();
 	}
 }
 
