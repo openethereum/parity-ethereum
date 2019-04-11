@@ -13,6 +13,7 @@ use transaction::SignedTransaction;
 pub struct HoneyBadgerBFT {
 	client: Arc<RwLock<Option<Weak<EngineClient>>>>,
 	machine: EthereumMachine,
+	transactions_trigger: usize
 }
 
 impl HoneyBadgerBFT {
@@ -23,6 +24,8 @@ impl HoneyBadgerBFT {
 		let engine = Arc::new(HoneyBadgerBFT {
 			client: Arc::new(RwLock::new(None)),
 			machine: machine,
+			// TODO: configure through spec params
+			transactions_trigger: 1
 		});
 		Ok(engine)
 	}
@@ -53,7 +56,15 @@ impl Engine<EthereumMachine> for HoneyBadgerBFT {
 		Some(true)
 	}
 
-	fn on_transactions_imported(&self) {}
+	fn on_transactions_imported(&self) {
+		if let Some(ref weak) = *self.client.read() {
+			if let Some(c) = weak.upgrade() {
+				if c.queued_transactions().len() >= self.transactions_trigger {
+					c.update_sealing();
+				}
+			}
+		}
+	}
 
 	fn on_prepare_block(&self, _block: &ExecutedBlock) -> Result<Vec<SignedTransaction>, Error> {
 		// TODO: inject random number transactions

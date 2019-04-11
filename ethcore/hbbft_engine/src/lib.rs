@@ -27,22 +27,9 @@ pub fn init() {
 
 #[cfg(test)]
 mod tests {
-	use std::sync::Arc;
-
 	use ethcore::client::{BlockId, BlockInfo};
 
 	use crate::test_helpers::{hbbft_client_setup, inject_transaction};
-
-	#[test]
-	fn test_client_miner_engine() {
-		super::init();
-
-		let (client, _, _) = hbbft_client_setup();
-
-		// Get hbbft Engine reference and initialize it with a back-reference to the Client
-		let engine = client.engine();
-		engine.register_client(Arc::downgrade(&client) as _);
-	}
 
 	#[test]
 	fn test_miner_transaction_injection() {

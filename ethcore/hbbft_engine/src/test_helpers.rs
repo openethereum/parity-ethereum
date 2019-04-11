@@ -27,6 +27,12 @@ pub fn hbbft_client_setup() -> (Arc<Client>, Arc<TestNotify>, Arc<Miner>) {
 	// Create client
 	let client = hbbft_client();
 
+	// Get hbbft Engine reference and initialize it with a back-reference to the Client
+	{
+		let engine = client.engine();
+		engine.register_client(Arc::downgrade(&client) as _);
+	}
+
 	// Register notify object for capturing consensus messages
 	let notify = Arc::new(TestNotify::default());
 	client.add_notify(notify.clone());
