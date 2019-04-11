@@ -43,18 +43,21 @@ variables:
   before_script:
     # save just logs from sccache server: RUST_LOG=sccache::server=debug
     # set SCCACHE_DIR per job name to avoid data race condition until it'll be fixed
+        # SCCACHE_DIR=/ci-cache/parity-ethereum/sccache/${CI_JOB_NAME}
     - git status
     - ls -l
+    - find . -name "*.log"
     # ^^ debug
     - SCCACHE_ERROR_LOG=/builds/parity/parity-ethereum/sccache_error.log
         RUST_LOG=sccache::server=trace
         SCCACHE_CACHE_SIZE=50G
-        SCCACHE_DIR=/ci-cache/parity-ethereum/sccache/${CI_JOB_NAME}
+        SCCACHE_DIR=/ci-cache/parity-ethereum/sccache/
         sccache --start-server
     - sccache -s
   after_script:
     # sccache debug info
-    - echo "sccache --show-stats"
+    - echo "after script sccache --show-stats"
+    - sccache -s
     - if test -e sccache_error.log;
       then
         echo "All crate-types:";
