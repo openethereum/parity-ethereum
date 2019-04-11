@@ -41,15 +41,17 @@ variables:
     paths:
       - artifacts/
   before_script:
-    # RUST_LOG=sccache::server=debug
+    # save just logs from sccache server: RUST_LOG=sccache::server=debug
+    # set SCCACHE_DIR per job name to avoid data race condition until it'll be fixed
     - SCCACHE_ERROR_LOG=/builds/parity/parity-ethereum/sccache_error.log
-        RUST_LOG=sccache
+        RUST_LOG=sccache::server=trace
         SCCACHE_CACHE_SIZE=50G
         SCCACHE_DIR=/ci-cache/parity-ethereum/sccache/${CI_JOB_NAME}
         sccache --start-server
     - sccache -s
   after_script:
     # sccache debug info
+    - echo "sccache --show-stats"
     - if test -e sccache_error.log;
       then
         echo "All crate-types:";
@@ -65,9 +67,7 @@ variables:
     - find . -name "*.log"
     - find . -name "*.log" | xargs tar --append -f ./artifacts/logs.tar
   tags:
-    # - linux-docker
-    - qa
-
+    - linux-docker
 
 cargo-check 0 3:
   stage:                           test
