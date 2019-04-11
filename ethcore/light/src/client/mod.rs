@@ -24,6 +24,7 @@ use ethcore::machine::EthereumMachine;
 use ethcore::error::{Error, EthcoreResult};
 use ethcore::verification::queue::{self, HeaderQueue};
 use ethcore::spec::{Spec, SpecHardcodedSync};
+use ethcore_miner::pool::VerifiedTransaction;
 use io::IoChannel;
 use parking_lot::{Mutex, RwLock};
 use ethereum_types::{H256, U256};
@@ -649,5 +650,9 @@ impl<T: ChainDataFetcher> ::ethcore::client::EngineClient for Client<T> {
 
 	fn block_header(&self, id: BlockId) -> Option<encoded::Header> {
 		Client::block_header(self, id)
+	}
+
+	fn queued_transactions(&self) -> Vec<Arc<VerifiedTransaction>> {
+		Vec::new()
 	}
 }

@@ -13,6 +13,7 @@ common-types = { path = "../types" }
 ethcore = { path = ".."}
 ethcore-db = { path = "../db" }
 ethcore-blockchain = { path = "../blockchain" }
+ethcore-miner = { path = "../../miner" }
 ethereum-types = "0.4"
 memory-db = "0.11.0"
 trie-db = "0.11.0"

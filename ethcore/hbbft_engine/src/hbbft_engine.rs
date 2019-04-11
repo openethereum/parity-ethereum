@@ -13,7 +13,7 @@ use transaction::SignedTransaction;
 pub struct HoneyBadgerBFT {
 	client: Arc<RwLock<Option<Weak<EngineClient>>>>,
 	machine: EthereumMachine,
-	transactions_trigger: usize
+	transactions_trigger: usize,
 }
 
 impl HoneyBadgerBFT {
@@ -25,7 +25,7 @@ impl HoneyBadgerBFT {
 			client: Arc::new(RwLock::new(None)),
 			machine: machine,
 			// TODO: configure through spec params
-			transactions_trigger: 1
+			transactions_trigger: 1,
 		});
 		Ok(engine)
 	}
