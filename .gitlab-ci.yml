@@ -69,6 +69,14 @@ variables:
   tags:
     - linux-docker
 
+.build-on-linux:                   &build-on-linux
+  stage:                           build
+  <<:                              *docker-cache-status
+  <<:                              *collect_artifacts
+  script:
+    - scripts/gitlab/build-linux.sh
+    - sccache -s
+
 cargo-check 0 3:
   stage:                           test
   <<:                              *docker-cache-status
@@ -141,14 +149,6 @@ test-linux-nightly:
     - ./scripts/gitlab/test-linux.sh nightly
     - sccache -s
   allow_failure:                   true
-
-.build-on-linux:                   &build-on-linux
-  stage:                           build
-  <<:                              *docker-cache-status
-  <<:                              *collect_artifacts
-  script:
-    - scripts/gitlab/build-linux.sh
-    - sccache -s
 
 build-android:
   <<:                              *build-on-linux
