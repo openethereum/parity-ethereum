@@ -51,7 +51,6 @@ use spec::CommonParams;
 use types::transaction::{self, UnverifiedTransaction, SignedTransaction};
 
 use ethkey::{Signature};
-use ethcore_miner::pool::TransactionQueue;
 use parity_machine::{Machine, LocalizedMachine as Localized, TotalScoredHeader};
 use ethereum_types::{H256, U256, Address};
 use unexpected::{Mismatch, OutOfBounds};
@@ -275,7 +274,7 @@ pub trait Engine<M: Machine>: Sync + Send {
 	fn maximum_gas_limit(&self) -> Option<U256> { None }
 
 	/// New transactions were imported to the transaction queue
-	fn on_transactions_imported(&self, _queue: &Arc<TransactionQueue>) {}
+	fn on_transactions_imported(&self) {}
 
 	/// Block transformation functions, before the transactions.
 	/// `epoch_begin` set to true if this block kicks off an epoch.

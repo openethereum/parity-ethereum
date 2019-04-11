@@ -297,9 +297,8 @@ impl Miner {
 
 		// Notify engine about transaction queue changes
 		let engine = spec.engine.clone();
-		let transaction_queue = miner.transaction_queue.clone();
 		miner.add_transactions_listener(Box::new(move |_hashes| {
-			engine.on_transactions_imported(&transaction_queue);
+			engine.on_transactions_imported();
 		}));
 
 		miner
