@@ -1,5 +1,8 @@
 extern crate ethcore;
+extern crate ethereum_types;
 extern crate inventory;
+extern crate keccak_hash as hash;
+extern crate parking_lot;
 extern crate serde_json;
 
 extern crate common_types as types;
@@ -17,22 +20,47 @@ pub fn init() {
 
 #[cfg(test)]
 mod tests {
-	use ethcore::client::TestBlockChainClient;
-	use ethcore::machine::EthereumMachine;
-	use ethcore::spec::CommonParams;
-	use hbbft_engine::HoneyBadgerBFT;
+	use std::sync::Arc;
+
+	use ethcore::client::Client;
+	use ethcore::miner::Miner;
+	use ethcore::spec::Spec;
+	use ethcore::test_helpers::{generate_dummy_client_with_spec_and_accounts, TestNotify};
+
+	fn hbbft_spec() -> Spec {
+		Spec::load(
+			&::std::env::temp_dir(),
+			include_bytes!("../res/honey_badger_bft.json") as &[u8],
+		)
+		.expect(concat!("Chain spec is invalid."))
+	}
+
+	fn hbbft_client() -> std::sync::Arc<ethcore::client::Client> {
+		generate_dummy_client_with_spec_and_accounts(hbbft_spec, None)
+	}
+
+	fn hbbft_client_setup() -> (Arc<Client>, Arc<TestNotify>, Arc<Miner>) {
+		// Create client
+		let client = hbbft_client();
+
+		// Register notify object for capturing consensus messages
+		let notify = Arc::new(TestNotify::default());
+		client.add_notify(notify.clone());
+
+		// Get miner reference
+		let miner = client.miner();
+
+		(client, notify, miner)
+	}
 
 	#[test]
-	fn test_nodes_p2p() {
-		// create machine
-		let c_params = CommonParams::default();
-		let machine = EthereumMachine::regular(c_params, Default::default());
+	fn test_client_miner_engine() {
+		super::init();
 
-		// create engine
-		let _engine = HoneyBadgerBFT::new(&serde_json::Value::Null, machine);
+		let (client, _, _) = hbbft_client_setup();
 
-		// create test clients (which also creates the miner)
-		let _node_0 = TestBlockChainClient::default();
-		let _node_1 = TestBlockChainClient::default();
+		// Get hbbft Engine reference and initialize it with a back-reference to the Client
+		let engine = client.engine();
+		engine.register_client(Arc::downgrade(&client) as _);
 	}
 }
