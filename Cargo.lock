@@ -1607,7 +1607,7 @@ version = "0.11.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 
 [[package]]
-name = "hbbft"
+name = "hbbft_engine"
 version = "0.0.1"
 dependencies = [
  "ethcore 1.12.0",

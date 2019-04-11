@@ -1,0 +1,19 @@
+[package]
+description = "hbbft consensus protocol Engine"
+name = "hbbft_engine"
+version = "0.0.1"
+license = "GPL-3.0"
+authors = ["David Forstenlechner <dforsten@gmail.com>"]
+
+[lib]
+
+[dependencies]
+ethcore = { path = ".." }
+# Commented out until the incompatibility with the "byteorder" crate version is resolved.
+# At the moment Parity is using v1.2.6 while the poanetwork threshold_encryption crate
+# requires 1.2.7 or above
+#hbbft = { git = "https://github.com/poanetwork/hbbft" }
+
+[dev-dependencies]
+ethcore = { path = "..", features = ["test-helpers"] }
+
