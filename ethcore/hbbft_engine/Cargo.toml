@@ -3,18 +3,25 @@ description = "hbbft consensus protocol Engine"
 name = "hbbft_engine"
 version = "0.0.1"
 license = "GPL-3.0"
-authors = ["David Forstenlechner <dforsten@gmail.com>"]
+authors = [
+    "Andreas Fackler <AndreasFackler@gmx.de>",
+    "David Forstenlechner <dforsten@gmail.com>"
+]
 
 [lib]
 
 [dependencies]
-ethcore = { path = ".." }
-inventory = "0.1"
-hbbft = { git = "https://github.com/poanetwork/hbbft" }
+rustc-hex = "1.0"
 serde_json = "1.0"
 parking_lot = "0.6"
+inventory = "0.1"
+
 keccak-hash = "0.1"
+ethcore = { path = ".." }
 ethereum-types = "0.4"
+ethcore-transaction = { path = "../transaction" }
+hbbft = { git = "https://github.com/poanetwork/hbbft" }
+ethkey = { path = "../../ethkey" }
 
 common-types = { path = "../types" }
 

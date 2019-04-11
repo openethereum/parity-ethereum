@@ -2,11 +2,13 @@ use std::sync::{Arc, Weak};
 
 use parking_lot::RwLock;
 
+use ethcore::block::ExecutedBlock;
 use ethcore::client::EngineClient;
-use ethcore::engines::{total_difficulty_fork_choice, Engine, EthEngine, ForkChoice};
+use ethcore::engines::{total_difficulty_fork_choice, Engine, EthEngine, ForkChoice, Seal};
 use ethcore::error::Error;
 use types::header::{ExtendedHeader, Header};
 use ethcore::machine::EthereumMachine;
+use transaction::SignedTransaction;
 
 pub struct HoneyBadgerBFT {
 	client: Arc<RwLock<Option<Weak<EngineClient>>>>,
@@ -45,5 +47,19 @@ impl Engine<EthereumMachine> for HoneyBadgerBFT {
 
 	fn register_client(&self, client: Weak<EngineClient>) {
 		*self.client.write() = Some(client.clone());
+	}
+
+	fn seals_internally(&self) -> Option<bool> {
+		Some(true)
+	}
+
+	fn on_prepare_block(&self, _block: &ExecutedBlock) -> Result<Vec<SignedTransaction>, Error> {
+		// TODO: inject random number transactions
+		Ok(Vec::new())
+	}
+
+	fn generate_seal(&self, _block: &ExecutedBlock, _parent: &Header) -> Seal {
+		// For refactoring/debugging of block creation we seal instantly.
+		Seal::Regular(Vec::new())
 	}
 }
