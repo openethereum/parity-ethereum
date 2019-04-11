@@ -74,7 +74,7 @@ cargo-check 0 3:
   <<:                              *docker-cache-status
   <<:                              *collect_logs
   script:
-    - time cargo check --target $CARGO_TARGET --locked --no-default-features --verbose --color=auto
+    - time cargo check --target $CARGO_TARGET --locked --no-default-features --verbose --color=always
     - sccache -s
 
 cargo-check 1 3:
@@ -82,7 +82,7 @@ cargo-check 1 3:
   <<:                              *docker-cache-status
   <<:                              *collect_logs
   script:
-    - time cargo check --target $CARGO_TARGET --locked --manifest-path util/io/Cargo.toml --no-default-features --verbose --color=auto
+    - time cargo check --target $CARGO_TARGET --locked --manifest-path util/io/Cargo.toml --no-default-features --verbose --color=always
     - sccache -s
 
 cargo-check 2 3:
@@ -90,7 +90,7 @@ cargo-check 2 3:
   <<:                              *docker-cache-status
   <<:                              *collect_logs
   script:
-    - time cargo check --target $CARGO_TARGET --locked --manifest-path util/io/Cargo.toml --features "mio" --verbose --color=auto
+    - time cargo check --target $CARGO_TARGET --locked --manifest-path util/io/Cargo.toml --features "mio" --verbose --color=always
     - sccache -s
 
 cargo-audit:

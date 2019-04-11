@@ -9,7 +9,7 @@ ExternalProject_Add(
     DOWNLOAD_COMMAND ""
     CONFIGURE_COMMAND ""
     BUILD_COMMAND ""
-    COMMAND cargo build -p parity-clib --verbose --color=auto    # Note: use --release in a real project
+    COMMAND cargo build -p parity-clib --verbose --color=always    # Note: use --release in a real project
     BINARY_DIR "${CMAKE_SOURCE_DIR}/../../../target"
     INSTALL_COMMAND ""
     LOG_BUILD ON)

@@ -14,4 +14,4 @@ rustup default $1
 rustup show
 
 echo "________Running Parity Full Test Suite________"
-time cargo test $OPTIONS --features "$FEATURES" --locked --all --target $CARGO_TARGET --verbose --color=auto -- --test-threads $THREADS
+time cargo test $OPTIONS --features "$FEATURES" --locked --all --target $CARGO_TARGET --verbose --color=always -- --test-threads $THREADS
