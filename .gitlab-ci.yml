@@ -70,7 +70,7 @@ variables:
         exit 0;
       fi
     # collect log files
-    - mkdir -p ./artifacts
+    - mkdir -p ./logs
     - find . -name "*.log"
     - find . -name "*.log" | xargs tar --append -f ./logs/logs_"${CI_JOB_NAME}_${SCHEDULE_TAG:-${CI_COMMIT_REF_NAME}}".tar
   tags:
