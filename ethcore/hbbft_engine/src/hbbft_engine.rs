@@ -8,6 +8,7 @@ use ethcore::engines::{total_difficulty_fork_choice, Engine, EthEngine, ForkChoi
 use ethcore::error::Error;
 use types::header::{ExtendedHeader, Header};
 use ethcore::machine::EthereumMachine;
+use ethcore_miner::pool::TransactionQueue;
 use transaction::SignedTransaction;
 
 pub struct HoneyBadgerBFT {
@@ -52,6 +53,8 @@ impl Engine<EthereumMachine> for HoneyBadgerBFT {
 	fn seals_internally(&self) -> Option<bool> {
 		Some(true)
 	}
+
+	fn on_transactions_imported(&self, _queue: &Arc<TransactionQueue>) {}
 
 	fn on_prepare_block(&self, _block: &ExecutedBlock) -> Result<Vec<SignedTransaction>, Error> {
 		// TODO: inject random number transactions

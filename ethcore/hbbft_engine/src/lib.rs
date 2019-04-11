@@ -1,5 +1,6 @@
 extern crate ethcore;
 extern crate ethcore_transaction as transaction;
+extern crate ethcore_miner;
 extern crate ethereum_types;
 extern crate ethkey;
 extern crate inventory;
