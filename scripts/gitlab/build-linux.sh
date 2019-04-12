@@ -12,6 +12,7 @@ echo "CXX:              " $CXX
 #strip ON
 export RUSTFLAGS=" -C link-arg=-s"
 # Linker for crosscomile
+cp -f scripts/cross-compilation/config .cargo/config
 echo "_____ Linker _____"
 cat .cargo/config
 

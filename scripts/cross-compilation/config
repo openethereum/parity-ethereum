@@ -1,0 +1,15 @@
+[target.aarch64-unknown-linux-gnu]
+linker= "aarch64-linux-gnu-gcc"
+
+[target.armv7-unknown-linux-gnueabihf]
+linker= "arm-linux-gnueabihf-gcc"
+
+[target.armv7-linux-androideabi]
+linker = "arm-linux-androideabi-clang"
+ar = "arm-linux-androideabi-ar"
+rustflags = ["-C", "link-arg=-lc++_static", "-C", "link-arg=-lc++abi", "-C", "link-arg=-landroid_support"]
+
+[target.arm-linux-androideabi]
+linker = "arm-linux-androideabi-clang"
+ar = "arm-linux-androideabi-ar"
+rustflags = ["-C", "link-arg=-lc++_static", "-C", "link-arg=-lc++abi", "-C", "link-arg=-landroid_support"]
