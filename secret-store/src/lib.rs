@@ -37,6 +37,7 @@ extern crate tokio;
 extern crate tokio_io;
 extern crate tokio_service;
 extern crate url;
+extern crate jsonrpc_server_utils;
 
 #[macro_use]
 extern crate ethabi_derive;
