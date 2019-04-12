@@ -1,6 +1,6 @@
 # **Cross compilation** #
 
-**Build Dependencies**
+## **Build Dependencies**
 
 Parity Ethereum requires latest stable Rust version to build.
 
@@ -17,10 +17,19 @@ apt-get install -y --no-install-recommends \
   software-properties-common git \
   make cmake ca-certificates g++ \
   gcc pkg-config libudev-dev \
-	libssl-dev libc6-dev
+  libssl-dev libc6-dev
 ```
 
-*AARCH64 (armv8)*
+## Build from Source Code
+
+Download Parity Ethereum code
+
+```
+git clone https://github.com/paritytech/parity-ethereum
+cd parity-ethereum
+```
+
+### *AARCH64 (armv8)*
 
 Install aarch64(armv8) dependencies and tools
 
@@ -32,13 +41,14 @@ deb-src [arch=arm64] http://ports.ubuntu.com/ubuntu-ports/ xenial main \n\
 deb [arch=arm64] http://ports.ubuntu.com/ubuntu-ports/ xenial-updates main \n\
 deb-src [arch=arm64] http://ports.ubuntu.com/ubuntu-ports/ xenial-updates main \n\
 deb [arch=arm64] http://ports.ubuntu.com/ubuntu-ports/ xenial-security main \n\
-deb-src [arch=arm64] http://ports.ubuntu.com/ubuntu-ports/ xenial-security main \n # end arm64 section' >> /etc/apt/sources.list;
+deb-src [arch=arm64] http://ports.ubuntu.com/ubuntu-ports/ xenial-security main \n\
+# end arm64 section' >> /etc/apt/sources.list;
 sed -r 's/deb h/deb \[arch=amd64\] h/g' /etc/apt/sources.list > /tmp/sources-tmp.list;
 cp /tmp/sources-tmp.list /etc/apt/sources.list;
 sed -r 's/deb-src h/deb-src \[arch=amd64\] h/g' /etc/apt/sources.list > /tmp/sources-tmp.list;
 cp /tmp/sources-tmp.list /etc/apt/sources.list;
 apt-get -y update;
-apt -y install g++-aarch64-linux-gnu gcc-aarch64-linux-gnu libudev-dev libudev-dev:arm64
+apt-get -y install g++-aarch64-linux-gnu gcc-aarch64-linux-gnu libudev-dev libudev-dev:arm64
 ```
 
 Install aarch64 RUST toolchain
@@ -61,7 +71,7 @@ Build parity-ethereum
 
 `cargo build --target aarch64-unknown-linux-gnu $CARGO_OPTIONS`
 
-*ARMHF (armv7)*
+### *ARMHF (armv7)*
 
 Install armv7 dependencies and tools
 
@@ -73,14 +83,14 @@ deb-src [arch=armhf] http://ports.ubuntu.com/ubuntu-ports/ xenial main \n\
 deb [arch=armhf] http://ports.ubuntu.com/ubuntu-ports/ xenial-updates main \n\
 deb-src [arch=armhf] http://ports.ubuntu.com/ubuntu-ports/ xenial-updates main \n\
 deb [arch=armhf] http://ports.ubuntu.com/ubuntu-ports/ xenial-security main \n\
-deb-src [arch=armhf] http://ports.ubuntu.com/ubuntu-ports/ xenial-security main\
-\n # end armhf section' >> /etc/apt/sources.list;
+deb-src [arch=armhf] http://ports.ubuntu.com/ubuntu-ports/ xenial-security main \n\
+# end armhf section' >> /etc/apt/sources.list;
 sed -r 's/deb h/deb \[arch=amd64\] h/g' /etc/apt/sources.list > /tmp/sources-tmp.list;
 cp /tmp/sources-tmp.list /etc/apt/sources.list;
 sed -r 's/deb-src h/deb-src \[arch=amd64\] h/g' /etc/apt/sources.list > /tmp/sources-tmp.list;
 cp /tmp/sources-tmp.list /etc/apt/sources.list;
 apt-get -y update;
-apt-get install -y g++-arm-linux-gnueabihf gcc-arm-linux-gnueabihf libudev-dev libudev-dev:armhf
+apt-get -y install g++-arm-linux-gnueabihf gcc-arm-linux-gnueabihf libudev-dev libudev-dev:armhf
 ```
 
 Install armv7 RUST toolchain
@@ -103,13 +113,14 @@ Build parity-ethereum
 
 `cargo build --target armv7-unknown-linux-gnueabihf $CARGO_OPTIONS`
 
-*i386*
+### *i386*
 
 Install i386 dependencies and tools
 
 ```
 dpkg --add-architecture i386;
-apt-get -y update;	apt install -y gcc-multilib g++-multilib libudev-dev libudev-dev:i386
+apt-get -y update;
+apt-get -y install gcc-multilib g++-multilib libudev-dev libudev-dev:i386
 ```
 
 Install i686 RUST toolchain
