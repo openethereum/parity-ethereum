@@ -24,11 +24,12 @@ use bytes::Bytes;
 use call_contract::CallContract;
 use ethcore_miner::gas_pricer::GasPricer;
 use ethcore_miner::local_accounts::LocalAccounts;
-use ethcore_miner::pool::{self, TransactionQueue, VerifiedTransaction, QueueStatus, PrioritizationStrategy};
+use ethcore_miner::pool::{self, TransactionQueue, VerifiedTransaction, QueueStatus, PrioritizationStrategy, TxStatus};
 use ethcore_miner::service_transaction_checker::ServiceTransactionChecker;
 #[cfg(feature = "work-notify")]
 use ethcore_miner::work_notify::NotifyWork;
 use ethereum_types::{H256, U256, Address};
+use futures::sync::mpsc;
 use io::IoChannel;
 use miner::pool_client::{PoolClient, CachedNonceClient, NonceCache};
 use miner;
@@ -261,6 +262,13 @@ impl Miner {
 	/// Set a callback to be notified about imported transactions' hashes.
 	pub fn add_transactions_listener(&self, f: Box<Fn(&[H256]) + Send + Sync>) {
 		self.transaction_queue.add_listener(f);
+	}
+
+	/// Set a callback to be notified
+	pub fn tx_pool_receiver(&self) -> mpsc::UnboundedReceiver<Arc<Vec<(H256, TxStatus)>>> {
+		let (sender, receiver) = mpsc::unbounded();
+		self.transaction_queue.add_tx_pool_listener(sender);
+		receiver
 	}
 
 	/// Creates new instance of miner Arc.

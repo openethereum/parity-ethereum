@@ -20,9 +20,11 @@ use std::fmt;
 use std::sync::Arc;
 
 use ethereum_types::H256;
+use futures::sync::mpsc;
 use txpool::{self, VerifiedTransaction};
 
 use pool::VerifiedTransaction as Transaction;
+use pool::TxStatus;
 
 type Listener = Box<Fn(&[H256]) + Send + Sync>;
 
@@ -113,6 +115,65 @@ impl txpool::Listener<Transaction> for Logger {
 
 	fn culled(&mut self, tx: &Arc<Transaction>) {
 		debug!(target: "txqueue", "[{:?}] Culled or mined.", tx.hash());
+	}
+}
+
+/// Transactions pool notifier
+#[derive(Default)]
+pub struct TransactionsPoolNotifier {
+	listeners: Vec<mpsc::UnboundedSender<Arc<Vec<(H256, TxStatus)>>>>,
+	tx_statuses: Vec<(H256, TxStatus)>,
+}
+
+impl TransactionsPoolNotifier {
+	/// Add new listener to receive notifications.
+	pub fn add(&mut self, f: mpsc::UnboundedSender<Arc<Vec<(H256, TxStatus)>>>) {
+		self.listeners.push(f);
+	}
+
+	/// Notify listeners about all currently transactions.
+	pub fn notify(&mut self) {
+		if self.tx_statuses.is_empty() {
+			return;
+		}
+
+		let to_send = Arc::new(std::mem::replace(&mut self.tx_statuses, Vec::new()));
+		self.listeners
+			.retain(|listener| listener.unbounded_send(to_send.clone()).is_ok());
+	}
+}
+
+impl fmt::Debug for TransactionsPoolNotifier {
+	fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
+		fmt.debug_struct("TransactionsPoolNotifier")
+			.field("listeners", &self.listeners.len())
+			.finish()
+	}
+}
+
+impl txpool::Listener<Transaction> for TransactionsPoolNotifier {
+	fn added(&mut self, tx: &Arc<Transaction>, _old: Option<&Arc<Transaction>>) {
+		self.tx_statuses.push((tx.hash.clone(), TxStatus::Added));
+	}
+
+	fn rejected<H: fmt::Debug + fmt::LowerHex>(&mut self, tx: &Arc<Transaction>, _reason: &txpool::Error<H>) {
+		self.tx_statuses.push((tx.hash.clone(), TxStatus::Rejected));
+	}
+
+	fn dropped(&mut self, tx: &Arc<Transaction>, _new: Option<&Transaction>) {
+		self.tx_statuses.push((tx.hash.clone(), TxStatus::Dropped));
+	}
+
+	fn invalid(&mut self, tx: &Arc<Transaction>) {
+		self.tx_statuses.push((tx.hash.clone(), TxStatus::Invalid));
+	}
+
+	fn canceled(&mut self, tx: &Arc<Transaction>) {
+		self.tx_statuses.push((tx.hash.clone(), TxStatus::Canceled));
+	}
+
+	fn culled(&mut self, tx: &Arc<Transaction>) {
+		self.tx_statuses.push((tx.hash.clone(), TxStatus::Culled));
 	}
 }
 

@@ -38,6 +38,7 @@ use miner::external::ExternalMiner;
 use parity_rpc::dispatch::{FullDispatcher, LightDispatcher};
 use parity_rpc::informant::{ActivityNotifier, ClientNotifier};
 use parity_rpc::{Host, Metadata, NetworkSettings};
+use parity_rpc::v1::traits::TransactionsPool;
 use parity_runtime::Executor;
 use parking_lot::{Mutex, RwLock};
 use sync::{LightSync, ManageNetwork, SyncProvider};
@@ -82,6 +83,8 @@ pub enum Api {
 	/// Geth-compatible (best-effort) debug API (Potentially UNSAFE)
 	/// NOTE We don't aim to support all methods, only the ones that are useful.
 	Debug,
+	/// Parity Transactions pool PubSub
+	ParityTransactionsPool,
 }
 
 impl FromStr for Api {
@@ -108,6 +111,7 @@ impl FromStr for Api {
 			"signer" => Ok(Signer),
 			"traces" => Ok(Traces),
 			"web3" => Ok(Web3),
+			"parity_transactions_pool" => Ok(ParityTransactionsPool),
 			api => Err(format!("Unknown api: {}", api)),
 		}
 	}
@@ -191,6 +195,7 @@ fn to_modules(apis: &HashSet<Api>) -> BTreeMap<String, String> {
 			Api::Web3 => ("web3", "1.0"),
 			Api::Whisper => ("shh", "1.0"),
 			Api::WhisperPubSub => ("shh_pubsub", "1.0"),
+			Api::ParityTransactionsPool => ("parity_transactions_pool", "1.0"),
 		};
 		modules.insert(name.into(), version.into());
 	}
@@ -350,6 +355,13 @@ impl FullDependencies {
 							self.client.add_notify(h);
 						}
 						handler.extend_with(client.to_delegate());
+					}
+				}
+				Api::ParityTransactionsPool => {
+					if !for_generic_pubsub {
+						let receiver = self.miner.tx_pool_receiver();
+						let client = TransactionsPoolClient::new(self.executor.clone(), receiver);
+						handler.extend_with(TransactionsPoolClient::to_delegate(client));
 					}
 				}
 				Api::Personal => {
@@ -603,6 +615,13 @@ impl<C: LightChainClient + 'static> LightDependencies<C> {
 						}));
 					handler.extend_with(EthPubSub::to_delegate(client));
 				}
+				Api::ParityTransactionsPool => {
+					if !for_generic_pubsub {
+						let receiver = self.transaction_queue.write().tx_statuses_receiver();
+						let client = TransactionsPoolClient::new(self.executor.clone(), receiver);
+						handler.extend_with(TransactionsPoolClient::to_delegate(client));
+					}
+				}
 				Api::Personal => {
 					#[cfg(feature = "accounts")]
 					handler.extend_with(
@@ -744,12 +763,14 @@ impl ApiSet {
 			ApiSet::UnsafeContext => {
 				public_list.insert(Api::Traces);
 				public_list.insert(Api::ParityPubSub);
+				public_list.insert(Api::ParityTransactionsPool);
 				public_list
 			}
 			ApiSet::IpcContext => {
 				public_list.insert(Api::Traces);
 				public_list.insert(Api::ParityPubSub);
 				public_list.insert(Api::ParityAccounts);
+				public_list.insert(Api::ParityTransactionsPool);
 				public_list
 			}
 			ApiSet::All => {
@@ -761,6 +782,7 @@ impl ApiSet {
 				public_list.insert(Api::Signer);
 				public_list.insert(Api::Personal);
 				public_list.insert(Api::SecretStore);
+				public_list.insert(Api::ParityTransactionsPool);
 				public_list
 			}
 			ApiSet::PubSub => [
@@ -769,6 +791,7 @@ impl ApiSet {
 				Api::ParityAccounts,
 				Api::ParitySet,
 				Api::Traces,
+				Api::ParityTransactionsPool,
 			]
 				.into_iter()
 				.cloned()
@@ -799,6 +822,7 @@ mod test {
 		assert_eq!(Api::Private, "private".parse().unwrap());
 		assert_eq!(Api::Whisper, "shh".parse().unwrap());
 		assert_eq!(Api::WhisperPubSub, "shh_pubsub".parse().unwrap());
+		assert_eq!(Api::ParityTransactionsPool, "parity_transactions_pool".parse().unwrap());
 		assert!("rp".parse::<Api>().is_err());
 	}
 
@@ -830,6 +854,7 @@ mod test {
 			Api::Whisper,
 			Api::WhisperPubSub,
 			Api::Private,
+			Api::ParityTransactionsPool,
 		].into_iter()
 		.collect();
 		assert_eq!(ApiSet::UnsafeContext.list_apis(), expected);
@@ -850,6 +875,7 @@ mod test {
 			Api::Whisper,
 			Api::WhisperPubSub,
 			Api::Private,
+			Api::ParityTransactionsPool,
 			// semi-safe
 			Api::ParityAccounts,
 		].into_iter()
@@ -880,6 +906,7 @@ mod test {
 					Api::Personal,
 					Api::Private,
 					Api::Debug,
+					Api::ParityTransactionsPool,
 				].into_iter()
 				.collect()
 			)
@@ -908,6 +935,7 @@ mod test {
 					Api::Signer,
 					Api::Private,
 					Api::Debug,
+					Api::ParityTransactionsPool,
 				].into_iter()
 				.collect()
 			)
@@ -931,6 +959,7 @@ mod test {
 					Api::Whisper,
 					Api::WhisperPubSub,
 					Api::Private,
+					Api::ParityTransactionsPool,
 				].into_iter()
 				.collect()
 			)

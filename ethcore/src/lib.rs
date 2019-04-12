@@ -74,6 +74,7 @@ extern crate ethcore_miner;
 extern crate ethereum_types;
 extern crate ethjson;
 extern crate ethkey;
+extern crate futures;
 extern crate hash_db;
 extern crate heapsize;
 extern crate itertools;
