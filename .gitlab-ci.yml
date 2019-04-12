@@ -31,40 +31,75 @@ variables:
     paths:
       - artifacts/
 
+.collect_logs:                     &collect_logs
+  artifacts:
+    name:                          "${CI_JOB_NAME}_${SCHEDULE_TAG:-${CI_COMMIT_REF_NAME}}"
+    when:                          always
+    expire_in:                     7 days
+    paths:
+      - artifacts/
+
 .docker-cache-status:              &docker-cache-status
   variables:
     CARGO_HOME:                    "/ci-cache/parity-ethereum/cargo/${CI_JOB_NAME}"
+  dependencies:                    []
   before_script:
-    - SCCACHE_ERROR_LOG=/builds/parity/parity-ethereum/sccache_error.log RUST_LOG=sccache::server=debug sccache --start-server
+    - SCCACHE_ERROR_LOG=/builds/parity/parity-ethereum/sccache_debug.log
+        RUST_LOG=sccache::server=debug
+        SCCACHE_CACHE_SIZE=50G
+        SCCACHE_DIR=/ci-cache/parity-ethereum/sccache/
+        sccache --start-server
     - sccache -s
   after_script:
-    - echo "All crate-types:"
-    - grep 'parse_arguments.*--crate-type' sccache_error.log | sed -re 's/.*"--crate-type", "([^"]+)".*/\1/' | sort | uniq -c
-    - echo "Non-cacheable reasons:"
-    - grep CannotCache sccache_error.log | sed -re 's/.*CannotCache\((.+)\).*/\1/' | sort | uniq -c
+    # sccache debug info
+    - if test -e sccache_debug.log;
+      then
+        echo "All crate-types:";
+        grep 'parse_arguments.*--crate-type' sccache_debug.log | sed -re 's/.*"--crate-type", "([^"]+)".*/\1/' | sort | uniq -c;
+        echo "Non-cacheable reasons:";
+        grep CannotCache sccache_debug.log | sed -re 's/.*CannotCache\((.+)\).*/\1/' | sort | uniq -c;
+      else
+        echo "No logs from sccache";
+        exit 0;
+      fi
+    # collect log files
+    - mkdir -p ./artifacts
+    - find . -name "*.log"
+    - find . -name "*.log" | xargs tar --append -f ./artifacts/logs_"${CI_JOB_NAME}_${SCHEDULE_TAG:-${CI_COMMIT_REF_NAME}}".tar
   tags:
     - linux-docker
+
+.build-on-linux:                   &build-on-linux
+  stage:                           build
+  <<:                              *docker-cache-status
+  <<:                              *collect_artifacts
+  script:
+    - scripts/gitlab/build-linux.sh
+    - sccache -s
 
 
 cargo-check 0 3:
   stage:                           test
   <<:                              *docker-cache-status
+  <<:                              *collect_logs
   script:
-    - time cargo check --target $CARGO_TARGET --locked --no-default-features
+    - time cargo check --target $CARGO_TARGET --locked --no-default-features --verbose --color=always
     - sccache -s
 
 cargo-check 1 3:
   stage:                           test
   <<:                              *docker-cache-status
+  <<:                              *collect_logs
   script:
-    - time cargo check --target $CARGO_TARGET --locked --manifest-path util/io/Cargo.toml --no-default-features
+    - time cargo check --target $CARGO_TARGET --locked --manifest-path util/io/Cargo.toml --no-default-features --verbose --color=always
     - sccache -s
 
 cargo-check 2 3:
   stage:                           test
   <<:                              *docker-cache-status
+  <<:                              *collect_logs
   script:
-    - time cargo check --target $CARGO_TARGET --locked --manifest-path util/io/Cargo.toml --features "mio"
+    - time cargo check --target $CARGO_TARGET --locked --manifest-path util/io/Cargo.toml --features "mio" --verbose --color=always
     - sccache -s
 
 cargo-audit:
@@ -72,11 +107,11 @@ cargo-audit:
   <<:                              *docker-cache-status
   script:
     - cargo audit
-    - sccache -s
 
 validate-chainspecs:
   stage:                           test
   <<:                              *docker-cache-status
+  <<:                              *collect_logs
   script:
     - ./scripts/gitlab/validate-chainspecs.sh
     - sccache -s
@@ -84,6 +119,7 @@ validate-chainspecs:
 test-cpp:
   stage:                           build
   <<:                              *docker-cache-status
+  <<:                              *collect_logs
   script:
     - ./scripts/gitlab/test-cpp.sh
     - sccache -s
@@ -91,56 +127,68 @@ test-cpp:
 test-linux:
   stage:                           build
   <<:                              *docker-cache-status
+  <<:                              *collect_logs
   script:
-    - ./scripts/gitlab/test-linux.sh
+    - ./scripts/gitlab/test-linux.sh stable
     - sccache -s
 
-build-android:
-  stage:                           build
-  image:                           parity/rust-parity-ethereum-android-build:stretch
-  variables:
-    CARGO_TARGET:                  armv7-linux-androideabi
-  <<:                              *docker-cache-status
-  <<:                              *collect_artifacts
-  script:
-    - scripts/gitlab/build-linux.sh
-  tags:
-    - linux-docker
-
-build-linux:                       &build-linux
+test-linux-beta:
   stage:                           build
   only:                            *releaseable_branches
   <<:                              *docker-cache-status
-  <<:                              *collect_artifacts
+  <<:                              *collect_logs
   script:
-    - scripts/gitlab/build-linux.sh
+    - ./scripts/gitlab/test-linux.sh beta
     - sccache -s
 
+test-linux-nightly:
+  stage:                           build
+  only:                            *releaseable_branches
+  <<:                              *docker-cache-status
+  <<:                              *collect_logs
+  script:
+    - ./scripts/gitlab/test-linux.sh nightly
+    - sccache -s
+  allow_failure:                   true
+
+build-android:
+  <<:                              *build-on-linux
+  image:                           parity/rust-parity-ethereum-android-build:stretch
+  variables:
+    CARGO_TARGET:                  armv7-linux-androideabi
+
+build-linux:
+  <<:                              *build-on-linux
+  only:                            *releaseable_branches
+
 build-linux-i386:
-  <<:                              *build-linux
+  <<:                              *build-on-linux
+  only:                            *releaseable_branches
   image:                           parity/rust-parity-ethereum-build:i386
   variables:
     CARGO_TARGET:                  i686-unknown-linux-gnu
 
 build-linux-arm64:
-  <<:                              *build-linux
+  <<:                              *build-on-linux
+  only:                            *releaseable_branches
   image:                           parity/rust-parity-ethereum-build:arm64
   variables:
     CARGO_TARGET:                  aarch64-unknown-linux-gnu
 
 build-linux-armhf:
-  <<:                              *build-linux
+  <<:                              *build-on-linux
+  only:                            *releaseable_branches
   image:                           parity/rust-parity-ethereum-build:armhf
   variables:
     CARGO_TARGET:                  armv7-unknown-linux-gnueabihf
 
 build-darwin:
   stage:                           build
-  only:                            *releaseable_branches
   <<:                              *collect_artifacts
+  only:                            *releaseable_branches
   variables:
     CARGO_TARGET:                  x86_64-apple-darwin
-    CARGO_HOME:                      "${CI_PROJECT_DIR}/.cargo"
+    CARGO_HOME:                    "${CI_PROJECT_DIR}/.cargo"
     CC:                            gcc
     CXX:                           g++
   script:
