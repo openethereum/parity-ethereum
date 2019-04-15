@@ -20,7 +20,7 @@ use std::sync::{Arc, Weak};
 use std::collections::BTreeMap;
 
 use jsonrpc_core::{BoxFuture, Result, Error};
-use jsonrpc_core::futures::{self, Future, IntoFuture, Stream};
+use jsonrpc_core::futures::{self, Future, IntoFuture, Stream, sync::mpsc};
 use jsonrpc_pubsub::typed::{Sink, Subscriber};
 use jsonrpc_pubsub::SubscriptionId;
 
@@ -80,23 +80,39 @@ impl<C> EthPubSubClient<C>
 	}
 }
 
-impl<C> EthPubSubClient<C> {
+impl<C> EthPubSubClient<C>
+	where
+		C: 'static + Send + Sync {
+
 	/// Creates new `EthPubSubClient`.
-	pub fn new(client: Arc<C>, executor: Executor) -> Self {
+	pub fn new(client: Arc<C>, executor: Executor, pool_receiver: mpsc::UnboundedReceiver<Arc<Vec<H256>>>) -> Self {
 		let heads_subscribers = Arc::new(RwLock::new(Subscribers::default()));
 		let logs_subscribers = Arc::new(RwLock::new(Subscribers::default()));
 		let transactions_subscribers = Arc::new(RwLock::new(Subscribers::default()));
 		let sync_subscribers = Arc::new(RwLock::new(Subscribers::default()));
 
+		let handler = Arc::new(ChainNotificationHandler {
+			client,
+			executor,
+			heads_subscribers: heads_subscribers.clone(),
+			logs_subscribers: logs_subscribers.clone(),
+			transactions_subscribers: transactions_subscribers.clone(),
+			sync_subscribers: sync_subscribers.clone(),
+		});
+		let handler2 = Arc::downgrade(&handler);
+
+		handler.executor.spawn(pool_receiver
+			.for_each(move |hashes| {
+				if let Some(handler2) = handler2.upgrade() {
+					handler2.notify_new_transactions(&hashes.to_vec());
+					return Ok(())
+				}
+				Err(())
+			})
+		);
+
 		EthPubSubClient {
-			handler: Arc::new(ChainNotificationHandler {
-				client,
-				executor,
-				heads_subscribers: heads_subscribers.clone(),
-				logs_subscribers: logs_subscribers.clone(),
-				transactions_subscribers: transactions_subscribers.clone(),
-				sync_subscribers: sync_subscribers.clone(),
-			}),
+			handler,
 			sync_subscribers,
 			heads_subscribers,
 			logs_subscribers,
@@ -123,6 +139,7 @@ where
 		cache: Arc<Mutex<Cache>>,
 		executor: Executor,
 		gas_price_percentile: usize,
+		pool_receiver: mpsc::UnboundedReceiver<Arc<Vec<H256>>>
 	) -> Self {
 		let fetch = LightFetch {
 			client,
@@ -131,7 +148,7 @@ where
 			cache,
 			gas_price_percentile,
 		};
-		EthPubSubClient::new(Arc::new(fetch), executor)
+		EthPubSubClient::new(Arc::new(fetch), executor, pool_receiver)
 	}
 }
 
@@ -205,7 +222,7 @@ impl<C> ChainNotificationHandler<C> {
 	}
 
 	/// Notify all subscribers about new transaction hashes.
-	pub fn notify_new_transactions(&self, hashes: &[H256]) {
+	fn notify_new_transactions(&self, hashes: &[H256]) {
 		for subscriber in self.transactions_subscribers.read().values() {
 			for hash in hashes {
 				Self::notify(&self.executor, subscriber, pubsub::Result::TransactionHash(*hash));
