@@ -10,6 +10,7 @@ variables:
   GIT_SUBMODULE_STRATEGY:          recursive
   CI_SERVER_NAME:                  "GitLab CI"
   CARGO_TARGET:                    x86_64-unknown-linux-gnu
+  SCCACHE_CACHE_SIZE:              50G
 
 .no_git:                           &no_git # disable git strategy
   variables:
@@ -31,41 +32,30 @@ variables:
     paths:
       - artifacts/
 
-.collect_logs:                     &collect_logs
-  artifacts:
-    name:                          "${CI_JOB_NAME}_${SCHEDULE_TAG:-${CI_COMMIT_REF_NAME}}"
-    when:                          always
-    expire_in:                     7 days
-    paths:
-      - artifacts/
-
 .docker-cache-status:              &docker-cache-status
   variables:
     CARGO_HOME:                    "/ci-cache/parity-ethereum/cargo/${CI_JOB_NAME}"
   dependencies:                    []
   before_script:
     - SCCACHE_ERROR_LOG=/builds/parity/parity-ethereum/sccache_debug.log
-        RUST_LOG=sccache::server=debug
-        SCCACHE_CACHE_SIZE=50G
-        SCCACHE_DIR=/ci-cache/parity-ethereum/sccache/
+        RUST_LOG=sccache=debug
         sccache --start-server
     - sccache -s
   after_script:
     # sccache debug info
     - if test -e sccache_debug.log;
       then
+        echo "_____sccache_debug.log listing start:_____";
+        cat sccache_debug.log;
+        echo "_____sccache_debug.log listing end_____";
         echo "All crate-types:";
         grep 'parse_arguments.*--crate-type' sccache_debug.log | sed -re 's/.*"--crate-type", "([^"]+)".*/\1/' | sort | uniq -c;
-        echo "Non-cacheable reasons:";
+        echo "_____Non-cacheable reasons:_____";
         grep CannotCache sccache_debug.log | sed -re 's/.*CannotCache\((.+)\).*/\1/' | sort | uniq -c;
       else
-        echo "No logs from sccache";
+        echo "_____No logs from sccache_____";
         exit 0;
       fi
-    # collect log files
-    - mkdir -p ./artifacts
-    - find . -name "*.log"
-    - find . -name "*.log" | xargs tar --append -f ./artifacts/logs_"${CI_JOB_NAME}_${SCHEDULE_TAG:-${CI_COMMIT_REF_NAME}}".tar
   tags:
     - linux-docker
 
@@ -81,7 +71,6 @@ variables:
 cargo-check 0 3:
   stage:                           test
   <<:                              *docker-cache-status
-  <<:                              *collect_logs
   script:
     - time cargo check --target $CARGO_TARGET --locked --no-default-features --verbose --color=always
     - sccache -s
@@ -89,7 +78,6 @@ cargo-check 0 3:
 cargo-check 1 3:
   stage:                           test
   <<:                              *docker-cache-status
-  <<:                              *collect_logs
   script:
     - time cargo check --target $CARGO_TARGET --locked --manifest-path util/io/Cargo.toml --no-default-features --verbose --color=always
     - sccache -s
@@ -97,7 +85,6 @@ cargo-check 1 3:
 cargo-check 2 3:
   stage:                           test
   <<:                              *docker-cache-status
-  <<:                              *collect_logs
   script:
     - time cargo check --target $CARGO_TARGET --locked --manifest-path util/io/Cargo.toml --features "mio" --verbose --color=always
     - sccache -s
@@ -111,7 +98,6 @@ cargo-audit:
 validate-chainspecs:
   stage:                           test
   <<:                              *docker-cache-status
-  <<:                              *collect_logs
   script:
     - ./scripts/gitlab/validate-chainspecs.sh
     - sccache -s
@@ -119,7 +105,6 @@ validate-chainspecs:
 test-cpp:
   stage:                           build
   <<:                              *docker-cache-status
-  <<:                              *collect_logs
   script:
     - ./scripts/gitlab/test-cpp.sh
     - sccache -s
@@ -127,7 +112,6 @@ test-cpp:
 test-linux:
   stage:                           build
   <<:                              *docker-cache-status
-  <<:                              *collect_logs
   script:
     - ./scripts/gitlab/test-linux.sh stable
     - sccache -s
@@ -136,7 +120,6 @@ test-linux-beta:
   stage:                           build
   only:                            *releaseable_branches
   <<:                              *docker-cache-status
-  <<:                              *collect_logs
   script:
     - ./scripts/gitlab/test-linux.sh beta
     - sccache -s
@@ -145,7 +128,6 @@ test-linux-nightly:
   stage:                           build
   only:                            *releaseable_branches
   <<:                              *docker-cache-status
-  <<:                              *collect_logs
   script:
     - ./scripts/gitlab/test-linux.sh nightly
     - sccache -s
