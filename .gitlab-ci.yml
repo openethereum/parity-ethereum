@@ -10,6 +10,7 @@ variables:
   GIT_SUBMODULE_STRATEGY:          recursive
   CI_SERVER_NAME:                  "GitLab CI"
   CARGO_TARGET:                    x86_64-unknown-linux-gnu
+  SCCACHE_CACHE_SIZE:              50G
 
 .no_git:                           &no_git # disable git strategy
   variables:
@@ -44,10 +45,9 @@ variables:
     CARGO_HOME:                    "/ci-cache/parity-ethereum/cargo/${CI_JOB_NAME}"
   dependencies:                    []
   before_script:
-    - SCCACHE_ERROR_LOG=/builds/parity/parity-ethereum/sccache_debug.log
+    # - SCCACHE_ERROR_LOG=/builds/parity/parity-ethereum/sccache_debug.log
+    - SCCACHE_ERROR_LOG=/dev/stdout
         RUST_LOG=sccache::server=debug
-        SCCACHE_CACHE_SIZE=50G
-        SCCACHE_DIR=/ci-cache/parity-ethereum/sccache/
         sccache --start-server
     - sccache -s
   after_script:
