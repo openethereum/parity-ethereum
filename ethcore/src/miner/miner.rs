@@ -46,7 +46,7 @@ use types::header::Header;
 use types::receipt::RichReceipt;
 use using_queue::{UsingQueue, GetAction};
 
-use block::{ClosedBlock, IsBlock, SealedBlock};
+use block::{ClosedBlock, IsBlock, SealedBlock, OpenBlock};
 use client::{
 	BlockChain, ChainInfo, BlockProducer, SealedBlockImporter, Nonce, TransactionInfo, TransactionId
 };
@@ -448,14 +448,6 @@ impl Miner {
 			last_work_hash
 		};
 
-		let mut invalid_transactions = HashSet::new();
-		let mut not_allowed_transactions = HashSet::new();
-		let mut senders_to_penalize = HashSet::new();
-		let block_number = open_block.block().header().number();
-
-		let mut tx_count = 0usize;
-		let mut skipped_transactions = 0usize;
-
 		let client = self.pool_client(chain);
 		let engine_params = self.engine.params();
 		let min_tx_gas: U256 = self.engine.schedule(chain_info.best_block_number).tx_gas.into();
@@ -482,14 +474,38 @@ impl Miner {
 			}
 		);
 
+		debug!(target: "miner", "Attempting to push {} transactions.", engine_pending.len() + queue_pending.len());
+		let opt_block = self.prepare_block_from(open_block, engine_pending.into_iter().chain(queue_pending.into_iter().map(|tx| tx.signed().clone())), chain, min_tx_gas);
+
+		opt_block.map(|block| (block, original_work_hash))
+	}
+
+	/// Prepares new block for sealing including the given transactions.
+	pub fn prepare_block_from<'a, C: 'a, I>(&self,
+											mut open_block: OpenBlock,
+											pending: I,
+											chain: &C,
+											min_tx_gas: U256
+	) -> Option<ClosedBlock>
+		where C: BlockChain + CallContract, I: IntoIterator<Item = SignedTransaction>
+	{
+		let mut invalid_transactions = HashSet::new();
+		let mut not_allowed_transactions = HashSet::new();
+		let mut senders_to_penalize = HashSet::new();
+		let block_number = open_block.block().header().number();
+
+		let mut tx_count = 0usize;
+		let mut skipped_transactions = 0usize;
+
+		let client = self.pool_client(chain);
+
 		let took_ms = |elapsed: &Duration| {
 			elapsed.as_secs() * 1000 + elapsed.subsec_nanos() as u64 / 1_000_000
 		};
 
 		let block_start = Instant::now();
-		debug!(target: "miner", "Attempting to push {} transactions.", engine_pending.len() + queue_pending.len());
 
-		for transaction in engine_pending.into_iter().chain(queue_pending.into_iter().map(|tx| tx.signed().clone())) {
+		for transaction in pending {
 			let start = Instant::now();
 
 			let hash = transaction.hash();
@@ -577,7 +593,7 @@ impl Miner {
 			self.transaction_queue.penalize(senders_to_penalize.iter());
 		}
 
-		Some((block, original_work_hash))
+		Some(block)
 	}
 
 	/// Returns `true` if we should create pending block even if some other conditions are not met.
