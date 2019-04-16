@@ -45,15 +45,17 @@ variables:
     CARGO_HOME:                    "/ci-cache/parity-ethereum/cargo/${CI_JOB_NAME}"
   dependencies:                    []
   before_script:
-    # - SCCACHE_ERROR_LOG=/dev/stdout
     - SCCACHE_ERROR_LOG=/builds/parity/parity-ethereum/sccache_debug.log
-        RUST_LOG=trace
+        RUST_LOG=sccache=debug
         sccache --start-server
     - sccache -s
   after_script:
     # sccache debug info
     - if test -e sccache_debug.log;
       then
+        echo "sccache_debug.log listing start:"
+        cat sccache_debug.log
+        echo "sccache_debug.log listing end"
         echo "All crate-types:";
         grep 'parse_arguments.*--crate-type' sccache_debug.log | sed -re 's/.*"--crate-type", "([^"]+)".*/\1/' | sort | uniq -c;
         echo "Non-cacheable reasons:";
