@@ -53,9 +53,9 @@ variables:
     # sccache debug info
     - if test -e sccache_debug.log;
       then
-        echo "sccache_debug.log listing start:"
-        cat sccache_debug.log
-        echo "sccache_debug.log listing end"
+        echo "sccache_debug.log listing start:";
+        cat sccache_debug.log;
+        echo "sccache_debug.log listing end";
         echo "All crate-types:";
         grep 'parse_arguments.*--crate-type' sccache_debug.log | sed -re 's/.*"--crate-type", "([^"]+)".*/\1/' | sort | uniq -c;
         echo "Non-cacheable reasons:";
