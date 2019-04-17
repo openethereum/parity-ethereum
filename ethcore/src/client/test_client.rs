@@ -981,4 +981,8 @@ impl super::traits::EngineClient for TestBlockChainClient {
 	fn queued_transactions(&self) -> Vec<Arc<VerifiedTransaction>> {
 		self.miner.queued_transactions()
 	}
+
+	fn create_pending_block(&self, txns: Vec<Arc<VerifiedTransaction>>, timestamp: u64) -> Option<ClosedBlock> {
+		self.miner.create_pending_block(self, txns, timestamp)
+	}
 }

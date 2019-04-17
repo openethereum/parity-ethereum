@@ -406,11 +406,19 @@ impl Miner {
 			match sealing.queue.get_pending_if(|b| b.block().header().parent_hash() == &best_hash) {
 				Some(old_block) => {
 					trace!(target: "miner", "prepare_block: Already have previous work; updating and returning");
+
+					if !self.engine.should_miner_prepare_blocks() {
+						return Some((old_block, last_work_hash))
+					}
+
 					engine_pending = Vec::new();
 					// add transactions to old_block
 					open_block = chain.reopen_block(old_block);
 				}
 				None => {
+					if !self.engine.should_miner_prepare_blocks() {
+						return None
+					}
 					// block not found - create it.
 					trace!(target: "miner", "prepare_block: No existing work - making new block");
 					let params = self.params.read().clone();
@@ -481,7 +489,7 @@ impl Miner {
 	}
 
 	/// Prepares new block for sealing including the given transactions.
-	pub fn prepare_block_from<'a, C: 'a, I>(&self,
+	fn prepare_block_from<'a, C: 'a, I>(&self,
 											mut open_block: OpenBlock,
 											pending: I,
 											chain: &C,
@@ -594,6 +602,61 @@ impl Miner {
 		}
 
 		Some(block)
+	}
+
+	/// Creates a new block and sets it as pending for sealing.
+	/// Returns false if a pending block already exists.
+	pub fn create_pending_block<C>(&self, chain: &C, txns: Vec<Arc<VerifiedTransaction>>, timestamp: u64) -> Option<ClosedBlock>
+		where C: BlockChain + CallContract + BlockProducer + SealedBlockImporter + Nonce + Sync {
+		let mut sealing = self.sealing.lock();
+		let chain_info = chain.chain_info();
+		let best_hash = chain_info.best_block_hash;
+
+		match sealing.queue.get_pending_if(|b| b.block().header().parent_hash() == &best_hash) {
+			Some(_) => {
+				trace!(target: "miner", "create_pending_block: Already have a pending block!");
+				None
+			}
+			None => {
+				trace!(target: "miner", "create_pending_block: Making a new block");
+				let params = self.params.read().clone();
+
+				let mut open_block = match chain.prepare_open_block(
+					params.author,
+					params.gas_range_target,
+					params.extra_data,
+				) {
+					Ok(block) => block,
+					Err(err) => {
+						warn!(target: "miner", "Open new block failed with error {:?}. This is likely an error in \
+								  chain specification or on-chain consensus smart contracts.", err);
+						return None;
+					}
+				};
+
+				// Before adding from the queue to the new block, give the engine a chance to add transactions.
+				let engine_pending = match self.engine.on_prepare_block(open_block.block()) {
+					Ok(transactions) => transactions,
+					Err(err) => {
+						error!(target: "miner", "Failed to prepare engine transactions for new block: {:?}. \
+								   This is likely an error in chain specification or on-chain consensus smart \
+								   contracts.", err);
+						return None;
+					}
+				};
+
+				open_block.set_timestamp(timestamp);
+				let min_tx_gas: U256 = self.engine.schedule(chain_info.best_block_number).tx_gas.into();
+
+				// Add transactions to the new block
+				let opt_block = self.prepare_block_from(open_block, engine_pending.into_iter().chain(txns.into_iter().map(|tx| tx.signed().clone())), chain, min_tx_gas);
+
+				opt_block.map(|b| {
+					sealing.queue.set_pending(b.clone());
+					b
+				})
+			}
+		}
 	}
 
 	/// Returns `true` if we should create pending block even if some other conditions are not met.

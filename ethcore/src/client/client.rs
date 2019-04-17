@@ -2504,6 +2504,10 @@ impl super::traits::EngineClient for Client {
 	fn queued_transactions(&self) -> Vec<Arc<VerifiedTransaction>> {
 		self.importer.miner.queued_transactions()
 	}
+
+	fn create_pending_block(&self, txns: Vec<Arc<VerifiedTransaction>>, timestamp: u64) -> Option<ClosedBlock> {
+		self.importer.miner.create_pending_block(self, txns, timestamp)
+	}
 }
 
 impl ProvingBlockChainClient for Client {

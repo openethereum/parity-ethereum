@@ -60,7 +60,8 @@ impl Engine<EthereumMachine> for HoneyBadgerBFT {
 		if let Some(ref weak) = *self.client.read() {
 			if let Some(c) = weak.upgrade() {
 				if c.queued_transactions().len() >= self.transactions_trigger {
-					c.update_sealing();
+					// TODO: Use the average timestamp of all contributing hbbft nodes
+					c.create_pending_block(c.queued_transactions(), 0);
 				}
 			}
 		}
@@ -74,5 +75,9 @@ impl Engine<EthereumMachine> for HoneyBadgerBFT {
 	fn generate_seal(&self, _block: &ExecutedBlock, _parent: &Header) -> Seal {
 		// For refactoring/debugging of block creation we seal instantly.
 		Seal::Regular(Vec::new())
+	}
+
+	fn should_miner_prepare_blocks(&self) -> bool {
+		false
 	}
 }
