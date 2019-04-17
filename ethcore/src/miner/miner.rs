@@ -420,11 +420,9 @@ impl Miner {
 	{
 		trace_time!("prepare_block");
 		let chain_info = chain.chain_info();
-		let engine_pending;
-		let mut open_block;
 
 		// Open block
-		let original_work_hash = {
+		let (original_work_hash, open_block, engine_pending) = {
 			let mut sealing = self.sealing.lock();
 			let last_work_hash = sealing.queue.peek_last_ref().map(|pb| pb.block().header().hash());
 			let best_hash = chain_info.best_block_hash;
@@ -435,7 +433,7 @@ impl Miner {
 			//   if at least one was pushed successfully, close and enqueue new ClosedBlock;
 			//   otherwise, leave everything alone.
 			// otherwise, author a fresh block.
-			match sealing.queue.get_pending_if(|b| b.block().header().parent_hash() == &best_hash) {
+			let (mut block, engine_txns) = match sealing.queue.get_pending_if(|b| b.block().header().parent_hash() == &best_hash) {
 				Some(old_block) => {
 					trace!(target: "miner", "prepare_block: Already have previous work; updating and returning");
 
@@ -443,9 +441,8 @@ impl Miner {
 						return Some((old_block, last_work_hash))
 					}
 
-					engine_pending = Vec::new();
 					// add transactions to old_block
-					open_block = chain.reopen_block(old_block);
+					(chain.reopen_block(old_block), Vec::new())
 				}
 				None => {
 					if !self.engine.should_miner_prepare_blocks() {
@@ -453,18 +450,15 @@ impl Miner {
 					}
 					// block not found - create it.
 					trace!(target: "miner", "prepare_block: No existing work - making new block");
-
-					let (open_block_, engine_pending_) = self.create_open_block(chain)?;
-					open_block = open_block_;
-					engine_pending = engine_pending_;
+					self.create_open_block(chain)?
 				}
-			}
+			};
 
 			if self.options.infinite_pending_block {
-				open_block.remove_gas_limit();
+				block.remove_gas_limit();
 			}
 
-			last_work_hash
+			(last_work_hash, block, engine_txns)
 		};
 
 		let client = self.pool_client(chain);
