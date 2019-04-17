@@ -382,6 +382,38 @@ impl Miner {
 		)
 	}
 
+	/// Returns a newly created block and transactions requested by the Engine for insertion.
+	fn create_open_block<'a, C>(&self, chain: &'a C) -> Option<(OpenBlock<'a>, Vec<SignedTransaction>)>
+		where C: BlockChain + CallContract + BlockProducer + Nonce + Sync {
+		let params = self.params.read().clone();
+
+		let open_block = match chain.prepare_open_block(
+			params.author,
+			params.gas_range_target,
+			params.extra_data,
+		) {
+			Ok(block) => block,
+			Err(err) => {
+				warn!(target: "miner", "Open new block failed with error {:?}. This is likely an error in \
+								  chain specification or on-chain consensus smart contracts.", err);
+				return None;
+			}
+		};
+
+		// Before adding from the queue to the new block, give the engine a chance to add transactions.
+		let engine_pending = match self.engine.on_prepare_block(open_block.block()) {
+			Ok(transactions) => transactions,
+			Err(err) => {
+				error!(target: "miner", "Failed to prepare engine transactions for new block: {:?}. \
+								   This is likely an error in chain specification or on-chain consensus smart \
+								   contracts.", err);
+				return None;
+			}
+		};
+
+		Some((open_block, engine_pending))
+	}
+
 	/// Prepares new block for sealing including top transactions from queue.
 	fn prepare_block<C>(&self, chain: &C) -> Option<(ClosedBlock, Option<H256>)> where
 		C: BlockChain + CallContract + BlockProducer + Nonce + Sync,
@@ -421,31 +453,10 @@ impl Miner {
 					}
 					// block not found - create it.
 					trace!(target: "miner", "prepare_block: No existing work - making new block");
-					let params = self.params.read().clone();
 
-					open_block = match chain.prepare_open_block(
-						params.author,
-						params.gas_range_target,
-						params.extra_data,
-					) {
-						Ok(block) => block,
-						Err(err) => {
-							warn!(target: "miner", "Open new block failed with error {:?}. This is likely an error in \
-								  chain specification or on-chain consensus smart contracts.", err);
-							return None;
-						}
-					};
-
-					// Before adding from the queue to the new block, give the engine a chance to add transactions.
-					engine_pending = match self.engine.on_prepare_block(open_block.block()) {
-						Ok(transactions) => transactions,
-						Err(err) => {
-							error!(target: "miner", "Failed to prepare engine transactions for new block: {:?}. \
-								   This is likely an error in chain specification or on-chain consensus smart \
-								   contracts.", err);
-							return None;
-						}
-					};
+					let (open_block_, engine_pending_) = self.create_open_block(chain)?;
+					open_block = open_block_;
+					engine_pending = engine_pending_;
 				}
 			}
 
@@ -619,31 +630,8 @@ impl Miner {
 			}
 			None => {
 				trace!(target: "miner", "create_pending_block: Making a new block");
-				let params = self.params.read().clone();
 
-				let mut open_block = match chain.prepare_open_block(
-					params.author,
-					params.gas_range_target,
-					params.extra_data,
-				) {
-					Ok(block) => block,
-					Err(err) => {
-						warn!(target: "miner", "Open new block failed with error {:?}. This is likely an error in \
-								  chain specification or on-chain consensus smart contracts.", err);
-						return None;
-					}
-				};
-
-				// Before adding from the queue to the new block, give the engine a chance to add transactions.
-				let engine_pending = match self.engine.on_prepare_block(open_block.block()) {
-					Ok(transactions) => transactions,
-					Err(err) => {
-						error!(target: "miner", "Failed to prepare engine transactions for new block: {:?}. \
-								   This is likely an error in chain specification or on-chain consensus smart \
-								   contracts.", err);
-						return None;
-					}
-				};
+				let (mut open_block, engine_pending) = self.create_open_block(chain)?;
 
 				open_block.set_timestamp(timestamp);
 				let min_tx_gas: U256 = self.engine.schedule(chain_info.best_block_number).tx_gas.into();
