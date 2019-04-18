@@ -1745,7 +1745,7 @@ mod tests {
 		// Not a signer. A seal cannot be generated.
 		assert!(engine.generate_seal(b1.block(), &genesis_header) == Seal::None);
 		// Become a signer.
-		engine.set_signer(tap.clone(), addr1, "1".into());
+		engine.set_signer(Box::new((tap.clone(), addr1, "1".into())));
 		if let Seal::Regular(seal) = engine.generate_seal(b1.block(), &genesis_header) {
 			assert!(b1.clone().try_seal(engine, seal).is_ok());
 			// Second proposal is forbidden.
@@ -1770,7 +1770,7 @@ mod tests {
 		// Not a signer. A seal cannot be generated.
 		assert!(engine.generate_seal(b2.block(), &header2) == Seal::None);
 		// Become a signer once more.
-		engine.set_signer(tap, addr2, "0".into());
+		engine.set_signer(Box::new((tap, addr2, "0".into())));
 		if let Seal::Regular(seal) = engine.generate_seal(b2.block(), &header2) {
 			assert!(b2.clone().try_seal(engine, seal).is_ok());
 			// Second proposal is forbidden.

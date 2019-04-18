@@ -144,7 +144,7 @@ mod tests {
 	use std::sync::Arc;
 	use rustc_hex::FromHex;
 	use hash::keccak;
-	use ethereum_types::{U256, H520, Address};
+	use ethereum_types::{H520, Address};
 	use bytes::ToPretty;
 	use rlp::encode;
 	use spec::Spec;
