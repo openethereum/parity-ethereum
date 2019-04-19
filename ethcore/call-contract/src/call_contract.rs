@@ -24,6 +24,9 @@ use types::ids::BlockId;
 pub trait CallContract {
 	/// Like `call`, but with various defaults. Designed to be used for calling contracts.
 	fn call_contract(&self, id: BlockId, address: Address, data: Bytes) -> Result<Bytes, String>;
+
+	/// Like `call`, but with various defaults. Designed to be used for calling contracts with specified sender.
+	fn call_contract_from_sender(&self, block_id: BlockId, address: Address, sender: Address, data: Bytes) -> Result<Bytes, String>;
 }
 
 /// Provides information on a blockchain service and it's registry

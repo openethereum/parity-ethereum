@@ -378,6 +378,9 @@ pub trait BlockChainClient : Sync + Send + AccountData + BlockChain + CallContra
 	/// Schedule state-altering transaction to be executed on the next pending block.
 	fn transact_contract(&self, address: Address, data: Bytes) -> Result<(), transaction::Error>;
 
+	/// Call contract as block author
+	fn call_contract_as_author(&self, id: BlockId, address: Address, data: Bytes) -> Result<Bytes, String>;
+
 	/// Get the address of the registry itself.
 	fn registrar_address(&self) -> Option<Address>;
 }

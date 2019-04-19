@@ -24,6 +24,7 @@ use std::time::{Instant, Duration};
 use blockchain::{BlockReceipts, BlockChain, BlockChainDB, BlockProvider, TreeRoute, ImportRoute, TransactionAddress, ExtrasInsert, BlockNumberKey};
 use bytes::Bytes;
 use call_contract::{CallContract, RegistryInfo};
+use ethabi::{decode, ParamType, Token};
 use ethcore_miner::pool::VerifiedTransaction;
 use ethereum_types::{H256, Address, U256};
 use evm::Schedule;
@@ -42,7 +43,7 @@ use types::filter::Filter;
 use types::log_entry::LocalizedLogEntry;
 use types::receipt::{Receipt, LocalizedReceipt};
 use types::{BlockNumber, header::{Header, ExtendedHeader}};
-use vm::{EnvInfo, LastHashes};
+use vm::{EnvInfo, LastHashes, Error as VmError};
 
 use block::{LockedBlock, Drain, ClosedBlock, OpenBlock, enact_verified, SealedBlock};
 use client::ancient_import::AncientVerifier;
@@ -1223,15 +1224,19 @@ impl Client {
 	// transaction for calling contracts from services like engine.
 	// from the null sender, with 50M gas.
 	fn contract_call_tx(&self, block_id: BlockId, address: Address, data: Bytes) -> SignedTransaction {
-		let from = Address::default();
+		self.contract_call_tx_from_sender(block_id, address, Address::default(), data)
+	}
+
+	// transaction for calling contracts with specified sender
+	fn contract_call_tx_from_sender(&self, block_id: BlockId, address: Address, sender: Address, data: Bytes) -> SignedTransaction {
 		transaction::Transaction {
-			nonce: self.nonce(&from, block_id).unwrap_or_else(|| self.engine.account_start_nonce(0)),
+			nonce: self.nonce(&sender, block_id).unwrap_or_else(|| self.engine.account_start_nonce(0)),
 			action: Action::Call(address),
 			gas: U256::from(50_000_000),
 			gas_price: U256::default(),
 			value: U256::default(),
-			data: data,
-		}.fake_sign(from)
+			data,
+		}.fake_sign(sender)
 	}
 
 	fn do_virtual_call(
@@ -1438,15 +1443,38 @@ impl RegistryInfo for Client {
 
 impl CallContract for Client {
 	fn call_contract(&self, block_id: BlockId, address: Address, data: Bytes) -> Result<Bytes, String> {
+		self.call_contract_from_sender(block_id, address, Address::default(), data)
+	}
+
+	fn call_contract_from_sender(&self, block_id: BlockId, address: Address, sender: Address, data: Bytes) -> Result<Bytes, String> {
 		let state_pruned = || CallError::StatePruned.to_string();
 		let state = &mut self.state_at(block_id).ok_or_else(&state_pruned)?;
 		let header = self.block_header_decoded(block_id).ok_or_else(&state_pruned)?;
 
-		let transaction = self.contract_call_tx(block_id, address, data);
+		let transaction = self.contract_call_tx_from_sender(block_id, address, sender, data);
 
-		self.call(&transaction, Default::default(), state, &header)
-			.map_err(|e| format!("{:?}", e))
-			.map(|executed| executed.output)
+		let executed = self.call(&transaction, Default::default(), state, &header).map_err(|e| format!("{:?}", e))?;
+		if let Some(exception) = executed.exception {
+			let mut error = format!("{:?}", exception);
+			if exception == VmError::Reverted {
+				let output = executed.output.clone();
+				fn format_unknown_output(output: &Vec<u8>) -> String {format!("{}", Token::Bytes(output.to_vec()))};
+				// Try to decode Solidity revert string. If not successful - return bytes
+				let msg = if output.len() > 4 {
+					let (error_selector, enc_string) = output.split_at(4);
+					if error_selector == [0x08, 0xc3, 0x79, 0xa0] {  // Error(string) selector
+						decode(&[ParamType::String], enc_string)
+							.as_ref()
+							.map(|d| if let Token::String(str) = &d[0] { str.as_str().to_string() } else { format_unknown_output(&output) })
+							.unwrap_or_else(|_| format_unknown_output(&output) )
+					} else { format_unknown_output(&output) }
+				} else { format_unknown_output(&output) };
+				error = format!("{} {}", error, msg);
+			}
+			Err(error)
+		} else {
+			Ok(executed.output)
+		}
 	}
 }
 
@@ -2178,6 +2206,10 @@ impl BlockChainClient for Client {
 			.map_err(|e| transaction::Error::InvalidSignature(e.to_string()))?;
 		let signed = SignedTransaction::new(transaction.with_signature(signature, chain_id))?;
 		self.importer.miner.import_own_transaction(self, signed.into())
+	}
+
+	fn call_contract_as_author(&self, id: BlockId, address: Address, data: Bytes) -> Result<Bytes, String> {
+		self.call_contract_from_sender(id, address, self.importer.miner.authoring_params().author, data)
 	}
 
 	fn registrar_address(&self) -> Option<Address> {

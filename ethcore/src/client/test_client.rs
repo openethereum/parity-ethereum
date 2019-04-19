@@ -523,6 +523,7 @@ impl BlockInfo for TestBlockChainClient {
 
 impl CallContract for TestBlockChainClient {
 	fn call_contract(&self, _id: BlockId, _address: Address, _data: Bytes) -> Result<Bytes, String> { Ok(vec![]) }
+	fn call_contract_from_sender(&self, _block_id: BlockId, _address: Address, _sender: Address, _data: Bytes) -> Result<Bytes, String> { Ok(vec![]) }
 }
 
 impl TransactionInfo for TestBlockChainClient {
@@ -889,6 +890,8 @@ impl BlockChainClient for TestBlockChainClient {
 		let signed = SignedTransaction::new(transaction.with_signature(sig, chain_id)).unwrap();
 		self.miner.import_own_transaction(self, signed.into())
 	}
+
+	fn call_contract_as_author(&self, _id: BlockId, _address: Address, _data: Bytes) -> Result<Bytes, String> { Ok(vec![]) }
 
 	fn registrar_address(&self) -> Option<Address> { None }
 }

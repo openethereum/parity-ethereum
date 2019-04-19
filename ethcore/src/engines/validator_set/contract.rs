@@ -25,6 +25,7 @@ use machine::{AuxiliaryData, Call, EthereumMachine};
 use parking_lot::RwLock;
 use types::BlockNumber;
 use types::header::Header;
+use types::ids::BlockId;
 
 use client::EngineClient;
 
@@ -58,6 +59,7 @@ impl ValidatorContract {
 
 		match client.as_full_client() {
 			Some(c) => {
+				c.call_contract_as_author(BlockId::Latest, self.contract_address.clone(), data.clone())?;
 				c.transact_contract(self.contract_address, data)
 					.map_err(|e| format!("Transaction import error: {}", e))?;
 				Ok(())
