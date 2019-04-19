@@ -20,6 +20,7 @@ use ethcore::client::BlockChainClient;
 use sync::{self, AttachedProtocol, SyncConfig, NetworkConfiguration, Params, ConnectionFilter};
 use ethcore::snapshot::SnapshotService;
 use light::Provider;
+use parity_runtime::Executor;
 
 pub use sync::{EthSync, SyncProvider, ManageNetwork, PrivateTxHandler};
 pub use ethcore::client::ChainNotify;
@@ -34,6 +35,7 @@ pub type SyncModules = (
 
 pub fn sync(
 	config: SyncConfig,
+	executor: Executor,
 	network_config: NetworkConfiguration,
 	chain: Arc<BlockChainClient>,
 	snapshot_service: Arc<SnapshotService>,
@@ -45,6 +47,7 @@ pub fn sync(
 ) -> Result<SyncModules, sync::Error> {
 	let eth_sync = EthSync::new(Params {
 		config,
+		executor,
 		chain,
 		provider,
 		snapshot_service,

@@ -37,13 +37,17 @@ extern crate tempdir;
 #[macro_use]
 extern crate log;
 
+use std::collections::{HashMap, VecDeque};
 use std::sync::Weak;
 
-use ethcore::client::{BlockChainClient, BlockId};
+use ethcore::client::{BlockChainClient, BlockId, ChainNotify, NewBlocks};
+
 use ethereum_types::{H256, Address};
 use ethabi::FunctionOutputDecoder;
 use network::{ConnectionFilter, ConnectionDirection};
 use devp2p::NodeId;
+use devp2p::MAX_NODES_IN_TABLE;
+use parking_lot::RwLock;
 
 use_contract!(peer_set, "res/peer_set.json");
 
@@ -51,7 +55,16 @@ use_contract!(peer_set, "res/peer_set.json");
 pub struct NodeFilter {
 	client: Weak<BlockChainClient>,
 	contract_address: Address,
+	cache: RwLock<Cache>
 }
+
+struct Cache {
+	cache: HashMap<NodeId, bool>,
+	order: VecDeque<NodeId>
+}
+
+// Increase cache size due to possible reserved peers, which do not count in the node table size
+pub const CACHE_SIZE: usize = MAX_NODES_IN_TABLE + 1024;
 
 impl NodeFilter {
 	/// Create a new instance. Accepts a contract address.
@@ -59,6 +72,10 @@ impl NodeFilter {
 		NodeFilter {
 			client,
 			contract_address,
+			cache: RwLock::new(Cache{
+				cache: HashMap::with_capacity(CACHE_SIZE),
+				order: VecDeque::with_capacity(CACHE_SIZE)
+			})
 		}
 	}
 }
@@ -69,6 +86,10 @@ impl ConnectionFilter for NodeFilter {
 			Some(client) => client,
 			None => return false,
 		};
+
+		if let Some(allowed) = self.cache.read().cache.get(connecting_id) {
+			return *allowed;
+		}
 
 		let address = self.contract_address;
 		let own_low = H256::from_slice(&own_id[0..32]);
@@ -83,8 +104,23 @@ impl ConnectionFilter for NodeFilter {
 				debug!("Error callling peer set contract: {:?}", e);
 				false
 			});
-
+		let mut cache = self.cache.write();
+		if cache.cache.len() == CACHE_SIZE {
+			let poped = cache.order.pop_front().unwrap();
+			cache.cache.remove(&poped).is_none();
+		};
+		if cache.cache.insert(*connecting_id, allowed).is_none() {
+			cache.order.push_back(*connecting_id);
+		}
 		allowed
+	}
+}
+
+impl ChainNotify for NodeFilter {
+	fn new_blocks(&self, _new_blocks: NewBlocks)	{
+		let mut cache = self.cache.write();
+		cache.cache.clear();
+		cache.order.clear();
 	}
 }
 

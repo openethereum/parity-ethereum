@@ -34,6 +34,7 @@ use common_types::blockchain_info::BlockChainInfo;
 use common_types::encoded;
 use common_types::header::Header;
 use common_types::ids::BlockId;
+use common_types::verification_queue_info::VerificationQueueInfo as BlockQueueInfo;
 
 use kvdb::KeyValueDB;
 
@@ -91,6 +92,9 @@ pub trait LightChainClient: Send + Sync {
 	/// Attempt to get a block hash by block id.
 	fn block_hash(&self, id: BlockId) -> Option<H256>;
 
+	/// Get block queue information.
+	fn queue_info(&self) -> BlockQueueInfo;
+
 	/// Attempt to get block header by block id.
 	fn block_header(&self, id: BlockId) -> Option<encoded::Header>;
 
@@ -124,9 +128,6 @@ pub trait LightChainClient: Send + Sync {
 
 	/// Flush the queue.
 	fn flush_queue(&self);
-
-	/// Get queue info.
-	fn queue_info(&self) -> queue::QueueInfo;
 
 	/// Get the `i`th CHT root.
 	fn cht_root(&self, i: usize) -> Option<H256>;
@@ -534,12 +535,17 @@ impl<T: ChainDataFetcher> Client<T> {
 	}
 }
 
+
 impl<T: ChainDataFetcher> LightChainClient for Client<T> {
 	fn add_listener(&self, listener: Weak<LightChainNotify>) {
 		Client::add_listener(self, listener)
 	}
 
 	fn chain_info(&self) -> BlockChainInfo { Client::chain_info(self) }
+
+	fn queue_info(&self) -> queue::QueueInfo {
+		self.queue.queue_info()
+	}
 
 	fn queue_header(&self, header: Header) -> EthcoreResult<H256> {
 		self.import_header(header)
@@ -598,10 +604,6 @@ impl<T: ChainDataFetcher> LightChainClient for Client<T> {
 
 	fn flush_queue(&self) {
 		Client::flush_queue(self);
-	}
-
-	fn queue_info(&self) -> queue::QueueInfo {
-		self.queue.queue_info()
 	}
 
 	fn cht_root(&self, i: usize) -> Option<H256> {

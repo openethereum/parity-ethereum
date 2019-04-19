@@ -716,7 +716,9 @@ usage! {
 			"--no-persistent-txqueue",
 			"Don't save pending local transactions to disk to be restored whenever the node restarts.",
 
-			FLAG flag_stratum: (bool) = false, or |c: &Config| Some(c.stratum.is_some()),
+			// For backward compatibility; Stratum should be enabled if the config file
+			// contains a `[stratum]` section and it is not explicitly disabled (disable = true)
+			FLAG flag_stratum: (bool) = false, or |c: &Config| Some(c.stratum.as_ref().map(|s| s.disable != Some(true)).unwrap_or(false)),
 			"--stratum",
 			"Run Stratum server for miner push notification.",
 
@@ -1379,6 +1381,7 @@ struct Mining {
 #[derive(Default, Debug, PartialEq, Deserialize)]
 #[serde(deny_unknown_fields)]
 struct Stratum {
+	disable: Option<bool>,
 	interface: Option<String>,
 	port: Option<u16>,
 	secret: Option<String>,
@@ -1593,6 +1596,83 @@ mod tests {
 
 		// then
 		assert_eq!(args.arg_pruning_history, 128);
+	}
+
+	#[test]
+	fn should_disable_stratum() {
+		// given
+		let config = toml::from_str(include_str!("./tests/config.stratum_disabled.toml")).unwrap();
+
+		// when
+		let args = Args::parse_with_config(&["parity"], config).unwrap();
+
+		// then
+		assert_eq!(args.flag_stratum, false);
+		assert_eq!(args.arg_stratum_interface, "local".to_owned());
+		assert_eq!(args.arg_stratum_port, 8008u16);
+		assert_eq!(args.arg_stratum_secret, None);
+	}
+
+	#[test]
+	fn should_disable_stratum_when_missing_section() {
+		// given
+		let config = toml::from_str(include_str!("./tests/config.stratum_missing_section.toml")).unwrap();
+
+		// when
+		let args = Args::parse_with_config(&["parity"], config).unwrap();
+
+		// then
+		assert_eq!(args.flag_stratum, false);
+		assert_eq!(args.arg_stratum_interface, "local".to_owned());
+		assert_eq!(args.arg_stratum_port, 8008u16);
+		assert_eq!(args.arg_stratum_secret, None);
+	}
+
+	#[test]
+	fn should_enable_stratum() {
+		// given
+		let config = toml::from_str(include_str!("./tests/config.stratum_enabled.toml")).unwrap();
+
+		// when
+		let args = Args::parse_with_config(&["parity"], config).unwrap();
+
+		// then (with custom configurations)
+		assert_eq!(args.flag_stratum, true);
+		assert_eq!(args.arg_stratum_interface, "some_interface".to_owned());
+		assert_eq!(args.arg_stratum_port, 8007u16);
+		assert_eq!(args.arg_stratum_secret, Some("Yellow".to_owned()));
+	}
+
+	#[test]
+	fn should_enable_stratum_by_param() {
+		// given
+		let config = toml::from_str(include_str!("./tests/config.full.toml")).unwrap();
+
+		// when
+		let args = Args::parse_with_config(&["parity", "--stratum"], config).unwrap();
+
+		// then
+		assert_eq!(args.flag_stratum, true);
+		assert_eq!(args.arg_stratum_interface, "local".to_owned());
+		assert_eq!(args.arg_stratum_port, 8008u16);
+		assert_eq!(args.arg_stratum_secret, None);
+	}
+
+	#[test]
+	// For backward compatibility; Stratum should be enabled if the config file
+	// contains a `[stratum]` section and it is not explicitly disabled (disable = true)
+	fn should_enable_stratum_when_missing_field() {
+		// given
+		let config = toml::from_str(include_str!("./tests/config.stratum_missing_field.toml")).unwrap();
+
+		// when
+		let args = Args::parse_with_config(&["parity"], config).unwrap();
+
+		// then
+		assert_eq!(args.flag_stratum, true);
+		assert_eq!(args.arg_stratum_interface, "local".to_owned());
+		assert_eq!(args.arg_stratum_port, 8008u16);
+		assert_eq!(args.arg_stratum_secret, None);
 	}
 
 	#[test]

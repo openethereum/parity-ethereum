@@ -42,7 +42,6 @@ use jsonrpc_core::futures::future;
 use v1::helpers::{self, errors, limit_logs, fake_sign};
 use v1::helpers::deprecated::{self, DeprecationNotice};
 use v1::helpers::dispatch::{FullDispatcher, default_gas_price};
-use v1::helpers::block_import::is_major_importing;
 use v1::traits::Eth;
 use v1::types::{
 	RichBlock, Block, BlockTransactions, BlockNumber, Bytes, SyncStatus, SyncInfo,
@@ -510,7 +509,7 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM, T: StateInfo + 'static> Eth for EthClient<
 			_ => (false, None, None),
 		};
 
-		if warping || is_major_importing(Some(status.state), client.queue_info()) {
+		if warping || self.sync.is_major_syncing() {
 			let chain_info = client.chain_info();
 			let current_block = U256::from(chain_info.best_block_number);
 			let highest_block = U256::from(status.highest_block_number.unwrap_or(status.start_block_number));

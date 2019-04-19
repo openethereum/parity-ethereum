@@ -420,15 +420,22 @@ where
 	}
 
 	fn transaction_by_hash(&self, hash: H256) -> BoxFuture<Option<Transaction>> {
-		{
-			let tx_queue = self.transaction_queue.read();
-			if let Some(tx) = tx_queue.get(&hash) {
+		let in_txqueue = self.transaction_queue.read().get(&hash).is_some();
+
+		// The transaction is in the `local txqueue` then fetch the latest state from the network and attempt
+		// to cull the transaction queue.
+		if in_txqueue {
+			// Note, this will block (relies on HTTP timeout) to make sure `cull` will finish to avoid having to call
+			// `eth_getTransactionByHash` more than once to ensure the `txqueue` is up to `date` when it is called
+			if let Err(e) = self.fetcher().light_cull(self.transaction_queue.clone()).wait() {
+				debug!(target: "cull", "failed because of: {:?}", e);
+			}
+			if let Some(tx) = self.transaction_queue.read().get(&hash) {
 				return Box::new(future::ok(Some(Transaction::from_pending(
 					tx.clone(),
 				))));
 			}
 		}
-
 		Box::new(self.fetcher().transaction_by_hash(hash).map(|x| x.map(|(tx, _)| tx)))
 	}
 
