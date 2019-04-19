@@ -24,12 +24,15 @@
 //! address-wise manner.
 
 use std::fmt;
+use std::sync::Arc;
 use std::collections::{BTreeMap, HashMap};
 use std::collections::hash_map::Entry;
 
 use common_types::transaction::{self, Condition, PendingTransaction, SignedTransaction};
 use ethereum_types::{H256, U256, Address};
 use fastmap::H256FastMap;
+use futures::sync::mpsc;
+use miner::pool::TxStatus;
 
 // Knowledge of an account's current nonce.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -134,6 +137,7 @@ pub struct TransactionQueue {
 	by_account: HashMap<Address, AccountTransactions>,
 	by_hash: H256FastMap<PendingTransaction>,
 	listeners: Vec<Listener>,
+	tx_statuses_listeners: Vec<mpsc::UnboundedSender<Arc<Vec<(H256, TxStatus)>>>>,
 }
 
 impl fmt::Debug for TransactionQueue {
@@ -231,7 +235,7 @@ impl TransactionQueue {
 		};
 
 		self.by_hash.insert(hash, tx);
-		self.notify(&promoted);
+		self.notify(&promoted, TxStatus::Added);
 		Ok(res)
 	}
 
@@ -343,6 +347,8 @@ impl TransactionQueue {
 		trace!(target: "txqueue", "Culled {} old transactions from sender {} (nonce={})",
 			removed_hashes.len(), address, cur_nonce);
 
+		self.notify(&removed_hashes, TxStatus::Culled);
+
 		for hash in removed_hashes {
 			self.by_hash.remove(&hash);
 		}
@@ -358,11 +364,26 @@ impl TransactionQueue {
 		self.listeners.push(f);
 	}
 
+	/// Add a transaction queue listener.
+	pub fn tx_statuses_receiver(&mut self) -> mpsc::UnboundedReceiver<Arc<Vec<(H256, TxStatus)>>> {
+		let (sender, receiver) = mpsc::unbounded();
+		self.tx_statuses_listeners.push(sender);
+		receiver
+	}
+
 	/// Notifies all listeners about new pending transaction.
-	fn notify(&self, hashes: &[H256]) {
+	fn notify(&mut self, hashes: &[H256], status: TxStatus) {
 		for listener in &self.listeners {
 			listener(hashes)
 		}
+
+		let to_send: Arc<Vec<(H256, TxStatus)>> = Arc::new(
+			hashes
+				.into_iter()
+				.map(|hash| (hash.clone(), status)).collect()
+		);
+
+		self.tx_statuses_listeners.retain(| listener| listener.unbounded_send(to_send.clone()).is_ok());
 	}
 }
 

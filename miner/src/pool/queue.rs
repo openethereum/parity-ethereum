@@ -22,17 +22,18 @@ use std::sync::atomic::{self, AtomicUsize};
 use std::collections::{BTreeMap, BTreeSet, HashMap};
 
 use ethereum_types::{H256, U256, Address};
+use futures::sync::mpsc;
 use parking_lot::RwLock;
 use txpool::{self, Verifier};
 use types::transaction;
 
 use pool::{
 	self, replace, scoring, verifier, client, ready, listener,
-	PrioritizationStrategy, PendingOrdering, PendingSettings,
+	PrioritizationStrategy, PendingOrdering, PendingSettings, TxStatus
 };
 use pool::local_transactions::LocalTransactionsList;
 
-type Listener = (LocalTransactionsList, (listener::Notifier, listener::Logger));
+type Listener = (LocalTransactionsList, (listener::Notifier, (listener::Logger, listener::TransactionsPoolNotifier)));
 type Pool = txpool::Pool<pool::VerifiedTransaction, scoring::NonceAndGasPrice, Listener>;
 
 /// Max cache time in milliseconds for pending transactions.
@@ -304,6 +305,8 @@ impl TransactionQueue {
 		// Notify about imported transactions.
 		(self.pool.write().listener_mut().1).0.notify();
 
+		((self.pool.write().listener_mut().1).1).1.notify();
+
 		if results.iter().any(|r| r.is_ok()) {
 			self.cached_pending.write().clear();
 		}
@@ -572,6 +575,12 @@ impl TransactionQueue {
 	pub fn add_listener(&self, f: Box<Fn(&[H256]) + Send + Sync>) {
 		let mut pool = self.pool.write();
 		(pool.listener_mut().1).0.add(f);
+	}
+
+	/// Add a listener to be notified about all transactions the pool
+	pub fn add_tx_pool_listener(&self, f: mpsc::UnboundedSender<Arc<Vec<(H256, TxStatus)>>>) {
+		let mut pool = self.pool.write();
+		((pool.listener_mut().1).1).1.add(f);
 	}
 
 	/// Check if pending set is cached.

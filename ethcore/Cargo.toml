@@ -30,6 +30,7 @@ ethereum-types = "0.4"
 ethjson = { path = "../json" }
 ethkey = { path = "../accounts/ethkey" }
 evm = { path = "evm" }
+futures = "0.1"
 hash-db = "0.11.0"
 heapsize = "0.4"
 itertools = "0.5"

@@ -18,6 +18,7 @@ memory-db = "0.11.0"
 trie-db = "0.11.0"
 patricia-trie-ethereum = { path = "../../util/patricia-trie-ethereum" }
 ethcore-network = { path = "../../util/network" }
+ethcore-miner = { path = "../../miner" }
 ethcore-io = { path = "../../util/io" }
 hash-db = "0.11.0"
 heapsize = "0.4"

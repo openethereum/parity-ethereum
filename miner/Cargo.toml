@@ -31,6 +31,9 @@ parity-runtime = { path = "../util/runtime" }
 parking_lot = "0.7"
 price-info = { path = "./price-info", optional = true }
 rlp = { version = "0.3.0", features = ["ethereum"] }
+serde = "1.0"
+serde_derive = "1.0"
+serde_json = "1.0"
 trace-time = "0.1"
 transaction-pool = "2.0"
 
