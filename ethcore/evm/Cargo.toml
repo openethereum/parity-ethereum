@@ -14,6 +14,7 @@ vm = { path = "../vm" }
 keccak-hash = "0.1"
 parking_lot = "0.7"
 memory-cache = { path = "../../util/memory-cache" }
+rug = "1.3"
 
 [dev-dependencies]
 rustc-hex = "1.0"

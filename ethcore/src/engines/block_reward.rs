@@ -50,7 +50,13 @@ pub enum RewardKind {
 impl RewardKind {
 	/// Create `RewardKind::Uncle` from given current block number and uncle block number.
 	pub fn uncle(number: BlockNumber, uncle: BlockNumber) -> Self {
-		RewardKind::Uncle(if number > uncle && number - uncle <= u8::max_value().into() { (number - uncle) as u8 } else { 0 })
+		RewardKind::Uncle(
+			if number > uncle && number - uncle <= u64::from(u8::max_value()) {
+				(number - uncle) as u8
+			} else {
+				0
+			}
+		)
 	}
 }
 

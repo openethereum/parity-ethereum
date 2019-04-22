@@ -1067,7 +1067,7 @@ impl Engine<EthereumMachine> for AuthorityRound {
 			return Seal::None;
 		}
 
-		if parent_step > step.into() {
+		if parent_step > u64::from(step) {
 			warn!(target: "engine", "Aborting seal generation for invalid step: {} > {}", parent_step, step);
 			return Seal::None;
 		}
