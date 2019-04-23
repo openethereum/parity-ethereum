@@ -30,7 +30,7 @@ pub enum ChainMessageType {
 	/// Message with signed private transaction
 	SignedPrivateTransaction(H256, Vec<u8>),
 	/// Private state request for the particular private contract
-	PrivateStateRequest(Vec<Address>),
+	PrivateStateRequest(H256),
 }
 
 /// Route type to indicate whether it is enacted or retracted.

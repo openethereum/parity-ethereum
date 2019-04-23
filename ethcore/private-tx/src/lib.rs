@@ -407,10 +407,9 @@ impl Provider {
 			let contract = Self::contract_address_from_transaction(&desc.original_transaction)?;
 			if self.use_offchain_storage {
 				// Save state into the storage and store its hash in the contract
-				let current_nonce = self.get_contract_nonce(&contract, BlockId::Latest)?;
 				let original_state = saved_state.clone();
 				saved_state = keccak(&saved_state).to_vec();
-				self.state_storage.save_state(&contract, original_state, current_nonce);
+				self.state_storage.save_state(original_state);
 			}
 			let mut signatures = desc.received_signatures.clone();
 			signatures.push(signed_tx.signature());
@@ -532,23 +531,21 @@ impl Provider {
 			}
 		}
 		// Check states for the avaialble contracts, if they're outdated
-		let mut stalled_contracts: Vec<(Address, U256)> = Vec::new();
+		let mut stalled_contracts_hashes: Vec<H256> = Vec::new();
 		for address in private_contracts {
-			if let Ok(on_chain_nonce) = self.get_contract_nonce(&address, BlockId::Latest) {
-				match self.state_storage.state(&address) {
-					Ok(stored_state_data) => {
-						if stored_state_data.nonce < on_chain_nonce {
-							stalled_contracts.push((address, on_chain_nonce));
-						}
-					}
-					Err(_) => stalled_contracts.push((address, on_chain_nonce)),
+			if let Ok(state_hash) = self.get_decrypted_state_from_contract(&address, BlockId::Latest) {
+				if let Err(_) = self.state_storage.state(&state_hash) {
+					// State not found in the local db
+					stalled_contracts_hashes.push(state_hash);
 				}
 			}
 		}
-		let contracts_to_sync = self.state_storage.start_states_sync(&stalled_contracts);
-		if !contracts_to_sync.is_empty() {
-			trace!(target: "privatetx", "Requesting states for the following contracts: {:?}", stalled_contracts);
-			self.notify(|notify| notify.broadcast(ChainMessageType::PrivateStateRequest(contracts_to_sync.clone())));
+		let hashes_to_sync = self.state_storage.start_states_sync(&stalled_contracts_hashes);
+		if !hashes_to_sync.is_empty() {
+			trace!(target: "privatetx", "Requesting states for the following hashes: {:?}", hashes_to_sync);
+			for hash in hashes_to_sync {
+				self.notify(|notify| notify.broadcast(ChainMessageType::PrivateStateRequest(hash)));
+			}
 		}
 	}
 
@@ -577,8 +574,9 @@ impl Provider {
 	fn get_decrypted_state(&self, address: &Address, block: BlockId) -> Result<Bytes, Error> {
 		match self.use_offchain_storage {
 			true => {
-				let stored_state_data = self.state_storage.state(address)?;
-				Ok(stored_state_data.data)
+				let hashed_state = self.get_decrypted_state_from_contract(address, block)?;
+				let stored_state_data = self.state_storage.state(hashed_state)?;
+				Ok(stored_state_data)
 			}
 			false => self.get_decrypted_state_from_contract(address, block),
 		}
@@ -730,9 +728,8 @@ impl Provider {
 		let mut saved_state = executed_state;
 		if self.use_offchain_storage {
 			// Save state into the storage and store its hash in the contract
-			let private_contract_nonce = self.get_contract_nonce(&executed.contract_address, BlockId::Latest)?;
 			saved_state = keccak(&saved_state).to_vec();
-			self.state_storage.save_state(&executed.contract_address, executed_code.clone(), private_contract_nonce);
+			self.state_storage.save_state(executed_code.clone());
 		}
 		let tx_data = Self::generate_constructor(validators, executed_code.clone(), saved_state.clone());
 		let mut tx = Transaction {
