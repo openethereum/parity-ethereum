@@ -1,5 +1,7 @@
 extern crate common_types as types;
 extern crate ethcore;
+#[cfg(test)]
+extern crate ethcore_accounts as accounts;
 extern crate ethcore_miner;
 extern crate ethereum_types;
 extern crate ethkey;
@@ -25,15 +27,19 @@ pub fn init() {
 
 #[cfg(test)]
 mod tests {
-	use ethcore::client::{BlockId, BlockInfo};
-
 	use crate::test_helpers::{hbbft_client_setup, inject_transaction};
+	use ethcore::client::{BlockId, BlockInfo};
+	use ethcore::engines::signer::from_keypair;
+	use hash::keccak;
 
 	#[test]
 	fn test_miner_transaction_injection() {
 		super::init();
 
-		let (client, _, miner) = hbbft_client_setup();
+		let keypair = ethkey::KeyPair::from_secret(keccak("1").into())
+			.expect("KeyPair generation must succeed");
+
+		let (client, _, miner) = hbbft_client_setup(from_keypair(keypair));
 
 		// Verify that we actually start at block 0.
 		assert_eq!(client.chain().best_block_number(), 0);

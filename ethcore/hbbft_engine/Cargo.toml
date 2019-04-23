@@ -27,6 +27,7 @@ common-types = { path = "../types" }
 
 [dev-dependencies]
 ethcore = { path = "..", features = ["test-helpers"] }
+ethcore-accounts = { path = "../../accounts" }
 
 [features]
 # Include tools to facilitate test setup.

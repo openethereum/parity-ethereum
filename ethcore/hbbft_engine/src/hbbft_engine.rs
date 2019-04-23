@@ -4,6 +4,7 @@ use parking_lot::RwLock;
 
 use ethcore::block::ExecutedBlock;
 use ethcore::client::EngineClient;
+use ethcore::engines::signer::EngineSigner;
 use ethcore::engines::{total_difficulty_fork_choice, Engine, EthEngine, ForkChoice, Seal};
 use ethcore::error::Error;
 use ethcore::machine::EthereumMachine;
@@ -12,6 +13,7 @@ use types::transaction::SignedTransaction;
 
 pub struct HoneyBadgerBFT {
 	client: Arc<RwLock<Option<Weak<EngineClient>>>>,
+	signer: RwLock<Option<Box<EngineSigner>>>,
 	machine: EthereumMachine,
 	transactions_trigger: usize,
 }
@@ -23,6 +25,7 @@ impl HoneyBadgerBFT {
 	) -> Result<Arc<EthEngine>, Box<Error>> {
 		let engine = Arc::new(HoneyBadgerBFT {
 			client: Arc::new(RwLock::new(None)),
+			signer: RwLock::new(None),
 			machine: machine,
 			// TODO: configure through spec params
 			transactions_trigger: 1,
@@ -52,6 +55,14 @@ impl Engine<EthereumMachine> for HoneyBadgerBFT {
 		*self.client.write() = Some(client.clone());
 	}
 
+	fn set_signer(&self, signer: Box<EngineSigner>) {
+		*self.signer.write() = Some(signer);
+	}
+
+	fn clear_signer(&self) {
+		*self.signer.write() = Default::default();
+	}
+
 	fn seals_internally(&self) -> Option<bool> {
 		Some(true)
 	}
@@ -60,7 +71,7 @@ impl Engine<EthereumMachine> for HoneyBadgerBFT {
 		if let Some(ref weak) = *self.client.read() {
 			if let Some(c) = weak.upgrade() {
 				if c.queued_transactions().len() >= self.transactions_trigger {
-					// TODO: Use the average timestamp of all contributing hbbft nodes
+					// TODO: Use the median timestamp of all contributing hbbft nodes
 					c.create_pending_block(c.queued_transactions(), 0);
 				}
 			}

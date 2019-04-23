@@ -3,6 +3,7 @@ use std::sync::Arc;
 use rustc_hex::FromHex;
 
 use ethcore::client::Client;
+use ethcore::engines::signer::EngineSigner;
 use ethcore::miner::{Miner, MinerService};
 use ethcore::spec::Spec;
 use ethcore::test_helpers::generate_dummy_client_with_spec;
@@ -23,7 +24,7 @@ pub fn hbbft_client() -> std::sync::Arc<ethcore::client::Client> {
 	generate_dummy_client_with_spec(hbbft_spec)
 }
 
-pub fn hbbft_client_setup() -> (Arc<Client>, Arc<TestNotify>, Arc<Miner>) {
+pub fn hbbft_client_setup(signer: Box<EngineSigner>) -> (Arc<Client>, Arc<TestNotify>, Arc<Miner>) {
 	// Create client
 	let client = hbbft_client();
 
@@ -31,6 +32,7 @@ pub fn hbbft_client_setup() -> (Arc<Client>, Arc<TestNotify>, Arc<Miner>) {
 	{
 		let engine = client.engine();
 		engine.register_client(Arc::downgrade(&client) as _);
+		engine.set_signer(signer);
 	}
 
 	// Register notify object for capturing consensus messages
