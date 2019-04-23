@@ -19,7 +19,10 @@ use std::collections::hash_map::Entry;
 use std::sync::Arc;
 use parking_lot::RwLock;
 use bytes::Bytes;
+use ethcore_db::COL_PRIVATE_TRANSACTIONS_STATE;
 use ethereum_types::{Address, U256};
+use journaldb::overlaydb::OverlayDB;
+use kvdb::KeyValueDB;
 use error::{Error, ErrorKind};
 use types::transaction::SignedTransaction;
 use private_transactions::VerifiedPrivateTransaction;
@@ -47,17 +50,21 @@ pub struct PrivateStateStore {
 	verification_requests: RwLock<Vec<Arc<VerifiedPrivateTransaction>>>,
 	creation_requests: RwLock<Vec<SignedTransaction>>,
 	temp_offchain_storage: RwLock<HashMap<Address, StoredPrivateState>>,
+	private_state: RwLock<OverlayDB>,
+	db: Arc<KeyValueDB>,
 	sync_state: RwLock<SyncState>,
 	syncing_private_states: RwLock<HashMap<Address, U256>>,
 }
 
 impl PrivateStateStore {
 	/// Constructs the object
-	pub fn new() -> Self {
+	pub fn new(db: Arc<KeyValueDB>) -> Self {
 		PrivateStateStore {
 			verification_requests: RwLock::new(Vec::new()),
 			creation_requests: RwLock::new(Vec::new()),
 			temp_offchain_storage: RwLock::default(),
+			private_state: RwLock::new(OverlayDB::new(db.clone(), COL_PRIVATE_TRANSACTIONS_STATE)),
+			db,
 			sync_state: RwLock::new(SyncState::Idle),
 			syncing_private_states: RwLock::default(),
 		}

@@ -139,6 +139,7 @@ impl ClientService {
 			private_tx_conf,
 			io_service.channel(),
 			private_keys,
+			blockchain_db.key_value().clone(),
 		));
 		let private_tx = Arc::new(PrivateTxService::new(provider));
 
