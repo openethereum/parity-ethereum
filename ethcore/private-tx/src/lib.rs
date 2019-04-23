@@ -534,6 +534,7 @@ impl Provider {
 		let mut stalled_contracts_hashes: Vec<H256> = Vec::new();
 		for address in private_contracts {
 			if let Ok(state_hash) = self.get_decrypted_state_from_contract(&address, BlockId::Latest) {
+				let state_hash = H256::from_slice(&state_hash);
 				if let Err(_) = self.state_storage.state(&state_hash) {
 					// State not found in the local db
 					stalled_contracts_hashes.push(state_hash);
@@ -575,7 +576,8 @@ impl Provider {
 		match self.use_offchain_storage {
 			true => {
 				let hashed_state = self.get_decrypted_state_from_contract(address, block)?;
-				let stored_state_data = self.state_storage.state(hashed_state)?;
+				let hashed_state = H256::from_slice(&hashed_state);
+				let stored_state_data = self.state_storage.state(&hashed_state)?;
 				Ok(stored_state_data)
 			}
 			false => self.get_decrypted_state_from_contract(address, block),

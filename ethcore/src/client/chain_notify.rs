@@ -15,7 +15,7 @@
 // along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
 use bytes::Bytes;
-use ethereum_types::{H256, U256, Address};
+use ethereum_types::{H256, U256};
 use types::transaction::UnverifiedTransaction;
 use blockchain::ImportRoute;
 use std::time::Duration;

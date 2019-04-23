@@ -15,7 +15,6 @@
 // along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
 use std::collections::HashMap;
-use std::collections::hash_map::Entry;
 use std::sync::Arc;
 use hash::keccak;
 use parking_lot::RwLock;
@@ -73,9 +72,9 @@ impl PrivateStateStore {
 		let mut new_hashes = Vec::new();
 		for hash in hashes_to_sync {
 			let mut hashes = self.syncing_hashes.write();
-			if hashes.iter().find(|h| h == hash).is_none() {
-				hashes.push(hash);
-				new_hashes.push(hash);
+			if hashes.iter().find(|&h| h == hash).is_none() {
+				hashes.push(*hash);
+				new_hashes.push(*hash);
 			}
 		}
 		new_hashes
@@ -106,7 +105,7 @@ impl PrivateStateStore {
 	/// Stores state for the address
 	pub fn save_state(&self, storage: Bytes) {
 		let mut offchain_storage = self.temp_offchain_storage.write();
-		let state_hash = keccak(storage);
+		let state_hash = keccak(&storage);
 		offchain_storage.insert(state_hash, storage);
 	}
 
