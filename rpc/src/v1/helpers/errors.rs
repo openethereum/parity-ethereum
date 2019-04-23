@@ -240,7 +240,7 @@ pub fn unavailable_block(no_ancient_block: bool, by_hash: bool) -> Error {
 	} else {
 		Error {
 			code: ErrorCode::ServerError(codes::UNSUPPORTED_REQUEST),
-			message: "Ancient block sync is still in progress".into(),
+			message: "Requested block number is in a range that is not available yet, because the ancient block sync is still in progress.".into(),
 			data: None,
 		}
 	}
