@@ -100,7 +100,7 @@ mod tests {
 
 		sub_state.accrue(sub_state_2);
 		assert_eq!(sub_state.contracts_created.len(), 2);
-		assert_eq!(sub_state.sstore_clears_refund, (15000 * 12).into());
+		assert_eq!(sub_state.sstore_clears_refund, i128::from(15000 * 12));
 		assert_eq!(sub_state.suicides.len(), 1);
 	}
 }
