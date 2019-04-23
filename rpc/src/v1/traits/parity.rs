@@ -232,4 +232,8 @@ pub trait Parity {
 	/// Is allowed to skip filling transaction hash for faster query.
 	#[rpc(name = "parity_getLogsNoTransactionHash")]
 	fn logs_no_tx_hash(&self, Filter) -> BoxFuture<Vec<Log>>;
+
+	/// Returns raw block RLP with given number.
+	#[rpc(name = "parity_getRawBlockByNumber")]
+	fn get_raw_block_by_number(&self, BlockNumber) -> Result<Option<Bytes>>;
 }

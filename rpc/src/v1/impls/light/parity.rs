@@ -47,6 +47,7 @@ use v1::types::{
 	Log, Filter,
 };
 use Host;
+use v1::helpers::errors::light_unimplemented;
 
 /// Parity implementation for light client.
 pub struct ParityClient<S, OD>
@@ -406,5 +407,9 @@ where
 
 	fn verify_signature(&self, is_prefixed: bool, message: Bytes, r: H256, s: H256, v: U64) -> Result<RecoveredAccount> {
 		verify_signature(is_prefixed, message, r, s, v, self.light_dispatch.client.signing_chain_id())
+	}
+
+	fn get_raw_block_by_number(&self, _: BlockNumber) -> Result<Option<Bytes>> {
+		Err(light_unimplemented(None))
 	}
 }
