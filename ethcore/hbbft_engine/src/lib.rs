@@ -5,9 +5,11 @@ extern crate ethcore_accounts as accounts;
 extern crate ethcore_miner;
 extern crate ethereum_types;
 extern crate ethkey;
+extern crate hbbft;
 extern crate inventory;
 extern crate keccak_hash as hash;
 extern crate parking_lot;
+extern crate rand;
 extern crate rustc_hex;
 extern crate serde_json;
 
@@ -31,10 +33,18 @@ mod tests {
 	use ethcore::client::{BlockId, BlockInfo};
 	use ethcore::engines::signer::from_keypair;
 	use hash::keccak;
+	use hbbft::NetworkInfo;
+	use rand;
 
 	#[test]
 	fn test_miner_transaction_injection() {
 		super::init();
+
+		// Generate a new set of cryptographic keys for threshold cryptography.
+		let mut rng = rand::thread_rng();
+		let size = 1;
+		let _net_infos = NetworkInfo::generate_map(0..size as u16, &mut rng)
+			.expect("NetworkInfo generation is expected to always succeed");
 
 		let keypair = ethkey::KeyPair::from_secret(keccak("1").into())
 			.expect("KeyPair generation must succeed");
