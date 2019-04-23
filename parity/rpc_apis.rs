@@ -259,6 +259,7 @@ pub struct FullDependencies {
 	pub gas_price_percentile: usize,
 	pub poll_lifetime: u32,
 	pub allow_missing_blocks: bool,
+	pub no_ancient_blocks: bool,
 }
 
 impl FullDependencies {
@@ -310,6 +311,7 @@ impl FullDependencies {
 							gas_price_percentile: self.gas_price_percentile,
 							allow_missing_blocks: self.allow_missing_blocks,
 							allow_experimental_rpcs: self.experimental_rpcs,
+							no_ancient_blocks: self.no_ancient_blocks
 						}
 					);
 					handler.extend_with(client.to_delegate());
