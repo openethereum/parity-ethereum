@@ -41,6 +41,18 @@ use rustc_hex::FromHex;
 
 criterion_group!(
 	basic,
+	mul500,
+	mul1000,
+	div500,
+	div1000,
+	sdiv500,
+	sdiv1000,
+	mod500,
+	mod1000,
+	smod500,
+	smod1000,
+	addmod500,
+	addmod1000,
 	mulmod500,
 	mulmod1000,
 	mulmod1_500,
@@ -267,5 +279,89 @@ fn mulmod500(b: &mut Criterion) {
 fn mulmod1000(b: &mut Criterion) {
 	b.bench_function("mulmod randomly generated ints, 1000 times", |b| {
 		run_code(b, "6103e85b600190037f5ed6db9489224124a1a4110ec8bec8b01369c8b549a4b8c4388a1796dc35a9377fb8e0a2b6b1587398c28bf9e9d34ea24ba34df308eec2acedca363b2fce2c25db7fcc2de1f8ec6cc9a24ed2c48b856637f9e45f0a5feee21a196aa42a290ef454ca095080600357".from_hex().unwrap());
+	});
+}
+
+/// Compute addmod(a, b, c) for random 256-bit a, b and c. Iterate 500 times.
+fn addmod500(b: &mut Criterion) {
+	b.bench_function("addmod randomly generated ints, 500 times", |b| {
+		run_code(b, "6101f45b600190037f5ed6db9489224124a1a4110ec8bec8b01369c8b549a4b8c4388a1796dc35a9377fb8e0a2b6b1587398c28bf9e9d34ea24ba34df308eec2acedca363b2fce2c25db7fcc2de1f8ec6cc9a24ed2c48b856637f9e45f0a5feee21a196aa42a290ef454ca085080600357".from_hex().unwrap());
+	});
+}
+
+/// Compute addmod(a, b, c) for random 256-bit a, b and c. Iterate 1000 times.
+fn addmod1000(b: &mut Criterion) {
+	b.bench_function("addmod randomly generated ints, 1000 times", |b| {
+		run_code(b, "6103e85b600190037f5ed6db9489224124a1a4110ec8bec8b01369c8b549a4b8c4388a1796dc35a9377fb8e0a2b6b1587398c28bf9e9d34ea24ba34df308eec2acedca363b2fce2c25db7fcc2de1f8ec6cc9a24ed2c48b856637f9e45f0a5feee21a196aa42a290ef454ca085080600357".from_hex().unwrap());
+	});
+}
+
+/// Compute mul(a, b) for random 256-bit a and b. Iterate 500 times.
+fn mul500(b: &mut Criterion) {
+	b.bench_function("mul randomly generated ints, 500 times", |b| {
+		run_code(b, "6101f45b600190037fb8e0a2b6b1587398c28bf9e9d34ea24ba34df308eec2acedca363b2fce2c25db7fcc2de1f8ec6cc9a24ed2c48b856637f9e45f0a5feee21a196aa42a290ef454ca025080600357".from_hex().unwrap());
+	});
+}
+
+/// Compute mul(a, b) for random 256-bit a and b. Iterate 1000 times.
+fn mul1000(b: &mut Criterion) {
+	b.bench_function("mul randomly generated ints, 1000 times", |b| {
+		run_code(b, "6103e85b600190037fb8e0a2b6b1587398c28bf9e9d34ea24ba34df308eec2acedca363b2fce2c25db7fcc2de1f8ec6cc9a24ed2c48b856637f9e45f0a5feee21a196aa42a290ef454ca025080600357".from_hex().unwrap());
+	});
+}
+
+/// Compute div(a, b) for random 256-bit a and b. Iterate 500 times.
+fn div500(b: &mut Criterion) {
+	b.bench_function("div randomly generated ints, 500 times", |b| {
+		run_code(b, "6101f45b600190037fb8e0a2b6b1587398c28bf9e9d34ea24ba34df308eec2acedca363b2fce2c25db7fcc2de1f8ec6cc9a24ed2c48b856637f9e45f0a5feee21a196aa42a290ef454ca045080600357".from_hex().unwrap());
+	});
+}
+
+/// Compute div(a, b) for random 256-bit a and b. Iterate 1000 times.
+fn div1000(b: &mut Criterion) {
+	b.bench_function("div randomly generated ints, 1000 times", |b| {
+		run_code(b, "6103e85b600190037fb8e0a2b6b1587398c28bf9e9d34ea24ba34df308eec2acedca363b2fce2c25db7fcc2de1f8ec6cc9a24ed2c48b856637f9e45f0a5feee21a196aa42a290ef454ca045080600357".from_hex().unwrap());
+	});
+}
+
+/// Compute sdiv(a, b) for random 256-bit a and b. Iterate 500 times.
+fn sdiv500(b: &mut Criterion) {
+	b.bench_function("sdiv randomly generated ints, 500 times", |b| {
+		run_code(b, "6101f45b600190037fb8e0a2b6b1587398c28bf9e9d34ea24ba34df308eec2acedca363b2fce2c25db7fcc2de1f8ec6cc9a24ed2c48b856637f9e45f0a5feee21a196aa42a290ef454ca055080600357".from_hex().unwrap());
+	});
+}
+
+/// Compute sdiv(a, b) for random 256-bit a and b. Iterate 1000 times.
+fn sdiv1000(b: &mut Criterion) {
+	b.bench_function("sdiv randomly generated ints, 1000 times", |b| {
+		run_code(b, "6103e85b600190037fb8e0a2b6b1587398c28bf9e9d34ea24ba34df308eec2acedca363b2fce2c25db7fcc2de1f8ec6cc9a24ed2c48b856637f9e45f0a5feee21a196aa42a290ef454ca055080600357".from_hex().unwrap());
+	});
+}
+
+/// Compute mod(a, b) for random 256-bit a and b. Iterate 500 times.
+fn mod500(b: &mut Criterion) {
+	b.bench_function("mod randomly generated ints, 500 times", |b| {
+		run_code(b, "6101f45b600190037fb8e0a2b6b1587398c28bf9e9d34ea24ba34df308eec2acedca363b2fce2c25db7fcc2de1f8ec6cc9a24ed2c48b856637f9e45f0a5feee21a196aa42a290ef454ca065080600357".from_hex().unwrap());
+	});
+}
+
+/// Compute mod(a, b) for random 256-bit a and b. Iterate 1000 times.
+fn mod1000(b: &mut Criterion) {
+	b.bench_function("mod randomly generated ints, 1000 times", |b| {
+		run_code(b, "6103e85b600190037fb8e0a2b6b1587398c28bf9e9d34ea24ba34df308eec2acedca363b2fce2c25db7fcc2de1f8ec6cc9a24ed2c48b856637f9e45f0a5feee21a196aa42a290ef454ca065080600357".from_hex().unwrap());
+	});
+}
+
+/// Compute smod(a, b) for random 256-bit a and b. Iterate 500 times.
+fn smod500(b: &mut Criterion) {
+	b.bench_function("smod randomly generated ints, 500 times", |b| {
+		run_code(b, "6101f45b600190037fb8e0a2b6b1587398c28bf9e9d34ea24ba34df308eec2acedca363b2fce2c25db7fcc2de1f8ec6cc9a24ed2c48b856637f9e45f0a5feee21a196aa42a290ef454ca075080600357".from_hex().unwrap());
+	});
+}
+
+/// Compute smod(a, b) for random 256-bit a and b. Iterate 1000 times.
+fn smod1000(b: &mut Criterion) {
+	b.bench_function("smod randomly generated ints, 1000 times", |b| {
+		run_code(b, "6103e85b600190037fb8e0a2b6b1587398c28bf9e9d34ea24ba34df308eec2acedca363b2fce2c25db7fcc2de1f8ec6cc9a24ed2c48b856637f9e45f0a5feee21a196aa42a290ef454ca075080600357".from_hex().unwrap());
 	});
 }
