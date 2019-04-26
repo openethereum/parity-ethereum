@@ -287,14 +287,14 @@ impl Provider {
 		let private_state = self.execute_private_transaction(BlockId::Latest, &signed_transaction);
 		if let Err(err) = private_state {
 			match err {
-				Error(ErrorKind::PrivateStateNotFound, _) => {
+				Error::PrivateStateNotFound => {
 					trace!(target: "privatetx", "Private state for the contract not found, requesting from peers");
 					self.state_storage.add_creation_request(signed_transaction);
 					self.request_private_state(&contract);
 				}
 				_ => {}
 			}
-			bail!(err);
+			return Err(err);
 		}
 		let private_state = private_state.expect("Valid state since this");
 		trace!(target: "privatetx", "Private transaction created, encrypted transaction: {:?}, private state: {:?}", private, private_state);
@@ -373,7 +373,7 @@ impl Provider {
 			if let Err(err) = self.process_verification_transaction(&transaction) {
 				warn!(target: "privatetx", "Error: {:?}", err);
 				match err {
-					Error(ErrorKind::PrivateStateNotFound, _) => {
+					Error::PrivateStateNotFound => {
 						let contract = transaction.private_transaction.contract();
 						trace!(target: "privatetx", "Private state for the contract {:?} not found, requesting from peers", &contract);
 						self.state_storage.add_verification_request(transaction);

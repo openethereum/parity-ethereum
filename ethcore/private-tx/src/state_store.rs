@@ -23,7 +23,7 @@ use ethcore_db::COL_PRIVATE_TRANSACTIONS_STATE;
 use ethereum_types::H256;
 use journaldb::overlaydb::OverlayDB;
 use kvdb::KeyValueDB;
-use error::{Error, ErrorKind};
+use error::Error;
 use types::transaction::SignedTransaction;
 use private_transactions::VerifiedPrivateTransaction;
 
@@ -98,7 +98,7 @@ impl PrivateStateStore {
 		let offchain_storage = self.temp_offchain_storage.read();
 		match offchain_storage.get(state_hash) {
 			Some(state) => Ok(state.clone()),
-			None => bail!(ErrorKind::PrivateStateNotFound),
+			None => Err(Error::PrivateStateNotFound),
 		}
 	}
 
