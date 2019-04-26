@@ -14,15 +14,14 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
-use std::collections::HashMap;
 use std::sync::Arc;
-use hash::keccak;
 use parking_lot::RwLock;
 use bytes::Bytes;
 use ethcore_db::COL_PRIVATE_TRANSACTIONS_STATE;
 use ethereum_types::H256;
 use journaldb::overlaydb::OverlayDB;
-use kvdb::KeyValueDB;
+use kvdb::{KeyValueDB, DBTransaction};
+use hash_db::HashDB;
 use error::Error;
 use types::transaction::SignedTransaction;
 use private_transactions::VerifiedPrivateTransaction;
@@ -40,7 +39,6 @@ pub enum SyncState {
 pub struct PrivateStateStore {
 	verification_requests: RwLock<Vec<Arc<VerifiedPrivateTransaction>>>,
 	creation_requests: RwLock<Vec<SignedTransaction>>,
-	temp_offchain_storage: RwLock<HashMap<H256, Bytes>>,
 	private_state: RwLock<OverlayDB>,
 	db: Arc<KeyValueDB>,
 	sync_state: RwLock<SyncState>,
@@ -53,7 +51,6 @@ impl PrivateStateStore {
 		PrivateStateStore {
 			verification_requests: RwLock::new(Vec::new()),
 			creation_requests: RwLock::new(Vec::new()),
-			temp_offchain_storage: RwLock::default(),
 			private_state: RwLock::new(OverlayDB::new(db.clone(), COL_PRIVATE_TRANSACTIONS_STATE)),
 			db,
 			sync_state: RwLock::new(SyncState::Idle),
@@ -95,18 +92,18 @@ impl PrivateStateStore {
 
 	/// Returns saved state for the address
 	pub fn state(&self, state_hash: &H256) -> Result<Bytes, Error> {
-		let offchain_storage = self.temp_offchain_storage.read();
-		match offchain_storage.get(state_hash) {
-			Some(state) => Ok(state.clone()),
-			None => Err(Error::PrivateStateNotFound),
-		}
+		let private_state = self.private_state.read();
+		private_state.get(state_hash).map(|s| s.to_vec()).ok_or(Error::PrivateStateNotFound)
 	}
 
 	/// Stores state for the address
-	pub fn save_state(&self, storage: Bytes) {
-		let mut offchain_storage = self.temp_offchain_storage.write();
-		let state_hash = keccak(&storage);
-		offchain_storage.insert(state_hash, storage);
+	pub fn save_state(&self, storage: &Bytes) -> Result<H256, Error> {
+		let mut private_state = self.private_state.write();
+		let state_hash = private_state.insert(storage);
+		let mut transaction = DBTransaction::new();
+		private_state.commit_to_batch(&mut transaction)?;
+		self.db.write(transaction).map_err(|_| Error::DatabaseWriteError)?;
+		Ok(state_hash)
 	}
 
 	/// Stores verification request for the later verification

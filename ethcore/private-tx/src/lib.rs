@@ -39,6 +39,8 @@ extern crate ethkey;
 extern crate fetch;
 extern crate futures;
 extern crate parity_util_mem;
+extern crate hash_db;
+extern crate heapsize;
 extern crate keccak_hash as hash;
 extern crate kvdb;
 extern crate machine;
@@ -409,7 +411,7 @@ impl Provider {
 				// Save state into the storage and store its hash in the contract
 				let original_state = saved_state.clone();
 				saved_state = keccak(&saved_state).to_vec();
-				self.state_storage.save_state(original_state);
+				self.state_storage.save_state(&original_state)?;
 			}
 			let mut signatures = desc.received_signatures.clone();
 			signatures.push(signed_tx.signature());
@@ -731,7 +733,7 @@ impl Provider {
 		if self.use_offchain_storage {
 			// Save state into the storage and store its hash in the contract
 			saved_state = keccak(&saved_state).to_vec();
-			self.state_storage.save_state(executed_code.clone());
+			self.state_storage.save_state(&executed_code)?;
 		}
 		let tx_data = Self::generate_constructor(validators, executed_code.clone(), saved_state.clone());
 		let mut tx = Transaction {
