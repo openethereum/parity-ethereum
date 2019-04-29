@@ -16,13 +16,10 @@
 
 //! General error types for use in ethcore.
 
-// Silence: `use of deprecated item 'std::error::Error::cause': replaced by Error::source, which can support downcasting`
-// https://github.com/paritytech/parity-ethereum/issues/10302
-#![allow(deprecated)]
-
 use std::{fmt, error};
 use std::time::SystemTime;
 
+use derive_more::Display;
 use ethereum_types::{H256, U256, Address, Bloom};
 use ethkey::Error as EthkeyError;
 use ethtrie::TrieError;
@@ -37,118 +34,112 @@ use engines::EngineError;
 
 pub use executed::{ExecutionError, CallError};
 
-#[derive(Debug, PartialEq, Clone, Eq)]
 /// Errors concerning block processing.
+#[derive(Debug, Display, PartialEq, Clone, Eq)]
 pub enum BlockError {
 	/// Block has too many uncles.
+	#[display(fmt = "Block has too many uncles. {}", _0)]
 	TooManyUncles(OutOfBounds<usize>),
 	/// Extra data is of an invalid length.
+	#[display(fmt = "Extra block data too long. {}", _0)]
 	ExtraDataOutOfBounds(OutOfBounds<usize>),
 	/// Seal is incorrect format.
+	#[display(fmt = "Block seal in incorrect format: {}", _0)]
 	InvalidSealArity(Mismatch<usize>),
 	/// Block has too much gas used.
+	#[display(fmt = "Block has too much gas used. {}", _0)]
 	TooMuchGasUsed(OutOfBounds<U256>),
 	/// Uncles hash in header is invalid.
+	#[display(fmt = "Block has invalid uncles hash: {}", _0)]
 	InvalidUnclesHash(Mismatch<H256>),
 	/// An uncle is from a generation too old.
+	#[display(fmt = "Uncle block is too old. {}", _0)]
 	UncleTooOld(OutOfBounds<BlockNumber>),
 	/// An uncle is from the same generation as the block.
+	#[display(fmt = "Uncle from same generation as block. {}", _0)]
 	UncleIsBrother(OutOfBounds<BlockNumber>),
 	/// An uncle is already in the chain.
+	#[display(fmt = "Uncle {} already in chain", _0)]
 	UncleInChain(H256),
 	/// An uncle is included twice.
+	#[display(fmt = "Uncle {} already in the header", _0)]
 	DuplicateUncle(H256),
 	/// An uncle has a parent not in the chain.
+	#[display(fmt = "Uncle {} has a parent not in the chain", _0)]
 	UncleParentNotInChain(H256),
 	/// State root header field is invalid.
+	#[display(fmt = "Invalid state root in header: {}", _0)]
 	InvalidStateRoot(Mismatch<H256>),
 	/// Gas used header field is invalid.
+	#[display(fmt = "Invalid gas used in header: {}", _0)]
 	InvalidGasUsed(Mismatch<U256>),
 	/// Transactions root header field is invalid.
+	#[display(fmt = "Invalid transactions root in header: {}", _0)]
 	InvalidTransactionsRoot(Mismatch<H256>),
 	/// Difficulty is out of range; this can be used as an looser error prior to getting a definitive
 	/// value for difficulty. This error needs only provide bounds of which it is out.
+	#[display(fmt = "Difficulty out of bounds: {}", _0)]
 	DifficultyOutOfBounds(OutOfBounds<U256>),
 	/// Difficulty header field is invalid; this is a strong error used after getting a definitive
 	/// value for difficulty (which is provided).
+	#[display(fmt = "Invalid block difficulty: {}", _0)]
 	InvalidDifficulty(Mismatch<U256>),
 	/// Seal element of type H256 (max_hash for Ethash, but could be something else for
 	/// other seal engines) is out of bounds.
+	#[display(fmt = "Seal element out of bounds: {}", _0)]
 	MismatchedH256SealElement(Mismatch<H256>),
 	/// Proof-of-work aspect of seal, which we assume is a 256-bit value, is invalid.
+	#[display(fmt = "Block has invalid PoW: {}", _0)]
 	InvalidProofOfWork(OutOfBounds<U256>),
 	/// Some low-level aspect of the seal is incorrect.
+	#[display(fmt = "Block has invalid seal.")]
 	InvalidSeal,
 	/// Gas limit header field is invalid.
+	#[display(fmt = "Invalid gas limit: {}", _0)]
 	InvalidGasLimit(OutOfBounds<U256>),
 	/// Receipts trie root header field is invalid.
+	#[display(fmt = "Invalid receipts trie root in header: {}", _0)]
 	InvalidReceiptsRoot(Mismatch<H256>),
 	/// Timestamp header field is invalid.
-	InvalidTimestamp(OutOfBounds<SystemTime>),
+	#[display(fmt = "Invalid timestamp in header: {}", _0)]
+	InvalidTimestamp(OutOfBoundsTime),
 	/// Timestamp header field is too far in future.
-	TemporarilyInvalid(OutOfBounds<SystemTime>),
+	#[display(fmt = "Future timestamp in header: {}", _0)]
+	TemporarilyInvalid(OutOfBoundsTime),
 	/// Log bloom header field is invalid.
+	#[display(fmt = "Invalid log bloom in header: {}", _0)]
 	InvalidLogBloom(Box<Mismatch<Bloom>>),
 	/// Number field of header is invalid.
+	#[display(fmt = "Invalid number in header: {}", _0)]
 	InvalidNumber(Mismatch<BlockNumber>),
 	/// Block number isn't sensible.
+	#[display(fmt = "Implausible block number. {}", _0)]
 	RidiculousNumber(OutOfBounds<BlockNumber>),
 	/// Timestamp header overflowed
+	#[display(fmt = "Timestamp overflow")]
 	TimestampOverflow,
 	/// Too many transactions from a particular address.
+	#[display(fmt = "Too many transactions from: {}", _0)]
 	TooManyTransactions(Address),
 	/// Parent given is unknown.
+	#[display(fmt = "Unknown parent: {}", _0)]
 	UnknownParent(H256),
 	/// Uncle parent given is unknown.
+	#[display(fmt = "Unknown uncle parent: {}", _0)]
 	UnknownUncleParent(H256),
 	/// No transition to epoch number.
+	#[display(fmt = "Unknown transition to epoch number: {}", _0)]
 	UnknownEpochTransition(u64),
 }
 
-impl fmt::Display for BlockError {
+/// Newtype for Display impl to show seconds
+pub struct OutOfBoundsTime(OutOfBounds<SystemTime>);
+
+impl fmt::Display for OutOfBoundsTime {
 	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-		use self::BlockError::*;
-
-		let msg = match *self {
-			TooManyUncles(ref oob) => format!("Block has too many uncles. {}", oob),
-			ExtraDataOutOfBounds(ref oob) => format!("Extra block data too long. {}", oob),
-			InvalidSealArity(ref mis) => format!("Block seal in incorrect format: {}", mis),
-			TooMuchGasUsed(ref oob) => format!("Block has too much gas used. {}", oob),
-			InvalidUnclesHash(ref mis) => format!("Block has invalid uncles hash: {}", mis),
-			UncleTooOld(ref oob) => format!("Uncle block is too old. {}", oob),
-			UncleIsBrother(ref oob) => format!("Uncle from same generation as block. {}", oob),
-			UncleInChain(ref hash) => format!("Uncle {} already in chain", hash),
-			DuplicateUncle(ref hash) => format!("Uncle {} already in the header", hash),
-			UncleParentNotInChain(ref hash) => format!("Uncle {} has a parent not in the chain", hash),
-			InvalidStateRoot(ref mis) => format!("Invalid state root in header: {}", mis),
-			InvalidGasUsed(ref mis) => format!("Invalid gas used in header: {}", mis),
-			InvalidTransactionsRoot(ref mis) => format!("Invalid transactions root in header: {}", mis),
-			DifficultyOutOfBounds(ref oob) => format!("Invalid block difficulty: {}", oob),
-			InvalidDifficulty(ref mis) => format!("Invalid block difficulty: {}", mis),
-			MismatchedH256SealElement(ref mis) => format!("Seal element out of bounds: {}", mis),
-			InvalidProofOfWork(ref oob) => format!("Block has invalid PoW: {}", oob),
-			InvalidSeal => "Block has invalid seal.".into(),
-			InvalidGasLimit(ref oob) => format!("Invalid gas limit: {}", oob),
-			InvalidReceiptsRoot(ref mis) => format!("Invalid receipts trie root in header: {}", mis),
-			InvalidTimestamp(ref oob) => {
-				let oob = oob.map(|st| st.elapsed().unwrap_or_default().as_secs());
-				format!("Invalid timestamp in header: {}", oob)
-			},
-			TemporarilyInvalid(ref oob) => {
-				let oob = oob.map(|st| st.elapsed().unwrap_or_default().as_secs());
-				format!("Future timestamp in header: {}", oob)
-			},
-			InvalidLogBloom(ref oob) => format!("Invalid log bloom in header: {}", oob),
-			InvalidNumber(ref mis) => format!("Invalid number in header: {}", mis),
-			RidiculousNumber(ref oob) => format!("Implausible block number. {}", oob),
-			UnknownParent(ref hash) => format!("Unknown parent: {}", hash),
-			UnknownUncleParent(ref hash) => format!("Unknown uncle parent: {}", hash),
-			UnknownEpochTransition(ref num) => format!("Unknown transition to epoch number: {}", num),
-			TimestampOverflow => format!("Timestamp overflow"),
-			TooManyTransactions(ref address) => format!("Too many transactions from: {}", address),
-		};
-
-		f.write_fmt(format_args!("Block error ({})", msg))
+		let seconds = self.0
+			.map(|st| st.elapsed().unwrap_or_default().as_secs());
+		f.write_fmt(format_args!("{}", seconds))
 	}
 }
 

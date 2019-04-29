@@ -13,8 +13,8 @@ bn = { git = "https://github.com/paritytech/bn", default-features = false }
 byteorder = "1.0"
 common-types = { path = "types" }
 crossbeam = "0.4"
+derive_more = "0.14.0"
 env_logger = { version = "0.5", optional = true }
-error-chain = { version = "0.12", default-features = false }
 ethabi = "6.0"
 ethabi-contract = "6.0"
 ethabi-derive = "6.0"
