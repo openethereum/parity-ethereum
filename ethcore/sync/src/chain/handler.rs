@@ -183,10 +183,10 @@ impl SyncHandler {
 			return Err(DownloaderImportError::Invalid);
 		}
 		match io.chain().import_block(block) {
-			Err(EthcoreError(EthcoreErrorKind::Import(ImportErrorKind::AlreadyInChain), _)) => {
+			Err(EthcoreError(EthcoreError::Import(ImportErrorKind::AlreadyInChain))) => {
 				trace!(target: "sync", "New block already in chain {:?}", hash);
 			},
-			Err(EthcoreError(EthcoreErrorKind::Import(ImportErrorKind::AlreadyQueued), _)) => {
+			Err(EthcoreError(EthcoreError::Import(ImportErrorKind::AlreadyQueued))) => {
 				trace!(target: "sync", "New block already queued {:?}", hash);
 			},
 			Ok(_) => {
@@ -195,7 +195,7 @@ impl SyncHandler {
 				sync.new_blocks.mark_as_known(&hash, number);
 				trace!(target: "sync", "New block queued {:?} ({})", hash, number);
 			},
-			Err(EthcoreError(EthcoreErrorKind::Block(BlockError::UnknownParent(p)), _)) => {
+			Err(EthcoreError(EthcoreError::Block(BlockError::UnknownParent(p)))) => {
 				unknown = true;
 				trace!(target: "sync", "New block with unknown parent ({:?}) {:?}", p, hash);
 			},

@@ -364,14 +364,14 @@ fn verify_block_integrity(block: &Unverified) -> Result<(), Error> {
 	let tx = block_rlp.at(1)?;
 	let expected_root = ordered_trie_root(tx.iter().map(|r| r.as_raw()));
 	if &expected_root != block.header.transactions_root() {
-		bail!(BlockError::InvalidTransactionsRoot(Mismatch {
+		return Err(BlockError::InvalidTransactionsRoot(Mismatch {
 			expected: expected_root,
 			found: *block.header.transactions_root(),
 		}));
 	}
 	let expected_uncles = keccak(block_rlp.at(2)?.as_raw());
 	if &expected_uncles != block.header.uncles_hash(){
-		bail!(BlockError::InvalidUnclesHash(Mismatch {
+		return Err(BlockError::InvalidUnclesHash(Mismatch {
 			expected: expected_uncles,
 			found: *block.header.uncles_hash(),
 		}));

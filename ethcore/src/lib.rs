@@ -126,7 +126,6 @@ extern crate rlp_compress;
 extern crate ethabi_derive;
 #[macro_use]
 extern crate ethabi_contract;
-#[macro_use]
 extern crate derive_more;
 #[macro_use]
 extern crate log;

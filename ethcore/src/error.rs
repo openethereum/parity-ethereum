@@ -196,7 +196,7 @@ pub enum TransactionImportError {
 impl From<Error> for TransactionImportError {
 	fn from(e: Error) -> Self {
 		match e {
-			Error(ErrorKind::Transaction(transaction_error), _) => TransactionImportError::Transaction(transaction_error),
+			Error::Transaction(transaction_error) => TransactionImportError::Transaction(transaction_error),
 			_ => TransactionImportError::Other(format!("other block import error: {:?}", e)),
 		}
 	}
@@ -256,6 +256,9 @@ pub enum Error {
 	/// Unknown engine given
 	#[display(fmt = "Unknown engine name ({})", _0)]
 	UnknownEngineName(String),
+	/// A convenient variant for String.
+	#[display(fmt = "{}", _0)]
+	Msg(String),
 }
 
 impl error::Error for Error {
@@ -276,13 +279,19 @@ impl error::Error for Error {
 	}
 }
 
+impl From<String> for Error {
+	fn from(s: String) -> Self {
+		Error::Msg(s)
+	}
+}
+
 impl From<SnapshotError> for Error {
 	fn from(err: SnapshotError) -> Error {
 		match err {
-			SnapshotError::Io(err) => ErrorKind::StdIo(err).into(),
-			SnapshotError::Trie(err) => ErrorKind::Trie(err).into(),
+			SnapshotError::Io(err) => Error::StdIo(err).into(),
+			SnapshotError::Trie(err) => Error::Trie(err).into(),
 			SnapshotError::Decoder(err) => err.into(),
-			other => ErrorKind::Snapshot(other).into(),
+			other => Error::Snapshot(other).into(),
 		}
 	}
 }

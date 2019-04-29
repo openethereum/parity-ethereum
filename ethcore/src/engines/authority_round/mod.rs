@@ -29,7 +29,7 @@ use client::EngineClient;
 use engines::{Engine, Seal, EngineError, ConstructedVerifier};
 use engines::block_reward;
 use engines::block_reward::{BlockRewardContract, RewardKind};
-use error::{Error, ErrorKind, BlockError};
+use error::{Error, BlockError};
 use ethjson;
 use machine::{AuxiliaryData, Call, EthereumMachine};
 use hash::keccak;
@@ -1342,7 +1342,7 @@ impl Engine<EthereumMachine> for AuthorityRound {
 		// contract itself.
 		let res = verify_external(header, &*validators, self.empty_steps_transition);
 		match res {
-			Err(Error(ErrorKind::Engine(EngineError::NotProposer(_)), _)) => {
+			Err(Error::Engine(EngineError::NotProposer(_))) => {
 				self.validators.report_benign(header.author(), set_number, header.number());
 			},
 			Ok(_) => {

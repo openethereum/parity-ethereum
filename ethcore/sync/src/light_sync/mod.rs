@@ -524,10 +524,10 @@ impl<L: AsLightClient> LightSync<L> {
 				for header in sink.drain(..) {
 					match client.queue_header(header) {
 						Ok(_) => {}
-						Err(EthcoreError(EthcoreErrorKind::Import(ImportErrorKind::AlreadyInChain), _)) => {
+						Err(EthcoreError(EthcoreError::Import(ImportErrorKind::AlreadyInChain))) => {
 							trace!(target: "sync", "Block already in chain. Continuing.");
 						},
-						Err(EthcoreError(EthcoreErrorKind::Import(ImportErrorKind::AlreadyQueued), _)) => {
+						Err(EthcoreError(EthcoreError::Import(ImportErrorKind::AlreadyQueued))) => {
 							trace!(target: "sync", "Block already queued. Continuing.");
 						},
 						Err(e) => {
