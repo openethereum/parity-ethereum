@@ -19,7 +19,7 @@
 use std::{fmt, error};
 use std::time::SystemTime;
 
-use derive_more::Display;
+use derive_more::{Display, From};
 use ethereum_types::{H256, U256, Address, Bloom};
 use ethkey::Error as EthkeyError;
 use ethtrie::TrieError;
@@ -149,49 +149,40 @@ impl error::Error for BlockError {
 	}
 }
 
-error_chain! {
-	types {
-		QueueError, QueueErrorKind, QueueErrorResultExt, QueueErrorResult;
-	}
+/// Queue error
+#[derive(Debug, Display, From)]
+pub enum QueueError {
+	/// Queue is full
+	#[display(fmt = "Queue is full ({})", _0)]
+	Full(usize),
+	/// Io channel error
+	#[display(fmt = "Io channel error: {}", _0)]
+	Channel(::io::IoError)
+}
 
-	errors {
-		#[doc = "Queue is full"]
-		Full(limit: usize) {
-			description("Queue is full")
-			display("The queue is full ({})", limit)
+impl error::Error for QueueError {
+	fn source(&self) -> Option<&(error::Error + 'static)> {
+		match self {
+			QueueError::Channel(e) => Some(e),
+			_ => None,
 		}
-	}
-
-	foreign_links {
-		Channel(::io::IoError) #[doc = "Io channel error"];
 	}
 }
 
-error_chain! {
-	types {
-		ImportError, ImportErrorKind, ImportErrorResultExt, ImportErrorResult;
-	}
-
-	errors {
-		#[doc = "Already in the block chain."]
-		AlreadyInChain {
-			description("Block already in chain")
-			display("Block already in chain")
-		}
-
-		#[doc = "Already in the block queue"]
-		AlreadyQueued {
-			description("block already in the block queue")
-			display("block already in the block queue")
-		}
-
-		#[doc = "Already marked as bad from a previous import (could mean parent is bad)."]
-		KnownBad {
-			description("block known to be bad")
-			display("block known to be bad")
-		}
-	}
+#[derive(Debug, Display)]
+pub enum ImportError {
+	/// Already in the block chain.
+	#[display(fmt = "Block already in chain")]
+	AlreadyInChain,
+	/// Already in the block queue
+	#[display(fmt = "block already in the block queue")]
+	AlreadyQueued,
+	/// Already marked as bad from a previous import (could mean parent is bad)
+	#[display(fmt = "block known to be bad")]
+	KnownBad,
 }
+
+impl error::Error for ImportError {}
 
 /// Api-level error for transaction import
 #[derive(Debug, Clone)]
@@ -211,52 +202,76 @@ impl From<Error> for TransactionImportError {
 	}
 }
 
-error_chain! {
-	types {
-		Error, ErrorKind, ErrorResultExt, EthcoreResult;
-	}
+// Ethcore Result
+pub type EthcoreResult<T> = Result<T, Error>;
 
-	links {
-		Import(ImportError, ImportErrorKind) #[doc = "Error concerning block import." ];
-		Queue(QueueError, QueueErrorKind) #[doc = "Io channel queue error"];
-	}
+/// Ethcore Error
+#[derive(Debug, Display, From)]
+pub enum Error {
+	/// Error concerning block import.
+	#[display(fmt = "Import error: {}", _0)]
+	Import(ImportError),
+	/// Io channel queue error
+	#[display(fmt = "Queue error: {}", _0)]
+	Queue(QueueError),
+	/// Io create error
+	#[display(fmt = "Io error: {}", _0)]
+	Io(::io::IoError),
+	/// Error concerning the Rust standard library's IO subsystem.
+	#[display(fmt = "Std Io error: {}", _0)]
+	StdIo(::std::io::Error),
+	/// Error concerning TrieDBs.
+	#[display(fmt = "Trie error: {}", _0)]
+	Trie(TrieError),
+	/// Error concerning EVM code execution.
+	#[display(fmt = "Execution error: {}", _0)]
+	Execution(ExecutionError),
+	/// Error concerning block processing.
+	#[display(fmt = "Block error: {}", _0)]
+	Block(BlockError),
+	/// Error concerning transaction processing.
+	#[display(fmt = "Transaction error: {}", _0)]
+	Transaction(TransactionError),
+	/// Snappy error
+	#[display(fmt = "Snappy error: {}", _0)]
+	Snappy(InvalidInput),
+	/// Consensus vote error.
+	#[display(fmt = "Engine error: {}", _0)]
+	Engine(EngineError),
+	/// Ethkey error."
+	#[display(fmt = "Ethkey error: {}", _0)]
+	Ethkey(EthkeyError),
+	/// RLP decoding errors
+	#[display(fmt = "Decoder error: {}", _0)]
+	Decoder(rlp::DecoderError),
+	/// Snapshot error.
+	#[display(fmt = "Snapshot error {}", _0)]
+	Snapshot(SnapshotError),
+	/// PoW hash is invalid or out of date.
+	#[display(fmt = "PoW hash is invalid or out of date.")]
+	PowHashInvalid,
+	/// The value of the nonce or mishash is invalid.
+	#[display(fmt = "The value of the nonce or mishash is invalid.")]
+	PowInvalid,
+	/// Unknown engine given
+	#[display(fmt = "Unknown engine name ({})", _0)]
+	UnknownEngineName(String),
+}
 
-	foreign_links {
-		Io(::io::IoError) #[doc = "Io create error"];
-		StdIo(::std::io::Error) #[doc = "Error concerning the Rust standard library's IO subsystem."];
-		Trie(TrieError) #[doc = "Error concerning TrieDBs."];
-		Execution(ExecutionError) #[doc = "Error concerning EVM code execution."];
-		Block(BlockError) #[doc = "Error concerning block processing."];
-		Transaction(TransactionError) #[doc = "Error concerning transaction processing."];
-		Snappy(InvalidInput) #[doc = "Snappy error."];
-		Engine(EngineError) #[doc = "Consensus vote error."];
-		Ethkey(EthkeyError) #[doc = "Ethkey error."];
-		Decoder(rlp::DecoderError) #[doc = "RLP decoding errors"];
-	}
-
-	errors {
-		#[doc = "Snapshot error."]
-		Snapshot(err: SnapshotError) {
-			description("Snapshot error.")
-			display("Snapshot error {}", err)
-		}
-
-		#[doc = "PoW hash is invalid or out of date."]
-		PowHashInvalid {
-			description("PoW hash is invalid or out of date.")
-			display("PoW hash is invalid or out of date.")
-		}
-
-		#[doc = "The value of the nonce or mishash is invalid."]
-		PowInvalid {
-			description("The value of the nonce or mishash is invalid.")
-			display("The value of the nonce or mishash is invalid.")
-		}
-
-		#[doc = "Unknown engine given"]
-		UnknownEngineName(name: String) {
-			description("Unknown engine name")
-			display("Unknown engine name ({})", name)
+impl error::Error for Error {
+	fn source(&self) -> Option<&(error::Error + 'static)> {
+		match self {
+			Error::Io(e) => Some(e),
+			Error::StdIo(e) => Some(e),
+			Error::Trie(e) => Some(e),
+			Error::Execution(e) => Some(e),
+			Error::Block(e) => Some(e),
+			Error::Transaction(e) => Some(e),
+			Error::Snappy(e) => Some(e),
+			Error::Engine(e) => Some(e),
+			Error::Ethkey(e) => Some(e),
+			Error::Decoder(e) => Some(e),
+			_ => None,
 		}
 	}
 }
