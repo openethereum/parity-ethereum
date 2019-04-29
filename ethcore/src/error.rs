@@ -133,6 +133,7 @@ pub enum BlockError {
 }
 
 /// Newtype for Display impl to show seconds
+#[derive(Debug, Clone, From, PartialEq, Eq)]
 pub struct OutOfBoundsTime(OutOfBounds<SystemTime>);
 
 impl fmt::Display for OutOfBoundsTime {
@@ -169,6 +170,7 @@ impl error::Error for QueueError {
 	}
 }
 
+/// Block import Error
 #[derive(Debug, Display)]
 pub enum ImportError {
 	/// Already in the block chain.
@@ -202,7 +204,7 @@ impl From<Error> for TransactionImportError {
 	}
 }
 
-// Ethcore Result
+/// Ethcore Result
 pub type EthcoreResult<T> = Result<T, Error>;
 
 /// Ethcore Error
@@ -285,16 +287,22 @@ impl From<String> for Error {
 	}
 }
 
-impl From<SnapshotError> for Error {
-	fn from(err: SnapshotError) -> Error {
-		match err {
-			SnapshotError::Io(err) => Error::StdIo(err).into(),
-			SnapshotError::Trie(err) => Error::Trie(err).into(),
-			SnapshotError::Decoder(err) => err.into(),
-			other => Error::Snapshot(other).into(),
-		}
+impl From<&str> for Error {
+	fn from(s: &str) -> Self {
+		Error::Msg(s.into())
 	}
 }
+
+//impl From<SnapshotError> for Error {
+//	fn from(err: SnapshotError) -> Error {
+//		match err {
+//			SnapshotError::Io(err) => Error::StdIo(err).into(),
+//			SnapshotError::Trie(err) => Error::Trie(err).into(),
+//			SnapshotError::Decoder(err) => err.into(),
+//			other => Error::Snapshot(other).into(),
+//		}
+//	}
+//}
 
 impl<E> From<Box<E>> for Error where Error: From<E> {
 	fn from(err: Box<E>) -> Error {

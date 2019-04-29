@@ -585,7 +585,7 @@ fn verify_timestamp(step: &Step, header_step: u64) -> Result<(), BlockError> {
 
 			let new_oob = OutOfBounds { min, max, found };
 
-			Err(BlockError::TemporarilyInvalid(new_oob).into())
+			Err(BlockError::TemporarilyInvalid(new_oob.into()).into())
 		},
 		Ok(_) => Ok(()),
 	}

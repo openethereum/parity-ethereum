@@ -314,11 +314,11 @@ pub fn verify_header_params(header: &Header, engine: &EthEngine, is_full: bool, 
 			.ok_or(BlockError::TimestampOverflow)?;
 
 		if timestamp > invalid_threshold {
-			return Err(From::from(BlockError::InvalidTimestamp(OutOfBounds { max: Some(max_time), min: None, found: timestamp })))
+			return Err(From::from(BlockError::InvalidTimestamp(OutOfBounds { max: Some(max_time), min: None, found: timestamp }.into())))
 		}
 
 		if timestamp > max_time {
-			return Err(From::from(BlockError::TemporarilyInvalid(OutOfBounds { max: Some(max_time), min: None, found: timestamp })))
+			return Err(From::from(BlockError::TemporarilyInvalid(OutOfBounds { max: Some(max_time), min: None, found: timestamp }.into())))
 		}
 	}
 
@@ -338,7 +338,7 @@ fn verify_parent(header: &Header, parent: &Header, engine: &EthEngine) -> Result
 			.ok_or(BlockError::TimestampOverflow)?;
 		let found = now.checked_add(Duration::from_secs(header.timestamp()))
 			.ok_or(BlockError::TimestampOverflow)?;
-		return Err(From::from(BlockError::InvalidTimestamp(OutOfBounds { max: None, min: Some(min), found })))
+		return Err(From::from(BlockError::InvalidTimestamp(OutOfBounds { max: None, min: Some(min), found }.into())))
 	}
 	if header.number() != parent.number() + 1 {
 		return Err(From::from(BlockError::InvalidNumber(Mismatch { expected: parent.number() + 1, found: header.number() })));
@@ -367,14 +367,14 @@ fn verify_block_integrity(block: &Unverified) -> Result<(), Error> {
 		return Err(BlockError::InvalidTransactionsRoot(Mismatch {
 			expected: expected_root,
 			found: *block.header.transactions_root(),
-		}));
+		}).into());
 	}
 	let expected_uncles = keccak(block_rlp.at(2)?.as_raw());
 	if &expected_uncles != block.header.uncles_hash(){
 		return Err(BlockError::InvalidUnclesHash(Mismatch {
 			expected: expected_uncles,
 			found: *block.header.uncles_hash(),
-		}));
+		}).into());
 	}
 	Ok(())
 }
