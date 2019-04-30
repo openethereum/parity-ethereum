@@ -74,6 +74,11 @@ using_queue = { path = "../miner/using-queue" }
 vm = { path = "vm" }
 wasm = { path = "wasm" }
 
+# Temporary dependency directly on hbbft to access the NetworkInfo struct
+# Should be removed once all data necessary to construct NetworkInfo directly in
+# the HoneyBadgerBFT consensus engine implementation is provided by smart contracts.
+hbbft = { git = "https://github.com/poanetwork/hbbft" }
+
 [dev-dependencies]
 blooms-db = { path = "../util/blooms-db" }
 criterion = "0.2"

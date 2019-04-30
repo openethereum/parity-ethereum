@@ -18,6 +18,7 @@
 
 use std::sync::{Weak, Arc};
 
+use ethcore::block::ClosedBlock;
 use ethcore::client::{ClientReport, EnvInfo, ClientIoMessage};
 use ethcore::engines::{epoch, EthEngine, EpochChange, EpochTransition, Proof};
 use ethcore::machine::EthereumMachine;
@@ -653,6 +654,12 @@ impl<T: ChainDataFetcher> ::ethcore::client::EngineClient for Client<T> {
 	}
 
 	fn queued_transactions(&self) -> Vec<Arc<VerifiedTransaction>> {
+		warn!(target: "client", "No miner available in light clients.");
 		Vec::new()
+	}
+
+	fn create_pending_block(&self, _txns: Vec<Arc<VerifiedTransaction>>, _timestamp: u64) -> Option<ClosedBlock> {
+		warn!(target: "client", "No miner available in light clients.");
+		None
 	}
 }

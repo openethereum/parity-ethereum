@@ -32,6 +32,11 @@ impl HoneyBadgerBFT {
 		});
 		Ok(engine)
 	}
+
+	fn start_hbbft_epoch(&self, client: Arc<EngineClient>) {
+		// TODO: Use the median timestamp of all contributing hbbft nodes
+		client.create_pending_block(client.queued_transactions(), 0);
+	}
 }
 
 impl Engine<EthereumMachine> for HoneyBadgerBFT {
@@ -69,10 +74,9 @@ impl Engine<EthereumMachine> for HoneyBadgerBFT {
 
 	fn on_transactions_imported(&self) {
 		if let Some(ref weak) = *self.client.read() {
-			if let Some(c) = weak.upgrade() {
-				if c.queued_transactions().len() >= self.transactions_trigger {
-					// TODO: Use the median timestamp of all contributing hbbft nodes
-					c.create_pending_block(c.queued_transactions(), 0);
+			if let Some(client) = weak.upgrade() {
+				if client.queued_transactions().len() >= self.transactions_trigger {
+					self.start_hbbft_epoch(client);
 				}
 			}
 		}

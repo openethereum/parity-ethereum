@@ -109,6 +109,9 @@ extern crate using_queue;
 extern crate vm;
 extern crate wasm;
 
+// Temporary dependency directly on hbbft to access the NetworkInfo struct
+extern crate hbbft;
+
 #[cfg(test)]
 extern crate ethcore_accounts as accounts;
 #[cfg(feature = "stratum")]

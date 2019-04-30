@@ -60,16 +60,21 @@ mod tests {
 	fn do_test_miner_transaction_injection(seed: TestRngSeed) {
 		super::init();
 
-		// Generate a new set of cryptographic keys for threshold cryptography.
-		let mut rng = TestRng::from_seed(seed);
-		let size = 1;
-		let _net_infos = NetworkInfo::generate_map(0..size as u16, &mut rng)
-			.expect("NetworkInfo generation is expected to always succeed");
-
 		let keypair = ethkey::KeyPair::from_secret(keccak("1").into())
 			.expect("KeyPair generation must succeed");
 
 		let (client, _, miner) = hbbft_client_setup(from_keypair(keypair));
+
+		// Generate a new set of cryptographic keys for threshold cryptography.
+		let mut rng = TestRng::from_seed(seed);
+		let size = 1;
+		let net_infos = NetworkInfo::generate_map(0..size as usize, &mut rng)
+			.expect("NetworkInfo generation is expected to always succeed");
+
+		let net_info = net_infos
+			.get(&0)
+			.expect("A NetworkInfo must exist for node 0");
+		client.set_netinfo(net_info.clone());
 
 		// Verify that we actually start at block 0.
 		assert_eq!(client.chain().best_block_number(), 0);

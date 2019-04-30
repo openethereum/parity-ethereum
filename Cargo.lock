@@ -842,6 +842,7 @@ dependencies = [
  "evm 0.1.0",
  "fetch 0.1.0",
  "hash-db 0.11.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "hbbft 0.1.1 (git+https://github.com/poanetwork/hbbft.git)",
  "heapsize 0.4.2 (git+https://github.com/cheme/heapsize.git?branch=ec-macfix)",
  "inventory 0.1.3 (registry+https://github.com/rust-lang/crates.io-index)",
  "itertools 0.5.10 (registry+https://github.com/rust-lang/crates.io-index)",
