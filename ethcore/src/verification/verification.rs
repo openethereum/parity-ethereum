@@ -391,7 +391,6 @@ mod tests {
 	use hash::keccak;
 	use engines::EthEngine;
 	use error::BlockError::*;
-	use error::ErrorKind;
 	use ethkey::{Random, Generator};
 	use spec::{CommonParams, Spec};
 	use test_helpers::{create_test_block_with_data, create_test_block};
@@ -406,7 +405,7 @@ mod tests {
 
 	fn check_fail(result: Result<(), Error>, e: BlockError) {
 		match result {
-			Err(Error(ErrorKind::Block(ref error), _)) if *error == e => (),
+			Err(Error::Block(ref error)) if *error == e => (),
 			Err(other) => panic!("Block verification failed.\nExpected: {:?}\nGot: {:?}", e, other),
 			Ok(_) => panic!("Block verification failed.\nExpected: {:?}\nGot: Ok", e),
 		}
@@ -415,8 +414,8 @@ mod tests {
 	fn check_fail_timestamp(result: Result<(), Error>, temp: bool) {
 		let name = if temp { "TemporarilyInvalid" } else { "InvalidTimestamp" };
 		match result {
-			Err(Error(ErrorKind::Block(BlockError::InvalidTimestamp(_)), _)) if !temp => (),
-			Err(Error(ErrorKind::Block(BlockError::TemporarilyInvalid(_)), _)) if temp => (),
+			Err(Error::Block(BlockError::InvalidTimestamp(_))) if !temp => (),
+			Err(Error::Block(BlockError::TemporarilyInvalid(_))) if temp => (),
 			Err(other) => panic!("Block verification failed.\nExpected: {}\nGot: {:?}", name, other),
 			Ok(_) => panic!("Block verification failed.\nExpected: {}\nGot: Ok", name),
 		}
@@ -690,7 +689,7 @@ mod tests {
 		bad_header.set_transactions_root(eip86_transactions_root.clone());
 		bad_header.set_uncles_hash(good_uncles_hash.clone());
 		match basic_test(&create_test_block_with_data(&bad_header, &eip86_transactions, &good_uncles), engine) {
-			Err(Error(ErrorKind::Transaction(ref e), _)) if e == &::ethkey::Error::InvalidSignature.into() => (),
+			Err(Error::Transaction(ref e)) if e == &::ethkey::Error::InvalidSignature.into() => (),
 			e => panic!("Block verification failed.\nExpected: Transaction Error (Invalid Signature)\nGot: {:?}", e),
 		}
 
@@ -785,7 +784,7 @@ mod tests {
 		header.set_gas_limit(0.into());
 		header.set_difficulty("0000000000000000000000000000000000000000000000000000000000020000".parse::<U256>().unwrap());
 		match family_test(&create_test_block(&header), engine, &bc) {
-			Err(Error(ErrorKind::Block(InvalidGasLimit(_)), _)) => {},
+			Err(Error::Block(InvalidGasLimit(_))) => {},
 			Err(_) => { panic!("should be invalid difficulty fail"); },
 			_ => { panic!("Should be error, got Ok"); },
 		}

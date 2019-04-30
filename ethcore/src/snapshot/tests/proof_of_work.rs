@@ -18,7 +18,7 @@
 
 use std::sync::atomic::AtomicBool;
 use tempdir::TempDir;
-use error::{Error, ErrorKind};
+use error::Error;
 
 use blockchain::generator::{BlockGenerator, BlockBuilder};
 use blockchain::{BlockChain, ExtrasInsert};
@@ -143,7 +143,7 @@ fn checks_flag() {
 	let mut rebuilder = SNAPSHOT_MODE.rebuilder(chain, db.clone(), &manifest).unwrap();
 
 	match rebuilder.feed(&chunk, engine.as_ref(), &AtomicBool::new(false)) {
-		Err(Error(ErrorKind::Snapshot(SnapshotError::RestorationAborted), _)) => {}
+		Err(Error::Snapshot(SnapshotError::RestorationAborted)) => {}
 		_ => panic!("Wrong result on abort flag set")
 	}
 }

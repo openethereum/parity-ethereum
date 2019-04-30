@@ -1570,7 +1570,7 @@ mod tests {
 	use types::transaction::{Action, Transaction};
 	use engines::{Seal, Engine, EngineError, EthEngine};
 	use engines::validator_set::{TestSet, SimpleList};
-	use error::{Error, ErrorKind};
+	use error::Error;
 	use super::{AuthorityRoundParams, AuthorityRound, EmptyStep, SealedEmptyStep, calculate_score};
 
 	fn aura<F>(f: F) -> Arc<AuthorityRound> where
@@ -1883,7 +1883,7 @@ mod tests {
 
 	fn assert_insufficient_proof<T: ::std::fmt::Debug>(result: Result<T, Error>, contains: &str) {
 		match result {
-			Err(Error(ErrorKind::Engine(EngineError::InsufficientProof(ref s)), _)) =>{
+			Err(Error::Engine(EngineError::InsufficientProof(ref s))) =>{
 				assert!(s.contains(contains), "Expected {:?} to contain {:?}", s, contains);
 			},
 			e => assert!(false, "Unexpected result: {:?}", e),
