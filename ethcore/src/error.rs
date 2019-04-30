@@ -276,6 +276,7 @@ impl error::Error for Error {
 			Error::Engine(e) => Some(e),
 			Error::Ethkey(e) => Some(e),
 			Error::Decoder(e) => Some(e),
+			Error::Snapshot(e) => Some(e),
 			_ => None,
 		}
 	}
@@ -292,17 +293,6 @@ impl From<&str> for Error {
 		Error::Msg(s.into())
 	}
 }
-
-//impl From<SnapshotError> for Error {
-//	fn from(err: SnapshotError) -> Error {
-//		match err {
-//			SnapshotError::Io(err) => Error::StdIo(err).into(),
-//			SnapshotError::Trie(err) => Error::Trie(err).into(),
-//			SnapshotError::Decoder(err) => err.into(),
-//			other => Error::Snapshot(other).into(),
-//		}
-//	}
-//}
 
 impl<E> From<Box<E>> for Error where Error: From<E> {
 	fn from(err: Box<E>) -> Error {
