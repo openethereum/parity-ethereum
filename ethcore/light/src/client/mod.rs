@@ -46,6 +46,9 @@ use cache::Cache;
 
 pub use self::service::Service;
 
+// Temporary dependency directly on hbbft to access the NetworkInfo struct
+use hbbft::NetworkInfo;
+
 mod header_chain;
 mod service;
 
@@ -659,6 +662,14 @@ impl<T: ChainDataFetcher> ::ethcore::client::EngineClient for Client<T> {
 	}
 
 	fn create_pending_block(&self, _txns: Vec<Arc<VerifiedTransaction>>, _timestamp: u64) -> Option<ClosedBlock> {
+		warn!(target: "client", "No miner available in light clients.");
+		None
+	}
+
+	/// Temporary access to a NetworkInfo struct required by the hbbft consensus engine
+	/// Should be removed as soon as all information required to build this struct
+	/// can be obtained through the chain spec or contracts.
+	fn net_info(&self) -> Option<NetworkInfo<usize>> {
 		warn!(target: "client", "No miner available in light clients.");
 		None
 	}

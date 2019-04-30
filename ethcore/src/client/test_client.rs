@@ -71,6 +71,9 @@ use trace::LocalizedTrace;
 use verification::queue::QueueInfo;
 use verification::queue::kind::blocks::Unverified;
 
+// Temporary dependency directly on hbbft to access the NetworkInfo struct
+use hbbft::NetworkInfo;
+
 /// Test client.
 pub struct TestBlockChainClient {
 	/// Blocks.
@@ -984,5 +987,12 @@ impl super::traits::EngineClient for TestBlockChainClient {
 
 	fn create_pending_block(&self, txns: Vec<Arc<VerifiedTransaction>>, timestamp: u64) -> Option<ClosedBlock> {
 		self.miner.create_pending_block(self, txns, timestamp)
+	}
+
+	/// Temporary access to a NetworkInfo struct required by the hbbft consensus engine
+	/// Should be removed as soon as all information required to build this struct
+	/// can be obtained through the chain spec or contracts.
+	fn net_info(&self) -> Option<NetworkInfo<usize>> {
+		None
 	}
 }

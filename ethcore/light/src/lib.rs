@@ -94,3 +94,6 @@ extern crate kvdb_memorydb;
 #[cfg(test)]
 extern crate tempdir;
 extern crate journaldb;
+
+// Temporary dependency directly on hbbft to access the NetworkInfo struct
+extern crate hbbft;

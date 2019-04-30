@@ -1036,13 +1036,6 @@ impl Client {
 		*self.net_info.lock() = Some(net_info);
 	}
 
-	/// Temporary access to a NetworkInfo struct required by the hbbft consensus engine
-	/// Should be removed as soon as all information required to build this struct
-	/// can be obtained through the chain spec or contracts.
-	pub fn netinfo(&self) -> Option<NetworkInfo<usize>> {
-		self.net_info.lock().clone()
-	}
-
 	/// Replace io channel. Useful for testing.
 	pub fn set_io_channel(&self, io_channel: IoChannel<ClientIoMessage>) {
 		*self.io_channel.write() = io_channel;
@@ -2530,6 +2523,13 @@ impl super::traits::EngineClient for Client {
 
 	fn create_pending_block(&self, txns: Vec<Arc<VerifiedTransaction>>, timestamp: u64) -> Option<ClosedBlock> {
 		self.importer.miner.create_pending_block(self, txns, timestamp)
+	}
+
+	/// Temporary access to a NetworkInfo struct required by the hbbft consensus engine
+	/// Should be removed as soon as all information required to build this struct
+	/// can be obtained through the chain spec or contracts.
+	fn net_info(&self) -> Option<NetworkInfo<usize>> {
+		self.net_info.lock().clone()
 	}
 }
 

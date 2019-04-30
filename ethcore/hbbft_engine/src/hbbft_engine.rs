@@ -34,7 +34,10 @@ impl HoneyBadgerBFT {
 	}
 
 	fn start_hbbft_epoch(&self, client: Arc<EngineClient>) {
-		// TODO: Use the median timestamp of all contributing hbbft nodes
+		// TODO: Instantiate a hbbft algorithm and create the pending block.
+		// After a hbbft epoch finished successfully, use the median timestamp
+		// of all contributing hbbft nodes as time stamp for the created block.
+		let _net_info = client.net_info();
 		client.create_pending_block(client.queued_transactions(), 0);
 	}
 }
