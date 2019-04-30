@@ -25,7 +25,7 @@ use ethereum_types::H256;
 use rlp::{self, Rlp};
 use types::BlockNumber;
 use ethcore::client::{BlockStatus, BlockId};
-use ethcore::error::{ImportErrorKind, QueueErrorKind, BlockError, Error as EthcoreError, ErrorKind as EthcoreErrorKind};
+use ethcore::error::{ImportError, QueueError, BlockError, Error as EthcoreError};
 use sync_io::SyncIo;
 use blocks::{BlockCollection, SyncBody, SyncHeader};
 use chain::BlockSet;
@@ -556,11 +556,11 @@ impl BlockDownloader {
 			};
 
 			match result {
-				Err(EthcoreError(EthcoreError::Import(ImportErrorKind::AlreadyInChain))) => {
+				Err(EthcoreError::Import(ImportError::AlreadyInChain)) => {
 					trace_sync!(self, "Block already in chain {:?}", h);
 					self.block_imported(&h, number, &parent);
 				},
-				Err(EthcoreError(EthcoreError::Import(ImportErrorKind::AlreadyQueued))) => {
+				Err(EthcoreError::Import(ImportError::AlreadyQueued)) => {
 					trace_sync!(self, "Block already queued {:?}", h);
 					self.block_imported(&h, number, &parent);
 				},
@@ -569,18 +569,18 @@ impl BlockDownloader {
 					imported.insert(h.clone());
 					self.block_imported(&h, number, &parent);
 				},
-				Err(EthcoreError(EthcoreError::Block(BlockError::UnknownParent(_)))) if allow_out_of_order => {
+				Err(EthcoreError::Block(BlockError::UnknownParent(_))) if allow_out_of_order => {
 					break;
 				},
-				Err(EthcoreError(EthcoreError::Block(BlockError::UnknownParent(_)))) => {
+				Err(EthcoreError::Block(BlockError::UnknownParent(_))) => {
 					trace_sync!(self, "Unknown new block parent, restarting sync");
 					break;
 				},
-				Err(EthcoreError(EthcoreError::Block(BlockError::TemporarilyInvalid(_)))) => {
+				Err(EthcoreError::Block(BlockError::TemporarilyInvalid(_))) => {
 					debug_sync!(self, "Block temporarily invalid: {:?}, restarting sync", h);
 					break;
 				},
-				Err(EthcoreError(EthcoreError::Queue(QueueErrorKind::Full(limit)))) => {
+				Err(EthcoreError::Queue(QueueError::Full(limit))) => {
 					debug_sync!(self, "Block import queue full ({}), restarting sync", limit);
 					download_action = DownloadAction::Reset;
 					break;

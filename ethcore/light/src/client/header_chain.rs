@@ -35,7 +35,7 @@ use common_types::encoded;
 use common_types::header::Header;
 use common_types::ids::BlockId;
 use ethcore::engines::epoch::{Transition as EpochTransition, PendingTransition as PendingEpochTransition};
-use ethcore::error::{Error, EthcoreResult, ErrorKind as EthcoreErrorKind, BlockError};
+use ethcore::error::{Error, EthcoreResult, BlockError};
 use ethcore::spec::{Spec, SpecHardcodedSync};
 use ethereum_types::{H256, H264, U256};
 use heapsize::HeapSizeOf;
@@ -403,7 +403,7 @@ impl HeaderChain {
 							.and_then(|entry| entry.candidates.iter().find(|c| c.hash == parent_hash))
 							.map(|c| c.total_difficulty)
 							.ok_or_else(|| BlockError::UnknownParent(parent_hash))
-							.map_err(EthcoreErrorKind::Block)?
+							.map_err(Error::Block)?
 					};
 
 				parent_td + *header.difficulty()
