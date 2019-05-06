@@ -46,7 +46,7 @@ pub enum PrivateTxStatus {
 }
 
 /// Information about private tx validation
-#[derive(Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ValidatorLog {
 	/// Account of the validator
 	pub account: Address,
@@ -54,8 +54,15 @@ pub struct ValidatorLog {
 	pub validation_timestamp: Option<u64>,
 }
 
+#[cfg(test)]
+impl PartialEq for ValidatorLog {
+	fn eq(&self, other: &Self) -> bool {
+		self.account == other.account
+	}
+}
+
 /// Information about the private transaction
-#[derive(Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct TransactionLog {
 	/// Original signed transaction hash (used as a source for private tx)
 	pub tx_hash: H256,
@@ -69,6 +76,16 @@ pub struct TransactionLog {
 	pub deployment_timestamp: Option<u64>,
 	/// Hash of the resulting public tx
 	pub public_tx_hash: Option<H256>,
+}
+
+#[cfg(test)]
+impl PartialEq for TransactionLog {
+	fn eq(&self, other: &Self) -> bool {
+		self.tx_hash == other.tx_hash &&
+		self.status == other.status &&
+		self.validators == other.validators &&
+		self.public_tx_hash == other.public_tx_hash
+	}
 }
 
 /// Wrapper other JSON serializer
@@ -151,33 +168,18 @@ impl LogsSerializer for FileLogsSerializer {
 	}
 }
 
-/// Timestamp source for logs
-pub trait CurrentTime: Send + Sync + 'static {
-	/// Returns current timestamp in seconds
-	fn timestamp(&self) -> u64;
-}
-
-/// Timesource on the base of system time
-impl CurrentTime for SystemTime {
-	fn timestamp(&self) -> u64 {
-		self.duration_since(UNIX_EPOCH).unwrap_or_default().as_secs()
-	}
-}
-
 /// Private transactions logging
 pub struct Logging {
 	logs: RwLock<HashMap<H256, TransactionLog>>,
 	logs_serializer: Arc<LogsSerializer>,
-	timestamp_source: Box<CurrentTime>,
 }
 
 impl Logging {
 	/// Creates the logging object
-	pub fn new(logs_serializer: Arc<LogsSerializer>, timestamp_source: Box<CurrentTime>) -> Self {
+	pub fn new(logs_serializer: Arc<LogsSerializer>) -> Self {
 		let logging = Logging {
 			logs: RwLock::new(HashMap::new()),
 			logs_serializer,
-			timestamp_source,
 		};
 		if let Err(err) = logging.read_logs() {
 			warn!(target: "privatetx", "Cannot read logs: {:?}", err);
@@ -212,7 +214,7 @@ impl Logging {
 		logs.insert(*tx_hash, TransactionLog {
 			tx_hash: *tx_hash,
 			status: PrivateTxStatus::Created,
-			creation_timestamp: self.timestamp_source.timestamp(),
+			creation_timestamp: SystemTime::now().duration_since(UNIX_EPOCH).unwrap_or_default().as_secs(),
 			validators: validator_logs,
 			deployment_timestamp: None,
 			public_tx_hash: None,
@@ -225,7 +227,7 @@ impl Logging {
 		if let Some(transaction_log) = logs.get_mut(&tx_hash) {
 			if let Some(ref mut validator_log) = transaction_log.validators.iter_mut().find(|log| log.account == *validator) {
 				transaction_log.status = PrivateTxStatus::Validating;
-				validator_log.validation_timestamp = Some(self.timestamp_source.timestamp());
+				validator_log.validation_timestamp = Some(SystemTime::now().duration_since(UNIX_EPOCH).unwrap_or_default().as_secs());
 			}
 		}
 	}
@@ -235,7 +237,7 @@ impl Logging {
 		let mut logs = self.logs.write();
 		if let Some(log) = logs.get_mut(&tx_hash) {
 			log.status = PrivateTxStatus::Deployed;
-			log.deployment_timestamp = Some(self.timestamp_source.timestamp());
+			log.deployment_timestamp = Some(SystemTime::now().duration_since(UNIX_EPOCH).unwrap_or_default().as_secs());
 			log.public_tx_hash = Some(*public_tx_hash);
 		}
 	}
@@ -243,7 +245,7 @@ impl Logging {
 	fn read_logs(&self) -> Result<(), Error> {
 		let mut transaction_logs = self.logs_serializer.read_logs()?;
 		// Drop old logs
-		let current_timestamp = self.timestamp_source.timestamp();
+		let current_timestamp = SystemTime::now().duration_since(UNIX_EPOCH).unwrap_or_default().as_secs();
 		transaction_logs.retain(|tx_log| current_timestamp - tx_log.creation_timestamp < MAX_STORING_TIME);
 		let mut logs = self.logs.write();
 		for log in transaction_logs {
@@ -274,9 +276,10 @@ mod tests {
 	use ethereum_types::{H256};
 	use std::collections::{HashMap, BTreeMap};
 	use std::sync::{Arc};
+	use std::time::{SystemTime, UNIX_EPOCH};
 	use types::transaction::{Transaction};
 	use parking_lot::{RwLock};
-	use super::{TransactionLog, Logging, PrivateTxStatus, LogsSerializer, CurrentTime};
+	use super::{TransactionLog, Logging, PrivateTxStatus, LogsSerializer, ValidatorLog};
 
 	struct StringLogSerializer {
 		string_log: RwLock<String>,
@@ -313,18 +316,6 @@ mod tests {
 		}
 	}
 
-	struct CounterTimestamp {
-		counter: RwLock<u64>,
-	}
-
-	impl CurrentTime for CounterTimestamp {
-		fn timestamp(&self) -> u64 {
-			let current = *self.counter.read();
-			*self.counter.write() = current + 1;
-			current
-		}
-	}
-
 	#[test]
 	fn private_log_format() {
 		let s = r#"{
@@ -344,7 +335,7 @@ mod tests {
 
 	#[test]
 	fn private_log_status() {
-		let logger = Logging::new(Arc::new(StringLogSerializer::new("".into())), Box::new(CounterTimestamp { counter: RwLock::new(0), }));
+		let logger = Logging::new(Arc::new(StringLogSerializer::new("".into())));
 		let private_tx = Transaction::default();
 		let hash = private_tx.hash(None);
 		logger.private_tx_created(&hash, &vec!["0x82a978b3f5962a5b0957d9ee9eef472ee55b42f1".into()]);
@@ -356,47 +347,40 @@ mod tests {
 
 	#[test]
 	fn serialization() {
-		let initial = r#"[{
-			"tx_hash":"0x64f648ca7ae7f4138014f860ae56164d8d5732969b1cea54d8be9d144d8aa6f6",
-			"status":"Deployed",
-			"creation_timestamp":0,
-			"validators":[{
-				"account":"0x82a978b3f5962a5b0957d9ee9eef472ee55b42f1",
-				"validation_timestamp":1
-			}],
-			"deployment_timestamp":2,
-			"public_tx_hash":"0x69b9c691ede7993effbcc88911c309af1c82be67b04b3882dd446b808ae146da"
-		}]"#;
-		let serializer = Arc::new(StringLogSerializer::new(initial.into()));
-		let logger = Logging::new(serializer.clone(), Box::new(CounterTimestamp { counter: RwLock::new(5) }));
+		let current_timestamp = SystemTime::now().duration_since(UNIX_EPOCH).unwrap_or_default().as_secs();
+		let initial_validator_log = ValidatorLog {
+			account: "0x82a978b3f5962a5b0957d9ee9eef472ee55b42f1".into(),
+			validation_timestamp: Some(current_timestamp + 1),
+		};
+		let initial_log = TransactionLog {
+			tx_hash: "0x64f648ca7ae7f4138014f860ae56164d8d5732969b1cea54d8be9d144d8aa6f6".into(),
+			status: PrivateTxStatus::Deployed,
+			creation_timestamp: current_timestamp,
+			validators: vec![initial_validator_log],
+			deployment_timestamp: Some(current_timestamp + 2),
+			public_tx_hash: Some("0x69b9c691ede7993effbcc88911c309af1c82be67b04b3882dd446b808ae146da".into()),
+		};
+		let serializer = Arc::new(StringLogSerializer::new(serde_json::to_string(&vec![initial_log.clone()]).unwrap()));
+		let logger = Logging::new(serializer.clone());
 		let hash: H256 = "0x63c715e88f7291e66069302f6fcbb4f28a19ef5d7cbd1832d0c01e221c0061c6".into();
 		logger.private_tx_created(&hash, &vec!["0x7ffbe3512782069be388f41be4d8eb350672d3a5".into()]);
 		logger.signature_added(&hash, &"0x7ffbe3512782069be388f41be4d8eb350672d3a5".into());
 		logger.tx_deployed(&hash, &"0xde2209a8635b9cab9eceb67928b217c70ab53f6498e5144492ec01e6f43547d7".into());
 		drop(logger);
-		let should_be_final = r#"[
-			{
-				"tx_hash":"0x63c715e88f7291e66069302f6fcbb4f28a19ef5d7cbd1832d0c01e221c0061c6",
-				"status":"Deployed",
-				"creation_timestamp":6,
-				"validators":[{
-					"account":"0x7ffbe3512782069be388f41be4d8eb350672d3a5",
-					"validation_timestamp":7
-				}],
-				"deployment_timestamp":8,
-				"public_tx_hash":"0xde2209a8635b9cab9eceb67928b217c70ab53f6498e5144492ec01e6f43547d7"},
-			{
-				"tx_hash":"0x64f648ca7ae7f4138014f860ae56164d8d5732969b1cea54d8be9d144d8aa6f6",
-				"status":"Deployed",
-				"creation_timestamp":0,
-				"validators":[{
-					"account":"0x82a978b3f5962a5b0957d9ee9eef472ee55b42f1",
-					"validation_timestamp":1
-				}],
-				"deployment_timestamp":2,
-				"public_tx_hash":"0x69b9c691ede7993effbcc88911c309af1c82be67b04b3882dd446b808ae146da"
-		}]"#;
-		let should_be_final = &should_be_final.replace("\t", "").replace("\n", "");
-		assert_eq!(serializer.log(), *should_be_final);
+		let added_validator_log = ValidatorLog {
+			account: "0x7ffbe3512782069be388f41be4d8eb350672d3a5".into(),
+			validation_timestamp: Some(current_timestamp + 7),
+		};
+		let added_log = TransactionLog {
+			tx_hash: "0x63c715e88f7291e66069302f6fcbb4f28a19ef5d7cbd1832d0c01e221c0061c6".into(),
+			status: PrivateTxStatus::Deployed,
+			creation_timestamp: current_timestamp + 6,
+			validators: vec![added_validator_log],
+			deployment_timestamp: Some(current_timestamp + 8),
+			public_tx_hash: Some("0xde2209a8635b9cab9eceb67928b217c70ab53f6498e5144492ec01e6f43547d7".into()),
+		};
+		let should_be_final = vec![added_log, initial_log];
+		let deserialized_logs: Vec<TransactionLog> = serde_json::from_str(&serializer.log()).unwrap();
+		assert_eq!(deserialized_logs, should_be_final);
 	}
 }
