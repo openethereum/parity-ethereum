@@ -18,7 +18,7 @@
 
 use block::*;
 use engines::Engine;
-use error::{Error, ErrorKind};
+use error::Error;
 use ethereum_types::{Address, H256};
 use ethkey::{Secret, KeyPair};
 use state_db::StateDB;
@@ -715,8 +715,8 @@ fn unauthorized_signer_should_not_be_able_to_sign_block() {
 	let tester = CliqueTester::with(3, 1, vec!['A']);
 	let err = tester.new_block_and_import(CliqueBlockType::Empty, &tester.genesis, None, 'B').unwrap_err();
 
-	match err.kind() {
-		ErrorKind::Engine(EngineError::NotAuthorized(_)) => (),
+	match err {
+		Error::Engine(EngineError::NotAuthorized(_)) => (),
 		_ => assert!(true == false, "Wrong error kind"),
 	}
 }
@@ -727,8 +727,8 @@ fn signer_should_not_be_able_to_sign_two_consequtive_blocks() {
 	let b = tester.new_block_and_import(CliqueBlockType::Empty, &tester.genesis, None, 'A').unwrap();
 	let err = tester.new_block_and_import(CliqueBlockType::Empty, &b, None, 'A').unwrap_err();
 
-	match err.kind() {
-		ErrorKind::Engine(EngineError::CliqueTooRecentlySigned(_)) => (),
+	match err {
+		Error::Engine(EngineError::CliqueTooRecentlySigned(_)) => (),
 		_ => assert!(true == false, "Wrong error kind"),
 	}
 }
@@ -744,8 +744,8 @@ fn recent_signers_should_not_reset_on_checkpoint() {
 
 	let err = tester.new_block_and_import(CliqueBlockType::Empty, &block, None, 'A').unwrap_err();
 
-	match err.kind() {
-		ErrorKind::Engine(EngineError::CliqueTooRecentlySigned(_)) => (),
+	match err {
+		Error::Engine(EngineError::CliqueTooRecentlySigned(_)) => (),
 		_ => assert!(true == false, "Wrong error kind"),
 	}
 }

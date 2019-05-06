@@ -18,7 +18,7 @@
 
 use std::fmt;
 
-use ethcore::error::{Error as EthcoreError, ErrorKind, CallError};
+use ethcore::error::{Error as EthcoreError, CallError};
 use ethcore::client::BlockId;
 use jsonrpc_core::{futures, Result as RpcResult, Error, ErrorCode, Value};
 use rlp::DecoderError;
@@ -440,7 +440,7 @@ pub fn transaction_message(error: &TransactionError) -> String {
 
 pub fn transaction<T: Into<EthcoreError>>(error: T) -> Error {
 	let error = error.into();
-	if let ErrorKind::Transaction(ref e) = *error.kind() {
+	if let EthcoreError::Transaction(ref e) = error {
 		Error {
 			code: ErrorCode::ServerError(codes::TRANSACTION_ERROR),
 			message: transaction_message(e),
@@ -456,9 +456,8 @@ pub fn transaction<T: Into<EthcoreError>>(error: T) -> Error {
 }
 
 pub fn decode<T: Into<EthcoreError>>(error: T) -> Error {
-	let error = error.into();
-	match *error.kind() {
-		ErrorKind::Decoder(ref dec_err) => rlp(dec_err.clone()),
+	match error.into() {
+		EthcoreError::Decoder(ref dec_err) => rlp(dec_err.clone()),
 		_ => Error {
 			code: ErrorCode::InternalError,
 			message: "decoding error".into(),

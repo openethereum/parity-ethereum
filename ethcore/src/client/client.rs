@@ -63,8 +63,8 @@ use client::bad_blocks;
 use engines::{MAX_UNCLE_AGE, EthEngine, EpochTransition, ForkChoice, EngineError};
 use engines::epoch::PendingTransition;
 use error::{
-	ImportErrorKind, ExecutionError, CallError, BlockError,
-	QueueError, QueueErrorKind, Error as EthcoreError, EthcoreResult, ErrorKind as EthcoreErrorKind
+	ImportError, ExecutionError, CallError, BlockError,
+	QueueError, Error as EthcoreError, EthcoreResult,
 };
 use executive::{Executive, Executed, TransactOptions, contract_address};
 use factory::{Factories, VmFactory};
@@ -357,7 +357,7 @@ impl Importer {
 		let best_block_number = client.chain.read().best_block_number();
 		if client.pruning_info().earliest_state > header.number() {
 			warn!(target: "client", "Block import failed for #{} ({})\nBlock is ancient (current best block: #{}).", header.number(), header.hash(), best_block_number);
-			bail!("Block is ancient");
+			return Err("Block is ancient".into());
 		}
 
 		// Check if parent is in chain
@@ -365,7 +365,7 @@ impl Importer {
 			Some(h) => h,
 			None => {
 				warn!(target: "client", "Block import failed for #{} ({}): Parent not found ({}) ", header.number(), header.hash(), header.parent_hash());
-				bail!("Parent not found");
+				return Err("Parent not found".into());
 			}
 		};
 
@@ -384,13 +384,13 @@ impl Importer {
 
 		if let Err(e) = verify_family_result {
 			warn!(target: "client", "Stage 3 block verification failed for #{} ({})\nError: {:?}", header.number(), header.hash(), e);
-			bail!(e);
+			return Err(e.into());
 		};
 
 		let verify_external_result = self.verifier.verify_block_external(&header, engine);
 		if let Err(e) = verify_external_result {
 			warn!(target: "client", "Stage 4 block verification failed for #{} ({})\nError: {:?}", header.number(), header.hash(), e);
-			bail!(e);
+			return Err(e.into());
 		};
 
 		// Enact Verified Block
@@ -415,7 +415,7 @@ impl Importer {
 			Ok(b) => b,
 			Err(e) => {
 				warn!(target: "client", "Block import failed for #{} ({})\nError: {:?}", header.number(), header.hash(), e);
-				bail!(e);
+				return Err(e.into());
 			}
 		};
 
@@ -431,7 +431,7 @@ impl Importer {
 		// Final Verification
 		if let Err(e) = self.verifier.verify_block_final(&header, &locked_block.header) {
 			warn!(target: "client", "Stage 5 block verification failed for #{} ({})\nError: {:?}", header.number(), header.hash(), e);
-			bail!(e);
+			return Err(e.into());
 		}
 
 		let pending = self.check_epoch_end_signal(
@@ -1453,12 +1453,12 @@ impl CallContract for Client {
 impl ImportBlock for Client {
 	fn import_block(&self, unverified: Unverified) -> EthcoreResult<H256> {
 		if self.chain.read().is_known(&unverified.hash()) {
-			bail!(EthcoreErrorKind::Import(ImportErrorKind::AlreadyInChain));
+			return Err(EthcoreError::Import(ImportError::AlreadyInChain));
 		}
 
 		let status = self.block_status(BlockId::Hash(unverified.parent_hash()));
 		if status == BlockStatus::Unknown {
-			bail!(EthcoreErrorKind::Block(BlockError::UnknownParent(unverified.parent_hash())));
+			return Err(EthcoreError::Block(BlockError::UnknownParent(unverified.parent_hash())));
 		}
 
 		let raw = if self.importer.block_queue.is_empty() {
@@ -1477,9 +1477,9 @@ impl ImportBlock for Client {
 				Ok(hash)
 			},
 			// we only care about block errors (not import errors)
-			Err((block, EthcoreError(EthcoreErrorKind::Block(err), _))) => {
+			Err((block, EthcoreError::Block(err))) => {
 				self.importer.bad_blocks.report(block.bytes, format!("{:?}", err));
-				bail!(EthcoreErrorKind::Block(err))
+				return Err(EthcoreError::Block(err))
 			},
 			Err((_, e)) => Err(e),
 		}
@@ -2214,14 +2214,14 @@ impl IoClient for Client {
 		{
 			// check block order
 			if self.chain.read().is_known(&hash) {
-				bail!(EthcoreErrorKind::Import(ImportErrorKind::AlreadyInChain));
+				return Err(EthcoreError::Import(ImportError::AlreadyInChain));
 			}
 			let parent_hash = unverified.parent_hash();
 			// NOTE To prevent race condition with import, make sure to check queued blocks first
 			// (and attempt to acquire lock)
 			let is_parent_pending = self.queued_ancient_blocks.read().0.contains(&parent_hash);
 			if !is_parent_pending && !self.chain.read().is_known(&parent_hash) {
-				bail!(EthcoreErrorKind::Block(BlockError::UnknownParent(parent_hash)));
+				return Err(EthcoreError::Block(BlockError::UnknownParent(parent_hash)));
 			}
 		}
 
@@ -2752,7 +2752,9 @@ impl IoChannelQueue {
 		F: Fn(&Client) + Send + Sync + 'static,
 	{
 		let queue_size = self.currently_queued.load(AtomicOrdering::Relaxed);
-		ensure!(queue_size < self.limit, QueueErrorKind::Full(self.limit));
+		if queue_size >= self.limit {
+			return Err(QueueError::Full(self.limit))
+		};
 
 		let currently_queued = self.currently_queued.clone();
 		let result = channel.send(ClientIoMessage::execute(move |client| {
@@ -2765,7 +2767,7 @@ impl IoChannelQueue {
 				self.currently_queued.fetch_add(count, AtomicOrdering::SeqCst);
 				Ok(())
 			},
-			Err(e) => bail!(QueueErrorKind::Channel(e)),
+			Err(e) => return Err(QueueError::Channel(e)),
 		}
 	}
 }

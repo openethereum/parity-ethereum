@@ -54,7 +54,7 @@ use client::{
 };
 use client::{BlockId, ClientIoMessage};
 use engines::{EthEngine, Seal, EngineSigner};
-use error::{Error, ErrorKind};
+use error::Error;
 use executed::ExecutionError;
 use executive::contract_address;
 use spec::Spec;
@@ -521,7 +521,7 @@ impl Miner {
 
 			debug!(target: "miner", "Adding tx {:?} took {} ms", hash, took_ms(&took));
 			match result {
-				Err(Error(ErrorKind::Execution(ExecutionError::BlockGasLimitReached { gas_limit, gas_used, gas }), _)) => {
+				Err(Error::Execution(ExecutionError::BlockGasLimitReached { gas_limit, gas_used, gas })) => {
 					debug!(target: "miner", "Skipping adding transaction to block because of gas limit: {:?} (limit: {:?}, used: {:?}, gas: {:?})", hash, gas_limit, gas_used, gas);
 
 					// Penalize transaction if it's above current gas limit
@@ -546,12 +546,12 @@ impl Miner {
 				},
 				// Invalid nonce error can happen only if previous transaction is skipped because of gas limit.
 				// If there is errornous state of transaction queue it will be fixed when next block is imported.
-				Err(Error(ErrorKind::Execution(ExecutionError::InvalidNonce { expected, got }), _)) => {
+				Err(Error::Execution(ExecutionError::InvalidNonce { expected, got })) => {
 					debug!(target: "miner", "Skipping adding transaction to block because of invalid nonce: {:?} (expected: {:?}, got: {:?})", hash, expected, got);
 				},
 				// already have transaction - ignore
-				Err(Error(ErrorKind::Transaction(transaction::Error::AlreadyImported), _)) => {},
-				Err(Error(ErrorKind::Transaction(transaction::Error::NotAllowed), _)) => {
+				Err(Error::Transaction(transaction::Error::AlreadyImported)) => {},
+				Err(Error::Transaction(transaction::Error::NotAllowed)) => {
 					not_allowed_transactions.insert(hash);
 					debug!(target: "miner", "Skipping non-allowed transaction for sender {:?}", hash);
 				},
@@ -1222,11 +1222,11 @@ impl miner::MinerService for Miner {
 				trace!(target: "miner", "Submitted block {}={} with seal {:?}", block_hash, b.header.bare_hash(), seal);
 				b.lock().try_seal(&*self.engine, seal).or_else(|e| {
 					warn!(target: "miner", "Mined solution rejected: {}", e);
-					Err(ErrorKind::PowInvalid.into())
+					Err(Error::PowInvalid.into())
 				})
 			} else {
 				warn!(target: "miner", "Submitted solution rejected: Block unknown or out of date.");
-				Err(ErrorKind::PowHashInvalid.into())
+				Err(Error::PowHashInvalid.into())
 			};
 
 		result.and_then(|sealed| {

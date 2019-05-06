@@ -551,7 +551,7 @@ impl Engine<EthereumMachine> for Clique {
 					min: None,
 					max: Some(limit),
 					found,
-				}))?
+				}.into()))?
 			}
 		}
 
@@ -664,7 +664,7 @@ impl Engine<EthereumMachine> for Clique {
 				min: None,
 				max,
 				found,
-			}))?
+			}.into()))?
 		}
 
 		// Retrieve the parent state
