@@ -36,6 +36,7 @@ use common_types::blockchain_info::BlockChainInfo;
 use common_types::encoded;
 use common_types::header::Header;
 use common_types::ids::BlockId;
+use common_types::transaction::SignedTransaction;
 
 use kvdb::KeyValueDB;
 
@@ -661,7 +662,7 @@ impl<T: ChainDataFetcher> ::ethcore::client::EngineClient for Client<T> {
 		Vec::new()
 	}
 
-	fn create_pending_block(&self, _txns: Vec<Arc<VerifiedTransaction>>, _timestamp: u64) -> Option<ClosedBlock> {
+	fn create_pending_block(&self, _txns: Vec<SignedTransaction>, _timestamp: u64) -> Option<ClosedBlock> {
 		warn!(target: "client", "No miner available in light clients.");
 		None
 	}

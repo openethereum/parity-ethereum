@@ -611,7 +611,7 @@ impl Miner {
 
 	/// Creates a new block and sets it as pending for sealing.
 	/// Returns false if a pending block already exists.
-	pub fn create_pending_block<C>(&self, chain: &C, txns: Vec<Arc<VerifiedTransaction>>, timestamp: u64) -> Option<ClosedBlock>
+	pub fn create_pending_block<C>(&self, chain: &C, txns: Vec<SignedTransaction>, timestamp: u64) -> Option<ClosedBlock>
 		where C: BlockChain + CallContract + BlockProducer + SealedBlockImporter + Nonce + Sync {
 		let mut sealing = self.sealing.lock();
 		let chain_info = chain.chain_info();
@@ -631,7 +631,7 @@ impl Miner {
 				let min_tx_gas: U256 = self.engine.schedule(chain_info.best_block_number).tx_gas.into();
 
 				// Add transactions to the new block
-				let opt_block = self.prepare_block_from(open_block, engine_pending.into_iter().chain(txns.into_iter().map(|tx| tx.signed().clone())), chain, min_tx_gas);
+				let opt_block = self.prepare_block_from(open_block, engine_pending.into_iter().chain(txns.into_iter()), chain, min_tx_gas);
 
 				opt_block.map(|b| {
 					sealing.queue.set_pending(b.clone());

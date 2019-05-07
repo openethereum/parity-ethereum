@@ -479,7 +479,7 @@ pub trait EngineClient: Sync + Send + ChainInfo + Nonce {
 	fn queued_transactions(&self) -> Vec<Arc<VerifiedTransaction>>;
 
 	/// Create block and queue it for sealing. Will return None if a block is already pending.
- 	fn create_pending_block(&self, txns: Vec<Arc<VerifiedTransaction>>, timestamp: u64) -> Option<ClosedBlock>;
+ 	fn create_pending_block(&self, txns: Vec<SignedTransaction>, timestamp: u64) -> Option<ClosedBlock>;
 
 	/// Temporary access to a NetworkInfo struct required by the hbbft consensus engine
 	/// Should be removed as soon as all information required to build this struct

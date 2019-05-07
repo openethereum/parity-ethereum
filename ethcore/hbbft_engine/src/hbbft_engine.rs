@@ -84,7 +84,7 @@ impl HoneyBadgerBFT {
 			.sorted();
 		let timestamp = timestamps[timestamps.len() / 2];
 
-		client.create_pending_block(client.queued_transactions(), timestamp);
+		client.create_pending_block(batch_txns, timestamp);
 	}
 }
 

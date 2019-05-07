@@ -9,6 +9,7 @@ extern crate inventory;
 extern crate itertools;
 extern crate keccak_hash as hash;
 extern crate parking_lot;
+extern crate rand;
 extern crate rustc_hex;
 extern crate serde;
 extern crate serde_json;
@@ -18,9 +19,6 @@ extern crate rlp;
 
 #[cfg(test)]
 extern crate proptest;
-
-#[cfg(test)]
-extern crate rand;
 
 #[cfg(test)]
 extern crate ethcore_accounts as accounts;
