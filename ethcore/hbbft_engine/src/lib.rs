@@ -9,7 +9,11 @@ extern crate inventory;
 extern crate keccak_hash as hash;
 extern crate parking_lot;
 extern crate rustc_hex;
+extern crate serde;
 extern crate serde_json;
+#[macro_use(Serialize, Deserialize)]
+extern crate serde_derive;
+extern crate rlp;
 
 #[cfg(test)]
 extern crate proptest;
@@ -20,6 +24,7 @@ extern crate rand;
 #[cfg(test)]
 extern crate ethcore_accounts as accounts;
 
+mod contribution;
 mod hbbft_engine;
 
 #[cfg(any(test, feature = "test-helpers"))]

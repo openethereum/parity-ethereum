@@ -10,7 +10,7 @@ use ethcore::test_helpers::generate_dummy_client_with_spec;
 use ethcore::test_helpers::TestNotify;
 use ethereum_types::U256;
 use ethkey::{Generator, Random};
-use types::transaction::{Action, Transaction};
+use types::transaction::{Action, SignedTransaction, Transaction};
 
 pub fn hbbft_spec() -> Spec {
 	Spec::load(
@@ -45,9 +45,9 @@ pub fn hbbft_client_setup(signer: Box<EngineSigner>) -> (Arc<Client>, Arc<TestNo
 	(client, notify, miner)
 }
 
-pub fn inject_transaction(client: &Arc<Client>, miner: &Arc<Miner>) {
+pub fn create_transaction() -> SignedTransaction {
 	let keypair = Random.generate().unwrap();
-	let transaction = Transaction {
+	Transaction {
 		action: Action::Create,
 		value: U256::zero(),
 		data: "3331600055".from_hex().unwrap(),
@@ -55,7 +55,11 @@ pub fn inject_transaction(client: &Arc<Client>, miner: &Arc<Miner>) {
 		gas_price: U256::zero(),
 		nonce: U256::zero(),
 	}
-	.sign(keypair.secret(), None);
+	.sign(keypair.secret(), None)
+}
+
+pub fn inject_transaction(client: &Arc<Client>, miner: &Arc<Miner>) {
+	let transaction = create_transaction();
 	miner
 		.import_own_transaction(client.as_ref(), transaction.into())
 		.unwrap();
