@@ -51,7 +51,7 @@ commit_files() {
 
 upload_files() {
     echo "__________Upload files__________"
-    git push -q -f origin HEAD
+    git push -q origin HEAD
     git push -q -f --tags
 }
 
