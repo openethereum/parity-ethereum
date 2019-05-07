@@ -26,6 +26,7 @@ hbbft_testing = { git = "https://github.com/poanetwork/hbbft" }
 ethkey = { path = "../../accounts/ethkey" }
 common-types = { path = "../types" }
 rlp = { version = "0.3.0", features = ["ethereum"] }
+itertools = "0.5"
 
 [dev-dependencies]
 ethcore = { path = "..", features = ["test-helpers"] }

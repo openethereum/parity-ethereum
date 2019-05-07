@@ -2,12 +2,16 @@ use std::sync::{Arc, Weak};
 
 use parking_lot::RwLock;
 
+use crate::contribution::Contribution;
 use ethcore::block::ExecutedBlock;
 use ethcore::client::EngineClient;
 use ethcore::engines::signer::EngineSigner;
 use ethcore::engines::{total_difficulty_fork_choice, Engine, EthEngine, ForkChoice, Seal};
 use ethcore::error::Error;
 use ethcore::machine::EthereumMachine;
+use hbbft::honey_badger::{HoneyBadger, HoneyBadgerBuilder};
+use itertools::Itertools;
+use rlp::{Decodable, Rlp};
 use types::header::{ExtendedHeader, Header};
 use types::transaction::SignedTransaction;
 
@@ -34,11 +38,53 @@ impl HoneyBadgerBFT {
 	}
 
 	fn start_hbbft_epoch(&self, client: Arc<EngineClient>) {
-		// TODO: Instantiate a hbbft algorithm and create the pending block.
-		// After a hbbft epoch finished successfully, use the median timestamp
-		// of all contributing hbbft nodes as time stamp for the created block.
-		let _net_info = client.net_info();
-		client.create_pending_block(client.queued_transactions(), 0);
+		// TODO: Retrieve the information to build a node-specific NetworkInfo
+		//       struct from the chain spec and from contracts.
+		let net_info = client.net_info().unwrap();
+		let mut builder: HoneyBadgerBuilder<Contribution, _> =
+			HoneyBadger::builder(Arc::new(net_info.clone()));
+		let mut honey_badger = builder.build();
+
+		// TODO: Select a random *subset* of transactions to propose
+		let input_contribution = Contribution::new(
+			&client
+				.queued_transactions()
+				.iter()
+				.map(|txn| txn.signed().clone())
+				.collect(),
+		);
+
+		let mut rng = rand::thread_rng();
+		let step = honey_badger
+			.propose(&input_contribution, &mut rng)
+			.expect("Since there is only one validator we expect an immediate result");
+
+		let batch = step.output.first().unwrap();
+
+		// Decode and deduplicate transactions
+		let batch_txns: Vec<_> = batch
+			.contributions
+			.iter()
+			.flat_map(|(_, c)| &c.transactions)
+			.filter_map(|ser_txn| {
+				// TODO: Report proposers of malformed transactions.
+				Decodable::decode(&Rlp::new(ser_txn)).ok()
+			})
+			.filter_map(|txn| {
+				// TODO: Report proposers of invalidly signed transactions.
+				SignedTransaction::new(txn).ok()
+			})
+			.collect();
+
+		// We use the median of all contributions' timestamps
+		let timestamps = batch
+			.contributions
+			.iter()
+			.map(|(_, c)| c.timestamp)
+			.sorted();
+		let timestamp = timestamps[timestamps.len() / 2];
+
+		client.create_pending_block(client.queued_transactions(), timestamp);
 	}
 }
 
@@ -125,8 +171,8 @@ mod tests {
 
 		let mut honey_badger = builder.build();
 
-		let mut pending: Vec<Arc<SignedTransaction>> = Vec::new();
-		pending.push(Arc::new(create_transaction()));
+		let mut pending: Vec<SignedTransaction> = Vec::new();
+		pending.push(create_transaction());
 		let input_contribution = Contribution::new(&pending);
 
 		let step = honey_badger

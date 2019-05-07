@@ -6,6 +6,7 @@ extern crate ethkey;
 extern crate hbbft;
 extern crate hbbft_testing;
 extern crate inventory;
+extern crate itertools;
 extern crate keccak_hash as hash;
 extern crate parking_lot;
 extern crate rustc_hex;
