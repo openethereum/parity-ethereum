@@ -101,56 +101,37 @@ pub trait LogsSerializer: Send + Sync + 'static {
 }
 
 pub struct FileLogsSerializer {
-	logs_dir: Option<PathBuf>,
+	logs_dir: PathBuf,
 }
 
 impl FileLogsSerializer {
-	pub fn with_path(logs_dir: Option<String>) -> Self {
+	pub fn with_path<P: Into<PathBuf>>(logs_dir: P) -> Self {
 		FileLogsSerializer {
-			logs_dir: logs_dir.map(|dir| PathBuf::from(dir)),
+			logs_dir: logs_dir.into(),
 		}
 	}
 
-	fn open_file(&self, to_create: bool) -> Result<Option<File>, Error> {
-		let log_file = match self.logs_dir {
-			Some(ref path) => {
-				let mut file_path = path.clone();
-				file_path.push("private_tx.log");
-				match if to_create { File::create(&file_path) } else { File::open(&file_path) } {
-					Ok(file) => file,
-					Err(err) => {
-						trace!(target: "privatetx", "Cannot open logs file: {}", err);
-						return Err(format!("Cannot open logs file: {:?}", err).into());
-					}
-				}
-			}
-			None => {
-				warn!(target: "privatetx", "Logs path is not defined");
-				return Ok(None);
-			}
-		};
-		Ok(Some(log_file))
+	fn open_file(&self, to_create: bool) -> Result<File, Error> {
+		let file_path = self.logs_dir.with_file_name("private_tx.log");
+		if to_create {
+			File::create(&file_path).map_err(From::from)
+		} else {
+			File::open(&file_path).map_err(From::from)
+		}
 	}
 }
 
 impl LogsSerializer for FileLogsSerializer {
 	fn read_logs(&self) -> Result<Vec<TransactionLog>, Error> {
 		let log_file = self.open_file(false)?;
-		match log_file {
-			Some(log_file) => {
-				let transaction_logs: Vec<TransactionLog> = match serde_json::from_reader(log_file) {
-					Ok(logs) => logs,
-					Err(err) => {
-						error!(target: "privatetx", "Cannot deserialize logs from file: {}", err);
-						return Err(format!("Cannot deserialize logs from file: {:?}", err).into());
-					}
-				};
-				Ok(transaction_logs)
+		let transaction_logs: Vec<TransactionLog> = match serde_json::from_reader(log_file) {
+			Ok(logs) => logs,
+			Err(err) => {
+				error!(target: "privatetx", "Cannot deserialize logs from file: {}", err);
+				return Err(format!("Cannot deserialize logs from file: {:?}", err).into());
 			}
-			None => {
-				Ok(Vec::new())
-			}
-		}
+		};
+		Ok(transaction_logs)
 	}
 
 	fn flush_logs(&self, logs: &HashMap<H256, TransactionLog>) -> Result<(), Error> {
@@ -159,14 +140,12 @@ impl LogsSerializer for FileLogsSerializer {
 			return Ok(());
 		}
 		let log_file = self.open_file(true)?;
-		if let Some(log_file) = log_file {
-			let mut json = serde_json::Serializer::new(log_file);
-			let mut json_array = json.serialize_seq(Some(logs.len()))?;
-			for v in logs.values() {
-				json_array.serialize_element(v)?;
-			}
-			json_array.end()?;
+		let mut json = serde_json::Serializer::new(log_file);
+		let mut json_array = json.serialize_seq(Some(logs.len()))?;
+		for v in logs.values() {
+			json_array.serialize_element(v)?;
 		}
+		json_array.end()?;
 		Ok(())
 	}
 }

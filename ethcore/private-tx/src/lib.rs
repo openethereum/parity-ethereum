@@ -188,7 +188,7 @@ pub struct Provider {
 	accounts: Arc<Signer>,
 	channel: IoChannel<ClientIoMessage>,
 	keys_provider: Arc<KeyProvider>,
-	logging: Logging,
+	logging: Option<Logging>,
 }
 
 #[derive(Debug)]
@@ -223,7 +223,7 @@ impl Provider {
 			accounts,
 			channel,
 			keys_provider,
-			logging: Logging::new(Arc::new(FileLogsSerializer::with_path(config.logs_path))),
+			logging: config.logs_path.map(|path| Logging::new(Arc::new(FileLogsSerializer::with_path(path)))),
 		}
 	}
 
@@ -272,7 +272,9 @@ impl Provider {
 		trace!(target: "privatetx", "Hashed effective private state for sender: {:?}", private_state_hash);
 		self.transactions_for_signing.write().add_transaction(private.hash(), signed_transaction, &contract_validators, private_state, contract_nonce)?;
 		self.broadcast_private_transaction(private.hash(), private.rlp_bytes());
-		self.logging.private_tx_created(&tx_hash, &contract_validators);
+		if let Some(ref logging) = self.logging {
+			logging.private_tx_created(&tx_hash, &contract_validators);
+		}
 		Ok(Receipt {
 			hash: tx_hash,
 			contract_address: contract,
@@ -408,8 +410,10 @@ impl Provider {
 				}
 			}
 			// Store logs
-			self.logging.signature_added(&original_tx_hash, &last.1);
-			self.logging.tx_deployed(&original_tx_hash, &public_tx_hash);
+			if let Some(ref logging) = self.logging {
+				logging.signature_added(&original_tx_hash, &last.1);
+				logging.tx_deployed(&original_tx_hash, &public_tx_hash);
+			}
 			// Remove from store for signing
 			if let Err(err) = self.transactions_for_signing.write().remove(&private_hash) {
 				warn!(target: "privatetx", "Failed to remove transaction from signing store, error: {:?}", err);
@@ -420,7 +424,9 @@ impl Provider {
 			match self.transactions_for_signing.write().add_signature(&private_hash, signed_tx.signature()) {
 				Ok(_) => {
 					trace!(target: "privatetx", "Signature stored for private transaction");
-					self.logging.signature_added(&original_tx_hash, &last.1);
+					if let Some(ref logging) = self.logging {
+						logging.signature_added(&original_tx_hash, &last.1);
+					}
 				}
 				Err(err) => {
 					warn!(target: "privatetx", "Failed to add signature to signing store, error: {:?}", err);
@@ -694,7 +700,10 @@ impl Provider {
 
 	/// Retrieves log information about private transaction
 	pub fn private_log(&self, tx_hash: H256) -> Result<TransactionLog, Error> {
-		self.logging.tx_log(&tx_hash).ok_or_else(|| Error::TxNotFoundInLog.into())
+		match self.logging {
+			Some(ref logging) => logging.tx_log(&tx_hash).ok_or_else(|| Error::TxNotFoundInLog.into()),
+			None => Err(Error::LoggingPathNotSet),
+		}
 	}
 
 	/// Returns private validators for a contract.

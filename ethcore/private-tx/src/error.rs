@@ -106,6 +106,9 @@ pub enum Error {
 	/// Transaction not found in logs.
 	#[display(fmt = "Private transaction not found in logs.")]
 	TxNotFoundInLog,
+	/// Path for logging not set.
+	#[display(fmt = "Path for logging not set.")]
+	LoggingPathNotSet,
 	/// Timestamp overflow error.
 	#[display(fmt = "Timestamp overflow error.")]
 	TimestampOverflow,
