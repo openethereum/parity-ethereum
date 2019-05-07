@@ -21,8 +21,8 @@ use std::collections::HashMap;
 use std::fs::File;
 use std::path::PathBuf;
 use std::sync::Arc;
-use std::time::{SystemTime, Duration};
-use parking_lot::RwLock;
+use std::time::{SystemTime, Duration, Instant};
+use parking_lot::{RwLock, Mutex};
 use serde::ser::{Serializer, SerializeSeq};
 use error::Error;
 
@@ -35,6 +35,29 @@ const MAX_JOURNAL_LEN: usize = 1000;
 /// Maximum period for storing private transaction logs.
 /// Logs older than 20 days will not be processed
 const MAX_STORING_TIME: Duration = Duration::from_secs(60 * 60 * 24 * 20);
+
+/// Source of monotonic time for log timestamps
+struct MonoTime {
+	start_time: SystemTime,
+	start_inst: Instant
+}
+
+impl MonoTime {
+	fn new(start: SystemTime) -> Self {
+		Self {
+			start_time: start,
+			start_inst: Instant::now()
+		}
+	}
+
+	fn elapsed(&self) -> Duration {
+		self.start_inst.elapsed()
+	}
+
+	fn into_system_time(&self) -> SystemTime {
+		self.start_time + self.elapsed()
+	}
+}
 
 /// Current status of the private transaction
 #[derive(Clone, Serialize, Deserialize, Debug, PartialEq)]
@@ -154,6 +177,7 @@ impl LogsSerializer for FileLogsSerializer {
 pub struct Logging {
 	logs: RwLock<HashMap<H256, TransactionLog>>,
 	logs_serializer: Arc<LogsSerializer>,
+	mono_time: Mutex<MonoTime>,
 }
 
 impl Logging {
@@ -162,6 +186,7 @@ impl Logging {
 		let logging = Logging {
 			logs: RwLock::new(HashMap::new()),
 			logs_serializer,
+			mono_time: Mutex::new(MonoTime::new(SystemTime::now())),
 		};
 		if let Err(err) = logging.read_logs() {
 			warn!(target: "privatetx", "Cannot read logs: {:?}", err);
@@ -196,7 +221,7 @@ impl Logging {
 		logs.insert(*tx_hash, TransactionLog {
 			tx_hash: *tx_hash,
 			status: PrivateTxStatus::Created,
-			creation_timestamp: SystemTime::now(),
+			creation_timestamp: self.mono_time.lock().into_system_time(),
 			validators: validator_logs,
 			deployment_timestamp: None,
 			public_tx_hash: None,
@@ -209,7 +234,7 @@ impl Logging {
 		if let Some(transaction_log) = logs.get_mut(&tx_hash) {
 			if let Some(ref mut validator_log) = transaction_log.validators.iter_mut().find(|log| log.account == *validator) {
 				transaction_log.status = PrivateTxStatus::Validating;
-				validator_log.validation_timestamp = Some(SystemTime::now());
+				validator_log.validation_timestamp = Some(self.mono_time.lock().into_system_time());
 			}
 		}
 	}
@@ -219,7 +244,7 @@ impl Logging {
 		let mut logs = self.logs.write();
 		if let Some(log) = logs.get_mut(&tx_hash) {
 			log.status = PrivateTxStatus::Deployed;
-			log.deployment_timestamp = Some(SystemTime::now());
+			log.deployment_timestamp = Some(self.mono_time.lock().into_system_time());
 			log.public_tx_hash = Some(*public_tx_hash);
 		}
 	}
