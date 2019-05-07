@@ -99,3 +99,45 @@ impl Engine<EthereumMachine> for HoneyBadgerBFT {
 		false
 	}
 }
+
+#[cfg(test)]
+mod tests {
+	use crate::contribution::Contribution;
+	use crate::test_helpers::create_transaction;
+	use hbbft::honey_badger::{HoneyBadger, HoneyBadgerBuilder};
+	use hbbft::NetworkInfo;
+	use rand;
+	use std::sync::Arc;
+	use types::transaction::SignedTransaction;
+
+	#[test]
+	fn test_honey_badger_instantiation() {
+		let mut rng = rand::thread_rng();
+		let net_infos = NetworkInfo::generate_map(0..1usize, &mut rng)
+			.expect("NetworkInfo generation is expected to always succeed");
+
+		let net_info = net_infos
+			.get(&0)
+			.expect("A NetworkInfo must exist for node 0");
+
+		let mut builder: HoneyBadgerBuilder<Contribution, _> =
+			HoneyBadger::builder(Arc::new(net_info.clone()));
+
+		let mut honey_badger = builder.build();
+
+		let mut pending: Vec<Arc<SignedTransaction>> = Vec::new();
+		pending.push(Arc::new(create_transaction()));
+		let input_contribution = Contribution::new(&pending);
+
+		let step = honey_badger
+			.propose(&input_contribution, &mut rng)
+			.expect("Since there is only one validator we expect an immediate result");
+
+		// Assure the contribution retured by HoneyBadger matches the input
+		assert_eq!(step.output.len(), 1);
+		let out = step.output.first().unwrap();
+		assert_eq!(out.epoch, 0);
+		assert_eq!(out.contributions.len(), 1);
+		assert_eq!(out.contributions.get(&0).unwrap(), &input_contribution);
+	}
+}

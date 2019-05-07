@@ -72,8 +72,7 @@ mod tests {
 
 		// Generate a new set of cryptographic keys for threshold cryptography.
 		let mut rng = TestRng::from_seed(seed);
-		let size = 1;
-		let net_infos = NetworkInfo::generate_map(0..size as usize, &mut rng)
+		let net_infos = NetworkInfo::generate_map(0..1usize, &mut rng)
 			.expect("NetworkInfo generation is expected to always succeed");
 
 		let net_info = net_infos
