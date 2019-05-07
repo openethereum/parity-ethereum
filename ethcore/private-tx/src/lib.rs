@@ -63,6 +63,9 @@ extern crate derive_more;
 #[macro_use]
 extern crate rlp_derive;
 
+#[cfg(not(time_checked_add))]
+extern crate time_utils;
+
 #[cfg(test)]
 extern crate rand;
 #[cfg(test)]

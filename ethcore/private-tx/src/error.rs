@@ -106,6 +106,9 @@ pub enum Error {
 	/// Transaction not found in logs.
 	#[display(fmt = "Private transaction not found in logs.")]
 	TxNotFoundInLog,
+	/// Timestamp overflow error.
+	#[display(fmt = "Timestamp overflow error.")]
+	TimestampOverflow,
 	/// VM execution error.
 	#[display(fmt = "VM execution error {}", _0)]
 	Execution(ExecutionError),

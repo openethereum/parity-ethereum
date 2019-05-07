@@ -14,6 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
+use std::time::SystemTime;
 use ethereum_types::{H160, H256};
 use ethcore_private_tx::{TransactionLog as EthTransactionLog, ValidatorLog as EthValidatorLog, PrivateTxStatus as EthStatus};
 
@@ -54,7 +55,7 @@ impl From<EthValidatorLog> for ValidatorLog {
 	fn from(r: EthValidatorLog) -> Self {
 		ValidatorLog {
 			account: r.account.into(),
-			validation_timestamp: r.validation_timestamp.into(),
+			validation_timestamp: r.validation_timestamp.map(|t| t.duration_since(SystemTime::UNIX_EPOCH).unwrap_or_default().as_secs()),
 		}
 	}
 }
@@ -82,9 +83,9 @@ impl From<EthTransactionLog> for PrivateTransactionLog {
 		PrivateTransactionLog {
 			tx_hash: r.tx_hash.into(),
 			status: r.status.into(),
-			creation_timestamp: r.creation_timestamp.into(),
+			creation_timestamp: r.creation_timestamp.duration_since(SystemTime::UNIX_EPOCH).unwrap_or_default().as_secs(),
 			validators: r.validators.into_iter().map(Into::into).collect(),
-			deployment_timestamp: r.deployment_timestamp.into(),
+			deployment_timestamp: r.deployment_timestamp.map(|t| t.duration_since(SystemTime::UNIX_EPOCH).unwrap_or_default().as_secs()),
 			public_tx_hash: r.public_tx_hash.map(Into::into),
 		}
 	}
