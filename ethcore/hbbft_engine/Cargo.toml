@@ -28,6 +28,7 @@ common-types = { path = "../types" }
 rlp = { version = "0.3.0", features = ["ethereum"] }
 itertools = "0.5"
 rand = "0.6.5"
+log = "0.4"
 
 [dev-dependencies]
 ethcore = { path = "..", features = ["test-helpers"] }

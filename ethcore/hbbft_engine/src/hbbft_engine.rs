@@ -1,7 +1,3 @@
-use std::sync::{Arc, Weak};
-
-use parking_lot::RwLock;
-
 use crate::contribution::Contribution;
 use ethcore::block::ExecutedBlock;
 use ethcore::client::EngineClient;
@@ -9,9 +5,13 @@ use ethcore::engines::signer::EngineSigner;
 use ethcore::engines::{total_difficulty_fork_choice, Engine, EthEngine, ForkChoice, Seal};
 use ethcore::error::Error;
 use ethcore::machine::EthereumMachine;
-use hbbft::honey_badger::{HoneyBadger, HoneyBadgerBuilder};
+use hbbft::honey_badger::{Batch, HoneyBadger, HoneyBadgerBuilder, Message, Step};
+use hbbft::{Target, TargetedMessage};
 use itertools::Itertools;
+use parking_lot::RwLock;
 use rlp::{Decodable, Rlp};
+use serde_json;
+use std::sync::{Arc, Weak};
 use types::header::{ExtendedHeader, Header};
 use types::transaction::SignedTransaction;
 
@@ -37,30 +37,22 @@ impl HoneyBadgerBFT {
 		Ok(engine)
 	}
 
-	fn start_hbbft_epoch(&self, client: Arc<EngineClient>) {
-		// TODO: Retrieve the information to build a node-specific NetworkInfo
-		//       struct from the chain spec and from contracts.
-		let net_info = client.net_info().unwrap();
-		let mut builder: HoneyBadgerBuilder<Contribution, _> =
-			HoneyBadger::builder(Arc::new(net_info.clone()));
-		let mut honey_badger = builder.build();
+	fn new_honey_badger(&self) -> Option<HoneyBadger<Contribution, usize>> {
+		if let Some(ref weak) = *self.client.read() {
+			if let Some(client) = weak.upgrade() {
+				// TODO: Retrieve the information to build a node-specific NetworkInfo
+				//       struct from the chain spec and from contracts.
+				let net_info = client.net_info().unwrap();
+				let mut builder: HoneyBadgerBuilder<Contribution, _> =
+					HoneyBadger::builder(Arc::new(net_info.clone()));
+				return Some(builder.build());
+			}
+		}
+		None
+	}
 
-		// TODO: Select a random *subset* of transactions to propose
-		let input_contribution = Contribution::new(
-			&client
-				.queued_transactions()
-				.iter()
-				.map(|txn| txn.signed().clone())
-				.collect(),
-		);
-
-		let mut rng = rand::thread_rng();
-		let step = honey_badger
-			.propose(&input_contribution, &mut rng)
-			.expect("Since there is only one validator we expect an immediate result");
-
-		let batch = step.output.first().unwrap();
-
+	fn process_output(&self, client: &Arc<EngineClient>, output: Vec<Batch<Contribution, usize>>) {
+		let batch = output.first().unwrap();
 		// Decode and deduplicate transactions
 		let batch_txns: Vec<_> = batch
 			.contributions
@@ -85,6 +77,57 @@ impl HoneyBadgerBFT {
 		let timestamp = timestamps[timestamps.len() / 2];
 
 		client.create_pending_block(batch_txns, timestamp);
+	}
+
+	fn process_messages(
+		&self,
+		client: &Arc<EngineClient>,
+		messages: Vec<TargetedMessage<Message<usize>, usize>>,
+	) {
+		for m in messages {
+			match m.target {
+				Target::Node(n) => {
+					if let Ok(ser) = serde_json::to_vec(&m.message) {
+						client.send_consensus_message(ser, n);
+					}
+				}
+				_ => {}
+			}
+		}
+	}
+
+	fn process_step(&self, client: Arc<EngineClient>, step: Step<Contribution, usize>) {
+		self.process_messages(&client, step.messages);
+		self.process_output(&client, step.output);
+	}
+
+	fn start_hbbft_epoch(&self, client: Arc<EngineClient>) {
+		if let Some(mut honey_badger) = self.new_honey_badger() {
+			// TODO: Select a random *subset* of transactions to propose
+			let input_contribution = Contribution::new(
+				&client
+					.queued_transactions()
+					.iter()
+					.map(|txn| txn.signed().clone())
+					.collect(),
+			);
+
+			let mut rng = rand::thread_rng();
+			let step = honey_badger.propose(&input_contribution, &mut rng);
+
+			match step {
+				Ok(step) => {
+					self.process_step(client, step);
+				}
+				_ => {
+					// TODO: Report consensus step errors
+					error!(target: "engine", "Error on HoneyBadger consensus step");
+				}
+			}
+		} else {
+			error!(target: "engine", "HoneyBadger algorithm could not be created!");
+			panic!("HoneyBadger algorithm could not be created!");
+		}
 	}
 }
 

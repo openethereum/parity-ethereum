@@ -16,6 +16,8 @@ extern crate serde_json;
 #[macro_use(Serialize, Deserialize)]
 extern crate serde_derive;
 extern crate rlp;
+#[macro_use]
+extern crate log;
 
 #[cfg(test)]
 extern crate proptest;
