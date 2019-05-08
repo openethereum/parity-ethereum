@@ -289,3 +289,4 @@ publish-docs:
     - scripts/gitlab/publish-docs.sh
   tags:
     - linux-docker
+  allow_failure:                   true
