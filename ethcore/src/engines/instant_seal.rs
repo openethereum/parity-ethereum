@@ -14,7 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
-use engines::{Engine, Seal};
+use engines::{Engine, Seal, SealingState};
 use parity_machine::{Machine, Transactions, TotalScoredHeader};
 
 /// `InstantSeal` params.
@@ -59,7 +59,7 @@ impl<M: Machine> Engine<M> for InstantSeal<M>
 
 	fn machine(&self) -> &M { &self.machine }
 
-	fn seals_internally(&self) -> Option<bool> { Some(true) }
+	fn sealing_state(&self) -> SealingState { SealingState::Ready }
 
 	fn generate_seal(&self, block: &M::LiveBlock, _parent: &M::Header) -> Seal {
 		if block.transactions().is_empty() { Seal::None } else { Seal::Regular(Vec::new()) }
