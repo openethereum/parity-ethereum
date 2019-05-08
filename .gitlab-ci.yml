@@ -10,7 +10,6 @@ variables:
   GIT_SUBMODULE_STRATEGY:          recursive
   CI_SERVER_NAME:                  "GitLab CI"
   CARGO_TARGET:                    x86_64-unknown-linux-gnu
-  SCCACHE_CACHE_SIZE:              50G
 
 .no_git:                           &no_git # disable git strategy
   variables:
@@ -285,6 +284,7 @@ publish-docs:
   except:
     - nightly
   cache:                            {}
+  dependencies:                     []
   script:
     - scripts/gitlab/publish-docs.sh
   tags:
