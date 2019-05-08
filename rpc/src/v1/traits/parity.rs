@@ -235,5 +235,9 @@ pub trait Parity {
 
 	/// Returns raw block RLP with given number.
 	#[rpc(name = "parity_getRawBlockByNumber")]
-	fn get_raw_block_by_number(&self, BlockNumber) -> Result<Option<Bytes>>;
+	fn get_raw_block_by_number(&self, BlockNumber) -> BoxFuture<Option<Bytes>>;
+
+	/// Submit raw block to be published to the network
+	#[rpc(name = "parity_submitRawBlock")]
+	fn submit_raw_block(&self, Bytes) -> Result<H256>;
 }
