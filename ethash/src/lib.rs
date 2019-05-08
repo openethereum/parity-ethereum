@@ -52,14 +52,14 @@ mod progpow;
 pub use cache::{NodeCacheBuilder, OptimizeFor};
 pub use compute::{ProofOfWork, quick_get_difficulty, slow_hash_block_number};
 use compute::Light;
-use ethereum_types::{U256, U512};
+use ethereum_types::{BigEndianHash, U256, U512};
 use keccak::H256;
 use parking_lot::Mutex;
 pub use seed_compute::SeedHashCompute;
 pub use shared::ETHASH_EPOCH_LENGTH;
 use std::mem;
 use std::path::{Path, PathBuf};
-
+use std::convert::TryFrom;
 use std::sync::Arc;
 
 struct LightCache {
@@ -161,12 +161,12 @@ impl EthashManager {
 
 /// Convert an Ethash boundary to its original difficulty. Basically just `f(x) = 2^256 / x`.
 pub fn boundary_to_difficulty(boundary: &ethereum_types::H256) -> U256 {
-	difficulty_to_boundary_aux(&**boundary)
+	difficulty_to_boundary_aux(&boundary.into_uint())
 }
 
 /// Convert an Ethash difficulty to the target boundary. Basically just `f(x) = 2^256 / x`.
 pub fn difficulty_to_boundary(difficulty: &U256) -> ethereum_types::H256 {
-	difficulty_to_boundary_aux(difficulty).into()
+	BigEndianHash::from_uint(&difficulty_to_boundary_aux(difficulty))
 }
 
 fn difficulty_to_boundary_aux<T: Into<U512>>(difficulty: T) -> ethereum_types::U256 {
@@ -177,8 +177,9 @@ fn difficulty_to_boundary_aux<T: Into<U512>>(difficulty: T) -> ethereum_types::U
 	if difficulty == U512::one() {
 		U256::max_value()
 	} else {
-		// difficulty > 1, so result should never overflow 256 bits
-		U256::from((U512::one() << 256) / difficulty)
+		const PROOF: &str = "difficulty > 1, so result should never overflow 256 bits; qed";
+		// TODO: ok() is a hacky workaround for `primitive_types::Error` not being `std::fmt::Debug`
+		U256::try_from((U512::one() << 256) / difficulty).ok().expect(PROOF)
 	}
 }
 
