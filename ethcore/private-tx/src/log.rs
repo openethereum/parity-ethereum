@@ -59,6 +59,12 @@ impl MonoTime {
 	}
 }
 
+impl Default for MonoTime {
+	fn default() -> Self {
+		MonoTime::new(SystemTime::now())
+	}
+}
+
 /// Current status of the private transaction
 #[derive(Clone, Serialize, Deserialize, Debug, PartialEq)]
 pub enum PrivateTxStatus {
@@ -186,10 +192,12 @@ impl Logging {
 		let logging = Logging {
 			logs: RwLock::new(HashMap::new()),
 			logs_serializer,
-			mono_time: Mutex::new(MonoTime::new(SystemTime::now())),
+			mono_time: Mutex::default(),
 		};
-		if let Err(err) = logging.read_logs() {
-			warn!(target: "privatetx", "Cannot read logs: {:?}", err);
+		match logging.read_logs() {
+			// Initialize time source by max from current system time and max creation time from already saved logs
+			Ok(initial_time) => *logging.mono_time.lock() = MonoTime::new(initial_time),
+			Err(err) => warn!(target: "privatetx", "Cannot read logs: {:?}", err),
 		}
 		logging
 	}
@@ -249,16 +257,21 @@ impl Logging {
 		}
 	}
 
-	fn read_logs(&self) -> Result<(), Error> {
+	fn read_logs(&self) -> Result<SystemTime, Error> {
 		let mut transaction_logs = self.logs_serializer.read_logs()?;
 		// Drop old logs
 		let earliest_possible = SystemTime::now().checked_sub(MAX_STORING_TIME).ok_or(Error::TimestampOverflow)?;
 		transaction_logs.retain(|tx_log| tx_log.creation_timestamp > earliest_possible);
+		// Sort logs by their creation time in order to find the most recent
+		transaction_logs.sort_by(|a, b| b.creation_timestamp.cmp(&a.creation_timestamp));
+		let initial_timestamp = transaction_logs.first()
+			.map(|l| l.creation_timestamp)
+			.map_or(SystemTime::now(), |t| std::cmp::max(SystemTime::now(), t));
 		let mut logs = self.logs.write();
 		for log in transaction_logs {
 			logs.insert(log.tx_hash, log);
 		}
-		Ok(())
+		Ok(initial_timestamp)
 	}
 
 	fn flush_logs(&self) -> Result<(), Error> {
