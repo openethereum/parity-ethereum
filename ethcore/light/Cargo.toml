@@ -14,12 +14,12 @@ ethcore = { path = ".."}
 ethcore-db = { path = "../db" }
 ethcore-blockchain = { path = "../blockchain" }
 ethereum-types = "0.4"
-memory-db = "0.11.0"
-trie-db = "0.11.0"
+memory-db = "0.12.2"
+trie-db = "0.12.2"
 patricia-trie-ethereum = { path = "../../util/patricia-trie-ethereum" }
 ethcore-network = { path = "../../util/network" }
 ethcore-io = { path = "../../util/io" }
-hash-db = "0.11.0"
+hash-db = "0.12.2"
 heapsize = "0.4"
 vm = { path = "../vm" }
 fastmap = { path = "../../util/fastmap" }
