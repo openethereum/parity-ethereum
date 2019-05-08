@@ -54,7 +54,7 @@ impl MonoTime {
 		self.start_inst.elapsed()
 	}
 
-	fn into_system_time(&self) -> SystemTime {
+	fn to_system_time(&self) -> SystemTime {
 		self.start_time + self.elapsed()
 	}
 }
@@ -221,7 +221,7 @@ impl Logging {
 		logs.insert(*tx_hash, TransactionLog {
 			tx_hash: *tx_hash,
 			status: PrivateTxStatus::Created,
-			creation_timestamp: self.mono_time.lock().into_system_time(),
+			creation_timestamp: self.mono_time.lock().to_system_time(),
 			validators: validator_logs,
 			deployment_timestamp: None,
 			public_tx_hash: None,
@@ -234,7 +234,7 @@ impl Logging {
 		if let Some(transaction_log) = logs.get_mut(&tx_hash) {
 			if let Some(ref mut validator_log) = transaction_log.validators.iter_mut().find(|log| log.account == *validator) {
 				transaction_log.status = PrivateTxStatus::Validating;
-				validator_log.validation_timestamp = Some(self.mono_time.lock().into_system_time());
+				validator_log.validation_timestamp = Some(self.mono_time.lock().to_system_time());
 			}
 		}
 	}
@@ -244,7 +244,7 @@ impl Logging {
 		let mut logs = self.logs.write();
 		if let Some(log) = logs.get_mut(&tx_hash) {
 			log.status = PrivateTxStatus::Deployed;
-			log.deployment_timestamp = Some(self.mono_time.lock().into_system_time());
+			log.deployment_timestamp = Some(self.mono_time.lock().to_system_time());
 			log.public_tx_hash = Some(*public_tx_hash);
 		}
 	}
