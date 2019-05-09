@@ -2,11 +2,13 @@ use crate::contribution::Contribution;
 use ethcore::block::ExecutedBlock;
 use ethcore::client::EngineClient;
 use ethcore::engines::signer::EngineSigner;
-use ethcore::engines::{total_difficulty_fork_choice, Engine, EthEngine, ForkChoice, Seal};
+use ethcore::engines::{
+	total_difficulty_fork_choice, Engine, EngineError, EthEngine, ForkChoice, Seal,
+};
 use ethcore::error::Error;
 use ethcore::machine::EthereumMachine;
-use hbbft::honey_badger::{Batch, HoneyBadger, HoneyBadgerBuilder, Message, Step};
-use hbbft::{Target, TargetedMessage};
+use hbbft::honey_badger::{HoneyBadgerBuilder, Step};
+use hbbft::Target;
 use itertools::Itertools;
 use parking_lot::RwLock;
 use rlp::{Decodable, Rlp};
@@ -15,11 +17,18 @@ use std::sync::{Arc, Weak};
 use types::header::{ExtendedHeader, Header};
 use types::transaction::SignedTransaction;
 
+type NodeId = usize;
+type HoneyBadger = hbbft::honey_badger::HoneyBadger<Contribution, NodeId>;
+type Message = hbbft::honey_badger::Message<NodeId>;
+type Batch = hbbft::honey_badger::Batch<Contribution, NodeId>;
+type TargetedMessage = hbbft::TargetedMessage<Message, NodeId>;
+
 pub struct HoneyBadgerBFT {
 	client: Arc<RwLock<Option<Weak<EngineClient>>>>,
 	signer: RwLock<Option<Box<EngineSigner>>>,
 	machine: EthereumMachine,
 	transactions_trigger: usize,
+	honey_badger: RwLock<Option<HoneyBadger>>,
 }
 
 impl HoneyBadgerBFT {
@@ -33,11 +42,12 @@ impl HoneyBadgerBFT {
 			machine: machine,
 			// TODO: configure through spec params
 			transactions_trigger: 1,
+			honey_badger: RwLock::new(None),
 		});
 		Ok(engine)
 	}
 
-	fn new_honey_badger(&self) -> Option<HoneyBadger<Contribution, usize>> {
+	fn new_honey_badger(&self) -> Option<HoneyBadger> {
 		if let Some(ref weak) = *self.client.read() {
 			if let Some(client) = weak.upgrade() {
 				// TODO: Retrieve the information to build a node-specific NetworkInfo
@@ -51,7 +61,7 @@ impl HoneyBadgerBFT {
 		None
 	}
 
-	fn process_output(&self, client: &Arc<EngineClient>, output: Vec<Batch<Contribution, usize>>) {
+	fn process_output(&self, client: &Arc<EngineClient>, output: Vec<Batch>) {
 		let batch = output.first().unwrap();
 		// Decode and deduplicate transactions
 		let batch_txns: Vec<_> = batch
@@ -79,30 +89,64 @@ impl HoneyBadgerBFT {
 		client.create_pending_block(batch_txns, timestamp);
 	}
 
-	fn process_messages(
-		&self,
-		client: &Arc<EngineClient>,
-		messages: Vec<TargetedMessage<Message<usize>, usize>>,
-	) {
+	fn process_message(&self, sender_id: usize, message: Message) -> Result<(), EngineError> {
+		if let Some(ref weak) = *self.client.read() {
+			if let Some(client) = weak.upgrade() {
+				if let Some(ref mut honey_badger) = *self.honey_badger.write() {
+					match honey_badger.handle_message(&sender_id, message) {
+						Ok(step) => {
+							self.process_step(client, step);
+						}
+						_ => {
+							// TODO: Report consensus step errors
+							error!(target: "engine", "Error on HoneyBadger consensus step");
+						}
+					}
+					Ok(())
+				} else {
+					Err(EngineError::UnexpectedMessage)
+				}
+			} else {
+				Err(EngineError::RequiresClient)
+			}
+		} else {
+			Err(EngineError::RequiresClient)
+		}
+	}
+
+	fn dispatch_messages(&self, client: &Arc<EngineClient>, messages: Vec<TargetedMessage>) {
 		for m in messages {
-			match m.target {
-				Target::Node(n) => {
-					if let Ok(ser) = serde_json::to_vec(&m.message) {
+			if let Ok(ser) = serde_json::to_vec(&m.message) {
+				match m.target {
+					Target::Node(n) => {
+						// for debugging
+						println!("Sending targeted message: {:?}", m.message);
 						client.send_consensus_message(ser, n);
 					}
+					Target::All => {
+						// for debugging
+						println!("Sending broadcast message: {:?}", m.message);
+						// TODO: This broadcasts only to a select "lucky peers", we may
+						//       have to send the message to known other peers explicitly.
+						// TODO: More efficient to directly send to peers, re-implement this section
+						//       to send directly to all consensus nodes except self.
+						client.broadcast_consensus_message(ser);
+					}
 				}
-				_ => {}
+			} else {
+				error!(target: "engine", "Serialization of consensus message failed!");
+				panic!("Serialization of consensus message failed!");
 			}
 		}
 	}
 
 	fn process_step(&self, client: Arc<EngineClient>, step: Step<Contribution, usize>) {
-		self.process_messages(&client, step.messages);
+		self.dispatch_messages(&client, step.messages);
 		self.process_output(&client, step.output);
 	}
 
-	fn start_hbbft_epoch(&self, client: Arc<EngineClient>) {
-		if let Some(mut honey_badger) = self.new_honey_badger() {
+	fn send_contribution(&self, client: Arc<EngineClient>) {
+		if let Some(ref mut honey_badger) = *self.honey_badger.write() {
 			// TODO: Select a random *subset* of transactions to propose
 			let input_contribution = Contribution::new(
 				&client
@@ -111,7 +155,6 @@ impl HoneyBadgerBFT {
 					.map(|txn| txn.signed().clone())
 					.collect(),
 			);
-
 			let mut rng = rand::thread_rng();
 			let step = honey_badger.propose(&input_contribution, &mut rng);
 
@@ -124,6 +167,14 @@ impl HoneyBadgerBFT {
 					error!(target: "engine", "Error on HoneyBadger consensus step");
 				}
 			}
+		}
+	}
+
+	fn start_hbbft_epoch(&self, client: Arc<EngineClient>) {
+		// TODO: Check if an epoch is already started
+		if let Some(honey_badger) = self.new_honey_badger() {
+			*self.honey_badger.write() = Some(honey_badger);
+			self.send_contribution(client);
 		} else {
 			error!(target: "engine", "HoneyBadger algorithm could not be created!");
 			panic!("HoneyBadger algorithm could not be created!");
@@ -171,6 +222,13 @@ impl Engine<EthereumMachine> for HoneyBadgerBFT {
 					self.start_hbbft_epoch(client);
 				}
 			}
+		}
+	}
+
+	fn handle_message(&self, message: &[u8], peer_id: usize) -> Result<(), EngineError> {
+		match serde_json::from_slice(message) {
+			Ok(decoded_message) => self.process_message(peer_id, decoded_message),
+			_ => Err(EngineError::UnexpectedMessage),
 		}
 	}
 
@@ -222,7 +280,7 @@ mod tests {
 			.propose(&input_contribution, &mut rng)
 			.expect("Since there is only one validator we expect an immediate result");
 
-		// Assure the contribution retured by HoneyBadger matches the input
+		// Assure the contribution returned by HoneyBadger matches the input
 		assert_eq!(step.output.len(), 1);
 		let out = step.output.first().unwrap();
 		assert_eq!(out.epoch, 0);
