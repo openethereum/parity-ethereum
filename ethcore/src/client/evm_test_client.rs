@@ -143,7 +143,7 @@ impl<'a> EvmTestClient<'a> {
 	fn factories(trie_spec: trie::TrieSpec) -> Factories {
 		Factories {
 			vm: factory::VmFactory::new(VMType::Interpreter, 5 * 1024),
-			trie: trie::TrieFactory::new(trie_spec),
+			trie: trie::TrieFactory::new(trie_spec, ethtrie::Layout),
 			accountdb: Default::default(),
 		}
 	}

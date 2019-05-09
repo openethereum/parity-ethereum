@@ -27,7 +27,7 @@ use keccak_hasher::KeccakHasher;
 use triehash::sec_trie_root;
 use bytes::Bytes;
 use trie::TrieFactory;
-use ethtrie::RlpCodec;
+use ethtrie::Layout;
 use state::Account;
 use ethjson;
 use types::account_diff::*;
@@ -79,9 +79,9 @@ impl PodAccount {
 	}
 
 	/// Place additional data into given hash DB.
-	pub fn insert_additional(&self, db: &mut HashDB<KeccakHasher, DBValue>, factory: &TrieFactory<KeccakHasher, RlpCodec>) {
+	pub fn insert_additional(&self, db: &mut HashDB<KeccakHasher, DBValue>, factory: &TrieFactory<Layout>) {
 		match self.code {
-			Some(ref c) if !c.is_empty() => { db.insert(c); }
+			Some(ref c) if !c.is_empty() => { db.insert(hash_db::EMPTY_PREFIX, c); }
 			_ => {}
 		}
 		let mut r = H256::new();

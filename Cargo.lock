@@ -1541,7 +1541,7 @@ dependencies = [
 [[package]]
 name = "hash-db"
 version = "0.12.2"
-source = "git+https://github.com/cheme/trie.git?branch=simple-codec#38c48996c5b35a3c15d1c78d594d4b6c1ec656dd"
+source = "git+https://github.com/cheme/trie.git?branch=simple-codec#a8bcdf5d899e1ee407279171bdb6f22118a81285"
 
 [[package]]
 name = "hashmap_core"
@@ -2149,7 +2149,7 @@ dependencies = [
 [[package]]
 name = "memory-db"
 version = "0.12.2"
-source = "git+https://github.com/cheme/trie.git?branch=simple-codec#38c48996c5b35a3c15d1c78d594d4b6c1ec656dd"
+source = "git+https://github.com/cheme/trie.git?branch=simple-codec#a8bcdf5d899e1ee407279171bdb6f22118a81285"
 dependencies = [
  "hash-db 0.12.2 (git+https://github.com/cheme/trie.git?branch=simple-codec)",
  "hashmap_core 0.1.10 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -3176,7 +3176,7 @@ name = "rand_chacha"
 version = "0.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 dependencies = [
- "rand_core 0.3.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "rand_core 0.2.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "rustc_version 0.2.3 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
@@ -3198,7 +3198,7 @@ name = "rand_hc"
 version = "0.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 dependencies = [
- "rand_core 0.3.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "rand_core 0.2.2 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]
@@ -3223,7 +3223,7 @@ name = "rand_xorshift"
 version = "0.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 dependencies = [
- "rand_core 0.3.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "rand_core 0.2.2 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]
@@ -4084,7 +4084,7 @@ dependencies = [
 [[package]]
 name = "trie-db"
 version = "0.12.2"
-source = "git+https://github.com/cheme/trie.git?branch=simple-codec#38c48996c5b35a3c15d1c78d594d4b6c1ec656dd"
+source = "git+https://github.com/cheme/trie.git?branch=simple-codec#a8bcdf5d899e1ee407279171bdb6f22118a81285"
 dependencies = [
  "elastic-array 0.10.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "hash-db 0.12.2 (git+https://github.com/cheme/trie.git?branch=simple-codec)",
@@ -4476,7 +4476,7 @@ dependencies = [
 [[patch.unused]]
 name = "keccak-hasher"
 version = "0.12.2"
-source = "git+https://github.com/cheme/trie.git?branch=simple-codec#38c48996c5b35a3c15d1c78d594d4b6c1ec656dd"
+source = "git+https://github.com/cheme/trie.git?branch=simple-codec#a8bcdf5d899e1ee407279171bdb6f22118a81285"
 
 [metadata]
 "checksum aho-corasick 0.6.8 (registry+https://github.com/rust-lang/crates.io-index)" = "68f56c7353e5a9547cbd76ed90f7bb5ffc3ba09d4ea9bd1d8c06c8b1142eeb5a"

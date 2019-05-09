@@ -44,7 +44,7 @@ use types::log_entry::LocalizedLogEntry;
 use types::receipt::{Receipt, LocalizedReceipt};
 use types::{BlockNumber, header::{Header, ExtendedHeader}};
 use vm::{EnvInfo, LastHashes};
-
+use hash_db::EMPTY_PREFIX;
 use block::{IsBlock, LockedBlock, Drain, ClosedBlock, OpenBlock, enact_verified, SealedBlock};
 use client::ancient_import::AncientVerifier;
 use client::{
@@ -81,7 +81,7 @@ use verification::queue::kind::blocks::Unverified;
 use verification::{PreverifiedBlock, Verifier, BlockQueue};
 use verification;
 use ansi_term::Colour;
-
+use ethtrie::Layout;
 // re-export
 pub use types::blockchain_info::BlockChainInfo;
 pub use types::block_status::BlockStatus;
@@ -719,7 +719,7 @@ impl Client {
 			false => TrieSpec::Secure,
 		};
 
-		let trie_factory = TrieFactory::new(trie_spec);
+		let trie_factory = TrieFactory::new(trie_spec, Layout);
 		let factories = Factories {
 			vm: VmFactory::new(config.vm_type.clone(), config.jump_table_size),
 			trie: trie_factory,
@@ -751,7 +751,7 @@ impl Client {
 			config.history
 		};
 
-		if !chain.block_header_data(&chain.best_block_hash()).map_or(true, |h| state_db.journal_db().contains(&h.state_root())) {
+		if !chain.block_header_data(&chain.best_block_hash()).map_or(true, |h| state_db.journal_db().contains(&h.state_root(), EMPTY_PREFIX)) {
 			warn!("State root not found for block #{} ({:x})", chain.best_block_number(), chain.best_block_hash());
 		}
 

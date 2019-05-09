@@ -37,7 +37,7 @@ use tempdir::TempDir;
 
 #[test]
 fn snap_and_restore() {
-	use hash_db::HashDB;
+	use hash_db::{HashDB, EMPTY_PREFIX};
 	let mut producer = StateProducer::new();
 	let mut rng = XorShiftRng::from_seed([1, 2, 3, 4]);
 	let mut old_db = journaldb::new_memory_db();
@@ -94,7 +94,7 @@ fn snap_and_restore() {
 	let keys = old_db.keys();
 
 	for key in keys.keys() {
-		assert_eq!(old_db.get(&key).unwrap(), new_db.as_hash_db().get(&key).unwrap());
+		assert_eq!(old_db.get(&key, EMPTY_PREFIX).unwrap(), new_db.as_hash_db().get(&key, EMPTY_PREFIX).unwrap());
 	}
 }
 
@@ -103,7 +103,7 @@ fn get_code_from_prev_chunk() {
 	use std::collections::HashSet;
 	use rlp::RlpStream;
 	use ethereum_types::{H256, U256};
-	use hash_db::HashDB;
+	use hash_db::{HashDB, EMPTY_PREFIX};
 
 	use account_db::{AccountDBMut, AccountDB};
 
@@ -125,7 +125,7 @@ fn get_code_from_prev_chunk() {
 
 	let mut make_chunk = |acc, hash| {
 		let mut db = journaldb::new_memory_db();
-		AccountDBMut::from_hash(&mut db, hash).insert(&code[..]);
+		AccountDBMut::from_hash(&mut db, hash).insert(EMPTY_PREFIX, &code[..]);
 
 		let fat_rlp = account::to_fat_rlps(&hash, &acc, &AccountDB::from_hash(&db, hash), &mut used_code, usize::max_value(), usize::max_value()).unwrap();
 		let mut stream = RlpStream::new_list(1);

@@ -812,7 +812,7 @@ impl Spec {
 
 	/// Ensure that the given state DB has the trie nodes in for the genesis state.
 	pub fn ensure_db_good<T: Backend>(&self, db: T, factories: &Factories) -> Result<T, Error> {
-		if db.as_hash_db().contains(&self.state_root()) {
+		if db.as_hash_db().contains(&self.state_root(), hash_db::EMPTY_PREFIX) {
 			return Ok(db);
 		}
 
@@ -847,8 +847,6 @@ impl Spec {
 	/// constructor.
 	pub fn genesis_epoch_data(&self) -> Result<Vec<u8>, String> {
 		use types::transaction::{Action, Transaction};
-		use journaldb;
-		use kvdb_memorydb;
 
 		let genesis = self.genesis_header();
 
