@@ -13,8 +13,8 @@ extern crate rand;
 extern crate rustc_hex;
 #[macro_use(Serialize, Deserialize)]
 extern crate serde;
-extern crate serde_json;
 extern crate rlp;
+extern crate serde_json;
 #[macro_use]
 extern crate log;
 
@@ -68,7 +68,7 @@ mod tests {
 		let keypair = ethkey::KeyPair::from_secret(keccak("1").into())
 			.expect("KeyPair generation must succeed");
 
-		let (client, notify, miner) = hbbft_client_setup(from_keypair(keypair));
+		let (client, _, miner) = hbbft_client_setup(from_keypair(keypair));
 
 		// Generate a new set of cryptographic keys for threshold cryptography.
 		let mut rng = TestRng::from_seed(seed);
@@ -94,6 +94,5 @@ mod tests {
 			.block(BlockId::Number(1))
 			.expect("Block 1 must exist");
 		assert_eq!(block.transactions_count(), 1);
-		assert_eq!(notify.messages.read().len(), 6);
 	}
 }

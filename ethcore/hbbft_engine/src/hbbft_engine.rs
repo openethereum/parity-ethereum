@@ -126,11 +126,10 @@ impl HoneyBadgerBFT {
 					Target::All => {
 						// for debugging
 						println!("Sending broadcast message: {:?}", m.message);
-						// TODO: This broadcasts only to a select "lucky peers", we may
-						//       have to send the message to known other peers explicitly.
-						// TODO: More efficient to directly send to peers, re-implement this section
-						//       to send directly to all consensus nodes except self.
-						client.broadcast_consensus_message(ser);
+						let net_info = client.net_info().unwrap();
+						for peer_id in net_info.all_ids().filter(|p| p != &net_info.our_id()) {
+							client.send_consensus_message(ser.clone(), *peer_id);
+						}
 					}
 				}
 			} else {
