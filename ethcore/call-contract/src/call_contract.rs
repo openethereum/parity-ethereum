@@ -18,15 +18,34 @@
 
 use bytes::Bytes;
 use ethereum_types::Address;
+use ethabi::{decode, ParamType, Token};
 use types::ids::BlockId;
 
 /// Provides `call_contract` method
 pub trait CallContract {
 	/// Like `call`, but with various defaults. Designed to be used for calling contracts.
+	/// Returns an error in case of vm exception. Tries to decode Solidity revert message if there is a revert exception.
 	fn call_contract(&self, id: BlockId, address: Address, data: Bytes) -> Result<Bytes, String>;
 
 	/// Like `call`, but with various defaults. Designed to be used for calling contracts with specified sender.
+	/// Returns an error in case of vm exception. Tries to decode Solidity revert message if there is a revert exception.
 	fn call_contract_from_sender(&self, block_id: BlockId, address: Address, sender: Address, data: Bytes) -> Result<Bytes, String>;
+
+	/// Try to decode Solidity revert string
+	fn try_decode_solidity_revert_msg(&self, data: &Bytes) -> Option<String> {
+		let mut result = None;
+		if data.len() > 4 {
+			let (error_selector, enc_string) = data.split_at(4);
+			// Error(string) selector. Details: https://solidity.readthedocs.io/en/v0.5.8/control-structures.html#error-handling-assert-require-revert-and-exceptions
+			if error_selector == [0x08, 0xc3, 0x79, 0xa0] {
+				result = decode(&[ParamType::String], enc_string)
+					.as_ref()
+					.map(|d| if let Token::String(str) = &d[0] { Some(str.as_str().to_string()) } else { None })
+					.unwrap_or_else(|_| None);
+			}
+		}
+		result
+	}
 }
 
 /// Provides information on a blockchain service and it's registry

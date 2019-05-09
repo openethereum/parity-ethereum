@@ -21,6 +21,8 @@
 //! This crate exposes traits required to call contracts at particular block.
 //! All utilities that depend on on-chain data should use those traits to access it.
 
+extern crate ethabi;
+
 pub mod call_contract;
 
 // Re-export

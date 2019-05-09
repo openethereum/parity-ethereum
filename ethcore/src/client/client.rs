@@ -24,7 +24,7 @@ use std::time::{Instant, Duration};
 use blockchain::{BlockReceipts, BlockChain, BlockChainDB, BlockProvider, TreeRoute, ImportRoute, TransactionAddress, ExtrasInsert, BlockNumberKey};
 use bytes::Bytes;
 use call_contract::{CallContract, RegistryInfo};
-use ethabi::{decode, ParamType, Token};
+use ethabi::{Token};
 use ethcore_miner::pool::VerifiedTransaction;
 use ethereum_types::{H256, Address, U256};
 use evm::Schedule;
@@ -1458,17 +1458,7 @@ impl CallContract for Client {
 			let mut error = format!("{:?}", exception);
 			if exception == VmError::Reverted {
 				let output = executed.output.clone();
-				fn format_unknown_output(output: &Vec<u8>) -> String {format!("{}", Token::Bytes(output.to_vec()))};
-				// Try to decode Solidity revert string. If not successful - return bytes
-				let msg = if output.len() > 4 {
-					let (error_selector, enc_string) = output.split_at(4);
-					if error_selector == [0x08, 0xc3, 0x79, 0xa0] {  // Error(string) selector
-						decode(&[ParamType::String], enc_string)
-							.as_ref()
-							.map(|d| if let Token::String(str) = &d[0] { str.as_str().to_string() } else { format_unknown_output(&output) })
-							.unwrap_or_else(|_| format_unknown_output(&output) )
-					} else { format_unknown_output(&output) }
-				} else { format_unknown_output(&output) };
+				let msg = self.try_decode_solidity_revert_msg(&output).unwrap_or_else(|| format!("{}", Token::Bytes(output)));
 				error = format!("{} {}", error, msg);
 			}
 			Err(error)
