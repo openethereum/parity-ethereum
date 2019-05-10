@@ -157,7 +157,12 @@ impl DatabaseDirectories {
 	/// Base DB directory for the given fork.
 	// TODO: remove in 1.7
 	pub fn legacy_fork_path(&self) -> PathBuf {
-		Path::new(&self.legacy_path).join(format!("{:x}{}", H64::from(self.genesis_hash), self.fork_name.as_ref().map(|f| format!("-{}", f)).unwrap_or_default()))
+		let gh = H64::from_slice(&self.genesis_hash.as_bytes()[..8]);
+		Path::new(&self.legacy_path).join(format!(
+			"{:x}{}",
+			gh,
+			self.fork_name.as_ref().map(|f| format!("-{}", f)).unwrap_or_default()
+		))
 	}
 
 	/// Spec root directory for the given fork.
@@ -172,7 +177,9 @@ impl DatabaseDirectories {
 
 	/// DB root path, named after genesis hash
 	pub fn db_root_path(&self) -> PathBuf {
-		self.spec_root_path().join("db").join(format!("{:x}", H64::from(self.genesis_hash)))
+		// TODO(review): verify
+		let gh = H64::from_slice(&self.genesis_hash.as_bytes()[..8]);
+		self.spec_root_path().join("db").join(format!("{:x}", gh))
 	}
 
 	/// DB path
