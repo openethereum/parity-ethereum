@@ -142,6 +142,8 @@ build-android:
 build-linux:
   <<:                              *build-on-linux
   # only:                            *releaseable_branches
+  after_script:
+    - cp -r scripts/docker/hub/check_sync.sh ./artifacts/check_sync.sh
 
 build-linux-i386:
   <<:                              *build-on-linux
@@ -218,6 +220,8 @@ publish-docker:
     - docker login -u "$Docker_Hub_User_Parity" -p "$Docker_Hub_Pass_Parity"
     - docker info
   script:
+    - pwd
+    - ls -la
     # we stopped pushing nightlies to dockerhub, will push to own registry prb.
     - case "${SCHEDULE_TAG:-${CI_COMMIT_REF_NAME}}" in
         $SCHEDULE_TAG)
