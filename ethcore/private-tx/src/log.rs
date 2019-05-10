@@ -22,7 +22,7 @@ use std::fs::File;
 use std::path::PathBuf;
 use std::sync::Arc;
 use std::time::{SystemTime, Duration, Instant};
-use parking_lot::{RwLock, Mutex};
+use parking_lot::RwLock;
 use serde::ser::{Serializer, SerializeSeq};
 use error::Error;
 
@@ -129,6 +129,7 @@ pub trait LogsSerializer: Send + Sync + 'static {
 	fn flush_logs(&self, logs: &HashMap<H256, TransactionLog>) -> Result<(), Error>;
 }
 
+/// Logs serializer to the json file
 pub struct FileLogsSerializer {
 	logs_dir: PathBuf,
 }
@@ -153,14 +154,13 @@ impl FileLogsSerializer {
 impl LogsSerializer for FileLogsSerializer {
 	fn read_logs(&self) -> Result<Vec<TransactionLog>, Error> {
 		let log_file = self.open_file(false)?;
-		let transaction_logs: Vec<TransactionLog> = match serde_json::from_reader(log_file) {
-			Ok(logs) => logs,
+		match serde_json::from_reader(log_file) {
+			Ok(logs) => Ok(logs),
 			Err(err) => {
 				error!(target: "privatetx", "Cannot deserialize logs from file: {}", err);
 				return Err(format!("Cannot deserialize logs from file: {:?}", err).into());
 			}
-		};
-		Ok(transaction_logs)
+		}
 	}
 
 	fn flush_logs(&self, logs: &HashMap<H256, TransactionLog>) -> Result<(), Error> {
@@ -183,20 +183,20 @@ impl LogsSerializer for FileLogsSerializer {
 pub struct Logging {
 	logs: RwLock<HashMap<H256, TransactionLog>>,
 	logs_serializer: Arc<LogsSerializer>,
-	mono_time: Mutex<MonoTime>,
+	mono_time: MonoTime,
 }
 
 impl Logging {
 	/// Creates the logging object
 	pub fn new(logs_serializer: Arc<LogsSerializer>) -> Self {
-		let logging = Logging {
+		let mut logging = Logging {
 			logs: RwLock::new(HashMap::new()),
 			logs_serializer,
-			mono_time: Mutex::default(),
+			mono_time: MonoTime::default(),
 		};
 		match logging.read_logs() {
 			// Initialize time source by max from current system time and max creation time from already saved logs
-			Ok(initial_time) => *logging.mono_time.lock() = MonoTime::new(initial_time),
+			Ok(initial_time) => logging.mono_time = MonoTime::new(initial_time),
 			Err(err) => warn!(target: "privatetx", "Cannot read logs: {:?}", err),
 		}
 		logging
@@ -229,7 +229,7 @@ impl Logging {
 		logs.insert(*tx_hash, TransactionLog {
 			tx_hash: *tx_hash,
 			status: PrivateTxStatus::Created,
-			creation_timestamp: self.mono_time.lock().to_system_time(),
+			creation_timestamp: self.mono_time.to_system_time(),
 			validators: validator_logs,
 			deployment_timestamp: None,
 			public_tx_hash: None,
@@ -242,7 +242,7 @@ impl Logging {
 		if let Some(transaction_log) = logs.get_mut(&tx_hash) {
 			if let Some(ref mut validator_log) = transaction_log.validators.iter_mut().find(|log| log.account == *validator) {
 				transaction_log.status = PrivateTxStatus::Validating;
-				validator_log.validation_timestamp = Some(self.mono_time.lock().to_system_time());
+				validator_log.validation_timestamp = Some(self.mono_time.to_system_time());
 			}
 		}
 	}
@@ -252,7 +252,7 @@ impl Logging {
 		let mut logs = self.logs.write();
 		if let Some(log) = logs.get_mut(&tx_hash) {
 			log.status = PrivateTxStatus::Deployed;
-			log.deployment_timestamp = Some(self.mono_time.lock().to_system_time());
+			log.deployment_timestamp = Some(self.mono_time.to_system_time());
 			log.public_tx_hash = Some(*public_tx_hash);
 		}
 	}
@@ -265,8 +265,7 @@ impl Logging {
 		// Sort logs by their creation time in order to find the most recent
 		transaction_logs.sort_by(|a, b| b.creation_timestamp.cmp(&a.creation_timestamp));
 		let initial_timestamp = transaction_logs.first()
-			.map(|l| l.creation_timestamp)
-			.map_or(SystemTime::now(), |t| std::cmp::max(SystemTime::now(), t));
+			.map_or(SystemTime::now(), |l| std::cmp::max(SystemTime::now(), l.creation_timestamp));
 		let mut logs = self.logs.write();
 		for log in transaction_logs {
 			logs.insert(log.tx_hash, log);
@@ -292,13 +291,13 @@ impl Drop for Logging {
 #[cfg(test)]
 mod tests {
 	use serde_json;
-	use error::{Error};
-	use ethereum_types::{H256};
+	use error::Error;
+	use ethereum_types::H256;
 	use std::collections::{HashMap, BTreeMap};
-	use std::sync::{Arc};
+	use std::sync::Arc;
 	use std::time::{SystemTime, Duration};
-	use types::transaction::{Transaction};
-	use parking_lot::{RwLock};
+	use types::transaction::Transaction;
+	use parking_lot::RwLock;
 	use super::{TransactionLog, Logging, PrivateTxStatus, LogsSerializer, ValidatorLog};
 
 	#[cfg(not(time_checked_add))]

@@ -54,7 +54,7 @@ pub struct ValidatorLog {
 impl From<EthValidatorLog> for ValidatorLog {
 	fn from(r: EthValidatorLog) -> Self {
 		ValidatorLog {
-			account: r.account.into(),
+			account: r.account,
 			validation_timestamp: r.validation_timestamp.map(|t| t.duration_since(SystemTime::UNIX_EPOCH).unwrap_or_default().as_secs()),
 		}
 	}
@@ -81,12 +81,12 @@ pub struct PrivateTransactionLog {
 impl From<EthTransactionLog> for PrivateTransactionLog {
 	fn from(r: EthTransactionLog) -> Self {
 		PrivateTransactionLog {
-			tx_hash: r.tx_hash.into(),
+			tx_hash: r.tx_hash,
 			status: r.status.into(),
 			creation_timestamp: r.creation_timestamp.duration_since(SystemTime::UNIX_EPOCH).unwrap_or_default().as_secs(),
 			validators: r.validators.into_iter().map(Into::into).collect(),
 			deployment_timestamp: r.deployment_timestamp.map(|t| t.duration_since(SystemTime::UNIX_EPOCH).unwrap_or_default().as_secs()),
-			public_tx_hash: r.public_tx_hash.map(Into::into),
+			public_tx_hash: r.public_tx_hash,
 		}
 	}
 }
