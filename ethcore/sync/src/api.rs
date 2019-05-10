@@ -35,6 +35,7 @@ use ethkey::Secret;
 use ethcore::client::{ChainNotify, NewBlocks, ChainMessageType};
 use client_traits::BlockChainClient;
 use ethcore::snapshot::SnapshotService;
+use ethcore_private_tx::PrivateStateDB;
 use types::BlockNumber;
 use sync_io::NetSyncIo;
 use chain::{ChainSyncApi, SyncStatus as EthSyncStatus};
@@ -263,6 +264,8 @@ pub struct Params {
 	pub snapshot_service: Arc<dyn SnapshotService>,
 	/// Private tx service.
 	pub private_tx_handler: Option<Arc<dyn PrivateTxHandler>>,
+	/// Private state wrapper
+	pub private_state: Option<Arc<PrivateStateDB>>,
 	/// Light data provider.
 	pub provider: Arc<dyn (::light::Provider)>,
 	/// Network layer configuration.
@@ -377,6 +380,7 @@ impl EthSync {
 				chain: params.chain,
 				snapshot_service: params.snapshot_service,
 				overlay: RwLock::new(HashMap::new()),
+				private_state: params.private_state,
 			}),
 			light_proto: light_proto,
 			subprotocol_name: params.config.subprotocol_name,
@@ -460,6 +464,8 @@ struct SyncProtocolHandler {
 	sync: ChainSyncApi,
 	/// Chain overlay used to cache data such as fork block.
 	overlay: RwLock<HashMap<BlockNumber, Bytes>>,
+	/// Private state db
+	private_state: Option<Arc<PrivateStateDB>>,
 }
 
 impl NetworkProtocolHandler for SyncProtocolHandler {
@@ -475,7 +481,12 @@ impl NetworkProtocolHandler for SyncProtocolHandler {
 	}
 
 	fn read(&self, io: &dyn NetworkContext, peer: &PeerId, packet_id: u8, data: &[u8]) {
-		self.sync.dispatch_packet(&mut NetSyncIo::new(io, &*self.chain, &*self.snapshot_service, &self.overlay), *peer, packet_id, data);
+		self.sync.dispatch_packet(&mut NetSyncIo::new(io,
+			&*self.chain,
+			&*self.snapshot_service,
+			&self.overlay,
+			&self.private_state),
+			*peer, packet_id, data);
 	}
 
 	fn connected(&self, io: &dyn NetworkContext, peer: &PeerId) {
@@ -484,20 +495,30 @@ impl NetworkProtocolHandler for SyncProtocolHandler {
 		let warp_protocol = io.protocol_version(WARP_SYNC_PROTOCOL_ID, *peer).unwrap_or(0) != 0;
 		let warp_context = io.subprotocol_name() == WARP_SYNC_PROTOCOL_ID;
 		if warp_protocol == warp_context {
-			self.sync.write().on_peer_connected(&mut NetSyncIo::new(io, &*self.chain, &*self.snapshot_service, &self.overlay), *peer);
+			self.sync.write().on_peer_connected(&mut NetSyncIo::new(io,
+			&*self.chain,
+			&*self.snapshot_service,
+			&self.overlay,
+			&self.private_state),
+			*peer);
 		}
 	}
 
 	fn disconnected(&self, io: &dyn NetworkContext, peer: &PeerId) {
 		trace_time!("sync::disconnected");
 		if io.subprotocol_name() != WARP_SYNC_PROTOCOL_ID {
-			self.sync.write().on_peer_aborting(&mut NetSyncIo::new(io, &*self.chain, &*self.snapshot_service, &self.overlay), *peer);
+			self.sync.write().on_peer_aborting(&mut NetSyncIo::new(io,
+				&*self.chain,
+				&*self.snapshot_service,
+				&self.overlay,
+				&self.private_state),
+				*peer);
 		}
 	}
 
 	fn timeout(&self, io: &dyn NetworkContext, timer: TimerToken) {
 		trace_time!("sync::timeout");
-		let mut io = NetSyncIo::new(io, &*self.chain, &*self.snapshot_service, &self.overlay);
+		let mut io = NetSyncIo::new(io, &*self.chain, &*self.snapshot_service, &self.overlay, &self.private_state);
 		match timer {
 			PEERS_TIMER => self.sync.write().maintain_peers(&mut io),
 			MAINTAIN_SYNC_TIMER => self.sync.write().maintain_sync(&mut io),
@@ -528,8 +549,11 @@ impl ChainNotify for EthSync {
 		use light::net::Announcement;
 
 		self.network.with_context(self.subprotocol_name, |context| {
-			let mut sync_io = NetSyncIo::new(context, &*self.eth_handler.chain, &*self.eth_handler.snapshot_service,
-				&self.eth_handler.overlay);
+			let mut sync_io = NetSyncIo::new(context,
+				&*self.eth_handler.chain,
+				&*self.eth_handler.snapshot_service,
+				&self.eth_handler.overlay,
+				&self.eth_handler.private_state);
 			self.eth_handler.sync.write().chain_new_blocks(
 				&mut sync_io,
 				&new_blocks.imported,
@@ -593,7 +617,11 @@ impl ChainNotify for EthSync {
 
 	fn broadcast(&self, message_type: ChainMessageType) {
 		self.network.with_context(WARP_SYNC_PROTOCOL_ID, |context| {
-			let mut sync_io = NetSyncIo::new(context, &*self.eth_handler.chain, &*self.eth_handler.snapshot_service, &self.eth_handler.overlay);
+			let mut sync_io = NetSyncIo::new(context,
+				&*self.eth_handler.chain,
+				&*self.eth_handler.snapshot_service,
+				&self.eth_handler.overlay,
+				&self.eth_handler.private_state);
 			match message_type {
 				ChainMessageType::Consensus(message) => self.eth_handler.sync.write().propagate_consensus_packet(&mut sync_io, message),
 				ChainMessageType::PrivateTransaction(transaction_hash, message) =>
@@ -665,7 +693,11 @@ impl ManageNetwork for EthSync {
 
 	fn stop_network(&self) {
 		self.network.with_context(self.subprotocol_name, |context| {
-			let mut sync_io = NetSyncIo::new(context, &*self.eth_handler.chain, &*self.eth_handler.snapshot_service, &self.eth_handler.overlay);
+			let mut sync_io = NetSyncIo::new(context,
+				&*self.eth_handler.chain,
+				&*self.eth_handler.snapshot_service,
+				&self.eth_handler.overlay,
+				&self.eth_handler.private_state);
 			self.eth_handler.sync.write().abort(&mut sync_io);
 		});
 

@@ -23,6 +23,7 @@ mod messages;
 mod error;
 mod log;
 mod state_store;
+mod private_state_db;
 
 extern crate account_state;
 extern crate client_traits;
@@ -83,9 +84,10 @@ pub use encryptor::{Encryptor, SecretStoreEncryptor, EncryptorConfig, NoopEncryp
 pub use key_server_keys::{KeyProvider, SecretStoreKeys, StoringKeyProvider};
 pub use private_transactions::{VerifiedPrivateTransaction, VerificationStore, PrivateTransactionSigningDesc, SigningStore};
 pub use messages::{PrivateTransaction, SignedPrivateTransaction};
+pub use private_state_db::PrivateStateDB;
 pub use error::Error;
 pub use log::{Logging, TransactionLog, ValidatorLog, PrivateTxStatus, FileLogsSerializer};
-use state_store::{PrivateStateStore};
+use state_store::PrivateStateStorage;
 
 use std::sync::{Arc, Weak};
 use std::collections::{HashMap, HashSet, BTreeMap};
@@ -207,7 +209,7 @@ pub struct Provider {
 	keys_provider: Arc<KeyProvider>,
 	logging: Option<Logging>,
 	use_offchain_storage: bool,
-	state_storage: PrivateStateStore,
+	state_storage: PrivateStateStorage,
 }
 
 #[derive(Debug)]
@@ -245,8 +247,13 @@ impl Provider {
 			keys_provider,
 			logging: config.logs_path.map(|path| Logging::new(Arc::new(FileLogsSerializer::with_path(path)))),
 			use_offchain_storage: false,
-			state_storage: PrivateStateStore::new(db),
+			state_storage: PrivateStateStorage::new(db),
 		}
+	}
+
+	/// Returns private state DB
+	pub fn private_state_db(&self) -> Arc<PrivateStateDB> {
+		self.state_storage.private_state_db()
 	}
 
 	// TODO [ToDr] Don't use `ChainNotify` here!
@@ -411,7 +418,7 @@ impl Provider {
 				// Save state into the storage and store its hash in the contract
 				let original_state = saved_state.clone();
 				saved_state = keccak(&saved_state).to_vec();
-				self.state_storage.save_state(&original_state)?;
+				self.state_storage.private_state_db().save_state(&original_state)?;
 			}
 			let mut signatures = desc.received_signatures.clone();
 			signatures.push(signed_tx.signature());
@@ -537,7 +544,7 @@ impl Provider {
 		for address in private_contracts {
 			if let Ok(state_hash) = self.get_decrypted_state_from_contract(&address, BlockId::Latest) {
 				let state_hash = H256::from_slice(&state_hash);
-				if let Err(_) = self.state_storage.state(&state_hash) {
+				if let Err(_) = self.state_storage.private_state_db().state(&state_hash) {
 					// State not found in the local db
 					stalled_contracts_hashes.push(state_hash);
 				}
@@ -579,7 +586,7 @@ impl Provider {
 			true => {
 				let hashed_state = self.get_decrypted_state_from_contract(address, block)?;
 				let hashed_state = H256::from_slice(&hashed_state);
-				let stored_state_data = self.state_storage.state(&hashed_state)?;
+				let stored_state_data = self.state_storage.private_state_db().state(&hashed_state)?;
 				Ok(stored_state_data)
 			}
 			false => self.get_decrypted_state_from_contract(address, block),
@@ -733,7 +740,7 @@ impl Provider {
 		if self.use_offchain_storage {
 			// Save state into the storage and store its hash in the contract
 			saved_state = keccak(&saved_state).to_vec();
-			self.state_storage.save_state(&executed_code)?;
+			self.state_storage.private_state_db().save_state(&executed_code)?;
 		}
 		let tx_data = Self::generate_constructor(validators, executed_code.clone(), saved_state.clone());
 		let mut tx = Transaction {

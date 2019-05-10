@@ -16,15 +16,11 @@
 
 use std::sync::Arc;
 use parking_lot::RwLock;
-use bytes::Bytes;
-use ethcore_db::COL_PRIVATE_TRANSACTIONS_STATE;
 use ethereum_types::H256;
-use journaldb::overlaydb::OverlayDB;
-use kvdb::{KeyValueDB, DBTransaction};
-use hash_db::HashDB;
-use error::Error;
+use kvdb::KeyValueDB;
 use types::transaction::SignedTransaction;
 use private_transactions::VerifiedPrivateTransaction;
+use private_state_db::PrivateStateDB;
 
 /// State of the private state sync
 #[derive(Clone)]
@@ -36,23 +32,21 @@ pub enum SyncState {
 }
 
 /// Wrapper over storage for the private states
-pub struct PrivateStateStore {
+pub struct PrivateStateStorage {
 	verification_requests: RwLock<Vec<Arc<VerifiedPrivateTransaction>>>,
 	creation_requests: RwLock<Vec<SignedTransaction>>,
-	private_state: RwLock<OverlayDB>,
-	db: Arc<KeyValueDB>,
+	private_state_db: Arc<PrivateStateDB>,
 	sync_state: RwLock<SyncState>,
 	syncing_hashes: RwLock<Vec<H256>>,
 }
 
-impl PrivateStateStore {
+impl PrivateStateStorage {
 	/// Constructs the object
 	pub fn new(db: Arc<KeyValueDB>) -> Self {
-		PrivateStateStore {
+		PrivateStateStorage {
 			verification_requests: RwLock::new(Vec::new()),
 			creation_requests: RwLock::new(Vec::new()),
-			private_state: RwLock::new(OverlayDB::new(db.clone(), COL_PRIVATE_TRANSACTIONS_STATE)),
-			db,
+			private_state_db: Arc::new(PrivateStateDB::new(db)),
 			sync_state: RwLock::new(SyncState::Idle),
 			syncing_hashes: RwLock::default(),
 		}
@@ -90,20 +84,9 @@ impl PrivateStateStore {
 		}
 	}
 
-	/// Returns saved state for the address
-	pub fn state(&self, state_hash: &H256) -> Result<Bytes, Error> {
-		let private_state = self.private_state.read();
-		private_state.get(state_hash).map(|s| s.to_vec()).ok_or(Error::PrivateStateNotFound)
-	}
-
-	/// Stores state for the address
-	pub fn save_state(&self, storage: &Bytes) -> Result<H256, Error> {
-		let mut private_state = self.private_state.write();
-		let state_hash = private_state.insert(storage);
-		let mut transaction = DBTransaction::new();
-		private_state.commit_to_batch(&mut transaction)?;
-		self.db.write(transaction).map_err(|_| Error::DatabaseWriteError)?;
-		Ok(state_hash)
+	/// Returns underlying DB
+	pub fn private_state_db(&self) -> Arc<PrivateStateDB> {
+		self.private_state_db.clone()
 	}
 
 	/// Stores verification request for the later verification

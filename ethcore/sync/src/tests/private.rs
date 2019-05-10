@@ -26,7 +26,7 @@ use ethcore::{
 	client::ClientIoMessage,
 	miner::{self, MinerService},
 	spec::Spec,
-	test_helpers::push_block_with_transactions,
+	test_helpers::{push_block_with_transactions, new_db},
 };
 use ethcore_private_tx::{Provider, ProviderConfig, NoopEncryptor, Importer, SignedPrivateTransaction, StoringKeyProvider};
 use ethkey::KeyPair;
@@ -82,7 +82,7 @@ fn send_private_transaction() {
 	};
 
 	let private_keys = Arc::new(StoringKeyProvider::default());
-
+	let db = new_db();
 	let pm0 = Arc::new(Provider::new(
 			client0.clone(),
 			net.peer(0).miner.clone(),
@@ -91,6 +91,7 @@ fn send_private_transaction() {
 			signer_config,
 			IoChannel::to_handler(Arc::downgrade(&io_handler0)),
 			private_keys.clone(),
+			db.key_value().clone(),
 	));
 	pm0.add_notify(net.peers[0].clone());
 
@@ -102,6 +103,7 @@ fn send_private_transaction() {
 			validator_config,
 			IoChannel::to_handler(Arc::downgrade(&io_handler1)),
 			private_keys.clone(),
+			db.key_value().clone(),
 	));
 	pm1.add_notify(net.peers[1].clone());
 
