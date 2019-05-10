@@ -213,8 +213,8 @@ publish-docker:
     # DOCKERFILE:                  scripts/docker/hub/Dockerfile
     CONTAINER_IMAGE:               parity/parity
   before_script:
-    - test "$Docker_Hub_User_Parity" -a "$Docker_Hub_Pass_Parity"
-        || ( echo "no docker credentials provided"; exit 1 )
+    # - test "$Docker_Hub_User_Parity" -a "$Docker_Hub_Pass_Parity"
+    #     || ( echo "no docker credentials provided"; exit 1 )
     - docker login -u "$Docker_Hub_User_Parity" -p "$Docker_Hub_Pass_Parity"
     - docker info
   script:
