@@ -264,17 +264,17 @@ impl Message {
 
 		let mut rng = {
 			let mut thread_rng = ::rand::thread_rng();
-
 			XorShiftRng::from_seed(thread_rng.gen::<[u32; 4]>())
 		};
 
 		assert!(params.ttl > 0);
 
 		let expiry = {
-			let after_mining = SystemTime::now().checked_sub(Duration::from_millis(params.work))
-				.ok_or(Error::TimestampOverflow)?;
-			let since_epoch = after_mining.duration_since(time::UNIX_EPOCH)
-				.expect("time after now is after unix epoch; qed");
+			let since_epoch = SystemTime::now()
+				.checked_add(Duration::from_secs(params.ttl))
+				.and_then(|t| t.checked_add(Duration::from_millis(params.work)))
+				.ok_or(Error::TimestampOverflow)?
+				.duration_since(time::UNIX_EPOCH).expect("time after now is after unix epoch; qed");
 
 			// round up the sub-second to next whole second.
 			since_epoch.as_secs() + if since_epoch.subsec_nanos() == 0 { 0 } else { 1 }
