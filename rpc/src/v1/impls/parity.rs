@@ -477,7 +477,7 @@ impl<C, M, U, S> Parity for ParityClient<C, M, U> where
 
 	fn submit_raw_block(&self, block: Bytes) -> Result<H256> {
 		let result = self.client.import_block(
-			Unverified::from_rlp(block.into_vec()).map_err(errors::rlp )?
+			Unverified::from_rlp(block.into_vec()).map_err(errors::rlp)?
 		);
 		Ok(result.map_err(errors::cannot_submit_block)?)
 	}
