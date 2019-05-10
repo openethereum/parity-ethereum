@@ -10,6 +10,7 @@ variables:
   GIT_SUBMODULE_STRATEGY:          recursive
   CI_SERVER_NAME:                  "GitLab CI"
   CARGO_TARGET:                    x86_64-unknown-linux-gnu
+  SCCACHE_CACHE_SIZE:              50G
 
 .no_git:                           &no_git # disable git strategy
   variables:
@@ -140,7 +141,7 @@ build-android:
 
 build-linux:
   <<:                              *build-on-linux
-  only:                            *releaseable_branches
+  # only:                            *releaseable_branches
 
 build-linux-i386:
   <<:                              *build-on-linux
@@ -192,14 +193,63 @@ build-windows:
 
 publish-docker:
   stage:                           publish
-  only:                            *releaseable_branches
-  cache:                           {}
   dependencies:
     - build-linux
   tags:
-    - shell
+    - kubernetes-parity-build
+  environment:
+    name: parity-build
+  cache:                           {}
+  # only:                            *releaseable_branches
+  image:                           docker:stable
+  services:
+    - docker:dind
+  # collect VERSION artifact here to pass it on to kubernetes
+  # <<:                              *collect-artifacts
+  variables:
+    DOCKER_HOST:                   tcp://localhost:2375
+    DOCKER_DRIVER:                 overlay2
+    GIT_STRATEGY:                  none
+    # DOCKERFILE:                  scripts/docker/hub/Dockerfile
+    CONTAINER_IMAGE:               parity/parity
+  before_script:
+    - test "$Docker_Hub_User_Parity" -a "$Docker_Hub_Pass_Parity"
+        || ( echo "no docker credentials provided"; exit 1 )
+    - docker login -u "$Docker_Hub_User_Parity" -p "$Docker_Hub_Pass_Parity"
+    - docker info
   script:
-    - scripts/gitlab/publish-docker.sh parity
+    - case "${SCHEDULE_TAG:-${CI_COMMIT_REF_NAME}}" in 
+        $SCHEDULE_TAG) # nightly
+          echo "Docker TAG: parity/parity:${SCHEDULE_TAG}"
+          # we stopped pushing nightlies to dockerhub, will push to own registry prb.
+          docker build --no-cache 
+              --build-arg VCS_REF="${CI_COMMIT_SHORT_SHA}"
+              --build-arg BUILD_DATE="$(date -u '+%Y-%m-%dT%H:%M:%SZ')"
+              --tag parity/parity:$SCHEDULE_TAG 
+              --file scripts/docker/hub/Dockerfile .
+          docker push --tag parity/parity:$SCHEDULE_TAG 
+          ;;
+        beta) 
+          echo "Docker TAGs: parity/parity:beta, parity/parity:latest"
+          docker build --no-cache 
+              --build-arg VCS_REF="${CI_COMMIT_SHORT_SHA}"
+              --build-arg BUILD_DATE="$(date -u '+%Y-%m-%dT%H:%M:%SZ')"
+              --tag parity/parity:beta 
+              --tag parity/parity:latest 
+              --file scripts/docker/hub/Dockerfile .
+          docker push --tag parity/parity:beta
+          docker push --tag parity/parity:latest ;;
+        stable|*) # stable or tag
+          echo "Docker TAGs: parity/parity:${CI_COMMIT_REF_NAME}"
+          docker build --no-cache 
+              --build-arg VCS_REF="${CI_COMMIT_SHORT_SHA}"
+              --build-arg BUILD_DATE="$(date -u '+%Y-%m-%dT%H:%M:%SZ')"
+              --tag parity/parity:$CI_COMMIT_REF_NAME 
+              --file scripts/docker/hub/Dockerfile .
+          docker push --tag parity/parity:$CI_COMMIT_REF_NAME ;;
+      esac
+  after_script:
+    - docker logout
 
 publish-snap:                      &publish-snap
   stage:                           publish
