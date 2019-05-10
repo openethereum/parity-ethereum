@@ -67,6 +67,7 @@ use std::time;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 use block::ExecutedBlock;
+use bytes::Bytes;
 use client::{BlockId, EngineClient};
 use engines::clique::util::{extract_signers, recover_creator};
 use engines::{Engine, EngineError, Seal};
@@ -712,6 +713,13 @@ impl Engine<EthereumMachine> for Clique {
 					} else {
 						header.set_difficulty(DIFF_NOTURN);
 					}
+				}
+
+				let zero_padding_len = VANITY_LENGTH - header.extra_data().len();
+				if zero_padding_len > 0 {
+					let mut resized_extra_data = header.extra_data().clone();
+					resized_extra_data.resize(VANITY_LENGTH, 0);
+					header.set_extra_data(resized_extra_data);
 				}
 			} else {
 				trace!(target: "engine", "populate_from_parent: no signer registered");

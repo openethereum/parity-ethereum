@@ -255,6 +255,7 @@ publish-docs:
   except:
     - nightly
   cache:                            {}
+  dependencies:                     []
   script:
     - scripts/gitlab/publish-docs.sh
   tags:
