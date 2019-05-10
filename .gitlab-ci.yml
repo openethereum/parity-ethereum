@@ -218,34 +218,34 @@ publish-docker:
     - docker login -u "$Docker_Hub_User_Parity" -p "$Docker_Hub_Pass_Parity"
     - docker info
   script:
-    - case "${SCHEDULE_TAG:-${CI_COMMIT_REF_NAME}}" in 
-        $SCHEDULE_TAG) # nightly
-          echo "Docker TAG: parity/parity:${SCHEDULE_TAG}"
-          # we stopped pushing nightlies to dockerhub, will push to own registry prb.
-          docker build --no-cache 
+    # we stopped pushing nightlies to dockerhub, will push to own registry prb.
+    - case "${SCHEDULE_TAG:-${CI_COMMIT_REF_NAME}}" in
+        $SCHEDULE_TAG)
+        echo "Docker TAG - parity/parity:${SCHEDULE_TAG}";
+        docker build --no-cache 
               --build-arg VCS_REF="${CI_COMMIT_SHORT_SHA}"
               --build-arg BUILD_DATE="$(date -u '+%Y-%m-%dT%H:%M:%SZ')"
               --tag parity/parity:$SCHEDULE_TAG 
-              --file scripts/docker/hub/Dockerfile .
+              --file scripts/docker/hub/Dockerfile .;
           docker push --tag parity/parity:$SCHEDULE_TAG 
           ;;
         beta) 
-          echo "Docker TAGs: parity/parity:beta, parity/parity:latest"
+          echo "Docker TAGs - parity/parity:beta, parity/parity:latest";
           docker build --no-cache 
               --build-arg VCS_REF="${CI_COMMIT_SHORT_SHA}"
               --build-arg BUILD_DATE="$(date -u '+%Y-%m-%dT%H:%M:%SZ')"
               --tag parity/parity:beta 
               --tag parity/parity:latest 
-              --file scripts/docker/hub/Dockerfile .
-          docker push --tag parity/parity:beta
+              --file scripts/docker/hub/Dockerfile .;
+          docker push --tag parity/parity:beta;
           docker push --tag parity/parity:latest ;;
-        stable|*) # stable or tag
-          echo "Docker TAGs: parity/parity:${CI_COMMIT_REF_NAME}"
+        stable|*)
+          echo "Docker TAGs - parity/parity:${CI_COMMIT_REF_NAME}";
           docker build --no-cache 
               --build-arg VCS_REF="${CI_COMMIT_SHORT_SHA}"
               --build-arg BUILD_DATE="$(date -u '+%Y-%m-%dT%H:%M:%SZ')"
               --tag parity/parity:$CI_COMMIT_REF_NAME 
-              --file scripts/docker/hub/Dockerfile .
+              --file scripts/docker/hub/Dockerfile .;
           docker push --tag parity/parity:$CI_COMMIT_REF_NAME ;;
       esac
   after_script:
