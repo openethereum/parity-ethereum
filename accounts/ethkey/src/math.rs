@@ -17,7 +17,7 @@
 use super::{SECP256K1, Public, Secret, Error};
 use secp256k1::key;
 use secp256k1::constants::{GENERATOR_X, GENERATOR_Y, CURVE_ORDER};
-use ethereum_types::{U256, H256};
+use ethereum_types::{BigEndianHash as _, U256, H256};
 
 /// Whether the public key is valid.
 pub fn public_is_valid(public: &Public) -> bool {
@@ -78,7 +78,7 @@ pub fn generation_point() -> Public {
 
 /// Return secp256k1 elliptic curve order
 pub fn curve_order() -> U256 {
-	H256::from_slice(&CURVE_ORDER).into()
+	H256::from_slice(&CURVE_ORDER).into_uint()
 }
 
 fn to_secp256k1_public(public: &Public) -> Result<key::PublicKey, Error> {
@@ -93,7 +93,7 @@ fn to_secp256k1_public(public: &Public) -> Result<key::PublicKey, Error> {
 
 fn set_public(public: &mut Public, key_public: &key::PublicKey) {
 	let key_public_serialized = key_public.serialize_vec(&SECP256K1, false);
-	public.copy_from_slice(&key_public_serialized[1..65]);
+	public.as_bytes_mut().copy_from_slice(&key_public_serialized[1..65]);
 }
 
 #[cfg(test)]

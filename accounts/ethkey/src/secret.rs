@@ -60,7 +60,7 @@ impl Secret {
 			return None
 		}
 		let mut h = H256::default();
-		h.copy_from_slice(&key[0..32]);
+		h.as_bytes_mut().copy_from_slice(&key[0..32]);
 		Some(Secret { inner: Memzero::from(h) })
 	}
 
