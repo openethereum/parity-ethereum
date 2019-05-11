@@ -47,7 +47,7 @@ mod tests {
 	use hbbft::NetworkInfo;
 	use hbbft_testing::proptest::{gen_seed, TestRng, TestRngSeed};
 	use proptest::{prelude::ProptestConfig, proptest};
-	use rand::SeedableRng;
+	use rand::{Rng, SeedableRng};
 
 	proptest! {
 		#![proptest_config(ProptestConfig {
@@ -62,8 +62,14 @@ mod tests {
 
 		#[test]
 		#[allow(clippy::unnecessary_operation)]
-		fn test_with_multiple_clients(seed in gen_seed()) {
-			do_test_with_two_clients(seed)
+		fn test_two_clients(seed in gen_seed()) {
+			do_test_two_clients(seed)
+		}
+
+		#[test]
+		#[allow(clippy::unnecessary_operation)]
+		fn test_multiple_clients(seed in gen_seed()) {
+			do_test_multiple_clients(seed)
 		}
 	}
 
@@ -97,12 +103,8 @@ mod tests {
 		assert_eq!(block.transactions_count(), 1);
 	}
 
-	fn do_test_with_two_clients(seed: TestRngSeed) {
-		super::init();
-
-		let mut rng = TestRng::from_seed(seed);
-		let num_clients: usize = 2;
-		let net_infos = NetworkInfo::generate_map(0..num_clients, &mut rng)
+	fn test_with_size<R: Rng>(rng: &mut R, size: usize) {
+		let net_infos = NetworkInfo::generate_map(0..size, rng)
 			.expect("NetworkInfo generation to always succeed");
 
 		let nodes: Vec<_> = net_infos
@@ -110,11 +112,10 @@ mod tests {
 			.map(|(_, netinfo)| hbbft_client_setup(netinfo))
 			.collect();
 
-		// Verify that we actually start at block 0.
-		assert_eq!(nodes[0].client.chain().best_block_number(), 0);
-
-		// Inject transactions to kick off block creation.
 		for n in &nodes {
+			// Verify that we actually start at block 0.
+			assert_eq!(n.client.chain().best_block_number(), 0);
+			// Inject transactions to kick off block creation.
 			inject_transaction(&n.client, &n.miner);
 		}
 
@@ -148,6 +149,21 @@ mod tests {
 				None => expected = Some(n.client.chain().best_block_hash()),
 				Some(h) => assert_eq!(n.client.chain().best_block_hash(), h),
 			}
+		}
+	}
+
+	fn do_test_two_clients(seed: TestRngSeed) {
+		super::init();
+		let mut rng = TestRng::from_seed(seed);
+		test_with_size(&mut rng, 2);
+	}
+
+	fn do_test_multiple_clients(seed: TestRngSeed) {
+		super::init();
+		let mut rng = TestRng::from_seed(seed);
+		let sizes = vec![1, 2, 3, 5, rng.gen_range(6, 10)];
+		for size in sizes {
+			test_with_size(&mut rng, size);
 		}
 	}
 }
