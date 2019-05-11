@@ -7,15 +7,17 @@ use ethcore::engines::{
 };
 use ethcore::error::Error;
 use ethcore::machine::EthereumMachine;
+use ethereum_types::H256;
 use hbbft::honey_badger::{HoneyBadgerBuilder, Step};
 use hbbft::Target;
 use itertools::Itertools;
 use parking_lot::RwLock;
 use rlp::{Decodable, Rlp};
 use serde_json;
+use std::collections::HashSet;
 use std::sync::{Arc, Weak};
 use types::header::{ExtendedHeader, Header};
-use types::transaction::SignedTransaction;
+use types::transaction::{SignedTransaction, UnverifiedTransaction};
 
 type NodeId = usize;
 type HoneyBadger = hbbft::honey_badger::HoneyBadger<Contribution, NodeId>;
@@ -62,59 +64,70 @@ impl HoneyBadgerBFT {
 	}
 
 	fn process_output(&self, client: &Arc<EngineClient>, output: Vec<Batch>) {
-		if !output.is_empty() {
-			let batch = output.first().unwrap();
-			// Decode and deduplicate transactions
-			let batch_txns: Vec<_> = batch
-				.contributions
-				.iter()
-				.flat_map(|(_, c)| &c.transactions)
-				.filter_map(|ser_txn| {
-					// TODO: Report proposers of malformed transactions.
-					Decodable::decode(&Rlp::new(ser_txn)).ok()
-				})
-				.filter_map(|txn| {
-					// TODO: Report proposers of invalidly signed transactions.
-					SignedTransaction::new(txn).ok()
-				})
-				.collect();
+		let batch = match output.first() {
+			None => return,
+			Some(batch) => batch,
+		};
 
-			// We use the median of all contributions' timestamps
-			let timestamps = batch
-				.contributions
-				.iter()
-				.map(|(_, c)| c.timestamp)
-				.sorted();
-			let timestamp = timestamps[timestamps.len() / 2];
+		// Decode and de-duplicate transactions
+		let mut imported: HashSet<H256> = Default::default();
+		let batch_txns: Vec<_> = batch
+			.contributions
+			.iter()
+			.flat_map(|(_, c)| &c.transactions)
+			.filter_map(|ser_txn| {
+				// TODO: Report proposers of malformed transactions.
+				match Decodable::decode(&Rlp::new(ser_txn)) {
+					Ok::<UnverifiedTransaction, _>(txn) => {
+						if imported.contains(&txn.hash()) {
+							None
+						} else {
+							imported.insert(txn.hash());
+							Some(txn)
+						}
+					}
+					_ => None,
+				}
+			})
+			.filter_map(|txn| {
+				// TODO: Report proposers of invalidly signed transactions.
+				SignedTransaction::new(txn).ok()
+			})
+			.collect();
 
-			client.create_pending_block(batch_txns, timestamp);
-			client.update_sealing();
-		}
+		// We use the median of all contributions' timestamps
+		let timestamps = batch
+			.contributions
+			.iter()
+			.map(|(_, c)| c.timestamp)
+			.sorted();
+		let timestamp = timestamps[timestamps.len() / 2];
+
+		client.create_pending_block(batch_txns, timestamp);
+		client.update_sealing();
 	}
 
 	fn process_message(&self, sender_id: usize, message: Message) -> Result<(), EngineError> {
-		if let Some(ref weak) = *self.client.read() {
-			if let Some(client) = weak.upgrade() {
-				if let Some(ref mut honey_badger) = *self.honey_badger.write() {
-					match honey_badger.handle_message(&sender_id, message) {
-						Ok(step) => {
-							self.process_step(client, step);
-						}
-						_ => {
-							// TODO: Report consensus step errors
-							error!(target: "engine", "Error on HoneyBadger consensus step");
-						}
-					}
-					Ok(())
+		let client = self
+			.client
+			.read()
+			.as_ref()
+			.and_then(|weak| weak.upgrade())
+			.ok_or(EngineError::RequiresClient)?;
+
+		self.honey_badger
+			.write()
+			.as_mut()
+			.and_then(|honey_badger: &mut HoneyBadger| {
+				if let Ok(step) = honey_badger.handle_message(&sender_id, message) {
+					self.process_step(client, step);
 				} else {
-					Err(EngineError::UnexpectedMessage)
+					// TODO: Report consensus step errors
+					error!(target: "engine", "Error on HoneyBadger consensus step");
 				}
-			} else {
-				Err(EngineError::RequiresClient)
-			}
-		} else {
-			Err(EngineError::RequiresClient)
-		}
+				Some(())
+			})
+			.ok_or(EngineError::InvalidEngine)
 	}
 
 	fn dispatch_messages(&self, client: &Arc<EngineClient>, messages: Vec<TargetedMessage>) {
@@ -260,7 +273,7 @@ mod tests {
 	use types::transaction::SignedTransaction;
 
 	#[test]
-	fn test_honey_badger_instantiation() {
+	fn test_single_contribution() {
 		let mut rng = rand::thread_rng();
 		let net_infos = NetworkInfo::generate_map(0..1usize, &mut rng)
 			.expect("NetworkInfo generation is expected to always succeed");
