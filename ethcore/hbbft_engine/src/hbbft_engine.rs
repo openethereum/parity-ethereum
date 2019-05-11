@@ -62,31 +62,34 @@ impl HoneyBadgerBFT {
 	}
 
 	fn process_output(&self, client: &Arc<EngineClient>, output: Vec<Batch>) {
-		let batch = output.first().unwrap();
-		// Decode and deduplicate transactions
-		let batch_txns: Vec<_> = batch
-			.contributions
-			.iter()
-			.flat_map(|(_, c)| &c.transactions)
-			.filter_map(|ser_txn| {
-				// TODO: Report proposers of malformed transactions.
-				Decodable::decode(&Rlp::new(ser_txn)).ok()
-			})
-			.filter_map(|txn| {
-				// TODO: Report proposers of invalidly signed transactions.
-				SignedTransaction::new(txn).ok()
-			})
-			.collect();
+		if !output.is_empty() {
+			let batch = output.first().unwrap();
+			// Decode and deduplicate transactions
+			let batch_txns: Vec<_> = batch
+				.contributions
+				.iter()
+				.flat_map(|(_, c)| &c.transactions)
+				.filter_map(|ser_txn| {
+					// TODO: Report proposers of malformed transactions.
+					Decodable::decode(&Rlp::new(ser_txn)).ok()
+				})
+				.filter_map(|txn| {
+					// TODO: Report proposers of invalidly signed transactions.
+					SignedTransaction::new(txn).ok()
+				})
+				.collect();
 
-		// We use the median of all contributions' timestamps
-		let timestamps = batch
-			.contributions
-			.iter()
-			.map(|(_, c)| c.timestamp)
-			.sorted();
-		let timestamp = timestamps[timestamps.len() / 2];
+			// We use the median of all contributions' timestamps
+			let timestamps = batch
+				.contributions
+				.iter()
+				.map(|(_, c)| c.timestamp)
+				.sorted();
+			let timestamp = timestamps[timestamps.len() / 2];
 
-		client.create_pending_block(batch_txns, timestamp);
+			client.create_pending_block(batch_txns, timestamp);
+			client.update_sealing();
+		}
 	}
 
 	fn process_message(&self, sender_id: usize, message: Message) -> Result<(), EngineError> {
@@ -120,12 +123,12 @@ impl HoneyBadgerBFT {
 				match m.target {
 					Target::Node(n) => {
 						// for debugging
-						println!("Sending targeted message: {:?}", m.message);
+						// println!("Sending targeted message: {:?}", m.message);
 						client.send_consensus_message(ser, n);
 					}
 					Target::All => {
 						// for debugging
-						println!("Sending broadcast message: {:?}", m.message);
+						// println!("Sending broadcast message: {:?}", m.message);
 						let net_info = client.net_info().unwrap();
 						for peer_id in net_info.all_ids().filter(|p| p != &net_info.our_id()) {
 							client.send_consensus_message(ser.clone(), *peer_id);
@@ -171,13 +174,7 @@ impl HoneyBadgerBFT {
 
 	fn start_hbbft_epoch(&self, client: Arc<EngineClient>) {
 		// TODO: Check if an epoch is already started
-		if let Some(honey_badger) = self.new_honey_badger() {
-			*self.honey_badger.write() = Some(honey_badger);
-			self.send_contribution(client);
-		} else {
-			error!(target: "engine", "HoneyBadger algorithm could not be created!");
-			panic!("HoneyBadger algorithm could not be created!");
-		}
+		self.send_contribution(client);
 	}
 }
 
@@ -200,6 +197,12 @@ impl Engine<EthereumMachine> for HoneyBadgerBFT {
 
 	fn register_client(&self, client: Weak<EngineClient>) {
 		*self.client.write() = Some(client.clone());
+		if let Some(honey_badger) = self.new_honey_badger() {
+			*self.honey_badger.write() = Some(honey_badger);
+		} else {
+			error!(target: "engine", "HoneyBadger algorithm could not be created!");
+			panic!("HoneyBadger algorithm could not be created!");
+		}
 	}
 
 	fn set_signer(&self, signer: Box<EngineSigner>) {

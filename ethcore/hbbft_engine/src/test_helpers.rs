@@ -3,13 +3,15 @@ use std::sync::Arc;
 use rustc_hex::FromHex;
 
 use ethcore::client::Client;
-use ethcore::engines::signer::EngineSigner;
+use ethcore::engines::signer::from_keypair;
 use ethcore::miner::{Miner, MinerService};
 use ethcore::spec::Spec;
 use ethcore::test_helpers::generate_dummy_client_with_spec;
 use ethcore::test_helpers::TestNotify;
 use ethereum_types::U256;
 use ethkey::{Generator, Random};
+use hash::keccak;
+use hbbft::NetworkInfo;
 use types::transaction::{Action, SignedTransaction, Transaction};
 
 pub fn hbbft_spec() -> Spec {
@@ -24,16 +26,23 @@ pub fn hbbft_client() -> std::sync::Arc<ethcore::client::Client> {
 	generate_dummy_client_with_spec(hbbft_spec)
 }
 
-pub fn hbbft_client_setup(signer: Box<EngineSigner>) -> (Arc<Client>, Arc<TestNotify>, Arc<Miner>) {
-	// Create client
-	let client = hbbft_client();
+pub struct HbbftTestData {
+	pub client: Arc<Client>,
+	pub notify: Arc<TestNotify>,
+	pub miner: Arc<Miner>,
+}
 
-	// Get hbbft Engine reference and initialize it with a back-reference to the Client
-	{
-		let engine = client.engine();
-		engine.register_client(Arc::downgrade(&client) as _);
-		engine.set_signer(signer);
-	}
+pub fn hbbft_client_setup(net_info: NetworkInfo<usize>) -> HbbftTestData {
+	let client = hbbft_client();
+	client.set_netinfo(net_info);
+
+	let engine = client.engine();
+	// Set the signer *before* registering the client with the engine.
+	let signer = from_keypair(
+		ethkey::KeyPair::from_secret(keccak("1").into()).expect("KeyPair generation must succeed"),
+	);
+	engine.set_signer(signer);
+	engine.register_client(Arc::downgrade(&client) as _);
 
 	// Register notify object for capturing consensus messages
 	let notify = Arc::new(TestNotify::default());
@@ -42,7 +51,11 @@ pub fn hbbft_client_setup(signer: Box<EngineSigner>) -> (Arc<Client>, Arc<TestNo
 	// Get miner reference
 	let miner = client.miner();
 
-	(client, notify, miner)
+	HbbftTestData {
+		client: client.clone(),
+		notify,
+		miner,
+	}
 }
 
 pub fn create_transaction() -> SignedTransaction {
