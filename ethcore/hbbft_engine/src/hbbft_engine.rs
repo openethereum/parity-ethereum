@@ -3,7 +3,7 @@ use ethcore::block::ExecutedBlock;
 use ethcore::client::EngineClient;
 use ethcore::engines::signer::EngineSigner;
 use ethcore::engines::{
-	total_difficulty_fork_choice, Engine, EngineError, EthEngine, ForkChoice, Seal,
+	total_difficulty_fork_choice, Engine, EngineError, EthEngine, ForkChoice, Seal, SealingState,
 };
 use ethcore::error::Error;
 use ethcore::machine::EthereumMachine;
@@ -226,8 +226,8 @@ impl Engine<EthereumMachine> for HoneyBadgerBFT {
 		*self.signer.write() = Default::default();
 	}
 
-	fn seals_internally(&self) -> Option<bool> {
-		Some(true)
+	fn sealing_state(&self) -> SealingState {
+		SealingState::Ready
 	}
 
 	fn on_transactions_imported(&self) {
