@@ -1,6 +1,5 @@
 [package]
 description = "Parity Ethereum CLI Signer Tool"
-description = "Parity Cli Tool"
 homepage = "http://parity.io"
 license = "GPL-3.0"
 name = "cli-signer"
