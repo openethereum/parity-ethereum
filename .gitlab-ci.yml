@@ -143,7 +143,7 @@ build-linux:
   <<:                              *build-on-linux
   # only:                            *releaseable_branches
   after_script:
-    - cp -r scripts/docker/hub/check_sync.sh ./artifacts/check_sync.sh
+    - cp -r scripts/docker/hub/* ./artifacts/
 
 build-linux-i386:
   <<:                              *build-on-linux
@@ -215,42 +215,43 @@ publish-docker:
     # DOCKERFILE:                  scripts/docker/hub/Dockerfile
     CONTAINER_IMAGE:               parity/parity
   before_script:
-    # - test "$Docker_Hub_User_Parity" -a "$Docker_Hub_Pass_Parity"
-    #     || ( echo "no docker credentials provided"; exit 1 )
+    - test "$Docker_Hub_User_Parity" -a "$Docker_Hub_Pass_Parity"
+        || ( echo "no docker credentials provided"; exit 1 )
     - docker login -u "$Docker_Hub_User_Parity" -p "$Docker_Hub_Pass_Parity"
     - docker info
   script:
     - pwd
     - ls -la
+    - ls -la artifacts
     # we stopped pushing nightlies to dockerhub, will push to own registry prb.
     - case "${SCHEDULE_TAG:-${CI_COMMIT_REF_NAME}}" in
         $SCHEDULE_TAG)
-        echo "Docker TAG - parity/parity:${SCHEDULE_TAG}";
+        echo "Docker TAG - ${CONTAINER_IMAGE}:${SCHEDULE_TAG}";
         docker build --no-cache 
               --build-arg VCS_REF="${CI_COMMIT_SHORT_SHA}"
               --build-arg BUILD_DATE="$(date -u '+%Y-%m-%dT%H:%M:%SZ')"
-              --tag parity/parity:$SCHEDULE_TAG 
+              --tag ${CONTAINER_IMAGE}:$SCHEDULE_TAG 
               --file scripts/docker/hub/Dockerfile .;
-          docker push --tag parity/parity:$SCHEDULE_TAG 
+          docker push --tag ${CONTAINER_IMAGE}:$SCHEDULE_TAG 
           ;;
         beta) 
-          echo "Docker TAGs - parity/parity:beta, parity/parity:latest";
+          echo "Docker TAGs - ${CONTAINER_IMAGE}:beta, ${CONTAINER_IMAGE}:latest";
           docker build --no-cache 
               --build-arg VCS_REF="${CI_COMMIT_SHORT_SHA}"
               --build-arg BUILD_DATE="$(date -u '+%Y-%m-%dT%H:%M:%SZ')"
-              --tag parity/parity:beta 
-              --tag parity/parity:latest 
+              --tag ${CONTAINER_IMAGE}:beta 
+              --tag ${CONTAINER_IMAGE}:latest 
               --file scripts/docker/hub/Dockerfile .;
-          docker push --tag parity/parity:beta;
-          docker push --tag parity/parity:latest ;;
+          docker push --tag ${CONTAINER_IMAGE}:beta;
+          docker push --tag ${CONTAINER_IMAGE}:latest ;;
         stable|*)
-          echo "Docker TAGs - parity/parity:${CI_COMMIT_REF_NAME}";
+          echo "Docker TAGs - ${CONTAINER_IMAGE}:${CI_COMMIT_REF_NAME}";
           docker build --no-cache 
               --build-arg VCS_REF="${CI_COMMIT_SHORT_SHA}"
               --build-arg BUILD_DATE="$(date -u '+%Y-%m-%dT%H:%M:%SZ')"
-              --tag parity/parity:$CI_COMMIT_REF_NAME 
+              --tag ${CONTAINER_IMAGE}:$CI_COMMIT_REF_NAME 
               --file scripts/docker/hub/Dockerfile .;
-          docker push --tag parity/parity:$CI_COMMIT_REF_NAME ;;
+          docker push --tag ${CONTAINER_IMAGE}:$CI_COMMIT_REF_NAME ;;
       esac
   after_script:
     - docker logout

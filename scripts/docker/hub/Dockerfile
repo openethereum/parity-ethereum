@@ -5,29 +5,30 @@ ARG VCS_REF
 ARG BUILD_DATE
 
 LABEL io.parity.image.authors="devops-team@parity.io" \
-		io.parity.image.vendor="Parity Technologies" \
-		io.parity.image.title="parity/parity" \
-		io.parity.image.description="Parity Ethereum. The Fastest and most Advanced Ethereum Client." \
-		io.parity.image.source="https://github.com/paritytech/parity-ethereum/blob/master/scripts/docker/hub/Dockerfile" \
-		io.parity.image.revision="${VCS_REF}" \
-		io.parity.image.created="${BUILD_DATE}" \
-		io.parity.image.documentation="https://wiki.parity.io/Parity-Ethereum"
+	io.parity.image.vendor="Parity Technologies" \
+	io.parity.image.title="parity/parity" \
+	io.parity.image.description="Parity Ethereum. The Fastest and most Advanced Ethereum Client." \
+	io.parity.image.source="https://github.com/paritytech/parity-ethereum/blob/master/scripts/docker/hub/Dockerfile" \
+	io.parity.image.revision="${VCS_REF}" \
+	io.parity.image.created="${BUILD_DATE}" \
+	io.parity.image.documentation="https://wiki.parity.io/Parity-Ethereum"
 
 # show backtraces
 ENV RUST_BACKTRACE 1
 
 # install tools and dependencies
-RUN apt-get update; \
-		apt-get install -y --no-install-recommends \
-		libudev-dev file curl jq; \
-		# removed openssl
-# apt cleanup
-		apt-get autoremove -y; \
-		apt-get clean; \
-		rm -rf /tmp/* /var/tmp/* /var/lib/apt/lists/*; \
-# add user
-		groupadd -g 1000 parity; \
-		useradd -m -u 1000 -g parity -s /bin/sh parity
+RUN set -eux; \
+	apt-get update; \
+	apt-get install -y --no-install-recommends \
+	libudev-dev file curl jq; \
+	# removed openssl
+	# apt cleanup
+	apt-get autoremove -y; \
+	apt-get clean; \
+	rm -rf /tmp/* /var/tmp/* /var/lib/apt/lists/*; \
+	# add user
+	groupadd -g 1000 parity; \
+	useradd -m -u 1000 -g parity -s /bin/sh parity
 
 WORKDIR /home/parity
 
