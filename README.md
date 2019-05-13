@@ -329,10 +329,10 @@ Example (generic):
 //! Description (of module)
 ```
 * Special section header is indicated with a hash `#`.
-** `Panics` section requires an explanation if the function triggers a panic
-** `Errors` section is for describing conditions under which a function of method returns `Err(E)` if it returns a `Result<T, E>`
-** `Safety` section requires an explanation if the function is `unsafe`
-** `Examples` section includes examples of using the function or method
+  * `Panics` section requires an explanation if the function triggers a panic
+  * `Errors` section is for describing conditions under which a function of method returns `Err(E)` if it returns a `Result<T, E>`
+  * `Safety` section requires an explanation if the function is `unsafe`
+  * `Examples` section includes examples of using the function or method
 * Code block annotations for examples are included between triple graves, as shown above.
 Instead of including the programming language to use for syntax highlighting as the annotation
 after the triple graves, alternative annotations include the `ignore`, `text`, `should_panic`, or `no_run`.
