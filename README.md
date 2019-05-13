@@ -205,7 +205,7 @@ Caching, Importing Blocks, and Block Information
     ```bash
     evm
     ```
-  * Parity Ethereum (EthCore) Light Client Implementation (Block Import IO Service, Blockchain Data Fetching, Light Client Header Chain Storage, Parity Light Protocol (PLP) Provider, Light Transaction Queue, CHT Definitions, Light Client Data Cache), Parity Light Protocol (PLP) Implementation, P2P Network I/O and Event Context Generalization, Peer Error Handling & Punishment, Request Load Timer & Distribution Manager, Pending Request Set Storage, Request Credit Management, Light Client Request Types, Request Chain Builder Utility, On-demand Chain Request Service over LES (for RPCs), ResponseGuard Implementation)
+  * Parity Ethereum (EthCore) Light Client Implementation
     ```bash
     ethcore-light
     ```
@@ -221,17 +221,11 @@ Caching, Importing Blocks, and Block Information
     ```bash
     ethcore-service
     ```
-  * Parity Ethereum (EthCore) Blockchain Synchronization (Strategy, Blockchain Downloader, Blockchain Synchronization
-  Implementation of Ethereum Protocol, Propagating Data to Peers, Requesting Data from Peers, Supplying Data in
-  Response to Peer Requests, Handling Peer Responses, Matching Packet IDs and Protocol, Light Client Synchronization
-  of Header Chain, Header Download State Machine, Light Decoding & Verifying Header Responses, Private
-  Transaction Handling, Synchronization Snapshot Service to Download & Verify Block Chunks, Peer Connection
-  Management and Blockchain Client I/O Interface for Synchronization Handler, Transaction Statistics)
+  * Parity Ethereum (EthCore) Blockchain Synchronization
     ```bash
     ethcore-sync
     ```
-  * Parity Ethereum Common Types (Engine-specific Fork Choice, Epoch Verifiers & Transitions, Transaction Data
-  Structures & Errors, View onto Block RLP, etc)
+  * Parity Ethereum Common Types
     ```bash
     common-types
     ```
@@ -263,7 +257,7 @@ Caching, Importing Blocks, and Block Information
     ```bash
     parity-machine
     ```
-* Parity Ethereum (EthCore) Miner Interface (Manage Local Node Data, Fetch Current ETH Price, etc)
+* Parity Ethereum (EthCore) Miner Interface
   ```bash
   ethcore-miner parity-local-store price-info ethcore-stratum using_queue
   ```
