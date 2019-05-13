@@ -11,10 +11,10 @@
 
 1. [Description](#chapter-001)
 2. [Technical Overview](#chapter-002)
-3. [Building](#chapter-003)
-  3.1 [Building Dependencies](#chapter-0031)
-  3.2 [Building from Source Code](#chapter-0032)
-  3.3 [Simple One-Line Installer for Mac and Linux](#chapter-0033)
+3. [Building](#chapter-003)<br>
+  3.1 [Building Dependencies](#chapter-0031)<br>
+  3.2 [Building from Source Code](#chapter-0032)<br>
+  3.3 [Simple One-Line Installer for Mac and Linux](#chapter-0033)<br>
   3.4 [Starting Parity Ethereum](#chapter-0034)
 4. [Documentation](#chapter-004)
 5. [Toolchain](#chapter-005)
@@ -164,6 +164,7 @@ cargo doc --package <spec> --open
 
 Replacing `<spec>` with one of the following (i.e. `cargo doc --package parity-ethereum --open`):
 
+<details><p><pre>
 * Parity Ethereum (EthCore) Client Application
   ```bash
   parity-ethereum
@@ -283,19 +284,21 @@ Caching, Importing Blocks, and Block Information
   ```
 * Parity Utilities
   ```bash
-  ethcore-bloom-journal blooms-db dir eip-712 fake-fetch fastmap fetch ethcore-io journaldb keccak-hasher
-  len-caching-lock macros memory-cache memzero migration-rocksdb ethcore-network ethcore-network-devp2p
-  panic_hook patricia-trie-ethereum registrar rlp_compress rlp_derive parity-runtime stats time-utils
-  triehash-ethereum unexpected parity-version
+  ethcore-bloom-journal blooms-db dir eip-712 fake-fetch fastmap fetch ethcore-io
+  journaldb keccak-hasher len-caching-lock macros memory-cache memzero
+  migration-rocksdb ethcore-network ethcore-network-devp2p panic_hook
+  patricia-trie-ethereum registrar rlp_compress rlp_derive parity-runtime stats
+  time-utils triehash-ethereum unexpected parity-version
   ```
 * Parity Whisper Protocol Implementation
   ```bash
   parity-whisper whisper-cli
   ```
+</pre></p></details>
 
 ### Contributing to documentation for Parity Ethereum packages
 
-https://doc.rust-lang.org/1.9.0/book/documentation.html[Document source code] for Parity Ethereum packages by annotating the source code with documentation comments.
+[Document source code](https://doc.rust-lang.org/1.9.0/book/documentation.html) for Parity Ethereum packages by annotating the source code with documentation comments.
 
 Example (generic):
 ```markdown
@@ -320,8 +323,8 @@ Example (generic):
 ```
 
 * Important notes:
-** Documentation comments must use annotations with a triple slash `///`
-** Modules are documented using `//!`
+  * Documentation comments must use annotations with a triple slash `///`
+  * Modules are documented using `//!`
 ```
 //! Summary (of module)
 //!
@@ -346,9 +349,9 @@ or errors `#![deny(missing_docs)]`
 The code block annotations in the `# Example` section may be used as https://doc.rust-lang.org/1.9.0/book/documentation.html#documentation-as-tests[documentation as tests and for extended examples].
 
 * Important notes:
-** Rustdoc will automatically add a `main()` wrapper around the code block to test it
-** https://doc.rust-lang.org/1.9.0/book/documentation.html#documenting-macros[Documenting macros].
-** Documentation as tests examples are included when running `cargo test`
+  * Rustdoc will automatically add a `main()` wrapper around the code block to test it
+  * https://doc.rust-lang.org/1.9.0/book/documentation.html#documenting-macros[Documenting macros].
+  * Documentation as tests examples are included when running `cargo test`
 
 ## 5. Toolchain <a id="chapter-005"></a>
 
