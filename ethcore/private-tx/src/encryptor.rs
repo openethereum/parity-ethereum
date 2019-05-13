@@ -60,7 +60,7 @@ pub trait Encryptor: Send + Sync + 'static {
 	) -> Result<Bytes, Error>;
 }
 
-/// Configurtion for key server encryptor
+/// Configuration for key server encryptor
 #[derive(Default, PartialEq, Debug, Clone)]
 pub struct EncryptorConfig {
 	/// URL to key server
