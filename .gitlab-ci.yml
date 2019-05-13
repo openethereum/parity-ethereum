@@ -204,7 +204,7 @@ publish-docker:
   only:                            *releaseable_branches
   except:
     variables:
-      - $SCHEDULE_TAG == nightly
+      - $SCHEDULE_TAG == "nightly"
   image:                           docker:stable
   services:
     - docker:dind
