@@ -21,12 +21,12 @@ RUN set -eux; \
 	apt-get update; \
 	apt-get install -y --no-install-recommends \
 	libudev-dev file curl jq; \
-	# removed openssl
-	# apt cleanup
+# removed openssl
+# apt cleanup
 	apt-get autoremove -y; \
 	apt-get clean; \
 	rm -rf /tmp/* /var/tmp/* /var/lib/apt/lists/*; \
-	# add user
+# add user
 	groupadd -g 1000 parity; \
 	useradd -m -u 1000 -g parity -s /bin/sh parity
 
