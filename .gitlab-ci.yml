@@ -101,19 +101,19 @@ validate-chainspecs:
     - ./scripts/gitlab/validate-chainspecs.sh
     - sccache -s
 
-test-cpp:
-  stage:                           build
-  <<:                              *docker-cache-status
-  script:
-    - ./scripts/gitlab/test-cpp.sh
-    - sccache -s
+# test-cpp:
+#   stage:                           build
+#   <<:                              *docker-cache-status
+#   script:
+#     - ./scripts/gitlab/test-cpp.sh
+#     - sccache -s
 
-test-linux:
-  stage:                           build
-  <<:                              *docker-cache-status
-  script:
-    - ./scripts/gitlab/test-linux.sh stable
-    - sccache -s
+# test-linux:
+#   stage:                           build
+#   <<:                              *docker-cache-status
+#   script:
+#     - ./scripts/gitlab/test-linux.sh stable
+#     - sccache -s
 
 test-linux-beta:
   stage:                           build
@@ -132,11 +132,11 @@ test-linux-nightly:
     - sccache -s
   allow_failure:                   true
 
-build-android:
-  <<:                              *build-on-linux
-  image:                           parity/rust-parity-ethereum-android-build:stretch
-  variables:
-    CARGO_TARGET:                  armv7-linux-androideabi
+# build-android:
+#   <<:                              *build-on-linux
+#   image:                           parity/rust-parity-ethereum-android-build:stretch
+#   variables:
+#     CARGO_TARGET:                  armv7-linux-androideabi
 
 build-linux:
   <<:                              *build-on-linux
@@ -230,7 +230,7 @@ publish-docker:
               --build-arg VCS_REF="${CI_COMMIT_SHORT_SHA}"
               --build-arg BUILD_DATE="$(date -u '+%Y-%m-%dT%H:%M:%SZ')"
               --tag ${CONTAINER_IMAGE}:$SCHEDULE_TAG 
-              --file scripts/docker/hub/Dockerfile .;
+              --file artifacts/Dockerfile .;
           docker push --tag ${CONTAINER_IMAGE}:$SCHEDULE_TAG 
           ;;
         beta) 
@@ -240,7 +240,7 @@ publish-docker:
               --build-arg BUILD_DATE="$(date -u '+%Y-%m-%dT%H:%M:%SZ')"
               --tag ${CONTAINER_IMAGE}:beta 
               --tag ${CONTAINER_IMAGE}:latest 
-              --file scripts/docker/hub/Dockerfile .;
+              --file artifacts/Dockerfile .;
           docker push --tag ${CONTAINER_IMAGE}:beta;
           docker push --tag ${CONTAINER_IMAGE}:latest ;;
         stable|*)
@@ -249,7 +249,7 @@ publish-docker:
               --build-arg VCS_REF="${CI_COMMIT_SHORT_SHA}"
               --build-arg BUILD_DATE="$(date -u '+%Y-%m-%dT%H:%M:%SZ')"
               --tag ${CONTAINER_IMAGE}:$CI_COMMIT_REF_NAME 
-              --file scripts/docker/hub/Dockerfile .;
+              --file artifacts/Dockerfile .;
           docker push --tag ${CONTAINER_IMAGE}:$CI_COMMIT_REF_NAME ;;
       esac
   after_script:
