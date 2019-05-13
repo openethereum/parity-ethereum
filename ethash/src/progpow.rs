@@ -14,6 +14,28 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
+//! ProgPoW (Progressive Proof-of-Work) is the Ethereum network's proposed new Application-Specific Integrated
+//! Circuit (ASIC) resistant Proof-of-Work mining algorithm.
+//!
+//! ProgPoW's aim is to reduce the efficiencies of specialized mining devices known as ASIC chips
+//! (and accelerated GPU-based setups), and to maximize the performance of General Purpose Hardware (GPUs) to enable
+//! more users to compete for new cryptocurrency awarded by the protocol.
+//!
+//! ASIC chips are those that are tailored to efficiently mining cryptocurrency based on a specific hashing algorithm.
+//!
+//! GPU mining setups are less specialised are struggle to compete for mining rewards.
+//!
+//! It would be a change from Ethereum's current PoW mining algorithm known as Ethash and would impact the
+//! Ethereum network's mining rewards.
+//!
+//! ProgPoW has been trialed on client implementations running the "Gangnam" testnet.
+//!
+//! ProgPoW audits have been proposed to analyse the efficiency of a ProgPoW ASICs over
+//! GPUs and analysis of the economic impact on the Ethereum protocol.
+//!
+//! Ethereum is expected to ultimately evolve from using the hybrid PoS-PoW Casper Friendly Finality Gadget (FFG)
+//! protocol (smart contract on a PoW chain) that was deprecated to using PoS (Casper v2).
+
 use compute::{FNV_PRIME, calculate_dag_item};
 use keccak::H256;
 use shared::{ETHASH_ACCESSES, ETHASH_MIX_BYTES, Node, get_data_size};
