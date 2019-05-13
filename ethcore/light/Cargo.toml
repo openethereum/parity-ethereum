@@ -1,5 +1,5 @@
 [package]
-description = "Parity Light Client Implementation"
+description = "Parity Ethereum (EthCore) Light Client Implementation (Block Import IO Service, Blockchain Data Fetching, Light Client Header Chain Storage, Parity Light Protocol (PLP) Provider, Light Transaction Queue, CHT Definitions, Light Client Data Cache), Parity Light Protocol (PLP) Implementation, P2P Network I/O and Event Context Generalization, Peer Error Handling & Punishment, Request Load Timer & Distribution Manager, Pending Request Set Storage, Request Credit Management, Light Client Request Types, Request Chain Builder Utility, On-demand Chain Request Service over LES (for RPCs), ResponseGuard Implementation)"
 homepage = "http://parity.io"
 license = "GPL-3.0"
 name = "ethcore-light"

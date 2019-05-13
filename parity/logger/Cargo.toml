@@ -1,5 +1,5 @@
 [package]
-description = "Log implementation for Parity"
+description = "Parity Ethereum Logger Implementation"
 name = "ethcore-logger"
 version = "1.12.0"
 license = "GPL-3.0"

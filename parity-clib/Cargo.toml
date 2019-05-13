@@ -1,5 +1,5 @@
 [package]
-description = "C bindings for the Parity Ethereum client"
+description = "Parity Ethereum Client C-Bindings Library"
 name = "parity-clib"
 version = "1.12.0"
 license = "GPL-3.0"

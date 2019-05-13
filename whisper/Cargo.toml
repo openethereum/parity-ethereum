@@ -1,8 +1,8 @@
 [package]
+description = "Parity Ethereum Whisper Protocol Implementation"
 name = "parity-whisper"
 version = "0.1.0"
 authors = ["Parity Technologies <admin@parity.io>"]
-description = "Whisper Protocol implementation for Parity"
 
 [dependencies]
 bitflags = "0.9"

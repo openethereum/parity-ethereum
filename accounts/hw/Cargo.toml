@@ -1,5 +1,5 @@
 [package]
-description = "Hardware wallet support."
+description = "Parity Ethereum Hardware Wallet Support."
 homepage = "http://parity.io"
 license = "GPL-3.0"
 name = "hardware-wallet"

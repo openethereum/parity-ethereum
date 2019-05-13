@@ -1,5 +1,5 @@
 [package]
-description = "Fake hardware-wallet, for OS' that don't support libusb"
+description = "Parity Ethereum Fake Hardware-Wallet for OS' without libusb Support"
 name = "fake-hardware-wallet"
 version = "0.0.1"
 license = "GPL-3.0"

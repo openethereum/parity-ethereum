@@ -1,5 +1,5 @@
 [package]
-description = "Parity smart network connections"
+description = "Parity Smart Contract based Node Filter, Manage Permissions of Network Connections"
 homepage = "http://parity.io"
 license = "GPL-3.0"
 name = "node-filter"
