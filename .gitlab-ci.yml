@@ -221,7 +221,8 @@ publish-docker:
     - docker info
   script:
     # we stopped pushing nightlies to dockerhub, will push to own registry prb.
-    - ./artifacts/publish-docker.sh
+    - ls -la artifacts
+    - artifacts/publish-docker.sh
   after_script:
     - docker logout
 
