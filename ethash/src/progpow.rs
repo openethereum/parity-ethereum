@@ -25,16 +25,10 @@
 //!
 //! GPU mining setups are less specialised are struggle to compete for mining rewards.
 //!
-//! It would be a change from Ethereum's current PoW mining algorithm known as Ethash and would impact the
-//! Ethereum network's mining rewards.
-//!
-//! ProgPoW has been trialed on client implementations running the "Gangnam" testnet.
+//! It would be a change from Ethereum's current PoW mining algorithm known as Ethash.
 //!
 //! ProgPoW audits have been proposed to analyse the efficiency of a ProgPoW ASICs over
 //! GPUs and analysis of the economic impact on the Ethereum protocol.
-//!
-//! Ethereum is expected to ultimately evolve from using the hybrid PoS-PoW Casper Friendly Finality Gadget (FFG)
-//! protocol (smart contract on a PoW chain) that was deprecated to using PoS (Casper v2).
 
 use compute::{FNV_PRIME, calculate_dag_item};
 use keccak::H256;
