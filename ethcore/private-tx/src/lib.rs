@@ -701,7 +701,7 @@ impl Provider {
 	/// Retrieves log information about private transaction
 	pub fn private_log(&self, tx_hash: H256) -> Result<TransactionLog, Error> {
 		match self.logging {
-			Some(ref logging) => logging.tx_log(&tx_hash).ok_or(Error::TxNotFoundInLog.into()),
+			Some(ref logging) => logging.tx_log(&tx_hash).ok_or(Error::TxNotFoundInLog),
 			None => Err(Error::LoggingPathNotSet),
 		}
 	}
