@@ -8,14 +8,14 @@ authors = ["Parity Technologies <admin@parity.io>"]
 [dependencies]
 common-types = { path = "../types" }
 derive_more = "0.14.0"
-ethabi = "6.0"
-ethabi-contract = "6.0"
-ethabi-derive = "6.0"
+ethabi = "7.0.0"
+ethabi-contract = "7.0.0"
+ethabi-derive = "7.0.0"
 ethcore = { path = ".." }
 ethcore-call-contract = { path = "../call-contract" }
 ethcore-io = { path = "../../util/io" }
 ethcore-miner = { path = "../../miner" }
-ethereum-types = "0.5.3-beta.1"
+ethereum-types = "0.5.3-beta.2"
 ethjson = { path = "../../json" }
 ethkey = { path = "../../accounts/ethkey" }
 fetch = { path = "../../util/fetch" }

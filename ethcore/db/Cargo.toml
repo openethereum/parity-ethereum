@@ -9,7 +9,7 @@ edition = "2018"
 
 [dependencies]
 common-types = { path = "../types" }
-ethereum-types = "0.5.3-beta.1"
+ethereum-types = "0.5.3-beta.2"
 heapsize = "0.4"
 kvdb = "0.1"
 parking_lot = "0.7"

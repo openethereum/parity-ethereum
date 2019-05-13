@@ -23,7 +23,7 @@ ethcore-io = { path = "../io", features = ["mio"] }
 parity-bytes = "0.1"
 parity-crypto = "0.3.0"
 ethcore-network = { path = "../network" }
-ethereum-types = "0.5.3-beta.1"
+ethereum-types = "0.5.3-beta.2"
 ethkey = { path = "../../accounts/ethkey" }
 rlp = { version = "0.3.0", features = ["ethereum"] }
 parity-path = "0.1"
