@@ -1,8 +1,0 @@
-[package]
-description = "Parity Ethereum State Machine Generalization for Consensus Engines"
-name = "parity-machine"
-version = "0.1.0"
-authors = ["Parity Technologies <admin@parity.io>"]
-
-[dependencies]
-ethereum-types = "0.4"

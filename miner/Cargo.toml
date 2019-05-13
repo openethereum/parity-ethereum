@@ -1,5 +1,5 @@
 [package]
-description = "Parity Miner interface."
+description = "Parity Ethereum Miner Interface."
 name = "ethcore-miner"
 homepage = "http://parity.io"
 license = "GPL-3.0"

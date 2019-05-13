@@ -22,7 +22,7 @@ There are a few basic ground-rules for contributors (including the maintainer(s)
 Merging pull requests once CI is successful:
 
 * A PR needs to be reviewed and approved by project maintainers unless:
-	* it does not alter any logic (e.g. comments, dependencies, docs), then it may be tagged[`insubstantial`](https://github.com/paritytech/parity-ethereum/pulls?q=is%3Aopen+is%3Apr+label%3A%22A2-insubstantial+%F0%9F%91%B6%22) and merged by its author once CI is complete.
+  * it does not alter any logic (e.g. comments, dependencies, docs), then it may be tagged[`insubstantial`](https://github.com/paritytech/parity-ethereum/pulls?q=is%3Aopen+is%3Apr+label%3A%22A2-insubstantial+%F0%9F%91%B6%22) and merged by its author once CI is complete.
   * it is an urgent fix with no large change to logic, then it may be merged after a non-author contributor has approved the review once CI is complete.
 
 * Once a PR is ready for review please add the [`pleasereview`](https://github.com/paritytech/parity-ethereum/pulls?utf8=%E2%9C%93&q=is%3Aopen+is%3Apr+label%3A%22A0-pleasereview+%F0%9F%A4%93%22+) label. Generally PRs should sit with this label for 48 hours in order to garner feedback. It may be merged before if all relevant parties had a look at it.
