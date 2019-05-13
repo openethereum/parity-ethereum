@@ -101,19 +101,19 @@ validate-chainspecs:
     - ./scripts/gitlab/validate-chainspecs.sh
     - sccache -s
 
-# test-cpp:
-#   stage:                           build
-#   <<:                              *docker-cache-status
-#   script:
-#     - ./scripts/gitlab/test-cpp.sh
-#     - sccache -s
+test-cpp:
+  stage:                           build
+  <<:                              *docker-cache-status
+  script:
+    - ./scripts/gitlab/test-cpp.sh
+    - sccache -s
 
-# test-linux:
-#   stage:                           build
-#   <<:                              *docker-cache-status
-#   script:
-#     - ./scripts/gitlab/test-linux.sh stable
-#     - sccache -s
+test-linux:
+  stage:                           build
+  <<:                              *docker-cache-status
+  script:
+    - ./scripts/gitlab/test-linux.sh stable
+    - sccache -s
 
 test-linux-beta:
   stage:                           build
@@ -132,15 +132,15 @@ test-linux-nightly:
     - sccache -s
   allow_failure:                   true
 
-# build-android:
-#   <<:                              *build-on-linux
-#   image:                           parity/rust-parity-ethereum-android-build:stretch
-#   variables:
-#     CARGO_TARGET:                  armv7-linux-androideabi
+build-android:
+  <<:                              *build-on-linux
+  image:                           parity/rust-parity-ethereum-android-build:stretch
+  variables:
+    CARGO_TARGET:                  armv7-linux-androideabi
 
 build-linux:
   <<:                              *build-on-linux
-  # only:                            *releaseable_branches
+  only:                            *releaseable_branches
   after_script:
     - cp -r scripts/docker/hub/* ./artifacts/
 
@@ -201,17 +201,17 @@ publish-docker:
   environment:
     name: parity-build
   cache:                           {}
-  # only:                            *releaseable_branches
+  only:                            *releaseable_branches
+  except:
+    - master
   image:                           docker:stable
   services:
     - docker:dind
-  # collect VERSION artifact here to pass it on to kubernetes
-  # <<:                              *collect-artifacts
   variables:
     DOCKER_HOST:                   tcp://localhost:2375
     DOCKER_DRIVER:                 overlay2
     GIT_STRATEGY:                  none
-    # DOCKERFILE:                  scripts/docker/hub/Dockerfile
+    # DOCKERFILE:                  artifacts/Dockerfile
     CONTAINER_IMAGE:               parity/parity
   before_script:
     - test "$Docker_Hub_User_Parity" -a "$Docker_Hub_Pass_Parity"
@@ -219,36 +219,26 @@ publish-docker:
     - docker login -u "$Docker_Hub_User_Parity" -p "$Docker_Hub_Pass_Parity"
     - docker info
   script:
-    - pwd
-    - ls -la
-    - ls -la artifacts
     # we stopped pushing nightlies to dockerhub, will push to own registry prb.
     - case "${SCHEDULE_TAG:-${CI_COMMIT_REF_NAME}}" in
         $SCHEDULE_TAG)
-        echo "Docker TAG - ${CONTAINER_IMAGE}:${SCHEDULE_TAG}";
-        docker build --no-cache 
-              --build-arg VCS_REF="${CI_COMMIT_SHORT_SHA}"
-              --build-arg BUILD_DATE="$(date -u '+%Y-%m-%dT%H:%M:%SZ')"
-              --tag ${CONTAINER_IMAGE}:$SCHEDULE_TAG 
-              --file artifacts/Dockerfile .;
-          docker push ${CONTAINER_IMAGE}:$SCHEDULE_TAG 
-          ;;
-        beta) 
+          echo "Docker TAG - ${CONTAINER_IMAGE}:${SCHEDULE_TAG}";;
+        beta)
           echo "Docker TAGs - ${CONTAINER_IMAGE}:beta, ${CONTAINER_IMAGE}:latest";
-          docker build --no-cache 
+          docker build --no-cache
               --build-arg VCS_REF="${CI_COMMIT_SHORT_SHA}"
               --build-arg BUILD_DATE="$(date -u '+%Y-%m-%dT%H:%M:%SZ')"
-              --tag ${CONTAINER_IMAGE}:beta 
-              --tag ${CONTAINER_IMAGE}:latest 
+              --tag ${CONTAINER_IMAGE}:beta
+              --tag ${CONTAINER_IMAGE}:latest
               --file artifacts/Dockerfile .;
           docker push ${CONTAINER_IMAGE}:beta;
           docker push ${CONTAINER_IMAGE}:latest ;;
         stable|*)
           echo "Docker TAGs - ${CONTAINER_IMAGE}:${CI_COMMIT_REF_NAME}";
-          docker build --no-cache 
+          docker build --no-cache
               --build-arg VCS_REF="${CI_COMMIT_SHORT_SHA}"
               --build-arg BUILD_DATE="$(date -u '+%Y-%m-%dT%H:%M:%SZ')"
-              --tag ${CONTAINER_IMAGE}:$CI_COMMIT_REF_NAME 
+              --tag ${CONTAINER_IMAGE}:$CI_COMMIT_REF_NAME
               --file artifacts/Dockerfile .;
           docker push ${CONTAINER_IMAGE}:$CI_COMMIT_REF_NAME ;;
       esac
