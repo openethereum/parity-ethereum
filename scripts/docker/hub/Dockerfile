@@ -20,7 +20,7 @@ ENV RUST_BACKTRACE 1
 RUN set -eux; \
 	apt-get update; \
 	apt-get install -y --no-install-recommends \
-	libudev-dev file curl jq; \
+		libudev-dev file curl jq; \
 # removed openssl
 # apt cleanup
 	apt-get autoremove -y; \
@@ -34,9 +34,13 @@ WORKDIR /home/parity
 
 # add parity-ethereum binary to docker image
 COPY artifacts/x86_64-unknown-linux-gnu/parity /bin/parity
+COPY artifacts/check_sync.sh /check_sync.sh
 
 # switch to user parity here
 USER parity
+
+# check if executable works in this container
+RUN parity --version
 
 EXPOSE 5001 8080 8082 8083 8545 8546 8180 30303/tcp 30303/udp
 
