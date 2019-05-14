@@ -92,7 +92,6 @@ pub trait ValidatorSet: Send + Sync + 'static {
 		Ok(())
 	}
 
-	#[cfg(all())]
 	/// Called for each new block this node is creating.  If this block is
 	/// the first block of an epoch, this is called *after* on_epoch_begin(),
 	/// but with the same parameters.

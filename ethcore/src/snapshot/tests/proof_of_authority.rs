@@ -183,7 +183,7 @@ fn make_chain(accounts: Arc<AccountProvider>, blocks_beyond: usize, transitions:
 
 			// push blocks to finalize transition
 			for finalization_count in 1.. {
-				if finalization_count * 2 > cur_signers.len() { break }
+				if finalization_count * 3 > cur_signers.len() * 2 { break }
 				push_block(&cur_signers, (num + finalization_count) as u64, make_useless_transactions());
 			}
 
