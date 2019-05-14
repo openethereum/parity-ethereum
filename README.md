@@ -344,11 +344,11 @@ or errors `#![deny(missing_docs)]`
 
 ### Contributing to documentation (tests, extended examples, macros) for Parity Ethereum packages
 
-The code block annotations in the `# Example` section may be used as https://doc.rust-lang.org/1.9.0/book/documentation.html#documentation-as-tests[documentation as tests and for extended examples].
+The code block annotations in the `# Example` section may be used as [documentation as tests and for extended examples](https://doc.rust-lang.org/1.9.0/book/documentation.html#documentation-as-tests).
 
 * Important notes:
   * Rustdoc will automatically add a `main()` wrapper around the code block to test it
-  * https://doc.rust-lang.org/1.9.0/book/documentation.html#documenting-macros[Documenting macros].
+  * [Documenting macros](https://doc.rust-lang.org/1.9.0/book/documentation.html#documenting-macros).
   * Documentation as tests examples are included when running `cargo test`
 
 ## 5. Toolchain <a id="chapter-005"></a>
