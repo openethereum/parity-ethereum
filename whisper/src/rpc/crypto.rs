@@ -165,8 +165,8 @@ impl DecryptionInstance {
 						if ciphertext.len() < num_topics * 32 {
 							return None
 						}
-						let mut salted_topic = H256::new();
-						salted_topic.copy_from_slice(&ciphertext[(known_index * 32)..][..32]);
+						let mut salted_topic = H256::zero();
+						salted_topic.as_bytes_mut().copy_from_slice(&ciphertext[(known_index * 32)..][..32]);
 						let key = Memzero::from((salted_topic ^ known_topic).0);
 						let offset = num_topics * 32;
 						Decryptor::aes_256_gcm(&*key).ok()?

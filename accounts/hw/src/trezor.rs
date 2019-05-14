@@ -289,7 +289,7 @@ impl<'a> Wallet<'a> for Manager {
 		message.set_value(self.u256_to_be_vec(&t_info.value));
 
 		if let Some(addr) = t_info.to {
-			message.set_to(addr.to_vec())
+			message.set_to(addr.as_bytes().to_vec())
 		}
 		let first_chunk_length = min(t_info.data.len(), 1024);
 		let chunk = &t_info.data[0..first_chunk_length];
@@ -398,7 +398,7 @@ impl<'a> Wallet<'a> for Manager {
 		match resp_type {
 			MessageType::MessageType_EthereumAddress => {
 				let response: EthereumAddress = protobuf::core::parse_from_bytes(&bytes)?;
-				Ok(Some(From::from(response.get_address())))
+				Ok(Some(Address::from_slice(response.get_address())))
 			}
 			_ => Ok(None),
 		}

@@ -15,7 +15,7 @@ ethcore = { path = "../ethcore" }
 ethcore-accounts = { path = "../accounts", optional = true}
 ethcore-call-contract = { path = "../ethcore/call-contract" }
 ethcore-sync = { path = "../ethcore/sync" }
-ethereum-types = "0.5.3-beta.2"
+ethereum-types = "0.5.2"
 ethkey = { path = "../accounts/ethkey" }
 futures = "0.1"
 hyper = { version = "0.12", default-features = false }

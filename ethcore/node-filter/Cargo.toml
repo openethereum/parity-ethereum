@@ -10,7 +10,7 @@ authors = ["Parity Technologies <admin@parity.io>"]
 ethcore = { path = ".."}
 ethcore-network = { path = "../../util/network" }
 ethcore-network-devp2p = { path = "../../util/network-devp2p" }
-ethereum-types = "0.5.3-beta.2"
+ethereum-types = "0.5.2"
 log = "0.4"
 parking_lot = "0.7"
 ethabi = "7.0.0"

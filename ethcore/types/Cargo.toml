@@ -5,7 +5,7 @@ version = "0.1.0"
 authors = ["Parity Technologies <admin@parity.io>"]
 
 [dependencies]
-ethereum-types = "0.5.3-beta.2"
+ethereum-types = "0.5.2"
 ethjson = { path = "../../json" }
 ethkey = { path = "../../accounts/ethkey" }
 heapsize = "0.4"

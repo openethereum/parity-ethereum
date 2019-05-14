@@ -12,7 +12,7 @@ ethabi-contract = "7.0.0"
 ethabi-derive = "7.0.0"
 ethcore = { path = "../ethcore" }
 ethcore-sync = { path = "../ethcore/sync" }
-ethereum-types = "0.5.3-beta.2"
+ethereum-types = "0.5.2"
 keccak-hash = "0.1"
 lazy_static = "1.0"
 log = "0.4"

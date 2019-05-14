@@ -6,5 +6,5 @@ license = "GPL-3.0"
 authors = ["Parity Technologies <admin@parity.io>"]
 
 [dependencies]
-ethereum-types = "0.5.3-beta.2"
+ethereum-types = "0.5.2"
 ethkey = { path = "../../accounts/ethkey" }
