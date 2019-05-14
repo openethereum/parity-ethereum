@@ -18,13 +18,13 @@ cat .cargo/config
 echo "_____ Building target: "$CARGO_TARGET" _____"
 if [ "${CARGO_TARGET}" = "armv7-linux-androideabi" ]
 then
-  time cargo build --target $CARGO_TARGET --release -p parity-clib --features final
+  time cargo build --target $CARGO_TARGET --verbose --color=always --release -p parity-clib --features final
 else
-  time cargo build --target $CARGO_TARGET --release --features final
-  time cargo build --target $CARGO_TARGET --release -p evmbin
-  time cargo build --target $CARGO_TARGET --release -p ethstore-cli
-  time cargo build --target $CARGO_TARGET --release -p ethkey-cli
-  time cargo build --target $CARGO_TARGET --release -p whisper-cli
+  time cargo build --target $CARGO_TARGET --verbose --color=always --release --features final
+  time cargo build --target $CARGO_TARGET --verbose --color=always --release -p evmbin
+  time cargo build --target $CARGO_TARGET --verbose --color=always --release -p ethstore-cli
+  time cargo build --target $CARGO_TARGET --verbose --color=always --release -p ethkey-cli
+  time cargo build --target $CARGO_TARGET --verbose --color=always --release -p whisper-cli
 fi
 
 echo "_____ Post-processing binaries _____"
