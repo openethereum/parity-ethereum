@@ -52,9 +52,9 @@ pub struct Informant {
 pub struct Response {
 	pc: usize,
 	op: u8,
-	opName: String,
+	op_name: String,
 	gas: String,
-	gasCost: String,
+	gas_cost: String,
 	memory: String,
 	stack: Vec<U256>,
 	storage: HashMap<H256, H256>,
@@ -78,9 +78,9 @@ impl Informant {
 			Response {
 				pc: informant.pc,
 				op: informant.instruction,
-				opName: info.map(|i| i.name.to_string()).unwrap_or("".to_string()),
+				op_name: info.map(|i| i.name.to_string()).unwrap_or("".to_string()),
 				gas: format!("{:#x}", gas_used.saturating_add(informant.gas_cost)),
-				gasCost: format!("{:#x}", informant.gas_cost),
+				gas_cost: format!("{:#x}", informant.gas_cost),
 				memory: format!("0x{}", informant.memory.to_hex()),
 				stack: informant.clone().stack,
 				storage: informant.clone().storage,
@@ -301,8 +301,8 @@ mod tests {
 			"60F8d6",
 			0xffff,
 			r#"
-{"pc":0,"op":96,"opName":"PUSH1","gas":"0xffff","gasCost":"0x3","memory":"0x","stack":[],"storage":{},"depth":1}
-{"pc":2,"op":214,"opName":"","gas":"0xfffc","gasCost":"0x0","memory":"0x","stack":["0xf8"],"storage":{},"depth":1}
+{"pc":0,"op":96,"op_name":"PUSH1","gas":"0xffff","gas_cost":"0x3","memory":"0x","stack":[],"storage":{},"depth":1}
+{"pc":2,"op":214,"op_name":"","gas":"0xfffc","gas_cost":"0x0","memory":"0x","stack":["0xf8"],"storage":{},"depth":1}
 			"#,
 		);
 
@@ -312,7 +312,7 @@ mod tests {
 			"F8d6",
 			0xffff,
 			r#"
-{"pc":0,"op":248,"opName":"","gas":"0xffff","gasCost":"0x0","memory":"0x","stack":[],"storage":{},"depth":1}
+{"pc":0,"op":248,"op_name":"","gas":"0xffff","gas_cost":"0x0","memory":"0x","stack":[],"storage":{},"depth":1}
 			"#,
 		);
 
@@ -322,8 +322,8 @@ mod tests {
 			"5A51",
 			0xfffff,
 			r#"
-{"depth":1,"gas":"0xfffff","gasCost":"0x2","memory":"0x","op":90,"opName":"GAS","pc":0,"stack":[],"storage":{}}
-{"depth":1,"gas":"0xffffd","gasCost":"0x0","memory":"0x","op":81,"opName":"MLOAD","pc":1,"stack":["0xffffd"],"storage":{}}
+{"depth":1,"gas":"0xfffff","gas_cost":"0x2","memory":"0x","op":90,"op_name":"GAS","pc":0,"stack":[],"storage":{}}
+{"depth":1,"gas":"0xffffd","gas_cost":"0x0","memory":"0x","op":81,"op_name":"MLOAD","pc":1,"stack":["0xffffd"],"storage":{}}
 			"#,
 		);
 	}
@@ -336,30 +336,30 @@ mod tests {
 			"32343434345830f138343438323439f0",
 			0xffff,
 			r#"
-{"pc":0,"op":50,"opName":"ORIGIN","gas":"0xffff","gasCost":"0x2","memory":"0x","stack":[],"storage":{},"depth":1}
-{"pc":1,"op":52,"opName":"CALLVALUE","gas":"0xfffd","gasCost":"0x2","memory":"0x","stack":["0x0"],"storage":{},"depth":1}
-{"pc":2,"op":52,"opName":"CALLVALUE","gas":"0xfffb","gasCost":"0x2","memory":"0x","stack":["0x0","0x0"],"storage":{},"depth":1}
-{"pc":3,"op":52,"opName":"CALLVALUE","gas":"0xfff9","gasCost":"0x2","memory":"0x","stack":["0x0","0x0","0x0"],"storage":{},"depth":1}
-{"pc":4,"op":52,"opName":"CALLVALUE","gas":"0xfff7","gasCost":"0x2","memory":"0x","stack":["0x0","0x0","0x0","0x0"],"storage":{},"depth":1}
-{"pc":5,"op":88,"opName":"PC","gas":"0xfff5","gasCost":"0x2","memory":"0x","stack":["0x0","0x0","0x0","0x0","0x0"],"storage":{},"depth":1}
-{"pc":6,"op":48,"opName":"ADDRESS","gas":"0xfff3","gasCost":"0x2","memory":"0x","stack":["0x0","0x0","0x0","0x0","0x0","0x5"],"storage":{},"depth":1}
-{"pc":7,"op":241,"opName":"CALL","gas":"0xfff1","gasCost":"0x61d0","memory":"0x","stack":["0x0","0x0","0x0","0x0","0x0","0x5","0x0"],"storage":{},"depth":1}
-{"pc":8,"op":56,"opName":"CODESIZE","gas":"0x9e21","gasCost":"0x2","memory":"0x","stack":["0x1"],"storage":{},"depth":1}
-{"pc":9,"op":52,"opName":"CALLVALUE","gas":"0x9e1f","gasCost":"0x2","memory":"0x","stack":["0x1","0x10"],"storage":{},"depth":1}
-{"pc":10,"op":52,"opName":"CALLVALUE","gas":"0x9e1d","gasCost":"0x2","memory":"0x","stack":["0x1","0x10","0x0"],"storage":{},"depth":1}
-{"pc":11,"op":56,"opName":"CODESIZE","gas":"0x9e1b","gasCost":"0x2","memory":"0x","stack":["0x1","0x10","0x0","0x0"],"storage":{},"depth":1}
-{"pc":12,"op":50,"opName":"ORIGIN","gas":"0x9e19","gasCost":"0x2","memory":"0x","stack":["0x1","0x10","0x0","0x0","0x10"],"storage":{},"depth":1}
-{"pc":13,"op":52,"opName":"CALLVALUE","gas":"0x9e17","gasCost":"0x2","memory":"0x","stack":["0x1","0x10","0x0","0x0","0x10","0x0"],"storage":{},"depth":1}
-{"pc":14,"op":57,"opName":"CODECOPY","gas":"0x9e15","gasCost":"0x9","memory":"0x","stack":["0x1","0x10","0x0","0x0","0x10","0x0","0x0"],"storage":{},"depth":1}
-{"pc":15,"op":240,"opName":"CREATE","gas":"0x9e0c","gasCost":"0x9e0c","memory":"0x32343434345830f138343438323439f0","stack":["0x1","0x10","0x0","0x0"],"storage":{},"depth":1}
-{"pc":0,"op":50,"opName":"ORIGIN","gas":"0x210c","gasCost":"0x2","memory":"0x","stack":[],"storage":{},"depth":2}
-{"pc":1,"op":52,"opName":"CALLVALUE","gas":"0x210a","gasCost":"0x2","memory":"0x","stack":["0x0"],"storage":{},"depth":2}
-{"pc":2,"op":52,"opName":"CALLVALUE","gas":"0x2108","gasCost":"0x2","memory":"0x","stack":["0x0","0x0"],"storage":{},"depth":2}
-{"pc":3,"op":52,"opName":"CALLVALUE","gas":"0x2106","gasCost":"0x2","memory":"0x","stack":["0x0","0x0","0x0"],"storage":{},"depth":2}
-{"pc":4,"op":52,"opName":"CALLVALUE","gas":"0x2104","gasCost":"0x2","memory":"0x","stack":["0x0","0x0","0x0","0x0"],"storage":{},"depth":2}
-{"pc":5,"op":88,"opName":"PC","gas":"0x2102","gasCost":"0x2","memory":"0x","stack":["0x0","0x0","0x0","0x0","0x0"],"storage":{},"depth":2}
-{"pc":6,"op":48,"opName":"ADDRESS","gas":"0x2100","gasCost":"0x2","memory":"0x","stack":["0x0","0x0","0x0","0x0","0x0","0x5"],"storage":{},"depth":2}
-{"pc":7,"op":241,"opName":"CALL","gas":"0x20fe","gasCost":"0x0","memory":"0x","stack":["0x0","0x0","0x0","0x0","0x0","0x5","0xbd770416a3345f91e4b34576cb804a576fa48eb1"],"storage":{},"depth":2}
+{"pc":0,"op":50,"op_name":"ORIGIN","gas":"0xffff","gas_cost":"0x2","memory":"0x","stack":[],"storage":{},"depth":1}
+{"pc":1,"op":52,"op_name":"CALLVALUE","gas":"0xfffd","gas_cost":"0x2","memory":"0x","stack":["0x0"],"storage":{},"depth":1}
+{"pc":2,"op":52,"op_name":"CALLVALUE","gas":"0xfffb","gas_cost":"0x2","memory":"0x","stack":["0x0","0x0"],"storage":{},"depth":1}
+{"pc":3,"op":52,"op_name":"CALLVALUE","gas":"0xfff9","gas_cost":"0x2","memory":"0x","stack":["0x0","0x0","0x0"],"storage":{},"depth":1}
+{"pc":4,"op":52,"op_name":"CALLVALUE","gas":"0xfff7","gas_cost":"0x2","memory":"0x","stack":["0x0","0x0","0x0","0x0"],"storage":{},"depth":1}
+{"pc":5,"op":88,"op_name":"PC","gas":"0xfff5","gas_cost":"0x2","memory":"0x","stack":["0x0","0x0","0x0","0x0","0x0"],"storage":{},"depth":1}
+{"pc":6,"op":48,"op_name":"ADDRESS","gas":"0xfff3","gas_cost":"0x2","memory":"0x","stack":["0x0","0x0","0x0","0x0","0x0","0x5"],"storage":{},"depth":1}
+{"pc":7,"op":241,"op_name":"CALL","gas":"0xfff1","gas_cost":"0x61d0","memory":"0x","stack":["0x0","0x0","0x0","0x0","0x0","0x5","0x0"],"storage":{},"depth":1}
+{"pc":8,"op":56,"op_name":"CODESIZE","gas":"0x9e21","gas_cost":"0x2","memory":"0x","stack":["0x1"],"storage":{},"depth":1}
+{"pc":9,"op":52,"op_name":"CALLVALUE","gas":"0x9e1f","gas_cost":"0x2","memory":"0x","stack":["0x1","0x10"],"storage":{},"depth":1}
+{"pc":10,"op":52,"op_name":"CALLVALUE","gas":"0x9e1d","gas_cost":"0x2","memory":"0x","stack":["0x1","0x10","0x0"],"storage":{},"depth":1}
+{"pc":11,"op":56,"op_name":"CODESIZE","gas":"0x9e1b","gas_cost":"0x2","memory":"0x","stack":["0x1","0x10","0x0","0x0"],"storage":{},"depth":1}
+{"pc":12,"op":50,"op_name":"ORIGIN","gas":"0x9e19","gas_cost":"0x2","memory":"0x","stack":["0x1","0x10","0x0","0x0","0x10"],"storage":{},"depth":1}
+{"pc":13,"op":52,"op_name":"CALLVALUE","gas":"0x9e17","gas_cost":"0x2","memory":"0x","stack":["0x1","0x10","0x0","0x0","0x10","0x0"],"storage":{},"depth":1}
+{"pc":14,"op":57,"op_name":"CODECOPY","gas":"0x9e15","gas_cost":"0x9","memory":"0x","stack":["0x1","0x10","0x0","0x0","0x10","0x0","0x0"],"storage":{},"depth":1}
+{"pc":15,"op":240,"op_name":"CREATE","gas":"0x9e0c","gas_cost":"0x9e0c","memory":"0x32343434345830f138343438323439f0","stack":["0x1","0x10","0x0","0x0"],"storage":{},"depth":1}
+{"pc":0,"op":50,"op_name":"ORIGIN","gas":"0x210c","gas_cost":"0x2","memory":"0x","stack":[],"storage":{},"depth":2}
+{"pc":1,"op":52,"op_name":"CALLVALUE","gas":"0x210a","gas_cost":"0x2","memory":"0x","stack":["0x0"],"storage":{},"depth":2}
+{"pc":2,"op":52,"op_name":"CALLVALUE","gas":"0x2108","gas_cost":"0x2","memory":"0x","stack":["0x0","0x0"],"storage":{},"depth":2}
+{"pc":3,"op":52,"op_name":"CALLVALUE","gas":"0x2106","gas_cost":"0x2","memory":"0x","stack":["0x0","0x0","0x0"],"storage":{},"depth":2}
+{"pc":4,"op":52,"op_name":"CALLVALUE","gas":"0x2104","gas_cost":"0x2","memory":"0x","stack":["0x0","0x0","0x0","0x0"],"storage":{},"depth":2}
+{"pc":5,"op":88,"op_name":"PC","gas":"0x2102","gas_cost":"0x2","memory":"0x","stack":["0x0","0x0","0x0","0x0","0x0"],"storage":{},"depth":2}
+{"pc":6,"op":48,"op_name":"ADDRESS","gas":"0x2100","gas_cost":"0x2","memory":"0x","stack":["0x0","0x0","0x0","0x0","0x0","0x5"],"storage":{},"depth":2}
+{"pc":7,"op":241,"op_name":"CALL","gas":"0x20fe","gas_cost":"0x0","memory":"0x","stack":["0x0","0x0","0x0","0x0","0x0","0x5","0xbd770416a3345f91e4b34576cb804a576fa48eb1"],"storage":{},"depth":2}
 "#,
 		);
 
@@ -369,10 +369,10 @@ mod tests {
 			"3260D85554",
 			0xffff,
 			r#"
-{"pc":0,"op":50,"opName":"ORIGIN","gas":"0xffff","gasCost":"0x2","memory":"0x","stack":[],"storage":{},"depth":1}
-{"pc":1,"op":96,"opName":"PUSH1","gas":"0xfffd","gasCost":"0x3","memory":"0x","stack":["0x0"],"storage":{},"depth":1}
-{"pc":3,"op":85,"opName":"SSTORE","gas":"0xfffa","gasCost":"0x1388","memory":"0x","stack":["0x0","0xd8"],"storage":{},"depth":1}
-{"pc":4,"op":84,"opName":"SLOAD","gas":"0xec72","gasCost":"0x0","memory":"0x","stack":[],"storage":{"0x00000000000000000000000000000000000000000000000000000000000000d8":"0x0000000000000000000000000000000000000000000000000000000000000000"},"depth":1}
+{"pc":0,"op":50,"op_name":"ORIGIN","gas":"0xffff","gas_cost":"0x2","memory":"0x","stack":[],"storage":{},"depth":1}
+{"pc":1,"op":96,"op_name":"PUSH1","gas":"0xfffd","gas_cost":"0x3","memory":"0x","stack":["0x0"],"storage":{},"depth":1}
+{"pc":3,"op":85,"op_name":"SSTORE","gas":"0xfffa","gas_cost":"0x1388","memory":"0x","stack":["0x0","0xd8"],"storage":{},"depth":1}
+{"pc":4,"op":84,"op_name":"SLOAD","gas":"0xec72","gas_cost":"0x0","memory":"0x","stack":[],"storage":{"0x00000000000000000000000000000000000000000000000000000000000000d8":"0x0000000000000000000000000000000000000000000000000000000000000000"},"depth":1}
 "#,
 		)
 	}

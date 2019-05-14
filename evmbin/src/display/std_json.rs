@@ -181,7 +181,7 @@ impl<Trace: Writer, Out: Writer> trace::VMTracer for Informant<Trace, Out> {
 			let trace_data = json!({
 				"pc": pc,
 				"op": instruction,
-				"opName": info.map(|i| i.name).unwrap_or(""),
+				"op_name": info.map(|i| i.name).unwrap_or(""),
 				"gas": format!("{:#x}", current_gas),
 				"stack": informant.stack,
 				"storage": informant.storage,
@@ -279,8 +279,8 @@ pub mod tests {
 			},
 			"60F8d6",
 			0xffff,
-			r#"{"depth":1,"gas":"0xffff","op":96,"opName":"PUSH1","pc":0,"stack":[],"storage":{}}
-{"depth":1,"gas":"0xfffc","op":214,"opName":"","pc":2,"stack":["0xf8"],"storage":{}}
+			r#"{"depth":1,"gas":"0xffff","op":96,"op_name":"PUSH1","pc":0,"stack":[],"storage":{}}
+{"depth":1,"gas":"0xfffc","op":214,"op_name":"","pc":2,"stack":["0xf8"],"storage":{}}
 "#,
 		);
 
@@ -293,7 +293,7 @@ pub mod tests {
 			},
 			"F8d6",
 			0xffff,
-			r#"{"depth":1,"gas":"0xffff","op":248,"opName":"","pc":0,"stack":[],"storage":{}}
+			r#"{"depth":1,"gas":"0xffff","op":248,"op_name":"","pc":0,"stack":[],"storage":{}}
 "#,
 		);
 	}
@@ -309,30 +309,30 @@ pub mod tests {
 			},
 			"32343434345830f138343438323439f0",
 			0xffff,
-			r#"{"depth":1,"gas":"0xffff","op":50,"opName":"ORIGIN","pc":0,"stack":[],"storage":{}}
-{"depth":1,"gas":"0xfffd","op":52,"opName":"CALLVALUE","pc":1,"stack":["0x0"],"storage":{}}
-{"depth":1,"gas":"0xfffb","op":52,"opName":"CALLVALUE","pc":2,"stack":["0x0","0x0"],"storage":{}}
-{"depth":1,"gas":"0xfff9","op":52,"opName":"CALLVALUE","pc":3,"stack":["0x0","0x0","0x0"],"storage":{}}
-{"depth":1,"gas":"0xfff7","op":52,"opName":"CALLVALUE","pc":4,"stack":["0x0","0x0","0x0","0x0"],"storage":{}}
-{"depth":1,"gas":"0xfff5","op":88,"opName":"PC","pc":5,"stack":["0x0","0x0","0x0","0x0","0x0"],"storage":{}}
-{"depth":1,"gas":"0xfff3","op":48,"opName":"ADDRESS","pc":6,"stack":["0x0","0x0","0x0","0x0","0x0","0x5"],"storage":{}}
-{"depth":1,"gas":"0xfff1","op":241,"opName":"CALL","pc":7,"stack":["0x0","0x0","0x0","0x0","0x0","0x5","0x0"],"storage":{}}
-{"depth":1,"gas":"0x9e21","op":56,"opName":"CODESIZE","pc":8,"stack":["0x1"],"storage":{}}
-{"depth":1,"gas":"0x9e1f","op":52,"opName":"CALLVALUE","pc":9,"stack":["0x1","0x10"],"storage":{}}
-{"depth":1,"gas":"0x9e1d","op":52,"opName":"CALLVALUE","pc":10,"stack":["0x1","0x10","0x0"],"storage":{}}
-{"depth":1,"gas":"0x9e1b","op":56,"opName":"CODESIZE","pc":11,"stack":["0x1","0x10","0x0","0x0"],"storage":{}}
-{"depth":1,"gas":"0x9e19","op":50,"opName":"ORIGIN","pc":12,"stack":["0x1","0x10","0x0","0x0","0x10"],"storage":{}}
-{"depth":1,"gas":"0x9e17","op":52,"opName":"CALLVALUE","pc":13,"stack":["0x1","0x10","0x0","0x0","0x10","0x0"],"storage":{}}
-{"depth":1,"gas":"0x9e15","op":57,"opName":"CODECOPY","pc":14,"stack":["0x1","0x10","0x0","0x0","0x10","0x0","0x0"],"storage":{}}
-{"depth":1,"gas":"0x9e0c","op":240,"opName":"CREATE","pc":15,"stack":["0x1","0x10","0x0","0x0"],"storage":{}}
-{"depth":2,"gas":"0x210c","op":50,"opName":"ORIGIN","pc":0,"stack":[],"storage":{}}
-{"depth":2,"gas":"0x210a","op":52,"opName":"CALLVALUE","pc":1,"stack":["0x0"],"storage":{}}
-{"depth":2,"gas":"0x2108","op":52,"opName":"CALLVALUE","pc":2,"stack":["0x0","0x0"],"storage":{}}
-{"depth":2,"gas":"0x2106","op":52,"opName":"CALLVALUE","pc":3,"stack":["0x0","0x0","0x0"],"storage":{}}
-{"depth":2,"gas":"0x2104","op":52,"opName":"CALLVALUE","pc":4,"stack":["0x0","0x0","0x0","0x0"],"storage":{}}
-{"depth":2,"gas":"0x2102","op":88,"opName":"PC","pc":5,"stack":["0x0","0x0","0x0","0x0","0x0"],"storage":{}}
-{"depth":2,"gas":"0x2100","op":48,"opName":"ADDRESS","pc":6,"stack":["0x0","0x0","0x0","0x0","0x0","0x5"],"storage":{}}
-{"depth":2,"gas":"0x20fe","op":241,"opName":"CALL","pc":7,"stack":["0x0","0x0","0x0","0x0","0x0","0x5","0xbd770416a3345f91e4b34576cb804a576fa48eb1"],"storage":{}}
+			r#"{"depth":1,"gas":"0xffff","op":50,"op_name":"ORIGIN","pc":0,"stack":[],"storage":{}}
+{"depth":1,"gas":"0xfffd","op":52,"op_name":"CALLVALUE","pc":1,"stack":["0x0"],"storage":{}}
+{"depth":1,"gas":"0xfffb","op":52,"op_name":"CALLVALUE","pc":2,"stack":["0x0","0x0"],"storage":{}}
+{"depth":1,"gas":"0xfff9","op":52,"op_name":"CALLVALUE","pc":3,"stack":["0x0","0x0","0x0"],"storage":{}}
+{"depth":1,"gas":"0xfff7","op":52,"op_name":"CALLVALUE","pc":4,"stack":["0x0","0x0","0x0","0x0"],"storage":{}}
+{"depth":1,"gas":"0xfff5","op":88,"op_name":"PC","pc":5,"stack":["0x0","0x0","0x0","0x0","0x0"],"storage":{}}
+{"depth":1,"gas":"0xfff3","op":48,"op_name":"ADDRESS","pc":6,"stack":["0x0","0x0","0x0","0x0","0x0","0x5"],"storage":{}}
+{"depth":1,"gas":"0xfff1","op":241,"op_name":"CALL","pc":7,"stack":["0x0","0x0","0x0","0x0","0x0","0x5","0x0"],"storage":{}}
+{"depth":1,"gas":"0x9e21","op":56,"op_name":"CODESIZE","pc":8,"stack":["0x1"],"storage":{}}
+{"depth":1,"gas":"0x9e1f","op":52,"op_name":"CALLVALUE","pc":9,"stack":["0x1","0x10"],"storage":{}}
+{"depth":1,"gas":"0x9e1d","op":52,"op_name":"CALLVALUE","pc":10,"stack":["0x1","0x10","0x0"],"storage":{}}
+{"depth":1,"gas":"0x9e1b","op":56,"op_name":"CODESIZE","pc":11,"stack":["0x1","0x10","0x0","0x0"],"storage":{}}
+{"depth":1,"gas":"0x9e19","op":50,"op_name":"ORIGIN","pc":12,"stack":["0x1","0x10","0x0","0x0","0x10"],"storage":{}}
+{"depth":1,"gas":"0x9e17","op":52,"op_name":"CALLVALUE","pc":13,"stack":["0x1","0x10","0x0","0x0","0x10","0x0"],"storage":{}}
+{"depth":1,"gas":"0x9e15","op":57,"op_name":"CODECOPY","pc":14,"stack":["0x1","0x10","0x0","0x0","0x10","0x0","0x0"],"storage":{}}
+{"depth":1,"gas":"0x9e0c","op":240,"op_name":"CREATE","pc":15,"stack":["0x1","0x10","0x0","0x0"],"storage":{}}
+{"depth":2,"gas":"0x210c","op":50,"op_name":"ORIGIN","pc":0,"stack":[],"storage":{}}
+{"depth":2,"gas":"0x210a","op":52,"op_name":"CALLVALUE","pc":1,"stack":["0x0"],"storage":{}}
+{"depth":2,"gas":"0x2108","op":52,"op_name":"CALLVALUE","pc":2,"stack":["0x0","0x0"],"storage":{}}
+{"depth":2,"gas":"0x2106","op":52,"op_name":"CALLVALUE","pc":3,"stack":["0x0","0x0","0x0"],"storage":{}}
+{"depth":2,"gas":"0x2104","op":52,"op_name":"CALLVALUE","pc":4,"stack":["0x0","0x0","0x0","0x0"],"storage":{}}
+{"depth":2,"gas":"0x2102","op":88,"op_name":"PC","pc":5,"stack":["0x0","0x0","0x0","0x0","0x0"],"storage":{}}
+{"depth":2,"gas":"0x2100","op":48,"op_name":"ADDRESS","pc":6,"stack":["0x0","0x0","0x0","0x0","0x0","0x5"],"storage":{}}
+{"depth":2,"gas":"0x20fe","op":241,"op_name":"CALL","pc":7,"stack":["0x0","0x0","0x0","0x0","0x0","0x5","0xbd770416a3345f91e4b34576cb804a576fa48eb1"],"storage":{}}
 "#,
 		)
 	}

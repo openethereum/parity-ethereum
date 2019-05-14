@@ -255,16 +255,16 @@ pub mod tests {
 
 		assert_eq!(
 			&String::from_utf8_lossy(&**res.lock().unwrap()),
-r#"{"depth":1,"gas":"0xffff","op":98,"opName":"PUSH3","pc":0,"stack":[],"storage":{}}
-{"depth":1,"gas":"0xfffc","op":96,"opName":"PUSH1","pc":4,"stack":["0xaaaaaa"],"storage":{}}
-{"depth":1,"gas":"0xfff9","op":96,"opName":"PUSH1","pc":6,"stack":["0xaaaaaa","0xaa"],"storage":{}}
-{"depth":1,"gas":"0xfff6","op":80,"opName":"POP","pc":8,"stack":["0xaaaaaa","0xaa","0xaa"],"storage":{}}
-{"depth":1,"gas":"0xfff4","op":96,"opName":"PUSH1","pc":9,"stack":["0xaaaaaa","0xaa"],"storage":{}}
-{"depth":1,"gas":"0xfff1","op":96,"opName":"PUSH1","pc":11,"stack":["0xaaaaaa","0xaa","0xaa"],"storage":{}}
-{"depth":1,"gas":"0xffee","op":96,"opName":"PUSH1","pc":13,"stack":["0xaaaaaa","0xaa","0xaa","0xaa"],"storage":{}}
-{"depth":1,"gas":"0xffeb","op":96,"opName":"PUSH1","pc":15,"stack":["0xaaaaaa","0xaa","0xaa","0xaa","0xaa"],"storage":{}}
-{"depth":1,"gas":"0xffe8","op":96,"opName":"PUSH1","pc":17,"stack":["0xaaaaaa","0xaa","0xaa","0xaa","0xaa","0xaa"],"storage":{}}
-{"depth":1,"gas":"0xffe5","op":96,"opName":"PUSH1","pc":19,"stack":["0xaaaaaa","0xaa","0xaa","0xaa","0xaa","0xaa","0xaa"],"storage":{}}
+r#"{"depth":1,"gas":"0xffff","op":98,"op_name":"PUSH3","pc":0,"stack":[],"storage":{}}
+{"depth":1,"gas":"0xfffc","op":96,"op_name":"PUSH1","pc":4,"stack":["0xaaaaaa"],"storage":{}}
+{"depth":1,"gas":"0xfff9","op":96,"op_name":"PUSH1","pc":6,"stack":["0xaaaaaa","0xaa"],"storage":{}}
+{"depth":1,"gas":"0xfff6","op":80,"op_name":"POP","pc":8,"stack":["0xaaaaaa","0xaa","0xaa"],"storage":{}}
+{"depth":1,"gas":"0xfff4","op":96,"op_name":"PUSH1","pc":9,"stack":["0xaaaaaa","0xaa"],"storage":{}}
+{"depth":1,"gas":"0xfff1","op":96,"op_name":"PUSH1","pc":11,"stack":["0xaaaaaa","0xaa","0xaa"],"storage":{}}
+{"depth":1,"gas":"0xffee","op":96,"op_name":"PUSH1","pc":13,"stack":["0xaaaaaa","0xaa","0xaa","0xaa"],"storage":{}}
+{"depth":1,"gas":"0xffeb","op":96,"op_name":"PUSH1","pc":15,"stack":["0xaaaaaa","0xaa","0xaa","0xaa","0xaa"],"storage":{}}
+{"depth":1,"gas":"0xffe8","op":96,"op_name":"PUSH1","pc":17,"stack":["0xaaaaaa","0xaa","0xaa","0xaa","0xaa","0xaa"],"storage":{}}
+{"depth":1,"gas":"0xffe5","op":96,"op_name":"PUSH1","pc":19,"stack":["0xaaaaaa","0xaa","0xaa","0xaa","0xaa","0xaa","0xaa"],"storage":{}}
 "#);
 	}
 }
