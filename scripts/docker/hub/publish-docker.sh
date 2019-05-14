@@ -39,11 +39,11 @@ case "${SCHEDULE_TAG:-${CI_COMMIT_REF_NAME}}" in
         docker push ${CONTAINER_IMAGE}:${VERSION};
         docker push ${CONTAINER_IMAGE}:stable;;
     *)
-        echo "Docker TAG - ${CONTAINER_IMAGE}:'${VERSION}-${CI_COMMIT_SHORT_SHA}'"
+        echo "Docker TAG - '${CONTAINER_IMAGE}:${VERSION}-${CI_COMMIT_SHORT_SHA}'"
         docker build --no-cache \
             --build-arg VCS_REF="${CI_COMMIT_SHORT_SHA}" \
             --build-arg BUILD_DATE="$(date -u '+%Y-%m-%dT%H:%M:%SZ')" \
-            --tag ${CONTAINER_IMAGE}:'${VERSION}-${CI_COMMIT_SHORT_SHA}' \
+            --tag '${CONTAINER_IMAGE}:${VERSION}-${CI_COMMIT_SHORT_SHA}' \
             --file artifacts/Dockerfile .;
-        docker push ${CONTAINER_IMAGE}:'${VERSION}-${CI_COMMIT_SHORT_SHA}';;
+        docker push '${CONTAINER_IMAGE}:${VERSION}-${CI_COMMIT_SHORT_SHA}';;
 esac
