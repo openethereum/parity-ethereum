@@ -44,10 +44,7 @@ variables:
     # sccache debug info
     - if test -e sccache_debug.log;
       then
-        echo "_____sccache_debug.log listing start:_____";
-        cat sccache_debug.log;
-        echo "_____sccache_debug.log listing end_____";
-        echo "All crate-types:";
+        echo "_____All crate-types:_____";
         grep 'parse_arguments.*--crate-type' sccache_debug.log | sed -re 's/.*"--crate-type", "([^"]+)".*/\1/' | sort | uniq -c;
         echo "_____Non-cacheable reasons:_____";
         grep CannotCache sccache_debug.log | sed -re 's/.*CannotCache\((.+)\).*/\1/' | sort | uniq -c;
@@ -143,7 +140,7 @@ build-linux:
   # only:                            *releaseable_branches
   after_script:
     - ./artifacts/x86_64-unknown-linux-gnu/parity --version |
-          sed -n -r 's/version Parity-Ethereum\/(v[0-9.]+\-[a-z]+)-.*$/\1/p' |
+          sed -n -r 's/.*Parity-Ethereum\/(v[0-9.]+\-[a-z]+)-.*$/\1/p' |
           tee ./artifacts/VERSION;
     - cp -r scripts/docker/hub/* ./artifacts
 
