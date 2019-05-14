@@ -28,7 +28,7 @@ use display;
 use info as vm;
 
 /// JSON formatting informant.
-#[derive(Default)]
+#[derive(Clone, Default)]
 pub struct Informant {
 	code: Vec<u8>,
 	depth: usize,
@@ -82,8 +82,8 @@ impl Informant {
 				gas: format!("{:#x}", gas_used.saturating_add(informant.gas_cost)),
 				gasCost: format!("{:#x}", informant.gas_cost),
 				memory: format!("0x{}", informant.memory.to_hex()),
-				stack: informant.stack,
-				storage: informant.storage,
+				stack: informant.clone().stack,
+				storage: informant.clone().storage,
 				depth: informant.depth
 			}
 		];
