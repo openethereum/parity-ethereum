@@ -17,7 +17,7 @@
 //! benchmarking for EVM
 //! should be started with:
 //! ```bash
-//! multirust run nightly cargo bench
+//! rustup run nightly cargo bench
 //! ```
 
 #![feature(test)]
