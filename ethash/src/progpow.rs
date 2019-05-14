@@ -14,7 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-//! ProgPoW (Progressive Proof-of-Work) is the Ethereum network's proposed new Application-Specific Integrated
+//! ProgPoW (Programmatic Proof-of-Work) is the Ethereum network's proposed new Application-Specific Integrated
 //! Circuit (ASIC) resistant Proof-of-Work mining algorithm.
 //!
 //! ProgPoW's aim is to reduce the efficiencies of specialized mining devices known as ASIC chips
