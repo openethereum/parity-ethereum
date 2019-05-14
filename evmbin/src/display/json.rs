@@ -18,6 +18,7 @@
 
 use std::collections::HashMap;
 use std::mem;
+use serde::{Serialize, Deserialize};
 
 use ethereum_types::{U256, H256};
 use bytes::ToPretty;
@@ -47,6 +48,19 @@ pub struct Informant {
 	unmatched: bool,
 }
 
+#[derive(Serialize, Deserialize, Debug)]
+pub struct Response {
+	pc: usize,
+	op: u8,
+	opName: String,
+	gas: U256,
+	gasCost: U256,
+	memory: Vec<u8>,
+	stack: Vec<U256>,
+	storage: HashMap<H256, H256>,
+	depth: usize
+}
+
 impl Informant {
 	fn with_informant_in_depth<F: Fn(&mut Informant)>(informant: &mut Informant, depth: usize, f: F) {
 		if depth == 0 {
@@ -59,17 +73,24 @@ impl Informant {
 	fn informant_trace(informant: &Informant, gas_used: U256) -> String {
 		let info = ::evm::Instruction::from_u8(informant.instruction).map(|i| i.info());
 
-		json!({
-			"pc": informant.pc,
-			"op": informant.instruction,
-			"opName": info.map(|i| i.name).unwrap_or(""),
-			"gas": format!("{:#x}", gas_used.saturating_add(informant.gas_cost)),
-			"gasCost": format!("{:#x}", informant.gas_cost),
-			"memory": format!("0x{}", informant.memory.to_hex()),
-			"stack": informant.stack,
-			"storage": informant.storage,
-			"depth": informant.depth,
-		}).to_string()
+		// Reference: https://serde.rs/attr-skip-serializing.html
+		let response = vec![
+			Response {
+				pc: informant.pc,
+				op: informant.instruction,
+				opName: info.map(|i| i.name.to_string()).unwrap_or("".to_string()),
+				gas: format!("{:#x}", gas_used.saturating_add(informant.gas_cost)),
+				gasCost: format!("{:#x}", informant.gas_cost),
+				memory: format!("0x{}", informant.memory.to_hex()),
+				stack: informant.stack,
+				storage: informant.storage,
+				depth: informant.depth
+			}
+		];
+
+		let serialized = serde_json::to_string(&response).unwrap();
+		println!("{}", serialized);
+		serialized
 	}
 }
 
