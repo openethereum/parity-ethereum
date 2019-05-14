@@ -95,7 +95,8 @@ fn encode_type(message_type: &str, message_types: &MessageTypes) -> Result<Strin
 }
 
 fn type_hash(message_type: &str, typed_data: &MessageTypes) -> Result<H256> {
-	Ok(keccak(encode_type(message_type, typed_data)?))
+	// TODO: update keccak-hash dep
+	Ok(H256(keccak(encode_type(message_type, typed_data)?).0))
 }
 
 fn encode_data(
@@ -126,11 +127,11 @@ fn encode_data(
 				items.append(&mut encoded);
 			}
 
-			keccak(items).to_vec()
+			keccak(items).0.to_vec()
 		}
 
 		Type::Custom(ref ident) if message_types.get(&*ident).is_some() => {
-			let type_hash = (&type_hash(ident, &message_types)?).to_vec();
+			let type_hash = (&type_hash(ident, &message_types)?).0.to_vec();
 			let mut tokens = encode(&[EthAbiToken::FixedBytes(type_hash)]);
 
 			for field in message_types.get(ident).expect("Already checked in match guard; qed") {
@@ -219,7 +220,7 @@ pub fn hash_structured_data(typed_data: EIP712) -> Result<H256> {
 		encode_data(&parser, &Type::Custom(typed_data.primary_type), &typed_data.types, &typed_data.message, None)?
 	);
 	let concat = [&prefix[..], &domain_hash[..], &data_hash[..]].concat();
-	Ok(keccak(concat))
+	Ok(H256(keccak(concat).0))
 }
 
 #[cfg(test)]
