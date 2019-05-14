@@ -53,9 +53,9 @@ pub struct Response {
 	pc: usize,
 	op: u8,
 	opName: String,
-	gas: U256,
-	gasCost: U256,
-	memory: Vec<u8>,
+	gas: String,
+	gasCost: String,
+	memory: String,
 	stack: Vec<U256>,
 	storage: HashMap<H256, H256>,
 	depth: usize
