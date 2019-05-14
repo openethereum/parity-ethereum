@@ -1,0 +1,15 @@
+[package]
+name = "ethdb"
+description = "Parity Ethereum command-line tool for database interaction"
+version = "0.1.0"
+authors = ["Parity Technologies <admin@parity.io>"]
+
+[[bin]]
+name = "ethdb"
+path = "./src/main.rs"
+
+[dependencies]
+
+[dev-dependencies]
+
+[features]

@@ -1,37 +1,25 @@
-## evmbin
+## ethdb
 
-EVM implementation for Parity.
+Parity Ethereum interaction with the DB on-demand.
 
 ### Usage
 
 ```
-EVM implementation for Parity.
+Parity Ethereum interaction with the DB on-demand.
   Copyright 2015-2019 Parity Technologies (UK) Ltd.
 
 Usage:
-    parity-evm state-test <file> [--json --std-json --std-dump-json --only NAME --chain CHAIN --std-out-only --std-err-only]
-    parity-evm stats [options]
-    parity-evm stats-jsontests-vm <file>
-    parity-evm [options]
-    parity-evm [-h | --help]
+    ethdb build-trace-db
+    ethdb [options]
+    ethdb [-h | --help]
 
 Commands:
-    state-test         Run a state test from a json file.
-    stats              Execute EVM runtime code and return the statistics.
-    stats-jsontests-vm Execute standard json-tests format VMTests and return
-                       timing statistics in tsv format.
+    build-trace-db     Build TraceDB on-demand and output to json file.
 
-Transaction options:
-    --code CODE        Contract code as hex (without 0x).
-    --to ADDRESS       Recipient address (without 0x).
-    --from ADDRESS     Sender address (without 0x).
-    --input DATA       Input data as hex (without 0x).
-    --gas GAS          Supplied gas as hex (without 0x).
-    --gas-price WEI    Supplied gas price as hex (without 0x).
-
-State test options:
-    --only NAME        Runs only a single test matching the name.
-    --chain CHAIN      Run only tests from specific chain.
+Tracing options:
+    --chain CHAIN      Build only from specific chain.
+    --from BLOCK       Build only from a specific block.
+    --to BLOCK         Build only to a specific block.
 
 General options:
     --json             Display verbose results in JSON.
@@ -40,8 +28,6 @@ General options:
     --std-out-only     With --std-json redirect to out output only.
     --std-dump-json    Display results in standardized JSON format
                        with additional state dump.
-Display result state dump in standardized JSON format.
-    --chain CHAIN      Chain spec file path.
     -h, --help         Display this message and exit.
 ```
 
