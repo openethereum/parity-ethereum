@@ -376,11 +376,11 @@ Alternatively, join our community on Matrix:
 
 ## 7. Contributing <a id="chapter-007"></a>
 
-An introduction has been provided in the ["So You Want to be a Core Developer" presentation slides by Hernando Castano](http://tiny.cc/contrib-to-parity-eth). Additional guidelines are provided in [CONTRIBUTING](https://github.com/paritytech/parity-ethereum/blob/master/CONTRIBUTING.md).
+An introduction has been provided in the ["So You Want to be a Core Developer" presentation slides by Hernando Castano](http://tiny.cc/contrib-to-parity-eth). Additional guidelines are provided in [CONTRIBUTING](https://github.com/paritytech/parity-ethereum/blob/master/.github/CONTRIBUTING.md).
 
 ### Contributor Code of Conduct
 
-[CODE_OF_CONDUCT](https://github.com/paritytech/parity-ethereum/blob/master/CODE_OF_CONDUCT.md)
+[CODE_OF_CONDUCT](https://github.com/paritytech/parity-ethereum/blob/master/.github/CODE_OF_CONDUCT.md)
 
 ## 8. License <a id="chapter-008"></a>
 
