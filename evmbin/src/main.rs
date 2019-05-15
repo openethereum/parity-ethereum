@@ -20,7 +20,7 @@
 //!
 //! The Parity EVM interpreter binary is a tool in the Parity
 //! Ethereum toolchain. It is an EVM implementation for Parity Ethereum that
-//! may be used to run a standalone version of the EVM interpreter.
+//! is used to run a standalone version of the EVM interpreter.
 //!
 //! ## Usage
 //!
