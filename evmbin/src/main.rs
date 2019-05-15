@@ -282,7 +282,7 @@ struct Args {
 }
 
 impl Args {
-	/// Set the Gas Limit. Defaults to max value to allow code to run for whatever time is required.
+	/// Set the gas limit. Defaults to max value to allow code to run for whatever time is required.
 	pub fn gas(&self) -> Result<U256, String> {
 		match self.flag_gas {
 			Some(ref gas) => gas.parse().map_err(to_string),
