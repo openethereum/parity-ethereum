@@ -36,7 +36,7 @@ There are a few basic ground-rules for contributors (including the maintainer(s)
 * **Non-master branches**, prefixed with a short name moniker (e.g. `gav-my-feature`) must be used for ongoing work, and include the associated issue ID (if any) in the branch name.
 * **All modifications** must be made in a **pull-request** to solicit feedback from other contributors.
 * A pull-request *must not be merged until CI* has finished successfully.
-* Contributors should adhere to the [house coding style](https://wiki.parity.io/Coding-guide).
+* Contributors should adhere to the [Parity Ethereum Style Guide](https://wiki.parity.io/Parity-Ethereum-Style-Guide).
 
 ### Merge Process
 
