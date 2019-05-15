@@ -26,7 +26,7 @@
 //!
 //! Build Parity Ethereum from source, then start it with:
 //! ```bash
-//! cd evmbin && cargo build -p evmbin && cd ..
+//! cargo build -p evmbin
 //! ./target/debug/parity-evm --help
 //! ```
 
