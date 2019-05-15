@@ -290,7 +290,7 @@ impl Args {
 		}
 	}
 
-	/// Set the Gas Price. Defaults to zero to allow the code to run even if an account with no balance
+	/// Set the gas price. Defaults to zero to allow the code to run even if an account with no balance
 	/// is used, otherwise such accounts would not have sufficient funds to pay the transaction fee.
 	/// Defaulting to zero also makes testing easier since it is not necessary to specify a special configuration file.
 	pub fn gas_price(&self) -> Result<U256, String> {
