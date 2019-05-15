@@ -31,6 +31,10 @@
 //! cargo build -p evmbin --release
 //! ./target/release/parity-evm --help
 //! ```
+//!
+//! If you wish to run `parity-evm` from any directory, then either copy the
+//! executable file itself to a directory that is in your PATH, or just create
+//! a symlink to it.
 
 #![warn(missing_docs)]
 
