@@ -1170,6 +1170,11 @@ dependencies = [
 [[package]]
 name = "ethdb"
 version = "0.1.0"
+dependencies = [
+ "common-types 0.1.0",
+ "docopt 1.0.2 (registry+https://github.com/rust-lang/crates.io-index)",
+ "serde 1.0.89 (registry+https://github.com/rust-lang/crates.io-index)",
+]
 
 [[package]]
 name = "ethereum-types"
@@ -3550,6 +3555,9 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 name = "serde"
 version = "1.0.89"
 source = "registry+https://github.com/rust-lang/crates.io-index"
+dependencies = [
+ "serde_derive 1.0.89 (registry+https://github.com/rust-lang/crates.io-index)",
+]
 
 [[package]]
 name = "serde_derive"

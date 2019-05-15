@@ -9,19 +9,28 @@ Parity Ethereum interaction with the DB on-demand.
   Copyright 2015-2019 Parity Technologies (UK) Ltd.
 
 Usage:
-    ethdb build-trace-db
-    ethdb [options]
+    ethdb trace [--chain CHAIN --from=<block> --to=<block> --diff]
+    ethdb extract [--chain CHAIN --from=<block> --to=<block> --block --receipts]
+    ethdb state [--chain CHAIN --from=<block> --to=<block> --json --std-json  --std-err-only --std-out-only --std-dump-json]
     ethdb [-h | --help]
+    ethdb --version
 
 Commands:
-    build-trace-db     Build TraceDB on-demand and output to json file.
+    trace              Build TraceDB on-demand and add to node.
+    extract            Extract data and output in JSON.
+    state              State dump.
 
-Tracing options:
+Trace options:
+    --diff             Re-run block and produce state difference.
+
+Extract options:
+    --block            Block data.
+    --receipts         Receipts.
+
+General options:
     --chain CHAIN      Build only from specific chain.
     --from BLOCK       Build only from a specific block.
     --to BLOCK         Build only to a specific block.
-
-General options:
     --json             Display verbose results in JSON.
     --std-json         Display results in standardized JSON format.
     --std-err-only     With --std-json redirect to err output only.

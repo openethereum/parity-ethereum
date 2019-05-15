@@ -9,6 +9,9 @@ name = "ethdb"
 path = "./src/main.rs"
 
 [dependencies]
+common-types = { path = "../ethcore/types" }
+docopt = "1.0"
+serde = { version = "1", features = ["derive"] }
 
 [dev-dependencies]
 
