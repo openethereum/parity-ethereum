@@ -24,7 +24,9 @@
 //!
 //! ## Usage
 //!
-//! Build Parity Ethereum from source, then start it with:
+//! The evmbin tool is not distributed with regular Parity Ethereum releases
+//! so you need to build it from source and run it like so:
+//!
 //! ```bash
 //! cargo build -p evmbin --release
 //! ./target/release/parity-evm --help
