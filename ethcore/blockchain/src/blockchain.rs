@@ -284,7 +284,7 @@ impl BlockProvider for BlockChain {
 		}
 
 		// Read from DB and populate cache
-		let b = self.db.key_value().get(db::COL_HEADERS, hash)
+		let b = self.db.key_value().get(db::COL_HEADERS, hash.as_bytes())
 			.expect("Low level database error when fetching block header data. Some issue with disk?")?;
 
 		let header = encoded::Header::new(decompress(&b, blocks_swapper()).into_vec());
@@ -314,7 +314,7 @@ impl BlockProvider for BlockChain {
 		}
 
 		// Read from DB and populate cache
-		let b = self.db.key_value().get(db::COL_BODIES, hash)
+		let b = self.db.key_value().get(db::COL_BODIES, hash.as_bytes())
 			.expect("Low level database error when fetching block body data. Some issue with disk?")?;
 
 		let body = encoded::Body::new(decompress(&b, blocks_swapper()).into_vec());
@@ -572,13 +572,13 @@ impl BlockChain {
 				};
 
 				let mut batch = DBTransaction::new();
-				batch.put(db::COL_HEADERS, &hash, block.header_rlp().as_raw());
-				batch.put(db::COL_BODIES, &hash, &Self::block_to_body(genesis));
+				batch.put(db::COL_HEADERS, hash.as_bytes(), block.header_rlp().as_raw());
+				batch.put(db::COL_BODIES, hash.as_bytes(), &Self::block_to_body(genesis));
 
 				batch.write(db::COL_EXTRA, &hash, &details);
 				batch.write(db::COL_EXTRA, &header.number(), &hash);
 
-				batch.put(db::COL_EXTRA, b"best", &hash);
+				batch.put(db::COL_EXTRA, b"best", hash.as_bytes());
 				bc.db.key_value().write(batch).expect("Low level database error when fetching 'best' block. Some issue with disk?");
 				hash
 			}
@@ -639,7 +639,7 @@ impl BlockChain {
 					if hash != bc.genesis_hash() {
 						trace!("First block calculated: {:?}", hash);
 						let mut batch = db.key_value().transaction();
-						batch.put(db::COL_EXTRA, b"first", &hash);
+						batch.put(db::COL_EXTRA, b"first", hash.as_bytes());
 						db.key_value().write(batch).expect("Low level database error when writing 'first' block. Some issue with disk?");
 						bc.first_block = Some(hash);
 					}
@@ -803,8 +803,8 @@ impl BlockChain {
 		let compressed_body = compress(&Self::block_to_body(block.raw()), blocks_swapper());
 
 		// store block in db
-		batch.put(db::COL_HEADERS, &hash, &compressed_header);
-		batch.put(db::COL_BODIES, &hash, &compressed_body);
+		batch.put(db::COL_HEADERS, hash.as_bytes(), &compressed_header);
+		batch.put(db::COL_BODIES, hash.as_bytes(), &compressed_body);
 
 		let maybe_parent = self.block_details(&block_parent_hash);
 
@@ -939,7 +939,7 @@ impl BlockChain {
 			*pending_best_ancient_block = Some(None);
 		} else if block_number > ancient_number {
 			trace!(target: "blockchain", "Updating the best ancient block to {}.", block_number);
-			batch.put(db::COL_EXTRA, b"ancient", &block_hash);
+			batch.put(db::COL_EXTRA, b"ancient", block_hash.as_bytes());
 			*pending_best_ancient_block = Some(Some(BestAncientBlock {
 				hash: *block_hash,
 				number: block_number,
@@ -1079,8 +1079,8 @@ impl BlockChain {
 		let compressed_body = compress(&Self::block_to_body(block.raw()), blocks_swapper());
 
 		// store block in db
-		batch.put(db::COL_HEADERS, &hash, &compressed_header);
-		batch.put(db::COL_BODIES, &hash, &compressed_body);
+		batch.put(db::COL_HEADERS, hash.as_bytes(), &compressed_header);
+		batch.put(db::COL_BODIES, hash.as_bytes(), &compressed_body);
 
 		let info = self.block_info(&block.header_view(), route, &extras);
 
@@ -1179,7 +1179,7 @@ impl BlockChain {
 		{
 			let mut best_block = self.pending_best_block.write();
 			if is_best && update.info.location != BlockLocation::Branch {
-				batch.put(db::COL_EXTRA, b"best", &update.info.hash);
+				batch.put(db::COL_EXTRA, b"best", update.info.hash.as_bytes());
 				*best_block = Some(BestBlock {
 					total_difficulty: update.info.total_difficulty,
 					header: update.block.decode_header(),
