@@ -20,7 +20,6 @@ use std::str::FromStr;
 use std::fmt;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use serde::de::{Error, Visitor};
-use rustc_hex::ToHex;
 use ethereum_types::{H64 as Hash64, H160 as Hash160, H256 as Hash256, H520 as Hash520, Bloom as Hash2048};
 
 macro_rules! impl_hash {
@@ -56,8 +55,8 @@ macro_rules! impl_hash {
 
 					fn visit_str<E>(self, value: &str) -> Result<Self::Value, E> where E: Error {
 						let value = match value.len() {
-							0 => $inner::from(0),
-							2 if value == "0x" => $inner::from(0),
+							0 => $inner::from_low_u64_be(0),
+							2 if value == "0x" => $inner::from_low_u64_be(0),
 							_ if value.starts_with("0x") => $inner::from_str(&value[2..]).map_err(|e| {
 								Error::custom(format!("Invalid hex value {}: {}", value, e).as_str())
 							})?,
@@ -80,9 +79,7 @@ macro_rules! impl_hash {
 
 		impl Serialize for $name {
 			fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error> where S: Serializer {
-				let mut hex = "0x".to_owned();
-				hex.push_str(&self.0.to_hex());
-				serializer.serialize_str(&hex)
+				serializer.serialize_str(&format!("{:#x}", self.0))
 			}
 		}
 	}
