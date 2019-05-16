@@ -914,9 +914,11 @@ impl Configuration {
 	}
 
 	fn private_provider_config(&self) -> Result<(ProviderConfig, EncryptorConfig, bool), String> {
+		let dirs = self.directories();
 		let provider_conf = ProviderConfig {
 			validator_accounts: to_addresses(&self.args.arg_private_validators)?,
 			signer_account: self.args.arg_private_signer.clone().and_then(|account| to_address(Some(account)).ok()),
+			logs_path: Some(dirs.base),
 		};
 
 		let encryptor_conf = EncryptorConfig {
@@ -1458,7 +1460,11 @@ mod tests {
 			net_settings: Default::default(),
 			ipfs_conf: Default::default(),
 			secretstore_conf: Default::default(),
-			private_provider_conf: Default::default(),
+			private_provider_conf: ProviderConfig {
+				validator_accounts: Default::default(),
+				signer_account: Default::default(),
+				logs_path: Some(Directories::default().base),
+			},
 			private_encryptor_conf: Default::default(),
 			private_tx_enabled: false,
 			name: "".into(),

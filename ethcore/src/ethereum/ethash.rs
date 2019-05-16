@@ -277,7 +277,7 @@ impl Engine<EthereumMachine> for Arc<Ethash> {
 				let n_uncles = block.uncles.len();
 
 				// Bestow block rewards.
-				let mut result_block_reward = reward + reward.shr(5) * U256::from(n_uncles);
+				let result_block_reward = reward + reward.shr(5) * U256::from(n_uncles);
 
 				rewards.push((author, RewardKind::Author, result_block_reward));
 

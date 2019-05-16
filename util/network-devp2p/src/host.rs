@@ -616,7 +616,7 @@ impl Host {
 
 		let socket = {
 			let address = {
-				let mut nodes = self.nodes.read();
+				let nodes = self.nodes.read();
 				if let Some(node) = nodes.get(id) {
 					node.endpoint.address
 				} else {

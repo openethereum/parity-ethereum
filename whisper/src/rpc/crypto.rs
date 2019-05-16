@@ -16,7 +16,7 @@
 
 //! Encryption schemes supported by RPC layer.
 
-use crypto::aes_gcm::{Encryptor, Decryptor};
+use aes_gcm::{Encryptor, Decryptor};
 use ethkey::crypto::ecies;
 use ethereum_types::H256;
 use ethkey::{self, Public, Secret};
@@ -77,7 +77,7 @@ impl EncryptionInstance {
 			EncryptionInner::AES(key, nonce, encode) => {
 				match encode {
 					AesEncode::AppendedNonce => {
-						let mut enc = Encryptor::aes_256_gcm(&*key).ok()?;
+						let enc = Encryptor::aes_256_gcm(&*key).ok()?;
 						let mut buf = enc.encrypt(&nonce, plain.to_vec()).ok()?;
 						buf.extend(&nonce[..]);
 						Some(buf)
