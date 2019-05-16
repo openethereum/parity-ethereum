@@ -18,4 +18,4 @@ parking_lot = "0.7"
 jsonrpc-core = "10.0.1"
 jsonrpc-ws-server = "10.0.1"
 parity-rpc = { path = "../../rpc" }
-keccak-hash = "0.1"
+keccak-hash = "0.1.4"

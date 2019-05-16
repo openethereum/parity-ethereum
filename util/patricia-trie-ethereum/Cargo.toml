@@ -16,5 +16,5 @@ elastic-array = "0.10"
 
 [dev-dependencies]
 memory-db = "0.11.0"
-keccak-hash = "0.1.2"
+keccak-hash = "0.1.4"
 journaldb = { path = "../journaldb" }

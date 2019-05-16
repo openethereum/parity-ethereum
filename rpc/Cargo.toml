@@ -54,7 +54,7 @@ ethjson = { path = "../json" }
 ethkey = { path = "../accounts/ethkey" }
 ethstore = { path = "../accounts/ethstore" }
 fetch = { path = "../util/fetch" }
-keccak-hash = "0.1.2"
+keccak-hash = "0.1.4"
 parity-runtime = { path = "../util/runtime" }
 parity-updater = { path = "../updater" }
 parity-version = { path = "../util/version" }

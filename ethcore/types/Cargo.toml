@@ -9,7 +9,7 @@ ethereum-types = "0.5.2"
 ethjson = { path = "../../json" }
 ethkey = { path = "../../accounts/ethkey" }
 heapsize = "0.4"
-keccak-hash = "0.1"
+keccak-hash = "0.1.4"
 parity-bytes = "0.1"
 rlp = { version = "0.3.0", features = ["ethereum"] }
 rlp_derive = { path = "../../util/rlp-derive" }

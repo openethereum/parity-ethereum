@@ -24,7 +24,7 @@ ethcore-call-contract = { path = "../ethcore/call-contract" }
 ethereum-types = "0.5.2"
 futures = "0.1"
 heapsize = "0.4"
-keccak-hash = "0.1"
+keccak-hash = "0.1.4"
 linked-hash-map = "0.5"
 log = "0.4"
 parity-runtime = { path = "../util/runtime" }

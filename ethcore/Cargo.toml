@@ -35,7 +35,7 @@ hash-db = "0.11.0"
 heapsize = "0.4"
 itertools = "0.5"
 journaldb = { path = "../util/journaldb" }
-keccak-hash = "0.1"
+keccak-hash = "0.1.4"
 keccak-hasher = { path = "../util/keccak-hasher" }
 kvdb = "0.1"
 kvdb-memorydb = "0.1"

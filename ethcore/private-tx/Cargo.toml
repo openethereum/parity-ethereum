@@ -21,7 +21,7 @@ ethkey = { path = "../../accounts/ethkey" }
 fetch = { path = "../../util/fetch" }
 futures = "0.1"
 heapsize = "0.4"
-keccak-hash = "0.1.2"
+keccak-hash = "0.1.4"
 log = "0.4"
 parity-bytes = "0.1"
 parity-crypto = "0.3.0"

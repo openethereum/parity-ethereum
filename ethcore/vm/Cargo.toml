@@ -12,4 +12,4 @@ patricia-trie-ethereum = { path = "../../util/patricia-trie-ethereum" }
 log = "0.4"
 ethjson = { path = "../../json" }
 rlp = { version = "0.3.0", features = ["ethereum"] }
-keccak-hash = "0.1"
+keccak-hash = "0.1.4"
