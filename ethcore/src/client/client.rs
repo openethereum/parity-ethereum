@@ -1343,12 +1343,14 @@ impl BlockChainReset for Client {
 				(&mut db_transaction, ::db::COL_EXTRA, &hash.number());
 		}
 
-		let last_hash = blocks_to_delete.last().expect("blocks_to_delete isn't empty; qed").hash();
+		let last_hash = blocks_to_delete.last()
+			.expect("num is > 0; blocks_to_delete can't be empty; qed")
+			.hash();
 		let mut best_block_details = Readable::read::<BlockDetails, H264>(
 			&**self.db.read().key_value(),
 			::db::COL_EXTRA,
 			&best_block_hash
-		).expect("best_block_details should exist; qed");
+		).expect("block was previously imported; best_block_details should exist; qed");
 		// remove the last block as a child so that it can be re-imported
 		// ethcore/blockchain/src/blockchain.rs:667
 		best_block_details.children.retain(|h| *h != last_hash);

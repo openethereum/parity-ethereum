@@ -730,6 +730,10 @@ fn execute_export_state(cmd: ExportState) -> Result<(), String> {
 }
 
 fn execute_reset(cmd: ResetBlockchain) -> Result<(), String> {
+	if cmd.num == 0 {
+		return Err("Invalid reset argument".into())
+	}
+
 	let service = start_client(
 		cmd.dirs,
 		cmd.spec,
