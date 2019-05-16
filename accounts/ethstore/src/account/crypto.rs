@@ -75,7 +75,7 @@ impl From<Crypto> for String {
 impl Crypto {
 	/// Encrypt account secret
 	pub fn with_secret(secret: &Secret, password: &Password, iterations: NonZeroU32) -> Result<Self, crypto::Error> {
-		Crypto::with_plain(&*secret, password, iterations)
+		Crypto::with_plain(secret.as_ref(), password, iterations)
 	}
 
 	/// Encrypt custom plain data
