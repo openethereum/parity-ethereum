@@ -127,7 +127,7 @@ fn encode_data(
 				items.append(&mut encoded);
 			}
 
-			keccak(items).0.to_vec()
+			keccak(items).as_ref().to_vec()
 		}
 
 		Type::Custom(ref ident) if message_types.get(&*ident).is_some() => {
@@ -141,7 +141,7 @@ fn encode_data(
 				tokens.append(&mut encoded);
 			}
 
-			keccak(tokens).to_vec()
+			keccak(tokens).as_ref().to_vec()
 		}
 
 		Type::Bytes => {
@@ -152,7 +152,7 @@ fn encode_data(
 			let bytes = (&string[2..])
 				.from_hex::<Vec<u8>>()
 				.map_err(|err| ErrorKind::HexParseError(format!("{}", err)))?;
-			let bytes = keccak(&bytes).to_vec();
+			let bytes = keccak(&bytes).as_ref().to_vec();
 
 			encode(&[EthAbiToken::FixedBytes(bytes)])
 		}
@@ -171,7 +171,7 @@ fn encode_data(
 
 		Type::String => {
 			let value = value.as_str().ok_or_else(|| serde_error("string", field_name))?;
-			let hash = keccak(value).to_vec();
+			let hash = keccak(value).as_ref().to_vec();
 			encode(&[EthAbiToken::FixedBytes(hash)])
 		}
 
@@ -220,7 +220,7 @@ pub fn hash_structured_data(typed_data: EIP712) -> Result<H256> {
 		encode_data(&parser, &Type::Custom(typed_data.primary_type), &typed_data.types, &typed_data.message, None)?
 	);
 	let concat = [&prefix[..], &domain_hash[..], &data_hash[..]].concat();
-	Ok(H256(keccak(concat).0))
+	Ok(keccak(concat))
 }
 
 #[cfg(test)]
