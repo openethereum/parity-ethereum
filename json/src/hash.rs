@@ -89,7 +89,7 @@ macro_rules! impl_hash {
 
 impl Into<u64> for Uint {
 	fn into(self) -> u64 {
-		self.0.to_low_u64_be()
+		self.0.low_u64()
 	}
 }
 
