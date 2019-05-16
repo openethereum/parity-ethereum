@@ -25,7 +25,7 @@ use blockchain::{BlockReceipts, BlockChain, BlockChainDB, BlockProvider, TreeRou
 use bytes::Bytes;
 use call_contract::{CallContract, RegistryInfo};
 use ethcore_miner::pool::VerifiedTransaction;
-use ethereum_types::{H256, Address, U256};
+use ethereum_types::{H256, H264, Address, U256};
 use evm::Schedule;
 use hash::keccak;
 use io::IoChannel;
@@ -86,7 +86,7 @@ pub use types::blockchain_info::BlockChainInfo;
 pub use types::block_status::BlockStatus;
 pub use blockchain::CacheSize as BlockChainCacheSize;
 pub use verification::QueueInfo as BlockQueueInfo;
-use db::Writable;
+use db::{Writable, Readable, keys::BlockDetails};
 
 use_contract!(registry, "res/contracts/registrar.json");
 
@@ -1338,26 +1338,40 @@ impl BlockChainReset for Client {
 		for hash in &blocks_to_delete {
 			db_transaction.delete(::db::COL_HEADERS, &hash.hash());
 			db_transaction.delete(::db::COL_BODIES, &hash.hash());
-			db_transaction.delete(::db::COL_EXTRA, &hash.hash());
+			Writable::delete::<BlockDetails, H264>(&mut db_transaction, ::db::COL_EXTRA, &hash.hash());
 			Writable::delete::<H256, BlockNumberKey>
 				(&mut db_transaction, ::db::COL_EXTRA, &hash.number());
 		}
 
+		let last_hash = blocks_to_delete.last().expect("blocks_to_delete isn't empty; qed").hash();
+		let mut best_block_details = Readable::read::<BlockDetails, H264>(
+			&**self.db.read().key_value(),
+			::db::COL_EXTRA,
+			&best_block_hash
+		).expect("best_block_details should exist; qed");
+		// remove the last block as a child so that it can be re-imported
+		// ethcore/blockchain/src/blockchain.rs:667
+		best_block_details.children.retain(|h| *h != last_hash);
+		db_transaction.write(
+			::db::COL_EXTRA,
+			&best_block_hash,
+			&best_block_details
+		);
+
 		// update the new best block hash
 		db_transaction.put(::db::COL_EXTRA, b"best", &*best_block_hash);
+
+		let hashes = blocks_to_delete.iter().map(|b| b.hash()).collect::<Vec<_>>();
+		info!("Deleting block hashes {}",
+			  Colour::Red
+				  .bold()
+				  .paint(format!("{:#?}", hashes))
+		);
 
 		self.db.read()
 			.key_value()
 			.write(db_transaction)
 			.map_err(|err| format!("could not complete reset operation; io error occured: {}", err))?;
-
-		let hashes = blocks_to_delete.iter().map(|b| b.hash()).collect::<Vec<_>>();
-
-		info!("Deleting block hashes {}",
-			Colour::Red
-				.bold()
-				.paint(format!("{:#?}", hashes))
-		);
 
 		info!("New best block hash {}", Colour::Green.bold().paint(format!("{:?}", best_block_hash)));
 
