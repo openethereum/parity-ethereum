@@ -18,7 +18,7 @@
 
 use std::ops::Deref;
 
-use ethereum_types::{H256, H160, Address, U256};
+use ethereum_types::{H256, H160, Address, U256, BigEndianHash};
 use ethjson;
 use ethkey::{self, Signature, Secret, Public, recover, public_to_address};
 use hash::keccak;
@@ -179,7 +179,7 @@ impl From<ethjson::transaction::Transaction> for UnverifiedTransaction {
 			r: t.r.into(),
 			s: t.s.into(),
 			v: t.v.into(),
-			hash: 0.into(),
+			hash: H256::default(),
 		}.compute_hash()
 	}
 }
@@ -207,7 +207,7 @@ impl Transaction {
 			r: sig.r().into(),
 			s: sig.s().into(),
 			v: signature::add_chain_replay_protection(sig.v() as u64, chain_id),
-			hash: 0.into(),
+			hash: H256::default(),
 		}.compute_hash()
 	}
 
@@ -231,7 +231,7 @@ impl Transaction {
 				r: U256::one(),
 				s: U256::one(),
 				v: 0,
-				hash: 0.into(),
+				hash: H256::default(),
 			}.compute_hash(),
 			sender: from,
 			public: None,
@@ -246,7 +246,7 @@ impl Transaction {
 				r: U256::zero(),
 				s: U256::zero(),
 				v: chain_id,
-				hash: 0.into(),
+				hash: H256::default(),
 			}.compute_hash(),
 			sender: UNSIGNED_SENDER,
 			public: None,
@@ -360,7 +360,9 @@ impl UnverifiedTransaction {
 
 	/// Construct a signature object from the sig.
 	pub fn signature(&self) -> Signature {
-		Signature::from_rsv(&self.r.into(), &self.s.into(), self.standard_v())
+		let r: H256 = BigEndianHash::from_uint(&self.r);
+		let s: H256 = BigEndianHash::from_uint(&self.s);
+		Signature::from_rsv(&r, &s, self.standard_v())
 	}
 
 	/// Checks whether the signature has a low 's' value.

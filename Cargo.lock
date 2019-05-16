@@ -701,11 +701,12 @@ dependencies = [
 
 [[package]]
 name = "ethbloom"
-version = "0.6.3"
-source = "git+https://github.com/ordian/parity-common#83470befa8e3dc0507b81f1920e31cf6ff25e0cd"
+version = "0.6.4"
+source = "git+https://github.com/ordian/parity-common#9c8df0e11d1524ea0ab7bcb5574dccc381a49489"
 dependencies = [
  "crunchy 0.2.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "fixed-hash 0.3.2 (git+https://github.com/ordian/parity-common)",
+ "impl-rlp 0.1.1 (git+https://github.com/ordian/parity-common)",
  "impl-serde 0.2.0 (git+https://github.com/ordian/parity-common)",
  "tiny-keccak 1.4.2 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
@@ -1194,14 +1195,14 @@ dependencies = [
 [[package]]
 name = "ethereum-types"
 version = "0.5.2"
-source = "git+https://github.com/ordian/parity-common#83470befa8e3dc0507b81f1920e31cf6ff25e0cd"
+source = "git+https://github.com/ordian/parity-common#9c8df0e11d1524ea0ab7bcb5574dccc381a49489"
 dependencies = [
- "ethbloom 0.6.3 (git+https://github.com/ordian/parity-common)",
+ "ethbloom 0.6.4 (git+https://github.com/ordian/parity-common)",
  "fixed-hash 0.3.2 (git+https://github.com/ordian/parity-common)",
  "impl-rlp 0.1.1 (git+https://github.com/ordian/parity-common)",
  "impl-serde 0.2.0 (git+https://github.com/ordian/parity-common)",
  "primitive-types 0.2.4 (git+https://github.com/ordian/parity-common)",
- "uint 0.7.0 (git+https://github.com/ordian/parity-common)",
+ "uint 0.7.1 (git+https://github.com/ordian/parity-common)",
 ]
 
 [[package]]
@@ -1439,7 +1440,7 @@ dependencies = [
 [[package]]
 name = "fixed-hash"
 version = "0.3.2"
-source = "git+https://github.com/ordian/parity-common#83470befa8e3dc0507b81f1920e31cf6ff25e0cd"
+source = "git+https://github.com/ordian/parity-common#9c8df0e11d1524ea0ab7bcb5574dccc381a49489"
 dependencies = [
  "byteorder 1.2.6 (registry+https://github.com/rust-lang/crates.io-index)",
  "heapsize 0.4.2 (git+https://github.com/cheme/heapsize.git?branch=ec-macfix)",
@@ -1767,7 +1768,7 @@ dependencies = [
 [[package]]
 name = "impl-codec"
 version = "0.2.0"
-source = "git+https://github.com/ordian/parity-common#83470befa8e3dc0507b81f1920e31cf6ff25e0cd"
+source = "git+https://github.com/ordian/parity-common#9c8df0e11d1524ea0ab7bcb5574dccc381a49489"
 dependencies = [
  "parity-codec 3.5.1 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
@@ -1775,7 +1776,7 @@ dependencies = [
 [[package]]
 name = "impl-rlp"
 version = "0.1.1"
-source = "git+https://github.com/ordian/parity-common#83470befa8e3dc0507b81f1920e31cf6ff25e0cd"
+source = "git+https://github.com/ordian/parity-common#9c8df0e11d1524ea0ab7bcb5574dccc381a49489"
 dependencies = [
  "rlp 0.3.0 (git+https://github.com/ordian/parity-common)",
 ]
@@ -1783,7 +1784,7 @@ dependencies = [
 [[package]]
 name = "impl-serde"
 version = "0.2.0"
-source = "git+https://github.com/ordian/parity-common#83470befa8e3dc0507b81f1920e31cf6ff25e0cd"
+source = "git+https://github.com/ordian/parity-common#9c8df0e11d1524ea0ab7bcb5574dccc381a49489"
 dependencies = [
  "serde 1.0.89 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
@@ -2035,7 +2036,7 @@ dependencies = [
 [[package]]
 name = "keccak-hash"
 version = "0.1.4"
-source = "git+https://github.com/ordian/parity-common#83470befa8e3dc0507b81f1920e31cf6ff25e0cd"
+source = "git+https://github.com/ordian/parity-common#9c8df0e11d1524ea0ab7bcb5574dccc381a49489"
 dependencies = [
  "primitive-types 0.2.4 (git+https://github.com/ordian/parity-common)",
  "tiny-keccak 1.4.2 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -3170,13 +3171,13 @@ dependencies = [
 [[package]]
 name = "primitive-types"
 version = "0.2.4"
-source = "git+https://github.com/ordian/parity-common#83470befa8e3dc0507b81f1920e31cf6ff25e0cd"
+source = "git+https://github.com/ordian/parity-common#9c8df0e11d1524ea0ab7bcb5574dccc381a49489"
 dependencies = [
  "fixed-hash 0.3.2 (git+https://github.com/ordian/parity-common)",
  "impl-codec 0.2.0 (git+https://github.com/ordian/parity-common)",
  "impl-rlp 0.1.1 (git+https://github.com/ordian/parity-common)",
  "impl-serde 0.2.0 (git+https://github.com/ordian/parity-common)",
- "uint 0.7.0 (git+https://github.com/ordian/parity-common)",
+ "uint 0.7.1 (git+https://github.com/ordian/parity-common)",
 ]
 
 [[package]]
@@ -3475,7 +3476,7 @@ dependencies = [
 [[package]]
 name = "rlp"
 version = "0.3.0"
-source = "git+https://github.com/ordian/parity-common#83470befa8e3dc0507b81f1920e31cf6ff25e0cd"
+source = "git+https://github.com/ordian/parity-common#9c8df0e11d1524ea0ab7bcb5574dccc381a49489"
 dependencies = [
  "byteorder 1.2.6 (registry+https://github.com/rust-lang/crates.io-index)",
  "ethereum-types 0.4.2 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -4275,8 +4276,8 @@ dependencies = [
 
 [[package]]
 name = "uint"
-version = "0.7.0"
-source = "git+https://github.com/ordian/parity-common#83470befa8e3dc0507b81f1920e31cf6ff25e0cd"
+version = "0.7.1"
+source = "git+https://github.com/ordian/parity-common#9c8df0e11d1524ea0ab7bcb5574dccc381a49489"
 dependencies = [
  "byteorder 1.2.6 (registry+https://github.com/rust-lang/crates.io-index)",
  "crunchy 0.2.1 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -4677,7 +4678,7 @@ dependencies = [
 "checksum ethabi-contract 7.0.0 (registry+https://github.com/rust-lang/crates.io-index)" = "b51f33d0b3998b4330d6b5a4b1b02a03d3c96b5de44d563929e232f4a30ba7e2"
 "checksum ethabi-derive 7.0.0 (registry+https://github.com/rust-lang/crates.io-index)" = "ae5f5517ad9270a91ea7c86487a4872ded693f5d039b4d3da210237980ddd3bf"
 "checksum ethbloom 0.5.0 (registry+https://github.com/rust-lang/crates.io-index)" = "1a93a43ce2e9f09071449da36bfa7a1b20b950ee344b6904ff23de493b03b386"
-"checksum ethbloom 0.6.3 (git+https://github.com/ordian/parity-common)" = "<none>"
+"checksum ethbloom 0.6.4 (git+https://github.com/ordian/parity-common)" = "<none>"
 "checksum ethereum-types 0.4.2 (registry+https://github.com/rust-lang/crates.io-index)" = "6e742184dc63a01c8ea0637369f8faa27c40f537949908a237f95c05e68d2c96"
 "checksum ethereum-types 0.5.2 (git+https://github.com/ordian/parity-common)" = "<none>"
 "checksum ethereum-types-serialize 0.2.2 (registry+https://github.com/rust-lang/crates.io-index)" = "1873d77b32bc1891a79dad925f2acbc318ee942b38b9110f9dbc5fbeffcea350"
@@ -4949,7 +4950,7 @@ dependencies = [
 "checksum typenum 1.10.0 (registry+https://github.com/rust-lang/crates.io-index)" = "612d636f949607bdf9b123b4a6f6d966dedf3ff669f7f045890d3a4a73948169"
 "checksum ucd-util 0.1.1 (registry+https://github.com/rust-lang/crates.io-index)" = "fd2be2d6639d0f8fe6cdda291ad456e23629558d466e2789d2c3e9892bda285d"
 "checksum uint 0.4.1 (registry+https://github.com/rust-lang/crates.io-index)" = "754ba11732b9161b94c41798e5197e5e75388d012f760c42adb5000353e98646"
-"checksum uint 0.7.0 (git+https://github.com/ordian/parity-common)" = "<none>"
+"checksum uint 0.7.1 (git+https://github.com/ordian/parity-common)" = "<none>"
 "checksum unicase 1.4.2 (registry+https://github.com/rust-lang/crates.io-index)" = "7f4765f83163b74f957c797ad9253caf97f103fb064d3999aea9568d09fc8a33"
 "checksum unicase 2.2.0 (registry+https://github.com/rust-lang/crates.io-index)" = "9d3218ea14b4edcaccfa0df0a64a3792a2c32cc706f1b336e48867f9d3147f90"
 "checksum unicode-bidi 0.3.4 (registry+https://github.com/rust-lang/crates.io-index)" = "49f2bd0c6468a8230e1db229cff8029217cf623c767ea5d60bfbd42729ea54d5"

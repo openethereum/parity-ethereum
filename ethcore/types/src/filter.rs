@@ -76,7 +76,7 @@ impl Filter {
 		let blooms = match self.address {
 			Some(ref addresses) if !addresses.is_empty() =>
 				addresses.iter()
-					.map(|ref address| Bloom::from(BloomInput::Raw(address)))
+					.map(|ref address| Bloom::from(BloomInput::Raw(address.as_bytes())))
 					.collect(),
 			_ => vec![Bloom::default()]
 		};
@@ -86,7 +86,7 @@ impl Filter {
 			Some(ref topics) => bs.into_iter().flat_map(|bloom| {
 				topics.into_iter().map(|topic| {
 					let mut b = bloom.clone();
-					b.accrue(BloomInput::Raw(topic));
+					b.accrue(BloomInput::Raw(topic.as_bytes()));
 					b
 				}).collect::<Vec<Bloom>>()
 			}).collect()
