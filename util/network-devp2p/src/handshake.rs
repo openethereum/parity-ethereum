@@ -82,14 +82,14 @@ impl Handshake {
 	/// Create a new handshake object
 	pub fn new(token: StreamToken, id: Option<&NodeId>, socket: TcpStream, nonce: &H256) -> Result<Handshake, Error> {
 		Ok(Handshake {
-			id: if let Some(id) = id { *id } else { NodeId::new() },
+			id: if let Some(id) = id { *id } else { NodeId::default() },
 			connection: Connection::new(token, socket),
 			originated: false,
 			state: HandshakeState::New,
 			ecdhe: Random.generate()?,
 			nonce: *nonce,
-			remote_ephemeral: Public::new(),
-			remote_nonce: H256::new(),
+			remote_ephemeral: Public::default(),
+			remote_nonce: H256::default(),
 			remote_version: PROTOCOL_VERSION,
 			auth_cipher: Bytes::new(),
 			ack_cipher: Bytes::new(),
@@ -149,8 +149,9 @@ impl Handshake {
 	}
 
 	fn set_auth(&mut self, host_secret: &Secret, sig: &[u8], remote_public: &[u8], remote_nonce: &[u8], remote_version: u64) -> Result<(), Error> {
-		self.id.clone_from_slice(remote_public);
-		self.remote_nonce.clone_from_slice(remote_nonce);
+		// TODO: assign_from_slice will panic if sizes differ
+		self.id.assign_from_slice(remote_public);
+		self.remote_nonce.assign_from_slice(remote_nonce);
 		self.remote_version = remote_version;
 		let shared = *ecdh::agree(host_secret, &self.id)?;
 		let signature = H520::from_slice(sig);
@@ -199,7 +200,7 @@ impl Handshake {
 		let remote_public: Public = rlp.val_at(1)?;
 		let remote_nonce: H256 = rlp.val_at(2)?;
 		let remote_version: u64 = rlp.val_at(3)?;
-		self.set_auth(secret, &signature, &remote_public, &remote_nonce, remote_version)?;
+		self.set_auth(secret, signature.as_bytes(), remote_public.as_bytes(), remote_nonce.as_bytes(), remote_version)?;
 		self.write_ack_eip8(io)?;
 		Ok(())
 	}
@@ -214,8 +215,8 @@ impl Handshake {
 		self.ack_cipher = data.to_vec();
 		match ecies::decrypt(secret, &[], data) {
 			Ok(ack) => {
-				self.remote_ephemeral.clone_from_slice(&ack[0..64]);
-				self.remote_nonce.clone_from_slice(&ack[64..(64+32)]);
+				self.remote_ephemeral.assign_from_slice(&ack[0..64]);
+				self.remote_nonce.assign_from_slice(&ack[64..(64+32)]);
 				self.state = HandshakeState::StartSession;
 			}
 			Err(_) => {
@@ -261,8 +262,8 @@ impl Handshake {
 			let shared = *ecdh::agree(secret, &self.id)?;
 			sig.copy_from_slice(&*sign(self.ecdhe.secret(), &(shared ^ self.nonce))?);
 			write_keccak(self.ecdhe.public(), hepubk);
-			pubk.copy_from_slice(public);
-			nonce.copy_from_slice(&self.nonce);
+			pubk.copy_from_slice(public.as_bytes());
+			nonce.copy_from_slice(self.nonce.as_bytes());
 		}
 		let message = ecies::encrypt(&self.id, &[], &data)?;
 		self.auth_cipher = message.clone();
@@ -281,8 +282,8 @@ impl Handshake {
 			data[len - 1] = 0x0;
 			let (epubk, rest) = data.split_at_mut(64);
 			let (nonce, _) = rest.split_at_mut(32);
-			self.ecdhe.public().copy_to(epubk);
-			self.nonce.copy_to(nonce);
+			epubk.copy_from_slice(self.ecdhe.public().as_bytes());
+			nonce.copy_from_slice(self.nonce.as_bytes());
 		}
 		let message = ecies::encrypt(&self.id, &[], &data)?;
 		self.ack_cipher = message.clone();

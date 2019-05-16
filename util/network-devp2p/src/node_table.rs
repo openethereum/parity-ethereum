@@ -211,7 +211,7 @@ impl FromStr for Node {
 			(s[8..136].parse().map_err(|_| ErrorKind::InvalidNodeId)?, NodeEndpoint::from_str(&s[137..])?)
 		}
 		else {
-			(NodeId::new(), NodeEndpoint::from_str(s)?)
+			(NodeId::default(), NodeEndpoint::from_str(s)?)
 		};
 
 		Ok(Node {
