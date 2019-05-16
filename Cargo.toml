@@ -144,6 +144,7 @@ members = [
 
 [patch.crates-io]
 heapsize = { git = "https://github.com/cheme/heapsize.git", branch = "ec-macfix" }
+# TODO: remove when 0.5.3 is published
 ethereum-types = { git = "https://github.com/ordian/parity-common" }
 ethbloom = { git = "https://github.com/ordian/parity-common" }
 rlp = { git = "https://github.com/ordian/parity-common" }
