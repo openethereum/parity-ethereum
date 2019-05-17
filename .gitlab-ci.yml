@@ -4,11 +4,13 @@ stages:
   - publish
   - optional
 
-image:                             parity/rust-parity-ethereum-build:xenial
+image:                             parity/parity-ci-linux:latest
 variables:
   GIT_STRATEGY:                    fetch
   GIT_SUBMODULE_STRATEGY:          recursive
   CI_SERVER_NAME:                  "GitLab CI"
+  CARGO_HOME:                      "/ci-cache/${CI_PROJECT_NAME}/cargo/${CI_JOB_NAME}"
+  SCCACHE_DIR:                     "/ci-cache/${CI_PROJECT_NAME}/sccache"
   CARGO_TARGET:                    x86_64-unknown-linux-gnu
 
 .no_git:                           &no_git # disable git strategy
