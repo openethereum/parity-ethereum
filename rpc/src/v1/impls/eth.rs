@@ -53,6 +53,7 @@ use v1::metadata::Metadata;
 const EXTRA_INFO_PROOF: &str = "Object exists in blockchain (fetched earlier), extra_info is always available if object exists; qed";
 
 /// Eth RPC options
+#[derive(Copy, Clone)]
 pub struct EthClientOptions {
 	/// Return nonce from transaction queue when pending block not available.
 	pub pending_nonce_from_queue: bool,
@@ -67,6 +68,8 @@ pub struct EthClientOptions {
 	pub allow_missing_blocks: bool,
 	/// Enable Experimental RPC-Calls
 	pub allow_experimental_rpcs: bool,
+	/// flag for ancient block sync
+	pub no_ancient_blocks: bool,
 }
 
 impl EthClientOptions {
@@ -88,6 +91,7 @@ impl Default for EthClientOptions {
 			gas_price_percentile: 50,
 			allow_missing_blocks: false,
 			allow_experimental_rpcs: false,
+			no_ancient_blocks: false,
 		}
 	}
 }
@@ -668,7 +672,7 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM, T: StateInfo + 'static> Eth for EthClient<
 		let trx_count = self.client.block(BlockId::Hash(hash))
 			.map(|block| block.transactions_count().into());
 		let result = Ok(trx_count)
-			.and_then(errors::check_block_gap(&*self.client, self.options.allow_missing_blocks));
+			.and_then(errors::check_block_gap(&*self.client, self.options));
 		Box::new(future::done(result))
 	}
 
@@ -683,7 +687,7 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM, T: StateInfo + 'static> Eth for EthClient<
 					.and_then(errors::check_block_number_existence(
 						&*self.client,
 						num,
-						self.options.allow_missing_blocks
+						self.options
 					))
 			}
 		}))
@@ -693,7 +697,7 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM, T: StateInfo + 'static> Eth for EthClient<
 		let uncle_count = self.client.block(BlockId::Hash(hash))
 			.map(|block| block.uncles_count().into());
 		let result = Ok(uncle_count)
-			.and_then(errors::check_block_gap(&*self.client, self.options.allow_missing_blocks));
+			.and_then(errors::check_block_gap(&*self.client, self.options));
 		Box::new(future::done(result))
 	}
 
@@ -707,7 +711,7 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM, T: StateInfo + 'static> Eth for EthClient<
 					.and_then(errors::check_block_number_existence(
 						&*self.client,
 						num,
-						self.options.allow_missing_blocks
+						self.options
 					))
 			}
 		}))
@@ -729,13 +733,13 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM, T: StateInfo + 'static> Eth for EthClient<
 
 	fn block_by_hash(&self, hash: H256, include_txs: bool) -> BoxFuture<Option<RichBlock>> {
 		let result = self.rich_block(BlockId::Hash(hash).into(), include_txs)
-			.and_then(errors::check_block_gap(&*self.client, self.options.allow_missing_blocks));
+			.and_then(errors::check_block_gap(&*self.client, self.options));
 		Box::new(future::done(result))
 	}
 
 	fn block_by_number(&self, num: BlockNumber, include_txs: bool) -> BoxFuture<Option<RichBlock>> {
 		let result = self.rich_block(num.clone().into(), include_txs).and_then(
-			errors::check_block_number_existence(&*self.client, num, self.options.allow_missing_blocks));
+			errors::check_block_number_existence(&*self.client, num, self.options));
 		Box::new(future::done(result))
 	}
 
@@ -745,14 +749,14 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM, T: StateInfo + 'static> Eth for EthClient<
 				.map(|t| Transaction::from_pending(t.pending().clone()))
 		});
 		let result = Ok(tx).and_then(
-			errors::check_block_gap(&*self.client, self.options.allow_missing_blocks));
+			errors::check_block_gap(&*self.client, self.options));
 		Box::new(future::done(result))
 	}
 
 	fn transaction_by_block_hash_and_index(&self, hash: H256, index: Index) -> BoxFuture<Option<Transaction>> {
 		let id = PendingTransactionId::Location(PendingOrBlock::Block(BlockId::Hash(hash)), index.value());
 		let result = self.transaction(id).and_then(
-			errors::check_block_gap(&*self.client, self.options.allow_missing_blocks));
+			errors::check_block_gap(&*self.client, self.options));
 		Box::new(future::done(result))
 	}
 
@@ -766,7 +770,7 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM, T: StateInfo + 'static> Eth for EthClient<
 
 		let transaction_id = PendingTransactionId::Location(block_id, index.value());
 		let result = self.transaction(transaction_id).and_then(
-			errors::check_block_number_existence(&*self.client, num, self.options.allow_missing_blocks));
+			errors::check_block_number_existence(&*self.client, num, self.options));
 		Box::new(future::done(result))
 	}
 
@@ -780,7 +784,7 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM, T: StateInfo + 'static> Eth for EthClient<
 
 		let receipt = self.client.transaction_receipt(TransactionId::Hash(hash));
 		let result = Ok(receipt.map(Into::into))
-			.and_then(errors::check_block_gap(&*self.client, self.options.allow_missing_blocks));
+			.and_then(errors::check_block_gap(&*self.client, self.options));
 		Box::new(future::done(result))
 	}
 
@@ -788,7 +792,7 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM, T: StateInfo + 'static> Eth for EthClient<
 		let result = self.uncle(PendingUncleId {
 			id: PendingOrBlock::Block(BlockId::Hash(hash)),
 			position: index.value()
-		}).and_then(errors::check_block_gap(&*self.client, self.options.allow_missing_blocks));
+		}).and_then(errors::check_block_gap(&*self.client, self.options));
 		Box::new(future::done(result))
 	}
 
@@ -805,7 +809,7 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM, T: StateInfo + 'static> Eth for EthClient<
 			.and_then(errors::check_block_number_existence(
 				&*self.client,
 				num,
-				self.options.allow_missing_blocks
+				self.options
 			));
 
 		Box::new(future::done(result))

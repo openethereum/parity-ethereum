@@ -224,7 +224,7 @@ impl SigningStore {
 		&mut self,
 		private_hash: H256,
 		transaction: SignedTransaction,
-		validators: Vec<Address>,
+		validators: &Vec<Address>,
 		state: Bytes,
 		contract_nonce: U256,
 	) -> Result<(), Error> {

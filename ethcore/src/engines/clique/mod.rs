@@ -287,8 +287,7 @@ impl Clique {
 						"Back-filling block state. last_checkpoint_number: {}, target: {}({}).",
 						last_checkpoint_number, header.number(), header.hash());
 
-				let mut chain: &mut VecDeque<Header> = &mut VecDeque::with_capacity(
-					(header.number() - last_checkpoint_number + 1) as usize);
+				let mut chain = VecDeque::with_capacity((header.number() - last_checkpoint_number + 1) as usize);
 
 				// Put ourselves in.
 				chain.push_front(header.clone());
@@ -332,7 +331,7 @@ impl Clique {
 
 				// Backfill!
 				let mut new_state = last_checkpoint_state.clone();
-				for item in chain {
+				for item in &chain {
 					new_state.apply(item, false)?;
 				}
 				new_state.calc_next_timestamp(header.timestamp(), self.period)?;
@@ -551,7 +550,7 @@ impl Engine<EthereumMachine> for Clique {
 					min: None,
 					max: Some(limit),
 					found,
-				}))?
+				}.into()))?
 			}
 		}
 
@@ -664,7 +663,7 @@ impl Engine<EthereumMachine> for Clique {
 				min: None,
 				max,
 				found,
-			}))?
+			}.into()))?
 		}
 
 		// Retrieve the parent state
@@ -712,6 +711,13 @@ impl Engine<EthereumMachine> for Clique {
 					} else {
 						header.set_difficulty(DIFF_NOTURN);
 					}
+				}
+
+				let zero_padding_len = VANITY_LENGTH - header.extra_data().len();
+				if zero_padding_len > 0 {
+					let mut resized_extra_data = header.extra_data().clone();
+					resized_extra_data.resize(VANITY_LENGTH, 0);
+					header.set_extra_data(resized_extra_data);
 				}
 			} else {
 				trace!(target: "engine", "populate_from_parent: no signer registered");

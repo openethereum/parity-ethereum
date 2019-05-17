@@ -69,11 +69,13 @@ fn send_private_transaction() {
 	let validator_config = ProviderConfig{
 		validator_accounts: vec![s1.address()],
 		signer_account: None,
+		logs_path: None,
 	};
 
 	let signer_config = ProviderConfig{
 		validator_accounts: Vec::new(),
 		signer_account: Some(s0.address()),
+		logs_path: None,
 	};
 
 	let private_keys = Arc::new(StoringKeyProvider::default());

@@ -49,6 +49,7 @@ use v1::types::{
 	block_number_to_id
 };
 use Host;
+use ethcore::verification::queue::kind::blocks::Unverified;
 
 /// Parity implementation.
 pub struct ParityClient<C, M, U> {
@@ -461,5 +462,23 @@ impl<C, M, U, S> Parity for ParityClient<C, M, U> where
 
 	fn verify_signature(&self, is_prefixed: bool, message: Bytes, r: H256, s: H256, v: U64) -> Result<RecoveredAccount> {
 		verify_signature(is_prefixed, message, r, s, v, self.client.signing_chain_id())
+	}
+
+	fn get_raw_block_by_number(&self, block_number: BlockNumber) -> BoxFuture<Option<Bytes>> {
+		Box::new(futures::done(
+			Ok(
+				self.client
+					.block(block_number_to_id(block_number))
+					.map(|block| Bytes::from(block.raw().to_vec()))
+			)
+		))
+	}
+
+
+	fn submit_raw_block(&self, block: Bytes) -> Result<H256> {
+		let result = self.client.import_block(
+			Unverified::from_rlp(block.into_vec()).map_err(errors::rlp)?
+		);
+		Ok(result.map_err(errors::cannot_submit_block)?)
 	}
 }

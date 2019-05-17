@@ -623,6 +623,10 @@ usage! {
 			"--no-secretstore-auto-migrate",
 			"Do not run servers set change session automatically when servers set changes. This option has no effect when servers set is read from configuration file.",
 
+			ARG arg_secretstore_http_cors: (String) = "none", or |c: &Config| c.secretstore.as_ref()?.cors.as_ref().map(|vec| vec.join(",")),
+			"--secretstore-http-cors=[URL]",
+			"Specify CORS header for Secret Store HTTP API responses. Special options: \"all\", \"none\".",
+
 			ARG arg_secretstore_acl_contract: (Option<String>) = Some("registry".into()), or |c: &Config| c.secretstore.as_ref()?.acl_contract.clone(),
 			"--secretstore-acl-contract=[SOURCE]",
 			"Secret Store permissioning contract address source: none, registry (contract address is read from 'secretstore_acl_checker' entry in registry) or address.",
@@ -1328,6 +1332,7 @@ struct SecretStore {
 	http_interface: Option<String>,
 	http_port: Option<u16>,
 	path: Option<String>,
+	cors: Option<Vec<String>>
 }
 
 #[derive(Default, Debug, PartialEq, Deserialize)]
@@ -1854,6 +1859,7 @@ mod tests {
 			arg_secretstore_http_interface: "local".into(),
 			arg_secretstore_http_port: 8082u16,
 			arg_secretstore_path: "$HOME/.parity/secretstore".into(),
+			arg_secretstore_http_cors: "null".into(),
 
 			// IPFS
 			flag_ipfs_api: false,
@@ -2132,6 +2138,7 @@ mod tests {
 				http_interface: None,
 				http_port: Some(8082),
 				path: None,
+				cors: None,
 			}),
 			private_tx: None,
 			ipfs: Some(Ipfs {
