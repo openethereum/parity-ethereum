@@ -983,7 +983,7 @@ impl Account {
 		let mut db = journaldb::new_memory_db();
 		for node in proof { db.insert(&node[..]); }
 
-		match TrieDB::new(&db, &state_root).and_then(|t| t.get(&keccak(&self.address)))? {
+		match TrieDB::new(&db, &state_root).and_then(|t| t.get(keccak(&self.address).as_bytes()))? {
 			Some(val) => {
 				let rlp = Rlp::new(&val);
 				Ok(Some(BasicAccount {
