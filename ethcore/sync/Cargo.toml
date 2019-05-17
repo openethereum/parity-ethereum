@@ -29,7 +29,7 @@ macros = { path = "../../util/macros" }
 parity-bytes = "0.1"
 parking_lot = "0.7"
 rand = "0.4"
-rlp = { version = "0.3.0", features = ["ethereum"] }
+rlp = { version = "0.3.0", default-features = false }
 trace-time = "0.1"
 triehash-ethereum = {version = "0.2", path = "../../util/triehash-ethereum" }
 futures = "0.1"

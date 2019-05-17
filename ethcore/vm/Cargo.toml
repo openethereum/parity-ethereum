@@ -11,5 +11,5 @@ trie-db = "0.11.0"
 patricia-trie-ethereum = { path = "../../util/patricia-trie-ethereum" }
 log = "0.4"
 ethjson = { path = "../../json" }
-rlp = { version = "0.3.0", features = ["ethereum"] }
+rlp = { version = "0.3.0", default-features = false }
 keccak-hash = "0.1.4"

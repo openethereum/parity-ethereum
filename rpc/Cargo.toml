@@ -58,7 +58,7 @@ keccak-hash = "0.1.4"
 parity-runtime = { path = "../util/runtime" }
 parity-updater = { path = "../updater" }
 parity-version = { path = "../util/version" }
-rlp = { version = "0.3.0", features = ["ethereum"] }
+rlp = { version = "0.3.0", default-features = false }
 stats = { path = "../util/stats" }
 vm = { path = "../ethcore/vm" }
 

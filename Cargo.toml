@@ -49,7 +49,7 @@ ethereum-types = "0.5.2"
 ethkey = { path = "accounts/ethkey" }
 ethstore = { path = "accounts/ethstore" }
 node-filter = { path = "ethcore/node-filter" }
-rlp = { version = "0.3.0", features = ["ethereum"] }
+rlp = { version = "0.3.0", default-features = false }
 cli-signer= { path = "cli-signer" }
 parity-daemonize = "0.3"
 parity-hash-fetch = { path = "updater/hash-fetch" }
