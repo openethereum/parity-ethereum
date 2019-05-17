@@ -29,9 +29,9 @@ use ethkey::Signature;
 use hidapi;
 use libusb;
 use parking_lot::{Mutex, RwLock};
-use protobuf::{self, Message, ProtobufEnum};
+use prost::{DecodeError, Message};
 use super::{DeviceDirection, WalletInfo, TransactionInfo, KeyPath, Wallet, Device, is_valid_hid_device};
-use trezor_sys::messages::{EthereumAddress, PinMatrixAck, MessageType, EthereumTxRequest, EthereumSignTx, EthereumGetAddress, EthereumTxAck, ButtonAck};
+use trezor_sys::{EthereumAddress, PinMatrixAck, MessageType, EthereumTxRequest, EthereumSignTx, EthereumGetAddress, EthereumTxAck, ButtonAck};
 
 /// Trezor v1 vendor ID
 const TREZOR_VID: u16 = 0x534c;
@@ -98,8 +98,8 @@ impl From<libusb::Error> for Error {
 	}
 }
 
-impl From<protobuf::ProtobufError> for Error {
-	fn from(_: protobuf::ProtobufError) -> Self {
+impl From<DecodeError> for Error {
+	fn from(_: DecodeError) -> Self {
 		Error::Protocol(&"Could not read response from Trezor Device")
 	}
 }
@@ -118,6 +118,12 @@ enum HidVersion {
 	V2,
 }
 
+fn encode_message<M: Message>(message: M) -> Vec<u8> {
+	let mut result = Vec::new();
+	message.encode(&mut result).expect("Vec has unlimited capacity; qed");
+	result
+}
+
 impl Manager {
 	/// Create a new instance.
 	pub fn new(usb: Arc<Mutex<hidapi::HidApi>>) -> Arc<Self> {
@@ -133,14 +139,14 @@ impl Manager {
 		let unlocked = {
 			let usb = self.usb.lock();
 			let device = self.open_path(|| usb.open_path(&device_path))?;
-			let t = MessageType::MessageType_PinMatrixAck;
-			let mut m = PinMatrixAck::new();
-			m.set_pin(pin.to_string());
-			self.send_device_message(&device, t, &m)?;
+			let t = MessageType::PinMatrixAck;
+			let m = PinMatrixAck { pin: pin.to_owned() };
+			let msg = encode_message(m);
+			self.send_device_message(&device, t, msg)?;
 			let (resp_type, _) = self.read_device_response(&device)?;
 			match resp_type {
 				// Getting an Address back means it's unlocked, this is undocumented behavior
-				MessageType::MessageType_EthereumAddress => Ok(true),
+				MessageType::EthereumAddress => Ok(true),
 				// Getting anything else means we didn't unlock it
 				_ => Ok(false),
 
@@ -159,27 +165,30 @@ impl Manager {
 	fn signing_loop(&self, handle: &hidapi::HidDevice, chain_id: &Option<u64>, data: &[u8]) -> Result<Signature, Error> {
 		let (resp_type, bytes) = self.read_device_response(&handle)?;
 		match resp_type {
-			MessageType::MessageType_Cancel => Err(Error::UserCancel),
-			MessageType::MessageType_ButtonRequest => {
-				self.send_device_message(handle, MessageType::MessageType_ButtonAck, &ButtonAck::new())?;
+			MessageType::Cancel => Err(Error::UserCancel),
+			MessageType::ButtonRequest => {
+				let msg = encode_message(ButtonAck {});
+				self.send_device_message(handle, MessageType::ButtonAck, msg)?;
 				// Signing loop goes back to the top and reading blocks
 				// for up to 5 minutes waiting for response from the device
 				// if the user doesn't click any button within 5 minutes you
 				// get a signing error and the device sort of locks up on the signing screen
 				self.signing_loop(handle, chain_id, data)
 			}
-			MessageType::MessageType_EthereumTxRequest => {
-				let resp: EthereumTxRequest = protobuf::core::parse_from_bytes(&bytes)?;
-				if resp.has_data_length() {
-					let mut msg = EthereumTxAck::new();
-					let len = resp.get_data_length() as usize;
-					msg.set_data_chunk(data[..len].to_vec());
-					self.send_device_message(handle, MessageType::MessageType_EthereumTxAck, &msg)?;
+			MessageType::EthereumTxRequest => {
+				let resp: EthereumTxRequest = Message::decode(&bytes)?;
+				if let Some(len) = resp.data_length {
+					let len = len as usize;
+					let msg = EthereumTxAck {
+						data_chunk: Some(data[..len].to_vec()),
+					};
+					let msg = encode_message(msg);
+					self.send_device_message(handle, MessageType::EthereumTxAck, msg)?;
 					self.signing_loop(handle, chain_id, &data[len..])
 				} else {
-					let v = resp.get_signature_v();
-					let r = H256::from_slice(resp.get_signature_r());
-					let s = H256::from_slice(resp.get_signature_s());
+					let v = resp.signature_v.unwrap_or_default();
+					let r = H256::from_slice(resp.signature_r.unwrap_or_default().as_ref());
+					let s = H256::from_slice(resp.signature_s.unwrap_or_default().as_ref());
 					if let Some(c_id) = *chain_id {
 						// If there is a chain_id supplied, Trezor will return a v
 						// part of the signature that is already adjusted for EIP-155,
@@ -194,14 +203,13 @@ impl Manager {
 					}
 				}
 			}
-			MessageType::MessageType_Failure => Err(Error::Protocol("Last message sent to Trezor failed")),
+			MessageType::Failure => Err(Error::Protocol("Last message sent to Trezor failed")),
 			_ => Err(Error::Protocol("Unexpected response from Trezor device.")),
 		}
 	}
 
-	fn send_device_message(&self, device: &hidapi::HidDevice, msg_type: MessageType, msg: &Message) -> Result<usize, Error> {
+	fn send_device_message(&self, device: &hidapi::HidDevice, msg_type: MessageType, mut message: Vec<u8>) -> Result<usize, Error> {
 		let msg_id = msg_type as u16;
-		let mut message = msg.write_to_bytes()?;
 		let msg_size = message.len();
 		let mut data = Vec::new();
 		let hid_version = self.probe_hid_version(device)?;
@@ -271,36 +279,31 @@ impl<'a> Wallet<'a> for Manager {
 	type Error = Error;
 	type Transaction = &'a TransactionInfo;
 
-	fn sign_transaction(&self, address: &Address, t_info: Self::Transaction) ->
-		Result<Signature, Error> {
+	fn sign_transaction(&self, address: &Address, t_info: Self::Transaction) -> Result<Signature, Error> {
 		let usb = self.usb.lock();
 		let devices = self.devices.read();
 		let device = devices.iter().find(|d| &d.info.address == address).ok_or(Error::KeyNotFound)?;
 		let handle = self.open_path(|| usb.open_path(&device.path))?;
-		let msg_type = MessageType::MessageType_EthereumSignTx;
-		let mut message = EthereumSignTx::new();
-		match *self.key_path.read() {
-			KeyPath::Ethereum => message.set_address_n(ETH_DERIVATION_PATH.to_vec()),
-			KeyPath::EthereumClassic => message.set_address_n(ETC_DERIVATION_PATH.to_vec()),
-		}
-		message.set_nonce(self.u256_to_be_vec(&t_info.nonce));
-		message.set_gas_limit(self.u256_to_be_vec(&t_info.gas_limit));
-		message.set_gas_price(self.u256_to_be_vec(&t_info.gas_price));
-		message.set_value(self.u256_to_be_vec(&t_info.value));
-
-		if let Some(addr) = t_info.to {
-			message.set_to(addr.to_vec())
-		}
+		let msg_type = MessageType::EthereumSignTx;
+		let address_n = match *self.key_path.read() {
+			KeyPath::Ethereum => ETH_DERIVATION_PATH.to_vec(),
+			KeyPath::EthereumClassic => ETC_DERIVATION_PATH.to_vec(),
+		};
 		let first_chunk_length = min(t_info.data.len(), 1024);
 		let chunk = &t_info.data[0..first_chunk_length];
-		message.set_data_initial_chunk(chunk.to_vec());
-		message.set_data_length(t_info.data.len() as u32);
-		if let Some(c_id) = t_info.chain_id {
-			message.set_chain_id(c_id as u32);
-		}
-
-		self.send_device_message(&handle, msg_type, &message)?;
-
+		let message = EthereumSignTx {
+			address_n,
+			nonce: Some(self.u256_to_be_vec(&t_info.nonce)),
+			gas_price: Some(self.u256_to_be_vec(&t_info.gas_price)),
+			gas_limit: Some(self.u256_to_be_vec(&t_info.gas_limit)),
+			to: t_info.to.map(|addr| addr.to_vec()),
+			value: Some(self.u256_to_be_vec(&t_info.value)),
+			data_initial_chunk: Some(chunk.to_vec()),
+			data_length: Some(t_info.data.len() as u32),
+			chain_id: t_info.chain_id.map(|id| id as u32),
+		};
+		let msg = encode_message(message);
+		self.send_device_message(&handle, msg_type, msg)?;
 		self.signing_loop(&handle, &t_info.chain_id, &t_info.data[first_chunk_length..])
 	}
 
@@ -385,20 +388,23 @@ impl<'a> Wallet<'a> for Manager {
 	}
 
 	fn get_address(&self, device: &hidapi::HidDevice) -> Result<Option<Address>, Error> {
-		let typ = MessageType::MessageType_EthereumGetAddress;
-		let mut message = EthereumGetAddress::new();
-		match *self.key_path.read() {
-			KeyPath::Ethereum => message.set_address_n(ETH_DERIVATION_PATH.to_vec()),
-			KeyPath::EthereumClassic => message.set_address_n(ETC_DERIVATION_PATH.to_vec()),
-		}
-		message.set_show_display(false);
-		self.send_device_message(&device, typ, &message)?;
+		let typ = MessageType::EthereumGetAddress;
+		let address_n = match *self.key_path.read() {
+			KeyPath::Ethereum => ETH_DERIVATION_PATH.to_vec(),
+			KeyPath::EthereumClassic => ETC_DERIVATION_PATH.to_vec(),
+		};
+		let message = EthereumGetAddress {
+			address_n,
+			show_display: Some(false),
+		};
+		let msg = encode_message(message);
+		self.send_device_message(&device, typ, msg)?;
 
 		let (resp_type, bytes) = self.read_device_response(&device)?;
 		match resp_type {
-			MessageType::MessageType_EthereumAddress => {
-				let response: EthereumAddress = protobuf::core::parse_from_bytes(&bytes)?;
-				Ok(Some(From::from(response.get_address())))
+			MessageType::EthereumAddress => {
+				let response: EthereumAddress = Message::decode(&bytes)?;
+				Ok(Some(From::from(&response.address[..])))
 			}
 			_ => Ok(None),
 		}

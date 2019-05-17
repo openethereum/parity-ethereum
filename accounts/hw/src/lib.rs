@@ -24,7 +24,7 @@ extern crate ethkey;
 extern crate hidapi;
 extern crate libusb;
 extern crate parking_lot;
-extern crate protobuf;
+extern crate prost;
 extern crate semver;
 extern crate trezor_sys;
 

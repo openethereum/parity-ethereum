@@ -9,10 +9,10 @@ authors = ["Parity Technologies <admin@parity.io>"]
 [dependencies]
 log = "0.4"
 parking_lot = "0.7"
-protobuf = "1.4"
+prost = "0.5.0"
 hidapi = { git = "https://github.com/paritytech/hidapi-rs" }
 libusb = { git = "https://github.com/paritytech/libusb-rs" }
-trezor-sys = { git = "https://github.com/paritytech/trezor-sys" }
+trezor-sys = { git = "https://github.com/paritytech/trezor-sys", branch = "prost" }
 ethkey = { path = "../ethkey" }
 ethereum-types = "0.4"
 semver = "0.9"
