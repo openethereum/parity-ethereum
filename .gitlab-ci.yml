@@ -71,6 +71,8 @@ variables:
     - cp -r scripts/docker/hub/* ./tools
     - cp scripts/gitlab/publish-snap.sh ./tools
     - cp scripts/gitlab/publish-onchain.sh ./tools
+    - ls -la
+    - ls -la tools
 
 
 cargo-check 0 3:
