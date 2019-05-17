@@ -341,7 +341,7 @@ mod test {
 	fn create_handshake(to: Option<&Public>) -> Handshake {
 		let addr = "127.0.0.1:50556".parse().unwrap();
 		let socket = TcpStream::connect(&addr).unwrap();
-		let nonce = H256::new();
+		let nonce = H256::zero();
 		Handshake::new(0, to, socket, &nonce).unwrap()
 	}
 

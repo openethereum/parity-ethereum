@@ -55,7 +55,7 @@ impl TestSnapshotService {
 			version: 2,
 			state_hashes: state_chunks.iter().map(|data| keccak(data)).collect(),
 			block_hashes: block_chunks.iter().map(|data| keccak(data)).collect(),
-			state_root: H256::new(),
+			state_root: H256::zero(),
 			block_number: block_number,
 			block_hash: block_hash,
 		};
@@ -145,7 +145,7 @@ fn snapshot_sync() {
 	let mut config = SyncConfig::default();
 	config.warp_sync = WarpSync::Enabled;
 	let mut net = TestNet::new_with_config(5, config);
-	let snapshot_service = Arc::new(TestSnapshotService::new_with_snapshot(16, H256::new(), 500000));
+	let snapshot_service = Arc::new(TestSnapshotService::new_with_snapshot(16, H256::zero(), 500000));
 	for i in 0..4 {
 		net.peer_mut(i).snapshot_service = snapshot_service.clone();
 		net.peer(i).chain.add_blocks(1, EachBlockWith::Nothing);

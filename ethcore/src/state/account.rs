@@ -20,7 +20,7 @@ use std::fmt;
 use std::sync::Arc;
 use std::collections::{HashMap, BTreeMap};
 use hash::{KECCAK_EMPTY, KECCAK_NULL_RLP, keccak};
-use ethereum_types::{H256, U256, Address};
+use ethereum_types::{H256, U256, Address, BigEndianHash};
 use error::Error;
 use hash_db::HashDB;
 use keccak_hasher::KeccakHasher;
@@ -255,8 +255,8 @@ impl Account {
 	fn get_and_cache_storage(storage_root: &H256, storage_cache: &mut LruCache<H256, H256>, db: &HashDB<KeccakHasher, DBValue>, key: &H256) -> TrieResult<H256> {
 		let db = SecTrieDB::new(&db, storage_root)?;
 		let panicky_decoder = |bytes:&[u8]| ::rlp::decode(&bytes).expect("decoding db value failed");
-		let item: U256 = db.get_with(key, panicky_decoder)?.unwrap_or_else(U256::zero);
-		let value: H256 = item.into();
+		let item: U256 = db.get_with(key.as_bytes(), panicky_decoder)?.unwrap_or_else(U256::zero);
+		let value: H256 = BigEndianHash::from_uint(&item);
 		storage_cache.insert(key.clone(), value.clone());
 		Ok(value)
 	}
@@ -291,7 +291,7 @@ impl Account {
 		// If storage root is empty RLP, then early return zero value. Practically, this makes it so that if
 		// `original_storage_cache` is used, then `storage_cache` will always remain empty.
 		if self.storage_root == KECCAK_NULL_RLP {
-			return Some(H256::new());
+			return Some(H256::zero());
 		}
 
 		if let Some(value) = self.storage_cache.borrow_mut().get_mut(key) {
@@ -488,8 +488,8 @@ impl Account {
 			// cast key and value to trait type,
 			// so we can call overloaded `to_bytes` method
 			match v.is_zero() {
-				true => t.remove(&k)?,
-				false => t.insert(&k, &encode(&U256::from(&*v)))?,
+				true => t.remove(k.as_bytes())?,
+				false => t.insert(k.as_bytes(), &encode(&v.into_uint()))?,
 			};
 
 			self.storage_cache.borrow_mut().insert(k, v);
@@ -595,10 +595,10 @@ impl Account {
 		let item: U256 = {
 			let panicky_decoder = |bytes:&[u8]| ::rlp::decode(bytes).expect("decoding db value failed");
 			let query = (&mut recorder, panicky_decoder);
-			trie.get_with(&storage_key, query)?.unwrap_or_else(U256::zero)
+			trie.get_with(storage_key.as_bytes(), query)?.unwrap_or_else(U256::zero)
 		};
 
-		Ok((recorder.drain().into_iter().map(|r| r.data).collect(), item.into()))
+		Ok((recorder.drain().into_iter().map(|r| r.data).collect(), BigEndianHash::from_uint(&item)))
 	}
 }
 

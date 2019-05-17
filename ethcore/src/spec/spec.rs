@@ -266,7 +266,7 @@ impl From<ethjson::spec::Params> for CommonParams {
 				BlockNumber::max_value,
 				Into::into,
 			),
-			eip210_contract_address: p.eip210_contract_address.map_or(0xf0.into(), Into::into),
+			eip210_contract_address: p.eip210_contract_address.map_or(Address::from_low_u64_be(0xf0), Into::into),
 			eip210_contract_code: p.eip210_contract_code.map_or_else(
 				|| {
 					DEFAULT_BLOCKHASH_CONTRACT.from_hex().expect(
@@ -315,7 +315,7 @@ impl From<ethjson::spec::Params> for CommonParams {
 			nonce_cap_increment: p.nonce_cap_increment.map_or(64, Into::into),
 			remove_dust_contracts: p.remove_dust_contracts.unwrap_or(false),
 			gas_limit_bound_divisor: p.gas_limit_bound_divisor.into(),
-			registrar: p.registrar.map_or_else(Address::new, Into::into),
+			registrar: p.registrar.map_or_else(Address::zero, Into::into),
 			node_permission_contract: p.node_permission_contract.map(Into::into),
 			max_code_size: p.max_code_size.map_or(u64::max_value(), Into::into),
 			max_transaction_size: p.max_transaction_size.map_or(MAX_TRANSACTION_SIZE, Into::into),
@@ -627,7 +627,7 @@ impl Spec {
 			let mut t = factories.trie.create(db.as_hash_db_mut(), &mut root);
 
 			for (address, account) in self.genesis_state.get().iter() {
-				t.insert(&**address, &account.rlp())?;
+				t.insert(address.as_bytes(), &account.rlp())?;
 			}
 		}
 

@@ -324,7 +324,7 @@ impl Engine<EthereumMachine> for Arc<Ethash> {
 
 		let difficulty = ethash::boundary_to_difficulty(&H256(quick_get_difficulty(
 			&header.bare_hash().0,
-			seal.nonce.low_u64(),
+			seal.nonce.to_low_u64_be(),
 			&seal.mix_hash.0,
 			header.number() >= self.ethash_params.progpow_transition
 		)));
@@ -339,14 +339,14 @@ impl Engine<EthereumMachine> for Arc<Ethash> {
 	fn verify_block_unordered(&self, header: &Header) -> Result<(), Error> {
 		let seal = Seal::parse_seal(header.seal())?;
 
-		let result = self.pow.compute_light(header.number() as u64, &header.bare_hash().0, seal.nonce.low_u64());
+		let result = self.pow.compute_light(header.number() as u64, &header.bare_hash().0, seal.nonce.to_low_u64_be());
 		let mix = H256(result.mix_hash);
 		let difficulty = ethash::boundary_to_difficulty(&H256(result.value));
 		trace!(target: "miner", "num: {num}, seed: {seed}, h: {h}, non: {non}, mix: {mix}, res: {res}",
 			   num = header.number() as u64,
 			   seed = H256(slow_hash_block_number(header.number() as u64)),
 			   h = header.bare_hash(),
-			   non = seal.nonce.low_u64(),
+			   non = seal.nonce.to_low_u64_be(),
 			   mix = H256(result.mix_hash),
 			   res = H256(result.value));
 		if mix != seal.mix_hash {

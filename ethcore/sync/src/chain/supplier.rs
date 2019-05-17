@@ -412,7 +412,7 @@ mod test {
 		let ss = TestSnapshotService::new();
 		let io = TestIo::new(&mut client, &ss, &queue, None);
 
-		let unknown: H256 = H256::new();
+		let unknown: H256 = H256::zero();
 		let result = SyncSupplier::return_block_headers(&io, &Rlp::new(&make_hash_req(&unknown, 1, 0, false)), 0);
 		assert!(to_header_vec(result).is_empty());
 		let result = SyncSupplier::return_block_headers(&io, &Rlp::new(&make_hash_req(&unknown, 1, 0, true)), 0);
@@ -483,7 +483,7 @@ mod test {
 	fn return_nodes() {
 		let mut client = TestBlockChainClient::new();
 		let queue = RwLock::new(VecDeque::new());
-		let sync = dummy_sync_with_peer(H256::new(), &client);
+		let sync = dummy_sync_with_peer(H256::zero(), &client);
 		let ss = TestSnapshotService::new();
 		let mut io = TestIo::new(&mut client, &ss, &queue, None);
 
@@ -527,7 +527,7 @@ mod test {
 	fn return_receipts() {
 		let mut client = TestBlockChainClient::new();
 		let queue = RwLock::new(VecDeque::new());
-		let sync = dummy_sync_with_peer(H256::new(), &client);
+		let sync = dummy_sync_with_peer(H256::zero(), &client);
 		let ss = TestSnapshotService::new();
 		let mut io = TestIo::new(&mut client, &ss, &queue, None);
 

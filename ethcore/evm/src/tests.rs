@@ -239,7 +239,7 @@ fn test_blockhash(factory: super::Factory) {
 	};
 
 	assert_eq!(gas_left, U256::from(79_974));
-	assert_eq!(ext.store.get(&H256::new()).unwrap(), &blockhash);
+	assert_eq!(ext.store.get(&H256::zero()).unwrap(), &blockhash);
 }
 
 evm_test!{test_calldataload: test_calldataload_int}

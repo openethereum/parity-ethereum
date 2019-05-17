@@ -1336,15 +1336,15 @@ impl BlockChainReset for Client {
 		let mut db_transaction = DBTransaction::with_capacity((num + 1) as usize);
 
 		for hash in &blocks_to_delete {
-			db_transaction.delete(::db::COL_HEADERS, &hash.hash());
-			db_transaction.delete(::db::COL_BODIES, &hash.hash());
-			db_transaction.delete(::db::COL_EXTRA, &hash.hash());
+			db_transaction.delete(::db::COL_HEADERS, hash.hash().as_bytes());
+			db_transaction.delete(::db::COL_BODIES, hash.hash().as_bytes());
+			db_transaction.delete(::db::COL_EXTRA, hash.hash().as_bytes());
 			Writable::delete::<H256, BlockNumberKey>
 				(&mut db_transaction, ::db::COL_EXTRA, &hash.number());
 		}
 
 		// update the new best block hash
-		db_transaction.put(::db::COL_EXTRA, b"best", &*best_block_hash);
+		db_transaction.put(::db::COL_EXTRA, b"best", best_block_hash.as_bytes());
 
 		self.db.read()
 			.key_value()
@@ -1799,7 +1799,7 @@ impl BlockChainClient for Client {
 		};
 
 		if let Some(after) = after {
-			if let Err(e) = iter.seek(after) {
+			if let Err(e) = iter.seek(after.as_bytes()) {
 				trace!(target: "fatdb", "list_accounts: Couldn't seek the DB: {:?}", e);
 			} else {
 				// Position the iterator after the `after` element
@@ -1847,7 +1847,7 @@ impl BlockChainClient for Client {
 		};
 
 		if let Some(after) = after {
-			if let Err(e) = iter.seek(after) {
+			if let Err(e) = iter.seek(after.as_bytes()) {
 				trace!(target: "fatdb", "list_storage: Couldn't seek the DB: {:?}", e);
 			} else {
 				// Position the iterator after the `after` element

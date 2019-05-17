@@ -43,8 +43,11 @@ impl Key<FlatBlockTraces> for H256 {
 
 	fn key(&self) -> H264 {
 		let mut result = H264::default();
-		result[0] = TraceDBIndex::BlockTraces as u8;
-		result[1..33].copy_from_slice(self);
+		{
+			let bytes = result.as_bytes_mut();
+			bytes[0] = TraceDBIndex::BlockTraces as u8;
+			bytes[1..33].copy_from_slice(self.as_bytes());
+		}
 		result
 	}
 }

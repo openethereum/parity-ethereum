@@ -32,6 +32,19 @@ impl Into<U256> for Uint {
 	}
 }
 
+impl Into<u64> for Uint {
+	fn into(self) -> u64 {
+		self.0.low_u64()
+	}
+}
+
+impl Into<usize> for Uint {
+	fn into(self) -> usize {
+		self.0.low_u64() as usize
+	}
+}
+
+
 impl Serialize for Uint {
 	fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
 		where S: Serializer {

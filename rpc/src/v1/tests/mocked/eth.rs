@@ -868,7 +868,7 @@ fn rpc_eth_transaction_receipt() {
 			},
 			block_hash: H256::from_str("ed76641c68a1c641aee09a94b3b471f4dc0316efe5ac19cf488e2674cf8d05b5").unwrap(),
 			block_number: 0x4510c,
-			transaction_hash: H256::new(),
+			transaction_hash: H256::zero(),
 			transaction_index: 0,
 			transaction_log_index: 0,
 			log_index: 1,

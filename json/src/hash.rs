@@ -21,7 +21,6 @@ use std::fmt;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use serde::de::{Error, Visitor};
 use ethereum_types::{H64 as Hash64, H160 as Hash160, H256 as Hash256, H520 as Hash520, Bloom as Hash2048};
-use uint::Uint;
 
 macro_rules! impl_hash {
 	($name: ident, $inner: ident) => {
@@ -86,12 +85,6 @@ macro_rules! impl_hash {
 	}
 }
 
-
-impl Into<u64> for Uint {
-	fn into(self) -> u64 {
-		self.0.low_u64()
-	}
-}
 
 impl_hash!(H64, Hash64);
 impl_hash!(Address, Hash160);

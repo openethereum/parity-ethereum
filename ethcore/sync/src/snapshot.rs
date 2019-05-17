@@ -194,9 +194,9 @@ mod test {
 			version: 2,
 			state_hashes: state_chunks.iter().map(|data| keccak(data)).collect(),
 			block_hashes: block_chunks.iter().map(|data| keccak(data)).collect(),
-			state_root: H256::new(),
+			state_root: H256::zero(),
 			block_number: 42,
-			block_hash: H256::new(),
+			block_hash: H256::zero(),
 		};
 		let mhash = keccak(manifest.clone().into_rlp());
 		(manifest, mhash, state_chunks, block_chunks)

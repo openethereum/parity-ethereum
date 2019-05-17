@@ -51,7 +51,7 @@ impl AddressesFilter {
 		match self.list.is_empty() {
 			true => vec![Bloom::default()],
 			false => self.list.iter()
-				.map(|address| Bloom::from(BloomInput::Raw(address)))
+				.map(|address| Bloom::from(BloomInput::Raw(address.as_bytes())))
 				.collect(),
 		}
 	}
@@ -65,7 +65,7 @@ impl AddressesFilter {
 				.flat_map(|bloom| self.list.iter()
 					.map(|address| {
 						let mut bloom = bloom.clone();
-						bloom.accrue(BloomInput::Raw(address));
+						bloom.accrue(BloomInput::Raw(address.as_bytes()));
 						bloom
 					})
 					.collect::<Vec<_>>())
@@ -425,4 +425,3 @@ mod tests {
   }
 
 }
-

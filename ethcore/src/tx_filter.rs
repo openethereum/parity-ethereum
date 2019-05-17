@@ -71,7 +71,7 @@ impl TransactionFilter {
 		let mut contract_version_cache = self.contract_version_cache.lock();
 
 		let (tx_type, to) = match transaction.action {
-			Action::Create => (tx_permissions::CREATE, Address::new()),
+			Action::Create => (tx_permissions::CREATE, Address::zero()),
 			Action::Call(address) => if client.code_hash(&address, BlockId::Hash(*parent_hash)).map_or(false, |c| c != KECCAK_EMPTY) {
 					(tx_permissions::CALL, address)
 				} else {

@@ -363,7 +363,7 @@ impl<B: Backend> State<B> {
 	/// Creates new state with empty state root
 	/// Used for tests.
 	pub fn new(mut db: B, account_start_nonce: U256, factories: Factories) -> State<B> {
-		let mut root = H256::new();
+		let mut root = H256::zero();
 		{
 			// init trie and reset root to null
 			let _ = factories.trie.create(db.as_hash_db_mut(), &mut root);
@@ -502,7 +502,7 @@ impl<B: Backend> State<B> {
 		let original_storage_root = self.original_storage_root(contract)?;
 		let (nonce, overflow) = self.account_start_nonce.overflowing_add(nonce_offset);
 		if overflow {
-			return Err(Box::new(TrieError::DecoderError(H256::from(contract),
+			return Err(Box::new(TrieError::DecoderError(H256::from(*contract),
 				rlp::DecoderError::Custom("Nonce overflow".into()))));
 		}
 		self.insert_cache(contract, AccountEntry::new_dirty(Some(Account::new_contract(balance, nonce, original_storage_root))));
@@ -603,12 +603,12 @@ impl<B: Backend> State<B> {
 								// would always be empty. Note that this branch is actually never called, because
 								// `cached_storage_at` handled this case.
 								warn!(target: "state", "Trying to get an account's cached storage value, but base storage root does not equal to original storage root! Assuming the value is empty.");
-								return Ok(Some(H256::new()));
+								return Ok(Some(H256::zero()));
 							}
 						}
 					},
 					// The account didn't exist at that point. Return empty value.
-					Some(Some(AccountEntry { account: None, .. })) => return Ok(Some(H256::new())),
+					Some(Some(AccountEntry { account: None, .. })) => return Ok(Some(H256::zero())),
 					// The value was not cached at that checkpoint, meaning it was not modified at all.
 					Some(None) => {
 						kind = Some(ReturnKind::OriginalAt);
@@ -658,12 +658,12 @@ impl<B: Backend> State<B> {
 							local_account = Some(maybe_acc);
 						}
 					},
-					_ => return Ok(H256::new()),
+					_ => return Ok(H256::zero()),
 				}
 			}
 			// check the global cache and and cache storage key there if found,
 			let trie_res = self.db.get_cached(address, |acc| match acc {
-				None => Ok(H256::new()),
+				None => Ok(H256::zero()),
 				Some(a) => {
 					let account_db = self.factories.accountdb.readonly(self.db.as_hash_db(), a.address_hash(address));
 					f_at(a, account_db.as_hash_db(), key)
@@ -680,7 +680,7 @@ impl<B: Backend> State<B> {
 					let account_db = self.factories.accountdb.readonly(self.db.as_hash_db(), account.address_hash(address));
 					return f_at(account, account_db.as_hash_db(), key)
 				} else {
-					return Ok(H256::new())
+					return Ok(H256::zero())
 				}
 			}
 		}
@@ -692,8 +692,8 @@ impl<B: Backend> State<B> {
 		let db = &self.db.as_hash_db();
 		let db = self.factories.trie.readonly(db, &self.root).expect(SEC_TRIE_DB_UNWRAP_STR);
 		let from_rlp = |b: &[u8]| Account::from_rlp(b).expect("decoding db value failed");
-		let maybe_acc = db.get_with(address, from_rlp)?;
-		let r = maybe_acc.as_ref().map_or(Ok(H256::new()), |a| {
+		let maybe_acc = db.get_with(address.as_bytes(), from_rlp)?;
+		let r = maybe_acc.as_ref().map_or(Ok(H256::zero()), |a| {
 			let account_db = self.factories.accountdb.readonly(self.db.as_hash_db(), a.address_hash(address));
 			f_at(a, account_db.as_hash_db(), key)
 		});
@@ -904,10 +904,10 @@ impl<B: Backend> State<B> {
 				a.state = AccountState::Committed;
 				match a.account {
 					Some(ref mut account) => {
-						trie.insert(address, &account.rlp())?;
+						trie.insert(address.as_bytes(), &account.rlp())?;
 					},
 					None => {
-						trie.remove(address)?;
+						trie.remove(address.as_bytes())?;
 					},
 				};
 			}
@@ -1141,7 +1141,7 @@ impl<B: Backend> State<B> {
 				if Self::update_account_cache(require, account, &self.db, accountdb.as_hash_db()) {
 					return Ok(f(Some(account)));
 				} else {
-					return Err(Box::new(TrieError::IncompleteDatabase(H256::from(a))));
+					return Err(Box::new(TrieError::IncompleteDatabase(H256::from(*a))));
 				}
 			}
 			return Ok(f(None));
@@ -1151,7 +1151,7 @@ impl<B: Backend> State<B> {
 			if let Some(ref mut account) = acc {
 				let accountdb = self.factories.accountdb.readonly(self.db.as_hash_db(), account.address_hash(a));
 				if !Self::update_account_cache(require, account, &self.db, accountdb.as_hash_db()) {
-					return Err(Box::new(TrieError::IncompleteDatabase(H256::from(a))));
+					return Err(Box::new(TrieError::IncompleteDatabase(H256::from(*a))));
 				}
 			}
 			Ok(f(acc.map(|a| &*a)))
@@ -1166,11 +1166,11 @@ impl<B: Backend> State<B> {
 				let db = &self.db.as_hash_db();
 				let db = self.factories.trie.readonly(db, &self.root)?;
 				let from_rlp = |b: &[u8]| Account::from_rlp(b).expect("decoding db value failed");
-				let mut maybe_acc = db.get_with(a, from_rlp)?;
+				let mut maybe_acc = db.get_with(a.as_bytes(), from_rlp)?;
 				if let Some(ref mut account) = maybe_acc.as_mut() {
 					let accountdb = self.factories.accountdb.readonly(self.db.as_hash_db(), account.address_hash(a));
 					if !Self::update_account_cache(require, account, &self.db, accountdb.as_hash_db()) {
-						return Err(Box::new(TrieError::IncompleteDatabase(H256::from(a))));
+						return Err(Box::new(TrieError::IncompleteDatabase(H256::from(*a))));
 					}
 				}
 				let r = f(maybe_acc.as_ref());
@@ -1199,7 +1199,7 @@ impl<B: Backend> State<B> {
 						let db = &self.db.as_hash_db();
 						let db = self.factories.trie.readonly(db, &self.root)?;
 						let from_rlp = |b:&[u8]| { Account::from_rlp(b).expect("decoding db value failed") };
-						AccountEntry::new_clean(db.get_with(a, from_rlp)?)
+						AccountEntry::new_clean(db.get_with(a.as_bytes(), from_rlp)?)
 					} else {
 						AccountEntry::new_clean(None)
 					};
@@ -1228,7 +1228,7 @@ impl<B: Backend> State<B> {
 			let accountdb = self.factories.accountdb.readonly(self.db.as_hash_db(), addr_hash);
 
 			if !Self::update_account_cache(RequireCache::Code, &mut account, &self.db, accountdb.as_hash_db()) {
-				return Err(Box::new(TrieError::IncompleteDatabase(H256::from(a))))
+				return Err(Box::new(TrieError::IncompleteDatabase(H256::from(*a))))
 			}
 		}
 
@@ -1257,7 +1257,7 @@ impl<B: Backend> State<B> {
 				::rlp::decode(bytes).unwrap_or_else(|_| panic!("prove_account, could not query trie for account key={}", &account_key))
 			};
 			let query = (&mut recorder, panicky_decoder);
-			trie.get_with(&account_key, query)?
+			trie.get_with(account_key.as_bytes(), query)?
 		};
 		let account = maybe_account.unwrap_or_else(|| BasicAccount {
 			balance: 0.into(),
@@ -1280,9 +1280,9 @@ impl<B: Backend> State<B> {
 		let db = &self.db.as_hash_db();
 		let trie = TrieDB::new(db, &self.root)?;
 		let from_rlp = |b: &[u8]| Account::from_rlp(b).expect("decoding db value failed");
-		let acc = match trie.get_with(&account_key, from_rlp)? {
+		let acc = match trie.get_with(account_key.as_bytes(), from_rlp)? {
 			Some(acc) => acc,
-			None => return Ok((Vec::new(), H256::new())),
+			None => return Ok((Vec::new(), H256::zero())),
 		};
 
 		let account_db = self.factories.accountdb.readonly(self.db.as_hash_db(), account_key);

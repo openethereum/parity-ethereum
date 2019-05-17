@@ -16,6 +16,7 @@
 
 //! Transaction Execution environment.
 use std::cmp;
+use std::convert::TryFrom;
 use std::sync::Arc;
 use hash::keccak;
 use ethereum_types::{H256, U256, U512, Address};
@@ -858,7 +859,7 @@ impl<'a, B: 'a + StateBackend> Executive<'a, B> {
 		if !schedule.keep_unsigned_nonce || !t.is_unsigned() {
 			self.state.inc_nonce(&sender)?;
 		}
-		self.state.sub_balance(&sender, &U256::from(gas_cost), &mut substate.to_cleanup_mode(&schedule))?;
+		self.state.sub_balance(&sender, &U256::try_from(gas_cost).expect("TODO: why does it fit U256?"), &mut substate.to_cleanup_mode(&schedule))?;
 
 		let (result, output) = match t.action {
 			Action::Create => {
@@ -1229,7 +1230,7 @@ mod tests {
 		};
 
 		assert_eq!(gas_left, U256::from(79_975));
-		assert_eq!(state.storage_at(&address, &H256::new()).unwrap(), H256::from(&U256::from(0xf9u64)));
+		assert_eq!(state.storage_at(&address, &H256::zero()).unwrap(), H256::from(&U256::from(0xf9u64)));
 		assert_eq!(state.balance(&sender).unwrap(), U256::from(0xf9));
 		assert_eq!(state.balance(&address).unwrap(), U256::from(0x7));
 		assert_eq!(substate.contracts_created.len(), 0);
@@ -1890,7 +1891,7 @@ mod tests {
 		assert_eq!(state.balance(&sender).unwrap(), U256::from(1));
 		assert_eq!(state.balance(&contract).unwrap(), U256::from(17));
 		assert_eq!(state.nonce(&sender).unwrap(), U256::from(1));
-		assert_eq!(state.storage_at(&contract, &H256::new()).unwrap(), H256::from(&U256::from(1)));
+		assert_eq!(state.storage_at(&contract, &H256::zero()).unwrap(), H256::from(&U256::from(1)));
 	}
 
 	evm_test!{test_transact_invalid_nonce: test_transact_invalid_nonce_int}
@@ -2069,7 +2070,7 @@ mod tests {
 		let y1 = Address::from(0x2001);
 		let y2 = Address::from(0x2002);
 		let operating_address = Address::from(0);
-		let k = H256::new();
+		let k = H256::zero();
 
 		let mut state = get_temp_state_with_factory(factory.clone());
 		state.new_contract(&x1, U256::zero(), U256::from(1)).unwrap();

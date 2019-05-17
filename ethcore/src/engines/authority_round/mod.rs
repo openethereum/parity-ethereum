@@ -496,7 +496,7 @@ impl super::EpochVerifier<EthereumMachine> for EpochVerifier {
 fn header_seal_hash(header: &Header, empty_steps_rlp: Option<&[u8]>) -> H256 {
 	match empty_steps_rlp {
 		Some(empty_steps_rlp) => {
-			let mut message = header.bare_hash().to_vec();
+			let mut message = header.bare_hash().as_bytes().to_vec();
 			message.extend_from_slice(empty_steps_rlp);
 			keccak(message)
 		},
@@ -1122,7 +1122,7 @@ impl Engine<EthereumMachine> for AuthorityRound {
 
 					let mut fields = vec![
 						encode(&step),
-						encode(&(&H520::from(signature) as &[u8])),
+						encode(&(H520::from(signature).as_bytes())),
 					];
 
 					if let Some(empty_steps_rlp) = empty_steps_rlp {

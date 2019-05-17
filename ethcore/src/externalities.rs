@@ -17,7 +17,7 @@
 //! Transaction Execution environment.
 use std::cmp;
 use std::sync::Arc;
-use ethereum_types::{H256, U256, Address};
+use ethereum_types::{H256, U256, Address, BigEndianHash};
 use bytes::Bytes;
 use state::{Backend as StateBackend, State, Substate, CleanupMode};
 use machine::EthereumMachine as Machine;
@@ -166,6 +166,7 @@ impl<'a, T: 'a, V: 'a, B: 'a> Ext for Externalities<'a, T, V, B>
 				Ok((code, hash)) => (code, hash),
 				Err(_) => return H256::zero(),
 			};
+			let data: H256 = BigEndianHash::from_uint(number);
 
 			let params = ActionParams {
 				sender: self.origin_info.address.clone(),
@@ -177,7 +178,7 @@ impl<'a, T: 'a, V: 'a, B: 'a> Ext for Externalities<'a, T, V, B>
 				gas_price: 0.into(),
 				code: code,
 				code_hash: code_hash,
-				data: Some(H256::from(number).to_vec()),
+				data: Some(data.as_bytes().to_vec()),
 				call_type: CallType::Call,
 				params_type: vm::ParamsType::Separate,
 			};
@@ -185,8 +186,8 @@ impl<'a, T: 'a, V: 'a, B: 'a> Ext for Externalities<'a, T, V, B>
 			let mut ex = Executive::new(self.state, self.env_info, self.machine, self.schedule);
 			let r = ex.call_with_crossbeam(params, self.substate, self.stack_depth + 1, self.tracer, self.vm_tracer);
 			let output = match &r {
-				Ok(ref r) => H256::from(&r.return_data[..32]),
-				_ => H256::new(),
+				Ok(ref r) => H256::from_slice(&r.return_data[..32]),
+				_ => H256::zero(),
 			};
 			trace!("ext: blockhash contract({}) -> {:?}({}) self.env_info.number={}\n", number, r, output, self.env_info.number);
 			output

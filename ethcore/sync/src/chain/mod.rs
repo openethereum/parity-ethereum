@@ -1154,7 +1154,7 @@ impl ChainSync {
 		if warp_protocol {
 			let manifest = io.snapshot_service().manifest();
 			let block_number = manifest.as_ref().map_or(0, |m| m.block_number);
-			let manifest_hash = manifest.map_or(H256::new(), |m| keccak(m.into_rlp()));
+			let manifest_hash = manifest.map_or(H256::zero(), |m| keccak(m.into_rlp()));
 			packet.append(&manifest_hash);
 			packet.append(&block_number);
 			if private_tx_protocol {

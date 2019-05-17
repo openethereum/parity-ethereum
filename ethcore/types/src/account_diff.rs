@@ -19,7 +19,7 @@
 use std::cmp::*;
 use std::fmt;
 use std::collections::BTreeMap;
-use std::convert::TryInto;
+use std::convert::TryFrom;
 use ethereum_types::{BigEndianHash as _, H256, U256};
 use bytes::Bytes;
 
@@ -106,8 +106,7 @@ impl AccountDiff {
 // TODO: refactor into something nicer.
 fn interpreted_hash(u: &H256) -> String {
 	let uint = u.into_uint();
-	let uint_64: Result<u64, _> = uint.try_into();
-	if let Ok(n) = uint_64 {
+	if let Ok(n) = u64::try_from(uint) {
 		format!("{} = {:#x}", n, n)
 //	} else if u <= &H256::from("0xffffffffffffffffffffffffffffffffffffffff") {
 //		format!("@{}", Address::from(u))
