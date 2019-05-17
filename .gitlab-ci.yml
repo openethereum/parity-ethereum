@@ -30,6 +30,7 @@ variables:
     expire_in:                     1 mos
     paths:
       - artifacts/
+      - tools/
 
 .docker-cache-status:              &docker-cache-status
   variables:
@@ -62,6 +63,13 @@ variables:
   script:
     - scripts/gitlab/build-linux.sh
     - sccache -s
+  after_script:
+    - ./artifacts/${CARGO_TARGET}/parity --version |
+      sed -n -r 's/.*Parity-Ethereum\/(v[0-9.]+\-[a-z]+)-.*$/\1/p' |
+      tee ./tools/VERSION;
+    - cp -r scripts/docker/hub/* ./tools
+    - cp scripts/gitlab/publish-snap.sh ./tools
+    - cp scripts/gitlab/publish-onchain.sh ./tools
 
 
 cargo-check 0 3:
@@ -137,30 +145,25 @@ build-android:
 
 build-linux:
   <<:                              *build-on-linux
-  only:                            *releaseable_branches
-  after_script:
-    - ./artifacts/x86_64-unknown-linux-gnu/parity --version |
-          sed -n -r 's/.*Parity-Ethereum\/(v[0-9.]+\-[a-z]+)-.*$/\1/p' |
-          tee ./artifacts/VERSION;
-    - cp -r scripts/docker/hub/* ./artifacts
+  # only:                            *releaseable_branches
 
 build-linux-i386:
   <<:                              *build-on-linux
-  only:                            *releaseable_branches
+  # only:                            *releaseable_branches
   image:                           parity/rust-parity-ethereum-build:i386
   variables:
     CARGO_TARGET:                  i686-unknown-linux-gnu
 
 build-linux-arm64:
   <<:                              *build-on-linux
-  only:                            *releaseable_branches
+  # only:                            *releaseable_branches
   image:                           parity/rust-parity-ethereum-build:arm64
   variables:
     CARGO_TARGET:                  aarch64-unknown-linux-gnu
 
 build-linux-armhf:
   <<:                              *build-on-linux
-  only:                            *releaseable_branches
+  # only:                            *releaseable_branches
   image:                           parity/rust-parity-ethereum-build:armhf
   variables:
     CARGO_TARGET:                  armv7-unknown-linux-gnueabihf
@@ -194,6 +197,7 @@ build-windows:
 
 publish-docker:
   stage:                           publish
+  <<:                              *no_git
   dependencies:
     - build-linux
   tags:
@@ -212,23 +216,17 @@ publish-docker:
     DOCKER_HOST:                   tcp://localhost:2375
     DOCKER_DRIVER:                 overlay2
     GIT_STRATEGY:                  none
-    # DOCKERFILE:                  artifacts/Dockerfile
+    # DOCKERFILE:                  tools/Dockerfile
     CONTAINER_IMAGE:               parity/parity
-  before_script:
-    - test "$Docker_Hub_User_Parity" -a "$Docker_Hub_Pass_Parity"
-        || ( echo "no docker credentials provided"; exit 1 )
-    - docker login -u "$Docker_Hub_User_Parity" -p "$Docker_Hub_Pass_Parity"
-    - docker info
   script:
     # we stopped pushing nightlies to dockerhub, will push to own registry prb.
-    - ./artifacts/publish-docker.sh
-  after_script:
-    - docker logout
+    - ./tools/publish-docker.sh
 
 publish-snap:                      &publish-snap
+  <<:                              *no_git
   stage:                           publish
-  only:                            *releaseable_branches
-  <<:                              *collect_artifacts
+  # only:                            *releaseable_branches
+  # <<:                              *collect_artifacts
   image:                           snapcore/snapcraft
   variables:
     BUILD_ARCH:                    amd64
@@ -238,12 +236,13 @@ publish-snap:                      &publish-snap
   tags:
     - linux-docker
   script:
-    - scripts/gitlab/publish-snap.sh
+    - ./tools/publish-snap.sh
 
 publish-snap-i386:
   <<:                              *publish-snap
   variables:
     BUILD_ARCH:                    i386
+    CARGO_TARGET:                  i686-unknown-linux-gnu
   dependencies:
     - build-linux-i386
 
@@ -251,6 +250,7 @@ publish-snap-arm64:
   <<:                              *publish-snap
   variables:
     BUILD_ARCH:                    arm64
+    CARGO_TARGET:                  aarch64-unknown-linux-gnu
   dependencies:
     - build-linux-arm64
 
@@ -258,26 +258,28 @@ publish-snap-armhf:
   <<:                              *publish-snap
   variables:
     BUILD_ARCH:                    armhf
+    CARGO_TARGET:                  armv7-unknown-linux-gnueabihf
   dependencies:
     - build-linux-armhf
 
 publish-onchain:
   stage:                           publish
-  only:                            *releaseable_branches
+  <<:                              *no_git
+  # only:                            *releaseable_branches
   cache:                           {}
   dependencies:
     - build-linux
     - build-darwin
     - build-windows
   script:
-    - scripts/gitlab/publish-onchain.sh
+    - ./tools/publish-onchain.sh
   tags:
     - linux-docker
 
 publish-awss3-release:
   image:                           parity/awscli:latest
   stage:                           publish
-  only:                            *releaseable_branches
+  # only:                            *releaseable_branches
   <<:                              *no_git
   cache:                           {}
   dependencies:

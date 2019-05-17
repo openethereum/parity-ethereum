@@ -11,7 +11,7 @@ echo Track is: $TRACK
 # prepare variables
 VERSION=v"$(sed -r -n '1,/^version/s/^version = "([^"]+)".*$/\1/p' Cargo.toml)"
 SNAP_PACKAGE="parity_"$VERSION"_"$BUILD_ARCH".snap"
-CARGO_TARGET="$(ls artifacts)"
+# CARGO_TARGET="$(ls artifacts)"
 # Choose snap release channel based on parity ethereum version track
 case ${TRACK} in
   nightly) export GRADE="devel" CHANNEL="edge";;
@@ -48,7 +48,7 @@ echo "__________Releasing snap package__________"
 echo "Release channel :" $CHANNEL " Branch/tag: " $CI_COMMIT_REF_NAME
 
 echo $SNAPCRAFT_LOGIN_PARITY_BASE64 | base64 --decode > snapcraft.login
-snapcraft login --with snapcraft.login
-snapcraft push --release $CHANNEL $SNAP_PACKAGE
-snapcraft status parity
-snapcraft logout
+# snapcraft login --with snapcraft.login
+# snapcraft push --release $CHANNEL $SNAP_PACKAGE
+# snapcraft status parity
+# snapcraft logout
