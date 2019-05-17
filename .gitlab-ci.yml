@@ -64,6 +64,7 @@ variables:
     - scripts/gitlab/build-linux.sh
     - sccache -s
   after_script:
+    - mkdir -p tools
     - ./artifacts/${CARGO_TARGET}/parity --version |
       sed -n -r 's/.*Parity-Ethereum\/(v[0-9.]+\-[a-z]+)-.*$/\1/p' |
       tee ./tools/VERSION;
@@ -205,7 +206,7 @@ publish-docker:
   environment:
     name: parity-build
   cache:                           {}
-  only:                            *releaseable_branches
+  # only:                            *releaseable_branches
   except:
     variables:
       - $SCHEDULE_TAG == "nightly"
