@@ -93,11 +93,11 @@ cargo-check 2 3:
     - time cargo check --target $CARGO_TARGET --locked --manifest-path util/io/Cargo.toml --features "mio" --verbose --color=always
     - sccache -s
 
-cargo-audit:
-  stage:                           test
-  <<:                              *docker-cache-status
-  script:
-    - cargo audit
+# cargo-audit:
+#   stage:                           test
+#   <<:                              *docker-cache-status
+#   script:
+#     - cargo audit
 
 validate-chainspecs:
   stage:                           test
