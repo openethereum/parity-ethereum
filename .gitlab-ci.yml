@@ -93,6 +93,7 @@ cargo-audit:
   <<:                              *docker-cache-status
   script:
     - cargo audit
+  allow_failure:                   true
 
 validate-chainspecs:
   stage:                           test
