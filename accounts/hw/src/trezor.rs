@@ -29,7 +29,7 @@ use ethkey::Signature;
 use hidapi;
 use libusb;
 use parking_lot::{Mutex, RwLock};
-use prost::{DecodeError, Message};
+use prost::{DecodeError as ProstDecodeError, Message};
 use super::{DeviceDirection, WalletInfo, TransactionInfo, KeyPath, Wallet, Device, is_valid_hid_device};
 use trezor_sys::{EthereumAddress, PinMatrixAck, MessageType, EthereumTxRequest, EthereumSignTx, EthereumGetAddress, EthereumTxAck, ButtonAck};
 
@@ -98,8 +98,8 @@ impl From<libusb::Error> for Error {
 	}
 }
 
-impl From<DecodeError> for Error {
-	fn from(_: DecodeError) -> Self {
+impl From<ProstDecodeError> for Error {
+	fn from(_: ProstDecodeError) -> Self {
 		Error::Protocol(&"Could not read response from Trezor Device")
 	}
 }
