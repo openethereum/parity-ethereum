@@ -119,7 +119,7 @@ enum HidVersion {
 }
 
 fn encode_message<M: Message>(message: M) -> Vec<u8> {
-	let mut result = Vec::new();
+	let mut result = Vec::with_capacity(message.encoded_len());
 	message.encode(&mut result).expect("Vec has unlimited capacity; qed");
 	result
 }
