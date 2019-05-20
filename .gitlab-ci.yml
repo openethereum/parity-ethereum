@@ -93,6 +93,7 @@ cargo-audit:
   <<:                              *docker-cache-status
   script:
     - cargo audit
+  allow_failure:                   true # failed cargo audit shouldn't prevent a PR from being merged
 
 validate-chainspecs:
   stage:                           test
