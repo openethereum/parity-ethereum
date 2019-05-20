@@ -1555,7 +1555,7 @@ dependencies = [
  "libusb 0.3.0 (git+https://github.com/paritytech/libusb-rs)",
  "log 0.4.6 (registry+https://github.com/rust-lang/crates.io-index)",
  "parking_lot 0.7.1 (registry+https://github.com/rust-lang/crates.io-index)",
- "protobuf 1.7.4 (registry+https://github.com/rust-lang/crates.io-index)",
+ "protobuf 1.7.5 (registry+https://github.com/rust-lang/crates.io-index)",
  "rustc-hex 1.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "semver 0.9.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "trezor-sys 1.0.0 (git+https://github.com/paritytech/trezor-sys)",
@@ -3108,7 +3108,7 @@ dependencies = [
 
 [[package]]
 name = "protobuf"
-version = "1.7.4"
+version = "1.7.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 
 [[package]]
@@ -4120,7 +4120,7 @@ name = "trezor-sys"
 version = "1.0.0"
 source = "git+https://github.com/paritytech/trezor-sys#8a401705e58c83db6c29c199d9577b78fde40709"
 dependencies = [
- "protobuf 1.7.4 (registry+https://github.com/rust-lang/crates.io-index)",
+ "protobuf 1.7.5 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]
@@ -4733,7 +4733,7 @@ dependencies = [
 "checksum primal-estimate 0.2.1 (registry+https://github.com/rust-lang/crates.io-index)" = "56ea4531dde757b56906493c8604641da14607bf9cdaa80fb9c9cabd2429f8d5"
 "checksum primal-sieve 0.2.9 (registry+https://github.com/rust-lang/crates.io-index)" = "da2d6ed369bb4b0273aeeb43f07c105c0117717cbae827b20719438eb2eb798c"
 "checksum proc-macro2 0.4.20 (registry+https://github.com/rust-lang/crates.io-index)" = "3d7b7eaaa90b4a90a932a9ea6666c95a389e424eff347f0f793979289429feee"
-"checksum protobuf 1.7.4 (registry+https://github.com/rust-lang/crates.io-index)" = "52fbc45bf6709565e44ef31847eb7407b3c3c80af811ee884a04da071dcca12b"
+"checksum protobuf 1.7.5 (registry+https://github.com/rust-lang/crates.io-index)" = "e14ccd6b79ec748412d4f2dfde1a80fa363a67def4062969f8aed3d790a30f28"
 "checksum pulldown-cmark 0.0.3 (registry+https://github.com/rust-lang/crates.io-index)" = "8361e81576d2e02643b04950e487ec172b687180da65c731c03cf336784e6c07"
 "checksum pwasm-utils 0.6.1 (registry+https://github.com/rust-lang/crates.io-index)" = "7e9135bed7b452e20dbb395a2d519abaf0c46d60e7ecc02daeeab447d29bada1"
 "checksum quick-error 1.2.2 (registry+https://github.com/rust-lang/crates.io-index)" = "9274b940887ce9addde99c4eee6b5c44cc494b182b97e73dc8ffdcb3397fd3f0"
