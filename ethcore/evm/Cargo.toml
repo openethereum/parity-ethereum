@@ -6,12 +6,12 @@ authors = ["Parity Technologies <admin@parity.io>"]
 [dependencies]
 bit-set = "0.4"
 parity-bytes = "0.1"
-ethereum-types = "0.5.2"
+ethereum-types = { git = "https://github.com/ordian/parity-common" }
 heapsize = "0.4"
 lazy_static = "1.0"
 log = "0.4"
 vm = { path = "../vm" }
-keccak-hash = "0.1.4"
+keccak-hash = { git = "https://github.com/ordian/parity-common" }
 parking_lot = "0.7"
 memory-cache = { path = "../../util/memory-cache" }
 num-bigint = "0.2"

@@ -7,13 +7,13 @@ authors = ["Parity Technologies <admin@parity.io>"]
 
 [dependencies]
 common-types = { path = "../ethcore/types" }
-ethabi = "7.0.0"
-ethabi-contract = "7.0.0"
-ethabi-derive = "7.0.0"
+ethabi = { git = "https://github.com/ordian/ethabi" }
+ethabi-contract = { git = "https://github.com/ordian/ethabi" }
+ethabi-derive = { git = "https://github.com/ordian/ethabi" }
 ethcore = { path = "../ethcore" }
 ethcore-sync = { path = "../ethcore/sync" }
-ethereum-types = "0.5.2"
-keccak-hash = "0.1.4"
+ethereum-types = { git = "https://github.com/ordian/parity-common" }
+keccak-hash = { git = "https://github.com/ordian/parity-common" }
 lazy_static = "1.0"
 log = "0.4"
 parity-bytes = "0.1"

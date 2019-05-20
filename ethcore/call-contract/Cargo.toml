@@ -7,5 +7,5 @@ edition = "2018"
 
 [dependencies]
 types = { path = "../types", package = "common-types" }
-ethereum-types = "0.5.2"
+ethereum-types = { git = "https://github.com/ordian/parity-common" }
 bytes = { version = "0.1", package = "parity-bytes" }

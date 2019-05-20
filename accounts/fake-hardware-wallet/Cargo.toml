@@ -6,5 +6,5 @@ license = "GPL-3.0"
 authors = ["Parity Technologies <admin@parity.io>"]
 
 [dependencies]
-ethereum-types = "0.5.2"
+ethereum-types = { git = "https://github.com/ordian/parity-common" }
 ethkey = { path = "../../accounts/ethkey" }

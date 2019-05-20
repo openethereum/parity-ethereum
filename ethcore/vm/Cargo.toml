@@ -6,10 +6,10 @@ authors = ["Parity Technologies <admin@parity.io>"]
 [dependencies]
 byteorder = "1.0"
 parity-bytes = "0.1"
-ethereum-types = "0.5.2"
+ethereum-types = { git = "https://github.com/ordian/parity-common" }
 trie-db = "0.11.0"
 patricia-trie-ethereum = { path = "../../util/patricia-trie-ethereum" }
 log = "0.4"
 ethjson = { path = "../../json" }
-rlp = { version = "0.3.0", default-features = false }
-keccak-hash = "0.1.4"
+rlp = { git = "https://github.com/ordian/parity-common" }
+keccak-hash = { git = "https://github.com/ordian/parity-common" }

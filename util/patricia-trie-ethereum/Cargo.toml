@@ -9,12 +9,12 @@ license = "GPL-3.0"
 trie-db = "0.11.0"
 keccak-hasher = { version = "0.1.1", path = "../keccak-hasher" }
 hash-db = "0.11.0"
-rlp = "0.3.0"
+rlp = { git = "https://github.com/ordian/parity-common" }
 parity-bytes = "0.1"
-ethereum-types = "0.5.2"
+ethereum-types = { git = "https://github.com/ordian/parity-common" }
 elastic-array = "0.10"
 
 [dev-dependencies]
 memory-db = "0.11.0"
-keccak-hash = "0.1.4"
+keccak-hash = { git = "https://github.com/ordian/parity-common" }
 journaldb = { path = "../journaldb" }

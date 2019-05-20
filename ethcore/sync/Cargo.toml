@@ -15,13 +15,13 @@ ethcore-io = { path = "../../util/io" }
 ethcore-light = { path = "../light" }
 ethcore-network = { path = "../../util/network" }
 ethcore-network-devp2p = { path = "../../util/network-devp2p" }
-ethereum-types = "0.5.2"
+ethereum-types = { git = "https://github.com/ordian/parity-common" }
 ethkey = { path = "../../accounts/ethkey" }
 ethstore = { path = "../../accounts/ethstore" }
 fastmap = { path = "../../util/fastmap" }
 hash-db = "0.11.0"
 heapsize = "0.4"
-keccak-hash = "0.1.4"
+keccak-hash = { git = "https://github.com/ordian/parity-common" }
 keccak-hasher = { path = "../../util/keccak-hasher" }
 kvdb = "0.1"
 log = "0.4"
@@ -29,7 +29,7 @@ macros = { path = "../../util/macros" }
 parity-bytes = "0.1"
 parking_lot = "0.7"
 rand = "0.4"
-rlp = { version = "0.3.0", default-features = false }
+rlp = { git = "https://github.com/ordian/parity-common" }
 trace-time = "0.1"
 triehash-ethereum = {version = "0.2", path = "../../util/triehash-ethereum" }
 futures = "0.1"
