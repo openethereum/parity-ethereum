@@ -5,7 +5,7 @@ set -e # fail on any error
 VERSION="$(cat ./tools/VERSION)"
 echo "Parity Ethereum version = ${VERSION}"
 
-test "$Docker_Hub_User_Parity" -a "$Docker_Hub_Pass_Parity"
+test "$Docker_Hub_User_Parity" -a "$Docker_Hub_Pass_Parity" \
     || ( echo "no docker credentials provided"; exit 1 )
 docker login -u "$Docker_Hub_User_Parity" -p "$Docker_Hub_Pass_Parity"
 echo "__________Docker info__________"

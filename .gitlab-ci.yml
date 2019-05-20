@@ -65,9 +65,6 @@ variables:
     - sccache -s
   after_script:
     - mkdir -p tools
-    - ./artifacts/${CARGO_TARGET}/parity --version |
-      sed -n -r 's/.*Parity-Ethereum\/(v[0-9.]+\-[a-z]+)-.*$/\1/p' |
-      tee ./tools/VERSION;
     - cp -r scripts/docker/hub/* ./tools
     - cp scripts/gitlab/publish-snap.sh ./tools
     - cp scripts/gitlab/publish-onchain.sh ./tools
@@ -149,6 +146,10 @@ build-android:
 build-linux:
   <<:                              *build-on-linux
   # only:                            *releaseable_branches
+  after_script:
+    - ./artifacts/${CARGO_TARGET}/parity --version |
+      sed -n -r 's/.*Parity-Ethereum\/(v[0-9.]+\-[a-z]+)-.*$/\1/p' |
+      tee ./tools/VERSION;
 
 build-linux-i386:
   <<:                              *build-on-linux
