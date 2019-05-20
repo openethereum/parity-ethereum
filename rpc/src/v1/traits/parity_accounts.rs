@@ -23,7 +23,7 @@ use ethereum_types::{H160, H256, H520};
 use ethkey::Password;
 use ethstore::KeyFile;
 use v1::types::{DeriveHash, DeriveHierarchical, ExtAccountInfo};
-use v1::types::{AccountInfo, HwAccountInfo};
+use v1::types::AccountInfo;
 
 /// Parity-specific read-only accounts rpc interface.
 #[rpc]
@@ -31,14 +31,6 @@ pub trait ParityAccountsInfo {
 	/// Returns accounts information.
 	#[rpc(name = "parity_accountsInfo")]
 	fn accounts_info(&self) -> Result<BTreeMap<H160, AccountInfo>>;
-
-	/// Returns hardware accounts information.
-	#[rpc(name = "parity_hardwareAccountsInfo")]
-	fn hardware_accounts_info(&self) -> Result<BTreeMap<H160, HwAccountInfo>>;
-
-	/// Get a list of paths to locked hardware wallets
-	#[rpc(name = "parity_lockedHardwareAccountsInfo")]
-	fn locked_hardware_accounts_info(&self) -> Result<Vec<String>>;
 
 	/// Returns default account for dapp.
 	#[rpc(name = "parity_defaultAccount")]
@@ -158,7 +150,7 @@ pub trait ParityAccounts {
 	#[rpc(name = "parity_signMessage")]
 	fn sign_message(&self, H160, Password, H256) -> Result<H520>;
 
-	/// Send a PinMatrixAck to a hardware wallet, unlocking it
-	#[rpc(name = "parity_hardwarePinMatrixAck")]
-	fn hardware_pin_matrix_ack(&self, String, String) -> Result<bool>;
+//	/// Send a PinMatrixAck to a hardware wallet, unlocking it
+//	#[rpc(name = "parity_hardwarePinMatrixAck")]
+//	fn hardware_pin_matrix_ack(&self, String, String) -> Result<bool>;
 }
