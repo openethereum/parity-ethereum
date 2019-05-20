@@ -27,7 +27,7 @@ use types::filter::Filter;
 use types::view;
 use types::views::BlockView;
 
-use client::{BlockChainClient, Client, ClientConfig, BlockId, ChainInfo, BlockInfo, PrepareOpenBlock, ImportSealedBlock, ImportBlock};
+use client::{BlockChainClient, BlockChainReset, Client, ClientConfig, BlockId, ChainInfo, BlockInfo, PrepareOpenBlock, ImportSealedBlock, ImportBlock};
 use ethereum;
 use executive::{Executive, TransactOptions};
 use miner::{Miner, PendingOrdering, MinerService};
@@ -365,4 +365,23 @@ fn transaction_proof() {
 
 	assert_eq!(state.balance(&Address::default()).unwrap(), 5.into());
 	assert_eq!(state.balance(&address).unwrap(), 95.into());
+}
+
+#[test]
+fn reset_blockchain() {
+	let client = get_test_client_with_blocks(get_good_dummy_block_seq(20));
+
+	assert!(client.block_header(BlockId::Number(20)).is_some());
+
+	assert!(client.reset(5).is_ok());
+
+	client.chain().clear_cache();
+
+	assert!(client.block_header(BlockId::Number(20)).is_none());
+	assert!(client.block_header(BlockId::Number(19)).is_none());
+	assert!(client.block_header(BlockId::Number(18)).is_none());
+	assert!(client.block_header(BlockId::Number(17)).is_none());
+	assert!(client.block_header(BlockId::Number(16)).is_none());
+
+	assert!(client.block_header(BlockId::Number(15)).is_some());
 }
