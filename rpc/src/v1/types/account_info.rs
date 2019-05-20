@@ -26,7 +26,7 @@ pub struct AccountInfo {
 	pub name: String,
 }
 
-/// Datastructure with proof for one single storage-entry
+/// Data structure with proof for one single storage-entry
 #[derive(Debug, Default, Clone, PartialEq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct StorageProof {
@@ -59,15 +59,6 @@ pub struct ExtAccountInfo {
 	#[serde(skip_serializing_if = "Option::is_none")]
 	pub uuid: Option<String>,
 }
-
-/// Hardware wallet information.
-//#[derive(Debug, Default, Clone, PartialEq, Serialize)]
-//pub struct HwAccountInfo {
-//	/// Device name.
-//	pub name: String,
-//	/// Device manufacturer.
-//	pub manufacturer: String,
-//}
 
 /// account derived from a signature
 /// as well as information that tells if it is valid for
