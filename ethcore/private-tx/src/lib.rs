@@ -622,8 +622,8 @@ impl Provider {
 				v[31] = s.v();
 				v
 			}).collect::<Vec<[u8; 32]>>(),
-			signatures.iter().map(|s| s.r()).collect::<Vec<&[u8]>>(),
-			signatures.iter().map(|s| s.s()).collect::<Vec<&[u8]>>()
+			signatures.iter().map(|s| H256::from_slice(s.r())).collect::<Vec<H256>>(),
+			signatures.iter().map(|s| H256::from_slice(s.s())).collect::<Vec<H256>>(),
 		)
 	}
 
