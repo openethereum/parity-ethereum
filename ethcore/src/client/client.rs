@@ -1333,12 +1333,22 @@ impl BlockChainReset for Client {
 
 		let mut blocks_to_delete = Vec::with_capacity(num as usize);
 		let mut best_block_hash = self.chain.read().best_block_hash();
+		let mut batch = DBTransaction::with_capacity(blocks_to_delete.len());
 
-		for _ in 0..=num {
+		for _ in 0..num {
 			let current_header = self.chain.read().block_header_data(&best_block_hash)
-				.ok_or("Attempted to reset past genesis block")?;
+				.expect("best_block_hash was fetched from db; block_header_data should exist in db; qed");
 			best_block_hash = current_header.parent_hash();
-			blocks_to_delete.push((current_header.number(), current_header.hash()));
+
+			let (number, hash) = (current_header.number(), current_header.hash());
+			batch.delete(::db::COL_HEADERS, &hash);
+			batch.delete(::db::COL_BODIES, &hash);
+			Writable::delete::<BlockDetails, H264>
+				(&mut batch, ::db::COL_EXTRA, &hash);
+			Writable::delete::<H256, BlockNumberKey>
+				(&mut batch, ::db::COL_EXTRA, &number);
+
+			blocks_to_delete.push((number, hash));
 		}
 
 		let hashes = blocks_to_delete.iter().map(|(_, hash)| hash).collect::<Vec<_>>();
@@ -1348,41 +1358,29 @@ impl BlockChainReset for Client {
 				  .paint(format!("{:#?}", hashes))
 		);
 
-		let mut db_transaction = DBTransaction::with_capacity(blocks_to_delete.len());
-		let (_, best_block_hash) = blocks_to_delete.first()
-			.ok_or("num is > 0; blocks can't be empty; qed")?;
-
-		for (number, hash) in &blocks_to_delete {
-			db_transaction.delete(::db::COL_HEADERS, &*hash);
-			db_transaction.delete(::db::COL_BODIES, &*hash);
-			Writable::delete::<BlockDetails, H264>(&mut db_transaction, ::db::COL_EXTRA, &*hash);
-			Writable::delete::<H256, BlockNumberKey>
-				(&mut db_transaction, ::db::COL_EXTRA, &*number);
-		}
-
 		let mut best_block_details = Readable::read::<BlockDetails, H264>(
 			&**self.db.read().key_value(),
 			::db::COL_EXTRA,
-			&*best_block_hash
-		).ok_or("block was previously imported; best_block_details should exist; qed")?;
+			&best_block_hash
+		).expect("block was previously imported; best_block_details should exist; qed");
 
 		let (_, last_hash) = blocks_to_delete.last()
-			.ok_or("num is > 0; blocks can't be empty; qed")?;
+			.expect("num is > 0; blocks_to_delete can't be empty; qed");
 		// remove the last block as a child so that it can be re-imported
-		// ethcore/blockchain/src/blockchain.rs:667
+		// ethcore/blockchain/src/blockchain.rs/Blockchain::is_known_child()
 		best_block_details.children.retain(|h| *h != *last_hash);
-		db_transaction.write(
+		batch.write(
 			::db::COL_EXTRA,
-			&*best_block_hash,
+			&best_block_hash,
 			&best_block_details
 		);
 		// update the new best block hash
-		db_transaction.put(::db::COL_EXTRA, b"best", &*best_block_hash);
+		batch.put(::db::COL_EXTRA, b"best", &best_block_hash);
 
 		self.db.read()
 			.key_value()
-			.write(db_transaction)
-			.map_err(|err| format!("could not delete blocks; io error occured: {}", err))?;
+			.write(batch)
+			.map_err(|err| format!("could not delete blocks; io error occurred: {}", err))?;
 
 		info!("New best block hash {}", Colour::Green.bold().paint(format!("{:?}", best_block_hash)));
 

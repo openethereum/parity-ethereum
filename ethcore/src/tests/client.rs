@@ -369,9 +369,10 @@ fn transaction_proof() {
 
 #[test]
 fn reset_blockchain() {
-	let client = get_test_client_with_blocks(get_good_dummy_block_seq(20));
-
+	let client = get_test_client_with_blocks(get_good_dummy_block_seq(19));
+	// 19 + genesis block
 	assert!(client.block_header(BlockId::Number(20)).is_some());
+	assert_eq!(client.block_header(BlockId::Number(20)).unwrap().hash(), client.best_block_header().hash());
 
 	assert!(client.reset(5).is_ok());
 
