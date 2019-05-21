@@ -32,6 +32,8 @@ mod histogram;
 mod index;
 mod log;
 mod node_kind;
+mod private_receipt;
+mod private_log;
 mod provenance;
 mod receipt;
 mod rpc_settings;
@@ -43,7 +45,6 @@ mod transaction;
 mod transaction_request;
 mod transaction_condition;
 mod work;
-mod private_receipt;
 mod eip191;
 
 pub mod pubsub;
@@ -65,6 +66,8 @@ pub use self::histogram::Histogram;
 pub use self::index::Index;
 pub use self::log::Log;
 pub use self::node_kind::{NodeKind, Availability, Capability};
+pub use self::private_receipt::{PrivateTransactionReceipt, PrivateTransactionReceiptAndTransaction};
+pub use self::private_log::PrivateTransactionLog;
 pub use self::provenance::Origin;
 pub use self::receipt::Receipt;
 pub use self::rpc_settings::RpcSettings;
@@ -79,7 +82,6 @@ pub use self::transaction::{Transaction, RichRawTransaction, LocalTransactionSta
 pub use self::transaction_request::TransactionRequest;
 pub use self::transaction_condition::TransactionCondition;
 pub use self::work::Work;
-pub use self::private_receipt::{PrivateTransactionReceipt, PrivateTransactionReceiptAndTransaction};
 
 // TODO [ToDr] Refactor to a proper type Vec of enums?
 /// Expected tracing type.
