@@ -29,7 +29,7 @@ use jsonrpc_core::Result;
 use v1::helpers::deprecated::{self, DeprecationNotice};
 use v1::helpers::errors;
 use v1::traits::{ParityAccounts, ParityAccountsInfo};
-use v1::types::{Derive, DeriveHierarchical, DeriveHash,ExtAccountInfo, AccountInfo, HwAccountInfo};
+use v1::types::{Derive, DeriveHierarchical, DeriveHash, ExtAccountInfo, AccountInfo};
 use ethkey::Password;
 
 /// Account management (personal) rpc implementation.
@@ -72,23 +72,6 @@ impl ParityAccountsInfo for ParityAccountsClient {
 			.map(|(a, v)| (H160::from(a), AccountInfo { name: v.name }))
 			.collect()
 		)
-	}
-
-	fn hardware_accounts_info(&self) -> Result<BTreeMap<H160, HwAccountInfo>> {
-		self.deprecation_notice("parity_hardwareAccountsInfo");
-
-		let info = self.accounts.hardware_accounts_info().map_err(|e| errors::account("Could not fetch account info.", e))?;
-		Ok(info
-			.into_iter()
-			.map(|(a, v)| (H160::from(a), HwAccountInfo { name: v.name, manufacturer: v.meta }))
-			.collect()
-		)
-	}
-
-	fn locked_hardware_accounts_info(&self) -> Result<Vec<String>> {
-		self.deprecation_notice("parity_lockedHardwareAccountsInfo");
-
-		self.accounts.locked_hardware_accounts().map_err(|e| errors::account("Error communicating with hardware wallet.", e))
 	}
 
 	fn default_account(&self) -> Result<H160> {
@@ -351,12 +334,6 @@ impl ParityAccounts for ParityAccountsClient {
 			)
 			.map(Into::into)
 			.map_err(|e| errors::account("Could not sign message.", e))
-	}
-
-	fn hardware_pin_matrix_ack(&self, path: String, pin: String) -> Result<bool> {
-		self.deprecation_notice("parity_hardwarePinMatrixAck");
-
-		self.accounts.hardware_pin_matrix_ack(&path, &pin).map_err(|e| errors::account("Error communicating with hardware wallet.", e))
 	}
 }
 

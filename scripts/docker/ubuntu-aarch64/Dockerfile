@@ -22,7 +22,6 @@ RUN apt-get -y update && \
 		curl make cmake file ca-certificates  \
 		g++ gcc-aarch64-linux-gnu g++-aarch64-linux-gnu \
 		libc6-dev-arm64-cross binutils-aarch64-linux-gnu \
-		libudev-dev libudev-dev:arm64 \
 		&& \
 	apt-get clean
 

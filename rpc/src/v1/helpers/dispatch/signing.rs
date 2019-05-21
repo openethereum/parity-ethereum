@@ -51,10 +51,6 @@ impl super::Accounts for Signer {
 			data: filled.data,
 		};
 
-		if self.accounts.is_hardware_address(&filled.from) {
-			return hardware_signature(&*self.accounts, filled.from, t, chain_id).map(WithToken::No)
-		}
-
 		let hash = t.hash(chain_id);
 		let signature = signature(&*self.accounts, filled.from, hash, password)?;
 
@@ -65,19 +61,6 @@ impl super::Accounts for Signer {
 	}
 
 	fn sign_message(&self, address: Address, password: SignWith, hash: SignMessage) -> Result<WithToken<Signature>> {
-		if self.accounts.is_hardware_address(&address) {
-			return if let SignMessage::Data(data) = hash {
-				let signature = self.accounts.sign_message_with_hardware(&address, &data)
-					// TODO: is this correct? I guess the `token` is the wallet in this context
-					.map(WithToken::No)
-					.map_err(|e| errors::account("Error signing message with hardware_wallet", e));
-
-				signature
-			} else {
-				Err(errors::account("Error signing message with hardware_wallet", "Message signing is unsupported"))
-			}
-		}
-
 		match hash {
 			SignMessage::Data(data) => {
 				let hash = eth_data_hash(data);
@@ -90,10 +73,6 @@ impl super::Accounts for Signer {
 	}
 
 	fn decrypt(&self, address: Address, password: SignWith, data: Bytes) -> Result<WithToken<Bytes>> {
-		if self.accounts.is_hardware_address(&address) {
-			return Err(errors::unsupported("Decrypting via hardware wallets is not supported.", None));
-		}
-
 		match password.clone() {
 			SignWith::Nothing => self.accounts.decrypt(address, None, &DEFAULT_MAC, &data).map(WithToken::No),
 			SignWith::Password(pass) => self.accounts.decrypt(address, Some(pass), &DEFAULT_MAC, &data).map(WithToken::No),
@@ -134,23 +113,3 @@ fn signature(accounts: &AccountProvider, address: Address, hash: H256, password:
 	})
 }
 
-// obtain a hardware signature from the given account.
-fn hardware_signature(accounts: &AccountProvider, address: Address, t: Transaction, chain_id: Option<u64>)
-	-> Result<SignedTransaction>
-{
-	debug_assert!(accounts.is_hardware_address(&address));
-
-	let mut stream = rlp::RlpStream::new();
-	t.rlp_append_unsigned_transaction(&mut stream, chain_id);
-	let signature = accounts.sign_transaction_with_hardware(&address, &t, chain_id, &stream.as_raw())
-		.map_err(|e| {
-			debug!(target: "miner", "Error signing transaction with hardware wallet: {}", e);
-			errors::account("Error signing transaction with hardware wallet", e)
-		})?;
-
-	SignedTransaction::new(t.with_signature(signature, chain_id))
-		.map_err(|e| {
-			debug!(target: "miner", "Hardware wallet has produced invalid signature: {}", e);
-			errors::account("Invalid signature generated", e)
-		})
-}
