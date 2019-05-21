@@ -28,14 +28,13 @@ use self::stores::AddressBook;
 use std::collections::HashMap;
 use std::time::{Instant, Duration};
 
-use common_types::transaction::{Action, Transaction};
 use ethkey::{Address, Message, Public, Secret, Password, Random, Generator};
 use ethstore::accounts_dir::MemoryDirectory;
 use ethstore::{
 	SimpleSecretStore, SecretStore, EthStore, EthMultiStore,
 	random_string, SecretVaultRef, StoreAccountRef, OpaqueSecret,
 };
-use log::{warn, debug};
+use log::warn;
 use parking_lot::RwLock;
 
 pub use ethkey::Signature;

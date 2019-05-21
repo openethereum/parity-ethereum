@@ -779,7 +779,6 @@ dependencies = [
 name = "ethcore-accounts"
 version = "0.1.0"
 dependencies = [
- "common-types 0.1.0",
  "ethereum-types 0.4.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "ethkey 0.3.0",
  "ethstore 0.2.1",
