@@ -77,8 +77,6 @@ mod accounts {
 		upgrade_key_location(&dirs.legacy_keys_path(cfg.testnet), &path);
 		let dir = Box::new(RootDiskDirectory::create(&path).map_err(|e| format!("Could not open keys directory: {}", e))?);
 		let account_settings = AccountProviderSettings {
-			enable_hardware_wallets: cfg.enable_hardware_wallets,
-			hardware_wallet_classic_key: spec == &SpecType::Classic,
 			unlock_keep_secret: cfg.enable_fast_unlock,
 			blacklisted_accounts: 	match *spec {
 				SpecType::Morden | SpecType::Ropsten | SpecType::Kovan | SpecType::Sokol | SpecType::Dev => vec![],

@@ -2,7 +2,7 @@ FROM ubuntu:xenial
 LABEL MAINTAINER="Parity Technologies <devops-team@parity.io>"
 
 # install tools and dependencies
-RUN apt update && apt install -y --no-install-recommends openssl libudev-dev file curl jq
+RUN apt update && apt install -y --no-install-recommends openssl file curl jq
 
 # show backtraces
 ENV RUST_BACKTRACE 1
