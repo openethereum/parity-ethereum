@@ -187,7 +187,7 @@ pub struct Clique {
 impl Clique {
 	/// Initialize Clique engine from empty state.
 	pub fn new(our_params: CliqueParams, machine: EthereumMachine) -> Result<Arc<Self>, Error> {
-		let mut engine = Clique {
+		let engine = Clique {
 			epoch_length: our_params.epoch,
 			period: our_params.period,
 			client: Default::default(),
@@ -198,13 +198,15 @@ impl Clique {
 			step_service: None,
 		};
 
-		let res = Arc::new(engine);
+		let mut engine= Arc::new(engine);
 
 		if our_params.period > 0 {
-			engine.step_service = Some(StepService::start(Arc::downgrade(&res) as Weak<Engine<_>>));
+			let engine_weak = Arc::downgrade(&engine.clone());
+			let step_service = StepService::start(engine_weak as Weak<Engine<_>>);
+			Arc::get_mut(&mut engine).map(|e| e.step_service = Some(step_service));
 		}
 
-		Ok(res)
+		Ok(engine)
 	}
 
 	#[cfg(test)]
@@ -695,7 +697,7 @@ impl Engine<EthereumMachine> for Clique {
 			trace!(target: "engine", "populate_from_parent in sealing");
 
 			// It's unclear how to prevent creating new blocks unless we are authorized, the best way (and geth does this too)
-			// it's just to ignore setting an correct difficulty here, we will check authorization in next step in generate_seal anyway.
+			// it's just to ignore setting a correct difficulty here, we will check authorization in next step in generate_seal anyway.
 			if let Some(signer) = self.signer.read().as_ref() {
 				let state = match self.state(&parent) {
 					Err(e) =>  {
@@ -713,7 +715,7 @@ impl Engine<EthereumMachine> for Clique {
 					}
 				}
 
-				let zero_padding_len = VANITY_LENGTH - header.extra_data().len();
+				let zero_padding_len = VANITY_LENGTH.checked_sub(header.extra_data().len()).unwrap_or(0);
 				if zero_padding_len > 0 {
 					let mut resized_extra_data = header.extra_data().clone();
 					resized_extra_data.resize(VANITY_LENGTH, 0);
