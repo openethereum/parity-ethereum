@@ -225,7 +225,6 @@ pub struct AccountsConfig {
 	pub testnet: bool,
 	pub password_files: Vec<String>,
 	pub unlocked_accounts: Vec<Address>,
-	pub enable_hardware_wallets: bool,
 	pub enable_fast_unlock: bool,
 }
 
@@ -237,7 +236,6 @@ impl Default for AccountsConfig {
 			testnet: false,
 			password_files: Vec::new(),
 			unlocked_accounts: Vec::new(),
-			enable_hardware_wallets: true,
 			enable_fast_unlock: false,
 		}
 	}
