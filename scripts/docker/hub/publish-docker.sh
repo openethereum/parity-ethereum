@@ -20,7 +20,7 @@ case "${SCHEDULE_TAG:-${CI_COMMIT_REF_NAME}}" in
             --build-arg BUILD_DATE="$(date -u '+%Y-%m-%dT%H:%M:%SZ')" \
             --tag "parity/ethereum:${SCHEDULE_TAG}" \
             --file tools/ethereum.Dockerfile .;
-        docker push "parity/ethereum:${SCHEDULE_TAG}";;
+        docker push "parity/ethereum:${SCHEDULE_TAG}";
 
         echo "Docker TAG - 'parity/parity:${SCHEDULE_TAG}'";
         docker build --no-cache \
@@ -41,7 +41,7 @@ case "${SCHEDULE_TAG:-${CI_COMMIT_REF_NAME}}" in
             --file tools/ethereum.Dockerfile .;
         docker push "parity/ethereum:beta";
         docker push "parity/ethereum:latest";
-        docker push "parity/ethereum:${VERSION}-${CI_COMMIT_REF_NAME}";;
+        docker push "parity/ethereum:${VERSION}-${CI_COMMIT_REF_NAME}";
 
         echo "Docker TAGs - 'parity/parity:beta', 'parity/parity:latest', \
             'parity/parity:${VERSION}-${CI_COMMIT_REF_NAME}'";
@@ -64,7 +64,7 @@ case "${SCHEDULE_TAG:-${CI_COMMIT_REF_NAME}}" in
             --tag "parity/ethereum:stable" \
             --file tools/ethereum.Dockerfile .;
         docker push "parity/ethereum:${VERSION}-${CI_COMMIT_REF_NAME}";
-        docker push "parity/ethereum:stable";;
+        docker push "parity/ethereum:stable";
 
         echo "Docker TAGs - 'parity/parity:${VERSION}-${CI_COMMIT_REF_NAME}', 'parity/parity:stable'";
         docker build --no-cache \
@@ -82,7 +82,7 @@ case "${SCHEDULE_TAG:-${CI_COMMIT_REF_NAME}}" in
             --build-arg BUILD_DATE="$(date -u '+%Y-%m-%dT%H:%M:%SZ')" \
             --tag "parity/ethereum:${VERSION}-${CI_COMMIT_REF_NAME}" \
             --file tools/ethereum.Dockerfile .;
-        docker push "parity/ethereum:${VERSION}-${CI_COMMIT_REF_NAME}";;
+        docker push "parity/ethereum:${VERSION}-${CI_COMMIT_REF_NAME}";
 
         echo "Docker TAG - 'parity/parity:${VERSION}-${CI_COMMIT_REF_NAME}'"
         docker build --no-cache \
