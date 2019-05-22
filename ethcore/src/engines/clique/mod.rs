@@ -713,7 +713,7 @@ impl Engine<EthereumMachine> for Clique {
 					}
 				}
 
-				let zero_padding_len = VANITY_LENGTH.checked_sub(header.extra_data().len()).unwrap_or(0);
+				let zero_padding_len = VANITY_LENGTH.saturating_sub(header.extra_data().len());
 				if zero_padding_len > 0 {
 					let mut resized_extra_data = header.extra_data().clone();
 					resized_extra_data.resize(VANITY_LENGTH, 0);
