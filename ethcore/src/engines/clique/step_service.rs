@@ -32,7 +32,7 @@ pub struct StepService {
 
 impl StepService {
 	/// Start the `StepService`
-	pub fn start<M: Machine + 'static>(engine: Weak<Engine<M>>) -> Arc<Self> {
+	pub fn start<M: Machine + 'static>(engine: Weak<Engine<M>>) -> Self {
 		let shutdown = Arc::new(AtomicBool::new(false));
 		let s = shutdown.clone();
 
@@ -60,10 +60,10 @@ impl StepService {
 				trace!(target: "miner", "CliqueStepService: shutdown.");
 			}).expect("CliqueStepService thread failed");
 
-		Arc::new(StepService {
+		StepService {
 			shutdown: s,
 			thread: Some(thread),
-		})
+		}
 	}
 
 	/// Stop the `StepService`

@@ -168,7 +168,7 @@ pub struct Clique {
 	block_state_by_hash: RwLock<LruCache<H256, CliqueBlockState>>,
 	proposals: RwLock<HashMap<Address, VoteType>>,
 	signer: RwLock<Option<Box<EngineSigner>>>,
-	step_service: Option<Arc<StepService>>,
+	step_service: Option<StepService>,
 }
 
 #[cfg(test)]
@@ -181,7 +181,7 @@ pub struct Clique {
 	pub block_state_by_hash: RwLock<LruCache<H256, CliqueBlockState>>,
 	pub proposals: RwLock<HashMap<Address, VoteType>>,
 	pub signer: RwLock<Option<Box<EngineSigner>>>,
-	pub step_service: Option<Arc<StepService>>,
+	pub step_service: Option<StepService>,
 }
 
 impl Clique {
@@ -745,10 +745,10 @@ impl Engine<EthereumMachine> for Clique {
 	}
 
 	fn stop(&mut self) {
-		if let Some(mut s) = self.step_service.as_mut() {
-			Arc::get_mut(&mut s).map(|x| x.stop());
+		if let Some(step_service) = self.step_service.as_mut() {
+			step_service.stop();
 		} else {
-			warn!(target: "engine", "Stopping `CliqueStepService` failed requires mutable access");
+			warn!(target: "engine", "Attempted to stop StepService but it does nothing; no step service registered");
 		}
 	}
 
