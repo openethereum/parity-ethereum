@@ -19,7 +19,7 @@ use std::io::{Write, BufReader, BufRead};
 use std::time::Duration;
 use std::fs::File;
 use std::collections::HashSet;
-use ethereum_types::{U256, clean_0x, Address};
+use ethereum_types::{U256, Address};
 use journaldb::Algorithm;
 use ethcore::client::{Mode, BlockId, VMType, DatabaseCompactionProfile, ClientConfig, VerifierType};
 use ethcore::miner::{PendingSet, Penalization};
@@ -35,6 +35,15 @@ use ethkey::Password;
 
 pub fn to_duration(s: &str) -> Result<Duration, String> {
 	to_seconds(s).map(Duration::from_secs)
+}
+
+// TODO: should we bring it back to ethereum-types?
+fn clean_0x(s: &str) -> &str {
+	if s.starts_with("0x") {
+		&s[2..]
+	} else {
+		s
+	}
 }
 
 fn to_seconds(s: &str) -> Result<u64, String> {
