@@ -10,6 +10,7 @@ TRACK=`awk -F '=' '/^track/ {gsub(/"/, "", $2); gsub(/ /, "", $2); print $2}' ./
 echo Track is: $TRACK
 # prepare variables
 # VERSION=v"$(sed -r -n '1,/^version/s/^version = "([^"]+)".*$/\1/p' Cargo.toml)"
+VERSION=$(cat ./tools/VERSION)
 SNAP_PACKAGE="parity_"$VERSION"_"$BUILD_ARCH".snap"
 # CARGO_TARGET="$(ls artifacts)"
 # Choose snap release channel based on parity ethereum version track

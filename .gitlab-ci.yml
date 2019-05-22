@@ -68,6 +68,7 @@ variables:
     - cp -r scripts/docker/hub/* ./tools
     - cp scripts/gitlab/publish-snap.sh ./tools
     - cp scripts/gitlab/publish-onchain.sh ./tools
+    - cp scripts/gitlab/safe-curl.sh ./tools
     - echo v"$(sed -r -n '1,/^version/s/^version ?= ?"([^"]+)".*$/\1/p' Cargo.toml)" |
       tee ./tools/VERSION;
     - ls -la
