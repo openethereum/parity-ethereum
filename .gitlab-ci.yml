@@ -222,7 +222,7 @@ publish-docker:
     DOCKER_DRIVER:                 overlay2
     GIT_STRATEGY:                  none
     # DOCKERFILE:                  tools/Dockerfile
-    # CONTAINER_IMAGE:             parity/parity
+    # CONTAINER_IMAGE:             parity/parity 
   script:
     # we stopped pushing nightlies to dockerhub, will push to own registry prb.
     - ./tools/publish-docker.sh
