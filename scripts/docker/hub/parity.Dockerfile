@@ -1,4 +1,6 @@
-FROM parity/ethereum:
+ARG FROM_VERSION
+
+FROM parity/ethereum:${FROM_VERSION}
 
 # metadata
 ARG VCS_REF

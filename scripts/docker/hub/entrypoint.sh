@@ -2,6 +2,7 @@
 
 echo "#################################################################################"
 echo "This image is deprecated and will not be maintained on hub.docker.com in a while."
-echo "                Please use 'parity/ethereum' image instead."
+echo "    Please use 'parity/ethereum' image instead. It has the same set of tags."
 echo "#################################################################################"
-./bin/parity $@
+
+/bin/parity $@

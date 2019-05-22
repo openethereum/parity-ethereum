@@ -24,6 +24,7 @@ case "${SCHEDULE_TAG:-${CI_COMMIT_REF_NAME}}" in
 
         echo "Docker TAG - 'parity/parity:${SCHEDULE_TAG}'";
         docker build --no-cache \
+            --build-arg FROM_VERSION="${SCHEDULE_TAG}" \
             --build-arg VCS_REF="${CI_COMMIT_SHA}" \
             --build-arg BUILD_DATE="$(date -u '+%Y-%m-%dT%H:%M:%SZ')" \
             --tag "parity/parity:${SCHEDULE_TAG}" \
@@ -46,6 +47,7 @@ case "${SCHEDULE_TAG:-${CI_COMMIT_REF_NAME}}" in
         echo "Docker TAGs - 'parity/parity:beta', 'parity/parity:latest', \
             'parity/parity:${VERSION}-${CI_COMMIT_REF_NAME}'";
         docker build --no-cache \
+            --build-arg FROM_VERSION="${VERSION}-${CI_COMMIT_REF_NAME}" \
             --build-arg VCS_REF="${CI_COMMIT_SHA}" \
             --build-arg BUILD_DATE="$(date -u '+%Y-%m-%dT%H:%M:%SZ')" \
             --tag "parity/parity:beta" \
@@ -68,6 +70,7 @@ case "${SCHEDULE_TAG:-${CI_COMMIT_REF_NAME}}" in
 
         echo "Docker TAGs - 'parity/parity:${VERSION}-${CI_COMMIT_REF_NAME}', 'parity/parity:stable'";
         docker build --no-cache \
+            --build-arg FROM_VERSION="${VERSION}-${CI_COMMIT_REF_NAME}" \
             --build-arg VCS_REF="${CI_COMMIT_SHA}" \
             --build-arg BUILD_DATE="$(date -u '+%Y-%m-%dT%H:%M:%SZ')" \
             --tag "parity/parity:${VERSION}-${CI_COMMIT_REF_NAME}" \
@@ -86,6 +89,7 @@ case "${SCHEDULE_TAG:-${CI_COMMIT_REF_NAME}}" in
 
         echo "Docker TAG - 'parity/parity:${VERSION}-${CI_COMMIT_REF_NAME}'"
         docker build --no-cache \
+            --build-arg FROM_VERSION="${VERSION}-${CI_COMMIT_REF_NAME}" \
             --build-arg VCS_REF="${CI_COMMIT_SHA}" \
             --build-arg BUILD_DATE="$(date -u '+%Y-%m-%dT%H:%M:%SZ')" \
             --tag "parity/parity:${VERSION}-${CI_COMMIT_REF_NAME}" \
