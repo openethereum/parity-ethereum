@@ -168,7 +168,8 @@ pub struct Clique {
 	block_state_by_hash: RwLock<LruCache<H256, CliqueBlockState>>,
 	proposals: RwLock<HashMap<Address, VoteType>>,
 	signer: RwLock<Option<Box<EngineSigner>>>,
-	step_service: Option<Arc<StepService>>,
+	step_service: StepService,
+//	step_service: Option<Arc<StepService>>,
 }
 
 #[cfg(test)]
@@ -181,13 +182,14 @@ pub struct Clique {
 	pub block_state_by_hash: RwLock<LruCache<H256, CliqueBlockState>>,
 	pub proposals: RwLock<HashMap<Address, VoteType>>,
 	pub signer: RwLock<Option<Box<EngineSigner>>>,
-	pub step_service: Option<Arc<StepService>>,
+//	pub step_service: Option<Arc<StepService>>,
+	pub step_service: StepService,
 }
 
 impl Clique {
 	/// Initialize Clique engine from empty state.
 	pub fn new(our_params: CliqueParams, machine: EthereumMachine) -> Result<Arc<Self>, Error> {
-		let engine = Clique {
+		let mut engine = Clique {
 			epoch_length: our_params.epoch,
 			period: our_params.period,
 			client: Default::default(),
@@ -195,19 +197,41 @@ impl Clique {
 			proposals: Default::default(),
 			signer: Default::default(),
 			machine,
-			step_service: None,
+			step_service: StepService::new(),
 		};
-
-		let mut engine= Arc::new(engine);
-
 		if our_params.period > 0 {
-			let engine_weak = Arc::downgrade(&engine.clone());
-			let step_service = StepService::start(engine_weak as Weak<Engine<_>>);
-			Arc::get_mut(&mut engine).map(|e| e.step_service = Some(step_service));
+//			engine.step_service = StepService::new();
+			let  engine = Arc::new(engine);
+			let weak_eng = Arc::downgrade(&engine);
+			engine.step_service.startstart(weak_eng);
+			Ok(engine)
+		} else {
+			Ok(Arc::new(engine))
 		}
-
-		Ok(engine)
 	}
+	/// Initialize Clique engine from empty state.
+//	pub fn new(our_params: CliqueParams, machine: EthereumMachine) -> Result<Arc<Self>, Error> {
+//		let engine = Clique {
+//			epoch_length: our_params.epoch,
+//			period: our_params.period,
+//			client: Default::default(),
+//			block_state_by_hash: RwLock::new(LruCache::new(STATE_CACHE_NUM)),
+//			proposals: Default::default(),
+//			signer: Default::default(),
+//			machine,
+//			step_service: None,
+//		};
+//
+//		let mut engine= Arc::new(engine);
+//
+//		if our_params.period > 0 {
+//			let engine_weak = Arc::downgrade(&engine.clone());
+//			let step_service = StepService::start(engine_weak as Weak<Engine<_>>);
+//			Arc::get_mut(&mut engine).map(|e| e.step_service = Some(step_service));
+//		}
+//
+//		Ok(engine)
+//	}
 
 	#[cfg(test)]
 	/// Initialize test variant of `CliqueEngine`,
@@ -747,11 +771,12 @@ impl Engine<EthereumMachine> for Clique {
 	}
 
 	fn stop(&mut self) {
-		if let Some(mut s) = self.step_service.as_mut() {
-			Arc::get_mut(&mut s).map(|x| x.stop());
-		} else {
-			warn!(target: "engine", "Stopping `CliqueStepService` failed requires mutable access");
-		}
+		warn!(target: "engine", "Stopping `CliqueStepService` failed requires mutable access");
+//		if let Some(mut s) = self.step_service.as_mut() {
+//			Arc::get_mut(&mut s).map(|x| x.stop());
+//		} else {
+//			warn!(target: "engine", "Stopping `CliqueStepService` failed requires mutable access");
+//		}
 	}
 
 	/// Clique timestamp is set to parent + period , or current time which ever is higher.

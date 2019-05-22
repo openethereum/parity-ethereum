@@ -27,16 +27,28 @@ use machine::Machine;
 /// Service that is managing the engine
 pub struct StepService {
 	shutdown: Arc<AtomicBool>,
-	thread: Option<thread::JoinHandle<()>>,
+//	thread: Option<thread::JoinHandle<()>>,
 }
 
-impl StepService {
-	/// Start the `StepService`
-	pub fn start<M: Machine + 'static>(engine: Weak<Engine<M>>) -> Arc<Self> {
-		let shutdown = Arc::new(AtomicBool::new(false));
-		let s = shutdown.clone();
+/*
+let mut engine = ...;
+let step_service = StepService::new();
+engine.step_service = step_service;
+let engine = Arc::new(engine);
+let weak = Arc::downgrade(&engine);
+engine.step_service.start(weak);
+*/
 
-		let thread = thread::Builder::new()
+impl StepService {
+	pub fn new() -> Self {
+		let shutdown = Arc::new(AtomicBool::new(false));
+		StepService { shutdown }
+	}
+
+	pub fn startstart<M: Machine + 'static>(&self, engine: Weak<Engine<M>>) {
+		let shutdown = self.shutdown.clone();
+
+		thread::Builder::new()
 			.name("CliqueStepService".into())
 			.spawn(move || {
 				// startup delay.
@@ -45,8 +57,8 @@ impl StepService {
 				loop {
 					// see if we are in shutdown.
 					if shutdown.load(Ordering::Acquire) {
-							trace!(target: "miner", "CliqueStepService: received shutdown signal!");
-							break;
+						trace!(target: "miner", "CliqueStepService: received shutdown signal!");
+						break;
 					}
 
 					trace!(target: "miner", "CliqueStepService: triggering sealing");
@@ -59,19 +71,49 @@ impl StepService {
 				}
 				trace!(target: "miner", "CliqueStepService: shutdown.");
 			}).expect("CliqueStepService thread failed");
-
-		Arc::new(StepService {
-			shutdown: s,
-			thread: Some(thread),
-		})
 	}
+
+	/// Start the `StepService`
+//	pub fn start<M: Machine + 'static>(engine: Weak<Engine<M>>) -> Arc<Self> {
+//		let shutdown = Arc::new(AtomicBool::new(false));
+//		let s = shutdown.clone();
+//
+//		let thread = thread::Builder::new()
+//			.name("CliqueStepService".into())
+//			.spawn(move || {
+//				// startup delay.
+//				thread::sleep(Duration::from_secs(5));
+//
+//				loop {
+//					// see if we are in shutdown.
+//					if shutdown.load(Ordering::Acquire) {
+//							trace!(target: "miner", "CliqueStepService: received shutdown signal!");
+//							break;
+//					}
+//
+//					trace!(target: "miner", "CliqueStepService: triggering sealing");
+//
+//					// Try sealing
+//					engine.upgrade().map(|x| x.step());
+//
+//					// Yield
+//					thread::sleep(Duration::from_millis(2000));
+//				}
+//				trace!(target: "miner", "CliqueStepService: shutdown.");
+//			}).expect("CliqueStepService thread failed");
+//
+//		Arc::new(StepService {
+//			shutdown: s,
+//			thread: Some(thread),
+//		})
+//	}
 
 	/// Stop the `StepService`
 	pub fn stop(&mut self) {
 		trace!(target: "miner", "CliqueStepService: shutting down.");
 		self.shutdown.store(true, Ordering::Release);
-		if let Some(t) = self.thread.take() {
-			t.join().expect("CliqueStepService thread panicked!");
-		}
+//		if let Some(t) = self.thread.take() {
+//			t.join().expect("CliqueStepService thread panicked!");
+//		}
 	}
 }
