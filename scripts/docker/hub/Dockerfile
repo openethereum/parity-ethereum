@@ -34,7 +34,7 @@ WORKDIR /home/parity
 
 # add parity-ethereum binary to docker image
 COPY artifacts/x86_64-unknown-linux-gnu/parity /bin/parity
-COPY artifacts/check_sync.sh /check_sync.sh
+COPY tools/check_sync.sh /check_sync.sh
 
 # switch to user parity here
 USER parity
