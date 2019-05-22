@@ -2,7 +2,7 @@
 
 set -e # fail on any error
 
-VERSION="$(cat ./tools/VERSION)"
+# VERSION=v"$(sed -r -n '1,/^version/s/^version = "([^"]+)".*$/\1/p' Cargo.toml)"
 echo "Parity Ethereum version = ${VERSION}"
 
 test "$Docker_Hub_User_Parity" -a "$Docker_Hub_Pass_Parity" \

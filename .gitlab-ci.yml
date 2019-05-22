@@ -68,6 +68,8 @@ variables:
     - cp -r scripts/docker/hub/* ./tools
     - cp scripts/gitlab/publish-snap.sh ./tools
     - cp scripts/gitlab/publish-onchain.sh ./tools
+    - echo v"$(sed -r -n '1,/^version/s/^version ?= ?"([^"]+)".*$/\1/p' Cargo.toml)" |
+      tee ./tools/VERSION;
     - ls -la
     - ls -la tools
 
@@ -106,12 +108,12 @@ validate-chainspecs:
     - ./scripts/gitlab/validate-chainspecs.sh
     - sccache -s
 
-test-cpp:
-  stage:                           build
-  <<:                              *docker-cache-status
-  script:
-    - ./scripts/gitlab/test-cpp.sh
-    - sccache -s
+# test-cpp:
+#   stage:                           build
+#   <<:                              *docker-cache-status
+#   script:
+#     - ./scripts/gitlab/test-cpp.sh
+#     - sccache -s
 
 test-linux:
   stage:                           build
@@ -138,18 +140,14 @@ test-linux-nightly:
   allow_failure:                   true
 
 build-android:
-  <<:                              *build-on-linux
-  image:                           parity/rust-parity-ethereum-android-build:stretch
-  variables:
-    CARGO_TARGET:                  armv7-linux-androideabi
+  # <<:                              *build-on-linux
+  # image:                           parity/rust-parity-ethereum-android-build:stretch
+  # variables:
+  #   CARGO_TARGET:                  armv7-linux-androideabi
 
 build-linux:
   <<:                              *build-on-linux
   # only:                            *releaseable_branches
-  after_script:
-    - ./artifacts/${CARGO_TARGET}/parity --version |
-      sed -n -r 's/.*Parity-Ethereum\/(v[0-9.]+\-[a-z]+)-.*$/\1/p' |
-      tee ./tools/VERSION;
 
 build-linux-i386:
   <<:                              *build-on-linux
