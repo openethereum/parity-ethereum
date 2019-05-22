@@ -154,21 +154,21 @@ build-linux:
 
 build-linux-i386:
   <<:                              *build-on-linux
-  # only:                            *releaseable_branches
+  only:                            *releaseable_branches
   image:                           parity/rust-parity-ethereum-build:i386
   variables:
     CARGO_TARGET:                  i686-unknown-linux-gnu
 
 build-linux-arm64:
   <<:                              *build-on-linux
-  # only:                            *releaseable_branches
+  only:                            *releaseable_branches
   image:                           parity/rust-parity-ethereum-build:arm64
   variables:
     CARGO_TARGET:                  aarch64-unknown-linux-gnu
 
 build-linux-armhf:
   <<:                              *build-on-linux
-  # only:                            *releaseable_branches
+  only:                            *releaseable_branches
   image:                           parity/rust-parity-ethereum-build:armhf
   variables:
     CARGO_TARGET:                  armv7-unknown-linux-gnueabihf
@@ -222,7 +222,7 @@ publish-docker:
     DOCKER_DRIVER:                 overlay2
     GIT_STRATEGY:                  none
     # DOCKERFILE:                  tools/Dockerfile
-    # CONTAINER_IMAGE:               parity/parity
+    # CONTAINER_IMAGE:             parity/parity
   script:
     # we stopped pushing nightlies to dockerhub, will push to own registry prb.
     - ./tools/publish-docker.sh
@@ -230,8 +230,7 @@ publish-docker:
 publish-snap:                      &publish-snap
   <<:                              *no_git
   stage:                           publish
-  # only:                            *releaseable_branches
-  # <<:                              *collect_artifacts
+  only:                            *releaseable_branches
   image:                           snapcore/snapcraft
   variables:
     BUILD_ARCH:                    amd64
@@ -270,7 +269,7 @@ publish-snap-armhf:
 publish-onchain:
   stage:                           publish
   <<:                              *no_git
-  # only:                            *releaseable_branches
+  only:                            *releaseable_branches
   cache:                           {}
   dependencies:
     - build-linux
@@ -284,7 +283,7 @@ publish-onchain:
 publish-awss3-release:
   image:                           parity/awscli:latest
   stage:                           publish
-  # only:                            *releaseable_branches
+  only:                            *releaseable_branches
   <<:                              *no_git
   cache:                           {}
   dependencies:
