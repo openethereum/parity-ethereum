@@ -1,8 +1,14 @@
 #!/bin/sh
 
 echo "#################################################################################"
-echo "This image is deprecated and will not be maintained on hub.docker.com in a while."
-echo "    Please use 'parity/ethereum' image instead. It has the same set of tags."
+echo "THIS IMAGE IS DEPRECATED."
+echo ""
+echo "At some point in the future we will stop pushing new versions of 'parity/parity'."
+echo "Please use 'parity/ethereum' image instead, it is the new canonical location for "
+echo "'parity/parity' images."
+echo ""
+echo "We maintain the same set of tags there, so just replacing the image name"
+echo "everywhere would be safe."
 echo "#################################################################################"
 
 /bin/parity $@
