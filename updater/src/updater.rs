@@ -159,7 +159,7 @@ pub struct Updater<O = OperationsContractClient, F = fetch::Client, T = StdTimeP
 const CLIENT_ID: &str = "parity";
 
 lazy_static! {
-	static ref CLIENT_ID_HASH: H256 = CLIENT_ID.as_bytes().into();
+	static ref CLIENT_ID_HASH: H256 = H256::from_slice(CLIENT_ID.as_bytes());
 }
 
 lazy_static! {
@@ -177,7 +177,7 @@ lazy_static! {
 }
 
 lazy_static! {
-	static ref PLATFORM_ID_HASH: H256 = PLATFORM.as_bytes().into();
+	static ref PLATFORM_ID_HASH: H256 = H256::from_slice(PLATFORM.as_bytes());
 }
 
 /// Client trait for getting latest release information from operations contract.
