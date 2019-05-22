@@ -61,7 +61,6 @@ pub fn find_unique_filename_using_random_suffix(parent_path: &Path, original_fil
 /// Create a new file and restrict permissions to owner only. It errors if the file already exists.
 #[cfg(unix)]
 pub fn create_new_file_with_permissions_to_owner(file_path: &Path) -> io::Result<fs::File> {
-	use libc;
 	use std::os::unix::fs::OpenOptionsExt;
 
 	fs::OpenOptions::new()
@@ -83,7 +82,6 @@ pub fn create_new_file_with_permissions_to_owner(file_path: &Path) -> io::Result
 /// Create a new file and restrict permissions to owner only. It replaces the existing file if it already exists.
 #[cfg(unix)]
 pub fn replace_file_with_permissions_to_owner(file_path: &Path) -> io::Result<fs::File> {
-	use libc;
 	use std::os::unix::fs::PermissionsExt;
 
 	let file = fs::File::create(file_path)?;
