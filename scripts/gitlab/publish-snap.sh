@@ -6,8 +6,9 @@ set -u # treat unset variables as error
 # some necromancy:
 # gsub(/"/, "", $2) deletes "qoutes"
 # gsub(/ /, "", $2) deletes whitespaces
-TRACK=`awk -F '=' '/^track/ {gsub(/"/, "", $2); gsub(/ /, "", $2); print $2}' ./util/version/Cargo.toml`
-echo Track is: $TRACK
+# TRACK=`awk -F '=' '/^track/ {gsub(/"/, "", $2); gsub(/ /, "", $2); print $2}' ./util/version/Cargo.toml`
+TRACK=$(cat ./tools/TRACK)
+echo "Track is: ${TRACK}"
 # prepare variables
 # VERSION=v"$(sed -r -n '1,/^version/s/^version = "([^"]+)".*$/\1/p' Cargo.toml)"
 VERSION=$(cat ./tools/VERSION)

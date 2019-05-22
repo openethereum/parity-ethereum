@@ -69,8 +69,10 @@ variables:
     - cp scripts/gitlab/publish-snap.sh ./tools
     - cp scripts/gitlab/publish-onchain.sh ./tools
     - cp scripts/gitlab/safe-curl.sh ./tools
-    - echo v"$(sed -r -n '1,/^version/s/^version ?= ?"([^"]+)".*$/\1/p' Cargo.toml)" |
-      tee ./tools/VERSION;
+    - echo v"$(sed -r -n '1,/^version/s/^version\s*=\s*"([^"]+)".*$/\1/p' Cargo.toml)" |
+      tee ./tools/VERSION
+    - echo "$(sed -r -n '1,/^track/s/^track\s*=\s*"([^"]+)".*$/\1/p' ./util/version/Cargo.toml)" |
+      tee ./tools/TRACK
     - ls -la
     - ls -la tools
 

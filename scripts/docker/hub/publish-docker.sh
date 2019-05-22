@@ -17,42 +17,42 @@ case "${SCHEDULE_TAG:-${CI_COMMIT_REF_NAME}}" in
     "$SCHEDULE_TAG")
         echo "Docker TAG - '${CONTAINER_IMAGE}:${SCHEDULE_TAG}'";
         docker build --no-cache \
-            --build-arg VCS_REF="${CI_COMMIT_SHORT_SHA}" \
+            --build-arg VCS_REF="${CI_COMMIT_SHA}" \
             --build-arg BUILD_DATE="$(date -u '+%Y-%m-%dT%H:%M:%SZ')" \
             --tag "${CONTAINER_IMAGE}:${SCHEDULE_TAG}" \
             --file tools/Dockerfile .;
         docker push "${CONTAINER_IMAGE}:${SCHEDULE_TAG}";;
     "beta")
         echo "Docker TAGs - '${CONTAINER_IMAGE}:beta', '${CONTAINER_IMAGE}:latest', \
-            '${CONTAINER_IMAGE}:${VERSION}'";
+            '${CONTAINER_IMAGE}:${VERSION}-${CI_COMMIT_REF_NAME}'";
         docker build --no-cache \
             --build-arg VCS_REF="${CI_COMMIT_SHA}" \
             --build-arg BUILD_DATE="$(date -u '+%Y-%m-%dT%H:%M:%SZ')" \
             --tag "${CONTAINER_IMAGE}:beta" \
             --tag "${CONTAINER_IMAGE}:latest" \
-            --tag "${CONTAINER_IMAGE}:${VERSION}" \
+            --tag "${CONTAINER_IMAGE}:${VERSION}-${CI_COMMIT_REF_NAME}" \
             --file tools/Dockerfile .;
         docker push "${CONTAINER_IMAGE}:beta";
         docker push "${CONTAINER_IMAGE}:latest";
-        docker push "${CONTAINER_IMAGE}:${VERSION}";;
+        docker push "${CONTAINER_IMAGE}:${VERSION}-${CI_COMMIT_REF_NAME}";;
     "stable")
-        echo "Docker TAGs - '${CONTAINER_IMAGE}:${VERSION}', '${CONTAINER_IMAGE}:stable'";
+        echo "Docker TAGs - '${CONTAINER_IMAGE}:${VERSION}-${CI_COMMIT_REF_NAME}', '${CONTAINER_IMAGE}:stable'";
         docker build --no-cache \
             --build-arg VCS_REF="${CI_COMMIT_SHA}" \
             --build-arg BUILD_DATE="$(date -u '+%Y-%m-%dT%H:%M:%SZ')" \
-            --tag "${CONTAINER_IMAGE}:${VERSION}" \
+            --tag "${CONTAINER_IMAGE}:${VERSION}-${CI_COMMIT_REF_NAME}" \
             --tag "${CONTAINER_IMAGE}:stable" \
             --file tools/Dockerfile .;
-        docker push "${CONTAINER_IMAGE}:${VERSION}";
+        docker push "${CONTAINER_IMAGE}:${VERSION}-${CI_COMMIT_REF_NAME}";
         docker push "${CONTAINER_IMAGE}:stable";;
     *)
-        echo "Docker TAG - '${CONTAINER_IMAGE}:${VERSION}-${CI_COMMIT_SHORT_SHA}'"
+        echo "Docker TAG - '${CONTAINER_IMAGE}:${VERSION}-${CI_COMMIT_REF_NAME}'"
         docker build --no-cache \
             --build-arg VCS_REF="${CI_COMMIT_SHA}" \
             --build-arg BUILD_DATE="$(date -u '+%Y-%m-%dT%H:%M:%SZ')" \
-            --tag "${CONTAINER_IMAGE}:${VERSION}-${CI_COMMIT_SHORT_SHA}" \
+            --tag "${CONTAINER_IMAGE}:${VERSION}-${CI_COMMIT_REF_NAME}" \
             --file tools/Dockerfile .;
-        docker push "${CONTAINER_IMAGE}:${VERSION}-${CI_COMMIT_SHORT_SHA}";;
+        docker push "${CONTAINER_IMAGE}:${VERSION}-${CI_COMMIT_REF_NAME}";;
 esac
 
 docker logout
