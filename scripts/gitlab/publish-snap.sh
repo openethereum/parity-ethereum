@@ -3,17 +3,11 @@
 set -e # fail on any error
 set -u # treat unset variables as error
 
-# some necromancy:
-# gsub(/"/, "", $2) deletes "qoutes"
-# gsub(/ /, "", $2) deletes whitespaces
-# TRACK=`awk -F '=' '/^track/ {gsub(/"/, "", $2); gsub(/ /, "", $2); print $2}' ./util/version/Cargo.toml`
 TRACK=$(cat ./tools/TRACK)
 echo "Track is: ${TRACK}"
 # prepare variables
-# VERSION=v"$(sed -r -n '1,/^version/s/^version = "([^"]+)".*$/\1/p' Cargo.toml)"
 VERSION=$(cat ./tools/VERSION)
 SNAP_PACKAGE="parity_"$VERSION"_"$BUILD_ARCH".snap"
-# CARGO_TARGET="$(ls artifacts)"
 # Choose snap release channel based on parity ethereum version track
 case ${TRACK} in
   nightly) export GRADE="devel" CHANNEL="edge";;
@@ -22,12 +16,8 @@ case ${TRACK} in
   *) echo "No release" && exit 0;;
 esac
 
-# Release untagged versions from branches to the candidate snap channel
-case ${CI_COMMIT_REF_NAME} in
-  beta|stable) export GRADE="stable" CHANNEL="candidate";;
-esac
 echo "__________Create snap package__________"
-echo "Release channel :" $GRADE " Branch/tag: " $CI_COMMIT_REF_NAME
+echo "Release channel :" $GRADE " Branch/tag: " $CI_COMMIT_REF_NAME "Track: " ${TRACK}
 echo $VERSION:$GRADE:$BUILD_ARCH:$CARGO_TARGET
 
 sed -e 's/$VERSION/'"$VERSION"'/g' \
@@ -50,7 +40,7 @@ echo "__________Releasing snap package__________"
 echo "Release channel :" $CHANNEL " Branch/tag: " $CI_COMMIT_REF_NAME
 
 echo $SNAPCRAFT_LOGIN_PARITY_BASE64 | base64 --decode > snapcraft.login
-# snapcraft login --with snapcraft.login
-# snapcraft push --release $CHANNEL $SNAP_PACKAGE
-# snapcraft status parity
-# snapcraft logout
+snapcraft login --with snapcraft.login
+snapcraft push --release $CHANNEL $SNAP_PACKAGE
+snapcraft status parity
+snapcraft logout

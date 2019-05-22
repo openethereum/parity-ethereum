@@ -2,7 +2,6 @@
 
 set -e # fail on any error
 
-# VERSION=v"$(sed -r -n '1,/^version/s/^version = "([^"]+)".*$/\1/p' Cargo.toml)"
 VERSION=$(cat ./tools/VERSION)
 echo "Parity Ethereum version = ${VERSION}"
 
@@ -15,44 +14,83 @@ docker info
 # we stopped pushing nightlies to dockerhub, will push to own registry prb.
 case "${SCHEDULE_TAG:-${CI_COMMIT_REF_NAME}}" in
     "$SCHEDULE_TAG")
-        echo "Docker TAG - '${CONTAINER_IMAGE}:${SCHEDULE_TAG}'";
+        echo "Docker TAG - 'parity/ethereum:${SCHEDULE_TAG}'";
         docker build --no-cache \
             --build-arg VCS_REF="${CI_COMMIT_SHA}" \
             --build-arg BUILD_DATE="$(date -u '+%Y-%m-%dT%H:%M:%SZ')" \
-            --tag "${CONTAINER_IMAGE}:${SCHEDULE_TAG}" \
-            --file tools/Dockerfile .;
-        docker push "${CONTAINER_IMAGE}:${SCHEDULE_TAG}";;
+            --tag "parity/ethereum:${SCHEDULE_TAG}" \
+            --file tools/ethereum.Dockerfile .;
+        docker push "parity/ethereum:${SCHEDULE_TAG}";;
+
+        echo "Docker TAG - 'parity/parity:${SCHEDULE_TAG}'";
+        docker build --no-cache \
+            --build-arg VCS_REF="${CI_COMMIT_SHA}" \
+            --build-arg BUILD_DATE="$(date -u '+%Y-%m-%dT%H:%M:%SZ')" \
+            --tag "parity/parity:${SCHEDULE_TAG}" \
+            --file tools/parity.Dockerfile .;
+        docker push "parity/parity:${SCHEDULE_TAG}";;
     "beta")
-        echo "Docker TAGs - '${CONTAINER_IMAGE}:beta', '${CONTAINER_IMAGE}:latest', \
-            '${CONTAINER_IMAGE}:${VERSION}-${CI_COMMIT_REF_NAME}'";
+        echo "Docker TAGs - 'parity/ethereum:beta', 'parity/ethereum:latest', \
+            'parity/ethereum:${VERSION}-${CI_COMMIT_REF_NAME}'";
         docker build --no-cache \
             --build-arg VCS_REF="${CI_COMMIT_SHA}" \
             --build-arg BUILD_DATE="$(date -u '+%Y-%m-%dT%H:%M:%SZ')" \
-            --tag "${CONTAINER_IMAGE}:beta" \
-            --tag "${CONTAINER_IMAGE}:latest" \
-            --tag "${CONTAINER_IMAGE}:${VERSION}-${CI_COMMIT_REF_NAME}" \
-            --file tools/Dockerfile .;
-        docker push "${CONTAINER_IMAGE}:beta";
-        docker push "${CONTAINER_IMAGE}:latest";
-        docker push "${CONTAINER_IMAGE}:${VERSION}-${CI_COMMIT_REF_NAME}";;
+            --tag "parity/ethereum:beta" \
+            --tag "parity/ethereum:latest" \
+            --tag "parity/ethereum:${VERSION}-${CI_COMMIT_REF_NAME}" \
+            --file tools/ethereum.Dockerfile .;
+        docker push "parity/ethereum:beta";
+        docker push "parity/ethereum:latest";
+        docker push "parity/ethereum:${VERSION}-${CI_COMMIT_REF_NAME}";;
+
+        echo "Docker TAGs - 'parity/parity:beta', 'parity/parity:latest', \
+            'parity/parity:${VERSION}-${CI_COMMIT_REF_NAME}'";
+        docker build --no-cache \
+            --build-arg VCS_REF="${CI_COMMIT_SHA}" \
+            --build-arg BUILD_DATE="$(date -u '+%Y-%m-%dT%H:%M:%SZ')" \
+            --tag "parity/parity:beta" \
+            --tag "parity/parity:latest" \
+            --tag "parity/parity:${VERSION}-${CI_COMMIT_REF_NAME}" \
+            --file tools/parity.Dockerfile .;
+        docker push "parity/parity:beta";
+        docker push "parity/parity:latest";
+        docker push "parity/parity:${VERSION}-${CI_COMMIT_REF_NAME}";;
     "stable")
-        echo "Docker TAGs - '${CONTAINER_IMAGE}:${VERSION}-${CI_COMMIT_REF_NAME}', '${CONTAINER_IMAGE}:stable'";
+        echo "Docker TAGs - 'parity/ethereum:${VERSION}-${CI_COMMIT_REF_NAME}', 'parity/ethereum:stable'";
         docker build --no-cache \
             --build-arg VCS_REF="${CI_COMMIT_SHA}" \
             --build-arg BUILD_DATE="$(date -u '+%Y-%m-%dT%H:%M:%SZ')" \
-            --tag "${CONTAINER_IMAGE}:${VERSION}-${CI_COMMIT_REF_NAME}" \
-            --tag "${CONTAINER_IMAGE}:stable" \
-            --file tools/Dockerfile .;
-        docker push "${CONTAINER_IMAGE}:${VERSION}-${CI_COMMIT_REF_NAME}";
-        docker push "${CONTAINER_IMAGE}:stable";;
+            --tag "parity/ethereum:${VERSION}-${CI_COMMIT_REF_NAME}" \
+            --tag "parity/ethereum:stable" \
+            --file tools/ethereum.Dockerfile .;
+        docker push "parity/ethereum:${VERSION}-${CI_COMMIT_REF_NAME}";
+        docker push "parity/ethereum:stable";;
+
+        echo "Docker TAGs - 'parity/parity:${VERSION}-${CI_COMMIT_REF_NAME}', 'parity/parity:stable'";
+        docker build --no-cache \
+            --build-arg VCS_REF="${CI_COMMIT_SHA}" \
+            --build-arg BUILD_DATE="$(date -u '+%Y-%m-%dT%H:%M:%SZ')" \
+            --tag "parity/parity:${VERSION}-${CI_COMMIT_REF_NAME}" \
+            --tag "parity/parity:stable" \
+            --file tools/parity.Dockerfile .;
+        docker push "parity/parity:${VERSION}-${CI_COMMIT_REF_NAME}";
+        docker push "parity/parity:stable";;
     *)
-        echo "Docker TAG - '${CONTAINER_IMAGE}:${VERSION}-${CI_COMMIT_REF_NAME}'"
+        echo "Docker TAG - 'parity/ethereum:${VERSION}-${CI_COMMIT_REF_NAME}'"
         docker build --no-cache \
             --build-arg VCS_REF="${CI_COMMIT_SHA}" \
             --build-arg BUILD_DATE="$(date -u '+%Y-%m-%dT%H:%M:%SZ')" \
-            --tag "${CONTAINER_IMAGE}:${VERSION}-${CI_COMMIT_REF_NAME}" \
-            --file tools/Dockerfile .;
-        docker push "${CONTAINER_IMAGE}:${VERSION}-${CI_COMMIT_REF_NAME}";;
+            --tag "parity/ethereum:${VERSION}-${CI_COMMIT_REF_NAME}" \
+            --file tools/ethereum.Dockerfile .;
+        docker push "parity/ethereum:${VERSION}-${CI_COMMIT_REF_NAME}";;
+
+        echo "Docker TAG - 'parity/parity:${VERSION}-${CI_COMMIT_REF_NAME}'"
+        docker build --no-cache \
+            --build-arg VCS_REF="${CI_COMMIT_SHA}" \
+            --build-arg BUILD_DATE="$(date -u '+%Y-%m-%dT%H:%M:%SZ')" \
+            --tag "parity/parity:${VERSION}-${CI_COMMIT_REF_NAME}" \
+            --file tools/parity.Dockerfile .;
+        docker push "parity/parity:${VERSION}-${CI_COMMIT_REF_NAME}";;
 esac
 
 docker logout

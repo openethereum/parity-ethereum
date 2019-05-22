@@ -6,12 +6,13 @@ ARG BUILD_DATE
 
 LABEL io.parity.image.authors="devops-team@parity.io" \
 	io.parity.image.vendor="Parity Technologies" \
-	io.parity.image.title="parity/parity" \
+	io.parity.image.title="parity/ethereum" \
 	io.parity.image.description="Parity Ethereum. The Fastest and most Advanced Ethereum Client." \
-	io.parity.image.source="https://github.com/paritytech/parity-ethereum/blob/master/scripts/docker/hub/Dockerfile" \
+	io.parity.image.source="https://github.com/paritytech/parity-ethereum/blob/${VCS_REF}/\
+scripts/docker/hub/Dockerfile" \
+	io.parity.image.documentation="https://wiki.parity.io/Parity-Ethereum" \
 	io.parity.image.revision="${VCS_REF}" \
-	io.parity.image.created="${BUILD_DATE}" \
-	io.parity.image.documentation="https://wiki.parity.io/Parity-Ethereum"
+	io.parity.image.created="${BUILD_DATE}"
 
 # show backtraces
 ENV RUST_BACKTRACE 1
