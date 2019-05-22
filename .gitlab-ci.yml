@@ -139,7 +139,7 @@ test-linux-nightly:
     - sccache -s
   allow_failure:                   true
 
-build-android:
+# build-android:
   # <<:                              *build-on-linux
   # image:                           parity/rust-parity-ethereum-android-build:stretch
   # variables:
