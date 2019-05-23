@@ -64,13 +64,15 @@ impl<C> EthPubSubClient<C>
 		where
 			F: 'static + Fn(SyncState) -> Option<pubsub::PubSubSyncStatus> + Send
 	{
-		let handler = self.handler.clone();
+		let weak_handler = Arc::downgrade(&self.handler);
 
 		self.handler.executor.spawn(
 			receiver.for_each(move |state| {
 				if let Some(status) = f(state) {
-					handler.notify_syncing(status);
-					return Ok(())
+					if let Some(handler) = weak_handler.upgrade() {
+						handler.notify_syncing(status);
+						return Ok(())
+					}
 				}
 				Err(())
 			})
