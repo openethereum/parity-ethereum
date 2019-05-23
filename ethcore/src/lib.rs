@@ -82,7 +82,6 @@ extern crate journaldb;
 extern crate keccak_hash as hash;
 extern crate keccak_hasher;
 extern crate kvdb;
-extern crate kvdb_memorydb;
 extern crate len_caching_lock;
 extern crate lru_cache;
 extern crate memory_cache;
@@ -113,6 +112,8 @@ extern crate ethcore_accounts as accounts;
 extern crate ethcore_stratum;
 #[cfg(any(test, feature = "tempdir"))]
 extern crate tempdir;
+#[cfg(test)]
+extern crate kvdb_memorydb;
 #[cfg(any(test, feature = "kvdb-rocksdb"))]
 extern crate kvdb_rocksdb;
 #[cfg(any(test, feature = "blooms-db"))]

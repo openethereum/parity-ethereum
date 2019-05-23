@@ -61,7 +61,7 @@
 use std::cmp;
 use std::collections::HashMap;
 use std::collections::VecDeque;
-use std::sync::{Arc, Weak, atomic::{AtomicBool, Ordering}};
+use std::sync::{Arc, Weak};
 use std::thread;
 use std::time;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
@@ -166,7 +166,6 @@ pub struct Clique {
 	block_state_by_hash: RwLock<LruCache<H256, CliqueBlockState>>,
 	proposals: RwLock<HashMap<Address, VoteType>>,
 	signer: RwLock<Option<Box<EngineSigner>>>,
-	shutdown_stepping: Arc<AtomicBool>,
 }
 
 #[cfg(test)]
@@ -179,13 +178,6 @@ pub struct Clique {
 	pub block_state_by_hash: RwLock<LruCache<H256, CliqueBlockState>>,
 	pub proposals: RwLock<HashMap<Address, VoteType>>,
 	pub signer: RwLock<Option<Box<EngineSigner>>>,
-	pub shutdown_stepping: Arc<AtomicBool>,
-}
-
-impl Drop for Clique {
-	fn drop(&mut self) {
-		self.shutdown_stepping.store(true, Ordering::Release);
-	}
 }
 
 impl Clique {
@@ -204,24 +196,16 @@ impl Clique {
 			proposals: Default::default(),
 			signer: Default::default(),
 			machine,
-			shutdown_stepping: Arc::new(AtomicBool::new(false)),
 		};
 		let engine = Arc::new(engine);
 		let weak_eng = Arc::downgrade(&engine);
-		let shutdown = engine.shutdown_stepping.clone();
+
 		thread::Builder::new().name("StepService".into())
 			.spawn(move || {
 				thread::sleep(INITIAL_DELAY);
 				loop {
-					// Check if we are in shutdown.
-					if shutdown.load(Ordering::Acquire) {
-						trace!(target: "shutdown", "StepService: received shutdown signal!");
-						break;
-					}
 					trace!(target: "miner", "StepService: triggering sealing");
-					// Try sealing
 					weak_eng.upgrade().map(|x| x.step());
-					// Yield
 					thread::sleep(SEALING_FREQ);
 				}
 			})?;
@@ -243,7 +227,6 @@ impl Clique {
 			proposals: Default::default(),
 			signer: Default::default(),
 			machine: Spec::new_test_machine(),
-			step_service: None,
 		}
 	}
 
