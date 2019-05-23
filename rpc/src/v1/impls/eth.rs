@@ -533,7 +533,7 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM, T: StateInfo + 'static> Eth for EthClient<
 
 	fn author(&self) -> Result<H160> {
 		let miner = self.miner.authoring_params().author;
-		if miner == 0.into() {
+		if miner.is_zero() {
 			(self.accounts)()
 				.first()
 				.cloned()

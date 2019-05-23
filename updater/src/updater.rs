@@ -28,7 +28,7 @@ use target_info::Target;
 use common_types::BlockNumber;
 use common_types::filter::Filter;
 use ethcore::client::{BlockId, BlockChainClient, ChainNotify, NewBlocks};
-use ethereum_types::H256;
+use ethereum_types::{H256, H160};
 use hash_fetch::{self as fetch, HashFetch};
 use parity_path::restrict_permissions_owner;
 use service::Service;
@@ -373,7 +373,7 @@ impl Updater {
 				VersionInfo {
 					track: ReleaseTrack::Stable,
 					version: Version::new(1, 3, 7),
-					hash: 0.into(),
+					hash: H160::zero(),
 				}
 			} else {
 				VersionInfo::this()
