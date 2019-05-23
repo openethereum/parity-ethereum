@@ -168,7 +168,7 @@ pub struct Clique {
 	block_state_by_hash: RwLock<LruCache<H256, CliqueBlockState>>,
 	proposals: RwLock<HashMap<Address, VoteType>>,
 	signer: RwLock<Option<Box<EngineSigner>>>,
-	step_service: Option<StepService>,
+	step_service: StepService,
 }
 
 #[cfg(test)]
@@ -181,13 +181,16 @@ pub struct Clique {
 	pub block_state_by_hash: RwLock<LruCache<H256, CliqueBlockState>>,
 	pub proposals: RwLock<HashMap<Address, VoteType>>,
 	pub signer: RwLock<Option<Box<EngineSigner>>>,
-	pub step_service: Option<StepService>,
+	pub step_service: StepService,
 }
 
 impl Clique {
 	/// Initialize Clique engine from empty state.
 	pub fn new(params: CliqueParams, machine: EthereumMachine) -> Result<Arc<Self>, Error> {
-		let mut engine = Clique {
+		if params.period == 0 {
+			return Err("bad params: period can not be 0".into());
+		}
+		let engine = Clique {
 			epoch_length: params.epoch,
 			period: params.period,
 			client: Default::default(),
@@ -195,19 +198,12 @@ impl Clique {
 			proposals: Default::default(),
 			signer: Default::default(),
 			machine,
-			step_service: None,
+			step_service: StepService::new(),
 		};
-		if params.period > 0 {
-			engine.step_service = Some(StepService::new());
-			let engine = Arc::new(engine);
-			let weak_eng = Arc::downgrade(&engine);
-			if let Some(step_service) = &engine.step_service {
-				step_service.start(weak_eng);
-			}
-			Ok(engine)
-		} else {
-			Ok(Arc::new(engine))
-		}
+		let engine = Arc::new(engine);
+		let weak_eng = Arc::downgrade(&engine);
+		engine.step_service.start(weak_eng);
+		Ok(engine)
 	}
 
 	#[cfg(test)]
@@ -344,15 +340,6 @@ impl Clique {
 				trace!(target: "engine", "Back-filling succeed, took {} ms.", elapsed.as_millis());
 				Ok(new_state)
 			}
-		}
-	}
-}
-
-impl Drop for Clique {
-	fn drop(&mut self) {
-		if let Some(step_service) = &self.step_service {
-			trace!(target: "shutdown", "Clique; stopping step service");
-			step_service.stop();
 		}
 	}
 }

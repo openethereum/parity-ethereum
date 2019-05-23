@@ -40,41 +40,42 @@ impl StepService {
 
 	/// Start the StepService: spawns a thread that loops and triggers a sealing operation every 2sec.
 	pub fn start<M: Machine + 'static>(&self, engine: Weak<Engine<M>>) {
+		/// Pause before starting to step Clique
+		const INITIAL_DELAY: Duration = Duration::from_secs(5);
+		/// Step Clique at most every 2 seconds
+		const SEALING_FREQ: Duration = Duration::from_secs(2);
 		let shutdown = self.shutdown.clone();
 
 		let thr = thread::Builder::new()
-			.name("CliqueStepService".into())
+			.name("StepService".into())
 			.spawn(move || {
-				// startup delay.
-				thread::sleep(Duration::from_secs(5));
+				thread::sleep(INITIAL_DELAY);
 
 				loop {
 					// see if we are in shutdown.
 					if shutdown.load(Ordering::Acquire) {
-						trace!(target: "shutdown", "CliqueStepService: received shutdown signal!");
+						trace!(target: "shutdown", "StepService: received shutdown signal!");
 						break;
 					}
 
-					trace!(target: "miner", "CliqueStepService: triggering sealing");
+					trace!(target: "miner", "StepService: triggering sealing");
 
 					// Try sealing
 					engine.upgrade().map(|x| x.step());
 
 					// Yield
-					thread::sleep(Duration::from_millis(2000));
+					thread::sleep(SEALING_FREQ);
 				}
-				trace!(target: "shutdown", "CliqueStepService: exited loop, shutdown.");
-			}).expect("CliqueStepService thread failed");
-
+			}).expect("StepService thread failed");
 		*self.thread.write() = Some(thr);
 	}
+}
 
-	/// Stop the `StepService`
-	pub fn stop(&self) {
-		trace!(target: "shutdown", "CliqueStepService: signalling shutting to stepping thread.");
+impl Drop for StepService {
+	fn drop(&mut self) {
 		self.shutdown.store(true, Ordering::Release);
 		if let Some(t) = self.thread.write().take() {
-			t.join().expect("CliqueStepService thread panicked!");
+			t.join().expect("StepService thread panicked!");
 		}
 	}
 }
