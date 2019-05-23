@@ -61,7 +61,7 @@
 use std::cmp;
 use std::collections::HashMap;
 use std::collections::VecDeque;
-use std::sync::{Arc, Weak};
+use std::sync::{Arc, Weak, atomic::{AtomicBool, Ordering}};
 use std::thread;
 use std::time;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
@@ -89,11 +89,9 @@ use time_utils::CheckedSystemTime;
 
 use self::block_state::CliqueBlockState;
 use self::params::CliqueParams;
-use self::step_service::StepService;
 
 mod params;
 mod block_state;
-mod step_service;
 mod util;
 
 // TODO(niklasad1): extract tester types into a separate mod to be shared in the code base
@@ -168,7 +166,7 @@ pub struct Clique {
 	block_state_by_hash: RwLock<LruCache<H256, CliqueBlockState>>,
 	proposals: RwLock<HashMap<Address, VoteType>>,
 	signer: RwLock<Option<Box<EngineSigner>>>,
-	step_service: StepService,
+	shutdown_stepping: Arc<AtomicBool>,
 }
 
 #[cfg(test)]
@@ -181,15 +179,23 @@ pub struct Clique {
 	pub block_state_by_hash: RwLock<LruCache<H256, CliqueBlockState>>,
 	pub proposals: RwLock<HashMap<Address, VoteType>>,
 	pub signer: RwLock<Option<Box<EngineSigner>>>,
-	pub step_service: StepService,
+	pub shutdown_stepping: Arc<AtomicBool>,
+}
+
+impl Drop for Clique {
+	fn drop(&mut self) {
+		self.shutdown_stepping.store(true, Ordering::Release);
+	}
 }
 
 impl Clique {
 	/// Initialize Clique engine from empty state.
 	pub fn new(params: CliqueParams, machine: EthereumMachine) -> Result<Arc<Self>, Error> {
-		if params.period == 0 {
-			return Err("bad params: period can not be 0".into());
-		}
+		/// Pause before starting to step Clique
+		const INITIAL_DELAY: Duration = Duration::from_secs(5);
+		/// Step Clique at most every 2 seconds
+		const SEALING_FREQ: Duration = Duration::from_secs(2);
+
 		let engine = Clique {
 			epoch_length: params.epoch,
 			period: params.period,
@@ -198,11 +204,27 @@ impl Clique {
 			proposals: Default::default(),
 			signer: Default::default(),
 			machine,
-			step_service: StepService::new(),
+			shutdown_stepping: Arc::new(AtomicBool::new(false)),
 		};
 		let engine = Arc::new(engine);
 		let weak_eng = Arc::downgrade(&engine);
-		engine.step_service.start(weak_eng);
+		let shutdown = engine.shutdown_stepping.clone();
+		thread::Builder::new().name("StepService".into())
+			.spawn(move || {
+				thread::sleep(INITIAL_DELAY);
+				loop {
+					// Check if we are in shutdown.
+					if shutdown.load(Ordering::Acquire) {
+						trace!(target: "shutdown", "StepService: received shutdown signal!");
+						break;
+					}
+					trace!(target: "miner", "StepService: triggering sealing");
+					// Try sealing
+					weak_eng.upgrade().map(|x| x.step());
+					// Yield
+					thread::sleep(SEALING_FREQ);
+				}
+			})?;
 		Ok(engine)
 	}
 
