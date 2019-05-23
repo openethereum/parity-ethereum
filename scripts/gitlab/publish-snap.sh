@@ -3,9 +3,9 @@
 set -e # fail on any error
 set -u # treat unset variables as error
 
+# prepare variables
 TRACK=$(cat ./tools/TRACK)
 echo "Track is: ${TRACK}"
-# prepare variables
 VERSION=$(cat ./tools/VERSION)
 SNAP_PACKAGE="parity_"$VERSION"_"$BUILD_ARCH".snap"
 # Choose snap release channel based on parity ethereum version track

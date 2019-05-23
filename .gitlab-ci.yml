@@ -73,8 +73,6 @@ variables:
       tee ./tools/VERSION
     - echo "$(sed -r -n '1,/^track/s/^track\s*=\s*"([^"]+)".*$/\1/p' ./util/version/Cargo.toml)" |
       tee ./tools/TRACK
-    - ls -la
-    - ls -la tools
 
 
 cargo-check 0 3:
@@ -98,11 +96,11 @@ cargo-check 2 3:
     - time cargo check --target $CARGO_TARGET --locked --manifest-path util/io/Cargo.toml --features "mio" --verbose --color=always
     - sccache -s
 
-# cargo-audit:
-#   stage:                           test
-#   <<:                              *docker-cache-status
-#   script:
-#     - cargo audit
+cargo-audit:
+  stage:                           test
+  <<:                              *docker-cache-status
+  script:
+    - cargo audit
 
 validate-chainspecs:
   stage:                           test
@@ -111,19 +109,19 @@ validate-chainspecs:
     - ./scripts/gitlab/validate-chainspecs.sh
     - sccache -s
 
-# test-cpp:
-#   stage:                           build
-#   <<:                              *docker-cache-status
-#   script:
-#     - ./scripts/gitlab/test-cpp.sh
-#     - sccache -s
+test-cpp:
+  stage:                           build
+  <<:                              *docker-cache-status
+  script:
+    - ./scripts/gitlab/test-cpp.sh
+    - sccache -s
 
-# test-linux:
-#   stage:                           build
-#   <<:                              *docker-cache-status
-#   script:
-#     - ./scripts/gitlab/test-linux.sh stable
-#     - sccache -s
+test-linux:
+  stage:                           build
+  <<:                              *docker-cache-status
+  script:
+    - ./scripts/gitlab/test-linux.sh stable
+    - sccache -s
 
 test-linux-beta:
   stage:                           build
@@ -142,15 +140,15 @@ test-linux-nightly:
     - sccache -s
   allow_failure:                   true
 
-# build-android:
-  # <<:                              *build-on-linux
-  # image:                           parity/rust-parity-ethereum-android-build:stretch
-  # variables:
-  #   CARGO_TARGET:                  armv7-linux-androideabi
+build-android:
+  <<:                              *build-on-linux
+  image:                           parity/rust-parity-ethereum-android-build:stretch
+  variables:
+    CARGO_TARGET:                  armv7-linux-androideabi
 
 build-linux:
   <<:                              *build-on-linux
-  # only:                            *releaseable_branches
+  only:                            *releaseable_branches
 
 build-linux-i386:
   <<:                              *build-on-linux
@@ -210,7 +208,7 @@ publish-docker:
   environment:
     name: parity-build
   cache:                           {}
-  # only:                            *releaseable_branches
+  only:                            *releaseable_branches
   except:
     variables:
       - $SCHEDULE_TAG == "nightly"
@@ -221,15 +219,15 @@ publish-docker:
     DOCKER_HOST:                   tcp://localhost:2375
     DOCKER_DRIVER:                 overlay2
     GIT_STRATEGY:                  none
-    # DOCKERFILE:                  tools/Dockerfile
+    # DOCKERFILE:                  tools/parity.Dockerfile # tools/ethereum.Dockerfile
     # CONTAINER_IMAGE:             parity/parity 
   script:
     # we stopped pushing nightlies to dockerhub, will push to own registry prb.
     - ./tools/publish-docker.sh
 
 publish-snap:                      &publish-snap
-  <<:                              *no_git
   stage:                           publish
+  <<:                              *no_git
   only:                            *releaseable_branches
   image:                           snapcore/snapcraft
   variables:
