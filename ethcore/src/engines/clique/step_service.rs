@@ -20,6 +20,7 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::Duration;
 use std::thread;
 use std::sync::Arc;
+use parking_lot::RwLock;
 
 use engines::Engine;
 use machine::Machine;
@@ -27,16 +28,21 @@ use machine::Machine;
 /// Service that is managing the engine
 pub struct StepService {
 	shutdown: Arc<AtomicBool>,
-	thread: Option<thread::JoinHandle<()>>,
+	thread: RwLock<Option<thread::JoinHandle<()>>>,
 }
 
 impl StepService {
-	/// Start the `StepService`
-	pub fn start<M: Machine + 'static>(engine: Weak<Engine<M>>) -> Arc<Self> {
+	/// Create a new StepService without spawning a sealing thread.
+	pub fn new() -> Self {
 		let shutdown = Arc::new(AtomicBool::new(false));
-		let s = shutdown.clone();
+		StepService { shutdown, thread: RwLock::new(None) }
+	}
 
-		let thread = thread::Builder::new()
+	/// Start the StepService: spawns a thread that loops and triggers a sealing operation every 2sec.
+	pub fn start<M: Machine + 'static>(&self, engine: Weak<Engine<M>>) {
+		let shutdown = self.shutdown.clone();
+
+		let thr = thread::Builder::new()
 			.name("CliqueStepService".into())
 			.spawn(move || {
 				// startup delay.
@@ -45,8 +51,8 @@ impl StepService {
 				loop {
 					// see if we are in shutdown.
 					if shutdown.load(Ordering::Acquire) {
-							trace!(target: "miner", "CliqueStepService: received shutdown signal!");
-							break;
+						trace!(target: "shutdown", "CliqueStepService: received shutdown signal!");
+						break;
 					}
 
 					trace!(target: "miner", "CliqueStepService: triggering sealing");
@@ -57,20 +63,17 @@ impl StepService {
 					// Yield
 					thread::sleep(Duration::from_millis(2000));
 				}
-				trace!(target: "miner", "CliqueStepService: shutdown.");
+				trace!(target: "shutdown", "CliqueStepService: exited loop, shutdown.");
 			}).expect("CliqueStepService thread failed");
 
-		Arc::new(StepService {
-			shutdown: s,
-			thread: Some(thread),
-		})
+		*self.thread.write() = Some(thr);
 	}
 
 	/// Stop the `StepService`
-	pub fn stop(&mut self) {
-		trace!(target: "miner", "CliqueStepService: shutting down.");
+	pub fn stop(&self) {
+		trace!(target: "shutdown", "CliqueStepService: signalling shutting to stepping thread.");
 		self.shutdown.store(true, Ordering::Release);
-		if let Some(t) = self.thread.take() {
+		if let Some(t) = self.thread.write().take() {
 			t.join().expect("CliqueStepService thread panicked!");
 		}
 	}
