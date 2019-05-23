@@ -668,21 +668,6 @@ impl BlockChain {
 		self.db.key_value().read_with_cache(db::COL_EXTRA, &self.block_details, parent).map_or(false, |d| d.children.contains(hash))
 	}
 
-	/// fetches the list of blocks from best block to n, and n's parent hash
-	/// where n > 0
-	pub fn block_headers_from_best_block(&self, n: u32) -> Option<(Vec<encoded::Header>, H256)> {
-		let mut blocks = Vec::with_capacity(n as usize);
-		let mut hash = self.best_block_hash();
-
-		for _ in 0..n {
-			let current_hash = self.block_header_data(&hash)?;
-			hash = current_hash.parent_hash();
-			blocks.push(current_hash);
-		}
-
-		Some((blocks, hash))
-	}
-
 	/// Returns a tree route between `from` and `to`, which is a tuple of:
 	///
 	/// - a vector of hashes of all blocks, ordered from `from` to `to`.
@@ -867,6 +852,14 @@ impl BlockChain {
 			}, is_best);
 			true
 		}
+	}
+
+	/// clears all caches for testing purposes
+	pub fn clear_cache(&self) {
+		self.block_bodies.write().clear();
+		self.block_details.write().clear();
+		self.block_hashes.write().clear();
+		self.block_headers.write().clear();
 	}
 
 	/// Update the best ancient block to the given hash, after checking that
