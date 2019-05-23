@@ -39,6 +39,7 @@ mod codes {
 	pub const NO_NEW_WORK: i64 = -32003;
 	pub const NO_WORK_REQUIRED: i64 = -32004;
 	pub const CANNOT_SUBMIT_WORK: i64 = -32005;
+	pub const CANNOT_SUBMIT_BLOCK: i64 = -32006;
 	pub const UNKNOWN_ERROR: i64 = -32009;
 	pub const TRANSACTION_ERROR: i64 = -32010;
 	pub const EXECUTION_ERROR: i64 = -32015;
@@ -243,6 +244,14 @@ pub fn unavailable_block(no_ancient_block: bool, by_hash: bool) -> Error {
 			message: "Requested block number is in a range that is not available yet, because the ancient block sync is still in progress.".into(),
 			data: None,
 		}
+	}
+}
+
+pub fn cannot_submit_block(err: EthcoreError) -> Error {
+	Error {
+		code: ErrorCode::ServerError(codes::CANNOT_SUBMIT_BLOCK),
+		message: "Cannot submit block.".into(),
+		data: Some(Value::String(err.to_string())),
 	}
 }
 

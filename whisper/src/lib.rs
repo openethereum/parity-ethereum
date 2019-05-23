@@ -20,7 +20,6 @@
 #![cfg_attr(feature = "time_checked_add", feature(time_checked_add))]
 
 extern crate byteorder;
-extern crate parity_crypto as crypto;
 extern crate ethcore_network as network;
 extern crate ethereum_types;
 extern crate ethkey;
@@ -29,6 +28,7 @@ extern crate memzero;
 extern crate ordered_float;
 extern crate parking_lot;
 extern crate rand;
+extern crate ring;
 extern crate rlp;
 extern crate serde;
 extern crate slab;
@@ -60,3 +60,5 @@ pub use self::net::{Network, MessageHandler};
 pub mod message;
 pub mod net;
 pub mod rpc;
+
+mod aes_gcm;
