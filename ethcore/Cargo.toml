@@ -71,6 +71,7 @@ unexpected = { path = "../util/unexpected" }
 using_queue = { path = "../miner/using-queue" }
 vm = { path = "vm" }
 wasm = { path = "wasm" }
+rand_xorshift = "0.1.1"
 
 [dev-dependencies]
 blooms-db = { path = "../util/blooms-db" }

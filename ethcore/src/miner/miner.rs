@@ -1737,7 +1737,6 @@ mod tests {
 
 	#[cfg(feature = "price-info")]
 	fn dynamic_gas_pricer() -> GasPricer {
-		use std::time::Duration;
 		use parity_runtime::Executor;
 		use fetch::Client as FetchClient;
 		use ethcore_miner::gas_price_calibrator::{GasPriceCalibrator, GasPriceCalibratorOptions};
