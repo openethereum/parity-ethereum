@@ -249,6 +249,12 @@ pub mod tests {
 		}
 	}
 
+	fn h256_from_short_str(s: &str) -> H256 {
+		let mut bytes = s.as_bytes().to_vec();
+		bytes.resize(32usize, 0u8);
+		H256::from_slice(bytes.as_ref())
+	}
+
 	#[test]
 	fn should_call_registrar_and_urlhint_contracts() {
 		// given
@@ -263,7 +269,7 @@ pub mod tests {
 		let urlhint = URLHintContract::new(Arc::new(registrar));
 
 		// when
-		let res = urlhint.resolve("test".as_bytes().into()).wait().unwrap();
+		let res = urlhint.resolve(h256_from_short_str("test")).wait().unwrap();
 		let calls = calls.lock();
 		let call0 = calls.get(0).expect("Registrar resolve called");
 		let call1 = calls.get(1).expect("URLHint Resolve called");
@@ -291,7 +297,7 @@ pub mod tests {
 		let urlhint = URLHintContract::new(Arc::new(registrar));
 
 		// when
-		let res = urlhint.resolve("test".as_bytes().into()).wait().unwrap();
+		let res = urlhint.resolve(h256_from_short_str("test")).wait().unwrap();
 
 		// then
 		assert_eq!(res, Some(URLHintResult::Dapp(GithubApp {
@@ -313,7 +319,7 @@ pub mod tests {
 		let urlhint = URLHintContract::new(Arc::new(registrar));
 
 		// when
-		let res = urlhint.resolve("test".as_bytes().into()).wait().unwrap();
+		let res = urlhint.resolve(h256_from_short_str("test")).wait().unwrap();
 
 		// then
 		assert_eq!(res, Some(URLHintResult::Content(Content {
