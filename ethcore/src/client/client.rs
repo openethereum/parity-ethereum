@@ -60,7 +60,7 @@ use client::{
 	IoClient, BadBlocks,
 };
 use client::bad_blocks;
-use engines::{MAX_UNCLE_AGE, EthEngine, EpochTransition, ForkChoice, EngineError};
+use engines::{MAX_UNCLE_AGE, EthEngine, EpochTransition, ForkChoice, EngineError, SealingState};
 use engines::epoch::PendingTransition;
 use error::{
 	ImportError, ExecutionError, CallError, BlockError,
@@ -2431,7 +2431,7 @@ impl ImportSealedBlock for Client {
 			&[],
 			route.enacted(),
 			route.retracted(),
-			self.engine.seals_internally().is_some(),
+			self.engine.sealing_state() != SealingState::External,
 		);
 		self.notify(|notify| {
 			notify.new_blocks(
