@@ -183,8 +183,6 @@ pub struct Clique {
 impl Clique {
 	/// Initialize Clique engine from empty state.
 	pub fn new(params: CliqueParams, machine: EthereumMachine) -> Result<Arc<Self>, Error> {
-		/// Pause before starting to step Clique
-		const INITIAL_DELAY: Duration = Duration::from_secs(5);
 		/// Step Clique at most every 2 seconds
 		const SEALING_FREQ: Duration = Duration::from_secs(2);
 
@@ -202,7 +200,6 @@ impl Clique {
 
 		thread::Builder::new().name("StepService".into())
 			.spawn(move || {
-				thread::sleep(INITIAL_DELAY);
 				loop {
  					let next_step_at = Instant::now() + SEALING_FREQ;
 					trace!(target: "miner", "StepService: triggering sealing");
