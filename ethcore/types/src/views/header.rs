@@ -120,8 +120,9 @@ impl<'a> HeaderView<'a> {
 #[cfg(test)]
 mod tests {
 	use rustc_hex::FromHex;
-	use ethereum_types::Bloom;
+	use ethereum_types::{Bloom, H256, Address};
 	use super::HeaderView;
+	use std::str::FromStr;
 
 	#[test]
 	fn test_header_view() {
@@ -131,13 +132,13 @@ mod tests {
 		let nonce = "88ab4e252a7e8c2a23".from_hex().unwrap();
 
 		let view = view!(HeaderView, &rlp);
-		assert_eq!(view.hash(), "2c9747e804293bd3f1a986484343f23bc88fd5be75dfe9d5c2860aff61e6f259".into());
-		assert_eq!(view.parent_hash(), "d405da4e66f1445d455195229624e133f5baafe72b5cf7b3c36c12c8146e98b7".into());
-		assert_eq!(view.uncles_hash(), "1dcc4de8dec75d7aab85b567b6ccd41ad312451b948a7413f0a142fd40d49347".into());
-		assert_eq!(view.author(), "8888f1f195afa192cfee860698584c030f4c9db1".into());
-		assert_eq!(view.state_root(), "5fb2b4bfdef7b314451cb138a534d225c922fc0e5fbe25e451142732c3e25c25".into());
-		assert_eq!(view.transactions_root(), "88d2ec6b9860aae1a2c3b299f72b6a5d70d7f7ba4722c78f2c49ba96273c2158".into());
-		assert_eq!(view.receipts_root(), "07c6fdfa8eea7e86b81f5b0fc0f78f90cc19f4aa60d323151e0cac660199e9a1".into());
+		assert_eq!(view.hash(), H256::from_str("2c9747e804293bd3f1a986484343f23bc88fd5be75dfe9d5c2860aff61e6f259").unwrap());
+		assert_eq!(view.parent_hash(), H256::from_str("d405da4e66f1445d455195229624e133f5baafe72b5cf7b3c36c12c8146e98b7").unwrap());
+		assert_eq!(view.uncles_hash(), H256::from_str("1dcc4de8dec75d7aab85b567b6ccd41ad312451b948a7413f0a142fd40d49347").unwrap());
+		assert_eq!(view.author(), Address::from_str("8888f1f195afa192cfee860698584c030f4c9db1").unwrap());
+		assert_eq!(view.state_root(), H256::from_str("5fb2b4bfdef7b314451cb138a534d225c922fc0e5fbe25e451142732c3e25c25").unwrap());
+		assert_eq!(view.transactions_root(), H256::from_str("88d2ec6b9860aae1a2c3b299f72b6a5d70d7f7ba4722c78f2c49ba96273c2158").unwrap());
+		assert_eq!(view.receipts_root(), H256::from_str("07c6fdfa8eea7e86b81f5b0fc0f78f90cc19f4aa60d323151e0cac660199e9a1").unwrap());
 		assert_eq!(view.log_bloom(), Bloom::default());
 		assert_eq!(view.difficulty(), 0x020080.into());
 		assert_eq!(view.number(), 3);
