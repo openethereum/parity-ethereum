@@ -14,7 +14,6 @@ vm = { path = "../vm" }
 keccak-hash = { git = "https://github.com/ordian/parity-common" }
 parking_lot = "0.7"
 memory-cache = { path = "../../util/memory-cache" }
-num-bigint = "0.2"
 
 [dev-dependencies]
 rustc-hex = "1.0"
