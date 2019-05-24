@@ -104,13 +104,13 @@ mod test {
 		let s = r#"["", "5a39ed1020c04d4d84539975b893a4e7c53eab6c2965db8bc3468093a31bc5ae"]"#;
 		let deserialized: Vec<H256> = serde_json::from_str(s).unwrap();
 		assert_eq!(deserialized, vec![
-				   H256(ethereum_types::H256::from(0)),
+				   H256(ethereum_types::H256::zero()),
 				   H256(ethereum_types::H256::from_str("5a39ed1020c04d4d84539975b893a4e7c53eab6c2965db8bc3468093a31bc5ae").unwrap())
 		]);
 	}
 
 	#[test]
 	fn hash_into() {
-		assert_eq!(ethereum_types::H256::from(0), H256(ethereum_types::H256::from(0)).into());
+		assert_eq!(ethereum_types::H256::zero(), H256(ethereum_types::H256::zero()).into());
 	}
 }
