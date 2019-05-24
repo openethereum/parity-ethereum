@@ -177,11 +177,11 @@ impl<F: Fetch + 'static> HashFetch for Client<F> {
 }
 
 fn random_temp_path() -> PathBuf {
-	use ::rand::Rng;
+	use rand::{Rng, rngs::OsRng, distributions::Alphanumeric};
 	use ::std::env;
 
-	let mut rng = ::rand::OsRng::new().expect("Reliable random source is required to work.");
-	let file: String = rng.gen_ascii_chars().take(12).collect();
+	let mut rng = OsRng::new().expect("Reliable random source is required to work.");
+	let file: String = rng.sample_iter(&Alphanumeric).take(12).collect();
 
 	let mut path = env::temp_dir();
 	path.push(file);

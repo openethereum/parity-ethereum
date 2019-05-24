@@ -14,7 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
-use rand::{Rng, OsRng};
+use rand::{Rng, RngCore, rngs::OsRng, distributions::Alphanumeric};
 
 pub trait Random {
 	fn random() -> Self where Self: Sized;
@@ -41,5 +41,5 @@ impl Random for [u8; 32] {
 /// Generate a random string of given length.
 pub fn random_string(length: usize) -> String {
 	let mut rng = OsRng::new().expect("Not able to operate without random source.");
-	rng.gen_ascii_chars().take(length).collect()
+	rng.sample_iter(&Alphanumeric).take(length).collect()
 }

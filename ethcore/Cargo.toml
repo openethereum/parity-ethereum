@@ -55,7 +55,7 @@ parity-snappy = "0.1"
 parking_lot = "0.7"
 trie-db = "0.11.0"
 patricia-trie-ethereum = { path = "../util/patricia-trie-ethereum" }
-rand = "0.4"
+rand = "0.6"
 rayon = "1.0"
 rlp = { git = "https://github.com/ordian/parity-common" }
 rlp_derive = { path = "../util/rlp-derive" }
@@ -63,7 +63,7 @@ rustc-hex = "1.0"
 serde = "1.0"
 serde_derive = "1.0"
 stats = { path = "../util/stats" }
-tempdir = {version="0.3", optional = true}
+tempdir = { version = "0.3", optional = true }
 time-utils = { path = "../util/time-utils" }
 trace-time = "0.1"
 triehash-ethereum = { version = "0.2",  path = "../util/triehash-ethereum" }

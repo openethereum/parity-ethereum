@@ -51,7 +51,7 @@ use super::state_db::StateDB;
 use super::state::Account as StateAccount;
 
 use crossbeam::scope;
-use rand::{Rng, OsRng};
+use rand::{Rng, rngs::OsRng};
 
 pub use self::error::Error;
 

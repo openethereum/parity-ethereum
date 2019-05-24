@@ -113,7 +113,7 @@ use ethcore::snapshot::{RestorationStatus};
 use sync_io::SyncIo;
 use super::{WarpSync, SyncConfig};
 use block_sync::{BlockDownloader, DownloadAction};
-use rand::Rng;
+use rand::{Rng, seq::SliceRandom};
 use snapshot::{Snapshot};
 use api::{EthProtocolInfo as PeerInfoDigest, WARP_SYNC_PROTOCOL_ID, PriorityTask};
 use private_tx::PrivateTxHandler;
@@ -360,7 +360,7 @@ impl PeerInfo {
 #[cfg(not(test))]
 pub mod random {
 	use rand;
-	pub fn new() -> rand::ThreadRng { rand::thread_rng() }
+	pub fn new() -> rand::rngs::ThreadRng { rand::thread_rng() }
 }
 #[cfg(test)]
 pub mod random {
@@ -559,7 +559,7 @@ impl ChainSync {
 		let mut count = (peers.len() as f64).powf(0.5).round() as usize;
 		count = cmp::min(count, MAX_PEERS_PROPAGATION);
 		count = cmp::max(count, MIN_PEERS_PROPAGATION);
-		random::new().shuffle(&mut peers);
+		peers.shuffle(&mut random::new());
 		peers.truncate(count);
 		peers
 	}
@@ -908,7 +908,7 @@ impl ChainSync {
 					self.active_peers.len(), peers.len(), self.peers.len()
 				);
 
-				random::new().shuffle(&mut peers); // TODO (#646): sort by rating
+				peers.shuffle(&mut random::new()); // TODO (#646): sort by rating
 				// prefer peers with higher protocol version
 				peers.sort_by(|&(_, ref v1), &(_, ref v2)| v1.cmp(v2));
 

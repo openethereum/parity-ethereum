@@ -15,7 +15,7 @@
 // along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
 use std::collections::BTreeSet;
-use rand::{Rng, OsRng};
+use rand::{RngCore, rngs::OsRng};
 use ethereum_types::{H256, H512};
 use ethkey::{self, Public, Secret, Random, Generator, math};
 use crypto;

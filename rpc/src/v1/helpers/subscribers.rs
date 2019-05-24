@@ -20,7 +20,7 @@ use std::{ops, str};
 use std::collections::HashMap;
 use jsonrpc_pubsub::{typed::{Subscriber, Sink}, SubscriptionId};
 use ethereum_types::H64;
-use rand::{Rng, StdRng};
+use rand::{RngCore, rngs::EntropyRng};
 
 #[derive(Debug, Clone, Hash, Eq, PartialEq)]
 pub struct Id(H64);
@@ -42,16 +42,15 @@ impl Id {
 	}
 }
 
-#[derive(Clone)]
 pub struct Subscribers<T> {
-	rand: StdRng,
+	rand: EntropyRng,
 	subscriptions: HashMap<Id, T>,
 }
 
 impl<T> Default for Subscribers<T> {
 	fn default() -> Self {
 		Subscribers {
-			rand: StdRng::new().expect("Valid random source is required."),
+			rand: EntropyRng::new(),
 			subscriptions: HashMap::new(),
 		}
 	}

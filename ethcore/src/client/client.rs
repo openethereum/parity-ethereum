@@ -33,7 +33,7 @@ use itertools::Itertools;
 use journaldb;
 use kvdb::{DBValue, KeyValueDB, DBTransaction};
 use parking_lot::{Mutex, RwLock};
-use rand::OsRng;
+use rand::rngs::OsRng;
 use types::transaction::{self, LocalizedTransaction, UnverifiedTransaction, SignedTransaction, Action};
 use trie::{TrieSpec, TrieFactory, Trie};
 use types::ancestry_action::AncestryAction;
@@ -456,7 +456,7 @@ impl Importer {
 		{
 			trace_time!("import_old_block");
 			// verify the block, passing the chain for updating the epoch verifier.
-			let mut rng = OsRng::new()?;
+			let mut rng = OsRng::new().map_err(|e| format!("{}", e))?;
 			self.ancient_verifier.verify(&mut rng, &unverified.header, &chain)?;
 
 			// Commit results
