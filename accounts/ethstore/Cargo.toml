@@ -26,5 +26,6 @@ lazy_static = "1.2.0"
 
 [dev-dependencies]
 matches = "0.1"
+ethereum-types = { git = "https://github.com/ordian/parity-common" }
 
 [lib]

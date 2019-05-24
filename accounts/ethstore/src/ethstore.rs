@@ -1090,7 +1090,7 @@ mod tests {
 			SecretVaultRef::Root,
 			&address,
 			&"test".into(),
-			Derivation::HardHash(H256::from(0)),
+			Derivation::HardHash(H256::zero()),
 		).unwrap();
 
 		// there should be 2 accounts in the store
