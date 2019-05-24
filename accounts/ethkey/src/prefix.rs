@@ -54,6 +54,6 @@ mod tests {
 	fn prefix_generator() {
 		let prefix = vec![0xffu8];
 		let keypair = Prefix::new(prefix.clone(), usize::max_value()).generate().unwrap();
-		assert!(keypair.address().starts_with(&prefix));
+		assert!(keypair.address().as_bytes().starts_with(&prefix));
 	}
 }
