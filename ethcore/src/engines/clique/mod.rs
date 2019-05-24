@@ -64,7 +64,7 @@ use std::collections::VecDeque;
 use std::sync::{Arc, Weak};
 use std::thread;
 use std::time;
-use std::time::{Duration, SystemTime, UNIX_EPOCH};
+use std::time::{Instant, Duration, SystemTime, UNIX_EPOCH};
 
 use block::ExecutedBlock;
 use client::{BlockId, EngineClient};
@@ -204,9 +204,18 @@ impl Clique {
 			.spawn(move || {
 				thread::sleep(INITIAL_DELAY);
 				loop {
+ 					let next_step_at = Instant::now() + SEALING_FREQ;
 					trace!(target: "miner", "StepService: triggering sealing");
-					weak_eng.upgrade().map(|x| x.step());
-					thread::sleep(SEALING_FREQ);
+					if let Some(eng) = weak_eng.upgrade() { eng.step() }
+					else {
+						warn!(target: "shutdown", "StepService: engine is dropped; exiting.");
+						break;
+					}
+
+					let now = Instant::now();
+					if now < next_step_at {
+						thread::sleep(next_step_at - now);
+					}
 				}
 			})?;
 		Ok(engine)
