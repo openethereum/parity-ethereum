@@ -970,7 +970,7 @@ mod tests {
 			}
 		}
 
-		let results = discovery_handlers[0].nearest_node_entries(&NodeId::new());
+		let results = discovery_handlers[0].nearest_node_entries(&NodeId::zero());
 		assert_eq!(results.len(), 4);
 	}
 
@@ -1073,10 +1073,10 @@ mod tests {
 		let mut discovery = Discovery::new(&key, ep.clone(), IpFilter::default());
 
 		for _ in 0..(16 + 10) {
-			let entry = BucketEntry::new(NodeEntry { id: NodeId::new(), endpoint: ep.clone() });
+			let entry = BucketEntry::new(NodeEntry { id: NodeId::zero(), endpoint: ep.clone() });
 			discovery.node_buckets[0].nodes.push_back(entry);
 		}
-		let nearest = discovery.nearest_node_entries(&NodeId::new());
+		let nearest = discovery.nearest_node_entries(&NodeId::zero());
 		assert_eq!(nearest.len(), 16)
 	}
 

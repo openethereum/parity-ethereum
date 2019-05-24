@@ -497,14 +497,14 @@ pub fn test_encryption() {
 	let after = H128::from_str("89464c6b04e7c99e555c81d3f7266a05").unwrap();
 	let after2 = H128::from_str("85c070030589ef9c7a2879b3a8489316").unwrap();
 
-	let mut got = H128::new();
+	let mut got = H128::zero();
 
-	let mut encoder = EcbEncryptor::new(AesSafe256Encryptor::new(&key), NoPadding);
-	encoder.encrypt(&mut RefReadBuffer::new(&before), &mut RefWriteBuffer::new(&mut got), true).unwrap();
+	let mut encoder = EcbEncryptor::new(AesSafe256Encryptor::new(key.as_bytes()), NoPadding);
+	encoder.encrypt(&mut RefReadBuffer::new(before.as_bytes()), &mut RefWriteBuffer::new(got.as_bytes_mut()), true).unwrap();
 	encoder.reset();
 	assert_eq!(got, after);
-	got = H128::new();
-	encoder.encrypt(&mut RefReadBuffer::new(&before2), &mut RefWriteBuffer::new(&mut got), true).unwrap();
+	got = H128::zero();
+	encoder.encrypt(&mut RefReadBuffer::new(before2.as_bytes()), &mut RefWriteBuffer::new(got.as_bytes_mut()), true).unwrap();
 	encoder.reset();
 	assert_eq!(got, after2);
 }

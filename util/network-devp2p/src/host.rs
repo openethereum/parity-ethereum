@@ -1223,7 +1223,8 @@ fn save_key(path: &Path, key: &Secret) {
 	if let Err(e) = restrict_permissions_owner(path, true, false) {
 		warn!(target: "network", "Failed to modify permissions of the file ({})", e);
 	}
-	if let Err(e) = file.write(&format!("{:x}", key).into_bytes()[2..]) {
+	// TODO: verify
+	if let Err(e) = file.write(&format!("{:x}", key).into_bytes()) {
 		warn!("Error writing key file: {:?}", e);
 	}
 }
