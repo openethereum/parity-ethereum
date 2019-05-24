@@ -360,9 +360,10 @@ mod tests {
 	#[test]
 	fn test_hash_data() {
 		let typed_data = from_str::<EIP712>(JSON).expect("alas error!");
+		let hash = hash_structured_data(typed_data).expect("alas error!");
 		assert_eq!(
-			hash_structured_data(typed_data).expect("alas error!").to_hex::<String>(),
-			"be609aee343fb3c4b28e1df9e632fca64fcfaede20f02e86244efddf30957bd2"
+			&format!("{:x}", hash)[..],
+			"be609aee343fb3c4b28e1df9e632fca64fcfaede20f02e86244efddf30957bd2",
 		)
 	}
 
