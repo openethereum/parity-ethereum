@@ -146,9 +146,9 @@ mod tests {
 	fn test_file() {
 		let tempdir = TempDir::new("").unwrap();
 		let mut file = File::open(tempdir.path().join("file")).unwrap();
-		file.accrue_bloom(0, &Bloom::from(1)).unwrap();
+		file.accrue_bloom(0, &Bloom::from_low_u64_be(1)).unwrap();
 		file.flush().unwrap();
-		assert_eq!(file.read_bloom(0).unwrap(), Bloom::from(1));
+		assert_eq!(file.read_bloom(0).unwrap(), Bloom::from_low_u64_be(1));
 
 	}
 }
