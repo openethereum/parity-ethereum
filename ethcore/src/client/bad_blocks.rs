@@ -22,6 +22,7 @@ use itertools::Itertools;
 use memory_cache::MemoryLruCache;
 use parking_lot::RwLock;
 use verification::queue::kind::blocks::Unverified;
+use client::BlockChainReset;
 
 /// Recently seen bad blocks.
 pub struct BadBlocks {
@@ -41,7 +42,7 @@ impl BadBlocks {
 	pub fn report(&self, raw: Bytes, message: String) {
 		match Unverified::from_rlp(raw) {
 			Ok(unverified) => {
-				error!(
+				/*error!(
 					target: "client",
 					"\nBad block detected: {}\nRLP: {}\nHeader: {:?}\nUncles: {}\nTransactions:{}\n",
 					message,
@@ -57,8 +58,10 @@ impl BadBlocks {
 						.enumerate()
 						.map(|(index, tx)| format!("[Tx {}] {:?}", index, tx))
 						.join("\n"),
-				);
+				);*/
 				self.last_blocks.write().insert(unverified.header.hash(), (unverified, message));
+				let num: u32 = 3;
+				BlockChainReset::reset(num);
 			},
 			Err(err) => {
 				error!(target: "client", "Bad undecodable block detected: {}\n{:?}", message, err);

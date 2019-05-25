@@ -364,7 +364,7 @@ impl Importer {
 		let parent = match client.block_header_decoded(BlockId::Hash(*header.parent_hash())) {
 			Some(h) => h,
 			None => {
-				warn!(target: "client", "Block import failed for #{} ({}): Parent not found ({}) ", header.number(), header.hash(), header.parent_hash());
+				warn!(target: "client", "Block import failed for #{} ({}): Parent not found ({})", header.number(), header.hash(), header.parent_hash());
 				return Err("Parent not found".into());
 			}
 		};
@@ -383,13 +383,13 @@ impl Importer {
 		);
 
 		if let Err(e) = verify_family_result {
-			warn!(target: "client", "Stage 3 block verification failed for #{} ({})\nError: {:?}", header.number(), header.hash(), e);
+			warn!(target: "client", "Stage 3 block verification failed for #{} ({})", header.number(), header.hash());
 			return Err(e.into());
 		};
 
 		let verify_external_result = self.verifier.verify_block_external(&header, engine);
 		if let Err(e) = verify_external_result {
-			warn!(target: "client", "Stage 4 block verification failed for #{} ({})\nError: {:?}", header.number(), header.hash(), e);
+			warn!(target: "client", "Stage 4 block verification failed for #{} ({})", header.number(), header.hash());
 			return Err(e.into());
 		};
 
@@ -414,7 +414,7 @@ impl Importer {
 		let mut locked_block = match enact_result {
 			Ok(b) => b,
 			Err(e) => {
-				warn!(target: "client", "Block import failed for #{} ({})\nError: {:?}", header.number(), header.hash(), e);
+				warn!(target: "client", "Block import failed for #{} ({})", header.number(), header.hash());
 				return Err(e.into());
 			}
 		};
@@ -430,7 +430,7 @@ impl Importer {
 
 		// Final Verification
 		if let Err(e) = self.verifier.verify_block_final(&header, &locked_block.header) {
-			warn!(target: "client", "Stage 5 block verification failed for #{} ({})\nError: {:?}", header.number(), header.hash(), e);
+			warn!(target: "client", "Stage 5 block verification failed for #{} ({})", header.number(), header.hash());
 			return Err(e.into());
 		}
 
