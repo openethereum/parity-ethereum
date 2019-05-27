@@ -2090,7 +2090,7 @@ mod tests {
 		let signature = tap.sign(addr1, Some("1".into()), header.bare_hash()).unwrap();
 
 		// empty step with invalid step
-		let empty_steps = vec![SealedEmptyStep { signature: 0.into(), step: 2 }];
+		let empty_steps = vec![SealedEmptyStep { signature: H520::zero(), step: 2 }];
 		set_empty_steps_seal(&mut header, 2, &signature, &empty_steps);
 
 		assert_insufficient_proof(
@@ -2099,7 +2099,7 @@ mod tests {
 		);
 
 		// empty step with invalid signature
-		let empty_steps = vec![SealedEmptyStep { signature: 0.into(), step: 1 }];
+		let empty_steps = vec![SealedEmptyStep { signature: H520::zero(), step: 1 }];
 		set_empty_steps_seal(&mut header, 2, &signature, &empty_steps);
 
 		assert_insufficient_proof(
@@ -2241,7 +2241,7 @@ mod tests {
 			p.maximum_empty_steps = 0;
 		});
 
-		let parent_hash: H256 = 1.into();
+		let parent_hash = H256::from_low_u64_be(1);
 		let signature = H520::default();
 		let step = |step: u64| EmptyStep {
 			step,

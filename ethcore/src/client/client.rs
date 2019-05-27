@@ -2602,6 +2602,7 @@ fn transaction_receipt(
 
 #[cfg(test)]
 mod tests {
+	use ethereum_types::{H256, Address};
 
 	#[test]
 	fn should_not_cache_details_before_commit() {
@@ -2677,19 +2678,19 @@ mod tests {
 		use types::transaction::{Transaction, LocalizedTransaction, Action};
 
 		// given
-		let key = KeyPair::from_secret_slice(&keccak("test")).unwrap();
+		let key = KeyPair::from_secret_slice(keccak("test").as_bytes()).unwrap();
 		let secret = key.secret();
 		let machine = ::ethereum::new_frontier_test_machine();
 
 		let block_number = 1;
-		let block_hash = 5.into();
-		let state_root = 99.into();
+		let block_hash = H256::from_low_u64_be(5);
+		let state_root = H256::from_low_u64_be(99);
 		let gas_used = 10.into();
 		let raw_tx = Transaction {
 			nonce: 0.into(),
 			gas_price: 0.into(),
 			gas: 21000.into(),
-			action: Action::Call(10.into()),
+			action: Action::Call(Address::from_low_u64_be(10)),
 			value: 0.into(),
 			data: vec![],
 		};
@@ -2702,11 +2703,11 @@ mod tests {
 			cached_sender: Some(tx1.sender()),
 		};
 		let logs = vec![LogEntry {
-			address: 5.into(),
+			address: Address::from_low_u64_be(5),
 			topics: vec![],
 			data: vec![],
 		}, LogEntry {
-			address: 15.into(),
+			address: Address::from_low_u64_be(15),
 			topics: vec![],
 			data: vec![],
 		}];

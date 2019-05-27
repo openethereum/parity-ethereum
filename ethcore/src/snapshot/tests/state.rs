@@ -36,11 +36,13 @@ use kvdb_rocksdb::{Database, DatabaseConfig};
 use parking_lot::Mutex;
 use tempdir::TempDir;
 
+const RNG_SEED: [u8; 16] = [1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16];
+
 #[test]
 fn snap_and_restore() {
 	use hash_db::HashDB;
 	let mut producer = StateProducer::new();
-	let mut rng = XorShiftRng::from_seed([1, 2, 3, 4]);
+	let mut rng = XorShiftRng::from_seed(RNG_SEED);
 	let mut old_db = journaldb::new_memory_db();
 	let db_cfg = DatabaseConfig::with_columns(::db::NUM_COLUMNS);
 
@@ -158,7 +160,7 @@ fn get_code_from_prev_chunk() {
 #[test]
 fn checks_flag() {
 	let mut producer = StateProducer::new();
-	let mut rng = XorShiftRng::from_seed([5, 6, 7, 8]);
+	let mut rng = XorShiftRng::from_seed(RNG_SEED);
 	let mut old_db = journaldb::new_memory_db();
 	let db_cfg = DatabaseConfig::with_columns(::db::NUM_COLUMNS);
 

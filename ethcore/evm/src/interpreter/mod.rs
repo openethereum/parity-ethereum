@@ -1189,6 +1189,7 @@ mod tests {
 	use factory::Factory;
 	use vm::{self, Exec, ActionParams, ActionValue};
 	use vm::tests::{FakeExt, test_finalize};
+	use ethereum_types::Address;
 
 	fn interpreter(params: ActionParams, ext: &vm::Ext) -> Box<Exec> {
 		Factory::new(VMType::Interpreter, 1).create(params, ext.schedule(), ext.depth())
@@ -1199,13 +1200,13 @@ mod tests {
 		let code = "7feeffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff006000527faaffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffaa6020526000620f120660406000601773945304eb96065b2a98b57a48a06ae28d285a71b56101f4f1600055".from_hex().unwrap();
 
 		let mut params = ActionParams::default();
-		params.address = 5.into();
+		params.address = Address::from_low_u64_be(5);
 		params.gas = 300_000.into();
 		params.gas_price = 1.into();
 		params.value = ActionValue::Transfer(100_000.into());
 		params.code = Some(Arc::new(code));
 		let mut ext = FakeExt::new();
-		ext.balances.insert(5.into(), 1_000_000_000.into());
+		ext.balances.insert(Address::from_low_u64_be(5), 1_000_000_000.into());
 		ext.tracing = true;
 
 		let gas_left = {
@@ -1222,12 +1223,12 @@ mod tests {
 		let code = "6001600160000360003e00".from_hex().unwrap();
 
 		let mut params = ActionParams::default();
-		params.address = 5.into();
+		params.address = Address::from_low_u64_be(5);
 		params.gas = 300_000.into();
 		params.gas_price = 1.into();
 		params.code = Some(Arc::new(code));
 		let mut ext = FakeExt::new_byzantium();
-		ext.balances.insert(5.into(), 1_000_000_000.into());
+		ext.balances.insert(Address::from_low_u64_be(5), 1_000_000_000.into());
 		ext.tracing = true;
 
 		let err = {

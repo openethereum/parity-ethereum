@@ -996,6 +996,7 @@ mod tests {
 	use tempdir::TempDir;
 	use types::view;
 	use types::views::BlockView;
+	use std::str::FromStr;
 
 	#[test]
 	fn test_load_empty() {
@@ -1009,12 +1010,12 @@ mod tests {
 
 		assert_eq!(
 			test_spec.state_root(),
-			"f3f4696bbf3b3b07775128eb7a3763279a394e382130f27c21e70233e04946a9".into()
+			H256::from_str("f3f4696bbf3b3b07775128eb7a3763279a394e382130f27c21e70233e04946a9").unwrap()
 		);
 		let genesis = test_spec.genesis_block();
 		assert_eq!(
 			view!(BlockView, &genesis).header_view().hash(),
-			"0cd786a2425d16f152c658316c423e6ce1181e15c3295826d7c9904cba9ce303".into()
+			H256::from_str("0cd786a2425d16f152c658316c423e6ce1181e15c3295826d7c9904cba9ce303").unwrap()
 		);
 	}
 
@@ -1030,8 +1031,8 @@ mod tests {
 			spec.engine.account_start_nonce(0),
 			Default::default(),
 		).unwrap();
-		let expected = "0000000000000000000000000000000000000000000000000000000000000001".into();
-		let address = "0000000000000000000000000000000000001337".into();
+		let expected = H256::from_str("0000000000000000000000000000000000000000000000000000000000000001").unwrap();
+		let address = Address::from_str("0000000000000000000000000000000000001337").unwrap();
 
 		assert_eq!(state.storage_at(&address, &H256::zero()).unwrap(), expected);
 		assert_eq!(state.balance(&address).unwrap(), 1.into());

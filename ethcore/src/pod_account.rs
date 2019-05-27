@@ -184,6 +184,7 @@ mod test {
 	use std::collections::BTreeMap;
 	use types::account_diff::*;
 	use super::{PodAccount, diff_pod};
+	use ethereum_types::H256;
 
 	#[test]
 	fn existence() {
@@ -227,24 +228,40 @@ mod test {
 			balance: 0.into(),
 			nonce: 0.into(),
 			code: Some(vec![]),
-			storage: map_into![1 => 1, 2 => 2, 3 => 3, 4 => 4, 5 => 0, 6 => 0, 7 => 0]
+			storage: map![
+				H256::from_low_u64_be(1) => H256::from_low_u64_be(1),
+				H256::from_low_u64_be(2) => H256::from_low_u64_be(2),
+				H256::from_low_u64_be(3) => H256::from_low_u64_be(3),
+				H256::from_low_u64_be(4) => H256::from_low_u64_be(4),
+				H256::from_low_u64_be(5) => H256::from_low_u64_be(0),
+				H256::from_low_u64_be(6) => H256::from_low_u64_be(0),
+				H256::from_low_u64_be(7) => H256::from_low_u64_be(0)
+			],
 		};
 		let b = PodAccount {
 			balance: 0.into(),
 			nonce: 0.into(),
 			code: Some(vec![]),
-			storage: map_into![1 => 1, 2 => 3, 3 => 0, 5 => 0, 7 => 7, 8 => 0, 9 => 9]
+			storage: map![
+				H256::from_low_u64_be(1) => H256::from_low_u64_be(1),
+				H256::from_low_u64_be(2) => H256::from_low_u64_be(3),
+				H256::from_low_u64_be(3) => H256::from_low_u64_be(0),
+				H256::from_low_u64_be(5) => H256::from_low_u64_be(0),
+				H256::from_low_u64_be(7) => H256::from_low_u64_be(7),
+				H256::from_low_u64_be(8) => H256::from_low_u64_be(0),
+				H256::from_low_u64_be(9) => H256::from_low_u64_be(9)
+			]
 		};
 		assert_eq!(diff_pod(Some(&a), Some(&b)), Some(AccountDiff {
 			balance: Diff::Same,
 			nonce: Diff::Same,
 			code: Diff::Same,
 			storage: map![
-				2.into() => Diff::new(2.into(), 3.into()),
-				3.into() => Diff::new(3.into(), 0.into()),
-				4.into() => Diff::new(4.into(), 0.into()),
-				7.into() => Diff::new(0.into(), 7.into()),
-				9.into() => Diff::new(0.into(), 9.into())
+				H256::from_low_u64_be(2) => Diff::new(H256::from_low_u64_be(2), H256::from_low_u64_be(3)),
+				H256::from_low_u64_be(3) => Diff::new(H256::from_low_u64_be(3), H256::from_low_u64_be(0)),
+				H256::from_low_u64_be(4) => Diff::new(H256::from_low_u64_be(4), H256::from_low_u64_be(0)),
+				H256::from_low_u64_be(7) => Diff::new(H256::from_low_u64_be(0), H256::from_low_u64_be(7)),
+				H256::from_low_u64_be(9) => Diff::new(H256::from_low_u64_be(0), H256::from_low_u64_be(9))
 			],
 		}));
 	}

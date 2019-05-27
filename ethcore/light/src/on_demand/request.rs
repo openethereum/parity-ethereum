@@ -1298,17 +1298,17 @@ mod tests {
 			let mut trie = SecTrieDBMut::new(&mut db, &mut root);
 			for _ in 0..100 {
 				let address = Address::random();
-				trie.insert(&*address, &rand_acc()).unwrap();
+				trie.insert(address.as_bytes(), &rand_acc()).unwrap();
 			}
 
-			trie.insert(&*addr, &rand_acc()).unwrap();
+			trie.insert(addr.as_bytes(), &rand_acc()).unwrap();
 		}
 
 		let proof = {
 			let trie = SecTrieDB::new(&db, &root).unwrap();
 			let mut recorder = Recorder::new();
 
-			trie.get_with(&*addr, &mut recorder).unwrap().unwrap();
+			trie.get_with(addr.as_bytes(), &mut recorder).unwrap().unwrap();
 
 			recorder.drain().into_iter().map(|r| r.data).collect::<Vec<_>>()
 		};

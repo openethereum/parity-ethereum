@@ -429,6 +429,7 @@ mod tests {
 	use test_helpers::get_temp_state;
 	use super::*;
 	use trace::{NoopTracer, NoopVMTracer};
+	use std::str::FromStr;
 
 	fn get_test_origin() -> OriginInfo {
 		OriginInfo {
@@ -442,7 +443,7 @@ mod tests {
 	fn get_test_env_info() -> EnvInfo {
 		EnvInfo {
 			number: 100,
-			author: 0.into(),
+			author: Address::from_low_u64_be(0),
 			timestamp: 0,
 			difficulty: 0.into(),
 			last_hashes: Arc::new(vec![]),
@@ -510,7 +511,7 @@ mod tests {
 
 	#[test]
 	fn can_return_block_hash() {
-		let test_hash = H256::from("afafafafafafafafafafafbcbcbcbcbcbcbcbcbcbeeeeeeeeeeeeedddddddddd");
+		let test_hash = H256::from_str("afafafafafafafafafafafbcbcbcbcbcbcbcbcbcbeeeeeeeeeeeeedddddddddd").unwrap();
 		let test_env_number = 0x120001;
 
 		let mut setup = TestSetup::new();
@@ -547,11 +548,11 @@ mod tests {
 		// this should panic because we have no balance on any account
 		ext.call(
 			&"0000000000000000000000000000000000000000000000000000000000120000".parse::<U256>().unwrap(),
-			&Address::new(),
-			&Address::new(),
+			&Address::zero(),
+			&Address::zero(),
 			Some("0000000000000000000000000000000000000000000000000000000000150000".parse::<U256>().unwrap()),
 			&[],
-			&Address::new(),
+			&Address::zero(),
 			CallType::Call,
 			false,
 		).ok().unwrap();
@@ -560,7 +561,7 @@ mod tests {
 	#[test]
 	fn can_log() {
 		let log_data = vec![120u8, 110u8];
-		let log_topics = vec![H256::from("af0fa234a6af46afa23faf23bcbc1c1cb4bcb7bcbe7e7e7ee3ee2edddddddddd")];
+		let log_topics = vec![H256::from_str("af0fa234a6af46afa23faf23bcbc1c1cb4bcb7bcbe7e7e7ee3ee2edddddddddd").unwrap()];
 
 		let mut setup = TestSetup::new();
 		let state = &mut setup.state;
@@ -578,7 +579,7 @@ mod tests {
 
 	#[test]
 	fn can_suicide() {
-		let refund_account = &Address::new();
+		let refund_account = &Address::zero();
 
 		let mut setup = TestSetup::new();
 		let state = &mut setup.state;

@@ -364,8 +364,8 @@ pub mod random {
 }
 #[cfg(test)]
 pub mod random {
-	use rand::{self, SeedableRng};
-	pub fn new() -> rand::XorShiftRng { rand::XorShiftRng::from_seed([0, 1, 2, 3]) }
+	use rand::SeedableRng;
+	pub fn new() -> rand_xorshift::XorShiftRng { rand_xorshift::XorShiftRng::from_seed([0, 1, 2, 3]) }
 }
 
 pub type RlpResponseResult = Result<Option<(PacketId, RlpStream)>, PacketDecodeError>;

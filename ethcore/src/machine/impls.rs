@@ -462,12 +462,13 @@ fn round_block_gas_limit(gas_limit: U256, lower_limit: U256, upper_limit: U256) 
 #[cfg(test)]
 mod tests {
 	use super::*;
+	use std::str::FromStr;
 
 	fn get_default_ethash_extensions() -> EthashExtensions {
 		EthashExtensions {
 			homestead_transition: 1150000,
 			dao_hardfork_transition: u64::max_value(),
-			dao_hardfork_beneficiary: "0000000000000000000000000000000000000001".into(),
+			dao_hardfork_beneficiary: Address::from_str("0000000000000000000000000000000000000001").unwrap(),
 			dao_hardfork_accounts: Vec::new(),
 		}
 	}

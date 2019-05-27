@@ -1491,7 +1491,7 @@ mod tests {
 
 		// when new block is imported
 		let client = generate_dummy_client(2);
-		let imported = [0.into()];
+		let imported = [H256::zero()];
 		let empty = &[];
 		miner.chain_new_blocks(&*client, &imported, empty, &imported, empty, false);
 

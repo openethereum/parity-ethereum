@@ -22,7 +22,7 @@ use common_types::encoded;
 use common_types::ids::BlockId;
 use common_types::transaction::{Action, PendingTransaction};
 use ethcore::client::{EachBlockWith, TestBlockChainClient};
-use ethereum_types::{H256, U256, Address};
+use ethereum_types::{H256, U256, Address, BigEndianHash};
 use net::context::IoContext;
 use net::load_timer::MOVING_SAMPLE_SIZE;
 use net::status::{Capabilities, Status};
@@ -158,7 +158,7 @@ impl Provider for TestProvider {
 
 	fn contract_code(&self, req: request::CompleteCodeRequest) -> Option<request::CodeResponse> {
 		Some(CodeResponse {
-			code: req.block_hash.iter().chain(req.code_hash.iter()).cloned().collect(),
+			code: req.block_hash.as_bytes().iter().chain(req.code_hash.as_bytes().iter()).cloned().collect(),
 		})
 	}
 
@@ -472,8 +472,8 @@ fn get_state_proofs() {
 	}
 
 	let req_id = 112;
-	let key1: H256 = U256::from(11223344).into();
-	let key2: H256 = U256::from(99988887).into();
+	let key1: H256 = BigEndianHash::from_uint(U256::from(11223344));
+	let key2: H256 = BigEndianHash::from_uint(U256::from(99988887));
 
 	let mut builder = Builder::default();
 	builder.push(Request::Account(IncompleteAccountRequest {
@@ -529,8 +529,8 @@ fn get_contract_code() {
 	}
 
 	let req_id = 112;
-	let key1: H256 = U256::from(11223344).into();
-	let key2: H256 = U256::from(99988887).into();
+	let key1: H256 = BigEndianHash::from_uint(U256::from(11223344));
+	let key2: H256 = BigEndianHash::from_uint(U256::from(99988887));
 
 	let request = Request::Code(IncompleteCodeRequest {
 		block_hash: key1.into(),
@@ -541,7 +541,7 @@ fn get_contract_code() {
 	let request_body = make_packet(req_id, &requests);
 	let response = {
 		let response = vec![Response::Code(CodeResponse {
-			code: key1.iter().chain(key2.iter()).cloned().collect(),
+			code: key1.as_bytes().iter().chain(key2.as_bytes().iter()).cloned().collect(),
 		})];
 
 		let new_creds = *flow_params.limit() - flow_params.compute_cost_multi(requests.requests()).unwrap();
@@ -755,7 +755,7 @@ fn get_transaction_index() {
 	}
 
 	let req_id = 112;
-	let key1: H256 = U256::from(11223344).into();
+	let key1: H256 = BigEndianHash::from_uint(U256::from(11223344));
 
 	let request = Request::TransactionIndex(IncompleteTransactionIndexRequest {
 		hash: key1.into(),

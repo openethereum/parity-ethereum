@@ -177,7 +177,7 @@ mod tests {
 			gas: U256::from(50_000),
 			value: U256::from(1),
 			data: b"Hello!".to_vec()
-		}.fake_sign(Address::from(0x69));
+		}.fake_sign(Address::from_low_u64_be(0x69));
 
 		let t2 = Transaction {
 			action: Action::Create,
@@ -186,7 +186,7 @@ mod tests {
 			gas: U256::from(300000),
 			value: U256::from(1000000000),
 			data: "Eep!".into(),
-		}.fake_sign(Address::from(0x55));
+		}.fake_sign(Address::from_low_u64_be(0x55));
 
 		b.transactions.push(t1.into());
 		b.transactions.push(t2.into());
