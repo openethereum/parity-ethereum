@@ -933,7 +933,7 @@ mod tests {
 	#[test]
 	fn schnorr_fails_to_initialize_when_already_initialized() {
 		let (ml, _, _) = MessageLoop::new(1, 0).unwrap().init().unwrap();
-		assert_eq!(ml.session_at(0).initialize(ml.key_version(), 777.into()),
+		assert_eq!(ml.session_at(0).initialize(ml.key_version(), H256::from_low_u64_be(777)),
 			Err(Error::InvalidStateForRequest));
 	}
 

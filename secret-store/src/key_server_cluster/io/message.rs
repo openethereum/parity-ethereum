@@ -22,7 +22,7 @@ use serde_json;
 use ethkey::crypto::ecies;
 use ethkey::{Secret, KeyPair};
 use ethkey::math::curve_order;
-use ethereum_types::{H256, U256};
+use ethereum_types::{H256, U256, BigEndianHash};
 use key_server_cluster::Error;
 use key_server_cluster::message::{Message, ClusterMessage, GenerationMessage, EncryptionMessage, DecryptionMessage,
 	SchnorrSigningMessage, EcdsaSigningMessage, ServersSetChangeMessage, ShareAddMessage, KeyVersionNegotiationMessage};
@@ -257,9 +257,9 @@ pub fn fix_shared_key(shared_secret: &Secret) -> Result<KeyPair, Error> {
 	// secret key created in agree function is invalid, as it is not calculated mod EC.field.n
 	// => let's do it manually
 	let shared_secret: H256 = (**shared_secret).into();
-	let shared_secret: U256 = shared_secret.into();
-	let shared_secret: H256 = (shared_secret % curve_order()).into();
-	let shared_key_pair = KeyPair::from_secret_slice(&*shared_secret)?;
+	let shared_secret: U256 = shared_secret.into_uint();
+	let shared_secret: H256 = BigEndianHash::from_uint(&(shared_secret % curve_order()));
+	let shared_key_pair = KeyPair::from_secret_slice(shared_secret.as_bytes())?;
 	Ok(shared_key_pair)
 }
 

@@ -16,13 +16,40 @@
 
 use std::fmt;
 use std::ops::Deref;
-use rustc_hex::{ToHex, FromHex};
+use rustc_hex::{self, FromHex};
 use serde::{Serialize, Deserialize, Serializer, Deserializer};
 use serde::de::{Visitor, Error as SerdeError};
 use ethkey::{Public, Secret, Signature};
 use ethereum_types::{H160, H256};
 use bytes::Bytes;
 use types::Requester;
+
+trait ToHex {
+    fn to_hex(&self) -> String;
+}
+
+impl ToHex for Bytes {
+    fn to_hex(&self) -> String {
+		format!("0x{}", rustc_hex::ToHex::to_hex(&self[..]))
+	}
+}
+
+impl ToHex for Signature {
+    fn to_hex(&self) -> String {
+		// TODO: verify
+		format!("0x{}", self)
+	}
+}
+
+macro_rules! impl_to_hex {
+    ($name: ident) => (
+		impl ToHex for $name {
+			fn to_hex(&self) -> String {
+				format!("{:#x}", self)
+			}
+		}
+	);
+}
 
 macro_rules! impl_bytes_deserialize {
 	($name: ident, $value: expr, true) => {
@@ -60,9 +87,7 @@ macro_rules! impl_bytes {
 
 		impl Serialize for $name {
 			fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error> where S: Serializer {
-				let mut serialized = "0x".to_owned();
-				serialized.push_str(self.0.to_hex().as_ref());
-				serializer.serialize_str(serialized.as_ref())
+				serializer.serialize_str(self.0.to_hex().as_ref())
 			}
 		}
 
@@ -101,17 +126,16 @@ pub type SerializableMessageHash = SerializableH256;
 /// Serializable address;
 pub type SerializableAddress = SerializableH160;
 
-/// Serializable Bytes.
+impl_to_hex!(H256);
+impl_to_hex!(H160);
+impl_to_hex!(Public);
+impl_to_hex!(Secret);
+
 impl_bytes!(SerializableBytes, Bytes, true, (Default));
-/// Serializable H256.
 impl_bytes!(SerializableH256, H256, false, (Default, PartialOrd, Ord));
-/// Serializable H160.
 impl_bytes!(SerializableH160, H160, false, (Default));
-/// Serializable H512 (aka Public).
 impl_bytes!(SerializablePublic, Public, false, (Default, PartialOrd, Ord));
-/// Serializable Secret.
 impl_bytes!(SerializableSecret, Secret, false, ());
-/// Serializable Signature.
 impl_bytes!(SerializableSignature, Signature, false, ());
 
 /// Serializable shadow decryption result.
