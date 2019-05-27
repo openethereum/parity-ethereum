@@ -365,7 +365,8 @@ pub mod random {
 #[cfg(test)]
 pub mod random {
 	use rand::SeedableRng;
-	pub fn new() -> rand_xorshift::XorShiftRng { rand_xorshift::XorShiftRng::from_seed([0, 1, 2, 3]) }
+	const RNG_SEED: [u8; 16] = [1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16];
+	pub fn new() -> rand_xorshift::XorShiftRng { rand_xorshift::XorShiftRng::from_seed(RNG_SEED) }
 }
 
 pub type RlpResponseResult = Result<Option<(PacketId, RlpStream)>, PacketDecodeError>;
@@ -1398,7 +1399,7 @@ pub mod tests {
 		let mut rlp = RlpStream::new_list(5);
 		for _ in 0..5 {
 			let mut hash_d_rlp = RlpStream::new_list(2);
-			let hash: H256 = H256::from(0u64);
+			let hash: H256 = H256::zero();
 			let diff: U256 = U256::from(1u64);
 			hash_d_rlp.append(&hash);
 			hash_d_rlp.append(&diff);

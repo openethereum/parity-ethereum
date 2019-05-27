@@ -2733,7 +2733,7 @@ mod tests {
 	fn should_get_full_pod_storage_values() {
 		use trie::{TrieFactory, TrieSpec};
 
-		let a = 10.into();
+		let a = Address::from_low_u64_be(10);
 		let db = get_temp_state_db();
 
 		let factories = Factories {
@@ -2746,7 +2746,7 @@ mod tests {
 			pod_state.get().get(ak).unwrap().storage.get(&k).unwrap().clone()
 		};
 
-		let storage_address = BigEndianHash::from_uint(&U256::from(1u64));
+		let storage_address: H256 = BigEndianHash::from_uint(&U256::from(1u64));
 
 		let (root, db) = {
 			let mut state = State::new(db, U256::from(0), factories.clone());

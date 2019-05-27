@@ -472,8 +472,8 @@ fn get_state_proofs() {
 	}
 
 	let req_id = 112;
-	let key1: H256 = BigEndianHash::from_uint(U256::from(11223344));
-	let key2: H256 = BigEndianHash::from_uint(U256::from(99988887));
+	let key1: H256 = BigEndianHash::from_uint(&U256::from(11223344));
+	let key2: H256 = BigEndianHash::from_uint(&U256::from(99988887));
 
 	let mut builder = Builder::default();
 	builder.push(Request::Account(IncompleteAccountRequest {
@@ -529,8 +529,8 @@ fn get_contract_code() {
 	}
 
 	let req_id = 112;
-	let key1: H256 = BigEndianHash::from_uint(U256::from(11223344));
-	let key2: H256 = BigEndianHash::from_uint(U256::from(99988887));
+	let key1: H256 = BigEndianHash::from_uint(&U256::from(11223344));
+	let key2: H256 = BigEndianHash::from_uint(&U256::from(99988887));
 
 	let request = Request::Code(IncompleteCodeRequest {
 		block_hash: key1.into(),
@@ -755,7 +755,7 @@ fn get_transaction_index() {
 	}
 
 	let req_id = 112;
-	let key1: H256 = BigEndianHash::from_uint(U256::from(11223344));
+	let key1: H256 = BigEndianHash::from_uint(&U256::from(11223344));
 
 	let request = Request::TransactionIndex(IncompleteTransactionIndexRequest {
 		hash: key1.into(),
