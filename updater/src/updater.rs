@@ -827,7 +827,7 @@ pub mod tests {
 		let this = VersionInfo {
 			track: ReleaseTrack::Beta,
 			version: Version::parse("1.0.0").unwrap(),
-			hash: 0.into(),
+			hash: H160::zero(),
 		};
 
 		let updater = Arc::new(Updater {
@@ -867,14 +867,14 @@ pub mod tests {
 		let latest_version = VersionInfo {
 			track: ReleaseTrack::Beta,
 			version: Version::parse(version).unwrap(),
-			hash: 1.into(),
+			hash: H160::from_low_u64_be(1),
 		};
 
 		let latest_release = ReleaseInfo {
 			version: latest_version.clone(),
 			is_critical: false,
 			fork: 0,
-			binary: Some(0.into()),
+			binary: Some(H256::zero()),
 		};
 
 		let latest = OperationsInfo {
