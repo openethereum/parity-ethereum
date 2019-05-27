@@ -204,10 +204,10 @@ fn test_lru() {
 
 #[test]
 fn test_difficulty_to_boundary() {
-	use ethereum_types::H256;
+	use ethereum_types::{H256, BigEndianHash};
 	use std::str::FromStr;
 
-	assert_eq!(difficulty_to_boundary(&U256::from(1)), H256::from(U256::max_value()));
+	assert_eq!(difficulty_to_boundary(&U256::from(1)), BigEndianHash::from_uint(&U256::max_value()));
 	assert_eq!(difficulty_to_boundary(&U256::from(2)), H256::from_str("8000000000000000000000000000000000000000000000000000000000000000").unwrap());
 	assert_eq!(difficulty_to_boundary(&U256::from(4)), H256::from_str("4000000000000000000000000000000000000000000000000000000000000000").unwrap());
 	assert_eq!(difficulty_to_boundary(&U256::from(32)), H256::from_str("0800000000000000000000000000000000000000000000000000000000000000").unwrap());
@@ -221,9 +221,18 @@ fn test_difficulty_to_boundary_regression() {
 	// https://github.com/paritytech/parity-ethereum/issues/8397
 	for difficulty in 1..9 {
 		assert_eq!(U256::from(difficulty), boundary_to_difficulty(&difficulty_to_boundary(&difficulty.into())));
-		assert_eq!(H256::from(difficulty), difficulty_to_boundary(&boundary_to_difficulty(&difficulty.into())));
-		assert_eq!(U256::from(difficulty), boundary_to_difficulty(&boundary_to_difficulty(&difficulty.into()).into()));
-		assert_eq!(H256::from(difficulty), difficulty_to_boundary(&difficulty_to_boundary(&difficulty.into()).into()));
+		assert_eq!(
+			H256::from_low_u64_be(difficulty),
+			difficulty_to_boundary(&boundary_to_difficulty(&H256::from_low_u64_be(difficulty))),
+		);
+		assert_eq!(
+			U256::from(difficulty),
+			boundary_to_difficulty(&BigEndianHash::from_uint(&boundary_to_difficulty(&H256::from_low_u64_be(difficulty)))),
+		);
+		assert_eq!(
+			H256::from_low_u64_be(difficulty),
+			difficulty_to_boundary(&difficulty_to_boundary(&difficulty.into()).into_uint()),
+		);
 	}
 }
 
@@ -236,5 +245,5 @@ fn test_difficulty_to_boundary_panics_on_zero() {
 #[test]
 #[should_panic]
 fn test_boundary_to_difficulty_panics_on_zero() {
-	boundary_to_difficulty(&ethereum_types::H256::from(0));
+	boundary_to_difficulty(&ethereum_types::H256::zero());
 }
