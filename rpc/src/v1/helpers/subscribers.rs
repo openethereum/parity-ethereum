@@ -61,7 +61,8 @@ impl<T> Subscribers<T> {
 	#[cfg(test)]
 	pub fn new_test() -> Self {
 		Subscribers {
-			rand: ::rand::SeedableRng::from_seed([0usize].as_ref()),
+			// TODO: how important is determinism here?
+			rand: EntropyRng::new(),
 			subscriptions: HashMap::new(),
 		}
 	}

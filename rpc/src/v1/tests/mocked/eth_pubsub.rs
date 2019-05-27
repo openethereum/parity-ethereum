@@ -25,6 +25,7 @@ use std::time::Duration;
 use v1::{EthPubSub, EthPubSubClient, Metadata};
 use ethcore::client::{TestBlockChainClient, EachBlockWith, ChainNotify, NewBlocks, ChainRoute, ChainRouteType};
 use parity_runtime::Runtime;
+use ethereum_types::{Address, H256};
 
 const DURATION_ZERO: Duration = Duration::from_millis(0);
 
@@ -98,8 +99,8 @@ fn should_subscribe_to_logs() {
 	client.set_logs(vec![
 		LocalizedLogEntry {
 			entry: LogEntry {
-				address: 5.into(),
-				topics: vec![1.into(), 2.into(), 0.into(), 0.into()],
+				address: Address::from_low_u64_be(5),
+				topics: vec![H256::from_low_u64_be(1), H256::from_low_u64_be(2), H256::from_low_u64_be(0), H256::from_low_u64_be(0)],
 				data: vec![],
 			},
 			block_hash: h1,
@@ -180,7 +181,7 @@ fn should_subscribe_to_pending_transactions() {
 	assert_eq!(io.handle_request_sync(request, metadata.clone()), Some(response.to_owned()));
 
 	// Send new transactions
-	handler.notify_new_transactions(&[5.into(), 7.into()]);
+	handler.notify_new_transactions(&[H256::from_low_u64_be(5), H256::from_low_u64_be(7)]);
 
 	let (res, receiver) = receiver.into_future().wait().unwrap();
 	let response = r#"{"jsonrpc":"2.0","method":"eth_subscription","params":{"result":"0x0000000000000000000000000000000000000000000000000000000000000005","subscription":"0x416d77337e24399d"}}"#;
