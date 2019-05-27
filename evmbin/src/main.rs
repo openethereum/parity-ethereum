@@ -359,7 +359,7 @@ fn die<T: fmt::Display>(msg: T) -> ! {
 #[cfg(test)]
 mod tests {
 	use docopt::Docopt;
-	use super::{Args, USAGE};
+	use super::{Args, USAGE, Address};
 
 	fn run<T: AsRef<str>>(args: &[T]) -> Args {
 		Docopt::new(USAGE).and_then(|d| d.argv(args.into_iter()).deserialize()).unwrap()
@@ -388,8 +388,8 @@ mod tests {
 		assert_eq!(args.flag_std_out_only, true);
 		assert_eq!(args.gas(), Ok(1.into()));
 		assert_eq!(args.gas_price(), Ok(2.into()));
-		assert_eq!(args.from(), Ok(3.into()));
-		assert_eq!(args.to(), Ok(4.into()));
+		assert_eq!(args.from(), Ok(Address::from_low_u64_be(3)));
+		assert_eq!(args.to(), Ok(Address::from_low_u64_be(4)));
 		assert_eq!(args.code(), Ok(Some(vec![05])));
 		assert_eq!(args.data(), Ok(Some(vec![06])));
 		assert_eq!(args.flag_chain, Some("./testfile".to_owned()));
