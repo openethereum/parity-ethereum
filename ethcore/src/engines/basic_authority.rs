@@ -21,7 +21,7 @@ use ethereum_types::{H256, H520};
 use parking_lot::RwLock;
 use ethkey::{self, Signature};
 use block::*;
-use engines::{Engine, Seal, ConstructedVerifier, EngineError};
+use engines::{Engine, Seal, SealingState, ConstructedVerifier, EngineError};
 use engines::signer::EngineSigner;
 use error::{BlockError, Error};
 use ethjson;
@@ -98,8 +98,12 @@ impl Engine<EthereumMachine> for BasicAuthority {
 	// One field - the signature
 	fn seal_fields(&self, _header: &Header) -> usize { 1 }
 
-	fn seals_internally(&self) -> Option<bool> {
-		Some(self.signer.read().is_some())
+	fn sealing_state(&self) -> SealingState {
+		if self.signer.read().is_some() {
+			SealingState::Ready
+		} else {
+			SealingState::NotReady
+		}
 	}
 
 	/// Attempt to seal the block internally.
@@ -220,7 +224,7 @@ mod tests {
 	use accounts::AccountProvider;
 	use types::header::Header;
 	use spec::Spec;
-	use engines::Seal;
+	use engines::{Seal, SealingState};
 	use tempdir::TempDir;
 
 	/// Create a new test chain spec with `BasicAuthority` consensus engine.
@@ -272,13 +276,13 @@ mod tests {
 	}
 
 	#[test]
-	fn seals_internally() {
+	fn sealing_state() {
 		let tap = AccountProvider::transient_provider();
 		let authority = tap.insert_account(keccak("").into(), &"".into()).unwrap();
 
 		let engine = new_test_authority().engine;
-		assert!(!engine.seals_internally().unwrap());
+		assert_eq!(SealingState::NotReady, engine.sealing_state());
 		engine.set_signer(Box::new((Arc::new(tap), authority, "".into())));
-		assert!(engine.seals_internally().unwrap());
+		assert_eq!(SealingState::Ready, engine.sealing_state());
 	}
 }

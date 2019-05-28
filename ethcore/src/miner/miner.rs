@@ -53,7 +53,7 @@ use client::{
 	BlockChain, ChainInfo, BlockProducer, SealedBlockImporter, Nonce, TransactionInfo, TransactionId
 };
 use client::{BlockId, ClientIoMessage};
-use engines::{EthEngine, Seal, EngineSigner};
+use engines::{EthEngine, Seal, SealingState, EngineSigner};
 use error::Error;
 use executed::ExecutionError;
 use executive::contract_address;
@@ -288,7 +288,7 @@ impl Miner {
 			sealing: Mutex::new(SealingWork {
 				queue: UsingQueue::new(options.work_queue_size),
 				enabled: options.force_sealing
-					|| spec.engine.seals_internally().is_some(),
+					|| spec.engine.sealing_state() != SealingState::External,
 				next_allowed_reseal: Instant::now(),
 				next_mandatory_reseal: Instant::now() + options.reseal_max_period,
 				last_request: None,
@@ -625,7 +625,7 @@ impl Miner {
 		// keep sealing enabled if any of the conditions is met
 		let sealing_enabled = self.forced_sealing()
 			|| self.transaction_queue.has_local_pending_transactions()
-			|| self.engine.seals_internally() == Some(true)
+			|| self.engine.sealing_state() == SealingState::Ready
 			|| had_requests;
 
 		let should_disable_sealing = !sealing_enabled;
@@ -634,7 +634,7 @@ impl Miner {
 			should_disable_sealing,
 			self.forced_sealing(),
 			self.transaction_queue.has_local_pending_transactions(),
-			self.engine.seals_internally(),
+			self.engine.sealing_state(),
 			had_requests,
 		);
 
@@ -806,6 +806,11 @@ impl Miner {
 			}
 		};
 
+		if self.engine.sealing_state() != SealingState::External {
+			trace!(target: "miner", "prepare_pending_block: engine not sealing externally; not preparing");
+			return BlockPreparationStatus::NotPrepared;
+		}
+
 		let preparation_status = if prepare_new {
 			// --------------------------------------------------------------------------
 			// | NOTE Code below requires sealing locks.                                |
@@ -842,7 +847,9 @@ impl Miner {
 
 		// Make sure to do it after transaction is imported and lock is dropped.
 		// We need to create pending block and enable sealing.
-		if self.engine.seals_internally().unwrap_or(false) || self.prepare_pending_block(chain) == BlockPreparationStatus::NotPrepared {
+		let sealing_state = self.engine.sealing_state();
+		if sealing_state == SealingState::Ready
+			|| self.prepare_pending_block(chain) == BlockPreparationStatus::NotPrepared {
 			// If new block has not been prepared (means we already had one)
 			// or Engine might be able to seal internally,
 			// we need to update sealing.
@@ -872,7 +879,7 @@ impl miner::MinerService for Miner {
 		self.params.write().author = author.address();
 
 		if let Author::Sealer(signer) = author {
-			if self.engine.seals_internally().is_some() {
+			if self.engine.sealing_state() != SealingState::External {
 				// Enable sealing
 				self.sealing.lock().enabled = true;
 				// --------------------------------------------------------------------------
@@ -1150,6 +1157,11 @@ impl miner::MinerService for Miner {
 			return;
 		}
 
+		let sealing_state = self.engine.sealing_state();
+		if sealing_state == SealingState::NotReady {
+			return;
+		}
+
 		// --------------------------------------------------------------------------
 		// | NOTE Code below requires sealing locks.                                |
 		// | Make sure to release the locks before calling that method.             |
@@ -1170,19 +1182,15 @@ impl miner::MinerService for Miner {
 			}
 		}
 
-		match self.engine.seals_internally() {
-			Some(true) => {
+		match sealing_state {
+			SealingState::Ready => {
 				trace!(target: "miner", "update_sealing: engine indicates internal sealing");
 				if self.seal_and_import_block_internally(chain, block) {
 					trace!(target: "miner", "update_sealing: imported internally sealed block");
 				}
 			},
-			Some(false) => {
-				trace!(target: "miner", "update_sealing: engine is not keen to seal internally right now");
-				// anyway, save the block for later use
-				self.sealing.lock().queue.set_pending(block);
-			},
-			None => {
+			SealingState::NotReady => unreachable!("We returned right after sealing_state was computed. qed."),
+			SealingState::External => {
 				trace!(target: "miner", "update_sealing: engine does not seal internally, preparing work");
 				self.prepare_work(block, original_work_hash)
 			},
@@ -1196,7 +1204,7 @@ impl miner::MinerService for Miner {
 	fn work_package<C>(&self, chain: &C) -> Option<(H256, BlockNumber, u64, U256)> where
 		C: BlockChain + CallContract + BlockProducer + SealedBlockImporter + Nonce + Sync,
 	{
-		if self.engine.seals_internally().is_some() {
+		if self.engine.sealing_state() != SealingState::External {
 			return None;
 		}
 

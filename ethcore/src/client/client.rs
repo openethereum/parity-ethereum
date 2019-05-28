@@ -60,7 +60,7 @@ use client::{
 	IoClient, BadBlocks,
 };
 use client::bad_blocks;
-use engines::{MAX_UNCLE_AGE, EthEngine, EpochTransition, ForkChoice, EngineError};
+use engines::{MAX_UNCLE_AGE, EthEngine, EpochTransition, ForkChoice, EngineError, SealingState};
 use engines::epoch::PendingTransition;
 use error::{
 	ImportError, ExecutionError, CallError, BlockError,
@@ -2431,7 +2431,7 @@ impl ImportSealedBlock for Client {
 			&[],
 			route.enacted(),
 			route.retracted(),
-			self.engine.seals_internally().is_some(),
+			self.engine.sealing_state() != SealingState::External,
 		);
 		self.notify(|notify| {
 			notify.new_blocks(
@@ -2544,16 +2544,6 @@ impl ProvingBlockChainClient for Client {
 }
 
 impl SnapshotClient for Client {}
-
-impl Drop for Client {
-	fn drop(&mut self) {
-		if let Some(c) = Arc::get_mut(&mut self.engine) {
-			c.stop()
-		} else {
-			warn!(target: "shutdown", "unable to get mut ref for engine for shutdown.");
-		}
-	}
-}
 
 /// Returns `LocalizedReceipt` given `LocalizedTransaction`
 /// and a vector of receipts from given block up to transaction index.
