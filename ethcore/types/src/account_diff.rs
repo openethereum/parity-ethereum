@@ -108,8 +108,6 @@ fn interpreted_hash(u: &H256) -> String {
 	let uint = u.into_uint();
 	if let Ok(n) = u64::try_from(uint) {
 		format!("{} = {:#x}", n, n)
-//	} else if u <= &H256::from("0xffffffffffffffffffffffffffffffffffffffff") {
-//		format!("@{}", Address::from(u))
 	} else {
 		format!("#{}", u)
 	}
