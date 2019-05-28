@@ -427,7 +427,7 @@ mod tests {
 
 		let keypair = ExtendedKeyPair::with_secret(
 			Secret::from_str("a100df7a048e50ed308ea696dc600215098141cb391e9527329df289f9383f65").unwrap(),
-			H256::zero(),
+			H256::from_low_u64_be(64),
 		);
 		assert_eq!(
 			**keypair.derive(2147483648u32.into()).expect("Derivation of keypair should succeed").secret().as_raw(),
