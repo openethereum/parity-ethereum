@@ -361,8 +361,8 @@ mod tests {
 		let logger = Logging::new(Arc::new(StringLogSerializer::new("".into())));
 		let private_tx = Transaction::default();
 		let hash = private_tx.hash(None);
-		logger.private_tx_created(&hash, &vec![Address::from_str("0x82a978b3f5962a5b0957d9ee9eef472ee55b42f1").unwrap()]);
-		logger.signature_added(&hash, &Address::from_str("0x82a978b3f5962a5b0957d9ee9eef472ee55b42f1").unwrap());
+		logger.private_tx_created(&hash, &vec![Address::from_str("82a978b3f5962a5b0957d9ee9eef472ee55b42f1").unwrap()]);
+		logger.signature_added(&hash, &Address::from_str("82a978b3f5962a5b0957d9ee9eef472ee55b42f1").unwrap());
 		logger.tx_deployed(&hash, &hash);
 		let tx_log = logger.tx_log(&hash).unwrap();
 		assert_eq!(tx_log.status, PrivateTxStatus::Deployed);
@@ -372,35 +372,35 @@ mod tests {
 	fn serialization() {
 		let current_timestamp = SystemTime::now();
 		let initial_validator_log = ValidatorLog {
-			account: Address::from_str("0x82a978b3f5962a5b0957d9ee9eef472ee55b42f1").unwrap(),
+			account: Address::from_str("82a978b3f5962a5b0957d9ee9eef472ee55b42f1").unwrap(),
 			validation_timestamp: Some(current_timestamp.checked_add(Duration::from_secs(1)).unwrap()),
 		};
 		let initial_log = TransactionLog {
-			tx_hash: H256::from_str("0x64f648ca7ae7f4138014f860ae56164d8d5732969b1cea54d8be9d144d8aa6f6").unwrap(),
+			tx_hash: H256::from_str("64f648ca7ae7f4138014f860ae56164d8d5732969b1cea54d8be9d144d8aa6f6").unwrap(),
 			status: PrivateTxStatus::Deployed,
 			creation_timestamp: current_timestamp,
 			validators: vec![initial_validator_log],
 			deployment_timestamp: Some(current_timestamp.checked_add(Duration::from_secs(2)).unwrap()),
-			public_tx_hash: Some(H256::from_str("0x69b9c691ede7993effbcc88911c309af1c82be67b04b3882dd446b808ae146da").unwrap()),
+			public_tx_hash: Some(H256::from_str("69b9c691ede7993effbcc88911c309af1c82be67b04b3882dd446b808ae146da").unwrap()),
 		};
 		let serializer = Arc::new(StringLogSerializer::new(serde_json::to_string(&vec![initial_log.clone()]).unwrap()));
 		let logger = Logging::new(serializer.clone());
-		let hash = H256::from_str("0x63c715e88f7291e66069302f6fcbb4f28a19ef5d7cbd1832d0c01e221c0061c6").unwrap();
-		logger.private_tx_created(&hash, &vec![Address::from_str("0x7ffbe3512782069be388f41be4d8eb350672d3a5").unwrap()]);
-		logger.signature_added(&hash, &Address::from_str("0x7ffbe3512782069be388f41be4d8eb350672d3a5").unwrap());
-		logger.tx_deployed(&hash, &H256::from_str("0xde2209a8635b9cab9eceb67928b217c70ab53f6498e5144492ec01e6f43547d7").unwrap());
+		let hash = H256::from_str("63c715e88f7291e66069302f6fcbb4f28a19ef5d7cbd1832d0c01e221c0061c6").unwrap();
+		logger.private_tx_created(&hash, &vec![Address::from_str("7ffbe3512782069be388f41be4d8eb350672d3a5").unwrap()]);
+		logger.signature_added(&hash, &Address::from_str("7ffbe3512782069be388f41be4d8eb350672d3a5").unwrap());
+		logger.tx_deployed(&hash, &H256::from_str("de2209a8635b9cab9eceb67928b217c70ab53f6498e5144492ec01e6f43547d7").unwrap());
 		drop(logger);
 		let added_validator_log = ValidatorLog {
-			account: Address::from_str("0x7ffbe3512782069be388f41be4d8eb350672d3a5").unwrap(),
+			account: Address::from_str("7ffbe3512782069be388f41be4d8eb350672d3a5").unwrap(),
 			validation_timestamp: Some(current_timestamp.checked_add(Duration::from_secs(7)).unwrap()),
 		};
 		let added_log = TransactionLog {
-			tx_hash: H256::from_str("0x63c715e88f7291e66069302f6fcbb4f28a19ef5d7cbd1832d0c01e221c0061c6").unwrap(),
+			tx_hash: H256::from_str("63c715e88f7291e66069302f6fcbb4f28a19ef5d7cbd1832d0c01e221c0061c6").unwrap(),
 			status: PrivateTxStatus::Deployed,
 			creation_timestamp: current_timestamp.checked_add(Duration::from_secs(6)).unwrap(),
 			validators: vec![added_validator_log],
 			deployment_timestamp: Some(current_timestamp.checked_add(Duration::from_secs(8)).unwrap()),
-			public_tx_hash: Some(H256::from_str("0xde2209a8635b9cab9eceb67928b217c70ab53f6498e5144492ec01e6f43547d7").unwrap()),
+			public_tx_hash: Some(H256::from_str("de2209a8635b9cab9eceb67928b217c70ab53f6498e5144492ec01e6f43547d7").unwrap()),
 		};
 		let should_be_final = vec![added_log, initial_log];
 		let deserialized_logs: Vec<TransactionLog> = serde_json::from_str(&serializer.log()).unwrap();
