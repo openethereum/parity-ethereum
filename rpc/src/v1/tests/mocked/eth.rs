@@ -355,7 +355,7 @@ fn rpc_eth_submit_hashrate() {
 	let response = r#"{"jsonrpc":"2.0","result":true,"id":1}"#;
 
 	assert_eq!(tester.io.handle_request_sync(request), Some(response.to_owned()));
-	assert_eq!(tester.hashrates.lock().get(&H256::from_str("0x59daa26581d0acd1fce254fb7e85952f4c09d0915afd33d3886cd914bc7d283c").unwrap()).cloned().unwrap().1,
+	assert_eq!(tester.hashrates.lock().get(&H256::from_str("59daa26581d0acd1fce254fb7e85952f4c09d0915afd33d3886cd914bc7d283c").unwrap()).cloned().unwrap().1,
 		U256::from(0x500_000));
 }
 

@@ -457,7 +457,7 @@ fn should_import_wallet() {
 
 	assert_eq!(res, response);
 
-	let account_meta = tester.accounts.account_meta(Address::from_str("0x00bac56a8a27232baa044c03f43bf3648c961735").unwrap()).unwrap();
+	let account_meta = tester.accounts.account_meta(Address::from_str("00bac56a8a27232baa044c03f43bf3648c961735").unwrap()).unwrap();
 	let account_uuid: String = account_meta.uuid.unwrap().into();
 
 	// the RPC should import the account with a new id

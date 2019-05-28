@@ -98,7 +98,7 @@ mod tests {
 		assert_eq!(deserialized.params.step_duration, Uint(U256::from(0x02)));
 		assert_eq!(
 			deserialized.params.validators,
-			ValidatorSet::List(vec![Address(H160::from_str("0xc6d9d2cd449a754c494264e1809c50e34d64562b").unwrap())]),
+			ValidatorSet::List(vec![Address(H160::from_str("c6d9d2cd449a754c494264e1809c50e34d64562b").unwrap())]),
 		);
 		assert_eq!(deserialized.params.start_step, Some(Uint(U256::from(24))));
 		assert_eq!(deserialized.params.immediate_transitions, None);
