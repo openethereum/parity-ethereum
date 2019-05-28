@@ -145,5 +145,3 @@ members = [
 
 [patch.crates-io]
 heapsize = { git = "https://github.com/cheme/heapsize.git", branch = "ec-macfix" }
-ethbloom = { git = "https://github.com/ordian/parity-common" }
-primitive-types = { git = "https://github.com/ordian/parity-common" }
