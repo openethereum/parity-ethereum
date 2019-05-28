@@ -45,12 +45,12 @@ ethcore-network = { path = "util/network" }
 ethcore-private-tx = { path = "ethcore/private-tx" }
 ethcore-service = { path = "ethcore/service" }
 ethcore-sync = { path = "ethcore/sync" }
-ethereum-types = { git = "https://github.com/ordian/parity-common" }
+ethereum-types = "0.6.0-beta.1"
 
 ethkey = { path = "accounts/ethkey" }
 ethstore = { path = "accounts/ethstore" }
 node-filter = { path = "ethcore/node-filter" }
-rlp = { git = "https://github.com/ordian/parity-common" }
+rlp = "0.4.0"
 cli-signer= { path = "cli-signer" }
 parity-daemonize = "0.3"
 parity-hash-fetch = { path = "updater/hash-fetch" }
@@ -64,7 +64,7 @@ parity-whisper = { path = "whisper" }
 parity-path = "0.1"
 dir = { path = "util/dir" }
 panic_hook = { path = "util/panic-hook" }
-keccak-hash = { git = "https://github.com/ordian/parity-common" }
+keccak-hash = "0.2.0"
 migration-rocksdb = { path = "util/migration-rocksdb" }
 kvdb = "0.1"
 kvdb-rocksdb = "0.1.3"

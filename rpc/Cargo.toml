@@ -44,7 +44,7 @@ ethcore-miner = { path = "../miner" }
 ethcore-network = { path = "../util/network" }
 ethcore-private-tx = { path = "../ethcore/private-tx" }
 ethcore-sync = { path = "../ethcore/sync" }
-ethereum-types = { git = "https://github.com/ordian/parity-common" }
+ethereum-types = "0.6.0-beta.1"
 fastmap = { path = "../util/fastmap" }
 parity-bytes = "0.1"
 parity-crypto = "0.4.0"
@@ -54,11 +54,11 @@ ethjson = { path = "../json" }
 ethkey = { path = "../accounts/ethkey" }
 ethstore = { path = "../accounts/ethstore" }
 fetch = { path = "../util/fetch" }
-keccak-hash = { git = "https://github.com/ordian/parity-common" }
+keccak-hash = "0.2.0"
 parity-runtime = { path = "../util/runtime" }
 parity-updater = { path = "../updater" }
 parity-version = { path = "../util/version" }
-rlp = { git = "https://github.com/ordian/parity-common" }
+rlp = "0.4.0"
 stats = { path = "../util/stats" }
 vm = { path = "../ethcore/vm" }
 

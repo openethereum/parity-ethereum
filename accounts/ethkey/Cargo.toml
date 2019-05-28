@@ -9,7 +9,7 @@ edit-distance = "2.0"
 parity-crypto = "0.4.0"
 # TODO: use master branch after we switch to rand 0.6
 eth-secp256k1 = { git = "https://github.com/paritytech/rust-secp256k1", branch = "rand-0.6" }
-ethereum-types = { git = "https://github.com/ordian/parity-common" }
+ethereum-types = "0.6.0-beta.1"
 lazy_static = "1.0"
 log = "0.4"
 memzero = { path = "../../util/memzero" }

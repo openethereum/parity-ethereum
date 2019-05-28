@@ -7,7 +7,7 @@ authors = ["Parity Technologies <admin@parity.io>"]
 
 [dependencies]
 futures = "0.1"
-ethabi = { git = "https://github.com/ordian/ethabi" }
-ethabi-derive = { git = "https://github.com/ordian/ethabi" }
-ethabi-contract = { git = "https://github.com/ordian/ethabi" }
-keccak-hash = { git = "https://github.com/ordian/parity-common" }
+ethabi = { git = "https://github.com/paritytech/ethabi", branch = "ao-update-ethereum-types" }
+ethabi-derive = { git = "https://github.com/paritytech/ethabi", branch = "ao-update-ethereum-types" }
+ethabi-contract = { git = "https://github.com/paritytech/ethabi", branch = "ao-update-ethereum-types" }
+keccak-hash = "0.2.0"

@@ -8,18 +8,18 @@ authors = ["Parity Technologies <admin@parity.io>"]
 [dependencies]
 byteorder = "1.0"
 common-types = { path = "../ethcore/types" }
-ethabi = { git = "https://github.com/ordian/ethabi" }
-ethabi-contract = { git = "https://github.com/ordian/ethabi" }
-ethabi-derive = { git = "https://github.com/ordian/ethabi" }
+ethabi = { git = "https://github.com/paritytech/ethabi", branch = "ao-update-ethereum-types" }
+ethabi-contract = { git = "https://github.com/paritytech/ethabi", branch = "ao-update-ethereum-types" }
+ethabi-derive = { git = "https://github.com/paritytech/ethabi", branch = "ao-update-ethereum-types" }
 ethcore = { path = "../ethcore" }
 ethcore-accounts = { path = "../accounts", optional = true}
 ethcore-call-contract = { path = "../ethcore/call-contract" }
 ethcore-sync = { path = "../ethcore/sync" }
-ethereum-types = { git = "https://github.com/ordian/parity-common" }
+ethereum-types = "0.6.0-beta.1"
 ethkey = { path = "../accounts/ethkey" }
 futures = "0.1"
 hyper = { version = "0.12", default-features = false }
-keccak-hash = { git = "https://github.com/ordian/parity-common" }
+keccak-hash = "0.2.0"
 kvdb = "0.1"
 lazy_static = "1.0"
 log = "0.4"

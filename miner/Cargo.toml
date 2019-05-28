@@ -17,20 +17,20 @@ url = { version = "1", optional = true }
 ansi_term = "0.10"
 common-types = { path = "../ethcore/types" }
 error-chain = "0.12"
-ethabi = { git = "https://github.com/ordian/ethabi" }
-ethabi-derive = { git = "https://github.com/ordian/ethabi" }
-ethabi-contract = { git = "https://github.com/ordian/ethabi" }
+ethabi = { git = "https://github.com/paritytech/ethabi", branch = "ao-update-ethereum-types" }
+ethabi-derive = { git = "https://github.com/paritytech/ethabi", branch = "ao-update-ethereum-types" }
+ethabi-contract = { git = "https://github.com/paritytech/ethabi", branch = "ao-update-ethereum-types" }
 ethcore-call-contract = { path = "../ethcore/call-contract" }
-ethereum-types = { git = "https://github.com/ordian/parity-common" }
+ethereum-types = "0.6.0-beta.1"
 futures = "0.1"
 heapsize = "0.4"
-keccak-hash = { git = "https://github.com/ordian/parity-common" }
+keccak-hash = "0.2.0"
 linked-hash-map = "0.5"
 log = "0.4"
 parity-runtime = { path = "../util/runtime" }
 parking_lot = "0.7"
 price-info = { path = "./price-info", optional = true }
-rlp = { git = "https://github.com/ordian/parity-common" }
+rlp = "0.4.0"
 serde = "1.0"
 serde_derive = "1.0"
 serde_json = "1.0"

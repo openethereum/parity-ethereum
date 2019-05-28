@@ -6,8 +6,8 @@ license = "GPL-3.0"
 authors = ["Parity Technologies <admin@parity.io>"]
 
 [dependencies]
-ethereum-types = { git = "https://github.com/ordian/parity-common" }
-keccak-hash = { git = "https://github.com/ordian/parity-common" }
+ethereum-types = "0.6.0-beta.1"
+keccak-hash = "0.2.0"
 jsonrpc-core = "10.0.1"
 jsonrpc-tcp-server = "10.0.1"
 log = "0.4"

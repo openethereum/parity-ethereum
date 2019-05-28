@@ -15,14 +15,14 @@ rand = "0.6"
 rustc-hex = "1.0"
 fetch = { path = "../../util/fetch" }
 parity-bytes = "0.1"
-ethereum-types = { git = "https://github.com/ordian/parity-common" }
+ethereum-types = "0.6.0-beta.1"
 parity-runtime = { path = "../../util/runtime" }
-keccak-hash = { git = "https://github.com/ordian/parity-common" }
+keccak-hash = "0.2.0"
 registrar = { path = "../../util/registrar" }
 
-ethabi = { git = "https://github.com/ordian/ethabi" }
-ethabi-derive = { git = "https://github.com/ordian/ethabi" }
-ethabi-contract = { git = "https://github.com/ordian/ethabi" }
+ethabi = { git = "https://github.com/paritytech/ethabi", branch = "ao-update-ethereum-types" }
+ethabi-derive = { git = "https://github.com/paritytech/ethabi", branch = "ao-update-ethereum-types" }
+ethabi-contract = { git = "https://github.com/paritytech/ethabi", branch = "ao-update-ethereum-types" }
 
 [dev-dependencies]
 parking_lot = "0.7"

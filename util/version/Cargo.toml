@@ -23,7 +23,7 @@ goerli = { forkBlock = 0, critical = false }
 
 [dependencies]
 parity-bytes = "0.1"
-rlp = { git = "https://github.com/ordian/parity-common" }
+rlp = "0.4.0"
 target_info = "0.1"
 
 [build-dependencies]

@@ -7,7 +7,7 @@ name = "cli-signer"
 version = "1.4.0"
 
 [dependencies]
-ethereum-types = { git = "https://github.com/ordian/parity-common" }
+ethereum-types = "0.6.0-beta.1"
 futures = "0.1"
 rpassword = "1.0"
 parity-rpc = { path = "../rpc" }
