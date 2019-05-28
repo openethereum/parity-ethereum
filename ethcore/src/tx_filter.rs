@@ -257,7 +257,7 @@ mod test {
 
 		let filter = TransactionFilter::from_params(spec.params()).unwrap();
 		let mut basic_tx = Transaction::default();
-		basic_tx.action = Action::Call(Address::from_str("000000000000000000000000000000000000032").unwrap());
+		basic_tx.action = Action::Call(Address::from_str("0000000000000000000000000000000000000032").unwrap());
 		let create_tx = Transaction::default();
 		let mut call_tx = Transaction::default();
 		call_tx.action = Action::Call(Address::from_str("0000000000000000000000000000000000000005").unwrap());
