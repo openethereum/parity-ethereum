@@ -35,7 +35,7 @@ fn test_trie<H: FnMut(&str, HookType)>(json: &[u8], trie: TrieSpec, start_stop_h
 		start_stop_hook(&name, HookType::OnStart);
 
 		let mut memdb = journaldb::new_memory_db();
-		let mut root = H256::default();
+		let mut root = H256::zero();
 		let mut t = factory.create(&mut memdb, &mut root);
 
 		for (key, value) in test.input.data.into_iter() {

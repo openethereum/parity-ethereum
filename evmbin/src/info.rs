@@ -174,7 +174,7 @@ pub fn run<'a, F, X>(
 			error,
 			time: Duration::from_secs(0),
 			traces: None,
-			state_root: H256::default(),
+			state_root: H256::zero(),
 			end_state: None,
 		})?;
 

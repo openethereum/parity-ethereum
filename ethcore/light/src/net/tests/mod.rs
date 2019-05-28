@@ -261,7 +261,7 @@ fn genesis_mismatch() {
 	let (provider, proto) = setup(capabilities);
 
 	let mut status = status(provider.client.chain_info());
-	status.genesis_hash = H256::default();
+	status.genesis_hash = H256::zero();
 
 	let packet_body = write_handshake(&status, &capabilities, &proto);
 
@@ -477,11 +477,11 @@ fn get_state_proofs() {
 
 	let mut builder = Builder::default();
 	builder.push(Request::Account(IncompleteAccountRequest {
-		block_hash: H256::default().into(),
+		block_hash: H256::zero().into(),
 		address_hash: key1.into(),
 	})).unwrap();
 	builder.push(Request::Storage(IncompleteStorageRequest {
-		block_hash: H256::default().into(),
+		block_hash: H256::zero().into(),
 		address_hash: key1.into(),
 		key_hash: key2.into(),
 	})).unwrap();
@@ -492,11 +492,11 @@ fn get_state_proofs() {
 	let response = {
 		let responses = vec![
 			Response::Account(provider.account_proof(CompleteAccountRequest {
-				block_hash: H256::default(),
+				block_hash: H256::zero(),
 				address_hash: key1,
 			}).unwrap()),
 			Response::Storage(provider.storage_proof(CompleteStorageRequest {
-				block_hash: H256::default(),
+				block_hash: H256::zero(),
 				address_hash: key1,
 				key_hash: key2,
 			}).unwrap()),
@@ -616,7 +616,7 @@ fn proof_of_execution() {
 
 	let req_id = 112;
 	let mut request = Request::Execution(request::IncompleteExecutionRequest {
-		block_hash: H256::default().into(),
+		block_hash: H256::zero().into(),
 		from: Address::default(),
 		action: Action::Call(Address::default()),
 		gas: 100.into(),

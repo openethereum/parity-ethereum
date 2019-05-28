@@ -629,7 +629,7 @@ mod tests {
 		let address = {
 			let mut ext = Externalities::new(state, &setup.env_info, &setup.machine, &setup.schedule, 0, 0, &origin_info, &mut setup.sub_state, OutputPolicy::InitContract, &mut tracer, &mut vm_tracer, false);
 
-			match ext.create(&U256::max_value(), &U256::zero(), &[], CreateContractAddress::FromSenderSaltAndCodeHash(H256::default()), false) {
+			match ext.create(&U256::max_value(), &U256::zero(), &[], CreateContractAddress::FromSenderSaltAndCodeHash(H256::zero()), false) {
 				Ok(ContractCreateResult::Created(address, _)) => address,
 				_ => panic!("Test create failed; expected Created, got Failed/Reverted."),
 			}

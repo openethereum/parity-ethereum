@@ -129,7 +129,6 @@ impl EarlyMergeDB {
 	}
 
 	fn morph_key(key: &H256, index: u8) -> Bytes {
-		// TODO(review): verify byte order
 		let mut ret = key.as_bytes().to_owned();
 		ret.push(index);
 		ret

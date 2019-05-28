@@ -10,7 +10,7 @@ authors = ["Parity Technologies <admin@parity.io>"]
 ethcore = { path = ".."}
 ethcore-network = { path = "../../util/network" }
 ethcore-network-devp2p = { path = "../../util/network-devp2p" }
-ethereum-types = "0.6.0-beta.1"
+ethereum-types = "0.6.0"
 log = "0.4"
 parking_lot = "0.7"
 ethabi = { git = "https://github.com/paritytech/ethabi", branch = "ao-update-ethereum-types" }

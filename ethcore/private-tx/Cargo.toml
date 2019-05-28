@@ -15,7 +15,7 @@ ethcore = { path = ".." }
 ethcore-call-contract = { path = "../call-contract" }
 ethcore-io = { path = "../../util/io" }
 ethcore-miner = { path = "../../miner" }
-ethereum-types = "0.6.0-beta.1"
+ethereum-types = "0.6.0"
 ethjson = { path = "../../json" }
 ethkey = { path = "../../accounts/ethkey" }
 fetch = { path = "../../util/fetch" }

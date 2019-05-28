@@ -15,7 +15,7 @@ rand = "0.6"
 rustc-hex = "1.0"
 fetch = { path = "../../util/fetch" }
 parity-bytes = "0.1"
-ethereum-types = "0.6.0-beta.1"
+ethereum-types = "0.6.0"
 parity-runtime = { path = "../../util/runtime" }
 keccak-hash = "0.2.0"
 registrar = { path = "../../util/registrar" }

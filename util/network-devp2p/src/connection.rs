@@ -388,7 +388,7 @@ impl EncryptedConnection {
 		}
 		EncryptedConnection::update_mac(&mut self.ingress_mac, &mut self.mac_encoder, &header[0..16]);
 		let mac = &header[16..];
-		let mut expected = H256::default();
+		let mut expected = H256::zero();
 		self.ingress_mac.clone().finalize(expected.as_bytes_mut());
 		if mac != &expected[0..16] {
 			return Err(ErrorKind::Auth.into());

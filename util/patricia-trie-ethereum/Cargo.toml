@@ -11,7 +11,7 @@ keccak-hasher = { version = "0.1.1", path = "../keccak-hasher" }
 hash-db = "0.11.0"
 rlp = "0.4.0"
 parity-bytes = "0.1"
-ethereum-types = "0.6.0-beta.1"
+ethereum-types = "0.6.0"
 elastic-array = "0.10"
 
 [dev-dependencies]

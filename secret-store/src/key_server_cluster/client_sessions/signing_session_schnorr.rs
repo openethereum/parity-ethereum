@@ -1023,7 +1023,7 @@ mod tests {
 			sub_session: session.core.access_key.clone().into(),
 			session_nonce: 0,
 			request_id: Secret::from_str("0000000000000000000000000000000000000000000000000000000000000001").unwrap().into(),
-			message_hash: H256::default().into(),
+			message_hash: H256::zero().into(),
 			nodes: Default::default(),
 		}), Err(Error::InvalidStateForRequest));
 	}
@@ -1037,7 +1037,7 @@ mod tests {
 			sub_session: session.core.access_key.clone().into(),
 			session_nonce: 0,
 			request_id: Secret::from_str("0000000000000000000000000000000000000000000000000000000000000001").unwrap().into(),
-			message_hash: H256::default().into(),
+			message_hash: H256::zero().into(),
 			nodes: Default::default(),
 		}), Err(Error::InvalidMessage));
 	}

@@ -220,7 +220,7 @@ mod tests {
 			num: 100.into(),
 		})).unwrap();
 		builder.push(Request::Receipts(IncompleteReceiptsRequest {
-			hash: H256::default().into(),
+			hash: H256::zero().into(),
 		})).unwrap();
 	}
 

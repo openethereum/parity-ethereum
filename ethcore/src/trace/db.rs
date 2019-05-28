@@ -351,7 +351,7 @@ mod tests {
 	impl DatabaseExtras for NoopExtras {
 		fn block_hash(&self, block_number: BlockNumber) -> Option<H256> {
 			if block_number == 0 {
-				Some(H256::default())
+				Some(H256::zero())
 			} else {
 				unimplemented!()
 			}
@@ -518,7 +518,7 @@ mod tests {
 		let tx_2 = H256::from_low_u64_be(0xaf);
 
 		let mut extras = Extras::default();
-		extras.block_hashes.insert(0, H256::default());
+		extras.block_hashes.insert(0, H256::zero());
 
 		extras.block_hashes.insert(1, block_1.clone());
 		extras.block_hashes.insert(2, block_2.clone());
@@ -594,7 +594,7 @@ mod tests {
 		let block_0 = H256::from_low_u64_be(0xa1);
 		let tx_0 = H256::from_low_u64_be(0xff);
 
-		extras.block_hashes.insert(0, H256::default());
+		extras.block_hashes.insert(0, H256::zero());
 		extras.transaction_hashes.insert(0, vec![]);
 		extras.block_hashes.insert(1, block_0.clone());
 		extras.transaction_hashes.insert(1, vec![tx_0.clone()]);

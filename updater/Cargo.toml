@@ -12,7 +12,7 @@ ethabi-contract = { git = "https://github.com/paritytech/ethabi", branch = "ao-u
 ethabi-derive = { git = "https://github.com/paritytech/ethabi", branch = "ao-update-ethereum-types" }
 ethcore = { path = "../ethcore" }
 ethcore-sync = { path = "../ethcore/sync" }
-ethereum-types = "0.6.0-beta.1"
+ethereum-types = "0.6.0"
 keccak-hash = "0.2.0"
 lazy_static = "1.0"
 log = "0.4"

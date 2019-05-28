@@ -1162,7 +1162,7 @@ mod tests {
 
 	#[test]
 	fn check_header_with_ancestors() {
-		let mut last_header_hash = H256::default();
+		let mut last_header_hash = H256::zero();
 		let mut headers = (0..11).map(|num| {
 			let mut header = Header::new();
 			header.set_number(num);
@@ -1278,7 +1278,7 @@ mod tests {
 	fn check_state_proof() {
 		use rlp::RlpStream;
 
-		let mut root = H256::default();
+		let mut root = H256::zero();
 		let mut db = journaldb::new_memory_db();
 		let mut header = Header::new();
 		header.set_number(123_456);

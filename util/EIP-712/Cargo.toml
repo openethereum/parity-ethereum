@@ -16,7 +16,7 @@ serde = "1.0"
 serde_json = "1.0"
 ethabi = { git = "https://github.com/paritytech/ethabi", branch = "ao-update-ethereum-types" }
 keccak-hash = "0.2.0"
-ethereum-types = "0.6.0-beta.1"
+ethereum-types = "0.6.0"
 failure = "0.1"
 itertools = "0.7"
 lazy_static = "1.1"

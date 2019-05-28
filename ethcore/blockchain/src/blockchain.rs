@@ -469,7 +469,7 @@ impl<'a> Iterator for AncestryWithMetadataIter<'a> {
 					})
 				},
 				_ => {
-					self.current = H256::default();
+					self.current = H256::zero();
 					None
 				},
 			}
@@ -1259,7 +1259,7 @@ impl BlockChain {
 			current: if self.is_known(&first) {
 				first
 			} else {
-				H256::default() // zero hash
+				H256::zero() // zero hash
 			},
 			chain: self
 		}
@@ -2129,7 +2129,7 @@ mod tests {
 		let db = new_db();
 		let bc = new_chain(genesis.last().encoded(), db.clone());
 		insert_block(&db, &bc, b1.last().encoded(), vec![Receipt {
-			outcome: TransactionOutcome::StateRoot(H256::default()),
+			outcome: TransactionOutcome::StateRoot(H256::zero()),
 			gas_used: 10_000.into(),
 			log_bloom: Default::default(),
 			logs: vec![
@@ -2138,7 +2138,7 @@ mod tests {
 			],
 		},
 		Receipt {
-			outcome: TransactionOutcome::StateRoot(H256::default()),
+			outcome: TransactionOutcome::StateRoot(H256::zero()),
 			gas_used: 10_000.into(),
 			log_bloom: Default::default(),
 			logs: vec![
@@ -2147,7 +2147,7 @@ mod tests {
 		}]);
 		insert_block(&db, &bc, b2.last().encoded(), vec![
 			Receipt {
-				outcome: TransactionOutcome::StateRoot(H256::default()),
+				outcome: TransactionOutcome::StateRoot(H256::zero()),
 				gas_used: 10_000.into(),
 				log_bloom: Default::default(),
 				logs: vec![
@@ -2157,7 +2157,7 @@ mod tests {
 		]);
 		insert_block(&db, &bc, b3.last().encoded(), vec![
 			Receipt {
-				outcome: TransactionOutcome::StateRoot(H256::default()),
+				outcome: TransactionOutcome::StateRoot(H256::zero()),
 				gas_used: 10_000.into(),
 				log_bloom: Default::default(),
 				logs: vec![

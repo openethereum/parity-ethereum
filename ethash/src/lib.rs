@@ -177,9 +177,8 @@ fn difficulty_to_boundary_aux<T: Into<U512>>(difficulty: T) -> ethereum_types::U
 	if difficulty == U512::one() {
 		U256::max_value()
 	} else {
-		const PROOF: &str = "difficulty > 1, so result should never overflow 256 bits; qed";
-		// TODO: ok() is a hacky workaround for `primitive_types::Error` not being `std::fmt::Debug`
-		U256::try_from((U512::one() << 256) / difficulty).ok().expect(PROOF)
+		const PROOF: &str = "difficulty > 1, so result never overflows 256 bits; qed";
+		U256::try_from((U512::one() << 256) / difficulty).expect(PROOF)
 	}
 }
 

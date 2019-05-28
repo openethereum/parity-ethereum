@@ -228,7 +228,6 @@ pub fn verify_public(public: &Public, signature: &Signature, message: &Message) 
 
 	let pdata: [u8; 65] = {
 		let mut temp = [4u8; 65];
-		// TODO(review): verify byte order, why was it &**public before?
 		temp[1..65].copy_from_slice(public.as_bytes());
 		temp
 	};

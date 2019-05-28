@@ -179,7 +179,7 @@ impl From<ethjson::transaction::Transaction> for UnverifiedTransaction {
 			r: t.r.into(),
 			s: t.s.into(),
 			v: t.v.into(),
-			hash: H256::default(),
+			hash: H256::zero(),
 		}.compute_hash()
 	}
 }
@@ -207,7 +207,7 @@ impl Transaction {
 			r: sig.r().into(),
 			s: sig.s().into(),
 			v: signature::add_chain_replay_protection(sig.v() as u64, chain_id),
-			hash: H256::default(),
+			hash: H256::zero(),
 		}.compute_hash()
 	}
 
@@ -246,7 +246,7 @@ impl Transaction {
 				r: U256::zero(),
 				s: U256::zero(),
 				v: chain_id,
-				hash: H256::default(),
+				hash: H256::zero(),
 			}.compute_hash(),
 			sender: UNSIGNED_SENDER,
 			public: None,

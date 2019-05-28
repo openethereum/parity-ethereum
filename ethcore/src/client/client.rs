@@ -908,12 +908,12 @@ impl Client {
 			let hashes = self.last_hashes.read();
 			if hashes.front().map_or(false, |h| h == parent_hash) {
 				let mut res = Vec::from(hashes.clone());
-				res.resize(256, H256::default());
+				res.resize(256, H256::zero());
 				return Arc::new(res);
 			}
 		}
 		let mut last_hashes = LastHashes::new();
-		last_hashes.resize(256, H256::default());
+		last_hashes.resize(256, H256::zero());
 		last_hashes[0] = parent_hash.clone();
 		let chain = self.chain.read();
 		for i in 0..255 {

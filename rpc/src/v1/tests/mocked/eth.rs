@@ -201,7 +201,7 @@ fn rpc_eth_logs() {
 	let tester = EthTester::default();
 	tester.client.set_logs(vec![LocalizedLogEntry {
 		block_number: 1,
-		block_hash: H256::default(),
+		block_hash: H256::zero(),
 		entry: LogEntry {
 			address: Address::default(),
 			topics: vec![],
@@ -209,11 +209,11 @@ fn rpc_eth_logs() {
 		},
 		transaction_index: 0,
 		transaction_log_index: 0,
-		transaction_hash: H256::default(),
+		transaction_hash: H256::zero(),
 		log_index: 0,
 	}, LocalizedLogEntry {
 		block_number: 1,
-		block_hash: H256::default(),
+		block_hash: H256::zero(),
 		entry: LogEntry {
 			address: Address::default(),
 			topics: vec![],
@@ -221,7 +221,7 @@ fn rpc_eth_logs() {
 		},
 		transaction_index: 0,
 		transaction_log_index: 1,
-		transaction_hash: H256::default(),
+		transaction_hash: H256::zero(),
 		log_index: 1,
 	}]);
 
@@ -259,7 +259,7 @@ fn rpc_logs_filter() {
 	// Set some logs
 	tester.client.set_logs(vec![LocalizedLogEntry {
 		block_number: 1,
-		block_hash: H256::default(),
+		block_hash: H256::zero(),
 		entry: LogEntry {
 			address: Address::default(),
 			topics: vec![],
@@ -267,11 +267,11 @@ fn rpc_logs_filter() {
 		},
 		transaction_index: 0,
 		transaction_log_index: 0,
-		transaction_hash: H256::default(),
+		transaction_hash: H256::zero(),
 		log_index: 0,
 	}, LocalizedLogEntry {
 		block_number: 1,
-		block_hash: H256::default(),
+		block_hash: H256::zero(),
 		entry: LogEntry {
 			address: Address::default(),
 			topics: vec![],
@@ -279,7 +279,7 @@ fn rpc_logs_filter() {
 		},
 		transaction_index: 0,
 		transaction_log_index: 1,
-		transaction_hash: H256::default(),
+		transaction_hash: H256::zero(),
 		log_index: 1,
 	}]);
 

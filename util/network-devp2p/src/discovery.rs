@@ -1267,7 +1267,7 @@ mod tests {
 		// Create a pong packet with incorrect echo hash and assert that it is rejected.
 		let mut incorrect_pong_rlp = RlpStream::new_list(3);
 		ep1.to_rlp_list(&mut incorrect_pong_rlp);
-		incorrect_pong_rlp.append(&H256::default());
+		incorrect_pong_rlp.append(&H256::zero());
 		append_expiration(&mut incorrect_pong_rlp);
 		let incorrect_pong_data = assemble_packet(
 			PACKET_PONG, &incorrect_pong_rlp.drain(), &discovery2.secret
@@ -1296,7 +1296,7 @@ mod tests {
 		// Deliver an unexpected PONG message to discover1.
 		let mut unexpected_pong_rlp = RlpStream::new_list(3);
 		ep3.to_rlp_list(&mut unexpected_pong_rlp);
-		unexpected_pong_rlp.append(&H256::default());
+		unexpected_pong_rlp.append(&H256::zero());
 		append_expiration(&mut unexpected_pong_rlp);
 		let unexpected_pong = assemble_packet(
 			PACKET_PONG, &unexpected_pong_rlp.drain(), key3.secret()

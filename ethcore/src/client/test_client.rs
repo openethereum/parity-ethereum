@@ -433,7 +433,7 @@ impl ScheduleInfo for TestBlockChainClient {
 
 impl ImportSealedBlock for TestBlockChainClient {
 	fn import_sealed_block(&self, _block: SealedBlock) -> EthcoreResult<H256> {
-		Ok(H256::default())
+		Ok(H256::zero())
 	}
 }
 

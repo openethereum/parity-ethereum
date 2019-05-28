@@ -421,7 +421,7 @@ mod tests {
 	fn should_serialize_confirmation_response_with_token() {
 		// given
 		let response = ConfirmationResponseWithToken {
-			result: ConfirmationResponse::SendTransaction(H256::default()),
+			result: ConfirmationResponse::SendTransaction(H256::zero()),
 			token: "test-token".into(),
 		};
 

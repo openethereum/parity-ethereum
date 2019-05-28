@@ -89,7 +89,7 @@ impl Handshake {
 			ecdhe: Random.generate()?,
 			nonce: *nonce,
 			remote_ephemeral: Public::default(),
-			remote_nonce: H256::default(),
+			remote_nonce: H256::zero(),
 			remote_version: PROTOCOL_VERSION,
 			auth_cipher: Bytes::new(),
 			ack_cipher: Bytes::new(),

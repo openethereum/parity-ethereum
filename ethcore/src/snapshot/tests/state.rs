@@ -68,7 +68,7 @@ fn snap_and_restore() {
 		block_hashes: Vec::new(),
 		state_root: state_root,
 		block_number: 1000,
-		block_hash: H256::default(),
+		block_hash: H256::zero(),
 	}).unwrap();
 
 	let db_path = tempdir.path().join("db");
@@ -87,7 +87,7 @@ fn snap_and_restore() {
 		}
 
 		assert_eq!(rebuilder.state_root(), state_root);
-		rebuilder.finalize(1000, H256::default()).unwrap();
+		rebuilder.finalize(1000, H256::zero()).unwrap();
 
 		new_db
 	};
@@ -182,7 +182,7 @@ fn checks_flag() {
 		block_hashes: Vec::new(),
 		state_root: state_root,
 		block_number: 0,
-		block_hash: H256::default(),
+		block_hash: H256::zero(),
 	}).unwrap();
 
 	let tempdir = TempDir::new("").unwrap();

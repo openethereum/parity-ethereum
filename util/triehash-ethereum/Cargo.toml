@@ -7,5 +7,5 @@ license = "GPL-3.0"
 
 [dependencies]
 triehash = { version = "0.4.0", default-features = false }
-ethereum-types = "0.6.0-beta.1"
+ethereum-types = "0.6.0"
 keccak-hasher = { path = "../keccak-hasher" }

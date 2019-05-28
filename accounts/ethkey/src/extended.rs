@@ -295,8 +295,7 @@ mod derivation {
 	// todo: surely can be optimized
 	fn modulo(u1: U512, u2: U256) -> U256 {
 		let m = u1 % U512::from(u2);
-		// TODO: remove ok()
-		m.try_into().ok().expect("U512 modulo U256 should fit into U256; qed")
+		m.try_into().expect("U512 modulo U256 should fit into U256; qed")
 	}
 
 	pub fn public<T>(public_key: H512, chain_code: H256, derivation: Derivation<T>) -> Result<(H512, H256), Error> where T: Label {

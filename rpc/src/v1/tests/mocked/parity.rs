@@ -412,7 +412,7 @@ fn rpc_parity_chain_status() {
 	let deps = Dependencies::new();
 	let io = deps.default_client();
 
-	*deps.client.ancient_block.write() = Some((H256::default(), 5));
+	*deps.client.ancient_block.write() = Some((H256::zero(), 5));
 	*deps.client.first_block.write() = Some((BigEndianHash::from_uint(&U256::from(1234)), 3333));
 
 	let request = r#"{"jsonrpc": "2.0", "method": "parity_chainStatus", "params":[], "id": 1}"#;

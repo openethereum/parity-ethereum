@@ -212,7 +212,7 @@ struct EpochManager {
 impl EpochManager {
 	fn blank() -> Self {
 		EpochManager {
-			epoch_transition_hash: H256::default(),
+			epoch_transition_hash: H256::zero(),
 			epoch_transition_number: 0,
 			finality_checker: RollingFinality::blank(Vec::new()),
 			force: true,

@@ -21,7 +21,7 @@ ethabi = { git = "https://github.com/paritytech/ethabi", branch = "ao-update-eth
 ethabi-derive = { git = "https://github.com/paritytech/ethabi", branch = "ao-update-ethereum-types" }
 ethabi-contract = { git = "https://github.com/paritytech/ethabi", branch = "ao-update-ethereum-types" }
 ethcore-call-contract = { path = "../ethcore/call-contract" }
-ethereum-types = "0.6.0-beta.1"
+ethereum-types = "0.6.0"
 futures = "0.1"
 heapsize = "0.4"
 keccak-hash = "0.2.0"
