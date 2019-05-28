@@ -20,7 +20,6 @@ use std::{ops, str};
 use std::collections::HashMap;
 use jsonrpc_pubsub::{typed::{Subscriber, Sink}, SubscriptionId};
 use ethereum_types::H64;
-use rand::{RngCore, rngs::EntropyRng};
 
 #[derive(Debug, Clone, Hash, Eq, PartialEq)]
 pub struct Id(H64);
@@ -42,15 +41,36 @@ impl Id {
 	}
 }
 
+#[cfg(not(test))]
+mod random {
+	use rand;
+
+	pub type Rng = rand::rngs::OsRng;
+
+	pub fn new() -> Rng { Rng::new().expect("Valid random source is required.") }
+}
+
+#[cfg(test)]
+mod random {
+	use rand::SeedableRng;
+	use rand_xorshift::XorShiftRng;
+
+	const RNG_SEED: [u8; 16] = [0u8; 16];
+
+	pub type Rng = XorShiftRng;
+
+	pub fn new() -> Rng { Rng::from_seed(RNG_SEED) }
+}
+
 pub struct Subscribers<T> {
-	rand: EntropyRng,
+	rand: random::Rng,
 	subscriptions: HashMap<Id, T>,
 }
 
 impl<T> Default for Subscribers<T> {
 	fn default() -> Self {
 		Subscribers {
-			rand: EntropyRng::new(),
+			rand: random::new(),
 			subscriptions: HashMap::new(),
 		}
 	}
@@ -61,15 +81,13 @@ impl<T> Subscribers<T> {
 	#[cfg(test)]
 	pub fn new_test() -> Self {
 		Subscribers {
-			// TODO: how important is determinism here?
-			rand: EntropyRng::new(),
+			rand: random::new(),
 			subscriptions: HashMap::new(),
 		}
 	}
 
 	fn next_id(&mut self) -> Id {
-		let mut data = H64::default();
-		self.rand.fill_bytes(&mut data.0);
+		let data = H64::random_using(&mut self.rand);
 		Id(data)
 	}
 
