@@ -106,8 +106,8 @@ impl ConnectionFilter for NodeFilter {
 			});
 		let mut cache = self.cache.write();
 		if cache.cache.len() == CACHE_SIZE {
-			let poped = cache.order.pop_front().unwrap();
-			cache.cache.remove(&poped).is_none();
+			let popped = cache.order.pop_front().expect("the cache is full so there's at least one item we can pop; qed");
+			cache.cache.remove(&popped);
 		};
 		if cache.cache.insert(*connecting_id, allowed).is_none() {
 			cache.order.push_back(*connecting_id);

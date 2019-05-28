@@ -14,7 +14,23 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
-//! Parity EVM interpreter binary.
+//! Parity EVM Interpreter Binary.
+//!
+//! ## Overview
+//!
+//! The Parity EVM interpreter binary is a tool in the Parity
+//! Ethereum toolchain. It is an EVM implementation for Parity Ethereum that
+//! is used to run a standalone version of the EVM interpreter.
+//!
+//! ## Usage
+//!
+//! The evmbin tool is not distributed with regular Parity Ethereum releases
+//! so you need to build it from source and run it like so:
+//!
+//! ```bash
+//! cargo build -p evmbin --release
+//! ./target/release/parity-evm --help
+//! ```
 
 #![warn(missing_docs)]
 
@@ -268,6 +284,7 @@ struct Args {
 }
 
 impl Args {
+	/// Set the gas limit. Defaults to max value to allow code to run for whatever time is required.
 	pub fn gas(&self) -> Result<U256, String> {
 		match self.flag_gas {
 			Some(ref gas) => gas.parse().map_err(to_string),
@@ -275,6 +292,9 @@ impl Args {
 		}
 	}
 
+	/// Set the gas price. Defaults to zero to allow the code to run even if an account with no balance
+	/// is used, otherwise such accounts would not have sufficient funds to pay the transaction fee.
+	/// Defaulting to zero also makes testing easier since it is not necessary to specify a special configuration file.
 	pub fn gas_price(&self) -> Result<U256, String> {
 		match self.flag_gas_price {
 			Some(ref gas_price) => gas_price.parse().map_err(to_string),
