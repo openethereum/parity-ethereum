@@ -654,7 +654,7 @@ mod tests {
 		let test_vector = |tx_data: &str, address: &'static str| {
 			let signed = rlp::decode(&FromHex::from_hex(tx_data).unwrap()).expect("decoding tx data failed");
 			let signed = SignedTransaction::new(signed).unwrap();
-			assert_eq!(signed.sender(), Address::from_str(address).unwrap());
+			assert_eq!(signed.sender(), Address::from_str(&address[2..]).unwrap());
 			println!("chainid: {:?}", signed.chain_id());
 		};
 
