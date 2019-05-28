@@ -124,8 +124,9 @@ pub fn fill_storage(mut db: AccountDBMut, root: &mut H256, seed: &mut H256) {
 			SecTrieDBMut::from_existing(&mut db, root).unwrap()
 		};
 
-		// TODO: upgrade trie_standardmap
-		for (k, v) in map.make_with(seed) {
+		let mut bytes = [0u8; 32];
+		bytes.copy_from_slice(seed.as_bytes());
+		for (k, v) in map.make_with(&mut bytes) {
 			trie.insert(&k, &v).unwrap();
 		}
 	}
