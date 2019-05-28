@@ -11,4 +11,4 @@ echo "We maintain the same set of tags there, so just replacing the image name"
 echo "everywhere would be safe."
 echo "#################################################################################"
 
-/bin/parity $@
+exec /bin/parity $@
