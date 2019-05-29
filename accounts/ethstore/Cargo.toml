@@ -25,6 +25,5 @@ tempdir = "0.3"
 
 [dev-dependencies]
 matches = "0.1"
-ethereum-types = "0.6.0"
 
 [lib]
