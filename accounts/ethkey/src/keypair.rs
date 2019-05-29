@@ -21,7 +21,7 @@ use parity_crypto::Keccak256 as _;
 
 pub fn public_to_address(public: &Public) -> Address {
 	let hash = public.keccak256();
-	let mut result = Address::default();
+	let mut result = Address::zero();
 	result.as_bytes_mut().copy_from_slice(&hash[12..]);
 	result
 }

@@ -238,7 +238,7 @@ fn run_call<T: Informant>(args: Args, informant: T) {
 	let gas_price = arg(args.gas_price(), "--gas-price");
 	let data = arg(args.data(), "--input");
 
-	if code.is_none() && to == Address::default() {
+	if code.is_none() && to == Address::zero() {
 		die("Either --code or --to is required.");
 	}
 
@@ -305,14 +305,14 @@ impl Args {
 	pub fn from(&self) -> Result<Address, String> {
 		match self.flag_from {
 			Some(ref from) => from.parse().map_err(to_string),
-			None => Ok(Address::default()),
+			None => Ok(Address::zero()),
 		}
 	}
 
 	pub fn to(&self) -> Result<Address, String> {
 		match self.flag_to {
 			Some(ref to) => to.parse().map_err(to_string),
-			None => Ok(Address::default()),
+			None => Ok(Address::zero()),
 		}
 	}
 

@@ -126,7 +126,7 @@ fn get_urlhint_content(account_slash_repo: String, owner: Address) -> Content {
 fn decode_urlhint_output(output: (String, [u8; 20], Address)) -> Option<URLHintResult> {
 	let (account_slash_repo, commit, owner) = output;
 
-	if owner == Address::default() {
+	if owner == Address::zero() {
 		return None;
 	}
 
@@ -336,7 +336,7 @@ pub mod tests {
 			account: "test".into(),
 			repo: "xyz".into(),
 			commit: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19],
-			owner: Address::default(),
+			owner: Address::zero(),
 		};
 
 		// when

@@ -658,7 +658,7 @@ impl Spec {
 				gas_limit: U256::max_value(),
 			};
 
-			let from = Address::default();
+			let from = Address::zero();
 			for &(ref address, ref constructor) in self.constructors.iter() {
 				trace!(target: "spec", "run_constructors: Creating a contract at {}.", address);
 				trace!(target: "spec", "  .. root before = {}", state.root());
@@ -872,7 +872,7 @@ impl Spec {
 				gas_used: 0.into(),
 			};
 
-			let from = Address::default();
+			let from = Address::zero();
 			let tx = Transaction {
 				nonce: self.engine.account_start_nonce(0),
 				action: Action::Call(a),

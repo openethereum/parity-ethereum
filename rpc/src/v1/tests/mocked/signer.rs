@@ -377,7 +377,7 @@ fn should_return_error_when_sender_does_not_match() {
 	let address = tester.accounts.new_account(&"test".into()).unwrap();
 	let recipient = Address::from_str("d46e8dd67c5d32be8058bb8eb970870f07244567").unwrap();
 	let _confirmation_future = tester.signer.add_request(ConfirmationPayload::SendTransaction(FilledTransactionRequest {
-		from: Address::default(),
+		from: Address::zero(),
 		used_default_from: false,
 		to: Some(recipient),
 		gas_price: U256::from(10_000),

@@ -1005,7 +1005,7 @@ mod tests {
 				session: SessionId::default().into(),
 				session_nonce: 0,
 				origin: None,
-				author: Address::default().into(),
+				author: Address::zero().into(),
 				nodes: BTreeMap::new(),
 				is_zero: false,
 				threshold: 1,

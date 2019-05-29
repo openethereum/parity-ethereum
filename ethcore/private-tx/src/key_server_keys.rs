@@ -118,7 +118,7 @@ impl Default for StoringKeyProvider {
 	fn default() -> Self {
 		StoringKeyProvider {
 			available_keys: RwLock::new(None),
-			key_server_account: Some(Address::default()),
+			key_server_account: Some(Address::zero()),
 		}
 	}
 }

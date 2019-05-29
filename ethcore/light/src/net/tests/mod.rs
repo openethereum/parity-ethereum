@@ -617,8 +617,8 @@ fn proof_of_execution() {
 	let req_id = 112;
 	let mut request = Request::Execution(request::IncompleteExecutionRequest {
 		block_hash: H256::zero().into(),
-		from: Address::default(),
-		action: Action::Call(Address::default()),
+		from: Address::zero(),
+		action: Action::Call(Address::zero()),
 		gas: 100.into(),
 		gas_price: 0.into(),
 		value: 0.into(),

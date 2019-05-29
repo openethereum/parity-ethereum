@@ -32,7 +32,7 @@ fn new_tx(secret: &Secret, nonce: U256, chain_id: u64) -> PendingTransaction {
 		nonce: nonce.into(),
 		gas_price: 0.into(),
 		gas: 21000.into(),
-		action: Action::Call(Address::default()),
+		action: Action::Call(Address::zero()),
 		value: 0.into(),
 		data: Vec::new(),
 	}.sign(secret, Some(chain_id));

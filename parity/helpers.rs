@@ -126,7 +126,7 @@ pub fn to_queue_penalization(time: Option<u64>) -> Result<Penalization, String> 
 pub fn to_address(s: Option<String>) -> Result<Address, String> {
 	match s {
 		Some(ref a) => clean_0x(a).parse().map_err(|_| format!("Invalid address: {:?}", a)),
-		None => Ok(Address::default())
+		None => Ok(Address::zero())
 	}
 }
 

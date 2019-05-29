@@ -203,7 +203,7 @@ fn rpc_eth_logs() {
 		block_number: 1,
 		block_hash: H256::zero(),
 		entry: LogEntry {
-			address: Address::default(),
+			address: Address::zero(),
 			topics: vec![],
 			data: vec![1,2,3],
 		},
@@ -215,7 +215,7 @@ fn rpc_eth_logs() {
 		block_number: 1,
 		block_hash: H256::zero(),
 		entry: LogEntry {
-			address: Address::default(),
+			address: Address::zero(),
 			topics: vec![],
 			data: vec![1,2,3],
 		},
@@ -261,7 +261,7 @@ fn rpc_logs_filter() {
 		block_number: 1,
 		block_hash: H256::zero(),
 		entry: LogEntry {
-			address: Address::default(),
+			address: Address::zero(),
 			topics: vec![],
 			data: vec![1,2,3],
 		},
@@ -273,7 +273,7 @@ fn rpc_logs_filter() {
 		block_number: 1,
 		block_hash: H256::zero(),
 		entry: LogEntry {
-			address: Address::default(),
+			address: Address::zero(),
 			topics: vec![],
 			data: vec![1,2,3],
 		},

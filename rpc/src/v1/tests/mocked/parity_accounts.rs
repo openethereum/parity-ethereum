@@ -90,7 +90,7 @@ fn rpc_parity_default_account() {
 	let io = tester.io;
 
 	// Check empty
-	let address = Address::default();
+	let address = Address::zero();
 	let request = r#"{"jsonrpc": "2.0", "method": "parity_defaultAccount", "params": [], "id": 1}"#;
 	let response = format!("{{\"jsonrpc\":\"2.0\",\"result\":\"0x{:x}\",\"id\":1}}", address);
 	assert_eq!(io.handle_request_sync(request), Some(response));

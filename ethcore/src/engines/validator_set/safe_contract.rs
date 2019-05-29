@@ -117,7 +117,7 @@ fn check_first_proof(machine: &EthereumMachine, contract_address: Address, old_h
 	let number = old_header.number();
 	let (data, decoder) = validator_set::functions::get_validators::call();
 
-	let from = Address::default();
+	let from = Address::zero();
 	let tx = Transaction {
 		nonce: machine.account_start_nonce(number),
 		action: Action::Call(contract_address),
@@ -516,7 +516,7 @@ mod tests {
 			nonce: 2.into(),
 			gas_price: 0.into(),
 			gas: 21000.into(),
-			action: Action::Call(Address::default()),
+			action: Action::Call(Address::zero()),
 			value: 0.into(),
 			data: Vec::new(),
 		}.sign(&s0, Some(chain_id));

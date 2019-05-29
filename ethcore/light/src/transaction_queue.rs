@@ -395,7 +395,7 @@ mod tests {
 
 	#[test]
 	fn queued_senders() {
-		let sender = Address::default();
+		let sender = Address::zero();
 		let mut txq = TransactionQueue::default();
 		let tx = Transaction::default().fake_sign(sender);
 
@@ -411,7 +411,7 @@ mod tests {
 
 	#[test]
 	fn next_nonce() {
-		let sender = Address::default();
+		let sender = Address::zero();
 		let mut txq = TransactionQueue::default();
 
 		for i in (0..5).chain(10..15) {
@@ -442,7 +442,7 @@ mod tests {
 
 	#[test]
 	fn current_to_future() {
-		let sender = Address::default();
+		let sender = Address::zero();
 		let mut txq = TransactionQueue::default();
 
 		for i in 5..10 {
@@ -485,7 +485,7 @@ mod tests {
 	#[test]
 	fn conditional() {
 		let mut txq = TransactionQueue::default();
-		let sender = Address::default();
+		let sender = Address::zero();
 
 		for i in 0..5 {
 			let mut tx = Transaction::default();
@@ -507,7 +507,7 @@ mod tests {
 
 	#[test]
 	fn cull_from_future() {
-		let sender = Address::default();
+		let sender = Address::zero();
 		let mut txq = TransactionQueue::default();
 
 		for i in (0..1).chain(3..10) {
@@ -527,7 +527,7 @@ mod tests {
 
 	#[test]
 	fn import_old() {
-		let sender = Address::default();
+		let sender = Address::zero();
 		let mut txq = TransactionQueue::default();
 
 		let mut tx_a = Transaction::default();
@@ -544,7 +544,7 @@ mod tests {
 
 	#[test]
 	fn replace_is_removed() {
-		let sender = Address::default();
+		let sender = Address::zero();
 		let mut txq = TransactionQueue::default();
 
 		let tx_b: PendingTransaction = Transaction::default().fake_sign(sender).into();
@@ -564,7 +564,7 @@ mod tests {
 
 	#[test]
 	fn future_transactions() {
-		let sender = Address::default();
+		let sender = Address::zero();
 		let mut txq = TransactionQueue::default();
 
 		for i in (0..1).chain(3..10) {

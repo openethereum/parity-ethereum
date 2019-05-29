@@ -353,7 +353,7 @@ fn rpc_parity_ws_address() {
 #[test]
 fn rpc_parity_next_nonce() {
 	let deps = Dependencies::new();
-	let address = Address::default();
+	let address = Address::zero();
 	let io1 = deps.default_client();
 	let deps = Dependencies::new();
 	deps.miner.increment_nonce(&address);
