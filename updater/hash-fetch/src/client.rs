@@ -99,9 +99,8 @@ fn validate_hash(path: PathBuf, hash: H256, body: fetch::BodyReader) -> Result<P
 	// And validate the hash
 	let mut file_reader = io::BufReader::new(fs::File::open(&path)?);
 	let content_hash = keccak_buffer(&mut file_reader)?;
-	// TODO: update keccak-hash dep
-	if content_hash.0 != hash.0 {
-		Err(Error::HashMismatch{ got: H256(content_hash.0), expected: hash })
+	if content_hash != hash {
+		Err(Error::HashMismatch{ got: content_hash, expected: hash })
 	} else {
 		Ok(path)
 	}

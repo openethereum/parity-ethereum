@@ -95,8 +95,7 @@ fn encode_type(message_type: &str, message_types: &MessageTypes) -> Result<Strin
 }
 
 fn type_hash(message_type: &str, typed_data: &MessageTypes) -> Result<H256> {
-	// TODO: update keccak-hash dep
-	Ok(H256(keccak(encode_type(message_type, typed_data)?).0))
+	Ok(keccak(encode_type(message_type, typed_data)?))
 }
 
 fn encode_data(

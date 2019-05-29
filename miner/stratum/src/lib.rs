@@ -163,8 +163,7 @@ impl StratumImpl {
 		params.parse::<(String, String)>().map(|(worker_id, secret)|{
 			if let Some(valid_secret) = self.secret {
 				let hash = keccak(secret);
-				// TODO: update keccak-hash dep
-				if hash.0 != valid_secret.0 {
+				if hash != valid_secret {
 					return to_value(&false);
 				}
 			}
