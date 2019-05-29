@@ -108,10 +108,10 @@ impl<C> EthPubSubClient<C> {
 	#[cfg(test)]
 	pub fn new_test(client: Arc<C>, executor: Executor) -> Self {
 		let client = Self::new(client, executor);
-		*client.heads_subscribers.write() = Subscribers::new_test();
-		*client.logs_subscribers.write() = Subscribers::new_test();
-		*client.transactions_subscribers.write() = Subscribers::new_test();
-		*client.sync_subscribers.write() = Subscribers::new_test();
+		*client.heads_subscribers.write() = Subscribers::default();
+		*client.logs_subscribers.write() = Subscribers::default();
+		*client.transactions_subscribers.write() = Subscribers::default();
+		*client.sync_subscribers.write() = Subscribers::default();
 		client
 	}
 

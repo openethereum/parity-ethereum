@@ -60,7 +60,7 @@ impl<S: core::Middleware<Metadata>> GenericPollManager<S> {
 	#[cfg(test)]
 	pub fn new_test(rpc: MetaIoHandler<Metadata, S>) -> Self {
 		let mut manager = Self::new(rpc);
-		manager.subscribers = Subscribers::new_test();
+		manager.subscribers = Subscribers::default();
 		manager
 	}
 

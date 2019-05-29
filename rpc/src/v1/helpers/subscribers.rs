@@ -77,15 +77,6 @@ impl<T> Default for Subscribers<T> {
 }
 
 impl<T> Subscribers<T> {
-	/// Create a new Subscribers with given random source.
-	#[cfg(test)]
-	pub fn new_test() -> Self {
-		Subscribers {
-			rand: random::new(),
-			subscriptions: HashMap::new(),
-		}
-	}
-
 	fn next_id(&mut self) -> Id {
 		let data = H64::random_using(&mut self.rand);
 		Id(data)
