@@ -1446,7 +1446,13 @@ impl CallContract for Client {
 		self.call_contract_from_sender(block_id, address, Address::default(), data)
 	}
 
-	fn call_contract_from_sender(&self, block_id: BlockId, address: Address, sender: Address, data: Bytes) -> Result<Bytes, String> {
+	fn call_contract_from_sender(
+		&self,
+		block_id: BlockId,
+		address: Address,
+		sender: Address,
+		data: Bytes
+	) -> Result<Bytes, String> {
 		let state_pruned = || CallError::StatePruned.to_string();
 		let state = &mut self.state_at(block_id).ok_or_else(&state_pruned)?;
 		let header = self.block_header_decoded(block_id).ok_or_else(&state_pruned)?;

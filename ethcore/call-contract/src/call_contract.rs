@@ -21,6 +21,8 @@ use ethereum_types::Address;
 use ethabi::{decode, ParamType, Token};
 use types::ids::BlockId;
 
+const ERROR_SELECTOR: [u8; 4] = [0x08, 0xc3, 0x79, 0xa0];
+
 /// Provides `call_contract` method
 pub trait CallContract {
 	/// Like `call`, but with various defaults. Designed to be used for calling contracts.
@@ -35,9 +37,9 @@ pub trait CallContract {
 	fn try_decode_solidity_revert_msg(&self, data: &Bytes) -> Option<String> {
 		let mut result = None;
 		if data.len() > 4 {
-			let (error_selector, enc_string) = data.split_at(4);
+			let (fn_selector, enc_string) = data.split_at(4);
 			// Error(string) selector. Details: https://solidity.readthedocs.io/en/v0.5.8/control-structures.html#error-handling-assert-require-revert-and-exceptions
-			if error_selector == [0x08, 0xc3, 0x79, 0xa0] {
+			if fn_selector == ERROR_SELECTOR {
 				result = decode(&[ParamType::String], enc_string)
 					.as_ref()
 					.map(|d| if let Token::String(str) = &d[0] { Some(str.as_str().to_string()) } else { None })
