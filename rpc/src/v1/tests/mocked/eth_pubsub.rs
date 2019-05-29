@@ -40,7 +40,7 @@ fn should_subscribe_to_new_heads() {
 	let h2 = client.block_hash_delta_minus(2);
 	let h1 = client.block_hash_delta_minus(3);
 
-	let pubsub = EthPubSubClient::new_test(Arc::new(client), el.executor());
+	let pubsub = EthPubSubClient::new(Arc::new(client), el.executor());
 	let handler = pubsub.handler().upgrade().unwrap();
 	let pubsub = pubsub.to_delegate();
 
@@ -112,7 +112,7 @@ fn should_subscribe_to_logs() {
 		}
 	]);
 
-	let pubsub = EthPubSubClient::new_test(Arc::new(client), el.executor());
+	let pubsub = EthPubSubClient::new(Arc::new(client), el.executor());
 	let handler = pubsub.handler().upgrade().unwrap();
 	let pubsub = pubsub.to_delegate();
 
@@ -159,7 +159,7 @@ fn should_subscribe_to_pending_transactions() {
 	let el = Runtime::with_thread_count(1);
 	let client = TestBlockChainClient::new();
 
-	let pubsub = EthPubSubClient::new_test(Arc::new(client), el.executor());
+	let pubsub = EthPubSubClient::new(Arc::new(client), el.executor());
 	let handler = pubsub.handler().upgrade().unwrap();
 	let pubsub = pubsub.to_delegate();
 
@@ -205,7 +205,7 @@ fn eth_subscribe_syncing() {
 	// given
 	let el = Runtime::with_thread_count(1);
 	let client = TestBlockChainClient::new();
-	let pubsub = EthPubSubClient::new_test(Arc::new(client), el.executor());
+	let pubsub = EthPubSubClient::new(Arc::new(client), el.executor());
 	let pubsub = pubsub.to_delegate();
 
 	let mut io = MetaIoHandler::default();
