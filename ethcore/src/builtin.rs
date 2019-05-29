@@ -95,7 +95,6 @@ impl Pricer for ModexpPricer {
 		// read lengths as U256 here for accurate gas calculation.
 		let mut read_len = || {
 			reader.read_exact(&mut buf[..]).expect("reading from zero-extended memory cannot fail; qed");
-			// TODO: check byte order
 			U256::from_big_endian(&buf[..])
 		};
 		let base_len = read_len();
