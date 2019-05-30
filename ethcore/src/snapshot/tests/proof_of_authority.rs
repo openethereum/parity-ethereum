@@ -52,10 +52,16 @@ lazy_static! {
 	static ref RICH_SECRET: Secret = secret!("1");
 }
 
-/// Contract code used here: https://gist.github.com/anonymous/2a43783647e0f0dfcc359bd6fd81d6d9
-/// Account with secrets keccak("1") is initially the validator.
+/// Contract code used here: `ethcore/res/validator_contract.sol`, but with:
+/// ```ignore
+/// address[] public validators = [
+///		0x7d577a597B2742b498Cb5Cf0C26cDCD726d39E6e
+///	];
+/// ```
+/// I.e. only the account with secrets keccak("1") is initially the validator.
 /// Transitions to the contract at block 2, initially same validator set.
-/// Create a new Spec with AuthorityRound which uses a contract at address 5 to determine the current validators using `getValidators`.
+/// Create a new Spec with AuthorityRound which uses a contract at address 5 to determine the current validators using
+/// `getValidators`.
 /// `test_validator_set::ValidatorSet` provides a native wrapper for the ABi.
 fn spec_fixed_to_contract() -> Spec {
 	let data = include_bytes!("test_validator_contract.json");

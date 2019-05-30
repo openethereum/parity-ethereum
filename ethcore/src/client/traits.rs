@@ -376,11 +376,12 @@ pub trait BlockChainClient : Sync + Send + AccountData + BlockChain + CallContra
 	fn pruning_info(&self) -> PruningInfo;
 
 	/// Schedule state-altering transaction to be executed on the next pending block.
-	fn transact_contract(&self, address: Address, data: Bytes) -> Result<(), transaction::Error> {
-		self.transact(Action::Call(address), data, None, None)
+	fn transact_contract(&self, address: Address, data: Bytes, nonce: Option<U256>) -> Result<(), transaction::Error> {
+		self.transact(Action::Call(address), data, None, None, nonce)
 	}
 
-	/// Returns a signed transaction. If gas limit, gas price, or nonce are not specified, the defaults are used.
+	/// Returns a signed transaction. If gas limit, gas price, or nonce are not
+	/// specified, the defaults are used.
 	fn create_transaction(
 		&self,
 		action: Action,
@@ -390,10 +391,11 @@ pub trait BlockChainClient : Sync + Send + AccountData + BlockChain + CallContra
 		nonce: Option<U256>
 	) -> Result<SignedTransaction, transaction::Error>;
 
-	/// Schedule state-altering transaction to be executed on the next pending block with the given gas parameters.
+	/// Schedule state-altering transaction to be executed on the next pending
+	/// block with the given gas and nonce parameters.
 	///
 	/// If they are `None`, sensible values are selected automatically.
-	fn transact(&self, action: Action, data: Bytes, gas: Option<U256>, gas_price: Option<U256>)
+	fn transact(&self, action: Action, data: Bytes, gas: Option<U256>, gas_price: Option<U256>, nonce: Option<U256>)
 		-> Result<(), transaction::Error>;
 
 	/// Get the address of the registry itself.
@@ -441,7 +443,7 @@ pub trait BroadcastProposalBlock {
 pub trait SealedBlockImporter: ImportSealedBlock + BroadcastProposalBlock {}
 
 /// Client facilities used by internally sealing Engines.
-pub trait EngineClient: Sync + Send + ChainInfo {
+pub trait EngineClient: Sync + Send + ChainInfo + Nonce {
 	/// Make a new block and seal it.
 	fn update_sealing(&self);
 

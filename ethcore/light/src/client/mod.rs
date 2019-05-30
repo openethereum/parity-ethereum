@@ -619,6 +619,12 @@ impl<T: ChainDataFetcher> ::ethcore::client::ChainInfo for Client<T> {
 	}
 }
 
+impl<T: ChainDataFetcher> ::ethcore::client::Nonce for Client<T> {
+	fn nonce(&self, _address: &ethereum_types::H160, _blockid: ethcore::client::BlockId) -> std::option::Option<ethereum_types::U256> {
+		panic!("we never call this function on a light client, so this is unreachable; qed")
+	}
+}
+
 impl<T: ChainDataFetcher> ::ethcore::client::EngineClient for Client<T> {
 	fn update_sealing(&self) { }
 	fn submit_seal(&self, _block_hash: H256, _seal: Vec<Vec<u8>>) { }

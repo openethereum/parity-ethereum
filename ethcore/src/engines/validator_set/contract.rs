@@ -24,8 +24,9 @@ use ethereum_types::{H256, Address};
 use machine::{AuxiliaryData, Call, EthereumMachine};
 use parking_lot::RwLock;
 use types::BlockNumber;
+use types::ids::BlockId;
 use types::header::Header;
-use types::transaction::Action;
+use types::transaction::{self, Action};
 
 use client::EngineClient;
 
@@ -38,7 +39,7 @@ use_contract!(validator_report, "res/contracts/validator_report.json");
 pub struct ValidatorContract {
 	contract_address: Address,
 	validators: ValidatorSafeContract,
-	client: RwLock<Option<Weak<EngineClient>>>, // TODO [keorn]: remove
+	client: RwLock<Option<Weak<dyn EngineClient>>>, // TODO [keorn]: remove
 }
 
 impl ValidatorContract {
@@ -52,19 +53,27 @@ impl ValidatorContract {
 }
 
 impl ValidatorContract {
-	fn transact(&self, data: Bytes) -> Result<(), String> {
-		let client = self.client.read().as_ref()
-			.and_then(Weak::upgrade)
-			.ok_or_else(|| "No client!")?;
-
-		match client.as_full_client() {
-			Some(c) => {
-				c.transact(Action::Call(self.contract_address), data, None, Some(0.into()))
-					.map_err(|e| format!("Transaction import error: {}", e))?;
-				Ok(())
-			},
-			None => Err("No full client!".into()),
+	fn transact(&self, data: Bytes) -> Result<(), ::error::Error> {
+		let client = self.client.read().as_ref().and_then(Weak::upgrade).ok_or("No client!")?;
+		let full_client = client.as_full_client().ok_or("No full client!")?;
+		match full_client.transact(Action::Call(self.contract_address), data, None, Some(0.into()), None) {
+			Ok(()) | Err(transaction::Error::AlreadyImported) => Ok(()),
+			Err(e) => Err(e)?,
 		}
+	}
+
+	fn do_report_malicious(&self, address: &Address, block: BlockNumber, proof: Bytes) -> Result<(), ::error::Error> {
+		let client = self.client.read().as_ref().and_then(Weak::upgrade).ok_or("No client!")?;
+		let latest = client.block_header(BlockId::Latest).ok_or("No latest block!")?;
+		if !self.contains(&latest.parent_hash(), address) {
+			warn!(target: "engine", "Not reporting {} on block {}: Not a validator", address, block);
+			return Ok(());
+		}
+		let data = validator_report::functions::report_malicious::encode_input(*address, block, proof);
+		self.validators.queue_report((*address, block, data.clone()));
+		self.transact(data)?;
+		warn!(target: "engine", "Reported malicious validator {} at block {}", address, block);
+		Ok(())
 	}
 }
 
@@ -82,6 +91,10 @@ impl ValidatorSet for ValidatorContract {
 
 	fn on_epoch_begin(&self, first: bool, header: &Header, call: &mut SystemCall) -> Result<(), ::error::Error> {
 		self.validators.on_epoch_begin(first, header, call)
+	}
+
+	fn on_close_block(&self, header: &Header, address: &Address) -> Result<(), ::error::Error> {
+		self.validators.on_close_block(header, address)
 	}
 
 	fn genesis_epoch_data(&self, header: &Header, call: &Call) -> Result<Vec<u8>, String> {
@@ -118,17 +131,15 @@ impl ValidatorSet for ValidatorContract {
 	}
 
 	fn report_malicious(&self, address: &Address, _set_block: BlockNumber, block: BlockNumber, proof: Bytes) {
-		let data = validator_report::functions::report_malicious::encode_input(*address, block, proof);
-		match self.transact(data) {
-			Ok(_) => warn!(target: "engine", "Reported malicious validator {}", address),
-			Err(s) => warn!(target: "engine", "Validator {} could not be reported {}", address, s),
+		if let Err(s) = self.do_report_malicious(address, block, proof) {
+			warn!(target: "engine", "Validator {} could not be reported ({}) on block {}", address, s, block);
 		}
 	}
 
 	fn report_benign(&self, address: &Address, _set_block: BlockNumber, block: BlockNumber) {
 		let data = validator_report::functions::report_benign::encode_input(*address, block);
 		match self.transact(data) {
-			Ok(_) => warn!(target: "engine", "Reported benign validator misbehaviour {}", address),
+			Ok(()) => warn!(target: "engine", "Reported benign validator misbehaviour {}", address),
 			Err(s) => warn!(target: "engine", "Validator {} could not be reported {}", address, s),
 		}
 	}
@@ -144,6 +155,7 @@ mod tests {
 	use std::sync::Arc;
 	use rustc_hex::FromHex;
 	use hash::keccak;
+	use ethabi::FunctionOutputDecoder;
 	use ethereum_types::{H520, Address};
 	use bytes::ToPretty;
 	use rlp::encode;
@@ -199,21 +211,16 @@ mod tests {
 		header.set_author(v1);
 		header.set_number(2);
 		header.set_parent_hash(client.chain_info().best_block_hash);
-
-		// Regression test: Check that the removed method `reportBenign` was not called. `reportBenign` was previously
-		// called when the designated proposer would release a block from the future (bad clock).
-		let verify_block_basic = client.engine().verify_block_basic(&header);
-		assert!(verify_block_basic.is_err());
+		// `reportBenign` when the designated proposer releases block from the future (bad clock).
+		assert!(client.engine().verify_block_basic(&header).is_err());
 		// Seal a block.
 		client.engine().step();
 		assert_eq!(client.chain_info().best_block_number, 1);
-		// "d8f2e0bf" accesses the field `disliked`.
+		// Check if the unresponsive validator is `disliked`. "d8f2e0bf" accesses the field `disliked`.
 		assert_eq!(
-			client.call_contract(BlockId::Latest, validator_contract,
-								 "d8f2e0bf".from_hex().unwrap()).unwrap().to_hex(),
-			"0000000000000000000000000000000000000000000000000000000000000000"
+			client.call_contract(BlockId::Latest, validator_contract, "d8f2e0bf".from_hex().unwrap()).unwrap().to_hex(),
+			"0000000000000000000000007d577a597b2742b498cb5cf0c26cdcd726d39e6e"
 		);
-
 		// Simulate a misbehaving validator by handling a double proposal.
 		let header = client.best_block_header();
 		assert!(client.engine().verify_block_family(&header, &header).is_err());
@@ -221,9 +228,12 @@ mod tests {
 		client.engine().step();
 		client.engine().step();
 		assert_eq!(client.chain_info().best_block_number, 2);
+		let (data, decoder) = super::validator_report::functions::malice_reported_for_block::call(v1, 1);
+		let reported_enc = client.call_contract(BlockId::Latest, validator_contract, data).expect("call failed");
+		assert_ne!(Vec::<Address>::new(), decoder.decode(&reported_enc).expect("decoding failed"));
 
 		// Check if misbehaving validator was removed.
-		client.transact_contract(Default::default(), Default::default()).unwrap();
+		client.transact_contract(Default::default(), Default::default(), Default::default()).unwrap();
 		client.engine().step();
 		client.engine().step();
 		assert_eq!(client.chain_info().best_block_number, 2);

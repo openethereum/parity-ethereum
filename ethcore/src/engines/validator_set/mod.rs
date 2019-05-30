@@ -92,6 +92,11 @@ pub trait ValidatorSet: Send + Sync + 'static {
 		Ok(())
 	}
 
+	/// Called on the close of every block.
+	fn on_close_block(&self, _header: &Header, _address: &Address) -> Result<(), ::error::Error> {
+		Ok(())
+	}
+
 	/// Called for each new block this node is creating.  If this block is
 	/// the first block of an epoch, this is called *after* on_epoch_begin(),
 	/// but with the same parameters.

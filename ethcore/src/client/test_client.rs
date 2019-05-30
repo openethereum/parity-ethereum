@@ -896,8 +896,14 @@ impl BlockChainClient for TestBlockChainClient {
 		Ok(SignedTransaction::new(transaction.with_signature(sig, chain_id)).unwrap())
 	}
 
-	fn transact(&self, action: Action, data: Bytes, gas: Option<U256>, gas_price: Option<U256>)
-		-> Result<(), transaction::Error>
+	fn transact(
+		&self,
+		action: Action,
+		data: Bytes,
+		gas: Option<U256>,
+		gas_price: Option<U256>,
+		_nonce: Option<U256>,
+	) -> Result<(), transaction::Error>
 	{
 		let signed = self.create_transaction(action, data, gas, gas_price, None)?;
 		self.miner.import_own_transaction(self, signed.into())

@@ -1,0 +1,35 @@
+#!/usr/bin/python3 --
+"""
+Get the ABI of a contract JSON file (specified in ``sys.argv[1]``) and write it
+to ``sys.argv[2]``.  Both ``sys.argv[1]`` and ``sys.argv[2]`` must end in
+.json.  Additionally, a file named ``sys.argv[2] + '.txt'`` must exist.  It
+must have one line for each symbol in the ABI that will be placed in the output.
+
+The input file must be encoded in UTF-8, and the output file will be encoded in
+UTF-8.
+"""
+
+__version__ = '0.0.1'
+__all__ = ['main']
+import re
+_re = re.compile(r'\A[A-Za-z_][A-Za-z0-9_]*\n\Z')
+def main(input_file, output_file, used_file):
+    import os, json
+    _type, _dict, _open, _set = type, dict, open, set
+    with _open(used_file, 'r', encoding='UTF-8') as used_stream:
+        used_functions = _set(i.strip() for i in used_stream if _re.match(i))
+    with _open(input_file, 'r', encoding='UTF-8') as input_stream, \
+            _open(output_file, 'w', encoding='UTF-8') as output_stream:
+        my_list = [i for i in json.load(input_stream)['abi']
+                     if _type(i) is _dict and i.get('name') in used_functions]
+        json.dump(my_list, output_stream, sort_keys=True, indent = '\t')
+if __name__ == '__main__':
+    import sys, json
+    if len(sys.argv) != 3:
+        print('must have 2 arguments, not {}'.format(len(sys.argv) - 1),
+              file=sys.stderr)
+        sys.exit(1)
+    try:
+        main(sys.argv[1], sys.argv[2], sys.argv[2] + '.txt')
+    except (OSError, UnicodeError, json.decoder.JSONDecodeError) as e:
+        print('Failed to generate ABI file: {}'.format(e), file=sys.stderr)
