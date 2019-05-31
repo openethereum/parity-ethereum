@@ -19,7 +19,7 @@ case "${SCHEDULE_TAG:-${CI_COMMIT_REF_NAME}}" in
             --build-arg VCS_REF="${CI_COMMIT_SHA}" \
             --build-arg BUILD_DATE="$(date -u '+%Y-%m-%dT%H:%M:%SZ')" \
             --tag "parity/parity:${SCHEDULE_TAG}" \
-            --file tools/ethereum.Dockerfile .;
+            --file tools/Dockerfile .;
         docker push "parity/parity:${SCHEDULE_TAG}";;
     "beta")
         echo "Docker TAGs - 'parity/parity:beta', 'parity/parity:latest', \
@@ -30,10 +30,10 @@ case "${SCHEDULE_TAG:-${CI_COMMIT_REF_NAME}}" in
             --tag "parity/parity:beta" \
             --tag "parity/parity:latest" \
             --tag "parity/parity:${VERSION}-${CI_COMMIT_REF_NAME}" \
-            --file tools/ethereum.Dockerfile .;
+            --file tools/Dockerfile .;
         docker push "parity/parity:beta";
         docker push "parity/parity:latest";
-        docker push "parity/parity:${VERSION}-${CI_COMMIT_REF_NAME}";
+        docker push "parity/parity:${VERSION}-${CI_COMMIT_REF_NAME}";;
     "stable")
         echo "Docker TAGs - 'parity/parity:${VERSION}-${CI_COMMIT_REF_NAME}', 'parity/parity:stable'";
         docker build --no-cache \
@@ -41,17 +41,17 @@ case "${SCHEDULE_TAG:-${CI_COMMIT_REF_NAME}}" in
             --build-arg BUILD_DATE="$(date -u '+%Y-%m-%dT%H:%M:%SZ')" \
             --tag "parity/parity:${VERSION}-${CI_COMMIT_REF_NAME}" \
             --tag "parity/parity:stable" \
-            --file tools/ethereum.Dockerfile .;
+            --file tools/Dockerfile .;
         docker push "parity/parity:${VERSION}-${CI_COMMIT_REF_NAME}";
-        docker push "parity/parity:stable";
+        docker push "parity/parity:stable";;
     *)
         echo "Docker TAG - 'parity/parity:${VERSION}-${CI_COMMIT_REF_NAME}'"
         docker build --no-cache \
             --build-arg VCS_REF="${CI_COMMIT_SHA}" \
             --build-arg BUILD_DATE="$(date -u '+%Y-%m-%dT%H:%M:%SZ')" \
             --tag "parity/parity:${VERSION}-${CI_COMMIT_REF_NAME}" \
-            --file tools/ethereum.Dockerfile .;
-        docker push "parity/parity:${VERSION}-${CI_COMMIT_REF_NAME}";
+            --file tools/Dockerfile .;
+        docker push "parity/parity:${VERSION}-${CI_COMMIT_REF_NAME}";;
 esac
 
 docker logout
