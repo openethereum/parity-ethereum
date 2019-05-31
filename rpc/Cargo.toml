@@ -47,7 +47,7 @@ ethcore-sync = { path = "../ethcore/sync" }
 ethereum-types = "0.4"
 fastmap = { path = "../util/fastmap" }
 parity-bytes = "0.1"
-parity-crypto = "0.3.0"
+parity-crypto = "0.4.0"
 
 eip-712 = { path = "../util/EIP-712" }
 ethjson = { path = "../json" }
