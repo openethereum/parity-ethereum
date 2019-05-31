@@ -220,7 +220,7 @@ publish-docker:
     DOCKER_HOST:                   tcp://localhost:2375
     DOCKER_DRIVER:                 overlay2
     GIT_STRATEGY:                  none
-    # DOCKERFILE:                  tools/parity.Dockerfile # tools/ethereum.Dockerfile
+    # DOCKERFILE:                  tools/Dockerfile
     # CONTAINER_IMAGE:             parity/parity 
   script:
     # we stopped pushing nightlies to dockerhub, will push to own registry prb.
