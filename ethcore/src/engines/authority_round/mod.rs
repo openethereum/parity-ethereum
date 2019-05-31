@@ -731,7 +731,7 @@ impl AuthorityRound {
 
 			if !epoch_manager.zoom_to_after(&*client, &self.machine, &*self.validators, *header.parent_hash()) {
 				debug!(target: "engine", "Unable to zoom to epoch.");
-				return Err(EngineError::RequiresClient.into())
+				return Err(EngineError::MissingParent.into())
 			}
 
 			(CowLike::Owned(epoch_manager.validators().clone()), epoch_manager.epoch_transition_number)
