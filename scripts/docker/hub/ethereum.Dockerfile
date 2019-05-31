@@ -9,7 +9,7 @@ LABEL io.parity.image.authors="devops-team@parity.io" \
 	io.parity.image.title="parity/ethereum" \
 	io.parity.image.description="Parity Ethereum. The Fastest and most Advanced Ethereum Client." \
 	io.parity.image.source="https://github.com/paritytech/parity-ethereum/blob/${VCS_REF}/\
-scripts/docker/hub/Dockerfile" \
+scripts/docker/hub/ethereum.Dockerfile" \
 	io.parity.image.documentation="https://wiki.parity.io/Parity-Ethereum" \
 	io.parity.image.revision="${VCS_REF}" \
 	io.parity.image.created="${BUILD_DATE}"
@@ -21,8 +21,7 @@ ENV RUST_BACKTRACE 1
 RUN set -eux; \
 	apt-get update; \
 	apt-get install -y --no-install-recommends \
-		libudev-dev file curl jq; \
-# removed openssl
+		file curl jq; \
 # apt cleanup
 	apt-get autoremove -y; \
 	apt-get clean; \
