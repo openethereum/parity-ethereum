@@ -21,8 +21,7 @@ ENV RUST_BACKTRACE 1
 RUN set -eux; \
 	apt-get update; \
 	apt-get install -y --no-install-recommends \
-		libudev-dev file curl jq; \
-# removed openssl
+		file curl jq; \
 # apt cleanup
 	apt-get autoremove -y; \
 	apt-get clean; \
