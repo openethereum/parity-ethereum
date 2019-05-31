@@ -518,7 +518,14 @@ impl<'a> Discovery<'a> {
 
 	fn on_ping(&mut self, rlp: &Rlp, node_id: &NodeId, from: &SocketAddr, echo_hash: &[u8]) -> Result<Option<TableUpdates>, Error> {
 		trace!(target: "discovery", "Got Ping from {:?}", &from);
-		let ping_from = NodeEndpoint::from_rlp(&rlp.at(1)?)?;
+		let ping_from = if let Ok(rlp) = rlp.at(1) {
+			NodeEndpoint::from_rlp(&rlp)?;
+		} else {
+			NodeEndpoint {
+				address: from.clone(),
+				udp_port: from.port()
+			}
+		};
 		let ping_to = NodeEndpoint::from_rlp(&rlp.at(2)?)?;
 		let timestamp: u64 = rlp.val_at(3)?;
 		self.check_timestamp(timestamp)?;
