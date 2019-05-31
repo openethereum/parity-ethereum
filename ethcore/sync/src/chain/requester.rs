@@ -30,6 +30,7 @@ use super::sync_packet::SyncPacket::{
 	GetReceiptsPacket,
 	GetSnapshotManifestPacket,
 	GetSnapshotDataPacket,
+	GetPrivateStatePacket,
 };
 
 use super::{
@@ -97,6 +98,12 @@ impl SyncRequester {
 		trace!(target: "sync", "{} <- GetSnapshotManifest", peer_id);
 		let rlp = RlpStream::new_list(0);
 		SyncRequester::send_request(sync, io, peer_id, PeerAsking::SnapshotManifest, GetSnapshotManifestPacket, rlp.out());
+	}
+
+	pub fn request_private_state(sync: &mut ChainSync, io: &mut SyncIo, peer_id: PeerId, hash: &H256) {
+		let mut rlp = RlpStream::new_list(1);
+		rlp.append(hash);
+		SyncRequester::send_request(sync, io, peer_id, PeerAsking::PrivateState, GetPrivateStatePacket, rlp.out());
 	}
 
 	/// Request headers from a peer by block hash

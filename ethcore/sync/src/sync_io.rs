@@ -43,7 +43,7 @@ pub trait SyncIo {
 	/// Get the snapshot service.
 	fn snapshot_service(&self) -> &dyn SnapshotService;
 	/// Get the private state wrapper
-	fn private_state(&self) -> &Option<Arc<PrivateStateDB>>;
+	fn private_state(&self) -> Option<Arc<PrivateStateDB>>;
 	/// Returns peer version identifier
 	fn peer_version(&self, peer_id: PeerId) -> ClientVersion {
 		ClientVersion::from(peer_id.to_string())
@@ -72,7 +72,7 @@ pub struct NetSyncIo<'s> {
 	chain: &'s dyn BlockChainClient,
 	snapshot_service: &'s dyn SnapshotService,
 	chain_overlay: &'s RwLock<HashMap<BlockNumber, Bytes>>,
-	private_state: &'s Option<Arc<PrivateStateDB>>,
+	private_state: Option<Arc<PrivateStateDB>>,
 }
 
 impl<'s> NetSyncIo<'s> {
@@ -81,7 +81,7 @@ impl<'s> NetSyncIo<'s> {
 		chain: &'s dyn BlockChainClient,
 		snapshot_service: &'s dyn SnapshotService,
 		chain_overlay: &'s RwLock<HashMap<BlockNumber, Bytes>>,
-		private_state: &'s Option<Arc<PrivateStateDB>>) -> NetSyncIo<'s> {
+		private_state: Option<Arc<PrivateStateDB>>) -> NetSyncIo<'s> {
 		NetSyncIo {
 			network,
 			chain,
@@ -121,8 +121,8 @@ impl<'s> SyncIo for NetSyncIo<'s> {
 		self.snapshot_service
 	}
 
-	fn private_state(&self) -> &Option<Arc<PrivateStateDB>> {
-		self.private_state
+	fn private_state(&self) -> Option<Arc<PrivateStateDB>> {
+		self.private_state.clone()
 	}
 
 	fn peer_session_info(&self, peer_id: PeerId) -> Option<SessionInfo> {

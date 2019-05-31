@@ -43,7 +43,7 @@ use std::net::{SocketAddr, AddrParseError};
 use std::str::FromStr;
 use parking_lot::{RwLock, Mutex};
 use chain::{ETH_PROTOCOL_VERSION_63, ETH_PROTOCOL_VERSION_62,
-	PAR_PROTOCOL_VERSION_1, PAR_PROTOCOL_VERSION_2, PAR_PROTOCOL_VERSION_3, SyncState};
+	PAR_PROTOCOL_VERSION_1, PAR_PROTOCOL_VERSION_2, PAR_PROTOCOL_VERSION_3, PAR_PROTOCOL_VERSION_4, SyncState};
 use chain::sync_packet::SyncPacket::{PrivateTransactionPacket, SignedPrivateTransactionPacket};
 use light::client::AsLightClient;
 use light::Provider;
@@ -485,7 +485,7 @@ impl NetworkProtocolHandler for SyncProtocolHandler {
 			&*self.chain,
 			&*self.snapshot_service,
 			&self.overlay,
-			&self.private_state),
+			self.private_state.clone()),
 			*peer, packet_id, data);
 	}
 
@@ -499,7 +499,7 @@ impl NetworkProtocolHandler for SyncProtocolHandler {
 			&*self.chain,
 			&*self.snapshot_service,
 			&self.overlay,
-			&self.private_state),
+			self.private_state.clone()),
 			*peer);
 		}
 	}
@@ -511,14 +511,14 @@ impl NetworkProtocolHandler for SyncProtocolHandler {
 				&*self.chain,
 				&*self.snapshot_service,
 				&self.overlay,
-				&self.private_state),
+				self.private_state.clone()),
 				*peer);
 		}
 	}
 
 	fn timeout(&self, io: &dyn NetworkContext, timer: TimerToken) {
 		trace_time!("sync::timeout");
-		let mut io = NetSyncIo::new(io, &*self.chain, &*self.snapshot_service, &self.overlay, &self.private_state);
+		let mut io = NetSyncIo::new(io, &*self.chain, &*self.snapshot_service, &self.overlay, self.private_state.clone());
 		match timer {
 			PEERS_TIMER => self.sync.write().maintain_peers(&mut io),
 			MAINTAIN_SYNC_TIMER => self.sync.write().maintain_sync(&mut io),
@@ -553,7 +553,7 @@ impl ChainNotify for EthSync {
 				&*self.eth_handler.chain,
 				&*self.eth_handler.snapshot_service,
 				&self.eth_handler.overlay,
-				&self.eth_handler.private_state);
+				self.eth_handler.private_state.clone());
 			self.eth_handler.sync.write().chain_new_blocks(
 				&mut sync_io,
 				&new_blocks.imported,
@@ -600,7 +600,7 @@ impl ChainNotify for EthSync {
 		self.network.register_protocol(self.eth_handler.clone(), self.subprotocol_name, &[ETH_PROTOCOL_VERSION_62, ETH_PROTOCOL_VERSION_63])
 			.unwrap_or_else(|e| warn!("Error registering ethereum protocol: {:?}", e));
 		// register the warp sync subprotocol
-		self.network.register_protocol(self.eth_handler.clone(), WARP_SYNC_PROTOCOL_ID, &[PAR_PROTOCOL_VERSION_1, PAR_PROTOCOL_VERSION_2, PAR_PROTOCOL_VERSION_3])
+		self.network.register_protocol(self.eth_handler.clone(), WARP_SYNC_PROTOCOL_ID, &[PAR_PROTOCOL_VERSION_1, PAR_PROTOCOL_VERSION_2, PAR_PROTOCOL_VERSION_3, PAR_PROTOCOL_VERSION_4])
 			.unwrap_or_else(|e| warn!("Error registering snapshot sync protocol: {:?}", e));
 
 		// register the light protocol.
@@ -621,14 +621,15 @@ impl ChainNotify for EthSync {
 				&*self.eth_handler.chain,
 				&*self.eth_handler.snapshot_service,
 				&self.eth_handler.overlay,
-				&self.eth_handler.private_state);
+				self.eth_handler.private_state.clone());
 			match message_type {
 				ChainMessageType::Consensus(message) => self.eth_handler.sync.write().propagate_consensus_packet(&mut sync_io, message),
 				ChainMessageType::PrivateTransaction(transaction_hash, message) =>
 					self.eth_handler.sync.write().propagate_private_transaction(&mut sync_io, transaction_hash, PrivateTransactionPacket, message),
 				ChainMessageType::SignedPrivateTransaction(transaction_hash, message) =>
 					self.eth_handler.sync.write().propagate_private_transaction(&mut sync_io, transaction_hash, SignedPrivateTransactionPacket, message),
-				ChainMessageType::PrivateStateRequest(addresses) => {}
+				ChainMessageType::PrivateStateRequest(hash) =>
+					self.eth_handler.sync.write().request_private_state(&mut sync_io, &hash),
 			}
 		});
 	}
@@ -697,7 +698,7 @@ impl ManageNetwork for EthSync {
 				&*self.eth_handler.chain,
 				&*self.eth_handler.snapshot_service,
 				&self.eth_handler.overlay,
-				&self.eth_handler.private_state);
+				self.eth_handler.private_state.clone());
 			self.eth_handler.sync.write().abort(&mut sync_io);
 		});
 

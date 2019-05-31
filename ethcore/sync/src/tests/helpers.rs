@@ -244,7 +244,7 @@ impl<C> EthPeer<C> where C: FlushingBlockChainClient {
 				self.sync.write().propagate_private_transaction(&mut io, transaction_hash, PrivateTransactionPacket, data),
 			ChainMessageType::SignedPrivateTransaction(transaction_hash, data) =>
 				self.sync.write().propagate_private_transaction(&mut io, transaction_hash, SignedPrivateTransactionPacket, data),
-			ChainMessageType::PrivateStateRequest(addresses) => {}
+			ChainMessageType::PrivateStateRequest(_hash) => {}
 		}
 	}
 

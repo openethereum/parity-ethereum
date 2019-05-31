@@ -48,6 +48,7 @@ use super::sync_packet::SyncPacket::{
 	SnapshotDataPacket,
 	PrivateTransactionPacket,
 	SignedPrivateTransactionPacket,
+	PrivateStatePacket,
 };
 
 use super::{
@@ -86,6 +87,7 @@ impl SyncHandler {
 				SnapshotDataPacket => SyncHandler::on_snapshot_data(sync, io, peer, &rlp),
 				PrivateTransactionPacket => SyncHandler::on_private_transaction(sync, io, peer, &rlp),
 				SignedPrivateTransactionPacket => SyncHandler::on_signed_private_transaction(sync, io, peer, &rlp),
+				PrivateStatePacket => SyncHandler::on_private_state_data(sync, io, peer, &rlp),
 				_ => {
 					debug!(target: "sync", "{}: Unknown packet {}", peer, packet_id.id());
 					Ok(())
@@ -736,6 +738,41 @@ impl SyncHandler {
 				trace!(target: "sync", "Ignoring the message, error queueing: {}", e);
 			}
  		}
+		Ok(())
+	}
+
+	fn on_private_state_data(sync: &mut ChainSync, io: &mut SyncIo, peer_id: PeerId, r: &Rlp) -> Result<(), DownloaderImportError> {
+		if !sync.peers.get(&peer_id).map_or(false, |p| p.can_sync()) {
+			trace!(target: "sync", "{} Ignoring packet from unconfirmed/unknown peer", peer_id);
+			return Ok(());
+		}
+		if !sync.reset_peer_asking(peer_id, PeerAsking::PrivateState) {
+			trace!(target: "sync", "{}: Ignored unexpected private state data", peer_id);
+			return Ok(());
+		}
+		let private_handler = match sync.private_tx_handler {
+			Some(ref handler) => handler,
+			None => {
+				trace!(target: "sync", "{} Ignoring private tx packet from peer", peer_id);
+				return Ok(());
+			}
+		};
+		let private_state_data: Bytes = r.val_at(0)?;
+		match io.private_state() {
+			Some(db) => {
+				match db.save_state(&private_state_data) {
+					Ok(hash) => {
+						// Signal handler
+					}
+					Err(e) => {
+						error!(target: "sync", "Cannot save received private state {:?}", e);
+					}
+				}
+			}
+			None => {
+				trace!(target: "sync", "{} Ignoring private tx packet from peer", peer_id);
+			}
+		};
 		Ok(())
 	}
 }

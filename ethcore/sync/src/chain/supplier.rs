@@ -43,6 +43,8 @@ use super::sync_packet::SyncPacket::{
 	GetSnapshotDataPacket,
 	SnapshotDataPacket,
 	ConsensusDataPacket,
+	GetPrivateStatePacket,
+	PrivateStatePacket,
 };
 
 use super::{
@@ -97,6 +99,11 @@ impl SyncSupplier {
 					io, &rlp, peer,
 					SyncSupplier::return_snapshot_data,
 					|e| format!("Error sending snapshot data: {:?}", e)),
+
+				GetPrivateStatePacket => SyncSupplier::return_rlp(
+					io, &rlp, peer,
+					SyncSupplier::return_private_state,
+					|e| format!("Error sending private state data: {:?}", e)),
 
 				StatusPacket => {
 					sync.write().on_packet(io, peer, packet_id, data);
@@ -346,6 +353,26 @@ impl SyncSupplier {
 			}
 		};
 		Ok(Some((SnapshotDataPacket.id(), rlp)))
+	}
+
+	/// Respond to GetPrivateStatePacket
+	fn return_private_state(io: &SyncIo, r: &Rlp, peer_id: PeerId) -> RlpResponseResult {
+		let hash: H256 = r.val_at(0)?;
+		trace!(target: "privatetx", "{} -> GetSnapshotData {:?}", peer_id, hash);
+		io.private_state().map_or(Ok(None), |db| {
+			let state = db.state(&hash);
+			match state {
+				Err(err) => {
+					trace!(target: "privatetx", "Cannot retrieve state from db {:?}", err);
+					Ok(None)
+				}
+				Ok(bytes) => {
+					let mut rlp = RlpStream::new_list(1);
+					rlp.append(&bytes);
+					Ok(Some((PrivateStatePacket.id(), rlp)))
+				}
+			}
+		})
 	}
 
 	fn return_rlp<FRlp, FError>(io: &mut dyn SyncIo, rlp: &Rlp, peer: PeerId, rlp_func: FRlp, error_func: FError) -> Result<(), PacketDecodeError>
