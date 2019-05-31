@@ -23,7 +23,7 @@ use private_transactions::VerifiedPrivateTransaction;
 use private_state_db::PrivateStateDB;
 
 /// State of the private state sync
-#[derive(Clone)]
+#[derive(Clone, PartialEq)]
 pub enum SyncState {
 	/// No sync is running
 	Idle,
@@ -71,12 +71,11 @@ impl PrivateStateStorage {
 		new_hashes
 	}
 
-	pub fn state_sync_completed(&self, synced_states_hashes: &Vec<H256>) {
+	/// Signals that corresponding private state retrieved and added into the local db
+	pub fn state_sync_completed(&self, synced_state_hash: &H256) {
 		let mut syncing_hashes = self.syncing_hashes.write();
-		for hash in synced_states_hashes {
-			if let Some(index) = syncing_hashes.iter().position(|h| h == hash) {
-				syncing_hashes.remove(index);
-			}
+		if let Some(index) = syncing_hashes.iter().position(|h| h == synced_state_hash) {
+			syncing_hashes.remove(index);
 		}
 		if syncing_hashes.is_empty() {
 			// All states were downloaded
@@ -95,9 +94,23 @@ impl PrivateStateStorage {
 		verification_requests.push(transaction);
 	}
 
+	/// Drains all verification requests to process
+	pub fn drain_verification_queue(&self) -> Vec<Arc<VerifiedPrivateTransaction>> {
+		let mut requests_queue = self.verification_requests.write();
+		let requests = requests_queue.drain(..).collect::<Vec<_>>();
+		requests
+	}
+
 	/// Stores creation request for the later creation
 	pub fn add_creation_request(&self, transaction: SignedTransaction) {
 		let mut creation_requests = self.creation_requests.write();
 		creation_requests.push(transaction);
+	}
+
+	/// Drains all creation requests to process
+	pub fn drain_creation_queue(&self) -> Vec<SignedTransaction> {
+		let mut requests_queue = self.creation_requests.write();
+		let requests = requests_queue.drain(..).collect::<Vec<_>>();
+		requests
 	}
 }

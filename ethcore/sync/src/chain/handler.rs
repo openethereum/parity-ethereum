@@ -762,7 +762,9 @@ impl SyncHandler {
 			Some(db) => {
 				match db.save_state(&private_state_data) {
 					Ok(hash) => {
-						// Signal handler
+						if let Err(err) = private_handler.private_state_synced(&hash) {
+							trace!(target: "sync", "Ignoring the message, error queueing: {}", err);
+						}
 					}
 					Err(e) => {
 						error!(target: "sync", "Cannot save received private state {:?}", e);

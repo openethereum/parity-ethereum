@@ -73,6 +73,16 @@ impl PrivateTxHandler for PrivateTxService {
 			}
 		}
 	}
+
+	fn private_state_synced(&self, hash: &H256) -> Result<(), String> {
+		match self.provider.private_state_synced(hash) {
+			Ok(handle_result) => Ok(handle_result),
+			Err(err) => {
+				warn!(target: "privatetx", "Unable to handle private state synced message: {}", err);
+				bail!(err.to_string())
+			}
+		}
+	}
 }
 
 /// Client service setup. Creates and registers client and network services with the IO subsystem.

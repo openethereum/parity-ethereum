@@ -87,7 +87,7 @@ pub use messages::{PrivateTransaction, SignedPrivateTransaction};
 pub use private_state_db::PrivateStateDB;
 pub use error::Error;
 pub use log::{Logging, TransactionLog, ValidatorLog, PrivateTxStatus, FileLogsSerializer};
-use state_store::PrivateStateStorage;
+use state_store::{PrivateStateStorage, SyncState};
 
 use std::sync::{Arc, Weak};
 use std::collections::{HashMap, HashSet, BTreeMap};
@@ -559,6 +559,34 @@ impl Provider {
 		}
 	}
 
+	fn private_state_sync_completed(&self, hash: &H256) -> Result<(), Error> {
+		self.state_storage.state_sync_completed(hash);
+		if self.state_storage.current_sync_state() == SyncState::Idle {
+			trace!(target: "privatetx", "Private state sync completed, processing pending requests");
+			let creation_requests = self.state_storage.drain_creation_queue();
+			for request in creation_requests {
+				match self.create_private_transaction(request) {
+					Ok(receipt) => trace!(target: "privatetx", "Creation request processed, receipt: {:?}", receipt),
+					Err(e) => error!(target: "privatetx", "Cannot process creation request with error: {:?}", e),
+				}
+			}
+			let verification_requests = self.state_storage.drain_verification_queue();
+			for request in verification_requests {
+				if let Err(err) = self.process_verification_transaction(&request) {
+					warn!(target: "privatetx", "Error while processing pending verification request: {:?}", err);
+					match err {
+						Error::PrivateStateNotFound => {
+							let contract = request.private_transaction.contract();
+							error!(target: "privatetx", "Cannot retrieve private state after sync for {:?}", &contract);
+						}
+						_ => {}
+					}
+				}
+			}
+		}
+		Ok(())
+	}
+
 	fn iv_from_transaction(transaction: &SignedTransaction) -> H128 {
 		let nonce = keccak(&transaction.nonce.rlp_bytes());
 		let (iv, _) = nonce.as_bytes().split_at(INIT_VEC_LEN);
@@ -835,6 +863,9 @@ pub trait Importer {
 	///
 	/// Creates corresponding public transaction if last required signature collected and sends it to the chain
 	fn import_signed_private_transaction(&self, _rlp: &[u8]) -> Result<H256, Error>;
+
+	/// Function called when requested private state retrieved from peer and saved to DB.
+	fn private_state_synced(&self, hash: &H256) -> Result<(), String>;
 }
 
 // TODO [ToDr] Offload more heavy stuff to the IoService thread.
@@ -897,6 +928,23 @@ impl Importer for Arc<Provider> {
 			warn!(target: "privatetx", "Error sending NewSignedPrivateTransaction message: {:?}", e);
 		}
 		Ok(private_hash)
+	}
+
+	fn private_state_synced(&self, hash: &H256) -> Result<(), String> {
+		trace!(target: "privatetx", "Private state synced, hash: {:?}", hash);
+		let provider = Arc::downgrade(self);
+		let completed_hash = *hash;
+		let result = self.channel.send(ClientIoMessage::execute(move |_| {
+			if let Some(provider) = provider.upgrade() {
+				if let Err(e) = provider.private_state_sync_completed(&completed_hash) {
+					warn!(target: "privatetx", "Unable to process the state synced signal: {}", e);
+				}
+			}
+		}));
+		if let Err(e) = result {
+			warn!(target: "privatetx", "Error sending private state synced message: {:?}", e);
+		}
+		Ok(())
 	}
 }
 
