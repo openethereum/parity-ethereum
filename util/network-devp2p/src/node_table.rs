@@ -14,22 +14,24 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
-use discovery::{TableUpdates, NodeEntry};
-use ethereum_types::H512;
-use ip_utils::*;
-use network::{Error, ErrorKind, AllowIP, IpFilter};
-use rlp::{Rlp, RlpStream, DecoderError};
-use serde_json;
+use std::{fs, slice};
 use std::collections::{HashMap, HashSet};
 use std::fmt::{self, Display, Formatter};
 use std::hash::{Hash, Hasher};
 use std::iter::FromIterator;
-use std::net::{SocketAddr, ToSocketAddrs, SocketAddrV4, SocketAddrV6, Ipv4Addr, Ipv6Addr};
+use std::net::{Ipv4Addr, Ipv6Addr, SocketAddr, SocketAddrV4, SocketAddrV6, ToSocketAddrs};
 use std::path::PathBuf;
 use std::str::FromStr;
-use std::{fs, slice};
 use std::time::{self, Duration, SystemTime};
+
+use ethereum_types::H512;
 use rand::{self, Rng};
+use rlp::{DecoderError, Rlp, RlpStream};
+use serde_json;
+
+use discovery::{NodeEntry, TableUpdates};
+use ip_utils::*;
+use network::{AllowIP, Error, ErrorKind, IpFilter};
 
 /// Node public key
 pub type NodeId = H512;
@@ -528,9 +530,9 @@ pub fn validate_node_url(url: &str) -> Option<Error> {
 }
 
 mod json {
-	use super::*;
+    use super::*;
 
-	#[derive(Serialize, Deserialize)]
+    #[derive(Serialize, Deserialize)]
 	pub struct NodeTable {
 		pub nodes: Vec<Node>,
 	}
@@ -595,16 +597,18 @@ mod json {
 
 #[cfg(test)]
 mod tests {
-	use super::*;
-	use std::net::{SocketAddr, SocketAddrV4, Ipv4Addr};
-	use ethereum_types::H512;
-	use std::thread::sleep;
-	use std::time::Duration;
-	use std::str::FromStr;
-	use tempdir::TempDir;
-	use ipnetwork::IpNetwork;
+    use std::net::{Ipv4Addr, SocketAddr, SocketAddrV4};
+    use std::str::FromStr;
+    use std::thread::sleep;
+    use std::time::Duration;
 
-	#[test]
+    use ethereum_types::H512;
+    use ipnetwork::IpNetwork;
+    use tempdir::TempDir;
+
+    use super::*;
+
+    #[test]
 	fn endpoint_parse() {
 		let endpoint = NodeEndpoint::from_str("123.99.55.44:7770");
 		assert!(endpoint.is_ok());

@@ -14,15 +14,17 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
-use network::{Error, NetworkConfiguration, NetworkProtocolHandler, NonReservedPeerMode};
-use network::{NetworkContext, PeerId, ProtocolId, NetworkIoMessage};
-use host::Host;
-use io::*;
-use parking_lot::RwLock;
 use std::net::SocketAddr;
 use std::ops::RangeInclusive;
 use std::sync::Arc;
+
 use ansi_term::Colour;
+use parking_lot::RwLock;
+
+use host::Host;
+use io::*;
+use network::{Error, NetworkConfiguration, NetworkProtocolHandler, NonReservedPeerMode};
+use network::{NetworkContext, NetworkIoMessage, PeerId, ProtocolId};
 use network::ConnectionFilter;
 
 struct HostHandler {

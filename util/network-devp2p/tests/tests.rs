@@ -22,15 +22,17 @@ extern crate ethkey;
 extern crate parity_bytes;
 extern crate parking_lot;
 
-use std::sync::atomic::{AtomicBool, Ordering as AtomicOrdering};
 use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, Ordering as AtomicOrdering};
 use std::thread;
 use std::time::*;
-use parking_lot::Mutex;
+
 use parity_bytes::Bytes;
+use parking_lot::Mutex;
+
 use ethcore_network::*;
 use ethcore_network_devp2p::NetworkService;
-use ethkey::{Random, Generator};
+use ethkey::{Generator, Random};
 use io::TimerToken;
 
 pub struct TestProtocol {
