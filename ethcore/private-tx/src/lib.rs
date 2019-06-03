@@ -80,7 +80,7 @@ pub use log::{Logging, TransactionLog, ValidatorLog, PrivateTxStatus, FileLogsSe
 
 use std::sync::{Arc, Weak};
 use std::collections::{HashMap, HashSet, BTreeMap};
-use ethereum_types::{H128, H256, U256, Address};
+use ethereum_types::{H128, H256, U256, Address, BigEndianHash};
 use hash::keccak;
 use rlp::*;
 use parking_lot::RwLock;
@@ -285,9 +285,10 @@ impl Provider {
 	/// Calculate hash from united private state and contract nonce
 	pub fn calculate_state_hash(&self, state: &Bytes, nonce: U256) -> H256 {
 		let state_hash = keccak(state);
+		let nonce_h256: H256 = BigEndianHash::from_uint(&nonce);
 		let mut state_buf = [0u8; 64];
-		state_buf[..32].clone_from_slice(&state_hash);
-		state_buf[32..].clone_from_slice(&H256::from(nonce));
+		state_buf[..32].clone_from_slice(state_hash.as_bytes());
+		state_buf[32..].clone_from_slice(nonce_h256.as_bytes());
 		keccak(&state_buf.as_ref())
 	}
 
@@ -481,13 +482,13 @@ impl Provider {
 
 	fn iv_from_transaction(transaction: &SignedTransaction) -> H128 {
 		let nonce = keccak(&transaction.nonce.rlp_bytes());
-		let (iv, _) = nonce.split_at(INIT_VEC_LEN);
+		let (iv, _) = nonce.as_bytes().split_at(INIT_VEC_LEN);
 		H128::from_slice(iv)
 	}
 
 	fn iv_from_address(contract_address: &Address) -> H128 {
 		let address = keccak(&contract_address.rlp_bytes());
-		let (iv, _) = address.split_at(INIT_VEC_LEN);
+		let (iv, _) = address.as_bytes().split_at(INIT_VEC_LEN);
 		H128::from_slice(iv)
 	}
 
@@ -536,8 +537,8 @@ impl Provider {
 		// Sort the storage to guarantee the order for all parties
 		let sorted_storage: BTreeMap<&H256, &H256> = storage.iter().collect();
 		for (key, value) in sorted_storage {
-			raw.extend_from_slice(key);
-			raw.extend_from_slice(value);
+			raw.extend_from_slice(key.as_bytes());
+			raw.extend_from_slice(value.as_bytes());
 		};
 		raw
 	}
@@ -621,8 +622,8 @@ impl Provider {
 				v[31] = s.v();
 				v
 			}).collect::<Vec<[u8; 32]>>(),
-			signatures.iter().map(|s| s.r()).collect::<Vec<&[u8]>>(),
-			signatures.iter().map(|s| s.s()).collect::<Vec<&[u8]>>()
+			signatures.iter().map(|s| H256::from_slice(s.r())).collect::<Vec<H256>>(),
+			signatures.iter().map(|s| H256::from_slice(s.s())).collect::<Vec<H256>>(),
 		)
 	}
 

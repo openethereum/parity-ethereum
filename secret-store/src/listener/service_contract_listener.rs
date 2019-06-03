@@ -22,7 +22,7 @@ use parking_lot::Mutex;
 use ethcore::client::{ChainNotify, NewBlocks};
 use ethkey::{Public, public_to_address};
 use bytes::Bytes;
-use ethereum_types::{H256, U256, Address};
+use ethereum_types::{H256, U256, Address, BigEndianHash as _};
 use key_server_set::KeyServerSet;
 use key_server_cluster::{NodeId, ClusterClient, ClusterSessionsListener, ClusterSession};
 use key_server_cluster::math;
@@ -574,7 +574,7 @@ fn is_processed_by_this_key_server(key_server_set: &KeyServerSet, node: &NodeId,
 		None => return false,
 	};
 
-	let server_key_id_value: U256 = server_key_id.into();
+	let server_key_id_value: U256 = server_key_id.into_uint();
 	let range_interval = U256::max_value() / total_servers_count;
 	let range_begin = (range_interval + 1) * this_server_index as u32;
 	let range_end = range_begin.saturating_add(range_interval);
@@ -597,6 +597,7 @@ mod tests {
 	use key_server_set::tests::MapKeyServerSet;
 	use {NodeKeyPair, PlainNodeKeyPair, ServerKeyId};
 	use super::{ServiceTask, ServiceContractListener, ServiceContractListenerParams, is_processed_by_this_key_server};
+	use ethereum_types::Address;
 
 	fn create_non_empty_key_storage(has_doc_key: bool) -> Arc<DummyKeyStorage> {
 		let key_storage = Arc::new(DummyKeyStorage::default());
@@ -983,7 +984,7 @@ mod tests {
 		let key_storage = create_non_empty_key_storage(false);
 		let listener = make_service_contract_listener(Some(contract.clone()), None, Some(key_storage), None, None);
 		ServiceContractListener::process_service_task(&listener.data, ServiceTask::StoreDocumentKey(
-			Default::default(), Default::default(), 1.into(), Default::default(), Default::default())).unwrap_err();
+			Default::default(), Default::default(), Address::from_low_u64_be(1), Default::default(), Default::default())).unwrap_err();
 		assert_eq!(*contract.document_keys_store_failures.lock(), vec![Default::default()]);
 	}
 

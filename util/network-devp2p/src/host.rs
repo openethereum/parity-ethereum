@@ -14,41 +14,41 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
-use std::cmp::{max, min};
+use std::net::{SocketAddr, SocketAddrV4, Ipv4Addr};
 use std::collections::{HashMap, HashSet};
-use std::fs;
-use std::io::{self, Read, Write};
-use std::net::{Ipv4Addr, SocketAddr, SocketAddrV4};
-use std::ops::*;
-use std::path::{Path, PathBuf};
 use std::str::FromStr;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering as AtomicOrdering};
+use std::ops::*;
+use std::cmp::{min, max};
+use std::path::{Path, PathBuf};
+use std::io::{Read, Write, self};
+use std::fs;
 use std::time::Duration;
-
-use ethereum_types::H256;
+use ethkey::{KeyPair, Secret, Random, Generator};
 use hash::keccak;
 use mio::*;
-use mio::deprecated::EventLoop;
+use mio::deprecated::{EventLoop};
 use mio::tcp::*;
 use mio::udp::*;
+use ethereum_types::H256;
+use rlp::{RlpStream, Encodable};
+use rustc_hex::ToHex;
+
+use session::{Session, SessionData};
+use io::*;
+use PROTOCOL_VERSION;
+use node_table::*;
+use network::{NetworkConfiguration, NetworkIoMessage, ProtocolId, PeerId, PacketId};
+use network::{NonReservedPeerMode, NetworkContext as NetworkContextTrait};
+use network::{SessionInfo, Error, ErrorKind, DisconnectReason, NetworkProtocolHandler};
+use discovery::{Discovery, TableUpdates, NodeEntry, MAX_DATAGRAM_SIZE};
+use network::client_version::ClientVersion;
+use ip_utils::{map_external_address, select_public_address};
 use parity_path::restrict_permissions_owner;
 use parking_lot::{Mutex, RwLock};
-use rlp::{Encodable, RlpStream};
-
+use network::{ConnectionFilter, ConnectionDirection};
 use connection::PAYLOAD_SOFT_LIMIT;
-use discovery::{Discovery, MAX_DATAGRAM_SIZE, NodeEntry, TableUpdates};
-use ethkey::{Generator, KeyPair, Random, Secret};
-use io::*;
-use ip_utils::{map_external_address, select_public_address};
-use network::{NetworkConfiguration, NetworkIoMessage, PacketId, PeerId, ProtocolId};
-use network::{NetworkContext as NetworkContextTrait, NonReservedPeerMode};
-use network::{DisconnectReason, Error, ErrorKind, NetworkProtocolHandler, SessionInfo};
-use network::{ConnectionDirection, ConnectionFilter};
-use network::client_version::ClientVersion;
-use node_table::*;
-use PROTOCOL_VERSION;
-use session::{Session, SessionData};
 
 type Slab<T> = ::slab::Slab<T, usize>;
 
@@ -262,17 +262,17 @@ pub struct Host {
 	sessions: Arc<RwLock<Slab<SharedSession>>>,
 	discovery: Mutex<Option<Discovery<'static>>>,
 	nodes: RwLock<NodeTable>,
-	handlers: RwLock<HashMap<ProtocolId, Arc<dyn NetworkProtocolHandler + Sync>>>,
+	handlers: RwLock<HashMap<ProtocolId, Arc<NetworkProtocolHandler + Sync>>>,
 	timers: RwLock<HashMap<TimerToken, ProtocolTimer>>,
 	timer_counter: RwLock<usize>,
 	reserved_nodes: RwLock<HashSet<NodeId>>,
 	stopping: AtomicBool,
-	filter: Option<Arc<dyn ConnectionFilter>>,
+	filter: Option<Arc<ConnectionFilter>>,
 }
 
 impl Host {
 	/// Create a new instance
-	pub fn new(mut config: NetworkConfiguration, filter: Option<Arc<dyn ConnectionFilter>>) -> Result<Host, Error> {
+	pub fn new(mut config: NetworkConfiguration, filter: Option<Arc<ConnectionFilter>>) -> Result<Host, Error> {
 		let mut listen_address = match config.listen_address {
 			None => SocketAddr::V4(SocketAddrV4::new(Ipv4Addr::new(0, 0, 0, 0), DEFAULT_PORT)),
 			Some(addr) => addr,
@@ -977,14 +977,14 @@ impl Host {
 		self.nodes.write().update(node_changes, &*self.reserved_nodes.read());
 	}
 
-	pub fn with_context<F>(&self, protocol: ProtocolId, io: &IoContext<NetworkIoMessage>, action: F) where F: FnOnce(&dyn NetworkContextTrait) {
+	pub fn with_context<F>(&self, protocol: ProtocolId, io: &IoContext<NetworkIoMessage>, action: F) where F: FnOnce(&NetworkContextTrait) {
 		let reserved = { self.reserved_nodes.read() };
 
 		let context = NetworkContext::new(io, protocol, None, self.sessions.clone(), &reserved);
 		action(&context);
 	}
 
-	pub fn with_context_eval<F, T>(&self, protocol: ProtocolId, io: &IoContext<NetworkIoMessage>, action: F) -> T where F: FnOnce(&dyn NetworkContextTrait) -> T {
+	pub fn with_context_eval<F, T>(&self, protocol: ProtocolId, io: &IoContext<NetworkIoMessage>, action: F) -> T where F: FnOnce(&NetworkContextTrait) -> T {
 		let reserved = { self.reserved_nodes.read() };
 
 		let context = NetworkContext::new(io, protocol, None, self.sessions.clone(), &reserved);
@@ -1224,7 +1224,7 @@ fn save_key(path: &Path, key: &Secret) {
 	if let Err(e) = restrict_permissions_owner(path, true, false) {
 		warn!(target: "network", "Failed to modify permissions of the file ({})", e);
 	}
-	if let Err(e) = file.write(&key.hex().into_bytes()[2..]) {
+	if let Err(e) = file.write(&key.to_hex().into_bytes()) {
 		warn!("Error writing key file: {:?}", e);
 	}
 }

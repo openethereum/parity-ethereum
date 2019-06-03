@@ -150,7 +150,7 @@ impl JobExecutor for DecryptionJob {
 			shadow_point: shadow_point,
 			decrypt_shadow: match decrypt_shadow.clone() {
 				None => None,
-				Some(decrypt_shadow) => Some(encrypt(&self.requester, &DEFAULT_MAC, &**decrypt_shadow)?),
+				Some(decrypt_shadow) => Some(encrypt(&self.requester, &DEFAULT_MAC, decrypt_shadow.as_bytes())?),
 			},
 		}))
 	}

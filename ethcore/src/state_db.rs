@@ -458,13 +458,13 @@ impl state::Backend for StateDB {
 	fn note_non_null_account(&self, address: &Address) {
 		trace!(target: "account_bloom", "Note account bloom: {:?}", address);
 		let mut bloom = self.account_bloom.lock();
-		bloom.set(&*keccak(address));
+		bloom.set(keccak(address).as_bytes());
 	}
 
 	fn is_known_null(&self, address: &Address) -> bool {
 		trace!(target: "account_bloom", "Check account bloom: {:?}", address);
 		let bloom = self.account_bloom.lock();
-		let is_null = !bloom.check(&*keccak(address));
+		let is_null = !bloom.check(keccak(address).as_bytes());
 		is_null
 	}
 }

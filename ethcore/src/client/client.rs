@@ -33,7 +33,7 @@ use itertools::Itertools;
 use journaldb;
 use kvdb::{DBValue, KeyValueDB, DBTransaction};
 use parking_lot::{Mutex, RwLock};
-use rand::OsRng;
+use rand::rngs::OsRng;
 use types::transaction::{self, LocalizedTransaction, UnverifiedTransaction, SignedTransaction, Action};
 use trie::{TrieSpec, TrieFactory, Trie};
 use types::ancestry_action::AncestryAction;
@@ -456,7 +456,7 @@ impl Importer {
 		{
 			trace_time!("import_old_block");
 			// verify the block, passing the chain for updating the epoch verifier.
-			let mut rng = OsRng::new()?;
+			let mut rng = OsRng::new().map_err(|e| format!("{}", e))?;
 			self.ancient_verifier.verify(&mut rng, &unverified.header, &chain)?;
 
 			// Commit results
@@ -908,12 +908,12 @@ impl Client {
 			let hashes = self.last_hashes.read();
 			if hashes.front().map_or(false, |h| h == parent_hash) {
 				let mut res = Vec::from(hashes.clone());
-				res.resize(256, H256::default());
+				res.resize(256, H256::zero());
 				return Arc::new(res);
 			}
 		}
 		let mut last_hashes = LastHashes::new();
-		last_hashes.resize(256, H256::default());
+		last_hashes.resize(256, H256::zero());
 		last_hashes[0] = parent_hash.clone();
 		let chain = self.chain.read();
 		for i in 0..255 {
@@ -1223,7 +1223,7 @@ impl Client {
 	// transaction for calling contracts from services like engine.
 	// from the null sender, with 50M gas.
 	fn contract_call_tx(&self, block_id: BlockId, address: Address, data: Bytes) -> SignedTransaction {
-		let from = Address::default();
+		let from = Address::zero();
 		transaction::Transaction {
 			nonce: self.nonce(&from, block_id).unwrap_or_else(|| self.engine.account_start_nonce(0)),
 			action: Action::Call(address),
@@ -1341,8 +1341,8 @@ impl BlockChainReset for Client {
 			best_block_hash = current_header.parent_hash();
 
 			let (number, hash) = (current_header.number(), current_header.hash());
-			batch.delete(::db::COL_HEADERS, &hash);
-			batch.delete(::db::COL_BODIES, &hash);
+			batch.delete(::db::COL_HEADERS, hash.as_bytes());
+			batch.delete(::db::COL_BODIES, hash.as_bytes());
 			Writable::delete::<BlockDetails, H264>
 				(&mut batch, ::db::COL_EXTRA, &hash);
 			Writable::delete::<H256, BlockNumberKey>
@@ -1375,7 +1375,7 @@ impl BlockChainReset for Client {
 			&best_block_details
 		);
 		// update the new best block hash
-		batch.put(::db::COL_EXTRA, b"best", &best_block_hash);
+		batch.put(::db::COL_EXTRA, b"best", best_block_hash.as_bytes());
 
 		self.db.read()
 			.key_value()
@@ -1822,7 +1822,7 @@ impl BlockChainClient for Client {
 		};
 
 		if let Some(after) = after {
-			if let Err(e) = iter.seek(after) {
+			if let Err(e) = iter.seek(after.as_bytes()) {
 				trace!(target: "fatdb", "list_accounts: Couldn't seek the DB: {:?}", e);
 			} else {
 				// Position the iterator after the `after` element
@@ -1870,7 +1870,7 @@ impl BlockChainClient for Client {
 		};
 
 		if let Some(after) = after {
-			if let Err(e) = iter.seek(after) {
+			if let Err(e) = iter.seek(after.as_bytes()) {
 				trace!(target: "fatdb", "list_storage: Couldn't seek the DB: {:?}", e);
 			} else {
 				// Position the iterator after the `after` element
@@ -2592,6 +2592,7 @@ fn transaction_receipt(
 
 #[cfg(test)]
 mod tests {
+	use ethereum_types::{H256, Address};
 
 	#[test]
 	fn should_not_cache_details_before_commit() {
@@ -2667,19 +2668,19 @@ mod tests {
 		use types::transaction::{Transaction, LocalizedTransaction, Action};
 
 		// given
-		let key = KeyPair::from_secret_slice(&keccak("test")).unwrap();
+		let key = KeyPair::from_secret_slice(keccak("test").as_bytes()).unwrap();
 		let secret = key.secret();
 		let machine = ::ethereum::new_frontier_test_machine();
 
 		let block_number = 1;
-		let block_hash = 5.into();
-		let state_root = 99.into();
+		let block_hash = H256::from_low_u64_be(5);
+		let state_root = H256::from_low_u64_be(99);
 		let gas_used = 10.into();
 		let raw_tx = Transaction {
 			nonce: 0.into(),
 			gas_price: 0.into(),
 			gas: 21000.into(),
-			action: Action::Call(10.into()),
+			action: Action::Call(Address::from_low_u64_be(10)),
 			value: 0.into(),
 			data: vec![],
 		};
@@ -2692,11 +2693,11 @@ mod tests {
 			cached_sender: Some(tx1.sender()),
 		};
 		let logs = vec![LogEntry {
-			address: 5.into(),
+			address: Address::from_low_u64_be(5),
 			topics: vec![],
 			data: vec![],
 		}, LogEntry {
-			address: 15.into(),
+			address: Address::from_low_u64_be(15),
 			topics: vec![],
 			data: vec![],
 		}];

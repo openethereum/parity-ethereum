@@ -590,6 +590,7 @@ impl SessionResultComputer for LargestSupportResultComputer {
 mod tests {
 	use std::sync::Arc;
 	use std::collections::{VecDeque, BTreeMap, BTreeSet};
+	use ethereum_types::{H512, Address};
 	use ethkey::public_to_address;
 	use key_server_cluster::{NodeId, SessionId, Error, KeyStorage, DummyKeyStorage,
 		DocumentKeyShare, DocumentKeyShareVersion};
@@ -600,8 +601,10 @@ mod tests {
 	use key_server_cluster::admin_sessions::ShareChangeSessionMeta;
 	use key_server_cluster::decryption_session::create_default_decryption_session;
 	use key_server_cluster::message::{Message, KeyVersionNegotiationMessage, RequestKeyVersions, KeyVersions};
-	use super::{SessionImpl, SessionTransport, SessionParams, FastestResultComputer, LargestSupportResultComputer,
-		SessionResultComputer, SessionState, ContinueAction, FailedContinueAction};
+	use super::{
+		SessionImpl, SessionTransport, SessionParams, FastestResultComputer, LargestSupportResultComputer,
+		SessionResultComputer, SessionState, ContinueAction, FailedContinueAction,
+	};
 
 	struct DummyTransport {
 		cluster: Arc<DummyCluster>,
@@ -880,7 +883,7 @@ mod tests {
 	#[test]
 	fn fatal_error_is_broadcasted_if_started_with_origin() {
 		let mut ml = MessageLoop::empty(3);
-		ml.session(0).set_continue_action(ContinueAction::Decrypt(create_default_decryption_session(), Some(1.into()), true, true));
+		ml.session(0).set_continue_action(ContinueAction::Decrypt(create_default_decryption_session(), Some(Address::from_low_u64_be(1)), true, true));
 		ml.session(0).initialize(ml.nodes.keys().cloned().collect()).unwrap();
 		ml.run();
 
@@ -889,6 +892,6 @@ mod tests {
 
 		// slave nodes have non-empty failed continue action
 		assert!(ml.nodes.values().skip(1).all(|n| n.session.take_failed_continue_action()
-			== Some(FailedContinueAction::Decrypt(Some(1.into()), public_to_address(&2.into())))));
+			== Some(FailedContinueAction::Decrypt(Some(Address::from_low_u64_be(1)), public_to_address(&H512::from_low_u64_be(2))))));
 	}
 }

@@ -15,9 +15,9 @@ common-types = { path = "types" }
 crossbeam = "0.4"
 derive_more = "0.14.0"
 env_logger = { version = "0.5", optional = true }
-ethabi = "6.0"
-ethabi-contract = "6.0"
-ethabi-derive = "6.0"
+ethabi = "8.0"
+ethabi-contract = "8.0"
+ethabi-derive = "8.0"
 ethash = { path = "../ethash" }
 ethcore-blockchain = { path = "./blockchain" }
 ethcore-bloom-journal = { path = "../util/bloom" }
@@ -26,7 +26,7 @@ ethcore-db = { path = "./db" }
 ethcore-io = { path = "../util/io" }
 ethcore-miner = { path = "../miner" }
 ethcore-stratum = { path = "../miner/stratum", optional = true }
-ethereum-types = "0.4"
+ethereum-types = "0.6.0"
 ethjson = { path = "../json" }
 ethkey = { path = "../accounts/ethkey" }
 evm = { path = "evm" }
@@ -35,7 +35,7 @@ hash-db = "0.11.0"
 heapsize = "0.4"
 itertools = "0.5"
 journaldb = { path = "../util/journaldb" }
-keccak-hash = "0.1"
+keccak-hash = "0.2.0"
 keccak-hasher = { path = "../util/keccak-hasher" }
 kvdb = "0.1"
 kvdb-memorydb = "0.1"
@@ -55,15 +55,15 @@ parity-snappy = "0.1"
 parking_lot = "0.7"
 trie-db = "0.11.0"
 patricia-trie-ethereum = { path = "../util/patricia-trie-ethereum" }
-rand = "0.4"
+rand = "0.6"
 rayon = "1.0"
-rlp = { version = "0.3.0", features = ["ethereum"] }
+rlp = "0.4.0"
 rlp_derive = { path = "../util/rlp-derive" }
 rustc-hex = "1.0"
 serde = "1.0"
 serde_derive = "1.0"
 stats = { path = "../util/stats" }
-tempdir = {version="0.3", optional = true}
+tempdir = { version = "0.3", optional = true }
 time-utils = { path = "../util/time-utils" }
 trace-time = "0.1"
 triehash-ethereum = { version = "0.2",  path = "../util/triehash-ethereum" }
@@ -71,6 +71,7 @@ unexpected = { path = "../util/unexpected" }
 using_queue = { path = "../miner/using-queue" }
 vm = { path = "vm" }
 wasm = { path = "wasm" }
+rand_xorshift = "0.1.1"
 
 [dev-dependencies]
 blooms-db = { path = "../util/blooms-db" }
@@ -82,7 +83,7 @@ kvdb-rocksdb = "0.1.3"
 parity-runtime = { path = "../util/runtime" }
 rlp_compress = { path = "../util/rlp-compress" }
 tempdir = "0.3"
-trie-standardmap = "0.1"
+trie-standardmap = "0.12.3"
 
 [features]
 parity = ["work-notify", "price-info", "stratum"]

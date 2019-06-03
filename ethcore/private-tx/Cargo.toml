@@ -8,20 +8,20 @@ authors = ["Parity Technologies <admin@parity.io>"]
 [dependencies]
 common-types = { path = "../types" }
 derive_more = "0.14.0"
-ethabi = "6.0"
-ethabi-contract = "6.0"
-ethabi-derive = "6.0"
+ethabi = "8.0"
+ethabi-contract = "8.0"
+ethabi-derive = "8.0"
 ethcore = { path = ".." }
 ethcore-call-contract = { path = "../call-contract" }
 ethcore-io = { path = "../../util/io" }
 ethcore-miner = { path = "../../miner" }
-ethereum-types = "0.4"
+ethereum-types = "0.6.0"
 ethjson = { path = "../../json" }
 ethkey = { path = "../../accounts/ethkey" }
 fetch = { path = "../../util/fetch" }
 futures = "0.1"
 heapsize = "0.4"
-keccak-hash = "0.1.2"
+keccak-hash = "0.2.0"
 log = "0.4"
 parity-bytes = "0.1"
 parity-crypto = "0.4.0"
@@ -29,7 +29,7 @@ parking_lot = "0.7"
 trie-db = "0.11.0"
 patricia-trie-ethereum = { path = "../../util/patricia-trie-ethereum" }
 rand = "0.3"
-rlp = { version = "0.3.0", features = ["ethereum"] }
+rlp = "0.4.0"
 rlp_derive = { path = "../../util/rlp-derive" }
 rustc-hex = "1.0"
 serde = "1.0"

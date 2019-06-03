@@ -28,6 +28,7 @@ extern crate memzero;
 extern crate ordered_float;
 extern crate parking_lot;
 extern crate rand;
+extern crate rand_xorshift;
 extern crate ring;
 extern crate rlp;
 extern crate serde;
