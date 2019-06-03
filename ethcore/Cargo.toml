@@ -30,8 +30,8 @@ ethereum-types = "0.4"
 ethjson = { path = "../json" }
 ethkey = { path = "../accounts/ethkey" }
 evm = { path = "evm" }
-hash-db = "0.11.0"
-parity-util-mem = { git = "https://github.com/cheme/parity-common", branch = "deprecate_heapsize" }
+hash-db = "0.12.2"
+parity-util-mem = "0.1"
 itertools = "0.5"
 journaldb = { path = "../util/journaldb" }
 keccak-hash = "0.1"
@@ -45,7 +45,7 @@ log = "0.4"
 lru-cache = "0.1"
 macros = { path = "../util/macros" }
 memory-cache = { path = "../util/memory-cache" }
-memory-db = "0.11.0"
+memory-db = "0.12.3"
 num = { version = "0.1", default-features = false, features = ["bigint"] }
 num_cpus = "1.2"
 parity-bytes = "0.1"
@@ -53,7 +53,7 @@ parity-crypto = "0.3.0"
 parity-machine = { path = "../machine" }
 parity-snappy = "0.1"
 parking_lot = "0.7"
-trie-db = "0.11.0"
+trie-db = "0.12.2"
 patricia-trie-ethereum = { path = "../util/patricia-trie-ethereum" }
 rand = "0.4"
 rayon = "1.0"
