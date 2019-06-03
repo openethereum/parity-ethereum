@@ -15,26 +15,28 @@
 // along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
 use std::collections::VecDeque;
+use std::io::{self, Cursor, Read, Write};
 use std::net::SocketAddr;
 use std::sync::atomic::{AtomicBool, Ordering as AtomicOrdering};
 use std::time::Duration;
-use hash::{keccak, write_keccak};
-use mio::{Token, Ready, PollOpt};
-use mio::deprecated::{Handler, EventLoop, TryRead, TryWrite};
-use mio::tcp::*;
-use ethereum_types::{H128, H256, H512};
-use parity_bytes::*;
-use rlp::{Rlp, RlpStream};
-use std::io::{self, Cursor, Read, Write};
-use io::{IoContext, StreamToken};
-use handshake::Handshake;
-use rcrypto::blockmodes::*;
-use rcrypto::aessafe::*;
-use rcrypto::symmetriccipher::*;
-use rcrypto::buffer::*;
-use tiny_keccak::Keccak;
+
 use bytes::{Buf, BufMut};
+use ethereum_types::{H128, H256, H512};
+use hash::{keccak, write_keccak};
+use mio::{PollOpt, Ready, Token};
+use mio::deprecated::{EventLoop, Handler, TryRead, TryWrite};
+use mio::tcp::*;
+use parity_bytes::*;
+use rcrypto::aessafe::*;
+use rcrypto::blockmodes::*;
+use rcrypto::buffer::*;
+use rcrypto::symmetriccipher::*;
+use rlp::{Rlp, RlpStream};
+use tiny_keccak::Keccak;
+
 use ethkey::crypto;
+use handshake::Handshake;
+use io::{IoContext, StreamToken};
 use network::{Error, ErrorKind};
 
 const ENCRYPTED_HEADER_LEN: usize = 32;
@@ -513,12 +515,14 @@ pub fn test_encryption() {
 mod tests {
 	use std::cmp;
 	use std::collections::VecDeque;
-	use std::io::{Read, Write, Cursor, ErrorKind, Result, Error};
+	use std::io::{Cursor, Error, ErrorKind, Read, Result, Write};
 	use std::sync::atomic::AtomicBool;
 
-	use mio::{Ready};
+	use mio::Ready;
 	use parity_bytes::Bytes;
+
 	use io::*;
+
 	use super::*;
 
 	pub struct TestSocket {

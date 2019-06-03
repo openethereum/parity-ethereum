@@ -14,21 +14,22 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
-use parity_bytes::Bytes;
-use std::net::SocketAddr;
-use std::collections::{HashSet, HashMap, VecDeque};
+use std::collections::{HashMap, HashSet, VecDeque};
 use std::collections::hash_map::Entry;
 use std::default::Default;
+use std::net::SocketAddr;
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
-use lru_cache::LruCache;
-use hash::keccak;
-use ethereum_types::{H256, H520};
-use rlp::{Rlp, RlpStream};
-use node_table::*;
-use network::{Error, ErrorKind};
-use ethkey::{Secret, KeyPair, sign, recover};
-use network::IpFilter;
 
+use ethereum_types::{H256, H520};
+use hash::keccak;
+use lru_cache::LruCache;
+use parity_bytes::Bytes;
+use rlp::{Rlp, RlpStream};
+
+use ethkey::{KeyPair, recover, Secret, sign};
+use network::{Error, ErrorKind};
+use network::IpFilter;
+use node_table::*;
 use PROTOCOL_VERSION;
 
 const ADDRESS_BYTES_SIZE: usize = 32;						// Size of address type in bytes.
@@ -878,13 +879,15 @@ where
 
 #[cfg(test)]
 mod tests {
-	use super::*;
-	use std::net::{IpAddr,Ipv4Addr};
-	use node_table::{Node, NodeId, NodeEndpoint};
-
+	use std::net::{IpAddr, Ipv4Addr};
 	use std::str::FromStr;
+
 	use rustc_hex::FromHex;
-	use ethkey::{Random, Generator};
+
+	use ethkey::{Generator, Random};
+	use node_table::{Node, NodeEndpoint, NodeId};
+
+	use super::*;
 
 	#[test]
 	fn find_node() {

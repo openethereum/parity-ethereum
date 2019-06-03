@@ -22,15 +22,17 @@ extern crate ethkey;
 extern crate parity_bytes;
 extern crate parking_lot;
 
-use std::sync::atomic::{AtomicBool, Ordering as AtomicOrdering};
 use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, Ordering as AtomicOrdering};
 use std::thread;
 use std::time::*;
-use parking_lot::Mutex;
+
 use parity_bytes::Bytes;
+use parking_lot::Mutex;
+
 use ethcore_network::*;
 use ethcore_network_devp2p::NetworkService;
-use ethkey::{Random, Generator};
+use ethkey::{Generator, Random};
 use io::TimerToken;
 
 pub struct TestProtocol {
@@ -70,16 +72,16 @@ impl TestProtocol {
 }
 
 impl NetworkProtocolHandler for TestProtocol {
-	fn initialize(&self, io: &NetworkContext) {
+	fn initialize(&self, io: &dyn NetworkContext) {
 		io.register_timer(0, Duration::from_millis(10)).unwrap();
 	}
 
-	fn read(&self, _io: &NetworkContext, _peer: &PeerId, packet_id: u8, data: &[u8]) {
+	fn read(&self, _io: &dyn NetworkContext, _peer: &PeerId, packet_id: u8, data: &[u8]) {
 		assert_eq!(packet_id, 33);
 		self.packet.lock().extend(data);
 	}
 
-	fn connected(&self, io: &NetworkContext, peer: &PeerId) {
+	fn connected(&self, io: &dyn NetworkContext, peer: &PeerId) {
 		assert!(io.peer_client_version(*peer).to_string().contains("Parity"));
 		if self.drop_session {
 			io.disconnect_peer(*peer)
@@ -88,12 +90,12 @@ impl NetworkProtocolHandler for TestProtocol {
 		}
 	}
 
-	fn disconnected(&self, _io: &NetworkContext, _peer: &PeerId) {
+	fn disconnected(&self, _io: &dyn NetworkContext, _peer: &PeerId) {
 		self.got_disconnect.store(true, AtomicOrdering::Relaxed);
 	}
 
 	/// Timer function called after a timeout created with `NetworkContext::timeout`.
-	fn timeout(&self, _io: &NetworkContext, timer: TimerToken) {
+	fn timeout(&self, _io: &dyn NetworkContext, timer: TimerToken) {
 		assert_eq!(timer, 0);
 		self.got_timeout.store(true, AtomicOrdering::Relaxed);
 	}
