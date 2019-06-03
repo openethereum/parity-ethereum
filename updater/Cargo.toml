@@ -7,9 +7,9 @@ authors = ["Parity Technologies <admin@parity.io>"]
 
 [dependencies]
 common-types = { path = "../ethcore/types" }
-ethabi = { git = "https://github.com/paritytech/ethabi", branch = "ao-update-ethereum-types" }
-ethabi-contract = { git = "https://github.com/paritytech/ethabi", branch = "ao-update-ethereum-types" }
-ethabi-derive = { git = "https://github.com/paritytech/ethabi", branch = "ao-update-ethereum-types" }
+ethabi = "8.0"
+ethabi-contract = "8.0"
+ethabi-derive = "8.0"
 ethcore = { path = "../ethcore" }
 ethcore-sync = { path = "../ethcore/sync" }
 ethereum-types = "0.6.0"
