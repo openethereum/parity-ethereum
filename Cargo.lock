@@ -773,7 +773,7 @@ dependencies = [
 [[package]]
 name = "eth-secp256k1"
 version = "0.5.7"
-source = "git+https://github.com/paritytech/rust-secp256k1?branch=rand-0.6#754a66081379e7098076253d664d1dc8f50e5e5e"
+source = "git+https://github.com/paritytech/rust-secp256k1#9791e79f21a5309dcb6e0bd254b1ef88fca2f1f4"
 dependencies = [
  "arrayvec 0.4.7 (registry+https://github.com/rust-lang/crates.io-index)",
  "cc 1.0.28 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -1340,7 +1340,7 @@ version = "0.3.0"
 dependencies = [
  "byteorder 1.2.6 (registry+https://github.com/rust-lang/crates.io-index)",
  "edit-distance 2.0.1 (registry+https://github.com/rust-lang/crates.io-index)",
- "eth-secp256k1 0.5.7 (git+https://github.com/paritytech/rust-secp256k1?branch=rand-0.6)",
+ "eth-secp256k1 0.5.7 (git+https://github.com/paritytech/rust-secp256k1)",
  "ethereum-types 0.6.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "lazy_static 1.3.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "log 0.4.6 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -4866,7 +4866,7 @@ dependencies = [
 "checksum enum_primitive 0.1.1 (registry+https://github.com/rust-lang/crates.io-index)" = "be4551092f4d519593039259a9ed8daedf0da12e5109c5280338073eaeb81180"
 "checksum env_logger 0.5.13 (registry+https://github.com/rust-lang/crates.io-index)" = "15b0a4d2e39f8420210be8b27eeda28029729e2fd4291019455016c348240c38"
 "checksum error-chain 0.12.0 (registry+https://github.com/rust-lang/crates.io-index)" = "07e791d3be96241c77c43846b665ef1384606da2cd2a48730abe606a12906e02"
-"checksum eth-secp256k1 0.5.7 (git+https://github.com/paritytech/rust-secp256k1?branch=rand-0.6)" = "<none>"
+"checksum eth-secp256k1 0.5.7 (git+https://github.com/paritytech/rust-secp256k1)" = "<none>"
 "checksum ethabi 8.0.0 (registry+https://github.com/rust-lang/crates.io-index)" = "b312e5740d6e0369491ebe81a8752f7797b70e495530f28bbb7cc967ded3d77c"
 "checksum ethabi-contract 8.0.0 (registry+https://github.com/rust-lang/crates.io-index)" = "272b7fcfada8d9b2631d75693385b505efc826752dbc7ae1815e56b35d5a3f9f"
 "checksum ethabi-derive 8.0.0 (registry+https://github.com/rust-lang/crates.io-index)" = "65cdef3199bf5d1821dc53b5ab992f853a13b2e28d7a63983095d9d61fae58d3"
