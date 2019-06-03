@@ -16,6 +16,7 @@
 
 extern crate rand;
 extern crate ethstore;
+extern crate ethereum_types;
 
 mod util;
 
@@ -23,6 +24,8 @@ use ethstore::{EthStore, SimpleSecretStore, SecretVaultRef, StoreAccountRef};
 use ethstore::ethkey::{Random, Generator, Secret, KeyPair, verify_address};
 use ethstore::accounts_dir::RootDiskDirectory;
 use util::TransientDir;
+use ethereum_types::Address;
+use std::str::FromStr;
 
 #[test]
 fn secret_store_create() {
@@ -114,9 +117,9 @@ fn secret_store_laod_geth_files() {
 	let dir = RootDiskDirectory::at(test_path());
 	let store = EthStore::open(Box::new(dir)).unwrap();
 	assert_eq!(store.accounts().unwrap(), vec![
-		StoreAccountRef::root("3f49624084b67849c7b4e805c5988c21a430f9d9".into()),
-		StoreAccountRef::root("5ba4dcf897e97c2bdf8315b9ef26c13c085988cf".into()),
-		StoreAccountRef::root("63121b431a52f8043c16fcf0d1df9cb7b5f66649".into()),
+		StoreAccountRef::root(Address::from_str("3f49624084b67849c7b4e805c5988c21a430f9d9").unwrap()),
+		StoreAccountRef::root(Address::from_str("5ba4dcf897e97c2bdf8315b9ef26c13c085988cf").unwrap()),
+		StoreAccountRef::root(Address::from_str("63121b431a52f8043c16fcf0d1df9cb7b5f66649").unwrap()),
 	]);
 }
 
@@ -125,8 +128,8 @@ fn secret_store_load_pat_files() {
 	let dir = RootDiskDirectory::at(pat_path());
 	let store = EthStore::open(Box::new(dir)).unwrap();
 	assert_eq!(store.accounts().unwrap(), vec![
-		StoreAccountRef::root("3f49624084b67849c7b4e805c5988c21a430f9d9".into()),
-		StoreAccountRef::root("5ba4dcf897e97c2bdf8315b9ef26c13c085988cf".into()),
+		StoreAccountRef::root(Address::from_str("3f49624084b67849c7b4e805c5988c21a430f9d9").unwrap()),
+		StoreAccountRef::root(Address::from_str("5ba4dcf897e97c2bdf8315b9ef26c13c085988cf").unwrap()),
 	]);
 }
 
@@ -140,8 +143,8 @@ fn test_decrypting_files_with_short_ciphertext() {
 	let store = EthStore::open(Box::new(dir)).unwrap();
 	let accounts = store.accounts().unwrap();
 	assert_eq!(accounts, vec![
-		StoreAccountRef::root("31e9d1e6d844bd3a536800ef8d8be6a9975db509".into()),
-		StoreAccountRef::root("d1e64e5480bfaf733ba7d48712decb8227797a4e".into()),
+		StoreAccountRef::root(Address::from_str("31e9d1e6d844bd3a536800ef8d8be6a9975db509").unwrap()),
+		StoreAccountRef::root(Address::from_str("d1e64e5480bfaf733ba7d48712decb8227797a4e").unwrap()),
 	]);
 
 	let message = Default::default();

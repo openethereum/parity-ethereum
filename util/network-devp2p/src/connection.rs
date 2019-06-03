@@ -298,36 +298,39 @@ impl EncryptedConnection {
 	/// Create an encrypted connection out of the handshake.
 	pub fn new(handshake: &mut Handshake) -> Result<EncryptedConnection, Error> {
 		let shared = crypto::ecdh::agree(handshake.ecdhe.secret(), &handshake.remote_ephemeral)?;
-		let mut nonce_material = H512::new();
+		let mut nonce_material = H512::default();
 		if handshake.originated {
-			handshake.remote_nonce.copy_to(&mut nonce_material[0..32]);
-			handshake.nonce.copy_to(&mut nonce_material[32..64]);
+			(&mut nonce_material[0..32]).copy_from_slice(handshake.remote_nonce.as_bytes());
+			(&mut nonce_material[32..64]).copy_from_slice(handshake.nonce.as_bytes());
 		}
 		else {
-			handshake.nonce.copy_to(&mut nonce_material[0..32]);
-			handshake.remote_nonce.copy_to(&mut nonce_material[32..64]);
+			(&mut nonce_material[0..32]).copy_from_slice(handshake.nonce.as_bytes());
+			(&mut nonce_material[32..64]).copy_from_slice(handshake.remote_nonce.as_bytes());
 		}
-		let mut key_material = H512::new();
-		shared.copy_to(&mut key_material[0..32]);
+		let mut key_material = H512::default();
+		(&mut key_material[0..32]).copy_from_slice(shared.as_bytes());
 		write_keccak(&nonce_material, &mut key_material[32..64]);
-		keccak(&key_material).copy_to(&mut key_material[32..64]);
-		keccak(&key_material).copy_to(&mut key_material[32..64]);
+		let key_material_keccak = keccak(&key_material);
+		(&mut key_material[32..64]).copy_from_slice(key_material_keccak.as_bytes());
+		let key_material_keccak = keccak(&key_material);
+		(&mut key_material[32..64]).copy_from_slice(key_material_keccak.as_bytes());
 
 		// TODO: clarify this: ecdh::agree creates a **NEW** secret right? And AesCtr256 keeps an internal counter, right?
 		// Using a 0 IV with CTR is fine as long as the same IV is never reused with the same key. This is not the case here.
 		let encoder = AesCtr256::new(&key_material[32..64], &NULL_IV)?;
 		let decoder = AesCtr256::new(&key_material[32..64], &NULL_IV)?;
-		keccak(&key_material).copy_to(&mut key_material[32..64]);
+        let key_material_keccak = keccak(&key_material);
+        (&mut key_material[32..64]).copy_from_slice(key_material_keccak.as_bytes());
 		let mac_encoder_key: Secret = Secret::from_slice(&key_material[32..64]).expect("can create Secret from 32 bytes; qed");
 
 		let mut egress_mac = Keccak::new_keccak256();
 		let mut mac_material = H256::from_slice(&key_material[32..64]) ^ handshake.remote_nonce;
-		egress_mac.update(&mac_material);
+		egress_mac.update(mac_material.as_bytes());
 		egress_mac.update(if handshake.originated { &handshake.auth_cipher } else { &handshake.ack_cipher });
 
 		let mut ingress_mac = Keccak::new_keccak256();
 		mac_material = H256::from_slice(&key_material[32..64]) ^ handshake.nonce;
-		ingress_mac.update(&mac_material);
+		ingress_mac.update(mac_material.as_bytes());
 		ingress_mac.update(if handshake.originated { &handshake.ack_cipher } else { &handshake.auth_cipher });
 
 		let old_connection = handshake.connection.try_clone()?;
@@ -387,8 +390,8 @@ impl EncryptedConnection {
 		}
 		EncryptedConnection::update_mac(&mut self.ingress_mac, &self.mac_encoder_key, &header[0..16])?;
 		let mac = &header[16..];
-		let mut expected = H256::new();
-		self.ingress_mac.clone().finalize(&mut expected);
+		let mut expected = H256::zero();
+		self.ingress_mac.clone().finalize(expected.as_bytes_mut());
 		if mac != &expected[0..16] {
 			return Err(ErrorKind::Auth.into());
 		}
@@ -420,8 +423,8 @@ impl EncryptedConnection {
 		EncryptedConnection::update_mac(&mut self.ingress_mac, &self.mac_encoder_key, &[0u8; 0])?;
 
 		let mac = &payload[(payload.len() - 16)..];
-		let mut expected = H128::new();
-		self.ingress_mac.clone().finalize(&mut expected);
+		let mut expected = H128::default();
+		self.ingress_mac.clone().finalize(expected.as_bytes_mut());
 		if mac != &expected[..] {
 			return Err(ErrorKind::Auth.into());
 		}
@@ -435,15 +438,15 @@ impl EncryptedConnection {
 
 	/// Update MAC after reading or writing any data.
 	fn update_mac(mac: &mut Keccak, mac_encoder_key: &Secret, seed: &[u8]) -> Result<(), Error> {
-		let mut prev = H128::new();
-		mac.clone().finalize(&mut prev);
-		let mut enc = H128::new();
-		&mut enc[..].copy_from_slice(&prev);
-		let mac_encoder = AesEcb256::new(mac_encoder_key)?;
-		mac_encoder.encrypt(&mut enc)?;
+		let mut prev = H128::default();
+		mac.clone().finalize(prev.as_bytes_mut());
+		let mut enc = H128::default();
+		&mut enc[..].copy_from_slice(prev.as_bytes());
+		let mac_encoder = AesEcb256::new(mac_encoder_key.as_bytes())?;
+		mac_encoder.encrypt(enc.as_bytes_mut())?;
 
 		enc = enc ^ if seed.is_empty() { prev } else { H128::from_slice(seed) };
-		mac.update(&enc);
+		mac.update(enc.as_bytes());
 		Ok(())
 	}
 
@@ -641,17 +644,17 @@ mod tests {
 		let after = H128::from_str("89464c6b04e7c99e555c81d3f7266a05").unwrap();
 		let after2 = H128::from_str("85c070030589ef9c7a2879b3a8489316").unwrap();
 
-		let mut got = H128::new();
+		let mut got = H128::default();
 
-		let encoder = AesEcb256::new(&key).unwrap();
-		got.copy_from_slice(&before);
-		encoder.encrypt(&mut got).unwrap();
+		let encoder = AesEcb256::new(key.as_bytes()).unwrap();
+		got.as_bytes_mut().copy_from_slice(before.as_bytes());
+		encoder.encrypt(got.as_bytes_mut()).unwrap();
 		assert_eq!(got, after);
 
-		let encoder = AesEcb256::new(&key).unwrap();
-		got = H128::new();
-		got.copy_from_slice(&before2);
-		encoder.encrypt(&mut got).unwrap();
+		let encoder = AesEcb256::new(key.as_bytes()).unwrap();
+		got = H128::default();
+		got.as_bytes_mut().copy_from_slice(&before2.as_bytes());
+		encoder.encrypt(got.as_bytes_mut()).unwrap();
 		assert_eq!(got, after2);
 	}
 

@@ -142,7 +142,7 @@ impl ConnectionTriggerWithMigration {
 			session_action: None,
 		}
 	}
-	
+
 	/// Actually do mainteinance.
 	fn do_maintain(&mut self) -> Option<Maintain> {
 		loop {
@@ -452,58 +452,59 @@ mod tests {
 	use key_server_cluster::connection_trigger::ConnectionsAction;
 	use super::{MigrationState, SessionState, SessionAction, migration_state, maintain_session,
 		maintain_connections, select_master_node};
+	use ethereum_types::{H256, H512};
 
 	#[test]
 	fn migration_state_is_idle_when_required_but_this_node_is_not_on_the_list() {
-		assert_eq!(migration_state(&1.into(), &KeyServerSetSnapshot {
-			current_set: vec![(2.into(), "127.0.0.1:8081".parse().unwrap())].into_iter().collect(),
-			new_set: vec![(3.into(), "127.0.0.1:8081".parse().unwrap())].into_iter().collect(),
+		assert_eq!(migration_state(&H512::from_low_u64_be(1), &KeyServerSetSnapshot {
+			current_set: vec![(H512::from_low_u64_be(2), "127.0.0.1:8081".parse().unwrap())].into_iter().collect(),
+			new_set: vec![(H512::from_low_u64_be(3), "127.0.0.1:8081".parse().unwrap())].into_iter().collect(),
 			migration: None,
 		}), MigrationState::Idle);
 	}
 
 	#[test]
 	fn migration_state_is_idle_when_sets_are_equal() {
-		assert_eq!(migration_state(&1.into(), &KeyServerSetSnapshot {
-			current_set: vec![(1.into(), "127.0.0.1:8081".parse().unwrap())].into_iter().collect(),
-			new_set: vec![(1.into(), "127.0.0.1:8081".parse().unwrap())].into_iter().collect(),
+		assert_eq!(migration_state(&H512::from_low_u64_be(1), &KeyServerSetSnapshot {
+			current_set: vec![(H512::from_low_u64_be(1), "127.0.0.1:8081".parse().unwrap())].into_iter().collect(),
+			new_set: vec![(H512::from_low_u64_be(1), "127.0.0.1:8081".parse().unwrap())].into_iter().collect(),
 			migration: None,
 		}), MigrationState::Idle);
 	}
 
 	#[test]
 	fn migration_state_is_idle_when_only_address_changes() {
-		assert_eq!(migration_state(&1.into(), &KeyServerSetSnapshot {
-			current_set: vec![(1.into(), "127.0.0.1:8080".parse().unwrap())].into_iter().collect(),
-			new_set: vec![(1.into(), "127.0.0.1:8081".parse().unwrap())].into_iter().collect(),
+		assert_eq!(migration_state(&H512::from_low_u64_be(1), &KeyServerSetSnapshot {
+			current_set: vec![(H512::from_low_u64_be(1), "127.0.0.1:8080".parse().unwrap())].into_iter().collect(),
+			new_set: vec![(H512::from_low_u64_be(1), "127.0.0.1:8081".parse().unwrap())].into_iter().collect(),
 			migration: None,
 		}), MigrationState::Idle);
 	}
 
 	#[test]
 	fn migration_state_is_required_when_node_is_added() {
-		assert_eq!(migration_state(&1.into(), &KeyServerSetSnapshot {
-			current_set: vec![(1.into(), "127.0.0.1:8080".parse().unwrap())].into_iter().collect(),
-			new_set: vec![(1.into(), "127.0.0.1:8080".parse().unwrap()),
-				(2.into(), "127.0.0.1:8081".parse().unwrap())].into_iter().collect(),
+		assert_eq!(migration_state(&H512::from_low_u64_be(1), &KeyServerSetSnapshot {
+			current_set: vec![(H512::from_low_u64_be(1), "127.0.0.1:8080".parse().unwrap())].into_iter().collect(),
+			new_set: vec![(H512::from_low_u64_be(1), "127.0.0.1:8080".parse().unwrap()),
+				(H512::from_low_u64_be(2), "127.0.0.1:8081".parse().unwrap())].into_iter().collect(),
 			migration: None,
 		}), MigrationState::Required);
 	}
 
 	#[test]
 	fn migration_state_is_required_when_node_is_removed() {
-		assert_eq!(migration_state(&1.into(), &KeyServerSetSnapshot {
-			current_set: vec![(1.into(), "127.0.0.1:8080".parse().unwrap()),
-				(2.into(), "127.0.0.1:8081".parse().unwrap())].into_iter().collect(),
-			new_set: vec![(1.into(), "127.0.0.1:8080".parse().unwrap())].into_iter().collect(),
+		assert_eq!(migration_state(&H512::from_low_u64_be(1), &KeyServerSetSnapshot {
+			current_set: vec![(H512::from_low_u64_be(1), "127.0.0.1:8080".parse().unwrap()),
+				(H512::from_low_u64_be(2), "127.0.0.1:8081".parse().unwrap())].into_iter().collect(),
+			new_set: vec![(H512::from_low_u64_be(1), "127.0.0.1:8080".parse().unwrap())].into_iter().collect(),
 			migration: None,
 		}), MigrationState::Required);
 	}
 
 	#[test]
 	fn migration_state_is_started_when_migration_is_some() {
-		assert_eq!(migration_state(&1.into(), &KeyServerSetSnapshot {
-			current_set: vec![(1.into(), "127.0.0.1:8080".parse().unwrap())].into_iter().collect(),
+		assert_eq!(migration_state(&H512::from_low_u64_be(1), &KeyServerSetSnapshot {
+			current_set: vec![(H512::from_low_u64_be(1), "127.0.0.1:8080".parse().unwrap())].into_iter().collect(),
 			new_set: Default::default(),
 			migration: Some(KeyServerSetMigration {
 				id: Default::default(),
@@ -517,35 +518,35 @@ mod tests {
 	#[test]
 	fn existing_master_is_selected_when_migration_has_started() {
 		assert_eq!(select_master_node(&KeyServerSetSnapshot {
-			current_set: vec![(1.into(), "127.0.0.1:8180".parse().unwrap())].into_iter().collect(),
-			new_set: vec![(2.into(), "127.0.0.1:8181".parse().unwrap())].into_iter().collect(),
+			current_set: vec![(H512::from_low_u64_be(1), "127.0.0.1:8180".parse().unwrap())].into_iter().collect(),
+			new_set: vec![(H512::from_low_u64_be(2), "127.0.0.1:8181".parse().unwrap())].into_iter().collect(),
 			migration: Some(KeyServerSetMigration {
-				master: 3.into(),
+				master: H512::from_low_u64_be(3),
 				..Default::default()
 			}),
-		}), &3.into());
+		}), &H512::from_low_u64_be(3));
 	}
 
 	#[test]
 	fn persistent_master_is_selected_when_migration_has_not_started_yet() {
 		assert_eq!(select_master_node(&KeyServerSetSnapshot {
-			current_set: vec![(1.into(), "127.0.0.1:8180".parse().unwrap()),
-				(2.into(), "127.0.0.1:8180".parse().unwrap())].into_iter().collect(),
-			new_set: vec![(2.into(), "127.0.0.1:8181".parse().unwrap()),
-				(4.into(), "127.0.0.1:8181".parse().unwrap())].into_iter().collect(),
+			current_set: vec![(H512::from_low_u64_be(1), "127.0.0.1:8180".parse().unwrap()),
+				(H512::from_low_u64_be(2), "127.0.0.1:8180".parse().unwrap())].into_iter().collect(),
+			new_set: vec![(H512::from_low_u64_be(2), "127.0.0.1:8181".parse().unwrap()),
+				(H512::from_low_u64_be(4), "127.0.0.1:8181".parse().unwrap())].into_iter().collect(),
 			migration: None,
-		}), &2.into());
+		}), &H512::from_low_u64_be(2));
 	}
 
 	#[test]
 	fn new_master_is_selected_in_worst_case() {
 		assert_eq!(select_master_node(&KeyServerSetSnapshot {
-			current_set: vec![(1.into(), "127.0.0.1:8180".parse().unwrap()),
-				(2.into(), "127.0.0.1:8180".parse().unwrap())].into_iter().collect(),
-			new_set: vec![(3.into(), "127.0.0.1:8181".parse().unwrap()),
-				(4.into(), "127.0.0.1:8181".parse().unwrap())].into_iter().collect(),
+			current_set: vec![(H512::from_low_u64_be(1), "127.0.0.1:8180".parse().unwrap()),
+				(H512::from_low_u64_be(2), "127.0.0.1:8180".parse().unwrap())].into_iter().collect(),
+			new_set: vec![(H512::from_low_u64_be(3), "127.0.0.1:8181".parse().unwrap()),
+				(H512::from_low_u64_be(4), "127.0.0.1:8181".parse().unwrap())].into_iter().collect(),
 			migration: None,
-		}), &3.into());
+		}), &H512::from_low_u64_be(3));
 	}
 
 	#[test]
@@ -574,29 +575,29 @@ mod tests {
 
 	#[test]
 	fn maintain_sessions_does_nothing_if_no_session_and_no_migration() {
-		assert_eq!(maintain_session(&1.into(), &Default::default(), &Default::default(),
+		assert_eq!(maintain_session(&H512::from_low_u64_be(1), &Default::default(), &Default::default(),
 			MigrationState::Idle, SessionState::Idle), None);
 	}
 
 	#[test]
 	fn maintain_session_does_nothing_when_migration_required_on_slave_node_and_no_session() {
-		assert_eq!(maintain_session(&2.into(), &vec![2.into()].into_iter().collect(), &KeyServerSetSnapshot {
-			current_set: vec![(1.into(), "127.0.0.1:8181".parse().unwrap())].into_iter().collect(),
-			new_set: vec![(1.into(), "127.0.0.1:8181".parse().unwrap()),
-				(2.into(), "127.0.0.1:8181".parse().unwrap())].into_iter().collect(),
+		assert_eq!(maintain_session(&H512::from_low_u64_be(2), &vec![H512::from_low_u64_be(2)].into_iter().collect(), &KeyServerSetSnapshot {
+			current_set: vec![(H512::from_low_u64_be(1), "127.0.0.1:8181".parse().unwrap())].into_iter().collect(),
+			new_set: vec![(H512::from_low_u64_be(1), "127.0.0.1:8181".parse().unwrap()),
+				(H512::from_low_u64_be(2), "127.0.0.1:8181".parse().unwrap())].into_iter().collect(),
 			migration: None,
 		}, MigrationState::Required, SessionState::Idle), None);
 	}
 
 	#[test]
 	fn maintain_session_does_nothing_when_migration_started_on_slave_node_and_no_session() {
-		assert_eq!(maintain_session(&2.into(), &vec![2.into()].into_iter().collect(), &KeyServerSetSnapshot {
-			current_set: vec![(1.into(), "127.0.0.1:8181".parse().unwrap())].into_iter().collect(),
+		assert_eq!(maintain_session(&H512::from_low_u64_be(2), &vec![H512::from_low_u64_be(2)].into_iter().collect(), &KeyServerSetSnapshot {
+			current_set: vec![(H512::from_low_u64_be(1), "127.0.0.1:8181".parse().unwrap())].into_iter().collect(),
 			new_set: Default::default(),
 			migration: Some(KeyServerSetMigration {
-				master: 1.into(),
-				set: vec![(1.into(), "127.0.0.1:8181".parse().unwrap()),
-					(2.into(), "127.0.0.1:8181".parse().unwrap())].into_iter().collect(),
+				master: H512::from_low_u64_be(1),
+				set: vec![(H512::from_low_u64_be(1), "127.0.0.1:8181".parse().unwrap()),
+					(H512::from_low_u64_be(2), "127.0.0.1:8181".parse().unwrap())].into_iter().collect(),
 				..Default::default()
 			}),
 		}, MigrationState::Started, SessionState::Idle), None);
@@ -604,13 +605,13 @@ mod tests {
 
 	#[test]
 	fn maintain_session_does_nothing_when_migration_started_on_master_node_and_no_session_and_not_connected_to_migration_nodes() {
-		assert_eq!(maintain_session(&1.into(), &Default::default(), &KeyServerSetSnapshot {
-			current_set: vec![(1.into(), "127.0.0.1:8181".parse().unwrap())].into_iter().collect(),
+		assert_eq!(maintain_session(&H512::from_low_u64_be(1), &Default::default(), &KeyServerSetSnapshot {
+			current_set: vec![(H512::from_low_u64_be(1), "127.0.0.1:8181".parse().unwrap())].into_iter().collect(),
 			new_set: Default::default(),
 			migration: Some(KeyServerSetMigration {
-				master: 1.into(),
-				set: vec![(1.into(), "127.0.0.1:8181".parse().unwrap()),
-					(2.into(), "127.0.0.1:8181".parse().unwrap())].into_iter().collect(),
+				master: H512::from_low_u64_be(1),
+				set: vec![(H512::from_low_u64_be(1), "127.0.0.1:8181".parse().unwrap()),
+					(H512::from_low_u64_be(2), "127.0.0.1:8181".parse().unwrap())].into_iter().collect(),
 				..Default::default()
 			}),
 		}, MigrationState::Started, SessionState::Idle), None);
@@ -618,13 +619,13 @@ mod tests {
 
 	#[test]
 	fn maintain_session_starts_session_when_migration_started_on_master_node_and_no_session() {
-		assert_eq!(maintain_session(&1.into(), &vec![2.into()].into_iter().collect(), &KeyServerSetSnapshot {
-			current_set: vec![(1.into(), "127.0.0.1:8181".parse().unwrap())].into_iter().collect(),
+		assert_eq!(maintain_session(&H512::from_low_u64_be(1), &vec![H512::from_low_u64_be(2)].into_iter().collect(), &KeyServerSetSnapshot {
+			current_set: vec![(H512::from_low_u64_be(1), "127.0.0.1:8181".parse().unwrap())].into_iter().collect(),
 			new_set: Default::default(),
 			migration: Some(KeyServerSetMigration {
-				master: 1.into(),
-				set: vec![(1.into(), "127.0.0.1:8181".parse().unwrap()),
-					(2.into(), "127.0.0.1:8181".parse().unwrap())].into_iter().collect(),
+				master: H512::from_low_u64_be(1),
+				set: vec![(H512::from_low_u64_be(1), "127.0.0.1:8181".parse().unwrap()),
+					(H512::from_low_u64_be(2), "127.0.0.1:8181".parse().unwrap())].into_iter().collect(),
 				..Default::default()
 			}),
 		}, MigrationState::Started, SessionState::Idle), Some(SessionAction::Start));
@@ -632,13 +633,13 @@ mod tests {
 
 	#[test]
 	fn maintain_session_does_nothing_when_both_migration_and_session_are_started() {
-		assert_eq!(maintain_session(&1.into(), &vec![2.into()].into_iter().collect(), &KeyServerSetSnapshot {
-			current_set: vec![(1.into(), "127.0.0.1:8181".parse().unwrap())].into_iter().collect(),
+		assert_eq!(maintain_session(&H512::from_low_u64_be(1), &vec![H512::from_low_u64_be(2)].into_iter().collect(), &KeyServerSetSnapshot {
+			current_set: vec![(H512::from_low_u64_be(1), "127.0.0.1:8181".parse().unwrap())].into_iter().collect(),
 			new_set: Default::default(),
 			migration: Some(KeyServerSetMigration {
-				master: 1.into(),
-				set: vec![(1.into(), "127.0.0.1:8181".parse().unwrap()),
-					(2.into(), "127.0.0.1:8181".parse().unwrap())].into_iter().collect(),
+				master: H512::from_low_u64_be(1),
+				set: vec![(H512::from_low_u64_be(1), "127.0.0.1:8181".parse().unwrap()),
+					(H512::from_low_u64_be(2), "127.0.0.1:8181".parse().unwrap())].into_iter().collect(),
 				..Default::default()
 			}),
 		}, MigrationState::Started, SessionState::Active(Default::default())), None);
@@ -646,13 +647,13 @@ mod tests {
 
 	#[test]
 	fn maintain_session_confirms_migration_when_active_and_session_has_finished_on_new_node() {
-		assert_eq!(maintain_session(&1.into(), &vec![2.into()].into_iter().collect(), &KeyServerSetSnapshot {
-			current_set: vec![(1.into(), "127.0.0.1:8181".parse().unwrap())].into_iter().collect(),
+		assert_eq!(maintain_session(&H512::from_low_u64_be(1), &vec![H512::from_low_u64_be(2)].into_iter().collect(), &KeyServerSetSnapshot {
+			current_set: vec![(H512::from_low_u64_be(1), "127.0.0.1:8181".parse().unwrap())].into_iter().collect(),
 			new_set: Default::default(),
 			migration: Some(KeyServerSetMigration {
-				master: 1.into(),
-				set: vec![(1.into(), "127.0.0.1:8181".parse().unwrap()),
-					(2.into(), "127.0.0.1:8181".parse().unwrap())].into_iter().collect(),
+				master: H512::from_low_u64_be(1),
+				set: vec![(H512::from_low_u64_be(1), "127.0.0.1:8181".parse().unwrap()),
+					(H512::from_low_u64_be(2), "127.0.0.1:8181".parse().unwrap())].into_iter().collect(),
 				..Default::default()
 			}),
 		}, MigrationState::Started, SessionState::Finished(Default::default())), Some(SessionAction::ConfirmAndDrop(Default::default())));
@@ -660,13 +661,13 @@ mod tests {
 
 	#[test]
 	fn maintain_session_drops_session_when_active_and_session_has_finished_on_removed_node() {
-		assert_eq!(maintain_session(&1.into(), &vec![2.into()].into_iter().collect(), &KeyServerSetSnapshot {
-			current_set: vec![(1.into(), "127.0.0.1:8181".parse().unwrap()),
-				(2.into(), "127.0.0.1:8181".parse().unwrap())].into_iter().collect(),
+		assert_eq!(maintain_session(&H512::from_low_u64_be(1), &vec![H512::from_low_u64_be(2)].into_iter().collect(), &KeyServerSetSnapshot {
+			current_set: vec![(H512::from_low_u64_be(1), "127.0.0.1:8181".parse().unwrap()),
+				(H512::from_low_u64_be(2), "127.0.0.1:8181".parse().unwrap())].into_iter().collect(),
 			new_set: Default::default(),
 			migration: Some(KeyServerSetMigration {
-				master: 2.into(),
-				set: vec![(2.into(), "127.0.0.1:8181".parse().unwrap())].into_iter().collect(),
+				master: H512::from_low_u64_be(2),
+				set: vec![(H512::from_low_u64_be(2), "127.0.0.1:8181".parse().unwrap())].into_iter().collect(),
 				..Default::default()
 			}),
 		}, MigrationState::Started, SessionState::Finished(Default::default())), Some(SessionAction::Drop));
@@ -674,13 +675,13 @@ mod tests {
 
 	#[test]
 	fn maintain_session_drops_session_when_active_and_session_has_failed() {
-		assert_eq!(maintain_session(&1.into(), &vec![2.into()].into_iter().collect(), &KeyServerSetSnapshot {
-			current_set: vec![(1.into(), "127.0.0.1:8181".parse().unwrap())].into_iter().collect(),
+		assert_eq!(maintain_session(&H512::from_low_u64_be(1), &vec![H512::from_low_u64_be(2)].into_iter().collect(), &KeyServerSetSnapshot {
+			current_set: vec![(H512::from_low_u64_be(1), "127.0.0.1:8181".parse().unwrap())].into_iter().collect(),
 			new_set: Default::default(),
 			migration: Some(KeyServerSetMigration {
-				master: 1.into(),
-				set: vec![(1.into(), "127.0.0.1:8181".parse().unwrap()),
-					(2.into(), "127.0.0.1:8181".parse().unwrap())].into_iter().collect(),
+				master: H512::from_low_u64_be(1),
+				set: vec![(H512::from_low_u64_be(1), "127.0.0.1:8181".parse().unwrap()),
+					(H512::from_low_u64_be(2), "127.0.0.1:8181".parse().unwrap())].into_iter().collect(),
 				..Default::default()
 			}),
 		}, MigrationState::Started, SessionState::Failed(Default::default())), Some(SessionAction::Drop));
@@ -726,32 +727,32 @@ mod tests {
 	fn maintain_session_detects_abnormal_when_active_migration_and_active_session_with_different_id() {
 		assert_eq!(maintain_session(&Default::default(), &Default::default(), &KeyServerSetSnapshot {
 			migration: Some(KeyServerSetMigration {
-				id: 0.into(),
+				id: H256::zero(),
 				..Default::default()
 			}),
 			..Default::default()
-		}, MigrationState::Started, SessionState::Active(Some(1.into()))), Some(SessionAction::DropAndRetry));
+		}, MigrationState::Started, SessionState::Active(Some(H256::from_low_u64_be(1)))), Some(SessionAction::DropAndRetry));
 	}
 
 	#[test]
 	fn maintain_session_detects_abnormal_when_active_migration_and_finished_session_with_different_id() {
 		assert_eq!(maintain_session(&Default::default(), &Default::default(), &KeyServerSetSnapshot {
 			migration: Some(KeyServerSetMigration {
-				id: 0.into(),
+				id: H256::zero(),
 				..Default::default()
 			}),
 			..Default::default()
-		}, MigrationState::Started, SessionState::Finished(Some(1.into()))), Some(SessionAction::DropAndRetry));
+		}, MigrationState::Started, SessionState::Finished(Some(H256::from_low_u64_be(1)))), Some(SessionAction::DropAndRetry));
 	}
 
 	#[test]
 	fn maintain_session_detects_abnormal_when_active_migration_and_failed_session_with_different_id() {
 		assert_eq!(maintain_session(&Default::default(), &Default::default(), &KeyServerSetSnapshot {
 			migration: Some(KeyServerSetMigration {
-				id: 0.into(),
+				id: H256::zero(),
 				..Default::default()
 			}),
 			..Default::default()
-		}, MigrationState::Started, SessionState::Failed(Some(1.into()))), Some(SessionAction::DropAndRetry));
+		}, MigrationState::Started, SessionState::Failed(Some(H256::from_low_u64_be(1)))), Some(SessionAction::DropAndRetry));
 	}
 }

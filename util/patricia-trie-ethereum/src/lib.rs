@@ -63,7 +63,7 @@ pub type RlpCodec = RlpNodeCodec<KeccakHasher>;
 ///
 /// fn main() {
 ///   let mut memdb = journaldb::new_memory_db();
-///   let mut root = H256::new();
+///   let mut root = H256::zero();
 ///   TrieDBMut::new(&mut memdb, &mut root).insert(b"foo", b"bar").unwrap();
 ///   let t = TrieDB::new(&memdb, &root).unwrap();
 ///   assert!(t.contains(b"foo").unwrap());
@@ -107,7 +107,7 @@ pub type FatDB<'db> = trie::FatDB<'db, KeccakHasher, RlpCodec>;
 ///
 /// fn main() {
 ///   let mut memdb = journaldb::new_memory_db();
-///   let mut root = H256::new();
+///   let mut root = H256::zero();
 ///   let mut t = TrieDBMut::new(&mut memdb, &mut root);
 ///   assert!(t.is_empty());
 ///   assert_eq!(*t.root(), KECCAK_NULL_RLP);

@@ -183,6 +183,7 @@ mod tests {
 	use parking_lot::Mutex;
 	use types::transaction;
 	use txpool::Listener;
+	use ethereum_types::Address;
 
 	#[test]
 	fn should_notify_listeners() {
@@ -217,7 +218,7 @@ mod tests {
 			gas: 21_000.into(),
 			gas_price: 5.into(),
 			value: 0.into(),
-		}.fake_sign(5.into());
+		}.fake_sign(Address::from_low_u64_be(5));
 
 		Arc::new(Transaction::from_pending_block_transaction(signed))
 	}

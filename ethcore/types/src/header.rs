@@ -115,10 +115,10 @@ impl PartialEq for Header {
 impl Default for Header {
 	fn default() -> Self {
 		Header {
-			parent_hash: H256::default(),
+			parent_hash: H256::zero(),
 			timestamp: 0,
 			number: 0,
-			author: Address::default(),
+			author: Address::zero(),
 
 			transactions_root: KECCAK_NULL_RLP,
 			uncles_hash: KECCAK_EMPTY_LIST_RLP,

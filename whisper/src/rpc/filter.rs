@@ -23,7 +23,6 @@ use ethereum_types::{H256, H512};
 use ethkey::Public;
 use jsonrpc_pubsub::typed::{Subscriber, Sink};
 use parking_lot::{Mutex, RwLock};
-use rand::{Rng, OsRng};
 
 use message::{Message, Topic};
 use super::{key_store::KeyStore, types::{self, FilterItem, HexEncode}};
@@ -107,10 +106,7 @@ impl Manager {
 	pub fn insert_polled(&self, filter: Filter) -> Result<H256, &'static str> {
 		let buffer = Arc::new(Mutex::new(Vec::new()));
 		let entry = FilterEntry::Poll(Arc::new(filter), buffer);
-		let id = OsRng::new()
-			.map_err(|_| "unable to acquire secure randomness")?
-			.gen();
-
+		let id = H256::random();
 		self.filters.write().insert(id, entry);
 		Ok(id)
 	}
@@ -120,9 +116,7 @@ impl Manager {
 	pub fn insert_subscription(&self, filter: Filter, sub: Subscriber<FilterItem>)
 		-> Result<(), &'static str>
 	{
-		let id: H256 = OsRng::new()
-			.map_err(|_| "unable to acquire secure randomness")?
-			.gen();
+		let id = H256::random();
 
 		sub.assign_id(::jsonrpc_pubsub::SubscriptionId::String(format!("{:x}", id)))
 			.map(move |sink| {

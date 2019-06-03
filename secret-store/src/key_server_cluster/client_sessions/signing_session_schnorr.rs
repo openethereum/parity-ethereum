@@ -933,7 +933,7 @@ mod tests {
 	#[test]
 	fn schnorr_fails_to_initialize_when_already_initialized() {
 		let (ml, _, _) = MessageLoop::new(1, 0).unwrap().init().unwrap();
-		assert_eq!(ml.session_at(0).initialize(ml.key_version(), 777.into()),
+		assert_eq!(ml.session_at(0).initialize(ml.key_version(), H256::from_low_u64_be(777)),
 			Err(Error::InvalidStateForRequest));
 	}
 
@@ -1005,7 +1005,7 @@ mod tests {
 				session: SessionId::default().into(),
 				session_nonce: 0,
 				origin: None,
-				author: Address::default().into(),
+				author: Address::zero().into(),
 				nodes: BTreeMap::new(),
 				is_zero: false,
 				threshold: 1,
@@ -1023,7 +1023,7 @@ mod tests {
 			sub_session: session.core.access_key.clone().into(),
 			session_nonce: 0,
 			request_id: Secret::from_str("0000000000000000000000000000000000000000000000000000000000000001").unwrap().into(),
-			message_hash: H256::default().into(),
+			message_hash: H256::zero().into(),
 			nodes: Default::default(),
 		}), Err(Error::InvalidStateForRequest));
 	}
@@ -1037,7 +1037,7 @@ mod tests {
 			sub_session: session.core.access_key.clone().into(),
 			session_nonce: 0,
 			request_id: Secret::from_str("0000000000000000000000000000000000000000000000000000000000000001").unwrap().into(),
-			message_hash: H256::default().into(),
+			message_hash: H256::zero().into(),
 			nodes: Default::default(),
 		}), Err(Error::InvalidMessage));
 	}

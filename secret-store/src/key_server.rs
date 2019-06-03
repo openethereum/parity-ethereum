@@ -103,7 +103,7 @@ impl DocumentKeyServer for KeyServerImpl {
 		self.store_document_key(key_id, author, encrypted_document_key.common_point, encrypted_document_key.encrypted_point)?;
 
 		// encrypt document key with requestor public key
-		let document_key = crypto::ecies::encrypt(&public, &DEFAULT_MAC, &document_key)
+		let document_key = crypto::ecies::encrypt(&public, &DEFAULT_MAC, document_key.as_bytes())
 			.map_err(|err| Error::Internal(format!("Error encrypting document key: {}", err)))?;
 		Ok(document_key)
 	}
@@ -120,7 +120,7 @@ impl DocumentKeyServer for KeyServerImpl {
 			.decrypted_secret;
 
 		// encrypt document key with requestor public key
-		let document_key = crypto::ecies::encrypt(&public, &DEFAULT_MAC, &document_key)
+		let document_key = crypto::ecies::encrypt(&public, &DEFAULT_MAC, document_key.as_bytes())
 			.map_err(|err| Error::Internal(format!("Error encrypting document key: {}", err)))?;
 		Ok(document_key)
 	}
@@ -146,8 +146,8 @@ impl MessageSigner for KeyServerImpl {
 
 		// compose two message signature components into single one
 		let mut combined_signature = [0; 64];
-		combined_signature[..32].clone_from_slice(&**message_signature.0);
-		combined_signature[32..].clone_from_slice(&**message_signature.1);
+		combined_signature[..32].clone_from_slice(message_signature.0.as_bytes());
+		combined_signature[32..].clone_from_slice(message_signature.1.as_bytes());
 
 		// encrypt combined signature with requestor public key
 		let message_signature = crypto::ecies::encrypt(&public, &DEFAULT_MAC, &combined_signature)
@@ -422,7 +422,7 @@ pub mod tests {
 			let server_public = key_servers[0].generate_key(&server_key_id, &signature.clone().into(), *threshold).unwrap();
 
 			// sign message
-			let message_hash = H256::from(42);
+			let message_hash = H256::from_low_u64_be(42);
 			let combined_signature = key_servers[0].sign_message_schnorr(&server_key_id, &signature.into(), message_hash.clone()).unwrap();
 			let combined_signature = crypto::ecies::decrypt(&requestor_secret, &DEFAULT_MAC, &combined_signature).unwrap();
 			let signature_c = Secret::from_slice(&combined_signature[..32]).unwrap();
@@ -473,7 +473,7 @@ pub mod tests {
 		key_storages[0].remove(&server_key_id).unwrap();
 
 		// sign message
-		let message_hash = H256::from(42);
+		let message_hash = H256::from_low_u64_be(42);
 		let combined_signature = key_servers[0].sign_message_schnorr(&server_key_id, &signature.into(), message_hash.clone()).unwrap();
 		let combined_signature = crypto::ecies::decrypt(&requestor_secret, &DEFAULT_MAC, &combined_signature).unwrap();
 		let signature_c = Secret::from_slice(&combined_signature[..32]).unwrap();
@@ -503,7 +503,7 @@ pub mod tests {
 		let message_hash = H256::random();
 		let signature = key_servers[0].sign_message_ecdsa(&server_key_id, &signature.into(), message_hash.clone()).unwrap();
 		let signature = crypto::ecies::decrypt(&requestor_secret, &DEFAULT_MAC, &signature).unwrap();
-		let signature: H520 = signature[0..65].into();
+		let signature = H520::from_slice(&signature[0..65]);
 
 		// check signature
 		assert!(verify_public(&server_public, &signature.into(), &message_hash).unwrap());

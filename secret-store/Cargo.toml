@@ -8,18 +8,18 @@ authors = ["Parity Technologies <admin@parity.io>"]
 [dependencies]
 byteorder = "1.0"
 common-types = { path = "../ethcore/types" }
-ethabi = "6.0"
-ethabi-contract = "6.0"
-ethabi-derive = "6.0"
+ethabi = "8.0"
+ethabi-contract = "8.0"
+ethabi-derive = "8.0"
 ethcore = { path = "../ethcore" }
 ethcore-accounts = { path = "../accounts", optional = true}
 ethcore-call-contract = { path = "../ethcore/call-contract" }
 ethcore-sync = { path = "../ethcore/sync" }
-ethereum-types = "0.4"
+ethereum-types = "0.6.0"
 ethkey = { path = "../accounts/ethkey" }
 futures = "0.1"
 hyper = { version = "0.12", default-features = false }
-keccak-hash = "0.1"
+keccak-hash = "0.2.0"
 kvdb = "0.1"
 lazy_static = "1.0"
 log = "0.4"
