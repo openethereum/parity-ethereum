@@ -166,7 +166,7 @@ impl<Socket: GenericSocket> GenericConnection<Socket> {
 /// Low level tcp connection
 pub type Connection = GenericConnection<TcpStream>;
 
-impl Connection         {
+impl Connection {
 	/// Create a new connection with given id and socket.
 	pub fn new(token: StreamToken, socket: TcpStream) -> Connection {
 		Connection {
@@ -280,7 +280,6 @@ pub struct EncryptedConnection {
 	/// Ingress data decryptor
 	decoder: AesCtr256,
 	/// Ingress data decryptor
-//	mac_encoder_key: [u8; 32],
 	mac_encoder_key: Secret,
 	/// MAC for egress data
 	egress_mac: Keccak,
