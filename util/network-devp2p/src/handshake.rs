@@ -15,19 +15,21 @@
 // along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
 use std::time::Duration;
-use rand::random;
+
+use ethereum_types::{H256, H520};
 use hash::write_keccak;
 use mio::tcp::*;
-use ethereum_types::{H256, H520};
 use parity_bytes::Bytes;
+use rand::random;
 use rlp::{Rlp, RlpStream};
+
 use connection::Connection;
-use node_table::NodeId;
-use io::{IoContext, StreamToken};
-use ethkey::{KeyPair, Public, Secret, recover, sign, Generator, Random};
+use ethkey::{Generator, KeyPair, Public, Random, recover, Secret, sign};
 use ethkey::crypto::{ecdh, ecies};
-use network::{Error, ErrorKind};
 use host::HostInfo;
+use io::{IoContext, StreamToken};
+use network::{Error, ErrorKind};
+use node_table::NodeId;
 
 #[derive(PartialEq, Eq, Debug)]
 enum HandshakeState {
@@ -318,15 +320,18 @@ impl Handshake {
 
 #[cfg(test)]
 mod test {
-	use rustc_hex::FromHex;
-	use super::*;
-	use ethereum_types::{H256, H512};
-	use io::*;
-	use mio::tcp::TcpStream;
-	use ethkey::Public;
-	use std::str::FromStr;
+    use std::str::FromStr;
 
-	fn check_auth(h: &Handshake, version: u64) {
+    use ethereum_types::{H256, H512};
+    use mio::tcp::TcpStream;
+    use rustc_hex::FromHex;
+
+    use ethkey::Public;
+    use io::*;
+
+    use super::*;
+
+    fn check_auth(h: &Handshake, version: u64) {
 		assert_eq!(
 			h.id,
 			H512::from_str("fda1cff674c90c9a197539fe3dfb53086ace64f83ed7c6eabec741f7f381cc803e52ab2cd55d5569bce4347107a310dfd5f88a010cd2ffd1005ca406f1842877").unwrap(),

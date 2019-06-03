@@ -530,9 +530,9 @@ pub fn validate_node_url(url: &str) -> Option<Error> {
 }
 
 mod json {
-    use super::*;
+	use super::*;
 
-    #[derive(Serialize, Deserialize)]
+	#[derive(Serialize, Deserialize)]
 	pub struct NodeTable {
 		pub nodes: Vec<Node>,
 	}
@@ -597,18 +597,18 @@ mod json {
 
 #[cfg(test)]
 mod tests {
-    use std::net::{Ipv4Addr, SocketAddr, SocketAddrV4};
-    use std::str::FromStr;
-    use std::thread::sleep;
-    use std::time::Duration;
+	use std::net::{Ipv4Addr, SocketAddr, SocketAddrV4};
+	use std::str::FromStr;
+	use std::thread::sleep;
+	use std::time::Duration;
 
-    use ethereum_types::H512;
-    use ipnetwork::IpNetwork;
-    use tempdir::TempDir;
+	use ethereum_types::H512;
+	use ipnetwork::IpNetwork;
+	use tempdir::TempDir;
 
-    use super::*;
+	use super::*;
 
-    #[test]
+	#[test]
 	fn endpoint_parse() {
 		let endpoint = NodeEndpoint::from_str("123.99.55.44:7770");
 		assert!(endpoint.is_ok());
