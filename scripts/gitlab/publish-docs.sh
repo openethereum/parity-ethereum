@@ -33,8 +33,8 @@ update_wiki_docs() {
 
 setup_git() {
     echo "__________Set github__________"
-    git config --global user.email "devops@parity.com"
-    git config --global user.name "Devops Parity"
+    git config --global user.email "devops-team@parity.io"
+    git config --global user.name "Devops Team Parity"
 }
 
 set_remote_wiki() {

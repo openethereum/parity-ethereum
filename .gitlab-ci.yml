@@ -32,12 +32,15 @@ variables:
     expire_in:                     1 mos
     paths:
       - artifacts/
+      - tools/
 
 .docker-cache-status:              &docker-cache-status
   variables:
     CARGO_HOME:                    "/ci-cache/parity-ethereum/cargo/${CI_JOB_NAME}"
   dependencies:                    []
   before_script:
+    - rustup show
+    - cargo --version
     - SCCACHE_ERROR_LOG=/builds/parity/parity-ethereum/sccache_debug.log
         RUST_LOG=sccache=debug
         sccache --start-server
@@ -46,10 +49,7 @@ variables:
     # sccache debug info
     - if test -e sccache_debug.log;
       then
-        echo "_____sccache_debug.log listing start:_____";
-        cat sccache_debug.log;
-        echo "_____sccache_debug.log listing end_____";
-        echo "All crate-types:";
+        echo "_____All crate-types:_____";
         grep 'parse_arguments.*--crate-type' sccache_debug.log | sed -re 's/.*"--crate-type", "([^"]+)".*/\1/' | sort | uniq -c;
         echo "_____Non-cacheable reasons:_____";
         grep CannotCache sccache_debug.log | sed -re 's/.*CannotCache\((.+)\).*/\1/' | sort | uniq -c;
@@ -67,6 +67,16 @@ variables:
   script:
     - scripts/gitlab/build-linux.sh
     - sccache -s
+  after_script:
+    - mkdir -p tools
+    - cp -r scripts/docker/hub/* ./tools
+    - cp scripts/gitlab/publish-snap.sh ./tools
+    - cp scripts/gitlab/publish-onchain.sh ./tools
+    - cp scripts/gitlab/safe-curl.sh ./tools
+    - echo v"$(sed -r -n '1,/^version/s/^version\s*=\s*"([^"]+)".*$/\1/p' Cargo.toml)" |
+      tee ./tools/VERSION
+    - echo "$(sed -r -n '1,/^track/s/^track\s*=\s*"([^"]+)".*$/\1/p' ./util/version/Cargo.toml)" |
+      tee ./tools/TRACK
 
 
 cargo-check 0 3:
@@ -195,19 +205,35 @@ build-windows:
 
 publish-docker:
   stage:                           publish
+  <<:                              *no_git
   only:                            *releaseable_branches
-  cache:                           {}
+  except:
+    variables:
+      - $SCHEDULE_TAG == "nightly"
   dependencies:
     - build-linux
-  tags:
-    - shell
+  environment:
+    name: parity-build
+  cache:                           {}
+  image:                           docker:stable
+  services:
+    - docker:dind
+  variables:
+    DOCKER_HOST:                   tcp://localhost:2375
+    DOCKER_DRIVER:                 overlay2
+    GIT_STRATEGY:                  none
+    # DOCKERFILE:                  tools/Dockerfile
+    # CONTAINER_IMAGE:             parity/parity 
   script:
-    - scripts/gitlab/publish-docker.sh parity
+    # we stopped pushing nightlies to dockerhub, will push to own registry prb.
+    - ./tools/publish-docker.sh
+  tags:
+    - kubernetes-parity-build
 
 publish-snap:                      &publish-snap
   stage:                           publish
+  <<:                              *no_git
   only:                            *releaseable_branches
-  <<:                              *collect_artifacts
   image:                           snapcore/snapcraft
   variables:
     BUILD_ARCH:                    amd64
@@ -217,12 +243,13 @@ publish-snap:                      &publish-snap
   tags:
     - linux-docker
   script:
-    - scripts/gitlab/publish-snap.sh
+    - ./tools/publish-snap.sh
 
 publish-snap-i386:
   <<:                              *publish-snap
   variables:
     BUILD_ARCH:                    i386
+    CARGO_TARGET:                  i686-unknown-linux-gnu
   dependencies:
     - build-linux-i386
 
@@ -230,6 +257,7 @@ publish-snap-arm64:
   <<:                              *publish-snap
   variables:
     BUILD_ARCH:                    arm64
+    CARGO_TARGET:                  aarch64-unknown-linux-gnu
   dependencies:
     - build-linux-arm64
 
@@ -237,11 +265,13 @@ publish-snap-armhf:
   <<:                              *publish-snap
   variables:
     BUILD_ARCH:                    armhf
+    CARGO_TARGET:                  armv7-unknown-linux-gnueabihf
   dependencies:
     - build-linux-armhf
 
 publish-onchain:
   stage:                           publish
+  <<:                              *no_git
   only:                            *releaseable_branches
   cache:                           {}
   dependencies:
@@ -249,7 +279,7 @@ publish-onchain:
     - build-darwin
     - build-windows
   script:
-    - scripts/gitlab/publish-onchain.sh
+    - ./tools/publish-onchain.sh
   tags:
     - linux-docker
 
