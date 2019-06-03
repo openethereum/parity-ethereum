@@ -31,7 +31,7 @@ use crypto::aes::{AesCtr256, AesEcb256};
 use rlp::{Rlp, RlpStream};
 use tiny_keccak::Keccak;
 
-use ethkey::crypto;
+use ethkey::{crypto, Secret};
 use handshake::Handshake;
 use io::{IoContext, StreamToken};
 use network::{Error, ErrorKind};
@@ -166,7 +166,7 @@ impl<Socket: GenericSocket> GenericConnection<Socket> {
 /// Low level tcp connection
 pub type Connection = GenericConnection<TcpStream>;
 
-impl Connection {
+impl Connection         {
 	/// Create a new connection with given id and socket.
 	pub fn new(token: StreamToken, socket: TcpStream) -> Connection {
 		Connection {
@@ -280,7 +280,8 @@ pub struct EncryptedConnection {
 	/// Ingress data decryptor
 	decoder: AesCtr256,
 	/// Ingress data decryptor
-	mac_encoder_key: Bytes,
+//	mac_encoder_key: [u8; 32],
+	mac_encoder_key: Secret,
 	/// MAC for egress data
 	egress_mac: Keccak,
 	/// MAC for ingress data
@@ -313,20 +314,20 @@ impl EncryptedConnection {
 		keccak(&key_material).copy_to(&mut key_material[32..64]);
 		keccak(&key_material).copy_to(&mut key_material[32..64]);
 
-		// TODO: clarify this: ecdh::agree creates a **NEW** secret right?
+		// TODO: clarify this: ecdh::agree creates a **NEW** secret right? And AesCtr256 keeps an internal counter, right?
 		// Using a 0 IV with CTR is fine as long as the same IV is never reused with the same key. This is not the case here.
 		let encoder = AesCtr256::new(&key_material[32..64], &NULL_IV)?;
 		let decoder = AesCtr256::new(&key_material[32..64], &NULL_IV)?;
-		keccak(&key_material).copy_to(&mut key_material[32..64]); // Create a new key for the mac encoding here? Why re-use the key material from above?
-		let mac_encoder_key = key_material[32..64].to_vec(); // TODO: store array
+		keccak(&key_material).copy_to(&mut key_material[32..64]);
+		let mac_encoder_key: Secret = Secret::from_slice(&key_material[32..64]).expect("can create Secret from 32 bytes; qed");
 
 		let mut egress_mac = Keccak::new_keccak256();
-		let mut mac_material = &H256::from_slice(&key_material[32..64]) ^ &handshake.remote_nonce; // TODO: check that this is ok
+		let mut mac_material = H256::from_slice(&key_material[32..64]) ^ handshake.remote_nonce;
 		egress_mac.update(&mac_material);
 		egress_mac.update(if handshake.originated { &handshake.auth_cipher } else { &handshake.ack_cipher });
 
 		let mut ingress_mac = Keccak::new_keccak256();
-		mac_material = &H256::from_slice(&key_material[32..64]) ^ &handshake.nonce;
+		mac_material = H256::from_slice(&key_material[32..64]) ^ handshake.nonce;
 		ingress_mac.update(&mac_material);
 		ingress_mac.update(if handshake.originated { &handshake.ack_cipher } else { &handshake.auth_cipher });
 
@@ -426,6 +427,7 @@ impl EncryptedConnection {
 			return Err(ErrorKind::Auth.into());
 		}
 		self.decoder.decrypt(&mut payload[..self.payload_len + padding])?;
+		payload.truncate(self.payload_len);
 		Ok(Packet {
 			protocol: self.protocol_id,
 			data: payload
@@ -433,7 +435,7 @@ impl EncryptedConnection {
 	}
 
 	/// Update MAC after reading or writing any data.
-	fn update_mac(mac: &mut Keccak, mac_encoder_key: &[u8], seed: &[u8]) -> Result<(), Error> {
+	fn update_mac(mac: &mut Keccak, mac_encoder_key: &Secret, seed: &[u8]) -> Result<(), Error> {
 		let mut prev = H128::new();
 		mac.clone().finalize(&mut prev);
 		let mut enc = H128::new();
@@ -474,30 +476,6 @@ impl EncryptedConnection {
 		self.connection.writable(io)?;
 		Ok(())
 	}
-}
-
-#[test]
-pub fn test_encryption() {
-	use ethereum_types::{H256, H128};
-	use std::str::FromStr;
-	let key = H256::from_str("2212767d793a7a3d66f869ae324dd11bd17044b82c9f463b8a541a4d089efec5").unwrap();
-	let before = H128::from_str("12532abaec065082a3cf1da7d0136f15").unwrap();
-	let before2 = H128::from_str("7e99f682356fdfbc6b67a9562787b18a").unwrap();
-	let after = H128::from_str("89464c6b04e7c99e555c81d3f7266a05").unwrap();
-	let after2 = H128::from_str("85c070030589ef9c7a2879b3a8489316").unwrap();
-
-	let mut got = H128::new();
-
-	let encoder = AesEcb256::new(&key).unwrap();
-	got.copy_from_slice(&before);
-	encoder.encrypt(&mut got).unwrap();
-	assert_eq!(got, after);
-
-	let encoder = AesEcb256::new(&key).unwrap();
-	got = H128::new();
-	got.copy_from_slice(&before2);
-	encoder.encrypt(&mut got).unwrap();
-	assert_eq!(got, after2);
 }
 
 #[cfg(test)]
@@ -652,6 +630,30 @@ mod tests {
 
 	fn test_io() -> IoContext<i32> {
 		IoContext::new(IoChannel::disconnected(), 0)
+	}
+
+	#[test]
+	pub fn test_encryption() {
+		use ethereum_types::{H256, H128};
+		use std::str::FromStr;
+		let key = H256::from_str("2212767d793a7a3d66f869ae324dd11bd17044b82c9f463b8a541a4d089efec5").unwrap();
+		let before = H128::from_str("12532abaec065082a3cf1da7d0136f15").unwrap();
+		let before2 = H128::from_str("7e99f682356fdfbc6b67a9562787b18a").unwrap();
+		let after = H128::from_str("89464c6b04e7c99e555c81d3f7266a05").unwrap();
+		let after2 = H128::from_str("85c070030589ef9c7a2879b3a8489316").unwrap();
+
+		let mut got = H128::new();
+
+		let encoder = AesEcb256::new(&key).unwrap();
+		got.copy_from_slice(&before);
+		encoder.encrypt(&mut got).unwrap();
+		assert_eq!(got, after);
+
+		let encoder = AesEcb256::new(&key).unwrap();
+		got = H128::new();
+		got.copy_from_slice(&before2);
+		encoder.encrypt(&mut got).unwrap();
+		assert_eq!(got, after2);
 	}
 
 	#[test]
