@@ -4,13 +4,14 @@
 //! ```
 //! # extern crate inventory;
 //! # extern crate serde_json;
+//! # extern crate common_types as types;
 //! #
 //! # use std::sync::Arc;
 //! #
 //! # use ethcore::engines::{Engine, EthEngine, ForkChoice};
 //! # use ethcore::engines::registry::EnginePlugin;
 //! # use ethcore::error::Error;
-//! # use ethcore::header::{ExtendedHeader, Header};
+//! # use types::header::{Header, ExtendedHeader};
 //! # use ethcore::machine::EthereumMachine;
 //! #
 //! # fn main() {}
