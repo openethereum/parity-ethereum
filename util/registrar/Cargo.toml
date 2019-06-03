@@ -7,7 +7,7 @@ authors = ["Parity Technologies <admin@parity.io>"]
 
 [dependencies]
 futures = "0.1"
-ethabi = "6.0"
-ethabi-derive = "6.0"
-ethabi-contract = "6.0"
-keccak-hash = "0.1"
+ethabi = "8.0"
+ethabi-derive = "8.0"
+ethabi-contract = "8.0"
+keccak-hash = "0.2.0"

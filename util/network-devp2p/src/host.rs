@@ -33,6 +33,7 @@ use mio::tcp::*;
 use mio::udp::*;
 use ethereum_types::H256;
 use rlp::{RlpStream, Encodable};
+use rustc_hex::ToHex;
 
 use session::{Session, SessionData};
 use io::*;
@@ -1223,7 +1224,7 @@ fn save_key(path: &Path, key: &Secret) {
 	if let Err(e) = restrict_permissions_owner(path, true, false) {
 		warn!(target: "network", "Failed to modify permissions of the file ({})", e);
 	}
-	if let Err(e) = file.write(&key.hex().into_bytes()[2..]) {
+	if let Err(e) = file.write(&key.to_hex().into_bytes()) {
 		warn!("Error writing key file: {:?}", e);
 	}
 }

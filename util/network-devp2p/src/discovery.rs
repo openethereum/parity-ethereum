@@ -197,7 +197,7 @@ impl<'a> Discovery<'a> {
 			public_endpoint: public,
 			discovery_initiated: false,
 			discovery_round: None,
-			discovery_id: NodeId::new(),
+			discovery_id: NodeId::default(),
 			discovery_nodes: HashSet::new(),
 			node_buckets: (0..ADDRESS_BITS).map(|_| NodeBucket::new()).collect(),
 			other_observed_nodes: LruCache::new(OBSERVED_NODES_MAX_SIZE),
@@ -414,7 +414,7 @@ impl<'a> Discovery<'a> {
 
 	fn send_packet(&mut self, packet_id: u8, address: &SocketAddr, payload: &[u8]) -> Result<H256, Error> {
 		let packet = assemble_packet(packet_id, payload, &self.secret)?;
-		let hash = H256::from(&packet[0..32]);
+		let hash = H256::from_slice(&packet[0..32]);
 		self.send_to(packet, address.clone());
 		Ok(hash)
 	}
@@ -491,7 +491,7 @@ impl<'a> Discovery<'a> {
 		let packet_id = signed[0];
 		let rlp = Rlp::new(&signed[1..]);
 		match packet_id {
-			PACKET_PING => self.on_ping(&rlp, &node_id, &from, &hash_signed),
+			PACKET_PING => self.on_ping(&rlp, &node_id, &from, hash_signed.as_bytes()),
 			PACKET_PONG => self.on_pong(&rlp, &node_id, &from),
 			PACKET_FIND_NODE => self.on_find_node(&rlp, &node_id, &from),
 			PACKET_NEIGHBOURS => self.on_neighbours(&rlp, &node_id, &from),
@@ -860,7 +860,7 @@ fn assemble_packet(packet_id: u8, bytes: &[u8], secret: &Secret) -> Result<Bytes
 	};
 	packet[32..(32 + 65)].copy_from_slice(&signature[..]);
 	let signed_hash = keccak(&packet[32..]);
-	packet[0..32].copy_from_slice(&signed_hash);
+	packet[0..32].copy_from_slice(signed_hash.as_bytes());
 	Ok(packet)
 }
 
@@ -970,7 +970,7 @@ mod tests {
 			}
 		}
 
-		let results = discovery_handlers[0].nearest_node_entries(&NodeId::new());
+		let results = discovery_handlers[0].nearest_node_entries(&NodeId::zero());
 		assert_eq!(results.len(), 4);
 	}
 
@@ -1073,10 +1073,10 @@ mod tests {
 		let mut discovery = Discovery::new(&key, ep.clone(), IpFilter::default());
 
 		for _ in 0..(16 + 10) {
-			let entry = BucketEntry::new(NodeEntry { id: NodeId::new(), endpoint: ep.clone() });
+			let entry = BucketEntry::new(NodeEntry { id: NodeId::zero(), endpoint: ep.clone() });
 			discovery.node_buckets[0].nodes.push_back(entry);
 		}
-		let nearest = discovery.nearest_node_entries(&NodeId::new());
+		let nearest = discovery.nearest_node_entries(&NodeId::zero());
 		assert_eq!(nearest.len(), 16)
 	}
 
@@ -1267,7 +1267,7 @@ mod tests {
 		// Create a pong packet with incorrect echo hash and assert that it is rejected.
 		let mut incorrect_pong_rlp = RlpStream::new_list(3);
 		ep1.to_rlp_list(&mut incorrect_pong_rlp);
-		incorrect_pong_rlp.append(&H256::default());
+		incorrect_pong_rlp.append(&H256::zero());
 		append_expiration(&mut incorrect_pong_rlp);
 		let incorrect_pong_data = assemble_packet(
 			PACKET_PONG, &incorrect_pong_rlp.drain(), &discovery2.secret
@@ -1296,7 +1296,7 @@ mod tests {
 		// Deliver an unexpected PONG message to discover1.
 		let mut unexpected_pong_rlp = RlpStream::new_list(3);
 		ep3.to_rlp_list(&mut unexpected_pong_rlp);
-		unexpected_pong_rlp.append(&H256::default());
+		unexpected_pong_rlp.append(&H256::zero());
 		append_expiration(&mut unexpected_pong_rlp);
 		let unexpected_pong = assemble_packet(
 			PACKET_PONG, &unexpected_pong_rlp.drain(), key3.secret()

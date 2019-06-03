@@ -16,6 +16,7 @@
 
 //! Test client.
 
+use std::str::FromStr;
 use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering as AtomicOrder};
 use std::sync::Arc;
 use std::collections::{HashMap, BTreeMap};
@@ -167,9 +168,9 @@ impl TestBlockChainClient {
 		let mut client = TestBlockChainClient {
 			blocks: RwLock::new(HashMap::new()),
 			numbers: RwLock::new(HashMap::new()),
-			genesis_hash: H256::new(),
+			genesis_hash: H256::zero(),
 			extra_data: extra_data,
-			last_hash: RwLock::new(H256::new()),
+			last_hash: RwLock::new(H256::zero()),
 			difficulty: RwLock::new(spec.genesis_header().difficulty().clone()),
 			balances: RwLock::new(HashMap::new()),
 			nonces: RwLock::new(HashMap::new()),
@@ -326,7 +327,7 @@ impl TestBlockChainClient {
 	pub fn corrupt_block_parent(&self, n: BlockNumber) {
 		let hash = self.block_hash(BlockId::Number(n)).unwrap();
 		let mut header: Header = self.block_header(BlockId::Number(n)).unwrap().decode().expect("decoding failed");
-		header.set_parent_hash(H256::from(42));
+		header.set_parent_hash(H256::from_low_u64_be(42));
 		let mut rlp = RlpStream::new_list(3);
 		rlp.append(&header);
 		rlp.append_raw(&::rlp::NULL_RLP, 1);
@@ -432,7 +433,7 @@ impl ScheduleInfo for TestBlockChainClient {
 
 impl ImportSealedBlock for TestBlockChainClient {
 	fn import_sealed_block(&self, _block: SealedBlock) -> EthcoreResult<H256> {
-		Ok(H256::default())
+		Ok(H256::zero())
 	}
 }
 
@@ -661,7 +662,15 @@ impl BlockChainClient for TestBlockChainClient {
 	}
 
 	fn replay_block_transactions(&self, _block: BlockId, _analytics: CallAnalytics) -> Result<Box<Iterator<Item = (H256, Executed)>>, CallError> {
-		Ok(Box::new(self.traces.read().clone().unwrap().into_iter().map(|t| t.transaction_hash.unwrap_or(H256::new())).zip(self.execution_result.read().clone().unwrap().into_iter())))
+		Ok(Box::new(
+			self.traces
+				.read()
+				.clone()
+				.unwrap()
+				.into_iter()
+				.map(|t| t.transaction_hash.unwrap_or_default())
+				.zip(self.execution_result.read().clone().unwrap().into_iter())
+		))
 	}
 
 	fn block_total_difficulty(&self, _id: BlockId) -> Option<U256> {
@@ -685,7 +694,8 @@ impl BlockChainClient for TestBlockChainClient {
 
 	fn storage_at(&self, address: &Address, position: &H256, state: StateOrBlock) -> Option<H256> {
 		match state {
-			StateOrBlock::Block(BlockId::Latest) => Some(self.storage.read().get(&(address.clone(), position.clone())).cloned().unwrap_or_else(H256::new)),
+			StateOrBlock::Block(BlockId::Latest) =>
+				Some(self.storage.read().get(&(address.clone(), position.clone())).cloned().unwrap_or_default()),
 			_ => None,
 		}
 	}
@@ -773,7 +783,7 @@ impl BlockChainClient for TestBlockChainClient {
 	// works only if blocks are one after another 1 -> 2 -> 3
 	fn tree_route(&self, from: &H256, to: &H256) -> Option<TreeRoute> {
 		Some(TreeRoute {
-			ancestor: H256::new(),
+			ancestor: H256::zero(),
 			index: 0,
 			blocks: {
 				let numbers_read = self.numbers.read();
@@ -808,7 +818,7 @@ impl BlockChainClient for TestBlockChainClient {
 	// TODO: returns just hashes instead of node state rlp(?)
 	fn state_data(&self, hash: &H256) -> Option<Bytes> {
 		// starts with 'f' ?
-		if *hash > H256::from("f000000000000000000000000000000000000000000000000000000000000000") {
+		if *hash > H256::from_str("f000000000000000000000000000000000000000000000000000000000000000").unwrap() {
 			let mut rlp = RlpStream::new();
 			rlp.append(&hash.clone());
 			return Some(rlp.out());
@@ -818,7 +828,7 @@ impl BlockChainClient for TestBlockChainClient {
 
 	fn block_receipts(&self, hash: &H256) -> Option<BlockReceipts> {
 		// starts with 'f' ?
-		if *hash > H256::from("f000000000000000000000000000000000000000000000000000000000000000") {
+		if *hash > H256::from_str("f000000000000000000000000000000000000000000000000000000000000000").unwrap() {
 			let receipt = BlockReceipts::new(vec![Receipt::new(
 				TransactionOutcome::StateRoot(H256::zero()),
 				U256::zero(),

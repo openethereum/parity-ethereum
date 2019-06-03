@@ -212,7 +212,7 @@ struct EpochManager {
 impl EpochManager {
 	fn blank() -> Self {
 		EpochManager {
-			epoch_transition_hash: H256::default(),
+			epoch_transition_hash: H256::zero(),
 			epoch_transition_number: 0,
 			finality_checker: RollingFinality::blank(Vec::new()),
 			force: true,
@@ -502,7 +502,7 @@ impl super::EpochVerifier<EthereumMachine> for EpochVerifier {
 fn header_seal_hash(header: &Header, empty_steps_rlp: Option<&[u8]>) -> H256 {
 	match empty_steps_rlp {
 		Some(empty_steps_rlp) => {
-			let mut message = header.bare_hash().to_vec();
+			let mut message = header.bare_hash().as_bytes().to_vec();
 			message.extend_from_slice(empty_steps_rlp);
 			keccak(message)
 		},
@@ -1170,7 +1170,7 @@ impl Engine<EthereumMachine> for AuthorityRound {
 
 					let mut fields = vec![
 						encode(&step),
-						encode(&(&H520::from(signature) as &[u8])),
+						encode(&(H520::from(signature).as_bytes())),
 					];
 
 					if let Some(empty_steps_rlp) = empty_steps_rlp {
@@ -2138,7 +2138,7 @@ mod tests {
 		let signature = tap.sign(addr1, Some("1".into()), header.bare_hash()).unwrap();
 
 		// empty step with invalid step
-		let empty_steps = vec![SealedEmptyStep { signature: 0.into(), step: 2 }];
+		let empty_steps = vec![SealedEmptyStep { signature: H520::zero(), step: 2 }];
 		set_empty_steps_seal(&mut header, 2, &signature, &empty_steps);
 
 		assert_insufficient_proof(
@@ -2147,7 +2147,7 @@ mod tests {
 		);
 
 		// empty step with invalid signature
-		let empty_steps = vec![SealedEmptyStep { signature: 0.into(), step: 1 }];
+		let empty_steps = vec![SealedEmptyStep { signature: H520::zero(), step: 1 }];
 		set_empty_steps_seal(&mut header, 2, &signature, &empty_steps);
 
 		assert_insufficient_proof(
@@ -2289,7 +2289,7 @@ mod tests {
 			p.maximum_empty_steps = 0;
 		});
 
-		let parent_hash: H256 = 1.into();
+		let parent_hash = H256::from_low_u64_be(1);
 		let signature = H520::default();
 		let step = |step: u64| EmptyStep {
 			step,

@@ -9,9 +9,9 @@ edition = "2018"
 
 [dependencies]
 common-types = { path = "../types" }
-ethereum-types = "0.4"
+ethereum-types = "0.6.0"
 heapsize = "0.4"
 kvdb = "0.1"
 parking_lot = "0.7"
-rlp = { version = "0.3.0", features = ["ethereum"] }
+rlp = "0.4.0"
 rlp_derive = { path = "../../util/rlp-derive" }

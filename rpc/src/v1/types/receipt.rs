@@ -132,6 +132,7 @@ impl From<EthReceipt> for Receipt {
 mod tests {
 	use serde_json;
 	use v1::types::{Log, Receipt};
+	use ethereum_types::{H256, Bloom};
 
 	#[test]
 	fn receipt_serialization() {
@@ -140,7 +141,7 @@ mod tests {
 		let receipt = Receipt {
 			from: None,
 			to: None,
-			transaction_hash: Some(0.into()),
+			transaction_hash: Some(H256::zero()),
 			transaction_index: Some(0.into()),
 			block_hash: Some("ed76641c68a1c641aee09a94b3b471f4dc0316efe5ac19cf488e2674cf8d05b5".parse().unwrap()),
 			block_number: Some(0x4510c.into()),
@@ -156,15 +157,15 @@ mod tests {
 				data: vec![].into(),
 				block_hash: Some("ed76641c68a1c641aee09a94b3b471f4dc0316efe5ac19cf488e2674cf8d05b5".parse().unwrap()),
 				block_number: Some(0x4510c.into()),
-				transaction_hash: Some(0.into()),
+				transaction_hash: Some(H256::zero()),
 				transaction_index: Some(0.into()),
 				transaction_log_index: None,
 				log_index: Some(1.into()),
 				log_type: "mined".into(),
 				removed: false,
 			}],
-			logs_bloom: 15.into(),
-			state_root: Some(10.into()),
+			logs_bloom: Bloom::from_low_u64_be(15),
+			state_root: Some(H256::from_low_u64_be(10)),
 			status_code: Some(1u64.into()),
 		};
 

@@ -82,14 +82,14 @@ impl Handshake {
 	/// Create a new handshake object
 	pub fn new(token: StreamToken, id: Option<&NodeId>, socket: TcpStream, nonce: &H256) -> Result<Handshake, Error> {
 		Ok(Handshake {
-			id: if let Some(id) = id { *id } else { NodeId::new() },
+			id: if let Some(id) = id { *id } else { NodeId::default() },
 			connection: Connection::new(token, socket),
 			originated: false,
 			state: HandshakeState::New,
 			ecdhe: Random.generate()?,
 			nonce: *nonce,
-			remote_ephemeral: Public::new(),
-			remote_nonce: H256::new(),
+			remote_ephemeral: Public::default(),
+			remote_nonce: H256::zero(),
 			remote_version: PROTOCOL_VERSION,
 			auth_cipher: Bytes::new(),
 			ack_cipher: Bytes::new(),
@@ -149,8 +149,9 @@ impl Handshake {
 	}
 
 	fn set_auth(&mut self, host_secret: &Secret, sig: &[u8], remote_public: &[u8], remote_nonce: &[u8], remote_version: u64) -> Result<(), Error> {
-		self.id.clone_from_slice(remote_public);
-		self.remote_nonce.clone_from_slice(remote_nonce);
+		// TODO: assign_from_slice will panic if sizes differ
+		self.id.assign_from_slice(remote_public);
+		self.remote_nonce.assign_from_slice(remote_nonce);
 		self.remote_version = remote_version;
 		let shared = *ecdh::agree(host_secret, &self.id)?;
 		let signature = H520::from_slice(sig);
@@ -199,7 +200,7 @@ impl Handshake {
 		let remote_public: Public = rlp.val_at(1)?;
 		let remote_nonce: H256 = rlp.val_at(2)?;
 		let remote_version: u64 = rlp.val_at(3)?;
-		self.set_auth(secret, &signature, &remote_public, &remote_nonce, remote_version)?;
+		self.set_auth(secret, signature.as_bytes(), remote_public.as_bytes(), remote_nonce.as_bytes(), remote_version)?;
 		self.write_ack_eip8(io)?;
 		Ok(())
 	}
@@ -214,8 +215,8 @@ impl Handshake {
 		self.ack_cipher = data.to_vec();
 		match ecies::decrypt(secret, &[], data) {
 			Ok(ack) => {
-				self.remote_ephemeral.clone_from_slice(&ack[0..64]);
-				self.remote_nonce.clone_from_slice(&ack[64..(64+32)]);
+				self.remote_ephemeral.assign_from_slice(&ack[0..64]);
+				self.remote_nonce.assign_from_slice(&ack[64..(64+32)]);
 				self.state = HandshakeState::StartSession;
 			}
 			Err(_) => {
@@ -261,8 +262,8 @@ impl Handshake {
 			let shared = *ecdh::agree(secret, &self.id)?;
 			sig.copy_from_slice(&*sign(self.ecdhe.secret(), &(shared ^ self.nonce))?);
 			write_keccak(self.ecdhe.public(), hepubk);
-			pubk.copy_from_slice(public);
-			nonce.copy_from_slice(&self.nonce);
+			pubk.copy_from_slice(public.as_bytes());
+			nonce.copy_from_slice(self.nonce.as_bytes());
 		}
 		let message = ecies::encrypt(&self.id, &[], &data)?;
 		self.auth_cipher = message.clone();
@@ -281,8 +282,8 @@ impl Handshake {
 			data[len - 1] = 0x0;
 			let (epubk, rest) = data.split_at_mut(64);
 			let (nonce, _) = rest.split_at_mut(32);
-			self.ecdhe.public().copy_to(epubk);
-			self.nonce.copy_to(nonce);
+			epubk.copy_from_slice(self.ecdhe.public().as_bytes());
+			nonce.copy_from_slice(self.nonce.as_bytes());
 		}
 		let message = ecies::encrypt(&self.id, &[], &data)?;
 		self.ack_cipher = message.clone();
@@ -319,28 +320,38 @@ impl Handshake {
 mod test {
 	use rustc_hex::FromHex;
 	use super::*;
-	use ethereum_types::H256;
+	use ethereum_types::{H256, H512};
 	use io::*;
 	use mio::tcp::TcpStream;
 	use ethkey::Public;
+	use std::str::FromStr;
 
 	fn check_auth(h: &Handshake, version: u64) {
-		assert_eq!(h.id, "fda1cff674c90c9a197539fe3dfb53086ace64f83ed7c6eabec741f7f381cc803e52ab2cd55d5569bce4347107a310dfd5f88a010cd2ffd1005ca406f1842877".into());
-		assert_eq!(h.remote_nonce, "7e968bba13b6c50e2c4cd7f241cc0d64d1ac25c7f5952df231ac6a2bda8ee5d6".into());
-		assert_eq!(h.remote_ephemeral, "654d1044b69c577a44e5f01a1209523adb4026e70c62d1c13a067acabc09d2667a49821a0ad4b634554d330a15a58fe61f8a8e0544b310c6de7b0c8da7528a8d".into());
+		assert_eq!(
+			h.id,
+			H512::from_str("fda1cff674c90c9a197539fe3dfb53086ace64f83ed7c6eabec741f7f381cc803e52ab2cd55d5569bce4347107a310dfd5f88a010cd2ffd1005ca406f1842877").unwrap(),
+		);
+		assert_eq!(h.remote_nonce, H256::from_str("7e968bba13b6c50e2c4cd7f241cc0d64d1ac25c7f5952df231ac6a2bda8ee5d6").unwrap());
+		assert_eq!(
+			h.remote_ephemeral,
+			H512::from_str("654d1044b69c577a44e5f01a1209523adb4026e70c62d1c13a067acabc09d2667a49821a0ad4b634554d330a15a58fe61f8a8e0544b310c6de7b0c8da7528a8d").unwrap(),
+		);
 		assert_eq!(h.remote_version, version);
 	}
 
 	fn check_ack(h: &Handshake, version: u64) {
-		assert_eq!(h.remote_nonce, "559aead08264d5795d3909718cdd05abd49572e84fe55590eef31a88a08fdffd".into());
-		assert_eq!(h.remote_ephemeral, "b6d82fa3409da933dbf9cb0140c5dde89f4e64aec88d476af648880f4a10e1e49fe35ef3e69e93dd300b4797765a747c6384a6ecf5db9c2690398607a86181e4".into());
+		assert_eq!(h.remote_nonce, H256::from_str("559aead08264d5795d3909718cdd05abd49572e84fe55590eef31a88a08fdffd").unwrap());
+		assert_eq!(
+			h.remote_ephemeral,
+			H512::from_str("b6d82fa3409da933dbf9cb0140c5dde89f4e64aec88d476af648880f4a10e1e49fe35ef3e69e93dd300b4797765a747c6384a6ecf5db9c2690398607a86181e4").unwrap(),
+		);
 		assert_eq!(h.remote_version, version);
 	}
 
 	fn create_handshake(to: Option<&Public>) -> Handshake {
 		let addr = "127.0.0.1:50556".parse().unwrap();
 		let socket = TcpStream::connect(&addr).unwrap();
-		let nonce = H256::new();
+		let nonce = H256::zero();
 		Handshake::new(0, to, socket, &nonce).unwrap()
 	}
 
@@ -427,7 +438,7 @@ mod test {
 
 	#[test]
 	fn test_handshake_ack_plain() {
-		let remote = "fda1cff674c90c9a197539fe3dfb53086ace64f83ed7c6eabec741f7f381cc803e52ab2cd55d5569bce4347107a310dfd5f88a010cd2ffd1005ca406f1842877".into();
+		let remote = H512::from_str("fda1cff674c90c9a197539fe3dfb53086ace64f83ed7c6eabec741f7f381cc803e52ab2cd55d5569bce4347107a310dfd5f88a010cd2ffd1005ca406f1842877").unwrap();
 		let mut h = create_handshake(Some(&remote));
 		let secret = "49a7b37aa6f6645917e7b807e9d1c00d4fa71f18343b0d4122a4d2df64dd6fee".parse().unwrap();
 		let ack =
@@ -447,7 +458,7 @@ mod test {
 
 	#[test]
 	fn test_handshake_ack_eip8() {
-		let remote = "fda1cff674c90c9a197539fe3dfb53086ace64f83ed7c6eabec741f7f381cc803e52ab2cd55d5569bce4347107a310dfd5f88a010cd2ffd1005ca406f1842877".into();
+		let remote = H512::from_str("fda1cff674c90c9a197539fe3dfb53086ace64f83ed7c6eabec741f7f381cc803e52ab2cd55d5569bce4347107a310dfd5f88a010cd2ffd1005ca406f1842877").unwrap();
 		let mut h = create_handshake(Some(&remote));
 		let secret = "49a7b37aa6f6645917e7b807e9d1c00d4fa71f18343b0d4122a4d2df64dd6fee".parse().unwrap();
 		let ack =
@@ -476,7 +487,7 @@ mod test {
 
 	#[test]
 	fn test_handshake_ack_eip8_2() {
-		let remote = "fda1cff674c90c9a197539fe3dfb53086ace64f83ed7c6eabec741f7f381cc803e52ab2cd55d5569bce4347107a310dfd5f88a010cd2ffd1005ca406f1842877".into();
+		let remote = H512::from_str("fda1cff674c90c9a197539fe3dfb53086ace64f83ed7c6eabec741f7f381cc803e52ab2cd55d5569bce4347107a310dfd5f88a010cd2ffd1005ca406f1842877").unwrap();
 		let mut h = create_handshake(Some(&remote));
 		let secret = "49a7b37aa6f6645917e7b807e9d1c00d4fa71f18343b0d4122a4d2df64dd6fee".parse().unwrap();
 		let ack =

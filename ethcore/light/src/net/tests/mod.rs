@@ -22,7 +22,7 @@ use common_types::encoded;
 use common_types::ids::BlockId;
 use common_types::transaction::{Action, PendingTransaction};
 use ethcore::client::{EachBlockWith, TestBlockChainClient};
-use ethereum_types::{H256, U256, Address};
+use ethereum_types::{H256, U256, Address, BigEndianHash};
 use net::context::IoContext;
 use net::load_timer::MOVING_SAMPLE_SIZE;
 use net::status::{Capabilities, Status};
@@ -158,7 +158,7 @@ impl Provider for TestProvider {
 
 	fn contract_code(&self, req: request::CompleteCodeRequest) -> Option<request::CodeResponse> {
 		Some(CodeResponse {
-			code: req.block_hash.iter().chain(req.code_hash.iter()).cloned().collect(),
+			code: req.block_hash.as_bytes().iter().chain(req.code_hash.as_bytes().iter()).cloned().collect(),
 		})
 	}
 
@@ -261,7 +261,7 @@ fn genesis_mismatch() {
 	let (provider, proto) = setup(capabilities);
 
 	let mut status = status(provider.client.chain_info());
-	status.genesis_hash = H256::default();
+	status.genesis_hash = H256::zero();
 
 	let packet_body = write_handshake(&status, &capabilities, &proto);
 
@@ -472,16 +472,16 @@ fn get_state_proofs() {
 	}
 
 	let req_id = 112;
-	let key1: H256 = U256::from(11223344).into();
-	let key2: H256 = U256::from(99988887).into();
+	let key1: H256 = BigEndianHash::from_uint(&U256::from(11223344));
+	let key2: H256 = BigEndianHash::from_uint(&U256::from(99988887));
 
 	let mut builder = Builder::default();
 	builder.push(Request::Account(IncompleteAccountRequest {
-		block_hash: H256::default().into(),
+		block_hash: H256::zero().into(),
 		address_hash: key1.into(),
 	})).unwrap();
 	builder.push(Request::Storage(IncompleteStorageRequest {
-		block_hash: H256::default().into(),
+		block_hash: H256::zero().into(),
 		address_hash: key1.into(),
 		key_hash: key2.into(),
 	})).unwrap();
@@ -492,11 +492,11 @@ fn get_state_proofs() {
 	let response = {
 		let responses = vec![
 			Response::Account(provider.account_proof(CompleteAccountRequest {
-				block_hash: H256::default(),
+				block_hash: H256::zero(),
 				address_hash: key1,
 			}).unwrap()),
 			Response::Storage(provider.storage_proof(CompleteStorageRequest {
-				block_hash: H256::default(),
+				block_hash: H256::zero(),
 				address_hash: key1,
 				key_hash: key2,
 			}).unwrap()),
@@ -529,8 +529,8 @@ fn get_contract_code() {
 	}
 
 	let req_id = 112;
-	let key1: H256 = U256::from(11223344).into();
-	let key2: H256 = U256::from(99988887).into();
+	let key1: H256 = BigEndianHash::from_uint(&U256::from(11223344));
+	let key2: H256 = BigEndianHash::from_uint(&U256::from(99988887));
 
 	let request = Request::Code(IncompleteCodeRequest {
 		block_hash: key1.into(),
@@ -541,7 +541,7 @@ fn get_contract_code() {
 	let request_body = make_packet(req_id, &requests);
 	let response = {
 		let response = vec![Response::Code(CodeResponse {
-			code: key1.iter().chain(key2.iter()).cloned().collect(),
+			code: key1.as_bytes().iter().chain(key2.as_bytes().iter()).cloned().collect(),
 		})];
 
 		let new_creds = *flow_params.limit() - flow_params.compute_cost_multi(requests.requests()).unwrap();
@@ -616,9 +616,9 @@ fn proof_of_execution() {
 
 	let req_id = 112;
 	let mut request = Request::Execution(request::IncompleteExecutionRequest {
-		block_hash: H256::default().into(),
-		from: Address::default(),
-		action: Action::Call(Address::default()),
+		block_hash: H256::zero().into(),
+		from: Address::zero(),
+		action: Action::Call(Address::zero()),
 		gas: 100.into(),
 		gas_price: 0.into(),
 		value: 0.into(),
@@ -755,7 +755,7 @@ fn get_transaction_index() {
 	}
 
 	let req_id = 112;
-	let key1: H256 = U256::from(11223344).into();
+	let key1: H256 = BigEndianHash::from_uint(&U256::from(11223344));
 
 	let request = Request::TransactionIndex(IncompleteTransactionIndexRequest {
 		hash: key1.into(),

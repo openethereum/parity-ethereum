@@ -16,13 +16,45 @@
 
 use std::fmt;
 use std::ops::Deref;
-use rustc_hex::{ToHex, FromHex};
+use rustc_hex::{self, FromHex};
 use serde::{Serialize, Deserialize, Serializer, Deserializer};
 use serde::de::{Visitor, Error as SerdeError};
 use ethkey::{Public, Secret, Signature};
 use ethereum_types::{H160, H256};
 use bytes::Bytes;
 use types::Requester;
+
+trait ToHex {
+    fn to_hex(&self) -> String;
+}
+
+impl ToHex for Bytes {
+    fn to_hex(&self) -> String {
+		format!("0x{}", rustc_hex::ToHex::to_hex(&self[..]))
+	}
+}
+
+impl ToHex for Signature {
+    fn to_hex(&self) -> String {
+		format!("0x{}", self)
+	}
+}
+
+impl ToHex for Secret {
+    fn to_hex(&self) -> String {
+		format!("0x{}", rustc_hex::ToHex::to_hex(self))
+	}
+}
+
+macro_rules! impl_to_hex {
+    ($name: ident) => (
+		impl ToHex for $name {
+			fn to_hex(&self) -> String {
+				format!("{:#x}", self)
+			}
+		}
+	);
+}
 
 macro_rules! impl_bytes_deserialize {
 	($name: ident, $value: expr, true) => {
@@ -60,9 +92,7 @@ macro_rules! impl_bytes {
 
 		impl Serialize for $name {
 			fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error> where S: Serializer {
-				let mut serialized = "0x".to_owned();
-				serialized.push_str(self.0.to_hex().as_ref());
-				serializer.serialize_str(serialized.as_ref())
+				serializer.serialize_str(self.0.to_hex().as_ref())
 			}
 		}
 
@@ -101,17 +131,15 @@ pub type SerializableMessageHash = SerializableH256;
 /// Serializable address;
 pub type SerializableAddress = SerializableH160;
 
-/// Serializable Bytes.
+impl_to_hex!(H256);
+impl_to_hex!(H160);
+impl_to_hex!(Public);
+
 impl_bytes!(SerializableBytes, Bytes, true, (Default));
-/// Serializable H256.
 impl_bytes!(SerializableH256, H256, false, (Default, PartialOrd, Ord));
-/// Serializable H160.
 impl_bytes!(SerializableH160, H160, false, (Default));
-/// Serializable H512 (aka Public).
 impl_bytes!(SerializablePublic, Public, false, (Default, PartialOrd, Ord));
-/// Serializable Secret.
 impl_bytes!(SerializableSecret, Secret, false, ());
-/// Serializable Signature.
 impl_bytes!(SerializableSignature, Signature, false, ());
 
 /// Serializable shadow decryption result.
@@ -159,23 +187,59 @@ impl From<Requester> for SerializableRequester {
 #[cfg(test)]
 mod tests {
 	use serde_json;
-	use super::{SerializableBytes, SerializablePublic};
+	use super::*;
+	use std::str::FromStr;
+
+	macro_rules! do_test {
+		($value: expr, $expected: expr, $expected_type: ident) => (
+			let serialized = serde_json::to_string(&$value).unwrap();
+			assert_eq!(serialized, $expected);
+			let deserialized: $expected_type = serde_json::from_str(&serialized).unwrap();
+			assert_eq!(deserialized, $value);
+		);
+	}
 
 	#[test]
 	fn serialize_and_deserialize_bytes() {
-		let bytes = SerializableBytes(vec![1, 2, 3, 4]);
-		let bytes_serialized = serde_json::to_string(&bytes).unwrap();
-		assert_eq!(&bytes_serialized, r#""0x01020304""#);
-		let bytes_deserialized: SerializableBytes = serde_json::from_str(&bytes_serialized).unwrap();
-		assert_eq!(bytes_deserialized, bytes);
+		do_test!(SerializableBytes(vec![1, 2, 3, 4]), "\"0x01020304\"".to_owned(), SerializableBytes);
+	}
+
+	#[test]
+	fn serialize_and_deserialize_h256() {
+		let s = "5a39ed1020c04d4d84539975b893a4e7c53eab6c2965db8bc3468093a31bc5ae";
+		let h256 = SerializableH256(H256::from_str(s).unwrap());
+		do_test!(h256, format!("\"0x{}\"", s), SerializableH256);
+	}
+
+	#[test]
+	fn serialize_and_deserialize_h160() {
+		let s = "c6d9d2cd449a754c494264e1809c50e34d64562b";
+		let h160 = SerializableH160(H160::from_str(s).unwrap());
+		do_test!(h160, format!("\"0x{}\"", s), SerializableH160);
 	}
 
 	#[test]
 	fn serialize_and_deserialize_public() {
-		let public = SerializablePublic("cac6c205eb06c8308d65156ff6c862c62b000b8ead121a4455a8ddeff7248128d895692136f240d5d1614dc7cc4147b1bd584bd617e30560bb872064d09ea325".parse().unwrap());
-		let public_serialized = serde_json::to_string(&public).unwrap();
-		assert_eq!(&public_serialized, r#""0xcac6c205eb06c8308d65156ff6c862c62b000b8ead121a4455a8ddeff7248128d895692136f240d5d1614dc7cc4147b1bd584bd617e30560bb872064d09ea325""#);
-		let public_deserialized: SerializablePublic = serde_json::from_str(&public_serialized).unwrap();
-		assert_eq!(public_deserialized, public);
+		let s = "cac6c205eb06c8308d65156ff6c862c62b000b8ead121a4455a8ddeff7248128d895692136f240d5d1614dc7cc4147b1bd584bd617e30560bb872064d09ea325";
+		let public = SerializablePublic(s.parse().unwrap());
+		do_test!(public, format!("\"0x{}\"", s), SerializablePublic);
+	}
+
+	#[test]
+	fn serialize_and_deserialize_secret() {
+		let s = "5a39ed1020c04d4d84539975b893a4e7c53eab6c2965db8bc3468093a31bc5ae";
+		let secret = SerializableSecret(Secret::from(s));
+		do_test!(secret, format!("\"0x{}\"", s), SerializableSecret);
+	}
+
+	#[test]
+	fn serialize_and_deserialize_signature() {
+		let raw_r = "afafafafafafafafafafafbcbcbcbcbcbcbcbcbcbeeeeeeeeeeeeedddddddddd";
+		let raw_s = "5a39ed1020c04d4d84539975b893a4e7c53eab6c2965db8bc3468093a31bc5ae";
+		let r = H256::from_str(raw_r).unwrap();
+		let s = H256::from_str(raw_s).unwrap();
+		let v = 42u8;
+		let public = SerializableSignature(Signature::from_rsv(&r, &s, v));
+		do_test!(public, format!("\"0x{}{}{:x}\"", raw_r, raw_s, v), SerializableSignature);
 	}
 }

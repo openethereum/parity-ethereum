@@ -15,7 +15,8 @@ log = "0.4"
 multihash = "0.8"
 order-stat = "0.1"
 parking_lot = "0.7"
-rand = "0.4"
+rand = "0.6"
+rand_xorshift = "0.1.1"
 rustc-hex = "1.0"
 semver = "0.9"
 serde = "1.0"
@@ -44,7 +45,7 @@ ethcore-miner = { path = "../miner" }
 ethcore-network = { path = "../util/network" }
 ethcore-private-tx = { path = "../ethcore/private-tx" }
 ethcore-sync = { path = "../ethcore/sync" }
-ethereum-types = "0.4"
+ethereum-types = "0.6.0"
 fastmap = { path = "../util/fastmap" }
 parity-bytes = "0.1"
 parity-crypto = "0.4.0"
@@ -54,11 +55,11 @@ ethjson = { path = "../json" }
 ethkey = { path = "../accounts/ethkey" }
 ethstore = { path = "../accounts/ethstore" }
 fetch = { path = "../util/fetch" }
-keccak-hash = "0.1.2"
+keccak-hash = "0.2.0"
 parity-runtime = { path = "../util/runtime" }
 parity-updater = { path = "../updater" }
 parity-version = { path = "../util/version" }
-rlp = { version = "0.3.0", features = ["ethereum"] }
+rlp = "0.4.0"
 stats = { path = "../util/stats" }
 vm = { path = "../ethcore/vm" }
 

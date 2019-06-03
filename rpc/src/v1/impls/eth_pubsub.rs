@@ -104,17 +104,6 @@ impl<C> EthPubSubClient<C> {
 		}
 	}
 
-	/// Creates new `EthPubSubCient` with deterministic subscription ids.
-	#[cfg(test)]
-	pub fn new_test(client: Arc<C>, executor: Executor) -> Self {
-		let client = Self::new(client, executor);
-		*client.heads_subscribers.write() = Subscribers::new_test();
-		*client.logs_subscribers.write() = Subscribers::new_test();
-		*client.transactions_subscribers.write() = Subscribers::new_test();
-		*client.sync_subscribers.write() = Subscribers::new_test();
-		client
-	}
-
 	/// Returns a chain notification handler.
 	pub fn handler(&self) -> Weak<ChainNotificationHandler<C>> {
 		Arc::downgrade(&self.handler)

@@ -1499,7 +1499,7 @@ mod tests {
 
 		// when new block is imported
 		let client = generate_dummy_client(2);
-		let imported = [0.into()];
+		let imported = [H256::zero()];
 		let empty = &[];
 		miner.chain_new_blocks(&*client, &imported, empty, &imported, empty, false);
 
@@ -1745,7 +1745,6 @@ mod tests {
 
 	#[cfg(feature = "price-info")]
 	fn dynamic_gas_pricer() -> GasPricer {
-		use std::time::Duration;
 		use parity_runtime::Executor;
 		use fetch::Client as FetchClient;
 		use ethcore_miner::gas_price_calibrator::{GasPriceCalibrator, GasPriceCalibratorOptions};
