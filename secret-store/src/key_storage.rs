@@ -193,13 +193,13 @@ fn upgrade_db(db: Arc<KeyValueDB>) -> Result<Arc<KeyValueDB>, Error> {
 				let current_key = CurrentSerializableDocumentKeyShare {
 					// author is used in separate generation + encrypt sessions.
 					// in v0 there have been only simultaneous GenEnc sessions.
-					author: Address::default().into(), // added in v1
+					author: Address::zero().into(), // added in v1
 					threshold: v0_key.threshold,
 					public: Public::default().into(), // addded in v2
 					common_point: Some(v0_key.common_point),
 					encrypted_point: Some(v0_key.encrypted_point),
 					versions: vec![CurrentSerializableDocumentKeyVersion {
-						hash: DocumentKeyShareVersion::data_hash(v0_key.id_numbers.iter().map(|(k, v)| (&***k, &****v))).into(),
+						hash: DocumentKeyShareVersion::data_hash(v0_key.id_numbers.iter().map(|(k, v)| (k.as_bytes(), v.as_bytes()))).into(),
 						id_numbers: v0_key.id_numbers,
 						secret_share: v0_key.secret_share,
 					}],
@@ -222,7 +222,7 @@ fn upgrade_db(db: Arc<KeyValueDB>) -> Result<Arc<KeyValueDB>, Error> {
 					common_point: v1_key.common_point,
 					encrypted_point: v1_key.encrypted_point,
 					versions: vec![CurrentSerializableDocumentKeyVersion {
-						hash: DocumentKeyShareVersion::data_hash(v1_key.id_numbers.iter().map(|(k, v)| (&***k, &****v))).into(),
+						hash: DocumentKeyShareVersion::data_hash(v1_key.id_numbers.iter().map(|(k, v)| (k.as_bytes(), v.as_bytes()))).into(),
 						id_numbers: v1_key.id_numbers,
 						secret_share: v1_key.secret_share,
 					}],
@@ -262,7 +262,7 @@ impl KeyStorage for PersistentKeyStorage {
 		let key: CurrentSerializableDocumentKeyShare = key.into();
 		let key = serde_json::to_vec(&key).map_err(|e| Error::Database(e.to_string()))?;
 		let mut batch = self.db.transaction();
-		batch.put(None, &document, &key);
+		batch.put(None, document.as_bytes(), &key);
 		self.db.write(batch).map_err(Into::into)
 	}
 
@@ -271,7 +271,7 @@ impl KeyStorage for PersistentKeyStorage {
 	}
 
 	fn get(&self, document: &ServerKeyId) -> Result<Option<DocumentKeyShare>, Error> {
-		self.db.get(None, document)
+		self.db.get(None, document.as_bytes())
 			.map_err(|e| Error::Database(e.to_string()))
 			.and_then(|key| match key {
 				None => Ok(None),
@@ -284,21 +284,21 @@ impl KeyStorage for PersistentKeyStorage {
 
 	fn remove(&self, document: &ServerKeyId) -> Result<(), Error> {
 		let mut batch = self.db.transaction();
-		batch.delete(None, &document);
+		batch.delete(None, document.as_bytes());
 		self.db.write(batch).map_err(Into::into)
 	}
 
 	fn clear(&self) -> Result<(), Error> {
 		let mut batch = self.db.transaction();
 		for (key, _) in self.iter() {
-			batch.delete(None, &key);
+			batch.delete(None, key.as_bytes());
 		}
 		self.db.write(batch)
 			.map_err(|e| Error::Database(e.to_string()))
 	}
 
 	fn contains(&self, document: &ServerKeyId) -> bool {
-		self.db.get(None, document)
+		self.db.get(None, document.as_bytes())
 			.map(|k| k.is_some())
 			.unwrap_or(false)
 	}
@@ -317,7 +317,7 @@ impl<'a> Iterator for PersistentKeyStorageIterator<'a> {
 		self.iter.as_mut().next()
 			.and_then(|(db_key, db_val)| serde_json::from_slice::<CurrentSerializableDocumentKeyShare>(&db_val)
 					  .ok()
-					  .map(|key| ((*db_key).into(), key.into())))
+					  .map(|key| (ServerKeyId::from_slice(&*db_key), key.into())))
 	}
 }
 
@@ -342,7 +342,7 @@ impl DocumentKeyShareVersion {
 	/// Create new version
 	pub fn new(id_numbers: BTreeMap<NodeId, Secret>, secret_share: Secret) -> Self {
 		DocumentKeyShareVersion {
-			hash: Self::data_hash(id_numbers.iter().map(|(k, v)| (&**k, &***v))),
+			hash: Self::data_hash(id_numbers.iter().map(|(k, v)| (k.as_bytes(), v.as_bytes()))),
 			id_numbers: id_numbers,
 			secret_share: secret_share,
 		}
@@ -412,10 +412,11 @@ pub mod tests {
 
 	use std::collections::HashMap;
 	use std::sync::Arc;
+	use std::str::FromStr;
 	use parking_lot::RwLock;
 	use serde_json;
 	use self::tempdir::TempDir;
-	use ethereum_types::{Address, H256};
+	use ethereum_types::{Address, H256, H512};
 	use ethkey::{Random, Generator, Public, Secret, public_to_address};
 	use kvdb_rocksdb::Database;
 	use types::{Error, ServerKeyId};
@@ -466,7 +467,7 @@ pub mod tests {
 	#[test]
 	fn persistent_key_storage() {
 		let tempdir = TempDir::new("").unwrap();
-		let key1 = ServerKeyId::from(1);
+		let key1 = ServerKeyId::from_low_u64_be(1);
 		let value1 = DocumentKeyShare {
 			author: Default::default(),
 			threshold: 100,
@@ -481,7 +482,7 @@ pub mod tests {
 				secret_share: Random.generate().unwrap().secret().clone(),
 			}],
 		};
-		let key2 = ServerKeyId::from(2);
+		let key2 = ServerKeyId::from_low_u64_be(2);
 		let value2 = DocumentKeyShare {
 			author: Default::default(),
 			threshold: 200,
@@ -496,7 +497,7 @@ pub mod tests {
 				secret_share: Random.generate().unwrap().secret().clone(),
 			}],
 		};
-		let key3 = ServerKeyId::from(3);
+		let key3 = ServerKeyId::from_low_u64_be(3);
 
 		let db = Database::open_default(&tempdir.path().display().to_string()).unwrap();
 
@@ -526,12 +527,12 @@ pub mod tests {
 			let key = serde_json::to_vec(&SerializableDocumentKeyShareV0 {
 				threshold: 777,
 				id_numbers: vec![(
-					"b486d3840218837b035c66196ecb15e6b067ca20101e11bd5e626288ab6806ecc70b8307012626bd512bad1559112d11d21025cef48cc7a1d2f3976da08f36c8".into(),
+					H512::from_str("b486d3840218837b035c66196ecb15e6b067ca20101e11bd5e626288ab6806ecc70b8307012626bd512bad1559112d11d21025cef48cc7a1d2f3976da08f36c8").unwrap().into(),
 					"281b6bf43cb86d0dc7b98e1b7def4a80f3ce16d28d2308f934f116767306f06c".parse::<Secret>().unwrap().into(),
 				)].into_iter().collect(),
 				secret_share: "00125d85a05e5e63e214cb60fe63f132eec8a103aa29266b7e6e6c5b7597230b".parse::<Secret>().unwrap().into(),
-				common_point: "99e82b163b062d55a64085bacfd407bb55f194ba5fb7a1af9c34b84435455520f1372e0e650a4f91aed0058cb823f62146ccb5599c8d13372c300dea866b69fc".into(),
-				encrypted_point: "7e05df9dd077ec21ed4bc45c9fe9e0a43d65fa4be540630de615ced5e95cf5c3003035eb713317237d7667feeeb64335525158f5f7411f67aca9645169ea554c".into(),
+				common_point: H512::from_str("99e82b163b062d55a64085bacfd407bb55f194ba5fb7a1af9c34b84435455520f1372e0e650a4f91aed0058cb823f62146ccb5599c8d13372c300dea866b69fc").unwrap().into(),
+				encrypted_point: H512::from_str("7e05df9dd077ec21ed4bc45c9fe9e0a43d65fa4be540630de615ced5e95cf5c3003035eb713317237d7667feeeb64335525158f5f7411f67aca9645169ea554c").unwrap().into(),
 			}).unwrap();
 			let mut batch = db.transaction();
 			batch.put(None, &[7], &key);
@@ -544,7 +545,7 @@ pub mod tests {
 		// check upgrade
 		assert_eq!(db.get(None, DB_META_KEY_VERSION).unwrap().unwrap()[0], CURRENT_VERSION);
 		let key = serde_json::from_slice::<CurrentSerializableDocumentKeyShare>(&db.get(None, &[7]).unwrap().map(|key| key.to_vec()).unwrap()).unwrap();
-		assert_eq!(Address::default(), key.author.clone().into());
+		assert_eq!(Address::zero(), key.author.clone().into());
 		assert_eq!(777, key.threshold);
 		assert_eq!(Some("99e82b163b062d55a64085bacfd407bb55f194ba5fb7a1af9c34b84435455520f1372e0e650a4f91aed0058cb823f62146ccb5599c8d13372c300dea866b69fc".parse::<Public>().unwrap()), key.common_point.clone().map(Into::into));
 		assert_eq!(Some("7e05df9dd077ec21ed4bc45c9fe9e0a43d65fa4be540630de615ced5e95cf5c3003035eb713317237d7667feeeb64335525158f5f7411f67aca9645169ea554c".parse::<Public>().unwrap()), key.encrypted_point.clone().map(Into::into));
@@ -565,15 +566,15 @@ pub mod tests {
 		// prepare v1 database
 		{
 			let key = serde_json::to_vec(&SerializableDocumentKeyShareV1 {
-				author: "b486d3840218837b035c66196ecb15e6b067ca20101e11bd5e626288ab6806ecc70b8307012626bd512bad1559112d11d21025cef48cc7a1d2f3976da08f36c8".into(),
+				author: H512::from_str("b486d3840218837b035c66196ecb15e6b067ca20101e11bd5e626288ab6806ecc70b8307012626bd512bad1559112d11d21025cef48cc7a1d2f3976da08f36c8").unwrap().into(),
 				threshold: 777,
 				id_numbers: vec![(
-					"b486d3840218837b035c66196ecb15e6b067ca20101e11bd5e626288ab6806ecc70b8307012626bd512bad1559112d11d21025cef48cc7a1d2f3976da08f36c8".into(),
+					H512::from_str("b486d3840218837b035c66196ecb15e6b067ca20101e11bd5e626288ab6806ecc70b8307012626bd512bad1559112d11d21025cef48cc7a1d2f3976da08f36c8").unwrap().into(),
 					"281b6bf43cb86d0dc7b98e1b7def4a80f3ce16d28d2308f934f116767306f06c".parse::<Secret>().unwrap().into(),
 				)].into_iter().collect(),
 				secret_share: "00125d85a05e5e63e214cb60fe63f132eec8a103aa29266b7e6e6c5b7597230b".parse::<Secret>().unwrap().into(),
-				common_point: Some("99e82b163b062d55a64085bacfd407bb55f194ba5fb7a1af9c34b84435455520f1372e0e650a4f91aed0058cb823f62146ccb5599c8d13372c300dea866b69fc".into()),
-				encrypted_point: Some("7e05df9dd077ec21ed4bc45c9fe9e0a43d65fa4be540630de615ced5e95cf5c3003035eb713317237d7667feeeb64335525158f5f7411f67aca9645169ea554c".into()),
+				common_point: Some(H512::from_str("99e82b163b062d55a64085bacfd407bb55f194ba5fb7a1af9c34b84435455520f1372e0e650a4f91aed0058cb823f62146ccb5599c8d13372c300dea866b69fc").unwrap().into()),
+				encrypted_point: Some(H512::from_str("7e05df9dd077ec21ed4bc45c9fe9e0a43d65fa4be540630de615ced5e95cf5c3003035eb713317237d7667feeeb64335525158f5f7411f67aca9645169ea554c").unwrap().into()),
 			}).unwrap();
 			let mut batch = db.transaction();
 			batch.put(None, DB_META_KEY_VERSION, &[1]);
@@ -590,7 +591,7 @@ pub mod tests {
 		assert_eq!(777, key.threshold);
 		assert_eq!(Some("99e82b163b062d55a64085bacfd407bb55f194ba5fb7a1af9c34b84435455520f1372e0e650a4f91aed0058cb823f62146ccb5599c8d13372c300dea866b69fc".parse::<Public>().unwrap()), key.common_point.clone().map(Into::into));
 		assert_eq!(Some("7e05df9dd077ec21ed4bc45c9fe9e0a43d65fa4be540630de615ced5e95cf5c3003035eb713317237d7667feeeb64335525158f5f7411f67aca9645169ea554c".parse::<Public>().unwrap()), key.encrypted_point.clone().map(Into::into));
-		assert_eq!(key.author.0, public_to_address(&"b486d3840218837b035c66196ecb15e6b067ca20101e11bd5e626288ab6806ecc70b8307012626bd512bad1559112d11d21025cef48cc7a1d2f3976da08f36c8".into()));
+		assert_eq!(key.author.0, public_to_address(&H512::from_str("b486d3840218837b035c66196ecb15e6b067ca20101e11bd5e626288ab6806ecc70b8307012626bd512bad1559112d11d21025cef48cc7a1d2f3976da08f36c8").unwrap()));
 
 		assert_eq!(key.versions.len(), 1);
 		assert_eq!(vec![(
@@ -609,15 +610,15 @@ pub mod tests {
 		// prepare v2 database
 		{
 			let key = serde_json::to_vec(&SerializableDocumentKeyShareV2 {
-				author: "b486d3840218837b035c66196ecb15e6b067ca20101e11bd5e626288ab6806ecc70b8307012626bd512bad1559112d11d21025cef48cc7a1d2f3976da08f36c8".into(),
+				author: H512::from_str("b486d3840218837b035c66196ecb15e6b067ca20101e11bd5e626288ab6806ecc70b8307012626bd512bad1559112d11d21025cef48cc7a1d2f3976da08f36c8").unwrap().into(),
 				threshold: 777,
-				common_point: Some("99e82b163b062d55a64085bacfd407bb55f194ba5fb7a1af9c34b84435455520f1372e0e650a4f91aed0058cb823f62146ccb5599c8d13372c300dea866b69fc".into()),
-				encrypted_point: Some("7e05df9dd077ec21ed4bc45c9fe9e0a43d65fa4be540630de615ced5e95cf5c3003035eb713317237d7667feeeb64335525158f5f7411f67aca9645169ea554c".into()),
-				public: "b486d3840218837b035c66196ecb15e6b067ca20101e11bd5e626288ab6806ecc70b8307012626bd512bad1559112d11d21025cef48cc7a1d2f3976da08f36c8".into(),
+				common_point: Some(H512::from_str("99e82b163b062d55a64085bacfd407bb55f194ba5fb7a1af9c34b84435455520f1372e0e650a4f91aed0058cb823f62146ccb5599c8d13372c300dea866b69fc").unwrap().into()),
+				encrypted_point: Some(H512::from_str("7e05df9dd077ec21ed4bc45c9fe9e0a43d65fa4be540630de615ced5e95cf5c3003035eb713317237d7667feeeb64335525158f5f7411f67aca9645169ea554c").unwrap().into()),
+				public: H512::from_str("b486d3840218837b035c66196ecb15e6b067ca20101e11bd5e626288ab6806ecc70b8307012626bd512bad1559112d11d21025cef48cc7a1d2f3976da08f36c8").unwrap().into(),
 				versions: vec![SerializableDocumentKeyShareVersionV2 {
 					hash: "281b6bf43cb86d0dc7b98e1b7def4a80f3ce16d28d2308f934f116767306f06c".parse::<H256>().unwrap().into(),
 					id_numbers: vec![(
-						"b486d3840218837b035c66196ecb15e6b067ca20101e11bd5e626288ab6806ecc70b8307012626bd512bad1559112d11d21025cef48cc7a1d2f3976da08f36c8".into(),
+						H512::from_str("b486d3840218837b035c66196ecb15e6b067ca20101e11bd5e626288ab6806ecc70b8307012626bd512bad1559112d11d21025cef48cc7a1d2f3976da08f36c8").unwrap().into(),
 						"281b6bf43cb86d0dc7b98e1b7def4a80f3ce16d28d2308f934f116767306f06c".parse::<Secret>().unwrap().into(),
 					)].into_iter().collect(),
 					secret_share: "00125d85a05e5e63e214cb60fe63f132eec8a103aa29266b7e6e6c5b7597230b".parse::<Secret>().unwrap().into(),

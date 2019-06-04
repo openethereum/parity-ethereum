@@ -136,7 +136,7 @@ impl DocumentKeyServer for KeyServerImpl {
 
 		// encrypt document key with requestor public key
 		let encrypted_document_key = stored_document_key
-			.and_then(|(public, document_key)| crypto::ecies::encrypt(&public, &DEFAULT_MAC, &document_key)
+			.and_then(|(public, document_key)| crypto::ecies::encrypt(&public, &DEFAULT_MAC, document_key.as_bytes())
 				.map_err(|err| Error::Internal(format!("Error encrypting document key: {}", err))));
 
 		Box::new(encrypted_document_key)
@@ -162,7 +162,7 @@ impl DocumentKeyServer for KeyServerImpl {
 		// encrypt document key with requestor public key
 		let encrypted_document_key = stored_document_key
 			.and_then(|(public, document_key)|
-				crypto::ecies::encrypt(&public, &DEFAULT_MAC, &document_key.decrypted_secret)
+				crypto::ecies::encrypt(&public, &DEFAULT_MAC, document_key.decrypted_secret.as_bytes())
 					.map_err(|err| Error::Internal(format!("Error encrypting document key: {}", err))));
 
 		Box::new(encrypted_document_key)
@@ -200,8 +200,8 @@ impl MessageSigner for KeyServerImpl {
 		// compose two message signature components into single one
 		let combined_signature = signature.map(|(public, signature)| {
 			let mut combined_signature = [0; 64];
-			combined_signature[..32].clone_from_slice(&**signature.0);
-			combined_signature[32..].clone_from_slice(&**signature.1);
+			combined_signature[..32].clone_from_slice(signature.0.as_bytes());
+			combined_signature[32..].clone_from_slice(signature.1.as_bytes());
 			(public, combined_signature)
 		});
 
@@ -562,7 +562,7 @@ pub mod tests {
 			).wait().unwrap();
 
 			// sign message
-			let message_hash = H256::from(42);
+			let message_hash = H256::from_low_u64_be(42);
 			let combined_signature = key_servers[0].sign_message_schnorr(
 				*server_key_id,
 				signature,
@@ -621,7 +621,7 @@ pub mod tests {
 		key_storages[0].remove(&server_key_id).unwrap();
 
 		// sign message
-		let message_hash = H256::from(42);
+		let message_hash = H256::from_low_u64_be(42);
 		let combined_signature = key_servers[0].sign_message_schnorr(
 			*server_key_id,
 			signature,
@@ -663,7 +663,7 @@ pub mod tests {
 			message_hash,
 		).wait().unwrap();
 		let signature = crypto::ecies::decrypt(&requestor_secret, &DEFAULT_MAC, &signature).unwrap();
-		let signature: H520 = signature[0..65].into();
+		let signature = H520::from_slice(&signature[0..65]);
 
 		// check signature
 		assert!(verify_public(&server_public, &signature.into(), &message_hash).unwrap());

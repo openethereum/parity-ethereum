@@ -34,30 +34,14 @@ use unexpected::{Mismatch, OutOfBounds};
 use blockchain::*;
 use call_contract::CallContract;
 use client::BlockInfo;
-use engines::EthEngine;
+use engines::{EthEngine, MAX_UNCLE_AGE};
 use error::{BlockError, Error};
 use types::{BlockNumber, header::Header};
 use types::transaction::SignedTransaction;
 use verification::queue::kind::blocks::Unverified;
 
-
-/// Returns `Ok<SystemTime>` when the result less or equal to `i32::max_value` to prevent `SystemTime` to panic because
-/// it is platform specific, may be i32 or i64.
-///
-/// `Err<BlockError::TimestampOver` otherwise.
-///
-// FIXME: @niklasad1 - remove this when and use `SystemTime::checked_add`
-// when https://github.com/rust-lang/rust/issues/55940 is stabilized.
-fn timestamp_checked_add(sys: SystemTime, d2: Duration) -> Result<SystemTime, BlockError> {
-	let d1 = sys.duration_since(UNIX_EPOCH).map_err(|_| BlockError::TimestampOverflow)?;
-	let total_time = d1.checked_add(d2).ok_or(BlockError::TimestampOverflow)?;
-
-	if total_time.as_secs() <= i32::max_value() as u64 {
-		Ok(sys + d2)
-	} else {
-		Err(BlockError::TimestampOverflow)
-	}
-}
+#[cfg(not(time_checked_add))]
+use time_utils::CheckedSystemTime;
 
 /// Preprocessed block data gathered in `verify_block_unordered` call
 pub struct PreverifiedBlock {
@@ -192,7 +176,7 @@ fn verify_uncles(block: &PreverifiedBlock, bc: &BlockProvider, engine: &EthEngin
 		excluded.insert(header.hash());
 		let mut hash = header.parent_hash().clone();
 		excluded.insert(hash.clone());
-		for _ in 0..engine.maximum_uncle_age() {
+		for _ in 0..MAX_UNCLE_AGE {
 			match bc.block_details(&hash) {
 				Some(details) => {
 					excluded.insert(details.parent);
@@ -225,7 +209,7 @@ fn verify_uncles(block: &PreverifiedBlock, bc: &BlockProvider, engine: &EthEngin
 			//												(8 Invalid)
 
 			let depth = if header.number() > uncle.number() { header.number() - uncle.number() } else { 0 };
-			if depth > engine.maximum_uncle_age() as u64 {
+			if depth > MAX_UNCLE_AGE as u64 {
 				return Err(From::from(BlockError::UncleTooOld(OutOfBounds { min: Some(header.number() - depth), max: Some(header.number() - 1), found: uncle.number() })));
 			}
 			else if depth < 1 {
@@ -274,7 +258,7 @@ pub fn verify_block_final(expected: &Header, got: &Header) -> Result<(), Error> 
 		return Err(From::from(BlockError::InvalidGasUsed(Mismatch { expected: *expected.gas_used(), found: *got.gas_used() })))
 	}
 	if expected.log_bloom() != got.log_bloom() {
-		return Err(From::from(BlockError::InvalidLogBloom(Mismatch { expected: *expected.log_bloom(), found: *got.log_bloom() })))
+		return Err(From::from(BlockError::InvalidLogBloom(Box::new(Mismatch { expected: *expected.log_bloom(), found: *got.log_bloom() }))))
 	}
 	if expected.receipts_root() != got.receipts_root() {
 		return Err(From::from(BlockError::InvalidReceiptsRoot(Mismatch { expected: *expected.receipts_root(), found: *got.receipts_root() })))
@@ -323,16 +307,18 @@ pub fn verify_header_params(header: &Header, engine: &EthEngine, is_full: bool, 
 
 	if is_full {
 		const ACCEPTABLE_DRIFT: Duration = Duration::from_secs(15);
+		// this will resist overflow until `year 2037`
 		let max_time = SystemTime::now() + ACCEPTABLE_DRIFT;
 		let invalid_threshold = max_time + ACCEPTABLE_DRIFT * 9;
-		let timestamp = timestamp_checked_add(UNIX_EPOCH, Duration::from_secs(header.timestamp()))?;
+		let timestamp = UNIX_EPOCH.checked_add(Duration::from_secs(header.timestamp()))
+			.ok_or(BlockError::TimestampOverflow)?;
 
 		if timestamp > invalid_threshold {
-			return Err(From::from(BlockError::InvalidTimestamp(OutOfBounds { max: Some(max_time), min: None, found: timestamp })))
+			return Err(From::from(BlockError::InvalidTimestamp(OutOfBounds { max: Some(max_time), min: None, found: timestamp }.into())))
 		}
 
 		if timestamp > max_time {
-			return Err(From::from(BlockError::TemporarilyInvalid(OutOfBounds { max: Some(max_time), min: None, found: timestamp })))
+			return Err(From::from(BlockError::TemporarilyInvalid(OutOfBounds { max: Some(max_time), min: None, found: timestamp }.into())))
 		}
 	}
 
@@ -347,9 +333,12 @@ fn verify_parent(header: &Header, parent: &Header, engine: &EthEngine) -> Result
 	let gas_limit_divisor = engine.params().gas_limit_bound_divisor;
 
 	if !engine.is_timestamp_valid(header.timestamp(), parent.timestamp()) {
-		let min = timestamp_checked_add(SystemTime::now(), Duration::from_secs(parent.timestamp().saturating_add(1)))?;
-		let found = timestamp_checked_add(SystemTime::now(), Duration::from_secs(header.timestamp()))?;
-		return Err(From::from(BlockError::InvalidTimestamp(OutOfBounds { max: None, min: Some(min), found })))
+		let now = SystemTime::now();
+		let min = now.checked_add(Duration::from_secs(parent.timestamp().saturating_add(1)))
+			.ok_or(BlockError::TimestampOverflow)?;
+		let found = now.checked_add(Duration::from_secs(header.timestamp()))
+			.ok_or(BlockError::TimestampOverflow)?;
+		return Err(From::from(BlockError::InvalidTimestamp(OutOfBounds { max: None, min: Some(min), found }.into())))
 	}
 	if header.number() != parent.number() + 1 {
 		return Err(From::from(BlockError::InvalidNumber(Mismatch { expected: parent.number() + 1, found: header.number() })));
@@ -375,17 +364,17 @@ fn verify_block_integrity(block: &Unverified) -> Result<(), Error> {
 	let tx = block_rlp.at(1)?;
 	let expected_root = ordered_trie_root(tx.iter().map(|r| r.as_raw()));
 	if &expected_root != block.header.transactions_root() {
-		bail!(BlockError::InvalidTransactionsRoot(Mismatch {
+		return Err(BlockError::InvalidTransactionsRoot(Mismatch {
 			expected: expected_root,
 			found: *block.header.transactions_root(),
-		}));
+		}).into());
 	}
 	let expected_uncles = keccak(block_rlp.at(2)?.as_raw());
 	if &expected_uncles != block.header.uncles_hash(){
-		bail!(BlockError::InvalidUnclesHash(Mismatch {
+		return Err(BlockError::InvalidUnclesHash(Mismatch {
 			expected: expected_uncles,
 			found: *block.header.uncles_hash(),
-		}));
+		}).into());
 	}
 	Ok(())
 }
@@ -396,13 +385,12 @@ mod tests {
 
 	use std::collections::{BTreeMap, HashMap};
 	use std::time::{SystemTime, UNIX_EPOCH};
-	use ethereum_types::{H256, BloomRef, U256};
+	use ethereum_types::{H256, BloomRef, U256, Address};
 	use blockchain::{BlockDetails, TransactionAddress, BlockReceipts};
 	use types::encoded;
 	use hash::keccak;
 	use engines::EthEngine;
 	use error::BlockError::*;
-	use error::ErrorKind;
 	use ethkey::{Random, Generator};
 	use spec::{CommonParams, Spec};
 	use test_helpers::{create_test_block_with_data, create_test_block};
@@ -417,7 +405,7 @@ mod tests {
 
 	fn check_fail(result: Result<(), Error>, e: BlockError) {
 		match result {
-			Err(Error(ErrorKind::Block(ref error), _)) if *error == e => (),
+			Err(Error::Block(ref error)) if *error == e => (),
 			Err(other) => panic!("Block verification failed.\nExpected: {:?}\nGot: {:?}", e, other),
 			Ok(_) => panic!("Block verification failed.\nExpected: {:?}\nGot: Ok", e),
 		}
@@ -426,8 +414,8 @@ mod tests {
 	fn check_fail_timestamp(result: Result<(), Error>, temp: bool) {
 		let name = if temp { "TemporarilyInvalid" } else { "InvalidTimestamp" };
 		match result {
-			Err(Error(ErrorKind::Block(BlockError::InvalidTimestamp(_)), _)) if !temp => (),
-			Err(Error(ErrorKind::Block(BlockError::TemporarilyInvalid(_)), _)) if temp => (),
+			Err(Error::Block(BlockError::InvalidTimestamp(_))) if !temp => (),
+			Err(Error::Block(BlockError::TemporarilyInvalid(_))) if temp => (),
 			Err(other) => panic!("Block verification failed.\nExpected: {}\nGot: {:?}", name, other),
 			Ok(_) => panic!("Block verification failed.\nExpected: {}\nGot: Ok", name),
 		}
@@ -627,7 +615,7 @@ mod tests {
 		}.sign(keypair.secret(), None);
 
 		let tr3 = Transaction {
-			action: Action::Call(0x0.into()),
+			action: Action::Call(Address::from_low_u64_be(0x0)),
 			value: U256::from(0),
 			data: Bytes::new(),
 			gas: U256::from(30_000),
@@ -701,7 +689,7 @@ mod tests {
 		bad_header.set_transactions_root(eip86_transactions_root.clone());
 		bad_header.set_uncles_hash(good_uncles_hash.clone());
 		match basic_test(&create_test_block_with_data(&bad_header, &eip86_transactions, &good_uncles), engine) {
-			Err(Error(ErrorKind::Transaction(ref e), _)) if e == &::ethkey::Error::InvalidSignature.into() => (),
+			Err(Error::Transaction(ref e)) if e == &::ethkey::Error::InvalidSignature.into() => (),
 			e => panic!("Block verification failed.\nExpected: Transaction Error (Invalid Signature)\nGot: {:?}", e),
 		}
 
@@ -796,7 +784,7 @@ mod tests {
 		header.set_gas_limit(0.into());
 		header.set_difficulty("0000000000000000000000000000000000000000000000000000000000020000".parse::<U256>().unwrap());
 		match family_test(&create_test_block(&header), engine, &bc) {
-			Err(Error(ErrorKind::Block(InvalidGasLimit(_)), _)) => {},
+			Err(Error::Block(InvalidGasLimit(_))) => {},
 			Err(_) => { panic!("should be invalid difficulty fail"); },
 			_ => { panic!("Should be error, got Ok"); },
 		}
@@ -834,12 +822,5 @@ mod tests {
 		let engine = NullEngine::new(Default::default(), machine);
 		check_fail(unordered_test(&create_test_block_with_data(&header, &bad_transactions, &[]), &engine), TooManyTransactions(keypair.address()));
 		unordered_test(&create_test_block_with_data(&header, &good_transactions, &[]), &engine).unwrap();
-	}
-
-	#[test]
-	fn checked_add_systime_dur() {
-		assert!(timestamp_checked_add(UNIX_EPOCH, Duration::new(i32::max_value() as u64 + 1, 0)).is_err());
-		assert!(timestamp_checked_add(UNIX_EPOCH, Duration::new(i32::max_value() as u64, 0)).is_ok());
-		assert!(timestamp_checked_add(UNIX_EPOCH, Duration::new(i32::max_value() as u64 - 1, 1_000_000_000)).is_ok());
 	}
 }

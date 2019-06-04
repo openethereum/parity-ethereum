@@ -18,10 +18,11 @@
 
 use std::collections::BTreeMap;
 
+use ethereum_types::{H64, H160, H256, H512, U64, U256};
 use jsonrpc_core::{BoxFuture, Result};
 use jsonrpc_derive::rpc;
 use v1::types::{
-	H160, H256, H512, U256, U64, H64, Bytes, CallRequest,
+	Bytes, CallRequest,
 	Peers, Transaction, RpcSettings, Histogram, RecoveredAccount,
 	TransactionStats, LocalTransactionStatus,
 	BlockNumber, ConsensusCapability, VersionInfo,
@@ -231,4 +232,12 @@ pub trait Parity {
 	/// Is allowed to skip filling transaction hash for faster query.
 	#[rpc(name = "parity_getLogsNoTransactionHash")]
 	fn logs_no_tx_hash(&self, Filter) -> BoxFuture<Vec<Log>>;
+
+	/// Returns raw block RLP with given number.
+	#[rpc(name = "parity_getRawBlockByNumber")]
+	fn get_raw_block_by_number(&self, BlockNumber) -> BoxFuture<Option<Bytes>>;
+
+	/// Submit raw block to be published to the network
+	#[rpc(name = "parity_submitRawBlock")]
+	fn submit_raw_block(&self, Bytes) -> Result<H256>;
 }

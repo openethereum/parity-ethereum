@@ -15,19 +15,16 @@
 // along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
 //! Web3 rpc implementation.
+use ethereum_types::H256;
 use hash::keccak;
 use jsonrpc_core::Result;
 use version::version;
 use v1::traits::Web3;
-use v1::types::{H256, Bytes};
+use v1::types::Bytes;
 
 /// Web3 rpc implementation.
+#[derive(Default)]
 pub struct Web3Client;
-
-impl Web3Client {
-	/// Creates new Web3Client.
-	pub fn new() -> Self { Web3Client }
-}
 
 impl Web3 for Web3Client {
 	fn client_version(&self) -> Result<String> {
@@ -35,6 +32,6 @@ impl Web3 for Web3Client {
 	}
 
 	fn sha3(&self, data: Bytes) -> Result<H256> {
-		Ok(keccak(&data.0).into())
+		Ok(keccak(&data.0))
 	}
 }

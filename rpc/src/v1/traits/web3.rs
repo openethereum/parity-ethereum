@@ -15,10 +15,11 @@
 // along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
 //! Web3 rpc interface.
+use ethereum_types::H256;
 use jsonrpc_core::Result;
 use jsonrpc_derive::rpc;
 
-use v1::types::{H256, Bytes};
+use v1::types::Bytes;
 
 /// Web3 rpc interface.
 #[rpc]

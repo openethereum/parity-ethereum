@@ -583,7 +583,7 @@ fn block_confirmations(client: &BlockChainClient, block: H256) -> Option<u64> {
 pub mod tests {
 	use std::collections::BTreeMap;
 	use std::net::SocketAddr;
-	use ethereum_types::H256;
+	use ethereum_types::{H256, H512};
 	use ethkey::Public;
 	use super::{update_future_set, update_number_of_confirmations, FutureNewSet,
 		KeyServerSet, KeyServerSetSnapshot, MIGRATION_CONFIRMATIONS_REQUIRED};
@@ -675,18 +675,18 @@ pub mod tests {
 
 		let mut future_new_set = None;
 		let mut new_snapshot = KeyServerSetSnapshot {
-			current_set: vec![(1.into(), address)].into_iter().collect(),
-			new_set: vec![(2.into(), address)].into_iter().collect(),
+			current_set: vec![(H512::from_low_u64_be(1), address)].into_iter().collect(),
+			new_set: vec![(H512::from_low_u64_be(2), address)].into_iter().collect(),
 			..Default::default()
 		};
 		update_future_set(&mut future_new_set, &mut new_snapshot, Default::default());
 		assert_eq!(future_new_set, Some(FutureNewSet {
-			new_set: vec![(2.into(), address)].into_iter().collect(),
+			new_set: vec![(H512::from_low_u64_be(2), address)].into_iter().collect(),
 			block: Default::default(),
 		}));
 		assert_eq!(new_snapshot, KeyServerSetSnapshot {
-			current_set: vec![(1.into(), address)].into_iter().collect(),
-			new_set: vec![(1.into(), address)].into_iter().collect(),
+			current_set: vec![(H512::from_low_u64_be(1), address)].into_iter().collect(),
+			new_set: vec![(H512::from_low_u64_be(1), address)].into_iter().collect(),
 			..Default::default()
 		});
 	}
@@ -696,22 +696,22 @@ pub mod tests {
 		let address = "127.0.0.1:12000".parse().unwrap();
 
 		let mut future_new_set = Some(FutureNewSet {
-			new_set: vec![(2.into(), address)].into_iter().collect(),
+			new_set: vec![(H512::from_low_u64_be(2), address)].into_iter().collect(),
 			block: Default::default(),
 		});
 		let mut new_snapshot = KeyServerSetSnapshot {
-			current_set: vec![(1.into(), address)].into_iter().collect(),
-			new_set: vec![(3.into(), address)].into_iter().collect(),
+			current_set: vec![(H512::from_low_u64_be(1), address)].into_iter().collect(),
+			new_set: vec![(H512::from_low_u64_be(3), address)].into_iter().collect(),
 			..Default::default()
 		};
-		update_future_set(&mut future_new_set, &mut new_snapshot, 1.into());
+		update_future_set(&mut future_new_set, &mut new_snapshot, H256::from_low_u64_be(1));
 		assert_eq!(future_new_set, Some(FutureNewSet {
-			new_set: vec![(3.into(), address)].into_iter().collect(),
-			block: 1.into(),
+			new_set: vec![(H512::from_low_u64_be(3), address)].into_iter().collect(),
+			block: H256::from_low_u64_be(1),
 		}));
 		assert_eq!(new_snapshot, KeyServerSetSnapshot {
-			current_set: vec![(1.into(), address)].into_iter().collect(),
-			new_set: vec![(1.into(), address)].into_iter().collect(),
+			current_set: vec![(H512::from_low_u64_be(1), address)].into_iter().collect(),
+			new_set: vec![(H512::from_low_u64_be(1), address)].into_iter().collect(),
 			..Default::default()
 		});
 	}
@@ -721,22 +721,22 @@ pub mod tests {
 		let address = "127.0.0.1:12000".parse().unwrap();
 
 		let mut future_new_set = Some(FutureNewSet {
-			new_set: vec![(2.into(), address)].into_iter().collect(),
+			new_set: vec![(H512::from_low_u64_be(2), address)].into_iter().collect(),
 			block: Default::default(),
 		});
 		let mut new_snapshot = KeyServerSetSnapshot {
-			current_set: vec![(1.into(), address)].into_iter().collect(),
-			new_set: vec![(2.into(), address)].into_iter().collect(),
+			current_set: vec![(H512::from_low_u64_be(1), address)].into_iter().collect(),
+			new_set: vec![(H512::from_low_u64_be(2), address)].into_iter().collect(),
 			..Default::default()
 		};
-		update_future_set(&mut future_new_set, &mut new_snapshot, 1.into());
+		update_future_set(&mut future_new_set, &mut new_snapshot, H256::from_low_u64_be(1));
 		assert_eq!(future_new_set, Some(FutureNewSet {
-			new_set: vec![(2.into(), address)].into_iter().collect(),
+			new_set: vec![(H512::from_low_u64_be(2), address)].into_iter().collect(),
 			block: Default::default(),
 		}));
 		assert_eq!(new_snapshot, KeyServerSetSnapshot {
-			current_set: vec![(1.into(), address)].into_iter().collect(),
-			new_set: vec![(1.into(), address)].into_iter().collect(),
+			current_set: vec![(H512::from_low_u64_be(1), address)].into_iter().collect(),
+			new_set: vec![(H512::from_low_u64_be(1), address)].into_iter().collect(),
 			..Default::default()
 		});
 	}
@@ -747,13 +747,13 @@ pub mod tests {
 
 		let mut future_new_set = None;
 		let mut snapshot = KeyServerSetSnapshot {
-			current_set: vec![(1.into(), address)].into_iter().collect(),
-			new_set: vec![(1.into(), address)].into_iter().collect(),
+			current_set: vec![(H512::from_low_u64_be(1), address)].into_iter().collect(),
+			new_set: vec![(H512::from_low_u64_be(1), address)].into_iter().collect(),
 			..Default::default()
 		};
 		let snapshot_copy = snapshot.clone();
 		update_number_of_confirmations(
-			&|| 1.into(),
+			&|| H256::from_low_u64_be(1),
 			&|_| Some(MIGRATION_CONFIRMATIONS_REQUIRED),
 			&mut future_new_set, &mut snapshot);
 		assert_eq!(future_new_set, None);
@@ -765,22 +765,22 @@ pub mod tests {
 		let address = "127.0.0.1:12000".parse().unwrap();
 
 		let mut future_new_set = Some(FutureNewSet {
-			new_set: vec![(2.into(), address)].into_iter().collect(),
+			new_set: vec![(H512::from_low_u64_be(2), address)].into_iter().collect(),
 			block: Default::default(),
 		});
 		let mut snapshot = KeyServerSetSnapshot {
-			current_set: vec![(1.into(), address)].into_iter().collect(),
-			new_set: vec![(1.into(), address)].into_iter().collect(),
+			current_set: vec![(H512::from_low_u64_be(1), address)].into_iter().collect(),
+			new_set: vec![(H512::from_low_u64_be(1), address)].into_iter().collect(),
 			..Default::default()
 		};
 		update_number_of_confirmations(
-			&|| 1.into(),
+			&|| H256::from_low_u64_be(1),
 			&|_| Some(MIGRATION_CONFIRMATIONS_REQUIRED),
 			&mut future_new_set, &mut snapshot);
 		assert_eq!(future_new_set, None);
 		assert_eq!(snapshot, KeyServerSetSnapshot {
-			current_set: vec![(1.into(), address)].into_iter().collect(),
-			new_set: vec![(2.into(), address)].into_iter().collect(),
+			current_set: vec![(H512::from_low_u64_be(1), address)].into_iter().collect(),
+			new_set: vec![(H512::from_low_u64_be(2), address)].into_iter().collect(),
 			..Default::default()
 		});
 	}
@@ -790,18 +790,18 @@ pub mod tests {
 		let address = "127.0.0.1:12000".parse().unwrap();
 
 		let mut future_new_set = Some(FutureNewSet {
-			new_set: vec![(2.into(), address)].into_iter().collect(),
+			new_set: vec![(H512::from_low_u64_be(2), address)].into_iter().collect(),
 			block: Default::default(),
 		});
 		let mut snapshot = KeyServerSetSnapshot {
-			current_set: vec![(1.into(), address)].into_iter().collect(),
-			new_set: vec![(1.into(), address)].into_iter().collect(),
+			current_set: vec![(H512::from_low_u64_be(1), address)].into_iter().collect(),
+			new_set: vec![(H512::from_low_u64_be(1), address)].into_iter().collect(),
 			..Default::default()
 		};
 		let future_new_set_copy = future_new_set.clone();
 		let snapshot_copy = snapshot.clone();
 		update_number_of_confirmations(
-			&|| 1.into(),
+			&|| H256::from_low_u64_be(1),
 			&|_| Some(MIGRATION_CONFIRMATIONS_REQUIRED - 1),
 			&mut future_new_set, &mut snapshot);
 		assert_eq!(future_new_set, future_new_set_copy);
@@ -813,22 +813,22 @@ pub mod tests {
 		let address = "127.0.0.1:12000".parse().unwrap();
 
 		let mut future_new_set = Some(FutureNewSet {
-			new_set: vec![(2.into(), address)].into_iter().collect(),
-			block: 1.into(),
+			new_set: vec![(H512::from_low_u64_be(2), address)].into_iter().collect(),
+			block: H256::from_low_u64_be(1),
 		});
 		let mut snapshot = KeyServerSetSnapshot {
-			current_set: vec![(1.into(), address)].into_iter().collect(),
-			new_set: vec![(1.into(), address)].into_iter().collect(),
+			current_set: vec![(H512::from_low_u64_be(1), address)].into_iter().collect(),
+			new_set: vec![(H512::from_low_u64_be(1), address)].into_iter().collect(),
 			..Default::default()
 		};
 		let snapshot_copy = snapshot.clone();
 		update_number_of_confirmations(
-			&|| 2.into(),
+			&|| H256::from_low_u64_be(2),
 			&|_| None,
 			&mut future_new_set, &mut snapshot);
 		assert_eq!(future_new_set, Some(FutureNewSet {
-			new_set: vec![(2.into(), address)].into_iter().collect(),
-			block: 2.into(),
+			new_set: vec![(H512::from_low_u64_be(2), address)].into_iter().collect(),
+			block: H256::from_low_u64_be(2),
 		}));
 		assert_eq!(snapshot, snapshot_copy);
 	}

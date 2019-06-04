@@ -17,7 +17,6 @@
 //! Accounts Directory
 
 use ethkey::Password;
-use std::num::NonZeroU32;
 use std::path::{PathBuf};
 use {SafeAccount, Error};
 
@@ -42,7 +41,7 @@ pub struct VaultKey {
 	/// Vault password
 	pub password: Password,
 	/// Number of iterations to produce a derived key from password
-	pub iterations: NonZeroU32,
+	pub iterations: u32,
 }
 
 /// Keys directory
@@ -97,7 +96,7 @@ pub use self::vault::VaultDiskDirectory;
 
 impl VaultKey {
 	/// Create new vault key
-	pub fn new(password: &Password, iterations: NonZeroU32) -> Self {
+	pub fn new(password: &Password, iterations: u32) -> Self {
 		VaultKey {
 			password: password.clone(),
 			iterations: iterations,

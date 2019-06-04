@@ -124,7 +124,7 @@ pub fn fill_storage(mut db: AccountDBMut, root: &mut H256, seed: &mut H256) {
 			SecTrieDBMut::from_existing(&mut db, root).unwrap()
 		};
 
-		for (k, v) in map.make_with(seed) {
+		for (k, v) in map.make_with(&mut seed.to_fixed_bytes()) {
 			trie.insert(&k, &v).unwrap();
 		}
 	}
@@ -157,7 +157,6 @@ pub fn restore(
 	genesis: &[u8],
 ) -> Result<(), ::error::Error> {
 	use std::sync::atomic::AtomicBool;
-	use snappy;
 
 	let flag = AtomicBool::new(true);
 	let components = engine.snapshot_components().unwrap();

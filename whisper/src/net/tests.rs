@@ -114,7 +114,7 @@ impl<'a> Context for TestContext<'a> {
 
 	fn node_key(&self, peer: PeerId) -> Option<NodeId> {
 		let mut id = NodeId::default();
-		id[0] = peer as _;
+		id.as_bytes_mut()[0] = peer as _;
 		Some(id)
 	}
 

@@ -126,7 +126,7 @@ fn make_chain(accounts: Arc<AccountProvider>, blocks_beyond: usize, transitions:
 				nonce: *nonce,
 				gas_price: 1.into(),
 				gas: 21_000.into(),
-				action: Action::Call(Address::new()),
+				action: Action::Call(Address::zero()),
 				value: 1.into(),
 				data: Vec::new(),
 			}.sign(&*RICH_SECRET, client.signing_chain_id());

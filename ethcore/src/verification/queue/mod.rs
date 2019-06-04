@@ -26,7 +26,7 @@ use heapsize::HeapSizeOf;
 use ethereum_types::{H256, U256};
 use parking_lot::{Condvar, Mutex, RwLock};
 use io::*;
-use error::{BlockError, ImportErrorKind, ErrorKind, Error};
+use error::{BlockError, ImportError, Error};
 use engines::EthEngine;
 use client::ClientIoMessage;
 use len_caching_lock::LenCachingMutex;
@@ -474,17 +474,17 @@ impl<K: Kind> VerificationQueue<K> {
 		let hash = input.hash();
 		{
 			if self.processing.read().contains_key(&hash) {
-				bail!((input, ErrorKind::Import(ImportErrorKind::AlreadyQueued).into()));
+				return Err((input, Error::Import(ImportError::AlreadyQueued).into()));
 			}
 
 			let mut bad = self.verification.bad.lock();
 			if bad.contains(&hash) {
-				bail!((input, ErrorKind::Import(ImportErrorKind::KnownBad).into()));
+				return Err((input, Error::Import(ImportError::KnownBad).into()));
 			}
 
 			if bad.contains(&input.parent_hash()) {
 				bad.insert(hash);
-				bail!((input, ErrorKind::Import(ImportErrorKind::KnownBad).into()));
+				return Err((input, Error::Import(ImportError::KnownBad).into()));
 			}
 		}
 
@@ -504,7 +504,7 @@ impl<K: Kind> VerificationQueue<K> {
 			Err((input, err)) => {
 				match err {
 					// Don't mark future blocks as bad.
-					Error(ErrorKind::Block(BlockError::TemporarilyInvalid(_)), _) => {},
+					Error::Block(BlockError::TemporarilyInvalid(_)) => {},
 					_ => {
 						self.verification.bad.lock().insert(hash);
 					}
@@ -797,7 +797,7 @@ mod tests {
 		match duplicate_import {
 			Err((_, e)) => {
 				match e {
-					Error(ErrorKind::Import(ImportErrorKind::AlreadyQueued), _) => {},
+					Error::Import(ImportError::AlreadyQueued) => {},
 					_ => { panic!("must return AlreadyQueued error"); }
 				}
 			}

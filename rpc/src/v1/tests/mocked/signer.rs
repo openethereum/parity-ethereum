@@ -16,7 +16,7 @@
 
 use std::sync::Arc;
 use std::str::FromStr;
-use ethereum_types::{U256, Address};
+use ethereum_types::{H520, U256, Address};
 use bytes::ToPretty;
 
 use accounts::AccountProvider;
@@ -31,7 +31,7 @@ use jsonrpc_core::IoHandler;
 use v1::{SignerClient, Signer, Origin};
 use v1::metadata::Metadata;
 use v1::tests::helpers::TestMinerService;
-use v1::types::{Bytes as RpcBytes, H520};
+use v1::types::Bytes as RpcBytes;
 use v1::helpers::{nonce, FilledTransactionRequest, ConfirmationPayload};
 use v1::helpers::external_signer::{SigningQueue, SignerService};
 use v1::helpers::dispatch::{self, FullDispatcher, eth_data_hash};
@@ -84,7 +84,7 @@ fn should_return_list_of_items_to_confirm() {
 	// given
 	let tester = signer_tester();
 	let _send_future = tester.signer.add_request(ConfirmationPayload::SendTransaction(FilledTransactionRequest {
-		from: Address::from(1),
+		from: Address::from_low_u64_be(1),
 		used_default_from: false,
 		to: Some(Address::from_str("d46e8dd67c5d32be8058bb8eb970870f07244567").unwrap()),
 		gas_price: U256::from(10_000),
@@ -94,7 +94,7 @@ fn should_return_list_of_items_to_confirm() {
 		nonce: None,
 		condition: None,
 	}), Origin::Unknown).unwrap();
-	let _sign_future = tester.signer.add_request(ConfirmationPayload::EthSignMessage(1.into(), vec![5].into()), Origin::Unknown).unwrap();
+	let _sign_future = tester.signer.add_request(ConfirmationPayload::EthSignMessage(Address::from_low_u64_be(1), vec![5].into()), Origin::Unknown).unwrap();
 
 	// when
 	let request = r#"{"jsonrpc":"2.0","method":"signer_requestsToConfirm","params":[],"id":1}"#;
@@ -114,7 +114,7 @@ fn should_reject_transaction_from_queue_without_dispatching() {
 	// given
 	let tester = signer_tester();
 	let _confirmation_future = tester.signer.add_request(ConfirmationPayload::SendTransaction(FilledTransactionRequest {
-		from: Address::from(1),
+		from: Address::from_low_u64_be(1),
 		used_default_from: false,
 		to: Some(Address::from_str("d46e8dd67c5d32be8058bb8eb970870f07244567").unwrap()),
 		gas_price: U256::from(10_000),
@@ -141,7 +141,7 @@ fn should_not_remove_transaction_if_password_is_invalid() {
 	// given
 	let tester = signer_tester();
 	let _confirmation_future = tester.signer.add_request(ConfirmationPayload::SendTransaction(FilledTransactionRequest {
-		from: Address::from(1),
+		from: Address::from_low_u64_be(1),
 		used_default_from: false,
 		to: Some(Address::from_str("d46e8dd67c5d32be8058bb8eb970870f07244567").unwrap()),
 		gas_price: U256::from(10_000),
@@ -166,7 +166,7 @@ fn should_not_remove_transaction_if_password_is_invalid() {
 fn should_not_remove_sign_if_password_is_invalid() {
 	// given
 	let tester = signer_tester();
-	let _confirmation_future = tester.signer.add_request(ConfirmationPayload::EthSignMessage(0.into(), vec![5].into()), Origin::Unknown).unwrap();
+	let _confirmation_future = tester.signer.add_request(ConfirmationPayload::EthSignMessage(Address::zero(), vec![5].into()), Origin::Unknown).unwrap();
 	assert_eq!(tester.signer.requests().len(), 1);
 
 	// when
@@ -231,7 +231,7 @@ fn should_alter_the_sender_and_nonce() {
 	let tester = signer_tester();
 	let recipient = Address::from_str("d46e8dd67c5d32be8058bb8eb970870f07244567").unwrap();
 	let _confirmation_future = tester.signer.add_request(ConfirmationPayload::SendTransaction(FilledTransactionRequest {
-		from: 0.into(),
+		from: Address::zero(),
 		used_default_from: false,
 		to: Some(recipient),
 		gas_price: U256::from(10_000),
@@ -377,7 +377,7 @@ fn should_return_error_when_sender_does_not_match() {
 	let address = tester.accounts.new_account(&"test".into()).unwrap();
 	let recipient = Address::from_str("d46e8dd67c5d32be8058bb8eb970870f07244567").unwrap();
 	let _confirmation_future = tester.signer.add_request(ConfirmationPayload::SendTransaction(FilledTransactionRequest {
-		from: Address::default(),
+		from: Address::zero(),
 		used_default_from: false,
 		to: Some(recipient),
 		gas_price: U256::from(10_000),
@@ -495,7 +495,7 @@ fn should_confirm_data_sign_with_signature() {
 
 	let data_hash = eth_data_hash(vec![1, 2, 3, 4].into());
 	let signature = H520(tester.accounts.sign(address, Some("test".into()), data_hash).unwrap().into_electrum());
-	let signature = format!("0x{:?}", signature);
+	let signature = format!("{:?}", signature);
 
 	// when
 	let request = r#"{

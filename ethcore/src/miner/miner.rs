@@ -24,10 +24,12 @@ use bytes::Bytes;
 use call_contract::CallContract;
 use ethcore_miner::gas_pricer::GasPricer;
 use ethcore_miner::local_accounts::LocalAccounts;
-use ethcore_miner::pool::{self, TransactionQueue, VerifiedTransaction, QueueStatus, PrioritizationStrategy};
+use ethcore_miner::pool::{self, TransactionQueue, VerifiedTransaction, QueueStatus, PrioritizationStrategy, TxStatus};
+use ethcore_miner::service_transaction_checker::ServiceTransactionChecker;
 #[cfg(feature = "work-notify")]
 use ethcore_miner::work_notify::NotifyWork;
 use ethereum_types::{H256, U256, Address};
+use futures::sync::mpsc;
 use io::IoChannel;
 use miner::pool_client::{PoolClient, CachedNonceClient, NonceCache};
 use miner;
@@ -46,13 +48,13 @@ use types::header::Header;
 use types::receipt::RichReceipt;
 use using_queue::{UsingQueue, GetAction};
 
-use block::{ClosedBlock, IsBlock, SealedBlock};
+use block::{ClosedBlock, SealedBlock};
 use client::{
 	BlockChain, ChainInfo, BlockProducer, SealedBlockImporter, Nonce, TransactionInfo, TransactionId
 };
 use client::{BlockId, ClientIoMessage};
-use engines::{EthEngine, Seal, EngineSigner};
-use error::{Error, ErrorKind};
+use engines::{EthEngine, Seal, SealingState, EngineSigner};
+use error::Error;
 use executed::ExecutionError;
 use executive::contract_address;
 use spec::Spec;
@@ -214,7 +216,6 @@ impl Author {
 	}
 }
 
-
 struct SealingWork {
 	queue: UsingQueue<ClosedBlock>,
 	enabled: bool,
@@ -247,6 +248,7 @@ pub struct Miner {
 	engine: Arc<EthEngine>,
 	accounts: Arc<LocalAccounts>,
 	io_channel: RwLock<Option<IoChannel<ClientIoMessage>>>,
+	service_transaction_checker: Option<ServiceTransactionChecker>,
 }
 
 impl Miner {
@@ -258,8 +260,17 @@ impl Miner {
 	}
 
 	/// Set a callback to be notified about imported transactions' hashes.
-	pub fn add_transactions_listener(&self, f: Box<Fn(&[H256]) + Send + Sync>) {
-		self.transaction_queue.add_listener(f);
+	pub fn pending_transactions_receiver(&self) -> mpsc::UnboundedReceiver<Arc<Vec<H256>>> {
+		let (sender, receiver) = mpsc::unbounded();
+		self.transaction_queue.add_pending_listener(sender);
+		receiver
+	}
+
+	/// Set a callback to be notified about imported transactions' hashes.
+	pub fn full_transactions_receiver(&self) -> mpsc::UnboundedReceiver<Arc<Vec<(H256, TxStatus)>>> {
+		let (sender, receiver) = mpsc::unbounded();
+		self.transaction_queue.add_full_listener(sender);
+		receiver
 	}
 
 	/// Creates new instance of miner Arc.
@@ -273,12 +284,13 @@ impl Miner {
 		let verifier_options = options.pool_verification_options.clone();
 		let tx_queue_strategy = options.tx_queue_strategy;
 		let nonce_cache_size = cmp::max(4096, limits.max_count / 4);
+		let refuse_service_transactions = options.refuse_service_transactions;
 
 		Miner {
 			sealing: Mutex::new(SealingWork {
 				queue: UsingQueue::new(options.work_queue_size),
 				enabled: options.force_sealing
-					|| spec.engine.seals_internally().is_some(),
+					|| spec.engine.sealing_state() != SealingState::External,
 				next_allowed_reseal: Instant::now(),
 				next_mandatory_reseal: Instant::now() + options.reseal_max_period,
 				last_request: None,
@@ -293,6 +305,11 @@ impl Miner {
 			accounts: Arc::new(accounts),
 			engine: spec.engine.clone(),
 			io_channel: RwLock::new(None),
+			service_transaction_checker: if refuse_service_transactions {
+				None
+			} else {
+				Some(ServiceTransactionChecker::default())
+			},
 		}
 	}
 
@@ -351,6 +368,11 @@ impl Miner {
 		});
 	}
 
+	/// Returns ServiceTransactionChecker
+	pub fn service_transaction_checker(&self) -> Option<ServiceTransactionChecker> {
+		self.service_transaction_checker.clone()
+	}
+
 	/// Retrieves an existing pending block iff it's not older than given block number.
 	///
 	/// NOTE: This will not prepare a new pending block if it's not existing.
@@ -362,7 +384,7 @@ impl Miner {
 			.and_then(|b| {
 				// to prevent a data race between block import and updating pending block
 				// we allow the number to be equal.
-				if b.block().header().number() >= latest_block_number {
+				if b.header.number() >= latest_block_number {
 					Some(f(b))
 				} else {
 					None
@@ -378,7 +400,7 @@ impl Miner {
 			&self.nonce_cache,
 			&*self.engine,
 			&*self.accounts,
-			self.options.refuse_service_transactions,
+			self.service_transaction_checker.as_ref(),
 		)
 	}
 
@@ -392,7 +414,7 @@ impl Miner {
 		// Open block
 		let (mut open_block, original_work_hash) = {
 			let mut sealing = self.sealing.lock();
-			let last_work_hash = sealing.queue.peek_last_ref().map(|pb| pb.block().header().hash());
+			let last_work_hash = sealing.queue.peek_last_ref().map(|pb| pb.header.hash());
 			let best_hash = chain_info.best_block_hash;
 
 			// check to see if last ClosedBlock in would_seals is actually same parent block.
@@ -401,7 +423,7 @@ impl Miner {
 			//   if at least one was pushed successfully, close and enqueue new ClosedBlock;
 			//   otherwise, leave everything alone.
 			// otherwise, author a fresh block.
-			let mut open_block = match sealing.queue.get_pending_if(|b| b.block().header().parent_hash() == &best_hash) {
+			let mut open_block = match sealing.queue.get_pending_if(|b| b.header.parent_hash() == &best_hash) {
 				Some(old_block) => {
 					trace!(target: "miner", "prepare_block: Already have previous work; updating and returning");
 					// add transactions to old_block
@@ -436,7 +458,7 @@ impl Miner {
 		let mut invalid_transactions = HashSet::new();
 		let mut not_allowed_transactions = HashSet::new();
 		let mut senders_to_penalize = HashSet::new();
-		let block_number = open_block.block().header().number();
+		let block_number = open_block.header.number();
 
 		let mut tx_count = 0usize;
 		let mut skipped_transactions = 0usize;
@@ -453,7 +475,7 @@ impl Miner {
 		let max_transactions = if min_tx_gas.is_zero() {
 			usize::max_value()
 		} else {
-			MAX_SKIPPED_TRANSACTIONS.saturating_add(cmp::min(*open_block.block().header().gas_limit() / min_tx_gas, u64::max_value().into()).as_u64() as usize)
+			MAX_SKIPPED_TRANSACTIONS.saturating_add(cmp::min(*open_block.header.gas_limit() / min_tx_gas, u64::max_value().into()).as_u64() as usize)
 		};
 
 		let pending: Vec<Arc<_>> = self.transaction_queue.pending(
@@ -501,7 +523,7 @@ impl Miner {
 
 			debug!(target: "miner", "Adding tx {:?} took {} ms", hash, took_ms(&took));
 			match result {
-				Err(Error(ErrorKind::Execution(ExecutionError::BlockGasLimitReached { gas_limit, gas_used, gas }), _)) => {
+				Err(Error::Execution(ExecutionError::BlockGasLimitReached { gas_limit, gas_used, gas })) => {
 					debug!(target: "miner", "Skipping adding transaction to block because of gas limit: {:?} (limit: {:?}, used: {:?}, gas: {:?})", hash, gas_limit, gas_used, gas);
 
 					// Penalize transaction if it's above current gas limit
@@ -526,12 +548,12 @@ impl Miner {
 				},
 				// Invalid nonce error can happen only if previous transaction is skipped because of gas limit.
 				// If there is errornous state of transaction queue it will be fixed when next block is imported.
-				Err(Error(ErrorKind::Execution(ExecutionError::InvalidNonce { expected, got }), _)) => {
+				Err(Error::Execution(ExecutionError::InvalidNonce { expected, got })) => {
 					debug!(target: "miner", "Skipping adding transaction to block because of invalid nonce: {:?} (expected: {:?}, got: {:?})", hash, expected, got);
 				},
 				// already have transaction - ignore
-				Err(Error(ErrorKind::Transaction(transaction::Error::AlreadyImported), _)) => {},
-				Err(Error(ErrorKind::Transaction(transaction::Error::NotAllowed), _)) => {
+				Err(Error::Transaction(transaction::Error::AlreadyImported)) => {},
+				Err(Error::Transaction(transaction::Error::NotAllowed)) => {
 					not_allowed_transactions.insert(hash);
 					debug!(target: "miner", "Skipping non-allowed transaction for sender {:?}", hash);
 				},
@@ -605,7 +627,7 @@ impl Miner {
 		// keep sealing enabled if any of the conditions is met
 		let sealing_enabled = self.forced_sealing()
 			|| self.transaction_queue.has_local_pending_transactions()
-			|| self.engine.seals_internally() == Some(true)
+			|| self.engine.sealing_state() == SealingState::Ready
 			|| had_requests;
 
 		let should_disable_sealing = !sealing_enabled;
@@ -614,7 +636,7 @@ impl Miner {
 			should_disable_sealing,
 			self.forced_sealing(),
 			self.transaction_queue.has_local_pending_transactions(),
-			self.engine.seals_internally(),
+			self.engine.sealing_state(),
 			had_requests,
 		);
 
@@ -630,13 +652,16 @@ impl Miner {
 		}
 	}
 
-	/// Attempts to perform internal sealing (one that does not require work) and handles the result depending on the type of Seal.
+	// TODO: (https://github.com/paritytech/parity-ethereum/issues/10407)
+	// This is only used in authority_round path, and should be refactored to merge with the other seal() path.
+	// Attempts to perform internal sealing (one that does not require work) and handles the result depending on the
+	// type of Seal.
 	fn seal_and_import_block_internally<C>(&self, chain: &C, block: ClosedBlock) -> bool
 		where C: BlockChain + SealedBlockImporter,
 	{
 		{
 			let sealing = self.sealing.lock();
-			if block.transactions().is_empty()
+			if block.transactions.is_empty()
 				&& !self.forced_sealing()
 				&& Instant::now() <= sealing.next_mandatory_reseal
 			{
@@ -646,7 +671,7 @@ impl Miner {
 
 		trace!(target: "miner", "seal_block_internally: attempting internal seal.");
 
-		let parent_header = match chain.block_header(BlockId::Hash(*block.header().parent_hash())) {
+		let parent_header = match chain.block_header(BlockId::Hash(*block.header.parent_hash())) {
 			Some(h) => {
 				match h.decode() {
 					Ok(decoded_hdr) => decoded_hdr,
@@ -656,7 +681,7 @@ impl Miner {
 			None => return false,
 		};
 
-		match self.engine.generate_seal(block.block(), &parent_header) {
+		match self.engine.generate_seal(&block, &parent_header) {
 			// Save proposal for later seal submission and broadcast it.
 			Seal::Proposal(seal) => {
 				trace!(target: "miner", "Received a Proposal seal.");
@@ -705,11 +730,11 @@ impl Miner {
 	/// Prepares work which has to be done to seal.
 	fn prepare_work(&self, block: ClosedBlock, original_work_hash: Option<H256>) {
 		let (work, is_new) = {
-			let block_header = block.block().header().clone();
+			let block_header = block.header.clone();
 			let block_hash = block_header.hash();
 
 			let mut sealing = self.sealing.lock();
-			let last_work_hash = sealing.queue.peek_last_ref().map(|pb| pb.block().header().hash());
+			let last_work_hash = sealing.queue.peek_last_ref().map(|pb| pb.header.hash());
 
 			trace!(
 				target: "miner",
@@ -742,7 +767,7 @@ impl Miner {
 			trace!(
 				target: "miner",
 				"prepare_work: leaving (last={:?})",
-				sealing.queue.peek_last_ref().map(|b| b.block().header().hash())
+				sealing.queue.peek_last_ref().map(|b| b.header.hash())
 			);
 			(work, is_new)
 		};
@@ -783,6 +808,11 @@ impl Miner {
 			}
 		};
 
+		if self.engine.sealing_state() != SealingState::External {
+			trace!(target: "miner", "prepare_pending_block: engine not sealing externally; not preparing");
+			return BlockPreparationStatus::NotPrepared;
+		}
+
 		let preparation_status = if prepare_new {
 			// --------------------------------------------------------------------------
 			// | NOTE Code below requires sealing locks.                                |
@@ -819,7 +849,9 @@ impl Miner {
 
 		// Make sure to do it after transaction is imported and lock is dropped.
 		// We need to create pending block and enable sealing.
-		if self.engine.seals_internally().unwrap_or(false) || self.prepare_pending_block(chain) == BlockPreparationStatus::NotPrepared {
+		let sealing_state = self.engine.sealing_state();
+		if sealing_state == SealingState::Ready
+			|| self.prepare_pending_block(chain) == BlockPreparationStatus::NotPrepared {
 			// If new block has not been prepared (means we already had one)
 			// or Engine might be able to seal internally,
 			// we need to update sealing.
@@ -849,7 +881,7 @@ impl miner::MinerService for Miner {
 		self.params.write().author = author.address();
 
 		if let Author::Sealer(signer) = author {
-			if self.engine.seals_internally().is_some() {
+			if self.engine.sealing_state() != SealingState::External {
 				// Enable sealing
 				self.sealing.lock().enabled = true;
 				// --------------------------------------------------------------------------
@@ -994,7 +1026,7 @@ impl miner::MinerService for Miner {
 
 		let from_pending = || {
 			self.map_existing_pending_block(|sealing| {
-				sealing.transactions()
+				sealing.transactions
 					.iter()
 					.map(|signed| signed.hash())
 					.collect()
@@ -1041,7 +1073,7 @@ impl miner::MinerService for Miner {
 
 		let from_pending = || {
 			self.map_existing_pending_block(|sealing| {
-				sealing.transactions()
+				sealing.transactions
 					.iter()
 					.map(|signed| pool::VerifiedTransaction::from_pending_block_transaction(signed.clone()))
 					.map(Arc::new)
@@ -1086,9 +1118,9 @@ impl miner::MinerService for Miner {
 
 	fn pending_receipts(&self, best_block: BlockNumber) -> Option<Vec<RichReceipt>> {
 		self.map_existing_pending_block(|pending| {
-			let receipts = pending.receipts();
-			pending.transactions()
-				.into_iter()
+			let receipts = &pending.receipts;
+			pending.transactions
+				.iter()
 				.enumerate()
 				.map(|(index, tx)| {
 					let prev_gas = if index == 0 { Default::default() } else { receipts[index - 1].gas_used };
@@ -1102,7 +1134,7 @@ impl miner::MinerService for Miner {
 							Action::Call(_) => None,
 							Action::Create => {
 								let sender = tx.sender();
-								Some(contract_address(self.engine.create_address_scheme(pending.header().number()), &sender, &tx.nonce, &tx.data).0)
+								Some(contract_address(self.engine.create_address_scheme(pending.header.number()), &sender, &tx.nonce, &tx.data).0)
 							}
 						},
 						logs: receipt.logs.clone(),
@@ -1127,6 +1159,11 @@ impl miner::MinerService for Miner {
 			return;
 		}
 
+		let sealing_state = self.engine.sealing_state();
+		if sealing_state == SealingState::NotReady {
+			return;
+		}
+
 		// --------------------------------------------------------------------------
 		// | NOTE Code below requires sealing locks.                                |
 		// | Make sure to release the locks before calling that method.             |
@@ -1139,27 +1176,23 @@ impl miner::MinerService for Miner {
 
 		// refuse to seal the first block of the chain if it contains hard forks
 		// which should be on by default.
-		if block.block().header().number() == 1 {
+		if block.header.number() == 1 {
 			if let Some(name) = self.engine.params().nonzero_bugfix_hard_fork() {
 				warn!("Your chain specification contains one or more hard forks which are required to be \
-					   on by default. Please remove these forks and start your chain again: {}.", name);
+						on by default. Please remove these forks and start your chain again: {}.", name);
 				return;
 			}
 		}
 
-		match self.engine.seals_internally() {
-			Some(true) => {
+		match sealing_state {
+			SealingState::Ready => {
 				trace!(target: "miner", "update_sealing: engine indicates internal sealing");
 				if self.seal_and_import_block_internally(chain, block) {
 					trace!(target: "miner", "update_sealing: imported internally sealed block");
 				}
 			},
-			Some(false) => {
-				trace!(target: "miner", "update_sealing: engine is not keen to seal internally right now");
-				// anyway, save the block for later use
-				self.sealing.lock().queue.set_pending(block);
-			},
-			None => {
+			SealingState::NotReady => unreachable!("We returned right after sealing_state was computed. qed."),
+			SealingState::External => {
 				trace!(target: "miner", "update_sealing: engine does not seal internally, preparing work");
 				self.prepare_work(block, original_work_hash)
 			},
@@ -1173,14 +1206,14 @@ impl miner::MinerService for Miner {
 	fn work_package<C>(&self, chain: &C) -> Option<(H256, BlockNumber, u64, U256)> where
 		C: BlockChain + CallContract + BlockProducer + SealedBlockImporter + Nonce + Sync,
 	{
-		if self.engine.seals_internally().is_some() {
+		if self.engine.sealing_state() != SealingState::External {
 			return None;
 		}
 
 		self.prepare_pending_block(chain);
 
 		self.sealing.lock().queue.use_last_ref().map(|b| {
-			let header = b.header();
+			let header = &b.header;
 			(header.hash(), header.number(), header.timestamp(), *header.difficulty())
 		})
 	}
@@ -1194,21 +1227,21 @@ impl miner::MinerService for Miner {
 				} else {
 					GetAction::Take
 				},
-				|b| &b.hash() == &block_hash
+				|b| &b.header.bare_hash() == &block_hash
 			) {
-				trace!(target: "miner", "Submitted block {}={}={} with seal {:?}", block_hash, b.hash(), b.header().bare_hash(), seal);
+				trace!(target: "miner", "Submitted block {}={} with seal {:?}", block_hash, b.header.bare_hash(), seal);
 				b.lock().try_seal(&*self.engine, seal).or_else(|e| {
 					warn!(target: "miner", "Mined solution rejected: {}", e);
-					Err(ErrorKind::PowInvalid.into())
+					Err(Error::PowInvalid.into())
 				})
 			} else {
 				warn!(target: "miner", "Submitted solution rejected: Block unknown or out of date.");
-				Err(ErrorKind::PowHashInvalid.into())
+				Err(Error::PowHashInvalid.into())
 			};
 
 		result.and_then(|sealed| {
-			let n = sealed.header().number();
-			let h = sealed.header().hash();
+			let n = sealed.header.number();
+			let h = sealed.header.hash();
 			info!(target: "miner", "Submitted block imported OK. #{}: {}", Colour::White.bold().paint(format!("{}", n)), Colour::White.bold().paint(format!("{:x}", h)));
 			Ok(sealed)
 		})
@@ -1281,7 +1314,7 @@ impl miner::MinerService for Miner {
 				let nonce_cache = self.nonce_cache.clone();
 				let engine = self.engine.clone();
 				let accounts = self.accounts.clone();
-				let refuse_service_transactions = self.options.refuse_service_transactions;
+				let service_transaction_checker = self.service_transaction_checker.clone();
 
 				let cull = move |chain: &::client::Client| {
 					let client = PoolClient::new(
@@ -1289,7 +1322,7 @@ impl miner::MinerService for Miner {
 						&nonce_cache,
 						&*engine,
 						&*accounts,
-						refuse_service_transactions,
+						service_transaction_checker.as_ref(),
 					);
 					queue.cull(client);
 				};
@@ -1301,22 +1334,39 @@ impl miner::MinerService for Miner {
 				self.transaction_queue.cull(client);
 			}
 		}
+		if let Some(ref service_transaction_checker) = self.service_transaction_checker {
+			match service_transaction_checker.refresh_cache(chain) {
+				Ok(true) => {
+					trace!(target: "client", "Service transaction cache was refreshed successfully");
+				},
+				Ok(false) => {
+					trace!(target: "client", "Registrar or/and service transactions contract does not exist");
+				},
+				Err(e) => error!(target: "client", "Error occurred while refreshing service transaction cache: {}", e)
+			};
+		};
 	}
 
 	fn pending_state(&self, latest_block_number: BlockNumber) -> Option<Self::State> {
-		self.map_existing_pending_block(|b| b.state().clone(), latest_block_number)
+		self.map_existing_pending_block(|b| b.state.clone(), latest_block_number)
 	}
 
 	fn pending_block_header(&self, latest_block_number: BlockNumber) -> Option<Header> {
-		self.map_existing_pending_block(|b| b.header().clone(), latest_block_number)
+		self.map_existing_pending_block(|b| b.header.clone(), latest_block_number)
 	}
 
 	fn pending_block(&self, latest_block_number: BlockNumber) -> Option<Block> {
-		self.map_existing_pending_block(|b| b.to_base(), latest_block_number)
+		self.map_existing_pending_block(|b| {
+			Block {
+				header: b.header.clone(),
+				transactions: b.transactions.iter().cloned().map(Into::into).collect(),
+				uncles: b.uncles.to_vec(),
+			}
+		}, latest_block_number)
 	}
 
 	fn pending_transactions(&self, latest_block_number: BlockNumber) -> Option<Vec<SignedTransaction>> {
-		self.map_existing_pending_block(|b| b.transactions().into_iter().cloned().collect(), latest_block_number)
+		self.map_existing_pending_block(|b| b.transactions.iter().cloned().collect(), latest_block_number)
 	}
 }
 
@@ -1451,7 +1501,7 @@ mod tests {
 
 		// when new block is imported
 		let client = generate_dummy_client(2);
-		let imported = [0.into()];
+		let imported = [H256::zero()];
 		let empty = &[];
 		miner.chain_new_blocks(&*client, &imported, empty, &imported, empty, false);
 
@@ -1697,7 +1747,6 @@ mod tests {
 
 	#[cfg(feature = "price-info")]
 	fn dynamic_gas_pricer() -> GasPricer {
-		use std::time::Duration;
 		use parity_runtime::Executor;
 		use fetch::Client as FetchClient;
 		use ethcore_miner::gas_price_calibrator::{GasPriceCalibrator, GasPriceCalibratorOptions};

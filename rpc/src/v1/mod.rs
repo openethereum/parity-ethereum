@@ -46,6 +46,7 @@ pub use self::impls::*;
 pub use self::helpers::{NetworkSettings, block_import, dispatch};
 pub use self::metadata::Metadata;
 pub use self::types::Origin;
+pub use self::types::pubsub::PubSubSyncStatus;
 pub use self::extractors::{RpcExtractor, WsExtractor, WsStats, WsDispatcher};
 
 /// Signer utilities
@@ -53,5 +54,5 @@ pub mod signer {
 	#[cfg(any(test, feature = "accounts"))]
 	pub use super::helpers::engine_signer::EngineSigner;
 	pub use super::helpers::external_signer::{SignerService, ConfirmationsQueue};
-	pub use super::types::{ConfirmationRequest, TransactionModification, U256, TransactionCondition};
+	pub use super::types::{ConfirmationRequest, TransactionModification, TransactionCondition};
 }

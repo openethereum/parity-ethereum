@@ -21,7 +21,8 @@ use serde::{Serialize, Serializer};
 use ansi_term::Colour;
 use bytes::ToPretty;
 
-use v1::types::{U256, TransactionRequest, RichRawTransaction, H160, H256, H520, Bytes, TransactionCondition, Origin};
+use ethereum_types::{H160, H256, H520, U256};
+use v1::types::{TransactionRequest, RichRawTransaction, Bytes, TransactionCondition, Origin};
 use v1::helpers;
 use ethkey::Password;
 
@@ -40,7 +41,7 @@ pub struct ConfirmationRequest {
 impl From<helpers::ConfirmationRequest> for ConfirmationRequest {
 	fn from(c: helpers::ConfirmationRequest) -> Self {
 		ConfirmationRequest {
-			id: c.id.into(),
+			id: c.id,
 			payload: c.payload.into(),
 			origin: c.origin,
 		}
@@ -213,15 +214,15 @@ impl From<helpers::ConfirmationPayload> for ConfirmationPayload {
 			helpers::ConfirmationPayload::SendTransaction(t) => ConfirmationPayload::SendTransaction(t.into()),
 			helpers::ConfirmationPayload::SignTransaction(t) => ConfirmationPayload::SignTransaction(t.into()),
 			helpers::ConfirmationPayload::EthSignMessage(address, data) => ConfirmationPayload::EthSignMessage(EthSignRequest {
-				address: address.into(),
+				address,
 				data: data.into(),
 			}),
 			helpers::ConfirmationPayload::SignMessage(address, data) => ConfirmationPayload::EIP191SignMessage(EIP191SignRequest {
-				address: address.into(),
-				data: data.into(),
+				address,
+				data,
 			}),
 			helpers::ConfirmationPayload::Decrypt(address, msg) => ConfirmationPayload::Decrypt(DecryptRequest {
-				address: address.into(),
+				address,
 				msg: msg.into(),
 			}),
 		}
@@ -281,8 +282,9 @@ impl<A, B> Serialize for Either<A, B>  where
 #[cfg(test)]
 mod tests {
 	use std::str::FromStr;
+    use ethereum_types::{H256, U256, Address};
 	use serde_json;
-	use v1::types::{U256, H256, TransactionCondition};
+	use v1::types::TransactionCondition;
 	use v1::helpers;
 	use super::*;
 
@@ -291,7 +293,7 @@ mod tests {
 		// given
 		let request = helpers::ConfirmationRequest {
 			id: 15.into(),
-			payload: helpers::ConfirmationPayload::EthSignMessage(1.into(), vec![5].into()),
+			payload: helpers::ConfirmationPayload::EthSignMessage(Address::from_low_u64_be(1), vec![5].into()),
 			origin: Origin::Rpc("test service".into()),
 		};
 
@@ -309,7 +311,7 @@ mod tests {
 		let request = helpers::ConfirmationRequest {
 			id: 15.into(),
 			payload: helpers::ConfirmationPayload::SendTransaction(helpers::FilledTransactionRequest {
-				from: 0.into(),
+				from: Address::zero(),
 				used_default_from: false,
 				to: None,
 				gas: 15_000.into(),
@@ -320,7 +322,7 @@ mod tests {
 				condition: None,
 			}),
 			origin: Origin::Signer {
-				session: 5.into(),
+				session: H256::from_low_u64_be(5),
 			}
 		};
 
@@ -338,7 +340,7 @@ mod tests {
 		let request = helpers::ConfirmationRequest {
 			id: 15.into(),
 			payload: helpers::ConfirmationPayload::SignTransaction(helpers::FilledTransactionRequest {
-				from: 0.into(),
+				from: Address::zero(),
 				used_default_from: false,
 				to: None,
 				gas: 15_000.into(),
@@ -365,7 +367,7 @@ mod tests {
 		let request = helpers::ConfirmationRequest {
 			id: 15.into(),
 			payload: helpers::ConfirmationPayload::Decrypt(
-				10.into(), vec![1, 2, 3].into(),
+				Address::from_low_u64_be(10), vec![1, 2, 3].into(),
 			),
 			origin: Default::default(),
 		};
@@ -396,7 +398,7 @@ mod tests {
 
 		// then
 		assert_eq!(res1, TransactionModification {
-			sender: Some(10.into()),
+			sender: Some(Address::from_low_u64_be(10)),
 			gas_price: Some(U256::from_str("0ba43b7400").unwrap()),
 			gas: None,
 			condition: Some(Some(TransactionCondition::Number(0x42))),
@@ -419,7 +421,7 @@ mod tests {
 	fn should_serialize_confirmation_response_with_token() {
 		// given
 		let response = ConfirmationResponseWithToken {
-			result: ConfirmationResponse::SendTransaction(H256::default()),
+			result: ConfirmationResponse::SendTransaction(H256::zero()),
 			token: "test-token".into(),
 		};
 

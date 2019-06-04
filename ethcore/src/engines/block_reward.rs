@@ -24,11 +24,12 @@ use ethereum_types::{H160, Address, U256};
 use std::sync::Arc;
 use hash::keccak;
 use error::Error;
-use machine::WithRewards;
-use parity_machine::Machine;
+use machine::Machine;
 use trace;
 use types::BlockNumber;
 use super::{SystemOrCodeCall, SystemOrCodeCallKind};
+use trace::{Tracer, ExecutiveTracer, Tracing};
+use block::ExecutedBlock;
 
 use_contract!(block_reward_contract, "res/contracts/block_reward.json");
 
@@ -152,23 +153,33 @@ impl BlockRewardContract {
 
 /// Applies the given block rewards, i.e. adds the given balance to each beneficiary' address.
 /// If tracing is enabled the operations are recorded.
-pub fn apply_block_rewards<M: Machine + WithRewards>(
+pub fn apply_block_rewards<M: Machine>(
 	rewards: &[(Address, RewardKind, U256)],
-	block: &mut M::LiveBlock,
+	block: &mut ExecutedBlock,
 	machine: &M,
 ) -> Result<(), M::Error> {
 	for &(ref author, _, ref block_reward) in rewards {
 		machine.add_balance(block, author, block_reward)?;
 	}
 
-	let rewards: Vec<_> = rewards.into_iter().map(|&(a, k, r)| (a, k.into(), r)).collect();
-	machine.note_rewards(block, &rewards)
+	if let Tracing::Enabled(ref mut traces) = *block.traces_mut() {
+		let mut tracer = ExecutiveTracer::default();
+
+		for &(address, reward_kind, amount) in rewards {
+			tracer.trace_reward(address, amount, reward_kind.into());
+		}
+
+		traces.push(tracer.drain().into());
+	}
+
+	Ok(())
 }
 
 #[cfg(test)]
 mod test {
+	use std::str::FromStr;
 	use client::PrepareOpenBlock;
-	use ethereum_types::U256;
+	use ethereum_types::{U256, Address};
 	use spec::Spec;
 	use test_helpers::generate_dummy_client_with_spec;
 
@@ -183,12 +194,12 @@ mod test {
 
 		// the spec has a block reward contract defined at the given address
 		let block_reward_contract = BlockRewardContract::new_from_address(
-			"0000000000000000000000000000000000000042".into(),
+			Address::from_str("0000000000000000000000000000000000000042").unwrap(),
 		);
 
 		let mut call = |to, data| {
 			let mut block = client.prepare_open_block(
-				"0000000000000000000000000000000000000001".into(),
+				Address::from_str("0000000000000000000000000000000000000001").unwrap(),
 				(3141562.into(), 31415620.into()),
 				vec![],
 			).unwrap();
@@ -213,16 +224,16 @@ mod test {
 
 		// the contract rewards (1000 + kind) for each benefactor
 		let beneficiaries = vec![
-			("0000000000000000000000000000000000000033".into(), RewardKind::Author),
-			("0000000000000000000000000000000000000034".into(), RewardKind::Uncle(1)),
-			("0000000000000000000000000000000000000035".into(), RewardKind::EmptyStep),
+			(Address::from_str("0000000000000000000000000000000000000033").unwrap(), RewardKind::Author),
+			(Address::from_str("0000000000000000000000000000000000000034").unwrap(), RewardKind::Uncle(1)),
+			(Address::from_str("0000000000000000000000000000000000000035").unwrap(), RewardKind::EmptyStep),
 		];
 
 		let rewards = block_reward_contract.reward(&beneficiaries, &mut call).unwrap();
 		let expected = vec![
-			("0000000000000000000000000000000000000033".into(), U256::from(1000)),
-			("0000000000000000000000000000000000000034".into(), U256::from(1000 + 101)),
-			("0000000000000000000000000000000000000035".into(), U256::from(1000 + 2)),
+			(Address::from_str("0000000000000000000000000000000000000033").unwrap(), U256::from(1000)),
+			(Address::from_str("0000000000000000000000000000000000000034").unwrap(), U256::from(1000 + 101)),
+			(Address::from_str("0000000000000000000000000000000000000035").unwrap(), U256::from(1000 + 2)),
 		];
 
 		assert_eq!(expected, rewards);

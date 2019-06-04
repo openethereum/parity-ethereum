@@ -6,7 +6,7 @@ authors = ["Parity Technologies <admin@parity.io>"]
 
 [dependencies]
 byteorder = "1.2"
-ethbloom = "0.5"
+ethbloom = "0.6.4"
 parking_lot = "0.7"
 tiny-keccak = "1.4"
 

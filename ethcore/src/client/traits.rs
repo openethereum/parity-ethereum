@@ -237,6 +237,9 @@ pub trait BlockChainClient : Sync + Send + AccountData + BlockChain + CallContra
 			.expect("code will return Some if given BlockId::Latest; qed")
 	}
 
+	/// Get block queue information.
+	fn queue_info(&self) -> BlockQueueInfo;
+
 	/// Get address code hash at given block's state.
 
 	/// Get value of the storage at given position at the given block's state.
@@ -284,9 +287,6 @@ pub trait BlockChainClient : Sync + Send + AccountData + BlockChain + CallContra
 
 	/// Get block receipts data by block header hash.
 	fn block_receipts(&self, hash: &H256) -> Option<BlockReceipts>;
-
-	/// Get block queue information.
-	fn queue_info(&self) -> BlockQueueInfo;
 
 	/// Returns true if block queue is empty.
 	fn is_queue_empty(&self) -> bool {
@@ -360,7 +360,7 @@ pub trait BlockChainClient : Sync + Send + AccountData + BlockChain + CallContra
 	fn spec_name(&self) -> String;
 
 	/// Set the chain via a spec name.
-	fn set_spec_name(&self, spec_name: String);
+	fn set_spec_name(&self, spec_name: String) -> Result<(), ()>;
 
 	/// Disable the client from importing blocks. This cannot be undone in this session and indicates
 	/// that a subsystem has reason to believe this executable incapable of syncing the chain.

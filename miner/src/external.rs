@@ -84,7 +84,7 @@ mod tests {
 		// given
 		let m = miner();
 		assert_eq!(m.hashrate(), U256::from(0));
-		m.submit_hashrate(U256::from(10), H256::from(1));
+		m.submit_hashrate(U256::from(10), H256::from_low_u64_be(1));
 		assert_eq!(m.hashrate(), U256::from(10));
 
 		// when
@@ -99,12 +99,12 @@ mod tests {
 		// given
 		let m = miner();
 		assert_eq!(m.hashrate(), U256::from(0));
-		m.submit_hashrate(U256::from(10), H256::from(1));
+		m.submit_hashrate(U256::from(10), H256::from_low_u64_be(1));
 		assert_eq!(m.hashrate(), U256::from(10));
 
 		// when
-		m.submit_hashrate(U256::from(15), H256::from(1));
-		m.submit_hashrate(U256::from(20), H256::from(2));
+		m.submit_hashrate(U256::from(15), H256::from_low_u64_be(1));
+		m.submit_hashrate(U256::from(20), H256::from_low_u64_be(2));
 
 		// then
 		assert_eq!(m.hashrate(), U256::from(35));

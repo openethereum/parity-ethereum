@@ -35,6 +35,7 @@ use traits::KeyServer;
 use serialization::{SerializableEncryptedDocumentKeyShadow, SerializableBytes, SerializablePublic};
 use types::{Error, Public, MessageHash, NodeAddress, RequestSignature, ServerKeyId,
 	EncryptedDocumentKey, EncryptedDocumentKeyShadow, NodeId};
+use jsonrpc_server_utils::cors::{self, AllowCors, AccessControlAllowOrigin};
 
 /// Key server http-requests listener. Available requests:
 /// To generate server key:							POST		/shadow/{server_key_id}/{signature}/{threshold}
@@ -45,6 +46,8 @@ use types::{Error, Public, MessageHash, NodeAddress, RequestSignature, ServerKey
 /// To generate Schnorr signature with server key:	GET			/schnorr/{server_key_id}/{signature}/{message_hash}
 /// To generate ECDSA signature with server key:	GET			/ecdsa/{server_key_id}/{signature}/{message_hash}
 /// To change servers set:							POST		/admin/servers_set_change/{old_signature}/{new_signature} + BODY: json array of hex-encoded nodes ids
+
+type CorsDomains = Option<Vec<AccessControlAllowOrigin>>;
 
 pub struct KeyServerHttpListener {
 	_executor: Executor,
@@ -78,6 +81,7 @@ enum Request {
 #[derive(Clone)]
 struct KeyServerHttpHandler {
 	handler: Arc<KeyServerSharedHttpHandler>,
+	cors: CorsDomains,
 }
 
 /// Shared http handler
@@ -85,13 +89,14 @@ struct KeyServerSharedHttpHandler {
 	key_server: Weak<KeyServer>,
 }
 
+
 impl KeyServerHttpListener {
 	/// Start KeyServer http listener
-	pub fn start(listener_address: NodeAddress, key_server: Weak<KeyServer>, executor: Executor) -> Result<Self, Error> {
+	pub fn start(listener_address: NodeAddress, cors_domains: Option<Vec<String>>, key_server: Weak<KeyServer>, executor: Executor) -> Result<Self, Error> {
 		let shared_handler = Arc::new(KeyServerSharedHttpHandler {
 			key_server: key_server,
 		});
-
+		let cors: CorsDomains = cors_domains.map(|domains| domains.into_iter().map(AccessControlAllowOrigin::from).collect());
 		let listener_address = format!("{}:{}", listener_address.address, listener_address.port).parse()?;
 		let listener = TcpListener::bind(&listener_address)?;
 
@@ -102,7 +107,7 @@ impl KeyServerHttpListener {
 			.for_each(move |socket| {
 				let http = Http::new();
 				let serve = http.serve_connection(socket,
-					KeyServerHttpHandler { handler: shared_handler2.clone() }
+					KeyServerHttpHandler { handler: shared_handler2.clone(), cors: cors.clone() }
 				).map(|_| ()).map_err(|e| {
 					warn!("Key server handler error: {:?}", e);
 				});
@@ -127,12 +132,19 @@ impl KeyServerHttpHandler {
 			.ok_or_else(|| Error::Internal("KeyServer is already destroyed".into()))
 	}
 
-	fn process(self, req_method: HttpMethod, req_uri: Uri, path: &str, req_body: &[u8]) -> Box<Future<Item=HttpResponse<Body>, Error=hyper::Error> + Send> {
+	fn process(
+		self,
+		req_method: HttpMethod,
+		req_uri: Uri,
+		path: &str,
+		req_body: &[u8],
+		cors: AllowCors<AccessControlAllowOrigin>,
+	) -> Box<Future<Item=HttpResponse<Body>, Error=hyper::Error> + Send> {
 		match parse_request(&req_method, &path, &req_body) {
 			Request::GenerateServerKey(document, signature, threshold) =>
 				Box::new(result(self.key_server())
 					.and_then(move |key_server| key_server.generate_key(document, signature.into(), threshold))
-					.then(move |result| ok(return_server_public_key("GenerateServerKey", &req_uri, result)))),
+					.then(move |result| ok(return_server_public_key("GenerateServerKey", &req_uri, cors, result)))),
 			Request::StoreDocumentKey(document, signature, common_point, encrypted_document_key) =>
 				Box::new(result(self.key_server())
 					.and_then(move |key_server| key_server.store_document_key(
@@ -141,7 +153,7 @@ impl KeyServerHttpHandler {
 						common_point,
 						encrypted_document_key,
 					))
-					.then(move |result| ok(return_empty("StoreDocumentKey", &req_uri, result)))),
+					.then(move |result| ok(return_empty("StoreDocumentKey", &req_uri, cors, result)))),
 			Request::GenerateDocumentKey(document, signature, threshold) =>
 				Box::new(result(self.key_server())
 					.and_then(move |key_server| key_server.generate_document_key(
@@ -149,15 +161,15 @@ impl KeyServerHttpHandler {
 						signature.into(),
 						threshold,
 					))
-					.then(move |result| ok(return_document_key("GenerateDocumentKey", &req_uri, result)))),
+					.then(move |result| ok(return_document_key("GenerateDocumentKey", &req_uri, cors, result)))),
 			Request::GetDocumentKey(document, signature) =>
 				Box::new(result(self.key_server())
 					.and_then(move |key_server| key_server.restore_document_key(document, signature.into()))
-					.then(move |result| ok(return_document_key("GetDocumentKey", &req_uri, result)))),
+					.then(move |result| ok(return_document_key("GetDocumentKey", &req_uri, cors, result)))),
 			Request::GetDocumentKeyShadow(document, signature) =>
 				Box::new(result(self.key_server())
 					.and_then(move |key_server| key_server.restore_document_key_shadow(document, signature.into()))
-					.then(move |result| ok(return_document_key_shadow("GetDocumentKeyShadow", &req_uri, result)))),
+					.then(move |result| ok(return_document_key_shadow("GetDocumentKeyShadow", &req_uri, cors, result)))),
 			Request::SchnorrSignMessage(document, signature, message_hash) =>
 				Box::new(result(self.key_server())
 					.and_then(move |key_server| key_server.sign_message_schnorr(
@@ -165,7 +177,7 @@ impl KeyServerHttpHandler {
 						signature.into(),
 						message_hash,
 					))
-					.then(move |result| ok(return_message_signature("SchnorrSignMessage", &req_uri, result)))),
+					.then(move |result| ok(return_message_signature("SchnorrSignMessage", &req_uri, cors, result)))),
 			Request::EcdsaSignMessage(document, signature, message_hash) =>
 				Box::new(result(self.key_server())
 					.and_then(move |key_server| key_server.sign_message_ecdsa(
@@ -173,7 +185,7 @@ impl KeyServerHttpHandler {
 						signature.into(),
 						message_hash,
 					))
-					.then(move |result| ok(return_message_signature("EcdsaSignMessage", &req_uri, result)))),
+					.then(move |result| ok(return_message_signature("EcdsaSignMessage", &req_uri, cors, result)))),
 			Request::ChangeServersSet(old_set_signature, new_set_signature, new_servers_set) =>
 				Box::new(result(self.key_server())
 					.and_then(move |key_server| key_server.change_servers_set(
@@ -181,7 +193,7 @@ impl KeyServerHttpHandler {
 						new_set_signature,
 						new_servers_set,
 					))
-					.then(move |result| ok(return_empty("ChangeServersSet", &req_uri, result)))),
+					.then(move |result| ok(return_empty("ChangeServersSet", &req_uri, cors, result)))),
 			Request::Invalid => {
 				warn!(target: "secretstore", "Ignoring invalid {}-request {}", req_method, req_uri);
 				Box::new(ok(HttpResponse::builder()
@@ -200,85 +212,93 @@ impl Service for KeyServerHttpHandler {
 	type Future = Box<Future<Item = HttpResponse<Self::ResBody>, Error=Self::Error> + Send>;
 
 	fn call(&mut self, req: HttpRequest<Body>) -> Self::Future {
-		if req.headers().contains_key(header::ORIGIN) {
-			warn!(target: "secretstore", "Ignoring {}-request {} with Origin header", req.method(), req.uri());
-			return Box::new(future::ok(HttpResponse::builder()
+		let cors = cors::get_cors_allow_origin(
+			req.headers().get(header::ORIGIN).and_then(|value| value.to_str().ok()),
+			req.headers().get(header::HOST).and_then(|value| value.to_str().ok()),
+			&self.cors
+		);
+		match cors {
+			AllowCors::Invalid => {
+				warn!(target: "secretstore", "Ignoring {}-request {} with unauthorized Origin header", req.method(), req.uri());
+				Box::new(future::ok(HttpResponse::builder()
 					.status(HttpStatusCode::NOT_FOUND)
 					.body(Body::empty())
 					.expect("Nothing to parse, cannot fail; qed")))
-		}
+			},
+			_ => {
+				let req_method = req.method().clone();
+				let req_uri = req.uri().clone();
+				let path = req_uri.path().to_string();
+				// We cannot consume Self because of the Service trait requirement.
+				let this = self.clone();
 
-		let req_method = req.method().clone();
-		let req_uri = req.uri().clone();
-		let path = req_uri.path().to_string();
-		if !path.starts_with("/") {
-			warn!(target: "secretstore", "Ignoring invalid {}-request {}", req_method, req_uri);
-			return Box::new(future::ok(HttpResponse::builder()
-				.status(HttpStatusCode::NOT_FOUND)
-				.body(Body::empty())
-				.expect("Nothing to parse, cannot fail; qed")));
+				Box::new(req.into_body().concat2()
+					.and_then(move |body| this.process(req_method, req_uri, &path, &body, cors)))
+			}
 		}
-
-		// We cannot consume Self because of the Service trait requirement.
-		let this = self.clone();
-		Box::new(req.into_body().concat2()
-			.and_then(move |body| this.process(req_method, req_uri, &path, &body)))
 	}
 }
 
-fn return_empty(req_type: &str, req_uri: &Uri, empty: Result<(), Error>) -> HttpResponse<Body> {
-	return_bytes::<i32>(req_type, req_uri, empty.map(|_| None))
+fn return_empty(req_type: &str, req_uri: &Uri, cors: AllowCors<AccessControlAllowOrigin>, empty: Result<(), Error>) -> HttpResponse<Body> {
+	return_bytes::<i32>(req_type, req_uri, cors, empty.map(|_| None))
 }
 
 fn return_server_public_key(
 	req_type: &str,
 	req_uri: &Uri,
+	cors: AllowCors<AccessControlAllowOrigin>,
 	server_public: Result<Public, Error>,
 ) -> HttpResponse<Body> {
-	return_bytes(req_type, req_uri, server_public.map(|k| Some(SerializablePublic(k))))
+	return_bytes(req_type, req_uri, cors, server_public.map(|k| Some(SerializablePublic(k))))
 }
 
 fn return_message_signature(
 	req_type: &str,
 	req_uri: &Uri,
+	cors: AllowCors<AccessControlAllowOrigin>,
 	signature: Result<EncryptedDocumentKey, Error>,
 ) -> HttpResponse<Body> {
-	return_bytes(req_type, req_uri, signature.map(|s| Some(SerializableBytes(s))))
+	return_bytes(req_type, req_uri, cors, signature.map(|s| Some(SerializableBytes(s))))
 }
 
 fn return_document_key(
 	req_type: &str,
 	req_uri: &Uri,
+	cors: AllowCors<AccessControlAllowOrigin>,
 	document_key: Result<EncryptedDocumentKey, Error>,
 ) -> HttpResponse<Body> {
-	return_bytes(req_type, req_uri, document_key.map(|k| Some(SerializableBytes(k))))
+	return_bytes(req_type, req_uri, cors, document_key.map(|k| Some(SerializableBytes(k))))
 }
 
 fn return_document_key_shadow(
 	req_type: &str,
 	req_uri: &Uri,
+	cors: AllowCors<AccessControlAllowOrigin>,
 	document_key_shadow: Result<EncryptedDocumentKeyShadow, Error>,
 ) -> HttpResponse<Body> {
-	return_bytes(req_type, req_uri, document_key_shadow.map(|k| Some(SerializableEncryptedDocumentKeyShadow {
+	return_bytes(req_type, req_uri, cors, document_key_shadow.map(|k| Some(SerializableEncryptedDocumentKeyShadow {
 		decrypted_secret: k.decrypted_secret.into(),
 		common_point: k.common_point.expect("always filled when requesting document_key_shadow; qed").into(),
-		decrypt_shadows: k.decrypt_shadows.expect("always filled when requesting document_key_shadow; qed").into_iter().map(Into::into).collect(),
+		decrypt_shadows: k.decrypt_shadows.expect("always filled when requesting document_key_shadow; qed").into_iter().map(Into::into).collect()
 	})))
 }
 
 fn return_bytes<T: Serialize>(
 	req_type: &str,
 	req_uri: &Uri,
+	cors: AllowCors<AccessControlAllowOrigin>,
 	result: Result<Option<T>, Error>,
 ) -> HttpResponse<Body> {
 	match result {
 		Ok(Some(result)) => match serde_json::to_vec(&result) {
 			Ok(result) => {
 				let body: Body = result.into();
-				HttpResponse::builder()
-					.header(header::CONTENT_TYPE, HeaderValue::from_static("application/json; charset=utf-8"))
-					.body(body)
-					.expect("Error creating http response")
+				let mut builder = HttpResponse::builder();
+				builder.header(header::CONTENT_TYPE, HeaderValue::from_static("application/json; charset=utf-8"));
+				if let AllowCors::Ok(AccessControlAllowOrigin::Value(origin)) = cors {
+					builder.header(header::ACCESS_CONTROL_ALLOW_ORIGIN, origin.to_string());
+				}
+				builder.body(body).expect("Error creating http response")
 			},
 			Err(err) => {
 				warn!(target: "secretstore", "response to request {} has failed with: {}", req_uri, err);
@@ -289,10 +309,12 @@ fn return_bytes<T: Serialize>(
 			}
 		},
 		Ok(None) => {
-			HttpResponse::builder()
-					.status(HttpStatusCode::OK)
-					.body(Body::empty())
-					.expect("Nothing to parse, cannot fail; qed")
+			let mut builder = HttpResponse::builder();
+			builder.status(HttpStatusCode::OK);
+			if let AllowCors::Ok(AccessControlAllowOrigin::Value(origin)) = cors {
+				builder.header(header::ACCESS_CONTROL_ALLOW_ORIGIN, origin.to_string());
+			}
+			builder.body(Body::empty()).expect("Nothing to parse, cannot fail; qed")
 		},
 		Err(err) => {
 			warn!(target: "secretstore", "{} request {} has failed with: {}", req_type, req_uri, err);
@@ -416,12 +438,14 @@ fn parse_admin_request(method: &HttpMethod, path: Vec<String>, body: &[u8]) -> R
 #[cfg(test)]
 mod tests {
 	use std::sync::Arc;
+	use std::str::FromStr;
 	use hyper::Method as HttpMethod;
 	use ethkey::Public;
 	use traits::KeyServer;
 	use key_server::tests::DummyKeyServer;
 	use types::NodeAddress;
 	use parity_runtime::Runtime;
+	use ethereum_types::H256;
 	use super::{parse_request, Request, KeyServerHttpListener};
 
 	#[test]
@@ -429,7 +453,7 @@ mod tests {
 		let key_server: Arc<KeyServer> = Arc::new(DummyKeyServer::default());
 		let address = NodeAddress { address: "127.0.0.1".into(), port: 9000 };
 		let runtime = Runtime::with_thread_count(1);
-		let listener = KeyServerHttpListener::start(address, Arc::downgrade(&key_server),
+		let listener = KeyServerHttpListener::start(address, None, Arc::downgrade(&key_server),
 			runtime.executor()).unwrap();
 		drop(listener);
 	}
@@ -438,39 +462,39 @@ mod tests {
 	fn parse_request_successful() {
 		// POST		/shadow/{server_key_id}/{signature}/{threshold}						=> generate server key
 		assert_eq!(parse_request(&HttpMethod::POST, "/shadow/0000000000000000000000000000000000000000000000000000000000000001/a199fb39e11eefb61c78a4074a53c0d4424600a3e74aad4fb9d93a26c30d067e1d4d29936de0c73f19827394a1dd049480a0d581aee7ae7546968da7d3d1c2fd01/2", Default::default()),
-			Request::GenerateServerKey("0000000000000000000000000000000000000000000000000000000000000001".into(),
+			Request::GenerateServerKey(H256::from_str("0000000000000000000000000000000000000000000000000000000000000001").unwrap(),
 				"a199fb39e11eefb61c78a4074a53c0d4424600a3e74aad4fb9d93a26c30d067e1d4d29936de0c73f19827394a1dd049480a0d581aee7ae7546968da7d3d1c2fd01".parse().unwrap(),
 				2));
 		// POST		/shadow/{server_key_id}/{signature}/{common_point}/{encrypted_key}	=> store encrypted document key
 		assert_eq!(parse_request(&HttpMethod::POST, "/shadow/0000000000000000000000000000000000000000000000000000000000000001/a199fb39e11eefb61c78a4074a53c0d4424600a3e74aad4fb9d93a26c30d067e1d4d29936de0c73f19827394a1dd049480a0d581aee7ae7546968da7d3d1c2fd01/b486d3840218837b035c66196ecb15e6b067ca20101e11bd5e626288ab6806ecc70b8307012626bd512bad1559112d11d21025cef48cc7a1d2f3976da08f36c8/1395568277679f7f583ab7c0992da35f26cde57149ee70e524e49bdae62db3e18eb96122501e7cbb798b784395d7bb5a499edead0706638ad056d886e56cf8fb", Default::default()),
-			Request::StoreDocumentKey("0000000000000000000000000000000000000000000000000000000000000001".into(),
+			Request::StoreDocumentKey(H256::from_str("0000000000000000000000000000000000000000000000000000000000000001").unwrap(),
 				"a199fb39e11eefb61c78a4074a53c0d4424600a3e74aad4fb9d93a26c30d067e1d4d29936de0c73f19827394a1dd049480a0d581aee7ae7546968da7d3d1c2fd01".parse().unwrap(),
 				"b486d3840218837b035c66196ecb15e6b067ca20101e11bd5e626288ab6806ecc70b8307012626bd512bad1559112d11d21025cef48cc7a1d2f3976da08f36c8".parse().unwrap(),
 				"1395568277679f7f583ab7c0992da35f26cde57149ee70e524e49bdae62db3e18eb96122501e7cbb798b784395d7bb5a499edead0706638ad056d886e56cf8fb".parse().unwrap()));
 		// POST		/{server_key_id}/{signature}/{threshold}							=> generate server && document key
 		assert_eq!(parse_request(&HttpMethod::POST, "/0000000000000000000000000000000000000000000000000000000000000001/a199fb39e11eefb61c78a4074a53c0d4424600a3e74aad4fb9d93a26c30d067e1d4d29936de0c73f19827394a1dd049480a0d581aee7ae7546968da7d3d1c2fd01/2", Default::default()),
-			Request::GenerateDocumentKey("0000000000000000000000000000000000000000000000000000000000000001".into(),
+			Request::GenerateDocumentKey(H256::from_str("0000000000000000000000000000000000000000000000000000000000000001").unwrap(),
 				"a199fb39e11eefb61c78a4074a53c0d4424600a3e74aad4fb9d93a26c30d067e1d4d29936de0c73f19827394a1dd049480a0d581aee7ae7546968da7d3d1c2fd01".parse().unwrap(),
 				2));
 		// GET		/{server_key_id}/{signature}										=> get document key
 		assert_eq!(parse_request(&HttpMethod::GET, "/0000000000000000000000000000000000000000000000000000000000000001/a199fb39e11eefb61c78a4074a53c0d4424600a3e74aad4fb9d93a26c30d067e1d4d29936de0c73f19827394a1dd049480a0d581aee7ae7546968da7d3d1c2fd01", Default::default()),
-			Request::GetDocumentKey("0000000000000000000000000000000000000000000000000000000000000001".into(),
+			Request::GetDocumentKey(H256::from_str("0000000000000000000000000000000000000000000000000000000000000001").unwrap(),
 				"a199fb39e11eefb61c78a4074a53c0d4424600a3e74aad4fb9d93a26c30d067e1d4d29936de0c73f19827394a1dd049480a0d581aee7ae7546968da7d3d1c2fd01".parse().unwrap()));
 		assert_eq!(parse_request(&HttpMethod::GET, "/%30000000000000000000000000000000000000000000000000000000000000001/a199fb39e11eefb61c78a4074a53c0d4424600a3e74aad4fb9d93a26c30d067e1d4d29936de0c73f19827394a1dd049480a0d581aee7ae7546968da7d3d1c2fd01", Default::default()),
-			Request::GetDocumentKey("0000000000000000000000000000000000000000000000000000000000000001".into(),
+			Request::GetDocumentKey(H256::from_str("0000000000000000000000000000000000000000000000000000000000000001").unwrap(),
 				"a199fb39e11eefb61c78a4074a53c0d4424600a3e74aad4fb9d93a26c30d067e1d4d29936de0c73f19827394a1dd049480a0d581aee7ae7546968da7d3d1c2fd01".parse().unwrap()));
 		// GET		/shadow/{server_key_id}/{signature}									=> get document key shadow
 		assert_eq!(parse_request(&HttpMethod::GET, "/shadow/0000000000000000000000000000000000000000000000000000000000000001/a199fb39e11eefb61c78a4074a53c0d4424600a3e74aad4fb9d93a26c30d067e1d4d29936de0c73f19827394a1dd049480a0d581aee7ae7546968da7d3d1c2fd01", Default::default()),
-			Request::GetDocumentKeyShadow("0000000000000000000000000000000000000000000000000000000000000001".into(),
+			Request::GetDocumentKeyShadow(H256::from_str("0000000000000000000000000000000000000000000000000000000000000001").unwrap(),
 				"a199fb39e11eefb61c78a4074a53c0d4424600a3e74aad4fb9d93a26c30d067e1d4d29936de0c73f19827394a1dd049480a0d581aee7ae7546968da7d3d1c2fd01".parse().unwrap()));
 		// GET		/schnorr/{server_key_id}/{signature}/{message_hash}					=> schnorr-sign message with server key
 		assert_eq!(parse_request(&HttpMethod::GET, "/schnorr/0000000000000000000000000000000000000000000000000000000000000001/a199fb39e11eefb61c78a4074a53c0d4424600a3e74aad4fb9d93a26c30d067e1d4d29936de0c73f19827394a1dd049480a0d581aee7ae7546968da7d3d1c2fd01/281b6bf43cb86d0dc7b98e1b7def4a80f3ce16d28d2308f934f116767306f06c", Default::default()),
-			Request::SchnorrSignMessage("0000000000000000000000000000000000000000000000000000000000000001".into(),
+			Request::SchnorrSignMessage(H256::from_str("0000000000000000000000000000000000000000000000000000000000000001").unwrap(),
 				"a199fb39e11eefb61c78a4074a53c0d4424600a3e74aad4fb9d93a26c30d067e1d4d29936de0c73f19827394a1dd049480a0d581aee7ae7546968da7d3d1c2fd01".parse().unwrap(),
 				"281b6bf43cb86d0dc7b98e1b7def4a80f3ce16d28d2308f934f116767306f06c".parse().unwrap()));
 		// GET		/ecdsa/{server_key_id}/{signature}/{message_hash}					=> ecdsa-sign message with server key
 		assert_eq!(parse_request(&HttpMethod::GET, "/ecdsa/0000000000000000000000000000000000000000000000000000000000000001/a199fb39e11eefb61c78a4074a53c0d4424600a3e74aad4fb9d93a26c30d067e1d4d29936de0c73f19827394a1dd049480a0d581aee7ae7546968da7d3d1c2fd01/281b6bf43cb86d0dc7b98e1b7def4a80f3ce16d28d2308f934f116767306f06c", Default::default()),
-			Request::EcdsaSignMessage("0000000000000000000000000000000000000000000000000000000000000001".into(),
+			Request::EcdsaSignMessage(H256::from_str("0000000000000000000000000000000000000000000000000000000000000001").unwrap(),
 				"a199fb39e11eefb61c78a4074a53c0d4424600a3e74aad4fb9d93a26c30d067e1d4d29936de0c73f19827394a1dd049480a0d581aee7ae7546968da7d3d1c2fd01".parse().unwrap(),
 				"281b6bf43cb86d0dc7b98e1b7def4a80f3ce16d28d2308f934f116767306f06c".parse().unwrap()));
 		// POST		/admin/servers_set_change/{old_set_signature}/{new_set_signature} + body
