@@ -21,20 +21,20 @@ use std::sync::atomic::{AtomicBool, Ordering as AtomicOrdering};
 use std::time::Duration;
 
 use bytes::{Buf, BufMut};
+use crypto::aes::{AesCtr256, AesEcb256};
+use error_chain::bail;
 use ethereum_types::{H128, H256, H512};
 use keccak_hash::{keccak, write_keccak};
-use log::{trace, debug, warn};
+use log::{debug, trace, warn};
 use mio::{PollOpt, Ready, Token};
 use mio::deprecated::{EventLoop, Handler, TryRead, TryWrite};
 use mio::tcp::TcpStream;
 use parity_bytes::Bytes;
-use crypto::aes::{AesCtr256, AesEcb256};
 use rlp::{Rlp, RlpStream};
 use tiny_keccak::Keccak;
-use error_chain::bail;
 
-use ethkey::{crypto as ethcrypto, Secret};
 use ethcore_io::{IoContext, StreamToken};
+use ethkey::{crypto as ethcrypto, Secret};
 use network::{Error, ErrorKind};
 
 use crate::handshake::Handshake;

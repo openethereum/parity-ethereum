@@ -60,8 +60,8 @@
 //TODO: use Poll from mio
 #![allow(deprecated)]
 
-pub use host::NetworkContext;
 pub use ethcore_io::TimerToken;
+pub use host::NetworkContext;
 pub use node_table::{MAX_NODES_IN_TABLE, NodeId, validate_node_url};
 pub use service::NetworkService;
 

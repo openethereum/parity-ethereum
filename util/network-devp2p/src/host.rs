@@ -28,10 +28,10 @@ use std::time::Duration;
 
 use ethereum_types::H256;
 use keccak_hash::keccak;
-use log::{trace, debug, warn, info};
+use log::{debug, info, trace, warn};
 use mio::{
-	PollOpt, Ready, Token, deprecated::EventLoop,
-	tcp::{TcpListener, TcpStream},
+	deprecated::EventLoop, PollOpt, Ready, tcp::{TcpListener, TcpStream},
+	Token,
 	udp::UdpSocket
 };
 use parity_path::restrict_permissions_owner;
@@ -39,22 +39,22 @@ use parking_lot::{Mutex, RwLock};
 use rlp::{Encodable, RlpStream};
 use rustc_hex::ToHex;
 
+use ethcore_io::{IoContext, IoHandler, IoManager, StreamToken, TimerToken};
 use ethkey::{Generator, KeyPair, Random, Secret};
-use ethcore_io::{StreamToken, IoManager, IoContext, TimerToken, IoHandler};
 use network::{
-	NetworkConfiguration, NetworkIoMessage, PacketId, PeerId, ProtocolId,
-	NetworkContext as NetworkContextTrait, NonReservedPeerMode,
-	DisconnectReason, Error, ErrorKind, NetworkProtocolHandler, SessionInfo,
-	ConnectionDirection, ConnectionFilter,
-	client_version::ClientVersion
+	client_version::ClientVersion, ConnectionDirection, ConnectionFilter, DisconnectReason, Error,
+	ErrorKind, NetworkConfiguration,
+	NetworkContext as NetworkContextTrait, NetworkIoMessage, NetworkProtocolHandler, NonReservedPeerMode, PacketId,
+	PeerId, ProtocolId,
+	SessionInfo
 };
 
 use crate::{
-	PROTOCOL_VERSION,
-	ip_utils::{map_external_address, select_public_address},
 	connection::PAYLOAD_SOFT_LIMIT,
 	discovery::{Discovery, MAX_DATAGRAM_SIZE, NodeEntry, TableUpdates},
+	ip_utils::{map_external_address, select_public_address},
 	node_table::*,
+	PROTOCOL_VERSION,
 	session::{Session, SessionData}
 };
 

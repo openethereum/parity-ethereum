@@ -24,13 +24,14 @@ use std::path::PathBuf;
 use std::str::FromStr;
 use std::time::{self, Duration, SystemTime};
 
-use ethereum_types::H512;
 use error_chain::bail;
+use ethereum_types::H512;
 use log::{debug, warn};
 use rand::{self, Rng};
 use rlp::{DecoderError, Rlp, RlpStream};
+use serde::{Deserialize, Serialize};
 use serde_json;
-use serde::{Serialize, Deserialize};
+
 use network::{AllowIP, Error, ErrorKind, IpFilter};
 
 use crate::{
@@ -607,10 +608,11 @@ mod tests {
 	use std::thread::sleep;
 	use std::time::Duration;
 
-	use assert_matches::assert_matches;
 	use ethereum_types::H512;
 	use ipnetwork::IpNetwork;
 	use tempdir::TempDir;
+
+	use assert_matches::assert_matches;
 
 	use super::*;
 

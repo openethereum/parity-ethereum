@@ -22,7 +22,7 @@ use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
 use ethereum_types::{H256, H520};
 use keccak_hash::keccak;
-use log::{trace, debug, warn};
+use log::{debug, trace, warn};
 use lru_cache::LruCache;
 use parity_bytes::Bytes;
 use rlp::{Rlp, RlpStream};
@@ -30,6 +30,7 @@ use rlp::{Rlp, RlpStream};
 use ethkey::{KeyPair, recover, Secret, sign};
 use network::{Error, ErrorKind};
 use network::IpFilter;
+
 use crate::node_table::*;
 use crate::PROTOCOL_VERSION;
 
@@ -886,6 +887,7 @@ mod tests {
 	use rustc_hex::FromHex;
 
 	use ethkey::{Generator, Random};
+
 	use crate::node_table::{Node, NodeEndpoint, NodeId};
 
 	use super::*;

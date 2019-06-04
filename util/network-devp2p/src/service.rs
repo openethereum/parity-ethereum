@@ -23,10 +23,10 @@ use ansi_term::Colour;
 use log::info;
 use parking_lot::RwLock;
 
-use ethcore_io::{IoService, IoHandler, IoContext};
+use ethcore_io::{IoContext, IoHandler, IoService};
 use network::{
-	Error, NetworkConfiguration, NetworkProtocolHandler, NonReservedPeerMode,
-	NetworkContext, NetworkIoMessage, PeerId, ProtocolId, ConnectionFilter,
+	ConnectionFilter, Error, NetworkConfiguration, NetworkContext,
+	NetworkIoMessage, NetworkProtocolHandler, NonReservedPeerMode, PeerId, ProtocolId,
 
 };
 

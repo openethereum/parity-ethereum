@@ -19,14 +19,15 @@ use std::collections::HashMap;
 use std::net::SocketAddr;
 use std::time::{Duration, Instant};
 
-use ethereum_types::H256;
 use error_chain::bail;
-use log::{trace, debug, warn};
+use ethereum_types::H256;
+use log::{debug, trace, warn};
 use mio::*;
 use mio::deprecated::{EventLoop, Handler};
 use mio::tcp::*;
-use rlp::{EMPTY_LIST_RLP, Rlp, RlpStream};
 use parity_snappy as snappy;
+use rlp::{EMPTY_LIST_RLP, Rlp, RlpStream};
+
 use ethcore_io::{IoContext, StreamToken};
 use network::{DisconnectReason, Error, ErrorKind, PeerCapabilityInfo, ProtocolId, SessionInfo};
 use network::client_version::ClientVersion;
