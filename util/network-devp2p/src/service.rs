@@ -23,11 +23,14 @@ use ansi_term::Colour;
 use log::info;
 use parking_lot::RwLock;
 
-use crate::host::Host;
 use ethcore_io::{IoService, IoHandler, IoContext};
-use network::{Error, NetworkConfiguration, NetworkProtocolHandler, NonReservedPeerMode};
-use network::{NetworkContext, NetworkIoMessage, PeerId, ProtocolId};
-use network::ConnectionFilter;
+use network::{
+	Error, NetworkConfiguration, NetworkProtocolHandler, NonReservedPeerMode,
+	NetworkContext, NetworkIoMessage, PeerId, ProtocolId, ConnectionFilter,
+
+};
+
+use crate::host::Host;
 
 struct HostHandler {
 	public_url: RwLock<Option<String>>

@@ -31,10 +31,12 @@ use rand::{self, Rng};
 use rlp::{DecoderError, Rlp, RlpStream};
 use serde_json;
 use serde::{Serialize, Deserialize};
-
-use crate::discovery::{NodeEntry, TableUpdates};
-use crate::ip_utils::*;
 use network::{AllowIP, Error, ErrorKind, IpFilter};
+
+use crate::{
+	discovery::{NodeEntry, TableUpdates},
+	ip_utils::*,
+};
 
 /// Node public key
 pub type NodeId = H512;

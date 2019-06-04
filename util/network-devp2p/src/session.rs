@@ -27,15 +27,17 @@ use mio::deprecated::{EventLoop, Handler};
 use mio::tcp::*;
 use rlp::{EMPTY_LIST_RLP, Rlp, RlpStream};
 use parity_snappy as snappy;
-
-use crate::connection::{Connection, EncryptedConnection, MAX_PAYLOAD_SIZE, Packet};
-use crate::handshake::Handshake;
-use crate::host::*;
 use ethcore_io::{IoContext, StreamToken};
 use network::{DisconnectReason, Error, ErrorKind, PeerCapabilityInfo, ProtocolId, SessionInfo};
 use network::client_version::ClientVersion;
 use network::SessionCapabilityInfo;
-use crate::node_table::NodeId;
+
+use crate::{
+	connection::{Connection, EncryptedConnection, MAX_PAYLOAD_SIZE, Packet},
+	handshake::Handshake,
+	host::HostInfo,
+	node_table::NodeId,
+};
 
 // Timeout must be less than (interval - 1).
 const PING_TIMEOUT: Duration = Duration::from_secs(60);

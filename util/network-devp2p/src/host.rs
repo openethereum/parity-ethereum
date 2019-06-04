@@ -39,19 +39,24 @@ use parking_lot::{Mutex, RwLock};
 use rlp::{Encodable, RlpStream};
 use rustc_hex::ToHex;
 
-use crate::connection::PAYLOAD_SOFT_LIMIT;
-use crate::discovery::{Discovery, MAX_DATAGRAM_SIZE, NodeEntry, TableUpdates};
 use ethkey::{Generator, KeyPair, Random, Secret};
 use ethcore_io::{StreamToken, IoManager, IoContext, TimerToken, IoHandler};
-use crate::ip_utils::{map_external_address, select_public_address};
-use network::{NetworkConfiguration, NetworkIoMessage, PacketId, PeerId, ProtocolId};
-use network::{NetworkContext as NetworkContextTrait, NonReservedPeerMode};
-use network::{DisconnectReason, Error, ErrorKind, NetworkProtocolHandler, SessionInfo};
-use network::{ConnectionDirection, ConnectionFilter};
-use network::client_version::ClientVersion;
-use crate::node_table::*;
-use crate::PROTOCOL_VERSION;
-use crate::session::{Session, SessionData};
+use network::{
+	NetworkConfiguration, NetworkIoMessage, PacketId, PeerId, ProtocolId,
+	NetworkContext as NetworkContextTrait, NonReservedPeerMode,
+	DisconnectReason, Error, ErrorKind, NetworkProtocolHandler, SessionInfo,
+	ConnectionDirection, ConnectionFilter,
+	client_version::ClientVersion
+};
+
+use crate::{
+	PROTOCOL_VERSION,
+	ip_utils::{map_external_address, select_public_address},
+	connection::PAYLOAD_SOFT_LIMIT,
+	discovery::{Discovery, MAX_DATAGRAM_SIZE, NodeEntry, TableUpdates},
+	node_table::*,
+	session::{Session, SessionData}
+};
 
 type Slab<T> = ::slab::Slab<T, usize>;
 

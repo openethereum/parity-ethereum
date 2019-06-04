@@ -19,7 +19,7 @@ use std::sync::{
 	atomic::{AtomicBool, Ordering as AtomicOrdering}
 };
 use std::thread;
-use std::time::*;
+use std::time::Duration;
 
 use parity_bytes::Bytes;
 use parking_lot::Mutex;

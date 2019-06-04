@@ -60,13 +60,10 @@
 //TODO: use Poll from mio
 #![allow(deprecated)]
 
-#[cfg(test)]
-extern crate tempdir;
-
-pub use crate::host::NetworkContext;
+pub use host::NetworkContext;
 pub use ethcore_io::TimerToken;
-pub use crate::node_table::{MAX_NODES_IN_TABLE, NodeId, validate_node_url};
-pub use crate::service::NetworkService;
+pub use node_table::{MAX_NODES_IN_TABLE, NodeId, validate_node_url};
+pub use service::NetworkService;
 
 mod host;
 mod connection;
