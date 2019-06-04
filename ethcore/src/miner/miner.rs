@@ -260,14 +260,16 @@ impl Miner {
 	}
 
 	/// Set a callback to be notified about imported transactions' hashes.
-	pub fn add_transactions_listener(&self, f: Box<Fn(&[H256]) + Send + Sync>) {
-		self.transaction_queue.add_listener(f);
+	pub fn pending_transactions_receiver(&self) -> mpsc::UnboundedReceiver<Arc<Vec<H256>>> {
+		let (sender, receiver) = mpsc::unbounded();
+		self.transaction_queue.add_pending_listener(sender);
+		receiver
 	}
 
-	/// Set a callback to be notified
-	pub fn tx_pool_receiver(&self) -> mpsc::UnboundedReceiver<Arc<Vec<(H256, TxStatus)>>> {
+	/// Set a callback to be notified about imported transactions' hashes.
+	pub fn full_transactions_receiver(&self) -> mpsc::UnboundedReceiver<Arc<Vec<(H256, TxStatus)>>> {
 		let (sender, receiver) = mpsc::unbounded();
-		self.transaction_queue.add_tx_pool_listener(sender);
+		self.transaction_queue.add_full_listener(sender);
 		receiver
 	}
 

@@ -17,7 +17,7 @@
 use std::sync::Arc;
 
 use jsonrpc_core::MetaIoHandler;
-use jsonrpc_core::futures::{self, Stream, Future};
+use jsonrpc_core::futures::{self, Stream, Future, sync::mpsc};
 use jsonrpc_pubsub::Session;
 
 use std::time::Duration;
@@ -40,7 +40,9 @@ fn should_subscribe_to_new_heads() {
 	let h2 = client.block_hash_delta_minus(2);
 	let h1 = client.block_hash_delta_minus(3);
 
-	let pubsub = EthPubSubClient::new(Arc::new(client), el.executor());
+	let (_, pool_receiver) = mpsc::unbounded();
+
+	let pubsub = EthPubSubClient::new(Arc::new(client), el.executor(), pool_receiver);
 	let handler = pubsub.handler().upgrade().unwrap();
 	let pubsub = pubsub.to_delegate();
 
@@ -112,7 +114,9 @@ fn should_subscribe_to_logs() {
 		}
 	]);
 
-	let pubsub = EthPubSubClient::new(Arc::new(client), el.executor());
+	let (_, pool_receiver) = mpsc::unbounded();
+
+	let pubsub = EthPubSubClient::new(Arc::new(client), el.executor(), pool_receiver);
 	let handler = pubsub.handler().upgrade().unwrap();
 	let pubsub = pubsub.to_delegate();
 
@@ -159,8 +163,9 @@ fn should_subscribe_to_pending_transactions() {
 	let el = Runtime::with_thread_count(1);
 	let client = TestBlockChainClient::new();
 
-	let pubsub = EthPubSubClient::new(Arc::new(client), el.executor());
-	let handler = pubsub.handler().upgrade().unwrap();
+	let (pool_sender, pool_receiver) = mpsc::unbounded();
+
+	let pubsub = EthPubSubClient::new(Arc::new(client), el.executor(), pool_receiver);
 	let pubsub = pubsub.to_delegate();
 
 	let mut io = MetaIoHandler::default();
@@ -181,7 +186,7 @@ fn should_subscribe_to_pending_transactions() {
 	assert_eq!(io.handle_request_sync(request, metadata.clone()), Some(response.to_owned()));
 
 	// Send new transactions
-	handler.notify_new_transactions(&[H256::from_low_u64_be(5), H256::from_low_u64_be(7)]);
+	pool_sender.unbounded_send(Arc::new(vec![H256::from_low_u64_be(5), H256::from_low_u64_be(7)])).unwrap();
 
 	let (res, receiver) = receiver.into_future().wait().unwrap();
 	let response = r#"{"jsonrpc":"2.0","method":"eth_subscription","params":{"result":"0x0000000000000000000000000000000000000000000000000000000000000005","subscription":"0x43ca64edf03768e1"}}"#;
@@ -205,7 +210,8 @@ fn eth_subscribe_syncing() {
 	// given
 	let el = Runtime::with_thread_count(1);
 	let client = TestBlockChainClient::new();
-	let pubsub = EthPubSubClient::new(Arc::new(client), el.executor());
+	let (_, pool_receiver) = mpsc::unbounded();
+	let pubsub = EthPubSubClient::new(Arc::new(client), el.executor(), pool_receiver);
 	let pubsub = pubsub.to_delegate();
 
 	let mut io = MetaIoHandler::default();

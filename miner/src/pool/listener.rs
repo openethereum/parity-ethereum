@@ -26,50 +26,6 @@ use txpool::{self, VerifiedTransaction};
 use pool::VerifiedTransaction as Transaction;
 use pool::TxStatus;
 
-type Listener = Box<Fn(&[H256]) + Send + Sync>;
-
-/// Manages notifications to pending transaction listeners.
-#[derive(Default)]
-pub struct Notifier {
-	listeners: Vec<Listener>,
-	pending: Vec<H256>,
-}
-
-impl fmt::Debug for Notifier {
-	fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
-		fmt.debug_struct("Notifier")
-			.field("listeners", &self.listeners.len())
-			.field("pending", &self.pending)
-			.finish()
-	}
-}
-
-impl Notifier {
-	/// Add new listener to receive notifications.
-	pub fn add(&mut self, f: Listener) {
-		self.listeners.push(f)
-	}
-
-	/// Notify listeners about all currently pending transactions.
-	pub fn notify(&mut self) {
-		if self.pending.is_empty() {
-			return;
-		}
-
-		for l in &self.listeners {
-			(l)(&self.pending);
-		}
-
-		self.pending.clear();
-	}
-}
-
-impl txpool::Listener<Transaction> for Notifier {
-	fn added(&mut self, tx: &Arc<Transaction>, _old: Option<&Arc<Transaction>>) {
-		self.pending.push(*tx.hash());
-	}
-}
-
 /// Transaction pool logger.
 #[derive(Default, Debug)]
 pub struct Logger;
@@ -121,14 +77,20 @@ impl txpool::Listener<Transaction> for Logger {
 /// Transactions pool notifier
 #[derive(Default)]
 pub struct TransactionsPoolNotifier {
-	listeners: Vec<mpsc::UnboundedSender<Arc<Vec<(H256, TxStatus)>>>>,
+	full_listeners: Vec<mpsc::UnboundedSender<Arc<Vec<(H256, TxStatus)>>>>,
+	pending_listeners: Vec<mpsc::UnboundedSender<Arc<Vec<H256>>>>,
 	tx_statuses: Vec<(H256, TxStatus)>,
 }
 
 impl TransactionsPoolNotifier {
-	/// Add new listener to receive notifications.
-	pub fn add(&mut self, f: mpsc::UnboundedSender<Arc<Vec<(H256, TxStatus)>>>) {
-		self.listeners.push(f);
+	/// Add new full listener to receive notifications.
+	pub fn add_full_listener(&mut self, f: mpsc::UnboundedSender<Arc<Vec<(H256, TxStatus)>>>) {
+		self.full_listeners.push(f);
+	}
+
+	/// Add new pending listener to receive notifications.
+	pub fn add_pending_listener(&mut self, f: mpsc::UnboundedSender<Arc<Vec<H256>>>) {
+		self.pending_listeners.push(f);
 	}
 
 	/// Notify listeners about all currently transactions.
@@ -137,16 +99,25 @@ impl TransactionsPoolNotifier {
 			return;
 		}
 
-		let to_send = Arc::new(std::mem::replace(&mut self.tx_statuses, Vec::new()));
-		self.listeners
-			.retain(|listener| listener.unbounded_send(to_send.clone()).is_ok());
+		let to_pending_send: Arc<Vec<H256>> = Arc::new(
+			self.tx_statuses.clone()
+				.into_iter()
+				.map(|(hash, _)| hash)
+				.collect()
+		);
+		self.pending_listeners.retain(|listener| listener.unbounded_send(to_pending_send.clone()).is_ok());
+
+		let to_full_send = Arc::new(std::mem::replace(&mut self.tx_statuses, Vec::new()));
+		self.full_listeners
+			.retain(|listener| listener.unbounded_send(to_full_send.clone()).is_ok());
 	}
 }
 
 impl fmt::Debug for TransactionsPoolNotifier {
 	fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
 		fmt.debug_struct("TransactionsPoolNotifier")
-			.field("listeners", &self.listeners.len())
+			.field("full_listeners", &self.full_listeners.len())
+			.field("pending_listeners", &self.pending_listeners.len())
 			.finish()
 	}
 }
@@ -180,33 +151,36 @@ impl txpool::Listener<Transaction> for TransactionsPoolNotifier {
 #[cfg(test)]
 mod tests {
 	use super::*;
-	use parking_lot::Mutex;
 	use types::transaction;
 	use txpool::Listener;
+	use futures::{Stream, Future};
 	use ethereum_types::Address;
 
 	#[test]
 	fn should_notify_listeners() {
 		// given
-		let received = Arc::new(Mutex::new(vec![]));
-		let r = received.clone();
-		let listener = Box::new(move |hashes: &[H256]| {
-			*r.lock() = hashes.iter().map(|x| *x).collect();
-		});
+		let (full_sender, full_receiver) = mpsc::unbounded();
+		let (pending_sender, pending_receiver) = mpsc::unbounded();
 
-		let mut tx_listener = Notifier::default();
-		tx_listener.add(listener);
+		let mut tx_listener = TransactionsPoolNotifier::default();
+		tx_listener.add_full_listener(full_sender);
+		tx_listener.add_pending_listener(pending_sender);
 
 		// when
 		let tx = new_tx();
 		tx_listener.added(&tx, None);
-		assert_eq!(*received.lock(), vec![]);
 
 		// then
 		tx_listener.notify();
+		let (full_res , _full_receiver)= full_receiver.into_future().wait().unwrap();
+		let (pending_res , _pending_receiver)= pending_receiver.into_future().wait().unwrap();
 		assert_eq!(
-			*received.lock(),
-			vec!["13aff4201ac1dc49daf6a7cf07b558ed956511acbaabf9502bdacc353953766d".parse().unwrap()]
+			full_res,
+			Some(Arc::new(vec![(serde_json::from_str::<H256>("\"0x13aff4201ac1dc49daf6a7cf07b558ed956511acbaabf9502bdacc353953766d\"").unwrap(), TxStatus::Added)]))
+		);
+		assert_eq!(
+			pending_res,
+			Some(Arc::new(vec![serde_json::from_str::<H256>("\"0x13aff4201ac1dc49daf6a7cf07b558ed956511acbaabf9502bdacc353953766d\"").unwrap()]))
 		);
 	}
 
