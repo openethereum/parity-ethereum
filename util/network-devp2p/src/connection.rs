@@ -31,7 +31,7 @@ use crypto::aes::{AesCtr256, AesEcb256};
 use rlp::{Rlp, RlpStream};
 use tiny_keccak::Keccak;
 
-use ethkey::{crypto, Secret};
+use ethkey::crypto;
 use handshake::Handshake;
 use io::{IoContext, StreamToken};
 use network::{Error, ErrorKind};

@@ -60,6 +60,7 @@
 //TODO: use Poll from mio
 #![allow(deprecated)]
 
+//TODO: remove this
 extern crate ansi_term;
 #[cfg(test)] #[macro_use]
 extern crate assert_matches;
@@ -87,7 +88,6 @@ extern crate parity_snappy as snappy;
 extern crate parking_lot;
 extern crate rand;
 extern crate rlp;
-//TODO: remove this
 extern crate rustc_hex;
 extern crate serde;
 #[macro_use]
