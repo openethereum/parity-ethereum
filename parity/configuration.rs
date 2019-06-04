@@ -927,6 +927,7 @@ impl Configuration {
 				true => Some(dirs.base),
 				false => None,
 			}
+			use_offchain_storage: self.args.flag_private_state_offchain,
 		};
 
 		let encryptor_conf = EncryptorConfig {
