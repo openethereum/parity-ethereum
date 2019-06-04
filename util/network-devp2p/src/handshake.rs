@@ -17,19 +17,20 @@
 use std::time::Duration;
 
 use ethereum_types::{H256, H520};
-use hash::write_keccak;
+use keccak_hash::write_keccak;
+use log::{trace, debug};
 use mio::tcp::*;
 use parity_bytes::Bytes;
 use rand::random;
 use rlp::{Rlp, RlpStream};
 
-use connection::Connection;
+use crate::connection::Connection;
 use ethkey::{Generator, KeyPair, Public, Random, recover, Secret, sign};
 use ethkey::crypto::{ecdh, ecies};
-use host::HostInfo;
-use io::{IoContext, StreamToken};
+use crate::host::HostInfo;
+use ethcore_io::{IoContext, StreamToken};
 use network::{Error, ErrorKind};
-use node_table::NodeId;
+use crate::node_table::NodeId;
 
 #[derive(PartialEq, Eq, Debug)]
 enum HandshakeState {
@@ -327,7 +328,7 @@ mod test {
     use rustc_hex::FromHex;
 
     use ethkey::Public;
-    use io::*;
+    use ethcore_io::*;
 
     use super::*;
 

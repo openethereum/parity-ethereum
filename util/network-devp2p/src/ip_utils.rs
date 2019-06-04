@@ -22,8 +22,9 @@ use std::time::Duration;
 
 use igd::{PortMappingProtocol, search_gateway_from_timeout};
 use ipnetwork::IpNetwork;
+use log::debug;
 
-use node_table::NodeEndpoint;
+use crate::node_table::NodeEndpoint;
 
 /// Socket address extension for rustc beta. To be replaces with now unstable API
 pub trait SocketAddrExt {

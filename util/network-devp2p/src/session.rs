@@ -20,20 +20,22 @@ use std::net::SocketAddr;
 use std::time::{Duration, Instant};
 
 use ethereum_types::H256;
+use error_chain::bail;
+use log::{trace, debug, warn};
 use mio::*;
 use mio::deprecated::{EventLoop, Handler};
 use mio::tcp::*;
 use rlp::{EMPTY_LIST_RLP, Rlp, RlpStream};
-use snappy;
+use parity_snappy as snappy;
 
-use connection::{Connection, EncryptedConnection, MAX_PAYLOAD_SIZE, Packet};
-use handshake::Handshake;
-use host::*;
-use io::{IoContext, StreamToken};
+use crate::connection::{Connection, EncryptedConnection, MAX_PAYLOAD_SIZE, Packet};
+use crate::handshake::Handshake;
+use crate::host::*;
+use ethcore_io::{IoContext, StreamToken};
 use network::{DisconnectReason, Error, ErrorKind, PeerCapabilityInfo, ProtocolId, SessionInfo};
 use network::client_version::ClientVersion;
 use network::SessionCapabilityInfo;
-use node_table::NodeId;
+use crate::node_table::NodeId;
 
 // Timeout must be less than (interval - 1).
 const PING_TIMEOUT: Duration = Duration::from_secs(60);

@@ -25,12 +25,15 @@ use std::str::FromStr;
 use std::time::{self, Duration, SystemTime};
 
 use ethereum_types::H512;
+use error_chain::bail;
+use log::{debug, warn};
 use rand::{self, Rng};
 use rlp::{DecoderError, Rlp, RlpStream};
 use serde_json;
+use serde::{Serialize, Deserialize};
 
-use discovery::{NodeEntry, TableUpdates};
-use ip_utils::*;
+use crate::discovery::{NodeEntry, TableUpdates};
+use crate::ip_utils::*;
 use network::{AllowIP, Error, ErrorKind, IpFilter};
 
 /// Node public key
@@ -602,6 +605,7 @@ mod tests {
 	use std::thread::sleep;
 	use std::time::Duration;
 
+	use assert_matches::assert_matches;
 	use ethereum_types::H512;
 	use ipnetwork::IpNetwork;
 	use tempdir::TempDir;

@@ -18,11 +18,13 @@ use std::net::SocketAddr;
 use std::ops::RangeInclusive;
 use std::sync::Arc;
 
+//TODO: remove this
 use ansi_term::Colour;
+use log::info;
 use parking_lot::RwLock;
 
-use host::Host;
-use io::*;
+use crate::host::Host;
+use ethcore_io::{IoService, IoHandler, IoContext};
 use network::{Error, NetworkConfiguration, NetworkProtocolHandler, NonReservedPeerMode};
 use network::{NetworkContext, NetworkIoMessage, PeerId, ProtocolId};
 use network::ConnectionFilter;

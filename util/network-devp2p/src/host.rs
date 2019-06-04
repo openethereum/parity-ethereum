@@ -27,29 +27,31 @@ use std::sync::atomic::{AtomicBool, Ordering as AtomicOrdering};
 use std::time::Duration;
 
 use ethereum_types::H256;
-use hash::keccak;
-use mio::*;
-use mio::deprecated::EventLoop;
-use mio::tcp::*;
-use mio::udp::*;
+use keccak_hash::keccak;
+use log::{trace, debug, warn, info};
+use mio::{
+	PollOpt, Ready, Token, deprecated::EventLoop,
+	tcp::{TcpListener, TcpStream},
+	udp::UdpSocket
+};
 use parity_path::restrict_permissions_owner;
 use parking_lot::{Mutex, RwLock};
 use rlp::{Encodable, RlpStream};
 use rustc_hex::ToHex;
 
-use connection::PAYLOAD_SOFT_LIMIT;
-use discovery::{Discovery, MAX_DATAGRAM_SIZE, NodeEntry, TableUpdates};
+use crate::connection::PAYLOAD_SOFT_LIMIT;
+use crate::discovery::{Discovery, MAX_DATAGRAM_SIZE, NodeEntry, TableUpdates};
 use ethkey::{Generator, KeyPair, Random, Secret};
-use io::*;
-use ip_utils::{map_external_address, select_public_address};
+use ethcore_io::{StreamToken, IoManager, IoContext, TimerToken, IoHandler};
+use crate::ip_utils::{map_external_address, select_public_address};
 use network::{NetworkConfiguration, NetworkIoMessage, PacketId, PeerId, ProtocolId};
 use network::{NetworkContext as NetworkContextTrait, NonReservedPeerMode};
 use network::{DisconnectReason, Error, ErrorKind, NetworkProtocolHandler, SessionInfo};
 use network::{ConnectionDirection, ConnectionFilter};
 use network::client_version::ClientVersion;
-use node_table::*;
-use PROTOCOL_VERSION;
-use session::{Session, SessionData};
+use crate::node_table::*;
+use crate::PROTOCOL_VERSION;
+use crate::session::{Session, SessionData};
 
 type Slab<T> = ::slab::Slab<T, usize>;
 
@@ -263,17 +265,17 @@ pub struct Host {
 	sessions: Arc<RwLock<Slab<SharedSession>>>,
 	discovery: Mutex<Option<Discovery<'static>>>,
 	nodes: RwLock<NodeTable>,
-	handlers: RwLock<HashMap<ProtocolId, Arc<NetworkProtocolHandler + Sync>>>,
+	handlers: RwLock<HashMap<ProtocolId, Arc<dyn NetworkProtocolHandler + Sync>>>,
 	timers: RwLock<HashMap<TimerToken, ProtocolTimer>>,
 	timer_counter: RwLock<usize>,
 	reserved_nodes: RwLock<HashSet<NodeId>>,
 	stopping: AtomicBool,
-	filter: Option<Arc<ConnectionFilter>>,
+	filter: Option<Arc<dyn ConnectionFilter>>,
 }
 
 impl Host {
 	/// Create a new instance
-	pub fn new(mut config: NetworkConfiguration, filter: Option<Arc<ConnectionFilter>>) -> Result<Host, Error> {
+	pub fn new(mut config: NetworkConfiguration, filter: Option<Arc<dyn ConnectionFilter>>) -> Result<Host, Error> {
 		let mut listen_address = match config.listen_address {
 			None => SocketAddr::V4(SocketAddrV4::new(Ipv4Addr::new(0, 0, 0, 0), DEFAULT_PORT)),
 			Some(addr) => addr,
@@ -978,14 +980,14 @@ impl Host {
 		self.nodes.write().update(node_changes, &*self.reserved_nodes.read());
 	}
 
-	pub fn with_context<F>(&self, protocol: ProtocolId, io: &IoContext<NetworkIoMessage>, action: F) where F: FnOnce(&NetworkContextTrait) {
+	pub fn with_context<F>(&self, protocol: ProtocolId, io: &IoContext<NetworkIoMessage>, action: F) where F: FnOnce(&dyn NetworkContextTrait) {
 		let reserved = { self.reserved_nodes.read() };
 
 		let context = NetworkContext::new(io, protocol, None, self.sessions.clone(), &reserved);
 		action(&context);
 	}
 
-	pub fn with_context_eval<F, T>(&self, protocol: ProtocolId, io: &IoContext<NetworkIoMessage>, action: F) -> T where F: FnOnce(&NetworkContextTrait) -> T {
+	pub fn with_context_eval<F, T>(&self, protocol: ProtocolId, io: &IoContext<NetworkIoMessage>, action: F) -> T where F: FnOnce(&dyn NetworkContextTrait) -> T {
 		let reserved = { self.reserved_nodes.read() };
 
 		let context = NetworkContext::new(io, protocol, None, self.sessions.clone(), &reserved);
