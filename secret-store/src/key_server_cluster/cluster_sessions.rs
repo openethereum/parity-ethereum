@@ -101,10 +101,11 @@ pub trait ClusterSession {
 		match result_reader(&locked_data) {
 			Some(result) => Some(result),
 			None => {
+				let completion_condvar = completion.completion_condvar.as_ref().expect("created in test mode");
 				match timeout {
-					None => completion.completion_condvar.wait(&mut locked_data),
+					None => completion_condvar.wait(&mut locked_data),
 					Some(timeout) => {
-						completion.completion_condvar.wait_for(&mut locked_data, timeout);
+						completion_condvar.wait_for(&mut locked_data, timeout);
 					},
 				}
 
@@ -128,7 +129,7 @@ pub struct CompletionSignal<T> {
 	pub completion_future: Mutex<Option<Complete<Result<T, Error>>>>,
 
 	/// Completion condvar.
-	pub completion_condvar: Condvar,
+	pub completion_condvar: Option<Condvar>,
 }
 
 /// Administrative session.
@@ -630,16 +631,19 @@ impl<S: ClusterSession> WaitableSession<S> {
 impl<T> CompletionSignal<T> {
 	pub fn new() -> (Self, Oneshot<Result<T, Error>>) {
 		let (complete, oneshot) = oneshot();
+		let completion_condvar = if cfg!(test) { Some(Condvar::new()) } else { None };
 		(CompletionSignal {
 			completion_future: Mutex::new(Some(complete)),
-			completion_condvar: Condvar::new(),
+			completion_condvar,
 		}, oneshot)
 	}
 
 	pub fn send(&self, result: Result<T, Error>) {
 		let completion_future = ::std::mem::replace(&mut *self.completion_future.lock(), None);
 		completion_future.map(|c| c.send(result));
-		self.completion_condvar.notify_all();
+		if let Some(ref completion_condvar) = self.completion_condvar {
+			completion_condvar.notify_all();
+		}
 	}
 }
 
