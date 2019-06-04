@@ -132,8 +132,8 @@ impl<'p, C> SyncIo for TestIo<'p, C> where C: FlushingBlockChainClient, C: 'p {
 		self.snapshot_service
 	}
 
-	fn private_state(&self) -> &Option<Arc<PrivateStateDB>> {
-		&None
+	fn private_state(&self) -> Option<Arc<PrivateStateDB>> {
+		None
 	}
 
 	fn peer_session_info(&self, _peer_id: PeerId) -> Option<SessionInfo> {
