@@ -269,7 +269,7 @@ impl<'a> Discovery<'a> {
 
 			let node_to_ping = {
 				let bucket = &mut self.node_buckets[bucket_distance];
-				bucket.nodes.push_front(BucketEntry::new(node_entry));
+				bucket.nodes.push_front(BucketEntry::new(node_entry.clone()));
 				if bucket.nodes.len() > BUCKET_SIZE {
 					select_bucket_ping(bucket.nodes.iter())
 				} else {
