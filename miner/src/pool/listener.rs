@@ -151,33 +151,36 @@ impl txpool::Listener<Transaction> for TransactionsPoolNotifier {
 #[cfg(test)]
 mod tests {
 	use super::*;
-	use parking_lot::Mutex;
 	use types::transaction;
 	use txpool::Listener;
+	use futures::{Stream, Future};
 	use ethereum_types::Address;
 
 	#[test]
 	fn should_notify_listeners() {
 		// given
-		let received = Arc::new(Mutex::new(vec![]));
-		let r = received.clone();
-		let listener = Box::new(move |hashes: &[H256]| {
-			*r.lock() = hashes.iter().map(|x| *x).collect();
-		});
+		let (full_sender, full_receiver) = mpsc::unbounded();
+		let (pending_sender, pending_receiver) = mpsc::unbounded();
 
-		let mut tx_listener = Notifier::default();
-		tx_listener.add(listener);
+		let mut tx_listener = TransactionsPoolNotifier::default();
+		tx_listener.add_full_listener(full_sender);
+		tx_listener.add_pending_listener(pending_sender);
 
 		// when
 		let tx = new_tx();
 		tx_listener.added(&tx, None);
-		assert_eq!(*received.lock(), vec![]);
 
 		// then
 		tx_listener.notify();
+		let (full_res , _full_receiver)= full_receiver.into_future().wait().unwrap();
+		let (pending_res , _pending_receiver)= pending_receiver.into_future().wait().unwrap();
 		assert_eq!(
-			*received.lock(),
-			vec!["13aff4201ac1dc49daf6a7cf07b558ed956511acbaabf9502bdacc353953766d".parse().unwrap()]
+			full_res,
+			Some(Arc::new(vec![(serde_json::from_str::<H256>("\"0x13aff4201ac1dc49daf6a7cf07b558ed956511acbaabf9502bdacc353953766d\"").unwrap(), TxStatus::Added)]))
+		);
+		assert_eq!(
+			pending_res,
+			Some(Arc::new(vec![serde_json::from_str::<H256>("\"0x13aff4201ac1dc49daf6a7cf07b558ed956511acbaabf9502bdacc353953766d\"").unwrap()]))
 		);
 	}
 
