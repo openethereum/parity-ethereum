@@ -261,7 +261,7 @@ impl<'a> Discovery<'a> {
             Ok(()) => None,
             Err(BucketError::Ourselves) => None,
             Err(BucketError::NotInTheBucket{node_entry, bucket_distance}) => Some((node_entry, bucket_distance))
-        }.map(|(node_entry, bucket_distance)| {
+        }.and_then(|(node_entry, bucket_distance)| {
 			trace!(target: "discovery", "Adding a new node {:?} into our bucket {}", &node_entry, bucket_distance);
 
             let mut added = HashMap::with_capacity(1);
@@ -279,7 +279,12 @@ impl<'a> Discovery<'a> {
 			if let Some(node) = node_to_ping {
 				self.try_ping(node, PingReason::Default);
 			};
-            TableUpdates{added, removed: HashSet::new()}
+
+            if !self.bootnodes.contains(&node_entry.id) {
+				Some(TableUpdates { added, removed: HashSet::new() })
+			} else {
+				None
+			}
         })
 	}
 
@@ -618,10 +623,8 @@ impl<'a> Discovery<'a> {
 					NodeValidity::Ourselves => (),
 				}
 				Ok(None)
-			} else if !self.bootnodes.contains(node_id) {
-				Ok(self.update_node(node))
 			} else {
-				Ok(None)
+				Ok(self.update_node(node))
 			}
 		} else {
 			debug!(target: "discovery", "Got unexpected Pong from {:?} ; request not found", &from);
