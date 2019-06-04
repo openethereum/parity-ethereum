@@ -31,7 +31,7 @@ use crypto::aes::{AesCtr256, AesEcb256};
 use rlp::{Rlp, RlpStream};
 use tiny_keccak::Keccak;
 
-use ethkey::crypto;
+use ethkey::{crypto, Secret};
 use handshake::Handshake;
 use io::{IoContext, StreamToken};
 use network::{Error, ErrorKind};
@@ -389,11 +389,13 @@ impl EncryptedConnection {
 			return Err(ErrorKind::Auth.into());
 		}
 		EncryptedConnection::update_mac(&mut self.ingress_mac, &self.mac_encoder_key, &header[0..16])?;
-		let mac = &header[16..];
-		let mut expected = H256::zero();
-		self.ingress_mac.clone().finalize(expected.as_bytes_mut());
-		if mac != &expected[0..16] {
-			return Err(ErrorKind::Auth.into());
+		{
+			let mac = &header[16..];
+			let mut expected = H256::zero();
+			self.ingress_mac.clone().finalize(expected.as_bytes_mut());
+			if mac != &expected[0..16] {
+				return Err(ErrorKind::Auth.into());
+			}
 		}
 		self.decoder.decrypt(&mut header[..16])?;
 
@@ -422,11 +424,13 @@ impl EncryptedConnection {
 		self.ingress_mac.update(&payload[0..payload.len() - 16]);
 		EncryptedConnection::update_mac(&mut self.ingress_mac, &self.mac_encoder_key, &[0u8; 0])?;
 
-		let mac = &payload[(payload.len() - 16)..];
-		let mut expected = H128::default();
-		self.ingress_mac.clone().finalize(expected.as_bytes_mut());
-		if mac != &expected[..] {
-			return Err(ErrorKind::Auth.into());
+		{
+			let mac = &payload[(payload.len() - 16)..];
+			let mut expected = H128::default();
+			self.ingress_mac.clone().finalize(expected.as_bytes_mut());
+			if mac != &expected[..] {
+				return Err(ErrorKind::Auth.into());
+			}
 		}
 		self.decoder.decrypt(&mut payload[..self.payload_len + padding])?;
 		payload.truncate(self.payload_len);
