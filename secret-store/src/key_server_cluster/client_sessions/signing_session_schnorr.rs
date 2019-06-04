@@ -212,7 +212,7 @@ impl SessionImpl {
 			.expect("wait_session returns Some if called without timeout; qed")
 	}
 
-	/// Get session state.
+	/// Get session state (tests only).
 	#[cfg(test)]
 	pub fn state(&self) -> SessionState {
 		self.data.lock().state

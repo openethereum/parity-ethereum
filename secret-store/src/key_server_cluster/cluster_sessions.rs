@@ -19,7 +19,7 @@ use std::sync::{Arc, Weak};
 use std::sync::atomic::AtomicBool;
 use std::collections::{VecDeque, BTreeMap, BTreeSet};
 use futures::{oneshot, Oneshot, Complete, Future};
-use parking_lot::{Mutex, RwLock};
+use parking_lot::{Mutex, RwLock, Condvar};
 use ethereum_types::H256;
 use ethkey::Secret;
 use key_server_cluster::{Error, NodeId, SessionId, NodeKeyPair};
@@ -40,9 +40,6 @@ use key_server_cluster::key_version_negotiation_session::{SessionImpl as KeyVers
 use key_server_cluster::cluster_sessions_creator::{GenerationSessionCreator, EncryptionSessionCreator, DecryptionSessionCreator,
 	SchnorrSigningSessionCreator, KeyVersionNegotiationSessionCreator, AdminSessionCreator, SessionCreatorCore,
 	EcdsaSigningSessionCreator, ClusterSessionCreator};
-
-#[cfg(test)]
-use parking_lot::Condvar;
 
 /// When there are no session-related messages for SESSION_TIMEOUT_INTERVAL seconds,
 /// we must treat this session as stalled && finish it with an error.
@@ -131,7 +128,6 @@ pub struct CompletionSignal<T> {
 	pub completion_future: Mutex<Option<Complete<Result<T, Error>>>>,
 
 	/// Completion condvar.
-	#[cfg(test)]
 	pub completion_condvar: Condvar,
 }
 
@@ -631,7 +627,6 @@ impl<S: ClusterSession> WaitableSession<S> {
 	}
 }
 
-#[cfg(test)]
 impl<T> CompletionSignal<T> {
 	pub fn new() -> (Self, Oneshot<Result<T, Error>>) {
 		let (complete, oneshot) = oneshot();
@@ -645,21 +640,6 @@ impl<T> CompletionSignal<T> {
 		let completion_future = ::std::mem::replace(&mut *self.completion_future.lock(), None);
 		completion_future.map(|c| c.send(result));
 		self.completion_condvar.notify_all();
-	}
-}
-
-#[cfg(not(test))]
-impl<T> CompletionSignal<T> {
-	pub fn new() -> (Self, Oneshot<Result<T, Error>>) {
-		let (complete, oneshot) = oneshot();
-		(CompletionSignal {
-			completion_future: Mutex::new(Some(complete)),
-		}, oneshot)
-	}
-
-	pub fn send(&self, result: Result<T, Error>) {
-		let completion_future = ::std::mem::replace(&mut *self.completion_future.lock(), None);
-		completion_future.map(|c| c.send(result));
 	}
 }
 

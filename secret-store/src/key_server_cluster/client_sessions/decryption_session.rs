@@ -213,7 +213,7 @@ impl SessionImpl {
 		&self.core.access_key
 	}
 
-	/// Get session state.
+	/// Get session state (tests only).
 	#[cfg(test)]
 	pub fn state(&self) -> ConsensusSessionState {
 		self.data.lock().consensus_session.state()
