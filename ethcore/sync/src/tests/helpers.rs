@@ -20,18 +20,21 @@ use ethereum_types::H256;
 use parking_lot::{RwLock, Mutex};
 use bytes::Bytes;
 use network::{self, PeerId, ProtocolId, PacketId, SessionInfo};
+use network::client_version::ClientVersion;
 use tests::snapshot::*;
 use ethcore::client::{TestBlockChainClient, BlockChainClient, Client as EthcoreClient,
 	ClientConfig, ChainNotify, NewBlocks, ChainMessageType, ClientIoMessage};
 use ethcore::snapshot::SnapshotService;
 use ethcore::spec::Spec;
-use ethcore::account_provider::AccountProvider;
 use ethcore::miner::Miner;
 use ethcore::test_helpers;
 use sync_io::SyncIo;
 use io::{IoChannel, IoContext, IoHandler};
 use api::WARP_SYNC_PROTOCOL_ID;
-use chain::{ChainSync, ETH_PROTOCOL_VERSION_63, PAR_PROTOCOL_VERSION_3, PRIVATE_TRANSACTION_PACKET, SIGNED_PRIVATE_TRANSACTION_PACKET, SyncSupplier};
+use chain::{ChainSync, SyncSupplier, ETH_PROTOCOL_VERSION_63, PAR_PROTOCOL_VERSION_3};
+use chain::sync_packet::{PacketInfo, SyncPacket};
+use chain::sync_packet::SyncPacket::{PrivateTransactionPacket, SignedPrivateTransactionPacket};
+
 use SyncConfig;
 use private_tx::SimplePrivateTxHandler;
 use types::BlockNumber;
@@ -102,27 +105,25 @@ impl<'p, C> SyncIo for TestIo<'p, C> where C: FlushingBlockChainClient, C: 'p {
 		Ok(())
 	}
 
-	fn send(&mut self, peer_id: PeerId, packet_id: PacketId, data: Vec<u8>) -> Result<(), network::Error> {
+	fn send(&mut self,peer_id: PeerId, packet_id: SyncPacket, data: Vec<u8>) -> Result<(), network::Error> {
 		self.packets.push(TestPacket {
 			data: data,
-			packet_id: packet_id,
+			packet_id: packet_id.id(),
 			recipient: peer_id,
 		});
 		Ok(())
-	}
-
-	fn send_protocol(&mut self, _protocol: ProtocolId, peer_id: PeerId, packet_id: PacketId, data: Vec<u8>) -> Result<(), network::Error> {
-		self.send(peer_id, packet_id, data)
 	}
 
 	fn chain(&self) -> &BlockChainClient {
 		&*self.chain
 	}
 
-	fn peer_info(&self, peer_id: PeerId) -> String {
-		self.peers_info.get(&peer_id)
+	fn peer_version(&self, peer_id: PeerId) -> ClientVersion {
+		let client_id = self.peers_info.get(&peer_id)
 			.cloned()
-			.unwrap_or_else(|| peer_id.to_string())
+			.unwrap_or_else(|| peer_id.to_string());
+
+		ClientVersion::from(client_id)
 	}
 
 	fn snapshot_service(&self) -> &SnapshotService {
@@ -234,9 +235,9 @@ impl<C> EthPeer<C> where C: FlushingBlockChainClient {
 		match message {
 			ChainMessageType::Consensus(data) => self.sync.write().propagate_consensus_packet(&mut io, data),
 			ChainMessageType::PrivateTransaction(transaction_hash, data) =>
-				self.sync.write().propagate_private_transaction(&mut io, transaction_hash, PRIVATE_TRANSACTION_PACKET, data),
+				self.sync.write().propagate_private_transaction(&mut io, transaction_hash, PrivateTransactionPacket, data),
 			ChainMessageType::SignedPrivateTransaction(transaction_hash, data) =>
-				self.sync.write().propagate_private_transaction(&mut io, transaction_hash, SIGNED_PRIVATE_TRANSACTION_PACKET, data),
+				self.sync.write().propagate_private_transaction(&mut io, transaction_hash, SignedPrivateTransactionPacket, data),
 		}
 	}
 
@@ -367,11 +368,10 @@ impl TestNet<EthPeer<TestBlockChainClient>> {
 }
 
 impl TestNet<EthPeer<EthcoreClient>> {
-	pub fn with_spec_and_accounts<F>(
+	pub fn with_spec<F>(
 		n: usize,
 		config: SyncConfig,
 		spec_factory: F,
-		accounts: Option<Arc<AccountProvider>>
 	) -> Self
 		where F: Fn() -> Spec
 	{
@@ -381,14 +381,14 @@ impl TestNet<EthPeer<EthcoreClient>> {
 			disconnect_events: Vec::new(),
 		};
 		for _ in 0..n {
-			net.add_peer_with_private_config(config.clone(), spec_factory(), accounts.clone());
+			net.add_peer_with_private_config(config.clone(), spec_factory());
 		}
 		net
 	}
 
-	pub fn add_peer_with_private_config(&mut self, config: SyncConfig, spec: Spec, accounts: Option<Arc<AccountProvider>>) {
+	pub fn add_peer_with_private_config(&mut self, config: SyncConfig, spec: Spec) {
 		let channel = IoChannel::disconnected();
-		let miner = Arc::new(Miner::new_for_tests(&spec, accounts.clone()));
+		let miner = Arc::new(Miner::new_for_tests(&spec, None));
 		let client = EthcoreClient::new(
 			ClientConfig::default(),
 			&spec,

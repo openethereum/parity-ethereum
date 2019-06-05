@@ -18,7 +18,7 @@ use std::sync::{Arc, Weak};
 
 use ethcore::engines::{EthEngine, StateDependentProof};
 use ethcore::machine::EthereumMachine;
-use sync::LightSync;
+use sync::{LightSync, LightNetworkDispatcher};
 use types::encoded;
 use types::header::Header;
 use types::receipt::Receipt;
@@ -27,7 +27,7 @@ use futures::{future, Future};
 use futures::future::Either;
 
 use light::client::fetch::ChainDataFetcher;
-use light::on_demand::{request, OnDemand};
+use light::on_demand::{request, OnDemand, OnDemandRequester};
 
 use parking_lot::RwLock;
 use ethereum_types::H256;

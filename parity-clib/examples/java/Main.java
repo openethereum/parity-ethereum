@@ -35,7 +35,9 @@ class Main {
 	};
 
 	public static void runParity(String[] config) {
-		Parity parity = new Parity(config);
+		String loggerMode = "rpc=trace";
+		String loggerFile = "foo.log";
+		Parity parity = new Parity(config, loggerMode, loggerFile);
 
 		Callback rpcCallback = new Callback(1);
 		Callback webSocketCallback = new Callback(2);
@@ -94,12 +96,6 @@ class Callback {
 	}
 
 	public void callback(Object response) {
-		response = (String) response;
-		if (callbackType == 1) {
-			System.out.println("rpc: " + response);
-		} else if (callbackType == 2) {
-			System.out.println("ws: " + response);
-		}
 		counter.getAndIncrement();
 	}
 

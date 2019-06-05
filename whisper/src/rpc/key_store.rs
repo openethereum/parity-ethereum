@@ -24,7 +24,7 @@ use std::collections::HashMap;
 use ethereum_types::H256;
 use ethkey::{KeyPair, Public, Secret};
 use memzero::Memzero;
-use rand::{Rng, OsRng};
+use rand::{Rng, rngs::OsRng};
 
 use rpc::crypto::{AES_KEY_LEN, EncryptionInstance, DecryptionInstance};
 
@@ -105,7 +105,7 @@ impl KeyStore {
 
 	/// Import a key, generating a random identity for it.
 	pub fn insert(&mut self, key: Key) -> H256 {
-		let id = self.rng().gen();
+		let id = H256::random_using(self.rng());
 		self.identities.insert(id, key);
 
 		id

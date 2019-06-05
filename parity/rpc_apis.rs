@@ -21,10 +21,12 @@ use std::sync::{Arc, Weak};
 
 pub use parity_rpc::signer::SignerService;
 
-use ethcore::account_provider::AccountProvider;
+use account_utils::{self, AccountProvider};
 use ethcore::client::Client;
 use ethcore::miner::Miner;
 use ethcore::snapshot::SnapshotService;
+use ethcore::client::BlockChainClient;
+use sync::SyncState;
 use ethcore_logger::RotatingLogger;
 use ethcore_private_tx::Provider as PrivateTransactionManager;
 use ethcore_service::PrivateTxService;
@@ -36,6 +38,7 @@ use miner::external::ExternalMiner;
 use parity_rpc::dispatch::{FullDispatcher, LightDispatcher};
 use parity_rpc::informant::{ActivityNotifier, ClientNotifier};
 use parity_rpc::{Host, Metadata, NetworkSettings};
+use parity_rpc::v1::traits::TransactionsPool;
 use parity_runtime::Executor;
 use parking_lot::{Mutex, RwLock};
 use sync::{LightSync, ManageNetwork, SyncProvider};
@@ -80,6 +83,8 @@ pub enum Api {
 	/// Geth-compatible (best-effort) debug API (Potentially UNSAFE)
 	/// NOTE We don't aim to support all methods, only the ones that are useful.
 	Debug,
+	/// Parity Transactions pool PubSub
+	ParityTransactionsPool,
 }
 
 impl FromStr for Api {
@@ -106,6 +111,7 @@ impl FromStr for Api {
 			"signer" => Ok(Signer),
 			"traces" => Ok(Traces),
 			"web3" => Ok(Web3),
+			"parity_transactions_pool" => Ok(ParityTransactionsPool),
 			api => Err(format!("Unknown api: {}", api)),
 		}
 	}
@@ -113,11 +119,9 @@ impl FromStr for Api {
 
 #[derive(Debug, Clone)]
 pub enum ApiSet {
-	// Safe context (like token-protected WS interface)
-	SafeContext,
 	// Unsafe context (like jsonrpc over http)
 	UnsafeContext,
-	// All possible APIs
+	// All possible APIs (safe context like token-protected WS interface)
 	All,
 	// Local "unsafe" context and accounts access
 	IpcContext,
@@ -191,10 +195,31 @@ fn to_modules(apis: &HashSet<Api>) -> BTreeMap<String, String> {
 			Api::Web3 => ("web3", "1.0"),
 			Api::Whisper => ("shh", "1.0"),
 			Api::WhisperPubSub => ("shh_pubsub", "1.0"),
+			Api::ParityTransactionsPool => ("parity_transactions_pool", "1.0"),
 		};
 		modules.insert(name.into(), version.into());
 	}
 	modules
+}
+
+macro_rules! add_signing_methods {
+	($namespace:ident, $handler:expr, $deps:expr, $dispatch:expr) => {{
+		let deps = &$deps;
+		let (dispatcher, accounts) = $dispatch;
+		if deps.signer_service.is_enabled() {
+			$handler.extend_with($namespace::to_delegate(SigningQueueClient::new(
+				&deps.signer_service,
+				dispatcher.clone(),
+				deps.executor.clone(),
+				accounts,
+			)))
+		} else {
+			$handler.extend_with($namespace::to_delegate(SigningUnsafeClient::new(
+				accounts,
+				dispatcher.clone(),
+			)))
+			}
+		}};
 }
 
 /// RPC dependencies can be used to initialize RPC endpoints from APIs.
@@ -217,7 +242,7 @@ pub struct FullDependencies {
 	pub snapshot: Arc<SnapshotService>,
 	pub sync: Arc<SyncProvider>,
 	pub net: Arc<ManageNetwork>,
-	pub secret_store: Arc<AccountProvider>,
+	pub accounts: Arc<AccountProvider>,
 	pub private_tx_service: Option<Arc<PrivateTxService>>,
 	pub miner: Arc<Miner>,
 	pub external_miner: Arc<ExternalMiner>,
@@ -234,6 +259,7 @@ pub struct FullDependencies {
 	pub gas_price_percentile: usize,
 	pub poll_lifetime: u32,
 	pub allow_missing_blocks: bool,
+	pub no_ancient_blocks: bool,
 }
 
 impl FullDependencies {
@@ -247,31 +273,6 @@ impl FullDependencies {
 	{
 		use parity_rpc::v1::*;
 
-		macro_rules! add_signing_methods {
-			($namespace:ident, $handler:expr, $deps:expr, $nonces:expr) => {{
-				let deps = &$deps;
-				let dispatcher = FullDispatcher::new(
-					deps.client.clone(),
-					deps.miner.clone(),
-					$nonces,
-					deps.gas_price_percentile,
-				);
-				if deps.signer_service.is_enabled() {
-					$handler.extend_with($namespace::to_delegate(SigningQueueClient::new(
-						&deps.signer_service,
-						dispatcher,
-						deps.executor.clone(),
-						&deps.secret_store,
-					)))
-				} else {
-					$handler.extend_with($namespace::to_delegate(SigningUnsafeClient::new(
-						&deps.secret_store,
-						dispatcher,
-					)))
-				}
-			}};
-		}
-
 		let nonces = Arc::new(Mutex::new(dispatch::Reservations::new(
 			self.executor.clone(),
 		)));
@@ -281,13 +282,16 @@ impl FullDependencies {
 			nonces.clone(),
 			self.gas_price_percentile,
 		);
+		let account_signer = Arc::new(dispatch::Signer::new(self.accounts.clone())) as _;
+		let accounts = account_utils::accounts_list(self.accounts.clone());
+
 		for api in apis {
 			match *api {
 				Api::Debug => {
 					handler.extend_with(DebugClient::new(self.client.clone()).to_delegate());
 				}
 				Api::Web3 => {
-					handler.extend_with(Web3Client::new().to_delegate());
+					handler.extend_with(Web3Client::default().to_delegate());
 				}
 				Api::Net => {
 					handler.extend_with(NetClient::new(&self.sync).to_delegate());
@@ -297,7 +301,7 @@ impl FullDependencies {
 						&self.client,
 						&self.snapshot,
 						&self.sync,
-						&self.secret_store,
+						&accounts,
 						&self.miner,
 						&self.external_miner,
 						EthClientOptions {
@@ -307,6 +311,7 @@ impl FullDependencies {
 							gas_price_percentile: self.gas_price_percentile,
 							allow_missing_blocks: self.allow_missing_blocks,
 							allow_experimental_rpcs: self.experimental_rpcs,
+							no_ancient_blocks: self.no_ancient_blocks
 						}
 					);
 					handler.extend_with(client.to_delegate());
@@ -319,20 +324,27 @@ impl FullDependencies {
 						);
 						handler.extend_with(filter_client.to_delegate());
 
-						add_signing_methods!(EthSigning, handler, self, nonces.clone());
+						add_signing_methods!(EthSigning, handler, self, (&dispatcher, &account_signer));
 					}
 				}
 				Api::EthPubSub => {
 					if !for_generic_pubsub {
-						let client =
-							EthPubSubClient::new(self.client.clone(), self.executor.clone());
-						let h = client.handler();
-						self.miner
-							.add_transactions_listener(Box::new(move |hashes| {
-								if let Some(h) = h.upgrade() {
-									h.notify_new_transactions(hashes);
-								}
-							}));
+						let pool_receiver = self.miner.pending_transactions_receiver();
+						let mut client =
+							EthPubSubClient::new(self.client.clone(), self.executor.clone(), pool_receiver);
+						let weak_client = Arc::downgrade(&self.client);
+
+						client.add_sync_notifier(self.sync.sync_notification(), move |state| {
+							let client = weak_client.upgrade()?;
+							let queue_info = client.queue_info();
+
+							let is_syncing_state = match state { SyncState::Idle | SyncState::NewBlocks => false, _ => true };
+							let is_verifying = queue_info.unverified_queue_size + queue_info.verified_queue_size > 3;
+
+							Some(PubSubSyncStatus {
+								syncing: is_verifying || is_syncing_state,
+							})
+						});
 
 						if let Some(h) = client.handler().upgrade() {
 							self.client.add_notify(h);
@@ -340,10 +352,18 @@ impl FullDependencies {
 						handler.extend_with(client.to_delegate());
 					}
 				}
+				Api::ParityTransactionsPool => {
+					if !for_generic_pubsub {
+						let receiver = self.miner.full_transactions_receiver();
+						let client = TransactionsPoolClient::new(self.executor.clone(), receiver);
+						handler.extend_with(TransactionsPoolClient::to_delegate(client));
+					}
+				}
 				Api::Personal => {
+					#[cfg(feature = "accounts")]
 					handler.extend_with(
 						PersonalClient::new(
-							&self.secret_store,
+							&self.accounts,
 							dispatcher.clone(),
 							self.geth_compatibility,
 							self.experimental_rpcs,
@@ -353,7 +373,7 @@ impl FullDependencies {
 				Api::Signer => {
 					handler.extend_with(
 						SignerClient::new(
-							&self.secret_store,
+							account_signer.clone(),
 							dispatcher.clone(),
 							&self.signer_service,
 							self.executor.clone(),
@@ -372,7 +392,6 @@ impl FullDependencies {
 							self.sync.clone(),
 							self.updater.clone(),
 							self.net_service.clone(),
-							self.secret_store.clone(),
 							self.logger.clone(),
 							self.settings.clone(),
 							signer,
@@ -380,9 +399,11 @@ impl FullDependencies {
 							self.snapshot.clone().into(),
 						).to_delegate(),
 					);
+					#[cfg(feature = "accounts")]
+					handler.extend_with(ParityAccountsInfo::to_delegate(ParityAccountsClient::new(&self.accounts)));
 
 					if !for_generic_pubsub {
-						add_signing_methods!(ParitySigning, handler, self, nonces.clone());
+						add_signing_methods!(ParitySigning, handler, self, (&dispatcher, &account_signer));
 					}
 				}
 				Api::ParityPubSub => {
@@ -398,25 +419,35 @@ impl FullDependencies {
 					}
 				}
 				Api::ParityAccounts => {
-					handler
-						.extend_with(ParityAccountsClient::new(&self.secret_store).to_delegate());
+					#[cfg(feature = "accounts")]
+					handler.extend_with(ParityAccounts::to_delegate(ParityAccountsClient::new(&self.accounts)));
 				}
-				Api::ParitySet => handler.extend_with(
-					ParitySetClient::new(
-						&self.client,
-						&self.miner,
-						&self.updater,
-						&self.net_service,
-						self.fetch.clone(),
-					).to_delegate(),
-				),
+				Api::ParitySet => {
+					handler.extend_with(
+						ParitySetClient::new(
+							&self.client,
+							&self.miner,
+							&self.updater,
+							&self.net_service,
+							self.fetch.clone(),
+						).to_delegate(),
+					);
+					#[cfg(feature = "accounts")]
+					handler.extend_with(
+						ParitySetAccountsClient::new(
+							&self.accounts,
+							&self.miner,
+						).to_delegate(),
+					);
+				}
 				Api::Traces => handler.extend_with(TracesClient::new(&self.client).to_delegate()),
 				Api::Rpc => {
 					let modules = to_modules(&apis);
 					handler.extend_with(RpcClient::new(modules).to_delegate());
 				}
 				Api::SecretStore => {
-					handler.extend_with(SecretStoreClient::new(&self.secret_store).to_delegate());
+					#[cfg(feature = "accounts")]
+					handler.extend_with(SecretStoreClient::new(&self.accounts).to_delegate());
 				}
 				Api::Whisper => {
 					if let Some(ref whisper_rpc) = self.whisper_rpc {
@@ -475,7 +506,7 @@ pub struct LightDependencies<T> {
 	pub client: Arc<T>,
 	pub sync: Arc<LightSync>,
 	pub net: Arc<ManageNetwork>,
-	pub secret_store: Arc<AccountProvider>,
+	pub accounts: Arc<AccountProvider>,
 	pub logger: Arc<RotatingLogger>,
 	pub settings: Arc<NetworkSettings>,
 	pub on_demand: Arc<::light::on_demand::OnDemand>,
@@ -512,27 +543,8 @@ impl<C: LightChainClient + 'static> LightDependencies<C> {
 			))),
 			self.gas_price_percentile,
 		);
-
-		macro_rules! add_signing_methods {
-			($namespace:ident, $handler:expr, $deps:expr) => {{
-				let deps = &$deps;
-				let dispatcher = dispatcher.clone();
-				let secret_store = deps.secret_store.clone();
-				if deps.signer_service.is_enabled() {
-					$handler.extend_with($namespace::to_delegate(SigningQueueClient::new(
-						&deps.signer_service,
-						dispatcher,
-						deps.executor.clone(),
-						&secret_store,
-					)))
-				} else {
-					$handler.extend_with($namespace::to_delegate(SigningUnsafeClient::new(
-						&secret_store,
-						dispatcher,
-					)))
-					}
-				}};
-		}
+		let account_signer = Arc::new(dispatch::Signer::new(self.accounts.clone())) as _;
+		let accounts = account_utils::accounts_list(self.accounts.clone());
 
 		for api in apis {
 			match *api {
@@ -540,7 +552,7 @@ impl<C: LightChainClient + 'static> LightDependencies<C> {
 					warn!(target: "rpc", "Debug API is not available in light client mode.")
 				}
 				Api::Web3 => {
-					handler.extend_with(Web3Client::new().to_delegate());
+					handler.extend_with(Web3Client::default().to_delegate());
 				}
 				Api::Net => {
 					handler.extend_with(light::NetClient::new(self.sync.clone()).to_delegate());
@@ -551,7 +563,7 @@ impl<C: LightChainClient + 'static> LightDependencies<C> {
 						self.client.clone(),
 						self.on_demand.clone(),
 						self.transaction_queue.clone(),
-						self.secret_store.clone(),
+						accounts.clone(),
 						self.cache.clone(),
 						self.gas_price_percentile,
 						self.poll_lifetime,
@@ -560,33 +572,51 @@ impl<C: LightChainClient + 'static> LightDependencies<C> {
 
 					if !for_generic_pubsub {
 						handler.extend_with(EthFilter::to_delegate(client));
-						add_signing_methods!(EthSigning, handler, self);
+						add_signing_methods!(EthSigning, handler, self, (&dispatcher, &account_signer));
 					}
 				}
 				Api::EthPubSub => {
-					let client = EthPubSubClient::light(
+					let receiver = self.transaction_queue.write().pending_transactions_receiver();
+
+					let mut client = EthPubSubClient::light(
 						self.client.clone(),
 						self.on_demand.clone(),
 						self.sync.clone(),
 						self.cache.clone(),
 						self.executor.clone(),
 						self.gas_price_percentile,
+						receiver
 					);
+
+					let weak_client = Arc::downgrade(&self.client);
+
+					client.add_sync_notifier(self.sync.sync_notification(), move |state| {
+						let client = weak_client.upgrade()?;
+						let queue_info = client.queue_info();
+
+						let is_syncing_state = match state { SyncState::Idle | SyncState::NewBlocks => false, _ => true };
+						let is_verifying = queue_info.unverified_queue_size + queue_info.verified_queue_size > 3;
+
+						Some(PubSubSyncStatus {
+							syncing: is_verifying || is_syncing_state,
+						})
+					});
+
 					self.client.add_listener(client.handler() as Weak<_>);
-					let h = client.handler();
-					self.transaction_queue
-						.write()
-						.add_listener(Box::new(move |transactions| {
-							if let Some(h) = h.upgrade() {
-								h.notify_new_transactions(transactions);
-							}
-						}));
 					handler.extend_with(EthPubSub::to_delegate(client));
 				}
+				Api::ParityTransactionsPool => {
+					if !for_generic_pubsub {
+						let receiver = self.transaction_queue.write().full_transactions_receiver();
+						let client = TransactionsPoolClient::new(self.executor.clone(), receiver);
+						handler.extend_with(TransactionsPoolClient::to_delegate(client));
+					}
+				}
 				Api::Personal => {
+					#[cfg(feature = "accounts")]
 					handler.extend_with(
 						PersonalClient::new(
-							&self.secret_store,
+							&self.accounts,
 							dispatcher.clone(),
 							self.geth_compatibility,
 							self.experimental_rpcs,
@@ -596,7 +626,7 @@ impl<C: LightChainClient + 'static> LightDependencies<C> {
 				Api::Signer => {
 					handler.extend_with(
 						SignerClient::new(
-							&self.secret_store,
+							account_signer.clone(),
 							dispatcher.clone(),
 							&self.signer_service,
 							self.executor.clone(),
@@ -611,7 +641,6 @@ impl<C: LightChainClient + 'static> LightDependencies<C> {
 					handler.extend_with(
 						light::ParityClient::new(
 							Arc::new(dispatcher.clone()),
-							self.secret_store.clone(),
 							self.logger.clone(),
 							self.settings.clone(),
 							signer,
@@ -619,9 +648,13 @@ impl<C: LightChainClient + 'static> LightDependencies<C> {
 							self.gas_price_percentile,
 						).to_delegate(),
 					);
+					#[cfg(feature = "accounts")]
+					handler.extend_with(
+						ParityAccountsInfo::to_delegate(ParityAccountsClient::new(&self.accounts))
+					);
 
 					if !for_generic_pubsub {
-						add_signing_methods!(ParitySigning, handler, self);
+						add_signing_methods!(ParitySigning, handler, self, (&dispatcher, &account_signer));
 					}
 				}
 				Api::ParityPubSub => {
@@ -637,11 +670,11 @@ impl<C: LightChainClient + 'static> LightDependencies<C> {
 					}
 				}
 				Api::ParityAccounts => {
-					handler
-						.extend_with(ParityAccountsClient::new(&self.secret_store).to_delegate());
+					#[cfg(feature = "accounts")]
+					handler.extend_with(ParityAccounts::to_delegate(ParityAccountsClient::new(&self.accounts)));
 				}
 				Api::ParitySet => handler.extend_with(
-					light::ParitySetClient::new(self.sync.clone(), self.fetch.clone())
+					light::ParitySetClient::new(self.client.clone(), self.sync.clone(), self.fetch.clone())
 						.to_delegate(),
 				),
 				Api::Traces => handler.extend_with(light::TracesClient.to_delegate()),
@@ -650,7 +683,8 @@ impl<C: LightChainClient + 'static> LightDependencies<C> {
 					handler.extend_with(RpcClient::new(modules).to_delegate());
 				}
 				Api::SecretStore => {
-					handler.extend_with(SecretStoreClient::new(&self.secret_store).to_delegate());
+					#[cfg(feature = "accounts")]
+					handler.extend_with(SecretStoreClient::new(&self.accounts).to_delegate());
 				}
 				Api::Whisper => {
 					if let Some(ref whisper_rpc) = self.whisper_rpc {
@@ -719,22 +753,14 @@ impl ApiSet {
 			ApiSet::UnsafeContext => {
 				public_list.insert(Api::Traces);
 				public_list.insert(Api::ParityPubSub);
+				public_list.insert(Api::ParityTransactionsPool);
 				public_list
 			}
 			ApiSet::IpcContext => {
 				public_list.insert(Api::Traces);
 				public_list.insert(Api::ParityPubSub);
 				public_list.insert(Api::ParityAccounts);
-				public_list
-			}
-			ApiSet::SafeContext => {
-				public_list.insert(Api::Debug);
-				public_list.insert(Api::Traces);
-				public_list.insert(Api::ParityPubSub);
-				public_list.insert(Api::ParityAccounts);
-				public_list.insert(Api::ParitySet);
-				public_list.insert(Api::Signer);
-				public_list.insert(Api::SecretStore);
+				public_list.insert(Api::ParityTransactionsPool);
 				public_list
 			}
 			ApiSet::All => {
@@ -746,6 +772,7 @@ impl ApiSet {
 				public_list.insert(Api::Signer);
 				public_list.insert(Api::Personal);
 				public_list.insert(Api::SecretStore);
+				public_list.insert(Api::ParityTransactionsPool);
 				public_list
 			}
 			ApiSet::PubSub => [
@@ -754,6 +781,7 @@ impl ApiSet {
 				Api::ParityAccounts,
 				Api::ParitySet,
 				Api::Traces,
+				Api::ParityTransactionsPool,
 			]
 				.into_iter()
 				.cloned()
@@ -784,6 +812,7 @@ mod test {
 		assert_eq!(Api::Private, "private".parse().unwrap());
 		assert_eq!(Api::Whisper, "shh".parse().unwrap());
 		assert_eq!(Api::WhisperPubSub, "shh_pubsub".parse().unwrap());
+		assert_eq!(Api::ParityTransactionsPool, "parity_transactions_pool".parse().unwrap());
 		assert!("rp".parse::<Api>().is_err());
 	}
 
@@ -815,6 +844,7 @@ mod test {
 			Api::Whisper,
 			Api::WhisperPubSub,
 			Api::Private,
+			Api::ParityTransactionsPool,
 		].into_iter()
 		.collect();
 		assert_eq!(ApiSet::UnsafeContext.list_apis(), expected);
@@ -835,38 +865,12 @@ mod test {
 			Api::Whisper,
 			Api::WhisperPubSub,
 			Api::Private,
+			Api::ParityTransactionsPool,
 			// semi-safe
 			Api::ParityAccounts,
 		].into_iter()
 		.collect();
 		assert_eq!(ApiSet::IpcContext.list_apis(), expected);
-	}
-
-	#[test]
-	fn test_api_set_safe_context() {
-		let expected = vec![
-			// safe
-			Api::Web3,
-			Api::Net,
-			Api::Eth,
-			Api::EthPubSub,
-			Api::Parity,
-			Api::ParityPubSub,
-			Api::Traces,
-			Api::Rpc,
-			Api::SecretStore,
-			Api::Whisper,
-			Api::WhisperPubSub,
-			Api::Private,
-			// semi-safe
-			Api::ParityAccounts,
-			// Unsafe
-			Api::ParitySet,
-			Api::Signer,
-			Api::Debug,
-		].into_iter()
-		.collect();
-		assert_eq!(ApiSet::SafeContext.list_apis(), expected);
 	}
 
 	#[test]
@@ -892,6 +896,7 @@ mod test {
 					Api::Personal,
 					Api::Private,
 					Api::Debug,
+					Api::ParityTransactionsPool,
 				].into_iter()
 				.collect()
 			)
@@ -920,6 +925,7 @@ mod test {
 					Api::Signer,
 					Api::Private,
 					Api::Debug,
+					Api::ParityTransactionsPool,
 				].into_iter()
 				.collect()
 			)
@@ -943,6 +949,7 @@ mod test {
 					Api::Whisper,
 					Api::WhisperPubSub,
 					Api::Private,
+					Api::ParityTransactionsPool,
 				].into_iter()
 				.collect()
 			)

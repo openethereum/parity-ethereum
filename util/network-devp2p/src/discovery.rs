@@ -14,20 +14,22 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
-use parity_bytes::Bytes;
-use std::net::SocketAddr;
-use std::collections::{HashSet, HashMap, VecDeque};
+use std::collections::{HashMap, HashSet, VecDeque};
 use std::collections::hash_map::Entry;
 use std::default::Default;
+use std::net::SocketAddr;
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
-use hash::keccak;
-use ethereum_types::{H256, H520};
-use rlp::{Rlp, RlpStream};
-use node_table::*;
-use network::{Error, ErrorKind};
-use ethkey::{Secret, KeyPair, sign, recover};
-use network::IpFilter;
 
+use ethereum_types::{H256, H520};
+use hash::keccak;
+use lru_cache::LruCache;
+use parity_bytes::Bytes;
+use rlp::{Rlp, RlpStream};
+
+use ethkey::{KeyPair, recover, Secret, sign};
+use network::{Error, ErrorKind};
+use network::IpFilter;
+use node_table::*;
 use PROTOCOL_VERSION;
 
 const ADDRESS_BYTES_SIZE: usize = 32;						// Size of address type in bytes.
@@ -54,6 +56,8 @@ const REQUEST_BACKOFF: [Duration; 4] = [
 ];
 
 const NODE_LAST_SEEN_TIMEOUT: Duration = Duration::from_secs(24*60*60);
+
+const OBSERVED_NODES_MAX_SIZE: usize = 10_000;
 
 #[derive(Clone, Debug)]
 pub struct NodeEntry {
@@ -95,7 +99,27 @@ struct FindNodeRequest {
 #[derive(Clone, Copy)]
 enum PingReason {
 	Default,
-	FromDiscoveryRequest(NodeId)
+	FromDiscoveryRequest(NodeId, NodeValidity),
+}
+
+#[derive(Clone, Copy, PartialEq)]
+enum NodeCategory {
+	Bucket,
+	Observed
+}
+
+#[derive(Clone, Copy, PartialEq)]
+enum NodeValidity {
+	Ourselves,
+	ValidNode(NodeCategory),
+	ExpiredNode(NodeCategory),
+	UnknownNode
+}
+
+#[derive(Debug)]
+enum BucketError {
+	Ourselves,
+	NotInTheBucket{node_entry: NodeEntry, bucket_distance: usize},
 }
 
 struct PingRequest {
@@ -145,6 +169,12 @@ pub struct Discovery<'a> {
 	discovery_id: NodeId,
 	discovery_nodes: HashSet<NodeId>,
 	node_buckets: Vec<NodeBucket>,
+
+	// Sometimes we don't want to add nodes to the NodeTable, but still want to
+	// keep track of them to avoid excessive pinging (happens when an unknown node sends
+	// a discovery request to us -- the node might be on a different net).
+	other_observed_nodes: LruCache<NodeId, (NodeEndpoint, Instant)>,
+
 	in_flight_pings: HashMap<NodeId, PingRequest>,
 	in_flight_find_nodes: HashMap<NodeId, FindNodeRequest>,
 	send_queue: VecDeque<Datagram>,
@@ -168,9 +198,10 @@ impl<'a> Discovery<'a> {
 			public_endpoint: public,
 			discovery_initiated: false,
 			discovery_round: None,
-			discovery_id: NodeId::new(),
+			discovery_id: NodeId::default(),
 			discovery_nodes: HashSet::new(),
 			node_buckets: (0..ADDRESS_BITS).map(|_| NodeBucket::new()).collect(),
+			other_observed_nodes: LruCache::new(OBSERVED_NODES_MAX_SIZE),
 			in_flight_pings: HashMap::new(),
 			in_flight_find_nodes: HashMap::new(),
 			send_queue: VecDeque::new(),
@@ -200,41 +231,53 @@ impl<'a> Discovery<'a> {
 		}
 	}
 
-	fn update_node(&mut self, e: NodeEntry) -> Option<TableUpdates> {
-		trace!(target: "discovery", "Inserting {:?}", &e);
+	fn update_bucket_record(&mut self, e: NodeEntry) -> Result<(), BucketError> {
 		let id_hash = keccak(e.id);
 		let dist = match Discovery::distance(&self.id_hash, &id_hash) {
 			Some(dist) => dist,
 			None => {
 				debug!(target: "discovery", "Attempted to update own entry: {:?}", e);
-				return None;
+				return Err(BucketError::Ourselves);
 			}
 		};
+		let bucket = &mut self.node_buckets[dist];
+		bucket.nodes.iter_mut().find(|n| n.address.id == e.id)
+			.map_or(Err(BucketError::NotInTheBucket{node_entry: e.clone(), bucket_distance: dist}.into()), |entry| {
+				entry.address = e;
+				entry.last_seen = Instant::now();
+				entry.backoff_until = Instant::now();
+				entry.fail_count = 0;
+				Ok(())
+			})
+	}
 
-		let mut added_map = HashMap::new();
-		let ping = {
-			let bucket = &mut self.node_buckets[dist];
-			let updated = if let Some(node) = bucket.nodes.iter_mut().find(|n| n.address.id == e.id) {
-				node.address = e.clone();
-				node.last_seen = Instant::now();
-				node.backoff_until = Instant::now();
-				node.fail_count = 0;
-				true
-			} else { false };
+	fn update_node(&mut self, e: NodeEntry) -> Option<TableUpdates> {
+		trace!(target: "discovery", "Inserting {:?}", &e);
 
-			if !updated {
-				added_map.insert(e.id, e.clone());
-				bucket.nodes.push_front(BucketEntry::new(e));
+        match self.update_bucket_record(e) {
+            Ok(()) => None,
+            Err(BucketError::Ourselves) => None,
+            Err(BucketError::NotInTheBucket{node_entry, bucket_distance}) => Some((node_entry, bucket_distance))
+        }.map(|(node_entry, bucket_distance)| {
+			trace!(target: "discovery", "Adding a new node {:?} into our bucket {}", &node_entry, bucket_distance);
 
+            let mut added = HashMap::with_capacity(1);
+            added.insert(node_entry.id, node_entry.clone());
+
+			let node_to_ping = {
+				let bucket = &mut self.node_buckets[bucket_distance];
+				bucket.nodes.push_front(BucketEntry::new(node_entry));
 				if bucket.nodes.len() > BUCKET_SIZE {
 					select_bucket_ping(bucket.nodes.iter())
-				} else { None }
-			} else { None }
-		};
-		if let Some(node) = ping {
-			self.try_ping(node, PingReason::Default);
-		}
-		Some(TableUpdates { added: added_map, removed: HashSet::new() })
+				} else {
+					None
+				}
+			};
+			if let Some(node) = node_to_ping {
+				self.try_ping(node, PingReason::Default);
+			};
+            TableUpdates{added, removed: HashSet::new()}
+        })
 	}
 
 	/// Starts the discovery process at round 0
@@ -372,7 +415,7 @@ impl<'a> Discovery<'a> {
 
 	fn send_packet(&mut self, packet_id: u8, address: &SocketAddr, payload: &[u8]) -> Result<H256, Error> {
 		let packet = assemble_packet(packet_id, payload, &self.secret)?;
-		let hash = H256::from(&packet[0..32]);
+		let hash = H256::from_slice(&packet[0..32]);
 		self.send_to(packet, address.clone());
 		Ok(hash)
 	}
@@ -449,7 +492,7 @@ impl<'a> Discovery<'a> {
 		let packet_id = signed[0];
 		let rlp = Rlp::new(&signed[1..]);
 		match packet_id {
-			PACKET_PING => self.on_ping(&rlp, &node_id, &from, &hash_signed),
+			PACKET_PING => self.on_ping(&rlp, &node_id, &from, hash_signed.as_bytes()),
 			PACKET_PONG => self.on_pong(&rlp, &node_id, &from),
 			PACKET_FIND_NODE => self.on_find_node(&rlp, &node_id, &from),
 			PACKET_NEIGHBOURS => self.on_neighbours(&rlp, &node_id, &from),
@@ -541,10 +584,28 @@ impl<'a> Discovery<'a> {
 		};
 
 		if let Some((node, ping_reason)) = expected_node {
-			if let PingReason::FromDiscoveryRequest(target) = ping_reason {
+			if let PingReason::FromDiscoveryRequest(target, validity) = ping_reason {
 				self.respond_with_discovery(target, &node)?;
+				// kirushik: I would prefer to probe the network id of the remote node here, and add it to the nodes list if it's on "our" net --
+				// but `on_packet` happens synchronously, so doing the full TCP handshake ceremony here is a bad idea.
+				// So instead we just LRU-caching most recently seen nodes to avoid unnecessary pinging
+				match validity {
+					NodeValidity::ValidNode(NodeCategory::Bucket) | NodeValidity::ExpiredNode(NodeCategory::Bucket) => {
+						trace!(target: "discovery", "Updating node {:?} in our Kad buckets", &node);
+						self.update_bucket_record(node).unwrap_or_else(|error| {
+							debug!(target: "discovery", "Error occured when processing ping from a bucket node: {:?}", &error);
+						});
+					},
+					NodeValidity::UnknownNode | NodeValidity::ExpiredNode(NodeCategory::Observed) | NodeValidity::ValidNode(NodeCategory::Observed)=> {
+						trace!(target: "discovery", "Updating node {:?} in the list of other_observed_nodes", &node);
+						self.other_observed_nodes.insert(node.id, (node.endpoint, Instant::now()));
+					},
+					NodeValidity::Ourselves => (),
+				}
+				Ok(None)
+			} else {
+				Ok(self.update_node(node))
 			}
-			Ok(self.update_node(node))
 		} else {
 			debug!(target: "discovery", "Got unexpected Pong from {:?} ; request not found", &from);
 			Ok(None)
@@ -565,31 +626,41 @@ impl<'a> Discovery<'a> {
 			}
 		};
 
-		if self.is_a_valid_known_node(&node) {
-			self.respond_with_discovery(target, &node)?;
-		} else {
+		match self.check_validity(&node) {
+			NodeValidity::Ourselves => (), // It makes no sense to respond to the discovery request from ourselves
+			NodeValidity::ValidNode(_) => self.respond_with_discovery(target, &node)?,
 			// Make sure the request source is actually there and responds to pings before actually responding
-			self.try_ping(node, PingReason::FromDiscoveryRequest(target));
+			invalidity_reason => self.try_ping(node, PingReason::FromDiscoveryRequest(target, invalidity_reason))
 		}
 		Ok(None)
 	}
 
-	fn is_a_valid_known_node(&self, node: &NodeEntry) -> bool {
+	fn check_validity(&mut self, node: &NodeEntry) -> NodeValidity {
 		let id_hash = keccak(node.id);
 		let dist = match Discovery::distance(&self.id_hash, &id_hash) {
 			Some(dist) => dist,
 			None => {
 				debug!(target: "discovery", "Got an incoming discovery request from self: {:?}", node);
-				return false;
+				return NodeValidity::Ourselves;
 			}
 		};
 
 		let bucket = &self.node_buckets[dist];
 		if let Some(known_node) = bucket.nodes.iter().find(|n| n.address.id == node.id) {
 			debug!(target: "discovery", "Found a known node in a bucket when processing discovery: {:?}/{:?}", known_node, node);
-			(known_node.address.endpoint == node.endpoint) && (known_node.last_seen.elapsed() < NODE_LAST_SEEN_TIMEOUT)
+			match ((known_node.address.endpoint == node.endpoint), (known_node.last_seen.elapsed() < NODE_LAST_SEEN_TIMEOUT)) {
+				(true, true) => NodeValidity::ValidNode(NodeCategory::Bucket),
+				(true, false) => NodeValidity::ExpiredNode(NodeCategory::Bucket),
+				_ => NodeValidity::UnknownNode
+			}
 		} else {
-			false
+			self.other_observed_nodes.get_mut(&node.id).map_or(NodeValidity::UnknownNode, |(endpoint, observed_at)| {
+				match ((node.endpoint==*endpoint), (observed_at.elapsed() < NODE_LAST_SEEN_TIMEOUT)) {
+					(true, true) => NodeValidity::ValidNode(NodeCategory::Observed),
+					(true, false) => NodeValidity::ExpiredNode(NodeCategory::Observed),
+					_ => NodeValidity::UnknownNode
+				}
+			})
 		}
 	}
 
@@ -790,7 +861,7 @@ fn assemble_packet(packet_id: u8, bytes: &[u8], secret: &Secret) -> Result<Bytes
 	};
 	packet[32..(32 + 65)].copy_from_slice(&signature[..]);
 	let signed_hash = keccak(&packet[32..]);
-	packet[0..32].copy_from_slice(&signed_hash);
+	packet[0..32].copy_from_slice(signed_hash.as_bytes());
 	Ok(packet)
 }
 
@@ -808,13 +879,15 @@ where
 
 #[cfg(test)]
 mod tests {
-	use super::*;
-	use std::net::{IpAddr,Ipv4Addr};
-	use node_table::{Node, NodeId, NodeEndpoint};
-
+	use std::net::{IpAddr, Ipv4Addr};
 	use std::str::FromStr;
+
 	use rustc_hex::FromHex;
-	use ethkey::{Random, Generator};
+
+	use ethkey::{Generator, Random};
+	use node_table::{Node, NodeEndpoint, NodeId};
+
+	use super::*;
 
 	#[test]
 	fn find_node() {
@@ -900,7 +973,7 @@ mod tests {
 			}
 		}
 
-		let results = discovery_handlers[0].nearest_node_entries(&NodeId::new());
+		let results = discovery_handlers[0].nearest_node_entries(&NodeId::zero());
 		assert_eq!(results.len(), 4);
 	}
 
@@ -1003,10 +1076,10 @@ mod tests {
 		let mut discovery = Discovery::new(&key, ep.clone(), IpFilter::default());
 
 		for _ in 0..(16 + 10) {
-			let entry = BucketEntry::new(NodeEntry { id: NodeId::new(), endpoint: ep.clone() });
+			let entry = BucketEntry::new(NodeEntry { id: NodeId::zero(), endpoint: ep.clone() });
 			discovery.node_buckets[0].nodes.push_back(entry);
 		}
-		let nearest = discovery.nearest_node_entries(&NodeId::new());
+		let nearest = discovery.nearest_node_entries(&NodeId::zero());
 		assert_eq!(nearest.len(), 16)
 	}
 
@@ -1197,7 +1270,7 @@ mod tests {
 		// Create a pong packet with incorrect echo hash and assert that it is rejected.
 		let mut incorrect_pong_rlp = RlpStream::new_list(3);
 		ep1.to_rlp_list(&mut incorrect_pong_rlp);
-		incorrect_pong_rlp.append(&H256::default());
+		incorrect_pong_rlp.append(&H256::zero());
 		append_expiration(&mut incorrect_pong_rlp);
 		let incorrect_pong_data = assemble_packet(
 			PACKET_PONG, &incorrect_pong_rlp.drain(), &discovery2.secret
@@ -1226,7 +1299,7 @@ mod tests {
 		// Deliver an unexpected PONG message to discover1.
 		let mut unexpected_pong_rlp = RlpStream::new_list(3);
 		ep3.to_rlp_list(&mut unexpected_pong_rlp);
-		unexpected_pong_rlp.append(&H256::default());
+		unexpected_pong_rlp.append(&H256::zero());
 		append_expiration(&mut unexpected_pong_rlp);
 		let unexpected_pong = assemble_packet(
 			PACKET_PONG, &unexpected_pong_rlp.drain(), key3.secret()

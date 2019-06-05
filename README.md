@@ -36,7 +36,7 @@ We recommend installing Rust through [rustup](https://www.rustup.rs/). If you do
   $ curl https://sh.rustup.rs -sSf | sh
   ```
 
-  Parity Ethereum also requires `gcc`, `g++`, `libudev-dev`, `pkg-config`, `file`, `make`, and `cmake` packages to be installed.
+  Parity Ethereum also requires `gcc`, `g++`, `pkg-config`, `file`, `make`, and `cmake` packages to be installed.
 
 - OSX:
   ```bash
@@ -125,7 +125,8 @@ To start Parity Ethereum as a regular user using `systemd` init:
 
 1. Copy `./scripts/parity.service` to your
 `systemd` user directory (usually `~/.config/systemd/user`).
-2. To configure Parity Ethereum, write a `/etc/parity/config.toml` config file, see [Configuring Parity Ethereum](https://paritytech.github.io/wiki/Configuring-Parity) for details.
+2. Copy release to bin folder, write `sudo install ./target/release/parity /usr/bin/parity`
+3. To configure Parity Ethereum, write a `/etc/parity/config.toml` config file, see [Configuring Parity Ethereum](https://paritytech.github.io/wiki/Configuring-Parity) for details.
 
 ## Parity Ethereum toolchain
 

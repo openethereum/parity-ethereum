@@ -15,6 +15,7 @@
 // along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
 #![warn(missing_docs, unused_extern_crates)]
+#![cfg_attr(feature = "time_checked_add", feature(time_checked_add))]
 
 //! Ethcore library
 //!
@@ -73,8 +74,8 @@ extern crate ethcore_miner;
 extern crate ethereum_types;
 extern crate ethjson;
 extern crate ethkey;
-extern crate ethstore;
-extern crate hashdb;
+extern crate futures;
+extern crate hash_db;
 extern crate heapsize;
 extern crate itertools;
 extern crate journaldb;
@@ -85,15 +86,14 @@ extern crate kvdb_memorydb;
 extern crate len_caching_lock;
 extern crate lru_cache;
 extern crate memory_cache;
-extern crate memorydb;
+extern crate memory_db;
 extern crate num;
 extern crate num_cpus;
 extern crate parity_bytes as bytes;
 extern crate parity_crypto;
-extern crate parity_machine;
 extern crate parity_snappy as snappy;
 extern crate parking_lot;
-extern crate patricia_trie as trie;
+extern crate trie_db as trie;
 extern crate patricia_trie_ethereum as ethtrie;
 extern crate rand;
 extern crate rayon;
@@ -107,6 +107,10 @@ extern crate using_queue;
 extern crate vm;
 extern crate wasm;
 
+#[cfg(test)]
+extern crate rand_xorshift;
+#[cfg(test)]
+extern crate ethcore_accounts as accounts;
 #[cfg(feature = "stratum")]
 extern crate ethcore_stratum;
 #[cfg(any(test, feature = "tempdir"))]
@@ -115,19 +119,16 @@ extern crate tempdir;
 extern crate kvdb_rocksdb;
 #[cfg(any(test, feature = "blooms-db"))]
 extern crate blooms_db;
-
-#[cfg(any(target_os = "linux", target_os = "macos", target_os = "windows"))]
-extern crate hardware_wallet;
-
-#[cfg(not(any(target_os = "linux", target_os = "macos", target_os = "windows")))]
-extern crate fake_hardware_wallet as hardware_wallet;
+#[cfg(any(test, feature = "env_logger"))]
+extern crate env_logger;
+#[cfg(test)]
+extern crate rlp_compress;
 
 #[macro_use]
 extern crate ethabi_derive;
 #[macro_use]
 extern crate ethabi_contract;
-#[macro_use]
-extern crate error_chain;
+extern crate derive_more;
 #[macro_use]
 extern crate log;
 #[macro_use]
@@ -144,12 +145,15 @@ extern crate serde_derive;
 #[cfg_attr(test, macro_use)]
 extern crate evm;
 
-#[cfg(any(test, feature = "env_logger"))]
-extern crate env_logger;
-#[cfg(test)]
-extern crate rlp_compress;
+#[cfg(all(test, feature = "price-info"))]
+extern crate fetch;
 
-pub mod account_provider;
+#[cfg(all(test, feature = "price-info"))]
+extern crate parity_runtime;
+
+#[cfg(not(time_checked_add))]
+extern crate time_utils;
+
 pub mod block;
 pub mod builtin;
 pub mod client;

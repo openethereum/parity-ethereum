@@ -45,7 +45,9 @@ criterion_group!(
 	mem_gas_calculation_same_usize,
 	mem_gas_calculation_same_u256,
 	mem_gas_calculation_increasing_usize,
-	mem_gas_calculation_increasing_u256
+	mem_gas_calculation_increasing_u256,
+	blockhash_mulmod_small,
+	blockhash_mulmod_large,
 );
 criterion_main!(basic);
 
@@ -147,6 +149,54 @@ fn mem_gas_calculation_increasing(gas: U256, b: &mut Bencher) {
 		let vm = factory.create(params, ext.schedule(), 0);
 
 		result(vm.exec(&mut ext).ok().unwrap())
+	});
+}
+
+fn blockhash_mulmod_small(b: &mut Criterion) {
+	b.bench_function("blockhash_mulmod_small", |b| {
+		let factory = Factory::default();
+		let mut ext = FakeExt::new();
+
+		let address = Address::from_str("0f572e5295c57f15886f9b263e2f6d2d6c7b5ec6").unwrap();
+
+		b.iter(|| {
+			let code = black_box(
+				"6080604052348015600f57600080fd5b5060005a90505b60c881111560de5760017effffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff80095060017effffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff80095060017effffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff80095060017effffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff80095060017effffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff8009505a90506016565b506035806100ed6000396000f3fe6080604052600080fdfea165627a7a72305820bde4a0ac6d0fac28fc879244baf8a6a0eda514bc95fb7ecbcaaebf2556e2687c0029".from_hex().unwrap()
+			);
+
+			let mut params = ActionParams::default();
+			params.address = address.clone();
+			params.gas = U256::from(4_000u64);
+			params.code = Some(Arc::new(code.clone()));
+
+			let vm = factory.create(params, ext.schedule(), 0);
+
+			result(vm.exec(&mut ext).ok().unwrap())
+		});
+	});
+}
+
+fn blockhash_mulmod_large(b: &mut Criterion) {
+	b.bench_function("blockhash_mulmod_large", |b| {
+		let factory = Factory::default();
+		let mut ext = FakeExt::new();
+
+		let address = Address::from_str("0f572e5295c57f15886f9b263e2f6d2d6c7b5ec6").unwrap();
+
+		b.iter(|| {
+			let code = black_box(
+				"608060405234801561001057600080fd5b5060005a90505b60c8811115610177577efffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff17efffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff08009507efffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff17efffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff08009507efffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff17efffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff08009507efffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff17efffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff08009507efffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff17efffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff08009505a9050610017565b506035806101866000396000f3fe6080604052600080fdfea165627a7a72305820dcaec306f67bb96f3044fff25c9af2ec66f01d0954d0656964f046f42f2780670029".from_hex().unwrap()
+			);
+
+			let mut params = ActionParams::default();
+			params.address = address.clone();
+			params.gas = U256::from(4_000u64);
+			params.code = Some(Arc::new(code.clone()));
+
+			let vm = factory.create(params, ext.schedule(), 0);
+
+			result(vm.exec(&mut ext).ok().unwrap())
+		});
 	});
 }
 

@@ -39,7 +39,6 @@ use types::header::Header;
 use types::view;
 use types::views::BlockView;
 
-use account_provider::AccountProvider;
 use block::{OpenBlock, Drain};
 use client::{Client, ClientConfig, ChainInfo, ImportBlock, ChainNotify, ChainMessageType, PrepareOpenBlock};
 use factory::Factories;
@@ -109,18 +108,15 @@ pub fn generate_dummy_client_with_data(block_number: u32, txs_per_block: usize, 
 	generate_dummy_client_with_spec_and_data(Spec::new_null, block_number, txs_per_block, tx_gas_prices)
 }
 
-/// Generates dummy client (not test client) with corresponding amount of blocks, txs per block and spec
-pub fn generate_dummy_client_with_spec_and_data<F>(test_spec: F, block_number: u32, txs_per_block: usize, tx_gas_prices: &[U256]) -> Arc<Client> where F: Fn()->Spec {
-	generate_dummy_client_with_spec_accounts_and_data(test_spec, None, block_number, txs_per_block, tx_gas_prices)
-}
-
 /// Generates dummy client (not test client) with corresponding spec and accounts
-pub fn generate_dummy_client_with_spec_and_accounts<F>(test_spec: F, accounts: Option<Arc<AccountProvider>>) -> Arc<Client> where F: Fn()->Spec {
-	generate_dummy_client_with_spec_accounts_and_data(test_spec, accounts, 0, 0, &[])
+pub fn generate_dummy_client_with_spec<F>(test_spec: F) -> Arc<Client> where F: Fn()->Spec {
+	generate_dummy_client_with_spec_and_data(test_spec, 0, 0, &[])
 }
 
-/// Generates dummy client (not test client) with corresponding blocks, accounts and spec
-pub fn generate_dummy_client_with_spec_accounts_and_data<F>(test_spec: F, accounts: Option<Arc<AccountProvider>>, block_number: u32, txs_per_block: usize, tx_gas_prices: &[U256]) -> Arc<Client> where F: Fn()->Spec {
+/// Generates dummy client (not test client) with corresponding amount of blocks, txs per block and spec
+pub fn generate_dummy_client_with_spec_and_data<F>(test_spec: F, block_number: u32, txs_per_block: usize, tx_gas_prices: &[U256]) -> Arc<Client> where
+	F: Fn() -> Spec
+{
 	let test_spec = test_spec();
 	let client_db = new_db();
 
@@ -128,7 +124,7 @@ pub fn generate_dummy_client_with_spec_accounts_and_data<F>(test_spec: F, accoun
 		ClientConfig::default(),
 		&test_spec,
 		client_db,
-		Arc::new(Miner::new_for_tests(&test_spec, accounts)),
+		Arc::new(Miner::new_for_tests(&test_spec, None)),
 		IoChannel::disconnected(),
 	).unwrap();
 	let test_engine = &*test_spec.engine;
@@ -140,7 +136,7 @@ pub fn generate_dummy_client_with_spec_accounts_and_data<F>(test_spec: F, accoun
 	let mut last_hashes = vec![];
 	let mut last_header = genesis_header.clone();
 
-	let kp = KeyPair::from_secret_slice(&keccak("")).unwrap();
+	let kp = KeyPair::from_secret_slice(keccak("").as_bytes()).unwrap();
 	let author = kp.address();
 
 	let mut n = 0;
@@ -159,7 +155,7 @@ pub fn generate_dummy_client_with_spec_accounts_and_data<F>(test_spec: F, accoun
 			(3141562.into(), 31415620.into()),
 			vec![],
 			false,
-			&mut Vec::new().into_iter(),
+			None,
 		).unwrap();
 		rolling_timestamp += 10;
 		b.set_timestamp(rolling_timestamp);
@@ -227,7 +223,7 @@ pub fn push_block_with_transactions(client: &Arc<Client>, transactions: &[Signed
 	let test_engine = &*test_spec.engine;
 	let block_number = client.chain_info().best_block_number as u64 + 1;
 
-	let mut b = client.prepare_open_block(Address::default(), (0.into(), 5000000.into()), Bytes::new()).unwrap();
+	let mut b = client.prepare_open_block(Address::zero(), (0.into(), 5000000.into()), Bytes::new()).unwrap();
 	b.set_timestamp(block_number * 10);
 
 	for t in transactions {
@@ -497,7 +493,7 @@ pub fn get_bad_state_dummy_block() -> Bytes {
 	block_header.set_timestamp(40);
 	block_header.set_number(1);
 	block_header.set_parent_hash(test_spec.genesis_header().hash());
-	block_header.set_state_root(0xbad.into());
+	block_header.set_state_root(H256::from_low_u64_be(0xbad));
 
 	create_test_block(&block_header)
 }

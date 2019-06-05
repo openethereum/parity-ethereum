@@ -76,7 +76,7 @@ impl SnapshotComponents for PoaSnapshot {
 			}
 
 			let header = chain.block_header_data(&transition.block_hash)
-				.ok_or(Error::BlockNotFound(transition.block_hash))?;
+				.ok_or_else(|| Error::BlockNotFound(transition.block_hash))?;
 
 			let entry = {
 				let mut entry_stream = RlpStream::new_list(2);
@@ -101,12 +101,12 @@ impl SnapshotComponents for PoaSnapshot {
 
 		let (block, receipts) = chain.block(&block_at)
 			.and_then(|b| chain.block_receipts(&block_at).map(|r| (b, r)))
-			.ok_or(Error::BlockNotFound(block_at))?;
+			.ok_or_else(|| Error::BlockNotFound(block_at))?;
 		let block = block.decode()?;
 
 		let parent_td = chain.block_details(block.header.parent_hash())
 			.map(|d| d.total_difficulty)
-			.ok_or(Error::BlockNotFound(block_at))?;
+			.ok_or_else(|| Error::BlockNotFound(block_at))?;
 
 		rlps.push({
 			let mut stream = RlpStream::new_list(5);

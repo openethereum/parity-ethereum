@@ -18,7 +18,7 @@
 
 use std::sync::Arc;
 
-use ethcore::account_provider::AccountProvider;
+use ethereum_types::{U256, H520};
 use ethkey;
 use parity_runtime::Executor;
 use parking_lot::Mutex;
@@ -28,26 +28,28 @@ use types::transaction::{SignedTransaction, PendingTransaction};
 use jsonrpc_core::{Result, BoxFuture, Error};
 use jsonrpc_core::futures::{future, Future, IntoFuture};
 use jsonrpc_core::futures::future::Either;
-use jsonrpc_pubsub::SubscriptionId;
-use jsonrpc_macros::pubsub::{Sink, Subscriber};
+use jsonrpc_pubsub::{SubscriptionId, typed::{Sink, Subscriber}};
+use v1::helpers::deprecated::{self, DeprecationNotice};
 use v1::helpers::dispatch::{self, Dispatcher, WithToken, eth_data_hash};
-use v1::helpers::{errors, SignerService, SigningQueue, ConfirmationPayload, FilledTransactionRequest, Subscribers};
+use v1::helpers::{errors, ConfirmationPayload, FilledTransactionRequest, Subscribers};
+use v1::helpers::external_signer::{SigningQueue, SignerService};
 use v1::metadata::Metadata;
 use v1::traits::Signer;
-use v1::types::{TransactionModification, ConfirmationRequest, ConfirmationResponse, ConfirmationResponseWithToken, U256, Bytes};
+use v1::types::{TransactionModification, ConfirmationRequest, ConfirmationResponse, ConfirmationResponseWithToken, Bytes};
 
 /// Transactions confirmation (personal) rpc implementation.
 pub struct SignerClient<D: Dispatcher> {
 	signer: Arc<SignerService>,
-	accounts: Arc<AccountProvider>,
+	accounts: Arc<dispatch::Accounts>,
 	dispatcher: D,
 	subscribers: Arc<Mutex<Subscribers<Sink<Vec<ConfirmationRequest>>>>>,
+	deprecation_notice: DeprecationNotice,
 }
 
 impl<D: Dispatcher + 'static> SignerClient<D> {
 	/// Create new instance of signer client.
 	pub fn new(
-		store: &Arc<AccountProvider>,
+		accounts: Arc<dispatch::Accounts>,
 		dispatcher: D,
 		signer: &Arc<SignerService>,
 		executor: Executor,
@@ -71,18 +73,18 @@ impl<D: Dispatcher + 'static> SignerClient<D> {
 
 		SignerClient {
 			signer: signer.clone(),
-			accounts: store.clone(),
+			accounts: accounts.clone(),
 			dispatcher,
 			subscribers,
+			deprecation_notice: Default::default(),
 		}
 	}
 
 	fn confirm_internal<F, T>(&self, id: U256, modification: TransactionModification, f: F) -> BoxFuture<WithToken<ConfirmationResponse>> where
-		F: FnOnce(D, Arc<AccountProvider>, ConfirmationPayload) -> T,
+		F: FnOnce(D, &Arc<dispatch::Accounts>, ConfirmationPayload) -> T,
 		T: IntoFuture<Item=WithToken<ConfirmationResponse>, Error=Error>,
 		T::Future: Send + 'static
 	{
-		let id = id.into();
 		let dispatcher = self.dispatcher.clone();
 		let signer = self.signer.clone();
 
@@ -91,21 +93,21 @@ impl<D: Dispatcher + 'static> SignerClient<D> {
 			// Modify payload
 			if let ConfirmationPayload::SendTransaction(ref mut request) = payload {
 				if let Some(sender) = modification.sender {
-					request.from = sender.into();
+					request.from = sender;
 					// Altering sender should always reset the nonce.
 					request.nonce = None;
 				}
 				if let Some(gas_price) = modification.gas_price {
-					request.gas_price = gas_price.into();
+					request.gas_price = gas_price;
 				}
 				if let Some(gas) = modification.gas {
-					request.gas = gas.into();
+					request.gas = gas;
 				}
 				if let Some(ref condition) = modification.condition {
 					request.condition = condition.clone().map(Into::into);
 				}
 			}
-			let fut = f(dispatcher, self.accounts.clone(), payload);
+			let fut = f(dispatcher, &self.accounts, payload);
 			Either::A(fut.into_future().then(move |result| {
 				// Execute
 				if let Ok(ref response) = result {
@@ -156,6 +158,8 @@ impl<D: Dispatcher + 'static> Signer for SignerClient<D> {
 	type Metadata = Metadata;
 
 	fn requests_to_confirm(&self) -> Result<Vec<ConfirmationRequest>> {
+		self.deprecation_notice.print("signer_requestsToConfirm", deprecated::msgs::ACCOUNTS);
+
 		Ok(self.signer.requests()
 			.into_iter()
 			.map(Into::into)
@@ -168,27 +172,31 @@ impl<D: Dispatcher + 'static> Signer for SignerClient<D> {
 	fn confirm_request(&self, id: U256, modification: TransactionModification, pass: String)
 		-> BoxFuture<ConfirmationResponse>
 	{
+		self.deprecation_notice.print("signer_confirmRequest", deprecated::msgs::ACCOUNTS);
+
 		Box::new(self.confirm_internal(id, modification, move |dis, accounts, payload| {
 			dispatch::execute(dis, accounts, payload, dispatch::SignWith::Password(pass.into()))
-		}).map(|v| v.into_value()))
+		}).map(dispatch::WithToken::into_value))
 	}
 
 	fn confirm_request_with_token(&self, id: U256, modification: TransactionModification, token: String)
 		-> BoxFuture<ConfirmationResponseWithToken>
 	{
+		self.deprecation_notice.print("signer_confirmRequestWithToken", deprecated::msgs::ACCOUNTS);
+
 		Box::new(self.confirm_internal(id, modification, move |dis, accounts, payload| {
 			dispatch::execute(dis, accounts, payload, dispatch::SignWith::Token(token.into()))
 		}).and_then(|v| match v {
 			WithToken::No(_) => Err(errors::internal("Unexpected response without token.", "")),
 			WithToken::Yes(response, token) => Ok(ConfirmationResponseWithToken {
 				result: response,
-				token: token,
+				token,
 			}),
 		}))
 	}
 
 	fn confirm_request_raw(&self, id: U256, bytes: Bytes) -> Result<ConfirmationResponse> {
-		let id = id.into();
+		self.deprecation_notice.print("signer_confirmRequestRaw", deprecated::msgs::ACCOUNTS);
 
 		self.signer.take(&id).map(|sender| {
 			let payload = sender.request.payload.clone();
@@ -210,7 +218,7 @@ impl<D: Dispatcher + 'static> Signer for SignerClient<D> {
 					let expected_hash = eth_data_hash(data);
 					let signature = ethkey::Signature::from_electrum(&bytes.0);
 					match ethkey::verify_address(&address, &signature, &expected_hash) {
-						Ok(true) => Ok(ConfirmationResponse::Signature(bytes.0.as_slice().into())),
+						Ok(true) => Ok(ConfirmationResponse::Signature(H520::from_slice(bytes.0.as_slice()))),
 						Ok(false) => Err(errors::invalid_params("Sender address does not match the signature.", ())),
 						Err(err) => Err(errors::invalid_params("Invalid signature received.", err)),
 					}
@@ -218,7 +226,7 @@ impl<D: Dispatcher + 'static> Signer for SignerClient<D> {
 				ConfirmationPayload::SignMessage(address, hash) => {
 					let signature = ethkey::Signature::from_electrum(&bytes.0);
 					match ethkey::verify_address(&address, &signature, &hash) {
-						Ok(true) => Ok(ConfirmationResponse::Signature(bytes.0.as_slice().into())),
+						Ok(true) => Ok(ConfirmationResponse::Signature(H520::from_slice(bytes.0.as_slice()))),
 						Ok(false) => Err(errors::invalid_params("Sender address does not match the signature.", ())),
 						Err(err) => Err(errors::invalid_params("Invalid signature received.", err)),
 					}
@@ -238,24 +246,26 @@ impl<D: Dispatcher + 'static> Signer for SignerClient<D> {
 	}
 
 	fn reject_request(&self, id: U256) -> Result<bool> {
-		let res = self.signer.take(&id.into()).map(|sender| self.signer.request_rejected(sender));
+		self.deprecation_notice.print("signer_rejectRequest", deprecated::msgs::ACCOUNTS);
+
+		let res = self.signer.take(&id).map(|sender| self.signer.request_rejected(sender));
 		Ok(res.is_some())
 	}
 
 	fn generate_token(&self) -> Result<String> {
-		self.signer.generate_token()
-			.map_err(|e| errors::token(e))
-	}
+		self.deprecation_notice.print("signer_generateAuthorizationToken", deprecated::msgs::ACCOUNTS);
 
-	fn generate_web_proxy_token(&self, domain: String) -> Result<String> {
-		Ok(self.signer.generate_web_proxy_access_token(domain.into()))
+		self.signer.generate_token()
+			.map_err(errors::token)
 	}
 
 	fn subscribe_pending(&self, _meta: Self::Metadata, sub: Subscriber<Vec<ConfirmationRequest>>) {
+		self.deprecation_notice.print("signer_subscribePending", deprecated::msgs::ACCOUNTS);
+
 		self.subscribers.lock().push(sub)
 	}
 
-	fn unsubscribe_pending(&self, id: SubscriptionId) -> Result<bool> {
+	fn unsubscribe_pending(&self, _: Option<Self::Metadata>, id: SubscriptionId) -> Result<bool> {
 		let res = self.subscribers.lock().remove(&id).is_some();
 		Ok(res)
 	}

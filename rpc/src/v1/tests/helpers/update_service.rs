@@ -19,6 +19,7 @@
 use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 use semver::Version;
 use updater::{Service as UpdateService, CapState, ReleaseInfo, VersionInfo, OperationsInfo, ReleaseTrack};
+use ethereum_types::{H160, H256};
 
 /// Test implementation of fetcher. Will always return the same file.
 #[derive(Default)]
@@ -73,7 +74,7 @@ impl UpdateService for TestUpdater {
 		VersionInfo {
 			track: ReleaseTrack::Beta,
 			version: Version{major: 1, minor: 5, patch: 0, build: vec![], pre: vec![]},
-			hash: 150.into(),
+			hash: H160::from_low_u64_be(150),
 		}
 	}
 
@@ -85,11 +86,11 @@ impl UpdateService for TestUpdater {
 				version: VersionInfo {
 					track: ReleaseTrack::Beta,
 					version: Version{major: 1, minor: 5, patch: 1, build: vec![], pre: vec![]},
-					hash: 151.into(),
+					hash: H160::from_low_u64_be(151),
 				},
 				is_critical: true,
 				fork: 15100,
-				binary: Some(1510.into()),
+				binary: Some(H256::from_low_u64_be(1510)),
 			},
 			minor: None,
 		})

@@ -18,7 +18,7 @@
 
 use std::time::{Instant, Duration};
 use ethereum_types::{H256, U256};
-use ethcore::client::{self, EvmTestClient, EvmTestError, TransactResult};
+use ethcore::client::{self, EvmTestClient, EvmTestError, TransactErr, TransactSuccess};
 use ethcore::{state, state_db, trace, spec, pod_state, TrieSpec};
 use ethjson;
 use types::transaction;
@@ -96,7 +96,7 @@ pub fn run_action<T: Informant>(
 			Ok(r) => (Ok(r.return_data.to_vec()), Some(r.gas_left)),
 			Err(err) => (Err(err), None),
 		};
-		(result.0, 0.into(), None, result.1, informant.drain())
+		(result.0, H256::from_low_u64_be(0), None, result.1, informant.drain())
 	})
 }
 
@@ -130,7 +130,7 @@ pub fn run_transaction<T: Informant>(
 	let result = run(&spec, trie_spec, transaction.gas, pre_state, |mut client| {
 		let result = client.transact(env_info, transaction, trace::NoopTracer, informant);
 		match result {
-			TransactResult::Ok { state_root, gas_left, output, vm_trace, end_state, .. } => {
+			Ok(TransactSuccess { state_root, gas_left, output, vm_trace, end_state, .. }) => {
 				if state_root != post_root {
 					(Err(EvmTestError::PostCondition(format!(
 						"State root mismatch (got: {:#x}, expected: {:#x})",
@@ -141,7 +141,7 @@ pub fn run_transaction<T: Informant>(
 					(Ok(output), state_root, end_state, Some(gas_left), vm_trace)
 				}
 			},
-			TransactResult::Err { state_root, error, end_state } => {
+			Err(TransactErr { state_root, error, end_state }) => {
 				(Err(EvmTestError::PostCondition(format!(
 					"Unexpected execution error: {:?}", error
 				))), state_root, end_state, None, None)
@@ -174,7 +174,7 @@ pub fn run<'a, F, X>(
 			error,
 			time: Duration::from_secs(0),
 			traces: None,
-			state_root: H256::default(),
+			state_root: H256::zero(),
 			end_state: None,
 		})?;
 
@@ -212,6 +212,7 @@ pub mod tests {
 	use rustc_hex::FromHex;
 	use super::*;
 	use tempdir::TempDir;
+	use ethereum_types::Address;
 
 	pub fn run_test<T, I, F>(
 		informant: I,
@@ -247,7 +248,7 @@ pub mod tests {
 
 		let (inf, res) = informant();
 		let mut params = ActionParams::default();
-		params.code_address = 0x20.into();
+		params.code_address = Address::from_low_u64_be(0x20);
 		params.gas = 0xffff.into();
 
 		let spec = ::ethcore::ethereum::load(None, include_bytes!("../res/testchain.json"));

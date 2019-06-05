@@ -88,6 +88,7 @@
 //! All other messages are ignored.
 
 mod handler;
+pub mod sync_packet;
 mod propagator;
 mod requester;
 mod supplier;
@@ -98,18 +99,21 @@ use std::cmp;
 use std::time::{Duration, Instant};
 use hash::keccak;
 use heapsize::HeapSizeOf;
+use futures::sync::mpsc as futures_mpsc;
+use api::Notification;
 use ethereum_types::{H256, U256};
 use fastmap::{H256FastMap, H256FastSet};
 use parking_lot::{Mutex, RwLock, RwLockWriteGuard};
 use bytes::Bytes;
 use rlp::{RlpStream, DecoderError};
 use network::{self, PeerId, PacketId};
+use network::client_version::ClientVersion;
 use ethcore::client::{BlockChainClient, BlockStatus, BlockId, BlockChainInfo, BlockQueueInfo};
 use ethcore::snapshot::{RestorationStatus};
 use sync_io::SyncIo;
 use super::{WarpSync, SyncConfig};
 use block_sync::{BlockDownloader, DownloadAction};
-use rand::Rng;
+use rand::{Rng, seq::SliceRandom};
 use snapshot::{Snapshot};
 use api::{EthProtocolInfo as PeerInfoDigest, WARP_SYNC_PROTOCOL_ID, PriorityTask};
 use private_tx::PrivateTxHandler;
@@ -118,6 +122,12 @@ use types::transaction::UnverifiedTransaction;
 use types::BlockNumber;
 
 use self::handler::SyncHandler;
+use self::sync_packet::{PacketInfo, SyncPacket};
+use self::sync_packet::SyncPacket::{
+	NewBlockPacket,
+	StatusPacket,
+};
+
 use self::propagator::SyncPropagator;
 use self::requester::SyncRequester;
 pub(crate) use self::supplier::SyncSupplier;
@@ -152,28 +162,6 @@ const MAX_TRANSACTION_PACKET_SIZE: usize = 5 * 1024 * 1024;
 // Min number of blocks to be behind for a snapshot sync
 const SNAPSHOT_RESTORE_THRESHOLD: BlockNumber = 30000;
 const SNAPSHOT_MIN_PEERS: usize = 3;
-
-const STATUS_PACKET: u8 = 0x00;
-const NEW_BLOCK_HASHES_PACKET: u8 = 0x01;
-const TRANSACTIONS_PACKET: u8 = 0x02;
-pub const GET_BLOCK_HEADERS_PACKET: u8 = 0x03;
-pub const BLOCK_HEADERS_PACKET: u8 = 0x04;
-pub const GET_BLOCK_BODIES_PACKET: u8 = 0x05;
-const BLOCK_BODIES_PACKET: u8 = 0x06;
-const NEW_BLOCK_PACKET: u8 = 0x07;
-
-pub const GET_NODE_DATA_PACKET: u8 = 0x0d;
-pub const NODE_DATA_PACKET: u8 = 0x0e;
-pub const GET_RECEIPTS_PACKET: u8 = 0x0f;
-pub const RECEIPTS_PACKET: u8 = 0x10;
-
-pub const GET_SNAPSHOT_MANIFEST_PACKET: u8 = 0x11;
-pub const SNAPSHOT_MANIFEST_PACKET: u8 = 0x12;
-pub const GET_SNAPSHOT_DATA_PACKET: u8 = 0x13;
-pub const SNAPSHOT_DATA_PACKET: u8 = 0x14;
-pub const CONSENSUS_DATA_PACKET: u8 = 0x15;
-pub const PRIVATE_TRANSACTION_PACKET: u8 = 0x16;
-pub const SIGNED_PRIVATE_TRANSACTION_PACKET: u8 = 0x17;
 
 const MAX_SNAPSHOT_CHUNKS_DOWNLOAD_AHEAD: usize = 3;
 
@@ -342,6 +330,8 @@ pub struct PeerInfo {
 	snapshot_number: Option<BlockNumber>,
 	/// Block set requested
 	block_set: Option<BlockSet>,
+	/// Version of the software the peer is running
+	client_version: ClientVersion,
 }
 
 impl PeerInfo {
@@ -370,12 +360,13 @@ impl PeerInfo {
 #[cfg(not(test))]
 pub mod random {
 	use rand;
-	pub fn new() -> rand::ThreadRng { rand::thread_rng() }
+	pub fn new() -> rand::rngs::ThreadRng { rand::thread_rng() }
 }
 #[cfg(test)]
 pub mod random {
-	use rand::{self, SeedableRng};
-	pub fn new() -> rand::XorShiftRng { rand::XorShiftRng::from_seed([0, 1, 2, 3]) }
+	use rand::SeedableRng;
+	const RNG_SEED: [u8; 16] = [1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16];
+	pub fn new() -> rand_xorshift::XorShiftRng { rand_xorshift::XorShiftRng::from_seed(RNG_SEED) }
 }
 
 pub type RlpResponseResult = Result<Option<(PacketId, RlpStream)>, PacketDecodeError>;
@@ -481,7 +472,7 @@ impl ChainSyncApi {
 					for peers in sync.get_peers(&chain_info, PeerState::SameBlock).chunks(10) {
 						check_deadline(deadline)?;
 						for peer in peers {
-							SyncPropagator::send_packet(io, *peer, NEW_BLOCK_PACKET, rlp.clone());
+							SyncPropagator::send_packet(io, *peer, NewBlockPacket, rlp.clone());
 							if let Some(ref mut peer) = sync.peers.get_mut(peer) {
 								peer.latest_hash = hash;
 							}
@@ -569,7 +560,7 @@ impl ChainSync {
 		let mut count = (peers.len() as f64).powf(0.5).round() as usize;
 		count = cmp::min(count, MAX_PEERS_PROPAGATION);
 		count = cmp::max(count, MIN_PEERS_PROPAGATION);
-		random::new().shuffle(&mut peers);
+		peers.shuffle(&mut random::new());
 		peers.truncate(count);
 		peers
 	}
@@ -630,6 +621,8 @@ pub struct ChainSync {
 	private_tx_handler: Option<Arc<PrivateTxHandler>>,
 	/// Enable warp sync.
 	warp_sync: WarpSync,
+
+	status_sinks: Vec<futures_mpsc::UnboundedSender<SyncState>>
 }
 
 impl ChainSync {
@@ -661,6 +654,7 @@ impl ChainSync {
 			transactions_stats: TransactionsStats::default(),
 			private_tx_handler,
 			warp_sync: config.warp_sync,
+			status_sinks: Vec::new()
 		};
 		sync.update_targets(chain);
 		sync
@@ -719,6 +713,29 @@ impl ChainSync {
 		self.peers.clear();
 	}
 
+	/// returns the receiving end of a future::mpsc channel that can
+	/// be polled for changes to node's SyncState.
+	pub fn sync_notifications(&mut self) -> Notification<SyncState> {
+		let (sender, receiver) = futures_mpsc::unbounded();
+		self.status_sinks.push(sender);
+		receiver
+	}
+
+	/// notify all subscibers of a new SyncState
+	fn notify_sync_state(&mut self, state: SyncState) {
+		// remove any sender whose receiving end has been dropped
+		self.status_sinks.retain(|sender| {
+			sender.unbounded_send(state).is_ok()
+		});
+	}
+
+	/// sets a new SyncState
+	fn set_state(&mut self, state: SyncState) {
+		self.notify_sync_state(state);
+
+		self.state = state;
+	}
+
 	/// Reset sync. Clear all downloaded data but keep the queue.
 	/// Set sync state to the given state or to the initial state if `None` is provided.
 	fn reset(&mut self, io: &mut SyncIo, state: Option<SyncState>) {
@@ -733,7 +750,10 @@ impl ChainSync {
 				}
 			}
 		}
-		self.state = state.unwrap_or_else(|| Self::get_init_state(self.warp_sync, io.chain()));
+
+		let warp_sync = self.warp_sync;
+
+		self.set_state(state.unwrap_or_else(|| Self::get_init_state(warp_sync, io.chain())));
 		// Reactivate peers only if some progress has been made
 		// since the last sync round of if starting fresh.
 		self.active_peers = self.peers.keys().cloned().collect();
@@ -820,7 +840,7 @@ impl ChainSync {
 			}
 		} else if timeout && !self.warp_sync.is_warp_only() {
 			trace!(target: "sync", "No snapshots found, starting full sync");
-			self.state = SyncState::Idle;
+			self.set_state(SyncState::Idle);
 			self.continue_sync(io);
 		}
 	}
@@ -832,10 +852,10 @@ impl ChainSync {
 					SyncRequester::request_snapshot_manifest(self, io, *p);
 				}
 			}
-			self.state = SyncState::SnapshotManifest;
+			self.set_state(SyncState::SnapshotManifest);
 			trace!(target: "sync", "New snapshot sync with {:?}", peers);
 		} else {
-			self.state = SyncState::SnapshotData;
+			self.set_state(SyncState::SnapshotData);
 			trace!(target: "sync", "Resumed snapshot sync with {:?}", peers);
 		}
 	}
@@ -889,7 +909,7 @@ impl ChainSync {
 					self.active_peers.len(), peers.len(), self.peers.len()
 				);
 
-				random::new().shuffle(&mut peers); // TODO (#646): sort by rating
+				peers.shuffle(&mut random::new()); // TODO (#646): sort by rating
 				// prefer peers with higher protocol version
 				peers.sort_by(|&(_, ref v1), &(_, ref v2)| v1.cmp(v2));
 
@@ -916,7 +936,7 @@ impl ChainSync {
 	/// Enter waiting state
 	fn pause_sync(&mut self) {
 		trace!(target: "sync", "Block queue full, pausing sync");
-		self.state = SyncState::Waiting;
+		self.set_state(SyncState::Waiting);
 	}
 
 	/// Find something to do for a peer. Called for a new peer or when a peer is done with its task.
@@ -964,10 +984,10 @@ impl ChainSync {
 					if !have_latest && (higher_difficulty || force || self.state == SyncState::NewBlocks) {
 						// check if got new blocks to download
 						trace!(target: "sync", "Syncing with peer {}, force={}, td={:?}, our td={}, state={:?}", peer_id, force, peer_difficulty, syncing_difficulty, self.state);
-						if let Some(request) = self.new_blocks.request_blocks(io, num_active_peers) {
+						if let Some(request) = self.new_blocks.request_blocks(peer_id, io, num_active_peers) {
 							SyncRequester::request_blocks(self, io, peer_id, request, BlockSet::NewBlocks);
 							if self.state == SyncState::Idle {
-								self.state = SyncState::Blocks;
+								self.set_state(SyncState::Blocks);
 							}
 							return;
 						}
@@ -977,7 +997,7 @@ impl ChainSync {
 					let equal_or_higher_difficulty = peer_difficulty.map_or(false, |pd| pd >= syncing_difficulty);
 
 					if force || equal_or_higher_difficulty {
-						if let Some(request) = self.old_blocks.as_mut().and_then(|d| d.request_blocks(io, num_active_peers)) {
+						if let Some(request) = self.old_blocks.as_mut().and_then(|d| d.request_blocks(peer_id, io, num_active_peers)) {
 							SyncRequester::request_blocks(self, io, peer_id, request, BlockSet::OldBlocks);
 							return;
 						}
@@ -999,7 +1019,7 @@ impl ChainSync {
 							self.snapshot.initialize(io.snapshot_service());
 							if self.snapshot.done_chunks() - (state_chunks_done + block_chunks_done) as usize > MAX_SNAPSHOT_CHUNKS_DOWNLOAD_AHEAD {
 								trace!(target: "sync", "Snapshot queue full, pausing sync");
-								self.state = SyncState::SnapshotWaiting;
+								self.set_state(SyncState::SnapshotWaiting);
 								return;
 							}
 						},
@@ -1135,7 +1155,7 @@ impl ChainSync {
 		if warp_protocol {
 			let manifest = io.snapshot_service().manifest();
 			let block_number = manifest.as_ref().map_or(0, |m| m.block_number);
-			let manifest_hash = manifest.map_or(H256::new(), |m| keccak(m.into_rlp()));
+			let manifest_hash = manifest.map_or(H256::zero(), |m| keccak(m.into_rlp()));
 			packet.append(&manifest_hash);
 			packet.append(&block_number);
 			if private_tx_protocol {
@@ -1143,7 +1163,7 @@ impl ChainSync {
 			}
 		}
 		packet.complete_unbounded_list();
-		io.respond(STATUS_PACKET, packet.out())
+		io.respond(StatusPacket.id(), packet.out())
 	}
 
 	pub fn maintain_peers(&mut self, io: &mut SyncIo) {
@@ -1183,12 +1203,12 @@ impl ChainSync {
 	fn check_resume(&mut self, io: &mut SyncIo) {
 		match self.state {
 			SyncState::Waiting if !io.chain().queue_info().is_full() => {
-				self.state = SyncState::Blocks;
+				self.set_state(SyncState::Blocks);
 				self.continue_sync(io);
 			},
 			SyncState::SnapshotData => match io.snapshot_service().status() {
 				RestorationStatus::Inactive | RestorationStatus::Failed => {
-					self.state = SyncState::SnapshotWaiting;
+					self.set_state(SyncState::SnapshotWaiting);
 				},
 				RestorationStatus::Initializing { .. } | RestorationStatus::Ongoing { .. } => (),
 			},
@@ -1204,13 +1224,13 @@ impl ChainSync {
 					RestorationStatus::Ongoing { state_chunks_done, block_chunks_done, .. } => {
 						if !self.snapshot.is_complete() && self.snapshot.done_chunks() - (state_chunks_done + block_chunks_done) as usize <= MAX_SNAPSHOT_CHUNKS_DOWNLOAD_AHEAD {
 							trace!(target:"sync", "Resuming snapshot sync");
-							self.state = SyncState::SnapshotData;
+							self.set_state(SyncState::SnapshotData);
 							self.continue_sync(io);
 						}
 					},
 					RestorationStatus::Failed => {
 						trace!(target: "sync", "Snapshot restoration aborted");
-						self.state = SyncState::WaitingPeers;
+						self.set_state(SyncState::WaitingPeers);
 						self.snapshot.clear();
 						self.continue_sync(io);
 					},
@@ -1328,7 +1348,7 @@ impl ChainSync {
 	}
 
 	/// Broadcast private transaction message to peers.
-	pub fn propagate_private_transaction(&mut self, io: &mut SyncIo, transaction_hash: H256, packet_id: PacketId, packet: Bytes) {
+	pub fn propagate_private_transaction(&mut self, io: &mut SyncIo, transaction_hash: H256, packet_id: SyncPacket, packet: Bytes) {
 		SyncPropagator::propagate_private_transaction(self, io, transaction_hash, packet_id, packet);
 	}
 }
@@ -1379,7 +1399,7 @@ pub mod tests {
 		let mut rlp = RlpStream::new_list(5);
 		for _ in 0..5 {
 			let mut hash_d_rlp = RlpStream::new_list(2);
-			let hash: H256 = H256::from(0u64);
+			let hash: H256 = H256::zero();
 			let diff: U256 = U256::from(1u64);
 			hash_d_rlp.append(&hash);
 			hash_d_rlp.append(&diff);
@@ -1433,7 +1453,8 @@ pub mod tests {
 	}
 
 	pub fn dummy_sync_with_peer(peer_latest_hash: H256, client: &BlockChainClient) -> ChainSync {
-		let mut sync = ChainSync::new(SyncConfig::default(), client, None);
+
+		let mut sync = ChainSync::new(SyncConfig::default(), client, None,);
 		insert_dummy_peer(&mut sync, 0, peer_latest_hash);
 		sync
 	}
@@ -1459,6 +1480,7 @@ pub mod tests {
 				snapshot_hash: None,
 				asking_snapshot_data: None,
 				block_set: None,
+				client_version: ClientVersion::from(""),
 			});
 
 	}

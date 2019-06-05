@@ -16,19 +16,18 @@
 
 //! A blockchain engine that supports a basic, non-BFT proof-of-authority.
 
-use std::sync::{Weak, Arc};
-use ethereum_types::{H256, H520, Address};
+use std::sync::Weak;
+use ethereum_types::{H256, H520};
 use parking_lot::RwLock;
-use ethkey::{self, Password, Signature};
-use account_provider::AccountProvider;
+use ethkey::{self, Signature};
 use block::*;
-use engines::{Engine, Seal, ConstructedVerifier, EngineError};
+use engines::{Engine, Seal, SealingState, ConstructedVerifier, EngineError};
+use engines::signer::EngineSigner;
 use error::{BlockError, Error};
 use ethjson;
 use client::EngineClient;
 use machine::{AuxiliaryData, Call, EthereumMachine};
 use types::header::{Header, ExtendedHeader};
-use super::signer::EngineSigner;
 use super::validator_set::{ValidatorSet, SimpleList, new_validator_set};
 
 /// `BasicAuthority` params.
@@ -76,7 +75,7 @@ fn verify_external(header: &Header, validators: &ValidatorSet) -> Result<(), Err
 /// Engine using `BasicAuthority`, trivial proof-of-authority consensus.
 pub struct BasicAuthority {
 	machine: EthereumMachine,
-	signer: RwLock<EngineSigner>,
+	signer: RwLock<Option<Box<EngineSigner>>>,
 	validators: Box<ValidatorSet>,
 }
 
@@ -85,7 +84,7 @@ impl BasicAuthority {
 	pub fn new(our_params: BasicAuthorityParams, machine: EthereumMachine) -> Self {
 		BasicAuthority {
 			machine: machine,
-			signer: Default::default(),
+			signer: RwLock::new(None),
 			validators: new_validator_set(our_params.validators),
 		}
 	}
@@ -99,18 +98,22 @@ impl Engine<EthereumMachine> for BasicAuthority {
 	// One field - the signature
 	fn seal_fields(&self, _header: &Header) -> usize { 1 }
 
-	fn seals_internally(&self) -> Option<bool> {
-		Some(self.signer.read().is_some())
+	fn sealing_state(&self) -> SealingState {
+		if self.signer.read().is_some() {
+			SealingState::Ready
+		} else {
+			SealingState::NotReady
+		}
 	}
 
 	/// Attempt to seal the block internally.
 	fn generate_seal(&self, block: &ExecutedBlock, _parent: &Header) -> Seal {
-		let header = block.header();
+		let header = &block.header;
 		let author = header.author();
 		if self.validators.contains(header.parent_hash(), author) {
 			// account should be pernamently unlocked, otherwise sealing will fail
 			if let Ok(signature) = self.sign(header.bare_hash()) {
-				return Seal::Regular(vec![::rlp::encode(&(&H520::from(signature) as &[u8]))]);
+				return Seal::Regular(vec![::rlp::encode(&(H520::from(signature).as_bytes()))]);
 			} else {
 				trace!(target: "basicauthority", "generate_seal: FAIL: accounts secret key unavailable");
 			}
@@ -190,12 +193,16 @@ impl Engine<EthereumMachine> for BasicAuthority {
 		self.validators.register_client(client);
 	}
 
-	fn set_signer(&self, ap: Arc<AccountProvider>, address: Address, password: Password) {
-		self.signer.write().set(ap, address, password);
+	fn set_signer(&self, signer: Box<EngineSigner>) {
+		*self.signer.write() = Some(signer);
 	}
 
 	fn sign(&self, hash: H256) -> Result<Signature, Error> {
-		Ok(self.signer.read().sign(hash)?)
+		Ok(self.signer.read()
+			.as_ref()
+			.ok_or_else(|| ethkey::Error::InvalidAddress)?
+			.sign(hash)?
+		)
 	}
 
 	fn snapshot_components(&self) -> Option<Box<::snapshot::SnapshotComponents>> {
@@ -214,10 +221,10 @@ mod tests {
 	use ethereum_types::H520;
 	use block::*;
 	use test_helpers::get_temp_state_db;
-	use account_provider::AccountProvider;
+	use accounts::AccountProvider;
 	use types::header::Header;
 	use spec::Spec;
-	use engines::Seal;
+	use engines::{Seal, SealingState};
 	use tempdir::TempDir;
 
 	/// Create a new test chain spec with `BasicAuthority` consensus engine.
@@ -257,25 +264,25 @@ mod tests {
 
 		let spec = new_test_authority();
 		let engine = &*spec.engine;
-		engine.set_signer(Arc::new(tap), addr, "".into());
+		engine.set_signer(Box::new((Arc::new(tap), addr, "".into())));
 		let genesis_header = spec.genesis_header();
 		let db = spec.ensure_db_good(get_temp_state_db(), &Default::default()).unwrap();
 		let last_hashes = Arc::new(vec![genesis_header.hash()]);
-		let b = OpenBlock::new(engine, Default::default(), false, db, &genesis_header, last_hashes, addr, (3141562.into(), 31415620.into()), vec![], false, &mut Vec::new().into_iter()).unwrap();
+		let b = OpenBlock::new(engine, Default::default(), false, db, &genesis_header, last_hashes, addr, (3141562.into(), 31415620.into()), vec![], false, None).unwrap();
 		let b = b.close_and_lock().unwrap();
-		if let Seal::Regular(seal) = engine.generate_seal(b.block(), &genesis_header) {
+		if let Seal::Regular(seal) = engine.generate_seal(&b, &genesis_header) {
 			assert!(b.try_seal(engine, seal).is_ok());
 		}
 	}
 
 	#[test]
-	fn seals_internally() {
+	fn sealing_state() {
 		let tap = AccountProvider::transient_provider();
 		let authority = tap.insert_account(keccak("").into(), &"".into()).unwrap();
 
 		let engine = new_test_authority().engine;
-		assert!(!engine.seals_internally().unwrap());
-		engine.set_signer(Arc::new(tap), authority, "".into());
-		assert!(engine.seals_internally().unwrap());
+		assert_eq!(SealingState::NotReady, engine.sealing_state());
+		engine.set_signer(Box::new((Arc::new(tap), authority, "".into())));
+		assert_eq!(SealingState::Ready, engine.sealing_state());
 	}
 }

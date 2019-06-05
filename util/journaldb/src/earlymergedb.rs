@@ -23,11 +23,11 @@ use std::sync::Arc;
 
 use bytes::Bytes;
 use ethereum_types::H256;
-use hashdb::*;
+use hash_db::{HashDB};
 use heapsize::HeapSizeOf;
 use keccak_hasher::KeccakHasher;
 use kvdb::{KeyValueDB, DBTransaction, DBValue};
-use memorydb::*;
+use memory_db::*;
 use parking_lot::RwLock;
 use rlp::{encode, decode};
 use super::{DB_PREFIX_LEN, LATEST_ERA_KEY, error_negatively_reference_hash, error_key_already_exists};
@@ -120,7 +120,7 @@ impl EarlyMergeDB {
 		let (latest_era, refs) = EarlyMergeDB::read_refs(&*backing, col);
 		let refs = Some(Arc::new(RwLock::new(refs)));
 		EarlyMergeDB {
-			overlay: MemoryDB::new(),
+			overlay: ::new_memory_db(),
 			backing: backing,
 			refs: refs,
 			latest_era: latest_era,
@@ -129,7 +129,7 @@ impl EarlyMergeDB {
 	}
 
 	fn morph_key(key: &H256, index: u8) -> Bytes {
-		let mut ret = (&**key).to_owned();
+		let mut ret = key.as_bytes().to_owned();
 		ret.push(index);
 		ret
 	}
@@ -152,7 +152,8 @@ impl EarlyMergeDB {
 				},
 				Entry::Vacant(entry) => {
 					// this is the first entry for this node in the journal.
-					let in_archive = backing.get(col, h).expect("Low-level database error. Some issue with your hard disk?").is_some();
+					let in_archive = backing.get(col, h.as_bytes())
+						.expect("Low-level database error. Some issue with your hard disk?").is_some();
 					if in_archive {
 						// already in the backing DB. start counting, and remember it was already in.
 						Self::set_already_in(batch, col, h);
@@ -162,7 +163,7 @@ impl EarlyMergeDB {
 						//Self::reset_already_in(&h);
 						assert!(!Self::is_already_in(backing, col, h));
 						trace!(target: "jdb.fine", "    insert({}): New to queue, not in DB: Inserting into queue and DB", h);
-						batch.put(col, h, d);
+						batch.put(col, h.as_bytes(), d);
 					}
 					entry.insert(RefInfo {
 						queue_refs: 1,
@@ -227,7 +228,7 @@ impl EarlyMergeDB {
 						},
 						(1, false) => {
 							entry.remove();
-							batch.delete(col, h);
+							batch.delete(col, h.as_bytes());
 							trace!(target: "jdb.fine", "    remove({}): Not in archive, only 1 ref in queue: Removing from queue and DB", h);
 						},
 						_ => panic!("Invalid value in refs: {:?}", entry.get()),
@@ -236,7 +237,7 @@ impl EarlyMergeDB {
 				Entry::Vacant(_entry) => {
 					// Gets removed when moving from 1 to 0 additional refs. Should never be here at 0 additional refs.
 					//assert!(!Self::is_already_in(db, &h));
-					batch.delete(col, h);
+					batch.delete(col, h.as_bytes());
 					trace!(target: "jdb.fine", "    remove({}): Not in queue - MUST BE IN ARCHIVE: Removing from DB", h);
 				},
 			}
@@ -258,7 +259,9 @@ impl EarlyMergeDB {
 	}
 
 	fn payload(&self, key: &H256) -> Option<DBValue> {
-		self.backing.get(self.column, key).expect("Low-level database error. Some issue with your hard disk?")
+		self.backing
+			.get(self.column, key.as_bytes())
+			.expect("Low-level database error. Some issue with your hard disk?")
 	}
 
 	fn read_refs(db: &KeyValueDB, col: Option<u32>) -> (Option<u64>, HashMap<H256, RefInfo>) {
@@ -285,31 +288,14 @@ impl EarlyMergeDB {
 		}
 		(latest_era, refs)
 	}
+
 }
 
 impl HashDB<KeccakHasher, DBValue> for EarlyMergeDB {
-	fn keys(&self) -> HashMap<H256, i32> {
-		let mut ret: HashMap<H256, i32> = self.backing.iter(self.column)
-			.map(|(key, _)| (H256::from_slice(&*key), 1))
-			.collect();
-
-		for (key, refs) in self.overlay.keys() {
-			match ret.entry(key) {
-				Entry::Occupied(mut entry) => {
-					*entry.get_mut() += refs;
-				},
-				Entry::Vacant(entry) => {
-					entry.insert(refs);
-				}
-			}
-		}
-		ret
-	}
-
 	fn get(&self, key: &H256) -> Option<DBValue> {
 		if let Some((d, rc)) = self.overlay.raw(key) {
 			if rc > 0 {
-				return Some(d)
+				return Some(d.clone())
 			}
 		}
 		self.payload(key)
@@ -327,6 +313,26 @@ impl HashDB<KeccakHasher, DBValue> for EarlyMergeDB {
 	}
 	fn remove(&mut self, key: &H256) {
 		self.overlay.remove(key);
+	}
+}
+
+impl ::traits::KeyedHashDB for EarlyMergeDB {
+	fn keys(&self) -> HashMap<H256, i32> {
+		let mut ret: HashMap<H256, i32> = self.backing.iter(self.column)
+			.map(|(key, _)| (H256::from_slice(&*key), 1))
+			.collect();
+
+		for (key, refs) in self.overlay.keys() {
+			match ret.entry(key) {
+				Entry::Occupied(mut entry) => {
+					*entry.get_mut() += refs;
+				},
+				Entry::Vacant(entry) => {
+					entry.insert(refs);
+				}
+			}
+		}
+		ret
 	}
 }
 
@@ -496,16 +502,16 @@ impl JournalDB for EarlyMergeDB {
 			match rc {
 				0 => {}
 				1 => {
-					if self.backing.get(self.column, &key)?.is_some() {
+					if self.backing.get(self.column, key.as_bytes())?.is_some() {
 						return Err(error_key_already_exists(&key));
 					}
-					batch.put(self.column, &key, &value)
+					batch.put(self.column, key.as_bytes(), &value)
 				}
 				-1 => {
-					if self.backing.get(self.column, &key)?.is_none() {
+					if self.backing.get(self.column, key.as_bytes())?.is_none() {
 						return Err(error_negatively_reference_hash(&key));
 					}
-					batch.delete(self.column, &key)
+					batch.delete(self.column, key.as_bytes())
 				}
 				_ => panic!("Attempted to inject invalid state."),
 			}
@@ -523,7 +529,7 @@ impl JournalDB for EarlyMergeDB {
 mod tests {
 
 	use keccak::keccak;
-	use hashdb::HashDB;
+	use hash_db::HashDB;
 	use super::*;
 	use super::super::traits::JournalDB;
 	use kvdb_memorydb;

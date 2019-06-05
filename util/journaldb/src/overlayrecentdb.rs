@@ -23,11 +23,11 @@ use std::sync::Arc;
 
 use bytes::Bytes;
 use ethereum_types::H256;
-use hashdb::*;
+use hash_db::{HashDB};
 use heapsize::HeapSizeOf;
 use keccak_hasher::KeccakHasher;
 use kvdb::{KeyValueDB, DBTransaction, DBValue};
-use memorydb::*;
+use memory_db::*;
 use parking_lot::RwLock;
 use fastmap::H256FastMap;
 use rlp::{Rlp, RlpStream, encode, decode, DecoderError, Decodable, Encodable};
@@ -157,7 +157,7 @@ impl OverlayRecentDB {
 	pub fn new(backing: Arc<KeyValueDB>, col: Option<u32>) -> OverlayRecentDB {
 		let journal_overlay = Arc::new(RwLock::new(OverlayRecentDB::read_overlay(&*backing, col)));
 		OverlayRecentDB {
-			transaction_overlay: MemoryDB::new(),
+			transaction_overlay: ::new_memory_db(),
 			backing: backing,
 			journal_overlay: journal_overlay,
 			column: col,
@@ -176,12 +176,14 @@ impl OverlayRecentDB {
 	}
 
 	fn payload(&self, key: &H256) -> Option<DBValue> {
-		self.backing.get(self.column, key).expect("Low-level database error. Some issue with your hard disk?")
+		self.backing
+			.get(self.column, key.as_bytes())
+			.expect("Low-level database error. Some issue with your hard disk?")
 	}
 
 	fn read_overlay(db: &KeyValueDB, col: Option<u32>) -> JournalOverlay {
 		let mut journal = HashMap::new();
-		let mut overlay = MemoryDB::new();
+		let mut overlay = ::new_memory_db();
 		let mut count = 0;
 		let mut latest_era = None;
 		let mut earliest_era = None;
@@ -233,16 +235,38 @@ impl OverlayRecentDB {
 			cumulative_size: cumulative_size,
 		}
 	}
+
 }
 
 #[inline]
 fn to_short_key(key: &H256) -> H256 {
-	let mut k = H256::new();
+	let mut k = H256::zero();
 	k[0..DB_PREFIX_LEN].copy_from_slice(&key[0..DB_PREFIX_LEN]);
 	k
 }
 
+impl ::traits::KeyedHashDB for OverlayRecentDB {
+	fn keys(&self) -> HashMap<H256, i32> {
+		let mut ret: HashMap<H256, i32> = self.backing.iter(self.column)
+			.map(|(key, _)| (H256::from_slice(&*key), 1))
+			.collect();
+
+		for (key, refs) in self.transaction_overlay.keys() {
+			match ret.entry(key) {
+				Entry::Occupied(mut entry) => {
+					*entry.get_mut() += refs;
+				},
+				Entry::Vacant(entry) => {
+					entry.insert(refs);
+				}
+			}
+		}
+		ret
+	}
+}
+
 impl JournalDB for OverlayRecentDB {
+
 	fn boxed_clone(&self) -> Box<JournalDB> {
 		Box::new(self.clone())
 	}
@@ -365,7 +389,7 @@ impl JournalDB for OverlayRecentDB {
 						for h in &journal.insertions {
 							if let Some((d, rc)) = journal_overlay.backing_overlay.raw(&to_short_key(h)) {
 								if rc > 0 {
-									canon_insertions.push((h.clone(), d)); //TODO: optimize this to avoid data copy
+									canon_insertions.push((h.clone(), d.clone())); //TODO: optimize this to avoid data copy
 								}
 							}
 						}
@@ -381,7 +405,7 @@ impl JournalDB for OverlayRecentDB {
 
 			// apply canon inserts first
 			for (k, v) in canon_insertions {
-				batch.put(self.column, &k, &v);
+				batch.put(self.column, k.as_bytes(), &v);
 				journal_overlay.pending_overlay.insert(to_short_key(&k), v);
 			}
 			// update the overlay
@@ -393,7 +417,7 @@ impl JournalDB for OverlayRecentDB {
 			// apply canon deletions
 			for k in canon_deletions {
 				if !journal_overlay.backing_overlay.contains(&to_short_key(&k)) {
-					batch.delete(self.column, &k);
+					batch.delete(self.column, k.as_bytes());
 				}
 			}
 		}
@@ -419,13 +443,13 @@ impl JournalDB for OverlayRecentDB {
 			match rc {
 				0 => {}
 				_ if rc > 0 => {
-					batch.put(self.column, &key, &value)
+					batch.put(self.column, key.as_bytes(), &value)
 				}
 				-1 => {
-					if cfg!(debug_assertions) && self.backing.get(self.column, &key)?.is_none() {
+					if cfg!(debug_assertions) && self.backing.get(self.column, key.as_bytes())?.is_none() {
 						return Err(error_negatively_reference_hash(&key));
 					}
-					batch.delete(self.column, &key)
+					batch.delete(self.column, key.as_bytes())
 				}
 				_ => panic!("Attempted to inject invalid state ({})", rc),
 			}
@@ -440,28 +464,10 @@ impl JournalDB for OverlayRecentDB {
 }
 
 impl HashDB<KeccakHasher, DBValue> for OverlayRecentDB {
-	fn keys(&self) -> HashMap<H256, i32> {
-		let mut ret: HashMap<H256, i32> = self.backing.iter(self.column)
-			.map(|(key, _)| (H256::from_slice(&*key), 1))
-			.collect();
-
-		for (key, refs) in self.transaction_overlay.keys() {
-			match ret.entry(key) {
-				Entry::Occupied(mut entry) => {
-					*entry.get_mut() += refs;
-				},
-				Entry::Vacant(entry) => {
-					entry.insert(refs);
-				}
-			}
-		}
-		ret
-	}
-
 	fn get(&self, key: &H256) -> Option<DBValue> {
 		if let Some((d, rc)) = self.transaction_overlay.raw(key) {
 			if rc > 0 {
-				return Some(d)
+				return Some(d.clone())
 			}
 		}
 		let v = {
@@ -493,7 +499,7 @@ mod tests {
 
 	use keccak::keccak;
 	use super::*;
-	use hashdb::HashDB;
+	use hash_db::HashDB;
 	use {kvdb_memorydb, JournalDB};
 
 	fn new_db() -> OverlayRecentDB {

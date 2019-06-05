@@ -25,7 +25,7 @@ use byteorder::{LittleEndian, ByteOrder};
 use db::COL_ACCOUNT_BLOOM;
 use ethereum_types::{H256, Address};
 use hash::keccak;
-use hashdb::HashDB;
+use hash_db::HashDB;
 use journaldb::JournalDB;
 use keccak_hasher::KeccakHasher;
 use kvdb::{KeyValueDB, DBTransaction, DBValue};
@@ -313,13 +313,13 @@ impl StateDB {
 	}
 
 	/// Conversion method to interpret self as `HashDB` reference
-	pub fn as_hashdb(&self) -> &HashDB<KeccakHasher, DBValue> {
-		self.db.as_hashdb()
+	pub fn as_hash_db(&self) -> &HashDB<KeccakHasher, DBValue> {
+		self.db.as_hash_db()
 	}
 
 	/// Conversion method to interpret self as mutable `HashDB` reference
-	pub fn as_hashdb_mut(&mut self) -> &mut HashDB<KeccakHasher, DBValue> {
-		self.db.as_hashdb_mut()
+	pub fn as_hash_db_mut(&mut self) -> &mut HashDB<KeccakHasher, DBValue> {
+		self.db.as_hash_db_mut()
 	}
 
 	/// Clone the database.
@@ -407,10 +407,10 @@ impl StateDB {
 }
 
 impl state::Backend for StateDB {
-	fn as_hashdb(&self) -> &HashDB<KeccakHasher, DBValue> { self.db.as_hashdb() }
+	fn as_hash_db(&self) -> &HashDB<KeccakHasher, DBValue> { self.db.as_hash_db() }
 
-	fn as_hashdb_mut(&mut self) -> &mut HashDB<KeccakHasher, DBValue> {
-		self.db.as_hashdb_mut()
+	fn as_hash_db_mut(&mut self) -> &mut HashDB<KeccakHasher, DBValue> {
+		self.db.as_hash_db_mut()
 	}
 
 	fn add_to_account_cache(&mut self, addr: Address, data: Option<Account>, modified: bool) {
@@ -458,13 +458,13 @@ impl state::Backend for StateDB {
 	fn note_non_null_account(&self, address: &Address) {
 		trace!(target: "account_bloom", "Note account bloom: {:?}", address);
 		let mut bloom = self.account_bloom.lock();
-		bloom.set(&*keccak(address));
+		bloom.set(keccak(address).as_bytes());
 	}
 
 	fn is_known_null(&self, address: &Address) -> bool {
 		trace!(target: "account_bloom", "Check account bloom: {:?}", address);
 		let bloom = self.account_bloom.lock();
-		let is_null = !bloom.check(&*keccak(address));
+		let is_null = !bloom.check(keccak(address).as_bytes());
 		is_null
 	}
 }

@@ -25,10 +25,10 @@ use hash::{keccak, KECCAK_NULL_RLP};
 use ethereum_types::{U256, H256, Address};
 use bytes::ToPretty;
 use rlp::PayloadInfo;
-use ethcore::account_provider::AccountProvider;
-use ethcore::client::{Mode, DatabaseCompactionProfile, VMType, Nonce, Balance, BlockChainClient, BlockId, BlockInfo,
-	ImportBlock, BlockChainReset};
-use ethcore::error::{ImportErrorKind, ErrorKind as EthcoreErrorKind, Error as EthcoreError};
+use ethcore::client::{
+	Mode, DatabaseCompactionProfile, VMType, Nonce, Balance, BlockChainClient, BlockId, BlockInfo, ImportBlock, BlockChainReset
+};
+use ethcore::error::{ImportError, Error as EthcoreError};
 use ethcore::miner::Miner;
 use ethcore::verification::queue::VerifierSettings;
 use ethcore::verification::queue::kind::blocks::Unverified;
@@ -272,7 +272,7 @@ fn execute_import_light(cmd: ImportBlockchain) -> Result<(), String> {
 		}
 
 		match client.import_header(header) {
-			Err(EthcoreError(EthcoreErrorKind::Import(ImportErrorKind::AlreadyInChain), _)) => {
+			Err(EthcoreError::Import(ImportError::AlreadyInChain)) => {
 				trace!("Skipping block already in chain.");
 			}
 			Err(e) => {
@@ -395,8 +395,9 @@ fn execute_import(cmd: ImportBlockchain) -> Result<(), String> {
 		// TODO [ToDr] don't use test miner here
 		// (actually don't require miner at all)
 		Arc::new(Miner::new_for_tests(&spec, None)),
-		Arc::new(AccountProvider::transient_provider()),
+		Arc::new(ethcore_private_tx::DummySigner),
 		Box::new(ethcore_private_tx::NoopEncryptor),
+		Default::default(),
 		Default::default(),
 	).map_err(|e| format!("Client service error: {:?}", e))?;
 
@@ -443,7 +444,7 @@ fn execute_import(cmd: ImportBlockchain) -> Result<(), String> {
 		let block = Unverified::from_rlp(bytes).map_err(|_| "Invalid block rlp")?;
 		while client.queue_info().is_full() { sleep(Duration::from_secs(1)); }
 		match client.import_block(block) {
-			Err(EthcoreError(EthcoreErrorKind::Import(ImportErrorKind::AlreadyInChain), _)) => {
+			Err(EthcoreError::Import(ImportError::AlreadyInChain)) => {
 				trace!("Skipping block already in chain.");
 			}
 			Err(e) => {
@@ -586,8 +587,9 @@ fn start_client(
 		// It's fine to use test version here,
 		// since we don't care about miner parameters at all
 		Arc::new(Miner::new_for_tests(&spec, None)),
-		Arc::new(AccountProvider::transient_provider()),
+		Arc::new(ethcore_private_tx::DummySigner),
 		Box::new(ethcore_private_tx::NoopEncryptor),
+		Default::default(),
 		Default::default(),
 	).map_err(|e| format!("Client service error: {:?}", e))?;
 

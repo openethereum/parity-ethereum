@@ -34,6 +34,7 @@ use common_types::blockchain_info::BlockChainInfo;
 use common_types::encoded;
 use common_types::header::Header;
 use common_types::ids::BlockId;
+use common_types::verification_queue_info::VerificationQueueInfo as BlockQueueInfo;
 
 use kvdb::KeyValueDB;
 
@@ -91,6 +92,9 @@ pub trait LightChainClient: Send + Sync {
 	/// Attempt to get a block hash by block id.
 	fn block_hash(&self, id: BlockId) -> Option<H256>;
 
+	/// Get block queue information.
+	fn queue_info(&self) -> BlockQueueInfo;
+
 	/// Attempt to get block header by block id.
 	fn block_header(&self, id: BlockId) -> Option<encoded::Header>;
 
@@ -116,14 +120,14 @@ pub trait LightChainClient: Send + Sync {
 	/// Query whether a block is known.
 	fn is_known(&self, hash: &H256) -> bool;
 
+	/// Set the chain via a spec name.
+	fn set_spec_name(&self, new_spec_name: String) -> Result<(), ()>;
+
 	/// Clear the queue.
 	fn clear_queue(&self);
 
 	/// Flush the queue.
 	fn flush_queue(&self);
-
-	/// Get queue info.
-	fn queue_info(&self) -> queue::QueueInfo;
 
 	/// Get the `i`th CHT root.
 	fn cht_root(&self, i: usize) -> Option<H256>;
@@ -164,6 +168,8 @@ pub struct Client<T> {
 	listeners: RwLock<Vec<Weak<LightChainNotify>>>,
 	fetcher: T,
 	verify_full: bool,
+	/// A closure to call when we want to restart the client
+	exit_handler: Mutex<Option<Box<Fn(String) + 'static + Send>>>,
 }
 
 impl<T: ChainDataFetcher> Client<T> {
@@ -190,6 +196,7 @@ impl<T: ChainDataFetcher> Client<T> {
 			listeners: RwLock::new(vec![]),
 			fetcher,
 			verify_full: config.verify_full,
+			exit_handler: Mutex::new(None),
 		})
 	}
 
@@ -360,6 +367,14 @@ impl<T: ChainDataFetcher> Client<T> {
 		self.chain.heap_size_of_children()
 	}
 
+	/// Set a closure to call when the client wants to be restarted.
+	///
+	/// The parameter passed to the callback is the name of the new chain spec to use after
+	/// the restart.
+	pub fn set_exit_handler<F>(&self, f: F) where F: Fn(String) + 'static + Send {
+		*self.exit_handler.lock() = Some(Box::new(f));
+	}
+
 	/// Get a handle to the verification engine.
 	pub fn engine(&self) -> &Arc<EthEngine> {
 		&self.engine
@@ -520,12 +535,17 @@ impl<T: ChainDataFetcher> Client<T> {
 	}
 }
 
+
 impl<T: ChainDataFetcher> LightChainClient for Client<T> {
 	fn add_listener(&self, listener: Weak<LightChainNotify>) {
 		Client::add_listener(self, listener)
 	}
 
 	fn chain_info(&self) -> BlockChainInfo { Client::chain_info(self) }
+
+	fn queue_info(&self) -> queue::QueueInfo {
+		self.queue.queue_info()
+	}
 
 	fn queue_header(&self, header: Header) -> EthcoreResult<H256> {
 		self.import_header(header)
@@ -563,6 +583,17 @@ impl<T: ChainDataFetcher> LightChainClient for Client<T> {
 		Client::engine(self)
 	}
 
+	fn set_spec_name(&self, new_spec_name: String) -> Result<(), ()> {
+		trace!(target: "mode", "Client::set_spec_name({:?})", new_spec_name);
+		if let Some(ref h) = *self.exit_handler.lock() {
+			(*h)(new_spec_name);
+			Ok(())
+		} else {
+			warn!("Not hypervised; cannot change chain.");
+			Err(())
+		}
+	}
+
 	fn is_known(&self, hash: &H256) -> bool {
 		self.status(hash) == BlockStatus::InChain
 	}
@@ -573,10 +604,6 @@ impl<T: ChainDataFetcher> LightChainClient for Client<T> {
 
 	fn flush_queue(&self) {
 		Client::flush_queue(self);
-	}
-
-	fn queue_info(&self) -> queue::QueueInfo {
-		self.queue.queue_info()
 	}
 
 	fn cht_root(&self, i: usize) -> Option<H256> {

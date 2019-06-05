@@ -37,6 +37,7 @@ extern crate tokio;
 extern crate tokio_io;
 extern crate tokio_service;
 extern crate url;
+extern crate jsonrpc_server_utils;
 
 #[macro_use]
 extern crate ethabi_derive;
@@ -55,6 +56,9 @@ extern crate log;
 extern crate env_logger;
 #[cfg(test)]
 extern crate kvdb_rocksdb;
+
+#[cfg(feature = "accounts")]
+extern crate ethcore_accounts as accounts;
 
 mod key_server_cluster;
 mod types;
@@ -80,7 +84,9 @@ use parity_runtime::Executor;
 pub use types::{ServerKeyId, EncryptedDocumentKey, RequestSignature, Public,
 	Error, NodeAddress, ContractAddress, ServiceConfiguration, ClusterConfiguration};
 pub use traits::{NodeKeyPair, KeyServer};
-pub use self::node_key_pair::{PlainNodeKeyPair, KeyStoreNodeKeyPair};
+pub use self::node_key_pair::PlainNodeKeyPair;
+#[cfg(feature = "accounts")]
+pub use self::node_key_pair::KeyStoreNodeKeyPair;
 
 /// Start new key server instance
 pub fn start(client: Arc<Client>, sync: Arc<SyncProvider>, miner: Arc<Miner>, self_key_pair: Arc<NodeKeyPair>, mut config: ServiceConfiguration,
@@ -102,7 +108,7 @@ pub fn start(client: Arc<Client>, sync: Arc<SyncProvider>, miner: Arc<Miner>, se
 
 	// prepare HTTP listener
 	let http_listener = match config.listener_address {
-		Some(listener_address) => Some(listener::http_listener::KeyServerHttpListener::start(listener_address, Arc::downgrade(&key_server), executor)?),
+		Some(listener_address) => Some(listener::http_listener::KeyServerHttpListener::start(listener_address, config.cors, Arc::downgrade(&key_server), executor)?),
 		None => None,
 	};
 

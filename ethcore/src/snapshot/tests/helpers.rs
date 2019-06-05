@@ -35,7 +35,7 @@ use rand::Rng;
 
 use kvdb::DBValue;
 use ethereum_types::H256;
-use hashdb::HashDB;
+use hash_db::HashDB;
 use keccak_hasher::KeccakHasher;
 use journaldb;
 use trie::{TrieMut, Trie};
@@ -65,7 +65,7 @@ impl StateProducer {
 	pub fn tick<R: Rng>(&mut self, rng: &mut R, db: &mut HashDB<KeccakHasher, DBValue>) {
 		// modify existing accounts.
 		let mut accounts_to_modify: Vec<_> = {
-			let trie = TrieDB::new(&*db, &self.state_root).unwrap();
+			let trie = TrieDB::new(&db, &self.state_root).unwrap();
 			let temp = trie.iter().unwrap() // binding required due to complicated lifetime stuff
 				.filter(|_| rng.gen::<f32>() < ACCOUNT_CHURN)
 				.map(Result::unwrap)
@@ -124,18 +124,9 @@ pub fn fill_storage(mut db: AccountDBMut, root: &mut H256, seed: &mut H256) {
 			SecTrieDBMut::from_existing(&mut db, root).unwrap()
 		};
 
-		for (k, v) in map.make_with(seed) {
+		for (k, v) in map.make_with(&mut seed.to_fixed_bytes()) {
 			trie.insert(&k, &v).unwrap();
 		}
-	}
-}
-
-/// Compare two state dbs.
-pub fn compare_dbs(one: &HashDB<KeccakHasher, DBValue>, two: &HashDB<KeccakHasher, DBValue>) {
-	let keys = one.keys();
-
-	for key in keys.keys() {
-		assert_eq!(one.get(&key).unwrap(), two.get(&key).unwrap());
 	}
 }
 
@@ -166,7 +157,6 @@ pub fn restore(
 	genesis: &[u8],
 ) -> Result<(), ::error::Error> {
 	use std::sync::atomic::AtomicBool;
-	use snappy;
 
 	let flag = AtomicBool::new(true);
 	let components = engine.snapshot_components().unwrap();

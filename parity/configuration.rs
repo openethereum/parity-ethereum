@@ -18,7 +18,8 @@ use std::time::Duration;
 use std::io::Read;
 use std::net::SocketAddr;
 use std::path::PathBuf;
-use std::collections::BTreeMap;
+use std::collections::{HashSet, BTreeMap};
+use std::iter::FromIterator;
 use std::cmp;
 use cli::{Args, ArgsError};
 use hash::keccak;
@@ -27,7 +28,7 @@ use parity_version::{version_data, version};
 use bytes::Bytes;
 use ansi_term::Colour;
 use sync::{NetworkConfiguration, validate_node_url, self};
-use ethstore::ethkey::{Secret, Public};
+use ethkey::{Secret, Public};
 use ethcore::client::{VMType};
 use ethcore::miner::{stratum, MinerOptions};
 use ethcore::snapshot::SnapshotConfiguration;
@@ -38,7 +39,7 @@ use num_cpus;
 use rpc::{IpcConfiguration, HttpConfiguration, WsConfiguration};
 use parity_rpc::NetworkSettings;
 use cache::CacheConfig;
-use helpers::{to_duration, to_mode, to_block_id, to_u256, to_pending_set, to_price, geth_ipc_path, parity_ipc_path, to_bootnodes, to_addresses, to_address, to_queue_strategy, to_queue_penalization, passwords_from_files};
+use helpers::{to_duration, to_mode, to_block_id, to_u256, to_pending_set, to_price, geth_ipc_path, parity_ipc_path, to_bootnodes, to_addresses, to_address, to_queue_strategy, to_queue_penalization};
 use dir::helpers::{replace_home, replace_home_and_local};
 use params::{ResealPolicy, AccountsConfig, GasPricerConfig, MinerExtras, SpecType};
 use ethcore_logger::Config as LogConfig;
@@ -143,6 +144,11 @@ impl Configuration {
 		let secretstore_conf = self.secretstore_config()?;
 		let format = self.format()?;
 
+		let key_iterations = self.args.arg_keys_iterations;
+		if key_iterations == 0 {
+			return Err("--key-iterations must be non-zero".into());
+		}
+
 		let cmd = if self.args.flag_version {
 			Cmd::Version
 		} else if self.args.cmd_signer {
@@ -198,7 +204,7 @@ impl Configuration {
 		} else if self.args.cmd_account {
 			let account_cmd = if self.args.cmd_account_new {
 				let new_acc = NewAccount {
-					iterations: self.args.arg_keys_iterations,
+					iterations: key_iterations,
 					path: dirs.keys,
 					spec: spec,
 					password_file: self.accounts_config()?.password_files.first().map(|x| x.to_owned()),
@@ -232,7 +238,7 @@ impl Configuration {
 			Cmd::Account(account_cmd)
 		} else if self.args.cmd_wallet {
 			let presale_cmd = ImportWallet {
-				iterations: self.args.arg_keys_iterations,
+				iterations: key_iterations,
 				path: dirs.keys,
 				spec: spec,
 				wallet_path: self.args.arg_wallet_import_path.clone().unwrap(),
@@ -438,6 +444,7 @@ impl Configuration {
 			gas_range_target: (floor, ceil),
 			engine_signer: self.engine_signer()?,
 			work_notify: self.work_notify(),
+			local_accounts: HashSet::from_iter(to_addresses(&self.args.arg_tx_queue_locals)?.into_iter()),
 		};
 
 		Ok(extras)
@@ -472,7 +479,8 @@ impl Configuration {
 		}
 	}
 
-	fn logger_config(&self) -> LogConfig {
+	/// returns logger config
+	pub fn logger_config(&self) -> LogConfig {
 		LogConfig {
 			mode: self.args.arg_logging.clone(),
 			color: !self.args.flag_no_color && !cfg!(windows),
@@ -532,7 +540,6 @@ impl Configuration {
 			testnet: self.args.flag_testnet,
 			password_files: self.args.arg_password.iter().map(|s| replace_home(&self.directories().base, s)).collect(),
 			unlocked_accounts: to_addresses(&self.args.arg_unlock)?,
-			enable_hardware_wallets: !self.args.flag_no_hardware_wallets,
 			enable_fast_unlock: self.args.flag_fast_unlock,
 		};
 
@@ -630,6 +637,7 @@ impl Configuration {
 			http_port: self.args.arg_ports_shift + self.args.arg_secretstore_http_port,
 			data_path: self.directories().secretstore,
 			admin_public: self.secretstore_admin_public()?,
+			cors: self.secretstore_cors()
 		})
 	}
 
@@ -734,7 +742,7 @@ impl Configuration {
 		ret.listen_address = Some(format!("{}", listen));
 		ret.public_address = public.map(|p| format!("{}", p));
 		ret.use_secret = match self.args.arg_node_key.as_ref()
-			.map(|s| s.parse::<Secret>().or_else(|_| Secret::from_unsafe_slice(&keccak(s))).map_err(|e| format!("Invalid key: {:?}", e))
+			.map(|s| s.parse::<Secret>().or_else(|_| Secret::from_unsafe_slice(keccak(s).as_bytes())).map_err(|e| format!("Invalid key: {:?}", e))
 			) {
 			None => None,
 			Some(Ok(key)) => Some(key),
@@ -905,23 +913,17 @@ impl Configuration {
 	}
 
 	fn private_provider_config(&self) -> Result<(ProviderConfig, EncryptorConfig, bool), String> {
+		let dirs = self.directories();
 		let provider_conf = ProviderConfig {
 			validator_accounts: to_addresses(&self.args.arg_private_validators)?,
 			signer_account: self.args.arg_private_signer.clone().and_then(|account| to_address(Some(account)).ok()),
-			passwords: match self.args.arg_private_passwords.clone() {
-				Some(file) => passwords_from_files(&vec![file].as_slice())?,
-				None => Vec::new(),
-			},
+			logs_path: Some(dirs.base),
 		};
 
 		let encryptor_conf = EncryptorConfig {
 			base_url: self.args.arg_private_sstore_url.clone(),
 			threshold: self.args.arg_private_sstore_threshold.unwrap_or(0),
 			key_server_account: self.args.arg_private_account.clone().and_then(|account| to_address(Some(account)).ok()),
-			passwords: match self.args.arg_private_passwords.clone() {
-				Some(file) => passwords_from_files(&vec![file].as_slice())?,
-				None => Vec::new(),
-			},
 		};
 
 		Ok((provider_conf, encryptor_conf, self.args.flag_private_enabled))
@@ -1058,10 +1060,15 @@ impl Configuration {
 		self.interface(&self.args.arg_secretstore_http_interface)
 	}
 
+	fn secretstore_cors(&self) -> Option<Vec<String>> {
+		Self::cors(self.args.arg_secretstore_http_cors.as_ref())
+	}
+
 	fn secretstore_self_secret(&self) -> Result<Option<NodeSecretKey>, String> {
 		match self.args.arg_secretstore_secret {
 			Some(ref s) if s.len() == 64 => Ok(Some(NodeSecretKey::Plain(s.parse()
 				.map_err(|e| format!("Invalid secret store secret: {}. Error: {:?}", s, e))?))),
+			#[cfg(feature = "accounts")]
 			Some(ref s) if s.len() == 40 => Ok(Some(NodeSecretKey::KeyStore(s.parse()
 				.map_err(|e| format!("Invalid secret store secret address: {}. Error: {:?}", s, e))?))),
 			Some(_) => Err(format!("Invalid secret store secret. Must be either existing account address, or hex-encoded private key")),
@@ -1448,7 +1455,11 @@ mod tests {
 			net_settings: Default::default(),
 			ipfs_conf: Default::default(),
 			secretstore_conf: Default::default(),
-			private_provider_conf: Default::default(),
+			private_provider_conf: ProviderConfig {
+				validator_accounts: Default::default(),
+				signer_account: Default::default(),
+				logs_path: Some(Directories::default().base),
+			},
 			private_encryptor_conf: Default::default(),
 			private_tx_enabled: false,
 			name: "".into(),
@@ -1963,5 +1974,20 @@ mod tests {
 			},
 			_ => panic!("Should be Cmd::Run"),
 		}
+	}
+
+	#[test]
+	fn should_parse_secretstore_cors() {
+		// given
+
+		// when
+		let conf0 = parse(&["parity"]);
+		let conf1 = parse(&["parity", "--secretstore-http-cors", "*"]);
+		let conf2 = parse(&["parity", "--secretstore-http-cors", "http://parity.io,http://something.io"]);
+
+		// then
+		assert_eq!(conf0.secretstore_cors(), Some(vec![]));
+		assert_eq!(conf1.secretstore_cors(), None);
+		assert_eq!(conf2.secretstore_cors(), Some(vec!["http://parity.io".into(),"http://something.io".into()]));
 	}
 }

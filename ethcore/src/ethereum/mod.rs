@@ -79,19 +79,14 @@ pub fn new_ellaism<'a, T: Into<SpecParams<'a>>>(params: T) -> Spec {
 	load(params.into(), include_bytes!("../../res/ethereum/ellaism.json"))
 }
 
-/// Create a new Easthub mainnet chain spec.
-pub fn new_easthub<'a, T: Into<SpecParams<'a>>>(params: T) -> Spec {
-	load(params.into(), include_bytes!("../../res/ethereum/easthub.json"))
-}
-
-/// Create a new Ethereum Social mainnet chain spec.
-pub fn new_social<'a, T: Into<SpecParams<'a>>>(params: T) -> Spec {
-	load(params.into(), include_bytes!("../../res/ethereum/social.json"))
-}
-
 /// Create a new MIX mainnet chain spec.
 pub fn new_mix<'a, T: Into<SpecParams<'a>>>(params: T) -> Spec {
 	load(params.into(), include_bytes!("../../res/ethereum/mix.json"))
+}
+
+/// Create a new Callisto chain spec
+pub fn new_callisto<'a, T: Into<SpecParams<'a>>>(params: T) -> Spec {
+	load(params.into(), include_bytes!("../../res/ethereum/callisto.json"))
 }
 
 /// Create a new Morden testnet chain spec.
@@ -109,14 +104,24 @@ pub fn new_kovan<'a, T: Into<SpecParams<'a>>>(params: T) -> Spec {
 	load(params.into(), include_bytes!("../../res/ethereum/kovan.json"))
 }
 
+/// Create a new Rinkeby testnet chain spec.
+pub fn new_rinkeby<'a, T: Into<SpecParams<'a>>>(params: T) -> Spec {
+	load(params.into(), include_bytes!("../../res/ethereum/rinkeby.json"))
+}
+
+/// Create a new Görli testnet chain spec.
+pub fn new_goerli<'a, T: Into<SpecParams<'a>>>(params: T) -> Spec {
+	load(params.into(), include_bytes!("../../res/ethereum/goerli.json"))
+}
+
+/// Create a new Kotti testnet chain spec.
+pub fn new_kotti<'a, T: Into<SpecParams<'a>>>(params: T) -> Spec {
+	load(params.into(), include_bytes!("../../res/ethereum/kotti.json"))
+}
+
 /// Create a new POA Sokol testnet chain spec.
 pub fn new_sokol<'a, T: Into<SpecParams<'a>>>(params: T) -> Spec {
 	load(params.into(), include_bytes!("../../res/ethereum/poasokol.json"))
-}
-
-/// Create a new Callisto chaun spec
-pub fn new_callisto<'a, T: Into<SpecParams<'a>>>(params: T) -> Spec {
-	load(params.into(), include_bytes!("../../res/ethereum/callisto.json"))
 }
 
 // For tests
@@ -148,6 +153,9 @@ pub fn new_byzantium_test() -> Spec { load(None, include_bytes!("../../res/ether
 /// Create a new Foundation Constantinople era spec.
 pub fn new_constantinople_test() -> Spec { load(None, include_bytes!("../../res/ethereum/constantinople_test.json")) }
 
+/// Create a new Foundation St. Peter's (Contantinople Fix) era spec.
+pub fn new_constantinople_fix_test() -> Spec { load(None, include_bytes!("../../res/ethereum/st_peters_test.json")) }
+
 /// Create a new Musicoin-MCIP3-era spec.
 pub fn new_mcip3_test() -> Spec { load(None, include_bytes!("../../res/ethereum/mcip3_test.json")) }
 
@@ -168,6 +176,9 @@ pub fn new_byzantium_test_machine() -> EthereumMachine { load_machine(include_by
 /// Create a new Foundation Constantinople era spec.
 pub fn new_constantinople_test_machine() -> EthereumMachine { load_machine(include_bytes!("../../res/ethereum/constantinople_test.json")) }
 
+/// Create a new Foundation St. Peter's (Contantinople Fix) era spec.
+pub fn new_constantinople_fix_test_machine() -> EthereumMachine { load_machine(include_bytes!("../../res/ethereum/st_peters_test.json")) }
+
 /// Create a new Musicoin-MCIP3-era spec.
 pub fn new_mcip3_test_machine() -> EthereumMachine { load_machine(include_bytes!("../../res/ethereum/mcip3_test.json")) }
 
@@ -176,7 +187,8 @@ pub fn new_kovan_wasm_test_machine() -> EthereumMachine { load_machine(include_b
 
 #[cfg(test)]
 mod tests {
-	use ethereum_types::U256;
+	use std::str::FromStr;
+	use ethereum_types::{U256, H256, Address};
 	use state::*;
 	use super::*;
 	use test_helpers::get_temp_state_db;
@@ -190,21 +202,21 @@ mod tests {
 		let genesis_header = spec.genesis_header();
 		let db = spec.ensure_db_good(get_temp_state_db(), &Default::default()).unwrap();
 		let s = State::from_existing(db, genesis_header.state_root().clone(), engine.account_start_nonce(0), Default::default()).unwrap();
-		assert_eq!(s.balance(&"0000000000000000000000000000000000000001".into()).unwrap(), 1u64.into());
-		assert_eq!(s.balance(&"0000000000000000000000000000000000000002".into()).unwrap(), 1u64.into());
-		assert_eq!(s.balance(&"0000000000000000000000000000000000000003".into()).unwrap(), 1u64.into());
-		assert_eq!(s.balance(&"0000000000000000000000000000000000000004".into()).unwrap(), 1u64.into());
-		assert_eq!(s.balance(&"102e61f5d8f9bc71d0ad4a084df4e65e05ce0e1c".into()).unwrap(), U256::from(1u64) << 200);
-		assert_eq!(s.balance(&"0000000000000000000000000000000000000000".into()).unwrap(), 0u64.into());
+		assert_eq!(s.balance(&Address::from_str("0000000000000000000000000000000000000001").unwrap()).unwrap(), 1u64.into());
+		assert_eq!(s.balance(&Address::from_str("0000000000000000000000000000000000000002").unwrap()).unwrap(), 1u64.into());
+		assert_eq!(s.balance(&Address::from_str("0000000000000000000000000000000000000003").unwrap()).unwrap(), 1u64.into());
+		assert_eq!(s.balance(&Address::from_str("0000000000000000000000000000000000000004").unwrap()).unwrap(), 1u64.into());
+		assert_eq!(s.balance(&Address::from_str("102e61f5d8f9bc71d0ad4a084df4e65e05ce0e1c").unwrap()).unwrap(), U256::from(1u64) << 200);
+		assert_eq!(s.balance(&Address::from_str("0000000000000000000000000000000000000000").unwrap()).unwrap(), 0u64.into());
 	}
 
 	#[test]
 	fn morden() {
 		let morden = new_morden(&::std::env::temp_dir());
 
-		assert_eq!(morden.state_root(), "f3f4696bbf3b3b07775128eb7a3763279a394e382130f27c21e70233e04946a9".into());
+		assert_eq!(morden.state_root(), H256::from_str("f3f4696bbf3b3b07775128eb7a3763279a394e382130f27c21e70233e04946a9").unwrap());
 		let genesis = morden.genesis_block();
-		assert_eq!(view!(BlockView, &genesis).header_view().hash(), "0cd786a2425d16f152c658316c423e6ce1181e15c3295826d7c9904cba9ce303".into());
+		assert_eq!(view!(BlockView, &genesis).header_view().hash(), H256::from_str("0cd786a2425d16f152c658316c423e6ce1181e15c3295826d7c9904cba9ce303").unwrap());
 
 		let _ = morden.engine;
 	}
@@ -213,9 +225,9 @@ mod tests {
 	fn frontier() {
 		let frontier = new_foundation(&::std::env::temp_dir());
 
-		assert_eq!(frontier.state_root(), "d7f8974fb5ac78d9ac099b9ad5018bedc2ce0a72dad1827a1709da30580f0544".into());
+		assert_eq!(frontier.state_root(), H256::from_str("d7f8974fb5ac78d9ac099b9ad5018bedc2ce0a72dad1827a1709da30580f0544").unwrap());
 		let genesis = frontier.genesis_block();
-		assert_eq!(view!(BlockView, &genesis).header_view().hash(), "d4e56740f876aef8c010b86a40d5f56745a118d0906a34e69aec8c0db1cb8fa3".into());
+		assert_eq!(view!(BlockView, &genesis).header_view().hash(), H256::from_str("d4e56740f876aef8c010b86a40d5f56745a118d0906a34e69aec8c0db1cb8fa3").unwrap());
 
 		let _ = frontier.engine;
 	}

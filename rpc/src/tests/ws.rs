@@ -29,7 +29,7 @@ use tests::http_client;
 pub fn serve() -> (Server<ws::Server>, usize, GuardedAuthCodes) {
 	let address = "127.0.0.1:0".parse().unwrap();
 	let io = MetaIoHandler::default();
-	let authcodes = GuardedAuthCodes::new();
+	let authcodes = GuardedAuthCodes::default();
 	let stats = Arc::new(informant::RpcStats::default());
 
 	let res = Server::new(|_| ::start_ws(

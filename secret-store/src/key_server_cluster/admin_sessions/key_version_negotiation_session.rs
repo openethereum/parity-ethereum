@@ -378,8 +378,8 @@ impl<T> SessionImpl<T> where T: SessionTransport {
 					let prev_key_share = data.key_share.as_ref()
 						.expect("data.key_share.is_none() is matched by previous branch; qed");
 					if prev_key_share.threshold != key_common.threshold ||
-						*prev_key_share.author != **key_common.author ||
-						*prev_key_share.public != **key_common.public
+						prev_key_share.author.as_bytes() != key_common.author.as_bytes() ||
+						prev_key_share.public.as_bytes() != key_common.public.as_bytes()
 					{
 						return Err(Error::InvalidMessage);
 					}
@@ -612,6 +612,7 @@ impl SessionResultComputer for LargestSupportResultComputer {
 mod tests {
 	use std::sync::Arc;
 	use std::collections::{VecDeque, BTreeMap, BTreeSet};
+	use ethereum_types::{H512, H160, Address};
 	use ethkey::public_to_address;
 	use key_server_cluster::{NodeId, SessionId, Error, KeyStorage, DummyKeyStorage,
 		DocumentKeyShare, DocumentKeyShareVersion};
@@ -621,10 +622,14 @@ mod tests {
 	use key_server_cluster::cluster_sessions::ClusterSession;
 	use key_server_cluster::admin_sessions::ShareChangeSessionMeta;
 	use key_server_cluster::decryption_session::create_default_decryption_session;
-	use key_server_cluster::message::{Message, KeyVersionNegotiationMessage, RequestKeyVersions,
-		CommonKeyData, KeyVersions};
-	use super::{SessionImpl, SessionTransport, SessionParams, FastestResultComputer, LargestSupportResultComputer,
-		SessionResultComputer, SessionState, ContinueAction, FailedContinueAction};
+	use key_server_cluster::message::{
+		Message, KeyVersionNegotiationMessage, RequestKeyVersions,
+		CommonKeyData, KeyVersions,
+	};
+	use super::{
+		SessionImpl, SessionTransport, SessionParams, FastestResultComputer, LargestSupportResultComputer,
+		SessionResultComputer, SessionState, ContinueAction, FailedContinueAction,
+	};
 
 	struct DummyTransport {
 		cluster: Arc<DummyCluster>,
@@ -859,13 +864,13 @@ mod tests {
 
 		run_test(CommonKeyData {
 			threshold: 1,
-			author: 1.into(),
+			author: H160::from_low_u64_be(1).into(),
 			public: Default::default(),
 		});
 
 		run_test(CommonKeyData {
 			threshold: 1,
-			author: 2.into(),
+			author: H160::from_low_u64_be(2).into(),
 			public: Default::default(),
 		});
 	}
@@ -890,9 +895,9 @@ mod tests {
 		let nodes = MessageLoop::prepare_nodes(2);
 		let version_id = (*math::generate_random_scalar().unwrap()).clone();
 		nodes.values().nth(0).unwrap().insert(Default::default(), DocumentKeyShare {
-			author: 2.into(),
+			author: H160::from_low_u64_be(2),
 			threshold: 1,
-			public: 3.into(),
+			public: H512::from_low_u64_be(3),
 			common_point: None,
 			encrypted_point: None,
 			versions: vec![DocumentKeyShareVersion {
@@ -908,9 +913,9 @@ mod tests {
 
 		// check that upon completion, commmon key data is known
 		assert_eq!(ml.session(0).common_key_data(), Ok(DocumentKeyShare {
-			author: 2.into(),
+			author: H160::from_low_u64_be(2),
 			threshold: 1,
-			public: 3.into(),
+			public: H512::from_low_u64_be(3),
 			..Default::default()
 		}));
 	}
@@ -946,7 +951,7 @@ mod tests {
 	#[test]
 	fn fatal_error_is_broadcasted_if_started_with_origin() {
 		let mut ml = MessageLoop::empty(3);
-		ml.session(0).set_continue_action(ContinueAction::Decrypt(create_default_decryption_session(), Some(1.into()), true, true));
+		ml.session(0).set_continue_action(ContinueAction::Decrypt(create_default_decryption_session(), Some(Address::from_low_u64_be(1)), true, true));
 		ml.session(0).initialize(ml.nodes.keys().cloned().collect()).unwrap();
 		ml.run();
 
@@ -955,6 +960,6 @@ mod tests {
 
 		// slave nodes have non-empty failed continue action
 		assert!(ml.nodes.values().skip(1).all(|n| n.session.take_failed_continue_action()
-			== Some(FailedContinueAction::Decrypt(Some(1.into()), public_to_address(&2.into())))));
+			== Some(FailedContinueAction::Decrypt(Some(Address::from_low_u64_be(1)), public_to_address(&H512::from_low_u64_be(2))))));
 	}
 }

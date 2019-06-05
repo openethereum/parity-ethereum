@@ -30,7 +30,7 @@ use super::io::{SnapshotReader, LooseReader, SnapshotWriter, LooseWriter};
 use blockchain::{BlockChain, BlockChainDB, BlockChainDBHandler};
 use client::{BlockInfo, BlockChainClient, Client, ChainInfo, ClientIoMessage};
 use engines::EthEngine;
-use error::{Error, ErrorKind as SnapshotErrorKind};
+use error::Error;
 use snapshot::{Error as SnapshotError};
 use hash::keccak;
 use types::ids::BlockId;
@@ -340,7 +340,7 @@ impl Service {
 	// replace one the client's database with our own.
 	fn replace_client_db(&self) -> Result<(), Error> {
 		let migrated_blocks = self.migrate_blocks()?;
-		trace!(target: "snapshot", "Migrated {} ancient blocks", migrated_blocks);
+		info!(target: "snapshot", "Migrated {} ancient blocks", migrated_blocks);
 
 		let rest_db = self.restoration_db();
 		self.client.restore_db(&*rest_db.to_string_lossy())?;
@@ -424,7 +424,7 @@ impl Service {
 			}
 
 			if block_number % 10_000 == 0 {
-				trace!(target: "snapshot", "Block restoration at #{}", block_number);
+				info!(target: "snapshot", "Block restoration at #{}", block_number);
 			}
 		}
 
@@ -697,7 +697,7 @@ impl Service {
 		let mut restoration = self.restoration.lock();
 		match self.feed_chunk_with_restoration(&mut restoration, hash, chunk, is_state) {
 			Ok(()) |
-			Err(Error(SnapshotErrorKind::Snapshot(SnapshotError::RestorationAborted), _)) => (),
+			Err(Error::Snapshot(SnapshotError::RestorationAborted)) => (),
 			Err(e) => {
 				warn!("Encountered error during snapshot restoration: {}", e);
 				*self.restoration.lock() = None;
@@ -928,9 +928,9 @@ mod tests {
 				version: 2,
 				state_hashes: state_hashes.clone(),
 				block_hashes: block_hashes.clone(),
-				state_root: H256::default(),
+				state_root: H256::zero(),
 				block_number: 100000,
-				block_hash: H256::default(),
+				block_hash: H256::zero(),
 			},
 			pruning: Algorithm::Archive,
 			db: restoration_db_handler(db_config).open(&tempdir.path().to_owned()).unwrap(),

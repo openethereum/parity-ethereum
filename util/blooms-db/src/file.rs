@@ -65,7 +65,7 @@ impl File {
 		let mut file_ref = &self.file;
 		file_ref.seek(SeekFrom::Start(pos * 256))?;
 		let mut bloom = ethbloom::Bloom::default();
-		file_ref.read_exact(&mut bloom)?;
+		file_ref.read_exact(bloom.as_bytes_mut())?;
 		Ok(bloom)
 	}
 
@@ -76,7 +76,7 @@ impl File {
 		old_bloom.accrue_bloom(bloom);
 		let mut file_ref = &self.file;
 		file_ref.seek(SeekFrom::Start(pos * 256))?;
-		file_ref.write_all(&old_bloom)
+		file_ref.write_all(old_bloom.as_bytes())
 	}
 
 	/// Replace bloom at given position with a new one.
@@ -128,7 +128,7 @@ impl<'a> Iterator for FileIterator<'a> {
 
 	fn next(&mut self) -> Option<Self::Item> {
 		let mut bloom = ethbloom::Bloom::default();
-		match self.file.read_exact(&mut bloom) {
+		match self.file.read_exact(bloom.as_bytes_mut()) {
 			Ok(_) => Some(Ok(bloom)),
 			Err(ref err) if err.kind() == io::ErrorKind::UnexpectedEof => None,
 			Err(err) => Some(Err(err)),
@@ -146,9 +146,9 @@ mod tests {
 	fn test_file() {
 		let tempdir = TempDir::new("").unwrap();
 		let mut file = File::open(tempdir.path().join("file")).unwrap();
-		file.accrue_bloom(0, &Bloom::from(1)).unwrap();
+		file.accrue_bloom(0, &Bloom::from_low_u64_be(1)).unwrap();
 		file.flush().unwrap();
-		assert_eq!(file.read_bloom(0).unwrap(), Bloom::from(1));
+		assert_eq!(file.read_bloom(0).unwrap(), Bloom::from_low_u64_be(1));
 
 	}
 }
