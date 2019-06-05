@@ -34,8 +34,7 @@ type CurrentSerializableDocumentKeyShare = SerializableDocumentKeyShareV3;
 type CurrentSerializableDocumentKeyVersion = SerializableDocumentKeyShareVersionV3;
 
 /// Encrypted key share, stored by key storage on the single key server.
-#[derive(Debug, Clone, PartialEq)]
-#[cfg_attr(test, derive(Default))]
+#[derive(Debug, Default, Clone, PartialEq)]
 pub struct DocumentKeyShare {
 	/// Author of the entry.
 	pub author: Address,
