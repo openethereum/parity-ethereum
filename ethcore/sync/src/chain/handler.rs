@@ -66,6 +66,7 @@ use super::{
 	MAX_NEW_HASHES,
 	PAR_PROTOCOL_VERSION_1,
 	PAR_PROTOCOL_VERSION_3,
+	PAR_PROTOCOL_VERSION_4,
 };
 
 /// The Chain Sync Handler: handles responses from peers
@@ -637,7 +638,7 @@ impl SyncHandler {
 		}
 
 		if false
-			|| (warp_protocol && (peer.protocol_version < PAR_PROTOCOL_VERSION_1.0 || peer.protocol_version > PAR_PROTOCOL_VERSION_3.0))
+			|| (warp_protocol && (peer.protocol_version < PAR_PROTOCOL_VERSION_1.0 || peer.protocol_version > PAR_PROTOCOL_VERSION_4.0))
 			|| (!warp_protocol && (peer.protocol_version < ETH_PROTOCOL_VERSION_62.0 || peer.protocol_version > ETH_PROTOCOL_VERSION_63.0))
 		{
 			trace!(target: "sync", "Peer {} unsupported eth protocol ({})", peer_id, peer.protocol_version);
@@ -698,7 +699,7 @@ impl SyncHandler {
 				return Ok(());
 			}
 		};
-		trace!(target: "sync", "Received signed private transaction packet from {:?}", peer_id);
+		trace!(target: "privatetx", "Received signed private transaction packet from {:?}", peer_id);
 		match private_handler.import_signed_private_transaction(r.as_raw()) {
 			Ok(transaction_hash) => {
 				//don't send the packet back
@@ -707,7 +708,7 @@ impl SyncHandler {
 				}
 			},
 			Err(e) => {
-				trace!(target: "sync", "Ignoring the message, error queueing: {}", e);
+				trace!(target: "privatetx", "Ignoring the message, error queueing: {}", e);
 			}
  		}
 		Ok(())
@@ -726,7 +727,7 @@ impl SyncHandler {
 				return Ok(());
 			}
 		};
-		trace!(target: "sync", "Received private transaction packet from {:?}", peer_id);
+		trace!(target: "privatetx", "Received private transaction packet from {:?}", peer_id);
 		match private_handler.import_private_transaction(r.as_raw()) {
 			Ok(transaction_hash) => {
 				//don't send the packet back
@@ -735,7 +736,7 @@ impl SyncHandler {
 				}
 			},
 			Err(e) => {
-				trace!(target: "sync", "Ignoring the message, error queueing: {}", e);
+				trace!(target: "privatetx", "Ignoring the message, error queueing: {}", e);
 			}
  		}
 		Ok(())
@@ -757,17 +758,18 @@ impl SyncHandler {
 				return Ok(());
 			}
 		};
+		trace!(target: "privatetx", "Received private state data packet from {:?}", peer_id);
 		let private_state_data: Bytes = r.val_at(0)?;
 		match io.private_state() {
 			Some(db) => {
 				match db.save_state(&private_state_data) {
 					Ok(hash) => {
 						if let Err(err) = private_handler.private_state_synced(&hash) {
-							trace!(target: "sync", "Ignoring the message, error queueing: {}", err);
+							trace!(target: "privatetx", "Ignoring received private state message, error queueing: {}", err);
 						}
 					}
 					Err(e) => {
-						error!(target: "sync", "Cannot save received private state {:?}", e);
+						error!(target: "privatetx", "Cannot save received private state {:?}", e);
 					}
 				}
 			}
@@ -804,7 +806,7 @@ mod tests {
 		let queue = RwLock::new(VecDeque::new());
 		let mut sync = dummy_sync_with_peer(client.block_hash_delta_minus(5), &client);
 		let ss = TestSnapshotService::new();
-		let mut io = TestIo::new(&mut client, &ss, &queue, None);
+		let mut io = TestIo::new(&mut client, &ss, &queue, None, None);
 
 		let hashes_data = get_dummy_hashes();
 		let hashes_rlp = Rlp::new(&hashes_data);
@@ -825,7 +827,7 @@ mod tests {
 		let mut sync = dummy_sync_with_peer(client.block_hash_delta_minus(5), &client);
 		//sync.have_common_block = true;
 		let ss = TestSnapshotService::new();
-		let mut io = TestIo::new(&mut client, &ss, &queue, None);
+		let mut io = TestIo::new(&mut client, &ss, &queue, None, None);
 
 		let block = Rlp::new(&block_data);
 
@@ -844,7 +846,7 @@ mod tests {
 		let queue = RwLock::new(VecDeque::new());
 		let mut sync = dummy_sync_with_peer(client.block_hash_delta_minus(5), &client);
 		let ss = TestSnapshotService::new();
-		let mut io = TestIo::new(&mut client, &ss, &queue, None);
+		let mut io = TestIo::new(&mut client, &ss, &queue, None, None);
 
 		let block = Rlp::new(&block_data);
 
@@ -858,7 +860,7 @@ mod tests {
 		let queue = RwLock::new(VecDeque::new());
 		let mut sync = dummy_sync_with_peer(client.block_hash_delta_minus(5), &client);
 		let ss = TestSnapshotService::new();
-		let mut io = TestIo::new(&mut client, &ss, &queue, None);
+		let mut io = TestIo::new(&mut client, &ss, &queue, None, None);
 
 		let empty_data = vec![];
 		let block = Rlp::new(&empty_data);
@@ -875,7 +877,7 @@ mod tests {
 		let queue = RwLock::new(VecDeque::new());
 		let mut sync = dummy_sync_with_peer(client.block_hash_delta_minus(5), &client);
 		let ss = TestSnapshotService::new();
-		let mut io = TestIo::new(&mut client, &ss, &queue, None);
+		let mut io = TestIo::new(&mut client, &ss, &queue, None, None);
 
 		let empty_hashes_data = vec![];
 		let hashes_rlp = Rlp::new(&empty_hashes_data);

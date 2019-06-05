@@ -1562,7 +1562,7 @@ pub mod tests {
 		let mut sync = dummy_sync_with_peer(client.block_hash_delta_minus(5), &client);
 		let chain_info = client.chain_info();
 		let ss = TestSnapshotService::new();
-		let mut io = TestIo::new(&mut client, &ss, &queue, None);
+		let mut io = TestIo::new(&mut client, &ss, &queue, None, None);
 
 		let peers = sync.get_lagging_peers(&chain_info);
 		SyncPropagator::propagate_new_hashes(&mut sync, &chain_info, &mut io, &peers);
@@ -1582,7 +1582,7 @@ pub mod tests {
 		let mut sync = dummy_sync_with_peer(client.block_hash_delta_minus(5), &client);
 		let chain_info = client.chain_info();
 		let ss = TestSnapshotService::new();
-		let mut io = TestIo::new(&mut client, &ss, &queue, None);
+		let mut io = TestIo::new(&mut client, &ss, &queue, None, None);
 
 		let peers = sync.get_lagging_peers(&chain_info);
 		SyncPropagator::propagate_blocks(&mut sync, &chain_info, &mut io, &[], &peers);
@@ -1620,7 +1620,7 @@ pub mod tests {
 		{
 			let queue = RwLock::new(VecDeque::new());
 			let ss = TestSnapshotService::new();
-			let mut io = TestIo::new(&mut client, &ss, &queue, None);
+			let mut io = TestIo::new(&mut client, &ss, &queue, None, None);
 			io.chain.miner.chain_new_blocks(io.chain, &[], &[], &[], &good_blocks, false);
 			sync.chain_new_blocks(&mut io, &[], &[], &[], &good_blocks, &[], &[]);
 			assert_eq!(io.chain.miner.ready_transactions(io.chain, 10, PendingOrdering::Priority).len(), 1);
@@ -1633,7 +1633,7 @@ pub mod tests {
 		{
 			let queue = RwLock::new(VecDeque::new());
 			let ss = TestSnapshotService::new();
-			let mut io = TestIo::new(&client, &ss, &queue, None);
+			let mut io = TestIo::new(&client, &ss, &queue, None, None);
 			io.chain.miner.chain_new_blocks(io.chain, &[], &[], &good_blocks, &retracted_blocks, false);
 			sync.chain_new_blocks(&mut io, &[], &[], &good_blocks, &retracted_blocks, &[], &[]);
 		}
@@ -1656,7 +1656,7 @@ pub mod tests {
 
 		let queue = RwLock::new(VecDeque::new());
 		let ss = TestSnapshotService::new();
-		let mut io = TestIo::new(&mut client, &ss, &queue, None);
+		let mut io = TestIo::new(&mut client, &ss, &queue, None, None);
 
 		// when
 		sync.chain_new_blocks(&mut io, &[], &[], &[], &good_blocks, &[], &[]);

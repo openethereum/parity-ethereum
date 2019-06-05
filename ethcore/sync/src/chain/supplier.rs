@@ -358,7 +358,7 @@ impl SyncSupplier {
 	/// Respond to GetPrivateStatePacket
 	fn return_private_state(io: &SyncIo, r: &Rlp, peer_id: PeerId) -> RlpResponseResult {
 		let hash: H256 = r.val_at(0)?;
-		trace!(target: "privatetx", "{} -> GetSnapshotData {:?}", peer_id, hash);
+		trace!(target: "privatetx", "{} -> GetPrivateStatePacket {:?}", peer_id, hash);
 		io.private_state().map_or(Ok(None), |db| {
 			let state = db.state(&hash);
 			match state {
@@ -439,7 +439,7 @@ mod test {
 
 		let queue = RwLock::new(VecDeque::new());
 		let ss = TestSnapshotService::new();
-		let io = TestIo::new(&mut client, &ss, &queue, None);
+		let io = TestIo::new(&mut client, &ss, &queue, None, None);
 
 		let unknown: H256 = H256::zero();
 		let result = SyncSupplier::return_block_headers(&io, &Rlp::new(&make_hash_req(&unknown, 1, 0, false)), 0);
@@ -497,7 +497,7 @@ mod test {
 
 		let queue = RwLock::new(VecDeque::new());
 		let ss = TestSnapshotService::new();
-		let io = TestIo::new(&mut client, &ss, &queue, None);
+		let io = TestIo::new(&mut client, &ss, &queue, None, None);
 
 		let small_result = SyncSupplier::return_block_bodies(&io, &Rlp::new(&small_rlp_request.out()), 0);
 		let small_result = small_result.unwrap().unwrap().1;
@@ -514,7 +514,7 @@ mod test {
 		let queue = RwLock::new(VecDeque::new());
 		let sync = dummy_sync_with_peer(H256::zero(), &client);
 		let ss = TestSnapshotService::new();
-		let mut io = TestIo::new(&mut client, &ss, &queue, None);
+		let mut io = TestIo::new(&mut client, &ss, &queue, None, None);
 
 		let mut node_list = RlpStream::new_list(3);
 		node_list.append(&H256::from_str("0000000000000000000000000000000000000000000000005555555555555555").unwrap());
@@ -545,7 +545,7 @@ mod test {
 		let mut client = TestBlockChainClient::new();
 		let queue = RwLock::new(VecDeque::new());
 		let ss = TestSnapshotService::new();
-		let io = TestIo::new(&mut client, &ss, &queue, None);
+		let io = TestIo::new(&mut client, &ss, &queue, None, None);
 
 		let result = SyncSupplier::return_receipts(&io, &Rlp::new(&[0xc0]), 0);
 
@@ -558,7 +558,7 @@ mod test {
 		let queue = RwLock::new(VecDeque::new());
 		let sync = dummy_sync_with_peer(H256::zero(), &client);
 		let ss = TestSnapshotService::new();
-		let mut io = TestIo::new(&mut client, &ss, &queue, None);
+		let mut io = TestIo::new(&mut client, &ss, &queue, None, None);
 
 		let mut receipt_list = RlpStream::new_list(4);
 		receipt_list.append(&H256::from_str("0000000000000000000000000000000000000000000000005555555555555555").unwrap());

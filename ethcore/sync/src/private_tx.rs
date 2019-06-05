@@ -55,6 +55,8 @@ pub struct SimplePrivateTxHandler {
 	pub txs: Mutex<Vec<Vec<u8>>>,
 	/// imported signed private transactions
 	pub signed_txs: Mutex<Vec<Vec<u8>>>,
+	/// synced private state hash
+	pub synced_hash: Mutex<H256>,
 }
 
 impl PrivateTxHandler for SimplePrivateTxHandler {
@@ -68,7 +70,8 @@ impl PrivateTxHandler for SimplePrivateTxHandler {
 		Ok(H256::zero())
 	}
 
-	fn private_state_synced(&self, _hash: &H256) -> Result<(), String> {
+	fn private_state_synced(&self, hash: &H256) -> Result<(), String> {
+		*self.synced_hash.lock() = *hash;
 		Ok(())
 	}
 }

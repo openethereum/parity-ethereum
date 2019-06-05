@@ -769,8 +769,7 @@ impl Provider {
 		let mut saved_state = executed_state;
 		if self.use_offchain_storage {
 			// Save state into the storage and store its hash in the contract
-			saved_state = keccak(&saved_state).to_vec();
-			self.state_storage.private_state_db().save_state(&executed_code)?;
+			saved_state = self.state_storage.private_state_db().save_state(&executed_code)?.to_vec();
 		}
 		let tx_data = Self::generate_constructor(validators, executed_code.clone(), saved_state.clone());
 		let mut tx = Transaction {
