@@ -104,14 +104,16 @@ impl NodeEndpoint {
 		self.to_rlp(rlp);
 	}
 
+	/// validates that the tcp port is not 0 && is_valid_discovery_node
+	/// sync happens over tcp
 	pub fn is_valid_sync_node(&self) -> bool {
 		self.is_valid_discovery_node() && self.address.port() != 0
 	}
 
-	/// Validates that the port is not 0 and address IP is specified
+	/// Validates that the udp port is not 0 and address IP is specified
+	/// peer discovery happens over udp
 	pub fn is_valid_discovery_node(&self) -> bool {
-		self.udp_port != 0 &&
-		match self.address {
+		self.udp_port != 0 && match self.address {
 			SocketAddr::V4(a) => !a.ip().is_unspecified(),
 			SocketAddr::V6(a) => !a.ip().is_unspecified()
 		}
