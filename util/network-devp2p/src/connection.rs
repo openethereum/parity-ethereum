@@ -21,7 +21,10 @@ use std::sync::atomic::{AtomicBool, Ordering as AtomicOrdering};
 use std::time::Duration;
 
 use bytes::{Buf, BufMut};
-use crypto::aes::{AesCtr256, AesEcb256};
+use crypto::{
+	aes::{AesCtr256, AesEcb256},
+	ecdh::{self, Secret},
+};
 use error_chain::bail;
 use ethereum_types::{H128, H256, H512};
 use keccak_hash::{keccak, write_keccak};
@@ -34,7 +37,7 @@ use rlp::{Rlp, RlpStream};
 use tiny_keccak::Keccak;
 
 use ethcore_io::{IoContext, StreamToken};
-use ethkey::{crypto as ethcrypto, Secret};
+//use ethkey::{crypto as ethcrypto, Secret};
 use network::{Error, ErrorKind};
 
 use crate::handshake::Handshake;
@@ -300,7 +303,8 @@ const NULL_IV : [u8; 16] = [0;16];
 impl EncryptedConnection {
 	/// Create an encrypted connection out of the handshake.
 	pub fn new(handshake: &mut Handshake) -> Result<EncryptedConnection, Error> {
-		let shared = ethcrypto::ecdh::agree(handshake.ecdhe.secret(), &handshake.remote_ephemeral)?;
+//		let shared = ethcrypto::ecdh::agree(handshake.ecdhe.secret(), &handshake.remote_ephemeral)?;
+		let shared = ecdh::agree(handshake.ecdhe.secret(), &handshake.remote_ephemeral)?;
 		let mut nonce_material = H512::default();
 		if handshake.originated {
 			(&mut nonce_material[0..32]).copy_from_slice(handshake.remote_nonce.as_bytes());
