@@ -104,6 +104,10 @@ impl NodeEndpoint {
 		self.to_rlp(rlp);
 	}
 
+	pub fn is_valid_sync_node(&self) -> bool {
+		self.address.port() != 0
+	}
+
 	/// Validates that the port is not 0 and address IP is specified
 	pub fn is_valid(&self) -> bool {
 		self.udp_port != 0 && self.address.port() != 0 &&
