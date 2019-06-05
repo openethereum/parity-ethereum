@@ -522,17 +522,17 @@ impl<'a> Discovery<'a> {
 
 	fn on_ping(&mut self, rlp: &Rlp, node_id: &NodeId, from: &SocketAddr, echo_hash: &[u8]) -> Result<Option<TableUpdates>, Error> {
 		trace!(target: "discovery", "Got Ping from {:?}", &from);
-		let (ping_from, bootnode) = if let Ok(node_endpoint) = NodeEndpoint::from_rlp(&rlp.at(1)?) {
-			(node_endpoint, false)
+		let ping_from = if let Ok(node_endpoint) = NodeEndpoint::from_rlp(&rlp.at(1)?) {
+			node_endpoint
 		} else {
 			let mut address = from.clone();
 			// address here is the node's tcp port. If we are unable to get the `NodeEndpoint` from the `ping_from`
 			// field then this is most likely a BootNode, set the tcp port to 0 because it can not be used for syncing.
 			address.set_port(0);
-			(NodeEndpoint {
+			NodeEndpoint {
 				address,
 				udp_port: from.port()
-			}, true)
+			}
 		};
 		let ping_to = NodeEndpoint::from_rlp(&rlp.at(2)?)?;
 		let timestamp: u64 = rlp.val_at(3)?;
@@ -555,7 +555,7 @@ impl<'a> Discovery<'a> {
 		self.send_packet(PACKET_PONG, from, &response.drain())?;
 
 		let entry = NodeEntry { id: *node_id, endpoint: pong_to.clone() };
-		if !entry.endpoint.is_valid_sync_node() && !bootnode {
+		if !entry.endpoint.is_valid_discovery_node() {
 			debug!(target: "discovery", "Got bad address: {:?}", entry);
 		} else if !self.is_allowed(&entry) {
 			debug!(target: "discovery", "Address not allowed: {:?}", entry);
