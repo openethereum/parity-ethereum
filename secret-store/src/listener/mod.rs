@@ -75,6 +75,10 @@ impl ServerKeyGenerator for Listener {
 	fn generate_key(&self, key_id: &ServerKeyId, author: &Requester, threshold: usize) -> Result<Public, Error> {
 		self.key_server.generate_key(key_id, author, threshold)
 	}
+
+	fn restore_key_public(&self, key_id: &ServerKeyId, author: &Requester) -> Result<Public, Error> {
+		self.key_server.restore_key_public(key_id, author)
+	}
 }
 
 impl DocumentKeyServer for Listener {

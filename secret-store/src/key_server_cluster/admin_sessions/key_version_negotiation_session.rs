@@ -26,7 +26,7 @@ use key_server_cluster::decryption_session::SessionImpl as DecryptionSession;
 use key_server_cluster::signing_session_ecdsa::SessionImpl as EcdsaSigningSession;
 use key_server_cluster::signing_session_schnorr::SessionImpl as SchnorrSigningSession;
 use key_server_cluster::message::{Message, KeyVersionNegotiationMessage, RequestKeyVersions,
-	KeyVersions, KeyVersionsError, FailedKeyVersionContinueAction};
+	KeyVersions, KeyVersionsError, FailedKeyVersionContinueAction, CommonKeyData};
 use key_server_cluster::admin_sessions::ShareChangeSessionMeta;
 
 // TODO [Opt]: change sessions so that versions are sent by chunks.
@@ -97,8 +97,8 @@ struct SessionData {
 	pub state: SessionState,
 	/// Initialization confirmations.
 	pub confirmations: Option<BTreeSet<NodeId>>,
-	/// Key threshold.
-	pub threshold: Option<usize>,
+	/// Common key data that nodes have agreed upon.
+	pub key_share: Option<DocumentKeyShare>,
 	/// { Version => Nodes }
 	pub versions: Option<BTreeMap<H256, BTreeSet<NodeId>>>,
 	/// Session result.
@@ -167,12 +167,11 @@ pub struct LargestSupportResultComputer;
 impl<T> SessionImpl<T> where T: SessionTransport {
 	/// Create new session.
 	pub fn new(params: SessionParams<T>) -> Self {
-		let threshold = params.key_share.as_ref().map(|key_share| key_share.threshold);
 		SessionImpl {
 			core: SessionCore {
 				meta: params.meta,
 				sub_session: params.sub_session,
-				key_share: params.key_share,
+				key_share: params.key_share.clone(),
 				result_computer: params.result_computer,
 				transport: params.transport,
 				nonce: params.nonce,
@@ -181,7 +180,12 @@ impl<T> SessionImpl<T> where T: SessionTransport {
 			data: Mutex::new(SessionData {
 				state: SessionState::WaitingForInitialization,
 				confirmations: None,
-				threshold: threshold,
+				key_share: params.key_share.map(|key_share| DocumentKeyShare {
+					threshold: key_share.threshold,
+					author: key_share.author,
+					public: key_share.public,
+					..Default::default()
+				}),
 				versions: None,
 				result: None,
 				continue_with: None,
@@ -193,12 +197,6 @@ impl<T> SessionImpl<T> where T: SessionTransport {
 	/// Return session meta.
 	pub fn meta(&self) -> &ShareChangeSessionMeta {
 		&self.core.meta
-	}
-
-	/// Return key threshold.
-	pub fn key_threshold(&self) -> Result<usize, Error> {
-		self.data.lock().threshold.clone()
-			.ok_or(Error::InvalidStateForRequest)
 	}
 
 	/// Return result computer reference.
@@ -227,6 +225,12 @@ impl<T> SessionImpl<T> where T: SessionTransport {
 	pub fn wait(&self) -> Result<Option<(H256, NodeId)>, Error> {
 		Self::wait_session(&self.core.completed, &self.data, None, |data| data.result.clone())
 			.expect("wait_session returns Some if called without timeout; qed")
+	}
+
+	/// Retrieve common key data (author, threshold, public), if available.
+	pub fn common_key_data(&self) -> Result<DocumentKeyShare, Error> {
+		self.data.lock().key_share.clone()
+			.ok_or(Error::InvalidStateForRequest)
 	}
 
 	/// Initialize session.
@@ -322,7 +326,11 @@ impl<T> SessionImpl<T> where T: SessionTransport {
 			session: self.core.meta.id.clone().into(),
 			sub_session: self.core.sub_session.clone().into(),
 			session_nonce: self.core.nonce,
-			threshold: self.core.key_share.as_ref().map(|key_share| key_share.threshold),
+			key_common: self.core.key_share.as_ref().map(|key_share| CommonKeyData {
+				threshold: key_share.threshold,
+				author: key_share.author.into(),
+				public: key_share.public.into(),
+			}),
 			versions: self.core.key_share.as_ref().map(|key_share|
 				key_share.versions.iter().rev()
 					.filter(|v| v.id_numbers.contains_key(sender))
@@ -357,12 +365,25 @@ impl<T> SessionImpl<T> where T: SessionTransport {
 
 		// remember versions that sender have
 		{
-			match message.threshold.clone() {
-				Some(threshold) if data.threshold.is_none() => {
-					data.threshold = Some(threshold);
+			match message.key_common.as_ref() {
+				Some(key_common) if data.key_share.is_none() => {
+					data.key_share = Some(DocumentKeyShare {
+						threshold: key_common.threshold,
+						author: key_common.author.clone().into(),
+						public: key_common.public.clone().into(),
+						..Default::default()
+					});
 				},
-				Some(threshold) if data.threshold.as_ref() == Some(&threshold) => (),
-				Some(_) => return Err(Error::InvalidMessage),
+				Some(key_common) => {
+					let prev_key_share = data.key_share.as_ref()
+						.expect("data.key_share.is_none() is matched by previous branch; qed");
+					if prev_key_share.threshold != key_common.threshold ||
+						prev_key_share.author.as_bytes() != key_common.author.as_bytes() ||
+						prev_key_share.public.as_bytes() != key_common.public.as_bytes()
+					{
+						return Err(Error::InvalidMessage);
+					}
+				},
 				None if message.versions.is_empty() => (),
 				None => return Err(Error::InvalidMessage),
 			}
@@ -388,7 +409,8 @@ impl<T> SessionImpl<T> where T: SessionTransport {
 		let reason = "this field is filled on master node when initializing; try_complete is only called on initialized master node; qed";
 		let confirmations = data.confirmations.as_ref().expect(reason);
 		let versions = data.versions.as_ref().expect(reason);
-		if let Some(result) = core.result_computer.compute_result(data.threshold.clone(), confirmations, versions) {
+		let threshold = data.key_share.as_ref().map(|key_share| key_share.threshold);
+		if let Some(result) = core.result_computer.compute_result(threshold, confirmations, versions) {
 			// when the master node processing decryption service request, it starts with a key version negotiation session
 			// if the negotiation fails, only master node knows about it
 			// => if the error is fatal, only the master will know about it and report it to the contract && the request will never be rejected
@@ -590,7 +612,7 @@ impl SessionResultComputer for LargestSupportResultComputer {
 mod tests {
 	use std::sync::Arc;
 	use std::collections::{VecDeque, BTreeMap, BTreeSet};
-	use ethereum_types::{H512, Address};
+	use ethereum_types::{H512, H160, Address};
 	use ethkey::public_to_address;
 	use key_server_cluster::{NodeId, SessionId, Error, KeyStorage, DummyKeyStorage,
 		DocumentKeyShare, DocumentKeyShareVersion};
@@ -600,7 +622,10 @@ mod tests {
 	use key_server_cluster::cluster_sessions::ClusterSession;
 	use key_server_cluster::admin_sessions::ShareChangeSessionMeta;
 	use key_server_cluster::decryption_session::create_default_decryption_session;
-	use key_server_cluster::message::{Message, KeyVersionNegotiationMessage, RequestKeyVersions, KeyVersions};
+	use key_server_cluster::message::{
+		Message, KeyVersionNegotiationMessage, RequestKeyVersions,
+		CommonKeyData, KeyVersions,
+	};
 	use super::{
 		SessionImpl, SessionTransport, SessionParams, FastestResultComputer, LargestSupportResultComputer,
 		SessionResultComputer, SessionState, ContinueAction, FailedContinueAction,
@@ -759,7 +784,11 @@ mod tests {
 			session: Default::default(),
 			sub_session: math::generate_random_scalar().unwrap().into(),
 			session_nonce: 0,
-			threshold: Some(10),
+			key_common: Some(CommonKeyData {
+				threshold: 10,
+				author: Default::default(),
+				public: Default::default(),
+			}),
 			versions: Vec::new(),
 		})), Err(Error::InvalidStateForRequest));
 	}
@@ -775,7 +804,12 @@ mod tests {
 			session: Default::default(),
 			sub_session: math::generate_random_scalar().unwrap().into(),
 			session_nonce: 0,
-			threshold: Some(0),
+			key_common: Some(CommonKeyData {
+				threshold: 0,
+				author: Default::default(),
+				public: Default::default(),
+			}),
+
 			versions: vec![version_id.clone().into()]
 		})), Ok(()));
 		assert_eq!(ml.session(0).data.lock().state, SessionState::Finished);
@@ -784,32 +818,61 @@ mod tests {
 			session: Default::default(),
 			sub_session: math::generate_random_scalar().unwrap().into(),
 			session_nonce: 0,
-			threshold: Some(0),
+			key_common: Some(CommonKeyData {
+				threshold: 0,
+				author: Default::default(),
+				public: Default::default(),
+			}),
+
 			versions: vec![version_id.clone().into()]
 		})), Ok(()));
 		assert_eq!(ml.session(0).data.lock().state, SessionState::Finished);
 	}
 
 	#[test]
-	fn negotiation_fails_if_wrong_threshold_sent() {
-		let ml = MessageLoop::empty(3);
-		ml.session(0).initialize(ml.nodes.keys().cloned().collect()).unwrap();
+	fn negotiation_fails_if_wrong_common_data_sent() {
+		fn run_test(key_common: CommonKeyData) {
+			let ml = MessageLoop::empty(3);
+			ml.session(0).initialize(ml.nodes.keys().cloned().collect()).unwrap();
 
-		let version_id = (*math::generate_random_scalar().unwrap()).clone();
-		assert_eq!(ml.session(0).process_message(ml.node_id(1), &KeyVersionNegotiationMessage::KeyVersions(KeyVersions {
-			session: Default::default(),
-			sub_session: math::generate_random_scalar().unwrap().into(),
-			session_nonce: 0,
-			threshold: Some(1),
-			versions: vec![version_id.clone().into()]
-		})), Ok(()));
-		assert_eq!(ml.session(0).process_message(ml.node_id(2), &KeyVersionNegotiationMessage::KeyVersions(KeyVersions {
-			session: Default::default(),
-			sub_session: math::generate_random_scalar().unwrap().into(),
-			session_nonce: 0,
-			threshold: Some(2),
-			versions: vec![version_id.clone().into()]
-		})), Err(Error::InvalidMessage));
+			let version_id = (*math::generate_random_scalar().unwrap()).clone();
+			assert_eq!(ml.session(0).process_message(ml.node_id(1), &KeyVersionNegotiationMessage::KeyVersions(KeyVersions {
+				session: Default::default(),
+				sub_session: math::generate_random_scalar().unwrap().into(),
+				session_nonce: 0,
+				key_common: Some(CommonKeyData {
+					threshold: 1,
+					author: Default::default(),
+					public: Default::default(),
+				}),
+				versions: vec![version_id.clone().into()]
+			})), Ok(()));
+			assert_eq!(ml.session(0).process_message(ml.node_id(2), &KeyVersionNegotiationMessage::KeyVersions(KeyVersions {
+				session: Default::default(),
+				sub_session: math::generate_random_scalar().unwrap().into(),
+				session_nonce: 0,
+				key_common: Some(key_common),
+				versions: vec![version_id.clone().into()]
+			})), Err(Error::InvalidMessage));
+		}
+		
+		run_test(CommonKeyData {
+			threshold: 2,
+			author: Default::default(),
+			public: Default::default(),
+		});
+
+		run_test(CommonKeyData {
+			threshold: 1,
+			author: H160::from_low_u64_be(1).into(),
+			public: Default::default(),
+		});
+
+		run_test(CommonKeyData {
+			threshold: 1,
+			author: H160::from_low_u64_be(2).into(),
+			public: Default::default(),
+		});
 	}
 
 	#[test]
@@ -822,7 +885,7 @@ mod tests {
 			session: Default::default(),
 			sub_session: math::generate_random_scalar().unwrap().into(),
 			session_nonce: 0,
-			threshold: None,
+			key_common: None,
 			versions: vec![version_id.clone().into()]
 		})), Err(Error::InvalidMessage));
 	}
@@ -832,9 +895,9 @@ mod tests {
 		let nodes = MessageLoop::prepare_nodes(2);
 		let version_id = (*math::generate_random_scalar().unwrap()).clone();
 		nodes.values().nth(0).unwrap().insert(Default::default(), DocumentKeyShare {
-			author: Default::default(),
+			author: H160::from_low_u64_be(2),
 			threshold: 1,
-			public: Default::default(),
+			public: H512::from_low_u64_be(3),
 			common_point: None,
 			encrypted_point: None,
 			versions: vec![DocumentKeyShareVersion {
@@ -848,8 +911,13 @@ mod tests {
 		// we can't be sure that node has given key version because previous ShareAdd session could fail
 		assert!(ml.session(0).data.lock().state != SessionState::Finished);
 
-		// check that upon completion, threshold is known
-		assert_eq!(ml.session(0).key_threshold(), Ok(1));
+		// check that upon completion, commmon key data is known
+		assert_eq!(ml.session(0).common_key_data(), Ok(DocumentKeyShare {
+			author: H160::from_low_u64_be(2),
+			threshold: 1,
+			public: H512::from_low_u64_be(3),
+			..Default::default()
+		}));
 	}
 
 	#[test]

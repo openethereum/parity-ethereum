@@ -40,6 +40,7 @@ use jsonrpc_server_utils::cors::{self, AllowCors, AccessControlAllowOrigin};
 /// To generate server key:							POST		/shadow/{server_key_id}/{signature}/{threshold}
 /// To store pregenerated encrypted document key: 	POST		/shadow/{server_key_id}/{signature}/{common_point}/{encrypted_key}
 /// To generate server && document key:				POST		/{server_key_id}/{signature}/{threshold}
+/// To get public portion of server key:			GET			/server/{server_key_id}/{signature}
 /// To get document key:							GET			/{server_key_id}/{signature}
 /// To get document key shadow:						GET			/shadow/{server_key_id}/{signature}
 /// To generate Schnorr signature with server key:	GET			/schnorr/{server_key_id}/{signature}/{message_hash}
@@ -64,6 +65,8 @@ enum Request {
 	StoreDocumentKey(ServerKeyId, RequestSignature, Public, Public),
 	/// Generate encryption key.
 	GenerateDocumentKey(ServerKeyId, RequestSignature, usize),
+	/// Request public portion of server key.
+	GetServerKey(ServerKeyId, RequestSignature),
 	/// Request encryption key of given document for given requestor.
 	GetDocumentKey(ServerKeyId, RequestSignature),
 	/// Request shadow of encryption key of given document for given requestor.
@@ -152,6 +155,15 @@ impl KeyServerHttpHandler {
 					.unwrap_or(Err(Error::Internal("KeyServer is already destroyed".into())))
 					.map_err(|err| {
 						warn!(target: "secretstore", "GenerateDocumentKey request {} has failed with: {}", req_uri, err);
+						err
+					}))
+			},
+			Request::GetServerKey(document, signature) => {
+				return_server_public_key(&req_uri, cors, self.handler.key_server.upgrade()
+					.map(|key_server| key_server.restore_key_public(&document, &signature.into()))
+					.unwrap_or(Err(Error::Internal("KeyServer is already destroyed".into())))
+					.map_err(|err| {
+						warn!(target: "secretstore", "GetServerKey request {} has failed with: {}", req_uri, err);
 						err
 					}))
 			},
@@ -361,8 +373,8 @@ fn parse_request(method: &HttpMethod, uri_path: &str, body: &[u8]) -> Request {
 		return parse_admin_request(method, path, body);
 	}
 
-	let (prefix, args_offset) = if &path[0] == "shadow" || &path[0] == "schnorr" || &path[0] == "ecdsa"
-		{ (&*path[0], 1) } else { ("", 0) };
+	let is_known_prefix = &path[0] == "shadow" || &path[0] == "schnorr" || &path[0] == "ecdsa" || &path[0] == "server";
+	let (prefix, args_offset) = if is_known_prefix { (&*path[0], 1) } else { ("", 0) };
 	let args_count = path.len() - args_offset;
 	if args_count < 2 || path[args_offset].is_empty() || path[args_offset + 1].is_empty() {
 		return Request::Invalid;
@@ -388,6 +400,8 @@ fn parse_request(method: &HttpMethod, uri_path: &str, body: &[u8]) -> Request {
 			Request::StoreDocumentKey(document, signature, common_point, encrypted_key),
 		("", 3, &HttpMethod::POST, Some(Ok(threshold)), _, _, _) =>
 			Request::GenerateDocumentKey(document, signature, threshold),
+		("server", 2, &HttpMethod::GET, _, _, _, _) =>
+			Request::GetServerKey(document, signature),
 		("", 2, &HttpMethod::GET, _, _, _, _) =>
 			Request::GetDocumentKey(document, signature),
 		("shadow", 2, &HttpMethod::GET, _, _, _, _) =>
@@ -466,6 +480,10 @@ mod tests {
 			Request::GenerateDocumentKey(H256::from_str("0000000000000000000000000000000000000000000000000000000000000001").unwrap(),
 				"a199fb39e11eefb61c78a4074a53c0d4424600a3e74aad4fb9d93a26c30d067e1d4d29936de0c73f19827394a1dd049480a0d581aee7ae7546968da7d3d1c2fd01".parse().unwrap(),
 				2));
+		// GET		/server/{server_key_id}/{signature}									=> get public portion of server key
+		assert_eq!(parse_request(&HttpMethod::GET, "/server/0000000000000000000000000000000000000000000000000000000000000001/a199fb39e11eefb61c78a4074a53c0d4424600a3e74aad4fb9d93a26c30d067e1d4d29936de0c73f19827394a1dd049480a0d581aee7ae7546968da7d3d1c2fd01", Default::default()),
+			Request::GetServerKey(H256::from_str("0000000000000000000000000000000000000000000000000000000000000001").unwrap(),
+				"a199fb39e11eefb61c78a4074a53c0d4424600a3e74aad4fb9d93a26c30d067e1d4d29936de0c73f19827394a1dd049480a0d581aee7ae7546968da7d3d1c2fd01".parse().unwrap()));
 		// GET		/{server_key_id}/{signature}										=> get document key
 		assert_eq!(parse_request(&HttpMethod::GET, "/0000000000000000000000000000000000000000000000000000000000000001/a199fb39e11eefb61c78a4074a53c0d4424600a3e74aad4fb9d93a26c30d067e1d4d29936de0c73f19827394a1dd049480a0d581aee7ae7546968da7d3d1c2fd01", Default::default()),
 			Request::GetDocumentKey(H256::from_str("0000000000000000000000000000000000000000000000000000000000000001").unwrap(),

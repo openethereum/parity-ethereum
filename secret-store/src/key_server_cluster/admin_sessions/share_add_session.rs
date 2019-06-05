@@ -25,7 +25,7 @@ use key_server_cluster::cluster_sessions::ClusterSession;
 use key_server_cluster::math;
 use key_server_cluster::message::{Message, ShareAddMessage, ShareAddConsensusMessage, ConsensusMessageOfShareAdd,
 	InitializeConsensusSessionOfShareAdd, KeyShareCommon, NewKeysDissemination, ShareAddError,
-	ConfirmConsensusInitialization};
+	ConfirmConsensusInitialization, CommonKeyData};
 use key_server_cluster::jobs::job_session::JobTransport;
 use key_server_cluster::jobs::dummy_job::{DummyJob, DummyJobTransport};
 use key_server_cluster::jobs::servers_set_change_access_job::{ServersSetChangeAccessJob, ServersSetChangeAccessRequest};
@@ -469,9 +469,9 @@ impl<T> SessionImpl<T> where T: SessionTransport {
 		// update data
 		data.state = SessionState::WaitingForKeysDissemination;
 		data.new_key_share = Some(NewKeyShare {
-			threshold: message.threshold,
-			author: message.author.clone().into(),
-			joint_public: message.joint_public.clone().into(),
+			threshold: message.key_common.threshold,
+			author: message.key_common.author.clone().into(),
+			joint_public: message.key_common.public.clone().into(),
 			common_point: message.common_point.clone().map(Into::into),
 			encrypted_point: message.encrypted_point.clone().map(Into::into),
 		});
@@ -645,9 +645,11 @@ impl<T> SessionImpl<T> where T: SessionTransport {
 			core.transport.send(new_node, ShareAddMessage::KeyShareCommon(KeyShareCommon {
 				session: core.meta.id.clone().into(),
 				session_nonce: core.nonce,
-				threshold: old_key_share.threshold,
-				author: old_key_share.author.clone().into(),
-				joint_public: old_key_share.public.clone().into(),
+				key_common: CommonKeyData {
+					threshold: old_key_share.threshold,
+					author: old_key_share.author.into(),
+					public: old_key_share.public.into(),
+				},
 				common_point: old_key_share.common_point.clone().map(Into::into),
 				encrypted_point: old_key_share.encrypted_point.clone().map(Into::into),
 				id_numbers: old_key_version.id_numbers.iter()

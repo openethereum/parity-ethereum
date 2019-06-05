@@ -78,6 +78,22 @@ impl ServerKeyGenerator for KeyServerImpl {
 			.expect("when wait is called without timeout it always returns Some; qed")
 			.map_err(Into::into)
 	}
+
+	fn restore_key_public(&self, key_id: &ServerKeyId, author: &Requester) -> Result<Public, Error> {
+		// recover requestor' public key from signature
+		let address = author.address(key_id).map_err(Error::InsufficientRequesterData)?;
+
+		// negotiate key version && retrieve common key data
+		let negotiation_session = self.data.lock().cluster.new_key_version_negotiation_session(*key_id)?;
+		negotiation_session.wait()
+			.and_then(|_| negotiation_session.common_key_data())
+			.and_then(|key_share| if key_share.author == address {
+				Ok(key_share.public)
+			} else {
+				Err(Error::AccessDenied)
+			})
+			.map_err(Into::into)
+	}
 }
 
 impl DocumentKeyServer for KeyServerImpl {
@@ -235,6 +251,10 @@ pub mod tests {
 
 	impl ServerKeyGenerator for DummyKeyServer {
 		fn generate_key(&self, _key_id: &ServerKeyId, _author: &Requester, _threshold: usize) -> Result<Public, Error> {
+			unimplemented!("test-only")
+		}
+
+		fn restore_key_public(&self, _key_id: &ServerKeyId, _author: &Requester) -> Result<Public, Error> {
 			unimplemented!("test-only")
 		}
 	}
