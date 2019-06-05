@@ -555,7 +555,7 @@ impl<'a> Discovery<'a> {
 		self.send_packet(PACKET_PONG, from, &response.drain())?;
 
 		let entry = NodeEntry { id: *node_id, endpoint: pong_to.clone() };
-		if !entry.endpoint.is_valid() && !bootnode {
+		if !entry.endpoint.is_valid_sync_node() && !bootnode {
 			debug!(target: "discovery", "Got bad address: {:?}", entry);
 		} else if !self.is_allowed(&entry) {
 			debug!(target: "discovery", "Address not allowed: {:?}", entry);
@@ -743,7 +743,7 @@ impl<'a> Discovery<'a> {
 		trace!(target: "discovery", "Got {} Neighbours from {:?}", results_count, &from);
 		for r in rlp.at(0)?.iter() {
 			let endpoint = NodeEndpoint::from_rlp(&r)?;
-			if !endpoint.is_valid() {
+			if !endpoint.is_valid_sync_node() {
 				debug!(target: "discovery", "Bad address: {:?}", endpoint);
 				continue;
 			}

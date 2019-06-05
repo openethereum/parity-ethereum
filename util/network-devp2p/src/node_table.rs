@@ -105,12 +105,12 @@ impl NodeEndpoint {
 	}
 
 	pub fn is_valid_sync_node(&self) -> bool {
-		self.address.port() != 0
+		self.is_valid_discovery_node() && self.address.port() != 0
 	}
 
 	/// Validates that the port is not 0 and address IP is specified
-	pub fn is_valid(&self) -> bool {
-		self.udp_port != 0 && self.address.port() != 0 &&
+	pub fn is_valid_discovery_node(&self) -> bool {
+		self.udp_port != 0 &&
 		match self.address {
 			SocketAddr::V4(a) => !a.ip().is_unspecified(),
 			SocketAddr::V6(a) => !a.ip().is_unspecified()
