@@ -716,7 +716,7 @@ dependencies = [
  "ethkey 0.3.0",
  "evm 0.1.0",
  "fetch 0.1.0",
- "hash-db 0.12.2 (git+https://github.com/cheme/trie.git?branch=simple-codec)",
+ "hash-db 0.12.2 (git+https://github.com/cheme/trie.git?branch=n_ext_trie)",
  "heapsize 0.4.2 (git+https://github.com/cheme/heapsize.git?branch=ec-macfix)",
  "itertools 0.5.10 (registry+https://github.com/rust-lang/crates.io-index)",
  "journaldb 0.2.0",
@@ -731,7 +731,7 @@ dependencies = [
  "lru-cache 0.1.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "macros 0.1.0",
  "memory-cache 0.1.0",
- "memory-db 0.12.2 (git+https://github.com/cheme/trie.git?branch=simple-codec)",
+ "memory-db 0.12.2 (git+https://github.com/cheme/trie.git?branch=n_ext_trie)",
  "num 0.1.42 (registry+https://github.com/rust-lang/crates.io-index)",
  "num_cpus 1.8.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "parity-bytes 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -752,7 +752,7 @@ dependencies = [
  "stats 0.1.0",
  "tempdir 0.3.7 (registry+https://github.com/rust-lang/crates.io-index)",
  "trace-time 0.1.1 (registry+https://github.com/rust-lang/crates.io-index)",
- "trie-db 0.12.2 (git+https://github.com/cheme/trie.git?branch=simple-codec)",
+ "trie-db 0.12.2 (git+https://github.com/cheme/trie.git?branch=n_ext_trie)",
  "trie-standardmap 0.1.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "triehash-ethereum 0.2.0",
  "unexpected 0.1.0",
@@ -868,7 +868,7 @@ dependencies = [
  "failsafe 0.3.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "fastmap 0.1.0",
  "futures 0.1.25 (registry+https://github.com/rust-lang/crates.io-index)",
- "hash-db 0.12.2 (git+https://github.com/cheme/trie.git?branch=simple-codec)",
+ "hash-db 0.12.2 (git+https://github.com/cheme/trie.git?branch=n_ext_trie)",
  "heapsize 0.4.2 (git+https://github.com/cheme/heapsize.git?branch=ec-macfix)",
  "itertools 0.5.10 (registry+https://github.com/rust-lang/crates.io-index)",
  "journaldb 0.2.0",
@@ -878,7 +878,7 @@ dependencies = [
  "kvdb-memorydb 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "log 0.4.5 (registry+https://github.com/rust-lang/crates.io-index)",
  "memory-cache 0.1.0",
- "memory-db 0.12.2 (git+https://github.com/cheme/trie.git?branch=simple-codec)",
+ "memory-db 0.12.2 (git+https://github.com/cheme/trie.git?branch=n_ext_trie)",
  "parity-bytes 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "parking_lot 0.7.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "patricia-trie-ethereum 0.1.0",
@@ -890,7 +890,7 @@ dependencies = [
  "smallvec 0.6.5 (registry+https://github.com/rust-lang/crates.io-index)",
  "stats 0.1.0",
  "tempdir 0.3.7 (registry+https://github.com/rust-lang/crates.io-index)",
- "trie-db 0.12.2 (git+https://github.com/cheme/trie.git?branch=simple-codec)",
+ "trie-db 0.12.2 (git+https://github.com/cheme/trie.git?branch=n_ext_trie)",
  "triehash-ethereum 0.2.0",
  "vm 0.1.0",
 ]
@@ -1034,7 +1034,7 @@ dependencies = [
  "serde_json 1.0.32 (registry+https://github.com/rust-lang/crates.io-index)",
  "tiny-keccak 1.4.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "transaction-pool 1.13.3 (registry+https://github.com/rust-lang/crates.io-index)",
- "trie-db 0.12.2 (git+https://github.com/cheme/trie.git?branch=simple-codec)",
+ "trie-db 0.12.2 (git+https://github.com/cheme/trie.git?branch=n_ext_trie)",
  "url 1.7.1 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
@@ -1129,7 +1129,7 @@ dependencies = [
  "ethkey 0.3.0",
  "ethstore 0.2.1",
  "fastmap 0.1.0",
- "hash-db 0.12.2 (git+https://github.com/cheme/trie.git?branch=simple-codec)",
+ "hash-db 0.12.2 (git+https://github.com/cheme/trie.git?branch=n_ext_trie)",
  "heapsize 0.4.2 (git+https://github.com/cheme/heapsize.git?branch=ec-macfix)",
  "keccak-hash 0.1.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "keccak-hasher 0.1.1",
@@ -1541,7 +1541,7 @@ dependencies = [
 [[package]]
 name = "hash-db"
 version = "0.12.2"
-source = "git+https://github.com/cheme/trie.git?branch=simple-codec#a8bcdf5d899e1ee407279171bdb6f22118a81285"
+source = "git+https://github.com/cheme/trie.git?branch=n_ext_trie#a5a95bd565309ccdde953b5205b274ed6bdb2880"
 
 [[package]]
 name = "hashmap_core"
@@ -1813,14 +1813,14 @@ dependencies = [
  "env_logger 0.5.13 (registry+https://github.com/rust-lang/crates.io-index)",
  "ethereum-types 0.4.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "fastmap 0.1.0",
- "hash-db 0.12.2 (git+https://github.com/cheme/trie.git?branch=simple-codec)",
+ "hash-db 0.12.2 (git+https://github.com/cheme/trie.git?branch=n_ext_trie)",
  "heapsize 0.4.2 (git+https://github.com/cheme/heapsize.git?branch=ec-macfix)",
  "keccak-hash 0.1.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "keccak-hasher 0.1.1",
  "kvdb 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "kvdb-memorydb 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "log 0.4.5 (registry+https://github.com/rust-lang/crates.io-index)",
- "memory-db 0.12.2 (git+https://github.com/cheme/trie.git?branch=simple-codec)",
+ "memory-db 0.12.2 (git+https://github.com/cheme/trie.git?branch=n_ext_trie)",
  "parity-bytes 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "parking_lot 0.7.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "rlp 0.3.0 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -1941,7 +1941,7 @@ name = "keccak-hasher"
 version = "0.1.1"
 dependencies = [
  "ethereum-types 0.4.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "hash-db 0.12.2 (git+https://github.com/cheme/trie.git?branch=simple-codec)",
+ "hash-db 0.12.2 (git+https://github.com/cheme/trie.git?branch=n_ext_trie)",
  "plain_hasher 0.2.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "tiny-keccak 1.4.2 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
@@ -2149,9 +2149,9 @@ dependencies = [
 [[package]]
 name = "memory-db"
 version = "0.12.2"
-source = "git+https://github.com/cheme/trie.git?branch=simple-codec#a8bcdf5d899e1ee407279171bdb6f22118a81285"
+source = "git+https://github.com/cheme/trie.git?branch=n_ext_trie#a5a95bd565309ccdde953b5205b274ed6bdb2880"
 dependencies = [
- "hash-db 0.12.2 (git+https://github.com/cheme/trie.git?branch=simple-codec)",
+ "hash-db 0.12.2 (git+https://github.com/cheme/trie.git?branch=n_ext_trie)",
  "hashmap_core 0.1.10 (registry+https://github.com/rust-lang/crates.io-index)",
  "heapsize 0.4.2 (git+https://github.com/cheme/heapsize.git?branch=ec-macfix)",
 ]
@@ -2695,7 +2695,7 @@ dependencies = [
  "tokio-timer 0.1.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "transaction-pool 1.13.3 (registry+https://github.com/rust-lang/crates.io-index)",
  "transient-hashmap 0.4.1 (registry+https://github.com/rust-lang/crates.io-index)",
- "trie-db 0.12.2 (git+https://github.com/cheme/trie.git?branch=simple-codec)",
+ "trie-db 0.12.2 (git+https://github.com/cheme/trie.git?branch=n_ext_trie)",
  "vm 0.1.0",
 ]
 
@@ -2911,14 +2911,14 @@ version = "0.1.0"
 dependencies = [
  "elastic-array 0.10.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "ethereum-types 0.4.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "hash-db 0.12.2 (git+https://github.com/cheme/trie.git?branch=simple-codec)",
+ "hash-db 0.12.2 (git+https://github.com/cheme/trie.git?branch=n_ext_trie)",
  "journaldb 0.2.0",
  "keccak-hash 0.1.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "keccak-hasher 0.1.1",
- "memory-db 0.12.2 (git+https://github.com/cheme/trie.git?branch=simple-codec)",
+ "memory-db 0.12.2 (git+https://github.com/cheme/trie.git?branch=n_ext_trie)",
  "parity-bytes 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "rlp 0.3.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "trie-db 0.12.2 (git+https://github.com/cheme/trie.git?branch=simple-codec)",
+ "trie-db 0.12.2 (git+https://github.com/cheme/trie.git?branch=n_ext_trie)",
 ]
 
 [[package]]
@@ -4084,10 +4084,10 @@ dependencies = [
 [[package]]
 name = "trie-db"
 version = "0.12.2"
-source = "git+https://github.com/cheme/trie.git?branch=simple-codec#a8bcdf5d899e1ee407279171bdb6f22118a81285"
+source = "git+https://github.com/cheme/trie.git?branch=n_ext_trie#a5a95bd565309ccdde953b5205b274ed6bdb2880"
 dependencies = [
  "elastic-array 0.10.2 (registry+https://github.com/rust-lang/crates.io-index)",
- "hash-db 0.12.2 (git+https://github.com/cheme/trie.git?branch=simple-codec)",
+ "hash-db 0.12.2 (git+https://github.com/cheme/trie.git?branch=n_ext_trie)",
  "hashmap_core 0.1.10 (registry+https://github.com/rust-lang/crates.io-index)",
  "log 0.4.5 (registry+https://github.com/rust-lang/crates.io-index)",
  "rand 0.6.1 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -4109,7 +4109,7 @@ name = "triehash"
 version = "0.4.0"
 source = "git+https://github.com/cheme/parity-common.git?branch=simple-codec#6db276689409bd1e0cee58c9f277c12bdb36f888"
 dependencies = [
- "hash-db 0.12.2 (git+https://github.com/cheme/trie.git?branch=simple-codec)",
+ "hash-db 0.12.2 (git+https://github.com/cheme/trie.git?branch=n_ext_trie)",
  "rlp 0.3.0 (git+https://github.com/cheme/parity-common.git?branch=simple-codec)",
 ]
 
@@ -4297,7 +4297,7 @@ dependencies = [
  "parity-bytes 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "patricia-trie-ethereum 0.1.0",
  "rlp 0.3.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "trie-db 0.12.2 (git+https://github.com/cheme/trie.git?branch=simple-codec)",
+ "trie-db 0.12.2 (git+https://github.com/cheme/trie.git?branch=n_ext_trie)",
 ]
 
 [[package]]
@@ -4476,7 +4476,7 @@ dependencies = [
 [[patch.unused]]
 name = "keccak-hasher"
 version = "0.12.2"
-source = "git+https://github.com/cheme/trie.git?branch=simple-codec#a8bcdf5d899e1ee407279171bdb6f22118a81285"
+source = "git+https://github.com/cheme/trie.git?branch=n_ext_trie#a5a95bd565309ccdde953b5205b274ed6bdb2880"
 
 [metadata]
 "checksum aho-corasick 0.6.8 (registry+https://github.com/rust-lang/crates.io-index)" = "68f56c7353e5a9547cbd76ed90f7bb5ffc3ba09d4ea9bd1d8c06c8b1142eeb5a"
@@ -4572,7 +4572,7 @@ source = "git+https://github.com/cheme/trie.git?branch=simple-codec#a8bcdf5d899e
 "checksum h2 0.1.12 (registry+https://github.com/rust-lang/crates.io-index)" = "a27e7ed946e8335bdf9a191bc1b9b14a03ba822d013d2f58437f4fabcbd7fc2c"
 "checksum hamming 0.1.3 (registry+https://github.com/rust-lang/crates.io-index)" = "65043da274378d68241eb9a8f8f8aa54e349136f7b8e12f63e3ef44043cc30e1"
 "checksum handlebars 0.32.4 (registry+https://github.com/rust-lang/crates.io-index)" = "d89ec99d1594f285d4590fc32bac5f75cdab383f1123d504d27862c644a807dd"
-"checksum hash-db 0.12.2 (git+https://github.com/cheme/trie.git?branch=simple-codec)" = "<none>"
+"checksum hash-db 0.12.2 (git+https://github.com/cheme/trie.git?branch=n_ext_trie)" = "<none>"
 "checksum hashmap_core 0.1.10 (registry+https://github.com/rust-lang/crates.io-index)" = "8e04cb7a5051270ef3fa79f8c7604d581ecfa73d520e74f554e45541c4b5881a"
 "checksum heapsize 0.4.2 (git+https://github.com/cheme/heapsize.git?branch=ec-macfix)" = "<none>"
 "checksum heck 0.3.0 (registry+https://github.com/rust-lang/crates.io-index)" = "ea04fa3ead4e05e51a7c806fc07271fdbde4e246a6c6d1efd52e72230b771b82"
@@ -4633,7 +4633,7 @@ source = "git+https://github.com/cheme/trie.git?branch=simple-codec#a8bcdf5d899e
 "checksum memchr 2.1.0 (registry+https://github.com/rust-lang/crates.io-index)" = "4b3629fe9fdbff6daa6c33b90f7c08355c1aca05a3d01fa8063b822fcf185f3b"
 "checksum memmap 0.6.2 (registry+https://github.com/rust-lang/crates.io-index)" = "e2ffa2c986de11a9df78620c01eeaaf27d94d3ff02bf81bfcca953102dd0c6ff"
 "checksum memoffset 0.2.1 (registry+https://github.com/rust-lang/crates.io-index)" = "0f9dc261e2b62d7a622bf416ea3c5245cdd5d9a7fcc428c0d06804dfce1775b3"
-"checksum memory-db 0.12.2 (git+https://github.com/cheme/trie.git?branch=simple-codec)" = "<none>"
+"checksum memory-db 0.12.2 (git+https://github.com/cheme/trie.git?branch=n_ext_trie)" = "<none>"
 "checksum memory_units 0.3.0 (registry+https://github.com/rust-lang/crates.io-index)" = "71d96e3f3c0b6325d8ccd83c33b28acb183edcb6c67938ba104ec546854b0882"
 "checksum mime 0.3.12 (registry+https://github.com/rust-lang/crates.io-index)" = "0a907b83e7b9e987032439a387e187119cddafc92d5c2aaeb1d92580a793f630"
 "checksum mime_guess 2.0.0-alpha.6 (registry+https://github.com/rust-lang/crates.io-index)" = "30de2e4613efcba1ec63d8133f344076952090c122992a903359be5a4f99c3ed"
@@ -4803,7 +4803,7 @@ source = "git+https://github.com/cheme/trie.git?branch=simple-codec#a8bcdf5d899e
 "checksum transaction-pool 1.13.3 (registry+https://github.com/rust-lang/crates.io-index)" = "e5866e5126b14358f1d7af4bf51a0be677a363799b90e655edcec8254edef1d2"
 "checksum transient-hashmap 0.4.1 (registry+https://github.com/rust-lang/crates.io-index)" = "aeb4b191d033a35edfce392a38cdcf9790b6cebcb30fa690c312c29da4dc433e"
 "checksum trezor-sys 1.0.0 (git+https://github.com/paritytech/trezor-sys)" = "<none>"
-"checksum trie-db 0.12.2 (git+https://github.com/cheme/trie.git?branch=simple-codec)" = "<none>"
+"checksum trie-db 0.12.2 (git+https://github.com/cheme/trie.git?branch=n_ext_trie)" = "<none>"
 "checksum trie-standardmap 0.1.1 (registry+https://github.com/rust-lang/crates.io-index)" = "0e26f52976a57a0859616d6fcec87092ac35d08eabbd78dc3dabee93b480ea5f"
 "checksum triehash 0.4.0 (git+https://github.com/cheme/parity-common.git?branch=simple-codec)" = "<none>"
 "checksum try-lock 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)" = "ee2aa4715743892880f70885373966c83d73ef1b0838a664ef0c76fffd35e7c2"

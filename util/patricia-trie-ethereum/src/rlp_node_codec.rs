@@ -23,7 +23,7 @@ use rlp::{DecoderError, RlpStream, Rlp, Prototype};
 use std::marker::PhantomData;
 use std::borrow::Borrow;
 use trie::{NibbleSlice, NodeCodec, node::Node, ChildReference,
-  NibbleHalf, ChildBitmap, NibbleOps, ChildSliceIx, Partial};
+  NibbleHalf, NibbleOps, ChildSliceIx, Partial};
   
 
 
@@ -33,29 +33,6 @@ pub struct RlpNodeCodec<H: Hasher> {mark: PhantomData<H>}
 
 const HASHED_NULL_NODE_BYTES : [u8;32] = [0x56, 0xe8, 0x1f, 0x17, 0x1b, 0xcc, 0x55, 0xa6, 0xff, 0x83, 0x45, 0xe6, 0x92, 0xc0, 0xf8, 0x6e, 0x5b, 0x48, 0xe0, 0x1b, 0x99, 0x6c, 0xad, 0xc0, 0x01, 0x62, 0x2f, 0xb5, 0xe3, 0x63, 0xb4, 0x21];
 const HASHED_NULL_NODE : H256 = H256( HASHED_NULL_NODE_BYTES );
-
-
-/// no bitmap codec for this node codec
-pub struct UnusedBitMap;
-
-impl ChildBitmap for UnusedBitMap {
-	const ENCODED_LEN: usize = 0;
-	type Error = DecoderError;
-	type Buff = [u8;0];
-
-	fn decode(_data: &[u8]) -> Result<Self, Self::Error> {
-    unreachable!()
-	}
-
-	fn value_at(&self, _i: usize) -> bool {
-    unreachable!()
-	}
-
-	fn encode<I: Iterator<Item = bool>>(_has_children: I , _dest: &mut [u8]) {
-    unreachable!()
-	}
-}
-
 
 /// encode a partial value
 fn encode_partial<'a>(partial: Partial<'a>, is_leaf: bool) -> impl Iterator<Item = u8> + 'a {
@@ -87,12 +64,11 @@ fn encode_partial_it<'a>(mut partial: impl Iterator<Item = u8> + 'a, odd: bool, 
 // do `const HASHED_NULL_NODE: H::Out = H::Out( … … )`. Perhaps one day soon?
 impl NodeCodec<KeccakHasher, NibbleHalf> for RlpNodeCodec<KeccakHasher> {
 	type Error = DecoderError;
-	type BM = UnusedBitMap;
+
 	fn hashed_null_node() -> <KeccakHasher as Hasher>::Out {
 		HASHED_NULL_NODE
 	}
 	fn decode(data: &[u8]) -> ::std::result::Result<Node<NibbleHalf>, Self::Error> {
-		let len = data.len();
 		let r = Rlp::new(data);
 		match r.prototype()? {
 			// either leaf or extension - decode first item with NibbleSlice::???
