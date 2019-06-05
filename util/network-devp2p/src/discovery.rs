@@ -743,7 +743,7 @@ impl<'a> Discovery<'a> {
 		trace!(target: "discovery", "Got {} Neighbours from {:?}", results_count, &from);
 		for r in rlp.at(0)?.iter() {
 			let endpoint = NodeEndpoint::from_rlp(&r)?;
-			if !endpoint.is_valid_sync_node() {
+			if !endpoint.is_valid_discovery_node() {
 				debug!(target: "discovery", "Bad address: {:?}", endpoint);
 				continue;
 			}
