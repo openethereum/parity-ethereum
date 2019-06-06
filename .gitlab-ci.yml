@@ -127,6 +127,8 @@ test-linux:
   script:
     - ./scripts/gitlab/test-linux.sh stable
     - sccache -s
+  tags:
+    - qa
 
 test-linux-beta:
   stage:                           build
