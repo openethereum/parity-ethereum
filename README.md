@@ -271,7 +271,7 @@ Caching, Importing Blocks, and Block Information
   ```bash
   ethcore-logger
   ```
-* Parity Ethereum Client C-Bindings Library
+* C bindings library for the Parity Ethereum client
   ```bash
   parity-clib
   ```
