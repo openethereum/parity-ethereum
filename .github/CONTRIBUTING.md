@@ -26,7 +26,7 @@ If you would like to contribute to Parity Ethereum, please **fork it**, fix bugs
 
 ### Labels & Milestones
 
-We use [labels](https://github.com/paritytech/parity-ethereum/labels) to manage PRs and issues and communicate state of a PR. Please familiarize yourself with them. Furthermore we are organizing issues in [milestones](https://github.com/paritytech/parity-ethereum/milestones). Best way to get started is to a pick a ticket from the current milestone tagged [`easy`](https://github.com/paritytech/parity-ethereum/labels/Q2-easy%20%F0%9F%92%83) and get going or [`mentor`](https://github.com/paritytech/parity-ethereum/labels/Q1-mentor%20%F0%9F%95%BA) and get in contact with the mentor offering their support on that larger task.
+We use [labels](https://github.com/paritytech/parity-ethereum/labels) to manage PRs and issues and communicate the state of a PR. Please familiarize yourself with them. Furthermore we are organizing issues in [milestones](https://github.com/paritytech/parity-ethereum/milestones). Best way to get started is to a pick a ticket from the current milestone tagged [`easy`](https://github.com/paritytech/parity-ethereum/labels/Q2-easy%20%F0%9F%92%83) and get going, or [`mentor`](https://github.com/paritytech/parity-ethereum/labels/Q1-mentor%20%F0%9F%95%BA) and get in contact with the mentor offering their support on that larger task.
 
 ### Rules
 
