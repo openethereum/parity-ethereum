@@ -358,10 +358,12 @@ The code block annotations in the `# Example` section may be used as [documentat
 In addition to the Parity Ethereum client, there are additional tools in this repository available:
 
 - [evmbin](./evmbin) - Parity Ethereum EVM Implementation.
-- [ethabi](https://github.com/paritytech/ethabi) - Parity Ethereum Encoding of Function Calls.
 - [ethstore](./accounts/ethstore) - Parity Ethereum Key Management.
 - [ethkey](./accounts/ethkey) - Parity Ethereum Keys Generator.
 - [whisper](./whisper) - Parity Ethereum Whisper-v2 PoC Implementation.
+
+The following tool is available in a separate repository:
+- [ethabi](https://github.com/paritytech/ethabi) - Parity Ethereum Encoding of Function Calls.
 
 ## 6. Community <a id="chapter-006"></a>
 
