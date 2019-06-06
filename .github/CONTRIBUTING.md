@@ -59,7 +59,7 @@ When reviewing a pull request, the end-goal is improve code quality, make sure t
 * Undue maintenance burden.
 * Breaking with house coding style.
 * Pessimization (i.e. reduction of speed as measured in the projects benchmarks).
-* Feature reduction (i.e. it removes some aspect of functionality that a significant minority of users rely on).
+* Breaking changes should be carefuly reviewed and tagged as such so they end up in the [changelog](../CHANGELOG.md).
 * Uselessness (i.e. it does not strictly add a feature or fix a known issue).
 
 *Reviews may not be used as an effective veto for a PR because*:
