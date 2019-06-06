@@ -287,7 +287,7 @@ Caching, Importing Blocks, and Block Information
   ```bash
   parity-updater parity-hash-fetch
   ```
-* Parity Utilities
+* Parity Core Libraries (Parity Util)
   ```bash
   ethcore-bloom-journal blooms-db dir eip-712 fake-fetch fastmap fetch ethcore-io
   journaldb keccak-hasher len-caching-lock macros memory-cache memzero
