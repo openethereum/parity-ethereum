@@ -17,13 +17,14 @@
 use std::sync::Arc;
 use std::collections::{BTreeSet, BTreeMap};
 use std::collections::btree_map::Entry;
-use parking_lot::{Mutex, Condvar};
+use futures::Oneshot;
+use parking_lot::Mutex;
 use ethereum_types::H256;
 use ethkey::{Public, Signature};
 use key_server_cluster::{Error, NodeId, SessionId, KeyStorage};
 use key_server_cluster::math;
 use key_server_cluster::cluster::Cluster;
-use key_server_cluster::cluster_sessions::ClusterSession;
+use key_server_cluster::cluster_sessions::{ClusterSession, CompletionSignal};
 use key_server_cluster::message::{Message, ServersSetChangeMessage,
 	ConsensusMessageWithServersSet, InitializeConsensusSessionWithServersSet,
 	ServersSetChangeConsensusMessage, ConfirmConsensusInitialization, UnknownSessionsRequest, UnknownSessions,
@@ -93,8 +94,8 @@ struct SessionCore {
 	pub admin_public: Public,
 	/// Migration id (if this session is a part of auto-migration process).
 	pub migration_id: Option<H256>,
-	/// SessionImpl completion condvar.
-	pub completed: Condvar,
+	/// Session completion signal.
+	pub completed: CompletionSignal<()>,
 }
 
 /// Servers set change consensus session type.
@@ -182,8 +183,9 @@ struct ServersSetChangeKeyVersionNegotiationTransport {
 
 impl SessionImpl {
 	/// Create new servers set change session.
-	pub fn new(params: SessionParams) -> Result<Self, Error> {
-		Ok(SessionImpl {
+	pub fn new(params: SessionParams) -> Result<(Self, Oneshot<Result<(), Error>>), Error> {
+		let (completed, oneshot) = CompletionSignal::new();
+		Ok((SessionImpl {
 			core: SessionCore {
 				meta: params.meta,
 				cluster: params.cluster,
@@ -192,7 +194,7 @@ impl SessionImpl {
 				all_nodes_set: params.all_nodes_set,
 				admin_public: params.admin_public,
 				migration_id: params.migration_id,
-				completed: Condvar::new(),
+				completed,
 			},
 			data: Mutex::new(SessionData {
 				state: SessionState::EstablishingConsensus,
@@ -205,7 +207,7 @@ impl SessionImpl {
 				active_key_sessions: BTreeMap::new(),
 				result: None,
 			}),
-		})
+		}, oneshot))
 	}
 
 	/// Get session id.
@@ -218,10 +220,9 @@ impl SessionImpl {
 		self.core.migration_id.as_ref()
 	}
 
-	/// Wait for session completion.
-	pub fn wait(&self) -> Result<(), Error> {
-		Self::wait_session(&self.core.completed, &self.data, None, |data| data.result.clone())
-			.expect("wait_session returns Some if called without timeout; qed")
+	/// Return session completion result (if available).
+	pub fn result(&self) -> Option<Result<(), Error>> {
+		self.data.lock().result.clone()
 	}
 
 	/// Initialize servers set change session on master node.
@@ -423,7 +424,7 @@ impl SessionImpl {
 			&KeyVersionNegotiationMessage::RequestKeyVersions(ref message) if sender == &self.core.meta.master_node_id => {
 				let key_id = message.session.clone().into();
 				let key_share = self.core.key_storage.get(&key_id)?;
-				let negotiation_session = KeyVersionNegotiationSessionImpl::new(KeyVersionNegotiationSessionParams {
+				let (negotiation_session, _) = KeyVersionNegotiationSessionImpl::new(KeyVersionNegotiationSessionParams {
 					meta: ShareChangeSessionMeta {
 						id: key_id.clone(),
 						self_node_id: self.core.meta.self_node_id.clone(),
@@ -671,7 +672,7 @@ impl SessionImpl {
 		}
 
 		data.state = SessionState::Finished;
-		self.core.completed.notify_all();
+		self.core.completed.send(Ok(()));
 
 		Ok(())
 	}
@@ -741,7 +742,7 @@ impl SessionImpl {
 				};
 
 				let key_share = core.key_storage.get(&key_id)?;
-				let negotiation_session = KeyVersionNegotiationSessionImpl::new(KeyVersionNegotiationSessionParams {
+				let (negotiation_session, _) = KeyVersionNegotiationSessionImpl::new(KeyVersionNegotiationSessionParams {
 					meta: ShareChangeSessionMeta {
 						id: key_id,
 						self_node_id: core.meta.self_node_id.clone(),
@@ -797,7 +798,8 @@ impl SessionImpl {
 		let negotiation_session = data.negotiation_sessions.remove(&key_id)
 			.expect("share change session is only initialized when negotiation is completed; qed");
 		let (selected_version, selected_master) = negotiation_session
-			.wait()?
+			.result()
+			.expect("share change session is only initialized when negotiation is completed; qed")?
 			.expect("initialize_share_change_session is only called on share change master; negotiation session completes with some on master; qed");
 		let selected_version_holders = negotiation_session.version_holders(&selected_version)?;
 		let selected_version_threshold = negotiation_session.common_key_data()?.threshold;
@@ -882,7 +884,7 @@ impl SessionImpl {
 
 		if data.result.is_some() && data.active_key_sessions.len() == 0 {
 			data.state = SessionState::Finished;
-			core.completed.notify_all();
+			core.completed.send(Ok(()));
 		}
 
 		Ok(())
@@ -907,7 +909,7 @@ impl SessionImpl {
 
 		data.state = SessionState::Finished;
 		data.result = Some(Ok(()));
-		core.completed.notify_all();
+		core.completed.send(Ok(()));
 
 		Ok(())
 	}
@@ -915,6 +917,8 @@ impl SessionImpl {
 
 impl ClusterSession for SessionImpl {
 	type Id = SessionId;
+	type CreationData = (); // never used directly
+	type SuccessfulResult = ();
 
 	fn type_name() -> &'static str {
 		"servers set change"
@@ -954,8 +958,8 @@ impl ClusterSession for SessionImpl {
 			self.core.meta.self_node_id, error, node);
 
 		data.state = SessionState::Finished;
-		data.result = Some(Err(error));
-		self.core.completed.notify_all();
+		data.result = Some(Err(error.clone()));
+		self.core.completed.send(Err(error));
 	}
 
 	fn on_message(&self, sender: &NodeId, message: &Message) -> Result<(), Error> {
@@ -1109,7 +1113,7 @@ pub mod tests {
 				nonce: 1,
 				admin_public: admin_public,
 				migration_id: None,
-			}).unwrap()
+			}).unwrap().0
 		}
 	}
 

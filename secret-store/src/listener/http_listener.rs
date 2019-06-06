@@ -16,6 +16,7 @@
 
 use std::collections::BTreeSet;
 use std::sync::{Arc, Weak};
+use futures::future::{ok, result};
 use hyper::{self, Uri, Request as HttpRequest, Response as HttpResponse, Method as HttpMethod,
 	StatusCode as HttpStatusCode, Body,
 	header::{self, HeaderValue},
@@ -129,95 +130,86 @@ impl KeyServerHttpListener {
 }
 
 impl KeyServerHttpHandler {
-	fn process(self, req_method: HttpMethod, req_uri: Uri, path: &str, req_body: &[u8], cors: AllowCors<AccessControlAllowOrigin>) -> HttpResponse<Body> {
+	fn key_server(&self) -> Result<Arc<KeyServer>, Error> {
+		self.handler.key_server.upgrade()
+			.ok_or_else(|| Error::Internal("KeyServer is already destroyed".into()))
+	}
+
+	fn process(
+		self,
+		req_method: HttpMethod,
+		req_uri: Uri,
+		path: &str,
+		req_body: &[u8],
+		cors: AllowCors<AccessControlAllowOrigin>,
+	) -> Box<Future<Item=HttpResponse<Body>, Error=hyper::Error> + Send> {
 		match parse_request(&req_method, &path, &req_body) {
-			Request::GenerateServerKey(document, signature, threshold) => {
-				return_server_public_key(&req_uri, cors, self.handler.key_server.upgrade()
-					.map(|key_server| key_server.generate_key(&document, &signature.into(), threshold))
-					.unwrap_or(Err(Error::Internal("KeyServer is already destroyed".into())))
-					.map_err(|err| {
-						warn!(target: "secretstore", "GenerateServerKey request {} has failed with: {}", req_uri, err);
-						err
-					}))
-			},
-			Request::StoreDocumentKey(document, signature, common_point, encrypted_document_key) => {
-				return_empty(&req_uri, cors, self.handler.key_server.upgrade()
-					.map(|key_server| key_server.store_document_key(&document, &signature.into(), common_point, encrypted_document_key))
-					.unwrap_or(Err(Error::Internal("KeyServer is already destroyed".into())))
-					.map_err(|err| {
-						warn!(target: "secretstore", "StoreDocumentKey request {} has failed with: {}", req_uri, err);
-						err
-					}))
-			},
-			Request::GenerateDocumentKey(document, signature, threshold) => {
-				return_document_key(&req_uri, cors, self.handler.key_server.upgrade()
-					.map(|key_server| key_server.generate_document_key(&document, &signature.into(), threshold))
-					.unwrap_or(Err(Error::Internal("KeyServer is already destroyed".into())))
-					.map_err(|err| {
-						warn!(target: "secretstore", "GenerateDocumentKey request {} has failed with: {}", req_uri, err);
-						err
-					}))
-			},
-			Request::GetServerKey(document, signature) => {
-				return_server_public_key(&req_uri, cors, self.handler.key_server.upgrade()
-					.map(|key_server| key_server.restore_key_public(&document, &signature.into()))
-					.unwrap_or(Err(Error::Internal("KeyServer is already destroyed".into())))
-					.map_err(|err| {
-						warn!(target: "secretstore", "GetServerKey request {} has failed with: {}", req_uri, err);
-						err
-					}))
-			},
-			Request::GetDocumentKey(document, signature) => {
-				return_document_key(&req_uri, cors, self.handler.key_server.upgrade()
-					.map(|key_server| key_server.restore_document_key(&document, &signature.into()))
-					.unwrap_or(Err(Error::Internal("KeyServer is already destroyed".into())))
-					.map_err(|err| {
-						warn!(target: "secretstore", "GetDocumentKey request {} has failed with: {}", req_uri, err);
-						err
-					}))
-			},
-			Request::GetDocumentKeyShadow(document, signature) => {
-				return_document_key_shadow(&req_uri, cors, self.handler.key_server.upgrade()
-					.map(|key_server| key_server.restore_document_key_shadow(&document, &signature.into()))
-					.unwrap_or(Err(Error::Internal("KeyServer is already destroyed".into())))
-					.map_err(|err| {
-						warn!(target: "secretstore", "GetDocumentKeyShadow request {} has failed with: {}", req_uri, err);
-						err
-					}))
-			},
-			Request::SchnorrSignMessage(document, signature, message_hash) => {
-				return_message_signature(&req_uri, cors, self.handler.key_server.upgrade()
-					.map(|key_server| key_server.sign_message_schnorr(&document, &signature.into(), message_hash))
-					.unwrap_or(Err(Error::Internal("KeyServer is already destroyed".into())))
-					.map_err(|err| {
-						warn!(target: "secretstore", "SchnorrSignMessage request {} has failed with: {}", req_uri, err);
-						err
-					}))
-				},
-			Request::EcdsaSignMessage(document, signature, message_hash) => {
-				return_message_signature(&req_uri, cors, self.handler.key_server.upgrade()
-					.map(|key_server| key_server.sign_message_ecdsa(&document, &signature.into(), message_hash))
-					.unwrap_or(Err(Error::Internal("KeyServer is already destroyed".into())))
-					.map_err(|err| {
-						warn!(target: "secretstore", "EcdsaSignMessage request {} has failed with: {}", req_uri, err);
-						err
-					}))
-			},
-			Request::ChangeServersSet(old_set_signature, new_set_signature, new_servers_set) => {
-				return_empty(&req_uri, cors, self.handler.key_server.upgrade()
-					.map(|key_server| key_server.change_servers_set(old_set_signature, new_set_signature, new_servers_set))
-					.unwrap_or(Err(Error::Internal("KeyServer is already destroyed".into())))
-					.map_err(|err| {
-						warn!(target: "secretstore", "ChangeServersSet request {} has failed with: {}", req_uri, err);
-						err
-					}))
-				},
+			Request::GenerateServerKey(document, signature, threshold) =>
+				Box::new(result(self.key_server())
+					.and_then(move |key_server| key_server.generate_key(document, signature.into(), threshold))
+					.then(move |result| ok(return_server_public_key("GenerateServerKey", &req_uri, cors, result)))),
+			Request::StoreDocumentKey(document, signature, common_point, encrypted_document_key) =>
+				Box::new(result(self.key_server())
+					.and_then(move |key_server| key_server.store_document_key(
+						document,
+						signature.into(),
+						common_point,
+						encrypted_document_key,
+					))
+					.then(move |result| ok(return_empty("StoreDocumentKey", &req_uri, cors, result)))),
+			Request::GenerateDocumentKey(document, signature, threshold) =>
+				Box::new(result(self.key_server())
+					.and_then(move |key_server| key_server.generate_document_key(
+						document,
+						signature.into(),
+						threshold,
+					))
+					.then(move |result| ok(return_document_key("GenerateDocumentKey", &req_uri, cors, result)))),
+			Request::GetServerKey(document, signature) =>
+				Box::new(result(self.key_server())
+					.and_then(move |key_server| key_server.restore_key_public(
+						document,
+						signature.into(),
+					))
+					.then(move |result| ok(return_server_public_key("GetServerKey", &req_uri, cors, result)))),
+			Request::GetDocumentKey(document, signature) =>
+				Box::new(result(self.key_server())
+					.and_then(move |key_server| key_server.restore_document_key(document, signature.into()))
+					.then(move |result| ok(return_document_key("GetDocumentKey", &req_uri, cors, result)))),
+			Request::GetDocumentKeyShadow(document, signature) =>
+				Box::new(result(self.key_server())
+					.and_then(move |key_server| key_server.restore_document_key_shadow(document, signature.into()))
+					.then(move |result| ok(return_document_key_shadow("GetDocumentKeyShadow", &req_uri, cors, result)))),
+			Request::SchnorrSignMessage(document, signature, message_hash) =>
+				Box::new(result(self.key_server())
+					.and_then(move |key_server| key_server.sign_message_schnorr(
+						document,
+						signature.into(),
+						message_hash,
+					))
+					.then(move |result| ok(return_message_signature("SchnorrSignMessage", &req_uri, cors, result)))),
+			Request::EcdsaSignMessage(document, signature, message_hash) =>
+				Box::new(result(self.key_server())
+					.and_then(move |key_server| key_server.sign_message_ecdsa(
+						document,
+						signature.into(),
+						message_hash,
+					))
+					.then(move |result| ok(return_message_signature("EcdsaSignMessage", &req_uri, cors, result)))),
+			Request::ChangeServersSet(old_set_signature, new_set_signature, new_servers_set) =>
+				Box::new(result(self.key_server())
+					.and_then(move |key_server| key_server.change_servers_set(
+						old_set_signature,
+						new_set_signature,
+						new_servers_set,
+					))
+					.then(move |result| ok(return_empty("ChangeServersSet", &req_uri, cors, result)))),
 			Request::Invalid => {
 				warn!(target: "secretstore", "Ignoring invalid {}-request {}", req_method, req_uri);
-				HttpResponse::builder()
+				Box::new(ok(HttpResponse::builder()
 					.status(HttpStatusCode::BAD_REQUEST)
 					.body(Body::empty())
-					.expect("Nothing to parse, cannot fail; qed")
+					.expect("Nothing to parse, cannot fail; qed")))
 			},
 		}
 	}
@@ -239,61 +231,74 @@ impl Service for KeyServerHttpHandler {
 			AllowCors::Invalid => {
 				warn!(target: "secretstore", "Ignoring {}-request {} with unauthorized Origin header", req.method(), req.uri());
 				Box::new(future::ok(HttpResponse::builder()
-						.status(HttpStatusCode::NOT_FOUND)
-						.body(Body::empty())
-						.expect("Nothing to parse, cannot fail; qed")
-					))
+					.status(HttpStatusCode::NOT_FOUND)
+					.body(Body::empty())
+					.expect("Nothing to parse, cannot fail; qed")))
 			},
 			_ => {
 				let req_method = req.method().clone();
 				let req_uri = req.uri().clone();
+				let path = req_uri.path().to_string();
 				// We cannot consume Self because of the Service trait requirement.
 				let this = self.clone();
 
-				Box::new(req.into_body().concat2().map(move |body| {
-					let path = req_uri.path().to_string();
-					if path.starts_with("/") {
-						this.process(req_method, req_uri, &path, &body, cors)
-					} else {
-						warn!(target: "secretstore", "Ignoring invalid {}-request {}", req_method, req_uri);
-						HttpResponse::builder()
-							.status(HttpStatusCode::NOT_FOUND)
-							.body(Body::empty())
-							.expect("Nothing to parse, cannot fail; qed")
-					}
-				}))
+				Box::new(req.into_body().concat2()
+					.and_then(move |body| this.process(req_method, req_uri, &path, &body, cors)))
 			}
 		}
 	}
 }
 
-fn return_empty(req_uri: &Uri, cors: AllowCors<AccessControlAllowOrigin>, empty: Result<(), Error>) -> HttpResponse<Body> {
-	return_bytes::<i32>(req_uri, cors, empty.map(|_| None))
+fn return_empty(req_type: &str, req_uri: &Uri, cors: AllowCors<AccessControlAllowOrigin>, empty: Result<(), Error>) -> HttpResponse<Body> {
+	return_bytes::<i32>(req_type, req_uri, cors, empty.map(|_| None))
 }
 
-fn return_server_public_key(req_uri: &Uri, cors: AllowCors<AccessControlAllowOrigin>, server_public: Result<Public, Error>) -> HttpResponse<Body> {
-	return_bytes(req_uri, cors, server_public.map(|k| Some(SerializablePublic(k))))
+fn return_server_public_key(
+	req_type: &str,
+	req_uri: &Uri,
+	cors: AllowCors<AccessControlAllowOrigin>,
+	server_public: Result<Public, Error>,
+) -> HttpResponse<Body> {
+	return_bytes(req_type, req_uri, cors, server_public.map(|k| Some(SerializablePublic(k))))
 }
 
-fn return_message_signature(req_uri: &Uri, cors: AllowCors<AccessControlAllowOrigin>, signature: Result<EncryptedDocumentKey, Error>) -> HttpResponse<Body> {
-	return_bytes(req_uri, cors, signature.map(|s| Some(SerializableBytes(s))))
+fn return_message_signature(
+	req_type: &str,
+	req_uri: &Uri,
+	cors: AllowCors<AccessControlAllowOrigin>,
+	signature: Result<EncryptedDocumentKey, Error>,
+) -> HttpResponse<Body> {
+	return_bytes(req_type, req_uri, cors, signature.map(|s| Some(SerializableBytes(s))))
 }
 
-fn return_document_key(req_uri: &Uri, cors: AllowCors<AccessControlAllowOrigin>, document_key: Result<EncryptedDocumentKey, Error>) -> HttpResponse<Body> {
-	return_bytes(req_uri, cors, document_key.map(|k| Some(SerializableBytes(k))))
+fn return_document_key(
+	req_type: &str,
+	req_uri: &Uri,
+	cors: AllowCors<AccessControlAllowOrigin>,
+	document_key: Result<EncryptedDocumentKey, Error>,
+) -> HttpResponse<Body> {
+	return_bytes(req_type, req_uri, cors, document_key.map(|k| Some(SerializableBytes(k))))
 }
 
-fn return_document_key_shadow(req_uri: &Uri, cors: AllowCors<AccessControlAllowOrigin>, document_key_shadow: Result<EncryptedDocumentKeyShadow, Error>)
-	-> HttpResponse<Body>
-{
-	return_bytes(req_uri, cors, document_key_shadow.map(|k| Some(SerializableEncryptedDocumentKeyShadow {
+fn return_document_key_shadow(
+	req_type: &str,
+	req_uri: &Uri,
+	cors: AllowCors<AccessControlAllowOrigin>,
+	document_key_shadow: Result<EncryptedDocumentKeyShadow, Error>,
+) -> HttpResponse<Body> {
+	return_bytes(req_type, req_uri, cors, document_key_shadow.map(|k| Some(SerializableEncryptedDocumentKeyShadow {
 		decrypted_secret: k.decrypted_secret.into(),
 		common_point: k.common_point.expect("always filled when requesting document_key_shadow; qed").into(),
 		decrypt_shadows: k.decrypt_shadows.expect("always filled when requesting document_key_shadow; qed").into_iter().map(Into::into).collect()
 	})))
 }
 
-fn return_bytes<T: Serialize>(req_uri: &Uri, cors: AllowCors<AccessControlAllowOrigin>, result: Result<Option<T>, Error>) -> HttpResponse<Body> {
+fn return_bytes<T: Serialize>(
+	req_type: &str,
+	req_uri: &Uri,
+	cors: AllowCors<AccessControlAllowOrigin>,
+	result: Result<Option<T>, Error>,
+) -> HttpResponse<Body> {
 	match result {
 		Ok(Some(result)) => match serde_json::to_vec(&result) {
 			Ok(result) => {
@@ -321,7 +326,10 @@ fn return_bytes<T: Serialize>(req_uri: &Uri, cors: AllowCors<AccessControlAllowO
 			}
 			builder.body(Body::empty()).expect("Nothing to parse, cannot fail; qed")
 		},
-		Err(err) => return_error(err),
+		Err(err) => {
+			warn!(target: "secretstore", "{} request {} has failed with: {}", req_type, req_uri, err);
+			return_error(err)
+		},
 	}
 }
 

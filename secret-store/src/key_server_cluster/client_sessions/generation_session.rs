@@ -16,15 +16,15 @@
 
 use std::collections::{BTreeSet, BTreeMap, VecDeque};
 use std::fmt::{Debug, Formatter, Error as FmtError};
-use std::time::Duration;
 use std::sync::Arc;
-use parking_lot::{Condvar, Mutex};
+use futures::Oneshot;
+use parking_lot::Mutex;
 use ethereum_types::Address;
 use ethkey::{Public, Secret};
 use key_server_cluster::{Error, NodeId, SessionId, KeyStorage, DocumentKeyShare, DocumentKeyShareVersion};
 use key_server_cluster::math;
 use key_server_cluster::cluster::Cluster;
-use key_server_cluster::cluster_sessions::ClusterSession;
+use key_server_cluster::cluster_sessions::{ClusterSession, CompletionSignal};
 use key_server_cluster::message::{Message, GenerationMessage, InitializeSession, ConfirmInitialization, CompleteInitialization,
 	KeysDissemination, PublicKeyShare, SessionError, SessionCompleted};
 
@@ -47,10 +47,10 @@ pub struct SessionImpl {
 	cluster: Arc<Cluster>,
 	/// Session-level nonce.
 	nonce: u64,
-	/// SessionImpl completion condvar.
-	completed: Condvar,
 	/// Mutable session data.
 	data: Mutex<SessionData>,
+	/// Session completion signal.
+	completed: CompletionSignal<Public>,
 }
 
 /// SessionImpl creation parameters
@@ -204,8 +204,9 @@ impl From<BTreeMap<NodeId, Secret>> for InitializationNodes {
 
 impl SessionImpl {
 	/// Create new generation session.
-	pub fn new(params: SessionParams) -> Self {
-		SessionImpl {
+	pub fn new(params: SessionParams) -> (Self, Oneshot<Result<Public, Error>>) {
+		let (completed, oneshot) = CompletionSignal::new();
+		(SessionImpl {
 			id: params.id,
 			self_node_id: params.self_node_id,
 			key_storage: params.key_storage,
@@ -213,7 +214,7 @@ impl SessionImpl {
 			// when nonce.is_nonce(), generation session is wrapped
 			// => nonce is checked somewhere else && we can pass any value
 			nonce: params.nonce.unwrap_or_default(),
-			completed: Condvar::new(),
+			completed,
 			data: Mutex::new(SessionData {
 				state: SessionState::WaitingForInitialization,
 				simulate_faulty_behaviour: false,
@@ -230,7 +231,7 @@ impl SessionImpl {
 				key_share: None,
 				joint_public_and_secret: None,
 			}),
-		}
+		}, oneshot)
 	}
 
 	/// Get this node Id.
@@ -259,10 +260,10 @@ impl SessionImpl {
 		self.data.lock().origin.clone()
 	}
 
-	/// Wait for session completion.
-	pub fn wait(&self, timeout: Option<Duration>) -> Option<Result<Public, Error>> {
-		Self::wait_session(&self.completed, &self.data, timeout, |data| data.joint_public_and_secret.clone()
-			.map(|r| r.map(|r| r.0.clone())))
+	/// Get session completion result (if available).
+	pub fn result(&self) -> Option<Result<Public, Error>> {
+		self.data.lock().joint_public_and_secret.clone()
+			.map(|r| r.map(|r| r.0.clone()))
 	}
 
 	/// Get generated public and secret (if any).
@@ -328,8 +329,12 @@ impl SessionImpl {
 				self.verify_keys()?;
 				self.complete_generation()?;
 
-				self.data.lock().state = SessionState::Finished;
-				self.completed.notify_all();
+				let mut data = self.data.lock();
+				let result = data.joint_public_and_secret.clone()
+					.expect("session is instantly completed on a single node; qed")
+					.map(|(p, _, _)| p);
+				data.state = SessionState::Finished;
+				self.completed.send(result);
 
 				Ok(())
 			}
@@ -619,8 +624,11 @@ impl SessionImpl {
 		}
 
 		// we have received enough confirmations => complete session
+		let result = data.joint_public_and_secret.clone()
+			.expect("we're on master node; we have received last completion confirmation; qed")
+			.map(|(p, _, _)| p);
 		data.state = SessionState::Finished;
-		self.completed.notify_all();
+		self.completed.send(result);
 
 		Ok(())
 	}
@@ -813,6 +821,8 @@ impl SessionImpl {
 
 impl ClusterSession for SessionImpl {
 	type Id = SessionId;
+	type CreationData = ();
+	type SuccessfulResult = Public;
 
 	fn type_name() -> &'static str {
 		"generation"
@@ -838,7 +848,7 @@ impl ClusterSession for SessionImpl {
 		data.state = SessionState::Failed;
 		data.key_share = Some(Err(Error::NodeDisconnected));
 		data.joint_public_and_secret = Some(Err(Error::NodeDisconnected));
-		self.completed.notify_all();
+		self.completed.send(Err(Error::NodeDisconnected));
 	}
 
 	fn on_session_timeout(&self) {
@@ -849,7 +859,7 @@ impl ClusterSession for SessionImpl {
 		data.state = SessionState::Failed;
 		data.key_share = Some(Err(Error::NodeDisconnected));
 		data.joint_public_and_secret = Some(Err(Error::NodeDisconnected));
-		self.completed.notify_all();
+		self.completed.send(Err(Error::NodeDisconnected));
 	}
 
 	fn on_session_error(&self, node: &NodeId, error: Error) {
@@ -867,8 +877,8 @@ impl ClusterSession for SessionImpl {
 		let mut data = self.data.lock();
 		data.state = SessionState::Failed;
 		data.key_share = Some(Err(error.clone()));
-		data.joint_public_and_secret = Some(Err(error));
-		self.completed.notify_all();
+		data.joint_public_and_secret = Some(Err(error.clone()));
+		self.completed.send(Err(error));
 	}
 
 	fn on_message(&self, sender: &NodeId, message: &Message) -> Result<(), Error> {

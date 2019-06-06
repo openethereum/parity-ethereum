@@ -18,10 +18,11 @@ use std::sync::Arc;
 use std::collections::{BTreeSet, BTreeMap};
 use ethereum_types::{H256, Address};
 use ethkey::{Public, Secret, Signature};
-use parking_lot::{Mutex, Condvar};
+use futures::Oneshot;
+use parking_lot::Mutex;
 use key_server_cluster::{Error, SessionId, NodeId, DocumentKeyShare, DocumentKeyShareVersion, KeyStorage};
 use key_server_cluster::cluster::Cluster;
-use key_server_cluster::cluster_sessions::ClusterSession;
+use key_server_cluster::cluster_sessions::{ClusterSession, CompletionSignal};
 use key_server_cluster::math;
 use key_server_cluster::message::{Message, ShareAddMessage, ShareAddConsensusMessage, ConsensusMessageOfShareAdd,
 	InitializeConsensusSessionOfShareAdd, KeyShareCommon, NewKeysDissemination, ShareAddError,
@@ -71,8 +72,8 @@ struct SessionCore<T: SessionTransport> {
 	pub key_storage: Arc<KeyStorage>,
 	/// Administrator public key.
 	pub admin_public: Option<Public>,
-	/// SessionImpl completion condvar.
-	pub completed: Condvar,
+	/// Session completion signal.
+	pub completed: CompletionSignal<()>,
 }
 
 /// Share add consensus session type.
@@ -158,10 +159,10 @@ pub struct IsolatedSessionTransport {
 
 impl<T> SessionImpl<T> where T: SessionTransport {
 	/// Create new share addition session.
-	pub fn new(params: SessionParams<T>) -> Result<Self, Error> {
+	pub fn new(params: SessionParams<T>) -> Result<(Self, Oneshot<Result<(), Error>>), Error> {
 		let key_share = params.key_storage.get(&params.meta.id)?;
-
-		Ok(SessionImpl {
+		let (completed, oneshot) = CompletionSignal::new();
+		Ok((SessionImpl {
 			core: SessionCore {
 				meta: params.meta,
 				nonce: params.nonce,
@@ -169,7 +170,7 @@ impl<T> SessionImpl<T> where T: SessionTransport {
 				transport: params.transport,
 				key_storage: params.key_storage,
 				admin_public: params.admin_public,
-				completed: Condvar::new(),
+				completed,
 			},
 			data: Mutex::new(SessionData {
 				state: SessionState::ConsensusEstablishing,
@@ -181,7 +182,7 @@ impl<T> SessionImpl<T> where T: SessionTransport {
 				secret_subshares: None,
 				result: None,
 			}),
-		})
+		}, oneshot))
 	}
 
 	/// Set pre-established consensus data.
@@ -752,7 +753,7 @@ impl<T> SessionImpl<T> where T: SessionTransport {
 		// signal session completion
 		data.state = SessionState::Finished;
 		data.result = Some(Ok(()));
-		core.completed.notify_all();
+		core.completed.send(Ok(()));
 
 		Ok(())
 	}
@@ -760,6 +761,8 @@ impl<T> SessionImpl<T> where T: SessionTransport {
 
 impl<T> ClusterSession for SessionImpl<T> where T: SessionTransport {
 	type Id = SessionId;
+	type CreationData = (); // never used directly
+	type SuccessfulResult = ();
 
 	fn type_name() -> &'static str {
 		"share add"
@@ -801,8 +804,8 @@ impl<T> ClusterSession for SessionImpl<T> where T: SessionTransport {
 			self.core.meta.self_node_id, error, node);
 
 		data.state = SessionState::Finished;
-		data.result = Some(Err(error));
-		self.core.completed.notify_all();
+		data.result = Some(Err(error.clone()));
+		self.core.completed.send(Err(error));
 	}
 
 	fn on_message(&self, sender: &NodeId, message: &Message) -> Result<(), Error> {
@@ -914,7 +917,7 @@ pub mod tests {
 				key_storage,
 				admin_public: Some(admin_public),
 				nonce: 1,
-			}).unwrap()
+			}).unwrap().0
 		}
 	}
 

@@ -72,9 +72,9 @@ impl SessionsMessageProcessor {
 	}
 
 	/// Process single session message from connection.
-	fn process_message<S: ClusterSession, SC: ClusterSessionCreator<S, D>, D>(
+	fn process_message<S: ClusterSession, SC: ClusterSessionCreator<S>>(
 		&self,
-		sessions: &ClusterSessionsContainer<S, SC, D>,
+		sessions: &ClusterSessionsContainer<S, SC>,
 		connection: Arc<Connection>,
 		mut message: Message,
 	) -> Option<Arc<S>>
@@ -151,9 +151,9 @@ impl SessionsMessageProcessor {
 	}
 
 	/// Get or insert new session.
-	fn prepare_session<S: ClusterSession, SC: ClusterSessionCreator<S, D>, D>(
+	fn prepare_session<S: ClusterSession, SC: ClusterSessionCreator<S>>(
 		&self,
-		sessions: &ClusterSessionsContainer<S, SC, D>,
+		sessions: &ClusterSessionsContainer<S, SC>,
 		sender: &NodeId,
 		message: &Message
 	) -> Result<Arc<S>, Error>
@@ -192,7 +192,7 @@ impl SessionsMessageProcessor {
 
 				let nonce = Some(message.session_nonce().ok_or(Error::InvalidMessage)?);
 				let exclusive = message.is_exclusive_session_message();
-				sessions.insert(cluster, master, session_id, nonce, exclusive, creation_data)
+				sessions.insert(cluster, master, session_id, nonce, exclusive, creation_data).map(|s| s.session)
 			},
 		}
 	}
@@ -273,8 +273,8 @@ impl MessageProcessor for SessionsMessageProcessor {
 			let is_master_node = meta.self_node_id == meta.master_node_id;
 			if is_master_node && session.is_finished() {
 				self.sessions.negotiation_sessions.remove(&session.id());
-				match session.wait() {
-					Ok(Some((version, master))) => match session.take_continue_action() {
+				match session.result() {
+					Some(Ok(Some((version, master)))) => match session.take_continue_action() {
 						Some(ContinueAction::Decrypt(
 							session, origin, is_shadow_decryption, is_broadcast_decryption
 						)) => {
@@ -317,10 +317,7 @@ impl MessageProcessor for SessionsMessageProcessor {
 						},
 						None => (),
 					},
-					Ok(None) => unreachable!("is_master_node; session is finished;
-						negotiation version always finished with result on master;
-						qed"),
-					Err(error) => match session.take_continue_action() {
+					Some(Err(error)) => match session.take_continue_action() {
 						Some(ContinueAction::Decrypt(session, _, _, _)) => {
 							session.on_session_error(&meta.self_node_id, error);
 							self.sessions.decryption_sessions.remove(&session.id());
@@ -335,6 +332,9 @@ impl MessageProcessor for SessionsMessageProcessor {
 						},
 						None => (),
 					},
+					None | Some(Ok(None)) => unreachable!("is_master_node; session is finished;
+						negotiation version always finished with result on master;
+						qed"),
 				}
 			}
 		}
@@ -352,6 +352,6 @@ impl MessageProcessor for SessionsMessageProcessor {
 			self.connections.clone(),
 			self.servers_set_change_creator_connector.clone(),
 			params,
-		)
+		).map(|s| s.session)
 	}
 }
