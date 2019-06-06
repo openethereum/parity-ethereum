@@ -168,7 +168,9 @@ You can generate documentation for Parity Ethereum Rust package(s) that automati
   cargo doc --package <spec> --open
   ```
 
-Replacing `<spec>` with one of the following (i.e. `cargo doc --package parity-ethereum --open`):
+Replacing `<spec>` with one of the following from the details section below (i.e. `cargo doc --package parity-ethereum --open`):
+
+<details><p>
 
 * Parity Ethereum (EthCore) Client Application
   ```bash
@@ -300,6 +302,8 @@ Caching, Importing Blocks, and Block Information
   parity-whisper whisper-cli
   ```
 
+</p></details>
+
 ### Contributing to documentation for Parity Ethereum packages
 
 [Document source code](https://doc.rust-lang.org/1.9.0/book/documentation.html) for Parity Ethereum packages by annotating the source code with documentation comments.
@@ -353,11 +357,11 @@ The code block annotations in the `# Example` section may be used as [documentat
 
 In addition to the Parity Ethereum client, there are additional tools in this repository available:
 
-- [evmbin](https://github.com/paritytech/parity-ethereum/blob/master/evmbin/) - Parity Ethereum EVM Implementation.
+- [evmbin](./evmbin) - Parity Ethereum EVM Implementation.
 - [ethabi](https://github.com/paritytech/ethabi) - Parity Ethereum Encoding of Function Calls.
-- [ethstore](https://github.com/paritytech/parity-ethereum/blob/master/accounts/ethstore) - Parity Ethereum Key Management.
-- [ethkey](https://github.com/paritytech/parity-ethereum/blob/master/accounts/ethkey) - Parity Ethereum Keys Generator.
-- [whisper](https://github.com/paritytech/parity-ethereum/blob/master/whisper/) - Parity Ethereum Whisper-v2 PoC Implementation.
+- [ethstore](./accounts/ethstore) - Parity Ethereum Key Management.
+- [ethkey](./accounts/ethkey) - Parity Ethereum Keys Generator.
+- [whisper](./whisper) - Parity Ethereum Whisper-v2 PoC Implementation.
 
 ## 6. Community <a id="chapter-006"></a>
 
@@ -374,12 +378,12 @@ Alternatively, join our community on Matrix:
 
 ## 7. Contributing <a id="chapter-007"></a>
 
-An introduction has been provided in the ["So You Want to be a Core Developer" presentation slides by Hernando Castano](http://tiny.cc/contrib-to-parity-eth). Additional guidelines are provided in [CONTRIBUTING](https://github.com/paritytech/parity-ethereum/blob/master/.github/CONTRIBUTING.md).
+An introduction has been provided in the ["So You Want to be a Core Developer" presentation slides by Hernando Castano](http://tiny.cc/contrib-to-parity-eth). Additional guidelines are provided in [CONTRIBUTING](./.github/CONTRIBUTING.md).
 
 ### Contributor Code of Conduct
 
-[CODE_OF_CONDUCT](https://github.com/paritytech/parity-ethereum/blob/master/.github/CODE_OF_CONDUCT.md)
+[CODE_OF_CONDUCT](./.github/CODE_OF_CONDUCT.md)
 
 ## 8. License <a id="chapter-008"></a>
 
-[LICENSE](https://github.com/paritytech/parity-ethereum/blob/master/LICENSE)
+[LICENSE](./LICENSE)
