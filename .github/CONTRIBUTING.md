@@ -33,6 +33,7 @@ We use [labels](https://github.com/paritytech/parity-ethereum/labels) to manage 
 There are a few basic ground-rules for contributors (including the maintainer(s) of the project):
 
 * **No `--force` pushes** or modifying the master branch history in any way. If you need to rebase, ensure you do it in your own repo.
+* **No pushing directly to the master branch**.
 * **Non-master branches**, prefixed with a short name moniker (e.g. `gav-my-feature`) must be used for ongoing work, and include the associated issue ID (if any) in the branch name.
 * **All modifications** must be made in a **pull-request** to solicit feedback from other contributors.
 * A pull-request *must not be merged until CI* has finished successfully.
