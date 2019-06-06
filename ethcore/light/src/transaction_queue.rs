@@ -129,15 +129,13 @@ pub enum ImportDestination {
 	Future,
 }
 
-type Listener = Box<Fn(&[H256]) + Send + Sync>;
-
 /// Light transaction queue. See module docs for more details.
 #[derive(Default)]
 pub struct TransactionQueue {
 	by_account: HashMap<Address, AccountTransactions>,
 	by_hash: H256FastMap<PendingTransaction>,
-	listeners: Vec<Listener>,
-	tx_statuses_listeners: Vec<mpsc::UnboundedSender<Arc<Vec<(H256, TxStatus)>>>>,
+	pending_listeners: Vec<mpsc::UnboundedSender<Arc<Vec<H256>>>>,
+	full_listeners: Vec<mpsc::UnboundedSender<Arc<Vec<(H256, TxStatus)>>>>,
 }
 
 impl fmt::Debug for TransactionQueue {
@@ -145,7 +143,8 @@ impl fmt::Debug for TransactionQueue {
 		fmt.debug_struct("TransactionQueue")
 			.field("by_account", &self.by_account)
 			.field("by_hash", &self.by_hash)
-			.field("listeners", &self.listeners.len())
+			.field("pending_listeners", &self.pending_listeners.len())
+			.field("full_listeners", &self.pending_listeners.len())
 			.finish()
 	}
 }
@@ -360,30 +359,40 @@ impl TransactionQueue {
 	}
 
 	/// Add a transaction queue listener.
-	pub fn add_listener(&mut self, f: Listener) {
-		self.listeners.push(f);
+	pub fn pending_transactions_receiver(&mut self) -> mpsc::UnboundedReceiver<Arc<Vec<H256>>> {
+		let (sender, receiver) = mpsc::unbounded();
+		self.pending_listeners.push(sender);
+		receiver
 	}
 
 	/// Add a transaction queue listener.
-	pub fn tx_statuses_receiver(&mut self) -> mpsc::UnboundedReceiver<Arc<Vec<(H256, TxStatus)>>> {
+	pub fn full_transactions_receiver(&mut self) -> mpsc::UnboundedReceiver<Arc<Vec<(H256, TxStatus)>>> {
 		let (sender, receiver) = mpsc::unbounded();
-		self.tx_statuses_listeners.push(sender);
+		self.full_listeners.push(sender);
 		receiver
 	}
 
 	/// Notifies all listeners about new pending transaction.
 	fn notify(&mut self, hashes: &[H256], status: TxStatus) {
-		for listener in &self.listeners {
-			listener(hashes)
+		if status == TxStatus::Added {
+			let to_pending_send: Arc<Vec<H256>> = Arc::new(
+				hashes
+					.into_iter()
+					.map(|hash| hash.clone())
+					.collect()
+			);
+			self.pending_listeners.retain(|listener| listener.unbounded_send(to_pending_send.clone()).is_ok());
+
 		}
 
-		let to_send: Arc<Vec<(H256, TxStatus)>> = Arc::new(
+		let to_full_send: Arc<Vec<(H256, TxStatus)>> = Arc::new(
 			hashes
 				.into_iter()
-				.map(|hash| (hash.clone(), status)).collect()
+				.map(|hash| (hash.clone(), status))
+				.collect()
 		);
 
-		self.tx_statuses_listeners.retain(| listener| listener.unbounded_send(to_send.clone()).is_ok());
+		self.full_listeners.retain(|listener| listener.unbounded_send(to_full_send.clone()).is_ok());
 	}
 }
 
@@ -395,7 +404,7 @@ mod tests {
 
 	#[test]
 	fn queued_senders() {
-		let sender = Address::default();
+		let sender = Address::zero();
 		let mut txq = TransactionQueue::default();
 		let tx = Transaction::default().fake_sign(sender);
 
@@ -411,7 +420,7 @@ mod tests {
 
 	#[test]
 	fn next_nonce() {
-		let sender = Address::default();
+		let sender = Address::zero();
 		let mut txq = TransactionQueue::default();
 
 		for i in (0..5).chain(10..15) {
@@ -442,7 +451,7 @@ mod tests {
 
 	#[test]
 	fn current_to_future() {
-		let sender = Address::default();
+		let sender = Address::zero();
 		let mut txq = TransactionQueue::default();
 
 		for i in 5..10 {
@@ -485,7 +494,7 @@ mod tests {
 	#[test]
 	fn conditional() {
 		let mut txq = TransactionQueue::default();
-		let sender = Address::default();
+		let sender = Address::zero();
 
 		for i in 0..5 {
 			let mut tx = Transaction::default();
@@ -507,7 +516,7 @@ mod tests {
 
 	#[test]
 	fn cull_from_future() {
-		let sender = Address::default();
+		let sender = Address::zero();
 		let mut txq = TransactionQueue::default();
 
 		for i in (0..1).chain(3..10) {
@@ -527,7 +536,7 @@ mod tests {
 
 	#[test]
 	fn import_old() {
-		let sender = Address::default();
+		let sender = Address::zero();
 		let mut txq = TransactionQueue::default();
 
 		let mut tx_a = Transaction::default();
@@ -544,7 +553,7 @@ mod tests {
 
 	#[test]
 	fn replace_is_removed() {
-		let sender = Address::default();
+		let sender = Address::zero();
 		let mut txq = TransactionQueue::default();
 
 		let tx_b: PendingTransaction = Transaction::default().fake_sign(sender).into();
@@ -564,7 +573,7 @@ mod tests {
 
 	#[test]
 	fn future_transactions() {
-		let sender = Address::default();
+		let sender = Address::zero();
 		let mut txq = TransactionQueue::default();
 
 		for i in (0..1).chain(3..10) {

@@ -37,8 +37,6 @@ pub struct Clique {
 #[cfg(test)]
 mod tests {
 	use serde_json;
-	use uint::Uint;
-	use ethereum_types::U256;
 	use super::*;
 
 	#[test]

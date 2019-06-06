@@ -28,14 +28,13 @@ use self::stores::AddressBook;
 use std::collections::HashMap;
 use std::time::{Instant, Duration};
 
-use common_types::transaction::{Action, Transaction};
 use ethkey::{Address, Message, Public, Secret, Password, Random, Generator};
 use ethstore::accounts_dir::MemoryDirectory;
 use ethstore::{
 	SimpleSecretStore, SecretStore, EthStore, EthMultiStore,
 	random_string, SecretVaultRef, StoreAccountRef, OpaqueSecret,
 };
-use log::{warn, debug};
+use log::warn;
 use parking_lot::RwLock;
 
 pub use ethkey::Signature;
@@ -529,7 +528,7 @@ mod tests {
 		let derived_addr = ap.derive_account(
 			&kp.address(),
 			None,
-			Derivation::SoftHash(H256::from(999)),
+			Derivation::SoftHash(H256::from_low_u64_be(999)),
 			false,
 		).expect("Derivation should not fail");
 
@@ -547,7 +546,7 @@ mod tests {
 		let derived_addr = ap.derive_account(
 			&kp.address(),
 			None,
-			Derivation::SoftHash(H256::from(999)),
+			Derivation::SoftHash(H256::from_low_u64_be(999)),
 			true,
 		).expect("Derivation should not fail");
 
@@ -568,7 +567,7 @@ mod tests {
 		let derived_addr = ap.derive_account(
 			&kp.address(),
 			None,
-			Derivation::SoftHash(H256::from(1999)),
+			Derivation::SoftHash(H256::from_low_u64_be(1999)),
 			true,
 		).expect("Derivation should not fail");
 		ap.unlock_account_permanently(derived_addr, "base".into())
@@ -580,7 +579,7 @@ mod tests {
 		let signed_msg2 = ap.sign_derived(
 			&kp.address(),
 			None,
-			Derivation::SoftHash(H256::from(1999)),
+			Derivation::SoftHash(H256::from_low_u64_be(1999)),
 			msg,
 		).expect("Derived signing with existing unlocked account should not fail");
 

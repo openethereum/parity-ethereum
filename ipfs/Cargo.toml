@@ -8,10 +8,10 @@ authors = ["Parity Technologies <admin@parity.io>"]
 [dependencies]
 ethcore = { path = "../ethcore" }
 parity-bytes = "0.1"
-ethereum-types = "0.4"
+ethereum-types = "0.6.0"
 jsonrpc-core = "10.0.1"
 jsonrpc-http-server = "10.0.1"
-rlp = { version = "0.3.0", features = ["ethereum"] }
+rlp = "0.4.0"
 cid = "0.3"
 multihash = "0.8"
 unicase = "2.0"

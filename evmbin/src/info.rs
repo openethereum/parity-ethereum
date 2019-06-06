@@ -96,7 +96,7 @@ pub fn run_action<T: Informant>(
 			Ok(r) => (Ok(r.return_data.to_vec()), Some(r.gas_left)),
 			Err(err) => (Err(err), None),
 		};
-		(result.0, 0.into(), None, result.1, informant.drain())
+		(result.0, H256::from_low_u64_be(0), None, result.1, informant.drain())
 	})
 }
 
@@ -174,7 +174,7 @@ pub fn run<'a, F, X>(
 			error,
 			time: Duration::from_secs(0),
 			traces: None,
-			state_root: H256::default(),
+			state_root: H256::zero(),
 			end_state: None,
 		})?;
 
@@ -212,6 +212,7 @@ pub mod tests {
 	use rustc_hex::FromHex;
 	use super::*;
 	use tempdir::TempDir;
+	use ethereum_types::Address;
 
 	pub fn run_test<T, I, F>(
 		informant: I,
@@ -247,7 +248,7 @@ pub mod tests {
 
 		let (inf, res) = informant();
 		let mut params = ActionParams::default();
-		params.code_address = 0x20.into();
+		params.code_address = Address::from_low_u64_be(0x20);
 		params.gas = 0xffff.into();
 
 		let spec = ::ethcore::ethereum::load(None, include_bytes!("../res/testchain.json"));

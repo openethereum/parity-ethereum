@@ -16,14 +16,14 @@
 
 use std::collections::{BTreeSet, BTreeMap};
 use std::sync::Arc;
-use std::time;
-use parking_lot::{Mutex, Condvar};
+use futures::Oneshot;
+use parking_lot::Mutex;
 use ethereum_types::{Address, H256};
 use ethkey::Secret;
 use key_server_cluster::{Error, AclStorage, DocumentKeyShare, NodeId, SessionId, Requester,
 	EncryptedDocumentKeyShadow, SessionMeta};
 use key_server_cluster::cluster::Cluster;
-use key_server_cluster::cluster_sessions::{SessionIdWithSubSession, ClusterSession};
+use key_server_cluster::cluster_sessions::{SessionIdWithSubSession, ClusterSession, CompletionSignal};
 use key_server_cluster::message::{Message, DecryptionMessage, DecryptionConsensusMessage, RequestPartialDecryption,
 	PartialDecryption, DecryptionSessionError, DecryptionSessionCompleted, ConsensusMessage, InitializeConsensusSession,
 	ConfirmConsensusInitialization, DecryptionSessionDelegation, DecryptionSessionDelegationCompleted};
@@ -59,8 +59,8 @@ struct SessionCore {
 	pub cluster: Arc<Cluster>,
 	/// Session-level nonce.
 	pub nonce: u64,
-	/// SessionImpl completion condvar.
-	pub completed: Condvar,
+	/// Session completion signal.
+	pub completed: CompletionSignal<EncryptedDocumentKeyShadow>,
 }
 
 /// Decryption consensus session type.
@@ -147,7 +147,10 @@ enum DelegationStatus {
 
 impl SessionImpl {
 	/// Create new decryption session.
-	pub fn new(params: SessionParams, requester: Option<Requester>) -> Result<Self, Error> {
+	pub fn new(
+		params: SessionParams,
+		requester: Option<Requester>,
+	) -> Result<(Self, Oneshot<Result<EncryptedDocumentKeyShadow, Error>>), Error> {
 		debug_assert_eq!(params.meta.threshold, params.key_share.as_ref().map(|ks| ks.threshold).unwrap_or_default());
 
 		// check that common_point and encrypted_point are already set
@@ -175,14 +178,15 @@ impl SessionImpl {
 			consensus_transport: consensus_transport,
 		})?;
 
-		Ok(SessionImpl {
+		let (completed, oneshot) = CompletionSignal::new();
+		Ok((SessionImpl {
 			core: SessionCore {
 				meta: params.meta,
 				access_key: params.access_key,
 				key_share: params.key_share,
 				cluster: params.cluster,
 				nonce: params.nonce,
-				completed: Condvar::new(),
+				completed,
 			},
 			data: Mutex::new(SessionData {
 				version: None,
@@ -194,7 +198,7 @@ impl SessionImpl {
 				delegation_status: None,
 				result: None,
 			}),
-		})
+		}, oneshot))
 	}
 
 	/// Get this node id.
@@ -209,7 +213,7 @@ impl SessionImpl {
 		&self.core.access_key
 	}
 
-	/// Get session state.
+	/// Get session state (tests only).
 	#[cfg(test)]
 	pub fn state(&self) -> ConsensusSessionState {
 		self.data.lock().consensus_session.state()
@@ -231,9 +235,9 @@ impl SessionImpl {
 		self.data.lock().origin.clone()
 	}
 
-	/// Wait for session completion.
-	pub fn wait(&self, timeout: Option<time::Duration>) -> Option<Result<EncryptedDocumentKeyShadow, Error>> {
-		Self::wait_session(&self.core.completed, &self.data, timeout, |data| data.result.clone())
+	/// Get session completion result (if available).
+	pub fn result(&self) -> Option<Result<EncryptedDocumentKeyShadow, Error>> {
+		self.data.lock().result.clone()
 	}
 
 	/// Get broadcasted shadows.
@@ -667,13 +671,15 @@ impl SessionImpl {
 			};
 		}
 
-		data.result = Some(result);
-		core.completed.notify_all();
+		data.result = Some(result.clone());
+		core.completed.send(result);
 	}
 }
 
 impl ClusterSession for SessionImpl {
 	type Id = SessionIdWithSubSession;
+	type CreationData = Requester;
+	type SuccessfulResult = EncryptedDocumentKeyShadow;
 
 	fn type_name() -> &'static str {
 		"decryption"
@@ -816,6 +822,7 @@ impl JobTransport for DecryptionJobTransport {
 pub fn create_default_decryption_session() -> Arc<SessionImpl> {
 	use acl_storage::DummyAclStorage;
 	use key_server_cluster::cluster::tests::DummyCluster;
+	use ethereum_types::H512;
 
 	Arc::new(SessionImpl::new(SessionParams {
 		meta: SessionMeta {
@@ -831,7 +838,7 @@ pub fn create_default_decryption_session() -> Arc<SessionImpl> {
 		acl_storage: Arc::new(DummyAclStorage::default()),
 		cluster: Arc::new(DummyCluster::new(Default::default())),
 		nonce: 0,
-	}, Some(Requester::Public(2.into()))).unwrap())
+	}, Some(Requester::Public(H512::from_low_u64_be(2)))).unwrap().0)
 }
 
 #[cfg(test)]
@@ -848,6 +855,8 @@ mod tests {
 	use key_server_cluster::message::{self, Message, DecryptionMessage};
 	use key_server_cluster::math;
 	use key_server_cluster::jobs::consensus_session::ConsensusSessionState;
+	use ethereum_types::{H512, Address};
+	use std::str::FromStr;
 
 	const SECRET_PLAIN: &'static str = "d2b57ae7619e070af0af6bc8c703c0cd27814c54d5d6a999cacac0da34ede279ca0d9216e85991029e54e2f0c92ee0bd30237725fa765cbdbfc4529489864c5f";
 
@@ -863,19 +872,19 @@ mod tests {
 			"c06546b5669877ba579ca437a5602e89425c53808c708d44ccd6afcaa4610fad".parse().unwrap(),
 		];
 		let id_numbers: Vec<(NodeId, Secret)> = vec![
-			("b486d3840218837b035c66196ecb15e6b067ca20101e11bd5e626288ab6806ecc70b8307012626bd512bad1559112d11d21025cef48cc7a1d2f3976da08f36c8".into(),
+			(H512::from_str("b486d3840218837b035c66196ecb15e6b067ca20101e11bd5e626288ab6806ecc70b8307012626bd512bad1559112d11d21025cef48cc7a1d2f3976da08f36c8").unwrap(),
 				"281b6bf43cb86d0dc7b98e1b7def4a80f3ce16d28d2308f934f116767306f06c".parse().unwrap()),
-			("1395568277679f7f583ab7c0992da35f26cde57149ee70e524e49bdae62db3e18eb96122501e7cbb798b784395d7bb5a499edead0706638ad056d886e56cf8fb".into(),
+			(H512::from_str("1395568277679f7f583ab7c0992da35f26cde57149ee70e524e49bdae62db3e18eb96122501e7cbb798b784395d7bb5a499edead0706638ad056d886e56cf8fb").unwrap(),
 				"00125d85a05e5e63e214cb60fe63f132eec8a103aa29266b7e6e6c5b7597230b".parse().unwrap()),
-			("99e82b163b062d55a64085bacfd407bb55f194ba5fb7a1af9c34b84435455520f1372e0e650a4f91aed0058cb823f62146ccb5599c8d13372c300dea866b69fc".into(),
+			(H512::from_str("99e82b163b062d55a64085bacfd407bb55f194ba5fb7a1af9c34b84435455520f1372e0e650a4f91aed0058cb823f62146ccb5599c8d13372c300dea866b69fc").unwrap(),
 				"f43ac0fba42a5b6ed95707d2244659e89ba877b1c9b82c0d0a9dcf834e80fc62".parse().unwrap()),
-			("7e05df9dd077ec21ed4bc45c9fe9e0a43d65fa4be540630de615ced5e95cf5c3003035eb713317237d7667feeeb64335525158f5f7411f67aca9645169ea554c".into(),
+			(H512::from_str("7e05df9dd077ec21ed4bc45c9fe9e0a43d65fa4be540630de615ced5e95cf5c3003035eb713317237d7667feeeb64335525158f5f7411f67aca9645169ea554c").unwrap(),
 				"5a324938dfb2516800487d25ab7289ba8ec38811f77c3df602e4e65e3c9acd9f".parse().unwrap()),
-			("321977760d1d8e15b047a309e4c7fe6f355c10bb5a06c68472b676926427f69f229024fa2692c10da167d14cdc77eb95d0fce68af0a0f704f0d3db36baa83bb2".into(),
+			(H512::from_str("321977760d1d8e15b047a309e4c7fe6f355c10bb5a06c68472b676926427f69f229024fa2692c10da167d14cdc77eb95d0fce68af0a0f704f0d3db36baa83bb2").unwrap(),
 				"12cf422d50002d04e52bd4906fd7f5f235f051ca36abfe37e061f8da248008d8".parse().unwrap()),
 		];
-		let common_point: Public = "6962be696e1bcbba8e64cc7fddf140f854835354b5804f3bb95ae5a2799130371b589a131bd39699ac7174ccb35fc4342dab05331202209582fc8f3a40916ab0".into();
-		let encrypted_point: Public = "b07031982bde9890e12eff154765f03c56c3ab646ad47431db5dd2d742a9297679c4c65b998557f8008469afd0c43d40b6c5f6c6a1c7354875da4115237ed87a".into();
+		let common_point: Public = H512::from_str("6962be696e1bcbba8e64cc7fddf140f854835354b5804f3bb95ae5a2799130371b589a131bd39699ac7174ccb35fc4342dab05331202209582fc8f3a40916ab0").unwrap();
+		let encrypted_point: Public = H512::from_str("b07031982bde9890e12eff154765f03c56c3ab646ad47431db5dd2d742a9297679c4c65b998557f8008469afd0c43d40b6c5f6c6a1c7354875da4115237ed87a").unwrap();
 		let encrypted_datas: Vec<_> = (0..5).map(|i| DocumentKeyShare {
 			author: Default::default(),
 			threshold: 3,
@@ -912,7 +921,7 @@ mod tests {
 			acl_storage: acl_storages[i].clone(),
 			cluster: clusters[i].clone(),
 			nonce: 0,
-		}, if i == 0 { signature.clone().map(Into::into) } else { None }).unwrap()).collect();
+		}, if i == 0 { signature.clone().map(Into::into) } else { None }).unwrap().0).collect();
 
 		(requester, clusters, acl_storages, sessions)
 	}
@@ -1011,7 +1020,9 @@ mod tests {
 			acl_storage: Arc::new(DummyAclStorage::default()),
 			cluster: Arc::new(DummyCluster::new(self_node_id.clone())),
 			nonce: 0,
-		}, Some(Requester::Signature(ethkey::sign(Random.generate().unwrap().secret(), &SessionId::default()).unwrap()))).unwrap();
+		}, Some(Requester::Signature(
+			ethkey::sign(Random.generate().unwrap().secret(), &SessionId::default()).unwrap()
+		))).unwrap().0;
 		assert_eq!(session.initialize(Default::default(), Default::default(), false, false), Err(Error::InvalidMessage));
 	}
 
@@ -1046,7 +1057,9 @@ mod tests {
 			acl_storage: Arc::new(DummyAclStorage::default()),
 			cluster: Arc::new(DummyCluster::new(self_node_id.clone())),
 			nonce: 0,
-		}, Some(Requester::Signature(ethkey::sign(Random.generate().unwrap().secret(), &SessionId::default()).unwrap()))).unwrap();
+		}, Some(Requester::Signature(
+			ethkey::sign(Random.generate().unwrap().secret(), &SessionId::default()).unwrap()
+		))).unwrap().0;
 		assert_eq!(session.initialize(Default::default(), Default::default(), false, false), Err(Error::ConsensusUnreachable));
 	}
 
@@ -1272,7 +1285,7 @@ mod tests {
 		assert!(sessions.iter().skip(1).all(|s| s.decrypted_secret().is_none()));
 
 		assert_eq!(sessions[0].decrypted_secret().unwrap().unwrap(), EncryptedDocumentKeyShadow {
-			decrypted_secret: SECRET_PLAIN.into(),
+			decrypted_secret: H512::from_str(SECRET_PLAIN).unwrap(),
 			common_point: None,
 			decrypt_shadows: None,
 		});
@@ -1295,7 +1308,7 @@ mod tests {
 
 		let decrypted_secret = sessions[0].decrypted_secret().unwrap().unwrap();
 		// check that decrypted_secret != SECRET_PLAIN
-		assert!(decrypted_secret.decrypted_secret != SECRET_PLAIN.into());
+		assert!(decrypted_secret.decrypted_secret != H512::from_str(SECRET_PLAIN).unwrap());
 		// check that common point && shadow coefficients are returned
 		assert!(decrypted_secret.common_point.is_some());
 		assert!(decrypted_secret.decrypt_shadows.is_some());
@@ -1306,7 +1319,7 @@ mod tests {
 			.map(|c| Secret::from_slice(&decrypt(key_pair.secret(), &DEFAULT_MAC, &c).unwrap()).unwrap())
 			.collect();
 		let decrypted_secret = math::decrypt_with_shadow_coefficients(decrypted_secret.decrypted_secret, decrypted_secret.common_point.unwrap(), decrypt_shadows).unwrap();
-		assert_eq!(decrypted_secret, SECRET_PLAIN.into());
+		assert_eq!(decrypted_secret, H512::from_str(SECRET_PLAIN).unwrap());
 	}
 
 	#[test]
@@ -1347,7 +1360,7 @@ mod tests {
 		// 2) 1 session has decrypted key value
 		assert!(sessions.iter().skip(1).all(|s| s.decrypted_secret().is_none()));
 		assert_eq!(sessions[0].decrypted_secret().unwrap().unwrap(), EncryptedDocumentKeyShadow {
-			decrypted_secret: SECRET_PLAIN.into(),
+			decrypted_secret: H512::from_str(SECRET_PLAIN).unwrap(),
 			common_point: None,
 			decrypt_shadows: None,
 		});
@@ -1385,7 +1398,7 @@ mod tests {
 		assert_eq!(sessions.iter().filter(|s| s.state() == ConsensusSessionState::Finished).count(), 4);
 		// 2) 1 session has decrypted key value
 		assert_eq!(sessions[1].decrypted_secret().unwrap().unwrap(), EncryptedDocumentKeyShadow {
-			decrypted_secret: SECRET_PLAIN.into(),
+			decrypted_secret: H512::from_str(SECRET_PLAIN).unwrap(),
 			common_point: None,
 			decrypt_shadows: None,
 		});
@@ -1407,7 +1420,7 @@ mod tests {
 		do_messages_exchange(&clusters, &sessions).unwrap();
 
 		assert_eq!(sessions[0].decrypted_secret().unwrap().unwrap(), EncryptedDocumentKeyShadow {
-			decrypted_secret: SECRET_PLAIN.into(),
+			decrypted_secret: H512::from_str(SECRET_PLAIN).unwrap(),
 			common_point: None,
 			decrypt_shadows: None,
 		});
@@ -1423,7 +1436,7 @@ mod tests {
 		let result = sessions[0].decrypted_secret();
 		assert!(result.clone().unwrap().is_ok());
 		assert_eq!(result.clone().unwrap().unwrap(), EncryptedDocumentKeyShadow {
-			decrypted_secret: SECRET_PLAIN.into(),
+			decrypted_secret: H512::from_str(SECRET_PLAIN).unwrap(),
 			common_point: None,
 			decrypt_shadows: None,
 		});
@@ -1452,16 +1465,16 @@ mod tests {
 			.map(|c| Secret::from_slice(&decrypt(key_pair.secret(), &DEFAULT_MAC, &c).unwrap()).unwrap())
 			.collect();
 		let decrypted_secret = math::decrypt_with_shadow_coefficients(result.decrypted_secret, result.common_point.unwrap(), decrypt_shadows).unwrap();
-		assert_eq!(decrypted_secret, SECRET_PLAIN.into());
+		assert_eq!(decrypted_secret, H512::from_str(SECRET_PLAIN).unwrap());
 	}
 
 	#[test]
 	fn decryption_session_origin_is_known_to_all_initialized_nodes() {
 		let (_, clusters, _, sessions) = prepare_decryption_sessions();
-		sessions[0].initialize(Some(1.into()), Default::default(), true, true).unwrap();
+		sessions[0].initialize(Some(Address::from_low_u64_be(1)), Default::default(), true, true).unwrap();
 		do_messages_exchange(&clusters, &sessions).unwrap();
 
 		// all session must have origin set
-		assert_eq!(5, sessions.iter().filter(|s| s.origin() == Some(1.into())).count());
+		assert_eq!(5, sessions.iter().filter(|s| s.origin() == Some(Address::from_low_u64_be(1))).count());
 	}
 }

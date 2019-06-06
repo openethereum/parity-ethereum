@@ -20,7 +20,6 @@ use std::{ops, str};
 use std::collections::HashMap;
 use jsonrpc_pubsub::{typed::{Subscriber, Sink}, SubscriptionId};
 use ethereum_types::H64;
-use rand::{Rng, StdRng};
 
 #[derive(Debug, Clone, Hash, Eq, PartialEq)]
 pub struct Id(H64);
@@ -42,34 +41,44 @@ impl Id {
 	}
 }
 
-#[derive(Clone)]
+#[cfg(not(test))]
+mod random {
+	use rand;
+
+	pub type Rng = rand::rngs::OsRng;
+
+	pub fn new() -> Rng { Rng::new().expect("Valid random source is required.") }
+}
+
+#[cfg(test)]
+mod random {
+	use rand::SeedableRng;
+	use rand_xorshift::XorShiftRng;
+
+	const RNG_SEED: [u8; 16] = [0u8; 16];
+
+	pub type Rng = XorShiftRng;
+
+	pub fn new() -> Rng { Rng::from_seed(RNG_SEED) }
+}
+
 pub struct Subscribers<T> {
-	rand: StdRng,
+	rand: random::Rng,
 	subscriptions: HashMap<Id, T>,
 }
 
 impl<T> Default for Subscribers<T> {
 	fn default() -> Self {
 		Subscribers {
-			rand: StdRng::new().expect("Valid random source is required."),
+			rand: random::new(),
 			subscriptions: HashMap::new(),
 		}
 	}
 }
 
 impl<T> Subscribers<T> {
-	/// Create a new Subscribers with given random source.
-	#[cfg(test)]
-	pub fn new_test() -> Self {
-		Subscribers {
-			rand: ::rand::SeedableRng::from_seed([0usize].as_ref()),
-			subscriptions: HashMap::new(),
-		}
-	}
-
 	fn next_id(&mut self) -> Id {
-		let mut data = H64::default();
-		self.rand.fill_bytes(&mut data.0);
+		let data = H64::random_using(&mut self.rand);
 		Id(data)
 	}
 

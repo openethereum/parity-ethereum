@@ -14,25 +14,26 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
-use std::{str, io};
-use std::net::SocketAddr;
+use std::{io, str};
 use std::collections::HashMap;
+use std::net::SocketAddr;
 use std::time::{Duration, Instant};
 
-use mio::*;
-use mio::deprecated::{Handler, EventLoop};
-use mio::tcp::*;
 use ethereum_types::H256;
-use rlp::{Rlp, RlpStream, EMPTY_LIST_RLP};
-use connection::{EncryptedConnection, Packet, Connection, MAX_PAYLOAD_SIZE};
-use handshake::Handshake;
-use io::{IoContext, StreamToken};
-use network::{Error, ErrorKind, DisconnectReason, SessionInfo, ProtocolId, PeerCapabilityInfo};
-use network::SessionCapabilityInfo;
-use network::client_version::ClientVersion;
-use host::*;
-use node_table::NodeId;
+use mio::*;
+use mio::deprecated::{EventLoop, Handler};
+use mio::tcp::*;
+use rlp::{EMPTY_LIST_RLP, Rlp, RlpStream};
 use snappy;
+
+use connection::{Connection, EncryptedConnection, MAX_PAYLOAD_SIZE, Packet};
+use handshake::Handshake;
+use host::*;
+use io::{IoContext, StreamToken};
+use network::{DisconnectReason, Error, ErrorKind, PeerCapabilityInfo, ProtocolId, SessionInfo};
+use network::client_version::ClientVersion;
+use network::SessionCapabilityInfo;
+use node_table::NodeId;
 
 // Timeout must be less than (interval - 1).
 const PING_TIMEOUT: Duration = Duration::from_secs(60);

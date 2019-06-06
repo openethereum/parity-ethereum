@@ -96,11 +96,11 @@ impl Default for ActionParams {
 	/// Returns default ActionParams initialized with zeros
 	fn default() -> ActionParams {
 		ActionParams {
-			code_address: Address::new(),
+			code_address: Address::zero(),
 			code_hash: Some(KECCAK_EMPTY),
-			address: Address::new(),
-			sender: Address::new(),
-			origin: Address::new(),
+			address: Address::zero(),
+			sender: Address::zero(),
+			origin: Address::zero(),
 			gas: U256::zero(),
 			gas_price: U256::zero(),
 			value: ActionValue::Transfer(U256::zero()),
@@ -116,7 +116,7 @@ impl From<ethjson::vm::Transaction> for ActionParams {
 	fn from(t: ethjson::vm::Transaction) -> Self {
 		let address: Address = t.address.into();
 		ActionParams {
-			code_address: Address::new(),
+			code_address: Address::zero(),
 			code_hash: Some(keccak(&*t.code)),
 			address: address,
 			sender: t.sender.into(),
