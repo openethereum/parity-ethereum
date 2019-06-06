@@ -53,7 +53,7 @@ There are a few basic ground-rules for contributors (including the maintainer(s)
 
 * At least two reviewers are required to review PRs (even for PRs tagged [`insubstantial`](https://github.com/paritytech/parity-ethereum/pulls?q=is%3Aopen+is%3Apr+label%3A%22A2-insubstantial+%F0%9F%91%B6%22)).
 
-When reviewing a pull request, the end-goal is to suggest useful changes to the author. Reviews should finish with approval unless there are issues that would result in:
+When reviewing a pull request, the end-goal is improve code quality, make sure the logic is correct, the style guide is being followed and to provide feedback to the author. Reviews should finish with approval unless there are issues that would result in:
 
 * Buggy behavior.
 * Undue maintenance burden.
