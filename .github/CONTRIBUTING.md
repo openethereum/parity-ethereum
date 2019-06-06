@@ -34,10 +34,14 @@ There are a few basic ground-rules for contributors (including the maintainer(s)
 
 * **No `--force` pushes** or modifying the master branch history in any way. If you need to rebase, ensure you do it in your own repo.
 * **No pushing directly to the master branch**.
-* **Non-master branches**, prefixed with a short name moniker (e.g. `gav-my-feature`) must be used for ongoing work, and include the associated issue ID (if any) in the branch name.
 * **All modifications** must be made in a **pull-request** to solicit feedback from other contributors.
 * A pull-request *must not be merged until CI* has finished successfully.
 * Contributors should adhere to the [Parity Ethereum Style Guide](https://wiki.parity.io/Parity-Ethereum-Style-Guide).
+
+### Recommendations
+
+* **Non-master branch names** *should* be prefixed with a short name moniker, followed by the associated Github Issue ID (if any), and a brief description of the task using the format `<GITHUB_USERNAME>-<ISSUE_ID>-<BRIEF_DESCRIPTION>` (e.g. `gavin-123-readme`). The name moniker helps people to inquiry about their unfinished work, and the GitHub Issue ID helps your future self and other developers (particularly those who are onboarding) find out about and understand the original scope of the task, and where it fits into Parity Ethereum [Projects](https://github.com/paritytech/parity-ethereum/projects).
+* **Remove stale branches periodically**
 
 ### Preparing Pull Requests
 
