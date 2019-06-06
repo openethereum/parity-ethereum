@@ -81,6 +81,14 @@ impl ServerKeyGenerator for Listener {
 	) -> Box<Future<Item=Public, Error=Error> + Send> {
 		self.key_server.generate_key(key_id, author, threshold)
 	}
+
+	fn restore_key_public(
+		&self,
+		key_id: ServerKeyId,
+		author: Requester,
+	) -> Box<Future<Item=Public, Error=Error> + Send> {
+		self.key_server.restore_key_public(key_id, author)
+	}
 }
 
 impl DocumentKeyServer for Listener {

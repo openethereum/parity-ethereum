@@ -84,6 +84,34 @@ impl ServerKeyGenerator for KeyServerImpl {
 		return_session(address.and_then(|address| self.data.lock().cluster
 			.new_generation_session(key_id, None, address, threshold)))
 	}
+
+	fn restore_key_public(
+		&self,
+		key_id: ServerKeyId,
+		author: Requester,
+	) -> Box<Future<Item=Public, Error=Error> + Send> {
+		// recover requestor' public key from signature
+		let session_and_address = author
+			.address(&key_id)
+			.map_err(Error::InsufficientRequesterData)
+			.and_then(|address| self.data.lock().cluster.new_key_version_negotiation_session(key_id)
+				.map(|session| (session, address)));
+		let (session, address) = match session_and_address {
+			Ok((session, address)) => (session, address),
+			Err(error) => return Box::new(err(error)),
+		};
+
+		// negotiate key version && retrieve common key data
+		let core_session = session.session.clone();
+		Box::new(session.into_wait_future()
+			.and_then(move |_| core_session.common_key_data()
+				.map(|key_share| (key_share, address)))
+			.and_then(|(key_share, address)| if key_share.author == address {
+				Ok(key_share.public)
+			} else {
+				Err(Error::AccessDenied)
+			}))
+	}
 }
 
 impl DocumentKeyServer for KeyServerImpl {
@@ -323,6 +351,14 @@ pub mod tests {
 			_key_id: ServerKeyId,
 			_author: Requester,
 			_threshold: usize,
+		) -> Box<Future<Item=Public, Error=Error> + Send> {
+			unimplemented!("test-only")
+		}
+
+		fn restore_key_public(
+			&self,
+			_key_id: ServerKeyId,
+			_author: Requester,
 		) -> Box<Future<Item=Public, Error=Error> + Send> {
 			unimplemented!("test-only")
 		}
