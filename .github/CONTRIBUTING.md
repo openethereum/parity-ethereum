@@ -47,7 +47,7 @@ Merging pull requests once CI is successful:
   * it is an urgent fix with no large change to logic, then it may be merged after a non-author contributor has approved the review once CI is complete.
 
 * Once a PR is ready for review please add the [`pleasereview`](https://github.com/paritytech/parity-ethereum/pulls?utf8=%E2%9C%93&q=is%3Aopen+is%3Apr+label%3A%22A0-pleasereview+%F0%9F%A4%93%22+) label. Generally PRs should sit with this label for 48 hours in order to garner feedback. It may be merged before if all relevant parties had a look at it.
-* No PR should be merged until all reviews' comments are addressed.
+* No PR should be merged until all reviewers' comments are addressed.
 
 *Reviewing pull requests*:
 
