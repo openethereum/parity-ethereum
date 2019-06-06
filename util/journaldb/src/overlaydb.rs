@@ -25,7 +25,6 @@ use ethereum_types::H256;
 use rlp::{Rlp, RlpStream, Encodable, DecoderError, Decodable, encode, decode};
 use hash_db::{HashDB};
 use keccak_hasher::KeccakHasher;
-use memory_db::*;
 use kvdb::{KeyValueDB, DBTransaction, DBValue};
 use super::{error_negatively_reference_hash};
 
@@ -39,7 +38,7 @@ use super::{error_negatively_reference_hash};
 /// queries have an immediate effect in terms of these functions.
 #[derive(Clone)]
 pub struct OverlayDB {
-	overlay: MemoryDB<KeccakHasher, DBValue>,
+	overlay: super::MemoryDB,
 	backing: Arc<KeyValueDB>,
 	column: Option<u32>,
 }

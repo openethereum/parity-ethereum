@@ -27,7 +27,6 @@ use hash_db::HashDB;
 use mem::{MallocSizeOf, allocators::new_malloc_size_ops};
 use keccak_hasher::KeccakHasher;
 use kvdb::{KeyValueDB, DBTransaction, DBValue};
-use memory_db::*;
 use parking_lot::RwLock;
 use fastmap::H256FastMap;
 use rlp::{Rlp, RlpStream, encode, decode, DecoderError, Decodable, Encodable};
@@ -66,7 +65,7 @@ use util::DatabaseKey;
 /// 7. Delete ancient record from memory and disk.
 
 pub struct OverlayRecentDB {
-	transaction_overlay: MemoryDB<KeccakHasher, DBValue>,
+	transaction_overlay: super::MemoryDB,
 	backing: Arc<KeyValueDB>,
 	journal_overlay: Arc<RwLock<JournalOverlay>>,
 	column: Option<u32>,
@@ -120,7 +119,7 @@ impl<'a> Encodable for DatabaseValueRef<'a> {
 
 #[derive(PartialEq)]
 struct JournalOverlay {
-	backing_overlay: MemoryDB<KeccakHasher, DBValue>, // Nodes added in the history period
+	backing_overlay: super::MemoryDB, // Nodes added in the history period
 	pending_overlay: H256FastMap<DBValue>, // Nodes being transfered from backing_overlay to backing db
 	journal: HashMap<u64, Vec<JournalEntry>>,
 	latest_era: Option<u64>,
@@ -451,7 +450,7 @@ impl JournalDB for OverlayRecentDB {
 		Ok(ops)
 	}
 
-	fn consolidate(&mut self, with: MemoryDB<KeccakHasher, DBValue>) {
+	fn consolidate(&mut self, with: super::MemoryDB) {
 		self.transaction_overlay.consolidate(with);
 	}
 }

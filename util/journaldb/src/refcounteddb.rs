@@ -26,7 +26,6 @@ use hash_db::HashDB;
 use mem::{MallocSizeOf, allocators::new_malloc_size_ops};
 use keccak_hasher::KeccakHasher;
 use kvdb::{KeyValueDB, DBTransaction, DBValue};
-use memory_db::MemoryDB;
 use overlaydb::OverlayDB;
 use rlp::{encode, decode};
 use super::{DB_PREFIX_LEN, LATEST_ERA_KEY};
@@ -203,7 +202,7 @@ impl JournalDB for RefCountedDB {
 		self.forward.commit_to_batch(batch)
 	}
 
-	fn consolidate(&mut self, mut with: MemoryDB<KeccakHasher, DBValue>) {
+	fn consolidate(&mut self, mut with: super::MemoryDB) {
 		for (key, (value, rc)) in with.drain() {
 			for _ in 0..rc {
 				self.emplace(key, value.clone());

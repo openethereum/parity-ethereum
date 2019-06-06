@@ -29,7 +29,6 @@ use keccak_hasher::KeccakHasher;
 use kvdb::{KeyValueDB, DBTransaction, DBValue};
 use rlp::{encode, decode};
 use super::{DB_PREFIX_LEN, LATEST_ERA_KEY, error_key_already_exists, error_negatively_reference_hash};
-use super::memory_db::*;
 use traits::JournalDB;
 
 /// Implementation of the `HashDB` trait for a disk-backed database with a memory overlay
@@ -40,7 +39,7 @@ use traits::JournalDB;
 /// immediately. As this is an "archive" database, nothing is ever removed. This means
 /// that the states of any block the node has ever processed will be accessible.
 pub struct ArchiveDB {
-	overlay: MemoryDB<KeccakHasher, DBValue>,
+	overlay: super::MemoryDB,
 	backing: Arc<KeyValueDB>,
 	latest_era: Option<u64>,
 	column: Option<u32>,
@@ -198,7 +197,7 @@ impl JournalDB for ArchiveDB {
 		&self.backing
 	}
 
-	fn consolidate(&mut self, with: MemoryDB<KeccakHasher, DBValue>) {
+	fn consolidate(&mut self, with: super::MemoryDB) {
 		self.overlay.consolidate(with);
 	}
 }

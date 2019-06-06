@@ -60,6 +60,14 @@ pub use self::traits::KeyedHashDB;
 /// Export as keyed hash trait
 pub use self::traits::AsKeyedHashDB;
 
+
+/// Alias to ethereum MemoryDB
+type MemoryDB = memory_db::MemoryDB<
+	keccak_hasher::KeccakHasher,
+	memory_db::HashKey<keccak_hasher::KeccakHasher>,
+	kvdb::DBValue,
+>;
+
 /// Journal database operating strategy.
 #[derive(Debug, PartialEq, Clone, Copy)]
 pub enum Algorithm {
@@ -164,8 +172,8 @@ fn error_negatively_reference_hash(hash: &ethereum_types::H256) -> io::Error {
 	io::Error::new(io::ErrorKind::Other, format!("Entry {} removed from database more times than it was added.", hash))
 }
 
-pub fn new_memory_db() -> memory_db::MemoryDB<keccak_hasher::KeccakHasher, kvdb::DBValue> {
-	memory_db::MemoryDB::from_null_node(&rlp::NULL_RLP, rlp::NULL_RLP.as_ref().into())
+pub fn new_memory_db() -> MemoryDB {
+	MemoryDB::from_null_node(&rlp::NULL_RLP, rlp::NULL_RLP.as_ref().into())
 }
 
 #[cfg(test)]

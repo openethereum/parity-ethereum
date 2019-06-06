@@ -27,7 +27,6 @@ use hash_db::HashDB;
 use mem::{MallocSizeOf, allocators::new_malloc_size_ops};
 use keccak_hasher::KeccakHasher;
 use kvdb::{KeyValueDB, DBTransaction, DBValue};
-use memory_db::*;
 use parking_lot::RwLock;
 use rlp::{encode, decode};
 use super::{DB_PREFIX_LEN, LATEST_ERA_KEY, error_negatively_reference_hash, error_key_already_exists};
@@ -103,7 +102,7 @@ enum RemoveFrom {
 ///
 /// TODO: `store_reclaim_period`
 pub struct EarlyMergeDB {
-	overlay: MemoryDB<KeccakHasher, DBValue>,
+	overlay: super::MemoryDB,
 	backing: Arc<KeyValueDB>,
 	refs: Option<Arc<RwLock<HashMap<H256, RefInfo>>>>,
 	latest_era: Option<u64>,
@@ -514,7 +513,7 @@ impl JournalDB for EarlyMergeDB {
 		Ok(ops)
 	}
 
-	fn consolidate(&mut self, with: MemoryDB<KeccakHasher, DBValue>) {
+	fn consolidate(&mut self, with: super::MemoryDB) {
 		self.overlay.consolidate(with);
 	}
 }
