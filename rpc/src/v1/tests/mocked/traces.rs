@@ -20,6 +20,7 @@ use ethcore::executed::{Executed, CallError};
 use ethcore::trace::trace::{Action, Res, Call};
 use ethcore::trace::LocalizedTrace;
 use ethcore::client::TestBlockChainClient;
+use ethereum_types::{Address, H256};
 
 use vm::CallType;
 
@@ -37,8 +38,8 @@ fn io() -> Tester {
 	let client = Arc::new(TestBlockChainClient::new());
 	*client.traces.write() = Some(vec![LocalizedTrace {
 		action: Action::Call(Call {
-			from: 0xf.into(),
-			to: 0x10.into(),
+			from: Address::from_low_u64_be(0xf),
+			to: Address::from_low_u64_be(0x10),
 			value: 0x1.into(),
 			gas: 0x100.into(),
 			input: vec![1, 2, 3],
@@ -48,9 +49,9 @@ fn io() -> Tester {
 		subtraces: 0,
 		trace_address: vec![0],
 		transaction_number: Some(0),
-		transaction_hash: Some(5.into()),
+		transaction_hash: Some(H256::from_low_u64_be(5)),
 		block_number: 10,
-		block_hash: 10.into(),
+		block_hash: H256::from_low_u64_be(10),
 	}]);
 	*client.execution_result.write() = Some(Ok(Executed {
 		exception: None,

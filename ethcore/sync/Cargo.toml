@@ -15,21 +15,21 @@ ethcore-io = { path = "../../util/io" }
 ethcore-light = { path = "../light" }
 ethcore-network = { path = "../../util/network" }
 ethcore-network-devp2p = { path = "../../util/network-devp2p" }
-ethereum-types = "0.4"
+ethereum-types = "0.6.0"
 ethkey = { path = "../../accounts/ethkey" }
 ethstore = { path = "../../accounts/ethstore" }
 fastmap = { path = "../../util/fastmap" }
 hash-db = "0.11.0"
 heapsize = "0.4"
-keccak-hash = "0.1"
+keccak-hash = "0.2.0"
 keccak-hasher = { path = "../../util/keccak-hasher" }
 kvdb = "0.1"
 log = "0.4"
 macros = { path = "../../util/macros" }
 parity-bytes = "0.1"
 parking_lot = "0.7"
-rand = "0.4"
-rlp = { version = "0.3.0", features = ["ethereum"] }
+rand = "0.6"
+rlp = "0.4.0"
 trace-time = "0.1"
 triehash-ethereum = {version = "0.2", path = "../../util/triehash-ethereum" }
 futures = "0.1"
@@ -42,3 +42,4 @@ ethcore-io = { path = "../../util/io", features = ["mio"] }
 ethcore-private-tx = { path = "../private-tx" }
 kvdb-memorydb = "0.1"
 rustc-hex = "1.0"
+rand_xorshift = "0.1.1"

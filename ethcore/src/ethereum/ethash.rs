@@ -324,7 +324,7 @@ impl Engine<EthereumMachine> for Arc<Ethash> {
 
 		let difficulty = ethash::boundary_to_difficulty(&H256(quick_get_difficulty(
 			&header.bare_hash().0,
-			seal.nonce.low_u64(),
+			seal.nonce.to_low_u64_be(),
 			&seal.mix_hash.0,
 			header.number() >= self.ethash_params.progpow_transition
 		)));
@@ -339,14 +339,14 @@ impl Engine<EthereumMachine> for Arc<Ethash> {
 	fn verify_block_unordered(&self, header: &Header) -> Result<(), Error> {
 		let seal = Seal::parse_seal(header.seal())?;
 
-		let result = self.pow.compute_light(header.number() as u64, &header.bare_hash().0, seal.nonce.low_u64());
+		let result = self.pow.compute_light(header.number() as u64, &header.bare_hash().0, seal.nonce.to_low_u64_be());
 		let mix = H256(result.mix_hash);
 		let difficulty = ethash::boundary_to_difficulty(&H256(result.value));
 		trace!(target: "miner", "num: {num}, seed: {seed}, h: {h}, non: {non}, mix: {mix}, res: {res}",
 			   num = header.number() as u64,
 			   seed = H256(slow_hash_block_number(header.number() as u64)),
 			   h = header.bare_hash(),
-			   non = seal.nonce.low_u64(),
+			   non = seal.nonce.to_low_u64_be(),
 			   mix = H256(result.mix_hash),
 			   res = H256(result.value));
 		if mix != seal.mix_hash {
@@ -591,7 +591,7 @@ mod tests {
 		let last_hashes = Arc::new(vec![genesis_header.hash()]);
 		let mut b = OpenBlock::new(engine, Default::default(), false, db, &genesis_header, last_hashes, Address::zero(), (3141562.into(), 31415620.into()), vec![], false, None).unwrap();
 		let mut uncle = Header::new();
-		let uncle_author: Address = "ef2d6d194084c2de36e0dabfce45d046b37d1106".into();
+		let uncle_author = Address::from_str("ef2d6d194084c2de36e0dabfce45d046b37d1106").unwrap();
 		uncle.set_author(uncle_author);
 		b.push_uncle(uncle).unwrap();
 
@@ -610,8 +610,8 @@ mod tests {
 		let b = OpenBlock::new(engine, Default::default(), false, db, &genesis_header, last_hashes, Address::zero(), (3141562.into(), 31415620.into()), vec![], false, None).unwrap();
 		let b = b.close().unwrap();
 
-		let ubi_contract: Address = "00efdd5883ec628983e9063c7d969fe268bbf310".into();
-		let dev_contract: Address = "00756cf8159095948496617f5fb17ed95059f536".into();
+		let ubi_contract = Address::from_str("00efdd5883ec628983e9063c7d969fe268bbf310").unwrap();
+		let dev_contract = Address::from_str("00756cf8159095948496617f5fb17ed95059f536").unwrap();
 		assert_eq!(b.state.balance(&Address::zero()).unwrap(), U256::from_str("d8d726b7177a80000").unwrap());
 		assert_eq!(b.state.balance(&ubi_contract).unwrap(), U256::from_str("2b5e3af16b1880000").unwrap());
 		assert_eq!(b.state.balance(&dev_contract).unwrap(), U256::from_str("c249fdd327780000").unwrap());
@@ -721,7 +721,7 @@ mod tests {
 	fn can_do_proof_of_work_unordered_verification_fail() {
 		let engine = test_spec().engine;
 		let mut header: Header = Header::default();
-		header.set_seal(vec![rlp::encode(&H256::from("b251bd2e0283d0658f2cadfdc8ca619b5de94eca5742725e2e757dd13ed7503d")), rlp::encode(&H64::zero())]);
+		header.set_seal(vec![rlp::encode(&H256::from_str("b251bd2e0283d0658f2cadfdc8ca619b5de94eca5742725e2e757dd13ed7503d").unwrap()), rlp::encode(&H64::zero())]);
 		header.set_difficulty(U256::from_str("ffffffffffffffffffffffffffffffffffffffffffffaaaaaaaaaaaaaaaaaaaa").unwrap());
 
 		let verify_result = engine.verify_block_unordered(&header);
@@ -914,7 +914,7 @@ mod tests {
 		let tempdir = TempDir::new("").unwrap();
 		let ethash = Ethash::new(tempdir.path(), ethparams, machine, None);
 		let mut header = Header::default();
-		header.set_seal(vec![rlp::encode(&H256::from("b251bd2e0283d0658f2cadfdc8ca619b5de94eca5742725e2e757dd13ed7503d")), rlp::encode(&H64::zero())]);
+		header.set_seal(vec![rlp::encode(&H256::from_str("b251bd2e0283d0658f2cadfdc8ca619b5de94eca5742725e2e757dd13ed7503d").unwrap()), rlp::encode(&H64::zero())]);
 		let info = ethash.extra_info(&header);
 		assert_eq!(info["nonce"], "0x0000000000000000");
 		assert_eq!(info["mixHash"], "0xb251bd2e0283d0658f2cadfdc8ca619b5de94eca5742725e2e757dd13ed7503d");

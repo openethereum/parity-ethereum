@@ -277,7 +277,7 @@ impl<P: PoolHandle + 'static, M: Send + Sync + 'static> Whisper for WhisperClien
 			Some(types::Receiver::Identity(id)) => self.store.read().encryption_instance(&id.into_inner())
 				.map_err(whisper_error)?,
 			None => {
-				use rand::{Rng, OsRng};
+				use rand::{Rng, rngs::OsRng};
 
 				// broadcast mode: use fixed nonce and fresh key each time.
 

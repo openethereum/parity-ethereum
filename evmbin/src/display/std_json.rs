@@ -19,7 +19,7 @@
 use std::collections::HashMap;
 use std::io;
 
-use ethereum_types::{H256, U256};
+use ethereum_types::{H256, U256, BigEndianHash};
 use bytes::ToPretty;
 use ethcore::{trace, pod_state};
 
@@ -197,7 +197,7 @@ impl<Trace: Writer, Out: Writer> trace::VMTracer for Informant<Trace, Out> {
 		let subdepth = self.subdepth;
 		Self::with_informant_in_depth(self, subdepth, |informant: &mut Informant<Trace, Out>| {
 			if let Some((pos, val)) = store_written {
-				informant.storage.insert(pos.into(), val.into());
+				informant.storage.insert(BigEndianHash::from_uint(&pos), BigEndianHash::from_uint(&val));
 			}
 		});
 	}

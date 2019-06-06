@@ -13,7 +13,7 @@ common-types = { path = "../types" }
 ethcore = { path = ".."}
 ethcore-db = { path = "../db" }
 ethcore-blockchain = { path = "../blockchain" }
-ethereum-types = "0.4"
+ethereum-types = "0.6.0"
 memory-db = "0.11.0"
 trie-db = "0.11.0"
 patricia-trie-ethereum = { path = "../../util/patricia-trie-ethereum" }
@@ -25,18 +25,18 @@ heapsize = "0.4"
 vm = { path = "../vm" }
 fastmap = { path = "../../util/fastmap" }
 failsafe = { version = "0.3.0", default-features = false, features = ["parking_lot_mutex"] }
-rlp = { version = "0.3.0", features = ["ethereum"] }
+rlp = "0.4.0"
 rlp_derive = { path = "../../util/rlp-derive" }
 smallvec = "0.6"
 futures = "0.1"
-rand = "0.4"
+rand = "0.6"
 itertools = "0.5"
 bincode = "0.8.0"
 serde = "1.0"
 serde_derive = "1.0"
 parking_lot = "0.7"
 stats = { path = "../../util/stats" }
-keccak-hash = "0.1"
+keccak-hash = "0.2.0"
 keccak-hasher = { path = "../../util/keccak-hasher" }
 triehash-ethereum = { version = "0.2",  path = "../../util/triehash-ethereum" }
 kvdb = "0.1"

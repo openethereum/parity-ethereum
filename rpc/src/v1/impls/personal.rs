@@ -223,7 +223,7 @@ impl<D: Dispatcher + 'static> Personal for PersonalClient<D> {
 
 	fn ec_recover(&self, data: RpcBytes, signature: H520) -> BoxFuture<H160> {
 		let signature: H520 = signature.into();
-		let signature = Signature::from_electrum(&signature);
+		let signature = Signature::from_electrum(signature.as_bytes());
 		let data: Bytes = data.into();
 
 		let hash = eth_data_hash(data);

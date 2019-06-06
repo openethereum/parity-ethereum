@@ -14,40 +14,42 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
-use std::net::{SocketAddr, SocketAddrV4, Ipv4Addr};
+use std::cmp::{max, min};
 use std::collections::{HashMap, HashSet};
+use std::fs;
+use std::io::{self, Read, Write};
+use std::net::{Ipv4Addr, SocketAddr, SocketAddrV4};
+use std::ops::*;
+use std::path::{Path, PathBuf};
 use std::str::FromStr;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering as AtomicOrdering};
-use std::ops::*;
-use std::cmp::{min, max};
-use std::path::{Path, PathBuf};
-use std::io::{Read, Write, self};
-use std::fs;
 use std::time::Duration;
-use ethkey::{KeyPair, Secret, Random, Generator};
+
+use ethereum_types::H256;
 use hash::keccak;
 use mio::*;
-use mio::deprecated::{EventLoop};
+use mio::deprecated::EventLoop;
 use mio::tcp::*;
 use mio::udp::*;
-use ethereum_types::H256;
-use rlp::{RlpStream, Encodable};
-
-use session::{Session, SessionData};
-use io::*;
-use PROTOCOL_VERSION;
-use node_table::*;
-use network::{NetworkConfiguration, NetworkIoMessage, ProtocolId, PeerId, PacketId};
-use network::{NonReservedPeerMode, NetworkContext as NetworkContextTrait};
-use network::{SessionInfo, Error, ErrorKind, DisconnectReason, NetworkProtocolHandler};
-use discovery::{Discovery, TableUpdates, NodeEntry, MAX_DATAGRAM_SIZE};
-use network::client_version::ClientVersion;
-use ip_utils::{map_external_address, select_public_address};
 use parity_path::restrict_permissions_owner;
 use parking_lot::{Mutex, RwLock};
-use network::{ConnectionFilter, ConnectionDirection};
+use rlp::{Encodable, RlpStream};
+use rustc_hex::ToHex;
+
 use connection::PAYLOAD_SOFT_LIMIT;
+use discovery::{Discovery, MAX_DATAGRAM_SIZE, NodeEntry, TableUpdates};
+use ethkey::{Generator, KeyPair, Random, Secret};
+use io::*;
+use ip_utils::{map_external_address, select_public_address};
+use network::{NetworkConfiguration, NetworkIoMessage, PacketId, PeerId, ProtocolId};
+use network::{NetworkContext as NetworkContextTrait, NonReservedPeerMode};
+use network::{DisconnectReason, Error, ErrorKind, NetworkProtocolHandler, SessionInfo};
+use network::{ConnectionDirection, ConnectionFilter};
+use network::client_version::ClientVersion;
+use node_table::*;
+use PROTOCOL_VERSION;
+use session::{Session, SessionData};
 
 type Slab<T> = ::slab::Slab<T, usize>;
 
@@ -1223,7 +1225,7 @@ fn save_key(path: &Path, key: &Secret) {
 	if let Err(e) = restrict_permissions_owner(path, true, false) {
 		warn!(target: "network", "Failed to modify permissions of the file ({})", e);
 	}
-	if let Err(e) = file.write(&key.hex().into_bytes()[2..]) {
+	if let Err(e) = file.write(&key.to_hex().into_bytes()) {
 		warn!("Error writing key file: {:?}", e);
 	}
 }

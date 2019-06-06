@@ -18,10 +18,11 @@ use std::time::{Duration, Instant};
 use std::sync::{Arc, Weak};
 use std::sync::atomic::AtomicBool;
 use std::collections::{VecDeque, BTreeMap, BTreeSet};
+use futures::{oneshot, Oneshot, Complete, Future};
 use parking_lot::{Mutex, RwLock, Condvar};
 use ethereum_types::H256;
 use ethkey::Secret;
-use key_server_cluster::{Error, NodeId, SessionId, Requester, NodeKeyPair};
+use key_server_cluster::{Error, NodeId, SessionId, NodeKeyPair};
 use key_server_cluster::cluster::{Cluster, ClusterConfiguration, ClusterView};
 use key_server_cluster::cluster_connections::ConnectionProvider;
 use key_server_cluster::connection_trigger::ServersSetChangeSessionCreatorConnector;
@@ -68,6 +69,10 @@ pub struct SessionIdWithSubSession {
 pub trait ClusterSession {
 	/// Session identifier type.
 	type Id: ::std::fmt::Debug + Ord + Clone;
+	/// Session creation data type.
+	type CreationData;
+	/// Session (successful) result type.
+	type SuccessfulResult: Send + 'static;
 
 	/// Session type name.
 	fn type_name() -> &'static str;
@@ -85,15 +90,22 @@ pub trait ClusterSession {
 	fn on_message(&self, sender: &NodeId, message: &Message) -> Result<(), Error>;
 
 	/// 'Wait for session completion' helper.
-	fn wait_session<T, U, F: Fn(&U) -> Option<Result<T, Error>>>(completion_event: &Condvar, session_data: &Mutex<U>, timeout: Option<Duration>, result_reader: F) -> Option<Result<T, Error>> {
+	#[cfg(test)]
+	fn wait_session<T, U, F: Fn(&U) -> Option<Result<T, Error>>>(
+		completion: &CompletionSignal<T>,
+		session_data: &Mutex<U>,
+		timeout: Option<Duration>,
+		result_reader: F
+	) -> Option<Result<T, Error>> {
 		let mut locked_data = session_data.lock();
 		match result_reader(&locked_data) {
 			Some(result) => Some(result),
 			None => {
+				let completion_condvar = completion.completion_condvar.as_ref().expect("created in test mode");
 				match timeout {
-					None => completion_event.wait(&mut locked_data),
+					None => completion_condvar.wait(&mut locked_data),
 					Some(timeout) => {
-						completion_event.wait_for(&mut locked_data, timeout);
+						completion_condvar.wait_for(&mut locked_data, timeout);
 					},
 				}
 
@@ -101,6 +113,23 @@ pub trait ClusterSession {
 			},
 		}
 	}
+}
+
+/// Waitable cluster session.
+pub struct WaitableSession<S: ClusterSession> {
+	/// Session handle.
+	pub session: Arc<S>,
+	/// Session result oneshot.
+	pub oneshot: Oneshot<Result<S::SuccessfulResult, Error>>,
+}
+
+/// Session completion signal.
+pub struct CompletionSignal<T> {
+	/// Completion future.
+	pub completion_future: Mutex<Option<Complete<Result<T, Error>>>>,
+
+	/// Completion condvar.
+	pub completion_condvar: Option<Condvar>,
 }
 
 /// Administrative session.
@@ -122,19 +151,22 @@ pub enum AdminSessionCreationData {
 /// Active sessions on this cluster.
 pub struct ClusterSessions {
 	/// Key generation sessions.
-	pub generation_sessions: ClusterSessionsContainer<GenerationSessionImpl, GenerationSessionCreator, ()>,
+	pub generation_sessions: ClusterSessionsContainer<GenerationSessionImpl, GenerationSessionCreator>,
 	/// Encryption sessions.
-	pub encryption_sessions: ClusterSessionsContainer<EncryptionSessionImpl, EncryptionSessionCreator, ()>,
+	pub encryption_sessions: ClusterSessionsContainer<EncryptionSessionImpl, EncryptionSessionCreator>,
 	/// Decryption sessions.
-	pub decryption_sessions: ClusterSessionsContainer<DecryptionSessionImpl, DecryptionSessionCreator, Requester>,
+	pub decryption_sessions: ClusterSessionsContainer<DecryptionSessionImpl, DecryptionSessionCreator>,
 	/// Schnorr signing sessions.
-	pub schnorr_signing_sessions: ClusterSessionsContainer<SchnorrSigningSessionImpl, SchnorrSigningSessionCreator, Requester>,
+	pub schnorr_signing_sessions: ClusterSessionsContainer<SchnorrSigningSessionImpl, SchnorrSigningSessionCreator>,
 	/// ECDSA signing sessions.
-	pub ecdsa_signing_sessions: ClusterSessionsContainer<EcdsaSigningSessionImpl, EcdsaSigningSessionCreator, Requester>,
+	pub ecdsa_signing_sessions: ClusterSessionsContainer<EcdsaSigningSessionImpl, EcdsaSigningSessionCreator>,
 	/// Key version negotiation sessions.
-	pub negotiation_sessions: ClusterSessionsContainer<KeyVersionNegotiationSessionImpl<VersionNegotiationTransport>, KeyVersionNegotiationSessionCreator, ()>,
+	pub negotiation_sessions: ClusterSessionsContainer<
+		KeyVersionNegotiationSessionImpl<VersionNegotiationTransport>,
+		KeyVersionNegotiationSessionCreator
+	>,
 	/// Administrative sessions.
-	pub admin_sessions: ClusterSessionsContainer<AdminSession, AdminSessionCreator, AdminSessionCreationData>,
+	pub admin_sessions: ClusterSessionsContainer<AdminSession, AdminSessionCreator>,
 	/// Self node id.
 	self_node_id: NodeId,
 	/// Creator core.
@@ -150,7 +182,7 @@ pub trait ClusterSessionsListener<S: ClusterSession>: Send + Sync {
 }
 
 /// Active sessions container.
-pub struct ClusterSessionsContainer<S: ClusterSession, SC: ClusterSessionCreator<S, D>, D> {
+pub struct ClusterSessionsContainer<S: ClusterSession, SC: ClusterSessionCreator<S>> {
 	/// Sessions creator.
 	pub creator: SC,
 	/// Active sessions.
@@ -161,8 +193,6 @@ pub struct ClusterSessionsContainer<S: ClusterSession, SC: ClusterSessionCreator
 	container_state: Arc<Mutex<ClusterSessionsContainerState>>,
 	/// Do not actually remove sessions.
 	preserve_sessions: bool,
-	/// Phantom data.
-	_pd: ::std::marker::PhantomData<D>,
 }
 
 /// Session and its message queue.
@@ -279,7 +309,7 @@ impl ClusterSessions {
 	}
 }
 
-impl<S, SC, D> ClusterSessionsContainer<S, SC, D> where S: ClusterSession, SC: ClusterSessionCreator<S, D> {
+impl<S, SC> ClusterSessionsContainer<S, SC> where S: ClusterSession, SC: ClusterSessionCreator<S> {
 	pub fn new(creator: SC, container_state: Arc<Mutex<ClusterSessionsContainerState>>) -> Self {
 		ClusterSessionsContainer {
 			creator: creator,
@@ -287,7 +317,6 @@ impl<S, SC, D> ClusterSessionsContainer<S, SC, D> where S: ClusterSession, SC: C
 			listeners: Mutex::new(Vec::new()),
 			container_state: container_state,
 			preserve_sessions: false,
-			_pd: Default::default(),
 		}
 	}
 
@@ -316,7 +345,15 @@ impl<S, SC, D> ClusterSessionsContainer<S, SC, D> where S: ClusterSession, SC: C
 		self.sessions.read().values().nth(0).map(|s| s.session.clone())
 	}
 
-	pub fn insert(&self, cluster: Arc<Cluster>, master: NodeId, session_id: S::Id, session_nonce: Option<u64>, is_exclusive_session: bool, creation_data: Option<D>) -> Result<Arc<S>, Error> {
+	pub fn insert(
+		&self,
+		cluster: Arc<Cluster>,
+		master: NodeId,
+		session_id: S::Id,
+		session_nonce: Option<u64>,
+		is_exclusive_session: bool,
+		creation_data: Option<S::CreationData>,
+	) -> Result<WaitableSession<S>, Error> {
 		let mut sessions = self.sessions.write();
 		if sessions.contains_key(&session_id) {
 			return Err(Error::DuplicateSessionId);
@@ -335,11 +372,11 @@ impl<S, SC, D> ClusterSessionsContainer<S, SC, D> where S: ClusterSession, SC: C
 			cluster_view: cluster,
 			last_keep_alive_time: Instant::now(),
 			last_message_time: Instant::now(),
-			session: session.clone(),
+			session: session.session.clone(),
 			queue: VecDeque::new(),
 		};
 		sessions.insert(session_id, queued_session);
-		self.notify_listeners(|l| l.on_session_inserted(session.clone()));
+		self.notify_listeners(|l| l.on_session_inserted(session.session.clone()));
 
 		Ok(session)
 	}
@@ -419,7 +456,12 @@ impl<S, SC, D> ClusterSessionsContainer<S, SC, D> where S: ClusterSession, SC: C
 	}
 }
 
-impl<S, SC, D> ClusterSessionsContainer<S, SC, D> where S: ClusterSession, SC: ClusterSessionCreator<S, D>, SessionId: From<S::Id> {
+impl<S, SC> ClusterSessionsContainer<S, SC>
+	where
+		S: ClusterSession,
+		SC: ClusterSessionCreator<S>,
+		SessionId: From<S::Id>,
+{
 	pub fn send_keep_alive(&self, session_id: &S::Id, self_node_id: &NodeId) {
 		if let Some(session) = self.sessions.write().get_mut(session_id) {
 			let now = Instant::now();
@@ -521,6 +563,8 @@ impl AdminSession {
 
 impl ClusterSession for AdminSession {
 	type Id = SessionId;
+	type CreationData = AdminSessionCreationData;
+	type SuccessfulResult = ();
 
 	fn type_name() -> &'static str {
 		"admin"
@@ -565,6 +609,40 @@ impl ClusterSession for AdminSession {
 		match *self {
 			AdminSession::ShareAdd(ref session) => session.on_message(sender, message),
 			AdminSession::ServersSetChange(ref session) => session.on_message(sender, message),
+		}
+	}
+}
+
+impl<S: ClusterSession> WaitableSession<S> {
+	pub fn new(session: S, oneshot: Oneshot<Result<S::SuccessfulResult, Error>>) -> Self {
+		WaitableSession {
+			session: Arc::new(session),
+			oneshot,
+		}
+	}
+
+	pub fn into_wait_future(self) -> Box<Future<Item=S::SuccessfulResult, Error=Error> + Send> {
+		Box::new(self.oneshot
+			.map_err(|e| Error::Internal(e.to_string()))
+			.and_then(|res| res))
+	}
+}
+
+impl<T> CompletionSignal<T> {
+	pub fn new() -> (Self, Oneshot<Result<T, Error>>) {
+		let (complete, oneshot) = oneshot();
+		let completion_condvar = if cfg!(test) { Some(Condvar::new()) } else { None };
+		(CompletionSignal {
+			completion_future: Mutex::new(Some(complete)),
+			completion_condvar,
+		}, oneshot)
+	}
+
+	pub fn send(&self, result: Result<T, Error>) {
+		let completion_future = ::std::mem::replace(&mut *self.completion_future.lock(), None);
+		completion_future.map(|c| c.send(result));
+		if let Some(ref completion_condvar) = self.completion_condvar {
+			completion_condvar.notify_all();
 		}
 	}
 }

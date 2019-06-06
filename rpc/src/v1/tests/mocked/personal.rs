@@ -363,7 +363,7 @@ fn sign_eip191_with_validator() {
 	}"#;
 	let with_validator = to_value(PresignedTransaction {
 		validator: address.into(),
-		data: keccak("hello world").to_vec().into()
+		data: keccak("hello world").as_bytes().to_vec().into()
 	}).unwrap();
 	let result = eip191::hash_message(EIP191Version::PresignedTransaction, with_validator).unwrap();
 	let result = tester.accounts.sign(address, Some("password123".into()), result).unwrap().into_electrum();
