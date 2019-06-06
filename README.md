@@ -363,7 +363,7 @@ In addition to the Parity Ethereum client, there are additional tools in this re
 - [whisper](./whisper) - Parity Ethereum Whisper-v2 PoC Implementation.
 
 The following tool is available in a separate repository:
-- [ethabi](https://github.com/paritytech/ethabi) - Parity Ethereum Encoding of Function Calls.
+- [ethabi](https://github.com/paritytech/ethabi) - Parity Ethereum Encoding of Function Calls. [Docs here](https://crates.io/crates/ethabi)
 
 ## 6. Community <a id="chapter-006"></a>
 
