@@ -16,12 +16,13 @@
 
 use std::collections::BTreeSet;
 use std::sync::Arc;
-use parking_lot::{Mutex, Condvar};
+use futures::Oneshot;
+use parking_lot::Mutex;
 use ethkey::{Public, Secret};
 use ethereum_types::H256;
 use key_server_cluster::{Error, NodeId, SessionId, Requester, SessionMeta, AclStorage, DocumentKeyShare};
 use key_server_cluster::cluster::{Cluster};
-use key_server_cluster::cluster_sessions::{SessionIdWithSubSession, ClusterSession};
+use key_server_cluster::cluster_sessions::{SessionIdWithSubSession, ClusterSession, CompletionSignal};
 use key_server_cluster::generation_session::{SessionImpl as GenerationSession, SessionParams as GenerationSessionParams,
 	SessionState as GenerationSessionState};
 use key_server_cluster::message::{Message, SchnorrSigningMessage, SchnorrSigningConsensusMessage, SchnorrSigningGenerationMessage,
@@ -59,8 +60,8 @@ struct SessionCore {
 	pub cluster: Arc<Cluster>,
 	/// Session-level nonce.
 	pub nonce: u64,
-	/// SessionImpl completion condvar.
-	pub completed: Condvar,
+	/// SessionImpl completion signal.
+	pub completed: CompletionSignal<(Secret, Secret)>,
 }
 
 /// Signing consensus session type.
@@ -160,7 +161,10 @@ enum DelegationStatus {
 
 impl SessionImpl {
 	/// Create new signing session.
-	pub fn new(params: SessionParams, requester: Option<Requester>) -> Result<Self, Error> {
+	pub fn new(
+		params: SessionParams,
+		requester: Option<Requester>,
+	) -> Result<(Self, Oneshot<Result<(Secret, Secret), Error>>), Error> {
 		debug_assert_eq!(params.meta.threshold, params.key_share.as_ref().map(|ks| ks.threshold).unwrap_or_default());
 
 		let consensus_transport = SigningConsensusTransport {
@@ -179,14 +183,15 @@ impl SessionImpl {
 			consensus_transport: consensus_transport,
 		})?;
 
-		Ok(SessionImpl {
+		let (completed, oneshot) = CompletionSignal::new();
+		Ok((SessionImpl {
 			core: SessionCore {
 				meta: params.meta,
 				access_key: params.access_key,
 				key_share: params.key_share,
 				cluster: params.cluster,
 				nonce: params.nonce,
-				completed: Condvar::new(),
+				completed,
 			},
 			data: Mutex::new(SessionData {
 				state: SessionState::ConsensusEstablishing,
@@ -197,19 +202,20 @@ impl SessionImpl {
 				delegation_status: None,
 				result: None,
 			}),
-		})
-	}
-
-	/// Get session state.
-	#[cfg(test)]
-	pub fn state(&self) -> SessionState {
-		self.data.lock().state
+		}, oneshot))
 	}
 
 	/// Wait for session completion.
+	#[cfg(test)]
 	pub fn wait(&self) -> Result<(Secret, Secret), Error> {
 		Self::wait_session(&self.core.completed, &self.data, None, |data| data.result.clone())
 			.expect("wait_session returns Some if called without timeout; qed")
+	}
+
+	/// Get session state (tests only).
+	#[cfg(test)]
+	pub fn state(&self) -> SessionState {
+		self.data.lock().state
 	}
 
 	/// Delegate session to other node.
@@ -277,7 +283,7 @@ impl SessionImpl {
 					other_nodes_ids: BTreeSet::new()
 				}),
 				nonce: None,
-			});
+			}).0;
 			generation_session.initialize(Default::default(), Default::default(), false, 0, vec![self.core.meta.self_node_id.clone()].into_iter().collect::<BTreeSet<_>>().into())?;
 
 			debug_assert_eq!(generation_session.state(), GenerationSessionState::Finished);
@@ -405,7 +411,7 @@ impl SessionImpl {
 				other_nodes_ids: other_consensus_group_nodes,
 			}),
 			nonce: None,
-		});
+		}).0;
 
 		generation_session.initialize(Default::default(), Default::default(), false, key_share.threshold, consensus_group.into())?;
 		data.generation_session = Some(generation_session);
@@ -445,7 +451,7 @@ impl SessionImpl {
 					other_nodes_ids: other_consensus_group_nodes
 				}),
 				nonce: None,
-			});
+			}).0;
 			data.generation_session = Some(generation_session);
 			data.state = SessionState::SessionKeyGeneration;
 		}
@@ -617,13 +623,15 @@ impl SessionImpl {
 			};
 		}
 
-		data.result = Some(result);
-		core.completed.notify_all();
+		data.result = Some(result.clone());
+		core.completed.send(result);
 	}
 }
 
 impl ClusterSession for SessionImpl {
 	type Id = SessionIdWithSubSession;
+	type CreationData = Requester;
+	type SuccessfulResult = (Secret, Secret);
 
 	fn type_name() -> &'static str {
 		"signing"
@@ -850,7 +858,7 @@ mod tests {
 				acl_storage: Arc::new(DummyAclStorage::default()),
 				cluster: self.0.cluster(0).view().unwrap(),
 				nonce: 0,
-			}, requester).unwrap()
+			}, requester).unwrap().0
 		}
 
 		pub fn init_with_version(self, key_version: Option<H256>) -> Result<(Self, Public, H256), Error> {

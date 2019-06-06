@@ -16,14 +16,14 @@
 
 use std::collections::{BTreeSet, BTreeMap};
 use std::sync::Arc;
-use std::time;
-use parking_lot::{Mutex, Condvar};
+use futures::Oneshot;
+use parking_lot::Mutex;
 use ethereum_types::{Address, H256};
 use ethkey::Secret;
 use key_server_cluster::{Error, AclStorage, DocumentKeyShare, NodeId, SessionId, Requester,
 	EncryptedDocumentKeyShadow, SessionMeta};
 use key_server_cluster::cluster::Cluster;
-use key_server_cluster::cluster_sessions::{SessionIdWithSubSession, ClusterSession};
+use key_server_cluster::cluster_sessions::{SessionIdWithSubSession, ClusterSession, CompletionSignal};
 use key_server_cluster::message::{Message, DecryptionMessage, DecryptionConsensusMessage, RequestPartialDecryption,
 	PartialDecryption, DecryptionSessionError, DecryptionSessionCompleted, ConsensusMessage, InitializeConsensusSession,
 	ConfirmConsensusInitialization, DecryptionSessionDelegation, DecryptionSessionDelegationCompleted};
@@ -59,8 +59,8 @@ struct SessionCore {
 	pub cluster: Arc<Cluster>,
 	/// Session-level nonce.
 	pub nonce: u64,
-	/// SessionImpl completion condvar.
-	pub completed: Condvar,
+	/// Session completion signal.
+	pub completed: CompletionSignal<EncryptedDocumentKeyShadow>,
 }
 
 /// Decryption consensus session type.
@@ -147,7 +147,10 @@ enum DelegationStatus {
 
 impl SessionImpl {
 	/// Create new decryption session.
-	pub fn new(params: SessionParams, requester: Option<Requester>) -> Result<Self, Error> {
+	pub fn new(
+		params: SessionParams,
+		requester: Option<Requester>,
+	) -> Result<(Self, Oneshot<Result<EncryptedDocumentKeyShadow, Error>>), Error> {
 		debug_assert_eq!(params.meta.threshold, params.key_share.as_ref().map(|ks| ks.threshold).unwrap_or_default());
 
 		// check that common_point and encrypted_point are already set
@@ -175,14 +178,15 @@ impl SessionImpl {
 			consensus_transport: consensus_transport,
 		})?;
 
-		Ok(SessionImpl {
+		let (completed, oneshot) = CompletionSignal::new();
+		Ok((SessionImpl {
 			core: SessionCore {
 				meta: params.meta,
 				access_key: params.access_key,
 				key_share: params.key_share,
 				cluster: params.cluster,
 				nonce: params.nonce,
-				completed: Condvar::new(),
+				completed,
 			},
 			data: Mutex::new(SessionData {
 				version: None,
@@ -194,7 +198,7 @@ impl SessionImpl {
 				delegation_status: None,
 				result: None,
 			}),
-		})
+		}, oneshot))
 	}
 
 	/// Get this node id.
@@ -209,7 +213,7 @@ impl SessionImpl {
 		&self.core.access_key
 	}
 
-	/// Get session state.
+	/// Get session state (tests only).
 	#[cfg(test)]
 	pub fn state(&self) -> ConsensusSessionState {
 		self.data.lock().consensus_session.state()
@@ -231,9 +235,9 @@ impl SessionImpl {
 		self.data.lock().origin.clone()
 	}
 
-	/// Wait for session completion.
-	pub fn wait(&self, timeout: Option<time::Duration>) -> Option<Result<EncryptedDocumentKeyShadow, Error>> {
-		Self::wait_session(&self.core.completed, &self.data, timeout, |data| data.result.clone())
+	/// Get session completion result (if available).
+	pub fn result(&self) -> Option<Result<EncryptedDocumentKeyShadow, Error>> {
+		self.data.lock().result.clone()
 	}
 
 	/// Get broadcasted shadows.
@@ -667,13 +671,15 @@ impl SessionImpl {
 			};
 		}
 
-		data.result = Some(result);
-		core.completed.notify_all();
+		data.result = Some(result.clone());
+		core.completed.send(result);
 	}
 }
 
 impl ClusterSession for SessionImpl {
 	type Id = SessionIdWithSubSession;
+	type CreationData = Requester;
+	type SuccessfulResult = EncryptedDocumentKeyShadow;
 
 	fn type_name() -> &'static str {
 		"decryption"
@@ -832,7 +838,7 @@ pub fn create_default_decryption_session() -> Arc<SessionImpl> {
 		acl_storage: Arc::new(DummyAclStorage::default()),
 		cluster: Arc::new(DummyCluster::new(Default::default())),
 		nonce: 0,
-	}, Some(Requester::Public(H512::from_low_u64_be(2)))).unwrap())
+	}, Some(Requester::Public(H512::from_low_u64_be(2)))).unwrap().0)
 }
 
 #[cfg(test)]
@@ -915,7 +921,7 @@ mod tests {
 			acl_storage: acl_storages[i].clone(),
 			cluster: clusters[i].clone(),
 			nonce: 0,
-		}, if i == 0 { signature.clone().map(Into::into) } else { None }).unwrap()).collect();
+		}, if i == 0 { signature.clone().map(Into::into) } else { None }).unwrap().0).collect();
 
 		(requester, clusters, acl_storages, sessions)
 	}
@@ -1014,7 +1020,9 @@ mod tests {
 			acl_storage: Arc::new(DummyAclStorage::default()),
 			cluster: Arc::new(DummyCluster::new(self_node_id.clone())),
 			nonce: 0,
-		}, Some(Requester::Signature(ethkey::sign(Random.generate().unwrap().secret(), &SessionId::default()).unwrap()))).unwrap();
+		}, Some(Requester::Signature(
+			ethkey::sign(Random.generate().unwrap().secret(), &SessionId::default()).unwrap()
+		))).unwrap().0;
 		assert_eq!(session.initialize(Default::default(), Default::default(), false, false), Err(Error::InvalidMessage));
 	}
 
@@ -1049,7 +1057,9 @@ mod tests {
 			acl_storage: Arc::new(DummyAclStorage::default()),
 			cluster: Arc::new(DummyCluster::new(self_node_id.clone())),
 			nonce: 0,
-		}, Some(Requester::Signature(ethkey::sign(Random.generate().unwrap().secret(), &SessionId::default()).unwrap()))).unwrap();
+		}, Some(Requester::Signature(
+			ethkey::sign(Random.generate().unwrap().secret(), &SessionId::default()).unwrap()
+		))).unwrap().0;
 		assert_eq!(session.initialize(Default::default(), Default::default(), false, false), Err(Error::ConsensusUnreachable));
 	}
 
