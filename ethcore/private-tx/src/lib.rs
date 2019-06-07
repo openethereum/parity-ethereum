@@ -416,12 +416,6 @@ impl Provider {
 		if last.0 {
 			let mut saved_state = desc.state;
 			let contract = Self::contract_address_from_transaction(&desc.original_transaction)?;
-			if self.use_offchain_storage {
-				// Save state into the storage and store its hash in the contract
-				let original_state = saved_state.clone();
-				saved_state = keccak(&saved_state).to_vec();
-				self.state_storage.private_state_db().save_state(&original_state)?;
-			}
 			let mut signatures = desc.received_signatures.clone();
 			signatures.push(signed_tx.signature());
 			let rsv: Vec<Signature> = signatures.into_iter().map(|sign| sign.into_electrum().into()).collect();
@@ -430,7 +424,7 @@ impl Provider {
 			let state = self.client.state_at(BlockId::Latest).ok_or(Error::StatePruned)?;
 			let nonce = state.nonce(&signer_account)?;
 			let public_tx = self.public_transaction(
-				saved_state.clone(),
+				desc.state.clone(),
 				&desc.original_transaction,
 				&rsv,
 				nonce,
@@ -617,7 +611,7 @@ impl Provider {
 				let hashed_state = self.get_decrypted_state_from_contract(address, block)?;
 				let hashed_state = H256::from_slice(&hashed_state);
 				let stored_state_data = self.state_storage.private_state_db().state(&hashed_state)?;
-				Ok(stored_state_data)
+				self.decrypt(address, &stored_state_data)
 			}
 			false => self.get_decrypted_state_from_contract(address, block),
 		}
@@ -627,7 +621,10 @@ impl Provider {
 		let (data, decoder) = private_contract::functions::state::call();
 		let value = self.client.call_contract(block, *address, data)?;
 		let state = decoder.decode(&value).map_err(|e| Error::Call(format!("Contract call failed {:?}", e)))?;
-		self.decrypt(address, &state)
+		match self.use_offchain_storage {
+			true => Ok(state),
+			false => self.decrypt(address, &state),
+		}
 	}
 
 	fn get_decrypted_code(&self, address: &Address, block: BlockId) -> Result<Bytes, Error> {
@@ -722,9 +719,15 @@ impl Provider {
 			};
 			(enc_code, self.encrypt(&contract_address, &Self::iv_from_transaction(transaction), &Self::snapshot_from_storage(&storage))?)
 		};
+		let mut saved_state = encrypted_storage;
+		if self.use_offchain_storage {
+			// Save state into the storage and return its hash
+			let original_state = saved_state.clone();
+			saved_state = self.state_storage.private_state_db().save_state(&original_state)?.to_vec();
+		}
 		Ok(PrivateExecutionResult {
 			code: encrypted_code,
-			state: encrypted_storage,
+			state: saved_state,
 			contract_address: contract_address,
 			result,
 		})
@@ -766,12 +769,7 @@ impl Provider {
 			.ok_or(Error::StatePruned)
 			.and_then(|h| h.decode().map_err(|_| Error::StateIncorrect).into())?;
 		let (executed_code, executed_state) = (executed.code.unwrap_or_default(), executed.state);
-		let mut saved_state = executed_state;
-		if self.use_offchain_storage {
-			// Save state into the storage and store its hash in the contract
-			saved_state = self.state_storage.private_state_db().save_state(&executed_code)?.to_vec();
-		}
-		let tx_data = Self::generate_constructor(validators, executed_code.clone(), saved_state.clone());
+		let tx_data = Self::generate_constructor(validators, executed_code.clone(), executed_state.clone());
 		let mut tx = Transaction {
 			nonce: nonce,
 			action: Action::Create,
@@ -782,7 +780,7 @@ impl Provider {
 		};
 		tx.gas = match self.client.estimate_gas(&tx.clone().fake_sign(sender), &state, &header) {
 			Ok(estimated_gas) => estimated_gas,
-			Err(_) => self.estimate_tx_gas(validators, &executed_code, &saved_state, &[]),
+			Err(_) => self.estimate_tx_gas(validators, &executed_code, &executed_state, &[]),
 		};
 
 		Ok((tx, executed.contract_address))

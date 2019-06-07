@@ -42,6 +42,7 @@ impl PrivateStateDB {
 	/// Returns saved state for the hash
 	pub fn state(&self, state_hash: &H256) -> Result<Bytes, Error> {
 		let private_state = self.private_state.read();
+		trace!(target: "privatetx", "Retrieve private state from db with hash: {:?}", state_hash);
 		private_state.get(state_hash).map(|s| s.to_vec()).ok_or(Error::PrivateStateNotFound)
 	}
 
@@ -52,6 +53,7 @@ impl PrivateStateDB {
 		let mut transaction = DBTransaction::new();
 		private_state.commit_to_batch(&mut transaction)?;
 		self.db.write(transaction).map_err(|_| Error::DatabaseWriteError)?;
+		trace!(target: "privatetx", "Private state saved to db, its hash: {:?}", state_hash);
 		Ok(state_hash)
 	}
 }
