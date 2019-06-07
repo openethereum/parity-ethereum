@@ -1,3 +1,78 @@
+Note: Parity Ethereum 2.2 reached End-of-Life on 2019-02-25 (EOL).
+
+## Parity-Ethereum [v2.2.11](https://github.com/paritytech/parity-ethereum/releases/tag/v2.2.11) (2019-02-21)
+
+Parity-Ethereum 2.2.11-stable is a maintenance release that fixes snap and docker installations.
+
+The full list of included changes:
+
+- Stable: snap: release untagged versions from branches to the candidate ([#10357](https://github.com/paritytech/parity-ethereum/pull/10357)) ([#10372](https://github.com/paritytech/parity-ethereum/pull/10372))
+  - Snap: release untagged versions from branches to the candidate snap channel ([#10357](https://github.com/paritytech/parity-ethereum/pull/10357))
+  - Snap: add the removable-media plug ([#10377](https://github.com/paritytech/parity-ethereum/pull/10377))
+  - Exchanged old(azure) bootnodes with new(ovh) ones ([#10309](https://github.com/paritytech/parity-ethereum/pull/10309))
+- Stable Backports ([#10353](https://github.com/paritytech/parity-ethereum/pull/10353))
+  - Version: bump stable to 2.2.11
+  - Snap: prefix version and populate candidate channel ([#10343](https://github.com/paritytech/parity-ethereum/pull/10343))
+  - Snap: populate candidate releases with beta snaps to avoid stale channel
+  - Snap: prefix version with v*
+  - No volumes are needed, just run -v volume:/path/in/the/container ([#10345](https://github.com/paritytech/parity-ethereum/pull/10345))
+
+## Parity-Ethereum [v2.2.10](https://github.com/paritytech/parity-ethereum/releases/tag/v2.2.10) (2019-02-13)
+
+Parity-Ethereum 2.2.10-stable is a security-relevant release. A bug in the JSONRPC-deserialization module can cause crashes of all versions of Parity Ethereum nodes if an attacker is able to submit a specially-crafted RPC to certain publicly available endpoints.
+
+- https://www.parity.io/new-parity-ethereum-update-fixes-several-rpc-vulnerabilities/
+
+The full list of included changes:
+
+-  Additional error for invalid gas ([#10327](https://github.com/paritytech/parity-ethereum/pull/10327)) ([#10329](https://github.com/paritytech/parity-ethereum/pull/10329))
+-  Backports for Stable 2.2.10 ([#10332](https://github.com/paritytech/parity-ethereum/pull/10332))
+    - fix(docker-aarch64) : cross-compile config ([#9798](https://github.com/paritytech/parity-ethereum/pull/9798))
+    - import rpc transactions sequentially ([#10051](https://github.com/paritytech/parity-ethereum/pull/10051))
+    - fix(docker): fix not receives SIGINT ([#10059](https://github.com/paritytech/parity-ethereum/pull/10059))
+    - snap: official image / test ([#10168](https://github.com/paritytech/parity-ethereum/pull/10168))
+    - perform stripping during build ([#10208](https://github.com/paritytech/parity-ethereum/pull/10208))
+    - Additional tests for uint/hash/bytes deserialization. ([#10279](https://github.com/paritytech/parity-ethereum/pull/10279))
+    - Don't run the CPP example on CI ([#10285](https://github.com/paritytech/parity-ethereum/pull/10285))
+    - CI optimizations ([#10297](https://github.com/paritytech/parity-ethereum/pull/10297))
+    - fix publish job ([#10317](https://github.com/paritytech/parity-ethereum/pull/10317))
+    - Add Statetest support for Constantinople Fix ([#10323](https://github.com/paritytech/parity-ethereum/pull/10323))
+    - Add helper for Timestamp overflows ([#10330](https://github.com/paritytech/parity-ethereum/pull/10330))
+    - Don't add discovery initiators to the node table ([#10305](https://github.com/paritytech/parity-ethereum/pull/10305))
+    - change docker image based on debian instead of ubuntu due to the chan ([#10336](https://github.com/paritytech/parity-ethereum/pull/10336))
+    - role back docker build image and docker deploy image to ubuntu:xenial based ([#10338](https://github.com/paritytech/parity-ethereum/pull/10338))
+
+## Parity-Ethereum [v2.2.9](https://github.com/paritytech/parity-ethereum/releases/tag/v2.2.9) (2019-02-03)
+
+Parity-Ethereum 2.2.9-stable is a security-relevant release. A bug in the JSONRPC-deserialization module can cause crashes of all versions of Parity Ethereum nodes if an attacker is able to submit a specially-crafted RPC to certain publicly available endpoints.
+
+- https://www.parity.io/security-alert-parity-ethereum-03-02/
+
+The full list of included changes:
+
+-  Additional tests for uint deserialization. ([#10279](https://github.com/paritytech/parity-ethereum/pull/10279)) ([#10281](https://github.com/paritytech/parity-ethereum/pull/10281))
+-  Version: bump stable to 2.2.9 ([#10282](https://github.com/paritytech/parity-ethereum/pull/10282))
+
+## Parity-Ethereum [v2.2.8](https://github.com/paritytech/parity-ethereum/releases/tag/v2.2.8) (2019-02-01)
+
+Parity-Ethereum 2.2.8-stable is a consensus-relevant release that enables _St. Petersfork_ on:
+
+- Ethereum Block `7280000` (along with Constantinople)
+- Kovan Block `10255201`
+- Ropsten Block `4939394`
+- POA Sokol Block `7026400`
+
+In addition to this, Constantinople is cancelled for the POA Core network. Upgrading is mandatory for clients on any of these chains.
+
+The full list of included changes:
+
+- Backports for stable 2.2.8 ([#10224](https://github.com/paritytech/parity-ethereum/pull/10224))
+  - Update for Android cross-compilation. ([#10180](https://github.com/paritytech/parity-ethereum/pull/10180))
+  - Cancel Constantinople HF on POA Core ([#10198](https://github.com/paritytech/parity-ethereum/pull/10198))
+  - Add EIP-1283 disable transition ([#10214](https://github.com/paritytech/parity-ethereum/pull/10214))
+  - Enable St-Peters-Fork ("Constantinople Fix") ([#10223](https://github.com/paritytech/parity-ethereum/pull/10223))
+- Stable: Macos heapsize force jemalloc ([#10234](https://github.com/paritytech/parity-ethereum/pull/10234)) ([#10258](https://github.com/paritytech/parity-ethereum/pull/10258))
+
 ## Parity-Ethereum [v2.2.7](https://github.com/paritytech/parity-ethereum/releases/tag/v2.2.7) (2019-01-15)
 
 Parity-Ethereum 2.2.7-stable is a consensus-relevant security release that reverts Constantinople on the Ethereum network. Upgrading is mandatory for Ethereum, and strongly recommended for other networks.

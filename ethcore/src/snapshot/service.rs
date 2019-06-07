@@ -30,7 +30,7 @@ use super::io::{SnapshotReader, LooseReader, SnapshotWriter, LooseWriter};
 use blockchain::{BlockChain, BlockChainDB, BlockChainDBHandler};
 use client::{BlockInfo, BlockChainClient, Client, ChainInfo, ClientIoMessage};
 use engines::EthEngine;
-use error::{Error, ErrorKind as SnapshotErrorKind};
+use error::Error;
 use snapshot::{Error as SnapshotError};
 use hash::keccak;
 use types::ids::BlockId;
@@ -697,7 +697,7 @@ impl Service {
 		let mut restoration = self.restoration.lock();
 		match self.feed_chunk_with_restoration(&mut restoration, hash, chunk, is_state) {
 			Ok(()) |
-			Err(Error(SnapshotErrorKind::Snapshot(SnapshotError::RestorationAborted), _)) => (),
+			Err(Error::Snapshot(SnapshotError::RestorationAborted)) => (),
 			Err(e) => {
 				warn!("Encountered error during snapshot restoration: {}", e);
 				*self.restoration.lock() = None;
@@ -928,9 +928,9 @@ mod tests {
 				version: 2,
 				state_hashes: state_hashes.clone(),
 				block_hashes: block_hashes.clone(),
-				state_root: H256::default(),
+				state_root: H256::zero(),
 				block_number: 100000,
-				block_hash: H256::default(),
+				block_hash: H256::zero(),
 			},
 			pruning: Algorithm::Archive,
 			db: restoration_db_handler(db_config).open(&tempdir.path().to_owned()).unwrap(),

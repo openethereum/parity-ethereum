@@ -20,7 +20,7 @@ use std::sync::Arc;
 use std::collections::{BTreeMap, BTreeSet, HashMap};
 
 use bytes::Bytes;
-use ethcore::block::{SealedBlock, IsBlock};
+use ethcore::block::SealedBlock;
 use ethcore::client::{Nonce, PrepareOpenBlock, StateClient, EngineInfo};
 use ethcore::engines::{EthEngine, signer::EngineSigner};
 use ethcore::error::Error;
@@ -193,7 +193,7 @@ impl MinerService for TestMinerService {
 		let params = self.authoring_params();
 		let open_block = chain.prepare_open_block(params.author, params.gas_range_target, params.extra_data).unwrap();
 		let closed = open_block.close().unwrap();
-		let header = closed.header();
+		let header = &closed.header;
 
 		Some((header.hash(), header.number(), header.timestamp(), *header.difficulty()))
 	}

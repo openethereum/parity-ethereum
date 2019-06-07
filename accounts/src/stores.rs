@@ -153,7 +153,7 @@ impl<K: hash::Hash + Eq, V> DiskMap<K, V> {
 
 #[cfg(test)]
 mod tests {
-	use super::AddressBook;
+	use super::{AddressBook, Address};
 	use std::collections::HashMap;
 	use tempdir::TempDir;
 	use crate::account_data::AccountMeta;
@@ -162,12 +162,12 @@ mod tests {
 	fn should_save_and_reload_address_book() {
 		let tempdir = TempDir::new("").unwrap();
 		let mut b = AddressBook::new(tempdir.path());
-		b.set_name(1.into(), "One".to_owned());
-		b.set_meta(1.into(), "{1:1}".to_owned());
+		b.set_name(Address::from_low_u64_be(1), "One".to_owned());
+		b.set_meta(Address::from_low_u64_be(1), "{1:1}".to_owned());
 		let b = AddressBook::new(tempdir.path());
 		assert_eq!(b.get(), vec![
-		   (1, AccountMeta {name: "One".to_owned(), meta: "{1:1}".to_owned(), uuid: None})
-		].into_iter().map(|(a, b)| (a.into(), b)).collect::<HashMap<_, _>>());
+		   (Address::from_low_u64_be(1), AccountMeta {name: "One".to_owned(), meta: "{1:1}".to_owned(), uuid: None})
+		].into_iter().collect::<HashMap<_, _>>());
 	}
 
 	#[test]
@@ -175,15 +175,15 @@ mod tests {
 		let tempdir = TempDir::new("").unwrap();
 		let mut b = AddressBook::new(tempdir.path());
 
-		b.set_name(1.into(), "One".to_owned());
-		b.set_name(2.into(), "Two".to_owned());
-		b.set_name(3.into(), "Three".to_owned());
-		b.remove(2.into());
+		b.set_name(Address::from_low_u64_be(1), "One".to_owned());
+		b.set_name(Address::from_low_u64_be(2), "Two".to_owned());
+		b.set_name(Address::from_low_u64_be(3), "Three".to_owned());
+		b.remove(Address::from_low_u64_be(2).into());
 
 		let b = AddressBook::new(tempdir.path());
 		assert_eq!(b.get(), vec![
-			(1, AccountMeta{name: "One".to_owned(), meta: "{}".to_owned(), uuid: None}),
-			(3, AccountMeta{name: "Three".to_owned(), meta: "{}".to_owned(), uuid: None}),
-		].into_iter().map(|(a, b)| (a.into(), b)).collect::<HashMap<_, _>>());
+			(Address::from_low_u64_be(1), AccountMeta{name: "One".to_owned(), meta: "{}".to_owned(), uuid: None}),
+			(Address::from_low_u64_be(3), AccountMeta{name: "Three".to_owned(), meta: "{}".to_owned(), uuid: None}),
+		].into_iter().collect::<HashMap<_, _>>());
 	}
 }

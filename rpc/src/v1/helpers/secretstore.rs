@@ -15,7 +15,7 @@
 // along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
 use std::collections::BTreeSet;
-use rand::{Rng, OsRng};
+use rand::{RngCore, rngs::OsRng};
 use ethereum_types::{H256, H512};
 use ethkey::{self, Public, Secret, Random, Generator, math};
 use crypto;
@@ -37,8 +37,11 @@ pub fn generate_document_key(account_public: Public, server_key_public: Public) 
 	let (common_point, encrypted_point) = encrypt_secret(document_key.public(), &server_key_public)?;
 
 	// ..and now encrypt document key with account public
-	let encrypted_key = ethkey::crypto::ecies::encrypt(&account_public, &crypto::DEFAULT_MAC, document_key.public())
-		.map_err(errors::encryption)?;
+	let encrypted_key = ethkey::crypto::ecies::encrypt(
+		&account_public,
+		&crypto::DEFAULT_MAC,
+		document_key.public().as_bytes(),
+	).map_err(errors::encryption)?;
 
 	Ok(EncryptedDocumentKey {
 		common_point: common_point.into(),
@@ -87,7 +90,7 @@ pub fn decrypt_document(key: Bytes, mut encrypted_document: Bytes) -> Result<Byt
 /// Decrypt document given secret shadow.
 pub fn decrypt_document_with_shadow(decrypted_secret: Public, common_point: Public, shadows: Vec<Secret>, encrypted_document: Bytes) -> Result<Bytes, Error> {
 	let key = decrypt_with_shadow_coefficients(decrypted_secret, common_point, shadows)?;
-	decrypt_document(key.to_vec(), encrypted_document)
+	decrypt_document(key.as_bytes().to_vec(), encrypted_document)
 }
 
 /// Calculate Keccak(ordered servers set)

@@ -20,7 +20,7 @@ use std::fmt;
 use std::sync::Arc;
 use std::collections::{HashMap, BTreeMap};
 use hash::{KECCAK_EMPTY, KECCAK_NULL_RLP, keccak};
-use ethereum_types::{H256, U256, Address};
+use ethereum_types::{H256, U256, Address, BigEndianHash};
 use error::Error;
 use hash_db::HashDB;
 use keccak_hasher::KeccakHasher;
@@ -255,8 +255,8 @@ impl Account {
 	fn get_and_cache_storage(storage_root: &H256, storage_cache: &mut LruCache<H256, H256>, db: &HashDB<KeccakHasher, DBValue>, key: &H256) -> TrieResult<H256> {
 		let db = SecTrieDB::new(&db, storage_root)?;
 		let panicky_decoder = |bytes:&[u8]| ::rlp::decode(&bytes).expect("decoding db value failed");
-		let item: U256 = db.get_with(key, panicky_decoder)?.unwrap_or_else(U256::zero);
-		let value: H256 = item.into();
+		let item: U256 = db.get_with(key.as_bytes(), panicky_decoder)?.unwrap_or_else(U256::zero);
+		let value: H256 = BigEndianHash::from_uint(&item);
 		storage_cache.insert(key.clone(), value.clone());
 		Ok(value)
 	}
@@ -291,7 +291,7 @@ impl Account {
 		// If storage root is empty RLP, then early return zero value. Practically, this makes it so that if
 		// `original_storage_cache` is used, then `storage_cache` will always remain empty.
 		if self.storage_root == KECCAK_NULL_RLP {
-			return Some(H256::new());
+			return Some(H256::zero());
 		}
 
 		if let Some(value) = self.storage_cache.borrow_mut().get_mut(key) {
@@ -488,8 +488,8 @@ impl Account {
 			// cast key and value to trait type,
 			// so we can call overloaded `to_bytes` method
 			match v.is_zero() {
-				true => t.remove(&k)?,
-				false => t.insert(&k, &encode(&U256::from(&*v)))?,
+				true => t.remove(k.as_bytes())?,
+				false => t.insert(k.as_bytes(), &encode(&v.into_uint()))?,
 			};
 
 			self.storage_cache.borrow_mut().insert(k, v);
@@ -595,10 +595,10 @@ impl Account {
 		let item: U256 = {
 			let panicky_decoder = |bytes:&[u8]| ::rlp::decode(bytes).expect("decoding db value failed");
 			let query = (&mut recorder, panicky_decoder);
-			trie.get_with(&storage_key, query)?.unwrap_or_else(U256::zero)
+			trie.get_with(storage_key.as_bytes(), query)?.unwrap_or_else(U256::zero)
 		};
 
-		Ok((recorder.drain().into_iter().map(|r| r.data).collect(), item.into()))
+		Ok((recorder.drain().into_iter().map(|r| r.data).collect(), BigEndianHash::from_uint(&item)))
 	}
 }
 
@@ -621,6 +621,7 @@ mod tests {
 	use bytes::Bytes;
 	use super::*;
 	use account_db::*;
+	use std::str::FromStr;
 
 	#[test]
 	fn account_compress() {
@@ -634,10 +635,10 @@ mod tests {
 	#[test]
 	fn storage_at() {
 		let mut db = new_memory_db();
-		let mut db = AccountDBMut::new(&mut db, &Address::new());
+		let mut db = AccountDBMut::new(&mut db, &Address::zero());
 		let rlp = {
 			let mut a = Account::new_contract(69.into(), 0.into(), KECCAK_NULL_RLP);
-			a.set_storage(0x00u64.into(), 0x1234u64.into());
+			a.set_storage(H256::zero(), H256::from_low_u64_be(0x1234));
 			a.commit_storage(&Default::default(), &mut db).unwrap();
 			a.init_code(vec![]);
 			a.commit_code(&mut db);
@@ -645,15 +646,15 @@ mod tests {
 		};
 
 		let a = Account::from_rlp(&rlp).expect("decoding db value failed");
-		assert_eq!(a.storage_root().unwrap(), "c57e1afb758b07f8d2c8f13a3b6e44fa5ff94ab266facc5a4fd3f062426e50b2".into());
-		assert_eq!(a.storage_at(&db.immutable(), &0x00u64.into()).unwrap(), 0x1234u64.into());
-		assert_eq!(a.storage_at(&db.immutable(), &0x01u64.into()).unwrap(), H256::default());
+		assert_eq!(a.storage_root().unwrap(), H256::from_str("c57e1afb758b07f8d2c8f13a3b6e44fa5ff94ab266facc5a4fd3f062426e50b2").unwrap());
+		assert_eq!(a.storage_at(&db.immutable(), &H256::zero()).unwrap(), H256::from_low_u64_be(0x1234));
+		assert_eq!(a.storage_at(&db.immutable(), &H256::from_low_u64_be(0x01)).unwrap(), H256::zero());
 	}
 
 	#[test]
 	fn note_code() {
 		let mut db = new_memory_db();
-		let mut db = AccountDBMut::new(&mut db, &Address::new());
+		let mut db = AccountDBMut::new(&mut db, &Address::zero());
 
 		let rlp = {
 			let mut a = Account::new_contract(69.into(), 0.into(), KECCAK_NULL_RLP);
@@ -673,53 +674,53 @@ mod tests {
 	fn commit_storage() {
 		let mut a = Account::new_contract(69.into(), 0.into(), KECCAK_NULL_RLP);
 		let mut db = new_memory_db();
-		let mut db = AccountDBMut::new(&mut db, &Address::new());
-		a.set_storage(0.into(), 0x1234.into());
+		let mut db = AccountDBMut::new(&mut db, &Address::zero());
+		a.set_storage(H256::from_low_u64_be(0), H256::from_low_u64_be(0x1234));
 		assert_eq!(a.storage_root(), None);
 		a.commit_storage(&Default::default(), &mut db).unwrap();
-		assert_eq!(a.storage_root().unwrap(), "c57e1afb758b07f8d2c8f13a3b6e44fa5ff94ab266facc5a4fd3f062426e50b2".into());
+		assert_eq!(a.storage_root().unwrap(), H256::from_str("c57e1afb758b07f8d2c8f13a3b6e44fa5ff94ab266facc5a4fd3f062426e50b2").unwrap());
 	}
 
 	#[test]
 	fn commit_remove_commit_storage() {
 		let mut a = Account::new_contract(69.into(), 0.into(), KECCAK_NULL_RLP);
 		let mut db = new_memory_db();
-		let mut db = AccountDBMut::new(&mut db, &Address::new());
-		a.set_storage(0.into(), 0x1234.into());
+		let mut db = AccountDBMut::new(&mut db, &Address::zero());
+		a.set_storage(H256::from_low_u64_be(0), H256::from_low_u64_be(0x1234));
 		a.commit_storage(&Default::default(), &mut db).unwrap();
-		a.set_storage(1.into(), 0x1234.into());
+		a.set_storage(H256::from_low_u64_be(1), H256::from_low_u64_be(0x1234));
 		a.commit_storage(&Default::default(), &mut db).unwrap();
-		a.set_storage(1.into(), 0.into());
+		a.set_storage(H256::from_low_u64_be(1), H256::from_low_u64_be(0));
 		a.commit_storage(&Default::default(), &mut db).unwrap();
-		assert_eq!(a.storage_root().unwrap(), "c57e1afb758b07f8d2c8f13a3b6e44fa5ff94ab266facc5a4fd3f062426e50b2".into());
+		assert_eq!(a.storage_root().unwrap(), H256::from_str("c57e1afb758b07f8d2c8f13a3b6e44fa5ff94ab266facc5a4fd3f062426e50b2").unwrap());
 	}
 
 	#[test]
 	fn commit_code() {
 		let mut a = Account::new_contract(69.into(), 0.into(), KECCAK_NULL_RLP);
 		let mut db = new_memory_db();
-		let mut db = AccountDBMut::new(&mut db, &Address::new());
+		let mut db = AccountDBMut::new(&mut db, &Address::zero());
 		a.init_code(vec![0x55, 0x44, 0xffu8]);
 		assert_eq!(a.code_filth, Filth::Dirty);
 		assert_eq!(a.code_size(), Some(3));
 		a.commit_code(&mut db);
-		assert_eq!(a.code_hash(), "af231e631776a517ca23125370d542873eca1fb4d613ed9b5d5335a46ae5b7eb".into());
+		assert_eq!(a.code_hash(), H256::from_str("af231e631776a517ca23125370d542873eca1fb4d613ed9b5d5335a46ae5b7eb").unwrap());
 	}
 
 	#[test]
 	fn reset_code() {
 		let mut a = Account::new_contract(69.into(), 0.into(), KECCAK_NULL_RLP);
 		let mut db = new_memory_db();
-		let mut db = AccountDBMut::new(&mut db, &Address::new());
+		let mut db = AccountDBMut::new(&mut db, &Address::zero());
 		a.init_code(vec![0x55, 0x44, 0xffu8]);
 		assert_eq!(a.code_filth, Filth::Dirty);
 		a.commit_code(&mut db);
 		assert_eq!(a.code_filth, Filth::Clean);
-		assert_eq!(a.code_hash(), "af231e631776a517ca23125370d542873eca1fb4d613ed9b5d5335a46ae5b7eb".into());
+		assert_eq!(a.code_hash(), H256::from_str("af231e631776a517ca23125370d542873eca1fb4d613ed9b5d5335a46ae5b7eb").unwrap());
 		a.reset_code(vec![0x55]);
 		assert_eq!(a.code_filth, Filth::Dirty);
 		a.commit_code(&mut db);
-		assert_eq!(a.code_hash(), "37bf2238b11b68cdc8382cece82651b59d3c3988873b6e0f33d79694aa45f1be".into());
+		assert_eq!(a.code_hash(), H256::from_str("37bf2238b11b68cdc8382cece82651b59d3c3988873b6e0f33d79694aa45f1be").unwrap());
 	}
 
 	#[test]

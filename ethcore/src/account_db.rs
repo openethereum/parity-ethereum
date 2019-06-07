@@ -31,8 +31,8 @@ use ethereum_types::Address;
 fn combine_key<'a>(address_hash: &'a H256, key: &'a H256) -> H256 {
 	let mut dst = key.clone();
 	{
-		let last_src: &[u8] = &*address_hash;
-		let last_dst: &mut [u8] = &mut *dst;
+		let last_src: &[u8] = address_hash.as_bytes();
+		let last_dst: &mut [u8] = dst.as_bytes_mut();
 		for (k, a) in last_dst[12..].iter_mut().zip(&last_src[12..]) {
 			*k ^= *a
 		}

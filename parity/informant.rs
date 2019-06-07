@@ -24,7 +24,7 @@ use std::time::{Instant, Duration};
 
 use atty;
 use ethcore::client::{
-	BlockId, BlockChainClient, ChainInfo, BlockInfo, BlockChainInfo,
+	BlockId, ChainInfo, BlockInfo, BlockChainInfo, BlockChainClient,
 	BlockQueueInfo, ChainNotify, NewBlocks, ClientReport, Client, ClientIoMessage
 };
 use types::BlockNumber;
@@ -259,7 +259,7 @@ impl<T: InformantData> Informant<T> {
 		let elapsed = now.duration_since(*self.last_tick.read());
 
 		let (client_report, full_report) = {
-			let mut last_report = self.last_report.lock();
+			let last_report = self.last_report.lock();
 			let full_report = self.target.report();
 			let diffed = full_report.client_report.clone() - &*last_report;
 			(diffed, full_report)

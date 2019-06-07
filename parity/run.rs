@@ -30,7 +30,7 @@ use ethcore::verification::queue::VerifierSettings;
 use ethcore_logger::{Config as LogConfig, RotatingLogger};
 use ethcore_service::ClientService;
 use ethereum_types::Address;
-use futures::IntoFuture;
+use futures::{IntoFuture, Stream};
 use hash_fetch::{self, fetch};
 use informant::{Informant, LightNodeInformantData, FullNodeInformantData};
 use journaldb::Algorithm;
@@ -41,7 +41,7 @@ use node_filter::NodeFilter;
 use parity_runtime::Runtime;
 use sync::{self, SyncConfig, PrivateTxHandler};
 use parity_rpc::{
-	Origin, Metadata, NetworkSettings, informant, is_major_importing, PubSubSession, FutureResult, FutureResponse, FutureOutput
+	Origin, Metadata, NetworkSettings, informant, PubSubSession, FutureResult, FutureResponse, FutureOutput
 };
 use updater::{UpdatePolicy, Updater};
 use parity_version::version;
@@ -165,7 +165,9 @@ impl ::local_store::NodeInfo for FullNodeInfo {
 type LightClient = ::light::client::Client<::light_helpers::EpochFetch>;
 
 // helper for light execution.
-fn execute_light_impl(cmd: RunCmd, logger: Arc<RotatingLogger>) -> Result<RunningClient, String> {
+fn execute_light_impl<Cr>(cmd: RunCmd, logger: Arc<RotatingLogger>, on_client_rq: Cr) -> Result<RunningClient, String>
+	where Cr: Fn(String) + 'static + Send
+{
 	use light::client as light_client;
 	use sync::{LightSyncParams, LightSync, ManageNetwork};
 	use parking_lot::{Mutex, RwLock};
@@ -293,17 +295,6 @@ fn execute_light_impl(cmd: RunCmd, logger: Arc<RotatingLogger>) -> Result<Runnin
 	// spin up event loop
 	let runtime = Runtime::with_default_thread_count();
 
-	// queue cull service.
-	let queue_cull = Arc::new(::light_helpers::QueueCull {
-		client: client.clone(),
-		sync: light_sync.clone(),
-		on_demand: on_demand.clone(),
-		txq: txq.clone(),
-		executor: runtime.executor(),
-	});
-
-	service.register_handler(queue_cull).map_err(|e| format!("Error attaching service: {:?}", e))?;
-
 	// start the network.
 	light_sync.start_network();
 
@@ -366,6 +357,8 @@ fn execute_light_impl(cmd: RunCmd, logger: Arc<RotatingLogger>) -> Result<Runnin
 	));
 	service.add_notify(informant.clone());
 	service.register_handler(informant.clone()).map_err(|_| "Unable to register informant handler".to_owned())?;
+
+	client.set_exit_handler(on_client_rq);
 
 	Ok(RunningClient {
 		inner: RunningClientInner::Light {
@@ -590,7 +583,9 @@ fn execute_impl<Cr, Rr>(cmd: RunCmd, logger: Arc<RotatingLogger>, on_client_rq: 
 	let private_tx_provider = private_tx_service.provider();
 	let connection_filter = connection_filter_address.map(|a| Arc::new(NodeFilter::new(Arc::downgrade(&client) as Weak<BlockChainClient>, a)));
 	let snapshot_service = service.snapshot_service();
-
+	if let Some(filter) = connection_filter.clone() {
+		service.add_notify(filter.clone());
+	}
 	// initialize the local node information store.
 	let store = {
 		let db = service.db();
@@ -657,6 +652,7 @@ fn execute_impl<Cr, Rr>(cmd: RunCmd, logger: Arc<RotatingLogger>, on_client_rq: 
 	// create sync object
 	let (sync_provider, manage_network, chain_notify, priority_tasks) = modules::sync(
 		sync_config,
+		runtime.executor(),
 		net_conf.clone().into(),
 		client.clone(),
 		snapshot_service.clone(),
@@ -672,14 +668,19 @@ fn execute_impl<Cr, Rr>(cmd: RunCmd, logger: Arc<RotatingLogger>, on_client_rq: 
 	// Propagate transactions as soon as they are imported.
 	let tx = ::parking_lot::Mutex::new(priority_tasks);
 	let is_ready = Arc::new(atomic::AtomicBool::new(true));
-	miner.add_transactions_listener(Box::new(move |_hashes| {
-		// we want to have only one PendingTransactions task in the queue.
-		if is_ready.compare_and_swap(true, false, atomic::Ordering::SeqCst) {
-			let task = ::sync::PriorityTask::PropagateTransactions(Instant::now(), is_ready.clone());
-			// we ignore error cause it means that we are closing
-			let _ = tx.lock().send(task);
-		}
-	}));
+	let executor = runtime.executor();
+	let pool_receiver = miner.pending_transactions_receiver();
+	executor.spawn(
+		pool_receiver.for_each(move |_hashes| {
+			// we want to have only one PendingTransactions task in the queue.
+			if is_ready.compare_and_swap(true, false, atomic::Ordering::SeqCst) {
+				let task = ::sync::PriorityTask::PropagateTransactions(Instant::now(), is_ready.clone());
+				// we ignore error cause it means that we are closing
+				let _ = tx.lock().send(task);
+			}
+			Ok(())
+		})
+	);
 
 	// provider not added to a notification center is effectively disabled
 	// TODO [debris] refactor it later on
@@ -749,6 +750,7 @@ fn execute_impl<Cr, Rr>(cmd: RunCmd, logger: Arc<RotatingLogger>, on_client_rq: 
 		gas_price_percentile: cmd.gas_price_percentile,
 		poll_lifetime: cmd.poll_lifetime,
 		allow_missing_blocks: cmd.allow_missing_blocks,
+		no_ancient_blocks: !cmd.download_old_blocks,
 	});
 
 	let dependencies = rpc::Dependencies {
@@ -811,10 +813,9 @@ fn execute_impl<Cr, Rr>(cmd: RunCmd, logger: Arc<RotatingLogger>, on_client_rq: 
 		true => None,
 		false => {
 			let sync = sync_provider.clone();
-			let client = client.clone();
 			let watcher = Arc::new(snapshot::Watcher::new(
 				service.client(),
-				move || is_major_importing(Some(sync.status().state), client.queue_info()),
+				move || sync.is_major_syncing(),
 				service.io().channel(),
 				SNAPSHOT_PERIOD,
 				SNAPSHOT_HISTORY,
@@ -930,7 +931,7 @@ pub fn execute<Cr, Rr>(cmd: RunCmd, logger: Arc<RotatingLogger>,
 		Rr: Fn() + 'static + Send
 {
 	if cmd.light {
-		execute_light_impl(cmd, logger)
+		execute_light_impl(cmd, logger, on_client_rq)
 	} else {
 		execute_impl(cmd, logger, on_client_rq, on_updater_rq)
 	}

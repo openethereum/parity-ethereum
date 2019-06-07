@@ -35,6 +35,7 @@ extern crate parking_lot;
 extern crate price_info;
 extern crate rlp;
 extern crate transaction_pool as txpool;
+extern crate serde;
 
 #[macro_use]
 extern crate ethabi_contract;
@@ -44,6 +45,8 @@ extern crate ethabi_derive;
 extern crate error_chain;
 #[macro_use]
 extern crate log;
+#[macro_use]
+extern crate serde_derive;
 #[macro_use]
 extern crate trace_time;
 

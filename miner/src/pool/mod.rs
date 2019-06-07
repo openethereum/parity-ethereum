@@ -27,6 +27,7 @@ mod ready;
 
 pub mod client;
 pub mod local_transactions;
+pub mod replace;
 pub mod scoring;
 pub mod verifier;
 
@@ -121,7 +122,7 @@ pub trait ScoredTransaction {
 }
 
 /// Verified transaction stored in the pool.
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct VerifiedTransaction {
 	transaction: transaction::PendingTransaction,
 	// TODO [ToDr] hash and sender should go directly from the transaction
@@ -197,4 +198,22 @@ impl ScoredTransaction for VerifiedTransaction {
 	fn nonce(&self) -> U256 {
 		self.transaction.nonce
 	}
+}
+
+/// Pool transactions status
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub enum TxStatus {
+	/// Added transaction
+	Added,
+	/// Rejected transaction
+	Rejected,
+	/// Dropped transaction
+	Dropped,
+	/// Invalid transaction
+	Invalid,
+	/// Canceled transaction
+	Canceled,
+	/// Culled transaction
+	Culled,
 }

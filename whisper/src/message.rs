@@ -24,6 +24,9 @@ use rlp::{self, DecoderError, RlpStream, Rlp};
 use smallvec::SmallVec;
 use tiny_keccak::{keccak256, Keccak};
 
+#[cfg(not(time_checked_add))]
+use time_utils::CheckedSystemTime;
+
 /// Work-factor proved. Takes 3 parameters: size of message, time to live,
 /// and hash.
 ///
@@ -32,8 +35,8 @@ pub fn work_factor_proved(size: u64, ttl: u64, hash: H256) -> f64 {
 	assert!(size != 0 && ttl != 0);
 
 	let leading_zeros = {
-		let leading_bytes = hash.iter().take_while(|&&x| x == 0).count();
-		let remaining_leading_bits = hash.get(leading_bytes).map_or(0, |byte| byte.leading_zeros() as usize);
+		let leading_bytes = hash.as_ref().iter().take_while(|&&x| x == 0).count();
+		let remaining_leading_bits = hash.as_ref().get(leading_bytes).map_or(0, |byte| byte.leading_zeros() as usize);
 		(leading_bytes * 8) + remaining_leading_bits
 	};
 	let spacetime = size as f64 * ttl as f64;
@@ -67,7 +70,7 @@ impl Topic {
 			}
 
 			debug_assert!(idx <= 511);
-			bloom[idx / 8] |= 1 << (7 - idx % 8);
+			bloom.as_bytes_mut()[idx / 8] |= 1 << (7 - idx % 8);
 		}
 	}
 
@@ -117,6 +120,7 @@ pub enum Error {
 	EmptyTopics,
 	LivesTooLong,
 	IssuedInFuture,
+	TimestampOverflow,
 	ZeroTTL,
 }
 
@@ -133,6 +137,7 @@ impl fmt::Display for Error {
 			Error::LivesTooLong => write!(f, "Message claims to be issued before the unix epoch."),
 			Error::IssuedInFuture => write!(f, "Message issued in future."),
 			Error::ZeroTTL => write!(f, "Message live for zero time."),
+			Error::TimestampOverflow => write!(f, "Timestamp overflow"),
 			Error::EmptyTopics => write!(f, "Message has no topics."),
 		}
 	}
@@ -226,10 +231,6 @@ impl rlp::Decodable for Envelope {
 	}
 }
 
-/// Error indicating no topics.
-#[derive(Debug, Copy, Clone)]
-pub struct EmptyTopics;
-
 /// Message creation parameters.
 /// Pass this to `Message::create` to make a message.
 pub struct CreateParams {
@@ -255,24 +256,26 @@ pub struct Message {
 impl Message {
 	/// Create a message from creation parameters.
 	/// Panics if TTL is 0.
-	pub fn create(params: CreateParams) -> Result<Self, EmptyTopics> {
+	pub fn create(params: CreateParams) -> Result<Self, Error> {
 		use byteorder::{BigEndian, ByteOrder};
-		use rand::{Rng, SeedableRng, XorShiftRng};
+		use rand::{Rng, SeedableRng};
+		use rand_xorshift::XorShiftRng;
 
-		if params.topics.is_empty() { return Err(EmptyTopics) }
+		if params.topics.is_empty() { return Err(Error::EmptyTopics) }
 
 		let mut rng = {
 			let mut thread_rng = ::rand::thread_rng();
-
-			XorShiftRng::from_seed(thread_rng.gen::<[u32; 4]>())
+			XorShiftRng::from_seed(thread_rng.gen())
 		};
 
 		assert!(params.ttl > 0);
 
 		let expiry = {
-			let after_mining = SystemTime::now() + Duration::from_millis(params.work);
-			let since_epoch = after_mining.duration_since(time::UNIX_EPOCH)
-				.expect("time after now is after unix epoch; qed");
+			let since_epoch = SystemTime::now()
+				.checked_add(Duration::from_secs(params.ttl))
+				.and_then(|t| t.checked_add(Duration::from_millis(params.work)))
+				.ok_or(Error::TimestampOverflow)?
+				.duration_since(time::UNIX_EPOCH).expect("time after now is after unix epoch; qed");
 
 			// round up the sub-second to next whole second.
 			since_epoch.as_secs() + if since_epoch.subsec_nanos() == 0 { 0 } else { 1 }
@@ -357,7 +360,10 @@ impl Message {
 			(envelope.expiry - envelope.ttl).saturating_sub(LEEWAY_SECONDS)
 		);
 
-		if time::UNIX_EPOCH + issue_time_adjusted > now {
+		let issue_time_adjusted = time::UNIX_EPOCH.checked_add(issue_time_adjusted)
+			.ok_or(Error::TimestampOverflow)?;
+
+		if issue_time_adjusted > now {
 			return Err(Error::IssuedInFuture);
 		}
 
@@ -400,8 +406,8 @@ impl Message {
 	}
 
 	/// Get the expiry time.
-	pub fn expiry(&self) -> SystemTime {
-		time::UNIX_EPOCH + Duration::from_secs(self.envelope.expiry)
+	pub fn expiry(&self) -> Option<SystemTime> {
+		time::UNIX_EPOCH.checked_add(Duration::from_secs(self.envelope.expiry))
 	}
 
 	/// Get the topics.
@@ -524,9 +530,9 @@ mod tests {
 	#[test]
 	fn work_factor() {
 		// 256 leading zeros -> 2^256 / 1
-		assert_eq!(work_factor_proved(1, 1, H256::from(0)), 115792089237316200000000000000000000000000000000000000000000000000000000000000.0);
+		assert_eq!(work_factor_proved(1, 1, H256::zero()), 115792089237316200000000000000000000000000000000000000000000000000000000000000.0);
 		// 255 leading zeros -> 2^255 / 1
-		assert_eq!(work_factor_proved(1, 1, H256::from(1)), 57896044618658100000000000000000000000000000000000000000000000000000000000000.0);
+		assert_eq!(work_factor_proved(1, 1, H256::from_low_u64_be(1)), 57896044618658100000000000000000000000000000000000000000000000000000000000000.0);
 		// 0 leading zeros -> 2^0 / 1
 		assert_eq!(work_factor_proved(1, 1, serde_json::from_str::<H256>("\"0xff00000000000000000000000000000000000000000000000000000000000000\"").unwrap()), 1.0);
 	}

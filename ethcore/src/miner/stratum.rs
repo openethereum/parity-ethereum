@@ -21,7 +21,7 @@ use std::net::{SocketAddr, AddrParseError};
 use std::fmt;
 
 use client::{Client, ImportSealedBlock};
-use ethereum_types::{H64, H256, clean_0x, U256};
+use ethereum_types::{H64, H256, U256};
 use ethash::{self, SeedHashCompute};
 #[cfg(feature = "work-notify")]
 use ethcore_miner::work_notify::NotifyWork;
@@ -45,6 +45,14 @@ pub struct Options {
 	pub port: u16,
 	/// Secret for peers
 	pub secret: Option<H256>,
+}
+
+fn clean_0x(s: &str) -> &str {
+	if s.starts_with("0x") {
+		&s[2..]
+	} else {
+		s
+	}
 }
 
 struct SubmitPayload {

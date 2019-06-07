@@ -38,7 +38,6 @@ extern crate ethjson;
 extern crate ethkey;
 extern crate keccak_hash as hash;
 extern crate parity_bytes as bytes;
-extern crate parity_machine;
 extern crate rlp;
 extern crate unexpected;
 

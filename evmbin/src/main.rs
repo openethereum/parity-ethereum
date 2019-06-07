@@ -14,7 +14,23 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
-//! Parity EVM interpreter binary.
+//! Parity EVM Interpreter Binary.
+//!
+//! ## Overview
+//!
+//! The Parity EVM interpreter binary is a tool in the Parity
+//! Ethereum toolchain. It is an EVM implementation for Parity Ethereum that
+//! is used to run a standalone version of the EVM interpreter.
+//!
+//! ## Usage
+//!
+//! The evmbin tool is not distributed with regular Parity Ethereum releases
+//! so you need to build it from source and run it like so:
+//!
+//! ```bash
+//! cargo build -p evmbin --release
+//! ./target/release/parity-evm --help
+//! ```
 
 #![warn(missing_docs)]
 
@@ -222,7 +238,7 @@ fn run_call<T: Informant>(args: Args, informant: T) {
 	let gas_price = arg(args.gas_price(), "--gas-price");
 	let data = arg(args.data(), "--input");
 
-	if code.is_none() && to == Address::default() {
+	if code.is_none() && to == Address::zero() {
 		die("Either --code or --to is required.");
 	}
 
@@ -268,6 +284,7 @@ struct Args {
 }
 
 impl Args {
+	/// Set the gas limit. Defaults to max value to allow code to run for whatever time is required.
 	pub fn gas(&self) -> Result<U256, String> {
 		match self.flag_gas {
 			Some(ref gas) => gas.parse().map_err(to_string),
@@ -275,6 +292,9 @@ impl Args {
 		}
 	}
 
+	/// Set the gas price. Defaults to zero to allow the code to run even if an account with no balance
+	/// is used, otherwise such accounts would not have sufficient funds to pay the transaction fee.
+	/// Defaulting to zero also makes testing easier since it is not necessary to specify a special configuration file.
 	pub fn gas_price(&self) -> Result<U256, String> {
 		match self.flag_gas_price {
 			Some(ref gas_price) => gas_price.parse().map_err(to_string),
@@ -285,14 +305,14 @@ impl Args {
 	pub fn from(&self) -> Result<Address, String> {
 		match self.flag_from {
 			Some(ref from) => from.parse().map_err(to_string),
-			None => Ok(Address::default()),
+			None => Ok(Address::zero()),
 		}
 	}
 
 	pub fn to(&self) -> Result<Address, String> {
 		match self.flag_to {
 			Some(ref to) => to.parse().map_err(to_string),
-			None => Ok(Address::default()),
+			None => Ok(Address::zero()),
 		}
 	}
 
@@ -339,7 +359,7 @@ fn die<T: fmt::Display>(msg: T) -> ! {
 #[cfg(test)]
 mod tests {
 	use docopt::Docopt;
-	use super::{Args, USAGE};
+	use super::{Args, USAGE, Address};
 
 	fn run<T: AsRef<str>>(args: &[T]) -> Args {
 		Docopt::new(USAGE).and_then(|d| d.argv(args.into_iter()).deserialize()).unwrap()
@@ -368,8 +388,8 @@ mod tests {
 		assert_eq!(args.flag_std_out_only, true);
 		assert_eq!(args.gas(), Ok(1.into()));
 		assert_eq!(args.gas_price(), Ok(2.into()));
-		assert_eq!(args.from(), Ok(3.into()));
-		assert_eq!(args.to(), Ok(4.into()));
+		assert_eq!(args.from(), Ok(Address::from_low_u64_be(3)));
+		assert_eq!(args.to(), Ok(Address::from_low_u64_be(4)));
 		assert_eq!(args.code(), Ok(Some(vec![05])));
 		assert_eq!(args.data(), Ok(Some(vec![06])));
 		assert_eq!(args.flag_chain, Some("./testfile".to_owned()));

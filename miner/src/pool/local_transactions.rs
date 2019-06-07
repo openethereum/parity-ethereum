@@ -171,7 +171,7 @@ impl txpool::Listener<Transaction> for LocalTransactionsList {
 		}
 	}
 
-	fn rejected(&mut self, tx: &Arc<Transaction>, reason: &txpool::ErrorKind) {
+	fn rejected<H: fmt::Debug + fmt::LowerHex>(&mut self, tx: &Arc<Transaction>, reason: &txpool::Error<H>) {
 		if !tx.priority().is_local() {
 			return;
 		}

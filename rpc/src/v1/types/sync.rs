@@ -120,7 +120,7 @@ impl From<sync::PipProtocolInfo> for PipProtocolInfo {
 	fn from(info: sync::PipProtocolInfo) -> Self {
 		PipProtocolInfo {
 			version: info.version,
-			difficulty: info.difficulty.into(),
+			difficulty: info.difficulty,
 			head: format!("{:x}", info.head),
 		}
 	}
@@ -179,7 +179,7 @@ impl From<SyncTransactionStats> for TransactionStats {
 			first_seen: s.first_seen,
 			propagated_to: s.propagated_to
 				.into_iter()
-				.map(|(id, count)| (id.into(), count))
+				.map(|(id, count)| (id, count))
 				.collect(),
 		}
 	}
@@ -197,7 +197,7 @@ pub struct ChainStatus {
 mod tests {
 	use serde_json;
 	use std::collections::BTreeMap;
-	use super::{SyncInfo, SyncStatus, Peers, TransactionStats, ChainStatus};
+	use super::{SyncInfo, SyncStatus, Peers, TransactionStats, ChainStatus, H512};
 
 	#[test]
 	fn test_serialize_sync_info() {
@@ -241,7 +241,7 @@ mod tests {
 		let stats = TransactionStats {
 			first_seen: 100,
 			propagated_to: map![
-				10.into() => 50
+				H512::from_low_u64_be(10) => 50
 			],
 		};
 

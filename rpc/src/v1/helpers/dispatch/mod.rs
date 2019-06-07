@@ -294,7 +294,7 @@ pub fn execute<D: Dispatcher + 'static>(
 
 			Box::new(
 				dispatcher.sign(request, &signer, pass, post_sign).map(|(hash, token)| {
-					WithToken::from((ConfirmationResponse::SendTransaction(hash.into()), token))
+					WithToken::from((ConfirmationResponse::SendTransaction(hash), token))
 				})
 			)
 		},
@@ -368,13 +368,13 @@ pub fn from_rpc<D>(payload: RpcConfirmationPayload, default_account: Address, di
 				.map(ConfirmationPayload::SignTransaction))
 		},
 		RpcConfirmationPayload::Decrypt(RpcDecryptRequest { address, msg }) => {
-			Box::new(future::ok(ConfirmationPayload::Decrypt(address.into(), msg.into())))
+			Box::new(future::ok(ConfirmationPayload::Decrypt(address, msg.into())))
 		},
 		RpcConfirmationPayload::EthSignMessage(RpcEthSignRequest { address, data }) => {
-			Box::new(future::ok(ConfirmationPayload::EthSignMessage(address.into(), data.into())))
+			Box::new(future::ok(ConfirmationPayload::EthSignMessage(address, data.into())))
 		},
 		RpcConfirmationPayload::EIP191SignMessage(RpcSignRequest { address, data }) => {
-			Box::new(future::ok(ConfirmationPayload::SignMessage(address.into(), data.into())))
+			Box::new(future::ok(ConfirmationPayload::SignMessage(address, data)))
 		},
 	}
 }

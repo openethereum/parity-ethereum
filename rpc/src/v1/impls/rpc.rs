@@ -32,8 +32,8 @@ impl RpcClient {
 		let valid_apis = vec!["web3", "eth", "net", "personal", "rpc"];
 
 		RpcClient {
-			modules: modules,
-			valid_apis: valid_apis.into_iter().map(|x| x.to_owned()).collect(),
+			modules,
+			valid_apis: valid_apis.into_iter().map(ToOwned::to_owned).collect(),
 		}
 	}
 }

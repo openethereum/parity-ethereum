@@ -18,6 +18,8 @@ panic_hook = { path = "../../util/panic-hook" }
 parity-whisper = { path = "../" }
 serde = "1.0"
 serde_derive = "1.0"
+ethkey = { path = "../../accounts/ethkey" }
+rustc-hex = "2.0"
 
 [[bin]]
 name = "whisper"

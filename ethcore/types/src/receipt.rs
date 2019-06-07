@@ -162,8 +162,9 @@ pub struct LocalizedReceipt {
 
 #[cfg(test)]
 mod tests {
-	use super::{Receipt, TransactionOutcome};
+	use super::{Receipt, TransactionOutcome, Address, H256};
 	use log_entry::LogEntry;
+	use std::str::FromStr;
 
 	#[test]
 	fn test_no_state_root() {
@@ -172,7 +173,7 @@ mod tests {
 			TransactionOutcome::Unknown,
 			0x40cae.into(),
 			vec![LogEntry {
-				address: "dcf421d093428b096ca501a7cd1a740855a7976f".into(),
+				address: Address::from_str("dcf421d093428b096ca501a7cd1a740855a7976f").unwrap(),
 				topics: vec![],
 				data: vec![0u8; 32]
 			}]
@@ -184,10 +185,10 @@ mod tests {
 	fn test_basic() {
 		let expected = ::rustc_hex::FromHex::from_hex("f90162a02f697d671e9ae4ee24a43c4b0d7e15f1cb4ba6de1561120d43b9a4e8c4a8a6ee83040caeb9010000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000400000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000008000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000200000000000000000000000000000000000000000000000000000000000000000f838f794dcf421d093428b096ca501a7cd1a740855a7976fc0a00000000000000000000000000000000000000000000000000000000000000000").unwrap();
 		let r = Receipt::new(
-			TransactionOutcome::StateRoot("2f697d671e9ae4ee24a43c4b0d7e15f1cb4ba6de1561120d43b9a4e8c4a8a6ee".into()),
+			TransactionOutcome::StateRoot(H256::from_str("2f697d671e9ae4ee24a43c4b0d7e15f1cb4ba6de1561120d43b9a4e8c4a8a6ee").unwrap()),
 			0x40cae.into(),
 			vec![LogEntry {
-				address: "dcf421d093428b096ca501a7cd1a740855a7976f".into(),
+				address: Address::from_str("dcf421d093428b096ca501a7cd1a740855a7976f").unwrap(),
 				topics: vec![],
 				data: vec![0u8; 32]
 			}]
@@ -205,7 +206,7 @@ mod tests {
 			TransactionOutcome::StatusCode(0),
 			0x40cae.into(),
 			vec![LogEntry {
-				address: "dcf421d093428b096ca501a7cd1a740855a7976f".into(),
+				address: Address::from_str("dcf421d093428b096ca501a7cd1a740855a7976f").unwrap(),
 				topics: vec![],
 				data: vec![0u8; 32]
 			}]

@@ -35,7 +35,7 @@ use vm::{EnvInfo, CallType, ActionValue, ActionParams, ParamsType};
 
 use builtin::Builtin;
 use engines::{
-	EthEngine, NullEngine, InstantSeal, InstantSealParams, BasicAuthority,
+	EthEngine, NullEngine, InstantSeal, InstantSealParams, BasicAuthority, Clique,
 	AuthorityRound, DEFAULT_BLOCKHASH_CONTRACT
 };
 use error::Error;
@@ -99,9 +99,9 @@ pub struct CommonParams {
 	pub validate_receipts_transition: BlockNumber,
 	/// Validate transaction chain id.
 	pub validate_chain_id_transition: BlockNumber,
-	/// Number of first block where EIP-140 (Metropolis: REVERT opcode) rules begin.
+	/// Number of first block where EIP-140 rules begin.
 	pub eip140_transition: BlockNumber,
-	/// Number of first block where EIP-210 (Metropolis: BLOCKHASH changes) rules begin.
+	/// Number of first block where EIP-210 rules begin.
 	pub eip210_transition: BlockNumber,
 	/// EIP-210 Blockhash contract address.
 	pub eip210_contract_address: Address,
@@ -109,8 +109,7 @@ pub struct CommonParams {
 	pub eip210_contract_code: Bytes,
 	/// Gas allocated for EIP-210 blockhash update.
 	pub eip210_contract_gas: U256,
-	/// Number of first block where EIP-211 (Metropolis: RETURNDATASIZE/RETURNDATACOPY) rules
-	/// begin.
+	/// Number of first block where EIP-211 rules begin.
 	pub eip211_transition: BlockNumber,
 	/// Number of first block where EIP-214 rules begin.
 	pub eip214_transition: BlockNumber,
@@ -267,7 +266,7 @@ impl From<ethjson::spec::Params> for CommonParams {
 				BlockNumber::max_value,
 				Into::into,
 			),
-			eip210_contract_address: p.eip210_contract_address.map_or(0xf0.into(), Into::into),
+			eip210_contract_address: p.eip210_contract_address.map_or(Address::from_low_u64_be(0xf0), Into::into),
 			eip210_contract_code: p.eip210_contract_code.map_or_else(
 				|| {
 					DEFAULT_BLOCKHASH_CONTRACT.from_hex().expect(
@@ -316,7 +315,7 @@ impl From<ethjson::spec::Params> for CommonParams {
 			nonce_cap_increment: p.nonce_cap_increment.map_or(64, Into::into),
 			remove_dust_contracts: p.remove_dust_contracts.unwrap_or(false),
 			gas_limit_bound_divisor: p.gas_limit_bound_divisor.into(),
-			registrar: p.registrar.map_or_else(Address::new, Into::into),
+			registrar: p.registrar.map_or_else(Address::zero, Into::into),
 			node_permission_contract: p.node_permission_contract.map(Into::into),
 			max_code_size: p.max_code_size.map_or(u64::max_value(), Into::into),
 			max_transaction_size: p.max_transaction_size.map_or(MAX_TRANSACTION_SIZE, Into::into),
@@ -515,7 +514,7 @@ fn load_from(spec_params: SpecParams, s: ethjson::spec::Spec) -> Result<Spec, Er
 				chts: s.hardcoded_sync
 					.as_ref()
 					.map(|s| s.chts.iter().map(|c| c.clone().into()).collect())
-					.unwrap_or(Vec::new()),
+					.unwrap_or_default()
 			})
 		} else {
 			None
@@ -611,6 +610,8 @@ impl Spec {
 			ethjson::spec::Engine::InstantSeal(Some(instant_seal)) => Arc::new(InstantSeal::new(instant_seal.params.into(), machine)),
 			ethjson::spec::Engine::InstantSeal(None) => Arc::new(InstantSeal::new(InstantSealParams::default(), machine)),
 			ethjson::spec::Engine::BasicAuthority(basic_authority) => Arc::new(BasicAuthority::new(basic_authority.params.into(), machine)),
+			ethjson::spec::Engine::Clique(clique) => Clique::new(clique.params.into(), machine)
+								.expect("Failed to start Clique consensus engine."),
 			ethjson::spec::Engine::AuthorityRound(authority_round) => AuthorityRound::new(authority_round.params.into(), machine)
 				.expect("Failed to start AuthorityRound consensus engine."),
 		}
@@ -626,7 +627,7 @@ impl Spec {
 			let mut t = factories.trie.create(db.as_hash_db_mut(), &mut root);
 
 			for (address, account) in self.genesis_state.get().iter() {
-				t.insert(&**address, &account.rlp())?;
+				t.insert(address.as_bytes(), &account.rlp())?;
 			}
 		}
 
@@ -657,7 +658,7 @@ impl Spec {
 				gas_limit: U256::max_value(),
 			};
 
-			let from = Address::default();
+			let from = Address::zero();
 			for &(ref address, ref constructor) in self.constructors.iter() {
 				trace!(target: "spec", "run_constructors: Creating a contract at {}.", address);
 				trace!(target: "spec", "  .. root before = {}", state.root());
@@ -827,7 +828,6 @@ impl Spec {
 		ethjson::spec::Spec::load(reader)
 			.map_err(fmt_err)
 			.map(load_machine_from)
-
 	}
 
 	/// Loads spec from json file. Provide factories for executing contracts and ensuring
@@ -847,8 +847,6 @@ impl Spec {
 	/// constructor.
 	pub fn genesis_epoch_data(&self) -> Result<Vec<u8>, String> {
 		use types::transaction::{Action, Transaction};
-		use journaldb;
-		use kvdb_memorydb;
 
 		let genesis = self.genesis_header();
 
@@ -874,7 +872,7 @@ impl Spec {
 				gas_used: 0.into(),
 			};
 
-			let from = Address::default();
+			let from = Address::zero();
 			let tx = Transaction {
 				nonce: self.engine.account_start_nonce(0),
 				action: Action::Call(a),
@@ -998,8 +996,8 @@ mod tests {
 	use tempdir::TempDir;
 	use types::view;
 	use types::views::BlockView;
+	use std::str::FromStr;
 
-	// https://github.com/paritytech/parity-ethereum/issues/1840
 	#[test]
 	fn test_load_empty() {
 		let tempdir = TempDir::new("").unwrap();
@@ -1012,12 +1010,12 @@ mod tests {
 
 		assert_eq!(
 			test_spec.state_root(),
-			"f3f4696bbf3b3b07775128eb7a3763279a394e382130f27c21e70233e04946a9".into()
+			H256::from_str("f3f4696bbf3b3b07775128eb7a3763279a394e382130f27c21e70233e04946a9").unwrap()
 		);
 		let genesis = test_spec.genesis_block();
 		assert_eq!(
 			view!(BlockView, &genesis).header_view().hash(),
-			"0cd786a2425d16f152c658316c423e6ce1181e15c3295826d7c9904cba9ce303".into()
+			H256::from_str("0cd786a2425d16f152c658316c423e6ce1181e15c3295826d7c9904cba9ce303").unwrap()
 		);
 	}
 
@@ -1033,8 +1031,8 @@ mod tests {
 			spec.engine.account_start_nonce(0),
 			Default::default(),
 		).unwrap();
-		let expected = "0000000000000000000000000000000000000000000000000000000000000001".into();
-		let address = "0000000000000000000000000000000000001337".into();
+		let expected = H256::from_str("0000000000000000000000000000000000000000000000000000000000000001").unwrap();
+		let address = Address::from_str("0000000000000000000000000000000000001337").unwrap();
 
 		assert_eq!(state.storage_at(&address, &H256::zero()).unwrap(), expected);
 		assert_eq!(state.balance(&address).unwrap(), 1.into());

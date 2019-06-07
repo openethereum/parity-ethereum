@@ -59,14 +59,14 @@ impl Secret {
 		if key.len() != 32 {
 			return None
 		}
-		let mut h = H256::default();
-		h.copy_from_slice(&key[0..32]);
+		let mut h = H256::zero();
+		h.as_bytes_mut().copy_from_slice(&key[0..32]);
 		Some(Secret { inner: Memzero::from(h) })
 	}
 
 	/// Creates zero key, which is invalid for crypto operations, but valid for math operation.
 	pub fn zero() -> Self {
-		Secret { inner: Memzero::from(H256::default()) }
+		Secret { inner: Memzero::from(H256::zero()) }
 	}
 
 	/// Imports and validates the key.
