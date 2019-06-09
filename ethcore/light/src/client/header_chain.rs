@@ -205,18 +205,18 @@ pub enum HardcodedSync {
 #[derive(MallocSizeOf)]
 /// Header chain. See module docs for more details.
 pub struct HeaderChain {
-	#[ignore_malloc_size_of = "perf"]
+	#[ignore_malloc_size_of = "ignored for performance reason"]
 	genesis_header: encoded::Header, // special-case the genesis.
 	candidates: RwLock<BTreeMap<u64, Entry>>,
-	#[ignore_malloc_size_of = "perf"]
+	#[ignore_malloc_size_of = "ignored for performance reason"]
 	best_block: RwLock<BlockDescriptor>,
-	#[ignore_malloc_size_of = "perf"]
+	#[ignore_malloc_size_of = "ignored for performance reason"]
 	live_epoch_proofs: RwLock<H256FastMap<EpochTransition>>,
-	#[ignore_malloc_size_of = "perf"]
+	#[ignore_malloc_size_of = "ignored for performance reason"]
 	db: Arc<KeyValueDB>,
-	#[ignore_malloc_size_of = "perf"]
+	#[ignore_malloc_size_of = "ignored for performance reason"]
 	col: Option<u32>,
-	#[ignore_malloc_size_of = "perf"]
+	#[ignore_malloc_size_of = "ignored for performance reason"]
 	cache: Arc<Mutex<Cache>>,
 }
 

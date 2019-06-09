@@ -26,10 +26,10 @@ use super::trace::{Action, Res};
 /// Parent and children indexes refer to positions in this vector.
 #[derive(Debug, PartialEq, Clone, MallocSizeOf)]
 pub struct FlatTrace {
-	#[ignore_malloc_size_of = "perf"]
+	#[ignore_malloc_size_of = "ignored for performance reason"]
 	/// Type of action performed by a transaction.
 	pub action: Action,
-	#[ignore_malloc_size_of = "perf"]
+	#[ignore_malloc_size_of = "ignored for performance reason"]
 	/// Result of this action.
 	pub result: Res,
 	/// Number of subtraces.
