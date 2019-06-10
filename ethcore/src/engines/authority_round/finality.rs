@@ -110,7 +110,16 @@ impl RollingFinality {
 	/// Returns a list of all newly finalized headers.
 	// TODO: optimize with smallvec.
 	pub fn push_hash(&mut self, head: H256, signers: Vec<Address>) -> Result<Vec<H256>, UnknownValidator> {
-		if signers.iter().any(|s| !self.signers.contains(s)) { return Err(UnknownValidator) }
+		if signers
+			.iter()
+			.any(|s| {
+				if !self.signers.contains(s) {
+					warn!(target: "finality",  "Unknown validator: {}", s);
+					false
+				} else { true }
+			}) {
+				return Err(UnknownValidator)
+		}
 
 		for signer in signers.iter() {
 			*self.sign_count.entry(*signer).or_insert(0) += 1;
@@ -141,7 +150,7 @@ impl RollingFinality {
 			}
 		}
 
-		trace!(target: "finality", "Blocks finalized by {:?}: {:?}", head, newly_finalized);
+		trace!(target: "finality", "{} Blocks finalized by {:?}: {:?}", newly_finalized.len(), head, newly_finalized);
 
 		self.last_pushed = Some(head);
 		Ok(newly_finalized)
