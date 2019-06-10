@@ -39,6 +39,7 @@ pub struct RollingFinality {
 impl RollingFinality {
 	/// Create a blank finality checker under the given validator set.
 	pub fn blank(signers: Vec<Address>) -> Self {
+		trace!(target: "finality", "Instantiating blank RollingFinality with {} signers: {:?}", signers.len(), signers);
 		RollingFinality {
 			headers: VecDeque::new(),
 			signers: SimpleList::new(signers),

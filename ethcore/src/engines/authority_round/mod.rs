@@ -614,7 +614,7 @@ fn verify_external(header: &Header, validators: &ValidatorSet, empty_steps_trans
 	};
 
 	if is_invalid_proposer {
-		trace!(target: "engine", "verify_block_external: bad proposer for step: {}", header_step);
+		warn!(target: "engine", "verify_block_external: bad proposer for step: {}", header_step);
 		Err(EngineError::NotProposer(Mismatch { expected: correct_proposer, found: *header.author() }))?
 	} else {
 		Ok(())
