@@ -203,8 +203,9 @@ impl Clique {
 				loop {
  					let next_step_at = Instant::now() + SEALING_FREQ;
 					trace!(target: "miner", "StepService: triggering sealing");
-					if let Some(eng) = weak_eng.upgrade() { eng.step() }
-					else {
+					if let Some(eng) = weak_eng.upgrade() {
+						eng.step()
+					} else {
 						warn!(target: "shutdown", "StepService: engine is dropped; exiting.");
 						break;
 					}
