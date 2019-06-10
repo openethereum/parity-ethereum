@@ -111,15 +111,13 @@ impl RollingFinality {
 	/// Returns a list of all newly finalized headers.
 	// TODO: optimize with smallvec.
 	pub fn push_hash(&mut self, head: H256, signers: Vec<Address>) -> Result<Vec<H256>, UnknownValidator> {
-		if signers
-			.iter()
-			.any(|s| {
-				if !self.signers.contains(s) {
-					warn!(target: "finality",  "Unknown validator: {}", s);
-					false
-				} else { true }
-			}) {
+		// TODO: seems bad to iterate over signers twice like this.
+		//       Can do the work in a single loop and call `clear()` if an unknown validator was found?
+		for their_signer in signers.iter() {
+			if !self.signers.contains(their_signer) {
+				warn!(target: "finality",  "Unknown validator: {}", their_signer);
 				return Err(UnknownValidator)
+			}
 		}
 
 		for signer in signers.iter() {
