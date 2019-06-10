@@ -237,6 +237,8 @@ impl EpochManager {
 
 		self.force = false;
 		debug!(target: "engine", "Zooming to epoch after block {}", hash);
+		trace!(target: "engine", "Current validator set: {:?}", self.validators());
+
 
 		// epoch_transition_for can be an expensive call, but in the absence of
 		// forks it will only need to be called for the block directly after
@@ -257,7 +259,7 @@ impl EpochManager {
 			let (signal_number, set_proof, _) = destructure_proofs(&last_transition.proof)
 				.expect("proof produced by this engine; therefore it is valid; qed");
 
-			trace!(target: "engine", "extracting epoch set for epoch ({}, {}) signalled at #{}",
+			trace!(target: "engine", "extracting epoch validator set for epoch ({}, {}) signalled at #{}",
 				last_transition.block_number, last_transition.block_hash, signal_number);
 
 			let first = signal_number == 0;
@@ -268,7 +270,12 @@ impl EpochManager {
 				set_proof,
 			)
 				.ok()
-				.map(|(list, _)| list.into_inner())
+				.map(|(list, _)| {
+					trace!(target: "engine", "Updating finality checker with new validator set extracted from epoch ({}, {}): {:?}",
+					       last_transition.block_number, last_transition.block_hash, &list);
+
+					list.into_inner()
+				})
 				.expect("proof produced by this engine; therefore it is valid; qed");
 
 			self.finality_checker = RollingFinality::blank(epoch_set);
