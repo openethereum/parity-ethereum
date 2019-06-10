@@ -33,9 +33,14 @@ pub struct SimpleList {
 impl SimpleList {
 	/// Create a new `SimpleList`.
 	pub fn new(validators: Vec<Address>) -> Self {
-		SimpleList {
-			validators: validators,
+		let validator_count = validators.len();
+		if validator_count == 1 {
+			warn!(target: "engine", "Running AuRa with a single validator is not supported.");
 		}
+		if validator_count % 2 == 0 {
+			warn!(target: "engine", "Running AuRa with an even number of validators is not supported.");
+		}
+		SimpleList { validators }
 	}
 
 	/// Convert into inner representation.
