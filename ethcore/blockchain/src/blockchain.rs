@@ -989,7 +989,7 @@ impl BlockChain {
 	pub fn epoch_transition_for(&self, parent_hash: H256) -> Option<EpochTransition> {
 		// slow path: loop back block by block
 		for hash in self.ancestry_iter(parent_hash)? {
-			trace!(target: "blockchain", "Block #{}: Got hash {} from ancestry_iter", details.number, hash);
+			trace!(target: "blockchain", "Got parent hash {} from ancestry_iter", hash);
 			let details = self.block_details(&hash)?;
 			trace!(target: "blockchain", "Block #{}: Got block details", details.number);
 
