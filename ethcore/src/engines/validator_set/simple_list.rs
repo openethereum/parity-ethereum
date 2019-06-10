@@ -57,9 +57,7 @@ impl ::std::ops::Deref for SimpleList {
 
 impl From<Vec<Address>> for SimpleList {
 	fn from(validators: Vec<Address>) -> Self {
-		SimpleList {
-			validators: validators,
-		}
+		SimpleList::new(validators)
 	}
 }
 
