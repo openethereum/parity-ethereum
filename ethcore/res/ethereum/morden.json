@@ -12,7 +12,7 @@
 				"ecip1010PauseTransition": "0x1d3878",
 				"ecip1010ContinueTransition": "0x341bd8",
 				"ecip1017EraRounds": "0x1e8480",
-				"eip100bTransition": "0x481138",
+				"eip100bTransition": "0x4829ba",
 				"bombDefuseTransition": "0x231860"
 			}
 		}
@@ -29,15 +29,15 @@
 		"forkCanonHash": "0xf376243aeff1f256d970714c3de9fd78fa4e63cf63e32a51fe1169e375d98145",
 		"eip150Transition": "0x1b34d8",
 		"eip160Transition": "0x1d3878",
-		"eip161abcTransition": "0x481138",
-		"eip161dTransition": "0x481138",
+		"eip161abcTransition": "0x4829ba",
+		"eip161dTransition": "0x4829ba",
 		"eip155Transition": "0x1d3878",
 		"maxCodeSize": "0x6000",
-		"maxCodeSizeTransition": "0x481138",
-		"eip140Transition": "0x481138",
-		"eip211Transition": "0x481138",
-		"eip214Transition": "0x481138",
-		"eip658Transition": "0x481138",
+		"maxCodeSizeTransition": "0x4829ba",
+		"eip140Transition": "0x4829ba",
+		"eip211Transition": "0x4829ba",
+		"eip214Transition": "0x4829ba",
+		"eip658Transition": "0x4829ba",
 	},
 	"genesis": {
 		"seal": {
@@ -78,7 +78,7 @@
 		"0x0000000000000000000000000000000000000005": {
 			"builtin": {
 				"name": "modexp",
-				"activate_at": "0x481138",
+				"activate_at": "0x4829ba",
 				"pricing": {
 					"modexp": {
 						"divisor": 20
@@ -89,7 +89,7 @@
 		"0x0000000000000000000000000000000000000006": {
 			"builtin": {
 				"name": "alt_bn128_add",
-				"activate_at": "0x481138",
+				"activate_at": "0x4829ba",
 				"pricing": {
 					"linear": {
 						"base": 500,
@@ -101,7 +101,7 @@
 		"0x0000000000000000000000000000000000000007": {
 			"builtin": {
 				"name": "alt_bn128_mul",
-				"activate_at": "0x481138",
+				"activate_at": "0x4829ba",
 				"pricing": {
 					"linear": {
 						"base": 40000,
@@ -113,7 +113,7 @@
 		"0x0000000000000000000000000000000000000008": {
 			"builtin": {
 				"name": "alt_bn128_pairing",
-				"activate_at": "0x481138",
+				"activate_at": "0x4829ba",
 				"pricing": {
 					"alt_bn128_pairing": {
 						"base": 100000,
