@@ -247,7 +247,7 @@ impl EpochManager {
 			None => {
 				// this really should never happen unless the block passed
 				// hasn't got a parent in the database.
-				debug!(target: "engine", "No genesis transition found.");
+				warn!(target: "engine", "No genesis transition found.");
 				return false;
 			}
 		};
@@ -280,8 +280,8 @@ impl EpochManager {
 		true
 	}
 
-	// note new epoch hash. this will force the next block to re-load
-	// the epoch set
+	// Note new epoch hash. This will force the next block to re-load
+	// the epoch set.
 	// TODO: optimize and don't require re-loading after epoch change.
 	fn note_new_epoch(&mut self) {
 		self.force = true;

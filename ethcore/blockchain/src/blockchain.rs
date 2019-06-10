@@ -1010,7 +1010,7 @@ impl BlockChain {
 						.take_while(|t| t.block_number <= details.number)
 						.last()
 				},
-				Some(h) => trace!(target: "blockchain", "Found non-canonical block hash {}", h),
+				Some(h) => trace!(target: "blockchain", "Found non-canonical block hash {} (expected {})", h, hash),
 				None => trace!(target: "blockchain", "Block hash not found in cache or DB"),
 			}
 		}
