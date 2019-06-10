@@ -1098,7 +1098,7 @@ impl miner::MinerService for Miner {
 					.map(Arc::new)
 					// Filter by transaction hash
 					.filter(|tx| {
-						if let Some(tx_hash) = tx_hash {
+						tx_hash.map_or(true, |tx_hash| tx.signed().hash() == tx_hash)
 							tx.signed().hash() == tx_hash
 						} else {
 							true // do not filter if None was passed
