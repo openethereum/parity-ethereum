@@ -37,7 +37,7 @@
 		"eip140Transition": "0x81b320",
 		"eip211Transition": "0x81b320",
 		"eip214Transition": "0x81b320",
-		"eip658Transition": "0x81b320",
+		"eip658Transition": "0x81b320"
 	},
 	"genesis": {
 		"seal": {
