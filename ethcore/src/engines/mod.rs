@@ -437,9 +437,6 @@ pub trait Engine<M: Machine>: Sync + Send {
 	/// Trigger next step of the consensus engine.
 	fn step(&self) {}
 
-	/// Stops any services that the may hold the Engine and makes it safe to drop.
-	fn stop(&mut self) {}
-
 	/// Create a factory for building snapshot chunks and restoring from them.
 	/// Returning `None` indicates that this engine doesn't support snapshot creation.
 	fn snapshot_components(&self) -> Option<Box<SnapshotComponents>> {
