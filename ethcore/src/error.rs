@@ -16,13 +16,10 @@
 
 //! General error types for use in ethcore.
 
-// Silence: `use of deprecated item 'std::error::Error::cause': replaced by Error::source, which can support downcasting`
-// https://github.com/paritytech/parity-ethereum/issues/10302
-#![allow(deprecated)]
-
 use std::{fmt, error};
 use std::time::SystemTime;
 
+use derive_more::{Display, From};
 use ethereum_types::{H256, U256, Address, Bloom};
 use ethkey::Error as EthkeyError;
 use ethtrie::TrieError;
@@ -37,118 +34,113 @@ use engines::EngineError;
 
 pub use executed::{ExecutionError, CallError};
 
-#[derive(Debug, PartialEq, Clone, Eq)]
 /// Errors concerning block processing.
+#[derive(Debug, Display, PartialEq, Clone, Eq)]
 pub enum BlockError {
 	/// Block has too many uncles.
+	#[display(fmt = "Block has too many uncles. {}", _0)]
 	TooManyUncles(OutOfBounds<usize>),
 	/// Extra data is of an invalid length.
+	#[display(fmt = "Extra block data too long. {}", _0)]
 	ExtraDataOutOfBounds(OutOfBounds<usize>),
 	/// Seal is incorrect format.
+	#[display(fmt = "Block seal in incorrect format: {}", _0)]
 	InvalidSealArity(Mismatch<usize>),
 	/// Block has too much gas used.
+	#[display(fmt = "Block has too much gas used. {}", _0)]
 	TooMuchGasUsed(OutOfBounds<U256>),
 	/// Uncles hash in header is invalid.
+	#[display(fmt = "Block has invalid uncles hash: {}", _0)]
 	InvalidUnclesHash(Mismatch<H256>),
 	/// An uncle is from a generation too old.
+	#[display(fmt = "Uncle block is too old. {}", _0)]
 	UncleTooOld(OutOfBounds<BlockNumber>),
 	/// An uncle is from the same generation as the block.
+	#[display(fmt = "Uncle from same generation as block. {}", _0)]
 	UncleIsBrother(OutOfBounds<BlockNumber>),
 	/// An uncle is already in the chain.
+	#[display(fmt = "Uncle {} already in chain", _0)]
 	UncleInChain(H256),
 	/// An uncle is included twice.
+	#[display(fmt = "Uncle {} already in the header", _0)]
 	DuplicateUncle(H256),
 	/// An uncle has a parent not in the chain.
+	#[display(fmt = "Uncle {} has a parent not in the chain", _0)]
 	UncleParentNotInChain(H256),
 	/// State root header field is invalid.
+	#[display(fmt = "Invalid state root in header: {}", _0)]
 	InvalidStateRoot(Mismatch<H256>),
 	/// Gas used header field is invalid.
+	#[display(fmt = "Invalid gas used in header: {}", _0)]
 	InvalidGasUsed(Mismatch<U256>),
 	/// Transactions root header field is invalid.
+	#[display(fmt = "Invalid transactions root in header: {}", _0)]
 	InvalidTransactionsRoot(Mismatch<H256>),
 	/// Difficulty is out of range; this can be used as an looser error prior to getting a definitive
 	/// value for difficulty. This error needs only provide bounds of which it is out.
+	#[display(fmt = "Difficulty out of bounds: {}", _0)]
 	DifficultyOutOfBounds(OutOfBounds<U256>),
 	/// Difficulty header field is invalid; this is a strong error used after getting a definitive
 	/// value for difficulty (which is provided).
+	#[display(fmt = "Invalid block difficulty: {}", _0)]
 	InvalidDifficulty(Mismatch<U256>),
 	/// Seal element of type H256 (max_hash for Ethash, but could be something else for
 	/// other seal engines) is out of bounds.
+	#[display(fmt = "Seal element out of bounds: {}", _0)]
 	MismatchedH256SealElement(Mismatch<H256>),
 	/// Proof-of-work aspect of seal, which we assume is a 256-bit value, is invalid.
+	#[display(fmt = "Block has invalid PoW: {}", _0)]
 	InvalidProofOfWork(OutOfBounds<U256>),
 	/// Some low-level aspect of the seal is incorrect.
+	#[display(fmt = "Block has invalid seal.")]
 	InvalidSeal,
 	/// Gas limit header field is invalid.
+	#[display(fmt = "Invalid gas limit: {}", _0)]
 	InvalidGasLimit(OutOfBounds<U256>),
 	/// Receipts trie root header field is invalid.
+	#[display(fmt = "Invalid receipts trie root in header: {}", _0)]
 	InvalidReceiptsRoot(Mismatch<H256>),
 	/// Timestamp header field is invalid.
-	InvalidTimestamp(OutOfBounds<SystemTime>),
+	#[display(fmt = "Invalid timestamp in header: {}", _0)]
+	InvalidTimestamp(OutOfBoundsTime),
 	/// Timestamp header field is too far in future.
-	TemporarilyInvalid(OutOfBounds<SystemTime>),
+	#[display(fmt = "Future timestamp in header: {}", _0)]
+	TemporarilyInvalid(OutOfBoundsTime),
 	/// Log bloom header field is invalid.
+	#[display(fmt = "Invalid log bloom in header: {}", _0)]
 	InvalidLogBloom(Box<Mismatch<Bloom>>),
 	/// Number field of header is invalid.
+	#[display(fmt = "Invalid number in header: {}", _0)]
 	InvalidNumber(Mismatch<BlockNumber>),
 	/// Block number isn't sensible.
+	#[display(fmt = "Implausible block number. {}", _0)]
 	RidiculousNumber(OutOfBounds<BlockNumber>),
 	/// Timestamp header overflowed
+	#[display(fmt = "Timestamp overflow")]
 	TimestampOverflow,
 	/// Too many transactions from a particular address.
+	#[display(fmt = "Too many transactions from: {}", _0)]
 	TooManyTransactions(Address),
 	/// Parent given is unknown.
+	#[display(fmt = "Unknown parent: {}", _0)]
 	UnknownParent(H256),
 	/// Uncle parent given is unknown.
+	#[display(fmt = "Unknown uncle parent: {}", _0)]
 	UnknownUncleParent(H256),
 	/// No transition to epoch number.
+	#[display(fmt = "Unknown transition to epoch number: {}", _0)]
 	UnknownEpochTransition(u64),
 }
 
-impl fmt::Display for BlockError {
+/// Newtype for Display impl to show seconds
+#[derive(Debug, Clone, From, PartialEq, Eq)]
+pub struct OutOfBoundsTime(OutOfBounds<SystemTime>);
+
+impl fmt::Display for OutOfBoundsTime {
 	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-		use self::BlockError::*;
-
-		let msg = match *self {
-			TooManyUncles(ref oob) => format!("Block has too many uncles. {}", oob),
-			ExtraDataOutOfBounds(ref oob) => format!("Extra block data too long. {}", oob),
-			InvalidSealArity(ref mis) => format!("Block seal in incorrect format: {}", mis),
-			TooMuchGasUsed(ref oob) => format!("Block has too much gas used. {}", oob),
-			InvalidUnclesHash(ref mis) => format!("Block has invalid uncles hash: {}", mis),
-			UncleTooOld(ref oob) => format!("Uncle block is too old. {}", oob),
-			UncleIsBrother(ref oob) => format!("Uncle from same generation as block. {}", oob),
-			UncleInChain(ref hash) => format!("Uncle {} already in chain", hash),
-			DuplicateUncle(ref hash) => format!("Uncle {} already in the header", hash),
-			UncleParentNotInChain(ref hash) => format!("Uncle {} has a parent not in the chain", hash),
-			InvalidStateRoot(ref mis) => format!("Invalid state root in header: {}", mis),
-			InvalidGasUsed(ref mis) => format!("Invalid gas used in header: {}", mis),
-			InvalidTransactionsRoot(ref mis) => format!("Invalid transactions root in header: {}", mis),
-			DifficultyOutOfBounds(ref oob) => format!("Invalid block difficulty: {}", oob),
-			InvalidDifficulty(ref mis) => format!("Invalid block difficulty: {}", mis),
-			MismatchedH256SealElement(ref mis) => format!("Seal element out of bounds: {}", mis),
-			InvalidProofOfWork(ref oob) => format!("Block has invalid PoW: {}", oob),
-			InvalidSeal => "Block has invalid seal.".into(),
-			InvalidGasLimit(ref oob) => format!("Invalid gas limit: {}", oob),
-			InvalidReceiptsRoot(ref mis) => format!("Invalid receipts trie root in header: {}", mis),
-			InvalidTimestamp(ref oob) => {
-				let oob = oob.map(|st| st.elapsed().unwrap_or_default().as_secs());
-				format!("Invalid timestamp in header: {}", oob)
-			},
-			TemporarilyInvalid(ref oob) => {
-				let oob = oob.map(|st| st.elapsed().unwrap_or_default().as_secs());
-				format!("Future timestamp in header: {}", oob)
-			},
-			InvalidLogBloom(ref oob) => format!("Invalid log bloom in header: {}", oob),
-			InvalidNumber(ref mis) => format!("Invalid number in header: {}", mis),
-			RidiculousNumber(ref oob) => format!("Implausible block number. {}", oob),
-			UnknownParent(ref hash) => format!("Unknown parent: {}", hash),
-			UnknownUncleParent(ref hash) => format!("Unknown uncle parent: {}", hash),
-			UnknownEpochTransition(ref num) => format!("Unknown transition to epoch number: {}", num),
-			TimestampOverflow => format!("Timestamp overflow"),
-			TooManyTransactions(ref address) => format!("Too many transactions from: {}", address),
-		};
-
-		f.write_fmt(format_args!("Block error ({})", msg))
+		let seconds = self.0
+			.map(|st| st.elapsed().unwrap_or_default().as_secs());
+		f.write_fmt(format_args!("{}", seconds))
 	}
 }
 
@@ -158,49 +150,41 @@ impl error::Error for BlockError {
 	}
 }
 
-error_chain! {
-	types {
-		QueueError, QueueErrorKind, QueueErrorResultExt, QueueErrorResult;
-	}
+/// Queue error
+#[derive(Debug, Display, From)]
+pub enum QueueError {
+	/// Queue is full
+	#[display(fmt = "Queue is full ({})", _0)]
+	Full(usize),
+	/// Io channel error
+	#[display(fmt = "Io channel error: {}", _0)]
+	Channel(::io::IoError)
+}
 
-	errors {
-		#[doc = "Queue is full"]
-		Full(limit: usize) {
-			description("Queue is full")
-			display("The queue is full ({})", limit)
+impl error::Error for QueueError {
+	fn source(&self) -> Option<&(error::Error + 'static)> {
+		match self {
+			QueueError::Channel(e) => Some(e),
+			_ => None,
 		}
-	}
-
-	foreign_links {
-		Channel(::io::IoError) #[doc = "Io channel error"];
 	}
 }
 
-error_chain! {
-	types {
-		ImportError, ImportErrorKind, ImportErrorResultExt, ImportErrorResult;
-	}
-
-	errors {
-		#[doc = "Already in the block chain."]
-		AlreadyInChain {
-			description("Block already in chain")
-			display("Block already in chain")
-		}
-
-		#[doc = "Already in the block queue"]
-		AlreadyQueued {
-			description("block already in the block queue")
-			display("block already in the block queue")
-		}
-
-		#[doc = "Already marked as bad from a previous import (could mean parent is bad)."]
-		KnownBad {
-			description("block known to be bad")
-			display("block known to be bad")
-		}
-	}
+/// Block import Error
+#[derive(Debug, Display)]
+pub enum ImportError {
+	/// Already in the block chain.
+	#[display(fmt = "Block already in chain")]
+	AlreadyInChain,
+	/// Already in the block queue
+	#[display(fmt = "block already in the block queue")]
+	AlreadyQueued,
+	/// Already marked as bad from a previous import (could mean parent is bad)
+	#[display(fmt = "block known to be bad")]
+	KnownBad,
 }
+
+impl error::Error for ImportError {}
 
 /// Api-level error for transaction import
 #[derive(Debug, Clone)]
@@ -214,70 +198,99 @@ pub enum TransactionImportError {
 impl From<Error> for TransactionImportError {
 	fn from(e: Error) -> Self {
 		match e {
-			Error(ErrorKind::Transaction(transaction_error), _) => TransactionImportError::Transaction(transaction_error),
+			Error::Transaction(transaction_error) => TransactionImportError::Transaction(transaction_error),
 			_ => TransactionImportError::Other(format!("other block import error: {:?}", e)),
 		}
 	}
 }
 
-error_chain! {
-	types {
-		Error, ErrorKind, ErrorResultExt, EthcoreResult;
-	}
+/// Ethcore Result
+pub type EthcoreResult<T> = Result<T, Error>;
 
-	links {
-		Import(ImportError, ImportErrorKind) #[doc = "Error concerning block import." ];
-		Queue(QueueError, QueueErrorKind) #[doc = "Io channel queue error"];
-	}
+/// Ethcore Error
+#[derive(Debug, Display, From)]
+pub enum Error {
+	/// Error concerning block import.
+	#[display(fmt = "Import error: {}", _0)]
+	Import(ImportError),
+	/// Io channel queue error
+	#[display(fmt = "Queue error: {}", _0)]
+	Queue(QueueError),
+	/// Io create error
+	#[display(fmt = "Io error: {}", _0)]
+	Io(::io::IoError),
+	/// Error concerning the Rust standard library's IO subsystem.
+	#[display(fmt = "Std Io error: {}", _0)]
+	StdIo(::std::io::Error),
+	/// Error concerning TrieDBs.
+	#[display(fmt = "Trie error: {}", _0)]
+	Trie(TrieError),
+	/// Error concerning EVM code execution.
+	#[display(fmt = "Execution error: {}", _0)]
+	Execution(ExecutionError),
+	/// Error concerning block processing.
+	#[display(fmt = "Block error: {}", _0)]
+	Block(BlockError),
+	/// Error concerning transaction processing.
+	#[display(fmt = "Transaction error: {}", _0)]
+	Transaction(TransactionError),
+	/// Snappy error
+	#[display(fmt = "Snappy error: {}", _0)]
+	Snappy(InvalidInput),
+	/// Consensus vote error.
+	#[display(fmt = "Engine error: {}", _0)]
+	Engine(EngineError),
+	/// Ethkey error."
+	#[display(fmt = "Ethkey error: {}", _0)]
+	Ethkey(EthkeyError),
+	/// RLP decoding errors
+	#[display(fmt = "Decoder error: {}", _0)]
+	Decoder(rlp::DecoderError),
+	/// Snapshot error.
+	#[display(fmt = "Snapshot error {}", _0)]
+	Snapshot(SnapshotError),
+	/// PoW hash is invalid or out of date.
+	#[display(fmt = "PoW hash is invalid or out of date.")]
+	PowHashInvalid,
+	/// The value of the nonce or mishash is invalid.
+	#[display(fmt = "The value of the nonce or mishash is invalid.")]
+	PowInvalid,
+	/// Unknown engine given
+	#[display(fmt = "Unknown engine name ({})", _0)]
+	UnknownEngineName(String),
+	/// A convenient variant for String.
+	#[display(fmt = "{}", _0)]
+	Msg(String),
+}
 
-	foreign_links {
-		Io(::io::IoError) #[doc = "Io create error"];
-		StdIo(::std::io::Error) #[doc = "Error concerning the Rust standard library's IO subsystem."];
-		Trie(TrieError) #[doc = "Error concerning TrieDBs."];
-		Execution(ExecutionError) #[doc = "Error concerning EVM code execution."];
-		Block(BlockError) #[doc = "Error concerning block processing."];
-		Transaction(TransactionError) #[doc = "Error concerning transaction processing."];
-		Snappy(InvalidInput) #[doc = "Snappy error."];
-		Engine(EngineError) #[doc = "Consensus vote error."];
-		Ethkey(EthkeyError) #[doc = "Ethkey error."];
-		Decoder(rlp::DecoderError) #[doc = "RLP decoding errors"];
-	}
-
-	errors {
-		#[doc = "Snapshot error."]
-		Snapshot(err: SnapshotError) {
-			description("Snapshot error.")
-			display("Snapshot error {}", err)
-		}
-
-		#[doc = "PoW hash is invalid or out of date."]
-		PowHashInvalid {
-			description("PoW hash is invalid or out of date.")
-			display("PoW hash is invalid or out of date.")
-		}
-
-		#[doc = "The value of the nonce or mishash is invalid."]
-		PowInvalid {
-			description("The value of the nonce or mishash is invalid.")
-			display("The value of the nonce or mishash is invalid.")
-		}
-
-		#[doc = "Unknown engine given"]
-		UnknownEngineName(name: String) {
-			description("Unknown engine name")
-			display("Unknown engine name ({})", name)
+impl error::Error for Error {
+	fn source(&self) -> Option<&(error::Error + 'static)> {
+		match self {
+			Error::Io(e) => Some(e),
+			Error::StdIo(e) => Some(e),
+			Error::Trie(e) => Some(e),
+			Error::Execution(e) => Some(e),
+			Error::Block(e) => Some(e),
+			Error::Transaction(e) => Some(e),
+			Error::Snappy(e) => Some(e),
+			Error::Engine(e) => Some(e),
+			Error::Ethkey(e) => Some(e),
+			Error::Decoder(e) => Some(e),
+			Error::Snapshot(e) => Some(e),
+			_ => None,
 		}
 	}
 }
 
-impl From<SnapshotError> for Error {
-	fn from(err: SnapshotError) -> Error {
-		match err {
-			SnapshotError::Io(err) => ErrorKind::StdIo(err).into(),
-			SnapshotError::Trie(err) => ErrorKind::Trie(err).into(),
-			SnapshotError::Decoder(err) => err.into(),
-			other => ErrorKind::Snapshot(other).into(),
-		}
+impl From<String> for Error {
+	fn from(s: String) -> Self {
+		Error::Msg(s)
+	}
+}
+
+impl From<&str> for Error {
+	fn from(s: &str) -> Self {
+		Error::Msg(s.into())
 	}
 }
 

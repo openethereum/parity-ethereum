@@ -19,7 +19,7 @@
 use std::collections::HashMap;
 use std::mem;
 
-use ethereum_types::{U256, H256};
+use ethereum_types::{U256, H256, BigEndianHash};
 use bytes::ToPretty;
 use ethcore::trace;
 
@@ -168,7 +168,7 @@ impl trace::VMTracer for Informant {
 			}
 
 			if let Some((pos, val)) = store_diff {
-				informant.storage.insert(pos.into(), val.into());
+				informant.storage.insert(BigEndianHash::from_uint(&pos), BigEndianHash::from_uint(&val));
 			}
 
 			if !informant.subtraces.is_empty() {

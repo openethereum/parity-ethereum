@@ -89,6 +89,8 @@ pub enum EngineError {
 	InvalidEngine,
 	/// Requires signer ref, but none registered.
 	RequiresSigner,
+	/// Missing Parent Epoch
+	MissingParent,
 	/// Checkpoint is missing
 	CliqueMissingCheckpoint(H256),
 	/// Missing vanity data
@@ -137,6 +139,7 @@ impl fmt::Display for EngineError {
 			RequiresClient => format!("Call requires client but none registered"),
 			RequiresSigner => format!("Call requires signer but none registered"),
 			InvalidEngine => format!("Invalid engine specification or implementation"),
+			MissingParent => format!("Parent Epoch is missing from database"),
 		};
 
 		f.write_fmt(format_args!("Engine error ({})", msg))
@@ -158,6 +161,17 @@ pub enum Seal {
 	Regular(Vec<Bytes>),
 	/// Engine does not generate seal for this block right now.
 	None,
+}
+
+/// The type of sealing the engine is currently able to perform.
+#[derive(Debug, PartialEq, Eq)]
+pub enum SealingState {
+	/// The engine is ready to seal a block.
+	Ready,
+	/// The engine can't seal at the moment, and no block should be prepared and queued.
+	NotReady,
+	/// The engine does not seal internally.
+	External,
 }
 
 /// A system-calling closure. Enacts calls on a block's state from the system address.
@@ -302,10 +316,8 @@ pub trait Engine<M: Machine>: Sync + Send {
 	/// Allow mutating the header during seal generation. Currently only used by Clique.
 	fn on_seal_block(&self, _block: &mut ExecutedBlock) -> Result<(), Error> { Ok(()) }
 
-	/// None means that it requires external input (e.g. PoW) to seal a block.
-	/// Some(true) means the engine is currently prime for seal generation (i.e. node is the current validator).
-	/// Some(false) means that the node might seal internally but is not qualified now.
-	fn seals_internally(&self) -> Option<bool> { None }
+	/// Returns the engine's current sealing state.
+	fn sealing_state(&self) -> SealingState { SealingState::External }
 
 	/// Attempt to seal the block internally.
 	///
@@ -424,9 +436,6 @@ pub trait Engine<M: Machine>: Sync + Send {
 
 	/// Trigger next step of the consensus engine.
 	fn step(&self) {}
-
-	/// Stops any services that the may hold the Engine and makes it safe to drop.
-	fn stop(&mut self) {}
 
 	/// Create a factory for building snapshot chunks and restoring from them.
 	/// Returning `None` indicates that this engine doesn't support snapshot creation.

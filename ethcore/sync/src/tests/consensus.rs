@@ -32,7 +32,7 @@ fn new_tx(secret: &Secret, nonce: U256, chain_id: u64) -> PendingTransaction {
 		nonce: nonce.into(),
 		gas_price: 0.into(),
 		gas: 21000.into(),
-		action: Action::Call(Address::default()),
+		action: Action::Call(Address::zero()),
 		value: 0.into(),
 		data: Vec::new(),
 	}.sign(secret, Some(chain_id));
@@ -41,8 +41,8 @@ fn new_tx(secret: &Secret, nonce: U256, chain_id: u64) -> PendingTransaction {
 
 #[test]
 fn authority_round() {
-	let s0 = KeyPair::from_secret_slice(&keccak("1")).unwrap();
-	let s1 = KeyPair::from_secret_slice(&keccak("0")).unwrap();
+	let s0 = KeyPair::from_secret_slice(keccak("1").as_bytes()).unwrap();
+	let s1 = KeyPair::from_secret_slice(keccak("0").as_bytes()).unwrap();
 
 	let chain_id = Spec::new_test_round().chain_id();
 	let mut net = TestNet::with_spec(2, SyncConfig::default(), Spec::new_test_round);
