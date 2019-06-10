@@ -16,6 +16,7 @@
 
 //! Snapshot-related errors.
 
+use std::error;
 use std::fmt;
 
 use types::ids::BlockId;
@@ -67,6 +68,17 @@ pub enum Error {
 	WrongChunkFormat(String),
 	/// Unlinked ancient block chain
 	UnlinkedAncientBlockChain,
+}
+
+impl error::Error for Error {
+	fn source(&self) -> Option<&(error::Error + 'static)> {
+		match self {
+			Error::Trie(e) => Some(e),
+			Error::Decoder(e) => Some(e),
+			Error::Io(e) => Some(e),
+			_ => None,
+		}
+	}
 }
 
 impl fmt::Display for Error {

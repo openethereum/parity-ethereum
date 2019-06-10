@@ -204,7 +204,7 @@ impl<'a> EvmTestClient<'a> {
 			author: *genesis.author(),
 			timestamp: genesis.timestamp(),
 			difficulty: *genesis.difficulty(),
-			last_hashes: Arc::new([H256::default(); 256].to_vec()),
+			last_hashes: Arc::new([H256::zero(); 256].to_vec()),
 			gas_used: 0.into(),
 			gas_limit: *genesis.gas_limit(),
 		};

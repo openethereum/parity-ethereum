@@ -16,8 +16,9 @@
 
 use std::sync::Arc;
 use std::collections::HashMap;
+use std::str::FromStr;
 use byteorder::{LittleEndian, ByteOrder};
-use ethereum_types::{H256, U256, Address};
+use ethereum_types::{H256, U256, Address, BigEndianHash as _};
 
 use super::WasmInterpreter;
 use vm::{self, Exec, GasLeft, ActionParams, ActionValue, CreateContractAddress};
@@ -134,7 +135,10 @@ fn logger() {
 		"Logger sets 0x03 key to the provided origin"
 	);
 	assert_eq!(
-		U256::from(ext.store.get(&"0400000000000000000000000000000000000000000000000000000000000000".parse().unwrap()).expect("storage key to exist")),
+		ext.store
+			.get(&"0400000000000000000000000000000000000000000000000000000000000000".parse().unwrap())
+			.expect("storage key to exist")
+			.into_uint(),
 		U256::from(1_000_000_000),
 		"Logger sets 0x04 key to the trasferred value"
 	);
@@ -250,7 +254,7 @@ fn suicide() {
 	params.code = Some(Arc::new(code));
 
 	let mut args = vec![127u8];
-	args.extend(refund.to_vec());
+	args.extend(refund.as_bytes().to_vec());
 	params.data = Some(args);
 
 	let mut ext = FakeExt::new().with_wasm();
@@ -311,10 +315,13 @@ fn create() {
 			code_address: None,
 		}
 	));
+	let mut salt = [0u8; 32];
+	salt[0] = 5;
+	let salt = H256::from_slice(salt.as_ref());
 	assert!(ext.calls.contains(
 		&FakeCall {
 			call_type: FakeCallType::Create,
-			create_scheme: Some(CreateContractAddress::FromSenderSaltAndCodeHash(H256::from([5u8].as_ref()))),
+			create_scheme: Some(CreateContractAddress::FromSenderSaltAndCodeHash(salt)),
 			gas: U256::from(6039),
 			sender_address: None,
 			receive_address: None,
@@ -572,7 +579,8 @@ fn storage_read() {
 	params.gas = U256::from(100_000);
 	params.code = Some(Arc::new(code));
 	let mut ext = FakeExt::new().with_wasm();
-	ext.store.insert("0100000000000000000000000000000000000000000000000000000000000000".into(), address.into());
+	let hash = H256::from_str("0100000000000000000000000000000000000000000000000000000000000000").unwrap();
+	ext.store.insert(hash, address.into());
 
 	let (gas_left, result) = {
 		let mut interpreter = wasm_interpreter(params);
@@ -583,7 +591,7 @@ fn storage_read() {
 		}
 	};
 
-	assert_eq!(Address::from(&result[12..32]), address);
+	assert_eq!(Address::from_slice(&result[12..32]), address);
 	assert_eq!(gas_left, U256::from(98_369));
 }
 
@@ -609,7 +617,10 @@ fn keccak() {
 		}
 	};
 
-	assert_eq!(H256::from_slice(&result), H256::from("68371d7e884c168ae2022c82bd837d51837718a7f7dfb7aa3f753074a35e1d87"));
+	assert_eq!(
+		H256::from_slice(&result),
+		H256::from_str("68371d7e884c168ae2022c82bd837d51837718a7f7dfb7aa3f753074a35e1d87").unwrap(),
+	);
 	assert_eq!(gas_left, U256::from(85_949));
 }
 
@@ -786,7 +797,7 @@ fn externs() {
 			number: 0x9999999999u64.into(),
 			author: "efefefefefefefefefefefefefefefefefefefef".parse().unwrap(),
 			timestamp: 0x8888888888u64.into(),
-			difficulty: H256::from("0f1f2f3f4f5f6f7f8f9fafbfcfdfefff0d1d2d3d4d5d6d7d8d9dadbdcdddedfd").into(),
+			difficulty: U256::from_str("0f1f2f3f4f5f6f7f8f9fafbfcfdfefff0d1d2d3d4d5d6d7d8d9dadbdcdddedfd").unwrap(),
 			gas_limit: 0x777777777777u64.into(),
 			last_hashes: Default::default(),
 			gas_used: 0.into(),
@@ -795,11 +806,11 @@ fn externs() {
 			let mut hashes = HashMap::new();
 			hashes.insert(
 				U256::from(0),
-				H256::from("9d9d9d9d9d9d9d9d9d9d9d9d9d9d9d9d9d9d9d9d9d9d9d9d9d9d9d9d9d9d9d9d")
+				H256::from_str("9d9d9d9d9d9d9d9d9d9d9d9d9d9d9d9d9d9d9d9d9d9d9d9d9d9d9d9d9d9d9d9d").unwrap(),
 			);
 			hashes.insert(
 				U256::from(1),
-				H256::from("7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b")
+				H256::from_str("7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b").unwrap(),
 			);
 			hashes
 		}
@@ -926,7 +937,10 @@ fn embedded_keccak() {
 		}
 	};
 
-	assert_eq!(H256::from_slice(&result), H256::from("68371d7e884c168ae2022c82bd837d51837718a7f7dfb7aa3f753074a35e1d87"));
+	assert_eq!(
+		H256::from_slice(&result),
+		H256::from_str("68371d7e884c168ae2022c82bd837d51837718a7f7dfb7aa3f753074a35e1d87").unwrap(),
+	);
 	assert_eq!(gas_left, U256::from(85_949));
 }
 
@@ -957,9 +971,15 @@ fn events() {
 	assert_eq!(ext.logs.len(), 1);
 	let log_entry = &ext.logs[0];
 	assert_eq!(log_entry.topics.len(), 2);
-	assert_eq!(&log_entry.topics[0], &H256::from("68371d7e884c168ae2022c82bd837d51837718a7f7dfb7aa3f753074a35e1d87"));
-	assert_eq!(&log_entry.topics[1], &H256::from("871d5ea37430753faab7dff7a7187783517d83bd822c02e28a164c887e1d3768"));
-	assert_eq!(&log_entry.data, b"gnihtemos");
+	assert_eq!(
+		log_entry.topics[0],
+		H256::from_str("68371d7e884c168ae2022c82bd837d51837718a7f7dfb7aa3f753074a35e1d87").unwrap(),
+	);
+	assert_eq!(
+		log_entry.topics[1],
+		H256::from_str("871d5ea37430753faab7dff7a7187783517d83bd822c02e28a164c887e1d3768").unwrap(),
+	);
+	assert_eq!(log_entry.data, b"gnihtemos");
 
 	assert_eq!(&result, b"gnihtemos");
 	assert_eq!(gas_left, U256::from(83_161));

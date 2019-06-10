@@ -377,6 +377,7 @@ mod test {
 	use super::{*, super::tests::*};
 	use blocks::SyncHeader;
 	use ethcore::client::{BlockChainClient, EachBlockWith, TestBlockChainClient};
+	use std::str::FromStr;
 
 	#[test]
 	fn return_block_headers() {
@@ -412,7 +413,7 @@ mod test {
 		let ss = TestSnapshotService::new();
 		let io = TestIo::new(&mut client, &ss, &queue, None);
 
-		let unknown: H256 = H256::new();
+		let unknown: H256 = H256::zero();
 		let result = SyncSupplier::return_block_headers(&io, &Rlp::new(&make_hash_req(&unknown, 1, 0, false)), 0);
 		assert!(to_header_vec(result).is_empty());
 		let result = SyncSupplier::return_block_headers(&io, &Rlp::new(&make_hash_req(&unknown, 1, 0, true)), 0);
@@ -483,14 +484,14 @@ mod test {
 	fn return_nodes() {
 		let mut client = TestBlockChainClient::new();
 		let queue = RwLock::new(VecDeque::new());
-		let sync = dummy_sync_with_peer(H256::new(), &client);
+		let sync = dummy_sync_with_peer(H256::zero(), &client);
 		let ss = TestSnapshotService::new();
 		let mut io = TestIo::new(&mut client, &ss, &queue, None);
 
 		let mut node_list = RlpStream::new_list(3);
-		node_list.append(&H256::from("0000000000000000000000000000000000000000000000005555555555555555"));
-		node_list.append(&H256::from("ffffffffffffffffffffffffffffffffffffffffffffaaaaaaaaaaaaaaaaaaaa"));
-		node_list.append(&H256::from("aff0000000000000000000000000000000000000000000000000000000000000"));
+		node_list.append(&H256::from_str("0000000000000000000000000000000000000000000000005555555555555555").unwrap());
+		node_list.append(&H256::from_str("ffffffffffffffffffffffffffffffffffffffffffffaaaaaaaaaaaaaaaaaaaa").unwrap());
+		node_list.append(&H256::from_str("aff0000000000000000000000000000000000000000000000000000000000000").unwrap());
 
 		let node_request = node_list.out();
 		// it returns rlp ONLY for hashes started with "f"
@@ -527,15 +528,15 @@ mod test {
 	fn return_receipts() {
 		let mut client = TestBlockChainClient::new();
 		let queue = RwLock::new(VecDeque::new());
-		let sync = dummy_sync_with_peer(H256::new(), &client);
+		let sync = dummy_sync_with_peer(H256::zero(), &client);
 		let ss = TestSnapshotService::new();
 		let mut io = TestIo::new(&mut client, &ss, &queue, None);
 
 		let mut receipt_list = RlpStream::new_list(4);
-		receipt_list.append(&H256::from("0000000000000000000000000000000000000000000000005555555555555555"));
-		receipt_list.append(&H256::from("ff00000000000000000000000000000000000000000000000000000000000000"));
-		receipt_list.append(&H256::from("fff0000000000000000000000000000000000000000000000000000000000000"));
-		receipt_list.append(&H256::from("aff0000000000000000000000000000000000000000000000000000000000000"));
+		receipt_list.append(&H256::from_str("0000000000000000000000000000000000000000000000005555555555555555").unwrap());
+		receipt_list.append(&H256::from_str("ff00000000000000000000000000000000000000000000000000000000000000").unwrap());
+		receipt_list.append(&H256::from_str("fff0000000000000000000000000000000000000000000000000000000000000").unwrap());
+		receipt_list.append(&H256::from_str("aff0000000000000000000000000000000000000000000000000000000000000").unwrap());
 
 		let receipts_request = receipt_list.out();
 		// it returns rlp ONLY for hashes started with "f"

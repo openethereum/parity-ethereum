@@ -22,7 +22,8 @@ use ethkey::Public;
 use key_server_cluster::{Error, NodeId, SessionId, Requester, AclStorage, KeyStorage, DocumentKeyShare, SessionMeta};
 use key_server_cluster::cluster::{Cluster, ClusterConfiguration};
 use key_server_cluster::connection_trigger::ServersSetChangeSessionCreatorConnector;
-use key_server_cluster::cluster_sessions::{ClusterSession, SessionIdWithSubSession, AdminSession, AdminSessionCreationData};
+use key_server_cluster::cluster_sessions::{WaitableSession, ClusterSession, SessionIdWithSubSession,
+	AdminSession, AdminSessionCreationData};
 use key_server_cluster::message::{self, Message, DecryptionMessage, SchnorrSigningMessage, ConsensusMessageOfShareAdd,
 	ShareAddMessage, ServersSetChangeMessage, ConsensusMessage, ConsensusMessageWithServersSet, EcdsaSigningMessage};
 use key_server_cluster::generation_session::{SessionImpl as GenerationSessionImpl, SessionParams as GenerationSessionParams};
@@ -43,9 +44,9 @@ use key_server_cluster::key_version_negotiation_session::{SessionImpl as KeyVers
 use key_server_cluster::admin_sessions::ShareChangeSessionMeta;
 
 /// Generic cluster session creator.
-pub trait ClusterSessionCreator<S: ClusterSession, D> {
+pub trait ClusterSessionCreator<S: ClusterSession> {
 	/// Get creation data from message.
-	fn creation_data_from_message(_message: &Message) -> Result<Option<D>, Error> {
+	fn creation_data_from_message(_message: &Message) -> Result<Option<S::CreationData>, Error> {
 		Ok(None)
 	}
 
@@ -53,7 +54,14 @@ pub trait ClusterSessionCreator<S: ClusterSession, D> {
 	fn make_error_message(sid: S::Id, nonce: u64, err: Error) -> Message;
 
 	/// Create cluster session.
-	fn create(&self, cluster: Arc<Cluster>, master: NodeId, nonce: Option<u64>, id: S::Id, creation_data: Option<D>) -> Result<Arc<S>, Error>;
+	fn create(
+		&self,
+		cluster: Arc<Cluster>,
+		master: NodeId,
+		nonce: Option<u64>,
+		id: S::Id,
+		creation_data: Option<S::CreationData>,
+	) -> Result<WaitableSession<S>, Error>;
 }
 
 /// Message with session id.
@@ -134,7 +142,7 @@ impl GenerationSessionCreator {
 	}
 }
 
-impl ClusterSessionCreator<GenerationSessionImpl, ()> for GenerationSessionCreator {
+impl ClusterSessionCreator<GenerationSessionImpl> for GenerationSessionCreator {
 	fn make_error_message(sid: SessionId, nonce: u64, err: Error) -> Message {
 		message::Message::Generation(message::GenerationMessage::SessionError(message::SessionError {
 			session: sid.into(),
@@ -143,27 +151,33 @@ impl ClusterSessionCreator<GenerationSessionImpl, ()> for GenerationSessionCreat
 		}))
 	}
 
-	fn create(&self, cluster: Arc<Cluster>, master: NodeId, nonce: Option<u64>, id: SessionId, _creation_data: Option<()>) -> Result<Arc<GenerationSessionImpl>, Error> {
+	fn create(
+		&self,
+		cluster: Arc<Cluster>,
+		master: NodeId,
+		nonce: Option<u64>,
+		id: SessionId,
+		_creation_data: Option<()>,
+	) -> Result<WaitableSession<GenerationSessionImpl>, Error> {
 		// check that there's no finished encryption session with the same id
 		if self.core.key_storage.contains(&id) {
 			return Err(Error::ServerKeyAlreadyGenerated);
 		}
 
 		let nonce = self.core.check_session_nonce(&master, nonce)?;
-		Ok(GenerationSessionImpl::new(GenerationSessionParams {
+		let (session, oneshot) = GenerationSessionImpl::new(GenerationSessionParams {
 			id: id.clone(),
 			self_node_id: self.core.self_node_id.clone(),
 			key_storage: Some(self.core.key_storage.clone()),
 			cluster: cluster,
 			nonce: Some(nonce),
-		}))
-		.map(|session| {
-			if self.make_faulty_generation_sessions.load(Ordering::Relaxed) {
-				session.simulate_faulty_behaviour();
-			}
-			session
-		})
-		.map(Arc::new)
+		});
+
+		if self.make_faulty_generation_sessions.load(Ordering::Relaxed) {
+			session.simulate_faulty_behaviour();
+		}
+
+		Ok(WaitableSession::new(session, oneshot))
 	}
 }
 
@@ -173,7 +187,7 @@ pub struct EncryptionSessionCreator {
 	pub core: Arc<SessionCreatorCore>,
 }
 
-impl ClusterSessionCreator<EncryptionSessionImpl, ()> for EncryptionSessionCreator {
+impl ClusterSessionCreator<EncryptionSessionImpl> for EncryptionSessionCreator {
 	fn make_error_message(sid: SessionId, nonce: u64, err: Error) -> Message {
 		message::Message::Encryption(message::EncryptionMessage::EncryptionSessionError(message::EncryptionSessionError {
 			session: sid.into(),
@@ -182,17 +196,26 @@ impl ClusterSessionCreator<EncryptionSessionImpl, ()> for EncryptionSessionCreat
 		}))
 	}
 
-	fn create(&self, cluster: Arc<Cluster>, master: NodeId, nonce: Option<u64>, id: SessionId, _creation_data: Option<()>) -> Result<Arc<EncryptionSessionImpl>, Error> {
+	fn create(
+		&self,
+		cluster: Arc<Cluster>,
+		master: NodeId,
+		nonce: Option<u64>,
+		id: SessionId,
+		_creation_data: Option<()>,
+	) -> Result<WaitableSession<EncryptionSessionImpl>, Error> {
 		let encrypted_data = self.core.read_key_share(&id)?;
 		let nonce = self.core.check_session_nonce(&master, nonce)?;
-		Ok(Arc::new(EncryptionSessionImpl::new(EncryptionSessionParams {
+		let (session, oneshot) = EncryptionSessionImpl::new(EncryptionSessionParams {
 			id: id,
 			self_node_id: self.core.self_node_id.clone(),
 			encrypted_data: encrypted_data,
 			key_storage: self.core.key_storage.clone(),
 			cluster: cluster,
 			nonce: nonce,
-		})?))
+		})?;
+
+		Ok(WaitableSession::new(session, oneshot))
 	}
 }
 
@@ -202,7 +225,7 @@ pub struct DecryptionSessionCreator {
 	pub core: Arc<SessionCreatorCore>,
 }
 
-impl ClusterSessionCreator<DecryptionSessionImpl, Requester> for DecryptionSessionCreator {
+impl ClusterSessionCreator<DecryptionSessionImpl> for DecryptionSessionCreator {
 	fn creation_data_from_message(message: &Message) -> Result<Option<Requester>, Error> {
 		match *message {
 			Message::Decryption(DecryptionMessage::DecryptionConsensusMessage(ref message)) => match &message.message {
@@ -223,10 +246,17 @@ impl ClusterSessionCreator<DecryptionSessionImpl, Requester> for DecryptionSessi
 		}))
 	}
 
-	fn create(&self, cluster: Arc<Cluster>, master: NodeId, nonce: Option<u64>, id: SessionIdWithSubSession, requester: Option<Requester>) -> Result<Arc<DecryptionSessionImpl>, Error> {
+	fn create(
+		&self,
+		cluster: Arc<Cluster>,
+		master: NodeId,
+		nonce: Option<u64>,
+		id: SessionIdWithSubSession,
+		requester: Option<Requester>,
+	) -> Result<WaitableSession<DecryptionSessionImpl>, Error> {
 		let encrypted_data = self.core.read_key_share(&id.id)?;
 		let nonce = self.core.check_session_nonce(&master, nonce)?;
-		Ok(Arc::new(DecryptionSessionImpl::new(DecryptionSessionParams {
+		let (session, oneshot) = DecryptionSessionImpl::new(DecryptionSessionParams {
 			meta: SessionMeta {
 				id: id.id,
 				self_node_id: self.core.self_node_id.clone(),
@@ -240,7 +270,9 @@ impl ClusterSessionCreator<DecryptionSessionImpl, Requester> for DecryptionSessi
 			acl_storage: self.core.acl_storage.clone(),
 			cluster: cluster,
 			nonce: nonce,
-		}, requester)?))
+		}, requester)?;
+
+		Ok(WaitableSession::new(session, oneshot))
 	}
 }
 
@@ -250,7 +282,7 @@ pub struct SchnorrSigningSessionCreator {
 	pub core: Arc<SessionCreatorCore>,
 }
 
-impl ClusterSessionCreator<SchnorrSigningSessionImpl, Requester> for SchnorrSigningSessionCreator {
+impl ClusterSessionCreator<SchnorrSigningSessionImpl> for SchnorrSigningSessionCreator {
 	fn creation_data_from_message(message: &Message) -> Result<Option<Requester>, Error> {
 		match *message {
 			Message::SchnorrSigning(SchnorrSigningMessage::SchnorrSigningConsensusMessage(ref message)) => match &message.message {
@@ -271,10 +303,17 @@ impl ClusterSessionCreator<SchnorrSigningSessionImpl, Requester> for SchnorrSign
 		}))
 	}
 
-	fn create(&self, cluster: Arc<Cluster>, master: NodeId, nonce: Option<u64>, id: SessionIdWithSubSession, requester: Option<Requester>) -> Result<Arc<SchnorrSigningSessionImpl>, Error> {
+	fn create(
+		&self,
+		cluster: Arc<Cluster>,
+		master: NodeId,
+		nonce: Option<u64>,
+		id: SessionIdWithSubSession,
+		requester: Option<Requester>,
+	) -> Result<WaitableSession<SchnorrSigningSessionImpl>, Error> {
 		let encrypted_data = self.core.read_key_share(&id.id)?;
 		let nonce = self.core.check_session_nonce(&master, nonce)?;
-		Ok(Arc::new(SchnorrSigningSessionImpl::new(SchnorrSigningSessionParams {
+		let (session, oneshot) = SchnorrSigningSessionImpl::new(SchnorrSigningSessionParams {
 			meta: SessionMeta {
 				id: id.id,
 				self_node_id: self.core.self_node_id.clone(),
@@ -288,7 +327,8 @@ impl ClusterSessionCreator<SchnorrSigningSessionImpl, Requester> for SchnorrSign
 			acl_storage: self.core.acl_storage.clone(),
 			cluster: cluster,
 			nonce: nonce,
-		}, requester)?))
+		}, requester)?;
+		Ok(WaitableSession::new(session, oneshot))
 	}
 }
 
@@ -298,7 +338,7 @@ pub struct EcdsaSigningSessionCreator {
 	pub core: Arc<SessionCreatorCore>,
 }
 
-impl ClusterSessionCreator<EcdsaSigningSessionImpl, Requester> for EcdsaSigningSessionCreator {
+impl ClusterSessionCreator<EcdsaSigningSessionImpl> for EcdsaSigningSessionCreator {
 	fn creation_data_from_message(message: &Message) -> Result<Option<Requester>, Error> {
 		match *message {
 			Message::EcdsaSigning(EcdsaSigningMessage::EcdsaSigningConsensusMessage(ref message)) => match &message.message {
@@ -319,10 +359,10 @@ impl ClusterSessionCreator<EcdsaSigningSessionImpl, Requester> for EcdsaSigningS
 		}))
 	}
 
-	fn create(&self, cluster: Arc<Cluster>, master: NodeId, nonce: Option<u64>, id: SessionIdWithSubSession, requester: Option<Requester>) -> Result<Arc<EcdsaSigningSessionImpl>, Error> {
+	fn create(&self, cluster: Arc<Cluster>, master: NodeId, nonce: Option<u64>, id: SessionIdWithSubSession, requester: Option<Requester>) -> Result<WaitableSession<EcdsaSigningSessionImpl>, Error> {
 		let encrypted_data = self.core.read_key_share(&id.id)?;
 		let nonce = self.core.check_session_nonce(&master, nonce)?;
-		Ok(Arc::new(EcdsaSigningSessionImpl::new(EcdsaSigningSessionParams {
+		let (session, oneshot) = EcdsaSigningSessionImpl::new(EcdsaSigningSessionParams {
 			meta: SessionMeta {
 				id: id.id,
 				self_node_id: self.core.self_node_id.clone(),
@@ -336,7 +376,9 @@ impl ClusterSessionCreator<EcdsaSigningSessionImpl, Requester> for EcdsaSigningS
 			acl_storage: self.core.acl_storage.clone(),
 			cluster: cluster,
 			nonce: nonce,
-		}, requester)?))
+		}, requester)?;
+
+		Ok(WaitableSession::new(session, oneshot))
 	}
 }
 
@@ -346,7 +388,7 @@ pub struct KeyVersionNegotiationSessionCreator {
 	pub core: Arc<SessionCreatorCore>,
 }
 
-impl ClusterSessionCreator<KeyVersionNegotiationSessionImpl<VersionNegotiationTransport>, ()> for KeyVersionNegotiationSessionCreator {
+impl ClusterSessionCreator<KeyVersionNegotiationSessionImpl<VersionNegotiationTransport>> for KeyVersionNegotiationSessionCreator {
 	fn make_error_message(sid: SessionIdWithSubSession, nonce: u64, err: Error) -> Message {
 		message::Message::KeyVersionNegotiation(message::KeyVersionNegotiationMessage::KeyVersionsError(message::KeyVersionsError {
 			session: sid.id.into(),
@@ -359,14 +401,21 @@ impl ClusterSessionCreator<KeyVersionNegotiationSessionImpl<VersionNegotiationTr
 		}))
 	}
 
-	fn create(&self, cluster: Arc<Cluster>, master: NodeId, nonce: Option<u64>, id: SessionIdWithSubSession, _creation_data: Option<()>) -> Result<Arc<KeyVersionNegotiationSessionImpl<VersionNegotiationTransport>>, Error> {
+	fn create(
+		&self,
+		cluster: Arc<Cluster>,
+		master: NodeId,
+		nonce: Option<u64>,
+		id: SessionIdWithSubSession,
+		_creation_data: Option<()>,
+	) -> Result<WaitableSession<KeyVersionNegotiationSessionImpl<VersionNegotiationTransport>>, Error> {
 		let configured_nodes_count = cluster.configured_nodes_count();
 		let connected_nodes_count = cluster.connected_nodes_count();
 		let encrypted_data = self.core.read_key_share(&id.id)?;
 		let nonce = self.core.check_session_nonce(&master, nonce)?;
 		let computer = Arc::new(FastestResultKeyVersionsResultComputer::new(self.core.self_node_id.clone(), encrypted_data.as_ref(),
 			configured_nodes_count, configured_nodes_count));
-		Ok(Arc::new(KeyVersionNegotiationSessionImpl::new(KeyVersionNegotiationSessionParams {
+		let (session, oneshot) = KeyVersionNegotiationSessionImpl::new(KeyVersionNegotiationSessionParams {
 			meta: ShareChangeSessionMeta {
 				id: id.id.clone(),
 				self_node_id: self.core.self_node_id.clone(),
@@ -384,7 +433,8 @@ impl ClusterSessionCreator<KeyVersionNegotiationSessionImpl<VersionNegotiationTr
 				nonce: nonce,
 			},
 			nonce: nonce,
-		})))
+		});
+		Ok(WaitableSession::new(session, oneshot))
 	}
 }
 
@@ -398,7 +448,7 @@ pub struct AdminSessionCreator {
 	pub servers_set_change_session_creator_connector: Arc<ServersSetChangeSessionCreatorConnector>,
 }
 
-impl ClusterSessionCreator<AdminSession, AdminSessionCreationData> for AdminSessionCreator {
+impl ClusterSessionCreator<AdminSession> for AdminSessionCreator {
 	fn creation_data_from_message(message: &Message) -> Result<Option<AdminSessionCreationData>, Error> {
 		match *message {
 			Message::ServersSetChange(ServersSetChangeMessage::ServersSetChangeConsensusMessage(ref message)) => match &message.message {
@@ -424,11 +474,18 @@ impl ClusterSessionCreator<AdminSession, AdminSessionCreationData> for AdminSess
 		}))
 	}
 
-	fn create(&self, cluster: Arc<Cluster>, master: NodeId, nonce: Option<u64>, id: SessionId, creation_data: Option<AdminSessionCreationData>) -> Result<Arc<AdminSession>, Error> {
+	fn create(
+		&self,
+		cluster: Arc<Cluster>,
+		master: NodeId,
+		nonce: Option<u64>,
+		id: SessionId,
+		creation_data: Option<AdminSessionCreationData>,
+	) -> Result<WaitableSession<AdminSession>, Error> {
 		let nonce = self.core.check_session_nonce(&master, nonce)?;
-		Ok(Arc::new(match creation_data {
+		match creation_data {
 			Some(AdminSessionCreationData::ShareAdd(version)) => {
-				AdminSession::ShareAdd(ShareAddSessionImpl::new(ShareAddSessionParams {
+				let (session, oneshot) = ShareAddSessionImpl::new(ShareAddSessionParams {
 					meta: ShareChangeSessionMeta {
 						id: id.clone(),
 						self_node_id: self.core.self_node_id.clone(),
@@ -440,13 +497,14 @@ impl ClusterSessionCreator<AdminSession, AdminSessionCreationData> for AdminSess
 					key_storage: self.core.key_storage.clone(),
 					nonce: nonce,
 					admin_public: Some(self.admin_public.clone().ok_or(Error::AccessDenied)?),
-				})?)
+				})?;
+				Ok(WaitableSession::new(AdminSession::ShareAdd(session), oneshot))
 			},
 			Some(AdminSessionCreationData::ServersSetChange(migration_id, new_nodes_set)) => {
 				let admin_public = self.servers_set_change_session_creator_connector.admin_public(migration_id.as_ref(), new_nodes_set)
 					.map_err(|_| Error::AccessDenied)?;
 
-				AdminSession::ServersSetChange(ServersSetChangeSessionImpl::new(ServersSetChangeSessionParams {
+				let (session, oneshot) = ServersSetChangeSessionImpl::new(ServersSetChangeSessionParams {
 					meta: ShareChangeSessionMeta {
 						id: id.clone(),
 						self_node_id: self.core.self_node_id.clone(),
@@ -460,10 +518,11 @@ impl ClusterSessionCreator<AdminSession, AdminSessionCreationData> for AdminSess
 					all_nodes_set: cluster.nodes(),
 					admin_public: admin_public,
 					migration_id: migration_id,
-				})?)
+				})?;
+				Ok(WaitableSession::new(AdminSession::ServersSetChange(session), oneshot))
 			},
 			None => unreachable!("expected to call with non-empty creation data; qed"),
-		}))
+		}
 	}
 }
 

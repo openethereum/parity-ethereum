@@ -14,11 +14,11 @@ echo "RUSTC_WRAPPER:    " $RUSTC_WRAPPER
 echo "SCCACHE_DIR:      " $SCCACHE_DIR
 
 echo "_____ Building target: "$CARGO_TARGET" _____"
-time cargo build --target $CARGO_TARGET --release --features final
-time cargo build --target $CARGO_TARGET --release -p evmbin
-time cargo build --target $CARGO_TARGET --release -p ethstore-cli
-time cargo build --target $CARGO_TARGET --release -p ethkey-cli
-time cargo build --target $CARGO_TARGET --release -p whisper-cli
+time cargo build --target $CARGO_TARGET --verbose --release --features final
+time cargo build --target $CARGO_TARGET --verbose --release -p evmbin
+time cargo build --target $CARGO_TARGET --verbose --release -p ethstore-cli
+time cargo build --target $CARGO_TARGET --verbose --release -p ethkey-cli
+time cargo build --target $CARGO_TARGET --verbose --release -p whisper-cli
 
 echo "__________Sign binaries__________"
 scripts/gitlab/sign-win.cmd $keyfile $certpass target/$CARGO_TARGET/release/parity.exe

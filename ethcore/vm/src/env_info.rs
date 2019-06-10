@@ -51,7 +51,7 @@ impl Default for EnvInfo {
 	fn default() -> Self {
 		EnvInfo {
 			number: 0,
-			author: Address::default(),
+			author: Address::zero(),
 			timestamp: 0,
 			difficulty: 0.into(),
 			gas_limit: 0.into(),

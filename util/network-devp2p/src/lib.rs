@@ -60,45 +60,49 @@
 //TODO: use Poll from mio
 #![allow(deprecated)]
 
-extern crate ethcore_io as io;
-extern crate parity_bytes;
-extern crate parity_crypto as crypto;
-extern crate ethereum_types;
-extern crate parking_lot;
-extern crate mio;
-extern crate tiny_keccak;
-extern crate crypto as rcrypto;
-extern crate rand;
-extern crate ansi_term; //TODO: remove this
-extern crate rustc_hex;
-extern crate igd;
-extern crate libc;
-extern crate slab;
-extern crate ethkey;
-extern crate rlp;
-extern crate bytes;
-extern crate parity_path;
-extern crate ethcore_network as network;
-extern crate ipnetwork;
-extern crate keccak_hash as hash;
-extern crate serde;
-extern crate serde_json;
-extern crate parity_snappy as snappy;
-extern crate lru_cache;
-
-#[macro_use]
-extern crate error_chain;
-#[macro_use]
-extern crate log;
-#[macro_use]
-extern crate serde_derive;
-
-#[cfg(test)]
-extern crate env_logger;
-#[cfg(test)]
-extern crate tempdir;
+//TODO: remove this
+extern crate ansi_term;
 #[cfg(test)] #[macro_use]
 extern crate assert_matches;
+extern crate bytes;
+extern crate crypto as rcrypto;
+#[cfg(test)]
+extern crate env_logger;
+#[macro_use]
+extern crate error_chain;
+extern crate ethcore_io as io;
+extern crate ethcore_network as network;
+extern crate ethereum_types;
+extern crate ethkey;
+extern crate igd;
+extern crate ipnetwork;
+extern crate keccak_hash as hash;
+extern crate libc;
+#[macro_use]
+extern crate log;
+extern crate lru_cache;
+extern crate mio;
+extern crate parity_bytes;
+extern crate parity_crypto as crypto;
+extern crate parity_path;
+extern crate parity_snappy as snappy;
+extern crate parking_lot;
+extern crate rand;
+extern crate rlp;
+extern crate rustc_hex;
+extern crate serde;
+#[macro_use]
+extern crate serde_derive;
+extern crate serde_json;
+extern crate slab;
+#[cfg(test)]
+extern crate tempdir;
+extern crate tiny_keccak;
+
+pub use host::NetworkContext;
+pub use io::TimerToken;
+pub use node_table::{MAX_NODES_IN_TABLE, NodeId, validate_node_url};
+pub use service::NetworkService;
 
 mod host;
 mod connection;
@@ -108,11 +112,5 @@ mod discovery;
 mod service;
 mod node_table;
 mod ip_utils;
-
-pub use service::NetworkService;
-pub use host::NetworkContext;
-
-pub use io::TimerToken;
-pub use node_table::{validate_node_url, NodeId, MAX_NODES_IN_TABLE};
 
 const PROTOCOL_VERSION: u32 = 5;

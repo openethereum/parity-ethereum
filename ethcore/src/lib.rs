@@ -74,6 +74,7 @@ extern crate ethcore_miner;
 extern crate ethereum_types;
 extern crate ethjson;
 extern crate ethkey;
+extern crate futures;
 extern crate hash_db;
 extern crate heapsize;
 extern crate itertools;
@@ -107,6 +108,8 @@ extern crate vm;
 extern crate wasm;
 
 #[cfg(test)]
+extern crate rand_xorshift;
+#[cfg(test)]
 extern crate ethcore_accounts as accounts;
 #[cfg(feature = "stratum")]
 extern crate ethcore_stratum;
@@ -125,8 +128,7 @@ extern crate rlp_compress;
 extern crate ethabi_derive;
 #[macro_use]
 extern crate ethabi_contract;
-#[macro_use]
-extern crate error_chain;
+extern crate derive_more;
 #[macro_use]
 extern crate log;
 #[macro_use]
