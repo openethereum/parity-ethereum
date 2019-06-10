@@ -28,7 +28,7 @@ use ethcore_miner::pool::{self, TransactionQueue, VerifiedTransaction, QueueStat
 use ethcore_miner::service_transaction_checker::ServiceTransactionChecker;
 #[cfg(feature = "work-notify")]
 use ethcore_miner::work_notify::NotifyWork;
-use ethereum_types::{H160, H256, U256, Address};
+use ethereum_types::{H256, U256, Address};
 use futures::sync::mpsc;
 use io::IoChannel;
 use miner::pool_client::{PoolClient, CachedNonceClient, NonceCache};
@@ -1060,8 +1060,8 @@ impl miner::MinerService for Miner {
 		chain: &C,
 		max_len: usize,
 		tx_hash: Option<H256>,
-		receiver: Option<H160>,
-		sender: Option<H160>,
+		sender: Option<Address>,
+		receiver: Option<Option<Address>>,
 		ordering: miner::PendingOrdering,
 	) -> Vec<Arc<VerifiedTransaction>> where
 		C: ChainInfo + Nonce + Sync,
@@ -1102,15 +1102,7 @@ impl miner::MinerService for Miner {
 					})
 					// Filter by receiver
 					.filter(|tx| {
-						if let Some(receiver) = receiver {
-							if let Some(tx_has_receiver) = tx.signed().receiver() {
-								tx_has_receiver == receiver
-							} else {
-								false // in case of Action::Create
-							}
-						} else {
-							true // do not filter if None was passed
-						}
+						receiver.map_or(true, |receiver| tx.signed().receiver() == receiver)
 					})
 					.take(max_len)
 					.collect()
