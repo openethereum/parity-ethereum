@@ -1066,10 +1066,6 @@ impl miner::MinerService for Miner {
 	) -> Vec<Arc<VerifiedTransaction>> where
 		C: ChainInfo + Nonce + Sync,
 	{
-		-> Vec<Arc<VerifiedTransaction>>
-	where
-		C: ChainInfo + Nonce + Sync,
-	{
 		let chain_info = chain.chain_info();
 
 		let from_queue = || {
@@ -1099,18 +1095,10 @@ impl miner::MinerService for Miner {
 					// Filter by transaction hash
 					.filter(|tx| {
 						tx_hash.map_or(true, |tx_hash| tx.signed().hash() == tx_hash)
-							tx.signed().hash() == tx_hash
-						} else {
-							true // do not filter if None was passed
-						}
 					})
 					// Filter by sender
 					.filter(|tx| {
-						if let Some(sender) = sender {
-							tx.signed().sender() == sender
-						} else {
-							true // do not filter if None was passed
-						}
+						sender.map_or(true, |sender| tx.signed().sender() == sender)
 					})
 					// Filter by receiver
 					.filter(|tx| {
