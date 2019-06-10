@@ -1052,14 +1052,13 @@ impl miner::MinerService for Miner {
 		C: ChainInfo + Nonce + Sync,
 	{
 		// No special filtering options applied (neither tx_hash, receiver or sender)
-		self.ready_transactions_filtered(chain, max_len, None, None, None, ordering)
+		self.ready_transactions_filtered(chain, max_len, None, None, ordering)
 	}
 
 	fn ready_transactions_filtered<C>(
 		&self,
 		chain: &C,
 		max_len: usize,
-		tx_hash: Option<H256>,
 		sender: Option<Address>,
 		receiver: Option<Option<Address>>,
 		ordering: miner::PendingOrdering,
@@ -1092,10 +1091,6 @@ impl miner::MinerService for Miner {
 					.iter()
 					.map(|signed| pool::VerifiedTransaction::from_pending_block_transaction(signed.clone()))
 					.map(Arc::new)
-					// Filter by transaction hash
-					.filter(|tx| {
-						tx_hash.map_or(true, |tx_hash| tx.signed().hash() == tx_hash)
-					})
 					// Filter by sender
 					.filter(|tx| {
 						sender.map_or(true, |sender| tx.signed().sender() == sender)

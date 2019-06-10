@@ -222,7 +222,7 @@ impl MinerService for TestMinerService {
 		self.queued_transactions()
 	}
 
-	fn ready_transactions_filtered<C>(&self, _chain: &C, _max_len: usize, _tx_hash: Option<H256>, _sender: Option<Address>, _receiver: Option<Option<Address>>, _ordering: miner::PendingOrdering) -> Vec<Arc<VerifiedTransaction>> {
+	fn ready_transactions_filtered<C>(&self, _chain: &C, _max_len: usize, _sender: Option<Address>, _receiver: Option<Option<Address>>, _ordering: miner::PendingOrdering) -> Vec<Arc<VerifiedTransaction>> {
 		self.queued_transactions()
 	}
 

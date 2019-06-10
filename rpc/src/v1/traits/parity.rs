@@ -125,7 +125,7 @@ pub trait Parity {
 
 	/// Returns all pending transactions from transaction queue.
 	#[rpc(name = "parity_pendingTransactions")]
-	fn pending_transactions(&self, Option<usize>, Option<H256>, Option<H160>, Option<Option<H160>>) -> Result<Vec<Transaction>>;
+	fn pending_transactions(&self, Option<usize>, Option<H160>, Option<Option<H160>>) -> Result<Vec<Transaction>>;
 
 	/// Returns all transactions from transaction queue.
 	///

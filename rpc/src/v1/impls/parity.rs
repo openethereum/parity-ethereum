@@ -245,11 +245,10 @@ impl<C, M, U, S> Parity for ParityClient<C, M, U> where
 			.map(Into::into)
 	}
 
-	fn pending_transactions(&self, limit: Option<usize>, tx_hash: Option<H256>, sender: Option<Address>, receiver: Option<Option<Address>>) -> Result<Vec<Transaction>> {
+	fn pending_transactions(&self, limit: Option<usize>, sender: Option<Address>, receiver: Option<Option<Address>>) -> Result<Vec<Transaction>> {
 		let ready_transactions = self.miner.ready_transactions_filtered(
 			&*self.client,
 			limit.unwrap_or_else(usize::max_value),
-			tx_hash,
 			sender,
 			receiver,
 			miner::PendingOrdering::Priority,
