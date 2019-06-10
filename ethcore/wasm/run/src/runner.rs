@@ -21,7 +21,7 @@ use vm::tests::FakeExt;
 use std::io::{self, Read};
 use std::{fs, path, fmt};
 use std::sync::Arc;
-use ethereum_types::{U256, H256, H160};
+use ethereum_types::{U256, H256, H160, BigEndianHash};
 use rustc_hex::ToHex;
 
 fn load_code<P: AsRef<path::Path>>(p: P) -> io::Result<Vec<u8>> {
@@ -95,17 +95,17 @@ impl fmt::Display for Fail {
 				write!(
 					f,
 					"Storage key {} value mismatch, expected {}, got: {}",
-					key.to_vec().to_hex(),
-					expected.to_vec().to_hex(),
-					actual.to_vec().to_hex(),
+					key.as_bytes().to_vec().to_hex(),
+					expected.as_bytes().to_vec().to_hex(),
+					actual.as_bytes().to_vec().to_hex(),
 				),
 
 			StorageMismatch { ref key, ref expected, actual: None} =>
 				write!(
 					f,
 					"No expected storage value for key {} found, expected {}",
-					key.to_vec().to_hex(),
-					expected.to_vec().to_hex(),
+					key.as_bytes().to_vec().to_hex(),
+					expected.as_bytes().to_vec().to_hex(),
 				),
 
 			Nonconformity(SpecNonconformity::Address) =>
@@ -188,7 +188,7 @@ pub fn run_fixture(fixture: &Fixture) -> Vec<Fail> {
 		for storage_entry in storage.iter() {
 			let key: U256 = storage_entry.key.into();
 			let val: U256 = storage_entry.value.into();
-			ext.store.insert(key.into(), val.into());
+			ext.store.insert(BigEndianHash::from_uint(&key), BigEndianHash::from_uint(&val));
 		}
 	}
 

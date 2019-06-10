@@ -41,8 +41,8 @@ fn seal_spec() -> Spec {
 #[test]
 fn send_private_transaction() {
 	// Setup two clients
-	let s0 = KeyPair::from_secret_slice(&keccak("1")).unwrap();
-	let s1 = KeyPair::from_secret_slice(&keccak("0")).unwrap();
+	let s0 = KeyPair::from_secret_slice(keccak("1").as_bytes()).unwrap();
+	let s1 = KeyPair::from_secret_slice(keccak("0").as_bytes()).unwrap();
 
 	let signer = Arc::new(ethcore_private_tx::KeyPairSigner(vec![s0.clone(), s1.clone()]));
 
@@ -69,11 +69,13 @@ fn send_private_transaction() {
 	let validator_config = ProviderConfig{
 		validator_accounts: vec![s1.address()],
 		signer_account: None,
+		logs_path: None,
 	};
 
 	let signer_config = ProviderConfig{
 		validator_accounts: Vec::new(),
 		signer_account: Some(s0.address()),
+		logs_path: None,
 	};
 
 	let private_keys = Arc::new(StoringKeyProvider::default());

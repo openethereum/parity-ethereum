@@ -126,11 +126,11 @@ fn encode_data(
 				items.append(&mut encoded);
 			}
 
-			keccak(items).to_vec()
+			keccak(items).as_ref().to_vec()
 		}
 
 		Type::Custom(ref ident) if message_types.get(&*ident).is_some() => {
-			let type_hash = (&type_hash(ident, &message_types)?).to_vec();
+			let type_hash = (&type_hash(ident, &message_types)?).0.to_vec();
 			let mut tokens = encode(&[EthAbiToken::FixedBytes(type_hash)]);
 
 			for field in message_types.get(ident).expect("Already checked in match guard; qed") {
@@ -140,7 +140,7 @@ fn encode_data(
 				tokens.append(&mut encoded);
 			}
 
-			keccak(tokens).to_vec()
+			keccak(tokens).as_ref().to_vec()
 		}
 
 		Type::Bytes => {
@@ -151,7 +151,7 @@ fn encode_data(
 			let bytes = (&string[2..])
 				.from_hex::<Vec<u8>>()
 				.map_err(|err| ErrorKind::HexParseError(format!("{}", err)))?;
-			let bytes = keccak(&bytes).to_vec();
+			let bytes = keccak(&bytes).as_ref().to_vec();
 
 			encode(&[EthAbiToken::FixedBytes(bytes)])
 		}
@@ -170,7 +170,7 @@ fn encode_data(
 
 		Type::String => {
 			let value = value.as_str().ok_or_else(|| serde_error("string", field_name))?;
-			let hash = keccak(value).to_vec();
+			let hash = keccak(value).as_ref().to_vec();
 			encode(&[EthAbiToken::FixedBytes(hash)])
 		}
 
@@ -359,9 +359,10 @@ mod tests {
 	#[test]
 	fn test_hash_data() {
 		let typed_data = from_str::<EIP712>(JSON).expect("alas error!");
+		let hash = hash_structured_data(typed_data).expect("alas error!");
 		assert_eq!(
-			hash_structured_data(typed_data).expect("alas error!").to_hex::<String>(),
-			"be609aee343fb3c4b28e1df9e632fca64fcfaede20f02e86244efddf30957bd2"
+			&format!("{:x}", hash)[..],
+			"be609aee343fb3c4b28e1df9e632fca64fcfaede20f02e86244efddf30957bd2",
 		)
 	}
 

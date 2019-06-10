@@ -37,7 +37,7 @@ impl Generator for Prefix {
 	fn generate(&mut self) -> Result<KeyPair, Error> {
 		for _ in 0..self.iterations {
 			let keypair = Random.generate()?;
-			if keypair.address().starts_with(&self.prefix) {
+			if keypair.address().as_ref().starts_with(&self.prefix) {
 				return Ok(keypair)
 			}
 		}
@@ -54,6 +54,6 @@ mod tests {
 	fn prefix_generator() {
 		let prefix = vec![0xffu8];
 		let keypair = Prefix::new(prefix.clone(), usize::max_value()).generate().unwrap();
-		assert!(keypair.address().starts_with(&prefix));
+		assert!(keypair.address().as_bytes().starts_with(&prefix));
 	}
 }

@@ -1648,7 +1648,7 @@ mod tests {
 
 	#[test]
 	fn hash_or_number_roundtrip() {
-		let hash = HashOrNumber::Hash(H256::default());
+		let hash = HashOrNumber::Hash(H256::zero());
 		let number = HashOrNumber::Number(5);
 
 		check_roundtrip(hash);
@@ -1808,7 +1808,7 @@ mod tests {
 		let full_req = Request::Storage(req.clone());
 		let res = StorageResponse {
 			proof: vec![vec![1, 2, 3], vec![4, 5, 6]],
-			value: H256::default(),
+			value: H256::zero(),
 		};
 		let full_res = Response::Storage(res.clone());
 
@@ -1909,7 +1909,7 @@ mod tests {
 				code_hash: Default::default(),
 				storage_root: Default::default()
 			}),
-			Response::Storage(StorageResponse { proof: vec![], value: H256::default() }),
+			Response::Storage(StorageResponse { proof: vec![], value: H256::zero() }),
 			Response::Code(CodeResponse { code: vec![1, 2, 3, 4, 5] }),
 			Response::Execution(ExecutionResponse { items: vec![] }),
 		];

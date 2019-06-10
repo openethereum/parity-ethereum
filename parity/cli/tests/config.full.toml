@@ -105,6 +105,7 @@ http_port = 8082
 interface = "local"
 port = 8083
 path = "$HOME/.parity/secretstore"
+cors = ["null"]
 
 [ipfs]
 enable = false

@@ -70,6 +70,8 @@ pub struct ServiceConfiguration {
 	pub acl_check_contract_address: Option<ContractAddress>,
 	/// Cluster configuration.
 	pub cluster_config: ClusterConfiguration,
+	// Allowed CORS domains
+	pub cors: Option<Vec<String>>,
 }
 
 /// Key server cluster configuration

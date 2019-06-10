@@ -136,7 +136,7 @@ pub fn generate_dummy_client_with_spec_and_data<F>(test_spec: F, block_number: u
 	let mut last_hashes = vec![];
 	let mut last_header = genesis_header.clone();
 
-	let kp = KeyPair::from_secret_slice(&keccak("")).unwrap();
+	let kp = KeyPair::from_secret_slice(keccak("").as_bytes()).unwrap();
 	let author = kp.address();
 
 	let mut n = 0;
@@ -223,7 +223,7 @@ pub fn push_block_with_transactions(client: &Arc<Client>, transactions: &[Signed
 	let test_engine = &*test_spec.engine;
 	let block_number = client.chain_info().best_block_number as u64 + 1;
 
-	let mut b = client.prepare_open_block(Address::default(), (0.into(), 5000000.into()), Bytes::new()).unwrap();
+	let mut b = client.prepare_open_block(Address::zero(), (0.into(), 5000000.into()), Bytes::new()).unwrap();
 	b.set_timestamp(block_number * 10);
 
 	for t in transactions {
@@ -493,7 +493,7 @@ pub fn get_bad_state_dummy_block() -> Bytes {
 	block_header.set_timestamp(40);
 	block_header.set_number(1);
 	block_header.set_parent_hash(test_spec.genesis_header().hash());
-	block_header.set_state_root(0xbad.into());
+	block_header.set_state_root(H256::from_low_u64_be(0xbad));
 
 	create_test_block(&block_header)
 }

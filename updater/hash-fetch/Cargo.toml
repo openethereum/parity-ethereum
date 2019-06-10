@@ -11,18 +11,18 @@ futures = "0.1"
 log = "0.4"
 mime = "0.3"
 mime_guess = "2.0.0-alpha.2"
-rand = "0.4"
+rand = "0.6"
 rustc-hex = "1.0"
 fetch = { path = "../../util/fetch" }
 parity-bytes = "0.1"
-ethereum-types = "0.4"
+ethereum-types = "0.6.0"
 parity-runtime = { path = "../../util/runtime" }
-keccak-hash = "0.1"
+keccak-hash = "0.2.0"
 registrar = { path = "../../util/registrar" }
 
-ethabi = "6.0"
-ethabi-derive = "6.0"
-ethabi-contract = "6.0"
+ethabi = "8.0"
+ethabi-derive = "8.0"
+ethabi-contract = "8.0"
 
 [dev-dependencies]
 parking_lot = "0.7"

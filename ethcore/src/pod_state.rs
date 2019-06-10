@@ -90,12 +90,12 @@ mod test {
 	use types::state_diff::*;
 	use types::account_diff::*;
 	use pod_account::PodAccount;
-	use super::PodState;
+	use super::{PodState, Address};
 
 	#[test]
 	fn create_delete() {
 		let a = PodState::from(map![
-			1.into() => PodAccount {
+			Address::from_low_u64_be(1) => PodAccount {
 				balance: 69.into(),
 				nonce: 0.into(),
 				code: Some(Vec::new()),
@@ -103,7 +103,7 @@ mod test {
 			}
 		]);
 		assert_eq!(super::diff_pod(&a, &PodState::new()), StateDiff { raw: map![
-			1.into() => AccountDiff{
+			Address::from_low_u64_be(1) => AccountDiff{
 				balance: Diff::Died(69.into()),
 				nonce: Diff::Died(0.into()),
 				code: Diff::Died(vec![]),
@@ -111,7 +111,7 @@ mod test {
 			}
 		]});
 		assert_eq!(super::diff_pod(&PodState::new(), &a), StateDiff{ raw: map![
-			1.into() => AccountDiff{
+			Address::from_low_u64_be(1) => AccountDiff{
 				balance: Diff::Born(69.into()),
 				nonce: Diff::Born(0.into()),
 				code: Diff::Born(vec![]),
@@ -123,7 +123,7 @@ mod test {
 	#[test]
 	fn create_delete_with_unchanged() {
 		let a = PodState::from(map![
-			1.into() => PodAccount {
+			Address::from_low_u64_be(1) => PodAccount {
 				balance: 69.into(),
 				nonce: 0.into(),
 				code: Some(Vec::new()),
@@ -131,13 +131,13 @@ mod test {
 			}
 		]);
 		let b = PodState::from(map![
-			1.into() => PodAccount {
+			Address::from_low_u64_be(1) => PodAccount {
 				balance: 69.into(),
 				nonce: 0.into(),
 				code: Some(Vec::new()),
 				storage: map![],
 			},
-			2.into() => PodAccount {
+			Address::from_low_u64_be(2) => PodAccount {
 				balance: 69.into(),
 				nonce: 0.into(),
 				code: Some(Vec::new()),
@@ -145,7 +145,7 @@ mod test {
 			}
 		]);
 		assert_eq!(super::diff_pod(&a, &b), StateDiff { raw: map![
-			2.into() => AccountDiff{
+			Address::from_low_u64_be(2) => AccountDiff{
 				balance: Diff::Born(69.into()),
 				nonce: Diff::Born(0.into()),
 				code: Diff::Born(vec![]),
@@ -153,7 +153,7 @@ mod test {
 			}
 		]});
 		assert_eq!(super::diff_pod(&b, &a), StateDiff { raw: map![
-			2.into() => AccountDiff{
+			Address::from_low_u64_be(2) => AccountDiff{
 				balance: Diff::Died(69.into()),
 				nonce: Diff::Died(0.into()),
 				code: Diff::Died(vec![]),
@@ -165,13 +165,13 @@ mod test {
 	#[test]
 	fn change_with_unchanged() {
 		let a = PodState::from(map![
-			1.into() => PodAccount {
+			Address::from_low_u64_be(1) => PodAccount {
 				balance: 69.into(),
 				nonce: 0.into(),
 				code: Some(Vec::new()),
 				storage: map![],
 			},
-			2.into() => PodAccount {
+			Address::from_low_u64_be(2) => PodAccount {
 				balance: 69.into(),
 				nonce: 0.into(),
 				code: Some(Vec::new()),
@@ -179,13 +179,13 @@ mod test {
 			}
 		]);
 		let b = PodState::from(map![
-			1.into() => PodAccount {
+			Address::from_low_u64_be(1) => PodAccount {
 				balance: 69.into(),
 				nonce: 1.into(),
 				code: Some(Vec::new()),
 				storage: map![],
 			},
-			2.into() => PodAccount {
+			Address::from_low_u64_be(2) => PodAccount {
 				balance: 69.into(),
 				nonce: 0.into(),
 				code: Some(Vec::new()),
@@ -193,7 +193,7 @@ mod test {
 			}
 		]);
 		assert_eq!(super::diff_pod(&a, &b), StateDiff { raw: map![
-			1.into() => AccountDiff{
+			Address::from_low_u64_be(1) => AccountDiff{
 				balance: Diff::Same,
 				nonce: Diff::Changed(0.into(), 1.into()),
 				code: Diff::Same,
