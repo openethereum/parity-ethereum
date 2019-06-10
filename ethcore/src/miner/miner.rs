@@ -1055,7 +1055,17 @@ impl miner::MinerService for Miner {
 		self.ready_transactions_filtered(chain, max_len, None, None, None, ordering)
 	}
 
-	fn ready_transactions_filtered<C>(&self, chain: &C, max_len: usize, tx_hash: Option<H256>, receiver: Option<H160>, sender: Option<H160>, ordering: miner::PendingOrdering)
+	fn ready_transactions_filtered<C>(
+		&self,
+		chain: &C,
+		max_len: usize,
+		tx_hash: Option<H256>,
+		receiver: Option<H160>,
+		sender: Option<H160>,
+		ordering: miner::PendingOrdering,
+	) -> Vec<Arc<VerifiedTransaction>> where
+		C: ChainInfo + Nonce + Sync,
+	{
 		-> Vec<Arc<VerifiedTransaction>>
 	where
 		C: ChainInfo + Nonce + Sync,
