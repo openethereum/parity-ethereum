@@ -217,7 +217,7 @@ where
 			.map(Into::into)
 	}
 
-	fn pending_transactions(&self, limit: Option<usize>, _: Option<H256>, _: Option<H160>, _: Option<Option<H160>>) -> Result<Vec<Transaction>> {
+	fn pending_transactions(&self, limit: Option<usize>, _tx_hash: Option<H256>, _sender: Option<H160>, _receiver: Option<Option<H160>>) -> Result<Vec<Transaction>> {
 		let txq = self.light_dispatch.transaction_queue.read();
 		let chain_info = self.light_dispatch.client.chain_info();
 		Ok(
