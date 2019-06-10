@@ -1014,7 +1014,7 @@ impl BlockChain {
 					warn!(target: "blockchain", "Block #{}: Found non-canonical block hash {} (expected {})", details.number, h, hash);
 
 					trace!(target: "blockchain", "Block #{} Mismatched hashes. Ancestor {} != Own {}", details.number, hash, h);
-					trace!(target: "blockchain", "      Ancestor {}: #{:#?}", hash, self.block_details(&hash));
+					trace!(target: "blockchain", "      Ancestor {}: #{:#?}", hash, details);
 					trace!(target: "blockchain", "      Own      {}: #{:#?}", h, self.block_details(&h));
 
 				},
