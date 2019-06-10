@@ -989,9 +989,9 @@ impl BlockChain {
 	pub fn epoch_transition_for(&self, parent_hash: H256) -> Option<EpochTransition> {
 		// slow path: loop back block by block
 		for hash in self.ancestry_iter(parent_hash)? {
-			trace!(target: "blockchain", "Got hash {} from ancestry_iter", hash);
+			trace!(target: "blockchain", "Block #{}: Got hash {} from ancestry_iter", details.number, hash);
 			let details = self.block_details(&hash)?;
-			trace!(target: "blockchain", "Got block details for block #{}", details.number);
+			trace!(target: "blockchain", "Block #{}: Got block details", details.number);
 
 			// look for transition in database.
 			if let Some(transition) = self.epoch_transition(details.number, hash) {
@@ -1010,8 +1010,8 @@ impl BlockChain {
 						.take_while(|t| t.block_number <= details.number)
 						.last()
 				},
-				Some(h) => trace!(target: "blockchain", "Found non-canonical block hash {} (expected {})", h, hash),
-				None => trace!(target: "blockchain", "Block hash not found in cache or DB"),
+				Some(h) => trace!(target: "blockchain", "Block #{}: Found non-canonical block hash {} (expected {})", details.number, h, hash),
+				None => trace!(target: "blockchain", "Block #{}: hash {} not found in cache or DB", details.number, hash),
 			}
 		}
 
