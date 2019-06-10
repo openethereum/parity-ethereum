@@ -35,10 +35,10 @@ impl SimpleList {
 	pub fn new(validators: Vec<Address>) -> Self {
 		let validator_count = validators.len();
 		if validator_count == 1 {
-			warn!(target: "engine", "Running AuRa with a single validator is not supported.");
+			warn!(target: "engine", "Running AuRa with a single validator implies instant finality. Use a database?");
 		}
 		if validator_count % 2 == 0 {
-			warn!(target: "engine", "Running AuRa with an even number of validators is not supported.");
+			warn!(target: "engine", "Running AuRa with an even number of validators is not recommented (risk of network split).");
 		}
 		SimpleList { validators }
 	}
