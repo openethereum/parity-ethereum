@@ -1013,9 +1013,9 @@ impl BlockChain {
 				Some(h) => {
 					warn!(target: "blockchain", "Block #{}: Found non-canonical block hash {} (expected {})", details.number, h, hash);
 
-					trace!(target: "blockchain", "#{} {} != {} HASH UNEQUAL, #{}", details.number, hash, h, self.block_number(&h).unwrap_or_default() );
-					trace!(target: "blockchain", "      Version A {}: #{:#?}", hash, self.block_details(&hash));
-					trace!(target: "blockchain", "      Version B {}: #{:#?}", h, self.block_details(&h));
+					trace!(target: "blockchain", "Block #{} Mismatched hashes. Ancestor {} != Own {} – Own block #{}", details.number, hash, h, self.block_number(&h).unwrap_or_default() );
+					trace!(target: "blockchain", "      Ancestor {}: #{:#?}", hash, self.block_details(&hash));
+					trace!(target: "blockchain", "      Own      {}: #{:#?}", h, self.block_details(&h));
 
 				},
 				None => trace!(target: "blockchain", "Block #{}: hash {} not found in cache or DB", details.number, hash),
