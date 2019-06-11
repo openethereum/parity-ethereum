@@ -815,19 +815,23 @@ impl AuthorityRound {
 			return;
 		}
 
-		if let (true, Some(me)) = (current_step > parent_step + 1, self.signer.read().as_ref().map(|s| s.address())) {
+		if let (true, me) = (current_step > parent_step + 1, self.address()) {
 			debug!(target: "engine", "Author {} built block with step gap. current step: {}, parent step: {}",
 				   header.author(), current_step, parent_step);
-			let mut reported = HashSet::new();
-			for step in parent_step + 1..current_step {
-				let skipped_primary = step_proposer(validators, header.parent_hash(), step);
-				// Do not report this signer.
-				if skipped_primary != me {
-					// Stop reporting once validators start repeating.
-					if !reported.insert(skipped_primary) { break; }
-					self.validators.report_benign(&skipped_primary, set_number, header.number());
- 				}
- 			}
+			if validators.contains(header.parent_hash(), &me) {
+				let mut reported = HashSet::new();
+				for step in parent_step + 1..current_step {
+					let skipped_primary = step_proposer(validators, header.parent_hash(), step);
+					// Do not report this signer.
+					if skipped_primary != me {
+						// Stop reporting once validators start repeating.
+						if !reported.insert(skipped_primary) { break; }
+						self.validators.report_benign(&skipped_primary, set_number, header.number());
+					}
+				}
+			} else {
+				debug!(target: "engine", "We are not part of the validator set so not reporting (skipped steps). Own address: {}", self.address());
+			}
 		}
 	}
 
@@ -892,6 +896,10 @@ impl AuthorityRound {
 
 		let finalized = epoch_manager.finality_checker.push_hash(chain_head.hash(), vec![*chain_head.author()]);
 		finalized.unwrap_or_default()
+	}
+
+	fn address(&self) -> Address {
+		self.signer.read().as_ref().map_or_else(|| Address::zero(), |s| s.address())
 	}
 }
 
@@ -1298,8 +1306,13 @@ impl Engine<EthereumMachine> for AuthorityRound {
 				//   likely ignore old reports
 				// - This specific check is only relevant if you're importing (since it checks
 				//   against wall clock)
-				if let Ok((_, set_number)) = self.epoch_set(header) {
-					self.validators.report_benign(header.author(), set_number, header.number());
+				if let Ok((set, set_number)) = self.epoch_set(header) {
+					let me = self.address();
+					if set.contains(header.parent_hash(), &me) {
+						self.validators.report_benign(header.author(), set_number, header.number());
+					} else {
+						debug!(target: "engine", "Not reporting benign misbehaviour (cause: InvalidSeal) because we're not part of the validator set, Own address: {}", me);
+					}
 				}
 
 				Err(BlockError::InvalidSeal.into())
@@ -1369,7 +1382,12 @@ impl Engine<EthereumMachine> for AuthorityRound {
 			match validate_empty_steps() {
 				Ok(len) => len,
 				Err(err) => {
-					self.validators.report_benign(header.author(), set_number, header.number());
+					if self.validators.contains(header.parent_hash(), &self.address()) {
+						self.validators.report_benign(header.author(), set_number, header.number());
+					} else {
+						debug!(target: "engine", "Not reporting benign misbehaviour (cause: invalid empty steps) because we're not part of the validator set. Own address: {}",
+						       self.address());
+					}
 					return Err(err);
 				},
 			}
@@ -1398,7 +1416,11 @@ impl Engine<EthereumMachine> for AuthorityRound {
 		let res = verify_external(header, &*validators, self.empty_steps_transition);
 		match res {
 			Err(Error::Engine(EngineError::NotProposer(_))) => {
-				self.validators.report_benign(header.author(), set_number, header.number());
+				if self.validators.contains(header.parent_hash(), &self.address()) {
+					self.validators.report_benign(header.author(), set_number, header.number());
+				} else {
+					debug!(target: "engine", "We are not part of the validator set so not reporting (block from incorrect proposer). Own address: {}", self.address());
+				}
 			},
 			Ok(_) => {
 				// we can drop all accumulated empty step messages that are older than this header's step
@@ -1830,6 +1852,7 @@ mod tests {
 
 	#[test]
 	fn reports_skipped() {
+		let _ = ::env_logger::try_init();
 		let last_benign = Arc::new(AtomicUsize::new(0));
 		let aura = aura(|p| {
 			p.validators = Box::new(TestSet::new(Default::default(), last_benign.clone()));
