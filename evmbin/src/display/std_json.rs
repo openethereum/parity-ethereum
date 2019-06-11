@@ -58,7 +58,7 @@ pub struct Informant<Clone, Trace, Out> {
 	depth: usize,
 	stack: Vec<U256>,
 	storage: HashMap<H256, H256>,
-	subinfos: Vec<Informant<Trace, Out>>,
+	subinfos: Vec<Informant<Clone, Trace, Out>>,
 	subdepth: usize,
 	trace_sink: Trace,
 	out_sink: Out,
@@ -76,27 +76,27 @@ pub struct Response {
 	depth: usize
 }
 
-impl Default for Informant<io::Stderr, io::Stdout> {
+impl Default for Informant<Clone, io::Stderr, io::Stdout> {
 	fn default() -> Self {
 		Self::new(io::stderr(), io::stdout())
 	}
 }
 
-impl Informant<io::Stdout, io::Stdout> {
+impl Informant<Clone, io::Stdout, io::Stdout> {
 	/// std json informant using out only.
 	pub fn out_only() -> Self {
 		Self::new(io::stdout(), io::stdout())
 	}
 }
 
-impl Informant<io::Stderr, io::Stderr> {
+impl Informant<Clone, io::Stderr, io::Stderr> {
 	/// std json informant using err only.
 	pub fn err_only() -> Self {
 		Self::new(io::stderr(), io::stderr())
 	}
 }
 
-impl<Trace: Writer, Out: Writer> Informant<Trace, Out> {
+impl<Trace: Writer, Out: Writer> Informant<Clone, Trace, Out> {
 
 	pub fn new(trace_sink: Trace, out_sink: Out) -> Self {
 		Informant {
@@ -111,7 +111,7 @@ impl<Trace: Writer, Out: Writer> Informant<Trace, Out> {
 		}
 	}
 
-	fn with_informant_in_depth<F: Fn(&mut Informant<Trace, Out>)>(informant: &mut Informant<Trace, Out>, depth: usize, f: F) {
+	fn with_informant_in_depth<F: Fn(&mut Informant<Clone, Trace, Out>)>(informant: &mut Informant<Clone, Trace, Out>, depth: usize, f: F) {
 		if depth == 0 {
 			f(informant);
 		} else {
@@ -132,7 +132,7 @@ impl<Trace: Writer, Out: Writer> Informant<Trace, Out> {
 
 }
 
-impl<Trace: Writer, Out: Writer> vm::Informant for Informant<Trace, Out> {
+impl<Trace: Writer, Out: Writer> vm::Informant for Informant<Clone, Trace, Out> {
 
 	type Sink = (Trace, Out);
 
@@ -187,7 +187,7 @@ impl<Trace: Writer, Out: Writer> vm::Informant for Informant<Trace, Out> {
 	}
 }
 
-impl<Trace: Writer, Out: Writer> trace::VMTracer for Informant<Trace, Out> {
+impl<Trace: Writer, Out: Writer> trace::VMTracer for Informant<Clone, Trace, Out> {
 	type Output = ();
 
 	fn trace_next_instruction(&mut self, pc: usize, instruction: u8, current_gas: U256) -> bool {
@@ -284,7 +284,7 @@ pub mod tests {
 		}
 	}
 
-	pub fn informant() -> (Informant<TestWriter, TestWriter>, Arc<Mutex<Vec<u8>>>) {
+	pub fn informant() -> (Informant<Clone, TestWriter, TestWriter>, Arc<Mutex<Vec<u8>>>) {
 		let trace_writer: TestWriter = Default::default();
 		let out_writer: TestWriter = Default::default();
 		let res = trace_writer.0.clone();
