@@ -707,7 +707,7 @@ impl AuthorityRound {
 				empty_steps_transition: our_params.empty_steps_transition,
 				maximum_empty_steps: our_params.maximum_empty_steps,
 				strict_empty_steps_transition: our_params.strict_empty_steps_transition,
-				machine: machine,
+				machine,
 			});
 
 		// Do not initialize timeouts for tests.
@@ -827,6 +827,8 @@ impl AuthorityRound {
 						// Stop reporting once validators start repeating.
 						if !reported.insert(skipped_primary) { break; }
 						self.validators.report_benign(&skipped_primary, set_number, header.number());
+					} else {
+						trace!(target: "engine", "Primary that skipped is self, not self-reporting. Own address: {}", me);
 					}
 				}
 			} else {
@@ -1334,11 +1336,7 @@ impl Engine<EthereumMachine> for AuthorityRound {
 			|| (header.number() >= self.validate_step_transition && step <= parent_step) {
 			warn!(target: "engine", "Multiple blocks proposed for step {}.", parent_step);
 
-			if validators.contains(header.parent_hash(), self.address() ) {
-				self.validators.report_malicious(header.author(), set_number, header.number(), Default::default());
-			} else {
-				warn!(target: "engine", "Not reporting malicious behaviour (cause: multiple blocks proposed) because we're not a validator. Own address: {}", self.address());
-			}
+			self.validators.report_malicious(header.author(), set_number, header.number(), Default::default());
 			Err(EngineError::DoubleVote(*header.author()))?;
 		}
 
@@ -1654,7 +1652,7 @@ mod tests {
 	use error::Error;
 	use super::{AuthorityRoundParams, AuthorityRound, EmptyStep, SealedEmptyStep, calculate_score};
 
-	fn aura<F>(f: F) -> Arc<AuthorityRound> where
+	fn build_aura<F>(f: F) -> Arc<AuthorityRound> where
 		F: FnOnce(&mut AuthorityRoundParams),
 	{
 		let mut params = AuthorityRoundParams {
@@ -1676,7 +1674,6 @@ mod tests {
 
 		// mutate aura params
 		f(&mut params);
-
 		// create engine
 		let mut c_params = ::spec::CommonParams::default();
 		c_params.gas_limit_bound_divisor = 5.into();
@@ -1857,9 +1854,18 @@ mod tests {
 	#[test]
 	fn reports_skipped() {
 		let _ = ::env_logger::try_init();
+
+		let validator1 = Address::from_low_u64_be(1);
+		let validator2 = Address::from_low_u64_be(2);
 		let last_benign = Arc::new(AtomicUsize::new(0));
-		let aura = aura(|p| {
-			p.validators = Box::new(TestSet::new(Default::default(), last_benign.clone()));
+
+		let aura = build_aura(|p| {
+			let validator_set = TestSet::new(
+				Default::default(),
+				last_benign.clone(),
+				vec![validator1, validator2],
+			);
+			p.validators = Box::new(validator_set);
 		});
 
 		let mut parent_header: Header = Header::default();
@@ -1874,7 +1880,13 @@ mod tests {
 		assert!(aura.verify_block_family(&header, &parent_header).is_ok());
 		assert_eq!(last_benign.load(AtomicOrdering::SeqCst), 0);
 
-		aura.set_signer(Box::new((Arc::new(AccountProvider::transient_provider()), Default::default(), "".into())));
+		aura.set_signer(Box::new(
+			(
+				Arc::new(AccountProvider::transient_provider()),
+				validator2,
+				"".into()
+			)
+		));
 
 		// Do not report on steps skipped between genesis and first block.
 		header.set_number(1);
@@ -1888,8 +1900,43 @@ mod tests {
 	}
 
 	#[test]
+	fn skips_benign_reporting_unless_validator() {
+		let _ = ::env_logger::try_init();
+
+		let last_benign = Arc::new(AtomicUsize::new(0));
+		let aura = build_aura(|p| {
+			let validator_set = TestSet::default().with_last_benign(last_benign.clone());
+			p.validators = Box::new(validator_set);
+		});
+		aura.set_signer(Box::new(
+			(
+				Arc::new(AccountProvider::transient_provider()),
+				Address::from_low_u64_be(123),
+				"".into()
+			)
+		));
+		let mut parent_header: Header = Header::default();
+		parent_header.set_seal(vec![encode(&1usize)]);
+		parent_header.set_gas_limit("222222".parse::<U256>().unwrap());
+		let mut header: Header = Header::default();
+		header.set_difficulty(calculate_score(1, 3, 0));
+		header.set_gas_limit("222222".parse::<U256>().unwrap());
+		header.set_seal(vec![encode(&3usize)]);
+
+		header.set_number(1);
+		aura.verify_block_family(&header, &parent_header).unwrap();
+		header.set_number(2);
+		aura.verify_block_family(&header, &parent_header).unwrap();
+		header.set_number(3);
+		aura.verify_block_family(&header, &parent_header).unwrap();
+
+		// No reporting happened: we're not a validator
+		assert_eq!(last_benign.load(AtomicOrdering::SeqCst), 0);
+	}
+
+	#[test]
 	fn test_uncles_transition() {
-		let aura = aura(|params| {
+		let aura = build_aura(|params| {
 			params.maximum_uncle_count_transition = 1;
 		});
 
@@ -1925,7 +1972,7 @@ mod tests {
 	#[test]
 	#[should_panic(expected="authority_round: step duration can't be zero")]
 	fn test_step_duration_zero() {
-		aura(|params| {
+		build_aura(|params| {
 			params.step_duration = 0;
 		});
 	}
@@ -2317,7 +2364,7 @@ mod tests {
 
 	#[test]
 	fn test_empty_steps() {
-		let engine = aura(|p| {
+		let engine = build_aura(|p| {
 			p.step_duration = 4;
 			p.empty_steps_transition = 0;
 			p.maximum_empty_steps = 0;
@@ -2350,7 +2397,7 @@ mod tests {
 	fn should_reject_duplicate_empty_steps() {
 		// given
 		let (_spec, tap, accounts) = setup_empty_steps();
-		let engine = aura(|p| {
+		let engine = build_aura(|p| {
 			p.validators = Box::new(SimpleList::new(accounts.clone()));
 			p.step_duration = 4;
 			p.empty_steps_transition = 0;
@@ -2387,7 +2434,7 @@ mod tests {
 	fn should_reject_empty_steps_out_of_order() {
 		// given
 		let (_spec, tap, accounts) = setup_empty_steps();
-		let engine = aura(|p| {
+		let engine = build_aura(|p| {
 			p.validators = Box::new(SimpleList::new(accounts.clone()));
 			p.step_duration = 4;
 			p.empty_steps_transition = 0;
