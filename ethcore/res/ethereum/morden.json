@@ -8,11 +8,12 @@
 				"difficultyBoundDivisor": "0x0800",
 				"durationLimit": "0x0d",
 				"blockReward": "0x4563918244F40000",
-				"homesteadTransition": 494000,
-				"ecip1010PauseTransition": 1915000,
-				"ecip1010ContinueTransition": 3415000,
-				"ecip1017EraRounds": 2000000,
-				"bombDefuseTransition": 2300000
+				"homesteadTransition": "0x789b0",
+				"ecip1010PauseTransition": "0x1d3878",
+				"ecip1010ContinueTransition": "0x341bd8",
+				"ecip1017EraRounds": "0x1e8480",
+				"eip100bTransition": "0x4829ba",
+				"bombDefuseTransition": "0x231860"
 			}
 		}
 	},
@@ -26,11 +27,17 @@
 		"chainID": "0x3e",
 		"forkBlock": "0x1b34d8",
 		"forkCanonHash": "0xf376243aeff1f256d970714c3de9fd78fa4e63cf63e32a51fe1169e375d98145",
-		"eip150Transition": 1783000,
-		"eip160Transition": 1915000,
-		"eip161abcTransition": "0x7fffffffffffffff",
-		"eip161dTransition": "0x7fffffffffffffff",
-		"eip155Transition": 1915000
+		"eip150Transition": "0x1b34d8",
+		"eip160Transition": "0x1d3878",
+		"eip161abcTransition": "0x4829ba",
+		"eip161dTransition": "0x4829ba",
+		"eip155Transition": "0x1d3878",
+		"maxCodeSize": "0x6000",
+		"maxCodeSizeTransition": "0x4829ba",
+		"eip140Transition": "0x4829ba",
+		"eip211Transition": "0x4829ba",
+		"eip214Transition": "0x4829ba",
+		"eip658Transition": "0x4829ba"
 	},
 	"genesis": {
 		"seal": {
@@ -68,6 +75,53 @@
 		"0000000000000000000000000000000000000002": { "balance": "1", "nonce": "1048576", "builtin": { "name": "sha256", "pricing": { "linear": { "base": 60, "word": 12 } } } },
 		"0000000000000000000000000000000000000003": { "balance": "1", "nonce": "1048576", "builtin": { "name": "ripemd160", "pricing": { "linear": { "base": 600, "word": 120 } } } },
 		"0000000000000000000000000000000000000004": { "balance": "1", "nonce": "1048576", "builtin": { "name": "identity", "pricing": { "linear": { "base": 15, "word": 3 } } } },
+		"0x0000000000000000000000000000000000000005": {
+			"builtin": {
+				"name": "modexp",
+				"activate_at": "0x4829ba",
+				"pricing": {
+					"modexp": {
+						"divisor": 20
+					}
+				}
+			}
+		},
+		"0x0000000000000000000000000000000000000006": {
+			"builtin": {
+				"name": "alt_bn128_add",
+				"activate_at": "0x4829ba",
+				"pricing": {
+					"linear": {
+						"base": 500,
+						"word": 0
+					}
+				}
+			}
+		},
+		"0x0000000000000000000000000000000000000007": {
+			"builtin": {
+				"name": "alt_bn128_mul",
+				"activate_at": "0x4829ba",
+				"pricing": {
+					"linear": {
+						"base": 40000,
+						"word": 0
+					}
+				}
+			}
+		},
+		"0x0000000000000000000000000000000000000008": {
+			"builtin": {
+				"name": "alt_bn128_pairing",
+				"activate_at": "0x4829ba",
+				"pricing": {
+					"alt_bn128_pairing": {
+						"base": 100000,
+						"pair": 80000
+					}
+				}
+			}
+		},
 		"102e61f5d8f9bc71d0ad4a084df4e65e05ce0e1c": { "balance": "1606938044258990275541962092341162602522202993782792835301376", "nonce": "1048576" }
 	},
 	"hardcodedSync": {
