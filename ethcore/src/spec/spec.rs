@@ -855,6 +855,7 @@ impl Spec {
 			Arc::new(kvdb_memorydb::create(0)),
 			journaldb::Algorithm::Archive,
 			None,
+			&[],
 		);
 
 		self.ensure_db_good(BasicBackend(db.as_hash_db_mut()), &factories)

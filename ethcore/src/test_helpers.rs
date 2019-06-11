@@ -427,7 +427,7 @@ pub fn get_temp_state_with_factory(factory: EvmFactory) -> State<::state_db::Sta
 /// Returns temp state db
 pub fn get_temp_state_db() -> StateDB {
 	let db = new_db();
-	let journal_db = ::journaldb::new(db.key_value().clone(), ::journaldb::Algorithm::EarlyMerge, ::db::COL_STATE);
+	let journal_db = ::journaldb::new(db.key_value().clone(), ::journaldb::Algorithm::EarlyMerge, ::db::COL_STATE, &[]);
 	StateDB::new(journal_db, 5 * 1024 * 1024)
 }
 

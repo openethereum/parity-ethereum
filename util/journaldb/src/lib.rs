@@ -142,11 +142,11 @@ impl fmt::Display for Algorithm {
 }
 
 /// Create a new `JournalDB` trait object over a generic key-value database.
-pub fn new(backing: Arc<::kvdb::KeyValueDB>, algorithm: Algorithm, col: Option<u32>) -> Box<JournalDB> {
+pub fn new(backing: Arc<::kvdb::KeyValueDB>, algorithm: Algorithm, col: Option<u32>, history_to_keep: &[(u64,u64)]) -> Box<JournalDB> {
 	match algorithm {
 		Algorithm::Archive => Box::new(archivedb::ArchiveDB::new(backing, col)),
 		Algorithm::EarlyMerge => Box::new(earlymergedb::EarlyMergeDB::new(backing, col)),
-		Algorithm::OverlayRecent => Box::new(overlayrecentdb::OverlayRecentDB::new(backing, col)),
+		Algorithm::OverlayRecent => Box::new(overlayrecentdb::OverlayRecentDB::new(backing, col, history_to_keep.to_vec())),
 		Algorithm::RefCounted => Box::new(refcounteddb::RefCountedDB::new(backing, col)),
 	}
 }

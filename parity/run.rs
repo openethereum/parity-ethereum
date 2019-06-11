@@ -88,6 +88,7 @@ pub struct RunCmd {
 	pub spec: SpecType,
 	pub pruning: Pruning,
 	pub pruning_history: u64,
+	pub pruning_historical_eras: Vec<(u64, u64)>,
 	pub pruning_memory: usize,
 	/// Some if execution should be daemonized. Contains pid_file path.
 	pub daemon: Option<String>,
@@ -531,6 +532,7 @@ fn execute_impl<Cr, Rr>(cmd: RunCmd, logger: Arc<RotatingLogger>, on_client_rq: 
 		algorithm,
 		cmd.pruning_history,
 		cmd.pruning_memory,
+		cmd.pruning_historical_eras,
 		cmd.check_seal,
 		cmd.max_round_blocks_to_import,
 	);

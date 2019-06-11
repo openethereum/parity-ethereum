@@ -63,6 +63,9 @@ pub trait JournalDB: KeyedHashDB {
 	/// Get the latest era in the DB. None if there isn't yet any data in there.
 	fn latest_era(&self) -> Option<u64>;
 
+	/// Get historical eras that we have not pruned.
+	fn historical_eras(&self) -> Vec<(u64,u64)> { vec![] }
+
 	/// Journal recent database operations as being associated with a given era and id.
 	// TODO: give the overlay to this function so journaldbs don't manage the overlays themeselves.
 	fn journal_under(&mut self, batch: &mut DBTransaction, now: u64, id: &H256) -> io::Result<u32>;

@@ -175,9 +175,10 @@ impl SnapshotCommand {
 			self.compaction,
 			VMType::default(),
 			"".into(),
-			algorithm,
+			algorithm.clone(),
 			self.pruning_history,
 			self.pruning_memory,
+			vec![],
 			true,
 			self.max_round_blocks_to_import,
 		);
