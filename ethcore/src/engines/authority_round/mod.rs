@@ -830,7 +830,7 @@ impl AuthorityRound {
 					}
 				}
 			} else {
-				debug!(target: "engine", "We are not part of the validator set so not reporting (skipped steps). Own address: {}", self.address());
+				warn!(target: "engine", "We are not part of the validator set so not reporting (skipped steps). Own address: {}", self.address());
 			}
 		}
 	}
@@ -1337,7 +1337,7 @@ impl Engine<EthereumMachine> for AuthorityRound {
 			if validators.contains(header.parent_hash(), self.address() ) {
 				self.validators.report_malicious(header.author(), set_number, header.number(), Default::default());
 			} else {
-				debug!(target: "engine", "Not reporting malicious behaviour because we're not a validator. Own address: {}", self.address());
+				warn!(target: "engine", "Not reporting malicious behaviour (cause: multiple blocks proposed) because we're not a validator. Own address: {}", self.address());
 			}
 			Err(EngineError::DoubleVote(*header.author()))?;
 		}
@@ -1389,7 +1389,7 @@ impl Engine<EthereumMachine> for AuthorityRound {
 					if self.validators.contains(header.parent_hash(), &self.address()) {
 						self.validators.report_benign(header.author(), set_number, header.number());
 					} else {
-						debug!(target: "engine", "Not reporting benign misbehaviour (cause: invalid empty steps) because we're not part of the validator set. Own address: {}",
+						warn!(target: "engine", "Not reporting benign misbehaviour (cause: invalid empty steps) because we're not a validator. Own address: {}",
 						       self.address());
 					}
 					return Err(err);
@@ -1423,7 +1423,7 @@ impl Engine<EthereumMachine> for AuthorityRound {
 				if self.validators.contains(header.parent_hash(), &self.address()) {
 					self.validators.report_benign(header.author(), set_number, header.number());
 				} else {
-					debug!(target: "engine", "We are not part of the validator set so not reporting (block from incorrect proposer). Own address: {}", self.address());
+					warn!(target: "engine", "Not reporting benign misbehaviour (cause:block from incorrect proposer) because we're not a validator. Own address: {}", self.address());
 				}
 			},
 			Ok(_) => {
