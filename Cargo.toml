@@ -2,7 +2,7 @@
 description = "Parity Ethereum client"
 name = "parity-ethereum"
 # NOTE Make sure to update util/version/Cargo.toml as well
-version = "2.4.6"
+version = "2.4.7"
 license = "GPL-3.0"
 authors = ["Parity Technologies <admin@parity.io>"]
 
@@ -118,10 +118,13 @@ path = "parity/lib.rs"
 path = "parity/main.rs"
 name = "parity"
 
-[profile.dev]
+[profile.test]
+lto = false
+opt-level = 3 # makes tests slower to compile, but faster to run
 
 [profile.release]
 debug = false
+lto = true
 
 [workspace]
 # This should only list projects that are not
