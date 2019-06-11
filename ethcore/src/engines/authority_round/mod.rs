@@ -1332,9 +1332,13 @@ impl Engine<EthereumMachine> for AuthorityRound {
 		// Ensure header is from the step after parent.
 		if step == parent_step
 			|| (header.number() >= self.validate_step_transition && step <= parent_step) {
-			trace!(target: "engine", "Multiple blocks proposed for step {}.", parent_step);
+			warn!(target: "engine", "Multiple blocks proposed for step {}.", parent_step);
 
-			self.validators.report_malicious(header.author(), set_number, header.number(), Default::default());
+			if validators.contains(header.parent_hash(), self.address() ) {
+				self.validators.report_malicious(header.author(), set_number, header.number(), Default::default());
+			} else {
+				debug!(target: "engine", "Not reporting malicious behaviour because we're not a validator. Own address: {}", self.address());
+			}
 			Err(EngineError::DoubleVote(*header.author()))?;
 		}
 
