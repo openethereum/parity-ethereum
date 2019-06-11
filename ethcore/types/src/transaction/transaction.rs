@@ -470,6 +470,11 @@ impl SignedTransaction {
 		}
 	}
 
+	// Reference to the plain text transaction
+	pub fn as_unsigned(&self) -> &Transaction {
+		self.transaction.as_unsigned()
+	}
+
 	/// Returns transaction hash
 	pub fn hash(&self) -> H256 {
 		self.transaction.hash
