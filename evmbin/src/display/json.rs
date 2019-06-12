@@ -49,7 +49,7 @@ pub struct Informant {
 
 #[derive(Serialize, Deserialize, Debug)]
 #[serde(rename_all = "camelCase")]
-pub struct Response {
+pub struct TraceData {
 	pc: usize,
 	op: u8,
 	op_name: String,
@@ -74,8 +74,8 @@ impl Informant {
 		let info = ::evm::Instruction::from_u8(informant.instruction).map(|i| i.info());
 
 		// Reference: https://serde.rs/attr-skip-serializing.html
-		let response =
-			Response {
+		let trace_data =
+			TraceData {
 				pc: informant.pc,
 				op: informant.instruction,
 				op_name: info.map(|i| i.name.to_string()).unwrap_or("".to_string()),
@@ -88,7 +88,7 @@ impl Informant {
 			}
 		;
 
-		serde_json::to_string(&response).unwrap()
+		serde_json::to_string(&trace_data).unwrap()
 	}
 }
 

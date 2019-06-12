@@ -66,7 +66,7 @@ pub struct Informant<Clone, Trace, Out> {
 
 #[derive(Serialize, Deserialize, Debug)]
 #[serde(rename_all = "camelCase")]
-pub struct Response {
+pub struct TraceData {
 	pc: usize,
 	op: u8,
 	op_name: String,
@@ -197,8 +197,8 @@ impl<Trace: Writer, Out: Writer> trace::VMTracer for Informant<Clone, Trace, Out
 			informant.instruction = instruction;
 
 			// Reference: https://serde.rs/attr-skip-serializing.html
-			let response =
-				Response {
+			let trace_data =
+				TraceData {
 					pc: pc,
 					op: instruction,
 					op_name: info.map(|i| i.name.to_string()).unwrap_or("".to_string()),
@@ -209,7 +209,7 @@ impl<Trace: Writer, Out: Writer> trace::VMTracer for Informant<Clone, Trace, Out
 				}
 			;
 
-			let serialized_trace_data = serde_json::to_string(&response).unwrap();
+			let serialized_trace_data = serde_json::to_string(&trace_data).unwrap();
 
 			writeln!(&mut informant.trace_sink, "{}", serialized_trace_data).expect("The sink must be writeable.");
 		});
