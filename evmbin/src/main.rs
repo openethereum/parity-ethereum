@@ -78,17 +78,18 @@ EVM implementation for Parity.
   Copyright 2015-2019 Parity Technologies (UK) Ltd.
 
 Usage:
-    parity-evm state-test <file> [--json --std-json --std-dump-json --only NAME --chain CHAIN --std-out-only --std-err-only]
+    parity-evm state-test <file> [--chain CHAIN --only NAME --json --std-json --std-dump-json --std-out-only --std-err-only]
     parity-evm stats [options]
     parity-evm stats-jsontests-vm <file>
     parity-evm [options]
     parity-evm [-h | --help]
 
 Commands:
-    state-test         Run a state test from a json file.
+    state-test         Run a state test on a provided state test JSON file path.
     stats              Execute EVM runtime code and return the statistics.
-    stats-jsontests-vm Execute standard json-tests format VMTests and return
-                       timing statistics in tsv format.
+    stats-jsontests-vm Execute standard json-tests on a provided state test JSON
+                       file path, format VMTests, and return timing statistics
+                       in tsv format.
 
 Transaction options:
     --code CODE        Contract code as hex (without 0x).
@@ -99,18 +100,20 @@ Transaction options:
     --gas-price WEI    Supplied gas price as hex (without 0x).
 
 State test options:
+    --chain CHAIN      Run only from specific chain name (i.e. EIP150, EIP158,
+                       Frontier, Homestead, Byzantium, Constantinople,
+                       ConstantinopleFix, EIP158ToByzantiumAt5, FrontierToHomesteadAt5,
+                       HomesteadToDaoAt5, HomesteadToEIP150At5).
     --only NAME        Runs only a single test matching the name.
-    --chain CHAIN      Run only tests from specific chain.
 
 General options:
+    --chain PATH       Chain spec file path.
     --json             Display verbose results in JSON.
     --std-json         Display results in standardized JSON format.
-    --std-err-only     With --std-json redirect to err output only.
-    --std-out-only     With --std-json redirect to out output only.
     --std-dump-json    Display results in standardized JSON format
                        with additional state dump.
-Display result state dump in standardized JSON format.
-    --chain CHAIN      Chain spec file path.
+    --std-err-only     With --std-json redirect to err output only.
+    --std-out-only     With --std-json redirect to out output only.
     -h, --help         Display this message and exit.
 "#;
 
