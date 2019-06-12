@@ -102,13 +102,21 @@ pub fn run_action<T: Informant>(
 
 /// Execute given Transaction and verify resulting state root.
 pub fn run_transaction<T: Informant>(
+	// Chain specification name associated with the transaction
 	name: &str,
+	// Transaction index from list of transactions within a state root hashes corresponding to a chain
 	idx: usize,
+	// Fork specification (i.e. Constantinople, EIP150, EIP158, etc)
 	spec: &ethjson::spec::ForkSpec,
+	// State of all accounts in the system that is a binary tree mapping of each account address to account data that is expressed as Plain Old Data.
+	// containing the account balance, account nonce, account code in bytes, and the account storage binary tree map.
 	pre_state: &pod_state::PodState,
+	// State root hash associated with the transaction
 	post_root: H256,
+	// Client environment information associated with the transaction's chain specification
 	env_info: &client::EnvInfo,
 	transaction: transaction::SignedTransaction,
+	// JSON formatting informant
 	mut informant: T,
 	trie_spec: TrieSpec,
 ) {
