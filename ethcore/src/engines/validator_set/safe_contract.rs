@@ -74,6 +74,8 @@ impl ::engines::StateDependentProof<EthereumMachine> for StateProof {
 /// The validator contract should have the following interface:
 pub struct ValidatorSafeContract {
 	contract_address: Address,
+	/// The LRU cache is indexed by the parent_hash, so given a hash, the value
+	/// is the validator set valid for the blocks following that hash.
 	validators: RwLock<MemoryLruCache<H256, SimpleList>>,
 	client: RwLock<Option<Weak<EngineClient>>>, // TODO [keorn]: remove
 }
