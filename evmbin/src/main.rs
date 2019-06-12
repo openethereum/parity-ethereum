@@ -167,7 +167,6 @@ fn run_state_test(args: Args) {
 		// Skip to next iteration if CLI option `--chain CHAIN` was parsed into `only_chain` and does not match
 		// the current key `spec` (i.e. Constantinople, EIP150, EIP158)
 		for (spec, states) in test.post_states {
-			// println!("states {:?}", states);
 			if let Some(false) = only_chain.as_ref().map(|only_chain| {
 				&format!("{:?}", spec).to_lowercase() == only_chain
 			}) {
@@ -531,18 +530,18 @@ mod tests {
 	// TODO - add test that passes without failing with `State root mismatch`
 	// using ./res/create2callPrecompile.json from https://github.com/ethereum/tests
 
-	// TODO - add test that fails with `State root mismatch` using teststate.json
+  // TODO - add test that fails with `State root mismatch` using teststate.json
 
   // TODO - add test for the `parity-evm stats` command, and return error when
   // the `--only` option is used. repeat for `parity-evm stats-jsontests-vm`
-	// and just `parity-evm` (since those options only supported
-	// by `parity-evm state-test`)
+  // and just `parity-evm` (since those options only supported
+  // by `parity-evm state-test`)
 
   // TODO show out of gas error using only 1 gas, and when not out of gas by providing at least 21 gas.
-	// ```
-	// ./target/release/parity-evm stats --to "0000000000000000000000000000000000000004" --from "0000000000000000000000000000000000000003" --code "05" --input "06" --gas "1" --gas-price "2" --only "add11" --json
+  // ```
+  // ./target/release/parity-evm stats --to "0000000000000000000000000000000000000004" --from "0000000000000000000000000000000000000003" --code "05" --input "06" --gas "1" --gas-price "2" --only "add11" --json
   // {"error":"EVM: Out of gas","gasUsed":"0x1","time":2422}
   // ./target/release/parity-evm stats --to "0000000000000000000000000000000000000004" --from "0000000000000000000000000000000000000003" --code "05" --input "06" --gas "21" --gas-price "2" --only "add11" --json
   // {"gasUsed":"0x12","output":"0x06","time":2382}
-	// ```
+  // ```
 }
