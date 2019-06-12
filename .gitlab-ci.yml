@@ -206,7 +206,7 @@ build-windows:
 publish-docker:
   stage:                           publish
   <<:                              *no_git
-  # only:                            *releaseable_branches
+  only:                            *releaseable_branches
   except:
     variables:
       - $SCHEDULE_TAG == "nightly"

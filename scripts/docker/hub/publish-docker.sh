@@ -46,7 +46,7 @@ case "${SCHEDULE_TAG:-${CI_COMMIT_REF_NAME}}" in
             --file tools/Dockerfile .;
         docker push "parity/parity:${VERSION}-${CI_COMMIT_REF_NAME}";
         docker push "parity/parity:stable";;
-    "^v[0-9]+\.[0-9]+.*$")  # case for tags (TRACK=branch name)
+    v[0-9]*.[0-9]*)
         echo "Docker TAG - 'parity/parity:${VERSION}-${TRACK}'"
         docker build --no-cache \
             --build-arg VCS_REF="${CI_COMMIT_SHA}" \
