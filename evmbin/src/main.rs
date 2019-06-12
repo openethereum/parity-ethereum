@@ -265,14 +265,15 @@ fn run_stats_jsontests_vm(args: Args) {
 	}
 }
 
+// CLI command `stats`
 fn run_call<T: Informant>(args: Args, informant: T) {
-	let from = arg(args.from(), "--from");
-	let to = arg(args.to(), "--to");
 	let code = arg(args.code(), "--code");
-	let spec = arg(args.spec(), "--chain");
+	let to = arg(args.to(), "--to");
+	let from = arg(args.from(), "--from");
+	let data = arg(args.data(), "--input");
 	let gas = arg(args.gas(), "--gas");
 	let gas_price = arg(args.gas_price(), "--gas-price");
-	let data = arg(args.data(), "--input");
+	let spec = arg(args.spec(), "--chain");
 
 	if code.is_none() && to == Address::zero() {
 		die("Either --code or --to is required.");
@@ -280,14 +281,14 @@ fn run_call<T: Informant>(args: Args, informant: T) {
 
 	let mut params = ActionParams::default();
 	params.call_type = if code.is_none() { CallType::Call } else { CallType::None };
+	params.code = code.map(Arc::new);
 	params.code_address = to;
 	params.address = to;
 	params.sender = from;
 	params.origin = from;
+	params.data = data;
 	params.gas = gas;
 	params.gas_price = gas_price;
-	params.code = code.map(Arc::new);
-	params.data = data;
 
 	let mut sink = informant.clone_sink();
 	let result = if args.flag_std_dump_json {
