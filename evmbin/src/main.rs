@@ -76,12 +76,14 @@ use info::Informant;
 const USAGE: &'static str = r#"
 EVM implementation for Parity.
   Copyright 2015-2019 Parity Technologies (UK) Ltd.
+
 Usage:
     parity-evm state-test <file> [--json --std-json --std-dump-json --only NAME --chain CHAIN --std-out-only --std-err-only]
     parity-evm stats [options]
     parity-evm stats-jsontests-vm <file>
     parity-evm [options]
     parity-evm [-h | --help]
+
 Commands:
     state-test         Run a state test from a json file.
     stats              Execute EVM runtime code and return the statistics.
@@ -94,9 +96,11 @@ Transaction options:
     --input DATA       Input data as hex (without 0x).
     --gas GAS          Supplied gas as hex (without 0x).
     --gas-price WEI    Supplied gas price as hex (without 0x).
+
 State test options:
     --only NAME        Runs only a single test matching the name.
     --chain CHAIN      Run only tests from specific chain.
+
 General options:
     --json             Display verbose results in JSON.
     --std-json         Display results in standardized JSON format.
