@@ -654,8 +654,8 @@ impl Miner {
 
 	// TODO: (https://github.com/paritytech/parity-ethereum/issues/10407)
 	// This is only used in authority_round path, and should be refactored to merge with the other seal() path.
-	// Attempts to perform internal sealing (one that does not require work) and handles the result depending on the
-	// type of Seal.
+	// Attempts to perform internal sealing (one that does not require work: e.g. Clique
+	// and Aura) and handles the result depending on the type of Seal.
 	fn seal_and_import_block_internally<C>(&self, chain: &C, block: ClosedBlock) -> bool
 		where C: BlockChain + SealedBlockImporter,
 	{
@@ -682,28 +682,6 @@ impl Miner {
 		};
 
 		match self.engine.generate_seal(&block, &parent_header) {
-			// Save proposal for later seal submission and broadcast it.
-			Seal::Proposal(seal) => {
-				trace!(target: "miner", "Received a Proposal seal.");
-				{
-					let mut sealing = self.sealing.lock();
-					sealing.next_mandatory_reseal = Instant::now() + self.options.reseal_max_period;
-					sealing.queue.set_pending(block.clone());
-					sealing.queue.use_last_ref();
-				}
-
-				block
-					.lock()
-					.seal(&*self.engine, seal)
-					.map(|sealed| {
-						chain.broadcast_proposal_block(sealed);
-						true
-					})
-					.unwrap_or_else(|e| {
-						warn!("ERROR: seal failed when given internally generated seal: {}", e);
-						false
-					})
-			},
 			// Directly import a regular sealed block.
 			Seal::Regular(seal) => {
 				trace!(target: "miner", "Received a Regular seal.");

@@ -1114,12 +1114,12 @@ impl Engine<EthereumMachine> for AuthorityRound {
 
 		// filter messages from old and future steps and different parents
 		let empty_steps = if header.number() >= self.empty_steps_transition {
-			self.empty_steps(parent_step.into(), step.into(), *header.parent_hash())
+			self.empty_steps(parent_step, step, *header.parent_hash())
 		} else {
 			Vec::new()
 		};
 
-		let expected_diff = calculate_score(parent_step, step.into(), empty_steps.len().into());
+		let expected_diff = calculate_score(parent_step, step, empty_steps.len());
 
 		if header.difficulty() != &expected_diff {
 			debug!(target: "engine", "Aborting seal generation. The step or empty_steps have changed in the meantime. {:?} != {:?}",
@@ -1127,12 +1127,17 @@ impl Engine<EthereumMachine> for AuthorityRound {
 			return Seal::None;
 		}
 
-		if parent_step > step.into() {
+		if parent_step > step {
 			warn!(target: "engine", "Aborting seal generation for invalid step: {} > {}", parent_step, step);
+			return Seal::None;
+		} else if parent_step == step {
+			// this is guarded against by `can_propose` unless the block was signed
+			// on the same step (implies same key) and on a different node.
+			warn!("Attempted to seal block on the same step as parent. Is this authority sealing with more than one node?");
 			return Seal::None;
 		}
 
-		let (validators, set_number) = match self.epoch_set(header) {
+		let (validators, epoch_transition_number) = match self.epoch_set(header) {
 			Err(err) => {
 				warn!(target: "engine", "Unable to generate seal: {}", err);
 				return Seal::None;
@@ -1141,13 +1146,6 @@ impl Engine<EthereumMachine> for AuthorityRound {
 		};
 
 		if is_step_proposer(&*validators, header.parent_hash(), step, header.author()) {
-			// this is guarded against by `can_propose` unless the block was signed
-			// on the same step (implies same key) and on a different node.
-			if parent_step == step {
-				warn!("Attempted to seal block on the same step as parent. Is this authority sealing with more than one node?");
-				return Seal::None;
-			}
-
 			// if there are no transactions to include in the block, we don't seal and instead broadcast a signed
 			// `EmptyStep(step, parent_hash)` message. If we exceed the maximum amount of `empty_step` rounds we proceed
 			// with the seal.
@@ -1182,7 +1180,7 @@ impl Engine<EthereumMachine> for AuthorityRound {
 					// report any skipped primaries between the parent block and
 					// the block we're sealing, unless we have empty steps enabled
 					if header.number() < self.empty_steps_transition {
-						self.report_skipped(header, step, parent_step, &*validators, set_number);
+						self.report_skipped(header, step, parent_step, &*validators, epoch_transition_number);
 					}
 
 					let mut fields = vec![
@@ -1758,13 +1756,13 @@ mod tests {
 
 		engine.set_signer(Box::new((tap.clone(), addr1, "1".into())));
 		match engine.generate_seal(&b1, &genesis_header) {
-			Seal::None | Seal::Proposal(_) => panic!("wrong seal"),
+			Seal::None => panic!("wrong seal"),
 			Seal::Regular(_) => {
 				engine.step();
 
 				engine.set_signer(Box::new((tap.clone(), addr2, "0".into())));
 				match engine.generate_seal(&b2, &genesis_header) {
-					Seal::Regular(_) | Seal::Proposal(_) => panic!("sealed despite wrong difficulty"),
+					Seal::Regular(_) => panic!("sealed despite wrong difficulty"),
 					Seal::None => {}
 				}
 			}
