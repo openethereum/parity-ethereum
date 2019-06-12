@@ -527,7 +527,7 @@ impl<'a> Discovery<'a> {
 		} else {
 			let mut address = from.clone();
 			// address here is the node's tcp port. If we are unable to get the `NodeEndpoint` from the `ping_from`
-			// field then this is most likely a BootNode, set the tcp port to 0 because it can not be used for syncing.
+			// rlp field then this is most likely a BootNode, set the tcp port to 0 because it can not be used for syncing.
 			address.set_port(0);
 			NodeEndpoint {
 				address,
