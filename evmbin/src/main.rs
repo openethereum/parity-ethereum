@@ -89,6 +89,7 @@ Commands:
     stats              Execute EVM runtime code and return the statistics.
     stats-jsontests-vm Execute standard json-tests format VMTests and return
                        timing statistics in tsv format.
+
 Transaction options:
     --code CODE        Contract code as hex (without 0x).
     --to ADDRESS       Recipient address (without 0x).
