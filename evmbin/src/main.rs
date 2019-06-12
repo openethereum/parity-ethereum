@@ -142,40 +142,6 @@ fn main() {
 	}
 }
 
-fn run_stats_jsontests_vm(args: Args) {
-	use json_tests::HookType;
-	use std::collections::HashMap;
-	use std::time::{Instant, Duration};
-
-	let file = args.arg_file.expect("FILE (or PATH) is required");
-
-	let mut timings: HashMap<String, (Instant, Option<Duration>)> = HashMap::new();
-
-	{
-		let mut record_time = |name: &str, typ: HookType| {
-			match typ {
-				HookType::OnStart => {
-					timings.insert(name.to_string(), (Instant::now(), None));
-				},
-				HookType::OnStop => {
-					timings.entry(name.to_string()).and_modify(|v| {
-						v.1 = Some(v.0.elapsed());
-					});
-				},
-			}
-		};
-		if !file.is_file() {
-			json_tests::run_executive_test_path(&file, &[], &mut record_time);
-		} else {
-			json_tests::run_executive_test_file(&file, &mut record_time);
-		}
-	}
-
-	for (name, v) in timings {
-		println!("{}\t{}", name, display::as_micros(&v.1.expect("All hooks are called with OnStop; qed")));
-	}
-}
-
 fn run_state_test(args: Args) {
 	use ethjson::state::test::Test;
 
@@ -229,6 +195,40 @@ fn run_state_test(args: Args) {
 				}
 			}
 		}
+	}
+}
+
+fn run_stats_jsontests_vm(args: Args) {
+	use json_tests::HookType;
+	use std::collections::HashMap;
+	use std::time::{Instant, Duration};
+
+	let file = args.arg_file.expect("FILE (or PATH) is required");
+
+	let mut timings: HashMap<String, (Instant, Option<Duration>)> = HashMap::new();
+
+	{
+		let mut record_time = |name: &str, typ: HookType| {
+			match typ {
+				HookType::OnStart => {
+					timings.insert(name.to_string(), (Instant::now(), None));
+				},
+				HookType::OnStop => {
+					timings.entry(name.to_string()).and_modify(|v| {
+						v.1 = Some(v.0.elapsed());
+					});
+				},
+			}
+		};
+		if !file.is_file() {
+			json_tests::run_executive_test_path(&file, &[], &mut record_time);
+		} else {
+			json_tests::run_executive_test_file(&file, &mut record_time);
+		}
+	}
+
+	for (name, v) in timings {
+		println!("{}\t{}", name, display::as_micros(&v.1.expect("All hooks are called with OnStop; qed")));
 	}
 }
 
