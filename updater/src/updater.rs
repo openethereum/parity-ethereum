@@ -28,7 +28,7 @@ use target_info::Target;
 use common_types::BlockNumber;
 use common_types::filter::Filter;
 use ethcore::client::{BlockId, BlockChainClient, ChainNotify, NewBlocks};
-use ethereum_types::H256;
+use ethereum_types::{H256, H160};
 use hash_fetch::{self as fetch, HashFetch};
 use parity_path::restrict_permissions_owner;
 use service::Service;
@@ -159,7 +159,7 @@ pub struct Updater<O = OperationsContractClient, F = fetch::Client, T = StdTimeP
 const CLIENT_ID: &str = "parity";
 
 lazy_static! {
-	static ref CLIENT_ID_HASH: H256 = CLIENT_ID.as_bytes().into();
+	static ref CLIENT_ID_HASH: H256 = H256::from_slice(CLIENT_ID.as_bytes());
 }
 
 lazy_static! {
@@ -177,7 +177,7 @@ lazy_static! {
 }
 
 lazy_static! {
-	static ref PLATFORM_ID_HASH: H256 = PLATFORM.as_bytes().into();
+	static ref PLATFORM_ID_HASH: H256 = H256::from_slice(PLATFORM.as_bytes());
 }
 
 /// Client trait for getting latest release information from operations contract.
@@ -373,7 +373,7 @@ impl Updater {
 				VersionInfo {
 					track: ReleaseTrack::Stable,
 					version: Version::new(1, 3, 7),
-					hash: 0.into(),
+					hash: H160::zero(),
 				}
 			} else {
 				VersionInfo::this()
@@ -827,7 +827,7 @@ pub mod tests {
 		let this = VersionInfo {
 			track: ReleaseTrack::Beta,
 			version: Version::parse("1.0.0").unwrap(),
-			hash: 0.into(),
+			hash: H160::zero(),
 		};
 
 		let updater = Arc::new(Updater {
@@ -867,14 +867,14 @@ pub mod tests {
 		let latest_version = VersionInfo {
 			track: ReleaseTrack::Beta,
 			version: Version::parse(version).unwrap(),
-			hash: 1.into(),
+			hash: H160::from_low_u64_be(1),
 		};
 
 		let latest_release = ReleaseInfo {
 			version: latest_version.clone(),
 			is_critical: false,
 			fork: 0,
-			binary: Some(0.into()),
+			binary: Some(H256::zero()),
 		};
 
 		let latest = OperationsInfo {

@@ -34,7 +34,7 @@ use ethereum_types::H256;
 use kvdb::KeyValueDB;
 use bytes::Bytes;
 use rlp::{RlpStream, Rlp};
-use rand::OsRng;
+use rand::rngs::OsRng;
 use types::encoded;
 
 /// Snapshot creation and restoration for PoW chains.
@@ -210,7 +210,7 @@ impl PowRebuilder {
 		Ok(PowRebuilder {
 			chain: chain,
 			db: db,
-			rng: OsRng::new()?,
+			rng: OsRng::new().map_err(|e| format!("{}", e))?,
 			disconnected: Vec::new(),
 			best_number: manifest.block_number,
 			best_hash: manifest.block_hash,

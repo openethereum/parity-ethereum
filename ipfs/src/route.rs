@@ -56,7 +56,7 @@ impl IpfsHandler {
 
 		if mh.alg != Hash::Keccak256 { return Err(Error::UnsupportedHash); }
 
-		let hash: H256 = mh.digest.into();
+		let hash = H256::from_slice(&mh.digest);
 
 		match cid.codec {
 			Codec::EthereumBlock => self.block(hash),

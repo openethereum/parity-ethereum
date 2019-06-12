@@ -15,7 +15,7 @@
 // along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
 use std::cmp;
-use ethereum_types::{U256, H256};
+use ethereum_types::{BigEndianHash, U256};
 use super::u256_to_address;
 
 use {evm, vm};
@@ -121,12 +121,12 @@ impl<Gas: evm::CostType> Gasometer<Gas> {
 				Request::Gas(Gas::from(1))
 			},
 			instructions::SSTORE => {
-				let address = H256::from(stack.peek(0));
+				let address = BigEndianHash::from_uint(stack.peek(0));
 				let newval = stack.peek(1);
-				let val = U256::from(&*ext.storage_at(&address)?);
+				let val = ext.storage_at(&address)?.into_uint();
 
 				let gas = if schedule.eip1283 {
-					let orig = U256::from(&*ext.initial_storage_at(&address)?);
+					let orig = ext.initial_storage_at(&address)?.into_uint();
 					calculate_eip1283_sstore_gas(schedule, &orig, &val, &newval)
 				} else {
 					if val.is_zero() && !newval.is_zero() {

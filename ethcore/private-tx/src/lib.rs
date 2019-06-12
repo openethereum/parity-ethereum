@@ -25,6 +25,7 @@ mod key_server_keys;
 mod private_transactions;
 mod messages;
 mod error;
+mod log;
 
 extern crate common_types as types;
 extern crate ethabi;
@@ -45,11 +46,15 @@ extern crate parking_lot;
 extern crate trie_db as trie;
 extern crate patricia_trie_ethereum as ethtrie;
 extern crate rlp;
+#[macro_use]
+extern crate serde_derive;
+extern crate serde;
+extern crate serde_json;
 extern crate rustc_hex;
 extern crate transaction_pool as txpool;
 extern crate url;
 #[macro_use]
-extern crate log;
+extern crate log as ethlog;
 #[macro_use]
 extern crate ethabi_derive;
 #[macro_use]
@@ -57,6 +62,9 @@ extern crate ethabi_contract;
 extern crate derive_more;
 #[macro_use]
 extern crate rlp_derive;
+
+#[cfg(not(time_checked_add))]
+extern crate time_utils;
 
 #[cfg(test)]
 extern crate rand;
@@ -68,10 +76,11 @@ pub use key_server_keys::{KeyProvider, SecretStoreKeys, StoringKeyProvider};
 pub use private_transactions::{VerifiedPrivateTransaction, VerificationStore, PrivateTransactionSigningDesc, SigningStore};
 pub use messages::{PrivateTransaction, SignedPrivateTransaction};
 pub use error::Error;
+pub use log::{Logging, TransactionLog, ValidatorLog, PrivateTxStatus, FileLogsSerializer};
 
 use std::sync::{Arc, Weak};
 use std::collections::{HashMap, HashSet, BTreeMap};
-use ethereum_types::{H128, H256, U256, Address};
+use ethereum_types::{H128, H256, U256, Address, BigEndianHash};
 use hash::keccak;
 use rlp::*;
 use parking_lot::RwLock;
@@ -117,6 +126,8 @@ pub struct ProviderConfig {
 	pub validator_accounts: Vec<Address>,
 	/// Account used for signing public transactions created from private transactions
 	pub signer_account: Option<Address>,
+	/// Path to private tx logs
+	pub logs_path: Option<String>,
 }
 
 #[derive(Debug)]
@@ -177,6 +188,7 @@ pub struct Provider {
 	accounts: Arc<Signer>,
 	channel: IoChannel<ClientIoMessage>,
 	keys_provider: Arc<KeyProvider>,
+	logging: Option<Logging>,
 }
 
 #[derive(Debug)]
@@ -211,6 +223,7 @@ impl Provider {
 			accounts,
 			channel,
 			keys_provider,
+			logging: config.logs_path.map(|path| Logging::new(Arc::new(FileLogsSerializer::with_path(path)))),
 		}
 	}
 
@@ -257,8 +270,11 @@ impl Provider {
 		trace!(target: "privatetx", "Required validators: {:?}", contract_validators);
 		let private_state_hash = self.calculate_state_hash(&private_state, contract_nonce);
 		trace!(target: "privatetx", "Hashed effective private state for sender: {:?}", private_state_hash);
-		self.transactions_for_signing.write().add_transaction(private.hash(), signed_transaction, contract_validators, private_state, contract_nonce)?;
+		self.transactions_for_signing.write().add_transaction(private.hash(), signed_transaction, &contract_validators, private_state, contract_nonce)?;
 		self.broadcast_private_transaction(private.hash(), private.rlp_bytes());
+		if let Some(ref logging) = self.logging {
+			logging.private_tx_created(&tx_hash, &contract_validators);
+		}
 		Ok(Receipt {
 			hash: tx_hash,
 			contract_address: contract,
@@ -269,9 +285,10 @@ impl Provider {
 	/// Calculate hash from united private state and contract nonce
 	pub fn calculate_state_hash(&self, state: &Bytes, nonce: U256) -> H256 {
 		let state_hash = keccak(state);
+		let nonce_h256: H256 = BigEndianHash::from_uint(&nonce);
 		let mut state_buf = [0u8; 64];
-		state_buf[..32].clone_from_slice(&state_hash);
-		state_buf[32..].clone_from_slice(&H256::from(nonce));
+		state_buf[..32].clone_from_slice(state_hash.as_bytes());
+		state_buf[32..].clone_from_slice(nonce_h256.as_bytes());
 		keccak(&state_buf.as_ref())
 	}
 
@@ -354,8 +371,9 @@ impl Provider {
 			Some(desc) => desc,
 		};
 		let last = self.last_required_signature(&desc, signed_tx.signature())?;
+		let original_tx_hash = desc.original_transaction.hash();
 
-		if last {
+		if last.0 {
 			let mut signatures = desc.received_signatures.clone();
 			signatures.push(signed_tx.signature());
 			let rsv: Vec<Signature> = signatures.into_iter().map(|sign| sign.into_electrum().into()).collect();
@@ -373,8 +391,8 @@ impl Provider {
 			trace!(target: "privatetx", "Last required signature received, public transaction created: {:?}", public_tx);
 			// Sign and add it to the queue
 			let chain_id = desc.original_transaction.chain_id();
-			let hash = public_tx.hash(chain_id);
-			let signature = self.accounts.sign(signer_account, hash)?;
+			let public_tx_hash = public_tx.hash(chain_id);
+			let signature = self.accounts.sign(signer_account, public_tx_hash)?;
 			let signed = SignedTransaction::new(public_tx.with_signature(signature, chain_id))?;
 			match self.miner.import_own_transaction(&*self.client, signed.into()) {
 				Ok(_) => trace!(target: "privatetx", "Public transaction added to queue"),
@@ -392,6 +410,11 @@ impl Provider {
 					Err(err) => warn!(target: "privatetx", "Failed to send private state changed notification, error: {:?}", err),
 				}
 			}
+			// Store logs
+			if let Some(ref logging) = self.logging {
+				logging.signature_added(&original_tx_hash, &last.1);
+				logging.tx_deployed(&original_tx_hash, &public_tx_hash);
+			}
 			// Remove from store for signing
 			if let Err(err) = self.transactions_for_signing.write().remove(&private_hash) {
 				warn!(target: "privatetx", "Failed to remove transaction from signing store, error: {:?}", err);
@@ -400,7 +423,12 @@ impl Provider {
 		} else {
 			// Add signature to the store
 			match self.transactions_for_signing.write().add_signature(&private_hash, signed_tx.signature()) {
-				Ok(_) => trace!(target: "privatetx", "Signature stored for private transaction"),
+				Ok(_) => {
+					trace!(target: "privatetx", "Signature stored for private transaction");
+					if let Some(ref logging) = self.logging {
+						logging.signature_added(&original_tx_hash, &last.1);
+					}
+				}
 				Err(err) => {
 					warn!(target: "privatetx", "Failed to add signature to signing store, error: {:?}", err);
 					return Err(err);
@@ -420,17 +448,14 @@ impl Provider {
 		}
 	}
 
-	fn last_required_signature(&self, desc: &PrivateTransactionSigningDesc, sign: Signature) -> Result<bool, Error>  {
-		if desc.received_signatures.contains(&sign) {
-			return Ok(false);
-		}
+	fn last_required_signature(&self, desc: &PrivateTransactionSigningDesc, sign: Signature) -> Result<(bool, Address), Error>  {
 		let state_hash = self.calculate_state_hash(&desc.state, desc.contract_nonce);
 		match recover(&sign, &state_hash) {
 			Ok(public) => {
 				let sender = public_to_address(&public);
 				match desc.validators.contains(&sender) {
 					true => {
-						Ok(desc.received_signatures.len() + 1 == desc.validators.len())
+						Ok((desc.received_signatures.len() + 1 == desc.validators.len(), sender))
 					}
 					false => {
 						warn!(target: "privatetx", "Sender's state doesn't correspond to validator's");
@@ -457,13 +482,13 @@ impl Provider {
 
 	fn iv_from_transaction(transaction: &SignedTransaction) -> H128 {
 		let nonce = keccak(&transaction.nonce.rlp_bytes());
-		let (iv, _) = nonce.split_at(INIT_VEC_LEN);
+		let (iv, _) = nonce.as_bytes().split_at(INIT_VEC_LEN);
 		H128::from_slice(iv)
 	}
 
 	fn iv_from_address(contract_address: &Address) -> H128 {
 		let address = keccak(&contract_address.rlp_bytes());
-		let (iv, _) = address.split_at(INIT_VEC_LEN);
+		let (iv, _) = address.as_bytes().split_at(INIT_VEC_LEN);
 		H128::from_slice(iv)
 	}
 
@@ -512,8 +537,8 @@ impl Provider {
 		// Sort the storage to guarantee the order for all parties
 		let sorted_storage: BTreeMap<&H256, &H256> = storage.iter().collect();
 		for (key, value) in sorted_storage {
-			raw.extend_from_slice(key);
-			raw.extend_from_slice(value);
+			raw.extend_from_slice(key.as_bytes());
+			raw.extend_from_slice(value.as_bytes());
 		};
 		raw
 	}
@@ -597,8 +622,8 @@ impl Provider {
 				v[31] = s.v();
 				v
 			}).collect::<Vec<[u8; 32]>>(),
-			signatures.iter().map(|s| s.r()).collect::<Vec<&[u8]>>(),
-			signatures.iter().map(|s| s.s()).collect::<Vec<&[u8]>>()
+			signatures.iter().map(|s| H256::from_slice(s.r())).collect::<Vec<H256>>(),
+			signatures.iter().map(|s| H256::from_slice(s.s())).collect::<Vec<H256>>(),
 		)
 	}
 
@@ -672,6 +697,14 @@ impl Provider {
 	pub fn private_call(&self, block: BlockId, transaction: &SignedTransaction) -> Result<Executed, Error> {
 		let result = self.execute_private(transaction, TransactOptions::with_no_tracing(), block)?;
 		Ok(result.result)
+	}
+
+	/// Retrieves log information about private transaction
+	pub fn private_log(&self, tx_hash: H256) -> Result<TransactionLog, Error> {
+		match self.logging {
+			Some(ref logging) => logging.tx_log(&tx_hash).ok_or(Error::TxNotFoundInLog),
+			None => Err(Error::LoggingPathNotSet),
+		}
 	}
 
 	/// Returns private validators for a contract.

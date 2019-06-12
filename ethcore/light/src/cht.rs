@@ -104,7 +104,7 @@ pub fn build<F>(cht_num: u64, mut fetcher: F) -> Option<CHT<MemoryDB<KeccakHashe
 	let last_num = start_number(cht_num + 1) - 1;
 	let mut id = BlockId::Number(last_num);
 
-	let mut root = H256::default();
+	let mut root = H256::zero();
 
 	{
 		let mut t = TrieDBMut::new(&mut db, &mut root);

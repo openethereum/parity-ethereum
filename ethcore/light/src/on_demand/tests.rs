@@ -117,9 +117,9 @@ fn dummy_status() -> Status {
 		protocol_version: 1,
 		network_id: 999,
 		head_td: 1.into(),
-		head_hash: H256::default(),
+		head_hash: H256::zero(),
 		head_num: 1359,
-		genesis_hash: H256::default(),
+		genesis_hash: H256::zero(),
 		last_head: None,
 	}
 }
@@ -138,7 +138,7 @@ fn detects_hangup() {
 	let on_demand = Harness::create().service;
 	let result = on_demand.request_raw(
 		&Context::NoOp,
-		vec![request::HeaderByHash(H256::default().into()).into()],
+		vec![request::HeaderByHash(H256::zero().into()).into()],
 	);
 
 	assert_eq!(on_demand.pending.read().len(), 1);
@@ -199,7 +199,7 @@ fn no_capabilities() {
 
 	let _recv = harness.service.request_raw(
 		&Context::NoOp,
-		vec![request::HeaderByHash(H256::default().into()).into()]
+		vec![request::HeaderByHash(H256::zero().into()).into()]
 	).unwrap();
 
 	assert_eq!(harness.service.pending.read().len(), 1);
@@ -395,7 +395,7 @@ fn wrong_kind() {
 
 	let _recv = harness.service.request_raw(
 		&Context::NoOp,
-		vec![request::HeaderByHash(H256::default().into()).into()]
+		vec![request::HeaderByHash(H256::zero().into()).into()]
 	).unwrap();
 
 	assert_eq!(harness.service.pending.read().len(), 1);

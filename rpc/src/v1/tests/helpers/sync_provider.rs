@@ -17,7 +17,7 @@
 //! Test implementation of SyncProvider.
 
 use std::collections::BTreeMap;
-use ethereum_types::H256;
+use ethereum_types::{H256, H512};
 use parking_lot::RwLock;
 use network::client_version::ClientVersion;
 use futures::sync::mpsc;
@@ -88,7 +88,7 @@ impl SyncProvider for TestSyncProvider {
 				eth_info: Some(EthProtocolInfo {
 					version: 62,
 					difficulty: Some(40.into()),
-					head: 50.into(),
+					head: H256::from_low_u64_be(50),
 				}),
 				pip_info: None,
 			},
@@ -101,7 +101,7 @@ impl SyncProvider for TestSyncProvider {
 				eth_info: Some(EthProtocolInfo {
 					version: 64,
 					difficulty: None,
-					head: 60.into()
+					head: H256::from_low_u64_be(60),
 				}),
 				pip_info: None,
 			}
@@ -114,16 +114,16 @@ impl SyncProvider for TestSyncProvider {
 
 	fn transactions_stats(&self) -> BTreeMap<H256, TransactionStats> {
 		map![
-			1.into() => TransactionStats {
+			H256::from_low_u64_be(1) => TransactionStats {
 				first_seen: 10,
 				propagated_to: map![
-					128.into() => 16
+					H512::from_low_u64_be(128) => 16
 				],
 			},
-			5.into() => TransactionStats {
+			H256::from_low_u64_be(5) => TransactionStats {
 				first_seen: 16,
 				propagated_to: map![
-					16.into() => 1
+					H512::from_low_u64_be(16) => 1
 				],
 			}
 		]

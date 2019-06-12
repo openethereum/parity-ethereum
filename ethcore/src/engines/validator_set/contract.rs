@@ -175,7 +175,7 @@ mod tests {
 
 		// Check a block that is a bit in future, reject it but don't report the validator.
 		let mut header = Header::default();
-		let seal = vec![encode(&4u8), encode(&(&H520::default() as &[u8]))];
+		let seal = vec![encode(&4u8), encode(&H520::zero().as_bytes())];
 		header.set_seal(seal);
 		header.set_author(v1);
 		header.set_number(2);
@@ -186,7 +186,7 @@ mod tests {
 
 		// Now create one that is more in future. That one should be rejected and validator should be reported.
 		let mut header = Header::default();
-		let seal = vec![encode(&8u8), encode(&(&H520::default() as &[u8]))];
+		let seal = vec![encode(&8u8), encode(&H520::zero().as_bytes())];
 		header.set_seal(seal);
 		header.set_author(v1);
 		header.set_number(2);

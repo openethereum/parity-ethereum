@@ -38,6 +38,6 @@ pub trait Verifier<C>: Send + Sync
 
 	/// Do a final verification check for an enacted header vs its expected counterpart.
 	fn verify_block_final(&self, expected: &Header, got: &Header) -> Result<(), Error>;
-	/// Verify a block, inspecing external state.
+	/// Verify a block, inspecting external state.
 	fn verify_block_external(&self, header: &Header, engine: &EthEngine) -> Result<(), Error>;
 }

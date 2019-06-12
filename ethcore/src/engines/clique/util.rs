@@ -102,7 +102,7 @@ pub fn extract_signers(header: &Header) -> Result<BTreeSet<Address>, Error> {
 		.map(|i| {
 			let start = i * ADDRESS_LENGTH;
 			let end = start + ADDRESS_LENGTH;
-			signers_raw[start..end].into()
+			Address::from_slice(&signers_raw[start..end])
 		})
 		.collect();
 
@@ -111,5 +111,5 @@ pub fn extract_signers(header: &Header) -> Result<BTreeSet<Address>, Error> {
 
 /// Retrieve `null_seal`
 pub fn null_seal() -> Vec<Vec<u8>> {
-	vec![encode(&NULL_MIXHASH.to_vec()), encode(&NULL_NONCE.to_vec())]
+	vec![encode(&NULL_MIXHASH.as_bytes().to_vec()), encode(&NULL_NONCE.as_bytes().to_vec())]
 }

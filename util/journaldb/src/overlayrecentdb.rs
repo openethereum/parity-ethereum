@@ -176,7 +176,9 @@ impl OverlayRecentDB {
 	}
 
 	fn payload(&self, key: &H256) -> Option<DBValue> {
-		self.backing.get(self.column, key).expect("Low-level database error. Some issue with your hard disk?")
+		self.backing
+			.get(self.column, key.as_bytes())
+			.expect("Low-level database error. Some issue with your hard disk?")
 	}
 
 	fn read_overlay(db: &KeyValueDB, col: Option<u32>) -> JournalOverlay {
@@ -238,7 +240,7 @@ impl OverlayRecentDB {
 
 #[inline]
 fn to_short_key(key: &H256) -> H256 {
-	let mut k = H256::new();
+	let mut k = H256::zero();
 	k[0..DB_PREFIX_LEN].copy_from_slice(&key[0..DB_PREFIX_LEN]);
 	k
 }
@@ -403,7 +405,7 @@ impl JournalDB for OverlayRecentDB {
 
 			// apply canon inserts first
 			for (k, v) in canon_insertions {
-				batch.put(self.column, &k, &v);
+				batch.put(self.column, k.as_bytes(), &v);
 				journal_overlay.pending_overlay.insert(to_short_key(&k), v);
 			}
 			// update the overlay
@@ -415,7 +417,7 @@ impl JournalDB for OverlayRecentDB {
 			// apply canon deletions
 			for k in canon_deletions {
 				if !journal_overlay.backing_overlay.contains(&to_short_key(&k)) {
-					batch.delete(self.column, &k);
+					batch.delete(self.column, k.as_bytes());
 				}
 			}
 		}
@@ -441,13 +443,13 @@ impl JournalDB for OverlayRecentDB {
 			match rc {
 				0 => {}
 				_ if rc > 0 => {
-					batch.put(self.column, &key, &value)
+					batch.put(self.column, key.as_bytes(), &value)
 				}
 				-1 => {
-					if cfg!(debug_assertions) && self.backing.get(self.column, &key)?.is_none() {
+					if cfg!(debug_assertions) && self.backing.get(self.column, key.as_bytes())?.is_none() {
 						return Err(error_negatively_reference_hash(&key));
 					}
-					batch.delete(self.column, &key)
+					batch.delete(self.column, key.as_bytes())
 				}
 				_ => panic!("Attempted to inject invalid state ({})", rc),
 			}

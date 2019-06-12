@@ -17,6 +17,7 @@
 //! Types for Whisper RPC.
 
 use std::fmt;
+use std::convert::AsRef;
 use std::ops::Deref;
 
 use ethereum_types::{H32, H64, H128, H256, H264, H512};
@@ -26,7 +27,7 @@ use serde::{Serialize, Serializer, Deserialize, Deserializer};
 use serde::de::{Error, Visitor};
 
 /// Helper trait for generic hex bytes encoding.
-pub trait HexEncodable: Sized + ::std::ops::Deref<Target=[u8]> {
+pub trait HexEncodable: Sized + AsRef<[u8]> {
 	fn from_bytes(bytes: Vec<u8>) -> Option<Self>;
 }
 
@@ -39,7 +40,7 @@ macro_rules! impl_hex_for_hash {
 		$(
 			impl HexEncodable for $t {
 				fn from_bytes(bytes: Vec<u8>) -> Option<Self> {
-					if bytes.len() != $t::len() {
+					if bytes.len() != $t::len_bytes() {
 						None
 					} else {
 						Some($t::from_slice(&bytes))
@@ -100,7 +101,7 @@ pub type Symmetric = HexEncode<H256>;
 
 impl<T: HexEncodable> Serialize for HexEncode<T> {
 	fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
-		let data = &self.0[..];
+		let data = self.0.as_ref();
 		let serialized = "0x".to_owned() + &data.to_hex();
 
 		serializer.serialize_str(serialized.as_ref())

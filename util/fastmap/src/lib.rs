@@ -36,6 +36,6 @@ mod tests {
     #[test]
     fn test_works() {
         let mut h = H256FastMap::default();
-        h.insert(H256::from(123), "abc");
+        h.insert(H256::from_low_u64_be(123), "abc");
     }
 }

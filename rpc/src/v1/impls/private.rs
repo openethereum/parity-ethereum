@@ -26,7 +26,8 @@ use types::transaction::SignedTransaction;
 
 use jsonrpc_core::{Error};
 use v1::types::{Bytes, PrivateTransactionReceipt, TransactionRequest,
-	BlockNumber, PrivateTransactionReceiptAndTransaction, CallRequest, block_number_to_id};
+	BlockNumber, PrivateTransactionReceiptAndTransaction, CallRequest,
+	block_number_to_id, PrivateTransactionLog};
 use v1::traits::Private;
 use v1::metadata::Metadata;
 use v1::helpers::{errors, fake_sign};
@@ -118,5 +119,12 @@ impl Private for PrivateClient {
 		let client = self.unwrap_manager()?;
 		let key = client.contract_key_id(&contract_address).map_err(errors::private_message)?;
 		Ok(key)
+	}
+
+	fn private_log(&self, tx_hash: H256) -> Result<PrivateTransactionLog, Error> {
+		self.unwrap_manager()?
+			.private_log(tx_hash)
+			.map_err(errors::private_message)
+			.map(Into::into)
 	}
 }

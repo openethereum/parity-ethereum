@@ -25,7 +25,7 @@ use blockchain::{BlockReceipts, BlockChain, BlockChainDB, BlockProvider, TreeRou
 use bytes::Bytes;
 use call_contract::{CallContract, RegistryInfo};
 use ethcore_miner::pool::VerifiedTransaction;
-use ethereum_types::{H256, Address, U256};
+use ethereum_types::{H256, H264, Address, U256};
 use evm::Schedule;
 use hash::keccak;
 use io::IoChannel;
@@ -33,7 +33,7 @@ use itertools::Itertools;
 use journaldb;
 use kvdb::{DBValue, KeyValueDB, DBTransaction};
 use parking_lot::{Mutex, RwLock};
-use rand::OsRng;
+use rand::rngs::OsRng;
 use types::transaction::{self, LocalizedTransaction, UnverifiedTransaction, SignedTransaction, Action};
 use trie::{TrieSpec, TrieFactory, Trie};
 use types::ancestry_action::AncestryAction;
@@ -60,7 +60,7 @@ use client::{
 	IoClient, BadBlocks,
 };
 use client::bad_blocks;
-use engines::{MAX_UNCLE_AGE, EthEngine, EpochTransition, ForkChoice, EngineError};
+use engines::{MAX_UNCLE_AGE, EthEngine, EpochTransition, ForkChoice, EngineError, SealingState};
 use engines::epoch::PendingTransition;
 use error::{
 	ImportError, ExecutionError, CallError, BlockError,
@@ -86,7 +86,7 @@ pub use types::blockchain_info::BlockChainInfo;
 pub use types::block_status::BlockStatus;
 pub use blockchain::CacheSize as BlockChainCacheSize;
 pub use verification::QueueInfo as BlockQueueInfo;
-use db::Writable;
+use db::{Writable, Readable, keys::BlockDetails};
 
 use_contract!(registry, "res/contracts/registrar.json");
 
@@ -456,7 +456,7 @@ impl Importer {
 		{
 			trace_time!("import_old_block");
 			// verify the block, passing the chain for updating the epoch verifier.
-			let mut rng = OsRng::new()?;
+			let mut rng = OsRng::new().map_err(|e| format!("{}", e))?;
 			self.ancient_verifier.verify(&mut rng, &unverified.header, &chain)?;
 
 			// Commit results
@@ -908,12 +908,12 @@ impl Client {
 			let hashes = self.last_hashes.read();
 			if hashes.front().map_or(false, |h| h == parent_hash) {
 				let mut res = Vec::from(hashes.clone());
-				res.resize(256, H256::default());
+				res.resize(256, H256::zero());
 				return Arc::new(res);
 			}
 		}
 		let mut last_hashes = LastHashes::new();
-		last_hashes.resize(256, H256::default());
+		last_hashes.resize(256, H256::zero());
 		last_hashes[0] = parent_hash.clone();
 		let chain = self.chain.read();
 		for i in 0..255 {
@@ -1223,7 +1223,7 @@ impl Client {
 	// transaction for calling contracts from services like engine.
 	// from the null sender, with 50M gas.
 	fn contract_call_tx(&self, block_id: BlockId, address: Address, data: Bytes) -> SignedTransaction {
-		let from = Address::default();
+		let from = Address::zero();
 		transaction::Transaction {
 			nonce: self.nonce(&from, block_id).unwrap_or_else(|| self.engine.account_start_nonce(0)),
 			action: Action::Call(address),
@@ -1327,37 +1327,60 @@ impl BlockChainReset for Client {
 	fn reset(&self, num: u32) -> Result<(), String> {
 		if num as u64 > self.pruning_history() {
 			return Err("Attempting to reset to block with pruned state".into())
+		} else if num == 0 {
+			return Err("invalid number of blocks to reset".into())
 		}
 
-		let (blocks_to_delete, best_block_hash) = self.chain.read()
-			.block_headers_from_best_block(num)
-			.ok_or("Attempted to reset past genesis block")?;
+		let mut blocks_to_delete = Vec::with_capacity(num as usize);
+		let mut best_block_hash = self.chain.read().best_block_hash();
+		let mut batch = DBTransaction::with_capacity(blocks_to_delete.len());
 
-		let mut db_transaction = DBTransaction::with_capacity((num + 1) as usize);
+		for _ in 0..num {
+			let current_header = self.chain.read().block_header_data(&best_block_hash)
+				.expect("best_block_hash was fetched from db; block_header_data should exist in db; qed");
+			best_block_hash = current_header.parent_hash();
 
-		for hash in &blocks_to_delete {
-			db_transaction.delete(::db::COL_HEADERS, &hash.hash());
-			db_transaction.delete(::db::COL_BODIES, &hash.hash());
-			db_transaction.delete(::db::COL_EXTRA, &hash.hash());
+			let (number, hash) = (current_header.number(), current_header.hash());
+			batch.delete(::db::COL_HEADERS, hash.as_bytes());
+			batch.delete(::db::COL_BODIES, hash.as_bytes());
+			Writable::delete::<BlockDetails, H264>
+				(&mut batch, ::db::COL_EXTRA, &hash);
 			Writable::delete::<H256, BlockNumberKey>
-				(&mut db_transaction, ::db::COL_EXTRA, &hash.number());
+				(&mut batch, ::db::COL_EXTRA, &number);
+
+			blocks_to_delete.push((number, hash));
 		}
 
+		let hashes = blocks_to_delete.iter().map(|(_, hash)| hash).collect::<Vec<_>>();
+		info!("Deleting block hashes {}",
+			  Colour::Red
+				  .bold()
+				  .paint(format!("{:#?}", hashes))
+		);
+
+		let mut best_block_details = Readable::read::<BlockDetails, H264>(
+			&**self.db.read().key_value(),
+			::db::COL_EXTRA,
+			&best_block_hash
+		).expect("block was previously imported; best_block_details should exist; qed");
+
+		let (_, last_hash) = blocks_to_delete.last()
+			.expect("num is > 0; blocks_to_delete can't be empty; qed");
+		// remove the last block as a child so that it can be re-imported
+		// ethcore/blockchain/src/blockchain.rs/Blockchain::is_known_child()
+		best_block_details.children.retain(|h| *h != *last_hash);
+		batch.write(
+			::db::COL_EXTRA,
+			&best_block_hash,
+			&best_block_details
+		);
 		// update the new best block hash
-		db_transaction.put(::db::COL_EXTRA, b"best", &*best_block_hash);
+		batch.put(::db::COL_EXTRA, b"best", best_block_hash.as_bytes());
 
 		self.db.read()
 			.key_value()
-			.write(db_transaction)
-			.map_err(|err| format!("could not complete reset operation; io error occured: {}", err))?;
-
-		let hashes = blocks_to_delete.iter().map(|b| b.hash()).collect::<Vec<_>>();
-
-		info!("Deleting block hashes {}",
-			Colour::Red
-				.bold()
-				.paint(format!("{:#?}", hashes))
-		);
+			.write(batch)
+			.map_err(|err| format!("could not delete blocks; io error occurred: {}", err))?;
 
 		info!("New best block hash {}", Colour::Green.bold().paint(format!("{:?}", best_block_hash)));
 
@@ -1799,7 +1822,7 @@ impl BlockChainClient for Client {
 		};
 
 		if let Some(after) = after {
-			if let Err(e) = iter.seek(after) {
+			if let Err(e) = iter.seek(after.as_bytes()) {
 				trace!(target: "fatdb", "list_accounts: Couldn't seek the DB: {:?}", e);
 			} else {
 				// Position the iterator after the `after` element
@@ -1847,7 +1870,7 @@ impl BlockChainClient for Client {
 		};
 
 		if let Some(after) = after {
-			if let Err(e) = iter.seek(after) {
+			if let Err(e) = iter.seek(after.as_bytes()) {
 				trace!(target: "fatdb", "list_storage: Couldn't seek the DB: {:?}", e);
 			} else {
 				// Position the iterator after the `after` element
@@ -2408,7 +2431,7 @@ impl ImportSealedBlock for Client {
 			&[],
 			route.enacted(),
 			route.retracted(),
-			self.engine.seals_internally().is_some(),
+			self.engine.sealing_state() != SealingState::External,
 		);
 		self.notify(|notify| {
 			notify.new_blocks(
@@ -2522,16 +2545,6 @@ impl ProvingBlockChainClient for Client {
 
 impl SnapshotClient for Client {}
 
-impl Drop for Client {
-	fn drop(&mut self) {
-		if let Some(c) = Arc::get_mut(&mut self.engine) {
-			c.stop()
-		} else {
-			warn!(target: "shutdown", "unable to get mut ref for engine for shutdown.");
-		}
-	}
-}
-
 /// Returns `LocalizedReceipt` given `LocalizedTransaction`
 /// and a vector of receipts from given block up to transaction index.
 fn transaction_receipt(
@@ -2579,6 +2592,7 @@ fn transaction_receipt(
 
 #[cfg(test)]
 mod tests {
+	use ethereum_types::{H256, Address};
 
 	#[test]
 	fn should_not_cache_details_before_commit() {
@@ -2654,19 +2668,19 @@ mod tests {
 		use types::transaction::{Transaction, LocalizedTransaction, Action};
 
 		// given
-		let key = KeyPair::from_secret_slice(&keccak("test")).unwrap();
+		let key = KeyPair::from_secret_slice(keccak("test").as_bytes()).unwrap();
 		let secret = key.secret();
 		let machine = ::ethereum::new_frontier_test_machine();
 
 		let block_number = 1;
-		let block_hash = 5.into();
-		let state_root = 99.into();
+		let block_hash = H256::from_low_u64_be(5);
+		let state_root = H256::from_low_u64_be(99);
 		let gas_used = 10.into();
 		let raw_tx = Transaction {
 			nonce: 0.into(),
 			gas_price: 0.into(),
 			gas: 21000.into(),
-			action: Action::Call(10.into()),
+			action: Action::Call(Address::from_low_u64_be(10)),
 			value: 0.into(),
 			data: vec![],
 		};
@@ -2679,11 +2693,11 @@ mod tests {
 			cached_sender: Some(tx1.sender()),
 		};
 		let logs = vec![LogEntry {
-			address: 5.into(),
+			address: Address::from_low_u64_be(5),
 			topics: vec![],
 			data: vec![],
 		}, LogEntry {
-			address: 15.into(),
+			address: Address::from_low_u64_be(15),
 			topics: vec![],
 			data: vec![],
 		}];

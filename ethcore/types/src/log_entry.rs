@@ -44,8 +44,8 @@ impl HeapSizeOf for LogEntry {
 impl LogEntry {
 	/// Calculates the bloom of this log entry.
 	pub fn bloom(&self) -> Bloom {
-		self.topics.iter().fold(Bloom::from(BloomInput::Raw(&self.address)), |mut b, t| {
-			b.accrue(BloomInput::Raw(t));
+		self.topics.iter().fold(Bloom::from(BloomInput::Raw(self.address.as_bytes())), |mut b, t| {
+			b.accrue(BloomInput::Raw(t.as_bytes()));
 			b
 		})
 	}

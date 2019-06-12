@@ -68,7 +68,7 @@ impl From<BlockInfo> for ImportRoute {
 
 #[cfg(test)]
 mod tests {
-	use ethereum_types::{H256, U256};
+	use ethereum_types::{U256, BigEndianHash};
 	use crate::block_info::{BlockInfo, BlockLocation, BranchBecomingCanonChainData};
 	use super::ImportRoute;
 
@@ -84,7 +84,7 @@ mod tests {
 	#[test]
 	fn import_route_branch() {
 		let info = BlockInfo {
-			hash: H256::from(U256::from(1)),
+			hash: BigEndianHash::from_uint(&U256::from(1)),
 			number: 0,
 			total_difficulty: U256::from(0),
 			location: BlockLocation::Branch,
@@ -93,14 +93,14 @@ mod tests {
 		assert_eq!(ImportRoute::from(info), ImportRoute {
 			retracted: vec![],
 			enacted: vec![],
-			omitted: vec![H256::from(U256::from(1))],
+			omitted: vec![BigEndianHash::from_uint(&U256::from(1))],
 		});
 	}
 
 	#[test]
 	fn import_route_canon_chain() {
 		let info = BlockInfo {
-			hash: H256::from(U256::from(1)),
+			hash: BigEndianHash::from_uint(&U256::from(1)),
 			number: 0,
 			total_difficulty: U256::from(0),
 			location: BlockLocation::CanonChain,
@@ -108,7 +108,7 @@ mod tests {
 
 		assert_eq!(ImportRoute::from(info), ImportRoute {
 			retracted: vec![],
-			enacted: vec![H256::from(U256::from(1))],
+			enacted: vec![BigEndianHash::from_uint(&U256::from(1))],
 			omitted: vec![],
 		});
 	}
@@ -116,19 +116,19 @@ mod tests {
 	#[test]
 	fn import_route_branch_becoming_canon_chain() {
 		let info = BlockInfo {
-			hash: H256::from(U256::from(2)),
+			hash: BigEndianHash::from_uint(&U256::from(2)),
 			number: 0,
 			total_difficulty: U256::from(0),
 			location: BlockLocation::BranchBecomingCanonChain(BranchBecomingCanonChainData {
-				ancestor: H256::from(U256::from(0)),
-				enacted: vec![H256::from(U256::from(1))],
-				retracted: vec![H256::from(U256::from(3)), H256::from(U256::from(4))],
+				ancestor: BigEndianHash::from_uint(&U256::from(0)),
+				enacted: vec![BigEndianHash::from_uint(&U256::from(1))],
+				retracted: vec![BigEndianHash::from_uint(&U256::from(3)), BigEndianHash::from_uint(&U256::from(4))],
 			})
 		};
 
 		assert_eq!(ImportRoute::from(info), ImportRoute {
-			retracted: vec![H256::from(U256::from(3)), H256::from(U256::from(4))],
-			enacted: vec![H256::from(U256::from(1)), H256::from(U256::from(2))],
+			retracted: vec![BigEndianHash::from_uint(&U256::from(3)), BigEndianHash::from_uint(&U256::from(4))],
+			enacted: vec![BigEndianHash::from_uint(&U256::from(1)), BigEndianHash::from_uint(&U256::from(2))],
 			omitted: vec![],
 		});
 	}

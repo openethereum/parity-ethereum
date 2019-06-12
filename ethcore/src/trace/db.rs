@@ -43,8 +43,11 @@ impl Key<FlatBlockTraces> for H256 {
 
 	fn key(&self) -> H264 {
 		let mut result = H264::default();
-		result[0] = TraceDBIndex::BlockTraces as u8;
-		result[1..33].copy_from_slice(self);
+		{
+			let bytes = result.as_bytes_mut();
+			bytes[0] = TraceDBIndex::BlockTraces as u8;
+			bytes[1..33].copy_from_slice(self.as_bytes());
+		}
 		result
 	}
 }
@@ -348,7 +351,7 @@ mod tests {
 	impl DatabaseExtras for NoopExtras {
 		fn block_hash(&self, block_number: BlockNumber) -> Option<H256> {
 			if block_number == 0 {
-				Some(H256::default())
+				Some(H256::zero())
 			} else {
 				unimplemented!()
 			}
@@ -419,8 +422,8 @@ mod tests {
 				trace_address: Default::default(),
 				subtraces: 0,
 				action: Action::Call(Call {
-					from: 1.into(),
-					to: 2.into(),
+					from: Address::from_low_u64_be(1),
+					to: Address::from_low_u64_be(2),
 					value: 3.into(),
 					gas: 4.into(),
 					input: vec![],
@@ -441,8 +444,8 @@ mod tests {
 				trace_address: Default::default(),
 				subtraces: 0,
 				action: Action::Call(Call {
-					from: 1.into(),
-					to: 2.into(),
+					from: Address::from_low_u64_be(1),
+					to: Address::from_low_u64_be(2),
 					value: 3.into(),
 					gas: 4.into(),
 					input: vec![],
@@ -460,8 +463,8 @@ mod tests {
 	fn create_simple_localized_trace(block_number: BlockNumber, block_hash: H256, tx_hash: H256) -> LocalizedTrace {
 		LocalizedTrace {
 			action: Action::Call(Call {
-				from: Address::from(1),
-				to: Address::from(2),
+				from: Address::from_low_u64_be(1),
+				to: Address::from_low_u64_be(2),
 				value: U256::from(3),
 				gas: U256::from(4),
 				input: vec![],
@@ -482,10 +485,10 @@ mod tests {
 		let db = new_db();
 		let mut config = Config::default();
 		config.enabled = true;
-		let block_0 = H256::from(0xa1);
-		let block_1 = H256::from(0xa2);
-		let tx_0 = H256::from(0xff);
-		let tx_1 = H256::from(0xaf);
+		let block_0 = H256::from_low_u64_be(0xa1);
+		let block_1 = H256::from_low_u64_be(0xa2);
+		let tx_0 = H256::from_low_u64_be(0xff);
+		let tx_1 = H256::from_low_u64_be(0xaf);
 
 		let mut extras = Extras::default();
 		extras.block_hashes.insert(0, block_0.clone());
@@ -509,13 +512,13 @@ mod tests {
 		let db = new_db();
 		let mut config = Config::default();
 		config.enabled = true;
-		let block_1 = H256::from(0xa1);
-		let block_2 = H256::from(0xa2);
-		let tx_1 = H256::from(0xff);
-		let tx_2 = H256::from(0xaf);
+		let block_1 = H256::from_low_u64_be(0xa1);
+		let block_2 = H256::from_low_u64_be(0xa2);
+		let tx_1 = H256::from_low_u64_be(0xff);
+		let tx_2 = H256::from_low_u64_be(0xaf);
 
 		let mut extras = Extras::default();
-		extras.block_hashes.insert(0, H256::default());
+		extras.block_hashes.insert(0, H256::zero());
 
 		extras.block_hashes.insert(1, block_1.clone());
 		extras.block_hashes.insert(2, block_2.clone());
@@ -532,7 +535,7 @@ mod tests {
 
 		let filter = Filter {
 			range: (1..1),
-			from_address: AddressesFilter::from(vec![Address::from(1)]),
+			from_address: AddressesFilter::from(vec![Address::from_low_u64_be(1)]),
 			to_address: AddressesFilter::from(vec![]),
 		};
 
@@ -548,7 +551,7 @@ mod tests {
 
 		let filter = Filter {
 			range: (1..2),
-			from_address: AddressesFilter::from(vec![Address::from(1)]),
+			from_address: AddressesFilter::from(vec![Address::from_low_u64_be(1)]),
 			to_address: AddressesFilter::from(vec![]),
 		};
 
@@ -588,10 +591,10 @@ mod tests {
 		let db = new_db();
 		let mut config = Config::default();
 		let mut extras = Extras::default();
-		let block_0 = H256::from(0xa1);
-		let tx_0 = H256::from(0xff);
+		let block_0 = H256::from_low_u64_be(0xa1);
+		let tx_0 = H256::from_low_u64_be(0xff);
 
-		extras.block_hashes.insert(0, H256::default());
+		extras.block_hashes.insert(0, H256::zero());
 		extras.transaction_hashes.insert(0, vec![]);
 		extras.block_hashes.insert(1, block_0.clone());
 		extras.transaction_hashes.insert(1, vec![tx_0.clone()]);
@@ -621,7 +624,7 @@ mod tests {
 		let db = new_db();
 		let mut config = Config::default();
 		let mut extras = Extras::default();
-		let block_0 = H256::from(0xa1);
+		let block_0 = H256::from_low_u64_be(0xa1);
 
 		extras.block_hashes.insert(0, block_0.clone());
 		extras.transaction_hashes.insert(0, vec![]);

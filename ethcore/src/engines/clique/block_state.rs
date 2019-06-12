@@ -194,7 +194,7 @@ impl CliqueBlockState {
 				Err(BlockError::InvalidSealArity(Mismatch { expected: 2, found: decoded_seal.len() }))?
 			}
 
-			let nonce: H64 = decoded_seal[1].into();
+			let nonce = H64::from_slice(decoded_seal[1]);
 			self.update_signers_on_vote(VoteType::from_nonce(nonce)?, creator, *header.author(), header.number())?;
 		}
 

@@ -18,10 +18,10 @@ fn should_serialize_u256() {
 
 #[test]
 fn should_serialize_h256() {
-	let serialized1 = serde_json::to_string(&H256::from(0)).unwrap();
-	let serialized2 = serde_json::to_string(&H256::from(1)).unwrap();
-	let serialized3 = serde_json::to_string(&H256::from(16)).unwrap();
-	let serialized4 = serde_json::to_string(&H256::from(256)).unwrap();
+	let serialized1 = serde_json::to_string(&H256::from_low_u64_be(0)).unwrap();
+	let serialized2 = serde_json::to_string(&H256::from_low_u64_be(1)).unwrap();
+	let serialized3 = serde_json::to_string(&H256::from_low_u64_be(16)).unwrap();
+	let serialized4 = serde_json::to_string(&H256::from_low_u64_be(256)).unwrap();
 
 	assert_eq!(serialized1, r#""0x0000000000000000000000000000000000000000000000000000000000000000""#);
 	assert_eq!(serialized2, r#""0x0000000000000000000000000000000000000000000000000000000000000001""#);
@@ -78,7 +78,7 @@ fn should_deserialize_h256() {
 	let deserialized2: H256 = serde_json::from_str(r#""0x0000000000000000000000000000000000000000000000000000000000000001""#).unwrap();
 	let deserialized3: H256 = serde_json::from_str(r#""0x0000000000000000000000000000000000000000000000000000000000000100""#).unwrap();
 
-	assert_eq!(deserialized1, 0.into());
-	assert_eq!(deserialized2, 1.into());
-	assert_eq!(deserialized3, 256.into());
+	assert_eq!(deserialized1, H256::from_low_u64_be(0));
+	assert_eq!(deserialized2, H256::from_low_u64_be(1));
+	assert_eq!(deserialized3, H256::from_low_u64_be(256));
 }

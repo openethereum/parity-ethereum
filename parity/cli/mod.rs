@@ -332,10 +332,6 @@ usage! {
 			"Add SHIFT to all port numbers Parity is listening on. Includes network port and all servers (HTTP JSON-RPC, WebSockets JSON-RPC, IPFS, SecretStore).",
 
 		["Account Options"]
-			FLAG flag_no_hardware_wallets: (bool) = false, or |c: &Config| c.account.as_ref()?.disable_hardware.clone(),
-			"--no-hardware-wallets",
-			"Disables hardware wallet support.",
-
 			FLAG flag_fast_unlock: (bool) = false, or |c: &Config| c.account.as_ref()?.fast_unlock.clone(),
 			"--fast-unlock",
 			"Use drastically faster unlocking mode. This setting causes raw secrets to be stored unprotected in memory, so use with care.",
@@ -1197,7 +1193,6 @@ struct Account {
 	password: Option<Vec<String>>,
 	keys_iterations: Option<u32>,
 	refresh_time: Option<u64>,
-	disable_hardware: Option<bool>,
 	fast_unlock: Option<bool>,
 }
 
@@ -1767,7 +1762,6 @@ mod tests {
 			arg_password: vec!["~/.safe/password.file".into()],
 			arg_keys_iterations: 10240u32,
 			arg_accounts_refresh: 5u64,
-			flag_no_hardware_wallets: false,
 			flag_fast_unlock: false,
 
 			// -- Private Transactions Options
@@ -2050,7 +2044,6 @@ mod tests {
 				password: Some(vec!["passwdfile path".into()]),
 				keys_iterations: None,
 				refresh_time: None,
-				disable_hardware: None,
 				fast_unlock: None,
 			}),
 			ui: Some(Ui {

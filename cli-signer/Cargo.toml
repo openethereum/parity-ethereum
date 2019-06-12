@@ -7,7 +7,7 @@ name = "cli-signer"
 version = "1.4.0"
 
 [dependencies]
-ethereum-types = "0.4"
+ethereum-types = "0.6.0"
 futures = "0.1"
 rpassword = "1.0"
 parity-rpc = { path = "../rpc" }

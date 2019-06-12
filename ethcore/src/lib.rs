@@ -108,6 +108,8 @@ extern crate vm;
 extern crate wasm;
 
 #[cfg(test)]
+extern crate rand_xorshift;
+#[cfg(test)]
 extern crate ethcore_accounts as accounts;
 #[cfg(feature = "stratum")]
 extern crate ethcore_stratum;

@@ -70,10 +70,10 @@ impl CliqueTester {
 		let mut extra_data = vec![0; VANITY_LENGTH];
 
 		for &signer in SIGNER_TAGS.iter() {
-			let secret = Secret::from(H256::from(signer as u64));
+			let secret = Secret::from(H256::from_low_u64_be(signer as u64));
 			let keypair = KeyPair::from_secret(secret).unwrap();
 			if initial_signers.contains(&signer) {
-				extra_data.extend(&*keypair.address());
+				extra_data.extend(keypair.address().as_bytes());
 			}
 			signers.insert(signer, keypair);
 		}
@@ -151,7 +151,7 @@ impl CliqueTester {
 			CliqueBlockType::Checkpoint => {
 				let signers = self.clique.state(&last_header).unwrap().signers().clone();
 				for signer in signers {
-					extra_data.extend(&*signer);
+					extra_data.extend(signer.as_bytes());
 				}
 			}
 			CliqueBlockType::Vote(v) => seal = v.as_rlp(),

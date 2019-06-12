@@ -28,18 +28,21 @@ use super::helpers::StateProducer;
 
 use error::Error;
 
-use rand::{XorShiftRng, SeedableRng};
+use rand::SeedableRng;
+use rand_xorshift::XorShiftRng;
 use ethereum_types::H256;
 use journaldb::{self, Algorithm};
 use kvdb_rocksdb::{Database, DatabaseConfig};
 use parking_lot::Mutex;
 use tempdir::TempDir;
 
+const RNG_SEED: [u8; 16] = [1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16];
+
 #[test]
 fn snap_and_restore() {
 	use hash_db::HashDB;
 	let mut producer = StateProducer::new();
-	let mut rng = XorShiftRng::from_seed([1, 2, 3, 4]);
+	let mut rng = XorShiftRng::from_seed(RNG_SEED);
 	let mut old_db = journaldb::new_memory_db();
 	let db_cfg = DatabaseConfig::with_columns(::db::NUM_COLUMNS);
 
@@ -65,7 +68,7 @@ fn snap_and_restore() {
 		block_hashes: Vec::new(),
 		state_root: state_root,
 		block_number: 1000,
-		block_hash: H256::default(),
+		block_hash: H256::zero(),
 	}).unwrap();
 
 	let db_path = tempdir.path().join("db");
@@ -84,7 +87,7 @@ fn snap_and_restore() {
 		}
 
 		assert_eq!(rebuilder.state_root(), state_root);
-		rebuilder.finalize(1000, H256::default()).unwrap();
+		rebuilder.finalize(1000, H256::zero()).unwrap();
 
 		new_db
 	};
@@ -157,7 +160,7 @@ fn get_code_from_prev_chunk() {
 #[test]
 fn checks_flag() {
 	let mut producer = StateProducer::new();
-	let mut rng = XorShiftRng::from_seed([5, 6, 7, 8]);
+	let mut rng = XorShiftRng::from_seed(RNG_SEED);
 	let mut old_db = journaldb::new_memory_db();
 	let db_cfg = DatabaseConfig::with_columns(::db::NUM_COLUMNS);
 
@@ -179,7 +182,7 @@ fn checks_flag() {
 		block_hashes: Vec::new(),
 		state_root: state_root,
 		block_number: 0,
-		block_hash: H256::default(),
+		block_hash: H256::zero(),
 	}).unwrap();
 
 	let tempdir = TempDir::new("").unwrap();

@@ -329,8 +329,9 @@ impl FullDependencies {
 				}
 				Api::EthPubSub => {
 					if !for_generic_pubsub {
+						let pool_receiver = self.miner.pending_transactions_receiver();
 						let mut client =
-							EthPubSubClient::new(self.client.clone(), self.executor.clone());
+							EthPubSubClient::new(self.client.clone(), self.executor.clone(), pool_receiver);
 						let weak_client = Arc::downgrade(&self.client);
 
 						client.add_sync_notifier(self.sync.sync_notification(), move |state| {
@@ -345,14 +346,6 @@ impl FullDependencies {
 							})
 						});
 
-						let h = client.handler();
-						self.miner
-							.add_transactions_listener(Box::new(move |hashes| {
-								if let Some(h) = h.upgrade() {
-									h.notify_new_transactions(hashes);
-								}
-							}));
-
 						if let Some(h) = client.handler().upgrade() {
 							self.client.add_notify(h);
 						}
@@ -361,7 +354,7 @@ impl FullDependencies {
 				}
 				Api::ParityTransactionsPool => {
 					if !for_generic_pubsub {
-						let receiver = self.miner.tx_pool_receiver();
+						let receiver = self.miner.full_transactions_receiver();
 						let client = TransactionsPoolClient::new(self.executor.clone(), receiver);
 						handler.extend_with(TransactionsPoolClient::to_delegate(client));
 					}
@@ -583,6 +576,8 @@ impl<C: LightChainClient + 'static> LightDependencies<C> {
 					}
 				}
 				Api::EthPubSub => {
+					let receiver = self.transaction_queue.write().pending_transactions_receiver();
+
 					let mut client = EthPubSubClient::light(
 						self.client.clone(),
 						self.on_demand.clone(),
@@ -590,6 +585,7 @@ impl<C: LightChainClient + 'static> LightDependencies<C> {
 						self.cache.clone(),
 						self.executor.clone(),
 						self.gas_price_percentile,
+						receiver
 					);
 
 					let weak_client = Arc::downgrade(&self.client);
@@ -607,19 +603,11 @@ impl<C: LightChainClient + 'static> LightDependencies<C> {
 					});
 
 					self.client.add_listener(client.handler() as Weak<_>);
-					let h = client.handler();
-					self.transaction_queue
-						.write()
-						.add_listener(Box::new(move |transactions| {
-							if let Some(h) = h.upgrade() {
-								h.notify_new_transactions(transactions);
-							}
-						}));
 					handler.extend_with(EthPubSub::to_delegate(client));
 				}
 				Api::ParityTransactionsPool => {
 					if !for_generic_pubsub {
-						let receiver = self.transaction_queue.write().tx_statuses_receiver();
+						let receiver = self.transaction_queue.write().full_transactions_receiver();
 						let client = TransactionsPoolClient::new(self.executor.clone(), receiver);
 						handler.extend_with(TransactionsPoolClient::to_delegate(client));
 					}

@@ -95,7 +95,7 @@ impl Pricer for ModexpPricer {
 		// read lengths as U256 here for accurate gas calculation.
 		let mut read_len = || {
 			reader.read_exact(&mut buf[..]).expect("reading from zero-extended memory cannot fail; qed");
-			U256::from(H256::from_slice(&buf[..]))
+			U256::from_big_endian(&buf[..])
 		};
 		let base_len = read_len();
 		let exp_len = read_len();
@@ -118,7 +118,7 @@ impl Pricer for ModexpPricer {
 			let mut reader = input[(96 + base_len as usize)..].chain(io::repeat(0));
 			let len = min(exp_len, 32) as usize;
 			reader.read_exact(&mut buf[(32 - len)..]).expect("reading from zero-extended memory cannot fail; qed");
-			U256::from(H256::from_slice(&buf[..]))
+			U256::from_big_endian(&buf[..])
 		};
 
 		let adjusted_exp_len = Self::adjusted_exp_len(exp_len, exp_low);
@@ -286,7 +286,7 @@ impl Impl for EcRecover {
 			if let Ok(p) = ec_recover(&s, &hash) {
 				let r = keccak(p);
 				output.write(0, &[0; 12]);
-				output.write(12, &r[12..r.len()]);
+				output.write(12, &r.as_bytes()[12..]);
 			}
 		}
 

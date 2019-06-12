@@ -9,7 +9,7 @@ common-types = { path = "../../ethcore/types" }
 ethcore-io = { path = "../../util/io" }
 kvdb = "0.1"
 log = "0.4"
-rlp = { version = "0.3.0", features = ["ethereum"] }
+rlp = "0.4.0"
 serde = "1.0"
 serde_derive = "1.0"
 serde_json = "1.0"

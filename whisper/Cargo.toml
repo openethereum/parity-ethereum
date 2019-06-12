@@ -7,7 +7,7 @@ description = "Whisper Protocol implementation for Parity"
 [dependencies]
 bitflags = "0.9"
 byteorder = "1.0.0"
-ethereum-types = "0.4"
+ethereum-types = "0.6.0"
 ethcore-network = { path = "../util/network" }
 ring = "0.14.6"
 ethkey = { path = "../accounts/ethkey" }
@@ -16,8 +16,9 @@ log = "0.4"
 memzero = { path = "../util/memzero" }
 ordered-float = "0.5"
 parking_lot = "0.7"
-rand = "0.4"
-rlp = { version = "0.3.0", features = ["ethereum"] }
+rand = "0.6"
+rand_xorshift = "0.1.1"
+rlp = "0.4.0"
 serde = "1.0"
 serde_derive = "1.0"
 serde_json = "1.0"

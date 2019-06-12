@@ -123,7 +123,7 @@ mod tests {
 
 	use client::{ChainNotify, NewBlocks, ChainRoute};
 
-	use ethereum_types::{H256, U256};
+	use ethereum_types::{H256, U256, BigEndianHash};
 
 	use std::collections::HashMap;
 	use std::time::Duration;
@@ -151,7 +151,7 @@ mod tests {
 	fn harness(numbers: Vec<u64>, period: u64, history: u64, expected: Option<u64>) {
 		const DURATION_ZERO: Duration = Duration::from_millis(0);
 
-		let hashes: Vec<_> = numbers.clone().into_iter().map(|x| H256::from(U256::from(x))).collect();
+		let hashes: Vec<_> = numbers.clone().into_iter().map(|x| BigEndianHash::from_uint(&U256::from(x))).collect();
 		let map = hashes.clone().into_iter().zip(numbers).collect();
 
 		let watcher = Watcher {

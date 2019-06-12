@@ -22,7 +22,7 @@ use std::time::{Instant, Duration, SystemTime, UNIX_EPOCH};
 use accounts::AccountProvider;
 use ethcore::client::{BlockChainClient, BlockId, EachBlockWith, Executed, TestBlockChainClient, TransactionId};
 use ethcore::miner::{self, MinerService};
-use ethereum_types::{H160, H256, U256, Address};
+use ethereum_types::{H160, H256, U256, Address, Bloom};
 use miner::external::ExternalMiner;
 use parity_runtime::Runtime;
 use parking_lot::Mutex;
@@ -186,9 +186,9 @@ fn rpc_eth_chain_id() {
 #[test]
 fn rpc_eth_hashrate() {
 	let tester = EthTester::default();
-	tester.hashrates.lock().insert(H256::from(0), (Instant::now() + Duration::from_secs(2), U256::from(0xfffa)));
-	tester.hashrates.lock().insert(H256::from(0), (Instant::now() + Duration::from_secs(2), U256::from(0xfffb)));
-	tester.hashrates.lock().insert(H256::from(1), (Instant::now() + Duration::from_secs(2), U256::from(0x1)));
+	tester.hashrates.lock().insert(H256::from_low_u64_be(0), (Instant::now() + Duration::from_secs(2), U256::from(0xfffa)));
+	tester.hashrates.lock().insert(H256::from_low_u64_be(0), (Instant::now() + Duration::from_secs(2), U256::from(0xfffb)));
+	tester.hashrates.lock().insert(H256::from_low_u64_be(1), (Instant::now() + Duration::from_secs(2), U256::from(0x1)));
 
 	let request = r#"{"jsonrpc": "2.0", "method": "eth_hashrate", "params": [], "id": 1}"#;
 	let response = r#"{"jsonrpc":"2.0","result":"0xfffc","id":1}"#;
@@ -201,27 +201,27 @@ fn rpc_eth_logs() {
 	let tester = EthTester::default();
 	tester.client.set_logs(vec![LocalizedLogEntry {
 		block_number: 1,
-		block_hash: H256::default(),
+		block_hash: H256::zero(),
 		entry: LogEntry {
-			address: Address::default(),
+			address: Address::zero(),
 			topics: vec![],
 			data: vec![1,2,3],
 		},
 		transaction_index: 0,
 		transaction_log_index: 0,
-		transaction_hash: H256::default(),
+		transaction_hash: H256::zero(),
 		log_index: 0,
 	}, LocalizedLogEntry {
 		block_number: 1,
-		block_hash: H256::default(),
+		block_hash: H256::zero(),
 		entry: LogEntry {
-			address: Address::default(),
+			address: Address::zero(),
 			topics: vec![],
 			data: vec![1,2,3],
 		},
 		transaction_index: 0,
 		transaction_log_index: 1,
-		transaction_hash: H256::default(),
+		transaction_hash: H256::zero(),
 		log_index: 1,
 	}]);
 
@@ -240,8 +240,14 @@ fn rpc_eth_logs() {
 
 #[test]
 fn rpc_eth_logs_error() {
+	fn h256_from_digit_be(d: u8) -> H256 {
+		let mut bytes = [0u8; 32];
+		bytes[0] = d;
+		H256(bytes)
+	}
+
 	let tester = EthTester::default();
-	tester.client.set_error_on_logs(Some(BlockId::Hash(H256::from([5u8].as_ref()))));
+	tester.client.set_error_on_logs(Some(BlockId::Hash(h256_from_digit_be(5))));
 	let request = r#"{"jsonrpc": "2.0", "method": "eth_getLogs", "params": [{"limit":1,"blockHash":"0x0000000000000000000000000000000000000000000000000000000000000000"}], "id": 1}"#;
 	let response = r#"{"jsonrpc":"2.0","error":{"code":-32000,"message":"One of the blocks specified in filter (fromBlock, toBlock or blockHash) cannot be found","data":"0x0500000000000000000000000000000000000000000000000000000000000000"},"id":1}"#;
 	assert_eq!(tester.io.handle_request_sync(request), Some(response.to_owned()));
@@ -253,27 +259,27 @@ fn rpc_logs_filter() {
 	// Set some logs
 	tester.client.set_logs(vec![LocalizedLogEntry {
 		block_number: 1,
-		block_hash: H256::default(),
+		block_hash: H256::zero(),
 		entry: LogEntry {
-			address: Address::default(),
+			address: Address::zero(),
 			topics: vec![],
 			data: vec![1,2,3],
 		},
 		transaction_index: 0,
 		transaction_log_index: 0,
-		transaction_hash: H256::default(),
+		transaction_hash: H256::zero(),
 		log_index: 0,
 	}, LocalizedLogEntry {
 		block_number: 1,
-		block_hash: H256::default(),
+		block_hash: H256::zero(),
 		entry: LogEntry {
-			address: Address::default(),
+			address: Address::zero(),
 			topics: vec![],
 			data: vec![1,2,3],
 		},
 		transaction_index: 0,
 		transaction_log_index: 1,
-		transaction_hash: H256::default(),
+		transaction_hash: H256::zero(),
 		log_index: 1,
 	}]);
 
@@ -349,7 +355,7 @@ fn rpc_eth_submit_hashrate() {
 	let response = r#"{"jsonrpc":"2.0","result":true,"id":1}"#;
 
 	assert_eq!(tester.io.handle_request_sync(request), Some(response.to_owned()));
-	assert_eq!(tester.hashrates.lock().get(&H256::from("0x59daa26581d0acd1fce254fb7e85952f4c09d0915afd33d3886cd914bc7d283c")).cloned().unwrap().1,
+	assert_eq!(tester.hashrates.lock().get(&H256::from_str("59daa26581d0acd1fce254fb7e85952f4c09d0915afd33d3886cd914bc7d283c").unwrap()).cloned().unwrap().1,
 		U256::from(0x500_000));
 }
 
@@ -404,8 +410,8 @@ fn rpc_eth_gas_price() {
 fn rpc_eth_accounts() {
 	let tester = EthTester::default();
 	let address = tester.accounts_provider.new_account(&"".into()).unwrap();
-	tester.accounts_provider.set_address_name(1.into(), "1".into());
-	tester.accounts_provider.set_address_name(10.into(), "10".into());
+	tester.accounts_provider.set_address_name(Address::from_low_u64_be(1), "1".into());
+	tester.accounts_provider.set_address_name(Address::from_low_u64_be(10), "10".into());
 
 	// with current policy it should return the account
 	let request = r#"{"jsonrpc": "2.0", "method": "eth_accounts", "params": [], "id": 1}"#;
@@ -427,7 +433,7 @@ fn rpc_eth_block_number() {
 #[test]
 fn rpc_eth_balance() {
 	let tester = EthTester::default();
-	tester.client.set_balance(Address::from(1), U256::from(5));
+	tester.client.set_balance(Address::from_low_u64_be(1), U256::from(5));
 
 	let request = r#"{
 		"jsonrpc": "2.0",
@@ -443,7 +449,7 @@ fn rpc_eth_balance() {
 #[test]
 fn rpc_eth_balance_pending() {
 	let tester = EthTester::default();
-	tester.client.set_balance(Address::from(1), U256::from(5));
+	tester.client.set_balance(Address::from_low_u64_be(1), U256::from(5));
 
 	let request = r#"{
 		"jsonrpc": "2.0",
@@ -460,7 +466,7 @@ fn rpc_eth_balance_pending() {
 #[test]
 fn rpc_eth_storage_at() {
 	let tester = EthTester::default();
-	tester.client.set_storage(Address::from(1), H256::from(4), H256::from(7));
+	tester.client.set_storage(Address::from_low_u64_be(1), H256::from_low_u64_be(4), H256::from_low_u64_be(7));
 
 	let request = r#"{
 		"jsonrpc": "2.0",
@@ -491,7 +497,7 @@ fn rpc_eth_transaction_count_next_nonce() {
 	let tester = EthTester::new_with_options(EthClientOptions::with(|options| {
 		options.pending_nonce_from_queue = true;
 	}));
-	tester.miner.increment_nonce(&1.into());
+	tester.miner.increment_nonce(&H160::from_low_u64_be(1));
 
 	let request1 = r#"{
 		"jsonrpc": "2.0",
@@ -604,7 +610,7 @@ fn rpc_eth_uncle_count_by_block_number() {
 #[test]
 fn rpc_eth_code() {
 	let tester = EthTester::default();
-	tester.client.set_code(Address::from(1), vec![0xff, 0x21]);
+	tester.client.set_code(Address::from_low_u64_be(1), vec![0xff, 0x21]);
 
 	let request = r#"{
 		"jsonrpc": "2.0",
@@ -868,13 +874,13 @@ fn rpc_eth_transaction_receipt() {
 			},
 			block_hash: H256::from_str("ed76641c68a1c641aee09a94b3b471f4dc0316efe5ac19cf488e2674cf8d05b5").unwrap(),
 			block_number: 0x4510c,
-			transaction_hash: H256::new(),
+			transaction_hash: H256::zero(),
 			transaction_index: 0,
 			transaction_log_index: 0,
 			log_index: 1,
 		}],
-		log_bloom: 0.into(),
-		outcome: TransactionOutcome::StateRoot(0.into()),
+		log_bloom: Bloom::zero(),
+		outcome: TransactionOutcome::StateRoot(H256::zero()),
 	};
 
 	let hash = H256::from_str("b903239f8543d04b5dc1ba6579132b143087c68db1b2168786408fcbce568238").unwrap();

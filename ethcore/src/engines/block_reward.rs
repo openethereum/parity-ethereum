@@ -177,8 +177,9 @@ pub fn apply_block_rewards<M: Machine>(
 
 #[cfg(test)]
 mod test {
+	use std::str::FromStr;
 	use client::PrepareOpenBlock;
-	use ethereum_types::U256;
+	use ethereum_types::{U256, Address};
 	use spec::Spec;
 	use test_helpers::generate_dummy_client_with_spec;
 
@@ -193,12 +194,12 @@ mod test {
 
 		// the spec has a block reward contract defined at the given address
 		let block_reward_contract = BlockRewardContract::new_from_address(
-			"0000000000000000000000000000000000000042".into(),
+			Address::from_str("0000000000000000000000000000000000000042").unwrap(),
 		);
 
 		let mut call = |to, data| {
 			let mut block = client.prepare_open_block(
-				"0000000000000000000000000000000000000001".into(),
+				Address::from_str("0000000000000000000000000000000000000001").unwrap(),
 				(3141562.into(), 31415620.into()),
 				vec![],
 			).unwrap();
@@ -223,16 +224,16 @@ mod test {
 
 		// the contract rewards (1000 + kind) for each benefactor
 		let beneficiaries = vec![
-			("0000000000000000000000000000000000000033".into(), RewardKind::Author),
-			("0000000000000000000000000000000000000034".into(), RewardKind::Uncle(1)),
-			("0000000000000000000000000000000000000035".into(), RewardKind::EmptyStep),
+			(Address::from_str("0000000000000000000000000000000000000033").unwrap(), RewardKind::Author),
+			(Address::from_str("0000000000000000000000000000000000000034").unwrap(), RewardKind::Uncle(1)),
+			(Address::from_str("0000000000000000000000000000000000000035").unwrap(), RewardKind::EmptyStep),
 		];
 
 		let rewards = block_reward_contract.reward(&beneficiaries, &mut call).unwrap();
 		let expected = vec![
-			("0000000000000000000000000000000000000033".into(), U256::from(1000)),
-			("0000000000000000000000000000000000000034".into(), U256::from(1000 + 101)),
-			("0000000000000000000000000000000000000035".into(), U256::from(1000 + 2)),
+			(Address::from_str("0000000000000000000000000000000000000033").unwrap(), U256::from(1000)),
+			(Address::from_str("0000000000000000000000000000000000000034").unwrap(), U256::from(1000 + 101)),
+			(Address::from_str("0000000000000000000000000000000000000035").unwrap(), U256::from(1000 + 2)),
 		];
 
 		assert_eq!(expected, rewards);

@@ -22,7 +22,7 @@ use ethereum_types::H256;
 use fastmap::H256FastSet;
 use network::client_version::ClientCapabilities;
 use network::PeerId;
-use rand::Rng;
+use rand::RngCore;
 use rlp::{Encodable, RlpStream};
 use sync_io::SyncIo;
 use types::transaction::SignedTransaction;

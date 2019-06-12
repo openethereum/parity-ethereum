@@ -114,7 +114,7 @@ impl SecretStoreEncryptor {
 		let requester = self.config.key_server_account.ok_or_else(|| Error::KeyServerAccountNotSet)?;
 
 		// key id in SS is H256 && we have H160 here => expand with assitional zeros
-		let contract_address_extended: H256 = contract_address.into();
+		let contract_address_extended: H256 = (*contract_address).into();
 		let base_url = self.config.base_url.clone().ok_or_else(|| Error::KeyServerNotSet)?;
 
 		// prepare request url
@@ -156,7 +156,7 @@ impl SecretStoreEncryptor {
 		let decrypted_key = Public::from_slice(&decrypted_bytes);
 
 		// and now take x coordinate of Public as a key
-		let key: Bytes = (*decrypted_key)[..INIT_VEC_LEN].into();
+		let key: Bytes = decrypted_key.as_bytes()[..INIT_VEC_LEN].into();
 
 		// cache the key in the session and clear expired sessions
 		self.sessions.lock().insert(*contract_address, EncryptionSession{
@@ -212,11 +212,11 @@ impl Encryptor for SecretStoreEncryptor {
 		}?;
 
 		// encrypt data
-		let mut cypher = Vec::with_capacity(plain_data.len() + initialisation_vector.len());
+		let mut cypher = Vec::with_capacity(plain_data.len() + initialisation_vector.as_bytes().len());
 		cypher.extend(repeat(0).take(plain_data.len()));
-		crypto::aes::encrypt_128_ctr(&key, initialisation_vector, plain_data, &mut cypher)
+		crypto::aes::encrypt_128_ctr(&key, initialisation_vector.as_bytes(), plain_data, &mut cypher)
 			.map_err(|e| Error::Encrypt(e.to_string()))?;
-		cypher.extend_from_slice(&initialisation_vector);
+		cypher.extend_from_slice(&initialisation_vector.as_bytes());
 
 		Ok(cypher)
 	}

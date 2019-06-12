@@ -6,15 +6,14 @@ authors = ["Parity Technologies <admin@parity.io>"]
 [dependencies]
 bit-set = "0.4"
 parity-bytes = "0.1"
-ethereum-types = "0.4"
+ethereum-types = "0.6.0"
 heapsize = "0.4"
 lazy_static = "1.0"
 log = "0.4"
 vm = { path = "../vm" }
-keccak-hash = "0.1"
+keccak-hash = "0.2.0"
 parking_lot = "0.7"
 memory-cache = { path = "../../util/memory-cache" }
-num-bigint = "0.2"
 
 [dev-dependencies]
 rustc-hex = "1.0"

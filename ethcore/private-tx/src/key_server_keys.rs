@@ -29,15 +29,15 @@ use_contract!(keys_acl_contract, "res/keys_acl.json");
 
 /// Returns the address (of the contract), that corresponds to the key
 pub fn key_to_address(key: &H256) -> Address {
-	Address::from_slice(&key.to_vec()[..10])
+	Address::from_slice(&key.as_bytes()[..10])
 }
 
 /// Returns the key from the key server associated with the contract
 pub fn address_to_key(contract_address: &Address) -> H256 {
 	// Current solution uses contract address extended with 0 as id
-	let contract_address_extended: H256 = contract_address.into();
+	let contract_address_extended: H256 = (*contract_address).into();
 
-	H256::from_slice(&contract_address_extended)
+	H256::from_slice(contract_address_extended.as_bytes())
 }
 
 /// Trait for keys server keys provider.
@@ -118,7 +118,7 @@ impl Default for StoringKeyProvider {
 	fn default() -> Self {
 		StoringKeyProvider {
 			available_keys: RwLock::new(None),
-			key_server_account: Some(Address::default()),
+			key_server_account: Some(Address::zero()),
 		}
 	}
 }

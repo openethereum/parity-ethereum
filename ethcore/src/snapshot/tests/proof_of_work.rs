@@ -119,7 +119,7 @@ fn checks_flag() {
 	let mut stream = RlpStream::new_list(5);
 
 	stream.append(&100u64)
-		.append(&H256::default())
+		.append(&H256::zero())
 		.append(&(!0u64));
 
 	stream.append_empty_data().append_empty_data();
@@ -137,7 +137,7 @@ fn checks_flag() {
 		block_hashes: Vec::new(),
 		state_root: ::hash::KECCAK_NULL_RLP,
 		block_number: 102,
-		block_hash: H256::default(),
+		block_hash: H256::zero(),
 	};
 
 	let mut rebuilder = SNAPSHOT_MODE.rebuilder(chain, db.clone(), &manifest).unwrap();

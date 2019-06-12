@@ -98,6 +98,9 @@ extern crate log;
 extern crate serde_derive;
 
 #[cfg(test)]
+extern crate rand_xorshift;
+
+#[cfg(test)]
 extern crate ethjson;
 #[cfg(test)]
 extern crate transaction_pool as txpool;

@@ -520,7 +520,7 @@ impl BlockCollection {
 				(None, receipt_root)
 			}
 		} else {
-			(None, H256::new())
+			(None, H256::zero())
 		};
 
 		self.parents.insert(*info.header.parent_hash(), hash);

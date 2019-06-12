@@ -18,7 +18,7 @@
 
 use std::ops::Deref;
 
-use ethereum_types::{H256, H160, Address, U256};
+use ethereum_types::{H256, H160, Address, U256, BigEndianHash};
 use ethjson;
 use ethkey::{self, Signature, Secret, Public, recover, public_to_address};
 use hash::keccak;
@@ -179,7 +179,7 @@ impl From<ethjson::transaction::Transaction> for UnverifiedTransaction {
 			r: t.r.into(),
 			s: t.s.into(),
 			v: t.v.into(),
-			hash: 0.into(),
+			hash: H256::zero(),
 		}.compute_hash()
 	}
 }
@@ -207,7 +207,7 @@ impl Transaction {
 			r: sig.r().into(),
 			s: sig.s().into(),
 			v: signature::add_chain_replay_protection(sig.v() as u64, chain_id),
-			hash: 0.into(),
+			hash: H256::zero(),
 		}.compute_hash()
 	}
 
@@ -219,7 +219,7 @@ impl Transaction {
 			r: U256::one(),
 			s: U256::one(),
 			v: 0,
-			hash: 0.into(),
+			hash: H256::zero(),
 		}.compute_hash()
 	}
 
@@ -231,7 +231,7 @@ impl Transaction {
 				r: U256::one(),
 				s: U256::one(),
 				v: 0,
-				hash: 0.into(),
+				hash: H256::zero(),
 			}.compute_hash(),
 			sender: from,
 			public: None,
@@ -246,7 +246,7 @@ impl Transaction {
 				r: U256::zero(),
 				s: U256::zero(),
 				v: chain_id,
-				hash: 0.into(),
+				hash: H256::zero(),
 			}.compute_hash(),
 			sender: UNSIGNED_SENDER,
 			public: None,
@@ -360,7 +360,9 @@ impl UnverifiedTransaction {
 
 	/// Construct a signature object from the sig.
 	pub fn signature(&self) -> Signature {
-		Signature::from_rsv(&self.r.into(), &self.s.into(), self.standard_v())
+		let r: H256 = BigEndianHash::from_uint(&self.r);
+		let s: H256 = BigEndianHash::from_uint(&self.s);
+		Signature::from_rsv(&r, &s, self.standard_v())
 	}
 
 	/// Checks whether the signature has a low 's' value.
@@ -553,8 +555,9 @@ impl From<SignedTransaction> for PendingTransaction {
 #[cfg(test)]
 mod tests {
 	use super::*;
-	use ethereum_types::U256;
+	use ethereum_types::{U256, Address};
 	use hash::keccak;
+	use std::str::FromStr;
 
 	#[test]
 	fn sender_test() {
@@ -565,10 +568,10 @@ mod tests {
 		assert_eq!(t.gas_price, U256::from(0x01u64));
 		assert_eq!(t.nonce, U256::from(0x00u64));
 		if let Action::Call(ref to) = t.action {
-			assert_eq!(*to, "095e7baea6a6c7c4c2dfeb977efac326af552d87".into());
+			assert_eq!(*to, Address::from_str("095e7baea6a6c7c4c2dfeb977efac326af552d87").unwrap());
 		} else { panic!(); }
 		assert_eq!(t.value, U256::from(0x0au64));
-		assert_eq!(public_to_address(&t.recover_public().unwrap()), "0f65fe9276bc9a24ae7083ae28e2660ef72df99e".into());
+		assert_eq!(public_to_address(&t.recover_public().unwrap()), Address::from_str("0f65fe9276bc9a24ae7083ae28e2660ef72df99e").unwrap());
 		assert_eq!(t.chain_id(), None);
 	}
 
@@ -619,12 +622,12 @@ mod tests {
 			gas: U256::from(50_000),
 			value: U256::from(1),
 			data: b"Hello!".to_vec()
-		}.fake_sign(Address::from(0x69));
-		assert_eq!(Address::from(0x69), t.sender());
+		}.fake_sign(Address::from_low_u64_be(0x69));
+		assert_eq!(Address::from_low_u64_be(0x69), t.sender());
 		assert_eq!(t.chain_id(), None);
 
 		let t = t.clone();
-		assert_eq!(Address::from(0x69), t.sender());
+		assert_eq!(Address::from_low_u64_be(0x69), t.sender());
 		assert_eq!(t.chain_id(), None);
 	}
 
@@ -651,7 +654,7 @@ mod tests {
 		let test_vector = |tx_data: &str, address: &'static str| {
 			let signed = rlp::decode(&FromHex::from_hex(tx_data).unwrap()).expect("decoding tx data failed");
 			let signed = SignedTransaction::new(signed).unwrap();
-			assert_eq!(signed.sender(), address.into());
+			assert_eq!(signed.sender(), Address::from_str(&address[2..]).unwrap());
 			println!("chainid: {:?}", signed.chain_id());
 		};
 

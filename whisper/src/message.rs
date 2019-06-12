@@ -35,8 +35,8 @@ pub fn work_factor_proved(size: u64, ttl: u64, hash: H256) -> f64 {
 	assert!(size != 0 && ttl != 0);
 
 	let leading_zeros = {
-		let leading_bytes = hash.iter().take_while(|&&x| x == 0).count();
-		let remaining_leading_bits = hash.get(leading_bytes).map_or(0, |byte| byte.leading_zeros() as usize);
+		let leading_bytes = hash.as_ref().iter().take_while(|&&x| x == 0).count();
+		let remaining_leading_bits = hash.as_ref().get(leading_bytes).map_or(0, |byte| byte.leading_zeros() as usize);
 		(leading_bytes * 8) + remaining_leading_bits
 	};
 	let spacetime = size as f64 * ttl as f64;
@@ -70,7 +70,7 @@ impl Topic {
 			}
 
 			debug_assert!(idx <= 511);
-			bloom[idx / 8] |= 1 << (7 - idx % 8);
+			bloom.as_bytes_mut()[idx / 8] |= 1 << (7 - idx % 8);
 		}
 	}
 
@@ -258,13 +258,14 @@ impl Message {
 	/// Panics if TTL is 0.
 	pub fn create(params: CreateParams) -> Result<Self, Error> {
 		use byteorder::{BigEndian, ByteOrder};
-		use rand::{Rng, SeedableRng, XorShiftRng};
+		use rand::{Rng, SeedableRng};
+		use rand_xorshift::XorShiftRng;
 
 		if params.topics.is_empty() { return Err(Error::EmptyTopics) }
 
 		let mut rng = {
 			let mut thread_rng = ::rand::thread_rng();
-			XorShiftRng::from_seed(thread_rng.gen::<[u32; 4]>())
+			XorShiftRng::from_seed(thread_rng.gen())
 		};
 
 		assert!(params.ttl > 0);
@@ -529,9 +530,9 @@ mod tests {
 	#[test]
 	fn work_factor() {
 		// 256 leading zeros -> 2^256 / 1
-		assert_eq!(work_factor_proved(1, 1, H256::from(0)), 115792089237316200000000000000000000000000000000000000000000000000000000000000.0);
+		assert_eq!(work_factor_proved(1, 1, H256::zero()), 115792089237316200000000000000000000000000000000000000000000000000000000000000.0);
 		// 255 leading zeros -> 2^255 / 1
-		assert_eq!(work_factor_proved(1, 1, H256::from(1)), 57896044618658100000000000000000000000000000000000000000000000000000000000000.0);
+		assert_eq!(work_factor_proved(1, 1, H256::from_low_u64_be(1)), 57896044618658100000000000000000000000000000000000000000000000000000000000000.0);
 		// 0 leading zeros -> 2^0 / 1
 		assert_eq!(work_factor_proved(1, 1, serde_json::from_str::<H256>("\"0xff00000000000000000000000000000000000000000000000000000000000000\"").unwrap()), 1.0);
 	}

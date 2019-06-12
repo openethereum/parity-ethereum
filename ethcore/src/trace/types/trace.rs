@@ -47,7 +47,7 @@ pub struct CreateResult {
 impl CreateResult {
 	/// Returns bloom.
 	pub fn bloom(&self) -> Bloom {
-		BloomInput::Raw(&self.address).into()
+		BloomInput::Raw(self.address.as_bytes()).into()
 	}
 }
 
@@ -96,8 +96,8 @@ impl Call {
 	/// The bloom contains from and to addresses.
 	pub fn bloom(&self) -> Bloom {
 		let mut bloom = Bloom::default();
-		bloom.accrue(BloomInput::Raw(&self.from));
-		bloom.accrue(BloomInput::Raw(&self.to));
+		bloom.accrue(BloomInput::Raw(self.from.as_bytes()));
+		bloom.accrue(BloomInput::Raw(self.to.as_bytes()));
 		bloom
 	}
 }
@@ -130,7 +130,7 @@ impl Create {
 	/// Returns bloom create action bloom.
 	/// The bloom contains only from address.
 	pub fn bloom(&self) -> Bloom {
-		BloomInput::Raw(&self.from).into()
+		BloomInput::Raw(self.from.as_bytes()).into()
 	}
 }
 
@@ -185,7 +185,7 @@ pub struct Reward {
 impl Reward {
 	/// Return reward action bloom.
 	pub fn bloom(&self) -> Bloom {
-		BloomInput::Raw(&self.author).into()
+		BloomInput::Raw(self.author.as_bytes()).into()
 	}
 }
 
@@ -225,8 +225,8 @@ impl Suicide {
 	/// Return suicide action bloom.
 	pub fn bloom(&self) -> Bloom {
 		let mut bloom = Bloom::default();
-		bloom.accrue(BloomInput::Raw(&self.address));
-		bloom.accrue(BloomInput::Raw(&self.refund_address));
+		bloom.accrue(BloomInput::Raw(self.address.as_bytes()));
+		bloom.accrue(BloomInput::Raw(self.refund_address.as_bytes()));
 		bloom
 	}
 }

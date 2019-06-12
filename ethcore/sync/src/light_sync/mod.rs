@@ -50,7 +50,7 @@ use light::request::{self, CompleteHeadersRequest as HeadersRequest};
 use network::PeerId;
 use ethereum_types::{H256, U256};
 use parking_lot::{Mutex, RwLock};
-use rand::{Rng, OsRng};
+use rand::{rngs::OsRng, seq::SliceRandom};
 use futures::sync::mpsc;
 
 use self::sync_round::{AbortReason, SyncRound, ResponseContext};
@@ -637,7 +637,7 @@ impl<L: AsLightClient> LightSync<L> {
 			// naive request dispatcher: just give to any peer which says it will
 			// give us responses. but only one request per peer per state transition.
 			let dispatcher = move |req: HeadersRequest| {
-				rng.shuffle(&mut peer_ids);
+				peer_ids.shuffle(&mut *rng);
 
 				let request = {
 					let mut builder = request::Builder::default();

@@ -385,7 +385,7 @@ mod tests {
 
 	use std::collections::{BTreeMap, HashMap};
 	use std::time::{SystemTime, UNIX_EPOCH};
-	use ethereum_types::{H256, BloomRef, U256};
+	use ethereum_types::{H256, BloomRef, U256, Address};
 	use blockchain::{BlockDetails, TransactionAddress, BlockReceipts};
 	use types::encoded;
 	use hash::keccak;
@@ -615,7 +615,7 @@ mod tests {
 		}.sign(keypair.secret(), None);
 
 		let tr3 = Transaction {
-			action: Action::Call(0x0.into()),
+			action: Action::Call(Address::from_low_u64_be(0x0)),
 			value: U256::from(0),
 			data: Bytes::new(),
 			gas: U256::from(30_000),

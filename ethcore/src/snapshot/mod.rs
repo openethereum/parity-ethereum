@@ -51,7 +51,7 @@ use super::state_db::StateDB;
 use super::state::Account as StateAccount;
 
 use crossbeam::scope;
-use rand::{Rng, OsRng};
+use rand::{Rng, rngs::OsRng};
 
 pub use self::error::Error;
 
@@ -411,7 +411,7 @@ impl StateRebuilder {
 		let mut pairs = Vec::with_capacity(rlp.item_count()?);
 
 		// initialize the pairs vector with empty values so we have slots to write into.
-		pairs.resize(rlp.item_count()?, (H256::new(), Vec::new()));
+		pairs.resize(rlp.item_count()?, (H256::zero(), Vec::new()));
 
 		let status = rebuild_accounts(
 			self.db.as_hash_db_mut(),
@@ -450,9 +450,9 @@ impl StateRebuilder {
 				if !flag.load(Ordering::SeqCst) { return Err(Error::RestorationAborted.into()) }
 
 				if &thin_rlp[..] != &empty_rlp[..] {
-					self.bloom.set(&*hash);
+					self.bloom.set(hash.as_bytes());
 				}
-				account_trie.insert(&hash, &thin_rlp)?;
+				account_trie.insert(hash.as_bytes(), &thin_rlp)?;
 			}
 		}
 

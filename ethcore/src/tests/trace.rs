@@ -26,6 +26,7 @@ use client::*;
 use test_helpers::get_temp_state_db;
 use client::{BlockChainClient, Client, ClientConfig};
 use std::sync::Arc;
+use std::str::FromStr;
 use miner::Miner;
 use types::transaction::{Action, Transaction};
 use trace::{RewardType, LocalizedTrace};
@@ -71,7 +72,7 @@ fn can_trace_block_and_uncle_reward() {
 	let mut last_header = genesis_header.clone();
 	last_hashes.push(last_header.hash());
 
-	let kp = KeyPair::from_secret_slice(&keccak("")).unwrap();
+	let kp = KeyPair::from_secret_slice(keccak("").as_bytes()).unwrap();
 	let author = kp.address();
 
 	// Add root block first
@@ -162,7 +163,7 @@ fn can_trace_block_and_uncle_reward() {
 	}
 
 	let mut uncle = Header::new();
-	let uncle_author: Address = "ef2d6d194084c2de36e0dabfce45d046b37d1106".into();
+	let uncle_author = Address::from_str("ef2d6d194084c2de36e0dabfce45d046b37d1106").unwrap();
 	uncle.set_author(uncle_author);
 	uncle.set_parent_hash(root_header.hash());
 	uncle.set_gas_limit(genesis_gas);
