@@ -19,19 +19,20 @@
 #include <parity.h>
 #include <regex>
 #include <string>
+#include <cstdint>
 #include <thread>
 
 void* parity_run(std::vector<const char*>);
-int parity_subscribe_to_websocket(void*);
-int parity_rpc_queries(void*);
+int64_t parity_subscribe_to_websocket(void*);
+int64_t parity_rpc_queries(void*);
 
-const int SUBSCRIPTION_ID_LEN = 18;
+const int64_t SUBSCRIPTION_ID_LEN = 18;
 const size_t TIMEOUT_ONE_MIN_AS_MILLIS = 60 * 1000;
-const unsigned int CALLBACK_RPC = 1;
-const unsigned int CALLBACK_WS = 2;
+const uint64_t CALLBACK_RPC = 1;
+const uint64_t CALLBACK_WS = 2;
 
 struct Callback {
-	unsigned int type;
+	int64_t type;
 };
 
 // list of rpc queries
@@ -48,7 +49,7 @@ const std::vector<std::string> ws_subscriptions {
 	"{\"method\":\"eth_subscribe\",\"params\":[\"newHeads\"],\"id\":1,\"jsonrpc\":\"2.0\"}"
 };
 
-std::atomic<int> callback_counter;
+std::atomic<int64_t> callback_counter;
 
 // callback that gets invoked upon an event
 void callback(void* user_data, const char* response, size_t _len) {
@@ -83,7 +84,7 @@ int main() {
 	return 0;
 }
 
-int parity_rpc_queries(void* parity) {
+int64_t parity_rpc_queries(void* parity) {
 	if (!parity) {
 		return 1;
 	}
@@ -102,7 +103,7 @@ int parity_rpc_queries(void* parity) {
 }
 
 
-int parity_subscribe_to_websocket(void* parity) {
+int64_t parity_subscribe_to_websocket(void* parity) {
 	if (!parity) {
 		return 1;
 	}
