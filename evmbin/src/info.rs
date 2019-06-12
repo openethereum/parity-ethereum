@@ -96,27 +96,19 @@ pub fn run_action<T: Informant>(
 			Ok(r) => (Ok(r.return_data.to_vec()), Some(r.gas_left)),
 			Err(err) => (Err(err), None),
 		};
-		(result.0, 0.into(), None, result.1, informant.drain())
+		(result.0, H256::from_low_u64_be(0), None, result.1, informant.drain())
 	})
 }
 
 /// Execute given Transaction and verify resulting state root.
 pub fn run_transaction<T: Informant>(
-	// Chain specification name associated with the transaction
 	name: &str,
-	// Transaction index from list of transactions within a state root hashes corresponding to a chain
 	idx: usize,
-	// Fork specification (i.e. Constantinople, EIP150, EIP158, etc)
 	spec: &ethjson::spec::ForkSpec,
-	// state of all accounts in the system that is a binary tree mapping of each account address to account data that is expressed as Plain Old Data.
-	// containing the account balance, account nonce, account code in bytes, and the account storage binary tree map.
 	pre_state: &pod_state::PodState,
-	// State root hash associated with the transaction
 	post_root: H256,
-	// Client environment information associated with the transaction's chain specification
 	env_info: &client::EnvInfo,
 	transaction: transaction::SignedTransaction,
-	// JSON formatting informant
 	mut informant: T,
 	trie_spec: TrieSpec,
 ) {
@@ -182,7 +174,7 @@ pub fn run<'a, F, X>(
 			error,
 			time: Duration::from_secs(0),
 			traces: None,
-			state_root: H256::default(),
+			state_root: H256::zero(),
 			end_state: None,
 		})?;
 
@@ -220,6 +212,7 @@ pub mod tests {
 	use rustc_hex::FromHex;
 	use super::*;
 	use tempdir::TempDir;
+	use ethereum_types::Address;
 
 	pub fn run_test<T, I, F>(
 		informant: I,
@@ -255,7 +248,7 @@ pub mod tests {
 
 		let (inf, res) = informant();
 		let mut params = ActionParams::default();
-		params.code_address = 0x20.into();
+		params.code_address = Address::from_low_u64_be(0x20);
 		params.gas = 0xffff.into();
 
 		let spec = ::ethcore::ethereum::load(None, include_bytes!("../res/testchain.json"));
