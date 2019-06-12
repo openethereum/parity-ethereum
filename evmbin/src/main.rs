@@ -145,53 +145,86 @@ fn main() {
 fn run_state_test(args: Args) {
 	use ethjson::state::test::Test;
 
-	let file = args.arg_file.expect("FILE is required");
+	// Parse the specified state test JSON file provided to the command `state-test <file>`.
+	let file = args.arg_file.expect("PATH to a state test JSON file is required");
 	let mut file = match fs::File::open(&file) {
-		Err(err) => die(format!("Unable to open: {:?}: {}", file, err)),
+		Err(err) => die(format!("Unable to open path: {:?}: {}", file, err)),
 		Ok(file) => file,
 	};
 	let state_test = match Test::load(&mut file) {
 		Err(err) => die(format!("Unable to load the test file: {}", err)),
 		Ok(test) => test,
 	};
+	// Parse the name CLI option `--only NAME`.
 	let only_test = args.flag_only.map(|s| s.to_lowercase());
+	// Parse the chain `--chain CHAIN`
 	let only_chain = args.flag_chain.map(|s| s.to_lowercase());
 
+	// Iterate over 1st level (outer) key-value pair of the state test JSON file.
+	// Skip to next iteration if CLI option `--only NAME` was parsed into `only_test` and does not match
+	// the current key `name` (i.e. add11, create2callPrecompiles).
 	for (name, test) in state_test {
-		if let Some(false) = only_test.as_ref().map(|only_test| &name.to_lowercase() == only_test) {
+		if let Some(false) = only_test.as_ref().map(|only_test| {
+			&name.to_lowercase() == only_test)
+		}) {
 			continue;
 		}
 
+		// Assign from 2nd level key-value pairs of the state test JSON file (i.e. env, post, pre, transaction).
 		let multitransaction = test.transaction;
 		let env_info = test.env.into();
 		let pre = test.pre_state.into();
 
+		// Iterate over remaining "post" key of the 2nd level key-value pairs in the state test JSON file.
+		// Skip to next iteration if CLI option `--chain CHAIN` was parsed into `only_chain` and does not match
+		// the current key `spec` (i.e. Constantinople, EIP150, EIP158).
 		for (spec, states) in test.post_states {
-			if let Some(false) = only_chain.as_ref().map(|only_chain| &format!("{:?}", spec).to_lowercase() == only_chain) {
+			if let Some(false) = only_chain.as_ref().map(|only_chain| {
+				&format!("{:?}", spec).to_lowercase() == only_chain)
+			}) {
 				continue;
 			}
 
+			// Iterate over the 3rd level key-value pairs of the state test JSON file
+			// (i.e. list of transactions and associated state roots hashes corresponding each chain).
 			for (idx, state) in states.into_iter().enumerate() {
 				let post_root = state.hash.into();
 				let transaction = multitransaction.select(&state.indexes).into();
 
+				// Determine the type of trie with state root to create in the database.
+				// The database is a key-value datastore implemented as a database-backend
+				// modified Merkle tree.
+				// Use a secure trie database specification when CLI option `--std-dump-json`
+				// is specified, otherwise use secure trie with FAT trie database.
 				let trie_spec = if args.flag_std_dump_json {
 					TrieSpec::Fat
 				} else {
 					TrieSpec::Secure
 				};
-				if args.flag_json {
-					info::run_transaction(&name, idx, &spec, &pre, post_root, &env_info, transaction, display::json::Informant::default(), trie_spec)
-				} else if args.flag_std_dump_json || args.flag_std_json {
+
+				// Execute the given transaction and verify resulting state root
+				// for CLI option `--std-dump-json` or `--std-json`.
+				if args.flag_std_dump_json || args.flag_std_json {
 					if args.flag_std_err_only {
+						// Use Standard JSON informant with err only
 						info::run_transaction(&name, idx, &spec, &pre, post_root, &env_info, transaction, display::std_json::Informant::err_only(), trie_spec)
 					} else if args.flag_std_out_only {
+						// Use Standard JSON informant with out only
 						info::run_transaction(&name, idx, &spec, &pre, post_root, &env_info, transaction, display::std_json::Informant::out_only(), trie_spec)
 					} else {
+						// Use Standard JSON informant default
 						info::run_transaction(&name, idx, &spec, &pre, post_root, &env_info, transaction, display::std_json::Informant::default(), trie_spec)
 					}
 				} else {
-					info::run_transaction(&name, idx, &spec, &pre, post_root, &env_info, transaction, display::simple::Informant::default(), trie_spec)
+					// Execute the given transaction and verify resulting state root
+					// for CLI option `--json`.
+					if args.flag_json {
+						// Use JSON informant
+						info::run_transaction(&name, idx, &spec, &pre, post_root, &env_info, transaction, display::json::Informant::default(), trie_spec)
+					} else {
+						// Use Simple informant
+						info::run_transaction(&name, idx, &spec, &pre, post_root, &env_info, transaction, display::simple::Informant::default(), trie_spec)
+					}
 				}
 			}
 		}
