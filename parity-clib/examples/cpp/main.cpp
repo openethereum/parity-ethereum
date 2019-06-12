@@ -89,7 +89,9 @@ int64_t parity_rpc_queries(void* parity) {
 		return 1;
 	}
 
-	Callback cb { .type = CALLBACK_RPC };
+	Callback cb;
+	cb.type = CALLBACK_RPC;
+
 	callback_counter = rpc_queries.size();
 
 	for (auto query : rpc_queries) {
@@ -110,7 +112,8 @@ int64_t parity_subscribe_to_websocket(void* parity) {
 
 	std::vector<const void*> sessions;
 
-	Callback cb { .type = CALLBACK_WS };
+	Callback cb;
+	cb.type = CALLBACK_WS;
 	callback_counter = ws_subscriptions.size();
 
 	for (auto sub : ws_subscriptions) {
@@ -129,12 +132,12 @@ int64_t parity_subscribe_to_websocket(void* parity) {
 }
 
 void* parity_run(std::vector<const char*> args) {
-	ParityParams cfg = {
-		.configuration = nullptr,
-		.on_client_restart_cb = callback,
-		.on_client_restart_cb_custom = nullptr,
-		.logger = nullptr
-	};
+	ParityParams cfg;
+
+	cfg.configuration = nullptr;
+	cfg.on_client_restart_cb = callback;
+	cfg.on_client_restart_cb_custom = nullptr;
+	cfg.logger = nullptr;
 
 	std::vector<size_t> str_lens;
 
