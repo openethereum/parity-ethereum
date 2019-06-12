@@ -102,7 +102,7 @@ pub struct ExecutedBlock {
 	pub receipts: Vec<Receipt>,
 	/// Hashes of already executed transactions.
 	pub transactions_set: HashSet<H256>,
-	/// Underlaying state.
+	/// Underlying state.
 	pub state: State<StateDB>,
 	/// Transaction traces.
 	pub traces: Tracing,
