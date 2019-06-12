@@ -430,7 +430,7 @@ mod tests {
 			"--std-json",
 			"--std-dump-json",
 			"--std-err-only",
-			"--std-out-only"
+			"--std-out-only",
 		]);
 
 		assert_eq!(args.code(), Ok(Some(vec![05])));
@@ -459,7 +459,7 @@ mod tests {
 			"--std-json",
 			"--std-dump-json",
 			"--std-out-only",
-			"--std-err-only"
+			"--std-err-only",
 		]);
 
 		assert_eq!(args.cmd_state_test, true);
@@ -561,9 +561,14 @@ mod tests {
 
   // TODO show out of gas error using only 1 gas, and when not out of gas by providing at least 21 gas.
   // ```
-  // ./target/release/parity-evm stats --to "0000000000000000000000000000000000000004" --from "0000000000000000000000000000000000000003" --code "05" --input "06" --gas "1" --gas-price "2" --only "add11" --json
+  // ./target/release/parity-evm stats --to "0000000000000000000000000000000000000004"
+  // --from "0000000000000000000000000000000000000003" --code "05" --input "06" --gas "1"
+  // --gas-price "2" --only "add11" --json
   // {"error":"EVM: Out of gas","gasUsed":"0x1","time":2422}
-  // ./target/release/parity-evm stats --to "0000000000000000000000000000000000000004" --from "0000000000000000000000000000000000000003" --code "05" --input "06" --gas "21" --gas-price "2" --only "add11" --json
+  //
+  // ./target/release/parity-evm stats --to "0000000000000000000000000000000000000004"
+  // --from "0000000000000000000000000000000000000003" --code "05" --input "06" --gas "21"
+  // --gas-price "2" --only "add11" --json
   // {"gasUsed":"0x12","output":"0x06","time":2382}
   // ```
 }
