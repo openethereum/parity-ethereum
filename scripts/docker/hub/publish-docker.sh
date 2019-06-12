@@ -44,14 +44,15 @@ case "${SCHEDULE_TAG:-${CI_COMMIT_REF_NAME}}" in
             --file tools/Dockerfile .;
         docker push "parity/parity:${VERSION}-${CI_COMMIT_REF_NAME}";
         docker push "parity/parity:stable";;
-    *)
-        echo "Docker TAG - 'parity/parity:${VERSION}-${CI_COMMIT_REF_NAME}'"
+    *)  # case for tags and misc
+        BRANCH = $(git branch --contains ${CI_COMMIT_REF_NAME})
+        echo "Docker TAG - 'parity/parity:${VERSION}-${BRANCH}'"
         docker build --no-cache \
             --build-arg VCS_REF="${CI_COMMIT_SHA}" \
             --build-arg BUILD_DATE="$(date -u '+%Y-%m-%dT%H:%M:%SZ')" \
-            --tag "parity/parity:${VERSION}-${CI_COMMIT_REF_NAME}" \
+            --tag "parity/parity:${VERSION}-${BRANCH}" \
             --file tools/Dockerfile .;
-        docker push "parity/parity:${VERSION}-${CI_COMMIT_REF_NAME}";;
+        docker push "parity/parity:${VERSION}-${BRANCH}";;
 esac
 
 docker logout
