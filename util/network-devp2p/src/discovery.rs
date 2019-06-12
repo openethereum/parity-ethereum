@@ -169,7 +169,6 @@ pub struct Discovery<'a> {
 	discovery_id: NodeId,
 	discovery_nodes: HashSet<NodeId>,
 	node_buckets: Vec<NodeBucket>,
-
 	// Sometimes we don't want to add nodes to the NodeTable, but still want to
 	// keep track of them to avoid excessive pinging (happens when an unknown node sends
 	// a discovery request to us -- the node might be on a different net).
@@ -258,7 +257,7 @@ impl<'a> Discovery<'a> {
             Ok(()) => None,
             Err(BucketError::Ourselves) => None,
             Err(BucketError::NotInTheBucket{node_entry, bucket_distance}) => Some((node_entry, bucket_distance))
-        }.map(|(node_entry, bucket_distance)| {
+        }.and_then(|(node_entry, bucket_distance)| {
 			trace!(target: "discovery", "Adding a new node {:?} into our bucket {}", &node_entry, bucket_distance);
 
             let mut added = HashMap::with_capacity(1);
@@ -266,7 +265,7 @@ impl<'a> Discovery<'a> {
 
 			let node_to_ping = {
 				let bucket = &mut self.node_buckets[bucket_distance];
-				bucket.nodes.push_front(BucketEntry::new(node_entry));
+				bucket.nodes.push_front(BucketEntry::new(node_entry.clone()));
 				if bucket.nodes.len() > BUCKET_SIZE {
 					select_bucket_ping(bucket.nodes.iter())
 				} else {
@@ -276,7 +275,12 @@ impl<'a> Discovery<'a> {
 			if let Some(node) = node_to_ping {
 				self.try_ping(node, PingReason::Default);
 			};
-            TableUpdates{added, removed: HashSet::new()}
+
+            if node_entry.endpoint.is_valid_sync_node() {
+				Some(TableUpdates { added, removed: HashSet::new() })
+			} else {
+				None
+			}
         })
 	}
 
@@ -519,7 +523,18 @@ impl<'a> Discovery<'a> {
 
 	fn on_ping(&mut self, rlp: &Rlp, node_id: &NodeId, from: &SocketAddr, echo_hash: &[u8]) -> Result<Option<TableUpdates>, Error> {
 		trace!(target: "discovery", "Got Ping from {:?}", &from);
-		let ping_from = NodeEndpoint::from_rlp(&rlp.at(1)?)?;
+		let ping_from = if let Ok(node_endpoint) = NodeEndpoint::from_rlp(&rlp.at(1)?) {
+			node_endpoint
+		} else {
+			let mut address = from.clone();
+			// address here is the node's tcp port. If we are unable to get the `NodeEndpoint` from the `ping_from`
+			// rlp field then this is most likely a BootNode, set the tcp port to 0 because it can not be used for syncing.
+			address.set_port(0);
+			NodeEndpoint {
+				address,
+				udp_port: from.port()
+			}
+		};
 		let ping_to = NodeEndpoint::from_rlp(&rlp.at(2)?)?;
 		let timestamp: u64 = rlp.val_at(3)?;
 		self.check_timestamp(timestamp)?;
@@ -541,7 +556,7 @@ impl<'a> Discovery<'a> {
 		self.send_packet(PACKET_PONG, from, &response.drain())?;
 
 		let entry = NodeEntry { id: *node_id, endpoint: pong_to.clone() };
-		if !entry.endpoint.is_valid() {
+		if !entry.endpoint.is_valid_discovery_node() {
 			debug!(target: "discovery", "Got bad address: {:?}", entry);
 		} else if !self.is_allowed(&entry) {
 			debug!(target: "discovery", "Address not allowed: {:?}", entry);
@@ -729,7 +744,7 @@ impl<'a> Discovery<'a> {
 		trace!(target: "discovery", "Got {} Neighbours from {:?}", results_count, &from);
 		for r in rlp.at(0)?.iter() {
 			let endpoint = NodeEndpoint::from_rlp(&r)?;
-			if !endpoint.is_valid() {
+			if !endpoint.is_valid_discovery_node() {
 				debug!(target: "discovery", "Bad address: {:?}", endpoint);
 				continue;
 			}
