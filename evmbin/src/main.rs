@@ -236,7 +236,7 @@ fn run_stats_jsontests_vm(args: Args) {
 	use std::collections::HashMap;
 	use std::time::{Instant, Duration};
 
-	let file = args.arg_file.expect("FILE (or PATH) is required");
+	let file = args.arg_file.expect("PATH to a state test JSON file is required");
 
 	let mut timings: HashMap<String, (Instant, Option<Duration>)> = HashMap::new();
 
