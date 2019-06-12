@@ -97,7 +97,7 @@ Transaction options:
     --from ADDRESS     Sender address (without 0x).
     --input DATA       Input data as hex (without 0x).
     --gas GAS          Supplied gas as hex (without 0x).
-    --gas-price WEI    Supplied gas price as hex (without 0x).
+    --gas-price GWEI   Supplied gas price as hex (without 0x).
 
 State test options:
     --chain CHAIN      Run only from specific chain name (i.e. EIP150, EIP158,
@@ -305,13 +305,13 @@ struct Args {
 	cmd_state_test: bool,
 	cmd_stats_jsontests_vm: bool,
 	arg_file: Option<PathBuf>,
-	flag_only: Option<String>,
-	flag_from: Option<String>,
-	flag_to: Option<String>,
 	flag_code: Option<String>,
+	flag_to: Option<String>,
+	flag_from: Option<String>,
+	flag_input: Option<String>,
 	flag_gas: Option<String>,
 	flag_gas_price: Option<String>,
-	flag_input: Option<String>,
+	flag_only: Option<String>,
 	flag_chain: Option<String>,
 	flag_json: bool,
 	flag_std_json: bool,
@@ -321,7 +321,8 @@ struct Args {
 }
 
 impl Args {
-	/// Set the gas limit. Defaults to max value to allow code to run for whatever time is required.
+	// CLI option `--gas GAS`
+	/// Set the gas limit in units of gas. Defaults to max value to allow code to run for whatever time is required.
 	pub fn gas(&self) -> Result<U256, String> {
 		match self.flag_gas {
 			Some(ref gas) => gas.parse().map_err(to_string),
@@ -329,7 +330,8 @@ impl Args {
 		}
 	}
 
-	/// Set the gas price. Defaults to zero to allow the code to run even if an account with no balance
+	// CLI option `--gas-price GWEI`
+	/// Set the gas price in GWei. Defaults to zero to allow the code to run even if an account with no balance
 	/// is used, otherwise such accounts would not have sufficient funds to pay the transaction fee.
 	/// Defaulting to zero also makes testing easier since it is not necessary to specify a special configuration file.
 	pub fn gas_price(&self) -> Result<U256, String> {
@@ -339,6 +341,8 @@ impl Args {
 		}
 	}
 
+	// CLI option `--from ADDRESS`
+	/// Set the sender address.
 	pub fn from(&self) -> Result<Address, String> {
 		match self.flag_from {
 			Some(ref from) => from.parse().map_err(to_string),
@@ -346,6 +350,8 @@ impl Args {
 		}
 	}
 
+	// CLI option `--to ADDRESS`
+	/// Set the recipient address in hex. Only send to either a contract code or a recipient address.
 	pub fn to(&self) -> Result<Address, String> {
 		match self.flag_to {
 			Some(ref to) => to.parse().map_err(to_string),
@@ -353,6 +359,8 @@ impl Args {
 		}
 	}
 
+	// CLI option `--code CODE`
+	/// Set the contract code in hex. Only send to either a contract code or a recipient address.
 	pub fn code(&self) -> Result<Option<Bytes>, String> {
 		match self.flag_code {
 			Some(ref code) => code.from_hex().map(Some).map_err(to_string),
@@ -360,6 +368,8 @@ impl Args {
 		}
 	}
 
+	// CLI option `--input DATA`
+	/// Set the input data in hex.
 	pub fn data(&self) -> Result<Option<Bytes>, String> {
 		match self.flag_input {
 			Some(ref input) => input.from_hex().map_err(to_string).map(Some),
@@ -367,6 +377,8 @@ impl Args {
 		}
 	}
 
+	// CLI option `--chain PATH`
+	/// Set the path of the chain specification JSON file.
 	pub fn spec(&self) -> Result<spec::Spec, String> {
 		Ok(match self.flag_chain {
 			Some(ref filename) => {
