@@ -321,6 +321,42 @@ struct Args {
 }
 
 impl Args {
+	// CLI option `--code CODE`
+	/// Set the contract code in hex. Only send to either a contract code or a recipient address.
+	pub fn code(&self) -> Result<Option<Bytes>, String> {
+		match self.flag_code {
+			Some(ref code) => code.from_hex().map(Some).map_err(to_string),
+			None => Ok(None),
+		}
+	}
+
+	// CLI option `--to ADDRESS`
+	/// Set the recipient address in hex. Only send to either a contract code or a recipient address.
+	pub fn to(&self) -> Result<Address, String> {
+		match self.flag_to {
+			Some(ref to) => to.parse().map_err(to_string),
+			None => Ok(Address::zero()),
+		}
+	}
+
+	// CLI option `--from ADDRESS`
+	/// Set the sender address.
+	pub fn from(&self) -> Result<Address, String> {
+		match self.flag_from {
+			Some(ref from) => from.parse().map_err(to_string),
+			None => Ok(Address::zero()),
+		}
+	}
+
+	// CLI option `--input DATA`
+	/// Set the input data in hex.
+	pub fn data(&self) -> Result<Option<Bytes>, String> {
+		match self.flag_input {
+			Some(ref input) => input.from_hex().map_err(to_string).map(Some),
+			None => Ok(None),
+		}
+	}
+
 	// CLI option `--gas GAS`
 	/// Set the gas limit in units of gas. Defaults to max value to allow code to run for whatever time is required.
 	pub fn gas(&self) -> Result<U256, String> {
@@ -338,42 +374,6 @@ impl Args {
 		match self.flag_gas_price {
 			Some(ref gas_price) => gas_price.parse().map_err(to_string),
 			None => Ok(U256::zero()),
-		}
-	}
-
-	// CLI option `--from ADDRESS`
-	/// Set the sender address.
-	pub fn from(&self) -> Result<Address, String> {
-		match self.flag_from {
-			Some(ref from) => from.parse().map_err(to_string),
-			None => Ok(Address::zero()),
-		}
-	}
-
-	// CLI option `--to ADDRESS`
-	/// Set the recipient address in hex. Only send to either a contract code or a recipient address.
-	pub fn to(&self) -> Result<Address, String> {
-		match self.flag_to {
-			Some(ref to) => to.parse().map_err(to_string),
-			None => Ok(Address::zero()),
-		}
-	}
-
-	// CLI option `--code CODE`
-	/// Set the contract code in hex. Only send to either a contract code or a recipient address.
-	pub fn code(&self) -> Result<Option<Bytes>, String> {
-		match self.flag_code {
-			Some(ref code) => code.from_hex().map(Some).map_err(to_string),
-			None => Ok(None),
-		}
-	}
-
-	// CLI option `--input DATA`
-	/// Set the input data in hex.
-	pub fn data(&self) -> Result<Option<Bytes>, String> {
-		match self.flag_input {
-			Some(ref input) => input.from_hex().map_err(to_string).map(Some),
-			None => Ok(None),
 		}
 	}
 
