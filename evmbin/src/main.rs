@@ -165,7 +165,7 @@ fn run_state_test(args: Args) {
 	// the current key `name` (i.e. add11, create2callPrecompiles).
 	for (name, test) in state_test {
 		if let Some(false) = only_test.as_ref().map(|only_test| {
-			&name.to_lowercase() == only_test)
+			&name.to_lowercase() == only_test
 		}) {
 			continue;
 		}
@@ -180,7 +180,7 @@ fn run_state_test(args: Args) {
 		// the current key `spec` (i.e. Constantinople, EIP150, EIP158).
 		for (spec, states) in test.post_states {
 			if let Some(false) = only_chain.as_ref().map(|only_chain| {
-				&format!("{:?}", spec).to_lowercase() == only_chain)
+				&format!("{:?}", spec).to_lowercase() == only_chain
 			}) {
 				continue;
 			}
@@ -434,9 +434,9 @@ mod tests {
 		]);
 
 		assert_eq!(args.code(), Ok(Some(vec![05])));
-		assert_eq!(args.to(), Ok(4.into()));
-		assert_eq!(args.from(), Ok(3.into()));
-		assert_eq!(args.data(), Ok(Some(vec![06]))); // input
+		assert_eq!(args.to(), Ok(Address::from_low_u64_be(4)));
+		assert_eq!(args.from(), Ok(Address::from_low_u64_be(3)));
+		assert_eq!(args.data(), Ok(Some(vec![06]))); // input data
 		assert_eq!(args.gas(), Ok(1.into()));
 		assert_eq!(args.gas_price(), Ok(2.into()));
 		assert_eq!(args.flag_chain, Some("./testfile.json".to_owned()));
