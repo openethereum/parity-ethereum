@@ -409,6 +409,7 @@ fn die<T: fmt::Display>(msg: T) -> ! {
 mod tests {
 	use docopt::Docopt;
 	use super::{Args, USAGE, Address};
+	use ethjson::state::test::{State};
 
 	fn run<T: AsRef<str>>(args: &[T]) -> Args {
 		Docopt::new(USAGE).and_then(|d| d.argv(args.into_iter()).deserialize()).unwrap()
@@ -418,30 +419,32 @@ mod tests {
 	fn should_parse_all_the_options() {
 		let args = run(&[
 			"parity-evm",
+			"--code", "05",
+			"--to", "0000000000000000000000000000000000000004",
+			"--from", "0000000000000000000000000000000000000003",
+			"--input", "06",
+			"--gas", "1",
+			"--gas-price", "2",
+			"--chain", "./testfile.json",
 			"--json",
 			"--std-json",
 			"--std-dump-json",
-			"--gas", "1",
-			"--gas-price", "2",
-			"--from", "0000000000000000000000000000000000000003",
-			"--to", "0000000000000000000000000000000000000004",
-			"--code", "05",
-			"--input", "06",
-			"--chain", "./testfile", "--std-err-only", "--std-out-only"
+			"--std-err-only",
+			"--std-out-only"
 		]);
 
+		assert_eq!(args.code(), Ok(Some(vec![05])));
+		assert_eq!(args.to(), Ok(4.into()));
+		assert_eq!(args.from(), Ok(3.into()));
+		assert_eq!(args.data(), Ok(Some(vec![06]))); // input
+		assert_eq!(args.gas(), Ok(1.into()));
+		assert_eq!(args.gas_price(), Ok(2.into()));
+		assert_eq!(args.flag_chain, Some("./testfile.json".to_owned()));
 		assert_eq!(args.flag_json, true);
 		assert_eq!(args.flag_std_json, true);
 		assert_eq!(args.flag_std_dump_json, true);
 		assert_eq!(args.flag_std_err_only, true);
 		assert_eq!(args.flag_std_out_only, true);
-		assert_eq!(args.gas(), Ok(1.into()));
-		assert_eq!(args.gas_price(), Ok(2.into()));
-		assert_eq!(args.from(), Ok(Address::from_low_u64_be(3)));
-		assert_eq!(args.to(), Ok(Address::from_low_u64_be(4)));
-		assert_eq!(args.code(), Ok(Some(vec![05])));
-		assert_eq!(args.data(), Ok(Some(vec![06])));
-		assert_eq!(args.flag_chain, Some("./testfile".to_owned()));
 	}
 
 	#[test]
@@ -454,15 +457,113 @@ mod tests {
 			"--only=add11",
 			"--json",
 			"--std-json",
-			"--std-dump-json"
+			"--std-dump-json",
+			"--std-out-only",
+			"--std-err-only"
 		]);
 
 		assert_eq!(args.cmd_state_test, true);
 		assert!(args.arg_file.is_some());
+		assert_eq!(args.flag_chain, Some("homestead".to_owned()));
+		assert_eq!(args.flag_only, Some("add11".to_owned()));
 		assert_eq!(args.flag_json, true);
 		assert_eq!(args.flag_std_json, true);
 		assert_eq!(args.flag_std_dump_json, true);
-		assert_eq!(args.flag_chain, Some("homestead".to_owned()));
-		assert_eq!(args.flag_only, Some("add11".to_owned()));
+		assert_eq!(args.flag_std_out_only, true);
+		assert_eq!(args.flag_std_err_only, true);
 	}
+
+	#[test]
+	fn should_parse_state_test_command_from_state_test_json_file() {
+		let s = r#"{
+			"env": {
+				"currentCoinbase": "2adc25665018aa1fe0e6bc666dac8fc2697ff9ba",
+				"currentDifficulty": "0x0100",
+				"currentGasLimit": "0x01c9c380",
+				"currentNumber": "0x00",
+				"currentTimestamp": "0x01",
+				"previousHash": "5e20a0453cecd065ea59c37ac63e079ee08998b6045136a8ce6635c7912ec0b6"
+			},
+			"post": {
+				"EIP150": [
+					{
+						"hash": "3e6dacc1575c6a8c76422255eca03529bbf4c0dda75dfc110b22d6dc4152396f",
+						"indexes": { "data": 0, "gas": 0, "value": 0 }
+					},
+					{
+						"hash": "99a450d8ce5b987a71346d8a0a1203711f770745c7ef326912e46761f14cd764",
+						"indexes": { "data": 0, "gas": 0, "value": 1 }
+					}
+				],
+				"EIP158": [
+					{
+						"hash": "3e6dacc1575c6a8c76422255eca03529bbf4c0dda75dfc110b22d6dc4152396f",
+						"indexes": { "data": 0, "gas": 0, "value": 0 }
+					},
+					{
+						"hash": "99a450d8ce5b987a71346d8a0a1203711f770745c7ef326912e46761f14cd764",
+						"indexes": { "data": 0, "gas": 0, "value": 1  }
+					}
+				]
+			},
+			"pre": {
+				"1000000000000000000000000000000000000000": {
+					"balance": "0x0de0b6b3a7640000",
+					"code": "0x6040600060406000600173100000000000000000000000000000000000000162055730f1600055",
+					"nonce": "0x00",
+					"storage": {
+					}
+				},
+				"1000000000000000000000000000000000000001": {
+					"balance": "0x0de0b6b3a7640000",
+					"code": "0x604060006040600060027310000000000000000000000000000000000000026203d090f1600155",
+					"nonce": "0x00",
+					"storage": {
+					}
+				},
+				"1000000000000000000000000000000000000002": {
+					"balance": "0x00",
+					"code": "0x600160025533600455346007553060e6553260e8553660ec553860ee553a60f055",
+					"nonce": "0x00",
+					"storage": {
+					}
+				},
+				"a94f5374fce5edbc8e2a8697c15331677e6ebf0b": {
+					"balance": "0x0de0b6b3a7640000",
+					"code": "0x",
+					"nonce": "0x00",
+					"storage": {
+					}
+				}
+			},
+			"transaction": {
+				"data": [ "" ],
+				"gasLimit": [ "285000", "100000", "6000" ],
+				"gasPrice": "0x01",
+				"nonce": "0x00",
+				"secretKey": "45a915e4d060149eb4365960e6a7a45f334393093061116b197e3240065ff2d8",
+				"to": "095e7baea6a6c7c4c2dfeb977efac326af552d87",
+				"value": [ "10", "0" ]
+			}
+		}"#;
+		let _deserialized: State = serde_json::from_str(s).unwrap();
+	}
+
+	// TODO - add test that passes without failing with `State root mismatch`
+	// using ./res/create2callPrecompile.json from https://github.com/ethereum/tests
+
+  // TODO - add test that fails with `State root mismatch` using teststate.json
+
+  // TODO - add test for the `parity-evm stats` command, and return error when
+  // the `--only` option is used. repeat for `parity-evm stats-jsontests-vm`
+  // and just `parity-evm` (since those options only supported
+  // by `parity-evm state-test`)
+
+  // TODO show out of gas error using only 1 gas, and when not out of gas by providing at least 21 gas.
+  // ```
+  // ./target/release/parity-evm stats --to "0000000000000000000000000000000000000004" --from "0000000000000000000000000000000000000003" --code "05" --input "06" --gas "1" --gas-price "2" --only "add11" --json
+  // {"error":"EVM: Out of gas","gasUsed":"0x1","time":2422}
+  // ./target/release/parity-evm stats --to "0000000000000000000000000000000000000004" --from "0000000000000000000000000000000000000003" --code "05" --input "06" --gas "21" --gas-price "2" --only "add11" --json
+  // {"gasUsed":"0x12","output":"0x06","time":2382}
+  // ```
 }
