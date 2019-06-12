@@ -27,7 +27,7 @@ use display;
 use info as vm;
 
 /// JSON formatting informant.
-#[derive(Clone, Default)]
+#[derive(Default)]
 pub struct Informant {
 	code: Vec<u8>,
 	depth: usize,
@@ -47,18 +47,18 @@ pub struct Informant {
 	unmatched: bool,
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Debug)]
 #[serde(rename_all = "camelCase")]
-pub struct TraceData {
+pub struct TraceData<'a> {
 	pc: usize,
 	op: u8,
-	op_name: String,
-	gas: String,
-	gas_cost: String,
-	memory: String,
-	stack: Vec<U256>,
-	storage: HashMap<H256, H256>,
-	depth: usize
+	op_name: &'a str,
+	gas: &'a str,
+	gas_cost: &'a str,
+	memory: &'a str,
+	stack: &'a [U256],
+	storage: &'a HashMap<H256, H256>,
+	depth: usize,
 }
 
 impl Informant {
@@ -78,13 +78,13 @@ impl Informant {
 			TraceData {
 				pc: informant.pc,
 				op: informant.instruction,
-				op_name: info.map(|i| i.name.to_string()).unwrap_or("".to_string()),
-				gas: format!("{:#x}", gas_used.saturating_add(informant.gas_cost)),
-				gas_cost: format!("{:#x}", informant.gas_cost),
-				memory: format!("0x{}", informant.memory.to_hex()),
-				stack: informant.clone().stack,
-				storage: informant.clone().storage,
-				depth: informant.depth
+				op_name: info.map(|i| i.name).unwrap_or(""),
+				gas: &format!("{:#x}", gas_used.saturating_add(informant.gas_cost)),
+				gas_cost: &format!("{:#x}", informant.gas_cost),
+				memory: &format!("0x{}", informant.memory.to_hex()),
+				stack: &informant.stack,
+				storage: &informant.storage,
+				depth: informant.depth,
 			}
 		;
 

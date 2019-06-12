@@ -52,51 +52,51 @@ impl Writer for io::Stderr {
 }
 
 /// JSON formatting informant.
-pub struct Informant<Clone, Trace, Out> {
+pub struct Informant<Trace, Out> {
 	code: Vec<u8>,
 	instruction: u8,
 	depth: usize,
 	stack: Vec<U256>,
 	storage: HashMap<H256, H256>,
-	subinfos: Vec<Informant<Clone, Trace, Out>>,
+	subinfos: Vec<Informant<Trace, Out>>,
 	subdepth: usize,
 	trace_sink: Trace,
 	out_sink: Out,
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Debug)]
 #[serde(rename_all = "camelCase")]
-pub struct TraceData {
+pub struct TraceData<'a> {
 	pc: usize,
 	op: u8,
-	op_name: String,
-	gas: String,
-	stack: Vec<U256>,
-	storage: HashMap<H256, H256>,
-	depth: usize
+	op_name: &'a str,
+	gas: &'a str,
+	stack: &'a [U256],
+	storage: &'a HashMap<H256, H256>,
+	depth: usize,
 }
 
-impl Default for Informant<Clone, io::Stderr, io::Stdout> {
+impl Default for Informant<io::Stderr, io::Stdout> {
 	fn default() -> Self {
 		Self::new(io::stderr(), io::stdout())
 	}
 }
 
-impl Informant<Clone, io::Stdout, io::Stdout> {
+impl Informant<io::Stdout, io::Stdout> {
 	/// std json informant using out only.
 	pub fn out_only() -> Self {
 		Self::new(io::stdout(), io::stdout())
 	}
 }
 
-impl Informant<Clone, io::Stderr, io::Stderr> {
+impl Informant<io::Stderr, io::Stderr> {
 	/// std json informant using err only.
 	pub fn err_only() -> Self {
 		Self::new(io::stderr(), io::stderr())
 	}
 }
 
-impl<Trace: Writer, Out: Writer> Informant<Clone, Trace, Out> {
+impl<Trace: Writer, Out: Writer> Informant<Trace, Out> {
 
 	pub fn new(trace_sink: Trace, out_sink: Out) -> Self {
 		Informant {
@@ -107,11 +107,12 @@ impl<Trace: Writer, Out: Writer> Informant<Clone, Trace, Out> {
 			storage: Default::default(),
 			subinfos: Default::default(),
 			subdepth: 0,
-			trace_sink, out_sink
+			trace_sink,
+			out_sink,
 		}
 	}
 
-	fn with_informant_in_depth<F: Fn(&mut Informant<Clone, Trace, Out>)>(informant: &mut Informant<Clone, Trace, Out>, depth: usize, f: F) {
+	fn with_informant_in_depth<F: Fn(&mut Informant<Trace, Out>)>(informant: &mut Informant<Trace, Out>, depth: usize, f: F) {
 		if depth == 0 {
 			f(informant);
 		} else {
@@ -132,7 +133,7 @@ impl<Trace: Writer, Out: Writer> Informant<Clone, Trace, Out> {
 
 }
 
-impl<Trace: Writer, Out: Writer> vm::Informant for Informant<Clone, Trace, Out> {
+impl<Trace: Writer, Out: Writer> vm::Informant for Informant<Trace, Out> {
 
 	type Sink = (Trace, Out);
 
@@ -187,7 +188,7 @@ impl<Trace: Writer, Out: Writer> vm::Informant for Informant<Clone, Trace, Out> 
 	}
 }
 
-impl<Trace: Writer, Out: Writer> trace::VMTracer for Informant<Clone, Trace, Out> {
+impl<Trace: Writer, Out: Writer> trace::VMTracer for Informant<Trace, Out> {
 	type Output = ();
 
 	fn trace_next_instruction(&mut self, pc: usize, instruction: u8, current_gas: U256) -> bool {
@@ -201,11 +202,11 @@ impl<Trace: Writer, Out: Writer> trace::VMTracer for Informant<Clone, Trace, Out
 				TraceData {
 					pc: pc,
 					op: instruction,
-					op_name: info.map(|i| i.name.to_string()).unwrap_or("".to_string()),
-					gas: format!("{:#x}", current_gas),
-					stack: informant.clone().stack,
-					storage: informant.clone().storage,
-					depth: informant.depth
+					op_name: info.map(|i| i.name).unwrap_or(""),
+					gas: &format!("{:#x}", current_gas),
+					stack: &informant.stack,
+					storage: &informant.storage,
+					depth: informant.depth,
 				}
 			;
 
@@ -284,7 +285,7 @@ pub mod tests {
 		}
 	}
 
-	pub fn informant() -> (Informant<Clone, TestWriter, TestWriter>, Arc<Mutex<Vec<u8>>>) {
+	pub fn informant() -> (Informant<TestWriter, TestWriter>, Arc<Mutex<Vec<u8>>>) {
 		let trace_writer: TestWriter = Default::default();
 		let out_writer: TestWriter = Default::default();
 		let res = trace_writer.0.clone();
@@ -302,8 +303,8 @@ pub mod tests {
 			},
 			"60F8d6",
 			0xffff,
-			r#"{"depth":1,"gas":"0xffff","op":96,"opName":"PUSH1","pc":0,"stack":[],"storage":{}}
-{"depth":1,"gas":"0xfffc","op":214,"opName":"","pc":2,"stack":["0xf8"],"storage":{}}
+			r#"{"pc":0,"op":96,"opName":"PUSH1","gas":"0xffff","stack":[],"storage":{},"depth":1}
+{"pc":2,"op":214,"opName":"","gas":"0xfffc","stack":["0xf8"],"storage":{},"depth":1}
 "#,
 		);
 
@@ -316,7 +317,7 @@ pub mod tests {
 			},
 			"F8d6",
 			0xffff,
-			r#"{"depth":1,"gas":"0xffff","op":248,"opName":"","pc":0,"stack":[],"storage":{}}
+			r#"{"pc":0,"op":248,"opName":"","gas":"0xffff","stack":[],"storage":{},"depth":1}
 "#,
 		);
 	}
@@ -332,30 +333,30 @@ pub mod tests {
 			},
 			"32343434345830f138343438323439f0",
 			0xffff,
-			r#"{"depth":1,"gas":"0xffff","op":50,"opName":"ORIGIN","pc":0,"stack":[],"storage":{}}
-{"depth":1,"gas":"0xfffd","op":52,"opName":"CALLVALUE","pc":1,"stack":["0x0"],"storage":{}}
-{"depth":1,"gas":"0xfffb","op":52,"opName":"CALLVALUE","pc":2,"stack":["0x0","0x0"],"storage":{}}
-{"depth":1,"gas":"0xfff9","op":52,"opName":"CALLVALUE","pc":3,"stack":["0x0","0x0","0x0"],"storage":{}}
-{"depth":1,"gas":"0xfff7","op":52,"opName":"CALLVALUE","pc":4,"stack":["0x0","0x0","0x0","0x0"],"storage":{}}
-{"depth":1,"gas":"0xfff5","op":88,"opName":"PC","pc":5,"stack":["0x0","0x0","0x0","0x0","0x0"],"storage":{}}
-{"depth":1,"gas":"0xfff3","op":48,"opName":"ADDRESS","pc":6,"stack":["0x0","0x0","0x0","0x0","0x0","0x5"],"storage":{}}
-{"depth":1,"gas":"0xfff1","op":241,"opName":"CALL","pc":7,"stack":["0x0","0x0","0x0","0x0","0x0","0x5","0x0"],"storage":{}}
-{"depth":1,"gas":"0x9e21","op":56,"opName":"CODESIZE","pc":8,"stack":["0x1"],"storage":{}}
-{"depth":1,"gas":"0x9e1f","op":52,"opName":"CALLVALUE","pc":9,"stack":["0x1","0x10"],"storage":{}}
-{"depth":1,"gas":"0x9e1d","op":52,"opName":"CALLVALUE","pc":10,"stack":["0x1","0x10","0x0"],"storage":{}}
-{"depth":1,"gas":"0x9e1b","op":56,"opName":"CODESIZE","pc":11,"stack":["0x1","0x10","0x0","0x0"],"storage":{}}
-{"depth":1,"gas":"0x9e19","op":50,"opName":"ORIGIN","pc":12,"stack":["0x1","0x10","0x0","0x0","0x10"],"storage":{}}
-{"depth":1,"gas":"0x9e17","op":52,"opName":"CALLVALUE","pc":13,"stack":["0x1","0x10","0x0","0x0","0x10","0x0"],"storage":{}}
-{"depth":1,"gas":"0x9e15","op":57,"opName":"CODECOPY","pc":14,"stack":["0x1","0x10","0x0","0x0","0x10","0x0","0x0"],"storage":{}}
-{"depth":1,"gas":"0x9e0c","op":240,"opName":"CREATE","pc":15,"stack":["0x1","0x10","0x0","0x0"],"storage":{}}
-{"depth":2,"gas":"0x210c","op":50,"opName":"ORIGIN","pc":0,"stack":[],"storage":{}}
-{"depth":2,"gas":"0x210a","op":52,"opName":"CALLVALUE","pc":1,"stack":["0x0"],"storage":{}}
-{"depth":2,"gas":"0x2108","op":52,"opName":"CALLVALUE","pc":2,"stack":["0x0","0x0"],"storage":{}}
-{"depth":2,"gas":"0x2106","op":52,"opName":"CALLVALUE","pc":3,"stack":["0x0","0x0","0x0"],"storage":{}}
-{"depth":2,"gas":"0x2104","op":52,"opName":"CALLVALUE","pc":4,"stack":["0x0","0x0","0x0","0x0"],"storage":{}}
-{"depth":2,"gas":"0x2102","op":88,"opName":"PC","pc":5,"stack":["0x0","0x0","0x0","0x0","0x0"],"storage":{}}
-{"depth":2,"gas":"0x2100","op":48,"opName":"ADDRESS","pc":6,"stack":["0x0","0x0","0x0","0x0","0x0","0x5"],"storage":{}}
-{"depth":2,"gas":"0x20fe","op":241,"opName":"CALL","pc":7,"stack":["0x0","0x0","0x0","0x0","0x0","0x5","0xbd770416a3345f91e4b34576cb804a576fa48eb1"],"storage":{}}
+			r#"{"pc":0,"op":50,"opName":"ORIGIN","gas":"0xffff","stack":[],"storage":{},"depth":1}
+{"pc":1,"op":52,"opName":"CALLVALUE","gas":"0xfffd","stack":["0x0"],"storage":{},"depth":1}
+{"pc":2,"op":52,"opName":"CALLVALUE","gas":"0xfffb","stack":["0x0","0x0"],"storage":{},"depth":1}
+{"pc":3,"op":52,"opName":"CALLVALUE","gas":"0xfff9","stack":["0x0","0x0","0x0"],"storage":{},"depth":1}
+{"pc":4,"op":52,"opName":"CALLVALUE","gas":"0xfff7","stack":["0x0","0x0","0x0","0x0"],"storage":{},"depth":1}
+{"pc":5,"op":88,"opName":"PC","gas":"0xfff5","stack":["0x0","0x0","0x0","0x0","0x0"],"storage":{},"depth":1}
+{"pc":6,"op":48,"opName":"ADDRESS","gas":"0xfff3","stack":["0x0","0x0","0x0","0x0","0x0","0x5"],"storage":{},"depth":1}
+{"pc":7,"op":241,"opName":"CALL","gas":"0xfff1","stack":["0x0","0x0","0x0","0x0","0x0","0x5","0x0"],"storage":{},"depth":1}
+{"pc":8,"op":56,"opName":"CODESIZE","gas":"0x9e21","stack":["0x1"],"storage":{},"depth":1}
+{"pc":9,"op":52,"opName":"CALLVALUE","gas":"0x9e1f","stack":["0x1","0x10"],"storage":{},"depth":1}
+{"pc":10,"op":52,"opName":"CALLVALUE","gas":"0x9e1d","stack":["0x1","0x10","0x0"],"storage":{},"depth":1}
+{"pc":11,"op":56,"opName":"CODESIZE","gas":"0x9e1b","stack":["0x1","0x10","0x0","0x0"],"storage":{},"depth":1}
+{"pc":12,"op":50,"opName":"ORIGIN","gas":"0x9e19","stack":["0x1","0x10","0x0","0x0","0x10"],"storage":{},"depth":1}
+{"pc":13,"op":52,"opName":"CALLVALUE","gas":"0x9e17","stack":["0x1","0x10","0x0","0x0","0x10","0x0"],"storage":{},"depth":1}
+{"pc":14,"op":57,"opName":"CODECOPY","gas":"0x9e15","stack":["0x1","0x10","0x0","0x0","0x10","0x0","0x0"],"storage":{},"depth":1}
+{"pc":15,"op":240,"opName":"CREATE","gas":"0x9e0c","stack":["0x1","0x10","0x0","0x0"],"storage":{},"depth":1}
+{"pc":0,"op":50,"opName":"ORIGIN","gas":"0x210c","stack":[],"storage":{},"depth":2}
+{"pc":1,"op":52,"opName":"CALLVALUE","gas":"0x210a","stack":["0x0"],"storage":{},"depth":2}
+{"pc":2,"op":52,"opName":"CALLVALUE","gas":"0x2108","stack":["0x0","0x0"],"storage":{},"depth":2}
+{"pc":3,"op":52,"opName":"CALLVALUE","gas":"0x2106","stack":["0x0","0x0","0x0"],"storage":{},"depth":2}
+{"pc":4,"op":52,"opName":"CALLVALUE","gas":"0x2104","stack":["0x0","0x0","0x0","0x0"],"storage":{},"depth":2}
+{"pc":5,"op":88,"opName":"PC","gas":"0x2102","stack":["0x0","0x0","0x0","0x0","0x0"],"storage":{},"depth":2}
+{"pc":6,"op":48,"opName":"ADDRESS","gas":"0x2100","stack":["0x0","0x0","0x0","0x0","0x0","0x5"],"storage":{},"depth":2}
+{"pc":7,"op":241,"opName":"CALL","gas":"0x20fe","stack":["0x0","0x0","0x0","0x0","0x0","0x5","0xbd770416a3345f91e4b34576cb804a576fa48eb1"],"storage":{},"depth":2}
 "#,
 		)
 	}
