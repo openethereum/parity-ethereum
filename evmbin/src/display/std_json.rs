@@ -76,6 +76,40 @@ pub struct TraceData<'a> {
 	depth: usize,
 }
 
+#[derive(Serialize, Debug)]
+pub struct OutDataBeforeTest<'a> {
+	action: &'a str,
+	test: &'a str,
+}
+
+#[derive(Serialize, Debug)]
+#[serde(rename_all = "camelCase")]
+pub struct OutDataSuccess<'a> {
+	output: &'a str,
+	gas_used: &'a str,
+	time: &'a u64,
+}
+
+#[derive(Serialize, Debug)]
+#[serde(rename_all = "camelCase")]
+pub struct OutDataFailure<'a> {
+	error: &'a str,
+	gas_used: &'a str,
+	time: &'a u64,
+}
+
+#[derive(Serialize, Debug)]
+pub struct DumpData<'a> {
+	root: &'a H256,
+	accounts: &'a pod_state::PodState,
+}
+
+#[derive(Serialize, Debug)]
+#[serde(rename_all = "camelCase")]
+pub struct TraceDataStateRoot<'a> {
+	state_root: &'a H256,
+}
+
 impl Default for Informant<io::Stderr, io::Stdout> {
 	fn default() -> Self {
 		Self::new(io::stderr(), io::stdout())
@@ -122,12 +156,14 @@ impl<Trace: Writer, Out: Writer> Informant<Trace, Out> {
 
 	fn dump_state_into(trace_sink: &mut Trace, root: H256, end_state: &Option<pod_state::PodState>) {
 		if let Some(ref end_state) =	end_state {
-			// TODO - replace with serde Serialization
-			let dump_data = json!({
-				"root": root,
-				"accounts": end_state,
-			});
-			writeln!(trace_sink, "{}", dump_data).expect("The sink must be writeable.");
+			let dump_data =
+				DumpData {
+					root: &root,
+					accounts: end_state,
+				}
+			;
+
+			writeln!(trace_sink, "{:?}", dump_data).expect("The sink must be writeable.");
 		}
 	}
 
@@ -138,13 +174,14 @@ impl<Trace: Writer, Out: Writer> vm::Informant for Informant<Trace, Out> {
 	type Sink = (Trace, Out);
 
 	fn before_test(&mut self, name: &str, action: &str) {
-		// TODO - replace with serde Serialization
-		let out_data = json!({
-			"action": action,
-			"test": name,
-		});
+		let out_data_before_test =
+			OutDataBeforeTest {
+				action: &format!("{}", action),
+				test: &format!("{}", name),
+			}
+		;
 
-		writeln!(&mut self.out_sink, "{}", out_data).expect("The sink must be writeable.");
+		writeln!(&mut self.out_sink, "{:?}", out_data_before_test).expect("The sink must be writeable.");
 	}
 
 	fn set_gas(&mut self, _gas: U256) {}
@@ -156,33 +193,39 @@ impl<Trace: Writer, Out: Writer> vm::Informant for Informant<Trace, Out> {
 
 		match result {
 			Ok(success) => {
-				// TODO - replace with serde Serialization
-				let trace_data = json!({"stateRoot": success.state_root});
-				writeln!(trace_sink, "{}", trace_data)
+				let trace_data_state_root =
+					TraceDataStateRoot {
+						state_root: &success.state_root,
+					}
+				;
+
+				writeln!(trace_sink, "{:?}", trace_data_state_root)
 					.expect("The sink must be writeable.");
 
 				Self::dump_state_into(trace_sink, success.state_root, &success.end_state);
 
-				// TODO - replace with serde Serialization
-				let out_data = json!({
-					"output": format!("0x{}", success.output.to_hex()),
-					"gasUsed": format!("{:#x}", success.gas_used),
-					"time": display::as_micros(&success.time),
-				});
+				let out_data_success =
+					OutDataSuccess {
+						output: &format!("0x{}", success.output.to_hex()),
+						gas_used: &format!("{:#x}", success.gas_used),
+						time: &display::as_micros(&success.time),
+					}
+				;
 
-				writeln!(out_sink, "{}", out_data).expect("The sink must be writeable.");
+				writeln!(out_sink, "{:?}", out_data_success).expect("The sink must be writeable.");
 			},
 			Err(failure) => {
-				// TODO - replace with serde Serialization
-				let out_data = json!({
-					"error": &failure.error.to_string(),
-					"gasUsed": format!("{:#x}", failure.gas_used),
-					"time": display::as_micros(&failure.time),
-				});
+				let out_data_failure =
+					OutDataFailure {
+						error: &failure.error.to_string(),
+						gas_used: &format!("{:#x}", failure.gas_used),
+						time: &display::as_micros(&failure.time),
+					}
+				;
 
 				Self::dump_state_into(trace_sink, failure.state_root, &failure.end_state);
 
-				writeln!(out_sink, "{}", out_data).expect("The sink must be writeable.");
+				writeln!(out_sink, "{:?}", out_data_failure).expect("The sink must be writeable.");
 			},
 		}
 	}

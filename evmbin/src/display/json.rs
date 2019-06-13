@@ -61,6 +61,30 @@ pub struct TraceData<'a> {
 	depth: usize,
 }
 
+// FIXME - should this be called InitMessage or OutData?
+#[derive(Serialize, Debug)]
+pub struct InitMessage<'a> {
+	action: &'a str,
+	test: &'a str,
+}
+
+// FIXME - should this be called MessageSuccess or OutDataSuccess
+#[derive(Serialize, Debug)]
+#[serde(rename_all = "camelCase")]
+pub struct MessageSuccess<'a> {
+	output: &'a str,
+	gas_used: &'a str,
+	time: &'a u64,
+}
+
+#[derive(Serialize, Debug)]
+#[serde(rename_all = "camelCase")]
+pub struct MessageFailure<'a> {
+	error: &'a str,
+	gas_used: &'a str,
+	time: &'a u64,
+}
+
 impl Informant {
 	fn with_informant_in_depth<F: Fn(&mut Informant)>(informant: &mut Informant, depth: usize, f: F) {
 		if depth == 0 {
@@ -96,8 +120,14 @@ impl vm::Informant for Informant {
 	type Sink = ();
 
 	fn before_test(&mut self, name: &str, action: &str) {
-		// TODO - replace with serde Serialization
-		println!("{}", json!({"action": action, "test": name}));
+		let init_message =
+			InitMessage {
+				action: &format!("{}", action),
+				test: &format!("{}", name),
+			}
+		;
+
+		println!("{:?}", init_message);
 	}
 
 	fn set_gas(&mut self, gas: U256) {
@@ -113,28 +143,30 @@ impl vm::Informant for Informant {
 					println!("{}", trace);
 				}
 
-				// TODO - replace with serde Serialization
-				let success_msg = json!({
-					"output": format!("0x{}", success.output.to_hex()),
-					"gasUsed": format!("{:#x}", success.gas_used),
-					"time": display::as_micros(&success.time),
-				});
+				let message_success =
+					MessageSuccess {
+						output: &format!("0x{}", success.output.to_hex()),
+						gas_used: &format!("{:#x}", success.gas_used),
+						time: &display::as_micros(&success.time),
+					}
+				;
 
-				println!("{}", success_msg)
+				println!("{:?}", message_success)
 			},
 			Err(failure) => {
 				for trace in failure.traces.unwrap_or_else(Vec::new) {
 					println!("{}", trace);
 				}
 
-				// TODO - replace with serde Serialization
-				let failure_msg = json!({
-					"error": &failure.error.to_string(),
-					"gasUsed": format!("{:#x}", failure.gas_used),
-					"time": display::as_micros(&failure.time),
-				});
+				let message_failure =
+					MessageFailure {
+						error: &failure.error.to_string(),
+						gas_used: &format!("{:#x}", failure.gas_used),
+						time: &display::as_micros(&failure.time),
+					}
+				;
 
-				println!("{}", failure_msg)
+				println!("{:?}", message_failure)
 			},
 		}
 	}
