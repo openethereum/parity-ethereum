@@ -14,7 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
-//! JSON VM output.
+//! Log VM instruction output data traces from a JSON formatting informant.
 
 use std::collections::HashMap;
 use std::mem;
@@ -61,14 +61,12 @@ pub struct TraceData<'a> {
 	depth: usize,
 }
 
-// FIXME - should this be called InitMessage or OutData?
 #[derive(Serialize, Debug)]
 pub struct InitMessage<'a> {
 	action: &'a str,
 	test: &'a str,
 }
 
-// FIXME - should this be called MessageSuccess or OutDataSuccess
 #[derive(Serialize, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct MessageSuccess<'a> {

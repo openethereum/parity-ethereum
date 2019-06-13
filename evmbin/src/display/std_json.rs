@@ -14,7 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
-//! Standardized JSON VM output.
+//! Log VM instruction output data traces from a standardized JSON formatting informant.
 
 use std::collections::HashMap;
 use std::io;
@@ -189,6 +189,7 @@ impl<Trace: Writer, Out: Writer> vm::Informant for Informant<Trace, Out> {
 	fn clone_sink(&self) -> Self::Sink {
 		(self.trace_sink.clone(), self.out_sink.clone())
 	}
+
 	fn finish(result: vm::RunResult<<Self as trace::VMTracer>::Output>, (ref mut trace_sink, ref mut out_sink): &mut Self::Sink) {
 
 		match result {
