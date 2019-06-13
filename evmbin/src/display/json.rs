@@ -149,7 +149,7 @@ impl vm::Informant for Informant {
 					}
 				;
 
-				println!("{:?}", message_success)
+				println!("{:?}", message_success);
 			},
 			Err(failure) => {
 				for trace in failure.traces.unwrap_or_else(Vec::new) {
@@ -164,7 +164,7 @@ impl vm::Informant for Informant {
 					}
 				;
 
-				println!("{:?}", message_failure)
+				println!("{:?}", message_failure);
 			},
 		}
 	}
