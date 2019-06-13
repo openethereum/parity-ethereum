@@ -24,9 +24,10 @@ use ethtrie::{TrieDB, TrieDBMut};
 use hash::{KECCAK_EMPTY, KECCAK_NULL_RLP};
 use hash_db::HashDB;
 use rlp::{RlpStream, Rlp};
-use snapshot::Error;
+use snapshot::{Error, Progress};
 use std::collections::HashSet;
 use trie::{Trie, TrieMut};
+use std::sync::atomic::Ordering;
 
 // An empty account -- these were replaced with RLP null data for a space optimization in v1.
 const ACC_EMPTY: BasicAccount = BasicAccount {
@@ -65,7 +66,15 @@ impl CodeState {
 // walk the account's storage trie, returning a vector of RLP items containing the
 // account address hash, account properties and the storage. Each item contains at most `max_storage_items`
 // storage records split according to snapshot format definition.
-pub fn to_fat_rlps(account_hash: &H256, acc: &BasicAccount, acct_db: &AccountDB, used_code: &mut HashSet<H256>, first_chunk_size: usize, max_chunk_size: usize) -> Result<Vec<Bytes>, Error> {
+pub fn to_fat_rlps(
+	account_hash: &H256,
+	acc: &BasicAccount,
+	acct_db: &AccountDB,
+	used_code: &mut HashSet<H256>,
+	first_chunk_size: usize,
+	max_chunk_size: usize,
+	p: &Progress,
+) -> Result<Vec<Bytes>, Error> {
 	let db = &(acct_db as &HashDB<_,_>);
 	let db = TrieDB::new(db, &acc.storage_root)?;
 	let mut chunks = Vec::new();
@@ -74,6 +83,10 @@ pub fn to_fat_rlps(account_hash: &H256, acc: &BasicAccount, acct_db: &AccountDB,
 	let mut account_stream = RlpStream::new_list(2);
 	let mut leftover: Option<Vec<u8>> = None;
 	loop {
+		if p.abort.load(Ordering::SeqCst) {
+			trace!(target: "snapshot", "[account, to_fat_rlps] abort (top of the first loop");
+			return Err(Error::AbortSnapshot);
+		}
 		account_stream.append(account_hash);
 		account_stream.begin_list(5);
 
@@ -112,6 +125,10 @@ pub fn to_fat_rlps(account_hash: &H256, acc: &BasicAccount, acct_db: &AccountDB,
 		}
 
 		loop {
+			if p.abort.load(Ordering::SeqCst) {
+				trace!(target: "snapshot", "[account, to_fat_rlps] abort");
+				return Err(Error::AbortSnapshot);
+			}
 			match db_iter.next() {
 				Some(Ok((k, v))) => {
 					let pair = {

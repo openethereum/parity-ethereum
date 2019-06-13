@@ -400,7 +400,7 @@ pub fn chunk_state<'a>(
 		let account = ::rlp::decode(&*account_data)?;
 		let account_db = AccountDB::from_hash(db, account_key_hash);
 
-		let fat_rlps = account::to_fat_rlps(&account_key_hash, &account, &account_db, &mut used_code, PREFERRED_CHUNK_SIZE - chunker.chunk_size(), PREFERRED_CHUNK_SIZE)?;
+		let fat_rlps = account::to_fat_rlps(&account_key_hash, &account, &account_db, &mut used_code, PREFERRED_CHUNK_SIZE - chunker.chunk_size(), PREFERRED_CHUNK_SIZE, progress)?;
 		for (i, fat_rlp) in fat_rlps.into_iter().enumerate() {
 			if i > 0 {
 				chunker.write_chunk()?;
