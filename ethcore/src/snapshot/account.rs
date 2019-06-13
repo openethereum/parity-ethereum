@@ -83,10 +83,6 @@ pub fn to_fat_rlps(
 	let mut account_stream = RlpStream::new_list(2);
 	let mut leftover: Option<Vec<u8>> = None;
 	loop {
-		if p.abort.load(Ordering::SeqCst) {
-			trace!(target: "snapshot", "[account, to_fat_rlps] abort (top of the first loop");
-			return Err(Error::AbortSnapshot);
-		}
 		account_stream.append(account_hash);
 		account_stream.begin_list(5);
 
@@ -126,8 +122,8 @@ pub fn to_fat_rlps(
 
 		loop {
 			if p.abort.load(Ordering::SeqCst) {
-				trace!(target: "snapshot", "[account, to_fat_rlps] abort");
-				return Err(Error::AbortSnapshot);
+				trace!(target: "snapshot", "to_fat_rlps: aborting snapshot");
+				return Err(Error::SnapshotAborted);
 			}
 			match db_iter.next() {
 				Some(Ok((k, v))) => {

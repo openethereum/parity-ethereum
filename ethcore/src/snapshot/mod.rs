@@ -199,10 +199,6 @@ pub fn take_snapshot<W: SnapshotWriter + Send>(
 		let mut state_hashes = Vec::new();
 
 		for guard in state_guards {
-			if p.abort.load(Ordering::SeqCst) {
-				trace!(target: "snapshot", "[snapshot::take_snapshot] aborting");
-				return Err(Error::AbortSnapshot);
-			}
 			let part_state_hashes = guard.join().expect("Sub-thread never panics; qed")?;
 			state_hashes.extend(part_state_hashes);
 		}
@@ -247,10 +243,6 @@ pub fn chunk_secondary<'a>(
 
 	{
 		let mut chunk_sink = |raw_data: &[u8]| {
-			if progress.abort.load(Ordering::SeqCst) {
-				trace!(target: "snapshot", "[chunk_secondary, sink] Aborting");
-				return Ok(());
-			}
 			let compressed_size = snappy::compress_into(raw_data, &mut snappy_buffer);
 			let compressed = &snappy_buffer[..compressed_size];
 			let hash = keccak(&compressed);
@@ -302,10 +294,6 @@ impl<'a> StateChunker<'a> {
 	// Write out the buffer to disk, pushing the created chunk's hash to
 	// the list.
 	fn write_chunk(&mut self) -> Result<(), Error> {
-		if self.progress.abort.load(Ordering::SeqCst) {
-			trace!(target: "snapshot", "[write_chunk] Thread {} aborting early", self.thread_idx);
-			return Err(Error::AbortSnapshot);
-		}
 		let num_entries = self.rlps.len();
 		let mut stream = RlpStream::new_list(num_entries);
 		for rlp in self.rlps.drain(..) {
@@ -385,11 +373,6 @@ pub fn chunk_state<'a>(
 	}
 
 	for item in account_iter {
-		if progress.abort.load(Ordering::SeqCst) {
-			trace!(target: "snapshot", "[chunk_state] Thread {} aborting", thread_idx);
-			return Err(Error::AbortSnapshot);
-		}
-
 		let (account_key, account_data) = item?;
 		let account_key_hash = H256::from_slice(&account_key);
 
