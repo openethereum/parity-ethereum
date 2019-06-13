@@ -16,6 +16,7 @@
 
 //! Authority params deserialization.
 
+use std::collections::BTreeMap;
 use hash::Address;
 use uint::Uint;
 use bytes::Bytes;
@@ -41,11 +42,19 @@ pub struct AuthorityRoundParams {
 	pub immediate_transitions: Option<bool>,
 	/// Reward per block in wei.
 	pub block_reward: Option<Uint>,
-	/// Block at which the block reward contract should start being used.
+	/// Block at which the block reward contract should start being used. This option allows to add
+	/// a single block reward contract transition and is compatible with the multiple address option
+	/// `block_reward_contract_transitions` below.
 	pub block_reward_contract_transition: Option<Uint>,
-	/// Block reward contract address (setting the block reward contract
-	/// overrides the static block reward definition).
+	/// Block reward contract address (setting the block reward contract overrides the static block
+	/// reward definition). This option allows to add a single block reward contract address and is
+	/// compatible with the multiple address option `block_reward_contract_transitions` below.
 	pub block_reward_contract_address: Option<Address>,
+	/// Block reward contract addresses with their associated starting block numbers. Setting the
+	/// block reward contract overrides the static block reward definition. If the single block
+	/// reward contract address is also present then it is added into the map at the block number
+	/// stored in `block_reward_contract_transition` or 0 if that block number is not provided.
+	pub block_reward_contract_transitions: Option<BTreeMap<Uint, Address>>,
 	/// Block reward code. This overrides the block reward contract address.
 	pub block_reward_contract_code: Option<Bytes>,
 	/// Block at which maximum uncle count should be considered.
