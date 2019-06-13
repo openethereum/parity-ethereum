@@ -119,6 +119,7 @@ pub struct Progress {
 	blocks: AtomicUsize,
 	size: AtomicUsize, // Todo [rob] use Atomicu64 when it stabilizes.
 	done: AtomicBool,
+	abort: AtomicBool, // TODO: why no Arcs here?
 }
 
 impl Progress {
@@ -127,6 +128,7 @@ impl Progress {
 		self.accounts.store(0, Ordering::Release);
 		self.blocks.store(0, Ordering::Release);
 		self.size.store(0, Ordering::Release);
+		self.abort.store(false, Ordering::Release);
 
 		// atomic fence here to ensure the others are written first?
 		// logs might very rarely get polluted if not.
@@ -148,27 +150,28 @@ impl Progress {
 }
 /// Take a snapshot using the given blockchain, starting block hash, and database, writing into the given writer.
 pub fn take_snapshot<W: SnapshotWriter + Send>(
-	engine: &EthEngine,
+	chunker: Box<SnapshotComponents>,
 	chain: &BlockChain,
-	block_at: H256,
+	block_hash: H256,
 	state_db: &HashDB<KeccakHasher, DBValue>,
 	writer: W,
 	p: &Progress,
 	processing_threads: usize,
 ) -> Result<(), Error> {
-	let start_header = chain.block_header_data(&block_at)
-		.ok_or_else(|| Error::InvalidStartingBlock(BlockId::Hash(block_at)))?;
+	let start_header = chain.block_header_data(&block_hash)
+		.ok_or_else(|| Error::InvalidStartingBlock(BlockId::Hash(block_hash)))?;
 	let state_root = start_header.state_root();
-	let number = start_header.number();
+	let block_number = start_header.number();
 
-	info!("Taking snapshot starting at block {}", number);
+	info!("Taking snapshot starting at block {}", block_number);
 
+	let version = chunker.current_version();
 	let writer = Mutex::new(writer);
-	let chunker = engine.snapshot_components().ok_or(Error::SnapshotsUnsupported)?;
-	let snapshot_version = chunker.current_version();
 	let (state_hashes, block_hashes) = scope(|scope| -> Result<(Vec<H256>, Vec<H256>), Error> {
 		let writer = &writer;
-		let block_guard = scope.spawn(move || chunk_secondary(chunker, chain, block_at, writer, p));
+		let block_guard = scope.spawn(move || {
+			chunk_secondary(chunker, chain, block_hash, writer, p)
+		});
 
 		// The number of threads must be between 1 and SNAPSHOT_SUBPARTS
 		assert!(processing_threads >= 1, "Cannot use less than 1 threads for creating snapshots");
@@ -183,7 +186,7 @@ pub fn take_snapshot<W: SnapshotWriter + Send>(
 
 				for part in (thread_idx..SNAPSHOT_SUBPARTS).step_by(num_threads) {
 					debug!(target: "snapshot", "Chunking part {} in thread {}", part, thread_idx);
-					let mut hashes = chunk_state(state_db, &state_root, writer, p, Some(part))?;
+					let mut hashes = chunk_state(state_db, &state_root, writer, p, Some(part), thread_idx)?;
 					chunk_hashes.append(&mut hashes);
 				}
 
@@ -196,6 +199,10 @@ pub fn take_snapshot<W: SnapshotWriter + Send>(
 		let mut state_hashes = Vec::new();
 
 		for guard in state_guards {
+			if p.abort.load(Ordering::SeqCst) {
+				trace!(target: "snapshot", "[snapshot::take_snapshot] aborting");
+				return Err(Error::AbortSnapshot);
+			}
 			let part_state_hashes = guard.join().expect("Sub-thread never panics; qed")?;
 			state_hashes.extend(part_state_hashes);
 		}
@@ -207,12 +214,12 @@ pub fn take_snapshot<W: SnapshotWriter + Send>(
 	info!(target: "snapshot", "produced {} state chunks and {} block chunks.", state_hashes.len(), block_hashes.len());
 
 	let manifest_data = ManifestData {
-		version: snapshot_version,
-		state_hashes: state_hashes,
-		block_hashes: block_hashes,
-		state_root: state_root,
-		block_number: number,
-		block_hash: block_at,
+		version,
+		state_hashes,
+		block_hashes,
+		state_root,
+		block_number,
+		block_hash,
 	};
 
 	writer.into_inner().finish(manifest_data)?;
@@ -228,12 +235,22 @@ pub fn take_snapshot<W: SnapshotWriter + Send>(
 /// Secondary chunks are engine-specific, but they intend to corroborate the state data
 /// in the state chunks.
 /// Returns a list of chunk hashes, with the first having the blocks furthest from the genesis.
-pub fn chunk_secondary<'a>(mut chunker: Box<SnapshotComponents>, chain: &'a BlockChain, start_hash: H256, writer: &Mutex<SnapshotWriter + 'a>, progress: &'a Progress) -> Result<Vec<H256>, Error> {
+pub fn chunk_secondary<'a>(
+	mut chunker: Box<SnapshotComponents>,
+	chain: &'a BlockChain,
+	start_hash: H256,
+	writer: &Mutex<SnapshotWriter + 'a>,
+	progress: &'a Progress
+) -> Result<Vec<H256>, Error> {
 	let mut chunk_hashes = Vec::new();
 	let mut snappy_buffer = vec![0; snappy::max_compressed_len(PREFERRED_CHUNK_SIZE)];
 
 	{
 		let mut chunk_sink = |raw_data: &[u8]| {
+			if progress.abort.load(Ordering::SeqCst) {
+				trace!(target: "snapshot", "[chunk_secondary, sink] Aborting");
+				return Ok(());
+			}
 			let compressed_size = snappy::compress_into(raw_data, &mut snappy_buffer);
 			let compressed = &snappy_buffer[..compressed_size];
 			let hash = keccak(&compressed);
@@ -268,6 +285,7 @@ struct StateChunker<'a> {
 	snappy_buffer: Vec<u8>,
 	writer: &'a Mutex<SnapshotWriter + 'a>,
 	progress: &'a Progress,
+	thread_idx: usize,
 }
 
 impl<'a> StateChunker<'a> {
@@ -284,6 +302,10 @@ impl<'a> StateChunker<'a> {
 	// Write out the buffer to disk, pushing the created chunk's hash to
 	// the list.
 	fn write_chunk(&mut self) -> Result<(), Error> {
+		if self.progress.abort.load(Ordering::SeqCst) {
+			trace!(target: "snapshot", "[write_chunk] Thread {} aborting early", self.thread_idx);
+			return Err(Error::AbortSnapshot);
+		}
 		let num_entries = self.rlps.len();
 		let mut stream = RlpStream::new_list(num_entries);
 		for rlp in self.rlps.drain(..) {
@@ -297,7 +319,7 @@ impl<'a> StateChunker<'a> {
 		let hash = keccak(&compressed);
 
 		self.writer.lock().write_state_chunk(hash, compressed)?;
-		trace!(target: "snapshot", "wrote state chunk. size: {}, uncompressed size: {}", compressed_size, raw_data.len());
+		trace!(target: "snapshot", "Thread {} wrote state chunk. size: {}, uncompressed size: {}", self.thread_idx, compressed_size, raw_data.len());
 
 		self.progress.accounts.fetch_add(num_entries, Ordering::SeqCst);
 		self.progress.size.fetch_add(compressed_size, Ordering::SeqCst);
@@ -321,7 +343,14 @@ impl<'a> StateChunker<'a> {
 ///
 /// Returns a list of hashes of chunks created, or any error it may
 /// have encountered.
-pub fn chunk_state<'a>(db: &HashDB<KeccakHasher, DBValue>, root: &H256, writer: &Mutex<SnapshotWriter + 'a>, progress: &'a Progress, part: Option<usize>) -> Result<Vec<H256>, Error> {
+pub fn chunk_state<'a>(
+	db: &HashDB<KeccakHasher, DBValue>,
+	root: &H256,
+	writer: &Mutex<SnapshotWriter + 'a>,
+	progress: &'a Progress,
+	part: Option<usize>,
+	thread_idx: usize,
+) -> Result<Vec<H256>, Error> {
 	let account_trie = TrieDB::new(&db, &root)?;
 
 	let mut chunker = StateChunker {
@@ -329,8 +358,9 @@ pub fn chunk_state<'a>(db: &HashDB<KeccakHasher, DBValue>, root: &H256, writer: 
 		rlps: Vec::new(),
 		cur_size: 0,
 		snappy_buffer: vec![0; snappy::max_compressed_len(PREFERRED_CHUNK_SIZE)],
-		writer: writer,
-		progress: progress,
+		writer,
+		progress,
+		thread_idx,
 	};
 
 	let mut used_code = HashSet::new();
@@ -355,6 +385,11 @@ pub fn chunk_state<'a>(db: &HashDB<KeccakHasher, DBValue>, root: &H256, writer: 
 	}
 
 	for item in account_iter {
+		if progress.abort.load(Ordering::SeqCst) {
+			trace!(target: "snapshot", "[chunk_state] Thread {} aborting", thread_idx);
+			return Err(Error::AbortSnapshot);
+		}
+
 		let (account_key, account_data) = item?;
 		let account_key_hash = H256::from_slice(&account_key);
 

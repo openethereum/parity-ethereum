@@ -66,10 +66,14 @@ use signer;
 use db;
 
 // how often to take periodic snapshots.
-const SNAPSHOT_PERIOD: u64 = 5000;
+// TODO: restore before merge
+//const SNAPSHOT_PERIOD: u64 = 5000;
+const SNAPSHOT_PERIOD: u64 = 50;
 
 // how many blocks to wait before starting a periodic snapshot.
-const SNAPSHOT_HISTORY: u64 = 100;
+// TODO: restore before merge
+//const SNAPSHOT_HISTORY: u64 = 100;
+const SNAPSHOT_HISTORY: u64 = 5;
 
 // Number of minutes before a given gas price corpus should expire.
 // Light client only.
@@ -900,17 +904,26 @@ impl RunningClient {
 				// Create a weak reference to the client so that we can wait on shutdown
 				// until it is dropped
 				let weak_client = Arc::downgrade(&client);
-				// Shutdown and drop the ServiceClient
+				// Shutdown and drop the ClientService
 				client_service.shutdown();
+				trace!(target: "shutdown", "ClientService shut down");
 				drop(client_service);
+				trace!(target: "shutdown", "ClientService dropped");
 				// drop this stuff as soon as exit detected.
 				drop(rpc);
+				trace!(target: "shutdown", "RPC dropped");
 				drop(keep_alive);
+				trace!(target: "shutdown", "KeepAlive dropped");
 				// to make sure timer does not spawn requests while shutdown is in progress
 				informant.shutdown();
+				trace!(target: "shutdown", "Informant shut down");
 				// just Arc is dropping here, to allow other reference release in its default time
 				drop(informant);
+				trace!(target: "shutdown", "Informant dropped");
 				drop(client);
+				trace!(target: "shutdown", "Client dropped");
+				// TODO: remove weak_count before merging.
+				trace!(target: "shutdown", "Waiting for refs to Client to shutdown, strong_count={:?}, weak_count={:?}", weak_client.strong_count(), weak_client.weak_count());
 				wait_for_drop(weak_client);
 			}
 		}
@@ -944,24 +957,26 @@ fn print_running_environment(data_dir: &str, dirs: &Directories, db_dirs: &Datab
 }
 
 fn wait_for_drop<T>(w: Weak<T>) {
-	let sleep_duration = Duration::from_secs(1);
-	let warn_timeout = Duration::from_secs(60);
-	let max_timeout = Duration::from_secs(300);
+	const SLEEP_DURATION: Duration = Duration::from_secs(1);
+	const WARN_TIMEOUT: Duration = Duration::from_secs(60);
+	const MAX_TIMEOUT: Duration = Duration::from_secs(300);
 
 	let instant = Instant::now();
 	let mut warned = false;
 
-	while instant.elapsed() < max_timeout {
+	while instant.elapsed() < MAX_TIMEOUT {
 		if w.upgrade().is_none() {
 			return;
 		}
 
-		if !warned && instant.elapsed() > warn_timeout {
+		if !warned && instant.elapsed() > WARN_TIMEOUT {
 			warned = true;
 			warn!("Shutdown is taking longer than expected.");
 		}
 
-		thread::sleep(sleep_duration);
+		thread::sleep(SLEEP_DURATION);
+		// TODO: remove weak_count before merging
+		trace!(target: "shutdown", "Waiting for client to drop, strong_count={:?}, weak_count={:?}", w.strong_count(), w.weak_count());
 	}
 
 	warn!("Shutdown timeout reached, exiting uncleanly.");

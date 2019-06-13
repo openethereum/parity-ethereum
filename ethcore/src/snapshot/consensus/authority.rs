@@ -58,7 +58,7 @@ impl SnapshotComponents for PoaSnapshot {
 		chain: &BlockChain,
 		block_at: H256,
 		sink: &mut ChunkSink,
-		_progress: &Progress,
+		progress: &Progress,
 		preferred_size: usize,
 	) -> Result<(), Error> {
 		let number = chain.block_number(&block_at)
@@ -70,6 +70,10 @@ impl SnapshotComponents for PoaSnapshot {
 		for (_, transition) in chain.epoch_transitions()
 			.take_while(|&(_, ref t)| t.block_number <= number)
 		{
+			if progress.abort.load(Ordering::SeqCst) {
+				return Err(Error::AbortSnapshot);
+			}
+
 			// this can happen when our starting block is non-canonical.
 			if transition.block_number == number && transition.block_hash != block_at {
 				break

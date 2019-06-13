@@ -119,7 +119,9 @@ name = "parity"
 
 [profile.release]
 debug = false
-lto = true
+# TODO: undo before merge
+#lto = true
+lto = false
 
 [workspace]
 # This should only list projects that are not

@@ -764,8 +764,8 @@ impl Client {
 			liveness: AtomicBool::new(awake),
 			mode: Mutex::new(config.mode.clone()),
 			chain: RwLock::new(chain),
-			tracedb: tracedb,
-			engine: engine,
+			tracedb,
+			engine,
 			pruning: config.pruning.clone(),
 			db: RwLock::new(db.clone()),
 			state_db: RwLock::new(state_db),
@@ -778,8 +778,8 @@ impl Client {
 			ancient_blocks_import_lock: Default::default(),
 			queue_consensus_message: IoChannelQueue::new(usize::max_value()),
 			last_hashes: RwLock::new(VecDeque::new()),
-			factories: factories,
-			history: history,
+			factories,
+			history,
 			on_user_defaults_change: Mutex::new(None),
 			registrar_address,
 			exit_handler: Mutex::new(None),
@@ -1138,7 +1138,12 @@ impl Client {
 
 	/// Take a snapshot at the given block.
 	/// If the ID given is "latest", this will default to 1000 blocks behind.
-	pub fn take_snapshot<W: snapshot_io::SnapshotWriter + Send>(&self, writer: W, at: BlockId, p: &snapshot::Progress) -> Result<(), EthcoreError> {
+	pub fn take_snapshot<W: snapshot_io::SnapshotWriter + Send>(
+		&self,
+		writer: W,
+		at: BlockId,
+		p: &snapshot::Progress,
+	) -> Result<(), EthcoreError> {
 		let db = self.state_db.read().journal_db().boxed_clone();
 		let best_block_number = self.chain_info().best_block_number;
 		let block_number = self.block_number(at).ok_or_else(|| snapshot::Error::InvalidStartingBlock(at))?;
@@ -1168,8 +1173,16 @@ impl Client {
 		};
 
 		let processing_threads = self.config.snapshot.processing_threads;
-		snapshot::take_snapshot(&*self.engine, &self.chain.read(), start_hash, db.as_hash_db(), writer, p, processing_threads)?;
-
+		let chunker = self.engine.snapshot_components().ok_or(snapshot::Error::SnapshotsUnsupported)?;
+		snapshot::take_snapshot(
+			chunker,
+			&self.chain.read(),
+			start_hash,
+			db.as_hash_db(),
+			writer,
+			p,
+			processing_threads,
+		)?;
 		Ok(())
 	}
 

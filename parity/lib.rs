@@ -15,7 +15,8 @@
 // along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
 //! Ethcore client application.
-
+// TODO: remove before merge
+#![feature(weak_counts)]
 #![warn(missing_docs)]
 
 extern crate ansi_term;
