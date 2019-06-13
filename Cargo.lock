@@ -881,7 +881,7 @@ dependencies = [
  "evm 0.1.0",
  "fetch 0.1.0",
  "futures 0.1.25 (registry+https://github.com/rust-lang/crates.io-index)",
- "hash-db 0.12.3 (git+https://github.com/cheme/trie?branch=deprecate_heapsize)",
+ "hash-db 0.12.3 (registry+https://github.com/rust-lang/crates.io-index)",
  "itertools 0.5.10 (registry+https://github.com/rust-lang/crates.io-index)",
  "journaldb 0.2.0",
  "keccak-hash 0.2.0 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -895,7 +895,7 @@ dependencies = [
  "lru-cache 0.1.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "macros 0.1.0",
  "memory-cache 0.1.0",
- "memory-db 0.12.3 (git+https://github.com/cheme/trie?branch=deprecate_heapsize)",
+ "memory-db 0.12.3 (registry+https://github.com/rust-lang/crates.io-index)",
  "num 0.1.42 (registry+https://github.com/rust-lang/crates.io-index)",
  "num_cpus 1.10.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "parity-bytes 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -918,7 +918,7 @@ dependencies = [
  "tempdir 0.3.7 (registry+https://github.com/rust-lang/crates.io-index)",
  "time-utils 0.1.0",
  "trace-time 0.1.1 (registry+https://github.com/rust-lang/crates.io-index)",
- "trie-db 0.12.3 (git+https://github.com/cheme/trie?branch=deprecate_heapsize)",
+ "trie-db 0.12.3 (registry+https://github.com/rust-lang/crates.io-index)",
  "trie-standardmap 0.12.3 (registry+https://github.com/rust-lang/crates.io-index)",
  "triehash-ethereum 0.2.0",
  "unexpected 0.1.0",
@@ -1032,7 +1032,7 @@ dependencies = [
  "failsafe 0.3.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "fastmap 0.1.0",
  "futures 0.1.25 (registry+https://github.com/rust-lang/crates.io-index)",
- "hash-db 0.12.3 (git+https://github.com/cheme/trie?branch=deprecate_heapsize)",
+ "hash-db 0.12.3 (registry+https://github.com/rust-lang/crates.io-index)",
  "itertools 0.5.10 (registry+https://github.com/rust-lang/crates.io-index)",
  "journaldb 0.2.0",
  "keccak-hash 0.2.0 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -1041,7 +1041,7 @@ dependencies = [
  "kvdb-memorydb 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "log 0.4.6 (registry+https://github.com/rust-lang/crates.io-index)",
  "memory-cache 0.1.0",
- "memory-db 0.12.3 (git+https://github.com/cheme/trie?branch=deprecate_heapsize)",
+ "memory-db 0.12.3 (registry+https://github.com/rust-lang/crates.io-index)",
  "parity-bytes 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "parity-util-mem 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "parking_lot 0.7.1 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -1054,7 +1054,7 @@ dependencies = [
  "smallvec 0.6.5 (registry+https://github.com/rust-lang/crates.io-index)",
  "stats 0.1.0",
  "tempdir 0.3.7 (registry+https://github.com/rust-lang/crates.io-index)",
- "trie-db 0.12.3 (git+https://github.com/cheme/trie?branch=deprecate_heapsize)",
+ "trie-db 0.12.3 (registry+https://github.com/rust-lang/crates.io-index)",
  "triehash-ethereum 0.2.0",
  "vm 0.1.0",
 ]
@@ -1202,7 +1202,7 @@ dependencies = [
  "time-utils 0.1.0",
  "tiny-keccak 1.4.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "transaction-pool 2.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "trie-db 0.12.3 (git+https://github.com/cheme/trie?branch=deprecate_heapsize)",
+ "trie-db 0.12.3 (registry+https://github.com/rust-lang/crates.io-index)",
  "url 1.7.1 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
@@ -1299,7 +1299,7 @@ dependencies = [
  "ethstore 0.2.1",
  "fastmap 0.1.0",
  "futures 0.1.25 (registry+https://github.com/rust-lang/crates.io-index)",
- "hash-db 0.12.3 (git+https://github.com/cheme/trie?branch=deprecate_heapsize)",
+ "hash-db 0.12.3 (registry+https://github.com/rust-lang/crates.io-index)",
  "keccak-hash 0.2.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "keccak-hasher 0.1.1",
  "kvdb 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -1695,7 +1695,7 @@ dependencies = [
 [[package]]
 name = "hash-db"
 version = "0.12.3"
-source = "git+https://github.com/cheme/trie?branch=deprecate_heapsize#3867002062bed1b540f8d01f42cf63e2e317a7f2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
 
 [[package]]
 name = "hash256-std-hasher"
@@ -1998,13 +1998,13 @@ dependencies = [
  "env_logger 0.5.13 (registry+https://github.com/rust-lang/crates.io-index)",
  "ethereum-types 0.6.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "fastmap 0.1.0",
- "hash-db 0.12.3 (git+https://github.com/cheme/trie?branch=deprecate_heapsize)",
+ "hash-db 0.12.3 (registry+https://github.com/rust-lang/crates.io-index)",
  "keccak-hash 0.2.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "keccak-hasher 0.1.1",
  "kvdb 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "kvdb-memorydb 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "log 0.4.6 (registry+https://github.com/rust-lang/crates.io-index)",
- "memory-db 0.12.3 (git+https://github.com/cheme/trie?branch=deprecate_heapsize)",
+ "memory-db 0.12.3 (registry+https://github.com/rust-lang/crates.io-index)",
  "parity-bytes 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "parity-util-mem 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "parking_lot 0.7.1 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -2154,7 +2154,7 @@ name = "keccak-hasher"
 version = "0.1.1"
 dependencies = [
  "ethereum-types 0.6.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "hash-db 0.12.3 (git+https://github.com/cheme/trie?branch=deprecate_heapsize)",
+ "hash-db 0.12.3 (registry+https://github.com/rust-lang/crates.io-index)",
  "plain_hasher 0.2.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "tiny-keccak 1.4.2 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
@@ -2164,7 +2164,7 @@ name = "keccak-hasher"
 version = "0.12.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 dependencies = [
- "hash-db 0.12.3 (git+https://github.com/cheme/trie?branch=deprecate_heapsize)",
+ "hash-db 0.12.3 (registry+https://github.com/rust-lang/crates.io-index)",
  "hash256-std-hasher 0.12.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "tiny-keccak 1.4.2 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
@@ -2358,9 +2358,9 @@ dependencies = [
 [[package]]
 name = "memory-db"
 version = "0.12.3"
-source = "git+https://github.com/cheme/trie?branch=deprecate_heapsize#3867002062bed1b540f8d01f42cf63e2e317a7f2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
 dependencies = [
- "hash-db 0.12.3 (git+https://github.com/cheme/trie?branch=deprecate_heapsize)",
+ "hash-db 0.12.3 (registry+https://github.com/rust-lang/crates.io-index)",
  "hashmap_core 0.1.10 (registry+https://github.com/rust-lang/crates.io-index)",
  "parity-util-mem 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
@@ -3153,14 +3153,14 @@ version = "0.1.0"
 dependencies = [
  "elastic-array 0.10.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "ethereum-types 0.6.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "hash-db 0.12.3 (git+https://github.com/cheme/trie?branch=deprecate_heapsize)",
+ "hash-db 0.12.3 (registry+https://github.com/rust-lang/crates.io-index)",
  "journaldb 0.2.0",
  "keccak-hash 0.2.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "keccak-hasher 0.1.1",
- "memory-db 0.12.3 (git+https://github.com/cheme/trie?branch=deprecate_heapsize)",
+ "memory-db 0.12.3 (registry+https://github.com/rust-lang/crates.io-index)",
  "parity-bytes 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "rlp 0.4.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "trie-db 0.12.3 (git+https://github.com/cheme/trie?branch=deprecate_heapsize)",
+ "trie-db 0.12.3 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]
@@ -3654,15 +3654,6 @@ dependencies = [
 name = "rlp"
 version = "0.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-dependencies = [
- "byteorder 1.2.6 (registry+https://github.com/rust-lang/crates.io-index)",
- "rustc-hex 2.0.1 (registry+https://github.com/rust-lang/crates.io-index)",
-]
-
-[[package]]
-name = "rlp"
-version = "0.4.1"
-source = "git+https://github.com/cheme/parity-common?branch=rem_heapsize2#357eb06b4b20794a8a21189bcae7d0af65a18094"
 dependencies = [
  "byteorder 1.2.6 (registry+https://github.com/rust-lang/crates.io-index)",
  "rustc-hex 2.0.1 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -4435,10 +4426,10 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 [[package]]
 name = "trie-db"
 version = "0.12.3"
-source = "git+https://github.com/cheme/trie?branch=deprecate_heapsize#3867002062bed1b540f8d01f42cf63e2e317a7f2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
 dependencies = [
  "elastic-array 0.10.2 (registry+https://github.com/rust-lang/crates.io-index)",
- "hash-db 0.12.3 (git+https://github.com/cheme/trie?branch=deprecate_heapsize)",
+ "hash-db 0.12.3 (registry+https://github.com/rust-lang/crates.io-index)",
  "hashmap_core 0.1.10 (registry+https://github.com/rust-lang/crates.io-index)",
  "log 0.4.6 (registry+https://github.com/rust-lang/crates.io-index)",
  "rand 0.6.1 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -4449,17 +4440,17 @@ name = "trie-standardmap"
 version = "0.12.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 dependencies = [
- "hash-db 0.12.3 (git+https://github.com/cheme/trie?branch=deprecate_heapsize)",
+ "hash-db 0.12.3 (registry+https://github.com/rust-lang/crates.io-index)",
  "keccak-hasher 0.12.2 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]
 name = "triehash"
-version = "0.5.1"
-source = "git+https://github.com/cheme/parity-common?branch=rem_heapsize2#357eb06b4b20794a8a21189bcae7d0af65a18094"
+version = "0.6.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
 dependencies = [
- "hash-db 0.12.3 (git+https://github.com/cheme/trie?branch=deprecate_heapsize)",
- "rlp 0.4.1 (git+https://github.com/cheme/parity-common?branch=rem_heapsize2)",
+ "hash-db 0.12.3 (registry+https://github.com/rust-lang/crates.io-index)",
+ "rlp 0.4.0 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]
@@ -4468,7 +4459,7 @@ version = "0.2.0"
 dependencies = [
  "ethereum-types 0.6.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "keccak-hasher 0.1.1",
- "triehash 0.5.1 (git+https://github.com/cheme/parity-common?branch=rem_heapsize2)",
+ "triehash 0.6.0 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]
@@ -4646,7 +4637,7 @@ dependencies = [
  "parity-bytes 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "patricia-trie-ethereum 0.1.0",
  "rlp 0.4.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "trie-db 0.12.3 (git+https://github.com/cheme/trie?branch=deprecate_heapsize)",
+ "trie-db 0.12.3 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]
@@ -4937,7 +4928,7 @@ dependencies = [
 "checksum h2 0.1.12 (registry+https://github.com/rust-lang/crates.io-index)" = "a27e7ed946e8335bdf9a191bc1b9b14a03ba822d013d2f58437f4fabcbd7fc2c"
 "checksum hamming 0.1.3 (registry+https://github.com/rust-lang/crates.io-index)" = "65043da274378d68241eb9a8f8f8aa54e349136f7b8e12f63e3ef44043cc30e1"
 "checksum handlebars 0.32.4 (registry+https://github.com/rust-lang/crates.io-index)" = "d89ec99d1594f285d4590fc32bac5f75cdab383f1123d504d27862c644a807dd"
-"checksum hash-db 0.12.3 (git+https://github.com/cheme/trie?branch=deprecate_heapsize)" = "<none>"
+"checksum hash-db 0.12.3 (registry+https://github.com/rust-lang/crates.io-index)" = "587e81efd5dd9596084ff9a1bca98d710da46a10f247a0dfdf1b70b59ba3635e"
 "checksum hash256-std-hasher 0.12.2 (registry+https://github.com/rust-lang/crates.io-index)" = "f8b2027c19ec91eb304999abae7307d225cf93be42af53b0039f76e98ed5af86"
 "checksum hashmap_core 0.1.10 (registry+https://github.com/rust-lang/crates.io-index)" = "8e04cb7a5051270ef3fa79f8c7604d581ecfa73d520e74f554e45541c4b5881a"
 "checksum heapsize 0.4.2 (registry+https://github.com/rust-lang/crates.io-index)" = "1679e6ea370dee694f91f1dc469bf94cf8f52051d147aec3e1f9497c6fc22461"
@@ -5003,7 +4994,7 @@ dependencies = [
 "checksum memchr 2.1.0 (registry+https://github.com/rust-lang/crates.io-index)" = "4b3629fe9fdbff6daa6c33b90f7c08355c1aca05a3d01fa8063b822fcf185f3b"
 "checksum memmap 0.6.2 (registry+https://github.com/rust-lang/crates.io-index)" = "e2ffa2c986de11a9df78620c01eeaaf27d94d3ff02bf81bfcca953102dd0c6ff"
 "checksum memoffset 0.2.1 (registry+https://github.com/rust-lang/crates.io-index)" = "0f9dc261e2b62d7a622bf416ea3c5245cdd5d9a7fcc428c0d06804dfce1775b3"
-"checksum memory-db 0.12.3 (git+https://github.com/cheme/trie?branch=deprecate_heapsize)" = "<none>"
+"checksum memory-db 0.12.3 (registry+https://github.com/rust-lang/crates.io-index)" = "05a7eb58c07b6ea348f32a9a02d6bad643d1cafea6e1d84f379bb086984feb7a"
 "checksum memory_units 0.3.0 (registry+https://github.com/rust-lang/crates.io-index)" = "71d96e3f3c0b6325d8ccd83c33b28acb183edcb6c67938ba104ec546854b0882"
 "checksum memzero 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)" = "93c0d11ac30a033511ae414355d80f70d9f29a44a49140face477117a1ee90db"
 "checksum mime 0.3.12 (registry+https://github.com/rust-lang/crates.io-index)" = "0a907b83e7b9e987032439a387e187119cddafc92d5c2aaeb1d92580a793f630"
@@ -5102,7 +5093,6 @@ dependencies = [
 "checksum ring 0.14.6 (registry+https://github.com/rust-lang/crates.io-index)" = "426bc186e3e95cac1e4a4be125a4aca7e84c2d616ffc02244eef36e2a60a093c"
 "checksum ripemd160 0.8.0 (registry+https://github.com/rust-lang/crates.io-index)" = "ad5112e0dbbb87577bfbc56c42450235e3012ce336e29c5befd7807bd626da4a"
 "checksum rlp 0.4.0 (registry+https://github.com/rust-lang/crates.io-index)" = "3b0d56c1450bfbef1181fdeb78b902dc1d23178de77c23d705317508e03d1b7c"
-"checksum rlp 0.4.1 (git+https://github.com/cheme/parity-common?branch=rem_heapsize2)" = "<none>"
 "checksum rpassword 1.0.2 (registry+https://github.com/rust-lang/crates.io-index)" = "b273c91bd242ca03ad6d71c143b6f17a48790e61f21a6c78568fa2b6774a24a4"
 "checksum rprompt 1.0.3 (registry+https://github.com/rust-lang/crates.io-index)" = "1601f32bc5858aae3cbfa1c645c96c4d820cc5c16be0194f089560c00b6eb625"
 "checksum rust-crypto 0.2.36 (registry+https://github.com/rust-lang/crates.io-index)" = "f76d05d3993fd5f4af9434e8e436db163a12a9d40e1a58a726f27a01dfd12a2a"
@@ -5189,9 +5179,9 @@ dependencies = [
 "checksum trace-time 0.1.1 (registry+https://github.com/rust-lang/crates.io-index)" = "dbe82f2f0bf1991e163e757baf044282823155dd326e70f44ce2186c3c320cc9"
 "checksum transaction-pool 2.0.0 (registry+https://github.com/rust-lang/crates.io-index)" = "f8d8bd3123931aa6e49dd03bc8a2400490e14701d779458d1f1fff1f04c6f666"
 "checksum transient-hashmap 0.4.1 (registry+https://github.com/rust-lang/crates.io-index)" = "aeb4b191d033a35edfce392a38cdcf9790b6cebcb30fa690c312c29da4dc433e"
-"checksum trie-db 0.12.3 (git+https://github.com/cheme/trie?branch=deprecate_heapsize)" = "<none>"
+"checksum trie-db 0.12.3 (registry+https://github.com/rust-lang/crates.io-index)" = "8e77b2115092606c0fa3cc84b04dd4d0b03537575f491ffab7a319a96dc5dc14"
 "checksum trie-standardmap 0.12.3 (registry+https://github.com/rust-lang/crates.io-index)" = "ebaa4b340046196efad8872b2dffe585b5ea330230dc44ee14e399f77da29f51"
-"checksum triehash 0.5.1 (git+https://github.com/cheme/parity-common?branch=rem_heapsize2)" = "<none>"
+"checksum triehash 0.6.0 (registry+https://github.com/rust-lang/crates.io-index)" = "b645ad3fc9871596897fb64a57c9c29adc9f5ece87c2d78766e3fc5a5da56b56"
 "checksum try-lock 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)" = "ee2aa4715743892880f70885373966c83d73ef1b0838a664ef0c76fffd35e7c2"
 "checksum try-lock 0.2.2 (registry+https://github.com/rust-lang/crates.io-index)" = "e604eb7b43c06650e854be16a2a03155743d3752dd1c943f6829e26b7a36e382"
 "checksum typenum 1.10.0 (registry+https://github.com/rust-lang/crates.io-index)" = "612d636f949607bdf9b123b4a6f6d966dedf3ff669f7f045890d3a4a73948169"

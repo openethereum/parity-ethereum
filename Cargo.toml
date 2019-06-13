@@ -142,9 +142,3 @@ members = [
 	"util/fastmap",
 	"util/time-utils"
 ]
-
-[patch.crates-io]
-memory-db = { git = "https://github.com/cheme/trie", branch = "deprecate_heapsize" }
-trie-db = { git = "https://github.com/cheme/trie", branch = "deprecate_heapsize" }
-hash-db = { git = "https://github.com/cheme/trie", branch = "deprecate_heapsize" }
-triehash = { git = "https://github.com/cheme/parity-common", branch = "rem_heapsize2" }
