@@ -80,6 +80,15 @@ pub mod error {
 		RequestLimit,
 	}
 
+	impl std::error::Error for Error {
+		fn source(&self) -> Option<&(std::error::Error + 'static)> {
+			match self {
+				Error::ChannelCanceled(err) => Some(err),
+				_ => None,
+			}
+		}
+	}
+
 	/// OnDemand Result
 	pub type Result<T> = std::result::Result<T, Error>;
 }

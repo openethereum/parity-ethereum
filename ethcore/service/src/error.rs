@@ -18,14 +18,22 @@ use ethcore;
 use io;
 use ethcore_private_tx;
 
+#[derive(Debug, derive_more::Display, derive_more::From)]
 pub enum Error {
-
+	/// Ethcore Error
+	Ethcore(ethcore::error::Error),
+	/// Io Error
+	IoError(io::IoError),
+	/// Private Transactions Error
+	PrivateTransactions(ethcore_private_tx::Error),
 }
 
-error_chain! {
-	foreign_links {
-		Ethcore(ethcore::error::Error);
-		IoError(io::IoError);
-		PrivateTransactions(ethcore_private_tx::Error);
+impl std::error::Error for Error {
+	fn source(&self) -> Option<&(std::error::Error + 'static)> {
+		match self {
+			Error::Ethcore(err) => Some(err),
+			Error::IoError(err) => Some(err),
+			Error::PrivateTransactions(err) => Some(err),
+		}
 	}
 }
