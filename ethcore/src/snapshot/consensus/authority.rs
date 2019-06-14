@@ -58,7 +58,7 @@ impl SnapshotComponents for PoaSnapshot {
 		chain: &BlockChain,
 		block_at: H256,
 		sink: &mut ChunkSink,
-		progress: &Progress,
+		_progress: &Progress,
 		preferred_size: usize,
 	) -> Result<(), Error> {
 		let number = chain.block_number(&block_at)
