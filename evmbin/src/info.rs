@@ -14,7 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
-//! VM runner.
+//! EVM runner.
 
 use std::time::{Instant, Duration};
 use ethereum_types::{H256, U256};
@@ -24,7 +24,7 @@ use ethjson;
 use types::transaction;
 use vm::ActionParams;
 
-/// VM execution informant
+/// EVM execution informant
 pub trait Informant: trace::VMTracer {
 	/// Sink to use with finish
 	type Sink;
