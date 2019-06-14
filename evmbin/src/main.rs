@@ -85,7 +85,7 @@ Usage:
     parity-evm [-h | --help]
 
 Commands:
-    state-test         Run a state test on a provided state test JSON file path.
+    state-test         Run a state test on a provided state test JSON file.
     stats              Execute EVM runtime code and return the statistics.
     stats-jsontests-vm Execute standard json-tests on a provided state test JSON
                        file path, format VMTests, and return timing statistics
