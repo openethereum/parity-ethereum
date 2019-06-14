@@ -107,7 +107,7 @@ State test options:
     --only NAME        Runs only a single test matching the name.
 
 General options:
-    --chain PATH       Chain spec file path.
+    --chain PATH       Path to chain spec file.
     --json             Display verbose results in JSON.
     --std-json         Display results in standardized JSON format.
     --std-dump-json    Display results in standardized JSON format
