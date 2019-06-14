@@ -315,8 +315,10 @@ impl EncryptedConnection {
 		let key_material_keccak = keccak(&key_material);
 		(&mut key_material[32..64]).copy_from_slice(key_material_keccak.as_bytes());
 
-		// TODO: clarify this: ecdh::agree creates a **NEW** secret right? And AesCtr256 keeps an internal counter, right?
-		// Using a 0 IV with CTR is fine as long as the same IV is never reused with the same key. This is not the case here.
+		// Using a 0 IV with CTR is fine as long as the same IV is never reused with the same key.
+		// This is the case here: ecdh creates a new secret which will be the symmetric key used
+		// only for this session the 0 IV is only use once with this secret, so we are in the case
+		// of same IV use for different key.
 		let encoder = AesCtr256::new(&key_material[32..64], &NULL_IV)?;
 		let decoder = AesCtr256::new(&key_material[32..64], &NULL_IV)?;
         let key_material_keccak = keccak(&key_material);
@@ -352,6 +354,7 @@ impl EncryptedConnection {
 
 	/// Send a packet
 	pub fn send_packet<Message>(&mut self, io: &IoContext<Message>, payload: &[u8]) -> Result<(), Error> where Message: Send + Clone + Sync + 'static {
+		const HEADER_LEN: usize = 16;
 		let mut header = RlpStream::new();
 		let len = payload.len();
 		if len > MAX_PAYLOAD_SIZE {
@@ -362,14 +365,13 @@ impl EncryptedConnection {
 		header.append_raw(&[0xc2u8, 0x80u8, 0x80u8], 1);
 		let padding = (16 - (len % 16)) % 16;
 
-		let mut packet = vec![0u8; 32 + len + padding + 16];
+		let mut packet = vec![0u8; 16 + 16 + len + padding + 16];
 		let mut header = header.out();
-		header.resize(16, 0u8);
-		let header_len = header.len();
-		&mut packet[..header_len].copy_from_slice(&mut header);
-		self.encoder.encrypt(&mut packet[..header_len])?;
-		EncryptedConnection::update_mac(&mut self.egress_mac, &self.mac_encoder_key, &packet[..header_len])?;
-		self.egress_mac.clone().finalize(&mut packet[header_len..32]);
+		header.resize(HEADER_LEN, 0u8);
+		&mut packet[..HEADER_LEN].copy_from_slice(&mut header);
+		self.encoder.encrypt(&mut packet[..HEADER_LEN])?;
+		EncryptedConnection::update_mac(&mut self.egress_mac, &self.mac_encoder_key, &packet[..HEADER_LEN])?;
+		self.egress_mac.clone().finalize(&mut packet[HEADER_LEN..32]);
 		&mut packet[32..32 + len].copy_from_slice(payload);
 		self.encoder.encrypt(&mut packet[32..32 + len])?;
 		if padding != 0 {
