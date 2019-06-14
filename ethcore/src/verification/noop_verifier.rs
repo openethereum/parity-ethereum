@@ -32,7 +32,7 @@ impl<C: BlockInfo + CallContract> Verifier<C> for NoopVerifier {
 		&self,
 		_: &Header,
 		_t: &Header,
-		_: &EthEngine,
+		_: &dyn EthEngine,
 		_: Option<verification::FullFamilyParams<C>>
 	) -> Result<(), Error> {
 		Ok(())
@@ -42,7 +42,7 @@ impl<C: BlockInfo + CallContract> Verifier<C> for NoopVerifier {
 		Ok(())
 	}
 
-	fn verify_block_external(&self, _header: &Header, _engine: &EthEngine) -> Result<(), Error> {
+	fn verify_block_external(&self, _header: &Header, _engine: &dyn EthEngine) -> Result<(), Error> {
 		Ok(())
 	}
 }

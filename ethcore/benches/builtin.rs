@@ -29,7 +29,7 @@ use criterion::{Criterion, Bencher};
 use bytes::BytesRef;
 use ethcore::builtin::Builtin;
 use ethcore::machine::EthereumMachine;
-use ethereum_types::U256;
+use ethereum_types::H160;
 use ethcore::ethereum::new_byzantium_test_machine;
 use rustc_hex::FromHex;
 
@@ -46,18 +46,15 @@ struct BuiltinBenchmark<'a> {
 impl<'a> BuiltinBenchmark<'a> {
 	fn new(builtin_address: &'static str, input: &str, expected: &str) -> BuiltinBenchmark<'a> {
 		let builtins = BYZANTIUM_MACHINE.builtins();
-
-		let builtin = builtins.get(&builtin_address.into()).unwrap().clone();
+		use std::str::FromStr;
+		let addr = H160::from_str(builtin_address).unwrap();
+		let builtin = builtins.get(&addr).unwrap().clone();
 		let input = FromHex::from_hex(input).unwrap();
 		let expected = FromHex::from_hex(expected).unwrap();
 
 		BuiltinBenchmark {
 			builtin, input, expected
 		}
-	}
-
-	fn gas_cost(&self) -> U256 {
-		self.builtin.cost(&self.input)
 	}
 
 	fn run(&self, b: &mut Bencher) {

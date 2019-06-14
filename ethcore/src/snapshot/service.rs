@@ -76,22 +76,22 @@ struct Restoration {
 	state_chunks_left: HashSet<H256>,
 	block_chunks_left: HashSet<H256>,
 	state: StateRebuilder,
-	secondary: Box<Rebuilder>,
+	secondary: Box<dyn Rebuilder>,
 	writer: Option<LooseWriter>,
 	snappy_buffer: Bytes,
 	final_state_root: H256,
 	guard: Guard,
-	db: Arc<BlockChainDB>,
+	db: Arc<dyn BlockChainDB>,
 }
 
 struct RestorationParams<'a> {
 	manifest: ManifestData, // manifest to base restoration on.
 	pruning: Algorithm, // pruning algorithm for the database.
-	db: Arc<BlockChainDB>, // database
+	db: Arc<dyn BlockChainDB>, // database
 	writer: Option<LooseWriter>, // writer for recovered snapshot.
 	genesis: &'a [u8], // genesis block of the chain.
 	guard: Guard, // guard for the restoration directory.
-	engine: &'a EthEngine,
+	engine: &'a dyn EthEngine,
 }
 
 impl Restoration {
@@ -149,7 +149,7 @@ impl Restoration {
 	}
 
 	// feeds a block chunk
-	fn feed_blocks(&mut self, hash: H256, chunk: &[u8], engine: &EthEngine, flag: &AtomicBool) -> Result<(), Error> {
+	fn feed_blocks(&mut self, hash: H256, chunk: &[u8], engine: &dyn EthEngine, flag: &AtomicBool) -> Result<(), Error> {
 		if self.block_chunks_left.contains(&hash) {
 			let expected_len = snappy::decompressed_len(chunk)?;
 			if expected_len > MAX_CHUNK_SIZE {
@@ -170,7 +170,7 @@ impl Restoration {
 	}
 
 	// finish up restoration.
-	fn finalize(mut self, engine: &EthEngine) -> Result<(), Error> {
+	fn finalize(mut self, engine: &dyn EthEngine) -> Result<(), Error> {
 		use trie::TrieError;
 
 		if !self.is_done() { return Ok(()) }
@@ -211,37 +211,37 @@ pub trait SnapshotClient: BlockChainClient + BlockInfo + DatabaseRestore {}
 /// Snapshot service parameters.
 pub struct ServiceParams {
 	/// The consensus engine this is built on.
-	pub engine: Arc<EthEngine>,
+	pub engine: Arc<dyn EthEngine>,
 	/// The chain's genesis block.
 	pub genesis_block: Bytes,
 	/// State pruning algorithm.
 	pub pruning: Algorithm,
 	/// Handler for opening a restoration DB.
-	pub restoration_db_handler: Box<BlockChainDBHandler>,
+	pub restoration_db_handler: Box<dyn BlockChainDBHandler>,
 	/// Async IO channel for sending messages.
 	pub channel: Channel,
 	/// The directory to put snapshots in.
 	/// Usually "<chain hash>/snapshot"
 	pub snapshot_root: PathBuf,
 	/// A handle for database restoration.
-	pub client: Arc<SnapshotClient>,
+	pub client: Arc<dyn SnapshotClient>,
 }
 
 /// `SnapshotService` implementation.
 /// This controls taking snapshots and restoring from them.
 pub struct Service {
 	restoration: Mutex<Option<Restoration>>,
-	restoration_db_handler: Box<BlockChainDBHandler>,
+	restoration_db_handler: Box<dyn BlockChainDBHandler>,
 	snapshot_root: PathBuf,
 	io_channel: Mutex<Channel>,
 	pruning: Algorithm,
 	status: Mutex<RestorationStatus>,
 	reader: RwLock<Option<LooseReader>>,
-	engine: Arc<EthEngine>,
+	engine: Arc<dyn EthEngine>,
 	genesis_block: Bytes,
 	state_chunks: AtomicUsize,
 	block_chunks: AtomicUsize,
-	client: Arc<SnapshotClient>,
+	client: Arc<dyn SnapshotClient>,
 	progress: super::Progress,
 	taking_snapshot: AtomicBool,
 	restoring_snapshot: AtomicBool,

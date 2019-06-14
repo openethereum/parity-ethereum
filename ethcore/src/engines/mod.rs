@@ -175,10 +175,10 @@ pub enum SealingState {
 }
 
 /// A system-calling closure. Enacts calls on a block's state from the system address.
-pub type SystemCall<'a> = FnMut(Address, Vec<u8>) -> Result<Vec<u8>, String> + 'a;
+pub type SystemCall<'a> = dyn FnMut(Address, Vec<u8>) -> Result<Vec<u8>, String> + 'a;
 
 /// A system-calling closure. Enacts calls on a block's state with code either from an on-chain contract, or hard-coded EVM or WASM (if enabled on-chain) codes.
-pub type SystemOrCodeCall<'a> = FnMut(SystemOrCodeCallKind, Vec<u8>) -> Result<Vec<u8>, String> + 'a;
+pub type SystemOrCodeCall<'a> = dyn FnMut(SystemOrCodeCallKind, Vec<u8>) -> Result<Vec<u8>, String> + 'a;
 
 /// Kind of SystemOrCodeCall, this is either an on-chain address, or code.
 #[derive(PartialEq, Debug, Clone)]
@@ -220,10 +220,10 @@ pub fn default_system_or_code_call<'a>(machine: &'a ::machine::EthereumMachine, 
 }
 
 /// Type alias for a function we can get headers by hash through.
-pub type Headers<'a, H> = Fn(H256) -> Option<H> + 'a;
+pub type Headers<'a, H> = dyn Fn(H256) -> Option<H> + 'a;
 
 /// Type alias for a function we can query pending transitions by block hash through.
-pub type PendingTransitionStore<'a> = Fn(H256) -> Option<epoch::PendingTransition> + 'a;
+pub type PendingTransitionStore<'a> = dyn Fn(H256) -> Option<epoch::PendingTransition> + 'a;
 
 /// Proof dependent on state.
 pub trait StateDependentProof<M: Machine>: Send + Sync {
@@ -240,16 +240,16 @@ pub enum Proof<M: Machine> {
 	/// Known proof (extracted from signal)
 	Known(Vec<u8>),
 	/// State dependent proof.
-	WithState(Arc<StateDependentProof<M>>),
+	WithState(Arc<dyn StateDependentProof<M>>),
 }
 
 /// Generated epoch verifier.
 pub enum ConstructedVerifier<'a, M: Machine> {
 	/// Fully trusted verifier.
-	Trusted(Box<EpochVerifier<M>>),
+	Trusted(Box<dyn EpochVerifier<M>>),
 	/// Verifier unconfirmed. Check whether given finality proof finalizes given hash
 	/// under previous epoch.
-	Unconfirmed(Box<EpochVerifier<M>>, &'a [u8], H256),
+	Unconfirmed(Box<dyn EpochVerifier<M>>, &'a [u8], H256),
 	/// Error constructing verifier.
 	Err(Error),
 }
@@ -257,7 +257,7 @@ pub enum ConstructedVerifier<'a, M: Machine> {
 impl<'a, M: Machine> ConstructedVerifier<'a, M> {
 	/// Convert to a result, indicating that any necessary confirmation has been done
 	/// already.
-	pub fn known_confirmed(self) -> Result<Box<EpochVerifier<M>>, Error> {
+	pub fn known_confirmed(self) -> Result<Box<dyn EpochVerifier<M>>, Error> {
 		match self {
 			ConstructedVerifier::Trusted(v) | ConstructedVerifier::Unconfirmed(v, _, _) => Ok(v),
 			ConstructedVerifier::Err(e) => Err(e),
@@ -303,7 +303,7 @@ pub trait Engine<M: Machine>: Sync + Send {
 		&self,
 		_block: &mut ExecutedBlock,
 		_epoch_begin: bool,
-		_ancestry: &mut Iterator<Item = ExtendedHeader>,
+		_ancestry: &mut dyn Iterator<Item = ExtendedHeader>,
 	) -> Result<(), M::Error> {
 		Ok(())
 	}
@@ -426,7 +426,7 @@ pub trait Engine<M: Machine>: Sync + Send {
 	fn handle_message(&self, _message: &[u8]) -> Result<(), EngineError> { Err(EngineError::UnexpectedMessage) }
 
 	/// Register a component which signs consensus messages.
-	fn set_signer(&self, _signer: Box<EngineSigner>) {}
+	fn set_signer(&self, _signer: Box<dyn EngineSigner>) {}
 
 	/// Sign using the EngineSigner, to be used for consensus tx signing.
 	fn sign(&self, _hash: H256) -> Result<Signature, M::Error> { unimplemented!() }
@@ -439,7 +439,7 @@ pub trait Engine<M: Machine>: Sync + Send {
 
 	/// Create a factory for building snapshot chunks and restoring from them.
 	/// Returning `None` indicates that this engine doesn't support snapshot creation.
-	fn snapshot_components(&self) -> Option<Box<SnapshotComponents>> {
+	fn snapshot_components(&self) -> Option<Box<dyn SnapshotComponents>> {
 		None
 	}
 
@@ -463,7 +463,7 @@ pub trait Engine<M: Machine>: Sync + Send {
 
 	/// Gather all ancestry actions. Called at the last stage when a block is committed. The Engine must guarantee that
 	/// the ancestry exists.
-	fn ancestry_actions(&self, _header: &Header, _ancestry: &mut Iterator<Item = ExtendedHeader>) -> Vec<AncestryAction> {
+	fn ancestry_actions(&self, _header: &Header, _ancestry: &mut dyn Iterator<Item = ExtendedHeader>) -> Vec<AncestryAction> {
 		Vec::new()
 	}
 

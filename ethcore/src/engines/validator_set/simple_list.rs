@@ -105,8 +105,8 @@ impl ValidatorSet for SimpleList {
 	}
 }
 
-impl AsRef<ValidatorSet> for SimpleList {
-    fn as_ref(&self) -> &ValidatorSet {
+impl AsRef<dyn ValidatorSet> for SimpleList {
+    fn as_ref(&self) -> &dyn ValidatorSet {
         self
     }
 }

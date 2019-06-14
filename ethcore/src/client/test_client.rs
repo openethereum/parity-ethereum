@@ -627,7 +627,7 @@ impl StateClient for TestBlockChainClient {
 }
 
 impl EngineInfo for TestBlockChainClient {
-	fn engine(&self) -> &EthEngine {
+	fn engine(&self) -> &dyn EthEngine {
 		unimplemented!()
 	}
 }
@@ -661,7 +661,7 @@ impl BlockChainClient for TestBlockChainClient {
 		}
 	}
 
-	fn replay_block_transactions(&self, _block: BlockId, _analytics: CallAnalytics) -> Result<Box<Iterator<Item = (H256, Executed)>>, CallError> {
+	fn replay_block_transactions(&self, _block: BlockId, _analytics: CallAnalytics) -> Result<Box<dyn Iterator<Item = (H256, Executed)>>, CallError> {
 		Ok(Box::new(
 			self.traces
 				.read()
@@ -955,7 +955,7 @@ impl super::traits::EngineClient for TestBlockChainClient {
 		None
 	}
 
-	fn as_full_client(&self) -> Option<&BlockChainClient> { Some(self) }
+	fn as_full_client(&self) -> Option<&dyn BlockChainClient> { Some(self) }
 
 	fn block_number(&self, id: BlockId) -> Option<BlockNumber> {
 		BlockChainClient::block_number(self, id)
