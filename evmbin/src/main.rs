@@ -100,7 +100,7 @@ Transaction options:
     --gas-price GWEI   Supplied gas price as hex (without 0x).
 
 State test options:
-    --chain CHAIN      Run only from specific chain name (i.e. EIP150, EIP158,
+    --chain CHAIN      Run only from specific chain name (i.e. one of EIP150, EIP158,
                        Frontier, Homestead, Byzantium, Constantinople,
                        ConstantinopleFix, EIP158ToByzantiumAt5, FrontierToHomesteadAt5,
                        HomesteadToDaoAt5, HomesteadToEIP150At5).
