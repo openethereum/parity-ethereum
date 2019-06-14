@@ -24,7 +24,7 @@ use ethjson;
 use types::transaction;
 use vm::ActionParams;
 
-/// EVM execution informant
+/// EVM execution informant.
 pub trait Informant: trace::VMTracer {
 	/// Sink to use with finish
 	type Sink;
@@ -38,41 +38,41 @@ pub trait Informant: trace::VMTracer {
 	fn finish(result: RunResult<Self::Output>, &mut Self::Sink);
 }
 
-/// Execution finished correctly
+/// Execution finished correctly.
 #[derive(Debug)]
 pub struct Success<T> {
-	/// State root
+	/// State root.
 	pub state_root: H256,
-	/// Used gas
+	/// Used gas.
 	pub gas_used: U256,
-	/// Output as bytes
+	/// Output as bytes.
 	pub output: Vec<u8>,
-	/// Time Taken
+	/// Time taken.
 	pub time: Duration,
-	/// Traces
+	/// Traces.
 	pub traces: Option<T>,
-	/// Optional end state dump
+	/// Optional end state dump.
 	pub end_state: Option<pod_state::PodState>,
 }
 
-/// Execution failed
+/// Execution failed.
 #[derive(Debug)]
 pub struct Failure<T> {
-	/// State root
+	/// State root.
 	pub state_root: H256,
-	/// Used gas
+	/// Used gas.
 	pub gas_used: U256,
-	/// Internal error
+	/// Internal error.
 	pub error: EvmTestError,
-	/// Duration
+	/// Duration.
 	pub time: Duration,
-	/// Traces
+	/// Traces.
 	pub traces: Option<T>,
-	/// Optional end state dump
+	/// Optional end state dump.
 	pub end_state: Option<pod_state::PodState>,
 }
 
-/// EVM Execution result
+/// EVM execution result.
 pub type RunResult<T> = Result<Success<T>, Failure<T>>;
 
 /// Execute given `ActionParams` and return the result.
@@ -100,23 +100,24 @@ pub fn run_action<T: Informant>(
 	})
 }
 
-/// Execute given Transaction and verify resulting state root.
+/// Execute given transaction and verify resulting state root.
 pub fn run_transaction<T: Informant>(
-	// Chain specification name associated with the transaction
+	// Chain specification name associated with the transaction.
 	name: &str,
-	// Transaction index from list of transactions within a state root hashes corresponding to a chain
+	// Transaction index from list of transactions within a state root hashes corresponding to a chain.
 	idx: usize,
-	// Fork specification (i.e. Constantinople, EIP150, EIP158, etc)
+	// Fork specification (i.e. Constantinople, EIP150, EIP158, etc).
 	spec: &ethjson::spec::ForkSpec,
-	// State of all accounts in the system that is a binary tree mapping of each account address to account data that is expressed as Plain Old Data.
-	// containing the account balance, account nonce, account code in bytes, and the account storage binary tree map.
+	// State of all accounts in the system that is a binary tree mapping of each account address to account data
+	// that is expressed as Plain Old Data containing the account balance, account nonce, account code in bytes,
+	// and the account storage binary tree map.
 	pre_state: &pod_state::PodState,
-	// State root hash associated with the transaction
+	// State root hash associated with the transaction.
 	post_root: H256,
-	// Client environment information associated with the transaction's chain specification
+	// Client environment information associated with the transaction's chain specification.
 	env_info: &client::EnvInfo,
 	transaction: transaction::SignedTransaction,
-	// JSON formatting informant
+	// JSON formatting informant.
 	mut informant: T,
 	trie_spec: TrieSpec,
 ) {
@@ -164,7 +165,7 @@ fn dump_state(state: &state::State<state_db::StateDB>) -> Option<pod_state::PodS
 	state.to_pod_full().ok()
 }
 
-/// Execute VM with given `ActionParams`
+/// Execute EVM with given `ActionParams`.
 pub fn run<'a, F, X>(
 	spec: &'a spec::Spec,
 	trie_spec: TrieSpec,

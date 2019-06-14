@@ -14,7 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
-//! Standardized JSON EVM output.
+//! Log EVM instruction output data traces from a standardized JSON formatting informant.
 
 use std::collections::HashMap;
 use std::io;
@@ -71,14 +71,14 @@ impl Default for Informant<io::Stderr, io::Stdout> {
 }
 
 impl Informant<io::Stdout, io::Stdout> {
-	/// std json informant using out only.
+	/// Standardized JSON formatting informant using out only.
 	pub fn out_only() -> Self {
 		Self::new(io::stdout(), io::stdout())
 	}
 }
 
 impl Informant<io::Stderr, io::Stderr> {
-	/// std json informant using err only.
+	/// Standardized JSON formatting informant using err only.
 	pub fn err_only() -> Self {
 		Self::new(io::stderr(), io::stderr())
 	}
@@ -137,6 +137,7 @@ impl<Trace: Writer, Out: Writer> vm::Informant for Informant<Trace, Out> {
 	fn clone_sink(&self) -> Self::Sink {
 		(self.trace_sink.clone(), self.out_sink.clone())
 	}
+
 	fn finish(result: vm::RunResult<<Self as trace::VMTracer>::Output>, (ref mut trace_sink, ref mut out_sink): &mut Self::Sink) {
 
 		match result {
