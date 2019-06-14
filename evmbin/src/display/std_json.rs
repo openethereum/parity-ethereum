@@ -71,14 +71,14 @@ impl Default for Informant<io::Stderr, io::Stdout> {
 }
 
 impl Informant<io::Stdout, io::Stdout> {
-	/// Standardized JSON formatting informant using out only.
+	/// Standardized JSON formatting informant using stdout only.
 	pub fn out_only() -> Self {
 		Self::new(io::stdout(), io::stdout())
 	}
 }
 
 impl Informant<io::Stderr, io::Stderr> {
-	/// Standardized JSON formatting informant using err only.
+	/// Standardized JSON formatting informant using stderr only.
 	pub fn err_only() -> Self {
 		Self::new(io::stderr(), io::stderr())
 	}
