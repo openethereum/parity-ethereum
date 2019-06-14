@@ -28,7 +28,7 @@ use ethkey::{Generator, KeyPair, Public, Random, recover, Secret, sign};
 use ethkey::crypto::{ecdh, ecies};
 use host::HostInfo;
 use io::{IoContext, StreamToken};
-use network::{Error, ErrorKind};
+use network::Error;
 use node_table::NodeId;
 
 #[derive(PartialEq, Eq, Debug)]
@@ -166,7 +166,7 @@ impl Handshake {
 		trace!(target: "network", "Received handshake auth from {:?}", self.connection.remote_addr_str());
 		if data.len() != V4_AUTH_PACKET_SIZE {
 			debug!(target: "network", "Wrong auth packet size");
-			return Err(ErrorKind::BadProtocol.into());
+			return Err(Error::BadProtocol);
 		}
 		self.auth_cipher = data.to_vec();
 		match ecies::decrypt(secret, &[], data) {
@@ -183,7 +183,7 @@ impl Handshake {
 				let total = ((u16::from(data[0]) << 8 | (u16::from(data[1]))) as usize) + 2;
 				if total < V4_AUTH_PACKET_SIZE {
 					debug!(target: "network", "Wrong EIP8 auth packet size");
-					return Err(ErrorKind::BadProtocol.into());
+					return Err(Error::BadProtocol);
 				}
 				let rest = total - data.len();
 				self.state = HandshakeState::ReadingAuthEip8;
@@ -212,7 +212,7 @@ impl Handshake {
 		trace!(target: "network", "Received handshake ack from {:?}", self.connection.remote_addr_str());
 		if data.len() != V4_ACK_PACKET_SIZE {
 			debug!(target: "network", "Wrong ack packet size");
-			return Err(ErrorKind::BadProtocol.into());
+			return Err(Error::BadProtocol);
 		}
 		self.ack_cipher = data.to_vec();
 		match ecies::decrypt(secret, &[], data) {
@@ -226,7 +226,7 @@ impl Handshake {
 				let total = (((u16::from(data[0])) << 8 | (u16::from(data[1]))) as usize) + 2;
 				if total < V4_ACK_PACKET_SIZE {
 					debug!(target: "network", "Wrong EIP8 ack packet size");
-					return Err(ErrorKind::BadProtocol.into());
+					return Err(Error::BadProtocol);
 				}
 				let rest = total - data.len();
 				self.state = HandshakeState::ReadingAckEip8;

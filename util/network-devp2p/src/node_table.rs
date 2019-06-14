@@ -31,7 +31,7 @@ use serde_json;
 
 use discovery::{NodeEntry, TableUpdates};
 use ip_utils::*;
-use network::{AllowIP, Error, ErrorKind, IpFilter};
+use network::{AllowIP, Error, IpFilter};
 
 /// Node public key
 pub type NodeId = H512;
@@ -133,8 +133,8 @@ impl FromStr for NodeEndpoint {
 				address: a,
 				udp_port: a.port()
 			}),
-			Ok(None) => bail!(ErrorKind::AddressResolve(None)),
-			Err(_) => Err(ErrorKind::AddressParse.into()) // always an io::Error of InvalidInput kind
+			Ok(None) => return Err(Error::AddressResolve(None.into())),
+			Err(_) => Err(Error::AddressParse) // always an io::Error of InvalidInput kind
 		}
 	}
 }
@@ -216,7 +216,7 @@ impl FromStr for Node {
 	type Err = Error;
 	fn from_str(s: &str) -> Result<Self, Self::Err> {
 		let (id, endpoint) = if s.len() > 136 && &s[0..8] == "enode://" && &s[136..137] == "@" {
-			(s[8..136].parse().map_err(|_| ErrorKind::InvalidNodeId)?, NodeEndpoint::from_str(&s[137..])?)
+			(s[8..136].parse().map_err(|_| Error::InvalidNodeId)?, NodeEndpoint::from_str(&s[137..])?)
 		}
 		else {
 			(NodeId::default(), NodeEndpoint::from_str(s)?)

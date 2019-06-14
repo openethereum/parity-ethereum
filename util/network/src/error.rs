@@ -98,8 +98,8 @@ pub enum Error {
 	#[display(fmt ="Failed to parse network address")]
 	AddressParse,
 	/// Error concerning the network address resolution subsystem.
-	#[display(fmt ="Failed to resolve network address {}", "_0.as_ref().map_or("".to_string(), |e| e.to_string())")]
-	AddressResolve(Option<io::Error>),
+	#[display(fmt ="Failed to resolve network address {}", _0)]
+	AddressResolve(AddressResolveError),
 	/// Authentication failure
 	#[display(fmt ="Authentication failure")]
 	Auth,
@@ -132,14 +132,47 @@ pub enum Error {
 	Io(io::Error),
 }
 
+/// Wraps io::Error for Display impl
+#[derive(Debug)]
+pub struct AddressResolveError(Option<io::Error>);
+
+impl fmt::Display for AddressResolveError {
+	fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
+		write!(f, "{}", self.0.as_ref().map_or("".to_string(), |e| e.to_string()))
+	}
+}
+
+impl From<Option<io::Error>> for AddressResolveError {
+	fn from(err: Option<io::Error>) -> Self {
+		AddressResolveError(err)
+	}
+}
+
 impl error::Error for Error {
 	fn source(&self) -> Option<&(error::Error + 'static)> {
 		match self {
-			Error::SocketIo(e) => Some(e),
 			Error::Decompression(e) => Some(e),
 			Error::Rlp(e) => Some(e),
 			_ => None,
 		}
+	}
+}
+
+impl From<IoError> for Error {
+	fn from(err: IoError) -> Self {
+		Error::SocketIo(err)
+	}
+}
+
+impl From<snappy::InvalidInput> for Error {
+	fn from(err: snappy::InvalidInput) -> Self {
+		Error::Decompression(err)
+	}
+}
+
+impl From<rlp::DecoderError> for Error {
+	fn from(err: rlp::DecoderError) -> Self {
+		Error::Rlp(err)
 	}
 }
 
