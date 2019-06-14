@@ -110,7 +110,7 @@ impl Informant {
 			}
 		;
 
-		serde_json::to_string(&trace_data).unwrap()
+		serde_json::to_string(&trace_data).expect("serialization cannot fail; qed")
 	}
 }
 
