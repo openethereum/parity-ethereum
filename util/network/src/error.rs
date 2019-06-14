@@ -213,13 +213,13 @@ fn test_errors() {
 	}
 	assert_eq!(DisconnectReason::Unknown, r);
 
-	match *<Error as From<rlp::DecoderError>>::from(rlp::DecoderError::RlpIsTooBig).kind() {
-		ErrorKind::Rlp(_) => {},
+	match <Error as From<rlp::DecoderError>>::from(rlp::DecoderError::RlpIsTooBig) {
+		Error::Rlp(_) => {},
 		_ => panic!("Unexpected error"),
 	}
 
-	match *<Error as From<ethkey::crypto::Error>>::from(ethkey::crypto::Error::InvalidMessage).kind() {
-		ErrorKind::Auth => {},
+	match <Error as From<ethkey::crypto::Error>>::from(ethkey::crypto::Error::InvalidMessage) {
+		Error::Auth => {},
 		_ => panic!("Unexpected error"),
 	}
 }
@@ -231,18 +231,18 @@ fn test_io_errors() {
 	assert_matches!(
 		<Error as From<io::Error>>::from(
 			io::Error::from_raw_os_error(ENFILE)
-			).kind(),
-		ErrorKind::ProcessTooManyFiles);
+			),
+		Error::ProcessTooManyFiles);
 
 	assert_matches!(
 		<Error as From<io::Error>>::from(
 			io::Error::from_raw_os_error(EMFILE)
-			).kind(),
-		ErrorKind::SystemTooManyFiles);
+			),
+		Error::SystemTooManyFiles);
 
 	assert_matches!(
 		<Error as From<io::Error>>::from(
 			io::Error::from_raw_os_error(0)
-			).kind(),
-		ErrorKind::Io(_));
+			),
+		Error::Io(_));
 }

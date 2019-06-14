@@ -629,21 +629,21 @@ mod tests {
 	fn endpoint_parse_empty_ip_string_returns_error() {
 		let endpoint = NodeEndpoint::from_str("");
 		assert!(endpoint.is_err());
-		assert_matches!(endpoint.unwrap_err().kind(), &ErrorKind::AddressParse);
+		assert_matches!(endpoint.unwrap_err(), Error::AddressParse);
 	}
 
 	#[test]
 	fn endpoint_parse_invalid_ip_string_returns_error() {
 		let endpoint = NodeEndpoint::from_str("beef");
 		assert!(endpoint.is_err());
-		assert_matches!(endpoint.unwrap_err().kind(), &ErrorKind::AddressParse);
+		assert_matches!(endpoint.unwrap_err(), Error::AddressParse);
 	}
 
 	#[test]
 	fn endpoint_parse_valid_ip_without_port_returns_error() {
 		let endpoint = NodeEndpoint::from_str("123.123.123.123");
 		assert!(endpoint.is_err());
-		assert_matches!(endpoint.unwrap_err().kind(), &ErrorKind::AddressParse);
+		assert_matches!(endpoint.unwrap_err(), Error::AddressParse);
 		let endpoint = NodeEndpoint::from_str("123.123.123.123:123");
 		assert!(endpoint.is_ok())
 	}
@@ -668,11 +668,11 @@ mod tests {
 	fn node_parse_fails_for_invalid_urls() {
 		let node = Node::from_str("foo");
 		assert!(node.is_err());
-		assert_matches!(node.unwrap_err().kind(), &ErrorKind::AddressParse);
+		assert_matches!(node.unwrap_err(), Error::AddressParse);
 
 		let node = Node::from_str("enode://foo@bar");
 		assert!(node.is_err());
-		assert_matches!(node.unwrap_err().kind(), &ErrorKind::AddressParse);
+		assert_matches!(node.unwrap_err(), Error::AddressParse);
 	}
 
 	#[test]

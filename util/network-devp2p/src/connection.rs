@@ -601,13 +601,13 @@ mod tests {
 
 	impl Read for TestBrokenSocket {
 		fn read(&mut self, _: &mut [u8]) -> Result<usize> {
-			Err(Error::new(Error::Other, self.error.clone()))
+			Err(Error::new(ErrorKind::Other, self.error.clone()))
 		}
 	}
 
 	impl Write for TestBrokenSocket {
 		fn write(&mut self, _: &[u8]) -> Result<usize> {
-			Err(Error::new(Error::Other, self.error.clone()))
+			Err(Error::new(ErrorKind::Other, self.error.clone()))
 		}
 
 		fn flush(&mut self) -> Result<()> {
