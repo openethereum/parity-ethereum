@@ -148,10 +148,10 @@ impl Progress {
 }
 /// Take a snapshot using the given blockchain, starting block hash, and database, writing into the given writer.
 pub fn take_snapshot<W: SnapshotWriter + Send>(
-	engine: &EthEngine,
+	engine: &dyn EthEngine,
 	chain: &BlockChain,
 	block_at: H256,
-	state_db: &HashDB<KeccakHasher, DBValue>,
+	state_db: &dyn HashDB<KeccakHasher, DBValue>,
 	writer: W,
 	p: &Progress,
 	processing_threads: usize,
@@ -228,7 +228,7 @@ pub fn take_snapshot<W: SnapshotWriter + Send>(
 /// Secondary chunks are engine-specific, but they intend to corroborate the state data
 /// in the state chunks.
 /// Returns a list of chunk hashes, with the first having the blocks furthest from the genesis.
-pub fn chunk_secondary<'a>(mut chunker: Box<SnapshotComponents>, chain: &'a BlockChain, start_hash: H256, writer: &Mutex<SnapshotWriter + 'a>, progress: &'a Progress) -> Result<Vec<H256>, Error> {
+pub fn chunk_secondary<'a>(mut chunker: Box<dyn SnapshotComponents>, chain: &'a BlockChain, start_hash: H256, writer: &Mutex<dyn SnapshotWriter + 'a>, progress: &'a Progress) -> Result<Vec<H256>, Error> {
 	let mut chunk_hashes = Vec::new();
 	let mut snappy_buffer = vec![0; snappy::max_compressed_len(PREFERRED_CHUNK_SIZE)];
 
@@ -266,7 +266,7 @@ struct StateChunker<'a> {
 	rlps: Vec<Bytes>,
 	cur_size: usize,
 	snappy_buffer: Vec<u8>,
-	writer: &'a Mutex<SnapshotWriter + 'a>,
+	writer: &'a Mutex<dyn SnapshotWriter + 'a>,
 	progress: &'a Progress,
 }
 
@@ -321,7 +321,7 @@ impl<'a> StateChunker<'a> {
 ///
 /// Returns a list of hashes of chunks created, or any error it may
 /// have encountered.
-pub fn chunk_state<'a>(db: &HashDB<KeccakHasher, DBValue>, root: &H256, writer: &Mutex<SnapshotWriter + 'a>, progress: &'a Progress, part: Option<usize>) -> Result<Vec<H256>, Error> {
+pub fn chunk_state<'a>(db: &dyn HashDB<KeccakHasher, DBValue>, root: &H256, writer: &Mutex<dyn SnapshotWriter + 'a>, progress: &'a Progress, part: Option<usize>) -> Result<Vec<H256>, Error> {
 	let account_trie = TrieDB::new(&db, &root)?;
 
 	let mut chunker = StateChunker {
@@ -383,7 +383,7 @@ pub fn chunk_state<'a>(db: &HashDB<KeccakHasher, DBValue>, root: &H256, writer: 
 
 /// Used to rebuild the state trie piece by piece.
 pub struct StateRebuilder {
-	db: Box<JournalDB>,
+	db: Box<dyn JournalDB>,
 	state_root: H256,
 	known_code: HashMap<H256, H256>, // code hashes mapped to first account with this code.
 	missing_code: HashMap<H256, Vec<H256>>, // maps code hashes to lists of accounts missing that code.
@@ -393,7 +393,7 @@ pub struct StateRebuilder {
 
 impl StateRebuilder {
 	/// Create a new state rebuilder to write into the given backing DB.
-	pub fn new(db: Arc<KeyValueDB>, pruning: Algorithm) -> Self {
+	pub fn new(db: Arc<dyn KeyValueDB>, pruning: Algorithm) -> Self {
 		StateRebuilder {
 			db: journaldb::new(db.clone(), pruning, ::db::COL_STATE),
 			state_root: KECCAK_NULL_RLP,
@@ -468,7 +468,7 @@ impl StateRebuilder {
 	/// Finalize the restoration. Check for accounts missing code and make a dummy
 	/// journal entry.
 	/// Once all chunks have been fed, there should be nothing missing.
-	pub fn finalize(mut self, era: u64, id: H256) -> Result<Box<JournalDB>, ::error::Error> {
+	pub fn finalize(mut self, era: u64, id: H256) -> Result<Box<dyn JournalDB>, ::error::Error> {
 		let missing = self.missing_code.keys().cloned().collect::<Vec<_>>();
 		if !missing.is_empty() { return Err(Error::MissingCode(missing).into()) }
 
@@ -493,7 +493,7 @@ struct RebuiltStatus {
 // rebuild a set of accounts and their storage.
 // returns a status detailing newly-loaded code and accounts missing code.
 fn rebuild_accounts(
-	db: &mut HashDB<KeccakHasher, DBValue>,
+	db: &mut dyn HashDB<KeccakHasher, DBValue>,
 	account_fat_rlps: Rlp,
 	out_chunk: &mut [(H256, Bytes)],
 	known_code: &HashMap<H256, H256>,
@@ -560,7 +560,7 @@ const POW_VERIFY_RATE: f32 = 0.02;
 /// Verify an old block with the given header, engine, blockchain, body. If `always` is set, it will perform
 /// the fullest verification possible. If not, it will take a random sample to determine whether it will
 /// do heavy or light verification.
-pub fn verify_old_block(rng: &mut OsRng, header: &Header, engine: &EthEngine, chain: &BlockChain, always: bool) -> Result<(), ::error::Error> {
+pub fn verify_old_block(rng: &mut OsRng, header: &Header, engine: &dyn EthEngine, chain: &BlockChain, always: bool) -> Result<(), ::error::Error> {
 	engine.verify_block_basic(header)?;
 
 	if always || rng.gen::<f32>() <= POW_VERIFY_RATE {

@@ -382,7 +382,7 @@ pub struct Spec {
 	/// User friendly spec name
 	pub name: String,
 	/// What engine are we using for this?
-	pub engine: Arc<EthEngine>,
+	pub engine: Arc<dyn EthEngine>,
 	/// Name of the subdir inside the main data dir to use for chain data and settings.
 	pub data_dir: String,
 
@@ -601,7 +601,7 @@ impl Spec {
 		engine_spec: ethjson::spec::Engine,
 		params: CommonParams,
 		builtins: BTreeMap<Address, Builtin>,
-	) -> Arc<EthEngine> {
+	) -> Arc<dyn EthEngine> {
 		let machine = Self::machine(&engine_spec, params, builtins);
 
 		match engine_spec {

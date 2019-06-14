@@ -47,7 +47,7 @@ impl ClientIoMessage {
 }
 
 /// A function to invoke in the client thread.
-pub struct Callback(pub Box<Fn(&Client) + Send + Sync>);
+pub struct Callback(pub Box<dyn Fn(&Client) + Send + Sync>);
 
 impl fmt::Debug for Callback {
 	fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
