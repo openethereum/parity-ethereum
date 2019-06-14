@@ -100,51 +100,57 @@ pub fn run_action<T: Informant>(
 	})
 }
 
-/// Execute given transaction and verify resulting state root.
-pub fn run_transaction<T: Informant>(
-	// Chain specification name associated with the transaction.
-	name: &str,
-	// Transaction index from list of transactions within a state root hashes corresponding to a chain.
+/// Input data to run transaction
+#[derive(Debug)]
+pub struct InputData<T> {
+	/// Chain specification name associated with the transaction.
+	name: &'a str,
+	/// Transaction index from list of transactions within a state root hashes corresponding to a chain.
 	idx: usize,
-	// Fork specification (i.e. Constantinople, EIP150, EIP158, etc).
-	spec: &ethjson::spec::ForkSpec,
-	// State of all accounts in the system that is a binary tree mapping of each account address to account data
-	// that is expressed as Plain Old Data containing the account balance, account nonce, account code in bytes,
-	// and the account storage binary tree map.
-	pre_state: &pod_state::PodState,
-	// State root hash associated with the transaction.
+	/// Fork specification (i.e. Constantinople, EIP150, EIP158, etc).
+	spec: &'a ethjson::spec::ForkSpec,
+	/// State of all accounts in the system that is a binary tree mapping of each account address to account data
+	/// that is expressed as Plain Old Data containing the account balance, account nonce, account code in bytes,
+	/// and the account storage binary tree map.
+	pre_state: &'a pod_state::PodState,
+	/// State root hash associated with the transaction.
 	post_root: H256,
-	// Client environment information associated with the transaction's chain specification.
-	env_info: &client::EnvInfo,
+	/// Client environment information associated with the transaction's chain specification.
+	env_info: &'a client::EnvInfo,
 	transaction: transaction::SignedTransaction,
-	// JSON formatting informant.
+	/// JSON formatting informant.
 	mut informant: T,
 	trie_spec: TrieSpec,
+}
+
+/// Execute given transaction and verify resulting state root.
+pub fn run_transaction<T: Informant>(
+	input_data: InputData<T>
 ) {
-	let spec_name = format!("{:?}", spec).to_lowercase();
-	let spec = match EvmTestClient::spec_from_json(spec) {
+	let spec_name = format!("{:?}", input_data.spec).to_lowercase();
+	let spec = match EvmTestClient::spec_from_json(input_data.spec) {
 		Some(spec) => {
-			informant.before_test(&format!("{}:{}:{}", name, spec_name, idx), "starting");
-			spec
+			input_data.informant.before_test(&format!("{}:{}:{}", input_data.name, input_data.spec_name, input_data.idx), "starting");
+			input_data.spec
 		},
 		None => {
-			informant.before_test(&format!("{}:{}:{}", name, spec_name, idx), "skipping because of missing spec");
+			input_data.informant.before_test(&format!("{}:{}:{}", input_data.name, input_data.spec_name, input_data.idx), "skipping because of missing spec");
 			return;
 		},
 	};
 
-	informant.set_gas(env_info.gas_limit);
+	input_data.informant.set_gas(input_data.env_info.gas_limit);
 
-	let mut sink = informant.clone_sink();
-	let result = run(&spec, trie_spec, transaction.gas, pre_state, |mut client| {
-		let result = client.transact(env_info, transaction, trace::NoopTracer, informant);
+	let mut sink = input_data.informant.clone_sink();
+	let result = run(&input_data.spec, input_data.trie_spec, input_data.transaction.gas, input_data.pre_state, |mut client| {
+		let result = client.transact(input_data.env_info, input_data.transaction, trace::NoopTracer, input_data.informant);
 		match result {
 			Ok(TransactSuccess { state_root, gas_left, output, vm_trace, end_state, .. }) => {
-				if state_root != post_root {
+				if state_root != input_data.post_root {
 					(Err(EvmTestError::PostCondition(format!(
 						"State root mismatch (got: {:#x}, expected: {:#x})",
 						state_root,
-						post_root,
+						input_data.post_root,
 					))), state_root, end_state, Some(gas_left), None)
 				} else {
 					(Ok(output), state_root, end_state, Some(gas_left), vm_trace)
