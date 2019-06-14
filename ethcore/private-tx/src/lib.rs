@@ -414,7 +414,6 @@ impl Provider {
 		let original_tx_hash = desc.original_transaction.hash();
 
 		if last.0 {
-			let mut saved_state = desc.state;
 			let contract = Self::contract_address_from_transaction(&desc.original_transaction)?;
 			let mut signatures = desc.received_signatures.clone();
 			signatures.push(signed_tx.signature());
@@ -723,7 +722,7 @@ impl Provider {
 		if self.use_offchain_storage {
 			// Save state into the storage and return its hash
 			let original_state = saved_state.clone();
-			saved_state = self.state_storage.private_state_db().save_state(&original_state)?.to_vec();
+			saved_state = self.state_storage.private_state_db().save_state(&original_state)?.0.to_vec();
 		}
 		Ok(PrivateExecutionResult {
 			code: encrypted_code,

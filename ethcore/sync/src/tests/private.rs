@@ -165,8 +165,8 @@ fn send_private_transaction() {
 #[test]
 fn sync_private_state() {
 	// Setup two clients
-	let s0 = KeyPair::from_secret_slice(&keccak("1")).unwrap();
-	let s1 = KeyPair::from_secret_slice(&keccak("0")).unwrap();
+	let s0 = KeyPair::from_secret_slice(&keccak("1").as_bytes()).unwrap();
+	let s1 = KeyPair::from_secret_slice(&keccak("0").as_bytes()).unwrap();
 
 	let signer = Arc::new(ethcore_private_tx::KeyPairSigner(vec![s0.clone(), s1.clone()]));
 
@@ -193,12 +193,14 @@ fn sync_private_state() {
 	let validator_config = ProviderConfig{
 		validator_accounts: vec![s1.address()],
 		signer_account: None,
+		logs_path: None,
 		use_offchain_storage: true,
 	};
 
 	let signer_config = ProviderConfig{
 		validator_accounts: Vec::new(),
 		signer_account: Some(s0.address()),
+		logs_path: None,
 		use_offchain_storage: true,
 	};
 
