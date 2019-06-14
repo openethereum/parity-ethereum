@@ -66,32 +66,22 @@ pub const DEFAULT_NUM_CONSECUTIVE_FAILED_REQUESTS: usize = 1;
 
 /// OnDemand related errors
 pub mod error {
-	// Silence: `use of deprecated item 'std::error::Error::cause': replaced by Error::source, which can support downcasting`
-	// https://github.com/paritytech/parity-ethereum/issues/10302
-	#![allow(deprecated)]
-
 	use futures::sync::oneshot::Canceled;
 
-	error_chain! {
-
-		foreign_links {
-			ChannelCanceled(Canceled) #[doc = "Canceled oneshot channel"];
-		}
-
-		errors {
-			#[doc = "Timeout bad response"]
-			BadResponse(err: String) {
-				description("Max response evaluation time exceeded")
-				display("{}", err)
-			}
-
-			#[doc = "OnDemand requests limit exceeded"]
-			RequestLimit {
-				description("OnDemand request maximum backoff iterations exceeded")
-				display("OnDemand request maximum backoff iterations exceeded")
-			}
-		}
+	/// OnDemand Error
+	#[derive(Debug, derive_more::Display, derive_more::From)]
+	pub enum Error {
+		/// Canceled oneshot channel
+		ChannelCanceled(Canceled),
+		/// Timeout bad response
+		BadResponse(String),
+		/// OnDemand requests limit exceeded
+		#[display(fmt = "OnDemand request maximum backoff iterations exceeded")]
+		RequestLimit,
 	}
+
+	/// OnDemand Result
+	pub type Result<T> = std::result::Result<T, Error>;
 }
 
 /// Public interface for performing network requests `OnDemand`
@@ -272,7 +262,7 @@ impl Pending {
 			response_err
 		);
 
-		let err = self::error::ErrorKind::BadResponse(err);
+		let err = self::error::Error::BadResponse(err);
 		if self.sender.send(Err(err.into())).is_err() {
 			debug!(target: "on_demand", "Dropped oneshot channel receiver on no response");
 		}
@@ -280,7 +270,7 @@ impl Pending {
 
 	// returning a peer discovery timeout during query attempts
 	fn request_limit_reached(self) {
-		let err = self::error::ErrorKind::RequestLimit;
+		let err = self::error::Error::RequestLimit;
 		if self.sender.send(Err(err.into())).is_err() {
 			debug!(target: "on_demand", "Dropped oneshot channel receiver on time out");
 		}

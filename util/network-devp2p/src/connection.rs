@@ -358,7 +358,7 @@ impl EncryptedConnection {
 		let mut header = RlpStream::new();
 		let len = payload.len();
 		if len > MAX_PAYLOAD_SIZE {
-			bail!(Error::OversizedPacket);
+			return Err(Error::OversizedPacket);
 		}
 		header.append_raw(&[(len >> 16) as u8, (len >> 8) as u8, len as u8], 1);
 		header.append_raw(&[0xc2u8, 0x80u8, 0x80u8], 1);
