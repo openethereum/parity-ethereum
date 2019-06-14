@@ -195,7 +195,7 @@ fn run_state_test(args: Args) {
 				// The database is a key-value datastore implemented as a database-backend
 				// modified Merkle tree.
 				// Use a secure trie database specification when CLI option `--std-dump-json`
-				// is specified, otherwise use secure trie with FAT trie database.
+				// is specified, otherwise use secure trie with fat trie database.
 				let trie_spec = if args.flag_std_dump_json {
 					TrieSpec::Fat
 				} else {
