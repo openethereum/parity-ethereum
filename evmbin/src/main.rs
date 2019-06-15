@@ -97,7 +97,7 @@ Transaction options:
     --from ADDRESS     Sender address (without 0x).
     --input DATA       Input data as hex (without 0x).
     --gas GAS          Supplied gas as hex (without 0x).
-    --gas-price GWEI   Supplied gas price as hex (without 0x).
+    --gas-price WEI   Supplied gas price as hex (without 0x).
 
 State test options:
     --chain CHAIN      Run only from specific chain name (i.e. one of EIP150, EIP158,
@@ -366,8 +366,8 @@ impl Args {
 		}
 	}
 
-	// CLI option `--gas-price GWEI`
-	/// Set the gas price in GWei. Defaults to zero to allow the code to run even if an account with no balance
+	// CLI option `--gas-price WEI`
+	/// Set the gas price. Defaults to zero to allow the code to run even if an account with no balance
 	/// is used, otherwise such accounts would not have sufficient funds to pay the transaction fee.
 	/// Defaulting to zero also makes testing easier since it is not necessary to specify a special configuration file.
 	pub fn gas_price(&self) -> Result<U256, String> {
