@@ -431,7 +431,7 @@ impl EncryptedConnection {
 			let mut expected = H128::default();
 			self.ingress_mac.clone().finalize(expected.as_bytes_mut());
 			if mac != &expected[..] {
-				return Err(ErrorKind::Auth);
+				return Err(Error::Auth);
 			}
 		}
 		self.decoder.decrypt(&mut payload[..self.payload_len + padding])?;
