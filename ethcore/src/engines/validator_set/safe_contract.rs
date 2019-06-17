@@ -77,7 +77,7 @@ pub struct ValidatorSafeContract {
 	/// The LRU cache is indexed by the parent_hash, so given a hash, the value
 	/// is the validator set valid for the blocks following that hash.
 	validators: RwLock<MemoryLruCache<H256, SimpleList>>,
-	client: RwLock<Option<Weak<EngineClient>>>, // TODO [keorn]: remove
+	client: RwLock<Option<Weak<dyn EngineClient>>>, // TODO [keorn]: remove
 }
 
 // first proof is just a state proof call of `getValidators` at header's state.
@@ -437,7 +437,7 @@ impl ValidatorSet for ValidatorSafeContract {
 				 }))
 	}
 
-	fn register_client(&self, client: Weak<EngineClient>) {
+	fn register_client(&self, client: Weak<dyn EngineClient>) {
 		trace!(target: "engine", "Setting up contract caller.");
 		*self.client.write() = Some(client);
 	}

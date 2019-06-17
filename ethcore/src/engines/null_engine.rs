@@ -99,7 +99,7 @@ impl<M: Machine> Engine<M> for NullEngine<M> {
 		Ok(())
 	}
 
-	fn snapshot_components(&self) -> Option<Box<::snapshot::SnapshotComponents>> {
+	fn snapshot_components(&self) -> Option<Box<dyn (::snapshot::SnapshotComponents)>> {
 		Some(Box::new(::snapshot::PowSnapshot::new(10000, 10000)))
 	}
 

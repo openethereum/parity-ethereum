@@ -5,7 +5,7 @@ authors = ["Parity Technologies <admin@parity.io>"]
 
 [dependencies]
 ansi_term = "0.10"
-error-chain = { version = "0.12", default-features = false }
+derive_more = "0.14.0"
 ethcore = { path = ".." }
 ethcore-blockchain = { path = "../blockchain" }
 ethcore-io = { path = "../../util/io" }

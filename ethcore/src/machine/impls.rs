@@ -67,7 +67,7 @@ impl From<::ethjson::spec::EthashParams> for EthashExtensions {
 }
 
 /// Special rules to be applied to the schedule.
-pub type ScheduleCreationRules = Fn(&mut Schedule, BlockNumber) + Sync + Send;
+pub type ScheduleCreationRules = dyn Fn(&mut Schedule, BlockNumber) + Sync + Send;
 
 /// An ethereum-like state machine.
 pub struct EthereumMachine {
@@ -415,7 +415,7 @@ pub struct AuxiliaryData<'a> {
 
 /// Type alias for a function we can make calls through synchronously.
 /// Returns the call result and state proof for each call.
-pub type Call<'a> = Fn(Address, Vec<u8>) -> Result<(Vec<u8>, Vec<Vec<u8>>), String> + 'a;
+pub type Call<'a> = dyn Fn(Address, Vec<u8>) -> Result<(Vec<u8>, Vec<Vec<u8>>), String> + 'a;
 
 /// Request for auxiliary data of a block.
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -429,7 +429,7 @@ pub enum AuxiliaryRequest {
 }
 
 impl super::Machine for EthereumMachine {
-	type EngineClient = ::client::EngineClient;
+	type EngineClient = dyn (::client::EngineClient);
 
 	type Error = Error;
 

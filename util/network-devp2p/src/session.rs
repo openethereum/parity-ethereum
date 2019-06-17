@@ -30,7 +30,7 @@ use connection::{Connection, EncryptedConnection, MAX_PAYLOAD_SIZE, Packet};
 use handshake::Handshake;
 use host::*;
 use io::{IoContext, StreamToken};
-use network::{DisconnectReason, Error, ErrorKind, PeerCapabilityInfo, ProtocolId, SessionInfo};
+use network::{DisconnectReason, Error, PeerCapabilityInfo, ProtocolId, SessionInfo};
 use network::client_version::ClientVersion;
 use network::SessionCapabilityInfo;
 use node_table::NodeId;
@@ -256,10 +256,10 @@ impl Session {
         where Message: Send + Sync + Clone {
 		if protocol.is_some() && (self.info.capabilities.is_empty() || !self.had_hello) {
 			debug!(target: "network", "Sending to unconfirmed session {}, protocol: {:?}, packet: {}", self.token(), protocol.as_ref().map(|p| str::from_utf8(&p[..]).unwrap_or("??")), packet_id);
-			bail!(ErrorKind::BadProtocol);
+			return Err(Error::BadProtocol);
 		}
 		if self.expired() {
-			return Err(ErrorKind::Expired.into());
+			return Err(Error::Expired);
 		}
 		let mut i = 0usize;
 		let pid = match protocol {
@@ -281,7 +281,7 @@ impl Session {
 		let mut payload = data; // create a reference with local lifetime
 		if self.compression {
 			if payload.len() > MAX_PAYLOAD_SIZE {
-				bail!(ErrorKind::OversizedPacket);
+				return Err(Error::OversizedPacket);
 			}
 			let len = snappy::compress_into(&payload, &mut compressed);
 			trace!(target: "network", "compressed {} to {}", payload.len(), len);
@@ -331,16 +331,16 @@ impl Session {
 	fn read_packet<Message>(&mut self, io: &IoContext<Message>, packet: &Packet, host: &HostInfo) -> Result<SessionData, Error>
 	where Message: Send + Sync + Clone {
 		if packet.data.len() < 2 {
-			return Err(ErrorKind::BadProtocol.into());
+			return Err(Error::BadProtocol);
 		}
 		let packet_id = packet.data[0];
 		if packet_id != PACKET_HELLO && packet_id != PACKET_DISCONNECT && !self.had_hello {
-			return Err(ErrorKind::BadProtocol.into());
+			return Err(Error::BadProtocol);
 		}
 		let data = if self.compression {
 			let compressed = &packet.data[1..];
 			if snappy::decompressed_len(&compressed)? > MAX_PAYLOAD_SIZE {
-				bail!(ErrorKind::OversizedPacket);
+				return Err(Error::OversizedPacket);
 			}
 			snappy::decompress(&compressed)?
 		} else {
@@ -358,7 +358,7 @@ impl Session {
 				if self.had_hello {
 					debug!(target:"network", "Disconnected: {}: {:?}", self.token(), DisconnectReason::from_u8(reason));
 				}
-				Err(ErrorKind::Disconnect(DisconnectReason::from_u8(reason)).into())
+				Err(Error::Disconnect(DisconnectReason::from_u8(reason)))
 			}
 			PACKET_PING => {
 				self.send_pong(io)?;
@@ -500,7 +500,7 @@ impl Session {
 			rlp.append(&(reason as u32));
 			self.send_packet(io, None, PACKET_DISCONNECT, &rlp.drain()).ok();
 		}
-		ErrorKind::Disconnect(reason).into()
+		Error::Disconnect(reason)
 	}
 
 	fn send<Message>(&mut self, io: &IoContext<Message>, data: &[u8]) -> Result<(), Error> where Message: Send + Sync + Clone {
