@@ -127,9 +127,9 @@ impl SnapshotComponents for PoaSnapshot {
 	fn rebuilder(
 		&self,
 		chain: BlockChain,
-		db: Arc<BlockChainDB>,
+		db: Arc<dyn BlockChainDB>,
 		manifest: &ManifestData,
-	) -> Result<Box<Rebuilder>, ::error::Error> {
+	) -> Result<Box<dyn Rebuilder>, ::error::Error> {
 		Ok(Box::new(ChunkRebuilder {
 			manifest: manifest.clone(),
 			warp_target: None,
@@ -164,14 +164,14 @@ struct ChunkRebuilder {
 	manifest: ManifestData,
 	warp_target: Option<Header>,
 	chain: BlockChain,
-	db: Arc<KeyValueDB>,
+	db: Arc<dyn KeyValueDB>,
 	had_genesis: bool,
 
 	// sorted vectors of unverified first blocks in a chunk
 	// and epoch data from last blocks in chunks.
 	// verification for these will be done at the end.
 	unverified_firsts: Vec<(Header, Bytes, H256)>,
-	last_epochs: Vec<(Header, Box<EpochVerifier<EthereumMachine>>)>,
+	last_epochs: Vec<(Header, Box<dyn EpochVerifier<EthereumMachine>>)>,
 }
 
 // verified data.
@@ -183,9 +183,9 @@ struct Verified {
 impl ChunkRebuilder {
 	fn verify_transition(
 		&mut self,
-		last_verifier: &mut Option<Box<EpochVerifier<EthereumMachine>>>,
+		last_verifier: &mut Option<Box<dyn EpochVerifier<EthereumMachine>>>,
 		transition_rlp: Rlp,
-		engine: &EthEngine,
+		engine: &dyn EthEngine,
 	) -> Result<Verified, ::error::Error> {
 		use engines::ConstructedVerifier;
 
@@ -241,7 +241,7 @@ impl Rebuilder for ChunkRebuilder {
 	fn feed(
 		&mut self,
 		chunk: &[u8],
-		engine: &EthEngine,
+		engine: &dyn EthEngine,
 		abort_flag: &AtomicBool,
 	) -> Result<(), ::error::Error> {
 		let rlp = Rlp::new(chunk);
@@ -349,7 +349,7 @@ impl Rebuilder for ChunkRebuilder {
 		Ok(())
 	}
 
-	fn finalize(&mut self, _engine: &EthEngine) -> Result<(), ::error::Error> {
+	fn finalize(&mut self, _engine: &dyn EthEngine) -> Result<(), ::error::Error> {
 		if !self.had_genesis {
 			return Err(Error::WrongChunkFormat("No genesis transition included.".into()).into());
 		}

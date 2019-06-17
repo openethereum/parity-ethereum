@@ -72,8 +72,8 @@ impl Broadcast for Mutex<IoChannel<ClientIoMessage>> {
 /// A `ChainNotify` implementation which will trigger a snapshot event
 /// at certain block numbers.
 pub struct Watcher {
-	oracle: Box<Oracle>,
-	broadcast: Box<Broadcast>,
+	oracle: Box<dyn Oracle>,
+	broadcast: Box<dyn Broadcast>,
 	period: u64,
 	history: u64,
 }

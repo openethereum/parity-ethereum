@@ -75,7 +75,7 @@ pub fn to_fat_rlps(
 	max_chunk_size: usize,
 	p: &Progress,
 ) -> Result<Vec<Bytes>, Error> {
-	let db = &(acct_db as &HashDB<_,_>);
+	let db = &(acct_db as &dyn HashDB<_,_>);
 	let db = TrieDB::new(db, &acc.storage_root)?;
 	let mut chunks = Vec::new();
 	let mut db_iter = db.iter()?;
