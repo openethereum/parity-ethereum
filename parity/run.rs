@@ -66,14 +66,10 @@ use signer;
 use db;
 
 // how often to take periodic snapshots.
-// TODO: restore before merge
-//const SNAPSHOT_PERIOD: u64 = 5000;
-const SNAPSHOT_PERIOD: u64 = 50;
+const SNAPSHOT_PERIOD: u64 = 5000;
 
 // how many blocks to wait before starting a periodic snapshot.
-// TODO: restore before merge
-//const SNAPSHOT_HISTORY: u64 = 100;
-const SNAPSHOT_HISTORY: u64 = 5;
+const SNAPSHOT_HISTORY: u64 = 100;
 
 // Number of minutes before a given gas price corpus should expire.
 // Light client only.
