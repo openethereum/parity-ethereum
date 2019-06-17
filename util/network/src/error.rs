@@ -91,40 +91,40 @@ pub enum Error {
 	/// Rlp decoder error.
 	Rlp(rlp::DecoderError),
 	/// Error concerning the network address parsing subsystem.
-	#[display(fmt ="Failed to parse network address")]
+	#[display(fmt = "Failed to parse network address")]
 	AddressParse,
 	/// Error concerning the network address resolution subsystem.
-	#[display(fmt ="Failed to resolve network address {}", _0)]
+	#[display(fmt = "Failed to resolve network address {}", _0)]
 	AddressResolve(AddressResolveError),
 	/// Authentication failure
-	#[display(fmt ="Authentication failure")]
+	#[display(fmt = "Authentication failure")]
 	Auth,
 	/// Unrecognised protocol
-	#[display(fmt ="Bad protocol")]
+	#[display(fmt = "Bad protocol")]
 	BadProtocol,
 	/// Expired message
-	#[display(fmt ="Expired message")]
+	#[display(fmt = "Expired message")]
 	Expired,
 	/// Peer not found
-	#[display(fmt ="Peer not found")]
+	#[display(fmt = "Peer not found")]
 	PeerNotFound,
 	/// Peer is disconnected
-	#[display(fmt ="Peer disconnected: {}", _0)]
+	#[display(fmt = "Peer disconnected: {}", _0)]
 	Disconnect(DisconnectReason),
 	/// Invalid node id
-	#[display(fmt ="Invalid node id")]
+	#[display(fmt = "Invalid node id")]
 	InvalidNodeId,
 	/// Packet size is over the protocol limit
-	#[display(fmt ="Packet is too large")]
+	#[display(fmt = "Packet is too large")]
 	OversizedPacket,
 	/// Reached system resource limits for this process
-	#[display(fmt ="Too many open files in this process. Check your resource limits and restart parity")]
+	#[display(fmt = "Too many open files in this process. Check your resource limits and restart parity")]
 	ProcessTooManyFiles,
 	/// Reached system wide resource limits
-	#[display(fmt ="Too many open files on system. Consider closing some processes/release some file handlers or increas the system-wide resource limits and restart parity.")]
+	#[display(fmt = "Too many open files on system. Consider closing some processes/release some file handlers or increas the system-wide resource limits and restart parity.")]
 	SystemTooManyFiles,
 	/// An unknown IO error occurred.
-	#[display(fmt ="Unexpected IO error: {}", _0)]
+	#[display(fmt = "Unexpected IO error: {}", _0)]
 	Io(io::Error),
 }
 
