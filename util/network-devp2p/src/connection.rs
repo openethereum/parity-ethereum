@@ -27,14 +27,11 @@ use mio::{PollOpt, Ready, Token};
 use mio::deprecated::{EventLoop, Handler, TryRead, TryWrite};
 use mio::tcp::*;
 use parity_bytes::*;
-use rcrypto::aessafe::*;
-use rcrypto::blockmodes::*;
-use rcrypto::buffer::*;
-use rcrypto::symmetriccipher::*;
+use crypto::aes::{AesCtr256, AesEcb256};
 use rlp::{Rlp, RlpStream};
 use tiny_keccak::Keccak;
 
-use ethkey::crypto;
+use ethkey::{crypto, Secret};
 use handshake::Handshake;
 use io::{IoContext, StreamToken};
 use network::Error;
@@ -279,11 +276,11 @@ pub struct EncryptedConnection {
 	/// Underlying tcp connection
 	pub connection: Connection,
 	/// Egress data encryptor
-	encoder: CtrMode<AesSafe256Encryptor>,
+	encoder: AesCtr256,
 	/// Ingress data decryptor
-	decoder: CtrMode<AesSafe256Encryptor>,
+	decoder: AesCtr256,
 	/// Ingress data decryptor
-	mac_encoder: EcbEncryptor<AesSafe256Encryptor, EncPadding<NoPadding>>,
+	mac_encoder_key: Secret,
 	/// MAC for egress data
 	egress_mac: Keccak,
 	/// MAC for ingress data
@@ -296,6 +293,7 @@ pub struct EncryptedConnection {
 	payload_len: usize,
 }
 
+const NULL_IV : [u8; 16] = [0;16];
 impl EncryptedConnection {
 	/// Create an encrypted connection out of the handshake.
 	pub fn new(handshake: &mut Handshake) -> Result<EncryptedConnection, Error> {
@@ -317,14 +315,15 @@ impl EncryptedConnection {
 		let key_material_keccak = keccak(&key_material);
 		(&mut key_material[32..64]).copy_from_slice(key_material_keccak.as_bytes());
 
-		let iv = vec![0u8; 16];
-		let encoder = CtrMode::new(AesSafe256Encryptor::new(&key_material[32..64]), iv);
-		let iv = vec![0u8; 16];
-		let decoder = CtrMode::new(AesSafe256Encryptor::new(&key_material[32..64]), iv);
-
+		// Using a 0 IV with CTR is fine as long as the same IV is never reused with the same key.
+		// This is the case here: ecdh creates a new secret which will be the symmetric key used
+		// only for this session the 0 IV is only use once with this secret, so we are in the case
+		// of same IV use for different key.
+		let encoder = AesCtr256::new(&key_material[32..64], &NULL_IV)?;
+		let decoder = AesCtr256::new(&key_material[32..64], &NULL_IV)?;
 		let key_material_keccak = keccak(&key_material);
 		(&mut key_material[32..64]).copy_from_slice(key_material_keccak.as_bytes());
-		let mac_encoder = EcbEncryptor::new(AesSafe256Encryptor::new(&key_material[32..64]), NoPadding);
+		let mac_encoder_key: Secret = Secret::from_slice(&key_material[32..64]).expect("can create Secret from 32 bytes; qed");
 
 		let mut egress_mac = Keccak::new_keccak256();
 		let mut mac_material = H256::from_slice(&key_material[32..64]) ^ handshake.remote_nonce;
@@ -342,7 +341,7 @@ impl EncryptedConnection {
 			connection,
 			encoder,
 			decoder,
-			mac_encoder,
+			mac_encoder_key,
 			egress_mac,
 			ingress_mac,
 			read_state: EncryptedConnectionState::Header,
@@ -355,56 +354,55 @@ impl EncryptedConnection {
 
 	/// Send a packet
 	pub fn send_packet<Message>(&mut self, io: &IoContext<Message>, payload: &[u8]) -> Result<(), Error> where Message: Send + Clone + Sync + 'static {
+		const HEADER_LEN: usize = 16;
 		let mut header = RlpStream::new();
 		let len = payload.len();
 		if len > MAX_PAYLOAD_SIZE {
 			return Err(Error::OversizedPacket);
 		}
+
 		header.append_raw(&[(len >> 16) as u8, (len >> 8) as u8, len as u8], 1);
 		header.append_raw(&[0xc2u8, 0x80u8, 0x80u8], 1);
-		//TODO: get rid of vectors here
-		let mut header = header.out();
-		let padding = (16 - (payload.len() % 16)) % 16;
-		header.resize(16, 0u8);
+		let padding = (16 - (len % 16)) % 16;
 
-		let mut packet = vec![0u8; 32 + payload.len() + padding + 16];
-		self.encoder.encrypt(&mut RefReadBuffer::new(&header), &mut RefWriteBuffer::new(&mut packet), false).expect("Invalid length or padding");
-		EncryptedConnection::update_mac(&mut self.egress_mac, &mut self.mac_encoder,  &packet[0..16]);
-		self.egress_mac.clone().finalize(&mut packet[16..32]);
-		self.encoder.encrypt(&mut RefReadBuffer::new(payload), &mut RefWriteBuffer::new(&mut packet[32..(32 + len)]), padding == 0).expect("Invalid length or padding");
+		let mut packet = vec![0u8; 16 + 16 + len + padding + 16];
+		let mut header = header.out();
+		header.resize(HEADER_LEN, 0u8);
+		&mut packet[..HEADER_LEN].copy_from_slice(&mut header);
+		self.encoder.encrypt(&mut packet[..HEADER_LEN])?;
+		EncryptedConnection::update_mac(&mut self.egress_mac, &self.mac_encoder_key, &packet[..HEADER_LEN])?;
+		self.egress_mac.clone().finalize(&mut packet[HEADER_LEN..32]);
+		&mut packet[32..32 + len].copy_from_slice(payload);
+		self.encoder.encrypt(&mut packet[32..32 + len])?;
 		if padding != 0 {
-			let pad = [0u8; 16];
-			self.encoder.encrypt(&mut RefReadBuffer::new(&pad[0..padding]), &mut RefWriteBuffer::new(&mut packet[(32 + len)..(32 + len + padding)]), true).expect("Invalid length or padding");
+			self.encoder.encrypt(&mut packet[(32 + len)..(32 + len + padding)])?;
 		}
 		self.egress_mac.update(&packet[32..(32 + len + padding)]);
-		EncryptedConnection::update_mac(&mut self.egress_mac, &mut self.mac_encoder, &[0u8; 0]);
+		EncryptedConnection::update_mac(&mut self.egress_mac, &self.mac_encoder_key, &[0u8; 0])?;
 		self.egress_mac.clone().finalize(&mut packet[(32 + len + padding)..]);
 		self.connection.send(io, packet);
+
 		Ok(())
 	}
 
 	/// Decrypt and authenticate an incoming packet header. Prepare for receiving payload.
-	fn read_header(&mut self, header: &[u8]) -> Result<(), Error> {
+	fn read_header(&mut self, mut header: Bytes) -> Result<(), Error> {
 		if header.len() != ENCRYPTED_HEADER_LEN {
 			return Err(Error::Auth);
 		}
-		EncryptedConnection::update_mac(&mut self.ingress_mac, &mut self.mac_encoder, &header[0..16]);
-		let mac = &header[16..];
-		let mut expected = H256::zero();
-		self.ingress_mac.clone().finalize(expected.as_bytes_mut());
-		if mac != &expected[0..16] {
-			return Err(Error::Auth);
+		EncryptedConnection::update_mac(&mut self.ingress_mac, &self.mac_encoder_key, &header[0..16])?;
+		{
+			let mac = &header[16..];
+			let mut expected = H256::zero();
+			self.ingress_mac.clone().finalize(expected.as_bytes_mut());
+			if mac != &expected[0..16] {
+				return Err(Error::Auth);
+			}
 		}
+		self.decoder.decrypt(&mut header[..16])?;
 
-		let mut hdec = H128::default();
-		self.decoder.decrypt(
-			&mut RefReadBuffer::new(&header[0..16]),
-			&mut RefWriteBuffer::new(hdec.as_bytes_mut()),
-			false,
-		).expect("Invalid length or padding");
-
-		let length = ((((hdec[0] as u32) << 8) + (hdec[1] as u32)) << 8) + (hdec[2] as u32);
-		let header_rlp = Rlp::new(&hdec[3..6]);
+		let length = ((((header[0] as u32) << 8) + (header[1] as u32)) << 8) + (header[2] as u32);
+		let header_rlp = Rlp::new(&header[3..6]);
 		let protocol_id = header_rlp.val_at::<u16>(0)?;
 
 		self.payload_len = length as usize;
@@ -413,50 +411,49 @@ impl EncryptedConnection {
 
 		let padding = (16 - (length % 16)) % 16;
 		let full_length = length + padding + 16;
+
 		self.connection.expect(full_length as usize);
 		Ok(())
 	}
 
 	/// Decrypt and authenticate packet payload.
-	fn read_payload(&mut self, payload: &[u8]) -> Result<Packet, Error> {
+	fn read_payload(&mut self, mut payload: Bytes) -> Result<Packet, Error> {
 		let padding = (16 - (self.payload_len  % 16)) % 16;
 		let full_length = self.payload_len + padding + 16;
 		if payload.len() != full_length {
 			return Err(Error::Auth);
 		}
 		self.ingress_mac.update(&payload[0..payload.len() - 16]);
-		EncryptedConnection::update_mac(&mut self.ingress_mac, &mut self.mac_encoder, &[0u8; 0]);
-		let mac = &payload[(payload.len() - 16)..];
-		let mut expected = H128::default();
-		self.ingress_mac.clone().finalize(expected.as_bytes_mut());
-		if mac != &expected[..] {
-			return Err(Error::Auth);
-		}
+		EncryptedConnection::update_mac(&mut self.ingress_mac, &self.mac_encoder_key, &[0u8; 0])?;
 
-		let mut packet = vec![0u8; self.payload_len];
-		self.decoder.decrypt(&mut RefReadBuffer::new(&payload[0..self.payload_len]), &mut RefWriteBuffer::new(&mut packet), false).expect("Invalid length or padding");
-		let mut pad_buf = [0u8; 16];
-		self.decoder.decrypt(&mut RefReadBuffer::new(&payload[self.payload_len..(payload.len() - 16)]), &mut RefWriteBuffer::new(&mut pad_buf), false).expect("Invalid length or padding");
+		{
+			let mac = &payload[(payload.len() - 16)..];
+			let mut expected = H128::default();
+			self.ingress_mac.clone().finalize(expected.as_bytes_mut());
+			if mac != &expected[..] {
+				return Err(Error::Auth);
+			}
+		}
+		self.decoder.decrypt(&mut payload[..self.payload_len + padding])?;
+		payload.truncate(self.payload_len);
 		Ok(Packet {
 			protocol: self.protocol_id,
-			data: packet
+			data: payload
 		})
 	}
 
 	/// Update MAC after reading or writing any data.
-	fn update_mac(mac: &mut Keccak, mac_encoder: &mut EcbEncryptor<AesSafe256Encryptor, EncPadding<NoPadding>>, seed: &[u8]) {
+	fn update_mac(mac: &mut Keccak, mac_encoder_key: &Secret, seed: &[u8]) -> Result<(), Error> {
 		let mut prev = H128::default();
 		mac.clone().finalize(prev.as_bytes_mut());
 		let mut enc = H128::default();
-		mac_encoder.encrypt(
-			&mut RefReadBuffer::new(prev.as_bytes()),
-			&mut RefWriteBuffer::new(enc.as_bytes_mut()),
-			true
-		).expect("Error updating MAC");
-		mac_encoder.reset();
+		&mut enc[..].copy_from_slice(prev.as_bytes());
+		let mac_encoder = AesEcb256::new(mac_encoder_key.as_bytes())?;
+		mac_encoder.encrypt(enc.as_bytes_mut())?;
 
 		enc = enc ^ if seed.is_empty() { prev } else { H128::from_slice(seed) };
 		mac.update(enc.as_bytes());
+		Ok(())
 	}
 
 	/// Readable IO handler. Tracker receive status and returns decoded packet if available.
@@ -464,7 +461,7 @@ impl EncryptedConnection {
 		io.clear_timer(self.connection.token)?;
 		if let EncryptedConnectionState::Header = self.read_state {
 			if let Some(data) = self.connection.readable()? {
-				self.read_header(&data)?;
+				self.read_header(data)?;
 				io.register_timer(self.connection.token, RECEIVE_PAYLOAD)?;
 			}
 		};
@@ -473,7 +470,7 @@ impl EncryptedConnection {
 				Some(data) => {
 					self.read_state = EncryptedConnectionState::Header;
 					self.connection.expect(ENCRYPTED_HEADER_LEN);
-					Ok(Some(self.read_payload(&data)?))
+					Ok(Some(self.read_payload(data)?))
 				},
 				None => Ok(None)
 			}
@@ -487,28 +484,6 @@ impl EncryptedConnection {
 		self.connection.writable(io)?;
 		Ok(())
 	}
-}
-
-#[test]
-pub fn test_encryption() {
-	use ethereum_types::{H256, H128};
-	use std::str::FromStr;
-	let key = H256::from_str("2212767d793a7a3d66f869ae324dd11bd17044b82c9f463b8a541a4d089efec5").unwrap();
-	let before = H128::from_str("12532abaec065082a3cf1da7d0136f15").unwrap();
-	let before2 = H128::from_str("7e99f682356fdfbc6b67a9562787b18a").unwrap();
-	let after = H128::from_str("89464c6b04e7c99e555c81d3f7266a05").unwrap();
-	let after2 = H128::from_str("85c070030589ef9c7a2879b3a8489316").unwrap();
-
-	let mut got = H128::zero();
-
-	let mut encoder = EcbEncryptor::new(AesSafe256Encryptor::new(key.as_bytes()), NoPadding);
-	encoder.encrypt(&mut RefReadBuffer::new(before.as_bytes()), &mut RefWriteBuffer::new(got.as_bytes_mut()), true).unwrap();
-	encoder.reset();
-	assert_eq!(got, after);
-	got = H128::zero();
-	encoder.encrypt(&mut RefReadBuffer::new(before2.as_bytes()), &mut RefWriteBuffer::new(got.as_bytes_mut()), true).unwrap();
-	encoder.reset();
-	assert_eq!(got, after2);
 }
 
 #[cfg(test)]
@@ -663,6 +638,30 @@ mod tests {
 
 	fn test_io() -> IoContext<i32> {
 		IoContext::new(IoChannel::disconnected(), 0)
+	}
+
+	#[test]
+	pub fn test_encryption() {
+		use ethereum_types::{H256, H128};
+		use std::str::FromStr;
+		let key = H256::from_str("2212767d793a7a3d66f869ae324dd11bd17044b82c9f463b8a541a4d089efec5").unwrap();
+		let before = H128::from_str("12532abaec065082a3cf1da7d0136f15").unwrap();
+		let before2 = H128::from_str("7e99f682356fdfbc6b67a9562787b18a").unwrap();
+		let after = H128::from_str("89464c6b04e7c99e555c81d3f7266a05").unwrap();
+		let after2 = H128::from_str("85c070030589ef9c7a2879b3a8489316").unwrap();
+
+		let mut got = H128::default();
+
+		let encoder = AesEcb256::new(key.as_bytes()).unwrap();
+		got.as_bytes_mut().copy_from_slice(before.as_bytes());
+		encoder.encrypt(got.as_bytes_mut()).unwrap();
+		assert_eq!(got, after);
+
+		let encoder = AesEcb256::new(key.as_bytes()).unwrap();
+		got = H128::default();
+		got.as_bytes_mut().copy_from_slice(&before2.as_bytes());
+		encoder.encrypt(got.as_bytes_mut()).unwrap();
+		assert_eq!(got, after2);
 	}
 
 	#[test]

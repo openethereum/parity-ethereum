@@ -65,7 +65,6 @@ extern crate ansi_term;
 #[cfg(test)] #[macro_use]
 extern crate assert_matches;
 extern crate bytes;
-extern crate crypto as rcrypto;
 #[cfg(test)]
 extern crate env_logger;
 extern crate ethcore_io as io;
