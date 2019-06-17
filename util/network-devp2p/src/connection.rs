@@ -321,8 +321,8 @@ impl EncryptedConnection {
 		// of same IV use for different key.
 		let encoder = AesCtr256::new(&key_material[32..64], &NULL_IV)?;
 		let decoder = AesCtr256::new(&key_material[32..64], &NULL_IV)?;
-        let key_material_keccak = keccak(&key_material);
-        (&mut key_material[32..64]).copy_from_slice(key_material_keccak.as_bytes());
+		let key_material_keccak = keccak(&key_material);
+		(&mut key_material[32..64]).copy_from_slice(key_material_keccak.as_bytes());
 		let mac_encoder_key: Secret = Secret::from_slice(&key_material[32..64]).expect("can create Secret from 32 bytes; qed");
 
 		let mut egress_mac = Keccak::new_keccak256();
