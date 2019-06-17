@@ -241,7 +241,6 @@ impl<Trace: Writer, Out: Writer> trace::VMTracer for Informant<Trace, Out> {
 			let info = ::evm::Instruction::from_u8(instruction).map(|i| i.info());
 			informant.instruction = instruction;
 
-			// Reference: https://serde.rs/attr-skip-serializing.html
 			let trace_data =
 				TraceData {
 					pc: pc,

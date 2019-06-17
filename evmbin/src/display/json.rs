@@ -95,7 +95,6 @@ impl Informant {
 	fn informant_trace(informant: &Informant, gas_used: U256) -> String {
 		let info = ::evm::Instruction::from_u8(informant.instruction).map(|i| i.info());
 
-		// Reference: https://serde.rs/attr-skip-serializing.html
 		let trace_data =
 			TraceData {
 				pc: informant.pc,
