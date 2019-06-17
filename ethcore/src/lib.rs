@@ -54,10 +54,6 @@
 //!   cargo build --release
 //!   ```
 
-// Recursion limit required because of
-// error_chain foreign_links.
-#![recursion_limit="128"]
-
 extern crate ansi_term;
 extern crate bn;
 extern crate byteorder;

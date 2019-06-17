@@ -27,7 +27,7 @@ use parity_bytes::Bytes;
 use rlp::{Rlp, RlpStream};
 
 use ethkey::{KeyPair, recover, Secret, sign};
-use network::{Error, ErrorKind};
+use network::Error;
 use network::IpFilter;
 use node_table::*;
 use PROTOCOL_VERSION;
@@ -482,12 +482,12 @@ impl<'a> Discovery<'a> {
 	pub fn on_packet(&mut self, packet: &[u8], from: SocketAddr) -> Result<Option<TableUpdates>, Error> {
 		// validate packet
 		if packet.len() < 32 + 65 + 4 + 1 {
-			return Err(ErrorKind::BadProtocol.into());
+			return Err(Error::BadProtocol);
 		}
 
 		let hash_signed = keccak(&packet[32..]);
 		if hash_signed[..] != packet[0..32] {
-			return Err(ErrorKind::BadProtocol.into());
+			return Err(Error::BadProtocol);
 		}
 
 		let signed = &packet[(32 + 65)..];
@@ -512,7 +512,7 @@ impl<'a> Discovery<'a> {
 		let secs_since_epoch = SystemTime::now().duration_since(UNIX_EPOCH).unwrap_or_default().as_secs();
 		if self.check_timestamps && timestamp < secs_since_epoch {
 			debug!(target: "discovery", "Expired packet");
-			return Err(ErrorKind::Expired.into());
+			return Err(Error::Expired);
 		}
 		Ok(())
 	}
