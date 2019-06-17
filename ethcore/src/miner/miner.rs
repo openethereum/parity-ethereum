@@ -203,7 +203,7 @@ pub enum Author {
 	/// Sealing block is external and we only need a reward beneficiary (i.e. PoW)
 	External(Address),
 	/// Sealing is done internally, we need a way to create signatures to seal block (i.e. PoA)
-	Sealer(Box<EngineSigner>),
+	Sealer(Box<dyn EngineSigner>),
 }
 
 impl Author {
@@ -245,8 +245,8 @@ pub struct Miner {
 	options: MinerOptions,
 	// TODO [ToDr] Arc is only required because of price updater
 	transaction_queue: Arc<TransactionQueue>,
-	engine: Arc<EthEngine>,
-	accounts: Arc<LocalAccounts>,
+	engine: Arc<dyn EthEngine>,
+	accounts: Arc<dyn LocalAccounts>,
 	io_channel: RwLock<Option<IoChannel<ClientIoMessage>>>,
 	service_transaction_checker: Option<ServiceTransactionChecker>,
 }
@@ -260,14 +260,16 @@ impl Miner {
 	}
 
 	/// Set a callback to be notified about imported transactions' hashes.
-	pub fn add_transactions_listener(&self, f: Box<Fn(&[H256]) + Send + Sync>) {
-		self.transaction_queue.add_listener(f);
+	pub fn pending_transactions_receiver(&self) -> mpsc::UnboundedReceiver<Arc<Vec<H256>>> {
+		let (sender, receiver) = mpsc::unbounded();
+		self.transaction_queue.add_pending_listener(sender);
+		receiver
 	}
 
-	/// Set a callback to be notified
-	pub fn tx_pool_receiver(&self) -> mpsc::UnboundedReceiver<Arc<Vec<(H256, TxStatus)>>> {
+	/// Set a callback to be notified about imported transactions' hashes.
+	pub fn full_transactions_receiver(&self) -> mpsc::UnboundedReceiver<Arc<Vec<(H256, TxStatus)>>> {
 		let (sender, receiver) = mpsc::unbounded();
-		self.transaction_queue.add_tx_pool_listener(sender);
+		self.transaction_queue.add_full_listener(sender);
 		receiver
 	}
 

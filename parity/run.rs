@@ -30,7 +30,7 @@ use ethcore::verification::queue::VerifierSettings;
 use ethcore_logger::{Config as LogConfig, RotatingLogger};
 use ethcore_service::ClientService;
 use ethereum_types::Address;
-use futures::IntoFuture;
+use futures::{IntoFuture, Stream};
 use hash_fetch::{self, fetch};
 use informant::{Informant, LightNodeInformantData, FullNodeInformantData};
 use journaldb::Algorithm;
@@ -668,14 +668,19 @@ fn execute_impl<Cr, Rr>(cmd: RunCmd, logger: Arc<RotatingLogger>, on_client_rq: 
 	// Propagate transactions as soon as they are imported.
 	let tx = ::parking_lot::Mutex::new(priority_tasks);
 	let is_ready = Arc::new(atomic::AtomicBool::new(true));
-	miner.add_transactions_listener(Box::new(move |_hashes| {
-		// we want to have only one PendingTransactions task in the queue.
-		if is_ready.compare_and_swap(true, false, atomic::Ordering::SeqCst) {
-			let task = ::sync::PriorityTask::PropagateTransactions(Instant::now(), is_ready.clone());
-			// we ignore error cause it means that we are closing
-			let _ = tx.lock().send(task);
-		}
-	}));
+	let executor = runtime.executor();
+	let pool_receiver = miner.pending_transactions_receiver();
+	executor.spawn(
+		pool_receiver.for_each(move |_hashes| {
+			// we want to have only one PendingTransactions task in the queue.
+			if is_ready.compare_and_swap(true, false, atomic::Ordering::SeqCst) {
+				let task = ::sync::PriorityTask::PropagateTransactions(Instant::now(), is_ready.clone());
+				// we ignore error cause it means that we are closing
+				let _ = tx.lock().send(task);
+			}
+			Ok(())
+		})
+	);
 
 	// provider not added to a notification center is effectively disabled
 	// TODO [debris] refactor it later on

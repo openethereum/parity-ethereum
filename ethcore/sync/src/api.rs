@@ -22,7 +22,7 @@ use std::time::Duration;
 use bytes::Bytes;
 use devp2p::NetworkService;
 use network::{NetworkProtocolHandler, NetworkContext, PeerId, ProtocolId,
-	NetworkConfiguration as BasicNetworkConfiguration, NonReservedPeerMode, Error, ErrorKind,
+	NetworkConfiguration as BasicNetworkConfiguration, NonReservedPeerMode, Error,
 	ConnectionFilter};
 use network::client_version::ClientVersion;
 
@@ -593,7 +593,7 @@ impl ChainNotify for EthSync {
 		match self.network.start() {
 			Err((err, listen_address)) => {
 				match err.into() {
-					ErrorKind::Io(ref e) if e.kind() == io::ErrorKind::AddrInUse => {
+					Error::Io(ref e) if e.kind() == io::ErrorKind::AddrInUse => {
 						warn!("Network port {:?} is already in use, make sure that another instance of an Ethereum client is not running or change the port using the --port option.", listen_address.expect("Listen address is not set."))
 					},
 					err => warn!("Error starting network: {}", err),
@@ -983,7 +983,7 @@ impl ManageNetwork for LightSync {
 		match self.network.start() {
 			Err((err, listen_address)) => {
 				match err.into() {
-					ErrorKind::Io(ref e) if e.kind() == io::ErrorKind::AddrInUse => {
+					Error::Io(ref e) if e.kind() == io::ErrorKind::AddrInUse => {
 						warn!("Network port {:?} is already in use, make sure that another instance of an Ethereum client is not running or change the port using the --port option.", listen_address.expect("Listen address is not set."))
 					},
 					err => warn!("Error starting network: {}", err),

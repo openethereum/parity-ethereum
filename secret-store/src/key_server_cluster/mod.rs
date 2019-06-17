@@ -25,7 +25,7 @@ pub use super::serialization::{SerializableSignature, SerializableH256, Serializ
 	SerializableRequester, SerializableMessageHash, SerializableAddress};
 pub use self::cluster::{new_network_cluster, ClusterCore, ClusterConfiguration, ClusterClient};
 pub use self::cluster_connections_net::NetConnectionsManagerConfig;
-pub use self::cluster_sessions::{ClusterSession, ClusterSessionsListener};
+pub use self::cluster_sessions::{ClusterSession, ClusterSessionsListener, WaitableSession};
 #[cfg(test)]
 pub use self::cluster::tests::DummyClusterClient;
 
