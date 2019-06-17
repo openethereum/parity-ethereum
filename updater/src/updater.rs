@@ -182,7 +182,7 @@ lazy_static! {
 
 
 // Pads the bytes with zeros or truncates the last bytes to H256::len_bytes()
-// before the convertion to match the previous behavior.
+// before the conversion to match the previous behavior.
 fn h256_from_str_resizing(s: &str) -> H256 {
 	let mut bytes = s.as_bytes().to_vec();
 	bytes.resize(H256::len_bytes(), 0);
