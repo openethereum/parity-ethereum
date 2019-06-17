@@ -37,7 +37,7 @@ use tiny_keccak::Keccak;
 use ethkey::crypto;
 use handshake::Handshake;
 use io::{IoContext, StreamToken};
-use network::{Error, ErrorKind};
+use network::Error;
 
 const ENCRYPTED_HEADER_LEN: usize = 32;
 const RECEIVE_PAYLOAD: Duration = Duration::from_secs(30);
@@ -358,7 +358,7 @@ impl EncryptedConnection {
 		let mut header = RlpStream::new();
 		let len = payload.len();
 		if len > MAX_PAYLOAD_SIZE {
-			bail!(ErrorKind::OversizedPacket);
+			return Err(Error::OversizedPacket);
 		}
 		header.append_raw(&[(len >> 16) as u8, (len >> 8) as u8, len as u8], 1);
 		header.append_raw(&[0xc2u8, 0x80u8, 0x80u8], 1);
@@ -386,14 +386,14 @@ impl EncryptedConnection {
 	/// Decrypt and authenticate an incoming packet header. Prepare for receiving payload.
 	fn read_header(&mut self, header: &[u8]) -> Result<(), Error> {
 		if header.len() != ENCRYPTED_HEADER_LEN {
-			return Err(ErrorKind::Auth.into());
+			return Err(Error::Auth);
 		}
 		EncryptedConnection::update_mac(&mut self.ingress_mac, &mut self.mac_encoder, &header[0..16]);
 		let mac = &header[16..];
 		let mut expected = H256::zero();
 		self.ingress_mac.clone().finalize(expected.as_bytes_mut());
 		if mac != &expected[0..16] {
-			return Err(ErrorKind::Auth.into());
+			return Err(Error::Auth);
 		}
 
 		let mut hdec = H128::default();
@@ -422,7 +422,7 @@ impl EncryptedConnection {
 		let padding = (16 - (self.payload_len  % 16)) % 16;
 		let full_length = self.payload_len + padding + 16;
 		if payload.len() != full_length {
-			return Err(ErrorKind::Auth.into());
+			return Err(Error::Auth);
 		}
 		self.ingress_mac.update(&payload[0..payload.len() - 16]);
 		EncryptedConnection::update_mac(&mut self.ingress_mac, &mut self.mac_encoder, &[0u8; 0]);
@@ -430,7 +430,7 @@ impl EncryptedConnection {
 		let mut expected = H128::default();
 		self.ingress_mac.clone().finalize(expected.as_bytes_mut());
 		if mac != &expected[..] {
-			return Err(ErrorKind::Auth.into());
+			return Err(Error::Auth);
 		}
 
 		let mut packet = vec![0u8; self.payload_len];

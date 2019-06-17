@@ -86,8 +86,7 @@ extern crate keccak_hash as hash;
 extern crate triehash_ethereum as triehash;
 extern crate kvdb;
 extern crate memory_cache;
-#[macro_use]
-extern crate error_chain;
+extern crate derive_more;
 
 #[cfg(test)]
 extern crate kvdb_memorydb;

@@ -61,7 +61,7 @@ impl PrivateTxHandler for PrivateTxService {
 			Ok(import_result) => Ok(import_result),
 			Err(err) => {
 				warn!(target: "privatetx", "Unable to import private transaction packet: {}", err);
-				bail!(err.to_string())
+				return Err(err.to_string())
 			}
 		}
 	}
@@ -71,7 +71,7 @@ impl PrivateTxHandler for PrivateTxService {
 			Ok(import_result) => Ok(import_result),
 			Err(err) => {
 				warn!(target: "privatetx", "Unable to import signed private transaction packet: {}", err);
-				bail!(err.to_string())
+				return Err(err.to_string())
 			}
 		}
 	}

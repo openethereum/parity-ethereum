@@ -14,11 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
-// Silence: `use of deprecated item 'std::error::Error::cause': replaced by Error::source, which can support downcasting`
-// https://github.com/paritytech/parity-ethereum/issues/10302
-#![allow(deprecated)]
-
-use std::{io, net, fmt};
+use std::{error, io, net, fmt};
 use libc::{ENFILE, EMFILE};
 use io::IoError;
 use {rlp, ethkey, crypto, snappy};
@@ -85,118 +81,127 @@ impl fmt::Display for DisconnectReason {
 	}
 }
 
-error_chain! {
-	foreign_links {
-		SocketIo(IoError) #[doc = "Socket IO error."];
-		Decompression(snappy::InvalidInput) #[doc = "Decompression error."];
-		Rlp(rlp::DecoderError) #[doc = "Rlp decoder error."];
+/// Queue error
+#[derive(Debug, derive_more::Display)]
+pub enum Error {
+	/// Socket IO error.
+	SocketIo(IoError),
+	/// Decompression error.
+	Decompression(snappy::InvalidInput),
+	/// Rlp decoder error.
+	Rlp(rlp::DecoderError),
+	/// Error concerning the network address parsing subsystem.
+	#[display(fmt = "Failed to parse network address")]
+	AddressParse,
+	/// Error concerning the network address resolution subsystem.
+	#[display(fmt = "Failed to resolve network address {}", _0)]
+	AddressResolve(AddressResolveError),
+	/// Authentication failure
+	#[display(fmt = "Authentication failure")]
+	Auth,
+	/// Unrecognised protocol
+	#[display(fmt = "Bad protocol")]
+	BadProtocol,
+	/// Expired message
+	#[display(fmt = "Expired message")]
+	Expired,
+	/// Peer not found
+	#[display(fmt = "Peer not found")]
+	PeerNotFound,
+	/// Peer is disconnected
+	#[display(fmt = "Peer disconnected: {}", _0)]
+	Disconnect(DisconnectReason),
+	/// Invalid node id
+	#[display(fmt = "Invalid node id")]
+	InvalidNodeId,
+	/// Packet size is over the protocol limit
+	#[display(fmt = "Packet is too large")]
+	OversizedPacket,
+	/// Reached system resource limits for this process
+	#[display(fmt = "Too many open files in this process. Check your resource limits and restart parity")]
+	ProcessTooManyFiles,
+	/// Reached system wide resource limits
+	#[display(fmt = "Too many open files on system. Consider closing some processes/release some file handlers or increas the system-wide resource limits and restart parity.")]
+	SystemTooManyFiles,
+	/// An unknown IO error occurred.
+	#[display(fmt = "Unexpected IO error: {}", _0)]
+	Io(io::Error),
+}
+
+/// Wraps io::Error for Display impl
+#[derive(Debug)]
+pub struct AddressResolveError(Option<io::Error>);
+
+impl fmt::Display for AddressResolveError {
+	fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
+		write!(f, "{}", self.0.as_ref().map_or("".to_string(), |e| e.to_string()))
 	}
+}
 
-	errors {
-		#[doc = "Error concerning the network address parsing subsystem."]
-		AddressParse {
-			description("Failed to parse network address"),
-			display("Failed to parse network address"),
-		}
+impl From<Option<io::Error>> for AddressResolveError {
+	fn from(err: Option<io::Error>) -> Self {
+		AddressResolveError(err)
+	}
+}
 
-		#[doc = "Error concerning the network address resolution subsystem."]
-		AddressResolve(err: Option<io::Error>) {
-			description("Failed to resolve network address"),
-			display("Failed to resolve network address {}", err.as_ref().map_or("".to_string(), |e| e.to_string())),
+impl error::Error for Error {
+	fn source(&self) -> Option<&(error::Error + 'static)> {
+		match self {
+			Error::Decompression(e) => Some(e),
+			Error::Rlp(e) => Some(e),
+			_ => None,
 		}
+	}
+}
 
-		#[doc = "Authentication failure"]
-		Auth {
-			description("Authentication failure"),
-			display("Authentication failure"),
-		}
+impl From<IoError> for Error {
+	fn from(err: IoError) -> Self {
+		Error::SocketIo(err)
+	}
+}
 
-		#[doc = "Unrecognised protocol"]
-		BadProtocol {
-			description("Bad protocol"),
-			display("Bad protocol"),
-		}
+impl From<snappy::InvalidInput> for Error {
+	fn from(err: snappy::InvalidInput) -> Self {
+		Error::Decompression(err)
+	}
+}
 
-		#[doc = "Expired message"]
-		Expired {
-			description("Expired message"),
-			display("Expired message"),
-		}
-
-		#[doc = "Peer not found"]
-		PeerNotFound {
-			description("Peer not found"),
-			display("Peer not found"),
-		}
-
-		#[doc = "Peer is disconnected"]
-		Disconnect(reason: DisconnectReason) {
-			description("Peer disconnected"),
-			display("Peer disconnected: {}", reason),
-		}
-
-		#[doc = "Invalid node id"]
-		InvalidNodeId {
-			description("Invalid node id"),
-			display("Invalid node id"),
-		}
-
-		#[doc = "Packet size is over the protocol limit"]
-		OversizedPacket {
-			description("Packet is too large"),
-			display("Packet is too large"),
-		}
-
-		#[doc = "Reached system resource limits for this process"]
-		ProcessTooManyFiles {
-			description("Too many open files in process."),
-			display("Too many open files in this process. Check your resource limits and restart parity"),
-		}
-
-		#[doc = "Reached system wide resource limits"]
-		SystemTooManyFiles {
-			description("Too many open files on system."),
-			display("Too many open files on system. Consider closing some processes/release some file handlers or increas the system-wide resource limits and restart parity."),
-		}
-
-		#[doc = "An unknown IO error occurred."]
-		Io(err: io::Error) {
-			description("IO Error"),
-			display("Unexpected IO error: {}", err),
-		}
+impl From<rlp::DecoderError> for Error {
+	fn from(err: rlp::DecoderError) -> Self {
+		Error::Rlp(err)
 	}
 }
 
 impl From<io::Error> for Error {
 	fn from(err: io::Error) -> Self {
 		match err.raw_os_error() {
-			Some(ENFILE) => ErrorKind::ProcessTooManyFiles.into(),
-			Some(EMFILE) => ErrorKind::SystemTooManyFiles.into(),
-			_ => Error::from_kind(ErrorKind::Io(err))
+			Some(ENFILE) => Error::ProcessTooManyFiles,
+			Some(EMFILE) => Error::SystemTooManyFiles,
+			_ => Error::Io(err)
 		}
 	}
 }
 
 impl From<ethkey::Error> for Error {
 	fn from(_err: ethkey::Error) -> Self {
-		ErrorKind::Auth.into()
+		Error::Auth
 	}
 }
 
 impl From<ethkey::crypto::Error> for Error {
 	fn from(_err: ethkey::crypto::Error) -> Self {
-		ErrorKind::Auth.into()
+		Error::Auth
 	}
 }
 
 impl From<crypto::error::SymmError> for Error {
 	fn from(_err: crypto::error::SymmError) -> Self {
-		ErrorKind::Auth.into()
+		Error::Auth
 	}
 }
 
 impl From<net::AddrParseError> for Error {
-	fn from(_err: net::AddrParseError) -> Self { ErrorKind::AddressParse.into() }
+	fn from(_err: net::AddrParseError) -> Self { Error::AddressParse }
 }
 
 #[test]
@@ -208,13 +213,13 @@ fn test_errors() {
 	}
 	assert_eq!(DisconnectReason::Unknown, r);
 
-	match *<Error as From<rlp::DecoderError>>::from(rlp::DecoderError::RlpIsTooBig).kind() {
-		ErrorKind::Rlp(_) => {},
+	match <Error as From<rlp::DecoderError>>::from(rlp::DecoderError::RlpIsTooBig) {
+		Error::Rlp(_) => {},
 		_ => panic!("Unexpected error"),
 	}
 
-	match *<Error as From<ethkey::crypto::Error>>::from(ethkey::crypto::Error::InvalidMessage).kind() {
-		ErrorKind::Auth => {},
+	match <Error as From<ethkey::crypto::Error>>::from(ethkey::crypto::Error::InvalidMessage) {
+		Error::Auth => {},
 		_ => panic!("Unexpected error"),
 	}
 }
@@ -226,18 +231,18 @@ fn test_io_errors() {
 	assert_matches!(
 		<Error as From<io::Error>>::from(
 			io::Error::from_raw_os_error(ENFILE)
-			).kind(),
-		ErrorKind::ProcessTooManyFiles);
+			),
+		Error::ProcessTooManyFiles);
 
 	assert_matches!(
 		<Error as From<io::Error>>::from(
 			io::Error::from_raw_os_error(EMFILE)
-			).kind(),
-		ErrorKind::SystemTooManyFiles);
+			),
+		Error::SystemTooManyFiles);
 
 	assert_matches!(
 		<Error as From<io::Error>>::from(
 			io::Error::from_raw_os_error(0)
-			).kind(),
-		ErrorKind::Io(_));
+			),
+		Error::Io(_));
 }

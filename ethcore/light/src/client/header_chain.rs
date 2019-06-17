@@ -260,7 +260,7 @@ impl HeaderChain {
 			let best_block = {
 				let era = match candidates.get(&curr.best_num) {
 					Some(era) => era,
-					None => bail!("Database corrupt: highest block referenced but no data."),
+					None => return Err("Database corrupt: highest block referenced but no data.".into()),
 				};
 
 				let best = &era.candidates[0];
@@ -582,7 +582,7 @@ impl HeaderChain {
 					} else {
 						let msg = format!("header of block #{} not found in DB ; database in an \
 											inconsistent state", h_num);
-						bail!(msg);
+						return Err(msg.into());
 					};
 
 					let decoded = header.decode().expect("decoding db value failed");

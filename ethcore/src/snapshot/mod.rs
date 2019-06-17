@@ -107,7 +107,7 @@ impl Default for SnapshotConfiguration {
 	fn default() -> Self {
 		SnapshotConfiguration {
 			no_periodic: false,
-			processing_threads: ::std::cmp::max(1, num_cpus::get() / 2),
+			processing_threads: ::std::cmp::max(1, num_cpus::get_physical() / 2),
 		}
 	}
 }
