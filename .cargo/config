@@ -1,3 +1,6 @@
 [target.x86_64-pc-windows-msvc]
 # Link the C runtime statically ; https://github.com/paritytech/parity-ethereum/issues/6643
 rustflags = ["-Ctarget-feature=+crt-static"]
+
+[target.'cfg(target_arch = "x86_64")']
+rustflags = ["-Ctarget_feature=sse2", "-Ctarget_feature=aes", "-Ctarget_feature=ssse3"]
