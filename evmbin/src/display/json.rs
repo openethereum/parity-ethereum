@@ -124,7 +124,8 @@ impl vm::Informant for Informant {
 			}
 		;
 
-		println!("{:?}", init_message);
+		let s = serde_json::to_string(&init_message).expect("serialization cannot fail; qed");
+		println!("{}", s);
 	}
 
 	fn set_gas(&mut self, gas: U256) {
