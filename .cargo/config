@@ -3,4 +3,4 @@
 rustflags = ["-Ctarget-feature=+crt-static"]
 
 [target.'cfg(target_arch = "x86_64")']
-rustflags = ["-Ctarget_feature=sse2", "-Ctarget_feature=aes", "-Ctarget_feature=ssse3"]
+rustflags = ["-Ctarget-feature=+aes,+sse2,+ssse3"]
