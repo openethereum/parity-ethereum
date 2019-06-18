@@ -1461,7 +1461,7 @@ mod tests {
 			private_provider_conf: ProviderConfig {
 				validator_accounts: Default::default(),
 				signer_account: Default::default(),
-				logs_path: Some(Directories::default().base),
+				logs_path: None,
 			},
 			private_encryptor_conf: Default::default(),
 			private_tx_enabled: false,
