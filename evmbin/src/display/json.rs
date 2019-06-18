@@ -119,8 +119,8 @@ impl vm::Informant for Informant {
 	fn before_test(&mut self, name: &str, action: &str) {
 		let init_message =
 			InitMessage {
-				action: &format!("{}", action),
-				test: &format!("{}", name),
+				action,
+				test: &name,
 			}
 		;
 
