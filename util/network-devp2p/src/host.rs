@@ -929,7 +929,7 @@ impl Host {
 		let mut failure_id = None;
 		let mut deregister = false;
 		let mut expired_session = None;
-		if let FIRST_SESSION ... LAST_SESSION = token {
+		if let FIRST_SESSION ..= LAST_SESSION = token {
 			let sessions = self.sessions.read();
 			if let Some(session) = sessions.get(token).cloned() {
 				expired_session = Some(session.clone());
