@@ -16,10 +16,6 @@
 
 //! Private transactions module.
 
-// Recursion limit required because of
-// error_chain foreign_links.
-#![recursion_limit="256"]
-
 mod encryptor;
 mod key_server_keys;
 mod private_transactions;

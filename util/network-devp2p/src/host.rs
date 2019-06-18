@@ -43,10 +43,8 @@ use ethcore_io::{IoContext, IoHandler, IoManager, StreamToken, TimerToken};
 use ethkey::{Generator, KeyPair, Random, Secret};
 use network::{
 	client_version::ClientVersion, ConnectionDirection, ConnectionFilter, DisconnectReason, Error,
-	ErrorKind, NetworkConfiguration,
-	NetworkContext as NetworkContextTrait, NetworkIoMessage, NetworkProtocolHandler, NonReservedPeerMode, PacketId,
-	PeerId, ProtocolId,
-	SessionInfo
+	NetworkConfiguration, NetworkContext as NetworkContextTrait, NetworkIoMessage, NetworkProtocolHandler,
+	NonReservedPeerMode, PacketId, PeerId, ProtocolId, SessionInfo
 };
 
 use crate::{
@@ -164,7 +162,7 @@ impl<'s> NetworkContextTrait for NetworkContext<'s> {
 
 	fn respond(&self, packet_id: PacketId, data: Vec<u8>) -> Result<(), Error> {
 		assert!(self.session.is_some(), "Respond called without network context");
-		self.session_id.map_or_else(|| Err(ErrorKind::Expired.into()), |id| self.send(id, packet_id, data))
+		self.session_id.map_or_else(|| Err(Error::Expired), |id| self.send(id, packet_id, data))
 	}
 
 	fn disable_peer(&self, peer: PeerId) {
@@ -726,8 +724,8 @@ impl Host {
 						Err(e) => {
 							let s = session.lock();
 							trace!(target: "network", "Session read error: {}:{:?} ({:?}) {:?}", token, s.id(), s.remote_addr(), e);
-							match *e.kind() {
-								ErrorKind::Disconnect(DisconnectReason::IncompatibleProtocol) | ErrorKind::Disconnect(DisconnectReason::UselessPeer) => {
+							match e {
+								Error::Disconnect(DisconnectReason::IncompatibleProtocol) | Error::Disconnect(DisconnectReason::UselessPeer) => {
 									if let Some(id) = s.id() {
 										if !self.reserved_nodes.read().contains(id) {
 											let mut nodes = self.nodes.write();
@@ -1011,7 +1009,7 @@ impl IoHandler<NetworkIoMessage> for Host {
 	fn stream_hup(&self, io: &IoContext<NetworkIoMessage>, stream: StreamToken) {
 		trace!(target: "network", "Hup: {}", stream);
 		match stream {
-			FIRST_SESSION ... LAST_SESSION => self.connection_closed(stream, io),
+			FIRST_SESSION ..= LAST_SESSION => self.connection_closed(stream, io),
 			_ => warn!(target: "network", "Unexpected hup"),
 		};
 	}
@@ -1021,7 +1019,7 @@ impl IoHandler<NetworkIoMessage> for Host {
 			return;
 		}
 		match stream {
-			FIRST_SESSION ... LAST_SESSION => self.session_readable(stream, io),
+			FIRST_SESSION ..= LAST_SESSION => self.session_readable(stream, io),
 			DISCOVERY => self.discovery_readable(io),
 			TCP_ACCEPT => self.accept(io),
 			_ => panic!("Received unknown readable token"),
@@ -1033,7 +1031,7 @@ impl IoHandler<NetworkIoMessage> for Host {
 			return;
 		}
 		match stream {
-			FIRST_SESSION ... LAST_SESSION => self.session_writable(stream, io),
+			FIRST_SESSION ..= LAST_SESSION => self.session_writable(stream, io),
 			DISCOVERY => self.discovery_writable(io),
 			_ => panic!("Received unknown writable token"),
 		}
@@ -1045,7 +1043,7 @@ impl IoHandler<NetworkIoMessage> for Host {
 		}
 		match token {
 			IDLE => self.maintain_network(io),
-			FIRST_SESSION ... LAST_SESSION => self.connection_timeout(token, io),
+			FIRST_SESSION ..= LAST_SESSION => self.connection_timeout(token, io),
 			DISCOVERY_REFRESH => {
 				// Run the _slow_ discovery if enough peers are connected
 				if !self.has_enough_peers() {
@@ -1153,7 +1151,7 @@ impl IoHandler<NetworkIoMessage> for Host {
 
 	fn register_stream(&self, stream: StreamToken, reg: Token, event_loop: &mut EventLoop<IoManager<NetworkIoMessage>>) {
 		match stream {
-			FIRST_SESSION ... LAST_SESSION => {
+			FIRST_SESSION ..= LAST_SESSION => {
 				let session = { self.sessions.read().get(stream).cloned() };
 				if let Some(session) = session {
 					session.lock().register_socket(reg, event_loop).expect("Error registering socket");
@@ -1173,7 +1171,7 @@ impl IoHandler<NetworkIoMessage> for Host {
 
 	fn deregister_stream(&self, stream: StreamToken, event_loop: &mut EventLoop<IoManager<NetworkIoMessage>>) {
 		match stream {
-			FIRST_SESSION ... LAST_SESSION => {
+			FIRST_SESSION ..= LAST_SESSION => {
 				let mut connections = self.sessions.write();
 				if let Some(connection) = connections.get(stream).cloned() {
 					let c = connection.lock();
@@ -1190,7 +1188,7 @@ impl IoHandler<NetworkIoMessage> for Host {
 
 	fn update_stream(&self, stream: StreamToken, reg: Token, event_loop: &mut EventLoop<IoManager<NetworkIoMessage>>) {
 		match stream {
-			FIRST_SESSION ... LAST_SESSION => {
+			FIRST_SESSION ..= LAST_SESSION => {
 				let connection = { self.sessions.read().get(stream).cloned() };
 				if let Some(connection) = connection {
 					connection.lock().update_socket(reg, event_loop).expect("Error updating socket");

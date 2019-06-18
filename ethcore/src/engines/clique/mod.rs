@@ -64,7 +64,7 @@ use std::collections::VecDeque;
 use std::sync::{Arc, Weak};
 use std::thread;
 use std::time;
-use std::time::{Duration, SystemTime, UNIX_EPOCH};
+use std::time::{Instant, Duration, SystemTime, UNIX_EPOCH};
 
 use block::ExecutedBlock;
 use client::{BlockId, EngineClient};
@@ -89,11 +89,9 @@ use time_utils::CheckedSystemTime;
 
 use self::block_state::CliqueBlockState;
 use self::params::CliqueParams;
-use self::step_service::StepService;
 
 mod params;
 mod block_state;
-mod step_service;
 mod util;
 
 // TODO(niklasad1): extract tester types into a separate mod to be shared in the code base
@@ -164,11 +162,10 @@ pub struct Clique {
 	epoch_length: u64,
 	period: u64,
 	machine: EthereumMachine,
-	client: RwLock<Option<Weak<EngineClient>>>,
+	client: RwLock<Option<Weak<dyn EngineClient>>>,
 	block_state_by_hash: RwLock<LruCache<H256, CliqueBlockState>>,
 	proposals: RwLock<HashMap<Address, VoteType>>,
-	signer: RwLock<Option<Box<EngineSigner>>>,
-	step_service: Option<StepService>,
+	signer: RwLock<Option<Box<dyn EngineSigner>>>,
 }
 
 #[cfg(test)]
@@ -177,17 +174,19 @@ pub struct Clique {
 	pub epoch_length: u64,
 	pub period: u64,
 	pub machine: EthereumMachine,
-	pub client: RwLock<Option<Weak<EngineClient>>>,
+	pub client: RwLock<Option<Weak<dyn EngineClient>>>,
 	pub block_state_by_hash: RwLock<LruCache<H256, CliqueBlockState>>,
 	pub proposals: RwLock<HashMap<Address, VoteType>>,
-	pub signer: RwLock<Option<Box<EngineSigner>>>,
-	pub step_service: Option<StepService>,
+	pub signer: RwLock<Option<Box<dyn EngineSigner>>>,
 }
 
 impl Clique {
 	/// Initialize Clique engine from empty state.
 	pub fn new(params: CliqueParams, machine: EthereumMachine) -> Result<Arc<Self>, Error> {
-		let mut engine = Clique {
+		/// Step Clique at most every 2 seconds
+		const SEALING_FREQ: Duration = Duration::from_secs(2);
+
+		let engine = Clique {
 			epoch_length: params.epoch,
 			period: params.period,
 			client: Default::default(),
@@ -195,19 +194,29 @@ impl Clique {
 			proposals: Default::default(),
 			signer: Default::default(),
 			machine,
-			step_service: None,
 		};
-		if params.period > 0 {
-			engine.step_service = Some(StepService::new());
-			let engine = Arc::new(engine);
-			let weak_eng = Arc::downgrade(&engine);
-			if let Some(step_service) = &engine.step_service {
-				step_service.start(weak_eng);
-			}
-			Ok(engine)
-		} else {
-			Ok(Arc::new(engine))
-		}
+		let engine = Arc::new(engine);
+		let weak_eng = Arc::downgrade(&engine);
+
+		thread::Builder::new().name("StepService".into())
+			.spawn(move || {
+				loop {
+ 					let next_step_at = Instant::now() + SEALING_FREQ;
+					trace!(target: "miner", "StepService: triggering sealing");
+					if let Some(eng) = weak_eng.upgrade() {
+						eng.step()
+					} else {
+						warn!(target: "shutdown", "StepService: engine is dropped; exiting.");
+						break;
+					}
+
+					let now = Instant::now();
+					if now < next_step_at {
+						thread::sleep(next_step_at - now);
+					}
+				}
+			})?;
+		Ok(engine)
 	}
 
 	#[cfg(test)]
@@ -225,7 +234,6 @@ impl Clique {
 			proposals: Default::default(),
 			signer: Default::default(),
 			machine: Spec::new_test_machine(),
-			step_service: None,
 		}
 	}
 
@@ -348,15 +356,6 @@ impl Clique {
 	}
 }
 
-impl Drop for Clique {
-	fn drop(&mut self) {
-		if let Some(step_service) = &self.step_service {
-			trace!(target: "shutdown", "Clique; stopping step service");
-			step_service.stop();
-		}
-	}
-}
-
 impl Engine<EthereumMachine> for Clique {
 	fn name(&self) -> &str { "Clique" }
 
@@ -371,7 +370,7 @@ impl Engine<EthereumMachine> for Clique {
 		&self,
 		_block: &mut ExecutedBlock,
 		_epoch_begin: bool,
-		_ancestry: &mut Iterator<Item=ExtendedHeader>,
+		_ancestry: &mut dyn Iterator<Item=ExtendedHeader>,
 	) -> Result<(), Error> {
 		Ok(())
 	}
@@ -737,12 +736,12 @@ impl Engine<EthereumMachine> for Clique {
 		}
 	}
 
-	fn set_signer(&self, signer: Box<EngineSigner>) {
+	fn set_signer(&self, signer: Box<dyn EngineSigner>) {
 		trace!(target: "engine", "set_signer: {}", signer.address());
 		*self.signer.write() = Some(signer);
 	}
 
-	fn register_client(&self, client: Weak<EngineClient>) {
+	fn register_client(&self, client: Weak<dyn EngineClient>) {
 		*self.client.write() = Some(client.clone());
 	}
 

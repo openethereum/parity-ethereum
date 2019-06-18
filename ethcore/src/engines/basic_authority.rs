@@ -55,7 +55,7 @@ impl super::EpochVerifier<EthereumMachine> for EpochVerifier {
 	}
 }
 
-fn verify_external(header: &Header, validators: &ValidatorSet) -> Result<(), Error> {
+fn verify_external(header: &Header, validators: &dyn ValidatorSet) -> Result<(), Error> {
 	use rlp::Rlp;
 
 	// Check if the signature belongs to a validator, can depend on parent state.
@@ -75,8 +75,8 @@ fn verify_external(header: &Header, validators: &ValidatorSet) -> Result<(), Err
 /// Engine using `BasicAuthority`, trivial proof-of-authority consensus.
 pub struct BasicAuthority {
 	machine: EthereumMachine,
-	signer: RwLock<Option<Box<EngineSigner>>>,
-	validators: Box<ValidatorSet>,
+	signer: RwLock<Option<Box<dyn EngineSigner>>>,
+	validators: Box<dyn ValidatorSet>,
 }
 
 impl BasicAuthority {
@@ -189,11 +189,11 @@ impl Engine<EthereumMachine> for BasicAuthority {
 		}
 	}
 
-	fn register_client(&self, client: Weak<EngineClient>) {
+	fn register_client(&self, client: Weak<dyn EngineClient>) {
 		self.validators.register_client(client);
 	}
 
-	fn set_signer(&self, signer: Box<EngineSigner>) {
+	fn set_signer(&self, signer: Box<dyn EngineSigner>) {
 		*self.signer.write() = Some(signer);
 	}
 
@@ -205,7 +205,7 @@ impl Engine<EthereumMachine> for BasicAuthority {
 		)
 	}
 
-	fn snapshot_components(&self) -> Option<Box<::snapshot::SnapshotComponents>> {
+	fn snapshot_components(&self) -> Option<Box<dyn (::snapshot::SnapshotComponents)>> {
 		None
 	}
 

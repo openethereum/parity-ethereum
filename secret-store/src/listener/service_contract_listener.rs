@@ -467,7 +467,7 @@ impl ClusterSessionsListener<GenerationSession> for ServiceContractListener {
 		// ignore result - the only thing that we can do is to log the error
 		let server_key_id = session.id();
 		if let Some(origin) = session.origin() {
-			if let Some(generation_result) = session.wait(Some(Default::default())) {
+			if let Some(generation_result) = session.result() {
 				let generation_result = generation_result.map(Some).map_err(Into::into);
 				let _ = Self::process_server_key_generation_result(&self.data, origin, &server_key_id, generation_result);
 			}
@@ -484,7 +484,7 @@ impl ClusterSessionsListener<DecryptionSession> for ServiceContractListener {
 		let session_id = session.id();
 		let server_key_id = session_id.id;
 		if let (Some(requester), Some(origin)) = (session.requester().and_then(|r| r.address(&server_key_id).ok()), session.origin()) {
-			if let Some(retrieval_result) = session.wait(Some(Default::default())) {
+			if let Some(retrieval_result) = session.result() {
 				let retrieval_result = retrieval_result.map(|key_shadow|
 					session.broadcast_shadows()
 						.and_then(|broadcast_shadows|
@@ -509,8 +509,8 @@ impl ClusterSessionsListener<KeyVersionNegotiationSession<KeyVersionNegotiationT
 		// we're interested in:
 		// 1) sessions failed with fatal error
 		// 2) with decryption continue action
-		let error = match session.wait() {
-			Err(ref error) if !error.is_non_fatal() => error.clone(),
+		let error = match session.result() {
+			Some(Err(ref error)) if !error.is_non_fatal() => error.clone(),
 			_ => return,
 		};
 

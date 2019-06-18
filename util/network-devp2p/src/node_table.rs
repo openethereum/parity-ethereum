@@ -24,7 +24,6 @@ use std::path::PathBuf;
 use std::str::FromStr;
 use std::time::{self, Duration, SystemTime};
 
-use error_chain::bail;
 use ethereum_types::H512;
 use log::{debug, warn};
 use rand::{self, Rng};
@@ -32,7 +31,7 @@ use rlp::{DecoderError, Rlp, RlpStream};
 use serde::{Deserialize, Serialize};
 use serde_json;
 
-use network::{AllowIP, Error, ErrorKind, IpFilter};
+use network::{AllowIP, Error, IpFilter};
 
 use crate::{
 	discovery::{NodeEntry, TableUpdates},
@@ -112,10 +111,16 @@ impl NodeEndpoint {
 		self.to_rlp(rlp);
 	}
 
-	/// Validates that the port is not 0 and address IP is specified
-	pub fn is_valid(&self) -> bool {
-		self.udp_port != 0 && self.address.port() != 0 &&
-		match self.address {
+	/// Validates that the tcp port is not 0 and that the node is a valid discovery node (i.e. `is_valid_discovery_node()` is true).
+	/// Sync happens over tcp.
+	pub fn is_valid_sync_node(&self) -> bool {
+		self.is_valid_discovery_node() && self.address.port() != 0
+	}
+
+	/// Validates that the udp port is not 0 and address IP is specified.
+	/// Peer discovery happens over udp.
+	pub fn is_valid_discovery_node(&self) -> bool {
+		self.udp_port != 0 && match self.address {
 			SocketAddr::V4(a) => !a.ip().is_unspecified(),
 			SocketAddr::V6(a) => !a.ip().is_unspecified()
 		}
@@ -133,8 +138,8 @@ impl FromStr for NodeEndpoint {
 				address: a,
 				udp_port: a.port()
 			}),
-			Ok(None) => bail!(ErrorKind::AddressResolve(None)),
-			Err(_) => Err(ErrorKind::AddressParse.into()) // always an io::Error of InvalidInput kind
+			Ok(None) => return Err(Error::AddressResolve(None.into())),
+			Err(_) => Err(Error::AddressParse) // always an io::Error of InvalidInput kind
 		}
 	}
 }
@@ -216,7 +221,7 @@ impl FromStr for Node {
 	type Err = Error;
 	fn from_str(s: &str) -> Result<Self, Self::Err> {
 		let (id, endpoint) = if s.len() > 136 && &s[0..8] == "enode://" && &s[136..137] == "@" {
-			(s[8..136].parse().map_err(|_| ErrorKind::InvalidNodeId)?, NodeEndpoint::from_str(&s[137..])?)
+			(s[8..136].parse().map_err(|_| Error::InvalidNodeId)?, NodeEndpoint::from_str(&s[137..])?)
 		}
 		else {
 			(NodeId::default(), NodeEndpoint::from_str(s)?)
@@ -631,21 +636,21 @@ mod tests {
 	fn endpoint_parse_empty_ip_string_returns_error() {
 		let endpoint = NodeEndpoint::from_str("");
 		assert!(endpoint.is_err());
-		assert_matches!(endpoint.unwrap_err().kind(), &ErrorKind::AddressParse);
+		assert_matches!(endpoint.unwrap_err(), Error::AddressParse);
 	}
 
 	#[test]
 	fn endpoint_parse_invalid_ip_string_returns_error() {
 		let endpoint = NodeEndpoint::from_str("beef");
 		assert!(endpoint.is_err());
-		assert_matches!(endpoint.unwrap_err().kind(), &ErrorKind::AddressParse);
+		assert_matches!(endpoint.unwrap_err(), Error::AddressParse);
 	}
 
 	#[test]
 	fn endpoint_parse_valid_ip_without_port_returns_error() {
 		let endpoint = NodeEndpoint::from_str("123.123.123.123");
 		assert!(endpoint.is_err());
-		assert_matches!(endpoint.unwrap_err().kind(), &ErrorKind::AddressParse);
+		assert_matches!(endpoint.unwrap_err(), Error::AddressParse);
 		let endpoint = NodeEndpoint::from_str("123.123.123.123:123");
 		assert!(endpoint.is_ok())
 	}
@@ -670,11 +675,11 @@ mod tests {
 	fn node_parse_fails_for_invalid_urls() {
 		let node = Node::from_str("foo");
 		assert!(node.is_err());
-		assert_matches!(node.unwrap_err().kind(), &ErrorKind::AddressParse);
+		assert_matches!(node.unwrap_err(), Error::AddressParse);
 
 		let node = Node::from_str("enode://foo@bar");
 		assert!(node.is_err());
-		assert_matches!(node.unwrap_err().kind(), &ErrorKind::AddressParse);
+		assert_matches!(node.unwrap_err(), Error::AddressParse);
 	}
 
 	#[test]

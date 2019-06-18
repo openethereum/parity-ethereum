@@ -166,7 +166,7 @@ impl ShareChangeSession {
 		let consensus_group = self.consensus_group.take().ok_or(Error::InvalidStateForRequest)?;
 		let version_holders = self.version_holders.take().ok_or(Error::InvalidStateForRequest)?;
 		let new_nodes_map = self.new_nodes_map.take().ok_or(Error::InvalidStateForRequest)?;
-		let share_add_session = ShareAddSessionImpl::new(ShareAddSessionParams {
+		let (share_add_session, _) = ShareAddSessionImpl::new(ShareAddSessionParams {
 			meta: self.meta.clone(),
 			nonce: self.nonce,
 			transport: ShareChangeTransport::new(self.session_id, self.nonce, self.cluster.clone()),

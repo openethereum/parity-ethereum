@@ -75,7 +75,7 @@ impl ::engines::StateDependentProof<EthereumMachine> for StateProof {
 pub struct ValidatorSafeContract {
 	contract_address: Address,
 	validators: RwLock<MemoryLruCache<H256, SimpleList>>,
-	client: RwLock<Option<Weak<EngineClient>>>, // TODO [keorn]: remove
+	client: RwLock<Option<Weak<dyn EngineClient>>>, // TODO [keorn]: remove
 }
 
 // first proof is just a state proof call of `getValidators` at header's state.
@@ -431,7 +431,7 @@ impl ValidatorSet for ValidatorSafeContract {
 				 }))
 	}
 
-	fn register_client(&self, client: Weak<EngineClient>) {
+	fn register_client(&self, client: Weak<dyn EngineClient>) {
 		trace!(target: "engine", "Setting up contract caller.");
 		*self.client.write() = Some(client);
 	}

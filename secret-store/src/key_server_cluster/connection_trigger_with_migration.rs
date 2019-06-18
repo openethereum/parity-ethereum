@@ -324,9 +324,10 @@ fn session_state(session: Option<Arc<AdminSession>>) -> SessionState {
 	session
 		.and_then(|s| match s.as_servers_set_change() {
 			Some(s) if !s.is_finished() => Some(SessionState::Active(s.migration_id().cloned())),
-			Some(s) => match s.wait() {
-				Ok(_) => Some(SessionState::Finished(s.migration_id().cloned())),
-				Err(_) => Some(SessionState::Failed(s.migration_id().cloned())),
+			Some(s) => match s.result() {
+				Some(Ok(_)) => Some(SessionState::Finished(s.migration_id().cloned())),
+				Some(Err(_)) => Some(SessionState::Failed(s.migration_id().cloned())),
+				None => unreachable!("s.is_finished() == true; when session is finished, result is available; qed"),
 			},
 			None => None,
 		})

@@ -41,8 +41,6 @@ extern crate ethabi_contract;
 #[macro_use]
 extern crate ethabi_derive;
 #[macro_use]
-extern crate error_chain;
-#[macro_use]
 extern crate log;
 #[macro_use]
 extern crate serde_derive;
