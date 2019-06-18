@@ -22,7 +22,7 @@ use std::iter::FromIterator;
 use std::ops::Deref;
 use std::sync::atomic::{AtomicUsize, AtomicBool, Ordering as AtomicOrdering};
 use std::sync::{Weak, Arc};
-use std::time::{UNIX_EPOCH, SystemTime, Duration};
+use std::time::{UNIX_EPOCH, Duration};
 
 use block::*;
 use client::EngineClient;
@@ -42,13 +42,11 @@ use itertools::{self, Itertools};
 use rlp::{encode, Decodable, DecoderError, Encodable, RlpStream, Rlp};
 use ethereum_types::{H256, H520, Address, U128, U256};
 use parking_lot::{Mutex, RwLock};
+use time_utils::CheckedSystemTime;
 use types::BlockNumber;
 use types::header::{Header, ExtendedHeader};
 use types::ancestry_action::AncestryAction;
 use unexpected::{Mismatch, OutOfBounds};
-
-#[cfg(not(time_checked_add))]
-use time_utils::CheckedSystemTime;
 
 mod finality;
 
@@ -584,10 +582,10 @@ fn verify_timestamp(step: &Step, header_step: u64) -> Result<(), BlockError> {
 			// Returning it further won't recover the sync process.
 			trace!(target: "engine", "verify_timestamp: block too early");
 
-			let now = SystemTime::now();
-			let found = now.checked_add(Duration::from_secs(oob.found)).ok_or(BlockError::TimestampOverflow)?;
-			let max = oob.max.and_then(|m| now.checked_add(Duration::from_secs(m)));
-			let min = oob.min.and_then(|m| now.checked_add(Duration::from_secs(m)));
+			let found = CheckedSystemTime::checked_add(UNIX_EPOCH, Duration::from_secs(oob.found))
+				.ok_or(BlockError::TimestampOverflow)?;
+			let max = oob.max.and_then(|m| CheckedSystemTime::checked_add(UNIX_EPOCH, Duration::from_secs(m)));
+			let min = oob.min.and_then(|m| CheckedSystemTime::checked_add(UNIX_EPOCH, Duration::from_secs(m)));
 
 			let new_oob = OutOfBounds { min, max, found };
 
