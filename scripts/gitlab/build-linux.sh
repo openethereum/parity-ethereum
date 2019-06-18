@@ -11,7 +11,7 @@ echo "CC:               " $CC
 echo "CXX:              " $CXX
 #strip ON
 export RUSTFLAGS=" -C link-arg=-s"
-# Linker for crosscomile
+# Linker for crosscompilation
 echo "_____ Linker _____"
 cat .cargo/config
 
@@ -20,6 +20,11 @@ if [ "${CARGO_TARGET}" = "armv7-linux-androideabi" ]
 then
   time cargo build --target $CARGO_TARGET --verbose --color=always --release -p parity-clib --features final
 else
+  if [ "${CARGO_TARGET}" = "x86_64-unknown-linux-gnu" ] || [ "${CARGO_TARGET}" = "x86_64-apple-darwin" ]
+  then
+    # NOTE: if you change this please remember to also update .cargo/config
+    export RUSTFLAGS="$RUSTFLAGS -Ctarget-feature=+aes,+sse2,+ssse3"
+  fi
   time cargo build --target $CARGO_TARGET --verbose --color=always --release --features final
   time cargo build --target $CARGO_TARGET --verbose --color=always --release -p evmbin
   time cargo build --target $CARGO_TARGET --verbose --color=always --release -p ethstore-cli
