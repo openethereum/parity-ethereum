@@ -382,6 +382,7 @@ impl EncryptedConnection {
 		self.egress_mac.clone().finalize(&mut packet[(32 + len + padding)..]);
 		self.connection.send(io, packet);
 
+
 		Ok(())
 	}
 

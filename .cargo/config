@@ -1,6 +1,21 @@
-[target.x86_64-pc-windows-msvc]
-# Link the C runtime statically ; https://github.com/paritytech/parity-ethereum/issues/6643
-rustflags = ["-Ctarget-feature=+crt-static"]
+# Using 'cfg` is broken, see https://github.com/rust-lang/cargo/issues/6858
+#[target.'cfg(target_arch = "x86_64")']
+#rustflags = ["-Ctarget-feature=+aes,+sse2,+ssse3"]
 
-[target.'cfg(target_arch = "x86_64")']
+# …so instead we list all target triples (Tier 1 64-bit platforms)
+[target.x86_64-unknown-linux-gnu]
+# Enable aesimc. 
 rustflags = ["-Ctarget-feature=+aes,+sse2,+ssse3"]
+
+[target.x86_64-pc-windows-gnu]
+# Enable aesimc. 
+rustflags = ["-Ctarget-feature=+aes,+sse2,+ssse3"]
+
+[target.x86_64-pc-windows-msvc]
+# Enable aesimc. Link the C runtime statically ; https://github.com/paritytech/parity-ethereum/issues/6643
+rustflags = ["-Ctarget-feature=+aes,+sse2,+ssse3", "-Ctarget-feature=+crt-static"]
+
+[target.x86_64-apple-darwin]
+# Enable aesimc. 
+rustflags = ["-Ctarget-feature=+aes,+sse2,+ssse3"]
+
