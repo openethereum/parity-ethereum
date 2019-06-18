@@ -484,8 +484,7 @@ impl Service {
 			if client.chain_info().best_block_number >= num + client.pruning_history() {
 				// The state we were snapshotting was pruned before we could finish.
 				info!("Periodic snapshot failed: block state pruned. Run with a longer `--pruning-history` or with `--no-periodic-snapshot`");
-				// TODO: this looks odd to me. I don't think it's dangerous but I also don't understand why we're not returning an error here.
-				return Ok(())
+				return Err(e);
 			} else {
 				return Err(e);
 			}

@@ -22,7 +22,7 @@
 use std::collections::{HashMap, HashSet};
 use std::cmp;
 use std::sync::Arc;
-use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicU64, AtomicUsize, Ordering};
 use hash::{keccak, KECCAK_NULL_RLP, KECCAK_EMPTY};
 
 use account_db::{AccountDB, AccountDBMut};
@@ -117,9 +117,9 @@ impl Default for SnapshotConfiguration {
 pub struct Progress {
 	accounts: AtomicUsize,
 	blocks: AtomicUsize,
-	size: AtomicUsize, // Todo [rob] use Atomicu64 when it stabilizes.
+	size: AtomicU64,
 	done: AtomicBool,
-	abort: AtomicBool, // TODO: why no Arcs here?
+	abort: AtomicBool,
 }
 
 impl Progress {
@@ -142,7 +142,7 @@ impl Progress {
 	pub fn blocks(&self) -> usize { self.blocks.load(Ordering::Acquire) }
 
 	/// Get the written size of the snapshot in bytes.
-	pub fn size(&self) -> usize { self.size.load(Ordering::Acquire) }
+	pub fn size(&self) -> u64 { self.size.load(Ordering::Acquire) }
 
 	/// Whether the snapshot is complete.
 	pub fn done(&self) -> bool  { self.done.load(Ordering::Acquire) }
@@ -150,7 +150,7 @@ impl Progress {
 }
 /// Take a snapshot using the given blockchain, starting block hash, and database, writing into the given writer.
 pub fn take_snapshot<W: SnapshotWriter + Send>(
-	chunker: Box<SnapshotComponents>,
+	chunker: Box<dyn SnapshotComponents>,
 	chain: &BlockChain,
 	block_hash: H256,
 	state_db: &dyn HashDB<KeccakHasher, DBValue>,
@@ -252,7 +252,7 @@ pub fn chunk_secondary<'a>(
 			trace!(target: "snapshot", "wrote secondary chunk. hash: {:x}, size: {}, uncompressed size: {}",
 				hash, size, raw_data.len());
 
-			progress.size.fetch_add(size, Ordering::SeqCst);
+			progress.size.fetch_add(size as u64, Ordering::SeqCst);
 			chunk_hashes.push(hash);
 			Ok(())
 		};
@@ -310,7 +310,7 @@ impl<'a> StateChunker<'a> {
 		trace!(target: "snapshot", "Thread {} wrote state chunk. size: {}, uncompressed size: {}", self.thread_idx, compressed_size, raw_data.len());
 
 		self.progress.accounts.fetch_add(num_entries, Ordering::SeqCst);
-		self.progress.size.fetch_add(compressed_size, Ordering::SeqCst);
+		self.progress.size.fetch_add(compressed_size as u64, Ordering::SeqCst);
 
 		self.hashes.push(hash);
 		self.cur_size = 0;
