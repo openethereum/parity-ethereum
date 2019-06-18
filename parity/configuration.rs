@@ -917,7 +917,10 @@ impl Configuration {
 		let provider_conf = ProviderConfig {
 			validator_accounts: to_addresses(&self.args.arg_private_validators)?,
 			signer_account: self.args.arg_private_signer.clone().and_then(|account| to_address(Some(account)).ok()),
-			logs_path: Some(dirs.base),
+			logs_path: match self.args.flag_private_enabled {
+				true => Some(dirs.base),
+				false => None,
+			}
 		};
 
 		let encryptor_conf = EncryptorConfig {
