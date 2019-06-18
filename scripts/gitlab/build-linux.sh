@@ -19,7 +19,8 @@ then
 else
   if [ "${CARGO_TARGET}" = "x86_64-unknown-linux-gnu" ] || [ "${CARGO_TARGET}" = "x86_64-apple-darwin" ]
   then
-    # NOTE: if you change this please remember to also update .cargo/config
+    # NOTE: Enables the aes-ni instructions for RustCrypto dependency.
+    # If you change this please remember to also update .cargo/config
     export RUSTFLAGS="$RUSTFLAGS -Ctarget-feature=+aes,+sse2,+ssse3"
   fi
   time cargo build --target $CARGO_TARGET --verbose --color=always --release --features final

@@ -9,18 +9,19 @@
 
 # …so instead we list all target triples (Tier 1 64-bit platforms)
 [target.x86_64-unknown-linux-gnu]
-# Enable aesimc. 
+# Enables the aes-ni instructions for RustCrypto dependency.
 rustflags = ["-Ctarget-feature=+aes,+sse2,+ssse3"]
 
 [target.x86_64-pc-windows-gnu]
-# Enable aesimc. 
+# Enables the aes-ni instructions for RustCrypto dependency.
 rustflags = ["-Ctarget-feature=+aes,+sse2,+ssse3"]
 
 [target.x86_64-pc-windows-msvc]
-# Enable aesimc. Link the C runtime statically ; https://github.com/paritytech/parity-ethereum/issues/6643
+# Enables the aes-ni instructions for RustCrypto dependency.
+# Link the C runtime statically ; https://github.com/paritytech/parity-ethereum/issues/6643
 rustflags = ["-Ctarget-feature=+aes,+sse2,+ssse3", "-Ctarget-feature=+crt-static"]
 
 [target.x86_64-apple-darwin]
-# Enable aesimc. 
+# Enables the aes-ni instructions for RustCrypto dependency.
 rustflags = ["-Ctarget-feature=+aes,+sse2,+ssse3"]
 
