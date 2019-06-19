@@ -128,7 +128,7 @@ fn main() {
 
 	let args: Args = Docopt::new(USAGE).and_then(|d| d.deserialize()).unwrap_or_else(|e| e.exit());
 
-	let default_log_level: &str = &String::from("4");
+	let default_log_level: &str = &String::from("2");
 	let log_pattern = args.clone().flag_log_level.unwrap_or(default_log_level.to_string());
 	let log_to_file = args.clone().flag_log_to_file;
 	config::logger::init_logger(&log_pattern, log_to_file);

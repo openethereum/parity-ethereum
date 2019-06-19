@@ -138,7 +138,7 @@ impl vm::Informant for Informant {
 		match result {
 			Ok(success) => {
 				for trace in success.traces.unwrap_or_else(Vec::new) {
-					trace!("{}", trace);
+					info!("{}", trace);
 				}
 
 				let message_success =
@@ -154,7 +154,7 @@ impl vm::Informant for Informant {
 			},
 			Err(failure) => {
 				for trace in failure.traces.unwrap_or_else(Vec::new) {
-					warn!("{}", trace);
+					error!("{}", trace);
 				}
 
 				let message_failure =

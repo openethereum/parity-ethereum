@@ -22,7 +22,6 @@ fn setup_logger(verbosity: u32, log_to_file: bool) -> Result<(), fern::InitError
             base_config
             .level(LevelFilter::Error)
             .level_for("pretty_colored", LevelFilter::Error)
-            // .chain(io::stderr())
         }
         1 => {
             base_config
@@ -48,15 +47,30 @@ fn setup_logger(verbosity: u32, log_to_file: bool) -> Result<(), fern::InitError
 
     let format_config = fern::Dispatch::new()
         .format(move |out, message, record| {
-            out.finish(format_args!(
-                "{color_line}[{date}][{target}][{level}{color_line}] {message}\x1B[0m",
-                color_line = format_args!("\x1B[{}m", colors_line.get_color(&record.level()).to_fg_str()),
-                date = chrono::Local::now().format("[%Y-%m-%d][%H:%M:%S]"),
-                level = colors_level.color(record.level()),
-                target = record.target(),
-                message = message
-            ))
+            // In development users may use the `debug!` or `trace!` log levels and output date and target file name
+            // for further information.
+            if record.level() == LevelFilter::Debug || record.level() == LevelFilter::Trace {
+                out.finish(format_args!(
+                    "{color_line}[{date}][{target}][{level}{color_line}] {message}\x1B[0m",
+                    color_line = format_args!("\x1B[{}m", colors_line.get_color(&record.level()).to_fg_str()),
+                    date = chrono::Local::now().format("[%Y-%m-%d][%H:%M:%S]"),
+                    level = colors_level.color(record.level()),
+                    target = record.target(),
+                    message = message
+                ))
+            // In production (i.e. cargo build -p evmbin --release`, we do not want extra formatting shown in any of
+            // the log levels up to the max log level that is `info!`, since we MUST print raw JSON as it is a
+            // format that is cross-client compatible. It is used by the Ethereum Foundation to run tests (fuzzers)
+            // to check for correctness by parsing and comparing the output.
+            } else {
+                out.finish(format_args!(
+                    "{color_line}{message}\x1B[0m",
+                    color_line = format_args!("\x1B[{}m", colors_line.get_color(&record.level()).to_fg_str()),
+                    message = message
+                ))
+            }
         })
+        // We must only print to `stdout` (not `stderr`) by default.
         .chain(io::stdout());
 
     if log_to_file {
@@ -82,13 +96,12 @@ fn setup_logger(verbosity: u32, log_to_file: bool) -> Result<(), fern::InitError
 
 /// Initialisation of the [Log Crate](https://crates.io/crates/log) and [Fern Crate](https://docs.rs/fern/0.5.5/fern/)
 ///
-/// Choice of log level verbosity from evmbin CLI: error (0), warn (1), info (2), debug (3), or trace (4).
-/// Fallback to default log level that is defined in evmbin/src/main.rs.
-/// Use of logging level macros from highest priority to lowest: `error!`, `warn!`, `info!`, `debug!` and `trace!`.
-/// Errors configured to go to stderr, whilst others go to stdout.
-/// [Compile time filters](https://docs.rs/log/0.4.1/log/#compile-time-filters) that override the evmbin CLI log levels
-/// are configured in evmbin/Cargo.toml.
-/// i.e. `log = { version = "0.4", features = ["max_level_debug", "release_max_level_warn"] }`
+/// - Choice of log level verbosity from evmbin CLI: error (0), warn (1), info (2), debug (3), or trace (4).
+/// - Fallback to default log level that is defined in evmbin/src/main.rs.
+/// - Use of logging level macros from highest priority to lowest: `error!`, `warn!`, `info!`, `debug!` and `trace!`.
+/// - [Compile time filters](https://docs.rs/log/0.4.1/log/#compile-time-filters) that override the evmbin CLI log levels
+/// are configured in evmbin/Cargo.toml. In production max log level is `info!`, whereas in development max is `trace!`.
+/// - Output to output.log when log_to_file is true.
 pub fn init_logger(pattern: &str, log_to_file: bool) -> () {
     let verbosity: u32 = pattern.parse::<u32>().expect("parsing cannot fail; qed");
 
