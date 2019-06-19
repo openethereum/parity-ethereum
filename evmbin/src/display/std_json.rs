@@ -163,7 +163,7 @@ impl<Trace: Writer, Out: Writer> Informant<Trace, Out> {
 				}
 			;
 
-			let s = serde_json::to_string(&dump_data).expect("serialization cannot fail; qed");
+			let s = serde_json::to_string(&dump_data).expect("Serialization cannot fail; qed");
 			writeln!(trace_sink, "{}", s).expect("The sink must be writeable.");
 		}
 	}
@@ -182,7 +182,7 @@ impl<Trace: Writer, Out: Writer> vm::Informant for Informant<Trace, Out> {
 			}
 		;
 
-		let s = serde_json::to_string(&message_init).expect("serialization cannot fail; qed");
+		let s = serde_json::to_string(&message_init).expect("Serialization cannot fail; qed");
 		writeln!(&mut self.out_sink, "{}", s).expect("The sink must be writeable.");
 	}
 
@@ -202,7 +202,7 @@ impl<Trace: Writer, Out: Writer> vm::Informant for Informant<Trace, Out> {
 					}
 				;
 
-				let s = serde_json::to_string(&state_root_data).expect("serialization cannot fail; qed");
+				let s = serde_json::to_string(&state_root_data).expect("Serialization cannot fail; qed");
 				writeln!(trace_sink, "{}", s).expect("The sink must be writeable.");
 
 				Self::dump_state_into(trace_sink, success.state_root, &success.end_state);
@@ -215,7 +215,7 @@ impl<Trace: Writer, Out: Writer> vm::Informant for Informant<Trace, Out> {
 					}
 				;
 
-				let s = serde_json::to_string(&message_success).expect("serialization cannot fail; qed");
+				let s = serde_json::to_string(&message_success).expect("Serialization cannot fail; qed");
 				writeln!(out_sink, "{}", s).expect("The sink must be writeable.");
 			},
 			Err(failure) => {
@@ -229,7 +229,7 @@ impl<Trace: Writer, Out: Writer> vm::Informant for Informant<Trace, Out> {
 
 				Self::dump_state_into(trace_sink, failure.state_root, &failure.end_state);
 
-				let s = serde_json::to_string(&message_failure).expect("serialization cannot fail; qed");
+				let s = serde_json::to_string(&message_failure).expect("Serialization cannot fail; qed");
 				writeln!(out_sink, "{}", s).expect("The sink must be writeable.");
 			},
 		}
@@ -257,7 +257,7 @@ impl<Trace: Writer, Out: Writer> trace::VMTracer for Informant<Trace, Out> {
 				}
 			;
 
-			let serialized_trace_data = serde_json::to_string(&trace_data).expect("serialization cannot fail; qed");
+			let serialized_trace_data = serde_json::to_string(&trace_data).expect("Serialization cannot fail; qed");
 
 			writeln!(&mut informant.trace_sink, "{}", serialized_trace_data).expect("The sink must be writeable.");
 		});
