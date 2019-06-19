@@ -17,19 +17,21 @@
 use std::time::Duration;
 
 use ethereum_types::{H256, H520};
-use hash::write_keccak;
+use keccak_hash::write_keccak;
+use log::{debug, trace};
 use mio::tcp::*;
 use parity_bytes::Bytes;
 use rand::random;
 use rlp::{Rlp, RlpStream};
 
-use connection::Connection;
+use ethcore_io::{IoContext, StreamToken};
 use ethkey::{Generator, KeyPair, Public, Random, recover, Secret, sign};
 use ethkey::crypto::{ecdh, ecies};
-use host::HostInfo;
-use io::{IoContext, StreamToken};
 use network::Error;
-use node_table::NodeId;
+
+use crate::connection::Connection;
+use crate::host::HostInfo;
+use crate::node_table::NodeId;
 
 #[derive(PartialEq, Eq, Debug)]
 enum HandshakeState {
@@ -320,18 +322,18 @@ impl Handshake {
 
 #[cfg(test)]
 mod test {
-    use std::str::FromStr;
+	use std::str::FromStr;
 
-    use ethereum_types::{H256, H512};
-    use mio::tcp::TcpStream;
-    use rustc_hex::FromHex;
+	use ethereum_types::{H256, H512};
+	use mio::tcp::TcpStream;
+	use rustc_hex::FromHex;
 
-    use ethkey::Public;
-    use io::*;
+	use ethcore_io::*;
+	use ethkey::Public;
 
-    use super::*;
+	use super::*;
 
-    fn check_auth(h: &Handshake, version: u64) {
+	fn check_auth(h: &Handshake, version: u64) {
 		assert_eq!(
 			h.id,
 			H512::from_str("fda1cff674c90c9a197539fe3dfb53086ace64f83ed7c6eabec741f7f381cc803e52ab2cd55d5569bce4347107a310dfd5f88a010cd2ffd1005ca406f1842877").unwrap(),

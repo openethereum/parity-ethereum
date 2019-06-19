@@ -415,7 +415,7 @@ impl Service {
 				_ => break,
 			}
 
-			// Writting changes to DB and logging every now and then
+			// Writing changes to DB and logging every now and then
 			if block_number % 1_000 == 0 {
 				next_db.key_value().write_buffered(batch);
 				next_chain.commit();
@@ -479,16 +479,12 @@ impl Service {
 
 		let guard = Guard::new(temp_dir.clone());
 		let res = client.take_snapshot(writer, BlockId::Number(num), &self.progress);
-
 		self.taking_snapshot.store(false, Ordering::SeqCst);
 		if let Err(e) = res {
 			if client.chain_info().best_block_number >= num + client.pruning_history() {
-				// "Cancelled" is mincing words a bit -- what really happened
-				// is that the state we were snapshotting got pruned out
-				// before we could finish.
-				info!("Periodic snapshot failed: block state pruned.\
-					Run with a longer `--pruning-history` or with `--no-periodic-snapshot`");
-				return Ok(())
+				// The state we were snapshotting was pruned before we could finish.
+				info!("Periodic snapshot failed: block state pruned. Run with a longer `--pruning-history` or with `--no-periodic-snapshot`");
+				return Err(e);
 			} else {
 				return Err(e);
 			}
@@ -846,14 +842,29 @@ impl SnapshotService for Service {
 		}
 	}
 
+	fn abort_snapshot(&self) {
+		if self.taking_snapshot.load(Ordering::SeqCst) {
+			trace!(target: "snapshot", "Aborting snapshot – Snapshot under way");
+			self.progress.abort.store(true, Ordering::SeqCst);
+		}
+	}
+
 	fn shutdown(&self) {
+		trace!(target: "snapshot", "Shut down SnapshotService");
 		self.abort_restore();
+		trace!(target: "snapshot", "Shut down SnapshotService - restore aborted");
+		self.abort_snapshot();
+		trace!(target: "snapshot", "Shut down SnapshotService - snapshot aborted");
 	}
 }
 
 impl Drop for Service {
 	fn drop(&mut self) {
+		trace!(target: "shutdown", "Dropping Service");
 		self.abort_restore();
+		trace!(target: "shutdown", "Dropping Service - restore aborted");
+		self.abort_snapshot();
+		trace!(target: "shutdown", "Dropping Service - snapshot aborted");
 	}
 }
 

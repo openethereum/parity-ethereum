@@ -20,20 +20,24 @@ use std::net::SocketAddr;
 use std::time::{Duration, Instant};
 
 use ethereum_types::H256;
+use log::{debug, trace, warn};
 use mio::*;
 use mio::deprecated::{EventLoop, Handler};
 use mio::tcp::*;
+use parity_snappy as snappy;
 use rlp::{EMPTY_LIST_RLP, Rlp, RlpStream};
-use snappy;
 
-use connection::{Connection, EncryptedConnection, MAX_PAYLOAD_SIZE, Packet};
-use handshake::Handshake;
-use host::*;
-use io::{IoContext, StreamToken};
+use ethcore_io::{IoContext, StreamToken};
 use network::{DisconnectReason, Error, PeerCapabilityInfo, ProtocolId, SessionInfo};
 use network::client_version::ClientVersion;
 use network::SessionCapabilityInfo;
-use node_table::NodeId;
+
+use crate::{
+	connection::{Connection, EncryptedConnection, MAX_PAYLOAD_SIZE, Packet},
+	handshake::Handshake,
+	host::HostInfo,
+	node_table::NodeId,
+};
 
 // Timeout must be less than (interval - 1).
 const PING_TIMEOUT: Duration = Duration::from_secs(60);
@@ -372,7 +376,7 @@ impl Session {
 			},
 			PACKET_GET_PEERS => Ok(SessionData::None), //TODO;
 			PACKET_PEERS => Ok(SessionData::None),
-			PACKET_USER ... PACKET_LAST => {
+			PACKET_USER ..= PACKET_LAST => {
 				let mut i = 0usize;
 				while packet_id >= self.info.capabilities[i].id_offset + self.info.capabilities[i].packet_count {
 					i += 1;

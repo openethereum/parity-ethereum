@@ -19,13 +19,17 @@ use std::ops::RangeInclusive;
 use std::sync::Arc;
 
 use ansi_term::Colour;
+use log::info;
 use parking_lot::RwLock;
 
-use host::Host;
-use io::*;
-use network::{Error, NetworkConfiguration, NetworkProtocolHandler, NonReservedPeerMode};
-use network::{NetworkContext, NetworkIoMessage, PeerId, ProtocolId};
-use network::ConnectionFilter;
+use ethcore_io::{IoContext, IoHandler, IoService};
+use network::{
+	ConnectionFilter, Error, NetworkConfiguration, NetworkContext,
+	NetworkIoMessage, NetworkProtocolHandler, NonReservedPeerMode, PeerId, ProtocolId,
+
+};
+
+use crate::host::Host;
 
 struct HostHandler {
 	public_url: RwLock<Option<String>>

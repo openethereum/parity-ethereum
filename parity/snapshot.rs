@@ -261,7 +261,7 @@ impl SnapshotCommand {
 				let cur_size = p.size();
 				if cur_size != last_size {
 					last_size = cur_size;
-					let bytes = ::informant::format_bytes(p.size());
+					let bytes = ::informant::format_bytes(cur_size as usize);
 					info!("Snapshot: {} accounts {} blocks {}", p.accounts(), p.blocks(), bytes);
 				}
 
