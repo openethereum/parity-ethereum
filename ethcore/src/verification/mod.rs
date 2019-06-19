@@ -44,7 +44,7 @@ pub enum VerifierType {
 }
 
 /// Create a new verifier based on type.
-pub fn new<C: BlockInfo + CallContract>(v: VerifierType) -> Box<Verifier<C>> {
+pub fn new<C: BlockInfo + CallContract>(v: VerifierType) -> Box<dyn Verifier<C>> {
 	match v {
 		VerifierType::Canon | VerifierType::CanonNoSeal => Box::new(CanonVerifier),
 		VerifierType::Noop => Box::new(NoopVerifier),

@@ -117,10 +117,9 @@ path = "parity/lib.rs"
 path = "parity/main.rs"
 name = "parity"
 
-[profile.dev]
-
 [profile.release]
 debug = false
+lto = true
 
 [workspace]
 # This should only list projects that are not

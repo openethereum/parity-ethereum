@@ -33,7 +33,7 @@ pub use self::authority::*;
 pub use self::work::*;
 
 /// A sink for produced chunks.
-pub type ChunkSink<'a> = FnMut(&[u8]) -> ::std::io::Result<()> + 'a;
+pub type ChunkSink<'a> = dyn FnMut(&[u8]) -> ::std::io::Result<()> + 'a;
 
 /// Components necessary for snapshot creation and restoration.
 pub trait SnapshotComponents: Send {
@@ -63,9 +63,9 @@ pub trait SnapshotComponents: Send {
 	fn rebuilder(
 		&self,
 		chain: BlockChain,
-		db: Arc<BlockChainDB>,
+		db: Arc<dyn BlockChainDB>,
 		manifest: &ManifestData,
-	) -> Result<Box<Rebuilder>, ::error::Error>;
+	) -> Result<Box<dyn Rebuilder>, ::error::Error>;
 
 	/// Minimum supported snapshot version number.
 	fn min_supported_version(&self) -> u64;
@@ -83,7 +83,7 @@ pub trait Rebuilder: Send {
 	fn feed(
 		&mut self,
 		chunk: &[u8],
-		engine: &EthEngine,
+		engine: &dyn EthEngine,
 		abort_flag: &AtomicBool,
 	) -> Result<(), ::error::Error>;
 
@@ -92,5 +92,5 @@ pub trait Rebuilder: Send {
 	///
 	/// This should apply the necessary "glue" between chunks,
 	/// and verify against the restored state.
-	fn finalize(&mut self, engine: &EthEngine) -> Result<(), ::error::Error>;
+	fn finalize(&mut self, engine: &dyn EthEngine) -> Result<(), ::error::Error>;
 }

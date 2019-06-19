@@ -14,6 +14,10 @@ echo "RUSTC_WRAPPER:    " $RUSTC_WRAPPER
 echo "SCCACHE_DIR:      " $SCCACHE_DIR
 
 echo "_____ Building target: "$CARGO_TARGET" _____"
+  # NOTE: Enables the aes-ni instructions for RustCrypto dependency.
+  # If you change this please remember to also update .cargo/config
+export RUSTFLAGS=" -Ctarget-feature=+aes,+sse2,+ssse3 -Ctarget-feature=+crt-static"
+
 time cargo build --target $CARGO_TARGET --verbose --release --features final
 time cargo build --target $CARGO_TARGET --verbose --release -p evmbin
 time cargo build --target $CARGO_TARGET --verbose --release -p ethstore-cli

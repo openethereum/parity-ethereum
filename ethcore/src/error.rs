@@ -162,7 +162,7 @@ pub enum QueueError {
 }
 
 impl error::Error for QueueError {
-	fn source(&self) -> Option<&(error::Error + 'static)> {
+	fn source(&self) -> Option<&(dyn error::Error + 'static)> {
 		match self {
 			QueueError::Channel(e) => Some(e),
 			_ => None,
@@ -264,7 +264,7 @@ pub enum Error {
 }
 
 impl error::Error for Error {
-	fn source(&self) -> Option<&(error::Error + 'static)> {
+	fn source(&self) -> Option<&(dyn error::Error + 'static)> {
 		match self {
 			Error::Io(e) => Some(e),
 			Error::StdIo(e) => Some(e),

@@ -10,6 +10,7 @@ authors = ["Parity Technologies <admin@parity.io>"]
 log = "0.4"
 parity-bytes = "0.1"
 common-types = { path = "../types" }
+derive_more = "0.14.0"
 ethcore = { path = ".."}
 ethcore-db = { path = "../db" }
 ethcore-blockchain = { path = "../blockchain" }

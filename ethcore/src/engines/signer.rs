@@ -29,7 +29,7 @@ pub trait EngineSigner: Send + Sync {
 }
 
 /// Creates a new `EngineSigner` from given key pair.
-pub fn from_keypair(keypair: ethkey::KeyPair) -> Box<EngineSigner> {
+pub fn from_keypair(keypair: ethkey::KeyPair) -> Box<dyn EngineSigner> {
 	Box::new(Signer(keypair))
 }
 

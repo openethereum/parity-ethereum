@@ -54,10 +54,6 @@
 //!   cargo build --release
 //!   ```
 
-// Recursion limit required because of
-// error_chain foreign_links.
-#![recursion_limit="128"]
-
 extern crate ansi_term;
 extern crate bn;
 extern crate byteorder;
@@ -82,7 +78,11 @@ extern crate journaldb;
 extern crate keccak_hash as hash;
 extern crate keccak_hasher;
 extern crate kvdb;
+// Note: in `ethcore` this is only used by tests, so without `#[cfg(test)]` there's a warning.
+// However, when building `parity-ethereum` this is needed. So there's something funny going on
+// here.
 extern crate kvdb_memorydb;
+
 extern crate len_caching_lock;
 extern crate lru_cache;
 extern crate memory_cache;
