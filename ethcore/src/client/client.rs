@@ -2417,11 +2417,11 @@ impl ImportSealedBlock for Client {
 			let _import_lock = self.importer.import_lock.lock();
 			trace_time!("import_sealed_block");
 
-			let block_data = block.rlp_bytes();
+			let block_bytes = block.rlp_bytes();
 
 			let pending = self.importer.check_epoch_end_signal(
 				&header,
-				&block_data,
+				&block_bytes,
 				&block.receipts,
 				block.state.db(),
 				self
@@ -2429,7 +2429,7 @@ impl ImportSealedBlock for Client {
 			let route = self.importer.commit_block(
 				block,
 				&header,
-				encoded::Block::new(block_data),
+				encoded::Block::new(block_bytes),
 				pending,
 				self
 			);
