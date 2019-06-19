@@ -48,6 +48,7 @@ impl SnapshotService for TestSnapshotService {
 	fn status(&self) -> RestorationStatus { self.status.lock().clone() }
 	fn begin_restore(&self, _manifest: ManifestData) { }
 	fn abort_restore(&self) { }
+	fn abort_snapshot(&self) {}
 	fn restore_state_chunk(&self, _hash: H256, _chunk: Bytes) { }
 	fn restore_block_chunk(&self, _hash: H256, _chunk: Bytes) { }
 	fn shutdown(&self) { }

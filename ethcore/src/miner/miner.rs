@@ -203,7 +203,7 @@ pub enum Author {
 	/// Sealing block is external and we only need a reward beneficiary (i.e. PoW)
 	External(Address),
 	/// Sealing is done internally, we need a way to create signatures to seal block (i.e. PoA)
-	Sealer(Box<EngineSigner>),
+	Sealer(Box<dyn EngineSigner>),
 }
 
 impl Author {
@@ -245,8 +245,8 @@ pub struct Miner {
 	options: MinerOptions,
 	// TODO [ToDr] Arc is only required because of price updater
 	transaction_queue: Arc<TransactionQueue>,
-	engine: Arc<EthEngine>,
-	accounts: Arc<LocalAccounts>,
+	engine: Arc<dyn EthEngine>,
+	accounts: Arc<dyn LocalAccounts>,
 	io_channel: RwLock<Option<IoChannel<ClientIoMessage>>>,
 	service_transaction_checker: Option<ServiceTransactionChecker>,
 }

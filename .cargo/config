@@ -1,3 +1,27 @@
+# NOTE: if you make changes here, remember to also update:
+#	scripts/test-linux.sh
+#	scripts/build-linux.sh
+#	scripts/build-windows.sh
+
+# Using 'cfg` is broken, see https://github.com/rust-lang/cargo/issues/6858
+#[target.'cfg(target_arch = "x86_64")']
+#rustflags = ["-Ctarget-feature=+aes,+sse2,+ssse3"]
+
+# …so instead we list all target triples (Tier 1 64-bit platforms)
+[target.x86_64-unknown-linux-gnu]
+# Enables the aes-ni instructions for RustCrypto dependency.
+rustflags = ["-Ctarget-feature=+aes,+sse2,+ssse3"]
+
+[target.x86_64-pc-windows-gnu]
+# Enables the aes-ni instructions for RustCrypto dependency.
+rustflags = ["-Ctarget-feature=+aes,+sse2,+ssse3"]
+
 [target.x86_64-pc-windows-msvc]
+# Enables the aes-ni instructions for RustCrypto dependency.
 # Link the C runtime statically ; https://github.com/paritytech/parity-ethereum/issues/6643
-rustflags = ["-Ctarget-feature=+crt-static"]
+rustflags = ["-Ctarget-feature=+aes,+sse2,+ssse3", "-Ctarget-feature=+crt-static"]
+
+[target.x86_64-apple-darwin]
+# Enables the aes-ni instructions for RustCrypto dependency.
+rustflags = ["-Ctarget-feature=+aes,+sse2,+ssse3"]
+

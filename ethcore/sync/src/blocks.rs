@@ -435,13 +435,13 @@ impl BlockCollection {
 					},
 					None => {
 						warn!("Got body with no header {}", h);
-						Err(network::ErrorKind::BadProtocol.into())
+						Err(network::Error::BadProtocol)
 					}
 				}
 			}
 			None => {
 				trace!(target: "sync", "Ignored unknown/stale block body. tx_root = {:?}, uncles = {:?}", header_id.transactions_root, header_id.uncles);
-				Err(network::ErrorKind::BadProtocol.into())
+				Err(network::Error::BadProtocol)
 			}
 		}
 	}
@@ -463,7 +463,7 @@ impl BlockCollection {
 						},
 						None => {
 							warn!("Got receipt with no header {}", h);
-							return Err(network::ErrorKind::BadProtocol.into())
+							return Err(network::Error::BadProtocol)
 						}
 					}
 				}
@@ -471,7 +471,7 @@ impl BlockCollection {
 			},
 			hash_map::Entry::Vacant(_) => {
 				trace!(target: "sync", "Ignored unknown/stale block receipt {:?}", receipt_root);
-				Err(network::ErrorKind::BadProtocol.into())
+				Err(network::Error::BadProtocol)
 			}
 		}
 	}
