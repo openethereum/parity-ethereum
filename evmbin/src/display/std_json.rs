@@ -163,7 +163,8 @@ impl<Trace: Writer, Out: Writer> Informant<Trace, Out> {
 				}
 			;
 
-			writeln!(trace_sink, "{:?}", dump_data).expect("The sink must be writeable.");
+			let s = serde_json::to_string(&dump_data).expect("serialization cannot fail; qed");
+			writeln!(trace_sink, "{}", s).expect("The sink must be writeable.");
 		}
 	}
 
