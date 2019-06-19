@@ -41,7 +41,6 @@ extern crate rustc_hex;
 extern crate serde;
 #[macro_use]
 extern crate serde_derive;
-#[macro_use]
 extern crate serde_json;
 extern crate docopt;
 extern crate parity_bytes as bytes;
@@ -49,7 +48,12 @@ extern crate ethereum_types;
 extern crate vm;
 extern crate evm;
 extern crate panic_hook;
+extern crate chrono;
 extern crate env_logger;
+extern crate fern;
+
+#[macro_use]
+extern crate log;
 
 #[cfg(test)]
 #[macro_use]
@@ -68,6 +72,7 @@ use bytes::Bytes;
 use ethcore::{spec, json_tests, TrieSpec};
 use vm::{ActionParams, CallType};
 
+mod config;
 mod info;
 mod display;
 
@@ -78,7 +83,7 @@ EVM implementation for Parity.
   Copyright 2015-2019 Parity Technologies (UK) Ltd.
 
 Usage:
-    parity-evm state-test <file> [--json --std-json --std-dump-json --only NAME --chain CHAIN --std-out-only --std-err-only]
+    parity-evm state-test <file> [--json --log-level LEVEL --log-to-file --std-json --std-dump-json --only NAME --chain CHAIN --std-out-only --std-err-only]
     parity-evm stats [options]
     parity-evm stats-jsontests-vm <file>
     parity-evm [options]
@@ -104,6 +109,10 @@ State test options:
 
 General options:
     --json             Display verbose results in JSON.
+    --log-level LEVEL  Log level verbosity configuration choice
+                       from highest to lowest priority (error 0, warn 1,
+                       info 2, debug 3, trace 4).
+    --log-to-file      Record logs to output.log file.
     --std-json         Display results in standardized JSON format.
     --std-err-only     With --std-json redirect to err output only.
     --std-out-only     With --std-json redirect to out output only.
@@ -116,9 +125,13 @@ Display result state dump in standardized JSON format.
 
 fn main() {
 	panic_hook::set_abort();
-	env_logger::init();
 
 	let args: Args = Docopt::new(USAGE).and_then(|d| d.deserialize()).unwrap_or_else(|e| e.exit());
+
+	let default_log_level: &str = &String::from("4");
+	let log_pattern = args.clone().flag_log_level.unwrap_or(default_log_level.to_string());
+	let log_to_file = args.clone().flag_log_to_file;
+	config::logger::init_logger(&log_pattern, log_to_file);
 
 	if args.cmd_state_test {
 		run_state_test(args)
@@ -262,7 +275,7 @@ fn run_call<T: Informant>(args: Args, informant: T) {
 	T::finish(result, &mut sink);
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Clone, Debug, Deserialize)]
 struct Args {
 	cmd_stats: bool,
 	cmd_state_test: bool,
@@ -277,6 +290,8 @@ struct Args {
 	flag_input: Option<String>,
 	flag_chain: Option<String>,
 	flag_json: bool,
+	flag_log_level: Option<String>,
+	flag_log_to_file: bool,
 	flag_std_json: bool,
 	flag_std_dump_json: bool,
 	flag_std_err_only: bool,

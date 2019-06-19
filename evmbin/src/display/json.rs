@@ -23,6 +23,7 @@ use ethereum_types::{U256, H256, BigEndianHash};
 use bytes::ToPretty;
 use ethcore::trace;
 
+use config::{logger};
 use display;
 use info as vm;
 
@@ -62,7 +63,7 @@ pub struct TraceData<'a> {
 }
 
 #[derive(Serialize, Debug)]
-pub struct InitMessage<'a> {
+pub struct MessageInitial<'a> {
 	action: &'a str,
 	test: &'a str,
 }
@@ -117,15 +118,15 @@ impl vm::Informant for Informant {
 	type Sink = ();
 
 	fn before_test(&mut self, name: &str, action: &str) {
-		let init_message =
-			InitMessage {
+		let message_init =
+			MessageInitial {
 				action,
 				test: &name,
 			}
 		;
 
-		let s = serde_json::to_string(&init_message).expect("serialization cannot fail; qed");
-		println!("{}", s);
+		let serialized_message_init = serde_json::to_string(&message_init).expect("serialization cannot fail; qed");
+		info!("Message initial: {}", serialized_message_init);
 	}
 
 	fn set_gas(&mut self, gas: U256) {
@@ -138,7 +139,7 @@ impl vm::Informant for Informant {
 		match result {
 			Ok(success) => {
 				for trace in success.traces.unwrap_or_else(Vec::new) {
-					println!("{}", trace);
+					trace!("Trace success: {}", trace);
 				}
 
 				let message_success =
@@ -149,11 +150,12 @@ impl vm::Informant for Informant {
 					}
 				;
 
-				println!("{:?}", message_success);
+				let serialized_message_success = serde_json::to_string(&message_success).expect("serialization cannot fail; qed");
+				info!("Message success: {}", serialized_message_success);
 			},
 			Err(failure) => {
 				for trace in failure.traces.unwrap_or_else(Vec::new) {
-					println!("{}", trace);
+					trace!("Trace failure: {}", trace);
 				}
 
 				let message_failure =
@@ -164,7 +166,8 @@ impl vm::Informant for Informant {
 					}
 				;
 
-				println!("{:?}", message_failure);
+				let serialized_message_failure = serde_json::to_string(&message_failure).expect("serialization cannot fail; qed");
+				error!("Message failure: {}", serialized_message_failure);
 			},
 		}
 	}
