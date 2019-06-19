@@ -24,7 +24,7 @@ use std::sync::Arc;
 use bytes::Bytes;
 use ethereum_types::H256;
 use hash_db::{HashDB, Prefix};
-use mem::{MallocSizeOf, allocators::new_malloc_size_ops};
+use parity_util_mem::{MallocSizeOf, allocators::new_malloc_size_ops};
 use keccak_hasher::KeccakHasher;
 use kvdb::{KeyValueDB, DBTransaction, DBValue};
 use parking_lot::RwLock;

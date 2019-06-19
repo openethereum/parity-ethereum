@@ -19,7 +19,7 @@
 use std::str::FromStr;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicUsize, Ordering as AtomicOrdering};
-use mem::{MallocSizeOf};
+use parity_util_mem::MallocSizeOf;
 
 use bytes::Bytes;
 use ethereum_types::{H256, Address};

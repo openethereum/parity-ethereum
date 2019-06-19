@@ -16,7 +16,7 @@
 
 use std::collections::{HashSet, HashMap, hash_map};
 use hash::{keccak, KECCAK_NULL_RLP, KECCAK_EMPTY_LIST_RLP};
-use mem::MallocSizeOf;
+use parity_util_mem::MallocSizeOf;
 use ethereum_types::H256;
 use triehash_ethereum::ordered_trie_root;
 use bytes::Bytes;

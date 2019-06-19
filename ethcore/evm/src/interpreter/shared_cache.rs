@@ -16,7 +16,7 @@
 
 use std::sync::Arc;
 use hash::KECCAK_EMPTY;
-use mem::{MallocSizeOf, MallocSizeOfOps};
+use parity_util_mem::{MallocSizeOf, MallocSizeOfOps};
 use ethereum_types::H256;
 use parking_lot::Mutex;
 use memory_cache::MemoryLruCache;

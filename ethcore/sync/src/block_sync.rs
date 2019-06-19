@@ -20,7 +20,7 @@
 
 use std::collections::{HashSet, VecDeque};
 use std::cmp;
-use mem::MallocSizeOf;
+use parity_util_mem::MallocSizeOf;
 use ethereum_types::H256;
 use rlp::{self, Rlp};
 use types::BlockNumber;

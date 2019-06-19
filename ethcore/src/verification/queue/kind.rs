@@ -19,7 +19,7 @@
 use engines::EthEngine;
 use error::Error;
 
-use mem::MallocSizeOf;
+use parity_util_mem::MallocSizeOf;
 use ethereum_types::{H256, U256};
 
 pub use self::blocks::Blocks;
@@ -74,7 +74,7 @@ pub mod blocks {
 	use verification::{PreverifiedBlock, verify_block_basic, verify_block_unordered};
 	use types::transaction::UnverifiedTransaction;
 
-	use mem::MallocSizeOf;
+	use parity_util_mem::MallocSizeOf;
 	use ethereum_types::{H256, U256};
 	use bytes::Bytes;
 

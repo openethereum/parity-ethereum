@@ -97,6 +97,7 @@ extern crate patricia_trie_ethereum as ethtrie;
 extern crate rand;
 extern crate rayon;
 extern crate rlp;
+extern crate parity_util_mem;
 extern crate parity_util_mem as mem;
 extern crate parity_util_mem as malloc_size_of;
 extern crate rustc_hex;

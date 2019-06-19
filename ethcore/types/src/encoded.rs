@@ -27,7 +27,7 @@ use block::Block as FullBlock;
 use ethereum_types::{H256, Bloom, U256, Address};
 use hash::keccak;
 use header::{Header as FullHeader};
-use mem::MallocSizeOf;
+use parity_util_mem::MallocSizeOf;
 use rlp::{self, Rlp, RlpStream};
 use transaction::UnverifiedTransaction;
 use views::{self, BlockView, HeaderView, BodyView};

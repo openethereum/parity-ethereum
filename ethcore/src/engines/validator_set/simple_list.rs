@@ -16,7 +16,7 @@
 
 /// Preconfigured validator list.
 
-use mem::MallocSizeOf;
+use parity_util_mem::MallocSizeOf;
 use ethereum_types::{H256, Address};
 
 use machine::{AuxiliaryData, Call, EthereumMachine};

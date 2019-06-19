@@ -16,6 +16,7 @@
 
 //! `JournalDB` interface and implementation.
 
+extern crate parity_util_mem;
 extern crate parity_util_mem as mem;
 extern crate parity_util_mem as malloc_size_of;
 #[macro_use]

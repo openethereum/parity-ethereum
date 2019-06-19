@@ -38,7 +38,7 @@ use ethcore::engines::epoch::{Transition as EpochTransition, PendingTransition a
 use ethcore::error::{Error, EthcoreResult, BlockError};
 use ethcore::spec::{Spec, SpecHardcodedSync};
 use ethereum_types::{H256, H264, U256};
-use mem::{MallocSizeOf, MallocSizeOfOps};
+use parity_util_mem::{MallocSizeOf, MallocSizeOfOps};
 use kvdb::{DBTransaction, KeyValueDB};
 use parking_lot::{Mutex, RwLock};
 use fastmap::H256FastMap;

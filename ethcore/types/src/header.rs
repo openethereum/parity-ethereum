@@ -17,7 +17,7 @@
 //! Block header.
 
 use hash::{KECCAK_NULL_RLP, KECCAK_EMPTY_LIST_RLP, keccak};
-use mem::MallocSizeOf;
+use parity_util_mem::MallocSizeOf;
 use ethereum_types::{H256, U256, Address, Bloom};
 use bytes::Bytes;
 use rlp::{Rlp, RlpStream, Encodable, DecoderError, Decodable};

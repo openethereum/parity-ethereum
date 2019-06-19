@@ -17,7 +17,7 @@
 //! Log entry type definition.
 
 use std::ops::Deref;
-use mem::MallocSizeOf;
+use parity_util_mem::MallocSizeOf;
 use bytes::Bytes;
 use ethereum_types::{H256, Address, Bloom, BloomInput};
 

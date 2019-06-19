@@ -22,7 +22,7 @@ use ethereum_types::{H256, H160, Address, U256, BigEndianHash};
 use ethjson;
 use ethkey::{self, Signature, Secret, Public, recover, public_to_address};
 use hash::keccak;
-use mem::MallocSizeOf;
+use parity_util_mem::MallocSizeOf;
 
 use rlp::{self, RlpStream, Rlp, DecoderError, Encodable};
 

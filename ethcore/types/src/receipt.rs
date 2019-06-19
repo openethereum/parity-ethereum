@@ -17,7 +17,7 @@
 //! Receipt
 
 use ethereum_types::{H160, H256, U256, Address, Bloom};
-use mem::MallocSizeOf;
+use parity_util_mem::MallocSizeOf;
 use rlp::{Rlp, RlpStream, Encodable, Decodable, DecoderError};
 
 use BlockNumber;

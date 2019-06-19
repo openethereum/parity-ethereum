@@ -23,7 +23,7 @@ use common_types::BlockNumber;
 use common_types::engines::epoch::Transition as EpochTransition;
 use common_types::receipt::Receipt;
 use ethereum_types::{H256, H264, U256};
-use mem::MallocSizeOf;
+use parity_util_mem::MallocSizeOf;
 use kvdb::PREFIX_LEN as DB_PREFIX_LEN;
 use rlp;
 use rlp_derive::{RlpEncodableWrapper, RlpDecodableWrapper, RlpEncodable, RlpDecodable};

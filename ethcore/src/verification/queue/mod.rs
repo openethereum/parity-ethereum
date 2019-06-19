@@ -22,7 +22,7 @@ use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering as AtomicOrdering};
 use std::sync::Arc;
 use std::cmp;
 use std::collections::{VecDeque, HashSet, HashMap};
-use mem::{MallocSizeOf, MallocSizeOfExt};
+use parity_util_mem::{MallocSizeOf, MallocSizeOfExt};
 use ethereum_types::{H256, U256};
 use parking_lot::{Condvar, Mutex, RwLock};
 use io::*;

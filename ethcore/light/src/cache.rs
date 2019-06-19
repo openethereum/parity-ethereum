@@ -21,7 +21,7 @@
 //! vector of all gas prices from a recent range of blocks.
 
 use std::time::{Instant, Duration};
-use mem::{MallocSizeOf, MallocSizeOfOps, MallocSizeOfExt};
+use parity_util_mem::{MallocSizeOf, MallocSizeOfOps, MallocSizeOfExt};
 
 use common_types::encoded;
 use common_types::BlockNumber;
@@ -162,7 +162,7 @@ impl Cache {
 }
 
 
-// TODO this is fast method: should feature gate an exhaustive implementation
+// This is fast method: it is possible to have a more exhaustive implementation
 impl MallocSizeOf for Cache {
 	fn size_of(&self, _ops: &mut MallocSizeOfOps) -> usize {
 		self.headers.current_size()
@@ -170,7 +170,7 @@ impl MallocSizeOf for Cache {
 			+ self.bodies.current_size()
 			+ self.receipts.current_size()
 			+ self.chain_score.current_size()
-			// TODO: + corpus
+			// `self.corpus` is skipped
 	}
 }
 

@@ -26,7 +26,7 @@ use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 use bytes::Bytes;
 use hash::keccak;
-use mem::MallocSizeOf;
+use parity_util_mem::MallocSizeOf;
 use rlp::Rlp;
 use triehash::ordered_trie_root;
 use unexpected::{Mismatch, OutOfBounds};
