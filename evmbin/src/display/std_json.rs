@@ -164,8 +164,7 @@ impl<Trace: Writer, Out: Writer> Informant<Trace, Out> {
 				}
 			;
 
-			let serialized_dump_data = serde_json::to_string(&dump_data).expect("serialization cannot fail; qed");
-			info!("Dump data: {}", serialized_dump_data);
+			writeln!(trace_sink, "{:?}", dump_data).expect("The sink must be writeable.");
 		}
 	}
 
@@ -183,8 +182,7 @@ impl<Trace: Writer, Out: Writer> vm::Informant for Informant<Trace, Out> {
 			}
 		;
 
-		let serialized_message_init = serde_json::to_string(&message_init).expect("serialization cannot fail; qed");
-		info!("Message initial: {}", serialized_message_init);
+		writeln!(&mut self.out_sink, "{:?}", message_init).expect("The sink must be writeable.");
 	}
 
 	fn set_gas(&mut self, _gas: U256) {}
@@ -203,9 +201,8 @@ impl<Trace: Writer, Out: Writer> vm::Informant for Informant<Trace, Out> {
 					}
 				;
 
-				// TODO - do we need `trace_sink` with this change?
-				let serialized_trace_data_state_root = serde_json::to_string(&trace_data_state_root).expect("serialization cannot fail; qed");
-				info!("State root: {}", serialized_trace_data_state_root);
+				writeln!(trace_sink, "{:?}", trace_data_state_root)
+					.expect("The sink must be writeable.");
 
 				Self::dump_state_into(trace_sink, success.state_root, &success.end_state);
 
@@ -217,9 +214,7 @@ impl<Trace: Writer, Out: Writer> vm::Informant for Informant<Trace, Out> {
 					}
 				;
 
-				// TODO - do we need `out_sink` with this change?
-				let serialized_message_success = serde_json::to_string(&message_success).expect("serialization cannot fail; qed");
-				info!("Message success: {}", serialized_message_success);
+				writeln!(out_sink, "{:?}", message_success).expect("The sink must be writeable.");
 			},
 			Err(failure) => {
 				let message_failure =
@@ -232,9 +227,7 @@ impl<Trace: Writer, Out: Writer> vm::Informant for Informant<Trace, Out> {
 
 				Self::dump_state_into(trace_sink, failure.state_root, &failure.end_state);
 
-				// TODO - do we need `out_sink` with this change?
-				let serialized_message_failure = serde_json::to_string(&message_failure).expect("serialization cannot fail; qed");
-				info!("Message failure: {}", serialized_message_failure);
+				writeln!(out_sink, "{:?}", message_failure).expect("The sink must be writeable.");
 			},
 		}
 	}
@@ -261,9 +254,9 @@ impl<Trace: Writer, Out: Writer> trace::VMTracer for Informant<Trace, Out> {
 				}
 			;
 
-			// TODO - do we need `informant.trace_sink` with this change?
 			let serialized_trace_data = serde_json::to_string(&trace_data).expect("serialization cannot fail; qed");
-			info!("Trace data: {}", serialized_trace_data);
+
+			writeln!(&mut informant.trace_sink, "{}", serialized_trace_data).expect("The sink must be writeable.");
 		});
 		true
 	}
