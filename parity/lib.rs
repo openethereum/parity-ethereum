@@ -15,7 +15,6 @@
 // along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
 //! Ethcore client application.
-
 #![warn(missing_docs)]
 
 extern crate ansi_term;
