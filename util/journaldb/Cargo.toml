@@ -8,12 +8,12 @@ license = "GPL3"
 [dependencies]
 parity-bytes = "0.1"
 ethereum-types = "0.6.0"
-hash-db = "0.11.0"
-heapsize = "0.4"
+hash-db = "0.12.4"
+parity-util-mem = "0.1"
 keccak-hasher = { path = "../keccak-hasher" }
 kvdb = "0.1"
 log = "0.4"
-memory-db = "0.11.0"
+memory-db = "0.12.4"
 parking_lot = "0.7"
 fastmap = { path = "../../util/fastmap" }
 rlp = "0.4.0"

@@ -566,6 +566,7 @@ mod tests {
 	use types::header::Header;
 	use types::view;
 	use types::views::BlockView;
+	use hash_db::EMPTY_PREFIX;
 
 	/// Enact the block given by `block_bytes` using `engine` on the database `db` with given `parent` block header
 	fn enact_bytes(
@@ -668,7 +669,8 @@ mod tests {
 
 		let db = e.drain().state.drop().1;
 		assert_eq!(orig_db.journal_db().keys(), db.journal_db().keys());
-		assert!(orig_db.journal_db().keys().iter().filter(|k| orig_db.journal_db().get(k.0) != db.journal_db().get(k.0)).next() == None);
+		assert!(orig_db.journal_db().keys().iter().filter(|k| orig_db.journal_db().get(k.0, EMPTY_PREFIX)
+			!= db.journal_db().get(k.0, EMPTY_PREFIX)).next() == None);
 	}
 
 	#[test]
@@ -702,6 +704,7 @@ mod tests {
 
 		let db = e.drain().state.drop().1;
 		assert_eq!(orig_db.journal_db().keys(), db.journal_db().keys());
-		assert!(orig_db.journal_db().keys().iter().filter(|k| orig_db.journal_db().get(k.0) != db.journal_db().get(k.0)).next() == None);
+		assert!(orig_db.journal_db().keys().iter().filter(|k| orig_db.journal_db().get(k.0, EMPTY_PREFIX)
+			!= db.journal_db().get(k.0, EMPTY_PREFIX)).next() == None);
 	}
 }

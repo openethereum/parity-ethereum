@@ -98,7 +98,7 @@ use std::collections::{HashSet, HashMap, BTreeMap};
 use std::cmp;
 use std::time::{Duration, Instant};
 use hash::keccak;
-use heapsize::HeapSizeOf;
+use parity_util_mem::MallocSizeOfExt;
 use futures::sync::mpsc as futures_mpsc;
 use api::Notification;
 use ethereum_types::{H256, U256};
@@ -132,7 +132,7 @@ use self::propagator::SyncPropagator;
 use self::requester::SyncRequester;
 pub(crate) use self::supplier::SyncSupplier;
 
-known_heap_size!(0, PeerInfo);
+malloc_size_of_is_0!(PeerInfo);
 
 pub type PacketDecodeError = DecoderError;
 
@@ -179,7 +179,7 @@ const SNAPSHOT_DATA_TIMEOUT: Duration = Duration::from_secs(120);
 /// (so we might sent only to some part of the peers we originally intended to send to)
 const PRIORITY_TASK_DEADLINE: Duration = Duration::from_millis(100);
 
-#[derive(Copy, Clone, Eq, PartialEq, Debug)]
+#[derive(Copy, Clone, Eq, PartialEq, Debug, MallocSizeOf)]
 /// Sync state
 pub enum SyncState {
 	/// Collecting enough peers to start syncing.
@@ -273,7 +273,7 @@ pub enum PeerAsking {
 	SnapshotData,
 }
 
-#[derive(PartialEq, Eq, Debug, Clone, Copy)]
+#[derive(PartialEq, Eq, Debug, Clone, Copy, MallocSizeOf)]
 /// Block downloader channel.
 pub enum BlockSet {
 	/// New blocks better than out best blocks
@@ -585,6 +585,7 @@ enum PeerState {
 
 /// Blockchain sync handler.
 /// See module documentation for more details.
+#[derive(MallocSizeOf)]
 pub struct ChainSync {
 	/// Sync state
 	state: SyncState,
@@ -618,10 +619,12 @@ pub struct ChainSync {
 	/// Enable ancient block downloading
 	download_old_blocks: bool,
 	/// Shared private tx service.
+	#[ignore_malloc_size_of = "arc on dyn trait here seems tricky, ignoring"]
 	private_tx_handler: Option<Arc<PrivateTxHandler>>,
 	/// Enable warp sync.
 	warp_sync: WarpSync,
 
+	#[ignore_malloc_size_of = "mpsc unmettered, ignoring"]
 	status_sinks: Vec<futures_mpsc::UnboundedSender<SyncState>>
 }
 
@@ -677,10 +680,7 @@ impl ChainSync {
 			num_active_peers: self.peers.values().filter(|p| p.is_allowed() && p.asking != PeerAsking::Nothing).count(),
 			num_snapshot_chunks: self.snapshot.total_chunks(),
 			snapshot_chunks_done: self.snapshot.done_chunks(),
-			mem_used:
-				self.new_blocks.heap_size()
-				+ self.old_blocks.as_ref().map_or(0, |d| d.heap_size())
-				+ self.peers.heap_size_of_children(),
+			mem_used: self.malloc_size_of(),
 		}
 	}
 

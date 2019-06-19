@@ -22,11 +22,10 @@ use std::sync::Arc;
 
 use bytes::Bytes;
 use ethereum_types::H256;
-use hash_db::{HashDB};
-use heapsize::HeapSizeOf;
+use hash_db::{HashDB, Prefix, EMPTY_PREFIX};
+use parity_util_mem::{MallocSizeOf, allocators::new_malloc_size_ops};
 use keccak_hasher::KeccakHasher;
 use kvdb::{KeyValueDB, DBTransaction, DBValue};
-use memory_db::MemoryDB;
 use overlaydb::OverlayDB;
 use rlp::{encode, decode};
 use super::{DB_PREFIX_LEN, LATEST_ERA_KEY};
@@ -81,11 +80,11 @@ impl RefCountedDB {
 }
 
 impl HashDB<KeccakHasher, DBValue> for RefCountedDB {
-	fn get(&self, key: &H256) -> Option<DBValue> { self.forward.get(key) }
-	fn contains(&self, key: &H256) -> bool { self.forward.contains(key) }
-	fn insert(&mut self, value: &[u8]) -> H256 { let r = self.forward.insert(value); self.inserts.push(r.clone()); r }
-	fn emplace(&mut self, key: H256, value: DBValue) { self.inserts.push(key.clone()); self.forward.emplace(key, value); }
-	fn remove(&mut self, key: &H256) { self.removes.push(key.clone()); }
+	fn get(&self, key: &H256, prefix: Prefix) -> Option<DBValue> { self.forward.get(key, prefix) }
+	fn contains(&self, key: &H256, prefix: Prefix) -> bool { self.forward.contains(key, prefix) }
+	fn insert(&mut self, prefix: Prefix, value: &[u8]) -> H256 { let r = self.forward.insert(prefix, value); self.inserts.push(r.clone()); r }
+	fn emplace(&mut self, key: H256, prefix: Prefix, value: DBValue) { self.inserts.push(key.clone()); self.forward.emplace(key, prefix, value); }
+	fn remove(&mut self, key: &H256, _prefix: Prefix) { self.removes.push(key.clone()); }
 }
 
 impl ::traits::KeyedHashDB for RefCountedDB {
@@ -105,7 +104,8 @@ impl JournalDB for RefCountedDB {
 	}
 
 	fn mem_used(&self) -> usize {
-		self.inserts.heap_size_of_children() + self.removes.heap_size_of_children()
+		let mut ops = new_malloc_size_ops();
+		self.inserts.size_of(&mut ops) + self.removes.size_of(&mut ops)
  	}
 
 	fn is_empty(&self) -> bool {
@@ -184,7 +184,7 @@ impl JournalDB for RefCountedDB {
 			}.expect("rlp read from db; qed");
 			trace!(target: "rcdb", "delete journal for time #{}.{}=>{}, (canon was {}): deleting {:?}", end_era, db_key.index, our_id, canon_id, to_remove);
 			for i in &to_remove {
-				self.forward.remove(i);
+				self.forward.remove(i, EMPTY_PREFIX);
 			}
 			batch.delete(self.column, &last);
 			db_key.index += 1;
@@ -197,19 +197,19 @@ impl JournalDB for RefCountedDB {
 	fn inject(&mut self, batch: &mut DBTransaction) -> io::Result<u32> {
 		self.inserts.clear();
 		for remove in self.removes.drain(..) {
-			self.forward.remove(&remove);
+			self.forward.remove(&remove, EMPTY_PREFIX);
 		}
 		self.forward.commit_to_batch(batch)
 	}
 
-	fn consolidate(&mut self, mut with: MemoryDB<KeccakHasher, DBValue>) {
+	fn consolidate(&mut self, mut with: super::MemoryDB) {
 		for (key, (value, rc)) in with.drain() {
 			for _ in 0..rc {
-				self.emplace(key, value.clone());
+				self.emplace(key, EMPTY_PREFIX, value.clone());
 			}
 
 			for _ in rc..0 {
-				self.remove(&key);
+				self.remove(&key, EMPTY_PREFIX);
 			}
 		}
 	}
@@ -219,7 +219,7 @@ impl JournalDB for RefCountedDB {
 mod tests {
 
 	use keccak::keccak;
-	use hash_db::HashDB;
+	use hash_db::{HashDB, EMPTY_PREFIX};
 	use super::*;
 	use {JournalDB, kvdb_memorydb};
 
@@ -232,18 +232,18 @@ mod tests {
 	fn long_history() {
 		// history is 3
 		let mut jdb = new_db();
-		let h = jdb.insert(b"foo");
+		let h = jdb.insert(EMPTY_PREFIX, b"foo");
 		jdb.commit_batch(0, &keccak(b"0"), None).unwrap();
-		assert!(jdb.contains(&h));
-		jdb.remove(&h);
+		assert!(jdb.contains(&h, EMPTY_PREFIX));
+		jdb.remove(&h, EMPTY_PREFIX);
 		jdb.commit_batch(1, &keccak(b"1"), None).unwrap();
-		assert!(jdb.contains(&h));
+		assert!(jdb.contains(&h, EMPTY_PREFIX));
 		jdb.commit_batch(2, &keccak(b"2"), None).unwrap();
-		assert!(jdb.contains(&h));
+		assert!(jdb.contains(&h, EMPTY_PREFIX));
 		jdb.commit_batch(3, &keccak(b"3"), Some((0, keccak(b"0")))).unwrap();
-		assert!(jdb.contains(&h));
+		assert!(jdb.contains(&h, EMPTY_PREFIX));
 		jdb.commit_batch(4, &keccak(b"4"), Some((1, keccak(b"1")))).unwrap();
-		assert!(!jdb.contains(&h));
+		assert!(!jdb.contains(&h, EMPTY_PREFIX));
 	}
 
 	#[test]
@@ -251,10 +251,10 @@ mod tests {
 		// history is 3
 		let mut jdb = new_db();
 		assert_eq!(jdb.latest_era(), None);
-		let h = jdb.insert(b"foo");
+		let h = jdb.insert(EMPTY_PREFIX, b"foo");
 		jdb.commit_batch(0, &keccak(b"0"), None).unwrap();
 		assert_eq!(jdb.latest_era(), Some(0));
-		jdb.remove(&h);
+		jdb.remove(&h, EMPTY_PREFIX);
 		jdb.commit_batch(1, &keccak(b"1"), None).unwrap();
 		assert_eq!(jdb.latest_era(), Some(1));
 		jdb.commit_batch(2, &keccak(b"2"), None).unwrap();
@@ -270,37 +270,37 @@ mod tests {
 		// history is 1
 		let mut jdb = new_db();
 
-		let foo = jdb.insert(b"foo");
-		let bar = jdb.insert(b"bar");
+		let foo = jdb.insert(EMPTY_PREFIX, b"foo");
+		let bar = jdb.insert(EMPTY_PREFIX, b"bar");
 		jdb.commit_batch(0, &keccak(b"0"), None).unwrap();
-		assert!(jdb.contains(&foo));
-		assert!(jdb.contains(&bar));
+		assert!(jdb.contains(&foo, EMPTY_PREFIX));
+		assert!(jdb.contains(&bar, EMPTY_PREFIX));
 
-		jdb.remove(&foo);
-		jdb.remove(&bar);
-		let baz = jdb.insert(b"baz");
+		jdb.remove(&foo, EMPTY_PREFIX);
+		jdb.remove(&bar, EMPTY_PREFIX);
+		let baz = jdb.insert(EMPTY_PREFIX, b"baz");
 		jdb.commit_batch(1, &keccak(b"1"), Some((0, keccak(b"0")))).unwrap();
-		assert!(jdb.contains(&foo));
-		assert!(jdb.contains(&bar));
-		assert!(jdb.contains(&baz));
+		assert!(jdb.contains(&foo, EMPTY_PREFIX));
+		assert!(jdb.contains(&bar, EMPTY_PREFIX));
+		assert!(jdb.contains(&baz, EMPTY_PREFIX));
 
-		let foo = jdb.insert(b"foo");
-		jdb.remove(&baz);
+		let foo = jdb.insert(EMPTY_PREFIX, b"foo");
+		jdb.remove(&baz, EMPTY_PREFIX);
 		jdb.commit_batch(2, &keccak(b"2"), Some((1, keccak(b"1")))).unwrap();
-		assert!(jdb.contains(&foo));
-		assert!(!jdb.contains(&bar));
-		assert!(jdb.contains(&baz));
+		assert!(jdb.contains(&foo, EMPTY_PREFIX));
+		assert!(!jdb.contains(&bar, EMPTY_PREFIX));
+		assert!(jdb.contains(&baz, EMPTY_PREFIX));
 
-		jdb.remove(&foo);
+		jdb.remove(&foo, EMPTY_PREFIX);
 		jdb.commit_batch(3, &keccak(b"3"), Some((2, keccak(b"2")))).unwrap();
-		assert!(jdb.contains(&foo));
-		assert!(!jdb.contains(&bar));
-		assert!(!jdb.contains(&baz));
+		assert!(jdb.contains(&foo, EMPTY_PREFIX));
+		assert!(!jdb.contains(&bar, EMPTY_PREFIX));
+		assert!(!jdb.contains(&baz, EMPTY_PREFIX));
 
 		jdb.commit_batch(4, &keccak(b"4"), Some((3, keccak(b"3")))).unwrap();
-		assert!(!jdb.contains(&foo));
-		assert!(!jdb.contains(&bar));
-		assert!(!jdb.contains(&baz));
+		assert!(!jdb.contains(&foo, EMPTY_PREFIX));
+		assert!(!jdb.contains(&bar, EMPTY_PREFIX));
+		assert!(!jdb.contains(&baz, EMPTY_PREFIX));
 	}
 
 	#[test]
@@ -308,39 +308,39 @@ mod tests {
 		// history is 1
 		let mut jdb = new_db();
 
-		let foo = jdb.insert(b"foo");
-		let bar = jdb.insert(b"bar");
+		let foo = jdb.insert(EMPTY_PREFIX, b"foo");
+		let bar = jdb.insert(EMPTY_PREFIX, b"bar");
 		jdb.commit_batch(0, &keccak(b"0"), None).unwrap();
-		assert!(jdb.contains(&foo));
-		assert!(jdb.contains(&bar));
+		assert!(jdb.contains(&foo, EMPTY_PREFIX));
+		assert!(jdb.contains(&bar, EMPTY_PREFIX));
 
-		jdb.remove(&foo);
-		let baz = jdb.insert(b"baz");
+		jdb.remove(&foo, EMPTY_PREFIX);
+		let baz = jdb.insert(EMPTY_PREFIX, b"baz");
 		jdb.commit_batch(1, &keccak(b"1a"), Some((0, keccak(b"0")))).unwrap();
 
-		jdb.remove(&bar);
+		jdb.remove(&bar, EMPTY_PREFIX);
 		jdb.commit_batch(1, &keccak(b"1b"), Some((0, keccak(b"0")))).unwrap();
 
-		assert!(jdb.contains(&foo));
-		assert!(jdb.contains(&bar));
-		assert!(jdb.contains(&baz));
+		assert!(jdb.contains(&foo, EMPTY_PREFIX));
+		assert!(jdb.contains(&bar, EMPTY_PREFIX));
+		assert!(jdb.contains(&baz, EMPTY_PREFIX));
 
 		jdb.commit_batch(2, &keccak(b"2b"), Some((1, keccak(b"1b")))).unwrap();
-		assert!(jdb.contains(&foo));
-		assert!(!jdb.contains(&baz));
-		assert!(!jdb.contains(&bar));
+		assert!(jdb.contains(&foo, EMPTY_PREFIX));
+		assert!(!jdb.contains(&baz, EMPTY_PREFIX));
+		assert!(!jdb.contains(&bar, EMPTY_PREFIX));
 	}
 
 	#[test]
 	fn inject() {
 		let mut jdb = new_db();
-		let key = jdb.insert(b"dog");
+		let key = jdb.insert(EMPTY_PREFIX, b"dog");
 		jdb.inject_batch().unwrap();
 
-		assert_eq!(jdb.get(&key).unwrap(), DBValue::from_slice(b"dog"));
-		jdb.remove(&key);
+		assert_eq!(jdb.get(&key, EMPTY_PREFIX).unwrap(), DBValue::from_slice(b"dog"));
+		jdb.remove(&key, EMPTY_PREFIX);
 		jdb.inject_batch().unwrap();
 
-		assert!(jdb.get(&key).is_none());
+		assert!(jdb.get(&key, EMPTY_PREFIX).is_none());
 	}
 }

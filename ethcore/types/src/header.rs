@@ -17,7 +17,7 @@
 //! Block header.
 
 use hash::{KECCAK_NULL_RLP, KECCAK_EMPTY_LIST_RLP, keccak};
-use heapsize::HeapSizeOf;
+use parity_util_mem::MallocSizeOf;
 use ethereum_types::{H256, U256, Address, Bloom};
 use bytes::Bytes;
 use rlp::{Rlp, RlpStream, Encodable, DecoderError, Decodable};
@@ -49,7 +49,7 @@ pub struct ExtendedHeader {
 /// which is non-specific.
 ///
 /// Doesn't do all that much on its own.
-#[derive(Debug, Clone, Eq)]
+#[derive(Debug, Clone, Eq, MallocSizeOf)]
 pub struct Header {
 	/// Parent hash.
 	parent_hash: H256,
@@ -358,12 +358,6 @@ impl Decodable for Header {
 impl Encodable for Header {
 	fn rlp_append(&self, s: &mut RlpStream) {
 		self.stream_rlp(s, Seal::With);
-	}
-}
-
-impl HeapSizeOf for Header {
-	fn heap_size_of_children(&self) -> usize {
-		self.extra_data.heap_size_of_children() + self.seal.heap_size_of_children()
 	}
 }
 

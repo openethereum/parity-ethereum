@@ -23,7 +23,7 @@ use common_types::BlockNumber;
 use common_types::engines::epoch::Transition as EpochTransition;
 use common_types::receipt::Receipt;
 use ethereum_types::{H256, H264, U256};
-use heapsize::HeapSizeOf;
+use parity_util_mem::MallocSizeOf;
 use kvdb::PREFIX_LEN as DB_PREFIX_LEN;
 use rlp;
 use rlp_derive::{RlpEncodableWrapper, RlpDecodableWrapper, RlpEncodable, RlpDecodable};
@@ -140,7 +140,7 @@ impl Key<EpochTransitions> for u64 {
 }
 
 /// Familial details concerning a block
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, MallocSizeOf)]
 pub struct BlockDetails {
 	/// Block number
 	pub number: BlockNumber,
@@ -195,14 +195,8 @@ impl rlp::Decodable for BlockDetails {
 	}
 }
 
-impl HeapSizeOf for BlockDetails {
-	fn heap_size_of_children(&self) -> usize {
-		self.children.heap_size_of_children()
-	}
-}
-
 /// Represents address of certain transaction within block
-#[derive(Debug, PartialEq, Clone, RlpEncodable, RlpDecodable)]
+#[derive(Debug, PartialEq, Clone, RlpEncodable, RlpDecodable, MallocSizeOf)]
 pub struct TransactionAddress {
 	/// Block hash
 	pub block_hash: H256,
@@ -210,12 +204,8 @@ pub struct TransactionAddress {
 	pub index: usize
 }
 
-impl HeapSizeOf for TransactionAddress {
-	fn heap_size_of_children(&self) -> usize { 0 }
-}
-
 /// Contains all block receipts.
-#[derive(Clone, RlpEncodableWrapper, RlpDecodableWrapper)]
+#[derive(Clone, RlpEncodableWrapper, RlpDecodableWrapper, MallocSizeOf)]
 pub struct BlockReceipts {
 	/// Block receipts
 	pub receipts: Vec<Receipt>,
@@ -227,12 +217,6 @@ impl BlockReceipts {
 		BlockReceipts {
 			receipts: receipts
 		}
-	}
-}
-
-impl HeapSizeOf for BlockReceipts {
-	fn heap_size_of_children(&self) -> usize {
-		self.receipts.heap_size_of_children()
 	}
 }
 

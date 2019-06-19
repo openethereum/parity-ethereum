@@ -13,7 +13,7 @@ blooms-db = { path = "../../util/blooms-db" }
 common-types = { path = "../types" }
 ethcore-db = { path = "../db" }
 ethereum-types = "0.6.0"
-heapsize = "0.4"
+parity-util-mem = "0.1"
 itertools = "0.5"
 kvdb = "0.1"
 log = "0.4"

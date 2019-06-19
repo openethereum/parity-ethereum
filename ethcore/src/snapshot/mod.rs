@@ -448,7 +448,7 @@ impl StateRebuilder {
 		for (code_hash, code, first_with) in status.new_code {
 			for addr_hash in self.missing_code.remove(&code_hash).unwrap_or_else(Vec::new) {
 				let mut db = AccountDBMut::from_hash(self.db.as_hash_db_mut(), addr_hash);
-				db.emplace(code_hash, DBValue::from_slice(&code));
+				db.emplace(code_hash, hash_db::EMPTY_PREFIX, DBValue::from_slice(&code));
 			}
 
 			self.known_code.insert(code_hash, first_with);
@@ -545,11 +545,11 @@ fn rebuild_accounts(
 							Some(&first_with) => {
 								// if so, load it from the database.
 								let code = AccountDB::from_hash(db, first_with)
-									.get(&code_hash)
+									.get(&code_hash, hash_db::EMPTY_PREFIX)
 									.ok_or_else(|| Error::MissingCode(vec![first_with]))?;
 
 								// and write it again under a different mangled key
-								AccountDBMut::from_hash(db, hash).emplace(code_hash, code);
+								AccountDBMut::from_hash(db, hash).emplace(code_hash, hash_db::EMPTY_PREFIX, code);
 							}
 							// if not, queue it up to be filled later
 							None => status.missing_code.push((hash, code_hash)),
