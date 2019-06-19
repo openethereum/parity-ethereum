@@ -182,7 +182,8 @@ impl<Trace: Writer, Out: Writer> vm::Informant for Informant<Trace, Out> {
 			}
 		;
 
-		writeln!(&mut self.out_sink, "{:?}", out_data_before_test).expect("The sink must be writeable.");
+		let s = serde_json::to_string(&out_data_before_test).expect("serialization cannot fail; qed");
+		writeln!(&mut self.out_sink, "{}", s).expect("The sink must be writeable.");
 	}
 
 	fn set_gas(&mut self, _gas: U256) {}
