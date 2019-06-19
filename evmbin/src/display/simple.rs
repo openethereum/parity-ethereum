@@ -39,9 +39,9 @@ impl vm::Informant for Informant {
 	fn finish(result: vm::RunResult<Self::Output>, _sink: &mut Self::Sink) {
 		match result {
 			Ok(success) => {
-        info!("Output: 0x{}", success.output.to_hex());
-        info!("Gas used: {:x}", success.gas_used);
-        info!("Time: {}", display::format_time(&success.time));
+				info!("Output: 0x{}", success.output.to_hex());
+				info!("Gas used: {:x}", success.gas_used);
+				info!("Time: {}", display::format_time(&success.time));
 			},
 			Err(failure) => {
 				error!("Error: {}", failure.error);
