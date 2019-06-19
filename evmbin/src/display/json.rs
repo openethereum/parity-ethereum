@@ -62,7 +62,7 @@ pub struct TraceData<'a> {
 }
 
 #[derive(Serialize, Debug)]
-pub struct InitMessage<'a> {
+pub struct MessageInitial<'a> {
 	action: &'a str,
 	test: &'a str,
 }
@@ -117,14 +117,14 @@ impl vm::Informant for Informant {
 	type Sink = ();
 
 	fn before_test(&mut self, name: &str, action: &str) {
-		let init_message =
-			InitMessage {
+		let message_init =
+			MessageInitial {
 				action,
 				test: &name,
 			}
 		;
 
-		let s = serde_json::to_string(&init_message).expect("serialization cannot fail; qed");
+		let s = serde_json::to_string(&message_init).expect("serialization cannot fail; qed");
 		println!("{}", s);
 	}
 

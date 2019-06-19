@@ -77,14 +77,14 @@ pub struct TraceData<'a> {
 }
 
 #[derive(Serialize, Debug)]
-pub struct OutDataBeforeTest<'a> {
+pub struct MessageInitial<'a> {
 	action: &'a str,
 	test: &'a str,
 }
 
 #[derive(Serialize, Debug)]
 #[serde(rename_all = "camelCase")]
-pub struct OutDataSuccess<'a> {
+pub struct MessageSuccess<'a> {
 	output: &'a str,
 	gas_used: &'a str,
 	time: &'a u64,
@@ -92,7 +92,7 @@ pub struct OutDataSuccess<'a> {
 
 #[derive(Serialize, Debug)]
 #[serde(rename_all = "camelCase")]
-pub struct OutDataFailure<'a> {
+pub struct MessageFailure<'a> {
 	error: &'a str,
 	gas_used: &'a str,
 	time: &'a u64,
@@ -106,7 +106,7 @@ pub struct DumpData<'a> {
 
 #[derive(Serialize, Debug)]
 #[serde(rename_all = "camelCase")]
-pub struct TraceDataStateRoot<'a> {
+pub struct StateRootData<'a> {
 	state_root: &'a H256,
 }
 
@@ -155,7 +155,7 @@ impl<Trace: Writer, Out: Writer> Informant<Trace, Out> {
 	}
 
 	fn dump_state_into(trace_sink: &mut Trace, root: H256, end_state: &Option<pod_state::PodState>) {
-		if let Some(ref end_state) =	end_state {
+		if let Some(ref end_state) = end_state {
 			let dump_data =
 				DumpData {
 					root: &root,
@@ -175,14 +175,14 @@ impl<Trace: Writer, Out: Writer> vm::Informant for Informant<Trace, Out> {
 	type Sink = (Trace, Out);
 
 	fn before_test(&mut self, name: &str, action: &str) {
-		let out_data_before_test =
-			OutDataBeforeTest {
-				action: &format!("{}", action),
-				test: &format!("{}", name),
+		let message_init =
+			MessageInitial {
+				action,
+				test: &name,
 			}
 		;
 
-		let s = serde_json::to_string(&out_data_before_test).expect("serialization cannot fail; qed");
+		let s = serde_json::to_string(&message_init).expect("serialization cannot fail; qed");
 		writeln!(&mut self.out_sink, "{}", s).expect("The sink must be writeable.");
 	}
 
@@ -196,32 +196,31 @@ impl<Trace: Writer, Out: Writer> vm::Informant for Informant<Trace, Out> {
 
 		match result {
 			Ok(success) => {
-				let trace_data_state_root =
-					TraceDataStateRoot {
+				let state_root_data =
+					StateRootData {
 						state_root: &success.state_root,
 					}
 				;
 
-				let s = serde_json::to_string(&trace_data_state_root).expect("serialization cannot fail; qed");
-				writeln!(trace_sink, "{}", s)
-					.expect("The sink must be writeable.");
+				let s = serde_json::to_string(&state_root_data).expect("serialization cannot fail; qed");
+				writeln!(trace_sink, "{}", s).expect("The sink must be writeable.");
 
 				Self::dump_state_into(trace_sink, success.state_root, &success.end_state);
 
-				let out_data_success =
-					OutDataSuccess {
+				let message_success =
+					MessageSuccess {
 						output: &format!("0x{}", success.output.to_hex()),
 						gas_used: &format!("{:#x}", success.gas_used),
 						time: &display::as_micros(&success.time),
 					}
 				;
 
-				let s = serde_json::to_string(&out_data_success).expect("serialization cannot fail; qed");
+				let s = serde_json::to_string(&message_success).expect("serialization cannot fail; qed");
 				writeln!(out_sink, "{}", s).expect("The sink must be writeable.");
 			},
 			Err(failure) => {
-				let out_data_failure =
-					OutDataFailure {
+				let message_failure =
+					MessageFailure {
 						error: &failure.error.to_string(),
 						gas_used: &format!("{:#x}", failure.gas_used),
 						time: &display::as_micros(&failure.time),
@@ -230,7 +229,7 @@ impl<Trace: Writer, Out: Writer> vm::Informant for Informant<Trace, Out> {
 
 				Self::dump_state_into(trace_sink, failure.state_root, &failure.end_state);
 
-				let s = serde_json::to_string(&out_data_failure).expect("serialization cannot fail; qed");
+				let s = serde_json::to_string(&message_failure).expect("serialization cannot fail; qed");
 				writeln!(out_sink, "{}", s).expect("The sink must be writeable.");
 			},
 		}
