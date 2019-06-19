@@ -22,7 +22,7 @@
 use std::collections::{HashMap, HashSet};
 use std::cmp;
 use std::sync::Arc;
-use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicU64, AtomicUsize, Ordering};
 use hash::{keccak, KECCAK_NULL_RLP, KECCAK_EMPTY};
 
 use account_db::{AccountDB, AccountDBMut};
@@ -107,7 +107,7 @@ impl Default for SnapshotConfiguration {
 	fn default() -> Self {
 		SnapshotConfiguration {
 			no_periodic: false,
-			processing_threads: ::std::cmp::max(1, num_cpus::get() / 2),
+			processing_threads: ::std::cmp::max(1, num_cpus::get_physical() / 2),
 		}
 	}
 }
@@ -117,8 +117,9 @@ impl Default for SnapshotConfiguration {
 pub struct Progress {
 	accounts: AtomicUsize,
 	blocks: AtomicUsize,
-	size: AtomicUsize, // Todo [rob] use Atomicu64 when it stabilizes.
+	size: AtomicU64,
 	done: AtomicBool,
+	abort: AtomicBool,
 }
 
 impl Progress {
@@ -127,6 +128,7 @@ impl Progress {
 		self.accounts.store(0, Ordering::Release);
 		self.blocks.store(0, Ordering::Release);
 		self.size.store(0, Ordering::Release);
+		self.abort.store(false, Ordering::Release);
 
 		// atomic fence here to ensure the others are written first?
 		// logs might very rarely get polluted if not.
@@ -140,7 +142,7 @@ impl Progress {
 	pub fn blocks(&self) -> usize { self.blocks.load(Ordering::Acquire) }
 
 	/// Get the written size of the snapshot in bytes.
-	pub fn size(&self) -> usize { self.size.load(Ordering::Acquire) }
+	pub fn size(&self) -> u64 { self.size.load(Ordering::Acquire) }
 
 	/// Whether the snapshot is complete.
 	pub fn done(&self) -> bool  { self.done.load(Ordering::Acquire) }
@@ -148,27 +150,28 @@ impl Progress {
 }
 /// Take a snapshot using the given blockchain, starting block hash, and database, writing into the given writer.
 pub fn take_snapshot<W: SnapshotWriter + Send>(
-	engine: &EthEngine,
+	chunker: Box<dyn SnapshotComponents>,
 	chain: &BlockChain,
-	block_at: H256,
-	state_db: &HashDB<KeccakHasher, DBValue>,
+	block_hash: H256,
+	state_db: &dyn HashDB<KeccakHasher, DBValue>,
 	writer: W,
 	p: &Progress,
 	processing_threads: usize,
 ) -> Result<(), Error> {
-	let start_header = chain.block_header_data(&block_at)
-		.ok_or(Error::InvalidStartingBlock(BlockId::Hash(block_at)))?;
+	let start_header = chain.block_header_data(&block_hash)
+		.ok_or_else(|| Error::InvalidStartingBlock(BlockId::Hash(block_hash)))?;
 	let state_root = start_header.state_root();
-	let number = start_header.number();
+	let block_number = start_header.number();
 
-	info!("Taking snapshot starting at block {}", number);
+	info!("Taking snapshot starting at block {}", block_number);
 
+	let version = chunker.current_version();
 	let writer = Mutex::new(writer);
-	let chunker = engine.snapshot_components().ok_or(Error::SnapshotsUnsupported)?;
-	let snapshot_version = chunker.current_version();
 	let (state_hashes, block_hashes) = scope(|scope| -> Result<(Vec<H256>, Vec<H256>), Error> {
 		let writer = &writer;
-		let block_guard = scope.spawn(move || chunk_secondary(chunker, chain, block_at, writer, p));
+		let block_guard = scope.spawn(move || {
+			chunk_secondary(chunker, chain, block_hash, writer, p)
+		});
 
 		// The number of threads must be between 1 and SNAPSHOT_SUBPARTS
 		assert!(processing_threads >= 1, "Cannot use less than 1 threads for creating snapshots");
@@ -183,7 +186,7 @@ pub fn take_snapshot<W: SnapshotWriter + Send>(
 
 				for part in (thread_idx..SNAPSHOT_SUBPARTS).step_by(num_threads) {
 					debug!(target: "snapshot", "Chunking part {} in thread {}", part, thread_idx);
-					let mut hashes = chunk_state(state_db, &state_root, writer, p, Some(part))?;
+					let mut hashes = chunk_state(state_db, &state_root, writer, p, Some(part), thread_idx)?;
 					chunk_hashes.append(&mut hashes);
 				}
 
@@ -207,12 +210,12 @@ pub fn take_snapshot<W: SnapshotWriter + Send>(
 	info!(target: "snapshot", "produced {} state chunks and {} block chunks.", state_hashes.len(), block_hashes.len());
 
 	let manifest_data = ManifestData {
-		version: snapshot_version,
-		state_hashes: state_hashes,
-		block_hashes: block_hashes,
-		state_root: state_root,
-		block_number: number,
-		block_hash: block_at,
+		version,
+		state_hashes,
+		block_hashes,
+		state_root,
+		block_number,
+		block_hash,
 	};
 
 	writer.into_inner().finish(manifest_data)?;
@@ -228,7 +231,13 @@ pub fn take_snapshot<W: SnapshotWriter + Send>(
 /// Secondary chunks are engine-specific, but they intend to corroborate the state data
 /// in the state chunks.
 /// Returns a list of chunk hashes, with the first having the blocks furthest from the genesis.
-pub fn chunk_secondary<'a>(mut chunker: Box<SnapshotComponents>, chain: &'a BlockChain, start_hash: H256, writer: &Mutex<SnapshotWriter + 'a>, progress: &'a Progress) -> Result<Vec<H256>, Error> {
+pub fn chunk_secondary<'a>(
+	mut chunker: Box<dyn SnapshotComponents>,
+	chain: &'a BlockChain,
+	start_hash: H256,
+	writer: &Mutex<dyn SnapshotWriter + 'a>,
+	progress: &'a Progress
+) -> Result<Vec<H256>, Error> {
 	let mut chunk_hashes = Vec::new();
 	let mut snappy_buffer = vec![0; snappy::max_compressed_len(PREFERRED_CHUNK_SIZE)];
 
@@ -243,7 +252,7 @@ pub fn chunk_secondary<'a>(mut chunker: Box<SnapshotComponents>, chain: &'a Bloc
 			trace!(target: "snapshot", "wrote secondary chunk. hash: {:x}, size: {}, uncompressed size: {}",
 				hash, size, raw_data.len());
 
-			progress.size.fetch_add(size, Ordering::SeqCst);
+			progress.size.fetch_add(size as u64, Ordering::SeqCst);
 			chunk_hashes.push(hash);
 			Ok(())
 		};
@@ -266,8 +275,9 @@ struct StateChunker<'a> {
 	rlps: Vec<Bytes>,
 	cur_size: usize,
 	snappy_buffer: Vec<u8>,
-	writer: &'a Mutex<SnapshotWriter + 'a>,
+	writer: &'a Mutex<dyn SnapshotWriter + 'a>,
 	progress: &'a Progress,
+	thread_idx: usize,
 }
 
 impl<'a> StateChunker<'a> {
@@ -297,10 +307,10 @@ impl<'a> StateChunker<'a> {
 		let hash = keccak(&compressed);
 
 		self.writer.lock().write_state_chunk(hash, compressed)?;
-		trace!(target: "snapshot", "wrote state chunk. size: {}, uncompressed size: {}", compressed_size, raw_data.len());
+		trace!(target: "snapshot", "Thread {} wrote state chunk. size: {}, uncompressed size: {}", self.thread_idx, compressed_size, raw_data.len());
 
 		self.progress.accounts.fetch_add(num_entries, Ordering::SeqCst);
-		self.progress.size.fetch_add(compressed_size, Ordering::SeqCst);
+		self.progress.size.fetch_add(compressed_size as u64, Ordering::SeqCst);
 
 		self.hashes.push(hash);
 		self.cur_size = 0;
@@ -321,7 +331,14 @@ impl<'a> StateChunker<'a> {
 ///
 /// Returns a list of hashes of chunks created, or any error it may
 /// have encountered.
-pub fn chunk_state<'a>(db: &HashDB<KeccakHasher, DBValue>, root: &H256, writer: &Mutex<SnapshotWriter + 'a>, progress: &'a Progress, part: Option<usize>) -> Result<Vec<H256>, Error> {
+pub fn chunk_state<'a>(
+	db: &dyn HashDB<KeccakHasher, DBValue>,
+	root: &H256,
+	writer: &Mutex<dyn SnapshotWriter + 'a>,
+	progress: &'a Progress,
+	part: Option<usize>,
+	thread_idx: usize,
+) -> Result<Vec<H256>, Error> {
 	let account_trie = TrieDB::new(&db, &root)?;
 
 	let mut chunker = StateChunker {
@@ -329,8 +346,9 @@ pub fn chunk_state<'a>(db: &HashDB<KeccakHasher, DBValue>, root: &H256, writer: 
 		rlps: Vec::new(),
 		cur_size: 0,
 		snappy_buffer: vec![0; snappy::max_compressed_len(PREFERRED_CHUNK_SIZE)],
-		writer: writer,
-		progress: progress,
+		writer,
+		progress,
+		thread_idx,
 	};
 
 	let mut used_code = HashSet::new();
@@ -365,7 +383,7 @@ pub fn chunk_state<'a>(db: &HashDB<KeccakHasher, DBValue>, root: &H256, writer: 
 		let account = ::rlp::decode(&*account_data)?;
 		let account_db = AccountDB::from_hash(db, account_key_hash);
 
-		let fat_rlps = account::to_fat_rlps(&account_key_hash, &account, &account_db, &mut used_code, PREFERRED_CHUNK_SIZE - chunker.chunk_size(), PREFERRED_CHUNK_SIZE)?;
+		let fat_rlps = account::to_fat_rlps(&account_key_hash, &account, &account_db, &mut used_code, PREFERRED_CHUNK_SIZE - chunker.chunk_size(), PREFERRED_CHUNK_SIZE, progress)?;
 		for (i, fat_rlp) in fat_rlps.into_iter().enumerate() {
 			if i > 0 {
 				chunker.write_chunk()?;
@@ -383,7 +401,7 @@ pub fn chunk_state<'a>(db: &HashDB<KeccakHasher, DBValue>, root: &H256, writer: 
 
 /// Used to rebuild the state trie piece by piece.
 pub struct StateRebuilder {
-	db: Box<JournalDB>,
+	db: Box<dyn JournalDB>,
 	state_root: H256,
 	known_code: HashMap<H256, H256>, // code hashes mapped to first account with this code.
 	missing_code: HashMap<H256, Vec<H256>>, // maps code hashes to lists of accounts missing that code.
@@ -393,7 +411,7 @@ pub struct StateRebuilder {
 
 impl StateRebuilder {
 	/// Create a new state rebuilder to write into the given backing DB.
-	pub fn new(db: Arc<KeyValueDB>, pruning: Algorithm) -> Self {
+	pub fn new(db: Arc<dyn KeyValueDB>, pruning: Algorithm) -> Self {
 		StateRebuilder {
 			db: journaldb::new(db.clone(), pruning, ::db::COL_STATE),
 			state_root: KECCAK_NULL_RLP,
@@ -411,7 +429,7 @@ impl StateRebuilder {
 		let mut pairs = Vec::with_capacity(rlp.item_count()?);
 
 		// initialize the pairs vector with empty values so we have slots to write into.
-		pairs.resize(rlp.item_count()?, (H256::new(), Vec::new()));
+		pairs.resize(rlp.item_count()?, (H256::zero(), Vec::new()));
 
 		let status = rebuild_accounts(
 			self.db.as_hash_db_mut(),
@@ -450,9 +468,9 @@ impl StateRebuilder {
 				if !flag.load(Ordering::SeqCst) { return Err(Error::RestorationAborted.into()) }
 
 				if &thin_rlp[..] != &empty_rlp[..] {
-					self.bloom.set(&*hash);
+					self.bloom.set(hash.as_bytes());
 				}
-				account_trie.insert(&hash, &thin_rlp)?;
+				account_trie.insert(hash.as_bytes(), &thin_rlp)?;
 			}
 		}
 
@@ -468,7 +486,7 @@ impl StateRebuilder {
 	/// Finalize the restoration. Check for accounts missing code and make a dummy
 	/// journal entry.
 	/// Once all chunks have been fed, there should be nothing missing.
-	pub fn finalize(mut self, era: u64, id: H256) -> Result<Box<JournalDB>, ::error::Error> {
+	pub fn finalize(mut self, era: u64, id: H256) -> Result<Box<dyn JournalDB>, ::error::Error> {
 		let missing = self.missing_code.keys().cloned().collect::<Vec<_>>();
 		if !missing.is_empty() { return Err(Error::MissingCode(missing).into()) }
 
@@ -493,7 +511,7 @@ struct RebuiltStatus {
 // rebuild a set of accounts and their storage.
 // returns a status detailing newly-loaded code and accounts missing code.
 fn rebuild_accounts(
-	db: &mut HashDB<KeccakHasher, DBValue>,
+	db: &mut dyn HashDB<KeccakHasher, DBValue>,
 	account_fat_rlps: Rlp,
 	out_chunk: &mut [(H256, Bytes)],
 	known_code: &HashMap<H256, H256>,
@@ -512,7 +530,7 @@ fn rebuild_accounts(
 			// fill out the storage trie and code while decoding.
 			let (acc, maybe_code) = {
 				let mut acct_db = AccountDBMut::from_hash(db, hash);
-				let storage_root = known_storage_roots.get(&hash).cloned().unwrap_or(H256::zero());
+				let storage_root = known_storage_roots.get(&hash).cloned().unwrap_or_default();
 				account::from_fat_rlp(&mut acct_db, fat_rlp, storage_root)?
 			};
 
@@ -560,7 +578,7 @@ const POW_VERIFY_RATE: f32 = 0.02;
 /// Verify an old block with the given header, engine, blockchain, body. If `always` is set, it will perform
 /// the fullest verification possible. If not, it will take a random sample to determine whether it will
 /// do heavy or light verification.
-pub fn verify_old_block(rng: &mut OsRng, header: &Header, engine: &EthEngine, chain: &BlockChain, always: bool) -> Result<(), ::error::Error> {
+pub fn verify_old_block(rng: &mut OsRng, header: &Header, engine: &dyn EthEngine, chain: &BlockChain, always: bool) -> Result<(), ::error::Error> {
 	engine.verify_block_basic(header)?;
 
 	if always || rng.gen::<f32>() <= POW_VERIFY_RATE {

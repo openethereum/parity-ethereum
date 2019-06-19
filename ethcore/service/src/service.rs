@@ -30,8 +30,10 @@ use blockchain::{BlockChainDB, BlockChainDBHandler};
 use ethcore::client::{Client, ClientConfig, ChainNotify, ClientIoMessage};
 use ethcore::miner::Miner;
 use ethcore::snapshot::service::{Service as SnapshotService, ServiceParams as SnapServiceParams};
-use ethcore::snapshot::{SnapshotService as _SnapshotService, RestorationStatus};
+use ethcore::snapshot::{SnapshotService as _SnapshotService, RestorationStatus, Error as SnapshotError};
 use ethcore::spec::Spec;
+use ethcore::error::Error as EthcoreError;
+
 
 use ethcore_private_tx::{self, Importer, Signer};
 use Error;
@@ -197,6 +199,7 @@ impl ClientService {
 
 	/// Shutdown the Client Service
 	pub fn shutdown(&self) {
+		trace!(target: "shutdown", "Shutting down Client Service");
 		self.snapshot.shutdown();
 	}
 }
@@ -257,7 +260,11 @@ impl IoHandler<ClientIoMessage> for ClientIoHandler {
 
 				let res = thread::Builder::new().name("Periodic Snapshot".into()).spawn(move || {
 					if let Err(e) = snapshot.take_snapshot(&*client, num) {
-						warn!("Failed to take snapshot at block #{}: {}", num, e);
+						match e {
+							EthcoreError::Snapshot(SnapshotError::SnapshotAborted) => info!("Snapshot aborted"),
+							_ => warn!("Failed to take snapshot at block #{}: {}", num, e),
+						}
+
 					}
 				});
 
