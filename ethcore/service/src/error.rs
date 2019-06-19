@@ -14,18 +14,26 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
-// Silence: `use of deprecated item 'std::error::Error::cause': replaced by Error::source, which can support downcasting`
-// https://github.com/paritytech/parity-ethereum/issues/10302
-#![allow(deprecated)]
-
 use ethcore;
 use io;
 use ethcore_private_tx;
 
-error_chain! {
-	foreign_links {
-		Ethcore(ethcore::error::Error);
-		IoError(io::IoError);
-		PrivateTransactions(ethcore_private_tx::Error);
+#[derive(Debug, derive_more::Display, derive_more::From)]
+pub enum Error {
+	/// Ethcore Error
+	Ethcore(ethcore::error::Error),
+	/// Io Error
+	IoError(io::IoError),
+	/// Private Transactions Error
+	PrivateTransactions(ethcore_private_tx::Error),
+}
+
+impl std::error::Error for Error {
+	fn source(&self) -> Option<&(std::error::Error + 'static)> {
+		match self {
+			Error::Ethcore(err) => Some(err),
+			Error::IoError(err) => Some(err),
+			Error::PrivateTransactions(err) => Some(err),
+		}
 	}
 }

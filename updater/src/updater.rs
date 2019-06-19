@@ -159,7 +159,7 @@ pub struct Updater<O = OperationsContractClient, F = fetch::Client, T = StdTimeP
 const CLIENT_ID: &str = "parity";
 
 lazy_static! {
-	static ref CLIENT_ID_HASH: H256 = H256::from_slice(CLIENT_ID.as_bytes());
+	static ref CLIENT_ID_HASH: H256 = h256_from_str_resizing(CLIENT_ID);
 }
 
 lazy_static! {
@@ -177,7 +177,16 @@ lazy_static! {
 }
 
 lazy_static! {
-	static ref PLATFORM_ID_HASH: H256 = H256::from_slice(PLATFORM.as_bytes());
+	static ref PLATFORM_ID_HASH: H256 = h256_from_str_resizing(&PLATFORM);
+}
+
+
+// Pads the bytes with zeros or truncates the last bytes to H256::len_bytes()
+// before the conversion to match the previous behavior.
+fn h256_from_str_resizing(s: &str) -> H256 {
+	let mut bytes = s.as_bytes().to_vec();
+	bytes.resize(H256::len_bytes(), 0);
+	H256::from_slice(&bytes)
 }
 
 /// Client trait for getting latest release information from operations contract.
@@ -1252,5 +1261,12 @@ pub mod tests {
 
 		// and since our update policy requires consensus, the client should be disabled
 		assert!(client.is_disabled());
+	}
+
+	#[test]
+	fn static_hashes_do_not_panic() {
+		let client_id_hash: H256 = *CLIENT_ID_HASH;
+		assert_eq!(&format!("{:x}", client_id_hash), "7061726974790000000000000000000000000000000000000000000000000000");
+		let _: H256 = *PLATFORM_ID_HASH;
 	}
 }

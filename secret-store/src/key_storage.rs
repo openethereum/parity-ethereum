@@ -19,7 +19,7 @@ use std::sync::Arc;
 use serde_json;
 use tiny_keccak::Keccak;
 use ethereum_types::{H256, Address};
-use ethkey::{Secret, Public, public_to_address};
+use ethkey::{Secret, Public};
 use kvdb::KeyValueDB;
 use types::{Error, ServerKeyId, NodeId};
 use serialization::{SerializablePublic, SerializableSecret, SerializableH256, SerializableAddress};
@@ -28,10 +28,6 @@ use serialization::{SerializablePublic, SerializableSecret, SerializableH256, Se
 const DB_META_KEY_VERSION: &'static [u8; 7] = b"version";
 /// Current db version.
 const CURRENT_VERSION: u8 = 3;
-/// Current type of serialized key shares.
-type CurrentSerializableDocumentKeyShare = SerializableDocumentKeyShareV3;
-/// Current type of serialized key shares versions.
-type CurrentSerializableDocumentKeyVersion = SerializableDocumentKeyShareVersionV3;
 
 /// Encrypted key share, stored by key storage on the single key server.
 #[derive(Debug, Default, Clone, PartialEq)]
@@ -89,66 +85,6 @@ pub struct PersistentKeyStorageIterator<'a> {
 	iter: Box<Iterator<Item=(Box<[u8]>, Box<[u8]>)> + 'a>,
 }
 
-/// V0 of encrypted key share, as it is stored by key storage on the single key server.
-#[derive(Serialize, Deserialize)]
-pub struct SerializableDocumentKeyShareV0 {
-	/// Decryption threshold (at least threshold + 1 nodes are required to decrypt data).
-	pub threshold: usize,
-	/// Nodes ids numbers.
-	pub id_numbers: BTreeMap<SerializablePublic, SerializableSecret>,
-	/// Node secret share.
-	pub secret_share: SerializableSecret,
-	/// Common (shared) encryption point.
-	pub common_point: SerializablePublic,
-	/// Encrypted point.
-	pub encrypted_point: SerializablePublic,
-}
-
-/// V1 of encrypted key share, as it is stored by key storage on the single key server.
-#[derive(Serialize, Deserialize)]
-struct SerializableDocumentKeyShareV1 {
-	/// Author of the entry.
-	pub author: SerializablePublic,
-	/// Decryption threshold (at least threshold + 1 nodes are required to decrypt data).
-	pub threshold: usize,
-	/// Nodes ids numbers.
-	pub id_numbers: BTreeMap<SerializablePublic, SerializableSecret>,
-	/// Node secret share.
-	pub secret_share: SerializableSecret,
-	/// Common (shared) encryption point.
-	pub common_point: Option<SerializablePublic>,
-	/// Encrypted point.
-	pub encrypted_point: Option<SerializablePublic>,
-}
-
-/// V2 of encrypted key share, as it is stored by key storage on the single key server.
-#[derive(Serialize, Deserialize)]
-struct SerializableDocumentKeyShareV2 {
-	/// Author of the entry.
-	pub author: SerializablePublic,
-	/// Decryption threshold (at least threshold + 1 nodes are required to decrypt data).
-	pub threshold: usize,
-	/// Server public.
-	pub public: SerializablePublic,
-	/// Common (shared) encryption point.
-	pub common_point: Option<SerializablePublic>,
-	/// Encrypted point.
-	pub encrypted_point: Option<SerializablePublic>,
-	/// Versions.
-	pub versions: Vec<SerializableDocumentKeyShareVersionV2>
-}
-
-/// V2 of encrypted key share version, as it is stored by key storage on the single key server.
-#[derive(Serialize, Deserialize)]
-struct SerializableDocumentKeyShareVersionV2 {
-	/// Version hash.
-	pub hash: SerializableH256,
-	/// Nodes ids numbers.
-	pub id_numbers: BTreeMap<SerializablePublic, SerializableSecret>,
-	/// Node secret share.
-	pub secret_share: SerializableSecret,
-}
-
 /// V3 of encrypted key share, as it is stored by key storage on the single key server.
 #[derive(Serialize, Deserialize)]
 struct SerializableDocumentKeyShareV3 {
@@ -167,7 +103,15 @@ struct SerializableDocumentKeyShareV3 {
 }
 
 /// V3 of encrypted key share version, as it is stored by key storage on the single key server.
-type SerializableDocumentKeyShareVersionV3 = SerializableDocumentKeyShareVersionV2;
+#[derive(Serialize, Deserialize)]
+struct SerializableDocumentKeyShareVersionV3 {
+	/// Version hash.
+	pub hash: SerializableH256,
+	/// Nodes ids numbers.
+	pub id_numbers: BTreeMap<SerializablePublic, SerializableSecret>,
+	/// Node secret share.
+	pub secret_share: SerializableSecret,
+}
 
 impl PersistentKeyStorage {
 	/// Create new persistent document encryption keys storage
@@ -182,83 +126,22 @@ impl PersistentKeyStorage {
 
 fn upgrade_db(db: Arc<KeyValueDB>) -> Result<Arc<KeyValueDB>, Error> {
 	let version = db.get(None, DB_META_KEY_VERSION)?;
-	let version = version.and_then(|v| v.get(0).cloned()).unwrap_or(0);
+	let version = version.and_then(|v| v.get(0).cloned());
 	match version {
-		0 => {
+		None => {
 			let mut batch = db.transaction();
 			batch.put(None, DB_META_KEY_VERSION, &[CURRENT_VERSION]);
-			for (db_key, db_value) in db.iter(None).into_iter().filter(|&(ref k, _)| **k != *DB_META_KEY_VERSION) {
-				let v0_key = serde_json::from_slice::<SerializableDocumentKeyShareV0>(&db_value).map_err(|e| Error::Database(e.to_string()))?;
-				let current_key = CurrentSerializableDocumentKeyShare {
-					// author is used in separate generation + encrypt sessions.
-					// in v0 there have been only simultaneous GenEnc sessions.
-					author: Address::zero().into(), // added in v1
-					threshold: v0_key.threshold,
-					public: Public::default().into(), // addded in v2
-					common_point: Some(v0_key.common_point),
-					encrypted_point: Some(v0_key.encrypted_point),
-					versions: vec![CurrentSerializableDocumentKeyVersion {
-						hash: DocumentKeyShareVersion::data_hash(v0_key.id_numbers.iter().map(|(k, v)| (k.as_bytes(), v.as_bytes()))).into(),
-						id_numbers: v0_key.id_numbers,
-						secret_share: v0_key.secret_share,
-					}],
-				};
-				let db_value = serde_json::to_vec(&current_key).map_err(|e| Error::Database(e.to_string()))?;
-				batch.put(None, &*db_key, &*db_value);
-			}
 			db.write(batch)?;
 			Ok(db)
 		},
-		1 => {
-			let mut batch = db.transaction();
-			batch.put(None, DB_META_KEY_VERSION, &[CURRENT_VERSION]);
-			for (db_key, db_value) in db.iter(None).into_iter().filter(|&(ref k, _)| **k != *DB_META_KEY_VERSION) {
-				let v1_key = serde_json::from_slice::<SerializableDocumentKeyShareV1>(&db_value).map_err(|e| Error::Database(e.to_string()))?;
-				let current_key = CurrentSerializableDocumentKeyShare {
-					author: public_to_address(&v1_key.author).into(), // added in v1 + changed in v3
-					threshold: v1_key.threshold,
-					public: Public::default().into(), // addded in v2
-					common_point: v1_key.common_point,
-					encrypted_point: v1_key.encrypted_point,
-					versions: vec![CurrentSerializableDocumentKeyVersion {
-						hash: DocumentKeyShareVersion::data_hash(v1_key.id_numbers.iter().map(|(k, v)| (k.as_bytes(), v.as_bytes()))).into(),
-						id_numbers: v1_key.id_numbers,
-						secret_share: v1_key.secret_share,
-					}],
-				};
-				let db_value = serde_json::to_vec(&current_key).map_err(|e| Error::Database(e.to_string()))?;
-				batch.put(None, &*db_key, &*db_value);
-			}
-			db.write(batch)?;
-			Ok(db)
-		}
-		2 => {
-			let mut batch = db.transaction();
-			batch.put(None, DB_META_KEY_VERSION, &[CURRENT_VERSION]);
-			for (db_key, db_value) in db.iter(None).into_iter().filter(|&(ref k, _)| **k != *DB_META_KEY_VERSION) {
-				let v2_key = serde_json::from_slice::<SerializableDocumentKeyShareV2>(&db_value).map_err(|e| Error::Database(e.to_string()))?;
-				let current_key = CurrentSerializableDocumentKeyShare {
-					author: public_to_address(&v2_key.author).into(), // changed in v3
-					threshold: v2_key.threshold,
-					public: v2_key.public,
-					common_point: v2_key.common_point,
-					encrypted_point: v2_key.encrypted_point,
-					versions: v2_key.versions,
-				};
-				let db_value = serde_json::to_vec(&current_key).map_err(|e| Error::Database(e.to_string()))?;
-				batch.put(None, &*db_key, &*db_value);
-			}
-			db.write(batch)?;
-			Ok(db)
-		},
-		3 => Ok(db),
-		_ => Err(Error::Database(format!("unsupported SecretStore database version: {}", version))),
+		Some(CURRENT_VERSION) => Ok(db),
+		_ => Err(Error::Database(format!("unsupported SecretStore database version: {:?}", version))),
 	}
 }
 
 impl KeyStorage for PersistentKeyStorage {
 	fn insert(&self, document: ServerKeyId, key: DocumentKeyShare) -> Result<(), Error> {
-		let key: CurrentSerializableDocumentKeyShare = key.into();
+		let key: SerializableDocumentKeyShareV3 = key.into();
 		let key = serde_json::to_vec(&key).map_err(|e| Error::Database(e.to_string()))?;
 		let mut batch = self.db.transaction();
 		batch.put(None, document.as_bytes(), &key);
@@ -274,7 +157,7 @@ impl KeyStorage for PersistentKeyStorage {
 			.map_err(|e| Error::Database(e.to_string()))
 			.and_then(|key| match key {
 				None => Ok(None),
-				Some(key) => serde_json::from_slice::<CurrentSerializableDocumentKeyShare>(&key)
+				Some(key) => serde_json::from_slice::<SerializableDocumentKeyShareV3>(&key)
 					.map_err(|e| Error::Database(e.to_string()))
 					.map(Into::into)
 					.map(Some),
@@ -314,7 +197,7 @@ impl<'a> Iterator for PersistentKeyStorageIterator<'a> {
 
 	fn next(&mut self) -> Option<(ServerKeyId, DocumentKeyShare)> {
 		self.iter.as_mut().next()
-			.and_then(|(db_key, db_val)| serde_json::from_slice::<CurrentSerializableDocumentKeyShare>(&db_val)
+			.and_then(|(db_key, db_val)| serde_json::from_slice::<SerializableDocumentKeyShareV3>(&db_val)
 					  .ok()
 					  .map(|key| (ServerKeyId::from_slice(&*db_key), key.into())))
 	}
@@ -411,17 +294,12 @@ pub mod tests {
 
 	use std::collections::HashMap;
 	use std::sync::Arc;
-	use std::str::FromStr;
 	use parking_lot::RwLock;
-	use serde_json;
 	use self::tempdir::TempDir;
-	use ethereum_types::{Address, H256, H512};
-	use ethkey::{Random, Generator, Public, Secret, public_to_address};
+	use ethkey::{Random, Generator, Public};
 	use kvdb_rocksdb::Database;
 	use types::{Error, ServerKeyId};
-	use super::{DB_META_KEY_VERSION, CURRENT_VERSION, KeyStorage, PersistentKeyStorage, DocumentKeyShare,
-		DocumentKeyShareVersion, CurrentSerializableDocumentKeyShare, upgrade_db, SerializableDocumentKeyShareV0,
-		SerializableDocumentKeyShareV1, SerializableDocumentKeyShareV2, SerializableDocumentKeyShareVersionV2};
+	use super::{KeyStorage, PersistentKeyStorage, DocumentKeyShare, DocumentKeyShareVersion};
 
 	/// In-memory document encryption keys storage
 	#[derive(Default)]
@@ -514,138 +392,5 @@ pub mod tests {
 		assert_eq!(key_storage.get(&key1), Ok(Some(value1)));
 		assert_eq!(key_storage.get(&key2), Ok(Some(value2)));
 		assert_eq!(key_storage.get(&key3), Ok(None));
-	}
-
-	#[test]
-	fn upgrade_db_from_0() {
-		let tempdir = TempDir::new("").unwrap();
-		let db = Database::open_default(&tempdir.path().display().to_string()).unwrap();
-
-		// prepare v0 database
-		{
-			let key = serde_json::to_vec(&SerializableDocumentKeyShareV0 {
-				threshold: 777,
-				id_numbers: vec![(
-					H512::from_str("b486d3840218837b035c66196ecb15e6b067ca20101e11bd5e626288ab6806ecc70b8307012626bd512bad1559112d11d21025cef48cc7a1d2f3976da08f36c8").unwrap().into(),
-					"281b6bf43cb86d0dc7b98e1b7def4a80f3ce16d28d2308f934f116767306f06c".parse::<Secret>().unwrap().into(),
-				)].into_iter().collect(),
-				secret_share: "00125d85a05e5e63e214cb60fe63f132eec8a103aa29266b7e6e6c5b7597230b".parse::<Secret>().unwrap().into(),
-				common_point: H512::from_str("99e82b163b062d55a64085bacfd407bb55f194ba5fb7a1af9c34b84435455520f1372e0e650a4f91aed0058cb823f62146ccb5599c8d13372c300dea866b69fc").unwrap().into(),
-				encrypted_point: H512::from_str("7e05df9dd077ec21ed4bc45c9fe9e0a43d65fa4be540630de615ced5e95cf5c3003035eb713317237d7667feeeb64335525158f5f7411f67aca9645169ea554c").unwrap().into(),
-			}).unwrap();
-			let mut batch = db.transaction();
-			batch.put(None, &[7], &key);
-			db.write(batch).unwrap();
-		}
-
-		// upgrade database
-		let db = upgrade_db(Arc::new(db)).unwrap();
-
-		// check upgrade
-		assert_eq!(db.get(None, DB_META_KEY_VERSION).unwrap().unwrap()[0], CURRENT_VERSION);
-		let key = serde_json::from_slice::<CurrentSerializableDocumentKeyShare>(&db.get(None, &[7]).unwrap().map(|key| key.to_vec()).unwrap()).unwrap();
-		assert_eq!(Address::zero(), key.author.clone().into());
-		assert_eq!(777, key.threshold);
-		assert_eq!(Some("99e82b163b062d55a64085bacfd407bb55f194ba5fb7a1af9c34b84435455520f1372e0e650a4f91aed0058cb823f62146ccb5599c8d13372c300dea866b69fc".parse::<Public>().unwrap()), key.common_point.clone().map(Into::into));
-		assert_eq!(Some("7e05df9dd077ec21ed4bc45c9fe9e0a43d65fa4be540630de615ced5e95cf5c3003035eb713317237d7667feeeb64335525158f5f7411f67aca9645169ea554c".parse::<Public>().unwrap()), key.encrypted_point.clone().map(Into::into));
-
-		assert_eq!(key.versions.len(), 1);
-		assert_eq!(vec![(
-			"b486d3840218837b035c66196ecb15e6b067ca20101e11bd5e626288ab6806ecc70b8307012626bd512bad1559112d11d21025cef48cc7a1d2f3976da08f36c8".parse::<Public>().unwrap(),
-			"281b6bf43cb86d0dc7b98e1b7def4a80f3ce16d28d2308f934f116767306f06c".parse::<Secret>().unwrap(),
-		)], key.versions[0].id_numbers.clone().into_iter().map(|(k, v)| (k.into(), v.into())).collect::<Vec<(Public, Secret)>>());
-		assert_eq!("00125d85a05e5e63e214cb60fe63f132eec8a103aa29266b7e6e6c5b7597230b".parse::<Secret>().unwrap(), key.versions[0].secret_share.clone().into());
-	}
-
-	#[test]
-	fn upgrade_db_from_1() {
-		let tempdir = TempDir::new("").unwrap();
-		let db = Database::open_default(&tempdir.path().display().to_string()).unwrap();
-
-		// prepare v1 database
-		{
-			let key = serde_json::to_vec(&SerializableDocumentKeyShareV1 {
-				author: H512::from_str("b486d3840218837b035c66196ecb15e6b067ca20101e11bd5e626288ab6806ecc70b8307012626bd512bad1559112d11d21025cef48cc7a1d2f3976da08f36c8").unwrap().into(),
-				threshold: 777,
-				id_numbers: vec![(
-					H512::from_str("b486d3840218837b035c66196ecb15e6b067ca20101e11bd5e626288ab6806ecc70b8307012626bd512bad1559112d11d21025cef48cc7a1d2f3976da08f36c8").unwrap().into(),
-					"281b6bf43cb86d0dc7b98e1b7def4a80f3ce16d28d2308f934f116767306f06c".parse::<Secret>().unwrap().into(),
-				)].into_iter().collect(),
-				secret_share: "00125d85a05e5e63e214cb60fe63f132eec8a103aa29266b7e6e6c5b7597230b".parse::<Secret>().unwrap().into(),
-				common_point: Some(H512::from_str("99e82b163b062d55a64085bacfd407bb55f194ba5fb7a1af9c34b84435455520f1372e0e650a4f91aed0058cb823f62146ccb5599c8d13372c300dea866b69fc").unwrap().into()),
-				encrypted_point: Some(H512::from_str("7e05df9dd077ec21ed4bc45c9fe9e0a43d65fa4be540630de615ced5e95cf5c3003035eb713317237d7667feeeb64335525158f5f7411f67aca9645169ea554c").unwrap().into()),
-			}).unwrap();
-			let mut batch = db.transaction();
-			batch.put(None, DB_META_KEY_VERSION, &[1]);
-			batch.put(None, &[7], &key);
-			db.write(batch).unwrap();
-		}
-
-		// upgrade database
-		let db = upgrade_db(Arc::new(db)).unwrap();
-
-		// check upgrade
-		assert_eq!(db.get(None, DB_META_KEY_VERSION).unwrap().unwrap()[0], CURRENT_VERSION);
-		let key = serde_json::from_slice::<CurrentSerializableDocumentKeyShare>(&db.get(None, &[7]).unwrap().map(|key| key.to_vec()).unwrap()).unwrap();
-		assert_eq!(777, key.threshold);
-		assert_eq!(Some("99e82b163b062d55a64085bacfd407bb55f194ba5fb7a1af9c34b84435455520f1372e0e650a4f91aed0058cb823f62146ccb5599c8d13372c300dea866b69fc".parse::<Public>().unwrap()), key.common_point.clone().map(Into::into));
-		assert_eq!(Some("7e05df9dd077ec21ed4bc45c9fe9e0a43d65fa4be540630de615ced5e95cf5c3003035eb713317237d7667feeeb64335525158f5f7411f67aca9645169ea554c".parse::<Public>().unwrap()), key.encrypted_point.clone().map(Into::into));
-		assert_eq!(key.author.0, public_to_address(&H512::from_str("b486d3840218837b035c66196ecb15e6b067ca20101e11bd5e626288ab6806ecc70b8307012626bd512bad1559112d11d21025cef48cc7a1d2f3976da08f36c8").unwrap()));
-
-		assert_eq!(key.versions.len(), 1);
-		assert_eq!(vec![(
-			"b486d3840218837b035c66196ecb15e6b067ca20101e11bd5e626288ab6806ecc70b8307012626bd512bad1559112d11d21025cef48cc7a1d2f3976da08f36c8".parse::<Public>().unwrap(),
-			"281b6bf43cb86d0dc7b98e1b7def4a80f3ce16d28d2308f934f116767306f06c".parse::<Secret>().unwrap(),
-		)], key.versions[0].id_numbers.clone().into_iter().map(|(k, v)| (k.into(), v.into())).collect::<Vec<(Public, Secret)>>());
-
-		assert_eq!("00125d85a05e5e63e214cb60fe63f132eec8a103aa29266b7e6e6c5b7597230b".parse::<Secret>().unwrap(), key.versions[0].secret_share.clone().into());
-	}
-
-	#[test]
-	fn upgrade_db_from_2() {
-		let tempdir = TempDir::new("").unwrap();
-		let db = Database::open_default(&tempdir.path().display().to_string()).unwrap();
-
-		// prepare v2 database
-		{
-			let key = serde_json::to_vec(&SerializableDocumentKeyShareV2 {
-				author: H512::from_str("b486d3840218837b035c66196ecb15e6b067ca20101e11bd5e626288ab6806ecc70b8307012626bd512bad1559112d11d21025cef48cc7a1d2f3976da08f36c8").unwrap().into(),
-				threshold: 777,
-				common_point: Some(H512::from_str("99e82b163b062d55a64085bacfd407bb55f194ba5fb7a1af9c34b84435455520f1372e0e650a4f91aed0058cb823f62146ccb5599c8d13372c300dea866b69fc").unwrap().into()),
-				encrypted_point: Some(H512::from_str("7e05df9dd077ec21ed4bc45c9fe9e0a43d65fa4be540630de615ced5e95cf5c3003035eb713317237d7667feeeb64335525158f5f7411f67aca9645169ea554c").unwrap().into()),
-				public: H512::from_str("b486d3840218837b035c66196ecb15e6b067ca20101e11bd5e626288ab6806ecc70b8307012626bd512bad1559112d11d21025cef48cc7a1d2f3976da08f36c8").unwrap().into(),
-				versions: vec![SerializableDocumentKeyShareVersionV2 {
-					hash: "281b6bf43cb86d0dc7b98e1b7def4a80f3ce16d28d2308f934f116767306f06c".parse::<H256>().unwrap().into(),
-					id_numbers: vec![(
-						H512::from_str("b486d3840218837b035c66196ecb15e6b067ca20101e11bd5e626288ab6806ecc70b8307012626bd512bad1559112d11d21025cef48cc7a1d2f3976da08f36c8").unwrap().into(),
-						"281b6bf43cb86d0dc7b98e1b7def4a80f3ce16d28d2308f934f116767306f06c".parse::<Secret>().unwrap().into(),
-					)].into_iter().collect(),
-					secret_share: "00125d85a05e5e63e214cb60fe63f132eec8a103aa29266b7e6e6c5b7597230b".parse::<Secret>().unwrap().into(),
-				}],
-			}).unwrap();
-			let mut batch = db.transaction();
-			batch.put(None, DB_META_KEY_VERSION, &[2]);
-			batch.put(None, &[7], &key);
-			db.write(batch).unwrap();
-		}
-
-		// upgrade database
-		let db = upgrade_db(Arc::new(db)).unwrap();
-
-		// check upgrade
-		assert_eq!(db.get(None, DB_META_KEY_VERSION).unwrap().unwrap()[0], CURRENT_VERSION);
-		let key = serde_json::from_slice::<CurrentSerializableDocumentKeyShare>(&db.get(None, &[7]).unwrap().map(|key| key.to_vec()).unwrap()).unwrap();
-		assert_eq!(777, key.threshold);
-		assert_eq!(Some("99e82b163b062d55a64085bacfd407bb55f194ba5fb7a1af9c34b84435455520f1372e0e650a4f91aed0058cb823f62146ccb5599c8d13372c300dea866b69fc".parse::<Public>().unwrap()), key.common_point.clone().map(Into::into));
-		assert_eq!(Some("7e05df9dd077ec21ed4bc45c9fe9e0a43d65fa4be540630de615ced5e95cf5c3003035eb713317237d7667feeeb64335525158f5f7411f67aca9645169ea554c".parse::<Public>().unwrap()), key.encrypted_point.clone().map(Into::into));
-		assert_eq!(key.author.0, public_to_address(&"b486d3840218837b035c66196ecb15e6b067ca20101e11bd5e626288ab6806ecc70b8307012626bd512bad1559112d11d21025cef48cc7a1d2f3976da08f36c8".parse().unwrap()));
-
-		assert_eq!(key.versions.len(), 1);
-		assert_eq!(vec![(
-			"b486d3840218837b035c66196ecb15e6b067ca20101e11bd5e626288ab6806ecc70b8307012626bd512bad1559112d11d21025cef48cc7a1d2f3976da08f36c8".parse::<Public>().unwrap(),
-			"281b6bf43cb86d0dc7b98e1b7def4a80f3ce16d28d2308f934f116767306f06c".parse::<Secret>().unwrap(),
-		)], key.versions[0].id_numbers.clone().into_iter().map(|(k, v)| (k.into(), v.into())).collect::<Vec<(Public, Secret)>>());
-
-		assert_eq!("00125d85a05e5e63e214cb60fe63f132eec8a103aa29266b7e6e6c5b7597230b".parse::<Secret>().unwrap(), key.versions[0].secret_share.clone().into());
 	}
 }

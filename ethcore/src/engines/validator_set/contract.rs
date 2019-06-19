@@ -37,7 +37,7 @@ use_contract!(validator_report, "res/contracts/validator_report.json");
 pub struct ValidatorContract {
 	contract_address: Address,
 	validators: ValidatorSafeContract,
-	client: RwLock<Option<Weak<EngineClient>>>, // TODO [keorn]: remove
+	client: RwLock<Option<Weak<dyn EngineClient>>>, // TODO [keorn]: remove
 }
 
 impl ValidatorContract {
@@ -125,7 +125,7 @@ impl ValidatorSet for ValidatorContract {
 		}
 	}
 
-	fn register_client(&self, client: Weak<EngineClient>) {
+	fn register_client(&self, client: Weak<dyn EngineClient>) {
 		self.validators.register_client(client.clone());
 		*self.client.write() = Some(client);
 	}

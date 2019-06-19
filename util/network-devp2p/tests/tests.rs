@@ -14,26 +14,20 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
-extern crate env_logger;
-extern crate ethcore_io as io;
-extern crate ethcore_network;
-extern crate ethcore_network_devp2p;
-extern crate ethkey;
-extern crate parity_bytes;
-extern crate parking_lot;
-
-use std::sync::Arc;
-use std::sync::atomic::{AtomicBool, Ordering as AtomicOrdering};
+use std::sync::{
+	Arc,
+	atomic::{AtomicBool, Ordering as AtomicOrdering}
+};
 use std::thread;
-use std::time::*;
+use std::time::Duration;
 
 use parity_bytes::Bytes;
 use parking_lot::Mutex;
 
-use ethcore_network::*;
+use network::{PeerId, NetworkContext, NetworkProtocolHandler, NetworkConfiguration};
 use ethcore_network_devp2p::NetworkService;
 use ethkey::{Generator, Random};
-use io::TimerToken;
+use ethcore_io::TimerToken;
 
 pub struct TestProtocol {
 	drop_session: bool,
@@ -48,7 +42,7 @@ impl TestProtocol {
 			packet: Mutex::new(Vec::new()),
 			got_timeout: AtomicBool::new(false),
 			got_disconnect: AtomicBool::new(false),
-			drop_session: drop_session,
+			drop_session,
 		}
 	}
 	/// Creates and register protocol with the network service

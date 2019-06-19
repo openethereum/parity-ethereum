@@ -57,7 +57,7 @@ use crate::{CacheSize, ImportRoute, Config};
 /// Database backing `BlockChain`.
 pub trait BlockChainDB: Send + Sync {
 	/// Generic key value store.
-	fn key_value(&self) -> &Arc<KeyValueDB>;
+	fn key_value(&self) -> &Arc<dyn KeyValueDB>;
 
 	/// Header blooms database.
 	fn blooms(&self) -> &blooms_db::Database;
@@ -85,7 +85,7 @@ pub trait BlockChainDB: Send + Sync {
 /// predefined config.
 pub trait BlockChainDBHandler: Send + Sync {
 	/// Open the predefined key-value database.
-	fn open(&self, path: &Path) -> io::Result<Arc<BlockChainDB>>;
+	fn open(&self, path: &Path) -> io::Result<Arc<dyn BlockChainDB>>;
 }
 
 /// Interface for querying blocks by hash and by number.
@@ -228,7 +228,7 @@ pub struct BlockChain {
 	transaction_addresses: RwLock<HashMap<H256, TransactionAddress>>,
 	block_receipts: RwLock<HashMap<H256, BlockReceipts>>,
 
-	db: Arc<BlockChainDB>,
+	db: Arc<dyn BlockChainDB>,
 
 	cache_man: Mutex<CacheManager<CacheId>>,
 
@@ -481,7 +481,7 @@ impl<'a> Iterator for AncestryWithMetadataIter<'a> {
 /// Returns epoch transitions.
 pub struct EpochTransitionIter<'a> {
 	chain: &'a BlockChain,
-	prefix_iter: Box<Iterator<Item=(Box<[u8]>, Box<[u8]>)> + 'a>,
+	prefix_iter: Box<dyn Iterator<Item=(Box<[u8]>, Box<[u8]>)> + 'a>,
 }
 
 impl<'a> Iterator for EpochTransitionIter<'a> {
@@ -521,7 +521,7 @@ impl<'a> Iterator for EpochTransitionIter<'a> {
 
 impl BlockChain {
 	/// Create new instance of blockchain from given Genesis.
-	pub fn new(config: Config, genesis: &[u8], db: Arc<BlockChainDB>) -> BlockChain {
+	pub fn new(config: Config, genesis: &[u8], db: Arc<dyn BlockChainDB>) -> BlockChain {
 		// 400 is the average size of the key
 		let cache_man = CacheManager::new(config.pref_cache_size, config.max_cache_size, 400);
 
@@ -1592,11 +1592,11 @@ mod tests {
 		_trace_blooms_dir: TempDir,
 		blooms: blooms_db::Database,
 		trace_blooms: blooms_db::Database,
-		key_value: Arc<KeyValueDB>,
+		key_value: Arc<dyn KeyValueDB>,
 	}
 
 	impl BlockChainDB for TestBlockChainDB {
-		fn key_value(&self) -> &Arc<KeyValueDB> {
+		fn key_value(&self) -> &Arc<dyn KeyValueDB> {
 			&self.key_value
 		}
 
@@ -1610,7 +1610,7 @@ mod tests {
 	}
 
 	/// Creates new test instance of `BlockChainDB`
-	pub fn new_db() -> Arc<BlockChainDB> {
+	pub fn new_db() -> Arc<dyn BlockChainDB> {
 		let blooms_dir = TempDir::new("").unwrap();
 		let trace_blooms_dir = TempDir::new("").unwrap();
 
@@ -1625,15 +1625,15 @@ mod tests {
 		Arc::new(db)
 	}
 
-	fn new_chain(genesis: encoded::Block, db: Arc<BlockChainDB>) -> BlockChain {
+	fn new_chain(genesis: encoded::Block, db: Arc<dyn BlockChainDB>) -> BlockChain {
 		BlockChain::new(Config::default(), genesis.raw(), db)
 	}
 
-	fn insert_block(db: &Arc<BlockChainDB>, bc: &BlockChain, block: encoded::Block, receipts: Vec<Receipt>) -> ImportRoute {
+	fn insert_block(db: &Arc<dyn BlockChainDB>, bc: &BlockChain, block: encoded::Block, receipts: Vec<Receipt>) -> ImportRoute {
 		insert_block_commit(db, bc, block, receipts, true)
 	}
 
-	fn insert_block_commit(db: &Arc<BlockChainDB>, bc: &BlockChain, block: encoded::Block, receipts: Vec<Receipt>, commit: bool) -> ImportRoute {
+	fn insert_block_commit(db: &Arc<dyn BlockChainDB>, bc: &BlockChain, block: encoded::Block, receipts: Vec<Receipt>, commit: bool) -> ImportRoute {
 		let mut batch = db.key_value().transaction();
 		let res = insert_block_batch(&mut batch, bc, block, receipts);
 		db.key_value().write(batch).unwrap();
