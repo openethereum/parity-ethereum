@@ -230,7 +230,8 @@ impl<Trace: Writer, Out: Writer> vm::Informant for Informant<Trace, Out> {
 
 				Self::dump_state_into(trace_sink, failure.state_root, &failure.end_state);
 
-				writeln!(out_sink, "{:?}", out_data_failure).expect("The sink must be writeable.");
+				let s = serde_json::to_string(&out_data_failure).expect("serialization cannot fail; qed");
+				writeln!(out_sink, "{}", s).expect("The sink must be writeable.");
 			},
 		}
 	}
