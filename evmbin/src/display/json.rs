@@ -23,7 +23,6 @@ use ethereum_types::{U256, H256, BigEndianHash};
 use bytes::ToPretty;
 use ethcore::trace;
 
-use config::{logger};
 use display;
 use info as vm;
 

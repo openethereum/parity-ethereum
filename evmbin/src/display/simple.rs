@@ -19,7 +19,6 @@
 use ethcore::trace;
 use bytes::ToPretty;
 
-use config::{logger};
 use display;
 use info as vm;
 

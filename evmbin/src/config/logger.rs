@@ -59,7 +59,7 @@ fn setup_logger(verbosity: u32, log_to_file: bool) -> Result<(), fern::InitError
         })
         .chain(io::stdout());
 
-    if (log_to_file) {
+    if log_to_file {
         let file_config = fern::Dispatch::new()
             .format(|out, message, record| {
                 out.finish(format_args!(
