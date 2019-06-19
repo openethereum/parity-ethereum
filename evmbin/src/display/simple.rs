@@ -27,41 +27,12 @@ use info as vm;
 #[derive(Default)]
 pub struct Informant;
 
-#[derive(Serialize, Debug)]
-pub struct MessageInitial<'a> {
-	action: &'a str,
-	test: &'a str,
-}
-
-#[derive(Serialize, Debug)]
-#[serde(rename_all = "camelCase")]
-pub struct MessageSuccess<'a> {
-	output: &'a str,
-	gas_used: &'a str,
-	time: &'a u64,
-}
-
-#[derive(Serialize, Debug)]
-#[serde(rename_all = "camelCase")]
-pub struct MessageFailure<'a> {
-	error: &'a str,
-	time: &'a u64,
-}
-
 impl vm::Informant for Informant {
 
 	type Sink = ();
 
 	fn before_test(&mut self, name: &str, action: &str) {
-		let message_init =
-			MessageInitial {
-				action,
-				test: &name,
-			}
-		;
-
-		let serialized_message_init = serde_json::to_string(&message_init).expect("serialization cannot fail; qed");
-		info!("Message initial: {}", serialized_message_init);
+    info!("Test: {} ({})", name, action);
 	}
 
 	fn clone_sink(&self) -> Self::Sink { () }
@@ -69,27 +40,13 @@ impl vm::Informant for Informant {
 	fn finish(result: vm::RunResult<Self::Output>, _sink: &mut Self::Sink) {
 		match result {
 			Ok(success) => {
-				let message_success =
-					MessageSuccess {
-						output: &format!("0x{}", success.output.to_hex()),
-						gas_used: &format!("{:#x}", success.gas_used),
-						time: &display::as_micros(&success.time),
-					}
-				;
-
-				let serialized_message_success = serde_json::to_string(&message_success).expect("serialization cannot fail; qed");
-				info!("Message success: {}", serialized_message_success);
+        info!("Output: 0x{}", success.output.to_hex());
+        info!("Gas used: {:x}", success.gas_used);
+        info!("Time: {}", display::format_time(&success.time));
 			},
 			Err(failure) => {
-				let message_failure =
-					MessageFailure {
-						error: &failure.error.to_string(),
-						time: &display::as_micros(&failure.time),
-					}
-				;
-
-				let serialized_message_failure = serde_json::to_string(&message_failure).expect("serialization cannot fail; qed");
-				error!("Message failure: {}", serialized_message_failure);
+				error!("Error: {}", failure.error);
+				error!("Time: {}", display::format_time(&failure.time));
 			},
 		}
 	}
