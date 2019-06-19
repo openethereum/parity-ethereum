@@ -165,7 +165,8 @@ impl vm::Informant for Informant {
 					}
 				;
 
-				println!("{:?}", message_failure);
+				let s = serde_json::to_string(&message_failure).expect("serialization cannot fail; qed");
+				println!("{}", s);
 			},
 		}
 	}
