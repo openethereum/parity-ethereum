@@ -150,8 +150,8 @@ impl vm::Informant for Informant {
 					}
 				;
 
-				let serialized_message_success = serde_json::to_string(&message_success).expect("serialization cannot fail; qed");
-				info!("Message success: {}", serialized_message_success);
+				let s = serde_json::to_string(&message_success).expect("serialization cannot fail; qed");
+				info!("Message success: {}", s);
 			},
 			Err(failure) => {
 				for trace in failure.traces.unwrap_or_else(Vec::new) {
@@ -166,8 +166,8 @@ impl vm::Informant for Informant {
 					}
 				;
 
-				let serialized_message_failure = serde_json::to_string(&message_failure).expect("serialization cannot fail; qed");
-				error!("Message failure: {}", serialized_message_failure);
+				let s = serde_json::to_string(&message_failure).expect("serialization cannot fail; qed");
+				error!("Message failure: {}", s);
 			},
 		}
 	}

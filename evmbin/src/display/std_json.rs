@@ -164,7 +164,8 @@ impl<Trace: Writer, Out: Writer> Informant<Trace, Out> {
 				}
 			;
 
-			writeln!(trace_sink, "{:?}", dump_data).expect("The sink must be writeable.");
+			let s = serde_json::to_string(&dump_data).expect("serialization cannot fail; qed");
+			writeln!(trace_sink, "{}", s).expect("The sink must be writeable.");
 		}
 	}
 
@@ -182,7 +183,8 @@ impl<Trace: Writer, Out: Writer> vm::Informant for Informant<Trace, Out> {
 			}
 		;
 
-		writeln!(&mut self.out_sink, "{:?}", message_init).expect("The sink must be writeable.");
+		let s = serde_json::to_string(&message_init).expect("serialization cannot fail; qed");
+		writeln!(&mut self.out_sink, "{}", s).expect("The sink must be writeable.");
 	}
 
 	fn set_gas(&mut self, _gas: U256) {}
@@ -201,7 +203,8 @@ impl<Trace: Writer, Out: Writer> vm::Informant for Informant<Trace, Out> {
 					}
 				;
 
-				writeln!(trace_sink, "{:?}", trace_data_state_root)
+				let s = serde_json::to_string(&trace_data_state_root).expect("serialization cannot fail; qed");
+				writeln!(trace_sink, "{}", s)
 					.expect("The sink must be writeable.");
 
 				Self::dump_state_into(trace_sink, success.state_root, &success.end_state);
@@ -214,7 +217,8 @@ impl<Trace: Writer, Out: Writer> vm::Informant for Informant<Trace, Out> {
 					}
 				;
 
-				writeln!(out_sink, "{:?}", message_success).expect("The sink must be writeable.");
+				let s = serde_json::to_string(&message_success).expect("serialization cannot fail; qed");
+				writeln!(out_sink, "{}", s).expect("The sink must be writeable.");
 			},
 			Err(failure) => {
 				let message_failure =
@@ -227,7 +231,8 @@ impl<Trace: Writer, Out: Writer> vm::Informant for Informant<Trace, Out> {
 
 				Self::dump_state_into(trace_sink, failure.state_root, &failure.end_state);
 
-				writeln!(out_sink, "{:?}", message_failure).expect("The sink must be writeable.");
+				let s = serde_json::to_string(&message_failure).expect("serialization cannot fail; qed");
+				writeln!(out_sink, "{}", s).expect("The sink must be writeable.");
 			},
 		}
 	}
