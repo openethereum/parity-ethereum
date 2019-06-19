@@ -98,7 +98,7 @@ use std::collections::{HashSet, HashMap, BTreeMap};
 use std::cmp;
 use std::time::{Duration, Instant};
 use hash::keccak;
-use mem::MallocSizeOfExt;
+use parity_util_mem::MallocSizeOfExt;
 use futures::sync::mpsc as futures_mpsc;
 use api::Notification;
 use ethereum_types::{H256, U256};

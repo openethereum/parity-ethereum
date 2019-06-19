@@ -362,7 +362,7 @@ impl<T: ChainDataFetcher> Client<T> {
 
 	/// Get blockchain mem usage in bytes.
 	pub fn chain_mem_used(&self) -> usize {
-		use mem::MallocSizeOfExt;
+		use parity_util_mem::MallocSizeOfExt;
 
 		self.chain.malloc_size_of()
 	}

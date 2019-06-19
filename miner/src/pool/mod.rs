@@ -17,7 +17,7 @@
 //! Transaction Pool
 
 use ethereum_types::{U256, H256, Address};
-use mem::MallocSizeOfExt;
+use parity_util_mem::MallocSizeOfExt;
 use types::transaction;
 use txpool;
 

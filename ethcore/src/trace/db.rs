@@ -17,7 +17,7 @@
 //! Trace database.
 use std::collections::HashMap;
 use std::sync::Arc;
-use mem::MallocSizeOfExt;
+use parity_util_mem::MallocSizeOfExt;
 
 use blockchain::BlockChainDB;
 use db::cache_manager::CacheManager;

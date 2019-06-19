@@ -23,7 +23,7 @@ use std::sync::Arc;
 
 use bytes::Bytes;
 use ethereum_types::H256;
-use mem::MallocSizeOfExt;
+use parity_util_mem::MallocSizeOfExt;
 use hash_db::{HashDB, Prefix};
 use keccak_hasher::KeccakHasher;
 use kvdb::{KeyValueDB, DBTransaction, DBValue};

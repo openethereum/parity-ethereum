@@ -21,7 +21,7 @@ use std::collections::{HashMap, HashSet};
 use bytes::Bytes;
 use ethcore_miner::pool;
 use ethereum_types::{H256, U256, Address};
-use mem::MallocSizeOfExt;
+use parity_util_mem::MallocSizeOfExt;
 use ethkey::Signature;
 use messages::PrivateTransaction;
 use parking_lot::RwLock;
