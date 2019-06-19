@@ -1458,11 +1458,7 @@ mod tests {
 			net_settings: Default::default(),
 			ipfs_conf: Default::default(),
 			secretstore_conf: Default::default(),
-			private_provider_conf: ProviderConfig {
-				validator_accounts: Default::default(),
-				signer_account: Default::default(),
-				logs_path: None,
-			},
+			private_provider_conf: Default::default(),
 			private_encryptor_conf: Default::default(),
 			private_tx_enabled: false,
 			name: "".into(),
