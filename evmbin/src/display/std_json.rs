@@ -106,7 +106,7 @@ pub struct DumpData<'a> {
 
 #[derive(Serialize, Debug)]
 #[serde(rename_all = "camelCase")]
-pub struct StateRootData<'a> {
+pub struct TraceDataStateRoot<'a> {
 	state_root: &'a H256,
 }
 
@@ -197,7 +197,7 @@ impl<Trace: Writer, Out: Writer> vm::Informant for Informant<Trace, Out> {
 		match result {
 			Ok(success) => {
 				let state_root_data =
-					StateRootData {
+					TraceDataStateRoot {
 						state_root: &success.state_root,
 					}
 				;
