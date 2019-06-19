@@ -149,7 +149,8 @@ impl vm::Informant for Informant {
 					}
 				;
 
-				println!("{:?}", message_success);
+				let s = serde_json::to_string(&message_success).expect("serialization cannot fail; qed");
+				println!("{}", s);
 			},
 			Err(failure) => {
 				for trace in failure.traces.unwrap_or_else(Vec::new) {
