@@ -25,13 +25,18 @@ use std::str::FromStr;
 use std::time::{self, Duration, SystemTime};
 
 use ethereum_types::H512;
+use log::{debug, warn};
 use rand::{self, Rng};
 use rlp::{DecoderError, Rlp, RlpStream};
+use serde::{Deserialize, Serialize};
 use serde_json;
 
-use discovery::{NodeEntry, TableUpdates};
-use ip_utils::*;
 use network::{AllowIP, Error, IpFilter};
+
+use crate::{
+	discovery::{NodeEntry, TableUpdates},
+	ip_utils::*,
+};
 
 /// Node public key
 pub type NodeId = H512;
@@ -611,6 +616,8 @@ mod tests {
 	use ethereum_types::H512;
 	use ipnetwork::IpNetwork;
 	use tempdir::TempDir;
+
+	use assert_matches::assert_matches;
 
 	use super::*;
 

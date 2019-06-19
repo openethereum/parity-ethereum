@@ -22,8 +22,9 @@ use std::time::Duration;
 
 use igd::{PortMappingProtocol, search_gateway_from_timeout};
 use ipnetwork::IpNetwork;
+use log::debug;
 
-use node_table::NodeEndpoint;
+use crate::node_table::NodeEndpoint;
 
 /// Socket address extension for rustc beta. To be replaces with now unstable API
 pub trait SocketAddrExt {
@@ -214,13 +215,13 @@ impl SocketAddrExt for IpAddr {
 
 #[cfg(not(any(windows, target_os = "android")))]
 mod getinterfaces {
-    use std::{io, mem};
-    use std::net::{IpAddr, Ipv4Addr, Ipv6Addr};
+	use std::{io, mem};
+	use std::net::{IpAddr, Ipv4Addr, Ipv6Addr};
 
-    use libc::{AF_INET, AF_INET6};
-    use libc::{freeifaddrs, getifaddrs, ifaddrs, sockaddr, sockaddr_in, sockaddr_in6};
+	use libc::{AF_INET, AF_INET6};
+	use libc::{freeifaddrs, getifaddrs, ifaddrs, sockaddr, sockaddr_in, sockaddr_in6};
 
-    fn convert_sockaddr(sa: *mut sockaddr) -> Option<IpAddr> {
+	fn convert_sockaddr(sa: *mut sockaddr) -> Option<IpAddr> {
 		if sa.is_null() { return None; }
 
 		let (addr, _) = match i32::from(unsafe { *sa }.sa_family) {

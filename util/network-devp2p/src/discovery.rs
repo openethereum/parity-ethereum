@@ -21,7 +21,8 @@ use std::net::SocketAddr;
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
 use ethereum_types::{H256, H520};
-use hash::keccak;
+use keccak_hash::keccak;
+use log::{debug, trace, warn};
 use lru_cache::LruCache;
 use parity_bytes::Bytes;
 use rlp::{Rlp, RlpStream};
@@ -29,8 +30,9 @@ use rlp::{Rlp, RlpStream};
 use ethkey::{KeyPair, recover, Secret, sign};
 use network::Error;
 use network::IpFilter;
-use node_table::*;
-use PROTOCOL_VERSION;
+
+use crate::node_table::*;
+use crate::PROTOCOL_VERSION;
 
 const ADDRESS_BYTES_SIZE: usize = 32;						// Size of address type in bytes.
 const ADDRESS_BITS: usize = 8 * ADDRESS_BYTES_SIZE;			// Denoted by n in [Kademlia].
@@ -900,7 +902,8 @@ mod tests {
 	use rustc_hex::FromHex;
 
 	use ethkey::{Generator, Random};
-	use node_table::{Node, NodeEndpoint, NodeId};
+
+	use crate::node_table::{Node, NodeEndpoint, NodeId};
 
 	use super::*;
 

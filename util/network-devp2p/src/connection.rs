@@ -21,20 +21,22 @@ use std::sync::atomic::{AtomicBool, Ordering as AtomicOrdering};
 use std::time::Duration;
 
 use bytes::{Buf, BufMut};
+use crypto::aes::{AesCtr256, AesEcb256};
 use ethereum_types::{H128, H256, H512};
-use hash::{keccak, write_keccak};
+use keccak_hash::{keccak, write_keccak};
+use log::{debug, trace, warn};
 use mio::{PollOpt, Ready, Token};
 use mio::deprecated::{EventLoop, Handler, TryRead, TryWrite};
-use mio::tcp::*;
-use parity_bytes::*;
-use crypto::aes::{AesCtr256, AesEcb256};
+use mio::tcp::TcpStream;
+use parity_bytes::Bytes;
 use rlp::{Rlp, RlpStream};
 use tiny_keccak::Keccak;
 
-use ethkey::{crypto, Secret};
-use handshake::Handshake;
-use io::{IoContext, StreamToken};
+use ethcore_io::{IoContext, StreamToken};
+use ethkey::{crypto as ethcrypto, Secret};
 use network::Error;
+
+use crate::handshake::Handshake;
 
 const ENCRYPTED_HEADER_LEN: usize = 32;
 const RECEIVE_PAYLOAD: Duration = Duration::from_secs(30);
@@ -297,7 +299,7 @@ const NULL_IV : [u8; 16] = [0;16];
 impl EncryptedConnection {
 	/// Create an encrypted connection out of the handshake.
 	pub fn new(handshake: &mut Handshake) -> Result<EncryptedConnection, Error> {
-		let shared = crypto::ecdh::agree(handshake.ecdhe.secret(), &handshake.remote_ephemeral)?;
+		let shared = ethcrypto::ecdh::agree(handshake.ecdhe.secret(), &handshake.remote_ephemeral)?;
 		let mut nonce_material = H512::default();
 		if handshake.originated {
 			(&mut nonce_material[0..32]).copy_from_slice(handshake.remote_nonce.as_bytes());
@@ -391,13 +393,11 @@ impl EncryptedConnection {
 			return Err(Error::Auth);
 		}
 		EncryptedConnection::update_mac(&mut self.ingress_mac, &self.mac_encoder_key, &header[0..16])?;
-		{
-			let mac = &header[16..];
-			let mut expected = H256::zero();
-			self.ingress_mac.clone().finalize(expected.as_bytes_mut());
-			if mac != &expected[0..16] {
-				return Err(Error::Auth);
-			}
+		let mac = &header[16..];
+		let mut expected = H256::zero();
+		self.ingress_mac.clone().finalize(expected.as_bytes_mut());
+		if mac != &expected[0..16] {
+			return Err(Error::Auth);
 		}
 		self.decoder.decrypt(&mut header[..16])?;
 
@@ -426,13 +426,11 @@ impl EncryptedConnection {
 		self.ingress_mac.update(&payload[0..payload.len() - 16]);
 		EncryptedConnection::update_mac(&mut self.ingress_mac, &self.mac_encoder_key, &[0u8; 0])?;
 
-		{
-			let mac = &payload[(payload.len() - 16)..];
-			let mut expected = H128::default();
-			self.ingress_mac.clone().finalize(expected.as_bytes_mut());
-			if mac != &expected[..] {
-				return Err(Error::Auth);
-			}
+		let mac = &payload[(payload.len() - 16)..];
+		let mut expected = H128::default();
+		self.ingress_mac.clone().finalize(expected.as_bytes_mut());
+		if mac != &expected[..] {
+			return Err(Error::Auth);
 		}
 		self.decoder.decrypt(&mut payload[..self.payload_len + padding])?;
 		payload.truncate(self.payload_len);
@@ -496,7 +494,7 @@ mod tests {
 	use mio::Ready;
 	use parity_bytes::Bytes;
 
-	use io::*;
+	use ethcore_io::*;
 
 	use super::*;
 

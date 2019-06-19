@@ -19,7 +19,7 @@
 //! Example usage for creating a network service and adding an IO handler:
 //!
 //! ```rust
-//! extern crate ethcore_network as net;
+//! extern crate network as net;
 //! extern crate ethcore_network_devp2p as devp2p;
 //! use net::*;
 //! use devp2p::NetworkService;
@@ -60,44 +60,8 @@
 //TODO: use Poll from mio
 #![allow(deprecated)]
 
-//TODO: remove this
-extern crate ansi_term;
-#[cfg(test)] #[macro_use]
-extern crate assert_matches;
-extern crate bytes;
-#[cfg(test)]
-extern crate env_logger;
-extern crate ethcore_io as io;
-extern crate ethcore_network as network;
-extern crate ethereum_types;
-extern crate ethkey;
-extern crate igd;
-extern crate ipnetwork;
-extern crate keccak_hash as hash;
-extern crate libc;
-#[macro_use]
-extern crate log;
-extern crate lru_cache;
-extern crate mio;
-extern crate parity_bytes;
-extern crate parity_crypto as crypto;
-extern crate parity_path;
-extern crate parity_snappy as snappy;
-extern crate parking_lot;
-extern crate rand;
-extern crate rlp;
-extern crate rustc_hex;
-extern crate serde;
-#[macro_use]
-extern crate serde_derive;
-extern crate serde_json;
-extern crate slab;
-#[cfg(test)]
-extern crate tempdir;
-extern crate tiny_keccak;
-
+pub use ethcore_io::TimerToken;
 pub use host::NetworkContext;
-pub use io::TimerToken;
 pub use node_table::{MAX_NODES_IN_TABLE, NodeId, validate_node_url};
 pub use service::NetworkService;
 

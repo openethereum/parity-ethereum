@@ -27,29 +27,34 @@ use std::sync::atomic::{AtomicBool, Ordering as AtomicOrdering};
 use std::time::Duration;
 
 use ethereum_types::H256;
-use hash::keccak;
-use mio::*;
-use mio::deprecated::EventLoop;
-use mio::tcp::*;
-use mio::udp::*;
+use keccak_hash::keccak;
+use log::{debug, info, trace, warn};
+use mio::{
+	deprecated::EventLoop, PollOpt, Ready, tcp::{TcpListener, TcpStream},
+	Token,
+	udp::UdpSocket
+};
 use parity_path::restrict_permissions_owner;
 use parking_lot::{Mutex, RwLock};
 use rlp::{Encodable, RlpStream};
 use rustc_hex::ToHex;
 
-use connection::PAYLOAD_SOFT_LIMIT;
-use discovery::{Discovery, MAX_DATAGRAM_SIZE, NodeEntry, TableUpdates};
+use ethcore_io::{IoContext, IoHandler, IoManager, StreamToken, TimerToken};
 use ethkey::{Generator, KeyPair, Random, Secret};
-use io::*;
-use ip_utils::{map_external_address, select_public_address};
-use network::{NetworkConfiguration, NetworkIoMessage, PacketId, PeerId, ProtocolId};
-use network::{NetworkContext as NetworkContextTrait, NonReservedPeerMode};
-use network::{DisconnectReason, Error, NetworkProtocolHandler, SessionInfo};
-use network::{ConnectionDirection, ConnectionFilter};
-use network::client_version::ClientVersion;
-use node_table::*;
-use PROTOCOL_VERSION;
-use session::{Session, SessionData};
+use network::{
+	client_version::ClientVersion, ConnectionDirection, ConnectionFilter, DisconnectReason, Error,
+	NetworkConfiguration, NetworkContext as NetworkContextTrait, NetworkIoMessage, NetworkProtocolHandler,
+	NonReservedPeerMode, PacketId, PeerId, ProtocolId, SessionInfo
+};
+
+use crate::{
+	connection::PAYLOAD_SOFT_LIMIT,
+	discovery::{Discovery, MAX_DATAGRAM_SIZE, NodeEntry, TableUpdates},
+	ip_utils::{map_external_address, select_public_address},
+	node_table::*,
+	PROTOCOL_VERSION,
+	session::{Session, SessionData}
+};
 
 type Slab<T> = ::slab::Slab<T, usize>;
 
@@ -263,17 +268,17 @@ pub struct Host {
 	sessions: Arc<RwLock<Slab<SharedSession>>>,
 	discovery: Mutex<Option<Discovery<'static>>>,
 	nodes: RwLock<NodeTable>,
-	handlers: RwLock<HashMap<ProtocolId, Arc<NetworkProtocolHandler + Sync>>>,
+	handlers: RwLock<HashMap<ProtocolId, Arc<dyn NetworkProtocolHandler + Sync>>>,
 	timers: RwLock<HashMap<TimerToken, ProtocolTimer>>,
 	timer_counter: RwLock<usize>,
 	reserved_nodes: RwLock<HashSet<NodeId>>,
 	stopping: AtomicBool,
-	filter: Option<Arc<ConnectionFilter>>,
+	filter: Option<Arc<dyn ConnectionFilter>>,
 }
 
 impl Host {
 	/// Create a new instance
-	pub fn new(mut config: NetworkConfiguration, filter: Option<Arc<ConnectionFilter>>) -> Result<Host, Error> {
+	pub fn new(mut config: NetworkConfiguration, filter: Option<Arc<dyn ConnectionFilter>>) -> Result<Host, Error> {
 		let mut listen_address = match config.listen_address {
 			None => SocketAddr::V4(SocketAddrV4::new(Ipv4Addr::new(0, 0, 0, 0), DEFAULT_PORT)),
 			Some(addr) => addr,
@@ -924,7 +929,7 @@ impl Host {
 		let mut failure_id = None;
 		let mut deregister = false;
 		let mut expired_session = None;
-		if let FIRST_SESSION ... LAST_SESSION = token {
+		if let FIRST_SESSION ..= LAST_SESSION = token {
 			let sessions = self.sessions.read();
 			if let Some(session) = sessions.get(token).cloned() {
 				expired_session = Some(session.clone());
@@ -978,14 +983,14 @@ impl Host {
 		self.nodes.write().update(node_changes, &*self.reserved_nodes.read());
 	}
 
-	pub fn with_context<F>(&self, protocol: ProtocolId, io: &IoContext<NetworkIoMessage>, action: F) where F: FnOnce(&NetworkContextTrait) {
+	pub fn with_context<F>(&self, protocol: ProtocolId, io: &IoContext<NetworkIoMessage>, action: F) where F: FnOnce(&dyn NetworkContextTrait) {
 		let reserved = { self.reserved_nodes.read() };
 
 		let context = NetworkContext::new(io, protocol, None, self.sessions.clone(), &reserved);
 		action(&context);
 	}
 
-	pub fn with_context_eval<F, T>(&self, protocol: ProtocolId, io: &IoContext<NetworkIoMessage>, action: F) -> T where F: FnOnce(&NetworkContextTrait) -> T {
+	pub fn with_context_eval<F, T>(&self, protocol: ProtocolId, io: &IoContext<NetworkIoMessage>, action: F) -> T where F: FnOnce(&dyn NetworkContextTrait) -> T {
 		let reserved = { self.reserved_nodes.read() };
 
 		let context = NetworkContext::new(io, protocol, None, self.sessions.clone(), &reserved);
@@ -1004,7 +1009,7 @@ impl IoHandler<NetworkIoMessage> for Host {
 	fn stream_hup(&self, io: &IoContext<NetworkIoMessage>, stream: StreamToken) {
 		trace!(target: "network", "Hup: {}", stream);
 		match stream {
-			FIRST_SESSION ... LAST_SESSION => self.connection_closed(stream, io),
+			FIRST_SESSION ..= LAST_SESSION => self.connection_closed(stream, io),
 			_ => warn!(target: "network", "Unexpected hup"),
 		};
 	}
@@ -1014,7 +1019,7 @@ impl IoHandler<NetworkIoMessage> for Host {
 			return;
 		}
 		match stream {
-			FIRST_SESSION ... LAST_SESSION => self.session_readable(stream, io),
+			FIRST_SESSION ..= LAST_SESSION => self.session_readable(stream, io),
 			DISCOVERY => self.discovery_readable(io),
 			TCP_ACCEPT => self.accept(io),
 			_ => panic!("Received unknown readable token"),
@@ -1026,7 +1031,7 @@ impl IoHandler<NetworkIoMessage> for Host {
 			return;
 		}
 		match stream {
-			FIRST_SESSION ... LAST_SESSION => self.session_writable(stream, io),
+			FIRST_SESSION ..= LAST_SESSION => self.session_writable(stream, io),
 			DISCOVERY => self.discovery_writable(io),
 			_ => panic!("Received unknown writable token"),
 		}
@@ -1038,7 +1043,7 @@ impl IoHandler<NetworkIoMessage> for Host {
 		}
 		match token {
 			IDLE => self.maintain_network(io),
-			FIRST_SESSION ... LAST_SESSION => self.connection_timeout(token, io),
+			FIRST_SESSION ..= LAST_SESSION => self.connection_timeout(token, io),
 			DISCOVERY_REFRESH => {
 				// Run the _slow_ discovery if enough peers are connected
 				if !self.has_enough_peers() {
@@ -1146,7 +1151,7 @@ impl IoHandler<NetworkIoMessage> for Host {
 
 	fn register_stream(&self, stream: StreamToken, reg: Token, event_loop: &mut EventLoop<IoManager<NetworkIoMessage>>) {
 		match stream {
-			FIRST_SESSION ... LAST_SESSION => {
+			FIRST_SESSION ..= LAST_SESSION => {
 				let session = { self.sessions.read().get(stream).cloned() };
 				if let Some(session) = session {
 					session.lock().register_socket(reg, event_loop).expect("Error registering socket");
@@ -1166,7 +1171,7 @@ impl IoHandler<NetworkIoMessage> for Host {
 
 	fn deregister_stream(&self, stream: StreamToken, event_loop: &mut EventLoop<IoManager<NetworkIoMessage>>) {
 		match stream {
-			FIRST_SESSION ... LAST_SESSION => {
+			FIRST_SESSION ..= LAST_SESSION => {
 				let mut connections = self.sessions.write();
 				if let Some(connection) = connections.get(stream).cloned() {
 					let c = connection.lock();
@@ -1183,7 +1188,7 @@ impl IoHandler<NetworkIoMessage> for Host {
 
 	fn update_stream(&self, stream: StreamToken, reg: Token, event_loop: &mut EventLoop<IoManager<NetworkIoMessage>>) {
 		match stream {
-			FIRST_SESSION ... LAST_SESSION => {
+			FIRST_SESSION ..= LAST_SESSION => {
 				let connection = { self.sessions.read().get(stream).cloned() };
 				if let Some(connection) = connection {
 					connection.lock().update_socket(reg, event_loop).expect("Error updating socket");
