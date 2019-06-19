@@ -110,7 +110,7 @@ impl Informant {
 			}
 		;
 
-		serde_json::to_string(&trace_data).expect("serialization cannot fail; qed")
+		serde_json::to_string(&trace_data).expect("Serialization cannot fail; qed")
 	}
 }
 
@@ -125,8 +125,8 @@ impl vm::Informant for Informant {
 			}
 		;
 
-		let serialized_message_init = serde_json::to_string(&message_init).expect("serialization cannot fail; qed");
-		info!("Message initial: {}", serialized_message_init);
+		let s = serde_json::to_string(&message_init).expect("Serialization cannot fail; qed");
+		info!("{}", s);
 	}
 
 	fn set_gas(&mut self, gas: U256) {
@@ -150,8 +150,8 @@ impl vm::Informant for Informant {
 					}
 				;
 
-				let s = serde_json::to_string(&message_success).expect("serialization cannot fail; qed");
-				info!("Message success: {}", s);
+				let s = serde_json::to_string(&message_success).expect("Serialization cannot fail; qed");
+				info!("{}", s);
 			},
 			Err(failure) => {
 				for trace in failure.traces.unwrap_or_else(Vec::new) {
@@ -166,8 +166,8 @@ impl vm::Informant for Informant {
 					}
 				;
 
-				let s = serde_json::to_string(&message_failure).expect("serialization cannot fail; qed");
-				error!("Message failure: {}", s);
+				let s = serde_json::to_string(&message_failure).expect("Serialization cannot fail; qed");
+				error!("{}", s);
 			},
 		}
 	}
