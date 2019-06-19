@@ -216,7 +216,8 @@ impl<Trace: Writer, Out: Writer> vm::Informant for Informant<Trace, Out> {
 					}
 				;
 
-				writeln!(out_sink, "{:?}", out_data_success).expect("The sink must be writeable.");
+				let s = serde_json::to_string(&out_data_success).expect("serialization cannot fail; qed");
+				writeln!(out_sink, "{}", s).expect("The sink must be writeable.");
 			},
 			Err(failure) => {
 				let out_data_failure =
