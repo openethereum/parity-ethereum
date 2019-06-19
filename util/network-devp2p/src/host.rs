@@ -44,7 +44,7 @@ use io::*;
 use ip_utils::{map_external_address, select_public_address};
 use network::{NetworkConfiguration, NetworkIoMessage, PacketId, PeerId, ProtocolId};
 use network::{NetworkContext as NetworkContextTrait, NonReservedPeerMode};
-use network::{DisconnectReason, Error, ErrorKind, NetworkProtocolHandler, SessionInfo};
+use network::{DisconnectReason, Error, NetworkProtocolHandler, SessionInfo};
 use network::{ConnectionDirection, ConnectionFilter};
 use network::client_version::ClientVersion;
 use node_table::*;
@@ -157,7 +157,7 @@ impl<'s> NetworkContextTrait for NetworkContext<'s> {
 
 	fn respond(&self, packet_id: PacketId, data: Vec<u8>) -> Result<(), Error> {
 		assert!(self.session.is_some(), "Respond called without network context");
-		self.session_id.map_or_else(|| Err(ErrorKind::Expired.into()), |id| self.send(id, packet_id, data))
+		self.session_id.map_or_else(|| Err(Error::Expired), |id| self.send(id, packet_id, data))
 	}
 
 	fn disable_peer(&self, peer: PeerId) {
@@ -719,8 +719,8 @@ impl Host {
 						Err(e) => {
 							let s = session.lock();
 							trace!(target: "network", "Session read error: {}:{:?} ({:?}) {:?}", token, s.id(), s.remote_addr(), e);
-							match *e.kind() {
-								ErrorKind::Disconnect(DisconnectReason::IncompatibleProtocol) | ErrorKind::Disconnect(DisconnectReason::UselessPeer) => {
+							match e {
+								Error::Disconnect(DisconnectReason::IncompatibleProtocol) | Error::Disconnect(DisconnectReason::UselessPeer) => {
 									if let Some(id) = s.id() {
 										if !self.reserved_nodes.read().contains(id) {
 											let mut nodes = self.nodes.write();

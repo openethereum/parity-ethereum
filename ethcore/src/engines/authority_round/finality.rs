@@ -39,6 +39,7 @@ pub struct RollingFinality {
 impl RollingFinality {
 	/// Create a blank finality checker under the given validator set.
 	pub fn blank(signers: Vec<Address>) -> Self {
+		trace!(target: "finality", "Instantiating blank RollingFinality with {} signers: {:?}", signers.len(), signers);
 		RollingFinality {
 			headers: VecDeque::new(),
 			signers: SimpleList::new(signers),
@@ -110,7 +111,14 @@ impl RollingFinality {
 	/// Returns a list of all newly finalized headers.
 	// TODO: optimize with smallvec.
 	pub fn push_hash(&mut self, head: H256, signers: Vec<Address>) -> Result<Vec<H256>, UnknownValidator> {
-		if signers.iter().any(|s| !self.signers.contains(s)) { return Err(UnknownValidator) }
+		// TODO: seems bad to iterate over signers twice like this.
+		//       Can do the work in a single loop and call `clear()` if an unknown validator was found?
+		for their_signer in signers.iter() {
+			if !self.signers.contains(their_signer) {
+				warn!(target: "finality",  "Unknown validator: {}", their_signer);
+				return Err(UnknownValidator)
+			}
+		}
 
 		for signer in signers.iter() {
 			*self.sign_count.entry(*signer).or_insert(0) += 1;
@@ -141,7 +149,7 @@ impl RollingFinality {
 			}
 		}
 
-		trace!(target: "finality", "Blocks finalized by {:?}: {:?}", head, newly_finalized);
+		trace!(target: "finality", "{} Blocks finalized by {:?}: {:?}", newly_finalized.len(), head, newly_finalized);
 
 		self.last_pushed = Some(head);
 		Ok(newly_finalized)

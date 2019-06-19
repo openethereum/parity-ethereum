@@ -32,9 +32,7 @@ extern crate serde_derive;
 
 #[cfg(test)] #[macro_use]
 extern crate assert_matches;
-
-#[macro_use]
-extern crate error_chain;
+extern crate derive_more;
 
 #[macro_use]
 extern crate lazy_static;
@@ -46,7 +44,7 @@ mod error;
 
 pub use connection_filter::{ConnectionFilter, ConnectionDirection};
 pub use io::TimerToken;
-pub use error::{Error, ErrorKind, DisconnectReason};
+pub use error::{Error, DisconnectReason};
 
 use client_version::ClientVersion;
 use std::cmp::Ordering;

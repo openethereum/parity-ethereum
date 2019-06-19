@@ -76,22 +76,22 @@ struct Restoration {
 	state_chunks_left: HashSet<H256>,
 	block_chunks_left: HashSet<H256>,
 	state: StateRebuilder,
-	secondary: Box<Rebuilder>,
+	secondary: Box<dyn Rebuilder>,
 	writer: Option<LooseWriter>,
 	snappy_buffer: Bytes,
 	final_state_root: H256,
 	guard: Guard,
-	db: Arc<BlockChainDB>,
+	db: Arc<dyn BlockChainDB>,
 }
 
 struct RestorationParams<'a> {
 	manifest: ManifestData, // manifest to base restoration on.
 	pruning: Algorithm, // pruning algorithm for the database.
-	db: Arc<BlockChainDB>, // database
+	db: Arc<dyn BlockChainDB>, // database
 	writer: Option<LooseWriter>, // writer for recovered snapshot.
 	genesis: &'a [u8], // genesis block of the chain.
 	guard: Guard, // guard for the restoration directory.
-	engine: &'a EthEngine,
+	engine: &'a dyn EthEngine,
 }
 
 impl Restoration {
@@ -149,7 +149,7 @@ impl Restoration {
 	}
 
 	// feeds a block chunk
-	fn feed_blocks(&mut self, hash: H256, chunk: &[u8], engine: &EthEngine, flag: &AtomicBool) -> Result<(), Error> {
+	fn feed_blocks(&mut self, hash: H256, chunk: &[u8], engine: &dyn EthEngine, flag: &AtomicBool) -> Result<(), Error> {
 		if self.block_chunks_left.contains(&hash) {
 			let expected_len = snappy::decompressed_len(chunk)?;
 			if expected_len > MAX_CHUNK_SIZE {
@@ -170,7 +170,7 @@ impl Restoration {
 	}
 
 	// finish up restoration.
-	fn finalize(mut self, engine: &EthEngine) -> Result<(), Error> {
+	fn finalize(mut self, engine: &dyn EthEngine) -> Result<(), Error> {
 		use trie::TrieError;
 
 		if !self.is_done() { return Ok(()) }
@@ -211,37 +211,37 @@ pub trait SnapshotClient: BlockChainClient + BlockInfo + DatabaseRestore {}
 /// Snapshot service parameters.
 pub struct ServiceParams {
 	/// The consensus engine this is built on.
-	pub engine: Arc<EthEngine>,
+	pub engine: Arc<dyn EthEngine>,
 	/// The chain's genesis block.
 	pub genesis_block: Bytes,
 	/// State pruning algorithm.
 	pub pruning: Algorithm,
 	/// Handler for opening a restoration DB.
-	pub restoration_db_handler: Box<BlockChainDBHandler>,
+	pub restoration_db_handler: Box<dyn BlockChainDBHandler>,
 	/// Async IO channel for sending messages.
 	pub channel: Channel,
 	/// The directory to put snapshots in.
 	/// Usually "<chain hash>/snapshot"
 	pub snapshot_root: PathBuf,
 	/// A handle for database restoration.
-	pub client: Arc<SnapshotClient>,
+	pub client: Arc<dyn SnapshotClient>,
 }
 
 /// `SnapshotService` implementation.
 /// This controls taking snapshots and restoring from them.
 pub struct Service {
 	restoration: Mutex<Option<Restoration>>,
-	restoration_db_handler: Box<BlockChainDBHandler>,
+	restoration_db_handler: Box<dyn BlockChainDBHandler>,
 	snapshot_root: PathBuf,
 	io_channel: Mutex<Channel>,
 	pruning: Algorithm,
 	status: Mutex<RestorationStatus>,
 	reader: RwLock<Option<LooseReader>>,
-	engine: Arc<EthEngine>,
+	engine: Arc<dyn EthEngine>,
 	genesis_block: Bytes,
 	state_chunks: AtomicUsize,
 	block_chunks: AtomicUsize,
-	client: Arc<SnapshotClient>,
+	client: Arc<dyn SnapshotClient>,
 	progress: super::Progress,
 	taking_snapshot: AtomicBool,
 	restoring_snapshot: AtomicBool,
@@ -415,7 +415,7 @@ impl Service {
 				_ => break,
 			}
 
-			// Writting changes to DB and logging every now and then
+			// Writing changes to DB and logging every now and then
 			if block_number % 1_000 == 0 {
 				next_db.key_value().write_buffered(batch);
 				next_chain.commit();
@@ -479,16 +479,12 @@ impl Service {
 
 		let guard = Guard::new(temp_dir.clone());
 		let res = client.take_snapshot(writer, BlockId::Number(num), &self.progress);
-
 		self.taking_snapshot.store(false, Ordering::SeqCst);
 		if let Err(e) = res {
 			if client.chain_info().best_block_number >= num + client.pruning_history() {
-				// "Cancelled" is mincing words a bit -- what really happened
-				// is that the state we were snapshotting got pruned out
-				// before we could finish.
-				info!("Periodic snapshot failed: block state pruned.\
-					Run with a longer `--pruning-history` or with `--no-periodic-snapshot`");
-				return Ok(())
+				// The state we were snapshotting was pruned before we could finish.
+				info!("Periodic snapshot failed: block state pruned. Run with a longer `--pruning-history` or with `--no-periodic-snapshot`");
+				return Err(e);
 			} else {
 				return Err(e);
 			}
@@ -846,14 +842,29 @@ impl SnapshotService for Service {
 		}
 	}
 
+	fn abort_snapshot(&self) {
+		if self.taking_snapshot.load(Ordering::SeqCst) {
+			trace!(target: "snapshot", "Aborting snapshot – Snapshot under way");
+			self.progress.abort.store(true, Ordering::SeqCst);
+		}
+	}
+
 	fn shutdown(&self) {
+		trace!(target: "snapshot", "Shut down SnapshotService");
 		self.abort_restore();
+		trace!(target: "snapshot", "Shut down SnapshotService - restore aborted");
+		self.abort_snapshot();
+		trace!(target: "snapshot", "Shut down SnapshotService - snapshot aborted");
 	}
 }
 
 impl Drop for Service {
 	fn drop(&mut self) {
+		trace!(target: "shutdown", "Dropping Service");
 		self.abort_restore();
+		trace!(target: "shutdown", "Dropping Service - restore aborted");
+		self.abort_snapshot();
+		trace!(target: "shutdown", "Dropping Service - snapshot aborted");
 	}
 }
 

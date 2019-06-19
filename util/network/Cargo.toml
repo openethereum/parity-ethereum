@@ -7,7 +7,7 @@ version = "1.12.0"
 authors = ["Parity Technologies <admin@parity.io>"]
 
 [dependencies]
-error-chain = { version = "0.12", default-features = false }
+derive_more = "0.14.0"
 parity-crypto = "0.4.0"
 ethcore-io = { path = "../io" }
 ethereum-types = "0.6.0"

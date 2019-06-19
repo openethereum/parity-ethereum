@@ -201,8 +201,8 @@ enum CallCreateExecutiveKind {
 	CallBuiltin(ActionParams),
 	ExecCall(ActionParams, Substate),
 	ExecCreate(ActionParams, Substate),
-	ResumeCall(OriginInfo, Box<ResumeCall>, Substate),
-	ResumeCreate(OriginInfo, Box<ResumeCreate>, Substate),
+	ResumeCall(OriginInfo, Box<dyn ResumeCall>, Substate),
+	ResumeCreate(OriginInfo, Box<dyn ResumeCreate>, Substate),
 }
 
 /// Executive for a raw call/create action.
