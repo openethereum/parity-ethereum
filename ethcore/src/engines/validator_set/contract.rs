@@ -162,6 +162,7 @@ mod tests {
 
 	#[test]
 	fn reports_validators() {
+		let _ = ::env_logger::try_init();
 		let tap = Arc::new(AccountProvider::transient_provider());
 		let v1 = tap.insert_account(keccak("1").into(), &"".into()).unwrap();
 		let client = generate_dummy_client_with_spec(Spec::new_validator_contract);

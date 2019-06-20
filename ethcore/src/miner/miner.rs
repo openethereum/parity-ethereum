@@ -145,7 +145,7 @@ pub struct MinerOptions {
 	pub tx_queue_strategy: PrioritizationStrategy,
 	/// Simple senders penalization.
 	pub tx_queue_penalization: Penalization,
-	/// Do we want to mark transactions recieved locally (e.g. RPC) as local if we don't have the sending account?
+	/// Do we want to mark transactions received locally (e.g. RPC) as local if we don't have the sending account?
 	pub tx_queue_no_unfamiliar_locals: bool,
 	/// Do we refuse to accept service transactions even if sender is certified.
 	pub refuse_service_transactions: bool,
@@ -229,6 +229,10 @@ impl SealingWork {
 	/// Are we allowed to do a non-mandatory reseal?
 	fn reseal_allowed(&self) -> bool {
 		Instant::now() > self.next_allowed_reseal
+	}
+
+	fn work_available(&self) -> bool {
+		self.queue.peek_last_ref().is_some()
 	}
 }
 
@@ -619,6 +623,7 @@ impl Miner {
 
 		trace!(target: "miner", "requires_reseal: sealing enabled");
 
+		const SEALING_TIMEOUT_IN_BLOCKS : u64 = 5;
 		// Disable sealing if there were no requests for SEALING_TIMEOUT_IN_BLOCKS
 		let had_requests = sealing.last_request.map(|last_request|
 			best_block.saturating_sub(last_request) <= SEALING_TIMEOUT_IN_BLOCKS
@@ -675,11 +680,29 @@ impl Miner {
 			Some(h) => {
 				match h.decode() {
 					Ok(decoded_hdr) => decoded_hdr,
-					Err(_) => return false
+					Err(e) => {
+						error!(target: "miner", "seal_block_internally: Could not decode header from parent block (hash={}): {:?}", block.header.parent_hash(), e);
+						return false
+					}
 				}
 			}
-			None => return false,
+			None => {
+				trace!(target: "miner", "Parent with hash={} does not exist in our DB", block.header.parent_hash());
+				return false
+			},
 		};
+
+		// TODO: not the right way to do this.
+		if let Some(existing_block) = chain.block(BlockId::Number(block.header.number())) {
+			let existing_block_header = existing_block.decode_header();
+			warn!(target: "miner", "seal_block_internally: block {} already exists in the DB with parent_hash={} (timestamp={}, author={})",
+				block.header.number(),
+				existing_block_header.parent_hash()
+				existing_block_header.timestamp(),
+				existing_block_header.author(),
+			);
+			return false
+		}
 
 		match self.engine.generate_seal(&block, &parent_header) {
 			// Directly import a regular sealed block.
@@ -770,28 +793,32 @@ impl Miner {
 	}
 
 	/// Prepare a pending block. Returns the preparation status.
-	fn prepare_pending_block<C>(&self, client: &C) -> BlockPreparationStatus where
-		C: BlockChain + CallContract + BlockProducer + SealedBlockImporter + Nonce + Sync,
+	/// Only used by externally sealing engines.
+	fn prepare_pending_block<C>(&self, client: &C) -> BlockPreparationStatus
+		where
+			C: BlockChain + CallContract + BlockProducer + SealedBlockImporter + Nonce + Sync,
 	{
 		trace!(target: "miner", "prepare_pending_block: entering");
-		let prepare_new = {
-			let mut sealing = self.sealing.lock();
-			let have_work = sealing.queue.peek_last_ref().is_some();
-			trace!(target: "miner", "prepare_pending_block: have_work={}", have_work);
-			if !have_work {
-				sealing.enabled = true;
-				true
-			} else {
-				false
-			}
-		};
+		// Unless we are `--force-sealing` we create pending blocks if
+		//  1. we have local pending transactions
+		//  2. or someone is requesting `eth_getWork`
+		// When either condition is true, `sealing.enabled` is flipped to true (and if you
+		// have no more local transactions or stop calling `eth_getWork`, it is set to `false`).
 
+		// Here we check if there are pending blocks already (if so, we don't need to create
+		// a new one); if there are none, we set `sealing.enabled` to true because the
+		// calling code expects it to be on (or they wouldn't have called this method).
+		// Yes, it's a bit convoluted.
+		let prepare_new_block = self.maybe_enable_sealing();
+
+		// TODO: Callers check for this already. Ok to remove?
 		if self.engine.sealing_state() != SealingState::External {
 			trace!(target: "miner", "prepare_pending_block: engine not sealing externally; not preparing");
 			return BlockPreparationStatus::NotPrepared;
 		}
 
-		let preparation_status = if prepare_new {
+		trace!(target: "miner", "prepare_pending_block: entering");
+		let preparation_status = if prepare_new_block {
 			// --------------------------------------------------------------------------
 			// | NOTE Code below requires sealing locks.                                |
 			// | Make sure to release the locks before calling that method.             |
@@ -821,24 +848,33 @@ impl Miner {
 		preparation_status
 	}
 
+
+	/// Set `sealing.enabled` to true if there is available work to do (pending or in the queue).
+	fn maybe_enable_sealing(&self) -> bool {
+		let mut sealing = self.sealing.lock();
+		if !sealing.work_available() {
+			trace!(target: "miner", "maybe_enable_sealing: we have work to do so enabling sealing");
+			sealing.enabled = true;
+			true
+		} else {
+			false
+		}
+	}
 	/// Prepare pending block, check whether sealing is needed, and then update sealing.
 	fn prepare_and_update_sealing<C: miner::BlockChainClient>(&self, chain: &C) {
 		use miner::MinerService;
-
-		// Make sure to do it after transaction is imported and lock is dropped.
-		// We need to create pending block and enable sealing.
-		let sealing_state = self.engine.sealing_state();
-		if sealing_state == SealingState::Ready
-			|| self.prepare_pending_block(chain) == BlockPreparationStatus::NotPrepared {
-			// If new block has not been prepared (means we already had one)
-			// or Engine might be able to seal internally,
-			// we need to update sealing.
-			self.update_sealing(chain);
+		match self.engine.sealing_state() {
+			SealingState::Ready => self.update_sealing(chain),
+			SealingState::External => {
+				// this calls `maybe_enable_sealing()`
+				if self.prepare_pending_block(chain) == BlockPreparationStatus::NotPrepared {
+					self.update_sealing(chain)
+				}
+			}
+			SealingState::NotReady => { self.maybe_enable_sealing(); },
 		}
 	}
 }
-
-const SEALING_TIMEOUT_IN_BLOCKS : u64 = 5;
 
 impl miner::MinerService for Miner {
 	type State = State<::state_db::StateDB>;

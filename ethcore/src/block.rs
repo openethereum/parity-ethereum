@@ -378,10 +378,7 @@ impl ClosedBlock {
 		// revert rewards (i.e. set state back at last transaction's state).
 		let mut block = self.block;
 		block.state = self.unclosed_state;
-		OpenBlock {
-			block: block,
-			engine: engine,
-		}
+		OpenBlock { block, engine }
 	}
 }
 
