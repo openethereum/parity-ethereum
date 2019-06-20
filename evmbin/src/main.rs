@@ -407,9 +407,28 @@ fn die<T: fmt::Display>(msg: T) -> ! {
 
 #[cfg(test)]
 mod tests {
+	use std::str::FromStr;
 	use docopt::Docopt;
 	use super::{Args, USAGE, Address};
 	use ethjson::state::test::{State};
+	use ethjson::spec::ForkSpec;
+	use ethcore::{TrieSpec};
+	use ethereum_types::{H256};
+	use types::transaction;
+
+	use info;
+	use display;
+
+	#[derive(Debug, PartialEq, Deserialize)]
+	pub struct SampleStateTests {
+		pub add11: State,
+		pub add12: State,
+	}
+
+	#[derive(Debug, PartialEq, Deserialize)]
+	pub struct ConstantinopleStateTests {
+		pub create2callPrecompiles: State,
+	}
 
 	fn run<T: AsRef<str>>(args: &[T]) -> Args {
 		Docopt::new(USAGE).and_then(|d| d.argv(args.into_iter()).deserialize()).unwrap()
@@ -474,79 +493,88 @@ mod tests {
 	}
 
 	#[test]
-	fn should_parse_state_test_command_from_state_test_json_file() {
-		let s = r#"{
-			"env": {
-				"currentCoinbase": "2adc25665018aa1fe0e6bc666dac8fc2697ff9ba",
-				"currentDifficulty": "0x0100",
-				"currentGasLimit": "0x01c9c380",
-				"currentNumber": "0x00",
-				"currentTimestamp": "0x01",
-				"previousHash": "5e20a0453cecd065ea59c37ac63e079ee08998b6045136a8ce6635c7912ec0b6"
-			},
-			"post": {
-				"EIP150": [
-					{
-						"hash": "3e6dacc1575c6a8c76422255eca03529bbf4c0dda75dfc110b22d6dc4152396f",
-						"indexes": { "data": 0, "gas": 0, "value": 0 }
-					},
-					{
-						"hash": "99a450d8ce5b987a71346d8a0a1203711f770745c7ef326912e46761f14cd764",
-						"indexes": { "data": 0, "gas": 0, "value": 1 }
-					}
-				],
-				"EIP158": [
-					{
-						"hash": "3e6dacc1575c6a8c76422255eca03529bbf4c0dda75dfc110b22d6dc4152396f",
-						"indexes": { "data": 0, "gas": 0, "value": 0 }
-					},
-					{
-						"hash": "99a450d8ce5b987a71346d8a0a1203711f770745c7ef326912e46761f14cd764",
-						"indexes": { "data": 0, "gas": 0, "value": 1  }
-					}
-				]
-			},
-			"pre": {
-				"1000000000000000000000000000000000000000": {
-					"balance": "0x0de0b6b3a7640000",
-					"code": "0x6040600060406000600173100000000000000000000000000000000000000162055730f1600055",
-					"nonce": "0x00",
-					"storage": {
-					}
-				},
-				"1000000000000000000000000000000000000001": {
-					"balance": "0x0de0b6b3a7640000",
-					"code": "0x604060006040600060027310000000000000000000000000000000000000026203d090f1600155",
-					"nonce": "0x00",
-					"storage": {
-					}
-				},
-				"1000000000000000000000000000000000000002": {
-					"balance": "0x00",
-					"code": "0x600160025533600455346007553060e6553260e8553660ec553860ee553a60f055",
-					"nonce": "0x00",
-					"storage": {
-					}
-				},
-				"a94f5374fce5edbc8e2a8697c15331677e6ebf0b": {
-					"balance": "0x0de0b6b3a7640000",
-					"code": "0x",
-					"nonce": "0x00",
-					"storage": {
-					}
-				}
-			},
-			"transaction": {
-				"data": [ "" ],
-				"gasLimit": [ "285000", "100000", "6000" ],
-				"gasPrice": "0x01",
-				"nonce": "0x00",
-				"secretKey": "45a915e4d060149eb4365960e6a7a45f334393093061116b197e3240065ff2d8",
-				"to": "095e7baea6a6c7c4c2dfeb977efac326af552d87",
-				"value": [ "10", "0" ]
+	fn should_parse_specific_state_tests_from_test_state_test_json_file() {
+		let state_tests = include_str!("../res/teststate.json");
+		let _deserialized_state_tests: SampleStateTests = serde_json::from_str(state_tests)
+			.expect("Serialization cannot fail; qed");
+		let state_test_add11: State = _deserialized_state_tests.add11;
+		let state_test_add12: State = _deserialized_state_tests.add12;
+	}
+
+	fn should_parse_specific_state_test_from_constantinople_state_test_json_file() {
+		let state_tests = include_str!("../res/create2callPrecompiles.json");
+		let _deserialized_state_tests: ConstantinopleStateTests = serde_json::from_str(state_tests)
+			.expect("Serialization cannot fail; qed");
+		let state_test_create2callPrecompiles: State = _deserialized_state_tests.create2callPrecompiles;
+	}
+
+	// Simulate using CLI command `state-test` and option `--json` (JSON informant)
+	// to execute a given transaction and verify its resulting state root
+	// using teststate.json
+	//
+	// ```
+	// cargo build -p evmbin;
+	// ./target/debug/parity-evm state-test ./evmbin/res/teststate.json --only add11 --chain EIP150 --json
+	// ```
+	fn should_verify_state_root_using_sample_state_test_json_file() {
+		let state_tests = include_str!("../res/teststate.json");
+		// Parse the specified state test JSON file to simulate the CLI command `state-test <file>`.
+		let _deserialized_state_tests: SampleStateTests = serde_json::from_str(state_tests)
+			.expect("Serialization cannot fail; qed");
+
+		// Simulate the name CLI option `--only NAME`
+		let name = "add11".to_string();
+		let idx = 1;
+		// Simulate the chain `--chain CHAIN`
+		let spec = ForkSpec::EIP150;
+		let pre = _deserialized_state_tests.add11.pre_state.into();
+		let env_info = _deserialized_state_tests.add11.env.into();
+		let multitransaction = _deserialized_state_tests.add11.transaction;
+		for (spec, states) in _deserialized_state_tests.add11.post_states {
+			for (idx, state) in states.into_iter().enumerate() {
+				let informant = display::json::Informant::default();
+				// Hash of latest transaction index in the chain
+				let post_root = H256::from_str("99a450d8ce5b987a71346d8a0a1203711f770745c7ef326912e46761f14cd764").unwrap();
+				let trie_spec = TrieSpec::Secure; // TrieSpec::Fat for --std_dump_json
+				let transaction: transaction::SignedTransaction = multitransaction.select(&state.indexes).into();
+				info::run_transaction(&name, idx, &spec, &pre, post_root, &env_info, transaction, informant, trie_spec)
 			}
-		}"#;
-		let _deserialized: State = serde_json::from_str(s).unwrap();
+		}
+	}
+
+	// Simulate using CLI command `state-test` and option `--json` (JSON informant)
+	// to execute a given transaction and verify its resulting state root
+	// using create2callPrecompiles.json
+	//
+	// ```
+	// cargo build -p evmbin;
+	// ./target/debug/parity-evm state-test \
+	//   ./evmbin/res/create2callPrecompiles.json --only create2callPrecompiles --chain Constantinople --json
+	// ```
+	fn should_verify_state_root_using_constantinople_state_test_json_file() {
+		let state_tests = include_str!("../res/create2callPrecompiles.json");
+		// Parse the specified state test JSON file to simulate the CLI command `state-test <file>`.
+		let _deserialized_state_tests: ConstantinopleStateTests = serde_json::from_str(state_tests)
+			.expect("Serialization cannot fail; qed");
+
+		// Simulate the name CLI option `--only NAME`
+		let name = "create2callPrecompiles".to_string();
+		let idx = 7;
+		// Simulate the chain `--chain CHAIN`
+		let spec = ForkSpec::Constantinople;
+		let pre = _deserialized_state_tests.create2callPrecompiles.pre_state.into();
+		let env_info = _deserialized_state_tests.create2callPrecompiles.env.into();
+		let multitransaction = _deserialized_state_tests.create2callPrecompiles.transaction;
+		for (spec, states) in _deserialized_state_tests.create2callPrecompiles.post_states {
+			for (idx, state) in states.into_iter().enumerate() {
+				let informant = display::json::Informant::default();
+				// Hash of latest transaction index in the chain
+				let post_root = H256::from_str("0xde1d3953b508913c6e3e9bd412cd50daf60bb177517e5d1e8ccb0dab193aed03").unwrap();
+				let trie_spec = TrieSpec::Secure; // TrieSpec::Fat for --std_dump_json
+				let transaction: transaction::SignedTransaction = multitransaction.select(&state.indexes).into();
+				info::run_transaction(&name, idx, &spec, &pre, post_root, &env_info, transaction, informant, trie_spec)
+			}
+		}
 	}
 
 	// TODO - add test that passes without failing with `State root mismatch`
