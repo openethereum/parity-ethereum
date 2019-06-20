@@ -129,9 +129,9 @@ impl<'de> Deserialize<'de> for FilterOptions {
                         "nonce" => {
                             filter.nonce = map.validate_value()?;
                         },
-                        uf @ _ => {
+                        unknown => {
                             return Err(M::Error::unknown_field(
-                                uf,
+                                unknown,
                                 &["sender", "receiver", "gas", "gas_price", "value", "nonce"],
                             ))
                         }
@@ -185,10 +185,10 @@ impl<'de> Deserialize<'de> for FilterOptions {
                                         }
                                     }
                                 }
-                                uf @ _ => {
+                                unknown => {
                                     // skip mentioning `action` since it's a special/rare
                                     // case and might confuse the usage with other filters.
-                                    return Err(M::Error::unknown_field(uf, &["eq", "gt", "lt"]));
+                                    return Err(M::Error::unknown_field(unknown, &["eq", "gt", "lt"]));
                                 }
                             }
 
