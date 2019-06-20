@@ -998,7 +998,7 @@ mod tests {
 
 		// incantation to reopen the db
 		}; {
-			let mut jdb = OverlayRecentDB::new(shared_db, None);
+			let mut jdb = OverlayRecentDB::new(shared_db, None, Vec::new());
 
 			jdb.commit_batch(6, &keccak(b"6"), Some((4, keccak(b"4")))).unwrap();
 			assert!(jdb.can_reconstruct_refs());
@@ -1029,7 +1029,7 @@ mod tests {
 		};
 
 		{
-			let mut jdb = OverlayRecentDB::new(shared_db, None);
+			let mut jdb = OverlayRecentDB::new(shared_db, None, Vec::new());
 			jdb.commit_batch(2, &keccak(b"2b"), Some((1, keccak(b"1b")))).unwrap();
 			assert!(jdb.can_reconstruct_refs());
 			assert!(jdb.contains(&foo));
@@ -1110,7 +1110,7 @@ mod tests {
 
 		// reconstructed: no journal entries.
 		drop(jdb);
-		let jdb = OverlayRecentDB::new(shared_db, None);
+		let jdb = OverlayRecentDB::new(shared_db, None, Vec::new());
 		assert_eq!(jdb.earliest_era(), None);
 	}
 
@@ -1174,7 +1174,7 @@ mod tests {
 ////
 ////		// reconstructed: no journal entries.
 ////		drop(jdb);
-////		let jdb = OverlayRecentDB::new(shared_db, None);
+////		let jdb = OverlayRecentDB::new(shared_db, None, Vec::new());
 ////		assert_eq!(jdb.earliest_era(), None);
 //	}
 }
