@@ -35,6 +35,67 @@ pub enum FilterOperator<T> {
     ContractCreation, // only used for `receiver`
 }
 
+/// Since there are multiple operators which are not supported equally by all filters,
+/// this trait will validate each of those. The corresponding method is called inside
+/// the `Deserialize` implementation for FilterOperator. In case new operators get
+/// introduced, a whitelist instead of a blacklist is used.
+///
+/// The `sender` filter validates with `validate_sender`
+/// The `receiver` filter validates with `validate_receiver`
+/// All other filters such as gas and price validate with `validate_value`
+trait Validate<'de, T, M: MapAccess<'de>> {
+    fn validate_sender(&mut self) -> Result<FilterOperator<T>, M::Error>;
+    fn validate_receiver(&mut self) -> Result<FilterOperator<T>, M::Error>;
+    fn validate_value(&mut self) -> Result<FilterOperator<T>, M::Error>;
+}
+
+impl<'de, T, M> Validate<'de, T, M> for M 
+    where T: Deserialize<'de>, M: MapAccess<'de>
+{
+    fn validate_sender(&mut self) -> Result<FilterOperator<T>, M::Error> {
+        use self::FilterOperator::*;
+        let val = self.next_value()?;
+        match val {
+            Any => Ok(val),
+            Eq(_) => Ok(val),
+            _ => {
+                Err(M::Error::custom(
+                    "the sender filter only supports the `eq` operator",
+                ))
+            }
+        }
+    }
+    fn validate_receiver(&mut self) -> Result<FilterOperator<T>, M::Error> {
+        use self::FilterOperator::*;
+        let val = self.next_value()?;
+        match val {
+            Any => Ok(val),
+            Eq(_) => Ok(val),
+            ContractCreation => Ok(val),
+            _ => {
+                Err(M::Error::custom(
+                    "the sender filter only supports the `eq` and `action` operators",
+                ))
+            }
+        }
+    }
+    fn validate_value(&mut self) -> Result<FilterOperator<T>, M::Error> {
+        use self::FilterOperator::*;
+        let val = self.next_value()?;
+        match val {
+            Any => Ok(val),
+            Eq(_) => Ok(val),
+            GreaterThan(_) => Ok(val),
+            LessThan(_) => Ok(val),
+            ContractCreation => {
+                Err(M::Error::custom(
+                    "the operator `action` is only supported by the receiver filter",
+                ))
+            }
+        }
+    }
+}
+
 impl<'de> Deserialize<'de> for FilterOptions {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
     where
@@ -57,41 +118,22 @@ impl<'de> Deserialize<'de> for FilterOptions {
                 while let Some(key) = map.next_key()? {
                     match key {
                         "sender" => {
-                            filter.sender = map.next_value()?;
+                            filter.sender = map.validate_sender()?;
                         },
-                        //"receiver" => match map.next_value()? {
                         "receiver" => {
-                            filter.receiver = FilterOperator::ContractCreation;
-                            /*
-                            FilterOperator::Eq(inner_v) => {
-                                filter.receiver = FilterOperator::Eq(Some(inner_v));
-                            }
-                            FilterOperator::ContractCreation(inner_v) => match inner_v.as_ptr() {
-                                "contract_creation" => filter.receiver = FilterOperator::ContractCreation(None),
-                                _ => {
-                                    return Err(M::Error::custom(
-                                        "`action` only supports the value `contract_creation`",
-                                    ))
-                                }
-                            },
-                            _ => {
-                                return Err(M::Error::custom(
-                                    "the receiver filter only supports the `eq` or `action` operator",
-                                ))
-                            }
-                            */
+                            filter.receiver = map.validate_receiver()?;
                         },
                         "gas" => {
-                            filter.gas = map.next_value()?;
+                            filter.gas = map.validate_value()?;
                         },
                         "gas_price" => {
-                            filter.gas_price = map.next_value()?;
+                            filter.gas_price = map.validate_value()?;
                         },
                         "value" => {
-                            filter.value = map.next_value()?;
+                            filter.value = map.validate_value()?;
                         },
                         "nonce" => {
-                            filter.nonce = map.next_value()?;
+                            filter.nonce = map.validate_value()?;
                         },
                         uf @ _ => {
                             return Err(M::Error::unknown_field(
