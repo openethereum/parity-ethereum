@@ -68,8 +68,8 @@ use bytes::Bytes;
 use ethcore::{spec, json_tests, TrieSpec};
 use vm::{ActionParams, CallType};
 
-pub mod info;
-pub mod display;
+mod info;
+mod display;
 
 use info::Informant;
 
