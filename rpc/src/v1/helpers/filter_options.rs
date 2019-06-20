@@ -56,8 +56,7 @@ impl<'de, T, M> Validate<'de, T, M> for M
         use self::FilterOperator::*;
         let val = self.next_value()?;
         match val {
-            Any => Ok(val),
-            Eq(_) => Ok(val),
+            Any | Eq(_) => Ok(val),
             _ => {
                 Err(M::Error::custom(
                     "the sender filter only supports the `eq` operator",
@@ -69,9 +68,7 @@ impl<'de, T, M> Validate<'de, T, M> for M
         use self::FilterOperator::*;
         let val = self.next_value()?;
         match val {
-            Any => Ok(val),
-            Eq(_) => Ok(val),
-            ContractCreation => Ok(val),
+            Any | Eq(_) | ContractCreation => Ok(val),
             _ => {
                 Err(M::Error::custom(
                     "the sender filter only supports the `eq` and `action` operators",
@@ -83,10 +80,7 @@ impl<'de, T, M> Validate<'de, T, M> for M
         use self::FilterOperator::*;
         let val = self.next_value()?;
         match val {
-            Any => Ok(val),
-            Eq(_) => Ok(val),
-            GreaterThan(_) => Ok(val),
-            LessThan(_) => Ok(val),
+            Any | Eq(_) | GreaterThan(_) | LessThan(_) => Ok(val),
             ContractCreation => {
                 Err(M::Error::custom(
                     "the operator `action` is only supported by the receiver filter",
