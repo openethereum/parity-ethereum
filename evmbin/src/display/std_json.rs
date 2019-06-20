@@ -15,6 +15,13 @@
 // along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
 //! Standardized JSON VM output.
+//!
+//! - Sinks are used because we may be representing nested calls that need to be buffered until the calls are complete
+//! so the state after each call is printed in order (i.e. contract A calls contract B using opcode `CALL (A, B)`
+//! with an amount of gas left). This is the reason why we need to write to the buffer with `writeln` instead of using
+//! macros like `info!` that print directly to stdout, otherwise tests associated with `trace_next_instruction` fail.
+//! - Raw JSON must be printed to stdout.
+//! - In `before_test` we may write directly to stdout since all data is already in order.
 
 use std::collections::HashMap;
 use std::io;
