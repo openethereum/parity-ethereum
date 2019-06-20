@@ -792,7 +792,7 @@ mod tests {
 		let bar = H256::random();
 
 		let foo = {
-			let mut jdb = OverlayRecentDB::new(shared_db.clone(), None, ElasticArray2014::new());
+			let mut jdb = OverlayRecentDB::new(shared_db.clone(), None, Vec::new());
 			// history is 1
 			let foo = jdb.insert(b"foo");
 			jdb.emplace(bar.clone(), DBValue::from_slice(b"bar"));
@@ -802,14 +802,14 @@ mod tests {
 		};
 
 		{
-			let mut jdb = OverlayRecentDB::new(shared_db.clone(), None, ElasticArray2014::new());
+			let mut jdb = OverlayRecentDB::new(shared_db.clone(), None, Vec::new());
 			jdb.remove(&foo);
 			jdb.commit_batch(1, &keccak(b"1"), Some((0, keccak(b"0")))).unwrap();
 			assert!(jdb.can_reconstruct_refs());
 		}
 
 		{
-			let mut jdb = OverlayRecentDB::new(shared_db.clone(), None, ElasticArray2014::new());
+			let mut jdb = OverlayRecentDB::new(shared_db.clone(), None, Vec::new());
 			assert!(jdb.contains(&foo));
 			assert!(jdb.contains(&bar));
 			jdb.commit_batch(2, &keccak(b"2"), Some((1, keccak(b"1")))).unwrap();
@@ -959,7 +959,7 @@ mod tests {
 		let foo = keccak(b"foo");
 
 		{
-			let mut jdb = OverlayRecentDB::new(shared_db.clone(), None, ElasticArray2014::new());
+			let mut jdb = OverlayRecentDB::new(shared_db.clone(), None, Vec::new());
 			// history is 1
 			jdb.insert(b"foo");
 			jdb.commit_batch(0, &keccak(b"0"), None).unwrap();
@@ -981,7 +981,7 @@ mod tests {
 
 		// incantation to reopen the db
 		}; {
-			let mut jdb = OverlayRecentDB::new(shared_db.clone(), None, ElasticArray2014::new());
+			let mut jdb = OverlayRecentDB::new(shared_db.clone(), None, Vec::new());
 
 			jdb.remove(&foo);
 			jdb.commit_batch(4, &keccak(b"4"), Some((2, keccak(b"2")))).unwrap();
@@ -990,7 +990,7 @@ mod tests {
 
 		// incantation to reopen the db
 		}; {
-			let mut jdb = OverlayRecentDB::new(shared_db.clone(), None, ElasticArray2014::new());
+			let mut jdb = OverlayRecentDB::new(shared_db.clone(), None, Vec::new());
 
 			jdb.commit_batch(5, &keccak(b"5"), Some((3, keccak(b"3")))).unwrap();
 			assert!(jdb.can_reconstruct_refs());
@@ -1011,7 +1011,7 @@ mod tests {
 		let shared_db = Arc::new(kvdb_memorydb::create(0));
 
 		let (foo, bar, baz) = {
-			let mut jdb = OverlayRecentDB::new(shared_db.clone(), None, ElasticArray2014::new());
+			let mut jdb = OverlayRecentDB::new(shared_db.clone(), None, Vec::new());
 			// history is 1
 			let foo = jdb.insert(b"foo");
 			let bar = jdb.insert(b"bar");
@@ -1076,7 +1076,7 @@ mod tests {
 		let shared_db = Arc::new(kvdb_memorydb::create(0));
 
 		// empty DB
-		let mut jdb = OverlayRecentDB::new(shared_db.clone(), None, ElasticArray2014::new());
+		let mut jdb = OverlayRecentDB::new(shared_db.clone(), None, Vec::new());
 		assert!(jdb.earliest_era().is_none());
 
 		// single journalled era.
