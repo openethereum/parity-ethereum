@@ -24,12 +24,10 @@ use engines::clique::{VoteType, DIFF_INTURN, DIFF_NOTURN, NULL_AUTHOR, SIGNING_D
 use error::{Error, BlockError};
 use ethereum_types::{Address, H64};
 use rand::Rng;
+use time_utils::CheckedSystemTime;
 use types::BlockNumber;
 use types::header::Header;
 use unexpected::Mismatch;
-
-#[cfg(not(feature = "time_checked_add"))]
-use time_utils::CheckedSystemTime;
 
 /// Type that keeps track of the state for a given vote
 // Votes that go against the proposal aren't counted since it's equivalent to not voting
@@ -268,7 +266,7 @@ impl CliqueBlockState {
 	// This is a quite bad API because we must mutate both variables even when already `inturn` fails
 	// That's why we can't return early and must have the `if-else` in the end
 	pub fn calc_next_timestamp(&mut self, timestamp: u64, period: u64) -> Result<(), Error> {
-		let inturn = UNIX_EPOCH.checked_add(Duration::from_secs(timestamp.saturating_add(period)));
+		let inturn = CheckedSystemTime::checked_add(UNIX_EPOCH, Duration::from_secs(timestamp.saturating_add(period)));
 
 		self.next_timestamp_inturn = inturn;
 
