@@ -577,26 +577,5 @@ mod tests {
 		}
 	}
 
-	// TODO - add test that passes without failing with `State root mismatch`
-	// using ./res/create2callPrecompile.json from https://github.com/ethereum/tests
-
-  // TODO - add test that fails with `State root mismatch` using teststate.json
-
-  // TODO - add test for the `parity-evm stats` command, and return error when
-  // the `--only` option is used. repeat for `parity-evm stats-jsontests-vm`
-  // and just `parity-evm` (since those options only supported
-  // by `parity-evm state-test`)
-
-  // TODO show out of gas error using only 1 gas, and when not out of gas by providing at least 21 gas.
-  // ```
-  // ./target/release/parity-evm stats --to "0000000000000000000000000000000000000004"
-  // --from "0000000000000000000000000000000000000003" --code "05" --input "06" --gas "1"
-  // --gas-price "2" --only "add11" --json
-  // {"error":"EVM: Out of gas","gasUsed":"0x1","time":2422}
-  //
-  // ./target/release/parity-evm stats --to "0000000000000000000000000000000000000004"
-  // --from "0000000000000000000000000000000000000003" --code "05" --input "06" --gas "21"
-  // --gas-price "2" --only "add11" --json
-  // {"gasUsed":"0x12","output":"0x06","time":2382}
-  // ```
+	// TODO - Add integration tests. See https://github.com/paritytech/parity-ethereum/issues/10768
 }
