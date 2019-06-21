@@ -91,7 +91,7 @@ pub fn run_action<T: Informant>(
 			params.code_hash = None;
 		}
 	}
-	run(spec, trie_spec, params.gas, spec.genesis_state(), |mut client| {
+	run(spec, &trie_spec, params.gas, spec.genesis_state(), |mut client| {
 		let result = match client.call(params, &mut trace::NoopTracer, &mut informant) {
 			Ok(r) => (Ok(r.return_data.to_vec()), Some(r.gas_left)),
 			Err(err) => (Err(err), None),
@@ -102,39 +102,40 @@ pub fn run_action<T: Informant>(
 
 /// Input data to run transaction
 #[derive(Debug)]
-pub struct InputData<T> {
+pub struct InputData<'a, T> {
 	/// Chain specification name associated with the transaction.
-	name: &'a str,
+	pub name: &'a String,
 	/// Transaction index from list of transactions within a state root hashes corresponding to a chain.
-	idx: usize,
+	pub idx: usize,
 	/// Fork specification (i.e. Constantinople, EIP150, EIP158, etc).
-	spec: &'a ethjson::spec::ForkSpec,
+	pub spec: &'a ethjson::spec::ForkSpec,
 	/// State of all accounts in the system that is a binary tree mapping of each account address to account data
 	/// that is expressed as Plain Old Data containing the account balance, account nonce, account code in bytes,
 	/// and the account storage binary tree map.
-	pre_state: &'a pod_state::PodState,
+	pub pre_state: &'a pod_state::PodState,
 	/// State root hash associated with the transaction.
-	post_root: H256,
+	pub post_root: H256,
 	/// Client environment information associated with the transaction's chain specification.
-	env_info: &'a client::EnvInfo,
-	transaction: transaction::SignedTransaction,
+	pub env_info: &'a client::EnvInfo,
+	pub transaction: transaction::SignedTransaction,
 	/// JSON formatting informant.
-	mut informant: T,
-	trie_spec: TrieSpec,
+	pub informant: T,
+	pub trie_spec: &'a TrieSpec,
 }
 
 /// Execute given transaction and verify resulting state root.
 pub fn run_transaction<T: Informant>(
 	input_data: InputData<T>
 ) {
+	let mut input_data = input_data;
 	let spec_name = format!("{:?}", input_data.spec).to_lowercase();
-	let spec = match EvmTestClient::spec_from_json(input_data.spec) {
+	let spec = match EvmTestClient::spec_from_json(&input_data.spec) {
 		Some(spec) => {
-			input_data.informant.before_test(&format!("{}:{}:{}", input_data.name, input_data.spec_name, input_data.idx), "starting");
-			input_data.spec
+			input_data.informant.before_test(&format!("{}:{}:{}", &input_data.name, &spec_name, input_data.idx), "starting");
+			spec
 		},
 		None => {
-			input_data.informant.before_test(&format!("{}:{}:{}", input_data.name, input_data.spec_name, input_data.idx), "skipping because of missing spec");
+			input_data.informant.before_test(&format!("{}:{}:{}", &input_data.name, spec_name, &input_data.idx), "skipping because of missing spec");
 			return;
 		},
 	};
@@ -142,8 +143,8 @@ pub fn run_transaction<T: Informant>(
 	input_data.informant.set_gas(input_data.env_info.gas_limit);
 
 	let mut sink = input_data.informant.clone_sink();
-	let result = run(&input_data.spec, input_data.trie_spec, input_data.transaction.gas, input_data.pre_state, |mut client| {
-		let result = client.transact(input_data.env_info, input_data.transaction, trace::NoopTracer, input_data.informant);
+	let result = run(&spec, input_data.trie_spec, input_data.transaction.gas, &input_data.pre_state, |mut client| {
+		let result = client.transact(&input_data.env_info, input_data.transaction, trace::NoopTracer, input_data.informant);
 		match result {
 			Ok(TransactSuccess { state_root, gas_left, output, vm_trace, end_state, .. }) => {
 				if state_root != input_data.post_root {
@@ -174,14 +175,15 @@ fn dump_state(state: &state::State<state_db::StateDB>) -> Option<pod_state::PodS
 /// Execute EVM with given `ActionParams`.
 pub fn run<'a, F, X>(
 	spec: &'a spec::Spec,
-	trie_spec: TrieSpec,
+	trie_spec: &'a TrieSpec,
 	initial_gas: U256,
 	pre_state: &'a pod_state::PodState,
 	run: F,
 ) -> RunResult<X> where
 	F: FnOnce(EvmTestClient) -> (Result<Vec<u8>, EvmTestError>, H256, Option<pod_state::PodState>, Option<U256>, Option<X>),
 {
-	let do_dump = trie_spec == TrieSpec::Fat;
+	let do_dump = *trie_spec == TrieSpec::Fat;
+	let trie_spec = trie_spec.clone();
 
 	let mut test_client = EvmTestClient::from_pod_state_with_trie(spec, pre_state.clone(), trie_spec)
 		.map_err(|error| Failure {

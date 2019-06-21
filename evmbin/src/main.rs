@@ -71,7 +71,7 @@ use vm::{ActionParams, CallType};
 mod info;
 mod display;
 
-use info::Informant;
+use info::{Informant, InputData};
 
 const USAGE: &'static str = r#"
 EVM implementation for Parity.
@@ -206,24 +206,79 @@ fn run_state_test(args: Args) {
 				// for CLI option `--std-dump-json` or `--std-json`.
 				if args.flag_std_dump_json || args.flag_std_json {
 					if args.flag_std_err_only {
+						let input_data = InputData {
+							name: &name,
+							idx,
+							spec: &spec,
+							pre_state: &pre,
+							post_root,
+							env_info: &env_info,
+							transaction,
+							informant: display::std_json::Informant::err_only(),
+							trie_spec: &trie_spec,
+						};
 						// Use Standard JSON informant with err only
-						info::run_transaction(&name, idx, &spec, &pre, post_root, &env_info, transaction, display::std_json::Informant::err_only(), trie_spec)
+						info::run_transaction(input_data)
 					} else if args.flag_std_out_only {
+						let input_data = InputData {
+							name: &name,
+							idx,
+							spec: &spec,
+							pre_state: &pre,
+							post_root,
+							env_info: &env_info,
+							transaction,
+							informant: display::std_json::Informant::out_only(),
+							trie_spec: &trie_spec,
+						};
 						// Use Standard JSON informant with out only
-						info::run_transaction(&name, idx, &spec, &pre, post_root, &env_info, transaction, display::std_json::Informant::out_only(), trie_spec)
+						info::run_transaction(input_data)
 					} else {
+						let input_data = InputData {
+							name: &name,
+							idx,
+							spec: &spec,
+							pre_state: &pre,
+							post_root,
+							env_info: &env_info,
+							transaction,
+							informant: display::std_json::Informant::default(),
+							trie_spec: &trie_spec,
+						};
 						// Use Standard JSON informant default
-						info::run_transaction(&name, idx, &spec, &pre, post_root, &env_info, transaction, display::std_json::Informant::default(), trie_spec)
+						info::run_transaction(input_data)
 					}
 				} else {
 					// Execute the given transaction and verify resulting state root
 					// for CLI option `--json`.
 					if args.flag_json {
+						let input_data = InputData {
+							name: &name,
+							idx,
+							spec: &spec,
+							pre_state: &pre,
+							post_root,
+							env_info: &env_info,
+							transaction,
+							informant: display::json::Informant::default(),
+							trie_spec: &trie_spec,
+						};
 						// Use JSON informant
-						info::run_transaction(&name, idx, &spec, &pre, post_root, &env_info, transaction, display::json::Informant::default(), trie_spec)
+						info::run_transaction(input_data)
 					} else {
+						let input_data = InputData {
+							name: &name,
+							idx,
+							spec: &spec,
+							pre_state: &pre,
+							post_root,
+							env_info: &env_info,
+							transaction,
+							informant: display::simple::Informant::default(),
+							trie_spec: &trie_spec,
+						};
 						// Use Simple informant
-						info::run_transaction(&name, idx, &spec, &pre, post_root, &env_info, transaction, display::simple::Informant::default(), trie_spec)
+						info::run_transaction(input_data)
 					}
 				}
 			}
@@ -417,6 +472,7 @@ mod tests {
 	use types::transaction;
 
 	use info;
+	use info::{InputData};
 	use display;
 
 	#[derive(Debug, PartialEq, Deserialize)]
@@ -537,7 +593,18 @@ mod tests {
 				let post_root = H256::from_str("99a450d8ce5b987a71346d8a0a1203711f770745c7ef326912e46761f14cd764").unwrap();
 				let trie_spec = TrieSpec::Secure; // TrieSpec::Fat for --std_dump_json
 				let transaction: transaction::SignedTransaction = multitransaction.select(&state.indexes).into();
-				info::run_transaction(&name, idx, &spec, &pre, post_root, &env_info, transaction, informant, trie_spec)
+				let input_data = InputData {
+					name: &name,
+					idx,
+					spec: &spec,
+					pre_state: &pre,
+					post_root,
+					env_info: &env_info,
+					transaction,
+					informant: informant,
+					trie_spec: &trie_spec,
+				};
+				info::run_transaction(input_data)
 			}
 		}
 	}
@@ -572,7 +639,18 @@ mod tests {
 				let post_root = H256::from_str("0xde1d3953b508913c6e3e9bd412cd50daf60bb177517e5d1e8ccb0dab193aed03").unwrap();
 				let trie_spec = TrieSpec::Secure; // TrieSpec::Fat for --std_dump_json
 				let transaction: transaction::SignedTransaction = multitransaction.select(&state.indexes).into();
-				info::run_transaction(&name, idx, &spec, &pre, post_root, &env_info, transaction, informant, trie_spec)
+				let input_data = InputData {
+					name: &name,
+					idx,
+					spec: &spec,
+					pre_state: &pre,
+					post_root,
+					env_info: &env_info,
+					transaction,
+					informant: informant,
+					trie_spec: &trie_spec,
+				};
+				info::run_transaction(input_data)
 			}
 		}
 	}
