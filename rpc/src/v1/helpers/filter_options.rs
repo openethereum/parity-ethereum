@@ -479,4 +479,66 @@ mod tests {
         let res = serde_json::from_str::<FilterOptions>(json);
         assert!(res.is_err());
     }
+
+    #[test]
+    fn valid_gas_price_deserialization() {
+        // Eq
+        let json = r#"
+            {
+                "gas_price": {
+                    "eq": "0x12a05f200"
+                }
+            }
+        "#;
+        let default = FilterOptions::default();
+        let res = serde_json::from_str::<FilterOptions>(json).unwrap();
+        assert_eq!(res, FilterOptions {
+            gas_price: FilterOperator::Eq(U256::from(5_000_000_000 as i64)),
+            ..default.clone()
+        });
+
+        // Gt
+        let json = r#"
+            {
+                "gas_price": {
+                    "gt": "0x12a05f200"
+                }
+            }
+        "#;
+        let default = FilterOptions::default();
+        let res = serde_json::from_str::<FilterOptions>(json).unwrap();
+        assert_eq!(res, FilterOptions {
+            gas_price: FilterOperator::GreaterThan(U256::from(5_000_000_000 as i64)),
+            ..default.clone()
+        });
+
+        // Lt
+        let json = r#"
+            {
+                "gas_price": {
+                    "lt": "0x12a05f200"
+                }
+            }
+        "#;
+        let default = FilterOptions::default();
+        let res = serde_json::from_str::<FilterOptions>(json).unwrap();
+        assert_eq!(res, FilterOptions {
+            gas_price: FilterOperator::LessThan(U256::from(5_000_000_000 as i64)),
+            ..default.clone()
+        });
+    }
+
+    #[test]
+    fn invalid_gas_price_deserialization() {
+        // Action
+        let json = r#"
+            {
+                "gas_price": {
+                    "action": "contract_creation"
+                }
+            }
+        "#;
+        let res = serde_json::from_str::<FilterOptions>(json);
+        assert!(res.is_err());
+    }
 }
