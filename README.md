@@ -156,7 +156,7 @@ Be sure to [check out our wiki](https://wiki.parity.io) for more information.
 
 ### Viewing documentation for Parity Ethereum packages
 
-You can generate documentation for Parity Ethereum Rust package(s) that automatically opens in your web browser using [rustdoc with Cargo](https://doc.rust-lang.org/rustdoc/what-is-rustdoc.html#using-rustdoc-with-cargo) (of the The Rustdoc Book), by running the the following commands:
+You can generate documentation for Parity Ethereum Rust packages that automatically opens in your web browser using [rustdoc with Cargo](https://doc.rust-lang.org/rustdoc/what-is-rustdoc.html#using-rustdoc-with-cargo) (of the The Rustdoc Book), by running the the following commands:
 
 * **All** packages
   ```
