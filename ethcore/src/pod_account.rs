@@ -48,6 +48,9 @@ pub struct PodAccount {
 	pub code: Option<Bytes>,
 	/// The storage of the account.
 	pub storage: BTreeMap<H256, H256>,
+	/// The version of the account.
+	#[serde(default)]
+	pub version: U256,
 }
 
 fn opt_bytes_to_hex<S>(opt_bytes: &Option<Bytes>, serializer: S) -> Result<S::Ok, S::Error>
@@ -65,6 +68,7 @@ impl PodAccount {
 			nonce: *acc.nonce(),
 			storage: acc.storage_changes().iter().fold(BTreeMap::new(), |mut m, (k, v)| {m.insert(k.clone(), v.clone()); m}),
 			code: acc.code().map(|x| x.to_vec()),
+			version: *acc.code_version(),
 		}
 	}
 
@@ -105,6 +109,7 @@ impl From<ethjson::blockchain::Account> for PodAccount {
 				let value: U256 = value.into();
 				(BigEndianHash::from_uint(&key), BigEndianHash::from_uint(&value))
 			}).collect(),
+			version: a.version.into(),
 		}
 	}
 }
@@ -120,6 +125,7 @@ impl From<ethjson::spec::Account> for PodAccount {
 				let value: U256 = value.into();
 				(BigEndianHash::from_uint(&key), BigEndianHash::from_uint(&value))
 			}).collect()),
+			version: a.version.map_or_else(U256::zero, Into::into),
 		}
 	}
 }
@@ -188,7 +194,9 @@ mod test {
 
 	#[test]
 	fn existence() {
-		let a = PodAccount{balance: 69.into(), nonce: 0.into(), code: Some(vec![]), storage: map![]};
+		let a = PodAccount {
+			balance: 69.into(), nonce: 0.into(), code: Some(vec![]), storage: map![], version: 0.into(),
+		};
 		assert_eq!(diff_pod(Some(&a), Some(&a)), None);
 		assert_eq!(diff_pod(None, Some(&a)), Some(AccountDiff{
 			balance: Diff::Born(69.into()),
@@ -200,8 +208,12 @@ mod test {
 
 	#[test]
 	fn basic() {
-		let a = PodAccount{balance: 69.into(), nonce: 0.into(), code: Some(vec![]), storage: map![]};
-		let b = PodAccount{balance: 42.into(), nonce: 1.into(), code: Some(vec![]), storage: map![]};
+		let a = PodAccount {
+			balance: 69.into(), nonce: 0.into(), code: Some(vec![]), storage: map![], version: 0.into(),
+		};
+		let b = PodAccount {
+			balance: 42.into(), nonce: 1.into(), code: Some(vec![]), storage: map![], version: 0.into(),
+		};
 		assert_eq!(diff_pod(Some(&a), Some(&b)), Some(AccountDiff {
 			balance: Diff::Changed(69.into(), 42.into()),
 			nonce: Diff::Changed(0.into(), 1.into()),
@@ -212,8 +224,12 @@ mod test {
 
 	#[test]
 	fn code() {
-		let a = PodAccount{balance: 0.into(), nonce: 0.into(), code: Some(vec![]), storage: map![]};
-		let b = PodAccount{balance: 0.into(), nonce: 1.into(), code: Some(vec![0]), storage: map![]};
+		let a = PodAccount {
+			balance: 0.into(), nonce: 0.into(), code: Some(vec![]), storage: map![], version: 0.into(),
+		};
+		let b = PodAccount {
+			balance: 0.into(), nonce: 1.into(), code: Some(vec![0]), storage: map![], version: 0.into(),
+		};
 		assert_eq!(diff_pod(Some(&a), Some(&b)), Some(AccountDiff {
 			balance: Diff::Same,
 			nonce: Diff::Changed(0.into(), 1.into()),
@@ -237,6 +253,7 @@ mod test {
 				H256::from_low_u64_be(6) => H256::from_low_u64_be(0),
 				H256::from_low_u64_be(7) => H256::from_low_u64_be(0)
 			],
+			version: 0.into(),
 		};
 		let b = PodAccount {
 			balance: 0.into(),
@@ -250,7 +267,8 @@ mod test {
 				H256::from_low_u64_be(7) => H256::from_low_u64_be(7),
 				H256::from_low_u64_be(8) => H256::from_low_u64_be(0),
 				H256::from_low_u64_be(9) => H256::from_low_u64_be(9)
-			]
+			],
+			version: 0.into(),
 		};
 		assert_eq!(diff_pod(Some(&a), Some(&b)), Some(AccountDiff {
 			balance: Diff::Same,

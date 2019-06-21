@@ -665,6 +665,7 @@ impl Spec {
 				let params = ActionParams {
 					code_address: address.clone(),
 					code_hash: Some(keccak(constructor)),
+					code_version: U256::zero(),
 					address: address.clone(),
 					sender: from.clone(),
 					origin: from.clone(),

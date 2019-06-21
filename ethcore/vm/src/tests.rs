@@ -144,6 +144,7 @@ impl Ext for FakeExt {
 		gas: &U256,
 		value: &U256,
 		code: &[u8],
+		_parent_version: &U256,
 		address: CreateContractAddress,
 		_trap: bool,
 	) -> ::std::result::Result<ContractCreateResult, TrapKind> {

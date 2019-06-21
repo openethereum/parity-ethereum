@@ -15,6 +15,14 @@
 // along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
 //! Cost schedule and other parameterisations for the EVM.
+use std::collections::HashMap;
+use ethereum_types::U256;
+
+/// Definition of schedules that can be applied to a version.
+pub enum VersionedSchedule {
+	PWasm,
+	EVM,
+}
 
 /// Definition of the cost schedule and other parameterisations for the EVM.
 pub struct Schedule {
@@ -121,6 +129,10 @@ pub struct Schedule {
 	pub eip1283: bool,
 	/// VM execution does not increase null signed address nonce if this field is true.
 	pub keep_unsigned_nonce: bool,
+	/// Latest VM version for contract creation transaction.
+	pub latest_version: U256,
+	/// All supported non-legacy VM versions.
+	pub versions: HashMap<U256, VersionedSchedule>,
 	/// Wasm extra schedule settings, if wasm activated
 	pub wasm: Option<WasmCosts>,
 }
@@ -254,6 +266,8 @@ impl Schedule {
 			kill_dust: CleanDustMode::Off,
 			eip1283: false,
 			keep_unsigned_nonce: false,
+			latest_version: U256::zero(),
+			versions: HashMap::new(),
 			wasm: None,
 		}
 	}
@@ -328,6 +342,8 @@ impl Schedule {
 			kill_dust: CleanDustMode::Off,
 			eip1283: false,
 			keep_unsigned_nonce: false,
+			latest_version: U256::zero(),
+			versions: HashMap::new(),
 			wasm: None,
 		}
 	}

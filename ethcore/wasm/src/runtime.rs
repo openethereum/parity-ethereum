@@ -529,7 +529,7 @@ impl<'a> Runtime<'a> {
 			* U256::from(self.ext.schedule().wasm().opcodes_mul)
 			/ U256::from(self.ext.schedule().wasm().opcodes_div);
 
-		match self.ext.create(&gas_left, &endowment, &code, scheme, false).ok().expect("Trap is false; trap error will not happen; qed") {
+		match self.ext.create(&gas_left, &endowment, &code, &U256::zero(), scheme, false).ok().expect("Trap is false; trap error will not happen; qed") {
 			vm::ContractCreateResult::Created(address, gas_left) => {
 				self.memory.set(result_ptr, address.as_bytes())?;
 				self.gas_counter = self.gas_limit -
