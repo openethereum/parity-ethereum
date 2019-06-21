@@ -176,9 +176,9 @@ Replacing `<spec>` with one of the following from the details section below (i.e
   ```bash
   parity-ethereum
   ```
-* Parity Ethereum Account Management, Hardware Wallet Support, Key Management Tool, and Keys Generator
+* Parity Ethereum Account Management, Key Management Tool, and Keys Generator
   ```bash
-  ethcore-accounts, ethkey-cli, ethstore, ethstore-cli, fake-hardware-wallet, hardware-wallets
+  ethcore-accounts, ethkey-cli, ethstore, ethstore-cli
   ```
 * Parity Chain Specification
   ```bash
