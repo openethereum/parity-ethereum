@@ -270,4 +270,68 @@ mod tests {
             nonce: FilterOperator::Eq(U256::from(1399)),
         })
     }
+
+    #[test]
+    fn valid_sender_deserialization() {
+        // Only one valid operator for sender
+        let json = r#"
+            {
+                "sender": {
+                    "eq": "0x5f3dffcf347944d3739b0805c934d86c8621997f"
+                }
+            }
+        "#;
+        let default = FilterOptions::default();
+        let res = serde_json::from_str::<FilterOptions>(json).unwrap();
+        assert_eq!(res, FilterOptions {
+            sender: FilterOperator::Eq(Address::from_str("5f3dffcf347944d3739b0805c934d86c8621997f").unwrap()),
+            ..default
+        });
+
+        // Multiple operators are invalid
+        let json = r#"
+            {
+                "sender": {
+                    "eq": "0x5f3dffcf347944d3739b0805c934d86c8621997f",
+                    "eq": "0x407d73d8a49eeb85d32cf465507dd71d507100c1"
+                }
+            }
+        "#;
+        let res = serde_json::from_str::<FilterOptions>(json);
+        assert!(res.is_err());
+
+        // All other operators are invalid
+        // Gt
+        let json = r#"
+            {
+                "sender": {
+                    "gt": "0x5f3dffcf347944d3739b0805c934d86c8621997f"
+                }
+            }
+        "#;
+        let res = serde_json::from_str::<FilterOptions>(json);
+        assert!(res.is_err());
+
+        // Lt
+        let json = r#"
+            {
+                "sender": {
+                    "lt": "0x5f3dffcf347944d3739b0805c934d86c8621997f"
+                }
+            }
+        "#;
+        let res = serde_json::from_str::<FilterOptions>(json);
+        assert!(res.is_err());
+
+        // Action
+        let json = r#"
+            {
+                "sender": {
+                    "action": "contract_creation"
+                }
+            }
+        "#;
+        let res = serde_json::from_str::<FilterOptions>(json);
+        assert!(res.is_err());
+    }
 }
