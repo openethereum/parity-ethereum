@@ -714,7 +714,7 @@ impl Configuration {
 				for line in &lines {
 					match validate_node_url(line).map(Into::into) {
 						None => continue,
-						Some(sync::ErrorKind::AddressResolve(_)) => return Err(format!("Failed to resolve hostname of a boot node: {}", line)),
+						Some(sync::Error::AddressResolve(_)) => return Err(format!("Failed to resolve hostname of a boot node: {}", line)),
 						Some(_) => return Err(format!("Invalid node address format given for a boot node: {}", line)),
 					}
 				}
@@ -952,7 +952,10 @@ impl Configuration {
 		let provider_conf = ProviderConfig {
 			validator_accounts: to_addresses(&self.args.arg_private_validators)?,
 			signer_account: self.args.arg_private_signer.clone().and_then(|account| to_address(Some(account)).ok()),
-			logs_path: Some(dirs.base),
+			logs_path: match self.args.flag_private_enabled {
+				true => Some(dirs.base),
+				false => None,
+			}
 		};
 
 		let encryptor_conf = EncryptorConfig {
@@ -969,7 +972,7 @@ impl Configuration {
 			no_periodic: self.args.flag_no_periodic_snapshot,
 			processing_threads: match self.args.arg_snapshot_threads {
 				Some(threads) if threads > 0 => threads,
-				_ => ::std::cmp::max(1, num_cpus::get() / 2),
+				_ => ::std::cmp::max(1, num_cpus::get_physical() / 2),
 			},
 		};
 
@@ -1491,11 +1494,7 @@ mod tests {
 			net_settings: Default::default(),
 			ipfs_conf: Default::default(),
 			secretstore_conf: Default::default(),
-			private_provider_conf: ProviderConfig {
-				validator_accounts: Default::default(),
-				signer_account: Default::default(),
-				logs_path: Some(Directories::default().base),
-			},
+			private_provider_conf: Default::default(),
 			private_encryptor_conf: Default::default(),
 			private_tx_enabled: false,
 			name: "".into(),

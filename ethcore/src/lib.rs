@@ -15,7 +15,6 @@
 // along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
 #![warn(missing_docs, unused_extern_crates)]
-#![cfg_attr(feature = "time_checked_add", feature(time_checked_add))]
 
 //! Ethcore library
 //!
@@ -54,10 +53,6 @@
 //!   cargo build --release
 //!   ```
 
-// Recursion limit required because of
-// error_chain foreign_links.
-#![recursion_limit="128"]
-
 extern crate ansi_term;
 extern crate bn;
 extern crate byteorder;
@@ -76,7 +71,6 @@ extern crate ethjson;
 extern crate ethkey;
 extern crate futures;
 extern crate hash_db;
-extern crate heapsize;
 extern crate itertools;
 extern crate journaldb;
 extern crate keccak_hash as hash;
@@ -102,9 +96,13 @@ extern crate patricia_trie_ethereum as ethtrie;
 extern crate rand;
 extern crate rayon;
 extern crate rlp;
+extern crate parity_util_mem;
+extern crate parity_util_mem as mem;
+extern crate parity_util_mem as malloc_size_of;
 extern crate rustc_hex;
 extern crate serde;
 extern crate stats;
+extern crate time_utils;
 extern crate triehash_ethereum as triehash;
 extern crate unexpected;
 extern crate using_queue;
@@ -154,9 +152,6 @@ extern crate fetch;
 
 #[cfg(all(test, feature = "price-info"))]
 extern crate parity_runtime;
-
-#[cfg(not(time_checked_add))]
-extern crate time_utils;
 
 pub mod block;
 pub mod builtin;

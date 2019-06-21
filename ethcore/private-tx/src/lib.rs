@@ -16,10 +16,6 @@
 
 //! Private transactions module.
 
-// Recursion limit required because of
-// error_chain foreign_links.
-#![recursion_limit="256"]
-
 mod encryptor;
 mod key_server_keys;
 mod private_transactions;
@@ -38,7 +34,7 @@ extern crate ethjson;
 extern crate ethkey;
 extern crate fetch;
 extern crate futures;
-extern crate heapsize;
+extern crate parity_util_mem;
 extern crate keccak_hash as hash;
 extern crate parity_bytes as bytes;
 extern crate parity_crypto as crypto;

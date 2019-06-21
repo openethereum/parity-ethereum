@@ -498,7 +498,7 @@ impl Impl for Bn128PairingImpl {
 
 impl Bn128PairingImpl {
 	fn execute_with_error(&self, input: &[u8], output: &mut BytesRef) -> Result<(), Error> {
-		use bn::{AffineG1, AffineG2, Fq, Fq2, pairing, G1, G2, Gt, Group};
+		use bn::{AffineG1, AffineG2, Fq, Fq2, pairing_batch, G1, G2, Gt, Group};
 
 		let elements = input.len() / 192; // (a, b_a, b_b - each 64-byte affine coordinates)
 		let ret_val = if input.len() == 0 {
@@ -539,7 +539,7 @@ impl Bn128PairingImpl {
 				vals.push((a, b));
 			};
 
-			let mul = vals.into_iter().fold(Gt::one(), |s, (a, b)| s * pairing(a, b));
+			let mul = pairing_batch(&vals);
 
 			if mul == Gt::one() {
 				U256::one()

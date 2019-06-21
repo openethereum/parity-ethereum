@@ -20,7 +20,7 @@ use aes_gcm::{Encryptor, Decryptor};
 use ethkey::crypto::ecies;
 use ethereum_types::H256;
 use ethkey::{self, Public, Secret};
-use memzero::Memzero;
+use parity_util_mem::Memzero;
 
 /// Length of AES key
 pub const AES_KEY_LEN: usize = 32;

@@ -26,7 +26,7 @@ use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 use bytes::Bytes;
 use hash::keccak;
-use heapsize::HeapSizeOf;
+use parity_util_mem::MallocSizeOf;
 use rlp::Rlp;
 use triehash::ordered_trie_root;
 use unexpected::{Mismatch, OutOfBounds};
@@ -40,10 +40,10 @@ use types::{BlockNumber, header::Header};
 use types::transaction::SignedTransaction;
 use verification::queue::kind::blocks::Unverified;
 
-#[cfg(not(time_checked_add))]
 use time_utils::CheckedSystemTime;
 
 /// Preprocessed block data gathered in `verify_block_unordered` call
+#[derive(MallocSizeOf)]
 pub struct PreverifiedBlock {
 	/// Populated block header
 	pub header: Header,
@@ -53,14 +53,6 @@ pub struct PreverifiedBlock {
 	pub uncles: Vec<Header>,
 	/// Block bytes
 	pub bytes: Bytes,
-}
-
-impl HeapSizeOf for PreverifiedBlock {
-	fn heap_size_of_children(&self) -> usize {
-		self.header.heap_size_of_children()
-			+ self.transactions.heap_size_of_children()
-			+ self.bytes.heap_size_of_children()
-	}
 }
 
 /// Phase 1 quick block verification. Only does checks that are cheap. Operates on a single block
@@ -310,7 +302,7 @@ pub fn verify_header_params(header: &Header, engine: &dyn EthEngine, is_full: bo
 		// this will resist overflow until `year 2037`
 		let max_time = SystemTime::now() + ACCEPTABLE_DRIFT;
 		let invalid_threshold = max_time + ACCEPTABLE_DRIFT * 9;
-		let timestamp = UNIX_EPOCH.checked_add(Duration::from_secs(header.timestamp()))
+		let timestamp = CheckedSystemTime::checked_add(UNIX_EPOCH, Duration::from_secs(header.timestamp()))
 			.ok_or(BlockError::TimestampOverflow)?;
 
 		if timestamp > invalid_threshold {
@@ -334,9 +326,9 @@ fn verify_parent(header: &Header, parent: &Header, engine: &dyn EthEngine) -> Re
 
 	if !engine.is_timestamp_valid(header.timestamp(), parent.timestamp()) {
 		let now = SystemTime::now();
-		let min = now.checked_add(Duration::from_secs(parent.timestamp().saturating_add(1)))
+		let min = CheckedSystemTime::checked_add(now, Duration::from_secs(parent.timestamp().saturating_add(1)))
 			.ok_or(BlockError::TimestampOverflow)?;
-		let found = now.checked_add(Duration::from_secs(header.timestamp()))
+		let found = CheckedSystemTime::checked_add(now, Duration::from_secs(header.timestamp()))
 			.ok_or(BlockError::TimestampOverflow)?;
 		return Err(From::from(BlockError::InvalidTimestamp(OutOfBounds { max: None, min: Some(min), found }.into())))
 	}

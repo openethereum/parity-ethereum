@@ -23,7 +23,7 @@ ethabi-contract = "8.0"
 ethcore-call-contract = { path = "../ethcore/call-contract" }
 ethereum-types = "0.6.0"
 futures = "0.1"
-heapsize = "0.4"
+parity-util-mem = "0.1"
 keccak-hash = "0.2.0"
 linked-hash-map = "0.5"
 log = "0.4"

@@ -19,7 +19,7 @@
 use engines::EthEngine;
 use error::Error;
 
-use heapsize::HeapSizeOf;
+use parity_util_mem::MallocSizeOf;
 use ethereum_types::{H256, U256};
 
 pub use self::blocks::Blocks;
@@ -49,13 +49,13 @@ pub trait BlockLike {
 /// consistent.
 pub trait Kind: 'static + Sized + Send + Sync {
 	/// The first stage: completely unverified.
-	type Input: Sized + Send + BlockLike + HeapSizeOf;
+	type Input: Sized + Send + BlockLike + MallocSizeOf;
 
 	/// The second stage: partially verified.
-	type Unverified: Sized + Send + BlockLike + HeapSizeOf;
+	type Unverified: Sized + Send + BlockLike + MallocSizeOf;
 
 	/// The third stage: completely verified.
-	type Verified: Sized + Send + BlockLike + HeapSizeOf;
+	type Verified: Sized + Send + BlockLike + MallocSizeOf;
 
 	/// Attempt to create the `Unverified` item from the input.
 	fn create(input: Self::Input, engine: &dyn EthEngine, check_seal: bool) -> Result<Self::Unverified, (Self::Input, Error)>;
@@ -74,7 +74,7 @@ pub mod blocks {
 	use verification::{PreverifiedBlock, verify_block_basic, verify_block_unordered};
 	use types::transaction::UnverifiedTransaction;
 
-	use heapsize::HeapSizeOf;
+	use parity_util_mem::MallocSizeOf;
 	use ethereum_types::{H256, U256};
 	use bytes::Bytes;
 
@@ -113,7 +113,7 @@ pub mod blocks {
 	}
 
 	/// An unverified block.
-	#[derive(PartialEq, Debug)]
+	#[derive(PartialEq, Debug, MallocSizeOf)]
 	pub struct Unverified {
 		/// Unverified block header.
 		pub header: Header,
@@ -143,15 +143,6 @@ pub mod blocks {
 				uncles,
 				bytes,
 			})
-		}
-	}
-
-	impl HeapSizeOf for Unverified {
-		fn heap_size_of_children(&self) -> usize {
-			self.header.heap_size_of_children()
-				+ self.transactions.heap_size_of_children()
-				+ self.uncles.heap_size_of_children()
-				+ self.bytes.heap_size_of_children()
 		}
 	}
 

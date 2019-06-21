@@ -21,16 +21,18 @@ use std::net::SocketAddr;
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
 use ethereum_types::{H256, H520};
-use hash::keccak;
+use keccak_hash::keccak;
+use log::{debug, trace, warn};
 use lru_cache::LruCache;
 use parity_bytes::Bytes;
 use rlp::{Rlp, RlpStream};
 
 use ethkey::{KeyPair, recover, Secret, sign};
-use network::{Error, ErrorKind};
+use network::Error;
 use network::IpFilter;
-use node_table::*;
-use PROTOCOL_VERSION;
+
+use crate::node_table::*;
+use crate::PROTOCOL_VERSION;
 
 const ADDRESS_BYTES_SIZE: usize = 32;						// Size of address type in bytes.
 const ADDRESS_BITS: usize = 8 * ADDRESS_BYTES_SIZE;			// Denoted by n in [Kademlia].
@@ -482,12 +484,12 @@ impl<'a> Discovery<'a> {
 	pub fn on_packet(&mut self, packet: &[u8], from: SocketAddr) -> Result<Option<TableUpdates>, Error> {
 		// validate packet
 		if packet.len() < 32 + 65 + 4 + 1 {
-			return Err(ErrorKind::BadProtocol.into());
+			return Err(Error::BadProtocol);
 		}
 
 		let hash_signed = keccak(&packet[32..]);
 		if hash_signed[..] != packet[0..32] {
-			return Err(ErrorKind::BadProtocol.into());
+			return Err(Error::BadProtocol);
 		}
 
 		let signed = &packet[(32 + 65)..];
@@ -512,7 +514,7 @@ impl<'a> Discovery<'a> {
 		let secs_since_epoch = SystemTime::now().duration_since(UNIX_EPOCH).unwrap_or_default().as_secs();
 		if self.check_timestamps && timestamp < secs_since_epoch {
 			debug!(target: "discovery", "Expired packet");
-			return Err(ErrorKind::Expired.into());
+			return Err(Error::Expired);
 		}
 		Ok(())
 	}
@@ -900,7 +902,8 @@ mod tests {
 	use rustc_hex::FromHex;
 
 	use ethkey::{Generator, Random};
-	use node_table::{Node, NodeEndpoint, NodeId};
+
+	use crate::node_table::{Node, NodeEndpoint, NodeId};
 
 	use super::*;
 

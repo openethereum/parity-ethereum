@@ -7,7 +7,7 @@ authors = ["Parity Technologies <admin@parity.io>"]
 byteorder = "1.0"
 parity-bytes = "0.1"
 ethereum-types = "0.6.0"
-trie-db = "0.11.0"
+trie-db = "0.12.4"
 patricia-trie-ethereum = { path = "../../util/patricia-trie-ethereum" }
 log = "0.4"
 ethjson = { path = "../../json" }

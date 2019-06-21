@@ -16,7 +16,7 @@
 
 use std::collections::{HashSet, HashMap, hash_map};
 use hash::{keccak, KECCAK_NULL_RLP, KECCAK_EMPTY_LIST_RLP};
-use heapsize::HeapSizeOf;
+use parity_util_mem::MallocSizeOf;
 use ethereum_types::H256;
 use triehash_ethereum::ordered_trie_root;
 use bytes::Bytes;
@@ -26,19 +26,13 @@ use ethcore::verification::queue::kind::blocks::Unverified;
 use types::transaction::UnverifiedTransaction;
 use types::header::Header as BlockHeader;
 
-known_heap_size!(0, HeaderId);
+malloc_size_of_is_0!(HeaderId);
 
 #[derive(PartialEq, Debug, Clone)]
+#[derive(MallocSizeOf)]
 pub struct SyncHeader {
 	pub bytes: Bytes,
 	pub header: BlockHeader,
-}
-
-impl HeapSizeOf for SyncHeader {
-	fn heap_size_of_children(&self) -> usize {
-		self.bytes.heap_size_of_children()
-			+ self.header.heap_size_of_children()
-	}
 }
 
 impl SyncHeader {
@@ -52,6 +46,7 @@ impl SyncHeader {
 	}
 }
 
+#[derive(MallocSizeOf)]
 pub struct SyncBody {
 	pub transactions_bytes: Bytes,
 	pub transactions: Vec<UnverifiedTransaction>,
@@ -85,27 +80,13 @@ impl SyncBody {
 	}
 }
 
-impl HeapSizeOf for SyncBody {
-	fn heap_size_of_children(&self) -> usize {
-		self.transactions_bytes.heap_size_of_children()
-			+ self.transactions.heap_size_of_children()
-			+ self.uncles_bytes.heap_size_of_children()
-			+ self.uncles.heap_size_of_children()
-	}
-}
-
 /// Block data with optional body.
+#[derive(MallocSizeOf)]
 struct SyncBlock {
 	header: SyncHeader,
 	body: Option<SyncBody>,
 	receipts: Option<Bytes>,
 	receipts_root: H256,
-}
-
-impl HeapSizeOf for SyncBlock {
-	fn heap_size_of_children(&self) -> usize {
-		self.header.heap_size_of_children() + self.body.heap_size_of_children()
-	}
 }
 
 fn unverified_from_sync(header: SyncHeader, body: Option<SyncBody>) -> Unverified {
@@ -141,7 +122,7 @@ struct HeaderId {
 /// A collection of blocks and subchain pointers being downloaded. This keeps track of
 /// which headers/bodies need to be downloaded, which are being downloaded and also holds
 /// the downloaded blocks.
-#[derive(Default)]
+#[derive(Default, MallocSizeOf)]
 pub struct BlockCollection {
 	/// Does this collection need block receipts.
 	need_receipts: bool,
@@ -399,16 +380,6 @@ impl BlockCollection {
 		self.heads.len()
 	}
 
-	/// Return used heap size.
-	pub fn heap_size(&self) -> usize {
-		self.heads.heap_size_of_children()
-			+ self.blocks.heap_size_of_children()
-			+ self.parents.heap_size_of_children()
-			+ self.header_ids.heap_size_of_children()
-			+ self.downloading_headers.heap_size_of_children()
-			+ self.downloading_bodies.heap_size_of_children()
-	}
-
 	/// Check if given block hash is marked as being downloaded.
 	pub fn is_downloading(&self, hash: &H256) -> bool {
 		self.downloading_headers.contains(hash) || self.downloading_bodies.contains(hash)
@@ -435,13 +406,13 @@ impl BlockCollection {
 					},
 					None => {
 						warn!("Got body with no header {}", h);
-						Err(network::ErrorKind::BadProtocol.into())
+						Err(network::Error::BadProtocol)
 					}
 				}
 			}
 			None => {
 				trace!(target: "sync", "Ignored unknown/stale block body. tx_root = {:?}, uncles = {:?}", header_id.transactions_root, header_id.uncles);
-				Err(network::ErrorKind::BadProtocol.into())
+				Err(network::Error::BadProtocol)
 			}
 		}
 	}
@@ -463,7 +434,7 @@ impl BlockCollection {
 						},
 						None => {
 							warn!("Got receipt with no header {}", h);
-							return Err(network::ErrorKind::BadProtocol.into())
+							return Err(network::Error::BadProtocol)
 						}
 					}
 				}
@@ -471,7 +442,7 @@ impl BlockCollection {
 			},
 			hash_map::Entry::Vacant(_) => {
 				trace!(target: "sync", "Ignored unknown/stale block receipt {:?}", receipt_root);
-				Err(network::ErrorKind::BadProtocol.into())
+				Err(network::Error::BadProtocol)
 			}
 		}
 	}

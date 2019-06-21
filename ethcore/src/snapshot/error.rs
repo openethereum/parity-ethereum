@@ -62,6 +62,8 @@ pub enum Error {
 	ChunkTooLarge,
 	/// Snapshots not supported by the consensus engine.
 	SnapshotsUnsupported,
+	/// Aborted snapshot
+	SnapshotAborted,
 	/// Bad epoch transition.
 	BadEpochProof(u64),
 	/// Wrong chunk format.
@@ -103,6 +105,7 @@ impl fmt::Display for Error {
 			Error::ChunkTooSmall => write!(f, "Chunk size is too small."),
 			Error::ChunkTooLarge => write!(f, "Chunk size is too large."),
 			Error::SnapshotsUnsupported => write!(f, "Snapshots unsupported by consensus engine."),
+			Error::SnapshotAborted => write!(f, "Snapshot was aborted."),
 			Error::BadEpochProof(i) => write!(f, "Bad epoch proof for transition to epoch {}", i),
 			Error::WrongChunkFormat(ref msg) => write!(f, "Wrong chunk format: {}", msg),
 			Error::UnlinkedAncientBlockChain => write!(f, "Unlinked ancient blocks chain"),
