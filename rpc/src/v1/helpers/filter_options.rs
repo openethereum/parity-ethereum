@@ -603,4 +603,66 @@ mod tests {
         let res = serde_json::from_str::<FilterOptions>(json);
         assert!(res.is_err());
     }
+
+    #[test]
+    fn valid_nonce_deserialization() {
+        // Eq
+        let json = r#"
+            {
+                "nonce": {
+                    "eq": "0x577"
+                }
+            }
+        "#;
+        let default = FilterOptions::default();
+        let res = serde_json::from_str::<FilterOptions>(json).unwrap();
+        assert_eq!(res, FilterOptions {
+            nonce: FilterOperator::Eq(U256::from(1399)),
+            ..default.clone()
+        });
+
+        // Gt
+        let json = r#"
+            {
+                "nonce": {
+                    "gt": "0x577"
+                }
+            }
+        "#;
+        let default = FilterOptions::default();
+        let res = serde_json::from_str::<FilterOptions>(json).unwrap();
+        assert_eq!(res, FilterOptions {
+            nonce: FilterOperator::GreaterThan(U256::from(1399)),
+            ..default.clone()
+        });
+
+        // Lt
+        let json = r#"
+            {
+                "nonce": {
+                    "lt": "0x577"
+                }
+            }
+        "#;
+        let default = FilterOptions::default();
+        let res = serde_json::from_str::<FilterOptions>(json).unwrap();
+        assert_eq!(res, FilterOptions {
+            nonce: FilterOperator::LessThan(U256::from(1399)),
+            ..default
+        });
+    }
+
+    #[test]
+    fn invalid_nonce_deserialization() {
+        // Action
+        let json = r#"
+            {
+                "nonce": {
+                    "action": "contract_creation"
+                }
+            }
+        "#;
+        let res = serde_json::from_str::<FilterOptions>(json);
+        assert!(res.is_err());
+    }
 }
