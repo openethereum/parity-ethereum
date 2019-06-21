@@ -217,7 +217,7 @@ impl<'de> Deserialize<'de> for FilterOptions {
     }
 }
 
-//#[cfg(test)]
+#[cfg(test)]
 mod tests {
     use ethereum_types::{Address, U256};
     use serde_json;
@@ -226,13 +226,17 @@ mod tests {
 
     #[test]
     fn valid_defaults() {
-        let res = FilterOptions::default();
-        assert_eq!(res.sender, FilterOperator::Any);
-        assert_eq!(res.receiver, FilterOperator::Any);
-        assert_eq!(res.gas, FilterOperator::Any);
-        assert_eq!(res.gas_price, FilterOperator::Any);
-        assert_eq!(res.value, FilterOperator::Any);
-        assert_eq!(res.nonce, FilterOperator::Any);
+        let default = FilterOptions::default();
+        assert_eq!(default.sender, FilterOperator::Any);
+        assert_eq!(default.receiver, FilterOperator::Any);
+        assert_eq!(default.gas, FilterOperator::Any);
+        assert_eq!(default.gas_price, FilterOperator::Any);
+        assert_eq!(default.value, FilterOperator::Any);
+        assert_eq!(default.nonce, FilterOperator::Any);
+
+        let json = r#"{}"#;
+        let res = serde_json::from_str::<FilterOptions>(json).unwrap();
+        assert_eq!(res, default);
     }
 
     #[test]
@@ -272,7 +276,37 @@ mod tests {
     }
 
     #[test]
-    fn valid_sender_deserialization() {
+    fn invalid_full_deserialization() {
+        // Invalid filter type `zyx`
+        let json = r#"
+            {
+                "sender": {
+                    "eq": "0x5f3dffcf347944d3739b0805c934d86c8621997f"
+                },
+                "receiver": {
+                    "eq": "0xe8b2d01ffa0a15736b2370b6e5064f9702c891b6"
+                },
+                "zyx": {
+                    "eq": "0x493e0"
+                },
+                "gas_price": {
+                    "eq": "0x12a05f200"
+                },
+                "value": {
+                    "eq": "0x0"
+                },
+                "nonce": {
+                    "eq": "0x577"
+                }
+            }
+        "#;
+
+        let res = serde_json::from_str::<FilterOptions>(json);
+        assert!(res.is_err())
+    }
+
+    #[test]
+    fn valid_sender_operators() {
         // Only one valid operator for sender
         let json = r#"
             {
@@ -290,7 +324,7 @@ mod tests {
     }
 
     #[test]
-    fn invalid_sender_deserialization() {
+    fn invalid_sender_operators() {
         // Multiple operators are invalid
         let json = r#"
             {
@@ -335,10 +369,21 @@ mod tests {
         "#;
         let res = serde_json::from_str::<FilterOptions>(json);
         assert!(res.is_err());
+
+        // Unknown operator
+        let json = r#"
+            {
+                "sender": {
+                    "abc": "0x0"
+                }
+            }
+        "#;
+        let res = serde_json::from_str::<FilterOptions>(json);
+        assert!(res.is_err());
     }
 
     #[test]
-    fn valid_receiver_deserialization() {
+    fn valid_receiver_operators() {
         // Only two valid operator for receiver
         // Eq
         let json = r#"
@@ -371,7 +416,7 @@ mod tests {
     }
 
     #[test]
-    fn invalid_receiver_deserialization() {
+    fn invalid_receiver_operators() {
         // Multiple operators are invalid
         let json = r#"
             {
@@ -416,10 +461,21 @@ mod tests {
         "#;
         let res = serde_json::from_str::<FilterOptions>(json);
         assert!(res.is_err());
+
+        // Unknown operator
+        let json = r#"
+            {
+                "receiver": {
+                    "abc": "0x0"
+                }
+            }
+        "#;
+        let res = serde_json::from_str::<FilterOptions>(json);
+        assert!(res.is_err());
     }
 
     #[test]
-    fn valid_gas_deserialization() {
+    fn valid_gas_operators() {
         // Eq
         let json = r#"
             {
@@ -467,7 +523,19 @@ mod tests {
     }
 
     #[test]
-    fn invalid_gas_deserialization() {
+    fn invalid_gas_operators() {
+        // Multiple operators are invalid
+        let json = r#"
+            {
+                "gas": {
+                    "eq": "0x493e0",
+                    "lt": "0x493e0"
+                }
+            }
+        "#;
+        let res = serde_json::from_str::<FilterOptions>(json);
+        assert!(res.is_err());
+
         // Action
         let json = r#"
             {
@@ -478,10 +546,21 @@ mod tests {
         "#;
         let res = serde_json::from_str::<FilterOptions>(json);
         assert!(res.is_err());
+
+        // Unknown operator
+        let json = r#"
+            {
+                "gas": {
+                    "abc": "0x0"
+                }
+            }
+        "#;
+        let res = serde_json::from_str::<FilterOptions>(json);
+        assert!(res.is_err());
     }
 
     #[test]
-    fn valid_gas_price_deserialization() {
+    fn valid_gas_price_operators() {
         // Eq
         let json = r#"
             {
@@ -529,7 +608,19 @@ mod tests {
     }
 
     #[test]
-    fn invalid_gas_price_deserialization() {
+    fn invalid_gas_price_operators() {
+        // Multiple operators are invalid
+        let json = r#"
+            {
+                "gas_price": {
+                    "eq": "0x12a05f200",
+                    "lt": "0x12a05f200"
+                }
+            }
+        "#;
+        let res = serde_json::from_str::<FilterOptions>(json);
+        assert!(res.is_err());
+
         // Action
         let json = r#"
             {
@@ -540,10 +631,21 @@ mod tests {
         "#;
         let res = serde_json::from_str::<FilterOptions>(json);
         assert!(res.is_err());
+
+        // Unknown operator
+        let json = r#"
+            {
+                "gas_price": {
+                    "abc": "0x0"
+                }
+            }
+        "#;
+        let res = serde_json::from_str::<FilterOptions>(json);
+        assert!(res.is_err());
     }
 
     #[test]
-    fn valid_value_deserialization() {
+    fn valid_value_operators() {
         // Eq
         let json = r#"
             {
@@ -591,7 +693,19 @@ mod tests {
     }
 
     #[test]
-    fn invalid_value_deserialization() {
+    fn invalid_value_operators() {
+        // Multiple operators are invalid
+        let json = r#"
+            {
+                "value": {
+                    "eq": "0x0",
+                    "lt": "0x0"
+                }
+            }
+        "#;
+        let res = serde_json::from_str::<FilterOptions>(json);
+        assert!(res.is_err());
+
         // Action
         let json = r#"
             {
@@ -602,10 +716,21 @@ mod tests {
         "#;
         let res = serde_json::from_str::<FilterOptions>(json);
         assert!(res.is_err());
+
+        // Unknown operator
+        let json = r#"
+            {
+                "value": {
+                    "abc": "0x0"
+                }
+            }
+        "#;
+        let res = serde_json::from_str::<FilterOptions>(json);
+        assert!(res.is_err());
     }
 
     #[test]
-    fn valid_nonce_deserialization() {
+    fn valid_nonce_operators() {
         // Eq
         let json = r#"
             {
@@ -653,12 +778,35 @@ mod tests {
     }
 
     #[test]
-    fn invalid_nonce_deserialization() {
+    fn invalid_nonce_operators() {
+        // Multiple operators are invalid
+        let json = r#"
+            {
+                "nonce": {
+                    "eq": "0x577",
+                    "lt": "0x577"
+                }
+            }
+        "#;
+        let res = serde_json::from_str::<FilterOptions>(json);
+        assert!(res.is_err());
+
         // Action
         let json = r#"
             {
                 "nonce": {
                     "action": "contract_creation"
+                }
+            }
+        "#;
+        let res = serde_json::from_str::<FilterOptions>(json);
+        assert!(res.is_err());
+
+        // Unknown operator
+        let json = r#"
+            {
+                "nonce": {
+                    "abc": "0x0"
                 }
             }
         "#;
