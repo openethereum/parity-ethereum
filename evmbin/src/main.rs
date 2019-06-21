@@ -71,7 +71,7 @@ use vm::{ActionParams, CallType};
 mod info;
 mod display;
 
-use info::{Informant, InputData};
+use info::{Informant, TxInput};
 
 const USAGE: &'static str = r#"
 EVM implementation for Parity.
@@ -206,7 +206,7 @@ fn run_state_test(args: Args) {
 				// for CLI option `--std-dump-json` or `--std-json`.
 				if args.flag_std_dump_json || args.flag_std_json {
 					if args.flag_std_err_only {
-						let input_data = InputData {
+						let tx_input = TxInput {
 							name: &name,
 							idx,
 							spec: &spec,
@@ -218,9 +218,9 @@ fn run_state_test(args: Args) {
 							trie_spec: &trie_spec,
 						};
 						// Use Standard JSON informant with err only
-						info::run_transaction(input_data)
+						info::run_transaction(tx_input)
 					} else if args.flag_std_out_only {
-						let input_data = InputData {
+						let tx_input = TxInput {
 							name: &name,
 							idx,
 							spec: &spec,
@@ -232,9 +232,9 @@ fn run_state_test(args: Args) {
 							trie_spec: &trie_spec,
 						};
 						// Use Standard JSON informant with out only
-						info::run_transaction(input_data)
+						info::run_transaction(tx_input)
 					} else {
-						let input_data = InputData {
+						let tx_input = TxInput {
 							name: &name,
 							idx,
 							spec: &spec,
@@ -246,13 +246,13 @@ fn run_state_test(args: Args) {
 							trie_spec: &trie_spec,
 						};
 						// Use Standard JSON informant default
-						info::run_transaction(input_data)
+						info::run_transaction(tx_input)
 					}
 				} else {
 					// Execute the given transaction and verify resulting state root
 					// for CLI option `--json`.
 					if args.flag_json {
-						let input_data = InputData {
+						let tx_input = TxInput {
 							name: &name,
 							idx,
 							spec: &spec,
@@ -264,9 +264,9 @@ fn run_state_test(args: Args) {
 							trie_spec: &trie_spec,
 						};
 						// Use JSON informant
-						info::run_transaction(input_data)
+						info::run_transaction(tx_input)
 					} else {
-						let input_data = InputData {
+						let tx_input = TxInput {
 							name: &name,
 							idx,
 							spec: &spec,
@@ -278,7 +278,7 @@ fn run_state_test(args: Args) {
 							trie_spec: &trie_spec,
 						};
 						// Use Simple informant
-						info::run_transaction(input_data)
+						info::run_transaction(tx_input)
 					}
 				}
 			}
@@ -472,7 +472,7 @@ mod tests {
 	use types::transaction;
 
 	use info;
-	use info::{InputData};
+	use info::{TxInput};
 	use display;
 
 	#[derive(Debug, PartialEq, Deserialize)]
@@ -593,7 +593,7 @@ mod tests {
 				let post_root = H256::from_str("99a450d8ce5b987a71346d8a0a1203711f770745c7ef326912e46761f14cd764").unwrap();
 				let trie_spec = TrieSpec::Secure; // TrieSpec::Fat for --std_dump_json
 				let transaction: transaction::SignedTransaction = multitransaction.select(&state.indexes).into();
-				let input_data = InputData {
+				let tx_input = TxInput {
 					name: &name,
 					idx,
 					spec: &spec,
@@ -604,7 +604,7 @@ mod tests {
 					informant: informant,
 					trie_spec: &trie_spec,
 				};
-				info::run_transaction(input_data)
+				info::run_transaction(tx_input)
 			}
 		}
 	}
@@ -639,7 +639,7 @@ mod tests {
 				let post_root = H256::from_str("0xde1d3953b508913c6e3e9bd412cd50daf60bb177517e5d1e8ccb0dab193aed03").unwrap();
 				let trie_spec = TrieSpec::Secure; // TrieSpec::Fat for --std_dump_json
 				let transaction: transaction::SignedTransaction = multitransaction.select(&state.indexes).into();
-				let input_data = InputData {
+				let tx_input = TxInput {
 					name: &name,
 					idx,
 					spec: &spec,
@@ -650,7 +650,7 @@ mod tests {
 					informant: informant,
 					trie_spec: &trie_spec,
 				};
-				info::run_transaction(input_data)
+				info::run_transaction(tx_input)
 			}
 		}
 	}

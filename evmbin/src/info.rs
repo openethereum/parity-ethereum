@@ -102,7 +102,7 @@ pub fn run_action<T: Informant>(
 
 /// Input data to run transaction
 #[derive(Debug)]
-pub struct InputData<'a, T> {
+pub struct TxInput<'a, T> {
 	/// Chain specification name associated with the transaction.
 	pub name: &'a String,
 	/// Transaction index from list of transactions within a state root hashes corresponding to a chain.
@@ -125,33 +125,33 @@ pub struct InputData<'a, T> {
 
 /// Execute given transaction and verify resulting state root.
 pub fn run_transaction<T: Informant>(
-	input_data: InputData<T>
+	tx_input: TxInput<T>
 ) {
-	let mut input_data = input_data;
-	let spec_name = format!("{:?}", input_data.spec).to_lowercase();
-	let spec = match EvmTestClient::spec_from_json(&input_data.spec) {
+	let mut tx_input = tx_input;
+	let spec_name = format!("{:?}", tx_input.spec).to_lowercase();
+	let spec = match EvmTestClient::spec_from_json(&tx_input.spec) {
 		Some(spec) => {
-			input_data.informant.before_test(&format!("{}:{}:{}", &input_data.name, &spec_name, input_data.idx), "starting");
+			tx_input.informant.before_test(&format!("{}:{}:{}", &tx_input.name, &spec_name, tx_input.idx), "starting");
 			spec
 		},
 		None => {
-			input_data.informant.before_test(&format!("{}:{}:{}", &input_data.name, spec_name, &input_data.idx), "skipping because of missing spec");
+			tx_input.informant.before_test(&format!("{}:{}:{}", &tx_input.name, spec_name, &tx_input.idx), "skipping because of missing spec");
 			return;
 		},
 	};
 
-	input_data.informant.set_gas(input_data.env_info.gas_limit);
+	tx_input.informant.set_gas(tx_input.env_info.gas_limit);
 
-	let mut sink = input_data.informant.clone_sink();
-	let result = run(&spec, input_data.trie_spec, input_data.transaction.gas, &input_data.pre_state, |mut client| {
-		let result = client.transact(&input_data.env_info, input_data.transaction, trace::NoopTracer, input_data.informant);
+	let mut sink = tx_input.informant.clone_sink();
+	let result = run(&spec, tx_input.trie_spec, tx_input.transaction.gas, &tx_input.pre_state, |mut client| {
+		let result = client.transact(&tx_input.env_info, tx_input.transaction, trace::NoopTracer, tx_input.informant);
 		match result {
 			Ok(TransactSuccess { state_root, gas_left, output, vm_trace, end_state, .. }) => {
-				if state_root != input_data.post_root {
+				if state_root != tx_input.post_root {
 					(Err(EvmTestError::PostCondition(format!(
 						"State root mismatch (got: {:#x}, expected: {:#x})",
 						state_root,
-						input_data.post_root,
+						tx_input.post_root,
 					))), state_root, end_state, Some(gas_left), None)
 				} else {
 					(Ok(output), state_root, end_state, Some(gas_left), vm_trace)
