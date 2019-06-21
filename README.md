@@ -308,7 +308,7 @@ Caching, Importing Blocks, and Block Information
 
 [Document source code](https://doc.rust-lang.org/1.9.0/book/documentation.html) for Parity Ethereum packages by annotating the source code with documentation comments.
 
-Example (generic):
+Example (generic documentation comment):
 ```markdown
 /// Summary
 ///
@@ -325,33 +325,10 @@ Example (generic):
 /// Summary of Example 1
 ///
 /// ```rust
-/// // insert example 1 code here
+/// // insert example 1 code here for use with documentation as tests
 /// ```
 ///
 ```
-
-* Important notes:
-  * Modules are documented using `//!`
-    ```
-    //! Summary (of module)
-    //!
-    //! Description (of module)
-    ```
-  * Special section header is indicated with a hash `#`.
-    * `Panics` section requires an explanation if the function triggers a panic
-    * `Errors` section is for describing conditions under which a function of method returns `Err(E)` if it returns a `Result<T, E>`
-    * `Safety` section requires an explanation if the function is `unsafe`
-    * `Examples` section includes examples of using the function or method
-  * Instead of including the programming language to use for syntax highlighting as the annotation
-  after the triple graves, alternative annotations include the `ignore`, `text`, `should_panic`, or `no_run`.
-  * Summary sentence is a short high level single sentence of its functionality
-  * Description paragraph is for details additional to the summary sentence
-  * Missing documentation annotations may be used to identify items that are missing documentation with warnings `#![warn(missing_docs)]` or errors `#![deny(missing_docs)]`. `#![deny(missing_docs)]` is required in all new code.
-  * Hide documentation for items with `#[doc(hidden)]`
-
-### Contributing to documentation (tests, extended examples, macros) for Parity Ethereum packages
-
-The code block annotations in the `# Example` section may be used as [documentation as tests and for extended examples](https://doc.rust-lang.org/1.9.0/book/documentation.html#documentation-as-tests).
 
 ## 5. Toolchain <a id="chapter-005"></a>
 
