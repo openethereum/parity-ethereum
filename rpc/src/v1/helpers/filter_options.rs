@@ -287,7 +287,10 @@ mod tests {
             sender: FilterOperator::Eq(Address::from_str("5f3dffcf347944d3739b0805c934d86c8621997f").unwrap()),
             ..default
         });
+    }
 
+    #[test]
+    fn invalid_sender_deserialization() {
         // Multiple operators are invalid
         let json = r#"
             {
@@ -300,7 +303,6 @@ mod tests {
         let res = serde_json::from_str::<FilterOptions>(json);
         assert!(res.is_err());
 
-        // All other operators are invalid
         // Gt
         let json = r#"
             {
@@ -328,6 +330,87 @@ mod tests {
             {
                 "sender": {
                     "action": "contract_creation"
+                }
+            }
+        "#;
+        let res = serde_json::from_str::<FilterOptions>(json);
+        assert!(res.is_err());
+    }
+
+    #[test]
+    fn valid_receiver_deserialization() {
+        // Only two valid operator for receiver
+        // Eq
+        let json = r#"
+            {
+                "receiver": {
+                    "eq": "0xe8b2d01ffa0a15736b2370b6e5064f9702c891b6"
+                }
+            }
+        "#;
+        let default = FilterOptions::default();
+        let res = serde_json::from_str::<FilterOptions>(json).unwrap();
+        assert_eq!(res, FilterOptions {
+            receiver: FilterOperator::Eq(Address::from_str("e8b2d01ffa0a15736b2370b6e5064f9702c891b6").unwrap()),
+            ..default.clone()
+        });
+
+        // Action
+        let json = r#"
+            {
+                "receiver": {
+                    "action": "contract_creation"
+                }
+            }
+        "#;
+        let res = serde_json::from_str::<FilterOptions>(json).unwrap();
+        assert_eq!(res, FilterOptions {
+            receiver: FilterOperator::ContractCreation,
+            ..default
+        });
+    }
+
+    #[test]
+    fn invalid_receiver_deserialization() {
+        // Multiple operators are invalid
+        let json = r#"
+            {
+                "receiver": {
+                    "eq": "0xe8b2d01ffa0a15736b2370b6e5064f9702c891b6",
+                    "action": "contract_creation"
+                }
+            }
+        "#;
+        let res = serde_json::from_str::<FilterOptions>(json);
+        assert!(res.is_err());
+
+        // Gt
+        let json = r#"
+            {
+                "receiver": {
+                    "gt": "0xe8b2d01ffa0a15736b2370b6e5064f9702c891b6"
+                }
+            }
+        "#;
+        let res = serde_json::from_str::<FilterOptions>(json);
+        assert!(res.is_err());
+
+        // Lt
+        let json = r#"
+            {
+                "receiver": {
+                    "lt": "0xe8b2d01ffa0a15736b2370b6e5064f9702c891b6"
+                }
+            }
+        "#;
+        let res = serde_json::from_str::<FilterOptions>(json);
+        assert!(res.is_err());
+
+        // Action (invalid value, must be "contract_creation")
+        let json = r#"
+            {
+                "receiver": {
+                    "action": "some_invalid_value"
                 }
             }
         "#;
