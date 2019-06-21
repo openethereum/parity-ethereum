@@ -417,4 +417,66 @@ mod tests {
         let res = serde_json::from_str::<FilterOptions>(json);
         assert!(res.is_err());
     }
+
+    #[test]
+    fn valid_gas_deserialization() {
+        // Eq
+        let json = r#"
+            {
+                "gas": {
+                    "eq": "0x493e0"
+                }
+            }
+        "#;
+        let default = FilterOptions::default();
+        let res = serde_json::from_str::<FilterOptions>(json).unwrap();
+        assert_eq!(res, FilterOptions {
+            gas: FilterOperator::Eq(U256::from(300_000)),
+            ..default.clone()
+        });
+
+        // Gt
+        let json = r#"
+            {
+                "gas": {
+                    "gt": "0x493e0"
+                }
+            }
+        "#;
+        let default = FilterOptions::default();
+        let res = serde_json::from_str::<FilterOptions>(json).unwrap();
+        assert_eq!(res, FilterOptions {
+            gas: FilterOperator::GreaterThan(U256::from(300_000)),
+            ..default.clone()
+        });
+
+        // Lt
+        let json = r#"
+            {
+                "gas": {
+                    "lt": "0x493e0"
+                }
+            }
+        "#;
+        let default = FilterOptions::default();
+        let res = serde_json::from_str::<FilterOptions>(json).unwrap();
+        assert_eq!(res, FilterOptions {
+            gas: FilterOperator::LessThan(U256::from(300_000)),
+            ..default.clone()
+        });
+    }
+
+    #[test]
+    fn invalid_gas_deserialization() {
+        // Action
+        let json = r#"
+            {
+                "gas": {
+                    "action": "contract_creation"
+                }
+            }
+        "#;
+        let res = serde_json::from_str::<FilterOptions>(json);
+        assert!(res.is_err());
+    }
 }
