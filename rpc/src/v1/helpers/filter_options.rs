@@ -462,7 +462,7 @@ mod tests {
         let res = serde_json::from_str::<FilterOptions>(json).unwrap();
         assert_eq!(res, FilterOptions {
             gas: FilterOperator::LessThan(U256::from(300_000)),
-            ..default.clone()
+            ..default
         });
     }
 
@@ -524,7 +524,7 @@ mod tests {
         let res = serde_json::from_str::<FilterOptions>(json).unwrap();
         assert_eq!(res, FilterOptions {
             gas_price: FilterOperator::LessThan(U256::from(5_000_000_000 as i64)),
-            ..default.clone()
+            ..default
         });
     }
 
@@ -534,6 +534,68 @@ mod tests {
         let json = r#"
             {
                 "gas_price": {
+                    "action": "contract_creation"
+                }
+            }
+        "#;
+        let res = serde_json::from_str::<FilterOptions>(json);
+        assert!(res.is_err());
+    }
+
+    #[test]
+    fn valid_value_deserialization() {
+        // Eq
+        let json = r#"
+            {
+                "value": {
+                    "eq": "0x0"
+                }
+            }
+        "#;
+        let default = FilterOptions::default();
+        let res = serde_json::from_str::<FilterOptions>(json).unwrap();
+        assert_eq!(res, FilterOptions {
+            value: FilterOperator::Eq(U256::from(0)),
+            ..default.clone()
+        });
+
+        // Gt
+        let json = r#"
+            {
+                "value": {
+                    "gt": "0x0"
+                }
+            }
+        "#;
+        let default = FilterOptions::default();
+        let res = serde_json::from_str::<FilterOptions>(json).unwrap();
+        assert_eq!(res, FilterOptions {
+            value: FilterOperator::GreaterThan(U256::from(0)),
+            ..default.clone()
+        });
+
+        // Lt
+        let json = r#"
+            {
+                "value": {
+                    "lt": "0x0"
+                }
+            }
+        "#;
+        let default = FilterOptions::default();
+        let res = serde_json::from_str::<FilterOptions>(json).unwrap();
+        assert_eq!(res, FilterOptions {
+            value: FilterOperator::LessThan(U256::from(0)),
+            ..default
+        });
+    }
+
+    #[test]
+    fn invalid_value_deserialization() {
+        // Action
+        let json = r#"
+            {
+                "value": {
                     "action": "contract_creation"
                 }
             }
