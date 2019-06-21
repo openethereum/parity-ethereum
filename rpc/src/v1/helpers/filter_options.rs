@@ -3,10 +3,10 @@ use serde::de::{Deserialize, Deserializer, Error, MapAccess, Visitor};
 use std::fmt;
 use std::marker::PhantomData;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Eq, PartialEq)]
 pub struct FilterOptions {
     sender: FilterOperator<Address>,
-    receiver: FilterOperator<Option<Address>>,
+    receiver: FilterOperator<Address>,
     gas: FilterOperator<U256>,
     gas_price: FilterOperator<U256>,
     value: FilterOperator<U256>,
@@ -26,7 +26,7 @@ impl Default for FilterOptions {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Eq, PartialEq)]
 pub enum FilterOperator<T> {
     Any,
     Eq(T),
@@ -214,5 +214,60 @@ impl<'de> Deserialize<'de> for FilterOptions {
         }
 
         deserializer.deserialize_map(FilterOptionsVisitor)
+    }
+}
+
+//#[cfg(test)]
+mod tests {
+    use ethereum_types::{Address, U256};
+    use serde_json;
+    use super::*;
+	use std::str::FromStr;
+
+    #[test]
+    fn valid_defaults() {
+        let res = FilterOptions::default();
+        assert_eq!(res.sender, FilterOperator::Any);
+        assert_eq!(res.receiver, FilterOperator::Any);
+        assert_eq!(res.gas, FilterOperator::Any);
+        assert_eq!(res.gas_price, FilterOperator::Any);
+        assert_eq!(res.value, FilterOperator::Any);
+        assert_eq!(res.nonce, FilterOperator::Any);
+    }
+
+    #[test]
+    fn valid_full_deserialization() {
+        let json = r#"
+            {
+                "sender": {
+                    "eq": "0x5f3dffcf347944d3739b0805c934d86c8621997f"
+                },
+                "receiver": {
+                    "eq": "0xe8b2d01ffa0a15736b2370b6e5064f9702c891b6"
+                },
+                "gas": {
+                    "eq": "0x493e0"
+                },
+                "gas_price": {
+                    "eq": "0x12a05f200"
+                },
+                "value": {
+                    "eq": "0x0"
+                },
+                "nonce": {
+                    "eq": "0x577"
+                }
+            }
+        "#;
+
+        let res = serde_json::from_str::<FilterOptions>(json).unwrap();
+        assert_eq!(res, FilterOptions {
+            sender: FilterOperator::Eq(Address::from_str("5f3dffcf347944d3739b0805c934d86c8621997f").unwrap()),
+            receiver: FilterOperator::Eq(Address::from_str("e8b2d01ffa0a15736b2370b6e5064f9702c891b6").unwrap()),
+            gas: FilterOperator::Eq(U256::from(300_000)),
+            gas_price: FilterOperator::Eq(U256::from(5_000_000_000 as i64)),
+            value: FilterOperator::Eq(U256::from(0)),
+            nonce: FilterOperator::Eq(U256::from(1399)),
+        })
     }
 }
