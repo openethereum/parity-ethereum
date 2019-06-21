@@ -245,7 +245,7 @@ Caching, Importing Blocks, and Block Information
     ```bash
     wasm
     ```
-  * Parity Ethereum WASM Test Run
+  * Parity Ethereum WASM Test Runner
     ```bash
     pwasm-run-test
     ```
