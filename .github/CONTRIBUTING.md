@@ -61,11 +61,6 @@ When doing a review, make sure to look for any:
 * Breaking changes should be carefuly reviewed and tagged as such so they end up in the [changelog](../CHANGELOG.md).
 * Uselessness (i.e. it does not strictly add a feature or fix a known issue).
 
-*Reviews may not be used as an effective veto for a PR because*:
-
-* There exists a somewhat cleaner/better/faster way of accomplishing the same feature/fix.
-* It does not fit well with some other contributors' longer-term vision for the project.
-
 ## License.
 
 By contributing to Parity Ethereum, you agree that your contributions will be licensed under the [GPLv3 License](../LICENSE).
