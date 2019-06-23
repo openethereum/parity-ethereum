@@ -3,6 +3,7 @@ use serde::de::{Deserialize, Deserializer, Error, MapAccess, Visitor};
 use std::fmt;
 use std::marker::PhantomData;
 
+/// This structure provides filtering options for the pending transactions RPC API call
 #[derive(Debug, Clone, Eq, PartialEq)]
 pub struct FilterOptions {
     sender: FilterOperator<Address>,

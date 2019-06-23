@@ -20,12 +20,13 @@
 //! Keeps track of transactions and currently sealed pending block.
 
 mod miner;
-
+mod filter_options;
 pub mod pool_client;
 #[cfg(feature = "stratum")]
 pub mod stratum;
 
 pub use self::miner::{Miner, MinerOptions, Penalization, PendingSet, AuthoringParams, Author};
+pub use self::filter_options::FilterOptions;
 pub use ethcore_miner::local_accounts::LocalAccounts;
 pub use ethcore_miner::pool::PendingOrdering;
 

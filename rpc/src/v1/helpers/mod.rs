@@ -32,7 +32,6 @@ pub mod nonce;
 #[cfg(any(test, feature = "accounts"))]
 pub mod secretstore;
 
-mod filter_options;
 mod network_settings;
 mod poll_filter;
 mod poll_manager;
@@ -43,7 +42,6 @@ mod work;
 mod signature;
 
 pub use self::dispatch::{Dispatcher, FullDispatcher, LightDispatcher};
-pub use self::filter_options::{FilterOptions, FilterOperator};
 pub use self::signature::verify_signature;
 pub use self::network_settings::NetworkSettings;
 pub use self::poll_manager::PollManager;
