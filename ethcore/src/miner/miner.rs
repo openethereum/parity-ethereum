@@ -1117,6 +1117,20 @@ impl miner::MinerService for Miner {
 							true
 						}
 					})
+					// Filter by gas
+					.filter(|tx| {
+						if let Some(ref filter) = filter {
+							let gas = tx.signed().as_unsigned().gas;
+							match filter.gas {
+								Eq(value) => gas == value,
+								GreaterThan(value) => gas > value,
+								LessThan(value) => gas < value,
+								_ => true,
+							}
+						} else {
+							true
+						}
+					})
 					.take(max_len)
 					.collect()
 			}, chain_info.best_block_number)
