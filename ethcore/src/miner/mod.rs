@@ -190,7 +190,7 @@ pub trait MinerService : Send + Sync {
 	/// Depending on the settings may look in transaction pool or only in pending block.
 	/// If you don't need a full set of transactions, you can add `max_len` and create only a limited set of
 	/// transactions.
-	fn ready_transactions_filtered<C>(&self, chain: &C, max_len: usize, sender: Option<Address>, receiver: Option<Option<Address>>, ordering: PendingOrdering) -> Vec<Arc<VerifiedTransaction>>
+	fn ready_transactions_filtered<C>(&self, chain: &C, max_len: usize, filter: Option<FilterOptions>, ordering: PendingOrdering) -> Vec<Arc<VerifiedTransaction>>
 		where C: ChainInfo + Nonce + Sync;
 
 	/// Get a list of all transactions in the pool (some of them might not be ready for inclusion yet).

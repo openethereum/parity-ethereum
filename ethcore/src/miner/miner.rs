@@ -31,6 +31,7 @@ use ethcore_miner::work_notify::NotifyWork;
 use ethereum_types::{H256, U256, Address};
 use futures::sync::mpsc;
 use io::IoChannel;
+use miner::filter_options::FilterOptions;
 use miner::pool_client::{PoolClient, CachedNonceClient, NonceCache};
 use miner;
 use parking_lot::{Mutex, RwLock};
@@ -1052,15 +1053,14 @@ impl miner::MinerService for Miner {
 		C: ChainInfo + Nonce + Sync,
 	{
 		// No special filtering options applied (neither tx_hash, receiver or sender)
-		self.ready_transactions_filtered(chain, max_len, None, None, ordering)
+		self.ready_transactions_filtered(chain, max_len, None, ordering)
 	}
 
 	fn ready_transactions_filtered<C>(
 		&self,
 		chain: &C,
 		max_len: usize,
-		sender: Option<Address>,
-		receiver: Option<Option<Address>>,
+		filter: Option<FilterOptions>,
 		ordering: miner::PendingOrdering,
 	) -> Vec<Arc<VerifiedTransaction>> where
 		C: ChainInfo + Nonce + Sync,
@@ -1093,11 +1093,15 @@ impl miner::MinerService for Miner {
 					.map(Arc::new)
 					// Filter by sender
 					.filter(|tx| {
-						sender.map_or(true, |sender| tx.signed().sender() == sender)
+						// TODO
+						// sender.map_or(true, |sender| tx.signed().sender() == sender)
+						true
 					})
 					// Filter by receiver
 					.filter(|tx| {
-						receiver.map_or(true, |receiver| tx.signed().receiver() == receiver)
+						// TODO
+						// receiver.map_or(true, |receiver| tx.signed().receiver() == receiver)
+						true
 					})
 					.take(max_len)
 					.collect()
