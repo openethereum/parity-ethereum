@@ -1085,6 +1085,7 @@ impl miner::MinerService for Miner {
 			)
 		};
 
+		use miner::filter_options::FilterOperator::*;
 		let from_pending = || {
 			self.map_existing_pending_block(|sealing| {
 				sealing.transactions
@@ -1093,15 +1094,28 @@ impl miner::MinerService for Miner {
 					.map(Arc::new)
 					// Filter by sender
 					.filter(|tx| {
-						// TODO
-						// sender.map_or(true, |sender| tx.signed().sender() == sender)
-						true
+						if let Some(ref filter) = filter {
+							let sender = tx.signed().sender();
+							match filter.sender {
+								Eq(value) => sender == value,
+								_ => true,
+							}
+						} else {
+							true
+						}
 					})
 					// Filter by receiver
 					.filter(|tx| {
-						// TODO
-						// receiver.map_or(true, |receiver| tx.signed().receiver() == receiver)
-						true
+						if let Some(ref filter) = filter {
+							let receiver = tx.signed().receiver();
+							match filter.receiver {
+								Eq(value) => receiver == Some(value),
+								ContractCreation => receiver == None,
+								_ => true,
+							}
+						} else {
+							true
+						}
 					})
 					.take(max_len)
 					.collect()

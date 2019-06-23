@@ -6,12 +6,12 @@ use std::marker::PhantomData;
 /// This structure provides filtering options for the pending transactions RPC API call
 #[derive(Debug, Clone, Eq, PartialEq)]
 pub struct FilterOptions {
-    sender: FilterOperator<Address>,
-    receiver: FilterOperator<Address>,
-    gas: FilterOperator<U256>,
-    gas_price: FilterOperator<U256>,
-    value: FilterOperator<U256>,
-    nonce: FilterOperator<U256>,
+    pub sender: FilterOperator<Address>,
+    pub receiver: FilterOperator<Address>,
+    pub gas: FilterOperator<U256>,
+    pub gas_price: FilterOperator<U256>,
+    pub value: FilterOperator<U256>,
+    pub nonce: FilterOperator<U256>,
 }
 
 impl Default for FilterOptions {
