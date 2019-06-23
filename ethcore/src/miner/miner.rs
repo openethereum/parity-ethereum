@@ -1101,7 +1101,7 @@ impl miner::MinerService for Miner {
 								_ => true,
 							}
 						} else {
-							true
+							true // no filter
 						}
 					})
 					// Filter by receiver
@@ -1114,7 +1114,7 @@ impl miner::MinerService for Miner {
 								_ => true,
 							}
 						} else {
-							true
+							true // no filter
 						}
 					})
 					// Filter by gas
@@ -1128,7 +1128,49 @@ impl miner::MinerService for Miner {
 								_ => true,
 							}
 						} else {
-							true
+							true // no filter
+						}
+					})
+					// Filter by gas price
+					.filter(|tx| {
+						if let Some(ref filter) = filter {
+							let gas_price = tx.signed().as_unsigned().gas_price;
+							match filter.gas_price {
+								Eq(value) => gas_price == value,
+								GreaterThan(value) => gas_price > value,
+								LessThan(value) => gas_price < value,
+								_ => true,
+							}
+						} else {
+							true // no filter
+						}
+					})
+					// Filter by tx value
+					.filter(|tx| {
+						if let Some(ref filter) = filter {
+							let tx_value = tx.signed().as_unsigned().value;
+							match filter.value {
+								Eq(value) => tx_value == value,
+								GreaterThan(value) => tx_value > value,
+								LessThan(value) => tx_value < value,
+								_ => true,
+							}
+						} else {
+							true // no filter
+						}
+					})
+					// Filter by nonce
+					.filter(|tx| {
+						if let Some(ref filter) = filter {
+							let nonce = tx.signed().as_unsigned().nonce;
+							match filter.nonce {
+								Eq(value) => nonce == value,
+								GreaterThan(value) => nonce > value,
+								LessThan(value) => nonce < value,
+								_ => true,
+							}
+						} else {
+							true // no filter
 						}
 					})
 					.take(max_len)
