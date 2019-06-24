@@ -6,11 +6,17 @@ use std::marker::PhantomData;
 /// This structure provides filtering options for the pending transactions RPC API call
 #[derive(Debug, Clone, Eq, PartialEq)]
 pub struct FilterOptions {
+    // Contains the operator to filter the sender value of the transaction
     pub sender: FilterOperator<Address>,
+    // Contains the operator to filter the receiver value of the transaction
     pub receiver: FilterOperator<Address>,
+    // Contains the operator to filter the gas value of the transaction
     pub gas: FilterOperator<U256>,
+    // Contains the operator to filter the gas price value of the transaction
     pub gas_price: FilterOperator<U256>,
+    // Contains the operator to filter the transaction value
     pub value: FilterOperator<U256>,
+    // Contains the operator to filter the nonce value of the transaction
     pub nonce: FilterOperator<U256>,
 }
 
@@ -37,9 +43,9 @@ pub enum FilterOperator<T> {
 }
 
 /// Since there are multiple operators which are not supported equally by all filters,
-/// this trait will validate each of those. The corresponding method is called inside
-/// the `Deserialize` implementation for FilterOperator. In case new operators get
-/// introduced, a whitelist instead of a blacklist is used.
+/// this trait will validate each of those operators. The corresponding method is called
+/// inside the `Deserialize` -> `Visitor` implementation for FilterOperator. In case new
+/// operators get introduced, a whitelist instead of a blacklist is used.
 ///
 /// The `sender` filter validates with `validate_sender`
 /// The `receiver` filter validates with `validate_receiver`
@@ -331,7 +337,7 @@ mod tests {
             {
                 "sender": {
                     "eq": "0x5f3dffcf347944d3739b0805c934d86c8621997f",
-                    "eq": "0x407d73d8a49eeb85d32cf465507dd71d507100c1"
+                    "lt": "0x407d73d8a49eeb85d32cf465507dd71d507100c1"
                 }
             }
         "#;
