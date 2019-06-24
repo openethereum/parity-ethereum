@@ -153,7 +153,7 @@ build-android:
 
 build-linux:
   <<:                              *build-on-linux
-  only:                            *releaseable_branches
+  # only:                            *releaseable_branches
 
 build-linux-i386:
   <<:                              *build-on-linux
