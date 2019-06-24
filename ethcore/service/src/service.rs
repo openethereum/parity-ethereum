@@ -113,6 +113,7 @@ impl ClientService {
 			miner.clone(),
 			io_service.channel(),
 		)?;
+		spec.engine.register_client(Arc::downgrade(&client) as _);
 		miner.set_io_channel(io_service.channel());
 		miner.set_in_chain_checker(&client.clone());
 
@@ -147,8 +148,6 @@ impl ClientService {
 			snapshot: snapshot.clone(),
 		});
 		io_service.register_handler(client_io)?;
-
-		spec.engine.register_client(Arc::downgrade(&client) as _);
 
 		Ok(ClientService {
 			io_service: Arc::new(io_service),
