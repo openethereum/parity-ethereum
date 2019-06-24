@@ -473,6 +473,7 @@ mod tests {
 
 	#[test]
 	fn knows_validators() {
+		let _ = env_logger::try_init();
 		let tap = Arc::new(AccountProvider::transient_provider());
 		let s0: Secret = keccak("1").into();
 		let v0 = tap.insert_account(s0.clone(), &"".into()).unwrap();

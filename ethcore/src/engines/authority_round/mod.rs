@@ -249,7 +249,7 @@ impl EpochManager {
 			None => {
 				// this really should never happen unless the block passed
 				// hasn't got a parent in the database.
-				warn!(target: "engine", "No genesis transition found.");
+				warn!(target: "engine", "No genesis transition found. Block hash {} does not have a parent in the DB", hash);
 				return false;
 			}
 		};
@@ -737,7 +737,8 @@ impl AuthorityRound {
 			};
 
 			if !epoch_manager.zoom_to_after(&*client, &self.machine, &*self.validators, *header.parent_hash()) {
-				debug!(target: "engine", "Unable to zoom to epoch.");
+				debug!(target: "engine", "Unable to zoom to epoch - block=#{} parent_hash={} epoch_transistion_number={}",
+				       header.number(), header.parent_hash(), epoch_manager.epoch_transition_number);
 				return Err(EngineError::MissingParent(*header.parent_hash()).into())
 			}
 
