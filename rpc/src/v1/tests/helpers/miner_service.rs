@@ -24,7 +24,7 @@ use ethcore::block::SealedBlock;
 use ethcore::client::{Nonce, PrepareOpenBlock, StateClient, EngineInfo};
 use ethcore::engines::{EthEngine, signer::EngineSigner};
 use ethcore::error::Error;
-use ethcore::miner::{self, MinerService, AuthoringParams};
+use ethcore::miner::{self, MinerService, AuthoringParams, FilterOptions};
 use ethereum_types::{H256, U256, Address};
 use miner::pool::local_transactions::Status as LocalTransactionStatus;
 use miner::pool::{verifier, VerifiedTransaction, QueueStatus};
@@ -222,7 +222,7 @@ impl MinerService for TestMinerService {
 		self.queued_transactions()
 	}
 
-	fn ready_transactions_filtered<C>(&self, _chain: &C, _max_len: usize, _sender: Option<Address>, _receiver: Option<Option<Address>>, _ordering: miner::PendingOrdering) -> Vec<Arc<VerifiedTransaction>> {
+	fn ready_transactions_filtered<C>(&self, _chain: &C, _max_len: usize, _filter: Option<FilterOptions>, _ordering: miner::PendingOrdering) -> Vec<Arc<VerifiedTransaction>> {
 		self.queued_transactions()
 	}
 
