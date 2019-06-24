@@ -1378,7 +1378,8 @@ impl Engine<EthereumMachine> for AuthorityRound {
 			match validate_empty_steps() {
 				Ok(len) => len,
 				Err(err) => {
-					trace!(target: "engine", "Reporting benign misbehaviour (cause: invalid empty steps) at block #{}, epoch set number {}. Own address: {}", header.number(), set_number, self.address().unwrap_or_default());
+					trace!(target: "engine", "Reporting benign misbehaviour (cause: invalid empty steps) at block #{}, epoch set number {}. Own address: {}",
+						header.number(), set_number, self.address().unwrap_or_default());
 					self.validators.report_benign(header.author(), set_number, header.number());
 					return Err(err);
 				},
@@ -1883,7 +1884,7 @@ mod tests {
 		header.set_number(2);
 		assert!(aura.verify_block_family(&header, &parent_header).is_ok());
 		assert_eq!(last_benign.load(AtomicOrdering::SeqCst), 2);
-	}if self.validators.contains(header.parent_hash()
+	}
 
 	#[test]
 	fn test_uncles_transition() {
