@@ -813,24 +813,22 @@ impl AuthorityRound {
 			return;
 		}
 
-		if let (true, me) = (current_step > parent_step + 1, self.address()) {
+		if let (true, Some(me)) = (current_step > parent_step + 1, self.address()) {
 			debug!(target: "engine", "Author {} built block with step gap. current step: {}, parent step: {}",
 				   header.author(), current_step, parent_step);
-			if validators.contains(header.parent_hash(), &me) {
-				let mut reported = HashSet::new();
-				for step in parent_step + 1..current_step {
-					let skipped_primary = step_proposer(validators, header.parent_hash(), step);
-					// Do not report this signer.
-					if skipped_primary != me {
-						// Stop reporting once validators start repeating.
-						if !reported.insert(skipped_primary) { break; }
-						self.validators.report_benign(&skipped_primary, set_number, header.number());
-					} else {
-						trace!(target: "engine", "Primary that skipped is self, not self-reporting. Own address: {}", me);
-					}
+			let mut reported = HashSet::new();
+			for step in parent_step + 1..current_step {
+				let skipped_primary = step_proposer(validators, header.parent_hash(), step);
+				// Do not report this signer.
+				if skipped_primary != me {
+					// Stop reporting once validators start repeating.
+					if !reported.insert(skipped_primary) { break; }
+					trace!(target: "engine", "Reporting benign misbehaviour (cause: skipped step) at block #{}, epoch set number {}. Own address: {}",
+						header.number(), set_number, me);
+					self.validators.report_benign(&skipped_primary, set_number, header.number());
+				} else {
+					trace!(target: "engine", "Primary that skipped is self, not self-reporting. Own address: {}", me);
 				}
-			} else {
-				warn!(target: "engine", "We are not part of the validator set so not reporting (skipped steps). Own address: {}", self.address());
 			}
 		}
 	}
@@ -898,8 +896,8 @@ impl AuthorityRound {
 		finalized.unwrap_or_default()
 	}
 
-	fn address(&self) -> Address {
-		self.signer.read().as_ref().map_or_else(|| Address::zero(), |s| s.address())
+	fn address(&self) -> Option<Address> {
+		self.signer.read().as_ref().map(|s| s.address() )
 	}
 }
 
@@ -1300,19 +1298,17 @@ impl Engine<EthereumMachine> for AuthorityRound {
 				// This check runs in Phase 1 where there is no guarantee that the parent block is
 				// already imported, therefore the call to `epoch_set` may fail. In that case we
 				// won't report the misbehavior but this is not a concern because:
-				// - Only authorities can report and it's expected that they'll be up-to-date and
-				//   importing, therefore the parent header will most likely be available
+				// - Authorities will have a signing key available to report and it's expected that
+				//   they'll be up-to-date and importing, therefore the parent header will most likely
+				//   be available
 				// - Even if you are an authority that is syncing the chain, the contract will most
 				//   likely ignore old reports
 				// - This specific check is only relevant if you're importing (since it checks
 				//   against wall clock)
-				if let Ok((set, set_number)) = self.epoch_set(header) {
-					let me = self.address();
-					if set.contains(header.parent_hash(), &me) {
-						self.validators.report_benign(header.author(), set_number, header.number());
-					} else {
-						debug!(target: "engine", "Not reporting benign misbehaviour (cause: InvalidSeal) because we're not part of the validator set, Own address: {}", me);
-					}
+				if let Ok((_,  set_number)) = self.epoch_set(header) {
+					trace!(target: "engine", "Reporting benign misbehaviour (cause: InvalidSeal) at block #{}, epoch set number {}. Own address: {}",
+						header.number(), set_number, self.address().unwrap_or_default());
+					self.validators.report_benign(header.author(), set_number, header.number());
 				}
 
 				Err(BlockError::InvalidSeal.into())
@@ -1382,12 +1378,8 @@ impl Engine<EthereumMachine> for AuthorityRound {
 			match validate_empty_steps() {
 				Ok(len) => len,
 				Err(err) => {
-					if self.validators.contains(header.parent_hash(), &self.address()) {
-						self.validators.report_benign(header.author(), set_number, header.number());
-					} else {
-						warn!(target: "engine", "Not reporting benign misbehaviour (cause: invalid empty steps) because we're not a validator. Own address: {}",
-						       self.address());
-					}
+					trace!(target: "engine", "Reporting benign misbehaviour (cause: invalid empty steps) at block #{}, epoch set number {}. Own address: {}", header.number(), set_number, self.address().unwrap_or_default());
+					self.validators.report_benign(header.author(), set_number, header.number());
 					return Err(err);
 				},
 			}
@@ -1416,11 +1408,9 @@ impl Engine<EthereumMachine> for AuthorityRound {
 		let res = verify_external(header, &*validators, self.empty_steps_transition);
 		match res {
 			Err(Error::Engine(EngineError::NotProposer(_))) => {
-				if self.validators.contains(header.parent_hash(), &self.address()) {
-					self.validators.report_benign(header.author(), set_number, header.number());
-				} else {
-					warn!(target: "engine", "Not reporting benign misbehaviour (cause:block from incorrect proposer) because we're not a validator. Own address: {}", self.address());
-				}
+				trace!(target: "engine", "Reporting benign misbehaviour (cause: block from incorrect proposer) at block #{}, epoch set number {}. Own address: {}",
+					header.number(), set_number, self.address().unwrap_or_default());
+				self.validators.report_benign(header.author(), set_number, header.number());
 			},
 			Ok(_) => {
 				// we can drop all accumulated empty step messages that are older than this header's step
@@ -1893,40 +1883,7 @@ mod tests {
 		header.set_number(2);
 		assert!(aura.verify_block_family(&header, &parent_header).is_ok());
 		assert_eq!(last_benign.load(AtomicOrdering::SeqCst), 2);
-	}
-
-	#[test]
-	fn skips_benign_reporting_unless_validator() {
-		let _ = ::env_logger::try_init();
-
-		let last_benign = Arc::new(AtomicUsize::new(0));
-		let aura = build_aura(|p| {
-			let validator_set = TestSet::default().with_last_benign(last_benign.clone());
-			p.validators = Box::new(validator_set);
-		});
-		aura.set_signer(Box::new((
-			Arc::new(AccountProvider::transient_provider()),
-			Address::from_low_u64_be(123),
-			"".into()
-		)));
-		let mut parent_header: Header = Header::default();
-		parent_header.set_seal(vec![encode(&1usize)]);
-		parent_header.set_gas_limit("222222".parse::<U256>().unwrap());
-		let mut header: Header = Header::default();
-		header.set_difficulty(calculate_score(1, 3, 0));
-		header.set_gas_limit("222222".parse::<U256>().unwrap());
-		header.set_seal(vec![encode(&3usize)]);
-
-		header.set_number(1);
-		aura.verify_block_family(&header, &parent_header).unwrap();
-		header.set_number(2);
-		aura.verify_block_family(&header, &parent_header).unwrap();
-		header.set_number(3);
-		aura.verify_block_family(&header, &parent_header).unwrap();
-
-		// No reporting happened: we're not a validator
-		assert_eq!(last_benign.load(AtomicOrdering::SeqCst), 0);
-	}
+	}if self.validators.contains(header.parent_hash()
 
 	#[test]
 	fn test_uncles_transition() {
