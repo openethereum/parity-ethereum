@@ -17,12 +17,12 @@
 //! Trace database.
 use std::collections::HashMap;
 use std::sync::Arc;
+use parity_util_mem::MallocSizeOfExt;
 
 use blockchain::BlockChainDB;
 use db::cache_manager::CacheManager;
 use db::{self, Key, Writable, Readable, CacheUpdatePolicy};
 use ethereum_types::{H256, H264};
-use heapsize::HeapSizeOf;
 use kvdb::{DBTransaction};
 use parking_lot::RwLock;
 use types::BlockNumber;
@@ -91,7 +91,7 @@ impl<T> TraceDB<T> where T: DatabaseExtras {
 	}
 
 	fn cache_size(&self) -> usize {
-		self.traces.read().heap_size_of_children()
+		self.traces.read().malloc_size_of()
 	}
 
 	/// Let the cache system know that a cacheable item has been used.
@@ -113,7 +113,7 @@ impl<T> TraceDB<T> where T: DatabaseExtras {
 			}
 			traces.shrink_to_fit();
 
-			traces.heap_size_of_children()
+			traces.malloc_size_of()
 		});
 	}
 

@@ -18,6 +18,9 @@
 
 #![warn(missing_docs)]
 
+extern crate parity_util_mem as util_mem;
+extern crate parity_util_mem as malloc_size_of;
+
 mod best_block;
 mod block_info;
 mod blockchain;

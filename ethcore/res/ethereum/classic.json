@@ -12,7 +12,7 @@
 				"ecip1010PauseTransition": "0x2dc6c0",
 				"ecip1010ContinueTransition": "0x4c4b40",
 				"ecip1017EraRounds": "0x4c4b40",
-				"eip100bTransition": "0x7fffffffffffffff",
+				"eip100bTransition": "0x85d9a0",
 				"bombDefuseTransition": "0x5a06e0"
 			}
 		}
@@ -29,15 +29,15 @@
 		"forkCanonHash": "0x94365e3a8c0b35089c1d1195081fe7489b528a84b22199c916180db8b28ade7f",
 		"eip150Transition": "0x2625a0",
 		"eip160Transition": "0x2dc6c0",
-		"eip161abcTransition": "0x7fffffffffffffff",
-		"eip161dTransition": "0x7fffffffffffffff",
+		"eip161abcTransition": "0x85d9a0",
+		"eip161dTransition": "0x85d9a0",
 		"eip155Transition": "0x2dc6c0",
 		"maxCodeSize": "0x6000",
-		"maxCodeSizeTransition": "0x7fffffffffffffff",
-		"eip140Transition": "0x7fffffffffffffff",
-		"eip211Transition": "0x7fffffffffffffff",
-		"eip214Transition": "0x7fffffffffffffff",
-		"eip658Transition": "0x7fffffffffffffff"
+		"maxCodeSizeTransition": "0x85d9a0",
+		"eip140Transition": "0x85d9a0",
+		"eip211Transition": "0x85d9a0",
+		"eip214Transition": "0x85d9a0",
+		"eip658Transition": "0x85d9a0"
 	},
 	"genesis": {
 		"seal": {
@@ -3905,7 +3905,7 @@
 		"0x0000000000000000000000000000000000000005": {
 			"builtin": {
 				"name": "modexp",
-				"activate_at": "0x7fffffffffffffff",
+				"activate_at": "0x85d9a0",
 				"pricing": {
 					"modexp": {
 						"divisor": 20
@@ -3916,7 +3916,7 @@
 		"0x0000000000000000000000000000000000000006": {
 			"builtin": {
 				"name": "alt_bn128_add",
-				"activate_at": "0x7fffffffffffffff",
+				"activate_at": "0x85d9a0",
 				"pricing": {
 					"linear": {
 						"base": 500,
@@ -3928,7 +3928,7 @@
 		"0x0000000000000000000000000000000000000007": {
 			"builtin": {
 				"name": "alt_bn128_mul",
-				"activate_at": "0x7fffffffffffffff",
+				"activate_at": "0x85d9a0",
 				"pricing": {
 					"linear": {
 						"base": 40000,
@@ -3940,7 +3940,7 @@
 		"0x0000000000000000000000000000000000000008": {
 			"builtin": {
 				"name": "alt_bn128_pairing",
-				"activate_at": "0x7fffffffffffffff",
+				"activate_at": "0x85d9a0",
 				"pricing": {
 					"alt_bn128_pairing": {
 						"base": 100000,

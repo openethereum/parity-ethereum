@@ -95,7 +95,7 @@ pub fn to_fat_rlps(
 		} else if used_code.contains(&acc.code_hash) {
 			account_stream.append(&CodeState::Hash.raw()).append(&acc.code_hash);
 		} else {
-			match acct_db.get(&acc.code_hash) {
+			match acct_db.get(&acc.code_hash, hash_db::EMPTY_PREFIX) {
 				Some(c) => {
 					used_code.insert(acc.code_hash.clone());
 					account_stream.append(&CodeState::Inline.raw()).append(&&*c);
@@ -182,7 +182,7 @@ pub fn from_fat_rlp(
 		CodeState::Empty => (KECCAK_EMPTY, None),
 		CodeState::Inline => {
 			let code: Bytes = rlp.val_at(3)?;
-			let code_hash = acct_db.insert(&code);
+			let code_hash = acct_db.insert(hash_db::EMPTY_PREFIX, &code);
 
 			(code_hash, Some(code))
 		}
@@ -228,7 +228,7 @@ mod tests {
 
 	use hash::{KECCAK_EMPTY, KECCAK_NULL_RLP, keccak};
 	use ethereum_types::{H256, Address};
-	use hash_db::HashDB;
+	use hash_db::{HashDB, EMPTY_PREFIX};
 	use kvdb::DBValue;
 	use rlp::Rlp;
 
@@ -324,12 +324,12 @@ mod tests {
 
 		let code_hash = {
 			let mut acct_db = AccountDBMut::new(db.as_hash_db_mut(), &addr1);
-			acct_db.insert(b"this is definitely code")
+			acct_db.insert(EMPTY_PREFIX, b"this is definitely code")
 		};
 
 		{
 			let mut acct_db = AccountDBMut::new(db.as_hash_db_mut(), &addr2);
-			acct_db.emplace(code_hash.clone(), DBValue::from_slice(b"this is definitely code"));
+			acct_db.emplace(code_hash.clone(), EMPTY_PREFIX, DBValue::from_slice(b"this is definitely code"));
 		}
 
 		let account1 = BasicAccount {

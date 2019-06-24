@@ -19,10 +19,10 @@
 use std::str::FromStr;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicUsize, Ordering as AtomicOrdering};
+use parity_util_mem::MallocSizeOf;
 
 use bytes::Bytes;
 use ethereum_types::{H256, Address};
-use heapsize::HeapSizeOf;
 use types::BlockNumber;
 use types::header::Header;
 
@@ -30,10 +30,12 @@ use machine::{AuxiliaryData, Call, EthereumMachine};
 use super::{ValidatorSet, SimpleList};
 
 /// Set used for testing with a single validator.
-#[derive(Debug)]
+#[derive(MallocSizeOf, Debug)]
 pub struct TestSet {
 	validator: SimpleList,
+	#[ignore_malloc_size_of = "zero sized"]
 	last_malicious: Arc<AtomicUsize>,
+	#[ignore_malloc_size_of = "zero sized"]
 	last_benign: Arc<AtomicUsize>,
 }
 
@@ -59,12 +61,6 @@ impl TestSet {
 	pub fn with_last_benign(mut self, last_benign: Arc<AtomicUsize>) -> Self {
 		self.last_benign = last_benign;
 		self
-	}
-}
-
-impl HeapSizeOf for TestSet {
-	fn heap_size_of_children(&self) -> usize {
-		self.validator.heap_size_of_children()
 	}
 }
 

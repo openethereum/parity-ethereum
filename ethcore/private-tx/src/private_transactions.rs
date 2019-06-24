@@ -21,7 +21,7 @@ use std::collections::{HashMap, HashSet};
 use bytes::Bytes;
 use ethcore_miner::pool;
 use ethereum_types::{H256, U256, Address};
-use heapsize::HeapSizeOf;
+use parity_util_mem::MallocSizeOfExt;
 use ethkey::Signature;
 use messages::PrivateTransaction;
 use parking_lot::RwLock;
@@ -59,7 +59,7 @@ impl txpool::VerifiedTransaction for VerifiedPrivateTransaction {
 	}
 
 	fn mem_usage(&self) -> usize {
-		self.transaction.heap_size_of_children()
+		self.transaction.malloc_size_of()
 	}
 
 	fn sender(&self) -> &Address {

@@ -23,7 +23,7 @@ use types::BlockNumber;
 
 type NodeId = H512;
 
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Clone, MallocSizeOf)]
 pub struct Stats {
 	first_seen: BlockNumber,
 	propagated_to: HashMap<NodeId, usize>,
@@ -50,7 +50,7 @@ impl<'a> From<&'a Stats> for TransactionStats {
 	}
 }
 
-#[derive(Debug, Default)]
+#[derive(Debug, Default, MallocSizeOf)]
 pub struct TransactionsStats {
 	pending_transactions: H256FastMap<Stats>,
 }

@@ -93,7 +93,7 @@ pub trait JournalDB: KeyedHashDB {
 	fn flush(&self) {}
 
 	/// Consolidate all the insertions and deletions in the given memory overlay.
-	fn consolidate(&mut self, overlay: ::memory_db::MemoryDB<KeccakHasher, DBValue>);
+	fn consolidate(&mut self, overlay: super::MemoryDB);
 
 	/// Commit all changes in a single batch
 	#[cfg(test)]

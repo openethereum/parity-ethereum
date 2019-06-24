@@ -38,7 +38,7 @@ use ethcore::engines::epoch::{Transition as EpochTransition, PendingTransition a
 use ethcore::error::{Error, EthcoreResult, BlockError};
 use ethcore::spec::{Spec, SpecHardcodedSync};
 use ethereum_types::{H256, H264, U256};
-use heapsize::HeapSizeOf;
+use parity_util_mem::{MallocSizeOf, MallocSizeOfOps};
 use kvdb::{DBTransaction, KeyValueDB};
 use parking_lot::{Mutex, RwLock};
 use fastmap::H256FastMap;
@@ -95,8 +95,8 @@ struct Entry {
 	canonical_hash: H256,
 }
 
-impl HeapSizeOf for Entry {
-	fn heap_size_of_children(&self) -> usize {
+impl MallocSizeOf for Entry {
+	fn size_of(&self, _ops: &mut MallocSizeOfOps) -> usize {
 		if self.candidates.spilled() {
 			self.candidates.capacity() * ::std::mem::size_of::<Candidate>()
 		} else {
@@ -202,14 +202,21 @@ pub enum HardcodedSync {
 	Deny,
 }
 
+#[derive(MallocSizeOf)]
 /// Header chain. See module docs for more details.
 pub struct HeaderChain {
+	#[ignore_malloc_size_of = "ignored for performance reason"]
 	genesis_header: encoded::Header, // special-case the genesis.
 	candidates: RwLock<BTreeMap<u64, Entry>>,
+	#[ignore_malloc_size_of = "ignored for performance reason"]
 	best_block: RwLock<BlockDescriptor>,
+	#[ignore_malloc_size_of = "ignored for performance reason"]
 	live_epoch_proofs: RwLock<H256FastMap<EpochTransition>>,
+	#[ignore_malloc_size_of = "ignored for performance reason"]
 	db: Arc<KeyValueDB>,
+	#[ignore_malloc_size_of = "ignored for performance reason"]
 	col: Option<u32>,
+	#[ignore_malloc_size_of = "ignored for performance reason"]
 	cache: Arc<Mutex<Cache>>,
 }
 
@@ -835,12 +842,6 @@ impl HeaderChain {
 				None
 			}
 		}
-	}
-}
-
-impl HeapSizeOf for HeaderChain {
-	fn heap_size_of_children(&self) -> usize {
-		self.candidates.read().heap_size_of_children()
 	}
 }
 

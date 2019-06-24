@@ -22,7 +22,8 @@ use ethereum_types::{H256, H160, Address, U256, BigEndianHash};
 use ethjson;
 use ethkey::{self, Signature, Secret, Public, recover, public_to_address};
 use hash::keccak;
-use heapsize::HeapSizeOf;
+use parity_util_mem::MallocSizeOf;
+
 use rlp::{self, RlpStream, Rlp, DecoderError, Encodable};
 
 use transaction::error;
@@ -37,7 +38,7 @@ pub const UNSIGNED_SENDER: Address = H160([0xff; 20]);
 pub const SYSTEM_ADDRESS: Address = H160([0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,0xff, 0xff, 0xff, 0xff,0xff, 0xff, 0xff, 0xff,0xff, 0xff, 0xff, 0xfe]);
 
 /// Transaction action type.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, MallocSizeOf)]
 pub enum Action {
 	/// Create creates new contract.
 	Create,
@@ -99,7 +100,7 @@ pub mod signature {
 
 /// A set of information describing an externally-originating message call
 /// or contract creation operation.
-#[derive(Default, Debug, Clone, PartialEq, Eq)]
+#[derive(Default, Debug, Clone, PartialEq, Eq, MallocSizeOf)]
 pub struct Transaction {
 	/// Nonce.
 	pub nonce: U256,
@@ -130,12 +131,6 @@ impl Transaction {
 			s.append(&0u8);
 			s.append(&0u8);
 		}
-	}
-}
-
-impl HeapSizeOf for Transaction {
-	fn heap_size_of_children(&self) -> usize {
-		self.data.heap_size_of_children()
 	}
 }
 
@@ -255,7 +250,7 @@ impl Transaction {
 }
 
 /// Signed transaction information without verified signature.
-#[derive(Debug, Clone, Eq, PartialEq)]
+#[derive(Debug, Clone, Eq, PartialEq, MallocSizeOf)]
 pub struct UnverifiedTransaction {
 	/// Plain Transaction.
 	unsigned: Transaction,
@@ -268,12 +263,6 @@ pub struct UnverifiedTransaction {
 	s: U256,
 	/// Hash of the transaction
 	hash: H256,
-}
-
-impl HeapSizeOf for UnverifiedTransaction {
-	fn heap_size_of_children(&self) -> usize {
-		self.unsigned.heap_size_of_children()
-	}
 }
 
 impl Deref for UnverifiedTransaction {
@@ -407,17 +396,11 @@ impl UnverifiedTransaction {
 }
 
 /// A `UnverifiedTransaction` with successfully recovered `sender`.
-#[derive(Debug, Clone, Eq, PartialEq)]
+#[derive(Debug, Clone, Eq, PartialEq, MallocSizeOf)]
 pub struct SignedTransaction {
 	transaction: UnverifiedTransaction,
 	sender: Address,
 	public: Option<Public>,
-}
-
-impl HeapSizeOf for SignedTransaction {
-	fn heap_size_of_children(&self) -> usize {
-		self.transaction.heap_size_of_children()
-	}
 }
 
 impl rlp::Encodable for SignedTransaction {

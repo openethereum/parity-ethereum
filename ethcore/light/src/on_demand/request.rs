@@ -981,7 +981,7 @@ impl Account {
 		let state_root = header.state_root();
 
 		let mut db = journaldb::new_memory_db();
-		for node in proof { db.insert(&node[..]); }
+		for node in proof { db.insert(hash_db::EMPTY_PREFIX, &node[..]); }
 
 		match TrieDB::new(&db, &state_root).and_then(|t| t.get(keccak(&self.address).as_bytes()))? {
 			Some(val) => {

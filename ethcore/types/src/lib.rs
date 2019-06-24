@@ -36,7 +36,6 @@
 extern crate ethereum_types;
 extern crate ethjson;
 extern crate ethkey;
-extern crate heapsize;
 extern crate keccak_hash as hash;
 extern crate parity_bytes as bytes;
 extern crate rlp;
@@ -44,6 +43,9 @@ extern crate unexpected;
 
 #[macro_use]
 extern crate rlp_derive;
+extern crate parity_util_mem;
+extern crate parity_util_mem as mem;
+extern crate parity_util_mem as malloc_size_of;
 
 #[cfg(test)]
 extern crate rustc_hex;

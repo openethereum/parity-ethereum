@@ -25,7 +25,8 @@ extern crate ethabi;
 extern crate ethcore_call_contract as call_contract;
 extern crate ethereum_types;
 extern crate futures;
-extern crate heapsize;
+
+extern crate parity_util_mem;
 extern crate keccak_hash as hash;
 extern crate linked_hash_map;
 extern crate parity_runtime;

@@ -36,7 +36,6 @@ extern crate tempdir;
 
 mod error;
 mod service;
-mod stop_guard;
 
 #[cfg(test)]
 extern crate kvdb_rocksdb;

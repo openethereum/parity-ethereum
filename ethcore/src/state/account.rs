@@ -364,7 +364,7 @@ impl Account {
 
 		if self.is_cached() { return Some(self.code_cache.clone()); }
 
-		match db.get(&self.code_hash) {
+		match db.get(&self.code_hash, hash_db::EMPTY_PREFIX) {
 			Some(x) => {
 				self.code_size = Some(x.len());
 				self.code_cache = Arc::new(x.into_vec());
@@ -393,7 +393,7 @@ impl Account {
 		trace!("Account::cache_code_size: ic={}; self.code_hash={:?}, self.code_cache={}", self.is_cached(), self.code_hash, self.code_cache.pretty());
 		self.code_size.is_some() ||
 			if self.code_hash != KECCAK_EMPTY {
-				match db.get(&self.code_hash) {
+				match db.get(&self.code_hash, hash_db::EMPTY_PREFIX) {
 					Some(x) => {
 						self.code_size = Some(x.len());
 						true
@@ -507,7 +507,7 @@ impl Account {
 				self.code_filth = Filth::Clean;
 			},
 			(true, false) => {
-				db.emplace(self.code_hash.clone(), DBValue::from_slice(&*self.code_cache));
+				db.emplace(self.code_hash.clone(), hash_db::EMPTY_PREFIX, DBValue::from_slice(&*self.code_cache));
 				self.code_size = Some(self.code_cache.len());
 				self.code_filth = Filth::Clean;
 			},

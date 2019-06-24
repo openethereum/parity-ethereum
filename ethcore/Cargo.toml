@@ -31,8 +31,8 @@ ethjson = { path = "../json" }
 ethkey = { path = "../accounts/ethkey" }
 evm = { path = "evm" }
 futures = "0.1"
-hash-db = "0.11.0"
-heapsize = "0.4"
+hash-db = "0.12.4"
+parity-util-mem = "0.1"
 itertools = "0.5"
 journaldb = { path = "../util/journaldb" }
 keccak-hash = "0.2.0"
@@ -46,14 +46,14 @@ log = "0.4"
 lru-cache = "0.1"
 macros = { path = "../util/macros" }
 memory-cache = { path = "../util/memory-cache" }
-memory-db = "0.11.0"
+memory-db = "0.12.4"
 num = { version = "0.1", default-features = false, features = ["bigint"] }
 num_cpus = "1.2"
 parity-bytes = "0.1"
 parity-crypto = "0.4.0"
 parity-snappy = "0.1"
 parking_lot = "0.7"
-trie-db = "0.11.0"
+trie-db = "0.12.4"
 patricia-trie-ethereum = { path = "../util/patricia-trie-ethereum" }
 rand = "0.6"
 rayon = "1.0"
@@ -83,7 +83,7 @@ kvdb-rocksdb = "0.1.3"
 parity-runtime = { path = "../util/runtime" }
 rlp_compress = { path = "../util/rlp-compress" }
 tempdir = "0.3"
-trie-standardmap = "0.12.3"
+trie-standardmap = "0.12.4"
 
 [features]
 parity = ["work-notify", "price-info", "stratum"]

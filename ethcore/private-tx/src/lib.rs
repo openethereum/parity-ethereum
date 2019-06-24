@@ -34,7 +34,7 @@ extern crate ethjson;
 extern crate ethkey;
 extern crate fetch;
 extern crate futures;
-extern crate heapsize;
+extern crate parity_util_mem;
 extern crate keccak_hash as hash;
 extern crate parity_bytes as bytes;
 extern crate parity_crypto as crypto;

@@ -381,7 +381,7 @@ impl<B: Backend> State<B> {
 
 	/// Creates new state with existing state root
 	pub fn from_existing(db: B, root: H256, account_start_nonce: U256, factories: Factories) -> TrieResult<State<B>> {
-		if !db.as_hash_db().contains(&root) {
+		if !db.as_hash_db().contains(&root, hash_db::EMPTY_PREFIX) {
 			return Err(Box::new(TrieError::InvalidStateRoot(root)));
 		}
 
