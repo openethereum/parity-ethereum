@@ -1878,13 +1878,11 @@ mod tests {
 		assert!(aura.verify_block_family(&header, &parent_header).is_ok());
 		assert_eq!(last_benign.load(AtomicOrdering::SeqCst), 0);
 
-		aura.set_signer(Box::new(
-			(
-				Arc::new(AccountProvider::transient_provider()),
-				validator2,
-				"".into()
-			)
-		));
+		aura.set_signer(Box::new((
+			Arc::new(AccountProvider::transient_provider()),
+			validator2,
+			"".into(),
+		)));
 
 		// Do not report on steps skipped between genesis and first block.
 		header.set_number(1);
@@ -1906,13 +1904,11 @@ mod tests {
 			let validator_set = TestSet::default().with_last_benign(last_benign.clone());
 			p.validators = Box::new(validator_set);
 		});
-		aura.set_signer(Box::new(
-			(
-				Arc::new(AccountProvider::transient_provider()),
-				Address::from_low_u64_be(123),
-				"".into()
-			)
-		));
+		aura.set_signer(Box::new((
+			Arc::new(AccountProvider::transient_provider()),
+			Address::from_low_u64_be(123),
+			"".into()
+		)));
 		let mut parent_header: Header = Header::default();
 		parent_header.set_seal(vec![encode(&1usize)]);
 		parent_header.set_gas_limit("222222".parse::<U256>().unwrap());
@@ -1943,16 +1939,16 @@ mod tests {
 		assert_eq!(aura.maximum_uncle_count(100), 0);
 	}
 
-    #[test]
-    #[should_panic(expected="counter is too high")]
-    fn test_counter_increment_too_high() {
-        use super::Step;
-        let step = Step {
-            calibrate: false,
-            inner: AtomicUsize::new(::std::usize::MAX),
-            duration: 1,
-        };
-        step.increment();
+	#[test]
+	#[should_panic(expected="counter is too high")]
+	fn test_counter_increment_too_high() {
+		use super::Step;
+		let step = Step {
+			calibrate: false,
+			inner: AtomicUsize::new(::std::usize::MAX),
+			duration: 1,
+		};
+		step.increment();
 	}
 
 	#[test]
