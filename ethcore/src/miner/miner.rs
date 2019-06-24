@@ -31,7 +31,7 @@ use ethcore_miner::work_notify::NotifyWork;
 use ethereum_types::{H256, U256, Address};
 use futures::sync::mpsc;
 use io::IoChannel;
-use miner::filter_options::FilterOptions;
+use miner::filter_options::{FilterOptions, FilterOperator};
 use miner::pool_client::{PoolClient, CachedNonceClient, NonceCache};
 use miner;
 use parking_lot::{Mutex, RwLock};
@@ -1088,90 +1088,68 @@ impl miner::MinerService for Miner {
 		use miner::filter_options::FilterOperator::*;
 		let from_pending = || {
 			self.map_existing_pending_block(|sealing| {
+				// This filter is used for gas, gas price, value and nonce.
+				// Sender and receiver have their custom matches, since those
+				// allow/disallow different operators.
+				fn match_common_filter(operator: &FilterOperator<U256>, tx_value: &U256) -> bool {
+					match operator {
+						Eq(value) => tx_value == value,
+						GreaterThan(value) => tx_value > value,
+						LessThan(value) => tx_value < value,
+						// Will always occure on `Any`, other operators
+						// get filtered out during deserialization
+						_ => true,
+					}
+				}
+
 				sealing.transactions
 					.iter()
 					.map(|signed| pool::VerifiedTransaction::from_pending_block_transaction(signed.clone()))
 					.map(Arc::new)
 					// Filter by sender
 					.filter(|tx| {
-						if let Some(ref filter) = filter {
+						filter.as_ref().map_or(true, |filter| {
 							let sender = tx.signed().sender();
 							match filter.sender {
 								Eq(value) => sender == value,
 								_ => true,
 							}
-						} else {
-							true // no filter
-						}
+						})
 					})
 					// Filter by receiver
 					.filter(|tx| {
-						if let Some(ref filter) = filter {
+						filter.as_ref().map_or(true, |filter| {
 							let receiver = tx.signed().receiver();
 							match filter.receiver {
 								Eq(value) => receiver == Some(value),
 								ContractCreation => receiver == None,
 								_ => true,
 							}
-						} else {
-							true // no filter
-						}
+						})
 					})
 					// Filter by gas
 					.filter(|tx| {
-						if let Some(ref filter) = filter {
-							let gas = tx.signed().as_unsigned().gas;
-							match filter.gas {
-								Eq(value) => gas == value,
-								GreaterThan(value) => gas > value,
-								LessThan(value) => gas < value,
-								_ => true,
-							}
-						} else {
-							true // no filter
-						}
+						filter.as_ref().map_or(true, |filter| {
+							match_common_filter(&filter.gas, &tx.signed().as_unsigned().gas)
+						})
 					})
 					// Filter by gas price
 					.filter(|tx| {
-						if let Some(ref filter) = filter {
-							let gas_price = tx.signed().as_unsigned().gas_price;
-							match filter.gas_price {
-								Eq(value) => gas_price == value,
-								GreaterThan(value) => gas_price > value,
-								LessThan(value) => gas_price < value,
-								_ => true,
-							}
-						} else {
-							true // no filter
-						}
+						filter.as_ref().map_or(true, |filter| {
+							match_common_filter(&filter.gas_price, &tx.signed().as_unsigned().gas_price)
+						})
 					})
 					// Filter by tx value
 					.filter(|tx| {
-						if let Some(ref filter) = filter {
-							let tx_value = tx.signed().as_unsigned().value;
-							match filter.value {
-								Eq(value) => tx_value == value,
-								GreaterThan(value) => tx_value > value,
-								LessThan(value) => tx_value < value,
-								_ => true,
-							}
-						} else {
-							true // no filter
-						}
+						filter.as_ref().map_or(true, |filter| {
+							match_common_filter(&filter.value, &tx.signed().as_unsigned().value)
+						})
 					})
 					// Filter by nonce
 					.filter(|tx| {
-						if let Some(ref filter) = filter {
-							let nonce = tx.signed().as_unsigned().nonce;
-							match filter.nonce {
-								Eq(value) => nonce == value,
-								GreaterThan(value) => nonce > value,
-								LessThan(value) => nonce < value,
-								_ => true,
-							}
-						} else {
-							true // no filter
-						}
+						filter.as_ref().map_or(true, |filter| {
+							match_common_filter(&filter.nonce, &tx.signed().as_unsigned().nonce)
+						})
 					})
 					.take(max_len)
 					.collect()
