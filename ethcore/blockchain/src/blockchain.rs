@@ -758,8 +758,8 @@ impl BlockChain {
 		Some(TreeRoute {
 			blocks: from_branch,
 			ancestor: current_from,
-			index: index,
-			is_from_route_finalized: is_from_route_finalized,
+			index,
+			is_from_route_finalized,
 		})
 	}
 
