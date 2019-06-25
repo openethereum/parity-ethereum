@@ -1,10 +1,10 @@
 [package]
-authors = ["Parity <admin@parity.io>"]
-description = "Parity Rpc Client"
+description = "Parity Ethereum RPC Client"
 homepage = "http://parity.io"
 license = "GPL-3.0"
 name = "parity-rpc-client"
 version = "1.4.0"
+authors = ["Parity <admin@parity.io>"]
 
 [dependencies]
 ethereum-types = "0.6.0"

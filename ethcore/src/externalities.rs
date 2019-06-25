@@ -315,7 +315,11 @@ impl<'a, T: 'a, V: 'a, B: 'a> Ext for Externalities<'a, T, V, B>
 	}
 
 	fn extcodehash(&self, address: &Address) -> vm::Result<Option<H256>> {
-		Ok(self.state.code_hash(address)?)
+		if self.state.exists_and_not_null(address)? {
+			Ok(self.state.code_hash(address)?)
+		} else {
+			Ok(None)
+		}
 	}
 
 	fn extcodesize(&self, address: &Address) -> vm::Result<Option<usize>> {

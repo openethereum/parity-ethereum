@@ -23,7 +23,6 @@ use std::time::Duration;
 use ansi_term::Colour;
 use ethereum_types::H256;
 use io::{IoContext, TimerToken, IoHandler, IoService, IoError};
-use stop_guard::StopGuard;
 
 use sync::PrivateTxHandler;
 use blockchain::{BlockChainDB, BlockChainDBHandler};
@@ -84,7 +83,6 @@ pub struct ClientService {
 	snapshot: Arc<SnapshotService>,
 	private_tx: Arc<PrivateTxService>,
 	database: Arc<BlockChainDB>,
-	_stop_guard: StopGuard,
 }
 
 impl ClientService {
@@ -115,6 +113,7 @@ impl ClientService {
 			miner.clone(),
 			io_service.channel(),
 		)?;
+		spec.engine.register_client(Arc::downgrade(&client) as _);
 		miner.set_io_channel(io_service.channel());
 		miner.set_in_chain_checker(&client.clone());
 
@@ -150,17 +149,12 @@ impl ClientService {
 		});
 		io_service.register_handler(client_io)?;
 
-		spec.engine.register_client(Arc::downgrade(&client) as _);
-
-		let stop_guard = StopGuard::new();
-
 		Ok(ClientService {
 			io_service: Arc::new(io_service),
 			client: client,
 			snapshot: snapshot,
 			private_tx,
 			database: blockchain_db,
-			_stop_guard: stop_guard,
 		})
 	}
 

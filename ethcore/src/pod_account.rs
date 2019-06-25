@@ -81,7 +81,7 @@ impl PodAccount {
 	/// Place additional data into given hash DB.
 	pub fn insert_additional(&self, db: &mut dyn HashDB<KeccakHasher, DBValue>, factory: &TrieFactory<KeccakHasher, RlpCodec>) {
 		match self.code {
-			Some(ref c) if !c.is_empty() => { db.insert(c); }
+			Some(ref c) if !c.is_empty() => { db.insert(hash_db::EMPTY_PREFIX, c); }
 			_ => {}
 		}
 		let mut r = H256::zero();

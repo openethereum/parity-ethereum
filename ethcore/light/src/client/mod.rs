@@ -362,9 +362,9 @@ impl<T: ChainDataFetcher> Client<T> {
 
 	/// Get blockchain mem usage in bytes.
 	pub fn chain_mem_used(&self) -> usize {
-		use heapsize::HeapSizeOf;
+		use parity_util_mem::MallocSizeOfExt;
 
-		self.chain.heap_size_of_children()
+		self.chain.malloc_size_of()
 	}
 
 	/// Set a closure to call when the client wants to be restarted.

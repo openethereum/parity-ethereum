@@ -1,6 +1,6 @@
 [package]
+description = "Parity EVM Implementation"
 name = "evmbin"
-description = "Parity's EVM implementation"
 version = "0.1.0"
 authors = ["Parity Technologies <admin@parity.io>"]
 

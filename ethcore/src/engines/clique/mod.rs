@@ -81,11 +81,9 @@ use parking_lot::RwLock;
 use rand::Rng;
 use super::signer::EngineSigner;
 use unexpected::{Mismatch, OutOfBounds};
+use time_utils::CheckedSystemTime;
 use types::BlockNumber;
 use types::header::{ExtendedHeader, Header};
-
-#[cfg(not(feature = "time_checked_add"))]
-use time_utils::CheckedSystemTime;
 
 use self::block_state::CliqueBlockState;
 use self::params::CliqueParams;
@@ -545,7 +543,7 @@ impl Engine<EthereumMachine> for Clique {
 
 		// Don't waste time checking blocks from the future
 		{
-			let limit = SystemTime::now().checked_add(Duration::from_secs(self.period))
+			let limit = CheckedSystemTime::checked_add(SystemTime::now(), Duration::from_secs(self.period))
 				.ok_or(BlockError::TimestampOverflow)?;
 
 			// This should succeed under the contraints that the system clock works
@@ -555,7 +553,7 @@ impl Engine<EthereumMachine> for Clique {
 
 			let hdr = Duration::from_secs(header.timestamp());
 			if hdr > limit_as_dur {
-				let found = UNIX_EPOCH.checked_add(hdr).ok_or(BlockError::TimestampOverflow)?;
+				let found = CheckedSystemTime::checked_add(UNIX_EPOCH, hdr).ok_or(BlockError::TimestampOverflow)?;
 
 				Err(BlockError::TemporarilyInvalid(OutOfBounds {
 					min: None,
@@ -666,8 +664,8 @@ impl Engine<EthereumMachine> for Clique {
 		// Ensure that the block's timestamp isn't too close to it's parent
 		let limit = parent.timestamp().saturating_add(self.period);
 		if limit > header.timestamp() {
-			let max = UNIX_EPOCH.checked_add(Duration::from_secs(header.timestamp()));
-			let found = UNIX_EPOCH.checked_add(Duration::from_secs(limit))
+			let max = CheckedSystemTime::checked_add(UNIX_EPOCH, Duration::from_secs(header.timestamp()));
+			let found = CheckedSystemTime::checked_add(UNIX_EPOCH, Duration::from_secs(limit))
 				.ok_or(BlockError::TimestampOverflow)?;
 
 			Err(BlockError::InvalidTimestamp(OutOfBounds {

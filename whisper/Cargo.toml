@@ -1,8 +1,8 @@
 [package]
+description = "Parity Ethereum Whisper Protocol Implementation"
 name = "parity-whisper"
 version = "0.1.0"
 authors = ["Parity Technologies <admin@parity.io>"]
-description = "Whisper Protocol implementation for Parity"
 
 [dependencies]
 bitflags = "0.9"
@@ -13,7 +13,7 @@ ring = "0.14.6"
 ethkey = { path = "../accounts/ethkey" }
 hex = "0.2"
 log = "0.4"
-memzero = { path = "../util/memzero" }
+parity-util-mem = "0.1"
 ordered-float = "0.5"
 parking_lot = "0.7"
 rand = "0.6"

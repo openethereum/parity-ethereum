@@ -65,7 +65,7 @@ pub const ETH_PROTOCOL: ProtocolId = *b"eth";
 pub const LIGHT_PROTOCOL: ProtocolId = *b"pip";
 
 /// Determine warp sync status.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, MallocSizeOf)]
 pub enum WarpSync {
 	/// Warp sync is enabled.
 	Enabled,

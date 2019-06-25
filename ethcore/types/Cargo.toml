@@ -1,14 +1,14 @@
 [package]
+description = "Parity Ethereum Common Types"
 name = "common-types"
-description = "Common types used throughout the codebase"
 version = "0.1.0"
 authors = ["Parity Technologies <admin@parity.io>"]
 
 [dependencies]
 ethereum-types = "0.6.0"
 ethjson = { path = "../../json" }
+parity-util-mem = "0.1"
 ethkey = { path = "../../accounts/ethkey" }
-heapsize = "0.4"
 keccak-hash = "0.2.0"
 parity-bytes = "0.1"
 rlp = "0.4.0"
