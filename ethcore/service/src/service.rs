@@ -32,7 +32,7 @@ use ethcore::miner::Miner;
 use ethcore::snapshot::service::{Service as SnapshotService, ServiceParams as SnapServiceParams};
 use ethcore::snapshot::{SnapshotService as _SnapshotService, RestorationStatus, Error as SnapshotError};
 use ethcore::spec::Spec;
-use ethcore::error::Error as EthcoreError;
+use ethcore::error::{Error as EthcoreError, ErrorKind};
 
 
 use ethcore_private_tx::{self, Importer, Signer};
@@ -261,7 +261,7 @@ impl IoHandler<ClientIoMessage> for ClientIoHandler {
 				let res = thread::Builder::new().name("Periodic Snapshot".into()).spawn(move || {
 					if let Err(e) = snapshot.take_snapshot(&*client, num) {
 						match e {
-							EthcoreError::Snapshot(SnapshotError::SnapshotAborted) => info!("Snapshot aborted"),
+							EthcoreError(ErrorKind::Snapshot(SnapshotError::SnapshotAborted), _) => info!("Snapshot aborted"),
 							_ => warn!("Failed to take snapshot at block #{}: {}", num, e),
 						}
 
