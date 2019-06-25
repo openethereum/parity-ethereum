@@ -1,10 +1,10 @@
 [package]
-authors = ["Parity <admin@parity.io>"]
-description = "Parity Cli Tool"
+description = "Parity Ethereum CLI Signer Tool"
 homepage = "http://parity.io"
 license = "GPL-3.0"
 name = "cli-signer"
 version = "1.4.0"
+authors = ["Parity <admin@parity.io>"]
 
 [dependencies]
 ethereum-types = "0.6.0"
