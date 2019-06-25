@@ -26,7 +26,7 @@ use bytes::Bytes;
 use call_contract::{CallContract, RegistryInfo};
 use ethcore_miner::pool::VerifiedTransaction;
 use ethcore_miner::service_transaction_checker::ServiceTransactionChecker;
-use ethereum_types::{H256, Address, U256};
+use ethereum_types::{H256, H264, Address, U256};
 use evm::Schedule;
 use hash::keccak;
 use io::IoChannel;
@@ -87,7 +87,7 @@ pub use types::blockchain_info::BlockChainInfo;
 pub use types::block_status::BlockStatus;
 pub use blockchain::CacheSize as BlockChainCacheSize;
 pub use verification::QueueInfo as BlockQueueInfo;
-use db::Writable;
+use db::{Writable, Readable, keys::BlockDetails};
 
 use_contract!(registry, "res/contracts/registrar.json");
 
@@ -772,8 +772,8 @@ impl Client {
 			liveness: AtomicBool::new(awake),
 			mode: Mutex::new(config.mode.clone()),
 			chain: RwLock::new(chain),
-			tracedb: tracedb,
-			engine: engine,
+			tracedb,
+			engine,
 			pruning: config.pruning.clone(),
 			db: RwLock::new(db.clone()),
 			state_db: RwLock::new(state_db),
@@ -786,8 +786,8 @@ impl Client {
 			ancient_blocks_import_lock: Default::default(),
 			queue_consensus_message: IoChannelQueue::new(usize::max_value()),
 			last_hashes: RwLock::new(VecDeque::new()),
-			factories: factories,
-			history: history,
+			factories,
+			history,
 			on_user_defaults_change: Mutex::new(None),
 			registrar_address,
 			exit_handler: Mutex::new(None),
@@ -1146,7 +1146,12 @@ impl Client {
 
 	/// Take a snapshot at the given block.
 	/// If the ID given is "latest", this will default to 1000 blocks behind.
-	pub fn take_snapshot<W: snapshot_io::SnapshotWriter + Send>(&self, writer: W, at: BlockId, p: &snapshot::Progress) -> Result<(), EthcoreError> {
+	pub fn take_snapshot<W: snapshot_io::SnapshotWriter + Send>(
+		&self,
+		writer: W,
+		at: BlockId,
+		p: &snapshot::Progress,
+	) -> Result<(), EthcoreError> {
 		let db = self.state_db.read().journal_db().boxed_clone();
 		let best_block_number = self.chain_info().best_block_number;
 		let block_number = self.block_number(at).ok_or(snapshot::Error::InvalidStartingBlock(at))?;
@@ -1176,8 +1181,16 @@ impl Client {
 		};
 
 		let processing_threads = self.config.snapshot.processing_threads;
-		snapshot::take_snapshot(&*self.engine, &self.chain.read(), start_hash, db.as_hash_db(), writer, p, processing_threads)?;
-
+		let chunker = self.engine.snapshot_components().ok_or(snapshot::Error::SnapshotsUnsupported)?;
+		snapshot::take_snapshot(
+			chunker,
+			&self.chain.read(),
+			start_hash,
+			db.as_hash_db(),
+			writer,
+			p,
+			processing_threads,
+		)?;
 		Ok(())
 	}
 
@@ -1335,37 +1348,60 @@ impl BlockChainReset for Client {
 	fn reset(&self, num: u32) -> Result<(), String> {
 		if num as u64 > self.pruning_history() {
 			return Err("Attempting to reset to block with pruned state".into())
+		} else if num == 0 {
+			return Err("invalid number of blocks to reset".into())
 		}
 
-		let (blocks_to_delete, best_block_hash) = self.chain.read()
-			.block_headers_from_best_block(num)
-			.ok_or("Attempted to reset past genesis block")?;
+		let mut blocks_to_delete = Vec::with_capacity(num as usize);
+		let mut best_block_hash = self.chain.read().best_block_hash();
+		let mut batch = DBTransaction::with_capacity(blocks_to_delete.capacity());
 
-		let mut db_transaction = DBTransaction::with_capacity((num + 1) as usize);
+		for _ in 0..num {
+			let current_header = self.chain.read().block_header_data(&best_block_hash)
+				.expect("best_block_hash was fetched from db; block_header_data should exist in db; qed");
+			best_block_hash = current_header.parent_hash();
 
-		for hash in &blocks_to_delete {
-			db_transaction.delete(::db::COL_HEADERS, &hash.hash());
-			db_transaction.delete(::db::COL_BODIES, &hash.hash());
-			db_transaction.delete(::db::COL_EXTRA, &hash.hash());
+			let (number, hash) = (current_header.number(), current_header.hash());
+			batch.delete(::db::COL_HEADERS, &hash);
+			batch.delete(::db::COL_BODIES, &hash);
+			Writable::delete::<BlockDetails, H264>
+				(&mut batch, ::db::COL_EXTRA, &hash);
 			Writable::delete::<H256, BlockNumberKey>
-				(&mut db_transaction, ::db::COL_EXTRA, &hash.number());
+				(&mut batch, ::db::COL_EXTRA, &number);
+
+			blocks_to_delete.push((number, hash));
 		}
 
+		let hashes = blocks_to_delete.iter().map(|(_, hash)| hash).collect::<Vec<_>>();
+		info!("Deleting block hashes {}",
+			  Colour::Red
+				  .bold()
+				  .paint(format!("{:#?}", hashes))
+		);
+
+		let mut best_block_details = Readable::read::<BlockDetails, H264>(
+			&**self.db.read().key_value(),
+			::db::COL_EXTRA,
+			&best_block_hash
+		).expect("block was previously imported; best_block_details should exist; qed");
+
+		let (_, last_hash) = blocks_to_delete.last()
+			.expect("num is > 0; blocks_to_delete can't be empty; qed");
+		// remove the last block as a child so that it can be re-imported
+		// ethcore/blockchain/src/blockchain.rs/Blockchain::is_known_child()
+		best_block_details.children.retain(|h| *h != *last_hash);
+		batch.write(
+			::db::COL_EXTRA,
+			&best_block_hash,
+			&best_block_details
+		);
 		// update the new best block hash
-		db_transaction.put(::db::COL_EXTRA, b"best", &*best_block_hash);
+		batch.put(::db::COL_EXTRA, b"best", &best_block_hash);
 
 		self.db.read()
 			.key_value()
-			.write(db_transaction)
-			.map_err(|err| format!("could not complete reset operation; io error occured: {}", err))?;
-
-		let hashes = blocks_to_delete.iter().map(|b| b.hash()).collect::<Vec<_>>();
-
-		info!("Deleting block hashes {}",
-			Colour::Red
-				.bold()
-				.paint(format!("{:#?}", hashes))
-		);
+			.write(batch)
+			.map_err(|err| format!("could not delete blocks; io error occurred: {}", err))?;
 
 		info!("New best block hash {}", Colour::Green.bold().paint(format!("{:?}", best_block_hash)));
 

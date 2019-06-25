@@ -188,14 +188,15 @@ fn keep_ancient_blocks() {
 		&state_root,
 		&writer,
 		&Progress::default(),
-		None
+		None,
+		0
 	).unwrap();
 
 	let manifest = ::snapshot::ManifestData {
 		version: 2,
-		state_hashes: state_hashes,
-		state_root: state_root,
-		block_hashes: block_hashes,
+		state_hashes,
+		state_root,
+		block_hashes,
 		block_number: NUM_BLOCKS,
 		block_hash: best_hash,
 	};

@@ -122,6 +122,8 @@ impl SnapshotService for TestSnapshotService {
 		self.block_restoration_chunks.lock().clear();
 	}
 
+	fn abort_snapshot(&self) {}
+
 	fn restore_state_chunk(&self, hash: H256, chunk: Bytes) {
 		if self.restoration_manifest.lock().as_ref().map_or(false, |m| m.state_hashes.iter().any(|h| h == &hash)) {
 			self.state_restoration_chunks.lock().insert(hash, chunk);
