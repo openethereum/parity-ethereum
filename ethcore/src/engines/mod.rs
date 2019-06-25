@@ -90,7 +90,7 @@ pub enum EngineError {
 	/// Requires signer ref, but none registered.
 	RequiresSigner,
 	/// Missing Parent Epoch
-	MissingParent,
+	MissingParent(H256),
 	/// Checkpoint is missing
 	CliqueMissingCheckpoint(H256),
 	/// Missing vanity data
@@ -139,7 +139,7 @@ impl fmt::Display for EngineError {
 			RequiresClient => format!("Call requires client but none registered"),
 			RequiresSigner => format!("Call requires signer but none registered"),
 			InvalidEngine => format!("Invalid engine specification or implementation"),
-			MissingParent => format!("Parent Epoch is missing from database"),
+			MissingParent(ref hash) => format!("Parent Epoch is missing from database: {}", hash),
 		};
 
 		f.write_fmt(format_args!("Engine error ({})", msg))
