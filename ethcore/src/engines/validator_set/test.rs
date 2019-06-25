@@ -57,12 +57,6 @@ impl TestSet {
 			last_benign,
 		}
 	}
-
-	/// Build a `TestSet` with the given number of benign misbehaviour reports
-	pub fn with_last_benign(mut self, last_benign: Arc<AtomicUsize>) -> Self {
-		self.last_benign = last_benign;
-		self
-	}
 }
 
 impl ValidatorSet for TestSet {
