@@ -196,7 +196,7 @@ Replacing `<spec>` with one of the following from the details section below (i.e
   ```bash
   ethcore
   ```
-  * Parity Ethereum Blockchain Database, Generator, Configuration,
+  * Parity Ethereum Blockchain Database, Test Generator, Configuration,
 Caching, Importing Blocks, and Block Information
     ```bash
     ethcore-blockchain
