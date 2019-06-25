@@ -468,9 +468,9 @@ impl StateRebuilder {
 				if !flag.load(Ordering::SeqCst) { return Err(Error::RestorationAborted.into()) }
 
 				if &thin_rlp[..] != &empty_rlp[..] {
-					self.bloom.set(hash.as_bytes());
+					self.bloom.set(&*hash);
 				}
-				account_trie.insert(hash.as_bytes(), &thin_rlp)?;
+				account_trie.insert(&hash, &thin_rlp)?;
 			}
 		}
 
