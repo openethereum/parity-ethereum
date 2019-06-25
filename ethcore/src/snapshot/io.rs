@@ -310,10 +310,7 @@ impl LooseReader {
 
 		dir.pop();
 
-		Ok(LooseReader {
-			dir: dir,
-			manifest: manifest,
-		})
+		Ok(LooseReader { dir, manifest })
 	}
 }
 

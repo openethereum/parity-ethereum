@@ -40,7 +40,6 @@ use types::{BlockNumber, header::Header};
 use types::transaction::SignedTransaction;
 use verification::queue::kind::blocks::Unverified;
 
-#[cfg(not(time_checked_add))]
 use time_utils::CheckedSystemTime;
 
 /// Preprocessed block data gathered in `verify_block_unordered` call
@@ -310,7 +309,7 @@ pub fn verify_header_params(header: &Header, engine: &EthEngine, is_full: bool, 
 		// this will resist overflow until `year 2037`
 		let max_time = SystemTime::now() + ACCEPTABLE_DRIFT;
 		let invalid_threshold = max_time + ACCEPTABLE_DRIFT * 9;
-		let timestamp = UNIX_EPOCH.checked_add(Duration::from_secs(header.timestamp()))
+		let timestamp = CheckedSystemTime::checked_add(UNIX_EPOCH, Duration::from_secs(header.timestamp()))
 			.ok_or(BlockError::TimestampOverflow)?;
 
 		if timestamp > invalid_threshold {
@@ -334,9 +333,9 @@ fn verify_parent(header: &Header, parent: &Header, engine: &EthEngine) -> Result
 
 	if !engine.is_timestamp_valid(header.timestamp(), parent.timestamp()) {
 		let now = SystemTime::now();
-		let min = now.checked_add(Duration::from_secs(parent.timestamp().saturating_add(1)))
+		let min = CheckedSystemTime::checked_add(now, Duration::from_secs(parent.timestamp().saturating_add(1)))
 			.ok_or(BlockError::TimestampOverflow)?;
-		let found = now.checked_add(Duration::from_secs(header.timestamp()))
+		let found = CheckedSystemTime::checked_add(now, Duration::from_secs(header.timestamp()))
 			.ok_or(BlockError::TimestampOverflow)?;
 		return Err(From::from(BlockError::InvalidTimestamp(OutOfBounds { max: None, min: Some(min), found })))
 	}
