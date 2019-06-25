@@ -1,5 +1,5 @@
 [package]
-description = "Ethcore blockchain database"
+description = "Parity Ethereum Blockchain Database, Test Generator, Configuration, Caching, Importing Blocks, and Block Information"
 homepage = "http://parity.io"
 license = "GPL-3.0"
 name = "ethcore-blockchain"
