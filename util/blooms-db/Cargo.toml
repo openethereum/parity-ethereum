@@ -3,12 +3,11 @@ name = "blooms-db"
 version = "0.1.0"
 license = "GPL-3.0"
 authors = ["Parity Technologies <admin@parity.io>"]
+edition = "2018"
 
 [dependencies]
-byteorder = "1.2"
 ethbloom = "0.6.4"
 parking_lot = "0.7"
-tiny-keccak = "1.4"
 
 [dev-dependencies]
 tempdir = "0.3"
