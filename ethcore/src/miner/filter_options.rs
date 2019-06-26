@@ -58,6 +58,9 @@ enum Wrapper<T> {
     CC, // Contract Creation
 }
 
+/// Available operators for filtering options.
+/// The `from` filter only accepts Any and Eq(Address)
+/// The `to` filter only accepts Any, Eq(Address) and Eq(None) for contract creation.
 #[derive(Debug, Clone, Eq, PartialEq)]
 pub enum FilterOperator<T> {
     Any,

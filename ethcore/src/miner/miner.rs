@@ -1121,7 +1121,7 @@ impl miner::MinerService for Miner {
 					// Filter by receiver
 					.filter(|tx| {
 						filter.as_ref().map_or(true, |filter| {
-							let receiver = tx.signed().receiver();
+							let receiver = (*tx.signed()).receiver();
 							match filter.to {
 								// Could apply to `Some(Address)` or `None` (for contract creation)
 								Eq(value) => receiver == value,
@@ -1134,25 +1134,25 @@ impl miner::MinerService for Miner {
 					// Filter by gas
 					.filter(|tx| {
 						filter.as_ref().map_or(true, |filter| {
-							match_common_filter(&filter.gas, &tx.signed().as_unsigned().gas)
+							match_common_filter(&filter.gas, &(*tx.signed()).gas)
 						})
 					})
 					// Filter by gas price
 					.filter(|tx| {
 						filter.as_ref().map_or(true, |filter| {
-							match_common_filter(&filter.gas_price, &tx.signed().as_unsigned().gas_price)
+							match_common_filter(&filter.gas_price, &(*tx.signed()).gas_price)
 						})
 					})
 					// Filter by tx value
 					.filter(|tx| {
 						filter.as_ref().map_or(true, |filter| {
-							match_common_filter(&filter.value, &tx.signed().as_unsigned().value)
+							match_common_filter(&filter.value, &(*tx.signed()).value)
 						})
 					})
 					// Filter by nonce
 					.filter(|tx| {
 						filter.as_ref().map_or(true, |filter| {
-							match_common_filter(&filter.nonce, &tx.signed().as_unsigned().nonce)
+							match_common_filter(&filter.nonce, &(*tx.signed()).nonce)
 						})
 					})
 					.take(max_len)
