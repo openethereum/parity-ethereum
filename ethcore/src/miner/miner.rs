@@ -694,25 +694,26 @@ impl Miner {
 			},
 		};
 
-		{
-			let last_parent_hash = self.last_parent_hash.read();
-			if parent_header.hash() == *last_parent_hash {
-				warn!(target: "miner", "Trying to build block #{} on same parent hash. New block's parent hash: {}, last parent hash: {}",
-					block.header.number(), parent_header.hash(), *last_parent_hash
-				);
-				return false
-			}
-		}
-		{
+//		{
+//			let last_parent_hash = self.last_parent_hash.read();
+//			if parent_header.hash() == *last_parent_hash {
+//				warn!(target: "miner", "Trying to build block #{} on same parent hash. New block's parent hash: {}, last parent hash: {}",
+//					block.header.number(), parent_header.hash(), *last_parent_hash
+//				);
+//				return false
+//			}
+//		}
+//		{
 			let mut last_parent_hash = self.last_parent_hash.write();
 			trace!(target: "miner", "Block #{}, Setting last parent hash. was: {}, becomes: {}", block.header.number(), *last_parent_hash, block.header.hash());
 			*last_parent_hash = block.header.hash();
-		}
+//		}
 
+		let res =
 		match self.engine.generate_seal(&block, &parent_header) {
 			// Directly import a regular sealed block.
 			Seal::Regular(seal) => {
-				trace!(target: "miner", "Received a Regular seal.");
+				trace!(target: "miner", "Block #{}: Received a Regular seal.", block.header.number());
 				{
 					let mut sealing = self.sealing.lock();
 					sealing.next_mandatory_reseal = Instant::now() + self.options.reseal_max_period;
@@ -725,12 +726,14 @@ impl Miner {
 						chain.import_sealed_block(sealed).is_ok()
 					})
 					.unwrap_or_else(|e| {
-						warn!("ERROR: seal failed when given internally generated seal: {}", e);
+						warn!("ERROR: Block #{}, importing sealed block failed when given internally generated seal: {}", block.header.number(), e);
 						false
 					})
 			},
 			Seal::None => false,
-		}
+		};
+		trace!(target:"miner", "Block: #{}, seal_and_import_block_internally: done, returning {}", block.header.number(), res);
+		res
 	}
 
 	/// Prepares work which has to be done to seal.
