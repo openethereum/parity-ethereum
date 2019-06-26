@@ -9,7 +9,7 @@ pub struct FilterOptions {
     /// Contains the operator to filter the sender value of the transaction
     pub sender: FilterOperator<Address>,
     /// Contains the operator to filter the receiver value of the transaction
-    pub receiver: FilterOperator<Address>,
+    pub receiver: FilterOperator<Option<Address>>,
     /// Contains the operator to filter the gas value of the transaction
     pub gas: FilterOperator<U256>,
     /// Contains the operator to filter the gas price value of the transaction
@@ -33,13 +33,21 @@ impl Default for FilterOptions {
     }
 }
 
+/// The highly generic use of implementing Deserialize for FilterOperator
+/// will result in a compiler error if the type FilterOperator::Eq(None)
+/// gets returned explicitly. Therefore this Wrapper will be used for
+/// deserialization, directly identifying the contract creation.
+enum Wrapper<T> {
+    O(FilterOperator<T>),
+    CC, // Contract Creation
+}
+
 #[derive(Debug, Clone, Eq, PartialEq)]
 pub enum FilterOperator<T> {
     Any,
     Eq(T),
     GreaterThan(T),
     LessThan(T),
-    ContractCreation, // only used for `receiver`
 }
 
 /// Since there are multiple operators which are not supported equally by all filters,
@@ -47,48 +55,46 @@ pub enum FilterOperator<T> {
 /// inside the `Deserialize` -> `Visitor` implementation for FilterOperator. In case new
 /// operators get introduced, a whitelist instead of a blacklist is used.
 ///
-/// The `sender` filter validates with `validate_sender`
-/// The `receiver` filter validates with `validate_receiver`
+/// The `sender` and `receiver` filter validate with `validate_account`
+/// Additionally, the `receiver` filter also contains a separate,
+/// custom validator in order to identify the `action` (Wrapper::CC) filter.
 /// All other filters such as gas and price validate with `validate_value`
 trait Validate<'de, T, M: MapAccess<'de>> {
-    fn validate_sender(&mut self) -> Result<FilterOperator<T>, M::Error>;
-    fn validate_receiver(&mut self) -> Result<FilterOperator<T>, M::Error>;
+    fn validate_account(&mut self) -> Result<FilterOperator<T>, M::Error>;
     fn validate_value(&mut self) -> Result<FilterOperator<T>, M::Error>;
 }
 
 impl<'de, T, M> Validate<'de, T, M> for M 
     where T: Deserialize<'de>, M: MapAccess<'de>
 {
-    fn validate_sender(&mut self) -> Result<FilterOperator<T>, M::Error> {
+    fn validate_account(&mut self) -> Result<FilterOperator<T>, M::Error> {
+        use self::Wrapper as W;
         use self::FilterOperator::*;
-        let val = self.next_value()?;
-        match val {
-            Any | Eq(_) => Ok(val),
-            _ => {
+        let wrapper = self.next_value()?;
+        match wrapper {
+            W::O(val) => {
+                match val {
+                    Any | Eq(_) => Ok(val),
+                    _ => {
+                        Err(M::Error::custom(
+                            "the sender filter only supports the `eq` operator",
+                        ))
+                    }
+                }
+            },
+            W::CC => {
                 Err(M::Error::custom(
                     "the sender filter only supports the `eq` operator",
                 ))
             }
         }
     }
-    fn validate_receiver(&mut self) -> Result<FilterOperator<T>, M::Error> {
-        use self::FilterOperator::*;
-        let val = self.next_value()?;
-        match val {
-            Any | Eq(_) | ContractCreation => Ok(val),
-            _ => {
-                Err(M::Error::custom(
-                    "the sender filter only supports the `eq` and `action` operators",
-                ))
-            }
-        }
-    }
     fn validate_value(&mut self) -> Result<FilterOperator<T>, M::Error> {
-        use self::FilterOperator::*;
-        let val = self.next_value()?;
-        match val {
-            Any | Eq(_) | GreaterThan(_) | LessThan(_) => Ok(val),
-            ContractCreation => {
+        use self::Wrapper as W;
+        let wrapper = self.next_value()?;
+        match wrapper {
+            W::O(val) => Ok(val),
+            W::CC => {
                 Err(M::Error::custom(
                     "the operator `action` is only supported by the receiver filter",
                 ))
@@ -119,10 +125,22 @@ impl<'de> Deserialize<'de> for FilterOptions {
                 while let Some(key) = map.next_key()? {
                     match key {
                         "sender" => {
-                            filter.sender = map.validate_sender()?;
+                            filter.sender = map.validate_account()?;
                         },
                         "receiver" => {
-                            filter.receiver = map.validate_receiver()?;
+                            filter.receiver = match map.next_value()? {
+                                Wrapper::O::<Address>(_) => map
+                                    // This filter accepts the same operators as `sender`
+                                    // (except for contract creation, handled below),
+                                    // therefore the same validator can be called on this.
+                                    .validate_account()
+                                    .map_err(|_| {
+                                        M::Error::custom(
+                                            "the receiver filter only supports the `eq` or `action` operator",
+                                        )
+                                    })?,
+                                Wrapper::CC => FilterOperator::Eq(None),
+                            }
                         },
                         "gas" => {
                             filter.gas = map.validate_value()?;
@@ -149,16 +167,16 @@ impl<'de> Deserialize<'de> for FilterOptions {
             }
         }
 
-        impl<'de, T: Deserialize<'de>> Deserialize<'de> for FilterOperator<T> {
+        impl<'de, T: Deserialize<'de>> Deserialize<'de> for Wrapper<T> {
             fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
             where
                 D: Deserializer<'de>,
             {
-                struct FilterOperatorVisitor<T> {
+                struct WrapperVisitor<T> {
                     data: PhantomData<T>,
                 };
-                impl<'de, T: Deserialize<'de>> Visitor<'de> for FilterOperatorVisitor<T> {
-                    type Value = FilterOperator<T>;
+                impl<'de, T: Deserialize<'de>> Visitor<'de> for WrapperVisitor<T> {
+                    type Value = Wrapper<T>;
 
                     fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
                         // "This Visitor expects to receive ..."
@@ -172,18 +190,19 @@ impl<'de> Deserialize<'de> for FilterOptions {
                     where
                         M: MapAccess<'de>,
                     {
+                        use self::Wrapper as W;
                         let mut counter = 0;
-                        let mut f_op = FilterOperator::Any;
+                        let mut f_op = Wrapper::O(FilterOperator::Any);
 
                         while let Some(key) = map.next_key()? {
                             match key {
-                                "eq" => f_op = FilterOperator::Eq(map.next_value()?),
-                                "gt" => f_op = FilterOperator::GreaterThan(map.next_value()?),
-                                "lt" => f_op = FilterOperator::LessThan(map.next_value()?),
+                                "eq" => f_op = W::O(FilterOperator::Eq(map.next_value()?)),
+                                "gt" => f_op = W::O(FilterOperator::GreaterThan(map.next_value()?)),
+                                "lt" => f_op = W::O(FilterOperator::LessThan(map.next_value()?)),
                                 "action" => {
                                     match map.next_value()? {
                                         "contract_creation" => {
-                                            f_op = FilterOperator::ContractCreation;
+                                            f_op = W::CC;
                                         },
                                         _ => {
                                             return Err(M::Error::custom(
@@ -216,7 +235,7 @@ impl<'de> Deserialize<'de> for FilterOptions {
                     }
                 }
 
-                deserializer.deserialize_map(FilterOperatorVisitor { data: PhantomData })
+                deserializer.deserialize_map(WrapperVisitor { data: PhantomData })
             }
         }
 

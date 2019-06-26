@@ -1123,8 +1123,8 @@ impl miner::MinerService for Miner {
 						filter.as_ref().map_or(true, |filter| {
 							let receiver = tx.signed().receiver();
 							match filter.receiver {
-								Eq(value) => receiver == Some(value),
-								ContractCreation => receiver == None,
+								// Could apply to `Some(Address)` or `None` (for contract creation)
+								Eq(value) => receiver == value,
 								// Will always occure on `Any`, other operators
 								// get handled during deserialization
 								_ => true,
