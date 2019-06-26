@@ -348,7 +348,7 @@ impl Rebuilder for ChunkRebuilder {
 		Ok(())
 	}
 
-	fn finalize(&mut self, _engine: &dyn EthEngine) -> Result<(), ::error::Error> {
+	fn finalize(&mut self) -> Result<(), ::error::Error> {
 		if !self.had_genesis {
 			return Err(Error::WrongChunkFormat("No genesis transition included.".into()).into());
 		}

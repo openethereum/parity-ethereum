@@ -110,17 +110,17 @@ impl Restoration {
 
 		let secondary = components.rebuilder(chain, raw_db.clone(), &manifest)?;
 
-		let root = manifest.state_root.clone();
+		let final_state_root = manifest.state_root.clone();
 
 		Ok(Restoration {
-			manifest: manifest,
+			manifest,
 			state_chunks_left: state_chunks,
 			block_chunks_left: block_chunks,
 			state: StateRebuilder::new(raw_db.key_value().clone(), params.pruning),
-			secondary: secondary,
+			secondary,
 			writer: params.writer,
 			snappy_buffer: Vec::new(),
-			final_state_root: root,
+			final_state_root,
 			guard: params.guard,
 			db: raw_db,
 		})
@@ -170,7 +170,7 @@ impl Restoration {
 	}
 
 	// finish up restoration.
-	fn finalize(mut self, engine: &dyn EthEngine) -> Result<(), Error> {
+	fn finalize(mut self) -> Result<(), Error> {
 		use trie::TrieError;
 
 		if !self.is_done() { return Ok(()) }
@@ -186,7 +186,7 @@ impl Restoration {
 		self.state.finalize(self.manifest.block_number, self.manifest.block_hash)?;
 
 		// connect out-of-order chunks and verify chain integrity.
-		self.secondary.finalize(engine)?;
+		self.secondary.finalize()?;
 
 		if let Some(writer) = self.writer {
 			writer.finish(self.manifest)?;
@@ -340,12 +340,8 @@ impl Service {
 
 	// replace one the client's database with our own.
 	fn replace_client_db(&self) -> Result<(), Error> {
-		let migrated_blocks = self.migrate_blocks()?;
-		info!(target: "snapshot", "Migrated {} ancient blocks", migrated_blocks);
-
 		let rest_db = self.restoration_db();
-		self.client.restore_db(&*rest_db.to_string_lossy())?;
-		Ok(())
+		self.client.restore_db(&*rest_db.to_string_lossy())
 	}
 
 	// Migrate the blocks in the current DB into the new chain
@@ -666,8 +662,11 @@ impl Service {
 
 		// destroy the restoration before replacing databases and snapshot.
 		rest.take()
-			.map(|r| r.finalize(&*self.engine))
+			.map(|r| r.finalize())
 			.unwrap_or(Ok(()))?;
+
+		let migrated_blocks = self.migrate_blocks()?;
+		info!(target: "snapshot", "Migrated {} ancient blocks", migrated_blocks);
 
 		self.replace_client_db()?;
 
