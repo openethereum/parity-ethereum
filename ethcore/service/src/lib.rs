@@ -34,11 +34,9 @@ extern crate ethcore_db;
 #[cfg(test)]
 extern crate tempdir;
 
-mod error;
 mod service;
 
 #[cfg(test)]
 extern crate kvdb_rocksdb;
 
-pub use error::Error;
 pub use service::{ClientService, PrivateTxService};
