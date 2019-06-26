@@ -205,7 +205,7 @@ pub struct TransactionAddress {
 }
 
 /// Contains all block receipts.
-#[derive(Clone, RlpEncodableWrapper, RlpDecodableWrapper, MallocSizeOf)]
+#[derive(Debug, Clone, RlpEncodableWrapper, RlpDecodableWrapper, MallocSizeOf)]
 pub struct BlockReceipts {
 	/// Block receipts
 	pub receipts: Vec<Receipt>,
@@ -214,9 +214,7 @@ pub struct BlockReceipts {
 impl BlockReceipts {
 	/// Create new block receipts wrapper.
 	pub fn new(receipts: Vec<Receipt>) -> Self {
-		BlockReceipts {
-			receipts: receipts
-		}
+		BlockReceipts { receipts }
 	}
 }
 

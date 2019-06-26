@@ -412,7 +412,12 @@ impl Service {
 					next_chain.insert_unordered_block(&mut batch, block, block_receipts, Some(parent_total_difficulty), false, true);
 					count += 1;
 				},
-				_ => break,
+				_ => {
+					error!(target: "snapshot", "migrate_blocks: failed to find receipts and parent total difficulty. Block #{}, parent_hash={:?}, parent_total_difficulty={:?}",
+						block_number, parent_hash, parent_total_difficulty);
+					trace!(target: "snapshot", "migrate_blocks: is previous block (#{}) present?: {}", block_number - 1, self.client.block(BlockId::Number(block_number - 1)).is_some());
+					break
+				},
 			}
 
 			// Writing changes to DB and logging every now and then
@@ -435,7 +440,10 @@ impl Service {
 
 		// We couldn't reach the targeted hash
 		if parent_hash != target_hash {
-			error!(target: "snapshot", "migrate_blocks: could not reach the target_hash, parent_hash={:?}, target_hash={:?}, start_hash={:?}", parent_hash, target_hash, start_hash);
+			error!(target: "snapshot", "migrate_blocks: could not reach the target_hash, parent_hash={:?}, target_hash={:?}, start_hash={:?}, ancient_block_number={:?}, best_block_number={:?}",
+				parent_hash, target_hash, start_hash,
+				cur_chain_info.ancient_block_number, cur_chain_info.best_block_number,
+			);
 			return Err(::snapshot::error::Error::UnlinkedAncientBlockChain.into());
 		}
 
