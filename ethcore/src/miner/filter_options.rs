@@ -55,19 +55,19 @@ pub enum FilterOperator<T> {
 /// inside the `Deserialize` -> `Visitor` implementation for FilterOperator. In case new
 /// operators get introduced, a whitelist instead of a blacklist is used.
 ///
-/// The `sender` and `receiver` filter validate with `validate_account`
-/// Additionally, the `receiver` filter also contains a separate,
-/// custom validator in order to identify the `action` (Wrapper::CC) filter.
+/// The `sender` filter validates with `validate_sender`
+/// The `receiver` filter validates with `validate_sender`
 /// All other filters such as gas and price validate with `validate_value`
 trait Validate<'de, T, M: MapAccess<'de>> {
-    fn validate_account(&mut self) -> Result<FilterOperator<T>, M::Error>;
+    fn validate_sender(&mut self) -> Result<FilterOperator<T>, M::Error>;
+    fn validate_receiver(&mut self) -> Result<FilterOperator<Option<Address>>, M::Error>;
     fn validate_value(&mut self) -> Result<FilterOperator<T>, M::Error>;
 }
 
 impl<'de, T, M> Validate<'de, T, M> for M 
     where T: Deserialize<'de>, M: MapAccess<'de>
 {
-    fn validate_account(&mut self) -> Result<FilterOperator<T>, M::Error> {
+    fn validate_sender(&mut self) -> Result<FilterOperator<T>, M::Error> {
         use self::Wrapper as W;
         use self::FilterOperator::*;
         let wrapper = self.next_value()?;
@@ -87,6 +87,25 @@ impl<'de, T, M> Validate<'de, T, M> for M
                     "the sender filter only supports the `eq` operator",
                 ))
             }
+        }
+    }
+    fn validate_receiver(&mut self) -> Result<FilterOperator<Option<Address>>, M::Error> {
+        use self::Wrapper as W;
+        use self::FilterOperator::*;
+        let wrapper = self.next_value()?;
+        match wrapper {
+            W::O(val) => {
+                match val {
+                    Any => Ok(Any),
+                    Eq(address) => Ok(Eq(Some(address))),
+                    _ => {
+                        Err(M::Error::custom(
+                            "the receiver filter only supports the `eq` or `action` operator",
+                        ))
+                    }
+                }
+            },
+            W::CC => Ok(FilterOperator::Eq(None)),
         }
     }
     fn validate_value(&mut self) -> Result<FilterOperator<T>, M::Error> {
@@ -125,22 +144,10 @@ impl<'de> Deserialize<'de> for FilterOptions {
                 while let Some(key) = map.next_key()? {
                     match key {
                         "sender" => {
-                            filter.sender = map.validate_account()?;
+                            filter.sender = map.validate_sender()?;
                         },
                         "receiver" => {
-                            filter.receiver = match map.next_value()? {
-                                Wrapper::O::<Address>(_) => map
-                                    // This filter accepts the same operators as `sender`
-                                    // (except for contract creation, handled below),
-                                    // therefore the same validator can be called on this.
-                                    .validate_account()
-                                    .map_err(|_| {
-                                        M::Error::custom(
-                                            "the receiver filter only supports the `eq` or `action` operator",
-                                        )
-                                    })?,
-                                Wrapper::CC => FilterOperator::Eq(None),
-                            }
+                            Validate::<(), _>::validate_receiver(&mut map)?;
                         },
                         "gas" => {
                             filter.gas = map.validate_value()?;
@@ -293,7 +300,7 @@ mod tests {
         let res = serde_json::from_str::<FilterOptions>(json).unwrap();
         assert_eq!(res, FilterOptions {
             sender: FilterOperator::Eq(Address::from_str("5f3dffcf347944d3739b0805c934d86c8621997f").unwrap()),
-            receiver: FilterOperator::Eq(Address::from_str("e8b2d01ffa0a15736b2370b6e5064f9702c891b6").unwrap()),
+            receiver: FilterOperator::Eq(Some(Address::from_str("e8b2d01ffa0a15736b2370b6e5064f9702c891b6")).unwrap()),
             gas: FilterOperator::Eq(U256::from(300_000)),
             gas_price: FilterOperator::Eq(U256::from(5_000_000_000 as i64)),
             value: FilterOperator::Eq(U256::from(0)),
@@ -436,7 +443,7 @@ mod tests {
         "#;
         let res = serde_json::from_str::<FilterOptions>(json).unwrap();
         assert_eq!(res, FilterOptions {
-            receiver: FilterOperator::ContractCreation,
+            receiver: FilterOperator::Eq(None),
             ..default
         });
     }
