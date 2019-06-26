@@ -338,12 +338,6 @@ impl Service {
 		dir
 	}
 
-	// replace one the client's database with our own.
-	fn replace_client_db(&self) -> Result<(), Error> {
-		let rest_db = self.restoration_db();
-		self.client.restore_db(&*rest_db.to_string_lossy())
-	}
-
 	// Migrate the blocks in the current DB into the new chain
 	fn migrate_blocks(&self) -> Result<usize, Error> {
 		// Count the number of migrated blocks
@@ -676,7 +670,8 @@ impl Service {
 		let migrated_blocks = self.migrate_blocks()?;
 		info!(target: "snapshot", "Migrated {} ancient blocks", migrated_blocks);
 
-		self.replace_client_db()?;
+		// replace the Client's database with the new one (restart the Client).
+		self.client.restore_db(&*self.restoration_db().to_string_lossy())?;
 
 		if recover {
 			let mut reader = self.reader.write();
