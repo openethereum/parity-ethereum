@@ -35,9 +35,8 @@ impl Label for u32 {
 	fn len() -> usize { 4 }
 
 	fn store(&self, target: &mut [u8]) {
-		use byteorder::{BigEndian, ByteOrder};
-
-		BigEndian::write_u32(&mut target[0..4], *self);
+		let bytes = self.to_be_bytes();
+		target[0..4].copy_from_slice(&bytes);
 	}
 }
 
