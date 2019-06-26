@@ -735,8 +735,7 @@ impl AuthorityRound {
 			};
 
 			if !epoch_manager.zoom_to_after(&*client, &self.machine, &*self.validators, *header.parent_hash()) {
-				debug!(target: "engine", "Unable to zoom to epoch - block=#{} parent_hash={} epoch_transistion_number={}",
-				       header.number(), header.parent_hash(), epoch_manager.epoch_transition_number);
+				debug!(target: "engine", "Unable to zoom to epoch.");
 				return Err(EngineError::MissingParent(*header.parent_hash()).into())
 			}
 
