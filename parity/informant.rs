@@ -321,6 +321,9 @@ impl<T: InformantData> Informant<T> {
 								},
 								RestorationStatus::Initializing { chunks_done, state_chunks, block_chunks } => {
 									let total_chunks = state_chunks + block_chunks;
+									// Note that the percentage here can be slightly misleading when
+									// they have chunks already on disk: we'll import the local
+									// chunks first and then download the rest.
 									format!("Snapshot initializing ({}/{} chunks restored, {:.0}%)", chunks_done, total_chunks, (chunks_done as f32 / total_chunks as f32) * 100.0)
 								},
 								_ => String::new(),
