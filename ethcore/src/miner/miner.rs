@@ -253,6 +253,7 @@ pub struct Miner {
 	accounts: Arc<dyn LocalAccounts>,
 	io_channel: RwLock<Option<IoChannel<ClientIoMessage>>>,
 	service_transaction_checker: Option<ServiceTransactionChecker>,
+	last_parent_hash: RwLock<H256>,
 }
 
 impl Miner {
@@ -314,6 +315,7 @@ impl Miner {
 			} else {
 				Some(ServiceTransactionChecker::default())
 			},
+            last_parent_hash: RwLock::new(H256::zero())
 		}
 	}
 
@@ -674,34 +676,37 @@ impl Miner {
 			}
 		}
 
-		trace!(target: "miner", "seal_block_internally: attempting internal seal.");
+		trace!(target: "miner", "seal_block_internally: attempting internal seal for block #{}", block.header.number());
 
 		let parent_header = match chain.block_header(BlockId::Hash(*block.header.parent_hash())) {
 			Some(h) => {
 				match h.decode() {
 					Ok(decoded_hdr) => decoded_hdr,
 					Err(e) => {
-						error!(target: "miner", "seal_block_internally: Could not decode header from parent block (hash={}): {:?}", block.header.parent_hash(), e);
+						error!(target: "miner", "seal_block_internally: Block #{}, Could not decode header from parent block (hash={}): {:?}", block.header.number(), block.header.parent_hash(), e);
 						return false
 					}
 				}
 			}
 			None => {
-				trace!(target: "miner", "Parent with hash={} does not exist in our DB", block.header.parent_hash());
+				trace!(target: "miner", "Block #{}: Parent with hash={} does not exist in our DB", block.header.number(), block.header.parent_hash());
 				return false
 			},
 		};
 
-		// TODO: not the right way to do this.
-		if let Some(existing_block) = chain.block(BlockId::Number(block.header.number())) {
-			let existing_block_header = existing_block.decode_header();
-			warn!(target: "miner", "seal_block_internally: block {} already exists in the DB with parent_hash={} (timestamp={}, author={})",
-				block.header.number(),
-				existing_block_header.parent_hash()
-				existing_block_header.timestamp(),
-				existing_block_header.author(),
-			);
-			return false
+		{
+			let last_parent_hash = self.last_parent_hash.read();
+			if parent_header.hash() == *last_parent_hash {
+				warn!(target: "miner", "Trying to build block #{} on same parent hash. New block's parent hash: {}, last parent hash: {}",
+					block.header.number(), parent_header.hash(), *last_parent_hash
+				);
+				return false
+			}
+		}
+		{
+			let mut last_parent_hash = self.last_parent_hash.write();
+			trace!(target: "miner", "Block #{}, Setting last parent hash. was: {}, becomes: {}", block.header.number(), *last_parent_hash, block.header.hash());
+			*last_parent_hash = block.header.hash();
 		}
 
 		match self.engine.generate_seal(&block, &parent_header) {
@@ -1656,12 +1661,16 @@ mod tests {
 
 	#[test]
 	fn internal_seals_without_work() {
+		let _ = env_logger::try_init();
 		let spec = Spec::new_instant();
 		let miner = Miner::new_for_tests(&spec, None);
 
 		let client = generate_dummy_client(2);
 
-		let import = miner.import_external_transactions(&*client, vec![transaction_with_chain_id(spec.chain_id()).into()]).pop().unwrap();
+		let import = miner.import_external_transactions(
+			&*client,
+			vec![transaction_with_chain_id(spec.chain_id()).into()]
+		).pop().unwrap();
 		assert_eq!(import.unwrap(), ());
 
 		miner.update_sealing(&*client);
@@ -1669,11 +1678,15 @@ mod tests {
 		assert!(miner.pending_block(0).is_none());
 		assert_eq!(client.chain_info().best_block_number, 3 as BlockNumber);
 
-		assert!(miner.import_own_transaction(&*client, PendingTransaction::new(transaction_with_chain_id(spec.chain_id()).into(), None)).is_ok());
+		assert!(miner.import_own_transaction(
+			&*client,
+			PendingTransaction::new(transaction_with_chain_id(spec.chain_id()).into(), None)
+		).is_ok());
 
 		miner.update_sealing(&*client);
 		client.flush_queue();
 		assert!(miner.pending_block(0).is_none());
+		println!("NOW");
 		assert_eq!(client.chain_info().best_block_number, 4 as BlockNumber);
 	}
 
