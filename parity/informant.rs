@@ -319,8 +319,9 @@ impl<T: InformantData> Informant<T> {
 								RestorationStatus::Ongoing { state_chunks, block_chunks, state_chunks_done, block_chunks_done } => {
 									format!("Syncing snapshot {}/{}", state_chunks_done + block_chunks_done, state_chunks + block_chunks)
 								},
-								RestorationStatus::Initializing { chunks_done } => {
-									format!("Snapshot initializing ({} chunks restored)", chunks_done)
+								RestorationStatus::Initializing { chunks_done, state_chunks, block_chunks } => {
+									let total_chunks = state_chunks + block_chunks;
+									format!("Snapshot initializing ({}/{} chunks restored, {:.0}%)", chunks_done, total_chunks, (chunks_done as f32 / total_chunks as f32) * 100.0)
 								},
 								_ => String::new(),
 							}

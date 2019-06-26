@@ -193,6 +193,7 @@ impl Restoration {
 		}
 
 		self.guard.disarm();
+		trace!(target: "snapshot", "restoration finalised correctly");
 		Ok(())
 	}
 
@@ -398,7 +399,10 @@ impl Service {
 				return Ok(count);
 			}
 
-			let block = self.client.block(BlockId::Hash(parent_hash)).ok_or(::snapshot::error::Error::UnlinkedAncientBlockChain)?;
+			let block = self.client.block(BlockId::Hash(parent_hash)).ok_or_else(|| {
+				error!(target: "snapshot", "migrate_blocks: did not find block from parent_hash={} (start_hash={})", parent_hash, start_hash);
+				::snapshot::error::Error::UnlinkedAncientBlockChain
+			})?;
 			parent_hash = block.parent_hash();
 
 			let block_number = block.number();
@@ -435,6 +439,7 @@ impl Service {
 
 		// We couldn't reach the targeted hash
 		if parent_hash != target_hash {
+			error!(target: "snapshot", "migrate_blocks: could not reach the target_hash, parent_hash={:?}, target_hash={:?}, start_hash={:?}", parent_hash, target_hash, start_hash);
 			return Err(::snapshot::error::Error::UnlinkedAncientBlockChain.into());
 		}
 
@@ -549,6 +554,8 @@ impl Service {
 
 		*self.status.lock() = RestorationStatus::Initializing {
 			chunks_done: 0,
+			state_chunks: manifest.state_hashes.len() as u32,
+			block_chunks: manifest.block_hashes.len() as u32,
 		};
 
 		fs::create_dir_all(&rest_dir)?;
@@ -563,7 +570,7 @@ impl Service {
 			manifest: manifest.clone(),
 			pruning: self.pruning,
 			db: self.restoration_db_handler.open(&rest_db)?,
-			writer: writer,
+			writer,
 			genesis: &self.genesis_block,
 			guard: Guard::new(rest_db),
 			engine: &*self.engine,
@@ -695,6 +702,7 @@ impl Service {
 			Ok(()) |
 			Err(Error::Snapshot(SnapshotError::RestorationAborted)) => (),
 			Err(e) => {
+				// TODO: after this we're sometimes deadlocked
 				warn!("Encountered error during snapshot restoration: {}", e);
 				*self.restoration.lock() = None;
 				*self.status.lock() = RestorationStatus::Failed;
@@ -803,7 +811,7 @@ impl SnapshotService for Service {
 		let mut cur_status = self.status.lock();
 
 		match *cur_status {
-			RestorationStatus::Initializing { ref mut chunks_done } => {
+			RestorationStatus::Initializing { ref mut chunks_done, .. } => {
 				*chunks_done = self.state_chunks.load(Ordering::SeqCst) as u32 +
 					self.block_chunks.load(Ordering::SeqCst) as u32;
 			}
