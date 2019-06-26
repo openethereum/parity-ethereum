@@ -31,7 +31,7 @@ use engines::block_reward;
 use engines::block_reward::{BlockRewardContract, RewardKind};
 use error::{Error, BlockError};
 use ethjson;
-use machine::{AuxiliaryData, Call, EthereumMachine};
+use machine::{AuxiliaryData, Call, Machine};
 use hash::keccak;
 use super::signer::EngineSigner;
 use super::validator_set::{ValidatorSet, SimpleList, new_validator_set};
@@ -221,7 +221,7 @@ impl EpochManager {
 	fn zoom_to_after(
 		&mut self,
 		client: &dyn EngineClient,
-		machine: &EthereumMachine,
+		machine: &Machine,
 		validators: &dyn ValidatorSet,
 		hash: H256
 	) -> bool {
@@ -440,7 +440,7 @@ pub struct AuthorityRound {
 	empty_steps_transition: u64,
 	strict_empty_steps_transition: u64,
 	maximum_empty_steps: usize,
-	machine: EthereumMachine,
+	machine: Machine,
 }
 
 // header-chain validator.
@@ -450,7 +450,7 @@ struct EpochVerifier {
 	empty_steps_transition: u64,
 }
 
-impl super::EpochVerifier<EthereumMachine> for EpochVerifier {
+impl super::EpochVerifier for EpochVerifier {
 	fn verify_light(&self, header: &Header) -> Result<(), Error> {
 		// Validate the timestamp
 		verify_timestamp(&self.step.inner, header_step(header, self.empty_steps_transition)?)?;
@@ -671,7 +671,7 @@ impl<'a, A: ?Sized, B> Deref for CowLike<'a, A, B> where B: AsRef<A> {
 
 impl AuthorityRound {
 	/// Create a new instance of AuthorityRound engine.
-	pub fn new(our_params: AuthorityRoundParams, machine: EthereumMachine) -> Result<Arc<Self>, Error> {
+	pub fn new(our_params: AuthorityRoundParams, machine: Machine) -> Result<Arc<Self>, Error> {
 		if our_params.step_duration == 0 {
 			error!(target: "engine", "Authority Round step duration can't be zero, aborting");
 			panic!("authority_round: step duration can't be zero")
@@ -941,10 +941,10 @@ impl IoHandler<()> for TransitionHandler {
 	}
 }
 
-impl Engine<EthereumMachine> for AuthorityRound {
+impl Engine for AuthorityRound {
 	fn name(&self) -> &str { "AuthorityRound" }
 
-	fn machine(&self) -> &EthereumMachine { &self.machine }
+	fn machine(&self) -> &Machine { &self.machine }
 
 	/// Three fields - consensus step and the corresponding proposer signature, and a list of empty
 	/// step messages (which should be empty if no steps are skipped)
@@ -1429,7 +1429,7 @@ impl Engine<EthereumMachine> for AuthorityRound {
 	}
 
 	fn signals_epoch_end(&self, header: &Header, aux: AuxiliaryData)
-		-> super::EpochChange<EthereumMachine>
+		-> super::EpochChange
 	{
 		if self.immediate_transitions { return super::EpochChange::No }
 
@@ -1551,7 +1551,7 @@ impl Engine<EthereumMachine> for AuthorityRound {
 		None
 	}
 
-	fn epoch_verifier<'a>(&self, _header: &Header, proof: &'a [u8]) -> ConstructedVerifier<'a, EthereumMachine> {
+	fn epoch_verifier<'a>(&self, _header: &Header, proof: &'a [u8]) -> ConstructedVerifier<'a> {
 		let (signal_number, set_proof, finality_proof) = match destructure_proofs(proof) {
 			Ok(x) => x,
 			Err(e) => return ConstructedVerifier::Err(e),
@@ -1640,6 +1640,7 @@ mod tests {
 	use engines::validator_set::{TestSet, SimpleList};
 	use error::Error;
 	use super::{AuthorityRoundParams, AuthorityRound, EmptyStep, SealedEmptyStep, calculate_score};
+	use machine::Machine;
 
 	fn build_aura<F>(f: F) -> Arc<AuthorityRound> where
 		F: FnOnce(&mut AuthorityRoundParams),
@@ -1666,7 +1667,7 @@ mod tests {
 		// create engine
 		let mut c_params = ::spec::CommonParams::default();
 		c_params.gas_limit_bound_divisor = 5.into();
-		let machine = ::machine::EthereumMachine::regular(c_params, Default::default());
+		let machine = Machine::regular(c_params, Default::default());
 		AuthorityRound::new(params, machine).unwrap()
 	}
 

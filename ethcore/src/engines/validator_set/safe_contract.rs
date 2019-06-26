@@ -33,7 +33,7 @@ use types::receipt::Receipt;
 use unexpected::Mismatch;
 
 use client::EngineClient;
-use machine::{AuxiliaryData, Call, EthereumMachine, AuxiliaryRequest};
+use machine::{AuxiliaryData, Call, Machine, AuxiliaryRequest};
 use super::{SystemCall, ValidatorSet};
 use super::simple_list::SimpleList;
 
@@ -55,12 +55,12 @@ struct StateProof {
 	header: Header,
 }
 
-impl ::engines::StateDependentProof<EthereumMachine> for StateProof {
+impl ::engines::StateDependentProof for StateProof {
 	fn generate_proof(&self, caller: &Call) -> Result<Vec<u8>, String> {
 		prove_initial(self.contract_address, &self.header, caller)
 	}
 
-	fn check_proof(&self, machine: &EthereumMachine, proof: &[u8]) -> Result<(), String> {
+	fn check_proof(&self, machine: &Machine, proof: &[u8]) -> Result<(), String> {
 		let (header, state_items) = decode_first_proof(&Rlp::new(proof))
 			.map_err(|e| format!("proof incorrectly encoded: {}", e))?;
 		if &header != &self.header {
@@ -90,7 +90,7 @@ fn encode_first_proof(header: &Header, state_items: &[Vec<u8>]) -> Bytes {
 }
 
 // check a first proof: fetch the validator set at the given block.
-fn check_first_proof(machine: &EthereumMachine, contract_address: Address, old_header: Header, state_items: &[DBValue])
+fn check_first_proof(machine: &Machine, contract_address: Address, old_header: Header, state_items: &[DBValue])
 	-> Result<Vec<Address>, String>
 {
 	use types::transaction::{Action, Transaction};
@@ -308,7 +308,7 @@ impl ValidatorSet for ValidatorSafeContract {
 	}
 
 	fn signals_epoch_end(&self, first: bool, header: &Header, aux: AuxiliaryData)
-		-> ::engines::EpochChange<EthereumMachine>
+		-> ::engines::EpochChange
 	{
 		let receipts = aux.receipts;
 
@@ -345,7 +345,7 @@ impl ValidatorSet for ValidatorSafeContract {
 		}
 	}
 
-	fn epoch_set(&self, first: bool, machine: &EthereumMachine, _number: ::types::BlockNumber, proof: &[u8])
+	fn epoch_set(&self, first: bool, machine: &Machine, _number: ::types::BlockNumber, proof: &[u8])
 		-> Result<(SimpleList, Option<H256>), ::error::Error>
 	{
 		let rlp = Rlp::new(proof);

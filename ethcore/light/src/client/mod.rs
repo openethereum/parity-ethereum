@@ -20,7 +20,6 @@ use std::sync::{Weak, Arc};
 
 use ethcore::client::{ClientReport, EnvInfo, ClientIoMessage};
 use ethcore::engines::{epoch, EthEngine, EpochChange, EpochTransition, Proof};
-use ethcore::machine::EthereumMachine;
 use ethcore::error::{Error, EthcoreResult};
 use ethcore::verification::queue::{self, HeaderQueue};
 use ethcore::spec::{Spec, SpecHardcodedSync};
@@ -468,7 +467,7 @@ impl<T: ChainDataFetcher> Client<T> {
 		true
 	}
 
-	fn check_epoch_signal(&self, verified_header: &Header) -> Result<Option<Proof<EthereumMachine>>, T::Error> {
+	fn check_epoch_signal(&self, verified_header: &Header) -> Result<Option<Proof>, T::Error> {
 		use ethcore::machine::{AuxiliaryRequest, AuxiliaryData};
 
 		let mut block: Option<Vec<u8>> = None;
@@ -514,7 +513,7 @@ impl<T: ChainDataFetcher> Client<T> {
 	}
 
 	// attempts to fetch the epoch proof from the network until successful.
-	fn write_pending_proof(&self, header: &Header, proof: Proof<EthereumMachine>) -> Result<(), T::Error> {
+	fn write_pending_proof(&self, header: &Header, proof: Proof) -> Result<(), T::Error> {
 		let proof = match proof {
 			Proof::Known(known) => known,
 			Proof::WithState(state_dependent) => {

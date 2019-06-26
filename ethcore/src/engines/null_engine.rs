@@ -21,6 +21,7 @@ use machine::Machine;
 use types::BlockNumber;
 use types::header::{Header, ExtendedHeader};
 use block::ExecutedBlock;
+use error::Error;
 
 /// Params for a null engine.
 #[derive(Clone, Default)]
@@ -38,35 +39,29 @@ impl From<::ethjson::spec::NullEngineParams> for NullEngineParams {
 }
 
 /// An engine which does not provide any consensus mechanism and does not seal blocks.
-pub struct NullEngine<M> {
+pub struct NullEngine {
 	params: NullEngineParams,
-	machine: M,
+	machine: Machine,
 }
 
-impl<M> NullEngine<M> {
+impl NullEngine {
 	/// Returns new instance of NullEngine with default VM Factory
-	pub fn new(params: NullEngineParams, machine: M) -> Self {
+	pub fn new(params: NullEngineParams, machine: Machine) -> Self {
 		NullEngine {
-			params: params,
-			machine: machine,
+			params,
+			machine,
 		}
 	}
 }
 
-impl<M: Default> Default for NullEngine<M> {
-	fn default() -> Self {
-		Self::new(Default::default(), Default::default())
-	}
-}
-
-impl<M: Machine> Engine<M> for NullEngine<M> {
+impl Engine for NullEngine {
 	fn name(&self) -> &str {
 		"NullEngine"
 	}
 
-	fn machine(&self) -> &M { &self.machine }
+	fn machine(&self) -> &Machine { &self.machine }
 
-	fn on_close_block(&self, block: &mut ExecutedBlock) -> Result<(), M::Error> {
+	fn on_close_block(&self, block: &mut ExecutedBlock) -> Result<(), Error> {
 		use std::ops::Shr;
 
 		let author = *block.header.author();
@@ -95,7 +90,7 @@ impl<M: Machine> Engine<M> for NullEngine<M> {
 
 	fn maximum_uncle_count(&self, _block: BlockNumber) -> usize { 2 }
 
-	fn verify_local_seal(&self, _header: &Header) -> Result<(), M::Error> {
+	fn verify_local_seal(&self, _header: &Header) -> Result<(), Error> {
 		Ok(())
 	}
 

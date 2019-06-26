@@ -34,7 +34,7 @@ use bytes::Bytes;
 use ethtrie;
 use rlp::RlpStream;
 use hash::keccak;
-use machine::EthereumMachine as Machine;
+use machine::Machine;
 use ethereum_types::BigEndianHash;
 
 use super::HookType;

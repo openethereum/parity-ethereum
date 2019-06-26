@@ -22,7 +22,6 @@ use common_types::encoded;
 use common_types::header::Header;
 use common_types::receipt::Receipt;
 use ethcore::engines::{EthEngine, StateDependentProof};
-use ethcore::machine::EthereumMachine;
 use ethereum_types::H256;
 use futures::future::IntoFuture;
 
@@ -49,7 +48,7 @@ pub trait ChainDataFetcher: Send + Sync + 'static {
 		&self,
 		_hash: H256,
 		_engine: Arc<EthEngine>,
-		_checker: Arc<StateDependentProof<EthereumMachine>>
+		_checker: Arc<StateDependentProof>
 	) -> Self::Transition;
 }
 
@@ -78,7 +77,7 @@ impl ChainDataFetcher for Unavailable {
 		&self,
 		_hash: H256,
 		_engine: Arc<EthEngine>,
-		_checker: Arc<StateDependentProof<EthereumMachine>>
+		_checker: Arc<StateDependentProof>
 	) -> Self::Transition {
 		Err("fetching epoch transition proofs unavailable")
 	}
