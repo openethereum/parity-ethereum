@@ -1110,7 +1110,7 @@ impl miner::MinerService for Miner {
 					.filter(|tx| {
 						filter.as_ref().map_or(true, |filter| {
 							let sender = tx.signed().sender();
-							match filter.sender {
+							match filter.from {
 								Eq(value) => sender == value,
 								// Will always occure on `Any`, other operators
 								// get handled during deserialization
@@ -1122,7 +1122,7 @@ impl miner::MinerService for Miner {
 					.filter(|tx| {
 						filter.as_ref().map_or(true, |filter| {
 							let receiver = tx.signed().receiver();
-							match filter.receiver {
+							match filter.to {
 								// Could apply to `Some(Address)` or `None` (for contract creation)
 								Eq(value) => receiver == value,
 								// Will always occure on `Any`, other operators
