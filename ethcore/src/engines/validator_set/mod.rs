@@ -28,7 +28,7 @@ use std::sync::Weak;
 use bytes::Bytes;
 use ethereum_types::{H256, Address};
 use ethjson::spec::ValidatorSet as ValidatorSpec;
-use machine::{AuxiliaryData, Call, EthereumMachine};
+use machine::{AuxiliaryData, Call, Machine};
 use types::BlockNumber;
 use types::header::Header;
 use types::ids::BlockId;
@@ -113,7 +113,7 @@ pub trait ValidatorSet: Send + Sync + 'static {
 		first: bool,
 		header: &Header,
 		aux: AuxiliaryData,
-	) -> ::engines::EpochChange<EthereumMachine>;
+	) -> ::engines::EpochChange;
 
 	/// Recover the validator set from the given proof, the block number, and
 	/// whether this header is first in its set.
@@ -123,7 +123,7 @@ pub trait ValidatorSet: Send + Sync + 'static {
 	///
 	/// Returns the set, along with a flag indicating whether finality of a specific
 	/// hash should be proven.
-	fn epoch_set(&self, first: bool, machine: &EthereumMachine, number: BlockNumber, proof: &[u8])
+	fn epoch_set(&self, first: bool, machine: &Machine, number: BlockNumber, proof: &[u8])
 		-> Result<(SimpleList, Option<H256>), ::error::Error>;
 
 	/// Checks if a given address is a validator, with the given function

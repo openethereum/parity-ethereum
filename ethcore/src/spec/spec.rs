@@ -41,7 +41,7 @@ use engines::{
 use error::Error;
 use executive::Executive;
 use factory::Factories;
-use machine::EthereumMachine;
+use machine::Machine;
 use pod_state::PodState;
 use spec::Genesis;
 use spec::seal::Generic as GenericSeal;
@@ -488,7 +488,7 @@ impl From<SpecHardcodedSync> for ethjson::spec::HardcodedSync {
 	}
 }
 
-fn load_machine_from(s: ethjson::spec::Spec) -> EthereumMachine {
+fn load_machine_from(s: ethjson::spec::Spec) -> Machine {
 	let builtins = s.accounts.builtins().into_iter().map(|p| (p.0.into(), From::from(p.1))).collect();
 	let params = CommonParams::from(s.params);
 
@@ -586,11 +586,11 @@ impl Spec {
 		engine_spec: &ethjson::spec::Engine,
 		params: CommonParams,
 		builtins: BTreeMap<Address, Builtin>,
-	) -> EthereumMachine {
+	) -> Machine {
 		if let ethjson::spec::Engine::Ethash(ref ethash) = *engine_spec {
-			EthereumMachine::with_ethash_extensions(params, builtins, ethash.params.clone().into())
+			Machine::with_ethash_extensions(params, builtins, ethash.params.clone().into())
 		} else {
-			EthereumMachine::regular(params, builtins)
+			Machine::regular(params, builtins)
 		}
 	}
 
@@ -824,7 +824,7 @@ impl Spec {
 	}
 
 	/// Loads just the state machine from a json file.
-	pub fn load_machine<R: Read>(reader: R) -> Result<EthereumMachine, String> {
+	pub fn load_machine<R: Read>(reader: R) -> Result<Machine, String> {
 		ethjson::spec::Spec::load(reader)
 			.map_err(fmt_err)
 			.map(load_machine_from)
@@ -912,9 +912,9 @@ impl Spec {
 		load_bundled!("null_morden")
 	}
 
-	/// Create the EthereumMachine corresponding to Spec::new_test.
+	/// Create the Machine corresponding to Spec::new_test.
 	#[cfg(any(test, feature = "test-helpers"))]
-	pub fn new_test_machine() -> EthereumMachine { load_machine_bundled!("null_morden") }
+	pub fn new_test_machine() -> Machine { load_machine_bundled!("null_morden") }
 
 	/// Create a new Spec which conforms to the Frontier-era Morden chain except that it's a NullEngine consensus with applying reward on block close.
 	#[cfg(any(test, feature = "test-helpers"))]

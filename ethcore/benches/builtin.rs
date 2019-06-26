@@ -28,13 +28,13 @@ extern crate rustc_hex;
 use criterion::{Criterion, Bencher};
 use bytes::BytesRef;
 use ethcore::builtin::Builtin;
-use ethcore::machine::EthereumMachine;
+use ethcore::machine::Machine;
 use ethereum_types::H160;
 use ethcore::ethereum::new_byzantium_test_machine;
 use rustc_hex::FromHex;
 
 lazy_static! {
-	static ref BYZANTIUM_MACHINE: EthereumMachine = new_byzantium_test_machine();
+	static ref BYZANTIUM_MACHINE: Machine = new_byzantium_test_machine();
 }
 
 struct BuiltinBenchmark<'a> {

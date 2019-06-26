@@ -19,7 +19,6 @@
 use std::sync::Arc;
 
 use engines::{EthEngine, EpochVerifier};
-use machine::EthereumMachine;
 
 use blockchain::BlockChain;
 use parking_lot::RwLock;
@@ -32,7 +31,7 @@ const HEAVY_VERIFY_RATE: f32 = 0.02;
 /// Ancient block verifier: import an ancient sequence of blocks in order from a starting
 /// epoch.
 pub struct AncientVerifier {
-	cur_verifier: RwLock<Option<Box<dyn EpochVerifier<EthereumMachine>>>>,
+	cur_verifier: RwLock<Option<Box<dyn EpochVerifier>>>,
 	engine: Arc<dyn EthEngine>,
 }
 
@@ -87,7 +86,7 @@ impl AncientVerifier {
 	}
 
 	fn initial_verifier(&self, header: &Header, chain: &BlockChain)
-		-> Result<Box<dyn EpochVerifier<EthereumMachine>>, ::error::Error>
+		-> Result<Box<dyn EpochVerifier>, ::error::Error>
 	{
 		trace!(target: "client", "Initializing ancient block restoration.");
 		let current_epoch_data = chain.epoch_transitions()

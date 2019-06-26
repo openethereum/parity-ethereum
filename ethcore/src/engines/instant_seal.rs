@@ -18,6 +18,7 @@ use engines::{Engine, Seal, SealingState};
 use machine::Machine;
 use types::header::{Header, ExtendedHeader};
 use block::ExecutedBlock;
+use error::Error;
 
 /// `InstantSeal` params.
 #[derive(Default, Debug, PartialEq)]
@@ -36,26 +37,27 @@ impl From<::ethjson::spec::InstantSealParams> for InstantSealParams {
 
 /// An engine which does not provide any consensus mechanism, just seals blocks internally.
 /// Only seals blocks which have transactions.
-pub struct InstantSeal<M> {
+pub struct InstantSeal {
 	params: InstantSealParams,
-	machine: M,
+	machine: Machine,
 }
 
-impl<M> InstantSeal<M> {
+impl InstantSeal {
 	/// Returns new instance of InstantSeal over the given state machine.
-	pub fn new(params: InstantSealParams, machine: M) -> Self {
+	pub fn new(params: InstantSealParams, machine: Machine) -> Self {
 		InstantSeal {
-			params, machine,
+			params,
+			machine,
 		}
 	}
 }
 
-impl<M: Machine> Engine<M> for InstantSeal<M> {
+impl Engine for InstantSeal {
 	fn name(&self) -> &str {
 		"InstantSeal"
 	}
 
-	fn machine(&self) -> &M { &self.machine }
+	fn machine(&self) -> &Machine { &self.machine }
 
 	fn sealing_state(&self) -> SealingState { SealingState::Ready }
 
@@ -67,7 +69,7 @@ impl<M: Machine> Engine<M> for InstantSeal<M> {
 		}
 	}
 
-	fn verify_local_seal(&self, _header: &Header) -> Result<(), M::Error> {
+	fn verify_local_seal(&self, _header: &Header) -> Result<(), Error> {
 		Ok(())
 	}
 

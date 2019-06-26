@@ -49,6 +49,7 @@ use types::header::{Header, ExtendedHeader};
 use snapshot::SnapshotComponents;
 use spec::CommonParams;
 use types::transaction::{self, UnverifiedTransaction, SignedTransaction};
+use client::EngineClient;
 
 use ethkey::{Signature};
 use machine::{self, Machine, AuxiliaryRequest, AuxiliaryData};
@@ -190,7 +191,7 @@ pub enum SystemOrCodeCallKind {
 }
 
 /// Default SystemOrCodeCall implementation.
-pub fn default_system_or_code_call<'a>(machine: &'a ::machine::EthereumMachine, block: &'a mut ::block::ExecutedBlock) -> impl FnMut(SystemOrCodeCallKind, Vec<u8>) -> Result<Vec<u8>, String> + 'a {
+pub fn default_system_or_code_call<'a>(machine: &'a ::machine::Machine, block: &'a mut ::block::ExecutedBlock) -> impl FnMut(SystemOrCodeCallKind, Vec<u8>) -> Result<Vec<u8>, String> + 'a {
 	move |to, data| {
 		let result = match to {
 			SystemOrCodeCallKind::Address(address) => {
@@ -226,38 +227,38 @@ pub type Headers<'a, H> = dyn Fn(H256) -> Option<H> + 'a;
 pub type PendingTransitionStore<'a> = dyn Fn(H256) -> Option<epoch::PendingTransition> + 'a;
 
 /// Proof dependent on state.
-pub trait StateDependentProof<M: Machine>: Send + Sync {
+pub trait StateDependentProof: Send + Sync {
 	/// Generate a proof, given the state.
 	fn generate_proof<'a>(&self, state: &machine::Call) -> Result<Vec<u8>, String>;
 	/// Check a proof generated elsewhere (potentially by a peer).
 	// `engine` needed to check state proofs, while really this should
 	// just be state machine params.
-	fn check_proof(&self, machine: &M, proof: &[u8]) -> Result<(), String>;
+	fn check_proof(&self, machine: &Machine, proof: &[u8]) -> Result<(), String>;
 }
 
 /// Proof generated on epoch change.
-pub enum Proof<M: Machine> {
+pub enum Proof {
 	/// Known proof (extracted from signal)
 	Known(Vec<u8>),
 	/// State dependent proof.
-	WithState(Arc<dyn StateDependentProof<M>>),
+	WithState(Arc<dyn StateDependentProof>),
 }
 
 /// Generated epoch verifier.
-pub enum ConstructedVerifier<'a, M: Machine> {
+pub enum ConstructedVerifier<'a> {
 	/// Fully trusted verifier.
-	Trusted(Box<dyn EpochVerifier<M>>),
+	Trusted(Box<dyn EpochVerifier>),
 	/// Verifier unconfirmed. Check whether given finality proof finalizes given hash
 	/// under previous epoch.
-	Unconfirmed(Box<dyn EpochVerifier<M>>, &'a [u8], H256),
+	Unconfirmed(Box<dyn EpochVerifier>, &'a [u8], H256),
 	/// Error constructing verifier.
 	Err(Error),
 }
 
-impl<'a, M: Machine> ConstructedVerifier<'a, M> {
+impl<'a> ConstructedVerifier<'a> {
 	/// Convert to a result, indicating that any necessary confirmation has been done
 	/// already.
-	pub fn known_confirmed(self) -> Result<Box<dyn EpochVerifier<M>>, Error> {
+	pub fn known_confirmed(self) -> Result<Box<dyn EpochVerifier>, Error> {
 		match self {
 			ConstructedVerifier::Trusted(v) | ConstructedVerifier::Unconfirmed(v, _, _) => Ok(v),
 			ConstructedVerifier::Err(e) => Err(e),
@@ -266,24 +267,24 @@ impl<'a, M: Machine> ConstructedVerifier<'a, M> {
 }
 
 /// Results of a query of whether an epoch change occurred at the given block.
-pub enum EpochChange<M: Machine> {
+pub enum EpochChange {
 	/// Cannot determine until more data is passed.
 	Unsure(AuxiliaryRequest),
 	/// No epoch change.
 	No,
 	/// The epoch will change, with proof.
-	Yes(Proof<M>),
+	Yes(Proof),
 }
 
 /// A consensus mechanism for the chain. Generally either proof-of-work or proof-of-stake-based.
 /// Provides hooks into each of the major parts of block import.
-pub trait Engine<M: Machine>: Sync + Send {
+pub trait Engine: Sync + Send {
 	/// The name of this engine.
 	fn name(&self) -> &str;
 
 	/// Get access to the underlying state machine.
 	// TODO: decouple.
-	fn machine(&self) -> &M;
+	fn machine(&self) -> &Machine;
 
 	/// The number of additional header fields required for this engine.
 	fn seal_fields(&self, _header: &Header) -> usize { 0 }
@@ -304,12 +305,12 @@ pub trait Engine<M: Machine>: Sync + Send {
 		_block: &mut ExecutedBlock,
 		_epoch_begin: bool,
 		_ancestry: &mut dyn Iterator<Item = ExtendedHeader>,
-	) -> Result<(), M::Error> {
+	) -> Result<(), Error> {
 		Ok(())
 	}
 
 	/// Block transformation functions, after the transactions.
-	fn on_close_block(&self, _block: &mut ExecutedBlock) -> Result<(), M::Error> {
+	fn on_close_block(&self, _block: &mut ExecutedBlock) -> Result<(), Error> {
 		Ok(())
 	}
 
@@ -340,22 +341,22 @@ pub trait Engine<M: Machine>: Sync + Send {
 	///
 	/// It is fine to require access to state or a full client for this function, since
 	/// light clients do not generate seals.
-	fn verify_local_seal(&self, header: &Header) -> Result<(), M::Error>;
+	fn verify_local_seal(&self, header: &Header) -> Result<(), Error>;
 
 	/// Phase 1 quick block verification. Only does checks that are cheap. Returns either a null `Ok` or a general error detailing the problem with import.
 	/// The verification module can optionally avoid checking the seal (`check_seal`), if seal verification is disabled this method won't be called.
-	fn verify_block_basic(&self, _header: &Header) -> Result<(), M::Error> { Ok(()) }
+	fn verify_block_basic(&self, _header: &Header) -> Result<(), Error> { Ok(()) }
 
 	/// Phase 2 verification. Perform costly checks such as transaction signatures. Returns either a null `Ok` or a general error detailing the problem with import.
 	/// The verification module can optionally avoid checking the seal (`check_seal`), if seal verification is disabled this method won't be called.
-	fn verify_block_unordered(&self, _header: &Header) -> Result<(), M::Error> { Ok(()) }
+	fn verify_block_unordered(&self, _header: &Header) -> Result<(), Error> { Ok(()) }
 
 	/// Phase 3 verification. Check block information against parent. Returns either a null `Ok` or a general error detailing the problem with import.
-	fn verify_block_family(&self, _header: &Header, _parent: &Header) -> Result<(), M::Error> { Ok(()) }
+	fn verify_block_family(&self, _header: &Header, _parent: &Header) -> Result<(), Error> { Ok(()) }
 
 	/// Phase 4 verification. Verify block header against potentially external data.
 	/// Should only be called when `register_client` has been called previously.
-	fn verify_block_external(&self, _header: &Header) -> Result<(), M::Error> { Ok(()) }
+	fn verify_block_external(&self, _header: &Header) -> Result<(), Error> { Ok(()) }
 
 	/// Genesis epoch data.
 	fn genesis_epoch_data<'a>(&self, _header: &Header, _state: &machine::Call) -> Result<Vec<u8>, String> { Ok(Vec::new()) }
@@ -370,7 +371,7 @@ pub trait Engine<M: Machine>: Sync + Send {
 	///
 	/// Should not interact with state.
 	fn signals_epoch_end<'a>(&self, _header: &Header, _aux: AuxiliaryData<'a>)
-		-> EpochChange<M>
+		-> EpochChange
 	{
 		EpochChange::No
 	}
@@ -413,7 +414,7 @@ pub trait Engine<M: Machine>: Sync + Send {
 
 	/// Create an epoch verifier from validation proof and a flag indicating
 	/// whether finality is required.
-	fn epoch_verifier<'a>(&self, _header: &Header, _proof: &'a [u8]) -> ConstructedVerifier<'a, M> {
+	fn epoch_verifier<'a>(&self, _header: &Header, _proof: &'a [u8]) -> ConstructedVerifier<'a> {
 		ConstructedVerifier::Trusted(Box::new(NoOp))
 	}
 
@@ -429,10 +430,10 @@ pub trait Engine<M: Machine>: Sync + Send {
 	fn set_signer(&self, _signer: Box<dyn EngineSigner>) {}
 
 	/// Sign using the EngineSigner, to be used for consensus tx signing.
-	fn sign(&self, _hash: H256) -> Result<Signature, M::Error> { unimplemented!() }
+	fn sign(&self, _hash: H256) -> Result<Signature, Error> { unimplemented!() }
 
 	/// Add Client which can be used for sealing, potentially querying the state and sending messages.
-	fn register_client(&self, _client: Weak<M::EngineClient>) {}
+	fn register_client(&self, _client: Weak<dyn EngineClient>) {}
 
 	/// Trigger next step of the consensus engine.
 	fn step(&self) {}
@@ -489,7 +490,7 @@ pub fn total_difficulty_fork_choice(new: &ExtendedHeader, best: &ExtendedHeader)
 // TODO: make this a _trait_ alias when those exist.
 // fortunately the effect is largely the same since engines are mostly used
 // via trait objects.
-pub trait EthEngine: Engine<::machine::EthereumMachine> {
+pub trait EthEngine: Engine {
 	/// Get the general parameters of the chain.
 	fn params(&self) -> &CommonParams {
 		self.machine().params()
@@ -569,16 +570,16 @@ pub trait EthEngine: Engine<::machine::EthereumMachine> {
 }
 
 // convenience wrappers for existing functions.
-impl<T> EthEngine for T where T: Engine<::machine::EthereumMachine> { }
+impl<T> EthEngine for T where T: Engine { }
 
 /// Verifier for all blocks within an epoch with self-contained state.
-pub trait EpochVerifier<M: machine::Machine>: Send + Sync {
+pub trait EpochVerifier: Send + Sync {
 	/// Lightly verify the next block header.
 	/// This may not be a header belonging to a different epoch.
-	fn verify_light(&self, header: &Header) -> Result<(), M::Error>;
+	fn verify_light(&self, header: &Header) -> Result<(), Error>;
 
 	/// Perform potentially heavier checks on the next block header.
-	fn verify_heavy(&self, header: &Header) -> Result<(), M::Error> {
+	fn verify_heavy(&self, header: &Header) -> Result<(), Error> {
 		self.verify_light(header)
 	}
 
@@ -593,6 +594,6 @@ pub trait EpochVerifier<M: machine::Machine>: Send + Sync {
 /// Special "no-op" verifier for stateless, epoch-less engines.
 pub struct NoOp;
 
-impl<M: machine::Machine> EpochVerifier<M> for NoOp {
-	fn verify_light(&self, _header: &Header) -> Result<(), M::Error> { Ok(()) }
+impl EpochVerifier for NoOp {
+	fn verify_light(&self, _header: &Header) -> Result<(), Error> { Ok(()) }
 }

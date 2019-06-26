@@ -23,7 +23,7 @@ use ethereum_types::{H256, U256, U512, Address};
 use bytes::{Bytes, BytesRef};
 use state::{Backend as StateBackend, State, Substate, CleanupMode};
 use executed::ExecutionError;
-use machine::EthereumMachine as Machine;
+use machine::Machine;
 use evm::{CallType, Finalize, FinalizationResult};
 use vm::{
 	self, EnvInfo, CreateContractAddress, ReturnData, CleanDustMode, ActionParams,
@@ -1179,7 +1179,7 @@ mod tests {
 	use vm::{ActionParams, ActionValue, CallType, EnvInfo, CreateContractAddress};
 	use evm::{Factory, VMType};
 	use error::ExecutionError;
-	use machine::EthereumMachine;
+	use machine::Machine;
 	use state::{Substate, CleanupMode};
 	use test_helpers::{get_temp_state_with_factory, get_temp_state};
 	use trace::trace;
@@ -1187,13 +1187,13 @@ mod tests {
 	use trace::{VMTrace, VMOperation, VMExecutedOperation, MemoryDiff, StorageDiff, VMTracer, NoopVMTracer, ExecutiveVMTracer};
 	use types::transaction::{Action, Transaction};
 
-	fn make_frontier_machine(max_depth: usize) -> EthereumMachine {
+	fn make_frontier_machine(max_depth: usize) -> Machine {
 		let mut machine = ::ethereum::new_frontier_test_machine();
 		machine.set_schedule_creation_rules(Box::new(move |s, _| s.max_depth = max_depth));
 		machine
 	}
 
-	fn make_byzantium_machine(max_depth: usize) -> EthereumMachine {
+	fn make_byzantium_machine(max_depth: usize) -> Machine {
 		let mut machine = ::ethereum::new_byzantium_test_machine();
 		machine.set_schedule_creation_rules(Box::new(move |s, _| s.max_depth = max_depth));
 		machine

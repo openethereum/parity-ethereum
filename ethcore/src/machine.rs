@@ -70,7 +70,7 @@ impl From<::ethjson::spec::EthashParams> for EthashExtensions {
 pub type ScheduleCreationRules = dyn Fn(&mut Schedule, BlockNumber) + Sync + Send;
 
 /// An ethereum-like state machine.
-pub struct EthereumMachine {
+pub struct Machine {
 	params: CommonParams,
 	builtins: Arc<BTreeMap<Address, Builtin>>,
 	tx_filter: Option<Arc<TransactionFilter>>,
@@ -78,11 +78,11 @@ pub struct EthereumMachine {
 	schedule_rules: Option<Box<ScheduleCreationRules>>,
 }
 
-impl EthereumMachine {
+impl Machine {
 	/// Regular ethereum machine.
-	pub fn regular(params: CommonParams, builtins: BTreeMap<Address, Builtin>) -> EthereumMachine {
+	pub fn regular(params: CommonParams, builtins: BTreeMap<Address, Builtin>) -> Machine {
 		let tx_filter = TransactionFilter::from_params(&params).map(Arc::new);
-		EthereumMachine {
+		Machine {
 			params: params,
 			builtins: Arc::new(builtins),
 			tx_filter: tx_filter,
@@ -93,8 +93,8 @@ impl EthereumMachine {
 
 	/// Ethereum machine with ethash extensions.
 	// TODO: either unify or specify to mainnet specifically and include other specific-chain HFs?
-	pub fn with_ethash_extensions(params: CommonParams, builtins: BTreeMap<Address, Builtin>, extensions: EthashExtensions) -> EthereumMachine {
-		let mut machine = EthereumMachine::regular(params, builtins);
+	pub fn with_ethash_extensions(params: CommonParams, builtins: BTreeMap<Address, Builtin>, extensions: EthashExtensions) -> Machine {
+		let mut machine = Machine::regular(params, builtins);
 		machine.ethash_extensions = Some(extensions);
 		machine
 	}
@@ -110,7 +110,7 @@ impl EthereumMachine {
 	}
 }
 
-impl EthereumMachine {
+impl Machine {
 	/// Execute a call as the system address. Block environment information passed to the
 	/// VM is modified to have its gas limit bounded at the upper limit of possible used
 	/// gases including this system call, capped at the maximum value able to be
@@ -428,16 +428,15 @@ pub enum AuxiliaryRequest {
 	Both,
 }
 
-impl super::Machine for EthereumMachine {
-	type EngineClient = dyn (::client::EngineClient);
-
-	type Error = Error;
-
-	fn balance(&self, live: &ExecutedBlock, address: &Address) -> Result<U256, Error> {
+impl Machine {
+	/// Get the balance, in base units, associated with an account.
+	/// Extracts data from the live block.
+	pub fn balance(&self, live: &ExecutedBlock, address: &Address) -> Result<U256, Error> {
 		live.state.balance(address).map_err(Into::into)
 	}
 
-	fn add_balance(&self, live: &mut ExecutedBlock, address: &Address, amount: &U256) -> Result<(), Error> {
+	/// Increment the balance of an account in the state of the live block.
+	pub fn add_balance(&self, live: &mut ExecutedBlock, address: &Address, amount: &U256) -> Result<(), Error> {
 		live.state_mut().add_balance(address, amount, CleanupMode::NoEmpty).map_err(Into::into)
 	}
 }
@@ -480,7 +479,7 @@ mod tests {
 		let spec = ::ethereum::new_ropsten_test();
 		let ethparams = get_default_ethash_extensions();
 
-		let machine = EthereumMachine::with_ethash_extensions(
+		let machine = Machine::with_ethash_extensions(
 			spec.params().clone(),
 			Default::default(),
 			ethparams,
@@ -499,7 +498,7 @@ mod tests {
 		let spec = ::ethereum::new_homestead_test();
 		let ethparams = get_default_ethash_extensions();
 
-		let machine = EthereumMachine::with_ethash_extensions(
+		let machine = Machine::with_ethash_extensions(
 			spec.params().clone(),
 			Default::default(),
 			ethparams,

@@ -25,7 +25,6 @@ use common_types::encoded;
 use common_types::receipt::Receipt;
 use common_types::transaction::SignedTransaction;
 use ethcore::engines::{EthEngine, StateDependentProof};
-use ethcore::machine::EthereumMachine;
 use ethcore::state::{self, ProvedExecution};
 use ethereum_types::{H256, U256, Address};
 use ethtrie::{TrieError, TrieDB};
@@ -1083,7 +1082,7 @@ pub struct Signal {
 	/// Consensus engine, used to check the proof.
 	pub engine: Arc<EthEngine>,
 	/// Special checker for the proof.
-	pub proof_check: Arc<StateDependentProof<EthereumMachine>>,
+	pub proof_check: Arc<StateDependentProof>,
 }
 
 impl Signal {

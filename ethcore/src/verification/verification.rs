@@ -788,7 +788,7 @@ mod tests {
 	fn dust_protection() {
 		use ethkey::{Generator, Random};
 		use types::transaction::{Transaction, Action};
-		use machine::EthereumMachine;
+		use machine::Machine;
 		use engines::NullEngine;
 
 		let mut params = CommonParams::default();
@@ -810,7 +810,7 @@ mod tests {
 
 		let good_transactions = [bad_transactions[0].clone(), bad_transactions[1].clone()];
 
-		let machine = EthereumMachine::regular(params, BTreeMap::new());
+		let machine = Machine::regular(params, BTreeMap::new());
 		let engine = NullEngine::new(Default::default(), machine);
 		check_fail(unordered_test(&create_test_block_with_data(&header, &bad_transactions, &[]), &engine), TooManyTransactions(keypair.address()));
 		unordered_test(&create_test_block_with_data(&header, &good_transactions, &[]), &engine).unwrap();
