@@ -17,7 +17,6 @@
 use std::io::{Seek, SeekFrom, Write, Read};
 use std::path::Path;
 use std::{io, fs};
-
 use ethbloom;
 
 /// Autoresizable file containing blooms.
