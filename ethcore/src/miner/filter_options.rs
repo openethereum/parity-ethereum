@@ -1,3 +1,19 @@
+// Copyright 2015-2019 Parity Technologies (UK) Ltd.
+// This file is part of Parity Ethereum.
+
+// Parity Ethereum is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+
+// Parity Ethereum is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
+
+// You should have received a copy of the GNU General Public License
+// along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
+
 use ethereum_types::{Address, U256};
 use serde::de::{Deserialize, Deserializer, Error, MapAccess, Visitor};
 use std::fmt;
@@ -6,10 +22,10 @@ use std::marker::PhantomData;
 /// This structure provides filtering options for the pending transactions RPC API call
 #[derive(Debug, Clone, Eq, PartialEq)]
 pub struct FilterOptions {
-    /// Contains the operator to filter the sender value of the transaction
-    pub sender: FilterOperator<Address>,
-    /// Contains the operator to filter the receiver value of the transaction
-    pub receiver: FilterOperator<Address>,
+    /// Contains the operator to filter the from value of the transaction
+    pub from: FilterOperator<Address>,
+    /// Contains the operator to filter the to value of the transaction
+    pub to: FilterOperator<Option<Address>>,
     /// Contains the operator to filter the gas value of the transaction
     pub gas: FilterOperator<U256>,
     /// Contains the operator to filter the gas price value of the transaction
@@ -23,8 +39,8 @@ pub struct FilterOptions {
 impl Default for FilterOptions {
     fn default() -> Self {
         FilterOptions {
-            sender: FilterOperator::Any,
-            receiver: FilterOperator::Any,
+            from: FilterOperator::Any,
+            to: FilterOperator::Any,
             gas: FilterOperator::Any,
             gas_price: FilterOperator::Any,
             value: FilterOperator::Any,
@@ -33,13 +49,24 @@ impl Default for FilterOptions {
     }
 }
 
+/// The highly generic use of implementing Deserialize for FilterOperator
+/// will result in a compiler error if the type FilterOperator::Eq(None)
+/// gets returned explicitly. Therefore this Wrapper will be used for
+/// deserialization, directly identifying the contract creation.
+enum Wrapper<T> {
+    O(FilterOperator<T>),
+    CC, // Contract Creation
+}
+
+/// Available operators for filtering options.
+/// The `from` filter only accepts Any and Eq(Address)
+/// The `to` filter only accepts Any, Eq(Address) and Eq(None) for contract creation.
 #[derive(Debug, Clone, Eq, PartialEq)]
 pub enum FilterOperator<T> {
     Any,
     Eq(T),
     GreaterThan(T),
     LessThan(T),
-    ContractCreation, // only used for `receiver`
 }
 
 /// Since there are multiple operators which are not supported equally by all filters,
@@ -47,50 +74,67 @@ pub enum FilterOperator<T> {
 /// inside the `Deserialize` -> `Visitor` implementation for FilterOperator. In case new
 /// operators get introduced, a whitelist instead of a blacklist is used.
 ///
-/// The `sender` filter validates with `validate_sender`
-/// The `receiver` filter validates with `validate_receiver`
+/// The `from` filter validates with `validate_from`
+/// The `to` filter validates with `validate_from`
 /// All other filters such as gas and price validate with `validate_value`
 trait Validate<'de, T, M: MapAccess<'de>> {
-    fn validate_sender(&mut self) -> Result<FilterOperator<T>, M::Error>;
-    fn validate_receiver(&mut self) -> Result<FilterOperator<T>, M::Error>;
+    fn validate_from(&mut self) -> Result<FilterOperator<T>, M::Error>;
+    fn validate_to(&mut self) -> Result<FilterOperator<Option<Address>>, M::Error>;
     fn validate_value(&mut self) -> Result<FilterOperator<T>, M::Error>;
 }
 
 impl<'de, T, M> Validate<'de, T, M> for M 
     where T: Deserialize<'de>, M: MapAccess<'de>
 {
-    fn validate_sender(&mut self) -> Result<FilterOperator<T>, M::Error> {
+    fn validate_from(&mut self) -> Result<FilterOperator<T>, M::Error> {
+        use self::Wrapper as W;
         use self::FilterOperator::*;
-        let val = self.next_value()?;
-        match val {
-            Any | Eq(_) => Ok(val),
-            _ => {
+        let wrapper = self.next_value()?;
+        match wrapper {
+            W::O(val) => {
+                match val {
+                    Any | Eq(_) => Ok(val),
+                    _ => {
+                        Err(M::Error::custom(
+                            "the from filter only supports the `eq` operator",
+                        ))
+                    }
+                }
+            },
+            W::CC => {
                 Err(M::Error::custom(
-                    "the sender filter only supports the `eq` operator",
+                    "the from filter only supports the `eq` operator",
                 ))
             }
         }
     }
-    fn validate_receiver(&mut self) -> Result<FilterOperator<T>, M::Error> {
+    fn validate_to(&mut self) -> Result<FilterOperator<Option<Address>>, M::Error> {
+        use self::Wrapper as W;
         use self::FilterOperator::*;
-        let val = self.next_value()?;
-        match val {
-            Any | Eq(_) | ContractCreation => Ok(val),
-            _ => {
-                Err(M::Error::custom(
-                    "the sender filter only supports the `eq` and `action` operators",
-                ))
-            }
+        let wrapper = self.next_value()?;
+        match wrapper {
+            W::O(val) => {
+                match val {
+                    Any => Ok(Any),
+                    Eq(address) => Ok(Eq(Some(address))),
+                    _ => {
+                        Err(M::Error::custom(
+                            "the to filter only supports the `eq` or `action` operator",
+                        ))
+                    }
+                }
+            },
+            W::CC => Ok(FilterOperator::Eq(None)),
         }
     }
     fn validate_value(&mut self) -> Result<FilterOperator<T>, M::Error> {
-        use self::FilterOperator::*;
-        let val = self.next_value()?;
-        match val {
-            Any | Eq(_) | GreaterThan(_) | LessThan(_) => Ok(val),
-            ContractCreation => {
+        use self::Wrapper as W;
+        let wrapper = self.next_value()?;
+        match wrapper {
+            W::O(val) => Ok(val),
+            W::CC => {
                 Err(M::Error::custom(
-                    "the operator `action` is only supported by the receiver filter",
+                    "the operator `action` is only supported by the to filter",
                 ))
             }
         }
@@ -108,7 +152,7 @@ impl<'de> Deserialize<'de> for FilterOptions {
 
             fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
                 // "This Visitor expects to receive ..."
-                formatter.write_str("a map with one valid filter such as `sender`, `receiver`, `gas`, `gas_price`, `value` or `nonce`")
+                formatter.write_str("a map with one valid filter such as `from`, `to`, `gas`, `gas_price`, `value` or `nonce`")
             }
 
             fn visit_map<M>(self, mut map: M) -> Result<Self::Value, M::Error>
@@ -118,11 +162,12 @@ impl<'de> Deserialize<'de> for FilterOptions {
                 let mut filter = FilterOptions::default();
                 while let Some(key) = map.next_key()? {
                     match key {
-                        "sender" => {
-                            filter.sender = map.validate_sender()?;
+                        "from" => {
+                            filter.from = map.validate_from()?;
                         },
-                        "receiver" => {
-                            filter.receiver = map.validate_receiver()?;
+                        "to" => {
+                            // Compiler cannot infer type, so set one (nothing specific for this method)
+                            filter.to = Validate::<(), _>::validate_to(&mut map)?;
                         },
                         "gas" => {
                             filter.gas = map.validate_value()?;
@@ -139,7 +184,7 @@ impl<'de> Deserialize<'de> for FilterOptions {
                         unknown => {
                             return Err(M::Error::unknown_field(
                                 unknown,
-                                &["sender", "receiver", "gas", "gas_price", "value", "nonce"],
+                                &["from", "to", "gas", "gas_price", "value", "nonce"],
                             ))
                         }
                     }
@@ -149,22 +194,22 @@ impl<'de> Deserialize<'de> for FilterOptions {
             }
         }
 
-        impl<'de, T: Deserialize<'de>> Deserialize<'de> for FilterOperator<T> {
+        impl<'de, T: Deserialize<'de>> Deserialize<'de> for Wrapper<T> {
             fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
             where
                 D: Deserializer<'de>,
             {
-                struct FilterOperatorVisitor<T> {
+                struct WrapperVisitor<T> {
                     data: PhantomData<T>,
                 };
-                impl<'de, T: Deserialize<'de>> Visitor<'de> for FilterOperatorVisitor<T> {
-                    type Value = FilterOperator<T>;
+                impl<'de, T: Deserialize<'de>> Visitor<'de> for WrapperVisitor<T> {
+                    type Value = Wrapper<T>;
 
                     fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
                         // "This Visitor expects to receive ..."
                         formatter.write_str(
                             "a map with one valid operator such as `eq`, `gt` or `lt`. \
-                             The receiver filter can also contain `action`",
+                             The to filter can also contain `action`",
                         )
                     }
 
@@ -172,18 +217,19 @@ impl<'de> Deserialize<'de> for FilterOptions {
                     where
                         M: MapAccess<'de>,
                     {
+                        use self::Wrapper as W;
                         let mut counter = 0;
-                        let mut f_op = FilterOperator::Any;
+                        let mut f_op = Wrapper::O(FilterOperator::Any);
 
                         while let Some(key) = map.next_key()? {
                             match key {
-                                "eq" => f_op = FilterOperator::Eq(map.next_value()?),
-                                "gt" => f_op = FilterOperator::GreaterThan(map.next_value()?),
-                                "lt" => f_op = FilterOperator::LessThan(map.next_value()?),
+                                "eq" => f_op = W::O(FilterOperator::Eq(map.next_value()?)),
+                                "gt" => f_op = W::O(FilterOperator::GreaterThan(map.next_value()?)),
+                                "lt" => f_op = W::O(FilterOperator::LessThan(map.next_value()?)),
                                 "action" => {
                                     match map.next_value()? {
                                         "contract_creation" => {
-                                            f_op = FilterOperator::ContractCreation;
+                                            f_op = W::CC;
                                         },
                                         _ => {
                                             return Err(M::Error::custom(
@@ -216,7 +262,7 @@ impl<'de> Deserialize<'de> for FilterOptions {
                     }
                 }
 
-                deserializer.deserialize_map(FilterOperatorVisitor { data: PhantomData })
+                deserializer.deserialize_map(WrapperVisitor { data: PhantomData })
             }
         }
 
@@ -234,8 +280,8 @@ mod tests {
     #[test]
     fn valid_defaults() {
         let default = FilterOptions::default();
-        assert_eq!(default.sender, FilterOperator::Any);
-        assert_eq!(default.receiver, FilterOperator::Any);
+        assert_eq!(default.from, FilterOperator::Any);
+        assert_eq!(default.to, FilterOperator::Any);
         assert_eq!(default.gas, FilterOperator::Any);
         assert_eq!(default.gas_price, FilterOperator::Any);
         assert_eq!(default.value, FilterOperator::Any);
@@ -250,10 +296,10 @@ mod tests {
     fn valid_full_deserialization() {
         let json = r#"
             {
-                "sender": {
+                "from": {
                     "eq": "0x5f3dffcf347944d3739b0805c934d86c8621997f"
                 },
-                "receiver": {
+                "to": {
                     "eq": "0xe8b2d01ffa0a15736b2370b6e5064f9702c891b6"
                 },
                 "gas": {
@@ -273,8 +319,8 @@ mod tests {
 
         let res = serde_json::from_str::<FilterOptions>(json).unwrap();
         assert_eq!(res, FilterOptions {
-            sender: FilterOperator::Eq(Address::from_str("5f3dffcf347944d3739b0805c934d86c8621997f").unwrap()),
-            receiver: FilterOperator::Eq(Address::from_str("e8b2d01ffa0a15736b2370b6e5064f9702c891b6").unwrap()),
+            from: FilterOperator::Eq(Address::from_str("5f3dffcf347944d3739b0805c934d86c8621997f").unwrap()),
+            to: FilterOperator::Eq(Some(Address::from_str("e8b2d01ffa0a15736b2370b6e5064f9702c891b6").unwrap())),
             gas: FilterOperator::Eq(U256::from(300_000)),
             gas_price: FilterOperator::Eq(U256::from(5_000_000_000 as i64)),
             value: FilterOperator::Eq(U256::from(0)),
@@ -287,10 +333,10 @@ mod tests {
         // Invalid filter type `zyx`
         let json = r#"
             {
-                "sender": {
+                "from": {
                     "eq": "0x5f3dffcf347944d3739b0805c934d86c8621997f"
                 },
-                "receiver": {
+                "to": {
                     "eq": "0xe8b2d01ffa0a15736b2370b6e5064f9702c891b6"
                 },
                 "zyx": {
@@ -313,11 +359,11 @@ mod tests {
     }
 
     #[test]
-    fn valid_sender_operators() {
-        // Only one valid operator for sender
+    fn valid_from_operators() {
+        // Only one valid operator for from
         let json = r#"
             {
-                "sender": {
+                "from": {
                     "eq": "0x5f3dffcf347944d3739b0805c934d86c8621997f"
                 }
             }
@@ -325,17 +371,17 @@ mod tests {
         let default = FilterOptions::default();
         let res = serde_json::from_str::<FilterOptions>(json).unwrap();
         assert_eq!(res, FilterOptions {
-            sender: FilterOperator::Eq(Address::from_str("5f3dffcf347944d3739b0805c934d86c8621997f").unwrap()),
+            from: FilterOperator::Eq(Address::from_str("5f3dffcf347944d3739b0805c934d86c8621997f").unwrap()),
             ..default
         });
     }
 
     #[test]
-    fn invalid_sender_operators() {
+    fn invalid_from_operators() {
         // Multiple operators are invalid
         let json = r#"
             {
-                "sender": {
+                "from": {
                     "eq": "0x5f3dffcf347944d3739b0805c934d86c8621997f",
                     "lt": "0x407d73d8a49eeb85d32cf465507dd71d507100c1"
                 }
@@ -347,7 +393,7 @@ mod tests {
         // Gt
         let json = r#"
             {
-                "sender": {
+                "from": {
                     "gt": "0x5f3dffcf347944d3739b0805c934d86c8621997f"
                 }
             }
@@ -358,7 +404,7 @@ mod tests {
         // Lt
         let json = r#"
             {
-                "sender": {
+                "from": {
                     "lt": "0x5f3dffcf347944d3739b0805c934d86c8621997f"
                 }
             }
@@ -369,7 +415,7 @@ mod tests {
         // Action
         let json = r#"
             {
-                "sender": {
+                "from": {
                     "action": "contract_creation"
                 }
             }
@@ -380,7 +426,7 @@ mod tests {
         // Unknown operator
         let json = r#"
             {
-                "sender": {
+                "from": {
                     "abc": "0x0"
                 }
             }
@@ -390,12 +436,12 @@ mod tests {
     }
 
     #[test]
-    fn valid_receiver_operators() {
-        // Only two valid operator for receiver
+    fn valid_to_operators() {
+        // Only two valid operator for to
         // Eq
         let json = r#"
             {
-                "receiver": {
+                "to": {
                     "eq": "0xe8b2d01ffa0a15736b2370b6e5064f9702c891b6"
                 }
             }
@@ -403,31 +449,31 @@ mod tests {
         let default = FilterOptions::default();
         let res = serde_json::from_str::<FilterOptions>(json).unwrap();
         assert_eq!(res, FilterOptions {
-            receiver: FilterOperator::Eq(Address::from_str("e8b2d01ffa0a15736b2370b6e5064f9702c891b6").unwrap()),
+            to: FilterOperator::Eq(Some(Address::from_str("e8b2d01ffa0a15736b2370b6e5064f9702c891b6").unwrap())),
             ..default.clone()
         });
 
         // Action
         let json = r#"
             {
-                "receiver": {
+                "to": {
                     "action": "contract_creation"
                 }
             }
         "#;
         let res = serde_json::from_str::<FilterOptions>(json).unwrap();
         assert_eq!(res, FilterOptions {
-            receiver: FilterOperator::ContractCreation,
+            to: FilterOperator::Eq(None),
             ..default
         });
     }
 
     #[test]
-    fn invalid_receiver_operators() {
+    fn invalid_to_operators() {
         // Multiple operators are invalid
         let json = r#"
             {
-                "receiver": {
+                "to": {
                     "eq": "0xe8b2d01ffa0a15736b2370b6e5064f9702c891b6",
                     "action": "contract_creation"
                 }
@@ -439,7 +485,7 @@ mod tests {
         // Gt
         let json = r#"
             {
-                "receiver": {
+                "to": {
                     "gt": "0xe8b2d01ffa0a15736b2370b6e5064f9702c891b6"
                 }
             }
@@ -450,7 +496,7 @@ mod tests {
         // Lt
         let json = r#"
             {
-                "receiver": {
+                "to": {
                     "lt": "0xe8b2d01ffa0a15736b2370b6e5064f9702c891b6"
                 }
             }
@@ -461,7 +507,7 @@ mod tests {
         // Action (invalid value, must be "contract_creation")
         let json = r#"
             {
-                "receiver": {
+                "to": {
                     "action": "some_invalid_value"
                 }
             }
@@ -472,7 +518,7 @@ mod tests {
         // Unknown operator
         let json = r#"
             {
-                "receiver": {
+                "to": {
                     "abc": "0x0"
                 }
             }
