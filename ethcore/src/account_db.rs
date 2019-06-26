@@ -17,7 +17,7 @@
 //! DB backend wrapper for Account trie
 use ethereum_types::H256;
 use hash::{KECCAK_NULL_RLP, keccak};
-use hash_db::{HashDB, AsHashDB};
+use hash_db::{HashDB, AsHashDB, Prefix};
 use keccak_hasher::KeccakHasher;
 use kvdb::DBValue;
 use rlp::NULL_RLP;
@@ -31,8 +31,8 @@ use ethereum_types::Address;
 fn combine_key<'a>(address_hash: &'a H256, key: &'a H256) -> H256 {
 	let mut dst = key.clone();
 	{
-		let last_src: &[u8] = &*address_hash;
-		let last_dst: &mut [u8] = &mut *dst;
+		let last_src: &[u8] = address_hash.as_bytes();
+		let last_dst: &mut [u8] = dst.as_bytes_mut();
 		for (k, a) in last_dst[12..].iter_mut().zip(&last_src[12..]) {
 			*k ^= *a
 		}
@@ -57,7 +57,7 @@ impl Default for Factory {
 impl Factory {
 	/// Create a read-only accountdb.
 	/// This will panic when write operations are called.
-	pub fn readonly<'db>(&self, db: &'db HashDB<KeccakHasher, DBValue>, address_hash: H256) -> Box<HashDB<KeccakHasher, DBValue> + 'db> {
+	pub fn readonly<'db>(&self, db: &'db dyn HashDB<KeccakHasher, DBValue>, address_hash: H256) -> Box<dyn HashDB<KeccakHasher, DBValue> + 'db> {
 		match *self {
 			Factory::Mangled => Box::new(AccountDB::from_hash(db, address_hash)),
 			Factory::Plain => Box::new(Wrapping(db)),
@@ -65,7 +65,7 @@ impl Factory {
 	}
 
 	/// Create a new mutable hashdb.
-	pub fn create<'db>(&self, db: &'db mut HashDB<KeccakHasher, DBValue>, address_hash: H256) -> Box<HashDB<KeccakHasher, DBValue> + 'db> {
+	pub fn create<'db>(&self, db: &'db mut dyn HashDB<KeccakHasher, DBValue>, address_hash: H256) -> Box<dyn HashDB<KeccakHasher, DBValue> + 'db> {
 		match *self {
 			Factory::Mangled => Box::new(AccountDBMut::from_hash(db, address_hash)),
 			Factory::Plain => Box::new(WrappingMut(db)),
@@ -77,19 +77,19 @@ impl Factory {
 /// DB backend wrapper for Account trie
 /// Transforms trie node keys for the database
 pub struct AccountDB<'db> {
-	db: &'db HashDB<KeccakHasher, DBValue>,
+	db: &'db dyn HashDB<KeccakHasher, DBValue>,
 	address_hash: H256,
 }
 
 impl<'db> AccountDB<'db> {
 	/// Create a new AccountDB from an address.
 	#[cfg(test)]
-	pub fn new(db: &'db HashDB<KeccakHasher, DBValue>, address: &Address) -> Self {
+	pub fn new(db: &'db dyn HashDB<KeccakHasher, DBValue>, address: &Address) -> Self {
 		Self::from_hash(db, keccak(address))
 	}
 
 	/// Create a new AcountDB from an address' hash.
-	pub fn from_hash(db: &'db HashDB<KeccakHasher, DBValue>, address_hash: H256) -> Self {
+	pub fn from_hash(db: &'db dyn HashDB<KeccakHasher, DBValue>, address_hash: H256) -> Self {
 		AccountDB {
 			db: db,
 			address_hash: address_hash,
@@ -98,53 +98,53 @@ impl<'db> AccountDB<'db> {
 }
 
 impl<'db> AsHashDB<KeccakHasher, DBValue> for AccountDB<'db> {
-	fn as_hash_db(&self) -> &HashDB<KeccakHasher, DBValue> { self }
-	fn as_hash_db_mut(&mut self) -> &mut HashDB<KeccakHasher, DBValue> { self }
+	fn as_hash_db(&self) -> &dyn HashDB<KeccakHasher, DBValue> { self }
+	fn as_hash_db_mut(&mut self) -> &mut dyn HashDB<KeccakHasher, DBValue> { self }
 }
 
 impl<'db> HashDB<KeccakHasher, DBValue> for AccountDB<'db> {
-	fn get(&self, key: &H256) -> Option<DBValue> {
+	fn get(&self, key: &H256, prefix: Prefix) -> Option<DBValue> {
 		if key == &KECCAK_NULL_RLP {
 			return Some(DBValue::from_slice(&NULL_RLP));
 		}
-		self.db.get(&combine_key(&self.address_hash, key))
+		self.db.get(&combine_key(&self.address_hash, key), prefix)
 	}
 
-	fn contains(&self, key: &H256) -> bool {
+	fn contains(&self, key: &H256, prefix: Prefix) -> bool {
 		if key == &KECCAK_NULL_RLP {
 			return true;
 		}
-		self.db.contains(&combine_key(&self.address_hash, key))
+		self.db.contains(&combine_key(&self.address_hash, key), prefix)
 	}
 
-	fn insert(&mut self, _value: &[u8]) -> H256 {
+	fn insert(&mut self, _prefix: Prefix, _value: &[u8]) -> H256 {
 		unimplemented!()
 	}
 
-	fn emplace(&mut self, _key: H256, _value: DBValue) {
+	fn emplace(&mut self, _key: H256, _prefix: Prefix, _value: DBValue) {
 		unimplemented!()
 	}
 
-	fn remove(&mut self, _key: &H256) {
+	fn remove(&mut self, _key: &H256, _prefix: Prefix) {
 		unimplemented!()
 	}
 }
 
 /// DB backend wrapper for Account trie
 pub struct AccountDBMut<'db> {
-	db: &'db mut HashDB<KeccakHasher, DBValue>,
+	db: &'db mut dyn HashDB<KeccakHasher, DBValue>,
 	address_hash: H256,
 }
 
 impl<'db> AccountDBMut<'db> {
 	/// Create a new AccountDB from an address.
 	#[cfg(test)]
-	pub fn new(db: &'db mut HashDB<KeccakHasher, DBValue>, address: &Address) -> Self {
+	pub fn new(db: &'db mut dyn HashDB<KeccakHasher, DBValue>, address: &Address) -> Self {
 		Self::from_hash(db, keccak(address))
 	}
 
 	/// Create a new AcountDB from an address' hash.
-	pub fn from_hash(db: &'db mut HashDB<KeccakHasher, DBValue>, address_hash: H256) -> Self {
+	pub fn from_hash(db: &'db mut dyn HashDB<KeccakHasher, DBValue>, address_hash: H256) -> Self {
 		AccountDBMut {
 			db: db,
 			address_hash: address_hash,
@@ -158,126 +158,126 @@ impl<'db> AccountDBMut<'db> {
 }
 
 impl<'db> HashDB<KeccakHasher, DBValue> for AccountDBMut<'db>{
-	fn get(&self, key: &H256) -> Option<DBValue> {
+	fn get(&self, key: &H256, prefix: Prefix) -> Option<DBValue> {
 		if key == &KECCAK_NULL_RLP {
 			return Some(DBValue::from_slice(&NULL_RLP));
 		}
-		self.db.get(&combine_key(&self.address_hash, key))
+		self.db.get(&combine_key(&self.address_hash, key), prefix)
 	}
 
-	fn contains(&self, key: &H256) -> bool {
+	fn contains(&self, key: &H256, prefix: Prefix) -> bool {
 		if key == &KECCAK_NULL_RLP {
 			return true;
 		}
-		self.db.contains(&combine_key(&self.address_hash, key))
+		self.db.contains(&combine_key(&self.address_hash, key), prefix)
 	}
 
-	fn insert(&mut self, value: &[u8]) -> H256 {
+	fn insert(&mut self, prefix: Prefix, value: &[u8]) -> H256 {
 		if value == &NULL_RLP {
 			return KECCAK_NULL_RLP.clone();
 		}
 		let k = keccak(value);
 		let ak = combine_key(&self.address_hash, &k);
-		self.db.emplace(ak, DBValue::from_slice(value));
+		self.db.emplace(ak, prefix, DBValue::from_slice(value));
 		k
 	}
 
-	fn emplace(&mut self, key: H256, value: DBValue) {
+	fn emplace(&mut self, key: H256, prefix: Prefix, value: DBValue) {
 		if key == KECCAK_NULL_RLP {
 			return;
 		}
 		let key = combine_key(&self.address_hash, &key);
-		self.db.emplace(key, value)
+		self.db.emplace(key, prefix, value)
 	}
 
-	fn remove(&mut self, key: &H256) {
+	fn remove(&mut self, key: &H256, prefix: Prefix) {
 		if key == &KECCAK_NULL_RLP {
 			return;
 		}
 		let key = combine_key(&self.address_hash, key);
-		self.db.remove(&key)
+		self.db.remove(&key, prefix)
 	}
 }
 
 impl<'db> AsHashDB<KeccakHasher, DBValue> for AccountDBMut<'db> {
-	fn as_hash_db(&self) -> &HashDB<KeccakHasher, DBValue> { self }
-	fn as_hash_db_mut(&mut self) -> &mut HashDB<KeccakHasher, DBValue> { self }
+	fn as_hash_db(&self) -> &dyn HashDB<KeccakHasher, DBValue> { self }
+	fn as_hash_db_mut(&mut self) -> &mut dyn HashDB<KeccakHasher, DBValue> { self }
 }
 
-struct Wrapping<'db>(&'db HashDB<KeccakHasher, DBValue>);
+struct Wrapping<'db>(&'db dyn HashDB<KeccakHasher, DBValue>);
 
 impl<'db> AsHashDB<KeccakHasher, DBValue> for Wrapping<'db> {
-	fn as_hash_db(&self) -> &HashDB<KeccakHasher, DBValue> { self }
-	fn as_hash_db_mut(&mut self) -> &mut HashDB<KeccakHasher, DBValue> { self }
+	fn as_hash_db(&self) -> &dyn HashDB<KeccakHasher, DBValue> { self }
+	fn as_hash_db_mut(&mut self) -> &mut dyn HashDB<KeccakHasher, DBValue> { self }
 }
 
 impl<'db> HashDB<KeccakHasher, DBValue> for Wrapping<'db> {
-	fn get(&self, key: &H256) -> Option<DBValue> {
+	fn get(&self, key: &H256, prefix: Prefix) -> Option<DBValue> {
 		if key == &KECCAK_NULL_RLP {
 			return Some(DBValue::from_slice(&NULL_RLP));
 		}
-		self.0.get(key)
+		self.0.get(key, prefix)
 	}
 
-	fn contains(&self, key: &H256) -> bool {
+	fn contains(&self, key: &H256, prefix: Prefix) -> bool {
 		if key == &KECCAK_NULL_RLP {
 			return true;
 		}
-		self.0.contains(key)
+		self.0.contains(key, prefix)
 	}
 
-	fn insert(&mut self, _value: &[u8]) -> H256 {
+	fn insert(&mut self, _prefix: Prefix, _value: &[u8]) -> H256 {
 		unimplemented!()
 	}
 
-	fn emplace(&mut self, _key: H256, _value: DBValue) {
+	fn emplace(&mut self, _key: H256, _prefix: Prefix, _value: DBValue) {
 		unimplemented!()
 	}
 
-	fn remove(&mut self, _key: &H256) {
+	fn remove(&mut self, _key: &H256, _prefix: Prefix) {
 		unimplemented!()
 	}
 }
 
-struct WrappingMut<'db>(&'db mut HashDB<KeccakHasher, DBValue>);
+struct WrappingMut<'db>(&'db mut dyn HashDB<KeccakHasher, DBValue>);
 impl<'db> AsHashDB<KeccakHasher, DBValue> for WrappingMut<'db> {
-	fn as_hash_db(&self) -> &HashDB<KeccakHasher, DBValue> { self }
-	fn as_hash_db_mut(&mut self) -> &mut HashDB<KeccakHasher, DBValue> { self }
+	fn as_hash_db(&self) -> &dyn HashDB<KeccakHasher, DBValue> { self }
+	fn as_hash_db_mut(&mut self) -> &mut dyn HashDB<KeccakHasher, DBValue> { self }
 }
 
 impl<'db> HashDB<KeccakHasher, DBValue> for WrappingMut<'db>{
-	fn get(&self, key: &H256) -> Option<DBValue> {
+	fn get(&self, key: &H256, prefix: Prefix) -> Option<DBValue> {
 		if key == &KECCAK_NULL_RLP {
 			return Some(DBValue::from_slice(&NULL_RLP));
 		}
-		self.0.get(key)
+		self.0.get(key, prefix)
 	}
 
-	fn contains(&self, key: &H256) -> bool {
+	fn contains(&self, key: &H256, prefix: Prefix) -> bool {
 		if key == &KECCAK_NULL_RLP {
 			return true;
 		}
-		self.0.contains(key)
+		self.0.contains(key, prefix)
 	}
 
-	fn insert(&mut self, value: &[u8]) -> H256 {
+	fn insert(&mut self, prefix: Prefix, value: &[u8]) -> H256 {
 		if value == &NULL_RLP {
 			return KECCAK_NULL_RLP.clone();
 		}
-		self.0.insert(value)
+		self.0.insert(prefix, value)
 	}
 
-	fn emplace(&mut self, key: H256, value: DBValue) {
+	fn emplace(&mut self, key: H256, prefix: Prefix, value: DBValue) {
 		if key == KECCAK_NULL_RLP {
 			return;
 		}
-		self.0.emplace(key, value)
+		self.0.emplace(key, prefix, value)
 	}
 
-	fn remove(&mut self, key: &H256) {
+	fn remove(&mut self, key: &H256, prefix: Prefix) {
 		if key == &KECCAK_NULL_RLP {
 			return;
 		}
-		self.0.remove(key)
+		self.0.remove(key, prefix)
 	}
 }

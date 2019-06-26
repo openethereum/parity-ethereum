@@ -113,20 +113,20 @@ pub fn request(address: &SocketAddr, request: &str) -> Response {
 pub fn assert_security_headers_present(headers: &[String], port: Option<u16>) {
 	if port.is_none() {
 		assert!(
-			headers.iter().any(|header| header.as_str() == "X-Frame-Options: SAMEORIGIN")
+			headers.iter().any(|header| header.as_str() == "X-Frame-Options: SAMEORIGIN"),
 			"X-Frame-Options: SAMEORIGIN missing: {:?}", headers
 		);
 	}
 	assert!(
-		headers.iter().any(|header| header.as_str() == "X-XSS-Protection: 1; mode=block")
+		headers.iter().any(|header| header.as_str() == "X-XSS-Protection: 1; mode=block"),
 		"X-XSS-Protection missing: {:?}", headers
 	);
 	assert!(
-		headers.iter().any(|header|  header.as_str() == "X-Content-Type-Options: nosniff")
+		headers.iter().any(|header|  header.as_str() == "X-Content-Type-Options: nosniff"),
 		"X-Content-Type-Options missing: {:?}", headers
 	);
 	assert!(
-		headers.iter().any(|header| header.starts_with("Content-Security-Policy: "))
+		headers.iter().any(|header| header.starts_with("Content-Security-Policy: ")),
 		"Content-Security-Policy missing: {:?}", headers
 	)
 }

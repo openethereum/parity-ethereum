@@ -27,7 +27,7 @@ use types::filter::Filter;
 use types::view;
 use types::views::BlockView;
 
-use client::{BlockChainClient, Client, ClientConfig, BlockId, ChainInfo, BlockInfo, PrepareOpenBlock, ImportSealedBlock, ImportBlock};
+use client::{BlockChainClient, BlockChainReset, Client, ClientConfig, BlockId, ChainInfo, BlockInfo, PrepareOpenBlock, ImportSealedBlock, ImportBlock};
 use ethereum;
 use executive::{Executive, TransactOptions};
 use miner::{Miner, PendingOrdering, MinerService};
@@ -251,7 +251,7 @@ fn can_mine() {
 	let dummy_blocks = get_good_dummy_block_seq(2);
 	let client = get_test_client_with_blocks(vec![dummy_blocks[0].clone()]);
 
-	let b = client.prepare_open_block(Address::default(), (3141562.into(), 31415620.into()), vec![]).unwrap().close().unwrap();
+	let b = client.prepare_open_block(Address::zero(), (3141562.into(), 31415620.into()), vec![]).unwrap().close().unwrap();
 
 	assert_eq!(*b.header.parent_hash(), view!(BlockView, &dummy_blocks[0]).header_view().hash());
 }
@@ -274,7 +274,7 @@ fn change_history_size() {
 		).unwrap();
 
 		for _ in 0..20 {
-			let mut b = client.prepare_open_block(Address::default(), (3141562.into(), 31415620.into()), vec![]).unwrap();
+			let mut b = client.prepare_open_block(Address::zero(), (3141562.into(), 31415620.into()), vec![]).unwrap();
 			b.block_mut().state_mut().add_balance(&address, &5.into(), CleanupMode::NoEmpty).unwrap();
 			b.block_mut().state_mut().commit().unwrap();
 			let b = b.close_and_lock().unwrap().seal(&*test_spec.engine, vec![]).unwrap();
@@ -301,7 +301,7 @@ fn does_not_propagate_delayed_transactions() {
 		nonce: 0.into(),
 		gas_price: 0.into(),
 		gas: 21000.into(),
-		action: Action::Call(Address::default()),
+		action: Action::Call(Address::zero()),
 		value: 0.into(),
 		data: Vec::new(),
 	}.sign(secret, None), Some(Condition::Number(2)));
@@ -309,7 +309,7 @@ fn does_not_propagate_delayed_transactions() {
 		nonce: 1.into(),
 		gas_price: 0.into(),
 		gas: 21000.into(),
-		action: Action::Call(Address::default()),
+		action: Action::Call(Address::zero()),
 		value: 0.into(),
 		data: Vec::new(),
 	}.sign(secret, None), None);
@@ -333,7 +333,7 @@ fn transaction_proof() {
 	let address = Address::random();
 	let test_spec = Spec::new_test();
 	for _ in 0..20 {
-		let mut b = client.prepare_open_block(Address::default(), (3141562.into(), 31415620.into()), vec![]).unwrap();
+		let mut b = client.prepare_open_block(Address::zero(), (3141562.into(), 31415620.into()), vec![]).unwrap();
 		b.block_mut().state_mut().add_balance(&address, &5.into(), CleanupMode::NoEmpty).unwrap();
 		b.block_mut().state_mut().commit().unwrap();
 		let b = b.close_and_lock().unwrap().seal(&*test_spec.engine, vec![]).unwrap();
@@ -344,7 +344,7 @@ fn transaction_proof() {
 		nonce: 0.into(),
 		gas_price: 0.into(),
 		gas: 21000.into(),
-		action: Action::Call(Address::default()),
+		action: Action::Call(Address::zero()),
 		value: 5.into(),
 		data: Vec::new(),
 	}.fake_sign(address);
@@ -363,6 +363,26 @@ fn transaction_proof() {
 	Executive::new(&mut state, &env_info, &machine, &schedule)
 		.transact(&transaction, TransactOptions::with_no_tracing().dont_check_nonce()).unwrap();
 
-	assert_eq!(state.balance(&Address::default()).unwrap(), 5.into());
+	assert_eq!(state.balance(&Address::zero()).unwrap(), 5.into());
 	assert_eq!(state.balance(&address).unwrap(), 95.into());
+}
+
+#[test]
+fn reset_blockchain() {
+	let client = get_test_client_with_blocks(get_good_dummy_block_seq(19));
+	// 19 + genesis block
+	assert!(client.block_header(BlockId::Number(20)).is_some());
+	assert_eq!(client.block_header(BlockId::Number(20)).unwrap().hash(), client.best_block_header().hash());
+
+	assert!(client.reset(5).is_ok());
+
+	client.chain().clear_cache();
+
+	assert!(client.block_header(BlockId::Number(20)).is_none());
+	assert!(client.block_header(BlockId::Number(19)).is_none());
+	assert!(client.block_header(BlockId::Number(18)).is_none());
+	assert!(client.block_header(BlockId::Number(17)).is_none());
+	assert!(client.block_header(BlockId::Number(16)).is_none());
+
+	assert!(client.block_header(BlockId::Number(15)).is_some());
 }

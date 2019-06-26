@@ -71,7 +71,7 @@ impl TransactionFilter {
 		let mut contract_version_cache = self.contract_version_cache.lock();
 
 		let (tx_type, to) = match transaction.action {
-			Action::Create => (tx_permissions::CREATE, Address::new()),
+			Action::Create => (tx_permissions::CREATE, Address::zero()),
 			Action::Call(address) => if client.code_hash(&address, BlockId::Hash(*parent_hash)).map_or(false, |c| c != KECCAK_EMPTY) {
 					(tx_permissions::CALL, address)
 				} else {
@@ -143,6 +143,7 @@ impl TransactionFilter {
 #[cfg(test)]
 mod test {
 	use std::sync::Arc;
+	use std::str::FromStr;
 	use spec::Spec;
 	use client::{BlockChainClient, Client, ClientConfig, BlockId};
 	use miner::Miner;
@@ -180,22 +181,22 @@ mod test {
 
 		let filter = TransactionFilter::from_params(spec.params()).unwrap();
 		let mut basic_tx = Transaction::default();
-		basic_tx.action = Action::Call(Address::from("d41c057fd1c78805aac12b0a94a405c0461a6fbb"));
+		basic_tx.action = Action::Call(Address::from_str("d41c057fd1c78805aac12b0a94a405c0461a6fbb").unwrap());
 		let create_tx = Transaction::default();
 		let mut call_tx = Transaction::default();
-		call_tx.action = Action::Call(Address::from("0000000000000000000000000000000000000005"));
+		call_tx.action = Action::Call(Address::from_str("0000000000000000000000000000000000000005").unwrap());
 
 		let mut basic_tx_with_ether_and_to_key7 = Transaction::default();
-		basic_tx_with_ether_and_to_key7.action = Action::Call(Address::from("d41c057fd1c78805aac12b0a94a405c0461a6fbb"));
+		basic_tx_with_ether_and_to_key7.action = Action::Call(Address::from_str("d41c057fd1c78805aac12b0a94a405c0461a6fbb").unwrap());
 		basic_tx_with_ether_and_to_key7.value = U256::from(123123);
 		let mut call_tx_with_ether = Transaction::default();
-		call_tx_with_ether.action = Action::Call(Address::from("0000000000000000000000000000000000000005"));
+		call_tx_with_ether.action = Action::Call(Address::from_str("0000000000000000000000000000000000000005").unwrap());
 		call_tx_with_ether.value = U256::from(123123);
 
 		let mut basic_tx_to_key6 = Transaction::default();
-		basic_tx_to_key6.action = Action::Call(Address::from("e57bfe9f44b819898f47bf37e5af72a0783e1141"));
+		basic_tx_to_key6.action = Action::Call(Address::from_str("e57bfe9f44b819898f47bf37e5af72a0783e1141").unwrap());
 		let mut basic_tx_with_ether_and_to_key6 = Transaction::default();
-		basic_tx_with_ether_and_to_key6.action = Action::Call(Address::from("e57bfe9f44b819898f47bf37e5af72a0783e1141"));
+		basic_tx_with_ether_and_to_key6.action = Action::Call(Address::from_str("e57bfe9f44b819898f47bf37e5af72a0783e1141").unwrap());
 		basic_tx_with_ether_and_to_key6.value = U256::from(123123);
 
 		let genesis = client.block_hash(BlockId::Latest).unwrap();
@@ -256,10 +257,10 @@ mod test {
 
 		let filter = TransactionFilter::from_params(spec.params()).unwrap();
 		let mut basic_tx = Transaction::default();
-		basic_tx.action = Action::Call(Address::from("000000000000000000000000000000000000032"));
+		basic_tx.action = Action::Call(Address::from_str("0000000000000000000000000000000000000032").unwrap());
 		let create_tx = Transaction::default();
 		let mut call_tx = Transaction::default();
-		call_tx.action = Action::Call(Address::from("0000000000000000000000000000000000000005"));
+		call_tx.action = Action::Call(Address::from_str("0000000000000000000000000000000000000005").unwrap());
 
 		let genesis = client.block_hash(BlockId::Latest).unwrap();
 		let block_number = 1;

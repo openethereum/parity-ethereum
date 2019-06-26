@@ -16,12 +16,15 @@
 
 // Based on original work by David Levy https://raw.githubusercontent.com/dlevy47/rust-interfaces
 
-use std::net::{IpAddr, Ipv4Addr, Ipv6Addr, SocketAddr, SocketAddrV4, SocketAddrV6};
 use std::io;
-use igd::{PortMappingProtocol, search_gateway_from_timeout};
+use std::net::{IpAddr, Ipv4Addr, Ipv6Addr, SocketAddr, SocketAddrV4, SocketAddrV6};
 use std::time::Duration;
-use node_table::NodeEndpoint;
+
+use igd::{PortMappingProtocol, search_gateway_from_timeout};
 use ipnetwork::IpNetwork;
+use log::debug;
+
+use crate::node_table::NodeEndpoint;
 
 /// Socket address extension for rustc beta. To be replaces with now unstable API
 pub trait SocketAddrExt {
@@ -212,10 +215,11 @@ impl SocketAddrExt for IpAddr {
 
 #[cfg(not(any(windows, target_os = "android")))]
 mod getinterfaces {
-	use std::{mem, io};
+	use std::{io, mem};
+	use std::net::{IpAddr, Ipv4Addr, Ipv6Addr};
+
 	use libc::{AF_INET, AF_INET6};
-	use libc::{getifaddrs, freeifaddrs, ifaddrs, sockaddr, sockaddr_in, sockaddr_in6};
-	use std::net::{Ipv4Addr, Ipv6Addr, IpAddr};
+	use libc::{freeifaddrs, getifaddrs, ifaddrs, sockaddr, sockaddr_in, sockaddr_in6};
 
 	fn convert_sockaddr(sa: *mut sockaddr) -> Option<IpAddr> {
 		if sa.is_null() { return None; }

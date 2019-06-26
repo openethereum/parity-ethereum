@@ -30,7 +30,7 @@ use ethcore::verification::queue::VerifierSettings;
 use ethcore_logger::{Config as LogConfig, RotatingLogger};
 use ethcore_service::ClientService;
 use ethereum_types::Address;
-use futures::IntoFuture;
+use futures::{IntoFuture, Stream};
 use hash_fetch::{self, fetch};
 use informant::{Informant, LightNodeInformantData, FullNodeInformantData};
 use journaldb::Algorithm;
@@ -668,14 +668,19 @@ fn execute_impl<Cr, Rr>(cmd: RunCmd, logger: Arc<RotatingLogger>, on_client_rq: 
 	// Propagate transactions as soon as they are imported.
 	let tx = ::parking_lot::Mutex::new(priority_tasks);
 	let is_ready = Arc::new(atomic::AtomicBool::new(true));
-	miner.add_transactions_listener(Box::new(move |_hashes| {
-		// we want to have only one PendingTransactions task in the queue.
-		if is_ready.compare_and_swap(true, false, atomic::Ordering::SeqCst) {
-			let task = ::sync::PriorityTask::PropagateTransactions(Instant::now(), is_ready.clone());
-			// we ignore error cause it means that we are closing
-			let _ = tx.lock().send(task);
-		}
-	}));
+	let executor = runtime.executor();
+	let pool_receiver = miner.pending_transactions_receiver();
+	executor.spawn(
+		pool_receiver.for_each(move |_hashes| {
+			// we want to have only one PendingTransactions task in the queue.
+			if is_ready.compare_and_swap(true, false, atomic::Ordering::SeqCst) {
+				let task = ::sync::PriorityTask::PropagateTransactions(Instant::now(), is_ready.clone());
+				// we ignore error cause it means that we are closing
+				let _ = tx.lock().send(task);
+			}
+			Ok(())
+		})
+	);
 
 	// provider not added to a notification center is effectively disabled
 	// TODO [debris] refactor it later on
@@ -745,6 +750,7 @@ fn execute_impl<Cr, Rr>(cmd: RunCmd, logger: Arc<RotatingLogger>, on_client_rq: 
 		gas_price_percentile: cmd.gas_price_percentile,
 		poll_lifetime: cmd.poll_lifetime,
 		allow_missing_blocks: cmd.allow_missing_blocks,
+		no_ancient_blocks: !cmd.download_old_blocks,
 	});
 
 	let dependencies = rpc::Dependencies {
@@ -894,17 +900,27 @@ impl RunningClient {
 				// Create a weak reference to the client so that we can wait on shutdown
 				// until it is dropped
 				let weak_client = Arc::downgrade(&client);
-				// Shutdown and drop the ServiceClient
+				// Shutdown and drop the ClientService
 				client_service.shutdown();
+				trace!(target: "shutdown", "ClientService shut down");
 				drop(client_service);
+				trace!(target: "shutdown", "ClientService dropped");
 				// drop this stuff as soon as exit detected.
 				drop(rpc);
+				trace!(target: "shutdown", "RPC dropped");
 				drop(keep_alive);
+				trace!(target: "shutdown", "KeepAlive dropped");
 				// to make sure timer does not spawn requests while shutdown is in progress
 				informant.shutdown();
+				trace!(target: "shutdown", "Informant shut down");
 				// just Arc is dropping here, to allow other reference release in its default time
 				drop(informant);
+				trace!(target: "shutdown", "Informant dropped");
 				drop(client);
+				trace!(target: "shutdown", "Client dropped");
+				// This may help when debugging ref cycles. Requires nightly-only  `#![feature(weak_counts)]`
+				// trace!(target: "shutdown", "Waiting for refs to Client to shutdown, strong_count={:?}, weak_count={:?}", weak_client.strong_count(), weak_client.weak_count());
+				trace!(target: "shutdown", "Waiting for refs to Client to shutdown");
 				wait_for_drop(weak_client);
 			}
 		}
@@ -938,24 +954,30 @@ fn print_running_environment(data_dir: &str, dirs: &Directories, db_dirs: &Datab
 }
 
 fn wait_for_drop<T>(w: Weak<T>) {
-	let sleep_duration = Duration::from_secs(1);
-	let warn_timeout = Duration::from_secs(60);
-	let max_timeout = Duration::from_secs(300);
+	const SLEEP_DURATION: Duration = Duration::from_secs(1);
+	const WARN_TIMEOUT: Duration = Duration::from_secs(60);
+	const MAX_TIMEOUT: Duration = Duration::from_secs(300);
 
 	let instant = Instant::now();
 	let mut warned = false;
 
-	while instant.elapsed() < max_timeout {
+	while instant.elapsed() < MAX_TIMEOUT {
 		if w.upgrade().is_none() {
 			return;
 		}
 
-		if !warned && instant.elapsed() > warn_timeout {
+		if !warned && instant.elapsed() > WARN_TIMEOUT {
 			warned = true;
 			warn!("Shutdown is taking longer than expected.");
 		}
 
-		thread::sleep(sleep_duration);
+		thread::sleep(SLEEP_DURATION);
+
+		// When debugging shutdown issues on a nightly build it can help to enable this with the
+		// `#![feature(weak_counts)]` added to lib.rs (TODO: enable when
+		// https://github.com/rust-lang/rust/issues/57977 is stable)
+		// trace!(target: "shutdown", "Waiting for client to drop, strong_count={:?}, weak_count={:?}", w.strong_count(), w.weak_count());
+		trace!(target: "shutdown", "Waiting for client to drop");
 	}
 
 	warn!("Shutdown timeout reached, exiting uncleanly.");

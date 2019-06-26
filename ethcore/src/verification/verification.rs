@@ -26,7 +26,7 @@ use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 use bytes::Bytes;
 use hash::keccak;
-use heapsize::HeapSizeOf;
+use parity_util_mem::MallocSizeOf;
 use rlp::Rlp;
 use triehash::ordered_trie_root;
 use unexpected::{Mismatch, OutOfBounds};
@@ -40,10 +40,10 @@ use types::{BlockNumber, header::Header};
 use types::transaction::SignedTransaction;
 use verification::queue::kind::blocks::Unverified;
 
-#[cfg(not(time_checked_add))]
 use time_utils::CheckedSystemTime;
 
 /// Preprocessed block data gathered in `verify_block_unordered` call
+#[derive(MallocSizeOf)]
 pub struct PreverifiedBlock {
 	/// Populated block header
 	pub header: Header,
@@ -55,16 +55,8 @@ pub struct PreverifiedBlock {
 	pub bytes: Bytes,
 }
 
-impl HeapSizeOf for PreverifiedBlock {
-	fn heap_size_of_children(&self) -> usize {
-		self.header.heap_size_of_children()
-			+ self.transactions.heap_size_of_children()
-			+ self.bytes.heap_size_of_children()
-	}
-}
-
 /// Phase 1 quick block verification. Only does checks that are cheap. Operates on a single block
-pub fn verify_block_basic(block: &Unverified, engine: &EthEngine, check_seal: bool) -> Result<(), Error> {
+pub fn verify_block_basic(block: &Unverified, engine: &dyn EthEngine, check_seal: bool) -> Result<(), Error> {
 	verify_header_params(&block.header, engine, true, check_seal)?;
 	verify_block_integrity(block)?;
 
@@ -89,7 +81,7 @@ pub fn verify_block_basic(block: &Unverified, engine: &EthEngine, check_seal: bo
 /// Phase 2 verification. Perform costly checks such as transaction signatures and block nonce for ethash.
 /// Still operates on a individual block
 /// Returns a `PreverifiedBlock` structure populated with transactions
-pub fn verify_block_unordered(block: Unverified, engine: &EthEngine, check_seal: bool) -> Result<PreverifiedBlock, Error> {
+pub fn verify_block_unordered(block: Unverified, engine: &dyn EthEngine, check_seal: bool) -> Result<PreverifiedBlock, Error> {
 	let header = block.header;
 	if check_seal {
 		engine.verify_block_unordered(&header)?;
@@ -131,14 +123,14 @@ pub struct FullFamilyParams<'a, C: BlockInfo + CallContract + 'a> {
 	pub block: &'a PreverifiedBlock,
 
 	/// Block provider to use during verification
-	pub block_provider: &'a BlockProvider,
+	pub block_provider: &'a dyn BlockProvider,
 
 	/// Engine client to use during verification
 	pub client: &'a C,
 }
 
 /// Phase 3 verification. Check block information against parent and uncles.
-pub fn verify_block_family<C: BlockInfo + CallContract>(header: &Header, parent: &Header, engine: &EthEngine, do_full: Option<FullFamilyParams<C>>) -> Result<(), Error> {
+pub fn verify_block_family<C: BlockInfo + CallContract>(header: &Header, parent: &Header, engine: &dyn EthEngine, do_full: Option<FullFamilyParams<C>>) -> Result<(), Error> {
 	// TODO: verify timestamp
 	verify_parent(&header, &parent, engine)?;
 	engine.verify_block_family(&header, &parent)?;
@@ -159,7 +151,7 @@ pub fn verify_block_family<C: BlockInfo + CallContract>(header: &Header, parent:
 	Ok(())
 }
 
-fn verify_uncles(block: &PreverifiedBlock, bc: &BlockProvider, engine: &EthEngine) -> Result<(), Error> {
+fn verify_uncles(block: &PreverifiedBlock, bc: &dyn BlockProvider, engine: &dyn EthEngine) -> Result<(), Error> {
 	let header = &block.header;
 	let num_uncles = block.uncles.len();
 	let max_uncles = engine.maximum_uncle_count(header.number());
@@ -267,7 +259,7 @@ pub fn verify_block_final(expected: &Header, got: &Header) -> Result<(), Error> 
 }
 
 /// Check basic header parameters.
-pub fn verify_header_params(header: &Header, engine: &EthEngine, is_full: bool, check_seal: bool) -> Result<(), Error> {
+pub fn verify_header_params(header: &Header, engine: &dyn EthEngine, is_full: bool, check_seal: bool) -> Result<(), Error> {
 	if check_seal {
 		let expected_seal_fields = engine.seal_fields(header);
 		if header.seal().len() != expected_seal_fields {
@@ -310,15 +302,15 @@ pub fn verify_header_params(header: &Header, engine: &EthEngine, is_full: bool, 
 		// this will resist overflow until `year 2037`
 		let max_time = SystemTime::now() + ACCEPTABLE_DRIFT;
 		let invalid_threshold = max_time + ACCEPTABLE_DRIFT * 9;
-		let timestamp = UNIX_EPOCH.checked_add(Duration::from_secs(header.timestamp()))
+		let timestamp = CheckedSystemTime::checked_add(UNIX_EPOCH, Duration::from_secs(header.timestamp()))
 			.ok_or(BlockError::TimestampOverflow)?;
 
 		if timestamp > invalid_threshold {
-			return Err(From::from(BlockError::InvalidTimestamp(OutOfBounds { max: Some(max_time), min: None, found: timestamp })))
+			return Err(From::from(BlockError::InvalidTimestamp(OutOfBounds { max: Some(max_time), min: None, found: timestamp }.into())))
 		}
 
 		if timestamp > max_time {
-			return Err(From::from(BlockError::TemporarilyInvalid(OutOfBounds { max: Some(max_time), min: None, found: timestamp })))
+			return Err(From::from(BlockError::TemporarilyInvalid(OutOfBounds { max: Some(max_time), min: None, found: timestamp }.into())))
 		}
 	}
 
@@ -326,7 +318,7 @@ pub fn verify_header_params(header: &Header, engine: &EthEngine, is_full: bool, 
 }
 
 /// Check header parameters agains parent header.
-fn verify_parent(header: &Header, parent: &Header, engine: &EthEngine) -> Result<(), Error> {
+fn verify_parent(header: &Header, parent: &Header, engine: &dyn EthEngine) -> Result<(), Error> {
 	assert!(header.parent_hash().is_zero() || &parent.hash() == header.parent_hash(),
 			"Parent hash should already have been verified; qed");
 
@@ -334,11 +326,11 @@ fn verify_parent(header: &Header, parent: &Header, engine: &EthEngine) -> Result
 
 	if !engine.is_timestamp_valid(header.timestamp(), parent.timestamp()) {
 		let now = SystemTime::now();
-		let min = now.checked_add(Duration::from_secs(parent.timestamp().saturating_add(1)))
+		let min = CheckedSystemTime::checked_add(now, Duration::from_secs(parent.timestamp().saturating_add(1)))
 			.ok_or(BlockError::TimestampOverflow)?;
-		let found = now.checked_add(Duration::from_secs(header.timestamp()))
+		let found = CheckedSystemTime::checked_add(now, Duration::from_secs(header.timestamp()))
 			.ok_or(BlockError::TimestampOverflow)?;
-		return Err(From::from(BlockError::InvalidTimestamp(OutOfBounds { max: None, min: Some(min), found })))
+		return Err(From::from(BlockError::InvalidTimestamp(OutOfBounds { max: None, min: Some(min), found }.into())))
 	}
 	if header.number() != parent.number() + 1 {
 		return Err(From::from(BlockError::InvalidNumber(Mismatch { expected: parent.number() + 1, found: header.number() })));
@@ -364,17 +356,17 @@ fn verify_block_integrity(block: &Unverified) -> Result<(), Error> {
 	let tx = block_rlp.at(1)?;
 	let expected_root = ordered_trie_root(tx.iter().map(|r| r.as_raw()));
 	if &expected_root != block.header.transactions_root() {
-		bail!(BlockError::InvalidTransactionsRoot(Mismatch {
+		return Err(BlockError::InvalidTransactionsRoot(Mismatch {
 			expected: expected_root,
 			found: *block.header.transactions_root(),
-		}));
+		}).into());
 	}
 	let expected_uncles = keccak(block_rlp.at(2)?.as_raw());
 	if &expected_uncles != block.header.uncles_hash(){
-		bail!(BlockError::InvalidUnclesHash(Mismatch {
+		return Err(BlockError::InvalidUnclesHash(Mismatch {
 			expected: expected_uncles,
 			found: *block.header.uncles_hash(),
-		}));
+		}).into());
 	}
 	Ok(())
 }
@@ -385,13 +377,12 @@ mod tests {
 
 	use std::collections::{BTreeMap, HashMap};
 	use std::time::{SystemTime, UNIX_EPOCH};
-	use ethereum_types::{H256, BloomRef, U256};
+	use ethereum_types::{H256, BloomRef, U256, Address};
 	use blockchain::{BlockDetails, TransactionAddress, BlockReceipts};
 	use types::encoded;
 	use hash::keccak;
 	use engines::EthEngine;
 	use error::BlockError::*;
-	use error::ErrorKind;
 	use ethkey::{Random, Generator};
 	use spec::{CommonParams, Spec};
 	use test_helpers::{create_test_block_with_data, create_test_block};
@@ -406,7 +397,7 @@ mod tests {
 
 	fn check_fail(result: Result<(), Error>, e: BlockError) {
 		match result {
-			Err(Error(ErrorKind::Block(ref error), _)) if *error == e => (),
+			Err(Error::Block(ref error)) if *error == e => (),
 			Err(other) => panic!("Block verification failed.\nExpected: {:?}\nGot: {:?}", e, other),
 			Ok(_) => panic!("Block verification failed.\nExpected: {:?}\nGot: Ok", e),
 		}
@@ -415,8 +406,8 @@ mod tests {
 	fn check_fail_timestamp(result: Result<(), Error>, temp: bool) {
 		let name = if temp { "TemporarilyInvalid" } else { "InvalidTimestamp" };
 		match result {
-			Err(Error(ErrorKind::Block(BlockError::InvalidTimestamp(_)), _)) if !temp => (),
-			Err(Error(ErrorKind::Block(BlockError::TemporarilyInvalid(_)), _)) if temp => (),
+			Err(Error::Block(BlockError::InvalidTimestamp(_))) if !temp => (),
+			Err(Error::Block(BlockError::TemporarilyInvalid(_))) if temp => (),
 			Err(other) => panic!("Block verification failed.\nExpected: {}\nGot: {:?}", name, other),
 			Ok(_) => panic!("Block verification failed.\nExpected: {}\nGot: Ok", name),
 		}
@@ -517,12 +508,12 @@ mod tests {
 		}
 	}
 
-	fn basic_test(bytes: &[u8], engine: &EthEngine) -> Result<(), Error> {
+	fn basic_test(bytes: &[u8], engine: &dyn EthEngine) -> Result<(), Error> {
 		let unverified = Unverified::from_rlp(bytes.to_vec())?;
 		verify_block_basic(&unverified, engine, true)
 	}
 
-	fn family_test<BC>(bytes: &[u8], engine: &EthEngine, bc: &BC) -> Result<(), Error> where BC: BlockProvider {
+	fn family_test<BC>(bytes: &[u8], engine: &dyn EthEngine, bc: &BC) -> Result<(), Error> where BC: BlockProvider {
 		let block = Unverified::from_rlp(bytes.to_vec()).unwrap();
 		let header = block.header;
 		let transactions: Vec<_> = block.transactions
@@ -548,13 +539,13 @@ mod tests {
 
 		let full_params = FullFamilyParams {
 			block: &block,
-			block_provider: bc as &BlockProvider,
+			block_provider: bc as &dyn BlockProvider,
 			client: &client,
 		};
 		verify_block_family(&block.header, &parent, engine, Some(full_params))
 	}
 
-	fn unordered_test(bytes: &[u8], engine: &EthEngine) -> Result<(), Error> {
+	fn unordered_test(bytes: &[u8], engine: &dyn EthEngine) -> Result<(), Error> {
 		let un = Unverified::from_rlp(bytes.to_vec())?;
 		verify_block_unordered(un, engine, false)?;
 		Ok(())
@@ -616,7 +607,7 @@ mod tests {
 		}.sign(keypair.secret(), None);
 
 		let tr3 = Transaction {
-			action: Action::Call(0x0.into()),
+			action: Action::Call(Address::from_low_u64_be(0x0)),
 			value: U256::from(0),
 			data: Bytes::new(),
 			gas: U256::from(30_000),
@@ -690,7 +681,7 @@ mod tests {
 		bad_header.set_transactions_root(eip86_transactions_root.clone());
 		bad_header.set_uncles_hash(good_uncles_hash.clone());
 		match basic_test(&create_test_block_with_data(&bad_header, &eip86_transactions, &good_uncles), engine) {
-			Err(Error(ErrorKind::Transaction(ref e), _)) if e == &::ethkey::Error::InvalidSignature.into() => (),
+			Err(Error::Transaction(ref e)) if e == &::ethkey::Error::InvalidSignature.into() => (),
 			e => panic!("Block verification failed.\nExpected: Transaction Error (Invalid Signature)\nGot: {:?}", e),
 		}
 
@@ -785,7 +776,7 @@ mod tests {
 		header.set_gas_limit(0.into());
 		header.set_difficulty("0000000000000000000000000000000000000000000000000000000000020000".parse::<U256>().unwrap());
 		match family_test(&create_test_block(&header), engine, &bc) {
-			Err(Error(ErrorKind::Block(InvalidGasLimit(_)), _)) => {},
+			Err(Error::Block(InvalidGasLimit(_))) => {},
 			Err(_) => { panic!("should be invalid difficulty fail"); },
 			_ => { panic!("Should be error, got Ok"); },
 		}
@@ -797,7 +788,7 @@ mod tests {
 	fn dust_protection() {
 		use ethkey::{Generator, Random};
 		use types::transaction::{Transaction, Action};
-		use machine::EthereumMachine;
+		use machine::Machine;
 		use engines::NullEngine;
 
 		let mut params = CommonParams::default();
@@ -819,7 +810,7 @@ mod tests {
 
 		let good_transactions = [bad_transactions[0].clone(), bad_transactions[1].clone()];
 
-		let machine = EthereumMachine::regular(params, BTreeMap::new());
+		let machine = Machine::regular(params, BTreeMap::new());
 		let engine = NullEngine::new(Default::default(), machine);
 		check_fail(unordered_test(&create_test_block_with_data(&header, &bad_transactions, &[]), &engine), TooManyTransactions(keypair.address()));
 		unordered_test(&create_test_block_with_data(&header, &good_transactions, &[]), &engine).unwrap();

@@ -143,7 +143,8 @@ impl EthTester {
 				send_block_number_in_get_work: true,
 				gas_price_percentile: 50,
 				allow_experimental_rpcs: true,
-				allow_missing_blocks: false
+				allow_missing_blocks: false,
+				no_ancient_blocks: false
 			},
 		);
 
@@ -494,7 +495,7 @@ fn verify_transaction_counts(name: String, chain: BlockChain) {
 #[test]
 fn starting_nonce_test() {
 	let tester = EthTester::from_spec(Spec::load(&env::temp_dir(), POSITIVE_NONCE_SPEC).expect("invalid chain spec"));
-	let address = Address::from(10);
+	let address = Address::from_low_u64_be(10);
 
 	let sample = tester.handler.handle_request_sync(&(r#"
 		{

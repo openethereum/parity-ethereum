@@ -29,7 +29,7 @@ pub trait EngineSigner: Send + Sync {
 }
 
 /// Creates a new `EngineSigner` from given key pair.
-pub fn from_keypair(keypair: ethkey::KeyPair) -> Box<EngineSigner> {
+pub fn from_keypair(keypair: ethkey::KeyPair) -> Box<dyn EngineSigner> {
 	Box::new(Signer(keypair))
 }
 
@@ -59,10 +59,6 @@ mod test_signer {
 			match self.0.sign(self.1, Some(self.2.clone()), hash) {
 				Err(SignError::NotUnlocked) => unreachable!(),
 				Err(SignError::NotFound) => Err(ethkey::Error::InvalidAddress),
-				Err(SignError::Hardware(err)) => {
-					warn!("Error using hardware wallet for engine: {:?}", err);
-					Err(ethkey::Error::InvalidSecret)
-				},
 				Err(SignError::SStore(accounts::Error::EthKey(err))) => Err(err),
 				Err(SignError::SStore(accounts::Error::EthKeyCrypto(err))) => {
 					warn!("Low level crypto error: {:?}", err);

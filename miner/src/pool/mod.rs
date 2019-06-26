@@ -17,7 +17,7 @@
 //! Transaction Pool
 
 use ethereum_types::{U256, H256, Address};
-use heapsize::HeapSizeOf;
+use parity_util_mem::MallocSizeOfExt;
 use types::transaction;
 use txpool;
 
@@ -176,7 +176,7 @@ impl txpool::VerifiedTransaction for VerifiedTransaction {
 	}
 
 	fn mem_usage(&self) -> usize {
-		self.transaction.heap_size_of_children()
+		self.transaction.malloc_size_of()
 	}
 
 	fn sender(&self) -> &Address {

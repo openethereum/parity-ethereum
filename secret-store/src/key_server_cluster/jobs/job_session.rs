@@ -434,12 +434,12 @@ pub mod tests {
 	}
 
 	pub fn make_master_session_meta(threshold: usize) -> SessionMeta {
-		SessionMeta { id: SessionId::default(), master_node_id: NodeId::from(1), self_node_id: NodeId::from(1), threshold: threshold,
+		SessionMeta { id: SessionId::default(), master_node_id: NodeId::from_low_u64_be(1), self_node_id: NodeId::from_low_u64_be(1), threshold: threshold,
 			configured_nodes_count: 5, connected_nodes_count: 5 }
 	}
 
 	pub fn make_slave_session_meta(threshold: usize) -> SessionMeta {
-		SessionMeta { id: SessionId::default(), master_node_id: NodeId::from(1), self_node_id: NodeId::from(2), threshold: threshold,
+		SessionMeta { id: SessionId::default(), master_node_id: NodeId::from_low_u64_be(1), self_node_id: NodeId::from_low_u64_be(2), threshold: threshold,
 			configured_nodes_count: 5, connected_nodes_count: 5 }
 	}
 
@@ -447,27 +447,27 @@ pub mod tests {
 	fn job_initialize_fails_if_not_enough_nodes_for_threshold_total() {
 		let mut job = JobSession::new(make_master_session_meta(1), SquaredSumJobExecutor, DummyJobTransport::default());
 		job.meta.configured_nodes_count = 1;
-		assert_eq!(job.initialize(vec![Public::from(1)].into_iter().collect(), None, false).unwrap_err(), Error::ConsensusUnreachable);
+		assert_eq!(job.initialize(vec![Public::from_low_u64_be(1)].into_iter().collect(), None, false).unwrap_err(), Error::ConsensusUnreachable);
 	}
 
 	#[test]
 	fn job_initialize_fails_if_not_enough_nodes_for_threshold_connected() {
 		let mut job = JobSession::new(make_master_session_meta(1), SquaredSumJobExecutor, DummyJobTransport::default());
 		job.meta.connected_nodes_count = 3;
-		assert_eq!(job.initialize(vec![Public::from(1)].into_iter().collect(), None, false).unwrap_err(), Error::ConsensusTemporaryUnreachable);
+		assert_eq!(job.initialize(vec![Public::from_low_u64_be(1)].into_iter().collect(), None, false).unwrap_err(), Error::ConsensusTemporaryUnreachable);
 	}
 
 	#[test]
 	fn job_initialize_fails_if_not_inactive() {
 		let mut job = JobSession::new(make_master_session_meta(0), SquaredSumJobExecutor, DummyJobTransport::default());
-		job.initialize(vec![Public::from(1)].into_iter().collect(), None, false).unwrap();
-		assert_eq!(job.initialize(vec![Public::from(1)].into_iter().collect(), None, false).unwrap_err(), Error::InvalidStateForRequest);
+		job.initialize(vec![Public::from_low_u64_be(1)].into_iter().collect(), None, false).unwrap();
+		assert_eq!(job.initialize(vec![Public::from_low_u64_be(1)].into_iter().collect(), None, false).unwrap_err(), Error::InvalidStateForRequest);
 	}
 
 	#[test]
 	fn job_initialization_leads_to_finish_if_single_node_is_required() {
 		let mut job = JobSession::new(make_master_session_meta(0), SquaredSumJobExecutor, DummyJobTransport::default());
-		job.initialize(vec![Public::from(1)].into_iter().collect(), None, false).unwrap();
+		job.initialize(vec![Public::from_low_u64_be(1)].into_iter().collect(), None, false).unwrap();
 		assert_eq!(job.state(), JobSessionState::Finished);
 		assert!(job.is_result_ready());
 		assert_eq!(job.result(), Ok(4));
@@ -476,77 +476,77 @@ pub mod tests {
 	#[test]
 	fn job_initialization_does_not_leads_to_finish_if_single_other_node_is_required() {
 		let mut job = JobSession::new(make_master_session_meta(0), SquaredSumJobExecutor, DummyJobTransport::default());
-		job.initialize(vec![Public::from(2)].into_iter().collect(), None, false).unwrap();
+		job.initialize(vec![Public::from_low_u64_be(2)].into_iter().collect(), None, false).unwrap();
 		assert_eq!(job.state(), JobSessionState::Active);
 	}
 
 	#[test]
 	fn job_request_fails_if_comes_from_non_master_node() {
 		let mut job = JobSession::new(make_slave_session_meta(0), SquaredSumJobExecutor, DummyJobTransport::default());
-		assert_eq!(job.on_partial_request(&NodeId::from(3), 2).unwrap_err(), Error::InvalidMessage);
+		assert_eq!(job.on_partial_request(&NodeId::from_low_u64_be(3), 2).unwrap_err(), Error::InvalidMessage);
 	}
 
 	#[test]
 	fn job_request_fails_if_comes_to_master_node() {
 		let mut job = JobSession::new(make_master_session_meta(0), SquaredSumJobExecutor, DummyJobTransport::default());
-		assert_eq!(job.on_partial_request(&NodeId::from(1), 2).unwrap_err(), Error::InvalidMessage);
+		assert_eq!(job.on_partial_request(&NodeId::from_low_u64_be(1), 2).unwrap_err(), Error::InvalidMessage);
 	}
 
 	#[test]
 	fn job_request_fails_if_comes_to_failed_state() {
 		let mut job = JobSession::new(make_slave_session_meta(0), SquaredSumJobExecutor, DummyJobTransport::default());
 		job.on_session_timeout().unwrap_err();
-		assert_eq!(job.on_partial_request(&NodeId::from(1), 2).unwrap_err(), Error::InvalidStateForRequest);
+		assert_eq!(job.on_partial_request(&NodeId::from_low_u64_be(1), 2).unwrap_err(), Error::InvalidStateForRequest);
 	}
 
 	#[test]
 	fn job_request_succeeds_if_comes_to_finished_state() {
 		let mut job = JobSession::new(make_slave_session_meta(0), SquaredSumJobExecutor, DummyJobTransport::default());
-		job.on_partial_request(&NodeId::from(1), 2).unwrap();
-		assert_eq!(job.transport().response(), (NodeId::from(1), 4));
+		job.on_partial_request(&NodeId::from_low_u64_be(1), 2).unwrap();
+		assert_eq!(job.transport().response(), (NodeId::from_low_u64_be(1), 4));
 		assert_eq!(job.state(), JobSessionState::Finished);
-		job.on_partial_request(&NodeId::from(1), 3).unwrap();
-		assert_eq!(job.transport().response(), (NodeId::from(1), 9));
+		job.on_partial_request(&NodeId::from_low_u64_be(1), 3).unwrap();
+		assert_eq!(job.transport().response(), (NodeId::from_low_u64_be(1), 9));
 		assert_eq!(job.state(), JobSessionState::Finished);
 	}
 
 	#[test]
 	fn job_response_fails_if_comes_to_slave_node() {
 		let mut job = JobSession::new(make_slave_session_meta(0), SquaredSumJobExecutor, DummyJobTransport::default());
-		assert_eq!(job.on_partial_response(&NodeId::from(1), 2).unwrap_err(), Error::InvalidMessage);
+		assert_eq!(job.on_partial_response(&NodeId::from_low_u64_be(1), 2).unwrap_err(), Error::InvalidMessage);
 	}
 
 	#[test]
 	fn job_response_fails_if_comes_to_failed_state() {
 		let mut job = JobSession::new(make_master_session_meta(0), SquaredSumJobExecutor, DummyJobTransport::default());
-		job.initialize(vec![Public::from(2)].into_iter().collect(), None, false).unwrap();
+		job.initialize(vec![Public::from_low_u64_be(2)].into_iter().collect(), None, false).unwrap();
 		job.on_session_timeout().unwrap_err();
-		assert_eq!(job.on_partial_response(&NodeId::from(2), 2).unwrap_err(), Error::InvalidStateForRequest);
+		assert_eq!(job.on_partial_response(&NodeId::from_low_u64_be(2), 2).unwrap_err(), Error::InvalidStateForRequest);
 	}
 
 	#[test]
 	fn job_response_fails_if_comes_from_unknown_node() {
 		let mut job = JobSession::new(make_master_session_meta(0), SquaredSumJobExecutor, DummyJobTransport::default());
-		job.initialize(vec![Public::from(2)].into_iter().collect(), None, false).unwrap();
-		assert_eq!(job.on_partial_response(&NodeId::from(3), 2).unwrap_err(), Error::InvalidNodeForRequest);
+		job.initialize(vec![Public::from_low_u64_be(2)].into_iter().collect(), None, false).unwrap();
+		assert_eq!(job.on_partial_response(&NodeId::from_low_u64_be(3), 2).unwrap_err(), Error::InvalidNodeForRequest);
 	}
 
 	#[test]
 	fn job_response_leads_to_failure_if_too_few_nodes_left() {
 		let mut job = JobSession::new(make_master_session_meta(1), SquaredSumJobExecutor, DummyJobTransport::default());
-		job.initialize(vec![Public::from(1), Public::from(2)].into_iter().collect(), None, false).unwrap();
+		job.initialize(vec![Public::from_low_u64_be(1), Public::from_low_u64_be(2)].into_iter().collect(), None, false).unwrap();
 		assert_eq!(job.state(), JobSessionState::Active);
-		assert_eq!(job.on_partial_response(&NodeId::from(2), 3).unwrap_err(), Error::ConsensusUnreachable);
+		assert_eq!(job.on_partial_response(&NodeId::from_low_u64_be(2), 3).unwrap_err(), Error::ConsensusUnreachable);
 		assert_eq!(job.state(), JobSessionState::Failed);
 	}
 
 	#[test]
 	fn job_response_succeeds() {
 		let mut job = JobSession::new(make_master_session_meta(2), SquaredSumJobExecutor, DummyJobTransport::default());
-		job.initialize(vec![Public::from(1), Public::from(2), Public::from(3)].into_iter().collect(), None, false).unwrap();
+		job.initialize(vec![Public::from_low_u64_be(1), Public::from_low_u64_be(2), Public::from_low_u64_be(3)].into_iter().collect(), None, false).unwrap();
 		assert_eq!(job.state(), JobSessionState::Active);
 		assert!(!job.is_result_ready());
-		job.on_partial_response(&NodeId::from(2), 2).unwrap();
+		job.on_partial_response(&NodeId::from_low_u64_be(2), 2).unwrap();
 		assert_eq!(job.state(), JobSessionState::Active);
 		assert!(!job.is_result_ready());
 	}
@@ -554,9 +554,9 @@ pub mod tests {
 	#[test]
 	fn job_response_leads_to_finish() {
 		let mut job = JobSession::new(make_master_session_meta(1), SquaredSumJobExecutor, DummyJobTransport::default());
-		job.initialize(vec![Public::from(1), Public::from(2)].into_iter().collect(), None, false).unwrap();
+		job.initialize(vec![Public::from_low_u64_be(1), Public::from_low_u64_be(2)].into_iter().collect(), None, false).unwrap();
 		assert_eq!(job.state(), JobSessionState::Active);
-		job.on_partial_response(&NodeId::from(2), 2).unwrap();
+		job.on_partial_response(&NodeId::from_low_u64_be(2), 2).unwrap();
 		assert_eq!(job.state(), JobSessionState::Finished);
 	}
 
@@ -564,7 +564,7 @@ pub mod tests {
 	fn job_node_error_ignored_when_slave_disconnects_from_slave() {
 		let mut job = JobSession::new(make_slave_session_meta(1), SquaredSumJobExecutor, DummyJobTransport::default());
 		assert_eq!(job.state(), JobSessionState::Inactive);
-		job.on_node_error(&NodeId::from(3), Error::AccessDenied).unwrap();
+		job.on_node_error(&NodeId::from_low_u64_be(3), Error::AccessDenied).unwrap();
 		assert_eq!(job.state(), JobSessionState::Inactive);
 	}
 
@@ -572,59 +572,59 @@ pub mod tests {
 	fn job_node_error_leads_to_fail_when_slave_disconnects_from_master() {
 		let mut job = JobSession::new(make_slave_session_meta(1), SquaredSumJobExecutor, DummyJobTransport::default());
 		assert_eq!(job.state(), JobSessionState::Inactive);
-		assert_eq!(job.on_node_error(&NodeId::from(1), Error::AccessDenied).unwrap_err(), Error::ConsensusUnreachable);
+		assert_eq!(job.on_node_error(&NodeId::from_low_u64_be(1), Error::AccessDenied).unwrap_err(), Error::ConsensusUnreachable);
 		assert_eq!(job.state(), JobSessionState::Failed);
 	}
 
 	#[test]
 	fn job_node_error_ignored_when_disconnects_from_rejected() {
 		let mut job = JobSession::new(make_master_session_meta(1), SquaredSumJobExecutor, DummyJobTransport::default());
-		job.initialize(vec![Public::from(1), Public::from(2), Public::from(3)].into_iter().collect(), None, false).unwrap();
+		job.initialize(vec![Public::from_low_u64_be(1), Public::from_low_u64_be(2), Public::from_low_u64_be(3)].into_iter().collect(), None, false).unwrap();
 		assert_eq!(job.state(), JobSessionState::Active);
-		job.on_partial_response(&NodeId::from(2), 3).unwrap();
-		job.on_node_error(&NodeId::from(2), Error::AccessDenied).unwrap();
+		job.on_partial_response(&NodeId::from_low_u64_be(2), 3).unwrap();
+		job.on_node_error(&NodeId::from_low_u64_be(2), Error::AccessDenied).unwrap();
 		assert_eq!(job.state(), JobSessionState::Active);
 	}
 
 	#[test]
 	fn job_node_error_ignored_when_disconnects_from_unknown() {
 		let mut job = JobSession::new(make_master_session_meta(1), SquaredSumJobExecutor, DummyJobTransport::default());
-		job.initialize(vec![Public::from(1), Public::from(2)].into_iter().collect(), None, false).unwrap();
+		job.initialize(vec![Public::from_low_u64_be(1), Public::from_low_u64_be(2)].into_iter().collect(), None, false).unwrap();
 		assert_eq!(job.state(), JobSessionState::Active);
-		job.on_node_error(&NodeId::from(3), Error::AccessDenied).unwrap();
+		job.on_node_error(&NodeId::from_low_u64_be(3), Error::AccessDenied).unwrap();
 		assert_eq!(job.state(), JobSessionState::Active);
 	}
 
 	#[test]
 	fn job_node_error_ignored_when_disconnects_from_requested_and_enough_nodes_left() {
 		let mut job = JobSession::new(make_master_session_meta(1), SquaredSumJobExecutor, DummyJobTransport::default());
-		job.initialize(vec![Public::from(1), Public::from(2), Public::from(3)].into_iter().collect(), None, false).unwrap();
+		job.initialize(vec![Public::from_low_u64_be(1), Public::from_low_u64_be(2), Public::from_low_u64_be(3)].into_iter().collect(), None, false).unwrap();
 		assert_eq!(job.state(), JobSessionState::Active);
-		job.on_node_error(&NodeId::from(3), Error::AccessDenied).unwrap();
+		job.on_node_error(&NodeId::from_low_u64_be(3), Error::AccessDenied).unwrap();
 		assert_eq!(job.state(), JobSessionState::Active);
 	}
 
 	#[test]
 	fn job_node_error_leads_to_fail_when_disconnects_from_requested_and_not_enough_nodes_left() {
 		let mut job = JobSession::new(make_master_session_meta(1), SquaredSumJobExecutor, DummyJobTransport::default());
-		job.initialize(vec![Public::from(1), Public::from(2)].into_iter().collect(), None, false).unwrap();
+		job.initialize(vec![Public::from_low_u64_be(1), Public::from_low_u64_be(2)].into_iter().collect(), None, false).unwrap();
 		assert_eq!(job.state(), JobSessionState::Active);
-		assert_eq!(job.on_node_error(&NodeId::from(2), Error::AccessDenied).unwrap_err(), Error::ConsensusUnreachable);
+		assert_eq!(job.on_node_error(&NodeId::from_low_u64_be(2), Error::AccessDenied).unwrap_err(), Error::ConsensusUnreachable);
 		assert_eq!(job.state(), JobSessionState::Failed);
 	}
 
 	#[test]
 	fn job_broadcasts_self_response() {
 		let mut job = JobSession::new(make_master_session_meta(1), SquaredSumJobExecutor, DummyJobTransport::default());
-		job.initialize(vec![Public::from(1), Public::from(2)].into_iter().collect(), None, true).unwrap();
+		job.initialize(vec![Public::from_low_u64_be(1), Public::from_low_u64_be(2)].into_iter().collect(), None, true).unwrap();
 		assert_eq!(job.state(), JobSessionState::Active);
-		assert_eq!(job.transport().response(), (NodeId::from(2), 4));
+		assert_eq!(job.transport().response(), (NodeId::from_low_u64_be(2), 4));
 	}
 
 	#[test]
 	fn job_does_not_broadcasts_self_response() {
 		let mut job = JobSession::new(make_master_session_meta(1), SquaredSumJobExecutor, DummyJobTransport::default());
-		job.initialize(vec![Public::from(1), Public::from(2)].into_iter().collect(), None, false).unwrap();
+		job.initialize(vec![Public::from_low_u64_be(1), Public::from_low_u64_be(2)].into_iter().collect(), None, false).unwrap();
 		assert_eq!(job.state(), JobSessionState::Active);
 		assert!(job.transport().is_empty_response());
 	}
@@ -632,30 +632,30 @@ pub mod tests {
 	#[test]
 	fn job_fails_with_temp_error_if_more_than_half_nodes_respond_with_temp_error() {
 		let mut job = JobSession::new(make_master_session_meta(2), SquaredSumJobExecutor, DummyJobTransport::default());
-		job.initialize(vec![Public::from(1), Public::from(2), Public::from(3), Public::from(4)].into_iter().collect(), None, false).unwrap();
-		job.on_node_error(&NodeId::from(2), Error::NodeDisconnected).unwrap();
-		assert_eq!(job.on_node_error(&NodeId::from(3), Error::NodeDisconnected).unwrap_err(), Error::ConsensusTemporaryUnreachable);
+		job.initialize(vec![Public::from_low_u64_be(1), Public::from_low_u64_be(2), Public::from_low_u64_be(3), Public::from_low_u64_be(4)].into_iter().collect(), None, false).unwrap();
+		job.on_node_error(&NodeId::from_low_u64_be(2), Error::NodeDisconnected).unwrap();
+		assert_eq!(job.on_node_error(&NodeId::from_low_u64_be(3), Error::NodeDisconnected).unwrap_err(), Error::ConsensusTemporaryUnreachable);
 	}
 
 	#[test]
 	fn job_fails_with_temp_error_if_more_than_half_rejects_are_temp() {
 		let mut job = JobSession::new(make_master_session_meta(2), SquaredSumJobExecutor, DummyJobTransport::default());
-		job.initialize(vec![Public::from(1), Public::from(2), Public::from(3), Public::from(4)].into_iter().collect(), None, false).unwrap();
-		job.on_node_error(&NodeId::from(2), Error::NodeDisconnected).unwrap();
-		assert_eq!(job.on_node_error(&NodeId::from(3), Error::NodeDisconnected).unwrap_err(), Error::ConsensusTemporaryUnreachable);
+		job.initialize(vec![Public::from_low_u64_be(1), Public::from_low_u64_be(2), Public::from_low_u64_be(3), Public::from_low_u64_be(4)].into_iter().collect(), None, false).unwrap();
+		job.on_node_error(&NodeId::from_low_u64_be(2), Error::NodeDisconnected).unwrap();
+		assert_eq!(job.on_node_error(&NodeId::from_low_u64_be(3), Error::NodeDisconnected).unwrap_err(), Error::ConsensusTemporaryUnreachable);
 	}
 
 	#[test]
 	fn job_fails_if_more_than_half_rejects_are_non_temp() {
 		let mut job = JobSession::new(make_master_session_meta(2), SquaredSumJobExecutor, DummyJobTransport::default());
-		job.initialize(vec![Public::from(1), Public::from(2), Public::from(3), Public::from(4)].into_iter().collect(), None, false).unwrap();
-		job.on_node_error(&NodeId::from(2), Error::AccessDenied).unwrap();
-		assert_eq!(job.on_node_error(&NodeId::from(3), Error::AccessDenied).unwrap_err(), Error::ConsensusUnreachable);
+		job.initialize(vec![Public::from_low_u64_be(1), Public::from_low_u64_be(2), Public::from_low_u64_be(3), Public::from_low_u64_be(4)].into_iter().collect(), None, false).unwrap();
+		job.on_node_error(&NodeId::from_low_u64_be(2), Error::AccessDenied).unwrap();
+		assert_eq!(job.on_node_error(&NodeId::from_low_u64_be(3), Error::AccessDenied).unwrap_err(), Error::ConsensusUnreachable);
 	}
 
 	#[test]
 	fn job_fails_with_temp_error_when_temp_error_is_reported_by_master_node() {
 		let mut job = JobSession::new(make_slave_session_meta(2), SquaredSumJobExecutor, DummyJobTransport::default());
-		assert_eq!(job.on_node_error(&NodeId::from(1), Error::NodeDisconnected).unwrap_err(), Error::ConsensusTemporaryUnreachable);
+		assert_eq!(job.on_node_error(&NodeId::from_low_u64_be(1), Error::NodeDisconnected).unwrap_err(), Error::ConsensusTemporaryUnreachable);
 	}
 }

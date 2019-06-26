@@ -28,7 +28,7 @@ use jsonrpc_derive::rpc;
 use jsonrpc_pubsub::{Session, PubSubMetadata, SubscriptionId, typed::Subscriber};
 
 use ethereum_types::H256;
-use memzero::Memzero;
+use parity_util_mem::Memzero;
 use parking_lot::RwLock;
 
 use self::filter::Filter;
@@ -277,7 +277,7 @@ impl<P: PoolHandle + 'static, M: Send + Sync + 'static> Whisper for WhisperClien
 			Some(types::Receiver::Identity(id)) => self.store.read().encryption_instance(&id.into_inner())
 				.map_err(whisper_error)?,
 			None => {
-				use rand::{Rng, OsRng};
+				use rand::{Rng, rngs::OsRng};
 
 				// broadcast mode: use fixed nonce and fresh key each time.
 

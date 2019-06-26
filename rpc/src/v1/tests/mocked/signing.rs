@@ -33,7 +33,7 @@ use v1::tests::mocked::parity;
 
 use accounts::AccountProvider;
 use bytes::ToPretty;
-use ethereum_types::{U256, Address};
+use ethereum_types::{U256, Address, Signature, H256};
 use ethcore::client::TestBlockChainClient;
 use ethkey::Secret;
 use ethstore::ethkey::{Generator, Random};
@@ -138,7 +138,7 @@ fn should_add_sign_to_queue() {
 		if signer.requests().len() == 1 {
 			// respond
 			let sender = signer.take(&1.into()).unwrap();
-			signer.request_confirmed(sender, Ok(ConfirmationResponse::Signature(0.into())));
+			signer.request_confirmed(sender, Ok(ConfirmationResponse::Signature(Signature::zero())));
 			break
 		}
 		::std::thread::sleep(Duration::from_millis(100))
@@ -217,7 +217,7 @@ fn should_check_status_of_request_when_its_resolved() {
 	}"#;
 	tester.io.handle_request_sync(&request).expect("Sent");
 	let sender = tester.signer.take(&1.into()).unwrap();
-	tester.signer.request_confirmed(sender, Ok(ConfirmationResponse::Signature(1.into())));
+	tester.signer.request_confirmed(sender, Ok(ConfirmationResponse::Signature(Signature::from_low_u64_be(1))));
 
 	// This is not ideal, but we need to give futures some time to be executed, and they need to run in a separate thread
 	thread::sleep(Duration::from_millis(20));
@@ -289,7 +289,7 @@ fn should_add_transaction_to_queue() {
 		if signer.requests().len() == 1 {
 			// respond
 			let sender = signer.take(&1.into()).unwrap();
-			signer.request_confirmed(sender, Ok(ConfirmationResponse::SendTransaction(0.into())));
+			signer.request_confirmed(sender, Ok(ConfirmationResponse::SendTransaction(H256::zero())));
 			break
 		}
 		::std::thread::sleep(Duration::from_millis(100))

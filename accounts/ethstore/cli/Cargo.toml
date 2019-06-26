@@ -1,4 +1,5 @@
 [package]
+description = "Parity Ethereum Key Management CLI"
 name = "ethstore-cli"
 version = "0.1.1"
 authors = ["Parity Technologies <admin@parity.io>"]
@@ -21,4 +22,4 @@ path = "src/main.rs"
 doc = false
 
 [dev-dependencies]
-tempdir = "0.3.5"
+tempdir = "0.3"

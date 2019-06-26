@@ -332,10 +332,6 @@ usage! {
 			"Add SHIFT to all port numbers Parity is listening on. Includes network port and all servers (HTTP JSON-RPC, WebSockets JSON-RPC, IPFS, SecretStore).",
 
 		["Account Options"]
-			FLAG flag_no_hardware_wallets: (bool) = false, or |c: &Config| c.account.as_ref()?.disable_hardware.clone(),
-			"--no-hardware-wallets",
-			"Disables hardware wallet support.",
-
 			FLAG flag_fast_unlock: (bool) = false, or |c: &Config| c.account.as_ref()?.fast_unlock.clone(),
 			"--fast-unlock",
 			"Use drastically faster unlocking mode. This setting causes raw secrets to be stored unprotected in memory, so use with care.",
@@ -622,6 +618,10 @@ usage! {
 			FLAG flag_no_secretstore_auto_migrate: (bool) = false, or |c: &Config| c.secretstore.as_ref()?.disable_auto_migrate.clone(),
 			"--no-secretstore-auto-migrate",
 			"Do not run servers set change session automatically when servers set changes. This option has no effect when servers set is read from configuration file.",
+
+			ARG arg_secretstore_http_cors: (String) = "none", or |c: &Config| c.secretstore.as_ref()?.cors.as_ref().map(|vec| vec.join(",")),
+			"--secretstore-http-cors=[URL]",
+			"Specify CORS header for Secret Store HTTP API responses. Special options: \"all\", \"none\".",
 
 			ARG arg_secretstore_acl_contract: (Option<String>) = Some("registry".into()), or |c: &Config| c.secretstore.as_ref()?.acl_contract.clone(),
 			"--secretstore-acl-contract=[SOURCE]",
@@ -1193,7 +1193,6 @@ struct Account {
 	password: Option<Vec<String>>,
 	keys_iterations: Option<u32>,
 	refresh_time: Option<u64>,
-	disable_hardware: Option<bool>,
 	fast_unlock: Option<bool>,
 }
 
@@ -1328,6 +1327,7 @@ struct SecretStore {
 	http_interface: Option<String>,
 	http_port: Option<u16>,
 	path: Option<String>,
+	cors: Option<Vec<String>>
 }
 
 #[derive(Default, Debug, PartialEq, Deserialize)]
@@ -1762,7 +1762,6 @@ mod tests {
 			arg_password: vec!["~/.safe/password.file".into()],
 			arg_keys_iterations: 10240u32,
 			arg_accounts_refresh: 5u64,
-			flag_no_hardware_wallets: false,
 			flag_fast_unlock: false,
 
 			// -- Private Transactions Options
@@ -1854,6 +1853,7 @@ mod tests {
 			arg_secretstore_http_interface: "local".into(),
 			arg_secretstore_http_port: 8082u16,
 			arg_secretstore_path: "$HOME/.parity/secretstore".into(),
+			arg_secretstore_http_cors: "null".into(),
 
 			// IPFS
 			flag_ipfs_api: false,
@@ -2044,7 +2044,6 @@ mod tests {
 				password: Some(vec!["passwdfile path".into()]),
 				keys_iterations: None,
 				refresh_time: None,
-				disable_hardware: None,
 				fast_unlock: None,
 			}),
 			ui: Some(Ui {
@@ -2132,6 +2131,7 @@ mod tests {
 				http_interface: None,
 				http_port: Some(8082),
 				path: None,
+				cors: None,
 			}),
 			private_tx: None,
 			ipfs: Some(Ipfs {

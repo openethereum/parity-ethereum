@@ -168,7 +168,7 @@ impl<C: Client> txpool::Verifier<Transaction> for Verifier<C, ::pool::scoring::N
 
 		if self.client.transaction_already_included(&hash) {
 			trace!(target: "txqueue", "[{:?}] Rejected tx already in the blockchain", hash);
-			bail!(transaction::Error::AlreadyImported)
+			return Err(transaction::Error::AlreadyImported)
 		}
 
 		let gas_limit = cmp::min(self.options.tx_gas_limit, self.options.block_gas_limit);
@@ -181,7 +181,7 @@ impl<C: Client> txpool::Verifier<Transaction> for Verifier<C, ::pool::scoring::N
 				self.options.block_gas_limit,
 				self.options.tx_gas_limit,
 			);
-			bail!(transaction::Error::GasLimitExceeded {
+			return Err(transaction::Error::GasLimitExceeded {
 				limit: gas_limit,
 				got: *tx.gas(),
 			});
@@ -196,7 +196,7 @@ impl<C: Client> txpool::Verifier<Transaction> for Verifier<C, ::pool::scoring::N
 				minimal_gas,
 			);
 
-			bail!(transaction::Error::InsufficientGas {
+			return Err(transaction::Error::InsufficientGas {
 				minimal: minimal_gas,
 				got: *tx.gas(),
 			})
@@ -216,7 +216,7 @@ impl<C: Client> txpool::Verifier<Transaction> for Verifier<C, ::pool::scoring::N
 					tx.gas_price(),
 					self.options.minimal_gas_price,
 				);
-				bail!(transaction::Error::InsufficientGasPrice {
+				return Err(transaction::Error::InsufficientGasPrice {
 					minimal: self.options.minimal_gas_price,
 					got: *tx.gas_price(),
 				});
@@ -231,7 +231,7 @@ impl<C: Client> txpool::Verifier<Transaction> for Verifier<C, ::pool::scoring::N
 						tx.gas_price(),
 						vtx.transaction.gas_price,
 					);
-					bail!(transaction::Error::InsufficientGasPrice {
+					return Err(transaction::Error::InsufficientGasPrice {
 						minimal: vtx.transaction.gas_price,
 						got: *tx.gas_price(),
 					});
@@ -247,7 +247,7 @@ impl<C: Client> txpool::Verifier<Transaction> for Verifier<C, ::pool::scoring::N
 				Ok(signed) => signed.into(),
 				Err(err) => {
 					debug!(target: "txqueue", "[{:?}] Rejected tx {:?}", hash, err);
-					bail!(err)
+					return Err(err)
 				},
 			},
 			Transaction::Local(tx) => tx,
@@ -256,7 +256,7 @@ impl<C: Client> txpool::Verifier<Transaction> for Verifier<C, ::pool::scoring::N
 		// Verify RLP payload
 		if let Err(err) = self.client.decode_transaction(&transaction.rlp_bytes()) {
 			debug!(target: "txqueue", "[{:?}] Rejected transaction's rlp payload", err);
-			bail!(err)
+			return Err(err)
 		}
 
 		let sender = transaction.sender();
@@ -276,7 +276,7 @@ impl<C: Client> txpool::Verifier<Transaction> for Verifier<C, ::pool::scoring::N
 					transaction.gas_price,
 					self.options.minimal_gas_price,
 				);
-				bail!(transaction::Error::InsufficientGasPrice {
+				return Err(transaction::Error::InsufficientGasPrice {
 					minimal: self.options.minimal_gas_price,
 					got: transaction.gas_price,
 				});
@@ -291,7 +291,7 @@ impl<C: Client> txpool::Verifier<Transaction> for Verifier<C, ::pool::scoring::N
 				"[{:?}] Rejected tx, price overflow",
 				hash
 			);
-			bail!(transaction::Error::InsufficientBalance {
+			return Err(transaction::Error::InsufficientBalance {
 				cost: U256::max_value(),
 				balance: account_details.balance,
 			});
@@ -304,7 +304,7 @@ impl<C: Client> txpool::Verifier<Transaction> for Verifier<C, ::pool::scoring::N
 				account_details.balance,
 				cost,
 			);
-			bail!(transaction::Error::InsufficientBalance {
+			return Err(transaction::Error::InsufficientBalance {
 				cost: cost,
 				balance: account_details.balance,
 			});
@@ -318,7 +318,7 @@ impl<C: Client> txpool::Verifier<Transaction> for Verifier<C, ::pool::scoring::N
 				transaction.nonce,
 				account_details.nonce,
 			);
-			bail!(transaction::Error::Old);
+			return Err(transaction::Error::Old);
 		}
 
 		let priority = match (is_own || account_details.is_local, is_retracted) {

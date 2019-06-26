@@ -25,6 +25,7 @@
 		"eip1014Transition": "0x37db77",
 		"eip1052Transition": "0x37db77",
 		"eip1283Transition": "0x37db77",
+		"eip1283DisableTransition": "0x41efd2",
 		"gasLimitBoundDivisor": "0x400",
 		"maxCodeSize": "0x6000",
 		"maxCodeSizeTransition": "0x0",

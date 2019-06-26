@@ -34,7 +34,8 @@ use bytes::Bytes;
 use ethtrie;
 use rlp::RlpStream;
 use hash::keccak;
-use machine::EthereumMachine as Machine;
+use machine::Machine;
+use ethereum_types::BigEndianHash;
 
 use super::HookType;
 
@@ -339,8 +340,8 @@ fn do_json_test_for<H: FnMut(&str, HookType)>(vm_type: &VMType, json_data: &[u8]
 					for (k, v) in account.storage {
 						let key: U256 = k.into();
 						let value: U256 = v.into();
-						let found_storage = try_fail!(state.storage_at(&address, &From::from(key)));
-						fail_unless(found_storage == From::from(value), "storage is incorrect");
+						let found_storage = try_fail!(state.storage_at(&address, &BigEndianHash::from_uint(&key)));
+						fail_unless(found_storage == BigEndianHash::from_uint(&value), "storage is incorrect");
 					}
 				}
 

@@ -17,13 +17,13 @@
 //! Blockchain DB extras.
 
 use std::io::Write;
-use std::ops;
+use std::convert::AsRef;
 
 use common_types::BlockNumber;
 use common_types::engines::epoch::Transition as EpochTransition;
 use common_types::receipt::Receipt;
 use ethereum_types::{H256, H264, U256};
-use heapsize::HeapSizeOf;
+use parity_util_mem::MallocSizeOf;
 use kvdb::PREFIX_LEN as DB_PREFIX_LEN;
 use rlp;
 use rlp_derive::{RlpEncodableWrapper, RlpDecodableWrapper, RlpEncodable, RlpDecodable};
@@ -49,19 +49,17 @@ pub enum ExtrasIndex {
 
 fn with_index(hash: &H256, i: ExtrasIndex) -> H264 {
 	let mut result = H264::default();
-	result[0] = i as u8;
-	(*result)[1..].clone_from_slice(hash);
+	result.as_bytes_mut()[0] = i as u8;
+	result.as_bytes_mut()[1..].clone_from_slice(hash.as_bytes());
 	result
 }
 
 /// Wrapper for block number used as a DB key.
 pub struct BlockNumberKey([u8; 5]);
 
-impl ops::Deref for BlockNumberKey {
-	type Target = [u8];
-
-	fn deref(&self) -> &Self::Target {
-		&self.0
+impl AsRef<[u8]> for BlockNumberKey {
+	fn as_ref(&self) -> &[u8] {
+		&self.0[..]
 	}
 }
 
@@ -123,10 +121,8 @@ pub const EPOCH_KEY_PREFIX: &'static [u8; DB_PREFIX_LEN] = &[
 /// Epoch transitions key
 pub struct EpochTransitionsKey([u8; EPOCH_KEY_LEN]);
 
-impl ops::Deref for EpochTransitionsKey {
-	type Target = [u8];
-
-	fn deref(&self) -> &[u8] { &self.0[..] }
+impl AsRef<[u8]> for EpochTransitionsKey {
+	fn as_ref(&self) -> &[u8] { &self.0[..] }
 }
 
 impl Key<EpochTransitions> for u64 {
@@ -144,7 +140,7 @@ impl Key<EpochTransitions> for u64 {
 }
 
 /// Familial details concerning a block
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, MallocSizeOf)]
 pub struct BlockDetails {
 	/// Block number
 	pub number: BlockNumber,
@@ -199,14 +195,8 @@ impl rlp::Decodable for BlockDetails {
 	}
 }
 
-impl HeapSizeOf for BlockDetails {
-	fn heap_size_of_children(&self) -> usize {
-		self.children.heap_size_of_children()
-	}
-}
-
 /// Represents address of certain transaction within block
-#[derive(Debug, PartialEq, Clone, RlpEncodable, RlpDecodable)]
+#[derive(Debug, PartialEq, Clone, RlpEncodable, RlpDecodable, MallocSizeOf)]
 pub struct TransactionAddress {
 	/// Block hash
 	pub block_hash: H256,
@@ -214,12 +204,8 @@ pub struct TransactionAddress {
 	pub index: usize
 }
 
-impl HeapSizeOf for TransactionAddress {
-	fn heap_size_of_children(&self) -> usize { 0 }
-}
-
 /// Contains all block receipts.
-#[derive(Clone, RlpEncodableWrapper, RlpDecodableWrapper)]
+#[derive(Clone, RlpEncodableWrapper, RlpDecodableWrapper, MallocSizeOf)]
 pub struct BlockReceipts {
 	/// Block receipts
 	pub receipts: Vec<Receipt>,
@@ -231,12 +217,6 @@ impl BlockReceipts {
 		BlockReceipts {
 			receipts: receipts
 		}
-	}
-}
-
-impl HeapSizeOf for BlockReceipts {
-	fn heap_size_of_children(&self) -> usize {
-		self.receipts.heap_size_of_children()
 	}
 }
 

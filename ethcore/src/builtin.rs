@@ -95,7 +95,7 @@ impl Pricer for ModexpPricer {
 		// read lengths as U256 here for accurate gas calculation.
 		let mut read_len = || {
 			reader.read_exact(&mut buf[..]).expect("reading from zero-extended memory cannot fail; qed");
-			U256::from(H256::from_slice(&buf[..]))
+			U256::from_big_endian(&buf[..])
 		};
 		let base_len = read_len();
 		let exp_len = read_len();
@@ -118,7 +118,7 @@ impl Pricer for ModexpPricer {
 			let mut reader = input[(96 + base_len as usize)..].chain(io::repeat(0));
 			let len = min(exp_len, 32) as usize;
 			reader.read_exact(&mut buf[(32 - len)..]).expect("reading from zero-extended memory cannot fail; qed");
-			U256::from(H256::from_slice(&buf[..]))
+			U256::from_big_endian(&buf[..])
 		};
 
 		let adjusted_exp_len = Self::adjusted_exp_len(exp_len, exp_low);
@@ -157,8 +157,8 @@ impl ModexpPricer {
 ///
 /// Unless `is_active` is true,
 pub struct Builtin {
-	pricer: Box<Pricer>,
-	native: Box<Impl>,
+	pricer: Box<dyn Pricer>,
+	native: Box<dyn Impl>,
 	activate_at: u64,
 }
 
@@ -177,7 +177,7 @@ impl Builtin {
 
 impl From<ethjson::spec::Builtin> for Builtin {
 	fn from(b: ethjson::spec::Builtin) -> Self {
-		let pricer: Box<Pricer> = match b.pricing {
+		let pricer: Box<dyn Pricer> = match b.pricing {
 			ethjson::spec::Pricing::Linear(linear) => {
 				Box::new(Linear {
 					base: linear.base,
@@ -211,16 +211,16 @@ impl From<ethjson::spec::Builtin> for Builtin {
 }
 
 /// Ethereum built-in factory.
-pub fn ethereum_builtin(name: &str) -> Box<Impl> {
+pub fn ethereum_builtin(name: &str) -> Box<dyn Impl> {
 	match name {
-		"identity" => Box::new(Identity) as Box<Impl>,
-		"ecrecover" => Box::new(EcRecover) as Box<Impl>,
-		"sha256" => Box::new(Sha256) as Box<Impl>,
-		"ripemd160" => Box::new(Ripemd160) as Box<Impl>,
-		"modexp" => Box::new(ModexpImpl) as Box<Impl>,
-		"alt_bn128_add" => Box::new(Bn128AddImpl) as Box<Impl>,
-		"alt_bn128_mul" => Box::new(Bn128MulImpl) as Box<Impl>,
-		"alt_bn128_pairing" => Box::new(Bn128PairingImpl) as Box<Impl>,
+		"identity" => Box::new(Identity) as Box<dyn Impl>,
+		"ecrecover" => Box::new(EcRecover) as Box<dyn Impl>,
+		"sha256" => Box::new(Sha256) as Box<dyn Impl>,
+		"ripemd160" => Box::new(Ripemd160) as Box<dyn Impl>,
+		"modexp" => Box::new(ModexpImpl) as Box<dyn Impl>,
+		"alt_bn128_add" => Box::new(Bn128AddImpl) as Box<dyn Impl>,
+		"alt_bn128_mul" => Box::new(Bn128MulImpl) as Box<dyn Impl>,
+		"alt_bn128_pairing" => Box::new(Bn128PairingImpl) as Box<dyn Impl>,
 		_ => panic!("invalid builtin name: {}", name),
 	}
 }
@@ -286,7 +286,7 @@ impl Impl for EcRecover {
 			if let Ok(p) = ec_recover(&s, &hash) {
 				let r = keccak(p);
 				output.write(0, &[0; 12]);
-				output.write(12, &r[12..r.len()]);
+				output.write(12, &r.as_bytes()[12..]);
 			}
 		}
 
@@ -498,7 +498,7 @@ impl Impl for Bn128PairingImpl {
 
 impl Bn128PairingImpl {
 	fn execute_with_error(&self, input: &[u8], output: &mut BytesRef) -> Result<(), Error> {
-		use bn::{AffineG1, AffineG2, Fq, Fq2, pairing, G1, G2, Gt, Group};
+		use bn::{AffineG1, AffineG2, Fq, Fq2, pairing_batch, G1, G2, Gt, Group};
 
 		let elements = input.len() / 192; // (a, b_a, b_b - each 64-byte affine coordinates)
 		let ret_val = if input.len() == 0 {
@@ -539,7 +539,7 @@ impl Bn128PairingImpl {
 				vals.push((a, b));
 			};
 
-			let mul = vals.into_iter().fold(Gt::one(), |s, (a, b)| s * pairing(a, b));
+			let mul = pairing_batch(&vals);
 
 			if mul == Gt::one() {
 				U256::one()
@@ -1008,7 +1008,7 @@ mod tests {
 	fn is_active() {
 		let pricer = Box::new(Linear { base: 10, word: 20} );
 		let b = Builtin {
-			pricer: pricer as Box<Pricer>,
+			pricer: pricer as Box<dyn Pricer>,
 			native: ethereum_builtin("identity"),
 			activate_at: 100_000,
 		};
@@ -1022,7 +1022,7 @@ mod tests {
 	fn from_named_linear() {
 		let pricer = Box::new(Linear { base: 10, word: 20 });
 		let b = Builtin {
-			pricer: pricer as Box<Pricer>,
+			pricer: pricer as Box<dyn Pricer>,
 			native: ethereum_builtin("identity"),
 			activate_at: 1,
 		};

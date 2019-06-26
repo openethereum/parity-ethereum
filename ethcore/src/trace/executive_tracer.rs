@@ -75,7 +75,7 @@ impl Tracer for ExecutiveTracer {
 			result: Res::Create(CreateResult {
 				gas_used: U256::zero(),
 				code: Vec::new(),
-				address: Address::default(),
+				address: Address::zero(),
 			}),
 		};
 		self.vecindex_stack.push(self.traces.len());

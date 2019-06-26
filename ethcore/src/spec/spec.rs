@@ -41,7 +41,7 @@ use engines::{
 use error::Error;
 use executive::Executive;
 use factory::Factories;
-use machine::EthereumMachine;
+use machine::Machine;
 use pod_state::PodState;
 use spec::Genesis;
 use spec::seal::Generic as GenericSeal;
@@ -266,7 +266,7 @@ impl From<ethjson::spec::Params> for CommonParams {
 				BlockNumber::max_value,
 				Into::into,
 			),
-			eip210_contract_address: p.eip210_contract_address.map_or(0xf0.into(), Into::into),
+			eip210_contract_address: p.eip210_contract_address.map_or(Address::from_low_u64_be(0xf0), Into::into),
 			eip210_contract_code: p.eip210_contract_code.map_or_else(
 				|| {
 					DEFAULT_BLOCKHASH_CONTRACT.from_hex().expect(
@@ -315,7 +315,7 @@ impl From<ethjson::spec::Params> for CommonParams {
 			nonce_cap_increment: p.nonce_cap_increment.map_or(64, Into::into),
 			remove_dust_contracts: p.remove_dust_contracts.unwrap_or(false),
 			gas_limit_bound_divisor: p.gas_limit_bound_divisor.into(),
-			registrar: p.registrar.map_or_else(Address::new, Into::into),
+			registrar: p.registrar.map_or_else(Address::zero, Into::into),
 			node_permission_contract: p.node_permission_contract.map(Into::into),
 			max_code_size: p.max_code_size.map_or(u64::max_value(), Into::into),
 			max_transaction_size: p.max_transaction_size.map_or(MAX_TRANSACTION_SIZE, Into::into),
@@ -382,7 +382,7 @@ pub struct Spec {
 	/// User friendly spec name
 	pub name: String,
 	/// What engine are we using for this?
-	pub engine: Arc<EthEngine>,
+	pub engine: Arc<dyn EthEngine>,
 	/// Name of the subdir inside the main data dir to use for chain data and settings.
 	pub data_dir: String,
 
@@ -488,7 +488,7 @@ impl From<SpecHardcodedSync> for ethjson::spec::HardcodedSync {
 	}
 }
 
-fn load_machine_from(s: ethjson::spec::Spec) -> EthereumMachine {
+fn load_machine_from(s: ethjson::spec::Spec) -> Machine {
 	let builtins = s.accounts.builtins().into_iter().map(|p| (p.0.into(), From::from(p.1))).collect();
 	let params = CommonParams::from(s.params);
 
@@ -586,11 +586,11 @@ impl Spec {
 		engine_spec: &ethjson::spec::Engine,
 		params: CommonParams,
 		builtins: BTreeMap<Address, Builtin>,
-	) -> EthereumMachine {
+	) -> Machine {
 		if let ethjson::spec::Engine::Ethash(ref ethash) = *engine_spec {
-			EthereumMachine::with_ethash_extensions(params, builtins, ethash.params.clone().into())
+			Machine::with_ethash_extensions(params, builtins, ethash.params.clone().into())
 		} else {
-			EthereumMachine::regular(params, builtins)
+			Machine::regular(params, builtins)
 		}
 	}
 
@@ -601,7 +601,7 @@ impl Spec {
 		engine_spec: ethjson::spec::Engine,
 		params: CommonParams,
 		builtins: BTreeMap<Address, Builtin>,
-	) -> Arc<EthEngine> {
+	) -> Arc<dyn EthEngine> {
 		let machine = Self::machine(&engine_spec, params, builtins);
 
 		match engine_spec {
@@ -627,7 +627,7 @@ impl Spec {
 			let mut t = factories.trie.create(db.as_hash_db_mut(), &mut root);
 
 			for (address, account) in self.genesis_state.get().iter() {
-				t.insert(&**address, &account.rlp())?;
+				t.insert(address.as_bytes(), &account.rlp())?;
 			}
 		}
 
@@ -658,7 +658,7 @@ impl Spec {
 				gas_limit: U256::max_value(),
 			};
 
-			let from = Address::default();
+			let from = Address::zero();
 			for &(ref address, ref constructor) in self.constructors.iter() {
 				trace!(target: "spec", "run_constructors: Creating a contract at {}.", address);
 				trace!(target: "spec", "  .. root before = {}", state.root());
@@ -813,7 +813,7 @@ impl Spec {
 
 	/// Ensure that the given state DB has the trie nodes in for the genesis state.
 	pub fn ensure_db_good<T: Backend>(&self, db: T, factories: &Factories) -> Result<T, Error> {
-		if db.as_hash_db().contains(&self.state_root()) {
+		if db.as_hash_db().contains(&self.state_root(), hash_db::EMPTY_PREFIX) {
 			return Ok(db);
 		}
 
@@ -824,7 +824,7 @@ impl Spec {
 	}
 
 	/// Loads just the state machine from a json file.
-	pub fn load_machine<R: Read>(reader: R) -> Result<EthereumMachine, String> {
+	pub fn load_machine<R: Read>(reader: R) -> Result<Machine, String> {
 		ethjson::spec::Spec::load(reader)
 			.map_err(fmt_err)
 			.map(load_machine_from)
@@ -847,8 +847,6 @@ impl Spec {
 	/// constructor.
 	pub fn genesis_epoch_data(&self) -> Result<Vec<u8>, String> {
 		use types::transaction::{Action, Transaction};
-		use journaldb;
-		use kvdb_memorydb;
 
 		let genesis = self.genesis_header();
 
@@ -874,7 +872,7 @@ impl Spec {
 				gas_used: 0.into(),
 			};
 
-			let from = Address::default();
+			let from = Address::zero();
 			let tx = Transaction {
 				nonce: self.engine.account_start_nonce(0),
 				action: Action::Call(a),
@@ -914,9 +912,9 @@ impl Spec {
 		load_bundled!("null_morden")
 	}
 
-	/// Create the EthereumMachine corresponding to Spec::new_test.
+	/// Create the Machine corresponding to Spec::new_test.
 	#[cfg(any(test, feature = "test-helpers"))]
-	pub fn new_test_machine() -> EthereumMachine { load_machine_bundled!("null_morden") }
+	pub fn new_test_machine() -> Machine { load_machine_bundled!("null_morden") }
 
 	/// Create a new Spec which conforms to the Frontier-era Morden chain except that it's a NullEngine consensus with applying reward on block close.
 	#[cfg(any(test, feature = "test-helpers"))]
@@ -998,6 +996,7 @@ mod tests {
 	use tempdir::TempDir;
 	use types::view;
 	use types::views::BlockView;
+	use std::str::FromStr;
 
 	#[test]
 	fn test_load_empty() {
@@ -1011,12 +1010,12 @@ mod tests {
 
 		assert_eq!(
 			test_spec.state_root(),
-			"f3f4696bbf3b3b07775128eb7a3763279a394e382130f27c21e70233e04946a9".into()
+			H256::from_str("f3f4696bbf3b3b07775128eb7a3763279a394e382130f27c21e70233e04946a9").unwrap()
 		);
 		let genesis = test_spec.genesis_block();
 		assert_eq!(
 			view!(BlockView, &genesis).header_view().hash(),
-			"0cd786a2425d16f152c658316c423e6ce1181e15c3295826d7c9904cba9ce303".into()
+			H256::from_str("0cd786a2425d16f152c658316c423e6ce1181e15c3295826d7c9904cba9ce303").unwrap()
 		);
 	}
 
@@ -1032,8 +1031,8 @@ mod tests {
 			spec.engine.account_start_nonce(0),
 			Default::default(),
 		).unwrap();
-		let expected = "0000000000000000000000000000000000000000000000000000000000000001".into();
-		let address = "0000000000000000000000000000000000001337".into();
+		let expected = H256::from_str("0000000000000000000000000000000000000000000000000000000000000001").unwrap();
+		let address = Address::from_str("0000000000000000000000000000000000001337").unwrap();
 
 		assert_eq!(state.storage_at(&address, &H256::zero()).unwrap(), expected);
 		assert_eq!(state.balance(&address).unwrap(), 1.into());

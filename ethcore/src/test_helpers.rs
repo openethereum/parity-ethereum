@@ -136,7 +136,7 @@ pub fn generate_dummy_client_with_spec_and_data<F>(test_spec: F, block_number: u
 	let mut last_hashes = vec![];
 	let mut last_header = genesis_header.clone();
 
-	let kp = KeyPair::from_secret_slice(&keccak("")).unwrap();
+	let kp = KeyPair::from_secret_slice(keccak("").as_bytes()).unwrap();
 	let author = kp.address();
 
 	let mut n = 0;
@@ -223,7 +223,7 @@ pub fn push_block_with_transactions(client: &Arc<Client>, transactions: &[Signed
 	let test_engine = &*test_spec.engine;
 	let block_number = client.chain_info().best_block_number as u64 + 1;
 
-	let mut b = client.prepare_open_block(Address::default(), (0.into(), 5000000.into()), Bytes::new()).unwrap();
+	let mut b = client.prepare_open_block(Address::zero(), (0.into(), 5000000.into()), Bytes::new()).unwrap();
 	b.set_timestamp(block_number * 10);
 
 	for t in transactions {
@@ -267,11 +267,11 @@ struct TestBlockChainDB {
 	_trace_blooms_dir: TempDir,
 	blooms: blooms_db::Database,
 	trace_blooms: blooms_db::Database,
-	key_value: Arc<KeyValueDB>,
+	key_value: Arc<dyn KeyValueDB>,
 }
 
 impl BlockChainDB for TestBlockChainDB {
-	fn key_value(&self) -> &Arc<KeyValueDB> {
+	fn key_value(&self) -> &Arc<dyn KeyValueDB> {
 		&self.key_value
 	}
 
@@ -285,7 +285,7 @@ impl BlockChainDB for TestBlockChainDB {
 }
 
 /// Creates new test instance of `BlockChainDB`
-pub fn new_db() -> Arc<BlockChainDB> {
+pub fn new_db() -> Arc<dyn BlockChainDB> {
 	let blooms_dir = TempDir::new("").unwrap();
 	let trace_blooms_dir = TempDir::new("").unwrap();
 
@@ -301,7 +301,7 @@ pub fn new_db() -> Arc<BlockChainDB> {
 }
 
 /// Creates a new temporary `BlockChainDB` on FS
-pub fn new_temp_db(tempdir: &Path) -> Arc<BlockChainDB> {
+pub fn new_temp_db(tempdir: &Path) -> Arc<dyn BlockChainDB> {
 	let blooms_dir = TempDir::new("").unwrap();
 	let trace_blooms_dir = TempDir::new("").unwrap();
 	let key_value_dir = tempdir.join("key_value");
@@ -321,7 +321,7 @@ pub fn new_temp_db(tempdir: &Path) -> Arc<BlockChainDB> {
 }
 
 /// Creates new instance of KeyValueDBHandler
-pub fn restoration_db_handler(config: kvdb_rocksdb::DatabaseConfig) -> Box<BlockChainDBHandler> {
+pub fn restoration_db_handler(config: kvdb_rocksdb::DatabaseConfig) -> Box<dyn BlockChainDBHandler> {
 	struct RestorationDBHandler {
 		config: kvdb_rocksdb::DatabaseConfig,
 	}
@@ -329,11 +329,11 @@ pub fn restoration_db_handler(config: kvdb_rocksdb::DatabaseConfig) -> Box<Block
 	struct RestorationDB {
 		blooms: blooms_db::Database,
 		trace_blooms: blooms_db::Database,
-		key_value: Arc<KeyValueDB>,
+		key_value: Arc<dyn KeyValueDB>,
 	}
 
 	impl BlockChainDB for RestorationDB {
-		fn key_value(&self) -> &Arc<KeyValueDB> {
+		fn key_value(&self) -> &Arc<dyn KeyValueDB> {
 			&self.key_value
 		}
 
@@ -347,7 +347,7 @@ pub fn restoration_db_handler(config: kvdb_rocksdb::DatabaseConfig) -> Box<Block
 	}
 
 	impl BlockChainDBHandler for RestorationDBHandler {
-		fn open(&self, db_path: &Path) -> io::Result<Arc<BlockChainDB>> {
+		fn open(&self, db_path: &Path) -> io::Result<Arc<dyn BlockChainDB>> {
 			let key_value = Arc::new(kvdb_rocksdb::Database::open(&self.config, &db_path.to_string_lossy())?);
 			let blooms_path = db_path.join("blooms");
 			let trace_blooms_path = db_path.join("trace_blooms");
@@ -493,7 +493,7 @@ pub fn get_bad_state_dummy_block() -> Bytes {
 	block_header.set_timestamp(40);
 	block_header.set_number(1);
 	block_header.set_parent_hash(test_spec.genesis_header().hash());
-	block_header.set_state_root(0xbad.into());
+	block_header.set_state_root(H256::from_low_u64_be(0xbad));
 
 	create_test_block(&block_header)
 }

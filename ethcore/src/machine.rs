@@ -60,17 +60,17 @@ impl From<::ethjson::spec::EthashParams> for EthashExtensions {
 		EthashExtensions {
 			homestead_transition: p.homestead_transition.map_or(0, Into::into),
 			dao_hardfork_transition: p.dao_hardfork_transition.map_or(u64::max_value(), Into::into),
-			dao_hardfork_beneficiary: p.dao_hardfork_beneficiary.map_or_else(Address::new, Into::into),
+			dao_hardfork_beneficiary: p.dao_hardfork_beneficiary.map_or_else(Address::zero, Into::into),
 			dao_hardfork_accounts: p.dao_hardfork_accounts.unwrap_or_else(Vec::new).into_iter().map(Into::into).collect(),
 		}
 	}
 }
 
 /// Special rules to be applied to the schedule.
-pub type ScheduleCreationRules = Fn(&mut Schedule, BlockNumber) + Sync + Send;
+pub type ScheduleCreationRules = dyn Fn(&mut Schedule, BlockNumber) + Sync + Send;
 
 /// An ethereum-like state machine.
-pub struct EthereumMachine {
+pub struct Machine {
 	params: CommonParams,
 	builtins: Arc<BTreeMap<Address, Builtin>>,
 	tx_filter: Option<Arc<TransactionFilter>>,
@@ -78,11 +78,11 @@ pub struct EthereumMachine {
 	schedule_rules: Option<Box<ScheduleCreationRules>>,
 }
 
-impl EthereumMachine {
+impl Machine {
 	/// Regular ethereum machine.
-	pub fn regular(params: CommonParams, builtins: BTreeMap<Address, Builtin>) -> EthereumMachine {
+	pub fn regular(params: CommonParams, builtins: BTreeMap<Address, Builtin>) -> Machine {
 		let tx_filter = TransactionFilter::from_params(&params).map(Arc::new);
-		EthereumMachine {
+		Machine {
 			params: params,
 			builtins: Arc::new(builtins),
 			tx_filter: tx_filter,
@@ -93,8 +93,8 @@ impl EthereumMachine {
 
 	/// Ethereum machine with ethash extensions.
 	// TODO: either unify or specify to mainnet specifically and include other specific-chain HFs?
-	pub fn with_ethash_extensions(params: CommonParams, builtins: BTreeMap<Address, Builtin>, extensions: EthashExtensions) -> EthereumMachine {
-		let mut machine = EthereumMachine::regular(params, builtins);
+	pub fn with_ethash_extensions(params: CommonParams, builtins: BTreeMap<Address, Builtin>, extensions: EthashExtensions) -> Machine {
+		let mut machine = Machine::regular(params, builtins);
 		machine.ethash_extensions = Some(extensions);
 		machine
 	}
@@ -110,7 +110,7 @@ impl EthereumMachine {
 	}
 }
 
-impl EthereumMachine {
+impl Machine {
 	/// Execute a call as the system address. Block environment information passed to the
 	/// VM is modified to have its gas limit bounded at the upper limit of possible used
 	/// gases including this system call, capped at the maximum value able to be
@@ -203,7 +203,7 @@ impl EthereumMachine {
 				block,
 				params.eip210_contract_address,
 				params.eip210_contract_gas,
-				Some(parent_hash.to_vec()),
+				Some(parent_hash.as_bytes().to_vec()),
 			)?;
 		}
 		Ok(())
@@ -415,7 +415,7 @@ pub struct AuxiliaryData<'a> {
 
 /// Type alias for a function we can make calls through synchronously.
 /// Returns the call result and state proof for each call.
-pub type Call<'a> = Fn(Address, Vec<u8>) -> Result<(Vec<u8>, Vec<Vec<u8>>), String> + 'a;
+pub type Call<'a> = dyn Fn(Address, Vec<u8>) -> Result<(Vec<u8>, Vec<Vec<u8>>), String> + 'a;
 
 /// Request for auxiliary data of a block.
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -428,16 +428,15 @@ pub enum AuxiliaryRequest {
 	Both,
 }
 
-impl super::Machine for EthereumMachine {
-	type EngineClient = ::client::EngineClient;
-
-	type Error = Error;
-
-	fn balance(&self, live: &ExecutedBlock, address: &Address) -> Result<U256, Error> {
+impl Machine {
+	/// Get the balance, in base units, associated with an account.
+	/// Extracts data from the live block.
+	pub fn balance(&self, live: &ExecutedBlock, address: &Address) -> Result<U256, Error> {
 		live.state.balance(address).map_err(Into::into)
 	}
 
-	fn add_balance(&self, live: &mut ExecutedBlock, address: &Address, amount: &U256) -> Result<(), Error> {
+	/// Increment the balance of an account in the state of the live block.
+	pub fn add_balance(&self, live: &mut ExecutedBlock, address: &Address, amount: &U256) -> Result<(), Error> {
 		live.state_mut().add_balance(address, amount, CleanupMode::NoEmpty).map_err(Into::into)
 	}
 }
@@ -462,12 +461,13 @@ fn round_block_gas_limit(gas_limit: U256, lower_limit: U256, upper_limit: U256) 
 #[cfg(test)]
 mod tests {
 	use super::*;
+	use std::str::FromStr;
 
 	fn get_default_ethash_extensions() -> EthashExtensions {
 		EthashExtensions {
 			homestead_transition: 1150000,
 			dao_hardfork_transition: u64::max_value(),
-			dao_hardfork_beneficiary: "0000000000000000000000000000000000000001".into(),
+			dao_hardfork_beneficiary: Address::from_str("0000000000000000000000000000000000000001").unwrap(),
 			dao_hardfork_accounts: Vec::new(),
 		}
 	}
@@ -479,7 +479,7 @@ mod tests {
 		let spec = ::ethereum::new_ropsten_test();
 		let ethparams = get_default_ethash_extensions();
 
-		let machine = EthereumMachine::with_ethash_extensions(
+		let machine = Machine::with_ethash_extensions(
 			spec.params().clone(),
 			Default::default(),
 			ethparams,
@@ -498,7 +498,7 @@ mod tests {
 		let spec = ::ethereum::new_homestead_test();
 		let ethparams = get_default_ethash_extensions();
 
-		let machine = EthereumMachine::with_ethash_extensions(
+		let machine = Machine::with_ethash_extensions(
 			spec.params().clone(),
 			Default::default(),
 			ethparams,

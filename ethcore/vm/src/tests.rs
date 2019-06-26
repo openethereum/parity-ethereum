@@ -107,11 +107,11 @@ impl FakeExt {
 
 impl Ext for FakeExt {
 	fn initial_storage_at(&self, _key: &H256) -> Result<H256> {
-		Ok(H256::new())
+		Ok(H256::zero())
 	}
 
 	fn storage_at(&self, key: &H256) -> Result<H256> {
-		Ok(self.store.get(key).unwrap_or(&H256::new()).clone())
+		Ok(self.store.get(key).unwrap_or(&H256::zero()).clone())
 	}
 
 	fn set_storage(&mut self, key: H256, value: H256) -> Result<()> {
@@ -136,7 +136,7 @@ impl Ext for FakeExt {
 	}
 
 	fn blockhash(&mut self, number: &U256) -> H256 {
-		self.blockhashes.get(number).unwrap_or(&H256::new()).clone()
+		self.blockhashes.get(number).unwrap_or(&H256::zero()).clone()
 	}
 
 	fn create(

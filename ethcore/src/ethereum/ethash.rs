@@ -32,7 +32,7 @@ use engines::block_reward::{self, BlockRewardContract, RewardKind};
 use engines::{self, Engine};
 use error::{BlockError, Error};
 use ethash::{self, quick_get_difficulty, slow_hash_block_number, EthashManager, OptimizeFor};
-use machine::EthereumMachine;
+use machine::Machine;
 
 /// Number of blocks in an ethash snapshot.
 // make dependent on difficulty incrment divisor?
@@ -174,7 +174,7 @@ impl From<ethjson::spec::EthashParams> for EthashParams {
 pub struct Ethash {
 	ethash_params: EthashParams,
 	pow: EthashManager,
-	machine: EthereumMachine,
+	machine: Machine,
 }
 
 impl Ethash {
@@ -182,7 +182,7 @@ impl Ethash {
 	pub fn new<T: Into<Option<OptimizeFor>>>(
 		cache_dir: &Path,
 		ethash_params: EthashParams,
-		machine: EthereumMachine,
+		machine: Machine,
 		optimize_for: T,
 	) -> Arc<Self> {
 		let progpow_transition = ethash_params.progpow_transition;
@@ -203,16 +203,16 @@ impl Ethash {
 // for any block in the chain.
 // in the future, we might move the Ethash epoch
 // caching onto this mechanism as well.
-impl engines::EpochVerifier<EthereumMachine> for Arc<Ethash> {
+impl engines::EpochVerifier for Arc<Ethash> {
 	fn verify_light(&self, _header: &Header) -> Result<(), Error> { Ok(()) }
 	fn verify_heavy(&self, header: &Header) -> Result<(), Error> {
 		self.verify_block_unordered(header)
 	}
 }
 
-impl Engine<EthereumMachine> for Arc<Ethash> {
+impl Engine for Arc<Ethash> {
 	fn name(&self) -> &str { "Ethash" }
-	fn machine(&self) -> &EthereumMachine { &self.machine }
+	fn machine(&self) -> &Machine { &self.machine }
 
 	// Two fields - nonce and mix.
 	fn seal_fields(&self, _header: &Header) -> usize { 2 }
@@ -277,7 +277,7 @@ impl Engine<EthereumMachine> for Arc<Ethash> {
 				let n_uncles = block.uncles.len();
 
 				// Bestow block rewards.
-				let mut result_block_reward = reward + reward.shr(5) * U256::from(n_uncles);
+				let result_block_reward = reward + reward.shr(5) * U256::from(n_uncles);
 
 				rewards.push((author, RewardKind::Author, result_block_reward));
 
@@ -324,7 +324,7 @@ impl Engine<EthereumMachine> for Arc<Ethash> {
 
 		let difficulty = ethash::boundary_to_difficulty(&H256(quick_get_difficulty(
 			&header.bare_hash().0,
-			seal.nonce.low_u64(),
+			seal.nonce.to_low_u64_be(),
 			&seal.mix_hash.0,
 			header.number() >= self.ethash_params.progpow_transition
 		)));
@@ -339,14 +339,14 @@ impl Engine<EthereumMachine> for Arc<Ethash> {
 	fn verify_block_unordered(&self, header: &Header) -> Result<(), Error> {
 		let seal = Seal::parse_seal(header.seal())?;
 
-		let result = self.pow.compute_light(header.number() as u64, &header.bare_hash().0, seal.nonce.low_u64());
+		let result = self.pow.compute_light(header.number() as u64, &header.bare_hash().0, seal.nonce.to_low_u64_be());
 		let mix = H256(result.mix_hash);
 		let difficulty = ethash::boundary_to_difficulty(&H256(result.value));
 		trace!(target: "miner", "num: {num}, seed: {seed}, h: {h}, non: {non}, mix: {mix}, res: {res}",
 			   num = header.number() as u64,
 			   seed = H256(slow_hash_block_number(header.number() as u64)),
 			   h = header.bare_hash(),
-			   non = seal.nonce.low_u64(),
+			   non = seal.nonce.to_low_u64_be(),
 			   mix = H256(result.mix_hash),
 			   res = H256(result.value));
 		if mix != seal.mix_hash {
@@ -373,11 +373,11 @@ impl Engine<EthereumMachine> for Arc<Ethash> {
 		Ok(())
 	}
 
-	fn epoch_verifier<'a>(&self, _header: &Header, _proof: &'a [u8]) -> engines::ConstructedVerifier<'a, EthereumMachine> {
+	fn epoch_verifier<'a>(&self, _header: &Header, _proof: &'a [u8]) -> engines::ConstructedVerifier<'a> {
 		engines::ConstructedVerifier::Trusted(Box::new(self.clone()))
 	}
 
-	fn snapshot_components(&self) -> Option<Box<::snapshot::SnapshotComponents>> {
+	fn snapshot_components(&self) -> Option<Box<dyn (::snapshot::SnapshotComponents)>> {
 		Some(Box::new(::snapshot::PowSnapshot::new(SNAPSHOT_BLOCKS, MAX_SNAPSHOT_BLOCKS)))
 	}
 
@@ -490,7 +490,7 @@ mod tests {
 	use ethereum_types::{H64, H256, U256, Address};
 	use block::*;
 	use test_helpers::get_temp_state_db;
-	use error::{BlockError, Error, ErrorKind};
+	use error::{BlockError, Error};
 	use types::header::Header;
 	use spec::Spec;
 	use engines::Engine;
@@ -591,7 +591,7 @@ mod tests {
 		let last_hashes = Arc::new(vec![genesis_header.hash()]);
 		let mut b = OpenBlock::new(engine, Default::default(), false, db, &genesis_header, last_hashes, Address::zero(), (3141562.into(), 31415620.into()), vec![], false, None).unwrap();
 		let mut uncle = Header::new();
-		let uncle_author: Address = "ef2d6d194084c2de36e0dabfce45d046b37d1106".into();
+		let uncle_author = Address::from_str("ef2d6d194084c2de36e0dabfce45d046b37d1106").unwrap();
 		uncle.set_author(uncle_author);
 		b.push_uncle(uncle).unwrap();
 
@@ -610,8 +610,8 @@ mod tests {
 		let b = OpenBlock::new(engine, Default::default(), false, db, &genesis_header, last_hashes, Address::zero(), (3141562.into(), 31415620.into()), vec![], false, None).unwrap();
 		let b = b.close().unwrap();
 
-		let ubi_contract: Address = "00efdd5883ec628983e9063c7d969fe268bbf310".into();
-		let dev_contract: Address = "00756cf8159095948496617f5fb17ed95059f536".into();
+		let ubi_contract = Address::from_str("00efdd5883ec628983e9063c7d969fe268bbf310").unwrap();
+		let dev_contract = Address::from_str("00756cf8159095948496617f5fb17ed95059f536").unwrap();
 		assert_eq!(b.state.balance(&Address::zero()).unwrap(), U256::from_str("d8d726b7177a80000").unwrap());
 		assert_eq!(b.state.balance(&ubi_contract).unwrap(), U256::from_str("2b5e3af16b1880000").unwrap());
 		assert_eq!(b.state.balance(&dev_contract).unwrap(), U256::from_str("c249fdd327780000").unwrap());
@@ -641,7 +641,7 @@ mod tests {
 		let verify_result = engine.verify_block_basic(&header);
 
 		match verify_result {
-			Err(Error(ErrorKind::Block(BlockError::InvalidSealArity(_)), _)) => {},
+			Err(Error::Block(BlockError::InvalidSealArity(_))) => {},
 			Err(_) => { panic!("should be block seal-arity mismatch error (got {:?})", verify_result); },
 			_ => { panic!("Should be error, got Ok"); },
 		}
@@ -656,7 +656,7 @@ mod tests {
 		let verify_result = engine.verify_block_basic(&header);
 
 		match verify_result {
-			Err(Error(ErrorKind::Block(BlockError::DifficultyOutOfBounds(_)), _)) => {},
+			Err(Error::Block(BlockError::DifficultyOutOfBounds(_))) => {},
 			Err(_) => { panic!("should be block difficulty error (got {:?})", verify_result); },
 			_ => { panic!("Should be error, got Ok"); },
 		}
@@ -672,7 +672,7 @@ mod tests {
 		let verify_result = engine.verify_block_basic(&header);
 
 		match verify_result {
-			Err(Error(ErrorKind::Block(BlockError::InvalidProofOfWork(_)), _)) => {},
+			Err(Error::Block(BlockError::InvalidProofOfWork(_))) => {},
 			Err(_) => { panic!("should be invalid proof of work error (got {:?})", verify_result); },
 			_ => { panic!("Should be error, got Ok"); },
 		}
@@ -686,7 +686,7 @@ mod tests {
 		let verify_result = engine.verify_block_unordered(&header);
 
 		match verify_result {
-			Err(Error(ErrorKind::Block(BlockError::InvalidSealArity(_)), _)) => {},
+			Err(Error::Block(BlockError::InvalidSealArity(_))) => {},
 			Err(_) => { panic!("should be block seal-arity mismatch error (got {:?})", verify_result); },
 			_ => { panic!("Should be error, got Ok"); },
 		}
@@ -711,7 +711,7 @@ mod tests {
 		let verify_result = engine.verify_block_unordered(&header);
 
 		match verify_result {
-			Err(Error(ErrorKind::Block(BlockError::MismatchedH256SealElement(_)), _)) => {},
+			Err(Error::Block(BlockError::MismatchedH256SealElement(_))) => {},
 			Err(_) => { panic!("should be invalid 256-bit seal fail (got {:?})", verify_result); },
 			_ => { panic!("Should be error, got Ok"); },
 		}
@@ -721,13 +721,13 @@ mod tests {
 	fn can_do_proof_of_work_unordered_verification_fail() {
 		let engine = test_spec().engine;
 		let mut header: Header = Header::default();
-		header.set_seal(vec![rlp::encode(&H256::from("b251bd2e0283d0658f2cadfdc8ca619b5de94eca5742725e2e757dd13ed7503d")), rlp::encode(&H64::zero())]);
+		header.set_seal(vec![rlp::encode(&H256::from_str("b251bd2e0283d0658f2cadfdc8ca619b5de94eca5742725e2e757dd13ed7503d").unwrap()), rlp::encode(&H64::zero())]);
 		header.set_difficulty(U256::from_str("ffffffffffffffffffffffffffffffffffffffffffffaaaaaaaaaaaaaaaaaaaa").unwrap());
 
 		let verify_result = engine.verify_block_unordered(&header);
 
 		match verify_result {
-			Err(Error(ErrorKind::Block(BlockError::InvalidProofOfWork(_)), _)) => {},
+			Err(Error::Block(BlockError::InvalidProofOfWork(_))) => {},
 			Err(_) => { panic!("should be invalid proof-of-work fail (got {:?})", verify_result); },
 			_ => { panic!("Should be error, got Ok"); },
 		}
@@ -742,7 +742,7 @@ mod tests {
 		let verify_result = engine.verify_block_family(&header, &parent_header);
 
 		match verify_result {
-			Err(Error(ErrorKind::Block(BlockError::RidiculousNumber(_)), _)) => {},
+			Err(Error::Block(BlockError::RidiculousNumber(_))) => {},
 			Err(_) => { panic!("should be invalid block number fail (got {:?})", verify_result); },
 			_ => { panic!("Should be error, got Ok"); },
 		}
@@ -759,7 +759,7 @@ mod tests {
 		let verify_result = engine.verify_block_family(&header, &parent_header);
 
 		match verify_result {
-			Err(Error(ErrorKind::Block(BlockError::InvalidDifficulty(_)), _)) => {},
+			Err(Error::Block(BlockError::InvalidDifficulty(_))) => {},
 			Err(_) => { panic!("should be invalid difficulty fail (got {:?})", verify_result); },
 			_ => { panic!("Should be error, got Ok"); },
 		}
@@ -914,7 +914,7 @@ mod tests {
 		let tempdir = TempDir::new("").unwrap();
 		let ethash = Ethash::new(tempdir.path(), ethparams, machine, None);
 		let mut header = Header::default();
-		header.set_seal(vec![rlp::encode(&H256::from("b251bd2e0283d0658f2cadfdc8ca619b5de94eca5742725e2e757dd13ed7503d")), rlp::encode(&H64::zero())]);
+		header.set_seal(vec![rlp::encode(&H256::from_str("b251bd2e0283d0658f2cadfdc8ca619b5de94eca5742725e2e757dd13ed7503d").unwrap()), rlp::encode(&H64::zero())]);
 		let info = ethash.extra_info(&header);
 		assert_eq!(info["nonce"], "0x0000000000000000");
 		assert_eq!(info["mixHash"], "0xb251bd2e0283d0658f2cadfdc8ca619b5de94eca5742725e2e757dd13ed7503d");

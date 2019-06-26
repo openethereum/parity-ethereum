@@ -35,10 +35,10 @@ use common_types::encoded;
 use common_types::header::Header;
 use common_types::ids::BlockId;
 use ethcore::engines::epoch::{Transition as EpochTransition, PendingTransition as PendingEpochTransition};
-use ethcore::error::{Error, EthcoreResult, ErrorKind as EthcoreErrorKind, BlockError};
+use ethcore::error::{Error, EthcoreResult, BlockError};
 use ethcore::spec::{Spec, SpecHardcodedSync};
 use ethereum_types::{H256, H264, U256};
-use heapsize::HeapSizeOf;
+use parity_util_mem::{MallocSizeOf, MallocSizeOfOps};
 use kvdb::{DBTransaction, KeyValueDB};
 use parking_lot::{Mutex, RwLock};
 use fastmap::H256FastMap;
@@ -95,8 +95,8 @@ struct Entry {
 	canonical_hash: H256,
 }
 
-impl HeapSizeOf for Entry {
-	fn heap_size_of_children(&self) -> usize {
+impl MallocSizeOf for Entry {
+	fn size_of(&self, _ops: &mut MallocSizeOfOps) -> usize {
 		if self.candidates.spilled() {
 			self.candidates.capacity() * ::std::mem::size_of::<Candidate>()
 		} else {
@@ -154,8 +154,11 @@ fn pending_transition_key(block_hash: H256) -> H264 {
 
 	let mut key = H264::default();
 
-	key[0] = LEADING;
-	key.0[1..].copy_from_slice(&block_hash.0[..]);
+	{
+		let bytes = key.as_bytes_mut();
+		bytes[0] = LEADING;
+		bytes[1..].copy_from_slice(block_hash.as_bytes());
+	}
 
 	key
 }
@@ -165,8 +168,11 @@ fn transition_key(block_hash: H256) -> H264 {
 
 	let mut key = H264::default();
 
-	key[0] = LEADING;
-	key.0[1..].copy_from_slice(&block_hash.0[..]);
+	{
+		let bytes = key.as_bytes_mut();
+		bytes[0] = LEADING;
+		bytes[1..].copy_from_slice(block_hash.as_bytes());
+	}
 
 	key
 }
@@ -196,14 +202,21 @@ pub enum HardcodedSync {
 	Deny,
 }
 
+#[derive(MallocSizeOf)]
 /// Header chain. See module docs for more details.
 pub struct HeaderChain {
+	#[ignore_malloc_size_of = "ignored for performance reason"]
 	genesis_header: encoded::Header, // special-case the genesis.
 	candidates: RwLock<BTreeMap<u64, Entry>>,
+	#[ignore_malloc_size_of = "ignored for performance reason"]
 	best_block: RwLock<BlockDescriptor>,
+	#[ignore_malloc_size_of = "ignored for performance reason"]
 	live_epoch_proofs: RwLock<H256FastMap<EpochTransition>>,
+	#[ignore_malloc_size_of = "ignored for performance reason"]
 	db: Arc<KeyValueDB>,
+	#[ignore_malloc_size_of = "ignored for performance reason"]
 	col: Option<u32>,
+	#[ignore_malloc_size_of = "ignored for performance reason"]
 	cache: Arc<Mutex<Cache>>,
 }
 
@@ -237,7 +250,7 @@ impl HeaderChain {
 				for c in &entry.candidates {
 					let key = transition_key(c.hash);
 
-					if let Some(proof) = db.get(col, &*key)? {
+					if let Some(proof) = db.get(col, key.as_bytes())? {
 						live_epoch_proofs.insert(c.hash, EpochTransition {
 							block_hash: c.hash,
 							block_number: cur_number,
@@ -254,7 +267,7 @@ impl HeaderChain {
 			let best_block = {
 				let era = match candidates.get(&curr.best_num) {
 					Some(era) => era,
-					None => bail!("Database corrupt: highest block referenced but no data."),
+					None => return Err("Database corrupt: highest block referenced but no data.".into()),
 				};
 
 				let best = &era.candidates[0];
@@ -403,7 +416,7 @@ impl HeaderChain {
 							.and_then(|entry| entry.candidates.iter().find(|c| c.hash == parent_hash))
 							.map(|c| c.total_difficulty)
 							.ok_or_else(|| BlockError::UnknownParent(parent_hash))
-							.map_err(EthcoreErrorKind::Block)?
+							.map_err(Error::Block)?
 					};
 
 				parent_td + *header.difficulty()
@@ -431,7 +444,7 @@ impl HeaderChain {
 		}
 
 		if let Some(transition) = transition {
-			transaction.put(self.col, &*transition_key(hash), &transition.proof);
+			transaction.put(self.col, transition_key(hash).as_bytes(), &transition.proof);
 			self.live_epoch_proofs.write().insert(hash, transition);
 		}
 
@@ -508,10 +521,10 @@ impl HeaderChain {
 						for ancient in &era_entry.candidates {
 							let maybe_transition = live_epoch_proofs.remove(&ancient.hash);
 							if let Some(epoch_transition) = maybe_transition {
-								transaction.delete(self.col, &*transition_key(ancient.hash));
+								transaction.delete(self.col, transition_key(ancient.hash).as_bytes());
 
 								if ancient.hash == era_entry.canonical_hash {
-									last_canonical_transition = match self.db.get(self.col, &ancient.hash) {
+									last_canonical_transition = match self.db.get(self.col, ancient.hash.as_bytes()) {
 										Err(e) => {
 											warn!(target: "chain", "Error reading from DB: {}\n
 												", e);
@@ -526,7 +539,7 @@ impl HeaderChain {
 								}
 							}
 
-							transaction.delete(self.col, &ancient.hash);
+							transaction.delete(self.col, ancient.hash.as_bytes());
 						}
 
 						let canon = &era_entry.candidates[0];
@@ -576,7 +589,7 @@ impl HeaderChain {
 					} else {
 						let msg = format!("header of block #{} not found in DB ; database in an \
 											inconsistent state", h_num);
-						bail!(msg);
+						return Err(msg.into());
 					};
 
 					let decoded = header.decode().expect("decoding db value failed");
@@ -647,7 +660,7 @@ impl HeaderChain {
 			match cache.block_header(&hash) {
 				Some(header) => Some(header),
 				None => {
-					match self.db.get(self.col, &hash) {
+					match self.db.get(self.col, hash.as_bytes()) {
 						Ok(db_value) => {
 							db_value.map(|x| x.into_vec()).map(encoded::Header::new)
 								.and_then(|header| {
@@ -772,7 +785,7 @@ impl HeaderChain {
 
 	/// Get block status.
 	pub fn status(&self, hash: &H256) -> BlockStatus {
-		if self.db.get(self.col, hash).ok().map_or(false, |x| x.is_some()) {
+		if self.db.get(self.col, hash.as_bytes()).ok().map_or(false, |x| x.is_some()) {
 			BlockStatus::InChain
 		} else {
 			BlockStatus::Unknown
@@ -782,13 +795,13 @@ impl HeaderChain {
 	/// Insert a pending transition.
 	pub fn insert_pending_transition(&self, batch: &mut DBTransaction, hash: H256, t: &PendingEpochTransition) {
 		let key = pending_transition_key(hash);
-		batch.put(self.col, &*key, &*::rlp::encode(t));
+		batch.put(self.col, key.as_bytes(), &*::rlp::encode(t));
 	}
 
 	/// Get pending transition for a specific block hash.
 	pub fn pending_transition(&self, hash: H256) -> Option<PendingEpochTransition> {
 		let key = pending_transition_key(hash);
-		match self.db.get(self.col, &*key) {
+		match self.db.get(self.col, key.as_bytes()) {
 			Ok(db_fetch) => db_fetch.map(|bytes| ::rlp::decode(&bytes).expect("decoding value from db failed")),
 			Err(e) => {
 				warn!(target: "chain", "Error reading from database: {}", e);
@@ -829,12 +842,6 @@ impl HeaderChain {
 				None
 			}
 		}
-	}
-}
-
-impl HeapSizeOf for HeaderChain {
-	fn heap_size_of_children(&self) -> usize {
-		self.candidates.read().heap_size_of_children()
 	}
 }
 

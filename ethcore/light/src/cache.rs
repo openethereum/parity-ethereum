@@ -21,12 +21,12 @@
 //! vector of all gas prices from a recent range of blocks.
 
 use std::time::{Instant, Duration};
+use parity_util_mem::{MallocSizeOf, MallocSizeOfOps, MallocSizeOfExt};
 
 use common_types::encoded;
 use common_types::BlockNumber;
 use common_types::receipt::Receipt;
 use ethereum_types::{H256, U256};
-use heapsize::HeapSizeOf;
 use memory_cache::MemoryLruCache;
 use stats::Corpus;
 
@@ -157,18 +157,20 @@ impl Cache {
 
 	/// Get the memory used.
 	pub fn mem_used(&self) -> usize {
-		self.heap_size_of_children()
+		self.malloc_size_of()
 	}
 }
 
-impl HeapSizeOf for Cache {
-	fn heap_size_of_children(&self) -> usize {
+
+// This is fast method: it is possible to have a more exhaustive implementation
+impl MallocSizeOf for Cache {
+	fn size_of(&self, _ops: &mut MallocSizeOfOps) -> usize {
 		self.headers.current_size()
 			+ self.canon_hashes.current_size()
 			+ self.bodies.current_size()
 			+ self.receipts.current_size()
 			+ self.chain_score.current_size()
-			// TODO: + corpus
+			// `self.corpus` is skipped
 	}
 }
 

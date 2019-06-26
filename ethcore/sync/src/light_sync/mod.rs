@@ -50,7 +50,7 @@ use light::request::{self, CompleteHeadersRequest as HeadersRequest};
 use network::PeerId;
 use ethereum_types::{H256, U256};
 use parking_lot::{Mutex, RwLock};
-use rand::{Rng, OsRng};
+use rand::{rngs::OsRng, seq::SliceRandom};
 use futures::sync::mpsc;
 
 use self::sync_round::{AbortReason, SyncRound, ResponseContext};
@@ -493,7 +493,7 @@ impl<L: AsLightClient> LightSync<L> {
 
 	// handles request dispatch, block import, state machine transitions, and timeouts.
 	fn maintain_sync(&self, ctx: &BasicContext) {
-		use ethcore::error::{Error as EthcoreError, ErrorKind as EthcoreErrorKind, ImportErrorKind};
+		use ethcore::error::{Error as EthcoreError, ImportError};
 
 		const DRAIN_AMOUNT: usize = 128;
 
@@ -524,10 +524,10 @@ impl<L: AsLightClient> LightSync<L> {
 				for header in sink.drain(..) {
 					match client.queue_header(header) {
 						Ok(_) => {}
-						Err(EthcoreError(EthcoreErrorKind::Import(ImportErrorKind::AlreadyInChain), _)) => {
+						Err(EthcoreError::Import(ImportError::AlreadyInChain)) => {
 							trace!(target: "sync", "Block already in chain. Continuing.");
 						},
-						Err(EthcoreError(EthcoreErrorKind::Import(ImportErrorKind::AlreadyQueued), _)) => {
+						Err(EthcoreError::Import(ImportError::AlreadyQueued)) => {
 							trace!(target: "sync", "Block already queued. Continuing.");
 						},
 						Err(e) => {
@@ -637,7 +637,7 @@ impl<L: AsLightClient> LightSync<L> {
 			// naive request dispatcher: just give to any peer which says it will
 			// give us responses. but only one request per peer per state transition.
 			let dispatcher = move |req: HeadersRequest| {
-				rng.shuffle(&mut peer_ids);
+				peer_ids.shuffle(&mut *rng);
 
 				let request = {
 					let mut builder = request::Builder::default();

@@ -98,7 +98,7 @@ use std::collections::{HashSet, HashMap, BTreeMap};
 use std::cmp;
 use std::time::{Duration, Instant};
 use hash::keccak;
-use heapsize::HeapSizeOf;
+use parity_util_mem::MallocSizeOfExt;
 use futures::sync::mpsc as futures_mpsc;
 use api::Notification;
 use ethereum_types::{H256, U256};
@@ -113,7 +113,7 @@ use ethcore::snapshot::{RestorationStatus};
 use sync_io::SyncIo;
 use super::{WarpSync, SyncConfig};
 use block_sync::{BlockDownloader, DownloadAction};
-use rand::Rng;
+use rand::{Rng, seq::SliceRandom};
 use snapshot::{Snapshot};
 use api::{EthProtocolInfo as PeerInfoDigest, WARP_SYNC_PROTOCOL_ID, PriorityTask};
 use private_tx::PrivateTxHandler;
@@ -132,7 +132,7 @@ use self::propagator::SyncPropagator;
 use self::requester::SyncRequester;
 pub(crate) use self::supplier::SyncSupplier;
 
-known_heap_size!(0, PeerInfo);
+malloc_size_of_is_0!(PeerInfo);
 
 pub type PacketDecodeError = DecoderError;
 
@@ -179,7 +179,7 @@ const SNAPSHOT_DATA_TIMEOUT: Duration = Duration::from_secs(120);
 /// (so we might sent only to some part of the peers we originally intended to send to)
 const PRIORITY_TASK_DEADLINE: Duration = Duration::from_millis(100);
 
-#[derive(Copy, Clone, Eq, PartialEq, Debug)]
+#[derive(Copy, Clone, Eq, PartialEq, Debug, MallocSizeOf)]
 /// Sync state
 pub enum SyncState {
 	/// Collecting enough peers to start syncing.
@@ -273,7 +273,7 @@ pub enum PeerAsking {
 	SnapshotData,
 }
 
-#[derive(PartialEq, Eq, Debug, Clone, Copy)]
+#[derive(PartialEq, Eq, Debug, Clone, Copy, MallocSizeOf)]
 /// Block downloader channel.
 pub enum BlockSet {
 	/// New blocks better than out best blocks
@@ -360,12 +360,13 @@ impl PeerInfo {
 #[cfg(not(test))]
 pub mod random {
 	use rand;
-	pub fn new() -> rand::ThreadRng { rand::thread_rng() }
+	pub fn new() -> rand::rngs::ThreadRng { rand::thread_rng() }
 }
 #[cfg(test)]
 pub mod random {
-	use rand::{self, SeedableRng};
-	pub fn new() -> rand::XorShiftRng { rand::XorShiftRng::from_seed([0, 1, 2, 3]) }
+	use rand::SeedableRng;
+	const RNG_SEED: [u8; 16] = [1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16];
+	pub fn new() -> rand_xorshift::XorShiftRng { rand_xorshift::XorShiftRng::from_seed(RNG_SEED) }
 }
 
 pub type RlpResponseResult = Result<Option<(PacketId, RlpStream)>, PacketDecodeError>;
@@ -559,7 +560,7 @@ impl ChainSync {
 		let mut count = (peers.len() as f64).powf(0.5).round() as usize;
 		count = cmp::min(count, MAX_PEERS_PROPAGATION);
 		count = cmp::max(count, MIN_PEERS_PROPAGATION);
-		random::new().shuffle(&mut peers);
+		peers.shuffle(&mut random::new());
 		peers.truncate(count);
 		peers
 	}
@@ -584,6 +585,7 @@ enum PeerState {
 
 /// Blockchain sync handler.
 /// See module documentation for more details.
+#[derive(MallocSizeOf)]
 pub struct ChainSync {
 	/// Sync state
 	state: SyncState,
@@ -617,10 +619,12 @@ pub struct ChainSync {
 	/// Enable ancient block downloading
 	download_old_blocks: bool,
 	/// Shared private tx service.
+	#[ignore_malloc_size_of = "arc on dyn trait here seems tricky, ignoring"]
 	private_tx_handler: Option<Arc<PrivateTxHandler>>,
 	/// Enable warp sync.
 	warp_sync: WarpSync,
 
+	#[ignore_malloc_size_of = "mpsc unmettered, ignoring"]
 	status_sinks: Vec<futures_mpsc::UnboundedSender<SyncState>>
 }
 
@@ -676,10 +680,7 @@ impl ChainSync {
 			num_active_peers: self.peers.values().filter(|p| p.is_allowed() && p.asking != PeerAsking::Nothing).count(),
 			num_snapshot_chunks: self.snapshot.total_chunks(),
 			snapshot_chunks_done: self.snapshot.done_chunks(),
-			mem_used:
-				self.new_blocks.heap_size()
-				+ self.old_blocks.as_ref().map_or(0, |d| d.heap_size())
-				+ self.peers.heap_size_of_children(),
+			mem_used: self.malloc_size_of(),
 		}
 	}
 
@@ -908,7 +909,7 @@ impl ChainSync {
 					self.active_peers.len(), peers.len(), self.peers.len()
 				);
 
-				random::new().shuffle(&mut peers); // TODO (#646): sort by rating
+				peers.shuffle(&mut random::new()); // TODO (#646): sort by rating
 				// prefer peers with higher protocol version
 				peers.sort_by(|&(_, ref v1), &(_, ref v2)| v1.cmp(v2));
 
@@ -1154,7 +1155,7 @@ impl ChainSync {
 		if warp_protocol {
 			let manifest = io.snapshot_service().manifest();
 			let block_number = manifest.as_ref().map_or(0, |m| m.block_number);
-			let manifest_hash = manifest.map_or(H256::new(), |m| keccak(m.into_rlp()));
+			let manifest_hash = manifest.map_or(H256::zero(), |m| keccak(m.into_rlp()));
 			packet.append(&manifest_hash);
 			packet.append(&block_number);
 			if private_tx_protocol {
@@ -1398,7 +1399,7 @@ pub mod tests {
 		let mut rlp = RlpStream::new_list(5);
 		for _ in 0..5 {
 			let mut hash_d_rlp = RlpStream::new_list(2);
-			let hash: H256 = H256::from(0u64);
+			let hash: H256 = H256::zero();
 			let diff: U256 = U256::from(1u64);
 			hash_d_rlp.append(&hash);
 			hash_d_rlp.append(&diff);

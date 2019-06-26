@@ -51,7 +51,7 @@ impl AddressesFilter {
 		match self.list.is_empty() {
 			true => vec![Bloom::default()],
 			false => self.list.iter()
-				.map(|address| Bloom::from(BloomInput::Raw(address)))
+				.map(|address| Bloom::from(BloomInput::Raw(address.as_bytes())))
 				.collect(),
 		}
 	}
@@ -65,7 +65,7 @@ impl AddressesFilter {
 				.flat_map(|bloom| self.list.iter()
 					.map(|address| {
 						let mut bloom = bloom.clone();
-						bloom.accrue(BloomInput::Raw(address));
+						bloom.accrue(BloomInput::Raw(address.as_bytes()));
 						bloom
 					})
 					.collect::<Vec<_>>())
@@ -147,31 +147,31 @@ mod tests {
 	fn single_trace_filter_bloom_possibility() {
 		let filter = Filter {
 			range: (0..0),
-			from_address: AddressesFilter::from(vec![Address::from(1)]),
-			to_address: AddressesFilter::from(vec![Address::from(2)]),
+			from_address: AddressesFilter::from(vec![Address::from_low_u64_be(1)]),
+			to_address: AddressesFilter::from(vec![Address::from_low_u64_be(2)]),
 		};
 
 		let blooms = filter.bloom_possibilities();
 		assert_eq!(blooms.len(), 1);
 
-		assert!(blooms[0].contains_input(BloomInput::Raw(&Address::from(1))));
-		assert!(blooms[0].contains_input(BloomInput::Raw(&Address::from(2))));
-		assert!(!blooms[0].contains_input(BloomInput::Raw(&Address::from(3))));
+		assert!(blooms[0].contains_input(BloomInput::Raw(Address::from_low_u64_be(1).as_bytes())));
+		assert!(blooms[0].contains_input(BloomInput::Raw(Address::from_low_u64_be(2).as_bytes())));
+		assert!(!blooms[0].contains_input(BloomInput::Raw(Address::from_low_u64_be(3).as_bytes())));
 	}
 
 	#[test]
 	fn only_from_trace_filter_bloom_possibility() {
 		let filter = Filter {
 			range: (0..0),
-			from_address: AddressesFilter::from(vec![Address::from(1)]),
+			from_address: AddressesFilter::from(vec![Address::from_low_u64_be(1)]),
 			to_address: AddressesFilter::from(vec![]),
 		};
 
 		let blooms = filter.bloom_possibilities();
 		assert_eq!(blooms.len(), 1);
 
-		assert!(blooms[0].contains_input(BloomInput::Raw(&Address::from(1))));
-		assert!(!blooms[0].contains_input(BloomInput::Raw(&Address::from(2))));
+		assert!(blooms[0].contains_input(BloomInput::Raw(Address::from_low_u64_be(1).as_bytes())));
+		assert!(!blooms[0].contains_input(BloomInput::Raw(Address::from_low_u64_be(2).as_bytes())));
 	}
 
 	#[test]
@@ -179,59 +179,59 @@ mod tests {
 		let filter = Filter {
 			range: (0..0),
 			from_address: AddressesFilter::from(vec![]),
-			to_address: AddressesFilter::from(vec![Address::from(1)]),
+			to_address: AddressesFilter::from(vec![Address::from_low_u64_be(1)]),
 		};
 
 		let blooms = filter.bloom_possibilities();
 		assert_eq!(blooms.len(), 1);
 
-		assert!(blooms[0].contains_input(BloomInput::Raw(&Address::from(1))));
-		assert!(!blooms[0].contains_input(BloomInput::Raw(&Address::from(2))));
+		assert!(blooms[0].contains_input(BloomInput::Raw(Address::from_low_u64_be(1).as_bytes())));
+		assert!(!blooms[0].contains_input(BloomInput::Raw(Address::from_low_u64_be(2).as_bytes())));
 	}
 
 	#[test]
 	fn multiple_trace_filter_bloom_possibility() {
 		let filter = Filter {
 			range: (0..0),
-			from_address: AddressesFilter::from(vec![Address::from(1), Address::from(3)]),
-			to_address: AddressesFilter::from(vec![Address::from(2), Address::from(4)]),
+			from_address: AddressesFilter::from(vec![Address::from_low_u64_be(1), Address::from_low_u64_be(3)]),
+			to_address: AddressesFilter::from(vec![Address::from_low_u64_be(2), Address::from_low_u64_be(4)]),
 		};
 
 		let blooms = filter.bloom_possibilities();
 		assert_eq!(blooms.len(), 4);
 
-		assert!(blooms[0].contains_input(BloomInput::Raw(&Address::from(1))));
-		assert!(blooms[0].contains_input(BloomInput::Raw(&Address::from(2))));
-		assert!(!blooms[0].contains_input(BloomInput::Raw(&Address::from(3))));
-		assert!(!blooms[0].contains_input(BloomInput::Raw(&Address::from(4))));
+		assert!(blooms[0].contains_input(BloomInput::Raw(Address::from_low_u64_be(1).as_bytes())));
+		assert!(blooms[0].contains_input(BloomInput::Raw(Address::from_low_u64_be(2).as_bytes())));
+		assert!(!blooms[0].contains_input(BloomInput::Raw(Address::from_low_u64_be(3).as_bytes())));
+		assert!(!blooms[0].contains_input(BloomInput::Raw(Address::from_low_u64_be(4).as_bytes())));
 
-		assert!(blooms[1].contains_input(BloomInput::Raw(&Address::from(1))));
-		assert!(blooms[1].contains_input(BloomInput::Raw(&Address::from(4))));
-		assert!(!blooms[1].contains_input(BloomInput::Raw(&Address::from(2))));
-		assert!(!blooms[1].contains_input(BloomInput::Raw(&Address::from(3))));
+		assert!(blooms[1].contains_input(BloomInput::Raw(Address::from_low_u64_be(1).as_bytes())));
+		assert!(blooms[1].contains_input(BloomInput::Raw(Address::from_low_u64_be(4).as_bytes())));
+		assert!(!blooms[1].contains_input(BloomInput::Raw(Address::from_low_u64_be(2).as_bytes())));
+		assert!(!blooms[1].contains_input(BloomInput::Raw(Address::from_low_u64_be(3).as_bytes())));
 
-		assert!(blooms[2].contains_input(BloomInput::Raw(&Address::from(2))));
-		assert!(blooms[2].contains_input(BloomInput::Raw(&Address::from(3))));
-		assert!(!blooms[2].contains_input(BloomInput::Raw(&Address::from(1))));
-		assert!(!blooms[2].contains_input(BloomInput::Raw(&Address::from(4))));
+		assert!(blooms[2].contains_input(BloomInput::Raw(Address::from_low_u64_be(2).as_bytes())));
+		assert!(blooms[2].contains_input(BloomInput::Raw(Address::from_low_u64_be(3).as_bytes())));
+		assert!(!blooms[2].contains_input(BloomInput::Raw(Address::from_low_u64_be(1).as_bytes())));
+		assert!(!blooms[2].contains_input(BloomInput::Raw(Address::from_low_u64_be(4).as_bytes())));
 
-		assert!(blooms[3].contains_input(BloomInput::Raw(&Address::from(3))));
-		assert!(blooms[3].contains_input(BloomInput::Raw(&Address::from(4))));
-		assert!(!blooms[3].contains_input(BloomInput::Raw(&Address::from(1))));
-		assert!(!blooms[3].contains_input(BloomInput::Raw(&Address::from(2))));
+		assert!(blooms[3].contains_input(BloomInput::Raw(Address::from_low_u64_be(3).as_bytes())));
+		assert!(blooms[3].contains_input(BloomInput::Raw(Address::from_low_u64_be(4).as_bytes())));
+		assert!(!blooms[3].contains_input(BloomInput::Raw(Address::from_low_u64_be(1).as_bytes())));
+		assert!(!blooms[3].contains_input(BloomInput::Raw(Address::from_low_u64_be(2).as_bytes())));
 	}
 
 	#[test]
 	fn filter_matches() {
 		let f0 = Filter {
 			range: (0..0),
-			from_address: AddressesFilter::from(vec![Address::from(1)]),
+			from_address: AddressesFilter::from(vec![Address::from_low_u64_be(1)]),
 			to_address: AddressesFilter::from(vec![]),
 		};
 
 		let f1 = Filter {
 			range: (0..0),
-			from_address: AddressesFilter::from(vec![Address::from(3), Address::from(1)]),
+			from_address: AddressesFilter::from(vec![Address::from_low_u64_be(3), Address::from_low_u64_be(1)]),
 			to_address: AddressesFilter::from(vec![]),
 		};
 
@@ -244,31 +244,31 @@ mod tests {
 		let f3 = Filter {
 			range: (0..0),
 			from_address: AddressesFilter::from(vec![]),
-			to_address: AddressesFilter::from(vec![Address::from(2)]),
+			to_address: AddressesFilter::from(vec![Address::from_low_u64_be(2)]),
 		};
 
 		let f4 = Filter {
 			range: (0..0),
 			from_address: AddressesFilter::from(vec![]),
-			to_address: AddressesFilter::from(vec![Address::from(2), Address::from(3)]),
+			to_address: AddressesFilter::from(vec![Address::from_low_u64_be(2), Address::from_low_u64_be(3)]),
 		};
 
 		let f5 = Filter {
 			range: (0..0),
-			from_address: AddressesFilter::from(vec![Address::from(1)]),
-			to_address: AddressesFilter::from(vec![Address::from(2), Address::from(3)]),
+			from_address: AddressesFilter::from(vec![Address::from_low_u64_be(1)]),
+			to_address: AddressesFilter::from(vec![Address::from_low_u64_be(2), Address::from_low_u64_be(3)]),
 		};
 
 		let f6 = Filter {
 			range: (0..0),
-			from_address: AddressesFilter::from(vec![Address::from(1)]),
-			to_address: AddressesFilter::from(vec![Address::from(4)]),
+			from_address: AddressesFilter::from(vec![Address::from_low_u64_be(1)]),
+			to_address: AddressesFilter::from(vec![Address::from_low_u64_be(4)]),
 		};
 
 		let trace = FlatTrace {
 			action: Action::Call(Call {
-				from: 1.into(),
-				to: 2.into(),
+				from: Address::from_low_u64_be(1),
+				to: Address::from_low_u64_be(2),
 				value: 3.into(),
 				gas: 4.into(),
 				input: vec![0x5],
@@ -289,7 +289,7 @@ mod tests {
 
 		let trace = FlatTrace {
 			action: Action::Create(Create {
-				from: 1.into(),
+				from: Address::from_low_u64_be(1),
 				value: 3.into(),
 				gas: 4.into(),
 				init: vec![0x5],
@@ -297,7 +297,7 @@ mod tests {
 			result: Res::Create(CreateResult {
 				gas_used: 10.into(),
 				code: vec![],
-				address: 2.into(),
+				address: Address::from_low_u64_be(2),
 			}),
 			trace_address: vec![0].into_iter().collect(),
 			subtraces: 0,
@@ -313,8 +313,8 @@ mod tests {
 
 		let trace = FlatTrace {
 			action: Action::Suicide(Suicide {
-				address: 1.into(),
-				refund_address: 2.into(),
+				address: Address::from_low_u64_be(1),
+				refund_address: Address::from_low_u64_be(2),
 				balance: 3.into(),
 			}),
 			result: Res::None,
@@ -332,7 +332,7 @@ mod tests {
 
 		let trace = FlatTrace {
 			action: Action::Reward(Reward {
-				author: 2.into(),
+				author: Address::from_low_u64_be(2),
 				value: 100.into(),
 				reward_type: RewardType::Block,
 			}),
@@ -354,7 +354,7 @@ mod tests {
 	fn filter_match_block_reward_fix_8070() {
 		let f0 = Filter {
 			range: (0..0),
-			from_address: vec![1.into()].into(),
+			from_address: vec![Address::from_low_u64_be(1)].into(),
 			to_address: vec![].into(),
 		};
 
@@ -367,12 +367,12 @@ mod tests {
 		let f2 = Filter {
 			range: (0..0),
 			from_address: vec![].into(),
-			to_address: vec![2.into()].into(),
+			to_address: vec![Address::from_low_u64_be(2)].into(),
 		};
 
 		let trace = FlatTrace {
 			action: Action::Reward(Reward {
-				author: 2.into(),
+				author: Address::from_low_u64_be(2),
 				value: 10.into(),
 				reward_type: RewardType::Block,
 			}),
@@ -391,7 +391,7 @@ mod tests {
 
       let f0 = Filter {
           range: (0..0),
-          from_address: vec![1.into()].into(),
+          from_address: vec![Address::from_low_u64_be(1)].into(),
           to_address: vec![].into(),
       };
 
@@ -404,12 +404,12 @@ mod tests {
       let f2 = Filter {
           range: (0..0),
           from_address: vec![].into(),
-          to_address: vec![2.into()].into(),
+          to_address: vec![Address::from_low_u64_be(2)].into(),
       };
 
       let trace = FlatTrace {
           action: Action::Create(Create {
-              from: 1.into(),
+              from: Address::from_low_u64_be(1),
               gas: 4.into(),
               init: vec![0x5],
               value: 3.into(),
@@ -425,4 +425,3 @@ mod tests {
   }
 
 }
-

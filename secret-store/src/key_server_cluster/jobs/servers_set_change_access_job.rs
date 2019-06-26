@@ -139,7 +139,7 @@ impl JobExecutor for ServersSetChangeAccessJob {
 pub fn ordered_nodes_hash(nodes: &BTreeSet<NodeId>) -> SessionId {
 	let mut nodes_keccak = Keccak::new_keccak256();
 	for node in nodes {
-		nodes_keccak.update(&*node);
+		nodes_keccak.update(node.as_bytes());
 	}
 
 	let mut nodes_keccak_value = [0u8; 32];

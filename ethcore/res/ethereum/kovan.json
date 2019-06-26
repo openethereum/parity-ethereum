@@ -7,17 +7,31 @@
 				"stepDuration": "0x4",
 				"blockReward": "0x4563918244F40000",
 				"validators": {
-					"list": [
-						"0x00D6Cc1BA9cf89BD2e58009741f4F7325BAdc0ED",
-						"0x00427feae2419c15b89d1c21af10d1b6650a4d3d",
-						"0x4Ed9B08e6354C70fE6F8CB0411b0d3246b424d6c",
-						"0x0020ee4Be0e2027d76603cB751eE069519bA81A1",
-						"0x0010f94b296a852aaac52ea6c5ac72e03afd032d",
-						"0x007733a1FE69CF3f2CF989F81C7b4cAc1693387A",
-						"0x00E6d2b931F55a3f1701c7389d592a7778897879",
-						"0x00e4a10650e5a6D6001C38ff8E64F97016a1645c",
-						"0x00a0a24b9f0e5ec7aa4c7389b8302fd0123194de"
-					]
+					"multi": {
+						"0": {
+							"list": [
+								"0x00D6Cc1BA9cf89BD2e58009741f4F7325BAdc0ED",
+								"0x00427feae2419c15b89d1c21af10d1b6650a4d3d",
+								"0x4Ed9B08e6354C70fE6F8CB0411b0d3246b424d6c",
+								"0x0020ee4Be0e2027d76603cB751eE069519bA81A1",
+								"0x0010f94b296a852aaac52ea6c5ac72e03afd032d",
+								"0x007733a1FE69CF3f2CF989F81C7b4cAc1693387A",
+								"0x00E6d2b931F55a3f1701c7389d592a7778897879",
+								"0x00e4a10650e5a6D6001C38ff8E64F97016a1645c",
+								"0x00a0a24b9f0e5ec7aa4c7389b8302fd0123194de"
+							]
+						},
+						"10960440": {
+							"list": [
+								"0x00D6Cc1BA9cf89BD2e58009741f4F7325BAdc0ED",
+								"0x0010f94b296a852aaac52ea6c5ac72e03afd032d",
+								"0x00a0a24b9f0e5ec7aa4c7389b8302fd0123194de"
+							]
+						},
+						"10960500": {
+							"safeContract": "0xaE71807C1B0a093cB1547b682DC78316D945c9B8"
+						}
+					}
 				},
 				"validateScoreTransition": "0x41a3c4",
 				"validateStepTransition": "0x16e360",
@@ -5367,6 +5381,7 @@
 		}
 	},
 	"nodes": [
+		"enode://f6e37b943bad3a78cb8589b1798d30d210ffd39cfcd2c8f2de4f098467fd49c667980100d919da7ca46cd50505d30989abda87f0b9339377de13d6592c22caf8@34.198.49.72:30303",
 		"enode://56abaf065581a5985b8c5f4f88bd202526482761ba10be9bfdcd14846dd01f652ec33fde0f8c0fd1db19b59a4c04465681fcef50e11380ca88d25996191c52de@40.71.221.215:30303",
 		"enode://d07827483dc47b368eaf88454fb04b41b7452cf454e194e2bd4c14f98a3278fed5d819dbecd0d010407fc7688d941ee1e58d4f9c6354d3da3be92f55c17d7ce3@52.166.117.77:30303",
 		"enode://38e6e7fd416293ed120d567a2675fe078c0205ab0671abf16982ce969823bd1f3443d590c18b321dfae7dcbe1f6ba98ef8702f255c3c9822a188abb82c53adca@51.77.66.187:30303",

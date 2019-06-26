@@ -18,17 +18,18 @@
 
 use std::fmt;
 
-use ethcore::error::{Error as EthcoreError, ErrorKind, CallError};
+use ethcore::error::{Error as EthcoreError, CallError};
 use ethcore::client::BlockId;
 use jsonrpc_core::{futures, Result as RpcResult, Error, ErrorCode, Value};
 use rlp::DecoderError;
 use types::transaction::Error as TransactionError;
 use ethcore_private_tx::Error as PrivateTransactionError;
 use vm::Error as VMError;
-use light::on_demand::error::{Error as OnDemandError, ErrorKind as OnDemandErrorKind};
+use light::on_demand::error::{Error as OnDemandError};
 use ethcore::client::BlockChainClient;
 use types::blockchain_info::BlockChainInfo;
 use v1::types::BlockNumber;
+use v1::impls::EthClientOptions;
 
 mod codes {
 	// NOTE [ToDr] Codes from [-32099, -32000]
@@ -38,6 +39,7 @@ mod codes {
 	pub const NO_NEW_WORK: i64 = -32003;
 	pub const NO_WORK_REQUIRED: i64 = -32004;
 	pub const CANNOT_SUBMIT_WORK: i64 = -32005;
+	pub const CANNOT_SUBMIT_BLOCK: i64 = -32006;
 	pub const UNKNOWN_ERROR: i64 = -32009;
 	pub const TRANSACTION_ERROR: i64 = -32010;
 	pub const EXECUTION_ERROR: i64 = -32015;
@@ -221,18 +223,42 @@ pub fn cannot_submit_work(err: EthcoreError) -> Error {
 	}
 }
 
-pub fn unavailable_block() -> Error {
+pub fn unavailable_block(no_ancient_block: bool, by_hash: bool) -> Error {
+	if no_ancient_block {
+		Error {
+			code: ErrorCode::ServerError(codes::UNSUPPORTED_REQUEST),
+			message: "Looks like you disabled ancient block download, unfortunately the information you're \
+			trying to fetch doesn't exist in the db and is probably in the ancient blocks.".into(),
+			data: None,
+		}
+	} else if by_hash {
+		Error {
+			code: ErrorCode::ServerError(codes::UNSUPPORTED_REQUEST),
+			message: "Block information is incomplete while ancient block sync is still in progress, before \
+					it's finished we can't determine the existence of requested item.".into(),
+			data: None,
+		}
+	} else {
+		Error {
+			code: ErrorCode::ServerError(codes::UNSUPPORTED_REQUEST),
+			message: "Requested block number is in a range that is not available yet, because the ancient block sync is still in progress.".into(),
+			data: None,
+		}
+	}
+}
+
+pub fn cannot_submit_block(err: EthcoreError) -> Error {
 	Error {
-		code: ErrorCode::ServerError(codes::UNSUPPORTED_REQUEST),
-		message: "Ancient block sync is still in progress".into(),
-		data: None,
+		code: ErrorCode::ServerError(codes::CANNOT_SUBMIT_BLOCK),
+		message: "Cannot submit block.".into(),
+		data: Some(Value::String(err.to_string())),
 	}
 }
 
 pub fn check_block_number_existence<'a, T, C>(
 	client: &'a C,
 	num: BlockNumber,
-	allow_missing_blocks: bool,
+	options: EthClientOptions,
 ) ->
 	impl Fn(Option<T>) -> RpcResult<Option<T>> + 'a
 	where C: BlockChainClient,
@@ -242,8 +268,8 @@ pub fn check_block_number_existence<'a, T, C>(
 			if let BlockNumber::Num(block_number) = num {
 				// tried to fetch block number and got nothing even though the block number is
 				// less than the latest block number
-				if block_number < client.chain_info().best_block_number && !allow_missing_blocks {
-					return Err(unavailable_block());
+				if block_number < client.chain_info().best_block_number && !options.allow_missing_blocks {
+					return Err(unavailable_block(options.no_ancient_blocks, false));
 				}
 			}
 		}
@@ -253,22 +279,17 @@ pub fn check_block_number_existence<'a, T, C>(
 
 pub fn check_block_gap<'a, T, C>(
 	client: &'a C,
-	allow_missing_blocks: bool,
+	options: EthClientOptions,
 ) -> impl Fn(Option<T>) -> RpcResult<Option<T>> + 'a
 	where C: BlockChainClient,
 {
 	move |response| {
-		if response.is_none() && !allow_missing_blocks {
+		if response.is_none() && !options.allow_missing_blocks {
 			let BlockChainInfo { ancient_block_hash, .. } = client.chain_info();
 			// block information was requested, but unfortunately we couldn't find it and there
 			// are gaps in the database ethcore/src/blockchain/blockchain.rs
 			if ancient_block_hash.is_some() {
-				return Err(Error {
-					code: ErrorCode::ServerError(codes::UNSUPPORTED_REQUEST),
-					message: "Block information is incomplete while ancient block sync is still in progress, before \
-					it's finished we can't determine the existence of requested item.".into(),
-					data: None,
-				})
+				return Err(unavailable_block(options.no_ancient_blocks, true))
 			}
 		}
 		Ok(response)
@@ -428,7 +449,7 @@ pub fn transaction_message(error: &TransactionError) -> String {
 
 pub fn transaction<T: Into<EthcoreError>>(error: T) -> Error {
 	let error = error.into();
-	if let ErrorKind::Transaction(ref e) = *error.kind() {
+	if let EthcoreError::Transaction(ref e) = error {
 		Error {
 			code: ErrorCode::ServerError(codes::TRANSACTION_ERROR),
 			message: transaction_message(e),
@@ -444,9 +465,8 @@ pub fn transaction<T: Into<EthcoreError>>(error: T) -> Error {
 }
 
 pub fn decode<T: Into<EthcoreError>>(error: T) -> Error {
-	let error = error.into();
-	match *error.kind() {
-		ErrorKind::Decoder(ref dec_err) => rlp(dec_err.clone()),
+	match error.into() {
+		EthcoreError::Decoder(ref dec_err) => rlp(dec_err.clone()),
 		_ => Error {
 			code: ErrorCode::InternalError,
 			message: "decoding error".into(),
@@ -535,10 +555,9 @@ pub fn filter_block_not_found(id: BlockId) -> Error {
 
 pub fn on_demand_error(err: OnDemandError) -> Error {
 	match err {
-		OnDemandError(OnDemandErrorKind::ChannelCanceled(e), _) => on_demand_cancel(e),
-		OnDemandError(OnDemandErrorKind::RequestLimit, _) => timeout_new_peer(&err),
-		OnDemandError(OnDemandErrorKind::BadResponse(_), _) => max_attempts_reached(&err),
-		_ => on_demand_others(&err),
+		OnDemandError::ChannelCanceled(e) => on_demand_cancel(e),
+		OnDemandError::RequestLimit => timeout_new_peer(&err),
+		OnDemandError::BadResponse(_) => max_attempts_reached(&err),
 	}
 }
 
@@ -558,14 +577,6 @@ pub fn max_attempts_reached(err: &OnDemandError) -> Error {
 pub fn timeout_new_peer(err: &OnDemandError) -> Error {
 	Error {
 		code: ErrorCode::ServerError(codes::NO_LIGHT_PEERS),
-		message: err.to_string(),
-		data: None,
-	}
-}
-
-pub fn on_demand_others(err: &OnDemandError) -> Error {
-	Error {
-		code: ErrorCode::ServerError(codes::UNKNOWN_ERROR),
 		message: err.to_string(),
 		data: None,
 	}

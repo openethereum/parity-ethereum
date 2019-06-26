@@ -53,22 +53,22 @@ fn should_subscribe_to_a_method() {
 
 	// Subscribe
 	let request = r#"{"jsonrpc": "2.0", "method": "parity_subscribe", "params": ["hello", []], "id": 1}"#;
-	let response = r#"{"jsonrpc":"2.0","result":"0x416d77337e24399d","id":1}"#;
+	let response = r#"{"jsonrpc":"2.0","result":"0x43ca64edf03768e1","id":1}"#;
 	assert_eq!(io.handle_request_sync(request, metadata.clone()), Some(response.to_owned()));
 
 	// Check notifications
 	let (res, receiver) = receiver.into_future().wait().unwrap();
 	let response =
-		r#"{"jsonrpc":"2.0","method":"parity_subscription","params":{"result":"hello","subscription":"0x416d77337e24399d"}}"#;
+		r#"{"jsonrpc":"2.0","method":"parity_subscription","params":{"result":"hello","subscription":"0x43ca64edf03768e1"}}"#;
 	assert_eq!(res, Some(response.into()));
 
 	let (res, receiver) = receiver.into_future().wait().unwrap();
 	let response =
-		r#"{"jsonrpc":"2.0","method":"parity_subscription","params":{"result":"world","subscription":"0x416d77337e24399d"}}"#;
+		r#"{"jsonrpc":"2.0","method":"parity_subscription","params":{"result":"world","subscription":"0x43ca64edf03768e1"}}"#;
 	assert_eq!(res, Some(response.into()));
 
 	// And unsubscribe
-	let request = r#"{"jsonrpc": "2.0", "method": "parity_unsubscribe", "params": ["0x416d77337e24399d"], "id": 1}"#;
+	let request = r#"{"jsonrpc": "2.0", "method": "parity_unsubscribe", "params": ["0x43ca64edf03768e1"], "id": 1}"#;
 	let response = r#"{"jsonrpc":"2.0","result":true,"id":1}"#;
 	assert_eq!(io.handle_request_sync(request, metadata), Some(response.to_owned()));
 

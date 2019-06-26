@@ -25,7 +25,6 @@ use common_types::encoded;
 use common_types::receipt::Receipt;
 use common_types::transaction::SignedTransaction;
 use ethcore::engines::{EthEngine, StateDependentProof};
-use ethcore::machine::EthereumMachine;
 use ethcore::state::{self, ProvedExecution};
 use ethereum_types::{H256, U256, Address};
 use ethtrie::{TrieError, TrieDB};
@@ -981,9 +980,9 @@ impl Account {
 		let state_root = header.state_root();
 
 		let mut db = journaldb::new_memory_db();
-		for node in proof { db.insert(&node[..]); }
+		for node in proof { db.insert(hash_db::EMPTY_PREFIX, &node[..]); }
 
-		match TrieDB::new(&db, &state_root).and_then(|t| t.get(&keccak(&self.address)))? {
+		match TrieDB::new(&db, &state_root).and_then(|t| t.get(keccak(&self.address).as_bytes()))? {
 			Some(val) => {
 				let rlp = Rlp::new(&val);
 				Ok(Some(BasicAccount {
@@ -1083,7 +1082,7 @@ pub struct Signal {
 	/// Consensus engine, used to check the proof.
 	pub engine: Arc<EthEngine>,
 	/// Special checker for the proof.
-	pub proof_check: Arc<StateDependentProof<EthereumMachine>>,
+	pub proof_check: Arc<StateDependentProof>,
 }
 
 impl Signal {
@@ -1162,7 +1161,7 @@ mod tests {
 
 	#[test]
 	fn check_header_with_ancestors() {
-		let mut last_header_hash = H256::default();
+		let mut last_header_hash = H256::zero();
 		let mut headers = (0..11).map(|num| {
 			let mut header = Header::new();
 			header.set_number(num);
@@ -1278,7 +1277,7 @@ mod tests {
 	fn check_state_proof() {
 		use rlp::RlpStream;
 
-		let mut root = H256::default();
+		let mut root = H256::zero();
 		let mut db = journaldb::new_memory_db();
 		let mut header = Header::new();
 		header.set_number(123_456);
@@ -1298,17 +1297,17 @@ mod tests {
 			let mut trie = SecTrieDBMut::new(&mut db, &mut root);
 			for _ in 0..100 {
 				let address = Address::random();
-				trie.insert(&*address, &rand_acc()).unwrap();
+				trie.insert(address.as_bytes(), &rand_acc()).unwrap();
 			}
 
-			trie.insert(&*addr, &rand_acc()).unwrap();
+			trie.insert(addr.as_bytes(), &rand_acc()).unwrap();
 		}
 
 		let proof = {
 			let trie = SecTrieDB::new(&db, &root).unwrap();
 			let mut recorder = Recorder::new();
 
-			trie.get_with(&*addr, &mut recorder).unwrap().unwrap();
+			trie.get_with(addr.as_bytes(), &mut recorder).unwrap().unwrap();
 
 			recorder.drain().into_iter().map(|r| r.data).collect::<Vec<_>>()
 		};

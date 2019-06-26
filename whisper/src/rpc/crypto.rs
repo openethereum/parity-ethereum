@@ -16,11 +16,11 @@
 
 //! Encryption schemes supported by RPC layer.
 
-use crypto::aes_gcm::{Encryptor, Decryptor};
+use aes_gcm::{Encryptor, Decryptor};
 use ethkey::crypto::ecies;
 use ethereum_types::H256;
 use ethkey::{self, Public, Secret};
-use memzero::Memzero;
+use parity_util_mem::Memzero;
 
 /// Length of AES key
 pub const AES_KEY_LEN: usize = 32;
@@ -77,7 +77,7 @@ impl EncryptionInstance {
 			EncryptionInner::AES(key, nonce, encode) => {
 				match encode {
 					AesEncode::AppendedNonce => {
-						let mut enc = Encryptor::aes_256_gcm(&*key).ok()?;
+						let enc = Encryptor::aes_256_gcm(&*key).ok()?;
 						let mut buf = enc.encrypt(&nonce, plain.to_vec()).ok()?;
 						buf.extend(&nonce[..]);
 						Some(buf)
@@ -165,8 +165,8 @@ impl DecryptionInstance {
 						if ciphertext.len() < num_topics * 32 {
 							return None
 						}
-						let mut salted_topic = H256::new();
-						salted_topic.copy_from_slice(&ciphertext[(known_index * 32)..][..32]);
+						let mut salted_topic = H256::zero();
+						salted_topic.as_bytes_mut().copy_from_slice(&ciphertext[(known_index * 32)..][..32]);
 						let key = Memzero::from((salted_topic ^ known_topic).0);
 						let offset = num_topics * 32;
 						Decryptor::aes_256_gcm(&*key).ok()?
@@ -186,6 +186,8 @@ impl DecryptionInstance {
 #[cfg(test)]
 mod tests {
 	use super::*;
+	use rand::{Rng, rngs::OsRng};
+
 
 	#[test]
 	fn encrypt_asymmetric() {
@@ -213,8 +215,6 @@ mod tests {
 
 	#[test]
 	fn encrypt_symmetric() {
-		use rand::{Rng, OsRng};
-
 		let mut rng = OsRng::new().unwrap();
 		let mut test_message = move |message: &[u8]| {
 			let key = Memzero::from(rng.gen::<[u8; 32]>());
@@ -239,12 +239,10 @@ mod tests {
 
 	#[test]
 	fn encrypt_broadcast() {
-		use rand::{Rng, OsRng};
-
 		let mut rng = OsRng::new().unwrap();
 
 		let mut test_message = move |message: &[u8]| {
-			let all_topics = (0..5).map(|_| rng.gen()).collect::<Vec<_>>();
+			let all_topics = (0..5).map(|_| H256::random_using(&mut rng)).collect::<Vec<_>>();
 			let known_idx = 2;
 			let known_topic = all_topics[2];
 			let key = Memzero::from(rng.gen::<[u8; 32]>());

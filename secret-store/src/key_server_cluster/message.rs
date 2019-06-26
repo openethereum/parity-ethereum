@@ -970,12 +970,8 @@ pub struct KeyShareCommon {
 	pub session: MessageSessionId,
 	/// Session-level nonce.
 	pub session_nonce: u64,
-	/// Key threshold.
-	pub threshold: usize,
-	/// Author of key share entry.
-	pub author: SerializableAddress,
-	/// Joint public.
-	pub joint_public: SerializablePublic,
+	/// Common key data.
+	pub key_common: CommonKeyData,
 	/// Common (shared) encryption point.
 	pub common_point: Option<SerializablePublic>,
 	/// Encrypted point.
@@ -1026,10 +1022,21 @@ pub struct KeyVersions {
 	pub sub_session: SerializableSecret,
 	/// Session-level nonce.
 	pub session_nonce: u64,
-	/// Key threshold.
-	pub threshold: Option<usize>,
+	/// Common key data, shared by all versions.
+	pub key_common: Option<CommonKeyData>,
 	/// Key versions.
 	pub versions: Vec<SerializableH256>,
+}
+
+/// Common key data.
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct CommonKeyData {
+	/// Key threshold.
+	pub threshold: usize,
+	/// Author of the key entry.
+	pub author: SerializableAddress,
+	/// Joint public.
+	pub public: SerializablePublic,
 }
 
 /// When key versions error has occured.

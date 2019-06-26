@@ -14,25 +14,30 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
-use std::{str, io};
-use std::net::SocketAddr;
+use std::{io, str};
 use std::collections::HashMap;
+use std::net::SocketAddr;
 use std::time::{Duration, Instant};
 
-use mio::*;
-use mio::deprecated::{Handler, EventLoop};
-use mio::tcp::*;
 use ethereum_types::H256;
-use rlp::{Rlp, RlpStream, EMPTY_LIST_RLP};
-use connection::{EncryptedConnection, Packet, Connection, MAX_PAYLOAD_SIZE};
-use handshake::Handshake;
-use io::{IoContext, StreamToken};
-use network::{Error, ErrorKind, DisconnectReason, SessionInfo, ProtocolId, PeerCapabilityInfo};
-use network::SessionCapabilityInfo;
+use log::{debug, trace, warn};
+use mio::*;
+use mio::deprecated::{EventLoop, Handler};
+use mio::tcp::*;
+use parity_snappy as snappy;
+use rlp::{EMPTY_LIST_RLP, Rlp, RlpStream};
+
+use ethcore_io::{IoContext, StreamToken};
+use network::{DisconnectReason, Error, PeerCapabilityInfo, ProtocolId, SessionInfo};
 use network::client_version::ClientVersion;
-use host::*;
-use node_table::NodeId;
-use snappy;
+use network::SessionCapabilityInfo;
+
+use crate::{
+	connection::{Connection, EncryptedConnection, MAX_PAYLOAD_SIZE, Packet},
+	handshake::Handshake,
+	host::HostInfo,
+	node_table::NodeId,
+};
 
 // Timeout must be less than (interval - 1).
 const PING_TIMEOUT: Duration = Duration::from_secs(60);
@@ -255,10 +260,10 @@ impl Session {
         where Message: Send + Sync + Clone {
 		if protocol.is_some() && (self.info.capabilities.is_empty() || !self.had_hello) {
 			debug!(target: "network", "Sending to unconfirmed session {}, protocol: {:?}, packet: {}", self.token(), protocol.as_ref().map(|p| str::from_utf8(&p[..]).unwrap_or("??")), packet_id);
-			bail!(ErrorKind::BadProtocol);
+			return Err(Error::BadProtocol);
 		}
 		if self.expired() {
-			return Err(ErrorKind::Expired.into());
+			return Err(Error::Expired);
 		}
 		let mut i = 0usize;
 		let pid = match protocol {
@@ -280,7 +285,7 @@ impl Session {
 		let mut payload = data; // create a reference with local lifetime
 		if self.compression {
 			if payload.len() > MAX_PAYLOAD_SIZE {
-				bail!(ErrorKind::OversizedPacket);
+				return Err(Error::OversizedPacket);
 			}
 			let len = snappy::compress_into(&payload, &mut compressed);
 			trace!(target: "network", "compressed {} to {}", payload.len(), len);
@@ -330,16 +335,16 @@ impl Session {
 	fn read_packet<Message>(&mut self, io: &IoContext<Message>, packet: &Packet, host: &HostInfo) -> Result<SessionData, Error>
 	where Message: Send + Sync + Clone {
 		if packet.data.len() < 2 {
-			return Err(ErrorKind::BadProtocol.into());
+			return Err(Error::BadProtocol);
 		}
 		let packet_id = packet.data[0];
 		if packet_id != PACKET_HELLO && packet_id != PACKET_DISCONNECT && !self.had_hello {
-			return Err(ErrorKind::BadProtocol.into());
+			return Err(Error::BadProtocol);
 		}
 		let data = if self.compression {
 			let compressed = &packet.data[1..];
 			if snappy::decompressed_len(&compressed)? > MAX_PAYLOAD_SIZE {
-				bail!(ErrorKind::OversizedPacket);
+				return Err(Error::OversizedPacket);
 			}
 			snappy::decompress(&compressed)?
 		} else {
@@ -357,7 +362,7 @@ impl Session {
 				if self.had_hello {
 					debug!(target:"network", "Disconnected: {}: {:?}", self.token(), DisconnectReason::from_u8(reason));
 				}
-				Err(ErrorKind::Disconnect(DisconnectReason::from_u8(reason)).into())
+				Err(Error::Disconnect(DisconnectReason::from_u8(reason)))
 			}
 			PACKET_PING => {
 				self.send_pong(io)?;
@@ -371,7 +376,7 @@ impl Session {
 			},
 			PACKET_GET_PEERS => Ok(SessionData::None), //TODO;
 			PACKET_PEERS => Ok(SessionData::None),
-			PACKET_USER ... PACKET_LAST => {
+			PACKET_USER ..= PACKET_LAST => {
 				let mut i = 0usize;
 				while packet_id >= self.info.capabilities[i].id_offset + self.info.capabilities[i].packet_count {
 					i += 1;
@@ -499,7 +504,7 @@ impl Session {
 			rlp.append(&(reason as u32));
 			self.send_packet(io, None, PACKET_DISCONNECT, &rlp.drain()).ok();
 		}
-		ErrorKind::Disconnect(reason).into()
+		Error::Disconnect(reason)
 	}
 
 	fn send<Message>(&mut self, io: &IoContext<Message>, data: &[u8]) -> Result<(), Error> where Message: Send + Sync + Clone {

@@ -45,6 +45,7 @@ extern crate ethcore_light as light;
 #[cfg(test)] extern crate ethcore_private_tx;
 #[cfg(test)] extern crate kvdb_memorydb;
 #[cfg(test)] extern crate rustc_hex;
+#[cfg(test)] extern crate rand_xorshift;
 
 #[macro_use]
 extern crate enum_primitive;
@@ -52,8 +53,10 @@ extern crate enum_primitive;
 extern crate macros;
 #[macro_use]
 extern crate log;
+extern crate parity_util_mem;
+extern crate parity_util_mem as mem;
 #[macro_use]
-extern crate heapsize;
+extern crate parity_util_mem as malloc_size_of;
 #[macro_use]
 extern crate trace_time;
 
@@ -75,5 +78,5 @@ mod api;
 pub use api::*;
 pub use chain::{SyncStatus, SyncState};
 pub use devp2p::validate_node_url;
-pub use network::{NonReservedPeerMode, Error, ErrorKind, ConnectionFilter, ConnectionDirection};
+pub use network::{NonReservedPeerMode, Error, ConnectionFilter, ConnectionDirection};
 pub use private_tx::{PrivateTxHandler, NoopPrivateTxHandler, SimplePrivateTxHandler};
