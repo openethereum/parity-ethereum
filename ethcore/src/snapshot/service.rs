@@ -369,7 +369,7 @@ impl Service {
 			trace!(target: "snapshot", "Trying to import ancient blocks until {}", highest_block_num);
 
 			// Here we start from the highest block number and go backward to 0,
-			// thus starting at `highest_block_num` and targetting `0`.
+			// thus starting at `highest_block_num` and targeting `0`.
 			let target_hash = self.client.block_hash(BlockId::Number(0))?;
 			let start_hash = self.client.block_hash(BlockId::Number(highest_block_num))?;
 
