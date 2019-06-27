@@ -91,7 +91,7 @@ pub fn run_action<T: Informant>(
 			params.code_hash = None;
 		}
 	}
-	run(spec, trie_spec, &params.gas, spec.genesis_state(), |mut client| {
+	run(spec, trie_spec, params.gas, spec.genesis_state(), |mut client| {
 		let result = match client.call(params, &mut trace::NoopTracer, &mut informant) {
 			Ok(r) => (Ok(r.return_data.to_vec()), Some(r.gas_left)),
 			Err(err) => (Err(err), None),
@@ -100,15 +100,15 @@ pub fn run_action<T: Informant>(
 	})
 }
 
-/// Input data to run transaction
+/// Input data to run transaction.
 #[derive(Debug)]
 pub struct TxInput<'a, T> {
-	/// Chain specification name associated with the transaction.
-	pub name: &'a str,
-	/// Transaction index from list of transactions within a state root hashes corresponding to a chain.
-	pub idx: usize,
+	/// State test name associated with the transaction.
+	pub state_test_name: &'a str,
+	/// Transaction index from list of transactions within a state root hash corresponding to a chain.
+	pub tx_index: usize,
 	/// Fork specification (i.e. Constantinople, EIP150, EIP158, etc).
-	pub spec: &'a ethjson::spec::ForkSpec,
+	pub fork_spec_name: &'a ethjson::spec::ForkSpec,
 	/// State of all accounts in the system that is a binary tree mapping of each account address to account data
 	/// that is expressed as Plain Old Data containing the account balance, account nonce, account code in bytes,
 	/// and the account storage binary tree map.
@@ -131,26 +131,30 @@ pub struct TxInput<'a, T> {
 
 /// Execute given transaction and verify resulting state root.
 pub fn run_transaction<T: Informant>(
-	mut tx_input: TxInput<T>
+	tx_input: TxInput<T>
 ) {
-	let TxInput { name, idx, spec, pre_state, post_root, env_info, trie_spec, .. } = tx_input;
-	let spec_name = format!("{:?}", spec).to_lowercase();
-	let spec_checked = match EvmTestClient::spec_from_json(&spec) {
+	let TxInput {
+		state_test_name, tx_index, fork_spec_name, pre_state, post_root, env_info, transaction, mut informant, trie_spec, ..
+	} = tx_input;
+	let fork_spec_name_formatted = format!("{:?}", fork_spec_name).to_lowercase();
+	let fork_spec = match EvmTestClient::fork_spec_from_json(&fork_spec_name) {
 		Some(spec) => {
-			tx_input.informant.before_test(&format!("{}:{}:{}", &name, &spec_name, idx), "starting");
+			informant.before_test(
+				&format!("{}:{}:{}", &state_test_name, &fork_spec_name_formatted, tx_index), "starting");
 			spec
 		},
 		None => {
-			tx_input.informant.before_test(&format!("{}:{}:{}", &name, spec_name, &idx), "skipping because of missing spec");
+			informant.before_test(&format!("{}:{}:{}",
+				&state_test_name, fork_spec_name_formatted, &tx_index), "skipping because of missing fork specification");
 			return;
 		},
 	};
 
-	tx_input.informant.set_gas(env_info.gas_limit);
+	informant.set_gas(env_info.gas_limit);
 
-	let mut sink = tx_input.informant.clone_sink();
-	let result = run(&spec_checked, trie_spec, &tx_input.transaction.gas, &pre_state, |mut client| {
-		let result = client.transact(&env_info, tx_input.transaction, trace::NoopTracer, tx_input.informant);
+	let mut sink = informant.clone_sink();
+	let result = run(&fork_spec, trie_spec, transaction.gas, &pre_state, |mut client| {
+		let result = client.transact(&env_info, transaction, trace::NoopTracer, informant);
 		match result {
 			Ok(TransactSuccess { state_root, gas_left, output, vm_trace, end_state, .. }) => {
 				if state_root != post_root {
@@ -182,7 +186,7 @@ fn dump_state(state: &state::State<state_db::StateDB>) -> Option<pod_state::PodS
 pub fn run<'a, F, X>(
 	spec: &'a spec::Spec,
 	trie_spec: TrieSpec,
-	initial_gas: &U256,
+	initial_gas: U256,
 	pre_state: &'a pod_state::PodState,
 	run: F,
 ) -> RunResult<X> where
@@ -211,14 +215,14 @@ pub fn run<'a, F, X>(
 	match result {
 		(Ok(output), state_root, end_state, gas_left, traces) => Ok(Success {
 			state_root,
-			gas_used: gas_left.map(|gas_left| *&initial_gas - gas_left).unwrap_or(*initial_gas),
+			gas_used: gas_left.map(|gas_left| initial_gas - gas_left).unwrap_or(initial_gas),
 			output,
 			time,
 			traces,
 			end_state,
 		}),
 		(Err(error), state_root, end_state, gas_left, traces) => Err(Failure {
-			gas_used: gas_left.map(|gas_left| *&initial_gas - gas_left).unwrap_or(*initial_gas),
+			gas_used: gas_left.map(|gas_left| initial_gas - gas_left).unwrap_or(initial_gas),
 			error,
 			time,
 			traces,
