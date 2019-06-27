@@ -326,6 +326,9 @@ impl<T: InformantData> Informant<T> {
 									// chunks first and then download the rest.
 									format!("Snapshot initializing ({}/{} chunks restored, {:.0}%)", chunks_done, total_chunks, (chunks_done as f32 / total_chunks as f32) * 100.0)
 								},
+								RestorationStatus::Finalizing => {
+									format!("Snapshot finalization under way")
+								}
 								_ => String::new(),
 							}
 						)
