@@ -18,55 +18,20 @@
 
 //! A simple client to get the current ETH price using an external API.
 
-extern crate futures;
-extern crate serde_json;
-extern crate parity_runtime;
-
-#[macro_use]
-extern crate log;
-
-#[cfg(test)]
-extern crate fake_fetch;
-
-pub extern crate fetch;
-
-use std::cmp;
-use std::fmt;
-use std::io;
-use std::str;
-
+use std::{cmp, fmt, io, str};
 use fetch::{Client as FetchClient, Fetch};
 use futures::{Future, Stream};
-use futures::future::{self, Either};
-use serde_json::Value;
+use log::warn;
 use parity_runtime::Executor;
+use serde_json::Value;
+
+pub use fetch;
 
 /// Current ETH price information.
 #[derive(Debug)]
 pub struct PriceInfo {
 	/// Current ETH price in USD.
 	pub ethusd: f32,
-}
-
-/// Price info error.
-#[derive(Debug)]
-pub enum Error {
-	/// The API returned an unexpected status code.
-	StatusCode(&'static str),
-	/// The API returned an unexpected status content.
-	UnexpectedResponse(Option<String>),
-	/// There was an error when trying to reach the API.
-	Fetch(fetch::Error),
-	/// IO error when reading API response.
-	Io(io::Error),
-}
-
-impl From<io::Error> for Error {
-	fn from(err: io::Error) -> Self { Error::Io(err) }
-}
-
-impl From<fetch::Error> for Error {
-	fn from(err: fetch::Error) -> Self { Error::Fetch(err) }
 }
 
 /// A client to get the current ETH price using an external API.
@@ -100,14 +65,7 @@ impl<F: Fetch> Client<F> {
 	/// Gets the current ETH price and calls `set_price` with the result.
 	pub fn get<G: FnOnce(PriceInfo) + Sync + Send + 'static>(&self, set_price: G) {
 		let future = self.fetch.get(&self.api_endpoint, fetch::Abort::default())
-			.from_err()
-			.and_then(|response| {
-				if !response.is_success() {
-					let s = Error::StatusCode(response.status().canonical_reason().unwrap_or("unknown"));
-					return Either::A(future::err(s));
-				}
-				Either::B(response.concat2().from_err())
-			})
+			.and_then(|response| response.concat2())
 			.and_then(move |body| {
 				let body_str = str::from_utf8(&body).ok();
 				let value: Option<Value> = body_str.and_then(|s| serde_json::from_str(s).ok());
@@ -123,7 +81,11 @@ impl<F: Fetch> Client<F> {
 						set_price(PriceInfo { ethusd });
 						Ok(())
 					},
-					None => Err(Error::UnexpectedResponse(body_str.map(From::from))),
+					None => {
+						let msg = format!("Unexpected response: {}", body_str.unwrap_or_default());
+						let err = io::Error::new(io::ErrorKind::Other, msg);
+						Err(fetch::Error::Io(err))
+					}
 				}
 			})
 			.map_err(|err| {
@@ -135,11 +97,12 @@ impl<F: Fetch> Client<F> {
 
 #[cfg(test)]
 mod test {
-	use std::sync::Arc;
-	use parity_runtime::{Runtime, Executor};
-	use Client;
-	use std::sync::atomic::{AtomicBool, Ordering};
+	use std::sync::{
+		Arc, atomic::{AtomicBool, Ordering}
+	};
 	use fake_fetch::FakeFetch;
+	use parity_runtime::{Runtime, Executor};
+	use super::Client;
 
 	fn price_info_ok(response: &str, executor: Executor) -> Client<FakeFetch<String>> {
 		Client::new(FakeFetch::new(Some(response.to_owned())), executor)
