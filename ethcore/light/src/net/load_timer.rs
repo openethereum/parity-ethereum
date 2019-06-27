@@ -199,15 +199,15 @@ pub struct FileStore(pub PathBuf);
 impl SampleStore for FileStore {
 	fn load(&self) -> HashMap<Kind, VecDeque<u64>> {
 		File::open(&self.0)
-			.map_err(|e| Box::new(bincode::ErrorKind::IoError(e)))
-			.and_then(|mut file| bincode::deserialize_from(&mut file, bincode::Infinite))
+			.map_err(|e| Box::new(bincode::ErrorKind::Io(e)))
+			.and_then(|mut file| bincode::deserialize_from(&mut file))
 			.unwrap_or_else(|_| HashMap::new())
 	}
 
 	fn store(&self, samples: &HashMap<Kind, VecDeque<u64>>) {
 		let res = File::create(&self.0)
-			.map_err(|e| Box::new(bincode::ErrorKind::IoError(e)))
-			.and_then(|mut file| bincode::serialize_into(&mut file, samples, bincode::Infinite));
+			.map_err(|e| Box::new(bincode::ErrorKind::Io(e)))
+			.and_then(|mut file| bincode::serialize_into(&mut file, samples));
 
 		if let Err(e) = res {
 			warn!(target: "pip", "Error writing light request timing samples to file: {}", e);
