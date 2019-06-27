@@ -215,7 +215,7 @@ fn run_state_test(args: Args) {
 							env_info: &env_info,
 							transaction,
 							informant: display::std_json::Informant::err_only(),
-							trie_spec: &trie_spec,
+							trie_spec,
 						};
 						// Use Standard JSON informant with err only
 						info::run_transaction(tx_input)
@@ -229,7 +229,7 @@ fn run_state_test(args: Args) {
 							env_info: &env_info,
 							transaction,
 							informant: display::std_json::Informant::out_only(),
-							trie_spec: &trie_spec,
+							trie_spec,
 						};
 						// Use Standard JSON informant with out only
 						info::run_transaction(tx_input)
@@ -243,7 +243,7 @@ fn run_state_test(args: Args) {
 							env_info: &env_info,
 							transaction,
 							informant: display::std_json::Informant::default(),
-							trie_spec: &trie_spec,
+							trie_spec,
 						};
 						// Use Standard JSON informant default
 						info::run_transaction(tx_input)
@@ -261,7 +261,7 @@ fn run_state_test(args: Args) {
 							env_info: &env_info,
 							transaction,
 							informant: display::json::Informant::default(),
-							trie_spec: &trie_spec,
+							trie_spec,
 						};
 						// Use JSON informant
 						info::run_transaction(tx_input)
@@ -275,7 +275,7 @@ fn run_state_test(args: Args) {
 							env_info: &env_info,
 							transaction,
 							informant: display::simple::Informant::default(),
-							trie_spec: &trie_spec,
+							trie_spec,
 						};
 						// Use Simple informant
 						info::run_transaction(tx_input)

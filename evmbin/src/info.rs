@@ -91,7 +91,7 @@ pub fn run_action<T: Informant>(
 			params.code_hash = None;
 		}
 	}
-	run(spec, &trie_spec, params.gas, spec.genesis_state(), |mut client| {
+	run(spec, trie_spec, &params.gas, spec.genesis_state(), |mut client| {
 		let result = match client.call(params, &mut trace::NoopTracer, &mut informant) {
 			Ok(r) => (Ok(r.return_data.to_vec()), Some(r.gas_left)),
 			Err(err) => (Err(err), None),
@@ -126,7 +126,7 @@ pub struct TxInput<'a, T> {
 	/// JSON formatting informant.
 	pub informant: T,
 	///	Trie specification (i.e. Generic trie, Secure trie, Secure with fat database).
-	pub trie_spec: &'a TrieSpec,
+	pub trie_spec: TrieSpec,
 }
 
 /// Execute given transaction and verify resulting state root.
@@ -149,7 +149,7 @@ pub fn run_transaction<T: Informant>(
 	tx_input.informant.set_gas(env_info.gas_limit);
 
 	let mut sink = tx_input.informant.clone_sink();
-	let result = run(&spec_checked, trie_spec, tx_input.transaction.gas, &pre_state, |mut client| {
+	let result = run(&spec_checked, trie_spec, &tx_input.transaction.gas, &pre_state, |mut client| {
 		let result = client.transact(&env_info, tx_input.transaction, trace::NoopTracer, tx_input.informant);
 		match result {
 			Ok(TransactSuccess { state_root, gas_left, output, vm_trace, end_state, .. }) => {
@@ -181,15 +181,14 @@ fn dump_state(state: &state::State<state_db::StateDB>) -> Option<pod_state::PodS
 /// Execute EVM with given `ActionParams`.
 pub fn run<'a, F, X>(
 	spec: &'a spec::Spec,
-	trie_spec: &'a TrieSpec,
-	initial_gas: U256,
+	trie_spec: TrieSpec,
+	initial_gas: &U256,
 	pre_state: &'a pod_state::PodState,
 	run: F,
 ) -> RunResult<X> where
 	F: FnOnce(EvmTestClient) -> (Result<Vec<u8>, EvmTestError>, H256, Option<pod_state::PodState>, Option<U256>, Option<X>),
 {
-	let do_dump = *trie_spec == TrieSpec::Fat;
-	let trie_spec = trie_spec.clone();
+	let do_dump = trie_spec == TrieSpec::Fat;
 
 	let mut test_client = EvmTestClient::from_pod_state_with_trie(spec, pre_state.clone(), trie_spec)
 		.map_err(|error| Failure {
@@ -212,14 +211,14 @@ pub fn run<'a, F, X>(
 	match result {
 		(Ok(output), state_root, end_state, gas_left, traces) => Ok(Success {
 			state_root,
-			gas_used: gas_left.map(|gas_left| initial_gas - gas_left).unwrap_or(initial_gas),
+			gas_used: gas_left.map(|gas_left| *&initial_gas - gas_left).unwrap_or(*initial_gas),
 			output,
 			time,
 			traces,
 			end_state,
 		}),
 		(Err(error), state_root, end_state, gas_left, traces) => Err(Failure {
-			gas_used: gas_left.map(|gas_left| initial_gas - gas_left).unwrap_or(initial_gas),
+			gas_used: gas_left.map(|gas_left| *&initial_gas - gas_left).unwrap_or(*initial_gas),
 			error,
 			time,
 			traces,
