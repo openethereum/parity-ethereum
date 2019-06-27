@@ -16,62 +16,32 @@
 
 //! Manages local node data: pending local transactions, sync security level
 
+use std::io;
 use std::sync::Arc;
-use std::fmt;
 use std::time::Duration;
 
-use types::transaction::{
-	SignedTransaction, PendingTransaction, UnverifiedTransaction,
-	Condition as TransactionCondition
+use common_types::{
+	BlockNumber,
+	transaction::{
+		SignedTransaction, PendingTransaction, UnverifiedTransaction,
+		Condition as TransactionCondition
+	}
 };
-use io::IoHandler;
-use rlp::Rlp;
+use ethcore_io::{IoHandler, TimerToken, IoContext};
 use kvdb::KeyValueDB;
-
-extern crate common_types as types;
-extern crate ethcore_io as io;
-extern crate rlp;
-extern crate serde_json;
-extern crate serde;
-extern crate kvdb;
-
-#[macro_use]
-extern crate serde_derive;
-
-#[macro_use]
-extern crate log;
-
-#[cfg(test)]
-extern crate ethkey;
-#[cfg(test)]
-extern crate kvdb_memorydb;
+use log::{debug, trace, warn};
+use rlp::Rlp;
+use serde_derive::{Serialize, Deserialize};
+use serde_json;
 
 const LOCAL_TRANSACTIONS_KEY: &'static [u8] = &*b"LOCAL_TXS";
 
-const UPDATE_TIMER: ::io::TimerToken = 0;
+const UPDATE_TIMER: TimerToken = 0;
 const UPDATE_TIMEOUT: Duration = Duration::from_secs(15 * 60); // once every 15 minutes.
-
-/// Errors which can occur while using the local data store.
-#[derive(Debug)]
-pub enum Error {
-	/// Io and database errors: these manifest as `String`s.
-	Io(::std::io::Error),
-	/// JSON errors.
-	Json(::serde_json::Error),
-}
-
-impl fmt::Display for Error {
-	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-		match *self {
-			Error::Io(ref val) => write!(f, "{}", val),
-			Error::Json(ref err) => write!(f, "{}", err),
-		}
-	}
-}
 
 #[derive(Serialize, Deserialize)]
 enum Condition {
-	Number(types::BlockNumber),
+	Number(BlockNumber),
 	Timestamp(u64),
 }
 
@@ -157,10 +127,9 @@ pub struct LocalDataStore<T: NodeInfo> {
 
 impl<T: NodeInfo> LocalDataStore<T> {
 	/// Attempt to read pending transactions out of the local store.
-	pub fn pending_transactions(&self) -> Result<Vec<PendingTransaction>, Error> {
-		if let Some(val) = self.db.get(self.col, LOCAL_TRANSACTIONS_KEY).map_err(Error::Io)? {
-			let local_txs: Vec<_> = ::serde_json::from_slice::<Vec<TransactionEntry>>(&val)
-				.map_err(Error::Json)?
+	pub fn pending_transactions(&self) -> io::Result<Vec<PendingTransaction>> {
+		if let Some(val) = self.db.get(self.col, LOCAL_TRANSACTIONS_KEY)? {
+			let local_txs: Vec<_> = serde_json::from_slice::<Vec<TransactionEntry>>(&val)?
 				.into_iter()
 				.filter_map(TransactionEntry::into_pending)
 				.collect();
@@ -172,7 +141,7 @@ impl<T: NodeInfo> LocalDataStore<T> {
 	}
 
 	/// Update the entries in the database.
-	pub fn update(&self) -> Result<(), Error> {
+	pub fn update(&self) -> io::Result<()> {
 		trace!(target: "local_store", "Updating local store entries.");
 
 		let local_entries: Vec<TransactionEntry> = self.node.pending_transactions()
@@ -184,32 +153,32 @@ impl<T: NodeInfo> LocalDataStore<T> {
 	}
 
 	/// Clear data in this column.
-	pub fn clear(&self) -> Result<(), Error> {
+	pub fn clear(&self) -> io::Result<()> {
 		trace!(target: "local_store", "Clearing local store entries.");
 
 		self.write_txs(&[])
 	}
 
 	// helper for writing a vector of transaction entries to disk.
-	fn write_txs(&self, txs: &[TransactionEntry]) -> Result<(), Error> {
+	fn write_txs(&self, txs: &[TransactionEntry]) -> io::Result<()> {
 		let mut batch = self.db.transaction();
 
-		let local_json = ::serde_json::to_value(txs).map_err(Error::Json)?;
+		let local_json = serde_json::to_value(txs)?;
 		let json_str = format!("{}", local_json);
 
 		batch.put_vec(self.col, LOCAL_TRANSACTIONS_KEY, json_str.into_bytes());
-		self.db.write(batch).map_err(Error::Io)
+		self.db.write(batch)
 	}
 }
 
 impl<T: NodeInfo, M: Send + Sync + 'static> IoHandler<M> for LocalDataStore<T> {
-	fn initialize(&self, io: &::io::IoContext<M>) {
+	fn initialize(&self, io: &IoContext<M>) {
 		if let Err(e) = io.register_timer(UPDATE_TIMER, UPDATE_TIMEOUT) {
 			warn!(target: "local_store", "Error registering local store update timer: {}", e);
 		}
 	}
 
-	fn timeout(&self, _io: &::io::IoContext<M>, timer: ::io::TimerToken) {
+	fn timeout(&self, _io: &IoContext<M>, timer: TimerToken) {
 		if let UPDATE_TIMER = timer {
 			if let Err(e) = self.update() {
 				debug!(target: "local_store", "Error updating local store: {}", e);
@@ -231,7 +200,7 @@ mod tests {
 	use super::NodeInfo;
 
 	use std::sync::Arc;
-	use types::transaction::{Transaction, Condition, PendingTransaction};
+	use common_types::transaction::{Transaction, Condition, PendingTransaction};
 	use ethkey::{Brain, Generator};
 
 	// we want to test: round-trip of good transactions.

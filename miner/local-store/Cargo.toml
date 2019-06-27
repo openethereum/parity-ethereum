@@ -3,6 +3,7 @@ name = "parity-local-store"
 description = "Manages persistent local node data."
 version = "0.1.0"
 authors = ["Parity Technologies <admin@parity.io>"]
+edition = "2018"
 
 [dependencies]
 common-types = { path = "../../ethcore/types" }
