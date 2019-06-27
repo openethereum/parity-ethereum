@@ -391,7 +391,7 @@ impl Service {
 
 			let block = self.client.block(BlockId::Hash(parent_hash)).ok_or_else(|| {
 				error!(target: "snapshot", "migrate_blocks: did not find block from parent_hash={} (start_hash={})", parent_hash, start_hash);
-				::snapshot::error::Error::UnlinkedAncientBlockChain
+				::snapshot::error::Error::UnlinkedAncientBlockChain(parent_hash)
 			})?;
 			parent_hash = block.parent_hash();
 
@@ -409,7 +409,6 @@ impl Service {
 				_ => {
 					error!(target: "snapshot", "migrate_blocks: failed to find receipts and parent total difficulty. Block #{}, parent_hash={:?}, parent_total_difficulty={:?}",
 						block_number, parent_hash, parent_total_difficulty);
-					trace!(target: "snapshot", "migrate_blocks: is previous block (#{}) present?: {}", block_number - 1, self.client.block(BlockId::Number(block_number - 1)).is_some());
 					break
 				},
 			}
@@ -438,7 +437,7 @@ impl Service {
 				parent_hash, target_hash, start_hash,
 				cur_chain_info.ancient_block_number, cur_chain_info.best_block_number,
 			);
-			return Err(::snapshot::error::Error::UnlinkedAncientBlockChain.into());
+			return Err(::snapshot::error::Error::UnlinkedAncientBlockChain(parent_hash).into());
 		}
 
 		// Update best ancient block in the Next Chain
