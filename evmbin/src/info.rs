@@ -117,9 +117,15 @@ pub struct TxInput<'a, T> {
 	pub post_root: H256,
 	/// Client environment information associated with the transaction's chain specification.
 	pub env_info: &'a client::EnvInfo,
+	/// Signed transaction accompanied by a signature that may be unverified and a successfully recovered
+	/// sender address. The unverified transaction contains a recoverable ECDSA signature that has been encoded
+	/// as RSV components and includes replay protection for the specified chain. Verification of the signed transaction
+	/// with a valid secret of an account's keypair and a specific chain may be used to recover the sender's public key
+	/// and their associated address by applying the Keccak-256 hash function.
 	pub transaction: transaction::SignedTransaction,
 	/// JSON formatting informant.
 	pub informant: T,
+	///	Trie specification (i.e. Generic trie, Secure trie, Secure with fat database).
 	pub trie_spec: &'a TrieSpec,
 }
 
