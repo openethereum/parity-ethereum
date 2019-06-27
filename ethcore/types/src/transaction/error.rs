@@ -116,7 +116,7 @@ impl fmt::Display for Error {
 			CodeBanned => "Contract code is temporarily banned.".into(),
 			InvalidChainId => "Transaction of this chain ID is not allowed on this chain.".into(),
 			InvalidSignature(ref err) => format!("Transaction has invalid signature: {}.", err),
-			NotAllowed => "Sender does not have permissions to execute this type of transction".into(),
+			NotAllowed => "Sender does not have permissions to execute this type of transaction".into(),
 			TooBig => "Transaction too big".into(),
 			InvalidRlp(ref err) => format!("Transaction has invalid RLP structure: {}.", err),
 		};
