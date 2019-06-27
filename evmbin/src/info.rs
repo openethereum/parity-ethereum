@@ -125,7 +125,7 @@ pub struct TxInput<'a, T> {
 
 /// Execute given transaction and verify resulting state root.
 pub fn run_transaction<T: Informant>(
-	tx_input: TxInput<T>
+	mut tx_input: TxInput<T>
 ) {
 	let spec_name = format!("{:?}", tx_input.spec).to_lowercase();
 	let spec = match EvmTestClient::spec_from_json(&tx_input.spec) {
