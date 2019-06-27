@@ -133,30 +133,31 @@ pub struct TxInput<'a, T> {
 pub fn run_transaction<T: Informant>(
 	mut tx_input: TxInput<T>
 ) {
-	let spec_name = format!("{:?}", tx_input.spec).to_lowercase();
-	let spec = match EvmTestClient::spec_from_json(&tx_input.spec) {
+	let TxInput { name, idx, spec, pre_state, post_root, env_info, trie_spec, .. } = tx_input;
+	let spec_name = format!("{:?}", spec).to_lowercase();
+	let spec_checked = match EvmTestClient::spec_from_json(&spec) {
 		Some(spec) => {
-			tx_input.informant.before_test(&format!("{}:{}:{}", &tx_input.name, &spec_name, tx_input.idx), "starting");
+			tx_input.informant.before_test(&format!("{}:{}:{}", &name, &spec_name, idx), "starting");
 			spec
 		},
 		None => {
-			tx_input.informant.before_test(&format!("{}:{}:{}", &tx_input.name, spec_name, &tx_input.idx), "skipping because of missing spec");
+			tx_input.informant.before_test(&format!("{}:{}:{}", &name, spec_name, &idx), "skipping because of missing spec");
 			return;
 		},
 	};
 
-	tx_input.informant.set_gas(tx_input.env_info.gas_limit);
+	tx_input.informant.set_gas(env_info.gas_limit);
 
 	let mut sink = tx_input.informant.clone_sink();
-	let result = run(&spec, tx_input.trie_spec, tx_input.transaction.gas, &tx_input.pre_state, |mut client| {
-		let result = client.transact(&tx_input.env_info, tx_input.transaction, trace::NoopTracer, tx_input.informant);
+	let result = run(&spec_checked, trie_spec, tx_input.transaction.gas, &pre_state, |mut client| {
+		let result = client.transact(&env_info, tx_input.transaction, trace::NoopTracer, tx_input.informant);
 		match result {
 			Ok(TransactSuccess { state_root, gas_left, output, vm_trace, end_state, .. }) => {
-				if state_root != tx_input.post_root {
+				if state_root != post_root {
 					(Err(EvmTestError::PostCondition(format!(
 						"State root mismatch (got: {:#x}, expected: {:#x})",
 						state_root,
-						tx_input.post_root,
+						post_root,
 					))), state_root, end_state, Some(gas_left), None)
 				} else {
 					(Ok(output), state_root, end_state, Some(gas_left), vm_trace)
