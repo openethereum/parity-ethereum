@@ -23,7 +23,6 @@ extern crate ethcore_sync as sync;
 extern crate ethereum_types;
 extern crate kvdb;
 
-extern crate derive_more;
 #[macro_use]
 extern crate log;
 #[macro_use]
