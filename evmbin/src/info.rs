@@ -104,7 +104,7 @@ pub fn run_action<T: Informant>(
 #[derive(Debug)]
 pub struct TxInput<'a, T> {
 	/// Chain specification name associated with the transaction.
-	pub name: &'a String,
+	pub name: &'a str,
 	/// Transaction index from list of transactions within a state root hashes corresponding to a chain.
 	pub idx: usize,
 	/// Fork specification (i.e. Constantinople, EIP150, EIP158, etc).
