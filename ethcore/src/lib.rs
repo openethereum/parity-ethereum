@@ -76,9 +76,7 @@ extern crate journaldb;
 extern crate keccak_hash as hash;
 extern crate keccak_hasher;
 extern crate kvdb;
-// Note: in `ethcore` this is only used by tests, so without `#[cfg(test)]` there's a warning.
-// However, when building `parity-ethereum` this is needed. So there's something funny going on
-// here.
+#[cfg(any(test, feature = "test-helpers"))]
 extern crate kvdb_memorydb;
 
 extern crate len_caching_lock;
@@ -97,7 +95,6 @@ extern crate rand;
 extern crate rayon;
 extern crate rlp;
 extern crate parity_util_mem;
-extern crate parity_util_mem as mem;
 extern crate parity_util_mem as malloc_size_of;
 extern crate rustc_hex;
 extern crate serde;

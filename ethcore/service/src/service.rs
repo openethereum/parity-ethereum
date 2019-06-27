@@ -16,8 +16,8 @@
 
 //! Creates and registers client and network services.
 
-use std::sync::Arc;
 use std::path::Path;
+use std::sync::Arc;
 use std::time::Duration;
 
 use ansi_term::Colour;
@@ -35,7 +35,6 @@ use ethcore::error::Error as EthcoreError;
 
 
 use ethcore_private_tx::{self, Importer, Signer};
-use Error;
 
 pub struct PrivateTxService {
 	provider: Arc<ethcore_private_tx::Provider>,
@@ -99,7 +98,7 @@ impl ClientService {
 		encryptor: Box<ethcore_private_tx::Encryptor>,
 		private_tx_conf: ethcore_private_tx::ProviderConfig,
 		private_encryptor_conf: ethcore_private_tx::EncryptorConfig,
-		) -> Result<ClientService, Error>
+		) -> Result<ClientService, EthcoreError>
 	{
 		let io_service = IoService::<ClientIoMessage>::start()?;
 
@@ -113,6 +112,7 @@ impl ClientService {
 			miner.clone(),
 			io_service.channel(),
 		)?;
+		spec.engine.register_client(Arc::downgrade(&client) as _);
 		miner.set_io_channel(io_service.channel());
 		miner.set_in_chain_checker(&client.clone());
 
@@ -147,8 +147,6 @@ impl ClientService {
 			snapshot: snapshot.clone(),
 		});
 		io_service.register_handler(client_io)?;
-
-		spec.engine.register_client(Arc::downgrade(&client) as _);
 
 		Ok(ClientService {
 			io_service: Arc::new(io_service),

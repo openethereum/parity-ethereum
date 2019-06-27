@@ -27,7 +27,7 @@ use types::header::Header;
 use types::ids::BlockId;
 
 use client::EngineClient;
-use machine::{AuxiliaryData, Call, EthereumMachine};
+use machine::{AuxiliaryData, Call, Machine};
 use super::{SystemCall, ValidatorSet};
 
 type BlockNumberLookup = Box<dyn Fn(BlockId) -> Result<BlockNumber, String> + Send + Sync + 'static>;
@@ -96,7 +96,7 @@ impl ValidatorSet for Multi {
 	}
 
 	fn signals_epoch_end(&self, _first: bool, header: &Header, aux: AuxiliaryData)
-		-> ::engines::EpochChange<EthereumMachine>
+		-> ::engines::EpochChange
 	{
 		let (set_block, set) = self.correct_set_by_number(header.number());
 		let first = set_block == header.number();
@@ -104,7 +104,7 @@ impl ValidatorSet for Multi {
 		set.signals_epoch_end(first, header, aux)
 	}
 
-	fn epoch_set(&self, _first: bool, machine: &EthereumMachine, number: BlockNumber, proof: &[u8]) -> Result<(super::SimpleList, Option<H256>), ::error::Error> {
+	fn epoch_set(&self, _first: bool, machine: &Machine, number: BlockNumber, proof: &[u8]) -> Result<(super::SimpleList, Option<H256>), ::error::Error> {
 		let (set_block, set) = self.correct_set_by_number(number);
 		let first = set_block == number;
 

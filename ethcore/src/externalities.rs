@@ -20,7 +20,7 @@ use std::sync::Arc;
 use ethereum_types::{H256, U256, Address, BigEndianHash};
 use bytes::Bytes;
 use state::{Backend as StateBackend, State, Substate, CleanupMode};
-use machine::EthereumMachine as Machine;
+use machine::Machine;
 use executive::*;
 use vm::{
 	self, ActionParams, ActionValue, EnvInfo, CallType, Schedule,
@@ -321,7 +321,11 @@ impl<'a, T: 'a, V: 'a, B: 'a> Ext for Externalities<'a, T, V, B>
 	}
 
 	fn extcodehash(&self, address: &Address) -> vm::Result<Option<H256>> {
-		Ok(self.state.code_hash(address)?)
+		if self.state.exists_and_not_null(address)? {
+			Ok(self.state.code_hash(address)?)
+		} else {
+			Ok(None)
+		}
 	}
 
 	fn extcodesize(&self, address: &Address) -> vm::Result<Option<usize>> {
@@ -460,7 +464,7 @@ mod tests {
 
 	struct TestSetup {
 		state: State<::state_db::StateDB>,
-		machine: ::machine::EthereumMachine,
+		machine: ::machine::Machine,
 		schedule: Schedule,
 		sub_state: Substate,
 		env_info: EnvInfo

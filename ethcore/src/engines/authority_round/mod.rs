@@ -31,7 +31,7 @@ use engines::block_reward;
 use engines::block_reward::{BlockRewardContract, RewardKind};
 use error::{Error, BlockError};
 use ethjson;
-use machine::{AuxiliaryData, Call, EthereumMachine};
+use machine::{AuxiliaryData, Call, Machine};
 use hash::keccak;
 use super::signer::EngineSigner;
 use super::validator_set::{ValidatorSet, SimpleList, new_validator_set};
@@ -221,7 +221,7 @@ impl EpochManager {
 	fn zoom_to_after(
 		&mut self,
 		client: &dyn EngineClient,
-		machine: &EthereumMachine,
+		machine: &Machine,
 		validators: &dyn ValidatorSet,
 		hash: H256
 	) -> bool {
@@ -235,6 +235,8 @@ impl EpochManager {
 
 		self.force = false;
 		debug!(target: "engine", "Zooming to epoch after block {}", hash);
+		trace!(target: "engine", "Current validator set: {:?}", self.validators());
+
 
 		// epoch_transition_for can be an expensive call, but in the absence of
 		// forks it will only need to be called for the block directly after
@@ -255,7 +257,7 @@ impl EpochManager {
 			let (signal_number, set_proof, _) = destructure_proofs(&last_transition.proof)
 				.expect("proof produced by this engine; therefore it is valid; qed");
 
-			trace!(target: "engine", "extracting epoch set for epoch ({}, {}) signalled at #{}",
+			trace!(target: "engine", "extracting epoch validator set for epoch ({}, {}) signalled at #{}",
 				last_transition.block_number, last_transition.block_hash, signal_number);
 
 			let first = signal_number == 0;
@@ -266,7 +268,12 @@ impl EpochManager {
 				set_proof,
 			)
 				.ok()
-				.map(|(list, _)| list.into_inner())
+				.map(|(list, _)| {
+					trace!(target: "engine", "Updating finality checker with new validator set extracted from epoch ({}, {}): {:?}",
+					       last_transition.block_number, last_transition.block_hash, &list);
+
+					list.into_inner()
+				})
 				.expect("proof produced by this engine; therefore it is valid; qed");
 
 			self.finality_checker = RollingFinality::blank(epoch_set);
@@ -433,7 +440,7 @@ pub struct AuthorityRound {
 	empty_steps_transition: u64,
 	strict_empty_steps_transition: u64,
 	maximum_empty_steps: usize,
-	machine: EthereumMachine,
+	machine: Machine,
 }
 
 // header-chain validator.
@@ -443,7 +450,7 @@ struct EpochVerifier {
 	empty_steps_transition: u64,
 }
 
-impl super::EpochVerifier<EthereumMachine> for EpochVerifier {
+impl super::EpochVerifier for EpochVerifier {
 	fn verify_light(&self, header: &Header) -> Result<(), Error> {
 		// Validate the timestamp
 		verify_timestamp(&self.step.inner, header_step(header, self.empty_steps_transition)?)?;
@@ -664,7 +671,7 @@ impl<'a, A: ?Sized, B> Deref for CowLike<'a, A, B> where B: AsRef<A> {
 
 impl AuthorityRound {
 	/// Create a new instance of AuthorityRound engine.
-	pub fn new(our_params: AuthorityRoundParams, machine: EthereumMachine) -> Result<Arc<Self>, Error> {
+	pub fn new(our_params: AuthorityRoundParams, machine: Machine) -> Result<Arc<Self>, Error> {
 		if our_params.step_duration == 0 {
 			error!(target: "engine", "Authority Round step duration can't be zero, aborting");
 			panic!("authority_round: step duration can't be zero")
@@ -698,7 +705,7 @@ impl AuthorityRound {
 				empty_steps_transition: our_params.empty_steps_transition,
 				maximum_empty_steps: our_params.maximum_empty_steps,
 				strict_empty_steps_transition: our_params.strict_empty_steps_transition,
-				machine: machine,
+				machine,
 			});
 
 		// Do not initialize timeouts for tests.
@@ -729,7 +736,7 @@ impl AuthorityRound {
 
 			if !epoch_manager.zoom_to_after(&*client, &self.machine, &*self.validators, *header.parent_hash()) {
 				debug!(target: "engine", "Unable to zoom to epoch.");
-				return Err(EngineError::MissingParent.into())
+				return Err(EngineError::MissingParent(*header.parent_hash()).into())
 			}
 
 			(CowLike::Owned(epoch_manager.validators().clone()), epoch_manager.epoch_transition_number)
@@ -806,7 +813,7 @@ impl AuthorityRound {
 			return;
 		}
 
-		if let (true, Some(me)) = (current_step > parent_step + 1, self.signer.read().as_ref().map(|s| s.address())) {
+		if let (true, Some(me)) = (current_step > parent_step + 1, self.address()) {
 			debug!(target: "engine", "Author {} built block with step gap. current step: {}, parent step: {}",
 				   header.author(), current_step, parent_step);
 			let mut reported = HashSet::new();
@@ -816,9 +823,13 @@ impl AuthorityRound {
 				if skipped_primary != me {
 					// Stop reporting once validators start repeating.
 					if !reported.insert(skipped_primary) { break; }
+					trace!(target: "engine", "Reporting benign misbehaviour (cause: skipped step) at block #{}, epoch set number {}. Own address: {}",
+						header.number(), set_number, me);
 					self.validators.report_benign(&skipped_primary, set_number, header.number());
- 				}
- 			}
+				} else {
+					trace!(target: "engine", "Primary that skipped is self, not self-reporting. Own address: {}", me);
+				}
+			}
 		}
 	}
 
@@ -884,6 +895,10 @@ impl AuthorityRound {
 		let finalized = epoch_manager.finality_checker.push_hash(chain_head.hash(), vec![*chain_head.author()]);
 		finalized.unwrap_or_default()
 	}
+
+	fn address(&self) -> Option<Address> {
+		self.signer.read().as_ref().map(|s| s.address() )
+	}
 }
 
 fn unix_now() -> Duration {
@@ -926,10 +941,10 @@ impl IoHandler<()> for TransitionHandler {
 	}
 }
 
-impl Engine<EthereumMachine> for AuthorityRound {
+impl Engine for AuthorityRound {
 	fn name(&self) -> &str { "AuthorityRound" }
 
-	fn machine(&self) -> &EthereumMachine { &self.machine }
+	fn machine(&self) -> &Machine { &self.machine }
 
 	/// Three fields - consensus step and the corresponding proposer signature, and a list of empty
 	/// step messages (which should be empty if no steps are skipped)
@@ -1283,13 +1298,16 @@ impl Engine<EthereumMachine> for AuthorityRound {
 				// This check runs in Phase 1 where there is no guarantee that the parent block is
 				// already imported, therefore the call to `epoch_set` may fail. In that case we
 				// won't report the misbehavior but this is not a concern because:
-				// - Only authorities can report and it's expected that they'll be up-to-date and
-				//   importing, therefore the parent header will most likely be available
+				// - Authorities will have a signing key available to report and it's expected that
+				//   they'll be up-to-date and importing, therefore the parent header will most likely
+				//   be available
 				// - Even if you are an authority that is syncing the chain, the contract will most
 				//   likely ignore old reports
 				// - This specific check is only relevant if you're importing (since it checks
 				//   against wall clock)
-				if let Ok((_, set_number)) = self.epoch_set(header) {
+				if let Ok((_,  set_number)) = self.epoch_set(header) {
+					trace!(target: "engine", "Reporting benign misbehaviour (cause: InvalidSeal) at block #{}, epoch set number {}. Own address: {}",
+						header.number(), set_number, self.address().unwrap_or_default());
 					self.validators.report_benign(header.author(), set_number, header.number());
 				}
 
@@ -1310,7 +1328,7 @@ impl Engine<EthereumMachine> for AuthorityRound {
 		// Ensure header is from the step after parent.
 		if step == parent_step
 			|| (header.number() >= self.validate_step_transition && step <= parent_step) {
-			trace!(target: "engine", "Multiple blocks proposed for step {}.", parent_step);
+			warn!(target: "engine", "Multiple blocks proposed for step {}.", parent_step);
 
 			self.validators.report_malicious(header.author(), set_number, header.number(), Default::default());
 			Err(EngineError::DoubleVote(*header.author()))?;
@@ -1360,6 +1378,8 @@ impl Engine<EthereumMachine> for AuthorityRound {
 			match validate_empty_steps() {
 				Ok(len) => len,
 				Err(err) => {
+					trace!(target: "engine", "Reporting benign misbehaviour (cause: invalid empty steps) at block #{}, epoch set number {}. Own address: {}",
+						header.number(), set_number, self.address().unwrap_or_default());
 					self.validators.report_benign(header.author(), set_number, header.number());
 					return Err(err);
 				},
@@ -1389,6 +1409,8 @@ impl Engine<EthereumMachine> for AuthorityRound {
 		let res = verify_external(header, &*validators, self.empty_steps_transition);
 		match res {
 			Err(Error::Engine(EngineError::NotProposer(_))) => {
+				trace!(target: "engine", "Reporting benign misbehaviour (cause: block from incorrect proposer) at block #{}, epoch set number {}. Own address: {}",
+					header.number(), set_number, self.address().unwrap_or_default());
 				self.validators.report_benign(header.author(), set_number, header.number());
 			},
 			Ok(_) => {
@@ -1407,7 +1429,7 @@ impl Engine<EthereumMachine> for AuthorityRound {
 	}
 
 	fn signals_epoch_end(&self, header: &Header, aux: AuxiliaryData)
-		-> super::EpochChange<EthereumMachine>
+		-> super::EpochChange
 	{
 		if self.immediate_transitions { return super::EpochChange::No }
 
@@ -1529,7 +1551,7 @@ impl Engine<EthereumMachine> for AuthorityRound {
 		None
 	}
 
-	fn epoch_verifier<'a>(&self, _header: &Header, proof: &'a [u8]) -> ConstructedVerifier<'a, EthereumMachine> {
+	fn epoch_verifier<'a>(&self, _header: &Header, proof: &'a [u8]) -> ConstructedVerifier<'a> {
 		let (signal_number, set_proof, finality_proof) = match destructure_proofs(proof) {
 			Ok(x) => x,
 			Err(e) => return ConstructedVerifier::Err(e),
@@ -1618,8 +1640,9 @@ mod tests {
 	use engines::validator_set::{TestSet, SimpleList};
 	use error::Error;
 	use super::{AuthorityRoundParams, AuthorityRound, EmptyStep, SealedEmptyStep, calculate_score};
+	use machine::Machine;
 
-	fn aura<F>(f: F) -> Arc<AuthorityRound> where
+	fn build_aura<F>(f: F) -> Arc<AuthorityRound> where
 		F: FnOnce(&mut AuthorityRoundParams),
 	{
 		let mut params = AuthorityRoundParams {
@@ -1641,11 +1664,10 @@ mod tests {
 
 		// mutate aura params
 		f(&mut params);
-
 		// create engine
 		let mut c_params = ::spec::CommonParams::default();
 		c_params.gas_limit_bound_divisor = 5.into();
-		let machine = ::machine::EthereumMachine::regular(c_params, Default::default());
+		let machine = Machine::regular(c_params, Default::default());
 		AuthorityRound::new(params, machine).unwrap()
 	}
 
@@ -1821,9 +1843,19 @@ mod tests {
 
 	#[test]
 	fn reports_skipped() {
+		let _ = ::env_logger::try_init();
+
+		let validator1 = Address::from_low_u64_be(1);
+		let validator2 = Address::from_low_u64_be(2);
 		let last_benign = Arc::new(AtomicUsize::new(0));
-		let aura = aura(|p| {
-			p.validators = Box::new(TestSet::new(Default::default(), last_benign.clone()));
+
+		let aura = build_aura(|p| {
+			let validator_set = TestSet::new(
+				Default::default(),
+				last_benign.clone(),
+				vec![validator1, validator2],
+			);
+			p.validators = Box::new(validator_set);
 		});
 
 		let mut parent_header: Header = Header::default();
@@ -1838,7 +1870,11 @@ mod tests {
 		assert!(aura.verify_block_family(&header, &parent_header).is_ok());
 		assert_eq!(last_benign.load(AtomicOrdering::SeqCst), 0);
 
-		aura.set_signer(Box::new((Arc::new(AccountProvider::transient_provider()), Default::default(), "".into())));
+		aura.set_signer(Box::new((
+			Arc::new(AccountProvider::transient_provider()),
+			validator2,
+			"".into(),
+		)));
 
 		// Do not report on steps skipped between genesis and first block.
 		header.set_number(1);
@@ -1853,7 +1889,7 @@ mod tests {
 
 	#[test]
 	fn test_uncles_transition() {
-		let aura = aura(|params| {
+		let aura = build_aura(|params| {
 			params.maximum_uncle_count_transition = 1;
 		});
 
@@ -1862,16 +1898,16 @@ mod tests {
 		assert_eq!(aura.maximum_uncle_count(100), 0);
 	}
 
-    #[test]
-    #[should_panic(expected="counter is too high")]
-    fn test_counter_increment_too_high() {
-        use super::Step;
-        let step = Step {
-            calibrate: false,
-            inner: AtomicUsize::new(::std::usize::MAX),
-            duration: 1,
-        };
-        step.increment();
+	#[test]
+	#[should_panic(expected="counter is too high")]
+	fn test_counter_increment_too_high() {
+		use super::Step;
+		let step = Step {
+			calibrate: false,
+			inner: AtomicUsize::new(::std::usize::MAX),
+			duration: 1,
+		};
+		step.increment();
 	}
 
 	#[test]
@@ -1889,7 +1925,7 @@ mod tests {
 	#[test]
 	#[should_panic(expected="authority_round: step duration can't be zero")]
 	fn test_step_duration_zero() {
-		aura(|params| {
+		build_aura(|params| {
 			params.step_duration = 0;
 		});
 	}
@@ -2281,7 +2317,7 @@ mod tests {
 
 	#[test]
 	fn test_empty_steps() {
-		let engine = aura(|p| {
+		let engine = build_aura(|p| {
 			p.step_duration = 4;
 			p.empty_steps_transition = 0;
 			p.maximum_empty_steps = 0;
@@ -2314,7 +2350,7 @@ mod tests {
 	fn should_reject_duplicate_empty_steps() {
 		// given
 		let (_spec, tap, accounts) = setup_empty_steps();
-		let engine = aura(|p| {
+		let engine = build_aura(|p| {
 			p.validators = Box::new(SimpleList::new(accounts.clone()));
 			p.step_duration = 4;
 			p.empty_steps_transition = 0;
@@ -2351,7 +2387,7 @@ mod tests {
 	fn should_reject_empty_steps_out_of_order() {
 		// given
 		let (_spec, tap, accounts) = setup_empty_steps();
-		let engine = aura(|p| {
+		let engine = build_aura(|p| {
 			p.validators = Box::new(SimpleList::new(accounts.clone()));
 			p.step_duration = 4;
 			p.empty_steps_transition = 0;

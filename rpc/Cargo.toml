@@ -1,5 +1,5 @@
 [package]
-description = "Parity JSON-RPC servers."
+description = "Parity Ethereum JSON-RPC Servers (WS, HTTP, IPC)"
 name = "parity-rpc"
 version = "1.12.0"
 license = "GPL-3.0"
@@ -8,7 +8,7 @@ authors = ["Parity Technologies <admin@parity.io>"]
 [lib]
 
 [dependencies]
-ansi_term = "0.10"
+ansi_term = "0.11"
 cid = "0.3"
 futures = "0.1.6"
 log = "0.4"

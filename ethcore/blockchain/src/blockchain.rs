@@ -42,7 +42,7 @@ use ethereum_types::{H256, Bloom, BloomRef, U256};
 use util_mem::{MallocSizeOf, allocators::new_malloc_size_ops};
 use itertools::Itertools;
 use kvdb::{DBTransaction, KeyValueDB};
-use log::{trace, warn, info};
+use log::{trace, debug, warn, info};
 use parity_bytes::Bytes;
 use parking_lot::{Mutex, RwLock};
 use rayon::prelude::*;
@@ -963,7 +963,7 @@ impl BlockChain {
 	/// Iterate over all epoch transitions.
 	/// This will only return transitions within the canonical chain.
 	pub fn epoch_transitions(&self) -> EpochTransitionIter {
-		trace!(target: "blockchain", "Iterating over all epoch transitions");
+		debug!(target: "blockchain", "Iterating over all epoch transitions");
 		let iter = self.db.key_value().iter_from_prefix(db::COL_EXTRA, &EPOCH_KEY_PREFIX[..]);
 		EpochTransitionIter {
 			chain: self,
@@ -991,7 +991,7 @@ impl BlockChain {
 		for hash in self.ancestry_iter(parent_hash)? {
 			trace!(target: "blockchain", "Got parent hash {} from ancestry_iter", hash);
 			let details = self.block_details(&hash)?;
-			trace!(target: "blockchain", "Block #{}: Got block details", details.number);
+			trace!(target: "blockchain", "Block #{}: Got block details for parent hash {}", details.number, hash);
 
 			// look for transition in database.
 			if let Some(transition) = self.epoch_transition(details.number, hash) {
@@ -1013,8 +1013,8 @@ impl BlockChain {
 				Some(h) => {
 					warn!(target: "blockchain", "Block #{}: Found non-canonical block hash {} (expected {})", details.number, h, hash);
 
-					trace!(target: "blockchain", "Block #{} Mismatched hashes. Ancestor {} != Own {} – Own block #{}", details.number, hash, h, self.block_number(&h).unwrap_or_default() );
-					trace!(target: "blockchain", "      Ancestor {}: #{:#?}", hash, self.block_details(&hash));
+					trace!(target: "blockchain", "Block #{} Mismatched hashes. Ancestor {} != Own {}", details.number, hash, h);
+					trace!(target: "blockchain", "      Ancestor {}: #{:#?}", hash, details);
 					trace!(target: "blockchain", "      Own      {}: #{:#?}", h, self.block_details(&h));
 
 				},

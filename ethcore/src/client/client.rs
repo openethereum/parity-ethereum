@@ -1248,7 +1248,7 @@ impl Client {
 	}
 
 	fn do_virtual_call(
-		machine: &::machine::EthereumMachine,
+		machine: &::machine::Machine,
 		env_info: &EnvInfo,
 		state: &mut State<StateDB>,
 		t: &SignedTransaction,
@@ -1257,7 +1257,7 @@ impl Client {
 		fn call<V, T>(
 			state: &mut State<StateDB>,
 			env_info: &EnvInfo,
-			machine: &::machine::EthereumMachine,
+			machine: &::machine::Machine,
 			state_diff: bool,
 			transaction: &SignedTransaction,
 			options: TransactOptions<T, V>,
@@ -2561,7 +2561,7 @@ impl SnapshotClient for Client {}
 /// Returns `LocalizedReceipt` given `LocalizedTransaction`
 /// and a vector of receipts from given block up to transaction index.
 fn transaction_receipt(
-	machine: &::machine::EthereumMachine,
+	machine: &::machine::Machine,
 	mut tx: LocalizedTransaction,
 	receipt: Receipt,
 	prior_gas_used: U256,

@@ -1,5 +1,5 @@
 [package]
-description = "Account management for Parity Ethereum"
+description = "Parity Ethereum Account Management"
 homepage = "http://parity.io"
 license = "GPL-3.0"
 name = "ethcore-accounts"

@@ -26,11 +26,11 @@ use ethereum_types::{H256, Address};
 use types::BlockNumber;
 use types::header::Header;
 
-use machine::{AuxiliaryData, Call, EthereumMachine};
+use machine::{AuxiliaryData, Call, Machine};
 use super::{ValidatorSet, SimpleList};
 
 /// Set used for testing with a single validator.
-#[derive(MallocSizeOf)]
+#[derive(MallocSizeOf, Debug)]
 pub struct TestSet {
 	validator: SimpleList,
 	#[ignore_malloc_size_of = "zero sized"]
@@ -41,14 +41,18 @@ pub struct TestSet {
 
 impl Default for TestSet {
 	fn default() -> Self {
-		TestSet::new(Default::default(), Default::default())
+		TestSet::new(
+			Default::default(),
+			Default::default(),
+			vec![Address::from_str("7d577a597b2742b498cb5cf0c26cdcd726d39e6e").unwrap()]
+		)
 	}
 }
 
 impl TestSet {
-	pub fn new(last_malicious: Arc<AtomicUsize>, last_benign: Arc<AtomicUsize>) -> Self {
+	pub fn new(last_malicious: Arc<AtomicUsize>, last_benign: Arc<AtomicUsize>, validators: Vec<Address>) -> Self {
 		TestSet {
-			validator: SimpleList::new(vec![Address::from_str("7d577a597b2742b498cb5cf0c26cdcd726d39e6e").unwrap()]),
+			validator: SimpleList::new(validators),
 			last_malicious,
 			last_benign,
 		}
@@ -63,12 +67,12 @@ impl ValidatorSet for TestSet {
 	fn is_epoch_end(&self, _first: bool, _chain_head: &Header) -> Option<Vec<u8>> { None }
 
 	fn signals_epoch_end(&self, _: bool, _: &Header, _: AuxiliaryData)
-		-> ::engines::EpochChange<EthereumMachine>
+		-> ::engines::EpochChange
 	{
 		::engines::EpochChange::No
 	}
 
-	fn epoch_set(&self, _: bool, _: &EthereumMachine, _: BlockNumber, _: &[u8]) -> Result<(SimpleList, Option<H256>), ::error::Error> {
+	fn epoch_set(&self, _: bool, _: &Machine, _: BlockNumber, _: &[u8]) -> Result<(SimpleList, Option<H256>), ::error::Error> {
 		Ok((self.validator.clone(), None))
 	}
 
