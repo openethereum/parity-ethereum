@@ -103,10 +103,10 @@ pub fn run_action<T: Informant>(
 /// Input data to run transaction
 #[derive(Debug)]
 pub struct TxInput<'a, T> {
-	/// Chain specification name associated with the transaction.
+	/// State test name associated with the transaction.
 	pub state_test_name: &'a str,
-	/// Transaction index from list of transactions within a state root hashes corresponding to a chain.
-	pub idx: usize,
+	/// Transaction index from list of transactions within a state root hash corresponding to a chain.
+	pub tx_index: usize,
 	/// Fork specification (i.e. Constantinople, EIP150, EIP158, etc).
 	pub fork_spec_name: &'a ethjson::spec::ForkSpec,
 	/// State of all accounts in the system that is a binary tree mapping of each account address to account data
@@ -133,17 +133,17 @@ pub struct TxInput<'a, T> {
 pub fn run_transaction<T: Informant>(
 	mut tx_input: TxInput<T>
 ) {
-	let TxInput { state_test_name, idx, fork_spec_name, pre_state, post_root, env_info, trie_spec, .. } = tx_input;
+	let TxInput { state_test_name, tx_index, fork_spec_name, pre_state, post_root, env_info, trie_spec, .. } = tx_input;
 	let fork_spec_name_formatted = format!("{:?}", fork_spec_name).to_lowercase();
 	let fork_spec = match EvmTestClient::fork_spec_from_json(&fork_spec_name) {
 		Some(spec) => {
 			tx_input.informant.before_test(
-				&format!("{}:{}:{}", &state_test_name, &fork_spec_name_formatted, idx), "starting");
+				&format!("{}:{}:{}", &state_test_name, &fork_spec_name_formatted, tx_index), "starting");
 			spec
 		},
 		None => {
 			tx_input.informant.before_test(&format!("{}:{}:{}",
-				&state_test_name, fork_spec_name_formatted, &idx), "skipping because of missing fork specification");
+				&state_test_name, fork_spec_name_formatted, &tx_index), "skipping because of missing fork specification");
 			return;
 		},
 	};

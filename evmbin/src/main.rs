@@ -187,7 +187,7 @@ fn run_state_test(args: Args) {
 
 			// Iterate over the 3rd level key-value pairs of the state test JSON file
 			// (i.e. list of transactions and associated state roots hashes corresponding each chain).
-			for (idx, state) in states.into_iter().enumerate() {
+			for (tx_index, state) in states.into_iter().enumerate() {
 				let post_root = state.hash.into();
 				let transaction = multitransaction.select(&state.indexes).into();
 
@@ -208,7 +208,7 @@ fn run_state_test(args: Args) {
 					if args.flag_std_err_only {
 						let tx_input = TxInput {
 							state_test_name: &state_test_name,
-							idx,
+							tx_index,
 							fork_spec_name: &fork_spec_name,
 							pre_state: &pre,
 							post_root,
@@ -222,7 +222,7 @@ fn run_state_test(args: Args) {
 					} else if args.flag_std_out_only {
 						let tx_input = TxInput {
 							state_test_name: &state_test_name,
-							idx,
+							tx_index,
 							fork_spec_name: &fork_spec_name,
 							pre_state: &pre,
 							post_root,
@@ -236,7 +236,7 @@ fn run_state_test(args: Args) {
 					} else {
 						let tx_input = TxInput {
 							state_test_name: &state_test_name,
-							idx,
+							tx_index,
 							fork_spec_name: &fork_spec_name,
 							pre_state: &pre,
 							post_root,
@@ -254,7 +254,7 @@ fn run_state_test(args: Args) {
 					if args.flag_json {
 						let tx_input = TxInput {
 							state_test_name: &state_test_name,
-							idx,
+							tx_index,
 							fork_spec_name: &fork_spec_name,
 							pre_state: &pre,
 							post_root,
@@ -268,7 +268,7 @@ fn run_state_test(args: Args) {
 					} else {
 						let tx_input = TxInput {
 							state_test_name: &state_test_name,
-							idx,
+							tx_index,
 							fork_spec_name: &fork_spec_name,
 							pre_state: &pre,
 							post_root,
@@ -579,23 +579,23 @@ mod tests {
 			.expect("Serialization cannot fail; qed");
 
 		// Simulate the name CLI option `--only NAME`
-		let name = "add11".to_string();
-		let idx = 1;
+		let state_test_name = "add11".to_string();
+		let tx_index = 1;
 		// Simulate the chain `--chain CHAIN`
 		let fork_spec_name = ForkSpec::EIP150;
 		let pre = _deserialized_state_tests.add11.pre_state.into();
 		let env_info = _deserialized_state_tests.add11.env.into();
 		let multitransaction = _deserialized_state_tests.add11.transaction;
-		for (fork_spec_name, states) in _deserialized_state_tests.add11.post_states {
-			for (idx, state) in states.into_iter().enumerate() {
+		for (fork_spec_name, tx_states) in _deserialized_state_tests.add11.post_states {
+			for (tx_index, tx_state) in tx_states.into_iter().enumerate() {
 				let informant = display::json::Informant::default();
 				// Hash of latest transaction index in the chain
 				let post_root = H256::from_str("99a450d8ce5b987a71346d8a0a1203711f770745c7ef326912e46761f14cd764").unwrap();
 				let trie_spec = TrieSpec::Secure; // TrieSpec::Fat for --std_dump_json
-				let transaction: transaction::SignedTransaction = multitransaction.select(&state.indexes).into();
+				let transaction: transaction::SignedTransaction = multitransaction.select(&tx_state.indexes).into();
 				let tx_input = TxInput {
-					name: &name,
-					idx,
+					state_test_name: &state_test_name,
+					tx_index,
 					fork_spec_name: &fork_spec_name,
 					pre_state: &pre,
 					post_root,
@@ -625,23 +625,23 @@ mod tests {
 			.expect("Serialization cannot fail; qed");
 
 		// Simulate the name CLI option `--only NAME`
-		let name = "create2callPrecompiles".to_string();
-		let idx = 7;
+		let state_test_name = "create2callPrecompiles".to_string();
+		let tx_index = 7;
 		// Simulate the chain `--chain CHAIN`
 		let fork_spec_name = ForkSpec::Constantinople;
 		let pre = _deserialized_state_tests.create2callPrecompiles.pre_state.into();
 		let env_info = _deserialized_state_tests.create2callPrecompiles.env.into();
 		let multitransaction = _deserialized_state_tests.create2callPrecompiles.transaction;
-		for (fork_spec_name, states) in _deserialized_state_tests.create2callPrecompiles.post_states {
-			for (idx, state) in states.into_iter().enumerate() {
+		for (fork_spec_name, tx_states) in _deserialized_state_tests.create2callPrecompiles.post_states {
+			for (tx_index, tx_state) in tx_states.into_iter().enumerate() {
 				let informant = display::json::Informant::default();
 				// Hash of latest transaction index in the chain
 				let post_root = H256::from_str("0xde1d3953b508913c6e3e9bd412cd50daf60bb177517e5d1e8ccb0dab193aed03").unwrap();
 				let trie_spec = TrieSpec::Secure; // TrieSpec::Fat for --std_dump_json
-				let transaction: transaction::SignedTransaction = multitransaction.select(&state.indexes).into();
+				let transaction: transaction::SignedTransaction = multitransaction.select(&tx_state.indexes).into();
 				let tx_input = TxInput {
-					name: &name,
-					idx,
+					state_test_name: &state_test_name,
+					tx_index,
 					fork_spec_name: &fork_spec_name,
 					pre_state: &pre,
 					post_root,
