@@ -27,7 +27,7 @@ use hash::{keccak, KECCAK_NULL_RLP, KECCAK_EMPTY};
 
 use account_db::{AccountDB, AccountDBMut};
 use blockchain::{BlockChain, BlockProvider};
-use engines::EthEngine;
+use engines::Engine;
 use types::header::Header;
 use types::ids::BlockId;
 
@@ -578,7 +578,7 @@ const POW_VERIFY_RATE: f32 = 0.02;
 /// Verify an old block with the given header, engine, blockchain, body. If `always` is set, it will perform
 /// the fullest verification possible. If not, it will take a random sample to determine whether it will
 /// do heavy or light verification.
-pub fn verify_old_block(rng: &mut OsRng, header: &Header, engine: &dyn EthEngine, chain: &BlockChain, always: bool) -> Result<(), ::error::Error> {
+pub fn verify_old_block(rng: &mut OsRng, header: &Header, engine: &dyn Engine, chain: &BlockChain, always: bool) -> Result<(), ::error::Error> {
 	engine.verify_block_basic(header)?;
 
 	if always || rng.gen::<f32>() <= POW_VERIFY_RATE {

@@ -43,7 +43,7 @@ use vm::LastHashes;
 
 use block::{OpenBlock, SealedBlock, ClosedBlock};
 use client::Mode;
-use engines::EthEngine;
+use engines::Engine;
 use error::{Error, EthcoreResult};
 use executed::CallError;
 use executive::Executed;
@@ -184,7 +184,7 @@ pub trait Call {
 /// Provides `engine` method
 pub trait EngineInfo {
 	/// Get underlying engine object
-	fn engine(&self) -> &dyn EthEngine;
+	fn engine(&self) -> &dyn Engine;
 }
 
 /// IO operations that should off-load heavy work to another thread.

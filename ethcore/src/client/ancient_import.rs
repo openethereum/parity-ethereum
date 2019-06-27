@@ -18,7 +18,7 @@
 
 use std::sync::Arc;
 
-use engines::{EthEngine, EpochVerifier};
+use engines::{Engine, EpochVerifier};
 
 use blockchain::BlockChain;
 use parking_lot::RwLock;
@@ -32,12 +32,12 @@ const HEAVY_VERIFY_RATE: f32 = 0.02;
 /// epoch.
 pub struct AncientVerifier {
 	cur_verifier: RwLock<Option<Box<dyn EpochVerifier>>>,
-	engine: Arc<dyn EthEngine>,
+	engine: Arc<dyn Engine>,
 }
 
 impl AncientVerifier {
 	/// Create a new ancient block verifier with the given engine.
-	pub fn new(engine: Arc<dyn EthEngine>) -> Self {
+	pub fn new(engine: Arc<dyn Engine>) -> Self {
 		AncientVerifier {
 			cur_verifier: RwLock::new(None),
 			engine,

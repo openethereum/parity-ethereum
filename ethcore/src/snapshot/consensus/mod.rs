@@ -21,7 +21,7 @@ use std::sync::atomic::AtomicBool;
 use std::sync::Arc;
 
 use blockchain::{BlockChain, BlockChainDB};
-use engines::EthEngine;
+use engines::Engine;
 use snapshot::{Error, ManifestData, Progress};
 
 use ethereum_types::H256;
@@ -83,7 +83,7 @@ pub trait Rebuilder: Send {
 	fn feed(
 		&mut self,
 		chunk: &[u8],
-		engine: &dyn EthEngine,
+		engine: &dyn Engine,
 		abort_flag: &AtomicBool,
 	) -> Result<(), ::error::Error>;
 
@@ -92,5 +92,5 @@ pub trait Rebuilder: Send {
 	///
 	/// This should apply the necessary "glue" between chunks,
 	/// and verify against the restored state.
-	fn finalize(&mut self, engine: &dyn EthEngine) -> Result<(), ::error::Error>;
+	fn finalize(&mut self, engine: &dyn Engine) -> Result<(), ::error::Error>;
 }

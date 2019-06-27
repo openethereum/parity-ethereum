@@ -18,7 +18,7 @@
 
 use call_contract::CallContract;
 use client::BlockInfo;
-use engines::EthEngine;
+use engines::Engine;
 use error::Error;
 use types::header::Header;
 use super::Verifier;
@@ -32,7 +32,7 @@ impl<C: BlockInfo + CallContract> Verifier<C> for CanonVerifier {
 		&self,
 		header: &Header,
 		parent: &Header,
-		engine: &dyn EthEngine,
+		engine: &dyn Engine,
 		do_full: Option<verification::FullFamilyParams<C>>,
 	) -> Result<(), Error> {
 		verification::verify_block_family(header, parent, engine, do_full)
@@ -42,7 +42,7 @@ impl<C: BlockInfo + CallContract> Verifier<C> for CanonVerifier {
 		verification::verify_block_final(expected, got)
 	}
 
-	fn verify_block_external(&self, header: &Header, engine: &dyn EthEngine) -> Result<(), Error> {
+	fn verify_block_external(&self, header: &Header, engine: &dyn Engine) -> Result<(), Error> {
 		engine.verify_block_external(header)
 	}
 }
