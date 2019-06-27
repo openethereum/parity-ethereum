@@ -93,6 +93,8 @@ pub struct AuthorityRoundParams {
 	pub maximum_uncle_count: usize,
 	/// Empty step messages transition block.
 	pub empty_steps_transition: u64,
+	/// First block for which a 2/3 quorum (instead of 1/2) is required.
+	pub quorum_2_3_transition: BlockNumber,
 	/// Number of accepted empty steps.
 	pub maximum_empty_steps: usize,
 	/// Transition block to strict empty steps validation.
@@ -126,6 +128,7 @@ impl From<ethjson::spec::AuthorityRoundParams> for AuthorityRoundParams {
 			maximum_uncle_count: p.maximum_uncle_count.map_or(0, Into::into),
 			empty_steps_transition: p.empty_steps_transition.map_or(u64::max_value(), |n| ::std::cmp::max(n.into(), 1)),
 			maximum_empty_steps: p.maximum_empty_steps.map_or(0, Into::into),
+			quorum_2_3_transition: p.quorum_2_3_transition.map_or_else(BlockNumber::max_value, Into::into),
 			strict_empty_steps_transition: p.strict_empty_steps_transition.map_or(0, Into::into),
 		}
 	}
@@ -221,11 +224,11 @@ struct EpochManager {
 }
 
 impl EpochManager {
-	fn blank() -> Self {
+	fn blank(quorum_2_3_transition: BlockNumber) -> Self {
 		EpochManager {
 			epoch_transition_hash: H256::zero(),
 			epoch_transition_number: 0,
-			finality_checker: RollingFinality::blank(Vec::new()),
+			finality_checker: RollingFinality::blank(Vec::new(), quorum_2_3_transition),
 			force: true,
 		}
 	}
@@ -289,7 +292,8 @@ impl EpochManager {
 				})
 				.expect("proof produced by this engine; therefore it is valid; qed");
 
-			self.finality_checker = RollingFinality::blank(epoch_set);
+			let quorum_2_3_transition = self.finality_checker.quorum_2_3_transition();
+			self.finality_checker = RollingFinality::blank(epoch_set, quorum_2_3_transition);
 		}
 
 		self.epoch_transition_hash = last_transition.block_hash;
@@ -452,6 +456,7 @@ pub struct AuthorityRound {
 	maximum_uncle_count: usize,
 	empty_steps_transition: u64,
 	strict_empty_steps_transition: u64,
+	quorum_2_3_transition: BlockNumber,
 	maximum_empty_steps: usize,
 	machine: Machine,
 }
@@ -461,6 +466,8 @@ struct EpochVerifier {
 	step: Arc<PermissionedStep>,
 	subchain_validators: SimpleList,
 	empty_steps_transition: u64,
+	/// First block for which a 2/3 quorum (instead of 1/2) is required.
+	quorum_2_3_transition: BlockNumber,
 }
 
 impl engine::EpochVerifier for EpochVerifier {
@@ -473,7 +480,8 @@ impl engine::EpochVerifier for EpochVerifier {
 	}
 
 	fn check_finality_proof(&self, proof: &[u8]) -> Option<Vec<H256>> {
-		let mut finality_checker = RollingFinality::blank(self.subchain_validators.clone().into_inner());
+		let signers = self.subchain_validators.clone().into_inner();
+		let mut finality_checker = RollingFinality::blank(signers, self.quorum_2_3_transition);
 		let mut finalized = Vec::new();
 
 		let headers: Vec<Header> = Rlp::new(proof).as_list().ok()?;
@@ -498,7 +506,8 @@ impl engine::EpochVerifier for EpochVerifier {
 				};
 				signers.push(*parent_header.author());
 
-				let newly_finalized = finality_checker.push_hash(parent_header.hash(), signers).ok()?;
+				let newly_finalized =
+					finality_checker.push_hash(parent_header.hash(), parent_header.number(), signers).ok()?;
 				finalized.extend(newly_finalized);
 
 				Some(())
@@ -708,7 +717,7 @@ impl AuthorityRound {
 				validate_score_transition: our_params.validate_score_transition,
 				validate_step_transition: our_params.validate_step_transition,
 				empty_steps: Default::default(),
-				epoch_manager: Mutex::new(EpochManager::blank()),
+				epoch_manager: Mutex::new(EpochManager::blank(our_params.quorum_2_3_transition)),
 				immediate_transitions: our_params.immediate_transitions,
 				block_reward: our_params.block_reward,
 				block_reward_contract_transition: our_params.block_reward_contract_transition,
@@ -717,6 +726,7 @@ impl AuthorityRound {
 				maximum_uncle_count: our_params.maximum_uncle_count,
 				empty_steps_transition: our_params.empty_steps_transition,
 				maximum_empty_steps: our_params.maximum_empty_steps,
+				quorum_2_3_transition: our_params.quorum_2_3_transition,
 				strict_empty_steps_transition: our_params.strict_empty_steps_transition,
 				machine,
 			});
@@ -884,7 +894,7 @@ impl AuthorityRound {
 				signers.extend(parent_empty_steps_signers.drain(..));
 
 				if let Ok(empty_step_signers) = header_empty_steps_signers(&header, self.empty_steps_transition) {
-					let res = (header.hash(), signers);
+					let res = (header.hash(), header.number(), signers);
 					trace!(target: "finality", "Ancestry iteration: yielding {:?}", res);
 
 					parent_empty_steps_signers = empty_step_signers;
@@ -897,7 +907,7 @@ impl AuthorityRound {
 				}
 			})
 				.while_some()
-				.take_while(|&(h, _)| h != epoch_transition_hash);
+				.take_while(|&(h, _, _)| h != epoch_transition_hash);
 
 			if let Err(e) = epoch_manager.finality_checker.build_ancestry_subchain(ancestry_iter) {
 				debug!(target: "engine", "inconsistent validator set within epoch: {:?}", e);
@@ -905,7 +915,8 @@ impl AuthorityRound {
 			}
 		}
 
-		let finalized = epoch_manager.finality_checker.push_hash(chain_head.hash(), vec![*chain_head.author()]);
+		let finalized = epoch_manager.finality_checker.push_hash(
+			chain_head.hash(), chain_head.number(), vec![*chain_head.author()]);
 		finalized.unwrap_or_default()
 	}
 
@@ -1255,6 +1266,11 @@ impl Engine for AuthorityRound {
 		parent: &Header,
 	) -> Result<(), Error> {
 		let mut beneficiaries = Vec::new();
+
+		if block.header.number() == self.quorum_2_3_transition {
+			info!(target: "engine", "Block {}: Transitioning to 2/3 quorum.", self.quorum_2_3_transition);
+		}
+
 		if block.header.number() >= self.empty_steps_transition {
 			let empty_steps = if block.header.seal().is_empty() {
 				// this is a new block, calculate rewards based on the empty steps messages we have accumulated
@@ -1567,6 +1583,7 @@ impl Engine for AuthorityRound {
 					step: self.step.clone(),
 					subchain_validators: list,
 					empty_steps_transition: self.empty_steps_transition,
+					quorum_2_3_transition: self.quorum_2_3_transition,
 				});
 
 				match finalize {
@@ -1666,6 +1683,7 @@ mod tests {
 			block_reward_contract_transition: 0,
 			block_reward_contract: Default::default(),
 			strict_empty_steps_transition: 0,
+			quorum_2_3_transition: 0,
 		};
 
 		// mutate aura params
