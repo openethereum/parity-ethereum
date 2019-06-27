@@ -1210,7 +1210,7 @@ impl ChainSync {
 				RestorationStatus::Inactive | RestorationStatus::Failed => {
 					self.set_state(SyncState::SnapshotWaiting);
 				},
-				RestorationStatus::Initializing { .. } | RestorationStatus::Ongoing { .. } => (),
+				RestorationStatus::Initializing { .. } | RestorationStatus::Ongoing { .. } | RestorationStatus::Finalizing => (),
 			},
 			SyncState::SnapshotWaiting => {
 				match io.snapshot_service().status() {
@@ -1220,6 +1220,9 @@ impl ChainSync {
 					},
 					RestorationStatus::Initializing { .. } => {
 						trace!(target:"sync", "Snapshot restoration is initializing");
+					},
+					RestorationStatus::Finalizing { .. } => {
+						trace!(target:"sync", "Snapshot finalizing restoration");
 					},
 					RestorationStatus::Ongoing { state_chunks_done, block_chunks_done, .. } => {
 						if !self.snapshot.is_complete() && self.snapshot.done_chunks() - (state_chunks_done + block_chunks_done) as usize <= MAX_SNAPSHOT_CHUNKS_DOWNLOAD_AHEAD {

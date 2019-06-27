@@ -658,6 +658,7 @@ impl Service {
 	// lead to deadlock.
 	fn finalize_restoration(&self, rest: &mut Option<Restoration>) -> Result<(), Error> {
 		trace!(target: "snapshot", "finalizing restoration");
+		*self.status.lock() = RestorationStatus::Finalizing;
 
 		let recover = rest.as_ref().map_or(false, |rest| rest.writer.is_some());
 
@@ -705,7 +706,7 @@ impl Service {
 			Err(e) => {
 				// TODO: after this we're sometimes deadlocked
 				warn!("Encountered error during snapshot restoration: {}", e);
-				*self.restoration.lock() = None;
+				self.abort_restore();
 				*self.status.lock() = RestorationStatus::Failed;
 				let _ = fs::remove_dir_all(self.restoration_dir());
 			}
@@ -716,8 +717,8 @@ impl Service {
 	fn feed_chunk_with_restoration(&self, restoration: &mut Option<Restoration>, hash: H256, chunk: &[u8], is_state: bool) -> Result<(), Error> {
 		let (result, db) = {
 			match self.status() {
-				RestorationStatus::Inactive | RestorationStatus::Failed => {
-					trace!(target: "snapshot", "Tried to restore chunk {:x} while inactive or failed", hash);
+				RestorationStatus::Inactive | RestorationStatus::Failed | RestorationStatus::Finalizing => {
+					trace!(target: "snapshot", "Tried to restore chunk {:x} while inactive, failed or finalizing", hash);
 					return Ok(());
 				},
 				RestorationStatus::Ongoing { .. } | RestorationStatus::Initializing { .. } => {
