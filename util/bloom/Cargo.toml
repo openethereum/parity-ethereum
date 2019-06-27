@@ -4,9 +4,10 @@ version = "0.1.0"
 authors = ["Parity Technologies <admin@parity.io>"]
 description = "Journaling bloom filter"
 license = "GPL3"
+edition = "2018"
 
 [lib]
 path = "src/lib.rs"
 
 [dependencies]
-siphasher = "0.1.1"
+siphasher = "0.3"
