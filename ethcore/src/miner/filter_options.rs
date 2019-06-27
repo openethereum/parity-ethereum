@@ -96,14 +96,14 @@ impl<'de, T, M> Validate<'de, T, M> for M
                     Any | Eq(_) => Ok(val),
                     _ => {
                         Err(M::Error::custom(
-                            "the from filter only supports the `eq` operator",
+                            "the `from` filter only supports the `eq` operator",
                         ))
                     }
                 }
             },
             W::CC => {
                 Err(M::Error::custom(
-                    "the from filter only supports the `eq` operator",
+                    "the `from` filter only supports the `eq` operator",
                 ))
             }
         }
@@ -119,7 +119,7 @@ impl<'de, T, M> Validate<'de, T, M> for M
                     Eq(address) => Ok(Eq(Some(address))),
                     _ => {
                         Err(M::Error::custom(
-                            "the to filter only supports the `eq` or `action` operator",
+                            "the `to` filter only supports the `eq` or `action` operator",
                         ))
                     }
                 }
@@ -134,7 +134,7 @@ impl<'de, T, M> Validate<'de, T, M> for M
             W::O(val) => Ok(val),
             W::CC => {
                 Err(M::Error::custom(
-                    "the operator `action` is only supported by the to filter",
+                    "the operator `action` is only supported by the `to` filter",
                 ))
             }
         }
