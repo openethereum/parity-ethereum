@@ -8,7 +8,7 @@ authors = ["Parity Technologies <admin@parity.io>"]
 edition = "2018"
 
 [dependencies]
-ansi_term = "0.10"
+ansi_term = "0.11"
 blooms-db = { path = "../../util/blooms-db" }
 common-types = { path = "../types" }
 ethcore-db = { path = "../db" }

@@ -7,7 +7,7 @@ version = "1.12.0"
 authors = ["Parity Technologies <admin@parity.io>"]
 
 [dependencies]
-ansi_term = "0.10"
+ansi_term = "0.11"
 blooms-db = { path = "../util/blooms-db", optional = true }
 bn = { git = "https://github.com/paritytech/bn", default-features = false }
 byteorder = "1.0"

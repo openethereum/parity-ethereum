@@ -17,7 +17,7 @@ slab = "0.2"
 igd = "0.9"
 libc = "0.2.7"
 parking_lot = "0.7"
-ansi_term = "0.10"
+ansi_term = "0.11"
 rustc-hex = "1.0"
 ethcore-io = { path = "../io", features = ["mio"] }
 parity-bytes = "0.1"
