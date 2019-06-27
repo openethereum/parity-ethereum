@@ -30,7 +30,7 @@ Transaction options:
     --gas-price WEI    Supplied gas price as hex (without 0x).
 
 State test options:
-    --only NAME        Runs only a single test matching the name.
+    --only NAME        Runs only a single state test matching the name.
     --chain CHAIN      Run only tests from specific chain.
 
 General options:

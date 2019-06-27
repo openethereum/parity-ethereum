@@ -104,11 +104,11 @@ pub fn run_action<T: Informant>(
 #[derive(Debug)]
 pub struct TxInput<'a, T> {
 	/// Chain specification name associated with the transaction.
-	pub name: &'a str,
+	pub state_test_name: &'a str,
 	/// Transaction index from list of transactions within a state root hashes corresponding to a chain.
 	pub idx: usize,
 	/// Fork specification (i.e. Constantinople, EIP150, EIP158, etc).
-	pub spec: &'a ethjson::spec::ForkSpec,
+	pub fork_spec_name: &'a ethjson::spec::ForkSpec,
 	/// State of all accounts in the system that is a binary tree mapping of each account address to account data
 	/// that is expressed as Plain Old Data containing the account balance, account nonce, account code in bytes,
 	/// and the account storage binary tree map.
@@ -133,15 +133,17 @@ pub struct TxInput<'a, T> {
 pub fn run_transaction<T: Informant>(
 	mut tx_input: TxInput<T>
 ) {
-	let TxInput { name, idx, spec, pre_state, post_root, env_info, trie_spec, .. } = tx_input;
-	let spec_name = format!("{:?}", spec).to_lowercase();
-	let spec_checked = match EvmTestClient::spec_from_json(&spec) {
+	let TxInput { state_test_name, idx, fork_spec_name, pre_state, post_root, env_info, trie_spec, .. } = tx_input;
+	let fork_spec_name_formatted = format!("{:?}", fork_spec_name).to_lowercase();
+	let fork_spec = match EvmTestClient::fork_spec_from_json(&fork_spec_name) {
 		Some(spec) => {
-			tx_input.informant.before_test(&format!("{}:{}:{}", &name, &spec_name, idx), "starting");
+			tx_input.informant.before_test(
+				&format!("{}:{}:{}", &state_test_name, &fork_spec_name_formatted, idx), "starting");
 			spec
 		},
 		None => {
-			tx_input.informant.before_test(&format!("{}:{}:{}", &name, spec_name, &idx), "skipping because of missing spec");
+			tx_input.informant.before_test(&format!("{}:{}:{}",
+				&state_test_name, fork_spec_name_formatted, &idx), "skipping because of missing fork specification");
 			return;
 		},
 	};
@@ -149,7 +151,7 @@ pub fn run_transaction<T: Informant>(
 	tx_input.informant.set_gas(env_info.gas_limit);
 
 	let mut sink = tx_input.informant.clone_sink();
-	let result = run(&spec_checked, trie_spec, tx_input.transaction.gas, &pre_state, |mut client| {
+	let result = run(&fork_spec, trie_spec, tx_input.transaction.gas, &pre_state, |mut client| {
 		let result = client.transact(&env_info, tx_input.transaction, trace::NoopTracer, tx_input.informant);
 		match result {
 			Ok(TransactSuccess { state_root, gas_left, output, vm_trace, end_state, .. }) => {

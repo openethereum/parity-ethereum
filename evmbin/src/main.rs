@@ -162,10 +162,10 @@ fn run_state_test(args: Args) {
 
 	// Iterate over 1st level (outer) key-value pair of the state test JSON file.
 	// Skip to next iteration if CLI option `--only NAME` was parsed into `only_test` and does not match
-	// the current key `name` (i.e. add11, create2callPrecompiles).
-	for (name, test) in state_test {
+	// the current key `state_test_name` (i.e. add11, create2callPrecompiles).
+	for (state_test_name, test) in state_test {
 		if let Some(false) = only_test.as_ref().map(|only_test| {
-			&name.to_lowercase() == only_test
+			&state_test_name.to_lowercase() == only_test
 		}) {
 			continue;
 		}
@@ -177,10 +177,10 @@ fn run_state_test(args: Args) {
 
 		// Iterate over remaining "post" key of the 2nd level key-value pairs in the state test JSON file.
 		// Skip to next iteration if CLI option `--chain CHAIN` was parsed into `only_chain` and does not match
-		// the current key `spec` (i.e. Constantinople, EIP150, EIP158).
-		for (spec, states) in test.post_states {
+		// the current key `fork_spec_name` (i.e. Constantinople, EIP150, EIP158).
+		for (fork_spec_name, states) in test.post_states {
 			if let Some(false) = only_chain.as_ref().map(|only_chain| {
-				&format!("{:?}", spec).to_lowercase() == only_chain
+				&format!("{:?}", fork_spec_name).to_lowercase() == only_chain
 			}) {
 				continue;
 			}
@@ -207,9 +207,9 @@ fn run_state_test(args: Args) {
 				if args.flag_std_dump_json || args.flag_std_json {
 					if args.flag_std_err_only {
 						let tx_input = TxInput {
-							name: &name,
+							state_test_name: &state_test_name,
 							idx,
-							spec: &spec,
+							fork_spec_name: &fork_spec_name,
 							pre_state: &pre,
 							post_root,
 							env_info: &env_info,
@@ -221,9 +221,9 @@ fn run_state_test(args: Args) {
 						info::run_transaction(tx_input)
 					} else if args.flag_std_out_only {
 						let tx_input = TxInput {
-							name: &name,
+							state_test_name: &state_test_name,
 							idx,
-							spec: &spec,
+							fork_spec_name: &fork_spec_name,
 							pre_state: &pre,
 							post_root,
 							env_info: &env_info,
@@ -235,9 +235,9 @@ fn run_state_test(args: Args) {
 						info::run_transaction(tx_input)
 					} else {
 						let tx_input = TxInput {
-							name: &name,
+							state_test_name: &state_test_name,
 							idx,
-							spec: &spec,
+							fork_spec_name: &fork_spec_name,
 							pre_state: &pre,
 							post_root,
 							env_info: &env_info,
@@ -253,9 +253,9 @@ fn run_state_test(args: Args) {
 					// for CLI option `--json`.
 					if args.flag_json {
 						let tx_input = TxInput {
-							name: &name,
+							state_test_name: &state_test_name,
 							idx,
-							spec: &spec,
+							fork_spec_name: &fork_spec_name,
 							pre_state: &pre,
 							post_root,
 							env_info: &env_info,
@@ -267,9 +267,9 @@ fn run_state_test(args: Args) {
 						info::run_transaction(tx_input)
 					} else {
 						let tx_input = TxInput {
-							name: &name,
+							state_test_name: &state_test_name,
 							idx,
-							spec: &spec,
+							fork_spec_name: &fork_spec_name,
 							pre_state: &pre,
 							post_root,
 							env_info: &env_info,
@@ -582,11 +582,11 @@ mod tests {
 		let name = "add11".to_string();
 		let idx = 1;
 		// Simulate the chain `--chain CHAIN`
-		let spec = ForkSpec::EIP150;
+		let fork_spec_name = ForkSpec::EIP150;
 		let pre = _deserialized_state_tests.add11.pre_state.into();
 		let env_info = _deserialized_state_tests.add11.env.into();
 		let multitransaction = _deserialized_state_tests.add11.transaction;
-		for (spec, states) in _deserialized_state_tests.add11.post_states {
+		for (fork_spec_name, states) in _deserialized_state_tests.add11.post_states {
 			for (idx, state) in states.into_iter().enumerate() {
 				let informant = display::json::Informant::default();
 				// Hash of latest transaction index in the chain
@@ -596,7 +596,7 @@ mod tests {
 				let tx_input = TxInput {
 					name: &name,
 					idx,
-					spec: &spec,
+					fork_spec_name: &fork_spec_name,
 					pre_state: &pre,
 					post_root,
 					env_info: &env_info,
@@ -628,11 +628,11 @@ mod tests {
 		let name = "create2callPrecompiles".to_string();
 		let idx = 7;
 		// Simulate the chain `--chain CHAIN`
-		let spec = ForkSpec::Constantinople;
+		let fork_spec_name = ForkSpec::Constantinople;
 		let pre = _deserialized_state_tests.create2callPrecompiles.pre_state.into();
 		let env_info = _deserialized_state_tests.create2callPrecompiles.env.into();
 		let multitransaction = _deserialized_state_tests.create2callPrecompiles.transaction;
-		for (spec, states) in _deserialized_state_tests.create2callPrecompiles.post_states {
+		for (fork_spec_name, states) in _deserialized_state_tests.create2callPrecompiles.post_states {
 			for (idx, state) in states.into_iter().enumerate() {
 				let informant = display::json::Informant::default();
 				// Hash of latest transaction index in the chain
@@ -642,7 +642,7 @@ mod tests {
 				let tx_input = TxInput {
 					name: &name,
 					idx,
-					spec: &spec,
+					fork_spec_name: &fork_spec_name,
 					pre_state: &pre,
 					post_root,
 					env_info: &env_info,
