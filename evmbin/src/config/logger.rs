@@ -18,7 +18,7 @@ use fern::colors::{Color, ColoredLevelConfig};
 use log::{LevelFilter};
 use std::io;
 
-fn setup_logger(verbosity: u32, log_to_file: bool) -> Result<(), fern::InitError> {
+fn setup_logger(verbosity: u32, logging_to_file: bool) -> Result<(), fern::InitError> {
     let colors_line = ColoredLevelConfig::new()
         .error(Color::Red)
         .warn(Color::Yellow)
@@ -87,7 +87,7 @@ fn setup_logger(verbosity: u32, log_to_file: bool) -> Result<(), fern::InitError
         // We must only print to `stdout` (not `stderr`) by default.
         .chain(io::stdout());
 
-    if log_to_file {
+    if logging_to_file {
         let file_config = fern::Dispatch::new()
             .format(|out, message, record| {
                 out.finish(format_args!(
@@ -111,17 +111,17 @@ fn setup_logger(verbosity: u32, log_to_file: bool) -> Result<(), fern::InitError
 /// Initialisation of the [Log Crate](https://crates.io/crates/log) and [Fern Crate](https://docs.rs/fern/0.5.5/fern/)
 ///
 /// - Choice of log level verbosity from CLI: error (0), warn (1), info (2), debug (3), or trace (4).
-/// - Fallback to default log level that is defined in evmbin/src/main.rs.
+/// - Fallback to default logging level that is defined in evmbin/src/main.rs.
 /// - Use of logging level macros from highest priority to lowest: `error!`, `warn!`, `info!`, `debug!` and `trace!`.
 /// - [Compile time filters](https://docs.rs/log/0.4.1/log/#compile-time-filters) that override the evmbin CLI log levels
 /// are configured in evmbin/Cargo.toml. In production max log level is `info!`, whereas in development max is `trace!`.
-/// - Output to output.log when log_to_file is true.
-pub fn init_logger(pattern: &str, log_to_file: bool) -> () {
+/// - Output to output.log when logging_to_file is true.
+pub fn init_logger(pattern: &str, logging_to_file: bool) -> () {
     let verbosity: u32 = pattern.parse::<u32>().expect("parsing cannot fail; qed");
 
-    match setup_logger(verbosity, log_to_file) {
+    match setup_logger(verbosity, logging_to_file) {
         Ok(_) => {
-            println!("Success initializing logger. Verbosity: {:?}. Log to file: {}", verbosity, &log_to_file); ()
+            println!("Success initializing logger. Verbosity: {:?}. Log to file: {}", verbosity, &logging_to_file); ()
         }
         Err(e) => { println!("Error initializing logger: {}", e); }
     }

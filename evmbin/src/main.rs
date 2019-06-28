@@ -83,7 +83,7 @@ EVM implementation for Parity.
   Copyright 2015-2019 Parity Technologies (UK) Ltd.
 
 Usage:
-    parity-evm state-test <file> [--json --log-level LEVEL --log-to-file --std-json --std-dump-json --only NAME --chain CHAIN --std-out-only --std-err-only]
+    parity-evm state-test <file> [--json --logging LEVEL --logging-to-file --std-json --std-dump-json --only NAME --chain CHAIN --std-out-only --std-err-only]
     parity-evm stats [options]
     parity-evm stats-jsontests-vm <file>
     parity-evm [options]
@@ -109,11 +109,11 @@ State test options:
 
 General options:
     --json             Display verbose results in JSON.
-    --log-level LEVEL  Log level verbosity configuration choice
+    --logging LEVEL    Log level verbosity configuration choice
                        from highest to lowest priority (error 0, warn 1,
                        info 2, debug 3, trace 4). Must conform to the
                        same format as RUST_LOG [default: 0]
-    --log-to-file      Record logs to output.log file.
+    --logging-to-file  Record logs to output.log file.
     --std-json         Display results in standardized JSON format.
     --std-err-only     With --std-json redirect to err output only.
     --std-out-only     With --std-json redirect to out output only.
@@ -129,9 +129,9 @@ fn main() {
 
 	let args: Args = Docopt::new(USAGE).and_then(|d| d.deserialize()).unwrap_or_else(|e| e.exit());
 
-	let log_pattern = args.clone().flag_log_level;
-	let log_to_file = args.clone().flag_log_to_file;
-	config::logger::init_logger(&log_pattern, log_to_file);
+	let logging_level = args.clone().flag_logging;
+	let logging_to_file = args.clone().flag_logging_to_file;
+	config::logger::init_logger(&logging_level, logging_to_file);
 
 	if args.cmd_state_test {
 		run_state_test(args)
@@ -290,8 +290,8 @@ struct Args {
 	flag_input: Option<String>,
 	flag_chain: Option<String>,
 	flag_json: bool,
-	flag_log_level: String,
-	flag_log_to_file: bool,
+	flag_logging: String,
+	flag_logging_to_file: bool,
 	flag_std_json: bool,
 	flag_std_dump_json: bool,
 	flag_std_err_only: bool,
@@ -393,6 +393,8 @@ mod tests {
 			"--to", "0000000000000000000000000000000000000004",
 			"--code", "05",
 			"--input", "06",
+			"--logging", "0",
+			"--logging-to-file",
 			"--chain", "./testfile", "--std-err-only", "--std-out-only"
 		]);
 
@@ -407,6 +409,8 @@ mod tests {
 		assert_eq!(args.to(), Ok(Address::from_low_u64_be(4)));
 		assert_eq!(args.code(), Ok(Some(vec![05])));
 		assert_eq!(args.data(), Ok(Some(vec![06])));
+		assert_eq!(args.flag_logging, "0".to_string());
+		assert_eq!(args.flag_logging_to_file, true);
 		assert_eq!(args.flag_chain, Some("./testfile".to_owned()));
 	}
 

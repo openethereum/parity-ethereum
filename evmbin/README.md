@@ -9,7 +9,7 @@ EVM implementation for Parity.
   Copyright 2015-2019 Parity Technologies (UK) Ltd.
 
 Usage:
-    parity-evm state-test <file> [--json --std-json --std-dump-json --only NAME --chain CHAIN --std-out-only --std-err-only]
+    parity-evm state-test <file> [--json --logging LEVEL --logging-to-file --std-json --std-dump-json --only NAME --chain CHAIN --std-out-only --std-err-only]
     parity-evm stats [options]
     parity-evm stats-jsontests-vm <file>
     parity-evm [options]
@@ -35,6 +35,11 @@ State test options:
 
 General options:
     --json             Display verbose results in JSON.
+    --logging LEVEL    Log level verbosity configuration choice
+                       from highest to lowest priority (error 0, warn 1,
+                       info 2, debug 3, trace 4). Must conform to the
+                       same format as RUST_LOG [default: 0]
+    --logging-to-file  Record logs to output.log file.
     --std-json         Display results in standardized JSON format.
     --std-err-only     With --std-json redirect to err output only.
     --std-out-only     With --std-json redirect to out output only.
