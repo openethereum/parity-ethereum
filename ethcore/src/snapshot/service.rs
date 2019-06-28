@@ -352,11 +352,27 @@ impl Service {
 
 		// The old database looks like this:
 		// [genesis, best_ancient_block] ... [first_block, best_block]
-		// If we are fully synced neither `best_ancient_block` nor `first_block` is set, and we can assume that the whole range from [genesis, best_block] is imported.
-		// The new database only contains the tip of the chain ([first_block, best_block]),
+		// If we are fully synced neither `best_ancient_block` nor `first_block` is set, and we can
+		// assume that the whole range from [genesis, best_block] is imported.
+		// The new database only contains the tip of the chain ([new_first_block, new_best_block]),
 		// so the useful set of blocks is defined as:
 		// [0 ... min(new.first_block, best_ancient_block or best_block)]
+		//
+		// If, for whatever reason, the old db does not have ancient blocks (i.e.
+		// `best_ancient_block` is `None`) AND a non-zero `first_block`, such that the old db looks
+		// like [old_first_block..old_best_block] (which may or may not partially overlap with
+		// [new_first_block..new_best_block]) we do the conservative thing and do not migrate the
+		// old blocks.
 		let find_range = || -> Option<(H256, H256)> {
+			// TODO: In theory, if the current best_block is > new first_block (i.e. they overlap)
+			//  we could salvage them but what if there's been a re-org at the boundary and the two
+			//  chains do not match anymore? Would it actually work?
+			if cur_chain_info.ancient_block_number.is_none() && cur_chain_info.first_block_number.unwrap_or(0) > 0 {
+				warn!(target: "blockchain", "blocks in the current DB do not stretch back to genesis; can't salvage them into the new DB. In current DB first block : {:?}/#{:?}, best block: {:?}, #{:?}",
+					cur_chain_info.first_block_hash, cur_chain_info.first_block_number,
+					cur_chain_info.best_block_number, cur_chain_info.best_block_hash);
+				return None;
+			}
 			let next_available_from = next_chain_info.first_block_number?;
 			let cur_available_to = cur_chain_info.ancient_block_number.unwrap_or(cur_chain_info.best_block_number);
 
@@ -366,7 +382,8 @@ impl Service {
 				return None;
 			}
 
-			trace!(target: "snapshot", "Trying to import ancient blocks until {}", highest_block_num);
+			trace!(target: "snapshot", "Trying to import ancient blocks until {}. First block in new chain=#{}, first block in old chain=#{:?}, best block in old chain=#{}", highest_block_num,
+				next_available_from, cur_chain_info.first_block_number, cur_chain_info.best_block_number);
 
 			// Here we start from the highest block number and go backward to 0,
 			// thus starting at `highest_block_num` and targeting `0`.
