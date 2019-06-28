@@ -2678,7 +2678,7 @@ mod tests {
 		state.kill_account(&a);
 
 		let diff = state.diff_from(original).unwrap();
-		let diff_map = diff.get();
+		let diff_map = diff.raw;
 		assert_eq!(diff_map.len(), 1);
 		assert!(diff_map.get(&a).is_some());
 		assert_eq!(diff_map.get(&a),
@@ -2709,7 +2709,7 @@ mod tests {
 		state.set_storage(&a, BigEndianHash::from_uint(&U256::from(1u64)), BigEndianHash::from_uint(&U256::from(100u64))).unwrap();
 
 		let diff = state.diff_from(original).unwrap();
-		let diff_map = diff.get();
+		let diff_map = diff.raw;
 		assert_eq!(diff_map.len(), 1);
 		assert!(diff_map.get(&a).is_some());
 		assert_eq!(diff_map.get(&a),
