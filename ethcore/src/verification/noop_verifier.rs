@@ -18,7 +18,7 @@
 
 use call_contract::CallContract;
 use client::BlockInfo;
-use engines::EthEngine;
+use engines::Engine;
 use error::Error;
 use types::header::Header;
 use super::{verification, Verifier};
@@ -32,7 +32,7 @@ impl<C: BlockInfo + CallContract> Verifier<C> for NoopVerifier {
 		&self,
 		_: &Header,
 		_t: &Header,
-		_: &dyn EthEngine,
+		_: &dyn Engine,
 		_: Option<verification::FullFamilyParams<C>>
 	) -> Result<(), Error> {
 		Ok(())
@@ -42,7 +42,7 @@ impl<C: BlockInfo + CallContract> Verifier<C> for NoopVerifier {
 		Ok(())
 	}
 
-	fn verify_block_external(&self, _header: &Header, _engine: &dyn EthEngine) -> Result<(), Error> {
+	fn verify_block_external(&self, _header: &Header, _engine: &dyn Engine) -> Result<(), Error> {
 		Ok(())
 	}
 }

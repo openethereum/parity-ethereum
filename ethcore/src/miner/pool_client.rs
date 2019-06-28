@@ -37,7 +37,7 @@ use parking_lot::RwLock;
 
 use call_contract::CallContract;
 use client::{TransactionId, BlockInfo, Nonce};
-use engines::EthEngine;
+use engines::Engine;
 use miner;
 use transaction_ext::Transaction;
 
@@ -72,7 +72,7 @@ impl NonceCache {
 pub struct PoolClient<'a, C: 'a> {
 	chain: &'a C,
 	cached_nonces: CachedNonceClient<'a, C>,
-	engine: &'a dyn EthEngine,
+	engine: &'a dyn Engine,
 	accounts: &'a dyn LocalAccounts,
 	best_block_header: Header,
 	service_transaction_checker: Option<&'a ServiceTransactionChecker>,
@@ -98,7 +98,7 @@ impl<'a, C: 'a> PoolClient<'a, C> where
 	pub fn new(
 		chain: &'a C,
 		cache: &'a NonceCache,
-		engine: &'a dyn EthEngine,
+		engine: &'a dyn Engine,
 		accounts: &'a dyn LocalAccounts,
 		service_transaction_checker: Option<&'a ServiceTransactionChecker>,
 	) -> Self {

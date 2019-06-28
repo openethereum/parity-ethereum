@@ -53,7 +53,7 @@ use client::{
 	BlockChain, ChainInfo, BlockProducer, SealedBlockImporter, Nonce, TransactionInfo, TransactionId
 };
 use client::{BlockId, ClientIoMessage};
-use engines::{EthEngine, Seal, SealingState, EngineSigner};
+use engines::{Engine, Seal, SealingState, EngineSigner};
 use error::Error;
 use executed::ExecutionError;
 use executive::contract_address;
@@ -245,7 +245,7 @@ pub struct Miner {
 	options: MinerOptions,
 	// TODO [ToDr] Arc is only required because of price updater
 	transaction_queue: Arc<TransactionQueue>,
-	engine: Arc<dyn EthEngine>,
+	engine: Arc<dyn Engine>,
 	accounts: Arc<dyn LocalAccounts>,
 	io_channel: RwLock<Option<IoChannel<ClientIoMessage>>>,
 	service_transaction_checker: Option<ServiceTransactionChecker>,

@@ -26,7 +26,7 @@ use account_db::AccountDBMut;
 use types::basic_account::BasicAccount;
 use blockchain::{BlockChain, BlockChainDB};
 use client::{Client, ChainInfo};
-use engines::EthEngine;
+use engines::Engine;
 use snapshot::{StateRebuilder};
 use snapshot::io::{SnapshotReader, PackedWriter, PackedReader};
 
@@ -152,7 +152,7 @@ pub fn snap(client: &Client) -> (Box<dyn SnapshotReader>, TempDir) {
 /// write into the given database.
 pub fn restore(
 	db: Arc<dyn BlockChainDB>,
-	engine: &dyn EthEngine,
+	engine: &dyn Engine,
 	reader: &dyn SnapshotReader,
 	genesis: &[u8],
 ) -> Result<(), ::error::Error> {
