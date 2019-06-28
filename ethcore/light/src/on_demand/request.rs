@@ -24,7 +24,7 @@ use common_types::basic_account::BasicAccount;
 use common_types::encoded;
 use common_types::receipt::Receipt;
 use common_types::transaction::SignedTransaction;
-use ethcore::engines::{EthEngine, StateDependentProof};
+use ethcore::engines::{Engine, StateDependentProof};
 use ethcore::state::{self, ProvedExecution};
 use ethereum_types::{H256, U256, Address};
 use ethtrie::{TrieError, TrieDB};
@@ -1037,7 +1037,7 @@ pub struct TransactionProof {
 	// TODO: it's not really possible to provide this if the header is unknown.
 	pub env_info: EnvInfo,
 	/// Consensus engine.
-	pub engine: Arc<EthEngine>,
+	pub engine: Arc<Engine>,
 }
 
 impl TransactionProof {
@@ -1080,7 +1080,7 @@ pub struct Signal {
 	/// Block hash and number to fetch proof for.
 	pub hash: H256,
 	/// Consensus engine, used to check the proof.
-	pub engine: Arc<EthEngine>,
+	pub engine: Arc<Engine>,
 	/// Special checker for the proof.
 	pub proof_check: Arc<StateDependentProof>,
 }

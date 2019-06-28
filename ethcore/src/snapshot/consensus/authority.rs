@@ -24,7 +24,7 @@ use super::{SnapshotComponents, Rebuilder, ChunkSink};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 
-use engines::{EthEngine, EpochVerifier, EpochTransition};
+use engines::{Engine, EpochVerifier, EpochTransition};
 use snapshot::{Error, ManifestData, Progress};
 
 use blockchain::{BlockChain, BlockChainDB, BlockProvider};
@@ -184,7 +184,7 @@ impl ChunkRebuilder {
 		&mut self,
 		last_verifier: &mut Option<Box<dyn EpochVerifier>>,
 		transition_rlp: Rlp,
-		engine: &dyn EthEngine,
+		engine: &dyn Engine,
 	) -> Result<Verified, ::error::Error> {
 		use engines::ConstructedVerifier;
 
@@ -240,7 +240,7 @@ impl Rebuilder for ChunkRebuilder {
 	fn feed(
 		&mut self,
 		chunk: &[u8],
-		engine: &dyn EthEngine,
+		engine: &dyn Engine,
 		abort_flag: &AtomicBool,
 	) -> Result<(), ::error::Error> {
 		let rlp = Rlp::new(chunk);
@@ -348,7 +348,7 @@ impl Rebuilder for ChunkRebuilder {
 		Ok(())
 	}
 
-	fn finalize(&mut self, _engine: &dyn EthEngine) -> Result<(), ::error::Error> {
+	fn finalize(&mut self, _engine: &dyn Engine) -> Result<(), ::error::Error> {
 		if !self.had_genesis {
 			return Err(Error::WrongChunkFormat("No genesis transition included.".into()).into());
 		}

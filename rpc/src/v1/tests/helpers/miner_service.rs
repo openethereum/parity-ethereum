@@ -22,7 +22,7 @@ use std::collections::{BTreeMap, BTreeSet, HashMap};
 use bytes::Bytes;
 use ethcore::block::SealedBlock;
 use ethcore::client::{Nonce, PrepareOpenBlock, StateClient, EngineInfo};
-use ethcore::engines::{EthEngine, signer::EngineSigner};
+use ethcore::engines::{Engine, signer::EngineSigner};
 use ethcore::error::Error;
 use ethcore::miner::{self, MinerService, AuthoringParams};
 use ethereum_types::{H256, U256, Address};
@@ -99,7 +99,7 @@ impl StateClient for TestMinerService {
 }
 
 impl EngineInfo for TestMinerService {
-	fn engine(&self) -> &EthEngine {
+	fn engine(&self) -> &Engine {
 		unimplemented!()
 	}
 }

@@ -59,7 +59,7 @@ use client::{
 	Call, StateClient, EngineInfo, AccountData, BlockChain, BlockProducer, SealedBlockImporter, IoClient,
 	BadBlocks
 };
-use engines::EthEngine;
+use engines::Engine;
 use error::{Error, EthcoreResult};
 use executed::CallError;
 use executive::Executed;
@@ -627,7 +627,7 @@ impl StateClient for TestBlockChainClient {
 }
 
 impl EngineInfo for TestBlockChainClient {
-	fn engine(&self) -> &dyn EthEngine {
+	fn engine(&self) -> &dyn Engine {
 		unimplemented!()
 	}
 }
