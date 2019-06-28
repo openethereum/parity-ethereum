@@ -6,14 +6,16 @@ authors = ["Parity Technologies <admin@parity.io>"]
 license = "GPL-3.0"
 
 [dependencies]
+chrono = { version = "0.4.6", features = ["serde"] }
 docopt = "1.0"
 env_logger = "0.5"
 ethcore-network = { path = "../../util/network" }
 ethcore-network-devp2p = { path = "../../util/network-devp2p" }
+fern = { version = "0.5", features = ["colored"] }
 jsonrpc-core = "10.0.1"
 jsonrpc-http-server = "10.0.1"
 jsonrpc-pubsub = "10.0.1"
-log = "0.4"
+log = { version = "0.4", features = ["std", "serde", "max_level_trace", "release_max_level_info"] }
 panic_hook = { path = "../../util/panic-hook" }
 parity-whisper = { path = "../" }
 serde = "1.0"

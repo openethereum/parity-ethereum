@@ -16,16 +16,29 @@
 
 //! Whisper command line interface
 //!
+//! ## Overview
+//!
 //! Spawns an Ethereum network instance and attaches the Whisper protocol RPCs to it.
 //!
+//! ## Usage
+//!
+//! Whisper is not distributed with regular Parity Ethereum releases
+//! so you need to build it from source and run it like so:
+//!
+//! ```bash
+//! cargo build -p whisper-cli --release
+//! ./target/release/whisper --help
+//! ```
 
 #![warn(missing_docs)]
 #![cfg_attr(feature = "cargo-clippy", deny(clippy, clippy_pedantic))]
 
+extern crate chrono;
 extern crate docopt;
 extern crate env_logger;
 extern crate ethcore_network as net;
 extern crate ethcore_network_devp2p as devp2p;
+extern crate fern;
 extern crate panic_hook;
 extern crate parity_whisper as whisper;
 extern crate serde;
@@ -52,6 +65,8 @@ use std::str::FromStr;
 use ethkey::Secret;
 use rustc_hex::FromHex;
 
+mod config;
+
 const POOL_UNIT: usize = 1024 * 1024;
 const USAGE: &'static str = r#"
 Parity Whisper-v2 CLI.
@@ -68,7 +83,8 @@ Options:
 	-s, --secret KEYFILE           Specify which file contains the key to generate the enode.
 	-P, --rpc-port PORT            Specify which RPC port to use [default: 8545].
 	-A, --rpc-address ADDRESS      Specify which RPC address to use [default: 127.0.0.1].
-	-l, --log LEVEL                Specify the logging level. Must conform to the same format as RUST_LOG [default: Error].
+	-l, --log-level LEVEL          Specify the logging level. Must conform to the same format as RUST_LOG [default: 4]. Log level verbosity configuration choice from highest to lowest priority (error 0, warn 1, info 2, debug 3, trace 4).
+	--log-to-file                  Record logs to output.log file.
 	-h, --help                     Display this message and exit.
 "#;
 
@@ -83,14 +99,15 @@ impl PubSubMetadata for Meta {
 	}
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Clone, Debug, Deserialize)]
 struct Args {
 	flag_whisper_pool_size: usize,
 	flag_port: String,
 	flag_address: String,
 	flag_rpc_port: String,
 	flag_rpc_address: String,
-	flag_log: String,
+	flag_log_level: String,
+	flag_log_to_file: bool,
 	flag_secret: String,
 }
 
@@ -226,7 +243,10 @@ fn execute<S, I>(command: I) -> Result<(), Error> where I: IntoIterator<Item=S>,
 	let pool_size = args.flag_whisper_pool_size * POOL_UNIT;
 	let rpc_url = format!("{}:{}", args.flag_rpc_address, args.flag_rpc_port);
 
-	initialize_logger(args.flag_log);
+	// Default values are defined in the CLI configuration
+	let log_pattern = args.clone().flag_log_level;
+	let log_to_file = args.clone().flag_log_to_file;
+	config::logger::init_logger(&log_pattern, log_to_file);
 	info!(target: "whisper-cli", "start");
 
 	// Filter manager that will dispatch `decryption tasks`
@@ -288,12 +308,6 @@ fn execute<S, I>(command: I) -> Result<(), Error> where I: IntoIterator<Item=S>,
 
 	// This will never return if the http server runs without errors
 	Ok(())
-}
-
-fn initialize_logger(log_level: String) {
-	env_logger::Builder::from_env(env_logger::Env::default())
-		.parse(&log_level)
-		.init();
 }
 
 #[cfg(test)]
