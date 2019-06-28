@@ -43,6 +43,7 @@ use bytes::Bytes;
 use journaldb::Algorithm;
 use kvdb::DBTransaction;
 use snappy;
+use snapshot::error::Error::UnlinkedAncientBlockChain;
 
 /// Helper for removing directories in case of error.
 struct Guard(bool, PathBuf);
@@ -408,7 +409,7 @@ impl Service {
 
 			let block = self.client.block(BlockId::Hash(parent_hash)).ok_or_else(|| {
 				error!(target: "snapshot", "migrate_blocks: did not find block from parent_hash={} (start_hash={})", parent_hash, start_hash);
-				::snapshot::error::Error::UnlinkedAncientBlockChain(parent_hash)
+				UnlinkedAncientBlockChain(parent_hash)
 			})?;
 			parent_hash = block.parent_hash();
 
@@ -454,7 +455,7 @@ impl Service {
 				parent_hash, target_hash, start_hash,
 				cur_chain_info.ancient_block_number, cur_chain_info.best_block_number,
 			);
-			return Err(::snapshot::error::Error::UnlinkedAncientBlockChain(parent_hash).into());
+			return Err(UnlinkedAncientBlockChain(parent_hash).into());
 		}
 
 		// Update best ancient block in the Next Chain
@@ -716,15 +717,20 @@ impl Service {
 	/// Feed a chunk of either kind (block or state). no-op if no restoration or status is wrong.
 	fn feed_chunk(&self, hash: H256, chunk: &[u8], is_state: bool) {
 		// TODO: be able to process block chunks and state chunks at same time?
-		let mut restoration = self.restoration.lock();
-		match self.feed_chunk_with_restoration(&mut restoration, hash, chunk, is_state) {
+		let r = {
+			let mut restoration = self.restoration.lock();
+			self.feed_chunk_with_restoration(&mut restoration, hash, chunk, is_state)
+		};
+		match r {
 			Ok(()) |
 			Err(Error::Snapshot(SnapshotError::RestorationAborted)) => (),
 			Err(e) => {
 				// TODO: after this we're sometimes deadlocked
 				warn!("Encountered error during snapshot restoration: {}", e);
 				self.abort_restore();
-				*self.status.lock() = RestorationStatus::Failed;
+				if let Some(mut status) = self.status.try_lock_for(std::time::Duration::from_millis(10)) {
+					*status = RestorationStatus::Failed;
+				}
 				let _ = fs::remove_dir_all(self.restoration_dir());
 			}
 		}
