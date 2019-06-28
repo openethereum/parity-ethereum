@@ -364,9 +364,9 @@ impl Service {
 		// [new_first_block..new_best_block]) we do the conservative thing and do not migrate the
 		// old blocks.
 		let find_range = || -> Option<(H256, H256)> {
-			// TODO: In theory, if the current best_block is > new first_block (i.e. they overlap)
-			//  we could salvage them but what if there's been a re-org at the boundary and the two
-			//  chains do not match anymore? Would it actually work?
+			// In theory, if the current best_block is > new first_block (i.e. ranges overlap)
+			// we could salvage them but what if there's been a re-org at the boundary and the two
+			// chains do not match anymore? We'd have to check the existing blocks carefully.
 			if cur_chain_info.ancient_block_number.is_none() && cur_chain_info.first_block_number.unwrap_or(0) > 0 {
 				warn!(target: "blockchain", "blocks in the current DB do not stretch back to genesis; can't salvage them into the new DB. In current DB first block : {:?}/#{:?}, best block: {:?}, #{:?}",
 					cur_chain_info.first_block_hash, cur_chain_info.first_block_number,
