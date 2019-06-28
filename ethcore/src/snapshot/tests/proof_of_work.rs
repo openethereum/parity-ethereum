@@ -93,7 +93,7 @@ fn chunk_and_restore(amount: u64) {
 		rebuilder.feed(&chunk, engine.as_ref(), &flag).unwrap();
 	}
 
-	rebuilder.finalize(engine.as_ref()).unwrap();
+	rebuilder.finalize().expect("rebuilder failed finalization");
 	drop(rebuilder);
 
 	// and test it.

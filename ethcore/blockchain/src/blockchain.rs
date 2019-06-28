@@ -549,11 +549,13 @@ impl BlockChain {
 			pending_transaction_addresses: RwLock::new(HashMap::new()),
 		};
 
+		trace!(target: "blockchain", "new: finding best block");
 		// load best block
 		let best_block_hash = match bc.db.key_value().get(db::COL_EXTRA, b"best")
 			.expect("Low-level database error when fetching 'best' block. Some issue with disk?")
 		{
 			Some(best) => {
+				trace!(target: "blockchain", "new: best block found: {}", H256::from_slice(&best));
 				H256::from_slice(&best)
 			}
 			None => {
@@ -580,6 +582,7 @@ impl BlockChain {
 
 				batch.put(db::COL_EXTRA, b"best", hash.as_bytes());
 				bc.db.key_value().write(batch).expect("Low level database error when fetching 'best' block. Some issue with disk?");
+				trace!(target: "blockchain", "new: no best block found, had to add genesis to cache: hash={}, block number #{}", hash, header.number());
 				hash
 			}
 		};
@@ -600,6 +603,7 @@ impl BlockChain {
 				block: best_block_rlp,
 			};
 		}
+		trace!(target: "blockchain", "new: best block: {}/#{}", best_block_hash, bc.best_block.read().header.number());
 
 		{
 			let best_block_number = bc.best_block.read().header.number();
@@ -607,20 +611,56 @@ impl BlockChain {
 			let raw_first = bc.db.key_value().get(db::COL_EXTRA, b"first")
 				.expect("Low level database error when fetching 'first' block. Some issue with disk?")
 				.map(|v| v.into_vec());
+
 			let mut best_ancient = bc.db.key_value().get(db::COL_EXTRA, b"ancient")
 				.expect("Low level database error when fetching 'best ancient' block. Some issue with disk?")
 				.map(|h| H256::from_slice(&h));
+			trace!(target: "blockchain", "new: best ancient block hash={:?}", best_ancient);
+
 			let best_ancient_number;
 			if best_ancient.is_none() && best_block_number > 1 && bc.block_hash(1).is_none() {
 				best_ancient = Some(bc.genesis_hash());
 				best_ancient_number = Some(0);
+				trace!(target: "blockchain", "new: no best ancient block; using genesis {}/#{}", bc.genesis_hash(), 0);
 			} else {
-				best_ancient_number = best_ancient.as_ref().and_then(|h| bc.block_number(h));
+				if best_ancient.is_some() {
+					best_ancient_number = best_ancient.as_ref().and_then(|h| bc.block_number(h));
+					trace!(target: "blockchain", "new: final best ancient block: {}", best_ancient.unwrap());
+					trace!(target: "blockchain", "new: final best ancient block: #{:?}", best_ancient_number);
+				} else {
+					best_ancient_number = Some(0);
+					trace!(target: "blockchain", "new: no ancient block found. Hmm.");
+
+					let f = H256::from_slice(&raw_first.clone().unwrap());
+					let f_blk = bc.block(&f);
+					let mut block = f_blk.unwrap();
+					let mut ranges: Vec<((u64, H256),(u64, H256))> = vec![] ;
+					let mut range = ((0, H256::zero()), (0, H256::zero()));
+					for i in (0..block.number()).rev() {
+						if let Some(h) = bc.block_hash(i) {
+//							trace!(target: "blockchain", "  Found block #{}/{}", i, h);
+							range.0 = (i, h);
+						} else {
+							range.1 = (i, H256::zero());
+							ranges.push(range.clone());
+							range = ((0, H256::zero()), (0, H256::zero()));
+						}
+					}
+					trace!(target: "blockchain", "  DONE CHECKING. Ranges: {:?}", ranges);
+//					while let Some(b) = bc.block(&block.parent_hash()) {
+//						trace!(target: "blockchain", "  Found block #{}", b.number());
+//						block = b;
+//					}
+//
+//					trace!(target: "blockchain", "  LAST Found block {}/#{}", block.hash(), block.number());
+
+				}
 			}
 
 			// binary search for the first block.
 			match raw_first {
 				None => {
+					trace!(target: "blockchain", "new: no first block");
 					let (mut f, mut hash) = (best_block_number, best_block_hash);
 					let mut l = best_ancient_number.unwrap_or(0);
 
@@ -637,7 +677,7 @@ impl BlockChain {
 					}
 
 					if hash != bc.genesis_hash() {
-						trace!("First block calculated: {:?}", hash);
+						trace!(target: "blockchain", "First block calculated: {:?}", hash);
 						let mut batch = db.key_value().transaction();
 						batch.put(db::COL_EXTRA, b"first", hash.as_bytes());
 						db.key_value().write(batch).expect("Low level database error when writing 'first' block. Some issue with disk?");
@@ -646,13 +686,18 @@ impl BlockChain {
 				},
 				Some(raw_first) => {
 					bc.first_block = Some(H256::from_slice(&raw_first));
+					trace!(target: "blockchain", "new: first block from disk: {}/#{}", bc.first_block.unwrap(), bc.first_block_number().unwrap());
 				},
 			}
 
 			// and write them
 			if let (Some(hash), Some(number)) = (best_ancient, best_ancient_number) {
+				trace!(target: "blockchain", "new: figured out the best ancient block: {}/#{} – writing to the DB", hash, number);
+
 				let mut best_ancient_block = bc.best_ancient_block.write();
 				*best_ancient_block = Some(BestAncientBlock { hash, number });
+			} else {
+				warn!(target: "blockchain", "new: could not figure out what the best ancient block is; {:?}, {:?}", best_ancient, best_ancient_number);
 			}
 		}
 
