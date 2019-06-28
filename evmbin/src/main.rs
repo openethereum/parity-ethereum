@@ -111,7 +111,8 @@ General options:
     --json             Display verbose results in JSON.
     --log-level LEVEL  Log level verbosity configuration choice
                        from highest to lowest priority (error 0, warn 1,
-                       info 2, debug 3, trace 4).
+                       info 2, debug 3, trace 4). Must conform to the
+                       same format as RUST_LOG [default: 0]
     --log-to-file      Record logs to output.log file.
     --std-json         Display results in standardized JSON format.
     --std-err-only     With --std-json redirect to err output only.
@@ -128,8 +129,7 @@ fn main() {
 
 	let args: Args = Docopt::new(USAGE).and_then(|d| d.deserialize()).unwrap_or_else(|e| e.exit());
 
-	let default_log_level: &str = &String::from("2");
-	let log_pattern = args.clone().flag_log_level.unwrap_or(default_log_level.to_string());
+	let log_pattern = args.clone().flag_log_level;
 	let log_to_file = args.clone().flag_log_to_file;
 	config::logger::init_logger(&log_pattern, log_to_file);
 
@@ -290,7 +290,7 @@ struct Args {
 	flag_input: Option<String>,
 	flag_chain: Option<String>,
 	flag_json: bool,
-	flag_log_level: Option<String>,
+	flag_log_level: String,
 	flag_log_to_file: bool,
 	flag_std_json: bool,
 	flag_std_dump_json: bool,

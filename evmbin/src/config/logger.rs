@@ -1,15 +1,29 @@
+// Copyright 2015-2019 Parity Technologies (UK) Ltd.
+// This file is part of Parity Ethereum.
+
+// Parity Ethereum is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+
+// Parity Ethereum is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
+
+// You should have received a copy of the GNU General Public License
+// along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
+
 use fern::colors::{Color, ColoredLevelConfig};
-
 use log::{LevelFilter};
-
 use std::io;
 
 fn setup_logger(verbosity: u32, log_to_file: bool) -> Result<(), fern::InitError> {
     let colors_line = ColoredLevelConfig::new()
         .error(Color::Red)
         .warn(Color::Yellow)
-        .info(Color::White)
-        .debug(Color::White)
+        .info(Color::BrightBlack)
+        .debug(Color::BrightBlack)
         .trace(Color::BrightBlack);
 
     let colors_level = colors_line.clone()
@@ -96,7 +110,7 @@ fn setup_logger(verbosity: u32, log_to_file: bool) -> Result<(), fern::InitError
 
 /// Initialisation of the [Log Crate](https://crates.io/crates/log) and [Fern Crate](https://docs.rs/fern/0.5.5/fern/)
 ///
-/// - Choice of log level verbosity from evmbin CLI: error (0), warn (1), info (2), debug (3), or trace (4).
+/// - Choice of log level verbosity from CLI: error (0), warn (1), info (2), debug (3), or trace (4).
 /// - Fallback to default log level that is defined in evmbin/src/main.rs.
 /// - Use of logging level macros from highest priority to lowest: `error!`, `warn!`, `info!`, `debug!` and `trace!`.
 /// - [Compile time filters](https://docs.rs/log/0.4.1/log/#compile-time-filters) that override the evmbin CLI log levels
