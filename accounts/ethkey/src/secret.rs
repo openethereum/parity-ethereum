@@ -21,17 +21,23 @@ use rustc_hex::ToHex;
 use secp256k1::constants::{SECRET_KEY_SIZE as SECP256K1_SECRET_KEY_SIZE};
 use secp256k1::key;
 use ethereum_types::H256;
-use parity_util_mem::Memzero;
+use zeroize::Zeroize;
 use {Error, SECP256K1};
 
 #[derive(Clone, PartialEq, Eq)]
 pub struct Secret {
-	inner: Memzero<H256>,
+	inner: H256,
+}
+
+impl Drop for Secret {
+	fn drop(&mut self) {
+		self.inner.0.zeroize()
+	}
 }
 
 impl ToHex for Secret {
 	fn to_hex(&self) -> String {
-		format!("{:x}", *self.inner)
+		format!("{:x}", self.inner)
 	}
 }
 
@@ -61,12 +67,12 @@ impl Secret {
 		}
 		let mut h = H256::zero();
 		h.as_bytes_mut().copy_from_slice(&key[0..32]);
-		Some(Secret { inner: Memzero::from(h) })
+		Some(Secret { inner: h })
 	}
 
 	/// Creates zero key, which is invalid for crypto operations, but valid for math operation.
 	pub fn zero() -> Self {
-		Secret { inner: Memzero::from(H256::zero()) }
+		Secret { inner: H256::zero() }
 	}
 
 	/// Imports and validates the key.
@@ -214,7 +220,7 @@ impl FromStr for Secret {
 
 impl From<[u8; 32]> for Secret {
 	fn from(k: [u8; 32]) -> Self {
-		Secret { inner: Memzero::from(H256(k)) }
+		Secret { inner: H256(k) }
 	}
 }
 
