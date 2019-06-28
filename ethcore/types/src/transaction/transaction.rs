@@ -313,6 +313,14 @@ impl UnverifiedTransaction {
 		self.r.is_zero() && self.s.is_zero()
 	}
 
+	/// Returns transaction receiver, if any
+	pub fn receiver(&self) -> Option<Address> {
+		match self.unsigned.action {
+			Action::Create => None,
+			Action::Call(receiver) => Some(receiver),
+		}
+	}
+
 	/// Append object with a signature into RLP stream
 	fn rlp_append_sealed_transaction(&self, s: &mut RlpStream) {
 		s.begin_list(9);

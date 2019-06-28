@@ -22,7 +22,7 @@ use std::collections::BTreeMap;
 use crypto::DEFAULT_MAC;
 use ethereum_types::{Address, H64, H160, H256, H512, U64, U256};
 use ethcore::client::{BlockChainClient, StateClient, Call};
-use ethcore::miner::{self, MinerService};
+use ethcore::miner::{self, MinerService, FilterOptions};
 use ethcore::snapshot::{SnapshotService, RestorationStatus};
 use ethcore::state::StateInfo;
 use ethcore_logger::RotatingLogger;
@@ -245,10 +245,11 @@ impl<C, M, U, S> Parity for ParityClient<C, M, U> where
 			.map(Into::into)
 	}
 
-	fn pending_transactions(&self, limit: Option<usize>) -> Result<Vec<Transaction>> {
-		let ready_transactions = self.miner.ready_transactions(
+	fn pending_transactions(&self, limit: Option<usize>, filter: Option<FilterOptions>) -> Result<Vec<Transaction>> {
+		let ready_transactions = self.miner.ready_transactions_filtered(
 			&*self.client,
 			limit.unwrap_or_else(usize::max_value),
+			filter,
 			miner::PendingOrdering::Priority,
 		);
 

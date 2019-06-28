@@ -20,12 +20,13 @@
 //! Keeps track of transactions and currently sealed pending block.
 
 mod miner;
-
+mod filter_options;
 pub mod pool_client;
 #[cfg(feature = "stratum")]
 pub mod stratum;
 
 pub use self::miner::{Miner, MinerOptions, Penalization, PendingSet, AuthoringParams, Author};
+pub use self::filter_options::FilterOptions;
 pub use ethcore_miner::local_accounts::LocalAccounts;
 pub use ethcore_miner::pool::PendingOrdering;
 
@@ -182,6 +183,14 @@ pub trait MinerService : Send + Sync {
 	/// If you don't need a full set of transactions, you can add `max_len` and create only a limited set of
 	/// transactions.
 	fn ready_transactions<C>(&self, chain: &C, max_len: usize, ordering: PendingOrdering) -> Vec<Arc<VerifiedTransaction>>
+		where C: ChainInfo + Nonce + Sync;
+
+	/// Get a list of all ready transactions either ordered by priority or unordered (cheaper), optionally filtered by hash, sender or receiver.
+	///
+	/// Depending on the settings may look in transaction pool or only in pending block.
+	/// If you don't need a full set of transactions, you can add `max_len` and create only a limited set of
+	/// transactions.
+	fn ready_transactions_filtered<C>(&self, chain: &C, max_len: usize, filter: Option<FilterOptions>, ordering: PendingOrdering) -> Vec<Arc<VerifiedTransaction>>
 		where C: ChainInfo + Nonce + Sync;
 
 	/// Get a list of all transactions in the pool (some of them might not be ready for inclusion yet).

@@ -31,6 +31,7 @@ use ethcore_miner::work_notify::NotifyWork;
 use ethereum_types::{H256, U256, Address};
 use futures::sync::mpsc;
 use io::IoChannel;
+use miner::filter_options::{FilterOptions, FilterOperator};
 use miner::pool_client::{PoolClient, CachedNonceClient, NonceCache};
 use miner;
 use parking_lot::{Mutex, RwLock};
@@ -1051,6 +1052,19 @@ impl miner::MinerService for Miner {
 	where
 		C: ChainInfo + Nonce + Sync,
 	{
+		// No special filtering options applied (neither tx_hash, receiver or sender)
+		self.ready_transactions_filtered(chain, max_len, None, ordering)
+	}
+
+	fn ready_transactions_filtered<C>(
+		&self,
+		chain: &C,
+		max_len: usize,
+		filter: Option<FilterOptions>,
+		ordering: miner::PendingOrdering,
+	) -> Vec<Arc<VerifiedTransaction>> where
+		C: ChainInfo + Nonce + Sync,
+	{
 		let chain_info = chain.chain_info();
 
 		let from_queue = || {
@@ -1071,12 +1085,76 @@ impl miner::MinerService for Miner {
 			)
 		};
 
+		use miner::filter_options::FilterOperator::*;
 		let from_pending = || {
 			self.map_existing_pending_block(|sealing| {
+				// This filter is used for gas, gas price, value and nonce.
+				// Sender and receiver have their custom matches, since those
+				// allow/disallow different operators.
+				fn match_common_filter(operator: &FilterOperator<U256>, tx_value: &U256) -> bool {
+					match operator {
+						Eq(value) => tx_value == value,
+						GreaterThan(value) => tx_value > value,
+						LessThan(value) => tx_value < value,
+						// Will always occure on `Any`, other operators
+						// get handled during deserialization
+						_ => true,
+					}
+				}
+
 				sealing.transactions
 					.iter()
 					.map(|signed| pool::VerifiedTransaction::from_pending_block_transaction(signed.clone()))
 					.map(Arc::new)
+					// Filter by sender
+					.filter(|tx| {
+						filter.as_ref().map_or(true, |filter| {
+							let sender = tx.signed().sender();
+							match filter.from {
+								Eq(value) => sender == value,
+								// Will always occure on `Any`, other operators
+								// get handled during deserialization
+								_ => true,
+							}
+						})
+					})
+					// Filter by receiver
+					.filter(|tx| {
+						filter.as_ref().map_or(true, |filter| {
+							let receiver = (*tx.signed()).receiver();
+							match filter.to {
+								// Could apply to `Some(Address)` or `None` (for contract creation)
+								Eq(value) => receiver == value,
+								// Will always occure on `Any`, other operators
+								// get handled during deserialization
+								_ => true,
+							}
+						})
+					})
+					// Filter by gas
+					.filter(|tx| {
+						filter.as_ref().map_or(true, |filter| {
+							match_common_filter(&filter.gas, &(*tx.signed()).gas)
+						})
+					})
+					// Filter by gas price
+					.filter(|tx| {
+						filter.as_ref().map_or(true, |filter| {
+							match_common_filter(&filter.gas_price, &(*tx.signed()).gas_price)
+						})
+					})
+					// Filter by tx value
+					.filter(|tx| {
+						filter.as_ref().map_or(true, |filter| {
+							match_common_filter(&filter.value, &(*tx.signed()).value)
+						})
+					})
+					// Filter by nonce
+					.filter(|tx| {
+						filter.as_ref().map_or(true, |filter| {
+							match_common_filter(&filter.nonce, &(*tx.signed()).nonce)
+						})
+					})
 					.take(max_len)
 					.collect()
 			}, chain_info.best_block_number)

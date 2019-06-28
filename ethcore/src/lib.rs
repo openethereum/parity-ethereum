@@ -122,6 +122,8 @@ extern crate blooms_db;
 extern crate env_logger;
 #[cfg(test)]
 extern crate rlp_compress;
+#[cfg(test)]
+extern crate serde_json;
 
 #[macro_use]
 extern crate ethabi_derive;
