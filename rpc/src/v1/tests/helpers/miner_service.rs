@@ -22,9 +22,9 @@ use std::collections::{BTreeMap, BTreeSet, HashMap};
 use bytes::Bytes;
 use ethcore::block::SealedBlock;
 use ethcore::client::{Nonce, PrepareOpenBlock, StateClient, EngineInfo};
-use ethcore::engines::{EthEngine, signer::EngineSigner};
+use ethcore::engines::{Engine, signer::EngineSigner};
 use ethcore::error::Error;
-use ethcore::miner::{self, MinerService, AuthoringParams};
+use ethcore::miner::{self, MinerService, AuthoringParams, FilterOptions};
 use ethereum_types::{H256, U256, Address};
 use miner::pool::local_transactions::Status as LocalTransactionStatus;
 use miner::pool::{verifier, VerifiedTransaction, QueueStatus};
@@ -99,7 +99,7 @@ impl StateClient for TestMinerService {
 }
 
 impl EngineInfo for TestMinerService {
-	fn engine(&self) -> &EthEngine {
+	fn engine(&self) -> &Engine {
 		unimplemented!()
 	}
 }
@@ -219,6 +219,10 @@ impl MinerService for TestMinerService {
 	}
 
 	fn ready_transactions<C>(&self, _chain: &C, _max_len: usize, _ordering: miner::PendingOrdering) -> Vec<Arc<VerifiedTransaction>> {
+		self.queued_transactions()
+	}
+
+	fn ready_transactions_filtered<C>(&self, _chain: &C, _max_len: usize, _filter: Option<FilterOptions>, _ordering: miner::PendingOrdering) -> Vec<Arc<VerifiedTransaction>> {
 		self.queued_transactions()
 	}
 

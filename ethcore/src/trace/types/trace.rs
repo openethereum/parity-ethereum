@@ -51,7 +51,7 @@ impl CreateResult {
 	}
 }
 
-/// Description of a _call_ action, either a `CALL` operation or a message transction.
+/// Description of a _call_ action, either a `CALL` operation or a message transaction.
 #[derive(Debug, Clone, PartialEq, RlpEncodable, RlpDecodable)]
 pub struct Call {
 	/// The sending account.
@@ -102,7 +102,7 @@ impl Call {
 	}
 }
 
-/// Description of a _create_ action, either a `CREATE` operation or a create transction.
+/// Description of a _create_ action, either a `CREATE` operation or a create transaction.
 #[derive(Debug, Clone, PartialEq, RlpEncodable, RlpDecodable)]
 pub struct Create {
 	/// The address of the creator.

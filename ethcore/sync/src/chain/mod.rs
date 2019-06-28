@@ -994,7 +994,7 @@ impl ChainSync {
 					}
 
 					// Only ask for old blocks if the peer has an equal or higher difficulty
-					let equal_or_higher_difficulty = peer_difficulty.map_or(false, |pd| pd >= syncing_difficulty);
+					let equal_or_higher_difficulty = peer_difficulty.map_or(true, |pd| pd >= syncing_difficulty);
 
 					if force || equal_or_higher_difficulty {
 						if let Some(request) = self.old_blocks.as_mut().and_then(|d| d.request_blocks(peer_id, io, num_active_peers)) {

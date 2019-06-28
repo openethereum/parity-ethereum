@@ -27,7 +27,7 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 
 use blockchain::{BlockChain, BlockChainDB, BlockProvider};
-use engines::EthEngine;
+use engines::Engine;
 use snapshot::{Error, ManifestData, Progress};
 use snapshot::block::AbridgedBlock;
 use ethereum_types::H256;
@@ -224,7 +224,7 @@ impl PowRebuilder {
 impl Rebuilder for PowRebuilder {
 	/// Feed the rebuilder an uncompressed block chunk.
 	/// Returns the number of blocks fed or any errors.
-	fn feed(&mut self, chunk: &[u8], engine: &dyn EthEngine, abort_flag: &AtomicBool) -> Result<(), ::error::Error> {
+	fn feed(&mut self, chunk: &[u8], engine: &dyn Engine, abort_flag: &AtomicBool) -> Result<(), ::error::Error> {
 		use snapshot::verify_old_block;
 		use ethereum_types::U256;
 		use triehash::ordered_trie_root;

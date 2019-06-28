@@ -38,7 +38,7 @@ use std::sync::Arc;
 use bytes::Bytes;
 use ethereum_types::{H256, U256, Address, Bloom};
 
-use engines::EthEngine;
+use engines::Engine;
 use error::{Error, BlockError};
 use factory::Factories;
 use state_db::StateDB;
@@ -61,7 +61,7 @@ use types::receipt::{Receipt, TransactionOutcome};
 /// maintain the system `state()`. We also archive execution receipts in preparation for later block creation.
 pub struct OpenBlock<'x> {
 	block: ExecutedBlock,
-	engine: &'x dyn EthEngine,
+	engine: &'x dyn Engine,
 }
 
 /// Just like `OpenBlock`, except that we've applied `Engine::on_close_block`, finished up the non-seal header fields,
@@ -163,7 +163,7 @@ pub trait Drain {
 impl<'x> OpenBlock<'x> {
 	/// Create a new `OpenBlock` ready for transaction pushing.
 	pub fn new<'a, I: IntoIterator<Item = ExtendedHeader>>(
-		engine: &'x dyn EthEngine,
+		engine: &'x dyn Engine,
 		factories: Factories,
 		tracing: bool,
 		db: StateDB,
@@ -374,7 +374,7 @@ impl ClosedBlock {
 	}
 
 	/// Given an engine reference, reopen the `ClosedBlock` into an `OpenBlock`.
-	pub fn reopen(self, engine: &dyn EthEngine) -> OpenBlock {
+	pub fn reopen(self, engine: &dyn Engine) -> OpenBlock {
 		// revert rewards (i.e. set state back at last transaction's state).
 		let mut block = self.block;
 		block.state = self.unclosed_state;
@@ -404,7 +404,7 @@ impl LockedBlock {
 	/// Provide a valid seal in order to turn this into a `SealedBlock`.
 	///
 	/// NOTE: This does not check the validity of `seal` with the engine.
-	pub fn seal(self, engine: &dyn EthEngine, seal: Vec<Bytes>) -> Result<SealedBlock, Error> {
+	pub fn seal(self, engine: &dyn Engine, seal: Vec<Bytes>) -> Result<SealedBlock, Error> {
 		let expected_seal_fields = engine.seal_fields(&self.header);
 		let mut s = self;
 		if seal.len() != expected_seal_fields {
@@ -429,7 +429,7 @@ impl LockedBlock {
 	/// TODO(https://github.com/paritytech/parity-ethereum/issues/10407): This is currently only used in POW chain call paths, we should really merge it with seal() above.
 	pub fn try_seal(
 		self,
-		engine: &dyn EthEngine,
+		engine: &dyn Engine,
 		seal: Vec<Bytes>,
 	) -> Result<SealedBlock, Error> {
 		let mut s = self;
@@ -472,7 +472,7 @@ pub(crate) fn enact(
 	header: Header,
 	transactions: Vec<SignedTransaction>,
 	uncles: Vec<Header>,
-	engine: &dyn EthEngine,
+	engine: &dyn Engine,
 	tracing: bool,
 	db: StateDB,
 	parent: &Header,
@@ -525,7 +525,7 @@ pub(crate) fn enact(
 /// Enact the block given by `block_bytes` using `engine` on the database `db` with given `parent` block header
 pub fn enact_verified(
 	block: PreverifiedBlock,
-	engine: &dyn EthEngine,
+	engine: &dyn Engine,
 	tracing: bool,
 	db: StateDB,
 	parent: &Header,
@@ -554,7 +554,7 @@ pub fn enact_verified(
 mod tests {
 	use test_helpers::get_temp_state_db;
 	use super::*;
-	use engines::EthEngine;
+	use engines::Engine;
 	use vm::LastHashes;
 	use error::Error;
 	use factory::Factories;
@@ -571,7 +571,7 @@ mod tests {
 	/// Enact the block given by `block_bytes` using `engine` on the database `db` with given `parent` block header
 	fn enact_bytes(
 		block_bytes: Vec<u8>,
-		engine: &dyn EthEngine,
+		engine: &dyn Engine,
 		tracing: bool,
 		db: StateDB,
 		parent: &Header,
@@ -624,7 +624,7 @@ mod tests {
 	/// Enact the block given by `block_bytes` using `engine` on the database `db` with given `parent` block header. Seal the block aferwards
 	fn enact_and_seal(
 		block_bytes: Vec<u8>,
-		engine: &dyn EthEngine,
+		engine: &dyn Engine,
 		tracing: bool,
 		db: StateDB,
 		parent: &Header,

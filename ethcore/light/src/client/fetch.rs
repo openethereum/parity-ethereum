@@ -21,7 +21,7 @@ use std::sync::Arc;
 use common_types::encoded;
 use common_types::header::Header;
 use common_types::receipt::Receipt;
-use ethcore::engines::{EthEngine, StateDependentProof};
+use ethcore::engines::{Engine, StateDependentProof};
 use ethereum_types::H256;
 use futures::future::IntoFuture;
 
@@ -47,7 +47,7 @@ pub trait ChainDataFetcher: Send + Sync + 'static {
 	fn epoch_transition(
 		&self,
 		_hash: H256,
-		_engine: Arc<EthEngine>,
+		_engine: Arc<Engine>,
 		_checker: Arc<StateDependentProof>
 	) -> Self::Transition;
 }
@@ -76,7 +76,7 @@ impl ChainDataFetcher for Unavailable {
 	fn epoch_transition(
 		&self,
 		_hash: H256,
-		_engine: Arc<EthEngine>,
+		_engine: Arc<Engine>,
 		_checker: Arc<StateDependentProof>
 	) -> Self::Transition {
 		Err("fetching epoch transition proofs unavailable")

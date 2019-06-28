@@ -19,7 +19,7 @@
 use std::sync::{Weak, Arc};
 
 use ethcore::client::{ClientReport, EnvInfo, ClientIoMessage};
-use ethcore::engines::{epoch, EthEngine, EpochChange, EpochTransition, Proof};
+use ethcore::engines::{epoch, Engine, EpochChange, EpochTransition, Proof};
 use ethcore::error::{Error, EthcoreResult};
 use ethcore::verification::queue::{self, HeaderQueue};
 use ethcore::spec::{Spec, SpecHardcodedSync};
@@ -114,7 +114,7 @@ pub trait LightChainClient: Send + Sync {
 	fn env_info(&self, id: BlockId) -> Option<EnvInfo>;
 
 	/// Get a handle to the consensus engine.
-	fn engine(&self) -> &Arc<EthEngine>;
+	fn engine(&self) -> &Arc<Engine>;
 
 	/// Query whether a block is known.
 	fn is_known(&self, hash: &H256) -> bool;
@@ -159,7 +159,7 @@ impl<T: LightChainClient> AsLightClient for T {
 /// Light client implementation.
 pub struct Client<T> {
 	queue: HeaderQueue,
-	engine: Arc<EthEngine>,
+	engine: Arc<Engine>,
 	chain: HeaderChain,
 	report: RwLock<ClientReport>,
 	import_lock: Mutex<()>,
@@ -375,7 +375,7 @@ impl<T: ChainDataFetcher> Client<T> {
 	}
 
 	/// Get a handle to the verification engine.
-	pub fn engine(&self) -> &Arc<EthEngine> {
+	pub fn engine(&self) -> &Arc<Engine> {
 		&self.engine
 	}
 
@@ -578,7 +578,7 @@ impl<T: ChainDataFetcher> LightChainClient for Client<T> {
 		Client::env_info(self, id)
 	}
 
-	fn engine(&self) -> &Arc<EthEngine> {
+	fn engine(&self) -> &Arc<Engine> {
 		Client::engine(self)
 	}
 
