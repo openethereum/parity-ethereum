@@ -92,7 +92,6 @@ impl EnvelopeTopic {
 		for i in 0..3 {
 			let mut topic_idx = topics_data[i] as BloomTopicIndex;
 
-			// What does `1 << i` refer to
 			if topics_data[3] & (1 << i) != 0 {
 				topic_idx += 256;
 			}
