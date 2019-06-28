@@ -24,7 +24,7 @@ use ethkey::Public;
 use jsonrpc_pubsub::typed::{Subscriber, Sink};
 use parking_lot::{Mutex, RwLock};
 
-use message::{Message, Topic};
+use message::{Message, EnvelopeTopic};
 use super::{key_store::KeyStore, types::{self, FilterItem, HexEncode}};
 
 /// Kinds of filters,
@@ -198,7 +198,7 @@ impl Drop for Manager {
 
 /// Filter incoming messages by critera.
 pub struct Filter {
-	topics: Vec<(Vec<u8>, H512, Topic)>,
+	topics: Vec<(Vec<u8>, H512, EnvelopeTopic)>,
 	from: Option<Public>,
 	decrypt_with: Option<H256>,
 }
@@ -278,7 +278,7 @@ impl Filter {
 			}
 		};
 
-		let decrypted = match decrypt.decrypt(message.data()) {
+		let decrypted = match decrypt.decrypt(message.message_data()) {
 			Some(d) => d,
 			None => {
 				trace!(target: "whisper", "Failed to decrypt message with {} matching topics",
@@ -317,7 +317,7 @@ impl Filter {
 
 #[cfg(test)]
 mod tests {
-	use message::{CreateParams, Message, Topic};
+	use message::{CreateParams, Message, EnvelopeTopic};
 	use rpc::types::{FilterRequest, HexEncode};
 	use rpc::abridge_topic;
 	use super::*;
@@ -366,7 +366,7 @@ mod tests {
 		let message = Message::create(CreateParams {
 			ttl: 100,
 			payload: vec![1, 3, 5, 7, 9],
-			topics: vec![Topic([1, 8, 3, 99])],
+			topics: vec![EnvelopeTopic([1, 8, 3, 99])],
 			work: 0,
 		}).unwrap();
 
