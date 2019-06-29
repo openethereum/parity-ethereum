@@ -20,7 +20,7 @@ use aes_gcm::{Encryptor, Decryptor};
 use ethkey::crypto::ecies;
 use ethereum_types::H256;
 use ethkey::{self, Public, Secret};
-use parity_util_mem::Memzero;
+use zeroize::Zeroizing;
 
 /// Length of AES key
 pub const AES_KEY_LEN: usize = 32;
@@ -37,7 +37,7 @@ enum AesEncode {
 }
 
 enum EncryptionInner {
-	AES(Memzero<[u8; AES_KEY_LEN]>, [u8; AES_NONCE_LEN], AesEncode),
+	AES(Zeroizing<[u8; AES_KEY_LEN]>, [u8; AES_NONCE_LEN], AesEncode),
 	ECIES(Public),
 }
 
@@ -59,7 +59,7 @@ impl EncryptionInstance {
 	///
 	/// If generating nonces with a secure RNG, limit uses such that
 	/// the chance of collision is negligible.
-	pub fn aes(key: Memzero<[u8; AES_KEY_LEN]>, nonce: [u8; AES_NONCE_LEN]) -> Self {
+	pub fn aes(key: Zeroizing<[u8; AES_KEY_LEN]>, nonce: [u8; AES_NONCE_LEN]) -> Self {
 		EncryptionInstance(EncryptionInner::AES(key, nonce, AesEncode::AppendedNonce))
 	}
 
@@ -67,7 +67,7 @@ impl EncryptionInstance {
 	///
 	/// Key reuse here is extremely dangerous. It should be randomly generated
 	/// with a secure RNG.
-	pub fn broadcast(key: Memzero<[u8; AES_KEY_LEN]>, topics: Vec<H256>) -> Self {
+	pub fn broadcast(key: Zeroizing<[u8; AES_KEY_LEN]>, topics: Vec<H256>) -> Self {
 		EncryptionInstance(EncryptionInner::AES(key, BROADCAST_IV, AesEncode::OnTopics(topics)))
 	}
 
@@ -111,7 +111,7 @@ fn xor(a: &mut [u8; 32], b: &[u8; 32]) {
 }
 
 enum AesExtract {
-	AppendedNonce(Memzero<[u8; AES_KEY_LEN]>), // extract appended nonce.
+	AppendedNonce(Zeroizing<[u8; AES_KEY_LEN]>), // extract appended nonce.
 	OnTopics(usize, usize, H256), // number of topics, index we know, topic we know.
 }
 
@@ -132,7 +132,7 @@ impl DecryptionInstance {
 	}
 
 	/// 256-bit AES GCM decryption with appended nonce.
-	pub fn aes(key: Memzero<[u8; AES_KEY_LEN]>) -> Self {
+	pub fn aes(key: Zeroizing<[u8; AES_KEY_LEN]>) -> Self {
 		DecryptionInstance(DecryptionInner::AES(AesExtract::AppendedNonce(key)))
 	}
 
@@ -167,7 +167,7 @@ impl DecryptionInstance {
 						}
 						let mut salted_topic = H256::zero();
 						salted_topic.as_bytes_mut().copy_from_slice(&ciphertext[(known_index * 32)..][..32]);
-						let key = Memzero::from((salted_topic ^ known_topic).0);
+						let key = Zeroizing::new((salted_topic ^ known_topic).0);
 						let offset = num_topics * 32;
 						Decryptor::aes_256_gcm(&*key).ok()?
 							.decrypt(&BROADCAST_IV, Vec::from(&ciphertext[offset..]))
@@ -187,6 +187,7 @@ impl DecryptionInstance {
 mod tests {
 	use super::*;
 	use rand::{Rng, rngs::OsRng};
+	use std::ops::Deref;
 
 
 	#[test]
@@ -217,9 +218,9 @@ mod tests {
 	fn encrypt_symmetric() {
 		let mut rng = OsRng::new().unwrap();
 		let mut test_message = move |message: &[u8]| {
-			let key = Memzero::from(rng.gen::<[u8; 32]>());
+			let key = Zeroizing::new(rng.gen::<[u8; 32]>());
 
-			let instance = EncryptionInstance::aes(key.clone(), rng.gen());
+			let instance = EncryptionInstance::aes(Zeroizing::new(*key.deref()), rng.gen());
 			let ciphertext = instance.encrypt(message).unwrap();
 
 			if !message.is_empty() {
@@ -245,7 +246,7 @@ mod tests {
 			let all_topics = (0..5).map(|_| H256::random_using(&mut rng)).collect::<Vec<_>>();
 			let known_idx = 2;
 			let known_topic = all_topics[2];
-			let key = Memzero::from(rng.gen::<[u8; 32]>());
+			let key = Zeroizing::new(rng.gen::<[u8; 32]>());
 
 			let instance = EncryptionInstance::broadcast(key, all_topics);
 			let ciphertext = instance.encrypt(message).unwrap();
