@@ -16,11 +16,10 @@
 
 //! Parity-specific rpc implementation.
 use std::sync::Arc;
-use std::str::FromStr;
 use std::collections::BTreeMap;
 
 use crypto::DEFAULT_MAC;
-use ethereum_types::{Address, H64, H160, H256, H512, U64, U256};
+use ethereum_types::{H64, H160, H256, H512, U64, U256};
 use ethcore::client::{BlockChainClient, StateClient, Call};
 use ethcore::miner::{self, MinerService, FilterOptions};
 use ethcore::snapshot::{SnapshotService, RestorationStatus};
@@ -165,12 +164,7 @@ impl<C, M, U, S> Parity for ParityClient<C, M, U> where
 	}
 
 	fn registry_address(&self) -> Result<Option<H160>> {
-		Ok(
-			self.client
-				.additional_params()
-				.get("registrar")
-				.and_then(|s| Address::from_str(s).ok())
-		)
+		Ok(self.client.registrar_address())
 	}
 
 	fn rpc_settings(&self) -> Result<RpcSettings> {

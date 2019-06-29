@@ -138,7 +138,7 @@ pub struct CommonParams {
 	/// Gas limit bound divisor (how much gas limit can change per block)
 	pub gas_limit_bound_divisor: U256,
 	/// Registrar contract address.
-	pub registrar: Address,
+	pub registrar: Option<Address>,
 	/// Node permission managing contract address.
 	pub node_permission_contract: Option<Address>,
 	/// Maximum contract code size that can be deployed.
@@ -315,7 +315,7 @@ impl From<ethjson::spec::Params> for CommonParams {
 			nonce_cap_increment: p.nonce_cap_increment.map_or(64, Into::into),
 			remove_dust_contracts: p.remove_dust_contracts.unwrap_or(false),
 			gas_limit_bound_divisor: p.gas_limit_bound_divisor.into(),
-			registrar: p.registrar.map_or_else(Address::zero, Into::into),
+			registrar: p.registrar.map(Into::into),
 			node_permission_contract: p.node_permission_contract.map(Into::into),
 			max_code_size: p.max_code_size.map_or(u64::max_value(), Into::into),
 			max_transaction_size: p.max_transaction_size.map_or(MAX_TRANSACTION_SIZE, Into::into),
