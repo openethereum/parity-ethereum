@@ -38,7 +38,7 @@ pub use types::engines::ForkChoice;
 pub use types::engines::epoch::{self, Transition as EpochTransition};
 
 use std::sync::{Weak, Arc};
-use std::collections::{BTreeMap, HashMap};
+use std::collections::BTreeMap;
 use std::{fmt, error};
 
 use builtin::Builtin;
@@ -541,11 +541,6 @@ pub trait Engine: Sync + Send {
 	/// TODO: consider including State in the params.
 	fn verify_transaction_basic(&self, t: &UnverifiedTransaction, header: &Header) -> Result<(), transaction::Error> {
 		self.machine().verify_transaction_basic(t, header)
-	}
-
-	/// Additional information.
-	fn additional_params(&self) -> HashMap<String, String> {
-		self.machine().additional_params()
 	}
 
 	/// Performs pre-validation of RLP decoded transaction before other processing

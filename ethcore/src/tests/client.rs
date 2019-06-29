@@ -69,11 +69,8 @@ fn should_return_registrar() {
 		Arc::new(Miner::new_for_tests(&spec, None)),
 		IoChannel::disconnected(),
 	).unwrap();
-	let params = client.additional_params();
-	let address = &params["registrar"];
-
-	assert_eq!(address.len(), 40);
-	assert!(U256::from_str(address).is_ok());
+	let address = client.registrar_address();
+	assert_eq!(address, Some("52dff57a8a1532e6afb3dc07e2af58bb9eb05b3d".parse().unwrap()));
 }
 
 #[test]
