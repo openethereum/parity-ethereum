@@ -50,7 +50,7 @@ type AuthenticationTagLength = usize;
 /// Plaintext message data to seal.
 type Plaintext = Vec<u8>;
 
-/// Cyphertext.
+/// Ciphertext.
 type Ciphertext = Vec<u8>;
 
 /// AES-GCM encryptor provides the authenticated encryption operation.
