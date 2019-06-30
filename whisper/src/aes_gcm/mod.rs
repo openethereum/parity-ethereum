@@ -38,20 +38,16 @@ use ring;
 /// appropriate for the underlying block cipher.
 type SecretKey = [u8; 32];
 
-/// Initialization Vector (IV) whose purpose is to be a nonce that is used during
-/// the sealing process, whose number of bits are between ??? (1 to 2^64 is the
-/// value used for for 128-bit block ciphers, (cf. [[2]])).
+/// Initialization Vector (IV) is a nonce used during the sealing process.
 /// It must be distinct for each invocation of the encryption
 /// operation for a fixed value of the Secret Key. It is authenticated but it is
 /// not necessary to include it in the Additional Authenticated Data (AAD) field.
 type Nonce = [u8; 12];
 
-/// Authentication Tag Length that determines the authentication strength and may be
-/// between 0 and 256 bits.
+/// Authentication Tag Length that determines the authentication strength.
 type AuthenticationTagLength = usize;
 
-/// Plaintext message data to seal, whose number of bits may be between ???
-/// (0 to 2^39 - 256 is the value used for for 128-bit block ciphers, see (cf. [[2]])).
+/// Plaintext message data to seal.
 type Plaintext = Vec<u8>;
 
 /// Cyphertext.
