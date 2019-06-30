@@ -14,9 +14,50 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
+//! # AES-GCM Module
+//!
+//! ### Overview
+//!
+//! Whisper's network protocol is secured using the Galois/Counter Mode of
+//! Operation (GCM) block cipher that provides confidentiality and message
+//! authentication assurance to inputs on each invocation (cf. [[2]]). 
+//!
+//! It provides authenticated encryption and signing ("sealing") of data,
+//! and authenticated decryption ("opening") of data that has been protected
+//! with Authenticated Encryption with Associated Data (AEAD).
+//! 
+//! It is constructed from the approved symmetric key block cipher Advanced
+//! Encryption Standard (AES) with a block size of 256-bits.
+//!
+//! [1]: https://nvlpubs.nist.gov/nistpubs/Legacy/SP/nistspecialpublication800-38d.pdf
+//! [2]: http://luca-giuzzi.unibs.it/corsi/Support/papers-cryptography/gcm-spec.pdf
+
 use ring;
 
-/// AES GCM encryptor.
+/// Cryptographic secret key to seal the plaintext message, whose length is
+/// appropriate for the underlying block cipher.
+type SecretKey = [u8; 32];
+
+/// Initialization Vector (IV) whose purpose is to be a nonce that is used during
+/// the sealing process, whose number of bits are between ??? (1 to 2^64 is the
+/// value used for for 128-bit block ciphers, (cf. [[2]])).
+/// It must be distinct for each invocation of the encryption
+/// operation for a fixed value of the Secret Key. It is authenticated but it is
+/// not necessary to include it in the Additional Authenticated Data (AAD) field.
+type Nonce = [u8; 12];
+
+/// Authentication Tag Length that determines the authentication strength and may be
+/// between 0 and 256 bits.
+type AuthenticationTagLength = usize;
+
+/// Plaintext message data to seal, whose number of bits may be between ???
+/// (0 to 2^39 - 256 is the value used for for 128-bit block ciphers, see (cf. [[2]])).
+type Plaintext = Vec<u8>;
+
+/// Cyphertext.
+type Ciphertext = Vec<u8>;
+
+/// AES-GCM encryptor provides the authenticated encryption operation.
 pub struct Encryptor<'a> {
     key: ring::aead::SealingKey,
     ad: &'a [u8],
@@ -24,7 +65,7 @@ pub struct Encryptor<'a> {
 }
 
 impl<'a> Encryptor<'a> {
-    pub fn aes_256_gcm(key: &[u8; 32]) -> Result<Encryptor<'a>, ring::error::Unspecified> {
+    pub fn aes_256_gcm(key: &SecretKey) -> Result<Encryptor<'a>, ring::error::Unspecified> {
         let sk = ring::aead::SealingKey::new(&ring::aead::AES_256_GCM, key)?;
         Ok(Encryptor {
             key: sk,
@@ -43,11 +84,11 @@ impl<'a> Encryptor<'a> {
     /// limits the number of messages encrypted with the same key to 2^32 (cf. [[1]])
     ///
     /// [1]: https://nvlpubs.nist.gov/nistpubs/Legacy/SP/nistspecialpublication800-38d.pdf
-    pub fn encrypt(&self, nonce: &[u8; 12], mut data: Vec<u8>) -> Result<Vec<u8>, ring::error::Unspecified> {
+    pub fn encrypt(&self, nonce: &Nonce, mut data: Plaintext) -> Result<Ciphertext, ring::error::Unspecified> {
         if self.offset > data.len() {
             return Err(ring::error::Unspecified)
         }
-        let tag_len = ring::aead::AES_256_GCM.tag_len();
+        let tag_len: AuthenticationTagLength = ring::aead::AES_256_GCM.tag_len();
         data.extend(::std::iter::repeat(0).take(tag_len));
         let nonce = ring::aead::Nonce::assume_unique_for_key(*nonce);
         let aad = ring::aead::Aad::from(self.ad);
@@ -57,7 +98,7 @@ impl<'a> Encryptor<'a> {
     }
 }
 
-/// AES GCM decryptor.
+/// AES-GCM decryptor provides the authenticated decryption operation.
 pub struct Decryptor<'a> {
     key: ring::aead::OpeningKey,
     ad: &'a [u8],
@@ -65,7 +106,7 @@ pub struct Decryptor<'a> {
 }
 
 impl<'a> Decryptor<'a> {
-    pub fn aes_256_gcm(key: &[u8; 32]) -> Result<Decryptor<'a>, ring::error::Unspecified> {
+    pub fn aes_256_gcm(key: &SecretKey) -> Result<Decryptor<'a>, ring::error::Unspecified> {
         let ok = ring::aead::OpeningKey::new(&ring::aead::AES_256_GCM, key)?;
         Ok(Decryptor {
             key: ok,
@@ -74,7 +115,7 @@ impl<'a> Decryptor<'a> {
         })
     }
 
-    pub fn decrypt(&self, nonce: &[u8; 12], mut data: Vec<u8>) -> Result<Vec<u8>, ring::error::Unspecified> {
+    pub fn decrypt(&self, nonce: &Nonce, mut data: Ciphertext) -> Result<Plaintext, ring::error::Unspecified> {
         if self.offset > data.len() {
             return Err(ring::error::Unspecified)
         }
