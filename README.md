@@ -65,7 +65,7 @@ We recommend installing Rust through [rustup](https://www.rustup.rs/). If you do
 
   `clang` is required. It comes with Xcode command line tools or can be installed with homebrew.
 
-- Windows
+- Windows:  
   Make sure you have Visual Studio 2015 with C++ support installed. Next, download and run the `rustup` installer from
   https://static.rust-lang.org/rustup/dist/x86_64-pc-windows-msvc/rustup-init.exe, start "VS2015 x64 Native Tools Command Prompt", and use the following command to install and set up the `msvc` toolchain:
   ```bash
