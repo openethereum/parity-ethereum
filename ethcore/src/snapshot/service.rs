@@ -369,7 +369,7 @@ impl Service {
 			// we could salvage them but what if there's been a re-org at the boundary and the two
 			// chains do not match anymore? We'd have to check the existing blocks carefully.
 			if cur_chain_info.ancient_block_number.is_none() && cur_chain_info.first_block_number.unwrap_or(0) > 0 {
-				info!(target: "blockchain", "blocks in the current DB do not stretch back to genesis; can't salvage them into the new DB. In current DB, first block: #{}/{:#x}, best block: #{}/{:#x}",
+				info!(target: "blockchain", "blocks in the current DB do not stretch back to genesis; can't salvage them into the new DB. In current DB, first block: #{:?}/{:?}, best block: #{:?}/{:?}",
 					cur_chain_info.first_block_number, cur_chain_info.first_block_hash,
 					cur_chain_info.best_block_number, cur_chain_info.best_block_hash);
 				return None;
