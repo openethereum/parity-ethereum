@@ -108,7 +108,7 @@ impl fmt::Display for Error {
 			Error::SnapshotAborted => write!(f, "Snapshot was aborted."),
 			Error::BadEpochProof(i) => write!(f, "Bad epoch proof for transition to epoch {}", i),
 			Error::WrongChunkFormat(ref msg) => write!(f, "Wrong chunk format: {}", msg),
-			Error::UnlinkedAncientBlockChain(parent_hash) => write!(f, "Unlinked ancient blocks chain at parent_hash={}", parent_hash),
+			Error::UnlinkedAncientBlockChain(parent_hash) => write!(f, "Unlinked ancient blocks chain at parent_hash={:#x}", parent_hash),
 		}
 	}
 }
