@@ -118,6 +118,7 @@ impl ValidatorSet for ValidatorContract {
 	}
 
 	fn report_benign(&self, address: &Address, _set_block: BlockNumber, block: BlockNumber) {
+		trace!(target: "engine", "validator set recording benign misbehaviour at block #{} by {:#x}", block, address);
 		let data = validator_report::functions::report_benign::encode_input(*address, block);
 		match self.transact(data) {
 			Ok(_) => warn!(target: "engine", "Reported benign validator misbehaviour {}", address),

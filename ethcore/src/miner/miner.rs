@@ -680,7 +680,7 @@ impl Miner {
 		trace!(target: "miner", "seal_block_internally: attempting internal seal for block #{}", block_number);
 
 		let parent_header = match chain.block_header(BlockId::Hash(*block.header.parent_hash())) {
-			Some(h) => {
+				Some(h) => {
 				match h.decode() {
 					Ok(decoded_hdr) => decoded_hdr,
 					Err(e) => {
@@ -695,36 +695,46 @@ impl Miner {
 			},
 		};
 
-		// Take a lock on this parent_hash to stop any other blocks to be sealed with the same parent hash
+		// Take a lock on this parent_hash to stop any other blocks to be sealed with the same parent hash.
+		// NOTE: this does not work: when reporting misbehaviour the contract ends up calling back
+		// here again as part of `import_own_transaction` so we deadlock (cf. reports_validators
+		// test).
 		let mut last_parent_hash = self.last_parent_hash.write();
 		trace!(target: "miner", "Block #{}, Setting last parent hash. was: {}, becomes: {}", block_number, *last_parent_hash, block.header.hash());
 		*last_parent_hash = block.header.hash();
+		trace!(target: "miner", "Block #{} ACQUIRED last_hash LOCK", block_number);
 
-		let res =
-		match self.engine.generate_seal(&block, &parent_header) {
-			// Directly import a regular sealed block.
-			Seal::Regular(seal) => {
-				trace!(target: "miner", "Block #{}: Received a Regular seal.", block_number);
-				{
-					let mut sealing = self.sealing.lock();
-					sealing.next_mandatory_reseal = Instant::now() + self.options.reseal_max_period;
-				}
+		let sealing_result =
+			match self.engine.generate_seal(&block, &parent_header) {
+				// Directly import a regular sealed block.
+				Seal::Regular(seal) => {
+					trace!(target: "miner", "Block #{}: Received a Regular seal.", block_number);
+					{
+						let mut sealing = self.sealing.lock();
+						sealing.next_mandatory_reseal = Instant::now() + self.options.reseal_max_period;
+					}
 
-				block
-					.lock()
-					.seal(&*self.engine, seal)
-					.map(|sealed| {
-						chain.import_sealed_block(sealed).is_ok()
-					})
-					.unwrap_or_else(|e| {
-						warn!("ERROR: Block #{}, importing sealed block failed when given internally generated seal: {}", block_number, e);
-						false
-					})
-			},
-			Seal::None => false,
-		};
-		trace!(target:"miner", "Block: #{}, seal_and_import_block_internally: done, returning {}", block_number, res);
-		res
+					block
+						.lock()
+						.seal(&*self.engine, seal)
+						.map(|sealed| {
+							match chain.import_sealed_block(sealed) {
+								Ok(_) => true,
+								Err(e) => {
+									error!(target: "miner", "Block #{}: seal_and_import_block_internally: import_sealed_block returned {:?}", block_number, e);
+									false
+								}
+							}
+						})
+						.unwrap_or_else(|e| {
+							warn!("ERROR: Block #{}, importing sealed block failed when given internally generated seal: {}", block_number, e);
+							false
+						})
+				},
+				Seal::None => false,
+			};
+		trace!(target:"miner", "Block #{}: seal_and_import_block_internally: done, returning {}", block_number, sealing_result);
+		sealing_result
 	}
 
 	/// Prepares work which has to be done to seal.

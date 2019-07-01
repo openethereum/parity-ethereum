@@ -570,7 +570,7 @@ fn header_empty_steps_signers(header: &Header, empty_steps_transition: u64) -> R
 
 fn step_proposer(validators: &dyn ValidatorSet, bh: &H256, step: u64) -> Address {
 	let proposer = validators.get(bh, step as usize);
-	trace!(target: "engine", "Fetched proposer for step {}: {}", step, proposer);
+	trace!(target: "engine", "step_proposer: Fetched proposer for step {}: {}", step, proposer);
 	proposer
 }
 
@@ -823,8 +823,8 @@ impl AuthorityRound {
 				if skipped_primary != me {
 					// Stop reporting once validators start repeating.
 					if !reported.insert(skipped_primary) { break; }
-					trace!(target: "engine", "Reporting benign misbehaviour (cause: skipped step) at block #{}, epoch set number {}. Own address: {}",
-						header.number(), set_number, me);
+					trace!(target: "engine", "Reporting benign misbehaviour (cause: skipped step) at block #{}, epoch set number {}, step proposer={:#x}. Own address: {}",
+						header.number(), set_number, skipped_primary, me);
 					self.validators.report_benign(&skipped_primary, set_number, header.number());
 				} else {
 					trace!(target: "engine", "Primary that skipped is self, not self-reporting. Own address: {}", me);
@@ -1142,6 +1142,7 @@ impl Engine for AuthorityRound {
 		};
 
 		if is_step_proposer(&*validators, header.parent_hash(), step, header.author()) {
+			trace!(target: "engine", "generate_seal: we are step proposer for step={}, block=#{}", step, header.number());
 			// if there are no transactions to include in the block, we don't seal and instead broadcast a signed
 			// `EmptyStep(step, parent_hash)` message. If we exceed the maximum amount of `empty_step` rounds we proceed
 			// with the seal.
@@ -1150,6 +1151,7 @@ impl Engine for AuthorityRound {
 				empty_steps.len() < self.maximum_empty_steps {
 
 				if self.step.can_propose.compare_and_swap(true, false, AtomicOrdering::SeqCst) {
+					trace!(target: "engine", "generate_seal: generating empty step at step={}, block=#{}", step, header.number());
 					self.generate_empty_step(header.parent_hash());
 				}
 
@@ -1176,6 +1178,7 @@ impl Engine for AuthorityRound {
 					// report any skipped primaries between the parent block and
 					// the block we're sealing, unless we have empty steps enabled
 					if header.number() < self.empty_steps_transition {
+						trace!(target: "engine", "generate_seal: reporting misbehaviour for step={}, block=#{}", step, header.number());
 						self.report_skipped(header, step, parent_step, &*validators, epoch_transition_number);
 					}
 
@@ -1187,7 +1190,7 @@ impl Engine for AuthorityRound {
 					if let Some(empty_steps_rlp) = empty_steps_rlp {
 						fields.push(empty_steps_rlp);
 					}
-
+					trace!(target: "engine", "generate_seal: returning Seal::Regular for step={}, block=#{}", step, header.number());
 					return Seal::Regular(fields);
 				}
 			} else {
@@ -1197,7 +1200,7 @@ impl Engine for AuthorityRound {
 			trace!(target: "engine", "generate_seal: {} not a proposer for step {}.",
 				header.author(), step);
 		}
-
+		trace!(target: "engine", "generate_seal: returning Seal::None for step={}, block=#{}", step, header.number());
 		Seal::None
 	}
 
