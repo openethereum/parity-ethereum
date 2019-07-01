@@ -19,7 +19,7 @@
 use parity_util_mem::MallocSizeOf;
 use ethereum_types::{H256, Address};
 
-use machine::{AuxiliaryData, Call, EthereumMachine};
+use machine::{AuxiliaryData, Call, Machine};
 use types::BlockNumber;
 use types::header::Header;
 use super::ValidatorSet;
@@ -73,12 +73,12 @@ impl ValidatorSet for SimpleList {
 	}
 
 	fn signals_epoch_end(&self, _: bool, _: &Header, _: AuxiliaryData)
-		-> ::engines::EpochChange<EthereumMachine>
+		-> ::engines::EpochChange
 	{
 		::engines::EpochChange::No
 	}
 
-	fn epoch_set(&self, _first: bool, _: &EthereumMachine, _: BlockNumber, _: &[u8]) -> Result<(SimpleList, Option<H256>), ::error::Error> {
+	fn epoch_set(&self, _first: bool, _: &Machine, _: BlockNumber, _: &[u8]) -> Result<(SimpleList, Option<H256>), ::error::Error> {
 		Ok((self.clone(), None))
 	}
 

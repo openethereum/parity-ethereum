@@ -20,7 +20,7 @@ use std::sync::Arc;
 use ethereum_types::{H256, U256, Address, BigEndianHash};
 use bytes::Bytes;
 use state::{Backend as StateBackend, State, Substate, CleanupMode};
-use machine::EthereumMachine as Machine;
+use machine::Machine;
 use executive::*;
 use vm::{
 	self, ActionParams, ActionValue, EnvInfo, CallType, Schedule,
@@ -458,7 +458,7 @@ mod tests {
 
 	struct TestSetup {
 		state: State<::state_db::StateDB>,
-		machine: ::machine::EthereumMachine,
+		machine: ::machine::Machine,
 		schedule: Schedule,
 		sub_state: Substate,
 		env_info: EnvInfo

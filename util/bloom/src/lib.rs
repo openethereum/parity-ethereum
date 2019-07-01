@@ -14,11 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
-extern crate siphasher;
-
-use std::cmp;
-use std::mem;
-use std::f64;
+use std::{cmp, mem, f64};
 use std::hash::{Hash, Hasher};
 use std::collections::HashSet;
 use siphasher::sip::SipHasher;

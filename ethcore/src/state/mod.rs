@@ -27,7 +27,7 @@ use std::sync::Arc;
 use hash::{KECCAK_NULL_RLP, KECCAK_EMPTY};
 
 use types::receipt::{Receipt, TransactionOutcome};
-use machine::EthereumMachine as Machine;
+use machine::Machine;
 use vm::EnvInfo;
 use error::Error;
 use executive::{Executive, TransactOptions};
@@ -1345,7 +1345,7 @@ mod tests {
 	use ethkey::Secret;
 	use ethereum_types::{H256, U256, Address, BigEndianHash};
 	use test_helpers::{get_temp_state, get_temp_state_db};
-	use machine::EthereumMachine;
+	use machine::Machine;
 	use vm::EnvInfo;
 	use spec::*;
 	use types::transaction::*;
@@ -1356,7 +1356,7 @@ mod tests {
 		keccak("").into()
 	}
 
-	fn make_frontier_machine(max_depth: usize) -> EthereumMachine {
+	fn make_frontier_machine(max_depth: usize) -> Machine {
 		let mut machine = ::ethereum::new_frontier_test_machine();
 		machine.set_schedule_creation_rules(Box::new(move |s, _| s.max_depth = max_depth));
 		machine
@@ -2678,7 +2678,7 @@ mod tests {
 		state.kill_account(&a);
 
 		let diff = state.diff_from(original).unwrap();
-		let diff_map = diff.get();
+		let diff_map = diff.raw;
 		assert_eq!(diff_map.len(), 1);
 		assert!(diff_map.get(&a).is_some());
 		assert_eq!(diff_map.get(&a),
@@ -2709,7 +2709,7 @@ mod tests {
 		state.set_storage(&a, BigEndianHash::from_uint(&U256::from(1u64)), BigEndianHash::from_uint(&U256::from(100u64))).unwrap();
 
 		let diff = state.diff_from(original).unwrap();
-		let diff_map = diff.get();
+		let diff_map = diff.raw;
 		assert_eq!(diff_map.len(), 1);
 		assert!(diff_map.get(&a).is_some());
 		assert_eq!(diff_map.get(&a),

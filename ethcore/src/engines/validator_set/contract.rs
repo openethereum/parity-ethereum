@@ -21,7 +21,7 @@ use std::sync::Weak;
 
 use bytes::Bytes;
 use ethereum_types::{H256, Address};
-use machine::{AuxiliaryData, Call, EthereumMachine};
+use machine::{AuxiliaryData, Call, Machine};
 use parking_lot::RwLock;
 use types::BlockNumber;
 use types::header::Header;
@@ -89,11 +89,11 @@ impl ValidatorSet for ValidatorContract {
 		first: bool,
 		header: &Header,
 		aux: AuxiliaryData,
-	) -> ::engines::EpochChange<EthereumMachine> {
+	) -> ::engines::EpochChange {
 		self.validators.signals_epoch_end(first, header, aux)
 	}
 
-	fn epoch_set(&self, first: bool, machine: &EthereumMachine, number: BlockNumber, proof: &[u8]) -> Result<(SimpleList, Option<H256>), ::error::Error> {
+	fn epoch_set(&self, first: bool, machine: &Machine, number: BlockNumber, proof: &[u8]) -> Result<(SimpleList, Option<H256>), ::error::Error> {
 		self.validators.epoch_set(first, machine, number, proof)
 	}
 

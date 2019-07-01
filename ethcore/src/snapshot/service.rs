@@ -29,7 +29,7 @@ use super::io::{SnapshotReader, LooseReader, SnapshotWriter, LooseWriter};
 
 use blockchain::{BlockChain, BlockChainDB, BlockChainDBHandler};
 use client::{BlockInfo, BlockChainClient, Client, ChainInfo, ClientIoMessage};
-use engines::EthEngine;
+use engines::Engine;
 use error::Error;
 use snapshot::{Error as SnapshotError};
 use hash::keccak;
@@ -91,7 +91,7 @@ struct RestorationParams<'a> {
 	writer: Option<LooseWriter>, // writer for recovered snapshot.
 	genesis: &'a [u8], // genesis block of the chain.
 	guard: Guard, // guard for the restoration directory.
-	engine: &'a dyn EthEngine,
+	engine: &'a dyn Engine,
 }
 
 impl Restoration {
@@ -149,7 +149,7 @@ impl Restoration {
 	}
 
 	// feeds a block chunk
-	fn feed_blocks(&mut self, hash: H256, chunk: &[u8], engine: &dyn EthEngine, flag: &AtomicBool) -> Result<(), Error> {
+	fn feed_blocks(&mut self, hash: H256, chunk: &[u8], engine: &dyn Engine, flag: &AtomicBool) -> Result<(), Error> {
 		if self.block_chunks_left.contains(&hash) {
 			let expected_len = snappy::decompressed_len(chunk)?;
 			if expected_len > MAX_CHUNK_SIZE {
@@ -170,7 +170,7 @@ impl Restoration {
 	}
 
 	// finish up restoration.
-	fn finalize(mut self, engine: &dyn EthEngine) -> Result<(), Error> {
+	fn finalize(mut self, engine: &dyn Engine) -> Result<(), Error> {
 		use trie::TrieError;
 
 		if !self.is_done() { return Ok(()) }
@@ -211,7 +211,7 @@ pub trait SnapshotClient: BlockChainClient + BlockInfo + DatabaseRestore {}
 /// Snapshot service parameters.
 pub struct ServiceParams {
 	/// The consensus engine this is built on.
-	pub engine: Arc<dyn EthEngine>,
+	pub engine: Arc<dyn Engine>,
 	/// The chain's genesis block.
 	pub genesis_block: Bytes,
 	/// State pruning algorithm.
@@ -237,7 +237,7 @@ pub struct Service {
 	pruning: Algorithm,
 	status: Mutex<RestorationStatus>,
 	reader: RwLock<Option<LooseReader>>,
-	engine: Arc<dyn EthEngine>,
+	engine: Arc<dyn Engine>,
 	genesis_block: Bytes,
 	state_chunks: AtomicUsize,
 	block_chunks: AtomicUsize,

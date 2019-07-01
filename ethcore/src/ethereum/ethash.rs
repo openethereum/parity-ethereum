@@ -32,7 +32,7 @@ use engines::block_reward::{self, BlockRewardContract, RewardKind};
 use engines::{self, Engine};
 use error::{BlockError, Error};
 use ethash::{self, quick_get_difficulty, slow_hash_block_number, EthashManager, OptimizeFor};
-use machine::EthereumMachine;
+use machine::Machine;
 
 /// Number of blocks in an ethash snapshot.
 // make dependent on difficulty incrment divisor?
@@ -174,7 +174,7 @@ impl From<ethjson::spec::EthashParams> for EthashParams {
 pub struct Ethash {
 	ethash_params: EthashParams,
 	pow: EthashManager,
-	machine: EthereumMachine,
+	machine: Machine,
 }
 
 impl Ethash {
@@ -182,7 +182,7 @@ impl Ethash {
 	pub fn new<T: Into<Option<OptimizeFor>>>(
 		cache_dir: &Path,
 		ethash_params: EthashParams,
-		machine: EthereumMachine,
+		machine: Machine,
 		optimize_for: T,
 	) -> Arc<Self> {
 		let progpow_transition = ethash_params.progpow_transition;
@@ -203,16 +203,16 @@ impl Ethash {
 // for any block in the chain.
 // in the future, we might move the Ethash epoch
 // caching onto this mechanism as well.
-impl engines::EpochVerifier<EthereumMachine> for Arc<Ethash> {
+impl engines::EpochVerifier for Arc<Ethash> {
 	fn verify_light(&self, _header: &Header) -> Result<(), Error> { Ok(()) }
 	fn verify_heavy(&self, header: &Header) -> Result<(), Error> {
 		self.verify_block_unordered(header)
 	}
 }
 
-impl Engine<EthereumMachine> for Arc<Ethash> {
+impl Engine for Arc<Ethash> {
 	fn name(&self) -> &str { "Ethash" }
-	fn machine(&self) -> &EthereumMachine { &self.machine }
+	fn machine(&self) -> &Machine { &self.machine }
 
 	// Two fields - nonce and mix.
 	fn seal_fields(&self, _header: &Header) -> usize { 2 }
@@ -373,7 +373,7 @@ impl Engine<EthereumMachine> for Arc<Ethash> {
 		Ok(())
 	}
 
-	fn epoch_verifier<'a>(&self, _header: &Header, _proof: &'a [u8]) -> engines::ConstructedVerifier<'a, EthereumMachine> {
+	fn epoch_verifier<'a>(&self, _header: &Header, _proof: &'a [u8]) -> engines::ConstructedVerifier<'a> {
 		engines::ConstructedVerifier::Trusted(Box::new(self.clone()))
 	}
 

@@ -16,19 +16,12 @@
 
 //! Ethereum blooms database
 
-extern crate byteorder;
-extern crate ethbloom;
-extern crate parking_lot;
-extern crate tiny_keccak;
-
-#[cfg(test)]
-extern crate tempdir;
-
 mod db;
 mod file;
 
 use std::io;
 use std::path::Path;
+use ethbloom;
 use parking_lot::Mutex;
 
 /// Threadsafe API for blooms database.

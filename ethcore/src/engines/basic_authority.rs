@@ -26,7 +26,7 @@ use engines::signer::EngineSigner;
 use error::{BlockError, Error};
 use ethjson;
 use client::EngineClient;
-use machine::{AuxiliaryData, Call, EthereumMachine};
+use machine::{AuxiliaryData, Call, Machine};
 use types::header::{Header, ExtendedHeader};
 use super::validator_set::{ValidatorSet, SimpleList, new_validator_set};
 
@@ -49,7 +49,7 @@ struct EpochVerifier {
 	list: SimpleList,
 }
 
-impl super::EpochVerifier<EthereumMachine> for EpochVerifier {
+impl super::EpochVerifier for EpochVerifier {
 	fn verify_light(&self, header: &Header) -> Result<(), Error> {
 		verify_external(header, &self.list)
 	}
@@ -74,14 +74,14 @@ fn verify_external(header: &Header, validators: &dyn ValidatorSet) -> Result<(),
 
 /// Engine using `BasicAuthority`, trivial proof-of-authority consensus.
 pub struct BasicAuthority {
-	machine: EthereumMachine,
+	machine: Machine,
 	signer: RwLock<Option<Box<dyn EngineSigner>>>,
 	validators: Box<dyn ValidatorSet>,
 }
 
 impl BasicAuthority {
 	/// Create a new instance of BasicAuthority engine
-	pub fn new(our_params: BasicAuthorityParams, machine: EthereumMachine) -> Self {
+	pub fn new(our_params: BasicAuthorityParams, machine: Machine) -> Self {
 		BasicAuthority {
 			machine: machine,
 			signer: RwLock::new(None),
@@ -90,10 +90,10 @@ impl BasicAuthority {
 	}
 }
 
-impl Engine<EthereumMachine> for BasicAuthority {
+impl Engine for BasicAuthority {
 	fn name(&self) -> &str { "BasicAuthority" }
 
-	fn machine(&self) -> &EthereumMachine { &self.machine }
+	fn machine(&self) -> &Machine { &self.machine }
 
 	// One field - the signature
 	fn seal_fields(&self, _header: &Header) -> usize { 1 }
@@ -135,7 +135,7 @@ impl Engine<EthereumMachine> for BasicAuthority {
 
 	#[cfg(not(test))]
 	fn signals_epoch_end(&self, _header: &Header, _auxiliary: AuxiliaryData)
-		-> super::EpochChange<EthereumMachine>
+		-> super::EpochChange
 	{
 		// don't bother signalling even though a contract might try.
 		super::EpochChange::No
@@ -143,7 +143,7 @@ impl Engine<EthereumMachine> for BasicAuthority {
 
 	#[cfg(test)]
 	fn signals_epoch_end(&self, header: &Header, auxiliary: AuxiliaryData)
-		-> super::EpochChange<EthereumMachine>
+		-> super::EpochChange
 	{
 		// in test mode, always signal even though they don't be finalized.
 		let first = header.number() == 0;
@@ -172,7 +172,7 @@ impl Engine<EthereumMachine> for BasicAuthority {
 		self.is_epoch_end(chain_head, &[], chain, transition_store)
 	}
 
-	fn epoch_verifier<'a>(&self, header: &Header, proof: &'a [u8]) -> ConstructedVerifier<'a, EthereumMachine> {
+	fn epoch_verifier<'a>(&self, header: &Header, proof: &'a [u8]) -> ConstructedVerifier<'a> {
 		let first = header.number() == 0;
 
 		match self.validators.epoch_set(first, &self.machine, header.number(), proof) {

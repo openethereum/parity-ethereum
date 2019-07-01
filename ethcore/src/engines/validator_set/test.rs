@@ -26,7 +26,7 @@ use ethereum_types::{H256, Address};
 use types::BlockNumber;
 use types::header::Header;
 
-use machine::{AuxiliaryData, Call, EthereumMachine};
+use machine::{AuxiliaryData, Call, Machine};
 use super::{ValidatorSet, SimpleList};
 
 /// Set used for testing with a single validator.
@@ -67,12 +67,12 @@ impl ValidatorSet for TestSet {
 	fn is_epoch_end(&self, _first: bool, _chain_head: &Header) -> Option<Vec<u8>> { None }
 
 	fn signals_epoch_end(&self, _: bool, _: &Header, _: AuxiliaryData)
-		-> ::engines::EpochChange<EthereumMachine>
+		-> ::engines::EpochChange
 	{
 		::engines::EpochChange::No
 	}
 
-	fn epoch_set(&self, _: bool, _: &EthereumMachine, _: BlockNumber, _: &[u8]) -> Result<(SimpleList, Option<H256>), ::error::Error> {
+	fn epoch_set(&self, _: bool, _: &Machine, _: BlockNumber, _: &[u8]) -> Result<(SimpleList, Option<H256>), ::error::Error> {
 		Ok((self.validator.clone(), None))
 	}
 

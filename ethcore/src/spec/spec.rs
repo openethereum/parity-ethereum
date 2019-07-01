@@ -35,13 +35,13 @@ use vm::{EnvInfo, CallType, ActionValue, ActionParams, ParamsType};
 
 use builtin::Builtin;
 use engines::{
-	EthEngine, NullEngine, InstantSeal, InstantSealParams, BasicAuthority, Clique,
+	Engine, NullEngine, InstantSeal, InstantSealParams, BasicAuthority, Clique,
 	AuthorityRound, DEFAULT_BLOCKHASH_CONTRACT
 };
 use error::Error;
 use executive::Executive;
 use factory::Factories;
-use machine::EthereumMachine;
+use machine::Machine;
 use pod_state::PodState;
 use spec::Genesis;
 use spec::seal::Generic as GenericSeal;
@@ -138,7 +138,7 @@ pub struct CommonParams {
 	/// Gas limit bound divisor (how much gas limit can change per block)
 	pub gas_limit_bound_divisor: U256,
 	/// Registrar contract address.
-	pub registrar: Address,
+	pub registrar: Option<Address>,
 	/// Node permission managing contract address.
 	pub node_permission_contract: Option<Address>,
 	/// Maximum contract code size that can be deployed.
@@ -315,7 +315,7 @@ impl From<ethjson::spec::Params> for CommonParams {
 			nonce_cap_increment: p.nonce_cap_increment.map_or(64, Into::into),
 			remove_dust_contracts: p.remove_dust_contracts.unwrap_or(false),
 			gas_limit_bound_divisor: p.gas_limit_bound_divisor.into(),
-			registrar: p.registrar.map_or_else(Address::zero, Into::into),
+			registrar: p.registrar.map(Into::into),
 			node_permission_contract: p.node_permission_contract.map(Into::into),
 			max_code_size: p.max_code_size.map_or(u64::max_value(), Into::into),
 			max_transaction_size: p.max_transaction_size.map_or(MAX_TRANSACTION_SIZE, Into::into),
@@ -382,7 +382,7 @@ pub struct Spec {
 	/// User friendly spec name
 	pub name: String,
 	/// What engine are we using for this?
-	pub engine: Arc<dyn EthEngine>,
+	pub engine: Arc<dyn Engine>,
 	/// Name of the subdir inside the main data dir to use for chain data and settings.
 	pub data_dir: String,
 
@@ -488,7 +488,7 @@ impl From<SpecHardcodedSync> for ethjson::spec::HardcodedSync {
 	}
 }
 
-fn load_machine_from(s: ethjson::spec::Spec) -> EthereumMachine {
+fn load_machine_from(s: ethjson::spec::Spec) -> Machine {
 	let builtins = s.accounts.builtins().into_iter().map(|p| (p.0.into(), From::from(p.1))).collect();
 	let params = CommonParams::from(s.params);
 
@@ -586,11 +586,11 @@ impl Spec {
 		engine_spec: &ethjson::spec::Engine,
 		params: CommonParams,
 		builtins: BTreeMap<Address, Builtin>,
-	) -> EthereumMachine {
+	) -> Machine {
 		if let ethjson::spec::Engine::Ethash(ref ethash) = *engine_spec {
-			EthereumMachine::with_ethash_extensions(params, builtins, ethash.params.clone().into())
+			Machine::with_ethash_extensions(params, builtins, ethash.params.clone().into())
 		} else {
-			EthereumMachine::regular(params, builtins)
+			Machine::regular(params, builtins)
 		}
 	}
 
@@ -601,7 +601,7 @@ impl Spec {
 		engine_spec: ethjson::spec::Engine,
 		params: CommonParams,
 		builtins: BTreeMap<Address, Builtin>,
-	) -> Arc<dyn EthEngine> {
+	) -> Arc<dyn Engine> {
 		let machine = Self::machine(&engine_spec, params, builtins);
 
 		match engine_spec {
@@ -824,7 +824,7 @@ impl Spec {
 	}
 
 	/// Loads just the state machine from a json file.
-	pub fn load_machine<R: Read>(reader: R) -> Result<EthereumMachine, String> {
+	pub fn load_machine<R: Read>(reader: R) -> Result<Machine, String> {
 		ethjson::spec::Spec::load(reader)
 			.map_err(fmt_err)
 			.map(load_machine_from)
@@ -912,9 +912,9 @@ impl Spec {
 		load_bundled!("null_morden")
 	}
 
-	/// Create the EthereumMachine corresponding to Spec::new_test.
+	/// Create the Machine corresponding to Spec::new_test.
 	#[cfg(any(test, feature = "test-helpers"))]
-	pub fn new_test_machine() -> EthereumMachine { load_machine_bundled!("null_morden") }
+	pub fn new_test_machine() -> Machine { load_machine_bundled!("null_morden") }
 
 	/// Create a new Spec which conforms to the Frontier-era Morden chain except that it's a NullEngine consensus with applying reward on block close.
 	#[cfg(any(test, feature = "test-helpers"))]

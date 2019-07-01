@@ -16,7 +16,6 @@
 
 use std::cmp;
 use std::collections::{HashSet, BTreeMap, VecDeque};
-use std::str::FromStr;
 use std::sync::atomic::{AtomicUsize, AtomicBool, Ordering as AtomicOrdering};
 use std::sync::{Arc, Weak};
 use std::time::{Instant, Duration};
@@ -60,7 +59,7 @@ use client::{
 	IoClient, BadBlocks,
 };
 use client::bad_blocks;
-use engines::{MAX_UNCLE_AGE, EthEngine, EpochTransition, ForkChoice, EngineError, SealingState};
+use engines::{MAX_UNCLE_AGE, Engine, EpochTransition, ForkChoice, EngineError, SealingState};
 use engines::epoch::PendingTransition;
 use error::{
 	ImportError, ExecutionError, CallError, BlockError,
@@ -165,7 +164,7 @@ struct Importer {
 	pub ancient_verifier: AncientVerifier,
 
 	/// Ethereum engine to be used during import
-	pub engine: Arc<dyn EthEngine>,
+	pub engine: Arc<dyn Engine>,
 
 	/// A lru cache of recently detected bad blocks
 	pub bad_blocks: bad_blocks::BadBlocks,
@@ -187,7 +186,7 @@ pub struct Client {
 
 	chain: RwLock<Arc<BlockChain>>,
 	tracedb: RwLock<TraceDB<BlockChain>>,
-	engine: Arc<dyn EthEngine>,
+	engine: Arc<dyn Engine>,
 
 	/// Client configuration
 	config: ClientConfig,
@@ -245,7 +244,7 @@ pub struct Client {
 impl Importer {
 	pub fn new(
 		config: &ClientConfig,
-		engine: Arc<dyn EthEngine>,
+		engine: Arc<dyn Engine>,
 		message_channel: IoChannel<ClientIoMessage>,
 		miner: Arc<Miner>,
 	) -> Result<Importer, ::error::Error> {
@@ -761,7 +760,7 @@ impl Client {
 
 		let importer = Importer::new(&config, engine.clone(), message_channel.clone(), miner)?;
 
-		let registrar_address = engine.additional_params().get("registrar").and_then(|s| Address::from_str(s).ok());
+		let registrar_address = engine.machine().params().registrar;
 		if let Some(ref addr) = registrar_address {
 			trace!(target: "client", "Found registrar at {}", addr);
 		}
@@ -865,7 +864,7 @@ impl Client {
 	}
 
 	/// Returns engine reference.
-	pub fn engine(&self) -> &dyn EthEngine {
+	pub fn engine(&self) -> &dyn Engine {
 		&*self.engine
 	}
 
@@ -1256,7 +1255,7 @@ impl Client {
 	}
 
 	fn do_virtual_call(
-		machine: &::machine::EthereumMachine,
+		machine: &::machine::Machine,
 		env_info: &EnvInfo,
 		state: &mut State<StateDB>,
 		t: &SignedTransaction,
@@ -1265,7 +1264,7 @@ impl Client {
 		fn call<V, T>(
 			state: &mut State<StateDB>,
 			env_info: &EnvInfo,
-			machine: &::machine::EthereumMachine,
+			machine: &::machine::Machine,
 			state_diff: bool,
 			transaction: &SignedTransaction,
 			options: TransactOptions<T, V>,
@@ -1669,7 +1668,7 @@ impl Call for Client {
 }
 
 impl EngineInfo for Client {
-	fn engine(&self) -> &dyn EthEngine {
+	fn engine(&self) -> &dyn Engine {
 		Client::engine(self)
 	}
 }
@@ -1988,10 +1987,6 @@ impl BlockChainClient for Client {
 
 	fn clear_queue(&self) {
 		self.importer.block_queue.clear();
-	}
-
-	fn additional_params(&self) -> BTreeMap<String, String> {
-		self.engine.additional_params().into_iter().collect()
 	}
 
 	fn logs(&self, filter: Filter) -> Result<Vec<LocalizedLogEntry>, BlockId> {
@@ -2569,7 +2564,7 @@ impl SnapshotClient for Client {}
 /// Returns `LocalizedReceipt` given `LocalizedTransaction`
 /// and a vector of receipts from given block up to transaction index.
 fn transaction_receipt(
-	machine: &::machine::EthereumMachine,
+	machine: &::machine::Machine,
 	mut tx: LocalizedTransaction,
 	receipt: Receipt,
 	prior_gas_used: U256,

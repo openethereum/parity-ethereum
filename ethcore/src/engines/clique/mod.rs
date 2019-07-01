@@ -76,7 +76,7 @@ use ethkey::Signature;
 use hash::KECCAK_EMPTY_LIST_RLP;
 use itertools::Itertools;
 use lru_cache::LruCache;
-use machine::{Call, EthereumMachine};
+use machine::{Call, Machine};
 use parking_lot::RwLock;
 use rand::Rng;
 use super::signer::EngineSigner;
@@ -159,7 +159,7 @@ impl VoteType {
 pub struct Clique {
 	epoch_length: u64,
 	period: u64,
-	machine: EthereumMachine,
+	machine: Machine,
 	client: RwLock<Option<Weak<dyn EngineClient>>>,
 	block_state_by_hash: RwLock<LruCache<H256, CliqueBlockState>>,
 	proposals: RwLock<HashMap<Address, VoteType>>,
@@ -171,7 +171,7 @@ pub struct Clique {
 pub struct Clique {
 	pub epoch_length: u64,
 	pub period: u64,
-	pub machine: EthereumMachine,
+	pub machine: Machine,
 	pub client: RwLock<Option<Weak<dyn EngineClient>>>,
 	pub block_state_by_hash: RwLock<LruCache<H256, CliqueBlockState>>,
 	pub proposals: RwLock<HashMap<Address, VoteType>>,
@@ -180,7 +180,7 @@ pub struct Clique {
 
 impl Clique {
 	/// Initialize Clique engine from empty state.
-	pub fn new(params: CliqueParams, machine: EthereumMachine) -> Result<Arc<Self>, Error> {
+	pub fn new(params: CliqueParams, machine: Machine) -> Result<Arc<Self>, Error> {
 		/// Step Clique at most every 2 seconds
 		const SEALING_FREQ: Duration = Duration::from_secs(2);
 
@@ -354,10 +354,10 @@ impl Clique {
 	}
 }
 
-impl Engine<EthereumMachine> for Clique {
+impl Engine for Clique {
 	fn name(&self) -> &str { "Clique" }
 
-	fn machine(&self) -> &EthereumMachine { &self.machine }
+	fn machine(&self) -> &Machine { &self.machine }
 
 	// Clique use same fields, nonce + mixHash
 	fn seal_fields(&self, _header: &Header) -> usize { 2 }
