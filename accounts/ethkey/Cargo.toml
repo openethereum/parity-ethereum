@@ -12,7 +12,7 @@ ethereum-types = "0.4"
 lazy_static = "1.0"
 log = "0.4"
 memzero = { path = "../../util/memzero" }
-parity-wordlist = "1.2"
+parity-wordlist = "1.3"
 quick-error = "1.2.2"
 rand = "0.4"
 rustc-hex = "1.0"
