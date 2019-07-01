@@ -65,26 +65,26 @@ General options:
 
 #[derive(Debug, Deserialize)]
 struct Args {
-  cmd_trace: bool,
-  cmd_extract: bool,
-  cmd_state: bool,
-  flag_chain: String,
-  flag_from: BlockNumber,
-  flag_to: BlockNumber,
-  flag_diff: bool,
-  flag_block: bool,
-  flag_receipts: bool,
-  flag_json: bool,
-  flag_std_json: bool,
-  flag_std_err_only: bool,
-  flag_std_out_only: bool,
-  flag_std_dump_json: bool,
+	cmd_trace: bool,
+	cmd_extract: bool,
+	cmd_state: bool,
+	flag_chain: String,
+	flag_from: BlockNumber,
+	flag_to: BlockNumber,
+	flag_diff: bool,
+	flag_block: bool,
+	flag_receipts: bool,
+	flag_json: bool,
+	flag_std_json: bool,
+	flag_std_err_only: bool,
+	flag_std_out_only: bool,
+	flag_std_dump_json: bool,
 }
 
 fn main() {
-  let args: Args = Docopt::new(USAGE)
-    .and_then(|d| d.deserialize())
-    .unwrap_or_else(|e| e.exit());
-  println!("{:?}", args);
-  println!("Chain: {:?}", args.flag_chain);
+	let args: Args = Docopt::new(USAGE)
+		.and_then(|d| d.deserialize())
+		.unwrap_or_else(|e| e.exit());
+	println!("{:?}", args);
+	println!("Chain: {:?}", args.flag_chain);
 }
