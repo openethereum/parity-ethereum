@@ -369,7 +369,7 @@ impl Service {
 			// we could salvage them but what if there's been a re-org at the boundary and the two
 			// chains do not match anymore? We'd have to check the existing blocks carefully.
 			if cur_chain_info.ancient_block_number.is_none() && cur_chain_info.first_block_number.unwrap_or(0) > 0 {
-				warn!(target: "blockchain", "blocks in the current DB do not stretch back to genesis; can't salvage them into the new DB. In current DB first block : {:?}/#{:?}, best block: {:?}, #{:?}",
+				info!(target: "blockchain", "blocks in the current DB do not stretch back to genesis; can't salvage them into the new DB. In current DB first block : {:?}/#{:?}, best block: {:?}, #{:?}",
 					cur_chain_info.first_block_hash, cur_chain_info.first_block_number,
 					cur_chain_info.best_block_number, cur_chain_info.best_block_hash);
 				return None;
@@ -425,9 +425,12 @@ impl Service {
 					count += 1;
 				},
 				_ => {
-					error!(target: "snapshot", "migrate_blocks: failed to find receipts and parent total difficulty. Block #{}, parent_hash={:?}, parent_total_difficulty={:?}",
-						block_number, parent_hash, parent_total_difficulty);
-					break
+					// We couldn't reach the targeted hash
+					error!(target: "snapshot", "migrate_blocks: failed to find receipts and parent total difficulty; cannot reach the target_hash ({}). Block #{}, parent_hash={:?}, parent_total_difficulty={:?}, start_hash={:?}, ancient_block_number={:?}, best_block_number={:?}",
+						target_hash, block_number, parent_hash, parent_total_difficulty,
+						start_hash, cur_chain_info.ancient_block_number, cur_chain_info.best_block_number,
+					);
+					return Err(UnlinkedAncientBlockChain(parent_hash).into());
 				},
 			}
 
@@ -448,15 +451,6 @@ impl Service {
 		next_db.key_value().write_buffered(batch);
 		next_chain.commit();
 		next_db.key_value().flush().expect("DB flush failed.");
-
-		// We couldn't reach the targeted hash
-		if parent_hash != target_hash {
-			error!(target: "snapshot", "migrate_blocks: could not reach the target_hash, parent_hash={:?}, target_hash={:?}, start_hash={:?}, ancient_block_number={:?}, best_block_number={:?}",
-				parent_hash, target_hash, start_hash,
-				cur_chain_info.ancient_block_number, cur_chain_info.best_block_number,
-			);
-			return Err(UnlinkedAncientBlockChain(parent_hash).into());
-		}
 
 		// Update best ancient block in the Next Chain
 		next_chain.update_best_ancient_block(&start_hash);
