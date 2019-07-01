@@ -316,7 +316,7 @@ impl Miner {
 			} else {
 				Some(ServiceTransactionChecker::default())
 			},
-            last_parent_hash: RwLock::new(H256::zero())
+			last_parent_hash: RwLock::new(H256::zero())
 		}
 	}
 
@@ -676,45 +676,35 @@ impl Miner {
 				return false
 			}
 		}
-
-		trace!(target: "miner", "seal_block_internally: attempting internal seal for block #{}", block.header.number());
+		let block_number = block.header.number();
+		trace!(target: "miner", "seal_block_internally: attempting internal seal for block #{}", block_number);
 
 		let parent_header = match chain.block_header(BlockId::Hash(*block.header.parent_hash())) {
 			Some(h) => {
 				match h.decode() {
 					Ok(decoded_hdr) => decoded_hdr,
 					Err(e) => {
-						error!(target: "miner", "seal_block_internally: Block #{}, Could not decode header from parent block (hash={}): {:?}", block.header.number(), block.header.parent_hash(), e);
+						error!(target: "miner", "seal_block_internally: Block #{}, Could not decode header from parent block (hash={}): {:?}", block_number, block.header.parent_hash(), e);
 						return false
 					}
 				}
 			}
 			None => {
-				trace!(target: "miner", "Block #{}: Parent with hash={} does not exist in our DB", block.header.number(), block.header.parent_hash());
+				trace!(target: "miner", "Block #{}: Parent with hash={} does not exist in our DB", block_number, block.header.parent_hash());
 				return false
 			},
 		};
 
-//		{
-//			let last_parent_hash = self.last_parent_hash.read();
-//			if parent_header.hash() == *last_parent_hash {
-//				warn!(target: "miner", "Trying to build block #{} on same parent hash. New block's parent hash: {}, last parent hash: {}",
-//					block.header.number(), parent_header.hash(), *last_parent_hash
-//				);
-//				return false
-//			}
-//		}
-//		{
-			let mut last_parent_hash = self.last_parent_hash.write();
-			trace!(target: "miner", "Block #{}, Setting last parent hash. was: {}, becomes: {}", block.header.number(), *last_parent_hash, block.header.hash());
-			*last_parent_hash = block.header.hash();
-//		}
+		// Take a lock on this parent_hash to stop any other blocks to be sealed with the same parent hash
+		let mut last_parent_hash = self.last_parent_hash.write();
+		trace!(target: "miner", "Block #{}, Setting last parent hash. was: {}, becomes: {}", block_number, *last_parent_hash, block.header.hash());
+		*last_parent_hash = block.header.hash();
 
 		let res =
 		match self.engine.generate_seal(&block, &parent_header) {
 			// Directly import a regular sealed block.
 			Seal::Regular(seal) => {
-				trace!(target: "miner", "Block #{}: Received a Regular seal.", block.header.number());
+				trace!(target: "miner", "Block #{}: Received a Regular seal.", block_number);
 				{
 					let mut sealing = self.sealing.lock();
 					sealing.next_mandatory_reseal = Instant::now() + self.options.reseal_max_period;
@@ -727,13 +717,13 @@ impl Miner {
 						chain.import_sealed_block(sealed).is_ok()
 					})
 					.unwrap_or_else(|e| {
-						warn!("ERROR: Block #{}, importing sealed block failed when given internally generated seal: {}", block.header.number(), e);
+						warn!("ERROR: Block #{}, importing sealed block failed when given internally generated seal: {}", block_number, e);
 						false
 					})
 			},
 			Seal::None => false,
 		};
-		trace!(target:"miner", "Block: #{}, seal_and_import_block_internally: done, returning {}", block.header.number(), res);
+		trace!(target:"miner", "Block: #{}, seal_and_import_block_internally: done, returning {}", block_number, res);
 		res
 	}
 
