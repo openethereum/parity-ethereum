@@ -841,10 +841,6 @@ impl BlockChainClient for TestBlockChainClient {
 	fn clear_queue(&self) {
 	}
 
-	fn additional_params(&self) -> BTreeMap<String, String> {
-		Default::default()
-	}
-
 	fn filter_traces(&self, _filter: TraceFilter) -> Option<Vec<LocalizedTrace>> {
 		self.traces.read().clone()
 	}

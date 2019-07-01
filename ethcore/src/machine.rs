@@ -16,7 +16,7 @@
 
 //! Ethereum-like state machine definition.
 
-use std::collections::{BTreeMap, HashMap};
+use std::collections::BTreeMap;
 use std::cmp;
 use std::sync::Arc;
 
@@ -383,13 +383,6 @@ impl Machine {
 		}
 
 		Ok(())
-	}
-
-	/// Additional params.
-	pub fn additional_params(&self) -> HashMap<String, String> {
-		hash_map![
-			"registrar".to_owned() => format!("{:x}", self.params.registrar)
-		]
 	}
 
 	/// Performs pre-validation of RLP decoded transaction before other processing
