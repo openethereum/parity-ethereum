@@ -24,7 +24,8 @@ use common_types::header::Header;
 /// For GHOST fork-choice rule it would typically describe the block with highest
 /// combined difficulty (usually the block with the highest block number).
 ///
-/// Sometimes refered as 'latest block'.
+/// Sometimes referred as 'latest block'.
+#[derive(Debug)]
 pub struct BestBlock {
 	/// Best block decoded header.
 	pub header: Header,
@@ -35,7 +36,7 @@ pub struct BestBlock {
 }
 
 /// Best ancient block info. If the blockchain has a gap this keeps track of where it starts.
-#[derive(Default)]
+#[derive(Debug, Default)]
 pub struct BestAncientBlock {
 	/// Best block hash.
 	pub hash: H256,

@@ -92,5 +92,5 @@ pub trait Rebuilder: Send {
 	///
 	/// This should apply the necessary "glue" between chunks,
 	/// and verify against the restored state.
-	fn finalize(&mut self, engine: &dyn Engine) -> Result<(), ::error::Error>;
+	fn finalize(&mut self) -> Result<(), ::error::Error>;
 }
