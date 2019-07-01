@@ -1,8 +1,11 @@
 [package]
 name = "ethdb"
 description = "Parity Ethereum command-line tool for database interaction"
+homepage = "http://parity.io"
+license = "GPL-3.0"
 version = "0.1.0"
 authors = ["Parity Technologies <admin@parity.io>"]
+edition = "2018"
 
 [[bin]]
 name = "ethdb"

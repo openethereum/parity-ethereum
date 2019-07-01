@@ -18,7 +18,6 @@
 
 #![warn(missing_docs)]
 
-extern crate common_types;
 extern crate serde;
 extern crate docopt;
 
