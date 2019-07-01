@@ -22,7 +22,7 @@ extern crate common_types;
 extern crate serde;
 extern crate docopt;
 
-use common_types::{BlockNumber};
+use common_types::BlockNumber;
 
 use docopt::Docopt;
 use serde::Deserialize;
