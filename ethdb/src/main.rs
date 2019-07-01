@@ -65,6 +65,9 @@ General options:
 
 #[derive(Debug, Deserialize)]
 struct Args {
+  cmd_trace: bool,
+  cmd_extract: bool,
+  cmd_state: bool,
   flag_chain: String,
   flag_from: BlockNumber,
   flag_to: BlockNumber,
@@ -76,9 +79,6 @@ struct Args {
   flag_std_err_only: bool,
   flag_std_out_only: bool,
   flag_std_dump_json: bool,
-  cmd_trace: bool,
-  cmd_extract: bool,
-  cmd_state: bool
 }
 
 fn main() {
