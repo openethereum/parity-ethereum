@@ -725,9 +725,8 @@ impl Configuration {
 		let port = self.args.arg_ports_shift + self.args.arg_port;
 		let listen_address = SocketAddr::new(self.interface(&self.args.arg_interface).parse().unwrap(), port);
 		let public_address = if self.args.arg_nat.starts_with("extip:") {
-			use regex::Regex;
-			let re = Regex::new(r":.*$").expect("regex is valid");
-			let host = format!("{}:{}", re.replace_all(&self.args.arg_nat[6..], ""), port);
+			let host = self.args.arg_nat[6..].split(':').next().expect("split has at least one part; qed");
+			let host = format!("{}:{}", host, port);
 			match host.to_socket_addrs() {
 				Ok(mut addr_iter) => {
 					if let Some(addr) = addr_iter.next() {
