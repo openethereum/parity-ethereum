@@ -52,7 +52,7 @@ use vm::{EnvInfo, LastHashes};
 use hash::keccak;
 use rlp::{RlpStream, Encodable, encode_list};
 use types::transaction::{SignedTransaction, Error as TransactionError};
-use types::header::{Header, ExtendedHeader};
+use types::header::Header;
 use types::receipt::{Receipt, TransactionOutcome};
 
 /// Block that is ready for transactions to be added.
@@ -164,7 +164,7 @@ pub trait Drain {
 
 impl<'x> OpenBlock<'x> {
 	/// Create a new `OpenBlock` ready for transaction pushing.
-	pub fn new<'a, I: IntoIterator<Item = ExtendedHeader>>(
+	pub fn new<'a>(
 		engine: &'x dyn Engine,
 		factories: Factories,
 		tracing: bool,
@@ -175,7 +175,6 @@ impl<'x> OpenBlock<'x> {
 		gas_range_target: (U256, U256),
 		extra_data: Bytes,
 		is_epoch_begin: bool,
-		ancestry: I, // TODO: remove this
 	) -> Result<Self, Error> {
 		let number = parent.number() + 1;
 		let state = State::from_existing(db, parent.state_root().clone(), engine.account_start_nonce(number), factories)?;
@@ -478,7 +477,6 @@ pub(crate) fn enact(
 	last_hashes: Arc<LastHashes>,
 	factories: Factories,
 	is_epoch_begin: bool,
-	ancestry: &mut dyn Iterator<Item=ExtendedHeader>,
 ) -> Result<LockedBlock, Error> {
 	// For trace log
 	let trace_state = if log_enabled!(target: "enact", ::log::Level::Trace) {
@@ -500,7 +498,6 @@ pub(crate) fn enact(
 		(3141562.into(), 31415620.into()),
 		vec![],
 		is_epoch_begin,
-		ancestry,
 	)?;
 
 	if let Some(ref s) = trace_state {
@@ -531,7 +528,6 @@ pub fn enact_verified(
 	last_hashes: Arc<LastHashes>,
 	factories: Factories,
 	is_epoch_begin: bool,
-	ancestry: &mut dyn Iterator<Item=ExtendedHeader>,
 ) -> Result<LockedBlock, Error> {
 
 	enact(
@@ -545,7 +541,6 @@ pub fn enact_verified(
 		last_hashes,
 		factories,
 		is_epoch_begin,
-		ancestry,
 	)
 }
 
@@ -607,7 +602,6 @@ mod tests {
 			(3141562.into(), 31415620.into()),
 			vec![],
 			false,
-			None,
 		)?;
 
 		b.populate_from(&header);
@@ -642,7 +636,7 @@ mod tests {
 		let genesis_header = spec.genesis_header();
 		let db = spec.ensure_db_good(get_temp_state_db(), &Default::default()).unwrap();
 		let last_hashes = Arc::new(vec![genesis_header.hash()]);
-		let b = OpenBlock::new(&*spec.engine, Default::default(), false, db, &genesis_header, last_hashes, Address::zero(), (3141562.into(), 31415620.into()), vec![], false, None).unwrap();
+		let b = OpenBlock::new(&*spec.engine, Default::default(), false, db, &genesis_header, last_hashes, Address::zero(), (3141562.into(), 31415620.into()), vec![], false).unwrap();
 		let b = b.close_and_lock().unwrap();
 		let _ = b.seal(&*spec.engine, vec![]);
 	}
@@ -656,7 +650,7 @@ mod tests {
 
 		let db = spec.ensure_db_good(get_temp_state_db(), &Default::default()).unwrap();
 		let last_hashes = Arc::new(vec![genesis_header.hash()]);
-		let b = OpenBlock::new(engine, Default::default(), false, db, &genesis_header, last_hashes.clone(), Address::zero(), (3141562.into(), 31415620.into()), vec![], false, None).unwrap()
+		let b = OpenBlock::new(engine, Default::default(), false, db, &genesis_header, last_hashes.clone(), Address::zero(), (3141562.into(), 31415620.into()), vec![], false).unwrap()
 			.close_and_lock().unwrap().seal(engine, vec![]).unwrap();
 		let orig_bytes = b.rlp_bytes();
 		let orig_db = b.drain().state.drop().1;
@@ -681,7 +675,7 @@ mod tests {
 
 		let db = spec.ensure_db_good(get_temp_state_db(), &Default::default()).unwrap();
 		let last_hashes = Arc::new(vec![genesis_header.hash()]);
-		let mut open_block = OpenBlock::new(engine, Default::default(), false, db, &genesis_header, last_hashes.clone(), Address::zero(), (3141562.into(), 31415620.into()), vec![], false, None).unwrap();
+		let mut open_block = OpenBlock::new(engine, Default::default(), false, db, &genesis_header, last_hashes.clone(), Address::zero(), (3141562.into(), 31415620.into()), vec![], false).unwrap();
 		let mut uncle1_header = Header::new();
 		uncle1_header.set_extra_data(b"uncle1".to_vec());
 		let mut uncle2_header = Header::new();
