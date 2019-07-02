@@ -867,7 +867,6 @@ dependencies = [
  "ansi_term 0.11.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "blooms-db 0.1.0",
  "bn 0.4.4 (git+https://github.com/paritytech/bn)",
- "byteorder 1.3.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "common-types 0.1.0",
  "criterion 0.2.5 (registry+https://github.com/rust-lang/crates.io-index)",
  "crossbeam 0.4.1 (registry+https://github.com/rust-lang/crates.io-index)",
