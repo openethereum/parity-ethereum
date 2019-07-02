@@ -117,7 +117,7 @@ fn query_none_block() {
 		Arc::new(Miner::new_for_tests(&spec, None)),
 		IoChannel::disconnected(),
 	).unwrap();
-    let non_existant = client.block_header(BlockId::Number(188));
+	let non_existant = client.block_header(BlockId::Number(188));
 	assert!(non_existant.is_none());
 }
 
