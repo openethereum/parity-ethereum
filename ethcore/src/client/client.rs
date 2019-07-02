@@ -2315,7 +2315,15 @@ impl IoClient for Client {
 impl ReopenBlock for Client {
 	fn reopen_block(&self, block: ClosedBlock) -> OpenBlock {
 		let engine = &*self.engine;
-		let mut block = block.reopen(engine);
+		let parent = match self.block_header_decoded(BlockId::Hash(*block.header.parent_hash())) {
+			Some(h) => h,
+			None => {
+				warn!(target: "client", "reopen block #{} failed: Parent not found ({}) ", block.header.number(), block.header.parent_hash());
+				panic!("TODO: say something proper here – or return error and panic further up?");
+			}
+		};
+
+		let mut block = block.reopen(engine, parent);
 		let max_uncles = engine.maximum_uncle_count(block.header.number());
 		if block.uncles.len() < max_uncles {
 			let chain = self.chain.read();

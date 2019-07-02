@@ -1211,7 +1211,6 @@ impl Engine for AuthorityRound {
 		&self,
 		block: &mut ExecutedBlock,
 		epoch_begin: bool,
-		_ancestry: &mut dyn Iterator<Item=ExtendedHeader>,
 	) -> Result<(), Error> {
 		// with immediate transitions, we don't use the epoch mechanism anyway.
 		// the genesis is always considered an epoch, but we ignore it intentionally.
@@ -1236,26 +1235,18 @@ impl Engine for AuthorityRound {
 	}
 
 	/// Apply the block reward on finalisation of the block.
-	fn on_close_block(&self, block: &mut ExecutedBlock) -> Result<(), Error> {
+	fn on_close_block(
+		&self,
+		block: &mut ExecutedBlock,
+		parent: &Header,
+	) -> Result<(), Error> {
 		let mut beneficiaries = Vec::new();
 		if block.header.number() >= self.empty_steps_transition {
 			let empty_steps = if block.header.seal().is_empty() {
 				// this is a new block, calculate rewards based on the empty steps messages we have accumulated
-				let client = match self.client.read().as_ref().and_then(|weak| weak.upgrade()) {
-					Some(client) => client,
-					None => {
-						debug!(target: "engine", "Unable to close block: missing client ref.");
-						return Err(EngineError::RequiresClient.into())
-					},
-				};
-
-				let parent = client.block_header(::client::BlockId::Hash(*block.header.parent_hash()))
-					.expect("hash is from parent; parent header must exist; qed")
-					.decode()?;
-
-				let parent_step = header_step(&parent, self.empty_steps_transition)?;
+				let parent_step = header_step(parent, self.empty_steps_transition)?;
 				let current_step = self.step.inner.load();
-				self.empty_steps(parent_step.into(), current_step.into(), parent.hash())
+				self.empty_steps(parent_step, current_step, parent.hash())
 			} else {
 				// we're verifying a block, extract empty steps from the seal
 				header_empty_steps(&block.header)?

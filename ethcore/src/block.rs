@@ -22,13 +22,13 @@
 //! and can be appended to with transactions and uncles.
 //!
 //! When ready, `OpenBlock` can be closed and turned into a `ClosedBlock`. A `ClosedBlock` can
-//! be reopend again by a miner under certain circumstances. On block close, state commit is
+//! be re-opend again by a miner under certain circumstances. On block close, state commit is
 //! performed.
 //!
 //! `LockedBlock` is a version of a `ClosedBlock` that cannot be reopened. It can be sealed
 //! using an engine.
 //!
-//! `ExecutedBlock` is an underlaying data structure used by all structs above to store block
+//! `ExecutedBlock` is an underlying data structure used by all structs above to store block
 //! related info.
 
 use std::{cmp, ops};
@@ -62,6 +62,7 @@ use types::receipt::{Receipt, TransactionOutcome};
 pub struct OpenBlock<'x> {
 	block: ExecutedBlock,
 	engine: &'x dyn Engine,
+	parent: Header,
 }
 
 /// Just like `OpenBlock`, except that we've applied `Engine::on_close_block`, finished up the non-seal header fields,
@@ -173,14 +174,12 @@ impl<'x> OpenBlock<'x> {
 		gas_range_target: (U256, U256),
 		extra_data: Bytes,
 		is_epoch_begin: bool,
-		ancestry: I,
+		ancestry: I, // TODO: remove this
 	) -> Result<Self, Error> {
 		let number = parent.number() + 1;
 		let state = State::from_existing(db, parent.state_root().clone(), engine.account_start_nonce(number), factories)?;
-		let mut r = OpenBlock {
-			block: ExecutedBlock::new(state, last_hashes, tracing),
-			engine: engine,
-		};
+
+		let mut r = OpenBlock { block: ExecutedBlock::new(state, last_hashes, tracing), engine, parent: parent.clone() };
 
 		r.block.header.set_parent_hash(parent.hash());
 		r.block.header.set_number(number);
@@ -195,7 +194,7 @@ impl<'x> OpenBlock<'x> {
 		engine.populate_from_parent(&mut r.block.header, parent);
 
 		engine.machine().on_new_block(&mut r.block)?;
-		engine.on_new_block(&mut r.block, is_epoch_begin, &mut ancestry.into_iter())?;
+		engine.on_new_block(&mut r.block, is_epoch_begin)?;
 
 		Ok(r)
 	}
@@ -308,8 +307,7 @@ impl<'x> OpenBlock<'x> {
 	/// Turn this into a `LockedBlock`.
 	pub fn close_and_lock(self) -> Result<LockedBlock, Error> {
 		let mut s = self;
-
-		s.engine.on_close_block(&mut s.block)?;
+		s.engine.on_close_block(&mut s.block, &s.parent)?;
 		s.block.state.commit()?;
 
 		s.block.header.set_transactions_root(ordered_trie_root(s.block.transactions.iter().map(|e| e.rlp_bytes())));
@@ -374,14 +372,11 @@ impl ClosedBlock {
 	}
 
 	/// Given an engine reference, reopen the `ClosedBlock` into an `OpenBlock`.
-	pub fn reopen(self, engine: &dyn Engine) -> OpenBlock {
+	pub fn reopen(self, engine: &dyn Engine, parent: Header) -> OpenBlock {
 		// revert rewards (i.e. set state back at last transaction's state).
 		let mut block = self.block;
 		block.state = self.unclosed_state;
-		OpenBlock {
-			block: block,
-			engine: engine,
-		}
+		OpenBlock { block, engine, parent }
 	}
 }
 
@@ -522,7 +517,7 @@ pub(crate) fn enact(
 	b.close_and_lock()
 }
 
-/// Enact the block given by `block_bytes` using `engine` on the database `db` with given `parent` block header
+/// Enact the block given by `block_bytes` using `engine` on the database `db` with the given `parent` block header
 pub fn enact_verified(
 	block: PreverifiedBlock,
 	engine: &dyn Engine,
