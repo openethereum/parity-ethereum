@@ -21,7 +21,6 @@ use std::io;
 use std::sync::Arc;
 
 use bloom_journal::{Bloom, BloomJournal};
-use byteorder::{LittleEndian, ByteOrder};
 use db::COL_ACCOUNT_BLOOM;
 use ethereum_types::{H256, Address};
 use hash::keccak;
@@ -169,11 +168,15 @@ impl StateDB {
 		let hash_count = hash_count_bytes[0];
 
 		let mut bloom_parts = vec![0u64; ACCOUNT_BLOOM_SPACE / 8];
-		let mut key = [0u8; 8];
 		for i in 0..ACCOUNT_BLOOM_SPACE / 8 {
-			LittleEndian::write_u64(&mut key, i as u64);
+			let key: [u8; 8] = (i as u64).to_le_bytes();
 			bloom_parts[i] = db.get(COL_ACCOUNT_BLOOM, &key).expect("low-level database error")
-				.and_then(|val| Some(LittleEndian::read_u64(&val[..])))
+				.map(|val| {
+					assert!(val.len() == 8, "low-level database error");
+					let mut buff = [0u8; 8];
+					buff.copy_from_slice(&*val);
+					u64::from_le_bytes(buff)
+				})
 				.unwrap_or(0u64);
 		}
 
@@ -186,12 +189,10 @@ impl StateDB {
 	pub fn commit_bloom(batch: &mut DBTransaction, journal: BloomJournal) -> io::Result<()> {
 		assert!(journal.hash_functions <= 255);
 		batch.put(COL_ACCOUNT_BLOOM, ACCOUNT_BLOOM_HASHCOUNT_KEY, &[journal.hash_functions as u8]);
-		let mut key = [0u8; 8];
-		let mut val = [0u8; 8];
 
 		for (bloom_part_index, bloom_part_value) in journal.entries {
-			LittleEndian::write_u64(&mut key, bloom_part_index as u64);
-			LittleEndian::write_u64(&mut val, bloom_part_value);
+			let key: [u8; 8] = (bloom_part_index as u64).to_le_bytes();
+			let val: [u8; 8] = bloom_part_value.to_le_bytes();
 			batch.put(COL_ACCOUNT_BLOOM, &key, &val);
 		}
 		Ok(())
