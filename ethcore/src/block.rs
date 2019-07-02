@@ -73,6 +73,7 @@ pub struct OpenBlock<'x> {
 pub struct ClosedBlock {
 	block: ExecutedBlock,
 	unclosed_state: State<StateDB>,
+	parent: Header,
 }
 
 /// Just like `ClosedBlock` except that we can't reopen it and it's faster.
@@ -296,11 +297,13 @@ impl<'x> OpenBlock<'x> {
 	/// Turn this into a `ClosedBlock`.
 	pub fn close(self) -> Result<ClosedBlock, Error> {
 		let unclosed_state = self.block.state.clone();
+		let parent = self.parent.clone();
 		let locked = self.close_and_lock()?;
 
 		Ok(ClosedBlock {
 			block: locked.block,
 			unclosed_state,
+			parent,
 		})
 	}
 
@@ -372,10 +375,11 @@ impl ClosedBlock {
 	}
 
 	/// Given an engine reference, reopen the `ClosedBlock` into an `OpenBlock`.
-	pub fn reopen(self, engine: &dyn Engine, parent: Header) -> OpenBlock {
+	pub fn reopen(self, engine: &dyn Engine) -> OpenBlock {
 		// revert rewards (i.e. set state back at last transaction's state).
 		let mut block = self.block;
 		block.state = self.unclosed_state;
+		let parent = self.parent;
 		OpenBlock { block, engine, parent }
 	}
 }
