@@ -395,9 +395,7 @@ pub fn get_temp_state_db() -> StateDB {
 
 impl ReopenBlock for TestBlockChainClient {
 	fn reopen_block(&self, block: ClosedBlock) -> OpenBlock {
-		let parent = self.block_header(BlockId::Hash(*block.header.parent_hash())).expect("todo say something proper; qed");
-		let parent = parent.decode().expect("todo say something proper; qed");
-		block.reopen(&*self.spec.engine, parent)
+		block.reopen(&*self.spec.engine)
 	}
 }
 
