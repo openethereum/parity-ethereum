@@ -163,7 +163,7 @@ You can run tests with the following commands:
   cargo test --package <spec>
   ```
 
-Replace `<spec>` with one of the packages from the **package list** <a id="package-list"></a> (i.e. `cargo test --package evmbin`).
+Replace `<spec>` with one of the packages from the [package list](#package-list) (i.e. `cargo test --package evmbin`).
 
 You can show your logs in the test output by passing `--nocapture` (i.e. `cargo test --package evmbin -- --nocapture`)
 
