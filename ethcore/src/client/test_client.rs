@@ -59,7 +59,7 @@ use client::{
 	Call, StateClient, EngineInfo, AccountData, BlockChain, BlockProducer, SealedBlockImporter, IoClient,
 	BadBlocks
 };
-use engines::EthEngine;
+use engines::Engine;
 use error::{Error, EthcoreResult};
 use executed::CallError;
 use executive::Executed;
@@ -627,7 +627,7 @@ impl StateClient for TestBlockChainClient {
 }
 
 impl EngineInfo for TestBlockChainClient {
-	fn engine(&self) -> &dyn EthEngine {
+	fn engine(&self) -> &dyn Engine {
 		unimplemented!()
 	}
 }
@@ -839,10 +839,6 @@ impl BlockChainClient for TestBlockChainClient {
 	}
 
 	fn clear_queue(&self) {
-	}
-
-	fn additional_params(&self) -> BTreeMap<String, String> {
-		Default::default()
 	}
 
 	fn filter_traces(&self, _filter: TraceFilter) -> Option<Vec<LocalizedTrace>> {

@@ -55,7 +55,6 @@
 
 extern crate ansi_term;
 extern crate bn;
-extern crate byteorder;
 extern crate common_types as types;
 extern crate crossbeam;
 extern crate ethabi;
@@ -122,6 +121,8 @@ extern crate blooms_db;
 extern crate env_logger;
 #[cfg(test)]
 extern crate rlp_compress;
+#[cfg(test)]
+extern crate serde_json;
 
 #[macro_use]
 extern crate ethabi_derive;

@@ -38,7 +38,7 @@ pub use types::engines::ForkChoice;
 pub use types::engines::epoch::{self, Transition as EpochTransition};
 
 use std::sync::{Weak, Arc};
-use std::collections::{BTreeMap, HashMap};
+use std::collections::BTreeMap;
 use std::{fmt, error};
 
 use builtin::Builtin;
@@ -475,22 +475,7 @@ pub trait Engine: Sync + Send {
 	fn executive_author(&self, header: &Header) -> Result<Address, Error> {
 		Ok(*header.author())
 	}
-}
 
-/// Check whether a given block is the best block based on the default total difficulty rule.
-pub fn total_difficulty_fork_choice(new: &ExtendedHeader, best: &ExtendedHeader) -> ForkChoice {
-	if new.total_score() > best.total_score() {
-		ForkChoice::New
-	} else {
-		ForkChoice::Old
-	}
-}
-
-/// Common type alias for an engine coupled with an Ethereum-like state machine.
-// TODO: make this a _trait_ alias when those exist.
-// fortunately the effect is largely the same since engines are mostly used
-// via trait objects.
-pub trait EthEngine: Engine {
 	/// Get the general parameters of the chain.
 	fn params(&self) -> &CommonParams {
 		self.machine().params()
@@ -558,19 +543,20 @@ pub trait EthEngine: Engine {
 		self.machine().verify_transaction_basic(t, header)
 	}
 
-	/// Additional information.
-	fn additional_params(&self) -> HashMap<String, String> {
-		self.machine().additional_params()
-	}
-
 	/// Performs pre-validation of RLP decoded transaction before other processing
 	fn decode_transaction(&self, transaction: &[u8]) -> Result<UnverifiedTransaction, transaction::Error> {
 		self.machine().decode_transaction(transaction)
 	}
 }
 
-// convenience wrappers for existing functions.
-impl<T> EthEngine for T where T: Engine { }
+/// Check whether a given block is the best block based on the default total difficulty rule.
+pub fn total_difficulty_fork_choice(new: &ExtendedHeader, best: &ExtendedHeader) -> ForkChoice {
+	if new.total_score() > best.total_score() {
+		ForkChoice::New
+	} else {
+		ForkChoice::Old
+	}
+}
 
 /// Verifier for all blocks within an epoch with self-contained state.
 pub trait EpochVerifier: Send + Sync {

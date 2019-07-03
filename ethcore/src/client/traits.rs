@@ -43,7 +43,7 @@ use vm::LastHashes;
 
 use block::{OpenBlock, SealedBlock, ClosedBlock};
 use client::Mode;
-use engines::EthEngine;
+use engines::Engine;
 use error::{Error, EthcoreResult};
 use executed::CallError;
 use executive::Executed;
@@ -184,7 +184,7 @@ pub trait Call {
 /// Provides `engine` method
 pub trait EngineInfo {
 	/// Get underlying engine object
-	fn engine(&self) -> &dyn EthEngine;
+	fn engine(&self) -> &dyn Engine;
 }
 
 /// IO operations that should off-load heavy work to another thread.
@@ -295,9 +295,6 @@ pub trait BlockChainClient : Sync + Send + AccountData + BlockChain + CallContra
 
 	/// Clear block queue and abort all import activity.
 	fn clear_queue(&self);
-
-	/// Get the registrar address, if it exists.
-	fn additional_params(&self) -> BTreeMap<String, String>;
 
 	/// Returns logs matching given filter. If one of the filtering block cannot be found, returns the block id that caused the error.
 	fn logs(&self, filter: Filter) -> Result<Vec<LocalizedLogEntry>, BlockId>;

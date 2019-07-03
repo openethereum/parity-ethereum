@@ -1636,7 +1636,7 @@ mod tests {
 	};
 	use spec::Spec;
 	use types::transaction::{Action, Transaction};
-	use engines::{Seal, Engine, EngineError, EthEngine};
+	use engines::{Seal, Engine, EngineError};
 	use engines::validator_set::{TestSet, SimpleList};
 	use error::Error;
 	use super::{AuthorityRoundParams, AuthorityRound, EmptyStep, SealedEmptyStep, calculate_score};
@@ -1942,14 +1942,14 @@ mod tests {
 		(spec, tap, accounts)
 	}
 
-	fn empty_step(engine: &dyn EthEngine, step: u64, parent_hash: &H256) -> EmptyStep {
+	fn empty_step(engine: &dyn Engine, step: u64, parent_hash: &H256) -> EmptyStep {
 		let empty_step_rlp = super::empty_step_rlp(step, parent_hash);
 		let signature = engine.sign(keccak(&empty_step_rlp)).unwrap().into();
 		let parent_hash = parent_hash.clone();
 		EmptyStep { step, signature, parent_hash }
 	}
 
-	fn sealed_empty_step(engine: &dyn EthEngine, step: u64, parent_hash: &H256) -> SealedEmptyStep {
+	fn sealed_empty_step(engine: &dyn Engine, step: u64, parent_hash: &H256) -> SealedEmptyStep {
 		let empty_step_rlp = super::empty_step_rlp(step, parent_hash);
 		let signature = engine.sign(keccak(&empty_step_rlp)).unwrap().into();
 		SealedEmptyStep { signature, step }
