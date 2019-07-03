@@ -191,7 +191,8 @@ Use`--document-private-items` to also view private documentation and `--no-deps`
 
 Replacing `<spec>` with one of the following from the details section below (i.e. `cargo doc --package parity-ethereum --open`):
 
-**Package List** <a id="package-list"></a>
+<a id="package-list"></a>
+**Package List**
 <details><p>
 
 * Parity Ethereum (EthCore) Client Application
