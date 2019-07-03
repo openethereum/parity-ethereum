@@ -79,7 +79,7 @@ impl PrivateTxHandler for PrivateTxService {
 			Ok(handle_result) => Ok(handle_result),
 			Err(err) => {
 				warn!(target: "privatetx", "Unable to handle private state synced message: {}", err);
-				bail!(err.to_string())
+				return Err(err.to_string())
 			}
 		}
 	}

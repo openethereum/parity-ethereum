@@ -926,7 +926,7 @@ impl Configuration {
 			logs_path: match self.args.flag_private_enabled {
 				true => Some(dirs.base),
 				false => None,
-			}
+			},
 			use_offchain_storage: self.args.flag_private_state_offchain,
 		};
 
