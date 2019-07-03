@@ -538,7 +538,7 @@ impl Provider {
 		let mut stalled_contracts_hashes: Vec<H256> = Vec::new();
 		for address in private_contracts {
 			if let Ok(state_hash) = self.get_decrypted_state_from_contract(&address, BlockId::Latest) {
-				let state_hash = H256::from_slice(&state_hash);
+				let state_hash = H256::from_slice(&state_hash[0..32]);
 				if let Err(_) = self.state_storage.private_state_db().state(&state_hash) {
 					// State not found in the local db
 					stalled_contracts_hashes.push(state_hash);
@@ -608,7 +608,7 @@ impl Provider {
 		match self.use_offchain_storage {
 			true => {
 				let hashed_state = self.get_decrypted_state_from_contract(address, block)?;
-				let hashed_state = H256::from_slice(&hashed_state);
+				let hashed_state = H256::from_slice(&hashed_state[0..32]);
 				let stored_state_data = self.state_storage.private_state_db().state(&hashed_state)?;
 				self.decrypt(address, &stored_state_data)
 			}
@@ -721,8 +721,7 @@ impl Provider {
 		let mut saved_state = encrypted_storage;
 		if self.use_offchain_storage {
 			// Save state into the storage and return its hash
-			let original_state = saved_state.clone();
-			saved_state = self.state_storage.private_state_db().save_state(&original_state)?.0.to_vec();
+			saved_state = self.state_storage.private_state_db().save_state(&saved_state)?.0.to_vec();
 		}
 		Ok(PrivateExecutionResult {
 			code: encrypted_code,
