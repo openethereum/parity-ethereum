@@ -1,0 +1,20 @@
+[package]
+name = "ethcore-error"
+version = "0.1.0"
+authors = ["David Palm <dvdplm@gmail.com>"]
+edition = "2018"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+derive_more = "0.14.0"
+ethereum-types = "0.6.0"
+ethkey = { path = "../../accounts/ethkey" }
+ethtrie = { package = "patricia-trie-ethereum", path = "../../util/patricia-trie-ethereum" }
+rlp = "0.4.0"
+parity-snappy = "0.1"
+# TODO: this ruins everything, get it sorted
+ethcore = { path = ".." }
+common-types = {path = "../types/" }
+unexpected = { path = "../../util/unexpected" }
+ethcore-io = { path = "../../util/io" }

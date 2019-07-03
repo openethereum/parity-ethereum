@@ -1,0 +1,26 @@
+[package]
+name = "pod-account"
+version = "0.1.0"
+authors = ["David Palm <dvdplm@gmail.com>"]
+edition = "2018"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+common-types = { path = "../types" }
+ethereum-types = "0.6"
+ethjson = { path = "../../json" }
+ethtrie = { package = "patricia-trie-ethereum", path = "../../util/patricia-trie-ethereum" }
+hash-db = "0.12"
+itertools = "0.8"
+keccak-hash = "0.2.0"
+keccak-hasher = { path = "../../util/keccak-hasher" }
+kvdb = "0.1"
+log = "0.4"
+parity-bytes = "0.1.0"
+rlp = "0.4"
+rustc-hex = "1"
+serde = { version = "1.0", features = ["derive"] }
+state-account = { path = "../state-account" }
+trie-db = "0.12.4"
+triehash = { package = "triehash-ethereum", version = "0.2",  path = "../../util/triehash-ethereum" }
