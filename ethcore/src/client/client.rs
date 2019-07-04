@@ -407,7 +407,6 @@ impl Importer {
 			last_hashes,
 			client.factories.clone(),
 			is_epoch_begin,
-			&mut chain.ancestry_with_metadata_iter(*header.parent_hash()),
 		);
 
 		let mut locked_block = match enact_result {
@@ -1116,7 +1115,7 @@ impl Client {
 				let mut ss = self.sleep_state.lock();
 				if let Some(t) = ss.last_activity {
 					if Instant::now() > t + timeout {
-						self.sleep();
+						self.sleep(false);
 						ss.last_activity = None;
 					}
 				}
@@ -1126,7 +1125,7 @@ impl Client {
 				let now = Instant::now();
 				if let Some(t) = ss.last_activity {
 					if now > t + timeout {
-						self.sleep();
+						self.sleep(false);
 						ss.last_activity = None;
 						ss.last_autosleep = Some(now);
 					}
@@ -1225,10 +1224,10 @@ impl Client {
 		}
 	}
 
-	fn sleep(&self) {
+	fn sleep(&self, force: bool) {
 		if self.liveness.load(AtomicOrdering::Relaxed) {
 			// only sleep if the import queue is mostly empty.
-			if self.queue_info().total_queue_size() <= MAX_QUEUE_SIZE_TO_SLEEP_ON {
+			if force || (self.queue_info().total_queue_size() <= MAX_QUEUE_SIZE_TO_SLEEP_ON) {
 				self.liveness.store(false, AtomicOrdering::Relaxed);
 				self.notify(|n| n.stop());
 				info!(target: "mode", "sleep: Sleeping.");
@@ -1741,7 +1740,7 @@ impl BlockChainClient for Client {
 		}
 		match new_mode {
 			Mode::Active => self.wake_up(),
-			Mode::Off => self.sleep(),
+			Mode::Off => self.sleep(true),
 			_ => {(*self.sleep_state.lock()).last_activity = Some(Instant::now()); }
 		}
 	}
@@ -2369,7 +2368,6 @@ impl PrepareOpenBlock for Client {
 			gas_range_target,
 			extra_data,
 			is_epoch_begin,
-			chain.ancestry_with_metadata_iter(best_header.hash()),
 		)?;
 
 		// Add uncles

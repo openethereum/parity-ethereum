@@ -16,7 +16,7 @@
 
 use std::time::Duration;
 use std::io::Read;
-use std::net::SocketAddr;
+use std::net::{SocketAddr, ToSocketAddrs};
 use std::path::PathBuf;
 use std::collections::{HashSet, BTreeMap};
 use std::iter::FromIterator;
@@ -725,9 +725,18 @@ impl Configuration {
 		let port = self.args.arg_ports_shift + self.args.arg_port;
 		let listen_address = SocketAddr::new(self.interface(&self.args.arg_interface).parse().unwrap(), port);
 		let public_address = if self.args.arg_nat.starts_with("extip:") {
-			let host = &self.args.arg_nat[6..];
-			let host = host.parse().map_err(|_| format!("Invalid host given with `--nat extip:{}`", host))?;
-			Some(SocketAddr::new(host, port))
+			let host = self.args.arg_nat[6..].split(':').next().expect("split has at least one part; qed");
+			let host = format!("{}:{}", host, port);
+			match host.to_socket_addrs() {
+				Ok(mut addr_iter) => {
+					if let Some(addr) = addr_iter.next() {
+						Some(addr)
+					} else {
+						return Err(format!("Invalid host given with `--nat extip:{}`", &self.args.arg_nat[6..]))
+					}
+				},
+				Err(_) => return Err(format!("Invalid host given with `--nat extip:{}`", &self.args.arg_nat[6..]))
+			}
 		} else {
 			None
 		};
@@ -1842,6 +1851,33 @@ mod tests {
 		assert_eq!(conf1.secretstore_config().unwrap().port, 8084);
 		assert_eq!(conf1.secretstore_config().unwrap().http_port, 8083);
 		assert_eq!(conf1.ipfs_config().port, 5002);
+	}
+
+	#[test]
+	fn should_resolve_external_nat_hosts() {
+		// Ip works
+		let conf = parse(&["parity", "--nat", "extip:1.1.1.1"]);
+		assert_eq!(conf.net_addresses().unwrap().1.unwrap().ip().to_string(), "1.1.1.1");
+		assert_eq!(conf.net_addresses().unwrap().1.unwrap().port(), 30303);
+
+		// Ip with port works, port is discarded
+		let conf = parse(&["parity", "--nat", "extip:192.168.1.1:123"]);
+		assert_eq!(conf.net_addresses().unwrap().1.unwrap().ip().to_string(), "192.168.1.1");
+		assert_eq!(conf.net_addresses().unwrap().1.unwrap().port(), 30303);
+
+		// Hostname works
+		let conf = parse(&["parity", "--nat", "extip:ethereum.org"]);
+		assert!(conf.net_addresses().unwrap().1.is_some());
+		assert_eq!(conf.net_addresses().unwrap().1.unwrap().port(), 30303);
+
+		// Hostname works, garbage at the end is discarded
+		let conf = parse(&["parity", "--nat", "extip:ethereum.org:whatever bla bla 123"]);
+		assert!(conf.net_addresses().unwrap().1.is_some());
+		assert_eq!(conf.net_addresses().unwrap().1.unwrap().port(), 30303);
+
+		// Garbage is error
+		let conf = parse(&["parity", "--nat", "extip:blabla"]);
+		assert!(conf.net_addresses().is_err());
 	}
 
 	#[test]

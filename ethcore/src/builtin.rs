@@ -19,7 +19,6 @@
 use std::cmp::{max, min};
 use std::io::{self, Read};
 
-use byteorder::{ByteOrder, BigEndian};
 use parity_crypto::digest;
 use num::{BigUint, Zero, One};
 
@@ -369,7 +368,9 @@ impl Impl for ModexpImpl {
 		// but so would running out of addressable memory!
 		let mut read_len = |reader: &mut io::Chain<&[u8], io::Repeat>| {
 			reader.read_exact(&mut buf[..]).expect("reading from zero-extended memory cannot fail; qed");
-			BigEndian::read_u64(&buf[24..]) as usize
+			let mut len_bytes = [0u8; 8];
+			len_bytes.copy_from_slice(&buf[24..]);
+			u64::from_be_bytes(len_bytes) as usize
 		};
 
 		let base_len = read_len(&mut reader);

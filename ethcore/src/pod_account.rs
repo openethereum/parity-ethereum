@@ -16,7 +16,6 @@
 
 //! Account system expressed in Plain Old Data.
 
-use std::fmt;
 use std::collections::BTreeMap;
 use itertools::Itertools;
 use hash::{keccak};
@@ -53,7 +52,8 @@ pub struct PodAccount {
 fn opt_bytes_to_hex<S>(opt_bytes: &Option<Bytes>, serializer: S) -> Result<S::Ok, S::Error>
 	where S: Serializer
 {
-	serializer.collect_str(&format_args!("0x{}",opt_bytes.as_ref().map_or("".to_string(), |b|b.to_hex())))
+	let readable = opt_bytes.as_ref().map(|b| b.to_hex()).unwrap_or_default();
+	serializer.collect_str(&format_args!("0x{}", readable))
 }
 
 impl PodAccount {
@@ -121,18 +121,6 @@ impl From<ethjson::spec::Account> for PodAccount {
 				(BigEndianHash::from_uint(&key), BigEndianHash::from_uint(&value))
 			}).collect()),
 		}
-	}
-}
-
-impl fmt::Display for PodAccount {
-	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-		write!(f, "(bal={}; nonce={}; code={} bytes, #{}; storage={} items)",
-			self.balance,
-			self.nonce,
-			self.code.as_ref().map_or(0, |c| c.len()),
-			self.code.as_ref().map_or_else(H256::zero, |c| keccak(c)),
-			self.storage.len(),
-		)
 	}
 }
 
