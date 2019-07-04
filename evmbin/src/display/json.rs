@@ -47,6 +47,42 @@ pub struct Informant {
 	unmatched: bool,
 }
 
+#[derive(Serialize, Debug)]
+#[serde(rename_all = "camelCase")]
+pub struct TraceData<'a> {
+	pc: usize,
+	op: u8,
+	op_name: &'a str,
+	gas: &'a str,
+	gas_cost: &'a str,
+	memory: &'a str,
+	stack: &'a [U256],
+	storage: &'a HashMap<H256, H256>,
+	depth: usize,
+}
+
+#[derive(Serialize, Debug)]
+pub struct MessageInitial<'a> {
+	action: &'a str,
+	test: &'a str,
+}
+
+#[derive(Serialize, Debug)]
+#[serde(rename_all = "camelCase")]
+pub struct MessageSuccess<'a> {
+	output: &'a str,
+	gas_used: &'a str,
+	time: &'a u64,
+}
+
+#[derive(Serialize, Debug)]
+#[serde(rename_all = "camelCase")]
+pub struct MessageFailure<'a> {
+	error: &'a str,
+	gas_used: &'a str,
+	time: &'a u64,
+}
+
 impl Informant {
 	fn with_informant_in_depth<F: Fn(&mut Informant)>(informant: &mut Informant, depth: usize, f: F) {
 		if depth == 0 {
@@ -59,17 +95,21 @@ impl Informant {
 	fn informant_trace(informant: &Informant, gas_used: U256) -> String {
 		let info = ::evm::Instruction::from_u8(informant.instruction).map(|i| i.info());
 
-		json!({
-			"pc": informant.pc,
-			"op": informant.instruction,
-			"opName": info.map(|i| i.name).unwrap_or(""),
-			"gas": format!("{:#x}", gas_used.saturating_add(informant.gas_cost)),
-			"gasCost": format!("{:#x}", informant.gas_cost),
-			"memory": format!("0x{}", informant.memory.to_hex()),
-			"stack": informant.stack,
-			"storage": informant.storage,
-			"depth": informant.depth,
-		}).to_string()
+		let trace_data =
+			TraceData {
+				pc: informant.pc,
+				op: informant.instruction,
+				op_name: info.map(|i| i.name).unwrap_or(""),
+				gas: &format!("{:#x}", gas_used.saturating_add(informant.gas_cost)),
+				gas_cost: &format!("{:#x}", informant.gas_cost),
+				memory: &format!("0x{}", informant.memory.to_hex()),
+				stack: &informant.stack,
+				storage: &informant.storage,
+				depth: informant.depth,
+			}
+		;
+
+		serde_json::to_string(&trace_data).expect("Serialization cannot fail; qed")
 	}
 }
 
@@ -77,7 +117,15 @@ impl vm::Informant for Informant {
 	type Sink = ();
 
 	fn before_test(&mut self, name: &str, action: &str) {
-		println!("{}", json!({"action": action, "test": name}));
+		let message_init =
+			MessageInitial {
+				action,
+				test: &name,
+			}
+		;
+
+		let s = serde_json::to_string(&message_init).expect("Serialization cannot fail; qed");
+		println!("{}", s);
 	}
 
 	fn set_gas(&mut self, gas: U256) {
@@ -93,26 +141,32 @@ impl vm::Informant for Informant {
 					println!("{}", trace);
 				}
 
-				let success_msg = json!({
-					"output": format!("0x{}", success.output.to_hex()),
-					"gasUsed": format!("{:#x}", success.gas_used),
-					"time": display::as_micros(&success.time),
-				});
+				let message_success =
+					MessageSuccess {
+						output: &format!("0x{}", success.output.to_hex()),
+						gas_used: &format!("{:#x}", success.gas_used),
+						time: &display::as_micros(&success.time),
+					}
+				;
 
-				println!("{}", success_msg)
+				let s = serde_json::to_string(&message_success).expect("Serialization cannot fail; qed");
+				println!("{}", s);
 			},
 			Err(failure) => {
 				for trace in failure.traces.unwrap_or_else(Vec::new) {
 					println!("{}", trace);
 				}
 
-				let failure_msg = json!({
-					"error": &failure.error.to_string(),
-					"gasUsed": format!("{:#x}", failure.gas_used),
-					"time": display::as_micros(&failure.time),
-				});
+				let message_failure =
+					MessageFailure {
+						error: &failure.error.to_string(),
+						gas_used: &format!("{:#x}", failure.gas_used),
+						time: &display::as_micros(&failure.time),
+					}
+				;
 
-				println!("{}", failure_msg)
+				let s = serde_json::to_string(&message_failure).expect("Serialization cannot fail; qed");
+				println!("{}", s);
 			},
 		}
 	}

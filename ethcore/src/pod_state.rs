@@ -16,9 +16,7 @@
 
 //! State of all accounts in the system expressed in Plain Old Data.
 
-use std::fmt;
 use std::collections::BTreeMap;
-use itertools::Itertools;
 use ethereum_types::{H256, Address};
 use triehash::sec_trie_root;
 use pod_account::{self, PodAccount};
@@ -30,12 +28,6 @@ use ethjson;
 pub struct PodState(BTreeMap<Address, PodAccount>);
 
 impl PodState {
-	/// Contruct a new object from the `m`.
-	pub fn new() -> PodState { Default::default() }
-
-	/// Contruct a new object from the `m`.
-	pub fn from(m: BTreeMap<Address, PodAccount>) -> PodState { PodState(m) }
-
 	/// Get the underlying map.
 	pub fn get(&self) -> &BTreeMap<Address, PodAccount> { &self.0 }
 
@@ -65,21 +57,18 @@ impl From<ethjson::spec::State> for PodState {
 	}
 }
 
-impl fmt::Display for PodState {
-	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-		for (add, acc) in &self.0 {
-			writeln!(f, "{} => {}", add, acc)?;
-		}
-		Ok(())
+impl From<BTreeMap<Address, PodAccount>> for PodState {
+	fn from(s: BTreeMap<Address, PodAccount>) -> Self {
+		PodState(s)
 	}
 }
 
 /// Calculate and return diff between `pre` state and `post` state.
 pub fn diff_pod(pre: &PodState, post: &PodState) -> StateDiff {
 	StateDiff {
-		raw: pre.get().keys()
-			.merge(post.get().keys())
-			.filter_map(|acc| pod_account::diff_pod(pre.get().get(acc), post.get().get(acc)).map(|d| (acc.clone(), d)))
+		raw: pre.0.keys()
+			.chain(post.0.keys())
+			.filter_map(|acc| pod_account::diff_pod(pre.0.get(acc), post.0.get(acc)).map(|d| (*acc, d)))
 			.collect()
 	}
 }
@@ -87,9 +76,9 @@ pub fn diff_pod(pre: &PodState, post: &PodState) -> StateDiff {
 #[cfg(test)]
 mod test {
 	use std::collections::BTreeMap;
-	use types::state_diff::*;
-	use types::account_diff::*;
 	use pod_account::PodAccount;
+	use types::account_diff::{AccountDiff, Diff};
+	use types::state_diff::StateDiff;
 	use super::{PodState, Address};
 
 	#[test]
@@ -102,7 +91,7 @@ mod test {
 				storage: map![],
 			}
 		]);
-		assert_eq!(super::diff_pod(&a, &PodState::new()), StateDiff { raw: map![
+		assert_eq!(super::diff_pod(&a, &PodState::default()), StateDiff { raw: map![
 			Address::from_low_u64_be(1) => AccountDiff{
 				balance: Diff::Died(69.into()),
 				nonce: Diff::Died(0.into()),
@@ -110,7 +99,7 @@ mod test {
 				storage: map![],
 			}
 		]});
-		assert_eq!(super::diff_pod(&PodState::new(), &a), StateDiff{ raw: map![
+		assert_eq!(super::diff_pod(&PodState::default(), &a), StateDiff{ raw: map![
 			Address::from_low_u64_be(1) => AccountDiff{
 				balance: Diff::Born(69.into()),
 				nonce: Diff::Born(0.into()),

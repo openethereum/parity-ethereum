@@ -256,7 +256,7 @@ impl SyncHandler {
 				return Err(DownloaderImportError::Invalid);
 			}
 			match io.chain().block_status(BlockId::Hash(hash.clone())) {
-				BlockStatus::InChain  => {
+				BlockStatus::InChain => {
 					trace!(target: "sync", "New block hash already in chain {:?}", hash);
 				},
 				BlockStatus::Queued => {
@@ -529,8 +529,12 @@ impl SyncHandler {
 				sync.snapshot.clear();
 				return Ok(());
 			},
-			RestorationStatus::Initializing  { .. } => {
+			RestorationStatus::Initializing { .. } => {
 				trace!(target: "warp", "{}: Snapshot restoration is initializing", peer_id);
+				return Ok(());
+			}
+			RestorationStatus::Finalizing => {
+				trace!(target: "warp", "{}: Snapshot finalizing restoration", peer_id);
 				return Ok(());
 			}
 			RestorationStatus::Ongoing { .. } => {

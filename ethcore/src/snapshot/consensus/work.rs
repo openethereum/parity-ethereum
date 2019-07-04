@@ -208,15 +208,15 @@ impl PowRebuilder {
 	/// Create a new PowRebuilder.
 	fn new(chain: BlockChain, db: Arc<dyn KeyValueDB>, manifest: &ManifestData, snapshot_blocks: u64) -> Result<Self, ::error::Error> {
 		Ok(PowRebuilder {
-			chain: chain,
-			db: db,
+			chain,
+			db,
 			rng: OsRng::new().map_err(|e| format!("{}", e))?,
 			disconnected: Vec::new(),
 			best_number: manifest.block_number,
 			best_hash: manifest.block_hash,
 			best_root: manifest.state_root,
 			fed_blocks: 0,
-			snapshot_blocks: snapshot_blocks,
+			snapshot_blocks,
 		})
 	}
 }
@@ -298,9 +298,9 @@ impl Rebuilder for PowRebuilder {
 	}
 
 	/// Glue together any disconnected chunks and check that the chain is complete.
-	fn finalize(&mut self, _: &dyn Engine) -> Result<(), ::error::Error> {
+	fn finalize(&mut self) -> Result<(), ::error::Error> {
 		let mut batch = self.db.transaction();
-
+		trace!(target: "snapshot", "rebuilder, finalize: inserting {} disconnected chunks", self.disconnected.len());
 		for (first_num, first_hash) in self.disconnected.drain(..) {
 			let parent_num = first_num - 1;
 

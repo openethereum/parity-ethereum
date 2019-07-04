@@ -652,10 +652,7 @@ impl BlockChain {
 			// and write them
 			if let (Some(hash), Some(number)) = (best_ancient, best_ancient_number) {
 				let mut best_ancient_block = bc.best_ancient_block.write();
-				*best_ancient_block = Some(BestAncientBlock {
-					hash: hash,
-					number: number,
-				});
+				*best_ancient_block = Some(BestAncientBlock { hash, number });
 			}
 		}
 

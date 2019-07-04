@@ -368,13 +368,16 @@ impl Engine for Clique {
 		&self,
 		_block: &mut ExecutedBlock,
 		_epoch_begin: bool,
-		_ancestry: &mut dyn Iterator<Item=ExtendedHeader>,
 	) -> Result<(), Error> {
 		Ok(())
 	}
 
 	// Clique has no block reward.
-	fn on_close_block(&self, _block: &mut ExecutedBlock) -> Result<(), Error> {
+	fn on_close_block(
+		&self,
+		_block: &mut ExecutedBlock,
+		_parent_header: &Header
+	) -> Result<(), Error> {
 		Ok(())
 	}
 
