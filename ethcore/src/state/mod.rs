@@ -51,9 +51,7 @@ use bytes::Bytes;
 use trie::{Trie, TrieError, Recorder};
 use ethtrie::{TrieDB, Result as TrieResult};
 
-// TODO: need to be pub?
 pub use state_account::account::Account;
-// TODO: need to be pub?
 pub use state_account::backend::Backend;
 pub use state_account::backend;
 pub use state_account::substate::{CleanupMode, Substate};

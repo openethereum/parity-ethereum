@@ -284,7 +284,7 @@ impl StateDB {
 				if is_best {
 					let acc = account.account.0;
 					if let Some(&mut Some(ref mut existing)) = cache.accounts.get_mut(&account.address) {
-						if let Some(new) =  acc {
+						if let Some(new) = acc {
 							if account.modified {
 								existing.overwrite_with(new);
 							}
