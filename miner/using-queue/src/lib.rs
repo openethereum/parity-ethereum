@@ -14,9 +14,9 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
-//! Queue-like datastructure including notion of usage.
+//! Queue-like data structure including notion of usage.
 
-/// Special queue-like datastructure that includes the notion of
+/// Special queue-like data structure that includes the notion of
 /// usage to avoid items that were queued but never used from making it into
 /// the queue.
 pub struct UsingQueue<T> {
@@ -42,7 +42,7 @@ impl<T> UsingQueue<T> {
 		UsingQueue {
 			pending: None,
 			in_use: vec![],
-			max_size: max_size,
+			max_size,
 		}
 	}
 

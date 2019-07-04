@@ -473,7 +473,16 @@ impl Importer {
 	//
 	// The header passed is from the original block data and is sealed.
 	// TODO: should return an error if ImportRoute is none, issue #9910
-	fn commit_block<B>(&self, block: B, header: &Header, block_data: encoded::Block, pending: Option<PendingTransition>, client: &Client) -> ImportRoute where B: Drain {
+	fn commit_block<B>(
+		&self,
+		block: B,
+		header: &Header,
+		block_data: encoded::Block,
+		pending: Option<PendingTransition>,
+		client: &Client
+	) -> ImportRoute
+		where B: Drain
+	{
 		let hash = &header.hash();
 		let number = header.number();
 		let parent = header.parent_hash();
@@ -499,18 +508,17 @@ impl Importer {
 		};
 
 		let best = {
-			let hash = best_hash;
-			let header = chain.block_header_data(&hash)
+			let header = chain.block_header_data(&best_hash)
 				.expect("Best block is in the database; qed")
 				.decode()
 				.expect("Stored block header is valid RLP; qed");
-			let details = chain.block_details(&hash)
+			let details = chain.block_details(&best_hash)
 				.expect("Best block is in the database; qed");
 
 			ExtendedHeader {
 				parent_total_difficulty: details.total_difficulty - *header.difficulty(),
 				is_finalized: details.is_finalized,
-				header: header,
+				header,
 			}
 		};
 
@@ -548,7 +556,7 @@ impl Importer {
 		}).collect();
 
 		let route = chain.insert_block(&mut batch, block_data, receipts.clone(), ExtrasInsert {
-			fork_choice: fork_choice,
+			fork_choice,
 			is_finalized,
 		});
 
@@ -2410,11 +2418,11 @@ impl ImportSealedBlock for Client {
 			let _import_lock = self.importer.import_lock.lock();
 			trace_time!("import_sealed_block");
 
-			let block_data = block.rlp_bytes();
+			let block_bytes = block.rlp_bytes();
 
 			let pending = self.importer.check_epoch_end_signal(
 				&header,
-				&block_data,
+				&block_bytes,
 				&block.receipts,
 				block.state.db(),
 				self
@@ -2422,7 +2430,7 @@ impl ImportSealedBlock for Client {
 			let route = self.importer.commit_block(
 				block,
 				&header,
-				encoded::Block::new(block_data),
+				encoded::Block::new(block_bytes),
 				pending,
 				self
 			);

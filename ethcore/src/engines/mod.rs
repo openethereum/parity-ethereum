@@ -156,8 +156,6 @@ impl error::Error for EngineError {
 /// Seal type.
 #[derive(Debug, PartialEq, Eq)]
 pub enum Seal {
-	/// Proposal seal; should be broadcasted, but not inserted into blockchain.
-	Proposal(Vec<Bytes>),
 	/// Regular block seal; should be part of the blockchain.
 	Regular(Vec<Bytes>),
 	/// Engine does not generate seal for this block right now.
