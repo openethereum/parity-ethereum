@@ -332,12 +332,21 @@ mod tests {
 	}
 
 	#[test]
+	// The Whisper pool size is of type usize. Invalid Whisper pool sizes include
+	// values below 0 and either above 2 ** 64 - 1 on a 64-bit processor or
+	// above 2 ** 32 - 1 on a 32-bit processor.
 	fn invalid_whisper_pool_size() {
-		let command = vec!["whisper", "--whisper-pool-size=-100000000000000000000000000000000000000"]
+		let command_pool_size_too_low = vec!["whisper", "--whisper-pool-size=-1"]
 			.into_iter()
 			.map(Into::into)
 			.collect::<Vec<String>>();
 
-		assert!(execute(command).is_err());
+		let command_pool_size_too_high = vec!["whisper", "--whisper-pool-size=18446744073709552000"]
+			.into_iter()
+			.map(Into::into)
+			.collect::<Vec<String>>();
+
+		assert!(execute(command_pool_size_too_low).is_err());
+		assert!(execute(command_pool_size_too_high).is_err());
 	}
 }
