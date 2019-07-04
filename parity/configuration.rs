@@ -119,6 +119,7 @@ impl Configuration {
 		let dirs = self.directories();
 		let pruning = self.args.arg_pruning.parse()?;
 		let pruning_history = self.args.arg_pruning_history;
+		let pruning_historical_eras: Vec<(u64,u64)> = self.historical_eras_config()?;
 		let vm_type = self.vm_type()?;
 		let spec = self.chain()?;
 		let mode = match self.args.arg_mode.as_ref() {
@@ -188,6 +189,7 @@ impl Configuration {
 				spec,
 				pruning,
 				pruning_history,
+				pruning_historical_eras,
 				pruning_memory: self.args.arg_pruning_memory,
 				tracing,
 				fat_db,
@@ -254,6 +256,7 @@ impl Configuration {
 				format: format,
 				pruning: pruning,
 				pruning_history: pruning_history,
+//				pruning_historical_eras: pruning_historical_eras,
 				pruning_memory: self.args.arg_pruning_memory,
 				compaction: compaction,
 				tracing: tracing,
@@ -372,6 +375,7 @@ impl Configuration {
 				spec: spec,
 				pruning: pruning,
 				pruning_history: pruning_history,
+				pruning_historical_eras,
 				pruning_memory: self.args.arg_pruning_memory,
 				daemon: daemon,
 				logger_config: logger_config.clone(),
@@ -837,6 +841,37 @@ impl Configuration {
 		}
 		let hosts = hosts.split(',').map(Into::into).collect();
 		Some(hosts)
+	}
+
+	fn parse_range<T>(range: &String) -> Option<(T, T)>
+	    where T: std::str::FromStr + Clone + Ord {
+		let range_opt: Result<Vec<T>, _> = range.split('-').map(std::str::FromStr::from_str).collect();
+		match range_opt {
+			Ok(v) => {
+				match v.clone().as_slice() {
+					[h, l] => return if *h > *l { Some((h.clone(), l.clone())) } else { Some((l.clone(), h.clone())) },
+					_ => return None
+				}
+			}
+			_ => { return None }
+		}
+	}
+
+	fn parse_vec(s: &String) -> Option<Vec<String>> {
+		if s.len() == 0 { return Some(Vec::new()) }
+		let v = s.split(',').map(Into::into).collect();
+		Some(v)
+	}
+
+	fn historical_eras_config(&self) -> Result<Vec<(u64,u64)>, String> {
+		let vs_opt = Self::parse_vec(&self.args.arg_pruning_historical_eras);
+		match vs_opt {
+			None => { return Err("Unable to prase list of ranges".to_string()) }
+			Some(vs1) => {
+				let vs2: Option<Vec<_>> = vs1.iter().map(Self::parse_range).collect();
+				return vs2.ok_or("Unable to parse a range in list of ranges".to_string())
+			}
+		}
 	}
 
 	fn rpc_hosts(&self) -> Option<Vec<String>> {
@@ -1432,6 +1467,7 @@ mod tests {
 			spec: Default::default(),
 			pruning: Default::default(),
 			pruning_history: 64,
+			pruning_historical_eras: vec![],
 			pruning_memory: 32,
 			daemon: None,
 			logger_config: Default::default(),

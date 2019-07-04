@@ -115,6 +115,8 @@ pub struct ClientConfig {
 	pub jump_table_size: usize,
 	/// Minimum state pruning history size.
 	pub history: u64,
+	/// Special ranges of history to retain.
+	pub historical_eras: Vec<(u64, u64)>,
 	/// Ideal memory usage for state pruning history.
 	pub history_mem: usize,
 	/// Check seal valididity on block import
@@ -146,6 +148,7 @@ impl Default for ClientConfig {
 			state_cache_size: 1 * mb,
 			jump_table_size: 1 * mb,
 			history: 64,
+			historical_eras: vec![],
 			history_mem: 32 * mb,
 			check_seal: true,
 			transaction_verification_queue_size: 8192,

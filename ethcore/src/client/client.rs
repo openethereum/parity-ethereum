@@ -230,6 +230,9 @@ pub struct Client {
 	/// Number of eras kept in a journal before they are pruned
 	history: u64,
 
+	/// Special ranges of eras to keep and not prune
+	historical_eras: Vec<(u64, u64)>,
+
 	/// An action to be done if a mode/spec_name change happens
 	on_user_defaults_change: Mutex<Option<Box<dyn FnMut(Option<Mode>) + 'static + Send>>>,
 
@@ -716,7 +719,7 @@ impl Client {
 			accountdb: Default::default(),
 		};
 
-		let journal_db = journaldb::new(db.key_value().clone(), config.pruning, ::db::COL_STATE);
+		let journal_db = journaldb::new(db.key_value().clone(), config.pruning, ::db::COL_STATE, config.historical_eras.as_slice());
 		let mut state_db = StateDB::new(journal_db, config.state_cache_size);
 		if state_db.journal_db().is_empty() {
 			// Sets the correct state root.
@@ -740,6 +743,10 @@ impl Client {
 		} else {
 			config.history
 		};
+
+		if config.historical_eras.len() > 0 {
+			info!(target: "client", "Permanently caching historical states (if already available): {:?}", config.historical_eras);
+		}
 
 		if !chain.block_header_data(&chain.best_block_hash()).map_or(true, |h| state_db.journal_db().contains(&h.state_root(), EMPTY_PREFIX)) {
 			warn!("State root not found for block #{} ({:x})", chain.best_block_number(), chain.best_block_hash());
@@ -778,6 +785,7 @@ impl Client {
 			last_hashes: RwLock::new(VecDeque::new()),
 			factories,
 			history,
+			historical_eras: config.historical_eras.clone(),
 			on_user_defaults_change: Mutex::new(None),
 			registrar_address,
 			exit_handler: Mutex::new(None),
@@ -1047,7 +1055,7 @@ impl Client {
 			let db = self.state_db.read().boxed_clone();
 
 			// early exit for pruned blocks
-			if db.is_pruned() && self.pruning_info().earliest_state > block_number {
+			if db.is_pruned() && !self.pruning_has_block(block_number) {
 				return None;
 			}
 
@@ -1327,7 +1335,7 @@ impl snapshot::DatabaseRestore for Client {
 		db.restore(new_db)?;
 
 		let cache_size = state_db.cache_size();
-		*state_db = StateDB::new(journaldb::new(db.key_value().clone(), self.pruning, ::db::COL_STATE), cache_size);
+		*state_db = StateDB::new(journaldb::new(db.key_value().clone(), self.pruning, ::db::COL_STATE, &[]), cache_size);
 		*chain = Arc::new(BlockChain::new(self.config.blockchain.clone(), &[], db.clone()));
 		*tracedb = TraceDB::new(self.config.tracing.clone(), db.clone(), chain.clone());
 		Ok(())
@@ -2182,6 +2190,11 @@ impl BlockChainClient for Client {
 			earliest_chain: self.chain.read().first_block_number().unwrap_or(1),
 			earliest_state: self.state_db.read().journal_db().earliest_era().unwrap_or(0),
 		}
+	}
+
+	fn pruning_has_block(&self, block_number: u64) -> bool {
+		self.pruning_info().earliest_state <= block_number
+		 || self.historical_eras.iter().any(|&(h, l)| h >= block_number && block_number >= l)
 	}
 
 	fn transact_contract(&self, address: Address, data: Bytes) -> Result<(), transaction::Error> {

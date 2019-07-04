@@ -389,7 +389,7 @@ impl TestBlockChainClient {
 
 pub fn get_temp_state_db() -> StateDB {
 	let db = kvdb_memorydb::create(NUM_COLUMNS.unwrap_or(0));
-	let journal_db = journaldb::new(Arc::new(db), journaldb::Algorithm::EarlyMerge, COL_STATE);
+	let journal_db = journaldb::new(Arc::new(db), journaldb::Algorithm::EarlyMerge, COL_STATE, &[]);
 	StateDB::new(journal_db, 1024 * 1024)
 }
 
@@ -878,6 +878,11 @@ impl BlockChainClient for TestBlockChainClient {
 			earliest_chain: 1,
 			earliest_state: self.history.read().as_ref().map(|x| best_num - x).unwrap_or(0),
 		}
+	}
+
+	fn pruning_has_block(&self, block_number: u64) -> bool {
+		self.pruning_info().earliest_state <= block_number
+		// || self.historical_eras.iter().any(|&(h, l)| h >= block_number && block_number >= l)
 	}
 
 	fn transact_contract(&self, address: Address, data: Bytes) -> Result<(), transaction::Error> {

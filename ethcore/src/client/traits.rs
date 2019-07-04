@@ -372,6 +372,9 @@ pub trait BlockChainClient : Sync + Send + AccountData + BlockChain + CallContra
 	/// Returns information about pruning/data availability.
 	fn pruning_info(&self) -> PruningInfo;
 
+	/// Returns true if we have a block number in pruning history
+	fn pruning_has_block(&self, block_number: u64) -> bool;
+
 	/// Schedule state-altering transaction to be executed on the next pending block.
 	fn transact_contract(&self, address: Address, data: Bytes) -> Result<(), transaction::Error>;
 

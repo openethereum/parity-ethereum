@@ -92,7 +92,7 @@ fn snap_and_restore() {
 		new_db
 	};
 
-	let new_db = journaldb::new(db, Algorithm::OverlayRecent, ::db::COL_STATE);
+	let new_db = journaldb::new(db, Algorithm::OverlayRecent, ::db::COL_STATE, &[]);
 	assert_eq!(new_db.earliest_era(), Some(1000));
 	let keys = old_db.keys();
 
@@ -153,7 +153,7 @@ fn get_code_from_prev_chunk() {
 		rebuilder.finalize(1000, H256::random()).unwrap();
 	}
 
-	let state_db = journaldb::new(new_db, Algorithm::OverlayRecent, ::db::COL_STATE);
+	let state_db = journaldb::new(new_db, Algorithm::OverlayRecent, ::db::COL_STATE, &[]);
 	assert_eq!(state_db.earliest_era(), Some(1000));
 }
 
