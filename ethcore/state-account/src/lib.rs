@@ -632,7 +632,7 @@ mod tests {
 	use journaldb::new_memory_db;
 	use parity_bytes::Bytes;
 	use super::*;
-	use ethcore::account_db::*;
+	use account_db::*;
 	use std::str::FromStr;
 
 	#[test]
