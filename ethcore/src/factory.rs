@@ -33,7 +33,7 @@ pub struct VmFactory {
 
 impl VmFactory {
 	pub fn create(&self, params: ActionParams, schedule: &Schedule, depth: usize) -> Option<Box<dyn Exec>> {
-		if params.code_version == U256::zero() {
+		if params.code_version.is_zero() {
 			Some(if schedule.wasm.is_some() && params.code.as_ref().map_or(false, |code| code.len() > 4 && &code[0..4] == WASM_MAGIC_NUMBER) {
 				Box::new(WasmInterpreter::new(params))
 			} else {
