@@ -22,7 +22,7 @@ serde = { version = "1.0", features = ["derive"] }
 trie-db = "0.12.4"
 
 [dev-dependencies]
-ethcore = { path = ".." }
+account-db = { path = "../account-db" }
 rlp_compress = { path = "../../util/rlp-compress" }
 journaldb = { path = "../../util/journaldb" }
 parity-bytes = "0.1.0"

@@ -53,6 +53,7 @@
 //!   cargo build --release
 //!   ```
 
+extern crate account_db;
 extern crate ansi_term;
 extern crate bn;
 extern crate common_types as types;
@@ -169,7 +170,6 @@ pub mod state_db;
 pub mod trace;
 pub mod transaction_ext;
 pub mod verification;
-pub mod account_db;
 
 mod externalities;
 mod factory;
