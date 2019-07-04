@@ -170,7 +170,6 @@ pub mod state_db;
 pub mod trace;
 pub mod transaction_ext;
 pub mod verification;
-pub mod account_db;
 
 mod externalities;
 mod factory;
@@ -186,3 +185,4 @@ pub mod test_helpers;
 pub use executive::contract_address;
 pub use evm::CreateContractAddress;
 pub use trie::TrieSpec;
+pub use account_db;
