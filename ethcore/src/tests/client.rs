@@ -349,7 +349,7 @@ fn transaction_proof() {
 	let proof = client.prove_transaction(transaction.clone(), BlockId::Latest).unwrap().1;
 	let backend = state::backend::ProofCheck::new(&proof);
 
-	let mut factories = ::factory::Factories::default();
+	let mut factories = ::factories::Factories::default();
 	factories.accountdb = ::account_db::Factory::Plain; // raw state values, no mangled keys.
 	let root = *client.best_block_header().state_root();
 
