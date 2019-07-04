@@ -137,21 +137,12 @@ pub struct AccountDBMut<'db> {
 }
 
 impl<'db> AccountDBMut<'db> {
-	/// Create a new AccountDB from an address.
-	#[cfg(test)]
-	pub fn new(db: &'db mut dyn HashDB<KeccakHasher, DBValue>, address: &Address) -> Self {
-		Self::from_hash(db, keccak(address))
-	}
-
-	/// Create a new AcountDB from an address' hash.
+	/// Create a new `AccountDBMut` from an address' hash.
 	pub fn from_hash(db: &'db mut dyn HashDB<KeccakHasher, DBValue>, address_hash: H256) -> Self {
-		AccountDBMut {
-			db: db,
-			address_hash: address_hash,
-		}
+		AccountDBMut { db, address_hash }
 	}
 
-	#[cfg(test)]
+	/// Create an `AccountDB` from an `AccountDBMut` (used in tests).
 	pub fn immutable(&'db self) -> AccountDB<'db> {
 		AccountDB { db: self.db, address_hash: self.address_hash.clone() }
 	}

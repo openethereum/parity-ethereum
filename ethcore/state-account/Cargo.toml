@@ -1,0 +1,28 @@
+[package]
+description = "Ethereum accounts, keeps track of changes to the code and storage."
+name = "state-account"
+version = "0.1.0"
+authors = ["Parity Technologies <admin@parity.io>"]
+edition = "2018"
+
+[dependencies]
+common-types = { path = "../types"}
+ethereum-types = "0.6.0"
+ethtrie = { package = "patricia-trie-ethereum", path = "../../util/patricia-trie-ethereum" }
+hash-db = "0.12.4"
+keccak-hash = "0.2.0"
+keccak-hasher = { path = "../../util/keccak-hasher" }
+kvdb = "0.1.0"
+log = "0.4"
+lru-cache = "0.1.2"
+parity-bytes = "0.1.0"
+pod-account = { path = "../pod-account" }
+rlp = "0.4.0"
+serde = { version = "1.0", features = ["derive"] }
+trie-db = "0.12.4"
+
+[dev-dependencies]
+ethcore = { path = ".." }
+rlp_compress = { path = "../../util/rlp-compress" }
+journaldb = { path = "../../util/journaldb" }
+parity-bytes = "0.1.0"

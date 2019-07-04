@@ -139,5 +139,5 @@ members = [
 	"util/keccak-hasher",
 	"util/patricia-trie-ethereum",
 	"util/fastmap",
-	"util/time-utils"
+	"util/time-utils",
 ]

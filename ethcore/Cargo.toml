@@ -52,6 +52,7 @@ parity-bytes = "0.1"
 parity-crypto = "0.4.0"
 parity-snappy = "0.1"
 parking_lot = "0.7"
+pod-account = { path = "pod-account" }
 trie-db = "0.12.4"
 patricia-trie-ethereum = { path = "../util/patricia-trie-ethereum" }
 rand = "0.6"
@@ -61,6 +62,7 @@ rlp_derive = { path = "../util/rlp-derive" }
 rustc-hex = "1.0"
 serde = "1.0"
 serde_derive = "1.0"
+state-account = { path = "state-account" }
 stats = { path = "../util/stats" }
 tempdir = { version = "0.3", optional = true }
 time-utils = { path = "../util/time-utils" }

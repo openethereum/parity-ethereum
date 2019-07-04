@@ -914,6 +914,7 @@ dependencies = [
  "parity-util-mem 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "parking_lot 0.7.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "patricia-trie-ethereum 0.1.0",
+ "pod-account 0.1.0",
  "rand 0.6.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "rand_xorshift 0.1.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "rayon 1.0.3 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -924,6 +925,7 @@ dependencies = [
  "serde 1.0.89 (registry+https://github.com/rust-lang/crates.io-index)",
  "serde_derive 1.0.89 (registry+https://github.com/rust-lang/crates.io-index)",
  "serde_json 1.0.39 (registry+https://github.com/rust-lang/crates.io-index)",
+ "state-account 0.1.0",
  "stats 0.1.0",
  "tempdir 0.3.7 (registry+https://github.com/rust-lang/crates.io-index)",
  "time-utils 0.1.0",
@@ -1911,6 +1913,14 @@ dependencies = [
 [[package]]
 name = "itertools"
 version = "0.7.8"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+dependencies = [
+ "either 1.5.0 (registry+https://github.com/rust-lang/crates.io-index)",
+]
+
+[[package]]
+name = "itertools"
+version = "0.8.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 dependencies = [
  "either 1.5.0 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -3220,6 +3230,29 @@ dependencies = [
 ]
 
 [[package]]
+name = "pod-account"
+version = "0.1.0"
+dependencies = [
+ "common-types 0.1.0",
+ "ethereum-types 0.6.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "ethjson 0.1.0",
+ "hash-db 0.12.4 (registry+https://github.com/rust-lang/crates.io-index)",
+ "itertools 0.8.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "keccak-hash 0.2.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "keccak-hasher 0.1.1",
+ "kvdb 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "log 0.4.6 (registry+https://github.com/rust-lang/crates.io-index)",
+ "macros 0.1.0",
+ "parity-bytes 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "patricia-trie-ethereum 0.1.0",
+ "rlp 0.4.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "rustc-hex 1.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "serde 1.0.89 (registry+https://github.com/rust-lang/crates.io-index)",
+ "trie-db 0.12.4 (registry+https://github.com/rust-lang/crates.io-index)",
+ "triehash-ethereum 0.2.0",
+]
+
+[[package]]
 name = "pretty_assertions"
 version = "0.1.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3897,6 +3930,29 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 name = "stable_deref_trait"
 version = "1.1.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
+
+[[package]]
+name = "state-account"
+version = "0.1.0"
+dependencies = [
+ "common-types 0.1.0",
+ "ethcore 1.12.0",
+ "ethereum-types 0.6.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "hash-db 0.12.4 (registry+https://github.com/rust-lang/crates.io-index)",
+ "journaldb 0.2.0",
+ "keccak-hash 0.2.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "keccak-hasher 0.1.1",
+ "kvdb 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "log 0.4.6 (registry+https://github.com/rust-lang/crates.io-index)",
+ "lru-cache 0.1.2 (registry+https://github.com/rust-lang/crates.io-index)",
+ "parity-bytes 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "patricia-trie-ethereum 0.1.0",
+ "pod-account 0.1.0",
+ "rlp 0.4.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "rlp_compress 0.1.0",
+ "serde 1.0.89 (registry+https://github.com/rust-lang/crates.io-index)",
+ "trie-db 0.12.4 (registry+https://github.com/rust-lang/crates.io-index)",
+]
 
 [[package]]
 name = "static_assertions"
@@ -4870,6 +4926,7 @@ dependencies = [
 "checksum ipnetwork 0.12.8 (registry+https://github.com/rust-lang/crates.io-index)" = "70783119ac90828aaba91eae39db32c6c1b8838deea3637e5238efa0130801ab"
 "checksum itertools 0.5.10 (registry+https://github.com/rust-lang/crates.io-index)" = "4833d6978da405305126af4ac88569b5d71ff758581ce5a987dbfa3755f694fc"
 "checksum itertools 0.7.8 (registry+https://github.com/rust-lang/crates.io-index)" = "f58856976b776fedd95533137617a02fb25719f40e7d9b01c7043cd65474f450"
+"checksum itertools 0.8.0 (registry+https://github.com/rust-lang/crates.io-index)" = "5b8467d9c1cebe26feb08c640139247fac215782d35371ade9a2136ed6085358"
 "checksum itertools-num 0.1.3 (registry+https://github.com/rust-lang/crates.io-index)" = "a872a22f9e6f7521ca557660adb96dd830e54f0f490fa115bb55dd69d38b27e7"
 "checksum itoa 0.4.3 (registry+https://github.com/rust-lang/crates.io-index)" = "1306f3464951f30e30d12373d31c79fbd52d236e5e896fd92f96ec7babbbe60b"
 "checksum jemalloc-sys 0.1.8 (registry+https://github.com/rust-lang/crates.io-index)" = "bfc62c8e50e381768ce8ee0428ee53741929f7ebd73e4d83f669bcf7693e00ae"
