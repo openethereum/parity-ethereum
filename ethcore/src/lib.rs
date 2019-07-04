@@ -102,7 +102,7 @@ extern crate serde;
 extern crate stats;
 extern crate state_account;
 extern crate time_utils;
-extern crate trace;
+pub extern crate trace;
 extern crate triehash_ethereum as triehash;
 extern crate unexpected;
 extern crate using_queue;
@@ -167,7 +167,7 @@ pub mod snapshot;
 pub mod spec;
 pub mod state;
 pub mod state_db;
-// TODO: need to reexport trace?
+// TODO: need to reexport trace? In general, why do we export so many of these modules?
 //pub mod trace;
 pub mod transaction_ext;
 pub mod verification;
