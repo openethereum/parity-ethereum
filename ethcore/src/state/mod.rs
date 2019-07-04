@@ -31,7 +31,7 @@ use machine::Machine;
 use vm::EnvInfo;
 use error::Error;
 use executive::{Executive, TransactOptions};
-use factory::Factories;
+use factories::{Factories, VmFactory};
 use trace::{self, FlatTrace, VMTrace};
 use pod_account::*;
 use pod_state::{self, PodState};
@@ -40,7 +40,6 @@ use executed::{Executed, ExecutionError};
 use types::state_diff::StateDiff;
 use types::transaction::SignedTransaction;
 use state_db::StateDB;
-use factory::VmFactory;
 
 use ethereum_types::{H256, U256, Address};
 use hash_db::{HashDB, AsHashDB};
@@ -51,10 +50,11 @@ use bytes::Bytes;
 use trie::{Trie, TrieError, Recorder};
 use ethtrie::{TrieDB, Result as TrieResult};
 
-pub use state_account::account::Account;
-pub use state_account::backend::Backend;
-pub use state_account::backend;
-pub use state_account::substate::{CleanupMode, Substate};
+pub use state_account::{
+	account::Account,
+	backend::{self, Backend},
+	substate::{CleanupMode, Substate},
+};
 
 /// Used to return information about an `State::apply` operation.
 pub struct ApplyOutcome<T, V> {

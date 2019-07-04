@@ -66,7 +66,7 @@ use error::{
 	QueueError, Error as EthcoreError, EthcoreResult,
 };
 use executive::{Executive, Executed, TransactOptions, contract_address};
-use factory::{Factories, VmFactory};
+use factories::{Factories, VmFactory};
 use miner::{Miner, MinerService};
 use snapshot::{self, io as snapshot_io, SnapshotClient};
 use spec::Spec;

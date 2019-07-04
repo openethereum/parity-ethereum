@@ -69,6 +69,7 @@ extern crate ethcore_miner;
 extern crate ethereum_types;
 extern crate ethjson;
 extern crate ethkey;
+extern crate factories;
 extern crate futures;
 extern crate hash_db;
 extern crate itertools;
@@ -105,7 +106,6 @@ extern crate triehash_ethereum as triehash;
 extern crate unexpected;
 extern crate using_queue;
 extern crate vm;
-extern crate wasm;
 
 #[cfg(test)]
 extern crate rand_xorshift;
@@ -171,7 +171,6 @@ pub mod transaction_ext;
 pub mod verification;
 
 mod externalities;
-mod factory;
 mod tx_filter;
 
 #[cfg(test)]

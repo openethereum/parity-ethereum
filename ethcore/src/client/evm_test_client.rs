@@ -23,7 +23,7 @@ use {factory, journaldb, trie, kvdb_memorydb};
 use kvdb::{self, KeyValueDB};
 use {state, state_db, client, executive, trace, db, spec, pod_state};
 use types::{log_entry, receipt, transaction};
-use factory::Factories;
+use factories::Factories;
 use evm::{VMType, FinalizationResult};
 use vm::{self, ActionParams};
 use ethtrie;

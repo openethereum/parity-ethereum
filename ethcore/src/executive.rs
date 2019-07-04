@@ -29,7 +29,7 @@ use vm::{
 	self, EnvInfo, CreateContractAddress, ReturnData, CleanDustMode, ActionParams,
 	ActionValue, Schedule, TrapError, ResumeCall, ResumeCreate
 };
-use factory::VmFactory;
+use factories::VmFactory;
 use externalities::*;
 use trace::{self, Tracer, VMTracer};
 use types::transaction::{Action, SignedTransaction};

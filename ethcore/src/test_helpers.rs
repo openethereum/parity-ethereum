@@ -41,7 +41,7 @@ use types::views::BlockView;
 
 use block::{OpenBlock, Drain};
 use client::{Client, ClientConfig, ChainInfo, ImportBlock, ChainNotify, ChainMessageType, PrepareOpenBlock};
-use factory::Factories;
+use factories::Factories;
 use miner::Miner;
 use spec::Spec;
 use state::*;
