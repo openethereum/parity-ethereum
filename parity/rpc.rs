@@ -29,7 +29,7 @@ use parity_rpc::{self as rpc, Metadata, DomainsValidation};
 use rpc_apis::{self, ApiSet};
 
 pub use parity_rpc::{IpcServer, HttpServer, RequestMiddleware};
-pub use parity_rpc::ws::Server as WsServer;
+pub use parity_rpc::ws::{Server as WsServer, ws};
 
 pub const DAPPS_DOMAIN: &'static str = "web3.site";
 

@@ -68,7 +68,6 @@ migration-rocksdb = { path = "util/migration-rocksdb" }
 kvdb = "0.1"
 kvdb-rocksdb = "0.1.3"
 journaldb = { path = "util/journaldb" }
-ws = "0.8"
 
 ethcore-secretstore = { path = "secret-store", optional = true }
 
