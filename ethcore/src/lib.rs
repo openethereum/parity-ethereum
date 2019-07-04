@@ -170,6 +170,7 @@ pub mod state_db;
 pub mod trace;
 pub mod transaction_ext;
 pub mod verification;
+pub mod account_db;
 
 mod externalities;
 mod factory;

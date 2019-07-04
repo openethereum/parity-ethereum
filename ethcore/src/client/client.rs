@@ -407,7 +407,6 @@ impl Importer {
 			last_hashes,
 			client.factories.clone(),
 			is_epoch_begin,
-			&mut chain.ancestry_with_metadata_iter(*header.parent_hash()),
 		);
 
 		let mut locked_block = match enact_result {
@@ -2361,7 +2360,6 @@ impl PrepareOpenBlock for Client {
 			gas_range_target,
 			extra_data,
 			is_epoch_begin,
-			chain.ancestry_with_metadata_iter(best_header.hash()),
 		)?;
 
 		// Add uncles

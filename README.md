@@ -16,11 +16,12 @@
   3.2 [Building from Source Code](#chapter-0032)<br>
   3.3 [Simple One-Line Installer for Mac and Linux](#chapter-0033)<br>
   3.4 [Starting Parity Ethereum](#chapter-0034)
-4. [Documentation](#chapter-004)
-5. [Toolchain](#chapter-005)
-6. [Community](#chapter-006)
-7. [Contributing](#chapter-007)
-8. [License](#chapter-008)
+4. [Testing](#chapter-004)
+5. [Documentation](#chapter-005)
+6. [Toolchain](#chapter-006)
+7. [Community](#chapter-007)
+8. [Contributing](#chapter-008)
+9. [License](#chapter-009)
 
 
 ## 1. Description <a id="chapter-001"></a>
@@ -148,7 +149,25 @@ To start Parity Ethereum as a regular user using `systemd` init:
 2. Copy release to bin folder, write `sudo install ./target/release/parity /usr/bin/parity`
 3. To configure Parity Ethereum, write a `/etc/parity/config.toml` config file, see [Configuring Parity Ethereum](https://paritytech.github.io/wiki/Configuring-Parity) for details.
 
-## 4. Documentation <a id="chapter-004"></a>
+## 4. Testing <a id="chapter-004"></a>
+
+You can run tests with the following commands:
+
+* **All** packages
+  ```
+  cargo test --all
+  ```
+
+* Specific package
+  ```
+  cargo test --package <spec>
+  ```
+
+Replace `<spec>` with one of the packages from the [package list](#package-list) (e.g. `cargo test --package evmbin`).
+
+You can show your logs in the test output by passing `--nocapture` (i.e. `cargo test --package evmbin -- --nocapture`)
+
+## 5. Documentation <a id="chapter-005"></a>
 
 Official website: https://parity.io
 
@@ -160,16 +179,20 @@ You can generate documentation for Parity Ethereum Rust packages that automatica
 
 * **All** packages
   ```
-  cargo doc --open
+  cargo doc --document-private-items --open
   ```
 
 * Specific package
   ```
-  cargo doc --package <spec> --open
+  cargo doc --package <spec> -- --document-private-items --open
   ```
+
+Use`--document-private-items` to also view private documentation and `--no-deps` to exclude building documentation for dependencies.
 
 Replacing `<spec>` with one of the following from the details section below (i.e. `cargo doc --package parity-ethereum --open`):
 
+<a id="package-list"></a>
+**Package List**
 <details><p>
 
 * Parity Ethereum (EthCore) Client Application
@@ -330,7 +353,7 @@ Example (generic documentation comment):
 ///
 ```
 
-## 5. Toolchain <a id="chapter-005"></a>
+## 6. Toolchain <a id="chapter-006"></a>
 
 In addition to the Parity Ethereum client, there are additional tools in this repository available:
 
@@ -342,7 +365,7 @@ In addition to the Parity Ethereum client, there are additional tools in this re
 The following tool is available in a separate repository:
 - [ethabi](https://github.com/paritytech/ethabi) - Parity Ethereum Encoding of Function Calls. [Docs here](https://crates.io/crates/ethabi)
 
-## 6. Community <a id="chapter-006"></a>
+## 7. Community <a id="chapter-007"></a>
 
 ### Join the chat!
 
@@ -355,7 +378,7 @@ Questions? Get in touch with us on Gitter:
 Alternatively, join our community on Matrix:
 [![Riot: +Parity](https://img.shields.io/badge/riot-%2Bparity%3Amatrix.parity.io-orange.svg)](https://riot.im/app/#/group/+parity:matrix.parity.io)
 
-## 7. Contributing <a id="chapter-007"></a>
+## 8. Contributing <a id="chapter-008"></a>
 
 An introduction has been provided in the ["So You Want to be a Core Developer" presentation slides by Hernando Castano](http://tiny.cc/contrib-to-parity-eth). Additional guidelines are provided in [CONTRIBUTING](./.github/CONTRIBUTING.md).
 
@@ -363,6 +386,6 @@ An introduction has been provided in the ["So You Want to be a Core Developer" p
 
 [CODE_OF_CONDUCT](./.github/CODE_OF_CONDUCT.md)
 
-## 8. License <a id="chapter-008"></a>
+## 9. License <a id="chapter-009"></a>
 
 [LICENSE](./LICENSE)
