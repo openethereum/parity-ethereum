@@ -253,7 +253,7 @@ mod tests {
 		let p = Progress::default();
 		let fat_rlps = to_fat_rlps(&keccak(&addr), &account, &AccountDB::new(db.as_hash_db(), &addr), &mut Default::default(), usize::max_value(), usize::max_value(), &p).unwrap();
 		let fat_rlp = Rlp::new(&fat_rlps[0]).at(1).unwrap();
-		assert_eq!(from_fat_rlp(&mut AccountDBMut::new(db.as_hash_db_mut(), &addr), fat_rlp, H256::zero()).unwrap().0, account);
+		assert_eq!(from_fat_rlp(&mut AccountDBMut::from_hash(db.as_hash_db_mut(), keccak(addr)), fat_rlp, H256::zero()).unwrap().0, account);
 	}
 
 	#[test]
@@ -262,7 +262,7 @@ mod tests {
 		let addr = Address::random();
 
 		let account = {
-			let acct_db = AccountDBMut::new(db.as_hash_db_mut(), &addr);
+			let acct_db = AccountDBMut::from_hash(db.as_hash_db_mut(), keccak(addr));
 			let mut root = KECCAK_NULL_RLP;
 			fill_storage(acct_db, &mut root, &mut H256::zero());
 			BasicAccount {
@@ -280,7 +280,7 @@ mod tests {
 
 		let fat_rlp = to_fat_rlps(&keccak(&addr), &account, &AccountDB::new(db.as_hash_db(), &addr), &mut Default::default(), usize::max_value(), usize::max_value(), &p).unwrap();
 		let fat_rlp = Rlp::new(&fat_rlp[0]).at(1).unwrap();
-		assert_eq!(from_fat_rlp(&mut AccountDBMut::new(db.as_hash_db_mut(), &addr), fat_rlp, H256::zero()).unwrap().0, account);
+		assert_eq!(from_fat_rlp(&mut AccountDBMut::from_hash(db.as_hash_db_mut(), keccak(addr)), fat_rlp, H256::zero()).unwrap().0, account);
 	}
 
 	#[test]
@@ -289,7 +289,7 @@ mod tests {
 		let addr = Address::random();
 
 		let account = {
-			let acct_db = AccountDBMut::new(db.as_hash_db_mut(), &addr);
+			let acct_db = AccountDBMut::from_hash(db.as_hash_db_mut(), keccak(addr));
 			let mut root = KECCAK_NULL_RLP;
 			fill_storage(acct_db, &mut root, &mut H256::zero());
 			BasicAccount {
@@ -309,7 +309,7 @@ mod tests {
 		let mut restored_account = None;
 		for rlp in fat_rlps {
 			let fat_rlp = Rlp::new(&rlp).at(1).unwrap();
-			restored_account = Some(from_fat_rlp(&mut AccountDBMut::new(db.as_hash_db_mut(), &addr), fat_rlp, root).unwrap().0);
+			restored_account = Some(from_fat_rlp(&mut AccountDBMut::from_hash(db.as_hash_db_mut(), keccak(addr)), fat_rlp, root).unwrap().0);
 			root = restored_account.as_ref().unwrap().storage_root.clone();
 		}
 		assert_eq!(restored_account, Some(account));
@@ -323,12 +323,12 @@ mod tests {
 		let addr2 = Address::random();
 
 		let code_hash = {
-			let mut acct_db = AccountDBMut::new(db.as_hash_db_mut(), &addr1);
+			let mut acct_db = AccountDBMut::from_hash(db.as_hash_db_mut(), keccak(addr1));
 			acct_db.insert(EMPTY_PREFIX, b"this is definitely code")
 		};
 
 		{
-			let mut acct_db = AccountDBMut::new(db.as_hash_db_mut(), &addr2);
+			let mut acct_db = AccountDBMut::from_hash(db.as_hash_db_mut(), keccak(addr2));
 			acct_db.emplace(code_hash.clone(), EMPTY_PREFIX, DBValue::from_slice(b"this is definitely code"));
 		}
 
@@ -356,11 +356,11 @@ mod tests {
 		let fat_rlp1 = Rlp::new(&fat_rlp1[0]).at(1).unwrap();
 		let fat_rlp2 = Rlp::new(&fat_rlp2[0]).at(1).unwrap();
 
-		let (acc, maybe_code) = from_fat_rlp(&mut AccountDBMut::new(db.as_hash_db_mut(), &addr2), fat_rlp2, H256::zero()).unwrap();
+		let (acc, maybe_code) = from_fat_rlp(&mut AccountDBMut::from_hash(db.as_hash_db_mut(), keccak(addr2)), fat_rlp2, H256::zero()).unwrap();
 		assert!(maybe_code.is_none());
 		assert_eq!(acc, account2);
 
-		let (acc, maybe_code) = from_fat_rlp(&mut AccountDBMut::new(db.as_hash_db_mut(), &addr1), fat_rlp1, H256::zero()).unwrap();
+		let (acc, maybe_code) = from_fat_rlp(&mut AccountDBMut::from_hash(db.as_hash_db_mut(), keccak(addr1)), fat_rlp1, H256::zero()).unwrap();
 		assert_eq!(maybe_code, Some(b"this is definitely code".to_vec()));
 		assert_eq!(acc, account1);
 	}
@@ -368,6 +368,6 @@ mod tests {
 	#[test]
 	fn encoding_empty_acc() {
 		let mut db = get_temp_state_db();
-		assert_eq!(from_fat_rlp(&mut AccountDBMut::new(db.as_hash_db_mut(), &Address::zero()), Rlp::new(&::rlp::NULL_RLP), H256::zero()).unwrap(), (ACC_EMPTY, None));
+		assert_eq!(from_fat_rlp(&mut AccountDBMut::from_hash(db.as_hash_db_mut(), keccak(Address::zero())), Rlp::new(&::rlp::NULL_RLP), H256::zero()).unwrap(), (ACC_EMPTY, None));
 	}
 }
