@@ -167,8 +167,6 @@ pub mod snapshot;
 pub mod spec;
 pub mod state;
 pub mod state_db;
-// TODO: need to reexport trace? In general, why do we export so many of these modules?
-//pub mod trace;
 pub mod transaction_ext;
 pub mod verification;
 
