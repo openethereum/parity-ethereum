@@ -111,7 +111,7 @@ impl CliqueTester {
 
 	/// Get signers after a certain state
 	// This is generally used to fetch the state after a test has been executed and checked against
-	// the intial list of signers provided in the test
+	// the initial list of signers provided in the test
 	pub fn clique_signers(&self, hash: &H256) -> impl Iterator<Item = Address> {
 		self.get_state_at_block(hash).signers().clone().into_iter()
 	}
@@ -171,7 +171,6 @@ impl CliqueTester {
 			(3141562.into(), 31415620.into()),
 			extra_data,
 			false,
-			None,
 		).unwrap();
 
 		{

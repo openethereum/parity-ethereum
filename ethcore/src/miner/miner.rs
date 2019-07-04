@@ -548,7 +548,7 @@ impl Miner {
 					}
 				},
 				// Invalid nonce error can happen only if previous transaction is skipped because of gas limit.
-				// If there is errornous state of transaction queue it will be fixed when next block is imported.
+				// If there is erroneous state of transaction queue it will be fixed when next block is imported.
 				Err(Error::Execution(ExecutionError::InvalidNonce { expected, got })) => {
 					debug!(target: "miner", "Skipping adding transaction to block because of invalid nonce: {:?} (expected: {:?}, got: {:?})", hash, expected, got);
 				},
