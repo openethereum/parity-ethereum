@@ -74,6 +74,8 @@ impl ::engines::StateDependentProof for StateProof {
 /// The validator contract should have the following interface:
 pub struct ValidatorSafeContract {
 	contract_address: Address,
+	/// The LRU cache is indexed by the parent_hash, so given a hash, the value
+	/// is the validator set valid for the blocks following that hash.
 	validators: RwLock<MemoryLruCache<H256, SimpleList>>,
 	client: RwLock<Option<Weak<dyn EngineClient>>>, // TODO [keorn]: remove
 }
@@ -471,6 +473,7 @@ mod tests {
 
 	#[test]
 	fn knows_validators() {
+		let _ = env_logger::try_init();
 		let tap = Arc::new(AccountProvider::transient_provider());
 		let s0: Secret = keccak("1").into();
 		let v0 = tap.insert_account(s0.clone(), &"".into()).unwrap();

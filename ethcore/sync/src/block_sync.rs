@@ -548,12 +548,18 @@ impl BlockDownloader {
 			let result = if let Some(receipts) = receipts {
 				io.chain().queue_ancient_block(block, receipts)
 			} else {
+				trace_sync!(self, "Importing block #{}/{}", number, h);
 				io.chain().import_block(block)
 			};
 
 			match result {
 				Err(EthcoreError::Import(ImportError::AlreadyInChain)) => {
-					trace_sync!(self, "Block already in chain {:?}", h);
+					let is_canonical = if io.chain().block_hash(BlockId::Number(number)).is_some() {
+						"canoncial"
+					} else {
+						"not canonical"
+					};
+					trace_sync!(self, "Block #{} is already in chain {:?} – {}", number, h, is_canonical);
 					self.block_imported(&h, number, &parent);
 				},
 				Err(EthcoreError::Import(ImportError::AlreadyQueued)) => {
