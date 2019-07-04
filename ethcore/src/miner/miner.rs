@@ -254,7 +254,6 @@ pub struct Miner {
 	accounts: Arc<dyn LocalAccounts>,
 	io_channel: RwLock<Option<IoChannel<ClientIoMessage>>>,
 	service_transaction_checker: Option<ServiceTransactionChecker>,
-	last_parent_hash: RwLock<H256>,
 }
 
 impl Miner {
@@ -316,7 +315,6 @@ impl Miner {
 			} else {
 				Some(ServiceTransactionChecker::default())
 			},
-			last_parent_hash: RwLock::new(H256::zero())
 		}
 	}
 
@@ -680,7 +678,7 @@ impl Miner {
 		trace!(target: "miner", "seal_block_internally: attempting internal seal for block #{}", block_number);
 
 		let parent_header = match chain.block_header(BlockId::Hash(*block.header.parent_hash())) {
-				Some(h) => {
+			Some(h) => {
 				match h.decode() {
 					Ok(decoded_hdr) => decoded_hdr,
 					Err(e) => {
@@ -688,21 +686,12 @@ impl Miner {
 						return false
 					}
 				}
-			}
+			},
 			None => {
 				trace!(target: "miner", "Block #{}: Parent with hash={} does not exist in our DB", block_number, block.header.parent_hash());
 				return false
 			},
 		};
-
-		// Take a lock on this parent_hash to stop any other blocks to be sealed with the same parent hash.
-		// NOTE: this does not work: when reporting misbehaviour the contract ends up calling back
-		// here again as part of `import_own_transaction` so we deadlock (cf. reports_validators
-		// test).
-		let mut last_parent_hash = self.last_parent_hash.write();
-		trace!(target: "miner", "Block #{}, Setting last parent hash. was: {}, becomes: {}", block_number, *last_parent_hash, block.header.hash());
-		*last_parent_hash = block.header.hash();
-		trace!(target: "miner", "Block #{} ACQUIRED last_hash LOCK", block_number);
 
 		let sealing_result =
 			match self.engine.generate_seal(&block, &parent_header) {
@@ -733,7 +722,6 @@ impl Miner {
 				},
 				Seal::None => false,
 			};
-		trace!(target:"miner", "Block #{}: seal_and_import_block_internally: done, returning {}", block_number, sealing_result);
 		sealing_result
 	}
 
@@ -820,13 +808,11 @@ impl Miner {
 		// Yes, it's a bit convoluted.
 		let prepare_new_block = self.maybe_enable_sealing();
 
-		// TODO: Callers check for this already. Ok to remove?
 		if self.engine.sealing_state() != SealingState::External {
 			trace!(target: "miner", "prepare_pending_block: engine not sealing externally; not preparing");
 			return BlockPreparationStatus::NotPrepared;
 		}
 
-		trace!(target: "miner", "prepare_pending_block: entering");
 		let preparation_status = if prepare_new_block {
 			// --------------------------------------------------------------------------
 			// | NOTE Code below requires sealing locks.                                |
@@ -1767,7 +1753,6 @@ mod tests {
 		miner.update_sealing(&*client);
 		client.flush_queue();
 		assert!(miner.pending_block(0).is_none());
-		println!("NOW");
 		assert_eq!(client.chain_info().best_block_number, 4 as BlockNumber);
 	}
 
