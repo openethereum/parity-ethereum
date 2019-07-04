@@ -23,7 +23,7 @@ use v1::types::{TraceFilter, LocalizedTrace, BlockNumber, Index, CallRequest, By
 	TraceResultsWithTransactionHash, TraceOptions};
 
 /// Traces specific rpc interface.
-#[rpc]
+#[rpc(server)]
 pub trait Traces {
 	/// RPC Metadata
 	type Metadata;

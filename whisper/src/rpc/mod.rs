@@ -69,7 +69,7 @@ fn abridge_topic(topic: &[u8]) -> EnvelopeTopic {
 }
 
 /// Whisper RPC interface.
-#[rpc]
+#[rpc(server)]
 pub trait Whisper {
 	/// Info about the node.
 	#[rpc(name = "shh_info")]
@@ -128,7 +128,7 @@ pub trait Whisper {
 }
 
 /// Whisper RPC pubsub.
-#[rpc]
+#[rpc(server)]
 pub trait WhisperPubSub {
 	// RPC Metadata
 	type Metadata;

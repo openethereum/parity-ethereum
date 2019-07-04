@@ -71,6 +71,7 @@ extern crate parity_updater as updater;
 extern crate parity_version;
 extern crate parity_whisper;
 extern crate registrar;
+extern crate ws;
 
 #[macro_use]
 extern crate log as rlog;
