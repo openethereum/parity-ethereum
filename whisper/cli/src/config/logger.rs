@@ -26,8 +26,7 @@ fn setup_logger(verbosity: u32, logging_to_file: bool) -> Result<(), fern::InitE
 		.debug(Color::BrightBlack)
 		.trace(Color::BrightBlack);
 
-	let colors_level = colors_line.clone()
-		.info(Color::Green);
+	let colors_level = colors_line.clone().info(Color::Green);
 
 	let mut base_config = fern::Dispatch::new();
 
