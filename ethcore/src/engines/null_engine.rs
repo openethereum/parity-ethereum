@@ -61,7 +61,11 @@ impl Engine for NullEngine {
 
 	fn machine(&self) -> &Machine { &self.machine }
 
-	fn on_close_block(&self, block: &mut ExecutedBlock) -> Result<(), Error> {
+	fn on_close_block(
+		&self,
+		block: &mut ExecutedBlock,
+		_parent_header: &Header
+	) -> Result<(), Error> {
 		use std::ops::Shr;
 
 		let author = *block.header.author();
