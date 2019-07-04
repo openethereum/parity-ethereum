@@ -30,6 +30,7 @@ ethereum-types = "0.6.0"
 ethjson = { path = "../json" }
 ethkey = { path = "../accounts/ethkey" }
 evm = { path = "evm" }
+factories = { path = "factories" }
 futures = "0.1"
 hash-db = "0.12.4"
 parity-util-mem = "0.1"
@@ -71,7 +72,6 @@ triehash-ethereum = { version = "0.2",  path = "../util/triehash-ethereum" }
 unexpected = { path = "../util/unexpected" }
 using_queue = { path = "../miner/using-queue" }
 vm = { path = "vm" }
-wasm = { path = "wasm" }
 rand_xorshift = "0.1.1"
 
 [dev-dependencies]
