@@ -726,9 +726,9 @@ impl BlockChain {
 		// reset from && to to the same level
 		while from_details.number > to_details.number {
 			from_branch.push(current_from);
+			is_from_route_finalized = is_from_route_finalized || from_details.is_finalized;
 			current_from = from_details.parent.clone();
 			from_details = self.block_details(&from_details.parent)?;
-			is_from_route_finalized = is_from_route_finalized || from_details.is_finalized;
 		}
 
 		while to_details.number > from_details.number {
@@ -742,9 +742,9 @@ impl BlockChain {
 		// move to shared parent
 		while current_from != current_to {
 			from_branch.push(current_from);
+			is_from_route_finalized = is_from_route_finalized || from_details.is_finalized;
 			current_from = from_details.parent.clone();
 			from_details = self.block_details(&from_details.parent)?;
-			is_from_route_finalized = is_from_route_finalized || from_details.is_finalized;
 
 			to_branch.push(current_to);
 			current_to = to_details.parent.clone();
