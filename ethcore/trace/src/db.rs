@@ -18,17 +18,22 @@
 use std::collections::HashMap;
 use std::sync::Arc;
 use parity_util_mem::MallocSizeOfExt;
-
-use blockchain::BlockChainDB;
-use db::cache_manager::CacheManager;
-use db::{self, Key, Writable, Readable, CacheUpdatePolicy};
+use ethcore_db::{
+	self as db,
+	cache_manager::CacheManager,
+	Key, Writable, Readable, CacheUpdatePolicy,
+};
+use ethcore_blockchain::BlockChainDB;
 use ethereum_types::{H256, H264};
-use kvdb::{DBTransaction};
+use kvdb::DBTransaction;
 use parking_lot::RwLock;
-use types::BlockNumber;
+use common_types::BlockNumber;
+use ethcore_blockchain::{BlockChain, BlockProvider, TransactionAddress};
 
-use trace::{LocalizedTrace, Config, Filter, Database as TraceDatabase, ImportRequest, DatabaseExtras};
-use trace::flat::{FlatTrace, FlatBlockTraces, FlatTransactionTraces};
+use crate::{
+	LocalizedTrace, Config, Filter, Database as TraceDatabase, ImportRequest, DatabaseExtras,
+	flat::{FlatTrace, FlatBlockTraces, FlatTransactionTraces},
+};
 
 const TRACE_DB_VER: &'static [u8] = b"1.0";
 
@@ -332,19 +337,43 @@ impl<T> TraceDatabase for TraceDB<T> where T: DatabaseExtras {
 	}
 }
 
+/// Bridge between TraceDb and Blockchain.
+impl DatabaseExtras for BlockChain {
+	fn block_hash(&self, block_number: BlockNumber) -> Option<H256> {
+		(self as &dyn BlockProvider).block_hash(block_number)
+	}
+
+	fn transaction_hash(&self, block_number: BlockNumber, tx_position: usize) -> Option<H256> {
+		(self as &dyn BlockProvider).block_hash(block_number)
+			.and_then(|block_hash| {
+				let tx_address = TransactionAddress {
+					block_hash,
+					index: tx_position
+				};
+				self.transaction(&tx_address)
+			})
+			.map(|tx| tx.hash())
+	}
+}
+
 #[cfg(test)]
 mod tests {
-	use std::collections::HashMap;
-	use std::sync::Arc;
+	use std::{
+		collections::HashMap,
+		sync::Arc,
+	};
+	use common_types::BlockNumber;
+	use ethcore::test_helpers::new_db;
 	use ethereum_types::{H256, U256, Address};
-	use kvdb::{DBTransaction};
-	use types::BlockNumber;
-	use trace::{Config, TraceDB, Database as TraceDatabase, DatabaseExtras, ImportRequest};
-	use trace::{Filter, LocalizedTrace, AddressesFilter, TraceError};
-	use trace::trace::{Call, Action, Res};
-	use trace::flat::{FlatTrace, FlatBlockTraces, FlatTransactionTraces};
 	use evm::CallType;
-	use test_helpers::new_db;
+	use kvdb::DBTransaction;
+
+	use crate::{
+		Config, TraceDB, Database as TraceDatabase, DatabaseExtras, ImportRequest,
+		Filter, LocalizedTrace, AddressesFilter, TraceError,
+		trace::{Call, Action, Res},
+		flat::{FlatTrace, FlatBlockTraces, FlatTransactionTraces}
+	};
 
 	struct NoopExtras;
 

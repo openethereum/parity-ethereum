@@ -14,26 +14,24 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
-//! Traces config.
+//! Traces import request.
+use ethereum_types::H256;
+use common_types::BlockNumber;
 
-/// Traces config.
-#[derive(Debug, PartialEq, Clone)]
-pub struct Config {
-	/// Indicates if tracing should be enabled or not.
-	/// If it's None, it will be automatically configured.
-	pub enabled: bool,
-	/// Preferef cache-size.
-	pub pref_cache_size: usize,
-	/// Max cache-size.
-	pub max_cache_size: usize,
-}
+use crate::FlatBlockTraces;
 
-impl Default for Config {
-	fn default() -> Self {
-		Config {
-			enabled: false,
-			pref_cache_size: 15 * 1024 * 1024,
-			max_cache_size: 20 * 1024 * 1024,
-		}
-	}
+/// Traces import request.
+pub struct ImportRequest {
+	/// Traces to import.
+	pub traces: FlatBlockTraces,
+	/// Hash of traces block.
+	pub block_hash: H256,
+	/// Number of traces block.
+	pub block_number: BlockNumber,
+	/// Blocks enacted by this import.
+	///
+	/// They should be ordered from oldest to newest.
+	pub enacted: Vec<H256>,
+	/// Number of blocks retracted by this import.
+	pub retracted: usize,
 }

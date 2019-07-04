@@ -16,6 +16,13 @@
 
 //! Tracing
 
+use common_types::BlockNumber;
+use ethereum_types::{H256, U256, Address};
+use kvdb::DBTransaction;
+use vm::{Error as VmError, ActionParams};
+// The MallocSizeOf derive looks for this in the root
+use parity_util_mem as malloc_size_of;
+
 mod config;
 mod db;
 mod executive_tracer;
@@ -35,11 +42,6 @@ pub use self::types::error::Error as TraceError;
 pub use self::types::trace::{VMTrace, VMOperation, VMExecutedOperation, MemoryDiff, StorageDiff, RewardType};
 pub use self::types::flat::{FlatTrace, FlatTransactionTraces, FlatBlockTraces};
 pub use self::types::filter::{Filter, AddressesFilter};
-
-use ethereum_types::{H256, U256, Address};
-use kvdb::DBTransaction;
-use vm::{Error as VmError, ActionParams};
-use types::BlockNumber;
 
 /// This trait is used by executive to build traces.
 pub trait Tracer: Send {

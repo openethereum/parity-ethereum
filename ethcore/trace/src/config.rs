@@ -14,27 +14,26 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
-//! Bridge between Tracedb and Blockchain.
+//! Traces config.
 
-use blockchain::{BlockChain, BlockProvider, TransactionAddress};
-use ethereum_types::H256;
-use trace::DatabaseExtras as TraceDatabaseExtras;
-use types::BlockNumber;
+/// Traces config.
+#[derive(Debug, PartialEq, Clone)]
+pub struct Config {
+	/// Indicates if tracing should be enabled or not.
+	/// If it's None, it will be automatically configured.
+	pub enabled: bool,
+	/// Preferred cache-size.
+	pub pref_cache_size: usize,
+	/// Max cache-size.
+	pub max_cache_size: usize,
+}
 
-impl TraceDatabaseExtras for BlockChain {
-	fn block_hash(&self, block_number: BlockNumber) -> Option<H256> {
-		(self as &dyn BlockProvider).block_hash(block_number)
-	}
-
-	fn transaction_hash(&self, block_number: BlockNumber, tx_position: usize) -> Option<H256> {
-		(self as &dyn BlockProvider).block_hash(block_number)
-			.and_then(|block_hash| {
-				let tx_address = TransactionAddress {
-					block_hash: block_hash,
-					index: tx_position
-				};
-				self.transaction(&tx_address)
-			})
-			.map(|tx| tx.hash())
+impl Default for Config {
+	fn default() -> Self {
+		Config {
+			enabled: false,
+			pref_cache_size: 15 * 1024 * 1024,
+			max_cache_size: 20 * 1024 * 1024,
+		}
 	}
 }

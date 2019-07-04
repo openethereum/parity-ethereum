@@ -18,8 +18,11 @@
 
 use ethereum_types::{U256, Address};
 use vm::{Error as VmError, ActionParams};
-use trace::trace::{Call, Create, Action, Res, CreateResult, CallResult, VMTrace, VMOperation, VMExecutedOperation, MemoryDiff, StorageDiff, Suicide, Reward, RewardType};
-use trace::{Tracer, VMTracer, FlatTrace};
+use log::debug;
+use crate::{
+	Tracer, VMTracer, FlatTrace,
+	trace::{Call, Create, Action, Res, CreateResult, CallResult, VMTrace, VMOperation, VMExecutedOperation, MemoryDiff, StorageDiff, Suicide, Reward, RewardType},
+};
 
 /// Simple executive tracer. Traces all calls and creates. Ignores delegatecalls.
 #[derive(Default)]

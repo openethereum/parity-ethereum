@@ -25,7 +25,6 @@ mod evm_test_client;
 mod io_message;
 #[cfg(any(test, feature = "test-helpers"))]
 mod test_client;
-mod trace;
 
 pub use self::client::*;
 pub use self::config::{Mode, ClientConfig, DatabaseCompactionProfile, BlockChainConfig, VMType};

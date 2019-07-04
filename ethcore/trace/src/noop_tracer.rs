@@ -18,8 +18,10 @@
 
 use ethereum_types::{U256, Address};
 use vm::{Error as VmError, ActionParams};
-use trace::{Tracer, VMTracer, FlatTrace};
-use trace::trace::{VMTrace, RewardType};
+use crate::{
+	Tracer, VMTracer, FlatTrace,
+	trace::{VMTrace, RewardType}
+};
 
 /// Nonoperative tracer. Does not trace anything.
 pub struct NoopTracer;
