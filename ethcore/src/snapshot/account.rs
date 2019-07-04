@@ -85,7 +85,7 @@ pub fn to_fat_rlps(
 	let mut leftover: Option<Vec<u8>> = None;
 	loop {
 		account_stream.append(account_hash);
-		let use_short_version = acc.code_version == U256::zero();
+		let use_short_version = acc.code_version.is_zero();
 		match use_short_version {
 			true => { account_stream.begin_list(5); },
 			false => { account_stream.begin_list(6); },
