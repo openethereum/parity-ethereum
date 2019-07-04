@@ -22,8 +22,13 @@
 //!
 //! ## Usage
 //!
-//! Whisper is not distributed with regular Parity Ethereum releases
-//! so you need to build it from source and run it like so:
+//! Whisper is distributed with regular Parity Ethereum releases so it may be run with:
+//!
+//! ```bash
+//! whisper --help
+//! ```
+//!
+//! Alternatively build it from source like so:
 //!
 //! ```bash
 //! cargo build -p whisper-cli --release
