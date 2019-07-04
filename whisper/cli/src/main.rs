@@ -249,9 +249,7 @@ fn execute<S, I>(command: I) -> Result<(), Error> where I: IntoIterator<Item=S>,
 	let rpc_url = format!("{}:{}", args.flag_rpc_address, args.flag_rpc_port);
 
 	// Default values are defined in the CLI configuration
-	let logging_level = args.clone().flag_logging;
-	let logging_to_file = args.clone().flag_logging_to_file;
-	config::logger::init_logger(&logging_level, logging_to_file);
+	config::logger::init_logger(&args.flag_logging, args.flag_logging_to_file);
 	info!(target: "whisper-cli", "start");
 
 	// Filter manager that will dispatch `decryption tasks`
