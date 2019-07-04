@@ -16,16 +16,13 @@
 
 //! DB backend wrapper for Account trie
 use ethereum_types::H256;
-use hash::{KECCAK_NULL_RLP, keccak};
+use keccak_hash::{KECCAK_NULL_RLP, keccak};
 use hash_db::{HashDB, AsHashDB, Prefix};
 use keccak_hasher::KeccakHasher;
 use kvdb::DBValue;
 use rlp::NULL_RLP;
 
-#[cfg(test)]
-use ethereum_types::Address;
-
-// combines a key with an address hash to ensure uniqueness.
+// Combines a key with an address hash to ensure uniqueness.
 // leaves the first 96 bits untouched in order to support partial key lookup.
 #[inline]
 fn combine_key<'a>(address_hash: &'a H256, key: &'a H256) -> H256 {
@@ -82,18 +79,9 @@ pub struct AccountDB<'db> {
 }
 
 impl<'db> AccountDB<'db> {
-	/// Create a new AccountDB from an address.
-	#[cfg(test)]
-	pub fn new(db: &'db dyn HashDB<KeccakHasher, DBValue>, address: &Address) -> Self {
-		Self::from_hash(db, keccak(address))
-	}
-
-	/// Create a new AcountDB from an address' hash.
+	/// Create a new AccountDB from an address' hash.
 	pub fn from_hash(db: &'db dyn HashDB<KeccakHasher, DBValue>, address_hash: H256) -> Self {
-		AccountDB {
-			db: db,
-			address_hash: address_hash,
-		}
+		AccountDB { db, address_hash }
 	}
 }
 
