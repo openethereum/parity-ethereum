@@ -148,7 +148,7 @@ impl<'db> AccountDBMut<'db> {
 		AccountDBMut { db, address_hash }
 	}
 
-	/// Create an `AccountDB` from an `AccountDBMut`.
+	/// Create an `AccountDB` from an `AccountDBMut` (used in tests).
 	pub fn immutable(&'db self) -> AccountDB<'db> {
 		AccountDB { db: self.db, address_hash: self.address_hash.clone() }
 	}
