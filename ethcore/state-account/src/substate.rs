@@ -16,10 +16,22 @@
 
 //! Execution environment substate.
 use std::collections::HashSet;
+
 use ethereum_types::Address;
-use types::log_entry::LogEntry;
-use evm::{Schedule, CleanDustMode};
-use super::CleanupMode;
+use common_types::log_entry::LogEntry;
+use evm::{CleanDustMode, Schedule};
+
+// TODO: Move back to state/mod.rs?
+/// Mode of dealing with null accounts.
+#[derive(PartialEq)]
+pub enum CleanupMode<'a> {
+	/// Create accounts which would be null.
+	ForceCreate,
+	/// Don't delete null accounts upon touching, but also don't create them.
+	NoEmpty,
+	/// Mark all touched accounts.
+	TrackTouched(&'a mut HashSet<Address>),
+}
 
 /// State changes which should be applied in finalize,
 /// after transaction is fully executed.
@@ -68,8 +80,9 @@ impl Substate {
 
 #[cfg(test)]
 mod tests {
-	use super::{Substate, Address};
-	use types::log_entry::LogEntry;
+	use ethereum_types::Address;
+	use common_types::log_entry::LogEntry;
+	use super::Substate;
 
 	#[test]
 	fn created() {

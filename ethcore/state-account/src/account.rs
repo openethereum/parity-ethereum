@@ -15,24 +15,25 @@
 // along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
 //! Single account in the system.
-use log::{warn, trace};
+use std::cell::{Cell, RefCell};
+use std::collections::{BTreeMap, HashMap};
 use std::fmt;
 use std::sync::Arc;
-use std::collections::{HashMap, BTreeMap};
-use keccak_hash::{KECCAK_EMPTY, KECCAK_NULL_RLP, keccak};
-use ethereum_types::{H256, U256, Address, BigEndianHash};
-use hash_db::HashDB;
-use keccak_hasher::KeccakHasher;
-use kvdb::DBValue;
-use parity_bytes::{Bytes, ToPretty};
-use trie_db::{Trie, Recorder};
-use ethtrie::{TrieFactory, TrieDB, SecTrieDB, Result as TrieResult};
-use pod_account::PodAccount;
-use rlp::{RlpStream, DecoderError, encode};
-use lru_cache::LruCache;
-use common_types::basic_account::BasicAccount;
 
-use std::cell::{RefCell, Cell};
+use ethereum_types::{Address, BigEndianHash, H256, U256};
+use hash_db::HashDB;
+use keccak_hash::{keccak, KECCAK_EMPTY, KECCAK_NULL_RLP};
+use kvdb::DBValue;
+use log::{trace, warn};
+use lru_cache::LruCache;
+use parity_bytes::{Bytes, ToPretty};
+use rlp::{DecoderError, encode, RlpStream};
+use trie_db::{Recorder, Trie};
+
+use common_types::basic_account::BasicAccount;
+use ethtrie::{Result as TrieResult, SecTrieDB, TrieDB, TrieFactory};
+use keccak_hasher::KeccakHasher;
+use pod_account::PodAccount;
 
 const STORAGE_CACHE_ITEMS: usize = 8192;
 
@@ -627,13 +628,16 @@ impl fmt::Debug for Account {
 
 #[cfg(test)]
 mod tests {
-	use rlp_compress::{compress, decompress, snapshot_swapper};
-	use ethereum_types::{H256, Address};
-	use journaldb::new_memory_db;
-	use parity_bytes::Bytes;
-	use super::*;
-	use account_db::*;
 	use std::str::FromStr;
+
+	use ethereum_types::{Address, H256};
+	use parity_bytes::Bytes;
+
+	use account_db::*;
+	use journaldb::new_memory_db;
+	use rlp_compress::{compress, decompress, snapshot_swapper};
+
+	use super::*;
 
 	#[test]
 	fn account_compress() {

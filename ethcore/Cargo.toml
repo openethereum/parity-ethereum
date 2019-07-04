@@ -46,7 +46,6 @@ log = "0.4"
 lru-cache = "0.1"
 macros = { path = "../util/macros" }
 memory-cache = { path = "../util/memory-cache" }
-memory-db = "0.12.4"
 num = { version = "0.1", default-features = false, features = ["bigint"] }
 num_cpus = "1.2"
 parity-bytes = "0.1"

@@ -51,13 +51,12 @@ use bytes::Bytes;
 use trie::{Trie, TrieError, Recorder};
 use ethtrie::{TrieDB, Result as TrieResult};
 
-mod substate;
-
-pub mod backend;
-
-pub use state_account::Account;
-pub use self::backend::Backend;
-pub use self::substate::Substate;
+// TODO: need to be pub?
+pub use state_account::account::Account;
+// TODO: need to be pub?
+pub use state_account::backend::Backend;
+pub use state_account::backend;
+pub use state_account::substate::{CleanupMode, Substate};
 
 /// Used to return information about an `State::apply` operation.
 pub struct ApplyOutcome<T, V> {
@@ -234,7 +233,7 @@ pub fn prove_transaction_virtual<H: AsHashDB<KeccakHasher, DBValue> + Send + Syn
 	env_info: &EnvInfo,
 	factories: Factories,
 ) -> Option<(Bytes, Vec<DBValue>)> {
-	use self::backend::Proving;
+	use state_account::backend::Proving;
 
 	let backend = Proving::new(db);
 	let res = State::from_existing(
@@ -322,16 +321,17 @@ enum RequireCache {
 	Code,
 }
 
-/// Mode of dealing with null accounts.
-#[derive(PartialEq)]
-pub enum CleanupMode<'a> {
-	/// Create accounts which would be null.
-	ForceCreate,
-	/// Don't delete null accounts upon touching, but also don't create them.
-	NoEmpty,
-	/// Mark all touched accounts.
-	TrackTouched(&'a mut HashSet<Address>),
-}
+// TODO: put this back
+///// Mode of dealing with null accounts.
+//#[derive(PartialEq)]
+//pub enum CleanupMode<'a> {
+//	/// Create accounts which would be null.
+//	ForceCreate,
+//	/// Don't delete null accounts upon touching, but also don't create them.
+//	NoEmpty,
+//	/// Mark all touched accounts.
+//	TrackTouched(&'a mut HashSet<Address>),
+//}
 
 /// Provides subset of `State` methods to query state information
 pub trait StateInfo {

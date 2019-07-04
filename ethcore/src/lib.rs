@@ -82,7 +82,6 @@ extern crate kvdb_memorydb;
 extern crate len_caching_lock;
 extern crate lru_cache;
 extern crate memory_cache;
-extern crate memory_db;
 extern crate num;
 extern crate num_cpus;
 extern crate parity_bytes as bytes;

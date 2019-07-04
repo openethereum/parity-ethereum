@@ -21,17 +21,19 @@
 //! should become general over time to the point where not even a
 //! merkle trie is strictly necessary.
 
-use std::collections::{HashSet, HashMap};
+use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 
-use state::Account;
-use parking_lot::Mutex;
 use ethereum_types::{Address, H256};
-use memory_db::{MemoryDB, HashKey};
-use hash_db::{AsHashDB, HashDB, Prefix, EMPTY_PREFIX};
+use hash_db::{AsHashDB, EMPTY_PREFIX, HashDB, Prefix};
 use kvdb::DBValue;
-use keccak_hasher::KeccakHasher;
+use memory_db::{HashKey, MemoryDB};
+use parking_lot::Mutex;
+
 use journaldb::AsKeyedHashDB;
+use keccak_hasher::KeccakHasher;
+
+use crate::account::Account;
 
 /// State backend. See module docs for more details.
 pub trait Backend: Send {
