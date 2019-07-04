@@ -1,10 +1,9 @@
 [package]
+description = "Account system expressed in Plain Old Data."
 name = "pod-account"
 version = "0.1.0"
-authors = ["David Palm <dvdplm@gmail.com>"]
+authors = ["Parity Technologies <admin@parity.io>"]
 edition = "2018"
-
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
 common-types = { path = "../types" }
@@ -21,6 +20,8 @@ parity-bytes = "0.1.0"
 rlp = "0.4"
 rustc-hex = "1"
 serde = { version = "1.0", features = ["derive"] }
-state-account = { path = "../state-account" }
 trie-db = "0.12.4"
 triehash = { package = "triehash-ethereum", version = "0.2",  path = "../../util/triehash-ethereum" }
+
+[dev-dependencies]
+macros = { path = "../../util/macros" }

@@ -51,12 +51,11 @@ use bytes::Bytes;
 use trie::{Trie, TrieError, Recorder};
 use ethtrie::{TrieDB, Result as TrieResult};
 
-mod account;
 mod substate;
 
 pub mod backend;
 
-pub use self::account::Account;
+pub use state_account::Account;
 pub use self::backend::Backend;
 pub use self::substate::Substate;
 
@@ -964,7 +963,7 @@ impl<B: Backend> State<B> {
 		assert!(self.checkpoints.borrow().is_empty());
 		PodState::from(self.cache.borrow().iter().fold(BTreeMap::new(), |mut m, (add, opt)| {
 			if let Some(ref acc) = opt.account {
-				m.insert(*add, PodAccount::from_account(acc));
+				m.insert(*add, acc.to_pod());
 			}
 			m
 		}))
@@ -1031,7 +1030,7 @@ impl<B: Backend> State<B> {
 			}
 		}
 
-		let mut pod_account = PodAccount::from_account(&account);
+		let mut pod_account = account.to_pod();
 		// cached one first
 		pod_storage.append(&mut pod_account.storage);
 		pod_account.storage = pod_storage;

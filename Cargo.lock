@@ -914,6 +914,7 @@ dependencies = [
  "parity-util-mem 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "parking_lot 0.7.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "patricia-trie-ethereum 0.1.0",
+ "pod-account 0.1.0",
  "rand 0.6.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "rand_xorshift 0.1.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "rayon 1.0.3 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -924,6 +925,7 @@ dependencies = [
  "serde 1.0.89 (registry+https://github.com/rust-lang/crates.io-index)",
  "serde_derive 1.0.89 (registry+https://github.com/rust-lang/crates.io-index)",
  "serde_json 1.0.39 (registry+https://github.com/rust-lang/crates.io-index)",
+ "state-account 0.1.0",
  "stats 0.1.0",
  "tempdir 0.3.7 (registry+https://github.com/rust-lang/crates.io-index)",
  "time-utils 0.1.0",
@@ -1006,22 +1008,6 @@ dependencies = [
  "parking_lot 0.7.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "rlp 0.4.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "rlp_derive 0.1.0",
-]
-
-[[package]]
-name = "ethcore-error"
-version = "0.1.0"
-dependencies = [
- "common-types 0.1.0",
- "derive_more 0.14.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "ethcore 1.12.0",
- "ethcore-io 1.12.0",
- "ethereum-types 0.6.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "ethkey 0.3.0",
- "parity-snappy 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "patricia-trie-ethereum 0.1.0",
- "rlp 0.4.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "unexpected 0.1.0",
 ]
 
 [[package]]
@@ -3256,12 +3242,12 @@ dependencies = [
  "keccak-hasher 0.1.1",
  "kvdb 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "log 0.4.6 (registry+https://github.com/rust-lang/crates.io-index)",
+ "macros 0.1.0",
  "parity-bytes 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "patricia-trie-ethereum 0.1.0",
  "rlp 0.4.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "rustc-hex 1.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "serde 1.0.89 (registry+https://github.com/rust-lang/crates.io-index)",
- "state-account 0.1.0",
  "trie-db 0.12.4 (registry+https://github.com/rust-lang/crates.io-index)",
  "triehash-ethereum 0.2.0",
 ]
@@ -3950,9 +3936,10 @@ name = "state-account"
 version = "0.1.0"
 dependencies = [
  "common-types 0.1.0",
- "ethcore-error 0.1.0",
+ "ethcore 1.12.0",
  "ethereum-types 0.6.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "hash-db 0.12.4 (registry+https://github.com/rust-lang/crates.io-index)",
+ "journaldb 0.2.0",
  "keccak-hash 0.2.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "keccak-hasher 0.1.1",
  "kvdb 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -3960,7 +3947,9 @@ dependencies = [
  "lru-cache 0.1.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "parity-bytes 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "patricia-trie-ethereum 0.1.0",
+ "pod-account 0.1.0",
  "rlp 0.4.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "rlp_compress 0.1.0",
  "serde 1.0.89 (registry+https://github.com/rust-lang/crates.io-index)",
  "trie-db 0.12.4 (registry+https://github.com/rust-lang/crates.io-index)",
 ]

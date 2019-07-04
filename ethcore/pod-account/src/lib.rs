@@ -27,7 +27,6 @@ use triehash::sec_trie_root;
 use parity_bytes::Bytes;
 use trie_db::TrieFactory;
 use ethtrie::RlpCodec;
-use state_account::Account;
 use ethjson;
 use common_types::account_diff::*;
 use rlp::{self, RlpStream};
@@ -57,17 +56,6 @@ fn opt_bytes_to_hex<S>(opt_bytes: &Option<Bytes>, serializer: S) -> Result<S::Ok
 }
 
 impl PodAccount {
-	/// Convert Account to a PodAccount.
-	/// NOTE: This will silently fail unless the account is fully cached.
-	pub fn from_account(acc: &Account) -> PodAccount {
-		PodAccount {
-			balance: *acc.balance(),
-			nonce: *acc.nonce(),
-			storage: acc.storage_changes().iter().fold(BTreeMap::new(), |mut m, (k, v)| {m.insert(k.clone(), v.clone()); m}),
-			code: acc.code().map(|x| x.to_vec()),
-		}
-	}
-
 	/// Returns the RLP for this account.
 	pub fn rlp(&self) -> Bytes {
 		let mut stream = RlpStream::new_list(4);
@@ -170,9 +158,10 @@ pub fn diff_pod(pre: Option<&PodAccount>, post: Option<&PodAccount>) -> Option<A
 #[cfg(test)]
 mod test {
 	use std::collections::BTreeMap;
-	use types::account_diff::*;
+	use common_types::account_diff::*;
 	use super::{PodAccount, diff_pod};
 	use ethereum_types::H256;
+	use macros::map;
 
 	#[test]
 	fn existence() {

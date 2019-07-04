@@ -21,16 +21,14 @@ use std::sync::Arc;
 use std::collections::{HashMap, BTreeMap};
 use keccak_hash::{KECCAK_EMPTY, KECCAK_NULL_RLP, keccak};
 use ethereum_types::{H256, U256, Address, BigEndianHash};
-use ethcore_error::Error;
 use hash_db::HashDB;
 use keccak_hasher::KeccakHasher;
 use kvdb::DBValue;
 use parity_bytes::{Bytes, ToPretty};
 use trie_db::{Trie, Recorder};
 use ethtrie::{TrieFactory, TrieDB, SecTrieDB, Result as TrieResult};
-// TODO: sort out the cyclic dependency here
-//use pod_account::PodAccount;
-use rlp::{RlpStream, encode};
+use pod_account::PodAccount;
+use rlp::{RlpStream, DecoderError, encode};
 use lru_cache::LruCache;
 use common_types::basic_account::BasicAccount;
 
@@ -120,23 +118,36 @@ impl Account {
 		RefCell::new(LruCache::new(STORAGE_CACHE_ITEMS))
 	}
 
-	// TODO: sort out which should be depending on which
-//	/// General constructor.
-//	pub fn from_pod(pod: PodAccount) -> Account {
-//		Account {
-//			balance: pod.balance,
-//			nonce: pod.nonce,
-//			storage_root: KECCAK_NULL_RLP,
-//			storage_cache: Self::empty_storage_cache(),
-//			original_storage_cache: None,
-//			storage_changes: pod.storage.into_iter().collect(),
-//			code_hash: pod.code.as_ref().map_or(KECCAK_EMPTY, |c| keccak(c)),
-//			code_filth: Filth::Dirty,
-//			code_size: Some(pod.code.as_ref().map_or(0, |c| c.len())),
-//			code_cache: Arc::new(pod.code.map_or_else(|| { warn!("POD account with unknown code is being created! Assuming no code."); vec![] }, |c| c)),
-//			address_hash: Cell::new(None),
-//		}
-//	}
+	/// General constructor.
+	pub fn from_pod(pod: PodAccount) -> Account {
+		Account {
+			balance: pod.balance,
+			nonce: pod.nonce,
+			storage_root: KECCAK_NULL_RLP,
+			storage_cache: Self::empty_storage_cache(),
+			original_storage_cache: None,
+			storage_changes: pod.storage.into_iter().collect(),
+			code_hash: pod.code.as_ref().map_or(KECCAK_EMPTY, |c| keccak(c)),
+			code_filth: Filth::Dirty,
+			code_size: Some(pod.code.as_ref().map_or(0, |c| c.len())),
+			code_cache: Arc::new(pod.code.map_or_else(|| { warn!("POD account with unknown code is being created! Assuming no code."); vec![] }, |c| c)),
+			address_hash: Cell::new(None),
+		}
+	}
+
+	/// Convert Account to a PodAccount.
+	/// NOTE: This will silently fail unless the account is fully cached.
+	pub fn to_pod(&self) -> PodAccount {
+		PodAccount {
+			balance: self.balance,
+			nonce: self.nonce,
+			storage: self.storage_changes.iter().fold(BTreeMap::new(), |mut m, (k, v)| {
+				m.insert(k.clone(), v.clone());
+				m
+			}),
+			code: self.code().map(|x| x.to_vec()),
+		}
+	}
 
 	/// Create a new account with the given balance.
 	pub fn new_basic(balance: U256, nonce: U256) -> Account {
@@ -156,10 +167,9 @@ impl Account {
 	}
 
 	/// Create a new account from RLP.
-	pub fn from_rlp(rlp: &[u8]) -> Result<Account, Error> {
+	pub fn from_rlp(rlp: &[u8]) -> Result<Account, DecoderError> {
 		::rlp::decode::<BasicAccount>(rlp)
 			.map(|ba| ba.into())
-			.map_err(|e| e.into())
 	}
 
 	/// Create a new contract account.
@@ -620,9 +630,9 @@ mod tests {
 	use rlp_compress::{compress, decompress, snapshot_swapper};
 	use ethereum_types::{H256, Address};
 	use journaldb::new_memory_db;
-	use bytes::Bytes;
+	use parity_bytes::Bytes;
 	use super::*;
-	use account_db::*;
+	use ethcore::account_db::*;
 	use std::str::FromStr;
 
 	#[test]
@@ -637,7 +647,7 @@ mod tests {
 	#[test]
 	fn storage_at() {
 		let mut db = new_memory_db();
-		let mut db = AccountDBMut::new(&mut db, &Address::zero());
+		let mut db = AccountDBMut::from_hash(&mut db, keccak(&Address::zero()));
 		let rlp = {
 			let mut a = Account::new_contract(69.into(), 0.into(), KECCAK_NULL_RLP);
 			a.set_storage(H256::zero(), H256::from_low_u64_be(0x1234));
@@ -656,7 +666,7 @@ mod tests {
 	#[test]
 	fn note_code() {
 		let mut db = new_memory_db();
-		let mut db = AccountDBMut::new(&mut db, &Address::zero());
+		let mut db = AccountDBMut::from_hash(&mut db, keccak(&Address::zero()));
 
 		let rlp = {
 			let mut a = Account::new_contract(69.into(), 0.into(), KECCAK_NULL_RLP);
@@ -676,7 +686,7 @@ mod tests {
 	fn commit_storage() {
 		let mut a = Account::new_contract(69.into(), 0.into(), KECCAK_NULL_RLP);
 		let mut db = new_memory_db();
-		let mut db = AccountDBMut::new(&mut db, &Address::zero());
+		let mut db = AccountDBMut::from_hash(&mut db, keccak(&Address::zero()));
 		a.set_storage(H256::from_low_u64_be(0), H256::from_low_u64_be(0x1234));
 		assert_eq!(a.storage_root(), None);
 		a.commit_storage(&Default::default(), &mut db).unwrap();
@@ -687,7 +697,7 @@ mod tests {
 	fn commit_remove_commit_storage() {
 		let mut a = Account::new_contract(69.into(), 0.into(), KECCAK_NULL_RLP);
 		let mut db = new_memory_db();
-		let mut db = AccountDBMut::new(&mut db, &Address::zero());
+		let mut db = AccountDBMut::from_hash(&mut db, keccak(&Address::zero()));
 		a.set_storage(H256::from_low_u64_be(0), H256::from_low_u64_be(0x1234));
 		a.commit_storage(&Default::default(), &mut db).unwrap();
 		a.set_storage(H256::from_low_u64_be(1), H256::from_low_u64_be(0x1234));
@@ -701,7 +711,7 @@ mod tests {
 	fn commit_code() {
 		let mut a = Account::new_contract(69.into(), 0.into(), KECCAK_NULL_RLP);
 		let mut db = new_memory_db();
-		let mut db = AccountDBMut::new(&mut db, &Address::zero());
+		let mut db = AccountDBMut::from_hash(&mut db, keccak(&Address::zero()));
 		a.init_code(vec![0x55, 0x44, 0xffu8]);
 		assert_eq!(a.code_filth, Filth::Dirty);
 		assert_eq!(a.code_size(), Some(3));
@@ -713,7 +723,7 @@ mod tests {
 	fn reset_code() {
 		let mut a = Account::new_contract(69.into(), 0.into(), KECCAK_NULL_RLP);
 		let mut db = new_memory_db();
-		let mut db = AccountDBMut::new(&mut db, &Address::zero());
+		let mut db = AccountDBMut::from_hash(&mut db, keccak(&Address::zero()));
 		a.init_code(vec![0x55, 0x44, 0xffu8]);
 		assert_eq!(a.code_filth, Filth::Dirty);
 		a.commit_code(&mut db);

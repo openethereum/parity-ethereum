@@ -140,9 +140,4 @@ members = [
 	"util/patricia-trie-ethereum",
 	"util/fastmap",
 	"util/time-utils",
-
-# TODO: remove these once they're inserted into the dep tree	
-	"ethcore/pod-account",
-	"ethcore/state-account",
-	"ethcore/ethcore-error",
 ]
