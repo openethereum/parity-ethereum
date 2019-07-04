@@ -16,12 +16,9 @@
 
 //! Diff between two accounts.
 
-use std::cmp::*;
-use std::fmt;
 use std::collections::BTreeMap;
-use std::convert::TryFrom;
-use ethereum_types::{BigEndianHash as _, H256, U256};
 use bytes::Bytes;
+use ethereum_types::{H256, U256};
 
 #[derive(Debug, PartialEq, Eq, Clone)]
 /// Diff type for specifying a change (or not).
@@ -46,14 +43,13 @@ impl<T> Diff<T> {
 		}
 	}
 
-	/// Get the before value, if there is one.
-	pub fn pre(&self) -> Option<&T> { match *self { Diff::Died(ref x) | Diff::Changed(ref x, _) => Some(x), _ => None } }
-
-	/// Get the after value, if there is one.
-	pub fn post(&self) -> Option<&T> { match *self { Diff::Born(ref x) | Diff::Changed(_, ref x) => Some(x), _ => None } }
-
 	/// Determine whether there was a change or not.
-	pub fn is_same(&self) -> bool { match *self { Diff::Same => true, _ => false }}
+	pub fn is_same(&self) -> bool {
+		match *self {
+			Diff::Same => true,
+			_ => false
+		}
+	}
 }
 
 #[derive(Debug, PartialEq, Eq, Clone)]
@@ -62,83 +58,9 @@ pub struct AccountDiff {
 	/// Change in balance, allowed to be `Diff::Same`.
 	pub balance: Diff<U256>,
 	/// Change in nonce, allowed to be `Diff::Same`.
-	pub nonce: Diff<U256>,					// Allowed to be Same
+	pub nonce: Diff<U256>,
 	/// Change in code, allowed to be `Diff::Same`.
-	pub code: Diff<Bytes>,					// Allowed to be Same
+	pub code: Diff<Bytes>,
 	/// Change in storage, values are not allowed to be `Diff::Same`.
 	pub storage: BTreeMap<H256, Diff<H256>>,
-}
-
-#[derive(Debug, PartialEq, Eq, Clone)]
-/// Change in existance type.
-// TODO: include other types of change.
-pub enum Existance {
-	/// Item came into existance.
-	Born,
-	/// Item stayed in existance.
-	Alive,
-	/// Item went out of existance.
-	Died,
-}
-
-impl fmt::Display for Existance {
-	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-		match *self {
-			Existance::Born => write!(f, "+++")?,
-			Existance::Alive => write!(f, "***")?,
-			Existance::Died => write!(f, "XXX")?,
-		}
-		Ok(())
-	}
-}
-
-impl AccountDiff {
-	/// Get `Existance` projection.
-	pub fn existance(&self) -> Existance {
-		match self.balance {
-			Diff::Born(_) => Existance::Born,
-			Diff::Died(_) => Existance::Died,
-			_ => Existance::Alive,
-		}
-	}
-}
-
-// TODO: refactor into something nicer.
-fn interpreted_hash(u: &H256) -> String {
-	let uint = u.into_uint();
-	if let Ok(n) = u64::try_from(uint) {
-		format!("{} = {:#x}", n, n)
-	} else {
-		format!("#{}", u)
-	}
-}
-
-impl fmt::Display for AccountDiff {
-	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-		use bytes::ToPretty;
-
-		match self.nonce {
-			Diff::Born(ref x) => write!(f, "  non {}", x)?,
-			Diff::Changed(ref pre, ref post) => write!(f, "#{} ({} {} {})", post, pre, if pre > post {"-"} else {"+"}, *max(pre, post) - *	min(pre, post))?,
-			_ => {},
-		}
-		match self.balance {
-			Diff::Born(ref x) => write!(f, "  bal {}", x)?,
-			Diff::Changed(ref pre, ref post) => write!(f, "${} ({} {} {})", post, pre, if pre > post {"-"} else {"+"}, *max(pre, post) - *min(pre, post))?,
-			_ => {},
-		}
-		if let Diff::Born(ref x) = self.code {
-			write!(f, "  code {}", x.pretty())?;
-		}
-		write!(f, "\n")?;
-		for (k, dv) in &self.storage {
-			match *dv {
-				Diff::Born(ref v) => write!(f, "    +  {} => {}\n", interpreted_hash(k), interpreted_hash(v))?,
-				Diff::Changed(ref pre, ref post) => write!(f, "    *  {} => {} (was {})\n", interpreted_hash(k), interpreted_hash(post), interpreted_hash(pre))?,
-				Diff::Died(_) => write!(f, "    X  {}\n", interpreted_hash(k))?,
-				_ => {},
-			}
-		}
-		Ok(())
-	}
 }

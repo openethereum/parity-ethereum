@@ -19,7 +19,6 @@
 extern crate edit_distance;
 extern crate parity_crypto;
 extern crate ethereum_types;
-extern crate parity_util_mem;
 extern crate parity_wordlist;
 #[macro_use]
 extern crate quick_error;
@@ -28,6 +27,7 @@ extern crate rustc_hex;
 extern crate secp256k1;
 extern crate serde;
 extern crate tiny_keccak;
+extern crate zeroize;
 
 #[macro_use]
 extern crate lazy_static;

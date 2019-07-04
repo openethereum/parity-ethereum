@@ -27,7 +27,7 @@ use ethereum_types::{H256, U256};
 use parking_lot::{Condvar, Mutex, RwLock};
 use io::*;
 use error::{BlockError, ImportError, Error};
-use engines::EthEngine;
+use engines::Engine;
 use client::ClientIoMessage;
 use len_caching_lock::LenCachingMutex;
 
@@ -133,7 +133,7 @@ struct Sizes {
 /// A queue of items to be verified. Sits between network or other I/O and the `BlockChain`.
 /// Keeps them in the same order as inserted, minus invalid items.
 pub struct VerificationQueue<K: Kind> {
-	engine: Arc<dyn EthEngine>,
+	engine: Arc<dyn Engine>,
 	more_to_verify: Arc<Condvar>,
 	verification: Arc<Verification<K>>,
 	deleting: Arc<AtomicBool>,
@@ -201,7 +201,7 @@ struct Verification<K: Kind> {
 
 impl<K: Kind> VerificationQueue<K> {
 	/// Creates a new queue instance.
-	pub fn new(config: Config, engine: Arc<dyn EthEngine>, message_channel: IoChannel<ClientIoMessage>, check_seal: bool) -> Self {
+	pub fn new(config: Config, engine: Arc<dyn Engine>, message_channel: IoChannel<ClientIoMessage>, check_seal: bool) -> Self {
 		let verification = Arc::new(Verification {
 			unverified: LenCachingMutex::new(VecDeque::new()),
 			verifying: LenCachingMutex::new(VecDeque::new()),
@@ -288,7 +288,7 @@ impl<K: Kind> VerificationQueue<K> {
 
 	fn verify(
 		verification: Arc<Verification<K>>,
-		engine: Arc<dyn EthEngine>,
+		engine: Arc<dyn Engine>,
 		wait: Arc<Condvar>,
 		ready: Arc<QueueSignal>,
 		empty: Arc<Condvar>,

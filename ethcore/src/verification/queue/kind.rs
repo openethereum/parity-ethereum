@@ -16,7 +16,7 @@
 
 //! Definition of valid items for the verification queue.
 
-use engines::EthEngine;
+use engines::Engine;
 use error::Error;
 
 use parity_util_mem::MallocSizeOf;
@@ -58,17 +58,17 @@ pub trait Kind: 'static + Sized + Send + Sync {
 	type Verified: Sized + Send + BlockLike + MallocSizeOf;
 
 	/// Attempt to create the `Unverified` item from the input.
-	fn create(input: Self::Input, engine: &dyn EthEngine, check_seal: bool) -> Result<Self::Unverified, (Self::Input, Error)>;
+	fn create(input: Self::Input, engine: &dyn Engine, check_seal: bool) -> Result<Self::Unverified, (Self::Input, Error)>;
 
 	/// Attempt to verify the `Unverified` item using the given engine.
-	fn verify(unverified: Self::Unverified, engine: &dyn EthEngine, check_seal: bool) -> Result<Self::Verified, Error>;
+	fn verify(unverified: Self::Unverified, engine: &dyn Engine, check_seal: bool) -> Result<Self::Verified, Error>;
 }
 
 /// The blocks verification module.
 pub mod blocks {
 	use super::{Kind, BlockLike};
 
-	use engines::EthEngine;
+	use engines::Engine;
 	use error::{Error, BlockError};
 	use types::header::Header;
 	use verification::{PreverifiedBlock, verify_block_basic, verify_block_unordered};
@@ -86,7 +86,7 @@ pub mod blocks {
 		type Unverified = Unverified;
 		type Verified = PreverifiedBlock;
 
-		fn create(input: Self::Input, engine: &dyn EthEngine, check_seal: bool) -> Result<Self::Unverified, (Self::Input, Error)> {
+		fn create(input: Self::Input, engine: &dyn Engine, check_seal: bool) -> Result<Self::Unverified, (Self::Input, Error)> {
 			match verify_block_basic(&input, engine, check_seal) {
 				Ok(()) => Ok(input),
 				Err(Error::Block(BlockError::TemporarilyInvalid(oob))) => {
@@ -100,7 +100,7 @@ pub mod blocks {
 			}
 		}
 
-		fn verify(un: Self::Unverified, engine: &dyn EthEngine, check_seal: bool) -> Result<Self::Verified, Error> {
+		fn verify(un: Self::Unverified, engine: &dyn Engine, check_seal: bool) -> Result<Self::Verified, Error> {
 			let hash = un.hash();
 			match verify_block_unordered(un, engine, check_seal) {
 				Ok(verified) => Ok(verified),
@@ -179,7 +179,7 @@ pub mod blocks {
 pub mod headers {
 	use super::{Kind, BlockLike};
 
-	use engines::EthEngine;
+	use engines::Engine;
 	use error::Error;
 	use types::header::Header;
 	use verification::verify_header_params;
@@ -200,14 +200,14 @@ pub mod headers {
 		type Unverified = Header;
 		type Verified = Header;
 
-		fn create(input: Self::Input, engine: &dyn EthEngine, check_seal: bool) -> Result<Self::Unverified, (Self::Input, Error)> {
+		fn create(input: Self::Input, engine: &dyn Engine, check_seal: bool) -> Result<Self::Unverified, (Self::Input, Error)> {
 			match verify_header_params(&input, engine, true, check_seal) {
 				Ok(_) => Ok(input),
 				Err(err) => Err((input, err))
 			}
 		}
 
-		fn verify(unverified: Self::Unverified, engine: &dyn EthEngine, check_seal: bool) -> Result<Self::Verified, Error> {
+		fn verify(unverified: Self::Unverified, engine: &dyn Engine, check_seal: bool) -> Result<Self::Verified, Error> {
 			match check_seal {
 				true => engine.verify_block_unordered(&unverified,).map(|_| unverified),
 				false => Ok(unverified),

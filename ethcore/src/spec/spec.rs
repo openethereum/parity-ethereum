@@ -35,7 +35,7 @@ use vm::{EnvInfo, CallType, ActionValue, ActionParams, ParamsType};
 
 use builtin::Builtin;
 use engines::{
-	EthEngine, NullEngine, InstantSeal, InstantSealParams, BasicAuthority, Clique,
+	Engine, NullEngine, InstantSeal, InstantSealParams, BasicAuthority, Clique,
 	AuthorityRound, DEFAULT_BLOCKHASH_CONTRACT
 };
 use error::Error;
@@ -138,7 +138,7 @@ pub struct CommonParams {
 	/// Gas limit bound divisor (how much gas limit can change per block)
 	pub gas_limit_bound_divisor: U256,
 	/// Registrar contract address.
-	pub registrar: Address,
+	pub registrar: Option<Address>,
 	/// Node permission managing contract address.
 	pub node_permission_contract: Option<Address>,
 	/// Maximum contract code size that can be deployed.
@@ -315,7 +315,7 @@ impl From<ethjson::spec::Params> for CommonParams {
 			nonce_cap_increment: p.nonce_cap_increment.map_or(64, Into::into),
 			remove_dust_contracts: p.remove_dust_contracts.unwrap_or(false),
 			gas_limit_bound_divisor: p.gas_limit_bound_divisor.into(),
-			registrar: p.registrar.map_or_else(Address::zero, Into::into),
+			registrar: p.registrar.map(Into::into),
 			node_permission_contract: p.node_permission_contract.map(Into::into),
 			max_code_size: p.max_code_size.map_or(u64::max_value(), Into::into),
 			max_transaction_size: p.max_transaction_size.map_or(MAX_TRANSACTION_SIZE, Into::into),
@@ -382,7 +382,7 @@ pub struct Spec {
 	/// User friendly spec name
 	pub name: String,
 	/// What engine are we using for this?
-	pub engine: Arc<dyn EthEngine>,
+	pub engine: Arc<dyn Engine>,
 	/// Name of the subdir inside the main data dir to use for chain data and settings.
 	pub data_dir: String,
 
@@ -601,7 +601,7 @@ impl Spec {
 		engine_spec: ethjson::spec::Engine,
 		params: CommonParams,
 		builtins: BTreeMap<Address, Builtin>,
-	) -> Arc<dyn EthEngine> {
+	) -> Arc<dyn Engine> {
 		let machine = Self::machine(&engine_spec, params, builtins);
 
 		match engine_spec {

@@ -18,7 +18,7 @@
 
 use call_contract::CallContract;
 use client::BlockInfo;
-use engines::EthEngine;
+use engines::Engine;
 use error::Error;
 use types::header::Header;
 use super::verification;
@@ -32,12 +32,12 @@ pub trait Verifier<C>: Send + Sync
 		&self,
 		header: &Header,
 		parent: &Header,
-		engine: &dyn EthEngine,
+		engine: &dyn Engine,
 		do_full: Option<verification::FullFamilyParams<C>>
 	) -> Result<(), Error>;
 
 	/// Do a final verification check for an enacted header vs its expected counterpart.
 	fn verify_block_final(&self, expected: &Header, got: &Header) -> Result<(), Error>;
 	/// Verify a block, inspecting external state.
-	fn verify_block_external(&self, header: &Header, engine: &dyn EthEngine) -> Result<(), Error>;
+	fn verify_block_external(&self, header: &Header, engine: &dyn Engine) -> Result<(), Error>;
 }

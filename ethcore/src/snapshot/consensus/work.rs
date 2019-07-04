@@ -27,7 +27,7 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 
 use blockchain::{BlockChain, BlockChainDB, BlockProvider};
-use engines::EthEngine;
+use engines::Engine;
 use snapshot::{Error, ManifestData, Progress};
 use snapshot::block::AbridgedBlock;
 use ethereum_types::H256;
@@ -208,15 +208,15 @@ impl PowRebuilder {
 	/// Create a new PowRebuilder.
 	fn new(chain: BlockChain, db: Arc<dyn KeyValueDB>, manifest: &ManifestData, snapshot_blocks: u64) -> Result<Self, ::error::Error> {
 		Ok(PowRebuilder {
-			chain: chain,
-			db: db,
+			chain,
+			db,
 			rng: OsRng::new().map_err(|e| format!("{}", e))?,
 			disconnected: Vec::new(),
 			best_number: manifest.block_number,
 			best_hash: manifest.block_hash,
 			best_root: manifest.state_root,
 			fed_blocks: 0,
-			snapshot_blocks: snapshot_blocks,
+			snapshot_blocks,
 		})
 	}
 }
@@ -224,7 +224,7 @@ impl PowRebuilder {
 impl Rebuilder for PowRebuilder {
 	/// Feed the rebuilder an uncompressed block chunk.
 	/// Returns the number of blocks fed or any errors.
-	fn feed(&mut self, chunk: &[u8], engine: &dyn EthEngine, abort_flag: &AtomicBool) -> Result<(), ::error::Error> {
+	fn feed(&mut self, chunk: &[u8], engine: &dyn Engine, abort_flag: &AtomicBool) -> Result<(), ::error::Error> {
 		use snapshot::verify_old_block;
 		use ethereum_types::U256;
 		use triehash::ordered_trie_root;
@@ -298,9 +298,9 @@ impl Rebuilder for PowRebuilder {
 	}
 
 	/// Glue together any disconnected chunks and check that the chain is complete.
-	fn finalize(&mut self, _: &dyn EthEngine) -> Result<(), ::error::Error> {
+	fn finalize(&mut self) -> Result<(), ::error::Error> {
 		let mut batch = self.db.transaction();
-
+		trace!(target: "snapshot", "rebuilder, finalize: inserting {} disconnected chunks", self.disconnected.len());
 		for (first_num, first_hash) in self.disconnected.drain(..) {
 			let parent_num = first_num - 1;
 
