@@ -22,7 +22,7 @@
 //! and can be appended to with transactions and uncles.
 //!
 //! When ready, `OpenBlock` can be closed and turned into a `ClosedBlock`. A `ClosedBlock` can
-//! be re-opend again by a miner under certain circumstances. On block close, state commit is
+//! be re-opened again by a miner under certain circumstances. On block close, state commit is
 //! performed.
 //!
 //! `LockedBlock` is a version of a `ClosedBlock` that cannot be reopened. It can be sealed
@@ -54,7 +54,6 @@ use rlp::{RlpStream, Encodable, encode_list};
 use types::transaction::{SignedTransaction, Error as TransactionError};
 use types::header::Header;
 use types::receipt::{Receipt, TransactionOutcome};
-
 use executive_state::ExecutiveStateWithMachineZomgBetterName;
 
 /// Block that is ready for transactions to be added.

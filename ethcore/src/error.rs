@@ -262,8 +262,7 @@ pub enum Error {
 	#[display(fmt = "{}", _0)]
 	Msg(String),
 	/// State errors
-	// TODO: fix error handling
-	#[display(fmt = "state error todo fixme ({})", _0)]
+	#[display(fmt = "State error ({})", _0)]
 	State(state_account::Error),
 }
 

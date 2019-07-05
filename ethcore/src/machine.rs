@@ -34,7 +34,7 @@ use call_contract::CallContract;
 use client::BlockInfo;
 use error::Error;
 use executive::Executive;
-use spec::CommonParams; // TODO: move to common_types
+use spec::CommonParams;
 use state_account::{CleanupMode, Substate};
 use trace::{NoopTracer, NoopVMTracer};
 use tx_filter::TransactionFilter;

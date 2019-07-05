@@ -14,6 +14,14 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
+//! Account state
+//! This crate contains code used to create, convert, and update Accounts and the code and storage
+//! associated with it. It also defines the trait used to construct a backend to build a complete
+//! caching state database.
+//! Note: the code that needs access to `ethcore` types such as `Machine` and `Executive` is found in
+//! the `executive_state` module in `ethcore`. Most tests for the `State` module in this crate are
+//! also found in `executive_state` (for the same reason).
+
 pub mod account;
 pub mod backend;
 pub mod substate;
