@@ -29,7 +29,7 @@ serde_derive = "1.0"
 futures = "0.1"
 fdlimit = "0.1"
 ctrlc = { git = "https://github.com/paritytech/rust-ctrlc.git" }
-jsonrpc-core = "10.0.1"
+jsonrpc-core = "12.0.0"
 parity-bytes = "0.1"
 common-types = { path = "ethcore/types" }
 ethcore = { path = "ethcore", features = ["parity"] }

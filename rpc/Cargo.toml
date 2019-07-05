@@ -28,12 +28,12 @@ tokio-timer = "0.1"
 transient-hashmap = "0.4"
 itertools = "0.5"
 
-jsonrpc-core = "10.0.1"
-jsonrpc-derive = "10.0.2"
-jsonrpc-http-server = "10.0.1"
-jsonrpc-ws-server = "10.0.1"
-jsonrpc-ipc-server = "10.0.1"
-jsonrpc-pubsub = "10.0.1"
+jsonrpc-core = "12.0.0"
+jsonrpc-derive = "12.0.0"
+jsonrpc-http-server = "12.0.0"
+jsonrpc-ws-server = "12.0.0"
+jsonrpc-ipc-server = "12.0.0"
+jsonrpc-pubsub = "12.0.0"
 
 common-types = { path = "../ethcore/types" }
 ethash = { path = "../ethash" }
