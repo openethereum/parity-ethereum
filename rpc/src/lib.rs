@@ -104,6 +104,8 @@ extern crate rand_xorshift;
 #[cfg(test)]
 extern crate ethjson;
 #[cfg(test)]
+extern crate patricia_trie_ethereum as ethtrie;
+#[cfg(test)]
 extern crate transaction_pool as txpool;
 
 #[cfg(test)]
