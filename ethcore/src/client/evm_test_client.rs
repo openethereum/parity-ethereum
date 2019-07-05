@@ -29,6 +29,8 @@ use evm::{VMType, FinalizationResult};
 use vm::{self, ActionParams};
 use ethtrie;
 
+use executive_state::ExecutiveStateWithMachineZomgBetterName;
+
 /// EVM test Error.
 #[derive(Debug)]
 pub enum EvmTestError {

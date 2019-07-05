@@ -129,7 +129,7 @@ fn check_first_proof(machine: &Machine, contract_address: Address, old_header: H
 		data,
 	}.fake_sign(from);
 
-	let res = ::state::check_proof(
+	let res = ::executive_state::check_proof(
 		state_items,
 		*old_header.state_root(),
 		&tx,

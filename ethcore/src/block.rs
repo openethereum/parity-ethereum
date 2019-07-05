@@ -55,6 +55,8 @@ use types::transaction::{SignedTransaction, Error as TransactionError};
 use types::header::Header;
 use types::receipt::{Receipt, TransactionOutcome};
 
+use executive_state::ExecutiveStateWithMachineZomgBetterName;
+
 /// Block that is ready for transactions to be added.
 ///
 /// It's a bit like a Vec<Transaction>, except that whenever a transaction is pushed, we execute it and

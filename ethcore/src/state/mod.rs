@@ -26,30 +26,25 @@ use std::fmt;
 use std::sync::Arc;
 use hash::{KECCAK_NULL_RLP, KECCAK_EMPTY};
 
-use types::receipt::{Receipt, TransactionOutcome};
-use machine::Machine;
-use vm::EnvInfo;
+use bytes::Bytes;
 use error::Error;
-use executive::{Executive, TransactOptions};
-use factories::{Factories, VmFactory};
-use trace::{self, FlatTrace, VMTrace};
-use pod::{self, PodAccount, PodState};
-use types::basic_account::BasicAccount;
-use executed::{Executed, ExecutionError};
-use types::state_diff::StateDiff;
-use types::transaction::SignedTransaction;
-use state_db::StateDB;
-
 use ethereum_types::{H256, U256, Address};
-use hash_db::{HashDB, AsHashDB};
+use ethtrie::{TrieDB, Result as TrieResult};
+use executed::{Executed, ExecutionError};
+use factories::{Factories, VmFactory};
+use hash_db::HashDB;
 use keccak_hasher::KeccakHasher;
 use kvdb::DBValue;
-use bytes::Bytes;
-
+use pod::{self, PodAccount, PodState};
+use state_db::StateDB;
 use trie::{Trie, TrieError, Recorder};
-use ethtrie::{TrieDB, Result as TrieResult};
+use types::{
+	basic_account::BasicAccount,
+	receipt::Receipt,
+	state_diff::StateDiff,
+};
 
-pub use state_account::{
+use state_account::{
 	account::Account,
 	backend::{self, Backend},
 	substate::{CleanupMode, Substate},
@@ -182,77 +177,6 @@ impl AccountEntry {
 			},
 			None => self.account = None,
 		}
-	}
-}
-
-/// Check the given proof of execution.
-/// `Err(ExecutionError::Internal)` indicates failure, everything else indicates
-/// a successful proof (as the transaction itself may be poorly chosen).
-pub fn check_proof(
-	proof: &[DBValue],
-	root: H256,
-	transaction: &SignedTransaction,
-	machine: &Machine,
-	env_info: &EnvInfo,
-) -> ProvedExecution {
-	let backend = self::backend::ProofCheck::new(proof);
-	let mut factories = Factories::default();
-	factories.accountdb = ::account_db::Factory::Plain;
-
-	let res = State::from_existing(
-		backend,
-		root,
-		machine.account_start_nonce(env_info.number),
-		factories
-	);
-
-	let mut state = match res {
-		Ok(state) => state,
-		Err(_) => return ProvedExecution::BadProof,
-	};
-
-	let options = TransactOptions::with_no_tracing().save_output_from_contract();
-	match state.execute(env_info, machine, transaction, options, true) {
-		Ok(executed) => ProvedExecution::Complete(Box::new(executed)),
-		Err(ExecutionError::Internal(_)) => ProvedExecution::BadProof,
-		Err(e) => ProvedExecution::Failed(e),
-	}
-}
-
-/// Prove a `virtual` transaction on the given state.
-/// Returns `None` when the transacion could not be proved,
-/// and a proof otherwise.
-pub fn prove_transaction_virtual<H: AsHashDB<KeccakHasher, DBValue> + Send + Sync>(
-	db: H,
-	root: H256,
-	transaction: &SignedTransaction,
-	machine: &Machine,
-	env_info: &EnvInfo,
-	factories: Factories,
-) -> Option<(Bytes, Vec<DBValue>)> {
-	use state_account::backend::Proving;
-
-	let backend = Proving::new(db);
-	let res = State::from_existing(
-		backend,
-		root,
-		machine.account_start_nonce(env_info.number),
-		factories,
-	);
-
-	let mut state = match res {
-		Ok(state) => state,
-		Err(_) => return None,
-	};
-
-	let options = TransactOptions::with_no_tracing().dont_check_nonce().save_output_from_contract();
-	match state.execute(env_info, machine, transaction, options, true) {
-		Err(ExecutionError::Internal(_)) => None,
-		Err(e) => {
-			trace!(target: "state", "Proved call failed: {}", e);
-			Some((Vec::new(), state.drop().1.extract_proof()))
-		}
-		Ok(res) => Some((res.output, state.drop().1.extract_proof())),
 	}
 }
 
@@ -797,79 +721,6 @@ impl<B: Backend> State<B> {
 		Ok(())
 	}
 
-	/// Execute a given transaction, producing a receipt and an optional trace.
-	/// This will change the state accordingly.
-	pub fn apply(&mut self, env_info: &EnvInfo, machine: &Machine, t: &SignedTransaction, tracing: bool) -> ApplyResult<FlatTrace, VMTrace> {
-		if tracing {
-			let options = TransactOptions::with_tracing();
-			self.apply_with_tracing(env_info, machine, t, options.tracer, options.vm_tracer)
-		} else {
-			let options = TransactOptions::with_no_tracing();
-			self.apply_with_tracing(env_info, machine, t, options.tracer, options.vm_tracer)
-		}
-	}
-
-	/// Execute a given transaction with given tracer and VM tracer producing a receipt and an optional trace.
-	/// This will change the state accordingly.
-	pub fn apply_with_tracing<V, T>(
-		&mut self,
-		env_info: &EnvInfo,
-		machine: &Machine,
-		t: &SignedTransaction,
-		tracer: T,
-		vm_tracer: V,
-	) -> ApplyResult<T::Output, V::Output> where
-		T: trace::Tracer,
-		V: trace::VMTracer,
-	{
-		let options = TransactOptions::new(tracer, vm_tracer);
-		let e = self.execute(env_info, machine, t, options, false)?;
-		let params = machine.params();
-
-		let eip658 = env_info.number >= params.eip658_transition;
-		let no_intermediate_commits =
-			eip658 ||
-			(env_info.number >= params.eip98_transition && env_info.number >= params.validate_receipts_transition);
-
-		let outcome = if no_intermediate_commits {
-			if eip658 {
-				TransactionOutcome::StatusCode(if e.exception.is_some() { 0 } else { 1 })
-			} else {
-				TransactionOutcome::Unknown
-			}
-		} else {
-			self.commit()?;
-			TransactionOutcome::StateRoot(self.root().clone())
-		};
-
-		let output = e.output;
-		let receipt = Receipt::new(outcome, e.cumulative_gas_used, e.logs);
-		trace!(target: "state", "Transaction receipt: {:?}", receipt);
-
-		Ok(ApplyOutcome {
-			receipt,
-			output,
-			trace: e.trace,
-			vm_trace: e.vm_trace,
-		})
-	}
-
-	// Execute a given transaction without committing changes.
-	//
-	// `virt` signals that we are executing outside of a block set and restrictions like
-	// gas limits and gas costs should be lifted.
-	fn execute<T, V>(&mut self, env_info: &EnvInfo, machine: &Machine, t: &SignedTransaction, options: TransactOptions<T, V>, virt: bool)
-		-> Result<Executed<T::Output, V::Output>, ExecutionError> where T: trace::Tracer, V: trace::VMTracer,
-	{
-		let schedule = machine.schedule(env_info.number);
-		let mut e = Executive::new(self, env_info, machine, &schedule);
-
-		match virt {
-			true => e.transact_virtual(t, options),
-			false => e.transact(t, options),
-		}
-	}
-
 	fn touch(&mut self, a: &Address) -> TrieResult<()> {
 		self.require(a, false)?;
 		Ok(())
@@ -1348,6 +1199,7 @@ mod tests {
 	use trace::{FlatTrace, TraceError, trace};
 	use evm::CallType;
 	use pod;
+	use executive_state::ExecutiveStateWithMachineZomgBetterName;
 
 	fn secret() -> Secret {
 		keccak("").into()

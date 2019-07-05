@@ -807,7 +807,6 @@ impl<B: Backend> State<B> {
 		Ok(())
 	}
 
-
 	/// Initialise the code of account `a` so that it is `code`.
 	/// NOTE: Account should have been created with `new_contract`.
 	pub fn init_code(&mut self, a: &Address, code: Bytes) -> TrieResult<()> {

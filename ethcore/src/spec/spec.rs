@@ -45,8 +45,7 @@ use machine::Machine;
 use pod::PodState;
 use spec::Genesis;
 use spec::seal::Generic as GenericSeal;
-use state::backend::Basic as BasicBackend;
-use state::{Backend, State, Substate};
+use state::{Backend, State, Substate, backend::Basic as BasicBackend};
 use trace::{NoopTracer, NoopVMTracer};
 
 pub use ethash::OptimizeFor;
@@ -882,7 +881,7 @@ impl Spec {
 				data: d,
 			}.fake_sign(from);
 
-			let res = ::state::prove_transaction_virtual(
+			let res = ::executive_state::prove_transaction_virtual(
 				db.as_hash_db_mut(),
 				*genesis.state_root(),
 				&tx,
