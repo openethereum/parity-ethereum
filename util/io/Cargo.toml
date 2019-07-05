@@ -10,7 +10,7 @@ authors = ["Parity Technologies <admin@parity.io>"]
 fnv = "1.0"
 mio = { version = "0.6.8", optional = true }
 crossbeam-deque = "0.6"
-parking_lot = "0.7"
+parking_lot = "0.8"
 log = "0.4"
 slab = "0.4"
 num_cpus = "1.8"
