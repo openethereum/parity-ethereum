@@ -17,34 +17,13 @@
 pub mod account;
 pub mod backend;
 pub mod substate;
-// TODO: WIP
 pub mod state;
+pub mod error;
 
 pub use {
 	account::Account,
 	backend::Backend,
+	error::Error,
 	substate::Substate,
 	state::{State, CleanupMode},
 };
-
-// TODO: move to an errors.rs
-use derive_more::{Display, From};
-// TODO: sort out error handling
-#[derive(Debug, Display, From)]
-pub enum Error {
-	/// Trie error.
-	Trie(ethtrie::TrieError),
-	/// Decoder error.
-	Decoder(rlp::DecoderError),
-	// Io error.
-//	Io(IoError), // TODO: maybe not needed?
-}
-
-// TODO: needed?
-impl std::error::Error for Error {}
-
-impl<E> From<Box<E>> for Error where Error: From<E> {
-	fn from(err: Box<E>) -> Self {
-		Error::from(*err)
-	}
-}
