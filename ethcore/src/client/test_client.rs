@@ -469,7 +469,7 @@ impl Balance for TestBlockChainClient {
 	}
 
 	fn latest_balance(&self, address: &Address) -> U256 {
-		self.balance(address, StateOrBlock::Block(BlockId::Latest)).unwrap()
+		self.balance(address, BlockId::Latest.into()).unwrap()
 	}
 }
 

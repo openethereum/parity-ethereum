@@ -50,21 +50,6 @@ use crate::{
 	backend::Backend,
 };
 
-/// Used to return information about an `State::apply` operation.
-pub struct ApplyOutcome<T, V> {
-	/// The receipt for the applied transaction.
-	pub receipt: Receipt,
-	/// The output of the applied transaction.
-	pub output: Bytes,
-	/// The trace for the applied transaction, empty if tracing was not produced.
-	pub trace: Vec<T>,
-	/// The VM trace for the applied transaction, None if tracing was not produced.
-	pub vm_trace: Option<V>
-}
-
-/// Result type for the execution ("application") of a transaction.
-pub type ApplyResult<T, V> = Result<ApplyOutcome<T, V>, Error>;
-
 #[derive(Eq, PartialEq, Clone, Copy, Debug)]
 /// Account modification state. Used to check if the account was
 /// Modified in between commits and overall.
