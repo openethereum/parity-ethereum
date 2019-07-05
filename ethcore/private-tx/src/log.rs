@@ -70,6 +70,10 @@ impl Default for MonoTime {
 pub enum PrivateTxStatus {
 	/// Private tx was created but no validation received yet
 	Created,
+	/// Private state not found locally and being retrived from peers
+	PrivateStateSync,
+	/// Retrieval of the private state failed, transaction not created
+	PrivateStateSyncFailed,
 	/// Several validators (but not all) validated the transaction
 	Validating,
 	/// All validators has validated the private tx
@@ -209,6 +213,17 @@ impl Logging {
 
 	/// Logs the creation of the private transaction
 	pub fn private_tx_created(&self, tx_hash: &H256, validators: &[Address]) {
+		let mut logs = self.logs.write();
+		if let Some(transaction_log) = logs.get_mut(&tx_hash) {
+			if transaction_log.status == PrivateTxStatus::PrivateStateSync {
+				// Transaction was already created before, its private state was being retrieved
+				transaction_log.status = PrivateTxStatus::Created;
+				return;
+			} else {
+				error!(target: "privatetx", "Attempt to create a duplicate transaction");
+				return;
+			}
+		}
 		let mut validator_logs = Vec::new();
 		for account in validators {
 			validator_logs.push(ValidatorLog {
@@ -216,7 +231,6 @@ impl Logging {
 				validation_timestamp: None,
 			});
 		}
-		let mut logs = self.logs.write();
 		if logs.len() > MAX_JOURNAL_LEN {
 			// Remove the oldest log
 			if let Some(tx_hash) = logs.values()
@@ -234,6 +248,22 @@ impl Logging {
 			deployment_timestamp: None,
 			public_tx_hash: None,
 		});
+	}
+
+	/// Private state retrieval started
+	pub fn private_state_request(&self, tx_hash: &H256) {
+		let mut logs = self.logs.write();
+		if let Some(transaction_log) = logs.get_mut(&tx_hash) {
+			transaction_log.status = PrivateTxStatus::PrivateStateSync;
+		}
+	}
+
+	/// Private state retrieval failed
+	pub fn private_state_sync_failed(&self, tx_hash: &H256) {
+		let mut logs = self.logs.write();
+		if let Some(transaction_log) = logs.get_mut(&tx_hash) {
+			transaction_log.status = PrivateTxStatus::PrivateStateSyncFailed;
+		}
 	}
 
 	/// Logs the validation of the private transaction by one of its validators

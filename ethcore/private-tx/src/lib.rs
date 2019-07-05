@@ -301,6 +301,11 @@ impl Provider {
 				Error::PrivateStateNotFound => {
 					trace!(target: "privatetx", "Private state for the contract not found, requesting from peers");
 					self.state_storage.add_creation_request(signed_transaction);
+					if let Some(ref logging) = self.logging {
+						let contract_validators = self.get_validators(BlockId::Latest, &contract)?;
+						logging.private_tx_created(&tx_hash, &contract_validators);
+						logging.private_state_request(&tx_hash);
+					}
 					self.request_private_state(&contract);
 				}
 				_ => {}
