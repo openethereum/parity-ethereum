@@ -105,7 +105,7 @@ pub trait Balance {
 
 	/// Get address balance at the latest block's state.
 	fn latest_balance(&self, address: &Address) -> U256 {
-		self.balance(address, BlockId::Latest.into())
+		self.balance(address, StateOrBlock::Block(BlockId::Latest))
 			.expect("balance will return Some if given BlockId::Latest. balance was given BlockId::Latest \
 			Therefore balance has returned Some; qed")
 	}
@@ -235,7 +235,7 @@ pub trait BlockChainClient : Sync + Send + AccountData + BlockChain + CallContra
 
 	/// Get address code at the latest block's state.
 	fn latest_code(&self, address: &Address) -> Option<Bytes> {
-		self.code(address, BlockId::Latest.into())
+		self.code(address, StateOrBlock::Block(BlockId::Latest))
 			.expect("code will return Some if given BlockId::Latest; qed")
 	}
 
@@ -252,7 +252,7 @@ pub trait BlockChainClient : Sync + Send + AccountData + BlockChain + CallContra
 
 	/// Get value of the storage at given position at the latest block's state.
 	fn latest_storage_at(&self, address: &Address, position: &H256) -> H256 {
-		self.storage_at(address, position, BlockId::Latest.into())
+		self.storage_at(address, position, StateOrBlock::Block(BlockId::Latest))
 			.expect("storage_at will return Some if given BlockId::Latest. storage_at was given BlockId::Latest. \
 			Therefore storage_at has returned Some; qed")
 	}
