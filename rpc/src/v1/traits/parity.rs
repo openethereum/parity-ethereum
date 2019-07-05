@@ -32,7 +32,7 @@ use v1::types::{
 };
 
 /// Parity-specific rpc interface.
-#[rpc]
+#[rpc(server)]
 pub trait Parity {
 	/// RPC Metadata
 	type Metadata;

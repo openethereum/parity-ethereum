@@ -19,7 +19,7 @@ use jsonrpc_core::Result;
 use jsonrpc_derive::rpc;
 
 /// Net rpc interface.
-#[rpc]
+#[rpc(server)]
 pub trait Net {
 	/// Returns protocol version.
 	#[rpc(name = "net_version")]

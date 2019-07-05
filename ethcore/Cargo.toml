@@ -52,7 +52,7 @@ num_cpus = "1.2"
 parity-bytes = "0.1"
 parity-crypto = "0.4.0"
 parity-snappy = "0.1"
-parking_lot = "0.7"
+parking_lot = "0.8"
 pod-account = { path = "pod-account" }
 trie-db = "0.12.4"
 patricia-trie-ethereum = { path = "../util/patricia-trie-ethereum" }

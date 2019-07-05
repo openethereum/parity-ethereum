@@ -26,7 +26,7 @@ use v1::types::{DeriveHash, DeriveHierarchical, ExtAccountInfo};
 use v1::types::AccountInfo;
 
 /// Parity-specific read-only accounts rpc interface.
-#[rpc]
+#[rpc(server)]
 pub trait ParityAccountsInfo {
 	/// Returns accounts information.
 	#[rpc(name = "parity_accountsInfo")]
@@ -38,7 +38,7 @@ pub trait ParityAccountsInfo {
 }
 
 /// Personal Parity rpc interface.
-#[rpc]
+#[rpc(server)]
 pub trait ParityAccounts {
 	/// Returns accounts information.
 	#[rpc(name = "parity_allAccountsInfo")]

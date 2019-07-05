@@ -16,7 +16,7 @@ tiny-keccak = "1.4"
 slab = "0.2"
 igd = "0.9"
 libc = "0.2.7"
-parking_lot = "0.7"
+parking_lot = "0.8"
 ansi_term = "0.11"
 rustc-hex = "1.0"
 ethcore-io = { path = "../io", features = ["mio"] }

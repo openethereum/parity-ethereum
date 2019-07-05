@@ -18,7 +18,7 @@ itertools = "0.5"
 kvdb = "0.1"
 log = "0.4"
 parity-bytes = "0.1"
-parking_lot = "0.7"
+parking_lot = "0.8"
 rayon = "1.0"
 rlp = "0.4.0"
 rlp_compress = { path = "../../util/rlp-compress" }
