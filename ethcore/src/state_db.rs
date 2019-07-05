@@ -33,7 +33,7 @@ use memory_cache::MemoryLruCache;
 use parking_lot::Mutex;
 use types::BlockNumber;
 
-use state_account::{self, Account, State};
+use state_account::{self, Account};
 
 /// Value used to initialize bloom bitmap size.
 ///

@@ -32,7 +32,7 @@ use ethereum;
 use executive::{Executive, TransactOptions};
 use miner::{Miner, PendingOrdering, MinerService};
 use spec::Spec;
-use state_account::{self, State, CleanupMode};
+use state_account::{State, CleanupMode, backend};
 use test_helpers::{
 	self,
 	generate_dummy_client, push_blocks_to_client, get_test_client_with_blocks, get_good_dummy_block_seq,
@@ -347,7 +347,7 @@ fn transaction_proof() {
 	}.fake_sign(address);
 
 	let proof = client.prove_transaction(transaction.clone(), BlockId::Latest).unwrap().1;
-	let backend = state::backend::ProofCheck::new(&proof);
+	let backend = backend::ProofCheck::new(&proof);
 
 	let mut factories = ::factories::Factories::default();
 	factories.accountdb = ::account_db::Factory::Plain; // raw state values, no mangled keys.

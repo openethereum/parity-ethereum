@@ -21,13 +21,14 @@ use std::sync::Arc;
 use ethereum_types::{H256, U256, H160};
 use {factories, journaldb, trie, kvdb_memorydb};
 use kvdb::{self, KeyValueDB};
-use {state, state_db, client, executive, trace, db, spec};
+use {state_db, client, executive, trace, db, spec};
 use pod::PodState;
 use types::{log_entry, receipt, transaction};
 use factories::Factories;
 use evm::{VMType, FinalizationResult};
 use vm::{self, ActionParams};
 use ethtrie;
+use state_account::{CleanupMode, Substate, State};
 
 use executive_state::ExecutiveStateWithMachineZomgBetterName;
 
@@ -68,12 +69,12 @@ use ethjson::spec::ForkSpec;
 
 /// Simplified, single-block EVM test client.
 pub struct EvmTestClient<'a> {
-	state: state::State<state_db::StateDB>,
+	state: State<state_db::StateDB>,
 	spec: &'a spec::Spec,
-	dump_state: fn(&state::State<state_db::StateDB>) -> Option<PodState>,
+	dump_state: fn(&State<state_db::StateDB>) -> Option<PodState>,
 }
 
-fn no_dump_state(_: &state::State<state_db::StateDB>) -> Option<PodState> {
+fn no_dump_state(_: &State<state_db::StateDB>) -> Option<PodState> {
 	None
 }
 
@@ -103,7 +104,7 @@ impl<'a> EvmTestClient<'a> {
 	}
 
 	/// Change default function for dump state (default does not dump)
-	pub fn set_dump_state_fn(&mut self, dump_state: fn(&state::State<state_db::StateDB>) -> Option<PodState>) {
+	pub fn set_dump_state_fn(&mut self, dump_state: fn(&State<state_db::StateDB>) -> Option<PodState>) {
 		self.dump_state = dump_state;
 	}
 
@@ -151,7 +152,7 @@ impl<'a> EvmTestClient<'a> {
 		}
 	}
 
-	fn state_from_spec(spec: &'a spec::Spec, factories: &Factories) -> Result<state::State<state_db::StateDB>, EvmTestError> {
+	fn state_from_spec(spec: &'a spec::Spec, factories: &Factories) -> Result<State<state_db::StateDB>, EvmTestError> {
 		let db = Arc::new(kvdb_memorydb::create(db::NUM_COLUMNS.expect("We use column-based DB; qed")));
 		let journal_db = journaldb::new(db.clone(), journaldb::Algorithm::EarlyMerge, db::COL_STATE);
 		let mut state_db = state_db::StateDB::new(journal_db, 5 * 1024 * 1024);
@@ -165,7 +166,7 @@ impl<'a> EvmTestClient<'a> {
 			db.write(batch)?;
 		}
 
-		state::State::from_existing(
+		State::from_existing(
 			state_db,
 			*genesis.state_root(),
 			spec.engine.account_start_nonce(0),
@@ -173,11 +174,11 @@ impl<'a> EvmTestClient<'a> {
 		).map_err(EvmTestError::Trie)
 	}
 
-	fn state_from_pod(spec: &'a spec::Spec, factories: &Factories, pod_state: PodState) -> Result<state::State<state_db::StateDB>, EvmTestError> {
+	fn state_from_pod(spec: &'a spec::Spec, factories: &Factories, pod_state: PodState) -> Result<State<state_db::StateDB>, EvmTestError> {
 		let db = Arc::new(kvdb_memorydb::create(db::NUM_COLUMNS.expect("We use column-based DB; qed")));
 		let journal_db = journaldb::new(db.clone(), journaldb::Algorithm::EarlyMerge, db::COL_STATE);
 		let state_db = state_db::StateDB::new(journal_db, 5 * 1024 * 1024);
-		let mut state = state::State::new(
+		let mut state = State::new(
 			state_db,
 			spec.engine.account_start_nonce(0),
 			factories.clone(),
@@ -188,7 +189,7 @@ impl<'a> EvmTestClient<'a> {
 	}
 
 	/// Return current state.
-	pub fn state(&self) -> &state::State<state_db::StateDB> {
+	pub fn state(&self) -> &State<state_db::StateDB> {
 		&self.state
 	}
 
@@ -224,7 +225,7 @@ impl<'a> EvmTestClient<'a> {
 		info: client::EnvInfo,
 	) -> Result<FinalizationResult, EvmTestError>
 	{
-		let mut substate = state::Substate::new();
+		let mut substate = Substate::new();
 		let machine = self.spec.engine.machine();
 		let schedule = machine.schedule(info.number);
 		let mut executive = executive::Executive::new(&mut self.state, &info, &machine, &schedule);
@@ -266,9 +267,9 @@ impl<'a> EvmTestClient<'a> {
 		// Details: https://github.com/paritytech/parity-ethereum/issues/9431
 		let schedule = self.spec.engine.machine().schedule(env_info.number);
 		self.state.add_balance(&env_info.author, &0.into(), if schedule.no_empty {
-			state::CleanupMode::NoEmpty
+			CleanupMode::NoEmpty
 		} else {
-			state::CleanupMode::ForceCreate
+			CleanupMode::ForceCreate
 		}).ok();
 		// Touching also means that we should remove the account if it's within eip161
 		// conditions.
@@ -303,11 +304,7 @@ impl<'a> EvmTestClient<'a> {
 					end_state,
 				}
 			)},
-			Err(error) => Err(TransactErr {
-				state_root,
-				error,
-				end_state,
-			}),
+			Err(e) => Err(TransactErr {state_root, error: e.into(), end_state}),
 		}
 	}
 }
