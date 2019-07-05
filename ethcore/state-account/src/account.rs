@@ -33,7 +33,7 @@ use trie_db::{Recorder, Trie};
 use common_types::basic_account::BasicAccount;
 use ethtrie::{Result as TrieResult, SecTrieDB, TrieDB, TrieFactory};
 use keccak_hasher::KeccakHasher;
-use pod_account::PodAccount;
+use pod::PodAccount;
 
 const STORAGE_CACHE_ITEMS: usize = 8192;
 

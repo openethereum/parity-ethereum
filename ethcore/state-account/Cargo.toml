@@ -19,7 +19,7 @@ log = "0.4"
 lru-cache = "0.1.2"
 parity-bytes = "0.1.0"
 parity-util-mem = "0.1.0"
-pod-account = { path = "../pod-account" }
+pod = { path = "../pod" }
 rlp = "0.4.0"
 serde = { version = "1.0", features = ["derive"] }
 trace = { path = "../trace" }

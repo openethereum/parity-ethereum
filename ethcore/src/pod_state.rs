@@ -19,7 +19,7 @@
 use std::collections::BTreeMap;
 use ethereum_types::{H256, Address};
 use triehash::sec_trie_root;
-use pod_account::{self, PodAccount};
+use pod::{self, PodAccount};
 use types::state_diff::StateDiff;
 use ethjson;
 
@@ -76,7 +76,7 @@ pub fn diff_pod(pre: &PodState, post: &PodState) -> StateDiff {
 #[cfg(test)]
 mod test {
 	use std::collections::BTreeMap;
-	use pod_account::PodAccount;
+	use pod::PodAccount;
 	use types::account_diff::{AccountDiff, Diff};
 	use types::state_diff::StateDiff;
 	use super::{PodState, Address};

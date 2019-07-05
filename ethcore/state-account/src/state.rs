@@ -45,7 +45,7 @@ use common_types::{
 };
 use ethtrie::{Result as TrieResult, TrieDB};
 use keccak_hasher::KeccakHasher;
-use pod_account::*;
+use pod::*;
 use rlp::DecoderError;
 use vm::EnvInfo;
 use derive_more::{Display, From};

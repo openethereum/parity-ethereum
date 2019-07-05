@@ -940,7 +940,7 @@ dependencies = [
  "parity-util-mem 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "parking_lot 0.7.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "patricia-trie-ethereum 0.1.0",
- "pod-account 0.1.0",
+ "pod 0.1.0",
  "rand 0.6.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "rand_xorshift 0.1.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "rayon 1.0.3 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -3269,7 +3269,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "pod-account"
+name = "pod"
 version = "0.1.0"
 dependencies = [
  "common-types 0.1.0",
@@ -3992,7 +3992,7 @@ dependencies = [
  "parity-util-mem 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "parking_lot 0.7.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "patricia-trie-ethereum 0.1.0",
- "pod-account 0.1.0",
+ "pod 0.1.0",
  "rlp 0.4.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "rlp_compress 0.1.0",
  "serde 1.0.89 (registry+https://github.com/rust-lang/crates.io-index)",
