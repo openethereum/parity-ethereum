@@ -33,8 +33,7 @@ use error::Error;
 use executive::{Executive, TransactOptions};
 use factories::{Factories, VmFactory};
 use trace::{self, FlatTrace, VMTrace};
-use pod::*;
-use pod_state::{self, PodState};
+use pod::{self, PodAccount, PodState};
 use types::basic_account::BasicAccount;
 use executed::{Executed, ExecutionError};
 use types::state_diff::StateDiff;
@@ -1093,7 +1092,7 @@ impl<B: Backend> State<B> {
 	pub fn diff_from<X: Backend>(&self, mut orig: State<X>) -> TrieResult<StateDiff> {
 		let pod_state_post = self.to_pod_cache();
 		let pod_state_pre = orig.to_pod_diff(self)?;
-		Ok(pod_state::diff_pod(&pod_state_pre, &pod_state_post))
+		Ok(pod::state::diff_pod(&pod_state_pre, &pod_state_post))
 	}
 
 	/// Load required account data from the databases. Returns whether the cache succeeds.
@@ -1348,6 +1347,7 @@ mod tests {
 	use types::transaction::*;
 	use trace::{FlatTrace, TraceError, trace};
 	use evm::CallType;
+	use pod;
 
 	fn secret() -> Secret {
 		keccak("").into()
@@ -2659,8 +2659,6 @@ mod tests {
 
 	#[test]
 	fn should_trace_diff_suicided_accounts() {
-		use pod_account;
-
 		let a = Address::from_low_u64_be(10);
 		let db = get_temp_state_db();
 		let (root, db) = {
@@ -2679,7 +2677,7 @@ mod tests {
 		assert_eq!(diff_map.len(), 1);
 		assert!(diff_map.get(&a).is_some());
 		assert_eq!(diff_map.get(&a),
-				pod_account::diff_pod(Some(&PodAccount {
+				pod::account::diff_pod(Some(&PodAccount {
 					balance: U256::from(100),
 					nonce: U256::zero(),
 					code: Some(Default::default()),
@@ -2689,8 +2687,6 @@ mod tests {
 
 	#[test]
 	fn should_trace_diff_unmodified_storage() {
-		use pod_account;
-
 		let a = Address::from_low_u64_be(10);
 		let db = get_temp_state_db();
 
@@ -2710,7 +2706,7 @@ mod tests {
 		assert_eq!(diff_map.len(), 1);
 		assert!(diff_map.get(&a).is_some());
 		assert_eq!(diff_map.get(&a),
-				pod_account::diff_pod(Some(&PodAccount {
+				pod::account::diff_pod(Some(&PodAccount {
 					balance: U256::zero(),
 					nonce: U256::zero(),
 					code: Some(Default::default()),

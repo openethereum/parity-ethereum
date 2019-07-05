@@ -21,7 +21,8 @@ use std::sync::Arc;
 use ethereum_types::{H256, U256, H160};
 use {factories, journaldb, trie, kvdb_memorydb};
 use kvdb::{self, KeyValueDB};
-use {state, state_db, client, executive, trace, db, spec, pod_state};
+use {state, state_db, client, executive, trace, db, spec};
+use pod::PodState;
 use types::{log_entry, receipt, transaction};
 use factories::Factories;
 use evm::{VMType, FinalizationResult};
@@ -67,10 +68,10 @@ use ethjson::spec::ForkSpec;
 pub struct EvmTestClient<'a> {
 	state: state::State<state_db::StateDB>,
 	spec: &'a spec::Spec,
-	dump_state: fn(&state::State<state_db::StateDB>) -> Option<pod_state::PodState>,
+	dump_state: fn(&state::State<state_db::StateDB>) -> Option<PodState>,
 }
 
-fn no_dump_state(_: &state::State<state_db::StateDB>) -> Option<pod_state::PodState> {
+fn no_dump_state(_: &state::State<state_db::StateDB>) -> Option<PodState> {
 	None
 }
 
@@ -100,7 +101,7 @@ impl<'a> EvmTestClient<'a> {
 	}
 
 	/// Change default function for dump state (default does not dump)
-	pub fn set_dump_state_fn(&mut self, dump_state: fn(&state::State<state_db::StateDB>) -> Option<pod_state::PodState>) {
+	pub fn set_dump_state_fn(&mut self, dump_state: fn(&state::State<state_db::StateDB>) -> Option<PodState>) {
 		self.dump_state = dump_state;
 	}
 
@@ -124,7 +125,7 @@ impl<'a> EvmTestClient<'a> {
 
 	/// Creates new EVM test client with an in-memory DB initialized with given PodState.
 	/// Takes a `TrieSpec` to set the type of trie.
-	pub fn from_pod_state_with_trie(spec: &'a spec::Spec, pod_state: pod_state::PodState, trie_spec: trie::TrieSpec) -> Result<Self, EvmTestError> {
+	pub fn from_pod_state_with_trie(spec: &'a spec::Spec, pod_state: PodState, trie_spec: trie::TrieSpec) -> Result<Self, EvmTestError> {
 		let factories = Self::factories(trie_spec);
 		let state =	Self::state_from_pod(spec, &factories, pod_state)?;
 
@@ -136,7 +137,7 @@ impl<'a> EvmTestClient<'a> {
 	}
 
 	/// Creates new EVM test client with an in-memory DB initialized with given PodState.
-	pub fn from_pod_state(spec: &'a spec::Spec, pod_state: pod_state::PodState) -> Result<Self, EvmTestError> {
+	pub fn from_pod_state(spec: &'a spec::Spec, pod_state: PodState) -> Result<Self, EvmTestError> {
 		Self::from_pod_state_with_trie(spec, pod_state, trie::TrieSpec::Secure)
 	}
 
@@ -170,7 +171,7 @@ impl<'a> EvmTestClient<'a> {
 		).map_err(EvmTestError::Trie)
 	}
 
-	fn state_from_pod(spec: &'a spec::Spec, factories: &Factories, pod_state: pod_state::PodState) -> Result<state::State<state_db::StateDB>, EvmTestError> {
+	fn state_from_pod(spec: &'a spec::Spec, factories: &Factories, pod_state: PodState) -> Result<state::State<state_db::StateDB>, EvmTestError> {
 		let db = Arc::new(kvdb_memorydb::create(db::NUM_COLUMNS.expect("We use column-based DB; qed")));
 		let journal_db = journaldb::new(db.clone(), journaldb::Algorithm::EarlyMerge, db::COL_STATE);
 		let state_db = state_db::StateDB::new(journal_db, 5 * 1024 * 1024);
@@ -330,7 +331,7 @@ pub struct TransactSuccess<T, V> {
 	/// outcome
 	pub outcome: receipt::TransactionOutcome,
 	/// end state if needed
-	pub end_state: Option<pod_state::PodState>,
+	pub end_state: Option<PodState>,
 }
 
 /// To be returned inside a std::result::Result::Err after a failed
@@ -342,5 +343,5 @@ pub struct TransactErr {
 	/// Execution error
 	pub error: ::error::Error,
 	/// end state if needed
-	pub end_state: Option<pod_state::PodState>,
+	pub end_state: Option<PodState>,
 }

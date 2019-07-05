@@ -42,7 +42,7 @@ use error::Error;
 use executive::Executive;
 use factories::Factories;
 use machine::Machine;
-use pod_state::PodState;
+use pod::PodState;
 use spec::Genesis;
 use spec::seal::Generic as GenericSeal;
 use state::backend::Basic as BasicBackend;

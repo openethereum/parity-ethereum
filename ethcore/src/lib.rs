@@ -89,7 +89,7 @@ extern crate parity_bytes as bytes;
 extern crate parity_crypto;
 extern crate parity_snappy as snappy;
 extern crate parking_lot;
-extern crate pod_account;
+extern crate pod;
 extern crate trie_db as trie;
 extern crate patricia_trie_ethereum as ethtrie;
 extern crate rand;
@@ -140,8 +140,6 @@ extern crate macros;
 extern crate rlp_derive;
 #[macro_use]
 extern crate trace_time;
-#[macro_use]
-extern crate serde_derive;
 
 #[cfg_attr(test, macro_use)]
 extern crate evm;
@@ -162,7 +160,8 @@ pub mod executed;
 pub mod executive;
 pub mod machine;
 pub mod miner;
-pub mod pod_state;
+// TODO:
+//pub mod pod_state;
 pub mod snapshot;
 pub mod spec;
 pub mod state;
