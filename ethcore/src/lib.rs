@@ -161,12 +161,8 @@ pub mod executive;
 pub mod executive_state;
 pub mod machine;
 pub mod miner;
-// TODO: need to be pub?
-//pub mod pod_state;
 pub mod snapshot;
 pub mod spec;
-// TODO: need to be pub?
-//pub mod state;
 pub mod state_db;
 pub mod transaction_ext;
 pub mod verification;
