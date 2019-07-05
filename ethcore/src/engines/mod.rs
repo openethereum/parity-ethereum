@@ -469,9 +469,6 @@ pub trait Engine: Sync + Send {
 		Vec::new()
 	}
 
-	/// Check whether the given new block is the best block, after finalization check.
-	fn fork_choice(&self, new: &ExtendedHeader, best: &ExtendedHeader) -> ForkChoice;
-
 	/// Returns author should used when executing tx's for this block.
 	fn executive_author(&self, header: &Header) -> Result<Address, Error> {
 		Ok(*header.author())
@@ -547,15 +544,6 @@ pub trait Engine: Sync + Send {
 	/// Performs pre-validation of RLP decoded transaction before other processing
 	fn decode_transaction(&self, transaction: &[u8]) -> Result<UnverifiedTransaction, transaction::Error> {
 		self.machine().decode_transaction(transaction)
-	}
-}
-
-/// Check whether a given block is the best block based on the default total difficulty rule.
-pub fn total_difficulty_fork_choice(new: &ExtendedHeader, best: &ExtendedHeader) -> ForkChoice {
-	if new.total_score() > best.total_score() {
-		ForkChoice::New
-	} else {
-		ForkChoice::Old
 	}
 }
 
