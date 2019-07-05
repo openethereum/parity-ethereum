@@ -36,6 +36,7 @@ use keccak_hash::{KECCAK_EMPTY, KECCAK_NULL_RLP};
 use kvdb::DBValue;
 use log::{warn, trace};
 use parity_bytes::Bytes;
+use pod::{self, PodAccount, PodState};
 use trie_db::{Recorder, Trie};
 use common_types::{
 	basic_account::BasicAccount,
@@ -45,7 +46,6 @@ use common_types::{
 };
 use ethtrie::{Result as TrieResult, TrieDB};
 use keccak_hasher::KeccakHasher;
-use pod::*;
 use rlp::DecoderError;
 use vm::EnvInfo;
 use derive_more::{Display, From};
@@ -582,6 +582,232 @@ impl<B: Backend> State<B> {
 			.unwrap_or(KECCAK_NULL_RLP))
 	}
 
+
+	/// Get the value of storage at a specific checkpoint.
+	pub fn checkpoint_storage_at(&self, start_checkpoint_index: usize, address: &Address, key: &H256) -> TrieResult<Option<H256>> {
+		#[must_use]
+		enum ReturnKind {
+			/// Use original storage at value at this address.
+			OriginalAt,
+			/// The checkpoint storage value is the same as the checkpoint storage value at the next checkpoint.
+			SameAsNext,
+		}
+
+		let kind = {
+			let checkpoints = self.checkpoints.borrow();
+
+			if start_checkpoint_index >= checkpoints.len() {
+				// The checkpoint was not found. Return None.
+				return Ok(None);
+			}
+
+			let mut kind = None;
+
+			for checkpoint in checkpoints.iter().skip(start_checkpoint_index) {
+				match checkpoint.get(address) {
+					// The account exists at this checkpoint.
+					Some(Some(AccountEntry { account: Some(ref account), .. })) => {
+						if let Some(value) = account.cached_storage_at(key) {
+							return Ok(Some(value));
+						} else {
+							// This account has checkpoint entry, but the key is not in the entry's cache. We can use
+							// original_storage_at if current account's original storage root is the same as checkpoint
+							// account's original storage root. Otherwise, the account must be a newly created contract.
+							if account.base_storage_root() == self.original_storage_root(address)? {
+								kind = Some(ReturnKind::OriginalAt);
+								break
+							} else {
+								// If account base storage root is different from the original storage root since last
+								// commit, then it can only be created from a new contract, where the base storage root
+								// would always be empty. Note that this branch is actually never called, because
+								// `cached_storage_at` handled this case.
+								warn!(target: "state", "Trying to get an account's cached storage value, but base storage root does not equal to original storage root! Assuming the value is empty.");
+								return Ok(Some(H256::zero()));
+							}
+						}
+					},
+					// The account didn't exist at that point. Return empty value.
+					Some(Some(AccountEntry { account: None, .. })) => return Ok(Some(H256::zero())),
+					// The value was not cached at that checkpoint, meaning it was not modified at all.
+					Some(None) => {
+						kind = Some(ReturnKind::OriginalAt);
+						break
+					},
+					// This key does not have a checkpoint entry.
+					None => {
+						kind = Some(ReturnKind::SameAsNext);
+					},
+				}
+			}
+
+			kind.expect("start_checkpoint_index is checked to be below checkpoints_len; for loop above must have been executed at least once; it will either early return, or set the kind value to Some; qed")
+		};
+
+		match kind {
+			ReturnKind::SameAsNext => {
+				// If we reached here, all previous SameAsNext failed to early return. It means that the value we want
+				// to fetch is the same as current.
+				Ok(Some(self.storage_at(address, key)?))
+			},
+			ReturnKind::OriginalAt => Ok(Some(self.original_storage_at(address, key)?)),
+		}
+	}
+
+	fn storage_at_inner<FCachedStorageAt, FStorageAt>(
+		&self, address: &Address, key: &H256, f_cached_at: FCachedStorageAt, f_at: FStorageAt,
+	) -> TrieResult<H256> where
+		FCachedStorageAt: Fn(&Account, &H256) -> Option<H256>,
+		FStorageAt: Fn(&Account, &dyn HashDB<KeccakHasher, DBValue>, &H256) -> TrieResult<H256>
+	{
+		// Storage key search and update works like this:
+		// 1. If there's an entry for the account in the local cache check for the key and return it if found.
+		// 2. If there's an entry for the account in the global cache check for the key or load it into that account.
+		// 3. If account is missing in the global cache load it into the local cache and cache the key there.
+
+		{
+			// check local cache first without updating
+			let local_cache = self.cache.borrow_mut();
+			let mut local_account = None;
+			if let Some(maybe_acc) = local_cache.get(address) {
+				match maybe_acc.account {
+					Some(ref account) => {
+						if let Some(value) = f_cached_at(account, key) {
+							return Ok(value);
+						} else {
+							local_account = Some(maybe_acc);
+						}
+					},
+					_ => return Ok(H256::zero()),
+				}
+			}
+			// check the global cache and and cache storage key there if found,
+			let trie_res = self.db.get_cached(address, |acc| match acc {
+				None => Ok(H256::zero()),
+				Some(a) => {
+					let account_db = self.factories.accountdb.readonly(self.db.as_hash_db(), a.address_hash(address));
+					f_at(a, account_db.as_hash_db(), key)
+				}
+			});
+
+			if let Some(res) = trie_res {
+				return res;
+			}
+
+			// otherwise cache the account localy and cache storage key there.
+			if let Some(ref mut acc) = local_account {
+				if let Some(ref account) = acc.account {
+					let account_db = self.factories.accountdb.readonly(self.db.as_hash_db(), account.address_hash(address));
+					return f_at(account, account_db.as_hash_db(), key)
+				} else {
+					return Ok(H256::zero())
+				}
+			}
+		}
+
+		// check if the account could exist before any requests to trie
+		if self.db.is_known_null(address) { return Ok(H256::zero()) }
+
+		// account is not found in the global cache, get from the DB and insert into local
+		let db = &self.db.as_hash_db();
+		let db = self.factories.trie.readonly(db, &self.root).expect(SEC_TRIE_DB_UNWRAP_STR);
+		let from_rlp = |b: &[u8]| Account::from_rlp(b).expect("decoding db value failed");
+		let maybe_acc = db.get_with(address.as_bytes(), from_rlp)?;
+		let r = maybe_acc.as_ref().map_or(Ok(H256::zero()), |a| {
+			let account_db = self.factories.accountdb.readonly(self.db.as_hash_db(), a.address_hash(address));
+			f_at(a, account_db.as_hash_db(), key)
+		});
+		self.insert_cache(address, AccountEntry::new_clean(maybe_acc));
+		r
+	}
+
+	/// Mutate storage of account `address` so that it is `value` for `key`.
+	pub fn storage_at(&self, address: &Address, key: &H256) -> TrieResult<H256> {
+		self.storage_at_inner(
+			address,
+			key,
+			|account, key| { account.cached_storage_at(key) },
+			|account, db, key| { account.storage_at(db, key) },
+		)
+	}
+
+	/// Get the value of storage after last state commitment.
+	pub fn original_storage_at(&self, address: &Address, key: &H256) -> TrieResult<H256> {
+		self.storage_at_inner(
+			address,
+			key,
+			|account, key| { account.cached_original_storage_at(key) },
+			|account, db, key| { account.original_storage_at(db, key) },
+		)
+	}
+
+	/// Get accounts' code.
+	pub fn code(&self, a: &Address) -> TrieResult<Option<Arc<Bytes>>> {
+		self.ensure_cached(a, RequireCache::Code, true,
+		                   |a| a.as_ref().map_or(None, |a| a.code().clone()))
+	}
+
+	/// Get an account's code hash.
+	pub fn code_hash(&self, a: &Address) -> TrieResult<Option<H256>> {
+		self.ensure_cached(a, RequireCache::None, true,
+		                   |a| a.as_ref().map(|a| a.code_hash()))
+	}
+
+	/// Get accounts' code size.
+	pub fn code_size(&self, a: &Address) -> TrieResult<Option<usize>> {
+		self.ensure_cached(a, RequireCache::CodeSize, true,
+		                   |a| a.as_ref().and_then(|a| a.code_size()))
+	}
+
+	/// Add `incr` to the balance of account `a`.
+	pub fn add_balance(&mut self, a: &Address, incr: &U256, cleanup_mode: CleanupMode) -> TrieResult<()> {
+		trace!(target: "state", "add_balance({}, {}): {}", a, incr, self.balance(a)?);
+		let is_value_transfer = !incr.is_zero();
+		if is_value_transfer || (cleanup_mode == CleanupMode::ForceCreate && !self.exists(a)?) {
+			self.require(a, false)?.add_balance(incr);
+		} else if let CleanupMode::TrackTouched(set) = cleanup_mode {
+			if self.exists(a)? {
+				set.insert(*a);
+				self.touch(a)?;
+			}
+		}
+		Ok(())
+	}
+
+	/// Subtract `decr` from the balance of account `a`.
+	pub fn sub_balance(&mut self, a: &Address, decr: &U256, cleanup_mode: &mut CleanupMode) -> TrieResult<()> {
+		trace!(target: "state", "sub_balance({}, {}): {}", a, decr, self.balance(a)?);
+		if !decr.is_zero() || !self.exists(a)? {
+			self.require(a, false)?.sub_balance(decr);
+		}
+		if let CleanupMode::TrackTouched(ref mut set) = *cleanup_mode {
+			set.insert(*a);
+		}
+		Ok(())
+	}
+
+	/// Subtracts `by` from the balance of `from` and adds it to that of `to`.
+	pub fn transfer_balance(&mut self, from: &Address, to: &Address, by: &U256, mut cleanup_mode: CleanupMode) -> TrieResult<()> {
+		self.sub_balance(from, by, &mut cleanup_mode)?;
+		self.add_balance(to, by, cleanup_mode)?;
+		Ok(())
+	}
+
+	/// Increment the nonce of account `a` by 1.
+	pub fn inc_nonce(&mut self, a: &Address) -> TrieResult<()> {
+		self.require(a, false).map(|mut x| x.inc_nonce())
+	}
+
+	/// Mutate storage of account `a` so that it is `value` for `key`.
+	pub fn set_storage(&mut self, a: &Address, key: H256, value: H256) -> TrieResult<()> {
+		trace!(target: "state", "set_storage({}:{:x} to {:x})", a, key, value);
+		if self.storage_at(a, &key)? != value {
+			self.require(a, false)?.set_storage(key, value)
+		}
+
+		Ok(())
+	}
+
+
 	/// Initialise the code of account `a` so that it is `code`.
 	/// NOTE: Account should have been created with `new_contract`.
 	pub fn init_code(&mut self, a: &Address, code: Bytes) -> TrieResult<()> {
@@ -747,26 +973,25 @@ impl<B: Backend> State<B> {
 		Ok(())
 	}
 
-	// TODO: Needs PodState
 	/// Populate the state from `accounts`.
 	/// Used for tests.
-//	pub fn populate_from(&mut self, accounts: PodState) {
-//		assert!(self.checkpoints.borrow().is_empty());
-//		for (add, acc) in accounts.drain().into_iter() {
-//			self.cache.borrow_mut().insert(add, AccountEntry::new_dirty(Some(Account::from_pod(acc))));
-//		}
-//	}
-//
-//	/// Populate a PodAccount map from this state.
-//	fn to_pod_cache(&self) -> PodState {
-//		assert!(self.checkpoints.borrow().is_empty());
-//		PodState::from(self.cache.borrow().iter().fold(BTreeMap::new(), |mut m, (add, opt)| {
-//			if let Some(ref acc) = opt.account {
-//				m.insert(*add, acc.to_pod());
-//			}
-//			m
-//		}))
-//	}
+	pub fn populate_from(&mut self, accounts: PodState) {
+		assert!(self.checkpoints.borrow().is_empty());
+		for (add, acc) in accounts.drain().into_iter() {
+			self.cache.borrow_mut().insert(add, AccountEntry::new_dirty(Some(Account::from_pod(acc))));
+		}
+	}
+
+	/// Populate a PodAccount map from this state.
+	fn to_pod_cache(&self) -> PodState {
+		assert!(self.checkpoints.borrow().is_empty());
+		PodState::from(self.cache.borrow().iter().fold(BTreeMap::new(), |mut m, (add, opt)| {
+			if let Some(ref acc) = opt.account {
+				m.insert(*add, acc.to_pod());
+			}
+			m
+		}))
+	}
 
 	// TODO: sort out features
 	#[cfg(feature="to-pod-full")]
@@ -838,68 +1063,66 @@ impl<B: Backend> State<B> {
 		Ok(pod_account)
 	}
 
-// TODO: Needs PodState
-//	/// Populate a PodAccount map from this state, with another state as the account and storage query.
-//	fn to_pod_diff<X: Backend>(&mut self, query: &State<X>) -> TrieResult<PodState> {
-//		assert!(self.checkpoints.borrow().is_empty());
-//
-//		// Merge PodAccount::to_pod for cache of self and `query`.
-//		let all_addresses = self.cache.borrow().keys().cloned()
-//			.chain(query.cache.borrow().keys().cloned())
-//			.collect::<BTreeSet<_>>();
-//
-//		Ok(PodState::from(all_addresses.into_iter().fold(Ok(BTreeMap::new()), |m: TrieResult<_>, address| {
-//			let mut m = m?;
-//
-//			let account = self.ensure_cached(&address, RequireCache::Code, true, |acc| {
-//				acc.map(|acc| {
-//					// Merge all modified storage keys.
-//					let all_keys = {
-//						let self_keys = acc.storage_changes().keys().cloned()
-//							.collect::<BTreeSet<_>>();
-//
-//						if let Some(ref query_storage) = query.cache.borrow().get(&address)
-//							.and_then(|opt| {
-//								Some(opt.account.as_ref()?.storage_changes().keys().cloned()
-//									.collect::<BTreeSet<_>>())
-//							})
-//						{
-//							self_keys.union(&query_storage).cloned().collect::<Vec<_>>()
-//						} else {
-//							self_keys.into_iter().collect::<Vec<_>>()
-//						}
-//					};
-//
-//					// Storage must be fetched after ensure_cached to avoid borrow problem.
-//					(*acc.balance(), *acc.nonce(), all_keys, acc.code().map(|x| x.to_vec()))
-//				})
-//			})?;
-//
-//			if let Some((balance, nonce, storage_keys, code)) = account {
-//				let storage = storage_keys.into_iter().fold(Ok(BTreeMap::new()), |s: TrieResult<_>, key| {
-//					let mut s = s?;
-//
-//					s.insert(key, self.storage_at(&address, &key)?);
-//					Ok(s)
-//				})?;
-//
-//				m.insert(address, PodAccount {
-//					balance, nonce, storage, code
-//				});
-//			}
-//
-//			Ok(m)
-//		})?))
-//	}
+	/// Populate a PodAccount map from this state, with another state as the account and storage query.
+	fn to_pod_diff<X: Backend>(&mut self, query: &State<X>) -> TrieResult<PodState> {
+		assert!(self.checkpoints.borrow().is_empty());
 
-	// TODO: Needs PodState
-//	/// Returns a `StateDiff` describing the difference from `orig` to `self`.
-//	/// Consumes self.
-//	pub fn diff_from<X: Backend>(&self, mut orig: State<X>) -> TrieResult<StateDiff> {
-//		let pod_state_post = self.to_pod_cache();
-//		let pod_state_pre = orig.to_pod_diff(self)?;
-//		Ok(pod_state::diff_pod(&pod_state_pre, &pod_state_post))
-//	}
+		// Merge PodAccount::to_pod for cache of self and `query`.
+		let all_addresses = self.cache.borrow().keys().cloned()
+			.chain(query.cache.borrow().keys().cloned())
+			.collect::<BTreeSet<_>>();
+
+		Ok(PodState::from(all_addresses.into_iter().fold(Ok(BTreeMap::new()), |m: TrieResult<_>, address| {
+			let mut m = m?;
+
+			let account = self.ensure_cached(&address, RequireCache::Code, true, |acc| {
+				acc.map(|acc| {
+					// Merge all modified storage keys.
+					let all_keys = {
+						let self_keys = acc.storage_changes().keys().cloned()
+							.collect::<BTreeSet<_>>();
+
+						if let Some(ref query_storage) = query.cache.borrow().get(&address)
+							.and_then(|opt| {
+								Some(opt.account.as_ref()?.storage_changes().keys().cloned()
+									.collect::<BTreeSet<_>>())
+							})
+						{
+							self_keys.union(&query_storage).cloned().collect::<Vec<_>>()
+						} else {
+							self_keys.into_iter().collect::<Vec<_>>()
+						}
+					};
+
+					// Storage must be fetched after ensure_cached to avoid borrow problem.
+					(*acc.balance(), *acc.nonce(), all_keys, acc.code().map(|x| x.to_vec()))
+				})
+			})?;
+
+			if let Some((balance, nonce, storage_keys, code)) = account {
+				let storage = storage_keys.into_iter().fold(Ok(BTreeMap::new()), |s: TrieResult<_>, key| {
+					let mut s = s?;
+
+					s.insert(key, self.storage_at(&address, &key)?);
+					Ok(s)
+				})?;
+
+				m.insert(address, PodAccount {
+					balance, nonce, storage, code
+				});
+			}
+
+			Ok(m)
+		})?))
+	}
+
+	/// Returns a `StateDiff` describing the difference from `orig` to `self`.
+	/// Consumes self.
+	pub fn diff_from<X: Backend>(&self, mut orig: State<X>) -> TrieResult<StateDiff> {
+		let pod_state_post = self.to_pod_cache();
+		let pod_state_pre = orig.to_pod_diff(self)?;
+		Ok(pod::state::diff_pod(&pod_state_pre, &pod_state_post))
+	}
 
 	/// Load required account data from the databases. Returns whether the cache succeeds.
 	#[must_use]
@@ -1049,3 +1272,5 @@ impl<B: Backend> State<B> {
 		Ok(self.require(a, false)?.reset_code_and_storage(code, storage))
 	}
 }
+
+// TODO tests and whatnot
