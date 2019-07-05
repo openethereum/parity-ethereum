@@ -186,24 +186,6 @@ pub enum ImportError {
 
 impl error::Error for ImportError {}
 
-/// Api-level error for transaction import
-#[derive(Debug, Clone)]
-pub enum TransactionImportError {
-	/// Transaction error
-	Transaction(TransactionError),
-	/// Other error
-	Other(String),
-}
-
-impl From<Error> for TransactionImportError {
-	fn from(e: Error) -> Self {
-		match e {
-			Error::Transaction(transaction_error) => TransactionImportError::Transaction(transaction_error),
-			_ => TransactionImportError::Other(format!("other block import error: {:?}", e)),
-		}
-	}
-}
-
 /// Ethcore Result
 pub type EthcoreResult<T> = Result<T, Error>;
 
@@ -255,9 +237,6 @@ pub enum Error {
 	/// The value of the nonce or mishash is invalid.
 	#[display(fmt = "The value of the nonce or mishash is invalid.")]
 	PowInvalid,
-	/// Unknown engine given
-	#[display(fmt = "Unknown engine name ({})", _0)]
-	UnknownEngineName(String),
 	/// A convenient variant for String.
 	#[display(fmt = "{}", _0)]
 	Msg(String),
@@ -279,12 +258,6 @@ impl error::Error for Error {
 			Error::Snapshot(e) => Some(e),
 			_ => None,
 		}
-	}
-}
-
-impl From<String> for Error {
-	fn from(s: String) -> Self {
-		Error::Msg(s)
 	}
 }
 
