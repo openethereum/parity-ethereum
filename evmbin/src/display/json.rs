@@ -21,7 +21,7 @@ use std::mem;
 
 use ethereum_types::{U256, H256, BigEndianHash};
 use bytes::ToPretty;
-use ethcore::trace;
+use trace;
 
 use display;
 use info as vm;

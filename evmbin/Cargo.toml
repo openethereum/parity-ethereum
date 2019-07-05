@@ -18,10 +18,12 @@ ethjson = { path = "../json" }
 evm = { path = "../ethcore/evm" }
 panic_hook = { path = "../util/panic-hook" }
 parity-bytes = "0.1"
+pod = { path = "../ethcore/pod" }
 rustc-hex = "1.0"
 serde = "1.0"
 serde_derive = "1.0"
 serde_json = "1.0"
+trace = { path = "../ethcore/trace" }
 vm = { path = "../ethcore/vm" }
 
 [dev-dependencies]
