@@ -61,25 +61,24 @@ pub enum StateOrBlock {
 	Block(BlockId)
 }
 
-impl<S: StateInfo + 'static> From<S> for StateOrBlock {
-	fn from(info: S) -> StateOrBlock {
-		StateOrBlock::State(Box::new(info) as Box<_>)
+// TODO: This doesn't work (StateInfo is now in a diff crate) but not sure where it was used, if at all.
+//impl<S: StateInfo + 'static> From<S> for StateOrBlock {
+//	fn from(info: S) -> StateOrBlock {
+//		StateOrBlock::State(Box::new(info) as Box<_>)
+//	}
+//}
+
+impl From<Box<dyn StateInfo>> for StateOrBlock {
+	fn from(info: Box<dyn StateInfo>) -> StateOrBlock {
+		StateOrBlock::State(info)
 	}
 }
 
-// TODO: sort out why these imps conflict
-//impl From<Box<dyn StateInfo>> for StateOrBlock {
-//	fn from(info: Box<dyn StateInfo>) -> StateOrBlock {
-//		StateOrBlock::State(info)
-//	}
-//}
-
-// TODO: sort out why these imps conflict
-//impl From<BlockId> for StateOrBlock {
-//	fn from(id: BlockId) -> StateOrBlock {
-//		StateOrBlock::Block(id)
-//	}
-//}
+impl From<BlockId> for StateOrBlock {
+	fn from(id: BlockId) -> StateOrBlock {
+		StateOrBlock::Block(id)
+	}
+}
 
 /// Provides `nonce` and `latest_nonce` methods
 pub trait Nonce {
