@@ -23,7 +23,8 @@ use std::collections::HashMap;
 
 use ethereum_types::H256;
 use ethkey::{KeyPair, Public, Secret};
-use parity_util_mem::Memzero;
+use zeroize::Zeroizing;
+use std::ops::Deref;
 use rand::{Rng, rngs::OsRng};
 
 use rpc::crypto::{AES_KEY_LEN, EncryptionInstance, DecryptionInstance};
@@ -35,7 +36,7 @@ pub enum Key {
 	/// and signing.
 	Asymmetric(KeyPair),
 	/// AES-256 GCM mode. Suitable for encryption, decryption, but not signing.
-	Symmetric(Memzero<[u8; AES_KEY_LEN]>),
+	Symmetric(Zeroizing<[u8; AES_KEY_LEN]>),
 }
 
 impl Key {
@@ -49,7 +50,7 @@ impl Key {
 
 	/// Generate a random symmetric key with the given cryptographic RNG.
 	pub fn new_symmetric(rng: &mut OsRng) -> Self {
-		Key::Symmetric(Memzero::from(rng.gen::<[u8; 32]>()))
+		Key::Symmetric(Zeroizing::new(rng.gen::<[u8; 32]>()))
 	}
 
 	/// From secret asymmetric key. Fails if secret is invalid.
@@ -59,7 +60,7 @@ impl Key {
 
 	/// From raw symmetric key.
 	pub fn from_raw_symmetric(key: [u8; AES_KEY_LEN]) -> Self {
-		Key::Symmetric(Memzero::from(key))
+		Key::Symmetric(Zeroizing::new(key))
 	}
 
 	/// Get a handle to the public key if this is an asymmetric key.
@@ -138,7 +139,7 @@ impl KeyStore {
 				.map_err(|_| "could not create encryption instance for id"),
 			Key::Symmetric(ref key) =>
 				 OsRng::new()
-					.map(|mut rng| EncryptionInstance::aes(key.clone(), rng.gen()))
+					.map(|mut rng| EncryptionInstance::aes(Zeroizing::new(*key.deref()), rng.gen()))
 				 	.map_err(|_| "unable to get secure randomness")
 		})
 	}
@@ -149,7 +150,7 @@ impl KeyStore {
 		self.get(id).map(|key| match *key {
 			Key::Asymmetric(ref pair) => DecryptionInstance::ecies(pair.secret().clone())
 				.expect("all keys stored are valid; qed"),
-			Key::Symmetric(ref key) => DecryptionInstance::aes(key.clone()),
+			Key::Symmetric(ref key) => DecryptionInstance::aes(Zeroizing::new(*key.deref())),
 		})
 	}
 

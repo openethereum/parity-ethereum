@@ -348,7 +348,7 @@ impl Rebuilder for ChunkRebuilder {
 		Ok(())
 	}
 
-	fn finalize(&mut self, _engine: &dyn Engine) -> Result<(), ::error::Error> {
+	fn finalize(&mut self) -> Result<(), ::error::Error> {
 		if !self.had_genesis {
 			return Err(Error::WrongChunkFormat("No genesis transition included.".into()).into());
 		}
@@ -358,6 +358,7 @@ impl Rebuilder for ChunkRebuilder {
 			None => return Err(Error::WrongChunkFormat("Warp target block not included.".into()).into()),
 		};
 
+		trace!(target: "snapshot", "rebuilder, finalize: verifying {} unverified first blocks", self.unverified_firsts.len());
 		// verify the first entries of chunks we couldn't before.
 		// we store all last verifiers, but not all firsts.
 		// match each unverified first epoch with a last epoch verifier.

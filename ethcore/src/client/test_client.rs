@@ -417,7 +417,6 @@ impl PrepareOpenBlock for TestBlockChainClient {
 			gas_range_target,
 			extra_data,
 			false,
-			None,
 		)?;
 		// TODO [todr] Override timestamp for predictability
 		open_block.set_timestamp(*self.latest_block_timestamp.read());
@@ -839,10 +838,6 @@ impl BlockChainClient for TestBlockChainClient {
 	}
 
 	fn clear_queue(&self) {
-	}
-
-	fn additional_params(&self) -> BTreeMap<String, String> {
-		Default::default()
 	}
 
 	fn filter_traces(&self, _filter: TraceFilter) -> Option<Vec<LocalizedTrace>> {

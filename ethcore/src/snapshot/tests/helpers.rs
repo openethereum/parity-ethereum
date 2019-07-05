@@ -187,5 +187,5 @@ pub fn restore(
 
 	trace!(target: "snapshot", "finalizing");
 	state.finalize(manifest.block_number, manifest.block_hash)?;
-	secondary.finalize(engine)
+	secondary.finalize()
 }
