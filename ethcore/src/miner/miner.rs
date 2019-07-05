@@ -1319,10 +1319,12 @@ impl miner::MinerService for Miner {
 				Error::PowHashInvalid
 			})?;
 
-		trace!(target: "miner", "Submitted block {hash}={bare_hash} with seal {seal:?}",
-			   hash = block_hash,
-			   bare_hash = block.header.bare_hash(),
-			   seal = seal);
+		trace!(
+			target: "miner", "Submitted block {hash}={bare_hash} with seal {seal:?}",
+			hash = block_hash,
+			bare_hash = block.header.bare_hash(),
+			seal = seal
+		);
 
 		let sealed = block.lock()
 			.try_seal(&*self.engine, seal)
@@ -1334,9 +1336,11 @@ impl miner::MinerService for Miner {
 		let n = sealed.header.number();
 		let h = sealed.header.hash();
 
-		info!(target: "miner", "Submitted block imported OK. #{number}: {hash}",
-			  number = Colour::White.bold().paint(n.to_string()),
-			  hash = Colour::White.bold().paint(format!("{:x}", h)));
+		info!(
+			target: "miner", "Submitted block imported OK. #{number}: {hash}",
+			number = Colour::White.bold().paint(n.to_string()),
+			hash = Colour::White.bold().paint(format!("{:x}", h))
+		);
 
 		Ok(sealed)
 	}
