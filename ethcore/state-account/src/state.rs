@@ -28,7 +28,6 @@ use std::{
 };
 
 use common_types::{
-	receipt::Receipt,
 	state_diff::StateDiff,
 	basic_account::BasicAccount,
 };
@@ -694,82 +693,6 @@ impl<B: Backend> State<B> {
 		self.require_or_from(a, true, || Account::new_contract(0.into(), self.account_start_nonce, KECCAK_NULL_RLP), |_| {})?.reset_code(code);
 		Ok(())
 	}
-
-	// TODO: Needs Machine and TransactOptions
-	/// Execute a given transaction, producing a receipt and an optional trace.
-	/// This will change the state accordingly.
-//	pub fn apply(&mut self, env_info: &EnvInfo, machine: &Machine, t: &SignedTransaction, tracing: bool) -> ApplyResult<FlatTrace, VMTrace> {
-//		if tracing {
-//			let options = TransactOptions::with_tracing();
-//			self.apply_with_tracing(env_info, machine, t, options.tracer, options.vm_tracer)
-//		} else {
-//			let options = TransactOptions::with_no_tracing();
-//			self.apply_with_tracing(env_info, machine, t, options.tracer, options.vm_tracer)
-//		}
-//	}
-
-	// TODO: Needs Machine
-	/// Execute a given transaction with given tracer and VM tracer producing a receipt and an optional trace.
-	/// This will change the state accordingly.
-//	pub fn apply_with_tracing<V, T>(
-//		&mut self,
-//		env_info: &EnvInfo,
-//		machine: &Machine,
-//		t: &SignedTransaction,
-//		tracer: T,
-//		vm_tracer: V,
-//	) -> ApplyResult<T::Output, V::Output> where
-//		T: trace::Tracer,
-//		V: trace::VMTracer,
-//	{
-//		let options = TransactOptions::new(tracer, vm_tracer);
-//		let e = self.execute(env_info, machine, t, options, false)?;
-//		let params = machine.params();
-//
-//		let eip658 = env_info.number >= params.eip658_transition;
-//		let no_intermediate_commits =
-//			eip658 ||
-//				(env_info.number >= params.eip98_transition && env_info.number >= params.validate_receipts_transition);
-//
-//		let outcome = if no_intermediate_commits {
-//			if eip658 {
-//				TransactionOutcome::StatusCode(if e.exception.is_some() { 0 } else { 1 })
-//			} else {
-//				TransactionOutcome::Unknown
-//			}
-//		} else {
-//			self.commit()?;
-//			TransactionOutcome::StateRoot(self.root().clone())
-//		};
-//
-//		let output = e.output;
-//		let receipt = Receipt::new(outcome, e.cumulative_gas_used, e.logs);
-//		trace!(target: "state", "Transaction receipt: {:?}", receipt);
-//
-//		Ok(ApplyOutcome {
-//			receipt,
-//			output,
-//			trace: e.trace,
-//			vm_trace: e.vm_trace,
-//		})
-//	}
-
-	// TODO: Needs Machine and Executed, ExecutionError, Executive
-	// Execute a given transaction without committing changes.
-	//
-	// `virt` signals that we are executing outside of a block set and restrictions like
-	// gas limits and gas costs should be lifted.
-//	fn execute<T, V>(&mut self, env_info: &EnvInfo, machine: &Machine, t: &SignedTransaction, options: TransactOptions<T, V>, virt: bool)
-//	                 -> Result<Executed<T::Output, V::Output>, ExecutionError> where T: trace::Tracer, V: trace::VMTracer,
-//	{
-//		let schedule = machine.schedule(env_info.number);
-//		let mut e = Executive::new(self, env_info, machine, &schedule);
-//
-//		match virt {
-//			true => e.transact_virtual(t, options),
-//			false => e.transact(t, options),
-//		}
-//	}
 
 	fn touch(&mut self, a: &Address) -> TrieResult<()> {
 		self.require(a, false)?;
