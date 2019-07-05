@@ -194,7 +194,10 @@ impl Connection {
 
 	/// Get remote peer address string
 	pub fn remote_addr_str(&self) -> String {
-		self.socket.peer_addr().map(|a| a.to_string()).unwrap_or_else(|_| "Unknown".to_owned())
+		self.socket.peer_addr().map(|a| a.to_string()).unwrap_or_else(|err| {
+			debug!("error occurred getting peer_addr: {}, connection token: {}", err, self.token);
+			"Unknown peer address".to_owned()
+		})
 	}
 
 	/// Get local peer address string

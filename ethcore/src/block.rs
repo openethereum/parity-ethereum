@@ -178,8 +178,7 @@ impl<'x> OpenBlock<'x> {
 	) -> Result<Self, Error> {
 		let number = parent.number() + 1;
 		let state = State::from_existing(db, parent.state_root().clone(), engine.account_start_nonce(number), factories)?;
-
-		let mut r = OpenBlock { block: ExecutedBlock::new(state, last_hashes, tracing), engine, parent: parent.clone() };
+		let mut r = OpenBlock { block: ExecutedBlock::new(state, last_hashes, tracing), engine, parent: parent.clone()};
 
 		r.block.header.set_parent_hash(parent.hash());
 		r.block.header.set_number(number);

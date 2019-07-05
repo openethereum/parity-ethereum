@@ -14,7 +14,7 @@ keccak-hasher = { path = "../keccak-hasher" }
 kvdb = "0.1"
 log = "0.4"
 memory-db = "0.12.4"
-parking_lot = "0.7"
+parking_lot = "0.8"
 fastmap = { path = "../../util/fastmap" }
 rlp = "0.4.0"
 
