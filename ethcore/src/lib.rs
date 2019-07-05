@@ -158,6 +158,7 @@ pub mod error;
 pub mod ethereum;
 pub mod executed;
 pub mod executive;
+pub mod executive_state;
 pub mod machine;
 pub mod miner;
 // TODO: need to be pub?
@@ -172,7 +173,7 @@ pub mod verification;
 
 mod externalities;
 mod tx_filter;
-mod executive_state;
+
 
 #[cfg(test)]
 mod tests;

@@ -35,6 +35,7 @@ itertools = "0.5"
 bincode = "1.1"
 serde = "1.0"
 serde_derive = "1.0"
+state-account = { path = "../state-account" }
 parking_lot = "0.7"
 stats = { path = "../../util/stats" }
 keccak-hash = "0.2.0"

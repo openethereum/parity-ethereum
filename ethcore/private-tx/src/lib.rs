@@ -46,7 +46,9 @@ extern crate rlp;
 extern crate serde_derive;
 extern crate serde;
 extern crate serde_json;
+extern crate state_account;
 extern crate rustc_hex;
+extern crate trace;
 extern crate transaction_pool as txpool;
 extern crate url;
 #[macro_use]
@@ -92,8 +94,9 @@ use ethcore::client::{
 	Call, BlockInfo
 };
 use ethcore::miner::{self, Miner, MinerService, pool_client::NonceCache};
-use ethcore::{state, state_db};
-use ethcore::trace::{Tracer, VMTracer};
+use ethcore::state_db;
+use state_account::State;
+use trace::{Tracer, VMTracer};
 use call_contract::CallContract;
 use rustc_hex::FromHex;
 use ethabi::FunctionOutputDecoder;
@@ -539,7 +542,7 @@ impl Provider {
 		raw
 	}
 
-	fn patch_account_state(&self, contract_address: &Address, block: BlockId, state: &mut state::State<state_db::StateDB>) -> Result<(), Error> {
+	fn patch_account_state(&self, contract_address: &Address, block: BlockId, state: &mut State<state_db::StateDB>) -> Result<(), Error> {
 		let contract_code = Arc::new(self.get_decrypted_code(contract_address, block)?);
 		let contract_state = self.get_decrypted_state(contract_address, block)?;
 		trace!(target: "privatetx", "Patching contract at {:?}, code: {:?}, state: {:?}", contract_address, contract_code, contract_state);

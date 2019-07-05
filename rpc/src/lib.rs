@@ -82,6 +82,7 @@ extern crate parity_updater as updater;
 extern crate parity_version as version;
 extern crate eip_712;
 extern crate rlp;
+extern crate state_account;
 extern crate stats;
 extern crate tempdir;
 extern crate vm;

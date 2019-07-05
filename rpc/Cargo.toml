@@ -60,6 +60,7 @@ parity-runtime = { path = "../util/runtime" }
 parity-updater = { path = "../updater" }
 parity-version = { path = "../util/version" }
 rlp = "0.4.0"
+state-account = { path = "../ethcore/state-account" }
 stats = { path = "../util/stats" }
 vm = { path = "../ethcore/vm" }
 
