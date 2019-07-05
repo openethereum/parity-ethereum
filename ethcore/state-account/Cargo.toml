@@ -36,9 +36,3 @@ account-db = { path = "../account-db" }
 rlp_compress = { path = "../../util/rlp-compress" }
 journaldb = { path = "../../util/journaldb" }
 parity-bytes = "0.1.0"
-ethkey = { path = "../../accounts/ethkey" }
-trace = { path = "../trace" }
-pod = { path = "../pod" }
-ethcore = { path = "..", features = ["test-helpers"]}
-rustc-hex = "2.0.1"
-env_logger = "0.5"
