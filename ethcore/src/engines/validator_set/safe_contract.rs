@@ -138,9 +138,9 @@ fn check_first_proof(machine: &Machine, contract_address: Address, old_header: H
 	);
 
 	match res {
-		::state::ProvedExecution::BadProof => Err("Bad proof".into()),
-		::state::ProvedExecution::Failed(e) => Err(format!("Failed call: {}", e)),
-		::state::ProvedExecution::Complete(e) => decoder.decode(&e.output).map_err(|e| e.to_string()),
+		::executive_state::ProvedExecution::BadProof => Err("Bad proof".into()),
+		::executive_state::ProvedExecution::Failed(e) => Err(format!("Failed call: {}", e)),
+		::executive_state::ProvedExecution::Complete(e) => decoder.decode(&e.output).map_err(|e| e.to_string()),
 	}
 }
 

@@ -23,34 +23,29 @@ use std::{
 	cell::{RefCell, RefMut},
 	collections::{BTreeMap, BTreeSet, HashMap, HashSet},
 	collections::hash_map::Entry,
-	fmt,
 	sync::Arc,
-	error, io::Error as IoError,
+	fmt,
 };
 
+use common_types::{
+	receipt::Receipt,
+	state_diff::StateDiff,
+	basic_account::BasicAccount,
+};
 use ethereum_types::{Address, H256, U256};
-use ethtrie::TrieError;
+use ethtrie::{TrieDB, TrieError, Result as TrieResult};
 use factories::{Factories, VmFactory};
-use hash_db::{AsHashDB, HashDB};
+use hash_db::HashDB;
 use keccak_hash::{KECCAK_EMPTY, KECCAK_NULL_RLP};
+use keccak_hasher::KeccakHasher;
 use kvdb::DBValue;
 use log::{warn, trace};
 use parity_bytes::Bytes;
 use pod::{self, PodAccount, PodState};
-use trie_db::{Recorder, Trie};
-use common_types::{
-	basic_account::BasicAccount,
-	receipt::{Receipt, TransactionOutcome},
-	state_diff::StateDiff,
-	transaction::SignedTransaction
-};
-use ethtrie::{Result as TrieResult, TrieDB};
-use keccak_hasher::KeccakHasher;
-use rlp::DecoderError;
-use vm::EnvInfo;
-use derive_more::{Display, From};
+use trie_db::{Trie, Recorder};
 
 use crate::{
+	Error,
 	account::Account,
 	backend::Backend,
 };
@@ -67,40 +62,8 @@ pub struct ApplyOutcome<T, V> {
 	pub vm_trace: Option<V>
 }
 
-// TODO: sort out error handling
-#[derive(Debug, Display, From)]
-pub enum Error {
-	/// Trie error.
-	Trie(TrieError),
-	/// Decoder error.
-	Decoder(DecoderError),
-	/// Io error.
-	Io(IoError), // TODO: maybe not needed?
-}
-
-// TODO: needed?
-impl error::Error for Error {}
-
-impl<E> From<Box<E>> for Error where Error: From<E> {
-	fn from(err: Box<E>) -> Self {
-		Error::from(*err)
-	}
-}
-
 /// Result type for the execution ("application") of a transaction.
 pub type ApplyResult<T, V> = Result<ApplyOutcome<T, V>, Error>;
-
-// TODO: needs ExecutionError and Executed
-///// Return type of proof validity check.
-//#[derive(Debug, Clone)]
-//pub enum ProvedExecution {
-//	/// Proof wasn't enough to complete execution.
-//	BadProof,
-//	/// The transaction failed, but not due to a bad proof.
-//	Failed(ExecutionError),
-//	/// The transaction successfully completed with the given proof.
-//	Complete(Box<Executed>),
-//}
 
 #[derive(Eq, PartialEq, Clone, Copy, Debug)]
 /// Account modification state. Used to check if the account was
@@ -205,79 +168,6 @@ impl AccountEntry {
 		}
 	}
 }
-
-// TODO: needs Machine
-///// Check the given proof of execution.
-///// `Err(ExecutionError::Internal)` indicates failure, everything else indicates
-///// a successful proof (as the transaction itself may be poorly chosen).
-//pub fn check_proof(
-//	proof: &[DBValue],
-//	root: H256,
-//	transaction: &SignedTransaction,
-//	machine: &Machine,
-//	env_info: &EnvInfo,
-//) -> ProvedExecution {
-//	let backend = self::backend::ProofCheck::new(proof);
-//	let mut factories = Factories::default();
-//	factories.accountdb = ::account_db::Factory::Plain;
-//
-//	let res = State::from_existing(
-//		backend,
-//		root,
-//		machine.account_start_nonce(env_info.number),
-//		factories
-//	);
-//
-//	let mut state = match res {
-//		Ok(state) => state,
-//		Err(_) => return ProvedExecution::BadProof,
-//	};
-//
-//	let options = TransactOptions::with_no_tracing().save_output_from_contract();
-//	match state.execute(env_info, machine, transaction, options, true) {
-//		Ok(executed) => ProvedExecution::Complete(Box::new(executed)),
-//		Err(ExecutionError::Internal(_)) => ProvedExecution::BadProof,
-//		Err(e) => ProvedExecution::Failed(e),
-//	}
-//}
-
-// TODO: needs Machine
-///// Prove a `virtual` transaction on the given state.
-///// Returns `None` when the transacion could not be proved,
-///// and a proof otherwise.
-//pub fn prove_transaction_virtual<H: AsHashDB<KeccakHasher, DBValue> + Send + Sync>(
-//	db: H,
-//	root: H256,
-//	transaction: &SignedTransaction,
-//	machine: &Machine,
-//	env_info: &EnvInfo,
-//	factories: Factories,
-//) -> Option<(Bytes, Vec<DBValue>)> {
-//	use state_account::backend::Proving;
-//
-//	let backend = Proving::new(db);
-//	let res = State::from_existing(
-//		backend,
-//		root,
-//		machine.account_start_nonce(env_info.number),
-//		factories,
-//	);
-//
-//	let mut state = match res {
-//		Ok(state) => state,
-//		Err(_) => return None,
-//	};
-//
-//	let options = TransactOptions::with_no_tracing().dont_check_nonce().save_output_from_contract();
-//	match state.execute(env_info, machine, transaction, options, true) {
-//		Err(ExecutionError::Internal(_)) => None,
-//		Err(e) => {
-//			trace!(target: "state", "Proved call failed: {}", e);
-//			Some((Vec::new(), state.drop().1.extract_proof()))
-//		}
-//		Ok(res) => Some((res.output, state.drop().1.extract_proof())),
-//	}
-//}
 
 /// Representation of the entire state of all accounts in the system.
 ///
@@ -1269,6 +1159,93 @@ impl<B: Backend> State<B> {
 	/// Replace account code and storage. Creates account if it does not exist.
 	pub fn patch_account(&self, a: &Address, code: Arc<Bytes>, storage: HashMap<H256, H256>) -> TrieResult<()> {
 		Ok(self.require(a, false)?.reset_code_and_storage(code, storage))
+	}
+}
+
+// State proof implementations; useful for light client protocols.
+impl<B: Backend> State<B> {
+	/// Prove an account's existence or nonexistence in the state trie.
+	/// Returns a merkle proof of the account's trie node omitted or an encountered trie error.
+	/// If the account doesn't exist in the trie, prove that and return defaults.
+	/// Requires a secure trie to be used for accurate results.
+	/// `account_key` == keccak(address)
+	pub fn prove_account(&self, account_key: H256) -> TrieResult<(Vec<Bytes>, BasicAccount)> {
+		let mut recorder = Recorder::new();
+		let db = &self.db.as_hash_db();
+		let trie = TrieDB::new(db, &self.root)?;
+		let maybe_account: Option<BasicAccount> = {
+			let panicky_decoder = |bytes: &[u8]| {
+				::rlp::decode(bytes).unwrap_or_else(|_| panic!("prove_account, could not query trie for account key={}", &account_key))
+			};
+			let query = (&mut recorder, panicky_decoder);
+			trie.get_with(account_key.as_bytes(), query)?
+		};
+		let account = maybe_account.unwrap_or_else(|| BasicAccount {
+			balance: 0.into(),
+			nonce: self.account_start_nonce,
+			code_hash: KECCAK_EMPTY,
+			storage_root: KECCAK_NULL_RLP,
+		});
+
+		Ok((recorder.drain().into_iter().map(|r| r.data).collect(), account))
+	}
+
+	/// Prove an account's storage key's existence or nonexistence in the state.
+	/// Returns a merkle proof of the account's storage trie.
+	/// Requires a secure trie to be used for correctness.
+	/// `account_key` == keccak(address)
+	/// `storage_key` == keccak(key)
+	pub fn prove_storage(&self, account_key: H256, storage_key: H256) -> TrieResult<(Vec<Bytes>, H256)> {
+		// TODO: probably could look into cache somehow but it's keyed by
+		// address, not keccak(address).
+		let db = &self.db.as_hash_db();
+		let trie = TrieDB::new(db, &self.root)?;
+		let from_rlp = |b: &[u8]| Account::from_rlp(b).expect("decoding db value failed");
+		let acc = match trie.get_with(account_key.as_bytes(), from_rlp)? {
+			Some(acc) => acc,
+			None => return Ok((Vec::new(), H256::zero())),
+		};
+
+		let account_db = self.factories.accountdb.readonly(self.db.as_hash_db(), account_key);
+		acc.prove_storage(account_db.as_hash_db(), storage_key)
+	}
+}
+
+impl<B: Backend> fmt::Debug for State<B> {
+	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+		write!(f, "{:?}", self.cache.borrow())
+	}
+}
+
+impl<B: Backend> State<B> {
+	/// Get a reference to the underlying state DB.
+	pub fn db(&self) -> &B {
+		&self.db
+	}
+}
+
+//// TODO: cloning for `State` shouldn't be possible in general; Remove this and use
+//// checkpoints where possible.
+impl<B: Backend + Clone> Clone for State<B> {
+	fn clone(&self) -> State<B> {
+		let cache = {
+			let mut cache: HashMap<Address, AccountEntry> = HashMap::new();
+			for (key, val) in self.cache.borrow().iter() {
+				if let Some(entry) = val.clone_if_dirty() {
+					cache.insert(key.clone(), entry);
+				}
+			}
+			cache
+		};
+
+		State {
+			db: self.db.clone(),
+			root: self.root.clone(),
+			cache: RefCell::new(cache),
+			checkpoints: RefCell::new(Vec::new()),
+			account_start_nonce: self.account_start_nonce.clone(),
+			factories: self.factories.clone(),
+		}
 	}
 }
 

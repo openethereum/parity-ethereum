@@ -50,7 +50,7 @@ use client::{
 	AccountData, Nonce,
 };
 use error::Error;
-use state::StateInfo;
+use state_account::state::StateInfo;
 
 /// Provides methods to verify incoming external transactions
 pub trait TransactionVerifierClient: Send + Sync

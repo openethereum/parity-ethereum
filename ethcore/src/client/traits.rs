@@ -47,7 +47,7 @@ use engines::Engine;
 use error::{Error, EthcoreResult};
 use executed::CallError;
 use executive::Executed;
-use state::StateInfo;
+use state_account::state::StateInfo;
 use trace::LocalizedTrace;
 use verification::queue::QueueInfo as BlockQueueInfo;
 use verification::queue::kind::blocks::Unverified;
@@ -67,17 +67,19 @@ impl<S: StateInfo + 'static> From<S> for StateOrBlock {
 	}
 }
 
-impl From<Box<dyn StateInfo>> for StateOrBlock {
-	fn from(info: Box<dyn StateInfo>) -> StateOrBlock {
-		StateOrBlock::State(info)
-	}
-}
+// TODO: sort out why these imps conflict
+//impl From<Box<dyn StateInfo>> for StateOrBlock {
+//	fn from(info: Box<dyn StateInfo>) -> StateOrBlock {
+//		StateOrBlock::State(info)
+//	}
+//}
 
-impl From<BlockId> for StateOrBlock {
-	fn from(id: BlockId) -> StateOrBlock {
-		StateOrBlock::Block(id)
-	}
-}
+// TODO: sort out why these imps conflict
+//impl From<BlockId> for StateOrBlock {
+//	fn from(id: BlockId) -> StateOrBlock {
+//		StateOrBlock::Block(id)
+//	}
+//}
 
 /// Provides `nonce` and `latest_nonce` methods
 pub trait Nonce {
@@ -195,7 +197,7 @@ pub trait IoClient: Sync + Send {
 	/// Queue block import with transaction receipts. Does no sealing and transaction validation.
 	fn queue_ancient_block(&self, block_bytes: Unverified, receipts_bytes: Bytes) -> EthcoreResult<H256>;
 
-	/// Queue conensus engine message.
+	/// Queue consensus engine message.
 	fn queue_consensus_message(&self, message: Bytes);
 }
 

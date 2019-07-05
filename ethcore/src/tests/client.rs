@@ -32,7 +32,7 @@ use ethereum;
 use executive::{Executive, TransactOptions};
 use miner::{Miner, PendingOrdering, MinerService};
 use spec::Spec;
-use state::{self, State, CleanupMode};
+use state_account::{self, State, CleanupMode};
 use test_helpers::{
 	self,
 	generate_dummy_client, push_blocks_to_client, get_test_client_with_blocks, get_good_dummy_block_seq,

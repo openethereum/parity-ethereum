@@ -44,7 +44,7 @@ use client::{Client, ClientConfig, ChainInfo, ImportBlock, ChainNotify, ChainMes
 use factories::Factories;
 use miner::Miner;
 use spec::Spec;
-use state::*;
+use state_account::*;
 use state_db::StateDB;
 use verification::queue::kind::blocks::Unverified;
 

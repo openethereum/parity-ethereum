@@ -39,7 +39,7 @@ pub use self::traits::{
     StateOrBlock, StateClient, Call, EngineInfo, AccountData, BlockChain, BlockProducer, SealedBlockImporter, BadBlocks,
 	BlockChainReset
 };
-pub use state::StateInfo;
+pub use state_account::state::StateInfo;
 pub use self::traits::{BlockChainClient, EngineClient, ProvingBlockChainClient, IoClient};
 
 pub use types::ids::*;

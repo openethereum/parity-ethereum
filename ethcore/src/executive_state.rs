@@ -23,14 +23,28 @@ use types::{
 	receipt::{TransactionOutcome, Receipt},
 };
 use trace::{FlatTrace, VMTrace};
-use state::{ApplyResult, ApplyOutcome, State, ProvedExecution};
-use state_account::backend::{self, Backend};
+use state_account::{
+	backend::{self, Backend},
+	state::{ApplyResult, ApplyOutcome, State},
+};
 use ethereum_types::H256;
 use factories::Factories;
 use bytes::Bytes;
 use keccak_hasher::KeccakHasher;
 use kvdb::DBValue;
 use hash_db::AsHashDB;
+
+// TODO: is there a better place for this?
+/// Return type of proof validity check.
+#[derive(Debug, Clone)]
+pub enum ProvedExecution {
+	/// Proof wasn't enough to complete execution.
+	BadProof,
+	/// The transaction failed, but not due to a bad proof.
+	Failed(ExecutionError),
+	/// The transaction successfully completed with the given proof.
+	Complete(Box<Executed>),
+}
 
 /// Check the given proof of execution.
 /// `Err(ExecutionError::Internal)` indicates failure, everything else indicates
@@ -173,7 +187,8 @@ impl<B: Backend> ExecutiveStateWithMachineZomgBetterName for State<B> {
 		V: trace::VMTracer,
 	{
 		let options = TransactOptions::new(tracer, vm_tracer);
-		let e = self.execute(env_info, machine, t, options, false)?;
+		// TODO: fix error handling
+		let e = self.execute(env_info, machine, t, options, false).expect("TODO FIXME");
 		let params = machine.params();
 
 		let eip658 = env_info.number >= params.eip658_transition;

@@ -59,7 +59,7 @@ use error::Error;
 use executed::ExecutionError;
 use executive::contract_address;
 use spec::Spec;
-use state::State;
+use state_account::State;
 
 /// Different possible definitions for pending transaction set.
 #[derive(Debug, PartialEq)]

@@ -261,6 +261,10 @@ pub enum Error {
 	/// A convenient variant for String.
 	#[display(fmt = "{}", _0)]
 	Msg(String),
+	/// State errors
+	// TODO: fix error handling
+	#[display(fmt = "state error todo fixme ({})", _0)]
+	State(state_account::Error),
 }
 
 impl error::Error for Error {
@@ -277,6 +281,7 @@ impl error::Error for Error {
 			Error::Ethkey(e) => Some(e),
 			Error::Decoder(e) => Some(e),
 			Error::Snapshot(e) => Some(e),
+			Error::State(e) => Some(e),
 			_ => None,
 		}
 	}

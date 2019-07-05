@@ -66,7 +66,7 @@ use executive::Executed;
 use journaldb;
 use miner::{self, Miner, MinerService};
 use spec::Spec;
-use state::StateInfo;
+use state_account::state::StateInfo;
 use state_db::StateDB;
 use trace::LocalizedTrace;
 use verification::queue::QueueInfo as BlockQueueInfo;
