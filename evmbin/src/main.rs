@@ -50,6 +50,7 @@ extern crate evm;
 extern crate panic_hook;
 extern crate pod;
 extern crate env_logger;
+extern crate state_account;
 extern crate trace;
 
 #[cfg(test)]

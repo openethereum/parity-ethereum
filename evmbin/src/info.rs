@@ -19,12 +19,13 @@
 use std::time::{Instant, Duration};
 use ethereum_types::{H256, U256};
 use ethcore::client::{self, EvmTestClient, EvmTestError, TransactErr, TransactSuccess};
-use ethcore::{state, state_db, spec, TrieSpec};
+use ethcore::{state_db, spec, TrieSpec};
 use trace;
 use ethjson;
 use pod::PodState;
 use types::transaction;
 use vm::ActionParams;
+use state_account::State;
 
 /// VM execution informant
 pub trait Informant: trace::VMTracer {
@@ -154,7 +155,7 @@ pub fn run_transaction<T: Informant>(
 	T::finish(result, &mut sink)
 }
 
-fn dump_state(state: &state::State<state_db::StateDB>) -> Option<PodState> {
+fn dump_state(state: &State<state_db::StateDB>) -> Option<PodState> {
 	state.to_pod_full().ok()
 }
 

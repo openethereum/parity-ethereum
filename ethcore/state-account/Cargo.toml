@@ -35,3 +35,7 @@ account-db = { path = "../account-db" }
 journaldb = { path = "../../util/journaldb" }
 parity-bytes = "0.1.0"
 rlp_compress = { path = "../../util/rlp-compress" }
+
+[features]
+# Enables slow 'to-pod-full' method for use in tests and evmbin.
+to-pod-full = []
