@@ -11,7 +11,7 @@ edition = "2018"
 ethkey = { path = "ethkey" }
 ethstore = { path = "ethstore" }
 log = "0.4"
-parking_lot = "0.7"
+parking_lot = "0.8"
 serde = "1.0"
 serde_derive = "1.0"
 serde_json = "1.0"
