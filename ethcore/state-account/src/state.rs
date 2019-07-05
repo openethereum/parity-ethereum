@@ -19,6 +19,8 @@
 //! Unconfirmed sub-states are managed with `checkpoint`s which may be canonicalized
 //! or rolled back.
 
+// NOTE: state tests are found in ethcore/src/executive_state.rs
+
 use std::{
 	cell::{RefCell, RefMut},
 	collections::{BTreeMap, BTreeSet, HashMap, HashSet},
@@ -394,8 +396,7 @@ impl<B: Backend> State<B> {
 		let original_storage_root = self.original_storage_root(contract)?;
 		let (nonce, overflow) = self.account_start_nonce.overflowing_add(nonce_offset);
 		if overflow {
-			return Err(Box::new(TrieError::DecoderError(H256::from(*contract),
-			                                            rlp::DecoderError::Custom("Nonce overflow".into()))));
+			return Err(Box::new(TrieError::DecoderError(H256::from(*contract), rlp::DecoderError::Custom("Nonce overflow".into()))));
 		}
 		self.insert_cache(contract, AccountEntry::new_dirty(Some(Account::new_contract(balance, nonce, original_storage_root))));
 		Ok(())
@@ -421,38 +422,38 @@ impl<B: Backend> State<B> {
 	/// Determine whether an account exists and has code or non-zero nonce.
 	pub fn exists_and_has_code_or_nonce(&self, a: &Address) -> TrieResult<bool> {
 		self.ensure_cached(a, RequireCache::CodeSize, false,
-		                   |a| a.map_or(false, |a| a.code_hash() != KECCAK_EMPTY || *a.nonce() != self.account_start_nonce))
+		|a| a.map_or(false, |a| a.code_hash() != KECCAK_EMPTY || *a.nonce() != self.account_start_nonce))
 	}
 
 	/// Get the balance of account `a`.
 	pub fn balance(&self, a: &Address) -> TrieResult<U256> {
 		self.ensure_cached(a, RequireCache::None, true,
-		                   |a| a.as_ref().map_or(U256::zero(), |account| *account.balance()))
+		|a| a.as_ref().map_or(U256::zero(), |account| *account.balance()))
 	}
 
 	/// Get the nonce of account `a`.
 	pub fn nonce(&self, a: &Address) -> TrieResult<U256> {
 		self.ensure_cached(a, RequireCache::None, true,
-		                   |a| a.as_ref().map_or(self.account_start_nonce, |account| *account.nonce()))
+		|a| a.as_ref().map_or(self.account_start_nonce, |account| *account.nonce()))
 	}
 
 	/// Whether the base storage root of an account remains unchanged.
 	pub fn is_base_storage_root_unchanged(&self, a: &Address) -> TrieResult<bool> {
 		Ok(self.ensure_cached(a, RequireCache::None, true,
-		                      |a| a.as_ref().map(|account| account.is_base_storage_root_unchanged()))?
+		|a| a.as_ref().map(|account| account.is_base_storage_root_unchanged()))?
 			.unwrap_or(true))
 	}
 
 	/// Get the storage root of account `a`.
 	pub fn storage_root(&self, a: &Address) -> TrieResult<Option<H256>> {
 		self.ensure_cached(a, RequireCache::None, true,
-		                   |a| a.as_ref().and_then(|account| account.storage_root()))
+		|a| a.as_ref().and_then(|account| account.storage_root()))
 	}
 
 	/// Get the original storage root since last commit of account `a`.
 	pub fn original_storage_root(&self, a: &Address) -> TrieResult<H256> {
 		Ok(self.ensure_cached(a, RequireCache::None, true,
-		                      |a| a.as_ref().map(|account| account.original_storage_root()))?
+		|a| a.as_ref().map(|account| account.original_storage_root()))?
 			.unwrap_or(KECCAK_NULL_RLP))
 	}
 
@@ -567,7 +568,7 @@ impl<B: Backend> State<B> {
 				return res;
 			}
 
-			// otherwise cache the account localy and cache storage key there.
+			// otherwise cache the account locally and cache storage key there.
 			if let Some(ref mut acc) = local_account {
 				if let Some(ref account) = acc.account {
 					let account_db = self.factories.accountdb.readonly(self.db.as_hash_db(), account.address_hash(address));
@@ -617,19 +618,19 @@ impl<B: Backend> State<B> {
 	/// Get accounts' code.
 	pub fn code(&self, a: &Address) -> TrieResult<Option<Arc<Bytes>>> {
 		self.ensure_cached(a, RequireCache::Code, true,
-		                   |a| a.as_ref().map_or(None, |a| a.code().clone()))
+		|a| a.as_ref().map_or(None, |a| a.code().clone()))
 	}
 
 	/// Get an account's code hash.
 	pub fn code_hash(&self, a: &Address) -> TrieResult<Option<H256>> {
 		self.ensure_cached(a, RequireCache::None, true,
-		                   |a| a.as_ref().map(|a| a.code_hash()))
+		|a| a.as_ref().map(|a| a.code_hash()))
 	}
 
 	/// Get accounts' code size.
 	pub fn code_size(&self, a: &Address) -> TrieResult<Option<usize>> {
 		self.ensure_cached(a, RequireCache::CodeSize, true,
-		                   |a| a.as_ref().and_then(|a| a.code_size()))
+		|a| a.as_ref().and_then(|a| a.code_size()))
 	}
 
 	/// Add `incr` to the balance of account `a`.
@@ -1010,13 +1011,13 @@ impl<B: Backend> State<B> {
 	}
 
 	/// Pull account `a` in our cache from the trie DB. `require_code` requires that the code be cached, too.
-	fn require<'a>(&'a self, a: &Address, require_code: bool) -> TrieResult<RefMut<'a, Account>> {
+	pub fn require<'a>(&'a self, a: &Address, require_code: bool) -> TrieResult<RefMut<'a, Account>> {
 		self.require_or_from(a, require_code, || Account::new_basic(0u8.into(), self.account_start_nonce), |_| {})
 	}
 
 	/// Pull account `a` in our cache from the trie DB. `require_code` requires that the code be cached, too.
 	/// If it doesn't exist, make account equal the evaluation of `default`.
-	fn require_or_from<'a, F, G>(&'a self, a: &Address, require_code: bool, default: F, not_default: G) -> TrieResult<RefMut<'a, Account>>
+	pub fn require_or_from<'a, F, G>(&'a self, a: &Address, require_code: bool, default: F, not_default: G) -> TrieResult<RefMut<'a, Account>>
 		where F: FnOnce() -> Account, G: FnOnce(&mut Account),
 	{
 		let contains_key = self.cache.borrow().contains_key(a);
@@ -1156,5 +1157,3 @@ impl<B: Backend + Clone> Clone for State<B> {
 		}
 	}
 }
-
-// TODO tests and whatnot
