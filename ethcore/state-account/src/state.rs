@@ -32,7 +32,7 @@ use common_types::{
 	basic_account::BasicAccount,
 };
 use ethereum_types::{Address, H256, U256};
-use ethtrie::{TrieDB, TrieError, Result as TrieResult};
+use ethtrie::{TrieDB, Result as TrieResult};
 use factories::{Factories, VmFactory};
 use hash_db::HashDB;
 use keccak_hash::{KECCAK_EMPTY, KECCAK_NULL_RLP};
@@ -41,7 +41,7 @@ use kvdb::DBValue;
 use log::{warn, trace};
 use parity_bytes::Bytes;
 use pod::{self, PodAccount, PodState};
-use trie_db::{Trie, Recorder};
+use trie_db::{Trie, TrieError, Recorder};
 
 use crate::{
 	Error,
