@@ -26,7 +26,7 @@ kvdb = "0.1"
 log = "0.4"
 macros = { path = "../../util/macros" }
 parity-bytes = "0.1"
-parking_lot = "0.7"
+parking_lot = "0.8"
 parity-util-mem = "0.1"
 rand = "0.6"
 rlp = "0.4.0"

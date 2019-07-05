@@ -1306,31 +1306,43 @@ impl miner::MinerService for Miner {
 
 	// Note used for external submission (PoW) and internally by sealing engines.
 	fn submit_seal(&self, block_hash: H256, seal: Vec<Bytes>) -> Result<SealedBlock, Error> {
-		let result =
-			if let Some(b) = self.sealing.lock().queue.get_used_if(
-				if self.options.enable_resubmission {
-					GetAction::Clone
-				} else {
-					GetAction::Take
-				},
-				|b| &b.header.bare_hash() == &block_hash
-			) {
-				trace!(target: "miner", "Submitted block {}={} with seal {:?}", block_hash, b.header.bare_hash(), seal);
-				b.lock().try_seal(&*self.engine, seal).or_else(|e| {
-					warn!(target: "miner", "Mined solution rejected: {}", e);
-					Err(Error::PowInvalid.into())
-				})
-			} else {
-				warn!(target: "miner", "Submitted solution rejected: Block unknown or out of date.");
-				Err(Error::PowHashInvalid.into())
-			};
+		let action = if self.options.enable_resubmission {
+			GetAction::Clone
+		} else {
+			GetAction::Take
+		};
 
-		result.and_then(|sealed| {
-			let n = sealed.header.number();
-			let h = sealed.header.hash();
-			info!(target: "miner", "Submitted block imported OK. #{}: {}", Colour::White.bold().paint(format!("{}", n)), Colour::White.bold().paint(format!("{:x}", h)));
-			Ok(sealed)
-		})
+		let block = self.sealing.lock().queue
+			.get_used_if(action, |b| &b.header.bare_hash() == &block_hash)
+			.ok_or_else(|| {
+				warn!(target: "miner", "Submitted solution rejected: Block unknown or out of date.");
+				Error::PowHashInvalid
+			})?;
+
+		trace!(
+			target: "miner", "Submitted block {hash}={bare_hash} with seal {seal:?}",
+			hash = block_hash,
+			bare_hash = block.header.bare_hash(),
+			seal = seal
+		);
+
+		let sealed = block.lock()
+			.try_seal(&*self.engine, seal)
+			.map_err(|e| {
+				warn!(target: "miner", "Mined solution rejected: {}", e);
+				Error::PowInvalid
+			})?;
+
+		let n = sealed.header.number();
+		let h = sealed.header.hash();
+
+		info!(
+			target: "miner", "Submitted block imported OK. #{number}: {hash}",
+			number = Colour::White.bold().paint(n.to_string()),
+			hash = Colour::White.bold().paint(format!("{:x}", h))
+		);
+
+		Ok(sealed)
 	}
 
 	fn chain_new_blocks<C>(&self, chain: &C, imported: &[H256], _invalid: &[H256], enacted: &[H256], retracted: &[H256], is_internal_import: bool)

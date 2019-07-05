@@ -8,7 +8,7 @@ use miner::pool::TxStatus;
 use ethereum_types::H256;
 
 /// Transactions Pool PUB-SUB rpc interface.
-#[rpc]
+#[rpc(server)]
 pub trait TransactionsPool {
 	/// Pub/Sub Metadata
 	type Metadata;

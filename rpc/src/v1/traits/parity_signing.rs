@@ -22,7 +22,7 @@ use ethereum_types::{H160, U256};
 use v1::types::{Bytes, ConfirmationResponse, TransactionRequest, Either};
 
 /// Signing methods implementation.
-#[rpc]
+#[rpc(server)]
 pub trait ParitySigning {
 	/// RPC Metadata
 	type Metadata;

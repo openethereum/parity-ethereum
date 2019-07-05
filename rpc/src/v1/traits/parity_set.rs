@@ -23,7 +23,7 @@ use jsonrpc_derive::rpc;
 use v1::types::{Bytes, ReleaseInfo, Transaction};
 
 /// Parity-specific rpc interface for operations altering the account-related settings.
-#[rpc]
+#[rpc(server)]
 pub trait ParitySetAccounts {
 	/// Sets account for signing consensus messages.
 	#[rpc(name = "parity_setEngineSigner")]
@@ -31,7 +31,7 @@ pub trait ParitySetAccounts {
 }
 
 /// Parity-specific rpc interface for operations altering the settings.
-#[rpc]
+#[rpc(server)]
 pub trait ParitySet {
 	/// Sets new minimal gas price for mined blocks.
 	#[rpc(name = "parity_setMinGasPrice")]

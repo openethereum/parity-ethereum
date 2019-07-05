@@ -22,7 +22,7 @@ use jsonrpc_core::Result;
 use jsonrpc_derive::rpc;
 
 /// RPC Interface.
-#[rpc]
+#[rpc(server)]
 pub trait Rpc {
 	/// Returns supported modules for Geth 1.3.6
 	/// @ignore
