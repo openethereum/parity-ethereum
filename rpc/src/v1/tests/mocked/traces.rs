@@ -17,8 +17,8 @@
 use std::sync::Arc;
 
 use ethcore::executed::{Executed, CallError};
-use ethcore::trace::trace::{Action, Res, Call};
-use ethcore::trace::LocalizedTrace;
+use trace::trace::{Action, Res, Call};
+use trace::LocalizedTrace;
 use ethcore::client::TestBlockChainClient;
 use ethereum_types::{Address, H256};
 

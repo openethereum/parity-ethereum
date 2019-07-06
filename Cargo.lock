@@ -2957,6 +2957,7 @@ dependencies = [
  "tempdir 0.3.7 (registry+https://github.com/rust-lang/crates.io-index)",
  "tiny-keccak 1.4.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "tokio-timer 0.1.2 (registry+https://github.com/rust-lang/crates.io-index)",
+ "trace 0.1.0",
  "transaction-pool 2.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "transient-hashmap 0.4.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "vm 0.1.0",

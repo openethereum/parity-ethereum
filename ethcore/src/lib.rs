@@ -102,7 +102,7 @@ extern crate serde;
 extern crate stats;
 extern crate account_state;
 extern crate time_utils;
-pub extern crate trace;
+extern crate trace;
 extern crate triehash_ethereum as triehash;
 extern crate unexpected;
 extern crate using_queue;
