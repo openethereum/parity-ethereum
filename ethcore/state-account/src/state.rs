@@ -791,7 +791,6 @@ impl<B: Backend> State<B> {
 		}))
 	}
 
-	// TODO: sort out features
 	#[cfg(feature="to-pod-full")]
 	/// Populate a PodAccount map from this state.
 	/// Warning this is not for real time use.
@@ -826,7 +825,6 @@ impl<B: Backend> State<B> {
 		Ok(PodState::from(result))
 	}
 
-	// TODO: sort out features
 	/// Create a PodAccount from an account.
 	/// Differs from existing method by including all storage
 	/// values of the account to the PodAccount.

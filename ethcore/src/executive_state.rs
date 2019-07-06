@@ -40,7 +40,6 @@ use hash_db::AsHashDB;
 
 use error::Error;
 
-// TODO: is there a better place for this?
 /// Return type of proof validity check.
 #[derive(Debug, Clone)]
 pub enum ProvedExecution {

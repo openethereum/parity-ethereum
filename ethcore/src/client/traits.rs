@@ -61,13 +61,6 @@ pub enum StateOrBlock {
 	Block(BlockId)
 }
 
-// TODO: This doesn't work (StateInfo is now in a diff crate) but not sure where it was used, if at all.
-//impl<S: StateInfo + 'static> From<S> for StateOrBlock {
-//	fn from(info: S) -> StateOrBlock {
-//		StateOrBlock::State(Box::new(info) as Box<_>)
-//	}
-//}
-
 impl From<Box<dyn StateInfo>> for StateOrBlock {
 	fn from(info: Box<dyn StateInfo>) -> StateOrBlock {
 		StateOrBlock::State(info)
