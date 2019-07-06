@@ -223,7 +223,7 @@ fn hash_compute(light: &Light, full_size: usize, header_hash: &H256, nonce: u64)
 			ptr::copy_nonoverlapping(header_hash.as_ptr(), out.as_mut_ptr() as *mut u8, header_hash.len());
 			ptr::copy_nonoverlapping(
 				&nonce as *const u64 as *const u8,
-				out.assume_init()[header_hash.len()..].as_mut_ptr(),
+				(out.as_mut_ptr() as *mut u8).add(header_hash.len()),
 				mem::size_of::<u64>(),
 			);
 
