@@ -36,7 +36,7 @@ pub trait KeyedHashDB: HashDB<KeccakHasher, DBValue> {
 /// Upcast to `KeyedHashDB`
 pub trait AsKeyedHashDB: AsHashDB<KeccakHasher, DBValue> {
 	/// Perform upcast to KeyedHashDB.
-	fn as_keyed_hash_db(&self) -> &KeyedHashDB;
+	fn as_keyed_hash_db(&self) -> &dyn KeyedHashDB;
 }
 
 /// A `HashDB` which can manage a short-term journal potentially containing many forks of mutually
@@ -44,7 +44,7 @@ pub trait AsKeyedHashDB: AsHashDB<KeccakHasher, DBValue> {
 pub trait JournalDB: KeyedHashDB {
 
 	/// Return a copy of ourself, in a box.
-	fn boxed_clone(&self) -> Box<JournalDB>;
+	fn boxed_clone(&self) -> Box<dyn JournalDB>;
 
 	/// Returns heap memory size used
 	fn mem_used(&self) -> usize;
@@ -86,7 +86,7 @@ pub trait JournalDB: KeyedHashDB {
 	fn is_pruned(&self) -> bool { true }
 
 	/// Get backing database.
-	fn backing(&self) -> &Arc<kvdb::KeyValueDB>;
+	fn backing(&self) -> &Arc<dyn kvdb::KeyValueDB>;
 
 	/// Clear internal strucutres. This should called after changes have been written
 	/// to the backing strage
