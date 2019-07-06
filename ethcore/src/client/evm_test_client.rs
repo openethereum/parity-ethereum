@@ -30,7 +30,7 @@ use vm::{self, ActionParams};
 use ethtrie;
 use state_account::{CleanupMode, Substate, State};
 
-use executive_state::ExecutiveStateWithMachineZomgBetterName;
+use executive_state::ExecutiveState;
 
 /// EVM test Error.
 #[derive(Debug)]

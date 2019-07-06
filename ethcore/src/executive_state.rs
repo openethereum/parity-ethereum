@@ -139,7 +139,7 @@ pub fn prove_transaction_virtual<H: AsHashDB<KeccakHasher, DBValue> + Send + Syn
 }
 
 /// Collects code that needs a Machine and/or Executive
-pub trait ExecutiveStateWithMachineZomgBetterName {
+pub trait ExecutiveState {
 	/// Execute a given transaction, producing a receipt and an optional trace.
 	/// This will change the state accordingly.
 	fn apply(
@@ -165,7 +165,7 @@ pub trait ExecutiveStateWithMachineZomgBetterName {
 			V: trace::VMTracer;
 }
 
-impl<B: Backend> ExecutiveStateWithMachineZomgBetterName for State<B> {
+impl<B: Backend> ExecutiveState for State<B> {
 	/// Execute a given transaction, producing a receipt and an optional trace.
 	/// This will change the state accordingly.
 	fn apply(
@@ -277,7 +277,7 @@ mod tests {
 	use pod::{self, PodAccount};
 	#[cfg(feature="to-pod-full")]
 	use pod::PodState;
-	use executive_state::ExecutiveStateWithMachineZomgBetterName;
+	use executive_state::ExecutiveState;
 	use state_account::{Account, CleanupMode};
 
 	fn secret() -> Secret {
