@@ -35,7 +35,7 @@ use types::ids::BlockId;
 use types::transaction::{Transaction, Action};
 use ethcore::CreateContractAddress;
 use ethcore::client::BlockChainClient;
-use ethcore::executive::{contract_address};
+use ethcore::executive::contract_address;
 use ethcore::miner::Miner;
 use ethcore::test_helpers::{generate_dummy_client, push_block_with_transactions};
 use ethkey::{Secret, KeyPair, Signature};

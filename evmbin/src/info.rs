@@ -19,7 +19,7 @@
 use std::time::{Instant, Duration};
 use ethereum_types::{H256, U256};
 use ethcore::client::{self, EvmTestClient, EvmTestError, TransactErr, TransactSuccess};
-use ethcore::{state_db, spec, TrieSpec};
+use ethcore::{spec, TrieSpec};
 use trace;
 use ethjson;
 use pod::PodState;
@@ -155,10 +155,6 @@ pub fn run_transaction<T: Informant>(
 	T::finish(result, &mut sink)
 }
 
-fn dump_state(state: &State<state_db::StateDB>) -> Option<PodState> {
-	state.to_pod_full().ok()
-}
-
 /// Execute VM with given `ActionParams`
 pub fn run<'a, F, X>(
 	spec: &'a spec::Spec,
@@ -182,7 +178,7 @@ pub fn run<'a, F, X>(
 		})?;
 
 	if do_dump {
-		test_client.set_dump_state_fn(dump_state);
+		test_client.set_dump_state();
 	}
 
 	let start = Instant::now();

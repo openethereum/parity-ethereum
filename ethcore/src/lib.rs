@@ -163,11 +163,11 @@ pub mod machine;
 pub mod miner;
 pub mod snapshot;
 pub mod spec;
-pub mod state_db;
-pub mod transaction_ext;
 pub mod verification;
 
 mod externalities;
+mod state_db;
+mod transaction_ext;
 mod tx_filter;
 
 

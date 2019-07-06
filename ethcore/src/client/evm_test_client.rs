@@ -78,6 +78,15 @@ fn no_dump_state(_: &State<state_db::StateDB>) -> Option<PodState> {
 	None
 }
 
+#[cfg(feature = "to-pod-full")]
+fn dump_state(state: &State<state_db::StateDB>) -> Option<PodState> {
+	state.to_pod_full().ok()
+}
+#[cfg(not(feature = "to-pod-full"))]
+fn dump_state(_: &State<state_db::StateDB>) -> Option<PodState> {
+	None
+}
+
 impl<'a> fmt::Debug for EvmTestClient<'a> {
 	fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
 		fmt.debug_struct("EvmTestClient")
@@ -104,7 +113,7 @@ impl<'a> EvmTestClient<'a> {
 	}
 
 	/// Change default function for dump state (default does not dump)
-	pub fn set_dump_state_fn(&mut self, dump_state: fn(&State<state_db::StateDB>) -> Option<PodState>) {
+	pub fn set_dump_state(&mut self) {
 		self.dump_state = dump_state;
 	}
 

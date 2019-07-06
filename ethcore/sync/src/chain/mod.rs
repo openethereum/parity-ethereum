@@ -109,7 +109,7 @@ use rlp::{RlpStream, DecoderError};
 use network::{self, PeerId, PacketId};
 use network::client_version::ClientVersion;
 use ethcore::client::{BlockChainClient, BlockStatus, BlockId, BlockChainInfo, BlockQueueInfo};
-use ethcore::snapshot::{RestorationStatus};
+use ethcore::snapshot::RestorationStatus;
 use sync_io::SyncIo;
 use super::{WarpSync, SyncConfig};
 use block_sync::{BlockDownloader, DownloadAction};
