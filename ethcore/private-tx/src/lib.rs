@@ -94,7 +94,7 @@ use ethcore::client::{
 	Call, BlockInfo
 };
 use ethcore::miner::{self, Miner, MinerService, pool_client::NonceCache};
-use ethcore::state_db;
+use ethcore::StateDB;
 use account_state::State;
 use trace::{Tracer, VMTracer};
 use call_contract::CallContract;
@@ -542,7 +542,7 @@ impl Provider {
 		raw
 	}
 
-	fn patch_account_state(&self, contract_address: &Address, block: BlockId, state: &mut State<state_db::StateDB>) -> Result<(), Error> {
+	fn patch_account_state(&self, contract_address: &Address, block: BlockId, state: &mut State<StateDB>) -> Result<(), Error> {
 		let contract_code = Arc::new(self.get_decrypted_code(contract_address, block)?);
 		let contract_state = self.get_decrypted_state(contract_address, block)?;
 		trace!(target: "privatetx", "Patching contract at {:?}, code: {:?}, state: {:?}", contract_address, contract_code, contract_state);
