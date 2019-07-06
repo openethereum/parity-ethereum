@@ -152,7 +152,7 @@ pub fn quick_get_difficulty(header_hash: &H256, nonce: u64, mix_hash: &H256, pro
 			// This is initialized in `keccak_256`
 			let mut hash = mem::MaybeUninit::<[u8; 32]>::uninit();
 			keccak_256::unchecked(hash.as_mut_ptr() as *mut u8,
-								  hash.assume_init().len(),
+								  32,
 								  buf.assume_init().as_ptr(),
 								  buf.assume_init().len());
 
