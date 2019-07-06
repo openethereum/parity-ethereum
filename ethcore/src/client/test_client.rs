@@ -605,7 +605,10 @@ impl Call for TestBlockChainClient {
 	}
 }
 
-pub struct TestState(());
+/// NewType wrapper around `()` to impersonate `State` in trait impls. State will not be used by
+/// test client, since all methods that accept state are mocked.
+pub struct TestState;
+
 impl StateInfo for TestState {
 	fn nonce(&self, _address: &Address) -> ethtrie::Result<U256> { unimplemented!() }
 	fn balance(&self, _address: &Address) -> ethtrie::Result<U256> { unimplemented!() }
@@ -615,15 +618,14 @@ impl StateInfo for TestState {
 
 
 impl StateClient for TestBlockChainClient {
-	// State will not be used by test client anyway, since all methods that accept state are mocked
 	type State = TestState;
 
 	fn latest_state(&self) -> Self::State {
-		TestState(())
+		TestState
 	}
 
 	fn state_at(&self, _id: BlockId) -> Option<Self::State> {
-		Some(TestState(()))
+		Some(TestState)
 	}
 }
 

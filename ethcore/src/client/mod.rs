@@ -32,7 +32,7 @@ pub use self::config::{Mode, ClientConfig, DatabaseCompactionProfile, BlockChain
 pub use self::evm_test_client::{EvmTestClient, EvmTestError, TransactErr, TransactSuccess};
 pub use self::io_message::ClientIoMessage;
 #[cfg(any(test, feature = "test-helpers"))]
-pub use self::test_client::{TestBlockChainClient, EachBlockWith};
+pub use self::test_client::{TestBlockChainClient, EachBlockWith, TestState};
 pub use self::chain_notify::{ChainNotify, NewBlocks, ChainRoute, ChainRouteType, ChainMessageType};
 pub use self::traits::{
     Nonce, Balance, ChainInfo, BlockInfo, ReopenBlock, PrepareOpenBlock, TransactionInfo, ScheduleInfo, ImportSealedBlock, BroadcastProposalBlock, ImportBlock,

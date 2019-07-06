@@ -21,7 +21,7 @@ use std::collections::{BTreeMap, BTreeSet, HashMap};
 
 use bytes::Bytes;
 use ethcore::block::SealedBlock;
-use ethcore::client::{Nonce, PrepareOpenBlock, StateClient, EngineInfo};
+use ethcore::client::{Nonce, PrepareOpenBlock, StateClient, EngineInfo, TestState};
 use ethcore::engines::{Engine, signer::EngineSigner};
 use ethcore::error::Error;
 use ethcore::miner::{self, MinerService, AuthoringParams, FilterOptions};
@@ -87,26 +87,16 @@ impl TestMinerService {
 	}
 }
 
-pub struct TestState(());
-
-impl StateInfo for TestState {
-	fn nonce(&self, _address: &Address) -> ethtrie::Result<U256> { unimplemented!() }
-	fn balance(&self, _address: &Address) -> ethtrie::Result<U256> { unimplemented!() }
-	fn storage_at(&self, _address: &Address, _key: &H256) -> ethtrie::Result<H256> { unimplemented!() }
-	fn code(&self, _address: &Address) -> ethtrie::Result<Option<Arc<Bytes>>> { unimplemented!() }
-}
-
-
 impl StateClient for TestMinerService {
 	// State will not be used by test client anyway, since all methods that accept state are mocked
 	type State = TestState;
 
 	fn latest_state(&self) -> Self::State {
-		TestState(())
+		TestState
 	}
 
 	fn state_at(&self, _id: BlockId) -> Option<Self::State> {
-		Some(TestState(()))
+		Some(TestState)
 	}
 }
 
