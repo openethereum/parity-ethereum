@@ -70,7 +70,7 @@ use factories::{Factories, VmFactory};
 use miner::{Miner, MinerService};
 use snapshot::{self, io as snapshot_io, SnapshotClient};
 use spec::Spec;
-use state_account::State;
+use account_state::State;
 use executive_state;
 use state_db::StateDB;
 use trace::{self, TraceDB, ImportRequest as TraceImportRequest, LocalizedTrace, Database as TraceDatabase};
@@ -623,7 +623,7 @@ impl Importer {
 
 						let call = move |addr, data| {
 							let mut state_db = state_db.boxed_clone();
-							let backend = state_account::backend::Proving::new(state_db.as_hash_db_mut());
+							let backend = account_state::backend::Proving::new(state_db.as_hash_db_mut());
 
 							let transaction =
 								client.contract_call_tx(BlockId::Hash(*header.parent_hash()), addr, data);

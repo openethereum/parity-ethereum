@@ -100,7 +100,7 @@ extern crate parity_util_mem as malloc_size_of;
 extern crate rustc_hex;
 extern crate serde;
 extern crate stats;
-extern crate state_account;
+extern crate account_state;
 extern crate time_utils;
 pub extern crate trace;
 extern crate triehash_ethereum as triehash;

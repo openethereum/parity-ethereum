@@ -28,7 +28,7 @@ use factories::Factories;
 use evm::{VMType, FinalizationResult};
 use vm::{self, ActionParams};
 use ethtrie;
-use state_account::{CleanupMode, Substate, State};
+use account_state::{CleanupMode, Substate, State};
 
 use executive_state::ExecutiveState;
 

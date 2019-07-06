@@ -30,7 +30,7 @@ use ethtrie;
 use miner::pool::local_transactions::Status as LocalTransactionStatus;
 use miner::pool::{verifier, VerifiedTransaction, QueueStatus};
 use parking_lot::{RwLock, Mutex};
-use state_account::state::StateInfo;
+use account_state::state::StateInfo;
 use types::transaction::{self, UnverifiedTransaction, SignedTransaction, PendingTransaction};
 use txpool;
 use types::BlockNumber;

@@ -46,7 +46,7 @@ extern crate rlp;
 extern crate serde_derive;
 extern crate serde;
 extern crate serde_json;
-extern crate state_account;
+extern crate account_state;
 extern crate rustc_hex;
 extern crate trace;
 extern crate transaction_pool as txpool;
@@ -95,7 +95,7 @@ use ethcore::client::{
 };
 use ethcore::miner::{self, Miner, MinerService, pool_client::NonceCache};
 use ethcore::state_db;
-use state_account::State;
+use account_state::State;
 use trace::{Tracer, VMTracer};
 use call_contract::CallContract;
 use rustc_hex::FromHex;

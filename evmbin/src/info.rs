@@ -25,7 +25,7 @@ use ethjson;
 use pod::PodState;
 use types::transaction;
 use vm::ActionParams;
-use state_account::State;
+use account_state::State;
 
 /// VM execution informant
 pub trait Informant: trace::VMTracer {

@@ -42,7 +42,7 @@ use engines::Engine;
 use error::{Error, BlockError};
 use factories::Factories;
 use state_db::StateDB;
-use state_account::State;
+use account_state::State;
 use trace::Tracing;
 use triehash::ordered_trie_root;
 use unexpected::{Mismatch, OutOfBounds};

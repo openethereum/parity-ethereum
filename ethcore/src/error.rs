@@ -242,7 +242,7 @@ pub enum Error {
 	Msg(String),
 	/// State errors
 	#[display(fmt = "State error ({})", _0)]
-	State(state_account::Error),
+	State(account_state::Error),
 }
 
 impl error::Error for Error {

@@ -15,7 +15,7 @@
 // along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
 //! Execute transactions and modify State. This is glue code between the `ethcore` and
-//! `state-account` crates and contains everything that requires `Machine` or `Executive` (or types
+//! `account-state` crates and contains everything that requires `Machine` or `Executive` (or types
 //! thereof).
 
 use machine::Machine;
@@ -27,7 +27,7 @@ use types::{
 	receipt::{TransactionOutcome, Receipt},
 };
 use trace::{FlatTrace, VMTrace};
-use state_account::{
+use account_state::{
 	backend::{self, Backend},
 	state::State,
 };
@@ -111,7 +111,7 @@ pub fn prove_transaction_virtual<H: AsHashDB<KeccakHasher, DBValue> + Send + Syn
 	env_info: &EnvInfo,
 	factories: Factories,
 ) -> Option<(Bytes, Vec<DBValue>)> {
-	use state_account::backend::Proving;
+	use account_state::backend::Proving;
 
 	let backend = Proving::new(db);
 	let res = State::from_existing(
@@ -277,7 +277,7 @@ mod tests {
 	#[cfg(feature="to-pod-full")]
 	use pod::PodState;
 	use executive_state::ExecutiveState;
-	use state_account::{Account, CleanupMode};
+	use account_state::{Account, CleanupMode};
 
 	fn secret() -> Secret {
 		keccak("").into()

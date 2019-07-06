@@ -1,6 +1,6 @@
 [package]
 description = "Ethereum accounts, keeps track of changes to the code and storage"
-name = "state-account"
+name = "account-state"
 version = "0.1.0"
 authors = ["Parity Technologies <admin@parity.io>"]
 edition = "2018"

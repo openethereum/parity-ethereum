@@ -48,7 +48,7 @@ use num_cpus;
 use self::io::SnapshotWriter;
 
 use super::state_db::StateDB;
-use state_account::Account as StateAccount;
+use account_state::Account as StateAccount;
 
 use crossbeam::scope;
 use rand::{Rng, rngs::OsRng};

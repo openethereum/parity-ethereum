@@ -47,7 +47,7 @@ use engines::Engine;
 use error::{Error, EthcoreResult};
 use executed::CallError;
 use executive::Executed;
-use state_account::state::StateInfo;
+use account_state::state::StateInfo;
 use trace::LocalizedTrace;
 use verification::queue::QueueInfo as BlockQueueInfo;
 use verification::queue::kind::blocks::Unverified;

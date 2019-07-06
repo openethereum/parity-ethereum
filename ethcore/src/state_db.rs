@@ -33,7 +33,7 @@ use memory_cache::MemoryLruCache;
 use parking_lot::Mutex;
 use types::BlockNumber;
 
-use state_account::{self, Account};
+use account_state::{self, Account};
 
 /// Value used to initialize bloom bitmap size.
 ///
@@ -412,7 +412,7 @@ impl StateDB {
 	}
 }
 
-impl state_account::Backend for StateDB {
+impl account_state::Backend for StateDB {
 	fn as_hash_db(&self) -> &dyn HashDB<KeccakHasher, DBValue> { self.db.as_hash_db() }
 
 	fn as_hash_db_mut(&mut self) -> &mut dyn HashDB<KeccakHasher, DBValue> {
@@ -487,7 +487,7 @@ mod tests {
 	use ethereum_types::{H256, U256, Address};
 	use kvdb::DBTransaction;
 	use test_helpers::get_temp_state_db;
-	use state_account::{Account, Backend};
+	use account_state::{Account, Backend};
 
 	#[test]
 	fn state_db_smoke() {

@@ -45,7 +45,7 @@ use machine::Machine;
 use pod::PodState;
 use spec::Genesis;
 use spec::seal::Generic as GenericSeal;
-use state_account::{Backend, State, Substate, backend::Basic as BasicBackend};
+use account_state::{Backend, State, Substate, backend::Basic as BasicBackend};
 use trace::{NoopTracer, NoopVMTracer};
 
 pub use ethash::OptimizeFor;
@@ -990,7 +990,7 @@ impl Spec {
 #[cfg(test)]
 mod tests {
 	use super::*;
-	use state_account::State;
+	use account_state::State;
 	use test_helpers::get_temp_state_db;
 	use tempdir::TempDir;
 	use types::view;
