@@ -10,7 +10,6 @@ authors = ["Parity Technologies <admin@parity.io>"]
 account-db = { path = "account-db" }
 ansi_term = "0.11"
 blooms-db = { path = "../util/blooms-db", optional = true }
-bn = { git = "https://github.com/paritytech/bn", default-features = false }
 common-types = { path = "types" }
 crossbeam-utils = "0.6"
 derive_more = "0.14.0"
@@ -21,6 +20,7 @@ ethabi-derive = "8.0"
 ethash = { path = "../ethash" }
 ethcore-blockchain = { path = "./blockchain" }
 ethcore-bloom-journal = { path = "../util/bloom" }
+ethcore-builtin = { path = "./builtin" }
 ethcore-call-contract = { path = "./call-contract" }
 ethcore-db = { path = "./db" }
 ethcore-io = { path = "../util/io" }
@@ -47,10 +47,8 @@ lru-cache = "0.1"
 macros = { path = "../util/macros" }
 memory-cache = { path = "../util/memory-cache" }
 memory-db = "0.12.4"
-num = { version = "0.1", default-features = false, features = ["bigint"] }
 num_cpus = "1.2"
 parity-bytes = "0.1"
-parity-crypto = "0.4.0"
 parity-snappy = "0.1"
 parking_lot = "0.8"
 pod-account = { path = "pod-account" }
