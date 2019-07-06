@@ -51,10 +51,10 @@ pub struct SyncPropagator;
 
 impl SyncPropagator {
 	/// propagates latest block to a set of peers
-	pub fn propagate_blocks(sync: &mut ChainSync, chain_info: &BlockChainInfo, io: &mut SyncIo, blocks: &[H256], peers: &[PeerId]) -> usize {
+	pub fn propagate_blocks(sync: &mut ChainSync, chain_info: &BlockChainInfo, io: &mut dyn SyncIo, blocks: &[H256], peers: &[PeerId]) -> usize {
 		trace!(target: "sync", "Sending NewBlocks to {:?}", peers);
 		let sent = peers.len();
-		let mut send_packet = |io: &mut SyncIo, rlp: Bytes| {
+		let mut send_packet = |io: &mut dyn SyncIo, rlp: Bytes| {
 			for peer_id in peers {
 				SyncPropagator::send_packet(io, *peer_id, NewBlockPacket, rlp.clone());
 
@@ -78,7 +78,7 @@ impl SyncPropagator {
 	}
 
 	/// propagates new known hashes to all peers
-	pub fn propagate_new_hashes(sync: &mut ChainSync, chain_info: &BlockChainInfo, io: &mut SyncIo, peers: &[PeerId]) -> usize {
+	pub fn propagate_new_hashes(sync: &mut ChainSync, chain_info: &BlockChainInfo, io: &mut dyn SyncIo, peers: &[PeerId]) -> usize {
 		trace!(target: "sync", "Sending NewHashes to {:?}", peers);
 		let last_parent = *io.chain().best_block_header().parent_hash();
 		let best_block_hash = chain_info.best_block_hash;
@@ -98,7 +98,7 @@ impl SyncPropagator {
 	}
 
 	/// propagates new transactions to all peers
-	pub fn propagate_new_transactions<F: FnMut() -> bool>(sync: &mut ChainSync, io: &mut SyncIo, mut should_continue: F) -> usize {
+	pub fn propagate_new_transactions<F: FnMut() -> bool>(sync: &mut ChainSync, io: &mut dyn SyncIo, mut should_continue: F) -> usize {
 		// Early out if nobody to send to.
 		if sync.peers.is_empty() {
 			return 0;
@@ -141,7 +141,7 @@ impl SyncPropagator {
 
 	fn propagate_transactions_to_peers<F: FnMut() -> bool>(
 		sync: &mut ChainSync,
-		io: &mut SyncIo,
+		io: &mut dyn SyncIo,
 		peers: Vec<PeerId>,
 		transactions: Vec<&SignedTransaction>,
 		mut should_continue: F,
@@ -158,7 +158,7 @@ impl SyncPropagator {
 		// Clear old transactions from stats
 		sync.transactions_stats.retain(&all_transactions_hashes);
 
-		let send_packet = |io: &mut SyncIo, peer_id: PeerId, sent: usize, rlp: Bytes| {
+		let send_packet = |io: &mut dyn SyncIo, peer_id: PeerId, sent: usize, rlp: Bytes| {
 			let size = rlp.len();
 			SyncPropagator::send_packet(io, peer_id, TransactionsPacket, rlp);
 			trace!(target: "sync", "{:02} <- Transactions ({} entries; {} bytes)", peer_id, sent, size);
@@ -249,7 +249,7 @@ impl SyncPropagator {
 		sent_to_peers
 	}
 
-	pub fn propagate_latest_blocks(sync: &mut ChainSync, io: &mut SyncIo, sealed: &[H256]) {
+	pub fn propagate_latest_blocks(sync: &mut ChainSync, io: &mut dyn SyncIo, sealed: &[H256]) {
 		let chain_info = io.chain().chain_info();
 		if (((chain_info.best_block_number as i64) - (sync.last_sent_block_number as i64)).abs() as BlockNumber) < MAX_PEER_LAG_PROPAGATION {
 			let peers = sync.get_lagging_peers(&chain_info);
@@ -270,7 +270,7 @@ impl SyncPropagator {
 	}
 
 	/// Distribute valid proposed blocks to subset of current peers.
-	pub fn propagate_proposed_blocks(sync: &mut ChainSync, io: &mut SyncIo, proposed: &[Bytes]) {
+	pub fn propagate_proposed_blocks(sync: &mut ChainSync, io: &mut dyn SyncIo, proposed: &[Bytes]) {
 		let peers = sync.get_consensus_peers();
 		trace!(target: "sync", "Sending proposed blocks to {:?}", peers);
 		for block in proposed {
@@ -285,7 +285,7 @@ impl SyncPropagator {
 	}
 
 	/// Broadcast consensus message to peers.
-	pub fn propagate_consensus_packet(sync: &mut ChainSync, io: &mut SyncIo, packet: Bytes) {
+	pub fn propagate_consensus_packet(sync: &mut ChainSync, io: &mut dyn SyncIo, packet: Bytes) {
 		let lucky_peers = ChainSync::select_random_peers(&sync.get_consensus_peers());
 		trace!(target: "sync", "Sending consensus packet to {:?}", lucky_peers);
 		for peer_id in lucky_peers {
@@ -294,7 +294,7 @@ impl SyncPropagator {
 	}
 
 	/// Broadcast private transaction message to peers.
-	pub fn propagate_private_transaction(sync: &mut ChainSync, io: &mut SyncIo, transaction_hash: H256, packet_id: SyncPacket, packet: Bytes) {
+	pub fn propagate_private_transaction(sync: &mut ChainSync, io: &mut dyn SyncIo, transaction_hash: H256, packet_id: SyncPacket, packet: Bytes) {
 		let lucky_peers = ChainSync::select_random_peers(&sync.get_private_transaction_peers(&transaction_hash));
 		if lucky_peers.is_empty() {
 			error!(target: "privatetx", "Cannot propagate the packet, no peers with private tx enabled connected");
@@ -325,7 +325,7 @@ impl SyncPropagator {
 	}
 
 	/// Generic packet sender
-	pub fn send_packet(sync: &mut SyncIo, peer_id: PeerId, packet_id: SyncPacket, packet: Bytes) {
+	pub fn send_packet(sync: &mut dyn SyncIo, peer_id: PeerId, packet_id: SyncPacket, packet: Bytes) {
 		if let Err(e) = sync.send(peer_id, packet_id, packet) {
 			debug!(target:"sync", "Error sending packet: {:?}", e);
 			sync.disconnect_peer(peer_id);
