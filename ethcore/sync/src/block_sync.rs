@@ -25,7 +25,7 @@ use ethereum_types::H256;
 use rlp::{self, Rlp};
 use types::BlockNumber;
 use ethcore::client::{BlockStatus, BlockId};
-use ethcore::error::{ImportError, QueueError, BlockError, Error as EthcoreError};
+use ethcore::error::{ImportError, BlockError, Error as EthcoreError};
 use sync_io::SyncIo;
 use blocks::{BlockCollection, SyncBody, SyncHeader};
 use chain::BlockSet;
@@ -582,7 +582,7 @@ impl BlockDownloader {
 					debug_sync!(self, "Block temporarily invalid: {:?}, restarting sync", h);
 					break;
 				},
-				Err(EthcoreError::Queue(QueueError::Full(limit))) => {
+				Err(EthcoreError::FullQueue(limit)) => {
 					debug_sync!(self, "Block import queue full ({}), restarting sync", limit);
 					download_action = DownloadAction::Reset;
 					break;

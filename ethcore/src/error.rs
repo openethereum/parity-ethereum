@@ -150,26 +150,6 @@ impl error::Error for BlockError {
 	}
 }
 
-/// Queue error
-#[derive(Debug, Display, From)]
-pub enum QueueError {
-	/// Queue is full
-	#[display(fmt = "Queue is full ({})", _0)]
-	Full(usize),
-	/// Io channel error
-	#[display(fmt = "Io channel error: {}", _0)]
-	Channel(::io::IoError)
-}
-
-impl error::Error for QueueError {
-	fn source(&self) -> Option<&(dyn error::Error + 'static)> {
-		match self {
-			QueueError::Channel(e) => Some(e),
-			_ => None,
-		}
-	}
-}
-
 /// Block import Error
 #[derive(Debug, Display)]
 pub enum ImportError {
@@ -196,8 +176,8 @@ pub enum Error {
 	#[display(fmt = "Import error: {}", _0)]
 	Import(ImportError),
 	/// Io channel queue error
-	#[display(fmt = "Queue error: {}", _0)]
-	Queue(QueueError),
+	#[display(fmt = "Queue is full: {}", _0)]
+	FullQueue(usize),
 	/// Io create error
 	#[display(fmt = "Io error: {}", _0)]
 	Io(::io::IoError),

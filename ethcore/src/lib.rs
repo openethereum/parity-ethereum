@@ -57,7 +57,7 @@ extern crate account_db;
 extern crate ansi_term;
 extern crate bn;
 extern crate common_types as types;
-extern crate crossbeam;
+extern crate crossbeam_utils;
 extern crate ethabi;
 extern crate ethash;
 extern crate ethcore_blockchain as blockchain;
