@@ -12,7 +12,7 @@ blooms-db = { path = "../util/blooms-db", optional = true }
 bn = { git = "https://github.com/paritytech/bn", default-features = false }
 byteorder = "1.0"
 common-types = { path = "types" }
-crossbeam = "0.7"
+crossbeam-utils = "0.6"
 env_logger = { version = "0.5", optional = true }
 error-chain = { version = "0.12", default-features = false }
 ethabi = "6.0"
