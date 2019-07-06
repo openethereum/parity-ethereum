@@ -144,10 +144,17 @@ pub fn quick_get_difficulty(header_hash: &H256, nonce: u64, mix_hash: &H256, pro
 			let mut buf = mem::MaybeUninit::<[u8; 64 + 32]>::uninit();
 
 			ptr::copy_nonoverlapping(header_hash.as_ptr(), buf.as_mut_ptr() as *mut u8, 32);
-			ptr::copy_nonoverlapping(&nonce as *const u64 as *const u8, buf.assume_init()[32..].as_mut_ptr(), 8);
+			ptr::copy_nonoverlapping(&nonce as *const u64 as *const u8,
+									 (buf.as_mut_ptr() as *mut u8).add(32),
+									 8);
 
-			keccak_512::unchecked(buf.as_mut_ptr() as *mut u8, 64, buf.assume_init().as_ptr(), 40);
-			ptr::copy_nonoverlapping(mix_hash.as_ptr(), buf.assume_init()[64..].as_mut_ptr(), 32);
+			keccak_512::unchecked(buf.as_mut_ptr() as *mut u8,
+								  64,
+								  buf.assume_init().as_ptr(),
+								  40);
+			ptr::copy_nonoverlapping(mix_hash.as_ptr(),
+									 (buf.as_mut_ptr() as *mut u8).add(64),
+									 32);
 
 			// This is initialized in `keccak_256`
 			let mut hash = mem::MaybeUninit::<[u8; 32]>::uninit();
