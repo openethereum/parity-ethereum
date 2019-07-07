@@ -280,6 +280,27 @@ mod tests {
 	}
 
 	#[test]
+	fn encoding_version() {
+		let mut db = get_temp_state_db();
+		let addr = Address::random();
+
+		let account = BasicAccount {
+			nonce: 50.into(),
+			balance: 123456789.into(),
+			storage_root: KECCAK_NULL_RLP,
+			code_hash: KECCAK_EMPTY,
+			code_version: 1.into(),
+		};
+
+		let thin_rlp = ::rlp::encode(&account);
+		assert_eq!(::rlp::decode::<BasicAccount>(&thin_rlp).unwrap(), account);
+		let p = Progress::default();
+		let fat_rlps = to_fat_rlps(&keccak(&addr), &account, &AccountDB::new(db.as_hash_db(), &addr), &mut Default::default(), usize::max_value(), usize::max_value(), &p).unwrap();
+		let fat_rlp = Rlp::new(&fat_rlps[0]).at(1).unwrap();
+		assert_eq!(from_fat_rlp(&mut AccountDBMut::new(db.as_hash_db_mut(), &addr), fat_rlp, H256::zero()).unwrap().0, account);
+	}
+
+	#[test]
 	fn encoding_storage() {
 		let mut db = get_temp_state_db();
 		let addr = Address::random();
