@@ -16,42 +16,29 @@
 
 //! Standard built-in contracts.
 
-use std::cmp::{max, min};
-use std::io::{self, Read};
+use std::{
+	cmp::{max, min},
+	io::{self, Read},
+};
 
-use parity_crypto::digest;
-use num::{BigUint, Zero, One};
-
-use hash::keccak;
+use bn;
 use ethereum_types::{H256, U256};
-use bytes::BytesRef;
-use ethkey::{Signature, recover as ec_recover};
 use ethjson;
-
-/// Execution error.
-#[derive(Debug)]
-pub struct Error(pub &'static str);
-
-impl From<&'static str> for Error {
-	fn from(val: &'static str) -> Self {
-		Error(val)
-	}
-}
-
-impl Into<::vm::Error> for Error {
-	fn into(self) -> ::vm::Error {
-		::vm::Error::BuiltIn(self.0)
-	}
-}
+use ethkey::{Signature, recover as ec_recover};
+use keccak_hash::keccak;
+use log::{warn, trace};
+use num::{BigUint, Zero, One};
+use parity_bytes::BytesRef;
+use parity_crypto::digest;
 
 /// Native implementation of a built-in contract.
-pub trait Impl: Send + Sync {
+trait Implementation: Send + Sync {
 	/// execute this built-in on the given input, writing to the given output.
-	fn execute(&self, input: &[u8], output: &mut BytesRef) -> Result<(), Error>;
+	fn execute(&self, input: &[u8], output: &mut BytesRef) -> Result<(), &'static str>;
 }
 
 /// A gas pricing scheme for built-in contracts.
-pub trait Pricer: Send + Sync {
+trait Pricer: Send + Sync {
 	/// The gas cost of running this built-in for the given input data.
 	fn cost(&self, input: &[u8]) -> U256;
 }
@@ -157,21 +144,25 @@ impl ModexpPricer {
 /// Unless `is_active` is true,
 pub struct Builtin {
 	pricer: Box<dyn Pricer>,
-	native: Box<dyn Impl>,
+	native: Box<dyn Implementation>,
 	activate_at: u64,
 }
 
 impl Builtin {
 	/// Simple forwarder for cost.
-	pub fn cost(&self, input: &[u8]) -> U256 { self.pricer.cost(input) }
+	pub fn cost(&self, input: &[u8]) -> U256 {
+		self.pricer.cost(input)
+	}
 
 	/// Simple forwarder for execute.
-	pub fn execute(&self, input: &[u8], output: &mut BytesRef) -> Result<(), Error> {
+	pub fn execute(&self, input: &[u8], output: &mut BytesRef) -> Result<(), &'static str> {
 		self.native.execute(input, output)
 	}
 
 	/// Whether the builtin is activated at the given block number.
-	pub fn is_active(&self, at: u64) -> bool { at >= self.activate_at }
+	pub fn is_active(&self, at: u64) -> bool {
+		at >= self.activate_at
+	}
 }
 
 impl From<ethjson::spec::Builtin> for Builtin {
@@ -210,16 +201,16 @@ impl From<ethjson::spec::Builtin> for Builtin {
 }
 
 /// Ethereum built-in factory.
-pub fn ethereum_builtin(name: &str) -> Box<dyn Impl> {
+fn ethereum_builtin(name: &str) -> Box<dyn Implementation> {
 	match name {
-		"identity" => Box::new(Identity) as Box<dyn Impl>,
-		"ecrecover" => Box::new(EcRecover) as Box<dyn Impl>,
-		"sha256" => Box::new(Sha256) as Box<dyn Impl>,
-		"ripemd160" => Box::new(Ripemd160) as Box<dyn Impl>,
-		"modexp" => Box::new(ModexpImpl) as Box<dyn Impl>,
-		"alt_bn128_add" => Box::new(Bn128AddImpl) as Box<dyn Impl>,
-		"alt_bn128_mul" => Box::new(Bn128MulImpl) as Box<dyn Impl>,
-		"alt_bn128_pairing" => Box::new(Bn128PairingImpl) as Box<dyn Impl>,
+		"identity" => Box::new(Identity) as Box<dyn Implementation>,
+		"ecrecover" => Box::new(EcRecover) as Box<dyn Implementation>,
+		"sha256" => Box::new(Sha256) as Box<dyn Implementation>,
+		"ripemd160" => Box::new(Ripemd160) as Box<dyn Implementation>,
+		"modexp" => Box::new(Modexp) as Box<dyn Implementation>,
+		"alt_bn128_add" => Box::new(Bn128Add) as Box<dyn Implementation>,
+		"alt_bn128_mul" => Box::new(Bn128Mul) as Box<dyn Implementation>,
+		"alt_bn128_pairing" => Box::new(Bn128Pairing) as Box<dyn Implementation>,
 		_ => panic!("invalid builtin name: {}", name),
 	}
 }
@@ -245,26 +236,26 @@ struct Sha256;
 struct Ripemd160;
 
 #[derive(Debug)]
-struct ModexpImpl;
+struct Modexp;
 
 #[derive(Debug)]
-struct Bn128AddImpl;
+struct Bn128Add;
 
 #[derive(Debug)]
-struct Bn128MulImpl;
+struct Bn128Mul;
 
 #[derive(Debug)]
-struct Bn128PairingImpl;
+struct Bn128Pairing;
 
-impl Impl for Identity {
-	fn execute(&self, input: &[u8], output: &mut BytesRef) -> Result<(), Error> {
+impl Implementation for Identity {
+	fn execute(&self, input: &[u8], output: &mut BytesRef) -> Result<(), &'static str> {
 		output.write(0, input);
 		Ok(())
 	}
 }
 
-impl Impl for EcRecover {
-	fn execute(&self, i: &[u8], output: &mut BytesRef) -> Result<(), Error> {
+impl Implementation for EcRecover {
+	fn execute(&self, i: &[u8], output: &mut BytesRef) -> Result<(), &'static str> {
 		let len = min(i.len(), 128);
 
 		let mut input = [0; 128];
@@ -293,16 +284,16 @@ impl Impl for EcRecover {
 	}
 }
 
-impl Impl for Sha256 {
-	fn execute(&self, input: &[u8], output: &mut BytesRef) -> Result<(), Error> {
+impl Implementation for Sha256 {
+	fn execute(&self, input: &[u8], output: &mut BytesRef) -> Result<(), &'static str> {
 		let d = digest::sha256(input);
 		output.write(0, &*d);
 		Ok(())
 	}
 }
 
-impl Impl for Ripemd160 {
-	fn execute(&self, input: &[u8], output: &mut BytesRef) -> Result<(), Error> {
+impl Implementation for Ripemd160 {
+	fn execute(&self, input: &[u8], output: &mut BytesRef) -> Result<(), &'static str> {
 		let hash = digest::ripemd160(input);
 		output.write(0, &[0; 12][..]);
 		output.write(12, &hash);
@@ -358,8 +349,8 @@ fn modexp(mut base: BigUint, exp: Vec<u8>, modulus: BigUint) -> BigUint {
 	result
 }
 
-impl Impl for ModexpImpl {
-	fn execute(&self, input: &[u8], output: &mut BytesRef) -> Result<(), Error> {
+impl Implementation for Modexp {
+	fn execute(&self, input: &[u8], output: &mut BytesRef) -> Result<(), &'static str> {
 		let mut reader = input.chain(io::repeat(0));
 		let mut buf = [0; 32];
 
@@ -412,35 +403,35 @@ impl Impl for ModexpImpl {
 	}
 }
 
-fn read_fr(reader: &mut io::Chain<&[u8], io::Repeat>) -> Result<::bn::Fr, Error> {
+fn read_fr(reader: &mut io::Chain<&[u8], io::Repeat>) -> Result<bn::Fr, &'static str> {
 	let mut buf = [0u8; 32];
 
 	reader.read_exact(&mut buf[..]).expect("reading from zero-extended memory cannot fail; qed");
-	::bn::Fr::from_slice(&buf[0..32]).map_err(|_| Error::from("Invalid field element"))
+	bn::Fr::from_slice(&buf[0..32]).map_err(|_| "Invalid field element")
 }
 
-fn read_point(reader: &mut io::Chain<&[u8], io::Repeat>) -> Result<::bn::G1, Error> {
+fn read_point(reader: &mut io::Chain<&[u8], io::Repeat>) -> Result<bn::G1, &'static str> {
 	use bn::{Fq, AffineG1, G1, Group};
 
 	let mut buf = [0u8; 32];
 
 	reader.read_exact(&mut buf[..]).expect("reading from zero-extended memory cannot fail; qed");
-	let px = Fq::from_slice(&buf[0..32]).map_err(|_| Error::from("Invalid point x coordinate"))?;
+	let px = Fq::from_slice(&buf[0..32]).map_err(|_| "Invalid point x coordinate")?;
 
 	reader.read_exact(&mut buf[..]).expect("reading from zero-extended memory cannot fail; qed");
-	let py = Fq::from_slice(&buf[0..32]).map_err(|_| Error::from("Invalid point y coordinate"))?;
+	let py = Fq::from_slice(&buf[0..32]).map_err(|_| "Invalid point y coordinate")?;
 	Ok(
 		if px == Fq::zero() && py == Fq::zero() {
 			G1::zero()
 		} else {
-			AffineG1::new(px, py).map_err(|_| Error::from("Invalid curve point"))?.into()
+			AffineG1::new(px, py).map_err(|_| "Invalid curve point")?.into()
 		}
 	)
 }
 
-impl Impl for Bn128AddImpl {
+impl Implementation for Bn128Add {
 	// Can fail if any of the 2 points does not belong the bn128 curve
-	fn execute(&self, input: &[u8], output: &mut BytesRef) -> Result<(), Error> {
+	fn execute(&self, input: &[u8], output: &mut BytesRef) -> Result<(), &'static str> {
 		use bn::AffineG1;
 
 		let mut padded_input = input.chain(io::repeat(0));
@@ -459,9 +450,9 @@ impl Impl for Bn128AddImpl {
 	}
 }
 
-impl Impl for Bn128MulImpl {
+impl Implementation for Bn128Mul {
 	// Can fail if first paramter (bn128 curve point) does not actually belong to the curve
-	fn execute(&self, input: &[u8], output: &mut BytesRef) -> Result<(), Error> {
+	fn execute(&self, input: &[u8], output: &mut BytesRef) -> Result<(), &'static str> {
 		use bn::AffineG1;
 
 		let mut padded_input = input.chain(io::repeat(0));
@@ -479,12 +470,12 @@ impl Impl for Bn128MulImpl {
 	}
 }
 
-impl Impl for Bn128PairingImpl {
+impl Implementation for Bn128Pairing {
 	/// Can fail if:
 	///     - input length is not a multiple of 192
 	///     - any of odd points does not belong to bn128 curve
 	///     - any of even points does not belong to the twisted bn128 curve over the field F_p^2 = F_p[i] / (i^2 + 1)
-	fn execute(&self, input: &[u8], output: &mut BytesRef) -> Result<(), Error> {
+	fn execute(&self, input: &[u8], output: &mut BytesRef) -> Result<(), &'static str> {
 		if input.len() % 192 != 0 {
 			return Err("Invalid input length, must be multiple of 192 (3 * (32*2))".into())
 		}
@@ -497,8 +488,8 @@ impl Impl for Bn128PairingImpl {
 	}
 }
 
-impl Bn128PairingImpl {
-	fn execute_with_error(&self, input: &[u8], output: &mut BytesRef) -> Result<(), Error> {
+impl Bn128Pairing {
+	fn execute_with_error(&self, input: &[u8], output: &mut BytesRef) -> Result<(), &'static str> {
 		use bn::{AffineG1, AffineG2, Fq, Fq2, pairing_batch, G1, G2, Gt, Group};
 
 		let elements = input.len() / 192; // (a, b_a, b_b - each 64-byte affine coordinates)
@@ -508,34 +499,34 @@ impl Bn128PairingImpl {
 			let mut vals = Vec::new();
 			for idx in 0..elements {
 				let a_x = Fq::from_slice(&input[idx*192..idx*192+32])
-					.map_err(|_| Error::from("Invalid a argument x coordinate"))?;
+					.map_err(|_| "Invalid a argument x coordinate")?;
 
 				let a_y = Fq::from_slice(&input[idx*192+32..idx*192+64])
-					.map_err(|_| Error::from("Invalid a argument y coordinate"))?;
+					.map_err(|_| "Invalid a argument y coordinate")?;
 
 				let b_a_y = Fq::from_slice(&input[idx*192+64..idx*192+96])
-					.map_err(|_| Error::from("Invalid b argument imaginary coeff x coordinate"))?;
+					.map_err(|_| "Invalid b argument imaginary coeff x coordinate")?;
 
 				let b_a_x = Fq::from_slice(&input[idx*192+96..idx*192+128])
-					.map_err(|_| Error::from("Invalid b argument imaginary coeff y coordinate"))?;
+					.map_err(|_| "Invalid b argument imaginary coeff y coordinate")?;
 
 				let b_b_y = Fq::from_slice(&input[idx*192+128..idx*192+160])
-					.map_err(|_| Error::from("Invalid b argument real coeff x coordinate"))?;
+					.map_err(|_| "Invalid b argument real coeff x coordinate")?;
 
 				let b_b_x = Fq::from_slice(&input[idx*192+160..idx*192+192])
-					.map_err(|_| Error::from("Invalid b argument real coeff y coordinate"))?;
+					.map_err(|_| "Invalid b argument real coeff y coordinate")?;
 
 				let b_a = Fq2::new(b_a_x, b_a_y);
 				let b_b = Fq2::new(b_b_x, b_b_y);
 				let b = if b_a.is_zero() && b_b.is_zero() {
 					G2::zero()
 				} else {
-					G2::from(AffineG2::new(b_a, b_b).map_err(|_| Error::from("Invalid b argument - not on curve"))?)
+					G2::from(AffineG2::new(b_a, b_b).map_err(|_| "Invalid b argument - not on curve")?)
 				};
 				let a = if a_x.is_zero() && a_y.is_zero() {
 					G1::zero()
 				} else {
-					G1::from(AffineG1::new(a_x, a_y).map_err(|_| Error::from("Invalid a argument - not on curve"))?)
+					G1::from(AffineG1::new(a_x, a_y).map_err(|_| "Invalid a argument - not on curve")?)
 				};
 				vals.push((a, b));
 			};
@@ -559,12 +550,12 @@ impl Bn128PairingImpl {
 
 #[cfg(test)]
 mod tests {
-	use super::{Builtin, Linear, ethereum_builtin, Pricer, ModexpPricer, modexp as me};
-	use ethjson;
 	use ethereum_types::U256;
-	use bytes::BytesRef;
-	use rustc_hex::FromHex;
+	use ethjson;
 	use num::{BigUint, Zero, One};
+	use parity_bytes::BytesRef;
+	use rustc_hex::FromHex;
+	use super::{Builtin, Linear, ethereum_builtin, Pricer, ModexpPricer, modexp as me};
 
 	#[test]
 	fn modexp_func() {
@@ -946,8 +937,8 @@ mod tests {
 		let res = f.execute(input, &mut BytesRef::Fixed(&mut output[..]));
 		if let Some(msg) = msg_contains {
 			if let Err(e) = res {
-				if !e.0.contains(msg) {
-					panic!("There should be error containing '{}' here, but got: '{}'", msg, e.0);
+				if !e.contains(msg) {
+					panic!("There should be error containing '{}' here, but got: '{}'", msg, e);
 				}
 			}
 		} else {

@@ -27,11 +27,38 @@ use tiny_keccak::{keccak256, Keccak};
 #[cfg(not(time_checked_add))]
 use time_utils::CheckedSystemTime;
 
+/// Bloom of topics.
+type Bloom = H512;
+/// Topic data index within a bloom.
+type BloomTopicIndex = usize;
+/// List of envelope topics.
+type EnvelopeTopics = SmallVec<[EnvelopeTopic; 4]>;
+/// Envelope topic data.
+type EnvelopeTopicData = u8;
+/// List of envelope topics data.
+type EnvelopeTopicsData = [EnvelopeTopicData; 4];
+/// Expiry timestamp of an envelope.
+type EnvelopeExpiryTimestamp = u64;
+/// Message contained within an envelope
+type EnvelopeMessage = Vec<u8>;
+/// Arbitrary value used to target lower PoW hash.
+type EnvelopeNonce = u64;
+/// Envelope nonce in bytes.
+type EnvelopeNonceBytes = [u8; 8];
+/// Envelope proving work duration in milliseconds.
+type EnvelopeProvingWorkDuration = u64;
+/// Envelope message uniquely identifying proving hash.
+type EnvelopeProvingHash = H256;
+/// Envelope work that has been proved by the proving hash.
+type EnvelopeProvenWork = f64;
+/// Time-to-live of an envelope in seconds.
+type EnvelopeTTLDuration = u64;
+
 /// Work-factor proved. Takes 3 parameters: size of message, time to live,
 /// and hash.
 ///
 /// Panics if size or TTL is zero.
-pub fn work_factor_proved(size: u64, ttl: u64, hash: H256) -> f64 {
+pub fn work_factor_proved(size: u64, ttl: EnvelopeTTLDuration, hash: EnvelopeProvingHash) -> EnvelopeProvenWork {
 	assert!(size != 0 && ttl != 0);
 
 	let leading_zeros = {
@@ -44,51 +71,51 @@ pub fn work_factor_proved(size: u64, ttl: u64, hash: H256) -> f64 {
 	2.0_f64.powi(leading_zeros as i32) / spacetime
 }
 
-/// A topic of a message.
+/// A topic of a message. The topic is an abridged version of the first four bytes of the original topic's hash.
 #[derive(Debug, Default, Clone, Copy, Hash, PartialEq, Eq, PartialOrd, Ord)]
-pub struct Topic(pub [u8; 4]);
+pub struct EnvelopeTopic(pub EnvelopeTopicsData);
 
-impl From<[u8; 4]> for Topic {
-	fn from(x: [u8; 4]) -> Self {
-		Topic(x)
+impl From<EnvelopeTopicsData> for EnvelopeTopic {
+	fn from(x: EnvelopeTopicsData) -> Self {
+		EnvelopeTopic(x)
 	}
 }
 
-impl Topic {
-	/// set up to three bits in the 64-byte bloom passed.
+impl EnvelopeTopic {
+	/// Set up to three bits in the 64-byte bloom passed.
 	///
-	/// this takes 3 sets of 9 bits, treating each as an index in the range
+	/// This takes 3 sets of 9 bits, treating each as an index in the range
 	/// 0..512 into the bloom and setting the corresponding bit in the bloom to 1.
-	pub fn bloom_into(&self, bloom: &mut H512) {
+	pub fn bloom_into(&self, bloom: &mut Bloom) {
 
-		let data = &self.0;
+		let topics_data = &self.0;
 		for i in 0..3 {
-			let mut idx = data[i] as usize;
+			let mut topic_idx = topics_data[i] as BloomTopicIndex;
 
-			if data[3] & (1 << i) != 0 {
-				idx += 256;
+			if topics_data[3] & (1 << i) != 0 {
+				topic_idx += 256;
 			}
 
-			debug_assert!(idx <= 511);
-			bloom.as_bytes_mut()[idx / 8] |= 1 << (7 - idx % 8);
+			debug_assert!(topic_idx <= 511);
+			bloom.as_bytes_mut()[topic_idx / 8] |= 1 << (7 - topic_idx % 8);
 		}
 	}
 
 	/// Get bloom for single topic.
-	pub fn bloom(&self) -> H512 {
+	pub fn bloom(&self) -> Bloom {
 		let mut bloom = Default::default();
 		self.bloom_into(&mut bloom);
 		bloom
 	}
 }
 
-impl rlp::Encodable for Topic {
+impl rlp::Encodable for EnvelopeTopic {
 	fn rlp_append(&self, s: &mut RlpStream) {
 		s.encoder().encode_value(&self.0);
 	}
 }
 
-impl rlp::Decodable for Topic {
+impl rlp::Decodable for EnvelopeTopic {
 	fn decode(rlp: &Rlp) -> Result<Self, DecoderError> {
 		use std::cmp;
 
@@ -96,16 +123,16 @@ impl rlp::Decodable for Topic {
 			cmp::Ordering::Less => Err(DecoderError::RlpIsTooShort),
 			cmp::Ordering::Greater => Err(DecoderError::RlpIsTooBig),
 			cmp::Ordering::Equal => {
-				let mut t = [0u8; 4];
+				let mut t: EnvelopeTopicsData = [0u8; 4];
 				t.copy_from_slice(bytes);
-				Ok(Topic(t))
+				Ok(EnvelopeTopic(t))
 			}
 		})
 	}
 }
 
 /// Calculate union of blooms for given topics.
-pub fn bloom_topics(topics: &[Topic]) -> H512 {
+pub fn bloom_topics(topics: &[EnvelopeTopic]) -> Bloom {
 	let mut bloom = H512::default();
 	for topic in topics {
 		topic.bloom_into(&mut bloom);
@@ -143,7 +170,8 @@ impl fmt::Display for Error {
 	}
 }
 
-fn append_topics<'a>(s: &'a mut RlpStream, topics: &[Topic]) -> &'a mut RlpStream {
+/// Append given topic(s) to RLP stream.
+fn append_topics<'a>(s: &'a mut RlpStream, topics: &[EnvelopeTopic]) -> &'a mut RlpStream {
 	if topics.len() == 1 {
 		s.append(&topics[0])
 	} else {
@@ -151,27 +179,27 @@ fn append_topics<'a>(s: &'a mut RlpStream, topics: &[Topic]) -> &'a mut RlpStrea
 	}
 }
 
-fn decode_topics(rlp: Rlp) -> Result<SmallVec<[Topic; 4]>, DecoderError> {
+fn decode_topics(rlp: Rlp) -> Result<EnvelopeTopics, DecoderError> {
 	if rlp.is_list() {
-		rlp.iter().map(|r| r.as_val::<Topic>()).collect()
+		rlp.iter().map(|r| r.as_val::<EnvelopeTopic>()).collect()
 	} else {
 		rlp.as_val().map(|t| SmallVec::from_slice(&[t]))
 	}
 }
 
-// Raw envelope struct.
+/// An `Envelope` instance is contained in each `Message`.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Envelope {
-	/// Expiry timestamp
-	pub expiry: u64,
-	/// Time-to-live in seconds
-	pub ttl: u64,
-	/// series of 4-byte topics.
-	pub topics: SmallVec<[Topic; 4]>,
-	/// The message contained within.
-	pub data: Vec<u8>,
+	/// Expiry timestamp.
+	pub expiry: EnvelopeExpiryTimestamp,
+	/// Time-to-live in seconds.
+	pub ttl: EnvelopeTTLDuration,
+	/// Series of 4-byte topics.
+	pub topics: EnvelopeTopics,
+	/// The message contained within an envelope.
+	pub message_data: EnvelopeMessage,
 	/// Arbitrary value used to target lower PoW hash.
-	pub nonce: u64,
+	pub nonce: EnvelopeNonce,
 }
 
 impl Envelope {
@@ -180,7 +208,8 @@ impl Envelope {
 		self.topics.len() != 1
 	}
 
-	fn proving_hash(&self) -> H256 {
+	// Generate the uniquely identifying proving hash for the message.
+	fn proving_hash(&self) -> EnvelopeProvingHash {
 		use byteorder::{BigEndian, ByteOrder};
 
 		let mut buf = [0; 32];
@@ -189,7 +218,7 @@ impl Envelope {
 		stream.append(&self.expiry).append(&self.ttl);
 
 		append_topics(&mut stream, &self.topics)
-			.append(&self.data);
+			.append(&self.message_data);
 
 		let mut digest = Keccak::new_keccak256();
 		digest.update(&*stream.drain());
@@ -212,7 +241,7 @@ impl rlp::Encodable for Envelope {
 			.append(&self.ttl);
 
 		append_topics(s, &self.topics)
-			.append(&self.data)
+			.append(&self.message_data)
 			.append(&self.nonce);
 	}
 }
@@ -225,7 +254,7 @@ impl rlp::Decodable for Envelope {
 			expiry: rlp.val_at(0)?,
 			ttl: rlp.val_at(1)?,
 			topics: decode_topics(rlp.at(2)?)?,
-			data: rlp.val_at(3)?,
+			message_data: rlp.val_at(3)?,
 			nonce: rlp.val_at(4)?,
 		})
 	}
@@ -234,22 +263,22 @@ impl rlp::Decodable for Envelope {
 /// Message creation parameters.
 /// Pass this to `Message::create` to make a message.
 pub struct CreateParams {
-	/// time-to-live in seconds.
-	pub ttl: u64,
-	/// payload data.
-	pub payload: Vec<u8>,
-	/// Topics. May not be empty.
-	pub topics: Vec<Topic>,
+	/// Envelope time-to-live in seconds.
+	pub ttl: EnvelopeTTLDuration,
+	/// Envelope payload of message data.
+	pub payload: EnvelopeMessage,
+	/// Envelope topics. Must not be empty.
+	pub topics: Vec<EnvelopeTopic>,
 	/// How many milliseconds to spend proving work.
-	pub work: u64,
+	pub work: EnvelopeProvingWorkDuration,
 }
 
 /// A whisper message. This is a checked message carrying around metadata.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Message {
 	envelope: Envelope,
-	bloom: H512,
-	hash: H256,
+	bloom: Bloom,
+	hash: EnvelopeProvingHash,
 	encoded_size: usize,
 }
 
@@ -270,6 +299,7 @@ impl Message {
 
 		assert!(params.ttl > 0);
 
+		// Expiry period since the last epoch rounded up to the nearest second.
 		let expiry = {
 			let since_epoch = SystemTime::now()
 				.checked_add(Duration::from_secs(params.ttl))
@@ -277,10 +307,13 @@ impl Message {
 				.ok_or(Error::TimestampOverflow)?
 				.duration_since(time::UNIX_EPOCH).expect("time after now is after unix epoch; qed");
 
-			// round up the sub-second to next whole second.
+			// Round up the sub-second to next whole second.
 			since_epoch.as_secs() + if since_epoch.subsec_nanos() == 0 { 0 } else { 1 }
 		};
 
+		// Encrypt an RLP stream into a digest. Create the RLP stream by appending
+		// to it the envelope topics, envelope payload of message data,
+		// envelope ttl, and the expiry period since the last epoch.
 		let start_digest = {
 			let mut stream = RlpStream::new_list(4);
 			stream.append(&expiry).append(&params.ttl);
@@ -291,8 +324,10 @@ impl Message {
 			digest
 		};
 
+		// Find the best nonce based on using updating the digest with
+		// randomly generated envelope nonce bytes
 		let mut buf = [0; 32];
-		let mut try_nonce = move |nonce: &[u8; 8]| {
+		let mut try_nonce = move |nonce: &EnvelopeNonceBytes| {
 			let mut digest = start_digest.clone();
 			digest.update(&nonce[..]);
 			digest.finalize(&mut buf[..]);
@@ -300,9 +335,12 @@ impl Message {
 			buf.clone()
 		};
 
-		let mut nonce: [u8; 8] = rng.gen();
+		let mut nonce: EnvelopeNonceBytes = rng.gen();
 		let mut best_found = try_nonce(&nonce);
 
+		// Start proving work, which involves repeatedly trying to create another
+		// nonce hash that is better (lower PoW hash) than the latest best nonce,
+		// to replace it.
 		let start = Instant::now();
 
 		while start.elapsed() <= Duration::from_millis(params.work) {
@@ -316,10 +354,10 @@ impl Message {
 		}
 
 		let envelope = Envelope {
-			expiry: expiry,
+			expiry,
 			ttl: params.ttl,
 			topics: params.topics.into_iter().collect(),
-			data: params.payload,
+			message_data: params.payload,
 			nonce: BigEndian::read_u64(&nonce[..]),
 		};
 
@@ -344,9 +382,9 @@ impl Message {
 		Message::from_components(envelope, encoded_size, hash, now)
 	}
 
-	// create message from envelope, hash, and encoded size.
-	// does checks for validity.
-	fn from_components(envelope: Envelope, size: usize, hash: H256, now: SystemTime)
+	// Create message from envelope, hash, and encoded size.
+	// Does checks for validity.
+	fn from_components(envelope: Envelope, size: usize, hash: EnvelopeProvingHash, now: SystemTime)
 		-> Result<Self, Error>
 	{
 		const LEEWAY_SECONDS: u64 = 2;
@@ -371,9 +409,9 @@ impl Message {
 		let bloom = bloom_topics(&envelope.topics);
 
 		Ok(Message {
-			envelope: envelope,
-			bloom: bloom,
-			hash: hash,
+			envelope,
+			bloom,
+			hash,
 			encoded_size: size,
 		})
 	}
@@ -388,18 +426,18 @@ impl Message {
 		self.encoded_size
 	}
 
-	/// Get a uniquely identifying hash for the message.
-	pub fn hash(&self) -> &H256 {
+	/// Get a uniquely identifying proving hash for the message.
+	pub fn hash(&self) -> &EnvelopeProvingHash {
 		&self.hash
 	}
 
-	/// Get the bloom filter of the topics
+	/// Get the bloom filter of the topics.
 	pub fn bloom(&self) -> &H512 {
 		&self.bloom
 	}
 
 	/// Get the work proved by the hash.
-	pub fn work_proved(&self) -> f64 {
+	pub fn work_proved(&self) -> EnvelopeProvenWork {
 		let proving_hash = self.envelope.proving_hash();
 
 		work_factor_proved(self.encoded_size as _, self.envelope.ttl, proving_hash)
@@ -411,13 +449,13 @@ impl Message {
 	}
 
 	/// Get the topics.
-	pub fn topics(&self) -> &[Topic] {
+	pub fn topics(&self) -> &[EnvelopeTopic] {
 		&self.envelope.topics
 	}
 
 	/// Get the message data.
-	pub fn data(&self) -> &[u8] {
-		&self.envelope.data
+	pub fn message_data(&self) -> &EnvelopeMessage {
+		&self.envelope.message_data
 	}
 }
 
@@ -438,7 +476,7 @@ mod tests {
 		assert!(Message::create(CreateParams {
 			ttl: 100,
 			payload: vec![1, 2, 3, 4],
-			topics: vec![Topic([1, 2, 1, 2])],
+			topics: vec![EnvelopeTopic([1, 2, 1, 2])],
 			work: 50,
 		}).is_ok());
 	}
@@ -448,7 +486,7 @@ mod tests {
 		let envelope = Envelope {
 			expiry: 100_000,
 			ttl: 30,
-			data: vec![9; 256],
+			message_data: vec![9; 256],
 			topics: SmallVec::from_slice(&[Default::default()]),
 			nonce: 1010101,
 		};
@@ -464,8 +502,8 @@ mod tests {
 		let envelope = Envelope {
 			expiry: 100_000,
 			ttl: 30,
-			data: vec![9; 256],
-			topics: SmallVec::from_slice(&[Default::default(), Topic([1, 2, 3, 4])]),
+			message_data: vec![9; 256],
+			topics: SmallVec::from_slice(&[Default::default(), EnvelopeTopic([1, 2, 3, 4])]),
 			nonce: 1010101,
 		};
 
@@ -480,7 +518,7 @@ mod tests {
 		let envelope = Envelope {
 			expiry: 100_000,
 			ttl: 30,
-			data: vec![9; 256],
+			message_data: vec![9; 256],
 			topics: SmallVec::from_slice(&[Default::default()]),
 			nonce: 1010101,
 		};
@@ -499,7 +537,7 @@ mod tests {
 		let envelope = Envelope {
 			expiry: 100_000,
 			ttl: 30,
-			data: vec![9; 256],
+			message_data: vec![9; 256],
 			topics: SmallVec::from_slice(&[Default::default()]),
 			nonce: 1010101,
 		};
@@ -516,7 +554,7 @@ mod tests {
 		let envelope = Envelope {
 			expiry: 100_000,
 			ttl: 200_000,
-			data: vec![9; 256],
+			message_data: vec![9; 256],
 			topics: SmallVec::from_slice(&[Default::default()]),
 			nonce: 1010101,
 		};
@@ -530,10 +568,10 @@ mod tests {
 	#[test]
 	fn work_factor() {
 		// 256 leading zeros -> 2^256 / 1
-		assert_eq!(work_factor_proved(1, 1, H256::zero()), 115792089237316200000000000000000000000000000000000000000000000000000000000000.0);
+		assert_eq!(work_factor_proved(1, 1, EnvelopeProvingHash::zero()), 115792089237316200000000000000000000000000000000000000000000000000000000000000.0);
 		// 255 leading zeros -> 2^255 / 1
-		assert_eq!(work_factor_proved(1, 1, H256::from_low_u64_be(1)), 57896044618658100000000000000000000000000000000000000000000000000000000000000.0);
+		assert_eq!(work_factor_proved(1, 1, EnvelopeProvingHash::from_low_u64_be(1)), 57896044618658100000000000000000000000000000000000000000000000000000000000000.0);
 		// 0 leading zeros -> 2^0 / 1
-		assert_eq!(work_factor_proved(1, 1, serde_json::from_str::<H256>("\"0xff00000000000000000000000000000000000000000000000000000000000000\"").unwrap()), 1.0);
+		assert_eq!(work_factor_proved(1, 1, serde_json::from_str::<EnvelopeProvingHash>("\"0xff00000000000000000000000000000000000000000000000000000000000000\"").unwrap()), 1.0);
 	}
 }

@@ -51,12 +51,11 @@ use bytes::Bytes;
 use trie::{Trie, TrieError, Recorder};
 use ethtrie::{TrieDB, Result as TrieResult};
 
-mod account;
 mod substate;
 
 pub mod backend;
 
-pub use self::account::Account;
+pub use state_account::Account;
 pub use self::backend::Backend;
 pub use self::substate::Substate;
 
@@ -303,7 +302,7 @@ pub fn prove_transaction_virtual<H: AsHashDB<KeccakHasher, DBValue> + Send + Syn
 /// Reverting a checkpoint with `revert_to_checkpoint` involves copying
 /// original values from the latest checkpoint back into `cache`. The code
 /// takes care not to overwrite cached storage while doing that.
-/// checkpoint can be discarded with `discard_checkpoint`. All of the orignal
+/// A checkpoint can be discarded with `discard_checkpoint`. All of the original
 /// backed-up values are moved into a parent checkpoint (if any).
 ///
 pub struct State<B> {
@@ -970,7 +969,7 @@ impl<B: Backend> State<B> {
 		assert!(self.checkpoints.borrow().is_empty());
 		PodState::from(self.cache.borrow().iter().fold(BTreeMap::new(), |mut m, (add, opt)| {
 			if let Some(ref acc) = opt.account {
-				m.insert(*add, PodAccount::from_account(acc));
+				m.insert(*add, acc.to_pod());
 			}
 			m
 		}))
@@ -1037,7 +1036,7 @@ impl<B: Backend> State<B> {
 			}
 		}
 
-		let mut pod_account = PodAccount::from_account(&account);
+		let mut pod_account = account.to_pod();
 		// cached one first
 		pod_storage.append(&mut pod_account.storage);
 		pod_account.storage = pod_storage;

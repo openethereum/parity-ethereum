@@ -53,14 +53,15 @@
 //!   cargo build --release
 //!   ```
 
+extern crate account_db;
 extern crate ansi_term;
-extern crate bn;
 extern crate common_types as types;
-extern crate crossbeam;
+extern crate crossbeam_utils;
 extern crate ethabi;
 extern crate ethash;
 extern crate ethcore_blockchain as blockchain;
 extern crate ethcore_bloom_journal as bloom_journal;
+extern crate ethcore_builtin as builtin;
 extern crate ethcore_call_contract as call_contract;
 extern crate ethcore_db as db;
 extern crate ethcore_io as io;
@@ -82,12 +83,11 @@ extern crate len_caching_lock;
 extern crate lru_cache;
 extern crate memory_cache;
 extern crate memory_db;
-extern crate num;
 extern crate num_cpus;
 extern crate parity_bytes as bytes;
-extern crate parity_crypto;
 extern crate parity_snappy as snappy;
 extern crate parking_lot;
+extern crate pod_account;
 extern crate trie_db as trie;
 extern crate patricia_trie_ethereum as ethtrie;
 extern crate rand;
@@ -98,6 +98,7 @@ extern crate parity_util_mem as malloc_size_of;
 extern crate rustc_hex;
 extern crate serde;
 extern crate stats;
+extern crate state_account;
 extern crate time_utils;
 extern crate triehash_ethereum as triehash;
 extern crate unexpected;
@@ -119,8 +120,6 @@ extern crate kvdb_rocksdb;
 extern crate blooms_db;
 #[cfg(any(test, feature = "env_logger"))]
 extern crate env_logger;
-#[cfg(test)]
-extern crate rlp_compress;
 #[cfg(test)]
 extern crate serde_json;
 
@@ -152,7 +151,6 @@ extern crate fetch;
 extern crate parity_runtime;
 
 pub mod block;
-pub mod builtin;
 pub mod client;
 pub mod engines;
 pub mod error;
@@ -162,7 +160,6 @@ pub mod executive;
 pub mod machine;
 pub mod miner;
 pub mod pod_state;
-pub mod pod_account;
 pub mod snapshot;
 pub mod spec;
 pub mod state;
@@ -171,7 +168,6 @@ pub mod trace;
 pub mod transaction_ext;
 pub mod verification;
 
-mod account_db;
 mod externalities;
 mod factory;
 mod tx_filter;

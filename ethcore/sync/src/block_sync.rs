@@ -25,7 +25,7 @@ use ethereum_types::H256;
 use rlp::{self, Rlp};
 use types::BlockNumber;
 use ethcore::client::{BlockStatus, BlockId};
-use ethcore::error::{ImportError, QueueError, BlockError, Error as EthcoreError};
+use ethcore::error::{ImportError, BlockError, Error as EthcoreError};
 use sync_io::SyncIo;
 use blocks::{BlockCollection, SyncBody, SyncHeader};
 use chain::BlockSet;
@@ -548,12 +548,18 @@ impl BlockDownloader {
 			let result = if let Some(receipts) = receipts {
 				io.chain().queue_ancient_block(block, receipts)
 			} else {
+				trace_sync!(self, "Importing block #{}/{}", number, h);
 				io.chain().import_block(block)
 			};
 
 			match result {
 				Err(EthcoreError::Import(ImportError::AlreadyInChain)) => {
-					trace_sync!(self, "Block already in chain {:?}", h);
+					let is_canonical = if io.chain().block_hash(BlockId::Number(number)).is_some() {
+						"canoncial"
+					} else {
+						"not canonical"
+					};
+					trace_sync!(self, "Block #{} is already in chain {:?} – {}", number, h, is_canonical);
 					self.block_imported(&h, number, &parent);
 				},
 				Err(EthcoreError::Import(ImportError::AlreadyQueued)) => {
@@ -576,7 +582,7 @@ impl BlockDownloader {
 					debug_sync!(self, "Block temporarily invalid: {:?}, restarting sync", h);
 					break;
 				},
-				Err(EthcoreError::Queue(QueueError::Full(limit))) => {
+				Err(EthcoreError::FullQueue(limit)) => {
 					debug_sync!(self, "Block import queue full ({}), restarting sync", limit);
 					download_action = DownloadAction::Reset;
 					break;

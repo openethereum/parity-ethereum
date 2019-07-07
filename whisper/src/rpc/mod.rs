@@ -19,7 +19,7 @@
 //! Manages standard message format decoding, ephemeral identities, signing,
 //! encryption, and decryption.
 //!
-//! Provides an interface for using whisper to transmit data securely.
+//! Provides an interface for using Whisper to transmit data securely.
 
 use std::sync::Arc;
 
@@ -35,7 +35,7 @@ use self::filter::Filter;
 use self::key_store::{Key, KeyStore};
 use self::types::HexEncode;
 
-use message::{CreateParams, Message, Topic};
+use message::{CreateParams, Message, EnvelopeTopic};
 
 mod crypto;
 mod filter;
@@ -61,7 +61,7 @@ fn topic_hash(topic: &[u8]) -> H256 {
 }
 
 // abridge topic using first four bytes of hash.
-fn abridge_topic(topic: &[u8]) -> Topic {
+fn abridge_topic(topic: &[u8]) -> EnvelopeTopic {
 	let mut abridged = [0; 4];
 	let hash = topic_hash(topic).0;
 	abridged.copy_from_slice(&hash[..4]);
@@ -69,7 +69,7 @@ fn abridge_topic(topic: &[u8]) -> Topic {
 }
 
 /// Whisper RPC interface.
-#[rpc]
+#[rpc(server)]
 pub trait Whisper {
 	/// Info about the node.
 	#[rpc(name = "shh_info")]
@@ -99,6 +99,7 @@ pub trait Whisper {
 	#[rpc(name = "shh_getPrivateKey")]
 	fn get_private(&self, types::Identity) -> Result<types::Private, Error>;
 
+	/// Get symmetric key. Succeeds if identity has been stored.
 	#[rpc(name = "shh_getSymKey")]
 	fn get_symmetric(&self, types::Identity) -> Result<types::Symmetric, Error>;
 
@@ -127,7 +128,7 @@ pub trait Whisper {
 }
 
 /// Whisper RPC pubsub.
-#[rpc]
+#[rpc(server)]
 pub trait WhisperPubSub {
 	// RPC Metadata
 	type Metadata;

@@ -23,7 +23,7 @@ use v1::types::{RichBlock, BlockNumber, Bytes, CallRequest, Filter, FilterChange
 use v1::types::{Log, Receipt, SyncStatus, Transaction, Work};
 
 /// Eth rpc interface.
-#[rpc]
+#[rpc(server)]
 pub trait Eth {
 	/// RPC Metadata
 	type Metadata;
@@ -189,7 +189,7 @@ pub trait Eth {
 
 /// Eth filters rpc api (polling).
 // TODO: do filters api properly
-#[rpc]
+#[rpc(server)]
 pub trait EthFilter {
 	/// Returns id of new filter.
 	#[rpc(name = "eth_newFilter")]

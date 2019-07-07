@@ -63,7 +63,7 @@ use engines::{MAX_UNCLE_AGE, Engine, EpochTransition, ForkChoice, EngineError, S
 use engines::epoch::PendingTransition;
 use error::{
 	ImportError, ExecutionError, CallError, BlockError,
-	QueueError, Error as EthcoreError, EthcoreResult,
+	Error as EthcoreError, EthcoreResult,
 };
 use executive::{Executive, Executed, TransactOptions, contract_address};
 use factory::{Factories, VmFactory};
@@ -407,7 +407,6 @@ impl Importer {
 			last_hashes,
 			client.factories.clone(),
 			is_epoch_begin,
-			&mut chain.ancestry_with_metadata_iter(*header.parent_hash()),
 		);
 
 		let mut locked_block = match enact_result {
@@ -474,7 +473,16 @@ impl Importer {
 	//
 	// The header passed is from the original block data and is sealed.
 	// TODO: should return an error if ImportRoute is none, issue #9910
-	fn commit_block<B>(&self, block: B, header: &Header, block_data: encoded::Block, pending: Option<PendingTransition>, client: &Client) -> ImportRoute where B: Drain {
+	fn commit_block<B>(
+		&self,
+		block: B,
+		header: &Header,
+		block_data: encoded::Block,
+		pending: Option<PendingTransition>,
+		client: &Client
+	) -> ImportRoute
+		where B: Drain
+	{
 		let hash = &header.hash();
 		let number = header.number();
 		let parent = header.parent_hash();
@@ -500,18 +508,17 @@ impl Importer {
 		};
 
 		let best = {
-			let hash = best_hash;
-			let header = chain.block_header_data(&hash)
+			let header = chain.block_header_data(&best_hash)
 				.expect("Best block is in the database; qed")
 				.decode()
 				.expect("Stored block header is valid RLP; qed");
-			let details = chain.block_details(&hash)
+			let details = chain.block_details(&best_hash)
 				.expect("Best block is in the database; qed");
 
 			ExtendedHeader {
 				parent_total_difficulty: details.total_difficulty - *header.difficulty(),
 				is_finalized: details.is_finalized,
-				header: header,
+				header,
 			}
 		};
 
@@ -549,7 +556,7 @@ impl Importer {
 		}).collect();
 
 		let route = chain.insert_block(&mut batch, block_data, receipts.clone(), ExtrasInsert {
-			fork_choice: fork_choice,
+			fork_choice,
 			is_finalized,
 		});
 
@@ -2361,7 +2368,6 @@ impl PrepareOpenBlock for Client {
 			gas_range_target,
 			extra_data,
 			is_epoch_begin,
-			chain.ancestry_with_metadata_iter(best_header.hash()),
 		)?;
 
 		// Add uncles
@@ -2412,11 +2418,11 @@ impl ImportSealedBlock for Client {
 			let _import_lock = self.importer.import_lock.lock();
 			trace_time!("import_sealed_block");
 
-			let block_data = block.rlp_bytes();
+			let block_bytes = block.rlp_bytes();
 
 			let pending = self.importer.check_epoch_end_signal(
 				&header,
-				&block_data,
+				&block_bytes,
 				&block.receipts,
 				block.state.db(),
 				self
@@ -2424,7 +2430,7 @@ impl ImportSealedBlock for Client {
 			let route = self.importer.commit_block(
 				block,
 				&header,
-				encoded::Block::new(block_data),
+				encoded::Block::new(block_bytes),
 				pending,
 				self
 			);
@@ -2598,6 +2604,39 @@ fn transaction_receipt(
 	}
 }
 
+/// Queue some items to be processed by IO client.
+struct IoChannelQueue {
+	currently_queued: Arc<AtomicUsize>,
+	limit: usize,
+}
+
+impl IoChannelQueue {
+	pub fn new(limit: usize) -> Self {
+		IoChannelQueue {
+			currently_queued: Default::default(),
+			limit,
+		}
+	}
+
+	pub fn queue<F>(&self, channel: &IoChannel<ClientIoMessage>, count: usize, fun: F) -> EthcoreResult<()> where
+		F: Fn(&Client) + Send + Sync + 'static,
+	{
+		let queue_size = self.currently_queued.load(AtomicOrdering::Relaxed);
+		if queue_size >= self.limit {
+			return Err(EthcoreError::FullQueue(self.limit))
+		};
+
+		let currently_queued = self.currently_queued.clone();
+		let _ok = channel.send(ClientIoMessage::execute(move |client| {
+			currently_queued.fetch_sub(count, AtomicOrdering::SeqCst);
+			fun(client);
+		}))?;
+
+		self.currently_queued.fetch_add(count, AtomicOrdering::SeqCst);
+		Ok(())
+	}
+}
+
 #[cfg(test)]
 mod tests {
 	use ethereum_types::{H256, Address};
@@ -2753,43 +2792,5 @@ mod tests {
 			log_bloom: Default::default(),
 			outcome: TransactionOutcome::StateRoot(state_root),
 		});
-	}
-}
-
-/// Queue some items to be processed by IO client.
-struct IoChannelQueue {
-	currently_queued: Arc<AtomicUsize>,
-	limit: usize,
-}
-
-impl IoChannelQueue {
-	pub fn new(limit: usize) -> Self {
-		IoChannelQueue {
-			currently_queued: Default::default(),
-			limit,
-		}
-	}
-
-	pub fn queue<F>(&self, channel: &IoChannel<ClientIoMessage>, count: usize, fun: F) -> Result<(), QueueError> where
-		F: Fn(&Client) + Send + Sync + 'static,
-	{
-		let queue_size = self.currently_queued.load(AtomicOrdering::Relaxed);
-		if queue_size >= self.limit {
-			return Err(QueueError::Full(self.limit))
-		};
-
-		let currently_queued = self.currently_queued.clone();
-		let result = channel.send(ClientIoMessage::execute(move |client| {
-			currently_queued.fetch_sub(count, AtomicOrdering::SeqCst);
-			fun(client);
-		}));
-
-		match result {
-			Ok(_) => {
-				self.currently_queued.fetch_add(count, AtomicOrdering::SeqCst);
-				Ok(())
-			},
-			Err(e) => return Err(QueueError::Channel(e)),
-		}
 	}
 }

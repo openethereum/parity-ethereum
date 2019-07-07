@@ -156,8 +156,6 @@ impl error::Error for EngineError {
 /// Seal type.
 #[derive(Debug, PartialEq, Eq)]
 pub enum Seal {
-	/// Proposal seal; should be broadcasted, but not inserted into blockchain.
-	Proposal(Vec<Bytes>),
 	/// Regular block seal; should be part of the blockchain.
 	Regular(Vec<Bytes>),
 	/// Engine does not generate seal for this block right now.
@@ -304,13 +302,16 @@ pub trait Engine: Sync + Send {
 		&self,
 		_block: &mut ExecutedBlock,
 		_epoch_begin: bool,
-		_ancestry: &mut dyn Iterator<Item = ExtendedHeader>,
 	) -> Result<(), Error> {
 		Ok(())
 	}
 
 	/// Block transformation functions, after the transactions.
-	fn on_close_block(&self, _block: &mut ExecutedBlock) -> Result<(), Error> {
+	fn on_close_block(
+		&self,
+		_block: &mut ExecutedBlock,
+		_parent_header: &Header,
+	) -> Result<(), Error> {
 		Ok(())
 	}
 

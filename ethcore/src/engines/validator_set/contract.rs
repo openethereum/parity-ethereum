@@ -118,6 +118,7 @@ impl ValidatorSet for ValidatorContract {
 	}
 
 	fn report_benign(&self, address: &Address, _set_block: BlockNumber, block: BlockNumber) {
+		trace!(target: "engine", "validator set recording benign misbehaviour at block #{} by {:#x}", block, address);
 		let data = validator_report::functions::report_benign::encode_input(*address, block);
 		match self.transact(data) {
 			Ok(_) => warn!(target: "engine", "Reported benign validator misbehaviour {}", address),
@@ -162,6 +163,7 @@ mod tests {
 
 	#[test]
 	fn reports_validators() {
+		let _ = ::env_logger::try_init();
 		let tap = Arc::new(AccountProvider::transient_provider());
 		let v1 = tap.insert_account(keccak("1").into(), &"".into()).unwrap();
 		let client = generate_dummy_client_with_spec(Spec::new_validator_contract);

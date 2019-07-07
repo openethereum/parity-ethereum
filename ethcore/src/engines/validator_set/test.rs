@@ -93,6 +93,7 @@ impl ValidatorSet for TestSet {
 	}
 
 	fn report_benign(&self, _validator: &Address, _set_block: BlockNumber, block: BlockNumber) {
+		trace!(target: "engine", "test validator set recording benign misbehaviour");
 		self.last_benign.store(block as usize, AtomicOrdering::SeqCst)
 	}
 }

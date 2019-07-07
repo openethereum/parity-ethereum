@@ -24,7 +24,7 @@ use jsonrpc_derive::rpc;
 use v1::types::{Bytes, TransactionModification, ConfirmationRequest, ConfirmationResponse, ConfirmationResponseWithToken};
 
 /// Signer extension for confirmations rpc interface.
-#[rpc]
+#[rpc(server)]
 pub trait Signer {
 	/// RPC Metadata
 	type Metadata;

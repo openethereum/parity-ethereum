@@ -34,7 +34,7 @@ use externalities::*;
 use trace::{self, Tracer, VMTracer};
 use types::transaction::{Action, SignedTransaction};
 use transaction_ext::Transaction;
-use crossbeam;
+use crossbeam_utils::thread;
 pub use executed::{Executed, ExecutionResult};
 
 #[cfg(debug_assertions)]
@@ -406,7 +406,7 @@ impl<'a> CallCreateExecutive<'a> {
 						if let Err(e) = result {
 							state.revert_to_checkpoint();
 
-							Err(e.into())
+							Err(vm::Error::BuiltIn(e))
 						} else {
 							state.discard_checkpoint();
 
@@ -985,11 +985,18 @@ impl<'a, B: 'a + StateBackend> Executive<'a, B> {
 		if stack_depth != depth_threshold {
 			self.call_with_stack_depth(params, substate, stack_depth, tracer, vm_tracer)
 		} else {
-			crossbeam::scope(|scope| {
-				scope.builder().stack_size(::std::cmp::max(self.schedule.max_depth.saturating_sub(depth_threshold) * STACK_SIZE_PER_DEPTH, local_stack_size)).spawn(move || {
-					self.call_with_stack_depth(params, substate, stack_depth, tracer, vm_tracer)
-				}).expect("Sub-thread creation cannot fail; the host might run out of resources; qed")
-			}).join().expect("Sub-thread never panics; qed")
+			thread::scope(|scope| {
+				let stack_size = cmp::max(self.schedule.max_depth.saturating_sub(depth_threshold) * STACK_SIZE_PER_DEPTH, local_stack_size);
+				scope.builder()
+					.stack_size(stack_size)
+					.spawn(|_| {
+						self.call_with_stack_depth(params, substate, stack_depth, tracer, vm_tracer)
+					})
+					.expect("Sub-thread creation cannot fail; the host might run out of resources; qed")
+					.join()
+			})
+			.expect("Sub-thread never panics; qed")
+			.expect("Sub-thread never panics; qed")
 		}
 	}
 
@@ -1069,11 +1076,18 @@ impl<'a, B: 'a + StateBackend> Executive<'a, B> {
 		if stack_depth != depth_threshold {
 			self.create_with_stack_depth(params, substate, stack_depth, tracer, vm_tracer)
 		} else {
-			crossbeam::scope(|scope| {
-				scope.builder().stack_size(::std::cmp::max(self.schedule.max_depth.saturating_sub(depth_threshold) * STACK_SIZE_PER_DEPTH, local_stack_size)).spawn(move || {
-					self.create_with_stack_depth(params, substate, stack_depth, tracer, vm_tracer)
-				}).expect("Sub-thread creation cannot fail; the host might run out of resources; qed")
-			}).join().expect("Sub-thread never panics; qed")
+			thread::scope(|scope| {
+				let stack_size = cmp::max(self.schedule.max_depth.saturating_sub(depth_threshold) * STACK_SIZE_PER_DEPTH, local_stack_size);
+				scope.builder()
+					.stack_size(stack_size)
+					.spawn(|_| {
+						self.create_with_stack_depth(params, substate, stack_depth, tracer, vm_tracer)
+					})
+					.expect("Sub-thread creation cannot fail; the host might run out of resources; qed")
+					.join()
+			})
+			.expect("Sub-thread never panics; qed")
+			.expect("Sub-thread never panics; qed")
 		}
 	}
 

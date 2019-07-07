@@ -247,7 +247,7 @@ impl EpochManager {
 			None => {
 				// this really should never happen unless the block passed
 				// hasn't got a parent in the database.
-				warn!(target: "engine", "No genesis transition found.");
+				warn!(target: "engine", "No genesis transition found. Block hash {} does not have a parent in the DB", hash);
 				return false;
 			}
 		};
@@ -570,7 +570,7 @@ fn header_empty_steps_signers(header: &Header, empty_steps_transition: u64) -> R
 
 fn step_proposer(validators: &dyn ValidatorSet, bh: &H256, step: u64) -> Address {
 	let proposer = validators.get(bh, step as usize);
-	trace!(target: "engine", "Fetched proposer for step {}: {}", step, proposer);
+	trace!(target: "engine", "step_proposer: Fetched proposer for step {}: {}", step, proposer);
 	proposer
 }
 
@@ -823,8 +823,8 @@ impl AuthorityRound {
 				if skipped_primary != me {
 					// Stop reporting once validators start repeating.
 					if !reported.insert(skipped_primary) { break; }
-					trace!(target: "engine", "Reporting benign misbehaviour (cause: skipped step) at block #{}, epoch set number {}. Own address: {}",
-						header.number(), set_number, me);
+					trace!(target: "engine", "Reporting benign misbehaviour (cause: skipped step) at block #{}, epoch set number {}, step proposer={:#x}. Own address: {}",
+						header.number(), set_number, skipped_primary, me);
 					self.validators.report_benign(&skipped_primary, set_number, header.number());
 				} else {
 					trace!(target: "engine", "Primary that skipped is self, not self-reporting. Own address: {}", me);
@@ -1110,12 +1110,12 @@ impl Engine for AuthorityRound {
 
 		// filter messages from old and future steps and different parents
 		let empty_steps = if header.number() >= self.empty_steps_transition {
-			self.empty_steps(parent_step.into(), step.into(), *header.parent_hash())
+			self.empty_steps(parent_step, step, *header.parent_hash())
 		} else {
 			Vec::new()
 		};
 
-		let expected_diff = calculate_score(parent_step, step.into(), empty_steps.len().into());
+		let expected_diff = calculate_score(parent_step, step, empty_steps.len());
 
 		if header.difficulty() != &expected_diff {
 			debug!(target: "engine", "Aborting seal generation. The step or empty_steps have changed in the meantime. {:?} != {:?}",
@@ -1123,12 +1123,17 @@ impl Engine for AuthorityRound {
 			return Seal::None;
 		}
 
-		if parent_step > step.into() {
+		if parent_step > step {
 			warn!(target: "engine", "Aborting seal generation for invalid step: {} > {}", parent_step, step);
+			return Seal::None;
+		} else if parent_step == step {
+			// this is guarded against by `can_propose` unless the block was signed
+			// on the same step (implies same key) and on a different node.
+			warn!("Attempted to seal block on the same step as parent. Is this authority sealing with more than one node?");
 			return Seal::None;
 		}
 
-		let (validators, set_number) = match self.epoch_set(header) {
+		let (validators, epoch_transition_number) = match self.epoch_set(header) {
 			Err(err) => {
 				warn!(target: "engine", "Unable to generate seal: {}", err);
 				return Seal::None;
@@ -1137,13 +1142,7 @@ impl Engine for AuthorityRound {
 		};
 
 		if is_step_proposer(&*validators, header.parent_hash(), step, header.author()) {
-			// this is guarded against by `can_propose` unless the block was signed
-			// on the same step (implies same key) and on a different node.
-			if parent_step == step {
-				warn!("Attempted to seal block on the same step as parent. Is this authority sealing with more than one node?");
-				return Seal::None;
-			}
-
+			trace!(target: "engine", "generate_seal: we are step proposer for step={}, block=#{}", step, header.number());
 			// if there are no transactions to include in the block, we don't seal and instead broadcast a signed
 			// `EmptyStep(step, parent_hash)` message. If we exceed the maximum amount of `empty_step` rounds we proceed
 			// with the seal.
@@ -1152,6 +1151,7 @@ impl Engine for AuthorityRound {
 				empty_steps.len() < self.maximum_empty_steps {
 
 				if self.step.can_propose.compare_and_swap(true, false, AtomicOrdering::SeqCst) {
+					trace!(target: "engine", "generate_seal: generating empty step at step={}, block=#{}", step, header.number());
 					self.generate_empty_step(header.parent_hash());
 				}
 
@@ -1178,7 +1178,8 @@ impl Engine for AuthorityRound {
 					// report any skipped primaries between the parent block and
 					// the block we're sealing, unless we have empty steps enabled
 					if header.number() < self.empty_steps_transition {
-						self.report_skipped(header, step, parent_step, &*validators, set_number);
+						trace!(target: "engine", "generate_seal: reporting misbehaviour for step={}, block=#{}", step, header.number());
+						self.report_skipped(header, step, parent_step, &*validators, epoch_transition_number);
 					}
 
 					let mut fields = vec![
@@ -1189,7 +1190,7 @@ impl Engine for AuthorityRound {
 					if let Some(empty_steps_rlp) = empty_steps_rlp {
 						fields.push(empty_steps_rlp);
 					}
-
+					trace!(target: "engine", "generate_seal: returning Seal::Regular for step={}, block=#{}", step, header.number());
 					return Seal::Regular(fields);
 				}
 			} else {
@@ -1199,7 +1200,7 @@ impl Engine for AuthorityRound {
 			trace!(target: "engine", "generate_seal: {} not a proposer for step {}.",
 				header.author(), step);
 		}
-
+		trace!(target: "engine", "generate_seal: returning Seal::None for step={}, block=#{}", step, header.number());
 		Seal::None
 	}
 
@@ -1211,7 +1212,6 @@ impl Engine for AuthorityRound {
 		&self,
 		block: &mut ExecutedBlock,
 		epoch_begin: bool,
-		_ancestry: &mut dyn Iterator<Item=ExtendedHeader>,
 	) -> Result<(), Error> {
 		// with immediate transitions, we don't use the epoch mechanism anyway.
 		// the genesis is always considered an epoch, but we ignore it intentionally.
@@ -1236,26 +1236,18 @@ impl Engine for AuthorityRound {
 	}
 
 	/// Apply the block reward on finalisation of the block.
-	fn on_close_block(&self, block: &mut ExecutedBlock) -> Result<(), Error> {
+	fn on_close_block(
+		&self,
+		block: &mut ExecutedBlock,
+		parent: &Header,
+	) -> Result<(), Error> {
 		let mut beneficiaries = Vec::new();
 		if block.header.number() >= self.empty_steps_transition {
 			let empty_steps = if block.header.seal().is_empty() {
 				// this is a new block, calculate rewards based on the empty steps messages we have accumulated
-				let client = match self.client.read().as_ref().and_then(|weak| weak.upgrade()) {
-					Some(client) => client,
-					None => {
-						debug!(target: "engine", "Unable to close block: missing client ref.");
-						return Err(EngineError::RequiresClient.into())
-					},
-				};
-
-				let parent = client.block_header(::client::BlockId::Hash(*block.header.parent_hash()))
-					.expect("hash is from parent; parent header must exist; qed")
-					.decode()?;
-
-				let parent_step = header_step(&parent, self.empty_steps_transition)?;
+				let parent_step = header_step(parent, self.empty_steps_transition)?;
 				let current_step = self.step.inner.load();
-				self.empty_steps(parent_step.into(), current_step.into(), parent.hash())
+				self.empty_steps(parent_step, current_step, parent.hash())
 			} else {
 				// we're verifying a block, extract empty steps from the seal
 				header_empty_steps(&block.header)?
@@ -1707,9 +1699,9 @@ mod tests {
 		let db1 = spec.ensure_db_good(get_temp_state_db(), &Default::default()).unwrap();
 		let db2 = spec.ensure_db_good(get_temp_state_db(), &Default::default()).unwrap();
 		let last_hashes = Arc::new(vec![genesis_header.hash()]);
-		let b1 = OpenBlock::new(engine, Default::default(), false, db1, &genesis_header, last_hashes.clone(), addr1, (3141562.into(), 31415620.into()), vec![], false, None).unwrap();
+		let b1 = OpenBlock::new(engine, Default::default(), false, db1, &genesis_header, last_hashes.clone(), addr1, (3141562.into(), 31415620.into()), vec![], false).unwrap();
 		let b1 = b1.close_and_lock().unwrap();
-		let b2 = OpenBlock::new(engine, Default::default(), false, db2, &genesis_header, last_hashes, addr2, (3141562.into(), 31415620.into()), vec![], false, None).unwrap();
+		let b2 = OpenBlock::new(engine, Default::default(), false, db2, &genesis_header, last_hashes, addr2, (3141562.into(), 31415620.into()), vec![], false).unwrap();
 		let b2 = b2.close_and_lock().unwrap();
 
 		engine.set_signer(Box::new((tap.clone(), addr1, "1".into())));
@@ -1741,20 +1733,20 @@ mod tests {
 		let db2 = spec.ensure_db_good(get_temp_state_db(), &Default::default()).unwrap();
 		let last_hashes = Arc::new(vec![genesis_header.hash()]);
 
-		let b1 = OpenBlock::new(engine, Default::default(), false, db1, &genesis_header, last_hashes.clone(), addr1, (3141562.into(), 31415620.into()), vec![], false, None).unwrap();
+		let b1 = OpenBlock::new(engine, Default::default(), false, db1, &genesis_header, last_hashes.clone(), addr1, (3141562.into(), 31415620.into()), vec![], false).unwrap();
 		let b1 = b1.close_and_lock().unwrap();
-		let b2 = OpenBlock::new(engine, Default::default(), false, db2, &genesis_header, last_hashes, addr2, (3141562.into(), 31415620.into()), vec![], false, None).unwrap();
+		let b2 = OpenBlock::new(engine, Default::default(), false, db2, &genesis_header, last_hashes, addr2, (3141562.into(), 31415620.into()), vec![], false).unwrap();
 		let b2 = b2.close_and_lock().unwrap();
 
 		engine.set_signer(Box::new((tap.clone(), addr1, "1".into())));
 		match engine.generate_seal(&b1, &genesis_header) {
-			Seal::None | Seal::Proposal(_) => panic!("wrong seal"),
+			Seal::None => panic!("wrong seal"),
 			Seal::Regular(_) => {
 				engine.step();
 
 				engine.set_signer(Box::new((tap.clone(), addr2, "0".into())));
 				match engine.generate_seal(&b2, &genesis_header) {
-					Seal::Regular(_) | Seal::Proposal(_) => panic!("sealed despite wrong difficulty"),
+					Seal::Regular(_) => panic!("sealed despite wrong difficulty"),
 					Seal::None => {}
 				}
 			}
@@ -1991,7 +1983,7 @@ mod tests {
 
 		engine.set_signer(Box::new((tap.clone(), addr1, "1".into())));
 
-		let b1 = OpenBlock::new(engine, Default::default(), false, db1, &genesis_header, last_hashes.clone(), addr1, (3141562.into(), 31415620.into()), vec![], false, None).unwrap();
+		let b1 = OpenBlock::new(engine, Default::default(), false, db1, &genesis_header, last_hashes.clone(), addr1, (3141562.into(), 31415620.into()), vec![], false).unwrap();
 		let b1 = b1.close_and_lock().unwrap();
 
 		// the block is empty so we don't seal and instead broadcast an empty step message
@@ -2029,7 +2021,7 @@ mod tests {
 		engine.register_client(Arc::downgrade(&client) as _);
 
 		// step 2
-		let b1 = OpenBlock::new(engine, Default::default(), false, db1, &genesis_header, last_hashes.clone(), addr1, (3141562.into(), 31415620.into()), vec![], false, None).unwrap();
+		let b1 = OpenBlock::new(engine, Default::default(), false, db1, &genesis_header, last_hashes.clone(), addr1, (3141562.into(), 31415620.into()), vec![], false).unwrap();
 		let b1 = b1.close_and_lock().unwrap();
 
 		// since the block is empty it isn't sealed and we generate empty steps
@@ -2038,7 +2030,7 @@ mod tests {
 		engine.step();
 
 		// step 3
-		let mut b2 = OpenBlock::new(engine, Default::default(), false, db2, &genesis_header, last_hashes.clone(), addr2, (3141562.into(), 31415620.into()), vec![], false, None).unwrap();
+		let mut b2 = OpenBlock::new(engine, Default::default(), false, db2, &genesis_header, last_hashes.clone(), addr2, (3141562.into(), 31415620.into()), vec![], false).unwrap();
 		b2.push_transaction(Transaction {
 			action: Action::Create,
 			nonce: U256::from(0),
@@ -2082,7 +2074,7 @@ mod tests {
 		engine.register_client(Arc::downgrade(&client) as _);
 
 		// step 2
-		let b1 = OpenBlock::new(engine, Default::default(), false, db1, &genesis_header, last_hashes.clone(), addr1, (3141562.into(), 31415620.into()), vec![], false, None).unwrap();
+		let b1 = OpenBlock::new(engine, Default::default(), false, db1, &genesis_header, last_hashes.clone(), addr1, (3141562.into(), 31415620.into()), vec![], false).unwrap();
 		let b1 = b1.close_and_lock().unwrap();
 
 		// since the block is empty it isn't sealed and we generate empty steps
@@ -2091,7 +2083,7 @@ mod tests {
 		engine.step();
 
 		// step 3
-		let b2 = OpenBlock::new(engine, Default::default(), false, db2, &genesis_header, last_hashes.clone(), addr2, (3141562.into(), 31415620.into()), vec![], false, None).unwrap();
+		let b2 = OpenBlock::new(engine, Default::default(), false, db2, &genesis_header, last_hashes.clone(), addr2, (3141562.into(), 31415620.into()), vec![], false).unwrap();
 		let b2 = b2.close_and_lock().unwrap();
 		engine.set_signer(Box::new((tap.clone(), addr2, "0".into())));
 		assert_eq!(engine.generate_seal(&b2, &genesis_header), Seal::None);
@@ -2099,7 +2091,7 @@ mod tests {
 
 		// step 4
 		// the spec sets the maximum_empty_steps to 2 so we will now seal an empty block and include the empty step messages
-		let b3 = OpenBlock::new(engine, Default::default(), false, db3, &genesis_header, last_hashes.clone(), addr1, (3141562.into(), 31415620.into()), vec![], false, None).unwrap();
+		let b3 = OpenBlock::new(engine, Default::default(), false, db3, &genesis_header, last_hashes.clone(), addr1, (3141562.into(), 31415620.into()), vec![], false).unwrap();
 		let b3 = b3.close_and_lock().unwrap();
 
 		engine.set_signer(Box::new((tap.clone(), addr1, "1".into())));
@@ -2132,7 +2124,7 @@ mod tests {
 		engine.register_client(Arc::downgrade(&client) as _);
 
 		// step 2
-		let b1 = OpenBlock::new(engine, Default::default(), false, db1, &genesis_header, last_hashes.clone(), addr1, (3141562.into(), 31415620.into()), vec![], false, None).unwrap();
+		let b1 = OpenBlock::new(engine, Default::default(), false, db1, &genesis_header, last_hashes.clone(), addr1, (3141562.into(), 31415620.into()), vec![], false).unwrap();
 		let b1 = b1.close_and_lock().unwrap();
 
 		// since the block is empty it isn't sealed and we generate empty steps
@@ -2142,7 +2134,7 @@ mod tests {
 
 		// step 3
 		// the signer of the accumulated empty step message should be rewarded
-		let b2 = OpenBlock::new(engine, Default::default(), false, db2, &genesis_header, last_hashes.clone(), addr1, (3141562.into(), 31415620.into()), vec![], false, None).unwrap();
+		let b2 = OpenBlock::new(engine, Default::default(), false, db2, &genesis_header, last_hashes.clone(), addr1, (3141562.into(), 31415620.into()), vec![], false).unwrap();
 		let addr1_balance = b2.state.balance(&addr1).unwrap();
 
 		// after closing the block `addr1` should be reward twice, one for the included empty step message and another for block creation
@@ -2242,7 +2234,6 @@ mod tests {
 			(3141562.into(), 31415620.into()),
 			vec![],
 			false,
-			None,
 		).unwrap();
 		let b1 = b1.close_and_lock().unwrap();
 
@@ -2264,7 +2255,6 @@ mod tests {
 			(3141562.into(), 31415620.into()),
 			vec![],
 			false,
-			None,
 		).unwrap();
 		let addr1_balance = b2.state.balance(&addr1).unwrap();
 
