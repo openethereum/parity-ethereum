@@ -27,10 +27,10 @@ use ethereum_types::{H256, H264};
 use kvdb::DBTransaction;
 use parking_lot::RwLock;
 use common_types::BlockNumber;
-use ethcore_blockchain::{BlockChain, BlockChainDB, BlockProvider, TransactionAddress};
+use ethcore_blockchain::{BlockChainDB, DatabaseExtras};
 
 use crate::{
-	LocalizedTrace, Config, Filter, Database as TraceDatabase, ImportRequest, DatabaseExtras,
+	LocalizedTrace, Config, Filter, Database as TraceDatabase, ImportRequest,
 	flat::{FlatTrace, FlatBlockTraces, FlatTransactionTraces},
 };
 
@@ -336,25 +336,6 @@ impl<T> TraceDatabase for TraceDB<T> where T: DatabaseExtras {
 	}
 }
 
-/// Bridge between TraceDb and Blockchain.
-impl DatabaseExtras for BlockChain {
-	fn block_hash(&self, block_number: BlockNumber) -> Option<H256> {
-		(self as &dyn BlockProvider).block_hash(block_number)
-	}
-
-	fn transaction_hash(&self, block_number: BlockNumber, tx_position: usize) -> Option<H256> {
-		(self as &dyn BlockProvider).block_hash(block_number)
-			.and_then(|block_hash| {
-				let tx_address = TransactionAddress {
-					block_hash,
-					index: tx_position
-				};
-				self.transaction(&tx_address)
-			})
-			.map(|tx| tx.hash())
-	}
-}
-
 #[cfg(test)]
 mod tests {
 	use std::{
@@ -362,13 +343,14 @@ mod tests {
 		sync::Arc,
 	};
 	use common_types::BlockNumber;
+	use ethcore_blockchain::DatabaseExtras;
 	use ethcore::test_helpers::new_db;
 	use ethereum_types::{H256, U256, Address};
 	use evm::CallType;
 	use kvdb::DBTransaction;
 
 	use crate::{
-		Config, TraceDB, Database as TraceDatabase, DatabaseExtras, ImportRequest,
+		Config, TraceDB, Database as TraceDatabase, ImportRequest,
 		Filter, LocalizedTrace, AddressesFilter, TraceError,
 		trace::{Call, Action, Res},
 		flat::{FlatTrace, FlatBlockTraces, FlatTransactionTraces}

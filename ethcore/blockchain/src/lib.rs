@@ -28,13 +28,18 @@ mod cache;
 mod config;
 mod import_route;
 mod update;
+mod database_extras;
 
 pub mod generator;
 
-pub use self::blockchain::{BlockProvider, BlockChain, BlockChainDB, BlockChainDBHandler};
-pub use self::cache::CacheSize;
-pub use self::config::Config;
-pub use self::import_route::ImportRoute;
-pub use self::update::ExtrasInsert;
+pub use crate::{
+	blockchain::{BlockProvider, BlockChain, BlockChainDB, BlockChainDBHandler},
+	cache::CacheSize,
+	config::Config,
+	database_extras::DatabaseExtras,
+	import_route::ImportRoute,
+	update::ExtrasInsert,
+};
 pub use ethcore_db::keys::{BlockReceipts, BlockDetails, TransactionAddress, BlockNumberKey};
 pub use common_types::tree_route::TreeRoute;
+
