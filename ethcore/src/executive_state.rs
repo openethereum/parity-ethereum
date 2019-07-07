@@ -274,7 +274,6 @@ mod tests {
 	use trace::{FlatTrace, TraceError, trace};
 	use evm::CallType;
 	use pod::{self, PodAccount};
-	#[cfg(feature="to-pod-full")]
 	use pod::PodState;
 	use executive_state::ExecutiveState;
 	use account_state::{Account, CleanupMode};
@@ -1653,7 +1652,6 @@ mod tests {
 					})).as_ref());
 	}
 
-	#[cfg(feature="to-pod-full")]
 	#[test]
 	fn should_get_full_pod_storage_values() {
 		use trie::{TrieFactory, TrieSpec};

@@ -78,13 +78,8 @@ fn no_dump_state(_: &State<state_db::StateDB>) -> Option<PodState> {
 	None
 }
 
-#[cfg(feature = "to-pod-full")]
 fn dump_state(state: &State<state_db::StateDB>) -> Option<PodState> {
 	state.to_pod_full().ok()
-}
-#[cfg(not(feature = "to-pod-full"))]
-fn dump_state(_: &State<state_db::StateDB>) -> Option<PodState> {
-	None
 }
 
 impl<'a> fmt::Debug for EvmTestClient<'a> {
