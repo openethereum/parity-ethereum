@@ -34,7 +34,7 @@ pub struct VmFactory {
 impl VmFactory {
 	pub fn create(&self, params: ActionParams, schedule: &Schedule, depth: usize) -> Option<Box<dyn Exec>> {
 		if params.code_version == U256::zero() {
-			Some(if schedule.wasm.is_some() && params.code.as_ref().map_or(false, |code| code.len() > 4 && &code[0..4] == WASM_MAGIC_NUMBER) {
+			Some(if schedule.wasm.is_some() && schedule.versions.is_empty() && params.code.as_ref().map_or(false, |code| code.len() > 4 && &code[0..4] == WASM_MAGIC_NUMBER) {
 				Box::new(WasmInterpreter::new(params))
 			} else {
 				self.evm.create(params, schedule, depth)
@@ -45,9 +45,6 @@ impl VmFactory {
 			match version_config {
 				Some(VersionedSchedule::PWasm) => {
 					Some(Box::new(WasmInterpreter::new(params)))
-				},
-				Some(VersionedSchedule::EVM) => {
-					Some(self.evm.create(params, &schedule, depth))
 				},
 				None => None,
 			}

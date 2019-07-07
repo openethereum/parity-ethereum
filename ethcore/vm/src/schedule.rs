@@ -21,7 +21,6 @@ use ethereum_types::U256;
 /// Definition of schedules that can be applied to a version.
 pub enum VersionedSchedule {
 	PWasm,
-	EVM,
 }
 
 /// Definition of the cost schedule and other parameterisations for the EVM.
