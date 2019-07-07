@@ -63,7 +63,7 @@ use engines::{MAX_UNCLE_AGE, Engine, EpochTransition, ForkChoice, EngineError, S
 use engines::epoch::PendingTransition;
 use error::{
 	ImportError, ExecutionError, CallError, BlockError,
-	QueueError, Error as EthcoreError, EthcoreResult,
+	Error as EthcoreError, EthcoreResult,
 };
 use executive::{Executive, Executed, TransactOptions, contract_address};
 use factory::{Factories, VmFactory};
@@ -2604,6 +2604,39 @@ fn transaction_receipt(
 	}
 }
 
+/// Queue some items to be processed by IO client.
+struct IoChannelQueue {
+	currently_queued: Arc<AtomicUsize>,
+	limit: usize,
+}
+
+impl IoChannelQueue {
+	pub fn new(limit: usize) -> Self {
+		IoChannelQueue {
+			currently_queued: Default::default(),
+			limit,
+		}
+	}
+
+	pub fn queue<F>(&self, channel: &IoChannel<ClientIoMessage>, count: usize, fun: F) -> EthcoreResult<()> where
+		F: Fn(&Client) + Send + Sync + 'static,
+	{
+		let queue_size = self.currently_queued.load(AtomicOrdering::Relaxed);
+		if queue_size >= self.limit {
+			return Err(EthcoreError::FullQueue(self.limit))
+		};
+
+		let currently_queued = self.currently_queued.clone();
+		let _ok = channel.send(ClientIoMessage::execute(move |client| {
+			currently_queued.fetch_sub(count, AtomicOrdering::SeqCst);
+			fun(client);
+		}))?;
+
+		self.currently_queued.fetch_add(count, AtomicOrdering::SeqCst);
+		Ok(())
+	}
+}
+
 #[cfg(test)]
 mod tests {
 	use ethereum_types::{H256, Address};
@@ -2759,43 +2792,5 @@ mod tests {
 			log_bloom: Default::default(),
 			outcome: TransactionOutcome::StateRoot(state_root),
 		});
-	}
-}
-
-/// Queue some items to be processed by IO client.
-struct IoChannelQueue {
-	currently_queued: Arc<AtomicUsize>,
-	limit: usize,
-}
-
-impl IoChannelQueue {
-	pub fn new(limit: usize) -> Self {
-		IoChannelQueue {
-			currently_queued: Default::default(),
-			limit,
-		}
-	}
-
-	pub fn queue<F>(&self, channel: &IoChannel<ClientIoMessage>, count: usize, fun: F) -> Result<(), QueueError> where
-		F: Fn(&Client) + Send + Sync + 'static,
-	{
-		let queue_size = self.currently_queued.load(AtomicOrdering::Relaxed);
-		if queue_size >= self.limit {
-			return Err(QueueError::Full(self.limit))
-		};
-
-		let currently_queued = self.currently_queued.clone();
-		let result = channel.send(ClientIoMessage::execute(move |client| {
-			currently_queued.fetch_sub(count, AtomicOrdering::SeqCst);
-			fun(client);
-		}));
-
-		match result {
-			Ok(_) => {
-				self.currently_queued.fetch_add(count, AtomicOrdering::SeqCst);
-				Ok(())
-			},
-			Err(e) => return Err(QueueError::Channel(e)),
-		}
 	}
 }
