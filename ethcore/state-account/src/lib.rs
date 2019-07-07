@@ -151,6 +151,7 @@ impl Account {
 				m
 			}),
 			code: self.code().map(|x| x.to_vec()),
+			version: self.code_version,
 		}
 	}
 

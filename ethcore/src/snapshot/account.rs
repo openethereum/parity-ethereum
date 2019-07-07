@@ -274,9 +274,9 @@ mod tests {
 		let thin_rlp = ::rlp::encode(&account);
 		assert_eq!(::rlp::decode::<BasicAccount>(&thin_rlp).unwrap(), account);
 		let p = Progress::default();
-		let fat_rlps = to_fat_rlps(&keccak(&addr), &account, &AccountDB::new(db.as_hash_db(), &addr), &mut Default::default(), usize::max_value(), usize::max_value(), &p).unwrap();
+		let fat_rlps = to_fat_rlps(&keccak(&addr), &account, &AccountDB::from_hash(db.as_hash_db(), keccak(addr)), &mut Default::default(), usize::max_value(), usize::max_value(), &p).unwrap();
 		let fat_rlp = Rlp::new(&fat_rlps[0]).at(1).unwrap();
-		assert_eq!(from_fat_rlp(&mut AccountDBMut::new(db.as_hash_db_mut(), &addr), fat_rlp, H256::zero()).unwrap().0, account);
+		assert_eq!(from_fat_rlp(&mut AccountDBMut::from_hash(db.as_hash_db_mut(), keccak(addr)), fat_rlp, H256::zero()).unwrap().0, account);
 	}
 
 	#[test]
