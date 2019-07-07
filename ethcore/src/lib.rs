@@ -55,13 +55,13 @@
 
 extern crate account_db;
 extern crate ansi_term;
-extern crate bn;
 extern crate common_types as types;
 extern crate crossbeam_utils;
 extern crate ethabi;
 extern crate ethash;
 extern crate ethcore_blockchain as blockchain;
 extern crate ethcore_bloom_journal as bloom_journal;
+extern crate ethcore_builtin as builtin;
 extern crate ethcore_call_contract as call_contract;
 extern crate ethcore_db as db;
 extern crate ethcore_io as io;
@@ -83,10 +83,8 @@ extern crate kvdb_memorydb;
 extern crate len_caching_lock;
 extern crate lru_cache;
 extern crate memory_cache;
-extern crate num;
 extern crate num_cpus;
 extern crate parity_bytes as bytes;
-extern crate parity_crypto;
 extern crate parity_snappy as snappy;
 extern crate parking_lot;
 extern crate pod;
@@ -151,7 +149,6 @@ extern crate fetch;
 extern crate parity_runtime;
 
 pub mod block;
-pub mod builtin;
 pub mod client;
 pub mod engines;
 pub mod error;
@@ -169,7 +166,6 @@ mod externalities;
 mod state_db;
 mod transaction_ext;
 mod tx_filter;
-
 
 #[cfg(test)]
 mod tests;
