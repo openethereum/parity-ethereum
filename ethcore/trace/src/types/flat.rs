@@ -74,7 +74,7 @@ impl Decodable for FlatTrace {
 
 /// Represents all traces produced by a single transaction.
 #[derive(Debug, PartialEq, Clone, RlpEncodableWrapper, RlpDecodableWrapper, MallocSizeOf)]
-pub struct FlatTransactionTraces(pub(crate) Vec<FlatTrace>);
+pub struct FlatTransactionTraces(Vec<FlatTrace>);
 
 impl From<Vec<FlatTrace>> for FlatTransactionTraces {
 	fn from(v: Vec<FlatTrace>) -> Self {
@@ -97,7 +97,7 @@ impl Into<Vec<FlatTrace>> for FlatTransactionTraces {
 
 /// Represents all traces produced by transactions in a single block.
 #[derive(Debug, PartialEq, Clone, Default, RlpEncodableWrapper, RlpDecodableWrapper, MallocSizeOf)]
-pub struct FlatBlockTraces(pub(crate) Vec<FlatTransactionTraces>);
+pub struct FlatBlockTraces(Vec<FlatTransactionTraces>);
 
 impl From<Vec<FlatTransactionTraces>> for FlatBlockTraces {
 	fn from(v: Vec<FlatTransactionTraces>) -> Self {
