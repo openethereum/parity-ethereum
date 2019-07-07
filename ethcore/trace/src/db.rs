@@ -23,12 +23,11 @@ use ethcore_db::{
 	cache_manager::CacheManager,
 	Key, Writable, Readable, CacheUpdatePolicy,
 };
-use ethcore_blockchain::BlockChainDB;
 use ethereum_types::{H256, H264};
 use kvdb::DBTransaction;
 use parking_lot::RwLock;
 use common_types::BlockNumber;
-use ethcore_blockchain::{BlockChain, BlockProvider, TransactionAddress};
+use ethcore_blockchain::{BlockChain, BlockChainDB, BlockProvider, TransactionAddress};
 
 use crate::{
 	LocalizedTrace, Config, Filter, Database as TraceDatabase, ImportRequest, DatabaseExtras,
