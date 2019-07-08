@@ -83,9 +83,9 @@ impl Machine {
 	pub fn regular(params: CommonParams, builtins: BTreeMap<Address, Builtin>) -> Machine {
 		let tx_filter = TransactionFilter::from_params(&params).map(Arc::new);
 		Machine {
-			params: params,
+			params,
 			builtins: Arc::new(builtins),
-			tx_filter: tx_filter,
+			tx_filter,
 			ethash_extensions: None,
 			schedule_rules: None,
 		}
