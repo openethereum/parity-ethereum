@@ -11,7 +11,7 @@ derive_more = "0.15.0"
 ethereum-types = "0.6.0"
 ethtrie = { package = "patricia-trie-ethereum", path = "../../util/patricia-trie-ethereum" }
 evm = { path = "../evm" }
-factories = { path = "../factories" }
+trie-vm-factories = { path = "../trie-vm-factories" }
 hash-db = "0.12.4"
 journaldb = { path = "../../util/journaldb" }
 keccak-hash = "0.2.0"
