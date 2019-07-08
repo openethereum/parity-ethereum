@@ -63,6 +63,7 @@ serde = "1.0"
 serde_derive = "1.0"
 account-state = { path = "account-state" }
 stats = { path = "../util/stats" }
+state-db = { path = "state-db" }
 tempdir = { version = "0.3", optional = true }
 time-utils = { path = "../util/time-utils" }
 trace = { path = "trace" }

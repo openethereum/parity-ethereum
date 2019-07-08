@@ -94,7 +94,7 @@ use ethcore::client::{
 	Call, BlockInfo
 };
 use ethcore::miner::{self, Miner, MinerService, pool_client::NonceCache};
-use ethcore::StateDB;
+use state_db::StateDB;
 use account_state::State;
 use trace::{Tracer, VMTracer};
 use call_contract::CallContract;
