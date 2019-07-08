@@ -1,8 +1,9 @@
 [package]
-description = "Transaction tracing"
 name = "trace"
+description = "Transaction tracing"
 version = "0.1.0"
 authors = ["Parity Technologies <admin@parity.io>"]
+license = "GPL-3.0"
 edition = "2018"
 
 [dependencies]

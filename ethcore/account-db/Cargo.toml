@@ -1,8 +1,9 @@
 [package]
-description = "DB backend wrapper for Account trie"
 name = "account-db"
-version = "0.1.0"
+description = "DB backend wrapper for Account trie"
 authors = ["Parity Technologies <admin@parity.io>"]
+license = "GPL-3.0"
+version = "0.1.0"
 edition = "2018"
 
 [dependencies]

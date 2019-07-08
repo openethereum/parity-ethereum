@@ -1,8 +1,9 @@
 [package]
-description = "Collection of factories"
 name = "factories"
-version = "0.1.0"
+description = "Collection of factories"
 authors = ["Parity Technologies <admin@parity.io>"]
+license = "GPL-3.0"
+version = "0.1.0"
 edition = "2018"
 
 [dependencies]
