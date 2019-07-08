@@ -79,6 +79,8 @@ pub enum Api {
 	Debug,
 	/// Parity Transactions pool PubSub
 	ParityTransactionsPool,
+	/// Deprecated api
+	Deprecated,
 }
 
 impl FromStr for Api {
@@ -104,6 +106,7 @@ impl FromStr for Api {
 			"traces" => Ok(Traces),
 			"web3" => Ok(Web3),
 			"parity_transactions_pool" => Ok(ParityTransactionsPool),
+			"shh" | "shh_pubsub" => Ok(Deprecated),
 			api => Err(format!("Unknown api: {}", api)),
 		}
 	}
@@ -186,6 +189,9 @@ fn to_modules(apis: &HashSet<Api>) -> BTreeMap<String, String> {
 			Api::Traces => ("traces", "1.0"),
 			Api::Web3 => ("web3", "1.0"),
 			Api::ParityTransactionsPool => ("parity_transactions_pool", "1.0"),
+			Api::Deprecated => {
+				continue;
+			}
 		};
 		modules.insert(name.into(), version.into());
 	}
@@ -444,6 +450,7 @@ impl FullDependencies {
 							.to_delegate(),
 					);
 				}
+				Api::Deprecated => {},
 			}
 		}
 	}
@@ -664,6 +671,7 @@ impl<C: LightChainClient + 'static> LightDependencies<C> {
 						handler.extend_with(PrivateClient::new(private_tx_service).to_delegate());
 					}
 				}
+				Api::Deprecated => {},
 			}
 		}
 	}
@@ -705,7 +713,10 @@ impl ApiSet {
 			.collect();
 
 		match *self {
-			ApiSet::List(ref apis) => apis.clone(),
+			ApiSet::List(ref apis) => apis.into_iter()
+				.filter(|api| *api != &Api::Deprecated)
+				.cloned()
+				.collect(),
 			ApiSet::UnsafeContext => {
 				public_list.insert(Api::Traces);
 				public_list.insert(Api::ParityPubSub);
