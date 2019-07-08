@@ -46,14 +46,16 @@ use account_state::State;
 use trace::Tracing;
 use triehash::ordered_trie_root;
 use unexpected::{Mismatch, OutOfBounds};
-use verification::PreverifiedBlock;
 use vm::{EnvInfo, LastHashes};
 
 use hash::keccak;
 use rlp::{RlpStream, Encodable, encode_list};
-use types::transaction::{SignedTransaction, Error as TransactionError};
-use types::header::Header;
-use types::receipt::{Receipt, TransactionOutcome};
+use types::{
+	block::PreverifiedBlock,
+	transaction::{SignedTransaction, Error as TransactionError},
+	header::Header,
+	receipt::{Receipt, TransactionOutcome},
+};
 use executive_state::ExecutiveState;
 
 /// Block that is ready for transactions to be added.

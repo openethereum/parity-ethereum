@@ -33,14 +33,7 @@ use journaldb;
 use kvdb::{DBValue, KeyValueDB, DBTransaction};
 use parking_lot::{Mutex, RwLock};
 use rand::rngs::OsRng;
-use types::transaction::{self, LocalizedTransaction, UnverifiedTransaction, SignedTransaction, Action};
 use trie::{TrieSpec, TrieFactory, Trie};
-use types::ancestry_action::AncestryAction;
-use types::encoded;
-use types::filter::Filter;
-use types::log_entry::LocalizedLogEntry;
-use types::receipt::{Receipt, LocalizedReceipt};
-use types::{BlockNumber, header::{Header, ExtendedHeader}};
 use vm::{EnvInfo, LastHashes};
 use hash_db::EMPTY_PREFIX;
 use block::{LockedBlock, Drain, ClosedBlock, OpenBlock, enact_verified, SealedBlock};
@@ -75,9 +68,21 @@ use executive_state;
 use state_db::StateDB;
 use trace::{self, TraceDB, ImportRequest as TraceImportRequest, LocalizedTrace, Database as TraceDatabase};
 use transaction_ext::Transaction;
+use types::{
+	BlockNumber,
+	block::PreverifiedBlock,
+	transaction::{self, LocalizedTransaction, UnverifiedTransaction, SignedTransaction, Action},
+	ancestry_action::AncestryAction,
+	encoded,
+	filter::Filter,
+	log_entry::LocalizedLogEntry,
+	receipt::{Receipt, LocalizedReceipt},
+	header::{Header, ExtendedHeader}
+};
+
 use verification::queue::kind::BlockLike;
 use verification::queue::kind::blocks::Unverified;
-use verification::{PreverifiedBlock, Verifier, BlockQueue};
+use verification::{Verifier, BlockQueue};
 use verification;
 use ansi_term::Colour;
 

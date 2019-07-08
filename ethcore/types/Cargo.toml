@@ -14,6 +14,8 @@ parity-bytes = "0.1"
 rlp = "0.4.0"
 rlp_derive = { path = "../../util/rlp-derive" }
 unexpected = { path = "../../util/unexpected" }
+ethbloom = "0.6"
+derive_more = "0.14.0"
 
 [dev-dependencies]
 rustc-hex= "1.0"

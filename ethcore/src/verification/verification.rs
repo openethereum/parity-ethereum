@@ -24,9 +24,7 @@
 use std::collections::HashSet;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
-use bytes::Bytes;
 use hash::keccak;
-use parity_util_mem::MallocSizeOf;
 use rlp::Rlp;
 use triehash::ordered_trie_root;
 use unexpected::{Mismatch, OutOfBounds};
@@ -35,25 +33,15 @@ use blockchain::*;
 use call_contract::CallContract;
 use client::BlockInfo;
 use engines::{Engine, MAX_UNCLE_AGE};
-use error::{BlockError, Error};
-use types::{BlockNumber, header::Header};
-use types::transaction::SignedTransaction;
+use error::Error;
+use types::{
+	BlockNumber,
+	header::Header,
+	block::{BlockError, PreverifiedBlock}
+};
 use verification::queue::kind::blocks::Unverified;
 
 use time_utils::CheckedSystemTime;
-
-/// Preprocessed block data gathered in `verify_block_unordered` call
-#[derive(MallocSizeOf)]
-pub struct PreverifiedBlock {
-	/// Populated block header
-	pub header: Header,
-	/// Populated block transactions
-	pub transactions: Vec<SignedTransaction>,
-	/// Populated block uncles
-	pub uncles: Vec<Header>,
-	/// Block bytes
-	pub bytes: Bytes,
-}
 
 /// Phase 1 quick block verification. Only does checks that are cheap. Operates on a single block
 pub fn verify_block_basic(block: &Unverified, engine: &dyn Engine, check_seal: bool) -> Result<(), Error> {

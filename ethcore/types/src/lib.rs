@@ -33,9 +33,12 @@
 
 #![warn(missing_docs, unused_extern_crates)]
 
+extern crate ethbloom;
 extern crate ethereum_types;
 extern crate ethjson;
 extern crate ethkey;
+#[macro_use]
+extern crate derive_more;
 extern crate keccak_hash as hash;
 extern crate parity_bytes as bytes;
 extern crate rlp;

@@ -69,10 +69,13 @@ pub mod blocks {
 	use super::{Kind, BlockLike};
 
 	use engines::Engine;
-	use error::{Error, BlockError};
-	use types::header::Header;
-	use verification::{PreverifiedBlock, verify_block_basic, verify_block_unordered};
-	use types::transaction::UnverifiedTransaction;
+	use error::Error;
+	use types::{
+		block::{PreverifiedBlock, BlockError},
+		header::Header,
+		transaction::UnverifiedTransaction
+	};
+	use verification::{verify_block_basic, verify_block_unordered};
 
 	use parity_util_mem::MallocSizeOf;
 	use ethereum_types::{H256, U256};
