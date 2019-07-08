@@ -288,6 +288,10 @@ fn hash_compute(light: &Light, full_size: usize, header_hash: &H256, nonce: u64)
 		// big-endian arches like mips.
 		let compress: &mut [u32; MIX_WORDS / 4] =
 			unsafe { make_const_array!(MIX_WORDS / 4, &mut buf.compress_bytes) };
+		#[cfg(target_endian = "big")]
+		{
+			compile_error!("parity-ethereum currently only supports little-endian targets");
+		}
 
 		// Compress mix
 		debug_assert_eq!(MIX_WORDS / 4, 8);
