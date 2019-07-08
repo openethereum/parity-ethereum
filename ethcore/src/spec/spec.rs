@@ -40,13 +40,12 @@ use engines::{
 };
 use error::Error;
 use executive::Executive;
-use factory::Factories;
+use trie_vm_factories::Factories;
 use machine::Machine;
-use pod_state::PodState;
+use pod::PodState;
 use spec::Genesis;
 use spec::seal::Generic as GenericSeal;
-use state::backend::Basic as BasicBackend;
-use state::{Backend, State, Substate};
+use account_state::{Backend, State, Substate, backend::Basic as BasicBackend};
 use trace::{NoopTracer, NoopVMTracer};
 
 pub use ethash::OptimizeFor;
@@ -890,7 +889,7 @@ impl Spec {
 				data: d,
 			}.fake_sign(from);
 
-			let res = ::state::prove_transaction_virtual(
+			let res = ::executive_state::prove_transaction_virtual(
 				db.as_hash_db_mut(),
 				*genesis.state_root(),
 				&tx,
@@ -999,7 +998,7 @@ impl Spec {
 #[cfg(test)]
 mod tests {
 	use super::*;
-	use state::State;
+	use account_state::State;
 	use test_helpers::get_temp_state_db;
 	use tempdir::TempDir;
 	use types::view;

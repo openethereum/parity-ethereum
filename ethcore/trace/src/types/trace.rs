@@ -14,12 +14,12 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
-//! Tracing datatypes.
+//! Tracing data types.
 
 use ethereum_types::{U256, Address, Bloom, BloomInput};
-use bytes::Bytes;
+use parity_bytes::Bytes;
 use rlp::{Rlp, RlpStream, Encodable, DecoderError, Decodable};
-
+use rlp_derive::{RlpEncodable, RlpDecodable};
 use vm::ActionParams;
 use evm::CallType;
 use super::error::Error;

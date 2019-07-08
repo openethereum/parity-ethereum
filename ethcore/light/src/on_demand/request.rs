@@ -25,7 +25,8 @@ use common_types::encoded;
 use common_types::receipt::Receipt;
 use common_types::transaction::SignedTransaction;
 use ethcore::engines::{Engine, StateDependentProof};
-use ethcore::state::{self, ProvedExecution};
+use ethcore::executive_state::{ProvedExecution, self};
+use account_state;
 use ethereum_types::{H256, U256, Address};
 use ethtrie::{TrieError, TrieDB};
 use hash::{KECCAK_NULL_RLP, KECCAK_EMPTY, KECCAK_EMPTY_LIST_RLP, keccak};
@@ -1042,7 +1043,7 @@ impl TransactionProof {
 		let mut env_info = self.env_info.clone();
 		env_info.gas_limit = self.tx.gas;
 
-		let proved_execution = state::check_proof(
+		let proved_execution = executive_state::check_proof(
 			state_items,
 			root,
 			&self.tx,

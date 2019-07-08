@@ -16,6 +16,13 @@
 
 //! Tracing
 
+use common_types::BlockNumber;
+use ethereum_types::{U256, Address};
+use kvdb::DBTransaction;
+use vm::{Error as VmError, ActionParams};
+// The MallocSizeOf derive looks for this in the root
+use parity_util_mem as malloc_size_of;
+
 mod config;
 mod db;
 mod executive_tracer;
@@ -23,23 +30,22 @@ mod import;
 mod noop_tracer;
 mod types;
 
-pub use self::config::Config;
-pub use self::db::TraceDB;
-pub use self::noop_tracer::{NoopTracer, NoopVMTracer};
-pub use self::executive_tracer::{ExecutiveTracer, ExecutiveVMTracer};
-pub use self::import::ImportRequest;
-pub use self::localized::LocalizedTrace;
-
-pub use self::types::{filter, flat, localized, trace, Tracing};
-pub use self::types::error::Error as TraceError;
-pub use self::types::trace::{VMTrace, VMOperation, VMExecutedOperation, MemoryDiff, StorageDiff, RewardType};
-pub use self::types::flat::{FlatTrace, FlatTransactionTraces, FlatBlockTraces};
-pub use self::types::filter::{Filter, AddressesFilter};
-
-use ethereum_types::{H256, U256, Address};
-use kvdb::DBTransaction;
-use vm::{Error as VmError, ActionParams};
-use types::BlockNumber;
+pub use crate::{
+	config::Config,
+	db::TraceDB,
+	localized::LocalizedTrace,
+	executive_tracer::{ExecutiveTracer, ExecutiveVMTracer},
+	import::ImportRequest,
+	noop_tracer::{NoopTracer, NoopVMTracer},
+	types::{
+		Tracing,
+		error::Error as TraceError,
+		localized,
+		trace::{self, VMTrace, VMOperation, VMExecutedOperation, MemoryDiff, StorageDiff, RewardType},
+		flat::{self, FlatTrace, FlatTransactionTraces, FlatBlockTraces},
+		filter::{self, Filter, AddressesFilter},
+	}
+};
 
 /// This trait is used by executive to build traces.
 pub trait Tracer: Send {
@@ -97,16 +103,6 @@ pub trait VMTracer: Send {
 	/// Consumes self and returns the VM trace.
 	fn drain(self) -> Option<Self::Output>;
 
-}
-
-/// `DbExtras` provides an interface to query extra data which is not stored in tracesdb,
-/// but necessary to work correctly.
-pub trait DatabaseExtras {
-	/// Returns hash of given block number.
-	fn block_hash(&self, block_number: BlockNumber) -> Option<H256>;
-
-	/// Returns hash of transaction at given position.
-	fn transaction_hash(&self, block_number: BlockNumber, tx_position: usize) -> Option<H256>;
 }
 
 /// Db provides an interface to query tracesdb.

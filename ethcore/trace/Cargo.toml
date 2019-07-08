@@ -1,0 +1,25 @@
+[package]
+description = "Transaction tracing"
+name = "trace"
+version = "0.1.0"
+authors = ["Parity Technologies <admin@parity.io>"]
+edition = "2018"
+
+[dependencies]
+common-types = { path = "../types"}
+ethcore-blockchain = { path = "../blockchain" }
+ethcore-db = { path = "../db" }
+ethereum-types = "0.6"
+evm = { path = "../evm" }
+kvdb = "0.1.0"
+log = "0.4"
+parity-bytes = "0.1.0"
+parity-util-mem = "0.1"
+parking_lot = "0.8.0"
+rlp = "0.4.0"
+rlp_derive = { path = "../../util/rlp-derive" }
+vm = { path = "../vm" }
+
+[dev-dependencies]
+# Used for test helpers
+ethcore = { path = "..", features = ["test-helpers"] }

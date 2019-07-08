@@ -21,7 +21,7 @@ use types::transaction::{Transaction, Action};
 use types::ids::BlockId;
 use ethcore::CreateContractAddress;
 use ethcore::client::{ClientIoMessage, BlockChainClient};
-use ethcore::executive::{contract_address};
+use ethcore::executive::contract_address;
 use ethcore::engines;
 use ethcore::miner::{self, MinerService};
 use ethcore::spec::Spec;

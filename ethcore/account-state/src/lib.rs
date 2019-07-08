@@ -14,24 +14,24 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
-//! Traces import request.
-use ethereum_types::H256;
-use types::BlockNumber;
+//! Account state
+//! This crate contains code used to create, convert, and update Accounts and the code and storage
+//! associated with it. It also defines the trait used to construct a backend to build a complete
+//! caching state database.
+//! Note: the code that needs access to `ethcore` types such as `Machine` and `Executive` is found in
+//! the `executive_state` module in `ethcore`. Most tests for the `State` module in this crate are
+//! also found in `executive_state` (for the same reason).
 
-use trace::FlatBlockTraces;
+pub mod account;
+pub mod backend;
+pub mod substate;
+pub mod state;
+pub mod error;
 
-/// Traces import request.
-pub struct ImportRequest {
-	/// Traces to import.
-	pub traces: FlatBlockTraces,
-	/// Hash of traces block.
-	pub block_hash: H256,
-	/// Number of traces block.
-	pub block_number: BlockNumber,
-	/// Blocks enacted by this import.
-	///
-	/// They should be ordered from oldest to newest.
-	pub enacted: Vec<H256>,
-	/// Number of blocks retracted by this import.
-	pub retracted: usize,
-}
+pub use {
+	account::Account,
+	backend::Backend,
+	error::Error,
+	substate::Substate,
+	state::{State, CleanupMode},
+};

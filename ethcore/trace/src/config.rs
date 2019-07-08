@@ -14,32 +14,26 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
-//! Blockchain database.
+//! Traces config.
 
-#![warn(missing_docs)]
+/// Traces config.
+#[derive(Debug, PartialEq, Clone)]
+pub struct Config {
+	/// Indicates if tracing should be enabled or not.
+	/// If it's None, it will be automatically configured.
+	pub enabled: bool,
+	/// Preferred cache-size.
+	pub pref_cache_size: usize,
+	/// Max cache-size.
+	pub max_cache_size: usize,
+}
 
-extern crate parity_util_mem as util_mem;
-extern crate parity_util_mem as malloc_size_of;
-
-mod best_block;
-mod block_info;
-mod blockchain;
-mod cache;
-mod config;
-mod import_route;
-mod update;
-mod database_extras;
-
-pub mod generator;
-
-pub use crate::{
-	blockchain::{BlockProvider, BlockChain, BlockChainDB, BlockChainDBHandler},
-	cache::CacheSize,
-	config::Config,
-	database_extras::DatabaseExtras,
-	import_route::ImportRoute,
-	update::ExtrasInsert,
-};
-pub use ethcore_db::keys::{BlockReceipts, BlockDetails, TransactionAddress, BlockNumberKey};
-pub use common_types::tree_route::TreeRoute;
-
+impl Default for Config {
+	fn default() -> Self {
+		Config {
+			enabled: false,
+			pref_cache_size: 15 * 1024 * 1024,
+			max_cache_size: 20 * 1024 * 1024,
+		}
+	}
+}

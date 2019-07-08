@@ -100,13 +100,13 @@ impl EthTester {
 
 		EthTester {
 			runtime,
-			client: client,
-			sync: sync,
+			client,
+			sync,
 			accounts_provider: ap,
-			miner: miner,
-			snapshot: snapshot,
-			io: io,
-			hashrates: hashrates,
+			miner,
+			snapshot,
+			io,
+			hashrates,
 		}
 	}
 

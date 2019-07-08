@@ -21,7 +21,7 @@ use std::sync::Arc;
 use hash::keccak;
 use ethereum_types::{H256, U256, U512, Address};
 use bytes::{Bytes, BytesRef};
-use state::{Backend as StateBackend, State, Substate, CleanupMode};
+use account_state::{Backend as StateBackend, State, Substate, CleanupMode};
 use executed::ExecutionError;
 use machine::Machine;
 use evm::{CallType, Finalize, FinalizationResult};
@@ -29,7 +29,7 @@ use vm::{
 	self, EnvInfo, CreateContractAddress, ReturnData, CleanDustMode, ActionParams,
 	ActionValue, Schedule, TrapError, ResumeCall, ResumeCreate
 };
-use factory::VmFactory;
+use trie_vm_factories::VmFactory;
 use externalities::*;
 use trace::{self, Tracer, VMTracer};
 use types::transaction::{Action, SignedTransaction};
@@ -1202,7 +1202,7 @@ mod tests {
 	use evm::{Factory, VMType};
 	use error::ExecutionError;
 	use machine::Machine;
-	use state::{Substate, CleanupMode};
+	use account_state::{Substate, CleanupMode};
 	use test_helpers::{get_temp_state_with_factory, get_temp_state};
 	use trace::trace;
 	use trace::{FlatTrace, Tracer, NoopTracer, ExecutiveTracer};

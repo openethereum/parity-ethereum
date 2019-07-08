@@ -14,26 +14,10 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
-//! Traces config.
+pub mod account;
+pub mod state;
 
-/// Traces config.
-#[derive(Debug, PartialEq, Clone)]
-pub struct Config {
-	/// Indicates if tracing should be enabled or not.
-	/// If it's None, it will be automatically configured.
-	pub enabled: bool,
-	/// Preferef cache-size.
-	pub pref_cache_size: usize,
-	/// Max cache-size.
-	pub max_cache_size: usize,
-}
-
-impl Default for Config {
-	fn default() -> Self {
-		Config {
-			enabled: false,
-			pref_cache_size: 15 * 1024 * 1024,
-			max_cache_size: 20 * 1024 * 1024,
-		}
-	}
-}
+pub use {
+	account::PodAccount,
+	state::PodState,
+};

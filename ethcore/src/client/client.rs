@@ -66,11 +66,12 @@ use error::{
 	Error as EthcoreError, EthcoreResult,
 };
 use executive::{Executive, Executed, TransactOptions, contract_address};
-use factory::{Factories, VmFactory};
+use trie_vm_factories::{Factories, VmFactory};
 use miner::{Miner, MinerService};
 use snapshot::{self, io as snapshot_io, SnapshotClient};
 use spec::Spec;
-use state::{self, State};
+use account_state::State;
+use executive_state;
 use state_db::StateDB;
 use trace::{self, TraceDB, ImportRequest as TraceImportRequest, LocalizedTrace, Database as TraceDatabase};
 use transaction_ext::Transaction;
@@ -622,7 +623,7 @@ impl Importer {
 
 						let call = move |addr, data| {
 							let mut state_db = state_db.boxed_clone();
-							let backend = ::state::backend::Proving::new(state_db.as_hash_db_mut());
+							let backend = account_state::backend::Proving::new(state_db.as_hash_db_mut());
 
 							let transaction =
 								client.contract_call_tx(BlockId::Hash(*header.parent_hash()), addr, data);
@@ -2540,7 +2541,7 @@ impl ProvingBlockChainClient for Client {
 		env_info.gas_limit = transaction.gas.clone();
 		let mut jdb = self.state_db.read().journal_db().boxed_clone();
 
-		state::prove_transaction_virtual(
+		executive_state::prove_transaction_virtual(
 			jdb.as_hash_db_mut(),
 			header.state_root().clone(),
 			&transaction,

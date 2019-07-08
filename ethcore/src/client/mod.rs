@@ -25,7 +25,6 @@ mod evm_test_client;
 mod io_message;
 #[cfg(any(test, feature = "test-helpers"))]
 mod test_client;
-mod trace;
 
 pub use self::client::*;
 pub use self::config::{Mode, ClientConfig, DatabaseCompactionProfile, BlockChainConfig, VMType};
@@ -33,14 +32,14 @@ pub use self::config::{Mode, ClientConfig, DatabaseCompactionProfile, BlockChain
 pub use self::evm_test_client::{EvmTestClient, EvmTestError, TransactErr, TransactSuccess};
 pub use self::io_message::ClientIoMessage;
 #[cfg(any(test, feature = "test-helpers"))]
-pub use self::test_client::{TestBlockChainClient, EachBlockWith};
+pub use self::test_client::{TestBlockChainClient, EachBlockWith, TestState};
 pub use self::chain_notify::{ChainNotify, NewBlocks, ChainRoute, ChainRouteType, ChainMessageType};
 pub use self::traits::{
     Nonce, Balance, ChainInfo, BlockInfo, ReopenBlock, PrepareOpenBlock, TransactionInfo, ScheduleInfo, ImportSealedBlock, BroadcastProposalBlock, ImportBlock,
     StateOrBlock, StateClient, Call, EngineInfo, AccountData, BlockChain, BlockProducer, SealedBlockImporter, BadBlocks,
 	BlockChainReset
 };
-pub use state::StateInfo;
+pub use account_state::state::StateInfo;
 pub use self::traits::{BlockChainClient, EngineClient, ProvingBlockChainClient, IoClient};
 
 pub use types::ids::*;

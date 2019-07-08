@@ -14,10 +14,9 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
-use trie::TrieFactory;
+use trie_db::TrieFactory;
 use ethtrie::RlpCodec;
 use account_db::Factory as AccountFactory;
-use ethereum_types::U256;
 use evm::{Factory as EvmFactory, VMType};
 use vm::{Exec, ActionParams, VersionedSchedule, Schedule};
 use wasm::WasmInterpreter;

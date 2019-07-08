@@ -1,6 +1,6 @@
 [package]
-description = "Account system expressed in Plain Old Data."
-name = "pod-account"
+description = "State/Account system expressed in Plain Old Data."
+name = "pod"
 version = "0.1.0"
 authors = ["Parity Technologies <admin@parity.io>"]
 edition = "2018"

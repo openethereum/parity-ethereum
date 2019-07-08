@@ -16,10 +16,12 @@
 
 //! Execution environment substate.
 use std::collections::HashSet;
+
+use common_types::log_entry::LogEntry;
 use ethereum_types::Address;
-use types::log_entry::LogEntry;
-use evm::{Schedule, CleanDustMode};
-use super::CleanupMode;
+use evm::{CleanDustMode, Schedule};
+
+use crate::state::CleanupMode;
 
 /// State changes which should be applied in finalize,
 /// after transaction is fully executed.
@@ -68,8 +70,9 @@ impl Substate {
 
 #[cfg(test)]
 mod tests {
-	use super::{Substate, Address};
-	use types::log_entry::LogEntry;
+	use common_types::log_entry::LogEntry;
+	use ethereum_types::Address;
+	use super::Substate;
 
 	#[test]
 	fn created() {

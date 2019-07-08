@@ -97,7 +97,7 @@ impl StateProducer {
 			let address_hash = H256(rng.gen());
 			let balance: usize = rng.gen();
 			let nonce: usize = rng.gen();
-			let acc = ::state::Account::new_basic(balance.into(), nonce.into()).rlp();
+			let acc = account_state::Account::new_basic(balance.into(), nonce.into()).rlp();
 			trie.insert(&address_hash[..], &acc).unwrap();
 		}
 	}

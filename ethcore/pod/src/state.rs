@@ -19,9 +19,11 @@
 use std::collections::BTreeMap;
 use ethereum_types::{H256, Address};
 use triehash::sec_trie_root;
-use pod_account::{self, PodAccount};
-use types::state_diff::StateDiff;
+use common_types::state_diff::StateDiff;
 use ethjson;
+use serde::Serialize;
+
+use crate::account::PodAccount;
 
 /// State of all accounts in the system expressed in Plain Old Data.
 #[derive(Debug, Clone, PartialEq, Eq, Default, Serialize)]
@@ -68,7 +70,7 @@ pub fn diff_pod(pre: &PodState, post: &PodState) -> StateDiff {
 	StateDiff {
 		raw: pre.0.keys()
 			.chain(post.0.keys())
-			.filter_map(|acc| pod_account::diff_pod(pre.0.get(acc), post.0.get(acc)).map(|d| (*acc, d)))
+			.filter_map(|acc| crate::account::diff_pod(pre.0.get(acc), post.0.get(acc)).map(|d| (*acc, d)))
 			.collect()
 	}
 }
@@ -76,10 +78,14 @@ pub fn diff_pod(pre: &PodState, post: &PodState) -> StateDiff {
 #[cfg(test)]
 mod test {
 	use std::collections::BTreeMap;
-	use pod_account::PodAccount;
-	use types::account_diff::{AccountDiff, Diff};
-	use types::state_diff::StateDiff;
-	use super::{PodState, Address};
+	use common_types::{
+		account_diff::{AccountDiff, Diff},
+		state_diff::StateDiff,
+	};
+	use ethereum_types::Address;
+	use crate::account::PodAccount;
+	use super::PodState;
+	use macros::map;
 
 	#[test]
 	fn create_delete() {

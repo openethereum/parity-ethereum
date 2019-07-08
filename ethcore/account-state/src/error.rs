@@ -14,31 +14,22 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
-//! Localized traces type definitions
+//! State related errors
 
-use ethereum_types::H256;
-use super::trace::{Action, Res};
-use types::BlockNumber;
+use derive_more::{Display, From};
 
-/// Localized trace.
-#[derive(Debug, PartialEq, Clone)]
-pub struct LocalizedTrace {
-	/// Type of action performed by a transaction.
-	pub action: Action,
-	/// Result of this action.
-	pub result: Res,
-	/// Number of subtraces.
-	pub subtraces: usize,
-	/// Exact location of trace.
-	///
-	/// [index in root, index in first CALL, index in second CALL, ...]
-	pub trace_address: Vec<usize>,
-	/// Transaction number within the block.
-	pub transaction_number: Option<usize>,
-	/// Signed transaction hash.
-	pub transaction_hash: Option<H256>,
-	/// Block number.
-	pub block_number: BlockNumber,
-	/// Block hash.
-	pub block_hash: H256,
+#[derive(Debug, Display, From)]
+pub enum Error {
+	/// Trie error.
+	Trie(ethtrie::TrieError),
+	/// Decoder error.
+	Decoder(rlp::DecoderError),
+}
+
+impl std::error::Error for Error {}
+
+impl<E> From<Box<E>> for Error where Error: From<E> {
+	fn from(err: Box<E>) -> Self {
+		Error::from(*err)
+	}
 }

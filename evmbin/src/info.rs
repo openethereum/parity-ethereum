@@ -19,10 +19,13 @@
 use std::time::{Instant, Duration};
 use ethereum_types::{H256, U256};
 use ethcore::client::{self, EvmTestClient, EvmTestError, TransactErr, TransactSuccess};
-use ethcore::{state, state_db, trace, spec, pod_state, TrieSpec};
+use ethcore::{spec, TrieSpec};
+use trace;
 use ethjson;
+use pod::PodState;
 use types::transaction;
 use vm::ActionParams;
+use account_state::State;
 
 /// VM execution informant
 pub trait Informant: trace::VMTracer {
@@ -52,7 +55,7 @@ pub struct Success<T> {
 	/// Traces
 	pub traces: Option<T>,
 	/// Optional end state dump
-	pub end_state: Option<pod_state::PodState>,
+	pub end_state: Option<PodState>,
 }
 
 /// Execution failed
@@ -69,7 +72,7 @@ pub struct Failure<T> {
 	/// Traces
 	pub traces: Option<T>,
 	/// Optional end state dump
-	pub end_state: Option<pod_state::PodState>,
+	pub end_state: Option<PodState>,
 }
 
 /// EVM Execution result
@@ -105,7 +108,7 @@ pub fn run_transaction<T: Informant>(
 	name: &str,
 	idx: usize,
 	spec: &ethjson::spec::ForkSpec,
-	pre_state: &pod_state::PodState,
+	pre_state: &PodState,
 	post_root: H256,
 	env_info: &client::EnvInfo,
 	transaction: transaction::SignedTransaction,
@@ -152,19 +155,15 @@ pub fn run_transaction<T: Informant>(
 	T::finish(result, &mut sink)
 }
 
-fn dump_state(state: &state::State<state_db::StateDB>) -> Option<pod_state::PodState> {
-	state.to_pod_full().ok()
-}
-
 /// Execute VM with given `ActionParams`
 pub fn run<'a, F, X>(
 	spec: &'a spec::Spec,
 	trie_spec: TrieSpec,
 	initial_gas: U256,
-	pre_state: &'a pod_state::PodState,
+	pre_state: &'a PodState,
 	run: F,
 ) -> RunResult<X> where
-	F: FnOnce(EvmTestClient) -> (Result<Vec<u8>, EvmTestError>, H256, Option<pod_state::PodState>, Option<U256>, Option<X>),
+	F: FnOnce(EvmTestClient) -> (Result<Vec<u8>, EvmTestError>, H256, Option<PodState>, Option<U256>, Option<X>),
 {
 	let do_dump = trie_spec == TrieSpec::Fat;
 
@@ -179,7 +178,7 @@ pub fn run<'a, F, X>(
 		})?;
 
 	if do_dump {
-		test_client.set_dump_state_fn(dump_state);
+		test_client.set_dump_state();
 	}
 
 	let start = Instant::now();

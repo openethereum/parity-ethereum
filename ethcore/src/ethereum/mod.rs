@@ -189,7 +189,7 @@ pub fn new_kovan_wasm_test_machine() -> Machine { load_machine(include_bytes!(".
 mod tests {
 	use std::str::FromStr;
 	use ethereum_types::{U256, H256, Address};
-	use state::*;
+	use account_state::*;
 	use super::*;
 	use test_helpers::get_temp_state_db;
 	use types::view;

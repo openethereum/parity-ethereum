@@ -17,6 +17,7 @@
 //! Flat trace module
 
 use rlp::{Rlp, RlpStream, Decodable, Encodable, DecoderError};
+use rlp_derive::{RlpEncodableWrapper, RlpDecodableWrapper};
 use parity_util_mem::MallocSizeOf;
 use ethereum_types::Bloom;
 use super::trace::{Action, Res};
@@ -73,7 +74,7 @@ impl Decodable for FlatTrace {
 
 /// Represents all traces produced by a single transaction.
 #[derive(Debug, PartialEq, Clone, RlpEncodableWrapper, RlpDecodableWrapper, MallocSizeOf)]
-pub struct FlatTransactionTraces(Vec<FlatTrace>);
+pub struct FlatTransactionTraces(pub(crate) Vec<FlatTrace>);
 
 impl From<Vec<FlatTrace>> for FlatTransactionTraces {
 	fn from(v: Vec<FlatTrace>) -> Self {
@@ -96,7 +97,7 @@ impl Into<Vec<FlatTrace>> for FlatTransactionTraces {
 
 /// Represents all traces produced by transactions in a single block.
 #[derive(Debug, PartialEq, Clone, Default, RlpEncodableWrapper, RlpDecodableWrapper, MallocSizeOf)]
-pub struct FlatBlockTraces(Vec<FlatTransactionTraces>);
+pub struct FlatBlockTraces(pub(crate) Vec<FlatTransactionTraces>);
 
 impl From<Vec<FlatTransactionTraces>> for FlatBlockTraces {
 	fn from(v: Vec<FlatTransactionTraces>) -> Self {
@@ -120,10 +121,11 @@ impl Into<Vec<FlatTransactionTraces>> for FlatBlockTraces {
 #[cfg(test)]
 mod tests {
 	use rlp::*;
-	use super::{FlatBlockTraces, FlatTransactionTraces, FlatTrace};
-	use trace::trace::{Action, Res, CallResult, Call, Suicide, Reward};
+	use crate::{
+		FlatBlockTraces, FlatTransactionTraces, FlatTrace,
+		trace::{Action, Res, CallResult, Call, Suicide, Reward, RewardType}
+	};
 	use evm::CallType;
-	use trace::RewardType;
 
 	#[test]
 	fn encode_flat_transaction_traces() {

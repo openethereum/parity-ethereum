@@ -14,27 +14,31 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
-//! Bridge between Tracedb and Blockchain.
+//! Localized traces type definitions
 
-use blockchain::{BlockChain, BlockProvider, TransactionAddress};
 use ethereum_types::H256;
-use trace::DatabaseExtras as TraceDatabaseExtras;
-use types::BlockNumber;
+use super::trace::{Action, Res};
+use common_types::BlockNumber;
 
-impl TraceDatabaseExtras for BlockChain {
-	fn block_hash(&self, block_number: BlockNumber) -> Option<H256> {
-		(self as &dyn BlockProvider).block_hash(block_number)
-	}
-
-	fn transaction_hash(&self, block_number: BlockNumber, tx_position: usize) -> Option<H256> {
-		(self as &dyn BlockProvider).block_hash(block_number)
-			.and_then(|block_hash| {
-				let tx_address = TransactionAddress {
-					block_hash: block_hash,
-					index: tx_position
-				};
-				self.transaction(&tx_address)
-			})
-			.map(|tx| tx.hash())
-	}
+/// Localized trace.
+#[derive(Debug, PartialEq, Clone)]
+pub struct LocalizedTrace {
+	/// Type of action performed by a transaction.
+	pub action: Action,
+	/// Result of this action.
+	pub result: Res,
+	/// Number of subtraces.
+	pub subtraces: usize,
+	/// Exact location of trace.
+	///
+	/// [index in root, index in first CALL, index in second CALL, ...]
+	pub trace_address: Vec<usize>,
+	/// Transaction number within the block.
+	pub transaction_number: Option<usize>,
+	/// Signed transaction hash.
+	pub transaction_hash: Option<H256>,
+	/// Block number.
+	pub block_number: BlockNumber,
+	/// Block hash.
+	pub block_hash: H256,
 }

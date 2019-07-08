@@ -18,8 +18,7 @@
 
 use std::ops::Range;
 use ethereum_types::{Address, Bloom, BloomInput};
-use trace::flat::FlatTrace;
-use super::trace::{Action, Res};
+use crate::{flat::FlatTrace, trace::{Action, Res}};
 
 /// Addresses filter.
 ///
@@ -126,10 +125,12 @@ impl Filter {
 #[cfg(test)]
 mod tests {
 	use ethereum_types::{Address, Bloom, BloomInput};
-	use trace::trace::{Action, Call, Res, Create, CreateResult, Suicide, Reward};
-	use trace::flat::FlatTrace;
-	use trace::{Filter, AddressesFilter, TraceError, RewardType};
 	use evm::CallType;
+	use crate::{
+		Filter, AddressesFilter, TraceError, RewardType,
+		trace::{Action, Call, Res, Create, CreateResult, Suicide, Reward},
+		flat::FlatTrace,
+	};
 
 	#[test]
 	fn empty_trace_filter_bloom_possibilities() {
@@ -386,42 +387,40 @@ mod tests {
 		assert!(f2.matches(&trace));
 	}
 
-  #[test]
-  fn filter_match_failed_contract_creation_fix_9822() {
+	#[test]
+	fn filter_match_failed_contract_creation_fix_9822() {
+		let f0 = Filter {
+			range: (0..0),
+			from_address: vec![Address::from_low_u64_be(1)].into(),
+			to_address: vec![].into(),
+		};
 
-      let f0 = Filter {
-          range: (0..0),
-          from_address: vec![Address::from_low_u64_be(1)].into(),
-          to_address: vec![].into(),
-      };
+		let f1 = Filter {
+			range: (0..0),
+			from_address: vec![].into(),
+			to_address: vec![].into(),
+		};
 
-      let f1 = Filter {
-          range: (0..0),
-          from_address: vec![].into(),
-          to_address: vec![].into(),
-      };
+		let f2 = Filter {
+			range: (0..0),
+			from_address: vec![].into(),
+			to_address: vec![Address::from_low_u64_be(2)].into(),
+		};
 
-      let f2 = Filter {
-          range: (0..0),
-          from_address: vec![].into(),
-          to_address: vec![Address::from_low_u64_be(2)].into(),
-      };
+		let trace = FlatTrace {
+			action: Action::Create(Create {
+				from: Address::from_low_u64_be(1),
+				gas: 4.into(),
+				init: vec![0x5],
+				value: 3.into(),
+			}),
+			result: Res::FailedCall(TraceError::BadInstruction),
+			trace_address: vec![].into_iter().collect(),
+			subtraces: 0
+		};
 
-      let trace = FlatTrace {
-          action: Action::Create(Create {
-              from: Address::from_low_u64_be(1),
-              gas: 4.into(),
-              init: vec![0x5],
-              value: 3.into(),
-          }),
-          result: Res::FailedCall(TraceError::BadInstruction),
-          trace_address: vec![].into_iter().collect(),
-          subtraces: 0
-      };
-
-      assert!(f0.matches(&trace));
-      assert!(f1.matches(&trace));
-      assert!(!f2.matches(&trace));
-  }
-
+		assert!(f0.matches(&trace));
+		assert!(f1.matches(&trace));
+		assert!(!f2.matches(&trace));
+	}
 }
