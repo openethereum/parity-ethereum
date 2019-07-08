@@ -1,151 +1,25 @@
-## Parity-Ethereum [v2.4.3](https://github.com/paritytech/parity-ethereum/releases/tag/v2.4.3) (2019-03-22)
+## Parity-Ethereum [v2.6.0](https://github.com/paritytech/parity-ethereum/releases/tag/v2.6.0)
 
-Parity-Ethereum 2.4.3-beta is a bugfix release that improves performance and stability. This patch release contains a critical bug fix where serving light clients previously led to client crashes. Upgrading is highly recommended.
+Parity-Ethereum 2.6.0-beta is a minor release that stabilizes the 2.6 branch by
+marking it as a beta release.
 
-The full list of included changes:
-- 2.4.3 beta backports ([#10508](https://github.com/paritytech/parity-ethereum/pull/10508))
-  - Version: bump beta
-  - Add additional request tests ([#10503](https://github.com/paritytech/parity-ethereum/pull/10503))
+This release includes:
+  * Major refactoring of the codebase
+  * Many bugfixes
+  * Significant improvements to logging, error and warning message clarity.
+  * SecretStore: remove support of old database formats (#10757)
+      * This is a potentially breaking change if you have not upgraded for
+          quite some time.
 
-## Parity-Ethereum [v2.4.2](https://github.com/paritytech/parity-ethereum/releases/tag/v2.4.2) (2019-03-20)
+ As of today, Parity-Ethereum 2.4 reaches end of life, and everyone is
+ encouraged to upgrade.
 
-Parity-Ethereum 2.4.2-beta is a bugfix release that improves performance and stability.
-
-The full list of included changes:
-- 2.4.2 beta backports ([#10488](https://github.com/paritytech/parity-ethereum/pull/10488))
-  - Version: bump beta
-  - Сaching through docker volume ([#10477](https://github.com/paritytech/parity-ethereum/pull/10477))
-  - fix win&mac build ([#10486](https://github.com/paritytech/parity-ethereum/pull/10486))
-  - fix(extract `timestamp_checked_add` as lib) ([#10383](https://github.com/paritytech/parity-ethereum/pull/10383))
-
-## Parity-Ethereum [v2.4.1](https://github.com/paritytech/parity-ethereum/releases/tag/v2.4.1) (2019-03-19)
-
-Parity-Ethereum 2.4.1-beta is a bugfix release that improves performance and stability.
-
-The full list of included changes:
-- 2.4.1 beta backports ([#10471](https://github.com/paritytech/parity-ethereum/pull/10471))
-  - Version: bump beta
-  - Implement parity_versionInfo & parity_setChain on LC; fix parity_setChain ([#10312](https://github.com/paritytech/parity-ethereum/pull/10312))
-  - CI publish to aws ([#10446](https://github.com/paritytech/parity-ethereum/pull/10446))
-  - CI aws git checkout ([#10451](https://github.com/paritytech/parity-ethereum/pull/10451))
-  - Revert "CI aws git checkout ([#10451](https://github.com/paritytech/parity-ethereum/pull/10451))" ([#10456](https://github.com/paritytech/parity-ethereum/pull/10456))
-  - Tests parallelized ([#10452](https://github.com/paritytech/parity-ethereum/pull/10452))
-  - Ensure static validator set changes are recognized ([#10467](https://github.com/paritytech/parity-ethereum/pull/10467))
-
-## Parity-Ethereum [v2.4.0](https://github.com/paritytech/parity-ethereum/releases/tag/v2.4.0) (2019-02-25)
-
-Parity-Ethereum 2.4.0-beta is our trifortnightly minor version release coming with a lot of new features as well as bugfixes and performance improvements.
-
-Notable changes:
-- Account management is now deprecated ([#10213](https://github.com/paritytech/parity-ethereum/pull/10213))
-- Local accounts can now be specified via CLI ([#9960](https://github.com/paritytech/parity-ethereum/pull/9960))
-- Chains can now be reset to a particular block via CLI ([#9782](https://github.com/paritytech/parity-ethereum/pull/9782))
-- Ethash now additionally implements ProgPoW ([#9762](https://github.com/paritytech/parity-ethereum/pull/9762))
-- The `eip1283DisableTransition` flag was added to revert EIP-1283 ([#10214](https://github.com/paritytech/parity-ethereum/pull/10214))
-
-The full list of included changes:
-- More Backports for Beta 2.4.0 ([#10431](https://github.com/paritytech/parity-ethereum/pull/10431))
-  - Revert some changes, could be buggy ([#10399](https://github.com/paritytech/parity-ethereum/pull/10399))
-  - Ci: clean up gitlab-ci.yml leftovers from previous merge ([#10429](https://github.com/paritytech/parity-ethereum/pull/10429))
-  - 10000 > 5000 ([#10422](https://github.com/paritytech/parity-ethereum/pull/10422))
-  - Fix underflow in pip, closes [#10419](https://github.com/paritytech/parity-ethereum/pull/10419) ([#10423](https://github.com/paritytech/parity-ethereum/pull/10423))
-  - Fix panic when logging directory does not exist, closes [#10420](https://github.com/paritytech/parity-ethereum/pull/10420) ([#10424](https://github.com/paritytech/parity-ethereum/pull/10424))
-  - Update hardcoded headers for Foundation, Ropsten, Kovan and Classic ([#10417](https://github.com/paritytech/parity-ethereum/pull/10417))
-- Backports for Beta 2.4.0 ([#10416](https://github.com/paritytech/parity-ethereum/pull/10416))
-  - No-git for publish jobs, empty artifacts dir ([#10393](https://github.com/paritytech/parity-ethereum/pull/10393))
-  - Snap: reenable i386, arm64, armhf architecture publishing ([#10386](https://github.com/paritytech/parity-ethereum/pull/10386))
-  - Tx pool: always accept local transactions ([#10375](https://github.com/paritytech/parity-ethereum/pull/10375))
-  - Fix to_pod storage trie value decoding ([#10368](https://github.com/paritytech/parity-ethereum/pull/10368))
-- Version: mark 2.4.0 beta
-- Update to latest mem-db, hash-db and trie-db. ([#10314](https://github.com/paritytech/parity-ethereum/pull/10314))
-- Tx pool: always accept local transactions ([#10375](https://github.com/paritytech/parity-ethereum/pull/10375))
-- Fix(trace_main! macro): don't re-export ([#10384](https://github.com/paritytech/parity-ethereum/pull/10384))
-- Exchanged old(azure) bootnodes with new(ovh) ones ([#10309](https://github.com/paritytech/parity-ethereum/pull/10309))
-- Ethash: implement Progpow ([#9762](https://github.com/paritytech/parity-ethereum/pull/9762))
-- Snap: add the removable-media plug ([#10377](https://github.com/paritytech/parity-ethereum/pull/10377))
-- Add message to IO errors ([#10324](https://github.com/paritytech/parity-ethereum/pull/10324))
-- Chore(bump parity-daemonize): require rust >= 1.31 ([#10359](https://github.com/paritytech/parity-ethereum/pull/10359))
-- Secretstore: use in-memory transport in cluster tests ([#9850](https://github.com/paritytech/parity-ethereum/pull/9850))
-- Add fields to `memzero`'s Cargo.toml ([#10362](https://github.com/paritytech/parity-ethereum/pull/10362))
-- Snap: release untagged versions from branches to the candidate snap channel ([#10357](https://github.com/paritytech/parity-ethereum/pull/10357))
-- Fix(compilation warns): `no-default-features` ([#10346](https://github.com/paritytech/parity-ethereum/pull/10346))
-- No volumes are needed, just run -v volume:/path/in/the/container ([#10345](https://github.com/paritytech/parity-ethereum/pull/10345))
-- Fixed misstype ([#10351](https://github.com/paritytech/parity-ethereum/pull/10351))
-- Snap: prefix version and populate candidate channel ([#10343](https://github.com/paritytech/parity-ethereum/pull/10343))
-- Bundle protocol and packet_id together in chain sync ([#10315](https://github.com/paritytech/parity-ethereum/pull/10315))
-- Role back docker build image and docker deploy image to ubuntu:xenial… ([#10338](https://github.com/paritytech/parity-ethereum/pull/10338))
-- Change docker image based on debian instead of ubuntu due to the chan… ([#10336](https://github.com/paritytech/parity-ethereum/pull/10336))
-- Don't add discovery initiators to the node table ([#10305](https://github.com/paritytech/parity-ethereum/pull/10305))
-- Fix(docker): fix not receives SIGINT ([#10059](https://github.com/paritytech/parity-ethereum/pull/10059))
-- Snap: official image / test ([#10168](https://github.com/paritytech/parity-ethereum/pull/10168))
-- Fix(add helper for timestamp overflows) ([#10330](https://github.com/paritytech/parity-ethereum/pull/10330))
-- Additional error for invalid gas ([#10327](https://github.com/paritytech/parity-ethereum/pull/10327))
-- Revive parity_setMinGasPrice RPC call ([#10294](https://github.com/paritytech/parity-ethereum/pull/10294))
-- Add Statetest support for Constantinople Fix ([#10323](https://github.com/paritytech/parity-ethereum/pull/10323))
-- Fix(parity-clib): grumbles that were not addressed in [#9920](https://github.com/paritytech/parity-ethereum/pull/9920) ([#10154](https://github.com/paritytech/parity-ethereum/pull/10154))
-- Fix(light-rpc): Make `light_sync` generic ([#10238](https://github.com/paritytech/parity-ethereum/pull/10238))
-- Fix publish job ([#10317](https://github.com/paritytech/parity-ethereum/pull/10317))
-- Secure WS-RPC: grant access to all apis ([#10246](https://github.com/paritytech/parity-ethereum/pull/10246))
-- Make specification of protocol in SyncRequester::send_request explicit ([#10295](https://github.com/paritytech/parity-ethereum/pull/10295))
-- Fix: parity-clib/examples/cpp/CMakeLists.txt ([#10313](https://github.com/paritytech/parity-ethereum/pull/10313))
-- Ci optimizations ([#10297](https://github.com/paritytech/parity-ethereum/pull/10297))
-- Increase number of requested block bodies in chain sync ([#10247](https://github.com/paritytech/parity-ethereum/pull/10247))
-- Deprecate account management ([#10213](https://github.com/paritytech/parity-ethereum/pull/10213))
-- Properly handle check_epoch_end_signal errors ([#10015](https://github.com/paritytech/parity-ethereum/pull/10015))
-- Fix(osx and windows builds): bump parity-daemonize ([#10291](https://github.com/paritytech/parity-ethereum/pull/10291))
-- Add missing step for Using `systemd` service file ([#10175](https://github.com/paritytech/parity-ethereum/pull/10175))
-- Call private contract methods from another private contract (read-onl… ([#10086](https://github.com/paritytech/parity-ethereum/pull/10086))
-- Update ring to 0.14 ([#10262](https://github.com/paritytech/parity-ethereum/pull/10262))
-- Fix(secret-store): deprecation warning ([#10301](https://github.com/paritytech/parity-ethereum/pull/10301))
-- Update to jsonrpc-derive 10.0.2, fixes aliases bug ([#10300](https://github.com/paritytech/parity-ethereum/pull/10300))
-- Convert to jsonrpc-derive, use jsonrpc-* from crates.io ([#10298](https://github.com/paritytech/parity-ethereum/pull/10298))
-- Fix Windows build ([#10284](https://github.com/paritytech/parity-ethereum/pull/10284))
-- Don't run the CPP example on CI ([#10285](https://github.com/paritytech/parity-ethereum/pull/10285))
-- Additional tests for uint deserialization. ([#10279](https://github.com/paritytech/parity-ethereum/pull/10279))
-- Prevent silent errors in daemon mode ([#10007](https://github.com/paritytech/parity-ethereum/pull/10007))
-- Fix join-set test to be deterministic. ([#10263](https://github.com/paritytech/parity-ethereum/pull/10263))
-- Update CHANGELOG-2.2.md ([#10254](https://github.com/paritytech/parity-ethereum/pull/10254))
-- Macos heapsize force jemalloc ([#10234](https://github.com/paritytech/parity-ethereum/pull/10234))
-- Allow specifying local accounts via CLI ([#9960](https://github.com/paritytech/parity-ethereum/pull/9960))
-- Take in account zero gas price certification when doing transact_cont… ([#10232](https://github.com/paritytech/parity-ethereum/pull/10232))
-- Update CHANGELOG.md ([#10249](https://github.com/paritytech/parity-ethereum/pull/10249))
-- Fix typo: CHANGELOG-2.1 -> CHANGELOG-2.2 ([#10233](https://github.com/paritytech/parity-ethereum/pull/10233))
-- Update copyright year to 2019. ([#10181](https://github.com/paritytech/parity-ethereum/pull/10181))
-- Fixed: types::transaction::SignedTransaction; ([#10229](https://github.com/paritytech/parity-ethereum/pull/10229))
-- Fix(ManageNetwork): replace Range with RangeInclusive ([#10209](https://github.com/paritytech/parity-ethereum/pull/10209))
-- Import rpc transactions sequentially ([#10051](https://github.com/paritytech/parity-ethereum/pull/10051))
-- Enable St-Peters-Fork ("Constantinople Fix") ([#10223](https://github.com/paritytech/parity-ethereum/pull/10223))
-- Add EIP-1283 disable transition ([#10214](https://github.com/paritytech/parity-ethereum/pull/10214))
-- Echo CORS request headers by default ([#10221](https://github.com/paritytech/parity-ethereum/pull/10221))
-- Happy New Year! ([#10211](https://github.com/paritytech/parity-ethereum/pull/10211))
-- Perform stripping during build ([#10208](https://github.com/paritytech/parity-ethereum/pull/10208))
-- Remove CallContract and RegistryInfo re-exports from `ethcore/client` ([#10205](https://github.com/paritytech/parity-ethereum/pull/10205))
-- Extract CallContract and RegistryInfo traits into their own crate ([#10178](https://github.com/paritytech/parity-ethereum/pull/10178))
-- Update the changelogs for 2.1.11, 2.2.6, 2.2.7, and 2.3.0 ([#10197](https://github.com/paritytech/parity-ethereum/pull/10197))
-- Cancel Constantinople HF on POA Core ([#10198](https://github.com/paritytech/parity-ethereum/pull/10198))
-- Adds cli interface to allow reseting chain to a particular block ([#9782](https://github.com/paritytech/parity-ethereum/pull/9782))
-- Run all `igd` methods in its own thread ([#10195](https://github.com/paritytech/parity-ethereum/pull/10195))
-- Pull constantinople on ethereum network ([#10189](https://github.com/paritytech/parity-ethereum/pull/10189))
-- Update for Android cross-compilation. ([#10180](https://github.com/paritytech/parity-ethereum/pull/10180))
-- Version: bump fork blocks for kovan and foundation ([#10186](https://github.com/paritytech/parity-ethereum/pull/10186))
-- Handle the case for contract creation on an empty but exist account w… ([#10065](https://github.com/paritytech/parity-ethereum/pull/10065))
-- Align personal_unlockAccount behaviour when permanent unlock is disab… ([#10060](https://github.com/paritytech/parity-ethereum/pull/10060))
-- Drop `runtime` after others (especially `ws_server`) ([#10179](https://github.com/paritytech/parity-ethereum/pull/10179))
-- Version: bump nightly to 2.4 ([#10165](https://github.com/paritytech/parity-ethereum/pull/10165))
-- Skip locking in statedb for non-canon blocks ([#10141](https://github.com/paritytech/parity-ethereum/pull/10141))
-- Remove reference to ui-interface command-line option ([#10170](https://github.com/paritytech/parity-ethereum/pull/10170))
-- Fix [#9822](https://github.com/paritytech/parity-ethereum/pull/9822): trace_filter does not return failed contract creation ([#10140](https://github.com/paritytech/parity-ethereum/pull/10140))
-- Fix _cannot recursively call into `Core`_ issue ([#10144](https://github.com/paritytech/parity-ethereum/pull/10144))
-- Fix(whisper): correct PoW calculation ([#10166](https://github.com/paritytech/parity-ethereum/pull/10166))
-- Bump JSON-RPC ([#10151](https://github.com/paritytech/parity-ethereum/pull/10151))
-- Ping nodes from discovery ([#10167](https://github.com/paritytech/parity-ethereum/pull/10167))
-- Fix(android): remove dependency to libusb ([#10161](https://github.com/paritytech/parity-ethereum/pull/10161))
-- Refactor(trim_right_matches -> trim_end_matches) ([#10159](https://github.com/paritytech/parity-ethereum/pull/10159))
-- Merge Machine and WithRewards ([#10071](https://github.com/paritytech/parity-ethereum/pull/10071))
 
 ## Previous releases
 
-- [CHANGELOG-2.3](docs/CHANGELOG-2.3.md) (_stable_)
+- [CHANGELOG-2.5](docs/CHANGELOG-2.5.md) (_stable_)
+- [CHANGELOG-2.4](docs/CHANGELOG-2.4.md) (EOL: 2019-07-08)
+- [CHANGELOG-2.3](docs/CHANGELOG-2.3.md) (EOL: 2019-04-09)
 - [CHANGELOG-2.2](docs/CHANGELOG-2.2.md) (EOL: 2019-02-25)
 - [CHANGELOG-2.1](docs/CHANGELOG-2.1.md) (EOL: 2019-01-16)
 - [CHANGELOG-2.0](docs/CHANGELOG-2.0.md) (EOL: 2018-11-15)
