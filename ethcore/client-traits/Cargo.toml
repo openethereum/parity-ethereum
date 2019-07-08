@@ -1,0 +1,9 @@
+[package]
+name = "client-traits"
+version = "0.1.0"
+edition = "2018"
+
+
+[dependencies]
+ethereum-types = "0.6"
+common-types = { path = "../types" }
