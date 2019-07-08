@@ -19,7 +19,7 @@ use std::collections::HashMap;
 use std::sync::Arc;
 
 use common_types::BlockNumber;
-use ethcore_blockchain::{BlockChainDB, DatabaseExtras};
+use ethcore_blockchain::BlockChainDB;
 use ethcore_db::{
 	self as db,
 	cache_manager::CacheManager,
@@ -57,6 +57,16 @@ impl Key<FlatBlockTraces> for H256 {
 	}
 }
 
+/// `DatabaseExtras` provides an interface to query extra data which is not stored in TraceDB,
+/// but necessary to work correctly.
+pub trait DatabaseExtras {
+	/// Returns hash of given block number.
+	fn block_hash(&self, block_number: BlockNumber) -> Option<H256>;
+
+	/// Returns hash of transaction at given position.
+	fn transaction_hash(&self, block_number: BlockNumber, tx_position: usize) -> Option<H256>;
+}
+
 /// Database to store transaction execution trace.
 ///
 /// Whenever a transaction is executed by EVM it's execution trace is stored
@@ -91,7 +101,7 @@ impl<T> TraceDB<T> where T: DatabaseExtras {
 			cache_manager: RwLock::new(CacheManager::new(config.pref_cache_size, config.max_cache_size, 10 * 1024)),
 			db,
 			enabled: config.enabled,
-			extras: extras,
+			extras,
 		}
 	}
 

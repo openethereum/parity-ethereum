@@ -32,7 +32,7 @@ mod types;
 
 pub use crate::{
 	config::Config,
-	db::TraceDB,
+	db::{TraceDB, DatabaseExtras},
 	localized::LocalizedTrace,
 	executive_tracer::{ExecutiveTracer, ExecutiveVMTracer},
 	import::ImportRequest,

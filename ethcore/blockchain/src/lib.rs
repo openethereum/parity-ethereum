@@ -28,7 +28,6 @@ mod cache;
 mod config;
 mod import_route;
 mod update;
-mod database_extras;
 
 pub mod generator;
 
@@ -36,7 +35,6 @@ pub use crate::{
 	blockchain::{BlockProvider, BlockChain, BlockChainDB, BlockChainDBHandler},
 	cache::CacheSize,
 	config::Config,
-	database_extras::DatabaseExtras,
 	import_route::ImportRoute,
 	update::ExtrasInsert,
 };

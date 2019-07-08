@@ -171,6 +171,31 @@ struct Importer {
 	pub bad_blocks: bad_blocks::BadBlocks,
 }
 
+
+struct BlockChainWithExtras(Arc<BlockChain>);
+impl trace::DatabaseExtras for BlockChainWithExtras {
+	fn block_hash(&self, block_number: BlockNumber) -> Option<H256> {
+		(self.0.as_ref() as &dyn BlockProvider).block_hash(block_number)
+	}
+
+	fn transaction_hash(&self, block_number: BlockNumber, tx_position: usize) -> Option<H256> {
+		(self.0.as_ref() as &dyn BlockProvider).block_hash(block_number)
+			.and_then(|block_hash| {
+				let tx_address = TransactionAddress {
+					block_hash,
+					index: tx_position
+				};
+				self.0.transaction(&tx_address)
+			})
+			.map(|tx| tx.hash())
+	}
+}
+impl BlockChainWithExtras {
+	fn new(bc: Arc<BlockChain>) -> Arc<Self> {
+		Arc::new(BlockChainWithExtras(bc))
+	}
+}
+
 /// Blockchain database client backed by a persistent database. Owns and manages a blockchain and a block queue.
 /// Call `import_block()` to import a block asynchronously; `flush_queue()` flushes the queue.
 pub struct Client {
@@ -186,7 +211,7 @@ pub struct Client {
 	mode: Mutex<Mode>,
 
 	chain: RwLock<Arc<BlockChain>>,
-	tracedb: RwLock<TraceDB<BlockChain>>,
+	tracedb: RwLock<TraceDB<BlockChainWithExtras>>,
 	engine: Arc<dyn Engine>,
 
 	/// Client configuration
@@ -737,7 +762,8 @@ impl Client {
 
 		let gb = spec.genesis_block();
 		let chain = Arc::new(BlockChain::new(config.blockchain.clone(), &gb, db.clone()));
-		let tracedb = RwLock::new(TraceDB::new(config.tracing.clone(), db.clone(), chain.clone()));
+		let chain_extras = BlockChainWithExtras::new(chain.clone());
+		let tracedb = RwLock::new(TraceDB::new(config.tracing.clone(), db.clone(), chain_extras));
 
 		trace!("Cleanup journal: DB Earliest = {:?}, Latest = {:?}", state_db.journal_db().earliest_era(), state_db.journal_db().latest_era());
 
@@ -1338,7 +1364,8 @@ impl snapshot::DatabaseRestore for Client {
 		let cache_size = state_db.cache_size();
 		*state_db = StateDB::new(journaldb::new(db.key_value().clone(), self.pruning, ::db::COL_STATE), cache_size);
 		*chain = Arc::new(BlockChain::new(self.config.blockchain.clone(), &[], db.clone()));
-		*tracedb = TraceDB::new(self.config.tracing.clone(), db.clone(), chain.clone());
+		let chain_extras = BlockChainWithExtras::new(chain.clone());
+		*tracedb = TraceDB::new(self.config.tracing.clone(), db.clone(), chain_extras);
 		Ok(())
 	}
 }
