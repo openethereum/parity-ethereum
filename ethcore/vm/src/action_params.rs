@@ -84,6 +84,8 @@ pub struct ActionParams {
 	pub value: ActionValue,
 	/// Code being executed.
 	pub code: Option<Arc<Bytes>>,
+	/// Code version being executed.
+	pub code_version: U256,
 	/// Input data.
 	pub data: Option<Bytes>,
 	/// Type of call
@@ -105,6 +107,7 @@ impl Default for ActionParams {
 			gas_price: U256::zero(),
 			value: ActionValue::Transfer(U256::zero()),
 			code: None,
+			code_version: U256::zero(),
 			data: None,
 			call_type: CallType::None,
 			params_type: ParamsType::Separate,
@@ -122,6 +125,7 @@ impl From<ethjson::vm::Transaction> for ActionParams {
 			sender: t.sender.into(),
 			origin: t.origin.into(),
 			code: Some(Arc::new(t.code.into())),
+			code_version: t.code_version.into(),
 			data: Some(t.data.into()),
 			gas: t.gas.into(),
 			gas_price: t.gas_price.into(),

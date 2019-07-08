@@ -497,14 +497,14 @@ impl<B: Backend> State<B> {
 
 	/// Create a new contract at address `contract`. If there is already an account at the address
 	/// it will have its code reset, ready for `init_code()`.
-	pub fn new_contract(&mut self, contract: &Address, balance: U256, nonce_offset: U256) -> TrieResult<()> {
+	pub fn new_contract(&mut self, contract: &Address, balance: U256, nonce_offset: U256, version: U256) -> TrieResult<()> {
 		let original_storage_root = self.original_storage_root(contract)?;
 		let (nonce, overflow) = self.account_start_nonce.overflowing_add(nonce_offset);
 		if overflow {
 			return Err(Box::new(TrieError::DecoderError(H256::from(*contract),
 				rlp::DecoderError::Custom("Nonce overflow".into()))));
 		}
-		self.insert_cache(contract, AccountEntry::new_dirty(Some(Account::new_contract(balance, nonce, original_storage_root))));
+		self.insert_cache(contract, AccountEntry::new_dirty(Some(Account::new_contract(balance, nonce, version, original_storage_root))));
 		Ok(())
 	}
 
@@ -732,6 +732,12 @@ impl<B: Backend> State<B> {
 			|a| a.as_ref().map(|a| a.code_hash()))
 	}
 
+	/// Get an account's code version.
+	pub fn code_version(&self, a: &Address) -> TrieResult<U256> {
+		self.ensure_cached(a, RequireCache::None, true,
+			|a| a.as_ref().map(|a| *a.code_version()).unwrap_or(U256::zero()))
+	}
+
 	/// Get accounts' code size.
 	pub fn code_size(&self, a: &Address) -> TrieResult<Option<usize>> {
 		self.ensure_cached(a, RequireCache::CodeSize, true,
@@ -790,13 +796,13 @@ impl<B: Backend> State<B> {
 	/// Initialise the code of account `a` so that it is `code`.
 	/// NOTE: Account should have been created with `new_contract`.
 	pub fn init_code(&mut self, a: &Address, code: Bytes) -> TrieResult<()> {
-		self.require_or_from(a, true, || Account::new_contract(0.into(), self.account_start_nonce, KECCAK_NULL_RLP), |_| {})?.init_code(code);
+		self.require_or_from(a, true, || Account::new_contract(0.into(), self.account_start_nonce, 0.into(), KECCAK_NULL_RLP), |_| {})?.init_code(code);
 		Ok(())
 	}
 
 	/// Reset the code of account `a` so that it is `code`.
 	pub fn reset_code(&mut self, a: &Address, code: Bytes) -> TrieResult<()> {
-		self.require_or_from(a, true, || Account::new_contract(0.into(), self.account_start_nonce, KECCAK_NULL_RLP), |_| {})?.reset_code(code);
+		self.require_or_from(a, true, || Account::new_contract(0.into(), self.account_start_nonce, 0.into(), KECCAK_NULL_RLP), |_| {})?.reset_code(code);
 		Ok(())
 	}
 
@@ -1069,11 +1075,11 @@ impl<B: Backend> State<B> {
 					};
 
 					// Storage must be fetched after ensure_cached to avoid borrow problem.
-					(*acc.balance(), *acc.nonce(), all_keys, acc.code().map(|x| x.to_vec()))
+					(*acc.balance(), *acc.nonce(), all_keys, acc.code().map(|x| x.to_vec()), *acc.code_version())
 				})
 			})?;
 
-			if let Some((balance, nonce, storage_keys, code)) = account {
+			if let Some((balance, nonce, storage_keys, code, version)) = account {
 				let storage = storage_keys.into_iter().fold(Ok(BTreeMap::new()), |s: TrieResult<_>, key| {
 					let mut s = s?;
 
@@ -1082,7 +1088,7 @@ impl<B: Backend> State<B> {
 				})?;
 
 				m.insert(address, PodAccount {
-					balance, nonce, storage, code
+					balance, nonce, storage, code, version
 				});
 			}
 
@@ -1270,6 +1276,7 @@ impl<B: Backend> State<B> {
 			nonce: self.account_start_nonce,
 			code_hash: KECCAK_EMPTY,
 			storage_root: KECCAK_NULL_RLP,
+			code_version: 0.into(),
 		});
 
 		Ok((recorder.drain().into_iter().map(|r| r.data).collect(), account))
@@ -2190,7 +2197,7 @@ mod tests {
 		let a = Address::zero();
 		let (root, db) = {
 			let mut state = get_temp_state();
-			state.require_or_from(&a, false, || Account::new_contract(42.into(), 0.into(), KECCAK_NULL_RLP), |_|{}).unwrap();
+			state.require_or_from(&a, false, || Account::new_contract(42.into(), 0.into(), 0.into(), KECCAK_NULL_RLP), |_|{}).unwrap();
 			state.init_code(&a, vec![1, 2, 3]).unwrap();
 			assert_eq!(state.code(&a).unwrap(), Some(Arc::new(vec![1u8, 2, 3])));
 			state.commit().unwrap();
@@ -2426,7 +2433,7 @@ mod tests {
 		state.clear();
 
 		let c0 = state.checkpoint();
-		state.new_contract(&a, U256::zero(), U256::zero()).unwrap();
+		state.new_contract(&a, U256::zero(), U256::zero(), U256::zero()).unwrap();
 		let c1 = state.checkpoint();
 		state.set_storage(&a, k, BigEndianHash::from_uint(&U256::from(1))).unwrap();
 		let c2 = state.checkpoint();
@@ -2486,7 +2493,7 @@ mod tests {
 
 		let cm1 = state.checkpoint();
 		let c0 = state.checkpoint();
-		state.new_contract(&a, U256::zero(), U256::zero()).unwrap();
+		state.new_contract(&a, U256::zero(), U256::zero(), U256::zero()).unwrap();
 		let c1 = state.checkpoint();
 		state.set_storage(&a, k, BigEndianHash::from_uint(&U256::from(1))).unwrap();
 		let c2 = state.checkpoint();
@@ -2558,7 +2565,7 @@ mod tests {
 		let a = Address::from_low_u64_be(1000);
 
 		state.checkpoint(); // c1
-		state.new_contract(&a, U256::zero(), U256::zero()).unwrap();
+		state.new_contract(&a, U256::zero(), U256::zero(), U256::zero()).unwrap();
 		state.add_balance(&a, &U256::from(1), CleanupMode::ForceCreate).unwrap();
 		state.checkpoint(); // c2
 		state.add_balance(&a, &U256::from(1), CleanupMode::ForceCreate).unwrap();
@@ -2585,7 +2592,7 @@ mod tests {
 		state.clear();
 
 		state.checkpoint(); // c1
-		state.new_contract(&a, U256::zero(), U256::zero()).unwrap();
+		state.new_contract(&a, U256::zero(), U256::zero(), U256::zero()).unwrap();
 		state.checkpoint(); // c2
 		state.set_storage(&a, k, BigEndianHash::from_uint(&U256::from(2))).unwrap();
 		state.revert_to_checkpoint(); // revert to c2
@@ -2633,7 +2640,7 @@ mod tests {
 			state.add_balance(&b, &100.into(), CleanupMode::ForceCreate).unwrap(); // create a dust account
 			state.add_balance(&c, &101.into(), CleanupMode::ForceCreate).unwrap(); // create a normal account
 			state.add_balance(&d, &99.into(), CleanupMode::ForceCreate).unwrap(); // create another dust account
-			state.new_contract(&e, 100.into(), 1.into()).unwrap(); // create a contract account
+			state.new_contract(&e, 100.into(), 1.into(), 0.into()).unwrap(); // create a contract account
 			state.init_code(&e, vec![0x00]).unwrap();
 			state.commit().unwrap();
 			state.drop()
@@ -2685,7 +2692,8 @@ mod tests {
 					balance: U256::from(100),
 					nonce: U256::zero(),
 					code: Some(Default::default()),
-					storage: Default::default()
+					storage: Default::default(),
+					version: U256::zero(),
 				}), None).as_ref());
 	}
 
@@ -2718,12 +2726,14 @@ mod tests {
 					code: Some(Default::default()),
 					storage: vec![(BigEndianHash::from_uint(&U256::from(1u64)), BigEndianHash::from_uint(&U256::from(20u64)))]
 						.into_iter().collect(),
+					version: U256::zero(),
 				}), Some(&PodAccount {
 					balance: U256::zero(),
 					nonce: U256::zero(),
 					code: Some(Default::default()),
 					storage: vec![(BigEndianHash::from_uint(&U256::from(1u64)), BigEndianHash::from_uint(&U256::from(100u64)))]
 						.into_iter().collect(),
+					version: U256::zero(),
 				})).as_ref());
 	}
 

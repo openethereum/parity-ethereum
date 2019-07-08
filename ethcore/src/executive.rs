@@ -309,13 +309,13 @@ impl<'a> CallCreateExecutive<'a> {
 	}
 
 	fn transfer_exec_balance_and_init_contract<B: 'a + StateBackend>(params: &ActionParams, schedule: &Schedule, state: &mut State<B>, substate: &mut Substate) -> vm::Result<()> {
-		let nonce_offset = if schedule.no_empty {1} else {0}.into();
+		let nonce_offset = if schedule.no_empty { 1 } else { 0 }.into();
 		let prev_bal = state.balance(&params.address)?;
 		if let ActionValue::Transfer(val) = params.value {
 			state.sub_balance(&params.sender, &val, &mut substate.to_cleanup_mode(&schedule))?;
-			state.new_contract(&params.address, val.saturating_add(prev_bal), nonce_offset)?;
+			state.new_contract(&params.address, val.saturating_add(prev_bal), nonce_offset, params.code_version)?;
 		} else {
-			state.new_contract(&params.address, prev_bal, nonce_offset)?;
+			state.new_contract(&params.address, prev_bal, nonce_offset, params.code_version)?;
 		}
 
 		Ok(())
@@ -451,12 +451,15 @@ impl<'a> CallCreateExecutive<'a> {
 				let origin_info = OriginInfo::from(&params);
 				let exec = self.factory.create(params, self.schedule, self.depth);
 
-				let out = {
-					let mut ext = Self::as_externalities(state, self.info, self.machine, self.schedule, self.depth, self.stack_depth, self.static_flag, &origin_info, &mut unconfirmed_substate, OutputPolicy::Return, tracer, vm_tracer);
-					match exec.exec(&mut ext) {
-						Ok(val) => Ok(val.finalize(ext)),
-						Err(err) => Err(err),
-					}
+				let out = match exec {
+					Some(exec) => {
+						let mut ext = Self::as_externalities(state, self.info, self.machine, self.schedule, self.depth, self.stack_depth, self.static_flag, &origin_info, &mut unconfirmed_substate, OutputPolicy::Return, tracer, vm_tracer);
+						match exec.exec(&mut ext) {
+							Ok(val) => Ok(val.finalize(ext)),
+							Err(err) => Err(err),
+						}
+					},
+					None => Ok(Err(vm::Error::OutOfGas)),
 				};
 
 				let res = match out {
@@ -499,12 +502,15 @@ impl<'a> CallCreateExecutive<'a> {
 				let origin_info = OriginInfo::from(&params);
 				let exec = self.factory.create(params, self.schedule, self.depth);
 
-				let out = {
-					let mut ext = Self::as_externalities(state, self.info, self.machine, self.schedule, self.depth, self.stack_depth, self.static_flag, &origin_info, &mut unconfirmed_substate, OutputPolicy::InitContract, tracer, vm_tracer);
-					match exec.exec(&mut ext) {
-						Ok(val) => Ok(val.finalize(ext)),
-						Err(err) => Err(err),
-					}
+				let out = match exec {
+					Some(exec) => {
+						let mut ext = Self::as_externalities(state, self.info, self.machine, self.schedule, self.depth, self.stack_depth, self.static_flag, &origin_info, &mut unconfirmed_substate, OutputPolicy::InitContract, tracer, vm_tracer);
+						match exec.exec(&mut ext) {
+							Ok(val) => Ok(val.finalize(ext)),
+							Err(err) => Err(err),
+						}
+					},
+					None => Ok(Err(vm::Error::OutOfGas)),
 				};
 
 				let res = match out {
@@ -874,6 +880,7 @@ impl<'a, B: 'a + StateBackend> Executive<'a, B> {
 					gas_price: t.gas_price,
 					value: ActionValue::Transfer(t.value),
 					code: Some(Arc::new(t.data.clone())),
+					code_version: schedule.latest_version,
 					data: None,
 					call_type: CallType::None,
 					params_type: vm::ParamsType::Embedded,
@@ -896,6 +903,7 @@ impl<'a, B: 'a + StateBackend> Executive<'a, B> {
 					value: ActionValue::Transfer(t.value),
 					code: self.state.code(address)?,
 					code_hash: self.state.code_hash(address)?,
+					code_version: self.state.code_version(address)?,
 					data: Some(t.data.clone()),
 					call_type: CallType::Call,
 					params_type: vm::ParamsType::Separate,
@@ -2093,13 +2101,13 @@ mod tests {
 		let k = H256::zero();
 
 		let mut state = get_temp_state_with_factory(factory.clone());
-		state.new_contract(&x1, U256::zero(), U256::from(1)).unwrap();
+		state.new_contract(&x1, U256::zero(), U256::from(1), U256::zero()).unwrap();
 		state.init_code(&x1, "600160005560006000556001600055".from_hex().unwrap()).unwrap();
-		state.new_contract(&x2, U256::zero(), U256::from(1)).unwrap();
+		state.new_contract(&x2, U256::zero(), U256::from(1), U256::zero()).unwrap();
 		state.init_code(&x2, "600060005560016000556000600055".from_hex().unwrap()).unwrap();
-		state.new_contract(&y1, U256::zero(), U256::from(1)).unwrap();
+		state.new_contract(&y1, U256::zero(), U256::from(1), U256::zero()).unwrap();
 		state.init_code(&y1, "600060006000600061100062fffffff4".from_hex().unwrap()).unwrap();
-		state.new_contract(&y2, U256::zero(), U256::from(1)).unwrap();
+		state.new_contract(&y2, U256::zero(), U256::from(1), U256::zero()).unwrap();
 		state.init_code(&y2, "600060006000600061100162fffffff4".from_hex().unwrap()).unwrap();
 
 		let info = EnvInfo::default();

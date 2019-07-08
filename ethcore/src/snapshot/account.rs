@@ -35,6 +35,7 @@ const ACC_EMPTY: BasicAccount = BasicAccount {
 	balance: U256([0, 0, 0, 0]),
 	storage_root: KECCAK_NULL_RLP,
 	code_hash: KECCAK_EMPTY,
+	code_version: U256([0, 0, 0, 0]),
 };
 
 // whether an encoded account has code and how it is referred to.
@@ -84,10 +85,14 @@ pub fn to_fat_rlps(
 	let mut leftover: Option<Vec<u8>> = None;
 	loop {
 		account_stream.append(account_hash);
-		account_stream.begin_list(5);
+		let use_short_version = acc.code_version.is_zero();
+		match use_short_version {
+			true => { account_stream.begin_list(5); },
+			false => { account_stream.begin_list(6); },
+		}
 
 		account_stream.append(&acc.nonce)
-					.append(&acc.balance);
+			.append(&acc.balance);
 
 		// [has_code, code_hash].
 		if acc.code_hash == KECCAK_EMPTY {
@@ -105,6 +110,10 @@ pub fn to_fat_rlps(
 					account_stream.append(&false).append_empty_data();
 				}
 			}
+		}
+
+		if !use_short_version {
+			account_stream.append(&acc.code_version);
 		}
 
 		account_stream.begin_unbounded_list();
@@ -170,6 +179,12 @@ pub fn from_fat_rlp(
 		return Ok((ACC_EMPTY, None));
 	}
 
+	let use_short_version = match rlp.item_count()? {
+		5 => true,
+		6 => false,
+		_ => return Err(rlp::DecoderError::RlpIncorrectListLen.into()),
+	};
+
 	let nonce = rlp.val_at(0)?;
 	let balance = rlp.val_at(1)?;
 	let code_state: CodeState = {
@@ -193,13 +208,19 @@ pub fn from_fat_rlp(
 		}
 	};
 
+	let code_version = if use_short_version {
+		U256::zero()
+	} else {
+		rlp.val_at(4)?
+	};
+
 	{
 		let mut storage_trie = if storage_root.is_zero() {
 			TrieDBMut::new(acct_db, &mut storage_root)
 		} else {
 			TrieDBMut::from_existing(acct_db, &mut storage_root)?
 		};
-		let pairs = rlp.at(4)?;
+		let pairs = rlp.at(if use_short_version { 4 } else { 5 })?;
 		for pair_rlp in pairs.iter() {
 			let k: Bytes = pair_rlp.val_at(0)?;
 			let v: Bytes = pair_rlp.val_at(1)?;
@@ -209,10 +230,11 @@ pub fn from_fat_rlp(
 	}
 
 	let acc = BasicAccount {
-		nonce: nonce,
-		balance: balance,
-		storage_root: storage_root,
-		code_hash: code_hash,
+		nonce,
+		balance,
+		storage_root,
+		code_hash,
+		code_version,
 	};
 
 	Ok((acc, new_code))
@@ -246,6 +268,28 @@ mod tests {
 			balance: 123456789.into(),
 			storage_root: KECCAK_NULL_RLP,
 			code_hash: KECCAK_EMPTY,
+			code_version: 0.into(),
+		};
+
+		let thin_rlp = ::rlp::encode(&account);
+		assert_eq!(::rlp::decode::<BasicAccount>(&thin_rlp).unwrap(), account);
+		let p = Progress::default();
+		let fat_rlps = to_fat_rlps(&keccak(&addr), &account, &AccountDB::from_hash(db.as_hash_db(), keccak(addr)), &mut Default::default(), usize::max_value(), usize::max_value(), &p).unwrap();
+		let fat_rlp = Rlp::new(&fat_rlps[0]).at(1).unwrap();
+		assert_eq!(from_fat_rlp(&mut AccountDBMut::from_hash(db.as_hash_db_mut(), keccak(addr)), fat_rlp, H256::zero()).unwrap().0, account);
+	}
+
+	#[test]
+	fn encoding_version() {
+		let mut db = get_temp_state_db();
+		let addr = Address::random();
+
+		let account = BasicAccount {
+			nonce: 50.into(),
+			balance: 123456789.into(),
+			storage_root: KECCAK_NULL_RLP,
+			code_hash: KECCAK_EMPTY,
+			code_version: 1.into(),
 		};
 
 		let thin_rlp = ::rlp::encode(&account);
@@ -270,6 +314,7 @@ mod tests {
 				balance: 987654321.into(),
 				storage_root: root,
 				code_hash: KECCAK_EMPTY,
+				code_version: 0.into(),
 			}
 		};
 
@@ -297,6 +342,7 @@ mod tests {
 				balance: 987654321.into(),
 				storage_root: root,
 				code_hash: KECCAK_EMPTY,
+				code_version: 0.into(),
 			}
 		};
 
@@ -337,6 +383,7 @@ mod tests {
 			balance: 123456789.into(),
 			storage_root: KECCAK_NULL_RLP,
 			code_hash,
+			code_version: 0.into(),
 		};
 
 		let account2 = BasicAccount {
@@ -344,6 +391,7 @@ mod tests {
 			balance: 98765432123456789usize.into(),
 			storage_root: KECCAK_NULL_RLP,
 			code_hash,
+			code_version: 0.into(),
 		};
 
 		let mut used_code = HashSet::new();
