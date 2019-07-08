@@ -1117,7 +1117,7 @@ mod tests {
 		let a = Address::zero();
 		let (root, db) = {
 			let mut state = get_temp_state();
-			state.require_or_from(&a, false, || Account::new_contract(42.into(), 0.into(), KECCAK_NULL_RLP), |_|{}).unwrap();
+			state.require_or_from(&a, false, || Account::new_contract(42.into(), 0.into(), 0.into(), KECCAK_NULL_RLP), |_|{}).unwrap();
 			state.init_code(&a, vec![1, 2, 3]).unwrap();
 			assert_eq!(state.code(&a).unwrap(), Some(Arc::new(vec![1u8, 2, 3])));
 			state.commit().unwrap();
@@ -1353,7 +1353,7 @@ mod tests {
 		state.clear();
 
 		let c0 = state.checkpoint();
-		state.new_contract(&a, U256::zero(), U256::zero()).unwrap();
+		state.new_contract(&a, U256::zero(), U256::zero(), U256::zero()).unwrap();
 		let c1 = state.checkpoint();
 		state.set_storage(&a, k, BigEndianHash::from_uint(&U256::from(1))).unwrap();
 		let c2 = state.checkpoint();
@@ -1413,7 +1413,7 @@ mod tests {
 
 		let cm1 = state.checkpoint();
 		let c0 = state.checkpoint();
-		state.new_contract(&a, U256::zero(), U256::zero()).unwrap();
+		state.new_contract(&a, U256::zero(), U256::zero(), U256::zero()).unwrap();
 		let c1 = state.checkpoint();
 		state.set_storage(&a, k, BigEndianHash::from_uint(&U256::from(1))).unwrap();
 		let c2 = state.checkpoint();
@@ -1485,7 +1485,7 @@ mod tests {
 		let a = Address::from_low_u64_be(1000);
 
 		state.checkpoint(); // c1
-		state.new_contract(&a, U256::zero(), U256::zero()).unwrap();
+		state.new_contract(&a, U256::zero(), U256::zero(), U256::zero()).unwrap();
 		state.add_balance(&a, &U256::from(1), CleanupMode::ForceCreate).unwrap();
 		state.checkpoint(); // c2
 		state.add_balance(&a, &U256::from(1), CleanupMode::ForceCreate).unwrap();
@@ -1512,7 +1512,7 @@ mod tests {
 		state.clear();
 
 		state.checkpoint(); // c1
-		state.new_contract(&a, U256::zero(), U256::zero()).unwrap();
+		state.new_contract(&a, U256::zero(), U256::zero(), U256::zero()).unwrap();
 		state.checkpoint(); // c2
 		state.set_storage(&a, k, BigEndianHash::from_uint(&U256::from(2))).unwrap();
 		state.revert_to_checkpoint(); // revert to c2
@@ -1560,7 +1560,7 @@ mod tests {
 			state.add_balance(&b, &100.into(), CleanupMode::ForceCreate).unwrap(); // create a dust account
 			state.add_balance(&c, &101.into(), CleanupMode::ForceCreate).unwrap(); // create a normal account
 			state.add_balance(&d, &99.into(), CleanupMode::ForceCreate).unwrap(); // create another dust account
-			state.new_contract(&e, 100.into(), 1.into()).unwrap(); // create a contract account
+			state.new_contract(&e, 100.into(), 1.into(), 0.into()).unwrap(); // create a contract account
 			state.init_code(&e, vec![0x00]).unwrap();
 			state.commit().unwrap();
 			state.drop()
@@ -1611,9 +1611,9 @@ mod tests {
 					balance: U256::from(100),
 					nonce: U256::zero(),
 					code: Some(Default::default()),
-					storage: Default::default()
-			}), None
-		).as_ref());
+					storage: Default::default(),
+					version: U256::zero(),
+				}), None).as_ref());
 	}
 
 	#[test]
@@ -1643,12 +1643,14 @@ mod tests {
 						nonce: U256::zero(),
 						code: Some(Default::default()),
 						storage: vec![(BigEndianHash::from_uint(&U256::from(1u64)), BigEndianHash::from_uint(&U256::from(20u64)))].into_iter().collect(),
+						version: U256::zero(),
 					}),
 					Some(&PodAccount {
 						balance: U256::zero(),
 						nonce: U256::zero(),
 						code: Some(Default::default()),
 						storage: vec![(BigEndianHash::from_uint(&U256::from(1u64)), BigEndianHash::from_uint(&U256::from(100u64)))].into_iter().collect(),
+						version: U256::zero(),
 					})).as_ref());
 	}
 

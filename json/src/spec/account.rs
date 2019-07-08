@@ -33,6 +33,8 @@ pub struct Account {
 	pub nonce: Option<Uint>,
 	/// Code.
 	pub code: Option<Bytes>,
+	/// Version.
+	pub version: Option<Uint>,
 	/// Storage.
 	pub storage: Option<BTreeMap<Uint, Uint>>,
 	/// Constructor.
