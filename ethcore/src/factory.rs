@@ -17,8 +17,9 @@
 use trie::TrieFactory;
 use ethtrie::RlpCodec;
 use account_db::Factory as AccountFactory;
+use ethereum_types::U256;
 use evm::{Factory as EvmFactory, VMType};
-use vm::{Exec, ActionParams, Schedule};
+use vm::{Exec, ActionParams, VersionedSchedule, Schedule};
 use wasm::WasmInterpreter;
 use keccak_hasher::KeccakHasher;
 
@@ -31,11 +32,22 @@ pub struct VmFactory {
 }
 
 impl VmFactory {
-	pub fn create(&self, params: ActionParams, schedule: &Schedule, depth: usize) -> Box<dyn Exec> {
-		if schedule.wasm.is_some() && params.code.as_ref().map_or(false, |code| code.len() > 4 && &code[0..4] == WASM_MAGIC_NUMBER) {
-			Box::new(WasmInterpreter::new(params))
+	pub fn create(&self, params: ActionParams, schedule: &Schedule, depth: usize) -> Option<Box<dyn Exec>> {
+		if params.code_version.is_zero() {
+			Some(if schedule.wasm.is_some() && schedule.versions.is_empty() && params.code.as_ref().map_or(false, |code| code.len() > 4 && &code[0..4] == WASM_MAGIC_NUMBER) {
+				Box::new(WasmInterpreter::new(params))
+			} else {
+				self.evm.create(params, schedule, depth)
+			})
 		} else {
-			self.evm.create(params, schedule, depth)
+			let version_config = schedule.versions.get(&params.code_version);
+
+			match version_config {
+				Some(VersionedSchedule::PWasm) => {
+					Some(Box::new(WasmInterpreter::new(params)))
+				},
+				None => None,
+			}
 		}
 	}
 

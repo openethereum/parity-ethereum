@@ -33,7 +33,7 @@ use hash_db::HashDB;
 use kvdb::DBValue;
 use parking_lot::Mutex;
 use request::{self as net_request, IncompleteRequest, CompleteRequest, Output, OutputKind, Field};
-use rlp::{RlpStream, Rlp};
+use rlp::RlpStream;
 use trie::Trie;
 use vm::EnvInfo;
 
@@ -984,13 +984,7 @@ impl Account {
 
 		match TrieDB::new(&db, &state_root).and_then(|t| t.get(keccak(&self.address).as_bytes()))? {
 			Some(val) => {
-				let rlp = Rlp::new(&val);
-				Ok(Some(BasicAccount {
-					nonce: rlp.val_at(0)?,
-					balance: rlp.val_at(1)?,
-					storage_root: rlp.val_at(2)?,
-					code_hash: rlp.val_at(3)?,
-				}))
+				Ok(Some(rlp::decode::<BasicAccount>(&val)?))
 			},
 			None => {
 				trace!(target: "on_demand", "Account {:?} not found", self.address);

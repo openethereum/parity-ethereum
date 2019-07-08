@@ -150,26 +150,6 @@ impl error::Error for BlockError {
 	}
 }
 
-/// Queue error
-#[derive(Debug, Display, From)]
-pub enum QueueError {
-	/// Queue is full
-	#[display(fmt = "Queue is full ({})", _0)]
-	Full(usize),
-	/// Io channel error
-	#[display(fmt = "Io channel error: {}", _0)]
-	Channel(::io::IoError)
-}
-
-impl error::Error for QueueError {
-	fn source(&self) -> Option<&(dyn error::Error + 'static)> {
-		match self {
-			QueueError::Channel(e) => Some(e),
-			_ => None,
-		}
-	}
-}
-
 /// Block import Error
 #[derive(Debug, Display)]
 pub enum ImportError {
@@ -186,24 +166,6 @@ pub enum ImportError {
 
 impl error::Error for ImportError {}
 
-/// Api-level error for transaction import
-#[derive(Debug, Clone)]
-pub enum TransactionImportError {
-	/// Transaction error
-	Transaction(TransactionError),
-	/// Other error
-	Other(String),
-}
-
-impl From<Error> for TransactionImportError {
-	fn from(e: Error) -> Self {
-		match e {
-			Error::Transaction(transaction_error) => TransactionImportError::Transaction(transaction_error),
-			_ => TransactionImportError::Other(format!("other block import error: {:?}", e)),
-		}
-	}
-}
-
 /// Ethcore Result
 pub type EthcoreResult<T> = Result<T, Error>;
 
@@ -214,8 +176,8 @@ pub enum Error {
 	#[display(fmt = "Import error: {}", _0)]
 	Import(ImportError),
 	/// Io channel queue error
-	#[display(fmt = "Queue error: {}", _0)]
-	Queue(QueueError),
+	#[display(fmt = "Queue is full: {}", _0)]
+	FullQueue(usize),
 	/// Io create error
 	#[display(fmt = "Io error: {}", _0)]
 	Io(::io::IoError),
@@ -255,9 +217,6 @@ pub enum Error {
 	/// The value of the nonce or mishash is invalid.
 	#[display(fmt = "The value of the nonce or mishash is invalid.")]
 	PowInvalid,
-	/// Unknown engine given
-	#[display(fmt = "Unknown engine name ({})", _0)]
-	UnknownEngineName(String),
 	/// A convenient variant for String.
 	#[display(fmt = "{}", _0)]
 	Msg(String),
@@ -279,12 +238,6 @@ impl error::Error for Error {
 			Error::Snapshot(e) => Some(e),
 			_ => None,
 		}
-	}
-}
-
-impl From<String> for Error {
-	fn from(s: String) -> Self {
-		Error::Msg(s)
 	}
 }
 

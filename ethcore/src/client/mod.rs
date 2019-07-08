@@ -51,10 +51,8 @@ pub use types::call_analytics::CallAnalytics;
 pub use executive::{Executed, Executive, TransactOptions};
 pub use vm::{LastHashes, EnvInfo};
 
-pub use error::TransactionImportError;
 pub use verification::VerifierType;
 
 mod traits;
 
 mod chain_notify;
-mod private_notify;

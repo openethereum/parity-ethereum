@@ -160,10 +160,11 @@ impl<'a, T: 'a, V: 'a, B: 'a> Ext for Externalities<'a, T, V, B>
 		if self.env_info.number + 256 >= self.machine.params().eip210_transition {
 			let blockhash_contract_address = self.machine.params().eip210_contract_address;
 			let code_res = self.state.code(&blockhash_contract_address)
-				.and_then(|code| self.state.code_hash(&blockhash_contract_address).map(|hash| (code, hash)));
+				.and_then(|code| self.state.code_hash(&blockhash_contract_address).map(|hash| (code, hash)))
+				.and_then(|(code, hash)| self.state.code_version(&blockhash_contract_address).map(|version| (code, hash, version)));
 
-			let (code, code_hash) = match code_res {
-				Ok((code, hash)) => (code, hash),
+			let (code, code_hash, code_version) = match code_res {
+				Ok((code, hash, version)) => (code, hash, version),
 				Err(_) => return H256::zero(),
 			};
 			let data: H256 = BigEndianHash::from_uint(number);
@@ -178,6 +179,7 @@ impl<'a, T: 'a, V: 'a, B: 'a> Ext for Externalities<'a, T, V, B>
 				gas_price: 0.into(),
 				code: code,
 				code_hash: code_hash,
+				code_version: code_version,
 				data: Some(data.as_bytes().to_vec()),
 				call_type: CallType::Call,
 				params_type: vm::ParamsType::Separate,
@@ -214,6 +216,7 @@ impl<'a, T: 'a, V: 'a, B: 'a> Ext for Externalities<'a, T, V, B>
 		gas: &U256,
 		value: &U256,
 		code: &[u8],
+		parent_version: &U256,
 		address_scheme: CreateContractAddress,
 		trap: bool,
 	) -> ::std::result::Result<ContractCreateResult, TrapKind> {
@@ -237,6 +240,7 @@ impl<'a, T: 'a, V: 'a, B: 'a> Ext for Externalities<'a, T, V, B>
 			value: ActionValue::Transfer(*value),
 			code: Some(Arc::new(code.to_vec())),
 			code_hash: code_hash,
+			code_version: *parent_version,
 			data: None,
 			call_type: CallType::None,
 			params_type: vm::ParamsType::Embedded,
@@ -275,10 +279,11 @@ impl<'a, T: 'a, V: 'a, B: 'a> Ext for Externalities<'a, T, V, B>
 		trace!(target: "externalities", "call");
 
 		let code_res = self.state.code(code_address)
-			.and_then(|code| self.state.code_hash(code_address).map(|hash| (code, hash)));
+			.and_then(|code| self.state.code_hash(code_address).map(|hash| (code, hash)))
+			.and_then(|(code, hash)| self.state.code_version(code_address).map(|version| (code, hash, version)));
 
-		let (code, code_hash) = match code_res {
-			Ok((code, hash)) => (code, hash),
+		let (code, code_hash, code_version) = match code_res {
+			Ok((code, hash, version)) => (code, hash, version),
 			Err(_) => return Ok(MessageCallResult::Failed),
 		};
 
@@ -292,6 +297,7 @@ impl<'a, T: 'a, V: 'a, B: 'a> Ext for Externalities<'a, T, V, B>
 			gas_price: self.origin_info.gas_price,
 			code: code,
 			code_hash: code_hash,
+			code_version: code_version,
 			data: Some(data.to_vec()),
 			call_type: call_type,
 			params_type: vm::ParamsType::Separate,
@@ -611,7 +617,7 @@ mod tests {
 
 		let address = {
 			let mut ext = Externalities::new(state, &setup.env_info, &setup.machine, &setup.schedule, 0, 0, &origin_info, &mut setup.sub_state, OutputPolicy::InitContract, &mut tracer, &mut vm_tracer, false);
-			match ext.create(&U256::max_value(), &U256::zero(), &[], CreateContractAddress::FromSenderAndNonce, false) {
+			match ext.create(&U256::max_value(), &U256::zero(), &[], &U256::zero(), CreateContractAddress::FromSenderAndNonce, false) {
 				Ok(ContractCreateResult::Created(address, _)) => address,
 				_ => panic!("Test create failed; expected Created, got Failed/Reverted."),
 			}
@@ -633,7 +639,7 @@ mod tests {
 		let address = {
 			let mut ext = Externalities::new(state, &setup.env_info, &setup.machine, &setup.schedule, 0, 0, &origin_info, &mut setup.sub_state, OutputPolicy::InitContract, &mut tracer, &mut vm_tracer, false);
 
-			match ext.create(&U256::max_value(), &U256::zero(), &[], CreateContractAddress::FromSenderSaltAndCodeHash(H256::zero()), false) {
+			match ext.create(&U256::max_value(), &U256::zero(), &[], &U256::zero(), CreateContractAddress::FromSenderSaltAndCodeHash(H256::zero()), false) {
 				Ok(ContractCreateResult::Created(address, _)) => address,
 				_ => panic!("Test create failed; expected Created, got Failed/Reverted."),
 			}

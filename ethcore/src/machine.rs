@@ -176,6 +176,7 @@ impl Machine {
 			value: value.unwrap_or_else(|| ActionValue::Transfer(0.into())),
 			code,
 			code_hash,
+			code_version: 0.into(),
 			data,
 			call_type: call_type.unwrap_or(CallType::Call),
 			params_type: ParamsType::Separate,

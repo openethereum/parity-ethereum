@@ -89,6 +89,7 @@ mod test {
 				nonce: 0.into(),
 				code: Some(Vec::new()),
 				storage: map![],
+				version: 0.into(),
 			}
 		]);
 		assert_eq!(super::diff_pod(&a, &PodState::default()), StateDiff { raw: map![
@@ -99,7 +100,7 @@ mod test {
 				storage: map![],
 			}
 		]});
-		assert_eq!(super::diff_pod(&PodState::default(), &a), StateDiff{ raw: map![
+		assert_eq!(super::diff_pod(&PodState::default(), &a), StateDiff { raw: map![
 			Address::from_low_u64_be(1) => AccountDiff{
 				balance: Diff::Born(69.into()),
 				nonce: Diff::Born(0.into()),
@@ -117,6 +118,7 @@ mod test {
 				nonce: 0.into(),
 				code: Some(Vec::new()),
 				storage: map![],
+				version: 0.into(),
 			}
 		]);
 		let b = PodState::from(map![
@@ -125,16 +127,18 @@ mod test {
 				nonce: 0.into(),
 				code: Some(Vec::new()),
 				storage: map![],
+				version: 0.into(),
 			},
 			Address::from_low_u64_be(2) => PodAccount {
 				balance: 69.into(),
 				nonce: 0.into(),
 				code: Some(Vec::new()),
 				storage: map![],
+				version: 0.into(),
 			}
 		]);
 		assert_eq!(super::diff_pod(&a, &b), StateDiff { raw: map![
-			Address::from_low_u64_be(2) => AccountDiff{
+			Address::from_low_u64_be(2) => AccountDiff {
 				balance: Diff::Born(69.into()),
 				nonce: Diff::Born(0.into()),
 				code: Diff::Born(vec![]),
@@ -142,7 +146,7 @@ mod test {
 			}
 		]});
 		assert_eq!(super::diff_pod(&b, &a), StateDiff { raw: map![
-			Address::from_low_u64_be(2) => AccountDiff{
+			Address::from_low_u64_be(2) => AccountDiff {
 				balance: Diff::Died(69.into()),
 				nonce: Diff::Died(0.into()),
 				code: Diff::Died(vec![]),
@@ -159,12 +163,14 @@ mod test {
 				nonce: 0.into(),
 				code: Some(Vec::new()),
 				storage: map![],
+				version: 0.into(),
 			},
 			Address::from_low_u64_be(2) => PodAccount {
 				balance: 69.into(),
 				nonce: 0.into(),
 				code: Some(Vec::new()),
 				storage: map![],
+				version: 0.into(),
 			}
 		]);
 		let b = PodState::from(map![
@@ -173,16 +179,18 @@ mod test {
 				nonce: 1.into(),
 				code: Some(Vec::new()),
 				storage: map![],
+				version: 0.into(),
 			},
 			Address::from_low_u64_be(2) => PodAccount {
 				balance: 69.into(),
 				nonce: 0.into(),
 				code: Some(Vec::new()),
 				storage: map![],
+				version: 0.into(),
 			}
 		]);
 		assert_eq!(super::diff_pod(&a, &b), StateDiff { raw: map![
-			Address::from_low_u64_be(1) => AccountDiff{
+			Address::from_low_u64_be(1) => AccountDiff {
 				balance: Diff::Same,
 				nonce: Diff::Changed(0.into(), 1.into()),
 				code: Diff::Same,

@@ -50,7 +50,7 @@ use self::io::SnapshotWriter;
 use super::state_db::StateDB;
 use super::state::Account as StateAccount;
 
-use crossbeam::scope;
+use crossbeam_utils::thread;
 use rand::{Rng, rngs::OsRng};
 
 pub use self::error::Error;
@@ -167,9 +167,9 @@ pub fn take_snapshot<W: SnapshotWriter + Send>(
 
 	let version = chunker.current_version();
 	let writer = Mutex::new(writer);
-	let (state_hashes, block_hashes) = scope(|scope| -> Result<(Vec<H256>, Vec<H256>), Error> {
+	let (state_hashes, block_hashes) = thread::scope(|scope| -> Result<(Vec<H256>, Vec<H256>), Error> {
 		let writer = &writer;
-		let block_guard = scope.spawn(move || {
+		let block_guard = scope.spawn(move |_| {
 			chunk_secondary(chunker, chain, block_hash, writer, p)
 		});
 
@@ -181,7 +181,7 @@ pub fn take_snapshot<W: SnapshotWriter + Send>(
 		let mut state_guards = Vec::with_capacity(num_threads as usize);
 
 		for thread_idx in 0..num_threads {
-			let state_guard = scope.spawn(move || -> Result<Vec<H256>, Error> {
+			let state_guard = scope.spawn(move |_| -> Result<Vec<H256>, Error> {
 				let mut chunk_hashes = Vec::new();
 
 				for part in (thread_idx..SNAPSHOT_SUBPARTS).step_by(num_threads) {
@@ -205,7 +205,7 @@ pub fn take_snapshot<W: SnapshotWriter + Send>(
 
 		debug!(target: "snapshot", "Took a snapshot of {} accounts", p.accounts.load(Ordering::SeqCst));
 		Ok((state_hashes, block_hashes))
-	})?;
+	}).expect("Sub-thread never panics; qed")?;
 
 	info!(target: "snapshot", "produced {} state chunks and {} block chunks.", state_hashes.len(), block_hashes.len());
 
