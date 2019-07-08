@@ -35,7 +35,8 @@ use client::BlockInfo;
 use error::Error;
 use executive::Executive;
 use spec::CommonParams;
-use account_state::{CleanupMode, Substate};
+use account_state::CleanupMode;
+use substate::Substate;
 use trace::{NoopTracer, NoopVMTracer};
 use tx_filter::TransactionFilter;
 

@@ -19,7 +19,8 @@ use std::cmp;
 use std::sync::Arc;
 use ethereum_types::{H256, U256, Address, BigEndianHash};
 use bytes::Bytes;
-use account_state::{Backend as StateBackend, State, Substate, CleanupMode};
+use account_state::{Backend as StateBackend, State, CleanupMode};
+use substate::Substate;
 use machine::Machine;
 use executive::*;
 use vm::{
@@ -435,7 +436,8 @@ impl<'a, T: 'a, V: 'a, B: 'a> Ext for Externalities<'a, T, V, B>
 mod tests {
 	use ethereum_types::{U256, Address};
 	use evm::{EnvInfo, Ext, CallType};
-	use account_state::{State, Substate};
+	use account_state::State;
+	use substate::Substate;
 	use test_helpers::get_temp_state;
 	use super::*;
 	use trace::{NoopTracer, NoopVMTracer};

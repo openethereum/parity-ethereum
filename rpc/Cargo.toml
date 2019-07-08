@@ -70,7 +70,6 @@ ethcore = { path = "../ethcore", features = ["test-helpers"] }
 ethcore-accounts = { path = "../accounts" }
 ethcore-io = { path = "../util/io" }
 ethcore-network = { path = "../util/network" }
-patricia-trie-ethereum = { path = "../util/patricia-trie-ethereum" }
 fake-fetch = { path = "../util/fake-fetch" }
 macros = { path = "../util/macros" }
 pretty_assertions = "0.1"

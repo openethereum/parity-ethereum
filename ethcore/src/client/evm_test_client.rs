@@ -28,7 +28,8 @@ use trie_vm_factories::Factories;
 use evm::{VMType, FinalizationResult};
 use vm::{self, ActionParams};
 use ethtrie;
-use account_state::{CleanupMode, Substate, State};
+use account_state::{CleanupMode, State};
+use substate::Substate;
 
 use executive_state::ExecutiveState;
 
