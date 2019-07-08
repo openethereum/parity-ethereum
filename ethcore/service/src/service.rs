@@ -119,8 +119,8 @@ impl ClientService {
 		let snapshot_params = SnapServiceParams {
 			engine: spec.engine.clone(),
 			genesis_block: spec.genesis_block(),
-			restoration_db_handler: restoration_db_handler,
-			pruning: pruning,
+			restoration_db_handler,
+			pruning,
 			channel: io_service.channel(),
 			snapshot_root: snapshot_path.into(),
 			client: client.clone(),

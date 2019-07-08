@@ -54,6 +54,7 @@
 //!   ```
 
 extern crate account_db;
+extern crate account_state;
 extern crate ansi_term;
 extern crate common_types as types;
 extern crate crossbeam_utils;
@@ -97,8 +98,8 @@ extern crate parity_util_mem;
 extern crate parity_util_mem as malloc_size_of;
 extern crate rustc_hex;
 extern crate serde;
+extern crate state_db;
 extern crate stats;
-extern crate account_state;
 extern crate time_utils;
 extern crate trace;
 extern crate triehash_ethereum as triehash;
@@ -163,7 +164,6 @@ pub mod spec;
 pub mod verification;
 
 mod externalities;
-mod state_db;
 mod transaction_ext;
 mod tx_filter;
 
@@ -177,4 +177,3 @@ pub mod test_helpers;
 pub use executive::contract_address;
 pub use evm::CreateContractAddress;
 pub use trie::TrieSpec;
-pub use state_db::StateDB;

@@ -543,8 +543,8 @@ fn load_from(spec_params: SpecParams, s: ethjson::spec::Spec) -> Result<Spec, Er
 		gas_used: g.gas_used,
 		timestamp: g.timestamp,
 		extra_data: g.extra_data,
-		seal_rlp: seal_rlp,
-		hardcoded_sync: hardcoded_sync,
+		seal_rlp,
+		hardcoded_sync,
 		constructors: s.accounts
 			.constructors()
 			.into_iter()

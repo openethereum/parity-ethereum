@@ -6,6 +6,7 @@ license = "GPL-3.0"
 authors = ["Parity Technologies <admin@parity.io>"]
 
 [dependencies]
+account-state = { path = "../account-state" }
 common-types = { path = "../types" }
 derive_more = "0.14.0"
 ethabi = "8.0"
@@ -35,7 +36,7 @@ rustc-hex = "1.0"
 serde = "1.0"
 serde_derive = "1.0"
 serde_json = "1.0"
-account-state = { path = "../account-state" }
+state-db = { path = "../state-db" }
 time-utils = { path = "../../util/time-utils" }
 tiny-keccak = "1.4"
 trace = { path = "../trace" }
