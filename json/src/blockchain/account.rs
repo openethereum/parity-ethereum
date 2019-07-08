@@ -31,6 +31,9 @@ pub struct Account {
 	pub nonce: Uint,
 	/// Storage.
 	pub storage: BTreeMap<Uint, Uint>,
+	/// Version.
+	#[serde(default)]
+	pub version: Uint,
 }
 
 #[cfg(test)]
