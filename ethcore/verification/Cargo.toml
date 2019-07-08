@@ -1,0 +1,19 @@
+[package]
+name = "verification"
+description = "Block verification utilities."
+authors = ["Parity Technologies <admin@parity.io>"]
+license = "GPL-3.0"
+version = "0.1.0"
+edition = "2018"
+
+[dependencies]
+call-contract = { path = "../call-contract", package = "ethcore-call-contract" }
+common-types = { path = "../types" }
+client-traits = { path = "../client-traits" }
+derive_more = "0.15.0"
+keccak-hash = "0.2.0"
+rlp = "0.4"
+triehash = "0.7.0"
+unexpected = { path = "../../util/unexpected" }
+ethcore-blockchain = { path = "../blockchain" }
+time-utils = { path = "../../util/time-utils" }
