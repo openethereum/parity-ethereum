@@ -141,17 +141,22 @@ pub fn quick_get_difficulty(header_hash: &H256, nonce: u64, mix_hash: &H256, pro
 			//
 			// This cannot be elided by the compiler as it doesn't know the implementation of
 			// `keccak_512`.
-			let mut buf: [u8; 64 + 32] = mem::uninitialized();
+			let mut buf = mem::MaybeUninit::<[u8; 64 + 32]>::uninit();
 
-			ptr::copy_nonoverlapping(header_hash.as_ptr(), buf.as_mut_ptr(), 32);
-			ptr::copy_nonoverlapping(&nonce as *const u64 as *const u8, buf[32..].as_mut_ptr(), 8);
+			let buf_ptr = buf.as_mut_ptr() as *mut u8;
+			ptr::copy_nonoverlapping(header_hash.as_ptr(), buf_ptr, 32);
+			ptr::copy_nonoverlapping(&nonce as *const u64 as *const u8, buf_ptr.offset(32), 8);
 
-			keccak_512::unchecked(buf.as_mut_ptr(), 64, buf.as_ptr(), 40);
-			ptr::copy_nonoverlapping(mix_hash.as_ptr(), buf[64..].as_mut_ptr(), 32);
+			keccak_512::unchecked(buf_ptr, 64, buf_ptr, 40);
+			ptr::copy_nonoverlapping(mix_hash.as_ptr(), buf_ptr.offset(64), 32);
 
-			// This is initialized in `keccak_256`
-			let mut hash: [u8; 32] = mem::uninitialized();
-			keccak_256::unchecked(hash.as_mut_ptr(), hash.len(), buf.as_ptr(), buf.len());
+			let buf = buf.assume_init();
+
+			// This is initialized in `keccak_256` below.
+			let mut hash = mem::MaybeUninit::<[u8; 32]>::uninit();
+			keccak_256::unchecked(hash.as_mut_ptr() as *mut u8, 32, buf.as_ptr(), buf.len());
+
+			let hash = hash.assume_init();
 
 			hash
 		}
