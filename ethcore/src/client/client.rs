@@ -172,7 +172,10 @@ struct Importer {
 }
 
 
+/// Newtype around an `Arc<BlockChain>` so we can glue together `BlockChain` (from the `blockchain`
+/// crate) and `DatabaseExtras` (from the `trace` crate).
 struct BlockChainWithExtras(Arc<BlockChain>);
+
 impl trace::DatabaseExtras for BlockChainWithExtras {
 	fn block_hash(&self, block_number: BlockNumber) -> Option<H256> {
 		(self.0.as_ref() as &dyn BlockProvider).block_hash(block_number)
@@ -190,9 +193,10 @@ impl trace::DatabaseExtras for BlockChainWithExtras {
 			.map(|tx| tx.hash())
 	}
 }
-impl BlockChainWithExtras {
-	fn new(bc: Arc<BlockChain>) -> Arc<Self> {
-		Arc::new(BlockChainWithExtras(bc))
+
+impl From<Arc<BlockChain>> for BlockChainWithExtras {
+	fn from(bc: Arc<BlockChain>) -> Self {
+		BlockChainWithExtras(bc)
 	}
 }
 
@@ -762,8 +766,7 @@ impl Client {
 
 		let gb = spec.genesis_block();
 		let chain = Arc::new(BlockChain::new(config.blockchain.clone(), &gb, db.clone()));
-		let chain_extras = BlockChainWithExtras::new(chain.clone());
-		let tracedb = RwLock::new(TraceDB::new(config.tracing.clone(), db.clone(), chain_extras));
+		let tracedb = RwLock::new(TraceDB::new(config.tracing.clone(), db.clone(), chain.clone().into()));
 
 		trace!("Cleanup journal: DB Earliest = {:?}, Latest = {:?}", state_db.journal_db().earliest_era(), state_db.journal_db().latest_era());
 
@@ -1364,8 +1367,7 @@ impl snapshot::DatabaseRestore for Client {
 		let cache_size = state_db.cache_size();
 		*state_db = StateDB::new(journaldb::new(db.key_value().clone(), self.pruning, ::db::COL_STATE), cache_size);
 		*chain = Arc::new(BlockChain::new(self.config.blockchain.clone(), &[], db.clone()));
-		let chain_extras = BlockChainWithExtras::new(chain.clone());
-		*tracedb = TraceDB::new(self.config.tracing.clone(), db.clone(), chain_extras);
+		*tracedb = TraceDB::new(self.config.tracing.clone(), db.clone(), chain.clone().into());
 		Ok(())
 	}
 }

@@ -83,12 +83,12 @@ pub struct TraceDB<T> where T: DatabaseExtras {
 	/// tracing enabled
 	enabled: bool,
 	/// extras
-	extras: Arc<T>,
+	extras: T,
 }
 
 impl<T> TraceDB<T> where T: DatabaseExtras {
 	/// Creates new instance of `TraceDB`.
-	pub fn new(config: Config, db: Arc<dyn BlockChainDB>, extras: Arc<T>) -> Self {
+	pub fn new(config: Config, db: Arc<dyn BlockChainDB>, extras: T) -> Self {
 		let mut batch = DBTransaction::new();
 		let genesis = extras.block_hash(0)
 			.expect("Genesis block is always inserted upon extras db creation qed");
@@ -349,19 +349,15 @@ impl<T> TraceDatabase for TraceDB<T> where T: DatabaseExtras {
 
 #[cfg(test)]
 mod tests {
-	use std::{
-		collections::HashMap,
-		sync::Arc,
-	};
+	use std::collections::HashMap;
 	use common_types::BlockNumber;
-	use ethcore_blockchain::DatabaseExtras;
 	use ethcore::test_helpers::new_db;
 	use ethereum_types::{H256, U256, Address};
 	use evm::CallType;
 	use kvdb::DBTransaction;
 
 	use crate::{
-		Config, TraceDB, Database as TraceDatabase, ImportRequest,
+		Config, TraceDB, Database as TraceDatabase, ImportRequest, DatabaseExtras,
 		Filter, LocalizedTrace, AddressesFilter, TraceError,
 		trace::{Call, Action, Res},
 		flat::{FlatTrace, FlatBlockTraces, FlatTransactionTraces}
@@ -418,7 +414,7 @@ mod tests {
 		config.enabled = false;
 
 		{
-			let tracedb = TraceDB::new(config.clone(), db.clone(), Arc::new(NoopExtras));
+			let tracedb = TraceDB::new(config.clone(), db.clone(), NoopExtras);
 			assert_eq!(tracedb.tracing_enabled(), false);
 		}
 	}
@@ -432,7 +428,7 @@ mod tests {
 		config.enabled = true;
 
 		{
-			let tracedb = TraceDB::new(config.clone(), db.clone(), Arc::new(NoopExtras));
+			let tracedb = TraceDB::new(config.clone(), db.clone(), NoopExtras);
 			assert_eq!(tracedb.tracing_enabled(), true);
 		}
 	}
@@ -517,7 +513,7 @@ mod tests {
 		extras.transaction_hashes.insert(0, vec![tx_0.clone()]);
 		extras.transaction_hashes.insert(1, vec![tx_1.clone()]);
 
-		let tracedb = TraceDB::new(config, db.clone(), Arc::new(extras));
+		let tracedb = TraceDB::new(config, db.clone(), extras);
 
 		// import block 0
 		let request = create_noncanon_import_request(0, block_0.clone());
@@ -546,7 +542,7 @@ mod tests {
 		extras.transaction_hashes.insert(1, vec![tx_1.clone()]);
 		extras.transaction_hashes.insert(2, vec![tx_2.clone()]);
 
-		let tracedb = TraceDB::new(config, db.clone(), Arc::new(extras));
+		let tracedb = TraceDB::new(config, db.clone(), extras);
 
 		// import block 1
 		let request = create_simple_import_request(1, block_1.clone());
@@ -624,7 +620,7 @@ mod tests {
 		config.enabled = true;
 
 		{
-			let tracedb = TraceDB::new(config.clone(), db.clone(), Arc::new(extras.clone()));
+			let tracedb = TraceDB::new(config.clone(), db.clone(), extras.clone());
 
 			// import block 1
 			let request = create_simple_import_request(1, block_0.clone());
@@ -634,7 +630,7 @@ mod tests {
 		}
 
 		{
-			let tracedb = TraceDB::new(config.clone(), db.clone(), Arc::new(extras));
+			let tracedb = TraceDB::new(config.clone(), db.clone(), extras);
 			let traces = tracedb.transaction_traces(1, 0);
 			assert_eq!(traces.unwrap(), vec![create_simple_localized_trace(1, block_0, tx_0)]);
 		}
@@ -653,7 +649,7 @@ mod tests {
 		// set tracing on
 		config.enabled = true;
 
-		let tracedb = TraceDB::new(config.clone(), db.clone(), Arc::new(extras.clone()));
+		let tracedb = TraceDB::new(config.clone(), db.clone(), extras.clone());
 		let traces = tracedb.block_traces(0).unwrap();
 
 		assert_eq!(traces.len(), 0);
