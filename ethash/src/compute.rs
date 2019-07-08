@@ -282,9 +282,9 @@ fn hash_compute(light: &Light, full_size: usize, header_hash: &H256, nonce: u64)
 	let mix_words: [u32; MIX_WORDS] = unsafe { mem::transmute(mix) };
 
 	{
-		// This is an uninitialized buffer to begin with, but we iterate precisely `compress.len()`
-		// times and set each index, leaving the array fully initialized. THIS ONLY WORKS ON LITTLE-
-		// ENDIAN MACHINES. See a future PR to make this and the rest of the code work correctly on
+		// We iterate precisely `compress.len()` times and set each index,
+		// leaving the array fully initialized. THIS ONLY WORKS ON LITTLE-ENDIAN MACHINES.
+		// See a future PR to make this and the rest of the code work correctly on
 		// big-endian arches like mips.
 		let compress: &mut [u32; MIX_WORDS / 4] =
 			unsafe { make_const_array!(MIX_WORDS / 4, &mut buf.compress_bytes) };
