@@ -59,7 +59,6 @@ parity-runtime = { path = "util/runtime" }
 parity-rpc = { path = "rpc" }
 parity-updater = { path = "updater" }
 parity-version = { path = "util/version" }
-parity-whisper = { path = "whisper" }
 parity-path = "0.1"
 dir = { path = "util/dir" }
 panic_hook = { path = "util/panic-hook" }
@@ -134,7 +133,6 @@ members = [
 	"ethcore/wasm/run",
 	"evmbin",
 	"parity-clib",
-	"whisper/cli",
 	"util/triehash-ethereum",
 	"util/keccak-hasher",
 	"util/patricia-trie-ethereum",

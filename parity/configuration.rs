@@ -362,7 +362,6 @@ impl Configuration {
 			};
 
 			let verifier_settings = self.verifier_settings();
-			let whisper_config = self.whisper_config();
 			let (private_provider_conf, private_enc_conf, private_tx_enabled) = self.private_provider_config()?;
 
 			let run_cmd = RunCmd {
@@ -412,7 +411,6 @@ impl Configuration {
 				serve_light: !self.args.flag_no_serve_light,
 				light: self.args.flag_light,
 				no_persistent_txqueue: self.args.flag_no_persistent_txqueue,
-				whisper: whisper_config,
 				no_hardcoded_sync: self.args.flag_no_hardcoded_sync,
 				max_round_blocks_to_import: self.args.arg_max_round_blocks_to_import,
 				on_demand_response_time_window: self.args.arg_on_demand_response_time_window,
@@ -1179,13 +1177,6 @@ impl Configuration {
 
 		settings
 	}
-
-	fn whisper_config(&self) -> ::whisper::Config {
-		::whisper::Config {
-			enabled: self.args.flag_whisper,
-			target_message_pool_size: self.args.arg_whisper_pool_size * 1024 * 1024,
-		}
-	}
 }
 
 fn into_secretstore_service_contract_address(s: Option<&String>) -> Result<Option<SecretStoreContractAddress>, String> {
@@ -1481,7 +1472,6 @@ mod tests {
 			light: false,
 			no_hardcoded_sync: false,
 			no_persistent_txqueue: false,
-			whisper: Default::default(),
 			max_round_blocks_to_import: 12,
 			on_demand_response_time_window: None,
 			on_demand_request_backoff_start: None,

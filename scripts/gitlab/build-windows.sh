@@ -22,14 +22,12 @@ time cargo build --target $CARGO_TARGET --verbose --release --features final
 time cargo build --target $CARGO_TARGET --verbose --release -p evmbin
 time cargo build --target $CARGO_TARGET --verbose --release -p ethstore-cli
 time cargo build --target $CARGO_TARGET --verbose --release -p ethkey-cli
-time cargo build --target $CARGO_TARGET --verbose --release -p whisper-cli
 
 echo "__________Sign binaries__________"
 scripts/gitlab/sign-win.cmd $keyfile $certpass target/$CARGO_TARGET/release/parity.exe
 scripts/gitlab/sign-win.cmd $keyfile $certpass target/$CARGO_TARGET/release/parity-evm.exe
 scripts/gitlab/sign-win.cmd $keyfile $certpass target/$CARGO_TARGET/release/ethstore.exe
 scripts/gitlab/sign-win.cmd $keyfile $certpass target/$CARGO_TARGET/release/ethkey.exe
-scripts/gitlab/sign-win.cmd $keyfile $certpass target/$CARGO_TARGET/release/whisper.exe
 
 echo "_____ Post-processing binaries _____"
 rm -rf artifacts
@@ -41,7 +39,6 @@ cp --verbose ../../target/$CARGO_TARGET/release/parity.exe ./parity.exe
 cp --verbose ../../target/$CARGO_TARGET/release/parity-evm.exe ./parity-evm.exe
 cp --verbose ../../target/$CARGO_TARGET/release/ethstore.exe ./ethstore.exe
 cp --verbose ../../target/$CARGO_TARGET/release/ethkey.exe ./ethkey.exe
-cp --verbose ../../target/$CARGO_TARGET/release/whisper.exe ./whisper.exe
 
 echo "_____ Calculating checksums _____"
 for binary in $(ls)

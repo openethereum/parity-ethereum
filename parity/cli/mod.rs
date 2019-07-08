@@ -926,11 +926,11 @@ usage! {
 		["Whisper Options"]
 			FLAG flag_whisper: (bool) = false, or |c: &Config| c.whisper.as_ref()?.enabled,
 			"--whisper",
-			"Enable the Whisper network.",
+			"Does nothing. Whisper is no longer a part of parity-ethereum cli.",
 
-			ARG arg_whisper_pool_size: (usize) = 10usize, or |c: &Config| c.whisper.as_ref()?.pool_size.clone(),
+			ARG arg_whisper_pool_size: (Option<usize>) = None, or |c: &Config| c.whisper.as_ref()?.pool_size.clone(),
 			"--whisper-pool-size=[MB]",
-			"Target size of the whisper message pool in megabytes.",
+			"Does nothing. Whisper is no longer a part of parity-ethereum cli.",
 
 		["Legacy Options"]
 			// Options that are hidden from config, but are still unique for its functionality.
@@ -1942,7 +1942,7 @@ mod tests {
 
 			// -- Whisper options.
 			flag_whisper: false,
-			arg_whisper_pool_size: 20,
+			arg_whisper_pool_size: None,
 
 			// -- Legacy Options
 			flag_warp: false,
