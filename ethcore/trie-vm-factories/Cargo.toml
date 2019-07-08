@@ -1,0 +1,15 @@
+[package]
+description = "Collection of factories for VM and Tries"
+name = "trie-vm-factories"
+version = "0.1.0"
+authors = ["Parity Technologies <admin@parity.io>"]
+edition = "2018"
+
+[dependencies]
+trie-db = "0.12.4"
+ethtrie = { package = "patricia-trie-ethereum", path = "../../util/patricia-trie-ethereum" }
+account-db = { path = "../account-db" }
+evm = { path = "../evm" }
+vm = { path = "../vm" }
+wasm = { path = "../wasm" }
+keccak-hasher = { path = "../../util/keccak-hasher" }
