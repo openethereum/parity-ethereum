@@ -392,13 +392,13 @@ impl<B: Backend> State<B> {
 
 	/// Create a new contract at address `contract`. If there is already an account at the address
 	/// it will have its code reset, ready for `init_code()`.
-	pub fn new_contract(&mut self, contract: &Address, balance: U256, nonce_offset: U256) -> TrieResult<()> {
+	pub fn new_contract(&mut self, contract: &Address, balance: U256, nonce_offset: U256, version: U256) -> TrieResult<()> {
 		let original_storage_root = self.original_storage_root(contract)?;
 		let (nonce, overflow) = self.account_start_nonce.overflowing_add(nonce_offset);
 		if overflow {
 			return Err(Box::new(TrieError::DecoderError(H256::from(*contract), rlp::DecoderError::Custom("Nonce overflow".into()))));
 		}
-		self.insert_cache(contract, AccountEntry::new_dirty(Some(Account::new_contract(balance, nonce, original_storage_root))));
+		self.insert_cache(contract, AccountEntry::new_dirty(Some(Account::new_contract(balance, nonce, version, original_storage_root))));
 		Ok(())
 	}
 
@@ -627,6 +627,12 @@ impl<B: Backend> State<B> {
 		|a| a.as_ref().map(|a| a.code_hash()))
 	}
 
+	/// Get an account's code version.
+	pub fn code_version(&self, a: &Address) -> TrieResult<U256> {
+		self.ensure_cached(a, RequireCache::None, true,
+			|a| a.as_ref().map(|a| *a.code_version()).unwrap_or(U256::zero()))
+	}
+
 	/// Get accounts' code size.
 	pub fn code_size(&self, a: &Address) -> TrieResult<Option<usize>> {
 		self.ensure_cached(a, RequireCache::CodeSize, true,
@@ -685,13 +691,13 @@ impl<B: Backend> State<B> {
 	/// Initialise the code of account `a` so that it is `code`.
 	/// NOTE: Account should have been created with `new_contract`.
 	pub fn init_code(&mut self, a: &Address, code: Bytes) -> TrieResult<()> {
-		self.require_or_from(a, true, || Account::new_contract(0.into(), self.account_start_nonce, KECCAK_NULL_RLP), |_| {})?.init_code(code);
+		self.require_or_from(a, true, || Account::new_contract(0.into(), self.account_start_nonce, 0.into(),KECCAK_NULL_RLP), |_| {})?.init_code(code);
 		Ok(())
 	}
 
 	/// Reset the code of account `a` so that it is `code`.
 	pub fn reset_code(&mut self, a: &Address, code: Bytes) -> TrieResult<()> {
-		self.require_or_from(a, true, || Account::new_contract(0.into(), self.account_start_nonce, KECCAK_NULL_RLP), |_| {})?.reset_code(code);
+		self.require_or_from(a, true, || Account::new_contract(0.into(), self.account_start_nonce, 0.into(), KECCAK_NULL_RLP), |_| {})?.reset_code(code);
 		Ok(())
 	}
 
@@ -890,11 +896,11 @@ impl<B: Backend> State<B> {
 					};
 
 					// Storage must be fetched after ensure_cached to avoid borrow problem.
-					(*acc.balance(), *acc.nonce(), all_keys, acc.code().map(|x| x.to_vec()))
+					(*acc.balance(), *acc.nonce(), all_keys, acc.code().map(|x| x.to_vec()), *acc.code_version())
 				})
 			})?;
 
-			if let Some((balance, nonce, storage_keys, code)) = account {
+			if let Some((balance, nonce, storage_keys, code, version)) = account {
 				let storage = storage_keys.into_iter().fold(Ok(BTreeMap::new()), |s: TrieResult<_>, key| {
 					let mut s = s?;
 
@@ -903,7 +909,7 @@ impl<B: Backend> State<B> {
 				})?;
 
 				m.insert(address, PodAccount {
-					balance, nonce, storage, code
+					balance, nonce, storage, code, version
 				});
 			}
 
@@ -1091,6 +1097,7 @@ impl<B: Backend> State<B> {
 			nonce: self.account_start_nonce,
 			code_hash: KECCAK_EMPTY,
 			storage_root: KECCAK_NULL_RLP,
+			code_version: 0.into(),
 		});
 
 		Ok((recorder.drain().into_iter().map(|r| r.data).collect(), account))

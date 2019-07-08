@@ -27,7 +27,7 @@ use kvdb::DBValue;
 use log::{trace, warn};
 use lru_cache::LruCache;
 use parity_bytes::{Bytes, ToPretty};
-use rlp::{DecoderError, encode, RlpStream};
+use rlp::{DecoderError, encode};
 use trie_db::{Recorder, Trie};
 
 use common_types::basic_account::BasicAccount;
@@ -184,8 +184,8 @@ impl Account {
 	/// NOTE: make sure you use `init_code` on this before `commit`ing.
 	pub fn new_contract(balance: U256, nonce: U256, version: U256, original_storage_root: H256) -> Account {
 		Account {
-			balance: balance,
-			nonce: nonce,
+			balance,
+			nonce,
 			storage_root: KECCAK_NULL_RLP,
 			storage_cache: Self::empty_storage_cache(),
 			original_storage_cache: if original_storage_root == KECCAK_NULL_RLP {

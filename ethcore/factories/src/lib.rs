@@ -17,7 +17,6 @@
 use trie_db::TrieFactory;
 use ethtrie::RlpCodec;
 use account_db::Factory as AccountFactory;
-use ethereum_types::U256;
 use evm::{Factory as EvmFactory, VMType};
 use vm::{Exec, ActionParams, VersionedSchedule, Schedule};
 use wasm::WasmInterpreter;
