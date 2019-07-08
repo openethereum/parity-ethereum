@@ -107,6 +107,15 @@ pub fn into_contract_create_result(result: vm::Result<FinalizationResult>, addre
 	}
 }
 
+/// Get the cleanup mode object from this.
+pub fn cleanup_mode<'a>(substate: &'a mut Substate, schedule: &Schedule) -> CleanupMode<'a> {
+	match (schedule.kill_dust != CleanDustMode::Off, schedule.no_empty, schedule.kill_empty) {
+		(false, false, _) => CleanupMode::ForceCreate,
+		(false, true, false) => CleanupMode::NoEmpty,
+		(false, true, true) | (true, _, _,) => CleanupMode::TrackTouched(&mut substate.touched),
+	}
+}
+
 /// Transaction execution options.
 #[derive(Copy, Clone, PartialEq)]
 pub struct TransactOptions<T, V> {
@@ -303,7 +312,7 @@ impl<'a> CallCreateExecutive<'a> {
 
 	fn transfer_exec_balance<B: 'a + StateBackend>(params: &ActionParams, schedule: &Schedule, state: &mut State<B>, substate: &mut Substate) -> vm::Result<()> {
 		if let ActionValue::Transfer(val) = params.value {
-			state.transfer_balance(&params.sender, &params.address, &val, substate.to_cleanup_mode(&schedule))?;
+			state.transfer_balance(&params.sender, &params.address, &val, cleanup_mode(substate, &schedule))?;
 		}
 
 		Ok(())
@@ -313,7 +322,7 @@ impl<'a> CallCreateExecutive<'a> {
 		let nonce_offset = if schedule.no_empty { 1 } else { 0 }.into();
 		let prev_bal = state.balance(&params.address)?;
 		if let ActionValue::Transfer(val) = params.value {
-			state.sub_balance(&params.sender, &val, &mut substate.to_cleanup_mode(&schedule))?;
+			state.sub_balance(&params.sender, &val, &mut cleanup_mode(substate, &schedule))?;
 			state.new_contract(&params.address, val.saturating_add(prev_bal), nonce_offset, params.code_version)?;
 		} else {
 			state.new_contract(&params.address, prev_bal, nonce_offset, params.code_version)?;
@@ -866,7 +875,11 @@ impl<'a, B: 'a + StateBackend> Executive<'a, B> {
 		if !schedule.keep_unsigned_nonce || !t.is_unsigned() {
 			self.state.inc_nonce(&sender)?;
 		}
-		self.state.sub_balance(&sender, &U256::try_from(gas_cost).expect("Total cost (value + gas_cost) is lower than max allowed balance (U256); gas_cost has to fit U256; qed"), &mut substate.to_cleanup_mode(&schedule))?;
+		self.state.sub_balance(
+			&sender,
+			&U256::try_from(gas_cost).expect("Total cost (value + gas_cost) is lower than max allowed balance (U256); gas_cost has to fit U256; qed"),
+			&mut cleanup_mode(&mut substate, &schedule)
+		)?;
 
 		let (result, output) = match t.action {
 			Action::Create => {
@@ -1143,7 +1156,7 @@ impl<'a, B: 'a + StateBackend> Executive<'a, B> {
 		// Below: NoEmpty is safe since the sender must already be non-null to have sent this transaction
 		self.state.add_balance(&sender, &refund_value, CleanupMode::NoEmpty)?;
 		trace!("exec::finalize: Compensating author: fees_value={}, author={}\n", fees_value, &self.info.author);
-		self.state.add_balance(&self.info.author, &fees_value, substate.to_cleanup_mode(&schedule))?;
+		self.state.add_balance(&self.info.author, &fees_value, cleanup_mode(&mut substate, &schedule))?;
 
 		// perform suicides
 		for address in &substate.suicides {

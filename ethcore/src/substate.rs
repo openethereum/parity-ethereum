@@ -16,10 +16,7 @@
 
 //! Execution environment substate.
 use std::collections::HashSet;
-
-use account_state::state::CleanupMode;
 use ethereum_types::Address;
-use evm::{CleanDustMode, Schedule};
 use types::log_entry::LogEntry;
 
 /// State changes which should be applied in finalize,
@@ -56,22 +53,13 @@ impl Substate {
 		self.sstore_clears_refund += s.sstore_clears_refund;
 		self.contracts_created.extend(s.contracts_created);
 	}
-
-	/// Get the cleanup mode object from this.
-	pub fn to_cleanup_mode(&mut self, schedule: &Schedule) -> CleanupMode {
-		match (schedule.kill_dust != CleanDustMode::Off, schedule.no_empty, schedule.kill_empty) {
-			(false, false, _) => CleanupMode::ForceCreate,
-			(false, true, false) => CleanupMode::NoEmpty,
-			(false, true, true) | (true, _, _,) => CleanupMode::TrackTouched(&mut self.touched),
-		}
-	}
 }
 
 #[cfg(test)]
 mod tests {
 	use ethereum_types::Address;
-	use super::Substate;
 	use types::log_entry::LogEntry;
+	use super::Substate;
 
 	#[test]
 	fn created() {

@@ -389,7 +389,7 @@ impl<'a, T: 'a, V: 'a, B: 'a> Ext for Externalities<'a, T, V, B>
 				&address,
 				refund_address,
 				&balance,
-				self.substate.to_cleanup_mode(&self.schedule)
+				cleanup_mode(&mut self.substate, &self.schedule)
 			)?;
 		}
 
