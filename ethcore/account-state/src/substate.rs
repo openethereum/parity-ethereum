@@ -70,8 +70,8 @@ impl Substate {
 
 #[cfg(test)]
 mod tests {
-	use ethereum_types::Address;
 	use common_types::log_entry::LogEntry;
+	use ethereum_types::Address;
 	use super::Substate;
 
 	#[test]

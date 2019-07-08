@@ -40,7 +40,7 @@ use ethereum_types::{H256, U256, Address, Bloom};
 
 use engines::Engine;
 use error::{Error, BlockError};
-use factories::Factories;
+use trie_vm_factories::Factories;
 use state_db::StateDB;
 use account_state::State;
 use trace::Tracing;
@@ -551,7 +551,7 @@ mod tests {
 	use engines::Engine;
 	use vm::LastHashes;
 	use error::Error;
-	use factories::Factories;
+	use trie_vm_factories::Factories;
 	use state_db::StateDB;
 	use ethereum_types::Address;
 	use std::sync::Arc;

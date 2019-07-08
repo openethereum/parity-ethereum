@@ -40,7 +40,7 @@ use engines::{
 };
 use error::Error;
 use executive::Executive;
-use factories::Factories;
+use trie_vm_factories::Factories;
 use machine::Machine;
 use pod::PodState;
 use spec::Genesis;

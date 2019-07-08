@@ -32,7 +32,7 @@ use account_state::{
 	state::State,
 };
 use ethereum_types::H256;
-use factories::Factories;
+use trie_vm_factories::Factories;
 use bytes::Bytes;
 use keccak_hasher::KeccakHasher;
 use kvdb::DBValue;

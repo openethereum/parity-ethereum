@@ -35,7 +35,7 @@ use common_types::{
 };
 use ethereum_types::{Address, H256, U256};
 use ethtrie::{TrieDB, Result as TrieResult};
-use factories::{Factories, VmFactory};
+use trie_vm_factories::{Factories, VmFactory};
 use hash_db::HashDB;
 use keccak_hash::{KECCAK_EMPTY, KECCAK_NULL_RLP};
 use keccak_hasher::KeccakHasher;
