@@ -16,9 +16,8 @@
 
 //! Traces import request.
 use ethereum_types::H256;
-use common_types::BlockNumber;
 
-use crate::FlatBlockTraces;
+use crate::{FlatBlockTraces, BlockNumber};
 
 /// Traces import request.
 pub struct ImportRequest {

@@ -18,7 +18,6 @@
 use std::collections::HashMap;
 use std::sync::Arc;
 
-use common_types::BlockNumber;
 use ethcore_blockchain::BlockChainDB;
 use ethcore_db::{
 	self as db,
@@ -31,6 +30,7 @@ use parity_util_mem::MallocSizeOfExt;
 use parking_lot::RwLock;
 
 use crate::{
+	BlockNumber,
 	LocalizedTrace, Config, Filter, Database as TraceDatabase, ImportRequest,
 	flat::{FlatTrace, FlatBlockTraces, FlatTransactionTraces},
 };
@@ -350,14 +350,14 @@ impl<T> TraceDatabase for TraceDB<T> where T: DatabaseExtras {
 #[cfg(test)]
 mod tests {
 	use std::collections::HashMap;
-	use common_types::BlockNumber;
+
 	use ethcore::test_helpers::new_db;
 	use ethereum_types::{H256, U256, Address};
 	use evm::CallType;
 	use kvdb::DBTransaction;
 
 	use crate::{
-		Config, TraceDB, Database as TraceDatabase, ImportRequest, DatabaseExtras,
+		BlockNumber, Config, TraceDB, Database as TraceDatabase, ImportRequest, DatabaseExtras,
 		Filter, LocalizedTrace, AddressesFilter, TraceError,
 		trace::{Call, Action, Res},
 		flat::{FlatTrace, FlatBlockTraces, FlatTransactionTraces}
