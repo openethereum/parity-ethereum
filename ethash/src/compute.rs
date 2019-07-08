@@ -233,8 +233,7 @@ fn hash_compute(light: &Light, full_size: usize, header_hash: &H256, nonce: u64)
 
 			Node { bytes: out.assume_init() }
 		},
-		// This is fully initialized before being read, see `let mut compress = ...` below
-		compress_bytes: unsafe { mem::uninitialized() },
+		compress_bytes: [0u8; MIX_WORDS],
 	};
 
 	let mut mix: [_; MIX_NODES] = [buf.half_mix.clone(), buf.half_mix.clone()];
