@@ -21,8 +21,8 @@ use std::io;
 
 use ethereum_types::{H256, U256, BigEndianHash};
 use bytes::ToPretty;
-use ethcore::{trace, pod_state};
-
+use trace;
+use pod::PodState;
 use display;
 use info as vm;
 
@@ -101,7 +101,7 @@ pub struct MessageFailure<'a> {
 #[derive(Serialize, Debug)]
 pub struct DumpData<'a> {
 	root: &'a H256,
-	accounts: &'a pod_state::PodState,
+	accounts: &'a PodState,
 }
 
 #[derive(Serialize, Debug)]
@@ -154,7 +154,7 @@ impl<Trace: Writer, Out: Writer> Informant<Trace, Out> {
 		}
 	}
 
-	fn dump_state_into(trace_sink: &mut Trace, root: H256, end_state: &Option<pod_state::PodState>) {
+	fn dump_state_into(trace_sink: &mut Trace, root: H256, end_state: &Option<PodState>) {
 		if let Some(ref end_state) = end_state {
 			let dump_data =
 				DumpData {

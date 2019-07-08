@@ -31,7 +31,7 @@ use rustc_hex::{FromHex, ToHex};
 use types::BlockNumber;
 use types::encoded;
 use types::header::Header;
-use vm::{EnvInfo, CallType, ActionValue, ActionParams, ParamsType};
+use vm::{EnvInfo, CallType, ActionValue, ActionParams, ParamsType, VersionedSchedule};
 
 use builtin::Builtin;
 use engines::{
@@ -40,13 +40,12 @@ use engines::{
 };
 use error::Error;
 use executive::Executive;
-use factory::Factories;
+use trie_vm_factories::Factories;
 use machine::Machine;
-use pod_state::PodState;
+use pod::PodState;
 use spec::Genesis;
 use spec::seal::Generic as GenericSeal;
-use state::backend::Basic as BasicBackend;
-use state::{Backend, State, Substate};
+use account_state::{Backend, State, Substate, backend::Basic as BasicBackend};
 use trace::{NoopTracer, NoopVMTracer};
 
 pub use ethash::OptimizeFor;
@@ -131,6 +130,9 @@ pub struct CommonParams {
 	pub remove_dust_contracts: bool,
 	/// Wasm activation blocknumber, if any disabled initially.
 	pub wasm_activation_transition: BlockNumber,
+	/// Wasm account version, activated after `wasm_activation_transition`. If this field is defined, do not use code
+	/// prefix to determine VM to execute.
+	pub wasm_version: Option<U256>,
 	/// Number of first block where KIP-4 rules begin. Only has effect if Wasm is activated.
 	pub kip4_transition: BlockNumber,
 	/// Number of first block where KIP-6 rules begin. Only has effect if Wasm is activated.
@@ -208,6 +210,9 @@ impl CommonParams {
 				wasm.have_gasleft = true;
 			}
 			schedule.wasm = Some(wasm);
+			if let Some(version) = self.wasm_version {
+				schedule.versions.insert(version, VersionedSchedule::PWasm);
+			}
 		}
 	}
 
@@ -327,6 +332,7 @@ impl From<ethjson::spec::Params> for CommonParams {
 				BlockNumber::max_value,
 				Into::into
 			),
+			wasm_version: p.wasm_version.map(Into::into),
 			kip4_transition: p.kip4_transition.map_or_else(
 				BlockNumber::max_value,
 				Into::into
@@ -665,6 +671,7 @@ impl Spec {
 				let params = ActionParams {
 					code_address: address.clone(),
 					code_hash: Some(keccak(constructor)),
+					code_version: U256::zero(),
 					address: address.clone(),
 					sender: from.clone(),
 					origin: from.clone(),
@@ -882,7 +889,7 @@ impl Spec {
 				data: d,
 			}.fake_sign(from);
 
-			let res = ::state::prove_transaction_virtual(
+			let res = ::executive_state::prove_transaction_virtual(
 				db.as_hash_db_mut(),
 				*genesis.state_root(),
 				&tx,
@@ -991,7 +998,7 @@ impl Spec {
 #[cfg(test)]
 mod tests {
 	use super::*;
-	use state::State;
+	use account_state::State;
 	use test_helpers::get_temp_state_db;
 	use tempdir::TempDir;
 	use types::view;

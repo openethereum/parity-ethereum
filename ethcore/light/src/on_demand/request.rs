@@ -25,7 +25,8 @@ use common_types::encoded;
 use common_types::receipt::Receipt;
 use common_types::transaction::SignedTransaction;
 use ethcore::engines::{Engine, StateDependentProof};
-use ethcore::state::{self, ProvedExecution};
+use ethcore::executive_state::{ProvedExecution, self};
+use account_state;
 use ethereum_types::{H256, U256, Address};
 use ethtrie::{TrieError, TrieDB};
 use hash::{KECCAK_NULL_RLP, KECCAK_EMPTY, KECCAK_EMPTY_LIST_RLP, keccak};
@@ -33,7 +34,7 @@ use hash_db::HashDB;
 use kvdb::DBValue;
 use parking_lot::Mutex;
 use request::{self as net_request, IncompleteRequest, CompleteRequest, Output, OutputKind, Field};
-use rlp::{RlpStream, Rlp};
+use rlp::RlpStream;
 use trie::Trie;
 use vm::EnvInfo;
 
@@ -984,13 +985,7 @@ impl Account {
 
 		match TrieDB::new(&db, &state_root).and_then(|t| t.get(keccak(&self.address).as_bytes()))? {
 			Some(val) => {
-				let rlp = Rlp::new(&val);
-				Ok(Some(BasicAccount {
-					nonce: rlp.val_at(0)?,
-					balance: rlp.val_at(1)?,
-					storage_root: rlp.val_at(2)?,
-					code_hash: rlp.val_at(3)?,
-				}))
+				Ok(Some(rlp::decode::<BasicAccount>(&val)?))
 			},
 			None => {
 				trace!(target: "on_demand", "Account {:?} not found", self.address);
@@ -1048,7 +1043,7 @@ impl TransactionProof {
 		let mut env_info = self.env_info.clone();
 		env_info.gas_limit = self.tx.gas;
 
-		let proved_execution = state::check_proof(
+		let proved_execution = executive_state::check_proof(
 			state_items,
 			root,
 			&self.tx,

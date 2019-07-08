@@ -21,14 +21,16 @@ use std::collections::{BTreeMap, BTreeSet, HashMap};
 
 use bytes::Bytes;
 use ethcore::block::SealedBlock;
-use ethcore::client::{Nonce, PrepareOpenBlock, StateClient, EngineInfo};
+use ethcore::client::{Nonce, PrepareOpenBlock, StateClient, EngineInfo, TestState};
 use ethcore::engines::{Engine, signer::EngineSigner};
 use ethcore::error::Error;
 use ethcore::miner::{self, MinerService, AuthoringParams, FilterOptions};
 use ethereum_types::{H256, U256, Address};
+use ethtrie;
 use miner::pool::local_transactions::Status as LocalTransactionStatus;
 use miner::pool::{verifier, VerifiedTransaction, QueueStatus};
 use parking_lot::{RwLock, Mutex};
+use account_state::state::StateInfo;
 use types::transaction::{self, UnverifiedTransaction, SignedTransaction, PendingTransaction};
 use txpool;
 use types::BlockNumber;
@@ -87,14 +89,14 @@ impl TestMinerService {
 
 impl StateClient for TestMinerService {
 	// State will not be used by test client anyway, since all methods that accept state are mocked
-	type State = ();
+	type State = TestState;
 
 	fn latest_state(&self) -> Self::State {
-		()
+		TestState
 	}
 
 	fn state_at(&self, _id: BlockId) -> Option<Self::State> {
-		Some(())
+		Some(TestState)
 	}
 }
 
@@ -105,7 +107,7 @@ impl EngineInfo for TestMinerService {
 }
 
 impl MinerService for TestMinerService {
-	type State = ();
+	type State = TestState;
 
 	fn pending_state(&self, _latest_block_number: BlockNumber) -> Option<Self::State> {
 		None

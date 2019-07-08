@@ -66,7 +66,7 @@ use executive::Executed;
 use journaldb;
 use miner::{self, Miner, MinerService};
 use spec::Spec;
-use state::StateInfo;
+use account_state::state::StateInfo;
 use state_db::StateDB;
 use trace::LocalizedTrace;
 use verification::queue::QueueInfo as BlockQueueInfo;
@@ -586,7 +586,7 @@ impl ImportBlock for TestBlockChainClient {
 
 impl Call for TestBlockChainClient {
 	// State will not be used by test client anyway, since all methods that accept state are mocked
-	type State = ();
+	type State = TestState;
 
 	fn call(&self, _t: &SignedTransaction, _analytics: CallAnalytics, _state: &mut Self::State, _header: &Header) -> Result<Executed, CallError> {
 		self.execution_result.read().clone().unwrap()
@@ -605,23 +605,27 @@ impl Call for TestBlockChainClient {
 	}
 }
 
-impl StateInfo for () {
+/// NewType wrapper around `()` to impersonate `State` in trait impls. State will not be used by
+/// test client, since all methods that accept state are mocked.
+pub struct TestState;
+
+impl StateInfo for TestState {
 	fn nonce(&self, _address: &Address) -> ethtrie::Result<U256> { unimplemented!() }
 	fn balance(&self, _address: &Address) -> ethtrie::Result<U256> { unimplemented!() }
 	fn storage_at(&self, _address: &Address, _key: &H256) -> ethtrie::Result<H256> { unimplemented!() }
 	fn code(&self, _address: &Address) -> ethtrie::Result<Option<Arc<Bytes>>> { unimplemented!() }
 }
 
+
 impl StateClient for TestBlockChainClient {
-	// State will not be used by test client anyway, since all methods that accept state are mocked
-	type State = ();
+	type State = TestState;
 
 	fn latest_state(&self) -> Self::State {
-		()
+		TestState
 	}
 
 	fn state_at(&self, _id: BlockId) -> Option<Self::State> {
-		Some(())
+		Some(TestState)
 	}
 }
 

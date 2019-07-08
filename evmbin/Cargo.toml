@@ -12,16 +12,19 @@ path = "./src/main.rs"
 common-types = { path = "../ethcore/types" }
 docopt = "1.0"
 env_logger = "0.5"
-ethcore = { path = "../ethcore", features = ["test-helpers", "json-tests", "to-pod-full"] }
+ethcore = { path = "../ethcore", features = ["test-helpers", "json-tests"] }
 ethereum-types = "0.6.0"
 ethjson = { path = "../json" }
 evm = { path = "../ethcore/evm" }
 panic_hook = { path = "../util/panic-hook" }
 parity-bytes = "0.1"
+pod = { path = "../ethcore/pod" }
 rustc-hex = "1.0"
 serde = "1.0"
 serde_derive = "1.0"
 serde_json = "1.0"
+account-state = { path = "../ethcore/account-state" }
+trace = { path = "../ethcore/trace" }
 vm = { path = "../ethcore/vm" }
 
 [dev-dependencies]

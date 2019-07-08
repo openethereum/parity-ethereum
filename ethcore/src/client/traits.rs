@@ -47,7 +47,7 @@ use engines::Engine;
 use error::{Error, EthcoreResult};
 use executed::CallError;
 use executive::Executed;
-use state::StateInfo;
+use account_state::state::StateInfo;
 use trace::LocalizedTrace;
 use verification::queue::QueueInfo as BlockQueueInfo;
 use verification::queue::kind::blocks::Unverified;
@@ -59,12 +59,6 @@ pub enum StateOrBlock {
 
 	/// Id of an existing block from a chain to get state from
 	Block(BlockId)
-}
-
-impl<S: StateInfo + 'static> From<S> for StateOrBlock {
-	fn from(info: S) -> StateOrBlock {
-		StateOrBlock::State(Box::new(info) as Box<_>)
-	}
 }
 
 impl From<Box<dyn StateInfo>> for StateOrBlock {
@@ -195,7 +189,7 @@ pub trait IoClient: Sync + Send {
 	/// Queue block import with transaction receipts. Does no sealing and transaction validation.
 	fn queue_ancient_block(&self, block_bytes: Unverified, receipts_bytes: Bytes) -> EthcoreResult<H256>;
 
-	/// Queue conensus engine message.
+	/// Queue consensus engine message.
 	fn queue_consensus_message(&self, message: Bytes);
 }
 

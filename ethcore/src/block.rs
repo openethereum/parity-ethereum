@@ -22,7 +22,7 @@
 //! and can be appended to with transactions and uncles.
 //!
 //! When ready, `OpenBlock` can be closed and turned into a `ClosedBlock`. A `ClosedBlock` can
-//! be re-opend again by a miner under certain circumstances. On block close, state commit is
+//! be re-opened again by a miner under certain circumstances. On block close, state commit is
 //! performed.
 //!
 //! `LockedBlock` is a version of a `ClosedBlock` that cannot be reopened. It can be sealed
@@ -40,9 +40,9 @@ use ethereum_types::{H256, U256, Address, Bloom};
 
 use engines::Engine;
 use error::{Error, BlockError};
-use factory::Factories;
+use trie_vm_factories::Factories;
 use state_db::StateDB;
-use state::State;
+use account_state::State;
 use trace::Tracing;
 use triehash::ordered_trie_root;
 use unexpected::{Mismatch, OutOfBounds};
@@ -54,6 +54,7 @@ use rlp::{RlpStream, Encodable, encode_list};
 use types::transaction::{SignedTransaction, Error as TransactionError};
 use types::header::Header;
 use types::receipt::{Receipt, TransactionOutcome};
+use executive_state::ExecutiveState;
 
 /// Block that is ready for transactions to be added.
 ///
@@ -550,7 +551,7 @@ mod tests {
 	use engines::Engine;
 	use vm::LastHashes;
 	use error::Error;
-	use factory::Factories;
+	use trie_vm_factories::Factories;
 	use state_db::StateDB;
 	use ethereum_types::Address;
 	use std::sync::Arc;

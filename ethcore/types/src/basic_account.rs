@@ -19,7 +19,7 @@
 use ethereum_types::{U256, H256};
 
 /// Basic account type.
-#[derive(Debug, Clone, PartialEq, Eq, RlpEncodable, RlpDecodable)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct BasicAccount {
 	/// Nonce of the account.
 	pub nonce: U256,
@@ -29,4 +29,48 @@ pub struct BasicAccount {
 	pub storage_root: H256,
 	/// Code hash of the account.
 	pub code_hash: H256,
+	/// Code version of the account.
+	pub code_version: U256,
+}
+
+impl rlp::Encodable for BasicAccount {
+	fn rlp_append(&self, stream: &mut rlp::RlpStream) {
+		let use_short_version = self.code_version == U256::zero();
+
+		match use_short_version {
+			true => { stream.begin_list(4); }
+			false => { stream.begin_list(5); }
+		}
+
+		stream.append(&self.nonce);
+		stream.append(&self.balance);
+		stream.append(&self.storage_root);
+		stream.append(&self.code_hash);
+
+		if !use_short_version {
+			stream.append(&self.code_version);
+		}
+	}
+}
+
+impl rlp::Decodable for BasicAccount {
+	fn decode(rlp: &rlp::Rlp) -> Result<Self, rlp::DecoderError> {
+		let use_short_version = match rlp.item_count()? {
+			4 => true,
+			5 => false,
+			_ => return Err(rlp::DecoderError::RlpIncorrectListLen),
+		};
+
+		Ok(BasicAccount {
+			nonce: rlp.val_at(0)?,
+			balance: rlp.val_at(1)?,
+			storage_root: rlp.val_at(2)?,
+			code_hash: rlp.val_at(3)?,
+			code_version: if use_short_version {
+				U256::zero()
+			} else {
+				rlp.val_at(4)?
+			},
+		})
+	}
 }

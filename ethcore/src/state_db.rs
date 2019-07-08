@@ -33,7 +33,7 @@ use memory_cache::MemoryLruCache;
 use parking_lot::Mutex;
 use types::BlockNumber;
 
-use state::{self, Account};
+use account_state::{self, Account};
 
 /// Value used to initialize bloom bitmap size.
 ///
@@ -125,8 +125,13 @@ pub struct StateDB {
 	commit_number: Option<BlockNumber>,
 }
 
-impl StateDB {
+impl Clone for StateDB {
+	fn clone(&self) -> Self {
+		self.boxed_clone()
+	}
+}
 
+impl StateDB {
 	/// Create a new instance wrapping `JournalDB` and the maximum allowed size
 	/// of the LRU cache in bytes. Actual used memory may (read: will) be higher due to bookkeeping.
 	// TODO: make the cache size actually accurate by moving the account storage cache
@@ -284,7 +289,7 @@ impl StateDB {
 				if is_best {
 					let acc = account.account.0;
 					if let Some(&mut Some(ref mut existing)) = cache.accounts.get_mut(&account.address) {
-						if let Some(new) =  acc {
+						if let Some(new) = acc {
 							if account.modified {
 								existing.overwrite_with(new);
 							}
@@ -407,7 +412,7 @@ impl StateDB {
 	}
 }
 
-impl state::Backend for StateDB {
+impl account_state::Backend for StateDB {
 	fn as_hash_db(&self) -> &dyn HashDB<KeccakHasher, DBValue> { self.db.as_hash_db() }
 
 	fn as_hash_db_mut(&mut self) -> &mut dyn HashDB<KeccakHasher, DBValue> {
@@ -482,7 +487,7 @@ mod tests {
 	use ethereum_types::{H256, U256, Address};
 	use kvdb::DBTransaction;
 	use test_helpers::get_temp_state_db;
-	use state::{Account, Backend};
+	use account_state::{Account, Backend};
 
 	#[test]
 	fn state_db_smoke() {
