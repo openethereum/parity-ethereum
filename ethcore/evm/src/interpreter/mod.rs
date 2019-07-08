@@ -118,6 +118,8 @@ struct InterpreterParams {
 	pub code_address: Address,
 	/// Hash of currently executed code.
 	pub code_hash: Option<H256>,
+	/// Code version.
+	pub code_version: U256,
 	/// Receive address. Usually equal to code_address,
 	/// except when called using CALLCODE.
 	pub address: Address,
@@ -144,6 +146,7 @@ impl From<ActionParams> for InterpreterParams {
 		InterpreterParams {
 			code_address: params.code_address,
 			code_hash: params.code_hash,
+			code_version: params.code_version,
 			address: params.address,
 			sender: params.sender,
 			origin: params.origin,
@@ -531,7 +534,7 @@ impl<Cost: CostType> Interpreter<Cost> {
 
 				let contract_code = self.mem.read_slice(init_off, init_size);
 
-				let create_result = ext.create(&create_gas.as_u256(), &endowment, contract_code, address_scheme, true);
+				let create_result = ext.create(&create_gas.as_u256(), &endowment, contract_code, &self.params.code_version, address_scheme, true);
 				return match create_result {
 					Ok(ContractCreateResult::Created(address, gas_left)) => {
 						self.stack.push(address_to_u256(address));
