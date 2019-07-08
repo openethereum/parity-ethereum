@@ -710,6 +710,10 @@ impl BlockChain {
 	///
 	/// If the tree route verges into pruned or unknown blocks,
 	/// `None` is returned.
+	///
+	/// `is_from_route_finalized` returns whether the `from` part of the
+	/// route contains a finalized block. This only holds if the two parts (from
+	/// and to) are on different branches, ie. on 2 different forks.
 	pub fn tree_route(&self, from: H256, to: H256) -> Option<TreeRoute> {
 		let mut from_branch = vec![];
 		let mut is_from_route_finalized = false;

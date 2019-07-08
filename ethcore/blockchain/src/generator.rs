@@ -25,7 +25,7 @@ use common_types::transaction::{SignedTransaction, Transaction, Action};
 use common_types::view;
 use common_types::views::BlockView;
 use keccak_hash::keccak;
-use rlp::{RlpStream, encode, Encodable};
+use rlp::encode;
 use rlp_derive::RlpEncodable;
 use triehash_ethereum::ordered_trie_root;
 
@@ -192,11 +192,7 @@ impl BlockBuilder {
 			let metadata = get_metadata();
 			let block_number = parent_number + 1;
 			let transactions = metadata.transactions;
-			let transactions_root = ordered_trie_root(transactions.iter().map(|tx| {
-				let mut stream = RlpStream::new();
-				&tx.rlp_append(&mut stream);
-				stream.out()
-			}));
+			let transactions_root = ordered_trie_root(transactions.iter().map(rlp::encode));
 
 			block.header.set_parent_hash(parent_hash);
 			block.header.set_number(block_number);
