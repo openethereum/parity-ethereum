@@ -151,7 +151,8 @@ mod tests {
 	use std::collections::BTreeMap;
 	use hash::keccak;
 	use accounts::AccountProvider;
-	use client::{BlockChainClient, ChainInfo, BlockInfo, ImportBlock};
+	use client::{BlockChainClient, ChainInfo, ImportBlock};
+	use client_traits::BlockInfo;
 	use engines::EpochChange;
 	use engines::validator_set::ValidatorSet;
 	use ethkey::Secret;

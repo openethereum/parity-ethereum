@@ -24,28 +24,14 @@ use ethtrie::TrieError;
 use rlp;
 use snappy::InvalidInput;
 use snapshot::Error as SnapshotError;
-use types::transaction::Error as TransactionError;
-
-use engines::EngineError;
+use types::{
+	engines::EngineError,
+	transaction::Error as TransactionError,
+	block::ImportError,
+};
 
 pub use executed::{ExecutionError, CallError};
 pub use types::block::BlockError; // TODO prolly dont want to re-export
-
-/// Block import Error
-#[derive(Debug, Display)]
-pub enum ImportError {
-	/// Already in the block chain.
-	#[display(fmt = "Block already in chain")]
-	AlreadyInChain,
-	/// Already in the block queue
-	#[display(fmt = "block already in the block queue")]
-	AlreadyQueued,
-	/// Already marked as bad from a previous import (could mean parent is bad)
-	#[display(fmt = "block known to be bad")]
-	KnownBad,
-}
-
-impl error::Error for ImportError {}
 
 /// Ethcore Result
 pub type EthcoreResult<T> = Result<T, Error>;

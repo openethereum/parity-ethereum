@@ -52,13 +52,14 @@ use vm::Schedule;
 use block::{OpenBlock, SealedBlock, ClosedBlock};
 use call_contract::{CallContract, RegistryInfo};
 use client::{
-	Nonce, Balance, ChainInfo, BlockInfo, ReopenBlock, TransactionInfo,
+	Nonce, Balance, ChainInfo, ReopenBlock, TransactionInfo,
 	PrepareOpenBlock, BlockChainClient, BlockChainInfo, BlockStatus, BlockId, Mode,
 	TransactionId, UncleId, TraceId, TraceFilter, LastHashes, CallAnalytics,
 	ProvingBlockChainClient, ScheduleInfo, ImportSealedBlock, BroadcastProposalBlock, ImportBlock, StateOrBlock,
 	Call, StateClient, EngineInfo, AccountData, BlockChain, BlockProducer, SealedBlockImporter, IoClient,
 	BadBlocks
 };
+use client_traits::BlockInfo;
 use engines::Engine;
 use error::{Error, EthcoreResult};
 use executed::CallError;

@@ -27,6 +27,7 @@ use types::{
 	transaction::{self, SYSTEM_ADDRESS, UNSIGNED_SENDER, UnverifiedTransaction, SignedTransaction},
 	header::Header,
 	engines::{
+		EngineError,
 		EthashExtensions,
 		params::CommonParams,
 	},
@@ -37,7 +38,7 @@ use vm::{EnvInfo, Schedule, CreateContractAddress};
 use block::ExecutedBlock;
 use builtin::Builtin;
 use call_contract::CallContract;
-use client::BlockInfo;
+use client_traits::BlockInfo;
 use error::Error;
 use executive::Executive;
 use account_state::{CleanupMode, Substate};
@@ -189,7 +190,7 @@ impl Machine {
 		let mut ex = Executive::new(&mut state, &env_info, self, &schedule);
 		let mut substate = Substate::new();
 
-		let res = ex.call(params, &mut substate, &mut NoopTracer, &mut NoopVMTracer).map_err(|e| ::engines::EngineError::FailedSystemCall(format!("{}", e)))?;
+		let res = ex.call(params, &mut substate, &mut NoopTracer, &mut NoopVMTracer).map_err(|e| EngineError::FailedSystemCall(format!("{}", e)))?;
 		let output = res.return_data.to_vec();
 
 		Ok(output)

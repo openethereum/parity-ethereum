@@ -68,8 +68,9 @@ use std::time::{Instant, Duration, SystemTime, UNIX_EPOCH};
 
 use block::ExecutedBlock;
 use client::{BlockId, EngineClient};
+use client_traits::{VerifyingEngine, error::Error as ClientError};
 use engines::clique::util::{extract_signers, recover_creator};
-use engines::{Engine, EngineError, Seal, SealingState};
+use engines::{Engine, Seal, SealingState};
 use error::{BlockError, Error};
 use ethereum_types::{Address, H64, H160, H256, U256};
 use ethkey::Signature;
@@ -82,9 +83,12 @@ use rand::Rng;
 use super::signer::EngineSigner;
 use unexpected::{Mismatch, OutOfBounds};
 use time_utils::CheckedSystemTime;
-use types::BlockNumber;
-use types::header::Header;
-
+use types::{
+	BlockNumber,
+	header::Header,
+	engines::{EngineError, params::CommonParams},
+	transaction::{self, SignedTransaction, UnverifiedTransaction},
+};
 use self::block_state::CliqueBlockState;
 use self::params::CliqueParams;
 
@@ -255,8 +259,7 @@ impl Clique {
 	fn new_checkpoint_state(&self, header: &Header) -> Result<CliqueBlockState, Error> {
 		debug_assert_eq!(header.number() % self.epoch_length, 0);
 
-		let mut state = CliqueBlockState::new(
-			extract_signers(header)?);
+		let mut state = CliqueBlockState::new(extract_signers(header)?);
 
 		// TODO(niklasad1): refactor to perform this check in the `CliqueBlockState` constructor instead
 		state.calc_next_timestamp(header.timestamp(), self.period)?;
@@ -350,6 +353,194 @@ impl Clique {
 				trace!(target: "engine", "Back-filling succeed, took {} ms.", elapsed.as_millis());
 				Ok(new_state)
 			}
+		}
+	}
+}
+
+impl VerifyingEngine for Clique {
+	fn params(&self) -> &CommonParams {
+		self.machine.params()
+	}
+
+	fn verify_block_basic(&self, header: &Header) -> Result<(), ClientError> {
+		// Largely same as https://github.com/ethereum/go-ethereum/blob/master/consensus/clique/clique.go#L275
+
+		// Ignore genesis block.
+		if header.number() == 0 {
+			return Ok(());
+		}
+
+		// Don't waste time checking blocks from the future
+		{
+			let limit = CheckedSystemTime::checked_add(SystemTime::now(), Duration::from_secs(self.period))
+				.ok_or(BlockError::TimestampOverflow)?;
+
+			// This should succeed under the contraints that the system clock works
+			let limit_as_dur = limit.duration_since(UNIX_EPOCH).map_err(|e| {
+				// todo can use String directly?
+				Box::new(format!("Converting SystemTime to Duration failed: {}", e))
+			})?;
+
+			let hdr = Duration::from_secs(header.timestamp());
+			if hdr > limit_as_dur {
+				let found = CheckedSystemTime::checked_add(UNIX_EPOCH, hdr).ok_or(BlockError::TimestampOverflow)?;
+
+				Err(BlockError::TemporarilyInvalid(OutOfBounds {
+					min: None,
+					max: Some(limit),
+					found,
+				}.into()))?
+			}
+		}
+
+		let is_checkpoint = header.number() % self.epoch_length == 0;
+
+		if is_checkpoint && *header.author() != NULL_AUTHOR {
+			return Err(EngineError::CliqueWrongAuthorCheckpoint(Mismatch {
+				expected: H160::zero(),
+				found: *header.author(),
+			}))?;
+		}
+
+		let seal_fields = header.decode_seal::<Vec<_>>()?;
+		if seal_fields.len() != 2 {
+			Err(BlockError::InvalidSealArity(Mismatch {
+				expected: 2,
+				found: seal_fields.len(),
+			}))?
+		}
+
+		let mixhash = H256::from_slice(seal_fields[0]);
+		let nonce = H64::from_slice(seal_fields[1]);
+
+		// Nonce must be 0x00..0 or 0xff..f
+		if nonce != NONCE_DROP_VOTE && nonce != NONCE_AUTH_VOTE {
+			Err(EngineError::CliqueInvalidNonce(nonce))?;
+		}
+
+		if is_checkpoint && nonce != NULL_NONCE {
+			Err(EngineError::CliqueInvalidNonce(nonce))?;
+		}
+
+		// Ensure that the mix digest is zero as Clique don't have fork protection currently
+		if mixhash != NULL_MIXHASH {
+			Err(BlockError::MismatchedH256SealElement(Mismatch {
+				expected: NULL_MIXHASH,
+				found: mixhash,
+			}))?
+		}
+
+		let extra_data_len = header.extra_data().len();
+
+		if extra_data_len < VANITY_LENGTH {
+			Err(EngineError::CliqueMissingVanity)?
+		}
+
+		if extra_data_len < VANITY_LENGTH + SIGNATURE_LENGTH {
+			Err(EngineError::CliqueMissingSignature)?
+		}
+
+		let signers = extra_data_len - (VANITY_LENGTH + SIGNATURE_LENGTH);
+
+		// Checkpoint blocks must at least contain one signer
+		if is_checkpoint && signers == 0 {
+			Err(EngineError::CliqueCheckpointNoSigner)?
+		}
+
+		// Addresses must be be divisable by 20
+		if is_checkpoint && signers % ADDRESS_LENGTH != 0 {
+			Err(EngineError::CliqueCheckpointInvalidSigners(signers))?
+		}
+
+		// Ensure that the block doesn't contain any uncles which are meaningless in PoA
+		if *header.uncles_hash() != NULL_UNCLES_HASH {
+			Err(BlockError::InvalidUnclesHash(Mismatch {
+				expected: NULL_UNCLES_HASH,
+				found: *header.uncles_hash(),
+			}))?
+		}
+
+		// Ensure that the block's difficulty is meaningful (may not be correct at this point)
+		if *header.difficulty() != DIFF_INTURN && *header.difficulty() != DIFF_NOTURN {
+			Err(BlockError::DifficultyOutOfBounds(OutOfBounds {
+				min: Some(DIFF_NOTURN),
+				max: Some(DIFF_INTURN),
+				found: *header.difficulty(),
+			}))?
+		}
+
+		// All basic checks passed, continue to next phase
+		Ok(())
+	}
+
+	/// Verify block family by looking up parent state (backfill if needed), then try to apply current header.
+	/// see https://github.com/ethereum/go-ethereum/blob/master/consensus/clique/clique.go#L338
+	fn verify_block_family(&self, header: &Header, parent: &Header) -> Result<(), ClientError> {
+		// Ignore genesis block.
+		if header.number() == 0 {
+			return Ok(());
+		}
+
+		// parent sanity check
+		if parent.hash() != *header.parent_hash() || header.number() != parent.number() + 1 {
+			Err(BlockError::UnknownParent(parent.hash()))?
+		}
+
+		// Ensure that the block's timestamp isn't too close to it's parent
+		let limit = parent.timestamp().saturating_add(self.period);
+		if limit > header.timestamp() {
+			let max = CheckedSystemTime::checked_add(UNIX_EPOCH, Duration::from_secs(header.timestamp()));
+			let found = CheckedSystemTime::checked_add(UNIX_EPOCH, Duration::from_secs(limit))
+				.ok_or(BlockError::TimestampOverflow)?;
+
+			Err(BlockError::InvalidTimestamp(OutOfBounds {
+				min: None,
+				max,
+				found,
+			}.into()))?
+		}
+
+		// Retrieve the parent state
+		let parent_state = match self.state(&parent) {
+			Ok(parent_state) => parent_state,
+			Err(e) => {
+				// todo: these can be BlockError, EngineError and probably some others too
+				match e {
+					Error::Block(err) => return Err(ClientError::Block(err)),
+					Error::Engine(err) => return Err(ClientError::Engine(err)),
+					_ => return Err(ClientError::Other(e.to_string())),
+				}
+			}
+		};
+		// Try to apply current state, apply() will further check signer and recent signer.
+		let mut new_state = parent_state.clone();
+//		new_state.apply(header, header.number() % self.epoch_length == 0)?;
+//		new_state.calc_next_timestamp(header.timestamp(), self.period)?;
+//		self.block_state_by_hash.write().insert(header.hash(), new_state);
+
+		Ok(())
+	}
+
+	fn verify_transaction_basic(&self, t: &UnverifiedTransaction, header: &Header) -> Result<(), transaction::Error> {
+		self.machine().verify_transaction_basic(t, header)
+	}
+
+	fn verify_transaction_unordered(&self, t: UnverifiedTransaction, header: &Header) -> Result<SignedTransaction, transaction::Error> {
+		self.machine().verify_transaction_unordered(t, header)
+	}
+}
+
+// todo move to error.rs
+impl Into<ClientError> for Error {
+	fn into(self) -> ClientError {
+		match self {
+			Error::Block(e) => ClientError::Block(e),
+			Error::Engine(e) => ClientError::Engine(e),
+			Error::State(e) => ClientError::State(e.to_string()),
+			Error::Import(e) => ClientError::Import(e),
+			Error::Decoder(e) => ClientError::Decoder(e),
+			Error::Transaction(e)=> ClientError::Transaction(e),
+			_ => ClientError::Other(self.to_string())
 		}
 	}
 }
@@ -710,7 +901,7 @@ impl Engine for Clique {
 			// it's just to ignore setting a correct difficulty here, we will check authorization in next step in generate_seal anyway.
 			if let Some(signer) = self.signer.read().as_ref() {
 				let state = match self.state(&parent) {
-					Err(e) =>  {
+					Err(e) => {
 						trace!(target: "engine", "populate_from_parent: Unable to find parent state: {}, ignored.", e);
 						return;
 					}

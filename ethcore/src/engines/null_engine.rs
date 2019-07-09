@@ -15,11 +15,16 @@
 // along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
 use engines::Engine;
+use client_traits::VerifyingEngine;
 use engines::block_reward::{self, RewardKind};
 use ethereum_types::U256;
 use machine::Machine;
-use types::BlockNumber;
-use types::header::Header;
+use types::{
+	BlockNumber,
+	header::Header,
+	engines::params::CommonParams,
+	transaction::{self, UnverifiedTransaction, SignedTransaction},
+};
 use block::ExecutedBlock;
 use error::Error;
 
@@ -54,12 +59,28 @@ impl NullEngine {
 	}
 }
 
+impl VerifyingEngine for NullEngine {
+	fn params(&self) -> &CommonParams {
+		self.machine.params()
+	}
+
+	fn verify_transaction_basic(&self, t: &UnverifiedTransaction, header: &Header) -> Result<(), transaction::Error> {
+		self.machine().verify_transaction_basic(t, header)
+	}
+
+	fn verify_transaction_unordered(&self, t: UnverifiedTransaction, header: &Header) -> Result<SignedTransaction, transaction::Error> {
+		self.machine().verify_transaction_unordered(t, header)
+	}
+}
+
 impl Engine for NullEngine {
 	fn name(&self) -> &str {
 		"NullEngine"
 	}
 
 	fn machine(&self) -> &Machine { &self.machine }
+
+	fn maximum_uncle_count(&self, _block: BlockNumber) -> usize { 2 }
 
 	fn on_close_block(
 		&self,
@@ -91,8 +112,6 @@ impl Engine for NullEngine {
 
 		block_reward::apply_block_rewards(&rewards, block, &self.machine)
 	}
-
-	fn maximum_uncle_count(&self, _block: BlockNumber) -> usize { 2 }
 
 	fn verify_local_seal(&self, _header: &Header) -> Result<(), Error> {
 		Ok(())

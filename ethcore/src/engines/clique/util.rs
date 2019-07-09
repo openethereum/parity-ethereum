@@ -16,7 +16,6 @@
 
 use std::collections::BTreeSet;
 
-use engines::EngineError;
 use engines::clique::{ADDRESS_LENGTH, SIGNATURE_LENGTH, VANITY_LENGTH, NULL_NONCE, NULL_MIXHASH};
 use error::Error;
 use ethereum_types::{Address, H256};
@@ -24,7 +23,10 @@ use ethkey::{public_to_address, recover as ec_recover, Signature};
 use lru_cache::LruCache;
 use parking_lot::RwLock;
 use rlp::encode;
-use types::header::Header;
+use types::{
+	header::Header,
+	engines::EngineError,
+};
 
 /// How many recovered signature to cache in the memory.
 pub const CREATOR_CACHE_NUM: usize = 4096;

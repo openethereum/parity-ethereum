@@ -26,10 +26,13 @@ use kvdb::DBValue;
 use memory_cache::MemoryLruCache;
 use parking_lot::RwLock;
 use rlp::{Rlp, RlpStream};
-use types::header::Header;
-use types::ids::BlockId;
-use types::log_entry::LogEntry;
-use types::receipt::Receipt;
+use types::{
+	header::Header,
+	engines::EngineError,
+	ids::BlockId,
+	log_entry::LogEntry,
+	receipt::Receipt,
+};
 use unexpected::Mismatch;
 
 use client::EngineClient;
@@ -297,7 +300,7 @@ impl ValidatorSet for ValidatorSafeContract {
 		let data = validator_set::functions::finalize_change::encode_input();
 		caller(self.contract_address, data)
 			.map(|_| ())
-			.map_err(::engines::EngineError::FailedSystemCall)
+			.map_err(EngineError::FailedSystemCall)
 			.map_err(Into::into)
 	}
 
@@ -359,7 +362,7 @@ impl ValidatorSet for ValidatorSafeContract {
 			let number = old_header.number();
 			let old_hash = old_header.hash();
 			let addresses = check_first_proof(machine, self.contract_address, old_header, &state_items)
-				.map_err(::engines::EngineError::InsufficientProof)?;
+				.map_err(EngineError::InsufficientProof)?;
 
 			trace!(target: "engine", "Extracted epoch validator set at block #{}: {} addresses",
 				number, addresses.len());
@@ -387,7 +390,7 @@ impl ValidatorSet for ValidatorSafeContract {
 
 					Ok((list, Some(old_header.hash())))
 				},
-				None => Err(::engines::EngineError::InsufficientProof("No log event in proof.".into()).into()),
+				None => Err(EngineError::InsufficientProof("No log event in proof.".into()).into()),
 			}
 		}
 	}
@@ -453,7 +456,8 @@ mod tests {
 	use spec::Spec;
 	use accounts::AccountProvider;
 	use types::transaction::{Transaction, Action};
-	use client::{ChainInfo, BlockInfo, ImportBlock};
+	use client::{ChainInfo, ImportBlock};
+	use client_traits::BlockInfo;
 	use ethkey::Secret;
 	use miner::{self, MinerService};
 	use test_helpers::{generate_dummy_client_with_spec, generate_dummy_client_with_spec_and_data};

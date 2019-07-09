@@ -436,6 +436,7 @@ dependencies = [
  "common-types 0.1.0",
  "derive_more 0.15.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "ethereum-types 0.6.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "rlp 0.4.0 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]
@@ -871,6 +872,7 @@ dependencies = [
  "account-state 0.1.0",
  "ansi_term 0.11.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "blooms-db 0.1.0",
+ "client-traits 0.1.0",
  "common-types 0.1.0",
  "criterion 0.2.5 (registry+https://github.com/rust-lang/crates.io-index)",
  "crossbeam-utils 0.6.5 (registry+https://github.com/rust-lang/crates.io-index)",

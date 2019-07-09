@@ -21,13 +21,19 @@ use ethereum_types::{H256, H520};
 use parking_lot::RwLock;
 use ethkey::{self, Signature};
 use block::*;
-use engines::{Engine, Seal, SealingState, ConstructedVerifier, EngineError};
+use engines::{Engine, Seal, SealingState, ConstructedVerifier};
 use engines::signer::EngineSigner;
 use error::{BlockError, Error};
 use ethjson;
 use client::EngineClient;
+use client_traits::VerifyingEngine;
 use machine::{AuxiliaryData, Call, Machine};
-use types::header::Header;
+use types::{
+	header::Header,
+	engines::{EngineError, params::CommonParams},
+	transaction::{self, UnverifiedTransaction, SignedTransaction},
+};
+
 use super::validator_set::{ValidatorSet, SimpleList, new_validator_set};
 
 /// `BasicAuthority` params.
@@ -87,6 +93,20 @@ impl BasicAuthority {
 			signer: RwLock::new(None),
 			validators: new_validator_set(our_params.validators),
 		}
+	}
+}
+
+impl VerifyingEngine for BasicAuthority {
+	fn params(&self) -> &CommonParams {
+		self.machine.params()
+	}
+
+	fn verify_transaction_basic(&self, t: &UnverifiedTransaction, header: &Header) -> Result<(), transaction::Error> {
+		self.machine().verify_transaction_basic(t, header)
+	}
+
+	fn verify_transaction_unordered(&self, t: UnverifiedTransaction, header: &Header) -> Result<SignedTransaction, transaction::Error> {
+		self.machine().verify_transaction_unordered(t, header)
 	}
 }
 
@@ -189,10 +209,6 @@ impl Engine for BasicAuthority {
 		}
 	}
 
-	fn register_client(&self, client: Weak<dyn EngineClient>) {
-		self.validators.register_client(client);
-	}
-
 	fn set_signer(&self, signer: Box<dyn EngineSigner>) {
 		*self.signer.write() = Some(signer);
 	}
@@ -203,6 +219,10 @@ impl Engine for BasicAuthority {
 			.ok_or_else(|| ethkey::Error::InvalidAddress)?
 			.sign(hash)?
 		)
+	}
+
+	fn register_client(&self, client: Weak<dyn EngineClient>) {
+		self.validators.register_client(client);
 	}
 
 	fn snapshot_components(&self) -> Option<Box<dyn (::snapshot::SnapshotComponents)>> {

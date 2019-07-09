@@ -99,6 +99,8 @@ pub struct PreverifiedBlock {
 	pub bytes: Bytes,
 }
 
+// TODO: consolidate errors
+
 /// Errors concerning block processing.
 #[derive(Debug, Display, PartialEq, Clone, Eq)]
 pub enum BlockError {
@@ -215,7 +217,6 @@ impl error::Error for BlockError {
 	}
 }
 
-// todo: hook up in ethcore
 /// Block import Error
 #[derive(Debug, Display)]
 pub enum ImportError {
@@ -229,3 +230,5 @@ pub enum ImportError {
 	#[display(fmt = "block known to be bad")]
 	KnownBad,
 }
+
+impl error::Error for ImportError {}

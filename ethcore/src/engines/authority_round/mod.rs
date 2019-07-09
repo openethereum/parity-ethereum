@@ -26,7 +26,7 @@ use std::time::{UNIX_EPOCH, Duration};
 
 use block::*;
 use client::EngineClient;
-use engines::{Engine, Seal, SealingState, EngineError, ConstructedVerifier};
+use engines::{Engine, Seal, SealingState, ConstructedVerifier};
 use engines::block_reward;
 use engines::block_reward::{BlockRewardContract, RewardKind};
 use error::{Error, BlockError};
@@ -43,9 +43,13 @@ use rlp::{encode, Decodable, DecoderError, Encodable, RlpStream, Rlp};
 use ethereum_types::{H256, H520, Address, U128, U256};
 use parking_lot::{Mutex, RwLock};
 use time_utils::CheckedSystemTime;
-use types::BlockNumber;
-use types::header::{Header, ExtendedHeader};
-use types::ancestry_action::AncestryAction;
+use types::{
+	ancestry_action::AncestryAction,
+	BlockNumber,
+	header::{Header, ExtendedHeader},
+	engines::EngineError,
+
+};
 use unexpected::{Mismatch, OutOfBounds};
 
 mod finality;

@@ -18,15 +18,17 @@ use std::collections::{HashMap, BTreeSet, VecDeque};
 use std::fmt;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
-use engines::EngineError;
 use engines::clique::util::{extract_signers, recover_creator};
 use engines::clique::{VoteType, DIFF_INTURN, DIFF_NOTURN, NULL_AUTHOR, SIGNING_DELAY_NOTURN_MS};
 use error::{Error, BlockError};
 use ethereum_types::{Address, H64};
 use rand::Rng;
 use time_utils::CheckedSystemTime;
-use types::BlockNumber;
-use types::header::Header;
+use types::{
+	BlockNumber,
+	header::Header,
+	engines::EngineError,
+};
 use unexpected::Mismatch;
 
 /// Type that keeps track of the state for a given vote

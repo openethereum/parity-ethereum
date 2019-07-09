@@ -17,16 +17,39 @@
 //! State related errors
 
 use derive_more::{Display, From};
+use common_types::{
+	engines::EngineError,
+	block::{BlockError, ImportError},
+	transaction::Error as TransactionError,
+};
+use rlp::DecoderError;
 
 #[derive(Debug, Display, From)]
 pub enum Error {
 	/// todo: what errors do I need?
-	Todo
+	Block(BlockError),
+	Import(ImportError),
+	Engine(EngineError),
+	Decoder(DecoderError),
+	Transaction(TransactionError),
+	State(String), // todo: move account-state errors to `common_types`?
+	Other(String)
 }
 
 impl std::error::Error for Error {}
 
-// todo needed?
+impl From<&str> for Error {
+	fn from(s: &str) -> Self {
+		Error::Other(s.into())
+	}
+}
+
+impl From<String> for Error {
+	fn from(s: String) -> Self {
+		Error::Other(s)
+	}
+}
+
 impl<E> From<Box<E>> for Error where Error: From<E> {
 	fn from(err: Box<E>) -> Self {
 		Error::from(*err)

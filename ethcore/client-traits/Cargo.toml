@@ -8,3 +8,4 @@ edition = "2018"
 common-types = { path = "../types" }
 derive_more = "0.15.0"
 ethereum-types = "0.6"
+rlp = "0.4.0" # todo: only needed for `DecoderError` – fix

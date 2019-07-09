@@ -39,7 +39,7 @@ pub trait VerifyingEngine: Sync + Send {
 	fn maximum_gas_limit(&self) -> Option<U256> { None }
 
 	/// Some intrinsic operation parameters; by default they take their value from the `spec()`'s `engine_params`.
-	fn maximum_extra_data_size(&self) -> usize;
+	fn maximum_extra_data_size(&self) -> usize { self.params().maximum_extra_data_size }
 
 	/// Get the general parameters of the chain.
 	fn params(&self) -> &CommonParams;

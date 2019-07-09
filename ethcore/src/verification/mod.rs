@@ -29,7 +29,7 @@ pub use self::noop_verifier::NoopVerifier;
 pub use self::queue::{BlockQueue, Config as QueueConfig, VerificationQueue, QueueInfo};
 
 use call_contract::CallContract;
-use client::BlockInfo;
+use client_traits::BlockInfo;
 
 /// Verifier type.
 #[derive(Debug, PartialEq, Clone)]

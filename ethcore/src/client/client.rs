@@ -39,7 +39,7 @@ use hash_db::EMPTY_PREFIX;
 use block::{LockedBlock, Drain, ClosedBlock, OpenBlock, enact_verified, SealedBlock};
 use client::ancient_import::AncientVerifier;
 use client::{
-	Nonce, Balance, ChainInfo, BlockInfo, TransactionInfo,
+	Nonce, Balance, ChainInfo, TransactionInfo,
 	ReopenBlock, PrepareOpenBlock, ScheduleInfo, ImportSealedBlock,
 	BroadcastProposalBlock, ImportBlock, StateOrBlock, StateInfo, StateClient, Call,
 	AccountData, BlockChain as BlockChainTrait, BlockProducer, SealedBlockImporter,
@@ -52,10 +52,11 @@ use client::{
 	IoClient, BadBlocks,
 };
 use client::bad_blocks;
-use engines::{MAX_UNCLE_AGE, Engine, EpochTransition, ForkChoice, EngineError, SealingState};
+use client_traits::BlockInfo;
+use engines::{MAX_UNCLE_AGE, Engine, EpochTransition, ForkChoice, SealingState};
 use engines::epoch::PendingTransition;
 use error::{
-	ImportError, ExecutionError, CallError, BlockError,
+	ExecutionError, CallError, BlockError,
 	Error as EthcoreError, EthcoreResult,
 };
 use executive::{Executive, Executed, TransactOptions, contract_address};
@@ -69,11 +70,12 @@ use state_db::StateDB;
 use trace::{self, TraceDB, ImportRequest as TraceImportRequest, LocalizedTrace, Database as TraceDatabase};
 use transaction_ext::Transaction;
 use types::{
-	BlockNumber,
-	block::PreverifiedBlock,
-	transaction::{self, LocalizedTransaction, UnverifiedTransaction, SignedTransaction, Action},
 	ancestry_action::AncestryAction,
+	BlockNumber,
+	block::{ImportError, PreverifiedBlock},
 	encoded,
+	engines::EngineError,
+	transaction::{self, LocalizedTransaction, UnverifiedTransaction, SignedTransaction, Action},
 	filter::Filter,
 	log_entry::LocalizedLogEntry,
 	receipt::{Receipt, LocalizedReceipt},

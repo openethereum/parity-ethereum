@@ -24,6 +24,7 @@ use ethkey::{Secret, KeyPair};
 use state_db::StateDB;
 use super::*;
 use test_helpers::get_temp_state_db;
+use types::engines::EngineError;
 
 use std::sync::Arc;
 use std::collections::HashMap;

@@ -57,6 +57,7 @@ extern crate account_db;
 extern crate account_state;
 extern crate ansi_term;
 extern crate common_types as types;
+extern crate client_traits;
 extern crate crossbeam_utils;
 extern crate ethabi;
 extern crate ethash;

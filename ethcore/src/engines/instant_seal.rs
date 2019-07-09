@@ -15,8 +15,14 @@
 // along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
 use engines::{Engine, Seal, SealingState};
+use client_traits::VerifyingEngine;
 use machine::Machine;
-use types::header::Header;
+use types::{
+	header::Header,
+	engines::params::CommonParams,
+	transaction::{self, UnverifiedTransaction, SignedTransaction},
+};
+
 use block::ExecutedBlock;
 use error::Error;
 
@@ -51,6 +57,21 @@ impl InstantSeal {
 		}
 	}
 }
+
+impl VerifyingEngine for InstantSeal {
+	fn params(&self) -> &CommonParams {
+		self.machine.params()
+	}
+
+	fn verify_transaction_basic(&self, t: &UnverifiedTransaction, header: &Header) -> Result<(), transaction::Error> {
+		self.machine().verify_transaction_basic(t, header)
+	}
+
+	fn verify_transaction_unordered(&self, t: UnverifiedTransaction, header: &Header) -> Result<SignedTransaction, transaction::Error> {
+		self.machine().verify_transaction_unordered(t, header)
+	}
+}
+
 
 impl Engine for InstantSeal {
 	fn name(&self) -> &str {
