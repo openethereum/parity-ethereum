@@ -37,7 +37,7 @@ const NONCE: u64 = 0xd7b3ac70a301a249;
 
 criterion_group! {
 	name = basic;
-	config = dont_take_eternity_to_run();
+	config = dont_take_an_eternity_to_run();
 	targets = bench_light_compute_memmap,
 		bench_light_compute_memory,
 		bench_light_new_round_trip_memmap,
@@ -48,7 +48,7 @@ criterion_group! {
 }
 criterion_main!(basic);
 
-fn dont_take_eternity_to_run() -> Criterion {
+fn dont_take_an_eternity_to_run() -> Criterion {
 	Criterion::default().nresamples(1_000)
 		.without_plots()
 		.sample_size(10)
