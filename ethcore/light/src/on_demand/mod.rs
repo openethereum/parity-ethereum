@@ -81,7 +81,7 @@ pub mod error {
 	}
 
 	impl std::error::Error for Error {
-		fn source(&self) -> Option<&(std::error::Error + 'static)> {
+		fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
 			match self {
 				Error::ChannelCanceled(err) => Some(err),
 				_ => None,
@@ -98,7 +98,7 @@ pub trait OnDemandRequester: Send + Sync {
 	/// Submit a strongly-typed batch of requests.
 	///
 	/// Fails if back-reference are not coherent.
-	fn request<T>(&self, ctx: &BasicContext, requests: T) -> Result<OnResponses<T>, basic_request::NoSuchOutput>
+	fn request<T>(&self, ctx: &dyn BasicContext, requests: T) -> Result<OnResponses<T>, basic_request::NoSuchOutput>
 	where
 		T: request::RequestAdapter;
 
@@ -106,7 +106,7 @@ pub trait OnDemandRequester: Send + Sync {
 	///
 	/// Fails if back-references are not coherent.
 	/// The returned vector of responses will correspond to the requests exactly.
-	fn request_raw(&self, ctx: &BasicContext, requests: Vec<Request>)
+	fn request_raw(&self, ctx: &dyn BasicContext, requests: Vec<Request>)
 		-> Result<Receiver<PendingResponse>, basic_request::NoSuchOutput>;
 }
 
@@ -373,7 +373,7 @@ pub struct OnDemand {
 }
 
 impl OnDemandRequester for OnDemand {
-	fn request_raw(&self, ctx: &BasicContext, requests: Vec<Request>)
+	fn request_raw(&self, ctx: &dyn BasicContext, requests: Vec<Request>)
 		-> Result<Receiver<PendingResponse>, basic_request::NoSuchOutput>
 	{
 		let (sender, receiver) = oneshot::channel();
@@ -429,7 +429,7 @@ impl OnDemandRequester for OnDemand {
 		Ok(receiver)
 	}
 
-	fn request<T>(&self, ctx: &BasicContext, requests: T) -> Result<OnResponses<T>, basic_request::NoSuchOutput>
+	fn request<T>(&self, ctx: &dyn BasicContext, requests: T) -> Result<OnResponses<T>, basic_request::NoSuchOutput>
 		where T: request::RequestAdapter
 	{
 		self.request_raw(ctx, requests.make_requests()).map(|recv| OnResponses {
@@ -503,7 +503,7 @@ impl OnDemand {
 
 	// maybe dispatch pending requests.
 	// sometimes
-	fn attempt_dispatch(&self, ctx: &BasicContext) {
+	fn attempt_dispatch(&self, ctx: &dyn BasicContext) {
 		if !self.no_immediate_dispatch {
 			self.dispatch_pending(ctx)
 		}
@@ -511,7 +511,7 @@ impl OnDemand {
 
 	// dispatch pending requests, and discard those for which the corresponding
 	// receiver has been dropped.
-	fn dispatch_pending(&self, ctx: &BasicContext) {
+	fn dispatch_pending(&self, ctx: &dyn BasicContext) {
 		if self.pending.read().is_empty() {
 			return
 		}
@@ -566,7 +566,7 @@ impl OnDemand {
 
 	// submit a pending request set. attempts to answer from cache before
 	// going to the network. if complete, sends response and consumes the struct.
-	fn submit_pending(&self, ctx: &BasicContext, mut pending: Pending) {
+	fn submit_pending(&self, ctx: &dyn BasicContext, mut pending: Pending) {
 		// answer as many requests from cache as we can, and schedule for dispatch
 		// if incomplete.
 
@@ -585,7 +585,7 @@ impl OnDemand {
 impl Handler for OnDemand {
 	fn on_connect(
 		&self,
-		ctx: &EventContext,
+		ctx: &dyn EventContext,
 		status: &Status,
 		capabilities: &Capabilities
 	) -> PeerStatus {
@@ -597,7 +597,7 @@ impl Handler for OnDemand {
 		PeerStatus::Kept
 	}
 
-	fn on_disconnect(&self, ctx: &EventContext, unfulfilled: &[ReqId]) {
+	fn on_disconnect(&self, ctx: &dyn EventContext, unfulfilled: &[ReqId]) {
 		self.peers.write().remove(&ctx.peer());
 		let ctx = ctx.as_basic();
 
@@ -614,7 +614,7 @@ impl Handler for OnDemand {
 		self.attempt_dispatch(ctx);
 	}
 
-	fn on_announcement(&self, ctx: &EventContext, announcement: &Announcement) {
+	fn on_announcement(&self, ctx: &dyn EventContext, announcement: &Announcement) {
 		{
 			let mut peers = self.peers.write();
 			if let Some(ref mut peer) = peers.get_mut(&ctx.peer()) {
@@ -626,7 +626,7 @@ impl Handler for OnDemand {
 		self.attempt_dispatch(ctx.as_basic());
 	}
 
-	fn on_responses(&self, ctx: &EventContext, req_id: ReqId, responses: &[basic_request::Response]) {
+	fn on_responses(&self, ctx: &dyn EventContext, req_id: ReqId, responses: &[basic_request::Response]) {
 		let mut pending = match self.in_transit.write().remove(&req_id) {
 			Some(req) => req,
 			None => return,
@@ -662,7 +662,7 @@ impl Handler for OnDemand {
 		self.submit_pending(ctx.as_basic(), pending);
 	}
 
-	fn tick(&self, ctx: &BasicContext) {
+	fn tick(&self, ctx: &dyn BasicContext) {
 		self.attempt_dispatch(ctx)
 	}
 }

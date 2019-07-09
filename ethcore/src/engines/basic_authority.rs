@@ -27,7 +27,7 @@ use error::{BlockError, Error};
 use ethjson;
 use client::EngineClient;
 use machine::{AuxiliaryData, Call, Machine};
-use types::header::{Header, ExtendedHeader};
+use types::header::Header;
 use super::validator_set::{ValidatorSet, SimpleList, new_validator_set};
 
 /// `BasicAuthority` params.
@@ -207,10 +207,6 @@ impl Engine for BasicAuthority {
 
 	fn snapshot_components(&self) -> Option<Box<dyn (::snapshot::SnapshotComponents)>> {
 		None
-	}
-
-	fn fork_choice(&self, new: &ExtendedHeader, current: &ExtendedHeader) -> super::ForkChoice {
-		super::total_difficulty_fork_choice(new, current)
 	}
 }
 

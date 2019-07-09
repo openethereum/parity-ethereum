@@ -17,7 +17,9 @@
 //! Trace database.
 use std::collections::HashMap;
 use std::sync::Arc;
-use parity_util_mem::MallocSizeOfExt;
+
+use common_types::BlockNumber;
+use ethcore_blockchain::{BlockChainDB, DatabaseExtras};
 use ethcore_db::{
 	self as db,
 	cache_manager::CacheManager,
@@ -25,9 +27,8 @@ use ethcore_db::{
 };
 use ethereum_types::{H256, H264};
 use kvdb::DBTransaction;
+use parity_util_mem::MallocSizeOfExt;
 use parking_lot::RwLock;
-use common_types::BlockNumber;
-use ethcore_blockchain::{BlockChainDB, DatabaseExtras};
 
 use crate::{
 	LocalizedTrace, Config, Filter, Database as TraceDatabase, ImportRequest,

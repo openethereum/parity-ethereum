@@ -463,7 +463,7 @@ mod tests {
 
 	#[test]
 	fn should_disallow_unsigned_transactions() {
-		let rlp = "ea80843b9aca0083015f90948921ebb5f79e9e3920abe571004d0b1d5119c154865af3107a400080038080".into();
+		let rlp = "ea80843b9aca0083015f90948921ebb5f79e9e3920abe571004d0b1d5119c154865af3107a400080038080";
 		let transaction: UnverifiedTransaction = ::rlp::decode(&::rustc_hex::FromHex::from_hex(rlp).unwrap()).unwrap();
 		let spec = ::ethereum::new_ropsten_test();
 		let ethparams = get_default_ethash_extensions();

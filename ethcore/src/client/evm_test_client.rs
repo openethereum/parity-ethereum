@@ -19,12 +19,12 @@
 use std::fmt;
 use std::sync::Arc;
 use ethereum_types::{H256, U256, H160};
-use {factories, journaldb, trie, kvdb_memorydb};
+use {trie_vm_factories, journaldb, trie, kvdb_memorydb};
 use kvdb::{self, KeyValueDB};
 use {state_db, client, executive, trace, db, spec};
 use pod::PodState;
 use types::{log_entry, receipt, transaction};
-use factories::Factories;
+use trie_vm_factories::Factories;
 use evm::{VMType, FinalizationResult};
 use vm::{self, ActionParams};
 use ethtrie;
@@ -150,7 +150,7 @@ impl<'a> EvmTestClient<'a> {
 
 	fn factories(trie_spec: trie::TrieSpec) -> Factories {
 		Factories {
-			vm: factories::VmFactory::new(VMType::Interpreter, 5 * 1024),
+			vm: trie_vm_factories::VmFactory::new(VMType::Interpreter, 5 * 1024),
 			trie: trie::TrieFactory::new(trie_spec),
 			accountdb: Default::default(),
 		}
