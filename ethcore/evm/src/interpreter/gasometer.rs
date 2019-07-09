@@ -106,10 +106,10 @@ impl<Gas: evm::CostType> Gasometer<Gas> {
 	/// it will be the amount of gas that the current context provides to the child context.
 	pub fn requirements(
 		&mut self,
-		ext: &vm::Ext,
+		ext: &dyn vm::Ext,
 		instruction: Instruction,
 		info: &InstructionInfo,
-		stack: &Stack<U256>,
+		stack: &dyn Stack<U256>,
 		current_mem_size: usize,
 	) -> vm::Result<InstructionRequirements<Gas>> {
 		let schedule = ext.schedule();
@@ -402,7 +402,7 @@ fn calculate_eip1283_sstore_gas<Gas: evm::CostType>(schedule: &Schedule, origina
 	)
 }
 
-pub fn handle_eip1283_sstore_clears_refund(ext: &mut vm::Ext, original: &U256, current: &U256, new: &U256) {
+pub fn handle_eip1283_sstore_clears_refund(ext: &mut dyn vm::Ext, original: &U256, current: &U256, new: &U256) {
 	let sstore_clears_schedule = ext.schedule().sstore_refund_gas;
 
 	if current == new {

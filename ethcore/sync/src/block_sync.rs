@@ -230,7 +230,7 @@ impl BlockDownloader {
 	}
 
 	/// Add new block headers.
-	pub fn import_headers(&mut self, io: &mut SyncIo, r: &Rlp, expected_hash: H256) -> Result<DownloadAction, BlockDownloaderImportError> {
+	pub fn import_headers(&mut self, io: &mut dyn SyncIo, r: &Rlp, expected_hash: H256) -> Result<DownloadAction, BlockDownloaderImportError> {
 		let item_count = r.item_count().unwrap_or(0);
 		if self.state == State::Idle {
 			trace_sync!(self, "Ignored unexpected block headers");
@@ -415,7 +415,7 @@ impl BlockDownloader {
 		Ok(())
 	}
 
-	fn start_sync_round(&mut self, io: &mut SyncIo) {
+	fn start_sync_round(&mut self, io: &mut dyn SyncIo) {
 		self.state = State::ChainHead;
 		trace_sync!(self, "Starting round (last imported count = {:?}, last started = {}, block = {:?}", self.imported_this_round, self.last_round_start, self.last_imported_block);
 		// Check if need to retract to find the common block. The problem is that the peers still return headers by hash even
@@ -463,7 +463,7 @@ impl BlockDownloader {
 	}
 
 	/// Find some headers or blocks to download for a peer.
-	pub fn request_blocks(&mut self, peer_id: PeerId, io: &mut SyncIo, num_active_peers: usize) -> Option<BlockRequest> {
+	pub fn request_blocks(&mut self, peer_id: PeerId, io: &mut dyn SyncIo, num_active_peers: usize) -> Option<BlockRequest> {
 		match self.state {
 			State::Idle => {
 				self.start_sync_round(io);
@@ -526,7 +526,7 @@ impl BlockDownloader {
 
 	/// Checks if there are blocks fully downloaded that can be imported into the blockchain and does the import.
 	/// Returns DownloadAction::Reset if it is imported all the the blocks it can and all downloading peers should be reset
-	pub fn collect_blocks(&mut self, io: &mut SyncIo, allow_out_of_order: bool) -> DownloadAction {
+	pub fn collect_blocks(&mut self, io: &mut dyn SyncIo, allow_out_of_order: bool) -> DownloadAction {
 		let mut download_action = DownloadAction::None;
 		let mut imported = HashSet::new();
 		let blocks = self.blocks.drain();
@@ -661,7 +661,7 @@ mod tests {
 		Transaction::default().sign(keypair.secret(), None)
 	}
 
-	fn import_headers(headers: &[BlockHeader], downloader: &mut BlockDownloader, io: &mut SyncIo) -> Result<DownloadAction, BlockDownloaderImportError> {
+	fn import_headers(headers: &[BlockHeader], downloader: &mut BlockDownloader, io: &mut dyn SyncIo) -> Result<DownloadAction, BlockDownloaderImportError> {
 		let mut stream = RlpStream::new();
 		stream.append_list(headers);
 		let bytes = stream.out();
@@ -670,7 +670,7 @@ mod tests {
 		downloader.import_headers(io, &rlp, expected_hash)
 	}
 
-	fn import_headers_ok(headers: &[BlockHeader], downloader: &mut BlockDownloader, io: &mut SyncIo) {
+	fn import_headers_ok(headers: &[BlockHeader], downloader: &mut BlockDownloader, io: &mut dyn SyncIo) {
 		let res = import_headers(headers, downloader, io);
 		assert!(res.is_ok());
 	}
@@ -812,13 +812,13 @@ mod tests {
 		let mut parent_hash = H256::zero();
 		for i in 0..4 {
 			// Construct the block body
-			let mut uncles = if i > 0 {
+			let uncles = if i > 0 {
 				encode_list(&[dummy_header(i - 1, H256::random())])
 			} else {
 				::rlp::EMPTY_LIST_RLP.to_vec()
 			};
 
-			let mut txs = encode_list(&[dummy_signed_tx()]);
+			let txs = encode_list(&[dummy_signed_tx()]);
 			let tx_root = ordered_trie_root(Rlp::new(&txs).iter().map(|r| r.as_raw()));
 
 			let mut rlp = RlpStream::new_list(2);
@@ -883,7 +883,7 @@ mod tests {
 			//
 			// The RLP-encoded integers are clearly not receipts, but the BlockDownloader treats
 			// all receipts as byte blobs, so it does not matter.
-			let mut receipts_rlp = if i < 2 {
+			let receipts_rlp = if i < 2 {
 				encode_list(&[0u32])
 			} else {
 				encode_list(&[i as u32])

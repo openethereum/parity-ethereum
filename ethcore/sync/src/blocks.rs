@@ -562,7 +562,7 @@ mod test {
 		assert!(is_empty(&bc));
 		let client = TestBlockChainClient::new();
 		client.add_blocks(100, EachBlockWith::Nothing);
-		let hashes = (0 .. 100).map(|i| (&client as &BlockChainClient).block_hash(BlockId::Number(i)).unwrap()).collect();
+		let hashes = (0 .. 100).map(|i| (&client as &dyn BlockChainClient).block_hash(BlockId::Number(i)).unwrap()).collect();
 		bc.reset_to(hashes);
 		assert!(!is_empty(&bc));
 		bc.clear();
@@ -577,7 +577,7 @@ mod test {
 		let nblocks = 200;
 		client.add_blocks(nblocks, EachBlockWith::Nothing);
 		let blocks: Vec<_> = (0..nblocks)
-			.map(|i| (&client as &BlockChainClient).block(BlockId::Number(i as BlockNumber)).unwrap().into_inner())
+			.map(|i| (&client as &dyn BlockChainClient).block(BlockId::Number(i as BlockNumber)).unwrap().into_inner())
 			.collect();
 		let headers: Vec<_> = blocks.iter().map(|b| SyncHeader::from_rlp(Rlp::new(b).at(0).unwrap().as_raw().to_vec()).unwrap()).collect();
 		let hashes: Vec<_> = headers.iter().map(|h| h.header.hash()).collect();
@@ -639,7 +639,7 @@ mod test {
 		let nblocks = 200;
 		client.add_blocks(nblocks, EachBlockWith::Nothing);
 		let blocks: Vec<_> = (0..nblocks)
-			.map(|i| (&client as &BlockChainClient).block(BlockId::Number(i as BlockNumber)).unwrap().into_inner())
+			.map(|i| (&client as &dyn BlockChainClient).block(BlockId::Number(i as BlockNumber)).unwrap().into_inner())
 			.collect();
 		let headers: Vec<_> = blocks.iter().map(|b| SyncHeader::from_rlp(Rlp::new(b).at(0).unwrap().as_raw().to_vec()).unwrap()).collect();
 		let hashes: Vec<_> = headers.iter().map(|h| h.header.hash()).collect();
@@ -663,7 +663,7 @@ mod test {
 		let nblocks = 200;
 		client.add_blocks(nblocks, EachBlockWith::Nothing);
 		let blocks: Vec<_> = (0..nblocks)
-			.map(|i| (&client as &BlockChainClient).block(BlockId::Number(i as BlockNumber)).unwrap().into_inner())
+			.map(|i| (&client as &dyn BlockChainClient).block(BlockId::Number(i as BlockNumber)).unwrap().into_inner())
 			.collect();
 		let headers: Vec<_> = blocks.iter().map(|b| SyncHeader::from_rlp(Rlp::new(b).at(0).unwrap().as_raw().to_vec()).unwrap()).collect();
 		let hashes: Vec<_> = headers.iter().map(|h| h.header.hash()).collect();

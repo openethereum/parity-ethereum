@@ -74,7 +74,7 @@ impl<DB: HashDB<KeccakHasher, DBValue>> CHT<DB> {
 		if block_to_cht_number(num) != Some(self.number) { return Ok(None) }
 
 		let mut recorder = Recorder::with_depth(from_level);
-		let db: &HashDB<_,_> = &self.db;
+		let db: &dyn HashDB<_,_> = &self.db;
 		let t = TrieDB::new(&db, &self.root)?;
 		t.get_with(&key!(num), &mut recorder)?;
 
