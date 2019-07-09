@@ -35,17 +35,24 @@ const MIX_HASH: [u8; 32] = [
 ];
 const NONCE: u64 = 0xd7b3ac70a301a249;
 
-criterion_group!(
-	basic,
-	bench_light_compute_memmap,
-	bench_light_compute_memory,
-	bench_light_new_round_trip_memmap,
-	bench_light_new_round_trip_memory,
-	bench_light_from_file_round_trip_memory,
-	bench_light_from_file_round_trip_memmap,
-	bench_quick_get_difficulty,
-);
+criterion_group! {
+	name = basic;
+	config = dont_take_eternity_to_run();
+	targets = bench_light_compute_memmap,
+		bench_light_compute_memory,
+		bench_light_new_round_trip_memmap,
+		bench_light_new_round_trip_memory,
+		bench_light_from_file_round_trip_memory,
+		bench_light_from_file_round_trip_memmap,
+		bench_quick_get_difficulty,
+}
 criterion_main!(basic);
+
+fn dont_take_eternity_to_run() -> Criterion {
+	Criterion::default().nresamples(1_000)
+		.without_plots()
+		.sample_size(10)
+}
 
 fn bench_light_compute_memmap(b: &mut Criterion) {
 	use std::env;
