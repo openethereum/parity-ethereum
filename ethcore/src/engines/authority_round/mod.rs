@@ -1615,7 +1615,11 @@ mod tests {
 	use accounts::AccountProvider;
 	use ethereum_types::{Address, H520, H256, U256};
 	use ethkey::Signature;
-	use types::header::Header;
+	use types::{
+		header::Header,
+		engines::params::CommonParams,
+		transaction::{Action, Transaction},
+	};
 	use rlp::encode;
 	use block::*;
 	use test_helpers::{
@@ -1623,7 +1627,6 @@ mod tests {
 		TestNotify
 	};
 	use spec::Spec;
-	use types::transaction::{Action, Transaction};
 	use engines::{Seal, Engine, EngineError};
 	use engines::validator_set::{TestSet, SimpleList};
 	use error::Error;
@@ -1653,7 +1656,7 @@ mod tests {
 		// mutate aura params
 		f(&mut params);
 		// create engine
-		let mut c_params = ::spec::CommonParams::default();
+		let mut c_params = CommonParams::default();
 		c_params.gas_limit_bound_divisor = 5.into();
 		let machine = Machine::regular(c_params, Default::default());
 		AuthorityRound::new(params, machine).unwrap()

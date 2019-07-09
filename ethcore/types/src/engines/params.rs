@@ -33,8 +33,8 @@ const MAX_TRANSACTION_SIZE: usize = 300 * 1024;
 ///
 /// we define a "bugfix" hard fork as any hard fork which
 /// you would put on-by-default in a new chain.
-#[derive(Debug, PartialEq, Default)]
-#[cfg_attr(test, derive(Clone))] // todo: this will not work across crate boundaries I think
+#[derive(Debug, PartialEq, Default, Clone)]
+//#[cfg_attr(test, derive(Clone))] // todo: this will not work across crate boundaries I think
 pub struct CommonParams {
 	/// Account start nonce.
 	pub account_start_nonce: U256,

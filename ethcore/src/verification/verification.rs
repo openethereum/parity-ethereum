@@ -367,15 +367,19 @@ mod tests {
 	use std::time::{SystemTime, UNIX_EPOCH};
 	use ethereum_types::{H256, BloomRef, U256, Address};
 	use blockchain::{BlockDetails, TransactionAddress, BlockReceipts};
-	use types::encoded;
+	use bytes::Bytes;
 	use hash::keccak;
 	use engines::Engine;
 	use error::BlockError::*;
 	use ethkey::{Random, Generator};
-	use spec::{CommonParams, Spec};
+	use spec::Spec;
 	use test_helpers::{create_test_block_with_data, create_test_block};
-	use types::transaction::{SignedTransaction, Transaction, UnverifiedTransaction, Action};
-	use types::log_entry::{LogEntry, LocalizedLogEntry};
+	use types::{
+		encoded,
+		engines::params::CommonParams,
+		transaction::{SignedTransaction, Transaction, UnverifiedTransaction, Action},
+		log_entry::{LogEntry, LocalizedLogEntry},
+	};
 	use rlp;
 	use triehash::ordered_trie_root;
 
