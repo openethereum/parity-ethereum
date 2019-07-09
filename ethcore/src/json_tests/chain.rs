@@ -65,7 +65,7 @@ pub fn json_chain_test<H: FnMut(&str, HookType)>(json_data: &[u8], start_stop_ho
 			flush!("   - {}...", name);
 
 			let spec = {
-				let mut spec = match EvmTestClient::spec_from_json(&blockchain.network) {
+				let mut spec = match EvmTestClient::fork_spec_from_json(&blockchain.network) {
 					Some(spec) => spec,
 					None => {
 						println!("   - {} | {:?} Ignoring tests because of missing spec", name, blockchain.network);

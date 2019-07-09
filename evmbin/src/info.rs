@@ -100,35 +100,52 @@ pub fn run_action<T: Informant>(
 	})
 }
 
+/// Input data to run transaction.
+#[derive(Debug)]
+pub struct TxInput<'a, T> {
+	/// State test name associated with the transaction.
+	pub state_test_name: &'a str,
+	/// Transaction index from list of transactions within a state root hash corresponding to a chain.
+	pub tx_index: usize,
+	/// Fork specification (i.e. Constantinople, EIP150, EIP158, etc).
+	pub fork_spec_name: &'a ethjson::spec::ForkSpec,
+	/// State of all accounts in the system that is a binary tree mapping of each account address to account data
+	/// that is expressed as Plain Old Data containing the account balance, account nonce, account code in bytes,
+	/// and the account storage binary tree map.
+	pub pre_state: &'a pod_state::PodState,
+	/// State root hash associated with the transaction.
+	pub post_root: H256,
+	/// Client environment information associated with the transaction's chain specification.
+	pub env_info: &'a client::EnvInfo,
+	/// Signed transaction accompanied by a signature that may be unverified and a successfully recovered
+	/// sender address. The unverified transaction contains a recoverable ECDSA signature that has been encoded
+	/// as RSV components and includes replay protection for the specified chain. Verification of the signed transaction
+	/// with a valid secret of an account's keypair and a specific chain may be used to recover the sender's public key
+	/// and their associated address by applying the Keccak-256 hash function.
+	pub transaction: transaction::SignedTransaction,
+	/// JSON formatting informant.
+	pub informant: T,
+	///	Trie specification (i.e. Generic trie, Secure trie, Secure with fat database).
+	pub trie_spec: TrieSpec,
+}
+
 /// Execute given transaction and verify resulting state root.
 pub fn run_transaction<T: Informant>(
-	// Chain specification name associated with the transaction.
-	name: &str,
-	// Transaction index from list of transactions within a state root hashes corresponding to a chain.
-	idx: usize,
-	// Fork specification (i.e. Constantinople, EIP150, EIP158, etc).
-	spec: &ethjson::spec::ForkSpec,
-	// State of all accounts in the system that is a binary tree mapping of each account address to account data
-	// that is expressed as Plain Old Data containing the account balance, account nonce, account code in bytes,
-	// and the account storage binary tree map.
-	pre_state: &pod_state::PodState,
-	// State root hash associated with the transaction.
-	post_root: H256,
-	// Client environment information associated with the transaction's chain specification.
-	env_info: &client::EnvInfo,
-	transaction: transaction::SignedTransaction,
-	// JSON formatting informant.
-	mut informant: T,
-	trie_spec: TrieSpec,
+	tx_input: TxInput<T>
 ) {
-	let spec_name = format!("{:?}", spec).to_lowercase();
-	let spec = match EvmTestClient::spec_from_json(spec) {
+	let TxInput {
+		state_test_name, tx_index, fork_spec_name, pre_state, post_root, env_info, transaction, mut informant, trie_spec, ..
+	} = tx_input;
+	let fork_spec_name_formatted = format!("{:?}", fork_spec_name).to_lowercase();
+	let fork_spec = match EvmTestClient::fork_spec_from_json(&fork_spec_name) {
 		Some(spec) => {
-			informant.before_test(&format!("{}:{}:{}", name, spec_name, idx), "starting");
+			informant.before_test(
+				&format!("{}:{}:{}", &state_test_name, &fork_spec_name_formatted, tx_index), "starting");
 			spec
 		},
 		None => {
-			informant.before_test(&format!("{}:{}:{}", name, spec_name, idx), "skipping because of missing spec");
+			informant.before_test(&format!("{}:{}:{}",
+				&state_test_name, fork_spec_name_formatted, &tx_index), "skipping because of missing fork specification");
 			return;
 		},
 	};
@@ -136,8 +153,8 @@ pub fn run_transaction<T: Informant>(
 	informant.set_gas(env_info.gas_limit);
 
 	let mut sink = informant.clone_sink();
-	let result = run(&spec, trie_spec, transaction.gas, pre_state, |mut client| {
-		let result = client.transact(env_info, transaction, trace::NoopTracer, informant);
+	let result = run(&fork_spec, trie_spec, transaction.gas, &pre_state, |mut client| {
+		let result = client.transact(&env_info, transaction, trace::NoopTracer, informant);
 		match result {
 			Ok(TransactSuccess { state_root, gas_left, output, vm_trace, end_state, .. }) => {
 				if state_root != post_root {
