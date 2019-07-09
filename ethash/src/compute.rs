@@ -135,29 +135,16 @@ pub fn quick_get_difficulty(header_hash: &H256, nonce: u64, mix_hash: &H256, pro
 			let seed = keccak_f800_short(*header_hash, nonce, [0u32; 8]);
 			keccak_f800_long(*header_hash, seed, mem::transmute(*mix_hash))
 		} else {
-			// This is safe - the `keccak_512` call below reads the first 40 bytes (which we explicitly set
-			// with two `copy_nonoverlapping` calls) but writes the first 64, and then we explicitly write
-			// the next 32 bytes before we read the whole thing with `keccak_256`.
-			//
-			// This cannot be elided by the compiler as it doesn't know the implementation of
-			// `keccak_512`.
-			let mut buf = mem::MaybeUninit::<[u8; 64 + 32]>::uninit();
+			let mut buf = [0u8; 64 + 32];
 
-			let buf_ptr = buf.as_mut_ptr() as *mut u8;
-			ptr::copy_nonoverlapping(header_hash.as_ptr(), buf_ptr, 32);
-			ptr::copy_nonoverlapping(&nonce as *const u64 as *const u8, buf_ptr.offset(32), 8);
+			ptr::copy_nonoverlapping(header_hash.as_ptr(), buf.as_mut_ptr(), 32);
+			ptr::copy_nonoverlapping(&nonce as *const u64 as *const u8, buf[32..].as_mut_ptr(), 8);
 
-			keccak_512::unchecked(buf_ptr, 64, buf_ptr, 40);
-			ptr::copy_nonoverlapping(mix_hash.as_ptr(), buf_ptr.offset(64), 32);
+			keccak_512::unchecked(buf.as_mut_ptr(), 64, buf.as_ptr(), 40);
+			ptr::copy_nonoverlapping(mix_hash.as_ptr(), buf[64..].as_mut_ptr(), 32);
 
-			let buf = buf.assume_init();
-
-			const KECCAK_LEN: usize = 32;
-			// This is initialized in `keccak_256` below.
-			let mut hash = mem::MaybeUninit::<[u8; KECCAK_LEN]>::uninit();
-			keccak_256::unchecked(hash.as_mut_ptr() as *mut u8, KECCAK_LEN, buf.as_ptr(), buf.len());
-
-			let hash = hash.assume_init();
+			let mut hash = [0u8; 32];
+			keccak_256::unchecked(hash.as_mut_ptr() as *mut u8, hash.len(), buf.as_ptr(), buf.len());
 
 			hash
 		}
@@ -211,28 +198,24 @@ fn hash_compute(light: &Light, full_size: usize, header_hash: &H256, nonce: u64)
 	let mut buf: MixBuf = MixBuf {
 		half_mix: unsafe {
 			// Pack `header_hash` and `nonce` together
-			// We explicitly write the first 40 bytes, leaving the last 24 as uninitialized. Then
-			// `keccak_512` reads the first 40 bytes (4th parameter) and overwrites the entire array,
-			// leaving it fully initialized.
-			let mut out = mem::MaybeUninit::<[u8; NODE_BYTES]>::uninit();
-			let out_ptr = out.as_mut_ptr() as *mut u8;
+			let mut out = [0u8; NODE_BYTES];
 
-			ptr::copy_nonoverlapping(header_hash.as_ptr(), out_ptr, header_hash.len());
+			ptr::copy_nonoverlapping(header_hash.as_ptr(), out.as_mut_ptr(), header_hash.len());
 			ptr::copy_nonoverlapping(
 				&nonce as *const u64 as *const u8,
-				out_ptr.add(header_hash.len()),
+				out[header_hash.len()..].as_mut_ptr(),
 				mem::size_of::<u64>(),
 			);
 
 			// compute keccak-512 hash and replicate across mix
 			keccak_512::unchecked(
-				out_ptr,
+				out.as_mut_ptr(),
 				NODE_BYTES,
-				out_ptr,
+				out.as_ptr(),
 				header_hash.len() + mem::size_of::<u64>(),
 			);
 
-			Node { bytes: out.assume_init() }
+			Node { bytes: out }
 		},
 		compress_bytes: [0u8; MIX_WORDS],
 	};
