@@ -48,31 +48,6 @@ use tx_filter::TransactionFilter;
 /// Parity tries to round block.gas_limit to multiple of this constant
 pub const PARITY_GAS_LIMIT_DETERMINANT: U256 = U256([37, 0, 0, 0]);
 
-// todo remove
-/// Ethash-specific extensions.
-//#[derive(Debug, Clone)]
-//pub struct EthashExtensions {
-//	/// Homestead transition block number.
-//	pub homestead_transition: BlockNumber,
-//	/// DAO hard-fork transition block (X).
-//	pub dao_hardfork_transition: u64,
-//	/// DAO hard-fork refund contract address (C).
-//	pub dao_hardfork_beneficiary: Address,
-//	/// DAO hard-fork DAO accounts list (L)
-//	pub dao_hardfork_accounts: Vec<Address>,
-//}
-
-//impl From<::ethjson::spec::EthashParams> for EthashExtensions {
-//	fn from(p: ::ethjson::spec::EthashParams) -> Self {
-//		EthashExtensions {
-//			homestead_transition: p.homestead_transition.map_or(0, Into::into),
-//			dao_hardfork_transition: p.dao_hardfork_transition.map_or(u64::max_value(), Into::into),
-//			dao_hardfork_beneficiary: p.dao_hardfork_beneficiary.map_or_else(Address::zero, Into::into),
-//			dao_hardfork_accounts: p.dao_hardfork_accounts.unwrap_or_else(Vec::new).into_iter().map(Into::into).collect(),
-//		}
-//	}
-//}
-
 /// Special rules to be applied to the schedule.
 pub type ScheduleCreationRules = dyn Fn(&mut Schedule, BlockNumber) + Sync + Send;
 

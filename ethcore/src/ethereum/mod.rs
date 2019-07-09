@@ -20,11 +20,11 @@
 //! consensus specifications.
 
 /// Export the ethash module.
-pub mod ethash;
+pub mod ethash_eng;
 /// Export the denominations module.
 pub mod denominations;
 
-pub use self::ethash::{Ethash};
+pub use self::ethash_eng::{Ethash};
 pub use self::denominations::*;
 
 use machine::Machine;

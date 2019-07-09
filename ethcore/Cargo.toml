@@ -75,6 +75,7 @@ vm = { path = "vm" }
 rand_xorshift = "0.1.1"
 
 client-traits = { path = "client-traits" }
+verification = { path = "verification" }
 
 [dev-dependencies]
 blooms-db = { path = "../util/blooms-db" }

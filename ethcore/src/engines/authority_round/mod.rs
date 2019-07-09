@@ -26,6 +26,7 @@ use std::time::{UNIX_EPOCH, Duration};
 
 use block::*;
 use client::EngineClient;
+use client_traits::VerifyingEngine;
 use engines::{Engine, Seal, SealingState, ConstructedVerifier};
 use engines::block_reward;
 use engines::block_reward::{BlockRewardContract, RewardKind};
@@ -47,8 +48,8 @@ use types::{
 	ancestry_action::AncestryAction,
 	BlockNumber,
 	header::{Header, ExtendedHeader},
-	engines::EngineError,
-
+	engines::{EngineError, params::CommonParams},
+	transaction::{self, UnverifiedTransaction, SignedTransaction},
 };
 use unexpected::{Mismatch, OutOfBounds};
 
@@ -945,26 +946,168 @@ impl IoHandler<()> for TransitionHandler {
 	}
 }
 
-impl Engine for AuthorityRound {
-	fn name(&self) -> &str { "AuthorityRound" }
-
-	fn machine(&self) -> &Machine { &self.machine }
-
+impl VerifyingEngine for AuthorityRound {
 	/// Three fields - consensus step and the corresponding proposer signature, and a list of empty
 	/// step messages (which should be empty if no steps are skipped)
 	fn seal_fields(&self, header: &Header) -> usize {
 		header_expected_seal_fields(header, self.empty_steps_transition)
 	}
 
-	fn step(&self) {
-		self.step.inner.increment();
-		self.step.can_propose.store(true, AtomicOrdering::SeqCst);
-		if let Some(ref weak) = *self.client.read() {
-			if let Some(c) = weak.upgrade() {
-				c.update_sealing();
+	fn params(&self) -> &CommonParams {
+		self.machine.params()
+	}
+
+	/// Check the number of seal fields.
+	fn verify_block_basic(&self, header: &Header) -> Result<(), Error> {
+		if header.number() >= self.validate_score_transition && *header.difficulty() >= U256::from(U128::max_value()) {
+			return Err(From::from(BlockError::DifficultyOutOfBounds(
+				OutOfBounds { min: None, max: Some(U256::from(U128::max_value())), found: *header.difficulty() }
+			)));
+		}
+
+		match verify_timestamp(&self.step.inner, header_step(header, self.empty_steps_transition)?) {
+			Err(BlockError::InvalidSeal) => {
+				// This check runs in Phase 1 where there is no guarantee that the parent block is
+				// already imported, therefore the call to `epoch_set` may fail. In that case we
+				// won't report the misbehavior but this is not a concern because:
+				// - Authorities will have a signing key available to report and it's expected that
+				//   they'll be up-to-date and importing, therefore the parent header will most likely
+				//   be available
+				// - Even if you are an authority that is syncing the chain, the contract will most
+				//   likely ignore old reports
+				// - This specific check is only relevant if you're importing (since it checks
+				//   against wall clock)
+				if let Ok((_,  set_number)) = self.epoch_set(header) {
+					trace!(target: "engine", "Reporting benign misbehaviour (cause: InvalidSeal) at block #{}, epoch set number {}. Own address: {}",
+					       header.number(), set_number, self.address().unwrap_or_default());
+					self.validators.report_benign(header.author(), set_number, header.number());
+				}
+
+				Err(BlockError::InvalidSeal.into())
 			}
+			Err(e) => Err(e.into()),
+			Ok(()) => Ok(()),
 		}
 	}
+
+	/// Do the step and gas limit validation.
+	fn verify_block_family(&self, header: &Header, parent: &Header) -> Result<(), Error> {
+		let step = header_step(header, self.empty_steps_transition)?;
+		let parent_step = header_step(parent, self.empty_steps_transition)?;
+
+		let (validators, set_number) = self.epoch_set(header)?;
+
+		// Ensure header is from the step after parent.
+		if step == parent_step
+			|| (header.number() >= self.validate_step_transition && step <= parent_step) {
+			warn!(target: "engine", "Multiple blocks proposed for step {}.", parent_step);
+
+			self.validators.report_malicious(header.author(), set_number, header.number(), Default::default());
+			Err(EngineError::DoubleVote(*header.author()))?;
+		}
+
+		// If empty step messages are enabled we will validate the messages in the seal, missing messages are not
+		// reported as there's no way to tell whether the empty step message was never sent or simply not included.
+		let empty_steps_len = if header.number() >= self.empty_steps_transition {
+			let validate_empty_steps = || -> Result<usize, Error> {
+				let strict_empty_steps = header.number() >= self.strict_empty_steps_transition;
+				let empty_steps = header_empty_steps(header)?;
+				let empty_steps_len = empty_steps.len();
+				let mut prev_empty_step = 0;
+
+				for empty_step in empty_steps {
+					if empty_step.step <= parent_step || empty_step.step >= step {
+						Err(EngineError::InsufficientProof(
+							format!("empty step proof for invalid step: {:?}", empty_step.step)))?;
+					}
+
+					if empty_step.parent_hash != *header.parent_hash() {
+						Err(EngineError::InsufficientProof(
+							format!("empty step proof for invalid parent hash: {:?}", empty_step.parent_hash)))?;
+					}
+
+					if !empty_step.verify(&*validators).unwrap_or(false) {
+						Err(EngineError::InsufficientProof(
+							format!("invalid empty step proof: {:?}", empty_step)))?;
+					}
+
+					if strict_empty_steps {
+						if empty_step.step <= prev_empty_step {
+							Err(EngineError::InsufficientProof(format!(
+								"{} empty step: {:?}",
+								if empty_step.step == prev_empty_step { "duplicate" } else { "unordered" },
+								empty_step
+							)))?;
+						}
+
+						prev_empty_step = empty_step.step;
+					}
+				}
+
+				Ok(empty_steps_len)
+			};
+
+			match validate_empty_steps() {
+				Ok(len) => len,
+				Err(err) => {
+					trace!(target: "engine", "Reporting benign misbehaviour (cause: invalid empty steps) at block #{}, epoch set number {}. Own address: {}",
+					       header.number(), set_number, self.address().unwrap_or_default());
+					self.validators.report_benign(header.author(), set_number, header.number());
+					return Err(err);
+				},
+			}
+		} else {
+			self.report_skipped(header, step, parent_step, &*validators, set_number);
+
+			0
+		};
+
+		if header.number() >= self.validate_score_transition {
+			let expected_difficulty = calculate_score(parent_step.into(), step.into(), empty_steps_len.into());
+			if header.difficulty() != &expected_difficulty {
+				return Err(From::from(BlockError::InvalidDifficulty(Mismatch { expected: expected_difficulty, found: header.difficulty().clone() })));
+			}
+		}
+
+		Ok(())
+	}
+
+	// Check the validators.
+	fn verify_block_external(&self, header: &Header) -> Result<(), Error> {
+		let (validators, set_number) = self.epoch_set(header)?;
+
+		// verify signature against fixed list, but reports should go to the
+		// contract itself.
+		let res = verify_external(header, &*validators, self.empty_steps_transition);
+		match res {
+			Err(Error::Engine(EngineError::NotProposer(_))) => {
+				trace!(target: "engine", "Reporting benign misbehaviour (cause: block from incorrect proposer) at block #{}, epoch set number {}. Own address: {}",
+				       header.number(), set_number, self.address().unwrap_or_default());
+				self.validators.report_benign(header.author(), set_number, header.number());
+			},
+			Ok(_) => {
+				// we can drop all accumulated empty step messages that are older than this header's step
+				let header_step = header_step(header, self.empty_steps_transition)?;
+				self.clear_empty_steps(header_step.into());
+			},
+			_ => {},
+		}
+		res
+	}
+
+	fn verify_transaction_basic(&self, t: &UnverifiedTransaction, header: &Header) -> Result<(), transaction::Error> {
+		self.machine().verify_transaction_basic(t, header)
+	}
+
+	fn verify_transaction_unordered(&self, t: UnverifiedTransaction, header: &Header) -> Result<SignedTransaction, transaction::Error> {
+		self.machine().verify_transaction_unordered(t, header)
+	}
+}
+
+impl Engine for AuthorityRound {
+	fn name(&self) -> &str { "AuthorityRound" }
+
+	fn machine(&self) -> &Machine { &self.machine }
 
 	/// Additional engine-specific information for the user/developer concerning `header`.
 	fn extra_info(&self, header: &Header) -> BTreeMap<String, String> {
@@ -1011,18 +1154,73 @@ impl Engine for AuthorityRound {
 		}
 	}
 
-	fn populate_from_parent(&self, header: &mut Header, parent: &Header) {
-		let parent_step = header_step(parent, self.empty_steps_transition).expect("Header has been verified; qed");
-		let current_step = self.step.inner.load();
+	fn on_new_block(
+		&self,
+		block: &mut ExecutedBlock,
+		epoch_begin: bool,
+	) -> Result<(), Error> {
+		// with immediate transitions, we don't use the epoch mechanism anyway.
+		// the genesis is always considered an epoch, but we ignore it intentionally.
+		if self.immediate_transitions || !epoch_begin { return Ok(()) }
 
-		let current_empty_steps_len = if header.number() >= self.empty_steps_transition {
-			self.empty_steps(parent_step, current_step, parent.hash()).len()
-		} else {
-			0
+		// genesis is never a new block, but might as well check.
+		let header = block.header.clone();
+		let first = header.number() == 0;
+
+		let mut call = |to, data| {
+			let result = self.machine.execute_as_system(
+				block,
+				to,
+				U256::max_value(), // unbounded gas? maybe make configurable.
+				Some(data),
+			);
+
+			result.map_err(|e| format!("{}", e))
 		};
 
-		let score = calculate_score(parent_step, current_step, current_empty_steps_len);
-		header.set_difficulty(score);
+		self.validators.on_epoch_begin(first, &header, &mut call)
+	}
+
+	/// Apply the block reward on finalisation of the block.
+	fn on_close_block(
+		&self,
+		block: &mut ExecutedBlock,
+		parent: &Header,
+	) -> Result<(), Error> {
+		let mut beneficiaries = Vec::new();
+		if block.header.number() >= self.empty_steps_transition {
+			let empty_steps = if block.header.seal().is_empty() {
+				// this is a new block, calculate rewards based on the empty steps messages we have accumulated
+				let parent_step = header_step(parent, self.empty_steps_transition)?;
+				let current_step = self.step.inner.load();
+				self.empty_steps(parent_step, current_step, parent.hash())
+			} else {
+				// we're verifying a block, extract empty steps from the seal
+				header_empty_steps(&block.header)?
+			};
+
+			for empty_step in empty_steps {
+				let author = empty_step.author()?;
+				beneficiaries.push((author, RewardKind::EmptyStep));
+			}
+		}
+
+		let author = *block.header.author();
+		beneficiaries.push((author, RewardKind::Author));
+
+		let rewards: Vec<_> = match self.block_reward_contract {
+			Some(ref c) if block.header.number() >= self.block_reward_contract_transition => {
+				let mut call = super::default_system_or_code_call(&self.machine, block);
+
+				let rewards = c.reward(&beneficiaries, &mut call)?;
+				rewards.into_iter().map(|(author, amount)| (author, RewardKind::External, amount)).collect()
+			},
+			_ => {
+				beneficiaries.into_iter().map(|(author, reward_kind)| (author, reward_kind, self.block_reward)).collect()
+			},
+		};
+
+		block_reward::apply_block_rewards(&rewards, block, &self.machine)
 	}
 
 	fn sealing_state(&self) -> SealingState {
@@ -1070,28 +1268,6 @@ impl Engine for AuthorityRound {
 		}
 
 		SealingState::Ready
-	}
-
-	fn handle_message(&self, rlp: &[u8]) -> Result<(), EngineError> {
-		fn fmt_err<T: ::std::fmt::Debug>(x: T) -> EngineError {
-			EngineError::MalformedMessage(format!("{:?}", x))
-		}
-
-		let rlp = Rlp::new(rlp);
-		let empty_step: EmptyStep = rlp.as_val().map_err(fmt_err)?;
-
-		if empty_step.verify(&*self.validators).unwrap_or(false) {
-			if self.step.inner.check_future(empty_step.step).is_ok() {
-				trace!(target: "engine", "handle_message: received empty step message {:?}", empty_step);
-				self.handle_empty_step_message(empty_step);
-			} else {
-				trace!(target: "engine", "handle_message: empty step message from the future {:?}", empty_step);
-			}
-		} else {
-			trace!(target: "engine", "handle_message: received invalid step message {:?}", empty_step);
-		};
-
-		Ok(())
 	}
 
 	/// Attempt to seal the block internally.
@@ -1212,213 +1388,6 @@ impl Engine for AuthorityRound {
 		Ok(())
 	}
 
-	fn on_new_block(
-		&self,
-		block: &mut ExecutedBlock,
-		epoch_begin: bool,
-	) -> Result<(), Error> {
-		// with immediate transitions, we don't use the epoch mechanism anyway.
-		// the genesis is always considered an epoch, but we ignore it intentionally.
-		if self.immediate_transitions || !epoch_begin { return Ok(()) }
-
-		// genesis is never a new block, but might as well check.
-		let header = block.header.clone();
-		let first = header.number() == 0;
-
-		let mut call = |to, data| {
-			let result = self.machine.execute_as_system(
-				block,
-				to,
-				U256::max_value(), // unbounded gas? maybe make configurable.
-				Some(data),
-			);
-
-			result.map_err(|e| format!("{}", e))
-		};
-
-		self.validators.on_epoch_begin(first, &header, &mut call)
-	}
-
-	/// Apply the block reward on finalisation of the block.
-	fn on_close_block(
-		&self,
-		block: &mut ExecutedBlock,
-		parent: &Header,
-	) -> Result<(), Error> {
-		let mut beneficiaries = Vec::new();
-		if block.header.number() >= self.empty_steps_transition {
-			let empty_steps = if block.header.seal().is_empty() {
-				// this is a new block, calculate rewards based on the empty steps messages we have accumulated
-				let parent_step = header_step(parent, self.empty_steps_transition)?;
-				let current_step = self.step.inner.load();
-				self.empty_steps(parent_step, current_step, parent.hash())
-			} else {
-				// we're verifying a block, extract empty steps from the seal
-				header_empty_steps(&block.header)?
-			};
-
-			for empty_step in empty_steps {
-				let author = empty_step.author()?;
-				beneficiaries.push((author, RewardKind::EmptyStep));
-			}
-		}
-
-		let author = *block.header.author();
-		beneficiaries.push((author, RewardKind::Author));
-
-		let rewards: Vec<_> = match self.block_reward_contract {
-			Some(ref c) if block.header.number() >= self.block_reward_contract_transition => {
-				let mut call = super::default_system_or_code_call(&self.machine, block);
-
-				let rewards = c.reward(&beneficiaries, &mut call)?;
-				rewards.into_iter().map(|(author, amount)| (author, RewardKind::External, amount)).collect()
-			},
-			_ => {
-				beneficiaries.into_iter().map(|(author, reward_kind)| (author, reward_kind, self.block_reward)).collect()
-			},
-		};
-
-		block_reward::apply_block_rewards(&rewards, block, &self.machine)
-	}
-
-	/// Check the number of seal fields.
-	fn verify_block_basic(&self, header: &Header) -> Result<(), Error> {
-		if header.number() >= self.validate_score_transition && *header.difficulty() >= U256::from(U128::max_value()) {
-			return Err(From::from(BlockError::DifficultyOutOfBounds(
-				OutOfBounds { min: None, max: Some(U256::from(U128::max_value())), found: *header.difficulty() }
-			)));
-		}
-
-		match verify_timestamp(&self.step.inner, header_step(header, self.empty_steps_transition)?) {
-			Err(BlockError::InvalidSeal) => {
-				// This check runs in Phase 1 where there is no guarantee that the parent block is
-				// already imported, therefore the call to `epoch_set` may fail. In that case we
-				// won't report the misbehavior but this is not a concern because:
-				// - Authorities will have a signing key available to report and it's expected that
-				//   they'll be up-to-date and importing, therefore the parent header will most likely
-				//   be available
-				// - Even if you are an authority that is syncing the chain, the contract will most
-				//   likely ignore old reports
-				// - This specific check is only relevant if you're importing (since it checks
-				//   against wall clock)
-				if let Ok((_,  set_number)) = self.epoch_set(header) {
-					trace!(target: "engine", "Reporting benign misbehaviour (cause: InvalidSeal) at block #{}, epoch set number {}. Own address: {}",
-						header.number(), set_number, self.address().unwrap_or_default());
-					self.validators.report_benign(header.author(), set_number, header.number());
-				}
-
-				Err(BlockError::InvalidSeal.into())
-			}
-			Err(e) => Err(e.into()),
-			Ok(()) => Ok(()),
-		}
-	}
-
-	/// Do the step and gas limit validation.
-	fn verify_block_family(&self, header: &Header, parent: &Header) -> Result<(), Error> {
-		let step = header_step(header, self.empty_steps_transition)?;
-		let parent_step = header_step(parent, self.empty_steps_transition)?;
-
-		let (validators, set_number) = self.epoch_set(header)?;
-
-		// Ensure header is from the step after parent.
-		if step == parent_step
-			|| (header.number() >= self.validate_step_transition && step <= parent_step) {
-			warn!(target: "engine", "Multiple blocks proposed for step {}.", parent_step);
-
-			self.validators.report_malicious(header.author(), set_number, header.number(), Default::default());
-			Err(EngineError::DoubleVote(*header.author()))?;
-		}
-
-		// If empty step messages are enabled we will validate the messages in the seal, missing messages are not
-		// reported as there's no way to tell whether the empty step message was never sent or simply not included.
-		let empty_steps_len = if header.number() >= self.empty_steps_transition {
-			let validate_empty_steps = || -> Result<usize, Error> {
-				let strict_empty_steps = header.number() >= self.strict_empty_steps_transition;
-				let empty_steps = header_empty_steps(header)?;
-				let empty_steps_len = empty_steps.len();
-				let mut prev_empty_step = 0;
-
-				for empty_step in empty_steps {
-					if empty_step.step <= parent_step || empty_step.step >= step {
-						Err(EngineError::InsufficientProof(
-							format!("empty step proof for invalid step: {:?}", empty_step.step)))?;
-					}
-
-					if empty_step.parent_hash != *header.parent_hash() {
-						Err(EngineError::InsufficientProof(
-							format!("empty step proof for invalid parent hash: {:?}", empty_step.parent_hash)))?;
-					}
-
-					if !empty_step.verify(&*validators).unwrap_or(false) {
-						Err(EngineError::InsufficientProof(
-							format!("invalid empty step proof: {:?}", empty_step)))?;
-					}
-
-					if strict_empty_steps {
-						if empty_step.step <= prev_empty_step {
-							Err(EngineError::InsufficientProof(format!(
-								"{} empty step: {:?}",
-								if empty_step.step == prev_empty_step { "duplicate" } else { "unordered" },
-								empty_step
-							)))?;
-						}
-
-						prev_empty_step = empty_step.step;
-					}
-				}
-
-				Ok(empty_steps_len)
-			};
-
-			match validate_empty_steps() {
-				Ok(len) => len,
-				Err(err) => {
-					trace!(target: "engine", "Reporting benign misbehaviour (cause: invalid empty steps) at block #{}, epoch set number {}. Own address: {}",
-						header.number(), set_number, self.address().unwrap_or_default());
-					self.validators.report_benign(header.author(), set_number, header.number());
-					return Err(err);
-				},
-			}
-		} else {
-			self.report_skipped(header, step, parent_step, &*validators, set_number);
-
-			0
-		};
-
-		if header.number() >= self.validate_score_transition {
-			let expected_difficulty = calculate_score(parent_step.into(), step.into(), empty_steps_len.into());
-			if header.difficulty() != &expected_difficulty {
-				return Err(From::from(BlockError::InvalidDifficulty(Mismatch { expected: expected_difficulty, found: header.difficulty().clone() })));
-			}
-		}
-
-		Ok(())
-	}
-
-	// Check the validators.
-	fn verify_block_external(&self, header: &Header) -> Result<(), Error> {
-		let (validators, set_number) = self.epoch_set(header)?;
-
-		// verify signature against fixed list, but reports should go to the
-		// contract itself.
-		let res = verify_external(header, &*validators, self.empty_steps_transition);
-		match res {
-			Err(Error::Engine(EngineError::NotProposer(_))) => {
-				trace!(target: "engine", "Reporting benign misbehaviour (cause: block from incorrect proposer) at block #{}, epoch set number {}. Own address: {}",
-					header.number(), set_number, self.address().unwrap_or_default());
-				self.validators.report_benign(header.author(), set_number, header.number());
-			},
-			Ok(_) => {
-				// we can drop all accumulated empty step messages that are older than this header's step
-				let header_step = header_step(header, self.empty_steps_transition)?;
-				self.clear_empty_steps(header_step.into());
-			},
-			_ => {},
-		}
-		res
-	}
-
 	fn genesis_epoch_data(&self, header: &Header, call: &Call) -> Result<Vec<u8>, String> {
 		self.validators.genesis_epoch_data(header, call)
 			.map(|set_proof| combine_proofs(0, &set_proof, &[]))
@@ -1431,49 +1400,6 @@ impl Engine for AuthorityRound {
 
 		let first = header.number() == 0;
 		self.validators.signals_epoch_end(first, header, aux)
-	}
-
-	fn is_epoch_end_light(
-		&self,
-		chain_head: &Header,
-		chain: &super::Headers<Header>,
-		transition_store: &super::PendingTransitionStore,
-	) -> Option<Vec<u8>> {
-		// epochs only matter if we want to support light clients.
-		if self.immediate_transitions { return None }
-
-		let epoch_transition_hash = {
-			let client = match self.client.read().as_ref().and_then(|weak| weak.upgrade()) {
-				Some(client) => client,
-				None => {
-					warn!(target: "engine", "Unable to check for epoch end: missing client ref.");
-					return None;
-				}
-			};
-
-			let mut epoch_manager = self.epoch_manager.lock();
-			if !epoch_manager.zoom_to_after(&*client, &self.machine, &*self.validators, *chain_head.parent_hash()) {
-				return None;
-			}
-
-			epoch_manager.epoch_transition_hash
-		};
-
-		let mut hash = *chain_head.parent_hash();
-
-		let mut ancestry = itertools::repeat_call(move || {
-			chain(hash).and_then(|header| {
-				if header.number() == 0 { return None }
-				hash = *header.parent_hash();
-				Some(header)
-			})
-		})
-			.while_some()
-			.take_while(|header| header.hash() != epoch_transition_hash);
-
-		let finalized = self.build_finality(chain_head, &mut ancestry);
-
-		self.is_epoch_end(chain_head, &finalized, chain, transition_store)
 	}
 
 	fn is_epoch_end(
@@ -1547,6 +1473,49 @@ impl Engine for AuthorityRound {
 		None
 	}
 
+	fn is_epoch_end_light(
+		&self,
+		chain_head: &Header,
+		chain: &super::Headers<Header>,
+		transition_store: &super::PendingTransitionStore,
+	) -> Option<Vec<u8>> {
+		// epochs only matter if we want to support light clients.
+		if self.immediate_transitions { return None }
+
+		let epoch_transition_hash = {
+			let client = match self.client.read().as_ref().and_then(|weak| weak.upgrade()) {
+				Some(client) => client,
+				None => {
+					warn!(target: "engine", "Unable to check for epoch end: missing client ref.");
+					return None;
+				}
+			};
+
+			let mut epoch_manager = self.epoch_manager.lock();
+			if !epoch_manager.zoom_to_after(&*client, &self.machine, &*self.validators, *chain_head.parent_hash()) {
+				return None;
+			}
+
+			epoch_manager.epoch_transition_hash
+		};
+
+		let mut hash = *chain_head.parent_hash();
+
+		let mut ancestry = itertools::repeat_call(move || {
+			chain(hash).and_then(|header| {
+				if header.number() == 0 { return None }
+				hash = *header.parent_hash();
+				Some(header)
+			})
+		})
+			.while_some()
+			.take_while(|header| header.hash() != epoch_transition_hash);
+
+		let finalized = self.build_finality(chain_head, &mut ancestry);
+
+		self.is_epoch_end(chain_head, &finalized, chain, transition_store)
+	}
+
 	fn epoch_verifier<'a>(&self, _header: &Header, proof: &'a [u8]) -> ConstructedVerifier<'a> {
 		let (signal_number, set_proof, finality_proof) = match destructure_proofs(proof) {
 			Ok(x) => x,
@@ -1571,9 +1540,40 @@ impl Engine for AuthorityRound {
 		}
 	}
 
-	fn register_client(&self, client: Weak<dyn EngineClient>) {
-		*self.client.write() = Some(client.clone());
-		self.validators.register_client(client);
+	fn populate_from_parent(&self, header: &mut Header, parent: &Header) {
+		let parent_step = header_step(parent, self.empty_steps_transition).expect("Header has been verified; qed");
+		let current_step = self.step.inner.load();
+
+		let current_empty_steps_len = if header.number() >= self.empty_steps_transition {
+			self.empty_steps(parent_step, current_step, parent.hash()).len()
+		} else {
+			0
+		};
+
+		let score = calculate_score(parent_step, current_step, current_empty_steps_len);
+		header.set_difficulty(score);
+	}
+
+	fn handle_message(&self, rlp: &[u8]) -> Result<(), EngineError> {
+		fn fmt_err<T: ::std::fmt::Debug>(x: T) -> EngineError {
+			EngineError::MalformedMessage(format!("{:?}", x))
+		}
+
+		let rlp = Rlp::new(rlp);
+		let empty_step: EmptyStep = rlp.as_val().map_err(fmt_err)?;
+
+		if empty_step.verify(&*self.validators).unwrap_or(false) {
+			if self.step.inner.check_future(empty_step.step).is_ok() {
+				trace!(target: "engine", "handle_message: received empty step message {:?}", empty_step);
+				self.handle_empty_step_message(empty_step);
+			} else {
+				trace!(target: "engine", "handle_message: empty step message from the future {:?}", empty_step);
+			}
+		} else {
+			trace!(target: "engine", "handle_message: received invalid step message {:?}", empty_step);
+		};
+
+		Ok(())
 	}
 
 	fn set_signer(&self, signer: Box<dyn EngineSigner>) {
@@ -1586,6 +1586,21 @@ impl Engine for AuthorityRound {
 			.ok_or(ethkey::Error::InvalidAddress)?
 			.sign(hash)?
 		)
+	}
+
+	fn register_client(&self, client: Weak<dyn EngineClient>) {
+		*self.client.write() = Some(client.clone());
+		self.validators.register_client(client);
+	}
+
+	fn step(&self) {
+		self.step.inner.increment();
+		self.step.can_propose.store(true, AtomicOrdering::SeqCst);
+		if let Some(ref weak) = *self.client.read() {
+			if let Some(c) = weak.upgrade() {
+				c.update_sealing();
+			}
+		}
 	}
 
 	fn snapshot_components(&self) -> Option<Box<dyn (::snapshot::SnapshotComponents)>> {

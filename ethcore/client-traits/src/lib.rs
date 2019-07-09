@@ -29,7 +29,7 @@ pub trait BlockInfo {
     fn code_hash(&self, address: &Address, id: BlockId) -> Option<H256>;
 }
 
-/// A consensus mechanism for the chain. Generally either proof-of-work or proof-of-stake-based.
+/// todo rewrite docs: A consensus mechanism for the chain. Generally either proof-of-work or proof-of-stake-based.
 /// Provides hooks into each of the major parts of block import.
 pub trait VerifyingEngine: Sync + Send {
 	/// The number of additional header fields required for this engine.

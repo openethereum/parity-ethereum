@@ -97,8 +97,15 @@ impl BasicAuthority {
 }
 
 impl VerifyingEngine for BasicAuthority {
+	// One field - the signature
+	fn seal_fields(&self, _header: &Header) -> usize { 1 }
+
 	fn params(&self) -> &CommonParams {
 		self.machine.params()
+	}
+
+	fn verify_block_external(&self, header: &Header) -> Result<(), Error> {
+		verify_external(header, &*self.validators)
 	}
 
 	fn verify_transaction_basic(&self, t: &UnverifiedTransaction, header: &Header) -> Result<(), transaction::Error> {
@@ -115,8 +122,8 @@ impl Engine for BasicAuthority {
 
 	fn machine(&self) -> &Machine { &self.machine }
 
-	// One field - the signature
-	fn seal_fields(&self, _header: &Header) -> usize { 1 }
+//	// One field - the signature
+//	fn seal_fields(&self, _header: &Header) -> usize { 1 }
 
 	fn sealing_state(&self) -> SealingState {
 		if self.signer.read().is_some() {
@@ -145,9 +152,9 @@ impl Engine for BasicAuthority {
 		Ok(())
 	}
 
-	fn verify_block_external(&self, header: &Header) -> Result<(), Error> {
-		verify_external(header, &*self.validators)
-	}
+//	fn verify_block_external(&self, header: &Header) -> Result<(), Error> {
+//		verify_external(header, &*self.validators)
+//	}
 
 	fn genesis_epoch_data(&self, header: &Header, call: &Call) -> Result<Vec<u8>, String> {
 		self.validators.genesis_epoch_data(header, call)

@@ -43,17 +43,20 @@ use types::transaction::{
 	SignedTransaction,
 	PendingTransaction,
 };
-use types::BlockNumber;
-use types::block::Block;
-use types::header::Header;
-use types::receipt::RichReceipt;
+use types::{
+	BlockNumber,
+	block::Block,
+	header::Header,
+	receipt::RichReceipt,
+	client_io_message::ClientIoMessage,
+};
 use using_queue::{UsingQueue, GetAction};
 
 use block::{ClosedBlock, SealedBlock};
 use client::{
 	BlockChain, ChainInfo, BlockProducer, SealedBlockImporter, Nonce, TransactionInfo, TransactionId
 };
-use client::{BlockId, ClientIoMessage};
+use client::BlockId;
 use engines::{Engine, Seal, SealingState, EngineSigner};
 use error::Error;
 use executed::ExecutionError;

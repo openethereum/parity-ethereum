@@ -19,12 +19,18 @@ use std::collections::BTreeMap;
 use std::path::Path;
 use std::sync::Arc;
 
+use client_traits::VerifyingEngine;
 use ethereum_types::{H256, H64, U256};
 use ethjson;
 use hash::{KECCAK_EMPTY_LIST_RLP};
 use rlp::Rlp;
-use types::header::Header;
-use types::BlockNumber;
+use types::{
+	BlockNumber,
+	header::Header,
+	engines::{EthashExtensions, params::CommonParams},
+	transaction::{self, UnverifiedTransaction, SignedTransaction},
+};
+
 use unexpected::{OutOfBounds, Mismatch};
 
 use block::ExecutedBlock;
@@ -184,14 +190,14 @@ impl Ethash {
 		ethash_params: EthashParams,
 		machine: Machine,
 		optimize_for: T,
-	) -> Arc<Self> {
+	) -> Self {
 		let progpow_transition = ethash_params.progpow_transition;
 
-		Arc::new(Ethash {
+		Ethash {
 			ethash_params,
 			machine,
 			pow: EthashManager::new(cache_dir.as_ref(), optimize_for.into(), progpow_transition),
-		})
+		}
 	}
 }
 
@@ -210,12 +216,92 @@ impl engines::EpochVerifier for Arc<Ethash> {
 	}
 }
 
-impl Engine for Arc<Ethash> {
-	fn name(&self) -> &str { "Ethash" }
-	fn machine(&self) -> &Machine { &self.machine }
-
+impl VerifyingEngine for Ethash {
 	// Two fields - nonce and mix.
 	fn seal_fields(&self, _header: &Header) -> usize { 2 }
+
+	fn maximum_gas_limit(&self) -> Option<U256> { Some(0x7fff_ffff_ffff_ffffu64.into()) }
+
+	fn params(&self) -> &CommonParams { self.machine.params() }
+
+	/// Get a reference to the ethash-specific extensions.
+	fn ethash_extensions(&self) -> Option<&EthashExtensions> {
+		self.machine.ethash_extensions()
+	}
+
+	fn verify_block_basic(&self, header: &Header) -> Result<(), Error> {
+		// check the seal fields.
+		let seal = Seal::parse_seal(header.seal())?;
+
+		// TODO: consider removing these lines.
+		let min_difficulty = self.ethash_params.minimum_difficulty;
+		if header.difficulty() < &min_difficulty {
+			return Err(From::from(BlockError::DifficultyOutOfBounds(OutOfBounds { min: Some(min_difficulty), max: None, found: header.difficulty().clone() })))
+		}
+
+		let difficulty = ethash::boundary_to_difficulty(&H256(quick_get_difficulty(
+			&header.bare_hash().0,
+			seal.nonce.to_low_u64_be(),
+			&seal.mix_hash.0,
+			header.number() >= self.ethash_params.progpow_transition
+		)));
+
+		if &difficulty < header.difficulty() {
+			return Err(From::from(BlockError::InvalidProofOfWork(OutOfBounds { min: Some(header.difficulty().clone()), max: None, found: difficulty })));
+		}
+
+		Ok(())
+	}
+
+	fn verify_block_unordered(&self, header: &Header) -> Result<(), Error> {
+		let seal = Seal::parse_seal(header.seal())?;
+
+		let result = self.pow.compute_light(header.number() as u64, &header.bare_hash().0, seal.nonce.to_low_u64_be());
+		let mix = H256(result.mix_hash);
+		let difficulty = ethash::boundary_to_difficulty(&H256(result.value));
+		trace!(target: "miner", "num: {num}, seed: {seed}, h: {h}, non: {non}, mix: {mix}, res: {res}",
+		       num = header.number() as u64,
+		       seed = H256(slow_hash_block_number(header.number() as u64)),
+		       h = header.bare_hash(),
+		       non = seal.nonce.to_low_u64_be(),
+		       mix = H256(result.mix_hash),
+		       res = H256(result.value));
+		if mix != seal.mix_hash {
+			return Err(From::from(BlockError::MismatchedH256SealElement(Mismatch { expected: mix, found: seal.mix_hash })));
+		}
+		if &difficulty < header.difficulty() {
+			return Err(From::from(BlockError::InvalidProofOfWork(OutOfBounds { min: Some(header.difficulty().clone()), max: None, found: difficulty })));
+		}
+		Ok(())
+	}
+
+	fn verify_block_family(&self, header: &Header, parent: &Header) -> Result<(), Error> {
+		// we should not calculate difficulty for genesis blocks
+		if header.number() == 0 {
+			return Err(From::from(BlockError::RidiculousNumber(OutOfBounds { min: Some(1), max: None, found: header.number() })));
+		}
+
+		// Check difficulty is correct given the two timestamps.
+		let expected_difficulty = self.calculate_difficulty(header, parent);
+		if header.difficulty() != &expected_difficulty {
+			return Err(From::from(BlockError::InvalidDifficulty(Mismatch { expected: expected_difficulty, found: header.difficulty().clone() })))
+		}
+
+		Ok(())
+	}
+
+	fn verify_transaction_basic(&self, t: &UnverifiedTransaction, header: &Header) -> Result<(), transaction::Error> {
+		self.machine().verify_transaction_basic(t, header)
+	}
+
+	fn verify_transaction_unordered(&self, t: UnverifiedTransaction, header: &Header) -> Result<SignedTransaction, transaction::Error> {
+		self.machine().verify_transaction_unordered(t, header)
+	}
+}
+
+impl Engine for Ethash {
+	fn name(&self) -> &str { "Ethash" }
+	fn machine(&self) -> &Machine { &self.machine }
 
 	/// Additional engine-specific information for the user/developer concerning `header`.
 	fn extra_info(&self, header: &Header) -> BTreeMap<String, String> {
@@ -229,13 +315,6 @@ impl Engine for Arc<Ethash> {
 	}
 
 	fn maximum_uncle_count(&self, _block: BlockNumber) -> usize { 2 }
-
-	fn maximum_gas_limit(&self) -> Option<U256> { Some(0x7fff_ffff_ffff_ffffu64.into()) }
-
-	fn populate_from_parent(&self, header: &mut Header, parent: &Header) {
-		let difficulty = self.calculate_difficulty(header, parent);
-		header.set_difficulty(difficulty);
-	}
 
 	/// Apply the block reward on finalisation of the block.
 	/// This assumes that all uncles are valid uncles (i.e. of at least one generation before the current).
@@ -306,75 +385,13 @@ impl Engine for Arc<Ethash> {
 			.and_then(|_| self.verify_block_unordered(header))
 	}
 
-	#[cfg(feature = "miner-debug")]
-	fn verify_local_seal(&self, _header: &Header) -> Result<(), Error> {
-		warn!("Skipping seal verification, running in miner testing mode.");
-		Ok(())
-	}
-
-	fn verify_block_basic(&self, header: &Header) -> Result<(), Error> {
-		// check the seal fields.
-		let seal = Seal::parse_seal(header.seal())?;
-
-		// TODO: consider removing these lines.
-		let min_difficulty = self.ethash_params.minimum_difficulty;
-		if header.difficulty() < &min_difficulty {
-			return Err(From::from(BlockError::DifficultyOutOfBounds(OutOfBounds { min: Some(min_difficulty), max: None, found: header.difficulty().clone() })))
-		}
-
-		let difficulty = ethash::boundary_to_difficulty(&H256(quick_get_difficulty(
-			&header.bare_hash().0,
-			seal.nonce.to_low_u64_be(),
-			&seal.mix_hash.0,
-			header.number() >= self.ethash_params.progpow_transition
-		)));
-
-		if &difficulty < header.difficulty() {
-			return Err(From::from(BlockError::InvalidProofOfWork(OutOfBounds { min: Some(header.difficulty().clone()), max: None, found: difficulty })));
-		}
-
-		Ok(())
-	}
-
-	fn verify_block_unordered(&self, header: &Header) -> Result<(), Error> {
-		let seal = Seal::parse_seal(header.seal())?;
-
-		let result = self.pow.compute_light(header.number() as u64, &header.bare_hash().0, seal.nonce.to_low_u64_be());
-		let mix = H256(result.mix_hash);
-		let difficulty = ethash::boundary_to_difficulty(&H256(result.value));
-		trace!(target: "miner", "num: {num}, seed: {seed}, h: {h}, non: {non}, mix: {mix}, res: {res}",
-			   num = header.number() as u64,
-			   seed = H256(slow_hash_block_number(header.number() as u64)),
-			   h = header.bare_hash(),
-			   non = seal.nonce.to_low_u64_be(),
-			   mix = H256(result.mix_hash),
-			   res = H256(result.value));
-		if mix != seal.mix_hash {
-			return Err(From::from(BlockError::MismatchedH256SealElement(Mismatch { expected: mix, found: seal.mix_hash })));
-		}
-		if &difficulty < header.difficulty() {
-			return Err(From::from(BlockError::InvalidProofOfWork(OutOfBounds { min: Some(header.difficulty().clone()), max: None, found: difficulty })));
-		}
-		Ok(())
-	}
-
-	fn verify_block_family(&self, header: &Header, parent: &Header) -> Result<(), Error> {
-		// we should not calculate difficulty for genesis blocks
-		if header.number() == 0 {
-			return Err(From::from(BlockError::RidiculousNumber(OutOfBounds { min: Some(1), max: None, found: header.number() })));
-		}
-
-		// Check difficulty is correct given the two timestamps.
-		let expected_difficulty = self.calculate_difficulty(header, parent);
-		if header.difficulty() != &expected_difficulty {
-			return Err(From::from(BlockError::InvalidDifficulty(Mismatch { expected: expected_difficulty, found: header.difficulty().clone() })))
-		}
-
-		Ok(())
-	}
-
 	fn epoch_verifier<'a>(&self, _header: &Header, _proof: &'a [u8]) -> engines::ConstructedVerifier<'a> {
 		engines::ConstructedVerifier::Trusted(Box::new(self.clone()))
+	}
+
+	fn populate_from_parent(&self, header: &mut Header, parent: &Header) {
+		let difficulty = self.calculate_difficulty(header, parent);
+		header.set_difficulty(difficulty);
 	}
 
 	fn snapshot_components(&self) -> Option<Box<dyn (::snapshot::SnapshotComponents)>> {

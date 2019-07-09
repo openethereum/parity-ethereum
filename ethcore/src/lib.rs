@@ -140,6 +140,7 @@ extern crate macros;
 extern crate rlp_derive;
 #[macro_use]
 extern crate trace_time;
+pub extern crate verification; // todo doesn't need to be public
 
 #[cfg_attr(test, macro_use)]
 extern crate evm;
@@ -162,7 +163,7 @@ pub mod machine;
 pub mod miner;
 pub mod snapshot;
 pub mod spec;
-pub mod verification;
+//pub mod verification;
 
 mod externalities;
 mod transaction_ext;

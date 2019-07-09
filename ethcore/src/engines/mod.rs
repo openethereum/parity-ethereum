@@ -53,15 +53,15 @@ use types::{
 		EngineError,
 		params::CommonParams
 	},
-	transaction::{self, UnverifiedTransaction, SignedTransaction},
+	transaction::{self, UnverifiedTransaction},
 };
 use snapshot::SnapshotComponents;
 use client::EngineClient;
+use client_traits::VerifyingEngine;
 
 use ethkey::{Signature};
 use machine::{self, Machine, AuxiliaryRequest, AuxiliaryData};
-use ethereum_types::{H64, H256, U256, Address};
-use unexpected::{Mismatch, OutOfBounds};
+use ethereum_types::{H256, U256, Address};
 use bytes::Bytes;
 use block::ExecutedBlock;
 
@@ -194,7 +194,7 @@ pub enum EpochChange {
 
 /// A consensus mechanism for the chain. Generally either proof-of-work or proof-of-stake-based.
 /// Provides hooks into each of the major parts of block import.
-pub trait Engine: Sync + Send {
+pub trait Engine: VerifyingEngine + Sync + Send {
 	/// The name of this engine.
 	fn name(&self) -> &str;
 
@@ -203,7 +203,7 @@ pub trait Engine: Sync + Send {
 	fn machine(&self) -> &Machine;
 
 	/// The number of additional header fields required for this engine.
-	fn seal_fields(&self, _header: &Header) -> usize { 0 }
+//	fn seal_fields(&self, _header: &Header) -> usize { 0 }
 
 	/// Additional engine-specific information for the user/developer concerning `header`.
 	fn extra_info(&self, _header: &Header) -> BTreeMap<String, String> { BTreeMap::new() }
@@ -264,18 +264,18 @@ pub trait Engine: Sync + Send {
 
 	/// Phase 1 quick block verification. Only does checks that are cheap. Returns either a null `Ok` or a general error detailing the problem with import.
 	/// The verification module can optionally avoid checking the seal (`check_seal`), if seal verification is disabled this method won't be called.
-	fn verify_block_basic(&self, _header: &Header) -> Result<(), Error> { Ok(()) }
+//	fn verify_block_basic(&self, _header: &Header) -> Result<(), Error> { Ok(()) }
 
 	/// Phase 2 verification. Perform costly checks such as transaction signatures. Returns either a null `Ok` or a general error detailing the problem with import.
 	/// The verification module can optionally avoid checking the seal (`check_seal`), if seal verification is disabled this method won't be called.
-	fn verify_block_unordered(&self, _header: &Header) -> Result<(), Error> { Ok(()) }
+//	fn verify_block_unordered(&self, _header: &Header) -> Result<(), Error> { Ok(()) }
 
 	/// Phase 3 verification. Check block information against parent. Returns either a null `Ok` or a general error detailing the problem with import.
-	fn verify_block_family(&self, _header: &Header, _parent: &Header) -> Result<(), Error> { Ok(()) }
+//	fn verify_block_family(&self, _header: &Header, _parent: &Header) -> Result<(), Error> { Ok(()) }
 
 	/// Phase 4 verification. Verify block header against potentially external data.
 	/// Should only be called when `register_client` has been called previously.
-	fn verify_block_external(&self, _header: &Header) -> Result<(), Error> { Ok(()) }
+//	fn verify_block_external(&self, _header: &Header) -> Result<(), Error> { Ok(()) }
 
 	/// Genesis epoch data.
 	fn genesis_epoch_data<'a>(&self, _header: &Header, _state: &machine::Call) -> Result<Vec<u8>, String> { Ok(Vec::new()) }
@@ -441,9 +441,9 @@ pub trait Engine: Sync + Send {
 	///
 	/// NOTE This function consumes an `UnverifiedTransaction` and produces `SignedTransaction`
 	/// which implies that a heavy check of the signature is performed here.
-	fn verify_transaction_unordered(&self, t: UnverifiedTransaction, header: &Header) -> Result<SignedTransaction, transaction::Error> {
-		self.machine().verify_transaction_unordered(t, header)
-	}
+//	fn verify_transaction_unordered(&self, t: UnverifiedTransaction, header: &Header) -> Result<SignedTransaction, transaction::Error> {
+//		self.machine().verify_transaction_unordered(t, header)
+//	}
 
 	/// Perform basic/cheap transaction verification.
 	///
@@ -455,9 +455,9 @@ pub trait Engine: Sync + Send {
 	///
 	/// TODO: Add flags for which bits of the transaction to check.
 	/// TODO: consider including State in the params.
-	fn verify_transaction_basic(&self, t: &UnverifiedTransaction, header: &Header) -> Result<(), transaction::Error> {
-		self.machine().verify_transaction_basic(t, header)
-	}
+//	fn verify_transaction_basic(&self, t: &UnverifiedTransaction, header: &Header) -> Result<(), transaction::Error> {
+//		self.machine().verify_transaction_basic(t, header)
+//	}
 
 	/// Performs pre-validation of RLP decoded transaction before other processing
 	fn decode_transaction(&self, transaction: &[u8]) -> Result<UnverifiedTransaction, transaction::Error> {

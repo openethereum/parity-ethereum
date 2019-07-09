@@ -72,7 +72,6 @@ impl VerifyingEngine for InstantSeal {
 	}
 }
 
-
 impl Engine for InstantSeal {
 	fn name(&self) -> &str {
 		"InstantSeal"

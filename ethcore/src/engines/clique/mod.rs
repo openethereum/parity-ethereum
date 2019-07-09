@@ -358,6 +358,9 @@ impl Clique {
 }
 
 impl VerifyingEngine for Clique {
+	// Clique use same fields, nonce + mixHash
+	fn seal_fields(&self, _header: &Header) -> usize { 2 }
+
 	fn params(&self) -> &CommonParams {
 		self.machine.params()
 	}
@@ -550,9 +553,6 @@ impl Engine for Clique {
 
 	fn machine(&self) -> &Machine { &self.machine }
 
-	// Clique use same fields, nonce + mixHash
-	fn seal_fields(&self, _header: &Header) -> usize { 2 }
-
 	fn maximum_uncle_count(&self, _block: BlockNumber) -> usize { 0 }
 
 	fn on_new_block(
@@ -727,159 +727,159 @@ impl Engine for Clique {
 
 	fn verify_local_seal(&self, _header: &Header) -> Result<(), Error> { Ok(()) }
 
-	fn verify_block_basic(&self, header: &Header) -> Result<(), Error> {
-		// Largely same as https://github.com/ethereum/go-ethereum/blob/master/consensus/clique/clique.go#L275
-
-		// Ignore genesis block.
-		if header.number() == 0 {
-			return Ok(());
-		}
-
-		// Don't waste time checking blocks from the future
-		{
-			let limit = CheckedSystemTime::checked_add(SystemTime::now(), Duration::from_secs(self.period))
-				.ok_or(BlockError::TimestampOverflow)?;
-
-			// This should succeed under the contraints that the system clock works
-			let limit_as_dur = limit.duration_since(UNIX_EPOCH).map_err(|e| {
-				Box::new(format!("Converting SystemTime to Duration failed: {}", e))
-			})?;
-
-			let hdr = Duration::from_secs(header.timestamp());
-			if hdr > limit_as_dur {
-				let found = CheckedSystemTime::checked_add(UNIX_EPOCH, hdr).ok_or(BlockError::TimestampOverflow)?;
-
-				Err(BlockError::TemporarilyInvalid(OutOfBounds {
-					min: None,
-					max: Some(limit),
-					found,
-				}.into()))?
-			}
-		}
-
-		let is_checkpoint = header.number() % self.epoch_length == 0;
-
-		if is_checkpoint && *header.author() != NULL_AUTHOR {
-			return Err(EngineError::CliqueWrongAuthorCheckpoint(Mismatch {
-				expected: H160::zero(),
-				found: *header.author(),
-			}))?;
-		}
-
-		let seal_fields = header.decode_seal::<Vec<_>>()?;
-		if seal_fields.len() != 2 {
-			Err(BlockError::InvalidSealArity(Mismatch {
-				expected: 2,
-				found: seal_fields.len(),
-			}))?
-		}
-
-		let mixhash = H256::from_slice(seal_fields[0]);
-		let nonce = H64::from_slice(seal_fields[1]);
-
-		// Nonce must be 0x00..0 or 0xff..f
-		if nonce != NONCE_DROP_VOTE && nonce != NONCE_AUTH_VOTE {
-			Err(EngineError::CliqueInvalidNonce(nonce))?;
-		}
-
-		if is_checkpoint && nonce != NULL_NONCE {
-			Err(EngineError::CliqueInvalidNonce(nonce))?;
-		}
-
-		// Ensure that the mix digest is zero as Clique don't have fork protection currently
-		if mixhash != NULL_MIXHASH {
-			Err(BlockError::MismatchedH256SealElement(Mismatch {
-				expected: NULL_MIXHASH,
-				found: mixhash,
-			}))?
-		}
-
-		let extra_data_len = header.extra_data().len();
-
-		if extra_data_len < VANITY_LENGTH {
-			Err(EngineError::CliqueMissingVanity)?
-		}
-
-		if extra_data_len < VANITY_LENGTH + SIGNATURE_LENGTH {
-			Err(EngineError::CliqueMissingSignature)?
-		}
-
-		let signers = extra_data_len - (VANITY_LENGTH + SIGNATURE_LENGTH);
-
-		// Checkpoint blocks must at least contain one signer
-		if is_checkpoint && signers == 0 {
-			Err(EngineError::CliqueCheckpointNoSigner)?
-		}
-
-		// Addresses must be be divisable by 20
-		if is_checkpoint && signers % ADDRESS_LENGTH != 0 {
-			Err(EngineError::CliqueCheckpointInvalidSigners(signers))?
-		}
-
-		// Ensure that the block doesn't contain any uncles which are meaningless in PoA
-		if *header.uncles_hash() != NULL_UNCLES_HASH {
-			Err(BlockError::InvalidUnclesHash(Mismatch {
-				expected: NULL_UNCLES_HASH,
-				found: *header.uncles_hash(),
-			}))?
-		}
-
-		// Ensure that the block's difficulty is meaningful (may not be correct at this point)
-		if *header.difficulty() != DIFF_INTURN && *header.difficulty() != DIFF_NOTURN {
-			Err(BlockError::DifficultyOutOfBounds(OutOfBounds {
-				min: Some(DIFF_NOTURN),
-				max: Some(DIFF_INTURN),
-				found: *header.difficulty(),
-			}))?
-		}
-
-		// All basic checks passed, continue to next phase
-		Ok(())
-	}
-
-	fn verify_block_unordered(&self, _header: &Header) -> Result<(), Error> {
-		// Nothing to check here.
-		Ok(())
-	}
-
-	/// Verify block family by looking up parent state (backfill if needed), then try to apply current header.
-	/// see https://github.com/ethereum/go-ethereum/blob/master/consensus/clique/clique.go#L338
-	fn verify_block_family(&self, header: &Header, parent: &Header) -> Result<(), Error> {
-		// Ignore genesis block.
-		if header.number() == 0 {
-			return Ok(());
-		}
-
-		// parent sanity check
-		if parent.hash() != *header.parent_hash() || header.number() != parent.number() + 1 {
-			Err(BlockError::UnknownParent(parent.hash()))?
-		}
-
-		// Ensure that the block's timestamp isn't too close to it's parent
-		let limit = parent.timestamp().saturating_add(self.period);
-		if limit > header.timestamp() {
-			let max = CheckedSystemTime::checked_add(UNIX_EPOCH, Duration::from_secs(header.timestamp()));
-			let found = CheckedSystemTime::checked_add(UNIX_EPOCH, Duration::from_secs(limit))
-				.ok_or(BlockError::TimestampOverflow)?;
-
-			Err(BlockError::InvalidTimestamp(OutOfBounds {
-				min: None,
-				max,
-				found,
-			}.into()))?
-		}
-
-		// Retrieve the parent state
-		let parent_state = self.state(&parent)?;
-		// Try to apply current state, apply() will further check signer and recent signer.
-		let mut new_state = parent_state.clone();
-		new_state.apply(header, header.number() % self.epoch_length == 0)?;
-		new_state.calc_next_timestamp(header.timestamp(), self.period)?;
-		self.block_state_by_hash.write().insert(header.hash(), new_state);
-
-		Ok(())
-	}
-
+//	fn verify_block_basic(&self, header: &Header) -> Result<(), Error> {
+//		// Largely same as https://github.com/ethereum/go-ethereum/blob/master/consensus/clique/clique.go#L275
+//
+//		// Ignore genesis block.
+//		if header.number() == 0 {
+//			return Ok(());
+//		}
+//
+//		// Don't waste time checking blocks from the future
+//		{
+//			let limit = CheckedSystemTime::checked_add(SystemTime::now(), Duration::from_secs(self.period))
+//				.ok_or(BlockError::TimestampOverflow)?;
+//
+//			// This should succeed under the contraints that the system clock works
+//			let limit_as_dur = limit.duration_since(UNIX_EPOCH).map_err(|e| {
+//				Box::new(format!("Converting SystemTime to Duration failed: {}", e))
+//			})?;
+//
+//			let hdr = Duration::from_secs(header.timestamp());
+//			if hdr > limit_as_dur {
+//				let found = CheckedSystemTime::checked_add(UNIX_EPOCH, hdr).ok_or(BlockError::TimestampOverflow)?;
+//
+//				Err(BlockError::TemporarilyInvalid(OutOfBounds {
+//					min: None,
+//					max: Some(limit),
+//					found,
+//				}.into()))?
+//			}
+//		}
+//
+//		let is_checkpoint = header.number() % self.epoch_length == 0;
+//
+//		if is_checkpoint && *header.author() != NULL_AUTHOR {
+//			return Err(EngineError::CliqueWrongAuthorCheckpoint(Mismatch {
+//				expected: H160::zero(),
+//				found: *header.author(),
+//			}))?;
+//		}
+//
+//		let seal_fields = header.decode_seal::<Vec<_>>()?;
+//		if seal_fields.len() != 2 {
+//			Err(BlockError::InvalidSealArity(Mismatch {
+//				expected: 2,
+//				found: seal_fields.len(),
+//			}))?
+//		}
+//
+//		let mixhash = H256::from_slice(seal_fields[0]);
+//		let nonce = H64::from_slice(seal_fields[1]);
+//
+//		// Nonce must be 0x00..0 or 0xff..f
+//		if nonce != NONCE_DROP_VOTE && nonce != NONCE_AUTH_VOTE {
+//			Err(EngineError::CliqueInvalidNonce(nonce))?;
+//		}
+//
+//		if is_checkpoint && nonce != NULL_NONCE {
+//			Err(EngineError::CliqueInvalidNonce(nonce))?;
+//		}
+//
+//		// Ensure that the mix digest is zero as Clique don't have fork protection currently
+//		if mixhash != NULL_MIXHASH {
+//			Err(BlockError::MismatchedH256SealElement(Mismatch {
+//				expected: NULL_MIXHASH,
+//				found: mixhash,
+//			}))?
+//		}
+//
+//		let extra_data_len = header.extra_data().len();
+//
+//		if extra_data_len < VANITY_LENGTH {
+//			Err(EngineError::CliqueMissingVanity)?
+//		}
+//
+//		if extra_data_len < VANITY_LENGTH + SIGNATURE_LENGTH {
+//			Err(EngineError::CliqueMissingSignature)?
+//		}
+//
+//		let signers = extra_data_len - (VANITY_LENGTH + SIGNATURE_LENGTH);
+//
+//		// Checkpoint blocks must at least contain one signer
+//		if is_checkpoint && signers == 0 {
+//			Err(EngineError::CliqueCheckpointNoSigner)?
+//		}
+//
+//		// Addresses must be be divisable by 20
+//		if is_checkpoint && signers % ADDRESS_LENGTH != 0 {
+//			Err(EngineError::CliqueCheckpointInvalidSigners(signers))?
+//		}
+//
+//		// Ensure that the block doesn't contain any uncles which are meaningless in PoA
+//		if *header.uncles_hash() != NULL_UNCLES_HASH {
+//			Err(BlockError::InvalidUnclesHash(Mismatch {
+//				expected: NULL_UNCLES_HASH,
+//				found: *header.uncles_hash(),
+//			}))?
+//		}
+//
+//		// Ensure that the block's difficulty is meaningful (may not be correct at this point)
+//		if *header.difficulty() != DIFF_INTURN && *header.difficulty() != DIFF_NOTURN {
+//			Err(BlockError::DifficultyOutOfBounds(OutOfBounds {
+//				min: Some(DIFF_NOTURN),
+//				max: Some(DIFF_INTURN),
+//				found: *header.difficulty(),
+//			}))?
+//		}
+//
+//		// All basic checks passed, continue to next phase
+//		Ok(())
+//	}
+//
+//	fn verify_block_unordered(&self, _header: &Header) -> Result<(), Error> {
+//		// Nothing to check here.
+//		Ok(())
+//	}
+//
+//	/// Verify block family by looking up parent state (backfill if needed), then try to apply current header.
+//	/// see https://github.com/ethereum/go-ethereum/blob/master/consensus/clique/clique.go#L338
+//	fn verify_block_family(&self, header: &Header, parent: &Header) -> Result<(), Error> {
+//		// Ignore genesis block.
+//		if header.number() == 0 {
+//			return Ok(());
+//		}
+//
+//		// parent sanity check
+//		if parent.hash() != *header.parent_hash() || header.number() != parent.number() + 1 {
+//			Err(BlockError::UnknownParent(parent.hash()))?
+//		}
+//
+//		// Ensure that the block's timestamp isn't too close to it's parent
+//		let limit = parent.timestamp().saturating_add(self.period);
+//		if limit > header.timestamp() {
+//			let max = CheckedSystemTime::checked_add(UNIX_EPOCH, Duration::from_secs(header.timestamp()));
+//			let found = CheckedSystemTime::checked_add(UNIX_EPOCH, Duration::from_secs(limit))
+//				.ok_or(BlockError::TimestampOverflow)?;
+//
+//			Err(BlockError::InvalidTimestamp(OutOfBounds {
+//				min: None,
+//				max,
+//				found,
+//			}.into()))?
+//		}
+//
+//		// Retrieve the parent state
+//		let parent_state = self.state(&parent)?;
+//		// Try to apply current state, apply() will further check signer and recent signer.
+//		let mut new_state = parent_state.clone();
+//		new_state.apply(header, header.number() % self.epoch_length == 0)?;
+//		new_state.calc_next_timestamp(header.timestamp(), self.period)?;
+//		self.block_state_by_hash.write().insert(header.hash(), new_state);
+//
+//		Ok(())
+//	}
+//
 	fn genesis_epoch_data(&self, header: &Header, _call: &Call) -> Result<Vec<u8>, String> {
 		let mut state = self.new_checkpoint_state(header).expect("Unable to parse genesis data.");
 		state.calc_next_timestamp(header.timestamp(), self.period).map_err(|e| format!("{}", e))?;

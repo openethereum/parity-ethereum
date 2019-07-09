@@ -29,12 +29,15 @@ use super::io::{SnapshotReader, LooseReader, SnapshotWriter, LooseWriter};
 
 use blockchain::{BlockChain, BlockChainDB, BlockChainDBHandler};
 use client_traits::BlockInfo;
-use client::{BlockChainClient, Client, ChainInfo, ClientIoMessage};
+use client::{BlockChainClient, Client, ChainInfo};
 use engines::Engine;
 use error::Error;
 use snapshot::{Error as SnapshotError};
 use hash::keccak;
-use types::ids::BlockId;
+use types::{
+	client_io_message::ClientIoMessage,
+	ids::BlockId,
+};
 
 use io::IoChannel;
 

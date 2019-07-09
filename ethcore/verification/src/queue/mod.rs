@@ -26,9 +26,6 @@ use parity_util_mem::{MallocSizeOf, MallocSizeOfExt};
 use ethereum_types::{H256, U256};
 use parking_lot::{Condvar, Mutex, RwLock};
 use ethcore_io::*;
-//use error::{BlockError, ImportError, Error};
-//use engines::Engine;
-//use client::ClientIoMessage;
 use len_caching_lock::LenCachingMutex;
 use num_cpus;
 use crate::{

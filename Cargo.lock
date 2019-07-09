@@ -941,6 +941,7 @@ dependencies = [
  "triehash-ethereum 0.2.0",
  "unexpected 0.1.0",
  "using_queue 0.1.0",
+ "verification 0.1.0",
  "vm 0.1.0",
 ]
 

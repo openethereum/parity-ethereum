@@ -43,7 +43,7 @@ use client::{
 	ReopenBlock, PrepareOpenBlock, ScheduleInfo, ImportSealedBlock,
 	BroadcastProposalBlock, ImportBlock, StateOrBlock, StateInfo, StateClient, Call,
 	AccountData, BlockChain as BlockChainTrait, BlockProducer, SealedBlockImporter,
-	ClientIoMessage, BlockChainReset
+	BlockChainReset
 };
 use client::{
 	BlockId, TransactionId, UncleId, TraceId, ClientConfig, BlockChainClient,
@@ -52,7 +52,7 @@ use client::{
 	IoClient, BadBlocks,
 };
 use client::bad_blocks;
-use client_traits::BlockInfo;
+use client_traits::{BlockInfo, VerifyingEngine};
 use engines::{MAX_UNCLE_AGE, Engine, EpochTransition, ForkChoice, SealingState};
 use engines::epoch::PendingTransition;
 use error::{
@@ -80,6 +80,7 @@ use types::{
 	log_entry::LocalizedLogEntry,
 	receipt::{Receipt, LocalizedReceipt},
 	header::Header,
+	client_io_message::ClientIoMessage,
 };
 
 use verification::queue::kind::BlockLike;
@@ -256,7 +257,14 @@ impl Importer {
 		message_channel: IoChannel<ClientIoMessage>,
 		miner: Arc<Miner>,
 	) -> Result<Importer, ::error::Error> {
-		let block_queue = BlockQueue::new(config.queue.clone(), engine.clone(), message_channel.clone(), config.verifier_type.verifying_seal());
+//		let block_queue = BlockQueue::new(config.queue.clone(), engine.clone(), message_channel.clone(), config.verifier_type.verifying_seal());
+//		let vengine = engine as Arc<dyn VerifyingEngine>;
+		let block_queue = BlockQueue::new(
+			config.queue.clone(),
+			engine.clone(),
+			message_channel.clone(),
+			config.verifier_type.verifying_seal()
+		);
 
 		Ok(Importer {
 			import_lock: Mutex::new(()),
