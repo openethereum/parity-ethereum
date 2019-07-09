@@ -257,8 +257,6 @@ impl Importer {
 		message_channel: IoChannel<ClientIoMessage>,
 		miner: Arc<Miner>,
 	) -> Result<Importer, ::error::Error> {
-//		let block_queue = BlockQueue::new(config.queue.clone(), engine.clone(), message_channel.clone(), config.verifier_type.verifying_seal());
-//		let vengine = engine as Arc<dyn VerifyingEngine>;
 		let block_queue = BlockQueue::new(
 			config.queue.clone(),
 			engine.clone(),
