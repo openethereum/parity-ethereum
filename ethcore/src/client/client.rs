@@ -178,7 +178,7 @@ struct BlockChainWithExtras(Arc<BlockChain>);
 
 impl trace::DatabaseExtras for BlockChainWithExtras {
 	fn block_hash(&self, block_number: BlockNumber) -> Option<H256> {
-		(self.0.as_ref() as &dyn BlockProvider).block_hash(block_number)
+		BlockProvider::block_hash(&self.0, block_number)
 	}
 
 	fn transaction_hash(&self, block_number: BlockNumber, tx_position: usize) -> Option<H256> {
