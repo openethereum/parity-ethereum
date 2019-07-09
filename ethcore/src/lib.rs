@@ -54,6 +54,7 @@
 //!   ```
 
 extern crate account_db;
+extern crate account_state;
 extern crate ansi_term;
 extern crate common_types as types;
 extern crate crossbeam_utils;
@@ -69,6 +70,7 @@ extern crate ethcore_miner;
 extern crate ethereum_types;
 extern crate ethjson;
 extern crate ethkey;
+extern crate trie_vm_factories;
 extern crate futures;
 extern crate hash_db;
 extern crate itertools;
@@ -82,12 +84,11 @@ extern crate kvdb_memorydb;
 extern crate len_caching_lock;
 extern crate lru_cache;
 extern crate memory_cache;
-extern crate memory_db;
 extern crate num_cpus;
 extern crate parity_bytes as bytes;
 extern crate parity_snappy as snappy;
 extern crate parking_lot;
-extern crate pod_account;
+extern crate pod;
 extern crate trie_db as trie;
 extern crate patricia_trie_ethereum as ethtrie;
 extern crate rand;
@@ -97,14 +98,14 @@ extern crate parity_util_mem;
 extern crate parity_util_mem as malloc_size_of;
 extern crate rustc_hex;
 extern crate serde;
+extern crate state_db;
 extern crate stats;
-extern crate state_account;
 extern crate time_utils;
+extern crate trace;
 extern crate triehash_ethereum as triehash;
 extern crate unexpected;
 extern crate using_queue;
 extern crate vm;
-extern crate wasm;
 
 #[cfg(test)]
 extern crate rand_xorshift;
@@ -138,8 +139,6 @@ extern crate macros;
 extern crate rlp_derive;
 #[macro_use]
 extern crate trace_time;
-#[macro_use]
-extern crate serde_derive;
 
 #[cfg_attr(test, macro_use)]
 extern crate evm;
@@ -157,19 +156,15 @@ pub mod error;
 pub mod ethereum;
 pub mod executed;
 pub mod executive;
+pub mod executive_state;
 pub mod machine;
 pub mod miner;
-pub mod pod_state;
 pub mod snapshot;
 pub mod spec;
-pub mod state;
-pub mod state_db;
-pub mod trace;
-pub mod transaction_ext;
 pub mod verification;
 
 mod externalities;
-mod factory;
+mod transaction_ext;
 mod tx_filter;
 
 #[cfg(test)]

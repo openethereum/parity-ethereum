@@ -37,7 +37,7 @@ impl ethcore::engines::EngineSigner for EngineSigner {
 	fn sign(&self, message: ethkey::Message) -> Result<ethkey::Signature, ethkey::Error> {
 		match self.accounts.sign(self.address, Some(self.password.clone()), message) {
 			Ok(ok) => Ok(ok),
-			Err(e) => Err(ethkey::Error::InvalidSecret),
+			Err(_) => Err(ethkey::Error::InvalidSecret),
 		}
 	}
 

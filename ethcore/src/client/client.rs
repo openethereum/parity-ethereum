@@ -40,7 +40,7 @@ use types::encoded;
 use types::filter::Filter;
 use types::log_entry::LocalizedLogEntry;
 use types::receipt::{Receipt, LocalizedReceipt};
-use types::{BlockNumber, header::{Header, ExtendedHeader}};
+use types::{BlockNumber, header::Header};
 use vm::{EnvInfo, LastHashes};
 use hash_db::EMPTY_PREFIX;
 use block::{LockedBlock, Drain, ClosedBlock, OpenBlock, enact_verified, SealedBlock};
@@ -66,11 +66,12 @@ use error::{
 	Error as EthcoreError, EthcoreResult,
 };
 use executive::{Executive, Executed, TransactOptions, contract_address};
-use factory::{Factories, VmFactory};
+use trie_vm_factories::{Factories, VmFactory};
 use miner::{Miner, MinerService};
 use snapshot::{self, io as snapshot_io, SnapshotClient};
 use spec::Spec;
-use state::{self, State};
+use account_state::State;
+use executive_state;
 use state_db::StateDB;
 use trace::{self, TraceDB, ImportRequest as TraceImportRequest, LocalizedTrace, Database as TraceDatabase};
 use transaction_ext::Transaction;
@@ -501,32 +502,24 @@ impl Importer {
 		let traces = block.traces.drain();
 		let best_hash = chain.best_block_hash();
 
-		let new = ExtendedHeader {
-			header: header.clone(),
-			is_finalized,
-			parent_total_difficulty: chain.block_details(&parent).expect("Parent block is in the database; qed").total_difficulty
+		let new_total_difficulty = {
+			let parent_total_difficulty = chain.block_details(&parent)
+				.expect("Parent block is in the database; qed")
+				.total_difficulty;
+			parent_total_difficulty + header.difficulty()
 		};
 
-		let best = {
-			let header = chain.block_header_data(&best_hash)
-				.expect("Best block is in the database; qed")
-				.decode()
-				.expect("Stored block header is valid RLP; qed");
-			let details = chain.block_details(&best_hash)
-				.expect("Best block is in the database; qed");
-
-			ExtendedHeader {
-				parent_total_difficulty: details.total_difficulty - *header.difficulty(),
-				is_finalized: details.is_finalized,
-				header,
-			}
-		};
+		let best_total_difficulty = chain.block_details(&best_hash)
+			.expect("Best block is in the database; qed")
+			.total_difficulty;
 
 		let route = chain.tree_route(best_hash, *parent).expect("forks are only kept when it has common ancestors; tree route from best to prospective's parent always exists; qed");
 		let fork_choice = if route.is_from_route_finalized {
 			ForkChoice::Old
+		} else if new_total_difficulty > best_total_difficulty {
+			ForkChoice::New
 		} else {
-			self.engine.fork_choice(&new, &best)
+			ForkChoice::Old
 		};
 
 		// CHECK! I *think* this is fine, even if the state_root is equal to another
@@ -622,7 +615,7 @@ impl Importer {
 
 						let call = move |addr, data| {
 							let mut state_db = state_db.boxed_clone();
-							let backend = ::state::backend::Proving::new(state_db.as_hash_db_mut());
+							let backend = account_state::backend::Proving::new(state_db.as_hash_db_mut());
 
 							let transaction =
 								client.contract_call_tx(BlockId::Hash(*header.parent_hash()), addr, data);
@@ -2540,7 +2533,7 @@ impl ProvingBlockChainClient for Client {
 		env_info.gas_limit = transaction.gas.clone();
 		let mut jdb = self.state_db.read().journal_db().boxed_clone();
 
-		state::prove_transaction_virtual(
+		executive_state::prove_transaction_virtual(
 			jdb.as_hash_db_mut(),
 			header.state_root().clone(),
 			&transaction,

@@ -220,6 +220,9 @@ pub enum Error {
 	/// A convenient variant for String.
 	#[display(fmt = "{}", _0)]
 	Msg(String),
+	/// State errors
+	#[display(fmt = "State error ({})", _0)]
+	State(account_state::Error),
 }
 
 impl error::Error for Error {
@@ -236,6 +239,7 @@ impl error::Error for Error {
 			Error::Ethkey(e) => Some(e),
 			Error::Decoder(e) => Some(e),
 			Error::Snapshot(e) => Some(e),
+			Error::State(e) => Some(e),
 			_ => None,
 		}
 	}

@@ -17,7 +17,7 @@
 use std::path::Path;
 use std::sync::Arc;
 use super::test_common::*;
-use state::{Backend as StateBackend, State, Substate};
+use account_state::{Backend as StateBackend, State, Substate};
 use executive::*;
 use evm::{VMType, Finalize};
 use vm::{

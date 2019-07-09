@@ -41,7 +41,6 @@ extern crate rustc_hex;
 extern crate serde;
 #[macro_use]
 extern crate serde_derive;
-#[macro_use]
 extern crate serde_json;
 extern crate docopt;
 extern crate parity_bytes as bytes;
@@ -49,7 +48,10 @@ extern crate ethereum_types;
 extern crate vm;
 extern crate evm;
 extern crate panic_hook;
+extern crate pod;
 extern crate env_logger;
+extern crate account_state;
+extern crate trace;
 
 #[cfg(test)]
 #[macro_use]

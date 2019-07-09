@@ -41,10 +41,10 @@ use types::views::BlockView;
 
 use block::{OpenBlock, Drain};
 use client::{Client, ClientConfig, ChainInfo, ImportBlock, ChainNotify, ChainMessageType, PrepareOpenBlock};
-use factory::Factories;
+use trie_vm_factories::Factories;
 use miner::Miner;
 use spec::Spec;
-use state::*;
+use account_state::*;
 use state_db::StateDB;
 use verification::queue::kind::blocks::Unverified;
 

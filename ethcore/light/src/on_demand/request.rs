@@ -25,7 +25,8 @@ use common_types::encoded;
 use common_types::receipt::Receipt;
 use common_types::transaction::SignedTransaction;
 use ethcore::engines::{Engine, StateDependentProof};
-use ethcore::state::{self, ProvedExecution};
+use ethcore::executive_state::{ProvedExecution, self};
+use account_state;
 use ethereum_types::{H256, U256, Address};
 use ethtrie::{TrieError, TrieDB};
 use hash::{KECCAK_NULL_RLP, KECCAK_EMPTY, KECCAK_EMPTY_LIST_RLP, keccak};
@@ -1031,7 +1032,7 @@ pub struct TransactionProof {
 	// TODO: it's not really possible to provide this if the header is unknown.
 	pub env_info: EnvInfo,
 	/// Consensus engine.
-	pub engine: Arc<Engine>,
+	pub engine: Arc<dyn Engine>,
 }
 
 impl TransactionProof {
@@ -1042,7 +1043,7 @@ impl TransactionProof {
 		let mut env_info = self.env_info.clone();
 		env_info.gas_limit = self.tx.gas;
 
-		let proved_execution = state::check_proof(
+		let proved_execution = executive_state::check_proof(
 			state_items,
 			root,
 			&self.tx,
@@ -1074,9 +1075,9 @@ pub struct Signal {
 	/// Block hash and number to fetch proof for.
 	pub hash: H256,
 	/// Consensus engine, used to check the proof.
-	pub engine: Arc<Engine>,
+	pub engine: Arc<dyn Engine>,
 	/// Special checker for the proof.
-	pub proof_check: Arc<StateDependentProof>,
+	pub proof_check: Arc<dyn StateDependentProof>,
 }
 
 impl Signal {

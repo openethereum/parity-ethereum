@@ -23,6 +23,7 @@ mod messages;
 mod error;
 mod log;
 
+extern crate account_state;
 extern crate common_types as types;
 extern crate ethabi;
 extern crate ethcore;
@@ -47,6 +48,8 @@ extern crate serde_derive;
 extern crate serde;
 extern crate serde_json;
 extern crate rustc_hex;
+extern crate state_db;
+extern crate trace;
 extern crate transaction_pool as txpool;
 extern crate url;
 #[macro_use]
@@ -92,8 +95,9 @@ use ethcore::client::{
 	Call, BlockInfo
 };
 use ethcore::miner::{self, Miner, MinerService, pool_client::NonceCache};
-use ethcore::{state, state_db};
-use ethcore::trace::{Tracer, VMTracer};
+use state_db::StateDB;
+use account_state::State;
+use trace::{Tracer, VMTracer};
 use call_contract::CallContract;
 use rustc_hex::FromHex;
 use ethabi::FunctionOutputDecoder;
@@ -285,7 +289,7 @@ impl Provider {
 		let mut state_buf = [0u8; 64];
 		state_buf[..32].clone_from_slice(state_hash.as_bytes());
 		state_buf[32..].clone_from_slice(nonce_h256.as_bytes());
-		keccak(&state_buf.as_ref())
+		keccak(AsRef::<[u8]>::as_ref(&state_buf[..]))
 	}
 
 	fn pool_client<'a>(&'a self, nonce_cache: &'a NonceCache, local_accounts: &'a HashSet<Address>) -> miner::pool_client::PoolClient<'a, Client> {
@@ -539,7 +543,7 @@ impl Provider {
 		raw
 	}
 
-	fn patch_account_state(&self, contract_address: &Address, block: BlockId, state: &mut state::State<state_db::StateDB>) -> Result<(), Error> {
+	fn patch_account_state(&self, contract_address: &Address, block: BlockId, state: &mut State<StateDB>) -> Result<(), Error> {
 		let contract_code = Arc::new(self.get_decrypted_code(contract_address, block)?);
 		let contract_state = self.get_decrypted_state(contract_address, block)?;
 		trace!(target: "privatetx", "Patching contract at {:?}, code: {:?}, state: {:?}", contract_address, contract_code, contract_state);

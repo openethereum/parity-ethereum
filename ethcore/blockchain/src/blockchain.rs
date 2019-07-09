@@ -710,6 +710,10 @@ impl BlockChain {
 	///
 	/// If the tree route verges into pruned or unknown blocks,
 	/// `None` is returned.
+	///
+	/// `is_from_route_finalized` returns whether the `from` part of the
+	/// route contains a finalized block. This only holds if the two parts (from
+	/// and to) are on different branches, ie. on 2 different forks.
 	pub fn tree_route(&self, from: H256, to: H256) -> Option<TreeRoute> {
 		let mut from_branch = vec![];
 		let mut is_from_route_finalized = false;
@@ -723,9 +727,9 @@ impl BlockChain {
 		// reset from && to to the same level
 		while from_details.number > to_details.number {
 			from_branch.push(current_from);
+			is_from_route_finalized = is_from_route_finalized || from_details.is_finalized;
 			current_from = from_details.parent.clone();
 			from_details = self.block_details(&from_details.parent)?;
-			is_from_route_finalized = is_from_route_finalized || from_details.is_finalized;
 		}
 
 		while to_details.number > from_details.number {
@@ -739,9 +743,9 @@ impl BlockChain {
 		// move to shared parent
 		while current_from != current_to {
 			from_branch.push(current_from);
+			is_from_route_finalized = is_from_route_finalized || from_details.is_finalized;
 			current_from = from_details.parent.clone();
 			from_details = self.block_details(&from_details.parent)?;
-			is_from_route_finalized = is_from_route_finalized || from_details.is_finalized;
 
 			to_branch.push(current_to);
 			current_to = to_details.parent.clone();
@@ -2501,6 +2505,76 @@ mod tests {
 		// non-canonical fork blocks should all have genesis transition
 		for fork_hash in fork_hashes {
 			assert_eq!(bc.epoch_transition_for(fork_hash).unwrap().block_number, 0);
+		}
+	}
+
+	#[test]
+	fn tree_rout_with_finalization() {
+		let genesis = BlockBuilder::genesis();
+		let a = genesis.add_block();
+		// First branch
+		let a1 = a.add_block_with_random_transactions();
+		let a2 = a1.add_block_with_random_transactions();
+		let a3 = a2.add_block_with_random_transactions();
+		// Second branch
+		let b1 = a.add_block_with_random_transactions();
+		let b2 = b1.add_block_with_random_transactions();
+
+		let a_hash = a.last().hash();
+		let a1_hash = a1.last().hash();
+		let a2_hash = a2.last().hash();
+		let a3_hash = a3.last().hash();
+		let b2_hash = b2.last().hash();
+
+		let bootstrap_chain = |blocks: Vec<&BlockBuilder>| {
+			let db = new_db();
+			let bc = new_chain(genesis.last().encoded(), db.clone());
+			let mut batch = db.key_value().transaction();
+			for block in blocks {
+				insert_block_batch(&mut batch, &bc, block.last().encoded(), vec![]);
+				bc.commit();
+			}
+			db.key_value().write(batch).unwrap();
+			(db, bc)
+		};
+
+		let mark_finalized = |block_hash: H256, db: &Arc<dyn BlockChainDB>, bc: &BlockChain| {
+			let mut batch = db.key_value().transaction();
+			bc.mark_finalized(&mut batch, block_hash).unwrap();
+			bc.commit();
+			db.key_value().write(batch).unwrap();
+		};
+
+		// Case 1: fork, with finalized common ancestor
+		{
+			let (db, bc) = bootstrap_chain(vec![&a, &a1, &a2, &a3, &b1, &b2]);
+			assert_eq!(bc.best_block_hash(), a3_hash);
+			assert_eq!(bc.block_hash(2).unwrap(), a1_hash);
+
+			mark_finalized(a_hash, &db, &bc);
+			assert!(!bc.tree_route(a3_hash, b2_hash).unwrap().is_from_route_finalized);
+			assert!(!bc.tree_route(b2_hash, a3_hash).unwrap().is_from_route_finalized);
+		}
+
+		// Case 2: fork with a finalized block on a branch
+		{
+			let (db, bc) = bootstrap_chain(vec![&a, &a1, &a2, &a3, &b1, &b2]);
+			assert_eq!(bc.best_block_hash(), a3_hash);
+			assert_eq!(bc.block_hash(2).unwrap(), a1_hash);
+
+			mark_finalized(a2_hash, &db, &bc);
+			assert!(bc.tree_route(a3_hash, b2_hash).unwrap().is_from_route_finalized);
+			assert!(!bc.tree_route(b2_hash, a3_hash).unwrap().is_from_route_finalized);
+		}
+
+		// Case 3: no-fork, with a finalized block
+		{
+			let (db, bc) = bootstrap_chain(vec![&a, &a1, &a2]);
+			assert_eq!(bc.best_block_hash(), a2_hash);
+
+			mark_finalized(a1_hash, &db, &bc);
+			assert!(!bc.tree_route(a1_hash, a2_hash).unwrap().is_from_route_finalized);
+			assert!(!bc.tree_route(a2_hash, a1_hash).unwrap().is_from_route_finalized);
 		}
 	}
 }

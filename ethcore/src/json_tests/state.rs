@@ -16,7 +16,7 @@
 
 use std::path::Path;
 use super::test_common::*;
-use pod_state::PodState;
+use pod::PodState;
 use trace;
 use client::{EvmTestClient, EvmTestError, TransactErr, TransactSuccess};
 use ethjson;

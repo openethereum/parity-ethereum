@@ -82,8 +82,10 @@ extern crate parity_updater as updater;
 extern crate parity_version as version;
 extern crate eip_712;
 extern crate rlp;
+extern crate account_state;
 extern crate stats;
 extern crate tempdir;
+extern crate trace;
 extern crate vm;
 
 #[cfg(any(test, feature = "ethcore-accounts"))]
@@ -102,6 +104,8 @@ extern crate rand_xorshift;
 
 #[cfg(test)]
 extern crate ethjson;
+#[cfg(test)]
+extern crate patricia_trie_ethereum as ethtrie;
 #[cfg(test)]
 extern crate transaction_pool as txpool;
 

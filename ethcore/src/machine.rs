@@ -35,7 +35,7 @@ use client::BlockInfo;
 use error::Error;
 use executive::Executive;
 use spec::CommonParams;
-use state::{CleanupMode, Substate};
+use account_state::{CleanupMode, Substate};
 use trace::{NoopTracer, NoopVMTracer};
 use tx_filter::TransactionFilter;
 
@@ -83,9 +83,9 @@ impl Machine {
 	pub fn regular(params: CommonParams, builtins: BTreeMap<Address, Builtin>) -> Machine {
 		let tx_filter = TransactionFilter::from_params(&params).map(Arc::new);
 		Machine {
-			params: params,
+			params,
 			builtins: Arc::new(builtins),
-			tx_filter: tx_filter,
+			tx_filter,
 			ethash_extensions: None,
 			schedule_rules: None,
 		}
@@ -108,9 +108,7 @@ impl Machine {
 	pub fn ethash_extensions(&self) -> Option<&EthashExtensions> {
 		self.ethash_extensions.as_ref()
 	}
-}
 
-impl Machine {
 	/// Execute a call as the system address. Block environment information passed to the
 	/// VM is modified to have its gas limit bounded at the upper limit of possible used
 	/// gases including this system call, capped at the maximum value able to be
@@ -395,8 +393,18 @@ impl Machine {
 		}
 		rlp.as_val().map_err(|e| transaction::Error::InvalidRlp(e.to_string()))
 	}
-}
 
+	/// Get the balance, in base units, associated with an account.
+	/// Extracts data from the live block.
+	pub fn balance(&self, live: &ExecutedBlock, address: &Address) -> Result<U256, Error> {
+		live.state.balance(address).map_err(Into::into)
+	}
+
+	/// Increment the balance of an account in the state of the live block.
+	pub fn add_balance(&self, live: &mut ExecutedBlock, address: &Address, amount: &U256) -> Result<(), Error> {
+		live.state_mut().add_balance(address, amount, CleanupMode::NoEmpty).map_err(Into::into)
+	}
+}
 /// Auxiliary data fetcher for an Ethereum machine. In Ethereum-like machines
 /// there are two kinds of auxiliary data: bodies and receipts.
 #[derive(Default, Clone)]
@@ -420,19 +428,6 @@ pub enum AuxiliaryRequest {
 	Receipts,
 	/// Needs both body and receipts.
 	Both,
-}
-
-impl Machine {
-	/// Get the balance, in base units, associated with an account.
-	/// Extracts data from the live block.
-	pub fn balance(&self, live: &ExecutedBlock, address: &Address) -> Result<U256, Error> {
-		live.state.balance(address).map_err(Into::into)
-	}
-
-	/// Increment the balance of an account in the state of the live block.
-	pub fn add_balance(&self, live: &mut ExecutedBlock, address: &Address, amount: &U256) -> Result<(), Error> {
-		live.state_mut().add_balance(address, amount, CleanupMode::NoEmpty).map_err(Into::into)
-	}
 }
 
 // Try to round gas_limit a bit so that:
@@ -468,7 +463,7 @@ mod tests {
 
 	#[test]
 	fn should_disallow_unsigned_transactions() {
-		let rlp = "ea80843b9aca0083015f90948921ebb5f79e9e3920abe571004d0b1d5119c154865af3107a400080038080".into();
+		let rlp = "ea80843b9aca0083015f90948921ebb5f79e9e3920abe571004d0b1d5119c154865af3107a400080038080";
 		let transaction: UnverifiedTransaction = ::rlp::decode(&::rustc_hex::FromHex::from_hex(rlp).unwrap()).unwrap();
 		let spec = ::ethereum::new_ropsten_test();
 		let ethparams = get_default_ethash_extensions();
