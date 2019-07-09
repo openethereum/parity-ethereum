@@ -145,7 +145,7 @@ pub fn quick_get_difficulty(header_hash: &H256, nonce: u64, mix_hash: &H256, pro
 			buf[64..].copy_from_slice(mix_hash);
 
 			let mut hash = [0u8; 32];
-			keccak_256::unchecked(hash.as_mut_ptr() as *mut u8, hash.len(), buf.as_ptr(), buf.len());
+			keccak_256::unchecked(hash.as_mut_ptr(), hash.len(), buf.as_ptr(), buf.len());
 
 			hash
 		}
