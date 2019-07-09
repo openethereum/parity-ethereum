@@ -137,9 +137,9 @@ pub fn quick_get_difficulty(header_hash: &H256, nonce: u64, mix_hash: &H256, pro
 		} else {
 			let mut buf = [0u8; 64 + 32];
 
-			let header_len = header_hash.len();
-			buf[..header_len].copy_from_slice(header_hash);
-			buf[header_len..header_len + mem::size_of::<u64>()].copy_from_slice(&nonce.to_ne_bytes());
+			let hash_len = header_hash.len();
+			buf[..hash_len].copy_from_slice(header_hash);
+			buf[hash_len..hash_len + mem::size_of::<u64>()].copy_from_slice(&nonce.to_ne_bytes());
 
 			keccak_512::unchecked(buf.as_mut_ptr(), 64, buf.as_ptr(), 40);
 			buf[64..].copy_from_slice(mix_hash);
@@ -201,9 +201,9 @@ fn hash_compute(light: &Light, full_size: usize, header_hash: &H256, nonce: u64)
 			// Pack `header_hash` and `nonce` together
 			let mut out = [0u8; NODE_BYTES];
 
-			let header_len = header_hash.len();
-			out[..header_len].copy_from_slice(header_hash);
-			out[header_len..header_len + mem::size_of::<u64>()].copy_from_slice(&nonce.to_ne_bytes());
+			let hash_len = header_hash.len();
+			out[..hash_len].copy_from_slice(header_hash);
+			out[hash_len..hash_len + mem::size_of::<u64>()].copy_from_slice(&nonce.to_ne_bytes());
 
 			// compute keccak-512 hash and replicate across mix
 			keccak_512::unchecked(
