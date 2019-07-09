@@ -24,9 +24,12 @@ use ethereum_types::{U256, H256, Address};
 use rlp::Rlp;
 use types::{
 	BlockNumber,
-	transaction::{self, SYSTEM_ADDRESS, UNSIGNED_SENDER, UnverifiedTransaction, SignedTransaction}
+	transaction::{self, SYSTEM_ADDRESS, UNSIGNED_SENDER, UnverifiedTransaction, SignedTransaction},
 	header::Header,
-	engines::EthashExtensions,
+	engines::{
+		EthashExtensions,
+		params::CommonParams,
+	},
 };
 use vm::{CallType, ActionParams, ActionValue, ParamsType};
 use vm::{EnvInfo, Schedule, CreateContractAddress};
@@ -37,7 +40,6 @@ use call_contract::CallContract;
 use client::BlockInfo;
 use error::Error;
 use executive::Executive;
-use spec::CommonParams;
 use account_state::{CleanupMode, Substate};
 use trace::{NoopTracer, NoopVMTracer};
 use tx_filter::TransactionFilter;

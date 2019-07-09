@@ -44,11 +44,18 @@ use std::{fmt, error};
 use builtin::Builtin;
 use vm::{EnvInfo, Schedule, CreateContractAddress, CallType, ActionValue};
 use error::Error;
-use types::BlockNumber;
-use types::header::{Header, ExtendedHeader};
+use types::{
+	BlockNumber,
+	ancestry_action::AncestryAction,
+	header::{Header, ExtendedHeader},
+	engines::{
+//		ForkChoice, // TODO [ToDr] Remove re-export (#10130)
+//		epoch::{self, Transition as EpochTransition},
+		params::CommonParams
+	},
+	transaction::{self, UnverifiedTransaction, SignedTransaction},
+};
 use snapshot::SnapshotComponents;
-use spec::CommonParams;
-use types::transaction::{self, UnverifiedTransaction, SignedTransaction};
 use client::EngineClient;
 
 use ethkey::{Signature};
@@ -56,7 +63,6 @@ use machine::{self, Machine, AuxiliaryRequest, AuxiliaryData};
 use ethereum_types::{H64, H256, U256, Address};
 use unexpected::{Mismatch, OutOfBounds};
 use bytes::Bytes;
-use types::ancestry_action::AncestryAction;
 use block::ExecutedBlock;
 
 /// Default EIP-210 contract code.

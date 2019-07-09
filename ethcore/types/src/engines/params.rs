@@ -1,7 +1,31 @@
+// Copyright 2015-2019 Parity Technologies (UK) Ltd.
+// This file is part of Parity Ethereum.
+
+// Parity Ethereum is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+
+// Parity Ethereum is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
+
+// You should have received a copy of the GNU General Public License
+// along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
+
+//! Engine-specific parameter types.
+
 use ethereum_types::{Address, U256, H256};
 use bytes::Bytes;
+use ethjson;
+// todo: used only to `.from_hex()` a const which is dumb. Remove.
+use rustc_hex::FromHex;
 
 use BlockNumber;
+use engines::DEFAULT_BLOCKHASH_CONTRACT;
+
+const MAX_TRANSACTION_SIZE: usize = 300 * 1024;
 
 /// Parameters common to ethereum-like blockchains.
 /// NOTE: when adding bugfix hard-fork parameters,
@@ -99,4 +123,194 @@ pub struct CommonParams {
 	pub transaction_permission_contract_transition: BlockNumber,
 	/// Maximum size of transaction's RLP payload
 	pub max_transaction_size: usize,
+}
+
+impl CommonParams {
+	/// Schedule for an EVM in the post-EIP-150-era of the Ethereum main net.
+	pub fn schedule(&self, block_number: u64) -> vm::Schedule {
+		if block_number < self.eip150_transition {
+			vm::Schedule::new_homestead()
+		} else {
+			let max_code_size = self.max_code_size(block_number);
+			let mut schedule = vm::Schedule::new_post_eip150(
+				max_code_size as _,
+				block_number >= self.eip160_transition,
+				block_number >= self.eip161abc_transition,
+				block_number >= self.eip161d_transition
+			);
+
+			self.update_schedule(block_number, &mut schedule);
+			schedule
+		}
+	}
+
+	/// Returns max code size at given block.
+	pub fn max_code_size(&self, block_number: u64) -> u64 {
+		if block_number >= self.max_code_size_transition {
+			self.max_code_size
+		} else {
+			u64::max_value()
+		}
+	}
+
+	/// Apply common spec config parameters to the schedule.
+	pub fn update_schedule(&self, block_number: u64, schedule: &mut vm::Schedule) {
+		schedule.have_create2 = block_number >= self.eip1014_transition;
+		schedule.have_revert = block_number >= self.eip140_transition;
+		schedule.have_static_call = block_number >= self.eip214_transition;
+		schedule.have_return_data = block_number >= self.eip211_transition;
+		schedule.have_bitwise_shifting = block_number >= self.eip145_transition;
+		schedule.have_extcodehash = block_number >= self.eip1052_transition;
+		schedule.eip1283 = block_number >= self.eip1283_transition && !(block_number >= self.eip1283_disable_transition);
+		if block_number >= self.eip210_transition {
+			schedule.blockhash_gas = 800;
+		}
+		if block_number >= self.dust_protection_transition {
+			schedule.kill_dust = match self.remove_dust_contracts {
+				true => vm::CleanDustMode::WithCodeAndStorage,
+				false => vm::CleanDustMode::BasicOnly,
+			};
+		}
+		if block_number >= self.wasm_activation_transition {
+			let mut wasm = vm::WasmCosts::default();
+			if block_number >= self.kip4_transition {
+				wasm.have_create2 = true;
+			}
+			if block_number >= self.kip6_transition {
+				wasm.have_gasleft = true;
+			}
+			schedule.wasm = Some(wasm);
+			if let Some(version) = self.wasm_version {
+				schedule.versions.insert(version, vm::VersionedSchedule::PWasm);
+			}
+		}
+	}
+
+	/// Return Some if the current parameters contain a bugfix hard fork not on block 0.
+	pub fn nonzero_bugfix_hard_fork(&self) -> Option<&str> {
+		if self.eip155_transition != 0 {
+			return Some("eip155Transition");
+		}
+
+		if self.validate_receipts_transition != 0 {
+			return Some("validateReceiptsTransition");
+		}
+
+		if self.validate_chain_id_transition != 0 {
+			return Some("validateChainIdTransition");
+		}
+
+		None
+	}
+}
+
+impl From<ethjson::spec::Params> for CommonParams {
+	fn from(p: ethjson::spec::Params) -> Self {
+		CommonParams {
+			account_start_nonce: p.account_start_nonce.map_or_else(U256::zero, Into::into),
+			maximum_extra_data_size: p.maximum_extra_data_size.into(),
+			network_id: p.network_id.into(),
+			chain_id: if let Some(n) = p.chain_id {
+				n.into()
+			} else {
+				p.network_id.into()
+			},
+			subprotocol_name: p.subprotocol_name.unwrap_or_else(|| "eth".to_owned()),
+			min_gas_limit: p.min_gas_limit.into(),
+			fork_block: if let (Some(n), Some(h)) = (p.fork_block, p.fork_hash) {
+				Some((n.into(), h.into()))
+			} else {
+				None
+			},
+			eip150_transition: p.eip150_transition.map_or(0, Into::into),
+			eip160_transition: p.eip160_transition.map_or(0, Into::into),
+			eip161abc_transition: p.eip161abc_transition.map_or(0, Into::into),
+			eip161d_transition: p.eip161d_transition.map_or(0, Into::into),
+			eip98_transition: p.eip98_transition.map_or_else(
+				BlockNumber::max_value,
+				Into::into,
+			),
+			eip155_transition: p.eip155_transition.map_or(0, Into::into),
+			validate_receipts_transition: p.validate_receipts_transition.map_or(0, Into::into),
+			validate_chain_id_transition: p.validate_chain_id_transition.map_or(0, Into::into),
+			eip140_transition: p.eip140_transition.map_or_else(
+				BlockNumber::max_value,
+				Into::into,
+			),
+			eip210_transition: p.eip210_transition.map_or_else(
+				BlockNumber::max_value,
+				Into::into,
+			),
+			eip210_contract_address: p.eip210_contract_address.map_or(Address::from_low_u64_be(0xf0), Into::into),
+			eip210_contract_code: p.eip210_contract_code.map_or_else(
+				|| {
+					DEFAULT_BLOCKHASH_CONTRACT.from_hex().expect(
+						"Default BLOCKHASH contract is valid",
+					)
+				},
+				Into::into,
+			),
+			eip210_contract_gas: p.eip210_contract_gas.map_or(1000000.into(), Into::into),
+			eip211_transition: p.eip211_transition.map_or_else(
+				BlockNumber::max_value,
+				Into::into,
+			),
+			eip145_transition: p.eip145_transition.map_or_else(
+				BlockNumber::max_value,
+				Into::into,
+			),
+			eip214_transition: p.eip214_transition.map_or_else(
+				BlockNumber::max_value,
+				Into::into,
+			),
+			eip658_transition: p.eip658_transition.map_or_else(
+				BlockNumber::max_value,
+				Into::into,
+			),
+			eip1052_transition: p.eip1052_transition.map_or_else(
+				BlockNumber::max_value,
+				Into::into,
+			),
+			eip1283_transition: p.eip1283_transition.map_or_else(
+				BlockNumber::max_value,
+				Into::into,
+			),
+			eip1283_disable_transition: p.eip1283_disable_transition.map_or_else(
+				BlockNumber::max_value,
+				Into::into,
+			),
+			eip1014_transition: p.eip1014_transition.map_or_else(
+				BlockNumber::max_value,
+				Into::into,
+			),
+			dust_protection_transition: p.dust_protection_transition.map_or_else(
+				BlockNumber::max_value,
+				Into::into,
+			),
+			nonce_cap_increment: p.nonce_cap_increment.map_or(64, Into::into),
+			remove_dust_contracts: p.remove_dust_contracts.unwrap_or(false),
+			gas_limit_bound_divisor: p.gas_limit_bound_divisor.into(),
+			registrar: p.registrar.map(Into::into),
+			node_permission_contract: p.node_permission_contract.map(Into::into),
+			max_code_size: p.max_code_size.map_or(u64::max_value(), Into::into),
+			max_transaction_size: p.max_transaction_size.map_or(MAX_TRANSACTION_SIZE, Into::into),
+			max_code_size_transition: p.max_code_size_transition.map_or(0, Into::into),
+			transaction_permission_contract: p.transaction_permission_contract.map(Into::into),
+			transaction_permission_contract_transition:
+			p.transaction_permission_contract_transition.map_or(0, Into::into),
+			wasm_activation_transition: p.wasm_activation_transition.map_or_else(
+				BlockNumber::max_value,
+				Into::into
+			),
+			wasm_version: p.wasm_version.map(Into::into),
+			kip4_transition: p.kip4_transition.map_or_else(
+				BlockNumber::max_value,
+				Into::into
+			),
+			kip6_transition: p.kip6_transition.map_or_else(
+				BlockNumber::max_value,
+				Into::into
+			),
+		}
+	}
 }

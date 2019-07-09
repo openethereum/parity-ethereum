@@ -77,7 +77,7 @@ use types::{
 	filter::Filter,
 	log_entry::LocalizedLogEntry,
 	receipt::{Receipt, LocalizedReceipt},
-	header::{Header, ExtendedHeader}
+	header::Header,
 };
 
 use verification::queue::kind::BlockLike;
