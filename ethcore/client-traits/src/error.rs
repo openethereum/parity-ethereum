@@ -18,24 +18,15 @@
 
 use derive_more::{Display, From};
 
-use client_traits::error::Error as ClientError;
-use common_types::{
-	block::{BlockError, ImportError},
-	transaction::Error as TransactionError,
-};
-use rlp::DecoderError;
-
 #[derive(Debug, Display, From)]
 pub enum Error {
-	Block(BlockError),
-	Import(ImportError),
-	Client(ClientError),
-	Transaction(TransactionError),
-	Decoder(DecoderError),
+	/// todo: what errors do I need?
+	Todo
 }
 
 impl std::error::Error for Error {}
 
+// todo needed?
 impl<E> From<Box<E>> for Error where Error: From<E> {
 	fn from(err: Box<E>) -> Self {
 		Error::from(*err)

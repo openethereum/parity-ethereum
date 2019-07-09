@@ -13,7 +13,15 @@ client-traits = { path = "../client-traits" }
 derive_more = "0.15.0"
 keccak-hash = "0.2.0"
 rlp = "0.4"
-triehash = "0.7.0"
+triehash-ethereum = { version = "0.2",  path = "../../util/triehash-ethereum" }
 unexpected = { path = "../../util/unexpected" }
 ethcore-blockchain = { path = "../blockchain" }
 time-utils = { path = "../../util/time-utils" }
+parking_lot = "0.8.0"
+parity-util-mem = "0.1.0"
+ethereum-types = "0.6"
+ethcore-io = { path = "../../util/io" }
+len-caching-lock = { path = "../../util/len-caching-lock" }
+num_cpus = "1.10.1"
+log = "0.4.6"
+parity-bytes = "0.1.0"

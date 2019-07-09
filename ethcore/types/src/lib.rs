@@ -37,7 +37,6 @@ extern crate ethbloom;
 extern crate ethereum_types;
 extern crate ethjson;
 extern crate ethkey;
-#[macro_use]
 extern crate derive_more;
 extern crate keccak_hash as hash;
 extern crate parity_bytes as bytes;
@@ -47,7 +46,6 @@ extern crate unexpected;
 #[macro_use]
 extern crate rlp_derive;
 extern crate parity_util_mem;
-
 extern crate parity_util_mem as malloc_size_of;
 
 #[cfg(test)]
@@ -63,6 +61,7 @@ pub mod block;
 pub mod block_status;
 pub mod blockchain_info;
 pub mod call_analytics;
+pub mod client_io_message;
 pub mod encoded;
 pub mod engines;
 pub mod filter;

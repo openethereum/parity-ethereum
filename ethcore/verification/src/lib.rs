@@ -16,18 +16,20 @@
 
 //! Block verification utilities.
 
+use parity_util_mem as malloc_size_of;
+
 mod verification;
 mod verifier;
-//pub mod queue;
-//mod canon_verifier;
-//mod noop_verifier;
+pub mod queue;
+mod canon_verifier;
+mod noop_verifier;
 mod error;
 
-//pub use self::verification::*;
+pub use self::verification::*;
 pub use self::verifier::Verifier;
-//pub use self::canon_verifier::CanonVerifier;
-//pub use self::noop_verifier::NoopVerifier;
-//pub use self::queue::{BlockQueue, Config as QueueConfig, VerificationQueue, QueueInfo};
+pub use self::canon_verifier::CanonVerifier;
+pub use self::noop_verifier::NoopVerifier;
+pub use self::queue::{BlockQueue, Config as QueueConfig, VerificationQueue, QueueInfo};
 
 use call_contract::CallContract;
 use client_traits::BlockInfo;

@@ -214,3 +214,18 @@ impl error::Error for BlockError {
 		"Block error"
 	}
 }
+
+// todo: hook up in ethcore
+/// Block import Error
+#[derive(Debug, Display)]
+pub enum ImportError {
+	/// Already in the block chain.
+	#[display(fmt = "Block already in chain")]
+	AlreadyInChain,
+	/// Already in the block queue
+	#[display(fmt = "block already in the block queue")]
+	AlreadyQueued,
+	/// Already marked as bad from a previous import (could mean parent is bad)
+	#[display(fmt = "block known to be bad")]
+	KnownBad,
+}

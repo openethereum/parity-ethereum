@@ -14,33 +14,36 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
-//! A generic verifier trait.
+//! No-op verifier.
 
 use call_contract::CallContract;
 use client_traits::{BlockInfo, VerifyingEngine};
-//use engines::Engine;
 use crate::{
 	error::Error,
-	verification::FullFamilyParams,
+	Verifier, verification::FullFamilyParams
 };
 use common_types::header::Header;
-//use super::verification;
 
-/// Should be used to verify blocks.
-pub trait Verifier<C>: Send + Sync
-	where C: BlockInfo + CallContract
-{
-	/// Verify a block relative to its parent and uncles.
+/// A no-op verifier -- this will verify everything it's given immediately.
+#[allow(dead_code)]
+pub struct NoopVerifier;
+
+impl<C: BlockInfo + CallContract> Verifier<C> for NoopVerifier {
 	fn verify_block_family(
 		&self,
-		header: &Header,
-		parent: &Header,
-		engine: &dyn VerifyingEngine,
-		do_full: Option<FullFamilyParams<C>>
-	) -> Result<(), Error>;
+		_: &Header,
+		_t: &Header,
+		_: &dyn VerifyingEngine,
+		_: Option<FullFamilyParams<C>>
+	) -> Result<(), Error> {
+		Ok(())
+	}
 
-	/// Do a final verification check for an enacted header vs its expected counterpart.
-	fn verify_block_final(&self, expected: &Header, got: &Header) -> Result<(), Error>;
-	/// Verify a block, inspecting external state.
-	fn verify_block_external(&self, header: &Header, engine: &dyn VerifyingEngine) -> Result<(), Error>;
+	fn verify_block_final(&self, _expected: &Header, _got: &Header) -> Result<(), Error> {
+		Ok(())
+	}
+
+	fn verify_block_external(&self, _header: &Header, _engine: &dyn VerifyingEngine) -> Result<(), Error> {
+		Ok(())
+	}
 }
