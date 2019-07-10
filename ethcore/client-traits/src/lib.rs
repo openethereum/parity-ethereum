@@ -1,36 +1,45 @@
-use ethereum_types::{H256, U256, Address};
+// todo: module docs
+
+use call_contract::CallContract;
 use common_types::{
-    ids::BlockId,
-    header::Header,
-    encoded,
-    transaction::{self, UnverifiedTransaction, SignedTransaction},
+	BlockNumber,
+	ids::BlockId,
+	header::Header,
+	encoded,
+	transaction::{self, UnverifiedTransaction, SignedTransaction},
 	engines::{
 		EthashExtensions,
 		params::CommonParams
 	},
 	errors::EthcoreError,
 };
+use ethereum_types::{H256, U256, Address};
 
 /// Provides various information on a block by it's ID
 pub trait BlockInfo {
-    /// Get raw block header data by block id.
-    fn block_header(&self, id: BlockId) -> Option<encoded::Header>;
+	/// Get raw block header data by block id.
+	fn block_header(&self, id: BlockId) -> Option<encoded::Header>;
 
-    /// Get the best block header.
-    fn best_block_header(&self) -> Header;
+	/// Get the best block header.
+	fn best_block_header(&self) -> Header;
 
-    /// Get raw block data by block header hash.
-    fn block(&self, id: BlockId) -> Option<encoded::Block>;
+	/// Get raw block data by block header hash.
+	fn block(&self, id: BlockId) -> Option<encoded::Block>;
 
-    /// Get address code hash at given block's state.
-    fn code_hash(&self, address: &Address, id: BlockId) -> Option<H256>;
+	/// Get address code hash at given block's state.
+	fn code_hash(&self, address: &Address, id: BlockId) -> Option<H256>;
 }
+
+pub trait VerifyingClient: BlockInfo + CallContract {}
 
 /// todo rewrite docs: A consensus mechanism for the chain. Generally either proof-of-work or proof-of-stake-based.
 /// Provides hooks into each of the major parts of block import.
 pub trait VerifyingEngine: Sync + Send {
 	/// The number of additional header fields required for this engine.
 	fn seal_fields(&self, _header: &Header) -> usize { 0 }
+
+	/// Maximum number of uncles a block is allowed to declare.
+	fn maximum_uncle_count(&self, _block: BlockNumber) -> usize { 0 }
 
 	/// Optional maximum gas limit.
 	fn maximum_gas_limit(&self) -> Option<U256> { None }
@@ -80,4 +89,18 @@ pub trait VerifyingEngine: Sync + Send {
 	/// NOTE This function consumes an `UnverifiedTransaction` and produces `SignedTransaction`
 	/// which implies that a heavy check of the signature is performed here.
 	fn verify_transaction_unordered(&self, _t: UnverifiedTransaction, _header: &Header) -> Result<SignedTransaction, transaction::Error>;
+
+	// Transactions are verified against the parent header since the current
+	// state wasn't available when the tx was created
+	fn verify_transactions(
+		&self,
+		txs: &Vec<SignedTransaction>,
+		parent: &Header,
+		client: &dyn VerifyingClient,
+	) -> Result<(), transaction::Error>;
+
+	/// Check whether the parent timestamp is valid.
+	fn is_timestamp_valid(&self, header_timestamp: u64, parent_timestamp: u64) -> bool {
+		header_timestamp > parent_timestamp
+	}
 }

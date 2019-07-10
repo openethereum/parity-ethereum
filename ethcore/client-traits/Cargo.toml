@@ -5,6 +5,7 @@ edition = "2018"
 
 
 [dependencies]
+call-contract = { package = "ethcore-call-contract", path = "../call-contract" }
 common-types = { path = "../types" }
 derive_more = "0.15.0"
 ethereum-types = "0.6"
