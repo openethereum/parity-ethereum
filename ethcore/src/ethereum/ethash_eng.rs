@@ -29,6 +29,7 @@ use types::{
 	header::Header,
 	engines::{EthashExtensions, params::CommonParams},
 	transaction::{self, UnverifiedTransaction, SignedTransaction},
+	errors::{BlockError, EthcoreError as Error},
 };
 
 use unexpected::{OutOfBounds, Mismatch};
@@ -36,7 +37,6 @@ use unexpected::{OutOfBounds, Mismatch};
 use block::ExecutedBlock;
 use engines::block_reward::{self, BlockRewardContract, RewardKind};
 use engines::{self, Engine};
-use error::{BlockError, Error};
 use ethash::{self, quick_get_difficulty, slow_hash_block_number, EthashManager, OptimizeFor};
 use machine::Machine;
 
@@ -209,10 +209,10 @@ impl Ethash {
 // for any block in the chain.
 // in the future, we might move the Ethash epoch
 // caching onto this mechanism as well.
-impl engines::EpochVerifier for Arc<Ethash> {
+impl engines::EpochVerifier for Ethash {
 	fn verify_light(&self, _header: &Header) -> Result<(), Error> { Ok(()) }
 	fn verify_heavy(&self, header: &Header) -> Result<(), Error> {
-		self.verify_block_unordered(header)
+		self.verify_block_unordered(header).into()
 	}
 }
 
@@ -382,7 +382,8 @@ impl Engine for Ethash {
 	#[cfg(not(feature = "miner-debug"))]
 	fn verify_local_seal(&self, header: &Header) -> Result<(), Error> {
 		self.verify_block_basic(header)
-			.and_then(|_| self.verify_block_unordered(header))
+			.map_err(Into::into)
+			.and_then(|_| self.verify_block_unordered(header).map_err(Into::into))
 	}
 
 	fn epoch_verifier<'a>(&self, _header: &Header, _proof: &'a [u8]) -> engines::ConstructedVerifier<'a> {
@@ -503,8 +504,10 @@ mod tests {
 	use ethereum_types::{H64, H256, U256, Address};
 	use block::*;
 	use test_helpers::get_temp_state_db;
-	use error::{BlockError, Error};
-	use types::header::Header;
+	use types::{
+		header::Header,
+		errors::{BlockError, EthcoreError as Error},
+	};
 	use spec::Spec;
 	use engines::Engine;
 	use super::super::{new_morden, new_mcip3_test, new_homestead_test_machine};

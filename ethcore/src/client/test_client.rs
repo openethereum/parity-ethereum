@@ -40,6 +40,7 @@ use types::transaction::{self, Transaction, LocalizedTransaction, SignedTransact
 use types::BlockNumber;
 use types::basic_account::BasicAccount;
 use types::encoded;
+use types::errors::EthcoreError as Error;
 use types::filter::Filter;
 use types::header::Header;
 use types::log_entry::LocalizedLogEntry;
@@ -61,7 +62,7 @@ use client::{
 };
 use client_traits::BlockInfo;
 use engines::Engine;
-use error::{Error, EthcoreResult};
+use error::EthcoreResult;
 use executed::CallError;
 use executive::Executed;
 use journaldb;

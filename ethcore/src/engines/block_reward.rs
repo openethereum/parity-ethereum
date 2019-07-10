@@ -23,12 +23,11 @@ use ethereum_types::{H160, Address, U256};
 
 use std::sync::Arc;
 use hash::keccak;
-use error::Error;
 use machine::Machine;
 use trace;
 use types::{
 	BlockNumber,
-	engines::EngineError,
+	errors::{EngineError, EthcoreError as Error},
 };
 use super::{SystemOrCodeCall, SystemOrCodeCallKind};
 use trace::{Tracer, ExecutiveTracer, Tracing};

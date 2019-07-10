@@ -30,9 +30,10 @@ use rlp::{Rlp, RlpStream};
 use rustc_hex::{FromHex, ToHex};
 use types::{
 	BlockNumber,
-	encoded,
 	header::Header,
+	encoded,
 	engines::params::CommonParams,
+	errors::EthcoreError as Error,
 };
 use vm::{EnvInfo, CallType, ActionValue, ActionParams, ParamsType};
 
@@ -41,7 +42,6 @@ use engines::{
 	Engine, NullEngine, InstantSeal, InstantSealParams, BasicAuthority, Clique,
 	AuthorityRound
 };
-use error::Error;
 use executive::Executive;
 use trie_vm_factories::Factories;
 use machine::Machine;

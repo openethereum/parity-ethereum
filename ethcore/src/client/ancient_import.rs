@@ -23,7 +23,10 @@ use engines::{Engine, EpochVerifier};
 use blockchain::BlockChain;
 use parking_lot::RwLock;
 use rand::Rng;
-use types::header::Header;
+use types::{
+	header::Header,
+	errors::EthcoreError,
+};
 
 // do "heavy" verification on ~1/50 blocks, randomly sampled.
 const HEAVY_VERIFY_RATE: f32 = 0.02;
@@ -51,7 +54,7 @@ impl AncientVerifier {
 		rng: &mut R,
 		header: &Header,
 		chain: &BlockChain,
-	) -> Result<(), ::error::Error> {
+	) -> Result<(), EthcoreError> {
 		// perform verification
 		let verified = if let Some(ref cur_verifier) = *self.cur_verifier.read() {
 			match rng.gen::<f32>() <= HEAVY_VERIFY_RATE {
@@ -86,7 +89,7 @@ impl AncientVerifier {
 	}
 
 	fn initial_verifier(&self, header: &Header, chain: &BlockChain)
-		-> Result<Box<dyn EpochVerifier>, ::error::Error>
+		-> Result<Box<dyn EpochVerifier>, EthcoreError>
 	{
 		trace!(target: "client", "Initializing ancient block restoration.");
 		let current_epoch_data = chain.epoch_transitions()

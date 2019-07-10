@@ -24,13 +24,13 @@ use ethereum_types::{U256, H256, Address};
 use rlp::Rlp;
 use types::{
 	BlockNumber,
-	transaction::{self, SYSTEM_ADDRESS, UNSIGNED_SENDER, UnverifiedTransaction, SignedTransaction},
 	header::Header,
 	engines::{
-		EngineError,
 		EthashExtensions,
 		params::CommonParams,
 	},
+	errors::{EngineError, EthcoreError as Error},
+	transaction::{self, SYSTEM_ADDRESS, UNSIGNED_SENDER, UnverifiedTransaction, SignedTransaction},
 };
 use vm::{CallType, ActionParams, ActionValue, ParamsType};
 use vm::{EnvInfo, Schedule, CreateContractAddress};
@@ -39,7 +39,6 @@ use block::ExecutedBlock;
 use builtin::Builtin;
 use call_contract::CallContract;
 use client_traits::BlockInfo;
-use error::Error;
 use executive::Executive;
 use account_state::{CleanupMode, Substate};
 use trace::{NoopTracer, NoopVMTracer};
@@ -354,9 +353,12 @@ impl Machine {
 	}
 
 	/// Does verification of the transaction against the parent state.
-	pub fn verify_transaction<C: BlockInfo + CallContract>(&self, t: &SignedTransaction, parent: &Header, client: &C)
-		-> Result<(), transaction::Error>
-	{
+	pub fn verify_transaction<C: BlockInfo + CallContract>(
+		&self,
+		t: &SignedTransaction,
+		parent: &Header,
+		client: &C
+	) -> Result<(), transaction::Error> {
 		if let Some(ref filter) = self.tx_filter.as_ref() {
 			if !filter.transaction_allowed(&parent.hash(), parent.number() + 1, t, client) {
 				return Err(transaction::Error::NotAllowed.into())

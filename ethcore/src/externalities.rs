@@ -17,18 +17,19 @@
 //! Transaction Execution environment.
 use std::cmp;
 use std::sync::Arc;
-use ethereum_types::{H256, U256, Address, BigEndianHash};
-use bytes::Bytes;
+
 use account_state::{Backend as StateBackend, State, Substate, CleanupMode};
-use machine::Machine;
+use bytes::Bytes;
+use ethereum_types::{H256, U256, Address, BigEndianHash};
 use executive::*;
+use machine::Machine;
+use types::transaction::UNSIGNED_SENDER;
+use trace::{Tracer, VMTracer};
 use vm::{
 	self, ActionParams, ActionValue, EnvInfo, CallType, Schedule,
 	Ext, ContractCreateResult, MessageCallResult, CreateContractAddress,
 	ReturnData, TrapKind
 };
-use types::transaction::UNSIGNED_SENDER;
-use trace::{Tracer, VMTracer};
 
 /// Policy for handling output data on `RETURN` opcode.
 pub enum OutputPolicy {

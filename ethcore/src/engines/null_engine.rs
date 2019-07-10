@@ -23,10 +23,10 @@ use types::{
 	BlockNumber,
 	header::Header,
 	engines::params::CommonParams,
+	errors::EthcoreError as Error,
 	transaction::{self, UnverifiedTransaction, SignedTransaction},
 };
 use block::ExecutedBlock;
-use error::Error;
 
 /// Params for a null engine.
 #[derive(Clone, Default)]

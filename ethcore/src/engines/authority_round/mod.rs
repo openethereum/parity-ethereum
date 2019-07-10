@@ -30,7 +30,6 @@ use client_traits::VerifyingEngine;
 use engines::{Engine, Seal, SealingState, ConstructedVerifier};
 use engines::block_reward;
 use engines::block_reward::{BlockRewardContract, RewardKind};
-use error::{Error, BlockError};
 use ethjson;
 use machine::{AuxiliaryData, Call, Machine};
 use hash::keccak;
@@ -48,7 +47,8 @@ use types::{
 	ancestry_action::AncestryAction,
 	BlockNumber,
 	header::{Header, ExtendedHeader},
-	engines::{EngineError, params::CommonParams},
+	engines::{params::CommonParams},
+	errors::{BlockError, EthcoreError as Error, EngineError},
 	transaction::{self, UnverifiedTransaction, SignedTransaction},
 };
 use unexpected::{Mismatch, OutOfBounds};
@@ -995,7 +995,7 @@ impl VerifyingEngine for AuthorityRound {
 		let step = header_step(header, self.empty_steps_transition)?;
 		let parent_step = header_step(parent, self.empty_steps_transition)?;
 
-		let (validators, set_number) = self.epoch_set(header)?;
+		let (validators, set_number) = self.epoch_set(header).map_err(Into::into)?;
 
 		// Ensure header is from the step after parent.
 		if step == parent_step
@@ -1074,7 +1074,7 @@ impl VerifyingEngine for AuthorityRound {
 
 	// Check the validators.
 	fn verify_block_external(&self, header: &Header) -> Result<(), Error> {
-		let (validators, set_number) = self.epoch_set(header)?;
+		let (validators, set_number) = self.epoch_set(header).map_err(Into::into)?;
 
 		// verify signature against fixed list, but reports should go to the
 		// contract itself.
@@ -1092,7 +1092,7 @@ impl VerifyingEngine for AuthorityRound {
 			},
 			_ => {},
 		}
-		res
+		res.map_err(Into::into)
 	}
 
 	fn verify_transaction_basic(&self, t: &UnverifiedTransaction, header: &Header) -> Result<(), transaction::Error> {
@@ -1637,6 +1637,7 @@ mod tests {
 	use types::{
 		header::Header,
 		engines::params::CommonParams,
+		errors::{EthcoreError as Error, EngineError},
 		transaction::{Action, Transaction},
 	};
 	use rlp::encode;
@@ -1646,9 +1647,8 @@ mod tests {
 		TestNotify
 	};
 	use spec::Spec;
-	use engines::{Seal, Engine, EngineError};
+	use engines::{Seal, Engine};
 	use engines::validator_set::{TestSet, SimpleList};
-	use error::Error;
 	use super::{AuthorityRoundParams, AuthorityRound, EmptyStep, SealedEmptyStep, calculate_score};
 	use machine::Machine;
 

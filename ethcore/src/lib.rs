@@ -154,7 +154,7 @@ extern crate parity_runtime;
 pub mod block;
 pub mod client;
 pub mod engines;
-pub mod error;
+//pub mod error; // todo
 pub mod ethereum;
 pub mod executed;
 pub mod executive;
@@ -168,6 +168,7 @@ pub mod spec;
 mod externalities;
 mod transaction_ext;
 mod tx_filter;
+mod error; // todo: CallError is still there but after it's gone, rename module
 
 #[cfg(test)]
 mod tests;

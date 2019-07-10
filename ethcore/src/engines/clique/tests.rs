@@ -18,13 +18,14 @@
 
 use block::*;
 use engines::Engine;
-use error::Error;
 use ethereum_types::{Address, H256};
 use ethkey::{Secret, KeyPair};
 use state_db::StateDB;
 use super::*;
 use test_helpers::get_temp_state_db;
-use types::engines::EngineError;
+use types::{
+	errors::{EthcoreError as Error, EngineError},
+};
 
 use std::sync::Arc;
 use std::collections::HashMap;

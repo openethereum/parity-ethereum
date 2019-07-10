@@ -31,11 +31,10 @@ use blockchain::{BlockChain, BlockChainDB, BlockChainDBHandler};
 use client_traits::BlockInfo;
 use client::{BlockChainClient, Client, ChainInfo};
 use engines::Engine;
-use error::Error;
-use snapshot::{Error as SnapshotError};
 use hash::keccak;
 use types::{
 	client_io_message::ClientIoMessage,
+	errors::{EthcoreError as Error, SnapshotError, SnapshotError::UnlinkedAncientBlockChain},
 	ids::BlockId,
 };
 
@@ -47,7 +46,6 @@ use bytes::Bytes;
 use journaldb::Algorithm;
 use kvdb::DBTransaction;
 use snappy;
-use snapshot::error::Error::UnlinkedAncientBlockChain;
 
 /// Helper for removing directories in case of error.
 struct Guard(bool, PathBuf);

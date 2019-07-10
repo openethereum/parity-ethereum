@@ -20,11 +20,11 @@ use machine::Machine;
 use types::{
 	header::Header,
 	engines::params::CommonParams,
+	errors::EthcoreError as Error,
 	transaction::{self, UnverifiedTransaction, SignedTransaction},
 };
 
 use block::ExecutedBlock;
-use error::Error;
 
 /// `InstantSeal` params.
 #[derive(Default, Debug, PartialEq)]

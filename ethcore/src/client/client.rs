@@ -55,10 +55,7 @@ use client::bad_blocks;
 use client_traits::{BlockInfo, VerifyingEngine};
 use engines::{MAX_UNCLE_AGE, Engine, EpochTransition, ForkChoice, SealingState};
 use engines::epoch::PendingTransition;
-use error::{
-	ExecutionError, CallError, BlockError,
-	Error as EthcoreError, EthcoreResult,
-};
+use error::{CallError, EthcoreResult};
 use executive::{Executive, Executed, TransactOptions, contract_address};
 use trie_vm_factories::{Factories, VmFactory};
 use miner::{Miner, MinerService};
@@ -72,9 +69,9 @@ use transaction_ext::Transaction;
 use types::{
 	ancestry_action::AncestryAction,
 	BlockNumber,
-	block::{ImportError, PreverifiedBlock},
+	block::PreverifiedBlock,
 	encoded,
-	engines::EngineError,
+	errors::{EngineError, ExecutionError, BlockError, EthcoreError, SnapshotError, ImportError},
 	transaction::{self, LocalizedTransaction, UnverifiedTransaction, SignedTransaction, Action},
 	filter::Filter,
 	log_entry::LocalizedLogEntry,
@@ -90,11 +87,11 @@ use verification;
 use ansi_term::Colour;
 
 // re-export
+pub use blockchain::CacheSize as BlockChainCacheSize;
+use db::{Writable, Readable, keys::BlockDetails};
 pub use types::blockchain_info::BlockChainInfo;
 pub use types::block_status::BlockStatus;
-pub use blockchain::CacheSize as BlockChainCacheSize;
-pub use verification::QueueInfo as BlockQueueInfo;
-use db::{Writable, Readable, keys::BlockDetails};
+pub use types::verification_queue_info::VerificationQueueInfo as BlockQueueInfo;
 
 use_contract!(registry, "res/contracts/registrar.json");
 
@@ -256,7 +253,7 @@ impl Importer {
 		engine: Arc<dyn Engine>,
 		message_channel: IoChannel<ClientIoMessage>,
 		miner: Arc<Miner>,
-	) -> Result<Importer, ::error::Error> {
+	) -> Result<Importer, EthcoreError> {
 		let block_queue = BlockQueue::new(
 			config.queue.clone(),
 			engine.clone(),
@@ -397,7 +394,7 @@ impl Importer {
 
 		if let Err(e) = verify_family_result {
 			warn!(target: "client", "Stage 3 block verification failed for #{} ({})\nError: {:?}", header.number(), header.hash(), e);
-			return Err(e.into());
+			return Err(e);
 		};
 
 		let verify_external_result = self.verifier.verify_block_external(&header, engine);
@@ -717,7 +714,7 @@ impl Client {
 		db: Arc<dyn BlockChainDB>,
 		miner: Arc<Miner>,
 		message_channel: IoChannel<ClientIoMessage>,
-	) -> Result<Arc<Client>, ::error::Error> {
+	) -> Result<Arc<Client>, EthcoreError> {
 		let trie_spec = match config.fat_db {
 			true => TrieSpec::Fat,
 			false => TrieSpec::Secure,
@@ -963,7 +960,7 @@ impl Client {
 	}
 
 	// prune ancient states until below the memory limit or only the minimum amount remain.
-	fn prune_ancient(&self, mut state_db: StateDB, chain: &BlockChain) -> Result<(), ::error::Error> {
+	fn prune_ancient(&self, mut state_db: StateDB, chain: &BlockChain) -> Result<(), EthcoreError> {
 		let number = match state_db.journal_db().latest_era() {
 			Some(n) => n,
 			None => return Ok(()),
@@ -1158,10 +1155,10 @@ impl Client {
 	) -> Result<(), EthcoreError> {
 		let db = self.state_db.read().journal_db().boxed_clone();
 		let best_block_number = self.chain_info().best_block_number;
-		let block_number = self.block_number(at).ok_or_else(|| snapshot::Error::InvalidStartingBlock(at))?;
+		let block_number = self.block_number(at).ok_or_else(|| SnapshotError::InvalidStartingBlock(at))?;
 
 		if db.is_pruned() && self.pruning_info().earliest_state > block_number {
-			return Err(snapshot::Error::OldBlockPrunedDB.into());
+			return Err(SnapshotError::OldBlockPrunedDB.into());
 		}
 
 		let history = ::std::cmp::min(self.history, 1000);
@@ -1175,17 +1172,17 @@ impl Client {
 
 				match self.block_hash(BlockId::Number(start_num)) {
 					Some(h) => h,
-					None => return Err(snapshot::Error::InvalidStartingBlock(at).into()),
+					None => return Err(SnapshotError::InvalidStartingBlock(at).into()),
 				}
 			}
 			_ => match self.block_hash(at) {
 				Some(hash) => hash,
-				None => return Err(snapshot::Error::InvalidStartingBlock(at).into()),
+				None => return Err(SnapshotError::InvalidStartingBlock(at).into()),
 			},
 		};
 
 		let processing_threads = self.config.snapshot.processing_threads;
-		let chunker = self.engine.snapshot_components().ok_or(snapshot::Error::SnapshotsUnsupported)?;
+		let chunker = self.engine.snapshot_components().ok_or(SnapshotError::SnapshotsUnsupported)?;
 		snapshot::take_snapshot(
 			chunker,
 			&self.chain.read(),

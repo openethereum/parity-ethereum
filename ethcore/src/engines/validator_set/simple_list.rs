@@ -20,8 +20,11 @@ use parity_util_mem::MallocSizeOf;
 use ethereum_types::{H256, Address};
 
 use machine::{AuxiliaryData, Call, Machine};
-use types::BlockNumber;
-use types::header::Header;
+use types::{
+	BlockNumber,
+	header::Header,
+	errors::EthcoreError,
+};
 use super::ValidatorSet;
 
 /// Validator set containing a known set of addresses.
@@ -78,7 +81,7 @@ impl ValidatorSet for SimpleList {
 		::engines::EpochChange::No
 	}
 
-	fn epoch_set(&self, _first: bool, _: &Machine, _: BlockNumber, _: &[u8]) -> Result<(SimpleList, Option<H256>), ::error::Error> {
+	fn epoch_set(&self, _first: bool, _: &Machine, _: BlockNumber, _: &[u8]) -> Result<(SimpleList, Option<H256>), EthcoreError> {
 		Ok((self.clone(), None))
 	}
 

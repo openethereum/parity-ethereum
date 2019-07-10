@@ -23,15 +23,15 @@ use ethkey::{self, Signature};
 use block::*;
 use engines::{Engine, Seal, SealingState, ConstructedVerifier};
 use engines::signer::EngineSigner;
-use error::{BlockError, Error};
 use ethjson;
 use client::EngineClient;
 use client_traits::VerifyingEngine;
 use machine::{AuxiliaryData, Call, Machine};
 use types::{
 	header::Header,
-	engines::{EngineError, params::CommonParams},
+	engines::params::CommonParams,
 	transaction::{self, UnverifiedTransaction, SignedTransaction},
+	errors::{EngineError, BlockError, EthcoreError as Error}
 };
 
 use super::validator_set::{ValidatorSet, SimpleList, new_validator_set};
@@ -105,7 +105,7 @@ impl VerifyingEngine for BasicAuthority {
 	}
 
 	fn verify_block_external(&self, header: &Header) -> Result<(), Error> {
-		verify_external(header, &*self.validators)
+		verify_external(header, &*self.validators).map_err(Into::into)
 	}
 
 	fn verify_transaction_basic(&self, t: &UnverifiedTransaction, header: &Header) -> Result<(), transaction::Error> {
@@ -121,9 +121,6 @@ impl Engine for BasicAuthority {
 	fn name(&self) -> &str { "BasicAuthority" }
 
 	fn machine(&self) -> &Machine { &self.machine }
-
-//	// One field - the signature
-//	fn seal_fields(&self, _header: &Header) -> usize { 1 }
 
 	fn sealing_state(&self) -> SealingState {
 		if self.signer.read().is_some() {
@@ -151,10 +148,6 @@ impl Engine for BasicAuthority {
 	fn verify_local_seal(&self, _header: &Header) -> Result<(), Error> {
 		Ok(())
 	}
-
-//	fn verify_block_external(&self, header: &Header) -> Result<(), Error> {
-//		verify_external(header, &*self.validators)
-//	}
 
 	fn genesis_epoch_data(&self, header: &Header, call: &Call) -> Result<Vec<u8>, String> {
 		self.validators.genesis_epoch_data(header, call)

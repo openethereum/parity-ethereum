@@ -42,17 +42,11 @@ use std::collections::BTreeMap;
 
 use builtin::Builtin;
 use vm::{EnvInfo, Schedule, CreateContractAddress, CallType, ActionValue};
-use error::Error;
 use types::{
 	BlockNumber,
 	ancestry_action::AncestryAction,
 	header::{Header, ExtendedHeader},
-	engines::{
-//		ForkChoice, // TODO [ToDr] Remove re-export (#10130)
-//		epoch::{self, Transition as EpochTransition},
-		EngineError,
-		params::CommonParams
-	},
+	errors::{EthcoreError as Error, EngineError},
 	transaction::{self, UnverifiedTransaction},
 };
 use snapshot::SnapshotComponents;
@@ -207,9 +201,6 @@ pub trait Engine: VerifyingEngine + Sync + Send {
 
 	/// Additional engine-specific information for the user/developer concerning `header`.
 	fn extra_info(&self, _header: &Header) -> BTreeMap<String, String> { BTreeMap::new() }
-
-	/// Maximum number of uncles a block is allowed to declare.
-	fn maximum_uncle_count(&self, _block: BlockNumber) -> usize { 0 }
 
 	/// Optional maximum gas limit.
 	fn maximum_gas_limit(&self) -> Option<U256> { None }
@@ -376,11 +367,6 @@ pub trait Engine: VerifyingEngine + Sync + Send {
 		cmp::max(now.as_secs() as u64, parent_timestamp + 1)
 	}
 
-	/// Check whether the parent timestamp is valid.
-	fn is_timestamp_valid(&self, header_timestamp: u64, parent_timestamp: u64) -> bool {
-		header_timestamp > parent_timestamp
-	}
-
 	/// Gather all ancestry actions. Called at the last stage when a block is committed. The Engine must guarantee that
 	/// the ancestry exists.
 	fn ancestry_actions(&self, _header: &Header, _ancestry: &mut dyn Iterator<Item = ExtendedHeader>) -> Vec<AncestryAction> {
@@ -390,11 +376,6 @@ pub trait Engine: VerifyingEngine + Sync + Send {
 	/// Returns author should used when executing tx's for this block.
 	fn executive_author(&self, header: &Header) -> Result<Address, Error> {
 		Ok(*header.author())
-	}
-
-	/// Get the general parameters of the chain.
-	fn params(&self) -> &CommonParams {
-		self.machine().params()
 	}
 
 	/// Get the EVM schedule for the given block number.
@@ -411,11 +392,6 @@ pub trait Engine: VerifyingEngine + Sync + Send {
 	/// Only returns references to activated built-ins.
 	fn builtin(&self, a: &Address, block_number: BlockNumber) -> Option<&Builtin> {
 		self.machine().builtin(a, block_number)
-	}
-
-	/// Some intrinsic operation parameters; by default they take their value from the `spec()`'s `engine_params`.
-	fn maximum_extra_data_size(&self) -> usize {
-		self.machine().maximum_extra_data_size()
 	}
 
 	/// The nonce with which accounts begin at given block.

@@ -47,6 +47,7 @@ use types::{
 	BlockNumber,
 	block::Block,
 	header::Header,
+	errors::{EthcoreError as Error, ExecutionError},
 	receipt::RichReceipt,
 	client_io_message::ClientIoMessage,
 };
@@ -58,8 +59,6 @@ use client::{
 };
 use client::BlockId;
 use engines::{Engine, Seal, SealingState, EngineSigner};
-use error::Error;
-use executed::ExecutionError;
 use executive::contract_address;
 use spec::Spec;
 use account_state::State;

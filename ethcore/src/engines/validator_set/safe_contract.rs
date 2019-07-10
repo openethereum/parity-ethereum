@@ -28,7 +28,7 @@ use parking_lot::RwLock;
 use rlp::{Rlp, RlpStream};
 use types::{
 	header::Header,
-	engines::EngineError,
+	errors::{EngineError, EthcoreError, BlockError},
 	ids::BlockId,
 	log_entry::LogEntry,
 	receipt::Receipt,
@@ -147,13 +147,13 @@ fn check_first_proof(machine: &Machine, contract_address: Address, old_header: H
 	}
 }
 
-fn decode_first_proof(rlp: &Rlp) -> Result<(Header, Vec<DBValue>), ::error::Error> {
+fn decode_first_proof(rlp: &Rlp) -> Result<(Header, Vec<DBValue>), EthcoreError> {
 	let header = rlp.val_at(0)?;
 	let state_items = rlp.at(1)?.iter().map(|x| {
 		let mut val = DBValue::new();
 		val.append_slice(x.data()?);
 		Ok(val)
-	}).collect::<Result<_, ::error::Error>>()?;
+	}).collect::<Result<_, EthcoreError>>()?;
 
 	Ok((header, state_items))
 }
@@ -167,7 +167,7 @@ fn encode_proof(header: &Header, receipts: &[Receipt]) -> Bytes {
 	stream.drain()
 }
 
-fn decode_proof(rlp: &Rlp) -> Result<(Header, Vec<Receipt>), ::error::Error> {
+fn decode_proof(rlp: &Rlp) -> Result<(Header, Vec<Receipt>), EthcoreError> {
 	Ok((rlp.val_at(0)?, rlp.list_at(1)?))
 }
 
@@ -296,7 +296,7 @@ impl ValidatorSet for ValidatorSafeContract {
 			.map(|out| (out, Vec::new()))) // generate no proofs in general
 	}
 
-	fn on_epoch_begin(&self, _first: bool, _header: &Header, caller: &mut SystemCall) -> Result<(), ::error::Error> {
+	fn on_epoch_begin(&self, _first: bool, _header: &Header, caller: &mut SystemCall) -> Result<(), EthcoreError> {
 		let data = validator_set::functions::finalize_change::encode_input();
 		caller(self.contract_address, data)
 			.map(|_| ())
@@ -351,7 +351,7 @@ impl ValidatorSet for ValidatorSafeContract {
 	}
 
 	fn epoch_set(&self, first: bool, machine: &Machine, _number: ::types::BlockNumber, proof: &[u8])
-		-> Result<(SimpleList, Option<H256>), ::error::Error>
+		-> Result<(SimpleList, Option<H256>), EthcoreError>
 	{
 		let rlp = Rlp::new(proof);
 
@@ -377,7 +377,7 @@ impl ValidatorSet for ValidatorSafeContract {
 				receipts.iter().map(::rlp::encode)
 			);
 			if found_root != *old_header.receipts_root() {
-				return Err(::error::BlockError::InvalidReceiptsRoot(
+				return Err(BlockError::InvalidReceiptsRoot(
 					Mismatch { expected: *old_header.receipts_root(), found: found_root }
 				).into());
 			}

@@ -68,10 +68,9 @@ use std::time::{Instant, Duration, SystemTime, UNIX_EPOCH};
 
 use block::ExecutedBlock;
 use client::{BlockId, EngineClient};
-use client_traits::{VerifyingEngine, error::Error as ClientError};
+use client_traits::VerifyingEngine;
 use engines::clique::util::{extract_signers, recover_creator};
 use engines::{Engine, Seal, SealingState};
-use error::{BlockError, Error};
 use ethereum_types::{Address, H64, H160, H256, U256};
 use ethkey::Signature;
 use hash::KECCAK_EMPTY_LIST_RLP;
@@ -86,7 +85,8 @@ use time_utils::CheckedSystemTime;
 use types::{
 	BlockNumber,
 	header::Header,
-	engines::{EngineError, params::CommonParams},
+	engines::params::CommonParams,
+	errors::{BlockError, EthcoreError as Error, EngineError},
 	transaction::{self, SignedTransaction, UnverifiedTransaction},
 };
 use self::block_state::CliqueBlockState;
@@ -365,7 +365,7 @@ impl VerifyingEngine for Clique {
 		self.machine.params()
 	}
 
-	fn verify_block_basic(&self, header: &Header) -> Result<(), ClientError> {
+	fn verify_block_basic(&self, header: &Header) -> Result<(), Error> {
 		// Largely same as https://github.com/ethereum/go-ethereum/blob/master/consensus/clique/clique.go#L275
 
 		// Ignore genesis block.
@@ -478,7 +478,7 @@ impl VerifyingEngine for Clique {
 
 	/// Verify block family by looking up parent state (backfill if needed), then try to apply current header.
 	/// see https://github.com/ethereum/go-ethereum/blob/master/consensus/clique/clique.go#L338
-	fn verify_block_family(&self, header: &Header, parent: &Header) -> Result<(), ClientError> {
+	fn verify_block_family(&self, header: &Header, parent: &Header) -> Result<(), Error> {
 		// Ignore genesis block.
 		if header.number() == 0 {
 			return Ok(());
@@ -509,9 +509,9 @@ impl VerifyingEngine for Clique {
 			Err(e) => {
 				// todo: these can be BlockError, EngineError and probably some others too
 				match e {
-					Error::Block(err) => return Err(ClientError::Block(err)),
-					Error::Engine(err) => return Err(ClientError::Engine(err)),
-					_ => return Err(ClientError::Other(e.to_string())),
+					Error::Block(err) => return Err(Error::Block(err)),
+					Error::Engine(err) => return Err(Error::Engine(err)),
+					_ => return Err(Error::Other(e.to_string())),
 				}
 			}
 		};
@@ -530,21 +530,6 @@ impl VerifyingEngine for Clique {
 
 	fn verify_transaction_unordered(&self, t: UnverifiedTransaction, header: &Header) -> Result<SignedTransaction, transaction::Error> {
 		self.machine().verify_transaction_unordered(t, header)
-	}
-}
-
-// todo move to error.rs
-impl Into<ClientError> for Error {
-	fn into(self) -> ClientError {
-		match self {
-			Error::Block(e) => ClientError::Block(e),
-			Error::Engine(e) => ClientError::Engine(e),
-			Error::State(e) => ClientError::State(e.to_string()),
-			Error::Import(e) => ClientError::Import(e),
-			Error::Decoder(e) => ClientError::Decoder(e),
-			Error::Transaction(e)=> ClientError::Transaction(e),
-			_ => ClientError::Other(self.to_string())
-		}
 	}
 }
 
