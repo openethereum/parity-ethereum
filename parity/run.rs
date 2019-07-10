@@ -276,7 +276,6 @@ fn execute_light_impl<Cr>(cmd: RunCmd, logger: Arc<RotatingLogger>, on_client_rq
 		network_id: cmd.network_id.unwrap_or(spec.network_id()),
 		subprotocol_name: sync::LIGHT_PROTOCOL,
 		handlers: vec![on_demand.clone()],
-		attached_protos: Vec::new(),
 	};
 	let light_sync = LightSync::new(sync_params).map_err(|e| format!("Error starting network: {}", e))?;
 	let light_sync = Arc::new(light_sync);
@@ -622,8 +621,6 @@ fn execute_impl<Cr, Rr>(cmd: RunCmd, logger: Arc<RotatingLogger>, on_client_rq: 
 			.map_err(|e| format!("Stratum start error: {:?}", e))?;
 	}
 
-	let attached_protos = Vec::new();
-
 	let private_tx_sync: Option<Arc<PrivateTxHandler>> = match cmd.private_tx_enabled {
 		true => Some(private_tx_service.clone() as Arc<PrivateTxHandler>),
 		false => None,
@@ -639,7 +636,6 @@ fn execute_impl<Cr, Rr>(cmd: RunCmd, logger: Arc<RotatingLogger>, on_client_rq: 
 		private_tx_sync,
 		client.clone(),
 		&cmd.logger_config,
-		attached_protos,
 		connection_filter.clone().map(|f| f as Arc<::sync::ConnectionFilter + 'static>),
 	).map_err(|e| format!("Sync error: {}", e))?;
 
