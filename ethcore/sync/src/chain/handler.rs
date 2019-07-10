@@ -70,7 +70,7 @@ pub struct SyncHandler;
 
 impl SyncHandler {
 	/// Handle incoming packet from peer
-	pub fn on_packet(sync: &mut ChainSync, io: &mut SyncIo, peer: PeerId, packet_id: u8, data: &[u8]) {
+	pub fn on_packet(sync: &mut ChainSync, io: &mut dyn SyncIo, peer: PeerId, packet_id: u8, data: &[u8]) {
 		let rlp = Rlp::new(data);
 		if let Some(packet_id) = SyncPacket::from_u8(packet_id) {
 			let result = match packet_id {
@@ -110,13 +110,13 @@ impl SyncHandler {
 	}
 
 	/// Called when peer sends us new consensus packet
-	pub fn on_consensus_packet(io: &mut SyncIo, peer_id: PeerId, r: &Rlp) {
+	pub fn on_consensus_packet(io: &mut dyn SyncIo, peer_id: PeerId, r: &Rlp) {
 		trace!(target: "sync", "Received consensus packet from {:?}", peer_id);
 		io.chain().queue_consensus_message(r.as_raw().to_vec());
 	}
 
 	/// Called by peer when it is disconnecting
-	pub fn on_peer_aborting(sync: &mut ChainSync, io: &mut SyncIo, peer_id: PeerId) {
+	pub fn on_peer_aborting(sync: &mut ChainSync, io: &mut dyn SyncIo, peer_id: PeerId) {
 		trace!(target: "sync", "== Disconnecting {}: {}", peer_id, io.peer_version(peer_id));
 		sync.handshaking_peers.remove(&peer_id);
 		if sync.peers.contains_key(&peer_id) {
@@ -142,7 +142,7 @@ impl SyncHandler {
 	}
 
 	/// Called when a new peer is connected
-	pub fn on_peer_connected(sync: &mut ChainSync, io: &mut SyncIo, peer: PeerId) {
+	pub fn on_peer_connected(sync: &mut ChainSync, io: &mut dyn SyncIo, peer: PeerId) {
 		trace!(target: "sync", "== Connected {}: {}", peer, io.peer_version(peer));
 		if let Err(e) = sync.send_status(io, peer) {
 			debug!(target:"sync", "Error sending status request: {:?}", e);
@@ -153,7 +153,7 @@ impl SyncHandler {
 	}
 
 	/// Called by peer once it has new block bodies
-	pub fn on_peer_new_block(sync: &mut ChainSync, io: &mut SyncIo, peer_id: PeerId, r: &Rlp) -> Result<(), DownloaderImportError> {
+	pub fn on_peer_new_block(sync: &mut ChainSync, io: &mut dyn SyncIo, peer_id: PeerId, r: &Rlp) -> Result<(), DownloaderImportError> {
 		if !sync.peers.get(&peer_id).map_or(false, |p| p.can_sync()) {
 			trace!(target: "sync", "Ignoring new block from unconfirmed peer {}", peer_id);
 			return Ok(());
@@ -217,7 +217,7 @@ impl SyncHandler {
 	}
 
 	/// Handles `NewHashes` packet. Initiates headers download for any unknown hashes.
-	pub fn on_peer_new_hashes(sync: &mut ChainSync, io: &mut SyncIo, peer_id: PeerId, r: &Rlp) -> Result<(), DownloaderImportError> {
+	pub fn on_peer_new_hashes(sync: &mut ChainSync, io: &mut dyn SyncIo, peer_id: PeerId, r: &Rlp) -> Result<(), DownloaderImportError> {
 		if !sync.peers.get(&peer_id).map_or(false, |p| p.can_sync()) {
 			trace!(target: "sync", "Ignoring new hashes from unconfirmed peer {}", peer_id);
 			return Ok(());
@@ -288,7 +288,7 @@ impl SyncHandler {
 	}
 
 	/// Called by peer once it has new block bodies
-	fn on_peer_block_bodies(sync: &mut ChainSync, io: &mut SyncIo, peer_id: PeerId, r: &Rlp) -> Result<(), DownloaderImportError> {
+	fn on_peer_block_bodies(sync: &mut ChainSync, io: &mut dyn SyncIo, peer_id: PeerId, r: &Rlp) -> Result<(), DownloaderImportError> {
 		sync.clear_peer_download(peer_id);
 		let block_set = sync.peers.get(&peer_id)
 			.and_then(|p| p.block_set)
@@ -332,7 +332,7 @@ impl SyncHandler {
 		}
 	}
 
-	fn on_peer_fork_header(sync: &mut ChainSync, io: &mut SyncIo, peer_id: PeerId, r: &Rlp) -> Result<(), DownloaderImportError> {
+	fn on_peer_fork_header(sync: &mut ChainSync, io: &mut dyn SyncIo, peer_id: PeerId, r: &Rlp) -> Result<(), DownloaderImportError> {
 		{
 			let peer = sync.peers.get_mut(&peer_id).expect("Is only called when peer is present in peers");
 			peer.asking = PeerAsking::Nothing;
@@ -364,7 +364,7 @@ impl SyncHandler {
 	}
 
 	/// Called by peer once it has new block headers during sync
-	fn on_peer_block_headers(sync: &mut ChainSync, io: &mut SyncIo, peer_id: PeerId, r: &Rlp) -> Result<(), DownloaderImportError> {
+	fn on_peer_block_headers(sync: &mut ChainSync, io: &mut dyn SyncIo, peer_id: PeerId, r: &Rlp) -> Result<(), DownloaderImportError> {
 		let is_fork_header_request = match sync.peers.get(&peer_id) {
 			Some(peer) if peer.asking == PeerAsking::ForkHeader => true,
 			_ => false,
@@ -431,7 +431,7 @@ impl SyncHandler {
 	}
 
 	/// Called by peer once it has new block receipts
-	fn on_peer_block_receipts(sync: &mut ChainSync, io: &mut SyncIo, peer_id: PeerId, r: &Rlp) -> Result<(), DownloaderImportError> {
+	fn on_peer_block_receipts(sync: &mut ChainSync, io: &mut dyn SyncIo, peer_id: PeerId, r: &Rlp) -> Result<(), DownloaderImportError> {
 		sync.clear_peer_download(peer_id);
 		let block_set = sync.peers.get(&peer_id).and_then(|p| p.block_set).unwrap_or(BlockSet::NewBlocks);
 		let allowed = sync.peers.get(&peer_id).map(|p| p.is_allowed()).unwrap_or(false);
@@ -473,7 +473,7 @@ impl SyncHandler {
 	}
 
 	/// Called when snapshot manifest is downloaded from a peer.
-	fn on_snapshot_manifest(sync: &mut ChainSync, io: &mut SyncIo, peer_id: PeerId, r: &Rlp) -> Result<(), DownloaderImportError> {
+	fn on_snapshot_manifest(sync: &mut ChainSync, io: &mut dyn SyncIo, peer_id: PeerId, r: &Rlp) -> Result<(), DownloaderImportError> {
 		if !sync.peers.get(&peer_id).map_or(false, |p| p.can_sync()) {
 			trace!(target: "sync", "Ignoring snapshot manifest from unconfirmed peer {}", peer_id);
 			return Ok(());
@@ -502,7 +502,7 @@ impl SyncHandler {
 	}
 
 	/// Called when snapshot data is downloaded from a peer.
-	fn on_snapshot_data(sync: &mut ChainSync, io: &mut SyncIo, peer_id: PeerId, r: &Rlp) -> Result<(), DownloaderImportError> {
+	fn on_snapshot_data(sync: &mut ChainSync, io: &mut dyn SyncIo, peer_id: PeerId, r: &Rlp) -> Result<(), DownloaderImportError> {
 		if !sync.peers.get(&peer_id).map_or(false, |p| p.can_sync()) {
 			trace!(target: "sync", "Ignoring snapshot data from unconfirmed peer {}", peer_id);
 			return Ok(());
@@ -568,7 +568,7 @@ impl SyncHandler {
 	}
 
 	/// Called by peer to report status
-	fn on_peer_status(sync: &mut ChainSync, io: &mut SyncIo, peer_id: PeerId, r: &Rlp) -> Result<(), DownloaderImportError> {
+	fn on_peer_status(sync: &mut ChainSync, io: &mut dyn SyncIo, peer_id: PeerId, r: &Rlp) -> Result<(), DownloaderImportError> {
 		sync.handshaking_peers.remove(&peer_id);
 		let protocol_version: u8 = r.val_at(0)?;
 		let warp_protocol_version = io.protocol_version(&WARP_SYNC_PROTOCOL_ID, peer_id);
@@ -658,7 +658,7 @@ impl SyncHandler {
 	}
 
 	/// Called when peer sends us new transactions
-	pub fn on_peer_transactions(sync: &ChainSync, io: &mut SyncIo, peer_id: PeerId, r: &Rlp) -> Result<(), PacketDecodeError> {
+	pub fn on_peer_transactions(sync: &ChainSync, io: &mut dyn SyncIo, peer_id: PeerId, r: &Rlp) -> Result<(), PacketDecodeError> {
 		// Accept transactions only when fully synced
 		if !io.is_chain_queue_empty() || (sync.state != SyncState::Idle && sync.state != SyncState::NewBlocks) {
 			trace!(target: "sync", "{} Ignoring transactions while syncing", peer_id);
@@ -682,7 +682,7 @@ impl SyncHandler {
 	}
 
 	/// Called when peer sends us signed private transaction packet
-	fn on_signed_private_transaction(sync: &mut ChainSync, _io: &mut SyncIo, peer_id: PeerId, r: &Rlp) -> Result<(), DownloaderImportError> {
+	fn on_signed_private_transaction(sync: &mut ChainSync, _io: &mut dyn SyncIo, peer_id: PeerId, r: &Rlp) -> Result<(), DownloaderImportError> {
 		if !sync.peers.get(&peer_id).map_or(false, |p| p.can_sync()) {
 			trace!(target: "sync", "{} Ignoring packet from unconfirmed/unknown peer", peer_id);
 			return Ok(());
@@ -710,7 +710,7 @@ impl SyncHandler {
 	}
 
 	/// Called when peer sends us new private transaction packet
-	fn on_private_transaction(sync: &mut ChainSync, _io: &mut SyncIo, peer_id: PeerId, r: &Rlp) -> Result<(), DownloaderImportError> {
+	fn on_private_transaction(sync: &mut ChainSync, _io: &mut dyn SyncIo, peer_id: PeerId, r: &Rlp) -> Result<(), DownloaderImportError> {
 		if !sync.peers.get(&peer_id).map_or(false, |p| p.can_sync()) {
 			trace!(target: "sync", "{} Ignoring packet from unconfirmed/unknown peer", peer_id);
 			return Ok(());

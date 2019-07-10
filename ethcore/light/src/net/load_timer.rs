@@ -82,7 +82,7 @@ pub struct LoadDistribution {
 
 impl LoadDistribution {
 	/// Load rolling samples from the given store.
-	pub fn load(store: &SampleStore) -> Self {
+	pub fn load(store: &dyn SampleStore) -> Self {
 		let mut samples = store.load();
 
 		for kind_samples in samples.values_mut() {
@@ -133,7 +133,7 @@ impl LoadDistribution {
 	}
 
 	/// End the current time period. Provide a store to
-	pub fn end_period(&self, store: &SampleStore) {
+	pub fn end_period(&self, store: &dyn SampleStore) {
 		let active_period = self.active_period.read();
 		let mut samples = self.samples.write();
 

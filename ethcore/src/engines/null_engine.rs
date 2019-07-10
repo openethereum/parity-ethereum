@@ -19,7 +19,7 @@ use engines::block_reward::{self, RewardKind};
 use ethereum_types::U256;
 use machine::Machine;
 use types::BlockNumber;
-use types::header::{Header, ExtendedHeader};
+use types::header::Header;
 use block::ExecutedBlock;
 use error::Error;
 
@@ -100,9 +100,5 @@ impl Engine for NullEngine {
 
 	fn snapshot_components(&self) -> Option<Box<dyn (::snapshot::SnapshotComponents)>> {
 		Some(Box::new(::snapshot::PowSnapshot::new(10000, 10000)))
-	}
-
-	fn fork_choice(&self, new: &ExtendedHeader, current: &ExtendedHeader) -> super::ForkChoice {
-		super::total_difficulty_fork_choice(new, current)
 	}
 }

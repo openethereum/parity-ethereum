@@ -66,7 +66,7 @@ use util::DatabaseKey;
 
 pub struct OverlayRecentDB {
 	transaction_overlay: super::MemoryDB,
-	backing: Arc<KeyValueDB>,
+	backing: Arc<dyn KeyValueDB>,
 	journal_overlay: Arc<RwLock<JournalOverlay>>,
 	column: Option<u32>,
 }
@@ -147,7 +147,7 @@ impl Clone for OverlayRecentDB {
 
 impl OverlayRecentDB {
 	/// Create a new instance.
-	pub fn new(backing: Arc<KeyValueDB>, col: Option<u32>) -> OverlayRecentDB {
+	pub fn new(backing: Arc<dyn KeyValueDB>, col: Option<u32>) -> OverlayRecentDB {
 		let journal_overlay = Arc::new(RwLock::new(OverlayRecentDB::read_overlay(&*backing, col)));
 		OverlayRecentDB {
 			transaction_overlay: ::new_memory_db(),
@@ -174,7 +174,7 @@ impl OverlayRecentDB {
 			.expect("Low-level database error. Some issue with your hard disk?")
 	}
 
-	fn read_overlay(db: &KeyValueDB, col: Option<u32>) -> JournalOverlay {
+	fn read_overlay(db: &dyn KeyValueDB, col: Option<u32>) -> JournalOverlay {
 		let mut journal = HashMap::new();
 		let mut overlay = ::new_memory_db();
 		let mut count = 0;
@@ -260,7 +260,7 @@ impl ::traits::KeyedHashDB for OverlayRecentDB {
 
 impl JournalDB for OverlayRecentDB {
 
-	fn boxed_clone(&self) -> Box<JournalDB> {
+	fn boxed_clone(&self) -> Box<dyn JournalDB> {
 		Box::new(self.clone())
 	}
 
@@ -285,7 +285,7 @@ impl JournalDB for OverlayRecentDB {
 		self.backing.get(self.column, &LATEST_ERA_KEY).expect("Low level database error").is_none()
 	}
 
-	fn backing(&self) -> &Arc<KeyValueDB> {
+	fn backing(&self) -> &Arc<dyn KeyValueDB> {
 		&self.backing
 	}
 

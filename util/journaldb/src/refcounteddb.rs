@@ -54,7 +54,7 @@ use util::{DatabaseKey, DatabaseValueView, DatabaseValueRef};
 // TODO: store last_era, reclaim_period.
 pub struct RefCountedDB {
 	forward: OverlayDB,
-	backing: Arc<KeyValueDB>,
+	backing: Arc<dyn KeyValueDB>,
 	latest_era: Option<u64>,
 	inserts: Vec<H256>,
 	removes: Vec<H256>,
@@ -63,7 +63,7 @@ pub struct RefCountedDB {
 
 impl RefCountedDB {
 	/// Create a new instance given a `backing` database.
-	pub fn new(backing: Arc<KeyValueDB>, column: Option<u32>) -> RefCountedDB {
+	pub fn new(backing: Arc<dyn KeyValueDB>, column: Option<u32>) -> RefCountedDB {
 		let latest_era = backing.get(column, &LATEST_ERA_KEY)
 			.expect("Low-level database error.")
 			.map(|v| decode::<u64>(&v).expect("decoding db value failed"));
@@ -92,7 +92,7 @@ impl ::traits::KeyedHashDB for RefCountedDB {
 }
 
 impl JournalDB for RefCountedDB {
-	fn boxed_clone(&self) -> Box<JournalDB> {
+	fn boxed_clone(&self) -> Box<dyn JournalDB> {
 		Box::new(RefCountedDB {
 			forward: self.forward.clone(),
 			backing: self.backing.clone(),
@@ -112,7 +112,7 @@ impl JournalDB for RefCountedDB {
 		self.latest_era.is_none()
 	}
 
-	fn backing(&self) -> &Arc<KeyValueDB> {
+	fn backing(&self) -> &Arc<dyn KeyValueDB> {
 		&self.backing
 	}
 

@@ -41,6 +41,7 @@ pub enum RestorationStatus {
 		/// Number of block chunks completed.
 		block_chunks_done: u32,
 	},
+	/// Finalizing restoration
 	Finalizing,
 	/// Failed restoration.
 	Failed,
