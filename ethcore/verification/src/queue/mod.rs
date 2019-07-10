@@ -33,7 +33,7 @@ use crate::{
 	queue::kind::{BlockLike, Kind},
 };
 
-pub use common_types::{
+use common_types::{
 	verification_queue_info::VerificationQueueInfo as QueueInfo,
 	block_status::BlockStatus,
 	block::{BlockError, ImportError},
@@ -218,7 +218,7 @@ impl<K: Kind> VerificationQueue<K> {
 				verifying: AtomicUsize::new(0),
 				verified: AtomicUsize::new(0),
 			},
-			check_seal: check_seal,
+			check_seal,
 		});
 		let more_to_verify = Arc::new(Condvar::new());
 		let deleting = Arc::new(AtomicBool::new(false));
