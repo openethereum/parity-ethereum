@@ -81,7 +81,6 @@ pub enum BlockError {
 	InvalidTimestamp(OutOfBoundsTime),
 	/// Timestamp header field is too far in future.
 	#[display(fmt = "Future timestamp in header: {}", _0)]
-	// TODO: moved to ImportError – can remove here?
 	TemporarilyInvalid(OutOfBoundsTime),
 	/// Log bloom header field is invalid.
 	#[display(fmt = "Invalid log bloom in header: {}", _0)]
@@ -139,10 +138,6 @@ pub enum ImportError {
 	/// Already marked as bad from a previous import (could mean parent is bad)
 	#[display(fmt = "block known to be bad")]
 	KnownBad,
-	// todo now we have two of these, one in BlockError too. Fix!
-	/// Timestamp header field is too far in future.
-	#[display(fmt = "Future timestamp in header: {}", _0)]
-	TemporarilyInvalid(OutOfBoundsTime),
 }
 
 impl error::Error for ImportError {}
