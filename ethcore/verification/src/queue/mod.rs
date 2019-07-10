@@ -28,19 +28,17 @@ use parking_lot::{Condvar, Mutex, RwLock};
 use ethcore_io::*;
 use len_caching_lock::LenCachingMutex;
 use num_cpus;
-use crate::{
-	error::Error,
-	queue::kind::{BlockLike, Kind},
-};
-
 use common_types::{
+	errors::{BlockError, EthcoreError as Error, ImportError},
 	verification_queue_info::VerificationQueueInfo as QueueInfo,
 	block_status::BlockStatus,
-	block::{BlockError, ImportError},
 	client_io_message::ClientIoMessage,
 };
+
 use client_traits::VerifyingEngine;
 use log::{debug, trace};
+
+use crate::queue::kind::{BlockLike, Kind};
 
 pub mod kind;
 
@@ -744,9 +742,11 @@ mod tests {
 	use super::{BlockQueue, Config, State};
 	use super::kind::blocks::Unverified;
 	use test_helpers::{get_good_dummy_block_seq, get_good_dummy_block};
-	use error::*;
 	use bytes::Bytes;
-	use types::view;
+	use types::{
+		view::{self, BlockView},
+		errors::{EthcoreError as Error, ImportError},
+	};
 	use types::views::BlockView;
 
 	// create a test block queue.

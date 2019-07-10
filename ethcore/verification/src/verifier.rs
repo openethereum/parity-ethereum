@@ -20,10 +20,13 @@ use call_contract::CallContract;
 use client_traits::{BlockInfo, VerifyingEngine};
 //use engines::Engine;
 use crate::{
-	error::Error,
+//	error::Error,
 	verification::FullFamilyParams,
 };
-use common_types::header::Header;
+use common_types::{
+	errors::EthcoreError,
+	header::Header,
+};
 //use super::verification;
 
 /// Should be used to verify blocks.
@@ -37,10 +40,10 @@ pub trait Verifier<C>: Send + Sync
 		parent: &Header,
 		engine: &dyn VerifyingEngine,
 		do_full: Option<FullFamilyParams<C>>
-	) -> Result<(), Error>;
+	) -> Result<(), EthcoreError>;
 
 	/// Do a final verification check for an enacted header vs its expected counterpart.
-	fn verify_block_final(&self, expected: &Header, got: &Header) -> Result<(), Error>;
+	fn verify_block_final(&self, expected: &Header, got: &Header) -> Result<(), EthcoreError>;
 	/// Verify a block, inspecting external state.
-	fn verify_block_external(&self, header: &Header, engine: &dyn VerifyingEngine) -> Result<(), Error>;
+	fn verify_block_external(&self, header: &Header, engine: &dyn VerifyingEngine) -> Result<(), EthcoreError>;
 }

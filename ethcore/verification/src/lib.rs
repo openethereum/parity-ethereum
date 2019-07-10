@@ -23,7 +23,6 @@ mod verifier;
 pub mod queue;
 mod canon_verifier;
 mod noop_verifier;
-mod error;
 
 pub use self::verification::*;
 pub use self::verifier::Verifier;

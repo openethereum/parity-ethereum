@@ -32,15 +32,14 @@ use ethcore_blockchain::BlockProvider;
 use call_contract::CallContract;
 use client_traits::{BlockInfo, VerifyingEngine};
 
-//use engines::{Engine, MAX_UNCLE_AGE};
 use crate::{
-	error::Error,
 	queue::kind::blocks::Unverified,
 };
 use common_types::{
 	BlockNumber,
 	header::Header,
-	block::{BlockError, PreverifiedBlock},
+	block::PreverifiedBlock,
+	errors::{BlockError, EthcoreError},
 };
 
 use time_utils::CheckedSystemTime;
@@ -59,7 +58,7 @@ pub struct FullFamilyParams<'a, C: BlockInfo + CallContract + 'a> {
 }
 
 /// Phase 1 quick block verification. Only does checks that are cheap. Operates on a single block
-pub fn verify_block_basic(block: &Unverified, engine: &dyn VerifyingEngine, check_seal: bool) -> Result<(), Error> {
+pub fn verify_block_basic(block: &Unverified, engine: &dyn VerifyingEngine, check_seal: bool) -> Result<(), EthcoreError> {
 	verify_header_params(&block.header, engine, true, check_seal)?;
 	verify_block_integrity(block)?;
 
@@ -84,7 +83,7 @@ pub fn verify_block_basic(block: &Unverified, engine: &dyn VerifyingEngine, chec
 /// Phase 2 verification. Perform costly checks such as transaction signatures and block nonce for ethash.
 /// Still operates on a individual block
 /// Returns a `PreverifiedBlock` structure populated with transactions
-pub fn verify_block_unordered(block: Unverified, engine: &dyn VerifyingEngine, check_seal: bool) -> Result<PreverifiedBlock, Error> {
+pub fn verify_block_unordered(block: Unverified, engine: &dyn VerifyingEngine, check_seal: bool) -> Result<PreverifiedBlock, EthcoreError> {
 	let header = block.header;
 	if check_seal {
 		engine.verify_block_unordered(&header)?;
@@ -110,7 +109,7 @@ pub fn verify_block_unordered(block: Unverified, engine: &dyn VerifyingEngine, c
 			}
 			Ok(t)
 		})
-		.collect::<Result<Vec<_>, Error>>()?;
+		.collect::<Result<Vec<_>, EthcoreError>>()?;
 
 	Ok(PreverifiedBlock {
 		header,
@@ -121,7 +120,7 @@ pub fn verify_block_unordered(block: Unverified, engine: &dyn VerifyingEngine, c
 }
 
 /// Check basic header parameters.
-pub fn verify_header_params(header: &Header, engine: &dyn VerifyingEngine, is_full: bool, check_seal: bool) -> Result<(), Error> {
+pub fn verify_header_params(header: &Header, engine: &dyn VerifyingEngine, is_full: bool, check_seal: bool) -> Result<(), EthcoreError> {
 	if check_seal {
 		let expected_seal_fields = engine.seal_fields(header);
 		if header.seal().len() != expected_seal_fields {
@@ -180,7 +179,7 @@ pub fn verify_header_params(header: &Header, engine: &dyn VerifyingEngine, is_fu
 }
 
 /// Verify block data against header: transactions root and uncles hash.
-fn verify_block_integrity(block: &Unverified) -> Result<(), Error> {
+fn verify_block_integrity(block: &Unverified) -> Result<(), EthcoreError> {
 	let block_rlp = Rlp::new(&block.bytes);
 	let tx = block_rlp.at(1)?;
 	let expected_root = ordered_trie_root(tx.iter().map(|r| r.as_raw()));

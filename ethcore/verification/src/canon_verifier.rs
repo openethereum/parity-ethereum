@@ -19,11 +19,13 @@
 use call_contract::CallContract;
 use client_traits::{BlockInfo, VerifyingEngine};
 use crate::{
-	error::Error,
 	Verifier,
-	verification::{FullFamilyParams},
+	verification::{self, FullFamilyParams},
 };
-use common_types::header::Header;
+use common_types::{
+	errors::EthcoreError as Error,
+	header::Header,
+};
 
 /// A canonical verifier -- this does full verification.
 pub struct CanonVerifier;
@@ -36,17 +38,18 @@ impl<C: BlockInfo + CallContract> Verifier<C> for CanonVerifier {
 		engine: &dyn VerifyingEngine,
 		do_full: Option<FullFamilyParams<C>>,
 	) -> Result<(), Error> {
+		// todo: port over
 //		verification::verify_block_family(header, parent, engine, do_full)
 		Ok(())
 	}
 
 	fn verify_block_final(&self, expected: &Header, got: &Header) -> Result<(), Error> {
+		// todo: port over
 //		verification::verify_block_final(expected, got)
 		Ok(())
 	}
 
 	fn verify_block_external(&self, header: &Header, engine: &dyn VerifyingEngine) -> Result<(), Error> {
-//		engine.verify_block_external(header)
-		Ok(())
+		engine.verify_block_external(header).map_err(Into::into)
 	}
 }

@@ -22,10 +22,12 @@ use client_traits::VerifyingEngine;
 use parity_util_mem::MallocSizeOf;
 use ethereum_types::{H256, U256};
 
-use crate::error::Error;
 pub use self::{
 	blocks::Blocks,
 	headers::Headers,
+};
+use common_types::{
+	errors::EthcoreError as Error,
 };
 
 /// Something which can produce a hash and a parent hash.
@@ -73,11 +75,11 @@ pub mod blocks {
 
 	use client_traits::VerifyingEngine;
 	use crate::{
-		error::Error,
 		verification::{verify_block_basic, verify_block_unordered}
 	};
 	use common_types::{
-		block::{PreverifiedBlock, BlockError},
+		block::PreverifiedBlock,
+		errors::{BlockError, EthcoreError as Error},
 		header::Header,
 		transaction::UnverifiedTransaction
 	};
@@ -95,7 +97,11 @@ pub mod blocks {
 		type Unverified = Unverified;
 		type Verified = PreverifiedBlock;
 
-		fn create(input: Self::Input, engine: &dyn VerifyingEngine, check_seal: bool) -> Result<Self::Unverified, (Self::Input, Error)> {
+		fn create(
+			input: Self::Input,
+			engine: &dyn VerifyingEngine,
+			check_seal: bool
+		) -> Result<Self::Unverified, (Self::Input, Error)> {
 			match verify_block_basic(&input, engine, check_seal) {
 				Ok(()) => Ok(input),
 				Err(Error::Block(BlockError::TemporarilyInvalid(oob))) => {
@@ -109,7 +115,11 @@ pub mod blocks {
 			}
 		}
 
-		fn verify(un: Self::Unverified, engine: &dyn VerifyingEngine, check_seal: bool) -> Result<Self::Verified, Error> {
+		fn verify(
+			un: Self::Unverified,
+			engine: &dyn VerifyingEngine,
+			check_seal: bool
+		) -> Result<Self::Verified, Error> {
 			let hash = un.hash();
 			match verify_block_unordered(un, engine, check_seal) {
 				Ok(verified) => Ok(verified),
@@ -188,14 +198,14 @@ pub mod blocks {
 pub mod headers {
 	use super::{Kind, BlockLike};
 
-	use common_types::header::Header;
+	use common_types::{
+		errors::EthcoreError as Error,
+		header::Header
+	};
 	use client_traits::VerifyingEngine;
 	use ethereum_types::{H256, U256};
 
-	use crate::{
-		error::Error,
-		verification::verify_header_params,
-	};
+	use crate::verification::verify_header_params;
 
 	impl BlockLike for Header {
 		fn hash(&self) -> H256 { self.hash() }
@@ -211,14 +221,22 @@ pub mod headers {
 		type Unverified = Header;
 		type Verified = Header;
 
-		fn create(input: Self::Input, engine: &dyn VerifyingEngine, check_seal: bool) -> Result<Self::Unverified, (Self::Input, Error)> {
+		fn create(
+			input: Self::Input,
+			engine: &dyn VerifyingEngine,
+			check_seal: bool
+		) -> Result<Self::Unverified, (Self::Input, Error)> {
 			match verify_header_params(&input, engine, true, check_seal) {
 				Ok(_) => Ok(input),
 				Err(err) => Err((input, err))
 			}
 		}
 
-		fn verify(unverified: Self::Unverified, engine: &dyn VerifyingEngine, check_seal: bool) -> Result<Self::Verified, Error> {
+		fn verify(
+			unverified: Self::Unverified,
+			engine: &dyn VerifyingEngine,
+			check_seal: bool
+		) -> Result<Self::Verified, Error> {
 			match check_seal {
 				true => engine.verify_block_unordered(&unverified,).map(|_| unverified).map_err(Into::into),
 				false => Ok(unverified),

@@ -19,10 +19,12 @@
 use call_contract::CallContract;
 use client_traits::{BlockInfo, VerifyingEngine};
 use crate::{
-	error::Error,
 	Verifier, verification::FullFamilyParams
 };
-use common_types::header::Header;
+use common_types::{
+	errors::EthcoreError,
+	header::Header,
+};
 
 /// A no-op verifier -- this will verify everything it's given immediately.
 #[allow(dead_code)]
@@ -35,15 +37,15 @@ impl<C: BlockInfo + CallContract> Verifier<C> for NoopVerifier {
 		_t: &Header,
 		_: &dyn VerifyingEngine,
 		_: Option<FullFamilyParams<C>>
-	) -> Result<(), Error> {
+	) -> Result<(), EthcoreError> {
 		Ok(())
 	}
 
-	fn verify_block_final(&self, _expected: &Header, _got: &Header) -> Result<(), Error> {
+	fn verify_block_final(&self, _expected: &Header, _got: &Header) -> Result<(), EthcoreError> {
 		Ok(())
 	}
 
-	fn verify_block_external(&self, _header: &Header, _engine: &dyn VerifyingEngine) -> Result<(), Error> {
+	fn verify_block_external(&self, _header: &Header, _engine: &dyn VerifyingEngine) -> Result<(), EthcoreError> {
 		Ok(())
 	}
 }
