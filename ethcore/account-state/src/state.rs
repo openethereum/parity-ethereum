@@ -32,6 +32,7 @@ use std::{
 use common_types::{
 	state_diff::StateDiff,
 	basic_account::BasicAccount,
+	errors::EthcoreError as Error,
 };
 use ethereum_types::{Address, H256, U256};
 use ethtrie::{TrieDB, Result as TrieResult};
@@ -46,7 +47,6 @@ use pod::{self, PodAccount, PodState};
 use trie_db::{Trie, TrieError, Recorder};
 
 use crate::{
-	Error,
 	account::Account,
 	backend::Backend,
 };
