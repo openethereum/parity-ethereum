@@ -18,16 +18,12 @@
 
 use call_contract::CallContract;
 use client_traits::{BlockInfo, VerifyingEngine};
-//use engines::Engine;
-use crate::{
-//	error::Error,
-	verification::FullFamilyParams,
-};
 use common_types::{
 	errors::EthcoreError,
 	header::Header,
 };
-//use super::verification;
+
+use crate::verification::FullFamilyParams;
 
 /// Should be used to verify blocks.
 pub trait Verifier<C>: Send + Sync

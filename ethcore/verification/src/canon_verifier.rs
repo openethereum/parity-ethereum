@@ -16,8 +16,7 @@
 
 //! Canonical verifier.
 
-use call_contract::CallContract;
-use client_traits::{BlockInfo, VerifyingEngine};
+use client_traits::{VerifyingEngine, VerifyingClient};
 use crate::{
 	Verifier,
 	verification::{self, FullFamilyParams},
@@ -30,7 +29,7 @@ use common_types::{
 /// A canonical verifier -- this does full verification.
 pub struct CanonVerifier;
 
-impl<C: BlockInfo + CallContract> Verifier<C> for CanonVerifier {
+impl<C: VerifyingClient> Verifier<C> for CanonVerifier {
 	fn verify_block_family(
 		&self,
 		header: &Header,
@@ -38,15 +37,11 @@ impl<C: BlockInfo + CallContract> Verifier<C> for CanonVerifier {
 		engine: &dyn VerifyingEngine,
 		do_full: Option<FullFamilyParams<C>>,
 	) -> Result<(), Error> {
-		// todo: port over
-//		verification::verify_block_family(header, parent, engine, do_full)
-		Ok(())
+		verification::verify_block_family(header, parent, engine, do_full)
 	}
 
 	fn verify_block_final(&self, expected: &Header, got: &Header) -> Result<(), Error> {
-		// todo: port over
-//		verification::verify_block_final(expected, got)
-		Ok(())
+		verification::verify_block_final(expected, got)
 	}
 
 	fn verify_block_external(&self, header: &Header, engine: &dyn VerifyingEngine) -> Result<(), Error> {

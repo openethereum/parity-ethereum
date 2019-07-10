@@ -21,7 +21,10 @@
 //! 2. Signatures verification done in the queue.
 //! 3. Final verification against the blockchain done before enactment.
 
-use std::time::{Duration, SystemTime, UNIX_EPOCH};
+use std::{
+	collections::HashSet,
+	time::{Duration, SystemTime, UNIX_EPOCH},
+};
 
 use keccak_hash::keccak;
 use rlp::Rlp;
@@ -30,7 +33,7 @@ use unexpected::{Mismatch, OutOfBounds};
 
 use ethcore_blockchain::BlockProvider;
 use call_contract::CallContract;
-use client_traits::{BlockInfo, VerifyingEngine};
+use client_traits::{BlockInfo, VerifyingEngine, VerifyingClient};
 
 use crate::{
 	queue::kind::blocks::Unverified,
@@ -40,10 +43,10 @@ use common_types::{
 	header::Header,
 	block::PreverifiedBlock,
 	errors::{BlockError, EthcoreError},
+	engines::MAX_UNCLE_AGE,
 };
 
 use time_utils::CheckedSystemTime;
-
 
 /// Parameters for full verification of block family
 pub struct FullFamilyParams<'a, C: BlockInfo + CallContract + 'a> {
@@ -83,7 +86,11 @@ pub fn verify_block_basic(block: &Unverified, engine: &dyn VerifyingEngine, chec
 /// Phase 2 verification. Perform costly checks such as transaction signatures and block nonce for ethash.
 /// Still operates on a individual block
 /// Returns a `PreverifiedBlock` structure populated with transactions
-pub fn verify_block_unordered(block: Unverified, engine: &dyn VerifyingEngine, check_seal: bool) -> Result<PreverifiedBlock, EthcoreError> {
+pub fn verify_block_unordered(
+	block: Unverified,
+	engine: &dyn VerifyingEngine,
+	check_seal: bool
+) -> Result<PreverifiedBlock, EthcoreError> {
 	let header = block.header;
 	if check_seal {
 		engine.verify_block_unordered(&header)?;
@@ -117,6 +124,58 @@ pub fn verify_block_unordered(block: Unverified, engine: &dyn VerifyingEngine, c
 		uncles: block.uncles,
 		bytes: block.bytes,
 	})
+}
+
+/// Phase 3 verification. Check block information against parent and uncles.
+//pub fn verify_block_family<C: BlockInfo + CallContract>(
+pub fn verify_block_family<C: VerifyingClient>(
+	header: &Header,
+	parent: &Header,
+	engine: &dyn VerifyingEngine,
+	do_full: Option<FullFamilyParams<C>>
+) -> Result<(), EthcoreError> {
+	// TODO: verify timestamp
+	verify_parent(&header, &parent, engine)?;
+	engine.verify_block_family(&header, &parent)?;
+
+	let params = match do_full {
+		Some(x) => x,
+		None => return Ok(()),
+	};
+
+	verify_uncles(params.block, params.block_provider, engine)?;
+
+	// transactions are verified against the parent header since the current
+	// state wasn't available when the tx was created
+	engine.verify_transactions(&params.block.transactions, parent, params.client)?;
+//	for tx in &params.block.transactions {
+//		// transactions are verified against the parent header since the current
+//		// state wasn't available when the tx was created
+//		engine.machine().verify_transaction(tx, parent, params.client)?;
+//	}
+
+	Ok(())
+}
+
+
+/// Phase 4 verification. Check block information against transaction enactment results,
+pub fn verify_block_final(
+	expected: &Header,
+	got: &Header
+) -> Result<(), EthcoreError> {
+	if expected.state_root() != got.state_root() {
+		return Err(From::from(BlockError::InvalidStateRoot(Mismatch { expected: *expected.state_root(), found: *got.state_root() })))
+	}
+	if expected.gas_used() != got.gas_used() {
+		return Err(From::from(BlockError::InvalidGasUsed(Mismatch { expected: *expected.gas_used(), found: *got.gas_used() })))
+	}
+	if expected.log_bloom() != got.log_bloom() {
+		return Err(From::from(BlockError::InvalidLogBloom(Box::new(Mismatch { expected: *expected.log_bloom(), found: *got.log_bloom() }))))
+	}
+	if expected.receipts_root() != got.receipts_root() {
+		return Err(From::from(BlockError::InvalidReceiptsRoot(Mismatch { expected: *expected.receipts_root(), found: *got.receipts_root() })))
+	}
+	Ok(())
 }
 
 /// Check basic header parameters.
@@ -178,6 +237,135 @@ pub fn verify_header_params(header: &Header, engine: &dyn VerifyingEngine, is_fu
 	Ok(())
 }
 
+/// Check header parameters agains parent header.
+fn verify_parent(header: &Header, parent: &Header, engine: &dyn VerifyingEngine) -> Result<(), EthcoreError> {
+	assert!(header.parent_hash().is_zero() || &parent.hash() == header.parent_hash(),
+	        "Parent hash should already have been verified; qed");
+
+	let gas_limit_divisor = engine.params().gas_limit_bound_divisor;
+
+	if !engine.is_timestamp_valid(header.timestamp(), parent.timestamp()) {
+		let now = SystemTime::now();
+		let min = CheckedSystemTime::checked_add(now, Duration::from_secs(parent.timestamp().saturating_add(1)))
+			.ok_or(BlockError::TimestampOverflow)?;
+		let found = CheckedSystemTime::checked_add(now, Duration::from_secs(header.timestamp()))
+			.ok_or(BlockError::TimestampOverflow)?;
+		return Err(From::from(BlockError::InvalidTimestamp(OutOfBounds { max: None, min: Some(min), found }.into())))
+	}
+	if header.number() != parent.number() + 1 {
+		return Err(From::from(BlockError::InvalidNumber(Mismatch { expected: parent.number() + 1, found: header.number() })));
+	}
+
+	if header.number() == 0 {
+		return Err(BlockError::RidiculousNumber(OutOfBounds { min: Some(1), max: None, found: header.number() }).into());
+	}
+
+	let parent_gas_limit = *parent.gas_limit();
+	let min_gas = parent_gas_limit - parent_gas_limit / gas_limit_divisor;
+	let max_gas = parent_gas_limit + parent_gas_limit / gas_limit_divisor;
+	if header.gas_limit() <= &min_gas || header.gas_limit() >= &max_gas {
+		return Err(From::from(BlockError::InvalidGasLimit(OutOfBounds { min: Some(min_gas), max: Some(max_gas), found: *header.gas_limit() })));
+	}
+
+	Ok(())
+}
+
+
+fn verify_uncles(
+	block: &PreverifiedBlock,
+	bc: &dyn BlockProvider,
+	engine: &dyn VerifyingEngine
+) -> Result<(), EthcoreError> {
+	let header = &block.header;
+	let num_uncles = block.uncles.len();
+	let max_uncles = engine.maximum_uncle_count(header.number());
+	if num_uncles != 0 {
+		if num_uncles > max_uncles {
+			return Err(From::from(BlockError::TooManyUncles(OutOfBounds {
+				min: None,
+				max: Some(max_uncles),
+				found: num_uncles,
+			})));
+		}
+
+		let mut excluded = HashSet::new();
+		excluded.insert(header.hash());
+		let mut hash = header.parent_hash().clone();
+		excluded.insert(hash.clone());
+		for _ in 0..MAX_UNCLE_AGE {
+			match bc.block_details(&hash) {
+				Some(details) => {
+					excluded.insert(details.parent);
+					let b = bc.block(&hash)
+						.expect("parent already known to be stored; qed");
+					excluded.extend(b.uncle_hashes());
+					hash = details.parent;
+				}
+				None => break
+			}
+		}
+
+		let mut verified = HashSet::new();
+		for uncle in &block.uncles {
+			if excluded.contains(&uncle.hash()) {
+				return Err(From::from(BlockError::UncleInChain(uncle.hash())))
+			}
+
+			if verified.contains(&uncle.hash()) {
+				return Err(From::from(BlockError::DuplicateUncle(uncle.hash())))
+			}
+
+			// m_currentBlock.number() - uncle.number()		m_cB.n - uP.n()
+			// 1											2
+			// 2
+			// 3
+			// 4
+			// 5
+			// 6											7
+			//												(8 Invalid)
+
+			let depth = if header.number() > uncle.number() { header.number() - uncle.number() } else { 0 };
+			if depth > MAX_UNCLE_AGE as u64 {
+				return Err(From::from(BlockError::UncleTooOld(OutOfBounds { min: Some(header.number() - depth), max: Some(header.number() - 1), found: uncle.number() })));
+			}
+			else if depth < 1 {
+				return Err(From::from(BlockError::UncleIsBrother(OutOfBounds { min: Some(header.number() - depth), max: Some(header.number() - 1), found: uncle.number() })));
+			}
+
+			// cB
+			// cB.p^1	    1 depth, valid uncle
+			// cB.p^2	---/  2
+			// cB.p^3	-----/  3
+			// cB.p^4	-------/  4
+			// cB.p^5	---------/  5
+			// cB.p^6	-----------/  6
+			// cB.p^7	-------------/
+			// cB.p^8
+			let mut expected_uncle_parent = header.parent_hash().clone();
+			let uncle_parent = bc.block_header_data(&uncle.parent_hash())
+				.ok_or_else(|| EthcoreError::from(BlockError::UnknownUncleParent(uncle.parent_hash().clone())))?;
+			for _ in 0..depth {
+				match bc.block_details(&expected_uncle_parent) {
+					Some(details) => {
+						expected_uncle_parent = details.parent;
+					},
+					None => break
+				}
+			}
+			if expected_uncle_parent != uncle_parent.hash() {
+				return Err(From::from(BlockError::UncleParentNotInChain(uncle_parent.hash())));
+			}
+
+			let uncle_parent = uncle_parent.decode()?;
+			verify_parent(&uncle, &uncle_parent, engine)?;
+			engine.verify_block_family(&uncle, &uncle_parent)?;
+			verified.insert(uncle.hash());
+		}
+	}
+
+	Ok(())
+}
+
 /// Verify block data against header: transactions root and uncles hash.
 fn verify_block_integrity(block: &Unverified) -> Result<(), EthcoreError> {
 	let block_rlp = Rlp::new(&block.bytes);
@@ -198,3 +386,5 @@ fn verify_block_integrity(block: &Unverified) -> Result<(), EthcoreError> {
 	}
 	Ok(())
 }
+
+

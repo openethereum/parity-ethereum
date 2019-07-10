@@ -30,8 +30,7 @@ pub use self::canon_verifier::CanonVerifier;
 pub use self::noop_verifier::NoopVerifier;
 pub use self::queue::{BlockQueue, Config as QueueConfig, VerificationQueue};
 
-use call_contract::CallContract;
-use client_traits::BlockInfo;
+use client_traits::VerifyingClient;
 
 /// Verifier type.
 #[derive(Debug, PartialEq, Clone)]
@@ -46,7 +45,7 @@ pub enum VerifierType {
 }
 
 /// Create a new verifier based on type.
-pub fn new<C: BlockInfo + CallContract>(v: VerifierType) -> Box<dyn Verifier<C>> {
+pub fn new<C: VerifyingClient>(v: VerifierType) -> Box<dyn Verifier<C>> {
 	match v {
 		VerifierType::Canon | VerifierType::CanonNoSeal => Box::new(CanonVerifier),
 		VerifierType::Noop => Box::new(NoopVerifier),
