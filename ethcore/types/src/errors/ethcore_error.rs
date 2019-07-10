@@ -42,7 +42,7 @@ pub enum EthcoreError {
 	FullQueue(usize),
 	/// Io create error
 	#[display(fmt = "Io error: {}", _0)]
-	Io(::std::io::Error),
+	Io(ethcore_io::IoError),
 	/// Error concerning the Rust standard library's IO subsystem.
 	#[display(fmt = "Std Io error: {}", _0)]
 	StdIo(::std::io::Error),
