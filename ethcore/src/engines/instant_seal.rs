@@ -16,7 +16,7 @@
 
 use engines::{Engine, Seal, SealingState};
 use machine::Machine;
-use types::header::{Header, ExtendedHeader};
+use types::header::Header;
 use block::ExecutedBlock;
 use error::Error;
 
@@ -86,10 +86,6 @@ impl Engine for InstantSeal {
 
 	fn is_timestamp_valid(&self, header_timestamp: u64, parent_timestamp: u64) -> bool {
 		header_timestamp >= parent_timestamp
-	}
-
-	fn fork_choice(&self, new: &ExtendedHeader, current: &ExtendedHeader) -> super::ForkChoice {
-		super::total_difficulty_fork_choice(new, current)
 	}
 }
 

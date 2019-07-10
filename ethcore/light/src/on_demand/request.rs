@@ -1032,7 +1032,7 @@ pub struct TransactionProof {
 	// TODO: it's not really possible to provide this if the header is unknown.
 	pub env_info: EnvInfo,
 	/// Consensus engine.
-	pub engine: Arc<Engine>,
+	pub engine: Arc<dyn Engine>,
 }
 
 impl TransactionProof {
@@ -1075,9 +1075,9 @@ pub struct Signal {
 	/// Block hash and number to fetch proof for.
 	pub hash: H256,
 	/// Consensus engine, used to check the proof.
-	pub engine: Arc<Engine>,
+	pub engine: Arc<dyn Engine>,
 	/// Special checker for the proof.
-	pub proof_check: Arc<StateDependentProof>,
+	pub proof_check: Arc<dyn StateDependentProof>,
 }
 
 impl Signal {

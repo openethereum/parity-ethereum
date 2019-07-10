@@ -223,7 +223,7 @@ impl From<light_net::Status> for PipProtocolInfo {
 /// Only works when IPC is disabled.
 pub struct AttachedProtocol {
 	/// The protocol handler in question.
-	pub handler: Arc<NetworkProtocolHandler + Send + Sync>,
+	pub handler: Arc<dyn NetworkProtocolHandler + Send + Sync>,
 	/// 3-character ID for the protocol.
 	pub protocol_id: ProtocolId,
 	/// Supported versions and their packet counts.
@@ -282,13 +282,13 @@ pub struct Params {
 	/// Runtime executor
 	pub executor: Executor,
 	/// Blockchain client.
-	pub chain: Arc<BlockChainClient>,
+	pub chain: Arc<dyn BlockChainClient>,
 	/// Snapshot service.
-	pub snapshot_service: Arc<SnapshotService>,
+	pub snapshot_service: Arc<dyn SnapshotService>,
 	/// Private tx service.
-	pub private_tx_handler: Option<Arc<PrivateTxHandler>>,
+	pub private_tx_handler: Option<Arc<dyn PrivateTxHandler>>,
 	/// Light data provider.
-	pub provider: Arc<::light::Provider>,
+	pub provider: Arc<dyn (::light::Provider)>,
 	/// Network layer configuration.
 	pub network_config: NetworkConfiguration,
 	/// Other protocols to attach.
@@ -319,7 +319,7 @@ fn light_params(
 	network_id: u64,
 	median_peers: f64,
 	pruning_info: PruningInfo,
-	sample_store: Option<Box<SampleStore>>,
+	sample_store: Option<Box<dyn SampleStore>>,
 ) -> LightParams {
 	let mut light_params = LightParams {
 		network_id: network_id,
@@ -339,7 +339,7 @@ fn light_params(
 
 impl EthSync {
 	/// Creates and register protocol with the network service
-	pub fn new(params: Params, connection_filter: Option<Arc<ConnectionFilter>>) -> Result<Arc<EthSync>, Error> {
+	pub fn new(params: Params, connection_filter: Option<Arc<dyn ConnectionFilter>>) -> Result<Arc<EthSync>, Error> {
 		let pruning_info = params.chain.pruning_info();
 		let light_proto = match params.config.serve_light {
 			false => None,
@@ -482,9 +482,9 @@ pub(crate) const PRIORITY_TIMER_INTERVAL: Duration = Duration::from_millis(250);
 
 struct SyncProtocolHandler {
 	/// Shared blockchain client.
-	chain: Arc<BlockChainClient>,
+	chain: Arc<dyn BlockChainClient>,
 	/// Shared snapshot service.
-	snapshot_service: Arc<SnapshotService>,
+	snapshot_service: Arc<dyn SnapshotService>,
 	/// Sync strategy
 	sync: ChainSyncApi,
 	/// Chain overlay used to cache data such as fork block.
@@ -492,7 +492,7 @@ struct SyncProtocolHandler {
 }
 
 impl NetworkProtocolHandler for SyncProtocolHandler {
-	fn initialize(&self, io: &NetworkContext) {
+	fn initialize(&self, io: &dyn NetworkContext) {
 		if io.subprotocol_name() != WARP_SYNC_PROTOCOL_ID {
 			io.register_timer(PEERS_TIMER, Duration::from_millis(700)).expect("Error registering peers timer");
 			io.register_timer(MAINTAIN_SYNC_TIMER, Duration::from_millis(1100)).expect("Error registering sync timer");
@@ -503,11 +503,11 @@ impl NetworkProtocolHandler for SyncProtocolHandler {
 		}
 	}
 
-	fn read(&self, io: &NetworkContext, peer: &PeerId, packet_id: u8, data: &[u8]) {
+	fn read(&self, io: &dyn NetworkContext, peer: &PeerId, packet_id: u8, data: &[u8]) {
 		self.sync.dispatch_packet(&mut NetSyncIo::new(io, &*self.chain, &*self.snapshot_service, &self.overlay), *peer, packet_id, data);
 	}
 
-	fn connected(&self, io: &NetworkContext, peer: &PeerId) {
+	fn connected(&self, io: &dyn NetworkContext, peer: &PeerId) {
 		trace_time!("sync::connected");
 		// If warp protocol is supported only allow warp handshake
 		let warp_protocol = io.protocol_version(WARP_SYNC_PROTOCOL_ID, *peer).unwrap_or(0) != 0;
@@ -517,14 +517,14 @@ impl NetworkProtocolHandler for SyncProtocolHandler {
 		}
 	}
 
-	fn disconnected(&self, io: &NetworkContext, peer: &PeerId) {
+	fn disconnected(&self, io: &dyn NetworkContext, peer: &PeerId) {
 		trace_time!("sync::disconnected");
 		if io.subprotocol_name() != WARP_SYNC_PROTOCOL_ID {
 			self.sync.write().on_peer_aborting(&mut NetSyncIo::new(io, &*self.chain, &*self.snapshot_service, &self.overlay), *peer);
 		}
 	}
 
-	fn timeout(&self, io: &NetworkContext, timer: TimerToken) {
+	fn timeout(&self, io: &dyn NetworkContext, timer: TimerToken) {
 		trace_time!("sync::timeout");
 		let mut io = NetSyncIo::new(io, &*self.chain, &*self.snapshot_service, &self.overlay);
 		match timer {
@@ -644,10 +644,10 @@ impl ChainNotify for EthSync {
 
 /// PIP event handler.
 /// Simply queues transactions from light client peers.
-struct TxRelay(Arc<BlockChainClient>);
+struct TxRelay(Arc<dyn BlockChainClient>);
 
 impl LightHandler for TxRelay {
-	fn on_transactions(&self, ctx: &EventContext, relay: &[::types::transaction::UnverifiedTransaction]) {
+	fn on_transactions(&self, ctx: &dyn EventContext, relay: &[::types::transaction::UnverifiedTransaction]) {
 		trace!(target: "pip", "Relaying {} transactions from peer {}", relay.len(), ctx.peer());
 		self.0.queue_transactions(relay.iter().map(|tx| ::rlp::encode(tx)).collect(), ctx.peer())
 	}
@@ -670,7 +670,7 @@ pub trait ManageNetwork : Send + Sync {
 	/// Returns the minimum and maximum peers.
 	fn num_peers_range(&self) -> RangeInclusive<u32>;
 	/// Get network context for protocol.
-	fn with_proto_context(&self, proto: ProtocolId, f: &mut FnMut(&NetworkContext));
+	fn with_proto_context(&self, proto: ProtocolId, f: &mut dyn FnMut(&dyn NetworkContext));
 }
 
 impl ManageNetwork for EthSync {
@@ -711,7 +711,7 @@ impl ManageNetwork for EthSync {
 		self.network.num_peers_range()
 	}
 
-	fn with_proto_context(&self, proto: ProtocolId, f: &mut FnMut(&NetworkContext)) {
+	fn with_proto_context(&self, proto: ProtocolId, f: &mut dyn FnMut(&dyn NetworkContext)) {
 		self.network.with_context_eval(proto, f);
 	}
 }
@@ -871,7 +871,7 @@ pub trait LightSyncInfo: Send + Sync {
 /// Execute a closure with a protocol context.
 pub trait LightNetworkDispatcher {
 	/// Execute a closure with a protocol context.
-	fn with_context<F, T>(&self, f: F) -> Option<T> where F: FnOnce(&::light::net::BasicContext) -> T;
+	fn with_context<F, T>(&self, f: F) -> Option<T> where F: FnOnce(&dyn (::light::net::BasicContext)) -> T;
 }
 
 /// Configuration for the light sync.
@@ -885,7 +885,7 @@ pub struct LightSyncParams<L> {
 	/// Subprotocol name.
 	pub subprotocol_name: [u8; 3],
 	/// Other handlers to attach.
-	pub handlers: Vec<Arc<LightHandler>>,
+	pub handlers: Vec<Arc<dyn LightHandler>>,
 	/// Other subprotocols to run.
 	pub attached_protos: Vec<AttachedProtocol>,
 }
@@ -893,7 +893,7 @@ pub struct LightSyncParams<L> {
 /// Service for light synchronization.
 pub struct LightSync {
 	proto: Arc<LightProtocol>,
-	sync: Arc<SyncInfo + Sync + Send>,
+	sync: Arc<dyn SyncInfo + Sync + Send>,
 	attached_protos: Vec<AttachedProtocol>,
 	network: NetworkService,
 	subprotocol_name: [u8; 3],
@@ -947,14 +947,14 @@ impl LightSync {
 }
 
 impl ::std::ops::Deref for LightSync {
-	type Target = ::light_sync::SyncInfo;
+	type Target = dyn (::light_sync::SyncInfo);
 
 	fn deref(&self) -> &Self::Target { &*self.sync }
 }
 
 
 impl LightNetworkDispatcher for LightSync {
-	fn with_context<F, T>(&self, f: F) -> Option<T> where F: FnOnce(&::light::net::BasicContext) -> T {
+	fn with_context<F, T>(&self, f: F) -> Option<T> where F: FnOnce(&dyn (::light::net::BasicContext)) -> T {
 		self.network.with_context_eval(
 			self.subprotocol_name,
 			move |ctx| self.proto.with_context(&ctx, f),
@@ -1009,7 +1009,7 @@ impl ManageNetwork for LightSync {
 		self.network.num_peers_range()
 	}
 
-	fn with_proto_context(&self, proto: ProtocolId, f: &mut FnMut(&NetworkContext)) {
+	fn with_proto_context(&self, proto: ProtocolId, f: &mut dyn FnMut(&dyn NetworkContext)) {
 		self.network.with_context_eval(proto, f);
 	}
 }

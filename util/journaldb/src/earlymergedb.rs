@@ -103,7 +103,7 @@ enum RemoveFrom {
 /// TODO: `store_reclaim_period`
 pub struct EarlyMergeDB {
 	overlay: super::MemoryDB,
-	backing: Arc<KeyValueDB>,
+	backing: Arc<dyn KeyValueDB>,
 	refs: Option<Arc<RwLock<HashMap<H256, RefInfo>>>>,
 	latest_era: Option<u64>,
 	column: Option<u32>,
@@ -111,7 +111,7 @@ pub struct EarlyMergeDB {
 
 impl EarlyMergeDB {
 	/// Create a new instance from file
-	pub fn new(backing: Arc<KeyValueDB>, col: Option<u32>) -> EarlyMergeDB {
+	pub fn new(backing: Arc<dyn KeyValueDB>, col: Option<u32>) -> EarlyMergeDB {
 		let (latest_era, refs) = EarlyMergeDB::read_refs(&*backing, col);
 		let refs = Some(Arc::new(RwLock::new(refs)));
 		EarlyMergeDB {
@@ -132,11 +132,11 @@ impl EarlyMergeDB {
 	// The next three are valid only as long as there is an insert operation of `key` in the journal.
 	fn set_already_in(batch: &mut DBTransaction, col: Option<u32>, key: &H256) { batch.put(col, &Self::morph_key(key, 0), &[1u8]); }
 	fn reset_already_in(batch: &mut DBTransaction, col: Option<u32>, key: &H256) { batch.delete(col, &Self::morph_key(key, 0)); }
-	fn is_already_in(backing: &KeyValueDB, col: Option<u32>, key: &H256) -> bool {
+	fn is_already_in(backing: &dyn KeyValueDB, col: Option<u32>, key: &H256) -> bool {
 		backing.get(col, &Self::morph_key(key, 0)).expect("Low-level database error. Some issue with your hard disk?").is_some()
 	}
 
-	fn insert_keys(inserts: &[(H256, DBValue)], backing: &KeyValueDB, col: Option<u32>, refs: &mut HashMap<H256, RefInfo>, batch: &mut DBTransaction) {
+	fn insert_keys(inserts: &[(H256, DBValue)], backing: &dyn KeyValueDB, col: Option<u32>, refs: &mut HashMap<H256, RefInfo>, batch: &mut DBTransaction) {
 		for &(ref h, ref d) in inserts {
 			match refs.entry(*h) {
 				Entry::Occupied(mut entry) => {
@@ -169,7 +169,7 @@ impl EarlyMergeDB {
 		}
 	}
 
-	fn replay_keys(inserts: &[H256], backing: &KeyValueDB, col: Option<u32>, refs: &mut HashMap<H256, RefInfo>) {
+	fn replay_keys(inserts: &[H256], backing: &dyn KeyValueDB, col: Option<u32>, refs: &mut HashMap<H256, RefInfo>) {
 		trace!(target: "jdb.fine", "replay_keys: inserts={:?}, refs={:?}", inserts, refs);
 		for h in inserts {
 			match refs.entry(*h) {
@@ -259,7 +259,7 @@ impl EarlyMergeDB {
 			.expect("Low-level database error. Some issue with your hard disk?")
 	}
 
-	fn read_refs(db: &KeyValueDB, col: Option<u32>) -> (Option<u64>, HashMap<H256, RefInfo>) {
+	fn read_refs(db: &dyn KeyValueDB, col: Option<u32>) -> (Option<u64>, HashMap<H256, RefInfo>) {
 		let mut refs = HashMap::new();
 		let mut latest_era = None;
 		if let Some(val) = db.get(col, &LATEST_ERA_KEY).expect("Low-level database error.") {
@@ -332,7 +332,7 @@ impl ::traits::KeyedHashDB for EarlyMergeDB {
 }
 
 impl JournalDB for EarlyMergeDB {
-	fn boxed_clone(&self) -> Box<JournalDB> {
+	fn boxed_clone(&self) -> Box<dyn JournalDB> {
 		Box::new(EarlyMergeDB {
 			overlay: self.overlay.clone(),
 			backing: self.backing.clone(),
@@ -346,7 +346,7 @@ impl JournalDB for EarlyMergeDB {
 		self.backing.get(self.column, &LATEST_ERA_KEY).expect("Low level database error").is_none()
 	}
 
-	fn backing(&self) -> &Arc<KeyValueDB> {
+	fn backing(&self) -> &Arc<dyn KeyValueDB> {
 		&self.backing
 	}
 

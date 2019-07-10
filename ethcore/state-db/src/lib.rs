@@ -16,24 +16,25 @@
 
 //! State database abstraction. For more info, see the doc for `StateDB`
 
-use std::collections::{VecDeque, HashSet};
+use std::collections::{HashSet, VecDeque};
 use std::io;
 use std::sync::Arc;
 
-use bloom_journal::{Bloom, BloomJournal};
-use db::COL_ACCOUNT_BLOOM;
-use ethereum_types::{H256, Address};
-use hash::keccak;
+use ethereum_types::{Address, H256};
 use hash_db::HashDB;
-use journaldb::JournalDB;
-use keccak_hasher::KeccakHasher;
-use kvdb::{KeyValueDB, DBTransaction, DBValue};
+use keccak_hash::keccak;
+use kvdb::{DBTransaction, DBValue, KeyValueDB};
+use log::trace;
 use lru_cache::LruCache;
-use memory_cache::MemoryLruCache;
 use parking_lot::Mutex;
-use types::BlockNumber;
 
 use account_state::{self, Account};
+use bloom_journal::{Bloom, BloomJournal};
+use common_types::BlockNumber;
+use ethcore_db::COL_ACCOUNT_BLOOM;
+use journaldb::JournalDB;
+use keccak_hasher::KeccakHasher;
+use memory_cache::MemoryLruCache;
 
 /// Value used to initialize bloom bitmap size.
 ///
@@ -68,7 +69,7 @@ struct AccountCache {
 struct CacheQueueItem {
 	/// Account address.
 	address: Address,
-	/// Acccount data or `None` if account does not exist.
+	/// Account data or `None` if account does not exist.
 	account: SyncAccount,
 	/// Indicates that the account was modified before being
 	/// added to the cache.
@@ -143,7 +144,7 @@ impl StateDB {
 		let cache_items = acc_cache_size / ::std::mem::size_of::<Option<Account>>();
 
 		StateDB {
-			db: db,
+			db,
 			account_cache: Arc::new(Mutex::new(AccountCache {
 				accounts: LruCache::new(cache_items),
 				modifications: VecDeque::new(),
@@ -151,7 +152,7 @@ impl StateDB {
 			code_cache: Arc::new(Mutex::new(MemoryLruCache::new(code_cache_size))),
 			local_cache: Vec::new(),
 			account_bloom: Arc::new(Mutex::new(bloom)),
-			cache_size: cache_size,
+			cache_size,
 			parent_hash: None,
 			commit_hash: None,
 			commit_number: None,
@@ -159,7 +160,7 @@ impl StateDB {
 	}
 
 	/// Loads accounts bloom from the database
-	/// This bloom is used to handle request for the non-existant account fast
+	/// This bloom is used to handle request for the non-existent account fast
 	pub fn load_bloom(db: &dyn KeyValueDB) -> Bloom {
 		let hash_count_entry = db.get(COL_ACCOUNT_BLOOM, ACCOUNT_BLOOM_HASHCOUNT_KEY)
 			.expect("Low-level database error");
@@ -177,7 +178,7 @@ impl StateDB {
 			let key: [u8; 8] = (i as u64).to_le_bytes();
 			bloom_parts[i] = db.get(COL_ACCOUNT_BLOOM, &key).expect("low-level database error")
 				.map(|val| {
-					assert!(val.len() == 8, "low-level database error");
+					assert_eq!(val.len(), 8, "low-level database error");
 					let mut buff = [0u8; 8];
 					buff.copy_from_slice(&*val);
 					u64::from_le_bytes(buff)
@@ -233,7 +234,7 @@ impl StateDB {
 		let cache = &mut *cache;
 
 		// Purge changes from re-enacted and retracted blocks.
-		// Filter out commiting block if any.
+		// Filter out committing block if any.
 		let mut clear = false;
 		for block in enacted.iter().filter(|h| self.commit_hash.as_ref().map_or(true, |p| *h != p)) {
 			clear = clear || {
@@ -419,11 +420,11 @@ impl account_state::Backend for StateDB {
 		self.db.as_hash_db_mut()
 	}
 
-	fn add_to_account_cache(&mut self, addr: Address, data: Option<Account>, modified: bool) {
+	fn add_to_account_cache(&mut self, address: Address, data: Option<Account>, modified: bool) {
 		self.local_cache.push(CacheQueueItem {
-			address: addr,
+			address,
 			account: SyncAccount(data),
-			modified: modified,
+			modified,
 		})
 	}
 
@@ -484,10 +485,11 @@ unsafe impl Sync for SyncAccount {}
 
 #[cfg(test)]
 mod tests {
-	use ethereum_types::{H256, U256, Address};
+	use ethereum_types::{Address, H256, U256};
 	use kvdb::DBTransaction;
-	use test_helpers::get_temp_state_db;
+
 	use account_state::{Account, Backend};
+	use ethcore::test_helpers::get_temp_state_db;
 
 	#[test]
 	fn state_db_smoke() {

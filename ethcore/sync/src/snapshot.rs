@@ -53,7 +53,7 @@ impl Snapshot {
 	}
 
 	/// Sync the Snapshot completed chunks with the Snapshot Service
-	pub fn initialize(&mut self, snapshot_service: &SnapshotService) {
+	pub fn initialize(&mut self, snapshot_service: &dyn SnapshotService) {
 		if self.initialized {
 			return;
 		}

@@ -40,7 +40,7 @@ use types::encoded;
 use types::filter::Filter;
 use types::log_entry::LocalizedLogEntry;
 use types::receipt::{Receipt, LocalizedReceipt};
-use types::{BlockNumber, header::{Header, ExtendedHeader}};
+use types::{BlockNumber, header::Header};
 use vm::{EnvInfo, LastHashes};
 use hash_db::EMPTY_PREFIX;
 use block::{LockedBlock, Drain, ClosedBlock, OpenBlock, enact_verified, SealedBlock};
@@ -502,32 +502,24 @@ impl Importer {
 		let traces = block.traces.drain();
 		let best_hash = chain.best_block_hash();
 
-		let new = ExtendedHeader {
-			header: header.clone(),
-			is_finalized,
-			parent_total_difficulty: chain.block_details(&parent).expect("Parent block is in the database; qed").total_difficulty
+		let new_total_difficulty = {
+			let parent_total_difficulty = chain.block_details(&parent)
+				.expect("Parent block is in the database; qed")
+				.total_difficulty;
+			parent_total_difficulty + header.difficulty()
 		};
 
-		let best = {
-			let header = chain.block_header_data(&best_hash)
-				.expect("Best block is in the database; qed")
-				.decode()
-				.expect("Stored block header is valid RLP; qed");
-			let details = chain.block_details(&best_hash)
-				.expect("Best block is in the database; qed");
-
-			ExtendedHeader {
-				parent_total_difficulty: details.total_difficulty - *header.difficulty(),
-				is_finalized: details.is_finalized,
-				header,
-			}
-		};
+		let best_total_difficulty = chain.block_details(&best_hash)
+			.expect("Best block is in the database; qed")
+			.total_difficulty;
 
 		let route = chain.tree_route(best_hash, *parent).expect("forks are only kept when it has common ancestors; tree route from best to prospective's parent always exists; qed");
 		let fork_choice = if route.is_from_route_finalized {
 			ForkChoice::Old
+		} else if new_total_difficulty > best_total_difficulty {
+			ForkChoice::New
 		} else {
-			self.engine.fork_choice(&new, &best)
+			ForkChoice::Old
 		};
 
 		// CHECK! I *think* this is fine, even if the state_root is equal to another

@@ -96,7 +96,7 @@ enum ExecutionOutcome {
 }
 
 impl WasmInterpreter {
-	pub fn run(self: Box<WasmInterpreter>, ext: &mut vm::Ext) -> vm::Result<GasLeft> {
+	pub fn run(self: Box<WasmInterpreter>, ext: &mut dyn vm::Ext) -> vm::Result<GasLeft> {
 		let (module, data) = parser::payload(&self.params, ext.schedule().wasm())?;
 
 		let loaded_module = wasmi::Module::from_parity_wasm_module(module).map_err(Error::Interpreter)?;
@@ -196,7 +196,7 @@ impl WasmInterpreter {
 }
 
 impl vm::Exec for WasmInterpreter {
-	fn exec(self: Box<WasmInterpreter>, ext: &mut vm::Ext) -> vm::ExecTrapResult<GasLeft> {
+	fn exec(self: Box<WasmInterpreter>, ext: &mut dyn vm::Ext) -> vm::ExecTrapResult<GasLeft> {
 		Ok(self.run(ext))
 	}
 }

@@ -37,9 +37,9 @@ pub trait SyncIo {
 	/// Send a packet to a peer using specified protocol.
 	fn send(&mut self, peer_id: PeerId, packet_id: SyncPacket, data: Vec<u8>) -> Result<(), Error>;
 	/// Get the blockchain
-	fn chain(&self) -> &BlockChainClient;
+	fn chain(&self) -> &dyn BlockChainClient;
 	/// Get the snapshot service.
-	fn snapshot_service(&self) -> &SnapshotService;
+	fn snapshot_service(&self) -> &dyn SnapshotService;
 	/// Returns peer version identifier
 	fn peer_version(&self, peer_id: PeerId) -> ClientVersion {
 		ClientVersion::from(peer_id.to_string())
@@ -64,17 +64,17 @@ pub trait SyncIo {
 
 /// Wraps `NetworkContext` and the blockchain client
 pub struct NetSyncIo<'s> {
-	network: &'s NetworkContext,
-	chain: &'s BlockChainClient,
-	snapshot_service: &'s SnapshotService,
+	network: &'s dyn NetworkContext,
+	chain: &'s dyn BlockChainClient,
+	snapshot_service: &'s dyn SnapshotService,
 	chain_overlay: &'s RwLock<HashMap<BlockNumber, Bytes>>,
 }
 
 impl<'s> NetSyncIo<'s> {
 	/// Creates a new instance from the `NetworkContext` and the blockchain client reference.
-	pub fn new(network: &'s NetworkContext,
-		chain: &'s BlockChainClient,
-		snapshot_service: &'s SnapshotService,
+	pub fn new(network: &'s dyn NetworkContext,
+		chain: &'s dyn BlockChainClient,
+		snapshot_service: &'s dyn SnapshotService,
 		chain_overlay: &'s RwLock<HashMap<BlockNumber, Bytes>>) -> NetSyncIo<'s> {
 		NetSyncIo {
 			network: network,
@@ -102,7 +102,7 @@ impl<'s> SyncIo for NetSyncIo<'s> {
 		self.network.send_protocol(packet_id.protocol(), peer_id, packet_id.id(), data)
 	}
 
-	fn chain(&self) -> &BlockChainClient {
+	fn chain(&self) -> &dyn BlockChainClient {
 		self.chain
 	}
 
@@ -110,7 +110,7 @@ impl<'s> SyncIo for NetSyncIo<'s> {
 		self.chain_overlay
 	}
 
-	fn snapshot_service(&self) -> &SnapshotService {
+	fn snapshot_service(&self) -> &dyn SnapshotService {
 		self.snapshot_service
 	}
 
