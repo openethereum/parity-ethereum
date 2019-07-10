@@ -1208,6 +1208,7 @@ impl<'a, B: 'a + StateBackend> Executive<'a, B> {
 mod tests {
 	use std::sync::Arc;
 	use std::str::FromStr;
+	use std::collections::HashSet;
 	use rustc_hex::FromHex;
 	use ethkey::{Generator, Random};
 	use super::*;
@@ -1234,6 +1235,33 @@ mod tests {
 		let mut machine = ::ethereum::new_byzantium_test_machine();
 		machine.set_schedule_creation_rules(Box::new(move |s, _| s.max_depth = max_depth));
 		machine
+	}
+
+	#[test]
+	fn test_cleanup_mode() {
+		let address = Address::from_str("0f572e5295c57f15886f9b263e2f6d2d6c7b5ec6").unwrap();
+		let mut touched = HashSet::new();
+		touched.insert(address);
+
+		let mut substate = Substate::default();
+		substate.touched = touched.clone();
+
+		assert_eq!(CleanupMode::ForceCreate,  cleanup_mode(&mut substate, &Schedule::new_frontier()));
+		assert_eq!(CleanupMode::ForceCreate,  cleanup_mode(&mut substate, &Schedule::new_homestead()));
+		assert_eq!(CleanupMode::TrackTouched(&mut touched),  cleanup_mode(&mut substate, &Schedule::new_byzantium()));
+		assert_eq!(CleanupMode::TrackTouched(&mut touched),  cleanup_mode(&mut substate, &Schedule::new_constantinople()));
+
+		assert_eq!(CleanupMode::TrackTouched(&mut touched),  cleanup_mode(&mut substate, &{
+			let mut schedule = Schedule::new_homestead();
+			schedule.kill_dust = CleanDustMode::BasicOnly;
+			schedule
+		}));
+
+		assert_eq!(CleanupMode::NoEmpty,  cleanup_mode(&mut substate, &{
+			let mut schedule = Schedule::new_homestead();
+			schedule.no_empty = true;
+			schedule
+		}));
 	}
 
 	#[test]
