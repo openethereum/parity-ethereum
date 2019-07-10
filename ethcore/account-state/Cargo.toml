@@ -10,7 +10,6 @@ common-types = { path = "../types"}
 derive_more = "0.15.0"
 ethereum-types = "0.6.0"
 ethtrie = { package = "patricia-trie-ethereum", path = "../../util/patricia-trie-ethereum" }
-evm = { path = "../evm" }
 trie-vm-factories = { path = "../trie-vm-factories" }
 hash-db = "0.12.4"
 journaldb = { path = "../../util/journaldb" }
@@ -28,7 +27,6 @@ rlp = "0.4.0"
 serde = { version = "1.0", features = ["derive"] }
 trace = { path = "../trace" }
 trie-db = "0.12.4"
-vm = { path = "../vm" }
 
 [dev-dependencies]
 account-db = { path = "../account-db" }

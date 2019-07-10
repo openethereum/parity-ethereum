@@ -21,7 +21,7 @@ use hash::keccak;
 use vm::{EnvInfo, ActionParams, ActionValue, CallType, ParamsType};
 use evm::{Factory, VMType};
 use executive::Executive;
-use account_state::Substate;
+use substate::Substate;
 use test_helpers::get_temp_state_with_factory;
 use trace::{NoopVMTracer, NoopTracer};
 use types::transaction::SYSTEM_ADDRESS;

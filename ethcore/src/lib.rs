@@ -164,6 +164,7 @@ pub mod spec;
 pub mod verification;
 
 mod externalities;
+mod substate;
 mod transaction_ext;
 mod tx_filter;
 

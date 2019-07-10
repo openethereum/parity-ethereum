@@ -45,7 +45,8 @@ use machine::Machine;
 use pod::PodState;
 use spec::Genesis;
 use spec::seal::Generic as GenericSeal;
-use account_state::{Backend, State, Substate, backend::Basic as BasicBackend};
+use account_state::{Backend, State, backend::Basic as BasicBackend};
+use substate::Substate;
 use trace::{NoopTracer, NoopVMTracer};
 
 pub use ethash::OptimizeFor;
