@@ -8,11 +8,8 @@ use common_types::{
 		EthashExtensions,
 		params::CommonParams
 	},
+	errors::EthcoreError,
 };
-
-pub mod error;
-
-use error::Error;
 
 /// Provides various information on a block by it's ID
 pub trait BlockInfo {
@@ -49,18 +46,18 @@ pub trait VerifyingEngine: Sync + Send {
 
 	/// Phase 1 quick block verification. Only does checks that are cheap. Returns either a null `Ok` or a general error detailing the problem with import.
 	/// The verification module can optionally avoid checking the seal (`check_seal`), if seal verification is disabled this method won't be called.
-	fn verify_block_basic(&self, _header: &Header) -> Result<(), Error> { Ok(()) }
+	fn verify_block_basic(&self, _header: &Header) -> Result<(), EthcoreError> { Ok(()) }
 
 	/// Phase 2 verification. Perform costly checks such as transaction signatures. Returns either a null `Ok` or a general error detailing the problem with import.
 	/// The verification module can optionally avoid checking the seal (`check_seal`), if seal verification is disabled this method won't be called.
-	fn verify_block_unordered(&self, _header: &Header) -> Result<(), Error> { Ok(()) }
+	fn verify_block_unordered(&self, _header: &Header) -> Result<(), EthcoreError> { Ok(()) }
 
 	/// Phase 3 verification. Check block information against parent. Returns either a null `Ok` or a general error detailing the problem with import.
-	fn verify_block_family(&self, _header: &Header, _parent: &Header) -> Result<(), Error> { Ok(()) }
+	fn verify_block_family(&self, _header: &Header, _parent: &Header) -> Result<(), EthcoreError> { Ok(()) }
 
 	/// Phase 4 verification. Verify block header against potentially external data.
 	/// Should only be called when `register_client` has been called previously.
-	fn verify_block_external(&self, _header: &Header) -> Result<(), Error> { Ok(()) }
+	fn verify_block_external(&self, _header: &Header) -> Result<(), EthcoreError> { Ok(()) }
 
 	/// Perform basic/cheap transaction verification.
 	///
