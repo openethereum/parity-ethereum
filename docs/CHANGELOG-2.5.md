@@ -9,6 +9,7 @@ encouraged to upgrade.
 ## Parity-Ethereum [v2.5.4](https://github.com/paritytech/parity-ethereum/releases/tag/v2.5.4)
 
 Parity Ethereum v2.5.4-stable is a security update that addresses servo/rust-smallvec#148
+
 The full list of included changes:
 
 * cargo update -p smallvec ([#10822](https://github.com/paritytech/parity-ethereum/pull/10822))
@@ -22,6 +23,7 @@ Parity-Ethereum 2.5.3-beta is a bugfix release that improves performance and sta
 * State tests: treat empty accounts the same as non-existant accounts (EIP 1052)
 * Networking: support discovery-only peers (geth bootnodes)
 * Snapshotting: fix unclean shutdown while snappshotting is under way
+
 The full list of included changes:
 
 * ethcore/res: activate atlantis classic hf on block 8772000 ([#10766](https://github.com/paritytech/parity-ethereum/pull/10766))
@@ -36,6 +38,7 @@ The full list of included changes:
 Parity-Ethereum 2.5.2-beta is a bugfix release that improves performance and stability.
 
 Among others, it enables the _Atlantis_ hardfork on **Morden** and **Kotti** Classic networks.
+
 The full list of included changes:
 
 * [CI] allow cargo audit to fail ([#10676](https://github.com/paritytech/parity-ethereum/pull/10676))
@@ -51,6 +54,7 @@ The full list of included changes:
 Parity-Ethereum 2.5.1-beta is a bugfix release that improves performance and stability. 
 
 Among others, it enables the Petersburg hardfork on **Rinkeby** and **POA-Core** Network, as well as the **Kovan** Network community hardfork.
+
 The full list of included changes:
 
 * ci: publish docs debug ([#10638](https://github.com/paritytech/parity-ethereum/pull/10638))
@@ -64,6 +68,7 @@ Parity-Ethereum 2.5.0-beta is a minor release that improves performance and stab
 - This release removes the dead chain configs for Easthub and Ethereum Social ([#10531](https://github.com/paritytech/parity-ethereum/pull/10531))
 
 As of today, Parity-Ethereum 2.3 reaches end of life and everyone is encouraged to upgrade.
+
 The full list of included changes:
 
 * fix(light cull): poll light cull instead of timer ([#10559](https://github.com/paritytech/parity-ethereum/pull/10559))

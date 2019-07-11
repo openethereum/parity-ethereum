@@ -1,6 +1,7 @@
 ## Parity-Ethereum [v2.4.9](https://github.com/paritytech/parity-ethereum/releases/tag/v2.4.9)
 
 Parity Ethereum v2.4.9-stable is a security update which addresses servo/rust-smallvec#148
+
 The full list of included changes:
 
 * cargo update -p smallvec ([#10822](https://github.com/paritytech/parity-ethereum/pull/10822))
@@ -14,6 +15,7 @@ Parity-Ethereum 2.4.8-stable is a bugfix release that improves performance and s
 * Aura: fix Timestamp Overflow
 * Networking: support discovery-only peers (geth bootnodes)
 * Snapshotting: fix unclean shutdown while snappshotting is under way
+
 The full list of included changes:
 
 * ethcore/res: activate atlantis classic hf on block 8772000 ([#10766](https://github.com/paritytech/parity-ethereum/pull/10766))
@@ -31,6 +33,7 @@ The full list of included changes:
 Parity-Ethereum 2.4.7-stable is a bugfix release that improves performance and stability.
 
 Among others, it enables the _Atlantis_ hardfork on **Morden** and **Kotti** Classic networks.
+
 The full list of included changes:
 
 * [CI] allow cargo audit to fail ([#10676](https://github.com/paritytech/parity-ethereum/pull/10676))
@@ -45,6 +48,7 @@ The full list of included changes:
 Parity-Ethereum 2.4.6-stable is a bugfix release that improves performance and stability.
 
 Among others, it enables the Petersburg hardfork on **Rinkeby** and **POA-Core** Network, as well as the **Kovan** Network community hardfork.
+
 The full list of included changes:
 
 * ci: publish docs debug ([#10638](https://github.com/paritytech/parity-ethereum/pull/10638))
@@ -58,6 +62,7 @@ As of today, Parity-Ethereum 2.3 reaches end of life and everyone is encouraged 
 ## Parity-Ethereum [v2.4.4](https://github.com/paritytech/parity-ethereum/releases/tag/v2.4.4)
 
 Parity-Ethereum 2.4.4-beta is a bugfix release that improves performance and stability. This patch release removes the dead chain configs for Easthub and Ethereum Social.
+
 The full list of included changes:
 
 * fix(rpc-types): replace uint and hash with `ethereum_types v0.4` ([#10217](https://github.com/paritytech/parity-ethereum/pull/10217))
@@ -72,6 +77,7 @@ The full list of included changes:
 ## Parity-Ethereum [v2.4.3](https://github.com/paritytech/parity-ethereum/releases/tag/v2.4.3)
 
 Parity-Ethereum 2.4.3-beta is a bugfix release that improves performance and stability. This patch release contains a critical bug fix where serving light clients previously led to client crashes. Upgrading is highly recommended.
+
 The full list of included changes:
 
 * Add additional request tests ([#10503](https://github.com/paritytech/parity-ethereum/pull/10503))
@@ -79,6 +85,7 @@ The full list of included changes:
 ## Parity-Ethereum [v2.4.2](https://github.com/paritytech/parity-ethereum/releases/tag/v2.4.2)
 
 Parity-Ethereum 2.4.2-beta is a bugfix release that improves performance and stability.
+
 The full list of included changes:
 
 * Сaching through docker volume ([#10477](https://github.com/paritytech/parity-ethereum/pull/10477))
@@ -88,6 +95,7 @@ The full list of included changes:
 ## Parity-Ethereum [v2.4.1](https://github.com/paritytech/parity-ethereum/releases/tag/v2.4.1)
 
 Parity-Ethereum 2.4.1-beta is a bugfix release that improves performance and stability.
+
 The full list of included changes:
 
 * Implement parity_versionInfo & parity_setChain on LC; fix parity_setChain ([#10312](https://github.com/paritytech/parity-ethereum/pull/10312))
@@ -108,6 +116,7 @@ Notable changes:
 - Chains can now be reset to a particular block via CLI ([#9782](https://github.com/paritytech/parity-ethereum/pull/9782))
 - Ethash now additionally implements ProgPoW ([#9762](https://github.com/paritytech/parity-ethereum/pull/9762)) 
 - The `eip1283DisableTransition` flag was added to revert EIP-1283 ([#10214](https://github.com/paritytech/parity-ethereum/pull/10214))
+
 The full list of included changes:
 
 * revert some changes, could be buggy ([#10399](https://github.com/paritytech/parity-ethereum/pull/10399))
