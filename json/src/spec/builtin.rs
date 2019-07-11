@@ -46,6 +46,11 @@ pub struct AltBn128Pairing {
 	pub pair: usize,
 }
 
+/// Pricing for EIP1962 defaults to the implementation.
+#[derive(Debug, PartialEq, Deserialize, Clone)]
+#[serde(deny_unknown_fields)]
+pub struct EIP1962;
+
 /// Pricing variants.
 #[derive(Debug, PartialEq, Deserialize, Clone)]
 #[serde(deny_unknown_fields)]
@@ -57,6 +62,8 @@ pub enum Pricing {
 	Modexp(Modexp),
 	/// Pricing for alt_bn128_pairing exponentiation.
 	AltBn128Pairing(AltBn128Pairing),
+	/// Pricing for EIP1962.
+	EIP1962(EIP1962),
 }
 
 /// Spec builtin.

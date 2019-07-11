@@ -30,6 +30,7 @@ use log::{warn, trace};
 use num::{BigUint, Zero, One};
 use parity_bytes::BytesRef;
 use parity_crypto::digest;
+use eth_pairings;
 
 /// Native implementation of a built-in contract.
 trait Implementation: Send + Sync {
@@ -136,6 +137,22 @@ impl ModexpPricer {
 	}
 }
 
+/// A EIP1962 pricing model. For now refers to implementation model.
+struct EIP1962Pricer;
+
+impl Pricer for EIP1962Pricer {
+	fn cost(&self, input: &[u8]) -> U256 {
+		let cost = eth_pairings::gas_meter::GasMeter::meter(&input);
+		if cost.is_err() {
+			return U256::max_value();
+		}
+		let cost = cost.expect("is non-error now");
+
+		let cost = U256::from(cost);
+		cost
+	}
+}
+
 /// Pricing scheme, execution definition, and activation block for a built-in contract.
 ///
 /// Call `cost` to compute cost for the given input, `execute` to execute the contract
@@ -190,6 +207,9 @@ impl From<ethjson::spec::Builtin> for Builtin {
 					pair: pricer.pair,
 				})
 			}
+			ethjson::spec::Pricing::EIP1962(_) => {
+				Box::new(EIP1962Pricer)
+			}
 		};
 
 		Builtin {
@@ -211,6 +231,7 @@ fn ethereum_builtin(name: &str) -> Box<dyn Implementation> {
 		"alt_bn128_add" => Box::new(Bn128Add) as Box<dyn Implementation>,
 		"alt_bn128_mul" => Box::new(Bn128Mul) as Box<dyn Implementation>,
 		"alt_bn128_pairing" => Box::new(Bn128Pairing) as Box<dyn Implementation>,
+		"eip1962" => Box::new(EIP1962) as Box<dyn Implementation>,
 		_ => panic!("invalid builtin name: {}", name),
 	}
 }
@@ -246,6 +267,9 @@ struct Bn128Mul;
 
 #[derive(Debug)]
 struct Bn128Pairing;
+
+#[derive(Debug)]
+struct EIP1962;
 
 impl Implementation for Identity {
 	fn execute(&self, input: &[u8], output: &mut BytesRef) -> Result<(), &'static str> {
@@ -548,6 +572,23 @@ impl Bn128Pairing {
 	}
 }
 
+impl Implementation for EIP1962 {
+	/// Can fail in many cases, so leave it for an implementation
+	fn execute(&self, input: &[u8], output: &mut BytesRef) -> Result<(), &'static str> {
+		let result = eth_pairings::public_interface::API::run(&input);
+		if result.is_err() {
+			trace!("EIP1962 error: {:?}", result.err().expect("is error"));
+			return Err("Precompile call was unsuccessful");
+		}
+		let result: Vec<u8> = result.expect("some result");
+		let mut buf = [0u8; 32];
+		buf[31] = result[0];
+		output.write(0, &buf);
+
+		Ok(())
+	}
+}
+
 #[cfg(test)]
 mod tests {
 	use ethereum_types::U256;
@@ -555,7 +596,7 @@ mod tests {
 	use num::{BigUint, Zero, One};
 	use parity_bytes::BytesRef;
 	use rustc_hex::FromHex;
-	use super::{Builtin, Linear, ethereum_builtin, Pricer, ModexpPricer, modexp as me};
+	use super::{Builtin, Linear, ethereum_builtin, Pricer, ModexpPricer, modexp as me, EIP1962Pricer};
 
 	#[test]
 	fn modexp_func() {
@@ -988,6 +1029,111 @@ mod tests {
 			),
 			Some("Invalid input length"),
 		);
+	}
+
+	#[test]
+	fn eip1962() {
+
+		let f = Builtin {
+			pricer: Box::new(EIP1962Pricer),
+			native: ethereum_builtin("eip1962"),
+			activate_at: 0,
+		};
+
+		// test for returning max gas on invalid input
+		{
+			let input = FromHex::from_hex("00").unwrap();
+			let expected_cost = U256::max_value();
+			assert_eq!(f.cost(&input[..]), expected_cost.into());
+		}
+
+		// test for a valid return value for some BLS12 test vector
+		{
+			let input = FromHex::from_hex("\
+				0701804a5a95350598fa3a7b559937d87888e67a656e460b98755a5a329757cd\
+				057e4e8547b85c1ac34a75d0edf2fd8582068e75678a288ff23f41fdadca7697\
+				a790de1543129f600cbda57c157cbd91d6d819c0ab305f46008b178844cfbaa4\
+				388dc3aeec3a15938878844f48d1380c8f03bc2274b0abb11ed67a0b00c0b41f\
+				5ab2790000000000000000000000000000000000000000000000000000000000\
+				0000000000000000000000000000000000000000000000000000000000000000\
+				0000000000000000000000000000000000000000000000000000000000000000\
+				0000000000000000000000000000000000000000000000000000000000000000\
+				0000000000000000000000000000000000000000000000000000000000000000\
+				0000000000000000000000000000000000000000000000000000000000000000\
+				0000000000000000000000000000000000000000000000000000000000000000\
+				0000000000000000000000000000000000000000000000000000000000000000\
+				0000025605cae48c0a763b192625adfafe0c9bbce3e0817b817194475986f7be\
+				e5dec75fa2fbc8424c77e115695da2dbf091368b153a5bacc50baa33e77f42c4\
+				5614e39ac3a13930721649f6b5073ed72a6acd44e7e76bf8ca6d4a5a95350598\
+				fa3a7b559937d87888e67a656e460b98755a5a329757cd057e4e8547b85c1ac3\
+				4a75d0edf2fd8582068e75678a288ff23f41fdadca7697a790de1543129f600c\
+				bda57c157cbd91d6d819c0ab305f46008b178844cfbaa4388dc3aeec3a159388\
+				78844f48d1380c8f03bc2274b0abb11ed67a0b00c0b41f5ab274000000000000\
+				0000000000000000000000000000000000000000000000000000000000000000\
+				0000000000000000000000000000000000000000000000000000000000000000\
+				0000000000000000000000000000000000000000000000000000000000000000\
+				0000000000000000000000000000000000000000000000000000000000000000\
+				0000000000000000000000000000000000000000000000000000000000000000\
+				0000000000000000000000000000000000000000000000000000000000000000\
+				0000000000000000000000000000000000000000000000000000000000000000\
+				0000000000000000000000000000000000000000000000000001021606349c43\
+				3d748f5dff1efbb0f7d5ef90af3e1dd910e601022ea117ba2c5ad7a74ebfd33c\
+				256aea0f659a6e59207b59129639178a1291d587ba2965a306f329ed5389243f\
+				c7492b02cf74befb8c1168cbe891ea626b316f990680142381d7cbfa67e9d737\
+				6cf804b77a2608108a63de0db1d60155533e8372270553e5ca9ecaf94ea7088a\
+				71ed52dbfa2e873ae8ac6f9fa8a2c162275995a83fef619e38fbc0b9478b65d9\
+				1e8a0970b108f99ab8ddefb9f687c927b1f66d9c2ff512e83906ba6eb29843d1\
+				7882cf52496e8f4446511b6e884b075a3f22a257891d2147c5779cc70dbac326\
+				5cdd15b2b7caa88e15a6c39c5ba78c6b88c8f7c2fb25547ca3d7370dbdc14c01\
+				e302087631b8d3260c0a7c49f2cc8d4f787d09ca3fb361ac7ec616d1bdeb302e\
+				14a6c839085d893100babb625e1c910c45c91fa4bcdeb2690d194486e5871a0ca\
+				020b92cc9e7e850802a5d66c768d076fb9439ec8a7a2c882206caedd9b397216a\
+				ba2281576b86cd99f3117217a80fbba43b03d14725f822cee5d00a53762f6a270\
+				dd1159b2bddb59b0850c28778fad13d782375209912cebbb4488146c02f34be1e\
+				73f1903f1a9296889e8fc0db9f68f090994dbc88f9c89e6e021bfbe548b4c945b\
+				481c7d3bbe2ba81c876622b392f11fd94edd71c0786da0ae2898f3c1807ab038f\
+				456aefc300d99879c9dbaaf3dbacd87af9fd28e95b992164c7aff4c6fcaec8e71\
+				1675cdf65d126e6b1f3a86c870720a4d02b9ddf239ce4cb7d8f6c5f669bbf363d\
+				34cfac53b69c42981ceb1215dcae6c83c1de1b8de6292c175ac21ccc895a203e0\
+				07110d377fb2f0d25b386666e7fade1ce43f7cd12b5eaab9f5d0368f00d278df9\
+				f694776e9698471ea57e64f8e9e1cd973115a86e1393428c8db5cff95609adbca\
+				ca5f39e4ddf9478e0939db944fe8c00cf77a8f67711184588d7bde62253fa275f\
+				c982497316de9aedcfe2e65ad9fabb018a6ea0e0dcf76d6512c71a4d08935d822\
+				fc7d1562fdda9a685d3c06b48126d52149d212ddb2f62fdeba4eb9fc919fb88ac\
+				53a58c4df18d491dcfdb028b8ecee1a0df2d04953895804818fe1b6c4ef3c8fa5\
+				87316ba9182a7d241480ad6be2ea117ba2c5ad7a74ebfd33c256aea0f659a6e59\
+				207b59129639178a1291d587ba2965a306f329ed5389243fc7492b02cf74befb8\
+				c1168cbe891ea626b316f990680142381d7cbfa67e9d7376cf804b77a2608108a\
+				63de0db1d60155533e8372270553e5ca9ecaf94ea7088a71ed52dbfa2e873ae8a\
+				c6f9fa8a2c162275995a80a6b3396cc9d398133ca335eb9ee7f75c95c74ab52ba\
+				85a063aace301b0f10b25552a573e1bc90071e55af2c0cff373c2bf8fae449a12\
+				3d37562c31c5884ee868c25f1579a9520de6e5ab99734f9c26708e087d13059c7\
+				7b2c9d434f1b6f9600b3c6e598efb1417691878536298cfb45f0bbdd85a5145a3\
+				018343364a6dda8af3fb361ac7ec616d1bdeb302e14a6c839085d893100babb62\
+				5e1c910c45c91fa4bcdeb2690d194486e5871a0ca020b92cc9e7e850802a5d66c\
+				768d076fb9439ec8a7a2c882206caedd9b397216aba2281576b86cd99f3117217\
+				a80fbba43b03d14725f822cee5d00a53762f6a270dd1159b2bddb59b0850c2877\
+				8fad13d782375209912cebbb4488146c02f34be1e73f1903f1a9296889e8fc0db\
+				9f68f090994dbc88f9c89e6e021bfbe548b4c945b481c7d3bbe2ba81c876622b3\
+				92f11fd94edd71c0786da0ae2898f3c1807ab038f456aefc300d99879c9dbaaf3\
+				dbacd87af9fd28e95b992164c7aff4c6fcaec8e711675cdf65d126e6b1f3a86c8\
+				70720a4d02b9ddf239ce4cb7d8f6c5f669bbf363d34cfac53b69c42981ceb1215\
+				dcae6c83c1de1b8de6292c175ac21ccc895a203e007110d377fb2f0d25b386666\
+				e7fade1ce43f7cd12b5eaab9f5d0368f00d278df9f694776e9698471ea57e64f8\
+				e9e1cd973115a86e1393428c8db5cff95609adbcaca5f39e4ddf9478e0939db94\
+				4fe8c00cf77a8f67711184588d7bde62253fa275fc982497316de9aedcfe2e65a\
+				d9fabb018a6ea0e0dcf76d6512c71a4d08935d822fc7d1562fdda9a685d3c06b4\
+				8126d52149d212ddb2f62fdeba4eb9fc919fb88ac53a58c4df18d491dcfdb028b\
+				8ecee1a0df2d04953895804818fe1b6c4ef3c8fa587316ba9182a7d241480ad6be"
+			).unwrap();
+
+			let mut output = vec![0u8; 64];
+
+			let res = f.execute(&input[..], &mut BytesRef::Fixed(&mut output[..]));
+			assert!(res.is_ok(), "Should not return error for a valid pairing");
+			assert!(output[31] == 1u8, "Should return `true` for a valid pairing");
+		}
+
 	}
 
 	#[test]
