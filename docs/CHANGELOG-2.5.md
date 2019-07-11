@@ -1,4 +1,4 @@
-## Parity-Ethereum [v2.5.5](https://api.github.com/repos/paritytech/parity-ethereum/releases/tags/v2.5.5)
+## Parity-Ethereum [v2.5.5](https://github.com/paritytech/parity-ethereum/releases/tag/v2.5.5)
 
 Parity-Ethereum is a minor release that improves performance and stability.
 This release stabilises the 2.5 branch.
@@ -6,14 +6,14 @@ This release stabilises the 2.5 branch.
 As of today, Parity-Ethereum 2.4 reaches end of life and everyone is
 encouraged to upgrade.
 
-## Parity-Ethereum [v2.5.4](https://api.github.com/repos/paritytech/parity-ethereum/releases/tags/v2.5.4)
+## Parity-Ethereum [v2.5.4](https://github.com/paritytech/parity-ethereum/releases/tag/v2.5.4)
 
 Parity Ethereum v2.5.4-stable is a security update that addresses servo/rust-smallvec#148
 The full list of included changes:
 
 * cargo update -p smallvec ([#10822](https://github.com/paritytech/parity-ethereum/pull/10822))
 
-## Parity-Ethereum [v2.5.3](https://api.github.com/repos/paritytech/parity-ethereum/releases/tags/v2.5.3)
+## Parity-Ethereum [v2.5.3](https://github.com/paritytech/parity-ethereum/releases/tag/v2.5.3)
 
 Parity-Ethereum 2.5.3-beta is a bugfix release that improves performance and stability.
 
@@ -31,7 +31,7 @@ The full list of included changes:
 * DevP2p: Get node IP address and udp port from Socket, if not included in PING packet ([#10705](https://github.com/paritytech/parity-ethereum/pull/10705))
 * Add a way to signal shutdown to snapshotting threads ([#10744](https://github.com/paritytech/parity-ethereum/pull/10744))
 
-## Parity-Ethereum [v2.5.2](https://api.github.com/repos/paritytech/parity-ethereum/releases/tags/v2.5.2)
+## Parity-Ethereum [v2.5.2](https://github.com/paritytech/parity-ethereum/releases/tag/v2.5.2)
 
 Parity-Ethereum 2.5.2-beta is a bugfix release that improves performance and stability.
 
@@ -46,7 +46,7 @@ The full list of included changes:
 * Use RUSTFLAGS to set the optimization level ([#10719](https://github.com/paritytech/parity-ethereum/pull/10719))
 * ethcore: enable ECIP-1054 for classic ([#10731](https://github.com/paritytech/parity-ethereum/pull/10731))
 
-## Parity-Ethereum [v2.5.1](https://api.github.com/repos/paritytech/parity-ethereum/releases/tags/v2.5.1)
+## Parity-Ethereum [v2.5.1](https://github.com/paritytech/parity-ethereum/releases/tag/v2.5.1)
 
 Parity-Ethereum 2.5.1-beta is a bugfix release that improves performance and stability. 
 
@@ -55,7 +55,7 @@ The full list of included changes:
 
 * ci: publish docs debug ([#10638](https://github.com/paritytech/parity-ethereum/pull/10638))
 
-## Parity-Ethereum [v2.5.0](https://api.github.com/repos/paritytech/parity-ethereum/releases/tags/v2.5.0)
+## Parity-Ethereum [v2.5.0](https://github.com/paritytech/parity-ethereum/releases/tag/v2.5.0)
 
 Parity-Ethereum 2.5.0-beta is a minor release that improves performance and stabilizes the 2.5 branch by marking it as beta release. 
 

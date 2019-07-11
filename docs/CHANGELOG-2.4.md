@@ -1,11 +1,11 @@
-## Parity-Ethereum [v2.4.9](https://api.github.com/repos/paritytech/parity-ethereum/releases/tags/v2.4.9)
+## Parity-Ethereum [v2.4.9](https://github.com/paritytech/parity-ethereum/releases/tag/v2.4.9)
 
 Parity Ethereum v2.4.9-stable is a security update which addresses servo/rust-smallvec#148
 The full list of included changes:
 
 * cargo update -p smallvec ([#10822](https://github.com/paritytech/parity-ethereum/pull/10822))
 
-## Parity-Ethereum [v2.4.8](https://api.github.com/repos/paritytech/parity-ethereum/releases/tags/v2.4.8)
+## Parity-Ethereum [v2.4.8](https://github.com/paritytech/parity-ethereum/releases/tag/v2.4.8)
 
 Parity-Ethereum 2.4.8-stable is a bugfix release that improves performance and stability.
 
@@ -26,7 +26,7 @@ The full list of included changes:
 * Revert "fix: aura don't add `SystemTime::now()` ([#10720](https://github.com/paritytech/parity-ethereum/pull/10720))"
 * Add a way to signal shutdown to snapshotting threads ([#10744](https://github.com/paritytech/parity-ethereum/pull/10744))
 
-## Parity-Ethereum [v2.4.7](https://api.github.com/repos/paritytech/parity-ethereum/releases/tags/v2.4.7)
+## Parity-Ethereum [v2.4.7](https://github.com/paritytech/parity-ethereum/releases/tag/v2.4.7)
 
 Parity-Ethereum 2.4.7-stable is a bugfix release that improves performance and stability.
 
@@ -40,7 +40,7 @@ The full list of included changes:
 * Use RUSTFLAGS to set the optimization level ([#10719](https://github.com/paritytech/parity-ethereum/pull/10719))
 * ethcore: enable ECIP-1054 for classic ([#10731](https://github.com/paritytech/parity-ethereum/pull/10731))
 
-## Parity-Ethereum [v2.4.6](https://api.github.com/repos/paritytech/parity-ethereum/releases/tags/v2.4.6)
+## Parity-Ethereum [v2.4.6](https://github.com/paritytech/parity-ethereum/releases/tag/v2.4.6)
 
 Parity-Ethereum 2.4.6-stable is a bugfix release that improves performance and stability.
 
@@ -49,13 +49,13 @@ The full list of included changes:
 
 * ci: publish docs debug ([#10638](https://github.com/paritytech/parity-ethereum/pull/10638))
 
-## Parity-Ethereum [v2.4.5](https://api.github.com/repos/paritytech/parity-ethereum/releases/tags/v2.4.5)
+## Parity-Ethereum [v2.4.5](https://github.com/paritytech/parity-ethereum/releases/tag/v2.4.5)
 
 Parity-Ethereum 2.4.5-stable is a bugfix release that improves performance and stability. This release improves memory optimizations around timestamp handling and stabilizes the 2.4 release branch.
 
 As of today, Parity-Ethereum 2.3 reaches end of life and everyone is encouraged to upgrade.
 
-## Parity-Ethereum [v2.4.4](https://api.github.com/repos/paritytech/parity-ethereum/releases/tags/v2.4.4)
+## Parity-Ethereum [v2.4.4](https://github.com/paritytech/parity-ethereum/releases/tag/v2.4.4)
 
 Parity-Ethereum 2.4.4-beta is a bugfix release that improves performance and stability. This patch release removes the dead chain configs for Easthub and Ethereum Social.
 The full list of included changes:
@@ -69,14 +69,14 @@ The full list of included changes:
 * fix #10390 ([#10391](https://github.com/paritytech/parity-ethereum/pull/10391))
 * private-tx: replace error_chain ([#10510](https://github.com/paritytech/parity-ethereum/pull/10510))
 
-## Parity-Ethereum [v2.4.3](https://api.github.com/repos/paritytech/parity-ethereum/releases/tags/v2.4.3)
+## Parity-Ethereum [v2.4.3](https://github.com/paritytech/parity-ethereum/releases/tag/v2.4.3)
 
 Parity-Ethereum 2.4.3-beta is a bugfix release that improves performance and stability. This patch release contains a critical bug fix where serving light clients previously led to client crashes. Upgrading is highly recommended.
 The full list of included changes:
 
 * Add additional request tests ([#10503](https://github.com/paritytech/parity-ethereum/pull/10503))
 
-## Parity-Ethereum [v2.4.2](https://api.github.com/repos/paritytech/parity-ethereum/releases/tags/v2.4.2)
+## Parity-Ethereum [v2.4.2](https://github.com/paritytech/parity-ethereum/releases/tag/v2.4.2)
 
 Parity-Ethereum 2.4.2-beta is a bugfix release that improves performance and stability.
 The full list of included changes:
@@ -85,7 +85,7 @@ The full list of included changes:
 * fix win&mac build ([#10486](https://github.com/paritytech/parity-ethereum/pull/10486))
 * fix(extract `timestamp_checked_add` as lib) ([#10383](https://github.com/paritytech/parity-ethereum/pull/10383))
 
-## Parity-Ethereum [v2.4.1](https://api.github.com/repos/paritytech/parity-ethereum/releases/tags/v2.4.1)
+## Parity-Ethereum [v2.4.1](https://github.com/paritytech/parity-ethereum/releases/tag/v2.4.1)
 
 Parity-Ethereum 2.4.1-beta is a bugfix release that improves performance and stability.
 The full list of included changes:
@@ -98,7 +98,7 @@ The full list of included changes:
 * Tests parallelized ([#10452](https://github.com/paritytech/parity-ethereum/pull/10452))
 * Ensure static validator set changes are recognized ([#10467](https://github.com/paritytech/parity-ethereum/pull/10467))
 
-## Parity-Ethereum [v2.4.0](https://api.github.com/repos/paritytech/parity-ethereum/releases/tags/v2.4.0)
+## Parity-Ethereum [v2.4.0](https://github.com/paritytech/parity-ethereum/releases/tag/v2.4.0)
 
 Parity-Ethereum 2.4.0-beta is our trifortnightly minor version release coming with a lot of new features as well as bugfixes and performance improvements.
 
