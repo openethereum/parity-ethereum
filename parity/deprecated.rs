@@ -229,7 +229,7 @@ pub fn find_deprecated(args: &Args) -> Vec<Deprecated> {
 		result.push(Deprecated::Removed("--ntp-servers"));
 	}
 
-	// Removed in 2.6.
+	// Removed in 2.7.
 
 	if args.flag_whisper {
 		result.push(Deprecated::Removed("--whisper"));
