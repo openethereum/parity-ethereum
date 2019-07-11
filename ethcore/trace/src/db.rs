@@ -18,7 +18,7 @@
 use std::collections::HashMap;
 use std::sync::Arc;
 
-use ethcore_blockchain::BlockChainDB;
+use ethcore_blockchain::{BlockProvider, BlockChainDB, TransactionAddress};
 use ethcore_db::{
 	self as db,
 	cache_manager::CacheManager,
@@ -67,6 +67,24 @@ pub trait DatabaseExtras {
 	fn transaction_hash(&self, block_number: BlockNumber, tx_position: usize) -> Option<H256>;
 }
 
+impl<T: BlockProvider> DatabaseExtras for T {
+	fn block_hash(&self, block_number: BlockNumber) -> Option<H256> {
+		self.block_hash( block_number)
+	}
+
+	fn transaction_hash(&self, block_number: BlockNumber, tx_position: usize) -> Option<H256> {
+		self.block_hash(block_number)
+			.and_then(|block_hash| {
+				let tx_address = TransactionAddress {
+					block_hash,
+					index: tx_position
+				};
+				self.transaction(&tx_address)
+			})
+			.map(|tx| tx.hash())
+	}
+}
+
 /// Database to store transaction execution trace.
 ///
 /// Whenever a transaction is executed by EVM it's execution trace is stored
@@ -83,12 +101,12 @@ pub struct TraceDB<T> where T: DatabaseExtras {
 	/// tracing enabled
 	enabled: bool,
 	/// extras
-	extras: T,
+	extras: Arc<T>,
 }
 
 impl<T> TraceDB<T> where T: DatabaseExtras {
 	/// Creates new instance of `TraceDB`.
-	pub fn new(config: Config, db: Arc<dyn BlockChainDB>, extras: T) -> Self {
+	pub fn new(config: Config, db: Arc<dyn BlockChainDB>, extras: Arc<T>) -> Self {
 		let mut batch = DBTransaction::new();
 		let genesis = extras.block_hash(0)
 			.expect("Genesis block is always inserted upon extras db creation qed");
@@ -185,8 +203,8 @@ impl<T> TraceDB<T> where T: DatabaseExtras {
 						trace_address: trace.trace_address.into_iter().collect(),
 						transaction_number: trace_tx_number,
 						transaction_hash: trace_tx_hash,
-						block_number: block_number,
-						block_hash: block_hash
+						block_number,
+						block_hash,
 					}),
 					false => None
 				}
@@ -264,8 +282,8 @@ impl<T> TraceDatabase for TraceDB<T> where T: DatabaseExtras {
 						trace_address: trace.trace_address.into_iter().collect(),
 						transaction_number: Some(tx_position),
 						transaction_hash: Some(tx_hash),
-						block_number: block_number,
-						block_hash: block_hash,
+						block_number,
+						block_hash,
 					}
 				})
 			)
@@ -288,8 +306,8 @@ impl<T> TraceDatabase for TraceDB<T> where T: DatabaseExtras {
 						trace_address: trace.trace_address.into_iter().collect(),
 						transaction_number: Some(tx_position),
 						transaction_hash: Some(tx_hash.clone()),
-						block_number: block_number,
-						block_hash: block_hash
+						block_number,
+						block_hash,
 					})
 					.collect()
 				})
@@ -318,8 +336,8 @@ impl<T> TraceDatabase for TraceDB<T> where T: DatabaseExtras {
 									trace_address: trace.trace_address.into_iter().collect(),
 									transaction_number: trace_tx_number,
 									transaction_hash: trace_tx_hash,
-									block_number: block_number,
-									block_hash: block_hash,
+									block_number,
+									block_hash,
 								})
 								.collect::<Vec<LocalizedTrace>>()
 						})
@@ -349,7 +367,10 @@ impl<T> TraceDatabase for TraceDB<T> where T: DatabaseExtras {
 
 #[cfg(test)]
 mod tests {
-	use std::collections::HashMap;
+	use std::{
+		collections::HashMap,
+		sync::Arc,
+	};
 
 	use ethcore::test_helpers::new_db;
 	use ethereum_types::{H256, U256, Address};
@@ -414,7 +435,7 @@ mod tests {
 		config.enabled = false;
 
 		{
-			let tracedb = TraceDB::new(config.clone(), db.clone(), NoopExtras);
+			let tracedb = TraceDB::new(config.clone(), db.clone(), Arc::new(NoopExtras));
 			assert_eq!(tracedb.tracing_enabled(), false);
 		}
 	}
@@ -428,7 +449,7 @@ mod tests {
 		config.enabled = true;
 
 		{
-			let tracedb = TraceDB::new(config.clone(), db.clone(), NoopExtras);
+			let tracedb = TraceDB::new(config.clone(), db.clone(), Arc::new(NoopExtras));
 			assert_eq!(tracedb.tracing_enabled(), true);
 		}
 	}
@@ -449,7 +470,7 @@ mod tests {
 				result: Res::FailedCall(TraceError::OutOfGas),
 			}])]),
 			block_hash: block_hash.clone(),
-			block_number: block_number,
+			block_number,
 			enacted: vec![block_hash],
 			retracted: 0,
 		}
@@ -471,7 +492,7 @@ mod tests {
 				result: Res::FailedCall(TraceError::OutOfGas),
 			}])]),
 			block_hash: block_hash.clone(),
-			block_number: block_number,
+			block_number,
 			enacted: vec![],
 			retracted: 0,
 		}
@@ -492,8 +513,8 @@ mod tests {
 			subtraces: 0,
 			transaction_number: Some(0),
 			transaction_hash: Some(tx_hash),
-			block_number: block_number,
-			block_hash: block_hash,
+			block_number,
+			block_hash,
 		}
 	}
 
@@ -513,7 +534,7 @@ mod tests {
 		extras.transaction_hashes.insert(0, vec![tx_0.clone()]);
 		extras.transaction_hashes.insert(1, vec![tx_1.clone()]);
 
-		let tracedb = TraceDB::new(config, db.clone(), extras);
+		let tracedb = TraceDB::new(config, db.clone(), Arc::new(extras));
 
 		// import block 0
 		let request = create_noncanon_import_request(0, block_0.clone());
@@ -542,7 +563,7 @@ mod tests {
 		extras.transaction_hashes.insert(1, vec![tx_1.clone()]);
 		extras.transaction_hashes.insert(2, vec![tx_2.clone()]);
 
-		let tracedb = TraceDB::new(config, db.clone(), extras);
+		let tracedb = TraceDB::new(config, db.clone(), Arc::new(extras));
 
 		// import block 1
 		let request = create_simple_import_request(1, block_1.clone());
@@ -620,7 +641,7 @@ mod tests {
 		config.enabled = true;
 
 		{
-			let tracedb = TraceDB::new(config.clone(), db.clone(), extras.clone());
+			let tracedb = TraceDB::new(config.clone(), db.clone(), Arc::new(extras.clone()));
 
 			// import block 1
 			let request = create_simple_import_request(1, block_0.clone());
@@ -630,7 +651,7 @@ mod tests {
 		}
 
 		{
-			let tracedb = TraceDB::new(config.clone(), db.clone(), extras);
+			let tracedb = TraceDB::new(config.clone(), db.clone(), Arc::new(extras));
 			let traces = tracedb.transaction_traces(1, 0);
 			assert_eq!(traces.unwrap(), vec![create_simple_localized_trace(1, block_0, tx_0)]);
 		}
@@ -649,7 +670,7 @@ mod tests {
 		// set tracing on
 		config.enabled = true;
 
-		let tracedb = TraceDB::new(config.clone(), db.clone(), extras.clone());
+		let tracedb = TraceDB::new(config.clone(), db.clone(), Arc::new(extras.clone()));
 		let traces = tracedb.block_traces(0).unwrap();
 
 		assert_eq!(traces.len(), 0);
