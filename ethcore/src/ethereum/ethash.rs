@@ -23,7 +23,7 @@ use ethereum_types::{H256, H64, U256};
 use ethjson;
 use hash::{KECCAK_EMPTY_LIST_RLP};
 use rlp::Rlp;
-use types::header::{Header, ExtendedHeader};
+use types::header::Header;
 use types::BlockNumber;
 use unexpected::{OutOfBounds, Mismatch};
 
@@ -379,10 +379,6 @@ impl Engine for Arc<Ethash> {
 
 	fn snapshot_components(&self) -> Option<Box<dyn (::snapshot::SnapshotComponents)>> {
 		Some(Box::new(::snapshot::PowSnapshot::new(SNAPSHOT_BLOCKS, MAX_SNAPSHOT_BLOCKS)))
-	}
-
-	fn fork_choice(&self, new: &ExtendedHeader, current: &ExtendedHeader) -> engines::ForkChoice {
-		engines::total_difficulty_fork_choice(new, current)
 	}
 }
 

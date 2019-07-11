@@ -48,7 +48,7 @@ macro_rules! reqrep_test {
 			fake_ext.info = $info;
 			fake_ext.blockhashes = $block_hashes;
 
-			let mut interpreter = wasm_interpreter(params);
+			let interpreter = wasm_interpreter(params);
 			interpreter.exec(&mut fake_ext).ok().unwrap()
 				.map(|result| match result {
 					GasLeft::Known(_) => { panic!("Test is expected to return payload to check"); },
@@ -83,7 +83,7 @@ fn empty() {
 	let mut ext = FakeExt::new().with_wasm();
 
 	let gas_left = {
-		let mut interpreter = wasm_interpreter(params);
+		let interpreter = wasm_interpreter(params);
 		test_finalize(interpreter.exec(&mut ext).ok().unwrap()).unwrap()
 	};
 
@@ -112,7 +112,7 @@ fn logger() {
 	let mut ext = FakeExt::new().with_wasm();
 
 	let gas_left = {
-		let mut interpreter = wasm_interpreter(params);
+		let interpreter = wasm_interpreter(params);
 		test_finalize(interpreter.exec(&mut ext).ok().unwrap()).unwrap()
 	};
 
@@ -164,7 +164,7 @@ fn identity() {
 	let mut ext = FakeExt::new().with_wasm();
 
 	let (gas_left, result) = {
-		let mut interpreter = wasm_interpreter(params);
+		let interpreter = wasm_interpreter(params);
 		let result = interpreter.exec(&mut ext).ok().unwrap().expect("Interpreter to execute without any errors");
 		match result {
 			GasLeft::Known(_) => { panic!("Identity contract should return payload"); },
@@ -199,7 +199,7 @@ fn dispersion() {
 	let mut ext = FakeExt::new().with_wasm();
 
 	let (gas_left, result) = {
-		let mut interpreter = wasm_interpreter(params);
+		let interpreter = wasm_interpreter(params);
 		let result = interpreter.exec(&mut ext).ok().unwrap().expect("Interpreter to execute without any errors");
 		match result {
 			GasLeft::Known(_) => { panic!("Dispersion routine should return payload"); },
@@ -227,7 +227,7 @@ fn suicide_not() {
 	let mut ext = FakeExt::new().with_wasm();
 
 	let (gas_left, result) = {
-		let mut interpreter = wasm_interpreter(params);
+		let interpreter = wasm_interpreter(params);
 		let result = interpreter.exec(&mut ext).ok().unwrap().expect("Interpreter to execute without any errors");
 		match result {
 			GasLeft::Known(_) => { panic!("Suicidal contract should return payload when had not actualy killed himself"); },
@@ -260,7 +260,7 @@ fn suicide() {
 	let mut ext = FakeExt::new().with_wasm();
 
 	let gas_left = {
-		let mut interpreter = wasm_interpreter(params);
+		let interpreter = wasm_interpreter(params);
 		let result = interpreter.exec(&mut ext).ok().unwrap().expect("Interpreter to execute without any errors");
 		match result {
 			GasLeft::Known(gas) => gas,
@@ -288,7 +288,7 @@ fn create() {
 	ext.schedule.wasm.as_mut().unwrap().have_create2 = true;
 
 	let gas_left = {
-		let mut interpreter = wasm_interpreter(params);
+		let interpreter = wasm_interpreter(params);
 		let result = interpreter.exec(&mut ext).ok().unwrap().expect("Interpreter to execute without any errors");
 		match result {
 			GasLeft::Known(_) => {
@@ -353,7 +353,7 @@ fn call_msg() {
 	ext.balances.insert(receiver.clone(), U256::from(10000000000u64));
 
 	let gas_left = {
-		let mut interpreter = wasm_interpreter(params);
+		let interpreter = wasm_interpreter(params);
 		let result = interpreter.exec(&mut ext).ok().unwrap().expect("Interpreter to execute without any errors");
 		match result {
 			GasLeft::Known(gas_left) => gas_left,
@@ -401,7 +401,7 @@ fn call_msg_gasleft() {
 	ext.balances.insert(receiver.clone(), U256::from(10000000000u64));
 
 	let gas_left = {
-		let mut interpreter = wasm_interpreter(params);
+		let interpreter = wasm_interpreter(params);
 		let result = interpreter.exec(&mut ext).ok().unwrap().expect("Interpreter to execute without any errors");
 		match result {
 			GasLeft::Known(gas_left) => gas_left,
@@ -444,7 +444,7 @@ fn call_code() {
 	let mut ext = FakeExt::new().with_wasm();
 
 	let (gas_left, result) = {
-		let mut interpreter = wasm_interpreter(params);
+		let interpreter = wasm_interpreter(params);
 		let result = interpreter.exec(&mut ext).ok().unwrap().expect("Interpreter to execute without any errors");
 		match result {
 			GasLeft::Known(_) => { panic!("Call test should return payload"); },
@@ -492,7 +492,7 @@ fn call_static() {
 	let mut ext = FakeExt::new().with_wasm();
 
 	let (gas_left, result) = {
-		let mut interpreter = wasm_interpreter(params);
+		let interpreter = wasm_interpreter(params);
 		let result = interpreter.exec(&mut ext).ok().unwrap().expect("Interpreter to execute without any errors");
 		match result {
 			GasLeft::Known(_) => { panic!("Static call test should return payload"); },
@@ -533,7 +533,7 @@ fn realloc() {
 	let mut ext = FakeExt::new().with_wasm();
 
 	let (gas_left, result) = {
-		let mut interpreter = wasm_interpreter(params);
+		let interpreter = wasm_interpreter(params);
 		let result = interpreter.exec(&mut ext).ok().unwrap().expect("Interpreter to execute without any errors");
 		match result {
 				GasLeft::Known(_) => { panic!("Realloc should return payload"); },
@@ -555,7 +555,7 @@ fn alloc() {
 	let mut ext = FakeExt::new().with_wasm();
 
 	let (gas_left, result) = {
-		let mut interpreter = wasm_interpreter(params);
+		let interpreter = wasm_interpreter(params);
 		let result = interpreter.exec(&mut ext).ok().unwrap().expect("Interpreter to execute without any errors");
 		match result {
 				GasLeft::Known(_) => { panic!("alloc test should return payload"); },
@@ -583,7 +583,7 @@ fn storage_read() {
 	ext.store.insert(hash, address.into());
 
 	let (gas_left, result) = {
-		let mut interpreter = wasm_interpreter(params);
+		let interpreter = wasm_interpreter(params);
 		let result = interpreter.exec(&mut ext).ok().unwrap().expect("Interpreter to execute without any errors");
 		match result {
 				GasLeft::Known(_) => { panic!("storage_read should return payload"); },
@@ -609,7 +609,7 @@ fn keccak() {
 	let mut ext = FakeExt::new().with_wasm();
 
 	let (gas_left, result) = {
-		let mut interpreter = wasm_interpreter(params);
+		let interpreter = wasm_interpreter(params);
 		let result = interpreter.exec(&mut ext).ok().unwrap().expect("Interpreter to execute without any errors");
 		match result {
 				GasLeft::Known(_) => { panic!("keccak should return payload"); },
@@ -759,7 +759,7 @@ fn storage_metering() {
 	]);
 
 	let gas_left = {
-		let mut interpreter = wasm_interpreter(params);
+		let interpreter = wasm_interpreter(params);
 		test_finalize(interpreter.exec(&mut ext).ok().unwrap()).unwrap()
 	};
 
@@ -778,7 +778,7 @@ fn storage_metering() {
 	]);
 
 	let gas_left = {
-		let mut interpreter = wasm_interpreter(params);
+		let interpreter = wasm_interpreter(params);
 		test_finalize(interpreter.exec(&mut ext).ok().unwrap()).unwrap()
 	};
 
@@ -929,7 +929,7 @@ fn embedded_keccak() {
 	let mut ext = FakeExt::new().with_wasm();
 
 	let (gas_left, result) = {
-		let mut interpreter = wasm_interpreter(params);
+		let interpreter = wasm_interpreter(params);
 		let result = interpreter.exec(&mut ext).ok().unwrap().expect("Interpreter to execute without any errors");
 		match result {
 			GasLeft::Known(_) => { panic!("keccak should return payload"); },
@@ -960,7 +960,7 @@ fn events() {
 	let mut ext = FakeExt::new().with_wasm();
 
 	let (gas_left, result) = {
-		let mut interpreter = wasm_interpreter(params);
+		let interpreter = wasm_interpreter(params);
 		let result = interpreter.exec(&mut ext).ok().unwrap().expect("Interpreter to execute without any errors");
 		match result {
 			GasLeft::Known(_) => { panic!("events should return payload"); },

@@ -24,7 +24,6 @@
 
 pub mod account;
 pub mod backend;
-pub mod substate;
 pub mod state;
 pub mod error;
 
@@ -32,6 +31,5 @@ pub use {
 	account::Account,
 	backend::Backend,
 	error::Error,
-	substate::Substate,
 	state::{State, CleanupMode},
 };

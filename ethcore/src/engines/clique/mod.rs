@@ -83,7 +83,7 @@ use super::signer::EngineSigner;
 use unexpected::{Mismatch, OutOfBounds};
 use time_utils::CheckedSystemTime;
 use types::BlockNumber;
-use types::header::{ExtendedHeader, Header};
+use types::header::Header;
 
 use self::block_state::CliqueBlockState;
 use self::params::CliqueParams;
@@ -764,10 +764,6 @@ impl Engine for Clique {
 
 	fn is_timestamp_valid(&self, header_timestamp: u64, parent_timestamp: u64) -> bool {
 		header_timestamp >= parent_timestamp.saturating_add(self.period)
-	}
-
-	fn fork_choice(&self, new: &ExtendedHeader, current: &ExtendedHeader) -> super::ForkChoice {
-		super::total_difficulty_fork_choice(new, current)
 	}
 
 	// Clique uses the author field for voting, the real author is hidden in the `extra_data` field.

@@ -16,12 +16,8 @@
 
 //! Execution environment substate.
 use std::collections::HashSet;
-
-use common_types::log_entry::LogEntry;
 use ethereum_types::Address;
-use evm::{CleanDustMode, Schedule};
-
-use crate::state::CleanupMode;
+use types::log_entry::LogEntry;
 
 /// State changes which should be applied in finalize,
 /// after transaction is fully executed.
@@ -57,21 +53,12 @@ impl Substate {
 		self.sstore_clears_refund += s.sstore_clears_refund;
 		self.contracts_created.extend(s.contracts_created);
 	}
-
-	/// Get the cleanup mode object from this.
-	pub fn to_cleanup_mode(&mut self, schedule: &Schedule) -> CleanupMode {
-		match (schedule.kill_dust != CleanDustMode::Off, schedule.no_empty, schedule.kill_empty) {
-			(false, false, _) => CleanupMode::ForceCreate,
-			(false, true, false) => CleanupMode::NoEmpty,
-			(false, true, true) | (true, _, _,) => CleanupMode::TrackTouched(&mut self.touched),
-		}
-	}
 }
 
 #[cfg(test)]
 mod tests {
-	use common_types::log_entry::LogEntry;
 	use ethereum_types::Address;
+	use types::log_entry::LogEntry;
 	use super::Substate;
 
 	#[test]

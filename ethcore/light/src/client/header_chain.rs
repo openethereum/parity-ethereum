@@ -213,7 +213,7 @@ pub struct HeaderChain {
 	#[ignore_malloc_size_of = "ignored for performance reason"]
 	live_epoch_proofs: RwLock<H256FastMap<EpochTransition>>,
 	#[ignore_malloc_size_of = "ignored for performance reason"]
-	db: Arc<KeyValueDB>,
+	db: Arc<dyn KeyValueDB>,
 	#[ignore_malloc_size_of = "ignored for performance reason"]
 	col: Option<u32>,
 	#[ignore_malloc_size_of = "ignored for performance reason"]
@@ -223,7 +223,7 @@ pub struct HeaderChain {
 impl HeaderChain {
 	/// Create a new header chain given this genesis block and database to read from.
 	pub fn new(
-		db: Arc<KeyValueDB>,
+		db: Arc<dyn KeyValueDB>,
 		col: Option<u32>,
 		spec: &Spec,
 		cache: Arc<Mutex<Cache>>,
@@ -880,7 +880,7 @@ mod tests {
 	use std::time::Duration;
 	use parking_lot::Mutex;
 
-	fn make_db() -> Arc<KeyValueDB> {
+	fn make_db() -> Arc<dyn KeyValueDB> {
 		Arc::new(kvdb_memorydb::create(0))
 	}
 

@@ -218,7 +218,7 @@ enum RequireCache {
 }
 
 /// Mode of dealing with null accounts.
-#[derive(PartialEq)]
+#[derive(Debug, PartialEq)]
 pub enum CleanupMode<'a> {
 	/// Create accounts which would be null.
 	ForceCreate,

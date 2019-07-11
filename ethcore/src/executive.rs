@@ -21,7 +21,8 @@ use std::sync::Arc;
 use hash::keccak;
 use ethereum_types::{H256, U256, U512, Address};
 use bytes::{Bytes, BytesRef};
-use account_state::{Backend as StateBackend, State, Substate, CleanupMode};
+use account_state::{Backend as StateBackend, State, CleanupMode};
+use substate::Substate;
 use executed::ExecutionError;
 use machine::Machine;
 use evm::{CallType, Finalize, FinalizationResult};
@@ -103,6 +104,15 @@ pub fn into_contract_create_result(result: vm::Result<FinalizationResult>, addre
 			vm::ContractCreateResult::Reverted(gas_left, return_data)
 		},
 		_ => vm::ContractCreateResult::Failed,
+	}
+}
+
+/// Get the cleanup mode object from this.
+pub fn cleanup_mode<'a>(substate: &'a mut Substate, schedule: &Schedule) -> CleanupMode<'a> {
+	match (schedule.kill_dust != CleanDustMode::Off, schedule.no_empty, schedule.kill_empty) {
+		(false, false, _) => CleanupMode::ForceCreate,
+		(false, true, false) => CleanupMode::NoEmpty,
+		(false, true, true) | (true, _, _,) => CleanupMode::TrackTouched(&mut substate.touched),
 	}
 }
 
@@ -302,7 +312,7 @@ impl<'a> CallCreateExecutive<'a> {
 
 	fn transfer_exec_balance<B: 'a + StateBackend>(params: &ActionParams, schedule: &Schedule, state: &mut State<B>, substate: &mut Substate) -> vm::Result<()> {
 		if let ActionValue::Transfer(val) = params.value {
-			state.transfer_balance(&params.sender, &params.address, &val, substate.to_cleanup_mode(&schedule))?;
+			state.transfer_balance(&params.sender, &params.address, &val, cleanup_mode(substate, &schedule))?;
 		}
 
 		Ok(())
@@ -312,7 +322,7 @@ impl<'a> CallCreateExecutive<'a> {
 		let nonce_offset = if schedule.no_empty { 1 } else { 0 }.into();
 		let prev_bal = state.balance(&params.address)?;
 		if let ActionValue::Transfer(val) = params.value {
-			state.sub_balance(&params.sender, &val, &mut substate.to_cleanup_mode(&schedule))?;
+			state.sub_balance(&params.sender, &val, &mut cleanup_mode(substate, &schedule))?;
 			state.new_contract(&params.address, val.saturating_add(prev_bal), nonce_offset, params.code_version)?;
 		} else {
 			state.new_contract(&params.address, prev_bal, nonce_offset, params.code_version)?;
@@ -865,7 +875,11 @@ impl<'a, B: 'a + StateBackend> Executive<'a, B> {
 		if !schedule.keep_unsigned_nonce || !t.is_unsigned() {
 			self.state.inc_nonce(&sender)?;
 		}
-		self.state.sub_balance(&sender, &U256::try_from(gas_cost).expect("Total cost (value + gas_cost) is lower than max allowed balance (U256); gas_cost has to fit U256; qed"), &mut substate.to_cleanup_mode(&schedule))?;
+		self.state.sub_balance(
+			&sender,
+			&U256::try_from(gas_cost).expect("Total cost (value + gas_cost) is lower than max allowed balance (U256); gas_cost has to fit U256; qed"),
+			&mut cleanup_mode(&mut substate, &schedule)
+		)?;
 
 		let (result, output) = match t.action {
 			Action::Create => {
@@ -1142,7 +1156,7 @@ impl<'a, B: 'a + StateBackend> Executive<'a, B> {
 		// Below: NoEmpty is safe since the sender must already be non-null to have sent this transaction
 		self.state.add_balance(&sender, &refund_value, CleanupMode::NoEmpty)?;
 		trace!("exec::finalize: Compensating author: fees_value={}, author={}\n", fees_value, &self.info.author);
-		self.state.add_balance(&self.info.author, &fees_value, substate.to_cleanup_mode(&schedule))?;
+		self.state.add_balance(&self.info.author, &fees_value, cleanup_mode(&mut substate, &schedule))?;
 
 		// perform suicides
 		for address in &substate.suicides {
@@ -1194,6 +1208,7 @@ impl<'a, B: 'a + StateBackend> Executive<'a, B> {
 mod tests {
 	use std::sync::Arc;
 	use std::str::FromStr;
+	use std::collections::HashSet;
 	use rustc_hex::FromHex;
 	use ethkey::{Generator, Random};
 	use super::*;
@@ -1202,7 +1217,8 @@ mod tests {
 	use evm::{Factory, VMType};
 	use error::ExecutionError;
 	use machine::Machine;
-	use account_state::{Substate, CleanupMode};
+	use account_state::CleanupMode;
+	use substate::Substate;
 	use test_helpers::{get_temp_state_with_factory, get_temp_state};
 	use trace::trace;
 	use trace::{FlatTrace, Tracer, NoopTracer, ExecutiveTracer};
@@ -1219,6 +1235,33 @@ mod tests {
 		let mut machine = ::ethereum::new_byzantium_test_machine();
 		machine.set_schedule_creation_rules(Box::new(move |s, _| s.max_depth = max_depth));
 		machine
+	}
+
+	#[test]
+	fn test_cleanup_mode() {
+		let address = Address::from_str("0f572e5295c57f15886f9b263e2f6d2d6c7b5ec6").unwrap();
+		let mut touched = HashSet::new();
+		touched.insert(address);
+
+		let mut substate = Substate::default();
+		substate.touched = touched.clone();
+
+		assert_eq!(CleanupMode::ForceCreate,  cleanup_mode(&mut substate, &Schedule::new_frontier()));
+		assert_eq!(CleanupMode::ForceCreate,  cleanup_mode(&mut substate, &Schedule::new_homestead()));
+		assert_eq!(CleanupMode::TrackTouched(&mut touched),  cleanup_mode(&mut substate, &Schedule::new_byzantium()));
+		assert_eq!(CleanupMode::TrackTouched(&mut touched),  cleanup_mode(&mut substate, &Schedule::new_constantinople()));
+
+		assert_eq!(CleanupMode::TrackTouched(&mut touched),  cleanup_mode(&mut substate, &{
+			let mut schedule = Schedule::new_homestead();
+			schedule.kill_dust = CleanDustMode::BasicOnly;
+			schedule
+		}));
+
+		assert_eq!(CleanupMode::NoEmpty,  cleanup_mode(&mut substate, &{
+			let mut schedule = Schedule::new_homestead();
+			schedule.no_empty = true;
+			schedule
+		}));
 	}
 
 	#[test]

@@ -236,25 +236,25 @@ pub trait Handler: Send + Sync {
 	/// Called when a peer connects.
 	fn on_connect(
 		&self,
-		_ctx: &EventContext,
+		_ctx: &dyn EventContext,
 		_status: &Status,
 		_capabilities: &Capabilities
 	) -> PeerStatus { PeerStatus::Kept }
 	/// Called when a peer disconnects, with a list of unfulfilled request IDs as
 	/// of yet.
-	fn on_disconnect(&self, _ctx: &EventContext, _unfulfilled: &[ReqId]) { }
+	fn on_disconnect(&self, _ctx: &dyn EventContext, _unfulfilled: &[ReqId]) { }
 	/// Called when a peer makes an announcement.
-	fn on_announcement(&self, _ctx: &EventContext, _announcement: &Announcement) { }
+	fn on_announcement(&self, _ctx: &dyn EventContext, _announcement: &Announcement) { }
 	/// Called when a peer requests relay of some transactions.
-	fn on_transactions(&self, _ctx: &EventContext, _relay: &[UnverifiedTransaction]) { }
+	fn on_transactions(&self, _ctx: &dyn EventContext, _relay: &[UnverifiedTransaction]) { }
 	/// Called when a peer responds to requests.
 	/// Responses not guaranteed to contain valid data and are not yet checked against
 	/// the requests they correspond to.
-	fn on_responses(&self, _ctx: &EventContext, _req_id: ReqId, _responses: &[Response]) { }
+	fn on_responses(&self, _ctx: &dyn EventContext, _req_id: ReqId, _responses: &[Response]) { }
 	/// Called when a peer responds with a transaction proof. Each proof is a vector of state items.
-	fn on_transaction_proof(&self, _ctx: &EventContext, _req_id: ReqId, _state_items: &[DBValue]) { }
+	fn on_transaction_proof(&self, _ctx: &dyn EventContext, _req_id: ReqId, _state_items: &[DBValue]) { }
 	/// Called to "tick" the handler periodically.
-	fn tick(&self, _ctx: &BasicContext) { }
+	fn tick(&self, _ctx: &dyn BasicContext) { }
 	/// Called on abort. This signals to handlers that they should clean up
 	/// and ignore peers.
 	// TODO: coreresponding `on_activate`?
@@ -290,7 +290,7 @@ pub struct Params {
 	/// Initial capabilities.
 	pub capabilities: Capabilities,
 	/// The sample store (`None` if data shouldn't persist between runs).
-	pub sample_store: Option<Box<SampleStore>>,
+	pub sample_store: Option<Box<dyn SampleStore>>,
 }
 
 /// Type alias for convenience.
@@ -391,7 +391,7 @@ impl Statistics {
 //   Locks must be acquired in the order declared, and when holding a read lock
 //   on the peers, only one peer may be held at a time.
 pub struct LightProtocol {
-	provider: Arc<Provider>,
+	provider: Arc<dyn Provider>,
 	config: Config,
 	genesis_hash: H256,
 	network_id: u64,
@@ -400,16 +400,16 @@ pub struct LightProtocol {
 	capabilities: RwLock<Capabilities>,
 	flow_params: RwLock<Arc<FlowParams>>,
 	free_flow_params: Arc<FlowParams>,
-	handlers: Vec<Arc<Handler>>,
+	handlers: Vec<Arc<dyn Handler>>,
 	req_id: AtomicUsize,
-	sample_store: Box<SampleStore>,
+	sample_store: Box<dyn SampleStore>,
 	load_distribution: LoadDistribution,
 	statistics: RwLock<Statistics>,
 }
 
 impl LightProtocol {
 	/// Create a new instance of the protocol manager.
-	pub fn new(provider: Arc<Provider>, params: Params) -> Self {
+	pub fn new(provider: Arc<dyn Provider>, params: Params) -> Self {
 		debug!(target: "pip", "Initializing light protocol handler");
 
 		let genesis_hash = provider.chain_info().genesis_hash;
@@ -473,7 +473,7 @@ impl LightProtocol {
 	/// insufficient credits. Does not check capabilities before sending.
 	/// On success, returns a request id which can later be coordinated
 	/// with an event.
-	pub fn request_from(&self, io: &IoContext, peer_id: PeerId, requests: Requests) -> Result<ReqId, Error> {
+	pub fn request_from(&self, io: &dyn IoContext, peer_id: PeerId, requests: Requests) -> Result<ReqId, Error> {
 		let peers = self.peers.read();
 		let peer = match peers.get(&peer_id) {
 			Some(peer) => peer,
@@ -518,7 +518,7 @@ impl LightProtocol {
 
 	/// Make an announcement of new chain head and capabilities to all peers.
 	/// The announcement is expected to be valid.
-	pub fn make_announcement(&self, io: &IoContext, mut announcement: Announcement) {
+	pub fn make_announcement(&self, io: &dyn IoContext, mut announcement: Announcement) {
 		let mut reorgs_map = HashMap::new();
 		let now = Instant::now();
 
@@ -568,7 +568,7 @@ impl LightProtocol {
 	/// These are intended to be added when the protocol structure
 	/// is initialized as a means of customizing its behavior,
 	/// and dispatching requests immediately upon events.
-	pub fn add_handler(&mut self, handler: Arc<Handler>) {
+	pub fn add_handler(&mut self, handler: Arc<dyn Handler>) {
 		self.handlers.push(handler);
 	}
 
@@ -635,7 +635,7 @@ impl LightProtocol {
 	/// Handle a packet using the given io context.
 	/// Packet data is _untrusted_, which means that invalid data won't lead to
 	/// issues.
-	pub fn handle_packet(&self, io: &IoContext, peer: PeerId, packet_id: u8, data: &[u8]) {
+	pub fn handle_packet(&self, io: &dyn IoContext, peer: PeerId, packet_id: u8, data: &[u8]) {
 		let rlp = Rlp::new(data);
 
 		trace!(target: "pip", "Incoming packet {} from peer {}", packet_id, peer);
@@ -664,7 +664,7 @@ impl LightProtocol {
 	}
 
 	// check timeouts and punish peers.
-	fn timeout_check(&self, io: &IoContext) {
+	fn timeout_check(&self, io: &dyn IoContext) {
 		let now = Instant::now();
 
 		// handshake timeout
@@ -706,7 +706,7 @@ impl LightProtocol {
 
 	// propagate transactions to relay peers.
 	// if we aren't on the mainnet, we just propagate to all relay peers
-	fn propagate_transactions(&self, io: &IoContext) {
+	fn propagate_transactions(&self, io: &dyn IoContext) {
 		if self.capabilities.read().tx_relay { return }
 
 		let ready_transactions = self.provider.transactions_to_propagate();
@@ -746,7 +746,7 @@ impl LightProtocol {
 	}
 
 	/// called when a peer connects.
-	pub fn on_connect(&self, peer: PeerId, io: &IoContext) {
+	pub fn on_connect(&self, peer: PeerId, io: &dyn IoContext) {
 		let proto_version = match io.protocol_version(peer).ok_or(Error::WrongNetwork) {
 			Ok(pv) => pv,
 			Err(e) => { punish(peer, io, &e); return }
@@ -788,7 +788,7 @@ impl LightProtocol {
 	}
 
 	/// called when a peer disconnects.
-	pub fn on_disconnect(&self, peer: PeerId, io: &IoContext) {
+	pub fn on_disconnect(&self, peer: PeerId, io: &dyn IoContext) {
 		trace!(target: "pip", "Peer {} disconnecting", peer);
 
 		self.pending_peers.write().remove(&peer);
@@ -813,8 +813,8 @@ impl LightProtocol {
 	}
 
 	/// Execute the given closure with a basic context derived from the I/O context.
-	pub fn with_context<F, T>(&self, io: &IoContext, f: F) -> T
-		where F: FnOnce(&BasicContext) -> T
+	pub fn with_context<F, T>(&self, io: &dyn IoContext, f: F) -> T
+		where F: FnOnce(&dyn BasicContext) -> T
 	{
 		f(&TickCtx {
 			io,
@@ -822,7 +822,7 @@ impl LightProtocol {
 		})
 	}
 
-	fn tick_handlers(&self, io: &IoContext) {
+	fn tick_handlers(&self, io: &dyn IoContext) {
 		for handler in &self.handlers {
 			handler.tick(&TickCtx {
 				io,
@@ -831,7 +831,7 @@ impl LightProtocol {
 		}
 	}
 
-	fn begin_new_cost_period(&self, io: &IoContext) {
+	fn begin_new_cost_period(&self, io: &dyn IoContext) {
 		self.load_distribution.end_period(&*self.sample_store);
 
 		let avg_peer_count = self.statistics.read().avg_peer_count();
@@ -872,7 +872,7 @@ impl LightProtocol {
 
 impl LightProtocol {
 	// Handle status message from peer.
-	fn status(&self, peer: PeerId, io: &IoContext, data: &Rlp) -> Result<(), Error> {
+	fn status(&self, peer: PeerId, io: &dyn IoContext, data: &Rlp) -> Result<(), Error> {
 		let pending = match self.pending_peers.write().remove(&peer) {
 			Some(pending) => pending,
 			None => {
@@ -937,7 +937,7 @@ impl LightProtocol {
 	}
 
 	// Handle an announcement.
-	fn announcement(&self, peer: PeerId, io: &IoContext, data: &Rlp) -> Result<(), Error> {
+	fn announcement(&self, peer: PeerId, io: &dyn IoContext, data: &Rlp) -> Result<(), Error> {
 		if !self.peers.read().contains_key(&peer) {
 			debug!(target: "pip", "Ignoring announcement from unknown peer");
 			return Ok(())
@@ -982,7 +982,7 @@ impl LightProtocol {
 	}
 
 	// Receive requests from a peer.
-	fn request(&self, peer_id: PeerId, io: &IoContext, raw: &Rlp) -> Result<(), Error> {
+	fn request(&self, peer_id: PeerId, io: &dyn IoContext, raw: &Rlp) -> Result<(), Error> {
 		// the maximum amount of requests we'll fill in a single packet.
 		const MAX_REQUESTS: usize = 256;
 
@@ -1050,7 +1050,7 @@ impl LightProtocol {
 	}
 
 	// handle a packet with responses.
-	fn response(&self, peer: PeerId, io: &IoContext, raw: &Rlp) -> Result<(), Error> {
+	fn response(&self, peer: PeerId, io: &dyn IoContext, raw: &Rlp) -> Result<(), Error> {
 		let (req_id, responses) = {
 			let id_guard = self.pre_verify_response(peer, &raw)?;
 			let responses: Vec<Response> = raw.list_at(2)?;
@@ -1069,7 +1069,7 @@ impl LightProtocol {
 	}
 
 	// handle an update of request credits parameters.
-	fn update_credits(&self, peer_id: PeerId, io: &IoContext, raw: &Rlp) -> Result<(), Error> {
+	fn update_credits(&self, peer_id: PeerId, io: &dyn IoContext, raw: &Rlp) -> Result<(), Error> {
 		let peers = self.peers.read();
 
 		let peer = peers.get(&peer_id).ok_or(Error::UnknownPeer)?;
@@ -1104,7 +1104,7 @@ impl LightProtocol {
 	}
 
 	// handle an acknowledgement of request credits update.
-	fn acknowledge_update(&self, peer_id: PeerId, _io: &IoContext, _raw: &Rlp) -> Result<(), Error> {
+	fn acknowledge_update(&self, peer_id: PeerId, _io: &dyn IoContext, _raw: &Rlp) -> Result<(), Error> {
 		let peers = self.peers.read();
 		let peer = peers.get(&peer_id).ok_or(Error::UnknownPeer)?;
 		let mut peer = peer.lock();
@@ -1123,7 +1123,7 @@ impl LightProtocol {
 	}
 
 	// Receive a set of transactions to relay.
-	fn relay_transactions(&self, peer: PeerId, io: &IoContext, data: &Rlp) -> Result<(), Error> {
+	fn relay_transactions(&self, peer: PeerId, io: &dyn IoContext, data: &Rlp) -> Result<(), Error> {
 		const MAX_TRANSACTIONS: usize = 256;
 
 		let txs: Vec<_> = data.iter()
@@ -1146,7 +1146,7 @@ impl LightProtocol {
 }
 
 // if something went wrong, figure out how much to punish the peer.
-fn punish(peer: PeerId, io: &IoContext, e: &Error) {
+fn punish(peer: PeerId, io: &dyn IoContext, e: &Error) {
 	match e.punishment() {
 		Punishment::None => {}
 		Punishment::Disconnect => {
@@ -1161,7 +1161,7 @@ fn punish(peer: PeerId, io: &IoContext, e: &Error) {
 }
 
 impl NetworkProtocolHandler for LightProtocol {
-	fn initialize(&self, io: &NetworkContext) {
+	fn initialize(&self, io: &dyn NetworkContext) {
 		io.register_timer(TIMEOUT, TIMEOUT_INTERVAL)
 			.expect("Error registering sync timer.");
 		io.register_timer(TICK_TIMEOUT, TICK_TIMEOUT_INTERVAL)
@@ -1174,19 +1174,19 @@ impl NetworkProtocolHandler for LightProtocol {
 			.expect("Error registering statistics timer.");
 	}
 
-	fn read(&self, io: &NetworkContext, peer: &PeerId, packet_id: u8, data: &[u8]) {
+	fn read(&self, io: &dyn NetworkContext, peer: &PeerId, packet_id: u8, data: &[u8]) {
 		self.handle_packet(&io, *peer, packet_id, data);
 	}
 
-	fn connected(&self, io: &NetworkContext, peer: &PeerId) {
+	fn connected(&self, io: &dyn NetworkContext, peer: &PeerId) {
 		self.on_connect(*peer, &io);
 	}
 
-	fn disconnected(&self, io: &NetworkContext, peer: &PeerId) {
+	fn disconnected(&self, io: &dyn NetworkContext, peer: &PeerId) {
 		self.on_disconnect(*peer, &io);
 	}
 
-	fn timeout(&self, io: &NetworkContext, timer: TimerToken) {
+	fn timeout(&self, io: &dyn NetworkContext, timer: TimerToken) {
 		match timer {
 			TIMEOUT => self.timeout_check(&io),
 			TICK_TIMEOUT => self.tick_handlers(&io),

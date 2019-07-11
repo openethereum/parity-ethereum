@@ -23,6 +23,7 @@ mod messages;
 mod error;
 mod log;
 
+extern crate account_state;
 extern crate common_types as types;
 extern crate ethabi;
 extern crate ethcore;
@@ -46,8 +47,8 @@ extern crate rlp;
 extern crate serde_derive;
 extern crate serde;
 extern crate serde_json;
-extern crate account_state;
 extern crate rustc_hex;
+extern crate state_db;
 extern crate trace;
 extern crate transaction_pool as txpool;
 extern crate url;
@@ -94,7 +95,7 @@ use ethcore::client::{
 	Call, BlockInfo
 };
 use ethcore::miner::{self, Miner, MinerService, pool_client::NonceCache};
-use ethcore::StateDB;
+use state_db::StateDB;
 use account_state::State;
 use trace::{Tracer, VMTracer};
 use call_contract::CallContract;

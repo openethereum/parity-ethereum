@@ -91,13 +91,13 @@ pub trait Key<T> {
 /// Should be used to write value into database.
 pub trait Writable {
 	/// Writes the value into the database.
-	fn write<T, R>(&mut self, col: Option<u32>, key: &Key<T, Target = R>, value: &T) where T: rlp::Encodable, R: AsRef<[u8]>;
+	fn write<T, R>(&mut self, col: Option<u32>, key: &dyn Key<T, Target = R>, value: &T) where T: rlp::Encodable, R: AsRef<[u8]>;
 
 	/// Deletes key from the databse.
-	fn delete<T, R>(&mut self, col: Option<u32>, key: &Key<T, Target = R>) where T: rlp::Encodable, R: AsRef<[u8]>;
+	fn delete<T, R>(&mut self, col: Option<u32>, key: &dyn Key<T, Target = R>) where T: rlp::Encodable, R: AsRef<[u8]>;
 
 	/// Writes the value into the database and updates the cache.
-	fn write_with_cache<K, T, R>(&mut self, col: Option<u32>, cache: &mut Cache<K, T>, key: K, value: T, policy: CacheUpdatePolicy) where
+	fn write_with_cache<K, T, R>(&mut self, col: Option<u32>, cache: &mut dyn Cache<K, T>, key: K, value: T, policy: CacheUpdatePolicy) where
 	K: Key<T, Target = R> + Hash + Eq,
 	T: rlp::Encodable,
 	R: AsRef<[u8]> {
@@ -113,7 +113,7 @@ pub trait Writable {
 	}
 
 	/// Writes the values into the database and updates the cache.
-	fn extend_with_cache<K, T, R>(&mut self, col: Option<u32>, cache: &mut Cache<K, T>, values: HashMap<K, T>, policy: CacheUpdatePolicy) where
+	fn extend_with_cache<K, T, R>(&mut self, col: Option<u32>, cache: &mut dyn Cache<K, T>, values: HashMap<K, T>, policy: CacheUpdatePolicy) where
 	K: Key<T, Target = R> + Hash + Eq,
 	T: rlp::Encodable,
 	R: AsRef<[u8]> {
@@ -134,7 +134,7 @@ pub trait Writable {
 	}
 
 	/// Writes and removes the values into the database and updates the cache.
-	fn extend_with_option_cache<K, T, R>(&mut self, col: Option<u32>, cache: &mut Cache<K, Option<T>>, values: HashMap<K, Option<T>>, policy: CacheUpdatePolicy) where
+	fn extend_with_option_cache<K, T, R>(&mut self, col: Option<u32>, cache: &mut dyn Cache<K, Option<T>>, values: HashMap<K, Option<T>>, policy: CacheUpdatePolicy) where
 	K: Key<T, Target = R> + Hash + Eq,
 	T: rlp::Encodable,
 	R: AsRef<[u8]> {
@@ -165,7 +165,7 @@ pub trait Writable {
 /// Should be used to read values from database.
 pub trait Readable {
 	/// Returns value for given key.
-	fn read<T, R>(&self, col: Option<u32>, key: &Key<T, Target = R>) -> Option<T> where
+	fn read<T, R>(&self, col: Option<u32>, key: &dyn Key<T, Target = R>) -> Option<T> where
 	T: rlp::Decodable,
 	R: AsRef<[u8]>;
 
@@ -189,7 +189,7 @@ pub trait Readable {
 	}
 
 	/// Returns true if given value exists.
-	fn exists<T, R>(&self, col: Option<u32>, key: &Key<T, Target = R>) -> bool where R: AsRef<[u8]>;
+	fn exists<T, R>(&self, col: Option<u32>, key: &dyn Key<T, Target = R>) -> bool where R: AsRef<[u8]>;
 
 	/// Returns true if given value exists either in cache or in database.
 	fn exists_with_cache<K, T, R, C>(&self, col: Option<u32>, cache: &RwLock<C>, key: &K) -> bool where
@@ -208,17 +208,17 @@ pub trait Readable {
 }
 
 impl Writable for DBTransaction {
-	fn write<T, R>(&mut self, col: Option<u32>, key: &Key<T, Target = R>, value: &T) where T: rlp::Encodable, R: AsRef<[u8]> {
+	fn write<T, R>(&mut self, col: Option<u32>, key: &dyn Key<T, Target = R>, value: &T) where T: rlp::Encodable, R: AsRef<[u8]> {
 		self.put(col, key.key().as_ref(), &rlp::encode(value));
 	}
 
-	fn delete<T, R>(&mut self, col: Option<u32>, key: &Key<T, Target = R>) where T: rlp::Encodable, R: AsRef<[u8]> {
+	fn delete<T, R>(&mut self, col: Option<u32>, key: &dyn Key<T, Target = R>) where T: rlp::Encodable, R: AsRef<[u8]> {
 		self.delete(col, key.key().as_ref());
 	}
 }
 
 impl<KVDB: KeyValueDB + ?Sized> Readable for KVDB {
-	fn read<T, R>(&self, col: Option<u32>, key: &Key<T, Target = R>) -> Option<T>
+	fn read<T, R>(&self, col: Option<u32>, key: &dyn Key<T, Target = R>) -> Option<T>
 		where T: rlp::Decodable, R: AsRef<[u8]> {
 		self.get(col, key.key().as_ref())
 			.expect(&format!("db get failed, key: {:?}", key.key().as_ref()))
@@ -226,7 +226,7 @@ impl<KVDB: KeyValueDB + ?Sized> Readable for KVDB {
 
 	}
 
-	fn exists<T, R>(&self, col: Option<u32>, key: &Key<T, Target = R>) -> bool where R: AsRef<[u8]> {
+	fn exists<T, R>(&self, col: Option<u32>, key: &dyn Key<T, Target = R>) -> bool where R: AsRef<[u8]> {
 		let result = self.get(col, key.key().as_ref());
 
 		match result {

@@ -33,7 +33,7 @@ pub struct Factory {
 impl Factory {
 	/// Create fresh instance of VM
 	/// Might choose implementation depending on supplied gas.
-	pub fn create(&self, params: ActionParams, schedule: &Schedule, depth: usize) -> Box<Exec> {
+	pub fn create(&self, params: ActionParams, schedule: &Schedule, depth: usize) -> Box<dyn Exec> {
 		match self.evm {
 			VMType::Interpreter => if Self::can_fit_in_usize(&params.gas) {
 				Box::new(super::interpreter::Interpreter::<usize>::new(params, self.evm_cache.clone(), schedule, depth))

@@ -46,8 +46,8 @@ fn authority_round() {
 
 	let chain_id = Spec::new_test_round().chain_id();
 	let mut net = TestNet::with_spec(2, SyncConfig::default(), Spec::new_test_round);
-	let io_handler0: Arc<IoHandler<ClientIoMessage>> = Arc::new(TestIoHandler::new(net.peer(0).chain.clone()));
-	let io_handler1: Arc<IoHandler<ClientIoMessage>> = Arc::new(TestIoHandler::new(net.peer(1).chain.clone()));
+	let io_handler0: Arc<dyn IoHandler<ClientIoMessage>> = Arc::new(TestIoHandler::new(net.peer(0).chain.clone()));
+	let io_handler1: Arc<dyn IoHandler<ClientIoMessage>> = Arc::new(TestIoHandler::new(net.peer(1).chain.clone()));
 	// Push transaction to both clients. Only one of them gets lucky to produce a block.
 	net.peer(0).miner.set_author(miner::Author::Sealer(engines::signer::from_keypair(s0.clone())));
 	net.peer(1).miner.set_author(miner::Author::Sealer(engines::signer::from_keypair(s1.clone())));

@@ -114,7 +114,7 @@ impl<'p, C> SyncIo for TestIo<'p, C> where C: FlushingBlockChainClient, C: 'p {
 		Ok(())
 	}
 
-	fn chain(&self) -> &BlockChainClient {
+	fn chain(&self) -> &dyn BlockChainClient {
 		&*self.chain
 	}
 
@@ -126,7 +126,7 @@ impl<'p, C> SyncIo for TestIo<'p, C> where C: FlushingBlockChainClient, C: 'p {
 		ClientVersion::from(client_id)
 	}
 
-	fn snapshot_service(&self) -> &SnapshotService {
+	fn snapshot_service(&self) -> &dyn SnapshotService {
 		self.snapshot_service
 	}
 

@@ -45,7 +45,8 @@ use machine::Machine;
 use pod::PodState;
 use spec::Genesis;
 use spec::seal::Generic as GenericSeal;
-use account_state::{Backend, State, Substate, backend::Basic as BasicBackend};
+use account_state::{Backend, State, backend::Basic as BasicBackend};
+use substate::Substate;
 use trace::{NoopTracer, NoopVMTracer};
 
 pub use ethash::OptimizeFor;
@@ -543,8 +544,8 @@ fn load_from(spec_params: SpecParams, s: ethjson::spec::Spec) -> Result<Spec, Er
 		gas_used: g.gas_used,
 		timestamp: g.timestamp,
 		extra_data: g.extra_data,
-		seal_rlp: seal_rlp,
-		hardcoded_sync: hardcoded_sync,
+		seal_rlp,
+		hardcoded_sync,
 		constructors: s.accounts
 			.constructors()
 			.into_iter()
