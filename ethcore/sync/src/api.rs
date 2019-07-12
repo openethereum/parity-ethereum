@@ -219,31 +219,6 @@ impl From<light_net::Status> for PipProtocolInfo {
 	}
 }
 
-/// Configuration to attach alternate protocol handlers.
-/// Only works when IPC is disabled.
-pub struct AttachedProtocol {
-	/// The protocol handler in question.
-	pub handler: Arc<dyn NetworkProtocolHandler + Send + Sync>,
-	/// 3-character ID for the protocol.
-	pub protocol_id: ProtocolId,
-	/// Supported versions and their packet counts.
-	pub versions: &'static [(u8, u8)],
-}
-
-impl AttachedProtocol {
-	fn register(&self, network: &NetworkService) {
-		let res = network.register_protocol(
-			self.handler.clone(),
-			self.protocol_id,
-			self.versions
-		);
-
-		if let Err(e) = res {
-			warn!(target: "sync", "Error attaching protocol {:?}: {:?}", self.protocol_id, e);
-		}
-	}
-}
-
 /// A prioritized tasks run in a specialised timer.
 /// Every task should be completed within a hard deadline,
 /// if it's not it's either cancelled or split into multiple tasks.
@@ -291,8 +266,6 @@ pub struct Params {
 	pub provider: Arc<dyn (::light::Provider)>,
 	/// Network layer configuration.
 	pub network_config: NetworkConfiguration,
-	/// Other protocols to attach.
-	pub attached_protos: Vec<AttachedProtocol>,
 }
 
 /// Ethereum network protocol handler
@@ -303,8 +276,6 @@ pub struct EthSync {
 	eth_handler: Arc<SyncProtocolHandler>,
 	/// Light (pip) protocol handler
 	light_proto: Option<Arc<LightProtocol>>,
-	/// Other protocols to attach.
-	attached_protos: Vec<AttachedProtocol>,
 	/// The main subprotocol name
 	subprotocol_name: [u8; 3],
 	/// Light subprotocol name.
@@ -409,7 +380,6 @@ impl EthSync {
 			light_proto: light_proto,
 			subprotocol_name: params.config.subprotocol_name,
 			light_subprotocol_name: params.config.light_subprotocol_name,
-			attached_protos: params.attached_protos,
 			priority_tasks: Mutex::new(priority_tasks_tx),
 			is_major_syncing
 		});
@@ -613,9 +583,6 @@ impl ChainNotify for EthSync {
 			self.network.register_protocol(light_proto, self.light_subprotocol_name, ::light::net::PROTOCOL_VERSIONS)
 				.unwrap_or_else(|e| warn!("Error registering light client protocol: {:?}", e));
 		}
-
-		// register any attached protocols.
-		for proto in &self.attached_protos { proto.register(&self.network) }
 	}
 
 	fn stop(&self) {
@@ -886,15 +853,12 @@ pub struct LightSyncParams<L> {
 	pub subprotocol_name: [u8; 3],
 	/// Other handlers to attach.
 	pub handlers: Vec<Arc<dyn LightHandler>>,
-	/// Other subprotocols to run.
-	pub attached_protos: Vec<AttachedProtocol>,
 }
 
 /// Service for light synchronization.
 pub struct LightSync {
 	proto: Arc<LightProtocol>,
 	sync: Arc<dyn SyncInfo + Sync + Send>,
-	attached_protos: Vec<AttachedProtocol>,
 	network: NetworkService,
 	subprotocol_name: [u8; 3],
 	network_id: u64,
@@ -937,7 +901,6 @@ impl LightSync {
 		Ok(LightSync {
 			proto: light_proto,
 			sync: sync,
-			attached_protos: params.attached_protos,
 			network: service,
 			subprotocol_name: params.subprotocol_name,
 			network_id: params.network_id,
@@ -996,8 +959,6 @@ impl ManageNetwork for LightSync {
 
 		self.network.register_protocol(light_proto, self.subprotocol_name, ::light::net::PROTOCOL_VERSIONS)
 			.unwrap_or_else(|e| warn!("Error registering light client protocol: {:?}", e));
-
-		for proto in &self.attached_protos { proto.register(&self.network) }
 	}
 
 	fn stop_network(&self) {

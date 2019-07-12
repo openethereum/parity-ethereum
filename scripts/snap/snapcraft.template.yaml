@@ -25,9 +25,6 @@ apps:
   ethstore:
     command:        ethstore
     plugs:          [home, removable-media]
-  whisper:
-    command:        whisper
-    plugs:          [home, network-bind, removable-media]
 
 icon:               ./scripts/snap/icon.png
 
@@ -49,5 +46,4 @@ parts:
       cp -v parity-evm $SNAPCRAFT_PART_INSTALL/usr/bin/parity-evm
       cp -v ethkey $SNAPCRAFT_PART_INSTALL/usr/bin/ethkey
       cp -v ethstore $SNAPCRAFT_PART_INSTALL/usr/bin/ethstore
-      cp -v whisper $SNAPCRAFT_PART_INSTALL/usr/bin/whisper
     stage-packages: [libstdc++6, cmake, libdb5.3]

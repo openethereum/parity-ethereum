@@ -17,7 +17,7 @@
 use std::sync::{Arc, mpsc};
 
 use ethcore::client::BlockChainClient;
-use sync::{self, AttachedProtocol, SyncConfig, NetworkConfiguration, Params, ConnectionFilter};
+use sync::{self, SyncConfig, NetworkConfiguration, Params, ConnectionFilter};
 use ethcore::snapshot::SnapshotService;
 use light::Provider;
 use parity_runtime::Executor;
@@ -42,7 +42,6 @@ pub fn sync(
 	private_tx_handler: Option<Arc<PrivateTxHandler>>,
 	provider: Arc<Provider>,
 	_log_settings: &LogConfig,
-	attached_protos: Vec<AttachedProtocol>,
 	connection_filter: Option<Arc<ConnectionFilter>>,
 ) -> Result<SyncModules, sync::Error> {
 	let eth_sync = EthSync::new(Params {
@@ -53,7 +52,6 @@ pub fn sync(
 		snapshot_service,
 		private_tx_handler,
 		network_config,
-		attached_protos,
 	},
 	connection_filter)?;
 
