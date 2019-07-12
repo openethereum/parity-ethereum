@@ -55,8 +55,6 @@ use account_state::Account as StateAccount;
 use crossbeam_utils::thread;
 use rand::{Rng, rngs::OsRng};
 
-//pub use self::error::Error; // todo sort out what we need to reexport
-
 pub use self::consensus::*;
 pub use self::service::{SnapshotClient, Service, DatabaseRestore};
 pub use self::traits::SnapshotService;
