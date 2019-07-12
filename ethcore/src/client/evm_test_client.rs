@@ -27,7 +27,8 @@ use types::{
 	errors::EthcoreError,
 	log_entry,
 	receipt,
-	transaction};
+	transaction
+};
 use trie_vm_factories::Factories;
 use evm::{VMType, FinalizationResult};
 use vm::{self, ActionParams};

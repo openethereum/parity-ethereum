@@ -40,7 +40,6 @@ use builtin::Builtin;
 use call_contract::CallContract;
 use client::BlockInfo;
 use executive::Executive;
-use spec::CommonParams;
 use account_state::CleanupMode;
 use substate::Substate;
 use trace::{NoopTracer, NoopVMTracer};

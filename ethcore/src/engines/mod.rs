@@ -48,7 +48,6 @@ use types::{
 	header::{Header, ExtendedHeader},
 	engines::{
 		SealingState, Headers, PendingTransitionStore,
-//		epoch::{EpochChange, ConstructedVerifier},
 		params::CommonParams,
 		machine as machine_types,
 		machine::{AuxiliaryData, AuxiliaryRequest},
