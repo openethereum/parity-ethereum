@@ -36,7 +36,7 @@ use kvdb_memorydb;
 use parking_lot::RwLock;
 use rlp::{Rlp, RlpStream};
 use rustc_hex::FromHex;
-use types::transaction::{self, Transaction, LocalizedTransaction, SignedTransaction, Action};
+use types::transaction::{self, Transaction, LocalizedTransaction, SignedTransaction, Action, CallError};
 use types::BlockNumber;
 use types::basic_account::BasicAccount;
 use types::encoded;
@@ -62,8 +62,7 @@ use client::{
 };
 use client::BlockInfo;
 use engines::Engine;
-use error::EthcoreResult;
-use executed::CallError;
+use EthcoreResult;
 use executive::Executed;
 use journaldb;
 use miner::{self, Miner, MinerService};

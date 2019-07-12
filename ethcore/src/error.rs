@@ -18,8 +18,6 @@
 
 use types::errors::EthcoreError;
 
-pub use executed::CallError; // todo: move to common_types
-
 /// Ethcore Result
 pub type EthcoreResult<T> = Result<T, EthcoreError>;
 

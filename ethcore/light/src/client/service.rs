@@ -20,10 +20,10 @@
 use std::fmt;
 use std::sync::Arc;
 
+use common_types::errors::EthcoreError as CoreError;
 use ethcore_db as db;
 use ethcore_blockchain::BlockChainDB;
 use ethcore::client::ClientIoMessage;
-use ethcore::error::Error as CoreError;
 use ethcore::spec::Spec;
 use io::{IoContext, IoError, IoHandler, IoService};
 

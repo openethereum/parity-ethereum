@@ -26,7 +26,7 @@ use evm::Schedule;
 use itertools::Itertools;
 use kvdb::DBValue;
 use types::{
-	transaction::{self, LocalizedTransaction, SignedTransaction},
+	transaction::{self, LocalizedTransaction, SignedTransaction, CallError},
 	BlockNumber,
 	basic_account::BasicAccount,
 	block_status::BlockStatus,
@@ -48,8 +48,7 @@ use vm::LastHashes;
 use block::{OpenBlock, SealedBlock, ClosedBlock};
 use client::Mode;
 use engines::Engine;
-use error::EthcoreResult;
-use executed::CallError;
+use EthcoreResult;
 use executive::Executed;
 use account_state::state::StateInfo;
 use trace::LocalizedTrace;

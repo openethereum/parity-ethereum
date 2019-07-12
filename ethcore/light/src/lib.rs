@@ -89,7 +89,6 @@ extern crate triehash_ethereum as triehash;
 extern crate kvdb;
 extern crate memory_cache;
 extern crate derive_more;
-extern crate account_state;
 
 #[cfg(test)]
 extern crate kvdb_memorydb;

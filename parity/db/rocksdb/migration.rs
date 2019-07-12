@@ -22,6 +22,7 @@ use super::migration_rocksdb::{Manager as MigrationManager, Config as MigrationC
 use super::kvdb_rocksdb::{CompactionProfile, DatabaseConfig};
 use ethcore::client::DatabaseCompactionProfile;
 use ethcore;
+use types::errors::EthcoreError;
 
 use super::helpers;
 use super::blooms::migrate_blooms;
@@ -63,7 +64,7 @@ pub enum Error {
 	/// Migration is not possible.
 	MigrationImpossible,
 	/// Blooms-db migration error.
-	BloomsDB(ethcore::error::Error),
+	BloomsDB(EthcoreError),
 	/// Migration was completed succesfully,
 	/// but there was a problem with io.
 	Io(IoError),

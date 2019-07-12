@@ -23,9 +23,11 @@ use std::cmp;
 use parity_util_mem::MallocSizeOf;
 use ethereum_types::H256;
 use rlp::{self, Rlp};
-use types::BlockNumber;
+use types::{
+	BlockNumber,
+	errors::{EthcoreError, BlockError, ImportError},
+};
 use ethcore::client::{BlockStatus, BlockId};
-use ethcore::error::{ImportError, BlockError, Error as EthcoreError};
 use sync_io::SyncIo;
 use blocks::{BlockCollection, SyncBody, SyncHeader};
 use chain::BlockSet;

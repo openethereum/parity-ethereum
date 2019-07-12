@@ -246,7 +246,7 @@ pub struct Miner {
 	sealing: Mutex<SealingWork>,
 	params: RwLock<AuthoringParams>,
 	#[cfg(feature = "work-notify")]
-	listeners: RwLock<Vec<Box<NotifyWork>>>,
+	listeners: RwLock<Vec<Box<dyn NotifyWork>>>,
 	nonce_cache: NonceCache,
 	gas_pricer: Mutex<GasPricer>,
 	options: MinerOptions,
@@ -261,7 +261,7 @@ pub struct Miner {
 impl Miner {
 	/// Push listener that will handle new jobs
 	#[cfg(feature = "work-notify")]
-	pub fn add_work_listener(&self, notifier: Box<NotifyWork>) {
+	pub fn add_work_listener(&self, notifier: Box<dyn NotifyWork>) {
 		self.listeners.write().push(notifier);
 		self.sealing.lock().enabled = true;
 	}

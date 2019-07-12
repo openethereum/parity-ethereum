@@ -151,7 +151,6 @@ extern crate parity_runtime;
 pub mod block;
 pub mod client;
 pub mod engines;
-//pub mod error; // todo
 pub mod ethereum;
 pub mod executed;
 pub mod executive;
@@ -165,7 +164,6 @@ pub mod verification;
 mod externalities;
 mod transaction_ext;
 mod tx_filter;
-mod error; // todo: CallError is still there but after it's gone, rename module
 
 #[cfg(test)]
 mod tests;
@@ -177,3 +175,5 @@ pub mod test_helpers;
 pub use executive::contract_address;
 pub use evm::CreateContractAddress;
 pub use trie::TrieSpec;
+/// Ethcore Result
+pub type EthcoreResult<T> = Result<T, types::errors::EthcoreError>;

@@ -52,7 +52,7 @@ use client::{
 	IoClient, BadBlocks, bad_blocks, BlockInfo, ClientIoMessage,
 };
 use engines::{Engine, EpochTransition, ForkChoice};
-use error::{CallError, EthcoreResult};
+use EthcoreResult;
 use executive::{Executive, Executed, TransactOptions, contract_address};
 use trie_vm_factories::{Factories, VmFactory};
 use miner::{Miner, MinerService};
@@ -75,7 +75,7 @@ use types::{
 		machine::{AuxiliaryData, Call as MachineCall},
 	},
 	errors::{EngineError, ExecutionError, BlockError, EthcoreError, SnapshotError, ImportError},
-	transaction::{self, LocalizedTransaction, UnverifiedTransaction, SignedTransaction, Action},
+	transaction::{self, LocalizedTransaction, UnverifiedTransaction, SignedTransaction, Action, CallError},
 	filter::Filter,
 	log_entry::LocalizedLogEntry,
 	receipt::{Receipt, LocalizedReceipt},

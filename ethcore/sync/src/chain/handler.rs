@@ -18,7 +18,6 @@ use api::WARP_SYNC_PROTOCOL_ID;
 use block_sync::{BlockDownloaderImportError as DownloaderImportError, DownloadAction};
 use bytes::Bytes;
 use enum_primitive::FromPrimitive;
-use ethcore::error::{Error as EthcoreError, ImportError, BlockError};
 use ethcore::snapshot::{ManifestData, RestorationStatus};
 use ethcore::verification::queue::kind::blocks::Unverified;
 use ethereum_types::{H256, U256};
@@ -30,9 +29,12 @@ use snapshot::ChunkType;
 use std::time::Instant;
 use std::{mem, cmp};
 use sync_io::SyncIo;
-use types::BlockNumber;
-use types::block_status::BlockStatus;
-use types::ids::BlockId;
+use types::{
+	BlockNumber,
+	block_status::BlockStatus,
+	ids::BlockId,
+	errors::{EthcoreError, ImportError, BlockError},
+};
 
 use super::sync_packet::{PacketInfo, SyncPacket};
 use super::sync_packet::SyncPacket::{

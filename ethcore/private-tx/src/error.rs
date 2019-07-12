@@ -19,8 +19,10 @@ use derive_more::Display;
 use ethereum_types::Address;
 use rlp::DecoderError;
 use ethtrie::TrieError;
-use ethcore::error::{Error as EthcoreError, ExecutionError};
-use types::transaction::Error as TransactionError;
+use types::{
+	errors::{EthcoreError, ExecutionError},
+	transaction::Error as TransactionError,
+};
 use ethkey::Error as KeyError;
 use ethkey::crypto::Error as CryptoError;
 use txpool::VerifiedTransaction;
