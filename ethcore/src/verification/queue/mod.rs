@@ -29,9 +29,7 @@ use io::*;
 use engines::Engine;
 use client::ClientIoMessage;
 use len_caching_lock::LenCachingMutex;
-use types::{
-	errors::{BlockError, EthcoreError as Error},
-};
+use types::errors::{BlockError, EthcoreError as Error};
 
 use self::kind::{BlockLike, Kind};
 

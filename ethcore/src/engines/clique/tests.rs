@@ -23,9 +23,7 @@ use ethkey::{Secret, KeyPair};
 use state_db::StateDB;
 use super::*;
 use test_helpers::get_temp_state_db;
-use types::{
-	errors::{EthcoreError as Error, EngineError},
-};
+use types::errors::{EthcoreError as Error, EngineError};
 
 use std::sync::Arc;
 use std::collections::HashMap;

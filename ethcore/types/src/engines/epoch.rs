@@ -16,8 +16,6 @@
 
 //! Epoch verifiers and transitions.
 
-//use std::sync::Arc;
-
 use ethereum_types::H256;
 use rlp::{Encodable, Decodable, DecoderError, RlpStream, Rlp};
 
