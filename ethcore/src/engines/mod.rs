@@ -74,18 +74,6 @@ pub enum Seal {
 	None,
 }
 
-// todo: moved to common_types; hook up here
-///// The type of sealing the engine is currently able to perform.
-//#[derive(Debug, PartialEq, Eq)]
-//pub enum SealingState {
-//	/// The engine is ready to seal a block.
-//	Ready,
-//	/// The engine can't seal at the moment, and no block should be prepared and queued.
-//	NotReady,
-//	/// The engine does not seal internally.
-//	External,
-//}
-
 /// A system-calling closure. Enacts calls on a block's state from the system address.
 pub type SystemCall<'a> = dyn FnMut(Address, Vec<u8>) -> Result<Vec<u8>, String> + 'a;
 
@@ -132,7 +120,6 @@ pub fn default_system_or_code_call<'a>(machine: &'a Machine, block: &'a mut ::bl
 }
 
 /// Proof dependent on state.
-// todo: check what `check_proof` needs a `Machine` for and figure out a way to extract this.
 pub trait StateDependentProof: Send + Sync {
 	/// Generate a proof, given the state.
 	fn generate_proof<'a>(&self, state: &machine_types::Call) -> Result<Vec<u8>, String>;
@@ -142,7 +129,6 @@ pub trait StateDependentProof: Send + Sync {
 	fn check_proof(&self, machine: &Machine, proof: &[u8]) -> Result<(), String>;
 }
 
-// todo: hook up with common_types and sort out trait
 /// Proof generated on epoch change.
 pub enum Proof {
 	/// Known proof (extracted from signal)
@@ -152,7 +138,6 @@ pub enum Proof {
 }
 
 /// Generated epoch verifier.
-// todo: hook up with common_types and sort out trait
 pub enum ConstructedVerifier<'a> {
 	/// Fully trusted verifier.
 	Trusted(Box<dyn EpochVerifier>),
@@ -174,7 +159,6 @@ impl<'a> ConstructedVerifier<'a> {
 	}
 }
 
-// todo moved to common_types
 /// Results of a query of whether an epoch change occurred at the given block.
 pub enum EpochChange {
 	/// Cannot determine until more data is passed.
