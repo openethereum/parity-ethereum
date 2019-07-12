@@ -28,12 +28,10 @@ use super::{ManifestData, StateRebuilder, Rebuilder, RestorationStatus, Snapshot
 use super::io::{SnapshotReader, LooseReader, SnapshotWriter, LooseWriter};
 
 use blockchain::{BlockChain, BlockChainDB, BlockChainDBHandler};
-use client::BlockInfo;
-use client::{BlockChainClient, Client, ChainInfo};
+use client::{BlockChainClient, Client, ChainInfo, BlockInfo, ClientIoMessage};
 use engines::Engine;
 use hash::keccak;
 use types::{
-	client_io_message::ClientIoMessage,
 	errors::{EthcoreError as Error, SnapshotError, SnapshotError::UnlinkedAncientBlockChain},
 	ids::BlockId,
 };

@@ -50,13 +50,12 @@ use types::{
 	engines::{SealingState},
 	errors::{EthcoreError as Error, ExecutionError},
 	receipt::RichReceipt,
-	client_io_message::ClientIoMessage,
 };
 use using_queue::{UsingQueue, GetAction};
 
 use block::{ClosedBlock, SealedBlock};
 use client::{
-	BlockChain, ChainInfo, BlockProducer, SealedBlockImporter, Nonce, TransactionInfo, TransactionId
+	BlockChain, ChainInfo, BlockProducer, SealedBlockImporter, Nonce, TransactionInfo, TransactionId, ClientIoMessage,
 };
 use client::BlockId;
 use engines::{Engine, Seal, EngineSigner};

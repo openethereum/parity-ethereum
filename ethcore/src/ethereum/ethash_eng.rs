@@ -26,7 +26,7 @@ use rlp::Rlp;
 use types::{
 	BlockNumber,
 	header::Header,
-	engines::{EthashExtensions, params::CommonParams},
+	engines::params::CommonParams,
 	transaction::{self, UnverifiedTransaction, SignedTransaction},
 	errors::{BlockError, EthcoreError as Error},
 };
@@ -189,14 +189,14 @@ impl Ethash {
 		ethash_params: EthashParams,
 		machine: Machine,
 		optimize_for: T,
-	) -> Self {
+	) -> Arc<Self> {
 		let progpow_transition = ethash_params.progpow_transition;
 
-		Ethash {
+		Arc::new(Ethash {
 			ethash_params,
 			machine,
 			pow: EthashManager::new(cache_dir.as_ref(), optimize_for.into(), progpow_transition),
-		}
+		})
 	}
 }
 
@@ -208,14 +208,17 @@ impl Ethash {
 // for any block in the chain.
 // in the future, we might move the Ethash epoch
 // caching onto this mechanism as well.
-impl engines::EpochVerifier for Ethash {
+// NOTE[dvdplm]: the reason we impl this for Arc<Ethash> and not plain Ethash is the
+// way `epoch_verifier()` works. This means `new()` returns an `Arc<Ethash>` which is
+// then re-wrapped in an Arc in `spec::engine()`.
+impl engines::EpochVerifier for Arc<Ethash> {
 	fn verify_light(&self, _header: &Header) -> Result<(), Error> { Ok(()) }
 	fn verify_heavy(&self, header: &Header) -> Result<(), Error> {
 		self.verify_block_unordered(header).into()
 	}
 }
 
-impl Engine for Ethash {
+impl Engine for Arc<Ethash> {
 	fn name(&self) -> &str { "Ethash" }
 
 	fn machine(&self) -> &Machine { &self.machine }

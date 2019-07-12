@@ -128,7 +128,6 @@ extern crate serde_json;
 extern crate ethabi_derive;
 #[macro_use]
 extern crate ethabi_contract;
-extern crate derive_more;
 #[macro_use]
 extern crate log;
 #[macro_use]

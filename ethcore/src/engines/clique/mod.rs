@@ -652,54 +652,6 @@ impl Engine for Clique {
 		Ok(())
 	}
 
-	/// Verify block family by looking up parent state (backfill if needed), then try to apply current header.
-	/// see https://github.com/ethereum/go-ethereum/blob/master/consensus/clique/clique.go#L338
-	fn verify_block_family(&self, header: &Header, parent: &Header) -> Result<(), Error> {
-		// Ignore genesis block.
-		if header.number() == 0 {
-			return Ok(());
-		}
-
-		// parent sanity check
-		if parent.hash() != *header.parent_hash() || header.number() != parent.number() + 1 {
-			Err(BlockError::UnknownParent(parent.hash()))?
-		}
-
-		// Ensure that the block's timestamp isn't too close to it's parent
-		let limit = parent.timestamp().saturating_add(self.period);
-		if limit > header.timestamp() {
-			let max = CheckedSystemTime::checked_add(UNIX_EPOCH, Duration::from_secs(header.timestamp()));
-			let found = CheckedSystemTime::checked_add(UNIX_EPOCH, Duration::from_secs(limit))
-				.ok_or(BlockError::TimestampOverflow)?;
-
-			Err(BlockError::InvalidTimestamp(OutOfBounds {
-				min: None,
-				max,
-				found,
-			}.into()))?
-		}
-
-		// Retrieve the parent state
-		let parent_state = match self.state(&parent) {
-			Ok(parent_state) => parent_state,
-			Err(e) => {
-				// todo: these can be BlockError, EngineError and probably some others too
-				match e {
-					Error::Block(err) => return Err(Error::Block(err)),
-					Error::Engine(err) => return Err(Error::Engine(err)),
-					_ => return Err(Error::Other(e.to_string())),
-				}
-			}
-		};
-		// Try to apply current state, apply() will further check signer and recent signer.
-		let mut new_state = parent_state.clone();
-//		new_state.apply(header, header.number() % self.epoch_length == 0)?;
-//		new_state.calc_next_timestamp(header.timestamp(), self.period)?;
-//		self.block_state_by_hash.write().insert(header.hash(), new_state);
-
-		Ok(())
-	}
-
 	//	fn verify_block_basic(&self, header: &Header) -> Result<(), Error> {
 	//		// Largely same as https://github.com/ethereum/go-ethereum/blob/master/consensus/clique/clique.go#L275
 	//
@@ -814,45 +766,45 @@ impl Engine for Clique {
 	//		// Nothing to check here.
 	//		Ok(())
 	//	}
-	//
-	//	/// Verify block family by looking up parent state (backfill if needed), then try to apply current header.
-	//	/// see https://github.com/ethereum/go-ethereum/blob/master/consensus/clique/clique.go#L338
-	//	fn verify_block_family(&self, header: &Header, parent: &Header) -> Result<(), Error> {
-	//		// Ignore genesis block.
-	//		if header.number() == 0 {
-	//			return Ok(());
-	//		}
-	//
-	//		// parent sanity check
-	//		if parent.hash() != *header.parent_hash() || header.number() != parent.number() + 1 {
-	//			Err(BlockError::UnknownParent(parent.hash()))?
-	//		}
-	//
-	//		// Ensure that the block's timestamp isn't too close to it's parent
-	//		let limit = parent.timestamp().saturating_add(self.period);
-	//		if limit > header.timestamp() {
-	//			let max = CheckedSystemTime::checked_add(UNIX_EPOCH, Duration::from_secs(header.timestamp()));
-	//			let found = CheckedSystemTime::checked_add(UNIX_EPOCH, Duration::from_secs(limit))
-	//				.ok_or(BlockError::TimestampOverflow)?;
-	//
-	//			Err(BlockError::InvalidTimestamp(OutOfBounds {
-	//				min: None,
-	//				max,
-	//				found,
-	//			}.into()))?
-	//		}
-	//
-	//		// Retrieve the parent state
-	//		let parent_state = self.state(&parent)?;
-	//		// Try to apply current state, apply() will further check signer and recent signer.
-	//		let mut new_state = parent_state.clone();
-	//		new_state.apply(header, header.number() % self.epoch_length == 0)?;
-	//		new_state.calc_next_timestamp(header.timestamp(), self.period)?;
-	//		self.block_state_by_hash.write().insert(header.hash(), new_state);
-	//
-	//		Ok(())
-	//	}
-	//
+
+	/// Verify block family by looking up parent state (backfill if needed), then try to apply current header.
+	/// see https://github.com/ethereum/go-ethereum/blob/master/consensus/clique/clique.go#L338
+	fn verify_block_family(&self, header: &Header, parent: &Header) -> Result<(), Error> {
+		// Ignore genesis block.
+		if header.number() == 0 {
+			return Ok(());
+		}
+
+		// parent sanity check
+		if parent.hash() != *header.parent_hash() || header.number() != parent.number() + 1 {
+			Err(BlockError::UnknownParent(parent.hash()))?
+		}
+
+		// Ensure that the block's timestamp isn't too close to it's parent
+		let limit = parent.timestamp().saturating_add(self.period);
+		if limit > header.timestamp() {
+			let max = CheckedSystemTime::checked_add(UNIX_EPOCH, Duration::from_secs(header.timestamp()));
+			let found = CheckedSystemTime::checked_add(UNIX_EPOCH, Duration::from_secs(limit))
+				.ok_or(BlockError::TimestampOverflow)?;
+
+			Err(BlockError::InvalidTimestamp(OutOfBounds {
+				min: None,
+				max,
+				found,
+			}.into()))?
+		}
+
+		// Retrieve the parent state
+		let parent_state = self.state(&parent)?;
+		// Try to apply current state, apply() will further check signer and recent signer.
+		let mut new_state = parent_state.clone();
+		new_state.apply(header, header.number() % self.epoch_length == 0)?;
+		new_state.calc_next_timestamp(header.timestamp(), self.period)?;
+		self.block_state_by_hash.write().insert(header.hash(), new_state);
+
+		Ok(())
+	}
+
 
 	fn genesis_epoch_data(&self, header: &Header, _call: &Call) -> Result<Vec<u8>, String> {
 			let mut state = self.new_checkpoint_state(header).expect("Unable to parse genesis data.");

@@ -47,7 +47,7 @@ use types::{
 	ancestry_action::AncestryAction,
 	header::{Header, ExtendedHeader},
 	engines::{
-		EthashExtensions, SealingState, Headers, PendingTransitionStore,
+		SealingState, Headers, PendingTransitionStore,
 //		epoch::{EpochChange, ConstructedVerifier},
 		params::CommonParams,
 		machine as machine_types,

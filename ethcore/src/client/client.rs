@@ -49,10 +49,8 @@ use client::{
 	BlockId, TransactionId, UncleId, TraceId, ClientConfig, BlockChainClient,
 	TraceFilter, CallAnalytics, Mode,
 	ChainNotify, NewBlocks, ChainRoute, PruningInfo, ProvingBlockChainClient, EngineInfo, ChainMessageType,
-	IoClient, BadBlocks,
+	IoClient, BadBlocks, bad_blocks, BlockInfo, ClientIoMessage,
 };
-use client::bad_blocks;
-use client::BlockInfo;
 use engines::{Engine, EpochTransition, ForkChoice};
 use error::{CallError, EthcoreResult};
 use executive::{Executive, Executed, TransactOptions, contract_address};
@@ -82,7 +80,6 @@ use types::{
 	log_entry::LocalizedLogEntry,
 	receipt::{Receipt, LocalizedReceipt},
 	header::Header,
-	client_io_message::ClientIoMessage,
 };
 
 use verification::queue::kind::BlockLike;

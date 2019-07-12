@@ -580,10 +580,10 @@ const POW_VERIFY_RATE: f32 = 0.02;
 /// the fullest verification possible. If not, it will take a random sample to determine whether it will
 /// do heavy or light verification.
 pub fn verify_old_block(rng: &mut OsRng, header: &Header, engine: &dyn Engine, chain: &BlockChain, always: bool) -> Result<(), EthcoreError> {
-	engine.verify_block_basic(header).map_err(Into::into)?;
+	engine.verify_block_basic(header)?;
 
 	if always || rng.gen::<f32>() <= POW_VERIFY_RATE {
-		engine.verify_block_unordered(header).map_err(Into::into)?;
+		engine.verify_block_unordered(header)?;
 		match chain.block_header_data(header.parent_hash()) {
 			Some(parent) => engine.verify_block_family(header, &parent.decode()?).map_err(Into::into),
 			None => Ok(()),

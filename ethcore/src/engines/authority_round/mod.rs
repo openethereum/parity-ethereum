@@ -1277,7 +1277,7 @@ impl Engine for AuthorityRound {
 		let step = header_step(header, self.empty_steps_transition)?;
 		let parent_step = header_step(parent, self.empty_steps_transition)?;
 
-		let (validators, set_number) = self.epoch_set(header).map_err(Into::into)?;
+		let (validators, set_number) = self.epoch_set(header)?;
 
 		// Ensure header is from the step after parent.
 		if step == parent_step
@@ -1356,7 +1356,7 @@ impl Engine for AuthorityRound {
 
 	// Check the validators.
 	fn verify_block_external(&self, header: &Header) -> Result<(), Error> {
-		let (validators, set_number) = self.epoch_set(header).map_err(Into::into)?;
+		let (validators, set_number) = self.epoch_set(header)?;
 
 		// verify signature against fixed list, but reports should go to the
 		// contract itself.
