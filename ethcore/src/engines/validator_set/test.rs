@@ -26,6 +26,7 @@ use ethereum_types::{H256, Address};
 use types::{
 	BlockNumber,
 	header::Header,
+	errors::EthcoreError,
 	engines::machine::{Call, AuxiliaryData},
 };
 
@@ -75,7 +76,7 @@ impl ValidatorSet for TestSet {
 		::engines::EpochChange::No
 	}
 
-	fn epoch_set(&self, _: bool, _: &Machine, _: BlockNumber, _: &[u8]) -> Result<(SimpleList, Option<H256>), ::error::Error> {
+	fn epoch_set(&self, _: bool, _: &Machine, _: BlockNumber, _: &[u8]) -> Result<(SimpleList, Option<H256>), EthcoreError> {
 		Ok((self.validator.clone(), None))
 	}
 

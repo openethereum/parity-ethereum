@@ -743,10 +743,12 @@ mod tests {
 	use super::{BlockQueue, Config, State};
 	use super::kind::blocks::Unverified;
 	use test_helpers::{get_good_dummy_block_seq, get_good_dummy_block};
-	use error::*;
 	use bytes::Bytes;
-	use types::view;
-	use types::views::BlockView;
+	use types::{
+		view,
+		views::BlockView,
+		errors::{EthcoreError, ImportError},
+	};
 
 	// create a test block queue.
 	// auto_scaling enables verifier adjustment.
@@ -797,7 +799,7 @@ mod tests {
 		match duplicate_import {
 			Err((_, e)) => {
 				match e {
-					Error::Import(ImportError::AlreadyQueued) => {},
+					EthcoreError::Import(ImportError::AlreadyQueued) => {},
 					_ => { panic!("must return AlreadyQueued error"); }
 				}
 			}

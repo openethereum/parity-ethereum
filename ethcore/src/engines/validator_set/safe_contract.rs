@@ -553,7 +553,7 @@ mod tests {
 		use types::{
 			header::Header,
 			log_entry::LogEntry,
-			machine::AuxiliaryRequest,
+			engines::machine::AuxiliaryRequest,
 		};
 
 		let client = generate_dummy_client_with_spec(Spec::new_validator_safe_contract);
