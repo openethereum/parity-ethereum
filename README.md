@@ -42,7 +42,7 @@ By default, Parity Ethereum runs a JSON-RPC HTTP server on port `:8545` and a We
 
 If you run into problems while using Parity Ethereum, check out the [wiki for documentation](https://wiki.parity.io/), feel free to [file an issue in this repository](https://github.com/paritytech/parity-ethereum/issues/new), or hop on our [Gitter](https://gitter.im/paritytech/parity) or [Riot](https://riot.im/app/#/group/+parity:matrix.parity.io) chat room to ask a question. We are glad to help! **For security-critical issues**, please refer to the security policy outlined in [SECURITY.md](SECURITY.md).
 
-Parity Ethereum's current beta-release is 2.1. You can download it at [the releases page](https://github.com/paritytech/parity-ethereum/releases) or follow the instructions below to build from source. Please, mind the [CHANGELOG.md](CHANGELOG.md) for a list of all changes between different versions.
+Parity Ethereum's current beta-release is 2.6. You can download it at [the releases page](https://github.com/paritytech/parity-ethereum/releases) or follow the instructions below to build from source. Please, mind the [CHANGELOG.md](CHANGELOG.md) for a list of all changes between different versions.
 
 ## 3. Building <a id="chapter-003"></a>
 
