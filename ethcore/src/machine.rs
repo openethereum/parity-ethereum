@@ -399,10 +399,12 @@ pub struct AuxiliaryData<'a> {
 	pub receipts: Option<&'a [::types::receipt::Receipt]>,
 }
 
+// todo: moved to common_types. Hook up here.
 /// Type alias for a function we can make calls through synchronously.
 /// Returns the call result and state proof for each call.
 pub type Call<'a> = dyn Fn(Address, Vec<u8>) -> Result<(Vec<u8>, Vec<Vec<u8>>), String> + 'a;
 
+// todo: moved to common_types. Hook up here.
 /// Request for auxiliary data of a block.
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum AuxiliaryRequest {

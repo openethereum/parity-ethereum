@@ -48,6 +48,7 @@ use types::{
 	header::{Header, ExtendedHeader},
 	errors::{EthcoreError as Error, EngineError},
 	transaction::{self, UnverifiedTransaction},
+	machine as machine_types,
 };
 use snapshot::SnapshotComponents;
 use client::EngineClient;
@@ -74,6 +75,7 @@ pub enum Seal {
 	None,
 }
 
+// todo: moved to common_types; hook up here
 /// The type of sealing the engine is currently able to perform.
 #[derive(Debug, PartialEq, Eq)]
 pub enum SealingState {
@@ -131,21 +133,25 @@ pub fn default_system_or_code_call<'a>(machine: &'a ::machine::Machine, block: &
 }
 
 /// Type alias for a function we can get headers by hash through.
+// todo: hook up with common_types
 pub type Headers<'a, H> = dyn Fn(H256) -> Option<H> + 'a;
 
 /// Type alias for a function we can query pending transitions by block hash through.
+// todo: hook up with common_types
 pub type PendingTransitionStore<'a> = dyn Fn(H256) -> Option<epoch::PendingTransition> + 'a;
 
 /// Proof dependent on state.
+// todo: check what `check_proof` needs a `Machine` for and figure out a way to extract this.
 pub trait StateDependentProof: Send + Sync {
 	/// Generate a proof, given the state.
-	fn generate_proof<'a>(&self, state: &machine::Call) -> Result<Vec<u8>, String>;
+	fn generate_proof<'a>(&self, state: &machine_types::Call) -> Result<Vec<u8>, String>;
 	/// Check a proof generated elsewhere (potentially by a peer).
 	// `engine` needed to check state proofs, while really this should
 	// just be state machine params.
 	fn check_proof(&self, machine: &Machine, proof: &[u8]) -> Result<(), String>;
 }
 
+// todo: hook up with common_types and sort out trait
 /// Proof generated on epoch change.
 pub enum Proof {
 	/// Known proof (extracted from signal)
@@ -155,6 +161,7 @@ pub enum Proof {
 }
 
 /// Generated epoch verifier.
+// todo: hook up with common_types and sort out trait
 pub enum ConstructedVerifier<'a> {
 	/// Fully trusted verifier.
 	Trusted(Box<dyn EpochVerifier>),
@@ -176,6 +183,7 @@ impl<'a> ConstructedVerifier<'a> {
 	}
 }
 
+// todo moved to common_types
 /// Results of a query of whether an epoch change occurred at the given block.
 pub enum EpochChange {
 	/// Cannot determine until more data is passed.
