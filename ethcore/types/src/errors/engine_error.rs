@@ -86,7 +86,6 @@ impl fmt::Display for EngineError {
 	}
 }
 
-// TODO: wth is this? Use derive_more.
 impl std::error::Error for EngineError {
 	fn description(&self) -> &str {
 		"Engine error"
