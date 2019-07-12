@@ -265,9 +265,7 @@ pub trait Engine: Sync + Send {
 	/// Return `Yes` or `No` when the answer is definitively known.
 	///
 	/// Should not interact with state.
-	fn signals_epoch_end<'a>(&self, _header: &Header, _aux: AuxiliaryData<'a>)
-		-> EpochChange
-	{
+	fn signals_epoch_end<'a>(&self, _header: &Header, _aux: AuxiliaryData<'a>) -> EpochChange {
 		EpochChange::No
 	}
 
