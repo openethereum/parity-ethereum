@@ -23,7 +23,6 @@ use types::{
 		params::CommonParams,
 	},
 	errors::EthcoreError as Error,
-	transaction::{self, UnverifiedTransaction, SignedTransaction},
 };
 
 use block::ExecutedBlock;
@@ -100,14 +99,8 @@ impl Engine for InstantSeal {
 		self.machine.params()
 	}
 
-	fn verify_transaction_unordered(&self, t: UnverifiedTransaction, header: &Header) -> Result<SignedTransaction, transaction::Error> {
-		self.machine().verify_transaction_unordered(t, header)
-	}
-
-	fn verify_transaction_basic(&self, t: &UnverifiedTransaction, header: &Header) -> Result<(), transaction::Error> {
-		self.machine().verify_transaction_basic(t, header)
-	}
 }
+
 
 #[cfg(test)]
 mod tests {

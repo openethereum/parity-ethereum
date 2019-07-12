@@ -27,7 +27,6 @@ use types::{
 	BlockNumber,
 	header::Header,
 	engines::params::CommonParams,
-	transaction::{self, UnverifiedTransaction, SignedTransaction},
 	errors::{BlockError, EthcoreError as Error},
 };
 
@@ -220,7 +219,6 @@ impl engines::EpochVerifier for Arc<Ethash> {
 
 impl Engine for Arc<Ethash> {
 	fn name(&self) -> &str { "Ethash" }
-
 	fn machine(&self) -> &Machine { &self.machine }
 
 	// Two fields - nonce and mix.
@@ -240,6 +238,11 @@ impl Engine for Arc<Ethash> {
 	fn maximum_uncle_count(&self, _block: BlockNumber) -> usize { 2 }
 
 	fn maximum_gas_limit(&self) -> Option<U256> { Some(0x7fff_ffff_ffff_ffffu64.into()) }
+
+	fn populate_from_parent(&self, header: &mut Header, parent: &Header) {
+		let difficulty = self.calculate_difficulty(header, parent);
+		header.set_difficulty(difficulty);
+	}
 
 	/// Apply the block reward on finalisation of the block.
 	/// This assumes that all uncles are valid uncles (i.e. of at least one generation before the current).
@@ -307,8 +310,13 @@ impl Engine for Arc<Ethash> {
 	#[cfg(not(feature = "miner-debug"))]
 	fn verify_local_seal(&self, header: &Header) -> Result<(), Error> {
 		self.verify_block_basic(header)
-			.map_err(Into::into)
-			.and_then(|_| self.verify_block_unordered(header).map_err(Into::into))
+			.and_then(|_| self.verify_block_unordered(header))
+	}
+
+	#[cfg(feature = "miner-debug")]
+	fn verify_local_seal(&self, _header: &Header) -> Result<(), Error> {
+		warn!("Skipping seal verification, running in miner testing mode.");
+		Ok(())
 	}
 
 	fn verify_block_basic(&self, header: &Header) -> Result<(), Error> {
@@ -342,12 +350,12 @@ impl Engine for Arc<Ethash> {
 		let mix = H256(result.mix_hash);
 		let difficulty = ethash::boundary_to_difficulty(&H256(result.value));
 		trace!(target: "miner", "num: {num}, seed: {seed}, h: {h}, non: {non}, mix: {mix}, res: {res}",
-		       num = header.number() as u64,
-		       seed = H256(slow_hash_block_number(header.number() as u64)),
-		       h = header.bare_hash(),
-		       non = seal.nonce.to_low_u64_be(),
-		       mix = H256(result.mix_hash),
-		       res = H256(result.value));
+			num = header.number() as u64,
+			seed = H256(slow_hash_block_number(header.number() as u64)),
+			h = header.bare_hash(),
+			non = seal.nonce.to_low_u64_be(),
+			mix = H256(result.mix_hash),
+			res = H256(result.value));
 		if mix != seal.mix_hash {
 			return Err(From::from(BlockError::MismatchedH256SealElement(Mismatch { expected: mix, found: seal.mix_hash })));
 		}
@@ -376,24 +384,11 @@ impl Engine for Arc<Ethash> {
 		engines::ConstructedVerifier::Trusted(Box::new(self.clone()))
 	}
 
-	fn populate_from_parent(&self, header: &mut Header, parent: &Header) {
-		let difficulty = self.calculate_difficulty(header, parent);
-		header.set_difficulty(difficulty);
-	}
-
 	fn snapshot_components(&self) -> Option<Box<dyn (::snapshot::SnapshotComponents)>> {
 		Some(Box::new(::snapshot::PowSnapshot::new(SNAPSHOT_BLOCKS, MAX_SNAPSHOT_BLOCKS)))
 	}
 
 	fn params(&self) -> &CommonParams { self.machine.params() }
-
-	fn verify_transaction_unordered(&self, t: UnverifiedTransaction, header: &Header) -> Result<SignedTransaction, transaction::Error> {
-		self.machine().verify_transaction_unordered(t, header)
-	}
-
-	fn verify_transaction_basic(&self, t: &UnverifiedTransaction, header: &Header) -> Result<(), transaction::Error> {
-		self.machine().verify_transaction_basic(t, header)
-	}
 }
 
 impl Ethash {

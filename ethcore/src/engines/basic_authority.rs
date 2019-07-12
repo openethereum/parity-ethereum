@@ -34,7 +34,6 @@ use types::{
 		machine::{AuxiliaryData, Call},
 	},
 	errors::{EngineError, BlockError, EthcoreError as Error},
-	transaction::{self, UnverifiedTransaction, SignedTransaction},
 };
 
 use super::validator_set::{ValidatorSet, SimpleList, new_validator_set};
@@ -135,7 +134,7 @@ impl Engine for BasicAuthority {
 	}
 
 	fn verify_block_external(&self, header: &Header) -> Result<(), Error> {
-		verify_external(header, &*self.validators).map_err(Into::into)
+		verify_external(header, &*self.validators)
 	}
 
 	fn genesis_epoch_data(&self, header: &Header, call: &Call) -> Result<Vec<u8>, String> {
@@ -194,6 +193,10 @@ impl Engine for BasicAuthority {
 		}
 	}
 
+	fn register_client(&self, client: Weak<dyn EngineClient>) {
+		self.validators.register_client(client);
+	}
+
 	fn set_signer(&self, signer: Box<dyn EngineSigner>) {
 		*self.signer.write() = Some(signer);
 	}
@@ -206,24 +209,12 @@ impl Engine for BasicAuthority {
 		)
 	}
 
-	fn register_client(&self, client: Weak<dyn EngineClient>) {
-		self.validators.register_client(client);
-	}
-
 	fn snapshot_components(&self) -> Option<Box<dyn (::snapshot::SnapshotComponents)>> {
 		None
 	}
 
 	fn params(&self) -> &CommonParams {
 		self.machine.params()
-	}
-
-	fn verify_transaction_unordered(&self, t: UnverifiedTransaction, header: &Header) -> Result<SignedTransaction, transaction::Error> {
-		self.machine().verify_transaction_unordered(t, header)
-	}
-
-	fn verify_transaction_basic(&self, t: &UnverifiedTransaction, header: &Header) -> Result<(), transaction::Error> {
-		self.machine().verify_transaction_basic(t, header)
 	}
 }
 

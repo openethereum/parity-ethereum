@@ -89,7 +89,6 @@ use types::{
 		machine::Call,
 	},
 	errors::{BlockError, EthcoreError as Error, EngineError},
-	transaction::{self, SignedTransaction, UnverifiedTransaction},
 };
 use self::block_state::CliqueBlockState;
 use self::params::CliqueParams;
@@ -493,7 +492,7 @@ impl Engine for Clique {
 			match self.state(&parent) {
 				Err(e) => {
 					warn!(target: "engine", "generate_seal: can't get parent state(number: {}, hash: {}): {} ",
-							parent.number(), parent.hash(), e);
+						parent.number(), parent.hash(), e);
 					return Seal::None;
 				}
 				Ok(state) => {
@@ -516,9 +515,8 @@ impl Engine for Clique {
 
 					// Wait for the right moment.
 					if now < limit {
-						trace!(target: "engine",
-								"generate_seal: sleeping to sign: inturn: {}, now: {:?}, to: {:?}.",
-								inturn, now, limit);
+						trace!(target: "engine", "generate_seal: sleeping to sign: inturn: {}, now: {:?}, to: {:?}.",
+							inturn, now, limit);
 						match limit.duration_since(SystemTime::now()) {
 							Ok(duration) => {
 								thread::sleep(duration);
@@ -531,7 +529,7 @@ impl Engine for Clique {
 					}
 
 					trace!(target: "engine", "generate_seal: seal ready for block {}, txs: {}.",
-							block.header.number(), block.transactions.len());
+						block.header.number(), block.transactions.len());
 					return Seal::Regular(null_seal);
 				}
 			}
@@ -554,9 +552,8 @@ impl Engine for Clique {
 			let limit = CheckedSystemTime::checked_add(SystemTime::now(), Duration::from_secs(self.period))
 				.ok_or(BlockError::TimestampOverflow)?;
 
-			// This should succeed under the contraints that the system clock works
+			// This should succeed under the constraints that the system clock works
 			let limit_as_dur = limit.duration_since(UNIX_EPOCH).map_err(|e| {
-				// todo can use String directly?
 				Box::new(format!("Converting SystemTime to Duration failed: {}", e))
 			})?;
 
@@ -652,120 +649,10 @@ impl Engine for Clique {
 		Ok(())
 	}
 
-	//	fn verify_block_basic(&self, header: &Header) -> Result<(), Error> {
-	//		// Largely same as https://github.com/ethereum/go-ethereum/blob/master/consensus/clique/clique.go#L275
-	//
-	//		// Ignore genesis block.
-	//		if header.number() == 0 {
-	//			return Ok(());
-	//		}
-	//
-	//		// Don't waste time checking blocks from the future
-	//		{
-	//			let limit = CheckedSystemTime::checked_add(SystemTime::now(), Duration::from_secs(self.period))
-	//				.ok_or(BlockError::TimestampOverflow)?;
-	//
-	//			// This should succeed under the contraints that the system clock works
-	//			let limit_as_dur = limit.duration_since(UNIX_EPOCH).map_err(|e| {
-	//				Box::new(format!("Converting SystemTime to Duration failed: {}", e))
-	//			})?;
-	//
-	//			let hdr = Duration::from_secs(header.timestamp());
-	//			if hdr > limit_as_dur {
-	//				let found = CheckedSystemTime::checked_add(UNIX_EPOCH, hdr).ok_or(BlockError::TimestampOverflow)?;
-	//
-	//				Err(BlockError::TemporarilyInvalid(OutOfBounds {
-	//					min: None,
-	//					max: Some(limit),
-	//					found,
-	//				}.into()))?
-	//			}
-	//		}
-	//
-	//		let is_checkpoint = header.number() % self.epoch_length == 0;
-	//
-	//		if is_checkpoint && *header.author() != NULL_AUTHOR {
-	//			return Err(EngineError::CliqueWrongAuthorCheckpoint(Mismatch {
-	//				expected: H160::zero(),
-	//				found: *header.author(),
-	//			}))?;
-	//		}
-	//
-	//		let seal_fields = header.decode_seal::<Vec<_>>()?;
-	//		if seal_fields.len() != 2 {
-	//			Err(BlockError::InvalidSealArity(Mismatch {
-	//				expected: 2,
-	//				found: seal_fields.len(),
-	//			}))?
-	//		}
-	//
-	//		let mixhash = H256::from_slice(seal_fields[0]);
-	//		let nonce = H64::from_slice(seal_fields[1]);
-	//
-	//		// Nonce must be 0x00..0 or 0xff..f
-	//		if nonce != NONCE_DROP_VOTE && nonce != NONCE_AUTH_VOTE {
-	//			Err(EngineError::CliqueInvalidNonce(nonce))?;
-	//		}
-	//
-	//		if is_checkpoint && nonce != NULL_NONCE {
-	//			Err(EngineError::CliqueInvalidNonce(nonce))?;
-	//		}
-	//
-	//		// Ensure that the mix digest is zero as Clique don't have fork protection currently
-	//		if mixhash != NULL_MIXHASH {
-	//			Err(BlockError::MismatchedH256SealElement(Mismatch {
-	//				expected: NULL_MIXHASH,
-	//				found: mixhash,
-	//			}))?
-	//		}
-	//
-	//		let extra_data_len = header.extra_data().len();
-	//
-	//		if extra_data_len < VANITY_LENGTH {
-	//			Err(EngineError::CliqueMissingVanity)?
-	//		}
-	//
-	//		if extra_data_len < VANITY_LENGTH + SIGNATURE_LENGTH {
-	//			Err(EngineError::CliqueMissingSignature)?
-	//		}
-	//
-	//		let signers = extra_data_len - (VANITY_LENGTH + SIGNATURE_LENGTH);
-	//
-	//		// Checkpoint blocks must at least contain one signer
-	//		if is_checkpoint && signers == 0 {
-	//			Err(EngineError::CliqueCheckpointNoSigner)?
-	//		}
-	//
-	//		// Addresses must be be divisable by 20
-	//		if is_checkpoint && signers % ADDRESS_LENGTH != 0 {
-	//			Err(EngineError::CliqueCheckpointInvalidSigners(signers))?
-	//		}
-	//
-	//		// Ensure that the block doesn't contain any uncles which are meaningless in PoA
-	//		if *header.uncles_hash() != NULL_UNCLES_HASH {
-	//			Err(BlockError::InvalidUnclesHash(Mismatch {
-	//				expected: NULL_UNCLES_HASH,
-	//				found: *header.uncles_hash(),
-	//			}))?
-	//		}
-	//
-	//		// Ensure that the block's difficulty is meaningful (may not be correct at this point)
-	//		if *header.difficulty() != DIFF_INTURN && *header.difficulty() != DIFF_NOTURN {
-	//			Err(BlockError::DifficultyOutOfBounds(OutOfBounds {
-	//				min: Some(DIFF_NOTURN),
-	//				max: Some(DIFF_INTURN),
-	//				found: *header.difficulty(),
-	//			}))?
-	//		}
-	//
-	//		// All basic checks passed, continue to next phase
-	//		Ok(())
-	//	}
-	//
-	//	fn verify_block_unordered(&self, _header: &Header) -> Result<(), Error> {
-	//		// Nothing to check here.
-	//		Ok(())
-	//	}
+	fn verify_block_unordered(&self, _header: &Header) -> Result<(), Error> {
+		// Nothing to check here.
+		Ok(())
+	}
 
 	/// Verify block family by looking up parent state (backfill if needed), then try to apply current header.
 	/// see https://github.com/ethereum/go-ethereum/blob/master/consensus/clique/clique.go#L338
@@ -805,15 +692,14 @@ impl Engine for Clique {
 		Ok(())
 	}
 
-
 	fn genesis_epoch_data(&self, header: &Header, _call: &Call) -> Result<Vec<u8>, String> {
-			let mut state = self.new_checkpoint_state(header).expect("Unable to parse genesis data.");
-			state.calc_next_timestamp(header.timestamp(), self.period).map_err(|e| format!("{}", e))?;
-			self.block_state_by_hash.write().insert(header.hash(), state);
+		let mut state = self.new_checkpoint_state(header).expect("Unable to parse genesis data.");
+		state.calc_next_timestamp(header.timestamp(), self.period).map_err(|e| format!("{}", e))?;
+		self.block_state_by_hash.write().insert(header.hash(), state);
 
-			// no proof.
-			Ok(Vec::new())
-		}
+		// no proof.
+		Ok(Vec::new())
+	}
 
 	// Our task here is to set difficulty
 	fn populate_from_parent(&self, header: &mut Header, parent: &Header) {
@@ -891,13 +777,5 @@ impl Engine for Clique {
 
 	fn params(&self) -> &CommonParams {
 		self.machine.params()
-	}
-
-	fn verify_transaction_unordered(&self, t: UnverifiedTransaction, header: &Header) -> Result<SignedTransaction, transaction::Error> {
-		self.machine().verify_transaction_unordered(t, header)
-	}
-
-	fn verify_transaction_basic(&self, t: &UnverifiedTransaction, header: &Header) -> Result<(), transaction::Error> {
-		self.machine().verify_transaction_basic(t, header)
 	}
 }
