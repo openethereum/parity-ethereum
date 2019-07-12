@@ -25,7 +25,6 @@ pub mod epoch;
 pub mod params;
 pub mod machine;
 
-// todo: hook up in ethcore
 /// The type of sealing the engine is currently able to perform.
 #[derive(Debug, PartialEq, Eq)]
 pub enum SealingState {
@@ -38,7 +37,6 @@ pub enum SealingState {
 }
 
 /// The number of generations back that uncles can be.
-// todo: hook up in ethcore
 pub const MAX_UNCLE_AGE: usize = 6;
 
 /// Default EIP-210 contract code.
@@ -80,9 +78,7 @@ impl From<ethjson::spec::EthashParams> for EthashExtensions {
 }
 
 /// Type alias for a function we can get headers by hash through.
-// todo: hook up in ethcore
 pub type Headers<'a, H> = dyn Fn(H256) -> Option<H> + 'a;
 
 /// Type alias for a function we can query pending transitions by block hash through.
-// todo: hook up in ethcore
 pub type PendingTransitionStore<'a> = dyn Fn(H256) -> Option<epoch::PendingTransition> + 'a;

@@ -18,20 +18,7 @@
 //!
 //! Blocks can be produced by a local node or they may be received from the network.
 //!
-//! To create a block locally, we start with an `OpenBlock`. This block is mutable
-//! and can be appended to with transactions and uncles.
-//!
-//! When ready, `OpenBlock` can be closed and turned into a `ClosedBlock`. A `ClosedBlock` can
-//! be re-opend again by a miner under certain circumstances. On block close, state commit is
-//! performed.
-//!
-//! `LockedBlock` is a version of a `ClosedBlock` that cannot be reopened. It can be sealed
-//! using an engine.
-//!
-//! `ExecutedBlock` is an underlying data structure used by all structs above to store block
-//! related info.
-// todo: fix module docs
-
+//! Other block types are found in `ethcore`
 
 use bytes::Bytes;
 use parity_util_mem::MallocSizeOf;

@@ -137,14 +137,6 @@ pub fn default_system_or_code_call<'a>(machine: &'a Machine, block: &'a mut ::bl
 	}
 }
 
-/// Type alias for a function we can get headers by hash through.
-// todo: hook up with common_types
-//pub type Headers<'a, H> = dyn Fn(H256) -> Option<H> + 'a;
-
-/// Type alias for a function we can query pending transitions by block hash through.
-// todo: hook up with common_types
-//pub type PendingTransitionStore<'a> = dyn Fn(H256) -> Option<epoch::PendingTransition> + 'a;
-
 /// Proof dependent on state.
 // todo: check what `check_proof` needs a `Machine` for and figure out a way to extract this.
 pub trait StateDependentProof: Send + Sync {
