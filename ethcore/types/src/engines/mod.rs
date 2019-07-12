@@ -16,13 +16,26 @@
 
 //! Engine-specific types.
 
-use ethereum_types::Address;
+use ethereum_types::{Address, H256};
 use ethjson;
 
 use crate::BlockNumber;
 
 pub mod epoch;
 pub mod params;
+pub mod machine;
+
+// todo: hook up in ethcore
+/// The type of sealing the engine is currently able to perform.
+#[derive(Debug, PartialEq, Eq)]
+pub enum SealingState {
+	/// The engine is ready to seal a block.
+	Ready,
+	/// The engine can't seal at the moment, and no block should be prepared and queued.
+	NotReady,
+	/// The engine does not seal internally.
+	External,
+}
 
 /// The number of generations back that uncles can be.
 // todo: hook up in ethcore
@@ -65,3 +78,11 @@ impl From<ethjson::spec::EthashParams> for EthashExtensions {
 		}
 	}
 }
+
+/// Type alias for a function we can get headers by hash through.
+// todo: hook up in ethcore
+pub type Headers<'a, H> = dyn Fn(H256) -> Option<H> + 'a;
+
+/// Type alias for a function we can query pending transitions by block hash through.
+// todo: hook up in ethcore
+pub type PendingTransitionStore<'a> = dyn Fn(H256) -> Option<epoch::PendingTransition> + 'a;

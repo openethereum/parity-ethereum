@@ -35,7 +35,7 @@ pub enum ClientIoMessage {
 	FeedBlockChunk(H256, Bytes),
 	/// Take a snapshot for the block with given number.
 	TakeSnapshot(u64),
-	// todo: hopefully we dont need this on in verifiers – gonna be tricky to wire up to ethcore
+	// todo: hopefully we dont need this one in verifiers – gonna be tricky to wire up to ethcore
 	///// Execute wrapped closure
 	//Execute(Callback),
 }
