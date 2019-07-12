@@ -140,7 +140,4 @@ members = [
 	"util/patricia-trie-ethereum",
 	"util/fastmap",
 	"util/time-utils",
-
-	"ethcore/verification",
-	"ethcore/client-traits",
 ]

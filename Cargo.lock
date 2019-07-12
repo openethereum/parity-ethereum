@@ -430,20 +430,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "client-traits"
-version = "0.1.0"
-dependencies = [
- "common-types 0.1.0",
- "derive_more 0.15.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "ethcore-builtin 0.1.0",
- "ethcore-call-contract 0.1.0",
- "ethereum-types 0.6.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "ethkey 0.3.0",
- "rlp 0.4.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "vm 0.1.0",
-]
-
-[[package]]
 name = "cloudabi"
 version = "0.0.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4654,30 +4640,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 dependencies = [
  "bitflags 0.7.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "time 0.1.40 (registry+https://github.com/rust-lang/crates.io-index)",
-]
-
-[[package]]
-name = "verification"
-version = "0.1.0"
-dependencies = [
- "client-traits 0.1.0",
- "common-types 0.1.0",
- "derive_more 0.15.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "ethcore-blockchain 0.1.0",
- "ethcore-call-contract 0.1.0",
- "ethcore-io 1.12.0",
- "ethereum-types 0.6.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "keccak-hash 0.2.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "len-caching-lock 0.1.1",
- "log 0.4.6 (registry+https://github.com/rust-lang/crates.io-index)",
- "num_cpus 1.10.1 (registry+https://github.com/rust-lang/crates.io-index)",
- "parity-bytes 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "parity-util-mem 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "parking_lot 0.8.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "rlp 0.4.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "time-utils 0.1.0",
- "triehash-ethereum 0.2.0",
- "unexpected 0.1.0",
 ]
 
 [[package]]
