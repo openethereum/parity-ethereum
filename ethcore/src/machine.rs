@@ -40,7 +40,9 @@ use builtin::Builtin;
 use call_contract::CallContract;
 use client::BlockInfo;
 use executive::Executive;
-use account_state::{CleanupMode, Substate};
+use spec::CommonParams;
+use account_state::CleanupMode;
+use substate::Substate;
 use trace::{NoopTracer, NoopVMTracer};
 use tx_filter::TransactionFilter;
 

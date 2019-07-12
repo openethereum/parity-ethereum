@@ -69,7 +69,6 @@ extern crate parity_rpc;
 extern crate parity_runtime;
 extern crate parity_updater as updater;
 extern crate parity_version;
-extern crate parity_whisper;
 extern crate registrar;
 
 #[macro_use]
@@ -111,7 +110,6 @@ mod signer;
 mod snapshot;
 mod upgrade;
 mod user_defaults;
-mod whisper;
 mod db;
 
 use std::fs::File;

@@ -26,7 +26,7 @@ use seed_compute::SeedHashCompute;
 use shared::*;
 use std::io;
 
-use std::{mem, ptr};
+use std::mem;
 use std::path::Path;
 
 const MIX_WORDS: usize = ETHASH_MIX_BYTES / 4;
@@ -135,22 +135,16 @@ pub fn quick_get_difficulty(header_hash: &H256, nonce: u64, mix_hash: &H256, pro
 			let seed = keccak_f800_short(*header_hash, nonce, [0u32; 8]);
 			keccak_f800_long(*header_hash, seed, mem::transmute(*mix_hash))
 		} else {
-			// This is safe - the `keccak_512` call below reads the first 40 bytes (which we explicitly set
-			// with two `copy_nonoverlapping` calls) but writes the first 64, and then we explicitly write
-			// the next 32 bytes before we read the whole thing with `keccak_256`.
-			//
-			// This cannot be elided by the compiler as it doesn't know the implementation of
-			// `keccak_512`.
-			let mut buf: [u8; 64 + 32] = mem::uninitialized();
+			let mut buf = [0u8; 64 + 32];
 
-			ptr::copy_nonoverlapping(header_hash.as_ptr(), buf.as_mut_ptr(), 32);
-			ptr::copy_nonoverlapping(&nonce as *const u64 as *const u8, buf[32..].as_mut_ptr(), 8);
+			let hash_len = header_hash.len();
+			buf[..hash_len].copy_from_slice(header_hash);
+			buf[hash_len..hash_len + mem::size_of::<u64>()].copy_from_slice(&nonce.to_ne_bytes());
 
 			keccak_512::unchecked(buf.as_mut_ptr(), 64, buf.as_ptr(), 40);
-			ptr::copy_nonoverlapping(mix_hash.as_ptr(), buf[64..].as_mut_ptr(), 32);
+			buf[64..].copy_from_slice(mix_hash);
 
-			// This is initialized in `keccak_256`
-			let mut hash: [u8; 32] = mem::uninitialized();
+			let mut hash = [0u8; 32];
 			keccak_256::unchecked(hash.as_mut_ptr(), hash.len(), buf.as_ptr(), buf.len());
 
 			hash
@@ -205,17 +199,11 @@ fn hash_compute(light: &Light, full_size: usize, header_hash: &H256, nonce: u64)
 	let mut buf: MixBuf = MixBuf {
 		half_mix: unsafe {
 			// Pack `header_hash` and `nonce` together
-			// We explicitly write the first 40 bytes, leaving the last 24 as uninitialized. Then
-			// `keccak_512` reads the first 40 bytes (4th parameter) and overwrites the entire array,
-			// leaving it fully initialized.
-			let mut out: [u8; NODE_BYTES] = mem::uninitialized();
+			let mut out = [0u8; NODE_BYTES];
 
-			ptr::copy_nonoverlapping(header_hash.as_ptr(), out.as_mut_ptr(), header_hash.len());
-			ptr::copy_nonoverlapping(
-				&nonce as *const u64 as *const u8,
-				out[header_hash.len()..].as_mut_ptr(),
-				mem::size_of::<u64>(),
-			);
+			let hash_len = header_hash.len();
+			out[..hash_len].copy_from_slice(header_hash);
+			out[hash_len..hash_len + mem::size_of::<u64>()].copy_from_slice(&nonce.to_ne_bytes());
 
 			// compute keccak-512 hash and replicate across mix
 			keccak_512::unchecked(
@@ -227,8 +215,7 @@ fn hash_compute(light: &Light, full_size: usize, header_hash: &H256, nonce: u64)
 
 			Node { bytes: out }
 		},
-		// This is fully initialized before being read, see `let mut compress = ...` below
-		compress_bytes: unsafe { mem::uninitialized() },
+		compress_bytes: [0u8; MIX_WORDS],
 	};
 
 	let mut mix: [_; MIX_NODES] = [buf.half_mix.clone(), buf.half_mix.clone()];
@@ -277,12 +264,16 @@ fn hash_compute(light: &Light, full_size: usize, header_hash: &H256, nonce: u64)
 	let mix_words: [u32; MIX_WORDS] = unsafe { mem::transmute(mix) };
 
 	{
-		// This is an uninitialized buffer to begin with, but we iterate precisely `compress.len()`
-		// times and set each index, leaving the array fully initialized. THIS ONLY WORKS ON LITTLE-
-		// ENDIAN MACHINES. See a future PR to make this and the rest of the code work correctly on
+		// We iterate precisely `compress.len()` times and set each index,
+		// leaving the array fully initialized. THIS ONLY WORKS ON LITTLE-ENDIAN MACHINES.
+		// See a future PR to make this and the rest of the code work correctly on
 		// big-endian arches like mips.
 		let compress: &mut [u32; MIX_WORDS / 4] =
 			unsafe { make_const_array!(MIX_WORDS / 4, &mut buf.compress_bytes) };
+		#[cfg(target_endian = "big")]
+		{
+			compile_error!("parity-ethereum currently only supports little-endian targets");
+		}
 
 		// Compress mix
 		debug_assert_eq!(MIX_WORDS / 4, 8);

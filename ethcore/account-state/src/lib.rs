@@ -24,12 +24,10 @@
 
 pub mod account;
 pub mod backend;
-pub mod substate;
 pub mod state;
 
 pub use {
 	account::Account,
 	backend::Backend,
-	substate::Substate,
 	state::{State, CleanupMode},
 };

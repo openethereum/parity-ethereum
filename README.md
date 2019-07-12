@@ -66,7 +66,7 @@ We recommend installing Rust through [rustup](https://www.rustup.rs/). If you do
 
   `clang` is required. It comes with Xcode command line tools or can be installed with homebrew.
 
-- Windows:  
+- Windows:
   Make sure you have Visual Studio 2015 with C++ support installed. Next, download and run the `rustup` installer from
   https://static.rust-lang.org/rustup/dist/x86_64-pc-windows-msvc/rustup-init.exe, start "VS2015 x64 Native Tools Command Prompt", and use the following command to install and set up the `msvc` toolchain:
   ```bash
@@ -320,10 +320,6 @@ Caching, Importing Blocks, and Block Information
   patricia-trie-ethereum registrar rlp_compress rlp_derive parity-runtime stats
   time-utils triehash-ethereum unexpected parity-version
   ```
-* Parity Whisper Protocol Implementation
-  ```bash
-  parity-whisper whisper-cli
-  ```
 
 </p></details>
 
@@ -360,10 +356,10 @@ In addition to the Parity Ethereum client, there are additional tools in this re
 - [evmbin](./evmbin) - Parity Ethereum EVM Implementation.
 - [ethstore](./accounts/ethstore) - Parity Ethereum Key Management.
 - [ethkey](./accounts/ethkey) - Parity Ethereum Keys Generator.
-- [whisper](./whisper) - Parity Ethereum Whisper-v2 PoC Implementation.
 
 The following tool is available in a separate repository:
 - [ethabi](https://github.com/paritytech/ethabi) - Parity Ethereum Encoding of Function Calls. [Docs here](https://crates.io/crates/ethabi)
+- [whisper](https://github.com/paritytech/whisper) - Parity Ethereum Whisper-v2 PoC Implementation.
 
 ## 7. Community <a id="chapter-007"></a>
 

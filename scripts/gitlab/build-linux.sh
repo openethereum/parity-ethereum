@@ -27,7 +27,6 @@ else
   time cargo build --target $CARGO_TARGET --verbose --color=always --release -p evmbin
   time cargo build --target $CARGO_TARGET --verbose --color=always --release -p ethstore-cli
   time cargo build --target $CARGO_TARGET --verbose --color=always --release -p ethkey-cli
-  time cargo build --target $CARGO_TARGET --verbose --color=always --release -p whisper-cli
 fi
 
 echo "_____ Post-processing binaries _____"
@@ -43,7 +42,6 @@ else
  cp -v ../../target/$CARGO_TARGET/release/parity-evm ./parity-evm
  cp -v ../../target/$CARGO_TARGET/release/ethstore ./ethstore
  cp -v ../../target/$CARGO_TARGET/release/ethkey ./ethkey
- cp -v ../../target/$CARGO_TARGET/release/whisper ./whisper
 fi
 
 echo "_____ Calculating checksums _____"
