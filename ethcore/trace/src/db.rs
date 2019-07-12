@@ -69,7 +69,7 @@ pub trait DatabaseExtras {
 
 impl<T: BlockProvider> DatabaseExtras for T {
 	fn block_hash(&self, block_number: BlockNumber) -> Option<H256> {
-		self.block_hash( block_number)
+		(&*self as &dyn BlockProvider).block_hash(block_number)
 	}
 
 	fn transaction_hash(&self, block_number: BlockNumber, tx_position: usize) -> Option<H256> {
