@@ -21,8 +21,7 @@ use lru_cache::LruCache;
 use ethabi::FunctionOutputDecoder;
 
 use call_contract::CallContract;
-use client::BlockId;
-use client_traits::BlockInfo;
+use client::{BlockId, BlockInfo};
 use parking_lot::Mutex;
 use types::{
 	BlockNumber,

@@ -14,12 +14,14 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
-use engines::{Engine, Seal, SealingState};
-use client_traits::VerifyingEngine;
+use engines::{Engine, Seal};
 use machine::Machine;
 use types::{
 	header::Header,
-	engines::params::CommonParams,
+	engines::{
+		SealingState,
+		params::CommonParams,
+	},
 	errors::EthcoreError as Error,
 	transaction::{self, UnverifiedTransaction, SignedTransaction},
 };
@@ -58,20 +60,6 @@ impl InstantSeal {
 	}
 }
 
-impl VerifyingEngine for InstantSeal {
-	fn params(&self) -> &CommonParams {
-		self.machine.params()
-	}
-
-	fn verify_transaction_basic(&self, t: &UnverifiedTransaction, header: &Header) -> Result<(), transaction::Error> {
-		self.machine().verify_transaction_basic(t, header)
-	}
-
-	fn verify_transaction_unordered(&self, t: UnverifiedTransaction, header: &Header) -> Result<SignedTransaction, transaction::Error> {
-		self.machine().verify_transaction_unordered(t, header)
-	}
-}
-
 impl Engine for InstantSeal {
 	fn name(&self) -> &str {
 		"InstantSeal"
@@ -106,6 +94,18 @@ impl Engine for InstantSeal {
 
 	fn is_timestamp_valid(&self, header_timestamp: u64, parent_timestamp: u64) -> bool {
 		header_timestamp >= parent_timestamp
+	}
+
+	fn params(&self) -> &CommonParams {
+		self.machine.params()
+	}
+
+	fn verify_transaction_unordered(&self, t: UnverifiedTransaction, header: &Header) -> Result<SignedTransaction, transaction::Error> {
+		self.machine().verify_transaction_unordered(t, header)
+	}
+
+	fn verify_transaction_basic(&self, t: &UnverifiedTransaction, header: &Header) -> Result<(), transaction::Error> {
+		self.machine().verify_transaction_basic(t, header)
 	}
 }
 

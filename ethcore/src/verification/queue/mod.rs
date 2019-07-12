@@ -26,15 +26,17 @@ use parity_util_mem::{MallocSizeOf, MallocSizeOfExt};
 use ethereum_types::{H256, U256};
 use parking_lot::{Condvar, Mutex, RwLock};
 use io::*;
-use error::{BlockError, Error};
 use engines::Engine;
 use client::ClientIoMessage;
 use len_caching_lock::LenCachingMutex;
+use types::{
+	errors::{BlockError, EthcoreError as Error},
+};
 
 use self::kind::{BlockLike, Kind};
 
 pub use types::{
-	block::ImportError,
+	errors::ImportError, // todo: does not need this re-export
 	verification_queue_info::VerificationQueueInfo as QueueInfo,
 };
 

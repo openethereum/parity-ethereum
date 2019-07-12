@@ -60,6 +60,7 @@ pub trait VerifyingEngine: Sync + Send {
 	/// Get the general parameters of the chain.
 	fn params(&self) -> &CommonParams;
 
+	// todo: not in Engine originally – useful?
 	/// Get a reference to the ethash-specific extensions.
 	fn ethash_extensions(&self) -> Option<&EthashExtensions> { None }
 

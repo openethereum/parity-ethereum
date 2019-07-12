@@ -15,7 +15,6 @@
 // along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
 use engines::Engine;
-use client_traits::VerifyingEngine;
 use engines::block_reward::{self, RewardKind};
 use ethereum_types::U256;
 use machine::Machine;
@@ -56,20 +55,6 @@ impl NullEngine {
 			params,
 			machine,
 		}
-	}
-}
-
-impl VerifyingEngine for NullEngine {
-	fn params(&self) -> &CommonParams {
-		self.machine.params()
-	}
-
-	fn verify_transaction_basic(&self, t: &UnverifiedTransaction, header: &Header) -> Result<(), transaction::Error> {
-		self.machine().verify_transaction_basic(t, header)
-	}
-
-	fn verify_transaction_unordered(&self, t: UnverifiedTransaction, header: &Header) -> Result<SignedTransaction, transaction::Error> {
-		self.machine().verify_transaction_unordered(t, header)
 	}
 }
 
@@ -119,5 +104,17 @@ impl Engine for NullEngine {
 
 	fn snapshot_components(&self) -> Option<Box<dyn (::snapshot::SnapshotComponents)>> {
 		Some(Box::new(::snapshot::PowSnapshot::new(10000, 10000)))
+	}
+
+	fn params(&self) -> &CommonParams {
+		self.machine.params()
+	}
+
+	fn verify_transaction_unordered(&self, t: UnverifiedTransaction, header: &Header) -> Result<SignedTransaction, transaction::Error> {
+		self.machine().verify_transaction_unordered(t, header)
+	}
+
+	fn verify_transaction_basic(&self, t: &UnverifiedTransaction, header: &Header) -> Result<(), transaction::Error> {
+		self.machine().verify_transaction_basic(t, header)
 	}
 }

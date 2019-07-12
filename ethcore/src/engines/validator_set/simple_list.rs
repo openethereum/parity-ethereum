@@ -19,11 +19,12 @@
 use parity_util_mem::MallocSizeOf;
 use ethereum_types::{H256, Address};
 
-use machine::{AuxiliaryData, Call, Machine};
+use machine::Machine;
 use types::{
 	BlockNumber,
 	header::Header,
 	errors::EthcoreError,
+	engines::machine::{Call, AuxiliaryData},
 };
 use super::ValidatorSet;
 

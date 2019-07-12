@@ -31,12 +31,13 @@ use types::{
 	errors::{EngineError, EthcoreError, BlockError},
 	ids::BlockId,
 	log_entry::LogEntry,
+	engines::machine::{Call, AuxiliaryData, AuxiliaryRequest},
 	receipt::Receipt,
 };
 use unexpected::Mismatch;
 
 use client::EngineClient;
-use machine::{AuxiliaryData, Call, Machine, AuxiliaryRequest};
+use machine::Machine;
 use super::{SystemCall, ValidatorSet};
 use super::simple_list::SimpleList;
 
@@ -457,7 +458,7 @@ mod tests {
 	use accounts::AccountProvider;
 	use types::transaction::{Transaction, Action};
 	use client::{ChainInfo, ImportBlock};
-	use client_traits::BlockInfo;
+	use client::BlockInfo;
 	use ethkey::Secret;
 	use miner::{self, MinerService};
 	use test_helpers::{generate_dummy_client_with_spec, generate_dummy_client_with_spec_and_data};
@@ -549,9 +550,11 @@ mod tests {
 	#[test]
 	fn detects_bloom() {
 		use engines::EpochChange;
-		use machine::AuxiliaryRequest;
-		use types::header::Header;
-		use types::log_entry::LogEntry;
+		use types::{
+			header::Header,
+			log_entry::LogEntry,
+			machine::AuxiliaryRequest,
+		};
 
 		let client = generate_dummy_client_with_spec(Spec::new_validator_safe_contract);
 		let engine = client.engine().clone();

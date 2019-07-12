@@ -29,14 +29,14 @@ pub use self::noop_verifier::NoopVerifier;
 pub use self::queue::{BlockQueue, Config as QueueConfig, VerificationQueue, QueueInfo};
 
 use call_contract::CallContract;
-use client_traits::BlockInfo;
+use client::BlockInfo;
 
 /// Verifier type.
 #[derive(Debug, PartialEq, Clone)]
 pub enum VerifierType {
 	/// Verifies block normally.
 	Canon,
-	/// Verifies block normallly, but skips seal verification.
+	/// Verifies block normally, but skips seal verification.
 	CanonNoSeal,
 	/// Does not verify block at all.
 	/// Used in tests.

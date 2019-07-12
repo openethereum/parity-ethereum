@@ -27,10 +27,11 @@ use types::{
 	header::Header,
 	ids::BlockId,
 	errors::EthcoreError,
+	engines::machine::{Call, AuxiliaryData},
 };
 
 use client::EngineClient;
-use machine::{AuxiliaryData, Call, Machine};
+use machine::Machine;
 use super::{SystemCall, ValidatorSet};
 
 type BlockNumberLookup = Box<dyn Fn(BlockId) -> Result<BlockNumber, String> + Send + Sync + 'static>;
@@ -155,7 +156,7 @@ mod tests {
 	use hash::keccak;
 	use accounts::AccountProvider;
 	use client::{BlockChainClient, ChainInfo, ImportBlock};
-	use client_traits::BlockInfo;
+	use client::BlockInfo;
 	use engines::EpochChange;
 	use engines::validator_set::ValidatorSet;
 	use ethkey::Secret;

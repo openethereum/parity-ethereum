@@ -47,7 +47,6 @@ use vm::LastHashes;
 
 use block::{OpenBlock, SealedBlock, ClosedBlock};
 use client::Mode;
-use client_traits::BlockInfo;
 use engines::Engine;
 use error::EthcoreResult;
 use executed::CallError;
@@ -114,6 +113,21 @@ pub trait AccountData: Nonce + Balance {}
 pub trait ChainInfo {
 	/// Get blockchain information.
 	fn chain_info(&self) -> BlockChainInfo;
+}
+
+/// Provides various information on a block by it's ID
+pub trait BlockInfo {
+	/// Get raw block header data by block id.
+	fn block_header(&self, id: BlockId) -> Option<encoded::Header>;
+
+	/// Get the best block header.
+	fn best_block_header(&self) -> Header;
+
+	/// Get raw block data by block header hash.
+	fn block(&self, id: BlockId) -> Option<encoded::Block>;
+
+	/// Get address code hash at given block's state.
+	fn code_hash(&self, address: &Address, id: BlockId) -> Option<H256>;
 }
 
 /// Provides various information on a transaction by it's ID

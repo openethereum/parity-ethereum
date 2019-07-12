@@ -23,10 +23,13 @@ use parity_util_mem::MallocSizeOf;
 
 use bytes::Bytes;
 use ethereum_types::{H256, Address};
-use types::BlockNumber;
-use types::header::Header;
+use types::{
+	BlockNumber,
+	header::Header,
+	engines::machine::{Call, AuxiliaryData},
+};
 
-use machine::{AuxiliaryData, Call, Machine};
+use machine::Machine;
 use super::{ValidatorSet, SimpleList};
 
 /// Set used for testing with a single validator.

@@ -18,7 +18,7 @@
 
 use parking_lot::Mutex;
 use client::{Client, ChainNotify, NewBlocks};
-use client_traits::BlockInfo;
+use client::BlockInfo;
 use types::{
 	client_io_message::ClientIoMessage,
 	ids::BlockId

@@ -52,9 +52,8 @@ use client::{
 	IoClient, BadBlocks,
 };
 use client::bad_blocks;
-use client_traits::{BlockInfo, VerifyingEngine};
-use engines::{MAX_UNCLE_AGE, Engine, EpochTransition, ForkChoice, SealingState};
-use engines::epoch::PendingTransition;
+use client::BlockInfo;
+use engines::{Engine, EpochTransition, ForkChoice};
 use error::{CallError, EthcoreResult};
 use executive::{Executive, Executed, TransactOptions, contract_address};
 use trie_vm_factories::{Factories, VmFactory};
@@ -71,6 +70,12 @@ use types::{
 	BlockNumber,
 	block::PreverifiedBlock,
 	encoded,
+	engines::{
+		SealingState,
+		MAX_UNCLE_AGE,
+		epoch::PendingTransition,
+		machine::{AuxiliaryData, Call as MachineCall},
+	},
 	errors::{EngineError, ExecutionError, BlockError, EthcoreError, SnapshotError, ImportError},
 	transaction::{self, LocalizedTransaction, UnverifiedTransaction, SignedTransaction, Action},
 	filter::Filter,
@@ -601,7 +606,7 @@ impl Importer {
 		use engines::EpochChange;
 
 		let hash = header.hash();
-		let auxiliary = ::machine::AuxiliaryData {
+		let auxiliary = AuxiliaryData {
 			bytes: Some(block_bytes),
 			receipts: Some(&receipts),
 		};
@@ -945,7 +950,7 @@ impl Client {
 
 	// use a state-proving closure for the given block.
 	fn with_proving_caller<F, T>(&self, id: BlockId, with_call: F) -> T
-		where F: FnOnce(&::machine::Call) -> T
+		where F: FnOnce(&MachineCall) -> T
 	{
 		let call = |a, d| {
 			let tx = self.contract_call_tx(id, a, d);

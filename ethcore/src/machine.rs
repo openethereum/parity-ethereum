@@ -38,7 +38,7 @@ use vm::{EnvInfo, Schedule, CreateContractAddress};
 use block::ExecutedBlock;
 use builtin::Builtin;
 use call_contract::CallContract;
-use client_traits::BlockInfo;
+use client::BlockInfo;
 use executive::Executive;
 use account_state::{CleanupMode, Substate};
 use trace::{NoopTracer, NoopVMTracer};
@@ -388,32 +388,6 @@ impl Machine {
 	pub fn add_balance(&self, live: &mut ExecutedBlock, address: &Address, amount: &U256) -> Result<(), Error> {
 		live.state_mut().add_balance(address, amount, CleanupMode::NoEmpty).map_err(Into::into)
 	}
-}
-/// Auxiliary data fetcher for an Ethereum machine. In Ethereum-like machines
-/// there are two kinds of auxiliary data: bodies and receipts.
-#[derive(Default, Clone)]
-pub struct AuxiliaryData<'a> {
-	/// The full block bytes, including the header.
-	pub bytes: Option<&'a [u8]>,
-	/// The block receipts.
-	pub receipts: Option<&'a [::types::receipt::Receipt]>,
-}
-
-// todo: moved to common_types. Hook up here.
-/// Type alias for a function we can make calls through synchronously.
-/// Returns the call result and state proof for each call.
-pub type Call<'a> = dyn Fn(Address, Vec<u8>) -> Result<(Vec<u8>, Vec<Vec<u8>>), String> + 'a;
-
-// todo: moved to common_types. Hook up here.
-/// Request for auxiliary data of a block.
-#[derive(Debug, Clone, Copy, PartialEq)]
-pub enum AuxiliaryRequest {
-	/// Needs the body.
-	Body,
-	/// Needs the receipts.
-	Receipts,
-	/// Needs both body and receipts.
-	Both,
 }
 
 // Try to round gas_limit a bit so that:

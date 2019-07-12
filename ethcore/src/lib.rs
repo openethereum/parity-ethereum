@@ -57,7 +57,6 @@ extern crate account_db;
 extern crate account_state;
 extern crate ansi_term;
 extern crate common_types as types;
-extern crate client_traits;
 extern crate crossbeam_utils;
 extern crate ethabi;
 extern crate ethash;
@@ -140,7 +139,6 @@ extern crate macros;
 extern crate rlp_derive;
 #[macro_use]
 extern crate trace_time;
-pub extern crate verification; // todo doesn't need to be public
 
 #[cfg_attr(test, macro_use)]
 extern crate evm;
@@ -163,7 +161,7 @@ pub mod machine;
 pub mod miner;
 pub mod snapshot;
 pub mod spec;
-//pub mod verification;
+pub mod verification;
 
 mod externalities;
 mod transaction_ext;

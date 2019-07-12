@@ -46,25 +46,30 @@ use types::{
 	BlockNumber,
 	ancestry_action::AncestryAction,
 	header::{Header, ExtendedHeader},
+	engines::{
+		EthashExtensions, SealingState, Headers, PendingTransitionStore,
+//		epoch::{EpochChange, ConstructedVerifier},
+		params::CommonParams,
+		machine as machine_types,
+		machine::{AuxiliaryData, AuxiliaryRequest},
+	},
 	errors::{EthcoreError as Error, EngineError},
-	transaction::{self, UnverifiedTransaction},
-	machine as machine_types,
+	transaction::{self, UnverifiedTransaction, SignedTransaction},
 };
 use snapshot::SnapshotComponents;
 use client::EngineClient;
-use client_traits::VerifyingEngine;
 
 use ethkey::{Signature};
-use machine::{self, Machine, AuxiliaryRequest, AuxiliaryData};
+use machine::Machine;
 use ethereum_types::{H256, U256, Address};
 use bytes::Bytes;
 use block::ExecutedBlock;
 
 /// Default EIP-210 contract code.
 /// As defined in https://github.com/ethereum/EIPs/pull/210
+// todo: hook up from common_types
 pub const DEFAULT_BLOCKHASH_CONTRACT: &'static str = "73fffffffffffffffffffffffffffffffffffffffe33141561006a5760014303600035610100820755610100810715156100455760003561010061010083050761010001555b6201000081071515610064576000356101006201000083050761020001555b5061013e565b4360003512151561008457600060405260206040f361013d565b61010060003543031315156100a857610100600035075460605260206060f361013c565b6101006000350715156100c55762010000600035430313156100c8565b60005b156100ea576101006101006000350507610100015460805260206080f361013b565b620100006000350715156101095763010000006000354303131561010c565b60005b1561012f57610100620100006000350507610200015460a052602060a0f361013a565b600060c052602060c0f35b5b5b5b5b";
 /// The number of generations back that uncles can be.
-pub const MAX_UNCLE_AGE: usize = 6;
 
 /// Seal type.
 #[derive(Debug, PartialEq, Eq)]
@@ -76,16 +81,16 @@ pub enum Seal {
 }
 
 // todo: moved to common_types; hook up here
-/// The type of sealing the engine is currently able to perform.
-#[derive(Debug, PartialEq, Eq)]
-pub enum SealingState {
-	/// The engine is ready to seal a block.
-	Ready,
-	/// The engine can't seal at the moment, and no block should be prepared and queued.
-	NotReady,
-	/// The engine does not seal internally.
-	External,
-}
+///// The type of sealing the engine is currently able to perform.
+//#[derive(Debug, PartialEq, Eq)]
+//pub enum SealingState {
+//	/// The engine is ready to seal a block.
+//	Ready,
+//	/// The engine can't seal at the moment, and no block should be prepared and queued.
+//	NotReady,
+//	/// The engine does not seal internally.
+//	External,
+//}
 
 /// A system-calling closure. Enacts calls on a block's state from the system address.
 pub type SystemCall<'a> = dyn FnMut(Address, Vec<u8>) -> Result<Vec<u8>, String> + 'a;
@@ -103,7 +108,7 @@ pub enum SystemOrCodeCallKind {
 }
 
 /// Default SystemOrCodeCall implementation.
-pub fn default_system_or_code_call<'a>(machine: &'a ::machine::Machine, block: &'a mut ::block::ExecutedBlock) -> impl FnMut(SystemOrCodeCallKind, Vec<u8>) -> Result<Vec<u8>, String> + 'a {
+pub fn default_system_or_code_call<'a>(machine: &'a Machine, block: &'a mut ::block::ExecutedBlock) -> impl FnMut(SystemOrCodeCallKind, Vec<u8>) -> Result<Vec<u8>, String> + 'a {
 	move |to, data| {
 		let result = match to {
 			SystemOrCodeCallKind::Address(address) => {
@@ -134,11 +139,11 @@ pub fn default_system_or_code_call<'a>(machine: &'a ::machine::Machine, block: &
 
 /// Type alias for a function we can get headers by hash through.
 // todo: hook up with common_types
-pub type Headers<'a, H> = dyn Fn(H256) -> Option<H> + 'a;
+//pub type Headers<'a, H> = dyn Fn(H256) -> Option<H> + 'a;
 
 /// Type alias for a function we can query pending transitions by block hash through.
 // todo: hook up with common_types
-pub type PendingTransitionStore<'a> = dyn Fn(H256) -> Option<epoch::PendingTransition> + 'a;
+//pub type PendingTransitionStore<'a> = dyn Fn(H256) -> Option<epoch::PendingTransition> + 'a;
 
 /// Proof dependent on state.
 // todo: check what `check_proof` needs a `Machine` for and figure out a way to extract this.
@@ -196,7 +201,7 @@ pub enum EpochChange {
 
 /// A consensus mechanism for the chain. Generally either proof-of-work or proof-of-stake-based.
 /// Provides hooks into each of the major parts of block import.
-pub trait Engine: VerifyingEngine + Sync + Send {
+pub trait Engine: Sync + Send {
 	/// The name of this engine.
 	fn name(&self) -> &str;
 
@@ -205,10 +210,13 @@ pub trait Engine: VerifyingEngine + Sync + Send {
 	fn machine(&self) -> &Machine;
 
 	/// The number of additional header fields required for this engine.
-//	fn seal_fields(&self, _header: &Header) -> usize { 0 }
+	fn seal_fields(&self, _header: &Header) -> usize { 0 }
 
 	/// Additional engine-specific information for the user/developer concerning `header`.
 	fn extra_info(&self, _header: &Header) -> BTreeMap<String, String> { BTreeMap::new() }
+
+	/// Maximum number of uncles a block is allowed to declare.
+	fn maximum_uncle_count(&self, _block: BlockNumber) -> usize { 0 }
 
 	/// Optional maximum gas limit.
 	fn maximum_gas_limit(&self) -> Option<U256> { None }
@@ -263,21 +271,21 @@ pub trait Engine: VerifyingEngine + Sync + Send {
 
 	/// Phase 1 quick block verification. Only does checks that are cheap. Returns either a null `Ok` or a general error detailing the problem with import.
 	/// The verification module can optionally avoid checking the seal (`check_seal`), if seal verification is disabled this method won't be called.
-//	fn verify_block_basic(&self, _header: &Header) -> Result<(), Error> { Ok(()) }
+	fn verify_block_basic(&self, _header: &Header) -> Result<(), Error> { Ok(()) }
 
 	/// Phase 2 verification. Perform costly checks such as transaction signatures. Returns either a null `Ok` or a general error detailing the problem with import.
 	/// The verification module can optionally avoid checking the seal (`check_seal`), if seal verification is disabled this method won't be called.
-//	fn verify_block_unordered(&self, _header: &Header) -> Result<(), Error> { Ok(()) }
+	fn verify_block_unordered(&self, _header: &Header) -> Result<(), Error> { Ok(()) }
 
 	/// Phase 3 verification. Check block information against parent. Returns either a null `Ok` or a general error detailing the problem with import.
-//	fn verify_block_family(&self, _header: &Header, _parent: &Header) -> Result<(), Error> { Ok(()) }
+	fn verify_block_family(&self, _header: &Header, _parent: &Header) -> Result<(), Error> { Ok(()) }
 
 	/// Phase 4 verification. Verify block header against potentially external data.
 	/// Should only be called when `register_client` has been called previously.
-//	fn verify_block_external(&self, _header: &Header) -> Result<(), Error> { Ok(()) }
+	fn verify_block_external(&self, _header: &Header) -> Result<(), Error> { Ok(()) }
 
 	/// Genesis epoch data.
-	fn genesis_epoch_data<'a>(&self, _header: &Header, _state: &machine::Call) -> Result<Vec<u8>, String> { Ok(Vec::new()) }
+	fn genesis_epoch_data<'a>(&self, _header: &Header, _state: &machine_types::Call) -> Result<Vec<u8>, String> { Ok(Vec::new()) }
 
 	/// Whether an epoch change is signalled at the given header but will require finality.
 	/// If a change can be enacted immediately then return `No` from this function but
@@ -375,6 +383,11 @@ pub trait Engine: VerifyingEngine + Sync + Send {
 		cmp::max(now.as_secs() as u64, parent_timestamp + 1)
 	}
 
+	/// Check whether the parent timestamp is valid.
+	fn is_timestamp_valid(&self, header_timestamp: u64, parent_timestamp: u64) -> bool {
+		header_timestamp > parent_timestamp
+	}
+
 	/// Gather all ancestry actions. Called at the last stage when a block is committed. The Engine must guarantee that
 	/// the ancestry exists.
 	fn ancestry_actions(&self, _header: &Header, _ancestry: &mut dyn Iterator<Item = ExtendedHeader>) -> Vec<AncestryAction> {
@@ -385,6 +398,9 @@ pub trait Engine: VerifyingEngine + Sync + Send {
 	fn executive_author(&self, header: &Header) -> Result<Address, Error> {
 		Ok(*header.author())
 	}
+
+	/// Get the general parameters of the chain.
+	fn params(&self) -> &CommonParams;
 
 	/// Get the EVM schedule for the given block number.
 	fn schedule(&self, block_number: BlockNumber) -> Schedule {
@@ -401,6 +417,9 @@ pub trait Engine: VerifyingEngine + Sync + Send {
 	fn builtin(&self, a: &Address, block_number: BlockNumber) -> Option<&Builtin> {
 		self.machine().builtin(a, block_number)
 	}
+
+	/// Some intrinsic operation parameters; by default they take their value from the `spec()`'s `engine_params`.
+	fn maximum_extra_data_size(&self) -> usize { self.params().maximum_extra_data_size }
 
 	/// The nonce with which accounts begin at given block.
 	fn account_start_nonce(&self, block: BlockNumber) -> U256 {
@@ -425,9 +444,9 @@ pub trait Engine: VerifyingEngine + Sync + Send {
 	///
 	/// NOTE This function consumes an `UnverifiedTransaction` and produces `SignedTransaction`
 	/// which implies that a heavy check of the signature is performed here.
-//	fn verify_transaction_unordered(&self, t: UnverifiedTransaction, header: &Header) -> Result<SignedTransaction, transaction::Error> {
-//		self.machine().verify_transaction_unordered(t, header)
-//	}
+	fn verify_transaction_unordered(&self, t: UnverifiedTransaction, header: &Header) -> Result<SignedTransaction, transaction::Error> {
+		self.machine().verify_transaction_unordered(t, header)
+	}
 
 	/// Perform basic/cheap transaction verification.
 	///
@@ -439,9 +458,9 @@ pub trait Engine: VerifyingEngine + Sync + Send {
 	///
 	/// TODO: Add flags for which bits of the transaction to check.
 	/// TODO: consider including State in the params.
-//	fn verify_transaction_basic(&self, t: &UnverifiedTransaction, header: &Header) -> Result<(), transaction::Error> {
-//		self.machine().verify_transaction_basic(t, header)
-//	}
+	fn verify_transaction_basic(&self, t: &UnverifiedTransaction, header: &Header) -> Result<(), transaction::Error> {
+		self.machine().verify_transaction_basic(t, header)
+	}
 
 	/// Performs pre-validation of RLP decoded transaction before other processing
 	fn decode_transaction(&self, transaction: &[u8]) -> Result<UnverifiedTransaction, transaction::Error> {

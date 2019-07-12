@@ -28,12 +28,13 @@ use std::sync::Weak;
 use bytes::Bytes;
 use ethereum_types::{H256, Address};
 use ethjson::spec::ValidatorSet as ValidatorSpec;
-use machine::{AuxiliaryData, Call, Machine};
+use machine::Machine;
 use types::{
 	BlockNumber,
 	header::Header,
 	ids::BlockId,
 	errors::EthcoreError,
+	engines::machine::{Call, AuxiliaryData},
 };
 
 use client::EngineClient;

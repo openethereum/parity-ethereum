@@ -31,13 +31,14 @@ use unexpected::{Mismatch, OutOfBounds};
 
 use blockchain::*;
 use call_contract::CallContract;
-use client_traits::BlockInfo;
-use engines::{Engine, MAX_UNCLE_AGE};
-use error::Error;
+use client::BlockInfo;
+use engines::Engine;
 use types::{
 	BlockNumber,
 	header::Header,
-	block::{BlockError, PreverifiedBlock}
+	errors::{EthcoreError as Error, BlockError},
+	engines::MAX_UNCLE_AGE,
+	block::PreverifiedBlock,
 };
 use verification::queue::kind::blocks::Unverified;
 
@@ -269,7 +270,7 @@ pub fn verify_header_params(header: &Header, engine: &dyn Engine, is_full: bool,
 	}
 	if let Some(limit) = engine.maximum_gas_limit() {
 		if header.gas_limit() > &limit {
-			return Err(From::from(::error::BlockError::InvalidGasLimit(OutOfBounds { min: None, max: Some(limit), found: *header.gas_limit() })));
+			return Err(From::from(BlockError::InvalidGasLimit(OutOfBounds { min: None, max: Some(limit), found: *header.gas_limit() })));
 		}
 	}
 	let maximum_extra_data_size = engine.maximum_extra_data_size();
@@ -370,13 +371,13 @@ mod tests {
 	use bytes::Bytes;
 	use hash::keccak;
 	use engines::Engine;
-	use error::BlockError::*;
 	use ethkey::{Random, Generator};
 	use spec::Spec;
 	use test_helpers::{create_test_block_with_data, create_test_block};
 	use types::{
 		encoded,
 		engines::params::CommonParams,
+		errors::BlockError::*,
 		transaction::{SignedTransaction, Transaction, UnverifiedTransaction, Action},
 		log_entry::{LogEntry, LocalizedLogEntry},
 	};

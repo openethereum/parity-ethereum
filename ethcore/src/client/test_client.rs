@@ -60,7 +60,7 @@ use client::{
 	Call, StateClient, EngineInfo, AccountData, BlockChain, BlockProducer, SealedBlockImporter, IoClient,
 	BadBlocks
 };
-use client_traits::BlockInfo;
+use client::BlockInfo;
 use engines::Engine;
 use error::EthcoreResult;
 use executed::CallError;

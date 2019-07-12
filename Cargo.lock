@@ -878,7 +878,6 @@ dependencies = [
  "account-state 0.1.0",
  "ansi_term 0.11.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "blooms-db 0.1.0",
- "client-traits 0.1.0",
  "common-types 0.1.0",
  "criterion 0.2.5 (registry+https://github.com/rust-lang/crates.io-index)",
  "crossbeam-utils 0.6.5 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -947,7 +946,6 @@ dependencies = [
  "triehash-ethereum 0.2.0",
  "unexpected 0.1.0",
  "using_queue 0.1.0",
- "verification 0.1.0",
  "vm 0.1.0",
 ]
 

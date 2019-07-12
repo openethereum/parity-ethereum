@@ -21,17 +21,20 @@ use ethereum_types::{H256, H520};
 use parking_lot::RwLock;
 use ethkey::{self, Signature};
 use block::*;
-use engines::{Engine, Seal, SealingState, ConstructedVerifier};
+use engines::{Engine, Seal, ConstructedVerifier};
 use engines::signer::EngineSigner;
 use ethjson;
 use client::EngineClient;
-use client_traits::VerifyingEngine;
-use machine::{AuxiliaryData, Call, Machine};
+use machine::Machine;
 use types::{
 	header::Header,
-	engines::params::CommonParams,
+	engines::{
+		SealingState,
+		params::CommonParams,
+		machine::{AuxiliaryData, Call},
+	},
+	errors::{EngineError, BlockError, EthcoreError as Error},
 	transaction::{self, UnverifiedTransaction, SignedTransaction},
-	errors::{EngineError, BlockError, EthcoreError as Error}
 };
 
 use super::validator_set::{ValidatorSet, SimpleList, new_validator_set};
@@ -96,31 +99,13 @@ impl BasicAuthority {
 	}
 }
 
-impl VerifyingEngine for BasicAuthority {
-	// One field - the signature
-	fn seal_fields(&self, _header: &Header) -> usize { 1 }
-
-	fn params(&self) -> &CommonParams {
-		self.machine.params()
-	}
-
-	fn verify_block_external(&self, header: &Header) -> Result<(), Error> {
-		verify_external(header, &*self.validators).map_err(Into::into)
-	}
-
-	fn verify_transaction_basic(&self, t: &UnverifiedTransaction, header: &Header) -> Result<(), transaction::Error> {
-		self.machine().verify_transaction_basic(t, header)
-	}
-
-	fn verify_transaction_unordered(&self, t: UnverifiedTransaction, header: &Header) -> Result<SignedTransaction, transaction::Error> {
-		self.machine().verify_transaction_unordered(t, header)
-	}
-}
-
 impl Engine for BasicAuthority {
 	fn name(&self) -> &str { "BasicAuthority" }
 
 	fn machine(&self) -> &Machine { &self.machine }
+
+	// One field - the signature
+	fn seal_fields(&self, _header: &Header) -> usize { 1 }
 
 	fn sealing_state(&self) -> SealingState {
 		if self.signer.read().is_some() {
@@ -149,22 +134,22 @@ impl Engine for BasicAuthority {
 		Ok(())
 	}
 
+	fn verify_block_external(&self, header: &Header) -> Result<(), Error> {
+		verify_external(header, &*self.validators).map_err(Into::into)
+	}
+
 	fn genesis_epoch_data(&self, header: &Header, call: &Call) -> Result<Vec<u8>, String> {
 		self.validators.genesis_epoch_data(header, call)
 	}
 
 	#[cfg(not(test))]
-	fn signals_epoch_end(&self, _header: &Header, _auxiliary: AuxiliaryData)
-		-> super::EpochChange
-	{
+	fn signals_epoch_end(&self, _header: &Header, _auxiliary: AuxiliaryData) -> super::EpochChange {
 		// don't bother signalling even though a contract might try.
 		super::EpochChange::No
 	}
 
 	#[cfg(test)]
-	fn signals_epoch_end(&self, header: &Header, auxiliary: AuxiliaryData)
-		-> super::EpochChange
-	{
+	fn signals_epoch_end(&self, header: &Header, auxiliary: AuxiliaryData) -> super::EpochChange {
 		// in test mode, always signal even though they don't be finalized.
 		let first = header.number() == 0;
 		self.validators.signals_epoch_end(first, header, auxiliary)
@@ -227,6 +212,18 @@ impl Engine for BasicAuthority {
 
 	fn snapshot_components(&self) -> Option<Box<dyn (::snapshot::SnapshotComponents)>> {
 		None
+	}
+
+	fn params(&self) -> &CommonParams {
+		self.machine.params()
+	}
+
+	fn verify_transaction_unordered(&self, t: UnverifiedTransaction, header: &Header) -> Result<SignedTransaction, transaction::Error> {
+		self.machine().verify_transaction_unordered(t, header)
+	}
+
+	fn verify_transaction_basic(&self, t: &UnverifiedTransaction, header: &Header) -> Result<(), transaction::Error> {
+		self.machine().verify_transaction_basic(t, header)
 	}
 }
 

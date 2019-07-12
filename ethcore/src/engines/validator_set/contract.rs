@@ -21,12 +21,13 @@ use std::sync::Weak;
 
 use bytes::Bytes;
 use ethereum_types::{H256, Address};
-use machine::{AuxiliaryData, Call, Machine};
+use machine::Machine;
 use parking_lot::RwLock;
 use types::{
 	BlockNumber,
 	header::Header,
 	errors::EthcoreError,
+	engines::machine::{Call, AuxiliaryData},
 };
 
 use client::EngineClient;
@@ -151,7 +152,7 @@ mod tests {
 	use test_helpers::generate_dummy_client_with_spec;
 	use call_contract::CallContract;
 	use client::{BlockChainClient, ChainInfo};
-	use client_traits::BlockInfo;
+	use client::BlockInfo;
 	use super::super::ValidatorSet;
 	use super::ValidatorContract;
 

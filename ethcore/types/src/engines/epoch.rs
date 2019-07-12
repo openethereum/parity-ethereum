@@ -16,33 +16,33 @@
 
 //! Epoch verifiers and transitions.
 
-use std::collections::Arc;
+//use std::sync::Arc;
 
 use ethereum_types::H256;
 use rlp::{Encodable, Decodable, DecoderError, RlpStream, Rlp};
 
-use engines::machine::AuxiliaryRequest;
-use errors::EthcoreError;
+//use engines::machine::AuxiliaryRequest;
+//use errors::EthcoreError;
 
 // todo: hook up in ethcore. Sort out trait.
 /// Proof generated on epoch change.
-pub enum Proof {
-	/// Known proof (extracted from signal)
-	Known(Vec<u8>),
-	/// State dependent proof.
-	WithState(Arc<dyn StateDependentProof>),
-}
+//pub enum Proof {
+//	/// Known proof (extracted from signal)
+//	Known(Vec<u8>),
+//	/// State dependent proof.
+//	WithState(Arc<dyn StateDependentProof>),
+//}
 
 // todo: hook up in ethcore
 /// Results of a query of whether an epoch change occurred at the given block.
-pub enum EpochChange {
-	/// Cannot determine until more data is passed.
-	Unsure(AuxiliaryRequest),
-	/// No epoch change.
-	No,
-	/// The epoch will change, with proof.
-	Yes(Proof),
-}
+//pub enum EpochChange {
+//	/// Cannot determine until more data is passed.
+//	Unsure(AuxiliaryRequest),
+//	/// No epoch change.
+//	No,
+//	/// The epoch will change, with proof.
+//	Yes(Proof),
+//}
 
 /// A full epoch transition.
 #[derive(Debug, Clone)]
@@ -95,15 +95,14 @@ impl Decodable for PendingTransition {
 	}
 }
 
-/// Generated epoch verifier.
-// todo: hook up in ethcore. Sort out trait.
-pub enum ConstructedVerifier<'a> {
-	/// Fully trusted verifier.
-	Trusted(Box<dyn EpochVerifier>),
-	/// Verifier unconfirmed. Check whether given finality proof finalizes given hash
-	/// under previous epoch.
-	Unconfirmed(Box<dyn EpochVerifier>, &'a [u8], H256),
-	/// Error constructing verifier.
-	Err(EthcoreError),
-}
-
+///// Generated epoch verifier.
+//// todo: hook up in ethcore. Sort out trait.
+//pub enum ConstructedVerifier<'a> {
+//	/// Fully trusted verifier.
+//	Trusted(Box<dyn EpochVerifier>),
+//	/// Verifier unconfirmed. Check whether given finality proof finalizes given hash
+//	/// under previous epoch.
+//	Unconfirmed(Box<dyn EpochVerifier>, &'a [u8], H256),
+//	/// Error constructing verifier.
+//	Err(EthcoreError),
+//}
