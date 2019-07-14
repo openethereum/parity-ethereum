@@ -31,7 +31,7 @@ extern crate parking_lot;
 mod traits;
 
 pub use traits::{
-	JobDispatcher, PushWorkHandler, Error, ServiceConfiguration,
+	JobDispatcher, PushWorkHandler, ServiceConfiguration,
 };
 
 use jsonrpc_tcp_server::{
@@ -72,7 +72,7 @@ impl Stratum {
 		addr: &SocketAddr,
 		dispatcher: Arc<JobDispatcher>,
 		secret: Option<H256>,
-	) -> Result<Arc<Stratum>, Error> {
+	) -> Result<Arc<Stratum>, String> {
 
 		let implementation = Arc::new(StratumImpl {
 			subscribers: RwLock::default(),
@@ -93,7 +93,7 @@ impl Stratum {
 		let server_builder = JsonRpcServerBuilder::new(handler);
 		let tcp_dispatcher = server_builder.dispatcher();
 		let server_builder = server_builder.session_meta_extractor(PeerMetaExtractor::new(tcp_dispatcher.clone()));
-		let server = server_builder.start(addr)?;
+		let server = server_builder.start(addr).map_err(|e| format!("Stratum server cannot be started: {:?}", e))?;
 
 		let stratum = Arc::new(Stratum {
 			rpc_server: Some(server),
@@ -106,11 +106,11 @@ impl Stratum {
 }
 
 impl PushWorkHandler for Stratum {
-	fn push_work_all(&self, payload: String) -> Result<(), Error> {
+	fn push_work_all(&self, payload: String) {
 		self.implementation.push_work_all(payload, &self.tcp_dispatcher)
 	}
 
-	fn push_work(&self, payloads: Vec<String>) -> Result<(), Error> {
+	fn push_work(&self, payloads: Vec<String>) -> Result<(), String> {
 		self.implementation.push_work(payloads, &self.tcp_dispatcher)
 	}
 }
@@ -204,13 +204,11 @@ impl StratumImpl {
 	/// Helper method
 	fn update_peers(&self, tcp_dispatcher: &Dispatcher) {
 		if let Some(job) = self.dispatcher.job() {
-			if let Err(e) = self.push_work_all(job, tcp_dispatcher) {
-				warn!("Failed to update some of the peers: {:?}", e);
-			}
+			self.push_work_all(job, tcp_dispatcher)
 		}
 	}
 
-	fn push_work_all(&self, payload: String, tcp_dispatcher: &Dispatcher) -> Result<(), Error> {
+	fn push_work_all(&self, payload: String, tcp_dispatcher: &Dispatcher) {
 		let hup_peers = {
 			let workers = self.workers.read();
 			let next_request_id = {
@@ -243,18 +241,16 @@ impl StratumImpl {
 			let mut workers = self.workers.write();
 			for hup_peer in hup_peers { workers.remove(&hup_peer); }
 		}
-
-		Ok(())
 	}
 
-	fn push_work(&self, payloads: Vec<String>, tcp_dispatcher: &Dispatcher) -> Result<(), Error> {
+	fn push_work(&self, payloads: Vec<String>, tcp_dispatcher: &Dispatcher) -> Result<(), String> {
 		if !payloads.len() > 0 {
-			return Err(Error::NoWork);
+			return Err("Stratum has no work".into());
 		}
 		let workers = self.workers.read();
 		let addrs = workers.keys().collect::<Vec<&SocketAddr>>();
 		if !workers.len() > 0 {
-			return Err(Error::NoWorkers);
+			return Err("Stratum has no workers".into());
 		}
 		let mut que = payloads;
 		let mut addr_index = 0;
@@ -264,7 +260,7 @@ impl StratumImpl {
 			tcp_dispatcher.push_message(
 				next_worker,
 				next_payload.nth(0).expect("drained successfully of 0..1, so 0-th element should exist")
-			)?;
+			).map_err(|e| format!("Stratum cannot push more work: {:?}", e))?;
 			addr_index = addr_index + 1;
 		}
 		Ok(())
@@ -330,7 +326,7 @@ mod tests {
 	pub struct VoidManager;
 
 	impl JobDispatcher for VoidManager {
-		fn submit(&self, _payload: Vec<String>) -> Result<(), Error> {
+		fn submit(&self, _payload: Vec<String>) -> Result<(), String> {
 			Ok(())
 		}
 	}
@@ -398,7 +394,7 @@ mod tests {
 			Some(self.initial_payload.clone())
 		}
 
-		fn submit(&self, _payload: Vec<String>) -> Result<(), Error> {
+		fn submit(&self, _payload: Vec<String>) -> Result<(), String> {
 			Ok(())
 		}
 	}

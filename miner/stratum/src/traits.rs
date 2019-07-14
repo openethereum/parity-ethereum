@@ -14,31 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
-use std;
-use std::error::Error as StdError;
 use ethereum_types::H256;
-use jsonrpc_tcp_server::PushMessageError;
-
-#[derive(Debug, Clone)]
-pub enum Error {
-	NoWork,
-	NoWorkers,
-	Io(String),
-	Tcp(String),
-	Dispatch(String),
-}
-
-impl From<std::io::Error> for Error {
-	fn from(err: std::io::Error) -> Self {
-		Error::Io(err.description().to_owned())
-	}
-}
-
-impl From<PushMessageError> for Error {
-	fn from(err: PushMessageError) -> Self {
-		Error::Tcp(format!("Push message error: {:?}", err))
-	}
-}
 
 /// Interface that can provide pow/blockchain-specific responses for the clients
 pub trait JobDispatcher: Send + Sync {
@@ -49,16 +25,16 @@ pub trait JobDispatcher: Send + Sync {
 	// json for job update given worker_id (payload manager should split job!)
 	fn job(&self) -> Option<String> { None }
 	// miner job result
-	fn submit(&self, payload: Vec<String>) -> Result<(), Error>;
+	fn submit(&self, payload: Vec<String>) -> Result<(), String>;
 }
 
 /// Interface that can handle requests to push job for workers
 pub trait PushWorkHandler: Send + Sync {
 	/// push the same work package for all workers (`payload`: json of pow-specific set of work specification)
-	fn push_work_all(&self, payload: String) -> Result<(), Error>;
+	fn push_work_all(&self, payload: String);
 
 	/// push the work packages worker-wise (`payload`: json of pow-specific set of work specification)
-	fn push_work(&self, payloads: Vec<String>) -> Result<(), Error>;
+	fn push_work(&self, payloads: Vec<String>) -> Result<(), String>;
 }
 
 pub struct ServiceConfiguration {
