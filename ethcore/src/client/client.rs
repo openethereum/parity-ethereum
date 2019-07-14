@@ -684,7 +684,7 @@ impl Importer {
 			chain.insert_epoch_transition(&mut batch, header.number(), EpochTransition {
 				block_hash: header.hash(),
 				block_number: header.number(),
-				proof: proof,
+				proof,
 			});
 
 			// always write the batch directly since epoch transition proofs are

@@ -4339,7 +4339,6 @@ dependencies = [
 name = "trace"
 version = "0.1.0"
 dependencies = [
- "common-types 0.1.0",
  "ethcore 1.12.0",
  "ethcore-blockchain 0.1.0",
  "ethcore-db 0.1.0",

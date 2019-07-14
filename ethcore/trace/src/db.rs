@@ -18,8 +18,7 @@
 use std::collections::HashMap;
 use std::sync::Arc;
 
-use common_types::BlockNumber;
-use ethcore_blockchain::{BlockChainDB, DatabaseExtras};
+use ethcore_blockchain::{BlockProvider, BlockChainDB, TransactionAddress};
 use ethcore_db::{
 	self as db,
 	cache_manager::CacheManager,
@@ -31,6 +30,7 @@ use parity_util_mem::MallocSizeOfExt;
 use parking_lot::RwLock;
 
 use crate::{
+	BlockNumber,
 	LocalizedTrace, Config, Filter, Database as TraceDatabase, ImportRequest,
 	flat::{FlatTrace, FlatBlockTraces, FlatTransactionTraces},
 };
@@ -54,6 +54,34 @@ impl Key<FlatBlockTraces> for H256 {
 			bytes[1..33].copy_from_slice(self.as_bytes());
 		}
 		result
+	}
+}
+
+/// `DatabaseExtras` provides an interface to query extra data which is not stored in TraceDB,
+/// but necessary to work correctly.
+pub trait DatabaseExtras {
+	/// Returns hash of given block number.
+	fn block_hash(&self, block_number: BlockNumber) -> Option<H256>;
+
+	/// Returns hash of transaction at given position.
+	fn transaction_hash(&self, block_number: BlockNumber, tx_position: usize) -> Option<H256>;
+}
+
+impl<T: BlockProvider> DatabaseExtras for T {
+	fn block_hash(&self, block_number: BlockNumber) -> Option<H256> {
+		(&*self as &dyn BlockProvider).block_hash(block_number)
+	}
+
+	fn transaction_hash(&self, block_number: BlockNumber, tx_position: usize) -> Option<H256> {
+		self.block_hash(block_number)
+			.and_then(|block_hash| {
+				let tx_address = TransactionAddress {
+					block_hash,
+					index: tx_position
+				};
+				self.transaction(&tx_address)
+			})
+			.map(|tx| tx.hash())
 	}
 }
 
@@ -91,7 +119,7 @@ impl<T> TraceDB<T> where T: DatabaseExtras {
 			cache_manager: RwLock::new(CacheManager::new(config.pref_cache_size, config.max_cache_size, 10 * 1024)),
 			db,
 			enabled: config.enabled,
-			extras: extras,
+			extras,
 		}
 	}
 
@@ -175,8 +203,8 @@ impl<T> TraceDB<T> where T: DatabaseExtras {
 						trace_address: trace.trace_address.into_iter().collect(),
 						transaction_number: trace_tx_number,
 						transaction_hash: trace_tx_hash,
-						block_number: block_number,
-						block_hash: block_hash
+						block_number,
+						block_hash,
 					}),
 					false => None
 				}
@@ -254,8 +282,8 @@ impl<T> TraceDatabase for TraceDB<T> where T: DatabaseExtras {
 						trace_address: trace.trace_address.into_iter().collect(),
 						transaction_number: Some(tx_position),
 						transaction_hash: Some(tx_hash),
-						block_number: block_number,
-						block_hash: block_hash,
+						block_number,
+						block_hash,
 					}
 				})
 			)
@@ -278,8 +306,8 @@ impl<T> TraceDatabase for TraceDB<T> where T: DatabaseExtras {
 						trace_address: trace.trace_address.into_iter().collect(),
 						transaction_number: Some(tx_position),
 						transaction_hash: Some(tx_hash.clone()),
-						block_number: block_number,
-						block_hash: block_hash
+						block_number,
+						block_hash,
 					})
 					.collect()
 				})
@@ -308,8 +336,8 @@ impl<T> TraceDatabase for TraceDB<T> where T: DatabaseExtras {
 									trace_address: trace.trace_address.into_iter().collect(),
 									transaction_number: trace_tx_number,
 									transaction_hash: trace_tx_hash,
-									block_number: block_number,
-									block_hash: block_hash,
+									block_number,
+									block_hash,
 								})
 								.collect::<Vec<LocalizedTrace>>()
 						})
@@ -343,15 +371,14 @@ mod tests {
 		collections::HashMap,
 		sync::Arc,
 	};
-	use common_types::BlockNumber;
-	use ethcore_blockchain::DatabaseExtras;
+
 	use ethcore::test_helpers::new_db;
 	use ethereum_types::{H256, U256, Address};
 	use evm::CallType;
 	use kvdb::DBTransaction;
 
 	use crate::{
-		Config, TraceDB, Database as TraceDatabase, ImportRequest,
+		BlockNumber, Config, TraceDB, Database as TraceDatabase, ImportRequest, DatabaseExtras,
 		Filter, LocalizedTrace, AddressesFilter, TraceError,
 		trace::{Call, Action, Res},
 		flat::{FlatTrace, FlatBlockTraces, FlatTransactionTraces}
@@ -443,7 +470,7 @@ mod tests {
 				result: Res::FailedCall(TraceError::OutOfGas),
 			}])]),
 			block_hash: block_hash.clone(),
-			block_number: block_number,
+			block_number,
 			enacted: vec![block_hash],
 			retracted: 0,
 		}
@@ -465,7 +492,7 @@ mod tests {
 				result: Res::FailedCall(TraceError::OutOfGas),
 			}])]),
 			block_hash: block_hash.clone(),
-			block_number: block_number,
+			block_number,
 			enacted: vec![],
 			retracted: 0,
 		}
@@ -486,8 +513,8 @@ mod tests {
 			subtraces: 0,
 			transaction_number: Some(0),
 			transaction_hash: Some(tx_hash),
-			block_number: block_number,
-			block_hash: block_hash,
+			block_number,
+			block_hash,
 		}
 	}
 

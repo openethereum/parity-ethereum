@@ -6,7 +6,6 @@ authors = ["Parity Technologies <admin@parity.io>"]
 edition = "2018"
 
 [dependencies]
-common-types = { path = "../types"}
 ethcore-blockchain = { path = "../blockchain" }
 ethcore-db = { path = "../db" }
 ethereum-types = "0.6"
