@@ -471,8 +471,7 @@ mod tests {
 			.map_err(|err: timeout::Error<()>| panic!("Timeout: {:?}", err))
 			.and_then(move |stream| {
 				trace!(target: "stratum", "Pusing work to peers");
-				stratum.push_work_all(r#"{ "00040008", "100500" }"#.to_owned())
-					.expect("Pushing work should produce no errors");
+				stratum.push_work_all(r#"{ "00040008", "100500" }"#.to_owned());
 				Timeout::new(future::ok(stream), ::std::time::Duration::from_millis(100))
 			})
 			.map_err(|err: timeout::Error<()>| panic!("Timeout: {:?}", err))
