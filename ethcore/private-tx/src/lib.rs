@@ -574,7 +574,7 @@ impl Provider {
 		let sender = transaction.sender();
 		let nonce = state.nonce(&sender)?;
 		let contract_address = contract_address.unwrap_or_else(|| {
-			let (new_address, _) = ethcore_contract_address(engine.create_address_scheme(env_info.number), &sender, &nonce, &transaction.data);
+			let (new_address, _) = ethcore_contract_address(CreateContractAddress::FromSenderAndNonce, &sender, &nonce, &transaction.data);
 			new_address
 		});
 		// Patch other available private contracts' states as well
