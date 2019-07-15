@@ -14,7 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
-use std::cmp;
+use std::{cmp, ops};
 use std::collections::{HashSet, BTreeMap, VecDeque};
 use std::sync::atomic::{AtomicUsize, AtomicBool, Ordering as AtomicOrdering};
 use std::sync::{Arc, Weak};
@@ -118,12 +118,12 @@ impl ClientReport {
 	}
 }
 
-impl<'a> ::std::ops::Sub<&'a ClientReport> for ClientReport {
+impl<'a> ops::Sub<&'a ClientReport> for ClientReport {
 	type Output = Self;
 
 	fn sub(mut self, other: &'a ClientReport) -> Self {
-		let higher_mem = ::std::cmp::max(self.state_db_mem, other.state_db_mem);
-		let lower_mem = ::std::cmp::min(self.state_db_mem, other.state_db_mem);
+		let higher_mem = cmp::max(self.state_db_mem, other.state_db_mem);
+		let lower_mem = cmp::min(self.state_db_mem, other.state_db_mem);
 
 		self.blocks_imported -= other.blocks_imported;
 		self.transactions_applied -= other.transactions_applied;
@@ -248,7 +248,7 @@ impl Importer {
 		engine: Arc<dyn Engine>,
 		message_channel: IoChannel<ClientIoMessage>,
 		miner: Arc<Miner>,
-	) -> Result<Importer, ::error::Error> {
+	) -> Result<Importer, EthcoreError> {
 		let block_queue = BlockQueue::new(config.queue.clone(), engine.clone(), message_channel.clone(), config.verifier_type.verifying_seal());
 
 		Ok(Importer {
@@ -704,7 +704,7 @@ impl Client {
 		db: Arc<dyn BlockChainDB>,
 		miner: Arc<Miner>,
 		message_channel: IoChannel<ClientIoMessage>,
-	) -> Result<Arc<Client>, ::error::Error> {
+	) -> Result<Arc<Client>, EthcoreError> {
 		let trie_spec = match config.fat_db {
 			true => TrieSpec::Fat,
 			false => TrieSpec::Secure,
@@ -950,7 +950,11 @@ impl Client {
 	}
 
 	// prune ancient states until below the memory limit or only the minimum amount remain.
-	fn prune_ancient(&self, mut state_db: StateDB, chain: &BlockChain) -> Result<(), ::error::Error> {
+	fn prune_ancient(&self, mut state_db: StateDB, chain: &BlockChain) -> Result<(), EthcoreError> {
+		if !state_db.journal_db().is_prunable() {
+			return Ok(())
+		}
+
 		let number = match state_db.journal_db().latest_era() {
 			Some(n) => n,
 			None => return Ok(()),
@@ -959,10 +963,12 @@ impl Client {
 		// prune all ancient eras until we're below the memory target,
 		// but have at least the minimum number of states.
 		loop {
-			let needs_pruning = state_db.journal_db().is_pruned() &&
-				state_db.journal_db().journal_size() >= self.config.history_mem;
+			let needs_pruning = state_db.journal_db().journal_size() >= self.config.history_mem;
 
-			if !needs_pruning { break }
+			if !needs_pruning {
+				break
+			}
+
 			match state_db.journal_db().earliest_era() {
 				Some(era) if era + self.history <= number => {
 					trace!(target: "client", "Pruning state for ancient era {}", era);
@@ -1048,7 +1054,7 @@ impl Client {
 			let db = self.state_db.read().boxed_clone();
 
 			// early exit for pruned blocks
-			if db.is_pruned() && self.pruning_info().earliest_state > block_number {
+			if db.is_prunable() && self.pruning_info().earliest_state > block_number {
 				return None;
 			}
 
@@ -1147,16 +1153,16 @@ impl Client {
 		let best_block_number = self.chain_info().best_block_number;
 		let block_number = self.block_number(at).ok_or_else(|| snapshot::Error::InvalidStartingBlock(at))?;
 
-		if db.is_pruned() && self.pruning_info().earliest_state > block_number {
+		if db.is_prunable() && self.pruning_info().earliest_state > block_number {
 			return Err(snapshot::Error::OldBlockPrunedDB.into());
 		}
 
-		let history = ::std::cmp::min(self.history, 1000);
+		let history = cmp::min(self.history, 1000);
 
 		let start_hash = match at {
 			BlockId::Latest => {
 				let start_num = match db.earliest_era() {
-					Some(era) => ::std::cmp::max(era, best_block_number.saturating_sub(history)),
+					Some(era) => cmp::max(era, best_block_number.saturating_sub(history)),
 					None => best_block_number.saturating_sub(history),
 				};
 
@@ -1172,7 +1178,7 @@ impl Client {
 		};
 
 		let processing_threads = self.config.snapshot.processing_threads;
-		let chunker = self.engine.snapshot_components().ok_or(snapshot::Error::SnapshotsUnsupported)?;
+		let chunker = self.engine.snapshot_components().ok_or_else(|| snapshot::Error::SnapshotsUnsupported)?;
 		snapshot::take_snapshot(
 			chunker,
 			&self.chain.read(),
@@ -1673,7 +1679,7 @@ impl BadBlocks for Client {
 
 impl BlockChainClient for Client {
 	fn replay(&self, id: TransactionId, analytics: CallAnalytics) -> Result<Executed, CallError> {
-		let address = self.transaction_address(id).ok_or(CallError::TransactionNotFound)?;
+		let address = self.transaction_address(id).ok_or_else(|| CallError::TransactionNotFound)?;
 		let block = BlockId::Hash(address.block_hash);
 
 		const PROOF: &'static str = "The transaction address contains a valid index within block; qed";
@@ -1681,9 +1687,9 @@ impl BlockChainClient for Client {
 	}
 
 	fn replay_block_transactions(&self, block: BlockId, analytics: CallAnalytics) -> Result<Box<dyn Iterator<Item = (H256, Executed)>>, CallError> {
-		let mut env_info = self.env_info(block).ok_or(CallError::StatePruned)?;
-		let body = self.block_body(block).ok_or(CallError::StatePruned)?;
-		let mut state = self.state_at_beginning(block).ok_or(CallError::StatePruned)?;
+		let mut env_info = self.env_info(block).ok_or_else(|| CallError::StatePruned)?;
+		let body = self.block_body(block).ok_or_else(|| CallError::StatePruned)?;
+		let mut state = self.state_at_beginning(block).ok_or_else(|| CallError::StatePruned)?;
 		let txs = body.transactions();
 		let engine = self.engine.clone();
 

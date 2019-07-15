@@ -191,7 +191,7 @@ impl JournalDB for ArchiveDB {
 		self.backing.get_by_prefix(self.column, &id[0..DB_PREFIX_LEN]).map(|b| b.into_vec())
 	}
 
-	fn is_pruned(&self) -> bool { false }
+	fn is_prunable(&self) -> bool { false }
 
 	fn backing(&self) -> &Arc<dyn KeyValueDB> {
 		&self.backing
