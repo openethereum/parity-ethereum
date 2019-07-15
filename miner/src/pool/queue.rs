@@ -241,10 +241,10 @@ impl TransactionQueue {
 	///
 	/// Given blockchain and state access (Client)
 	/// verifies and imports transactions to the pool.
-	pub fn import<C: client::Client + client::NonceClient + Clone>(
+	pub fn import<T: IntoIterator<Item = verifier::Transaction>, C: client::Client + client::NonceClient + Clone>(
 		&self,
 		client: C,
-		transactions: Vec<verifier::Transaction>,
+		transactions: T,
 	) -> Vec<Result<(), transaction::Error>> {
 		// Run verification
 		trace_time!("pool::verify_and_import");
