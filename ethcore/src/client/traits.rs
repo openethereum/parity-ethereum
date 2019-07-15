@@ -25,7 +25,7 @@ use ethereum_types::{H256, U256, Address};
 use evm::Schedule;
 use itertools::Itertools;
 use kvdb::DBValue;
-use types::transaction::{self, LocalizedTransaction, SignedTransaction};
+use types::transaction::{self, LocalizedTransaction, SignedTransaction, UnverifiedTransaction};
 use types::BlockNumber;
 use types::basic_account::BasicAccount;
 use types::block_status::BlockStatus;
@@ -184,7 +184,7 @@ pub trait EngineInfo {
 /// IO operations that should off-load heavy work to another thread.
 pub trait IoClient: Sync + Send {
 	/// Queue transactions for importing.
-	fn queue_transactions(&self, transactions: Vec<Bytes>, peer_id: usize);
+	fn queue_transactions(&self, transactions: Vec<UnverifiedTransaction>, peer_id: usize);
 
 	/// Queue block import with transaction receipts. Does no sealing and transaction validation.
 	fn queue_ancient_block(&self, block_bytes: Unverified, receipts_bytes: Bytes) -> EthcoreResult<H256>;

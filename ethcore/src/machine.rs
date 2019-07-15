@@ -21,7 +21,6 @@ use std::cmp;
 use std::sync::Arc;
 
 use ethereum_types::{U256, H256, Address};
-use rlp::Rlp;
 use types::transaction::{self, SYSTEM_ADDRESS, UNSIGNED_SENDER, UnverifiedTransaction, SignedTransaction};
 use types::BlockNumber;
 use types::header::Header;
@@ -383,16 +382,6 @@ impl Machine {
 		}
 
 		Ok(())
-	}
-
-	/// Performs pre-validation of RLP decoded transaction before other processing
-	pub fn decode_transaction(&self, transaction: &[u8]) -> Result<UnverifiedTransaction, transaction::Error> {
-		let rlp = Rlp::new(&transaction);
-		if rlp.as_raw().len() > self.params().max_transaction_size {
-			debug!("Rejected oversized transaction of {} bytes", rlp.as_raw().len());
-			return Err(transaction::Error::TooBig)
-		}
-		rlp.as_val().map_err(|e| transaction::Error::InvalidRlp(e.to_string()))
 	}
 
 	/// Get the balance, in base units, associated with an account.

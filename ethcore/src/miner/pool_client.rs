@@ -169,8 +169,8 @@ impl<'a, C: 'a> pool::client::Client for PoolClient<'a, C> where
 		}
 	}
 
-	fn decode_transaction(&self, transaction: &[u8]) -> Result<UnverifiedTransaction, transaction::Error> {
-		self.engine.decode_transaction(transaction)
+	fn verify_transaction_len(&self, transaction: &[u8]) -> Result<(), transaction::Error> {
+		self.engine.verify_transaction_len(transaction)
 	}
 }
 

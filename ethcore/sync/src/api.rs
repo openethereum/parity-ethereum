@@ -53,7 +53,6 @@ use parity_runtime::Executor;
 use std::sync::atomic::{AtomicBool, Ordering};
 use network::IpFilter;
 use private_tx::PrivateTxHandler;
-use types::transaction::UnverifiedTransaction;
 
 use super::light_sync::SyncInfo;
 
@@ -603,7 +602,7 @@ impl ChainNotify for EthSync {
 		});
 	}
 
-	fn transactions_received(&self, txs: &[UnverifiedTransaction], peer_id: PeerId) {
+	fn transactions_received(&self, txs: &[H256], peer_id: PeerId) {
 		let mut sync = self.eth_handler.sync.write();
 		sync.transactions_received(txs, peer_id);
 	}
@@ -614,9 +613,9 @@ impl ChainNotify for EthSync {
 struct TxRelay(Arc<dyn BlockChainClient>);
 
 impl LightHandler for TxRelay {
-	fn on_transactions(&self, ctx: &dyn EventContext, relay: &[::types::transaction::UnverifiedTransaction]) {
+	fn on_transactions(&self, ctx: &dyn EventContext, relay: Vec<::types::transaction::UnverifiedTransaction>) {
 		trace!(target: "pip", "Relaying {} transactions from peer {}", relay.len(), ctx.peer());
-		self.0.queue_transactions(relay.iter().map(|tx| ::rlp::encode(tx)).collect(), ctx.peer())
+		self.0.queue_transactions(relay, ctx.peer())
 	}
 }
 

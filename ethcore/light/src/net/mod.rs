@@ -246,7 +246,7 @@ pub trait Handler: Send + Sync {
 	/// Called when a peer makes an announcement.
 	fn on_announcement(&self, _ctx: &dyn EventContext, _announcement: &Announcement) { }
 	/// Called when a peer requests relay of some transactions.
-	fn on_transactions(&self, _ctx: &dyn EventContext, _relay: &[UnverifiedTransaction]) { }
+	fn on_transactions(&self, _ctx: &dyn EventContext, _relay: Vec<UnverifiedTransaction>) { }
 	/// Called when a peer responds to requests.
 	/// Responses not guaranteed to contain valid data and are not yet checked against
 	/// the requests they correspond to.
@@ -1138,7 +1138,7 @@ impl LightProtocol {
 				peer,
 				io,
 				proto: self,
-			}, &txs);
+			}, txs.clone());
 		}
 
 		Ok(())

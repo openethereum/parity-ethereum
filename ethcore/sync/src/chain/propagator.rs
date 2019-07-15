@@ -335,12 +335,14 @@ impl SyncPropagator {
 
 #[cfg(test)]
 mod tests {
-	use ethcore::client::{BlockInfo, ChainInfo, EachBlockWith, TestBlockChainClient};
+	use std::collections::VecDeque;
 	use parking_lot::RwLock;
-	use rlp::{Rlp};
-	use std::collections::{VecDeque};
-	use tests::helpers::{TestIo};
+
+	use ethcore::client::{BlockInfo, ChainInfo, EachBlockWith, TestBlockChainClient};
+	use rlp::Rlp;
+	use tests::helpers::TestIo;
 	use tests::snapshot::TestSnapshotService;
+	use types::transaction::UnverifiedTransaction;
 
 	use super::{*, super::{*, tests::*}};
 

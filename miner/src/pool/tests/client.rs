@@ -17,7 +17,6 @@
 use std::sync::{atomic, Arc};
 
 use ethereum_types::{U256, H256, Address};
-use rlp::Rlp;
 use types::transaction::{self, Transaction, SignedTransaction, UnverifiedTransaction};
 
 use pool;
@@ -131,14 +130,13 @@ impl pool::client::Client for TestClient {
 		}
 	}
 
-	fn decode_transaction(&self, transaction: &[u8]) -> Result<UnverifiedTransaction, transaction::Error> {
-		let rlp = Rlp::new(&transaction);
-		if rlp.as_raw().len() > self.max_transaction_size {
+	fn verify_transaction_len(&self, transaction: &[u8]) -> Result<(), transaction::Error> {
+		if transaction.len() > self.max_transaction_size {
 			return Err(transaction::Error::TooBig)
 		}
-		rlp.as_val().map_err(|e| transaction::Error::InvalidRlp(e.to_string()))
-	}
 
+		Ok(())
+	}
 }
 
 impl pool::client::NonceClient for TestClient {

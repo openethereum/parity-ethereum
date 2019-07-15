@@ -118,7 +118,6 @@ use snapshot::{Snapshot};
 use api::{EthProtocolInfo as PeerInfoDigest, WARP_SYNC_PROTOCOL_ID, PriorityTask};
 use private_tx::PrivateTxHandler;
 use transactions_stats::{TransactionsStats, Stats as TransactionStats};
-use types::transaction::UnverifiedTransaction;
 use types::BlockNumber;
 
 use self::handler::SyncHandler;
@@ -701,9 +700,9 @@ impl ChainSync {
 	}
 
 	/// Updates transactions were received by a peer
-	pub fn transactions_received(&mut self, txs: &[UnverifiedTransaction], peer_id: PeerId) {
+	pub fn transactions_received(&mut self, txs: &[H256], peer_id: PeerId) {
 		if let Some(peer_info) = self.peers.get_mut(&peer_id) {
-			peer_info.last_sent_transactions.extend(txs.iter().map(|tx| tx.hash()));
+			peer_info.last_sent_transactions.extend(txs);
 		}
 	}
 
@@ -1373,6 +1372,7 @@ pub mod tests {
 	use ethcore::client::{BlockChainClient, EachBlockWith, TestBlockChainClient, ChainInfo, BlockInfo};
 	use ethcore::miner::{MinerService, PendingOrdering};
 	use types::header::Header;
+	use types::transaction::UnverifiedTransaction;
 
 	pub fn get_dummy_block(order: u32, parent_hash: H256) -> Bytes {
 		let mut header = Header::new();

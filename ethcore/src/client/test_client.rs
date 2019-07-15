@@ -34,9 +34,9 @@ use itertools::Itertools;
 use kvdb::DBValue;
 use kvdb_memorydb;
 use parking_lot::RwLock;
-use rlp::{Rlp, RlpStream};
+use rlp::RlpStream;
 use rustc_hex::FromHex;
-use types::transaction::{self, Transaction, LocalizedTransaction, SignedTransaction, Action};
+use types::transaction::{self, Transaction, LocalizedTransaction, SignedTransaction, Action, UnverifiedTransaction};
 use types::BlockNumber;
 use types::basic_account::BasicAccount;
 use types::encoded;
@@ -903,10 +903,9 @@ impl BlockChainClient for TestBlockChainClient {
 }
 
 impl IoClient for TestBlockChainClient {
-	fn queue_transactions(&self, transactions: Vec<Bytes>, _peer_id: usize) {
+	fn queue_transactions(&self, transactions: Vec<UnverifiedTransaction>, _peer_id: usize) {
 		// import right here
-		let txs = transactions.into_iter().filter_map(|bytes| Rlp::new(&bytes).as_val().ok()).collect();
-		self.miner.import_external_transactions(self, txs);
+		self.miner.import_external_transactions(self, transactions);
 	}
 
 	fn queue_ancient_block(&self, unverified: Unverified, _r: Bytes) -> EthcoreResult<H256> {

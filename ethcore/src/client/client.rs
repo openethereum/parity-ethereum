@@ -2217,22 +2217,22 @@ impl BlockChainClient for Client {
 }
 
 impl IoClient for Client {
-	fn queue_transactions(&self, transactions: Vec<Bytes>, peer_id: usize) {
+	fn queue_transactions(&self, transactions: Vec<UnverifiedTransaction>, peer_id: usize) {
 		trace_time!("queue_transactions");
 		let len = transactions.len();
 		self.queue_transactions.queue(&self.io_channel.read(), len, move |client| {
 			trace_time!("import_queued_transactions");
-
-			let txs: Vec<UnverifiedTransaction> = transactions
-				.iter()
-				.filter_map(|bytes| client.engine.decode_transaction(bytes).ok())
-				.collect();
-
+			let hashes: Vec<_> = transactions.iter().map(UnverifiedTransaction::hash).collect();
 			client.notify(|notify| {
-				notify.transactions_received(&txs, peer_id);
+				notify.transactions_received(&hashes, peer_id);
 			});
 
-			client.importer.miner.import_external_transactions(client, txs);
+			// TODO: queue_transactions.queue, should accept FnOnce, so it can capture outer variables
+			for res in client.importer.miner.import_external_transactions(client, transactions.clone()) {
+				if let Err(e) = res {
+					debug!(target: "client", "Import of external transaction has failed: {}", e);
+				}
+			}
 		}).unwrap_or_else(|e| {
 			debug!(target: "client", "Ignoring {} transactions: {}", len, e);
 		});

@@ -541,9 +541,13 @@ pub trait Engine: Sync + Send {
 		self.machine().verify_transaction_basic(t, header)
 	}
 
-	/// Performs pre-validation of RLP decoded transaction before other processing
-	fn decode_transaction(&self, transaction: &[u8]) -> Result<UnverifiedTransaction, transaction::Error> {
-		self.machine().decode_transaction(transaction)
+	/// Verifies len of transaction RLP
+	fn verify_transaction_len(&self, transaction: &[u8]) -> Result<(), transaction::Error> {
+		if transaction.len() > self.params().max_transaction_size {
+			return Err(transaction::Error::TooBig)
+		}
+
+		Ok(())
 	}
 }
 
