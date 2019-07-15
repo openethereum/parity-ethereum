@@ -48,7 +48,7 @@ use types::BlockNumber;
 use types::header::{Header, ExtendedHeader};
 use snapshot::SnapshotComponents;
 use spec::CommonParams;
-use types::transaction::{self, UnverifiedTransaction, SignedTransaction};
+use types::transaction::{self, UnverifiedTransaction};
 use client::EngineClient;
 
 use ethkey::{Signature};
@@ -513,18 +513,6 @@ pub trait Engine: Sync + Send {
 	/// Returns new contract address generation scheme at given block number.
 	fn create_address_scheme(&self, number: BlockNumber) -> CreateContractAddress {
 		self.machine().create_address_scheme(number)
-	}
-
-	/// Verify a particular transaction is valid.
-	///
-	/// Unordered verification doesn't rely on the transaction execution order,
-	/// i.e. it should only verify stuff that doesn't assume any previous transactions
-	/// has already been verified and executed.
-	///
-	/// NOTE This function consumes an `UnverifiedTransaction` and produces `SignedTransaction`
-	/// which implies that a heavy check of the signature is performed here.
-	fn verify_transaction_unordered(&self, t: UnverifiedTransaction, header: &Header) -> Result<SignedTransaction, transaction::Error> {
-		self.machine().verify_transaction_unordered(t, header)
 	}
 
 	/// Perform basic/cheap transaction verification.
