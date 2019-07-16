@@ -19,8 +19,6 @@
 use ethereum_types::{Address, U256, H256};
 use bytes::Bytes;
 use ethjson;
-// todo: used only to `.from_hex()` a const which is dumb. Remove.
-use rustc_hex::FromHex;
 
 use BlockNumber;
 use engines::DEFAULT_BLOCKHASH_CONTRACT;
@@ -243,11 +241,7 @@ impl From<ethjson::spec::Params> for CommonParams {
 			),
 			eip210_contract_address: p.eip210_contract_address.map_or(Address::from_low_u64_be(0xf0), Into::into),
 			eip210_contract_code: p.eip210_contract_code.map_or_else(
-				|| {
-					DEFAULT_BLOCKHASH_CONTRACT.from_hex().expect(
-						"Default BLOCKHASH contract is valid",
-					)
-				},
+				|| DEFAULT_BLOCKHASH_CONTRACT.to_vec(),
 				Into::into,
 			),
 			eip210_contract_gas: p.eip210_contract_gas.map_or(1000000.into(), Into::into),

@@ -43,7 +43,6 @@ extern crate keccak_hash as hash;
 extern crate parity_bytes as bytes;
 extern crate patricia_trie_ethereum as ethtrie;
 extern crate rlp;
-extern crate rustc_hex; // todo: used only to `.from_hex()` a const which is dumb. Remove.
 extern crate parity_snappy;
 extern crate unexpected;
 
