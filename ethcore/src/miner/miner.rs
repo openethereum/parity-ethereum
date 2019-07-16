@@ -950,7 +950,7 @@ impl miner::MinerService for Miner {
 		let client = self.pool_client(chain);
 		let results = self.transaction_queue.import(
 			client,
-			transactions.into_iter().map(pool::verifier::Transaction::Unverified).collect(),
+			transactions.into_iter().map(pool::verifier::Transaction::Unverified),
 		);
 
 		// --------------------------------------------------------------------------
@@ -976,7 +976,7 @@ impl miner::MinerService for Miner {
 		let client = self.pool_client(chain);
 		let imported = self.transaction_queue.import(
 			client,
-			vec![pool::verifier::Transaction::Local(pending)]
+			Some(pool::verifier::Transaction::Local(pending))
 		).pop().expect("one result returned per added transaction; one added => one result; qed");
 
 		// --------------------------------------------------------------------------
@@ -1376,8 +1376,7 @@ impl miner::MinerService for Miner {
 						.expect("Client is sending message after commit to db and inserting to chain; the block is available; qed");
 					let txs = block.transactions()
 						.into_iter()
-						.map(pool::verifier::Transaction::Retracted)
-						.collect();
+						.map(pool::verifier::Transaction::Retracted);
 					let _ = self.transaction_queue.import(
 						client.clone(),
 						txs,
