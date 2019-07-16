@@ -597,11 +597,12 @@ impl<K: Kind> VerificationQueue<K> {
 	/// Returns true, if in processing queue there is no descendant of the current best block
 	/// May return false negative for longer queues
 	pub fn processing_fork(&self, best_block_hash: &H256) -> bool {
-		if self.processing.read().len() > MAX_QUEUE_WITH_FORK {
+		let processing = self.processing.read();
+		if processing.is_empty() || processing.len() > MAX_QUEUE_WITH_FORK {
 			// Assume, that long enough processing queue doesn't have fork blocks
 			return false;
 		}
-		for item in self.processing.read().values() {
+		for item in processing.values() {
 			if item.1 == *best_block_hash {
 				return false;
 			}
