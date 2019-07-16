@@ -146,6 +146,7 @@ impl SyncSupplier {
 			// Cannot provide blocks headers until such import is finished
 			let last_hash = io.chain().chain_info().best_block_hash;
 			trace!(target: "sync", "{} -> GetBlockHeaders rejected while processing probable fork block with current best block: {})", peer_id, last_hash);
+			warn!("{} -> GetBlockHeaders rejected while processing probable fork block with current best block: {})", peer_id, last_hash); //REMOVE before merge
 			return Ok(Some((BlockHeadersPacket.id(), RlpStream::new_list(0))))
 		}
 		let payload_soft_limit = io.payload_soft_limit();
