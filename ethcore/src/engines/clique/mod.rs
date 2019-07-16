@@ -59,8 +59,7 @@
 ///    in order to import the new block.
 
 use std::cmp;
-use std::collections::HashMap;
-use std::collections::VecDeque;
+use std::collections::{HashMap, VecDeque, BTreeMap};
 use std::sync::{Arc, Weak};
 use std::thread;
 use std::time;
@@ -84,6 +83,7 @@ use unexpected::{Mismatch, OutOfBounds};
 use time_utils::CheckedSystemTime;
 use types::BlockNumber;
 use types::header::Header;
+use ethereum::ethash;
 
 use self::block_state::CliqueBlockState;
 use self::params::CliqueParams;
@@ -361,6 +361,17 @@ impl Engine for Clique {
 
 	// Clique use same fields, nonce + mixHash
 	fn seal_fields(&self, _header: &Header) -> usize { 2 }
+
+	fn extra_info(&self, header: &Header) -> BTreeMap<String, String> {
+		// clique engine seal fields are the same as ethash seal fields
+		match ethash::Seal::parse_seal(header.seal()) {
+			Ok(seal) => map![
+				"nonce".to_owned() => format!("{:#x}", seal.nonce),
+				"mixHash".to_owned() => format!("{:#x}", seal.mix_hash)
+			],
+			_ => BTreeMap::default()
+		}
+	}
 
 	fn maximum_uncle_count(&self, _block: BlockNumber) -> usize { 0 }
 
