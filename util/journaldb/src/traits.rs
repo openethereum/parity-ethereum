@@ -83,7 +83,7 @@ pub trait JournalDB: KeyedHashDB {
 	fn state(&self, _id: &H256) -> Option<Bytes>;
 
 	/// Whether this database is pruned.
-	fn is_pruned(&self) -> bool { true }
+	fn is_prunable(&self) -> bool { true }
 
 	/// Get backing database.
 	fn backing(&self) -> &Arc<dyn kvdb::KeyValueDB>;
