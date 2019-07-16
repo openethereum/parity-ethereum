@@ -366,8 +366,8 @@ impl Engine for Clique {
 		// clique engine seal fields are the same as ethash seal fields
 		match ethash::Seal::parse_seal(header.seal()) {
 			Ok(seal) => map![
-				"nonce".to_owned() => format!("0x{:x}", seal.nonce),
-				"mixHash".to_owned() => format!("0x{:x}", seal.mix_hash)
+				"nonce".to_owned() => format!("{:#x}", seal.nonce),
+				"mixHash".to_owned() => format!("{:#x}", seal.mix_hash)
 			],
 			_ => BTreeMap::default()
 		}
