@@ -883,7 +883,7 @@ impl<'a, B: 'a + StateBackend> Executive<'a, B> {
 
 		let (result, output) = match t.action {
 			Action::Create => {
-				let (new_address, code_hash) = contract_address(self.machine.create_address_scheme(self.info.number), &sender, &nonce, &t.data);
+				let (new_address, code_hash) = contract_address(CreateContractAddress::FromSenderAndNonce, &sender, &nonce, &t.data);
 				let params = ActionParams {
 					code_address: new_address.clone(),
 					code_hash: code_hash,

@@ -26,7 +26,7 @@ use pod::PodState;
 use types::{log_entry, receipt, transaction};
 use trie_vm_factories::Factories;
 use evm::{VMType, FinalizationResult};
-use vm::{self, ActionParams};
+use vm::{self, ActionParams, CreateContractAddress};
 use ethtrie;
 use account_state::{CleanupMode, State};
 use substate::Substate;
@@ -265,7 +265,7 @@ impl<'a> EvmTestClient<'a> {
 
 		// Apply transaction
 		let result = self.state.apply_with_tracing(&env_info, self.spec.engine.machine(), &transaction, tracer, vm_tracer);
-		let scheme = self.spec.engine.machine().create_address_scheme(env_info.number);
+		let scheme = CreateContractAddress::FromSenderAndNonce;
 
 		// Touch the coinbase at the end of the test to simulate
 		// miner reward.

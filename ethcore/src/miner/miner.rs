@@ -60,6 +60,7 @@ use executed::ExecutionError;
 use executive::contract_address;
 use spec::Spec;
 use account_state::State;
+use vm::CreateContractAddress;
 
 /// Different possible definitions for pending transaction set.
 #[derive(Debug, PartialEq)]
@@ -1220,7 +1221,7 @@ impl miner::MinerService for Miner {
 							Action::Call(_) => None,
 							Action::Create => {
 								let sender = tx.sender();
-								Some(contract_address(self.engine.create_address_scheme(pending.header.number()), &sender, &tx.nonce, &tx.data).0)
+								Some(contract_address(CreateContractAddress::FromSenderAndNonce, &sender, &tx.nonce, &tx.data).0)
 							}
 						},
 						logs: receipt.logs.clone(),

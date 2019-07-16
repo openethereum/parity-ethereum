@@ -41,7 +41,7 @@ use types::filter::Filter;
 use types::log_entry::LocalizedLogEntry;
 use types::receipt::{Receipt, LocalizedReceipt};
 use types::{BlockNumber, header::Header};
-use vm::{EnvInfo, LastHashes};
+use vm::{EnvInfo, LastHashes, CreateContractAddress};
 use hash_db::EMPTY_PREFIX;
 use block::{LockedBlock, Drain, ClosedBlock, OpenBlock, enact_verified, SealedBlock};
 use client::ancient_import::AncientVerifier;
@@ -1922,7 +1922,7 @@ impl BlockChainClient for Client {
 		let gas_used = receipts.last().map_or_else(|| 0.into(), |r| r.gas_used);
 		let no_of_logs = receipts.into_iter().map(|receipt| receipt.logs.len()).sum::<usize>();
 
-		let receipt = transaction_receipt(self.engine().machine(), transaction, receipt, gas_used, no_of_logs);
+		let receipt = transaction_receipt(transaction, receipt, gas_used, no_of_logs);
 		Some(receipt)
 	}
 
@@ -1933,7 +1933,6 @@ impl BlockChainClient for Client {
 		let receipts = chain.block_receipts(&hash)?;
 		let number = chain.block_number(&hash)?;
 		let body = chain.block_body(&hash)?;
-		let engine = self.engine.clone();
 
 		let mut gas_used = 0.into();
 		let mut no_of_logs = 0;
@@ -1944,7 +1943,7 @@ impl BlockChainClient for Client {
 			.into_iter()
 			.zip(receipts.receipts)
 			.map(move |(transaction, receipt)| {
-				let result = transaction_receipt(engine.machine(), transaction, receipt, gas_used, no_of_logs);
+				let result = transaction_receipt(transaction, receipt, gas_used, no_of_logs);
 				gas_used = result.cumulative_gas_used;
 				no_of_logs += result.logs.len();
 				result
@@ -2555,7 +2554,6 @@ impl SnapshotClient for Client {}
 /// Returns `LocalizedReceipt` given `LocalizedTransaction`
 /// and a vector of receipts from given block up to transaction index.
 fn transaction_receipt(
-	machine: &::machine::Machine,
 	mut tx: LocalizedTransaction,
 	receipt: Receipt,
 	prior_gas_used: U256,
@@ -2581,7 +2579,7 @@ fn transaction_receipt(
 		gas_used: receipt.gas_used - prior_gas_used,
 		contract_address: match tx.action {
 			Action::Call(_) => None,
-			Action::Create => Some(contract_address(machine.create_address_scheme(block_number), &sender, &tx.nonce, &tx.data).0)
+			Action::Create => Some(contract_address(CreateContractAddress::FromSenderAndNonce, &sender, &tx.nonce, &tx.data).0)
 		},
 		logs: receipt.logs.into_iter().enumerate().map(|(i, log)| LocalizedLogEntry {
 			entry: log,
@@ -2710,7 +2708,6 @@ mod tests {
 		// given
 		let key = KeyPair::from_secret_slice(keccak("test").as_bytes()).unwrap();
 		let secret = key.secret();
-		let machine = ::ethereum::new_frontier_test_machine();
 
 		let block_number = 1;
 		let block_hash = H256::from_low_u64_be(5);
@@ -2749,7 +2746,7 @@ mod tests {
 		};
 
 		// when
-		let receipt = transaction_receipt(&machine, transaction, receipt, 5.into(), 1);
+		let receipt = transaction_receipt(transaction, receipt, 5.into(), 1);
 
 		// then
 		assert_eq!(receipt, LocalizedReceipt {

@@ -1220,6 +1220,7 @@ dependencies = [
  "transaction-pool 2.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "trie-db 0.12.4 (registry+https://github.com/rust-lang/crates.io-index)",
  "url 1.7.1 (registry+https://github.com/rust-lang/crates.io-index)",
+ "vm 0.1.0",
 ]
 
 [[package]]

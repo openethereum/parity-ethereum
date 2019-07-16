@@ -25,9 +25,7 @@ use rlp::Rlp;
 use types::transaction::{self, SYSTEM_ADDRESS, UNSIGNED_SENDER, UnverifiedTransaction, SignedTransaction};
 use types::BlockNumber;
 use types::header::Header;
-use vm::{CallType, ActionParams, ActionValue, ParamsType};
-use vm::{EnvInfo, Schedule, CreateContractAddress};
-
+use vm::{CallType, ActionParams, ActionValue, ParamsType, EnvInfo, Schedule};
 use block::ExecutedBlock;
 use builtin::Builtin;
 use call_contract::CallContract;
@@ -341,11 +339,6 @@ impl Machine {
 		} else {
 			None
 		}
-	}
-
-	/// Returns new contract address generation scheme at given block number.
-	pub fn create_address_scheme(&self, _number: BlockNumber) -> CreateContractAddress {
-		CreateContractAddress::FromSenderAndNonce
 	}
 
 	/// Verify a particular transaction is valid, regardless of order.
