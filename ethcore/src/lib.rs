@@ -176,5 +176,3 @@ pub mod test_helpers;
 pub use executive::contract_address;
 pub use evm::CreateContractAddress;
 pub use trie::TrieSpec;
-/// Ethcore Result
-pub type EthcoreResult<T> = Result<T, types::errors::EthcoreError>;

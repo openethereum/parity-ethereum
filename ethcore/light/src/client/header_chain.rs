@@ -33,12 +33,11 @@ use cht;
 use common_types::{
 	block_status::BlockStatus,
 	encoded,
-	errors::{EthcoreError as Error, BlockError},
+	errors::{EthcoreError as Error, BlockError, EthcoreResult},
 	header::Header,
 	ids::BlockId,
 };
 use ethcore::engines::epoch::{Transition as EpochTransition, PendingTransition as PendingEpochTransition};
-use ethcore::EthcoreResult;
 use ethcore::spec::{Spec, SpecHardcodedSync};
 use ethereum_types::{H256, H264, U256};
 use parity_util_mem::{MallocSizeOf, MallocSizeOfOps};

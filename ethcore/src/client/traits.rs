@@ -34,6 +34,7 @@ use types::{
 	call_analytics::CallAnalytics,
 	encoded,
 	errors::EthcoreError as Error,
+	errors::EthcoreResult,
 	filter::Filter,
 	header::Header,
 	ids::*,
@@ -48,7 +49,6 @@ use vm::LastHashes;
 use block::{OpenBlock, SealedBlock, ClosedBlock};
 use client::Mode;
 use engines::Engine;
-use EthcoreResult;
 use executive::Executed;
 use account_state::state::StateInfo;
 use trace::LocalizedTrace;

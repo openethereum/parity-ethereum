@@ -16,12 +16,7 @@
 
 //! General error types for use in ethcore.
 
-use std::{
-	error,
-	fmt,
-	//io::Error as IoError,
-};
-
+use std::{error, fmt};
 use derive_more::{Display, From};
 use ethereum_types::{U256, U512};
 use ethtrie::TrieError;
@@ -30,6 +25,9 @@ use ethkey::Error as EthkeyError;
 
 use errors::{BlockError, EngineError, ImportError, SnapshotError};
 use transaction::Error as TransactionError;
+
+/// Ethcore Result
+pub type EthcoreResult<T> = Result<T, EthcoreError>;
 
 /// Ethcore Error
 #[derive(Debug, Display, From)]

@@ -24,6 +24,6 @@ mod snapshot_error;
 pub use self::{
 	block_error::{BlockError, ImportError},
 	engine_error::EngineError,
-	ethcore_error::{EthcoreError, ExecutionError},
+	ethcore_error::{EthcoreError, ExecutionError, EthcoreResult},
 	snapshot_error::SnapshotError,
 };

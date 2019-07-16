@@ -20,7 +20,6 @@ use std::sync::{Weak, Arc};
 
 use ethcore::client::{ClientReport, EnvInfo, ClientIoMessage};
 use ethcore::engines::{epoch, Engine, EpochChange, EpochTransition, Proof};
-use ethcore::EthcoreResult;
 use ethcore::verification::queue::{self, HeaderQueue};
 use ethcore::spec::{Spec, SpecHardcodedSync};
 use io::IoChannel;
@@ -33,6 +32,7 @@ use common_types::{
 	blockchain_info::BlockChainInfo,
 	encoded,
 	errors::EthcoreError as Error,
+	errors::EthcoreResult,
 	header::Header,
 	ids::BlockId,
 	verification_queue_info::VerificationQueueInfo as BlockQueueInfo,
