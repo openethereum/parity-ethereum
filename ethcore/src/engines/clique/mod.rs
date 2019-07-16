@@ -68,7 +68,7 @@ use std::time::{Instant, Duration, SystemTime, UNIX_EPOCH};
 use block::ExecutedBlock;
 use client::{BlockId, EngineClient};
 use engines::clique::util::{extract_signers, recover_creator};
-use engines::{Engine, Seal, SealingState};
+use engines::{Engine, Seal, SealingState, EthashSeal};
 use ethereum_types::{Address, H64, H160, H256, U256};
 use ethkey::Signature;
 use hash::KECCAK_EMPTY_LIST_RLP;
@@ -89,7 +89,6 @@ use types::{
 	},
 	errors::{BlockError, EthcoreError as Error, EngineError},
 };
-use ethereum::ethash_eng;
 
 use self::block_state::CliqueBlockState;
 use self::params::CliqueParams;
@@ -369,7 +368,7 @@ impl Engine for Clique {
 
 	fn extra_info(&self, header: &Header) -> BTreeMap<String, String> {
 		// clique engine seal fields are the same as ethash seal fields
-		match ethash_eng::Seal::parse_seal(header.seal()) {
+		match EthashSeal::parse_seal(header.seal()) {
 			Ok(seal) => map![
 				"nonce".to_owned() => format!("{:#x}", seal.nonce),
 				"mixHash".to_owned() => format!("{:#x}", seal.mix_hash)

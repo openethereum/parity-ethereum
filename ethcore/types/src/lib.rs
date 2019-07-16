@@ -54,6 +54,9 @@ extern crate parity_util_mem as malloc_size_of;
 #[macro_use]
 pub mod views;
 
+#[cfg(test)]
+extern crate rustc_hex;
+
 pub mod account_diff;
 pub mod ancestry_action;
 pub mod basic_account;

@@ -19,6 +19,7 @@
 mod authority_round;
 mod basic_authority;
 mod clique;
+mod ethash;
 mod instant_seal;
 mod null_engine;
 mod validator_set;
@@ -32,6 +33,7 @@ pub use self::instant_seal::{InstantSeal, InstantSealParams};
 pub use self::null_engine::NullEngine;
 pub use self::signer::EngineSigner;
 pub use self::clique::Clique;
+pub use self::ethash::{Ethash, Seal as EthashSeal};
 
 // TODO [ToDr] Remove re-export (#10130)
 pub use types::engines::ForkChoice;

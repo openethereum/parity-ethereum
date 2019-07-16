@@ -40,7 +40,7 @@ use vm::{EnvInfo, CallType, ActionValue, ActionParams, ParamsType};
 use builtin::Builtin;
 use engines::{
 	Engine, NullEngine, InstantSeal, InstantSealParams, BasicAuthority, Clique,
-	AuthorityRound
+	AuthorityRound, Ethash,
 };
 use executive::Executive;
 use trie_vm_factories::Factories;
@@ -326,7 +326,7 @@ impl Spec {
 
 		match engine_spec {
 			ethjson::spec::Engine::Null(null) => Arc::new(NullEngine::new(null.params.into(), machine)),
-			ethjson::spec::Engine::Ethash(ethash) => Arc::new(::ethereum::Ethash::new(spec_params.cache_dir, ethash.params.into(), machine, spec_params.optimization_setting)),
+			ethjson::spec::Engine::Ethash(ethash) => Arc::new(Ethash::new(spec_params.cache_dir, ethash.params.into(), machine, spec_params.optimization_setting)),
 			ethjson::spec::Engine::InstantSeal(Some(instant_seal)) => Arc::new(InstantSeal::new(instant_seal.params.into(), machine)),
 			ethjson::spec::Engine::InstantSeal(None) => Arc::new(InstantSeal::new(InstantSealParams::default(), machine)),
 			ethjson::spec::Engine::BasicAuthority(basic_authority) => Arc::new(BasicAuthority::new(basic_authority.params.into(), machine)),
