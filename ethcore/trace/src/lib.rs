@@ -16,7 +16,6 @@
 
 //! Tracing
 
-use common_types::BlockNumber;
 use ethereum_types::{U256, Address};
 use kvdb::DBTransaction;
 use vm::{Error as VmError, ActionParams};
@@ -32,7 +31,7 @@ mod types;
 
 pub use crate::{
 	config::Config,
-	db::TraceDB,
+	db::{TraceDB, DatabaseExtras},
 	localized::LocalizedTrace,
 	executive_tracer::{ExecutiveTracer, ExecutiveVMTracer},
 	import::ImportRequest,
@@ -46,6 +45,9 @@ pub use crate::{
 		filter::{self, Filter, AddressesFilter},
 	}
 };
+
+/// Type for block number.
+pub(crate) type BlockNumber = u64;
 
 /// This trait is used by executive to build traces.
 pub trait Tracer: Send {

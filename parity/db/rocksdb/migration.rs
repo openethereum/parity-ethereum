@@ -21,7 +21,6 @@ use std::fmt::{Display, Formatter, Error as FmtError};
 use super::migration_rocksdb::{Manager as MigrationManager, Config as MigrationConfig, ChangeColumns};
 use super::kvdb_rocksdb::{CompactionProfile, DatabaseConfig};
 use ethcore::client::DatabaseCompactionProfile;
-use ethcore;
 use types::errors::EthcoreError;
 
 use super::helpers;

@@ -360,8 +360,8 @@ impl StateDB {
 	}
 
 	/// Check if pruning is enabled on the database.
-	pub fn is_pruned(&self) -> bool {
-		self.db.is_pruned()
+	pub fn is_prunable(&self) -> bool {
+		self.db.is_prunable()
 	}
 
 	/// Heap size used.

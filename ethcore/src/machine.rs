@@ -33,7 +33,7 @@ use types::{
 	transaction::{self, SYSTEM_ADDRESS, UNSIGNED_SENDER, UnverifiedTransaction, SignedTransaction},
 };
 use vm::{CallType, ActionParams, ActionValue, ParamsType};
-use vm::{EnvInfo, Schedule, CreateContractAddress};
+use vm::{EnvInfo, Schedule};
 
 use block::ExecutedBlock;
 use builtin::Builtin;
@@ -322,11 +322,6 @@ impl Machine {
 		} else {
 			None
 		}
-	}
-
-	/// Returns new contract address generation scheme at given block number.
-	pub fn create_address_scheme(&self, _number: BlockNumber) -> CreateContractAddress {
-		CreateContractAddress::FromSenderAndNonce
 	}
 
 	/// Verify a particular transaction is valid, regardless of order.

@@ -41,7 +41,7 @@ use std::sync::{Weak, Arc};
 use std::collections::BTreeMap;
 
 use builtin::Builtin;
-use vm::{EnvInfo, Schedule, CreateContractAddress, CallType, ActionValue};
+use vm::{EnvInfo, Schedule, CallType, ActionValue};
 use types::{
 	BlockNumber,
 	ancestry_action::AncestryAction,
@@ -396,11 +396,6 @@ pub trait Engine: Sync + Send {
 	/// The network ID that transactions should be signed with.
 	fn signing_chain_id(&self, env_info: &EnvInfo) -> Option<u64> {
 		self.machine().signing_chain_id(env_info)
-	}
-
-	/// Returns new contract address generation scheme at given block number.
-	fn create_address_scheme(&self, number: BlockNumber) -> CreateContractAddress {
-		self.machine().create_address_scheme(number)
 	}
 
 	/// Verify a particular transaction is valid.
