@@ -39,6 +39,7 @@ pub mod kind;
 
 const MIN_MEM_LIMIT: usize = 16384;
 const MIN_QUEUE_LIMIT: usize = 512;
+const MAX_QUEUE_WITH_FORK: usize = 8;
 
 /// Type alias for block queue convenience.
 pub type BlockQueue = VerificationQueue<self::kind::Blocks>;
@@ -144,7 +145,7 @@ pub struct VerificationQueue<K: Kind> {
 	deleting: Arc<AtomicBool>,
 	ready_signal: Arc<QueueSignal>,
 	empty: Arc<Condvar>,
-	processing: RwLock<HashMap<H256, U256>>, // hash to difficulty
+	processing: RwLock<HashMap<H256, (U256, H256)>>, // hash to difficulty and parent hash
 	ticks_since_adjustment: AtomicUsize,
 	max_queue_size: usize,
 	max_mem_use: usize,
@@ -492,7 +493,7 @@ impl<K: Kind> VerificationQueue<K> {
 			Ok(item) => {
 				self.verification.sizes.unverified.fetch_add(item.heap_size_of_children(), AtomicOrdering::SeqCst);
 
-				self.processing.write().insert(hash, item.difficulty());
+				self.processing.write().insert(hash, (item.difficulty(), item.parent_hash()));
 				{
 					let mut td = self.total_difficulty.write();
 					*td = *td + item.difficulty();
@@ -527,9 +528,9 @@ impl<K: Kind> VerificationQueue<K> {
 		bad.reserve(hashes.len());
 		for hash in hashes {
 			bad.insert(hash.clone());
-			if let Some(difficulty) = processing.remove(hash) {
+			if let Some(item) = processing.remove(hash) {
 				let mut td = self.total_difficulty.write();
-				*td = *td - difficulty;
+				*td = *td - item.0;
 			}
 		}
 
@@ -539,9 +540,9 @@ impl<K: Kind> VerificationQueue<K> {
 			if bad.contains(&output.parent_hash()) {
 				removed_size += output.heap_size_of_children();
 				bad.insert(output.hash());
-				if let Some(difficulty) = processing.remove(&output.hash()) {
+				if let Some(item) = processing.remove(&output.hash()) {
 					let mut td = self.total_difficulty.write();
-					*td = *td - difficulty;
+					*td = *td - item.0;
 				}
 			} else {
 				new_verified.push_back(output);
@@ -560,9 +561,9 @@ impl<K: Kind> VerificationQueue<K> {
 		}
 		let mut processing = self.processing.write();
 		for hash in hashes {
-			if let Some(difficulty) = processing.remove(hash) {
+			if let Some(item) = processing.remove(hash) {
 				let mut td = self.total_difficulty.write();
-				*td = *td - difficulty;
+				*td = *td - item.0;
 			}
 		}
 		processing.is_empty()
@@ -591,6 +592,21 @@ impl<K: Kind> VerificationQueue<K> {
 		v.unverified.load_len() == 0
 			&& v.verifying.load_len() == 0
 			&& v.verified.load_len() == 0
+	}
+
+	/// Returns true, if in processing queue there is no descendant of the current best block
+	/// May return false negative for longer queues
+	pub fn processing_fork(&self, best_block_hash: &H256) -> bool {
+		if self.processing.read().len() > MAX_QUEUE_WITH_FORK {
+			// Assume, that long enough processing queue doesn't have fork blocks
+			return false;
+		}
+		for item in self.processing.read().values() {
+			if item.1 == *best_block_hash {
+				return false;
+			}
+		}
+		return true;
 	}
 
 	/// Get queue status.

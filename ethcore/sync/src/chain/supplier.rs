@@ -142,6 +142,12 @@ impl SyncSupplier {
 
 	/// Respond to GetBlockHeaders request
 	fn return_block_headers(io: &SyncIo, r: &Rlp, peer_id: PeerId) -> RlpResponseResult {
+		if io.chain().processing_fork() {
+			// Cannot provide blocks headers until such import is finished
+			let last_hash = io.chain().chain_info().best_block_hash;
+			trace!(target: "sync", "{} -> GetBlockHeaders rejected while processing probable fork block with current best block: {})", peer_id, last_hash);
+			return Ok(Some((BlockHeadersPacket.id(), RlpStream::new_list(0))))
+		}
 		let payload_soft_limit = io.payload_soft_limit();
 		// Packet layout:
 		// [ block: { P , B_32 }, maxHeaders: P, skip: P, reverse: P in { 0 , 1 } ]
