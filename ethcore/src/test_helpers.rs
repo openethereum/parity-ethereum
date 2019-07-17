@@ -23,7 +23,7 @@ use std::{fs, io};
 use blockchain::{BlockChain, BlockChainDB, BlockChainDBHandler, Config as BlockChainConfig, ExtrasInsert};
 use blooms_db;
 use bytes::Bytes;
-use ethereum_types::{H256, U256, Address};
+use ethereum_types::{H256, H512, U256, Address};
 use ethkey::KeyPair;
 use evm::Factory as EvmFactory;
 use hash::keccak;
@@ -517,7 +517,7 @@ impl ChainNotify for TestNotify {
 		self.messages.write().push(data);
 	}
 
-	fn send(&self, message: ChainMessageType, peer_id: usize) {
+	fn send(&self, message: ChainMessageType, peer_id:usize, node_id: Option<H512>) {
 		let data = match message {
 			ChainMessageType::Consensus(data) => data,
 			ChainMessageType::SignedPrivateTransaction(_, data) => data,

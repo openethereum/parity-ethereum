@@ -15,7 +15,7 @@
 // along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
 use bytes::Bytes;
-use ethereum_types::{H256, U256};
+use ethereum_types::{H256, H512, U256};
 use types::transaction::UnverifiedTransaction;
 use blockchain::ImportRoute;
 use std::time::Duration;
@@ -178,7 +178,7 @@ pub trait ChainNotify : Send + Sync {
 	}
 
 	/// fires when chain sends a message to a specific peer
-	fn send(&self, _message_type: ChainMessageType, _peer_id: usize) {
+	fn send(&self, _message_type: ChainMessageType, _peer_id:usize, node_id: Option<H512>) {
 		// does nothing by default
 	}
 

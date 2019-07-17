@@ -293,6 +293,10 @@ impl SyncPropagator {
 		}
 	}
 
+	pub fn send_consensus_packet(_sync: &mut ChainSync, io: &mut SyncIo, packet: Bytes, _peer_id: usize) {
+		SyncPropagator::send_packet(io, _peer_id, ConsensusDataPacket, packet.clone());
+	}
+
 	/// Broadcast private transaction message to peers.
 	pub fn propagate_private_transaction(sync: &mut ChainSync, io: &mut SyncIo, transaction_hash: H256, packet_id: SyncPacket, packet: Bytes) {
 		let lucky_peers = ChainSync::select_random_peers(&sync.get_private_transaction_peers(&transaction_hash));

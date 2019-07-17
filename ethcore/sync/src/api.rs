@@ -586,8 +586,30 @@ impl ChainNotify for EthSync {
 		});
 	}
 
-	fn send(&self, _message_type: ChainMessageType, _peer_id: usize) {
-		unimplemented!("TODO: Send message to _peer_id.");
+	fn send(&self, _message_type: ChainMessageType, _peer_id: usize, node_id: Option<H512>) {
+		//unimplemented!("TODO: Send message to _peer_id.");
+
+		self.network.with_context(WARP_SYNC_PROTOCOL_ID, |context| {
+			let peer_ids = self.network.connected_peers();
+			let mut my_peer_id=0;
+			for peer_id in peer_ids.into_iter(){
+				let session_info = context.session_info(peer_id);
+				let node = session_info.unwrap().id;
+				if  node == node_id {
+					my_peer_id = peer_id;
+					break;
+				}
+			}
+
+			let mut sync_io = NetSyncIo::new(context, &*self.eth_handler.chain, &*self.eth_handler.snapshot_service, &self.eth_handler.overlay);
+			match _message_type {
+				ChainMessageType::Consensus(message) => self.eth_handler.sync.write().send_consensus_packet(&mut sync_io, message, my_peer_id),
+				ChainMessageType::PrivateTransaction(_transaction_hash, _message) =>
+					unimplemented!("TODO: privateTransaction not supported on send."),
+				ChainMessageType::SignedPrivateTransaction(_transaction_hash, _message) =>
+					unimplemented!("TODO: SignedPrivateTransaction not supported on send."),
+			}
+		});
 	}
 
 	fn transactions_received(&self, txs: &[UnverifiedTransaction], peer_id: PeerId) {

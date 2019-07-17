@@ -1315,6 +1315,10 @@ impl ChainSync {
 		SyncPropagator::propagate_consensus_packet(self, io, packet);
 	}
 
+	pub fn send_consensus_packet(&mut self, io: &mut SyncIo, packet: Bytes, _peer_id: usize) {
+		SyncPropagator::send_consensus_packet(self, io, packet, _peer_id);
+	}
+
 	/// Broadcast private transaction message to peers.
 	pub fn propagate_private_transaction(&mut self, io: &mut SyncIo, transaction_hash: H256, packet_id: SyncPacket, packet: Bytes) {
 		SyncPropagator::propagate_private_transaction(self, io, transaction_hash, packet_id, packet);
