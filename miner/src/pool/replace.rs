@@ -75,21 +75,36 @@ where
 				// calculate readiness based on state nonce + pooled txs from same sender
 				let is_ready = |replace: &ReplaceTransaction<T>| {
 					let mut nonce = state.account_nonce(replace.sender());
+					let mut tx_same_nonce = None;
 					if let Some(txs) = replace.pooled_by_sender {
 						for tx in txs.iter() {
 							if nonce == tx.nonce() && *tx.transaction != ***replace.transaction {
-								nonce = nonce.saturating_add(U256::from(1))
+								nonce = nonce.saturating_add(U256::from(1));
+								if tx.nonce() == replace.nonce() {
+									tx_same_nonce = Some(tx.clone());
+								}
 							} else {
 								break
 							}
 						}
 					}
-					nonce == replace.nonce()
+					(nonce == replace.nonce(), tx_same_nonce)
 				};
 
-				if !is_ready(new) && is_ready(old) {
-					// prevent a ready transaction being replace by a non-ready transaction
-					Choice::RejectNew
+				let (new_is_ready, tx_same_nonce) = is_ready(new);
+				let (old_is_ready, _) = is_ready(old);
+
+				if !new_is_ready && old_is_ready {
+					let new_is_same_nonce_and_better = tx_same_nonce
+						.map_or(false, |existing_tx| {
+							new.priority().is_local() && self.scoring.choose(&existing_tx, &new) != Choice::RejectNew
+						});
+					if new_is_same_nonce_and_better {
+						Choice::InsertNew
+					} else {
+						// prevent a ready transaction being replace by a non-ready transaction
+						Choice::RejectNew
+					}
 				} else {
 					Choice::ReplaceOld
 				}
@@ -411,5 +426,47 @@ mod tests {
 		let new = ReplaceTransaction::new(&new_tx, Some(&pooled_txs));
 
 		assert_eq!(replace.should_replace(&old, &new), ReplaceOld);
+	}
+
+	#[test]
+	fn should_accept_local_tx_with_same_sender_and_nonce_with_better_gas_price() {
+		let scoring = NonceAndGasPrice(PrioritizationStrategy::GasPriceOnly);
+		let client = TestClient::new().with_nonce(1);
+		let replace = ReplaceByScoreAndReadiness::new(scoring, client);
+
+		// current transaction is ready
+		let old_tx = {
+			let tx = Tx {
+				nonce: 1,
+				gas_price: 1,
+				..Default::default()
+			};
+			tx.signed().verified()
+		};
+
+		let new_sender = Random.generate().unwrap();
+		let tx_new_ready_1 = local_tx_verified(Tx {
+			nonce: 1,
+			gas_price: 1,
+			..Default::default()
+		}, &new_sender);
+
+		let tx_new_ready_2 = local_tx_verified(Tx {
+			nonce: 1,
+			gas_price: 2, // same nonce, higher gas price
+			..Default::default()
+		}, &new_sender);
+
+		let old_tx = txpool::Transaction { insertion_id: 0, transaction: Arc::new(old_tx) };
+
+		let new_tx = txpool::Transaction { insertion_id: 0, transaction: Arc::new(tx_new_ready_2) };
+		let pooled_txs = [
+			txpool::Transaction { insertion_id: 0, transaction: Arc::new(tx_new_ready_1) },
+		];
+
+		let old = ReplaceTransaction::new(&old_tx, None);
+		let new = ReplaceTransaction::new(&new_tx, Some(&pooled_txs));
+
+		assert_eq!(replace.should_replace(&old, &new), InsertNew);
 	}
 }
