@@ -234,15 +234,10 @@ impl SyncPropagator {
 				stats.propagated(hash, id, block_number);
 			}
 
-			peer_info.last_sent_transactions = all_transactions_hashes
-				.intersection(&peer_info.last_sent_transactions)
-				.chain(&to_send)
-				.cloned()
-				.collect();
+			peer_info.last_sent_transactions = all_transactions_hashes.clone();
 			send_packet(io, peer_id, to_send.len(), packet.out());
 			sent_to_peers.insert(peer_id);
 			max_sent = cmp::max(max_sent, to_send.len());
-
 		}
 
 		debug!(target: "sync", "Sent up to {} transactions to {} peers.", max_sent, sent_to_peers.len());
