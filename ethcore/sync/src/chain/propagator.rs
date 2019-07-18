@@ -316,14 +316,13 @@ impl SyncPropagator {
 		where F: Fn(&PeerId) -> bool {
 		// sqrt(x)/x scaled to max u32
 		let fraction = ((sync.peers.len() as f64).powf(-0.5) * (u32::max_value() as f64).round()) as u32;
-		let peers = &sync.peers;
-		let small = peers.len() < MIN_PEERS_PROPAGATION;
+		let small = sync.peers.len() < MIN_PEERS_PROPAGATION;
+		let peers = sync.peers.keys().cloned();
 
 		let update_selection = || {
 			let mut rng = random::new();
-			peers.keys().filter(|_| small || rng.next_u32() < fraction)
+			peers.filter(|_| small || rng.next_u32() < fraction)
 				.take(MAX_PEERS_PROPAGATION)
-				.map(|id| *id)
 				.collect()
 		};
 
