@@ -179,8 +179,16 @@ impl SyncPropagator {
 			let peer_info = sync.peers.get_mut(&peer_id)
 				.expect("peer_id is form peers; peers is result of select_peers_for_transactions; select_peers_for_transactions selects peers from self.peers; qed");
 
+			// Get hashes of all transactions to send to this peer
+			let to_send = all_transactions_hashes.difference(&peer_info.last_sent_transactions)
+				.cloned()
+				.collect::<HashSet<_>>();
+			if to_send.is_empty() {
+				continue;
+			}
+
 			// Send all transactions, if the peer doesn't know about anything
-			if peer_info.last_sent_transactions.is_empty() {
+			if to_send.len() == all_transactions_hashes.len() {
 				// update stats
 				for hash in &all_transactions_hashes {
 					let id = io.peer_session_info(peer_id).and_then(|info| info.id);
@@ -191,14 +199,6 @@ impl SyncPropagator {
 				send_packet(io, peer_id, all_transactions_hashes.len(), all_transactions_rlp.clone());
 				sent_to_peers.insert(peer_id);
 				max_sent = cmp::max(max_sent, all_transactions_hashes.len());
-				continue;
-			}
-
-			// Get hashes of all transactions to send to this peer
-			let to_send = all_transactions_hashes.difference(&peer_info.last_sent_transactions)
-				.cloned()
-				.collect::<HashSet<_>>();
-			if to_send.is_empty() {
 				continue;
 			}
 
