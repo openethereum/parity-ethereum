@@ -22,4 +22,4 @@ unexpected = { path = "../../util/unexpected" }
 vm = { path = "../vm"}
 
 [dev-dependencies]
-rustc-hex= "1.0" # todo: only needed for CommonParams to do from_hex on a const. Remove?
+rustc-hex= "1.0"
