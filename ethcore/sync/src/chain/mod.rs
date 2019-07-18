@@ -623,48 +623,9 @@ pub struct ChainSync {
 	private_tx_handler: Option<Arc<dyn PrivateTxHandler>>,
 	/// Enable warp sync.
 	warp_sync: WarpSync,
+
 	#[ignore_malloc_size_of = "mpsc unmettered, ignoring"]
-	status_sinks: Vec<futures_mpsc::UnboundedSender<SyncState>>,
-	/// Cached peer selection for transaction propagation.
-	pub(crate) peers_for_txn_propagation: ExpiredCell<Vec<PeerId>>,
-}
-
-#[derive(Clone, Debug, MallocSizeOf)]
-pub(crate) struct ExpiredCell<T> {
-	inner: T,
-	last_updated: Instant,
-	expiration: Duration,
-}
-
-impl<T: Default + Clone> Default for ExpiredCell<T> {
-	fn default() -> Self {
-		Self::new(T::default(), Duration::from_secs(2))
-	}
-}
-
-impl<T: Clone> ExpiredCell<T> {
-	pub fn new(t: T, expiration: Duration) -> Self {
-		Self {
-			inner: t,
-			last_updated: Instant::now(),
-			expiration,
-		}
-	}
-
-	pub fn get<F>(&mut self, init: F) -> T
-	where
-		F: FnOnce() -> T,
-	{
-		if self.is_expired() {
-			self.inner = init();
-			self.last_updated = Instant::now();
-		}
-		self.inner.clone()
-	}
-
-	fn is_expired(&self) -> bool {
-		self.last_updated.elapsed() >= self.expiration
-	}
+	status_sinks: Vec<futures_mpsc::UnboundedSender<SyncState>>
 }
 
 impl ChainSync {
@@ -696,8 +657,7 @@ impl ChainSync {
 			transactions_stats: TransactionsStats::default(),
 			private_tx_handler,
 			warp_sync: config.warp_sync,
-			status_sinks: Vec::new(),
-			peers_for_txn_propagation: ExpiredCell::default(),
+			status_sinks: Vec::new()
 		};
 		sync.update_targets(chain);
 		sync
