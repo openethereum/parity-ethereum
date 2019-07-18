@@ -193,7 +193,7 @@ build-darwin:
 build-windows:
   stage:                           build
   <<:                              *collect_artifacts
-  only:                            *releaseable_branches
+  # only:                            *releaseable_branches
   variables:
     CARGO_TARGET:                  x86_64-pc-windows-msvc
     CARGO_HOME:                    "C:/ci-cache/parity-ethereum/cargo/$CI_JOB_NAME"
@@ -323,3 +323,18 @@ publish-docs:
   tags:
     - linux-docker
   allow_failure:                   true
+
+publish-av-whitelist:
+  stage:                          publish
+  <<:                             *no_git
+  # only:                           *releaseable_branches
+  except:
+    variables:
+      - $SCHEDULE_TAG == "nightly"
+  cache:                          {}
+  dependencies:
+    - build-windows
+  script:
+    - scripts/gitlab/publish-av-whitelists.sh
+  tags:
+    - linux-docker
