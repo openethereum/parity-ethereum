@@ -3,7 +3,7 @@ set -e
 
 echo "__________Publish Windows binaries to Avast Whitelisting program__________"
 
-target_filename="parity-${SCHEDULE_TAG:-${CI_COMMIT_REF_NAME}}.exe"
+target_filename="parity-${CI_COMMIT_TAG:-${CI_COMMIT_REF_NAME}}.exe"
 apt -y update
 apt -y install ftp
 ls ./artifacts
