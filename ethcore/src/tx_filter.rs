@@ -21,11 +21,13 @@ use lru_cache::LruCache;
 use ethabi::FunctionOutputDecoder;
 
 use call_contract::CallContract;
-use client::{BlockInfo, BlockId};
+use client::{BlockId, BlockInfo};
 use parking_lot::Mutex;
-use spec::CommonParams;
-use types::transaction::{Action, SignedTransaction};
-use types::BlockNumber;
+use types::{
+	BlockNumber,
+	engines::params::CommonParams,
+	transaction::{Action, SignedTransaction}
+};
 use hash::KECCAK_EMPTY;
 
 use_contract!(transact_acl_deprecated, "res/contracts/tx_acl_deprecated.json");

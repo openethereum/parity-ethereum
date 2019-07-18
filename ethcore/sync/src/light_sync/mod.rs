@@ -493,7 +493,7 @@ impl<L: AsLightClient> LightSync<L> {
 
 	// handles request dispatch, block import, state machine transitions, and timeouts.
 	fn maintain_sync(&self, ctx: &dyn BasicContext) {
-		use ethcore::error::{Error as EthcoreError, ImportError};
+		use types::errors::{EthcoreError, ImportError};
 
 		const DRAIN_AMOUNT: usize = 128;
 

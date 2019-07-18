@@ -21,8 +21,9 @@
 use machine::Machine;
 use vm::EnvInfo;
 use executive::{Executive, TransactOptions};
-use executed::{Executed, ExecutionError};
+use executed::Executed;
 use types::{
+	errors::{ExecutionError, EthcoreError as Error},
 	transaction::SignedTransaction,
 	receipt::{TransactionOutcome, Receipt},
 };
@@ -37,8 +38,6 @@ use bytes::Bytes;
 use keccak_hasher::KeccakHasher;
 use kvdb::DBValue;
 use hash_db::AsHashDB;
-
-use error::Error;
 
 /// Return type of proof validity check.
 #[derive(Debug, Clone)]

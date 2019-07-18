@@ -17,7 +17,6 @@
 //! Epoch verifiers and transitions.
 
 use ethereum_types::H256;
-
 use rlp::{Encodable, Decodable, DecoderError, RlpStream, Rlp};
 
 /// A full epoch transition.
@@ -70,4 +69,3 @@ impl Decodable for PendingTransition {
 		})
 	}
 }
-

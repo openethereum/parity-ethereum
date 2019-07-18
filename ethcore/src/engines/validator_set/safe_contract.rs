@@ -26,14 +26,18 @@ use kvdb::DBValue;
 use memory_cache::MemoryLruCache;
 use parking_lot::RwLock;
 use rlp::{Rlp, RlpStream};
-use types::header::Header;
-use types::ids::BlockId;
-use types::log_entry::LogEntry;
-use types::receipt::Receipt;
+use types::{
+	header::Header,
+	errors::{EngineError, EthcoreError, BlockError},
+	ids::BlockId,
+	log_entry::LogEntry,
+	engines::machine::{Call, AuxiliaryData, AuxiliaryRequest},
+	receipt::Receipt,
+};
 use unexpected::Mismatch;
 
 use client::EngineClient;
-use machine::{AuxiliaryData, Call, Machine, AuxiliaryRequest};
+use machine::Machine;
 use super::{SystemCall, ValidatorSet};
 use super::simple_list::SimpleList;
 
@@ -144,13 +148,13 @@ fn check_first_proof(machine: &Machine, contract_address: Address, old_header: H
 	}
 }
 
-fn decode_first_proof(rlp: &Rlp) -> Result<(Header, Vec<DBValue>), ::error::Error> {
+fn decode_first_proof(rlp: &Rlp) -> Result<(Header, Vec<DBValue>), EthcoreError> {
 	let header = rlp.val_at(0)?;
 	let state_items = rlp.at(1)?.iter().map(|x| {
 		let mut val = DBValue::new();
 		val.append_slice(x.data()?);
 		Ok(val)
-	}).collect::<Result<_, ::error::Error>>()?;
+	}).collect::<Result<_, EthcoreError>>()?;
 
 	Ok((header, state_items))
 }
@@ -164,7 +168,7 @@ fn encode_proof(header: &Header, receipts: &[Receipt]) -> Bytes {
 	stream.drain()
 }
 
-fn decode_proof(rlp: &Rlp) -> Result<(Header, Vec<Receipt>), ::error::Error> {
+fn decode_proof(rlp: &Rlp) -> Result<(Header, Vec<Receipt>), EthcoreError> {
 	Ok((rlp.val_at(0)?, rlp.list_at(1)?))
 }
 
@@ -293,11 +297,11 @@ impl ValidatorSet for ValidatorSafeContract {
 			.map(|out| (out, Vec::new()))) // generate no proofs in general
 	}
 
-	fn on_epoch_begin(&self, _first: bool, _header: &Header, caller: &mut SystemCall) -> Result<(), ::error::Error> {
+	fn on_epoch_begin(&self, _first: bool, _header: &Header, caller: &mut SystemCall) -> Result<(), EthcoreError> {
 		let data = validator_set::functions::finalize_change::encode_input();
 		caller(self.contract_address, data)
 			.map(|_| ())
-			.map_err(::engines::EngineError::FailedSystemCall)
+			.map_err(EngineError::FailedSystemCall)
 			.map_err(Into::into)
 	}
 
@@ -348,7 +352,7 @@ impl ValidatorSet for ValidatorSafeContract {
 	}
 
 	fn epoch_set(&self, first: bool, machine: &Machine, _number: ::types::BlockNumber, proof: &[u8])
-		-> Result<(SimpleList, Option<H256>), ::error::Error>
+		-> Result<(SimpleList, Option<H256>), EthcoreError>
 	{
 		let rlp = Rlp::new(proof);
 
@@ -359,7 +363,7 @@ impl ValidatorSet for ValidatorSafeContract {
 			let number = old_header.number();
 			let old_hash = old_header.hash();
 			let addresses = check_first_proof(machine, self.contract_address, old_header, &state_items)
-				.map_err(::engines::EngineError::InsufficientProof)?;
+				.map_err(EngineError::InsufficientProof)?;
 
 			trace!(target: "engine", "Extracted epoch validator set at block #{}: {} addresses",
 				number, addresses.len());
@@ -374,7 +378,7 @@ impl ValidatorSet for ValidatorSafeContract {
 				receipts.iter().map(::rlp::encode)
 			);
 			if found_root != *old_header.receipts_root() {
-				return Err(::error::BlockError::InvalidReceiptsRoot(
+				return Err(BlockError::InvalidReceiptsRoot(
 					Mismatch { expected: *old_header.receipts_root(), found: found_root }
 				).into());
 			}
@@ -387,7 +391,7 @@ impl ValidatorSet for ValidatorSafeContract {
 
 					Ok((list, Some(old_header.hash())))
 				},
-				None => Err(::engines::EngineError::InsufficientProof("No log event in proof.".into()).into()),
+				None => Err(EngineError::InsufficientProof("No log event in proof.".into()).into()),
 			}
 		}
 	}
@@ -453,7 +457,8 @@ mod tests {
 	use spec::Spec;
 	use accounts::AccountProvider;
 	use types::transaction::{Transaction, Action};
-	use client::{ChainInfo, BlockInfo, ImportBlock};
+	use client::{ChainInfo, ImportBlock};
+	use client::BlockInfo;
 	use ethkey::Secret;
 	use miner::{self, MinerService};
 	use test_helpers::{generate_dummy_client_with_spec, generate_dummy_client_with_spec_and_data};
@@ -545,9 +550,11 @@ mod tests {
 	#[test]
 	fn detects_bloom() {
 		use engines::EpochChange;
-		use machine::AuxiliaryRequest;
-		use types::header::Header;
-		use types::log_entry::LogEntry;
+		use types::{
+			header::Header,
+			log_entry::LogEntry,
+			engines::machine::AuxiliaryRequest,
+		};
 
 		let client = generate_dummy_client_with_spec(Spec::new_validator_safe_contract);
 		let engine = client.engine().clone();

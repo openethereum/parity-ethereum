@@ -41,6 +41,7 @@ use journaldb;
 use trie::{TrieMut, Trie};
 use ethtrie::{SecTrieDBMut, TrieDB, TrieDBMut};
 use self::trie_standardmap::{Alphabet, StandardMap, ValueMode};
+use types::errors::EthcoreError;
 
 // the proportion of accounts we will alter each tick.
 const ACCOUNT_CHURN: f32 = 0.01;
@@ -155,7 +156,7 @@ pub fn restore(
 	engine: &dyn Engine,
 	reader: &dyn SnapshotReader,
 	genesis: &[u8],
-) -> Result<(), ::error::Error> {
+) -> Result<(), EthcoreError> {
 	use std::sync::atomic::AtomicBool;
 
 	let flag = AtomicBool::new(true);

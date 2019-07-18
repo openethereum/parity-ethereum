@@ -24,9 +24,7 @@
 use std::collections::HashSet;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
-use bytes::Bytes;
 use hash::keccak;
-use parity_util_mem::MallocSizeOf;
 use rlp::Rlp;
 use triehash::ordered_trie_root;
 use unexpected::{Mismatch, OutOfBounds};
@@ -34,26 +32,17 @@ use unexpected::{Mismatch, OutOfBounds};
 use blockchain::*;
 use call_contract::CallContract;
 use client::BlockInfo;
-use engines::{Engine, MAX_UNCLE_AGE};
-use error::{BlockError, Error};
-use types::{BlockNumber, header::Header};
-use types::transaction::SignedTransaction;
+use engines::Engine;
+use types::{
+	BlockNumber,
+	header::Header,
+	errors::{EthcoreError as Error, BlockError},
+	engines::MAX_UNCLE_AGE,
+	block::PreverifiedBlock,
+};
 use verification::queue::kind::blocks::Unverified;
 
 use time_utils::CheckedSystemTime;
-
-/// Preprocessed block data gathered in `verify_block_unordered` call
-#[derive(MallocSizeOf)]
-pub struct PreverifiedBlock {
-	/// Populated block header
-	pub header: Header,
-	/// Populated block transactions
-	pub transactions: Vec<SignedTransaction>,
-	/// Populated block uncles
-	pub uncles: Vec<Header>,
-	/// Block bytes
-	pub bytes: Bytes,
-}
 
 /// Phase 1 quick block verification. Only does checks that are cheap. Operates on a single block
 pub fn verify_block_basic(block: &Unverified, engine: &dyn Engine, check_seal: bool) -> Result<(), Error> {
@@ -281,7 +270,7 @@ pub fn verify_header_params(header: &Header, engine: &dyn Engine, is_full: bool,
 	}
 	if let Some(limit) = engine.maximum_gas_limit() {
 		if header.gas_limit() > &limit {
-			return Err(From::from(::error::BlockError::InvalidGasLimit(OutOfBounds { min: None, max: Some(limit), found: *header.gas_limit() })));
+			return Err(From::from(BlockError::InvalidGasLimit(OutOfBounds { min: None, max: Some(limit), found: *header.gas_limit() })));
 		}
 	}
 	let maximum_extra_data_size = engine.maximum_extra_data_size();
@@ -379,15 +368,19 @@ mod tests {
 	use std::time::{SystemTime, UNIX_EPOCH};
 	use ethereum_types::{H256, BloomRef, U256, Address};
 	use blockchain::{BlockDetails, TransactionAddress, BlockReceipts};
-	use types::encoded;
+	use bytes::Bytes;
 	use hash::keccak;
 	use engines::Engine;
-	use error::BlockError::*;
 	use ethkey::{Random, Generator};
-	use spec::{CommonParams, Spec};
+	use spec::Spec;
 	use test_helpers::{create_test_block_with_data, create_test_block};
-	use types::transaction::{SignedTransaction, Transaction, UnverifiedTransaction, Action};
-	use types::log_entry::{LogEntry, LocalizedLogEntry};
+	use types::{
+		encoded,
+		engines::params::CommonParams,
+		errors::BlockError::*,
+		transaction::{SignedTransaction, Transaction, UnverifiedTransaction, Action},
+		log_entry::{LogEntry, LocalizedLogEntry},
+	};
 	use rlp;
 	use triehash::ordered_trie_root;
 

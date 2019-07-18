@@ -19,6 +19,7 @@
 mod authority_round;
 mod basic_authority;
 mod clique;
+mod ethash;
 mod instant_seal;
 mod null_engine;
 mod validator_set;
@@ -32,6 +33,7 @@ pub use self::instant_seal::{InstantSeal, InstantSealParams};
 pub use self::null_engine::NullEngine;
 pub use self::signer::EngineSigner;
 pub use self::clique::Clique;
+pub use self::ethash::{Ethash, Seal as EthashSeal};
 
 // TODO [ToDr] Remove re-export (#10130)
 pub use types::engines::ForkChoice;
@@ -39,119 +41,30 @@ pub use types::engines::epoch::{self, Transition as EpochTransition};
 
 use std::sync::{Weak, Arc};
 use std::collections::BTreeMap;
-use std::{fmt, error};
 
 use builtin::Builtin;
 use vm::{EnvInfo, Schedule, CallType, ActionValue};
-use error::Error;
-use types::BlockNumber;
-use types::header::{Header, ExtendedHeader};
+use types::{
+	BlockNumber,
+	ancestry_action::AncestryAction,
+	header::{Header, ExtendedHeader},
+	engines::{
+		SealingState, Headers, PendingTransitionStore,
+		params::CommonParams,
+		machine as machine_types,
+		machine::{AuxiliaryData, AuxiliaryRequest},
+	},
+	errors::{EthcoreError as Error, EngineError},
+	transaction::{self, UnverifiedTransaction, SignedTransaction},
+};
 use snapshot::SnapshotComponents;
-use spec::CommonParams;
-use types::transaction::{self, UnverifiedTransaction, SignedTransaction};
 use client::EngineClient;
 
 use ethkey::{Signature};
-use machine::{self, Machine, AuxiliaryRequest, AuxiliaryData};
-use ethereum_types::{H64, H256, U256, Address};
-use unexpected::{Mismatch, OutOfBounds};
+use machine::Machine;
+use ethereum_types::{H256, U256, Address};
 use bytes::Bytes;
-use types::ancestry_action::AncestryAction;
 use block::ExecutedBlock;
-
-/// Default EIP-210 contract code.
-/// As defined in https://github.com/ethereum/EIPs/pull/210
-pub const DEFAULT_BLOCKHASH_CONTRACT: &'static str = "73fffffffffffffffffffffffffffffffffffffffe33141561006a5760014303600035610100820755610100810715156100455760003561010061010083050761010001555b6201000081071515610064576000356101006201000083050761020001555b5061013e565b4360003512151561008457600060405260206040f361013d565b61010060003543031315156100a857610100600035075460605260206060f361013c565b6101006000350715156100c55762010000600035430313156100c8565b60005b156100ea576101006101006000350507610100015460805260206080f361013b565b620100006000350715156101095763010000006000354303131561010c565b60005b1561012f57610100620100006000350507610200015460a052602060a0f361013a565b600060c052602060c0f35b5b5b5b5b";
-/// The number of generations back that uncles can be.
-pub const MAX_UNCLE_AGE: usize = 6;
-
-/// Voting errors.
-#[derive(Debug)]
-pub enum EngineError {
-	/// Signature or author field does not belong to an authority.
-	NotAuthorized(Address),
-	/// The same author issued different votes at the same step.
-	DoubleVote(Address),
-	/// The received block is from an incorrect proposer.
-	NotProposer(Mismatch<Address>),
-	/// Message was not expected.
-	UnexpectedMessage,
-	/// Seal field has an unexpected size.
-	BadSealFieldSize(OutOfBounds<usize>),
-	/// Validation proof insufficient.
-	InsufficientProof(String),
-	/// Failed system call.
-	FailedSystemCall(String),
-	/// Malformed consensus message.
-	MalformedMessage(String),
-	/// Requires client ref, but none registered.
-	RequiresClient,
-	/// Invalid engine specification or implementation.
-	InvalidEngine,
-	/// Requires signer ref, but none registered.
-	RequiresSigner,
-	/// Missing Parent Epoch
-	MissingParent(H256),
-	/// Checkpoint is missing
-	CliqueMissingCheckpoint(H256),
-	/// Missing vanity data
-	CliqueMissingVanity,
-	/// Missing signature
-	CliqueMissingSignature,
-	/// Missing signers
-	CliqueCheckpointNoSigner,
-	/// List of signers is invalid
-	CliqueCheckpointInvalidSigners(usize),
-	/// Wrong author on a checkpoint
-	CliqueWrongAuthorCheckpoint(Mismatch<Address>),
-	/// Wrong checkpoint authors recovered
-	CliqueFaultyRecoveredSigners(Vec<String>),
-	/// Invalid nonce (should contain vote)
-	CliqueInvalidNonce(H64),
-	/// The signer signed a block to recently
-	CliqueTooRecentlySigned(Address),
-	/// Custom
-	Custom(String),
-}
-
-impl fmt::Display for EngineError {
-	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-		use self::EngineError::*;
-		let msg = match *self {
-			CliqueMissingCheckpoint(ref hash) => format!("Missing checkpoint block: {}", hash),
-			CliqueMissingVanity => format!("Extra data is missing vanity data"),
-			CliqueMissingSignature => format!("Extra data is missing signature"),
-			CliqueCheckpointInvalidSigners(len) => format!("Checkpoint block list was of length: {} of checkpoint but
-															it needs to be bigger than zero and a divisible by 20", len),
-			CliqueCheckpointNoSigner => format!("Checkpoint block list of signers was empty"),
-			CliqueInvalidNonce(ref mis) => format!("Unexpected nonce {} expected {} or {}", mis, 0_u64, u64::max_value()),
-			CliqueWrongAuthorCheckpoint(ref oob) => format!("Unexpected checkpoint author: {}", oob),
-			CliqueFaultyRecoveredSigners(ref mis) => format!("Faulty recovered signers {:?}", mis),
-			CliqueTooRecentlySigned(ref address) => format!("The signer: {} has signed a block too recently", address),
-			Custom(ref s) => s.clone(),
-			DoubleVote(ref address) => format!("Author {} issued too many blocks.", address),
-			NotProposer(ref mis) => format!("Author is not a current proposer: {}", mis),
-			NotAuthorized(ref address) => format!("Signer {} is not authorized.", address),
-			UnexpectedMessage => "This Engine should not be fed messages.".into(),
-			BadSealFieldSize(ref oob) => format!("Seal field has an unexpected length: {}", oob),
-			InsufficientProof(ref msg) => format!("Insufficient validation proof: {}", msg),
-			FailedSystemCall(ref msg) => format!("Failed to make system call: {}", msg),
-			MalformedMessage(ref msg) => format!("Received malformed consensus message: {}", msg),
-			RequiresClient => format!("Call requires client but none registered"),
-			RequiresSigner => format!("Call requires signer but none registered"),
-			InvalidEngine => format!("Invalid engine specification or implementation"),
-			MissingParent(ref hash) => format!("Parent Epoch is missing from database: {}", hash),
-		};
-
-		f.write_fmt(format_args!("Engine error ({})", msg))
-	}
-}
-
-impl error::Error for EngineError {
-	fn description(&self) -> &str {
-		"Engine error"
-	}
-}
 
 /// Seal type.
 #[derive(Debug, PartialEq, Eq)]
@@ -160,17 +73,6 @@ pub enum Seal {
 	Regular(Vec<Bytes>),
 	/// Engine does not generate seal for this block right now.
 	None,
-}
-
-/// The type of sealing the engine is currently able to perform.
-#[derive(Debug, PartialEq, Eq)]
-pub enum SealingState {
-	/// The engine is ready to seal a block.
-	Ready,
-	/// The engine can't seal at the moment, and no block should be prepared and queued.
-	NotReady,
-	/// The engine does not seal internally.
-	External,
 }
 
 /// A system-calling closure. Enacts calls on a block's state from the system address.
@@ -189,7 +91,7 @@ pub enum SystemOrCodeCallKind {
 }
 
 /// Default SystemOrCodeCall implementation.
-pub fn default_system_or_code_call<'a>(machine: &'a ::machine::Machine, block: &'a mut ::block::ExecutedBlock) -> impl FnMut(SystemOrCodeCallKind, Vec<u8>) -> Result<Vec<u8>, String> + 'a {
+pub fn default_system_or_code_call<'a>(machine: &'a Machine, block: &'a mut ::block::ExecutedBlock) -> impl FnMut(SystemOrCodeCallKind, Vec<u8>) -> Result<Vec<u8>, String> + 'a {
 	move |to, data| {
 		let result = match to {
 			SystemOrCodeCallKind::Address(address) => {
@@ -218,16 +120,10 @@ pub fn default_system_or_code_call<'a>(machine: &'a ::machine::Machine, block: &
 	}
 }
 
-/// Type alias for a function we can get headers by hash through.
-pub type Headers<'a, H> = dyn Fn(H256) -> Option<H> + 'a;
-
-/// Type alias for a function we can query pending transitions by block hash through.
-pub type PendingTransitionStore<'a> = dyn Fn(H256) -> Option<epoch::PendingTransition> + 'a;
-
 /// Proof dependent on state.
 pub trait StateDependentProof: Send + Sync {
 	/// Generate a proof, given the state.
-	fn generate_proof<'a>(&self, state: &machine::Call) -> Result<Vec<u8>, String>;
+	fn generate_proof<'a>(&self, state: &machine_types::Call) -> Result<Vec<u8>, String>;
 	/// Check a proof generated elsewhere (potentially by a peer).
 	// `engine` needed to check state proofs, while really this should
 	// just be state machine params.
@@ -360,7 +256,7 @@ pub trait Engine: Sync + Send {
 	fn verify_block_external(&self, _header: &Header) -> Result<(), Error> { Ok(()) }
 
 	/// Genesis epoch data.
-	fn genesis_epoch_data<'a>(&self, _header: &Header, _state: &machine::Call) -> Result<Vec<u8>, String> { Ok(Vec::new()) }
+	fn genesis_epoch_data<'a>(&self, _header: &Header, _state: &machine_types::Call) -> Result<Vec<u8>, String> { Ok(Vec::new()) }
 
 	/// Whether an epoch change is signalled at the given header but will require finality.
 	/// If a change can be enacted immediately then return `No` from this function but
@@ -371,9 +267,7 @@ pub trait Engine: Sync + Send {
 	/// Return `Yes` or `No` when the answer is definitively known.
 	///
 	/// Should not interact with state.
-	fn signals_epoch_end<'a>(&self, _header: &Header, _aux: AuxiliaryData<'a>)
-		-> EpochChange
-	{
+	fn signals_epoch_end<'a>(&self, _header: &Header, _aux: AuxiliaryData<'a>) -> EpochChange {
 		EpochChange::No
 	}
 
@@ -475,9 +369,7 @@ pub trait Engine: Sync + Send {
 	}
 
 	/// Get the general parameters of the chain.
-	fn params(&self) -> &CommonParams {
-		self.machine().params()
-	}
+	fn params(&self) -> &CommonParams;
 
 	/// Get the EVM schedule for the given block number.
 	fn schedule(&self, block_number: BlockNumber) -> Schedule {
@@ -496,9 +388,7 @@ pub trait Engine: Sync + Send {
 	}
 
 	/// Some intrinsic operation parameters; by default they take their value from the `spec()`'s `engine_params`.
-	fn maximum_extra_data_size(&self) -> usize {
-		self.machine().maximum_extra_data_size()
-	}
+	fn maximum_extra_data_size(&self) -> usize { self.params().maximum_extra_data_size }
 
 	/// The nonce with which accounts begin at given block.
 	fn account_start_nonce(&self, block: BlockNumber) -> U256 {

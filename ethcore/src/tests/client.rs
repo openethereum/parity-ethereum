@@ -27,7 +27,8 @@ use types::filter::Filter;
 use types::view;
 use types::views::BlockView;
 
-use client::{BlockChainClient, BlockChainReset, Client, ClientConfig, BlockId, ChainInfo, BlockInfo, PrepareOpenBlock, ImportSealedBlock, ImportBlock};
+use client::{BlockChainClient, BlockChainReset, Client, ClientConfig, BlockId, ChainInfo, PrepareOpenBlock, ImportSealedBlock, ImportBlock};
+use client::BlockInfo;
 use ethereum;
 use executive::{Executive, TransactOptions};
 use miner::{Miner, PendingOrdering, MinerService};

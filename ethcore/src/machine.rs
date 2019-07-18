@@ -22,17 +22,24 @@ use std::sync::Arc;
 
 use ethereum_types::{U256, H256, Address};
 use rlp::Rlp;
-use types::transaction::{self, SYSTEM_ADDRESS, UNSIGNED_SENDER, UnverifiedTransaction, SignedTransaction};
-use types::BlockNumber;
-use types::header::Header;
-use vm::{CallType, ActionParams, ActionValue, ParamsType, EnvInfo, Schedule};
+use types::{
+	BlockNumber,
+	header::Header,
+	engines::{
+		EthashExtensions,
+		params::CommonParams,
+	},
+	errors::{EngineError, EthcoreError as Error},
+	transaction::{self, SYSTEM_ADDRESS, UNSIGNED_SENDER, UnverifiedTransaction, SignedTransaction},
+};
+use vm::{CallType, ActionParams, ActionValue, ParamsType};
+use vm::{EnvInfo, Schedule};
+
 use block::ExecutedBlock;
 use builtin::Builtin;
 use call_contract::CallContract;
 use client::BlockInfo;
-use error::Error;
 use executive::Executive;
-use spec::CommonParams;
 use account_state::CleanupMode;
 use substate::Substate;
 use trace::{NoopTracer, NoopVMTracer};
@@ -40,30 +47,6 @@ use tx_filter::TransactionFilter;
 
 /// Parity tries to round block.gas_limit to multiple of this constant
 pub const PARITY_GAS_LIMIT_DETERMINANT: U256 = U256([37, 0, 0, 0]);
-
-/// Ethash-specific extensions.
-#[derive(Debug, Clone)]
-pub struct EthashExtensions {
-	/// Homestead transition block number.
-	pub homestead_transition: BlockNumber,
-	/// DAO hard-fork transition block (X).
-	pub dao_hardfork_transition: u64,
-	/// DAO hard-fork refund contract address (C).
-	pub dao_hardfork_beneficiary: Address,
-	/// DAO hard-fork DAO accounts list (L)
-	pub dao_hardfork_accounts: Vec<Address>,
-}
-
-impl From<::ethjson::spec::EthashParams> for EthashExtensions {
-	fn from(p: ::ethjson::spec::EthashParams) -> Self {
-		EthashExtensions {
-			homestead_transition: p.homestead_transition.map_or(0, Into::into),
-			dao_hardfork_transition: p.dao_hardfork_transition.map_or(u64::max_value(), Into::into),
-			dao_hardfork_beneficiary: p.dao_hardfork_beneficiary.map_or_else(Address::zero, Into::into),
-			dao_hardfork_accounts: p.dao_hardfork_accounts.unwrap_or_else(Vec::new).into_iter().map(Into::into).collect(),
-		}
-	}
-}
 
 /// Special rules to be applied to the schedule.
 pub type ScheduleCreationRules = dyn Fn(&mut Schedule, BlockNumber) + Sync + Send;
@@ -182,7 +165,7 @@ impl Machine {
 		let mut ex = Executive::new(&mut state, &env_info, self, &schedule);
 		let mut substate = Substate::new();
 
-		let res = ex.call(params, &mut substate, &mut NoopTracer, &mut NoopVMTracer).map_err(|e| ::engines::EngineError::FailedSystemCall(format!("{}", e)))?;
+		let res = ex.call(params, &mut substate, &mut NoopTracer, &mut NoopVMTracer).map_err(|e| EngineError::FailedSystemCall(format!("{}", e)))?;
 		let output = res.return_data.to_vec();
 
 		Ok(output)
@@ -366,9 +349,12 @@ impl Machine {
 	}
 
 	/// Does verification of the transaction against the parent state.
-	pub fn verify_transaction<C: BlockInfo + CallContract>(&self, t: &SignedTransaction, parent: &Header, client: &C)
-		-> Result<(), transaction::Error>
-	{
+	pub fn verify_transaction<C: BlockInfo + CallContract>(
+		&self,
+		t: &SignedTransaction,
+		parent: &Header,
+		client: &C
+	) -> Result<(), transaction::Error> {
 		if let Some(ref filter) = self.tx_filter.as_ref() {
 			if !filter.transaction_allowed(&parent.hash(), parent.number() + 1, t, client) {
 				return Err(transaction::Error::NotAllowed.into())
@@ -398,30 +384,6 @@ impl Machine {
 	pub fn add_balance(&self, live: &mut ExecutedBlock, address: &Address, amount: &U256) -> Result<(), Error> {
 		live.state_mut().add_balance(address, amount, CleanupMode::NoEmpty).map_err(Into::into)
 	}
-}
-/// Auxiliary data fetcher for an Ethereum machine. In Ethereum-like machines
-/// there are two kinds of auxiliary data: bodies and receipts.
-#[derive(Default, Clone)]
-pub struct AuxiliaryData<'a> {
-	/// The full block bytes, including the header.
-	pub bytes: Option<&'a [u8]>,
-	/// The block receipts.
-	pub receipts: Option<&'a [::types::receipt::Receipt]>,
-}
-
-/// Type alias for a function we can make calls through synchronously.
-/// Returns the call result and state proof for each call.
-pub type Call<'a> = dyn Fn(Address, Vec<u8>) -> Result<(Vec<u8>, Vec<Vec<u8>>), String> + 'a;
-
-/// Request for auxiliary data of a block.
-#[derive(Debug, Clone, Copy, PartialEq)]
-pub enum AuxiliaryRequest {
-	/// Needs the body.
-	Body,
-	/// Needs the receipts.
-	Receipts,
-	/// Needs both body and receipts.
-	Both,
 }
 
 // Try to round gas_limit a bit so that:

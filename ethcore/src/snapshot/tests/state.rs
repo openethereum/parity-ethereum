@@ -20,14 +20,14 @@ use std::sync::Arc;
 use std::sync::atomic::AtomicBool;
 use hash::{KECCAK_NULL_RLP, keccak};
 
-use types::basic_account::BasicAccount;
+use types::{
+	basic_account::BasicAccount,
+	errors::EthcoreError as Error,
+};
 use snapshot::account;
 use snapshot::{chunk_state, Error as SnapshotError, Progress, StateRebuilder, SNAPSHOT_SUBPARTS};
 use snapshot::io::{PackedReader, PackedWriter, SnapshotReader, SnapshotWriter};
 use super::helpers::StateProducer;
-
-use error::Error;
-
 use rand::SeedableRng;
 use rand_xorshift::XorShiftRng;
 use ethereum_types::H256;

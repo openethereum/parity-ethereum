@@ -26,12 +26,11 @@ use std::time::{UNIX_EPOCH, Duration};
 
 use block::*;
 use client::EngineClient;
-use engines::{Engine, Seal, SealingState, EngineError, ConstructedVerifier};
+use engines::{Engine, Seal, ConstructedVerifier};
 use engines::block_reward;
 use engines::block_reward::{BlockRewardContract, RewardKind};
-use error::{Error, BlockError};
 use ethjson;
-use machine::{AuxiliaryData, Call, Machine};
+use machine::Machine;
 use hash::keccak;
 use super::signer::EngineSigner;
 use super::validator_set::{ValidatorSet, SimpleList, new_validator_set};
@@ -43,9 +42,17 @@ use rlp::{encode, Decodable, DecoderError, Encodable, RlpStream, Rlp};
 use ethereum_types::{H256, H520, Address, U128, U256};
 use parking_lot::{Mutex, RwLock};
 use time_utils::CheckedSystemTime;
-use types::BlockNumber;
-use types::header::{Header, ExtendedHeader};
-use types::ancestry_action::AncestryAction;
+use types::{
+	ancestry_action::AncestryAction,
+	BlockNumber,
+	header::{Header, ExtendedHeader},
+	engines::{
+		params::CommonParams,
+		SealingState,
+		machine::{Call, AuxiliaryData},
+	},
+	errors::{BlockError, EthcoreError as Error, EngineError},
+};
 use unexpected::{Mismatch, OutOfBounds};
 
 mod finality;
@@ -270,7 +277,7 @@ impl EpochManager {
 				.ok()
 				.map(|(list, _)| {
 					trace!(target: "engine", "Updating finality checker with new validator set extracted from epoch ({}, {}): {:?}",
-					       last_transition.block_number, last_transition.block_hash, &list);
+						last_transition.block_number, last_transition.block_hash, &list);
 
 					list.into_inner()
 				})
@@ -536,7 +543,7 @@ fn header_step(header: &Header, empty_steps_transition: u64) -> Result<u64, ::rl
 fn header_signature(header: &Header, empty_steps_transition: u64) -> Result<Signature, ::rlp::DecoderError> {
 	Rlp::new(&header.seal().get(1).unwrap_or_else(||
 		panic!("was checked with verify_block_basic; has {} fields; qed",
-			   header_expected_seal_fields(header, empty_steps_transition))
+			header_expected_seal_fields(header, empty_steps_transition))
 	))
 	.as_val::<H520>().map(Into::into)
 }
@@ -815,7 +822,7 @@ impl AuthorityRound {
 
 		if let (true, Some(me)) = (current_step > parent_step + 1, self.address()) {
 			debug!(target: "engine", "Author {} built block with step gap. current step: {}, parent step: {}",
-				   header.author(), current_step, parent_step);
+				header.author(), current_step, parent_step);
 			let mut reported = HashSet::new();
 			for step in parent_step + 1..current_step {
 				let skipped_primary = step_proposer(validators, header.parent_hash(), step);
@@ -853,7 +860,7 @@ impl AuthorityRound {
 		if epoch_manager.finality_checker.subchain_head() != Some(*chain_head.parent_hash()) {
 			// build new finality checker from unfinalized ancestry of chain head, not including chain head itself yet.
 			trace!(target: "finality", "Building finality up to parent of {} ({})",
-				   chain_head.hash(), chain_head.parent_hash());
+				chain_head.hash(), chain_head.parent_hash());
 
 			// the empty steps messages in a header signal approval of the
 			// parent header.
@@ -984,9 +991,9 @@ impl Engine for AuthorityRound {
 			let empty_steps =
 				if let Ok(empty_steps) = header_empty_steps(header).as_ref() {
 					format!("[{}]",
-							empty_steps.iter().fold(
-								"".to_string(),
-								|acc, e| if acc.len() > 0 { acc + ","} else { acc } + &e.to_string()))
+						empty_steps.iter().fold(
+							"".to_string(),
+							|acc, e| if acc.len() > 0 { acc + ","} else { acc } + &e.to_string()))
 
 				} else {
 					"".into()
@@ -1061,7 +1068,7 @@ impl Engine for AuthorityRound {
 
 		if !is_step_proposer(&*validators, &parent.hash(), step, &our_addr) {
 			trace!(target: "engine", "Not preparing block: not a proposer for step {}. (Our address: {})",
-				   step, our_addr);
+				step, our_addr);
 			return SealingState::NotReady;
 		}
 
@@ -1119,7 +1126,7 @@ impl Engine for AuthorityRound {
 
 		if header.difficulty() != &expected_diff {
 			debug!(target: "engine", "Aborting seal generation. The step or empty_steps have changed in the meantime. {:?} != {:?}",
-				   header.difficulty(), expected_diff);
+				header.difficulty(), expected_diff);
 			return Seal::None;
 		}
 
@@ -1297,7 +1304,7 @@ impl Engine for AuthorityRound {
 				//   likely ignore old reports
 				// - This specific check is only relevant if you're importing (since it checks
 				//   against wall clock)
-				if let Ok((_,  set_number)) = self.epoch_set(header) {
+				if let Ok((_, set_number)) = self.epoch_set(header) {
 					trace!(target: "engine", "Reporting benign misbehaviour (cause: InvalidSeal) at block #{}, epoch set number {}. Own address: {}",
 						header.number(), set_number, self.address().unwrap_or_default());
 					self.validators.report_benign(header.author(), set_number, header.number());
@@ -1420,9 +1427,7 @@ impl Engine for AuthorityRound {
 			.map(|set_proof| combine_proofs(0, &set_proof, &[]))
 	}
 
-	fn signals_epoch_end(&self, header: &Header, aux: AuxiliaryData)
-		-> super::EpochChange
-	{
+	fn signals_epoch_end(&self, header: &Header, aux: AuxiliaryData) -> super::EpochChange {
 		if self.immediate_transitions { return super::EpochChange::No }
 
 		let first = header.number() == 0;
@@ -1604,6 +1609,10 @@ impl Engine for AuthorityRound {
 
 		finalized.into_iter().map(AncestryAction::MarkFinalized).collect()
 	}
+
+	fn params(&self) -> &CommonParams {
+		self.machine.params()
+	}
 }
 
 #[cfg(test)]
@@ -1615,7 +1624,12 @@ mod tests {
 	use accounts::AccountProvider;
 	use ethereum_types::{Address, H520, H256, U256};
 	use ethkey::Signature;
-	use types::header::Header;
+	use types::{
+		header::Header,
+		engines::params::CommonParams,
+		errors::{EthcoreError as Error, EngineError},
+		transaction::{Action, Transaction},
+	};
 	use rlp::encode;
 	use block::*;
 	use test_helpers::{
@@ -1623,10 +1637,8 @@ mod tests {
 		TestNotify
 	};
 	use spec::Spec;
-	use types::transaction::{Action, Transaction};
-	use engines::{Seal, Engine, EngineError};
+	use engines::{Seal, Engine};
 	use engines::validator_set::{TestSet, SimpleList};
-	use error::Error;
 	use super::{AuthorityRoundParams, AuthorityRound, EmptyStep, SealedEmptyStep, calculate_score};
 	use machine::Machine;
 
@@ -1653,7 +1665,7 @@ mod tests {
 		// mutate aura params
 		f(&mut params);
 		// create engine
-		let mut c_params = ::spec::CommonParams::default();
+		let mut c_params = CommonParams::default();
 		c_params.gas_limit_bound_divisor = 5.into();
 		let machine = Machine::regular(c_params, Default::default());
 		AuthorityRound::new(params, machine).unwrap()

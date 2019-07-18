@@ -36,7 +36,7 @@ use client::BlockInfo;
 pub enum VerifierType {
 	/// Verifies block normally.
 	Canon,
-	/// Verifies block normallly, but skips seal verification.
+	/// Verifies block normally, but skips seal verification.
 	CanonNoSeal,
 	/// Does not verify block at all.
 	/// Used in tests.

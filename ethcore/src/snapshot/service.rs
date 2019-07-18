@@ -28,12 +28,13 @@ use super::{ManifestData, StateRebuilder, Rebuilder, RestorationStatus, Snapshot
 use super::io::{SnapshotReader, LooseReader, SnapshotWriter, LooseWriter};
 
 use blockchain::{BlockChain, BlockChainDB, BlockChainDBHandler};
-use client::{BlockInfo, BlockChainClient, Client, ChainInfo, ClientIoMessage};
+use client::{BlockChainClient, Client, ChainInfo, BlockInfo, ClientIoMessage};
 use engines::Engine;
-use error::Error;
-use snapshot::{Error as SnapshotError};
 use hash::keccak;
-use types::ids::BlockId;
+use types::{
+	errors::{EthcoreError as Error, SnapshotError, SnapshotError::UnlinkedAncientBlockChain},
+	ids::BlockId,
+};
 
 use io::IoChannel;
 
@@ -43,7 +44,6 @@ use bytes::Bytes;
 use journaldb::Algorithm;
 use kvdb::DBTransaction;
 use snappy;
-use snapshot::error::Error::UnlinkedAncientBlockChain;
 
 /// Helper for removing directories in case of error.
 struct Guard(bool, PathBuf);

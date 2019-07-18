@@ -36,7 +36,8 @@ use types::header::Header;
 use parking_lot::RwLock;
 
 use call_contract::CallContract;
-use client::{TransactionId, BlockInfo, Nonce};
+use client::{TransactionId, Nonce};
+use client::BlockInfo;
 use engines::Engine;
 use miner;
 use transaction_ext::Transaction;

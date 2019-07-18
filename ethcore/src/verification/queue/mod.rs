@@ -26,10 +26,10 @@ use parity_util_mem::{MallocSizeOf, MallocSizeOfExt};
 use ethereum_types::{H256, U256};
 use parking_lot::{Condvar, Mutex, RwLock};
 use io::*;
-use error::{BlockError, ImportError, Error};
 use engines::Engine;
 use client::ClientIoMessage;
 use len_caching_lock::LenCachingMutex;
+use types::errors::{BlockError, EthcoreError as Error, ImportError};
 
 use self::kind::{BlockLike, Kind};
 
@@ -738,10 +738,12 @@ mod tests {
 	use super::{BlockQueue, Config, State};
 	use super::kind::blocks::Unverified;
 	use test_helpers::{get_good_dummy_block_seq, get_good_dummy_block};
-	use error::*;
 	use bytes::Bytes;
-	use types::view;
-	use types::views::BlockView;
+	use types::{
+		view,
+		views::BlockView,
+		errors::{EthcoreError, ImportError},
+	};
 
 	// create a test block queue.
 	// auto_scaling enables verifier adjustment.
@@ -792,7 +794,7 @@ mod tests {
 		match duplicate_import {
 			Err((_, e)) => {
 				match e {
-					Error::Import(ImportError::AlreadyQueued) => {},
+					EthcoreError::Import(ImportError::AlreadyQueued) => {},
 					_ => { panic!("must return AlreadyQueued error"); }
 				}
 			}

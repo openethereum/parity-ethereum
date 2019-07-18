@@ -68,22 +68,27 @@ use std::time::{Instant, Duration, SystemTime, UNIX_EPOCH};
 use block::ExecutedBlock;
 use client::{BlockId, EngineClient};
 use engines::clique::util::{extract_signers, recover_creator};
-use engines::{Engine, EngineError, Seal, SealingState};
-use error::{BlockError, Error};
+use engines::{Engine, Seal, SealingState, EthashSeal};
 use ethereum_types::{Address, H64, H160, H256, U256};
 use ethkey::Signature;
 use hash::KECCAK_EMPTY_LIST_RLP;
 use itertools::Itertools;
 use lru_cache::LruCache;
-use machine::{Call, Machine};
+use machine::Machine;
 use parking_lot::RwLock;
 use rand::Rng;
 use super::signer::EngineSigner;
 use unexpected::{Mismatch, OutOfBounds};
 use time_utils::CheckedSystemTime;
-use types::BlockNumber;
-use types::header::Header;
-use ethereum::ethash;
+use types::{
+	BlockNumber,
+	header::Header,
+	engines::{
+		params::CommonParams,
+		machine::Call,
+	},
+	errors::{BlockError, EthcoreError as Error, EngineError},
+};
 
 use self::block_state::CliqueBlockState;
 use self::params::CliqueParams;
@@ -255,8 +260,7 @@ impl Clique {
 	fn new_checkpoint_state(&self, header: &Header) -> Result<CliqueBlockState, Error> {
 		debug_assert_eq!(header.number() % self.epoch_length, 0);
 
-		let mut state = CliqueBlockState::new(
-			extract_signers(header)?);
+		let mut state = CliqueBlockState::new(extract_signers(header)?);
 
 		// TODO(niklasad1): refactor to perform this check in the `CliqueBlockState` constructor instead
 		state.calc_next_timestamp(header.timestamp(), self.period)?;
@@ -364,7 +368,7 @@ impl Engine for Clique {
 
 	fn extra_info(&self, header: &Header) -> BTreeMap<String, String> {
 		// clique engine seal fields are the same as ethash seal fields
-		match ethash::Seal::parse_seal(header.seal()) {
+		match EthashSeal::parse_seal(header.seal()) {
 			Ok(seal) => map![
 				"nonce".to_owned() => format!("{:#x}", seal.nonce),
 				"mixHash".to_owned() => format!("{:#x}", seal.mix_hash)
@@ -499,7 +503,7 @@ impl Engine for Clique {
 			match self.state(&parent) {
 				Err(e) => {
 					warn!(target: "engine", "generate_seal: can't get parent state(number: {}, hash: {}): {} ",
-							parent.number(), parent.hash(), e);
+						parent.number(), parent.hash(), e);
 					return Seal::None;
 				}
 				Ok(state) => {
@@ -522,9 +526,8 @@ impl Engine for Clique {
 
 					// Wait for the right moment.
 					if now < limit {
-						trace!(target: "engine",
-								"generate_seal: sleeping to sign: inturn: {}, now: {:?}, to: {:?}.",
-								inturn, now, limit);
+						trace!(target: "engine", "generate_seal: sleeping to sign: inturn: {}, now: {:?}, to: {:?}.",
+							inturn, now, limit);
 						match limit.duration_since(SystemTime::now()) {
 							Ok(duration) => {
 								thread::sleep(duration);
@@ -537,7 +540,7 @@ impl Engine for Clique {
 					}
 
 					trace!(target: "engine", "generate_seal: seal ready for block {}, txs: {}.",
-							block.header.number(), block.transactions.len());
+						block.header.number(), block.transactions.len());
 					return Seal::Regular(null_seal);
 				}
 			}
@@ -560,7 +563,7 @@ impl Engine for Clique {
 			let limit = CheckedSystemTime::checked_add(SystemTime::now(), Duration::from_secs(self.period))
 				.ok_or(BlockError::TimestampOverflow)?;
 
-			// This should succeed under the contraints that the system clock works
+			// This should succeed under the constraints that the system clock works
 			let limit_as_dur = limit.duration_since(UNIX_EPOCH).map_err(|e| {
 				Box::new(format!("Converting SystemTime to Duration failed: {}", e))
 			})?;
@@ -721,7 +724,7 @@ impl Engine for Clique {
 			// it's just to ignore setting a correct difficulty here, we will check authorization in next step in generate_seal anyway.
 			if let Some(signer) = self.signer.read().as_ref() {
 				let state = match self.state(&parent) {
-					Err(e) =>  {
+					Err(e) => {
 						trace!(target: "engine", "populate_from_parent: Unable to find parent state: {}, ignored.", e);
 						return;
 					}
@@ -781,5 +784,9 @@ impl Engine for Clique {
 	// So when executing tx's (like in `enact()`) we want to use the executive author
 	fn executive_author(&self, header: &Header) -> Result<Address, Error> {
 		recover_creator(header)
+	}
+
+	fn params(&self) -> &CommonParams {
+		self.machine.params()
 	}
 }

@@ -23,7 +23,6 @@ use ethereum_types::{H256, U256, U512, Address};
 use bytes::{Bytes, BytesRef};
 use account_state::{Backend as StateBackend, State, CleanupMode};
 use substate::Substate;
-use executed::ExecutionError;
 use machine::Machine;
 use evm::{CallType, Finalize, FinalizationResult};
 use vm::{
@@ -33,7 +32,10 @@ use vm::{
 use trie_vm_factories::VmFactory;
 use externalities::*;
 use trace::{self, Tracer, VMTracer};
-use types::transaction::{Action, SignedTransaction};
+use types::{
+	errors::ExecutionError,
+	transaction::{Action, SignedTransaction},
+};
 use transaction_ext::Transaction;
 use crossbeam_utils::thread;
 pub use executed::{Executed, ExecutionResult};
@@ -1215,7 +1217,6 @@ mod tests {
 	use ethereum_types::{H256, U256, U512, Address, BigEndianHash};
 	use vm::{ActionParams, ActionValue, CallType, EnvInfo, CreateContractAddress};
 	use evm::{Factory, VMType};
-	use error::ExecutionError;
 	use machine::Machine;
 	use account_state::CleanupMode;
 	use substate::Substate;
@@ -1223,7 +1224,10 @@ mod tests {
 	use trace::trace;
 	use trace::{FlatTrace, Tracer, NoopTracer, ExecutiveTracer};
 	use trace::{VMTrace, VMOperation, VMExecutedOperation, MemoryDiff, StorageDiff, VMTracer, NoopVMTracer, ExecutiveVMTracer};
-	use types::transaction::{Action, Transaction};
+	use types::{
+		errors::ExecutionError,
+		transaction::{Action, Transaction},
+	};
 
 	fn make_frontier_machine(max_depth: usize) -> Machine {
 		let mut machine = ::ethereum::new_frontier_test_machine();

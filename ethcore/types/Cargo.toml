@@ -5,15 +5,21 @@ version = "0.1.0"
 authors = ["Parity Technologies <admin@parity.io>"]
 
 [dependencies]
+derive_more = "0.15.0"
+ethbloom = "0.6"
+ethcore-io = { path = "../../util/io" }
 ethereum-types = "0.6.0"
 ethjson = { path = "../../json" }
-parity-util-mem = "0.1"
 ethkey = { path = "../../accounts/ethkey" }
 keccak-hash = "0.2.0"
 parity-bytes = "0.1"
+parity-util-mem = "0.1"
+parity-snappy = "0.1"
+patricia-trie-ethereum = { path = "../../util/patricia-trie-ethereum" }
 rlp = "0.4.0"
 rlp_derive = { path = "../../util/rlp-derive" }
 unexpected = { path = "../../util/unexpected" }
+vm = { path = "../vm"}
 
 [dev-dependencies]
-rustc-hex= "1.0"
+rustc-hex= "1.0" # todo: only needed for CommonParams to do from_hex on a const. Remove?

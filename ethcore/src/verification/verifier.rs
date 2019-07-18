@@ -19,8 +19,10 @@
 use call_contract::CallContract;
 use client::BlockInfo;
 use engines::Engine;
-use error::Error;
-use types::header::Header;
+use types::{
+	header::Header,
+	errors::EthcoreError as Error,
+};
 use super::verification;
 
 /// Should be used to verify blocks.

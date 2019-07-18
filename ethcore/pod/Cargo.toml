@@ -1,8 +1,9 @@
 [package]
-description = "State/Account system expressed in Plain Old Data."
 name = "pod"
-version = "0.1.0"
+description = "State/Account system expressed in Plain Old Data."
 authors = ["Parity Technologies <admin@parity.io>"]
+license = "GPL-3.0"
+version = "0.1.0"
 edition = "2018"
 
 [dependencies]

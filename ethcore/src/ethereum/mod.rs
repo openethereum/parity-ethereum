@@ -19,14 +19,6 @@
 //! Contains all Ethereum network specific stuff, such as denominations and
 //! consensus specifications.
 
-/// Export the ethash module.
-pub mod ethash;
-/// Export the denominations module.
-pub mod denominations;
-
-pub use self::ethash::{Ethash};
-pub use self::denominations::*;
-
 use machine::Machine;
 use super::spec::*;
 

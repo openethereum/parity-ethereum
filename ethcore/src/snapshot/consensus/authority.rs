@@ -25,7 +25,7 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 
 use engines::{Engine, EpochVerifier, EpochTransition};
-use snapshot::{Error, ManifestData, Progress};
+use snapshot::{ManifestData, Progress};
 
 use blockchain::{BlockChain, BlockChainDB, BlockProvider};
 use bytes::Bytes;
@@ -33,10 +33,13 @@ use ethereum_types::{H256, U256};
 use itertools::{Position, Itertools};
 use kvdb::KeyValueDB;
 use rlp::{RlpStream, Rlp};
-use types::encoded;
-use types::header::Header;
-use types::ids::BlockId;
-use types::receipt::Receipt;
+use types::{
+	encoded,
+	header::Header,
+	ids::BlockId,
+	errors::{SnapshotError, EthcoreError},
+	receipt::Receipt,
+};
 
 /// Snapshot creation and restoration for PoA chains.
 /// Chunk format:
@@ -59,9 +62,9 @@ impl SnapshotComponents for PoaSnapshot {
 		sink: &mut ChunkSink,
 		_progress: &Progress,
 		preferred_size: usize,
-	) -> Result<(), Error> {
+	) -> Result<(), SnapshotError> {
 		let number = chain.block_number(&block_at)
-			.ok_or_else(|| Error::InvalidStartingBlock(BlockId::Hash(block_at)))?;
+			.ok_or_else(||SnapshotError::InvalidStartingBlock(BlockId::Hash(block_at)))?;
 
 		let mut pending_size = 0;
 		let mut rlps = Vec::new();
@@ -75,7 +78,7 @@ impl SnapshotComponents for PoaSnapshot {
 			}
 
 			let header = chain.block_header_data(&transition.block_hash)
-				.ok_or_else(|| Error::BlockNotFound(transition.block_hash))?;
+				.ok_or_else(||SnapshotError::BlockNotFound(transition.block_hash))?;
 
 			let entry = {
 				let mut entry_stream = RlpStream::new_list(2);
@@ -100,12 +103,12 @@ impl SnapshotComponents for PoaSnapshot {
 
 		let (block, receipts) = chain.block(&block_at)
 			.and_then(|b| chain.block_receipts(&block_at).map(|r| (b, r)))
-			.ok_or_else(|| Error::BlockNotFound(block_at))?;
+			.ok_or_else(||SnapshotError::BlockNotFound(block_at))?;
 		let block = block.decode()?;
 
 		let parent_td = chain.block_details(block.header.parent_hash())
 			.map(|d| d.total_difficulty)
-			.ok_or_else(|| Error::BlockNotFound(block_at))?;
+			.ok_or_else(||SnapshotError::BlockNotFound(block_at))?;
 
 		rlps.push({
 			let mut stream = RlpStream::new_list(5);
@@ -128,11 +131,11 @@ impl SnapshotComponents for PoaSnapshot {
 		chain: BlockChain,
 		db: Arc<dyn BlockChainDB>,
 		manifest: &ManifestData,
-	) -> Result<Box<dyn Rebuilder>, ::error::Error> {
+	) -> Result<Box<dyn Rebuilder>, EthcoreError> {
 		Ok(Box::new(ChunkRebuilder {
 			manifest: manifest.clone(),
 			warp_target: None,
-			chain: chain,
+			chain,
 			db: db.key_value().clone(),
 			had_genesis: false,
 			unverified_firsts: Vec::new(),
@@ -146,7 +149,7 @@ impl SnapshotComponents for PoaSnapshot {
 
 // writes a chunk composed of the inner RLPs here.
 // flag indicates whether the chunk is the last chunk.
-fn write_chunk(last: bool, chunk_data: &mut Vec<Bytes>, sink: &mut ChunkSink) -> Result<(), Error> {
+fn write_chunk(last: bool, chunk_data: &mut Vec<Bytes>, sink: &mut ChunkSink) -> Result<(), SnapshotError> {
 	let mut stream = RlpStream::new_list(1 + chunk_data.len());
 
 	stream.append(&last);
@@ -185,7 +188,7 @@ impl ChunkRebuilder {
 		last_verifier: &mut Option<Box<dyn EpochVerifier>>,
 		transition_rlp: Rlp,
 		engine: &dyn Engine,
-	) -> Result<Verified, ::error::Error> {
+	) -> Result<Verified, EthcoreError> {
 		use engines::ConstructedVerifier;
 
 		// decode.
@@ -202,7 +205,7 @@ impl ChunkRebuilder {
 					Some(ref last) =>
 						if last.check_finality_proof(finality_proof).map_or(true, |hashes| !hashes.contains(&hash))
 					{
-						return Err(Error::BadEpochProof(header.number()).into());
+						return Err(SnapshotError::BadEpochProof(header.number()).into());
 					},
 					None if header.number() != 0 => {
 						// genesis never requires additional validation.
@@ -231,7 +234,7 @@ impl ChunkRebuilder {
 				block_number: header.number(),
 				proof: epoch_data,
 			},
-			header: header,
+			header,
 		})
 	}
 }
@@ -242,7 +245,7 @@ impl Rebuilder for ChunkRebuilder {
 		chunk: &[u8],
 		engine: &dyn Engine,
 		abort_flag: &AtomicBool,
-	) -> Result<(), ::error::Error> {
+	) -> Result<(), EthcoreError> {
 		let rlp = Rlp::new(chunk);
 		let is_last_chunk: bool = rlp.val_at(0)?;
 		let num_items = rlp.item_count()?;
@@ -255,13 +258,13 @@ impl Rebuilder for ChunkRebuilder {
 		};
 
 		if num_transitions == 0 && !is_last_chunk {
-			return Err(Error::WrongChunkFormat("Found non-last chunk without any data.".into()).into());
+			return Err(SnapshotError::WrongChunkFormat("Found non-last chunk without any data.".into()).into());
 		}
 
 		let mut last_verifier = None;
 		let mut last_number = None;
 		for transition_rlp in rlp.iter().skip(1).take(num_transitions).with_position() {
-			if !abort_flag.load(Ordering::SeqCst) { return Err(Error::RestorationAborted.into()) }
+			if !abort_flag.load(Ordering::SeqCst) { return Err(SnapshotError::RestorationAborted.into()) }
 
 			let (is_first, is_last) = match transition_rlp {
 				Position::First(_) => (true, false),
@@ -278,7 +281,7 @@ impl Rebuilder for ChunkRebuilder {
 			)?;
 
 			if last_number.map_or(false, |num| verified.header.number() <= num) {
-				return Err(Error::WrongChunkFormat("Later epoch transition in earlier or same block.".into()).into());
+				return Err(SnapshotError::WrongChunkFormat("Later epoch transition in earlier or same block.".into()).into());
 			}
 
 			last_number = Some(verified.header.number());
@@ -289,7 +292,7 @@ impl Rebuilder for ChunkRebuilder {
 				// but it doesn't need verification later.
 				if verified.header.number() == 0 {
 					if verified.header.hash() != self.chain.genesis_hash() {
-						return Err(Error::WrongBlockHash(0, verified.header.hash(), self.chain.genesis_hash()).into());
+						return Err(SnapshotError::WrongBlockHash(0, verified.header.hash(), self.chain.genesis_hash()).into());
 					}
 
 					self.had_genesis = true;
@@ -332,7 +335,7 @@ impl Rebuilder for ChunkRebuilder {
 				let hash = block.header.hash();
 				let best_hash = self.manifest.block_hash;
 				if hash != best_hash {
-					return Err(Error::WrongBlockHash(block.header.number(), best_hash, hash).into())
+					return Err(SnapshotError::WrongBlockHash(block.header.number(), best_hash, hash).into())
 				}
 			}
 
@@ -348,14 +351,14 @@ impl Rebuilder for ChunkRebuilder {
 		Ok(())
 	}
 
-	fn finalize(&mut self) -> Result<(), ::error::Error> {
+	fn finalize(&mut self) -> Result<(), EthcoreError> {
 		if !self.had_genesis {
-			return Err(Error::WrongChunkFormat("No genesis transition included.".into()).into());
+			return Err(SnapshotError::WrongChunkFormat("No genesis transition included.".into()).into());
 		}
 
 		let target_header = match self.warp_target.take() {
 			Some(x) => x,
-			None => return Err(Error::WrongChunkFormat("Warp target block not included.".into()).into()),
+			None => return Err(SnapshotError::WrongChunkFormat("Warp target block not included.".into()).into()),
 		};
 
 		trace!(target: "snapshot", "rebuilder, finalize: verifying {} unverified first blocks", self.unverified_firsts.len());
@@ -368,7 +371,7 @@ impl Rebuilder for ChunkRebuilder {
 			while let Some(&(ref last_header, ref last_verifier)) = lasts_reversed.next() {
 				if last_header.number() < header.number() {
 					if last_verifier.check_finality_proof(&finality_proof).map_or(true, |hashes| !hashes.contains(&hash)) {
-						return Err(Error::BadEpochProof(header.number()).into());
+						return Err(SnapshotError::BadEpochProof(header.number()).into());
 					}
 					found = true;
 					break;
@@ -376,7 +379,7 @@ impl Rebuilder for ChunkRebuilder {
 			}
 
 			if !found {
-				return Err(Error::WrongChunkFormat("Inconsistent chunk ordering.".into()).into());
+				return Err(SnapshotError::WrongChunkFormat("Inconsistent chunk ordering.".into()).into());
 			}
 		}
 

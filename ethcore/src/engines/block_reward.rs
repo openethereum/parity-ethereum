@@ -23,10 +23,12 @@ use ethereum_types::{H160, Address, U256};
 
 use std::sync::Arc;
 use hash::keccak;
-use error::Error;
 use machine::Machine;
 use trace;
-use types::BlockNumber;
+use types::{
+	BlockNumber,
+	errors::{EngineError, EthcoreError as Error},
+};
 use super::{SystemOrCodeCall, SystemOrCodeCallKind};
 use trace::{Tracer, ExecutiveTracer, Tracing};
 use block::ExecutedBlock;
@@ -120,7 +122,7 @@ impl BlockRewardContract {
 
 		let output = caller(self.kind.clone(), input)
 			.map_err(Into::into)
-			.map_err(::engines::EngineError::FailedSystemCall)?;
+			.map_err(EngineError::FailedSystemCall)?;
 
 		// since this is a non-constant call we can't use ethabi's function output
 		// deserialization, sadness ensues.
@@ -131,7 +133,7 @@ impl BlockRewardContract {
 
 		let tokens = ethabi::decode(types, &output)
 			.map_err(|err| err.to_string())
-			.map_err(::engines::EngineError::FailedSystemCall)?;
+			.map_err(EngineError::FailedSystemCall)?;
 
 		assert!(tokens.len() == 2);
 
@@ -139,7 +141,7 @@ impl BlockRewardContract {
 		let rewards = tokens[1].clone().to_array().expect("type checked by ethabi::decode; qed");
 
 		if addresses.len() != rewards.len() {
-			return Err(::engines::EngineError::FailedSystemCall(
+			return Err(EngineError::FailedSystemCall(
 				"invalid data returned by reward contract: both arrays must have the same size".into()
 			).into());
 		}

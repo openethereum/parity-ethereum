@@ -18,15 +18,16 @@ use std::collections::{HashMap, BTreeSet, VecDeque};
 use std::fmt;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
-use engines::EngineError;
 use engines::clique::util::{extract_signers, recover_creator};
 use engines::clique::{VoteType, DIFF_INTURN, DIFF_NOTURN, NULL_AUTHOR, SIGNING_DELAY_NOTURN_MS};
-use error::{Error, BlockError};
 use ethereum_types::{Address, H64};
 use rand::Rng;
 use time_utils::CheckedSystemTime;
-use types::BlockNumber;
-use types::header::Header;
+use types::{
+	BlockNumber,
+	header::Header,
+	errors::{BlockError, EthcoreError as Error, EngineError},
+};
 use unexpected::Mismatch;
 
 /// Type that keeps track of the state for a given vote
@@ -90,7 +91,7 @@ pub struct CliqueBlockState {
 }
 
 impl fmt::Display for CliqueBlockState {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
 		let signers: Vec<String> = self.signers.iter()
 			.map(|s|
 				 format!("{} {:?}",
@@ -107,11 +108,11 @@ impl fmt::Display for CliqueBlockState {
 		let rm_votes = self.votes_history.iter().filter(|v| v.kind == VoteType::Remove).count();
 		let reverted_votes = self.votes_history.iter().filter(|v| v.reverted).count();
 
-        write!(f,
+		write!(f,
 			"Votes {{ \n signers: {:?} \n recent_signers: {:?} \n number of votes: {} \n number of add votes {}
 			\r number of remove votes {} \n number of reverted votes: {}}}",
 			signers, recent_signers, num_votes, add_votes, rm_votes, reverted_votes)
-    }
+	}
 }
 
 impl CliqueBlockState {

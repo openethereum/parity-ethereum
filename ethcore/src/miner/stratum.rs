@@ -255,7 +255,7 @@ impl Stratum {
 	#[cfg(feature = "work-notify")]
 	pub fn register(cfg: &Options, miner: Arc<Miner>, client: Weak<Client>) -> Result<(), Error> {
 		let stratum = Stratum::start(cfg, Arc::downgrade(&miner.clone()), client)?;
-		miner.add_work_listener(Box::new(stratum) as Box<NotifyWork>);
+		miner.add_work_listener(Box::new(stratum) as Box<dyn NotifyWork>);
 		Ok(())
 	}
 }

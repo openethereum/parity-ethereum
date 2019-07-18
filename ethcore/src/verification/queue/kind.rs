@@ -17,10 +17,13 @@
 //! Definition of valid items for the verification queue.
 
 use engines::Engine;
-use error::Error;
 
 use parity_util_mem::MallocSizeOf;
 use ethereum_types::{H256, U256};
+
+use types::{
+	errors::EthcoreError as Error,
+};
 
 pub use self::blocks::Blocks;
 pub use self::headers::Headers;
@@ -69,10 +72,13 @@ pub mod blocks {
 	use super::{Kind, BlockLike};
 
 	use engines::Engine;
-	use error::{Error, BlockError};
-	use types::header::Header;
-	use verification::{PreverifiedBlock, verify_block_basic, verify_block_unordered};
-	use types::transaction::UnverifiedTransaction;
+	use types::{
+		block::PreverifiedBlock,
+		header::Header,
+		errors::{EthcoreError as Error, BlockError},
+		transaction::UnverifiedTransaction
+	};
+	use verification::{verify_block_basic, verify_block_unordered};
 
 	use parity_util_mem::MallocSizeOf;
 	use ethereum_types::{H256, U256};
@@ -180,8 +186,10 @@ pub mod headers {
 	use super::{Kind, BlockLike};
 
 	use engines::Engine;
-	use error::Error;
-	use types::header::Header;
+	use types::{
+		header::Header,
+		errors::EthcoreError as Error,
+	};
 	use verification::verify_header_params;
 
 	use ethereum_types::{H256, U256};

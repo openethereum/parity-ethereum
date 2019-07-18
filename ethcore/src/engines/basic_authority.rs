@@ -21,13 +21,21 @@ use ethereum_types::{H256, H520};
 use parking_lot::RwLock;
 use ethkey::{self, Signature};
 use block::*;
-use engines::{Engine, Seal, SealingState, ConstructedVerifier, EngineError};
+use engines::{Engine, Seal, ConstructedVerifier};
 use engines::signer::EngineSigner;
-use error::{BlockError, Error};
 use ethjson;
 use client::EngineClient;
-use machine::{AuxiliaryData, Call, Machine};
-use types::header::Header;
+use machine::Machine;
+use types::{
+	header::Header,
+	engines::{
+		SealingState,
+		params::CommonParams,
+		machine::{AuxiliaryData, Call},
+	},
+	errors::{EngineError, BlockError, EthcoreError as Error},
+};
+
 use super::validator_set::{ValidatorSet, SimpleList, new_validator_set};
 
 /// `BasicAuthority` params.
@@ -134,17 +142,13 @@ impl Engine for BasicAuthority {
 	}
 
 	#[cfg(not(test))]
-	fn signals_epoch_end(&self, _header: &Header, _auxiliary: AuxiliaryData)
-		-> super::EpochChange
-	{
+	fn signals_epoch_end(&self, _header: &Header, _auxiliary: AuxiliaryData) -> super::EpochChange {
 		// don't bother signalling even though a contract might try.
 		super::EpochChange::No
 	}
 
 	#[cfg(test)]
-	fn signals_epoch_end(&self, header: &Header, auxiliary: AuxiliaryData)
-		-> super::EpochChange
-	{
+	fn signals_epoch_end(&self, header: &Header, auxiliary: AuxiliaryData) -> super::EpochChange {
 		// in test mode, always signal even though they don't be finalized.
 		let first = header.number() == 0;
 		self.validators.signals_epoch_end(first, header, auxiliary)
@@ -207,6 +211,10 @@ impl Engine for BasicAuthority {
 
 	fn snapshot_components(&self) -> Option<Box<dyn (::snapshot::SnapshotComponents)>> {
 		None
+	}
+
+	fn params(&self) -> &CommonParams {
+		self.machine.params()
 	}
 }
 

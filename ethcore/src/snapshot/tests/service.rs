@@ -21,7 +21,8 @@ use std::sync::Arc;
 
 use tempdir::TempDir;
 use blockchain::BlockProvider;
-use client::{Client, ClientConfig, ImportBlock, BlockInfo};
+use client::{Client, ClientConfig, ImportBlock};
+use client::BlockInfo;
 use types::ids::BlockId;
 use snapshot::io::{PackedReader, PackedWriter, SnapshotReader, SnapshotWriter};
 use snapshot::service::{Service, ServiceParams};

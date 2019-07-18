@@ -39,21 +39,23 @@ use bytes::Bytes;
 use ethereum_types::{H256, U256, Address, Bloom};
 
 use engines::Engine;
-use error::{Error, BlockError};
 use trie_vm_factories::Factories;
 use state_db::StateDB;
 use account_state::State;
 use trace::Tracing;
 use triehash::ordered_trie_root;
 use unexpected::{Mismatch, OutOfBounds};
-use verification::PreverifiedBlock;
 use vm::{EnvInfo, LastHashes};
 
 use hash::keccak;
 use rlp::{RlpStream, Encodable, encode_list};
-use types::transaction::{SignedTransaction, Error as TransactionError};
-use types::header::Header;
-use types::receipt::{Receipt, TransactionOutcome};
+use types::{
+	block::PreverifiedBlock,
+	errors::{EthcoreError as Error, BlockError},
+	transaction::{SignedTransaction, Error as TransactionError},
+	header::Header,
+	receipt::{Receipt, TransactionOutcome},
+};
 use executive_state::ExecutiveState;
 
 /// Block that is ready for transactions to be added.
@@ -550,16 +552,16 @@ mod tests {
 	use super::*;
 	use engines::Engine;
 	use vm::LastHashes;
-	use error::Error;
 	use trie_vm_factories::Factories;
 	use state_db::StateDB;
 	use ethereum_types::Address;
 	use std::sync::Arc;
 	use verification::queue::kind::blocks::Unverified;
 	use types::transaction::SignedTransaction;
-	use types::header::Header;
-	use types::view;
-	use types::views::BlockView;
+	use types::{
+		header::Header, view, views::BlockView,
+		errors::EthcoreError as Error,
+	};
 	use hash_db::EMPTY_PREFIX;
 
 	/// Enact the block given by `block_bytes` using `engine` on the database `db` with given `parent` block header

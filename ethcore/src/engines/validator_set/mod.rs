@@ -28,10 +28,14 @@ use std::sync::Weak;
 use bytes::Bytes;
 use ethereum_types::{H256, Address};
 use ethjson::spec::ValidatorSet as ValidatorSpec;
-use machine::{AuxiliaryData, Call, Machine};
-use types::BlockNumber;
-use types::header::Header;
-use types::ids::BlockId;
+use machine::Machine;
+use types::{
+	BlockNumber,
+	header::Header,
+	ids::BlockId,
+	errors::EthcoreError,
+	engines::machine::{Call, AuxiliaryData},
+};
 
 use client::EngineClient;
 
@@ -88,7 +92,7 @@ pub trait ValidatorSet: Send + Sync + 'static {
 	/// The caller provided here may not generate proofs.
 	///
 	/// `first` is true if this is the first block in the set.
-	fn on_epoch_begin(&self, _first: bool, _header: &Header, _call: &mut SystemCall) -> Result<(), ::error::Error> {
+	fn on_epoch_begin(&self, _first: bool, _header: &Header, _call: &mut SystemCall) -> Result<(), EthcoreError> {
 		Ok(())
 	}
 
@@ -124,7 +128,7 @@ pub trait ValidatorSet: Send + Sync + 'static {
 	/// Returns the set, along with a flag indicating whether finality of a specific
 	/// hash should be proven.
 	fn epoch_set(&self, first: bool, machine: &Machine, number: BlockNumber, proof: &[u8])
-		-> Result<(SimpleList, Option<H256>), ::error::Error>;
+		-> Result<(SimpleList, Option<H256>), EthcoreError>;
 
 	/// Checks if a given address is a validator, with the given function
 	/// for executing synchronous calls to contracts.
