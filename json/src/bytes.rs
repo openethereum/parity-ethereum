@@ -34,9 +34,15 @@ impl Bytes {
 	}
 }
 
-impl Into<Vec<u8>> for Bytes {
-	fn into(self) -> Vec<u8> {
-		self.0
+impl From<Bytes> for Vec<u8> {
+	fn from(bytes: Bytes) -> Self {
+		bytes.0
+	}
+}
+
+impl From<Vec<u8>> for Bytes {
+	fn from(bytes: Vec<u8>) -> Self {
+		Bytes(bytes)
 	}
 }
 
