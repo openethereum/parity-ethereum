@@ -181,8 +181,6 @@ fn run_constructors<T: Backend>(
 	Ok(state.drop())
 }
 
-
-
 /// Parameters for a block chain; includes both those intrinsic to the design of the
 /// chain and those to be interpreted by the active chain engine.
 pub struct Spec {
@@ -525,10 +523,8 @@ impl Spec {
 			factories,
 			db
 		)?;
-		if root != self.state_root() {
-			return Err("Invalid state root".into());
-		}
 
+		assert_eq!(root, self.state_root(), "Spec's state root has not been precomputed correctly.");
 		Ok(db)
 	}
 
