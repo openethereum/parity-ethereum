@@ -478,13 +478,13 @@ mod tests {
 		let queue = RwLock::new(VecDeque::new());
 		let ss = TestSnapshotService::new();
 		let mut io = TestIo::new(&mut client, &ss, &queue, None);
-		let peer_count = SyncPropagator::propagate_new_transactions(&mut sync, &mut io, || true);
+		let peer_count = SyncPropagator::propagate_new_transactions(&mut sync, &mut io, || true, None);
 		// Try to propagate same transactions for the second time
-		let peer_count2 = SyncPropagator::propagate_new_transactions(&mut sync, &mut io, || true);
+		let peer_count2 = SyncPropagator::propagate_new_transactions(&mut sync, &mut io, || true, None);
 		// Even after new block transactions should not be propagated twice
 		sync.chain_new_blocks(&mut io, &[], &[], &[], &[], &[], &[]);
 		// Try to propagate same transactions for the third time
-		let peer_count3 = SyncPropagator::propagate_new_transactions(&mut sync, &mut io, || true);
+		let peer_count3 = SyncPropagator::propagate_new_transactions(&mut sync, &mut io, || true, None);
 
 		// 1 message should be send
 		assert_eq!(1, io.packets.len());
@@ -505,7 +505,7 @@ mod tests {
 		let queue = RwLock::new(VecDeque::new());
 		let ss = TestSnapshotService::new();
 		let mut io = TestIo::new(&mut client, &ss, &queue, None);
-		let peer_count = SyncPropagator::propagate_new_transactions(&mut sync, &mut io, || true);
+		let peer_count = SyncPropagator::propagate_new_transactions(&mut sync, &mut io, || true, None);
 		io.chain.insert_transaction_to_queue();
 		// New block import should not trigger propagation.
 		// (we only propagate on timeout)
@@ -529,10 +529,10 @@ mod tests {
 		let queue = RwLock::new(VecDeque::new());
 		let ss = TestSnapshotService::new();
 		let mut io = TestIo::new(&mut client, &ss, &queue, None);
-		let peer_count = SyncPropagator::propagate_new_transactions(&mut sync, &mut io, || true);
+		let peer_count = SyncPropagator::propagate_new_transactions(&mut sync, &mut io, || true, None);
 		sync.chain_new_blocks(&mut io, &[], &[], &[], &[], &[], &[]);
 		// Try to propagate same transactions for the second time
-		let peer_count2 = SyncPropagator::propagate_new_transactions(&mut sync, &mut io, || true);
+		let peer_count2 = SyncPropagator::propagate_new_transactions(&mut sync, &mut io, || true, None);
 
 		assert_eq!(0, io.packets.len());
 		assert_eq!(0, peer_count);
@@ -550,7 +550,7 @@ mod tests {
 		// should sent some
 		{
 			let mut io = TestIo::new(&mut client, &ss, &queue, None);
-			let peer_count = SyncPropagator::propagate_new_transactions(&mut sync, &mut io, || true);
+			let peer_count = SyncPropagator::propagate_new_transactions(&mut sync, &mut io, || true, None);
 			assert_eq!(1, io.packets.len());
 			assert_eq!(1, peer_count);
 		}
@@ -559,9 +559,9 @@ mod tests {
 		let (peer_count2, peer_count3) = {
 			let mut io = TestIo::new(&mut client, &ss, &queue, None);
 			// Propagate new transactions
-			let peer_count2 = SyncPropagator::propagate_new_transactions(&mut sync, &mut io, || true);
+			let peer_count2 = SyncPropagator::propagate_new_transactions(&mut sync, &mut io, || true, None);
 			// And now the peer should have all transactions
-			let peer_count3 = SyncPropagator::propagate_new_transactions(&mut sync, &mut io, || true);
+			let peer_count3 = SyncPropagator::propagate_new_transactions(&mut sync, &mut io, || true, None);
 			(peer_count2, peer_count3)
 		};
 
@@ -584,7 +584,7 @@ mod tests {
 		let queue = RwLock::new(VecDeque::new());
 		let ss = TestSnapshotService::new();
 		let mut io = TestIo::new(&mut client, &ss, &queue, None);
-		SyncPropagator::propagate_new_transactions(&mut sync, &mut io, || true);
+		SyncPropagator::propagate_new_transactions(&mut sync, &mut io, || true, None);
 
 		let stats = sync.transactions_stats();
 		assert_eq!(stats.len(), 1, "Should maintain stats for single transaction.")
@@ -611,7 +611,7 @@ mod tests {
 		io.peers_info.insert(3, "Parity-Ethereum/ABCDEFGH/v2.7.3/linux/rustc".to_owned());
 
 		// and new service transaction is propagated to peers
-		SyncPropagator::propagate_new_transactions(&mut sync, &mut io, || true);
+		SyncPropagator::propagate_new_transactions(&mut sync, &mut io, || true, None);
 
 		// peer#2 && peer#3 are receiving service transaction
 		assert!(io.packets.iter().any(|p| p.packet_id == 0x02 && p.recipient == 2)); // TRANSACTIONS_PACKET
@@ -635,7 +635,7 @@ mod tests {
 		io.peers_info.insert(1, "Parity-Ethereum/v2.6.0/linux/rustc".to_owned());
 
 		// and service + non-service transactions are propagated to peers
-		SyncPropagator::propagate_new_transactions(&mut sync, &mut io, || true);
+		SyncPropagator::propagate_new_transactions(&mut sync, &mut io, || true, None);
 
 		// two separate packets for peer are queued:
 		// 1) with non-service-transaction
