@@ -16,16 +16,20 @@
 
 /// Preconfigured validator list.
 
-use heapsize::HeapSizeOf;
+use parity_util_mem::MallocSizeOf;
 use ethereum_types::{H256, Address};
 
-use machine::{AuxiliaryData, Call, EthereumMachine};
-use types::BlockNumber;
-use types::header::Header;
+use machine::Machine;
+use types::{
+	BlockNumber,
+	header::Header,
+	errors::EthcoreError,
+	engines::machine::{Call, AuxiliaryData},
+};
 use super::ValidatorSet;
 
 /// Validator set containing a known set of addresses.
-#[derive(Clone, Debug, PartialEq, Eq, Default)]
+#[derive(Clone, Debug, PartialEq, Eq, Default, MallocSizeOf)]
 pub struct SimpleList {
 	validators: Vec<Address>,
 }
@@ -33,9 +37,13 @@ pub struct SimpleList {
 impl SimpleList {
 	/// Create a new `SimpleList`.
 	pub fn new(validators: Vec<Address>) -> Self {
-		SimpleList {
-			validators: validators,
+		let validator_count = validators.len();
+		if validator_count == 1 {
+			warn!(target: "engine", "Running AuRa with a single validator implies instant finality. Use a database?");
+		} else if validator_count != 0 && validator_count % 2 == 0 {
+			warn!(target: "engine", "Running AuRa with an even number of validators ({}) is not recommended (risk of network split).", validator_count);
 		}
+		SimpleList { validators }
 	}
 
 	/// Convert into inner representation.
@@ -52,15 +60,7 @@ impl ::std::ops::Deref for SimpleList {
 
 impl From<Vec<Address>> for SimpleList {
 	fn from(validators: Vec<Address>) -> Self {
-		SimpleList {
-			validators: validators,
-		}
-	}
-}
-
-impl HeapSizeOf for SimpleList {
-	fn heap_size_of_children(&self) -> usize {
-		self.validators.heap_size_of_children()
+		SimpleList::new(validators)
 	}
 }
 
@@ -77,12 +77,12 @@ impl ValidatorSet for SimpleList {
 	}
 
 	fn signals_epoch_end(&self, _: bool, _: &Header, _: AuxiliaryData)
-		-> ::engines::EpochChange<EthereumMachine>
+		-> ::engines::EpochChange
 	{
 		::engines::EpochChange::No
 	}
 
-	fn epoch_set(&self, _first: bool, _: &EthereumMachine, _: BlockNumber, _: &[u8]) -> Result<(SimpleList, Option<H256>), ::error::Error> {
+	fn epoch_set(&self, _first: bool, _: &Machine, _: BlockNumber, _: &[u8]) -> Result<(SimpleList, Option<H256>), EthcoreError> {
 		Ok((self.clone(), None))
 	}
 
@@ -105,8 +105,8 @@ impl ValidatorSet for SimpleList {
 	}
 }
 
-impl AsRef<ValidatorSet> for SimpleList {
-    fn as_ref(&self) -> &ValidatorSet {
+impl AsRef<dyn ValidatorSet> for SimpleList {
+    fn as_ref(&self) -> &dyn ValidatorSet {
         self
     }
 }

@@ -55,6 +55,9 @@ pub trait SnapshotService : Sync + Send {
 	/// no-op if currently restoring.
 	fn restore_block_chunk(&self, hash: H256, chunk: Bytes);
 
+	/// Abort in-progress snapshotting if there is one.
+	fn abort_snapshot(&self);
+
 	/// Shutdown the Snapshot Service by aborting any ongoing restore
 	fn shutdown(&self);
 }

@@ -66,12 +66,6 @@ pub enum Api {
 	Rpc,
 	/// Private transaction manager (Safe)
 	Private,
-	/// Whisper (Safe)
-	// TODO: _if_ someone guesses someone else's key or filter IDs they can remove
-	// BUT these are all ephemeral so it seems fine.
-	Whisper,
-	/// Whisper Pub-Sub (Safe but same concerns as above).
-	WhisperPubSub,
 	/// Parity PubSub - Generic Publish-Subscriber (Safety depends on other APIs exposed).
 	ParityPubSub,
 	/// Parity Accounts extensions (UNSAFE: Passwords, Side Effects (new account))
@@ -85,6 +79,8 @@ pub enum Api {
 	Debug,
 	/// Parity Transactions pool PubSub
 	ParityTransactionsPool,
+	/// Deprecated api
+	Deprecated,
 }
 
 impl FromStr for Api {
@@ -106,12 +102,11 @@ impl FromStr for Api {
 			"pubsub" => Ok(EthPubSub),
 			"rpc" => Ok(Rpc),
 			"secretstore" => Ok(SecretStore),
-			"shh" => Ok(Whisper),
-			"shh_pubsub" => Ok(WhisperPubSub),
 			"signer" => Ok(Signer),
 			"traces" => Ok(Traces),
 			"web3" => Ok(Web3),
 			"parity_transactions_pool" => Ok(ParityTransactionsPool),
+			"shh" | "shh_pubsub" => Ok(Deprecated),
 			api => Err(format!("Unknown api: {}", api)),
 		}
 	}
@@ -193,9 +188,10 @@ fn to_modules(apis: &HashSet<Api>) -> BTreeMap<String, String> {
 			Api::Signer => ("signer", "1.0"),
 			Api::Traces => ("traces", "1.0"),
 			Api::Web3 => ("web3", "1.0"),
-			Api::Whisper => ("shh", "1.0"),
-			Api::WhisperPubSub => ("shh_pubsub", "1.0"),
 			Api::ParityTransactionsPool => ("parity_transactions_pool", "1.0"),
+			Api::Deprecated => {
+				continue;
+			}
 		};
 		modules.insert(name.into(), version.into());
 	}
@@ -255,7 +251,6 @@ pub struct FullDependencies {
 	pub ws_address: Option<Host>,
 	pub fetch: FetchClient,
 	pub executor: Executor,
-	pub whisper_rpc: Option<::whisper::RpcFactory>,
 	pub gas_price_percentile: usize,
 	pub poll_lifetime: u32,
 	pub allow_missing_blocks: bool,
@@ -449,28 +444,13 @@ impl FullDependencies {
 					#[cfg(feature = "accounts")]
 					handler.extend_with(SecretStoreClient::new(&self.accounts).to_delegate());
 				}
-				Api::Whisper => {
-					if let Some(ref whisper_rpc) = self.whisper_rpc {
-						let whisper = whisper_rpc.make_handler(self.net.clone());
-						handler.extend_with(::parity_whisper::rpc::Whisper::to_delegate(whisper));
-					}
-				}
-				Api::WhisperPubSub => {
-					if !for_generic_pubsub {
-						if let Some(ref whisper_rpc) = self.whisper_rpc {
-							let whisper = whisper_rpc.make_handler(self.net.clone());
-							handler.extend_with(::parity_whisper::rpc::WhisperPubSub::to_delegate(
-								whisper,
-							));
-						}
-					}
-				}
 				Api::Private => {
 					handler.extend_with(
 						PrivateClient::new(self.private_tx_service.as_ref().map(|p| p.provider()))
 							.to_delegate(),
 					);
 				}
+				Api::Deprecated => {},
 			}
 		}
 	}
@@ -517,7 +497,6 @@ pub struct LightDependencies<T> {
 	pub geth_compatibility: bool,
 	pub experimental_rpcs: bool,
 	pub executor: Executor,
-	pub whisper_rpc: Option<::whisper::RpcFactory>,
 	pub private_tx_service: Option<Arc<PrivateTransactionManager>>,
 	pub gas_price_percentile: usize,
 	pub poll_lifetime: u32,
@@ -686,26 +665,13 @@ impl<C: LightChainClient + 'static> LightDependencies<C> {
 					#[cfg(feature = "accounts")]
 					handler.extend_with(SecretStoreClient::new(&self.accounts).to_delegate());
 				}
-				Api::Whisper => {
-					if let Some(ref whisper_rpc) = self.whisper_rpc {
-						let whisper = whisper_rpc.make_handler(self.net.clone());
-						handler.extend_with(::parity_whisper::rpc::Whisper::to_delegate(whisper));
-					}
-				}
-				Api::WhisperPubSub => {
-					if let Some(ref whisper_rpc) = self.whisper_rpc {
-						let whisper = whisper_rpc.make_handler(self.net.clone());
-						handler.extend_with(::parity_whisper::rpc::WhisperPubSub::to_delegate(
-							whisper,
-						));
-					}
-				}
 				Api::Private => {
 					if let Some(ref tx_manager) = self.private_tx_service {
 						let private_tx_service = Some(tx_manager.clone());
 						handler.extend_with(PrivateClient::new(private_tx_service).to_delegate());
 					}
 				}
+				Api::Deprecated => {},
 			}
 		}
 	}
@@ -740,8 +706,6 @@ impl ApiSet {
 			Api::EthPubSub,
 			Api::Parity,
 			Api::Rpc,
-			Api::Whisper,
-			Api::WhisperPubSub,
 			Api::Private,
 		]
 			.into_iter()
@@ -749,7 +713,10 @@ impl ApiSet {
 			.collect();
 
 		match *self {
-			ApiSet::List(ref apis) => apis.clone(),
+			ApiSet::List(ref apis) => apis.into_iter()
+				.filter(|api| *api != &Api::Deprecated)
+				.cloned()
+				.collect(),
 			ApiSet::UnsafeContext => {
 				public_list.insert(Api::Traces);
 				public_list.insert(Api::ParityPubSub);
@@ -810,8 +777,6 @@ mod test {
 		assert_eq!(Api::Rpc, "rpc".parse().unwrap());
 		assert_eq!(Api::SecretStore, "secretstore".parse().unwrap());
 		assert_eq!(Api::Private, "private".parse().unwrap());
-		assert_eq!(Api::Whisper, "shh".parse().unwrap());
-		assert_eq!(Api::WhisperPubSub, "shh_pubsub".parse().unwrap());
 		assert_eq!(Api::ParityTransactionsPool, "parity_transactions_pool".parse().unwrap());
 		assert!("rp".parse::<Api>().is_err());
 	}
@@ -841,8 +806,6 @@ mod test {
 			Api::ParityPubSub,
 			Api::Traces,
 			Api::Rpc,
-			Api::Whisper,
-			Api::WhisperPubSub,
 			Api::Private,
 			Api::ParityTransactionsPool,
 		].into_iter()
@@ -862,8 +825,6 @@ mod test {
 			Api::ParityPubSub,
 			Api::Traces,
 			Api::Rpc,
-			Api::Whisper,
-			Api::WhisperPubSub,
 			Api::Private,
 			Api::ParityTransactionsPool,
 			// semi-safe
@@ -888,8 +849,6 @@ mod test {
 					Api::Traces,
 					Api::Rpc,
 					Api::SecretStore,
-					Api::Whisper,
-					Api::WhisperPubSub,
 					Api::ParityAccounts,
 					Api::ParitySet,
 					Api::Signer,
@@ -918,8 +877,6 @@ mod test {
 					Api::Traces,
 					Api::Rpc,
 					Api::SecretStore,
-					Api::Whisper,
-					Api::WhisperPubSub,
 					Api::ParityAccounts,
 					Api::ParitySet,
 					Api::Signer,
@@ -946,8 +903,6 @@ mod test {
 					Api::ParityPubSub,
 					Api::Traces,
 					Api::Rpc,
-					Api::Whisper,
-					Api::WhisperPubSub,
 					Api::Private,
 					Api::ParityTransactionsPool,
 				].into_iter()

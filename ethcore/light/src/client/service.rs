@@ -20,10 +20,10 @@
 use std::fmt;
 use std::sync::Arc;
 
+use common_types::errors::EthcoreError as CoreError;
 use ethcore_db as db;
 use ethcore_blockchain::BlockChainDB;
 use ethcore::client::ClientIoMessage;
-use ethcore::error::Error as CoreError;
 use ethcore::spec::Spec;
 use io::{IoContext, IoError, IoHandler, IoService};
 
@@ -65,7 +65,7 @@ pub struct Service<T> {
 
 impl<T: ChainDataFetcher> Service<T> {
 	/// Start the service: initialize I/O workers and client itself.
-	pub fn start(config: ClientConfig, spec: &Spec, fetcher: T, db: Arc<BlockChainDB>, cache: Arc<Mutex<Cache>>) -> Result<Self, Error> {
+	pub fn start(config: ClientConfig, spec: &Spec, fetcher: T, db: Arc<dyn BlockChainDB>, cache: Arc<Mutex<Cache>>) -> Result<Self, Error> {
 		let io_service = IoService::<ClientIoMessage>::start().map_err(Error::Io)?;
 		let client = Arc::new(Client::new(config,
 			db.key_value().clone(),
@@ -75,9 +75,8 @@ impl<T: ChainDataFetcher> Service<T> {
 			io_service.channel(),
 			cache,
 		)?);
-
-		io_service.register_handler(Arc::new(ImportBlocks(client.clone()))).map_err(Error::Io)?;
 		spec.engine.register_client(Arc::downgrade(&client) as _);
+		io_service.register_handler(Arc::new(ImportBlocks(client.clone()))).map_err(Error::Io)?;
 
 		Ok(Service {
 			client,
@@ -86,12 +85,12 @@ impl<T: ChainDataFetcher> Service<T> {
 	}
 
 	/// Set the actor to be notified on certain chain events
-	pub fn add_notify(&self, notify: Arc<LightChainNotify>) {
+	pub fn add_notify(&self, notify: Arc<dyn LightChainNotify>) {
 		self.client.add_listener(Arc::downgrade(&notify));
 	}
 
 	/// Register an I/O handler on the service.
-	pub fn register_handler(&self, handler: Arc<IoHandler<ClientIoMessage> + Send>) -> Result<(), IoError> {
+	pub fn register_handler(&self, handler: Arc<dyn IoHandler<ClientIoMessage> + Send>) -> Result<(), IoError> {
 		self.io_service.register_handler(handler)
 	}
 

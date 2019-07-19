@@ -17,8 +17,8 @@
 use std::collections::BTreeMap;
 
 use ethcore::client::Executed;
-use ethcore::trace as et;
-use ethcore::trace::{FlatTrace, LocalizedTrace as EthLocalizedTrace, trace, TraceError};
+use trace as et;
+use trace::{FlatTrace, LocalizedTrace as EthLocalizedTrace, trace, TraceError};
 use ethereum_types::{H160, H256, U256};
 use serde::ser::SerializeStruct;
 use serde::{Serialize, Serializer};
@@ -656,7 +656,7 @@ mod tests {
 	use serde_json;
 	use std::collections::BTreeMap;
 	use v1::types::Bytes;
-	use ethcore::trace::TraceError;
+	use trace::TraceError;
 	use ethereum_types::Address;
 	use super::*;
 

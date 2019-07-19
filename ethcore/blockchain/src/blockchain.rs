@@ -39,10 +39,10 @@ use ethcore_db::cache_manager::CacheManager;
 use ethcore_db::keys::{BlockReceipts, BlockDetails, TransactionAddress, EPOCH_KEY_PREFIX, EpochTransitions};
 use ethcore_db::{self as db, Writable, Readable, CacheUpdatePolicy};
 use ethereum_types::{H256, Bloom, BloomRef, U256};
-use heapsize::HeapSizeOf;
+use util_mem::{MallocSizeOf, allocators::new_malloc_size_ops};
 use itertools::Itertools;
 use kvdb::{DBTransaction, KeyValueDB};
-use log::{trace, warn, info};
+use log::{trace, debug, warn, info};
 use parity_bytes::Bytes;
 use parking_lot::{Mutex, RwLock};
 use rayon::prelude::*;
@@ -57,7 +57,7 @@ use crate::{CacheSize, ImportRoute, Config};
 /// Database backing `BlockChain`.
 pub trait BlockChainDB: Send + Sync {
 	/// Generic key value store.
-	fn key_value(&self) -> &Arc<KeyValueDB>;
+	fn key_value(&self) -> &Arc<dyn KeyValueDB>;
 
 	/// Header blooms database.
 	fn blooms(&self) -> &blooms_db::Database;
@@ -85,7 +85,7 @@ pub trait BlockChainDB: Send + Sync {
 /// predefined config.
 pub trait BlockChainDBHandler: Send + Sync {
 	/// Open the predefined key-value database.
-	fn open(&self, path: &Path) -> io::Result<Arc<BlockChainDB>>;
+	fn open(&self, path: &Path) -> io::Result<Arc<dyn BlockChainDB>>;
 }
 
 /// Interface for querying blocks by hash and by number.
@@ -228,7 +228,7 @@ pub struct BlockChain {
 	transaction_addresses: RwLock<HashMap<H256, TransactionAddress>>,
 	block_receipts: RwLock<HashMap<H256, BlockReceipts>>,
 
-	db: Arc<BlockChainDB>,
+	db: Arc<dyn BlockChainDB>,
 
 	cache_man: Mutex<CacheManager<CacheId>>,
 
@@ -481,7 +481,7 @@ impl<'a> Iterator for AncestryWithMetadataIter<'a> {
 /// Returns epoch transitions.
 pub struct EpochTransitionIter<'a> {
 	chain: &'a BlockChain,
-	prefix_iter: Box<Iterator<Item=(Box<[u8]>, Box<[u8]>)> + 'a>,
+	prefix_iter: Box<dyn Iterator<Item=(Box<[u8]>, Box<[u8]>)> + 'a>,
 }
 
 impl<'a> Iterator for EpochTransitionIter<'a> {
@@ -521,7 +521,7 @@ impl<'a> Iterator for EpochTransitionIter<'a> {
 
 impl BlockChain {
 	/// Create new instance of blockchain from given Genesis.
-	pub fn new(config: Config, genesis: &[u8], db: Arc<BlockChainDB>) -> BlockChain {
+	pub fn new(config: Config, genesis: &[u8], db: Arc<dyn BlockChainDB>) -> BlockChain {
 		// 400 is the average size of the key
 		let cache_man = CacheManager::new(config.pref_cache_size, config.max_cache_size, 400);
 
@@ -652,10 +652,7 @@ impl BlockChain {
 			// and write them
 			if let (Some(hash), Some(number)) = (best_ancient, best_ancient_number) {
 				let mut best_ancient_block = bc.best_ancient_block.write();
-				*best_ancient_block = Some(BestAncientBlock {
-					hash: hash,
-					number: number,
-				});
+				*best_ancient_block = Some(BestAncientBlock { hash, number });
 			}
 		}
 
@@ -713,6 +710,10 @@ impl BlockChain {
 	///
 	/// If the tree route verges into pruned or unknown blocks,
 	/// `None` is returned.
+	///
+	/// `is_from_route_finalized` returns whether the `from` part of the
+	/// route contains a finalized block. This only holds if the two parts (from
+	/// and to) are on different branches, ie. on 2 different forks.
 	pub fn tree_route(&self, from: H256, to: H256) -> Option<TreeRoute> {
 		let mut from_branch = vec![];
 		let mut is_from_route_finalized = false;
@@ -726,9 +727,9 @@ impl BlockChain {
 		// reset from && to to the same level
 		while from_details.number > to_details.number {
 			from_branch.push(current_from);
+			is_from_route_finalized = is_from_route_finalized || from_details.is_finalized;
 			current_from = from_details.parent.clone();
 			from_details = self.block_details(&from_details.parent)?;
-			is_from_route_finalized = is_from_route_finalized || from_details.is_finalized;
 		}
 
 		while to_details.number > from_details.number {
@@ -742,9 +743,9 @@ impl BlockChain {
 		// move to shared parent
 		while current_from != current_to {
 			from_branch.push(current_from);
+			is_from_route_finalized = is_from_route_finalized || from_details.is_finalized;
 			current_from = from_details.parent.clone();
 			from_details = self.block_details(&from_details.parent)?;
-			is_from_route_finalized = is_from_route_finalized || from_details.is_finalized;
 
 			to_branch.push(current_to);
 			current_to = to_details.parent.clone();
@@ -758,8 +759,8 @@ impl BlockChain {
 		Some(TreeRoute {
 			blocks: from_branch,
 			ancestor: current_from,
-			index: index,
-			is_from_route_finalized: is_from_route_finalized,
+			index,
+			is_from_route_finalized,
 		})
 	}
 
@@ -963,7 +964,7 @@ impl BlockChain {
 	/// Iterate over all epoch transitions.
 	/// This will only return transitions within the canonical chain.
 	pub fn epoch_transitions(&self) -> EpochTransitionIter {
-		trace!(target: "blockchain", "Iterating over all epoch transitions");
+		debug!(target: "blockchain", "Iterating over all epoch transitions");
 		let iter = self.db.key_value().iter_from_prefix(db::COL_EXTRA, &EPOCH_KEY_PREFIX[..]);
 		EpochTransitionIter {
 			chain: self,
@@ -991,7 +992,7 @@ impl BlockChain {
 		for hash in self.ancestry_iter(parent_hash)? {
 			trace!(target: "blockchain", "Got parent hash {} from ancestry_iter", hash);
 			let details = self.block_details(&hash)?;
-			trace!(target: "blockchain", "Block #{}: Got block details", details.number);
+			trace!(target: "blockchain", "Block #{}: Got block details for parent hash {}", details.number, hash);
 
 			// look for transition in database.
 			if let Some(transition) = self.epoch_transition(details.number, hash) {
@@ -1013,8 +1014,8 @@ impl BlockChain {
 				Some(h) => {
 					warn!(target: "blockchain", "Block #{}: Found non-canonical block hash {} (expected {})", details.number, h, hash);
 
-					trace!(target: "blockchain", "Block #{} Mismatched hashes. Ancestor {} != Own {} – Own block #{}", details.number, hash, h, self.block_number(&h).unwrap_or_default() );
-					trace!(target: "blockchain", "      Ancestor {}: #{:#?}", hash, self.block_details(&hash));
+					trace!(target: "blockchain", "Block #{} Mismatched hashes. Ancestor {} != Own {}", details.number, hash, h);
+					trace!(target: "blockchain", "      Ancestor {}: #{:#?}", hash, details);
 					trace!(target: "blockchain", "      Own      {}: #{:#?}", h, self.block_details(&h));
 
 				},
@@ -1489,11 +1490,12 @@ impl BlockChain {
 
 	/// Get current cache size.
 	pub fn cache_size(&self) -> CacheSize {
+		let mut ops = new_malloc_size_ops();
 		CacheSize {
-			blocks: self.block_headers.read().heap_size_of_children() + self.block_bodies.read().heap_size_of_children(),
-			block_details: self.block_details.read().heap_size_of_children(),
-			transaction_addresses: self.transaction_addresses.read().heap_size_of_children(),
-			block_receipts: self.block_receipts.read().heap_size_of_children(),
+			blocks: self.block_headers.size_of(&mut ops) + self.block_bodies.size_of(&mut ops),
+			block_details: self.block_details.size_of(&mut ops),
+			transaction_addresses: self.transaction_addresses.size_of(&mut ops),
+			block_receipts: self.block_receipts.size_of(&mut ops),
 		}
 	}
 
@@ -1528,12 +1530,13 @@ impl BlockChain {
 			transaction_addresses.shrink_to_fit();
 			block_receipts.shrink_to_fit();
 
-			block_headers.heap_size_of_children() +
-			block_bodies.heap_size_of_children() +
-			block_details.heap_size_of_children() +
-			block_hashes.heap_size_of_children() +
-			transaction_addresses.heap_size_of_children() +
-			block_receipts.heap_size_of_children()
+			let mut ops = new_malloc_size_ops();
+			block_headers.size_of(&mut ops) +
+			block_bodies.size_of(&mut ops) +
+			block_details.size_of(&mut ops) +
+			block_hashes.size_of(&mut ops) +
+			transaction_addresses.size_of(&mut ops) +
+			block_receipts.size_of(&mut ops)
 		});
 	}
 
@@ -1592,11 +1595,11 @@ mod tests {
 		_trace_blooms_dir: TempDir,
 		blooms: blooms_db::Database,
 		trace_blooms: blooms_db::Database,
-		key_value: Arc<KeyValueDB>,
+		key_value: Arc<dyn KeyValueDB>,
 	}
 
 	impl BlockChainDB for TestBlockChainDB {
-		fn key_value(&self) -> &Arc<KeyValueDB> {
+		fn key_value(&self) -> &Arc<dyn KeyValueDB> {
 			&self.key_value
 		}
 
@@ -1610,7 +1613,7 @@ mod tests {
 	}
 
 	/// Creates new test instance of `BlockChainDB`
-	pub fn new_db() -> Arc<BlockChainDB> {
+	pub fn new_db() -> Arc<dyn BlockChainDB> {
 		let blooms_dir = TempDir::new("").unwrap();
 		let trace_blooms_dir = TempDir::new("").unwrap();
 
@@ -1625,15 +1628,15 @@ mod tests {
 		Arc::new(db)
 	}
 
-	fn new_chain(genesis: encoded::Block, db: Arc<BlockChainDB>) -> BlockChain {
+	fn new_chain(genesis: encoded::Block, db: Arc<dyn BlockChainDB>) -> BlockChain {
 		BlockChain::new(Config::default(), genesis.raw(), db)
 	}
 
-	fn insert_block(db: &Arc<BlockChainDB>, bc: &BlockChain, block: encoded::Block, receipts: Vec<Receipt>) -> ImportRoute {
+	fn insert_block(db: &Arc<dyn BlockChainDB>, bc: &BlockChain, block: encoded::Block, receipts: Vec<Receipt>) -> ImportRoute {
 		insert_block_commit(db, bc, block, receipts, true)
 	}
 
-	fn insert_block_commit(db: &Arc<BlockChainDB>, bc: &BlockChain, block: encoded::Block, receipts: Vec<Receipt>, commit: bool) -> ImportRoute {
+	fn insert_block_commit(db: &Arc<dyn BlockChainDB>, bc: &BlockChain, block: encoded::Block, receipts: Vec<Receipt>, commit: bool) -> ImportRoute {
 		let mut batch = db.key_value().transaction();
 		let res = insert_block_batch(&mut batch, bc, block, receipts);
 		db.key_value().write(batch).unwrap();
@@ -2502,6 +2505,76 @@ mod tests {
 		// non-canonical fork blocks should all have genesis transition
 		for fork_hash in fork_hashes {
 			assert_eq!(bc.epoch_transition_for(fork_hash).unwrap().block_number, 0);
+		}
+	}
+
+	#[test]
+	fn tree_rout_with_finalization() {
+		let genesis = BlockBuilder::genesis();
+		let a = genesis.add_block();
+		// First branch
+		let a1 = a.add_block_with_random_transactions();
+		let a2 = a1.add_block_with_random_transactions();
+		let a3 = a2.add_block_with_random_transactions();
+		// Second branch
+		let b1 = a.add_block_with_random_transactions();
+		let b2 = b1.add_block_with_random_transactions();
+
+		let a_hash = a.last().hash();
+		let a1_hash = a1.last().hash();
+		let a2_hash = a2.last().hash();
+		let a3_hash = a3.last().hash();
+		let b2_hash = b2.last().hash();
+
+		let bootstrap_chain = |blocks: Vec<&BlockBuilder>| {
+			let db = new_db();
+			let bc = new_chain(genesis.last().encoded(), db.clone());
+			let mut batch = db.key_value().transaction();
+			for block in blocks {
+				insert_block_batch(&mut batch, &bc, block.last().encoded(), vec![]);
+				bc.commit();
+			}
+			db.key_value().write(batch).unwrap();
+			(db, bc)
+		};
+
+		let mark_finalized = |block_hash: H256, db: &Arc<dyn BlockChainDB>, bc: &BlockChain| {
+			let mut batch = db.key_value().transaction();
+			bc.mark_finalized(&mut batch, block_hash).unwrap();
+			bc.commit();
+			db.key_value().write(batch).unwrap();
+		};
+
+		// Case 1: fork, with finalized common ancestor
+		{
+			let (db, bc) = bootstrap_chain(vec![&a, &a1, &a2, &a3, &b1, &b2]);
+			assert_eq!(bc.best_block_hash(), a3_hash);
+			assert_eq!(bc.block_hash(2).unwrap(), a1_hash);
+
+			mark_finalized(a_hash, &db, &bc);
+			assert!(!bc.tree_route(a3_hash, b2_hash).unwrap().is_from_route_finalized);
+			assert!(!bc.tree_route(b2_hash, a3_hash).unwrap().is_from_route_finalized);
+		}
+
+		// Case 2: fork with a finalized block on a branch
+		{
+			let (db, bc) = bootstrap_chain(vec![&a, &a1, &a2, &a3, &b1, &b2]);
+			assert_eq!(bc.best_block_hash(), a3_hash);
+			assert_eq!(bc.block_hash(2).unwrap(), a1_hash);
+
+			mark_finalized(a2_hash, &db, &bc);
+			assert!(bc.tree_route(a3_hash, b2_hash).unwrap().is_from_route_finalized);
+			assert!(!bc.tree_route(b2_hash, a3_hash).unwrap().is_from_route_finalized);
+		}
+
+		// Case 3: no-fork, with a finalized block
+		{
+			let (db, bc) = bootstrap_chain(vec![&a, &a1, &a2]);
+			assert_eq!(bc.best_block_hash(), a2_hash);
+
+			mark_finalized(a1_hash, &db, &bc);
+			assert!(!bc.tree_route(a1_hash, a2_hash).unwrap().is_from_route_finalized);
+			assert!(!bc.tree_route(a2_hash, a1_hash).unwrap().is_from_route_finalized);
 		}
 	}
 }

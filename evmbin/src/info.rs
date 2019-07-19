@@ -17,10 +17,14 @@
 //! EVM runner.
 
 use std::time::{Instant, Duration};
-use ethereum_types::{H256, U256};
+use account_state;
 use ethcore::client::{self, EvmTestClient, EvmTestError, TransactErr, TransactSuccess};
-use ethcore::{state, state_db, trace, spec, pod_state, TrieSpec};
+use ethcore::{spec, TrieSpec};
+use ethereum_types::{H256, U256};
 use ethjson;
+use pod::PodState;
+use state_db;
+use trace;
 use types::transaction;
 use vm::ActionParams;
 
@@ -51,8 +55,8 @@ pub struct Success<T> {
 	pub time: Duration,
 	/// Traces.
 	pub traces: Option<T>,
-	/// Optional end state dump.
-	pub end_state: Option<pod_state::PodState>,
+	/// Optional end state dump
+	pub end_state: Option<PodState>,
 }
 
 /// Execution failed.
@@ -68,8 +72,8 @@ pub struct Failure<T> {
 	pub time: Duration,
 	/// Traces.
 	pub traces: Option<T>,
-	/// Optional end state dump.
-	pub end_state: Option<pod_state::PodState>,
+	/// Optional end state dump
+	pub end_state: Option<PodState>,
 }
 
 /// EVM execution result.
@@ -112,7 +116,7 @@ pub struct TxInput<'a, T> {
 	/// State of all accounts in the system that is a binary tree mapping of each account address to account data
 	/// that is expressed as Plain Old Data containing the account balance, account nonce, account code in bytes,
 	/// and the account storage binary tree map.
-	pub pre_state: &'a pod_state::PodState,
+	pub pre_state: &'a PodState,
 	/// State root hash associated with the transaction.
 	pub post_root: H256,
 	/// Client environment information associated with the transaction's chain specification.
@@ -178,7 +182,7 @@ pub fn run_transaction<T: Informant>(
 	T::finish(result, &mut sink)
 }
 
-fn dump_state(state: &state::State<state_db::StateDB>) -> Option<pod_state::PodState> {
+fn dump_state(state: &account_state::State<state_db::StateDB>) -> Option<PodState> {
 	state.to_pod_full().ok()
 }
 
@@ -187,10 +191,10 @@ pub fn run<'a, F, X>(
 	spec: &'a spec::Spec,
 	trie_spec: TrieSpec,
 	initial_gas: U256,
-	pre_state: &'a pod_state::PodState,
+	pre_state: &'a PodState,
 	run: F,
 ) -> RunResult<X> where
-	F: FnOnce(EvmTestClient) -> (Result<Vec<u8>, EvmTestError>, H256, Option<pod_state::PodState>, Option<U256>, Option<X>),
+	F: FnOnce(EvmTestClient) -> (Result<Vec<u8>, EvmTestError>, H256, Option<PodState>, Option<U256>, Option<X>),
 {
 	let do_dump = trie_spec == TrieSpec::Fat;
 
@@ -205,7 +209,7 @@ pub fn run<'a, F, X>(
 		})?;
 
 	if do_dump {
-		test_client.set_dump_state_fn(dump_state);
+		test_client.set_dump_state();
 	}
 
 	let start = Instant::now();
@@ -282,16 +286,16 @@ pub mod tests {
 
 		assert_eq!(
 			&String::from_utf8_lossy(&**res.lock().unwrap()),
-r#"{"depth":1,"gas":"0xffff","op":98,"opName":"PUSH3","pc":0,"stack":[],"storage":{}}
-{"depth":1,"gas":"0xfffc","op":96,"opName":"PUSH1","pc":4,"stack":["0xaaaaaa"],"storage":{}}
-{"depth":1,"gas":"0xfff9","op":96,"opName":"PUSH1","pc":6,"stack":["0xaaaaaa","0xaa"],"storage":{}}
-{"depth":1,"gas":"0xfff6","op":80,"opName":"POP","pc":8,"stack":["0xaaaaaa","0xaa","0xaa"],"storage":{}}
-{"depth":1,"gas":"0xfff4","op":96,"opName":"PUSH1","pc":9,"stack":["0xaaaaaa","0xaa"],"storage":{}}
-{"depth":1,"gas":"0xfff1","op":96,"opName":"PUSH1","pc":11,"stack":["0xaaaaaa","0xaa","0xaa"],"storage":{}}
-{"depth":1,"gas":"0xffee","op":96,"opName":"PUSH1","pc":13,"stack":["0xaaaaaa","0xaa","0xaa","0xaa"],"storage":{}}
-{"depth":1,"gas":"0xffeb","op":96,"opName":"PUSH1","pc":15,"stack":["0xaaaaaa","0xaa","0xaa","0xaa","0xaa"],"storage":{}}
-{"depth":1,"gas":"0xffe8","op":96,"opName":"PUSH1","pc":17,"stack":["0xaaaaaa","0xaa","0xaa","0xaa","0xaa","0xaa"],"storage":{}}
-{"depth":1,"gas":"0xffe5","op":96,"opName":"PUSH1","pc":19,"stack":["0xaaaaaa","0xaa","0xaa","0xaa","0xaa","0xaa","0xaa"],"storage":{}}
+r#"{"pc":0,"op":98,"opName":"PUSH3","gas":"0xffff","stack":[],"storage":{},"depth":1}
+{"pc":4,"op":96,"opName":"PUSH1","gas":"0xfffc","stack":["0xaaaaaa"],"storage":{},"depth":1}
+{"pc":6,"op":96,"opName":"PUSH1","gas":"0xfff9","stack":["0xaaaaaa","0xaa"],"storage":{},"depth":1}
+{"pc":8,"op":80,"opName":"POP","gas":"0xfff6","stack":["0xaaaaaa","0xaa","0xaa"],"storage":{},"depth":1}
+{"pc":9,"op":96,"opName":"PUSH1","gas":"0xfff4","stack":["0xaaaaaa","0xaa"],"storage":{},"depth":1}
+{"pc":11,"op":96,"opName":"PUSH1","gas":"0xfff1","stack":["0xaaaaaa","0xaa","0xaa"],"storage":{},"depth":1}
+{"pc":13,"op":96,"opName":"PUSH1","gas":"0xffee","stack":["0xaaaaaa","0xaa","0xaa","0xaa"],"storage":{},"depth":1}
+{"pc":15,"op":96,"opName":"PUSH1","gas":"0xffeb","stack":["0xaaaaaa","0xaa","0xaa","0xaa","0xaa"],"storage":{},"depth":1}
+{"pc":17,"op":96,"opName":"PUSH1","gas":"0xffe8","stack":["0xaaaaaa","0xaa","0xaa","0xaa","0xaa","0xaa"],"storage":{},"depth":1}
+{"pc":19,"op":96,"opName":"PUSH1","gas":"0xffe5","stack":["0xaaaaaa","0xaa","0xaa","0xaa","0xaa","0xaa","0xaa"],"storage":{},"depth":1}
 "#);
 	}
 }

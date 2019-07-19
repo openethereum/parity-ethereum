@@ -59,8 +59,7 @@
 ///    in order to import the new block.
 
 use std::cmp;
-use std::collections::HashMap;
-use std::collections::VecDeque;
+use std::collections::{HashMap, VecDeque, BTreeMap};
 use std::sync::{Arc, Weak};
 use std::thread;
 use std::time;
@@ -69,23 +68,27 @@ use std::time::{Instant, Duration, SystemTime, UNIX_EPOCH};
 use block::ExecutedBlock;
 use client::{BlockId, EngineClient};
 use engines::clique::util::{extract_signers, recover_creator};
-use engines::{Engine, EngineError, Seal, SealingState};
-use error::{BlockError, Error};
+use engines::{Engine, Seal, SealingState, EthashSeal};
 use ethereum_types::{Address, H64, H160, H256, U256};
 use ethkey::Signature;
 use hash::KECCAK_EMPTY_LIST_RLP;
 use itertools::Itertools;
 use lru_cache::LruCache;
-use machine::{Call, EthereumMachine};
+use machine::Machine;
 use parking_lot::RwLock;
 use rand::Rng;
 use super::signer::EngineSigner;
 use unexpected::{Mismatch, OutOfBounds};
-use types::BlockNumber;
-use types::header::{ExtendedHeader, Header};
-
-#[cfg(not(feature = "time_checked_add"))]
 use time_utils::CheckedSystemTime;
+use types::{
+	BlockNumber,
+	header::Header,
+	engines::{
+		params::CommonParams,
+		machine::Call,
+	},
+	errors::{BlockError, EthcoreError as Error, EngineError},
+};
 
 use self::block_state::CliqueBlockState;
 use self::params::CliqueParams;
@@ -161,11 +164,11 @@ impl VoteType {
 pub struct Clique {
 	epoch_length: u64,
 	period: u64,
-	machine: EthereumMachine,
-	client: RwLock<Option<Weak<EngineClient>>>,
+	machine: Machine,
+	client: RwLock<Option<Weak<dyn EngineClient>>>,
 	block_state_by_hash: RwLock<LruCache<H256, CliqueBlockState>>,
 	proposals: RwLock<HashMap<Address, VoteType>>,
-	signer: RwLock<Option<Box<EngineSigner>>>,
+	signer: RwLock<Option<Box<dyn EngineSigner>>>,
 }
 
 #[cfg(test)]
@@ -173,16 +176,16 @@ pub struct Clique {
 pub struct Clique {
 	pub epoch_length: u64,
 	pub period: u64,
-	pub machine: EthereumMachine,
-	pub client: RwLock<Option<Weak<EngineClient>>>,
+	pub machine: Machine,
+	pub client: RwLock<Option<Weak<dyn EngineClient>>>,
 	pub block_state_by_hash: RwLock<LruCache<H256, CliqueBlockState>>,
 	pub proposals: RwLock<HashMap<Address, VoteType>>,
-	pub signer: RwLock<Option<Box<EngineSigner>>>,
+	pub signer: RwLock<Option<Box<dyn EngineSigner>>>,
 }
 
 impl Clique {
 	/// Initialize Clique engine from empty state.
-	pub fn new(params: CliqueParams, machine: EthereumMachine) -> Result<Arc<Self>, Error> {
+	pub fn new(params: CliqueParams, machine: Machine) -> Result<Arc<Self>, Error> {
 		/// Step Clique at most every 2 seconds
 		const SEALING_FREQ: Duration = Duration::from_secs(2);
 
@@ -257,8 +260,7 @@ impl Clique {
 	fn new_checkpoint_state(&self, header: &Header) -> Result<CliqueBlockState, Error> {
 		debug_assert_eq!(header.number() % self.epoch_length, 0);
 
-		let mut state = CliqueBlockState::new(
-			extract_signers(header)?);
+		let mut state = CliqueBlockState::new(extract_signers(header)?);
 
 		// TODO(niklasad1): refactor to perform this check in the `CliqueBlockState` constructor instead
 		state.calc_next_timestamp(header.timestamp(), self.period)?;
@@ -356,13 +358,24 @@ impl Clique {
 	}
 }
 
-impl Engine<EthereumMachine> for Clique {
+impl Engine for Clique {
 	fn name(&self) -> &str { "Clique" }
 
-	fn machine(&self) -> &EthereumMachine { &self.machine }
+	fn machine(&self) -> &Machine { &self.machine }
 
 	// Clique use same fields, nonce + mixHash
 	fn seal_fields(&self, _header: &Header) -> usize { 2 }
+
+	fn extra_info(&self, header: &Header) -> BTreeMap<String, String> {
+		// clique engine seal fields are the same as ethash seal fields
+		match EthashSeal::parse_seal(header.seal()) {
+			Ok(seal) => map![
+				"nonce".to_owned() => format!("{:#x}", seal.nonce),
+				"mixHash".to_owned() => format!("{:#x}", seal.mix_hash)
+			],
+			_ => BTreeMap::default()
+		}
+	}
 
 	fn maximum_uncle_count(&self, _block: BlockNumber) -> usize { 0 }
 
@@ -370,13 +383,16 @@ impl Engine<EthereumMachine> for Clique {
 		&self,
 		_block: &mut ExecutedBlock,
 		_epoch_begin: bool,
-		_ancestry: &mut Iterator<Item=ExtendedHeader>,
 	) -> Result<(), Error> {
 		Ok(())
 	}
 
 	// Clique has no block reward.
-	fn on_close_block(&self, _block: &mut ExecutedBlock) -> Result<(), Error> {
+	fn on_close_block(
+		&self,
+		_block: &mut ExecutedBlock,
+		_parent_header: &Header
+	) -> Result<(), Error> {
 		Ok(())
 	}
 
@@ -487,7 +503,7 @@ impl Engine<EthereumMachine> for Clique {
 			match self.state(&parent) {
 				Err(e) => {
 					warn!(target: "engine", "generate_seal: can't get parent state(number: {}, hash: {}): {} ",
-							parent.number(), parent.hash(), e);
+						parent.number(), parent.hash(), e);
 					return Seal::None;
 				}
 				Ok(state) => {
@@ -510,9 +526,8 @@ impl Engine<EthereumMachine> for Clique {
 
 					// Wait for the right moment.
 					if now < limit {
-						trace!(target: "engine",
-								"generate_seal: sleeping to sign: inturn: {}, now: {:?}, to: {:?}.",
-								inturn, now, limit);
+						trace!(target: "engine", "generate_seal: sleeping to sign: inturn: {}, now: {:?}, to: {:?}.",
+							inturn, now, limit);
 						match limit.duration_since(SystemTime::now()) {
 							Ok(duration) => {
 								thread::sleep(duration);
@@ -525,7 +540,7 @@ impl Engine<EthereumMachine> for Clique {
 					}
 
 					trace!(target: "engine", "generate_seal: seal ready for block {}, txs: {}.",
-							block.header.number(), block.transactions.len());
+						block.header.number(), block.transactions.len());
 					return Seal::Regular(null_seal);
 				}
 			}
@@ -545,17 +560,17 @@ impl Engine<EthereumMachine> for Clique {
 
 		// Don't waste time checking blocks from the future
 		{
-			let limit = SystemTime::now().checked_add(Duration::from_secs(self.period))
+			let limit = CheckedSystemTime::checked_add(SystemTime::now(), Duration::from_secs(self.period))
 				.ok_or(BlockError::TimestampOverflow)?;
 
-			// This should succeed under the contraints that the system clock works
+			// This should succeed under the constraints that the system clock works
 			let limit_as_dur = limit.duration_since(UNIX_EPOCH).map_err(|e| {
 				Box::new(format!("Converting SystemTime to Duration failed: {}", e))
 			})?;
 
 			let hdr = Duration::from_secs(header.timestamp());
 			if hdr > limit_as_dur {
-				let found = UNIX_EPOCH.checked_add(hdr).ok_or(BlockError::TimestampOverflow)?;
+				let found = CheckedSystemTime::checked_add(UNIX_EPOCH, hdr).ok_or(BlockError::TimestampOverflow)?;
 
 				Err(BlockError::TemporarilyInvalid(OutOfBounds {
 					min: None,
@@ -666,8 +681,8 @@ impl Engine<EthereumMachine> for Clique {
 		// Ensure that the block's timestamp isn't too close to it's parent
 		let limit = parent.timestamp().saturating_add(self.period);
 		if limit > header.timestamp() {
-			let max = UNIX_EPOCH.checked_add(Duration::from_secs(header.timestamp()));
-			let found = UNIX_EPOCH.checked_add(Duration::from_secs(limit))
+			let max = CheckedSystemTime::checked_add(UNIX_EPOCH, Duration::from_secs(header.timestamp()));
+			let found = CheckedSystemTime::checked_add(UNIX_EPOCH, Duration::from_secs(limit))
 				.ok_or(BlockError::TimestampOverflow)?;
 
 			Err(BlockError::InvalidTimestamp(OutOfBounds {
@@ -709,7 +724,7 @@ impl Engine<EthereumMachine> for Clique {
 			// it's just to ignore setting a correct difficulty here, we will check authorization in next step in generate_seal anyway.
 			if let Some(signer) = self.signer.read().as_ref() {
 				let state = match self.state(&parent) {
-					Err(e) =>  {
+					Err(e) => {
 						trace!(target: "engine", "populate_from_parent: Unable to find parent state: {}, ignored.", e);
 						return;
 					}
@@ -736,12 +751,12 @@ impl Engine<EthereumMachine> for Clique {
 		}
 	}
 
-	fn set_signer(&self, signer: Box<EngineSigner>) {
+	fn set_signer(&self, signer: Box<dyn EngineSigner>) {
 		trace!(target: "engine", "set_signer: {}", signer.address());
 		*self.signer.write() = Some(signer);
 	}
 
-	fn register_client(&self, client: Weak<EngineClient>) {
+	fn register_client(&self, client: Weak<dyn EngineClient>) {
 		*self.client.write() = Some(client.clone());
 	}
 
@@ -765,13 +780,13 @@ impl Engine<EthereumMachine> for Clique {
 		header_timestamp >= parent_timestamp.saturating_add(self.period)
 	}
 
-	fn fork_choice(&self, new: &ExtendedHeader, current: &ExtendedHeader) -> super::ForkChoice {
-		super::total_difficulty_fork_choice(new, current)
-	}
-
 	// Clique uses the author field for voting, the real author is hidden in the `extra_data` field.
 	// So when executing tx's (like in `enact()`) we want to use the executive author
 	fn executive_author(&self, header: &Header) -> Result<Address, Error> {
 		recover_creator(header)
+	}
+
+	fn params(&self) -> &CommonParams {
+		self.machine.params()
 	}
 }

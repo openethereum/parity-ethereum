@@ -14,9 +14,17 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
-use engines::{Engine, Seal, SealingState};
+use engines::{Engine, Seal};
 use machine::Machine;
-use types::header::{Header, ExtendedHeader};
+use types::{
+	header::Header,
+	engines::{
+		SealingState,
+		params::CommonParams,
+	},
+	errors::EthcoreError as Error,
+};
+
 use block::ExecutedBlock;
 
 /// `InstantSeal` params.
@@ -36,26 +44,27 @@ impl From<::ethjson::spec::InstantSealParams> for InstantSealParams {
 
 /// An engine which does not provide any consensus mechanism, just seals blocks internally.
 /// Only seals blocks which have transactions.
-pub struct InstantSeal<M> {
+pub struct InstantSeal {
 	params: InstantSealParams,
-	machine: M,
+	machine: Machine,
 }
 
-impl<M> InstantSeal<M> {
+impl InstantSeal {
 	/// Returns new instance of InstantSeal over the given state machine.
-	pub fn new(params: InstantSealParams, machine: M) -> Self {
+	pub fn new(params: InstantSealParams, machine: Machine) -> Self {
 		InstantSeal {
-			params, machine,
+			params,
+			machine,
 		}
 	}
 }
 
-impl<M: Machine> Engine<M> for InstantSeal<M> {
+impl Engine for InstantSeal {
 	fn name(&self) -> &str {
 		"InstantSeal"
 	}
 
-	fn machine(&self) -> &M { &self.machine }
+	fn machine(&self) -> &Machine { &self.machine }
 
 	fn sealing_state(&self) -> SealingState { SealingState::Ready }
 
@@ -67,7 +76,7 @@ impl<M: Machine> Engine<M> for InstantSeal<M> {
 		}
 	}
 
-	fn verify_local_seal(&self, _header: &Header) -> Result<(), M::Error> {
+	fn verify_local_seal(&self, _header: &Header) -> Result<(), Error> {
 		Ok(())
 	}
 
@@ -86,10 +95,12 @@ impl<M: Machine> Engine<M> for InstantSeal<M> {
 		header_timestamp >= parent_timestamp
 	}
 
-	fn fork_choice(&self, new: &ExtendedHeader, current: &ExtendedHeader) -> super::ForkChoice {
-		super::total_difficulty_fork_choice(new, current)
+	fn params(&self) -> &CommonParams {
+		self.machine.params()
 	}
+
 }
+
 
 #[cfg(test)]
 mod tests {
@@ -108,7 +119,7 @@ mod tests {
 		let db = spec.ensure_db_good(get_temp_state_db(), &Default::default()).unwrap();
 		let genesis_header = spec.genesis_header();
 		let last_hashes = Arc::new(vec![genesis_header.hash()]);
-		let b = OpenBlock::new(engine, Default::default(), false, db, &genesis_header, last_hashes, Address::zero(), (3141562.into(), 31415620.into()), vec![], false, None).unwrap();
+		let b = OpenBlock::new(engine, Default::default(), false, db, &genesis_header, last_hashes, Address::zero(), (3141562.into(), 31415620.into()), vec![], false).unwrap();
 		let b = b.close_and_lock().unwrap();
 		if let Seal::Regular(seal) = engine.generate_seal(&b, &genesis_header) {
 			assert!(b.try_seal(engine, seal).is_ok());

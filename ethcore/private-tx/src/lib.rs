@@ -16,10 +16,6 @@
 
 //! Private transactions module.
 
-// Recursion limit required because of
-// error_chain foreign_links.
-#![recursion_limit="256"]
-
 mod encryptor;
 mod key_server_keys;
 mod private_transactions;
@@ -27,6 +23,7 @@ mod messages;
 mod error;
 mod log;
 
+extern crate account_state;
 extern crate common_types as types;
 extern crate ethabi;
 extern crate ethcore;
@@ -38,7 +35,7 @@ extern crate ethjson;
 extern crate ethkey;
 extern crate fetch;
 extern crate futures;
-extern crate heapsize;
+extern crate parity_util_mem;
 extern crate keccak_hash as hash;
 extern crate parity_bytes as bytes;
 extern crate parity_crypto as crypto;
@@ -51,6 +48,8 @@ extern crate serde_derive;
 extern crate serde;
 extern crate serde_json;
 extern crate rustc_hex;
+extern crate state_db;
+extern crate trace;
 extern crate transaction_pool as txpool;
 extern crate url;
 #[macro_use]
@@ -62,6 +61,7 @@ extern crate ethabi_contract;
 extern crate derive_more;
 #[macro_use]
 extern crate rlp_derive;
+extern crate vm;
 
 #[cfg(not(time_checked_add))]
 extern crate time_utils;
@@ -96,11 +96,13 @@ use ethcore::client::{
 	Call, BlockInfo
 };
 use ethcore::miner::{self, Miner, MinerService, pool_client::NonceCache};
-use ethcore::{state, state_db};
-use ethcore::trace::{Tracer, VMTracer};
+use state_db::StateDB;
+use account_state::State;
+use trace::{Tracer, VMTracer};
 use call_contract::CallContract;
 use rustc_hex::FromHex;
 use ethabi::FunctionOutputDecoder;
+use vm::CreateContractAddress;
 
 // Source avaiable at https://github.com/parity-contracts/private-tx/blob/master/contracts/PrivateContract.sol
 const DEFAULT_STUB_CONTRACT: &'static str = include_str!("../res/private.evm");
@@ -289,7 +291,7 @@ impl Provider {
 		let mut state_buf = [0u8; 64];
 		state_buf[..32].clone_from_slice(state_hash.as_bytes());
 		state_buf[32..].clone_from_slice(nonce_h256.as_bytes());
-		keccak(&state_buf.as_ref())
+		keccak(AsRef::<[u8]>::as_ref(&state_buf[..]))
 	}
 
 	fn pool_client<'a>(&'a self, nonce_cache: &'a NonceCache, local_accounts: &'a HashSet<Address>) -> miner::pool_client::PoolClient<'a, Client> {
@@ -543,7 +545,7 @@ impl Provider {
 		raw
 	}
 
-	fn patch_account_state(&self, contract_address: &Address, block: BlockId, state: &mut state::State<state_db::StateDB>) -> Result<(), Error> {
+	fn patch_account_state(&self, contract_address: &Address, block: BlockId, state: &mut State<StateDB>) -> Result<(), Error> {
 		let contract_code = Arc::new(self.get_decrypted_code(contract_address, block)?);
 		let contract_state = self.get_decrypted_state(contract_address, block)?;
 		trace!(target: "privatetx", "Patching contract at {:?}, code: {:?}, state: {:?}", contract_address, contract_code, contract_state);
@@ -574,7 +576,7 @@ impl Provider {
 		let sender = transaction.sender();
 		let nonce = state.nonce(&sender)?;
 		let contract_address = contract_address.unwrap_or_else(|| {
-			let (new_address, _) = ethcore_contract_address(engine.create_address_scheme(env_info.number), &sender, &nonce, &transaction.data);
+			let (new_address, _) = ethcore_contract_address(CreateContractAddress::FromSenderAndNonce, &sender, &nonce, &transaction.data);
 			new_address
 		});
 		// Patch other available private contracts' states as well

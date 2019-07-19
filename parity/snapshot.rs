@@ -123,6 +123,7 @@ fn restore_using<R: SnapshotReader>(snapshot: Arc<SnapshotService>, reader: &R, 
 	match snapshot.status() {
 		RestorationStatus::Ongoing { .. } => Err("Snapshot file is incomplete and missing chunks.".into()),
 		RestorationStatus::Initializing { .. } => Err("Snapshot restoration is still initializing.".into()),
+		RestorationStatus::Finalizing => Err("Snapshot restoration is still finalizing.".into()),
 		RestorationStatus::Failed => Err("Snapshot restoration failed.".into()),
 		RestorationStatus::Inactive => {
 			info!("Restoration complete.");
@@ -261,7 +262,7 @@ impl SnapshotCommand {
 				let cur_size = p.size();
 				if cur_size != last_size {
 					last_size = cur_size;
-					let bytes = ::informant::format_bytes(p.size());
+					let bytes = ::informant::format_bytes(cur_size as usize);
 					info!("Snapshot: {} accounts {} blocks {}", p.accounts(), p.blocks(), bytes);
 				}
 

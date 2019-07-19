@@ -18,16 +18,19 @@
 
 use std::fmt;
 
-use ethcore::error::{Error as EthcoreError, CallError};
 use ethcore::client::BlockId;
 use jsonrpc_core::{futures, Result as RpcResult, Error, ErrorCode, Value};
 use rlp::DecoderError;
 use types::transaction::Error as TransactionError;
 use ethcore_private_tx::Error as PrivateTransactionError;
 use vm::Error as VMError;
-use light::on_demand::error::{Error as OnDemandError, ErrorKind as OnDemandErrorKind};
+use light::on_demand::error::{Error as OnDemandError};
 use ethcore::client::BlockChainClient;
-use types::blockchain_info::BlockChainInfo;
+use types::{
+	blockchain_info::BlockChainInfo,
+	errors::{EthcoreError},
+	transaction::CallError,
+};
 use v1::types::BlockNumber;
 use v1::impls::EthClientOptions;
 
@@ -555,10 +558,9 @@ pub fn filter_block_not_found(id: BlockId) -> Error {
 
 pub fn on_demand_error(err: OnDemandError) -> Error {
 	match err {
-		OnDemandError(OnDemandErrorKind::ChannelCanceled(e), _) => on_demand_cancel(e),
-		OnDemandError(OnDemandErrorKind::RequestLimit, _) => timeout_new_peer(&err),
-		OnDemandError(OnDemandErrorKind::BadResponse(_), _) => max_attempts_reached(&err),
-		_ => on_demand_others(&err),
+		OnDemandError::ChannelCanceled(e) => on_demand_cancel(e),
+		OnDemandError::RequestLimit => timeout_new_peer(&err),
+		OnDemandError::BadResponse(_) => max_attempts_reached(&err),
 	}
 }
 
@@ -578,14 +580,6 @@ pub fn max_attempts_reached(err: &OnDemandError) -> Error {
 pub fn timeout_new_peer(err: &OnDemandError) -> Error {
 	Error {
 		code: ErrorCode::ServerError(codes::NO_LIGHT_PEERS),
-		message: err.to_string(),
-		data: None,
-	}
-}
-
-pub fn on_demand_others(err: &OnDemandError) -> Error {
-	Error {
-		code: ErrorCode::ServerError(codes::UNKNOWN_ERROR),
 		message: err.to_string(),
 		data: None,
 	}

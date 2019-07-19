@@ -28,10 +28,14 @@ use std::sync::Weak;
 use bytes::Bytes;
 use ethereum_types::{H256, Address};
 use ethjson::spec::ValidatorSet as ValidatorSpec;
-use machine::{AuxiliaryData, Call, EthereumMachine};
-use types::BlockNumber;
-use types::header::Header;
-use types::ids::BlockId;
+use machine::Machine;
+use types::{
+	BlockNumber,
+	header::Header,
+	ids::BlockId,
+	errors::EthcoreError,
+	engines::machine::{Call, AuxiliaryData},
+};
 
 use client::EngineClient;
 
@@ -44,7 +48,7 @@ use self::multi::Multi;
 use super::SystemCall;
 
 /// Creates a validator set from spec.
-pub fn new_validator_set(spec: ValidatorSpec) -> Box<ValidatorSet> {
+pub fn new_validator_set(spec: ValidatorSpec) -> Box<dyn ValidatorSet> {
 	match spec {
 		ValidatorSpec::List(list) => Box::new(SimpleList::new(list.into_iter().map(Into::into).collect())),
 		ValidatorSpec::SafeContract(address) => Box::new(ValidatorSafeContract::new(address.into())),
@@ -88,7 +92,7 @@ pub trait ValidatorSet: Send + Sync + 'static {
 	/// The caller provided here may not generate proofs.
 	///
 	/// `first` is true if this is the first block in the set.
-	fn on_epoch_begin(&self, _first: bool, _header: &Header, _call: &mut SystemCall) -> Result<(), ::error::Error> {
+	fn on_epoch_begin(&self, _first: bool, _header: &Header, _call: &mut SystemCall) -> Result<(), EthcoreError> {
 		Ok(())
 	}
 
@@ -113,7 +117,7 @@ pub trait ValidatorSet: Send + Sync + 'static {
 		first: bool,
 		header: &Header,
 		aux: AuxiliaryData,
-	) -> ::engines::EpochChange<EthereumMachine>;
+	) -> ::engines::EpochChange;
 
 	/// Recover the validator set from the given proof, the block number, and
 	/// whether this header is first in its set.
@@ -123,8 +127,8 @@ pub trait ValidatorSet: Send + Sync + 'static {
 	///
 	/// Returns the set, along with a flag indicating whether finality of a specific
 	/// hash should be proven.
-	fn epoch_set(&self, first: bool, machine: &EthereumMachine, number: BlockNumber, proof: &[u8])
-		-> Result<(SimpleList, Option<H256>), ::error::Error>;
+	fn epoch_set(&self, first: bool, machine: &Machine, number: BlockNumber, proof: &[u8])
+		-> Result<(SimpleList, Option<H256>), EthcoreError>;
 
 	/// Checks if a given address is a validator, with the given function
 	/// for executing synchronous calls to contracts.
@@ -141,5 +145,5 @@ pub trait ValidatorSet: Send + Sync + 'static {
 	/// Notifies about benign misbehaviour.
 	fn report_benign(&self, _validator: &Address, _set_block: BlockNumber, _block: BlockNumber) {}
 	/// Allows blockchain state access.
-	fn register_client(&self, _client: Weak<EngineClient>) {}
+	fn register_client(&self, _client: Weak<dyn EngineClient>) {}
 }

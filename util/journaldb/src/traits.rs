@@ -36,7 +36,7 @@ pub trait KeyedHashDB: HashDB<KeccakHasher, DBValue> {
 /// Upcast to `KeyedHashDB`
 pub trait AsKeyedHashDB: AsHashDB<KeccakHasher, DBValue> {
 	/// Perform upcast to KeyedHashDB.
-	fn as_keyed_hash_db(&self) -> &KeyedHashDB;
+	fn as_keyed_hash_db(&self) -> &dyn KeyedHashDB;
 }
 
 /// A `HashDB` which can manage a short-term journal potentially containing many forks of mutually
@@ -44,7 +44,7 @@ pub trait AsKeyedHashDB: AsHashDB<KeccakHasher, DBValue> {
 pub trait JournalDB: KeyedHashDB {
 
 	/// Return a copy of ourself, in a box.
-	fn boxed_clone(&self) -> Box<JournalDB>;
+	fn boxed_clone(&self) -> Box<dyn JournalDB>;
 
 	/// Returns heap memory size used
 	fn mem_used(&self) -> usize;
@@ -64,7 +64,7 @@ pub trait JournalDB: KeyedHashDB {
 	fn latest_era(&self) -> Option<u64>;
 
 	/// Journal recent database operations as being associated with a given era and id.
-	// TODO: give the overlay to this function so journaldbs don't manage the overlays themeselves.
+	// TODO: give the overlay to this function so journaldbs don't manage the overlays themselves.
 	fn journal_under(&mut self, batch: &mut DBTransaction, now: u64, id: &H256) -> io::Result<u32>;
 
 	/// Mark a given block as canonical, indicating that competing blocks' states may be pruned out.
@@ -83,17 +83,17 @@ pub trait JournalDB: KeyedHashDB {
 	fn state(&self, _id: &H256) -> Option<Bytes>;
 
 	/// Whether this database is pruned.
-	fn is_pruned(&self) -> bool { true }
+	fn is_prunable(&self) -> bool { true }
 
 	/// Get backing database.
-	fn backing(&self) -> &Arc<kvdb::KeyValueDB>;
+	fn backing(&self) -> &Arc<dyn kvdb::KeyValueDB>;
 
 	/// Clear internal strucutres. This should called after changes have been written
 	/// to the backing strage
 	fn flush(&self) {}
 
 	/// Consolidate all the insertions and deletions in the given memory overlay.
-	fn consolidate(&mut self, overlay: ::memory_db::MemoryDB<KeccakHasher, DBValue>);
+	fn consolidate(&mut self, overlay: super::MemoryDB);
 
 	/// Commit all changes in a single batch
 	#[cfg(test)]

@@ -19,14 +19,24 @@
 use std::fmt;
 use std::sync::Arc;
 use ethereum_types::{H256, U256, H160};
-use {factory, journaldb, trie, kvdb_memorydb};
+use {trie_vm_factories, journaldb, trie, kvdb_memorydb};
 use kvdb::{self, KeyValueDB};
-use {state, state_db, client, executive, trace, db, spec, pod_state};
-use types::{log_entry, receipt, transaction};
-use factory::Factories;
+use {state_db, client, executive, trace, db, spec};
+use pod::PodState;
+use types::{
+	errors::EthcoreError,
+	log_entry,
+	receipt,
+	transaction
+};
+use trie_vm_factories::Factories;
 use evm::{VMType, FinalizationResult};
-use vm::{self, ActionParams};
+use vm::{self, ActionParams, CreateContractAddress};
 use ethtrie;
+use account_state::{CleanupMode, State};
+use substate::Substate;
+
+use executive_state::ExecutiveState;
 
 /// EVM test Error.
 #[derive(Debug)]
@@ -36,12 +46,12 @@ pub enum EvmTestError {
 	/// EVM error.
 	Evm(vm::Error),
 	/// Initialization error.
-	ClientError(::error::Error),
+	ClientError(EthcoreError),
 	/// Post-condition failure,
 	PostCondition(String),
 }
 
-impl<E: Into<::error::Error>> From<E> for EvmTestError {
+impl<E: Into<EthcoreError>> From<E> for EvmTestError {
 	fn from(err: E) -> Self {
 		EvmTestError::ClientError(err.into())
 	}
@@ -65,13 +75,17 @@ use ethjson::spec::ForkSpec;
 
 /// Simplified, single-block EVM test client.
 pub struct EvmTestClient<'a> {
-	state: state::State<state_db::StateDB>,
+	state: State<state_db::StateDB>,
 	spec: &'a spec::Spec,
-	dump_state: fn(&state::State<state_db::StateDB>) -> Option<pod_state::PodState>,
+	dump_state: fn(&State<state_db::StateDB>) -> Option<PodState>,
 }
 
-fn no_dump_state(_: &state::State<state_db::StateDB>) -> Option<pod_state::PodState> {
+fn no_dump_state(_: &State<state_db::StateDB>) -> Option<PodState> {
 	None
+}
+
+fn dump_state(state: &State<state_db::StateDB>) -> Option<PodState> {
+	state.to_pod_full().ok()
 }
 
 impl<'a> fmt::Debug for EvmTestClient<'a> {
@@ -100,7 +114,7 @@ impl<'a> EvmTestClient<'a> {
 	}
 
 	/// Change default function for dump state (default does not dump)
-	pub fn set_dump_state_fn(&mut self, dump_state: fn(&state::State<state_db::StateDB>) -> Option<pod_state::PodState>) {
+	pub fn set_dump_state(&mut self) {
 		self.dump_state = dump_state;
 	}
 
@@ -124,7 +138,7 @@ impl<'a> EvmTestClient<'a> {
 
 	/// Creates new EVM test client with an in-memory DB initialized with given PodState.
 	/// Takes a `TrieSpec` to set the type of trie.
-	pub fn from_pod_state_with_trie(spec: &'a spec::Spec, pod_state: pod_state::PodState, trie_spec: trie::TrieSpec) -> Result<Self, EvmTestError> {
+	pub fn from_pod_state_with_trie(spec: &'a spec::Spec, pod_state: PodState, trie_spec: trie::TrieSpec) -> Result<Self, EvmTestError> {
 		let factories = Self::factories(trie_spec);
 		let state =	Self::state_from_pod(spec, &factories, pod_state)?;
 
@@ -136,19 +150,19 @@ impl<'a> EvmTestClient<'a> {
 	}
 
 	/// Creates new EVM test client with an in-memory DB initialized with given PodState.
-	pub fn from_pod_state(spec: &'a spec::Spec, pod_state: pod_state::PodState) -> Result<Self, EvmTestError> {
+	pub fn from_pod_state(spec: &'a spec::Spec, pod_state: PodState) -> Result<Self, EvmTestError> {
 		Self::from_pod_state_with_trie(spec, pod_state, trie::TrieSpec::Secure)
 	}
 
 	fn factories(trie_spec: trie::TrieSpec) -> Factories {
 		Factories {
-			vm: factory::VmFactory::new(VMType::Interpreter, 5 * 1024),
+			vm: trie_vm_factories::VmFactory::new(VMType::Interpreter, 5 * 1024),
 			trie: trie::TrieFactory::new(trie_spec),
 			accountdb: Default::default(),
 		}
 	}
 
-	fn state_from_spec(spec: &'a spec::Spec, factories: &Factories) -> Result<state::State<state_db::StateDB>, EvmTestError> {
+	fn state_from_spec(spec: &'a spec::Spec, factories: &Factories) -> Result<State<state_db::StateDB>, EvmTestError> {
 		let db = Arc::new(kvdb_memorydb::create(db::NUM_COLUMNS.expect("We use column-based DB; qed")));
 		let journal_db = journaldb::new(db.clone(), journaldb::Algorithm::EarlyMerge, db::COL_STATE);
 		let mut state_db = state_db::StateDB::new(journal_db, 5 * 1024 * 1024);
@@ -162,7 +176,7 @@ impl<'a> EvmTestClient<'a> {
 			db.write(batch)?;
 		}
 
-		state::State::from_existing(
+		State::from_existing(
 			state_db,
 			*genesis.state_root(),
 			spec.engine.account_start_nonce(0),
@@ -170,11 +184,11 @@ impl<'a> EvmTestClient<'a> {
 		).map_err(EvmTestError::Trie)
 	}
 
-	fn state_from_pod(spec: &'a spec::Spec, factories: &Factories, pod_state: pod_state::PodState) -> Result<state::State<state_db::StateDB>, EvmTestError> {
+	fn state_from_pod(spec: &'a spec::Spec, factories: &Factories, pod_state: PodState) -> Result<State<state_db::StateDB>, EvmTestError> {
 		let db = Arc::new(kvdb_memorydb::create(db::NUM_COLUMNS.expect("We use column-based DB; qed")));
 		let journal_db = journaldb::new(db.clone(), journaldb::Algorithm::EarlyMerge, db::COL_STATE);
 		let state_db = state_db::StateDB::new(journal_db, 5 * 1024 * 1024);
-		let mut state = state::State::new(
+		let mut state = State::new(
 			state_db,
 			spec.engine.account_start_nonce(0),
 			factories.clone(),
@@ -185,7 +199,7 @@ impl<'a> EvmTestClient<'a> {
 	}
 
 	/// Return current state.
-	pub fn state(&self) -> &state::State<state_db::StateDB> {
+	pub fn state(&self) -> &State<state_db::StateDB> {
 		&self.state
 	}
 
@@ -221,7 +235,7 @@ impl<'a> EvmTestClient<'a> {
 		info: client::EnvInfo,
 	) -> Result<FinalizationResult, EvmTestError>
 	{
-		let mut substate = state::Substate::new();
+		let mut substate = Substate::new();
 		let machine = self.spec.engine.machine();
 		let schedule = machine.schedule(info.number);
 		let mut executive = executive::Executive::new(&mut self.state, &info, &machine, &schedule);
@@ -256,16 +270,16 @@ impl<'a> EvmTestClient<'a> {
 
 		// Apply transaction
 		let result = self.state.apply_with_tracing(&env_info, self.spec.engine.machine(), &transaction, tracer, vm_tracer);
-		let scheme = self.spec.engine.machine().create_address_scheme(env_info.number);
+		let scheme = CreateContractAddress::FromSenderAndNonce;
 
 		// Touch the coinbase at the end of the test to simulate
 		// miner reward.
 		// Details: https://github.com/paritytech/parity-ethereum/issues/9431
 		let schedule = self.spec.engine.machine().schedule(env_info.number);
 		self.state.add_balance(&env_info.author, &0.into(), if schedule.no_empty {
-			state::CleanupMode::NoEmpty
+			CleanupMode::NoEmpty
 		} else {
-			state::CleanupMode::ForceCreate
+			CleanupMode::ForceCreate
 		}).ok();
 		// Touching also means that we should remove the account if it's within eip161
 		// conditions.
@@ -300,11 +314,7 @@ impl<'a> EvmTestClient<'a> {
 					end_state,
 				}
 			)},
-			Err(error) => Err(TransactErr {
-				state_root,
-				error,
-				end_state,
-			}),
+			Err(e) => Err(TransactErr {state_root, error: e.into(), end_state}),
 		}
 	}
 }
@@ -330,7 +340,7 @@ pub struct TransactSuccess<T, V> {
 	/// outcome
 	pub outcome: receipt::TransactionOutcome,
 	/// end state if needed
-	pub end_state: Option<pod_state::PodState>,
+	pub end_state: Option<PodState>,
 }
 
 /// To be returned inside a std::result::Result::Err after a failed
@@ -340,7 +350,7 @@ pub struct TransactErr {
 	/// State root
 	pub state_root: H256,
 	/// Execution error
-	pub error: ::error::Error,
+	pub error: EthcoreError,
 	/// end state if needed
-	pub end_state: Option<pod_state::PodState>,
+	pub end_state: Option<PodState>,
 }

@@ -16,7 +16,7 @@
 
 //! Log EVM instruction output data traces from a simple formatting informant.
 
-use ethcore::trace;
+use trace;
 use bytes::ToPretty;
 
 use display;

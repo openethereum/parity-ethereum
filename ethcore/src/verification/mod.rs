@@ -36,7 +36,7 @@ use client::BlockInfo;
 pub enum VerifierType {
 	/// Verifies block normally.
 	Canon,
-	/// Verifies block normallly, but skips seal verification.
+	/// Verifies block normally, but skips seal verification.
 	CanonNoSeal,
 	/// Does not verify block at all.
 	/// Used in tests.
@@ -44,7 +44,7 @@ pub enum VerifierType {
 }
 
 /// Create a new verifier based on type.
-pub fn new<C: BlockInfo + CallContract>(v: VerifierType) -> Box<Verifier<C>> {
+pub fn new<C: BlockInfo + CallContract>(v: VerifierType) -> Box<dyn Verifier<C>> {
 	match v {
 		VerifierType::Canon | VerifierType::CanonNoSeal => Box::new(CanonVerifier),
 		VerifierType::Noop => Box::new(NoopVerifier),

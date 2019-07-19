@@ -27,12 +27,13 @@ use types::filter::Filter;
 use types::view;
 use types::views::BlockView;
 
-use client::{BlockChainClient, BlockChainReset, Client, ClientConfig, BlockId, ChainInfo, BlockInfo, PrepareOpenBlock, ImportSealedBlock, ImportBlock};
+use client::{BlockChainClient, BlockChainReset, Client, ClientConfig, BlockId, ChainInfo, PrepareOpenBlock, ImportSealedBlock, ImportBlock};
+use client::BlockInfo;
 use ethereum;
 use executive::{Executive, TransactOptions};
 use miner::{Miner, PendingOrdering, MinerService};
 use spec::Spec;
-use state::{self, State, CleanupMode};
+use account_state::{State, CleanupMode, backend};
 use test_helpers::{
 	self,
 	generate_dummy_client, push_blocks_to_client, get_test_client_with_blocks, get_good_dummy_block_seq,
@@ -69,11 +70,8 @@ fn should_return_registrar() {
 		Arc::new(Miner::new_for_tests(&spec, None)),
 		IoChannel::disconnected(),
 	).unwrap();
-	let params = client.additional_params();
-	let address = &params["registrar"];
-
-	assert_eq!(address.len(), 40);
-	assert!(U256::from_str(address).is_ok());
+	let address = client.registrar_address();
+	assert_eq!(address, Some("52dff57a8a1532e6afb3dc07e2af58bb9eb05b3d".parse().unwrap()));
 }
 
 #[test]
@@ -120,7 +118,7 @@ fn query_none_block() {
 		Arc::new(Miner::new_for_tests(&spec, None)),
 		IoChannel::disconnected(),
 	).unwrap();
-    let non_existant = client.block_header(BlockId::Number(188));
+	let non_existant = client.block_header(BlockId::Number(188));
 	assert!(non_existant.is_none());
 }
 
@@ -350,9 +348,9 @@ fn transaction_proof() {
 	}.fake_sign(address);
 
 	let proof = client.prove_transaction(transaction.clone(), BlockId::Latest).unwrap().1;
-	let backend = state::backend::ProofCheck::new(&proof);
+	let backend = backend::ProofCheck::new(&proof);
 
-	let mut factories = ::factory::Factories::default();
+	let mut factories = ::trie_vm_factories::Factories::default();
 	factories.accountdb = ::account_db::Factory::Plain; // raw state values, no mangled keys.
 	let root = *client.best_block_header().state_root();
 

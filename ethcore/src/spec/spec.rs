@@ -28,315 +28,35 @@ use hash::{KECCAK_NULL_RLP, keccak};
 use parking_lot::RwLock;
 use rlp::{Rlp, RlpStream};
 use rustc_hex::{FromHex, ToHex};
-use types::BlockNumber;
-use types::encoded;
-use types::header::Header;
+use types::{
+	BlockNumber,
+	header::Header,
+	encoded,
+	engines::params::CommonParams,
+	errors::EthcoreError as Error,
+};
 use vm::{EnvInfo, CallType, ActionValue, ActionParams, ParamsType};
 
 use builtin::Builtin;
 use engines::{
-	EthEngine, NullEngine, InstantSeal, InstantSealParams, BasicAuthority, Clique,
-	AuthorityRound, DEFAULT_BLOCKHASH_CONTRACT
+	Engine, NullEngine, InstantSeal, InstantSealParams, BasicAuthority, Clique,
+	AuthorityRound, Ethash,
 };
-use error::Error;
 use executive::Executive;
-use factory::Factories;
-use machine::EthereumMachine;
-use pod_state::PodState;
+use trie_vm_factories::Factories;
+use machine::Machine;
+use pod::PodState;
 use spec::Genesis;
 use spec::seal::Generic as GenericSeal;
-use state::backend::Basic as BasicBackend;
-use state::{Backend, State, Substate};
+use account_state::{Backend, State, backend::Basic as BasicBackend};
+use substate::Substate;
 use trace::{NoopTracer, NoopVMTracer};
 
 pub use ethash::OptimizeFor;
 
-const MAX_TRANSACTION_SIZE: usize = 300 * 1024;
-
 // helper for formatting errors.
 fn fmt_err<F: ::std::fmt::Display>(f: F) -> String {
 	format!("Spec json is invalid: {}", f)
-}
-
-/// Parameters common to ethereum-like blockchains.
-/// NOTE: when adding bugfix hard-fork parameters,
-/// add to `nonzero_bugfix_hard_fork`
-///
-/// we define a "bugfix" hard fork as any hard fork which
-/// you would put on-by-default in a new chain.
-#[derive(Debug, PartialEq, Default)]
-#[cfg_attr(test, derive(Clone))]
-pub struct CommonParams {
-	/// Account start nonce.
-	pub account_start_nonce: U256,
-	/// Maximum size of extra data.
-	pub maximum_extra_data_size: usize,
-	/// Network id.
-	pub network_id: u64,
-	/// Chain id.
-	pub chain_id: u64,
-	/// Main subprotocol name.
-	pub subprotocol_name: String,
-	/// Minimum gas limit.
-	pub min_gas_limit: U256,
-	/// Fork block to check.
-	pub fork_block: Option<(BlockNumber, H256)>,
-	/// EIP150 transition block number.
-	pub eip150_transition: BlockNumber,
-	/// Number of first block where EIP-160 rules begin.
-	pub eip160_transition: BlockNumber,
-	/// Number of first block where EIP-161.abc begin.
-	pub eip161abc_transition: BlockNumber,
-	/// Number of first block where EIP-161.d begins.
-	pub eip161d_transition: BlockNumber,
-	/// Number of first block where EIP-98 rules begin.
-	pub eip98_transition: BlockNumber,
-	/// Number of first block where EIP-658 rules begin.
-	pub eip658_transition: BlockNumber,
-	/// Number of first block where EIP-155 rules begin.
-	pub eip155_transition: BlockNumber,
-	/// Validate block receipts root.
-	pub validate_receipts_transition: BlockNumber,
-	/// Validate transaction chain id.
-	pub validate_chain_id_transition: BlockNumber,
-	/// Number of first block where EIP-140 rules begin.
-	pub eip140_transition: BlockNumber,
-	/// Number of first block where EIP-210 rules begin.
-	pub eip210_transition: BlockNumber,
-	/// EIP-210 Blockhash contract address.
-	pub eip210_contract_address: Address,
-	/// EIP-210 Blockhash contract code.
-	pub eip210_contract_code: Bytes,
-	/// Gas allocated for EIP-210 blockhash update.
-	pub eip210_contract_gas: U256,
-	/// Number of first block where EIP-211 rules begin.
-	pub eip211_transition: BlockNumber,
-	/// Number of first block where EIP-214 rules begin.
-	pub eip214_transition: BlockNumber,
-	/// Number of first block where EIP-145 rules begin.
-	pub eip145_transition: BlockNumber,
-	/// Number of first block where EIP-1052 rules begin.
-	pub eip1052_transition: BlockNumber,
-	/// Number of first block where EIP-1283 rules begin.
-	pub eip1283_transition: BlockNumber,
-	/// Number of first block where EIP-1283 rules end.
-	pub eip1283_disable_transition: BlockNumber,
-	/// Number of first block where EIP-1014 rules begin.
-	pub eip1014_transition: BlockNumber,
-	/// Number of first block where dust cleanup rules (EIP-168 and EIP169) begin.
-	pub dust_protection_transition: BlockNumber,
-	/// Nonce cap increase per block. Nonce cap is only checked if dust protection is enabled.
-	pub nonce_cap_increment: u64,
-	/// Enable dust cleanup for contracts.
-	pub remove_dust_contracts: bool,
-	/// Wasm activation blocknumber, if any disabled initially.
-	pub wasm_activation_transition: BlockNumber,
-	/// Number of first block where KIP-4 rules begin. Only has effect if Wasm is activated.
-	pub kip4_transition: BlockNumber,
-	/// Number of first block where KIP-6 rules begin. Only has effect if Wasm is activated.
-	pub kip6_transition: BlockNumber,
-	/// Gas limit bound divisor (how much gas limit can change per block)
-	pub gas_limit_bound_divisor: U256,
-	/// Registrar contract address.
-	pub registrar: Address,
-	/// Node permission managing contract address.
-	pub node_permission_contract: Option<Address>,
-	/// Maximum contract code size that can be deployed.
-	pub max_code_size: u64,
-	/// Number of first block where max code size limit is active.
-	pub max_code_size_transition: BlockNumber,
-	/// Transaction permission managing contract address.
-	pub transaction_permission_contract: Option<Address>,
-	/// Block at which the transaction permission contract should start being used.
-	pub transaction_permission_contract_transition: BlockNumber,
-	/// Maximum size of transaction's RLP payload
-	pub max_transaction_size: usize,
-}
-
-impl CommonParams {
-	/// Schedule for an EVM in the post-EIP-150-era of the Ethereum main net.
-	pub fn schedule(&self, block_number: u64) -> ::vm::Schedule {
-		if block_number < self.eip150_transition {
-			::vm::Schedule::new_homestead()
-		} else {
-			let max_code_size = self.max_code_size(block_number);
-			let mut schedule = ::vm::Schedule::new_post_eip150(
-				max_code_size as _,
-				block_number >= self.eip160_transition,
-				block_number >= self.eip161abc_transition,
-				block_number >= self.eip161d_transition
-			);
-
-			self.update_schedule(block_number, &mut schedule);
-			schedule
-		}
-	}
-
-	/// Returns max code size at given block.
-	pub fn max_code_size(&self, block_number: u64) -> u64 {
-		if block_number >= self.max_code_size_transition {
-			self.max_code_size
-		} else {
-			u64::max_value()
-		}
-	}
-
-	/// Apply common spec config parameters to the schedule.
-	pub fn update_schedule(&self, block_number: u64, schedule: &mut ::vm::Schedule) {
-		schedule.have_create2 = block_number >= self.eip1014_transition;
-		schedule.have_revert = block_number >= self.eip140_transition;
-		schedule.have_static_call = block_number >= self.eip214_transition;
-		schedule.have_return_data = block_number >= self.eip211_transition;
-		schedule.have_bitwise_shifting = block_number >= self.eip145_transition;
-		schedule.have_extcodehash = block_number >= self.eip1052_transition;
-		schedule.eip1283 = block_number >= self.eip1283_transition && !(block_number >= self.eip1283_disable_transition);
-		if block_number >= self.eip210_transition {
-			schedule.blockhash_gas = 800;
-		}
-		if block_number >= self.dust_protection_transition {
-			schedule.kill_dust = match self.remove_dust_contracts {
-				true => ::vm::CleanDustMode::WithCodeAndStorage,
-				false => ::vm::CleanDustMode::BasicOnly,
-			};
-		}
-		if block_number >= self.wasm_activation_transition {
-			let mut wasm = ::vm::WasmCosts::default();
-			if block_number >= self.kip4_transition {
-				wasm.have_create2 = true;
-			}
-			if block_number >= self.kip6_transition {
-				wasm.have_gasleft = true;
-			}
-			schedule.wasm = Some(wasm);
-		}
-	}
-
-	/// Return Some if the current parameters contain a bugfix hard fork not on block 0.
-	pub fn nonzero_bugfix_hard_fork(&self) -> Option<&str> {
-		if self.eip155_transition != 0 {
-			return Some("eip155Transition");
-		}
-
-		if self.validate_receipts_transition != 0 {
-			return Some("validateReceiptsTransition");
-		}
-
-		if self.validate_chain_id_transition != 0 {
-			return Some("validateChainIdTransition");
-		}
-
-		None
-	}
-}
-
-impl From<ethjson::spec::Params> for CommonParams {
-	fn from(p: ethjson::spec::Params) -> Self {
-		CommonParams {
-			account_start_nonce: p.account_start_nonce.map_or_else(U256::zero, Into::into),
-			maximum_extra_data_size: p.maximum_extra_data_size.into(),
-			network_id: p.network_id.into(),
-			chain_id: if let Some(n) = p.chain_id {
-				n.into()
-			} else {
-				p.network_id.into()
-			},
-			subprotocol_name: p.subprotocol_name.unwrap_or_else(|| "eth".to_owned()),
-			min_gas_limit: p.min_gas_limit.into(),
-			fork_block: if let (Some(n), Some(h)) = (p.fork_block, p.fork_hash) {
-				Some((n.into(), h.into()))
-			} else {
-				None
-			},
-			eip150_transition: p.eip150_transition.map_or(0, Into::into),
-			eip160_transition: p.eip160_transition.map_or(0, Into::into),
-			eip161abc_transition: p.eip161abc_transition.map_or(0, Into::into),
-			eip161d_transition: p.eip161d_transition.map_or(0, Into::into),
-			eip98_transition: p.eip98_transition.map_or_else(
-				BlockNumber::max_value,
-				Into::into,
-			),
-			eip155_transition: p.eip155_transition.map_or(0, Into::into),
-			validate_receipts_transition: p.validate_receipts_transition.map_or(0, Into::into),
-			validate_chain_id_transition: p.validate_chain_id_transition.map_or(0, Into::into),
-			eip140_transition: p.eip140_transition.map_or_else(
-				BlockNumber::max_value,
-				Into::into,
-			),
-			eip210_transition: p.eip210_transition.map_or_else(
-				BlockNumber::max_value,
-				Into::into,
-			),
-			eip210_contract_address: p.eip210_contract_address.map_or(Address::from_low_u64_be(0xf0), Into::into),
-			eip210_contract_code: p.eip210_contract_code.map_or_else(
-				|| {
-					DEFAULT_BLOCKHASH_CONTRACT.from_hex().expect(
-						"Default BLOCKHASH contract is valid",
-					)
-				},
-				Into::into,
-			),
-			eip210_contract_gas: p.eip210_contract_gas.map_or(1000000.into(), Into::into),
-			eip211_transition: p.eip211_transition.map_or_else(
-				BlockNumber::max_value,
-				Into::into,
-			),
-			eip145_transition: p.eip145_transition.map_or_else(
-				BlockNumber::max_value,
-				Into::into,
-			),
-			eip214_transition: p.eip214_transition.map_or_else(
-				BlockNumber::max_value,
-				Into::into,
-			),
-			eip658_transition: p.eip658_transition.map_or_else(
-				BlockNumber::max_value,
-				Into::into,
-			),
-			eip1052_transition: p.eip1052_transition.map_or_else(
-				BlockNumber::max_value,
-				Into::into,
-			),
-			eip1283_transition: p.eip1283_transition.map_or_else(
-				BlockNumber::max_value,
-				Into::into,
-			),
-			eip1283_disable_transition: p.eip1283_disable_transition.map_or_else(
-				BlockNumber::max_value,
-				Into::into,
-			),
-			eip1014_transition: p.eip1014_transition.map_or_else(
-				BlockNumber::max_value,
-				Into::into,
-			),
-			dust_protection_transition: p.dust_protection_transition.map_or_else(
-				BlockNumber::max_value,
-				Into::into,
-			),
-			nonce_cap_increment: p.nonce_cap_increment.map_or(64, Into::into),
-			remove_dust_contracts: p.remove_dust_contracts.unwrap_or(false),
-			gas_limit_bound_divisor: p.gas_limit_bound_divisor.into(),
-			registrar: p.registrar.map_or_else(Address::zero, Into::into),
-			node_permission_contract: p.node_permission_contract.map(Into::into),
-			max_code_size: p.max_code_size.map_or(u64::max_value(), Into::into),
-			max_transaction_size: p.max_transaction_size.map_or(MAX_TRANSACTION_SIZE, Into::into),
-			max_code_size_transition: p.max_code_size_transition.map_or(0, Into::into),
-			transaction_permission_contract: p.transaction_permission_contract.map(Into::into),
-			transaction_permission_contract_transition:
-				p.transaction_permission_contract_transition.map_or(0, Into::into),
-			wasm_activation_transition: p.wasm_activation_transition.map_or_else(
-				BlockNumber::max_value,
-				Into::into
-			),
-			kip4_transition: p.kip4_transition.map_or_else(
-				BlockNumber::max_value,
-				Into::into
-			),
-			kip6_transition: p.kip6_transition.map_or_else(
-				BlockNumber::max_value,
-				Into::into
-			),
-		}
-	}
 }
 
 /// Runtime parameters for the spec that are related to how the software should run the chain,
@@ -382,7 +102,7 @@ pub struct Spec {
 	/// User friendly spec name
 	pub name: String,
 	/// What engine are we using for this?
-	pub engine: Arc<EthEngine>,
+	pub engine: Arc<dyn Engine>,
 	/// Name of the subdir inside the main data dir to use for chain data and settings.
 	pub data_dir: String,
 
@@ -488,7 +208,7 @@ impl From<SpecHardcodedSync> for ethjson::spec::HardcodedSync {
 	}
 }
 
-fn load_machine_from(s: ethjson::spec::Spec) -> EthereumMachine {
+fn load_machine_from(s: ethjson::spec::Spec) -> Machine {
 	let builtins = s.accounts.builtins().into_iter().map(|p| (p.0.into(), From::from(p.1))).collect();
 	let params = CommonParams::from(s.params);
 
@@ -537,8 +257,8 @@ fn load_from(spec_params: SpecParams, s: ethjson::spec::Spec) -> Result<Spec, Er
 		gas_used: g.gas_used,
 		timestamp: g.timestamp,
 		extra_data: g.extra_data,
-		seal_rlp: seal_rlp,
-		hardcoded_sync: hardcoded_sync,
+		seal_rlp,
+		hardcoded_sync,
 		constructors: s.accounts
 			.constructors()
 			.into_iter()
@@ -586,11 +306,11 @@ impl Spec {
 		engine_spec: &ethjson::spec::Engine,
 		params: CommonParams,
 		builtins: BTreeMap<Address, Builtin>,
-	) -> EthereumMachine {
+	) -> Machine {
 		if let ethjson::spec::Engine::Ethash(ref ethash) = *engine_spec {
-			EthereumMachine::with_ethash_extensions(params, builtins, ethash.params.clone().into())
+			Machine::with_ethash_extensions(params, builtins, ethash.params.clone().into())
 		} else {
-			EthereumMachine::regular(params, builtins)
+			Machine::regular(params, builtins)
 		}
 	}
 
@@ -601,12 +321,12 @@ impl Spec {
 		engine_spec: ethjson::spec::Engine,
 		params: CommonParams,
 		builtins: BTreeMap<Address, Builtin>,
-	) -> Arc<EthEngine> {
+	) -> Arc<dyn Engine> {
 		let machine = Self::machine(&engine_spec, params, builtins);
 
 		match engine_spec {
 			ethjson::spec::Engine::Null(null) => Arc::new(NullEngine::new(null.params.into(), machine)),
-			ethjson::spec::Engine::Ethash(ethash) => Arc::new(::ethereum::Ethash::new(spec_params.cache_dir, ethash.params.into(), machine, spec_params.optimization_setting)),
+			ethjson::spec::Engine::Ethash(ethash) => Arc::new(Ethash::new(spec_params.cache_dir, ethash.params.into(), machine, spec_params.optimization_setting)),
 			ethjson::spec::Engine::InstantSeal(Some(instant_seal)) => Arc::new(InstantSeal::new(instant_seal.params.into(), machine)),
 			ethjson::spec::Engine::InstantSeal(None) => Arc::new(InstantSeal::new(InstantSealParams::default(), machine)),
 			ethjson::spec::Engine::BasicAuthority(basic_authority) => Arc::new(BasicAuthority::new(basic_authority.params.into(), machine)),
@@ -665,6 +385,7 @@ impl Spec {
 				let params = ActionParams {
 					code_address: address.clone(),
 					code_hash: Some(keccak(constructor)),
+					code_version: U256::zero(),
 					address: address.clone(),
 					sender: from.clone(),
 					origin: from.clone(),
@@ -813,7 +534,7 @@ impl Spec {
 
 	/// Ensure that the given state DB has the trie nodes in for the genesis state.
 	pub fn ensure_db_good<T: Backend>(&self, db: T, factories: &Factories) -> Result<T, Error> {
-		if db.as_hash_db().contains(&self.state_root()) {
+		if db.as_hash_db().contains(&self.state_root(), hash_db::EMPTY_PREFIX) {
 			return Ok(db);
 		}
 
@@ -824,7 +545,7 @@ impl Spec {
 	}
 
 	/// Loads just the state machine from a json file.
-	pub fn load_machine<R: Read>(reader: R) -> Result<EthereumMachine, String> {
+	pub fn load_machine<R: Read>(reader: R) -> Result<Machine, String> {
 		ethjson::spec::Spec::load(reader)
 			.map_err(fmt_err)
 			.map(load_machine_from)
@@ -882,7 +603,7 @@ impl Spec {
 				data: d,
 			}.fake_sign(from);
 
-			let res = ::state::prove_transaction_virtual(
+			let res = ::executive_state::prove_transaction_virtual(
 				db.as_hash_db_mut(),
 				*genesis.state_root(),
 				&tx,
@@ -912,9 +633,9 @@ impl Spec {
 		load_bundled!("null_morden")
 	}
 
-	/// Create the EthereumMachine corresponding to Spec::new_test.
+	/// Create the Machine corresponding to Spec::new_test.
 	#[cfg(any(test, feature = "test-helpers"))]
-	pub fn new_test_machine() -> EthereumMachine { load_machine_bundled!("null_morden") }
+	pub fn new_test_machine() -> Machine { load_machine_bundled!("null_morden") }
 
 	/// Create a new Spec which conforms to the Frontier-era Morden chain except that it's a NullEngine consensus with applying reward on block close.
 	#[cfg(any(test, feature = "test-helpers"))]
@@ -991,7 +712,7 @@ impl Spec {
 #[cfg(test)]
 mod tests {
 	use super::*;
-	use state::State;
+	use account_state::State;
 	use test_helpers::get_temp_state_db;
 	use tempdir::TempDir;
 	use types::view;

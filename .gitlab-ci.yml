@@ -46,7 +46,7 @@ variables:
         sccache --start-server
     - sccache -s
   after_script:
-    # sccache debug info
+    # sccache debug info 
     - if test -e sccache_debug.log;
       then
         echo "_____All crate-types:_____";
@@ -147,7 +147,7 @@ test-linux-nightly:
 
 build-android:
   <<:                              *build-on-linux
-  image:                           parity/rust-parity-ethereum-android-build:stretch
+  image:                           parity/parity-ci-android:stretch
   variables:
     CARGO_TARGET:                  armv7-linux-androideabi
 
@@ -158,21 +158,21 @@ build-linux:
 build-linux-i386:
   <<:                              *build-on-linux
   only:                            *releaseable_branches
-  image:                           parity/rust-parity-ethereum-build:i386
+  image:                           parity/parity-ci-i386:latest
   variables:
     CARGO_TARGET:                  i686-unknown-linux-gnu
 
 build-linux-arm64:
   <<:                              *build-on-linux
   only:                            *releaseable_branches
-  image:                           parity/rust-parity-ethereum-build:arm64
+  image:                           parity/parity-ci-arm64:latest
   variables:
     CARGO_TARGET:                  aarch64-unknown-linux-gnu
 
 build-linux-armhf:
   <<:                              *build-on-linux
   only:                            *releaseable_branches
-  image:                           parity/rust-parity-ethereum-build:armhf
+  image:                           parity/parity-ci-armhf:latest
   variables:
     CARGO_TARGET:                  armv7-unknown-linux-gnueabihf
 
@@ -310,14 +310,14 @@ publish-awss3-release:
     - linux-docker
 
 publish-docs:
-  stage:                            publish
-  image:                            parity/rust-parity-ethereum-docs:xenial
+  stage:                           publish
+  image:                           parity/parity-ci-docs:latest
   only:
     - tags
   except:
     - nightly
-  cache:                            {}
-  dependencies:                     []
+  cache:                           {}
+  dependencies:                    []
   script:
     - scripts/gitlab/publish-docs.sh
   tags:

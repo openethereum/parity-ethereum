@@ -74,7 +74,7 @@ impl<DB: HashDB<KeccakHasher, DBValue>> CHT<DB> {
 		if block_to_cht_number(num) != Some(self.number) { return Ok(None) }
 
 		let mut recorder = Recorder::with_depth(from_level);
-		let db: &HashDB<_,_> = &self.db;
+		let db: &dyn HashDB<_,_> = &self.db;
 		let t = TrieDB::new(&db, &self.root)?;
 		t.get_with(&key!(num), &mut recorder)?;
 
@@ -95,7 +95,8 @@ pub struct BlockInfo {
 /// Build an in-memory CHT from a closure which provides necessary information
 /// about blocks. If the fetcher ever fails to provide the info, the CHT
 /// will not be generated.
-pub fn build<F>(cht_num: u64, mut fetcher: F) -> Option<CHT<MemoryDB<KeccakHasher, DBValue>>>
+pub fn build<F>(cht_num: u64, mut fetcher: F)
+	-> Option<CHT<MemoryDB<KeccakHasher, memory_db::HashKey<KeccakHasher>, DBValue>>>
 	where F: FnMut(BlockId) -> Option<BlockInfo>
 {
 	let mut db = new_memory_db();
@@ -154,7 +155,7 @@ pub fn compute_root<I>(cht_num: u64, iterable: I) -> Option<H256>
 pub fn check_proof(proof: &[Bytes], num: u64, root: H256) -> Option<(H256, U256)> {
 	let mut db = new_memory_db();
 
-	for node in proof { db.insert(&node[..]); }
+	for node in proof { db.insert(hash_db::EMPTY_PREFIX, &node[..]); }
 	let res = match TrieDB::new(&db, &root) {
 		Err(_) => return None,
 		Ok(trie) => trie.get_with(&key!(num), |val: &[u8]| {

@@ -18,8 +18,12 @@ use engines::Engine;
 use engines::block_reward::{self, RewardKind};
 use ethereum_types::U256;
 use machine::Machine;
-use types::BlockNumber;
-use types::header::{Header, ExtendedHeader};
+use types::{
+	BlockNumber,
+	header::Header,
+	engines::params::CommonParams,
+	errors::EthcoreError as Error,
+};
 use block::ExecutedBlock;
 
 /// Params for a null engine.
@@ -38,35 +42,35 @@ impl From<::ethjson::spec::NullEngineParams> for NullEngineParams {
 }
 
 /// An engine which does not provide any consensus mechanism and does not seal blocks.
-pub struct NullEngine<M> {
+pub struct NullEngine {
 	params: NullEngineParams,
-	machine: M,
+	machine: Machine,
 }
 
-impl<M> NullEngine<M> {
+impl NullEngine {
 	/// Returns new instance of NullEngine with default VM Factory
-	pub fn new(params: NullEngineParams, machine: M) -> Self {
+	pub fn new(params: NullEngineParams, machine: Machine) -> Self {
 		NullEngine {
-			params: params,
-			machine: machine,
+			params,
+			machine,
 		}
 	}
 }
 
-impl<M: Default> Default for NullEngine<M> {
-	fn default() -> Self {
-		Self::new(Default::default(), Default::default())
-	}
-}
-
-impl<M: Machine> Engine<M> for NullEngine<M> {
+impl Engine for NullEngine {
 	fn name(&self) -> &str {
 		"NullEngine"
 	}
 
-	fn machine(&self) -> &M { &self.machine }
+	fn machine(&self) -> &Machine { &self.machine }
 
-	fn on_close_block(&self, block: &mut ExecutedBlock) -> Result<(), M::Error> {
+	fn maximum_uncle_count(&self, _block: BlockNumber) -> usize { 2 }
+
+	fn on_close_block(
+		&self,
+		block: &mut ExecutedBlock,
+		_parent_header: &Header
+	) -> Result<(), Error> {
 		use std::ops::Shr;
 
 		let author = *block.header.author();
@@ -93,17 +97,15 @@ impl<M: Machine> Engine<M> for NullEngine<M> {
 		block_reward::apply_block_rewards(&rewards, block, &self.machine)
 	}
 
-	fn maximum_uncle_count(&self, _block: BlockNumber) -> usize { 2 }
-
-	fn verify_local_seal(&self, _header: &Header) -> Result<(), M::Error> {
+	fn verify_local_seal(&self, _header: &Header) -> Result<(), Error> {
 		Ok(())
 	}
 
-	fn snapshot_components(&self) -> Option<Box<::snapshot::SnapshotComponents>> {
+	fn snapshot_components(&self) -> Option<Box<dyn (::snapshot::SnapshotComponents)>> {
 		Some(Box::new(::snapshot::PowSnapshot::new(10000, 10000)))
 	}
 
-	fn fork_choice(&self, new: &ExtendedHeader, current: &ExtendedHeader) -> super::ForkChoice {
-		super::total_difficulty_fork_choice(new, current)
+	fn params(&self) -> &CommonParams {
+		self.machine.params()
 	}
 }

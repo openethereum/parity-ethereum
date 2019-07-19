@@ -24,6 +24,8 @@ extern crate primal;
 extern crate crunchy;
 #[macro_use]
 extern crate log;
+#[macro_use]
+extern crate static_assertions;
 
 #[cfg(test)]
 extern crate rustc_hex;

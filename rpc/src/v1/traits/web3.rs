@@ -22,7 +22,7 @@ use jsonrpc_derive::rpc;
 use v1::types::Bytes;
 
 /// Web3 rpc interface.
-#[rpc]
+#[rpc(server)]
 pub trait Web3 {
 	/// Returns current client version.
 	#[rpc(name = "web3_clientVersion")]

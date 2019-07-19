@@ -220,7 +220,7 @@ fn should_check_status_of_request_when_its_resolved() {
 	tester.signer.request_confirmed(sender, Ok(ConfirmationResponse::Signature(Signature::from_low_u64_be(1))));
 
 	// This is not ideal, but we need to give futures some time to be executed, and they need to run in a separate thread
-	thread::sleep(Duration::from_millis(20));
+	thread::sleep(Duration::from_millis(100));
 
 	// when
 	let request = r#"{

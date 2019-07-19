@@ -1,5 +1,5 @@
 [package]
-description = "Ethcore Secret Store"
+description = "Parity Ethereum (EthCore) Secret Store"
 name = "ethcore-secretstore"
 version = "1.0.0"
 license = "GPL-3.0"
@@ -26,7 +26,7 @@ log = "0.4"
 parity-bytes = "0.1"
 parity-crypto = "0.4.0"
 parity-runtime = { path = "../util/runtime" }
-parking_lot = "0.7"
+parking_lot = "0.8"
 rustc-hex = "1.0"
 serde = "1.0"
 serde_derive = "1.0"
@@ -36,7 +36,7 @@ tokio = "~0.1.11"
 tokio-io = "0.1"
 tokio-service = "0.1"
 url = "1.0"
-jsonrpc-server-utils = "11.0"
+jsonrpc-server-utils = "12.0.0"
 
 [dev-dependencies]
 env_logger = "0.5"

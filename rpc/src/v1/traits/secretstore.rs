@@ -25,7 +25,7 @@ use ethkey::Password;
 use v1::types::{Bytes, EncryptedDocumentKey};
 
 /// Parity-specific rpc interface.
-#[rpc]
+#[rpc(server)]
 pub trait SecretStore {
 	/// Generate document key to store in secret store.
 	/// Arguments: `account`, `password`, `server_key_public`.

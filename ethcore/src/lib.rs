@@ -15,7 +15,6 @@
 // along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
 #![warn(missing_docs, unused_extern_crates)]
-#![cfg_attr(feature = "time_checked_add", feature(time_checked_add))]
 
 //! Ethcore library
 //!
@@ -54,19 +53,16 @@
 //!   cargo build --release
 //!   ```
 
-// Recursion limit required because of
-// error_chain foreign_links.
-#![recursion_limit="128"]
-
+extern crate account_db;
+extern crate account_state;
 extern crate ansi_term;
-extern crate bn;
-extern crate byteorder;
 extern crate common_types as types;
-extern crate crossbeam;
+extern crate crossbeam_utils;
 extern crate ethabi;
 extern crate ethash;
 extern crate ethcore_blockchain as blockchain;
 extern crate ethcore_bloom_journal as bloom_journal;
+extern crate ethcore_builtin as builtin;
 extern crate ethcore_call_contract as call_contract;
 extern crate ethcore_db as db;
 extern crate ethcore_io as io;
@@ -74,38 +70,42 @@ extern crate ethcore_miner;
 extern crate ethereum_types;
 extern crate ethjson;
 extern crate ethkey;
+extern crate trie_vm_factories;
 extern crate futures;
 extern crate hash_db;
-extern crate heapsize;
 extern crate itertools;
 extern crate journaldb;
 extern crate keccak_hash as hash;
 extern crate keccak_hasher;
 extern crate kvdb;
+#[cfg(any(test, feature = "test-helpers"))]
 extern crate kvdb_memorydb;
+
 extern crate len_caching_lock;
 extern crate lru_cache;
 extern crate memory_cache;
-extern crate memory_db;
-extern crate num;
 extern crate num_cpus;
 extern crate parity_bytes as bytes;
-extern crate parity_crypto;
 extern crate parity_snappy as snappy;
 extern crate parking_lot;
+extern crate pod;
 extern crate trie_db as trie;
 extern crate patricia_trie_ethereum as ethtrie;
 extern crate rand;
 extern crate rayon;
 extern crate rlp;
+extern crate parity_util_mem;
+extern crate parity_util_mem as malloc_size_of;
 extern crate rustc_hex;
 extern crate serde;
+extern crate state_db;
 extern crate stats;
+extern crate time_utils;
+extern crate trace;
 extern crate triehash_ethereum as triehash;
 extern crate unexpected;
 extern crate using_queue;
 extern crate vm;
-extern crate wasm;
 
 #[cfg(test)]
 extern crate rand_xorshift;
@@ -122,13 +122,12 @@ extern crate blooms_db;
 #[cfg(any(test, feature = "env_logger"))]
 extern crate env_logger;
 #[cfg(test)]
-extern crate rlp_compress;
+extern crate serde_json;
 
 #[macro_use]
 extern crate ethabi_derive;
 #[macro_use]
 extern crate ethabi_contract;
-extern crate derive_more;
 #[macro_use]
 extern crate log;
 #[macro_use]
@@ -139,8 +138,6 @@ extern crate macros;
 extern crate rlp_derive;
 #[macro_use]
 extern crate trace_time;
-#[macro_use]
-extern crate serde_derive;
 
 #[cfg_attr(test, macro_use)]
 extern crate evm;
@@ -151,32 +148,22 @@ extern crate fetch;
 #[cfg(all(test, feature = "price-info"))]
 extern crate parity_runtime;
 
-#[cfg(not(time_checked_add))]
-extern crate time_utils;
-
 pub mod block;
-pub mod builtin;
 pub mod client;
 pub mod engines;
-pub mod error;
 pub mod ethereum;
 pub mod executed;
 pub mod executive;
+pub mod executive_state;
 pub mod machine;
 pub mod miner;
-pub mod pod_state;
-pub mod pod_account;
 pub mod snapshot;
 pub mod spec;
-pub mod state;
-pub mod state_db;
-pub mod trace;
-pub mod transaction_ext;
 pub mod verification;
 
-mod account_db;
 mod externalities;
-mod factory;
+mod substate;
+mod transaction_ext;
 mod tx_filter;
 
 #[cfg(test)]

@@ -21,12 +21,14 @@ use std::cmp;
 use std::collections::BTreeMap;
 use std::sync::Arc;
 
-use types::basic_account::BasicAccount;
-use types::encoded;
-use types::filter::Filter as EthcoreFilter;
-use types::ids::BlockId;
-use types::receipt::Receipt;
-use ethcore::executed::ExecutionError;
+use types::{
+	basic_account::BasicAccount,
+	encoded,
+	errors::ExecutionError,
+	filter::Filter as EthcoreFilter,
+	ids::BlockId,
+	receipt::Receipt,
+};
 
 use jsonrpc_core::{Result, Error};
 use jsonrpc_core::futures::{future, Future};
@@ -737,7 +739,7 @@ where
 	tx: EthTransaction,
 	hdr: encoded::Header,
 	env_info: ::vm::EnvInfo,
-	engine: Arc<::ethcore::engines::EthEngine>,
+	engine: Arc<::ethcore::engines::Engine>,
 	on_demand: Arc<OD>,
 	sync: Arc<S>,
 }

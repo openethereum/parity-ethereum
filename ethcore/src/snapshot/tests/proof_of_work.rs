@@ -18,7 +18,7 @@
 
 use std::sync::atomic::AtomicBool;
 use tempdir::TempDir;
-use error::Error;
+use types::errors::EthcoreError as Error;
 
 use blockchain::generator::{BlockGenerator, BlockBuilder};
 use blockchain::{BlockChain, ExtrasInsert};
@@ -93,7 +93,7 @@ fn chunk_and_restore(amount: u64) {
 		rebuilder.feed(&chunk, engine.as_ref(), &flag).unwrap();
 	}
 
-	rebuilder.finalize(engine.as_ref()).unwrap();
+	rebuilder.finalize().unwrap();
 	drop(rebuilder);
 
 	// and test it.

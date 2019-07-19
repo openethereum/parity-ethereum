@@ -319,9 +319,16 @@ impl<T: InformantData> Informant<T> {
 								RestorationStatus::Ongoing { state_chunks, block_chunks, state_chunks_done, block_chunks_done } => {
 									format!("Syncing snapshot {}/{}", state_chunks_done + block_chunks_done, state_chunks + block_chunks)
 								},
-								RestorationStatus::Initializing { chunks_done } => {
-									format!("Snapshot initializing ({} chunks restored)", chunks_done)
+								RestorationStatus::Initializing { chunks_done, state_chunks, block_chunks } => {
+									let total_chunks = state_chunks + block_chunks;
+									// Note that the percentage here can be slightly misleading when
+									// they have chunks already on disk: we'll import the local
+									// chunks first and then download the rest.
+									format!("Snapshot initializing ({}/{} chunks restored, {:.0}%)", chunks_done, total_chunks, (chunks_done as f32 / total_chunks as f32) * 100.0)
 								},
+								RestorationStatus::Finalizing => {
+									format!("Snapshot finalization under way")
+								}
 								_ => String::new(),
 							}
 						)

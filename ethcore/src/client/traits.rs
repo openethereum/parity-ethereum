@@ -25,50 +25,46 @@ use ethereum_types::{H256, U256, Address};
 use evm::Schedule;
 use itertools::Itertools;
 use kvdb::DBValue;
-use types::transaction::{self, LocalizedTransaction, SignedTransaction};
-use types::BlockNumber;
-use types::basic_account::BasicAccount;
-use types::block_status::BlockStatus;
-use types::blockchain_info::BlockChainInfo;
-use types::call_analytics::CallAnalytics;
-use types::encoded;
-use types::filter::Filter;
-use types::header::Header;
-use types::ids::*;
-use types::log_entry::LocalizedLogEntry;
-use types::pruning_info::PruningInfo;
-use types::receipt::LocalizedReceipt;
-use types::trace_filter::Filter as TraceFilter;
+use types::{
+	transaction::{self, LocalizedTransaction, SignedTransaction, CallError},
+	BlockNumber,
+	basic_account::BasicAccount,
+	block_status::BlockStatus,
+	blockchain_info::BlockChainInfo,
+	call_analytics::CallAnalytics,
+	encoded,
+	errors::EthcoreError as Error,
+	errors::EthcoreResult,
+	filter::Filter,
+	header::Header,
+	ids::*,
+	log_entry::LocalizedLogEntry,
+	pruning_info::PruningInfo,
+	receipt::LocalizedReceipt,
+	trace_filter::Filter as TraceFilter,
+	verification_queue_info::VerificationQueueInfo as BlockQueueInfo,
+};
 use vm::LastHashes;
 
 use block::{OpenBlock, SealedBlock, ClosedBlock};
 use client::Mode;
-use engines::EthEngine;
-use error::{Error, EthcoreResult};
-use executed::CallError;
+use engines::Engine;
 use executive::Executed;
-use state::StateInfo;
+use account_state::state::StateInfo;
 use trace::LocalizedTrace;
-use verification::queue::QueueInfo as BlockQueueInfo;
-use verification::queue::kind::blocks::Unverified;
+use verification::queue::kind::blocks::Unverified; // todo this is reexported from common_types
 
 /// State information to be used during client query
 pub enum StateOrBlock {
 	/// State to be used, may be pending
-	State(Box<StateInfo>),
+	State(Box<dyn StateInfo>),
 
 	/// Id of an existing block from a chain to get state from
 	Block(BlockId)
 }
 
-impl<S: StateInfo + 'static> From<S> for StateOrBlock {
-	fn from(info: S) -> StateOrBlock {
-		StateOrBlock::State(Box::new(info) as Box<_>)
-	}
-}
-
-impl From<Box<StateInfo>> for StateOrBlock {
-	fn from(info: Box<StateInfo>) -> StateOrBlock {
+impl From<Box<dyn StateInfo>> for StateOrBlock {
+	fn from(info: Box<dyn StateInfo>) -> StateOrBlock {
 		StateOrBlock::State(info)
 	}
 }
@@ -184,7 +180,7 @@ pub trait Call {
 /// Provides `engine` method
 pub trait EngineInfo {
 	/// Get underlying engine object
-	fn engine(&self) -> &EthEngine;
+	fn engine(&self) -> &dyn Engine;
 }
 
 /// IO operations that should off-load heavy work to another thread.
@@ -195,7 +191,7 @@ pub trait IoClient: Sync + Send {
 	/// Queue block import with transaction receipts. Does no sealing and transaction validation.
 	fn queue_ancient_block(&self, block_bytes: Unverified, receipts_bytes: Bytes) -> EthcoreResult<H256>;
 
-	/// Queue conensus engine message.
+	/// Queue consensus engine message.
 	fn queue_consensus_message(&self, message: Bytes);
 }
 
@@ -296,9 +292,6 @@ pub trait BlockChainClient : Sync + Send + AccountData + BlockChain + CallContra
 	/// Clear block queue and abort all import activity.
 	fn clear_queue(&self);
 
-	/// Get the registrar address, if it exists.
-	fn additional_params(&self) -> BTreeMap<String, String>;
-
 	/// Returns logs matching given filter. If one of the filtering block cannot be found, returns the block id that caused the error.
 	fn logs(&self, filter: Filter) -> Result<Vec<LocalizedLogEntry>, BlockId>;
 
@@ -306,7 +299,7 @@ pub trait BlockChainClient : Sync + Send + AccountData + BlockChain + CallContra
 	fn replay(&self, t: TransactionId, analytics: CallAnalytics) -> Result<Executed, CallError>;
 
 	/// Replays all the transactions in a given block for inspection.
-	fn replay_block_transactions(&self, block: BlockId, analytics: CallAnalytics) -> Result<Box<Iterator<Item = (H256, Executed)>>, CallError>;
+	fn replay_block_transactions(&self, block: BlockId, analytics: CallAnalytics) -> Result<Box<dyn Iterator<Item = (H256, Executed)>>, CallError>;
 
 	/// Returns traces matching given filter.
 	fn filter_traces(&self, filter: TraceFilter) -> Option<Vec<LocalizedTrace>>;
@@ -441,7 +434,7 @@ pub trait EngineClient: Sync + Send + ChainInfo {
 	fn epoch_transition_for(&self, parent_hash: H256) -> Option<::engines::EpochTransition>;
 
 	/// Attempt to cast the engine client to a full client.
-	fn as_full_client(&self) -> Option<&BlockChainClient>;
+	fn as_full_client(&self) -> Option<&dyn BlockChainClient>;
 
 	/// Get a block number by ID.
 	fn block_number(&self, id: BlockId) -> Option<BlockNumber>;

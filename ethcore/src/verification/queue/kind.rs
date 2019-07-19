@@ -16,11 +16,14 @@
 
 //! Definition of valid items for the verification queue.
 
-use engines::EthEngine;
-use error::Error;
+use engines::Engine;
 
-use heapsize::HeapSizeOf;
+use parity_util_mem::MallocSizeOf;
 use ethereum_types::{H256, U256};
+
+use types::{
+	errors::EthcoreError as Error,
+};
 
 pub use self::blocks::Blocks;
 pub use self::headers::Headers;
@@ -49,32 +52,35 @@ pub trait BlockLike {
 /// consistent.
 pub trait Kind: 'static + Sized + Send + Sync {
 	/// The first stage: completely unverified.
-	type Input: Sized + Send + BlockLike + HeapSizeOf;
+	type Input: Sized + Send + BlockLike + MallocSizeOf;
 
 	/// The second stage: partially verified.
-	type Unverified: Sized + Send + BlockLike + HeapSizeOf;
+	type Unverified: Sized + Send + BlockLike + MallocSizeOf;
 
 	/// The third stage: completely verified.
-	type Verified: Sized + Send + BlockLike + HeapSizeOf;
+	type Verified: Sized + Send + BlockLike + MallocSizeOf;
 
 	/// Attempt to create the `Unverified` item from the input.
-	fn create(input: Self::Input, engine: &EthEngine, check_seal: bool) -> Result<Self::Unverified, (Self::Input, Error)>;
+	fn create(input: Self::Input, engine: &dyn Engine, check_seal: bool) -> Result<Self::Unverified, (Self::Input, Error)>;
 
 	/// Attempt to verify the `Unverified` item using the given engine.
-	fn verify(unverified: Self::Unverified, engine: &EthEngine, check_seal: bool) -> Result<Self::Verified, Error>;
+	fn verify(unverified: Self::Unverified, engine: &dyn Engine, check_seal: bool) -> Result<Self::Verified, Error>;
 }
 
 /// The blocks verification module.
 pub mod blocks {
 	use super::{Kind, BlockLike};
 
-	use engines::EthEngine;
-	use error::{Error, BlockError};
-	use types::header::Header;
-	use verification::{PreverifiedBlock, verify_block_basic, verify_block_unordered};
-	use types::transaction::UnverifiedTransaction;
+	use engines::Engine;
+	use types::{
+		block::PreverifiedBlock,
+		header::Header,
+		errors::{EthcoreError as Error, BlockError},
+		transaction::UnverifiedTransaction
+	};
+	use verification::{verify_block_basic, verify_block_unordered};
 
-	use heapsize::HeapSizeOf;
+	use parity_util_mem::MallocSizeOf;
 	use ethereum_types::{H256, U256};
 	use bytes::Bytes;
 
@@ -86,7 +92,7 @@ pub mod blocks {
 		type Unverified = Unverified;
 		type Verified = PreverifiedBlock;
 
-		fn create(input: Self::Input, engine: &EthEngine, check_seal: bool) -> Result<Self::Unverified, (Self::Input, Error)> {
+		fn create(input: Self::Input, engine: &dyn Engine, check_seal: bool) -> Result<Self::Unverified, (Self::Input, Error)> {
 			match verify_block_basic(&input, engine, check_seal) {
 				Ok(()) => Ok(input),
 				Err(Error::Block(BlockError::TemporarilyInvalid(oob))) => {
@@ -100,7 +106,7 @@ pub mod blocks {
 			}
 		}
 
-		fn verify(un: Self::Unverified, engine: &EthEngine, check_seal: bool) -> Result<Self::Verified, Error> {
+		fn verify(un: Self::Unverified, engine: &dyn Engine, check_seal: bool) -> Result<Self::Verified, Error> {
 			let hash = un.hash();
 			match verify_block_unordered(un, engine, check_seal) {
 				Ok(verified) => Ok(verified),
@@ -113,7 +119,7 @@ pub mod blocks {
 	}
 
 	/// An unverified block.
-	#[derive(PartialEq, Debug)]
+	#[derive(PartialEq, Debug, MallocSizeOf)]
 	pub struct Unverified {
 		/// Unverified block header.
 		pub header: Header,
@@ -143,15 +149,6 @@ pub mod blocks {
 				uncles,
 				bytes,
 			})
-		}
-	}
-
-	impl HeapSizeOf for Unverified {
-		fn heap_size_of_children(&self) -> usize {
-			self.header.heap_size_of_children()
-				+ self.transactions.heap_size_of_children()
-				+ self.uncles.heap_size_of_children()
-				+ self.bytes.heap_size_of_children()
 		}
 	}
 
@@ -188,9 +185,11 @@ pub mod blocks {
 pub mod headers {
 	use super::{Kind, BlockLike};
 
-	use engines::EthEngine;
-	use error::Error;
-	use types::header::Header;
+	use engines::Engine;
+	use types::{
+		header::Header,
+		errors::EthcoreError as Error,
+	};
 	use verification::verify_header_params;
 
 	use ethereum_types::{H256, U256};
@@ -209,14 +208,14 @@ pub mod headers {
 		type Unverified = Header;
 		type Verified = Header;
 
-		fn create(input: Self::Input, engine: &EthEngine, check_seal: bool) -> Result<Self::Unverified, (Self::Input, Error)> {
+		fn create(input: Self::Input, engine: &dyn Engine, check_seal: bool) -> Result<Self::Unverified, (Self::Input, Error)> {
 			match verify_header_params(&input, engine, true, check_seal) {
 				Ok(_) => Ok(input),
 				Err(err) => Err((input, err))
 			}
 		}
 
-		fn verify(unverified: Self::Unverified, engine: &EthEngine, check_seal: bool) -> Result<Self::Verified, Error> {
+		fn verify(unverified: Self::Unverified, engine: &dyn Engine, check_seal: bool) -> Result<Self::Verified, Error> {
 			match check_seal {
 				true => engine.verify_block_unordered(&unverified,).map(|_| unverified),
 				false => Ok(unverified),

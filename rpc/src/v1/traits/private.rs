@@ -24,7 +24,7 @@ use v1::types::{Bytes, PrivateTransactionReceipt, BlockNumber,
 	PrivateTransactionReceiptAndTransaction, CallRequest, PrivateTransactionLog};
 
 /// Private transaction management RPC interface.
-#[rpc]
+#[rpc(server)]
 pub trait Private {
 	/// RPC Metadata
 	type Metadata;

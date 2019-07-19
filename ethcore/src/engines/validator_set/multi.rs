@@ -22,23 +22,27 @@ use std::sync::Weak;
 use bytes::Bytes;
 use ethereum_types::{H256, Address};
 use parking_lot::RwLock;
-use types::BlockNumber;
-use types::header::Header;
-use types::ids::BlockId;
+use types::{
+	BlockNumber,
+	header::Header,
+	ids::BlockId,
+	errors::EthcoreError,
+	engines::machine::{Call, AuxiliaryData},
+};
 
 use client::EngineClient;
-use machine::{AuxiliaryData, Call, EthereumMachine};
+use machine::Machine;
 use super::{SystemCall, ValidatorSet};
 
-type BlockNumberLookup = Box<Fn(BlockId) -> Result<BlockNumber, String> + Send + Sync + 'static>;
+type BlockNumberLookup = Box<dyn Fn(BlockId) -> Result<BlockNumber, String> + Send + Sync + 'static>;
 
 pub struct Multi {
-	sets: BTreeMap<BlockNumber, Box<ValidatorSet>>,
+	sets: BTreeMap<BlockNumber, Box<dyn ValidatorSet>>,
 	block_number: RwLock<BlockNumberLookup>,
 }
 
 impl Multi {
-	pub fn new(set_map: BTreeMap<BlockNumber, Box<ValidatorSet>>) -> Self {
+	pub fn new(set_map: BTreeMap<BlockNumber, Box<dyn ValidatorSet>>) -> Self {
 		assert!(set_map.get(&0u64).is_some(), "ValidatorSet has to be specified from block 0.");
 		Multi {
 			sets: set_map,
@@ -46,7 +50,7 @@ impl Multi {
 		}
 	}
 
-	fn correct_set(&self, id: BlockId) -> Option<&ValidatorSet> {
+	fn correct_set(&self, id: BlockId) -> Option<&dyn ValidatorSet> {
 		match self.block_number.read()(id).map(|parent_block| self.correct_set_by_number(parent_block)) {
 			Ok((_, set)) => Some(set),
 			Err(e) => {
@@ -58,7 +62,7 @@ impl Multi {
 
 	// get correct set by block number, along with block number at which
 	// this set was activated.
-	fn correct_set_by_number(&self, parent_block: BlockNumber) -> (BlockNumber, &ValidatorSet) {
+	fn correct_set_by_number(&self, parent_block: BlockNumber) -> (BlockNumber, &dyn ValidatorSet) {
 		let (block, set) = self.sets.iter()
 			.rev()
 			.find(|&(block, _)| *block <= parent_block + 1)
@@ -77,7 +81,7 @@ impl ValidatorSet for Multi {
 			.unwrap_or_else(|| Box::new(|_, _| Err("No validator set for given ID.".into())))
 	}
 
-	fn on_epoch_begin(&self, _first: bool, header: &Header, call: &mut SystemCall) -> Result<(), ::error::Error> {
+	fn on_epoch_begin(&self, _first: bool, header: &Header, call: &mut SystemCall) -> Result<(), EthcoreError> {
 		let (set_block, set) = self.correct_set_by_number(header.number());
 		let first = set_block == header.number();
 
@@ -96,7 +100,7 @@ impl ValidatorSet for Multi {
 	}
 
 	fn signals_epoch_end(&self, _first: bool, header: &Header, aux: AuxiliaryData)
-		-> ::engines::EpochChange<EthereumMachine>
+		-> ::engines::EpochChange
 	{
 		let (set_block, set) = self.correct_set_by_number(header.number());
 		let first = set_block == header.number();
@@ -104,7 +108,7 @@ impl ValidatorSet for Multi {
 		set.signals_epoch_end(first, header, aux)
 	}
 
-	fn epoch_set(&self, _first: bool, machine: &EthereumMachine, number: BlockNumber, proof: &[u8]) -> Result<(super::SimpleList, Option<H256>), ::error::Error> {
+	fn epoch_set(&self, _first: bool, machine: &Machine, number: BlockNumber, proof: &[u8]) -> Result<(super::SimpleList, Option<H256>), EthcoreError> {
 		let (set_block, set) = self.correct_set_by_number(number);
 		let first = set_block == number;
 
@@ -134,7 +138,7 @@ impl ValidatorSet for Multi {
 		self.correct_set_by_number(set_block).1.report_benign(validator, set_block, block);
 	}
 
-	fn register_client(&self, client: Weak<EngineClient>) {
+	fn register_client(&self, client: Weak<dyn EngineClient>) {
 		for set in self.sets.values() {
 			set.register_client(client.clone());
 		}
@@ -151,7 +155,8 @@ mod tests {
 	use std::collections::BTreeMap;
 	use hash::keccak;
 	use accounts::AccountProvider;
-	use client::{BlockChainClient, ChainInfo, BlockInfo, ImportBlock};
+	use client::{BlockChainClient, ChainInfo, ImportBlock};
+	use client::BlockInfo;
 	use engines::EpochChange;
 	use engines::validator_set::ValidatorSet;
 	use ethkey::Secret;
@@ -215,7 +220,7 @@ mod tests {
 	fn transition_to_fixed_list_instant() {
 		use super::super::SimpleList;
 
-		let mut map: BTreeMap<_, Box<ValidatorSet>> = BTreeMap::new();
+		let mut map: BTreeMap<_, Box<dyn ValidatorSet>> = BTreeMap::new();
 		let list1: Vec<_> = (0..10).map(|_| Address::random()).collect();
 		let list2 = {
 			let mut list = list1.clone();

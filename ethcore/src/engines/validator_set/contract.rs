@@ -21,10 +21,14 @@ use std::sync::Weak;
 
 use bytes::Bytes;
 use ethereum_types::{H256, Address};
-use machine::{AuxiliaryData, Call, EthereumMachine};
+use machine::Machine;
 use parking_lot::RwLock;
-use types::BlockNumber;
-use types::header::Header;
+use types::{
+	BlockNumber,
+	header::Header,
+	errors::EthcoreError,
+	engines::machine::{Call, AuxiliaryData},
+};
 
 use client::EngineClient;
 
@@ -37,7 +41,7 @@ use_contract!(validator_report, "res/contracts/validator_report.json");
 pub struct ValidatorContract {
 	contract_address: Address,
 	validators: ValidatorSafeContract,
-	client: RwLock<Option<Weak<EngineClient>>>, // TODO [keorn]: remove
+	client: RwLock<Option<Weak<dyn EngineClient>>>, // TODO [keorn]: remove
 }
 
 impl ValidatorContract {
@@ -72,7 +76,7 @@ impl ValidatorSet for ValidatorContract {
 		self.validators.default_caller(id)
 	}
 
-	fn on_epoch_begin(&self, first: bool, header: &Header, call: &mut SystemCall) -> Result<(), ::error::Error> {
+	fn on_epoch_begin(&self, first: bool, header: &Header, call: &mut SystemCall) -> Result<(), EthcoreError> {
 		self.validators.on_epoch_begin(first, header, call)
 	}
 
@@ -89,11 +93,11 @@ impl ValidatorSet for ValidatorContract {
 		first: bool,
 		header: &Header,
 		aux: AuxiliaryData,
-	) -> ::engines::EpochChange<EthereumMachine> {
+	) -> ::engines::EpochChange {
 		self.validators.signals_epoch_end(first, header, aux)
 	}
 
-	fn epoch_set(&self, first: bool, machine: &EthereumMachine, number: BlockNumber, proof: &[u8]) -> Result<(SimpleList, Option<H256>), ::error::Error> {
+	fn epoch_set(&self, first: bool, machine: &Machine, number: BlockNumber, proof: &[u8]) -> Result<(SimpleList, Option<H256>), EthcoreError> {
 		self.validators.epoch_set(first, machine, number, proof)
 	}
 
@@ -118,6 +122,7 @@ impl ValidatorSet for ValidatorContract {
 	}
 
 	fn report_benign(&self, address: &Address, _set_block: BlockNumber, block: BlockNumber) {
+		trace!(target: "engine", "validator set recording benign misbehaviour at block #{} by {:#x}", block, address);
 		let data = validator_report::functions::report_benign::encode_input(*address, block);
 		match self.transact(data) {
 			Ok(_) => warn!(target: "engine", "Reported benign validator misbehaviour {}", address),
@@ -125,7 +130,7 @@ impl ValidatorSet for ValidatorContract {
 		}
 	}
 
-	fn register_client(&self, client: Weak<EngineClient>) {
+	fn register_client(&self, client: Weak<dyn EngineClient>) {
 		self.validators.register_client(client.clone());
 		*self.client.write() = Some(client);
 	}
@@ -146,7 +151,8 @@ mod tests {
 	use types::ids::BlockId;
 	use test_helpers::generate_dummy_client_with_spec;
 	use call_contract::CallContract;
-	use client::{BlockChainClient, ChainInfo, BlockInfo};
+	use client::{BlockChainClient, ChainInfo};
+	use client::BlockInfo;
 	use super::super::ValidatorSet;
 	use super::ValidatorContract;
 
@@ -162,6 +168,7 @@ mod tests {
 
 	#[test]
 	fn reports_validators() {
+		let _ = ::env_logger::try_init();
 		let tap = Arc::new(AccountProvider::transient_provider());
 		let v1 = tap.insert_account(keccak("1").into(), &"".into()).unwrap();
 		let client = generate_dummy_client_with_spec(Spec::new_validator_contract);

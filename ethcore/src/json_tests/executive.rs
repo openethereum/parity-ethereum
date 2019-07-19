@@ -17,7 +17,8 @@
 use std::path::Path;
 use std::sync::Arc;
 use super::test_common::*;
-use state::{Backend as StateBackend, State, Substate};
+use account_state::{Backend as StateBackend, State};
+use substate::Substate;
 use executive::*;
 use evm::{VMType, Finalize};
 use vm::{
@@ -34,7 +35,7 @@ use bytes::Bytes;
 use ethtrie;
 use rlp::RlpStream;
 use hash::keccak;
-use machine::EthereumMachine as Machine;
+use machine::Machine;
 use ethereum_types::BigEndianHash;
 
 use super::HookType;
@@ -146,6 +147,7 @@ impl<'a, T: 'a, V: 'a, B: 'a> Ext for TestExt<'a, T, V, B>
 		gas: &U256,
 		value: &U256,
 		code: &[u8],
+		_code_version: &U256,
 		address: CreateContractAddress,
 		_trap: bool
 	) -> Result<ContractCreateResult, vm::TrapKind> {
@@ -298,7 +300,7 @@ fn do_json_test_for<H: FnMut(&str, HookType)>(vm_type: &VMType, json_data: &[u8]
 				&mut tracer,
 				&mut vm_tracer,
 			));
-			let mut evm = vm_factory.create(params, &schedule, 0);
+			let mut evm = vm_factory.create(params, &schedule, 0).expect("Current tests are all of version 0; factory always return Some; qed");
 			let res = evm.exec(&mut ex).ok().expect("TestExt never trap; resume error never happens; qed");
 			// a return in finalize will not alter callcreates
 			let callcreates = ex.callcreates.clone();

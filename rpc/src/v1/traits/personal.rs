@@ -23,7 +23,7 @@ use jsonrpc_derive::rpc;
 use v1::types::{Bytes, TransactionRequest, RichRawTransaction as RpcRichRawTransaction, EIP191Version};
 
 /// Personal rpc interface. Safe (read-only) functions.
-#[rpc]
+#[rpc(server)]
 pub trait Personal {
 	/// RPC Metadata
 	type Metadata;

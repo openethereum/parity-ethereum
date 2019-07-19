@@ -21,20 +21,23 @@ use std::sync::Arc;
 use hash::keccak;
 use ethereum_types::{H256, U256, U512, Address};
 use bytes::{Bytes, BytesRef};
-use state::{Backend as StateBackend, State, Substate, CleanupMode};
-use executed::ExecutionError;
-use machine::EthereumMachine as Machine;
+use account_state::{Backend as StateBackend, State, CleanupMode};
+use substate::Substate;
+use machine::Machine;
 use evm::{CallType, Finalize, FinalizationResult};
 use vm::{
 	self, EnvInfo, CreateContractAddress, ReturnData, CleanDustMode, ActionParams,
 	ActionValue, Schedule, TrapError, ResumeCall, ResumeCreate
 };
-use factory::VmFactory;
+use trie_vm_factories::VmFactory;
 use externalities::*;
 use trace::{self, Tracer, VMTracer};
-use types::transaction::{Action, SignedTransaction};
+use types::{
+	errors::ExecutionError,
+	transaction::{Action, SignedTransaction},
+};
 use transaction_ext::Transaction;
-use crossbeam;
+use crossbeam_utils::thread;
 pub use executed::{Executed, ExecutionResult};
 
 #[cfg(debug_assertions)]
@@ -103,6 +106,15 @@ pub fn into_contract_create_result(result: vm::Result<FinalizationResult>, addre
 			vm::ContractCreateResult::Reverted(gas_left, return_data)
 		},
 		_ => vm::ContractCreateResult::Failed,
+	}
+}
+
+/// Get the cleanup mode object from this.
+pub fn cleanup_mode<'a>(substate: &'a mut Substate, schedule: &Schedule) -> CleanupMode<'a> {
+	match (schedule.kill_dust != CleanDustMode::Off, schedule.no_empty, schedule.kill_empty) {
+		(false, false, _) => CleanupMode::ForceCreate,
+		(false, true, false) => CleanupMode::NoEmpty,
+		(false, true, true) | (true, _, _,) => CleanupMode::TrackTouched(&mut substate.touched),
 	}
 }
 
@@ -201,8 +213,8 @@ enum CallCreateExecutiveKind {
 	CallBuiltin(ActionParams),
 	ExecCall(ActionParams, Substate),
 	ExecCreate(ActionParams, Substate),
-	ResumeCall(OriginInfo, Box<ResumeCall>, Substate),
-	ResumeCreate(OriginInfo, Box<ResumeCreate>, Substate),
+	ResumeCall(OriginInfo, Box<dyn ResumeCall>, Substate),
+	ResumeCreate(OriginInfo, Box<dyn ResumeCreate>, Substate),
 }
 
 /// Executive for a raw call/create action.
@@ -302,20 +314,20 @@ impl<'a> CallCreateExecutive<'a> {
 
 	fn transfer_exec_balance<B: 'a + StateBackend>(params: &ActionParams, schedule: &Schedule, state: &mut State<B>, substate: &mut Substate) -> vm::Result<()> {
 		if let ActionValue::Transfer(val) = params.value {
-			state.transfer_balance(&params.sender, &params.address, &val, substate.to_cleanup_mode(&schedule))?;
+			state.transfer_balance(&params.sender, &params.address, &val, cleanup_mode(substate, &schedule))?;
 		}
 
 		Ok(())
 	}
 
 	fn transfer_exec_balance_and_init_contract<B: 'a + StateBackend>(params: &ActionParams, schedule: &Schedule, state: &mut State<B>, substate: &mut Substate) -> vm::Result<()> {
-		let nonce_offset = if schedule.no_empty {1} else {0}.into();
+		let nonce_offset = if schedule.no_empty { 1 } else { 0 }.into();
 		let prev_bal = state.balance(&params.address)?;
 		if let ActionValue::Transfer(val) = params.value {
-			state.sub_balance(&params.sender, &val, &mut substate.to_cleanup_mode(&schedule))?;
-			state.new_contract(&params.address, val.saturating_add(prev_bal), nonce_offset)?;
+			state.sub_balance(&params.sender, &val, &mut cleanup_mode(substate, &schedule))?;
+			state.new_contract(&params.address, val.saturating_add(prev_bal), nonce_offset, params.code_version)?;
 		} else {
-			state.new_contract(&params.address, prev_bal, nonce_offset)?;
+			state.new_contract(&params.address, prev_bal, nonce_offset, params.code_version)?;
 		}
 
 		Ok(())
@@ -406,7 +418,7 @@ impl<'a> CallCreateExecutive<'a> {
 						if let Err(e) = result {
 							state.revert_to_checkpoint();
 
-							Err(e.into())
+							Err(vm::Error::BuiltIn(e))
 						} else {
 							state.discard_checkpoint();
 
@@ -451,12 +463,15 @@ impl<'a> CallCreateExecutive<'a> {
 				let origin_info = OriginInfo::from(&params);
 				let exec = self.factory.create(params, self.schedule, self.depth);
 
-				let out = {
-					let mut ext = Self::as_externalities(state, self.info, self.machine, self.schedule, self.depth, self.stack_depth, self.static_flag, &origin_info, &mut unconfirmed_substate, OutputPolicy::Return, tracer, vm_tracer);
-					match exec.exec(&mut ext) {
-						Ok(val) => Ok(val.finalize(ext)),
-						Err(err) => Err(err),
-					}
+				let out = match exec {
+					Some(exec) => {
+						let mut ext = Self::as_externalities(state, self.info, self.machine, self.schedule, self.depth, self.stack_depth, self.static_flag, &origin_info, &mut unconfirmed_substate, OutputPolicy::Return, tracer, vm_tracer);
+						match exec.exec(&mut ext) {
+							Ok(val) => Ok(val.finalize(ext)),
+							Err(err) => Err(err),
+						}
+					},
+					None => Ok(Err(vm::Error::OutOfGas)),
 				};
 
 				let res = match out {
@@ -499,12 +514,15 @@ impl<'a> CallCreateExecutive<'a> {
 				let origin_info = OriginInfo::from(&params);
 				let exec = self.factory.create(params, self.schedule, self.depth);
 
-				let out = {
-					let mut ext = Self::as_externalities(state, self.info, self.machine, self.schedule, self.depth, self.stack_depth, self.static_flag, &origin_info, &mut unconfirmed_substate, OutputPolicy::InitContract, tracer, vm_tracer);
-					match exec.exec(&mut ext) {
-						Ok(val) => Ok(val.finalize(ext)),
-						Err(err) => Err(err),
-					}
+				let out = match exec {
+					Some(exec) => {
+						let mut ext = Self::as_externalities(state, self.info, self.machine, self.schedule, self.depth, self.stack_depth, self.static_flag, &origin_info, &mut unconfirmed_substate, OutputPolicy::InitContract, tracer, vm_tracer);
+						match exec.exec(&mut ext) {
+							Ok(val) => Ok(val.finalize(ext)),
+							Err(err) => Err(err),
+						}
+					},
+					None => Ok(Err(vm::Error::OutOfGas)),
 				};
 
 				let res = match out {
@@ -859,11 +877,15 @@ impl<'a, B: 'a + StateBackend> Executive<'a, B> {
 		if !schedule.keep_unsigned_nonce || !t.is_unsigned() {
 			self.state.inc_nonce(&sender)?;
 		}
-		self.state.sub_balance(&sender, &U256::try_from(gas_cost).expect("Total cost (value + gas_cost) is lower than max allowed balance (U256); gas_cost has to fit U256; qed"), &mut substate.to_cleanup_mode(&schedule))?;
+		self.state.sub_balance(
+			&sender,
+			&U256::try_from(gas_cost).expect("Total cost (value + gas_cost) is lower than max allowed balance (U256); gas_cost has to fit U256; qed"),
+			&mut cleanup_mode(&mut substate, &schedule)
+		)?;
 
 		let (result, output) = match t.action {
 			Action::Create => {
-				let (new_address, code_hash) = contract_address(self.machine.create_address_scheme(self.info.number), &sender, &nonce, &t.data);
+				let (new_address, code_hash) = contract_address(CreateContractAddress::FromSenderAndNonce, &sender, &nonce, &t.data);
 				let params = ActionParams {
 					code_address: new_address.clone(),
 					code_hash: code_hash,
@@ -874,6 +896,7 @@ impl<'a, B: 'a + StateBackend> Executive<'a, B> {
 					gas_price: t.gas_price,
 					value: ActionValue::Transfer(t.value),
 					code: Some(Arc::new(t.data.clone())),
+					code_version: schedule.latest_version,
 					data: None,
 					call_type: CallType::None,
 					params_type: vm::ParamsType::Embedded,
@@ -896,6 +919,7 @@ impl<'a, B: 'a + StateBackend> Executive<'a, B> {
 					value: ActionValue::Transfer(t.value),
 					code: self.state.code(address)?,
 					code_hash: self.state.code_hash(address)?,
+					code_version: self.state.code_version(address)?,
 					data: Some(t.data.clone()),
 					call_type: CallType::Call,
 					params_type: vm::ParamsType::Separate,
@@ -977,11 +1001,18 @@ impl<'a, B: 'a + StateBackend> Executive<'a, B> {
 		if stack_depth != depth_threshold {
 			self.call_with_stack_depth(params, substate, stack_depth, tracer, vm_tracer)
 		} else {
-			crossbeam::scope(|scope| {
-				scope.builder().stack_size(::std::cmp::max(self.schedule.max_depth.saturating_sub(depth_threshold) * STACK_SIZE_PER_DEPTH, local_stack_size)).spawn(move || {
-					self.call_with_stack_depth(params, substate, stack_depth, tracer, vm_tracer)
-				}).expect("Sub-thread creation cannot fail; the host might run out of resources; qed")
-			}).join().expect("Sub-thread never panics; qed")
+			thread::scope(|scope| {
+				let stack_size = cmp::max(self.schedule.max_depth.saturating_sub(depth_threshold) * STACK_SIZE_PER_DEPTH, local_stack_size);
+				scope.builder()
+					.stack_size(stack_size)
+					.spawn(|_| {
+						self.call_with_stack_depth(params, substate, stack_depth, tracer, vm_tracer)
+					})
+					.expect("Sub-thread creation cannot fail; the host might run out of resources; qed")
+					.join()
+			})
+			.expect("Sub-thread never panics; qed")
+			.expect("Sub-thread never panics; qed")
 		}
 	}
 
@@ -1061,11 +1092,18 @@ impl<'a, B: 'a + StateBackend> Executive<'a, B> {
 		if stack_depth != depth_threshold {
 			self.create_with_stack_depth(params, substate, stack_depth, tracer, vm_tracer)
 		} else {
-			crossbeam::scope(|scope| {
-				scope.builder().stack_size(::std::cmp::max(self.schedule.max_depth.saturating_sub(depth_threshold) * STACK_SIZE_PER_DEPTH, local_stack_size)).spawn(move || {
-					self.create_with_stack_depth(params, substate, stack_depth, tracer, vm_tracer)
-				}).expect("Sub-thread creation cannot fail; the host might run out of resources; qed")
-			}).join().expect("Sub-thread never panics; qed")
+			thread::scope(|scope| {
+				let stack_size = cmp::max(self.schedule.max_depth.saturating_sub(depth_threshold) * STACK_SIZE_PER_DEPTH, local_stack_size);
+				scope.builder()
+					.stack_size(stack_size)
+					.spawn(|_| {
+						self.create_with_stack_depth(params, substate, stack_depth, tracer, vm_tracer)
+					})
+					.expect("Sub-thread creation cannot fail; the host might run out of resources; qed")
+					.join()
+			})
+			.expect("Sub-thread never panics; qed")
+			.expect("Sub-thread never panics; qed")
 		}
 	}
 
@@ -1120,7 +1158,7 @@ impl<'a, B: 'a + StateBackend> Executive<'a, B> {
 		// Below: NoEmpty is safe since the sender must already be non-null to have sent this transaction
 		self.state.add_balance(&sender, &refund_value, CleanupMode::NoEmpty)?;
 		trace!("exec::finalize: Compensating author: fees_value={}, author={}\n", fees_value, &self.info.author);
-		self.state.add_balance(&self.info.author, &fees_value, substate.to_cleanup_mode(&schedule))?;
+		self.state.add_balance(&self.info.author, &fees_value, cleanup_mode(&mut substate, &schedule))?;
 
 		// perform suicides
 		for address in &substate.suicides {
@@ -1172,31 +1210,62 @@ impl<'a, B: 'a + StateBackend> Executive<'a, B> {
 mod tests {
 	use std::sync::Arc;
 	use std::str::FromStr;
+	use std::collections::HashSet;
 	use rustc_hex::FromHex;
 	use ethkey::{Generator, Random};
 	use super::*;
 	use ethereum_types::{H256, U256, U512, Address, BigEndianHash};
 	use vm::{ActionParams, ActionValue, CallType, EnvInfo, CreateContractAddress};
 	use evm::{Factory, VMType};
-	use error::ExecutionError;
-	use machine::EthereumMachine;
-	use state::{Substate, CleanupMode};
+	use machine::Machine;
+	use account_state::CleanupMode;
+	use substate::Substate;
 	use test_helpers::{get_temp_state_with_factory, get_temp_state};
 	use trace::trace;
 	use trace::{FlatTrace, Tracer, NoopTracer, ExecutiveTracer};
 	use trace::{VMTrace, VMOperation, VMExecutedOperation, MemoryDiff, StorageDiff, VMTracer, NoopVMTracer, ExecutiveVMTracer};
-	use types::transaction::{Action, Transaction};
+	use types::{
+		errors::ExecutionError,
+		transaction::{Action, Transaction},
+	};
 
-	fn make_frontier_machine(max_depth: usize) -> EthereumMachine {
+	fn make_frontier_machine(max_depth: usize) -> Machine {
 		let mut machine = ::ethereum::new_frontier_test_machine();
 		machine.set_schedule_creation_rules(Box::new(move |s, _| s.max_depth = max_depth));
 		machine
 	}
 
-	fn make_byzantium_machine(max_depth: usize) -> EthereumMachine {
+	fn make_byzantium_machine(max_depth: usize) -> Machine {
 		let mut machine = ::ethereum::new_byzantium_test_machine();
 		machine.set_schedule_creation_rules(Box::new(move |s, _| s.max_depth = max_depth));
 		machine
+	}
+
+	#[test]
+	fn test_cleanup_mode() {
+		let address = Address::from_str("0f572e5295c57f15886f9b263e2f6d2d6c7b5ec6").unwrap();
+		let mut touched = HashSet::new();
+		touched.insert(address);
+
+		let mut substate = Substate::default();
+		substate.touched = touched.clone();
+
+		assert_eq!(CleanupMode::ForceCreate,  cleanup_mode(&mut substate, &Schedule::new_frontier()));
+		assert_eq!(CleanupMode::ForceCreate,  cleanup_mode(&mut substate, &Schedule::new_homestead()));
+		assert_eq!(CleanupMode::TrackTouched(&mut touched),  cleanup_mode(&mut substate, &Schedule::new_byzantium()));
+		assert_eq!(CleanupMode::TrackTouched(&mut touched),  cleanup_mode(&mut substate, &Schedule::new_constantinople()));
+
+		assert_eq!(CleanupMode::TrackTouched(&mut touched),  cleanup_mode(&mut substate, &{
+			let mut schedule = Schedule::new_homestead();
+			schedule.kill_dust = CleanDustMode::BasicOnly;
+			schedule
+		}));
+
+		assert_eq!(CleanupMode::NoEmpty,  cleanup_mode(&mut substate, &{
+			let mut schedule = Schedule::new_homestead();
+			schedule.no_empty = true;
+			schedule
+		}));
 	}
 
 	#[test]
@@ -2079,13 +2148,13 @@ mod tests {
 		let k = H256::zero();
 
 		let mut state = get_temp_state_with_factory(factory.clone());
-		state.new_contract(&x1, U256::zero(), U256::from(1)).unwrap();
+		state.new_contract(&x1, U256::zero(), U256::from(1), U256::zero()).unwrap();
 		state.init_code(&x1, "600160005560006000556001600055".from_hex().unwrap()).unwrap();
-		state.new_contract(&x2, U256::zero(), U256::from(1)).unwrap();
+		state.new_contract(&x2, U256::zero(), U256::from(1), U256::zero()).unwrap();
 		state.init_code(&x2, "600060005560016000556000600055".from_hex().unwrap()).unwrap();
-		state.new_contract(&y1, U256::zero(), U256::from(1)).unwrap();
+		state.new_contract(&y1, U256::zero(), U256::from(1), U256::zero()).unwrap();
 		state.init_code(&y1, "600060006000600061100062fffffff4".from_hex().unwrap()).unwrap();
-		state.new_contract(&y2, U256::zero(), U256::from(1)).unwrap();
+		state.new_contract(&y2, U256::zero(), U256::from(1), U256::zero()).unwrap();
 		state.init_code(&y2, "600060006000600061100162fffffff4".from_hex().unwrap()).unwrap();
 
 		let info = EnvInfo::default();

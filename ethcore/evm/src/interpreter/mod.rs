@@ -118,6 +118,8 @@ struct InterpreterParams {
 	pub code_address: Address,
 	/// Hash of currently executed code.
 	pub code_hash: Option<H256>,
+	/// Code version.
+	pub code_version: U256,
 	/// Receive address. Usually equal to code_address,
 	/// except when called using CALLCODE.
 	pub address: Address,
@@ -144,6 +146,7 @@ impl From<ActionParams> for InterpreterParams {
 		InterpreterParams {
 			code_address: params.code_address,
 			code_hash: params.code_hash,
+			code_version: params.code_version,
 			address: params.address,
 			sender: params.sender,
 			origin: params.origin,
@@ -194,7 +197,7 @@ pub struct Interpreter<Cost: CostType> {
 }
 
 impl<Cost: 'static + CostType> vm::Exec for Interpreter<Cost> {
-	fn exec(mut self: Box<Self>, ext: &mut vm::Ext) -> vm::ExecTrapResult<GasLeft> {
+	fn exec(mut self: Box<Self>, ext: &mut dyn vm::Ext) -> vm::ExecTrapResult<GasLeft> {
 		loop {
 			let result = self.step(ext);
 			match result {
@@ -215,7 +218,7 @@ impl<Cost: 'static + CostType> vm::Exec for Interpreter<Cost> {
 }
 
 impl<Cost: 'static + CostType> vm::ResumeCall for Interpreter<Cost> {
-	fn resume_call(mut self: Box<Self>, result: MessageCallResult) -> Box<vm::Exec> {
+	fn resume_call(mut self: Box<Self>, result: MessageCallResult) -> Box<dyn vm::Exec> {
 		{
 			let this = &mut *self;
 			let (out_off, out_size) = this.resume_output_range.take().expect("Box<ResumeCall> is obtained from a call opcode; resume_output_range is always set after those opcodes are executed; qed");
@@ -250,7 +253,7 @@ impl<Cost: 'static + CostType> vm::ResumeCall for Interpreter<Cost> {
 }
 
 impl<Cost: 'static + CostType> vm::ResumeCreate for Interpreter<Cost> {
-	fn resume_create(mut self: Box<Self>, result: ContractCreateResult) -> Box<vm::Exec> {
+	fn resume_create(mut self: Box<Self>, result: ContractCreateResult) -> Box<dyn vm::Exec> {
 		match result {
 			ContractCreateResult::Created(address, gas_left) => {
 				self.stack.push(address_to_u256(address));
@@ -296,7 +299,7 @@ impl<Cost: CostType> Interpreter<Cost> {
 
 	/// Execute a single step on the VM.
 	#[inline(always)]
-	pub fn step(&mut self, ext: &mut vm::Ext) -> InterpreterResult {
+	pub fn step(&mut self, ext: &mut dyn vm::Ext) -> InterpreterResult {
 		if self.done {
 			return InterpreterResult::Stopped;
 		}
@@ -318,7 +321,7 @@ impl<Cost: CostType> Interpreter<Cost> {
 
 	/// Inner helper function for step.
 	#[inline(always)]
-	fn step_inner(&mut self, ext: &mut vm::Ext) -> Result<Never, InterpreterResult> {
+	fn step_inner(&mut self, ext: &mut dyn vm::Ext) -> Result<Never, InterpreterResult> {
 		let result = match self.resume_result.take() {
 			Some(result) => result,
 			None => {
@@ -414,7 +417,7 @@ impl<Cost: CostType> Interpreter<Cost> {
 		Err(InterpreterResult::Continue)
 	}
 
-	fn verify_instruction(&self, ext: &vm::Ext, instruction: Instruction, info: &InstructionInfo) -> vm::Result<()> {
+	fn verify_instruction(&self, ext: &dyn vm::Ext, instruction: Instruction, info: &InstructionInfo) -> vm::Result<()> {
 		let schedule = ext.schedule();
 
 		if (instruction == instructions::DELEGATECALL && !schedule.have_delegate_call) ||
@@ -449,7 +452,7 @@ impl<Cost: CostType> Interpreter<Cost> {
 
 	fn mem_written(
 		instruction: Instruction,
-		stack: &Stack<U256>
+		stack: &dyn Stack<U256>
 	) -> Option<(usize, usize)> {
 		let read = |pos| stack.peek(pos).low_u64() as usize;
 		let written = match instruction {
@@ -470,7 +473,7 @@ impl<Cost: CostType> Interpreter<Cost> {
 
 	fn store_written(
 		instruction: Instruction,
-		stack: &Stack<U256>
+		stack: &dyn Stack<U256>
 	) -> Option<(U256, U256)> {
 		match instruction {
 			instructions::SSTORE => Some((stack.peek(0).clone(), stack.peek(1).clone())),
@@ -481,7 +484,7 @@ impl<Cost: CostType> Interpreter<Cost> {
 	fn exec_instruction(
 		&mut self,
 		gas: Cost,
-		ext: &mut vm::Ext,
+		ext: &mut dyn vm::Ext,
 		instruction: Instruction,
 		provided: Option<Cost>
 	) -> vm::Result<InstructionResult<Cost>> {
@@ -531,7 +534,7 @@ impl<Cost: CostType> Interpreter<Cost> {
 
 				let contract_code = self.mem.read_slice(init_off, init_size);
 
-				let create_result = ext.create(&create_gas.as_u256(), &endowment, contract_code, address_scheme, true);
+				let create_result = ext.create(&create_gas.as_u256(), &endowment, contract_code, &self.params.code_version, address_scheme, true);
 				return match create_result {
 					Ok(ContractCreateResult::Created(address, gas_left)) => {
 						self.stack.push(address_to_u256(address));
@@ -1108,7 +1111,7 @@ impl<Cost: CostType> Interpreter<Cost> {
 		Ok(InstructionResult::Ok)
 	}
 
-	fn copy_data_to_memory(mem: &mut Vec<u8>, stack: &mut Stack<U256>, source: &[u8]) {
+	fn copy_data_to_memory(mem: &mut Vec<u8>, stack: &mut dyn Stack<U256>, source: &[u8]) {
 		let dest_offset = stack.pop_back();
 		let source_offset = stack.pop_back();
 		let size = stack.pop_back();
@@ -1191,7 +1194,7 @@ mod tests {
 	use vm::tests::{FakeExt, test_finalize};
 	use ethereum_types::Address;
 
-	fn interpreter(params: ActionParams, ext: &vm::Ext) -> Box<Exec> {
+	fn interpreter(params: ActionParams, ext: &dyn vm::Ext) -> Box<dyn Exec> {
 		Factory::new(VMType::Interpreter, 1).create(params, ext.schedule(), ext.depth())
 	}
 
@@ -1210,7 +1213,7 @@ mod tests {
 		ext.tracing = true;
 
 		let gas_left = {
-			let mut vm = interpreter(params, &ext);
+			let vm = interpreter(params, &ext);
 			test_finalize(vm.exec(&mut ext).ok().unwrap()).unwrap()
 		};
 
@@ -1232,7 +1235,7 @@ mod tests {
 		ext.tracing = true;
 
 		let err = {
-			let mut vm = interpreter(params, &ext);
+			let vm = interpreter(params, &ext);
 			test_finalize(vm.exec(&mut ext).ok().unwrap()).err().unwrap()
 		};
 

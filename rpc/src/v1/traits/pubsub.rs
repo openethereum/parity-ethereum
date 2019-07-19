@@ -21,7 +21,7 @@ use jsonrpc_pubsub::{typed::Subscriber, SubscriptionId};
 use jsonrpc_derive::rpc;
 
 /// Parity-specific PUB-SUB rpc interface.
-#[rpc]
+#[rpc(server)]
 pub trait PubSub {
 	/// Pub/Sub Metadata
 	type Metadata;

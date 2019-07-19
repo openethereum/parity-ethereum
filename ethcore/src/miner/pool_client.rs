@@ -36,8 +36,9 @@ use types::header::Header;
 use parking_lot::RwLock;
 
 use call_contract::CallContract;
-use client::{TransactionId, BlockInfo, Nonce};
-use engines::EthEngine;
+use client::{TransactionId, Nonce};
+use client::BlockInfo;
+use engines::Engine;
 use miner;
 use transaction_ext::Transaction;
 
@@ -72,8 +73,8 @@ impl NonceCache {
 pub struct PoolClient<'a, C: 'a> {
 	chain: &'a C,
 	cached_nonces: CachedNonceClient<'a, C>,
-	engine: &'a EthEngine,
-	accounts: &'a LocalAccounts,
+	engine: &'a dyn Engine,
+	accounts: &'a dyn LocalAccounts,
 	best_block_header: Header,
 	service_transaction_checker: Option<&'a ServiceTransactionChecker>,
 }
@@ -98,8 +99,8 @@ impl<'a, C: 'a> PoolClient<'a, C> where
 	pub fn new(
 		chain: &'a C,
 		cache: &'a NonceCache,
-		engine: &'a EthEngine,
-		accounts: &'a LocalAccounts,
+		engine: &'a dyn Engine,
+		accounts: &'a dyn LocalAccounts,
 		service_transaction_checker: Option<&'a ServiceTransactionChecker>,
 	) -> Self {
 		let best_block_header = chain.best_block_header();

@@ -34,22 +34,25 @@
 
 #![warn(missing_docs)]
 
+extern crate account_state;
 extern crate common_types as types;
+extern crate docopt;
+extern crate env_logger;
 extern crate ethcore;
+extern crate ethereum_types;
 extern crate ethjson;
+extern crate evm;
+extern crate panic_hook;
+extern crate parity_bytes as bytes;
+extern crate pod;
 extern crate rustc_hex;
 extern crate serde;
 #[macro_use]
 extern crate serde_derive;
-#[macro_use]
 extern crate serde_json;
-extern crate docopt;
-extern crate parity_bytes as bytes;
-extern crate ethereum_types;
+extern crate state_db;
+extern crate trace;
 extern crate vm;
-extern crate evm;
-extern crate panic_hook;
-extern crate env_logger;
 
 #[cfg(test)]
 #[macro_use]

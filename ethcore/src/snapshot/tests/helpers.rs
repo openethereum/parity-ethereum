@@ -26,7 +26,7 @@ use account_db::AccountDBMut;
 use types::basic_account::BasicAccount;
 use blockchain::{BlockChain, BlockChainDB};
 use client::{Client, ChainInfo};
-use engines::EthEngine;
+use engines::Engine;
 use snapshot::{StateRebuilder};
 use snapshot::io::{SnapshotReader, PackedWriter, PackedReader};
 
@@ -41,6 +41,7 @@ use journaldb;
 use trie::{TrieMut, Trie};
 use ethtrie::{SecTrieDBMut, TrieDB, TrieDBMut};
 use self::trie_standardmap::{Alphabet, StandardMap, ValueMode};
+use types::errors::EthcoreError;
 
 // the proportion of accounts we will alter each tick.
 const ACCOUNT_CHURN: f32 = 0.01;
@@ -62,7 +63,7 @@ impl StateProducer {
 
 	/// Tick the state producer. This alters the state, writing new data into
 	/// the database.
-	pub fn tick<R: Rng>(&mut self, rng: &mut R, db: &mut HashDB<KeccakHasher, DBValue>) {
+	pub fn tick<R: Rng>(&mut self, rng: &mut R, db: &mut dyn HashDB<KeccakHasher, DBValue>) {
 		// modify existing accounts.
 		let mut accounts_to_modify: Vec<_> = {
 			let trie = TrieDB::new(&db, &self.state_root).unwrap();
@@ -97,7 +98,7 @@ impl StateProducer {
 			let address_hash = H256(rng.gen());
 			let balance: usize = rng.gen();
 			let nonce: usize = rng.gen();
-			let acc = ::state::Account::new_basic(balance.into(), nonce.into()).rlp();
+			let acc = account_state::Account::new_basic(balance.into(), nonce.into()).rlp();
 			trie.insert(&address_hash[..], &acc).unwrap();
 		}
 	}
@@ -132,7 +133,7 @@ pub fn fill_storage(mut db: AccountDBMut, root: &mut H256, seed: &mut H256) {
 
 /// Take a snapshot from the given client into a temporary file.
 /// Return a snapshot reader for it.
-pub fn snap(client: &Client) -> (Box<SnapshotReader>, TempDir) {
+pub fn snap(client: &Client) -> (Box<dyn SnapshotReader>, TempDir) {
 	use types::ids::BlockId;
 
 	let tempdir = TempDir::new("").unwrap();
@@ -151,11 +152,11 @@ pub fn snap(client: &Client) -> (Box<SnapshotReader>, TempDir) {
 /// Restore a snapshot into a given database. This will read chunks from the given reader
 /// write into the given database.
 pub fn restore(
-	db: Arc<BlockChainDB>,
-	engine: &EthEngine,
-	reader: &SnapshotReader,
+	db: Arc<dyn BlockChainDB>,
+	engine: &dyn Engine,
+	reader: &dyn SnapshotReader,
 	genesis: &[u8],
-) -> Result<(), ::error::Error> {
+) -> Result<(), EthcoreError> {
 	use std::sync::atomic::AtomicBool;
 
 	let flag = AtomicBool::new(true);
@@ -187,5 +188,5 @@ pub fn restore(
 
 	trace!(target: "snapshot", "finalizing");
 	state.finalize(manifest.block_number, manifest.block_hash)?;
-	secondary.finalize(engine)
+	secondary.finalize()
 }

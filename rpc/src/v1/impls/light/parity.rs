@@ -26,6 +26,7 @@ use ethstore::random_phrase;
 use sync::{LightSyncInfo, LightSyncProvider, LightNetworkDispatcher, ManageNetwork};
 use updater::VersionInfo as UpdaterVersionInfo;
 use ethereum_types::{H64, H160, H256, H512, U64, U256};
+use ethcore::miner::FilterOptions;
 use ethcore_logger::RotatingLogger;
 
 use jsonrpc_core::{Result, BoxFuture};
@@ -162,12 +163,7 @@ where
 	}
 
 	fn registry_address(&self) -> Result<Option<H160>> {
-		let reg = self.light_dispatch.client.engine().params().registrar;
-		if reg == Default::default() {
-			Ok(None)
-		} else {
-			Ok(Some(reg))
-		}
+		Ok(self.light_dispatch.client.engine().params().registrar)
 	}
 
 	fn rpc_settings(&self) -> Result<RpcSettings> {
@@ -217,7 +213,7 @@ where
 			.map(Into::into)
 	}
 
-	fn pending_transactions(&self, limit: Option<usize>) -> Result<Vec<Transaction>> {
+	fn pending_transactions(&self, limit: Option<usize>, _filter: Option<FilterOptions>) -> Result<Vec<Transaction>> {
 		let txq = self.light_dispatch.transaction_queue.read();
 		let chain_info = self.light_dispatch.client.chain_info();
 		Ok(

@@ -64,7 +64,9 @@ extern crate ethereum_types;
 extern crate ethcore_miner as miner;
 extern crate ethcore;
 extern crate hash_db;
-extern crate heapsize;
+extern crate parity_util_mem;
+extern crate parity_util_mem as mem;
+extern crate parity_util_mem as malloc_size_of;
 extern crate failsafe;
 extern crate futures;
 extern crate itertools;
@@ -86,8 +88,7 @@ extern crate keccak_hash as hash;
 extern crate triehash_ethereum as triehash;
 extern crate kvdb;
 extern crate memory_cache;
-#[macro_use]
-extern crate error_chain;
+extern crate derive_more;
 
 #[cfg(test)]
 extern crate kvdb_memorydb;

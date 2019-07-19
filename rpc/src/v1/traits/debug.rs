@@ -22,7 +22,7 @@ use jsonrpc_derive::rpc;
 use v1::types::RichBlock;
 
 /// Debug RPC interface.
-#[rpc]
+#[rpc(server)]
 pub trait Debug {
 	/// Returns recently seen bad blocks.
 	#[rpc(name = "debug_getBadBlocks")]

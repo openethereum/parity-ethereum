@@ -21,7 +21,8 @@ use std::sync::Arc;
 
 use tempdir::TempDir;
 use blockchain::BlockProvider;
-use client::{Client, ClientConfig, ImportBlock, BlockInfo};
+use client::{Client, ClientConfig, ImportBlock};
+use client::BlockInfo;
 use types::ids::BlockId;
 use snapshot::io::{PackedReader, PackedWriter, SnapshotReader, SnapshotWriter};
 use snapshot::service::{Service, ServiceParams};
@@ -188,14 +189,15 @@ fn keep_ancient_blocks() {
 		&state_root,
 		&writer,
 		&Progress::default(),
-		None
+		None,
+		0
 	).unwrap();
 
 	let manifest = ::snapshot::ManifestData {
 		version: 2,
-		state_hashes: state_hashes,
-		state_root: state_root,
-		block_hashes: block_hashes,
+		state_hashes,
+		state_root,
+		block_hashes,
 		block_number: NUM_BLOCKS,
 		block_hash: best_hash,
 	};

@@ -18,13 +18,15 @@
 
 use std::sync::Arc;
 
-use engines::{EthEngine, EpochVerifier};
-use machine::EthereumMachine;
+use engines::{Engine, EpochVerifier};
 
 use blockchain::BlockChain;
 use parking_lot::RwLock;
 use rand::Rng;
-use types::header::Header;
+use types::{
+	header::Header,
+	errors::EthcoreError,
+};
 
 // do "heavy" verification on ~1/50 blocks, randomly sampled.
 const HEAVY_VERIFY_RATE: f32 = 0.02;
@@ -32,13 +34,13 @@ const HEAVY_VERIFY_RATE: f32 = 0.02;
 /// Ancient block verifier: import an ancient sequence of blocks in order from a starting
 /// epoch.
 pub struct AncientVerifier {
-	cur_verifier: RwLock<Option<Box<EpochVerifier<EthereumMachine>>>>,
-	engine: Arc<EthEngine>,
+	cur_verifier: RwLock<Option<Box<dyn EpochVerifier>>>,
+	engine: Arc<dyn Engine>,
 }
 
 impl AncientVerifier {
 	/// Create a new ancient block verifier with the given engine.
-	pub fn new(engine: Arc<EthEngine>) -> Self {
+	pub fn new(engine: Arc<dyn Engine>) -> Self {
 		AncientVerifier {
 			cur_verifier: RwLock::new(None),
 			engine,
@@ -52,7 +54,7 @@ impl AncientVerifier {
 		rng: &mut R,
 		header: &Header,
 		chain: &BlockChain,
-	) -> Result<(), ::error::Error> {
+	) -> Result<(), EthcoreError> {
 		// perform verification
 		let verified = if let Some(ref cur_verifier) = *self.cur_verifier.read() {
 			match rng.gen::<f32>() <= HEAVY_VERIFY_RATE {
@@ -87,7 +89,7 @@ impl AncientVerifier {
 	}
 
 	fn initial_verifier(&self, header: &Header, chain: &BlockChain)
-		-> Result<Box<EpochVerifier<EthereumMachine>>, ::error::Error>
+		-> Result<Box<dyn EpochVerifier>, EthcoreError>
 	{
 		trace!(target: "client", "Initializing ancient block restoration.");
 		let current_epoch_data = chain.epoch_transitions()

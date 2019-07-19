@@ -16,14 +16,13 @@
 
 //! Creates and registers client and network services.
 
-use std::sync::Arc;
 use std::path::Path;
+use std::sync::Arc;
 use std::time::Duration;
 
 use ansi_term::Colour;
 use ethereum_types::H256;
 use io::{IoContext, TimerToken, IoHandler, IoService, IoError};
-use stop_guard::StopGuard;
 
 use sync::PrivateTxHandler;
 use blockchain::{BlockChainDB, BlockChainDBHandler};
@@ -32,9 +31,10 @@ use ethcore::miner::Miner;
 use ethcore::snapshot::service::{Service as SnapshotService, ServiceParams as SnapServiceParams};
 use ethcore::snapshot::{SnapshotService as _SnapshotService, RestorationStatus};
 use ethcore::spec::Spec;
+use common_types::errors::{EthcoreError, SnapshotError};
+
 
 use ethcore_private_tx::{self, Importer, Signer};
-use Error;
 
 pub struct PrivateTxService {
 	provider: Arc<ethcore_private_tx::Provider>,
@@ -59,7 +59,7 @@ impl PrivateTxHandler for PrivateTxService {
 			Ok(import_result) => Ok(import_result),
 			Err(err) => {
 				warn!(target: "privatetx", "Unable to import private transaction packet: {}", err);
-				bail!(err.to_string())
+				return Err(err.to_string())
 			}
 		}
 	}
@@ -69,7 +69,7 @@ impl PrivateTxHandler for PrivateTxService {
 			Ok(import_result) => Ok(import_result),
 			Err(err) => {
 				warn!(target: "privatetx", "Unable to import signed private transaction packet: {}", err);
-				bail!(err.to_string())
+				return Err(err.to_string())
 			}
 		}
 	}
@@ -82,7 +82,6 @@ pub struct ClientService {
 	snapshot: Arc<SnapshotService>,
 	private_tx: Arc<PrivateTxService>,
 	database: Arc<BlockChainDB>,
-	_stop_guard: StopGuard,
 }
 
 impl ClientService {
@@ -99,7 +98,7 @@ impl ClientService {
 		encryptor: Box<ethcore_private_tx::Encryptor>,
 		private_tx_conf: ethcore_private_tx::ProviderConfig,
 		private_encryptor_conf: ethcore_private_tx::EncryptorConfig,
-		) -> Result<ClientService, Error>
+		) -> Result<ClientService, EthcoreError>
 	{
 		let io_service = IoService::<ClientIoMessage>::start()?;
 
@@ -113,14 +112,15 @@ impl ClientService {
 			miner.clone(),
 			io_service.channel(),
 		)?;
+		spec.engine.register_client(Arc::downgrade(&client) as _);
 		miner.set_io_channel(io_service.channel());
 		miner.set_in_chain_checker(&client.clone());
 
 		let snapshot_params = SnapServiceParams {
 			engine: spec.engine.clone(),
 			genesis_block: spec.genesis_block(),
-			restoration_db_handler: restoration_db_handler,
-			pruning: pruning,
+			restoration_db_handler,
+			pruning,
 			channel: io_service.channel(),
 			snapshot_root: snapshot_path.into(),
 			client: client.clone(),
@@ -148,17 +148,12 @@ impl ClientService {
 		});
 		io_service.register_handler(client_io)?;
 
-		spec.engine.register_client(Arc::downgrade(&client) as _);
-
-		let stop_guard = StopGuard::new();
-
 		Ok(ClientService {
 			io_service: Arc::new(io_service),
 			client: client,
 			snapshot: snapshot,
 			private_tx,
 			database: blockchain_db,
-			_stop_guard: stop_guard,
 		})
 	}
 
@@ -197,6 +192,7 @@ impl ClientService {
 
 	/// Shutdown the Client Service
 	pub fn shutdown(&self) {
+		trace!(target: "shutdown", "Shutting down Client Service");
 		self.snapshot.shutdown();
 	}
 }
@@ -257,7 +253,11 @@ impl IoHandler<ClientIoMessage> for ClientIoHandler {
 
 				let res = thread::Builder::new().name("Periodic Snapshot".into()).spawn(move || {
 					if let Err(e) = snapshot.take_snapshot(&*client, num) {
-						warn!("Failed to take snapshot at block #{}: {}", num, e);
+						match e {
+							EthcoreError::Snapshot(SnapshotError::SnapshotAborted) => info!("Snapshot aborted"),
+							_ => warn!("Failed to take snapshot at block #{}: {}", num, e),
+						}
+
 					}
 				});
 

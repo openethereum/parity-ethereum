@@ -12,12 +12,18 @@
 	"params": {
 		"accountStartNonce": "0x0",
 		"chainID": "0x6",
+		"eip140Transition": "0xaef49",
 		"eip150Transition": "0x0",
 		"eip155Transition": "0x0",
 		"eip160Transition": "0x0",
-		"eip161abcTransition": "0x7fffffffffffffff",
-		"eip161dTransition": "0x7fffffffffffffff",
+		"eip161abcTransition": "0xaef49",
+		"eip161dTransition": "0xaef49",
+		"eip211Transition": "0xaef49",
+		"eip214Transition": "0xaef49",
+		"eip658Transition": "0xaef49",
 		"gasLimitBoundDivisor": "0x400",
+		"maxCodeSize": "0x6000",
+		"maxCodeSizeTransition": "0xaef49",
 		"maximumExtraDataSize": "0xffff",
 		"minGasLimit": "0x1388",
 		"networkID": "0x6"
@@ -95,16 +101,55 @@
 			}
 		},
 		"0x0000000000000000000000000000000000000005": {
-			"balance": "0x1"
+			"balance": "0x1",
+			"builtin": {
+				"name": "modexp",
+				"activate_at": "0xaef49",
+				"pricing": {
+					"modexp": {
+						"divisor": 20
+					}
+				}
+			}
 		},
 		"0x0000000000000000000000000000000000000006": {
-			"balance": "0x1"
+			"balance": "0x1",
+			"builtin": {
+				"name": "alt_bn128_add",
+				"activate_at": "0xaef49",
+				"pricing": {
+					"linear": {
+						"base": 500,
+						"word": 0
+					}
+				}
+			}
 		},
 		"0x0000000000000000000000000000000000000007": {
-			"balance": "0x1"
+			"balance": "0x1",
+			"builtin": {
+				"name": "alt_bn128_mul",
+				"activate_at": "0xaef49",
+				"pricing": {
+					"linear": {
+						"base": 40000,
+						"word": 0
+					}
+				}
+			}
 		},
 		"0x0000000000000000000000000000000000000008": {
-			"balance": "0x1"
+			"balance": "0x1",
+			"builtin": {
+				"name": "alt_bn128_pairing",
+				"activate_at": "0xaef49",
+				"pricing": {
+					"alt_bn128_pairing": {
+						"base": 100000,
+						"pair": 80000
+					}
+				}
+			}
 		},
 		"0x0000000000000000000000000000000000000009": {
 			"balance": "0x1"

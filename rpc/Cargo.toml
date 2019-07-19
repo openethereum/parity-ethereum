@@ -1,5 +1,5 @@
 [package]
-description = "Parity JSON-RPC servers."
+description = "Parity Ethereum JSON-RPC Servers (WS, HTTP, IPC)"
 name = "parity-rpc"
 version = "1.12.0"
 license = "GPL-3.0"
@@ -8,13 +8,13 @@ authors = ["Parity Technologies <admin@parity.io>"]
 [lib]
 
 [dependencies]
-ansi_term = "0.10"
+ansi_term = "0.11"
 cid = "0.3"
 futures = "0.1.6"
 log = "0.4"
 multihash = "0.8"
 order-stat = "0.1"
-parking_lot = "0.7"
+parking_lot = "0.8"
 rand = "0.6"
 rand_xorshift = "0.1.1"
 rustc-hex = "1.0"
@@ -28,12 +28,12 @@ tokio-timer = "0.1"
 transient-hashmap = "0.4"
 itertools = "0.5"
 
-jsonrpc-core = "10.0.1"
-jsonrpc-derive = "10.0.2"
-jsonrpc-http-server = "10.0.1"
-jsonrpc-ws-server = "10.0.1"
-jsonrpc-ipc-server = "10.0.1"
-jsonrpc-pubsub = "10.0.1"
+jsonrpc-core = "12.0.0"
+jsonrpc-derive = "12.0.0"
+jsonrpc-http-server = "12.0.0"
+jsonrpc-ws-server = "12.0.0"
+jsonrpc-ipc-server = "12.0.0"
+jsonrpc-pubsub = "12.0.0"
 
 common-types = { path = "../ethcore/types" }
 ethash = { path = "../ethash" }
@@ -60,7 +60,9 @@ parity-runtime = { path = "../util/runtime" }
 parity-updater = { path = "../updater" }
 parity-version = { path = "../util/version" }
 rlp = "0.4.0"
+account-state = { path = "../ethcore/account-state" }
 stats = { path = "../util/stats" }
+trace = { path = "../ethcore/trace" }
 vm = { path = "../ethcore/vm" }
 
 [dev-dependencies]

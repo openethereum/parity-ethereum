@@ -16,7 +16,7 @@
 
 use std::time::Duration;
 use std::io::Read;
-use std::net::SocketAddr;
+use std::net::{SocketAddr, ToSocketAddrs};
 use std::path::PathBuf;
 use std::collections::{HashSet, BTreeMap};
 use std::iter::FromIterator;
@@ -34,7 +34,6 @@ use ethcore::miner::{stratum, MinerOptions};
 use ethcore::snapshot::SnapshotConfiguration;
 use ethcore::verification::queue::VerifierSettings;
 use miner::pool;
-use num_cpus;
 
 use rpc::{IpcConfiguration, HttpConfiguration, WsConfiguration};
 use parity_rpc::NetworkSettings;
@@ -363,7 +362,6 @@ impl Configuration {
 			};
 
 			let verifier_settings = self.verifier_settings();
-			let whisper_config = self.whisper_config();
 			let (private_provider_conf, private_enc_conf, private_tx_enabled) = self.private_provider_config()?;
 
 			let run_cmd = RunCmd {
@@ -413,7 +411,6 @@ impl Configuration {
 				serve_light: !self.args.flag_no_serve_light,
 				light: self.args.flag_light,
 				no_persistent_txqueue: self.args.flag_no_persistent_txqueue,
-				whisper: whisper_config,
 				no_hardcoded_sync: self.args.flag_no_hardcoded_sync,
 				max_round_blocks_to_import: self.args.arg_max_round_blocks_to_import,
 				on_demand_response_time_window: self.args.arg_on_demand_response_time_window,
@@ -710,7 +707,7 @@ impl Configuration {
 				for line in &lines {
 					match validate_node_url(line).map(Into::into) {
 						None => continue,
-						Some(sync::ErrorKind::AddressResolve(_)) => return Err(format!("Failed to resolve hostname of a boot node: {}", line)),
+						Some(sync::Error::AddressResolve(_)) => return Err(format!("Failed to resolve hostname of a boot node: {}", line)),
 						Some(_) => return Err(format!("Invalid node address format given for a boot node: {}", line)),
 					}
 				}
@@ -725,9 +722,18 @@ impl Configuration {
 		let port = self.args.arg_ports_shift + self.args.arg_port;
 		let listen_address = SocketAddr::new(self.interface(&self.args.arg_interface).parse().unwrap(), port);
 		let public_address = if self.args.arg_nat.starts_with("extip:") {
-			let host = &self.args.arg_nat[6..];
-			let host = host.parse().map_err(|_| format!("Invalid host given with `--nat extip:{}`", host))?;
-			Some(SocketAddr::new(host, port))
+			let host = self.args.arg_nat[6..].split(':').next().expect("split has at least one part; qed");
+			let host = format!("{}:{}", host, port);
+			match host.to_socket_addrs() {
+				Ok(mut addr_iter) => {
+					if let Some(addr) = addr_iter.next() {
+						Some(addr)
+					} else {
+						return Err(format!("Invalid host given with `--nat extip:{}`", &self.args.arg_nat[6..]))
+					}
+				},
+				Err(_) => return Err(format!("Invalid host given with `--nat extip:{}`", &self.args.arg_nat[6..]))
+			}
 		} else {
 			None
 		};
@@ -917,7 +923,10 @@ impl Configuration {
 		let provider_conf = ProviderConfig {
 			validator_accounts: to_addresses(&self.args.arg_private_validators)?,
 			signer_account: self.args.arg_private_signer.clone().and_then(|account| to_address(Some(account)).ok()),
-			logs_path: Some(dirs.base),
+			logs_path: match self.args.flag_private_enabled {
+				true => Some(dirs.base),
+				false => None,
+			}
 		};
 
 		let encryptor_conf = EncryptorConfig {
@@ -930,13 +939,13 @@ impl Configuration {
 	}
 
 	fn snapshot_config(&self) -> Result<SnapshotConfiguration, String> {
-		let conf = SnapshotConfiguration {
-			no_periodic: self.args.flag_no_periodic_snapshot,
-			processing_threads: match self.args.arg_snapshot_threads {
-				Some(threads) if threads > 0 => threads,
-				_ => ::std::cmp::max(1, num_cpus::get() / 2),
-			},
-		};
+		let mut conf = SnapshotConfiguration::default();
+		conf.no_periodic = self.args.flag_no_periodic_snapshot;
+		if let Some(threads) = self.args.arg_snapshot_threads {
+			if threads > 0 {
+				conf.processing_threads = threads;
+			}
+		}
 
 		Ok(conf)
 	}
@@ -1167,13 +1176,6 @@ impl Configuration {
 		}
 
 		settings
-	}
-
-	fn whisper_config(&self) -> ::whisper::Config {
-		::whisper::Config {
-			enabled: self.args.flag_whisper,
-			target_message_pool_size: self.args.arg_whisper_pool_size * 1024 * 1024,
-		}
 	}
 }
 
@@ -1455,11 +1457,7 @@ mod tests {
 			net_settings: Default::default(),
 			ipfs_conf: Default::default(),
 			secretstore_conf: Default::default(),
-			private_provider_conf: ProviderConfig {
-				validator_accounts: Default::default(),
-				signer_account: Default::default(),
-				logs_path: Some(Directories::default().base),
-			},
+			private_provider_conf: Default::default(),
 			private_encryptor_conf: Default::default(),
 			private_tx_enabled: false,
 			name: "".into(),
@@ -1474,7 +1472,6 @@ mod tests {
 			light: false,
 			no_hardcoded_sync: false,
 			no_persistent_txqueue: false,
-			whisper: Default::default(),
 			max_round_blocks_to_import: 12,
 			on_demand_response_time_window: None,
 			on_demand_request_backoff_start: None,
@@ -1843,6 +1840,33 @@ mod tests {
 		assert_eq!(conf1.secretstore_config().unwrap().port, 8084);
 		assert_eq!(conf1.secretstore_config().unwrap().http_port, 8083);
 		assert_eq!(conf1.ipfs_config().port, 5002);
+	}
+
+	#[test]
+	fn should_resolve_external_nat_hosts() {
+		// Ip works
+		let conf = parse(&["parity", "--nat", "extip:1.1.1.1"]);
+		assert_eq!(conf.net_addresses().unwrap().1.unwrap().ip().to_string(), "1.1.1.1");
+		assert_eq!(conf.net_addresses().unwrap().1.unwrap().port(), 30303);
+
+		// Ip with port works, port is discarded
+		let conf = parse(&["parity", "--nat", "extip:192.168.1.1:123"]);
+		assert_eq!(conf.net_addresses().unwrap().1.unwrap().ip().to_string(), "192.168.1.1");
+		assert_eq!(conf.net_addresses().unwrap().1.unwrap().port(), 30303);
+
+		// Hostname works
+		let conf = parse(&["parity", "--nat", "extip:ethereum.org"]);
+		assert!(conf.net_addresses().unwrap().1.is_some());
+		assert_eq!(conf.net_addresses().unwrap().1.unwrap().port(), 30303);
+
+		// Hostname works, garbage at the end is discarded
+		let conf = parse(&["parity", "--nat", "extip:ethereum.org:whatever bla bla 123"]);
+		assert!(conf.net_addresses().unwrap().1.is_some());
+		assert_eq!(conf.net_addresses().unwrap().1.unwrap().port(), 30303);
+
+		// Garbage is error
+		let conf = parse(&["parity", "--nat", "extip:blabla"]);
+		assert!(conf.net_addresses().is_err());
 	}
 
 	#[test]

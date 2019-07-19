@@ -17,7 +17,7 @@
 //! Log entry type definition.
 
 use std::ops::Deref;
-use heapsize::HeapSizeOf;
+use parity_util_mem::MallocSizeOf;
 use bytes::Bytes;
 use ethereum_types::{H256, Address, Bloom, BloomInput};
 
@@ -25,7 +25,7 @@ use {BlockNumber};
 use ethjson;
 
 /// A record of execution for a `LOG` operation.
-#[derive(Default, Debug, Clone, PartialEq, Eq, RlpEncodable, RlpDecodable)]
+#[derive(Default, Debug, Clone, PartialEq, Eq, RlpEncodable, RlpDecodable, MallocSizeOf)]
 pub struct LogEntry {
 	/// The address of the contract executing at the point of the `LOG` operation.
 	pub address: Address,
@@ -33,12 +33,6 @@ pub struct LogEntry {
 	pub topics: Vec<H256>,
 	/// The data associated with the `LOG` operation.
 	pub data: Bytes,
-}
-
-impl HeapSizeOf for LogEntry {
-	fn heap_size_of_children(&self) -> usize {
-		self.topics.heap_size_of_children() + self.data.heap_size_of_children()
-	}
 }
 
 impl LogEntry {
