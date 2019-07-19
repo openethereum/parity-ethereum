@@ -456,10 +456,7 @@ impl ChainSyncApi {
 			// since we already have everything let's use a different deadline
 			// to do the rest of the job now, so that previous work is not wasted.
 			let deadline = Instant::now() + PRIORITY_TASK_DEADLINE;
-			let as_ms = move |prev| {
-				let dur: Duration = Instant::now() - prev;
-				dur.as_secs() * 1_000 + dur.subsec_millis() as u64
-			};
+			let elapsed_ms = |prev: Instant| { prev.elapsed().as_millis() };
 			match task {
 				// NOTE We can't simply use existing methods,
 				// cause the block is not in the DB yet.
@@ -478,13 +475,13 @@ impl ChainSyncApi {
 							}
 						}
 					}
-					debug!(target: "sync", "Finished block propagation, took {}ms", as_ms(started));
+					debug!(target: "sync", "Finished block propagation, took {}ms", elapsed_ms(started));
 				},
 				PriorityTask::PropagateTransactions(time, _) => {
 					SyncPropagator::propagate_new_transactions(&mut sync, io, || {
 						check_deadline(deadline).is_some()
 					});
-					debug!(target: "sync", "Finished transaction propagation, took {}ms", as_ms(time));
+					debug!(target: "sync", "Finished transaction propagation, took {}ms", elapsed_ms(time));
 				},
 			}
 
