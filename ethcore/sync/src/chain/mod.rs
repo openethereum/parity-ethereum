@@ -449,7 +449,6 @@ impl ChainSyncApi {
 				let left = check_deadline(deadline)?;
 				tasks.recv_timeout(left).ok()?
 			};
-			task.starting();
 			// wait for the sync lock until deadline,
 			// note we might drop the task here if we won't manage to acquire the lock.
 			let mut sync = self.sync.try_write_until(deadline)?;
@@ -477,10 +476,10 @@ impl ChainSyncApi {
 					}
 					debug!(target: "sync", "Finished block propagation, took {}ms", elapsed_ms(started));
 				},
-				PriorityTask::PropagateTransactions(time, _) => {
+				PriorityTask::PropagateTransactions(time, txns) => {
 					SyncPropagator::propagate_new_transactions(&mut sync, io, || {
 						check_deadline(deadline).is_some()
-					});
+					}, Some(txns));
 					debug!(target: "sync", "Finished transaction propagation, took {}ms", elapsed_ms(time));
 				},
 			}
@@ -1339,7 +1338,7 @@ impl ChainSync {
 				debug!(target: "sync", "Wasn't able to finish transaction propagation within a deadline.");
 				false
 			}
-		});
+		}, None);
 	}
 
 	/// Broadcast consensus message to peers.

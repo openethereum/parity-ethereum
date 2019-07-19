@@ -14,7 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
-use std::sync::{Arc, mpsc, atomic};
+use std::sync::{Arc, mpsc};
 use std::collections::{HashMap, BTreeMap};
 use std::io;
 use std::ops::RangeInclusive;
@@ -238,16 +238,7 @@ pub enum PriorityTask {
 		difficulty: U256,
 	},
 	/// Propagate a list of transactions
-	PropagateTransactions(::std::time::Instant, Arc<atomic::AtomicBool>),
-}
-impl PriorityTask {
-	/// Mark the task as being processed, right after it's retrieved from the queue.
-	pub fn starting(&self) {
-		match *self {
-			PriorityTask::PropagateTransactions(_, ref is_ready) => is_ready.store(true, atomic::Ordering::SeqCst),
-			_ => {},
-		}
-	}
+	PropagateTransactions(::std::time::Instant, Vec<H256>),
 }
 
 /// EthSync initialization parameters.

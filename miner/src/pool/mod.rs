@@ -165,6 +165,10 @@ impl VerifiedTransaction {
 		&self.transaction
 	}
 
+	/// Gets the transaction hash
+	pub fn hash(&self) -> &H256 {
+		&self.hash
+	}
 }
 
 impl txpool::VerifiedTransaction for VerifiedTransaction {

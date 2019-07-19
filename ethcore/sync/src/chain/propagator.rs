@@ -28,6 +28,7 @@ use sync_io::SyncIo;
 use types::transaction::SignedTransaction;
 use types::BlockNumber;
 use types::blockchain_info::BlockChainInfo;
+use chain::PeerInfo;
 
 use super::sync_packet::SyncPacket;
 use super::sync_packet::SyncPacket::{
@@ -98,13 +99,26 @@ impl SyncPropagator {
 	}
 
 	/// propagates new transactions to all peers
-	pub fn propagate_new_transactions<F: FnMut() -> bool>(sync: &mut ChainSync, io: &mut dyn SyncIo, mut should_continue: F) -> usize {
+	/// if subset is `Some`, we will propagate only those transactions
+	pub fn propagate_new_transactions(
+		sync: &mut ChainSync,
+		io: &mut dyn SyncIo,
+		mut should_continue: impl FnMut() -> bool,
+		subset: Option<Vec<H256>>,
+	) -> usize {
 		// Early out if nobody to send to.
 		if sync.peers.is_empty() {
 			return 0;
 		}
 
-		let transactions = io.chain().transactions_to_propagate();
+		let mut transactions = io.chain().transactions_to_propagate();
+
+		let append_only = subset.is_some();
+		if let Some(subset) = subset {
+			let subset_hashes = subset.into_iter().collect::<H256FastSet>();
+			transactions.retain(|tx| subset_hashes.contains(tx.hash()));
+		};
+
 		if transactions.is_empty() {
 			return 0;
 		}
@@ -122,7 +136,7 @@ impl SyncPropagator {
 		if !transactions.is_empty() {
 			let peers = SyncPropagator::select_peers_for_transactions(sync, |_| true);
 			affected_peers = SyncPropagator::propagate_transactions_to_peers(
-				sync, io, peers, transactions, &mut should_continue,
+				sync, io, peers, transactions, &mut should_continue, append_only,
 			);
 		}
 
@@ -131,7 +145,7 @@ impl SyncPropagator {
 		if !service_transactions.is_empty() {
 			let service_transactions_peers = SyncPropagator::select_peers_for_transactions(sync, |peer_id| io.peer_version(*peer_id).accepts_service_transaction());
 			let service_transactions_affected_peers = SyncPropagator::propagate_transactions_to_peers(
-				sync, io, service_transactions_peers, service_transactions, &mut should_continue
+				sync, io, service_transactions_peers, service_transactions, &mut should_continue, append_only,
 			);
 			affected_peers.extend(&service_transactions_affected_peers);
 		}
@@ -139,12 +153,15 @@ impl SyncPropagator {
 		affected_peers.len()
 	}
 
+	// if append_only is set to true, append to `last_sent_transactions`
+	// instead of replacing it
 	fn propagate_transactions_to_peers<F: FnMut() -> bool>(
 		sync: &mut ChainSync,
 		io: &mut dyn SyncIo,
 		peers: Vec<PeerId>,
 		transactions: Vec<&SignedTransaction>,
 		mut should_continue: F,
+		append_only: bool,
 	) -> HashSet<PeerId> {
 		let all_transactions_hashes = transactions.iter()
 			.map(|tx| tx.hash())
@@ -156,7 +173,17 @@ impl SyncPropagator {
 		};
 
 		// Clear old transactions from stats
-		sync.transactions_stats.retain(&all_transactions_hashes);
+		if !append_only {
+			sync.transactions_stats.retain(&all_transactions_hashes);
+		}
+
+		let update_last_sent = |peer_info: &mut PeerInfo| {
+			if append_only {
+				peer_info.last_sent_transactions.extend(&all_transactions_hashes);
+			} else {
+				peer_info.last_sent_transactions = all_transactions_hashes.clone();
+			}
+		};
 
 		let send_packet = |io: &mut dyn SyncIo, peer_id: PeerId, sent: usize, rlp: Bytes| {
 			let size = rlp.len();
@@ -182,7 +209,7 @@ impl SyncPropagator {
 			// Get hashes of all transactions to send to this peer
 			let to_send = all_transactions_hashes.difference(&peer_info.last_sent_transactions)
 				.cloned()
-				.collect::<HashSet<_>>();
+				.collect::<H256FastSet>();
 			if to_send.is_empty() {
 				continue;
 			}
@@ -194,7 +221,8 @@ impl SyncPropagator {
 					let id = io.peer_session_info(peer_id).and_then(|info| info.id);
 					stats.propagated(hash, id, block_number);
 				}
-				peer_info.last_sent_transactions = all_transactions_hashes.clone();
+
+				update_last_sent(peer_info);
 
 				send_packet(io, peer_id, all_transactions_hashes.len(), all_transactions_rlp.clone());
 				sent_to_peers.insert(peer_id);
@@ -234,7 +262,7 @@ impl SyncPropagator {
 				stats.propagated(hash, id, block_number);
 			}
 
-			peer_info.last_sent_transactions = all_transactions_hashes.clone();
+			update_last_sent(peer_info);
 			send_packet(io, peer_id, to_send.len(), packet.out());
 			sent_to_peers.insert(peer_id);
 			max_sent = cmp::max(max_sent, to_send.len());

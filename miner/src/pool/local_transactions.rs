@@ -21,7 +21,7 @@ use std::{fmt, sync::Arc};
 use ethereum_types::H256;
 use linked_hash_map::LinkedHashMap;
 use pool::{VerifiedTransaction as Transaction, ScoredTransaction};
-use txpool::{self, VerifiedTransaction};
+use txpool;
 
 /// Status of local transaction.
 /// Can indicate that the transaction is currently part of the queue (`Pending/Future`)

@@ -15,7 +15,7 @@
 // along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
 use std::any::Any;
-use std::sync::{Arc, Weak, atomic};
+use std::sync::{Arc, Weak};
 use std::time::{Duration, Instant};
 use std::thread;
 
@@ -35,8 +35,11 @@ use hash_fetch::{self, fetch};
 use informant::{Informant, LightNodeInformantData, FullNodeInformantData};
 use journaldb::Algorithm;
 use light::Cache as LightDataCache;
-use miner::external::ExternalMiner;
-use miner::work_notify::WorkPoster;
+use miner::{
+	pool::TxStatus,
+	external::ExternalMiner,
+	work_notify::WorkPoster,
+};
 use node_filter::NodeFilter;
 use parity_runtime::Runtime;
 use sync::{self, SyncConfig, PrivateTxHandler};
@@ -641,16 +644,33 @@ fn execute_impl<Cr, Rr>(cmd: RunCmd, logger: Arc<RotatingLogger>, on_client_rq: 
 
 	service.add_notify(chain_notify.clone());
 
-	// Propagate transactions as soon as they are imported.
+	// Propagate transactions as soon as they are imported,
+	// but no more often than every `TXN_BUFFER_TIME`.
+	const TXN_BUFFER_TIME: Duration = Duration::from_millis(20);
 	let tx = ::parking_lot::Mutex::new(priority_tasks);
-	let is_ready = Arc::new(atomic::AtomicBool::new(true));
 	let executor = runtime.executor();
-	let pool_receiver = miner.pending_transactions_receiver();
+	let pool_receiver = miner.full_transactions_receiver();
+	let mut last_updated = Instant::now();
+	let mut buffered_transactions = Vec::new();
+
 	executor.spawn(
-		pool_receiver.for_each(move |_hashes| {
-			// we want to have only one PendingTransactions task in the queue.
-			if is_ready.compare_and_swap(true, false, atomic::Ordering::SeqCst) {
-				let task = ::sync::PriorityTask::PropagateTransactions(Instant::now(), is_ready.clone());
+
+		pool_receiver.for_each(move |hashes| {
+			// filter added transactions
+			let just_added = hashes.iter().filter_map(|(hash, status)| {
+				match status {
+					TxStatus::Added => Some(hash),
+					_ => None,
+				}
+			});
+			buffered_transactions.extend(just_added);
+
+			let now = Instant::now();
+			// we want to propagate transactions only every TXN_BUFFER_TIME
+			if now - last_updated > TXN_BUFFER_TIME {
+				last_updated = now;
+				let to_send = std::mem::replace(&mut buffered_transactions, Vec::new());
+				let task = sync::PriorityTask::PropagateTransactions(now, to_send);
 				// we ignore error cause it means that we are closing
 				let _ = tx.lock().send(task);
 			}
@@ -957,4 +977,3 @@ fn wait_for_drop<T>(w: Weak<T>) {
 
 	warn!("Shutdown timeout reached, exiting uncleanly.");
 }
-
