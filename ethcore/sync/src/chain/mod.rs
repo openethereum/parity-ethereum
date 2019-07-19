@@ -128,7 +128,7 @@ use self::sync_packet::SyncPacket::{
 	StatusPacket,
 };
 
-use self::propagator::SyncPropagator;
+use self::propagator::{SyncPropagator, TransactionsFilter};
 use self::requester::SyncRequester;
 pub(crate) use self::supplier::SyncSupplier;
 
@@ -479,7 +479,7 @@ impl ChainSyncApi {
 				PriorityTask::PropagateTransactions(time, txns) => {
 					SyncPropagator::propagate_new_transactions(&mut sync, io, || {
 						check_deadline(deadline).is_some()
-					}, Some(txns));
+					}, TransactionsFilter::Only(txns));
 					debug!(target: "sync", "Finished transaction propagation, took {}ms", elapsed_ms(time));
 				},
 			}
@@ -1338,7 +1338,7 @@ impl ChainSync {
 				debug!(target: "sync", "Wasn't able to finish transaction propagation within a deadline.");
 				false
 			}
-		}, None);
+		}, TransactionsFilter::All);
 	}
 
 	/// Broadcast consensus message to peers.
