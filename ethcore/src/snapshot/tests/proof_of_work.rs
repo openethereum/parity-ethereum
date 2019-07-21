@@ -18,7 +18,7 @@
 
 use std::sync::atomic::AtomicBool;
 use tempdir::TempDir;
-use error::Error;
+use types::errors::EthcoreError as Error;
 
 use blockchain::generator::{BlockGenerator, BlockBuilder};
 use blockchain::{BlockChain, ExtrasInsert};

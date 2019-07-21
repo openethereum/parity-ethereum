@@ -42,6 +42,7 @@ tiny-keccak = "1.4"
 trace = { path = "../trace" }
 transaction-pool = "2.0"
 url = "1"
+vm = { path = "../vm" }
 
 [dev-dependencies]
 env_logger = "0.5"

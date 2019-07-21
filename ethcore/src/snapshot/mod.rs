@@ -28,9 +28,11 @@ use hash::{keccak, KECCAK_NULL_RLP, KECCAK_EMPTY};
 use account_db::{AccountDB, AccountDBMut};
 use blockchain::{BlockChain, BlockProvider};
 use engines::Engine;
-use types::header::Header;
-use types::ids::BlockId;
-
+use types::{
+	ids::BlockId,
+	header::Header,
+	errors::{SnapshotError as Error, EthcoreError},
+};
 use ethereum_types::{H256, U256};
 use hash_db::HashDB;
 use keccak_hasher::KeccakHasher;
@@ -53,8 +55,6 @@ use account_state::Account as StateAccount;
 use crossbeam_utils::thread;
 use rand::{Rng, rngs::OsRng};
 
-pub use self::error::Error;
-
 pub use self::consensus::*;
 pub use self::service::{SnapshotClient, Service, DatabaseRestore};
 pub use self::traits::SnapshotService;
@@ -69,7 +69,6 @@ pub mod service;
 mod account;
 mod block;
 mod consensus;
-mod error;
 mod watcher;
 
 #[cfg(test)]
@@ -423,7 +422,7 @@ impl StateRebuilder {
 	}
 
 	/// Feed an uncompressed state chunk into the rebuilder.
-	pub fn feed(&mut self, chunk: &[u8], flag: &AtomicBool) -> Result<(), ::error::Error> {
+	pub fn feed(&mut self, chunk: &[u8], flag: &AtomicBool) -> Result<(), EthcoreError> {
 		let rlp = Rlp::new(chunk);
 		let empty_rlp = StateAccount::new_basic(U256::zero(), U256::zero()).rlp();
 		let mut pairs = Vec::with_capacity(rlp.item_count()?);
@@ -486,7 +485,7 @@ impl StateRebuilder {
 	/// Finalize the restoration. Check for accounts missing code and make a dummy
 	/// journal entry.
 	/// Once all chunks have been fed, there should be nothing missing.
-	pub fn finalize(mut self, era: u64, id: H256) -> Result<Box<dyn JournalDB>, ::error::Error> {
+	pub fn finalize(mut self, era: u64, id: H256) -> Result<Box<dyn JournalDB>, EthcoreError> {
 		let missing = self.missing_code.keys().cloned().collect::<Vec<_>>();
 		if !missing.is_empty() { return Err(Error::MissingCode(missing).into()) }
 
@@ -517,7 +516,7 @@ fn rebuild_accounts(
 	known_code: &HashMap<H256, H256>,
 	known_storage_roots: &mut HashMap<H256, H256>,
 	abort_flag: &AtomicBool,
-) -> Result<RebuiltStatus, ::error::Error> {
+) -> Result<RebuiltStatus, EthcoreError> {
 	let mut status = RebuiltStatus::default();
 	for (account_rlp, out) in account_fat_rlps.into_iter().zip(out_chunk.iter_mut()) {
 		if !abort_flag.load(Ordering::SeqCst) { return Err(Error::RestorationAborted.into()) }
@@ -578,13 +577,13 @@ const POW_VERIFY_RATE: f32 = 0.02;
 /// Verify an old block with the given header, engine, blockchain, body. If `always` is set, it will perform
 /// the fullest verification possible. If not, it will take a random sample to determine whether it will
 /// do heavy or light verification.
-pub fn verify_old_block(rng: &mut OsRng, header: &Header, engine: &dyn Engine, chain: &BlockChain, always: bool) -> Result<(), ::error::Error> {
+pub fn verify_old_block(rng: &mut OsRng, header: &Header, engine: &dyn Engine, chain: &BlockChain, always: bool) -> Result<(), EthcoreError> {
 	engine.verify_block_basic(header)?;
 
 	if always || rng.gen::<f32>() <= POW_VERIFY_RATE {
 		engine.verify_block_unordered(header)?;
 		match chain.block_header_data(header.parent_hash()) {
-			Some(parent) => engine.verify_block_family(header, &parent.decode()?),
+			Some(parent) => engine.verify_block_family(header, &parent.decode()?).map_err(Into::into),
 			None => Ok(()),
 		}
 	} else {

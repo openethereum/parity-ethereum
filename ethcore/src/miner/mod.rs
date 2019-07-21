@@ -37,10 +37,13 @@ use bytes::Bytes;
 use ethcore_miner::pool::{VerifiedTransaction, QueueStatus, local_transactions};
 use ethereum_types::{H256, U256, Address};
 use types::transaction::{self, UnverifiedTransaction, SignedTransaction, PendingTransaction};
-use types::BlockNumber;
-use types::block::Block;
-use types::header::Header;
-use types::receipt::RichReceipt;
+use types::{
+	BlockNumber,
+	errors::EthcoreError as Error,
+	block::Block,
+	header::Header,
+	receipt::RichReceipt,
+};
 
 use block::SealedBlock;
 use call_contract::{CallContract, RegistryInfo};
@@ -49,7 +52,6 @@ use client::{
 	BlockChain, BlockProducer, SealedBlockImporter, ChainInfo,
 	AccountData, Nonce,
 };
-use error::Error;
 use account_state::state::StateInfo;
 
 /// Provides methods to verify incoming external transactions

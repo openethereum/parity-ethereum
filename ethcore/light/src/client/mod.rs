@@ -20,21 +20,23 @@ use std::sync::{Weak, Arc};
 
 use ethcore::client::{ClientReport, EnvInfo, ClientIoMessage};
 use ethcore::engines::{epoch, Engine, EpochChange, EpochTransition, Proof};
-use ethcore::error::{Error, EthcoreResult};
 use ethcore::verification::queue::{self, HeaderQueue};
 use ethcore::spec::{Spec, SpecHardcodedSync};
 use io::IoChannel;
 use parking_lot::{Mutex, RwLock};
 use ethereum_types::{H256, U256};
 use futures::{IntoFuture, Future};
-use common_types::BlockNumber;
-use common_types::block_status::BlockStatus;
-use common_types::blockchain_info::BlockChainInfo;
-use common_types::encoded;
-use common_types::header::Header;
-use common_types::ids::BlockId;
-use common_types::verification_queue_info::VerificationQueueInfo as BlockQueueInfo;
-
+use common_types::{
+	BlockNumber,
+	block_status::BlockStatus,
+	blockchain_info::BlockChainInfo,
+	encoded,
+	errors::EthcoreError as Error,
+	errors::EthcoreResult,
+	header::Header,
+	ids::BlockId,
+	verification_queue_info::VerificationQueueInfo as BlockQueueInfo,
+};
 use kvdb::KeyValueDB;
 
 use self::fetch::ChainDataFetcher;
@@ -468,7 +470,7 @@ impl<T: ChainDataFetcher> Client<T> {
 	}
 
 	fn check_epoch_signal(&self, verified_header: &Header) -> Result<Option<Proof>, T::Error> {
-		use ethcore::machine::{AuxiliaryRequest, AuxiliaryData};
+		use common_types::engines::machine::{AuxiliaryRequest, AuxiliaryData};
 
 		let mut block: Option<Vec<u8>> = None;
 		let mut receipts: Option<Vec<_>> = None;

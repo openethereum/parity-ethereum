@@ -28,14 +28,17 @@ use std::sync::Arc;
 
 use blockchain::{BlockChain, BlockChainDB, BlockProvider};
 use engines::Engine;
-use snapshot::{Error, ManifestData, Progress};
+use snapshot::{ManifestData, Progress};
 use snapshot::block::AbridgedBlock;
 use ethereum_types::H256;
 use kvdb::KeyValueDB;
 use bytes::Bytes;
 use rlp::{RlpStream, Rlp};
 use rand::rngs::OsRng;
-use types::encoded;
+use types::{
+	encoded,
+	errors::{SnapshotError, EthcoreError},
+};
 
 /// Snapshot creation and restoration for PoW chains.
 /// This includes blocks from the head of the chain as a
@@ -52,10 +55,7 @@ pub struct PowSnapshot {
 impl PowSnapshot {
 	/// Create a new instance.
 	pub fn new(blocks: u64, max_restore_blocks: u64) -> PowSnapshot {
-		PowSnapshot {
-			blocks: blocks,
-			max_restore_blocks: max_restore_blocks,
-		}
+		PowSnapshot { blocks, max_restore_blocks }
 	}
 }
 
@@ -67,14 +67,14 @@ impl SnapshotComponents for PowSnapshot {
 		chunk_sink: &mut ChunkSink,
 		progress: &Progress,
 		preferred_size: usize,
-	) -> Result<(), Error> {
+	) -> Result<(), SnapshotError> {
 		PowWorker {
-			chain: chain,
+			chain,
 			rlps: VecDeque::new(),
 			current_hash: block_at,
 			writer: chunk_sink,
-			progress: progress,
-			preferred_size: preferred_size,
+			progress,
+			preferred_size,
 		}.chunk_all(self.blocks)
 	}
 
@@ -83,7 +83,7 @@ impl SnapshotComponents for PowSnapshot {
 		chain: BlockChain,
 		db: Arc<dyn BlockChainDB>,
 		manifest: &ManifestData,
-	) -> Result<Box<dyn Rebuilder>, ::error::Error> {
+	) -> Result<Box<dyn Rebuilder>, EthcoreError> {
 		PowRebuilder::new(chain, db.key_value().clone(), manifest, self.max_restore_blocks).map(|r| Box::new(r) as Box<_>)
 	}
 
@@ -105,7 +105,7 @@ struct PowWorker<'a> {
 impl<'a> PowWorker<'a> {
 	// Repeatedly fill the buffers and writes out chunks, moving backwards from starting block hash.
 	// Loops until we reach the first desired block, and writes out the remainder.
-	fn chunk_all(&mut self, snapshot_blocks: u64) -> Result<(), Error> {
+	fn chunk_all(&mut self, snapshot_blocks: u64) -> Result<(), SnapshotError> {
 		let mut loaded_size = 0;
 		let mut last = self.current_hash;
 
@@ -116,7 +116,7 @@ impl<'a> PowWorker<'a> {
 
 			let (block, receipts) = self.chain.block(&self.current_hash)
 				.and_then(|b| self.chain.block_receipts(&self.current_hash).map(|r| (b, r)))
-				.ok_or_else(|| Error::BlockNotFound(self.current_hash))?;
+				.ok_or_else(||SnapshotError::BlockNotFound(self.current_hash))?;
 
 			let abridged_rlp = AbridgedBlock::from_block_view(&block.view()).into_inner();
 
@@ -155,12 +155,12 @@ impl<'a> PowWorker<'a> {
 	//
 	// we preface each chunk with the parent of the first block's details,
 	// obtained from the details of the last block written.
-	fn write_chunk(&mut self, last: H256) -> Result<(), Error> {
+	fn write_chunk(&mut self, last: H256) -> Result<(), SnapshotError> {
 		trace!(target: "snapshot", "prepared block chunk with {} blocks", self.rlps.len());
 
 		let (last_header, last_details) = self.chain.block_header_data(&last)
 			.and_then(|n| self.chain.block_details(&last).map(|d| (n, d)))
-			.ok_or_else(|| Error::BlockNotFound(last))?;
+			.ok_or_else(||SnapshotError::BlockNotFound(last))?;
 
 		let parent_number = last_header.number() - 1;
 		let parent_hash = last_header.parent_hash();
@@ -206,7 +206,7 @@ pub struct PowRebuilder {
 
 impl PowRebuilder {
 	/// Create a new PowRebuilder.
-	fn new(chain: BlockChain, db: Arc<dyn KeyValueDB>, manifest: &ManifestData, snapshot_blocks: u64) -> Result<Self, ::error::Error> {
+	fn new(chain: BlockChain, db: Arc<dyn KeyValueDB>, manifest: &ManifestData, snapshot_blocks: u64) -> Result<Self, EthcoreError> {
 		Ok(PowRebuilder {
 			chain,
 			db,
@@ -224,7 +224,7 @@ impl PowRebuilder {
 impl Rebuilder for PowRebuilder {
 	/// Feed the rebuilder an uncompressed block chunk.
 	/// Returns the number of blocks fed or any errors.
-	fn feed(&mut self, chunk: &[u8], engine: &dyn Engine, abort_flag: &AtomicBool) -> Result<(), ::error::Error> {
+	fn feed(&mut self, chunk: &[u8], engine: &dyn Engine, abort_flag: &AtomicBool) -> Result<(), EthcoreError> {
 		use snapshot::verify_old_block;
 		use ethereum_types::U256;
 		use triehash::ordered_trie_root;
@@ -236,7 +236,7 @@ impl Rebuilder for PowRebuilder {
 		trace!(target: "snapshot", "restoring block chunk with {} blocks.", num_blocks);
 
 		if self.fed_blocks + num_blocks > self.snapshot_blocks {
-			return Err(Error::TooManyBlocks(self.snapshot_blocks, self.fed_blocks + num_blocks).into())
+			return Err(SnapshotError::TooManyBlocks(self.snapshot_blocks, self.fed_blocks + num_blocks).into())
 		}
 
 		// todo: assert here that these values are consistent with chunks being in order.
@@ -245,7 +245,7 @@ impl Rebuilder for PowRebuilder {
 		let parent_total_difficulty = rlp.val_at::<U256>(2)?;
 
 		for idx in 3..item_count {
-			if !abort_flag.load(Ordering::SeqCst) { return Err(Error::RestorationAborted.into()) }
+			if !abort_flag.load(Ordering::SeqCst) { return Err(SnapshotError::RestorationAborted.into()) }
 
 			let pair = rlp.at(idx)?;
 			let abridged_rlp = pair.at(0)?.as_raw().to_owned();
@@ -259,11 +259,11 @@ impl Rebuilder for PowRebuilder {
 
 			if is_best {
 				if block.header.hash() != self.best_hash {
-					return Err(Error::WrongBlockHash(cur_number, self.best_hash, block.header.hash()).into())
+					return Err(SnapshotError::WrongBlockHash(cur_number, self.best_hash, block.header.hash()).into())
 				}
 
 				if block.header.state_root() != &self.best_root {
-					return Err(Error::WrongStateRoot(self.best_root, *block.header.state_root()).into())
+					return Err(SnapshotError::WrongStateRoot(self.best_root, *block.header.state_root()).into())
 				}
 			}
 
@@ -298,7 +298,7 @@ impl Rebuilder for PowRebuilder {
 	}
 
 	/// Glue together any disconnected chunks and check that the chain is complete.
-	fn finalize(&mut self) -> Result<(), ::error::Error> {
+	fn finalize(&mut self) -> Result<(), EthcoreError> {
 		let mut batch = self.db.transaction();
 		trace!(target: "snapshot", "rebuilder, finalize: inserting {} disconnected chunks", self.disconnected.len());
 		for (first_num, first_hash) in self.disconnected.drain(..) {

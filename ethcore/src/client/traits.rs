@@ -25,32 +25,34 @@ use ethereum_types::{H256, U256, Address};
 use evm::Schedule;
 use itertools::Itertools;
 use kvdb::DBValue;
-use types::transaction::{self, LocalizedTransaction, SignedTransaction};
-use types::BlockNumber;
-use types::basic_account::BasicAccount;
-use types::block_status::BlockStatus;
-use types::blockchain_info::BlockChainInfo;
-use types::call_analytics::CallAnalytics;
-use types::encoded;
-use types::filter::Filter;
-use types::header::Header;
-use types::ids::*;
-use types::log_entry::LocalizedLogEntry;
-use types::pruning_info::PruningInfo;
-use types::receipt::LocalizedReceipt;
-use types::trace_filter::Filter as TraceFilter;
+use types::{
+	transaction::{self, LocalizedTransaction, SignedTransaction, CallError},
+	BlockNumber,
+	basic_account::BasicAccount,
+	block_status::BlockStatus,
+	blockchain_info::BlockChainInfo,
+	call_analytics::CallAnalytics,
+	encoded,
+	errors::EthcoreError as Error,
+	errors::EthcoreResult,
+	filter::Filter,
+	header::Header,
+	ids::*,
+	log_entry::LocalizedLogEntry,
+	pruning_info::PruningInfo,
+	receipt::LocalizedReceipt,
+	trace_filter::Filter as TraceFilter,
+	verification_queue_info::VerificationQueueInfo as BlockQueueInfo,
+};
 use vm::LastHashes;
 
 use block::{OpenBlock, SealedBlock, ClosedBlock};
 use client::Mode;
 use engines::Engine;
-use error::{Error, EthcoreResult};
-use executed::CallError;
 use executive::Executed;
 use account_state::state::StateInfo;
 use trace::LocalizedTrace;
-use verification::queue::QueueInfo as BlockQueueInfo;
-use verification::queue::kind::blocks::Unverified;
+use verification::queue::kind::blocks::Unverified; // todo this is reexported from common_types
 
 /// State information to be used during client query
 pub enum StateOrBlock {

@@ -18,7 +18,6 @@
 
 use std::fmt;
 
-use ethcore::error::{Error as EthcoreError, CallError};
 use ethcore::client::BlockId;
 use jsonrpc_core::{futures, Result as RpcResult, Error, ErrorCode, Value};
 use rlp::DecoderError;
@@ -27,7 +26,11 @@ use ethcore_private_tx::Error as PrivateTransactionError;
 use vm::Error as VMError;
 use light::on_demand::error::{Error as OnDemandError};
 use ethcore::client::BlockChainClient;
-use types::blockchain_info::BlockChainInfo;
+use types::{
+	blockchain_info::BlockChainInfo,
+	errors::{EthcoreError},
+	transaction::CallError,
+};
 use v1::types::BlockNumber;
 use v1::impls::EthClientOptions;
 

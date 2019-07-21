@@ -19,12 +19,14 @@
 use call_contract::CallContract;
 use client::BlockInfo;
 use engines::Engine;
-use error::Error;
-use types::header::Header;
+use types::{
+	header::Header,
+	errors::EthcoreError as Error,
+};
 use super::Verifier;
 use super::verification;
 
-/// A canonial verifier -- this does full verification.
+/// A canonical verifier -- this does full verification.
 pub struct CanonVerifier;
 
 impl<C: BlockInfo + CallContract> Verifier<C> for CanonVerifier {

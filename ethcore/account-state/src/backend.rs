@@ -29,7 +29,6 @@ use hash_db::{AsHashDB, EMPTY_PREFIX, HashDB, Prefix};
 use kvdb::DBValue;
 use memory_db::{HashKey, MemoryDB};
 use parking_lot::Mutex;
-
 use journaldb::AsKeyedHashDB;
 use keccak_hasher::KeccakHasher;
 
@@ -222,7 +221,7 @@ impl<H: AsHashDB<KeccakHasher, DBValue>> Proving<H> {
 	/// This will store all values ever fetched from that base.
 	pub fn new(base: H) -> Self {
 		Proving {
-			base: base,
+			base,
 			changed: journaldb::new_memory_db(),
 			proof: Mutex::new(HashSet::new()),
 		}

@@ -30,12 +30,14 @@ use std::sync::Arc;
 
 use cache::Cache;
 use cht;
-use common_types::block_status::BlockStatus;
-use common_types::encoded;
-use common_types::header::Header;
-use common_types::ids::BlockId;
+use common_types::{
+	block_status::BlockStatus,
+	encoded,
+	errors::{EthcoreError as Error, BlockError, EthcoreResult},
+	header::Header,
+	ids::BlockId,
+};
 use ethcore::engines::epoch::{Transition as EpochTransition, PendingTransition as PendingEpochTransition};
-use ethcore::error::{Error, EthcoreResult, BlockError};
 use ethcore::spec::{Spec, SpecHardcodedSync};
 use ethereum_types::{H256, H264, U256};
 use parity_util_mem::{MallocSizeOf, MallocSizeOfOps};

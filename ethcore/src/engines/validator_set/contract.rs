@@ -21,10 +21,14 @@ use std::sync::Weak;
 
 use bytes::Bytes;
 use ethereum_types::{H256, Address};
-use machine::{AuxiliaryData, Call, Machine};
+use machine::Machine;
 use parking_lot::RwLock;
-use types::BlockNumber;
-use types::header::Header;
+use types::{
+	BlockNumber,
+	header::Header,
+	errors::EthcoreError,
+	engines::machine::{Call, AuxiliaryData},
+};
 
 use client::EngineClient;
 
@@ -72,7 +76,7 @@ impl ValidatorSet for ValidatorContract {
 		self.validators.default_caller(id)
 	}
 
-	fn on_epoch_begin(&self, first: bool, header: &Header, call: &mut SystemCall) -> Result<(), ::error::Error> {
+	fn on_epoch_begin(&self, first: bool, header: &Header, call: &mut SystemCall) -> Result<(), EthcoreError> {
 		self.validators.on_epoch_begin(first, header, call)
 	}
 
@@ -93,7 +97,7 @@ impl ValidatorSet for ValidatorContract {
 		self.validators.signals_epoch_end(first, header, aux)
 	}
 
-	fn epoch_set(&self, first: bool, machine: &Machine, number: BlockNumber, proof: &[u8]) -> Result<(SimpleList, Option<H256>), ::error::Error> {
+	fn epoch_set(&self, first: bool, machine: &Machine, number: BlockNumber, proof: &[u8]) -> Result<(SimpleList, Option<H256>), EthcoreError> {
 		self.validators.epoch_set(first, machine, number, proof)
 	}
 
@@ -147,7 +151,8 @@ mod tests {
 	use types::ids::BlockId;
 	use test_helpers::generate_dummy_client_with_spec;
 	use call_contract::CallContract;
-	use client::{BlockChainClient, ChainInfo, BlockInfo};
+	use client::{BlockChainClient, ChainInfo};
+	use client::BlockInfo;
 	use super::super::ValidatorSet;
 	use super::ValidatorContract;
 

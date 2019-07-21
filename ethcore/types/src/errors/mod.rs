@@ -14,22 +14,16 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
-//! State related errors
+//! General error types for use in parity-ethereum.
 
-use derive_more::{Display, From};
+mod block_error;
+mod engine_error;
+mod ethcore_error;
+mod snapshot_error;
 
-#[derive(Debug, Display, From)]
-pub enum Error {
-	/// Trie error.
-	Trie(ethtrie::TrieError),
-	/// Decoder error.
-	Decoder(rlp::DecoderError),
-}
-
-impl std::error::Error for Error {}
-
-impl<E> From<Box<E>> for Error where Error: From<E> {
-	fn from(err: Box<E>) -> Self {
-		Error::from(*err)
-	}
-}
+pub use self::{
+	block_error::{BlockError, ImportError},
+	engine_error::EngineError,
+	ethcore_error::{EthcoreError, ExecutionError, EthcoreResult},
+	snapshot_error::SnapshotError,
+};

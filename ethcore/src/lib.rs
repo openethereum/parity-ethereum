@@ -128,7 +128,6 @@ extern crate serde_json;
 extern crate ethabi_derive;
 #[macro_use]
 extern crate ethabi_contract;
-extern crate derive_more;
 #[macro_use]
 extern crate log;
 #[macro_use]
@@ -152,7 +151,6 @@ extern crate parity_runtime;
 pub mod block;
 pub mod client;
 pub mod engines;
-pub mod error;
 pub mod ethereum;
 pub mod executed;
 pub mod executive;

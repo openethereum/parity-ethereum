@@ -36,10 +36,11 @@ use kvdb_memorydb;
 use parking_lot::RwLock;
 use rlp::{Rlp, RlpStream};
 use rustc_hex::FromHex;
-use types::transaction::{self, Transaction, LocalizedTransaction, SignedTransaction, Action};
+use types::transaction::{self, Transaction, LocalizedTransaction, SignedTransaction, Action, CallError};
 use types::BlockNumber;
 use types::basic_account::BasicAccount;
 use types::encoded;
+use types::errors::{EthcoreError as Error, EthcoreResult};
 use types::filter::Filter;
 use types::header::Header;
 use types::log_entry::LocalizedLogEntry;
@@ -52,16 +53,15 @@ use vm::Schedule;
 use block::{OpenBlock, SealedBlock, ClosedBlock};
 use call_contract::{CallContract, RegistryInfo};
 use client::{
-	Nonce, Balance, ChainInfo, BlockInfo, ReopenBlock, TransactionInfo,
+	Nonce, Balance, ChainInfo, ReopenBlock, TransactionInfo,
 	PrepareOpenBlock, BlockChainClient, BlockChainInfo, BlockStatus, BlockId, Mode,
 	TransactionId, UncleId, TraceId, TraceFilter, LastHashes, CallAnalytics,
 	ProvingBlockChainClient, ScheduleInfo, ImportSealedBlock, BroadcastProposalBlock, ImportBlock, StateOrBlock,
 	Call, StateClient, EngineInfo, AccountData, BlockChain, BlockProducer, SealedBlockImporter, IoClient,
 	BadBlocks
 };
+use client::BlockInfo;
 use engines::Engine;
-use error::{Error, EthcoreResult};
-use executed::CallError;
 use executive::Executed;
 use journaldb;
 use miner::{self, Miner, MinerService};

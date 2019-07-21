@@ -23,10 +23,15 @@ use {trie_vm_factories, journaldb, trie, kvdb_memorydb};
 use kvdb::{self, KeyValueDB};
 use {state_db, client, executive, trace, db, spec};
 use pod::PodState;
-use types::{log_entry, receipt, transaction};
+use types::{
+	errors::EthcoreError,
+	log_entry,
+	receipt,
+	transaction
+};
 use trie_vm_factories::Factories;
 use evm::{VMType, FinalizationResult};
-use vm::{self, ActionParams};
+use vm::{self, ActionParams, CreateContractAddress};
 use ethtrie;
 use account_state::{CleanupMode, State};
 use substate::Substate;
@@ -41,12 +46,12 @@ pub enum EvmTestError {
 	/// EVM error.
 	Evm(vm::Error),
 	/// Initialization error.
-	ClientError(::error::Error),
+	ClientError(EthcoreError),
 	/// Post-condition failure,
 	PostCondition(String),
 }
 
-impl<E: Into<::error::Error>> From<E> for EvmTestError {
+impl<E: Into<EthcoreError>> From<E> for EvmTestError {
 	fn from(err: E) -> Self {
 		EvmTestError::ClientError(err.into())
 	}
@@ -265,7 +270,7 @@ impl<'a> EvmTestClient<'a> {
 
 		// Apply transaction
 		let result = self.state.apply_with_tracing(&env_info, self.spec.engine.machine(), &transaction, tracer, vm_tracer);
-		let scheme = self.spec.engine.machine().create_address_scheme(env_info.number);
+		let scheme = CreateContractAddress::FromSenderAndNonce;
 
 		// Touch the coinbase at the end of the test to simulate
 		// miner reward.
@@ -345,7 +350,7 @@ pub struct TransactErr {
 	/// State root
 	pub state_root: H256,
 	/// Execution error
-	pub error: ::error::Error,
+	pub error: EthcoreError,
 	/// end state if needed
 	pub end_state: Option<PodState>,
 }

@@ -18,10 +18,13 @@ use engines::Engine;
 use engines::block_reward::{self, RewardKind};
 use ethereum_types::U256;
 use machine::Machine;
-use types::BlockNumber;
-use types::header::Header;
+use types::{
+	BlockNumber,
+	header::Header,
+	engines::params::CommonParams,
+	errors::EthcoreError as Error,
+};
 use block::ExecutedBlock;
-use error::Error;
 
 /// Params for a null engine.
 #[derive(Clone, Default)]
@@ -61,6 +64,8 @@ impl Engine for NullEngine {
 
 	fn machine(&self) -> &Machine { &self.machine }
 
+	fn maximum_uncle_count(&self, _block: BlockNumber) -> usize { 2 }
+
 	fn on_close_block(
 		&self,
 		block: &mut ExecutedBlock,
@@ -92,13 +97,15 @@ impl Engine for NullEngine {
 		block_reward::apply_block_rewards(&rewards, block, &self.machine)
 	}
 
-	fn maximum_uncle_count(&self, _block: BlockNumber) -> usize { 2 }
-
 	fn verify_local_seal(&self, _header: &Header) -> Result<(), Error> {
 		Ok(())
 	}
 
 	fn snapshot_components(&self) -> Option<Box<dyn (::snapshot::SnapshotComponents)>> {
 		Some(Box::new(::snapshot::PowSnapshot::new(10000, 10000)))
+	}
+
+	fn params(&self) -> &CommonParams {
+		self.machine.params()
 	}
 }

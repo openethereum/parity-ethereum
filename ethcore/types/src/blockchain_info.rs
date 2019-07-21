@@ -20,7 +20,7 @@ use std::fmt;
 
 use ethereum_types::{U256, H256};
 use security_level::SecurityLevel;
-use {BlockNumber};
+use BlockNumber;
 
 /// Information about the blockchain gathered together.
 #[derive(Clone, Debug)]

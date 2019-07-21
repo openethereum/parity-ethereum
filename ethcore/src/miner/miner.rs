@@ -43,23 +43,26 @@ use types::transaction::{
 	SignedTransaction,
 	PendingTransaction,
 };
-use types::BlockNumber;
-use types::block::Block;
-use types::header::Header;
-use types::receipt::RichReceipt;
+use types::{
+	BlockNumber,
+	block::Block,
+	header::Header,
+	engines::{SealingState},
+	errors::{EthcoreError as Error, ExecutionError},
+	receipt::RichReceipt,
+};
 use using_queue::{UsingQueue, GetAction};
 
 use block::{ClosedBlock, SealedBlock};
 use client::{
-	BlockChain, ChainInfo, BlockProducer, SealedBlockImporter, Nonce, TransactionInfo, TransactionId
+	BlockChain, ChainInfo, BlockProducer, SealedBlockImporter, Nonce, TransactionInfo, TransactionId, ClientIoMessage,
 };
-use client::{BlockId, ClientIoMessage};
-use engines::{Engine, Seal, SealingState, EngineSigner};
-use error::Error;
-use executed::ExecutionError;
+use client::BlockId;
+use engines::{Engine, Seal, EngineSigner};
 use executive::contract_address;
 use spec::Spec;
 use account_state::State;
+use vm::CreateContractAddress;
 
 /// Different possible definitions for pending transaction set.
 #[derive(Debug, PartialEq)]
@@ -244,7 +247,7 @@ pub struct Miner {
 	sealing: Mutex<SealingWork>,
 	params: RwLock<AuthoringParams>,
 	#[cfg(feature = "work-notify")]
-	listeners: RwLock<Vec<Box<NotifyWork>>>,
+	listeners: RwLock<Vec<Box<dyn NotifyWork>>>,
 	nonce_cache: NonceCache,
 	gas_pricer: Mutex<GasPricer>,
 	options: MinerOptions,
@@ -259,7 +262,7 @@ pub struct Miner {
 impl Miner {
 	/// Push listener that will handle new jobs
 	#[cfg(feature = "work-notify")]
-	pub fn add_work_listener(&self, notifier: Box<NotifyWork>) {
+	pub fn add_work_listener(&self, notifier: Box<dyn NotifyWork>) {
 		self.listeners.write().push(notifier);
 		self.sealing.lock().enabled = true;
 	}
@@ -949,7 +952,7 @@ impl miner::MinerService for Miner {
 		let client = self.pool_client(chain);
 		let results = self.transaction_queue.import(
 			client,
-			transactions.into_iter().map(pool::verifier::Transaction::Unverified).collect(),
+			transactions.into_iter().map(pool::verifier::Transaction::Unverified),
 		);
 
 		// --------------------------------------------------------------------------
@@ -975,7 +978,7 @@ impl miner::MinerService for Miner {
 		let client = self.pool_client(chain);
 		let imported = self.transaction_queue.import(
 			client,
-			vec![pool::verifier::Transaction::Local(pending)]
+			Some(pool::verifier::Transaction::Local(pending))
 		).pop().expect("one result returned per added transaction; one added => one result; qed");
 
 		// --------------------------------------------------------------------------
@@ -1220,7 +1223,7 @@ impl miner::MinerService for Miner {
 							Action::Call(_) => None,
 							Action::Create => {
 								let sender = tx.sender();
-								Some(contract_address(self.engine.create_address_scheme(pending.header.number()), &sender, &tx.nonce, &tx.data).0)
+								Some(contract_address(CreateContractAddress::FromSenderAndNonce, &sender, &tx.nonce, &tx.data).0)
 							}
 						},
 						logs: receipt.logs.clone(),
@@ -1375,8 +1378,7 @@ impl miner::MinerService for Miner {
 						.expect("Client is sending message after commit to db and inserting to chain; the block is available; qed");
 					let txs = block.transactions()
 						.into_iter()
-						.map(pool::verifier::Transaction::Retracted)
-						.collect();
+						.map(pool::verifier::Transaction::Retracted);
 					let _ = self.transaction_queue.import(
 						client.clone(),
 						txs,

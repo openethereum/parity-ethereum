@@ -61,6 +61,7 @@ extern crate ethabi_contract;
 extern crate derive_more;
 #[macro_use]
 extern crate rlp_derive;
+extern crate vm;
 
 #[cfg(not(time_checked_add))]
 extern crate time_utils;
@@ -101,6 +102,7 @@ use trace::{Tracer, VMTracer};
 use call_contract::CallContract;
 use rustc_hex::FromHex;
 use ethabi::FunctionOutputDecoder;
+use vm::CreateContractAddress;
 
 // Source avaiable at https://github.com/parity-contracts/private-tx/blob/master/contracts/PrivateContract.sol
 const DEFAULT_STUB_CONTRACT: &'static str = include_str!("../res/private.evm");
@@ -574,7 +576,7 @@ impl Provider {
 		let sender = transaction.sender();
 		let nonce = state.nonce(&sender)?;
 		let contract_address = contract_address.unwrap_or_else(|| {
-			let (new_address, _) = ethcore_contract_address(engine.create_address_scheme(env_info.number), &sender, &nonce, &transaction.data);
+			let (new_address, _) = ethcore_contract_address(CreateContractAddress::FromSenderAndNonce, &sender, &nonce, &transaction.data);
 			new_address
 		});
 		// Patch other available private contracts' states as well

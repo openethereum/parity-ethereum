@@ -22,12 +22,16 @@ use std::sync::Weak;
 use bytes::Bytes;
 use ethereum_types::{H256, Address};
 use parking_lot::RwLock;
-use types::BlockNumber;
-use types::header::Header;
-use types::ids::BlockId;
+use types::{
+	BlockNumber,
+	header::Header,
+	ids::BlockId,
+	errors::EthcoreError,
+	engines::machine::{Call, AuxiliaryData},
+};
 
 use client::EngineClient;
-use machine::{AuxiliaryData, Call, Machine};
+use machine::Machine;
 use super::{SystemCall, ValidatorSet};
 
 type BlockNumberLookup = Box<dyn Fn(BlockId) -> Result<BlockNumber, String> + Send + Sync + 'static>;
@@ -77,7 +81,7 @@ impl ValidatorSet for Multi {
 			.unwrap_or_else(|| Box::new(|_, _| Err("No validator set for given ID.".into())))
 	}
 
-	fn on_epoch_begin(&self, _first: bool, header: &Header, call: &mut SystemCall) -> Result<(), ::error::Error> {
+	fn on_epoch_begin(&self, _first: bool, header: &Header, call: &mut SystemCall) -> Result<(), EthcoreError> {
 		let (set_block, set) = self.correct_set_by_number(header.number());
 		let first = set_block == header.number();
 
@@ -104,7 +108,7 @@ impl ValidatorSet for Multi {
 		set.signals_epoch_end(first, header, aux)
 	}
 
-	fn epoch_set(&self, _first: bool, machine: &Machine, number: BlockNumber, proof: &[u8]) -> Result<(super::SimpleList, Option<H256>), ::error::Error> {
+	fn epoch_set(&self, _first: bool, machine: &Machine, number: BlockNumber, proof: &[u8]) -> Result<(super::SimpleList, Option<H256>), EthcoreError> {
 		let (set_block, set) = self.correct_set_by_number(number);
 		let first = set_block == number;
 
@@ -151,7 +155,8 @@ mod tests {
 	use std::collections::BTreeMap;
 	use hash::keccak;
 	use accounts::AccountProvider;
-	use client::{BlockChainClient, ChainInfo, BlockInfo, ImportBlock};
+	use client::{BlockChainClient, ChainInfo, ImportBlock};
+	use client::BlockInfo;
 	use engines::EpochChange;
 	use engines::validator_set::ValidatorSet;
 	use ethkey::Secret;

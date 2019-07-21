@@ -19,8 +19,11 @@ use super::test_common::*;
 use client::EvmTestClient;
 use ethjson;
 use rlp::Rlp;
-use types::header::Header;
-use types::transaction::UnverifiedTransaction;
+use types::{
+	header::Header,
+	errors::EthcoreError as Error,
+	transaction::UnverifiedTransaction
+};
 use transaction_ext::Transaction;
 
 /// Run transaction jsontests on a given folder.
@@ -60,7 +63,7 @@ fn do_json_test<H: FnMut(&str, HookType)>(json_data: &[u8], start_stop_hook: &mu
 			let rlp: Vec<u8> = test.rlp.clone().into();
 			let res = Rlp::new(&rlp)
 				.as_val()
-				.map_err(::error::Error::from)
+				.map_err(Error::from)
 				.and_then(|t: UnverifiedTransaction| {
 					let mut header: Header = Default::default();
 					// Use high enough number to activate all required features.

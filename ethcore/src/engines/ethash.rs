@@ -23,19 +23,23 @@ use ethereum_types::{H256, H64, U256};
 use ethjson;
 use hash::{KECCAK_EMPTY_LIST_RLP};
 use rlp::Rlp;
-use types::header::Header;
-use types::BlockNumber;
+use types::{
+	BlockNumber,
+	header::Header,
+	engines::params::CommonParams,
+	errors::{BlockError, EthcoreError as Error},
+};
+
 use unexpected::{OutOfBounds, Mismatch};
 
 use block::ExecutedBlock;
 use engines::block_reward::{self, BlockRewardContract, RewardKind};
 use engines::{self, Engine};
-use error::{BlockError, Error};
 use ethash::{self, quick_get_difficulty, slow_hash_block_number, EthashManager, OptimizeFor};
 use machine::Machine;
 
 /// Number of blocks in an ethash snapshot.
-// make dependent on difficulty incrment divisor?
+// make dependent on difficulty increment divisor?
 const SNAPSHOT_BLOCKS: u64 = 5000;
 /// Maximum number of blocks allowed in an ethash snapshot.
 const MAX_SNAPSHOT_BLOCKS: u64 = 30000;
@@ -203,10 +207,13 @@ impl Ethash {
 // for any block in the chain.
 // in the future, we might move the Ethash epoch
 // caching onto this mechanism as well.
+// NOTE[dvdplm]: the reason we impl this for Arc<Ethash> and not plain Ethash is the
+// way `epoch_verifier()` works. This means `new()` returns an `Arc<Ethash>` which is
+// then re-wrapped in an Arc in `spec::engine()`.
 impl engines::EpochVerifier for Arc<Ethash> {
 	fn verify_light(&self, _header: &Header) -> Result<(), Error> { Ok(()) }
 	fn verify_heavy(&self, header: &Header) -> Result<(), Error> {
-		self.verify_block_unordered(header)
+		self.verify_block_unordered(header).into()
 	}
 }
 
@@ -343,12 +350,12 @@ impl Engine for Arc<Ethash> {
 		let mix = H256(result.mix_hash);
 		let difficulty = ethash::boundary_to_difficulty(&H256(result.value));
 		trace!(target: "miner", "num: {num}, seed: {seed}, h: {h}, non: {non}, mix: {mix}, res: {res}",
-			   num = header.number() as u64,
-			   seed = H256(slow_hash_block_number(header.number() as u64)),
-			   h = header.bare_hash(),
-			   non = seal.nonce.to_low_u64_be(),
-			   mix = H256(result.mix_hash),
-			   res = H256(result.value));
+			num = header.number() as u64,
+			seed = H256(slow_hash_block_number(header.number() as u64)),
+			h = header.bare_hash(),
+			non = seal.nonce.to_low_u64_be(),
+			mix = H256(result.mix_hash),
+			res = H256(result.value));
 		if mix != seal.mix_hash {
 			return Err(From::from(BlockError::MismatchedH256SealElement(Mismatch { expected: mix, found: seal.mix_hash })));
 		}
@@ -380,6 +387,8 @@ impl Engine for Arc<Ethash> {
 	fn snapshot_components(&self) -> Option<Box<dyn (::snapshot::SnapshotComponents)>> {
 		Some(Box::new(::snapshot::PowSnapshot::new(SNAPSHOT_BLOCKS, MAX_SNAPSHOT_BLOCKS)))
 	}
+
+	fn params(&self) -> &CommonParams { self.machine.params() }
 }
 
 impl Ethash {
@@ -486,11 +495,13 @@ mod tests {
 	use ethereum_types::{H64, H256, U256, Address};
 	use block::*;
 	use test_helpers::get_temp_state_db;
-	use error::{BlockError, Error};
-	use types::header::Header;
+	use types::{
+		header::Header,
+		errors::{BlockError, EthcoreError as Error},
+	};
 	use spec::Spec;
 	use engines::Engine;
-	use super::super::{new_morden, new_mcip3_test, new_homestead_test_machine};
+	use ethereum::{new_morden, new_mcip3_test, new_homestead_test_machine};
 	use super::{Ethash, EthashParams, ecip1017_eras_block_reward};
 	use rlp;
 	use tempdir::TempDir;

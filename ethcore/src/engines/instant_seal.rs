@@ -14,11 +14,18 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
-use engines::{Engine, Seal, SealingState};
+use engines::{Engine, Seal};
 use machine::Machine;
-use types::header::Header;
+use types::{
+	header::Header,
+	engines::{
+		SealingState,
+		params::CommonParams,
+	},
+	errors::EthcoreError as Error,
+};
+
 use block::ExecutedBlock;
-use error::Error;
 
 /// `InstantSeal` params.
 #[derive(Default, Debug, PartialEq)]
@@ -87,7 +94,13 @@ impl Engine for InstantSeal {
 	fn is_timestamp_valid(&self, header_timestamp: u64, parent_timestamp: u64) -> bool {
 		header_timestamp >= parent_timestamp
 	}
+
+	fn params(&self) -> &CommonParams {
+		self.machine.params()
+	}
+
 }
+
 
 #[cfg(test)]
 mod tests {

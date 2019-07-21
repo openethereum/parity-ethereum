@@ -29,7 +29,6 @@ use lru_cache::LruCache;
 use parity_bytes::{Bytes, ToPretty};
 use rlp::{DecoderError, encode};
 use trie_db::{Recorder, Trie};
-
 use common_types::basic_account::BasicAccount;
 use ethtrie::{Result as TrieResult, SecTrieDB, TrieDB, TrieFactory};
 use keccak_hasher::KeccakHasher;
