@@ -16,10 +16,13 @@
 
 //! Parameters for a block chain.
 
-use std::collections::BTreeMap;
-use std::io::Read;
-use std::path::Path;
-use std::sync::Arc;
+use std::{
+	collections::BTreeMap,
+	fmt,
+	io::Read,
+	path::Path,
+	sync::Arc,
+};
 
 use bytes::Bytes;
 use ethereum_types::{H256, Bloom, U256, Address};
@@ -273,6 +276,16 @@ impl From<ethjson::spec::HardcodedSync> for SpecHardcodedSync {
 			total_difficulty: sync.total_difficulty.into(),
 			chts: sync.chts.into_iter().map(Into::into).collect(),
 		}
+	}
+}
+
+impl fmt::Display for SpecHardcodedSync {
+	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+		writeln!(f, "{{")?;
+		writeln!(f, r#"header": "{:?},"#, self.header)?;
+		writeln!(f, r#"total_difficulty": "{:?},"#, self.total_difficulty)?;
+		writeln!(f, r#"chts": {:#?}"#, self.chts.iter().map(|x| format!(r#"{}"#, x)).collect::<Vec<_>>())?;
+		writeln!(f, "}}")
 	}
 }
 
