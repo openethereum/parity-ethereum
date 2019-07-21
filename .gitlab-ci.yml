@@ -323,3 +323,18 @@ publish-docs:
   tags:
     - linux-docker
   allow_failure:                   true
+
+publish-av-whitelist:
+  stage:                          publish
+  <<:                             *no_git
+  # only:                           *releaseable_branches
+  except:
+    variables:
+      - $SCHEDULE_TAG == "nightly"
+  cache:                          {}
+  dependencies:
+    - build-windows
+  script:
+    - scripts/gitlab/publish-av-whitelists.sh
+  tags:
+    - linux-docker
