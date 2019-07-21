@@ -264,7 +264,7 @@ impl Engine for Arc<Ethash> {
 
 				let mut call = engines::default_system_or_code_call(&self.machine, block);
 
-				let rewards = c.reward(&beneficiaries, &mut call)?;
+				let rewards = c.reward(beneficiaries, &mut call)?;
 				rewards.into_iter().map(|(author, amount)| (author, RewardKind::External, amount)).collect()
 			},
 			_ => {
