@@ -324,11 +324,6 @@ impl Machine {
 		}
 	}
 
-	/// Verify a particular transaction is valid, regardless of order.
-	pub fn verify_transaction_unordered(&self, t: UnverifiedTransaction, _header: &Header) -> Result<SignedTransaction, transaction::Error> {
-		Ok(SignedTransaction::new(t)?)
-	}
-
 	/// Does basic verification of the transaction.
 	pub fn verify_transaction_basic(&self, t: &UnverifiedTransaction, header: &Header) -> Result<(), transaction::Error> {
 		let check_low_s = match self.ethash_extensions {

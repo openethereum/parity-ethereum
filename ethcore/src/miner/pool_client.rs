@@ -137,7 +137,7 @@ impl<'a, C: 'a> pool::client::Client for PoolClient<'a, C> where
 
 	fn verify_transaction(&self, tx: UnverifiedTransaction)-> Result<SignedTransaction, transaction::Error> {
 		self.engine.verify_transaction_basic(&tx, &self.best_block_header)?;
-		let tx = self.engine.verify_transaction_unordered(tx, &self.best_block_header)?;
+		let tx = tx.verify_unordered()?;
 
 		self.verify_signed(&tx)?;
 

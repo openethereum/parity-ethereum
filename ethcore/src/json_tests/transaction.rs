@@ -76,7 +76,7 @@ fn do_json_test<H: FnMut(&str, HookType)>(json_data: &[u8], start_stop_hook: &mu
 						}.into());
 					}
 					spec.engine.verify_transaction_basic(&t, &header)?;
-					Ok(spec.engine.verify_transaction_unordered(t, &header)?)
+					Ok(t.verify_unordered()?)
 				});
 
 			match (res, result.hash, result.sender) {

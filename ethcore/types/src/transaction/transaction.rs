@@ -401,6 +401,11 @@ impl UnverifiedTransaction {
 		};
 		Ok(())
 	}
+
+	/// Try to verify transaction and recover sender.
+	pub fn verify_unordered(self) -> Result<SignedTransaction, ethkey::Error> {
+		SignedTransaction::new(self)
+	}
 }
 
 /// A `UnverifiedTransaction` with successfully recovered `sender`.

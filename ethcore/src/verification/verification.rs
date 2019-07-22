@@ -88,7 +88,7 @@ pub fn verify_block_unordered(block: Unverified, engine: &dyn Engine, check_seal
 	let transactions = block.transactions
 		.into_iter()
 		.map(|t| {
-			let t = engine.verify_transaction_unordered(t, &header)?;
+			let t = t.verify_unordered()?;
 			if let Some(max_nonce) = nonce_cap {
 				if t.nonce >= max_nonce {
 					return Err(BlockError::TooManyTransactions(t.sender()).into());
