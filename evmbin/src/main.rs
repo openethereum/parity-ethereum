@@ -560,6 +560,7 @@ mod tests {
 		let state_test_add12: State = _deserialized_state_tests.add12;
 	}
 
+  #[test]
 	fn should_parse_specific_state_test_from_constantinople_state_test_json_file() {
 		let state_tests = include_str!("../res/create2callPrecompiles.json");
 		let _deserialized_state_tests: ConstantinopleStateTests = serde_json::from_str(state_tests)
@@ -575,6 +576,7 @@ mod tests {
 	// cargo build -p evmbin;
 	// ./target/debug/parity-evm state-test ./evmbin/res/teststate.json --only add11 --chain EIP150 --json
 	// ```
+  #[test]
 	fn should_verify_state_root_using_sample_state_test_json_file() {
 		let state_tests = include_str!("../res/teststate.json");
 		// Parse the specified state test JSON file to simulate the CLI command `state-test <file>`.
@@ -621,6 +623,7 @@ mod tests {
 	// ./target/debug/parity-evm state-test \
 	//   ./evmbin/res/create2callPrecompiles.json --only create2callPrecompiles --chain Constantinople --json
 	// ```
+  #[test]
 	fn should_verify_state_root_using_constantinople_state_test_json_file() {
 		let state_tests = include_str!("../res/create2callPrecompiles.json");
 		// Parse the specified state test JSON file to simulate the CLI command `state-test <file>`.
