@@ -129,7 +129,7 @@ pub struct TxInput<'a, T> {
 	pub transaction: transaction::SignedTransaction,
 	/// JSON formatting informant.
 	pub informant: T,
-	///	Trie specification (i.e. Generic trie, Secure trie, Secure with fat database).
+	/// Trie specification (i.e. Generic trie, Secure trie, Secure with fat database).
 	pub trie_spec: TrieSpec,
 }
 
