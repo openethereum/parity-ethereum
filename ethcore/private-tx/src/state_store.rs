@@ -15,12 +15,16 @@
 // along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
 use std::sync::Arc;
+use std::time::{Instant, Duration};
 use parking_lot::RwLock;
 use ethereum_types::H256;
 use kvdb::KeyValueDB;
 use types::transaction::SignedTransaction;
 use private_transactions::VerifiedPrivateTransaction;
 use private_state_db::PrivateStateDB;
+
+/// Max duration of retrieving state (in ms)
+const MAX_REQUEST_SESSION_DURATION: u64 = 120 * 1000;
 
 /// State of the private state sync
 #[derive(Clone, PartialEq)]
@@ -31,13 +35,18 @@ pub enum SyncState {
 	Syncing,
 }
 
+struct HashRequestSession {
+	hash: H256,
+	expiration_time: Instant,
+}
+
 /// Wrapper over storage for the private states
 pub struct PrivateStateStorage {
 	verification_requests: RwLock<Vec<Arc<VerifiedPrivateTransaction>>>,
 	creation_requests: RwLock<Vec<SignedTransaction>>,
 	private_state_db: Arc<PrivateStateDB>,
 	sync_state: RwLock<SyncState>,
-	syncing_hashes: RwLock<Vec<H256>>,
+	syncing_hashes: RwLock<Vec<HashRequestSession>>,
 }
 
 impl PrivateStateStorage {
@@ -63,8 +72,12 @@ impl PrivateStateStorage {
 		let mut new_hashes = Vec::new();
 		for hash in hashes_to_sync {
 			let mut hashes = self.syncing_hashes.write();
-			if hashes.iter().find(|&h| h == hash).is_none() {
-				hashes.push(*hash);
+			if hashes.iter().find(|&h| h.hash == *hash).is_none() {
+				let hash_session = HashRequestSession {
+					hash: *hash,
+					expiration_time: Instant::now() + Duration::from_millis(MAX_REQUEST_SESSION_DURATION),
+				};
+				hashes.push(hash_session);
 				new_hashes.push(*hash);
 			}
 		}
@@ -74,7 +87,7 @@ impl PrivateStateStorage {
 	/// Signals that corresponding private state retrieved and added into the local db
 	pub fn state_sync_completed(&self, synced_state_hash: &H256) {
 		let mut syncing_hashes = self.syncing_hashes.write();
-		if let Some(index) = syncing_hashes.iter().position(|h| h == synced_state_hash) {
+		if let Some(index) = syncing_hashes.iter().position(|h| h.hash == *synced_state_hash) {
 			syncing_hashes.remove(index);
 		}
 		if syncing_hashes.is_empty() {
@@ -112,5 +125,15 @@ impl PrivateStateStorage {
 		let mut requests_queue = self.creation_requests.write();
 		let requests = requests_queue.drain(..).collect::<Vec<_>>();
 		requests
+	}
+
+	/// State retrieval timer's tick
+	pub fn tick(&self) {
+		let mut syncing_hashes = self.syncing_hashes.write();
+		syncing_hashes.retain(|hash| hash.expiration_time < Instant::now());
+		if syncing_hashes.is_empty() {
+			// All states were downloaded
+			*self.sync_state.write() = SyncState::Idle;
+		}
 	}
 }

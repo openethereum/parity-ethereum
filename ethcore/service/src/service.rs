@@ -151,7 +151,8 @@ impl ClientService {
 			private_keys,
 			blockchain_db.key_value().clone(),
 		));
-		let private_tx = Arc::new(PrivateTxService::new(provider));
+		let private_tx = Arc::new(PrivateTxService::new(provider.clone()));
+		io_service.register_handler(provider)?;
 
 		let client_io = Arc::new(ClientIoHandler {
 			client: client.clone(),

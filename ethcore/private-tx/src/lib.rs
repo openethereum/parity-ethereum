@@ -91,13 +91,14 @@ use state_store::{PrivateStateStorage, SyncState};
 
 use std::sync::{Arc, Weak};
 use std::collections::{HashMap, HashSet, BTreeMap};
+use std::time::Duration;
 use ethereum_types::{H128, H256, U256, Address, BigEndianHash};
 use hash::keccak;
 use rlp::*;
 use parking_lot::RwLock;
 use bytes::Bytes;
 use ethkey::{Signature, recover, public_to_address};
-use io::IoChannel;
+use io::{IoChannel, IoHandler, IoContext, TimerToken};
 use machine::{
 	executive::{Executive, TransactOptions, contract_address as ethcore_contract_address},
 	executed::Executed as FlatExecuted,
@@ -137,6 +138,12 @@ const INITIAL_PRIVATE_CONTRACT_VER: usize = 1;
 
 /// Version for the private contract notification about private state changes added
 const PRIVATE_CONTRACT_WITH_NOTIFICATION_VER: usize = 2;
+
+/// Timer for private state retrieval
+const STATE_RETRIEVAL_TIMER: TimerToken = 0;
+
+/// Timer for private state retrieval, 5 secs duration
+const STATE_RETRIEVAL_TICK: Duration = Duration::from_secs(5);
 
 /// Configurtion for private transaction provider
 #[derive(Default, PartialEq, Debug, Clone)]
@@ -854,6 +861,21 @@ impl Provider {
 		let (data, _) = private_contract::functions::notify_changes::call(*originator, transaction_hash.0.to_vec());
 		let _value = self.client.call_contract(block, *address, data)?;
 		Ok(())
+	}
+}
+
+impl IoHandler<ClientIoMessage> for Provider {
+	fn initialize(&self, io: &IoContext<ClientIoMessage>) {
+		if self.use_offchain_storage {
+			io.register_timer(STATE_RETRIEVAL_TIMER, STATE_RETRIEVAL_TICK).expect("Error registering state retrieval timer");
+		}
+	}
+
+	fn timeout(&self, _io: &IoContext<ClientIoMessage>, timer: TimerToken) {
+		match timer {
+			STATE_RETRIEVAL_TIMER => self.state_storage.tick(),
+			_ => warn!("IO service triggered unregistered timer '{}'", timer),
+		}
 	}
 }
 
