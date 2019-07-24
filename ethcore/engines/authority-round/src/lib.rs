@@ -192,6 +192,8 @@ struct Step {
 impl Step {
 	fn load(&self) -> u64 { self.inner.load(AtomicOrdering::SeqCst) }
 
+	/// Finds the remaining duration of the current step. Panics if there was a counter under- or
+	/// overflow.
 	fn duration_remaining(&self) -> Duration {
 		self.opt_duration_remaining().unwrap_or_else(|| {
 			let ctr = self.load();
@@ -1016,6 +1018,12 @@ impl AuthorityRound {
 	fn address(&self) -> Option<Address> {
 		self.signer.read().as_ref().map(|s| s.address() )
 	}
+
+	/// AuRa step getter for testing purposes.
+	#[allow(unused)]
+	fn permissioned_step(&self) -> &PermissionedStep {
+		self.step.as_ref()
+	}
 }
 
 fn unix_now() -> Duration {
@@ -1733,12 +1741,33 @@ impl Engine for AuthorityRound {
 	}
 }
 
+/// A helper accumulator function mapping a step duration and a step duration transition timestamp
+/// to the corresponding step number and the correct starting second of the step.
+fn next_step_time_dur(
+	prev_step: TransitionStep,
+	prev_time: TransitionTimestamp,
+	prev_dur: StepDuration,
+	time: TransitionTimestamp,
+) ->
+	Option<(TransitionStep, TransitionTimestamp)>
+{
+	let step_diff = time.checked_add(prev_dur)?
+		.checked_sub(1)?
+		.checked_sub(prev_time)?
+		.checked_div(prev_dur)?;
+	Some((
+		prev_step.checked_add(step_diff)?,
+		step_diff.checked_mul(prev_dur)?.checked_add(time)?,
+	))
+}
+
 #[cfg(test)]
 mod tests {
 	use std::collections::BTreeMap;
 	use std::str::FromStr;
 	use std::sync::Arc;
 	use std::sync::atomic::{AtomicUsize, AtomicU64, Ordering as AtomicOrdering};
+	use std::time::Duration;
 	use keccak_hash::keccak;
 	use accounts::AccountProvider;
 	use ethereum_types::{Address, H520, H256, U256};
@@ -2045,6 +2074,36 @@ mod tests {
 			durations: [(0, 0, 1)].to_vec().into_iter().collect(),
 		};
 		step.duration_remaining();
+	}
+
+	#[test]
+	fn test_change_step_duration() {
+		use super::Step;
+		use std::thread;
+
+		let now = super::unix_now().as_secs();
+		let step = Step {
+			calibrate: true,
+			inner: AtomicU64::new(::std::u64::MAX),
+			durations: [
+				(0, 0, 1),
+				(now, now, 2),
+				(now + 1, now + 2, 4)
+			].to_vec().into_iter().collect(),
+		};
+		// calibrated step `now`
+		step.calibrate();
+		let duration_remaining = step.duration_remaining();
+		assert_eq!(step.inner.load(AtomicOrdering::SeqCst), now);
+		assert!(duration_remaining <= Duration::from_secs(2));
+		thread::sleep(duration_remaining);
+		step.increment();
+		// calibrated step `now + 1`
+		step.calibrate();
+		let duration_remaining = step.duration_remaining();
+		assert_eq!(step.inner.load(AtomicOrdering::SeqCst), now + 1);
+		assert!(duration_remaining > Duration::from_secs(2));
+		assert!(duration_remaining <= Duration::from_secs(4));
 	}
 
 	#[test]
@@ -2600,24 +2659,4 @@ mod tests {
 		let deserialized: ethjson::spec::AuthorityRound = serde_json::from_str(config).unwrap();
 		AuthorityRoundParams::from(deserialized.params);
 	}
-}
-
-/// A helper accumulator function mapping a step duration and a step duration transition timestamp
-/// to the corresponding step number and the correct starting second of the step.
-fn next_step_time_dur(
-	prev_step: TransitionStep,
-	prev_time: TransitionTimestamp,
-	prev_dur: StepDuration,
-	time: TransitionTimestamp,
-) ->
-	Option<(TransitionStep, TransitionTimestamp)>
-{
-	let step_diff = time.checked_add(prev_dur)?
-		.checked_sub(1)?
-		.checked_sub(prev_time)?
-		.checked_div(prev_dur)?;
-	Some((
-		prev_step.checked_add(step_diff)?,
-		step_diff.checked_mul(prev_dur)?.checked_add(time)?,
-	))
 }
