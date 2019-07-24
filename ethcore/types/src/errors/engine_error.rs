@@ -67,6 +67,8 @@ pub enum EngineError {
 	CliqueTooRecentlySigned(Address),
 	/// Custom
 	Custom(String),
+	/// Configuration error.
+	Config,
 }
 
 impl fmt::Display for EngineError {
@@ -83,6 +85,7 @@ impl fmt::Display for EngineError {
 			CliqueWrongAuthorCheckpoint(ref oob) => format!("Unexpected checkpoint author: {}", oob),
 			CliqueFaultyRecoveredSigners(ref mis) => format!("Faulty recovered signers {:?}", mis),
 			CliqueTooRecentlySigned(ref address) => format!("The signer: {} has signed a block too recently", address),
+			Config => format!("Configuration error"),
 			Custom(ref s) => s.clone(),
 			DoubleVote(ref address) => format!("Author {} issued too many blocks.", address),
 			NotProposer(ref mis) => format!("Author is not a current proposer: {}", mis),

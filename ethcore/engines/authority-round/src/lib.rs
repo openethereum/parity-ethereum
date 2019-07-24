@@ -206,18 +206,13 @@ impl Step {
 	/// under- or overflow.
 	fn opt_duration_remaining(&self) -> Option<Duration> {
 		let next_step = self.load().checked_add(1)?;
-		let (mut prev_dur, mut prev_step, mut prev_time) =
-			self.durations.first().expect("durations cannot be empty");
-		for (step, time, dur) in self.durations.iter().skip(1) {
- 			if *step >= next_step {
-				break;
-			}
-			prev_step = *step;
-			prev_time = *time;
-			prev_dur = *dur;
-		}
-		let time = prev_time.checked_add(next_step.checked_sub(prev_step)?.checked_mul(prev_dur)?)?;
-		Some(Duration::from_secs(time.saturating_sub(unix_now().as_secs())))
+		let (step, time, dur) = self.durations.iter()
+			.take_while(|(step, _, _)| *step < next_step)
+			.last()
+			.expect("durations cannot be empty")
+			.clone();
+		let next_time = time.checked_add(next_step.checked_sub(step)?.checked_mul(dur)?)?;
+		Some(Duration::from_secs(next_time.saturating_sub(unix_now().as_secs())))
 	}
 
 	/// Increments the step number.
@@ -243,20 +238,15 @@ impl Step {
 		}
 	}
 
-	/// Calibrates the AuRa step number given according to the current time.
+	/// Calibrates the AuRa step number according to the current time.
 	fn opt_calibrate(&self) -> Option<()> {
 		let now = unix_now().as_secs();
-		let (mut prev_step, mut prev_time, mut prev_dur) =
-			self.durations.first().expect("durations cannot be empty");
-		for (step, time, dur) in self.durations.iter().skip(1) {
-			if *time >= now {
-				break;
-			}
-			prev_time = *time;
-			prev_step = *step;
-			prev_dur = *dur;
-		}
-		let new_step = (now.checked_sub(prev_time)? / prev_dur).checked_add(prev_step)?;
+		let (step, time, dur) = self.durations.iter()
+			.take_while(|(_, time, _)| *time < now)
+			.last()
+			.expect("durations cannot be empty")
+			.clone();
+		let new_step = (now.checked_sub(time)? / dur).checked_add(step)?;
 		self.inner.store(new_step, AtomicOrdering::SeqCst);
 		Some(())
 	}
@@ -775,10 +765,11 @@ impl AuthorityRound {
 	pub fn new(our_params: AuthorityRoundParams, machine: Machine) -> Result<Arc<Self>, Error> {
 		if !our_params.step_durations.contains_key(&0) {
 			error!(target: "engine", "Authority Round step 0 duration is undefined, aborting");
-			panic!("authority_round: step 0 duration is undefined")
+			return Err(Error::Engine(EngineError::Config));
 		}
 		if our_params.step_durations.values().any(|v| *v == 0) {
-			panic!("authority_round: step duration cannot be 0");
+			error!(target: "engine", "Authority Round step duration cannot be 0");
+			return Err(Error::Engine(EngineError::Config));
 		}
 		let should_timeout = our_params.start_step.is_none();
 		let initial_step = our_params.start_step.unwrap_or(0);
@@ -2107,7 +2098,7 @@ mod tests {
 	}
 
 	#[test]
-	#[should_panic(expected="authority_round: step duration cannot be 0")]
+	#[should_panic(expected="called `Result::unwrap()` on an `Err` value: Engine(Config)")]
 	fn test_step_duration_zero() {
 		build_aura(|params| {
 			params.step_durations = [(0, 0)].to_vec().into_iter().collect();;
