@@ -765,11 +765,11 @@ impl AuthorityRound {
 	pub fn new(our_params: AuthorityRoundParams, machine: Machine) -> Result<Arc<Self>, Error> {
 		if !our_params.step_durations.contains_key(&0) {
 			error!(target: "engine", "Authority Round step 0 duration is undefined, aborting");
-			return Err(Error::Engine(EngineError::Config));
+			return Err(Error::Engine(EngineError::Custom(String::from("step 0 duration is undefined"))));
 		}
 		if our_params.step_durations.values().any(|v| *v == 0) {
 			error!(target: "engine", "Authority Round step duration cannot be 0");
-			return Err(Error::Engine(EngineError::Config));
+			return Err(Error::Engine(EngineError::Custom(String::from("step duration cannot be 0"))));
 		}
 		let should_timeout = our_params.start_step.is_none();
 		let initial_step = our_params.start_step.unwrap_or(0);
@@ -780,7 +780,7 @@ impl AuthorityRound {
 		let mut prev_dur = our_params.step_durations[&0];
 		durations.push((prev_step, prev_time, prev_dur));
 		for (time, dur) in our_params.step_durations.iter().skip(1) {
-			let (step, time) = next_step_time_dur(prev_step, prev_time, prev_dur, *time)
+			let (step, time) = next_step_time_duration(prev_step, prev_time, prev_dur, *time)
 				.ok_or(BlockError::TimestampOverflow)?;
 			durations.push((step, time, *dur));
 			prev_step = step;
@@ -1008,12 +1008,6 @@ impl AuthorityRound {
 
 	fn address(&self) -> Option<Address> {
 		self.signer.read().as_ref().map(|s| s.address() )
-	}
-
-	/// AuRa step getter for testing purposes.
-	#[allow(unused)]
-	fn permissioned_step(&self) -> &PermissionedStep {
-		self.step.as_ref()
 	}
 }
 
@@ -1734,7 +1728,7 @@ impl Engine for AuthorityRound {
 
 /// A helper accumulator function mapping a step duration and a step duration transition timestamp
 /// to the corresponding step number and the correct starting second of the step.
-fn next_step_time_dur(
+fn next_step_time_duration(
 	prev_step: TransitionStep,
 	prev_time: TransitionTimestamp,
 	prev_dur: StepDuration,
@@ -2098,7 +2092,7 @@ mod tests {
 	}
 
 	#[test]
-	#[should_panic(expected="called `Result::unwrap()` on an `Err` value: Engine(Config)")]
+	#[should_panic(expected="called `Result::unwrap()` on an `Err` value: Engine(Custom(\"step duration cannot be 0\"))")]
 	fn test_step_duration_zero() {
 		build_aura(|params| {
 			params.step_durations = [(0, 0)].to_vec().into_iter().collect();;
