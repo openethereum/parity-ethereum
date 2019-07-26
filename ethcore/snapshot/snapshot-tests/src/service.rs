@@ -50,7 +50,7 @@ use journaldb::Algorithm;
 #[test]
 fn sends_async_messages() {
 	let gas_prices = vec![1.into(), 2.into(), 3.into(), 999.into()];
-	let client = generate_dummy_client_with_spec_and_data(spec::new_null, 400, 5, &gas_prices);
+	let client = generate_dummy_client_with_spec_and_data(spec::new_null, 400, 5, &gas_prices, false);
 	let service = IoService::<ClientIoMessage<Client>>::start().unwrap();
 	let spec = spec::new_test();
 
@@ -143,7 +143,7 @@ fn restored_is_equivalent() {
 	const TX_PER: usize = 5;
 
 	let gas_prices = vec![1.into(), 2.into(), 3.into(), 999.into()];
-	let client = generate_dummy_client_with_spec_and_data(spec::new_null, NUM_BLOCKS, TX_PER, &gas_prices);
+	let client = generate_dummy_client_with_spec_and_data(spec::new_null, NUM_BLOCKS, TX_PER, &gas_prices, false);
 
 	let tempdir = TempDir::new("").unwrap();
 	let client_db = tempdir.path().join("client_db");
@@ -207,7 +207,7 @@ fn restored_is_equivalent() {
 #[test]
 fn guards_delete_folders() {
 	let gas_prices = vec![1.into(), 2.into(), 3.into(), 999.into()];
-	let client = generate_dummy_client_with_spec_and_data(spec::new_null, 400, 5, &gas_prices);
+	let client = generate_dummy_client_with_spec_and_data(spec::new_null, 400, 5, &gas_prices, false);
 
 	let spec = spec::new_null();
 	let tempdir = TempDir::new("").unwrap();
@@ -266,7 +266,7 @@ fn keep_ancient_blocks() {
 	let gas_prices = vec![1.into(), 2.into(), 3.into(), 999.into()];
 	let spec_f = spec::new_null;
 	let spec = spec_f();
-	let client = generate_dummy_client_with_spec_and_data(spec_f, NUM_BLOCKS as u32, 5, &gas_prices);
+	let client = generate_dummy_client_with_spec_and_data(spec_f, NUM_BLOCKS as u32, 5, &gas_prices, false);
 
 	let bc = client.chain();
 
@@ -374,7 +374,7 @@ fn recover_aborted_recovery() {
 
 	const NUM_BLOCKS: u32 = 400;
 	let gas_prices = vec![1.into(), 2.into(), 3.into(), 999.into()];
-	let client = generate_dummy_client_with_spec_and_data(spec::new_null, NUM_BLOCKS, 5, &gas_prices);
+	let client = generate_dummy_client_with_spec_and_data(spec::new_null, NUM_BLOCKS, 5, &gas_prices, false);
 
 	let spec = spec::new_null();
 	let tempdir = TempDir::new("").unwrap();

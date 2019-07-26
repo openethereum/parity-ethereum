@@ -35,8 +35,16 @@ pub enum EngineError {
 	BadSealFieldSize(OutOfBounds<usize>),
 	/// Validation proof insufficient.
 	InsufficientProof(String),
+	/// Randomness error in load method
+	RandomnessLoadError(String),
+	/// Randomness error in advance method
+	RandomnessAdvanceError(String),
 	/// Failed system call.
 	FailedSystemCall(String),
+	/// Failed to decode the result of a system call.
+	SystemCallResultDecoding(String),
+	/// The result of a system call is invalid.
+	SystemCallResultInvalid(String),
 	/// Malformed consensus message.
 	MalformedMessage(String),
 	/// Requires client ref, but none registered.
@@ -90,7 +98,11 @@ impl fmt::Display for EngineError {
 			UnexpectedMessage => "This Engine should not be fed messages.".into(),
 			BadSealFieldSize(ref oob) => format!("Seal field has an unexpected length: {}", oob),
 			InsufficientProof(ref msg) => format!("Insufficient validation proof: {}", msg),
+			RandomnessLoadError(ref rerr) => format!("Randomness error in load(): {:?}", rerr),
+			RandomnessAdvanceError(ref rerr) => format!("Randomness error in advance(): {:?}", rerr),
 			FailedSystemCall(ref msg) => format!("Failed to make system call: {}", msg),
+			SystemCallResultDecoding(ref msg) => format!("Failed to decode the result of a system call: {}", msg),
+			SystemCallResultInvalid(ref msg) => format!("The result of a system call is invalid: {}", msg),
 			MalformedMessage(ref msg) => format!("Received malformed consensus message: {}", msg),
 			RequiresClient => format!("Call requires client but none registered"),
 			RequiresSigner => format!("Call requires signer but none registered"),
