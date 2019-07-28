@@ -346,6 +346,10 @@ impl<'a> CallCreateExecutive<'a> {
 				| Err(vm::Error::OutOfBounds)
 				| Err(vm::Error::Reverted)
 				| Ok(FinalizationResult { apply_state: false, .. }) => {
+					let ripemd = Address::from_low_u64_be(3);
+					if un_substate.touched.contains(&ripemd) {
+						substate.touched.insert(ripemd);
+					}
 					state.revert_to_checkpoint();
 			},
 			Ok(_) | Err(vm::Error::Internal(_)) => {
