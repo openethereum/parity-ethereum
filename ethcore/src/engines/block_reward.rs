@@ -204,7 +204,7 @@ mod test {
 		};
 
 		// if no beneficiaries are given no rewards are attributed
-		assert!(block_reward_contract.reward(&vec![], &mut call).unwrap().is_empty());
+		assert!(block_reward_contract.reward(vec![], &mut call).unwrap().is_empty());
 
 		// the contract rewards (1000 + kind) for each benefactor
 		let beneficiaries = vec![
@@ -213,7 +213,7 @@ mod test {
 			(Address::from_str("0000000000000000000000000000000000000035").unwrap(), RewardKind::EmptyStep),
 		];
 
-		let rewards = block_reward_contract.reward(&beneficiaries, &mut call).unwrap();
+		let rewards = block_reward_contract.reward(beneficiaries, &mut call).unwrap();
 		let expected = vec![
 			(Address::from_str("0000000000000000000000000000000000000033").unwrap(), U256::from(1000)),
 			(Address::from_str("0000000000000000000000000000000000000034").unwrap(), U256::from(1000 + 101)),
