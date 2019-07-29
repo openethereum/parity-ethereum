@@ -130,7 +130,7 @@ impl<K: hash::Hash + Eq, V> DiskMap<K, V> {
 		trace!(target: "diskmap", "revert {:?}", self.path);
 		let _ = fs::File::open(self.path.clone())
 			.map_err(|e| trace!(target: "diskmap", "Couldn't open disk map: {}", e))
-			.and_then(|f| read(f).map_err(|e| warn!(target: "diskmap", "Couldn't read disk map: {}", e)))
+			.and_then(|f| read(f).map_err(|e| warn!(target: "diskmap", "Couldn't read disk map at: {:?} {}", self.path, e)))
 			.and_then(|m| {
 				self.cache = m;
 				Ok(())
@@ -144,9 +144,9 @@ impl<K: hash::Hash + Eq, V> DiskMap<K, V> {
 		if self.transient { return; }
 		trace!(target: "diskmap", "save {:?}", self.path);
 		let _ = fs::File::create(self.path.clone())
-			.map_err(|e| warn!(target: "diskmap", "Couldn't open disk map for writing: {}", e))
+			.map_err(|e| warn!(target: "diskmap", "Couldn't open disk map for writing at: {:?} {}", self.path, e))
 			.and_then(|mut f| {
-				write(&self.cache, &mut f).map_err(|e| warn!(target: "diskmap", "Couldn't write to disk map: {}", e))
+				write(&self.cache, &mut f).map_err(|e| warn!(target: "diskmap", "Couldn't write to disk map at: {:?} {}", self.path, e))
 			});
 	}
 }
