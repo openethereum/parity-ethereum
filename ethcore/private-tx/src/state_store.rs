@@ -14,6 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
+use std::collections::HashSet;
 use std::sync::Arc;
 use std::time::{Instant, Duration};
 use parking_lot::RwLock;
@@ -26,26 +27,36 @@ use private_state_db::PrivateStateDB;
 /// Max duration of retrieving state (in ms)
 const MAX_REQUEST_SESSION_DURATION: u64 = 120 * 1000;
 
-/// State of the private state sync
-#[derive(Clone, PartialEq)]
-pub enum SyncState {
-	/// No sync is running
-	Idle,
-	/// Private state sync is running
-	Syncing,
-}
-
 struct HashRequestSession {
 	hash: H256,
 	expiration_time: Instant,
 }
 
+/// Type of the stored reques
+pub enum RequestType {
+	/// Verification of private transaction
+	Verification(Arc<VerifiedPrivateTransaction>),
+	/// Creation of the private transaction
+	Creation(SignedTransaction),
+}
+
+#[derive(Clone, PartialEq)]
+enum RequestState {
+	Syncing,
+	Ready,
+	Stale,
+}
+
+struct StateRequest {
+	request_type: RequestType,
+	request_hashes: HashSet<H256>,
+	state: RequestState,
+}
+
 /// Wrapper over storage for the private states
 pub struct PrivateStateStorage {
-	verification_requests: RwLock<Vec<Arc<VerifiedPrivateTransaction>>>,
-	creation_requests: RwLock<Vec<SignedTransaction>>,
 	private_state_db: Arc<PrivateStateDB>,
-	sync_state: RwLock<SyncState>,
+	requests: RwLock<Vec<StateRequest>>,
 	syncing_hashes: RwLock<Vec<HashRequestSession>>,
 }
 
@@ -53,35 +64,16 @@ impl PrivateStateStorage {
 	/// Constructs the object
 	pub fn new(db: Arc<KeyValueDB>) -> Self {
 		PrivateStateStorage {
-			verification_requests: RwLock::new(Vec::new()),
-			creation_requests: RwLock::new(Vec::new()),
 			private_state_db: Arc::new(PrivateStateDB::new(db)),
-			sync_state: RwLock::new(SyncState::Idle),
+			requests: RwLock::new(Vec::new()),
 			syncing_hashes: RwLock::default(),
 		}
 	}
 
-	/// Current sync state
-	pub fn current_sync_state(&self) -> SyncState {
-		(*self.sync_state.read()).clone()
-	}
-
-	/// Adds information about states being synced now
-	pub fn start_states_sync(&self, hashes_to_sync: &Vec<H256>) -> Vec<H256> {
-		*self.sync_state.write() = SyncState::Syncing;
-		let mut new_hashes = Vec::new();
-		for hash in hashes_to_sync {
-			let mut hashes = self.syncing_hashes.write();
-			if hashes.iter().find(|&h| h.hash == *hash).is_none() {
-				let hash_session = HashRequestSession {
-					hash: *hash,
-					expiration_time: Instant::now() + Duration::from_millis(MAX_REQUEST_SESSION_DURATION),
-				};
-				hashes.push(hash_session);
-				new_hashes.push(*hash);
-			}
-		}
-		new_hashes
+	/// Checks if ready for processing requests exist in queue
+	pub fn requests_ready(&self) -> bool {
+		let requests = self.requests.read();
+		requests.iter().find(|r| r.state == RequestState::Ready).is_some()
 	}
 
 	/// Signals that corresponding private state retrieved and added into the local db
@@ -90,10 +82,7 @@ impl PrivateStateStorage {
 		if let Some(index) = syncing_hashes.iter().position(|h| h.hash == *synced_state_hash) {
 			syncing_hashes.remove(index);
 		}
-		if syncing_hashes.is_empty() {
-			// All states were downloaded
-			*self.sync_state.write() = SyncState::Idle;
-		}
+		self.mark_hash_ready(synced_state_hash);
 	}
 
 	/// Returns underlying DB
@@ -101,39 +90,73 @@ impl PrivateStateStorage {
 		self.private_state_db.clone()
 	}
 
-	/// Stores verification request for the later verification
-	pub fn add_verification_request(&self, transaction: Arc<VerifiedPrivateTransaction>) {
-		let mut verification_requests = self.verification_requests.write();
-		verification_requests.push(transaction);
+	/// Store a request for state's sync and later processing, returns new hashes, which sync is required
+	pub fn add_request(&self, request_type: RequestType, request_hashes: HashSet<H256>) -> Vec<H256> {
+		let request = StateRequest {
+			request_type: request_type,
+			request_hashes: request_hashes.clone(),
+			state: RequestState::Syncing,
+		};
+		let mut requests = self.requests.write();
+		requests.push(request);
+		let mut new_hashes = Vec::new();
+		for hash in request_hashes {
+			let mut hashes = self.syncing_hashes.write();
+			if hashes.iter().find(|&h| h.hash == hash).is_none() {
+				let hash_session = HashRequestSession {
+					hash,
+					expiration_time: Instant::now() + Duration::from_millis(MAX_REQUEST_SESSION_DURATION),
+				};
+				hashes.push(hash_session);
+				new_hashes.push(hash);
+			}
+		}
+		new_hashes
 	}
 
-	/// Drains all verification requests to process
-	pub fn drain_verification_queue(&self) -> Vec<Arc<VerifiedPrivateTransaction>> {
-		let mut requests_queue = self.verification_requests.write();
-		let requests = requests_queue.drain(..).collect::<Vec<_>>();
-		requests
-	}
-
-	/// Stores creation request for the later creation
-	pub fn add_creation_request(&self, transaction: SignedTransaction) {
-		let mut creation_requests = self.creation_requests.write();
-		creation_requests.push(transaction);
-	}
-
-	/// Drains all creation requests to process
-	pub fn drain_creation_queue(&self) -> Vec<SignedTransaction> {
-		let mut requests_queue = self.creation_requests.write();
-		let requests = requests_queue.drain(..).collect::<Vec<_>>();
-		requests
+	/// Drains ready requests to process
+	pub fn drain_ready_requests(&self) -> Vec<RequestType> {
+		let mut requests_queue = self.requests.write();
+		let mut drained = Vec::new();
+		let mut i = 0;
+		while i != requests_queue.len() {
+			if requests_queue[i].state == RequestState::Ready {
+				let request = requests_queue.remove(i);
+				drained.push(request.request_type);
+			} else {
+				i += 1;
+			}
+		}
+		drained
 	}
 
 	/// State retrieval timer's tick
 	pub fn tick(&self) {
 		let mut syncing_hashes = self.syncing_hashes.write();
+		for hash in syncing_hashes.iter() {
+			if hash.expiration_time >= Instant::now() {
+				self.mark_hash_stale(&hash.hash);
+			}
+		}
 		syncing_hashes.retain(|hash| hash.expiration_time < Instant::now());
-		if syncing_hashes.is_empty() {
-			// All states were downloaded
-			*self.sync_state.write() = SyncState::Idle;
+	}
+
+	fn mark_hash_ready(&self, ready_hash: &H256) {
+		let mut requests = self.requests.write();
+		for request in requests.iter_mut() {
+			request.request_hashes.remove(ready_hash);
+			if request.request_hashes.is_empty() && request.state == RequestState::Syncing {
+				request.state = RequestState::Ready;
+			}
+		}
+	}
+
+	fn mark_hash_stale(&self, stale_hash: &H256) {
+		let mut requests = self.requests.write();
+		for request in requests.iter_mut() {
+			if request.request_hashes.contains(stale_hash) {
+				request.state = RequestState::Stale;
+			}
 		}
 	}
 }

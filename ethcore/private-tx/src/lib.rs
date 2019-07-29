@@ -87,7 +87,7 @@ pub use messages::{PrivateTransaction, SignedPrivateTransaction};
 pub use private_state_db::PrivateStateDB;
 pub use error::Error;
 pub use log::{Logging, TransactionLog, ValidatorLog, PrivateTxStatus, FileLogsSerializer};
-use state_store::{PrivateStateStorage, SyncState};
+use state_store::{PrivateStateStorage, RequestType};
 
 use std::sync::{Arc, Weak};
 use std::collections::{HashMap, HashSet, BTreeMap};
@@ -307,13 +307,13 @@ impl Provider {
 			match err {
 				Error::PrivateStateNotFound => {
 					trace!(target: "privatetx", "Private state for the contract not found, requesting from peers");
-					self.state_storage.add_creation_request(signed_transaction);
 					if let Some(ref logging) = self.logging {
 						let contract_validators = self.get_validators(BlockId::Latest, &contract)?;
 						logging.private_tx_created(&tx_hash, &contract_validators);
 						logging.private_state_request(&tx_hash);
 					}
-					self.request_private_state(&contract);
+					let request = RequestType::Creation(signed_transaction);
+					self.request_private_state(&contract, request);
 				}
 				_ => {}
 			}
@@ -399,8 +399,8 @@ impl Provider {
 					Error::PrivateStateNotFound => {
 						let contract = transaction.private_transaction.contract();
 						trace!(target: "privatetx", "Private state for the contract {:?} not found, requesting from peers", &contract);
-						self.state_storage.add_verification_request(transaction);
-						self.request_private_state(&contract);
+						let request = RequestType::Verification(transaction);
+						self.request_private_state(&contract, request);
 					}
 					_ => {}
 				}
@@ -532,7 +532,7 @@ impl Provider {
 		self.notify(|notify| notify.broadcast(ChainMessageType::SignedPrivateTransaction(transaction_hash, message.clone())));
 	}
 
-	fn request_private_state(&self, address: &Address) {
+	fn request_private_state(&self, address: &Address, request_type: RequestType) {
 		// Define the list of available contracts
 		let mut private_contracts = Vec::new();
 		private_contracts.push(*address);
@@ -547,17 +547,17 @@ impl Provider {
 			}
 		}
 		// Check states for the avaialble contracts, if they're outdated
-		let mut stalled_contracts_hashes: Vec<H256> = Vec::new();
+		let mut stalled_contracts_hashes: HashSet<H256> = HashSet::new();
 		for address in private_contracts {
 			if let Ok(state_hash) = self.get_decrypted_state_from_contract(&address, BlockId::Latest) {
 				let state_hash = H256::from_slice(&state_hash[0..32]);
 				if let Err(_) = self.state_storage.private_state_db().state(&state_hash) {
 					// State not found in the local db
-					stalled_contracts_hashes.push(state_hash);
+					stalled_contracts_hashes.insert(state_hash);
 				}
 			}
 		}
-		let hashes_to_sync = self.state_storage.start_states_sync(&stalled_contracts_hashes);
+		let hashes_to_sync = self.state_storage.add_request(request_type, stalled_contracts_hashes);
 		if !hashes_to_sync.is_empty() {
 			trace!(target: "privatetx", "Requesting states for the following hashes: {:?}", hashes_to_sync);
 			for hash in hashes_to_sync {
@@ -568,25 +568,28 @@ impl Provider {
 
 	fn private_state_sync_completed(&self, hash: &H256) -> Result<(), Error> {
 		self.state_storage.state_sync_completed(hash);
-		if self.state_storage.current_sync_state() == SyncState::Idle {
+		if self.state_storage.requests_ready() {
 			trace!(target: "privatetx", "Private state sync completed, processing pending requests");
-			let creation_requests = self.state_storage.drain_creation_queue();
-			for request in creation_requests {
-				match self.create_private_transaction(request) {
-					Ok(receipt) => trace!(target: "privatetx", "Creation request processed, receipt: {:?}", receipt),
-					Err(e) => error!(target: "privatetx", "Cannot process creation request with error: {:?}", e),
-				}
-			}
-			let verification_requests = self.state_storage.drain_verification_queue();
-			for request in verification_requests {
-				if let Err(err) = self.process_verification_transaction(&request) {
-					warn!(target: "privatetx", "Error while processing pending verification request: {:?}", err);
-					match err {
-						Error::PrivateStateNotFound => {
-							let contract = request.private_transaction.contract();
-							error!(target: "privatetx", "Cannot retrieve private state after sync for {:?}", &contract);
+			let ready_requests = self.state_storage.drain_ready_requests();
+			for request in ready_requests {
+				match request {
+					RequestType::Creation(transaction) => {
+						match self.create_private_transaction(transaction) {
+							Ok(receipt) => trace!(target: "privatetx", "Creation request processed, receipt: {:?}", receipt),
+							Err(e) => error!(target: "privatetx", "Cannot process creation request with error: {:?}", e),
 						}
-						_ => {}
+					}
+					RequestType::Verification(transaction) => {
+						if let Err(err) = self.process_verification_transaction(&transaction) {
+							warn!(target: "privatetx", "Error while processing pending verification request: {:?}", err);
+							match err {
+								Error::PrivateStateNotFound => {
+									let contract = transaction.private_transaction.contract();
+									error!(target: "privatetx", "Cannot retrieve private state after sync for {:?}", &contract);
+								}
+								_ => {}
+							}
+						}
 					}
 				}
 			}
