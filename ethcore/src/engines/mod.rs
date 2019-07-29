@@ -55,7 +55,7 @@ use types::{
 		machine::{AuxiliaryData, AuxiliaryRequest},
 	},
 	errors::{EthcoreError as Error, EngineError},
-	transaction::{self, UnverifiedTransaction, SignedTransaction},
+	transaction::{self, UnverifiedTransaction},
 };
 use snapshot::SnapshotComponents;
 use client::EngineClient;
@@ -398,18 +398,6 @@ pub trait Engine: Sync + Send {
 	/// The network ID that transactions should be signed with.
 	fn signing_chain_id(&self, env_info: &EnvInfo) -> Option<u64> {
 		self.machine().signing_chain_id(env_info)
-	}
-
-	/// Verify a particular transaction is valid.
-	///
-	/// Unordered verification doesn't rely on the transaction execution order,
-	/// i.e. it should only verify stuff that doesn't assume any previous transactions
-	/// has already been verified and executed.
-	///
-	/// NOTE This function consumes an `UnverifiedTransaction` and produces `SignedTransaction`
-	/// which implies that a heavy check of the signature is performed here.
-	fn verify_transaction_unordered(&self, t: UnverifiedTransaction, header: &Header) -> Result<SignedTransaction, transaction::Error> {
-		self.machine().verify_transaction_unordered(t, header)
 	}
 
 	/// Perform basic/cheap transaction verification.
