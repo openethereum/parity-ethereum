@@ -20,17 +20,18 @@ use std::collections::HashMap;
 use std::io;
 use std::sync::Arc;
 
+use log::trace;
 use bytes::Bytes;
 use ethereum_types::H256;
 use hash_db::{HashDB, Prefix, EMPTY_PREFIX};
 use parity_util_mem::{MallocSizeOf, allocators::new_malloc_size_ops};
 use keccak_hasher::KeccakHasher;
 use kvdb::{KeyValueDB, DBTransaction, DBValue};
-use overlaydb::OverlayDB;
+use crate::overlaydb::OverlayDB;
 use rlp::{encode, decode};
 use super::{DB_PREFIX_LEN, LATEST_ERA_KEY};
-use super::traits::JournalDB;
-use util::{DatabaseKey, DatabaseValueView, DatabaseValueRef};
+use crate::JournalDB;
+use crate::util::{DatabaseKey, DatabaseValueView, DatabaseValueRef};
 
 /// Implementation of the `HashDB` trait for a disk-backed database with a memory overlay
 /// and latent-removal semantics.
@@ -217,11 +218,11 @@ impl JournalDB for RefCountedDB {
 
 #[cfg(test)]
 mod tests {
-
-	use keccak::keccak;
+	use keccak_hash::keccak;
 	use hash_db::{HashDB, EMPTY_PREFIX};
 	use super::*;
-	use {JournalDB, kvdb_memorydb, inject_batch, commit_batch};
+	use kvdb_memorydb;
+	use crate::{JournalDB, inject_batch, commit_batch};
 
 	fn new_db() -> RefCountedDB {
 		let backing = Arc::new(kvdb_memorydb::create(0));

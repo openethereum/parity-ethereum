@@ -21,6 +21,7 @@ use std::collections::hash_map::Entry;
 use std::io;
 use std::sync::Arc;
 
+use log::trace;
 use bytes::Bytes;
 use ethereum_types::H256;
 use hash_db::{HashDB, Prefix, EMPTY_PREFIX};
@@ -30,8 +31,11 @@ use kvdb::{KeyValueDB, DBTransaction, DBValue};
 use parking_lot::RwLock;
 use fastmap::H256FastMap;
 use rlp::{Rlp, RlpStream, encode, decode, DecoderError, Decodable, Encodable};
-use super::{DB_PREFIX_LEN, LATEST_ERA_KEY, JournalDB, error_negatively_reference_hash};
-use util::DatabaseKey;
+use crate::{
+	DB_PREFIX_LEN, LATEST_ERA_KEY, JournalDB, error_negatively_reference_hash,
+	new_memory_db
+};
+use crate::util::DatabaseKey;
 
 /// Implementation of the `JournalDB` trait for a disk-backed database with a memory overlay
 /// and, possibly, latent-removal semantics.
@@ -150,7 +154,7 @@ impl OverlayRecentDB {
 	pub fn new(backing: Arc<dyn KeyValueDB>, col: Option<u32>) -> OverlayRecentDB {
 		let journal_overlay = Arc::new(RwLock::new(OverlayRecentDB::read_overlay(&*backing, col)));
 		OverlayRecentDB {
-			transaction_overlay: ::new_memory_db(),
+			transaction_overlay: new_memory_db(),
 			backing: backing,
 			journal_overlay: journal_overlay,
 			column: col,
@@ -176,7 +180,7 @@ impl OverlayRecentDB {
 
 	fn read_overlay(db: &dyn KeyValueDB, col: Option<u32>) -> JournalOverlay {
 		let mut journal = HashMap::new();
-		let mut overlay = ::new_memory_db();
+		let mut overlay = new_memory_db();
 		let mut count = 0;
 		let mut latest_era = None;
 		let mut earliest_era = None;
@@ -488,11 +492,11 @@ impl HashDB<KeccakHasher, DBValue> for OverlayRecentDB {
 
 #[cfg(test)]
 mod tests {
-
-	use keccak::keccak;
+	use keccak_hash::keccak;
 	use super::*;
 	use hash_db::{HashDB, EMPTY_PREFIX};
-	use {kvdb_memorydb, JournalDB, inject_batch, commit_batch};
+	use kvdb_memorydb;
+	use crate::{JournalDB, inject_batch, commit_batch};
 
 	fn new_db() -> OverlayRecentDB {
 		let backing = Arc::new(kvdb_memorydb::create(0));

@@ -17,11 +17,11 @@
 //! Impls of the `AsHashDB` upcast trait for all different variants of DB
 use hash_db::{HashDB, AsHashDB};
 use keccak_hasher::KeccakHasher;
-use archivedb::ArchiveDB;
-use earlymergedb::EarlyMergeDB;
-use overlayrecentdb::OverlayRecentDB;
-use refcounteddb::RefCountedDB;
-use overlaydb::OverlayDB;
+use crate::archivedb::ArchiveDB;
+use crate::earlymergedb::EarlyMergeDB;
+use crate::overlayrecentdb::OverlayRecentDB;
+use crate::refcounteddb::RefCountedDB;
+use crate::overlaydb::OverlayDB;
 use kvdb::DBValue;
 
 impl AsHashDB<KeccakHasher, DBValue> for ArchiveDB {

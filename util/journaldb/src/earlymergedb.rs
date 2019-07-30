@@ -21,6 +21,7 @@ use std::collections::hash_map::Entry;
 use std::io;
 use std::sync::Arc;
 
+use log::{trace, warn};
 use bytes::Bytes;
 use ethereum_types::H256;
 use hash_db::{HashDB, Prefix};
@@ -30,8 +31,8 @@ use kvdb::{KeyValueDB, DBTransaction, DBValue};
 use parking_lot::RwLock;
 use rlp::{encode, decode};
 use super::{DB_PREFIX_LEN, LATEST_ERA_KEY, error_negatively_reference_hash, error_key_already_exists};
-use super::traits::JournalDB;
-use util::{DatabaseKey, DatabaseValueView, DatabaseValueRef};
+use crate::{JournalDB, new_memory_db};
+use crate::util::{DatabaseKey, DatabaseValueView, DatabaseValueRef};
 
 #[derive(Debug, Clone, PartialEq, Eq, MallocSizeOf)]
 struct RefInfo {
@@ -115,7 +116,7 @@ impl EarlyMergeDB {
 		let (latest_era, refs) = EarlyMergeDB::read_refs(&*backing, col);
 		let refs = Some(Arc::new(RwLock::new(refs)));
 		EarlyMergeDB {
-			overlay: ::new_memory_db(),
+			overlay: new_memory_db(),
 			backing: backing,
 			refs: refs,
 			latest_era: latest_era,
@@ -521,11 +522,11 @@ impl JournalDB for EarlyMergeDB {
 
 #[cfg(test)]
 mod tests {
-
-	use keccak::keccak;
+	use keccak_hash::keccak;
 	use hash_db::{HashDB, EMPTY_PREFIX};
 	use super::*;
-	use {kvdb_memorydb, inject_batch, commit_batch};
+	use kvdb_memorydb;
+	use crate::{inject_batch, commit_batch};
 
 	#[test]
 	fn insert_same_in_fork() {

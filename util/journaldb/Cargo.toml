@@ -4,6 +4,7 @@ version = "0.2.0"
 authors = ["Parity Technologies <admin@parity.io>"]
 description = "A `HashDB` which can manage a short-term journal potentially containing many forks of mutually exclusive actions"
 license = "GPL3"
+edition = "2018"
 
 [dependencies]
 parity-bytes = "0.1"

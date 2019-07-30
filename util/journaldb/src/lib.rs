@@ -16,28 +16,9 @@
 
 //! `JournalDB` interface and implementation.
 
-extern crate parity_util_mem;
-extern crate parity_util_mem as mem;
 extern crate parity_util_mem as malloc_size_of;
-#[macro_use]
-extern crate log;
 
-extern crate ethereum_types;
 extern crate parity_bytes as bytes;
-extern crate hash_db;
-extern crate keccak_hasher;
-extern crate kvdb;
-extern crate memory_db;
-extern crate parking_lot;
-extern crate fastmap;
-extern crate rlp;
-
-#[cfg(test)]
-extern crate env_logger;
-#[cfg(test)]
-extern crate keccak_hash as keccak;
-#[cfg(test)]
-extern crate kvdb_memorydb;
 
 use std::{fmt, str, io};
 use std::sync::Arc;

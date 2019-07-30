@@ -21,12 +21,13 @@ use std::collections::hash_map::Entry;
 use std::io;
 use std::sync::Arc;
 
+use log::trace;
 use ethereum_types::H256;
 use rlp::{Rlp, RlpStream, Encodable, DecoderError, Decodable, encode, decode};
 use hash_db::{HashDB, Prefix, EMPTY_PREFIX};
 use keccak_hasher::KeccakHasher;
 use kvdb::{KeyValueDB, DBTransaction, DBValue};
-use super::{error_negatively_reference_hash};
+use crate::{error_negatively_reference_hash, new_memory_db};
 
 /// Implementation of the `HashDB` trait for a disk-backed database with a memory overlay.
 ///
@@ -78,8 +79,12 @@ impl Decodable for Payload {
 
 impl OverlayDB {
 	/// Create a new instance of OverlayDB given a `backing` database.
-	pub fn new(backing: Arc<dyn KeyValueDB>, col: Option<u32>) -> OverlayDB {
-		OverlayDB{ overlay: ::new_memory_db(), backing: backing, column: col }
+	pub fn new(backing: Arc<dyn KeyValueDB>, column: Option<u32>) -> OverlayDB {
+		OverlayDB {
+			overlay: new_memory_db(),
+			backing,
+			column,
+		}
 	}
 
 	/// Create a new instance of OverlayDB with an anonymous temporary database.

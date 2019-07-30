@@ -29,7 +29,7 @@ use keccak_hasher::KeccakHasher;
 use kvdb::{KeyValueDB, DBTransaction, DBValue};
 use rlp::{encode, decode};
 use super::{DB_PREFIX_LEN, LATEST_ERA_KEY, error_key_already_exists, error_negatively_reference_hash};
-use traits::JournalDB;
+use crate::{JournalDB, new_memory_db};
 
 /// Implementation of the `HashDB` trait for a disk-backed database with a memory overlay
 /// and latent-removal semantics.
@@ -52,7 +52,7 @@ impl ArchiveDB {
 			.expect("Low-level database error.")
 			.map(|val| decode::<u64>(&val).expect("decoding db value failed"));
 		ArchiveDB {
-			overlay: ::new_memory_db(),
+			overlay: new_memory_db(),
 			backing,
 			latest_era,
 			column,
@@ -201,11 +201,11 @@ impl JournalDB for ArchiveDB {
 
 #[cfg(test)]
 mod tests {
-
-	use keccak::keccak;
+	use keccak_hash::keccak;
 	use hash_db::{HashDB, EMPTY_PREFIX};
 	use super::*;
-	use {kvdb_memorydb, JournalDB, inject_batch, commit_batch};
+	use kvdb_memorydb;
+	use crate::{JournalDB, inject_batch, commit_batch};
 
 	#[test]
 	fn insert_same_in_fork() {
