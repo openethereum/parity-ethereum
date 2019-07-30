@@ -21,7 +21,7 @@
 //! should become general over time to the point where not even a
 //! merkle trie is strictly necessary.
 
-use std::collections::{HashMap, HashSet};
+use std::collections::HashSet;
 use std::sync::Arc;
 
 use ethereum_types::{Address, H256};
@@ -29,7 +29,6 @@ use hash_db::{AsHashDB, EMPTY_PREFIX, HashDB, Prefix};
 use kvdb::DBValue;
 use memory_db::{HashKey, MemoryDB};
 use parking_lot::Mutex;
-use journaldb::AsKeyedHashDB;
 use keccak_hasher::KeccakHasher;
 
 use crate::account::Account;
@@ -90,10 +89,6 @@ impl ProofCheck {
 	}
 }
 
-impl journaldb::KeyedHashDB for ProofCheck {
-	fn keys(&self) -> HashMap<H256, i32> { self.0.keys() }
-}
-
 impl HashDB<KeccakHasher, DBValue> for ProofCheck {
 	fn get(&self, key: &H256, prefix: Prefix) -> Option<DBValue> {
 		self.0.get(key, prefix)
@@ -146,21 +141,9 @@ pub struct Proving<H> {
 	proof: Mutex<HashSet<DBValue>>,
 }
 
-impl<AH: AsKeyedHashDB + Send + Sync> AsKeyedHashDB for Proving<AH> {
-	fn as_keyed_hash_db(&self) -> &dyn journaldb::KeyedHashDB { self }
-}
-
 impl<AH: AsHashDB<KeccakHasher, DBValue> + Send + Sync> AsHashDB<KeccakHasher, DBValue> for Proving<AH> {
 	fn as_hash_db(&self) -> &dyn HashDB<KeccakHasher, DBValue> { self }
 	fn as_hash_db_mut(&mut self) -> &mut dyn HashDB<KeccakHasher, DBValue> { self }
-}
-
-impl<H: AsKeyedHashDB + Send + Sync> journaldb::KeyedHashDB for Proving<H> {
-	fn keys(&self) -> HashMap<H256, i32> {
-		let mut keys = self.base.as_keyed_hash_db().keys();
-		keys.extend(self.changed.keys());
-		keys
-	}
 }
 
 impl<H: AsHashDB<KeccakHasher, DBValue> + Send + Sync> HashDB<KeccakHasher, DBValue> for Proving<H> {

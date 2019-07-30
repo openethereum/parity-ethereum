@@ -23,7 +23,6 @@ use overlayrecentdb::OverlayRecentDB;
 use refcounteddb::RefCountedDB;
 use overlaydb::OverlayDB;
 use kvdb::DBValue;
-use crate::{KeyedHashDB, AsKeyedHashDB};
 
 impl AsHashDB<KeccakHasher, DBValue> for ArchiveDB {
 	fn as_hash_db(&self) -> &dyn HashDB<KeccakHasher, DBValue> { self }
@@ -48,24 +47,4 @@ impl AsHashDB<KeccakHasher, DBValue> for RefCountedDB {
 impl AsHashDB<KeccakHasher, DBValue> for OverlayDB {
 	fn as_hash_db(&self) -> &dyn HashDB<KeccakHasher, DBValue> { self }
 	fn as_hash_db_mut(&mut self) -> &mut dyn HashDB<KeccakHasher, DBValue> { self }
-}
-
-impl AsKeyedHashDB for ArchiveDB {
-	fn as_keyed_hash_db(&self) -> &dyn KeyedHashDB { self }
-}
-
-impl AsKeyedHashDB for EarlyMergeDB {
-	fn as_keyed_hash_db(&self) -> &dyn KeyedHashDB { self }
-}
-
-impl AsKeyedHashDB for OverlayRecentDB {
-	fn as_keyed_hash_db(&self) -> &dyn KeyedHashDB { self }
-}
-
-impl AsKeyedHashDB for RefCountedDB {
-	fn as_keyed_hash_db(&self) -> &dyn KeyedHashDB { self }
-}
-
-impl AsKeyedHashDB for OverlayDB {
-	fn as_keyed_hash_db(&self) -> &dyn KeyedHashDB { self }
 }

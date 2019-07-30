@@ -41,6 +41,7 @@ extern crate kvdb_memorydb;
 
 use std::{fmt, str, io};
 use std::sync::Arc;
+#[cfg(test)]
 use ethereum_types::H256;
 
 /// Export the journaldb module.
@@ -56,12 +57,6 @@ pub mod overlaydb;
 
 /// Export the `JournalDB` trait.
 pub use self::traits::JournalDB;
-
-/// Export keyed hash trait
-pub use self::traits::KeyedHashDB;
-/// Export as keyed hash trait
-pub use self::traits::AsKeyedHashDB;
-
 
 /// Alias to ethereum MemoryDB
 type MemoryDB = memory_db::MemoryDB<

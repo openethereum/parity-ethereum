@@ -153,10 +153,7 @@ impl OverlayDB {
 		}
 	}
 
-}
-
-impl crate::KeyedHashDB for OverlayDB {
-	fn keys(&self) -> HashMap<H256, i32> {
+	pub fn keys(&self) -> HashMap<H256, i32> {
 		let mut ret: HashMap<H256, i32> = self.backing.iter(self.column)
 			.map(|(key, _)| {
 				let h = H256::from_slice(&*key);
@@ -177,7 +174,6 @@ impl crate::KeyedHashDB for OverlayDB {
 		}
 		ret
 	}
-
 }
 
 impl HashDB<KeccakHasher, DBValue> for OverlayDB {

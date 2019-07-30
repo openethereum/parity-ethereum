@@ -87,10 +87,6 @@ impl HashDB<KeccakHasher, DBValue> for RefCountedDB {
 	fn remove(&mut self, key: &H256, _prefix: Prefix) { self.removes.push(key.clone()); }
 }
 
-impl ::traits::KeyedHashDB for RefCountedDB {
-	fn keys(&self) -> HashMap<H256, i32> { self.forward.keys() }
-}
-
 impl JournalDB for RefCountedDB {
 	fn boxed_clone(&self) -> Box<dyn JournalDB> {
 		Box::new(RefCountedDB {
@@ -212,6 +208,10 @@ impl JournalDB for RefCountedDB {
 				self.remove(&key, EMPTY_PREFIX);
 			}
 		}
+	}
+
+	fn keys(&self) -> HashMap<H256, i32> {
+		self.forward.keys()
 	}
 }
 

@@ -311,26 +311,6 @@ impl HashDB<KeccakHasher, DBValue> for EarlyMergeDB {
 	}
 }
 
-impl ::traits::KeyedHashDB for EarlyMergeDB {
-	fn keys(&self) -> HashMap<H256, i32> {
-		let mut ret: HashMap<H256, i32> = self.backing.iter(self.column)
-			.map(|(key, _)| (H256::from_slice(&*key), 1))
-			.collect();
-
-		for (key, refs) in self.overlay.keys() {
-			match ret.entry(key) {
-				Entry::Occupied(mut entry) => {
-					*entry.get_mut() += refs;
-				},
-				Entry::Vacant(entry) => {
-					entry.insert(refs);
-				}
-			}
-		}
-		ret
-	}
-}
-
 impl JournalDB for EarlyMergeDB {
 	fn boxed_clone(&self) -> Box<dyn JournalDB> {
 		Box::new(EarlyMergeDB {
@@ -518,6 +498,24 @@ impl JournalDB for EarlyMergeDB {
 
 	fn consolidate(&mut self, with: super::MemoryDB) {
 		self.overlay.consolidate(with);
+	}
+
+	fn keys(&self) -> HashMap<H256, i32> {
+		let mut ret: HashMap<H256, i32> = self.backing.iter(self.column)
+			.map(|(key, _)| (H256::from_slice(&*key), 1))
+			.collect();
+
+		for (key, refs) in self.overlay.keys() {
+			match ret.entry(key) {
+				Entry::Occupied(mut entry) => {
+					*entry.get_mut() += refs;
+				},
+				Entry::Vacant(entry) => {
+					entry.insert(refs);
+				}
+			}
+		}
+		ret
 	}
 }
 
