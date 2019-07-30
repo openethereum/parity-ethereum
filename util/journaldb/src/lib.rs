@@ -20,24 +20,84 @@ extern crate parity_util_mem as malloc_size_of;
 
 extern crate parity_bytes as bytes;
 
-use std::{fmt, str, io};
-use std::sync::Arc;
-#[cfg(test)]
-use ethereum_types::H256;
+use std::{
+	fmt, str, io,
+	sync::Arc,
+	collections::HashMap,
+};
 
-/// Export the journaldb module.
-mod traits;
+use bytes::Bytes;
+use ethereum_types::H256;
+use hash_db::HashDB;
+use keccak_hasher::KeccakHasher;
+use kvdb::{self, DBTransaction, DBValue};
+
 mod archivedb;
 mod earlymergedb;
 mod overlayrecentdb;
 mod refcounteddb;
 mod util;
 mod as_hash_db_impls;
+mod overlaydb;
 
-pub mod overlaydb;
+/// A `HashDB` which can manage a short-term journal potentially containing many forks of mutually
+/// exclusive actions.
+pub trait JournalDB: HashDB<KeccakHasher, DBValue> {
+	/// Return a copy of ourself, in a box.
+	fn boxed_clone(&self) -> Box<dyn JournalDB>;
 
-/// Export the `JournalDB` trait.
-pub use self::traits::JournalDB;
+	/// Returns heap memory size used
+	fn mem_used(&self) -> usize;
+
+	/// Returns the size of journalled state in memory.
+	/// This function has a considerable speed requirement --
+	/// it must be fast enough to call several times per block imported.
+	fn journal_size(&self) -> usize { 0 }
+
+	/// Check if this database has any commits
+	fn is_empty(&self) -> bool;
+
+	/// Get the earliest era in the DB. None if there isn't yet any data in there.
+	fn earliest_era(&self) -> Option<u64> { None }
+
+	/// Get the latest era in the DB. None if there isn't yet any data in there.
+	fn latest_era(&self) -> Option<u64>;
+
+	/// Journal recent database operations as being associated with a given era and id.
+	// TODO: give the overlay to this function so journaldbs don't manage the overlays themselves.
+	fn journal_under(&mut self, batch: &mut DBTransaction, now: u64, id: &H256) -> io::Result<u32>;
+
+	/// Mark a given block as canonical, indicating that competing blocks' states may be pruned out.
+	fn mark_canonical(&mut self, batch: &mut DBTransaction, era: u64, id: &H256) -> io::Result<u32>;
+
+	/// Commit all queued insert and delete operations without affecting any journalling -- this requires that all insertions
+	/// and deletions are indeed canonical and will likely lead to an invalid database if that assumption is violated.
+	///
+	/// Any keys or values inserted or deleted must be completely independent of those affected
+	/// by any previous `commit` operations. Essentially, this means that `inject` can be used
+	/// either to restore a state to a fresh database, or to insert data which may only be journalled
+	/// from this point onwards.
+	fn inject(&mut self, batch: &mut DBTransaction) -> io::Result<u32>;
+
+	/// State data query
+	fn state(&self, _id: &H256) -> Option<Bytes>;
+
+	/// Whether this database is pruned.
+	fn is_prunable(&self) -> bool { true }
+
+	/// Get backing database.
+	fn backing(&self) -> &Arc<dyn kvdb::KeyValueDB>;
+
+	/// Clear internal strucutres. This should called after changes have been written
+	/// to the backing strage
+	fn flush(&self) {}
+
+	/// Consolidate all the insertions and deletions in the given memory overlay.
+	fn consolidate(&mut self, overlay: MemoryDB);
+
+	/// Primarily use for tests, highly inefficient.
+	fn keys(&self) -> HashMap<H256, i32>;
+}
 
 /// Alias to ethereum MemoryDB
 type MemoryDB = memory_db::MemoryDB<
