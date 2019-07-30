@@ -588,6 +588,7 @@ impl SyncHandler {
 			asking: PeerAsking::Nothing,
 			asking_blocks: Vec::new(),
 			asking_hash: None,
+			asking_private_state: None,
 			ask_time: Instant::now(),
 			last_sent_transactions: Default::default(),
 			last_sent_private_transactions: Default::default(),
@@ -751,6 +752,14 @@ impl SyncHandler {
 			trace!(target: "sync", "{}: Ignored unexpected private state data", peer_id);
 			return Ok(());
 		}
+		let requested_hash = sync.peers.get(&peer_id).and_then(|p| p.asking_private_state);
+		let requested_hash = match requested_hash {
+			Some(hash) => hash,
+			None => {
+				debug!(target: "sync", "{}: Ignored unexpected private state (requested_hash is None)", peer_id);
+				return Ok(());
+			}
+		};
 		let private_handler = match sync.private_tx_handler {
 			Some(ref handler) => handler,
 			None => {
@@ -762,6 +771,12 @@ impl SyncHandler {
 		let private_state_data: Bytes = r.val_at(0)?;
 		match io.private_state() {
 			Some(db) => {
+				// Check hash of the rececived data before submitting it to DB
+				let received_hash = db.state_hash(&private_state_data).unwrap_or_default();
+				if received_hash != requested_hash {
+					trace!(target: "sync", "{} Ignoring private state data with unexpected hash from peer", peer_id);
+					return Ok(());
+				}
 				match db.save_state(&private_state_data) {
 					Ok(hash) => {
 						if let Err(err) = private_handler.private_state_synced(&hash) {

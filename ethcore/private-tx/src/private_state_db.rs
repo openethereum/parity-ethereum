@@ -20,7 +20,8 @@ use ethereum_types::H256;
 use bytes::Bytes;
 use journaldb::overlaydb::OverlayDB;
 use kvdb::{KeyValueDB, DBTransaction};
-use hash_db::{HashDB, EMPTY_PREFIX};
+use keccak_hasher::KeccakHasher;
+use hash_db::{HashDB, EMPTY_PREFIX, Hasher};
 use ethcore_db::COL_PRIVATE_TRANSACTIONS_STATE;
 use error::Error;
 
@@ -55,5 +56,10 @@ impl PrivateStateDB {
 		self.db.write(transaction).map_err(|_| Error::DatabaseWriteError)?;
 		trace!(target: "privatetx", "Private state saved to db, its hash: {:?}", state_hash);
 		Ok(state_hash)
+	}
+
+	/// Returns state's hash without committing it to DB
+	pub fn state_hash(&self, state: &Bytes) -> Result<H256, Error> {
+		Ok(KeccakHasher::hash(state))
 	}
 }

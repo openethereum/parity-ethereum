@@ -427,6 +427,7 @@ mod tests {
 				asking: PeerAsking::Nothing,
 				asking_blocks: Vec::new(),
 				asking_hash: None,
+				asking_private_state: None,
 				ask_time: Instant::now(),
 				last_sent_transactions: Default::default(),
 				last_sent_private_transactions: Default::default(),

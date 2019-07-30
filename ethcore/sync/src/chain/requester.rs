@@ -105,6 +105,8 @@ impl SyncRequester {
 		let mut rlp = RlpStream::new_list(1);
 		rlp.append(hash);
 		SyncRequester::send_request(sync, io, peer_id, PeerAsking::PrivateState, GetPrivateStatePacket, rlp.out());
+		let peer = sync.peers.get_mut(&peer_id).expect("peer_id may originate either from on_packet, where it is already validated or from enumerating self.peers. qed");
+		peer.asking_private_state = Some(hash.clone());
 	}
 
 	/// Request headers from a peer by block hash

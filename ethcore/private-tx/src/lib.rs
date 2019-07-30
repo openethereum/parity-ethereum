@@ -43,6 +43,7 @@ extern crate parity_util_mem;
 extern crate hash_db;
 extern crate heapsize;
 extern crate keccak_hash as hash;
+extern crate keccak_hasher;
 extern crate kvdb;
 extern crate machine;
 extern crate journaldb;

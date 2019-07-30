@@ -320,6 +320,8 @@ pub struct PeerInfo {
 	asking_blocks: Vec<H256>,
 	/// Holds requested header hash if currently requesting block header by hash
 	asking_hash: Option<H256>,
+	/// Holds requested private state hash
+	asking_private_state: Option<H256>,
 	/// Holds requested snapshot chunk hash if any.
 	asking_snapshot_data: Option<H256>,
 	/// Request timestamp
@@ -356,6 +358,7 @@ impl PeerInfo {
 	fn reset_asking(&mut self) {
 		self.asking_blocks.clear();
 		self.asking_hash = None;
+		self.asking_private_state = None;
 		// mark any pending requests as expired
 		if self.asking != PeerAsking::Nothing && self.is_allowed() {
 			self.expired = true;
@@ -1299,7 +1302,8 @@ impl ChainSync {
 	fn get_private_state_peers(&self) -> Vec<PeerId> {
 		self.peers.iter().filter_map(
 			|(id, p)| if p.protocol_version >= PAR_PROTOCOL_VERSION_4.0
-				&& p.private_tx_enabled {
+				&& p.private_tx_enabled
+				&& self.active_peers.contains(id) {
 					Some(*id)
 				} else {
 					None
@@ -1381,7 +1385,7 @@ impl ChainSync {
 	pub fn request_private_state(&mut self, io: &mut SyncIo, hash: &H256) {
 		let private_state_peers = self.get_private_state_peers();
 		if private_state_peers.is_empty() {
-			error!(target: "privatetx", "Cannot request private state, no peers with private tx enabled connected");
+			error!(target: "privatetx", "Cannot request private state, no peers with private tx enabled available");
 		} else {
 			trace!(target: "privatetx", "Requesting private stats from {:?}", private_state_peers);
 			for peer_id in private_state_peers {
@@ -1509,6 +1513,7 @@ pub mod tests {
 				asking: PeerAsking::Nothing,
 				asking_blocks: Vec::new(),
 				asking_hash: None,
+				asking_private_state: None,
 				ask_time: Instant::now(),
 				last_sent_transactions: Default::default(),
 				last_sent_private_transactions: Default::default(),
