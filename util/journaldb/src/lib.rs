@@ -41,6 +41,7 @@ extern crate kvdb_memorydb;
 
 use std::{fmt, str, io};
 use std::sync::Arc;
+use ethereum_types::H256;
 
 /// Export the journaldb module.
 mod traits;
@@ -175,6 +176,29 @@ fn error_negatively_reference_hash(hash: &ethereum_types::H256) -> io::Error {
 
 pub fn new_memory_db() -> MemoryDB {
 	MemoryDB::from_null_node(&rlp::NULL_RLP, rlp::NULL_RLP.as_ref().into())
+}
+
+#[cfg(test)]
+/// Inject all changes in a single batch.
+pub fn inject_batch(jdb: &mut dyn JournalDB) -> io::Result<u32> {
+	let mut batch = jdb.backing().transaction();
+	let res = jdb.inject(&mut batch)?;
+	jdb.backing().write(batch).map(|_| res).map_err(Into::into)
+}
+
+/// Commit all changes in a single batch
+#[cfg(test)]
+fn commit_batch(jdb: &mut dyn JournalDB, now: u64, id: &H256, end: Option<(u64, H256)>) -> io::Result<u32> {
+	let mut batch = jdb.backing().transaction();
+	let mut ops = jdb.journal_under(&mut batch, now, id)?;
+
+	if let Some((end_era, canon_id)) = end {
+		ops += jdb.mark_canonical(&mut batch, end_era, &canon_id)?;
+	}
+
+	let result = jdb.backing().write(batch).map(|_| ops).map_err(Into::into);
+	jdb.flush();
+	result
 }
 
 #[cfg(test)]

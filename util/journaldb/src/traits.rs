@@ -94,27 +94,4 @@ pub trait JournalDB: KeyedHashDB {
 
 	/// Consolidate all the insertions and deletions in the given memory overlay.
 	fn consolidate(&mut self, overlay: super::MemoryDB);
-
-	/// Commit all changes in a single batch
-	#[cfg(test)]
-	fn commit_batch(&mut self, now: u64, id: &H256, end: Option<(u64, H256)>) -> io::Result<u32> {
-		let mut batch = self.backing().transaction();
-		let mut ops = self.journal_under(&mut batch, now, id)?;
-
-		if let Some((end_era, canon_id)) = end {
-			ops += self.mark_canonical(&mut batch, end_era, &canon_id)?;
-		}
-
-		let result = self.backing().write(batch).map(|_| ops).map_err(Into::into);
-		self.flush();
-		result
-	}
-
-	/// Inject all changes in a single batch.
-	#[cfg(test)]
-	fn inject_batch(&mut self) -> io::Result<u32> {
-		let mut batch = self.backing().transaction();
-		let res = self.inject(&mut batch)?;
-		self.backing().write(batch).map(|_| res).map_err(Into::into)
-	}
 }
