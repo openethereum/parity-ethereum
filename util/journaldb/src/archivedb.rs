@@ -16,20 +16,24 @@
 
 //! Disk-backed `HashDB` implementation.
 
-use std::collections::HashMap;
-use std::collections::hash_map::Entry;
-use std::io;
-use std::sync::Arc;
+use std::{
+	collections::{HashMap, hash_map::Entry},
+	io,
+	sync::Arc,
+};
 
 use bytes::Bytes;
 use ethereum_types::H256;
-use parity_util_mem::MallocSizeOfExt;
 use hash_db::{HashDB, Prefix};
 use keccak_hasher::KeccakHasher;
 use kvdb::{KeyValueDB, DBTransaction, DBValue};
+use parity_util_mem::MallocSizeOfExt;
 use rlp::{encode, decode};
-use super::{DB_PREFIX_LEN, LATEST_ERA_KEY, error_key_already_exists, error_negatively_reference_hash};
-use crate::{JournalDB, new_memory_db};
+
+use crate::{
+	DB_PREFIX_LEN, LATEST_ERA_KEY, error_key_already_exists, error_negatively_reference_hash,
+	JournalDB, new_memory_db
+};
 
 /// Implementation of the `HashDB` trait for a disk-backed database with a memory overlay
 /// and latent-removal semantics.

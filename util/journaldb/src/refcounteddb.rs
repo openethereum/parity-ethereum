@@ -16,22 +16,26 @@
 
 //! Disk-backed, ref-counted `JournalDB` implementation.
 
-use std::collections::HashMap;
-use std::io;
-use std::sync::Arc;
+use std::{
+	io,
+	sync::Arc,
+	collections::HashMap,
+};
 
-use log::trace;
-use bytes::Bytes;
 use ethereum_types::H256;
 use hash_db::{HashDB, Prefix, EMPTY_PREFIX};
-use parity_util_mem::{MallocSizeOf, allocators::new_malloc_size_ops};
 use keccak_hasher::KeccakHasher;
 use kvdb::{KeyValueDB, DBTransaction, DBValue};
-use crate::overlaydb::OverlayDB;
+use log::trace;
+use parity_bytes::Bytes;
+use parity_util_mem::{MallocSizeOf, allocators::new_malloc_size_ops};
 use rlp::{encode, decode};
-use super::{DB_PREFIX_LEN, LATEST_ERA_KEY};
-use crate::JournalDB;
-use crate::util::{DatabaseKey, DatabaseValueView, DatabaseValueRef};
+
+use crate::{
+	overlaydb::OverlayDB,
+	JournalDB, DB_PREFIX_LEN, LATEST_ERA_KEY,
+	util::{DatabaseKey, DatabaseValueView, DatabaseValueRef},
+};
 
 /// Implementation of the `HashDB` trait for a disk-backed database with a memory overlay
 /// and latent-removal semantics.

@@ -16,23 +16,27 @@
 
 //! Disk-backed `HashDB` implementation.
 
-use std::collections::HashMap;
-use std::collections::hash_map::Entry;
-use std::io;
-use std::sync::Arc;
+use std::{
+	collections::{HashMap, hash_map::Entry},
+	io,
+	sync::Arc,
+};
 
-use log::{trace, warn};
-use bytes::Bytes;
 use ethereum_types::H256;
 use hash_db::{HashDB, Prefix};
-use parity_util_mem::{MallocSizeOf, allocators::new_malloc_size_ops};
 use keccak_hasher::KeccakHasher;
 use kvdb::{KeyValueDB, DBTransaction, DBValue};
+use log::{trace, warn};
+use parity_bytes::Bytes;
+use parity_util_mem::{MallocSizeOf, allocators::new_malloc_size_ops};
 use parking_lot::RwLock;
 use rlp::{encode, decode};
-use super::{DB_PREFIX_LEN, LATEST_ERA_KEY, error_negatively_reference_hash, error_key_already_exists};
-use crate::{JournalDB, new_memory_db};
-use crate::util::{DatabaseKey, DatabaseValueView, DatabaseValueRef};
+
+use crate::{
+	DB_PREFIX_LEN, LATEST_ERA_KEY, error_negatively_reference_hash, error_key_already_exists,
+	JournalDB, new_memory_db,
+	util::{DatabaseKey, DatabaseValueView, DatabaseValueRef},
+};
 
 #[derive(Debug, Clone, PartialEq, Eq, MallocSizeOf)]
 struct RefInfo {

@@ -16,26 +16,28 @@
 
 //! `JournalDB` over in-memory overlay
 
-use std::collections::HashMap;
-use std::collections::hash_map::Entry;
-use std::io;
-use std::sync::Arc;
+use std::{
+	collections::{HashMap, hash_map::Entry},
+	io,
+	sync::Arc,
+};
 
-use log::trace;
-use bytes::Bytes;
 use ethereum_types::H256;
+use fastmap::H256FastMap;
 use hash_db::{HashDB, Prefix, EMPTY_PREFIX};
-use parity_util_mem::{MallocSizeOf, allocators::new_malloc_size_ops};
 use keccak_hasher::KeccakHasher;
 use kvdb::{KeyValueDB, DBTransaction, DBValue};
+use log::trace;
+use parity_bytes::Bytes;
+use parity_util_mem::{MallocSizeOf, allocators::new_malloc_size_ops};
 use parking_lot::RwLock;
-use fastmap::H256FastMap;
 use rlp::{Rlp, RlpStream, encode, decode, DecoderError, Decodable, Encodable};
+
 use crate::{
 	DB_PREFIX_LEN, LATEST_ERA_KEY, JournalDB, error_negatively_reference_hash,
-	new_memory_db
+	new_memory_db,
+	util::DatabaseKey
 };
-use crate::util::DatabaseKey;
 
 /// Implementation of the `JournalDB` trait for a disk-backed database with a memory overlay
 /// and, possibly, latent-removal semantics.
