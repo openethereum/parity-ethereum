@@ -18,19 +18,17 @@
 
 extern crate parity_util_mem as malloc_size_of;
 
-extern crate parity_bytes as bytes;
-
 use std::{
 	fmt, str, io,
 	sync::Arc,
 	collections::HashMap,
 };
 
-use bytes::Bytes;
 use ethereum_types::H256;
 use hash_db::HashDB;
 use keccak_hasher::KeccakHasher;
 use kvdb::{self, DBTransaction, DBValue};
+use parity_bytes::Bytes;
 
 mod archivedb;
 mod earlymergedb;
