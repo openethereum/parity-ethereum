@@ -1273,7 +1273,7 @@ impl Engine for AuthorityRound {
 			Some(ref c) if block.header.number() >= self.block_reward_contract_transition => {
 				let mut call = super::default_system_or_code_call(&self.machine, block);
 
-				let rewards = c.reward(&beneficiaries, &mut call)?;
+				let rewards = c.reward(beneficiaries, &mut call)?;
 				rewards.into_iter().map(|(author, amount)| (author, RewardKind::External, amount)).collect()
 			},
 			_ => {
