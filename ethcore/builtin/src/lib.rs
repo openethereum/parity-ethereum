@@ -207,7 +207,7 @@ impl From<ethjson::spec::Builtin> for Builtin {
 					pair: pricer.pair,
 				})
 			}
-			ethjson::spec::Pricing::EIP1962(_) => {
+			ethjson::spec::Pricing::Eip1962(_) => {
 				Box::new(EIP1962Pricer)
 			}
 		};
