@@ -36,7 +36,6 @@ pub enum SpecType {
 	Poanet,
 	Volta,
 	Ewc,
-	Expanse,
 	Musicoin,
 	Ellaism,
 	Mix,
@@ -68,7 +67,6 @@ impl str::FromStr for SpecType {
 			"poanet" | "poacore" => SpecType::Poanet,
 			"volta" => SpecType::Volta,
 			"ewc" | "energyweb" => SpecType::Ewc,
-			"expanse" => SpecType::Expanse,
 			"musicoin" => SpecType::Musicoin,
 			"ellaism" => SpecType::Ellaism,
 			"mix" => SpecType::Mix,
@@ -95,7 +93,6 @@ impl fmt::Display for SpecType {
 			SpecType::Poanet => "poanet",
 			SpecType::Volta => "volta",
 			SpecType::Ewc => "energyweb",
-			SpecType::Expanse => "expanse",
 			SpecType::Musicoin => "musicoin",
 			SpecType::Ellaism => "ellaism",
 			SpecType::Mix => "mix",
@@ -122,7 +119,6 @@ impl SpecType {
 			SpecType::Poanet => Ok(spec::new_poanet(params)),
 			SpecType::Volta => Ok(spec::new_volta(params)),
 			SpecType::Ewc => Ok(spec::new_ewc(params)),
-			SpecType::Expanse => Ok(spec::new_expanse(params)),
 			SpecType::Musicoin => Ok(spec::new_musicoin(params)),
 			SpecType::Ellaism => Ok(spec::new_ellaism(params)),
 			SpecType::Mix => Ok(spec::new_mix(params)),
@@ -145,7 +141,6 @@ impl SpecType {
 	pub fn legacy_fork_name(&self) -> Option<String> {
 		match *self {
 			SpecType::Classic => Some("classic".to_owned()),
-			SpecType::Expanse => Some("expanse".to_owned()),
 			SpecType::Musicoin => Some("musicoin".to_owned()),
 			_ => None,
 		}
@@ -379,7 +374,6 @@ mod tests {
 		assert_eq!(SpecType::Volta, "volta".parse().unwrap());
 		assert_eq!(SpecType::Ewc, "ewc".parse().unwrap());
 		assert_eq!(SpecType::Ewc, "energyweb".parse().unwrap());
-		assert_eq!(SpecType::Expanse, "expanse".parse().unwrap());
 		assert_eq!(SpecType::Musicoin, "musicoin".parse().unwrap());
 		assert_eq!(SpecType::Ellaism, "ellaism".parse().unwrap());
 		assert_eq!(SpecType::Mix, "mix".parse().unwrap());
@@ -409,7 +403,6 @@ mod tests {
 		assert_eq!(format!("{}", SpecType::Poanet), "poanet");
 		assert_eq!(format!("{}", SpecType::Volta), "volta");
 		assert_eq!(format!("{}", SpecType::Ewc), "energyweb");
-		assert_eq!(format!("{}", SpecType::Expanse), "expanse");
 		assert_eq!(format!("{}", SpecType::Musicoin), "musicoin");
 		assert_eq!(format!("{}", SpecType::Ellaism), "ellaism");
 		assert_eq!(format!("{}", SpecType::Mix), "mix");
