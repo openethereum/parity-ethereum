@@ -231,7 +231,7 @@ fn ethereum_builtin(name: &str) -> Box<dyn Implementation> {
 		"alt_bn128_add" => Box::new(Bn128Add) as Box<dyn Implementation>,
 		"alt_bn128_mul" => Box::new(Bn128Mul) as Box<dyn Implementation>,
 		"alt_bn128_pairing" => Box::new(Bn128Pairing) as Box<dyn Implementation>,
-		"eip1962" => Box::new(EIP1962) as Box<dyn Implementation>,
+		"eip_1962" => Box::new(EIP1962) as Box<dyn Implementation>,
 		_ => panic!("invalid builtin name: {}", name),
 	}
 }
@@ -1033,10 +1033,9 @@ mod tests {
 
 	#[test]
 	fn eip1962() {
-
 		let f = Builtin {
 			pricer: Box::new(EIP1962Pricer),
-			native: ethereum_builtin("eip1962"),
+			native: ethereum_builtin("eip_1962"),
 			activate_at: 0,
 		};
 

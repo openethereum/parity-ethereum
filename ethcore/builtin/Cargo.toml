@@ -15,7 +15,7 @@ log = "0.4"
 num = { version = "0.1", default-features = false, features = ["bigint"] }
 parity-bytes = "0.1"
 parity-crypto = "0.4.0"
-eth_pairings = "0.1.0"
+eth_pairings = "0.1"
 
 [dev-dependencies]
 rustc-hex = "1.0"

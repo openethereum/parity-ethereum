@@ -49,7 +49,7 @@ pub struct AltBn128Pairing {
 /// Pricing for EIP1962 defaults to the implementation.
 #[derive(Debug, PartialEq, Deserialize, Clone)]
 #[serde(deny_unknown_fields)]
-pub struct EIP1962;
+pub struct Eip1962 {}
 
 /// Pricing variants.
 #[derive(Debug, PartialEq, Deserialize, Clone)]
@@ -63,7 +63,7 @@ pub enum Pricing {
 	/// Pricing for alt_bn128_pairing exponentiation.
 	AltBn128Pairing(AltBn128Pairing),
 	/// Pricing for EIP1962.
-	EIP1962(EIP1962),
+	Eip1962(Eip1962),
 }
 
 /// Spec builtin.
@@ -81,7 +81,7 @@ pub struct Builtin {
 #[cfg(test)]
 mod tests {
 	use serde_json;
-	use spec::builtin::{Builtin, Pricing, Linear, Modexp};
+	use spec::builtin::{Builtin, Pricing, Linear, Modexp, Eip1962};
 	use uint::Uint;
 
 	#[test]
@@ -108,5 +108,18 @@ mod tests {
 		assert_eq!(deserialized.name, "late_start");
 		assert_eq!(deserialized.pricing, Pricing::Modexp(Modexp { divisor: 5 }));
 		assert_eq!(deserialized.activate_at, Some(Uint(100000.into())));
+	}
+
+	#[test]
+	fn builtin_eip1962_deserialization() {
+		let s = r#"{
+			"name": "eip_1962",
+			"activate_at": 0,
+			"pricing": { "eip1962": {} }
+		}"#;
+		let deserialized: Builtin = serde_json::from_str(s).unwrap();
+		assert_eq!(deserialized.name, "eip_1962");
+		assert_eq!(deserialized.pricing, Pricing::Eip1962(Eip1962{}));
+		assert!(deserialized.activate_at.is_some());
 	}
 }
