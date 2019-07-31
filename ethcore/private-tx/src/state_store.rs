@@ -23,6 +23,7 @@ use kvdb::KeyValueDB;
 use types::transaction::SignedTransaction;
 use private_transactions::VerifiedPrivateTransaction;
 use private_state_db::PrivateStateDB;
+use log::Logging;
 
 /// Max duration of retrieving state (in ms)
 const MAX_REQUEST_SESSION_DURATION: u64 = 120 * 1000;
@@ -44,7 +45,6 @@ pub enum RequestType {
 enum RequestState {
 	Syncing,
 	Ready,
-	Stale,
 }
 
 struct StateRequest {
@@ -58,15 +58,17 @@ pub struct PrivateStateStorage {
 	private_state_db: Arc<PrivateStateDB>,
 	requests: RwLock<Vec<StateRequest>>,
 	syncing_hashes: RwLock<Vec<HashRequestSession>>,
+	logging: Option<Arc<Logging>>,
 }
 
 impl PrivateStateStorage {
 	/// Constructs the object
-	pub fn new(db: Arc<KeyValueDB>) -> Self {
+	pub fn new(db: Arc<KeyValueDB>, logging: Option<Arc<Logging>>) -> Self {
 		PrivateStateStorage {
 			private_state_db: Arc::new(PrivateStateDB::new(db)),
 			requests: RwLock::new(Vec::new()),
 			syncing_hashes: RwLock::default(),
+			logging,
 		}
 	}
 
@@ -153,10 +155,25 @@ impl PrivateStateStorage {
 
 	fn mark_hash_stale(&self, stale_hash: &H256) {
 		let mut requests = self.requests.write();
-		for request in requests.iter_mut() {
+		requests.retain(|request| {
+			let mut delete_request = false;
 			if request.request_hashes.contains(stale_hash) {
-				request.state = RequestState::Stale;
+				let tx_hash;
+				match &request.request_type {
+					RequestType::Verification(transaction) => {
+						tx_hash = transaction.transaction_hash;
+					}
+					RequestType::Creation(transaction) => {
+						tx_hash = transaction.hash();
+						if let Some(ref logging) = self.logging {
+							logging.private_state_sync_failed(&tx_hash);
+						}
+					}
+				}
+				trace!(target: "privatetx", "Private state request for {:?} staled due to timeout", &tx_hash);
+				delete_request = true;
 			}
-		}
+			!delete_request
+		});
 	}
 }
