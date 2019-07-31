@@ -26,8 +26,8 @@ use ethereum_types::H256;
 use hash_db::{HashDB, Prefix};
 use keccak_hasher::KeccakHasher;
 use kvdb::{KeyValueDB, DBTransaction, DBValue};
+use malloc_size_of::MallocSizeOfExt;
 use parity_bytes::Bytes;
-use parity_util_mem::MallocSizeOfExt;
 use rlp::{encode, decode};
 
 use crate::{

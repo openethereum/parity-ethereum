@@ -16,8 +16,6 @@
 
 //! `JournalDB` interface and implementation.
 
-extern crate parity_util_mem as malloc_size_of;
-
 use std::{
 	fmt, str, io,
 	sync::Arc,
