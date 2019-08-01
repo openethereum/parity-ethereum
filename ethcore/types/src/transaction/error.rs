@@ -42,6 +42,14 @@ pub enum Error {
 		/// Transaction gas price
 		got: U256,
 	},
+	/// Transaction has too low fee
+	/// (there is already a transaction with the same sender-nonce but higher gas price)
+	TxTooCheapToReplace {
+		/// previous transaction's gas price
+		prev: U256,
+		/// new transaction's gas price
+		new: U256,
+	},
 	/// Transaction's gas is below currently set minimal gas requirement.
 	InsufficientGas {
 		/// Minimal expected gas
@@ -102,6 +110,10 @@ impl fmt::Display for Error {
 			AlreadyImported => "Already imported".into(),
 			Old => "No longer valid".into(),
 			TooCheapToReplace => "Gas price too low to replace".into(),
+			TxTooCheapToReplace { prev, new } =>
+				format!("Gas price too low to replace, previous tx gas: {}, new tx gas: {}",
+						prev, new
+				),
 			LimitReached => "Transaction limit reached".into(),
 			InsufficientGasPrice { minimal, got } =>
 				format!("Insufficient gas price. Min={}, Given={}", minimal, got),

@@ -423,6 +423,9 @@ pub fn transaction_message(error: &TransactionError) -> String {
 		TooCheapToReplace => {
 			"Transaction gas price is too low. There is another transaction with same nonce in the queue. Try increasing the gas price or incrementing the nonce.".into()
 		}
+		TxTooCheapToReplace { prev, new } => {
+			format!("Transaction gas price {}wei is too low. There is another transaction with same nonce in the queue with gas price: {}wei. Try increasing the gas price or incrementing the nonce.", new, prev)
+		}
 		LimitReached => {
 			"There are too many transactions in the queue. Your transaction was dropped due to limit. Try increasing the fee.".into()
 		}
