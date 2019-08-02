@@ -37,7 +37,7 @@ use parity_crypto::digest;
 use eip_152::compress;
 
 /// Native implementation of a built-in contract.
-trait Implementation: Send + Sync {
+pub trait Implementation: Send + Sync {
 	/// execute this built-in on the given input, writing to the given output.
 	fn execute(&self, input: &[u8], output: &mut BytesRef) -> Result<(), &'static str>;
 }
@@ -308,7 +308,7 @@ fn ethereum_builtin(name: &str) -> Result<Box<dyn Implementation>, EthcoreError>
 struct Identity;
 
 #[derive(Debug)]
-struct EcRecover;
+pub struct EcRecover;
 
 #[derive(Debug)]
 struct Sha256;
