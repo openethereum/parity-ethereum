@@ -93,7 +93,7 @@ fn should_return_correct_nonces_when_dropped_because_of_limit() {
 	assert_eq!(res2, vec![
 			   // The error here indicates reaching the limit
 			   // and minimal effective gas price taken into account.
-			   Err(transaction::Error::InsufficientGasPrice { minimal: 2.into(), got: 1.into() }),
+			   Err(transaction::Error::TxTooCheapToReplace { prev: 2.into(), new: 1.into() }),
 			   Ok(())
 	]);
 	assert_eq!(txq.status().status.transaction_count, 3);
@@ -1027,9 +1027,9 @@ fn should_reject_early_in_case_gas_price_is_less_than_min_effective() {
 	let client = TestClient::new();
 	let tx1 = Tx::default().signed().unverified();
 	let res = txq.import(client.clone(), vec![tx1]);
-	assert_eq!(res, vec![Err(transaction::Error::InsufficientGasPrice {
-		minimal: 2.into(),
-		got: 1.into(),
+	assert_eq!(res, vec![Err(transaction::Error::TxTooCheapToReplace {
+		prev: 2.into(),
+		new: 1.into(),
 	})]);
 	assert!(!client.was_verification_triggered());
 
