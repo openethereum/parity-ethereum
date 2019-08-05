@@ -82,7 +82,7 @@ impl Filter {
 		}
 
 		let num_to_id = |num| match num {
-			BlockNumber::Hash(hash) => BlockId::Hash(hash),
+			BlockNumber::Hash { hash, .. } => BlockId::Hash(hash),
 			BlockNumber::Num(n) => BlockId::Number(n),
 			BlockNumber::Earliest => BlockId::Earliest,
 			BlockNumber::Latest | BlockNumber::Pending => BlockId::Latest,
