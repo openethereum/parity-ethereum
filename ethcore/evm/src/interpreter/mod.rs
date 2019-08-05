@@ -341,13 +341,13 @@ impl<Cost: CostType> Interpreter<Cost> {
 
 				// Calculate gas cost
 				let requirements = match self.gasometer.as_mut().expect(GASOMETER_PROOF).requirements(ext, instruction, info, &self.stack, self.mem.size()) {
-                    Ok(t) => t,
+					Ok(t) => t,
 					Err(e) => return InterpreterResult::Done(Err(e)),
 				};
 				if self.do_trace {
 					ext.trace_prepare_execute(self.reader.position - 1, opcode, requirements.gas_cost.as_u256(), Self::mem_written(instruction, &self.stack), Self::store_written(instruction, &self.stack));
 				}
-                if let Err(e) = self.gasometer.as_mut().expect(GASOMETER_PROOF).verify_gas(&requirements.gas_cost) {
+				if let Err(e) = self.gasometer.as_mut().expect(GASOMETER_PROOF).verify_gas(&requirements.gas_cost) {
 					return InterpreterResult::Done(Err(e));
 				}
 				self.mem.expand(requirements.memory_required_size);
@@ -365,7 +365,7 @@ impl<Cost: CostType> Interpreter<Cost> {
 					Ok(x) => x,
 				};
 				evm_debug!({ self.informant.after_instruction(instruction) });
-                result
+				result
 			},
 		};
 
@@ -394,7 +394,7 @@ impl<Cost: CostType> Interpreter<Cost> {
 				let jump_destinations = self.valid_jump_destinations.as_ref().expect("jump_destinations are initialized on first jump; qed");
 				let pos = match self.verify_jump(position, jump_destinations) {
 					Ok(x) => x,
-                    Err(e) => return InterpreterResult::Done(Err(e))
+					Err(e) => return InterpreterResult::Done(Err(e))
 				};
 				self.reader.position = pos;
 			},
