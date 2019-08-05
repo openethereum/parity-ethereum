@@ -477,11 +477,17 @@ fn check_known<C>(client: &C, number: BlockNumber) -> Result<()> where C: BlockC
 		BlockNumber::Latest => BlockId::Latest,
 		BlockNumber::Earliest => BlockId::Earliest,
 		BlockNumber::Hash { hash, require_canonical } => {
+			// block check takes precedence over canon check.
+			match client.block_status(BlockId::Hash(hash.clone())) {
+				BlockStatus::InChain => {},
+				_ => return Err(errors::unknown_block()),
+			};
+
 			if require_canonical && !client.chain().is_canon(&hash) {
-				return Err(errors::unknown_block())
+				return Err(errors::invalid_input())
 			}
 
-			BlockId::Hash(hash)
+			return Ok(())
 		}
 	};
 
