@@ -50,7 +50,7 @@ impl PrivateStateDB {
 	/// Stores state for the hash
 	pub fn save_state(&self, storage: &Bytes) -> Result<H256, Error> {
 		let mut private_state = self.private_state.write();
-		let state_hash = private_state.insert(storage, EMPTY_PREFIX);
+		let state_hash = private_state.insert(EMPTY_PREFIX, storage);
 		let mut transaction = DBTransaction::new();
 		private_state.commit_to_batch(&mut transaction)?;
 		self.db.write(transaction).map_err(|_| Error::DatabaseWriteError)?;
