@@ -16,6 +16,7 @@
 
 //! Blockchain params.
 
+pub mod bundle;
 mod genesis;
 mod seal;
 mod spec;
