@@ -18,24 +18,26 @@ use std::path::Path;
 use std::sync::Arc;
 use super::test_common::*;
 use account_state::{Backend as StateBackend, State};
-use substate::Substate;
-use executive::*;
 use evm::{VMType, Finalize};
 use vm::{
 	self, ActionParams, CallType, Schedule, Ext,
 	ContractCreateResult, EnvInfo, MessageCallResult,
 	CreateContractAddress, ReturnData,
 };
-use externalities::*;
+use machine::{
+	Machine,
+	externalities::{OutputPolicy, OriginInfo, Externalities},
+	substate::Substate,
+	executive::*, // todo[dvdplm] make explicit
+};
+
 use test_helpers::get_temp_state;
 use ethjson;
-use trace::{Tracer, NoopTracer};
-use trace::{VMTracer, NoopVMTracer};
+use trace::{Tracer, NoopTracer, VMTracer, NoopVMTracer};
 use bytes::Bytes;
 use ethtrie;
 use rlp::RlpStream;
 use hash::keccak;
-use machine::Machine;
 use ethereum_types::BigEndianHash;
 
 use super::HookType;

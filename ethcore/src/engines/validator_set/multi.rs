@@ -156,7 +156,7 @@ mod tests {
 	use hash::keccak;
 	use accounts::AccountProvider;
 	use client::{BlockChainClient, ChainInfo, ImportBlock};
-	use client::BlockInfo;
+	use client_traits::BlockInfo;
 	use engines::EpochChange;
 	use engines::validator_set::ValidatorSet;
 	use ethkey::Secret;

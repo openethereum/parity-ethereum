@@ -18,10 +18,12 @@
 //! `account-state` crates and contains everything that requires `Machine` or `Executive` (or types
 //! thereof).
 
-use machine::Machine;
+use machine::{
+	machine::Machine,
+	executive::{Executive, TransactOptions},
+	executed::Executed,
+};
 use vm::EnvInfo;
-use executive::{Executive, TransactOptions};
-use executed::Executed;
 use types::{
 	errors::{ExecutionError, EthcoreError as Error},
 	transaction::SignedTransaction,
@@ -266,7 +268,10 @@ mod tests {
 	use ethkey::Secret;
 	use ethereum_types::{H256, U256, Address, BigEndianHash};
 	use test_helpers::{get_temp_state, get_temp_state_db};
-	use machine::Machine;
+	use machine::{
+		Machine,
+		test_helpers::new_frontier_test_machine,
+	};
 	use vm::EnvInfo;
 	use spec::*;
 	use types::transaction::*;
@@ -282,7 +287,7 @@ mod tests {
 	}
 
 	fn make_frontier_machine(max_depth: usize) -> Machine {
-		let mut machine = ::ethereum::new_frontier_test_machine();
+		let mut machine = new_frontier_test_machine();
 		machine.set_schedule_creation_rules(Box::new(move |s, _| s.max_depth = max_depth));
 		machine
 	}

@@ -15,7 +15,10 @@
 // along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
 use engines::{Engine, Seal};
-use machine::Machine;
+use machine::{
+	ExecutedBlock,
+	Machine
+};
 use types::{
 	header::Header,
 	engines::{
@@ -25,7 +28,6 @@ use types::{
 	errors::EthcoreError as Error,
 };
 
-use block::ExecutedBlock;
 
 /// `InstantSeal` params.
 #[derive(Default, Debug, PartialEq)]

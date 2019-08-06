@@ -21,7 +21,7 @@ use std::sync::Arc;
 use ethereum_types::{H256, U256, H160};
 use {trie_vm_factories, journaldb, trie, kvdb_memorydb};
 use kvdb::{self, KeyValueDB};
-use {state_db, client, executive, trace, db, spec};
+use {state_db, client, trace, db, spec};
 use pod::PodState;
 use types::{
 	errors::EthcoreError,
@@ -34,7 +34,10 @@ use evm::{VMType, FinalizationResult};
 use vm::{self, ActionParams, CreateContractAddress};
 use ethtrie;
 use account_state::{CleanupMode, State};
-use substate::Substate;
+use machine::{
+	executive,
+	substate::Substate,
+};
 
 use executive_state::ExecutiveState;
 

@@ -10,6 +10,7 @@ authors = ["Parity Technologies <admin@parity.io>"]
 account-db = { path = "account-db" }
 ansi_term = "0.11"
 blooms-db = { path = "../util/blooms-db", optional = true }
+client-traits = { path = "./client-traits" }
 common-types = { path = "types" }
 crossbeam-utils = "0.6"
 env_logger = { version = "0.5", optional = true }
@@ -44,6 +45,7 @@ lazy_static = "1.2.0"
 len-caching-lock = { path = "../util/len-caching-lock" }
 log = "0.4"
 lru-cache = "0.1"
+machine = { path = "./machine" }
 macros = { path = "../util/macros" }
 memory-cache = { path = "../util/memory-cache" }
 num_cpus = "1.2"
@@ -85,6 +87,7 @@ rlp_compress = { path = "../util/rlp-compress" }
 serde_json = "1.0"
 tempdir = "0.3"
 trie-standardmap = "0.12.4"
+machine = { path = "./machine", features = ["test-helpers"] }
 
 [features]
 parity = ["work-notify", "price-info", "stratum"]

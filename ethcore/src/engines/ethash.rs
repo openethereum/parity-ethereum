@@ -32,11 +32,13 @@ use types::{
 
 use unexpected::{OutOfBounds, Mismatch};
 
-use block::ExecutedBlock;
 use engines::block_reward::{self, BlockRewardContract, RewardKind};
 use engines::{self, Engine};
 use ethash::{self, quick_get_difficulty, slow_hash_block_number, EthashManager, OptimizeFor};
-use machine::Machine;
+use machine::{
+	ExecutedBlock,
+	Machine,
+};
 
 /// Number of blocks in an ethash snapshot.
 // make dependent on difficulty increment divisor?
@@ -501,7 +503,8 @@ mod tests {
 	};
 	use spec::Spec;
 	use engines::Engine;
-	use ethereum::{new_morden, new_mcip3_test, new_homestead_test_machine};
+	use ethereum::{new_morden, new_mcip3_test};
+	use machine::test_helpers::new_homestead_test_machine;
 	use super::{Ethash, EthashParams, ecip1017_eras_block_reward};
 	use rlp;
 	use tempdir::TempDir;

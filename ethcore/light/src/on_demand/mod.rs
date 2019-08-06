@@ -40,7 +40,8 @@ use cache::Cache;
 use request::{self as basic_request, Request as NetworkRequest};
 use self::request::CheckedRequest;
 
-pub use ethcore::executed::ExecutionResult;
+use machine::executed::ExecutionResult; // todo[dvdplm] why was this re-exported?
+
 pub use self::request::{Request, Response, HeaderRef, Error as ValidityError};
 pub use self::request_guard::{RequestGuard, Error as RequestError};
 pub use self::response_guard::{ResponseGuard, Error as ResponseGuardError, Inner as ResponseGuardInner};

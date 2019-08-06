@@ -65,7 +65,6 @@ use std::thread;
 use std::time;
 use std::time::{Instant, Duration, SystemTime, UNIX_EPOCH};
 
-use block::ExecutedBlock;
 use client::{BlockId, EngineClient};
 use engines::clique::util::{extract_signers, recover_creator};
 use engines::{Engine, Seal, SealingState, EthashSeal};
@@ -74,7 +73,10 @@ use ethkey::Signature;
 use hash::KECCAK_EMPTY_LIST_RLP;
 use itertools::Itertools;
 use lru_cache::LruCache;
-use machine::Machine;
+use machine::{
+	ExecutedBlock,
+	Machine,
+};
 use parking_lot::RwLock;
 use rand::Rng;
 use super::signer::EngineSigner;

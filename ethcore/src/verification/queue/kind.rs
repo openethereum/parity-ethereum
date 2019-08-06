@@ -21,9 +21,7 @@ use engines::Engine;
 use parity_util_mem::MallocSizeOf;
 use ethereum_types::{H256, U256};
 
-use types::{
-	errors::EthcoreError as Error,
-};
+use types::errors::EthcoreError as Error;
 
 pub use self::blocks::Blocks;
 pub use self::headers::Headers;

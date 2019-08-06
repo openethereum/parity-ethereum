@@ -60,9 +60,9 @@ use client::{
 	Call, StateClient, EngineInfo, AccountData, BlockChain, BlockProducer, SealedBlockImporter, IoClient,
 	BadBlocks
 };
-use client::BlockInfo;
+use client_traits::BlockInfo;
 use engines::Engine;
-use executive::Executed;
+use machine::executed::Executed;
 use journaldb;
 use miner::{self, Miner, MinerService};
 use spec::Spec;

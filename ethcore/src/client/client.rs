@@ -46,13 +46,18 @@ use client::{
 	BlockChainReset
 };
 use client::{
-	BlockId, TransactionId, UncleId, TraceId, ClientConfig, BlockChainClient,
+	ClientConfig, BlockChainClient,
 	TraceFilter, CallAnalytics, Mode,
 	ChainNotify, NewBlocks, ChainRoute, PruningInfo, ProvingBlockChainClient, EngineInfo, ChainMessageType,
-	IoClient, BadBlocks, bad_blocks, BlockInfo, ClientIoMessage,
+	IoClient, BadBlocks, bad_blocks, ClientIoMessage,
 };
+use client_traits::BlockInfo;
 use engines::{Engine, EpochTransition, ForkChoice};
-use executive::{Executive, Executed, TransactOptions, contract_address};
+use machine::{
+	executed::Executed,
+	executive::{Executive, TransactOptions, contract_address},
+	transaction_ext::Transaction,
+};
 use trie_vm_factories::{Factories, VmFactory};
 use miner::{Miner, MinerService};
 use snapshot::{self, io as snapshot_io, SnapshotClient};
@@ -61,7 +66,6 @@ use account_state::State;
 use executive_state;
 use state_db::StateDB;
 use trace::{self, TraceDB, ImportRequest as TraceImportRequest, LocalizedTrace, Database as TraceDatabase};
-use transaction_ext::Transaction;
 use types::{
 	ancestry_action::AncestryAction,
 	BlockNumber,
@@ -74,6 +78,7 @@ use types::{
 		machine::{AuxiliaryData, Call as MachineCall},
 	},
 	errors::{EngineError, ExecutionError, BlockError, EthcoreError, SnapshotError, ImportError, EthcoreResult},
+	ids::{BlockId, TransactionId, UncleId, TraceId},
 	transaction::{self, LocalizedTransaction, UnverifiedTransaction, SignedTransaction, Action, CallError},
 	filter::Filter,
 	log_entry::LocalizedLogEntry,

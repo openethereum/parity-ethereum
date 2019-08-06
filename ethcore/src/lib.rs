@@ -56,6 +56,7 @@
 extern crate account_db;
 extern crate account_state;
 extern crate ansi_term;
+extern crate client_traits;
 extern crate common_types as types;
 extern crate crossbeam_utils;
 extern crate ethabi;
@@ -83,6 +84,7 @@ extern crate kvdb_memorydb;
 
 extern crate len_caching_lock;
 extern crate lru_cache;
+extern crate machine;
 extern crate memory_cache;
 extern crate num_cpus;
 extern crate parity_bytes as bytes;
@@ -152,19 +154,19 @@ pub mod block;
 pub mod client;
 pub mod engines;
 pub mod ethereum;
-pub mod executed;
-pub mod executive;
+//pub mod executed;
+//pub mod executive;
 pub mod executive_state;
-pub mod machine;
+//pub mod machine;
 pub mod miner;
 pub mod snapshot;
 pub mod spec;
 pub mod verification;
 
-mod externalities;
-mod substate;
-mod transaction_ext;
-mod tx_filter;
+//mod externalities;
+//mod substate;
+//mod transaction_ext;
+//mod tx_filter;
 
 #[cfg(test)]
 mod tests;
@@ -173,6 +175,6 @@ pub mod json_tests;
 #[cfg(any(test, feature = "test-helpers"))]
 pub mod test_helpers;
 
-pub use executive::contract_address;
+//pub use executive::contract_address;
 pub use evm::CreateContractAddress;
 pub use trie::TrieSpec;

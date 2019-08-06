@@ -28,9 +28,9 @@ use types::view;
 use types::views::BlockView;
 
 use client::{BlockChainClient, BlockChainReset, Client, ClientConfig, BlockId, ChainInfo, PrepareOpenBlock, ImportSealedBlock, ImportBlock};
-use client::BlockInfo;
+use client_traits::BlockInfo;
 use ethereum;
-use executive::{Executive, TransactOptions};
+use machine::executive::{Executive, TransactOptions};
 use miner::{Miner, PendingOrdering, MinerService};
 use spec::Spec;
 use account_state::{State, CleanupMode, backend};

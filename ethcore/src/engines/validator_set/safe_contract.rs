@@ -458,7 +458,7 @@ mod tests {
 	use accounts::AccountProvider;
 	use types::transaction::{Transaction, Action};
 	use client::{ChainInfo, ImportBlock};
-	use client::BlockInfo;
+	use client_traits::BlockInfo;
 	use ethkey::Secret;
 	use miner::{self, MinerService};
 	use test_helpers::{generate_dummy_client_with_spec, generate_dummy_client_with_spec_and_data};

@@ -17,14 +17,16 @@
 use engines::Engine;
 use engines::block_reward::{self, RewardKind};
 use ethereum_types::U256;
-use machine::Machine;
+use machine::{
+	ExecutedBlock,
+	Machine,
+};
 use types::{
 	BlockNumber,
 	header::Header,
 	engines::params::CommonParams,
 	errors::EthcoreError as Error,
 };
-use block::ExecutedBlock;
 
 /// Params for a null engine.
 #[derive(Clone, Default)]
