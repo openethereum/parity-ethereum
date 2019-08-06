@@ -22,12 +22,15 @@ use ethkey::KeyPair;
 use hash::keccak;
 use io::IoChannel;
 use tempdir::TempDir;
-use types::transaction::{PendingTransaction, Transaction, Action, Condition};
-use types::filter::Filter;
-use types::view;
-use types::views::BlockView;
+use types::{
+	ids::BlockId,
+	transaction::{PendingTransaction, Transaction, Action, Condition},
+	filter::Filter,
+	view,
+	views::BlockView,
+};
 
-use client::{BlockChainClient, BlockChainReset, Client, ClientConfig, BlockId, ChainInfo, PrepareOpenBlock, ImportSealedBlock, ImportBlock};
+use client::{BlockChainClient, BlockChainReset, Client, ClientConfig, ChainInfo, PrepareOpenBlock, ImportSealedBlock, ImportBlock};
 use client_traits::BlockInfo;
 use ethereum;
 use machine::executive::{Executive, TransactOptions};
