@@ -60,7 +60,7 @@ use client::{
 use client::BlockId;
 use engines::{Engine, Seal, EngineSigner};
 use executive::contract_address;
-use spec::{Spec, bundle};
+use spec::Spec;
 use account_state::State;
 use vm::CreateContractAddress;
 
@@ -1488,6 +1488,7 @@ mod tests {
 	use miner::{MinerService, PendingOrdering};
 	use test_helpers::{generate_dummy_client, generate_dummy_client_with_spec};
 	use types::transaction::{Transaction};
+	use crate::spec::bundle;
 
 	#[test]
 	fn should_prepare_block_to_seal() {

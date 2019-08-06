@@ -19,8 +19,7 @@ use std::time::Duration;
 use std::{str, fs, fmt};
 
 use ethcore::client::Mode;
-use ethcore::ethereum;
-use ethcore::spec::{Spec, SpecParams};
+use ethcore::spec::{Spec, SpecParams, bundle};
 use ethereum_types::{U256, Address};
 use parity_runtime::Executor;
 use hash_fetch::fetch::Client as FetchClient;
@@ -115,23 +114,23 @@ impl SpecType {
 	pub fn spec<'a, T: Into<SpecParams<'a>>>(&self, params: T) -> Result<Spec, String> {
 		let params = params.into();
 		match *self {
-			SpecType::Foundation => Ok(ethereum::new_foundation(params)),
-			SpecType::Classic => Ok(ethereum::new_classic(params)),
-			SpecType::Poanet => Ok(ethereum::new_poanet(params)),
-			SpecType::Tobalaba => Ok(ethereum::new_tobalaba(params)),
-			SpecType::Expanse => Ok(ethereum::new_expanse(params)),
-			SpecType::Musicoin => Ok(ethereum::new_musicoin(params)),
-			SpecType::Ellaism => Ok(ethereum::new_ellaism(params)),
-			SpecType::Mix => Ok(ethereum::new_mix(params)),
-			SpecType::Callisto => Ok(ethereum::new_callisto(params)),
-			SpecType::Morden => Ok(ethereum::new_morden(params)),
-			SpecType::Ropsten => Ok(ethereum::new_ropsten(params)),
-			SpecType::Kovan => Ok(ethereum::new_kovan(params)),
-			SpecType::Rinkeby => Ok(ethereum::new_rinkeby(params)),
-			SpecType::Goerli => Ok(ethereum::new_goerli(params)),
-			SpecType::Kotti => Ok(ethereum::new_kotti(params)),
-			SpecType::Sokol => Ok(ethereum::new_sokol(params)),
-			SpecType::Dev => Ok(Spec::new_instant()),
+			SpecType::Foundation => Ok(bundle::new_foundation(params)),
+			SpecType::Classic => Ok(bundle::new_classic(params)),
+			SpecType::Poanet => Ok(bundle::new_poanet(params)),
+			SpecType::Tobalaba => Ok(bundle::new_tobalaba(params)),
+			SpecType::Expanse => Ok(bundle::new_expanse(params)),
+			SpecType::Musicoin => Ok(bundle::new_musicoin(params)),
+			SpecType::Ellaism => Ok(bundle::new_ellaism(params)),
+			SpecType::Mix => Ok(bundle::new_mix(params)),
+			SpecType::Callisto => Ok(bundle::new_callisto(params)),
+			SpecType::Morden => Ok(bundle::new_morden(params)),
+			SpecType::Ropsten => Ok(bundle::new_ropsten(params)),
+			SpecType::Kovan => Ok(bundle::new_kovan(params)),
+			SpecType::Rinkeby => Ok(bundle::new_rinkeby(params)),
+			SpecType::Goerli => Ok(bundle::new_goerli(params)),
+			SpecType::Kotti => Ok(bundle::new_kotti(params)),
+			SpecType::Sokol => Ok(bundle::new_sokol(params)),
+			SpecType::Dev => Ok(bundle::new_instant()),
 			SpecType::Custom(ref filename) => {
 				let file = fs::File::open(filename).map_err(|e| format!("Could not load specification file at {}: {}", filename, e))?;
 				Spec::load(params, file)
