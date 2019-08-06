@@ -39,11 +39,12 @@ use light::client::LightChainClient;
 use light::{cht, MAX_HEADERS_PER_REQUEST};
 use light::on_demand::{
 	request, OnDemandRequester, HeaderRef, Request as OnDemandRequest,
-	Response as OnDemandResponse, ExecutionResult,
+	Response as OnDemandResponse,
 };
 use light::on_demand::error::Error as OnDemandError;
 use light::request::Field;
 use light::TransactionQueue;
+use machine::executed::ExecutionResult;
 
 use sync::{LightNetworkDispatcher, ManageNetwork, LightSyncProvider};
 

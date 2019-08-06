@@ -43,6 +43,7 @@ extern crate futures;
 extern crate ansi_term;
 extern crate cid;
 extern crate itertools;
+extern crate machine;
 extern crate multihash;
 extern crate order_stat;
 extern crate parking_lot;
