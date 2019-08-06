@@ -862,7 +862,10 @@ impl Miner {
 	fn prepare_and_update_sealing<C: miner::BlockChainClient>(&self, chain: &C) {
 		use miner::MinerService;
 		match self.engine.sealing_state() {
-			SealingState::Ready => self.update_sealing(chain),
+			SealingState::Ready => {
+				self.maybe_enable_sealing();
+				self.update_sealing(chain)
+			}
 			SealingState::External => {
 				// this calls `maybe_enable_sealing()`
 				if self.prepare_pending_block(chain) == BlockPreparationStatus::NotPrepared {
