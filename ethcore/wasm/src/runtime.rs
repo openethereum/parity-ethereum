@@ -128,7 +128,7 @@ impl ::std::fmt::Display for Error {
 			Error::AllocationFailed => write!(f, "Memory allocation failed (OOM)"),
 			Error::BadUtf8 => write!(f, "String encoding is bad utf-8 sequence"),
 			Error::GasLimit => write!(f, "Invocation resulted in gas limit violated"),
-			Error::Log => write!(f, "Error occured while logging an event"),
+			Error::Log => write!(f, "Error occurred while logging an event"),
 			Error::InvalidSyscall => write!(f, "Invalid syscall signature encountered at runtime"),
 			Error::Other => write!(f, "Other unspecified error"),
 			Error::Unreachable => write!(f, "Unreachable instruction encountered"),

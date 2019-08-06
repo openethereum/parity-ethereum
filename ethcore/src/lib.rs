@@ -96,6 +96,7 @@ extern crate rayon;
 extern crate rlp;
 extern crate parity_util_mem;
 extern crate parity_util_mem as malloc_size_of;
+#[cfg(any(test, feature = "test-helpers"))]
 extern crate rustc_hex;
 extern crate serde;
 extern crate state_db;

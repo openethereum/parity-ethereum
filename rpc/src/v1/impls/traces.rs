@@ -95,6 +95,7 @@ impl<C, S> Traces for TracesClient<C> where
 		let signed = fake_sign::sign_call(request)?;
 
 		let id = match block {
+			BlockNumber::Hash { hash, .. } => BlockId::Hash(hash),
 			BlockNumber::Num(num) => BlockId::Number(num),
 			BlockNumber::Earliest => BlockId::Earliest,
 			BlockNumber::Latest => BlockId::Latest,
@@ -122,6 +123,7 @@ impl<C, S> Traces for TracesClient<C> where
 			.collect::<Result<Vec<_>>>()?;
 
 		let id = match block {
+			BlockNumber::Hash { hash, .. } => BlockId::Hash(hash),
 			BlockNumber::Num(num) => BlockId::Number(num),
 			BlockNumber::Earliest => BlockId::Earliest,
 			BlockNumber::Latest => BlockId::Latest,
@@ -144,6 +146,7 @@ impl<C, S> Traces for TracesClient<C> where
 		let signed = SignedTransaction::new(tx).map_err(errors::transaction)?;
 
 		let id = match block {
+			BlockNumber::Hash { hash, .. } => BlockId::Hash(hash),
 			BlockNumber::Num(num) => BlockId::Number(num),
 			BlockNumber::Earliest => BlockId::Earliest,
 			BlockNumber::Latest => BlockId::Latest,
@@ -167,6 +170,7 @@ impl<C, S> Traces for TracesClient<C> where
 
 	fn replay_block_transactions(&self, block_number: BlockNumber, flags: TraceOptions) -> Result<Vec<TraceResultsWithTransactionHash>> {
 		let id = match block_number {
+			BlockNumber::Hash { hash, .. } => BlockId::Hash(hash),
 			BlockNumber::Num(num) => BlockId::Number(num),
 			BlockNumber::Earliest => BlockId::Earliest,
 			BlockNumber::Latest => BlockId::Latest,
