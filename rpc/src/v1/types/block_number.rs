@@ -16,12 +16,20 @@
 
 use std::fmt;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
-use serde::de::{Error, Visitor};
+use serde::de::{Error, Visitor, MapAccess};
 use ethcore::client::BlockId;
+use ethereum_types::H256;
 
 /// Represents rpc api block number param.
 #[derive(Debug, PartialEq, Clone, Hash, Eq)]
 pub enum BlockNumber {
+	/// Hash
+	Hash {
+		/// block hash
+		hash: H256,
+		/// only return blocks part of the canon chain
+		require_canonical: bool,
+	},
 	/// Number
 	Num(u64),
 	/// Latest block
@@ -68,6 +76,7 @@ impl LightBlockNumber for BlockNumber {
 		// Since light clients don't produce pending blocks
 		// (they don't have state) we can safely fallback to `Latest`.
 		match self {
+			BlockNumber::Hash { hash, .. } => BlockId::Hash(hash),
 			BlockNumber::Num(n) => BlockId::Number(n),
 			BlockNumber::Earliest => BlockId::Earliest,
 			BlockNumber::Latest => BlockId::Latest,
@@ -82,6 +91,9 @@ impl LightBlockNumber for BlockNumber {
 impl Serialize for BlockNumber {
 	fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error> where S: Serializer {
 		match *self {
+			BlockNumber::Hash{ hash, require_canonical } => serializer.serialize_str(
+				&format!("{{ 'hash': '{}', 'requireCanonical': '{}'  }}", hash, require_canonical)
+			),
 			BlockNumber::Num(ref x) => serializer.serialize_str(&format!("0x{:x}", x)),
 			BlockNumber::Latest => serializer.serialize_str("latest"),
 			BlockNumber::Earliest => serializer.serialize_str("earliest"),
@@ -99,6 +111,54 @@ impl<'a> Visitor<'a> for BlockNumberVisitor {
 		write!(formatter, "a block number or 'latest', 'earliest' or 'pending'")
 	}
 
+	fn visit_map<V>(self, mut visitor: V) -> Result<Self::Value, V::Error> where V: MapAccess<'a> {
+		let (mut require_canonical, mut block_number, mut block_hash) = (false, None::<u64>, None::<H256>);
+
+		loop {
+			let key_str: Option<String> = visitor.next_key()?;
+
+			match key_str {
+				Some(key) => match key.as_str() {
+					"blockNumber" => {
+						let value: String = visitor.next_value()?;
+						if value.starts_with("0x") {
+							let number = u64::from_str_radix(&value[2..], 16).map_err(|e| {
+								Error::custom(format!("Invalid block number: {}", e))
+							})?;
+
+							block_number = Some(number);
+							break;
+						} else {
+							return Err(Error::custom("Invalid block number: missing 0x prefix".to_string()))
+						}
+					}
+					"blockHash" => {
+						block_hash = Some(visitor.next_value()?);
+					}
+					"requireCanonical" => {
+						require_canonical = visitor.next_value()?;
+					}
+					key => {
+						return Err(Error::custom(format!("Unknown key: {}", key)))
+					}
+				}
+				None => {
+					break
+				}
+			};
+		}
+
+		if let Some(number) = block_number {
+			return Ok(BlockNumber::Num(number))
+		}
+
+		if let Some(hash) = block_hash {
+			return Ok(BlockNumber::Hash { hash, require_canonical })
+		}
+
+		return Err(Error::custom("Invalid input"))
+	}
+
 	fn visit_str<E>(self, value: &str) -> Result<Self::Value, E> where E: Error {
 		match value {
 			"latest" => Ok(BlockNumber::Latest),
@@ -107,7 +167,9 @@ impl<'a> Visitor<'a> for BlockNumberVisitor {
 			_ if value.starts_with("0x") => u64::from_str_radix(&value[2..], 16).map(BlockNumber::Num).map_err(|e| {
 				Error::custom(format!("Invalid block number: {}", e))
 			}),
-			_ => Err(Error::custom("Invalid block number: missing 0x prefix".to_string())),
+			_ => {
+				Err(Error::custom("Invalid block number: missing 0x prefix".to_string()))
+			},
 		}
 	}
 
@@ -119,10 +181,10 @@ impl<'a> Visitor<'a> for BlockNumberVisitor {
 /// Converts `BlockNumber` to `BlockId`, panics on `BlockNumber::Pending`
 pub fn block_number_to_id(number: BlockNumber) -> BlockId {
 	match number {
+		BlockNumber::Hash { hash, .. } => BlockId::Hash(hash),
 		BlockNumber::Num(num) => BlockId::Number(num),
 		BlockNumber::Earliest => BlockId::Earliest,
 		BlockNumber::Latest => BlockId::Latest,
-
 		BlockNumber::Pending => panic!("`BlockNumber::Pending` should be handled manually")
 	}
 }
@@ -131,19 +193,40 @@ pub fn block_number_to_id(number: BlockNumber) -> BlockId {
 mod tests {
 	use ethcore::client::BlockId;
 	use super::*;
+	use std::str::FromStr;
 	use serde_json;
 
 	#[test]
 	fn block_number_deserialization() {
-		let s = r#"["0xa", "latest", "earliest", "pending"]"#;
+		let s = r#"[
+			"0xa",
+			"latest",
+			"earliest",
+			"pending",
+			{"blockNumber": "0xa"},
+			{"blockHash": "0x1dcc4de8dec75d7aab85b567b6ccd41ad312451b948a7413f0a142fd40d49347"},
+			{"blockHash": "0x1dcc4de8dec75d7aab85b567b6ccd41ad312451b948a7413f0a142fd40d49347", "requireCanonical": true}
+		]"#;
 		let deserialized: Vec<BlockNumber> = serde_json::from_str(s).unwrap();
-		assert_eq!(deserialized, vec![BlockNumber::Num(10), BlockNumber::Latest, BlockNumber::Earliest, BlockNumber::Pending])
+
+		assert_eq!(
+			deserialized,
+			vec![
+				BlockNumber::Num(10),
+				BlockNumber::Latest,
+				BlockNumber::Earliest,
+				BlockNumber::Pending,
+				BlockNumber::Num(10),
+				BlockNumber::Hash { hash: H256::from_str("1dcc4de8dec75d7aab85b567b6ccd41ad312451b948a7413f0a142fd40d49347").unwrap(), require_canonical: false },
+				BlockNumber::Hash { hash: H256::from_str("1dcc4de8dec75d7aab85b567b6ccd41ad312451b948a7413f0a142fd40d49347").unwrap(), require_canonical: true }
+			]
+		)
 	}
 
 	#[test]
-	fn should_not_deserialize_decimal() {
-		let s = r#""10""#;
-		assert!(serde_json::from_str::<BlockNumber>(s).is_err());
+	fn should_not_deserialize() {
+		let s = r#"[{}, "10"]"#;
+		assert!(serde_json::from_str::<Vec<BlockNumber>>(s).is_err());
 	}
 
 	#[test]

@@ -350,6 +350,7 @@ impl<C, M, U, S> Parity for ParityClient<C, M, U> where
 			(header.encoded(), None)
 		} else {
 			let id = match number {
+				BlockNumber::Hash { hash, .. } => BlockId::Hash(hash),
 				BlockNumber::Num(num) => BlockId::Number(num),
 				BlockNumber::Earliest => BlockId::Earliest,
 				BlockNumber::Latest => BlockId::Latest,
@@ -381,6 +382,7 @@ impl<C, M, U, S> Parity for ParityClient<C, M, U> where
 					.collect()
 				))
 			},
+			BlockNumber::Hash { hash, .. } => BlockId::Hash(hash),
 			BlockNumber::Num(num) => BlockId::Number(num),
 			BlockNumber::Earliest => BlockId::Earliest,
 			BlockNumber::Latest => BlockId::Latest,
@@ -412,6 +414,7 @@ impl<C, M, U, S> Parity for ParityClient<C, M, U> where
 			(state, header)
 		} else {
 			let id = match num {
+				BlockNumber::Hash { hash, .. } => BlockId::Hash(hash),
 				BlockNumber::Num(num) => BlockId::Number(num),
 				BlockNumber::Earliest => BlockId::Earliest,
 				BlockNumber::Latest => BlockId::Latest,
