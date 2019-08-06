@@ -450,10 +450,7 @@ mod tests {
 	use ethereum_types::{U256, Address};
 	use evm::{EnvInfo, Ext, CallType};
 	use account_state::State;
-	use ethcore::{
-//		spec,
-		test_helpers::get_temp_state
-	};
+	use ethcore::test_helpers::get_temp_state;
 	use trace::{NoopTracer, NoopVMTracer};
 
 	use crate::{

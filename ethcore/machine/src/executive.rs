@@ -1226,7 +1226,6 @@ mod tests {
 		errors::ExecutionError,
 		transaction::{Action, Transaction},
 	};
-//	use ethcore::ethereum;
 	use ethkey::{Generator, Random};
 	use evm::{Factory, VMType, evm_test, evm_test_ignore};
 	use macros::vec_into;

@@ -29,6 +29,7 @@ use machine::{
 	externalities::{OutputPolicy, OriginInfo, Externalities},
 	substate::Substate,
 	executive::*, // todo[dvdplm] make explicit
+	test_helpers::new_frontier_test_machine,
 };
 
 use test_helpers::get_temp_state;
@@ -273,7 +274,7 @@ fn do_json_test_for<H: FnMut(&str, HookType)>(vm_type: &VMType, json_data: &[u8]
 		state.populate_from(From::from(vm.pre_state.clone()));
 		let info: EnvInfo = From::from(vm.env);
 		let machine = {
-			let mut machine = ::ethereum::new_frontier_test_machine();
+			let mut machine = new_frontier_test_machine();
 			machine.set_schedule_creation_rules(Box::new(move |s, _| s.max_depth = 1));
 			machine
 		};

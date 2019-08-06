@@ -1370,7 +1370,8 @@ pub mod tests {
 	use super::*;
 	use ::SyncConfig;
 	use super::{PeerInfo, PeerAsking};
-	use ethcore::client::{BlockChainClient, EachBlockWith, TestBlockChainClient, ChainInfo, BlockInfo};
+	use ethcore::client::{BlockChainClient, EachBlockWith, TestBlockChainClient, ChainInfo};
+	use client_traits::BlockInfo;
 	use ethcore::miner::{MinerService, PendingOrdering};
 	use types::header::Header;
 

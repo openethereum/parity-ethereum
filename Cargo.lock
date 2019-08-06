@@ -1320,6 +1320,7 @@ dependencies = [
 name = "ethcore-sync"
 version = "1.12.0"
 dependencies = [
+ "client-traits 0.1.0",
  "common-types 0.1.0",
  "enum_primitive 0.1.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "env_logger 0.5.13 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -1340,6 +1341,7 @@ dependencies = [
  "kvdb 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "kvdb-memorydb 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "log 0.4.8 (registry+https://github.com/rust-lang/crates.io-index)",
+ "machine 0.1.0",
  "macros 0.1.0",
  "parity-bytes 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "parity-runtime 0.1.0",
@@ -2880,6 +2882,7 @@ dependencies = [
  "account-state 0.1.0",
  "ansi_term 0.11.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "cid 0.3.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "client-traits 0.1.0",
  "common-types 0.1.0",
  "eip-712 0.1.0",
  "ethash 1.12.0",

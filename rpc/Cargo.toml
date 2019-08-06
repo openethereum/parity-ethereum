@@ -67,6 +67,7 @@ trace = { path = "../ethcore/trace" }
 vm = { path = "../ethcore/vm" }
 
 [dev-dependencies]
+client-traits = { path = "../ethcore/client-traits" }
 ethcore = { path = "../ethcore", features = ["test-helpers"] }
 ethcore-accounts = { path = "../accounts" }
 ethcore-io = { path = "../util/io" }
