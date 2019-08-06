@@ -17,7 +17,7 @@
 use std::collections::BTreeMap;
 use std::sync::Arc;
 
-use blockchain::{BlockReceipts, TreeRoute};
+use blockchain::{BlockReceipts, TreeRoute, BlockProvider};
 use bytes::Bytes;
 use call_contract::{CallContract, RegistryInfo};
 use client_traits::BlockInfo;
@@ -218,6 +218,8 @@ pub trait BlockChainClient : Sync + Send + AccountData + BlockChain + CallContra
 		self.code(address, BlockId::Latest.into())
 			.expect("code will return Some if given BlockId::Latest; qed")
 	}
+
+	fn chain(&self) -> Arc<BlockProvider>;
 
 	/// Get block queue information.
 	fn queue_info(&self) -> BlockQueueInfo;

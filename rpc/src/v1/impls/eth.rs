@@ -244,6 +244,7 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM, T: StateInfo + 'static> EthClient<C, SN, S
 
 			BlockNumberOrId::Number(num) => {
 				let id = match num {
+					BlockNumber::Hash { hash, .. } => BlockId::Hash(hash),
 					BlockNumber::Latest => BlockId::Latest,
 					BlockNumber::Earliest => BlockId::Earliest,
 					BlockNumber::Num(n) => BlockId::Number(n),
@@ -436,10 +437,10 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM, T: StateInfo + 'static> EthClient<C, SN, S
 
 	fn get_state(&self, number: BlockNumber) -> StateOrBlock {
 		match number {
+			BlockNumber::Hash { hash, .. } => BlockId::Hash(hash).into(),
 			BlockNumber::Num(num) => BlockId::Number(num).into(),
 			BlockNumber::Earliest => BlockId::Earliest.into(),
 			BlockNumber::Latest => BlockId::Latest.into(),
-
 			BlockNumber::Pending => {
 				let info = self.client.chain_info();
 
@@ -475,10 +476,22 @@ fn check_known<C>(client: &C, number: BlockNumber) -> Result<()> where C: BlockC
 
 	let id = match number {
 		BlockNumber::Pending => return Ok(()),
-
 		BlockNumber::Num(n) => BlockId::Number(n),
 		BlockNumber::Latest => BlockId::Latest,
 		BlockNumber::Earliest => BlockId::Earliest,
+		BlockNumber::Hash { hash, require_canonical } => {
+			// block check takes precedence over canon check.
+			match client.block_status(BlockId::Hash(hash.clone())) {
+				BlockStatus::InChain => {},
+				_ => return Err(errors::unknown_block()),
+			};
+
+			if require_canonical && !client.chain().is_canon(&hash) {
+				return Err(errors::invalid_input())
+			}
+
+			return Ok(())
+		}
 	};
 
 	match client.block_status(id) {
@@ -592,6 +605,7 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM, T: StateInfo + 'static> Eth for EthClient<
 
 		let num = num.unwrap_or_default();
 		let id = match num {
+			BlockNumber::Hash { hash, .. } => BlockId::Hash(hash),
 			BlockNumber::Num(n) => BlockId::Number(n),
 			BlockNumber::Earliest => BlockId::Earliest,
 			BlockNumber::Latest => BlockId::Latest,
@@ -765,6 +779,7 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM, T: StateInfo + 'static> Eth for EthClient<
 
 	fn transaction_by_block_number_and_index(&self, num: BlockNumber, index: Index) -> BoxFuture<Option<Transaction>> {
 		let block_id = match num {
+			BlockNumber::Hash { hash, .. } => PendingOrBlock::Block(BlockId::Hash(hash)),
 			BlockNumber::Latest => PendingOrBlock::Block(BlockId::Latest),
 			BlockNumber::Earliest => PendingOrBlock::Block(BlockId::Earliest),
 			BlockNumber::Num(num) => PendingOrBlock::Block(BlockId::Number(num)),
@@ -801,6 +816,7 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM, T: StateInfo + 'static> Eth for EthClient<
 
 	fn uncle_by_block_number_and_index(&self, num: BlockNumber, index: Index) -> BoxFuture<Option<RichBlock>> {
 		let id = match num {
+			BlockNumber::Hash { hash, .. } => PendingUncleId { id: PendingOrBlock::Block(BlockId::Hash(hash)), position: index.value() },
 			BlockNumber::Latest => PendingUncleId { id: PendingOrBlock::Block(BlockId::Latest), position: index.value() },
 			BlockNumber::Earliest => PendingUncleId { id: PendingOrBlock::Block(BlockId::Earliest), position: index.value() },
 			BlockNumber::Num(num) => PendingUncleId { id: PendingOrBlock::Block(BlockId::Number(num)), position: index.value() },
@@ -917,6 +933,7 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM, T: StateInfo + 'static> Eth for EthClient<
 		let signed = try_bf!(fake_sign::sign_call(request));
 
 		let num = num.unwrap_or_default();
+		try_bf!(check_known(&*self.client, num.clone()));
 
 		let (mut state, header) = if num == BlockNumber::Pending {
 			let info = self.client.chain_info();
@@ -926,6 +943,7 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM, T: StateInfo + 'static> Eth for EthClient<
 			(state, header)
 		} else {
 			let id = match num {
+				BlockNumber::Hash { hash, .. } => BlockId::Hash(hash),
 				BlockNumber::Num(num) => BlockId::Number(num),
 				BlockNumber::Earliest => BlockId::Earliest,
 				BlockNumber::Latest => BlockId::Latest,
@@ -967,6 +985,7 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM, T: StateInfo + 'static> Eth for EthClient<
 			(state, header)
 		} else {
 			let id = match num {
+				BlockNumber::Hash { hash, .. } => BlockId::Hash(hash),
 				BlockNumber::Num(num) => BlockId::Number(num),
 				BlockNumber::Earliest => BlockId::Earliest,
 				BlockNumber::Latest => BlockId::Latest,

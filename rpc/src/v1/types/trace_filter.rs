@@ -46,6 +46,7 @@ pub struct TraceFilter {
 impl Into<Filter> for TraceFilter {
 	fn into(self) -> Filter {
 		let num_to_id = |num| match num {
+			BlockNumber::Hash { hash, .. } => BlockId::Hash(hash),
 			BlockNumber::Num(n) => BlockId::Number(n),
 			BlockNumber::Earliest => BlockId::Earliest,
 			BlockNumber::Latest => BlockId::Latest,
