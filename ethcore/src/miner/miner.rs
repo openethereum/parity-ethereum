@@ -1107,7 +1107,7 @@ impl miner::MinerService for Miner {
 						Eq(value) => tx_value == value,
 						GreaterThan(value) => tx_value > value,
 						LessThan(value) => tx_value < value,
-						// Will always occure on `Any`, other operators
+						// Will always occur on `Any`, other operators
 						// get handled during deserialization
 						_ => true,
 					}
@@ -1123,7 +1123,7 @@ impl miner::MinerService for Miner {
 							let sender = tx.signed().sender();
 							match filter.from {
 								Eq(value) => sender == value,
-								// Will always occure on `Any`, other operators
+								// Will always occur on `Any`, other operators
 								// get handled during deserialization
 								_ => true,
 							}
@@ -1136,7 +1136,7 @@ impl miner::MinerService for Miner {
 							match filter.to {
 								// Could apply to `Some(Address)` or `None` (for contract creation)
 								Eq(value) => receiver == value,
-								// Will always occure on `Any`, other operators
+								// Will always occur on `Any`, other operators
 								// get handled during deserialization
 								_ => true,
 							}

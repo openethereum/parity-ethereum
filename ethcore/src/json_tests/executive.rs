@@ -300,7 +300,7 @@ fn do_json_test_for<H: FnMut(&str, HookType)>(vm_type: &VMType, json_data: &[u8]
 				&mut tracer,
 				&mut vm_tracer,
 			));
-			let mut evm = vm_factory.create(params, &schedule, 0).expect("Current tests are all of version 0; factory always return Some; qed");
+			let evm = vm_factory.create(params, &schedule, 0).expect("Current tests are all of version 0; factory always return Some; qed");
 			let res = evm.exec(&mut ex).ok().expect("TestExt never trap; resume error never happens; qed");
 			// a return in finalize will not alter callcreates
 			let callcreates = ex.callcreates.clone();
