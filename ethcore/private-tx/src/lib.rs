@@ -93,10 +93,12 @@ use machine::{
 	executive::{Executive, TransactOptions, contract_address as ethcore_contract_address},
 	executed::Executed,
 };
-use types::transaction::{SignedTransaction, Transaction, Action, UnverifiedTransaction};
+use types::{
+	ids::BlockId,
+	transaction::{SignedTransaction, Transaction, Action, UnverifiedTransaction}
+};
 use ethcore::client::{
-	Client, ChainNotify, NewBlocks, ChainMessageType, ClientIoMessage, BlockId,
-	Call
+	Client, ChainNotify, NewBlocks, ChainMessageType, ClientIoMessage, Call
 };
 use client_traits::BlockInfo;
 use ethcore::miner::{self, Miner, MinerService, pool_client::NonceCache};

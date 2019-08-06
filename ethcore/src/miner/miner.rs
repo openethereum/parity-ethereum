@@ -45,6 +45,7 @@ use types::transaction::{
 };
 use types::{
 	BlockNumber,
+	ids::TransactionId,
 	block::Block,
 	header::Header,
 	ids::BlockId,
@@ -56,7 +57,7 @@ use using_queue::{UsingQueue, GetAction};
 
 use block::{ClosedBlock, SealedBlock};
 use client::{
-	BlockChain, ChainInfo, BlockProducer, SealedBlockImporter, Nonce, TransactionInfo, TransactionId, ClientIoMessage,
+	BlockChain, ChainInfo, BlockProducer, SealedBlockImporter, Nonce, TransactionInfo, ClientIoMessage,
 };
 use engines::{Engine, Seal, EngineSigner};
 use machine::executive::contract_address;

@@ -41,12 +41,13 @@ pub use self::traits::{
 };
 pub use account_state::state::StateInfo;
 
-pub use types::ids::*; // todo[dvdplm] Why these re-exports?
-pub use types::trace_filter::Filter as TraceFilter;
-pub use types::pruning_info::PruningInfo;
-pub use types::call_analytics::CallAnalytics;
+use types::{
+	ids::*,
+	trace_filter::Filter as TraceFilter,
+	pruning_info::PruningInfo,
+	call_analytics::CallAnalytics,
+};
 
-//pub use executive::{Executed, Executive, TransactOptions}; // todo[dvdplm] Why these re-exports?
 pub use vm::{LastHashes, EnvInfo};
 
 pub use verification::VerifierType;

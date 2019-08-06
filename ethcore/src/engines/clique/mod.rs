@@ -65,7 +65,7 @@ use std::thread;
 use std::time;
 use std::time::{Instant, Duration, SystemTime, UNIX_EPOCH};
 
-use client::{BlockId, EngineClient};
+use client::EngineClient;
 use engines::clique::util::{extract_signers, recover_creator};
 use engines::{Engine, Seal, SealingState, EthashSeal};
 use ethereum_types::{Address, H64, H160, H256, U256};
@@ -84,6 +84,7 @@ use unexpected::{Mismatch, OutOfBounds};
 use time_utils::CheckedSystemTime;
 use types::{
 	BlockNumber,
+	ids::BlockId,
 	header::Header,
 	engines::{
 		params::CommonParams,

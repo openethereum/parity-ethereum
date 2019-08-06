@@ -17,7 +17,7 @@
 use std::fmt;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use serde::de::{Error, Visitor};
-use ethcore::client::BlockId;
+use types::ids::BlockId;
 
 /// Represents rpc api block number param.
 #[derive(Debug, PartialEq, Clone, Hash, Eq)]

@@ -25,16 +25,19 @@ use ethereum_types::{Address, H64, H160, H256, U64, U256, BigEndianHash};
 use parking_lot::Mutex;
 
 use ethash::{self, SeedHashCompute};
-use ethcore::client::{BlockChainClient, BlockId, TransactionId, UncleId, StateOrBlock, StateClient, StateInfo, Call, EngineInfo, ProvingBlockChainClient};
+use ethcore::client::{BlockChainClient, StateOrBlock, StateClient, StateInfo, Call, EngineInfo, ProvingBlockChainClient};
 use ethcore::miner::{self, MinerService};
 use ethcore::snapshot::SnapshotService;
 use hash::keccak;
 use miner::external::ExternalMinerService;
 use sync::SyncProvider;
-use types::transaction::{SignedTransaction, LocalizedTransaction};
-use types::BlockNumber as EthBlockNumber;
-use types::encoded;
-use types::filter::Filter as EthcoreFilter;
+use types::{
+	BlockNumber as EthBlockNumber,
+	encoded,
+	ids::{BlockId, TransactionId, UncleId},
+	filter::Filter as EthcoreFilter,
+	transaction::{SignedTransaction, LocalizedTransaction}
+};
 
 use jsonrpc_core::{BoxFuture, Result};
 use jsonrpc_core::futures::future;

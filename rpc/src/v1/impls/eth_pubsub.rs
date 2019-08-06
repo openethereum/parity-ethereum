@@ -31,7 +31,7 @@ use v1::traits::EthPubSub;
 use v1::types::{pubsub, RichHeader, Log};
 
 use sync::{SyncState, Notification};
-use ethcore::client::{BlockChainClient, ChainNotify, NewBlocks, ChainRouteType, BlockId};
+use ethcore::client::{BlockChainClient, ChainNotify, NewBlocks, ChainRouteType};
 use ethereum_types::H256;
 use light::cache::Cache;
 use light::client::{LightChainClient, LightChainNotify};
@@ -41,8 +41,11 @@ use parking_lot::{RwLock, Mutex};
 
 use sync::{LightSyncProvider, LightNetworkDispatcher, ManageNetwork};
 
-use types::encoded;
-use types::filter::Filter as EthFilter;
+use types::{
+	ids::BlockId,
+	encoded,
+	filter::Filter as EthFilter,
+};
 
 type Client = Sink<pubsub::Result>;
 
