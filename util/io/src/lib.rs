@@ -69,20 +69,6 @@
 //TODO: use Poll from mio
 #![allow(deprecated)]
 
-//#[cfg(feature = "mio")]
-//extern crate mio;
-//#[macro_use]
-//extern crate log as rlog;
-//extern crate slab;
-//extern crate crossbeam_deque as deque;
-//extern crate parking_lot;
-//extern crate num_cpus;
-//extern crate timer;
-//extern crate fnv;
-//extern crate time;
-//extern crate tokio;
-//extern crate futures;
-
 #[cfg(feature = "mio")]
 mod service_mio;
 #[cfg(not(feature = "mio"))]
