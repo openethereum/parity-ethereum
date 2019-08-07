@@ -58,12 +58,11 @@ void callback(void* user_data, const char* response, size_t _len) {
 }
 
 int main() {
-	std::vector<const char*> config = {"--no-ipc" , "--jsonrpc-apis=all", "--chain", "kovan"};
+	std::vector<const char*> config {"--no-ipc" , "--jsonrpc-apis=all", "--chain", "goerli"};
+	std::string logger_mode {"rpc=debug,pubsub=debug"};
+	std::string log_file {};
 
-	std::string logger_mode = "rpc=trace";
-	std::string logger_file = "";
-
-	ParityClient client (config, logger_mode, logger_file);
+	ParityClient client {config, logger_mode, log_file};
 
 	// make rpc queries
 	{

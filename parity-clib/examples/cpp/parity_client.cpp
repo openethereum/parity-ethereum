@@ -70,6 +70,5 @@ WebsocketSubscription ParityClient::websocket_subscribe(
 		throw std::runtime_error("ParityClient subscription to Websocket failed");
 	}
 
-	WebsocketSubscription ws (session);
-	return ws;
+	return WebsocketSubscription {session};
 }
