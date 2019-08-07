@@ -62,7 +62,6 @@ fn fmt_err<F: ::std::fmt::Display>(f: F) -> String {
 
 /// Runtime parameters for the spec that are related to how the software should run the chain,
 /// rather than integral properties of the chain itself.
-#[derive(Debug, Clone, Copy)]
 pub struct SpecParams<'a> {
 	/// The path to the folder used to cache nodes. This is typically /tmp/ on Unix-like systems
 	pub cache_dir: &'a Path,
@@ -186,7 +185,6 @@ fn run_constructors<T: Backend>(
 
 /// Parameters for a block chain; includes both those intrinsic to the design of the
 /// chain and those to be interpreted by the active chain engine.
-#[derive(Clone)]
 pub struct Spec {
 	/// User friendly spec name.
 	pub name: String,
@@ -227,7 +225,6 @@ pub struct Spec {
 }
 
 /// Part of `Spec`. Describes the hardcoded synchronization parameters.
-#[derive(Debug, Clone)]
 pub struct SpecHardcodedSync {
 	/// Header of the block to jump to for hardcoded sync, and total difficulty.
 	pub header: encoded::Header,
