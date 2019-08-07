@@ -50,7 +50,7 @@ pub enum IoMessage<Message> where Message: Send + Sized {
 	Shutdown,
 	/// Register a new protocol handler.
 	AddHandler {
-		handler: Arc<dyn IoHandler<Message>+Send>,
+		handler: Arc<dyn IoHandler<Message> + Send>,
 	},
 	RemoveHandler {
 		handler_id: HandlerId,
