@@ -62,7 +62,7 @@ pub fn json_chain_test<H: FnMut(&str, HookType)>(json_data: &[u8], start_stop_ho
 
 			for (spec_name, states) in test.post_states {
 				let total = states.len();
-				let spec = match EvmTestClient::spec_from_json(&spec_name) {
+				let spec = match EvmTestClient::fork_spec_from_json(&spec_name) {
 					Some(spec) => spec,
 					None => {
 						println!("   - {} | {:?} Ignoring tests because of missing spec", name, spec_name);

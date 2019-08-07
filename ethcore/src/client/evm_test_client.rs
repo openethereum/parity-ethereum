@@ -99,7 +99,7 @@ impl<'a> fmt::Debug for EvmTestClient<'a> {
 
 impl<'a> EvmTestClient<'a> {
 	/// Converts a json spec definition into spec.
-	pub fn spec_from_json(spec: &ForkSpec) -> Option<spec::Spec> {
+	pub fn fork_spec_from_json(spec: &ForkSpec) -> Option<spec::Spec> {
 		match *spec {
 			ForkSpec::Frontier => Some(ethereum::new_frontier_test()),
 			ForkSpec::Homestead => Some(ethereum::new_homestead_test()),

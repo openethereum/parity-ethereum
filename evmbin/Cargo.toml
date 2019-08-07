@@ -9,6 +9,7 @@ name = "parity-evm"
 path = "./src/main.rs"
 
 [dependencies]
+account-state = { path = "../ethcore/account-state" }
 common-types = { path = "../ethcore/types" }
 docopt = "1.0"
 env_logger = "0.5"
@@ -23,7 +24,6 @@ rustc-hex = "1.0"
 serde = "1.0"
 serde_derive = "1.0"
 serde_json = "1.0"
-account-state = { path = "../ethcore/account-state" }
 trace = { path = "../ethcore/trace" }
 vm = { path = "../ethcore/vm" }
 

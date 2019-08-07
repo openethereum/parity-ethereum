@@ -47,7 +47,7 @@ fn do_json_test<H: FnMut(&str, HookType)>(json_data: &[u8], start_stop_hook: &mu
 		start_stop_hook(&name, HookType::OnStart);
 
 		for (spec_name, result) in test.post_state {
-			let spec = match EvmTestClient::spec_from_json(&spec_name) {
+			let spec = match EvmTestClient::fork_spec_from_json(&spec_name) {
 				Some(spec) => spec,
 				None => {
 					println!("   - {} | {:?} Ignoring tests because of missing spec", name, spec_name);
