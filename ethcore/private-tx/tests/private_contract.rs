@@ -39,6 +39,7 @@ use ethcore::{
 	client::BlockChainClient,
 	test_helpers::{generate_dummy_client, push_block_with_transactions},
 	miner::Miner,
+	spec,
 };
 use ethkey::{Secret, KeyPair, Signature};
 use machine::executive::contract_address;
