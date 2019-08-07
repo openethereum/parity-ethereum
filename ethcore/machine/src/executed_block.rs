@@ -14,9 +14,9 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
-// todo[dvdplm] improve docs
-//! `ExecutedBlock` is an underlying data structure used by other block types to store block
-//! related info.
+//! `ExecutedBlock` is the underlying data structure used by other block types to store block
+//! related info. As a block goes through processing we use different types to signal its state:
+//! "open", "closed", "locked", "sealed". They all embed an `ExecutedBlock`.
 
 use std::{
 	collections::HashSet,

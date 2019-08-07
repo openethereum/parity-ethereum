@@ -14,7 +14,9 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
-// todo[dvdplm]: document all modules
+//! This crate provides a state machine and the facilities needed to execute transactions and the
+//! code contained therein, as well as contract based transaction permissions. All ethereum
+//! engines embed a `Machine`.
 
 // todo[dvdplm]: fix ethabi for use with edition 2018
 #[macro_use]

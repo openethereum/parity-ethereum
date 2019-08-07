@@ -98,7 +98,7 @@ impl Machine {
 
 	/// Execute a call as the system address. Block environment information passed to the
 	/// VM is modified to have its gas limit bounded at the upper limit of possible used
-	/// gases including this system call, capped at the maximum value able to be
+	/// gas, including this system call, capped at the maximum value able to be
 	/// represented by U256. This system call modifies the block state, but discards other
 	/// information. If suicides, logs or refunds happen within the system call, they
 	/// will not be executed or recorded. Gas used by this system call will not be counted

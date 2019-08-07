@@ -28,8 +28,8 @@
 //! `LockedBlock` is a version of a `ClosedBlock` that cannot be reopened. It can be sealed
 //! using an engine.
 //!
-//! `ExecutedBlock` is an underlying data structure used by all structs above to store block
-//! related info.
+//! `ExecutedBlock` from the `machine` crate is the underlying data structure used by all structs
+//! above to store block related info.
 
 use std::{cmp, ops};
 use std::sync::Arc;
