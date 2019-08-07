@@ -21,8 +21,6 @@
 // todo[dvdplm]: fix ethabi for use with edition 2018
 #[macro_use]
 extern crate ethabi_derive;
-#[macro_use]
-extern crate ethabi_contract;
 
 pub mod executed;
 pub mod executed_block;

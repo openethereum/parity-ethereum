@@ -21,6 +21,7 @@ use ethereum_types::{H256, U256, Address};
 use log::{trace, error};
 use lru_cache::LruCache;
 
+use ethabi_contract::use_contract;
 use ethcore_call_contract::CallContract;
 use client_traits::BlockInfo;
 use parking_lot::Mutex;
