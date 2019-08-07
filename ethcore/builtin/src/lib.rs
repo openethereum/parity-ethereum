@@ -581,9 +581,17 @@ impl Implementation for EIP1962 {
 			return Err("Precompile call was unsuccessful");
 		}
 		let result: Vec<u8> = result.expect("some result");
-		let mut buf = [0u8; 32];
-		buf[31] = result[0];
-		output.write(0, &buf);
+		if result.len() == 0 {
+			return Err("Precompile call returned no data");
+		}
+		if result.len() == 1 {
+			// manually made BE of Uint256(1)
+			let mut buf = [0u8; 32];
+			buf[31] = result[0];
+			output.write(0, &buf);
+		} else {
+			output.write(0, &result[..]);
+		}
 
 		Ok(())
 	}
