@@ -899,7 +899,7 @@ impl Drop for Service {
 mod tests {
 	use client::ClientIoMessage;
 	use io::{IoService};
-	use spec::Spec;
+	use crate::spec;
 	use journaldb::Algorithm;
 	use snapshot::{ManifestData, RestorationStatus, SnapshotService};
 	use super::*;
@@ -909,9 +909,9 @@ mod tests {
 	#[test]
 	fn sends_async_messages() {
 		let gas_prices = vec![1.into(), 2.into(), 3.into(), 999.into()];
-		let client = generate_dummy_client_with_spec_and_data(Spec::new_null, 400, 5, &gas_prices);
+		let client = generate_dummy_client_with_spec_and_data(spec::new_null, 400, 5, &gas_prices);
 		let service = IoService::<ClientIoMessage>::start().unwrap();
-		let spec = Spec::new_test();
+		let spec = spec::new_test();
 
 		let tempdir = TempDir::new("").unwrap();
 		let dir = tempdir.path().join("snapshot");
@@ -952,7 +952,7 @@ mod tests {
 		use ethereum_types::H256;
 		use kvdb_rocksdb::DatabaseConfig;
 
-		let spec = Spec::new_test();
+		let spec = spec::new_test();
 		let tempdir = TempDir::new("").unwrap();
 
 		let state_hashes: Vec<_> = (0..5).map(|_| H256::random()).collect();

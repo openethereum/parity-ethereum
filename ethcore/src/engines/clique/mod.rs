@@ -227,7 +227,7 @@ impl Clique {
 	/// Note we need to `mock` the miner and it is introduced to test block verification to trigger new blocks
 	/// to mainly test consensus edge cases
 	pub fn with_test(epoch_length: u64, period: u64) -> Self {
-		use spec::Spec;
+		use crate::spec;
 
 		Self {
 			epoch_length,
@@ -236,7 +236,7 @@ impl Clique {
 			block_state_by_hash: RwLock::new(LruCache::new(STATE_CACHE_NUM)),
 			proposals: Default::default(),
 			signer: Default::default(),
-			machine: Spec::new_test_machine(),
+			machine: spec::new_test_machine(),
 		}
 	}
 

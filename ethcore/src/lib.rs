@@ -152,7 +152,6 @@ extern crate parity_runtime;
 pub mod block;
 pub mod client;
 pub mod engines;
-pub mod ethereum;
 pub mod executed;
 pub mod executive;
 pub mod executive_state;

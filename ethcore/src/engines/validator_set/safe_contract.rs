@@ -454,7 +454,7 @@ mod tests {
 	use hash::keccak;
 	use ethereum_types::Address;
 	use types::ids::BlockId;
-	use spec::Spec;
+	use crate::spec;
 	use accounts::AccountProvider;
 	use types::transaction::{Transaction, Action};
 	use client::{ChainInfo, ImportBlock};
@@ -468,7 +468,7 @@ mod tests {
 
 	#[test]
 	fn fetches_validators() {
-		let client = generate_dummy_client_with_spec(Spec::new_validator_safe_contract);
+		let client = generate_dummy_client_with_spec(spec::new_validator_safe_contract);
 		let vc = Arc::new(ValidatorSafeContract::new("0000000000000000000000000000000000000005".parse::<Address>().unwrap()));
 		vc.register_client(Arc::downgrade(&client) as _);
 		let last_hash = client.best_block_header().hash();
@@ -483,8 +483,8 @@ mod tests {
 		let s0: Secret = keccak("1").into();
 		let v0 = tap.insert_account(s0.clone(), &"".into()).unwrap();
 		let v1 = tap.insert_account(keccak("0").into(), &"".into()).unwrap();
-		let chain_id = Spec::new_validator_safe_contract().chain_id();
-		let client = generate_dummy_client_with_spec(Spec::new_validator_safe_contract);
+		let chain_id = spec::new_validator_safe_contract().chain_id();
+		let client = generate_dummy_client_with_spec(spec::new_validator_safe_contract);
 		client.engine().register_client(Arc::downgrade(&client) as _);
 		let validator_contract = "0000000000000000000000000000000000000005".parse::<Address>().unwrap();
 		let signer = Box::new((tap.clone(), v1, "".into()));
@@ -538,7 +538,7 @@ mod tests {
 		assert_eq!(client.chain_info().best_block_number, 3);
 
 		// Check syncing.
-		let sync_client = generate_dummy_client_with_spec_and_data(Spec::new_validator_safe_contract, 0, 0, &[]);
+		let sync_client = generate_dummy_client_with_spec_and_data(spec::new_validator_safe_contract, 0, 0, &[]);
 		sync_client.engine().register_client(Arc::downgrade(&sync_client) as _);
 		for i in 1..4 {
 			sync_client.import_block(Unverified::from_rlp(client.block(BlockId::Number(i)).unwrap().into_inner()).unwrap()).unwrap();
@@ -556,7 +556,7 @@ mod tests {
 			engines::machine::AuxiliaryRequest,
 		};
 
-		let client = generate_dummy_client_with_spec(Spec::new_validator_safe_contract);
+		let client = generate_dummy_client_with_spec(spec::new_validator_safe_contract);
 		let engine = client.engine().clone();
 		let validator_contract = "0000000000000000000000000000000000000005".parse::<Address>().unwrap();
 
@@ -593,7 +593,7 @@ mod tests {
 		use types::header::Header;
 		use engines::{EpochChange, Proof};
 
-		let client = generate_dummy_client_with_spec(Spec::new_validator_safe_contract);
+		let client = generate_dummy_client_with_spec(spec::new_validator_safe_contract);
 		let engine = client.engine().clone();
 
 		let mut new_header = Header::default();

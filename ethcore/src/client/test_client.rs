@@ -66,7 +66,7 @@ use engines::Engine;
 use executive::Executed;
 use journaldb;
 use miner::{self, Miner, MinerService};
-use spec::Spec;
+use spec::{Spec, self};
 use account_state::state::StateInfo;
 use state_db::StateDB;
 use trace::LocalizedTrace;
@@ -152,7 +152,7 @@ impl TestBlockChainClient {
 
 	/// Creates new test client with specified extra data for each block
 	pub fn new_with_extra_data(extra_data: Bytes) -> Self {
-		let spec = Spec::new_test();
+		let spec = spec::new_test();
 		TestBlockChainClient::new_with_spec_and_extra(spec, extra_data)
 	}
 

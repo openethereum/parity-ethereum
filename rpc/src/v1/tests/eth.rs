@@ -20,9 +20,8 @@ use std::sync::Arc;
 
 use accounts::AccountProvider;
 use ethcore::client::{BlockChainClient, Client, ClientConfig, ChainInfo, ImportBlock};
-use ethcore::ethereum;
 use ethcore::miner::Miner;
-use ethcore::spec::{Genesis, Spec};
+use ethcore::spec::{Genesis, Spec, self};
 use ethcore::test_helpers;
 use ethcore::verification::VerifierType;
 use ethcore::verification::queue::kind::blocks::Unverified;
@@ -64,7 +63,7 @@ fn snapshot_service() -> Arc<TestSnapshotService> {
 
 fn make_spec(chain: &BlockChain) -> Spec {
 	let genesis = Genesis::from(chain.genesis());
-	let mut spec = ethereum::new_frontier_test();
+	let mut spec = spec::new_frontier_test();
 	let state = chain.pre_state.clone().into();
 	spec.set_genesis_state(state).expect("unable to set genesis state");
 	spec.overwrite_genesis_params(genesis);

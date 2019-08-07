@@ -113,7 +113,7 @@ impl<T: ChainDataFetcher> IoHandler<ClientIoMessage> for ImportBlocks<T> {
 #[cfg(test)]
 mod tests {
 	use super::Service;
-	use ethcore::spec::Spec;
+	use ethcore::spec;
 
 	use std::sync::Arc;
 	use cache::Cache;
@@ -125,7 +125,7 @@ mod tests {
 	#[test]
 	fn it_works() {
 		let db = test_helpers::new_db();
-		let spec = Spec::new_test();
+		let spec = spec::new_test();
 		let cache = Arc::new(Mutex::new(Cache::new(Default::default(), Duration::from_secs(6 * 3600))));
 
 		Service::start(Default::default(), &spec, fetch::unavailable(), db, cache).unwrap();

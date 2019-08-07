@@ -1228,15 +1228,16 @@ mod tests {
 		errors::ExecutionError,
 		transaction::{Action, Transaction},
 	};
+	use crate::spec;
 
 	fn make_frontier_machine(max_depth: usize) -> Machine {
-		let mut machine = ::ethereum::new_frontier_test_machine();
+		let mut machine = spec::new_frontier_test_machine();
 		machine.set_schedule_creation_rules(Box::new(move |s, _| s.max_depth = max_depth));
 		machine
 	}
 
 	fn make_byzantium_machine(max_depth: usize) -> Machine {
-		let mut machine = ::ethereum::new_byzantium_test_machine();
+		let mut machine = spec::new_byzantium_test_machine();
 		machine.set_schedule_creation_rules(Box::new(move |s, _| s.max_depth = max_depth));
 		machine
 	}
@@ -1590,7 +1591,7 @@ mod tests {
 		let mut state = get_temp_state();
 		state.add_balance(&sender, &U256::from(100), CleanupMode::NoEmpty).unwrap();
 		let info = EnvInfo::default();
-		let machine = ::ethereum::new_byzantium_test_machine();
+		let machine = spec::new_byzantium_test_machine();
 		let schedule = machine.schedule(info.number);
 		let mut substate = Substate::new();
 		let mut tracer = ExecutiveTracer::default();
@@ -2122,7 +2123,7 @@ mod tests {
 		params.code = Some(Arc::new(code));
 		params.value = ActionValue::Transfer(U256::zero());
 		let info = EnvInfo::default();
-		let machine = ::ethereum::new_byzantium_test_machine();
+		let machine = spec::new_byzantium_test_machine();
 		let schedule = machine.schedule(info.number);
 		let mut substate = Substate::new();
 
@@ -2158,7 +2159,7 @@ mod tests {
 		state.init_code(&y2, "600060006000600061100162fffffff4".from_hex().unwrap()).unwrap();
 
 		let info = EnvInfo::default();
-		let machine = ::ethereum::new_constantinople_test_machine();
+		let machine = spec::new_constantinople_test_machine();
 		let schedule = machine.schedule(info.number);
 
 		assert_eq!(state.storage_at(&operating_address, &k).unwrap(), BigEndianHash::from_uint(&U256::from(0)));
@@ -2228,7 +2229,7 @@ mod tests {
 		info.number = 100;
 
 		// Network with wasm activated at block 10
-		let machine = ::ethereum::new_kovan_wasm_test_machine();
+		let machine = spec::new_kovan_wasm_test_machine();
 
 		let mut output = [0u8; 20];
 		let FinalizationResult { gas_left: result, return_data, .. } = {

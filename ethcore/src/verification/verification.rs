@@ -372,7 +372,7 @@ mod tests {
 	use hash::keccak;
 	use engines::Engine;
 	use ethkey::{Random, Generator};
-	use spec::Spec;
+	use crate::spec;
 	use test_helpers::{create_test_block_with_data, create_test_block};
 	use types::{
 		encoded,
@@ -546,7 +546,7 @@ mod tests {
 
 	#[test]
 	fn test_verify_block_basic_with_invalid_transactions() {
-		let spec = Spec::new_test();
+		let spec = spec::new_test();
 		let engine = &*spec.engine;
 
 		let block = {
@@ -571,7 +571,7 @@ mod tests {
 
 		// Test against morden
 		let mut good = Header::new();
-		let spec = Spec::new_test();
+		let spec = spec::new_test();
 		let engine = &*spec.engine;
 
 		let min_gas_limit = engine.params().min_gas_limit;

@@ -734,7 +734,6 @@ impl<K: Kind> Drop for VerificationQueue<K> {
 #[cfg(test)]
 mod tests {
 	use io::*;
-	use spec::Spec;
 	use super::{BlockQueue, Config, State};
 	use super::kind::blocks::Unverified;
 	use test_helpers::{get_good_dummy_block_seq, get_good_dummy_block};
@@ -744,11 +743,12 @@ mod tests {
 		views::BlockView,
 		errors::{EthcoreError, ImportError},
 	};
+	use crate::spec;
 
 	// create a test block queue.
 	// auto_scaling enables verifier adjustment.
 	fn get_test_queue(auto_scale: bool) -> BlockQueue {
-		let spec = Spec::new_test();
+		let spec = spec::new_test();
 		let engine = spec.engine;
 
 		let mut config = Config::default();
@@ -770,7 +770,7 @@ mod tests {
 	#[test]
 	fn can_be_created() {
 		// TODO better test
-		let spec = Spec::new_test();
+		let spec = spec::new_test();
 		let engine = spec.engine;
 		let _ = BlockQueue::new(Config::default(), engine, IoChannel::disconnected(), true);
 	}
@@ -848,7 +848,7 @@ mod tests {
 
 	#[test]
 	fn test_mem_limit() {
-		let spec = Spec::new_test();
+		let spec = spec::new_test();
 		let engine = spec.engine;
 		let mut config = Config::default();
 		config.max_mem_use = super::MIN_MEM_LIMIT;  // empty queue uses about 15000
@@ -899,7 +899,7 @@ mod tests {
 
 		#[test]
 		fn worker_threads_honor_specified_number_without_scaling() {
-			let spec = Spec::new_test();
+			let spec = spec::new_test();
 			let engine = spec.engine;
 			let config = get_test_config(1, false);
 			let queue = BlockQueue::new(config, engine, IoChannel::disconnected(), true);
@@ -909,7 +909,7 @@ mod tests {
 
 		#[test]
 		fn worker_threads_specified_to_zero_should_set_to_one() {
-			let spec = Spec::new_test();
+			let spec = spec::new_test();
 			let engine = spec.engine;
 			let config = get_test_config(0, false);
 			let queue = BlockQueue::new(config, engine, IoChannel::disconnected(), true);
@@ -919,7 +919,7 @@ mod tests {
 
 		#[test]
 		fn worker_threads_should_only_accept_max_number_cpus() {
-			let spec = Spec::new_test();
+			let spec = spec::new_test();
 			let engine = spec.engine;
 			let config = get_test_config(10_000, false);
 			let queue = BlockQueue::new(config, engine, IoChannel::disconnected(), true);
@@ -933,7 +933,7 @@ mod tests {
 			let num_cpus = ::num_cpus::get();
 			// only run the test with at least 2 CPUs
 			if num_cpus > 1 {
-				let spec = Spec::new_test();
+				let spec = spec::new_test();
 				let engine = spec.engine;
 				let config = get_test_config(num_cpus - 1, true);
 				let queue = BlockQueue::new(config, engine, IoChannel::disconnected(), true);

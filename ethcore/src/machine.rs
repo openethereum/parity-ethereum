@@ -402,6 +402,7 @@ fn round_block_gas_limit(gas_limit: U256, lower_limit: U256, upper_limit: U256) 
 mod tests {
 	use super::*;
 	use std::str::FromStr;
+	use crate::spec;
 
 	fn get_default_ethash_extensions() -> EthashExtensions {
 		EthashExtensions {
@@ -416,7 +417,7 @@ mod tests {
 	fn should_disallow_unsigned_transactions() {
 		let rlp = "ea80843b9aca0083015f90948921ebb5f79e9e3920abe571004d0b1d5119c154865af3107a400080038080";
 		let transaction: UnverifiedTransaction = ::rlp::decode(&::rustc_hex::FromHex::from_hex(rlp).unwrap()).unwrap();
-		let spec = ::ethereum::new_ropsten_test();
+		let spec = spec::new_ropsten_test();
 		let ethparams = get_default_ethash_extensions();
 
 		let machine = Machine::with_ethash_extensions(
@@ -435,7 +436,7 @@ mod tests {
 	fn ethash_gas_limit_is_multiple_of_determinant() {
 		use ethereum_types::U256;
 
-		let spec = ::ethereum::new_homestead_test();
+		let spec = spec::new_homestead_test();
 		let ethparams = get_default_ethash_extensions();
 
 		let machine = Machine::with_ethash_extensions(

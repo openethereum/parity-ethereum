@@ -88,12 +88,12 @@ pub fn run_action<T: Informant>(
 
 	// if the code is not overwritten from CLI, use code from spec file.
 	if params.code.is_none() {
-		if let Some(acc) = spec.genesis_state().get().get(&params.code_address) {
+		if let Some(acc) = spec.genesis_state.get().get(&params.code_address) {
 			params.code = acc.code.clone().map(::std::sync::Arc::new);
 			params.code_hash = None;
 		}
 	}
-	run(spec, trie_spec, params.gas, spec.genesis_state(), |mut client| {
+	run(spec, trie_spec, params.gas, &spec.genesis_state, |mut client| {
 		let result = match client.call(params, &mut trace::NoopTracer, &mut informant) {
 			Ok(r) => (Ok(r.return_data.to_vec()), Some(r.gas_left)),
 			Err(err) => (Err(err), None),
@@ -240,6 +240,7 @@ pub mod tests {
 	use super::*;
 	use tempdir::TempDir;
 	use ethereum_types::Address;
+	use ethcore::spec::{self, Spec};
 
 	pub fn run_test<T, I, F>(
 		informant: I,
@@ -257,7 +258,7 @@ pub mod tests {
 		params.gas = gas.into();
 
 		let tempdir = TempDir::new("").unwrap();
-		let spec = ::ethcore::ethereum::new_foundation(&tempdir.path());
+		let spec = spec::new_foundation(&tempdir.path());
 		let result = run_action(&spec, params, informant, TrieSpec::Secure);
 		match result {
 			Ok(Success { traces, .. }) => {
@@ -278,7 +279,8 @@ pub mod tests {
 		params.code_address = Address::from_low_u64_be(0x20);
 		params.gas = 0xffff.into();
 
-		let spec = ::ethcore::ethereum::load(None, include_bytes!("../res/testchain.json"));
+		let tempdir = TempDir::new("").unwrap();
+		let spec = Spec::load(&tempdir.path(), include_bytes!("../res/testchain.json") as &[u8]).unwrap();
 		let _result = run_action(&spec, params, inf, TrieSpec::Secure);
 
 		assert_eq!(

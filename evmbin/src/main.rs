@@ -443,7 +443,7 @@ impl Args {
 				spec::Spec::load(&::std::env::temp_dir(), file)?
 			},
 			None => {
-				ethcore::ethereum::new_foundation(&::std::env::temp_dir())
+				spec::new_foundation(&::std::env::temp_dir())
 			},
 		})
 	}

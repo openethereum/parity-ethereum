@@ -164,7 +164,7 @@ mod test {
 	use std::str::FromStr;
 	use client::PrepareOpenBlock;
 	use ethereum_types::{U256, Address};
-	use spec::Spec;
+	use crate::spec;
 	use test_helpers::generate_dummy_client_with_spec;
 
 	use engines::SystemOrCodeCallKind;
@@ -172,9 +172,9 @@ mod test {
 
 	#[test]
 	fn block_reward_contract() {
-		let client = generate_dummy_client_with_spec(Spec::new_test_round_block_reward_contract);
+		let client = generate_dummy_client_with_spec(spec::new_test_round_block_reward_contract);
 
-		let machine = Spec::new_test_machine();
+		let machine = spec::new_test_machine();
 
 		// the spec has a block reward contract defined at the given address
 		let block_reward_contract = BlockRewardContract::new_from_address(

@@ -38,6 +38,7 @@ use ethcore::client::BlockChainClient;
 use ethcore::executive::contract_address;
 use ethcore::miner::Miner;
 use ethcore::test_helpers::{generate_dummy_client, push_block_with_transactions};
+use ethcore::spec;
 use ethkey::{Secret, KeyPair, Signature};
 use hash::keccak;
 
@@ -63,7 +64,7 @@ fn private_contract() {
 	};
 
 	let io = ethcore_io::IoChannel::disconnected();
-	let miner = Arc::new(Miner::new_for_tests(&::ethcore::spec::Spec::new_test(), None));
+	let miner = Arc::new(Miner::new_for_tests(&spec::new_test(), None));
 	let private_keys = Arc::new(StoringKeyProvider::default());
 	let pm = Arc::new(Provider::new(
 			client.clone(),
@@ -198,7 +199,7 @@ fn call_other_private_contract() {
 	};
 
 	let io = ethcore_io::IoChannel::disconnected();
-	let miner = Arc::new(Miner::new_for_tests(&::ethcore::spec::Spec::new_test(), None));
+	let miner = Arc::new(Miner::new_for_tests(&spec::new_test(), None));
 	let private_keys = Arc::new(StoringKeyProvider::default());
 	let pm = Arc::new(Provider::new(
 			client.clone(),

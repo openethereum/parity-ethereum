@@ -62,7 +62,6 @@ fn fmt_err<F: ::std::fmt::Display>(f: F) -> String {
 
 /// Runtime parameters for the spec that are related to how the software should run the chain,
 /// rather than integral properties of the chain itself.
-#[derive(Debug, Clone, Copy)]
 pub struct SpecParams<'a> {
 	/// The path to the folder used to cache nodes. This is typically /tmp/ on Unix-like systems
 	pub cache_dir: &'a Path,
@@ -187,16 +186,14 @@ fn run_constructors<T: Backend>(
 /// Parameters for a block chain; includes both those intrinsic to the design of the
 /// chain and those to be interpreted by the active chain engine.
 pub struct Spec {
-	/// User friendly spec name
+	/// User friendly spec name.
 	pub name: String,
-	/// What engine are we using for this?
+	/// Engine specified by json file.
 	pub engine: Arc<dyn Engine>,
 	/// Name of the subdir inside the main data dir to use for chain data and settings.
 	pub data_dir: String,
-
 	/// Known nodes on the network in enode format.
 	pub nodes: Vec<String>,
-
 	/// The genesis block's parent hash field.
 	pub parent_hash: H256,
 	/// The genesis block's author field.
@@ -217,48 +214,17 @@ pub struct Spec {
 	pub extra_data: Bytes,
 	/// Each seal field, expressed as RLP, concatenated.
 	pub seal_rlp: Bytes,
-
 	/// Hardcoded synchronization. Allows the light client to immediately jump to a specific block.
 	pub hardcoded_sync: Option<SpecHardcodedSync>,
-
 	/// Contract constructors to be executed on genesis.
-	constructors: Vec<(Address, Bytes)>,
-
+	pub constructors: Vec<(Address, Bytes)>,
 	/// May be prepopulated if we know this in advance.
-	state_root_memo: H256,
-
+	pub state_root_memo: H256,
 	/// Genesis state as plain old data.
-	genesis_state: PodState,
-}
-
-#[cfg(test)]
-impl Clone for Spec {
-	fn clone(&self) -> Spec {
-		Spec {
-			name: self.name.clone(),
-			engine: self.engine.clone(),
-			data_dir: self.data_dir.clone(),
-			nodes: self.nodes.clone(),
-			parent_hash: self.parent_hash.clone(),
-			transactions_root: self.transactions_root.clone(),
-			receipts_root: self.receipts_root.clone(),
-			author: self.author.clone(),
-			difficulty: self.difficulty.clone(),
-			gas_limit: self.gas_limit.clone(),
-			gas_used: self.gas_used.clone(),
-			timestamp: self.timestamp.clone(),
-			extra_data: self.extra_data.clone(),
-			seal_rlp: self.seal_rlp.clone(),
-			hardcoded_sync: self.hardcoded_sync.clone(),
-			constructors: self.constructors.clone(),
-			state_root_memo: self.state_root_memo,
-			genesis_state: self.genesis_state.clone(),
-		}
-	}
+	pub genesis_state: PodState,
 }
 
 /// Part of `Spec`. Describes the hardcoded synchronization parameters.
-#[derive(Debug, Clone)]
 pub struct SpecHardcodedSync {
 	/// Header of the block to jump to for hardcoded sync, and total difficulty.
 	pub header: encoded::Header,
@@ -287,13 +253,6 @@ impl fmt::Display for SpecHardcodedSync {
 		writeln!(f, r#"chts": {:#?}"#, self.chts.iter().map(|x| format!(r#"{}"#, x)).collect::<Vec<_>>())?;
 		writeln!(f, "}}")
 	}
-}
-
-fn load_machine_from(s: ethjson::spec::Spec) -> Machine {
-	let builtins = s.accounts.builtins().into_iter().map(|p| (p.0.into(), From::from(p.1))).collect();
-	let params = CommonParams::from(s.params);
-
-	Spec::machine(&s.engine, params, builtins)
 }
 
 /// Load from JSON object.
@@ -355,24 +314,6 @@ fn load_from(spec_params: SpecParams, s: ethjson::spec::Spec) -> Result<Spec, Er
 	Ok(s)
 }
 
-macro_rules! load_bundled {
-	($e:expr) => {
-		Spec::load(
-			&::std::env::temp_dir(),
-			include_bytes!(concat!("../../res/", $e, ".json")) as &[u8]
-		).expect(concat!("Chain spec ", $e, " is invalid."))
-	};
-}
-
-#[cfg(any(test, feature = "test-helpers"))]
-macro_rules! load_machine_bundled {
-	($e:expr) => {
-		Spec::load_machine(
-			include_bytes!(concat!("../../res/", $e, ".json")) as &[u8]
-		).expect(concat!("Chain spec ", $e, " is invalid."))
-	};
-}
-
 impl Spec {
 	// create an instance of an Ethereum state machine, minus consensus logic.
 	fn machine(
@@ -418,11 +359,6 @@ impl Spec {
 	/// Get common blockchain parameters.
 	pub fn params(&self) -> &CommonParams {
 		&self.engine.params()
-	}
-
-	/// Get the known knodes of the network in enode format.
-	pub fn nodes(&self) -> &[String] {
-		&self.nodes
 	}
 
 	/// Get the configured Network ID.
@@ -513,11 +449,6 @@ impl Spec {
 		Ok(())
 	}
 
-	/// Return genesis state as Plain old data.
-	pub fn genesis_state(&self) -> &PodState {
-		&self.genesis_state
-	}
-
 	/// Ensure that the given state DB has the trie nodes in for the genesis state.
 	pub fn ensure_db_good<T: Backend>(&self, db: T, factories: &Factories) -> Result<T, Error> {
 		if db.as_hash_db().contains(&self.state_root(), hash_db::EMPTY_PREFIX) {
@@ -545,20 +476,19 @@ impl Spec {
 	pub fn load_machine<R: Read>(reader: R) -> Result<Machine, String> {
 		ethjson::spec::Spec::load(reader)
 			.map_err(fmt_err)
-			.map(load_machine_from)
+			.map(|s| {
+				let builtins = s.accounts.builtins().into_iter().map(|p| (p.0.into(), From::from(p.1))).collect();
+				let params = CommonParams::from(s.params);
+				Spec::machine(&s.engine, params, builtins)
+			})
 	}
 
 	/// Loads spec from json file. Provide factories for executing contracts and ensuring
 	/// storage goes to the right place.
-	pub fn load<'a, T: Into<SpecParams<'a>>, R>(params: T, reader: R) -> Result<Self, String>
-	where
-		R: Read,
-	{
-		ethjson::spec::Spec::load(reader).map_err(fmt_err).and_then(
-			|x| {
-				load_from(params.into(), x).map_err(fmt_err)
-			},
-		)
+	pub fn load<'a, T: Into<SpecParams<'a>>, R: Read>(params: T, reader: R) -> Result<Self, String> {
+		ethjson::spec::Spec::load(reader)
+			.map_err(fmt_err)
+			.and_then(|x| load_from(params.into(), x).map_err(fmt_err))
 	}
 
 	/// initialize genesis epoch data, using in-memory database for
@@ -616,94 +546,6 @@ impl Spec {
 
 		self.engine.genesis_epoch_data(&genesis, &call)
 	}
-
-	/// Create a new Spec with InstantSeal consensus which does internal sealing (not requiring
-	/// work).
-	pub fn new_instant() -> Spec {
-		load_bundled!("instant_seal")
-	}
-
-	/// Create a new Spec which conforms to the Frontier-era Morden chain except that it's a
-	/// NullEngine consensus.
-	#[cfg(any(test, feature = "test-helpers"))]
-	pub fn new_test() -> Spec {
-		load_bundled!("null_morden")
-	}
-
-	/// Create the Machine corresponding to Spec::new_test.
-	#[cfg(any(test, feature = "test-helpers"))]
-	pub fn new_test_machine() -> Machine { load_machine_bundled!("null_morden") }
-
-	/// Create a new Spec which conforms to the Frontier-era Morden chain except that it's a NullEngine consensus with applying reward on block close.
-	#[cfg(any(test, feature = "test-helpers"))]
-	pub fn new_test_with_reward() -> Spec { load_bundled!("null_morden_with_reward") }
-
-	/// Create a new Spec which is a NullEngine consensus with a premine of address whose
-	/// secret is keccak('').
-	#[cfg(any(test, feature = "test-helpers"))]
-	pub fn new_null() -> Spec {
-		load_bundled!("null")
-	}
-
-	/// Create a new Spec which constructs a contract at address 5 with storage at 0 equal to 1.
-	#[cfg(any(test, feature = "test-helpers"))]
-	pub fn new_test_constructor() -> Spec {
-		load_bundled!("constructor")
-	}
-
-	/// Create a new Spec with AuthorityRound consensus which does internal sealing (not
-	/// requiring work).
-	/// Accounts with secrets keccak("0") and keccak("1") are the validators.
-	#[cfg(any(test, feature = "test-helpers"))]
-	pub fn new_test_round() -> Self {
-		load_bundled!("authority_round")
-	}
-
-	/// Create a new Spec with AuthorityRound consensus which does internal sealing (not
-	/// requiring work) with empty step messages enabled.
-	/// Accounts with secrets keccak("0") and keccak("1") are the validators.
-	#[cfg(any(test, feature = "test-helpers"))]
-	pub fn new_test_round_empty_steps() -> Self {
-		load_bundled!("authority_round_empty_steps")
-	}
-
-	/// Create a new Spec with AuthorityRound consensus (with empty steps) using a block reward
-	/// contract. The contract source code can be found at:
-	/// https://github.com/parity-contracts/block-reward/blob/daf7d44383b6cdb11cb6b953b018648e2b027cfb/contracts/ExampleBlockReward.sol
-	#[cfg(any(test, feature = "test-helpers"))]
-	pub fn new_test_round_block_reward_contract() -> Self {
-		load_bundled!("authority_round_block_reward_contract")
-	}
-
-	/// TestList.sol used in both specs: https://github.com/paritytech/contracts/pull/30/files
-	/// Accounts with secrets keccak("0") and keccak("1") are initially the validators.
-	/// Create a new Spec with BasicAuthority which uses a contract at address 5 to determine
-	/// the current validators using `getValidators`.
-	/// Second validator can be removed with
-	/// "0xbfc708a000000000000000000000000082a978b3f5962a5b0957d9ee9eef472ee55b42f1" and added
-	/// back in using
-	/// "0x4d238c8e00000000000000000000000082a978b3f5962a5b0957d9ee9eef472ee55b42f1".
-	#[cfg(any(test, feature = "test-helpers"))]
-	pub fn new_validator_safe_contract() -> Self {
-		load_bundled!("validator_safe_contract")
-	}
-
-	/// The same as the `safeContract`, but allows reporting and uses AuthorityRound.
-	/// Account is marked with `reportBenign` it can be checked as disliked with "0xd8f2e0bf".
-	/// Validator can be removed with `reportMalicious`.
-	#[cfg(any(test, feature = "test-helpers"))]
-	pub fn new_validator_contract() -> Self {
-		load_bundled!("validator_contract")
-	}
-
-	/// Create a new Spec with BasicAuthority which uses multiple validator sets changing with
-	/// height.
-	/// Account with secrets keccak("0") is the validator for block 1 and with keccak("1")
-	/// onwards.
-	#[cfg(any(test, feature = "test-helpers"))]
-	pub fn new_validator_multi() -> Self {
-		load_bundled!("validator_multi")
-	}
 }
 
 #[cfg(test)]
@@ -715,6 +557,7 @@ mod tests {
 	use types::view;
 	use types::views::BlockView;
 	use std::str::FromStr;
+	use crate::spec;
 
 	#[test]
 	fn test_load_empty() {
@@ -724,7 +567,7 @@ mod tests {
 
 	#[test]
 	fn test_chain() {
-		let test_spec = Spec::new_test();
+		let test_spec = spec::new_test();
 
 		assert_eq!(
 			test_spec.state_root(),
@@ -740,7 +583,7 @@ mod tests {
 	#[test]
 	fn genesis_constructor() {
 		let _ = ::env_logger::try_init();
-		let spec = Spec::new_test_constructor();
+		let spec = spec::new_test_constructor();
 		let db = spec.ensure_db_good(get_temp_state_db(), &Default::default())
 			.unwrap();
 		let state = State::from_existing(

@@ -442,6 +442,7 @@ mod tests {
 	use super::*;
 	use trace::{NoopTracer, NoopVMTracer};
 	use std::str::FromStr;
+	use crate::spec;
 
 	fn get_test_origin() -> OriginInfo {
 		OriginInfo {
@@ -480,7 +481,7 @@ mod tests {
 
 	impl TestSetup {
 		fn new() -> Self {
-			let machine = ::spec::Spec::new_test_machine();
+			let machine = spec::new_test_machine();
 			let env_info = get_test_env_info();
 			let schedule = machine.schedule(env_info.number);
 			TestSetup {
