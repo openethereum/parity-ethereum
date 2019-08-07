@@ -10,7 +10,7 @@ echo "________Running the C++ example________"
 DIR=parity-clib/examples/cpp/build
 mkdir -p $DIR
 cd $DIR
-cmake --build . -j $THREADS
+cmake --build . -- -j $THREADS
 ./parity-example
 cd -
 rm -rf $DIR
