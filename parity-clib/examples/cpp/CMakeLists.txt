@@ -2,6 +2,7 @@ cmake_minimum_required(VERSION 3.5)
 include(ExternalProject)
 include_directories("${CMAKE_SOURCE_DIR}/../..")
 set (CMAKE_CXX_STANDARD 11) # Enforce C++11
+set (CMAKE_VERBOSE_MAKEFILE ON)
 add_executable(parity-example main.cpp parity_client.cpp websocket_subscription.cpp)
 
 ExternalProject_Add(

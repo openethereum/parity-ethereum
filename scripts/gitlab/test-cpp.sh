@@ -1,4 +1,5 @@
-#!/bin/bash
+#!/usr/bin/env bash
+
 echo "________Running test-cpp.sh________"
 set -e # fail on any error
 set -u # treat unset variables as error
@@ -9,8 +10,7 @@ echo "________Running the C++ example________"
 DIR=parity-clib/examples/cpp/build
 mkdir -p $DIR
 cd $DIR
-cmake ..
-make VERBOSE=1 -j $THREADS
+cmake --build . -j $THREADS
 ./parity-example
 cd -
 rm -rf $DIR
