@@ -16,10 +16,11 @@
 
 //! Blockchain params.
 
-pub mod bundle;
+mod chain;
 mod genesis;
 mod seal;
 mod spec;
 
+pub use self::chain::*;
 pub use self::genesis::Genesis;
 pub use self::spec::{Spec, SpecHardcodedSync, SpecParams, OptimizeFor};

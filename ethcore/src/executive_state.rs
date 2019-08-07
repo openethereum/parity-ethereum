@@ -275,14 +275,14 @@ mod tests {
 	use pod::PodState;
 	use executive_state::ExecutiveState;
 	use account_state::{Account, CleanupMode};
-	use crate::spec::bundle;
+	use crate::spec;
 
 	fn secret() -> Secret {
 		keccak("").into()
 	}
 
 	fn make_frontier_machine(max_depth: usize) -> Machine {
-		let mut machine = bundle::new_frontier_test_machine();
+		let mut machine = spec::new_frontier_test_machine();
 		machine.set_schedule_creation_rules(Box::new(move |s, _| s.max_depth = max_depth));
 		machine
 	}
@@ -472,7 +472,7 @@ mod tests {
 
 		let mut info = EnvInfo::default();
 		info.gas_limit = 1_000_000.into();
-		let machine = bundle::new_test_machine();
+		let machine = spec::new_test_machine();
 
 		let t = Transaction {
 			nonce: 0.into(),
@@ -513,7 +513,7 @@ mod tests {
 
 		let mut info = EnvInfo::default();
 		info.gas_limit = 1_000_000.into();
-		let machine = bundle::new_test_machine();
+		let machine = spec::new_test_machine();
 
 		let t = Transaction {
 			nonce: 0.into(),
@@ -555,7 +555,7 @@ mod tests {
 
 		let mut info = EnvInfo::default();
 		info.gas_limit = 1_000_000.into();
-		let machine = bundle::new_test_machine();
+		let machine = spec::new_test_machine();
 
 		let t = Transaction {
 			nonce: 0.into(),
@@ -614,7 +614,7 @@ mod tests {
 		let mut info = EnvInfo::default();
 		info.gas_limit = 1_000_000.into();
 		info.number = 0x789b0;
-		let machine = bundle::new_test_machine();
+		let machine = spec::new_test_machine();
 
 		let t = Transaction {
 			nonce: 0.into(),

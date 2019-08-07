@@ -339,7 +339,7 @@ impl Args {
 				spec::Spec::load(&::std::env::temp_dir(), file)?
 			},
 			None => {
-				spec::bundle::new_foundation(&::std::env::temp_dir())
+				spec::new_foundation(&::std::env::temp_dir())
 			},
 		})
 	}

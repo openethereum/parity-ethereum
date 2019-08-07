@@ -211,7 +211,7 @@ pub mod tests {
 	use super::*;
 	use tempdir::TempDir;
 	use ethereum_types::Address;
-	use ethcore::spec::{bundle, Spec};
+	use ethcore::spec::{self, Spec};
 
 	pub fn run_test<T, I, F>(
 		informant: I,
@@ -229,7 +229,7 @@ pub mod tests {
 		params.gas = gas.into();
 
 		let tempdir = TempDir::new("").unwrap();
-		let spec = bundle::new_foundation(&tempdir.path());
+		let spec = spec::new_foundation(&tempdir.path());
 		let result = run_action(&spec, params, informant, TrieSpec::Secure);
 		match result {
 			Ok(Success { traces, .. }) => {

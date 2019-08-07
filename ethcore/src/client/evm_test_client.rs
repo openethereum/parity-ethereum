@@ -36,7 +36,6 @@ use vm::{self, ActionParams, CreateContractAddress};
 use ethtrie;
 use account_state::{CleanupMode, State};
 use substate::Substate;
-use crate::spec::bundle;
 use executive_state::ExecutiveState;
 
 /// EVM test Error.
@@ -99,14 +98,14 @@ impl<'a> EvmTestClient<'a> {
 	/// Converts a json spec definition into spec.
 	pub fn spec_from_json(spec: &ForkSpec) -> Option<spec::Spec> {
 		match *spec {
-			ForkSpec::Frontier => Some(bundle::new_frontier_test()),
-			ForkSpec::Homestead => Some(bundle::new_homestead_test()),
-			ForkSpec::EIP150 => Some(bundle::new_eip150_test()),
-			ForkSpec::EIP158 => Some(bundle::new_eip161_test()),
-			ForkSpec::Byzantium => Some(bundle::new_byzantium_test()),
-			ForkSpec::Constantinople => Some(bundle::new_constantinople_test()),
-			ForkSpec::ConstantinopleFix => Some(bundle::new_constantinople_fix_test()),
-			ForkSpec::EIP158ToByzantiumAt5 => Some(bundle::new_transition_test()),
+			ForkSpec::Frontier => Some(spec::new_frontier_test()),
+			ForkSpec::Homestead => Some(spec::new_homestead_test()),
+			ForkSpec::EIP150 => Some(spec::new_eip150_test()),
+			ForkSpec::EIP158 => Some(spec::new_eip161_test()),
+			ForkSpec::Byzantium => Some(spec::new_byzantium_test()),
+			ForkSpec::Constantinople => Some(spec::new_constantinople_test()),
+			ForkSpec::ConstantinopleFix => Some(spec::new_constantinople_fix_test()),
+			ForkSpec::EIP158ToByzantiumAt5 => Some(spec::new_transition_test()),
 			ForkSpec::FrontierToHomesteadAt5 | ForkSpec::HomesteadToDaoAt5 | ForkSpec::HomesteadToEIP150At5 => None,
 		}
 	}

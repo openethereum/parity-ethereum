@@ -560,7 +560,7 @@ mod tests {
 	use types::view;
 	use types::views::BlockView;
 	use std::str::FromStr;
-	use crate::spec::bundle;
+	use crate::spec;
 
 	#[test]
 	fn test_load_empty() {
@@ -570,7 +570,7 @@ mod tests {
 
 	#[test]
 	fn test_chain() {
-		let test_spec = bundle::new_test();
+		let test_spec = spec::new_test();
 
 		assert_eq!(
 			test_spec.state_root(),
@@ -586,7 +586,7 @@ mod tests {
 	#[test]
 	fn genesis_constructor() {
 		let _ = ::env_logger::try_init();
-		let spec = bundle::new_test_constructor();
+		let spec = spec::new_test_constructor();
 		let db = spec.ensure_db_good(get_temp_state_db(), &Default::default())
 			.unwrap();
 		let state = State::from_existing(
