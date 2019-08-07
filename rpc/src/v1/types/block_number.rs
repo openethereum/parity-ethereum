@@ -191,7 +191,7 @@ pub fn block_number_to_id(number: BlockNumber) -> BlockId {
 
 #[cfg(test)]
 mod tests {
-	use ethcore::client::BlockId;
+	use types::ids::BlockId;
 	use super::*;
 	use std::str::FromStr;
 	use serde_json;

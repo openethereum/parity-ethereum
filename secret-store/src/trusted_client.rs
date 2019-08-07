@@ -17,9 +17,12 @@
 use std::sync::{Arc, Weak};
 use bytes::Bytes;
 use call_contract::RegistryInfo;
-use common_types::transaction::{Transaction, SignedTransaction, Action};
+use common_types::{
+	ids::BlockId,
+	transaction::{Transaction, SignedTransaction, Action},
+};
 use ethereum_types::Address;
-use ethcore::client::{Client, ChainInfo, Nonce, BlockId};
+use ethcore::client::{Client, ChainInfo, Nonce};
 use ethcore::miner::{Miner, MinerService};
 use sync::SyncProvider;
 use helpers::{get_confirmed_block_hash, REQUEST_CONFIRMATIONS_REQUIRED};
