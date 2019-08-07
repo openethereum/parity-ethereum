@@ -155,19 +155,11 @@ pub mod block;
 pub mod client;
 pub mod engines;
 pub mod ethereum;
-//pub mod executed;
-//pub mod executive;
 pub mod executive_state;
-//pub mod machine;
 pub mod miner;
 pub mod snapshot;
 pub mod spec;
 pub mod verification;
-
-//mod externalities;
-//mod substate;
-//mod transaction_ext;
-//mod tx_filter;
 
 #[cfg(test)]
 mod tests;

@@ -32,8 +32,8 @@ use common_types::{
 };
 use keccak_hash::KECCAK_EMPTY;
 
-use_contract!(transact_acl_deprecated, "../res/contracts/tx_acl_deprecated.json");
-use_contract!(transact_acl, "../res/contracts/tx_acl.json");
+use_contract!(transact_acl_deprecated, "res/tx_acl_deprecated.json");
+use_contract!(transact_acl, "res/tx_acl.json");
 
 const MAX_CACHE_SIZE: usize = 4096;
 
