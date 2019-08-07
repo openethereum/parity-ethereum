@@ -17,13 +17,11 @@
 //! EVM runner.
 
 use std::time::{Instant, Duration};
-use account_state;
 use ethcore::client::{self, EvmTestClient, EvmTestError, TransactErr, TransactSuccess};
 use ethcore::{spec, TrieSpec};
 use ethereum_types::{H256, U256};
 use ethjson;
 use pod::PodState;
-use state_db;
 use trace;
 use types::transaction;
 use vm::ActionParams;
@@ -182,8 +180,6 @@ pub fn run_transaction<T: Informant>(
 	T::finish(result, &mut sink)
 }
 
-fn dump_state(state: &account_state::State<state_db::StateDB>) -> Option<PodState> {
-	state.to_pod_full().ok()
 }
 
 /// Execute EVM with given `ActionParams`.
