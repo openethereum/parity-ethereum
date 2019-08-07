@@ -25,7 +25,7 @@ use tests::snapshot::*;
 use ethcore::client::{TestBlockChainClient, BlockChainClient, Client as EthcoreClient,
 	ClientConfig, ChainNotify, NewBlocks, ChainMessageType, ClientIoMessage};
 use ethcore::snapshot::SnapshotService;
-use ethcore::spec::Spec;
+use ethcore::spec::{self, Spec};
 use ethcore::miner::Miner;
 use ethcore::test_helpers;
 use sync_io::SyncIo;
@@ -351,7 +351,7 @@ impl TestNet<EthPeer<TestBlockChainClient>> {
 				sync: RwLock::new(sync),
 				snapshot_service: ss,
 				chain: Arc::new(chain),
-				miner: Arc::new(Miner::new_for_tests(&Spec::new_test(), None)),
+				miner: Arc::new(Miner::new_for_tests(&spec::new_test(), None)),
 				queue: RwLock::new(VecDeque::new()),
 				private_tx_handler,
 				io_queue: RwLock::new(VecDeque::new()),

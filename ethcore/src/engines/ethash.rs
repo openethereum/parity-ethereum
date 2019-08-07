@@ -503,8 +503,7 @@ mod tests {
 	};
 	use spec::Spec;
 	use engines::Engine;
-	use ethereum::{new_morden, new_mcip3_test};
-	use machine::test_helpers::new_homestead_test_machine;
+	use crate::spec::{new_morden, new_mcip3_test, new_homestead_test_machine};
 	use super::{Ethash, EthashParams, ecip1017_eras_block_reward};
 	use rlp;
 	use tempdir::TempDir;

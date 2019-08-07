@@ -308,7 +308,7 @@ impl UnverifiedTransaction {
 		self
 	}
 
-	/// Checks is signature is empty.
+	/// Checks if the signature is empty.
 	pub fn is_unsigned(&self) -> bool {
 		self.r.is_zero() && self.s.is_zero()
 	}

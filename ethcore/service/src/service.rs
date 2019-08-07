@@ -283,7 +283,7 @@ mod tests {
 	use ethcore_db::NUM_COLUMNS;
 	use ethcore::client::ClientConfig;
 	use ethcore::miner::Miner;
-	use ethcore::spec::Spec;
+	use ethcore::spec;
 	use ethcore::test_helpers;
 	use kvdb_rocksdb::{DatabaseConfig, CompactionProfile};
 	use super::*;
@@ -306,7 +306,7 @@ mod tests {
 		let client_db = client_db_handler.open(&client_path).unwrap();
 		let restoration_db_handler = test_helpers::restoration_db_handler(client_db_config);
 
-		let spec = Spec::new_test();
+		let spec = spec::new_test();
 		let service = ClientService::start(
 			ClientConfig::default(),
 			&spec,

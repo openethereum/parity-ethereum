@@ -154,7 +154,6 @@ extern crate parity_runtime;
 pub mod block;
 pub mod client;
 pub mod engines;
-pub mod ethereum;
 pub mod executive_state;
 pub mod miner;
 pub mod snapshot;
@@ -168,6 +167,5 @@ pub mod json_tests;
 #[cfg(any(test, feature = "test-helpers"))]
 pub mod test_helpers;
 
-//pub use executive::contract_address;
 pub use evm::CreateContractAddress;
 pub use trie::TrieSpec;

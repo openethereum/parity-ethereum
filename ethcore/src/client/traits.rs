@@ -219,7 +219,8 @@ pub trait BlockChainClient : Sync + Send + AccountData + BlockChain + CallContra
 			.expect("code will return Some if given BlockId::Latest; qed")
 	}
 
-	fn chain(&self) -> Arc<BlockProvider>;
+	/// Get a reference to the `BlockProvider`.
+	fn chain(&self) -> Arc<dyn BlockProvider>;
 
 	/// Get block queue information.
 	fn queue_info(&self) -> BlockQueueInfo;

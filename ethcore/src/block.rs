@@ -498,6 +498,7 @@ mod tests {
 		errors::EthcoreError as Error,
 	};
 	use hash_db::EMPTY_PREFIX;
+	use crate::spec;
 
 	/// Enact the block given by `block_bytes` using `engine` on the database `db` with given `parent` block header
 	fn enact_bytes(
@@ -568,8 +569,7 @@ mod tests {
 
 	#[test]
 	fn open_block() {
-		use spec::*;
-		let spec = Spec::new_test();
+		let spec = spec::new_test();
 		let genesis_header = spec.genesis_header();
 		let db = spec.ensure_db_good(get_temp_state_db(), &Default::default()).unwrap();
 		let last_hashes = Arc::new(vec![genesis_header.hash()]);
@@ -580,8 +580,7 @@ mod tests {
 
 	#[test]
 	fn enact_block() {
-		use spec::*;
-		let spec = Spec::new_test();
+		let spec = spec::new_test();
 		let engine = &*spec.engine;
 		let genesis_header = spec.genesis_header();
 
@@ -605,8 +604,7 @@ mod tests {
 
 	#[test]
 	fn enact_block_with_uncle() {
-		use spec::*;
-		let spec = Spec::new_test();
+		let spec = spec::new_test();
 		let engine = &*spec.engine;
 		let genesis_header = spec.genesis_header();
 

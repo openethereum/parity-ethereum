@@ -21,6 +21,7 @@ use client_traits::BlockInfo;
 use chain::SyncState;
 use super::helpers::*;
 use {SyncConfig, WarpSync};
+use ethcore::spec;
 
 #[test]
 fn two_peers() {
@@ -103,7 +104,7 @@ fn forked_with_misbehaving_peer() {
 	::env_logger::try_init().ok();
 	let mut net = TestNet::new(3);
 
-	let mut alt_spec = ::ethcore::spec::Spec::new_test();
+	let mut alt_spec = spec::new_test();
 	alt_spec.extra_data = b"fork".to_vec();
 	// peer 0 is on a totally different chain with higher total difficulty
 	net.peer_mut(0).chain = Arc::new(TestBlockChainClient::new_with_spec(alt_spec));

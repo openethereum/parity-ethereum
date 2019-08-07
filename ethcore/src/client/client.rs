@@ -1764,7 +1764,7 @@ impl BlockChainClient for Client {
 		self.config.spec_name.clone()
 	}
 
-	fn chain(&self) -> Arc<BlockProvider> {
+	fn chain(&self) -> Arc<dyn BlockProvider> {
 		self.chain.read().clone()
 	}
 

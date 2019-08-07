@@ -20,7 +20,7 @@ use ethereum_types::{U256, Address};
 use io::{IoHandler, IoChannel};
 use ethcore::client::{ChainInfo, ClientIoMessage};
 use ethcore::engines;
-use ethcore::spec::Spec;
+use ethcore::spec;
 use ethcore::miner::{self, MinerService};
 use ethkey::{KeyPair, Secret};
 use types::transaction::{Action, PendingTransaction, Transaction};
@@ -44,8 +44,8 @@ fn authority_round() {
 	let s0 = KeyPair::from_secret_slice(keccak("1").as_bytes()).unwrap();
 	let s1 = KeyPair::from_secret_slice(keccak("0").as_bytes()).unwrap();
 
-	let chain_id = Spec::new_test_round().chain_id();
-	let mut net = TestNet::with_spec(2, SyncConfig::default(), Spec::new_test_round);
+	let chain_id = spec::new_test_round().chain_id();
+	let mut net = TestNet::with_spec(2, SyncConfig::default(), spec::new_test_round);
 	let io_handler0: Arc<dyn IoHandler<ClientIoMessage>> = Arc::new(TestIoHandler::new(net.peer(0).chain.clone()));
 	let io_handler1: Arc<dyn IoHandler<ClientIoMessage>> = Arc::new(TestIoHandler::new(net.peer(1).chain.clone()));
 	// Push transaction to both clients. Only one of them gets lucky to produce a block.

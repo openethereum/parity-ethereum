@@ -23,7 +23,7 @@ use light_sync::*;
 use tests::helpers::{TestNet, Peer as PeerLike, TestPacket};
 
 use ethcore::client::TestBlockChainClient;
-use ethcore::spec::Spec;
+use ethcore::spec;
 use io::IoChannel;
 use kvdb_memorydb;
 use light::client::fetch::{self, Unavailable};
@@ -229,7 +229,7 @@ impl TestNet<Peer> {
 				config,
 				Arc::new(db),
 				None,
-				&Spec::new_test(),
+				&spec::new_test(),
 				fetch::unavailable(), // TODO: allow fetch from full nodes.
 				IoChannel::disconnected(),
 				cache

@@ -162,7 +162,7 @@ mod tests {
 	use ethkey::Secret;
 	use types::header::Header;
 	use miner::{self, MinerService};
-	use spec::Spec;
+	use crate::spec;
 	use test_helpers::{generate_dummy_client_with_spec, generate_dummy_client_with_spec_and_data};
 	use types::ids::BlockId;
 	use ethereum_types::Address;
@@ -176,7 +176,7 @@ mod tests {
 		let s0: Secret = keccak("0").into();
 		let v0 = tap.insert_account(s0.clone(), &"".into()).unwrap();
 		let v1 = tap.insert_account(keccak("1").into(), &"".into()).unwrap();
-		let client = generate_dummy_client_with_spec(Spec::new_validator_multi);
+		let client = generate_dummy_client_with_spec(spec::new_validator_multi);
 		client.engine().register_client(Arc::downgrade(&client) as _);
 
 		// Make sure txs go through.
@@ -207,7 +207,7 @@ mod tests {
 		assert_eq!(client.chain_info().best_block_number, 3);
 
 		// Check syncing.
-		let sync_client = generate_dummy_client_with_spec_and_data(Spec::new_validator_multi, 0, 0, &[]);
+		let sync_client = generate_dummy_client_with_spec_and_data(spec::new_validator_multi, 0, 0, &[]);
 		sync_client.engine().register_client(Arc::downgrade(&sync_client) as _);
 		for i in 1..4 {
 			sync_client.import_block(Unverified::from_rlp(client.block(BlockId::Number(i)).unwrap().into_inner()).unwrap()).unwrap();

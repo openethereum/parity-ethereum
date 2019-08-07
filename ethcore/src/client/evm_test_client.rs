@@ -29,6 +29,7 @@ use types::{
 	receipt,
 	transaction
 };
+use ethjson::spec::ForkSpec;
 use trie_vm_factories::Factories;
 use evm::{VMType, FinalizationResult};
 use vm::{self, ActionParams, CreateContractAddress};
@@ -73,9 +74,6 @@ impl fmt::Display for EvmTestError {
 	}
 }
 
-use ethereum;
-use ethjson::spec::ForkSpec;
-
 /// Simplified, single-block EVM test client.
 pub struct EvmTestClient<'a> {
 	state: State<state_db::StateDB>,
@@ -102,16 +100,16 @@ impl<'a> fmt::Debug for EvmTestClient<'a> {
 
 impl<'a> EvmTestClient<'a> {
 	/// Converts a json spec definition into spec.
-	pub fn spec_from_json(spec: &ForkSpec) -> Option<spec::Spec> {
+	pub fn fork_spec_from_json(spec: &ForkSpec) -> Option<spec::Spec> {
 		match *spec {
-			ForkSpec::Frontier => Some(ethereum::new_frontier_test()),
-			ForkSpec::Homestead => Some(ethereum::new_homestead_test()),
-			ForkSpec::EIP150 => Some(ethereum::new_eip150_test()),
-			ForkSpec::EIP158 => Some(ethereum::new_eip161_test()),
-			ForkSpec::Byzantium => Some(ethereum::new_byzantium_test()),
-			ForkSpec::Constantinople => Some(ethereum::new_constantinople_test()),
-			ForkSpec::ConstantinopleFix => Some(ethereum::new_constantinople_fix_test()),
-			ForkSpec::EIP158ToByzantiumAt5 => Some(ethereum::new_transition_test()),
+			ForkSpec::Frontier => Some(spec::new_frontier_test()),
+			ForkSpec::Homestead => Some(spec::new_homestead_test()),
+			ForkSpec::EIP150 => Some(spec::new_eip150_test()),
+			ForkSpec::EIP158 => Some(spec::new_eip161_test()),
+			ForkSpec::Byzantium => Some(spec::new_byzantium_test()),
+			ForkSpec::Constantinople => Some(spec::new_constantinople_test()),
+			ForkSpec::ConstantinopleFix => Some(spec::new_constantinople_fix_test()),
+			ForkSpec::EIP158ToByzantiumAt5 => Some(spec::new_transition_test()),
 			ForkSpec::FrontierToHomesteadAt5 | ForkSpec::HomesteadToDaoAt5 | ForkSpec::HomesteadToEIP150At5 => None,
 		}
 	}
