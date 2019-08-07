@@ -331,7 +331,12 @@ impl<Message> Handler for IoManager<Message> where Message: Send + Sync + 'stati
 				} else {
 					event_loop.timeout(token, timer.delay).expect("Error re-registering user timer");
 				}
-				self.worker_channel.push(Work { work_type: WorkType::Timeout, token: token_id, handler: handler.clone(), handler_id: handler_index });
+				self.worker_channel.push(Work {
+					work_type: WorkType::Timeout,
+					token: token_id,
+					handler: handler.clone(),
+					handler_id: handler_index
+				});
 				self.work_ready.notify_all();
 			}
 		}
