@@ -9,7 +9,7 @@ edition = "2018"
 
 [dependencies]
 fnv = "1.0"
-mio = { version = "0.6.8", optional = true }
+mio = { version = "0.6.19", optional = true }
 crossbeam-deque = "0.6"
 parking_lot = "0.8"
 log = "0.4"
@@ -19,3 +19,4 @@ timer = "0.2"
 time = "0.1"
 tokio = "0.1"
 futures = "0.1"
+

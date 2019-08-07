@@ -19,8 +19,9 @@ use std::{
 	thread::{self, JoinHandle},
 };
 
-use crossbeam_deque;
+use crossbeam_deque as deque;
 use futures::future::{self, Loop};
+use log::{trace, error};
 use parking_lot::{Condvar, Mutex};
 use tokio;
 
