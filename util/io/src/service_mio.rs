@@ -14,18 +14,22 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
+use std::collections::HashMap;
 use std::sync::{Arc, Weak};
 use std::thread::{self, JoinHandle};
-use std::collections::HashMap;
-use mio::*;
-use mio::timer::{Timeout};
-use mio::deprecated::{EventLoop, Handler, Sender, EventLoopBuilder};
-use deque;
-use slab::Slab;
-use {IoError, IoHandler};
-use worker::{Worker, Work, WorkType};
-use parking_lot::{Condvar, RwLock, Mutex};
 use std::time::Duration;
+
+use crossbeam_deque;
+use mio::*;
+use mio::deprecated::{EventLoop, EventLoopBuilder, Handler, Sender};
+use mio::timer::Timeout;
+use parking_lot::{Condvar, Mutex, RwLock};
+use slab::Slab;
+
+use crate::{
+	IoError, IoHandler,
+	worker::{Work, Worker, WorkType}
+};
 
 /// Timer ID
 pub type TimerToken = usize;
