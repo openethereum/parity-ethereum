@@ -132,9 +132,10 @@ pub struct TxInput<'a, T> {
 }
 
 /// Execute given transaction and verify resulting state root.
+/// Returns true if the transaction executes successfully.
 pub fn run_transaction<T: Informant>(
 	tx_input: TxInput<T>
-) {
+) -> bool {
 	let TxInput {
 		state_test_name, tx_index, fork_spec_name, pre_state, post_root, env_info, transaction, mut informant, trie_spec, ..
 	} = tx_input;
@@ -148,7 +149,7 @@ pub fn run_transaction<T: Informant>(
 		None => {
 			informant.before_test(&format!("{}:{}:{}",
 				&state_test_name, fork_spec_name_formatted, &tx_index), "skipping because of missing fork specification");
-			return;
+			return false;
 		},
 	};
 
@@ -177,9 +178,9 @@ pub fn run_transaction<T: Informant>(
 		}
 	});
 
-	T::finish(result, &mut sink)
-}
-
+	let ok = result.is_ok();
+	T::finish(result, &mut sink);
+	ok
 }
 
 /// Execute EVM with given `ActionParams`.

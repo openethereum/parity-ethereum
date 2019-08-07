@@ -220,7 +220,7 @@ fn run_state_test(args: Args) {
 							trie_spec,
 						};
 						// Use Standard JSON informant with err only
-						info::run_transaction(tx_input)
+						info::run_transaction(tx_input);
 					} else if args.flag_std_out_only {
 						let tx_input = TxInput {
 							state_test_name: &state_test_name,
@@ -234,7 +234,7 @@ fn run_state_test(args: Args) {
 							trie_spec,
 						};
 						// Use Standard JSON informant with out only
-						info::run_transaction(tx_input)
+						info::run_transaction(tx_input);
 					} else {
 						let tx_input = TxInput {
 							state_test_name: &state_test_name,
@@ -248,7 +248,7 @@ fn run_state_test(args: Args) {
 							trie_spec,
 						};
 						// Use Standard JSON informant default
-						info::run_transaction(tx_input)
+						info::run_transaction(tx_input);
 					}
 				} else {
 					// Execute the given transaction and verify resulting state root
@@ -266,7 +266,7 @@ fn run_state_test(args: Args) {
 							trie_spec,
 						};
 						// Use JSON informant
-						info::run_transaction(tx_input)
+						info::run_transaction(tx_input);
 					} else {
 						let tx_input = TxInput {
 							state_test_name: &state_test_name,
@@ -280,7 +280,7 @@ fn run_state_test(args: Args) {
 							trie_spec,
 						};
 						// Use Simple informant
-						info::run_transaction(tx_input)
+						info::run_transaction(tx_input);
 					}
 				}
 			}
@@ -608,7 +608,7 @@ mod tests {
 					informant,
 					trie_spec,
 				};
-				info::run_transaction(tx_input)
+				assert!(info::run_transaction(tx_input));
 			}
 		}
 	}
@@ -655,7 +655,7 @@ mod tests {
 					informant,
 					trie_spec,
 				};
-				info::run_transaction(tx_input)
+				assert!(info::run_transaction(tx_input));
 			}
 		}
 	}
