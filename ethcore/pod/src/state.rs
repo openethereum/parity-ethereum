@@ -31,7 +31,9 @@ pub struct PodState(BTreeMap<Address, PodAccount>);
 
 impl PodState {
 	/// Get the underlying map.
-	pub fn get(&self) -> &BTreeMap<Address, PodAccount> { &self.0 }
+	pub fn get(&self) -> &BTreeMap<Address, PodAccount> {
+		&self.0
+	}
 
 	/// Get the root hash of the trie of the RLP of this.
 	pub fn root(&self) -> H256 {
@@ -39,7 +41,9 @@ impl PodState {
 	}
 
 	/// Drain object to get the underlying map.
-	pub fn drain(self) -> BTreeMap<Address, PodAccount> { self.0 }
+	pub fn drain(self) -> BTreeMap<Address, PodAccount> {
+		self.0
+	}
 }
 
 impl From<ethjson::blockchain::State> for PodState {

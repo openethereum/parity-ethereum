@@ -16,18 +16,19 @@
 
 //! Parameters for a block chain.
 
-use std::collections::BTreeMap;
-use std::io::Read;
-use std::path::Path;
-use std::sync::Arc;
+use std::{
+	collections::BTreeMap,
+	fmt,
+	io::Read,
+	path::Path,
+	sync::Arc,
+};
 
 use bytes::Bytes;
 use ethereum_types::{H256, Bloom, U256, Address};
 use ethjson;
 use hash::{KECCAK_NULL_RLP, keccak};
-use parking_lot::RwLock;
 use rlp::{Rlp, RlpStream};
-use rustc_hex::{FromHex, ToHex};
 use types::{
 	BlockNumber,
 	header::Header,
@@ -96,6 +97,93 @@ impl<'a, T: AsRef<Path>> From<&'a T> for SpecParams<'a> {
 	}
 }
 
+/// given a pre-constructor state, run all the given constructors and produce a new state and
+/// state root.
+fn run_constructors<T: Backend>(
+	genesis_state: &PodState,
+	constructors: &[(Address, Bytes)],
+	engine: &Engine,
+	author: Address,
+	timestamp: u64,
+	difficulty: U256,
+	factories: &Factories,
+	mut db: T
+) -> Result<(H256, T), Error> {
+	let mut root = KECCAK_NULL_RLP;
+
+	// basic accounts in spec.
+	{
+		let mut t = factories.trie.create(db.as_hash_db_mut(), &mut root);
+
+		for (address, account) in genesis_state.get().iter() {
+			t.insert(address.as_bytes(), &account.rlp())?;
+		}
+	}
+
+	for (address, account) in genesis_state.get().iter() {
+		db.note_non_null_account(address);
+		account.insert_additional(
+			&mut *factories.accountdb.create(
+				db.as_hash_db_mut(),
+				keccak(address),
+			),
+			&factories.trie,
+		);
+	}
+
+	let start_nonce = engine.account_start_nonce(0);
+
+	let mut state = State::from_existing(db, root, start_nonce, factories.clone())?;
+
+	// Execute contract constructors.
+	let env_info = EnvInfo {
+		number: 0,
+		author,
+		timestamp,
+		difficulty,
+		last_hashes: Default::default(),
+		gas_used: U256::zero(),
+		gas_limit: U256::max_value(),
+	};
+
+	let from = Address::zero();
+	for &(ref address, ref constructor) in constructors.iter() {
+		trace!(target: "spec", "run_constructors: Creating a contract at {}.", address);
+		trace!(target: "spec", "  .. root before = {}", state.root());
+		let params = ActionParams {
+			code_address: address.clone(),
+			code_hash: Some(keccak(constructor)),
+			code_version: U256::zero(),
+			address: address.clone(),
+			sender: from.clone(),
+			origin: from.clone(),
+			gas: U256::max_value(),
+			gas_price: Default::default(),
+			value: ActionValue::Transfer(Default::default()),
+			code: Some(Arc::new(constructor.clone())),
+			data: None,
+			call_type: CallType::None,
+			params_type: ParamsType::Embedded,
+		};
+
+		let mut substate = Substate::new();
+
+		{
+			let machine = engine.machine();
+			let schedule = machine.schedule(env_info.number);
+			let mut exec = Executive::new(&mut state, &env_info, &machine, &schedule);
+			// failing create is not a bug
+			if let Err(e) = exec.create(params, &mut substate, &mut NoopTracer, &mut NoopVMTracer) {
+				warn!(target: "spec", "Genesis constructor execution at {} failed: {}.", address, e);
+			}
+		}
+
+		let _ = state.commit()?;
+	}
+
+	Ok(state.drop())
+}
+
 /// Parameters for a block chain; includes both those intrinsic to the design of the
 /// chain and those to be interpreted by the active chain engine.
 pub struct Spec {
@@ -137,7 +225,7 @@ pub struct Spec {
 	constructors: Vec<(Address, Bytes)>,
 
 	/// May be prepopulated if we know this in advance.
-	state_root_memo: RwLock<H256>,
+	state_root_memo: H256,
 
 	/// Genesis state as plain old data.
 	genesis_state: PodState,
@@ -163,13 +251,14 @@ impl Clone for Spec {
 			seal_rlp: self.seal_rlp.clone(),
 			hardcoded_sync: self.hardcoded_sync.clone(),
 			constructors: self.constructors.clone(),
-			state_root_memo: RwLock::new(*self.state_root_memo.read()),
+			state_root_memo: self.state_root_memo,
 			genesis_state: self.genesis_state.clone(),
 		}
 	}
 }
 
 /// Part of `Spec`. Describes the hardcoded synchronization parameters.
+#[derive(Debug, Clone)]
 pub struct SpecHardcodedSync {
 	/// Header of the block to jump to for hardcoded sync, and total difficulty.
 	pub header: encoded::Header,
@@ -180,31 +269,23 @@ pub struct SpecHardcodedSync {
 	pub chts: Vec<H256>,
 }
 
-impl SpecHardcodedSync {
-	/// Turns this specifications back into JSON. Useful for pretty printing.
-	pub fn to_json(self) -> ethjson::spec::HardcodedSync {
-		self.into()
-	}
-}
-
-#[cfg(test)]
-impl Clone for SpecHardcodedSync {
-	fn clone(&self) -> SpecHardcodedSync {
+impl From<ethjson::spec::HardcodedSync> for SpecHardcodedSync {
+	fn from(sync: ethjson::spec::HardcodedSync) -> Self {
 		SpecHardcodedSync {
-			header: self.header.clone(),
-			total_difficulty: self.total_difficulty.clone(),
-			chts: self.chts.clone(),
-		}
-	}
-}
-
-impl From<SpecHardcodedSync> for ethjson::spec::HardcodedSync {
-	fn from(sync: SpecHardcodedSync) -> ethjson::spec::HardcodedSync {
-		ethjson::spec::HardcodedSync {
-			header: sync.header.into_inner().to_hex(),
-			total_difficulty: ethjson::uint::Uint(sync.total_difficulty),
+			header: encoded::Header::new(sync.header.into()),
+			total_difficulty: sync.total_difficulty.into(),
 			chts: sync.chts.into_iter().map(Into::into).collect(),
 		}
+	}
+}
+
+impl fmt::Display for SpecHardcodedSync {
+	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+		writeln!(f, "{{")?;
+		writeln!(f, r#"header": "{:?},"#, self.header)?;
+		writeln!(f, r#"total_difficulty": "{:?},"#, self.total_difficulty)?;
+		writeln!(f, r#"chts": {:#?}"#, self.chts.iter().map(|x| format!(r#"{}"#, x)).collect::<Vec<_>>())?;
+		writeln!(f, "}}")
 	}
 }
 
@@ -226,58 +307,50 @@ fn load_from(spec_params: SpecParams, s: ethjson::spec::Spec) -> Result<Spec, Er
 	let GenericSeal(seal_rlp) = g.seal.into();
 	let params = CommonParams::from(s.params);
 
-	let hardcoded_sync = if let Some(ref hs) = s.hardcoded_sync {
-		if let Ok(header) = hs.header.from_hex() {
-			Some(SpecHardcodedSync {
-				header: encoded::Header::new(header),
-				total_difficulty: hs.total_difficulty.into(),
-				chts: s.hardcoded_sync
-					.as_ref()
-					.map(|s| s.chts.iter().map(|c| c.clone().into()).collect())
-					.unwrap_or_default()
-			})
-		} else {
-			None
-		}
-	} else {
-		None
-	};
+	let hardcoded_sync = s.hardcoded_sync.map(Into::into);
 
-	let mut s = Spec {
+	let engine = Spec::engine(spec_params, s.engine, params, builtins);
+	let author = g.author;
+	let timestamp = g.timestamp;
+	let difficulty = g.difficulty;
+	let constructors: Vec<_> = s.accounts
+		.constructors()
+		.into_iter()
+		.map(|(a, c)| (a.into(), c.into()))
+		.collect();
+	let genesis_state: PodState = s.accounts.into();
+
+	let (state_root_memo, _) = run_constructors(
+		&genesis_state,
+		&constructors,
+		&*engine,
+		author,
+		timestamp,
+		difficulty,
+		&Default::default(),
+		BasicBackend(journaldb::new_memory_db()),
+	)?;
+
+	let s = Spec {
+		engine,
 		name: s.name.clone().into(),
-		engine: Spec::engine(spec_params, s.engine, params, builtins),
 		data_dir: s.data_dir.unwrap_or(s.name).into(),
 		nodes: s.nodes.unwrap_or_else(Vec::new),
 		parent_hash: g.parent_hash,
 		transactions_root: g.transactions_root,
 		receipts_root: g.receipts_root,
-		author: g.author,
-		difficulty: g.difficulty,
+		author,
+		difficulty,
 		gas_limit: g.gas_limit,
 		gas_used: g.gas_used,
-		timestamp: g.timestamp,
+		timestamp,
 		extra_data: g.extra_data,
 		seal_rlp,
 		hardcoded_sync,
-		constructors: s.accounts
-			.constructors()
-			.into_iter()
-			.map(|(a, c)| (a.into(), c.into()))
-			.collect(),
-		state_root_memo: RwLock::new(Default::default()), // will be overwritten right after.
-		genesis_state: s.accounts.into(),
+		constructors,
+		genesis_state,
+		state_root_memo,
 	};
-
-	// use memoized state root if provided.
-	match g.state_root {
-		Some(root) => *s.state_root_memo.get_mut() = root,
-		None => {
-			let _ = s.run_constructors(
-				&Default::default(),
-				BasicBackend(journaldb::new_memory_db()),
-			)?;
-		}
-	}
 
 	Ok(s)
 }
@@ -337,95 +410,9 @@ impl Spec {
 		}
 	}
 
-	// given a pre-constructor state, run all the given constructors and produce a new state and
-	// state root.
-	fn run_constructors<T: Backend>(&self, factories: &Factories, mut db: T) -> Result<T, Error> {
-		let mut root = KECCAK_NULL_RLP;
-
-		// basic accounts in spec.
-		{
-			let mut t = factories.trie.create(db.as_hash_db_mut(), &mut root);
-
-			for (address, account) in self.genesis_state.get().iter() {
-				t.insert(address.as_bytes(), &account.rlp())?;
-			}
-		}
-
-		for (address, account) in self.genesis_state.get().iter() {
-			db.note_non_null_account(address);
-			account.insert_additional(
-				&mut *factories.accountdb.create(
-					db.as_hash_db_mut(),
-					keccak(address),
-				),
-				&factories.trie,
-			);
-		}
-
-		let start_nonce = self.engine.account_start_nonce(0);
-
-		let (root, db) = {
-			let mut state = State::from_existing(db, root, start_nonce, factories.clone())?;
-
-			// Execute contract constructors.
-			let env_info = EnvInfo {
-				number: 0,
-				author: self.author,
-				timestamp: self.timestamp,
-				difficulty: self.difficulty,
-				last_hashes: Default::default(),
-				gas_used: U256::zero(),
-				gas_limit: U256::max_value(),
-			};
-
-			let from = Address::zero();
-			for &(ref address, ref constructor) in self.constructors.iter() {
-				trace!(target: "spec", "run_constructors: Creating a contract at {}.", address);
-				trace!(target: "spec", "  .. root before = {}", state.root());
-				let params = ActionParams {
-					code_address: address.clone(),
-					code_hash: Some(keccak(constructor)),
-					code_version: U256::zero(),
-					address: address.clone(),
-					sender: from.clone(),
-					origin: from.clone(),
-					gas: U256::max_value(),
-					gas_price: Default::default(),
-					value: ActionValue::Transfer(Default::default()),
-					code: Some(Arc::new(constructor.clone())),
-					data: None,
-					call_type: CallType::None,
-					params_type: ParamsType::Embedded,
-				};
-
-				let mut substate = Substate::new();
-
-				{
-					let machine = self.engine.machine();
-					let schedule = machine.schedule(env_info.number);
-					let mut exec = Executive::new(&mut state, &env_info, &machine, &schedule);
-					if let Err(e) = exec.create(params, &mut substate, &mut NoopTracer, &mut NoopVMTracer) {
-						warn!(target: "spec", "Genesis constructor execution at {} failed: {}.", address, e);
-					}
-				}
-
-				if let Err(e) = state.commit() {
-					warn!(target: "spec", "Genesis constructor trie commit at {} failed: {}.", address, e);
-				}
-
-				trace!(target: "spec", "  .. root after = {}", state.root());
-			}
-
-			state.drop()
-		};
-
-		*self.state_root_memo.write() = root;
-		Ok(db)
-	}
-
 	/// Return the state root for the genesis state, memoising accordingly.
 	pub fn state_root(&self) -> H256 {
-		self.state_root_memo.read().clone()
+		self.state_root_memo
 	}
 
 	/// Get common blockchain parameters.
@@ -511,25 +498,24 @@ impl Spec {
 	/// Alter the value of the genesis state.
 	pub fn set_genesis_state(&mut self, s: PodState) -> Result<(), Error> {
 		self.genesis_state = s;
-		let _ = self.run_constructors(
+		let (root, _) = run_constructors(
+			&self.genesis_state,
+			&self.constructors,
+			&*self.engine,
+			self.author,
+			self.timestamp,
+			self.difficulty,
 			&Default::default(),
 			BasicBackend(journaldb::new_memory_db()),
 		)?;
 
+		self.state_root_memo = root;
 		Ok(())
 	}
 
 	/// Return genesis state as Plain old data.
 	pub fn genesis_state(&self) -> &PodState {
 		&self.genesis_state
-	}
-
-	/// Returns `false` if the memoized state root is invalid. `true` otherwise.
-	pub fn is_state_root_valid(&self) -> bool {
-		// TODO: get rid of this function and ensure state root always is valid.
-		// we're mostly there, but `self.genesis_state.root()` doesn't encompass
-		// post-constructor state.
-		*self.state_root_memo.read() == self.genesis_state.root()
 	}
 
 	/// Ensure that the given state DB has the trie nodes in for the genesis state.
@@ -540,7 +526,18 @@ impl Spec {
 
 		// TODO: could optimize so we don't re-run, but `ensure_db_good` is barely ever
 		// called anyway.
-		let db = self.run_constructors(factories, db)?;
+		let (root, db) = run_constructors(
+			&self.genesis_state,
+			&self.constructors,
+			&*self.engine,
+			self.author,
+			self.timestamp,
+			self.difficulty,
+			factories,
+			db
+		)?;
+
+		assert_eq!(root, self.state_root(), "Spec's state root has not been precomputed correctly.");
 		Ok(db)
 	}
 

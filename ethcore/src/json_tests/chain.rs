@@ -77,7 +77,6 @@ pub fn json_chain_test<H: FnMut(&str, HookType)>(json_data: &[u8], start_stop_ho
 				let state = From::from(blockchain.pre_state.clone());
 				spec.set_genesis_state(state).expect("Failed to overwrite genesis state");
 				spec.overwrite_genesis_params(genesis);
-				assert!(spec.is_state_root_valid());
 				spec
 			};
 

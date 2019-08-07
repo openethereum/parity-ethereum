@@ -17,9 +17,8 @@
 //! A module with types for declaring block rewards and a client interface for interacting with a
 //! block reward contract.
 
-use ethabi;
-use ethabi::ParamType;
-use ethereum_types::{H160, Address, U256};
+use ethabi::FunctionOutputDecoder;
+use ethereum_types::{Address, U256};
 
 use std::sync::Arc;
 use hash::keccak;
@@ -112,33 +111,19 @@ impl BlockRewardContract {
 	/// `machine.execute_as_system`).
 	pub fn reward(
 		&self,
-		beneficiaries: &[(Address, RewardKind)],
+		beneficiaries: Vec<(Address, RewardKind)>,
 		caller: &mut SystemOrCodeCall,
 	) -> Result<Vec<(Address, U256)>, Error> {
-		let input = block_reward_contract::functions::reward::encode_input(
-			beneficiaries.iter().map(|&(address, _)| H160::from(address)),
-			beneficiaries.iter().map(|&(_, ref reward_kind)| u16::from(*reward_kind)),
-		);
+		let (addresses, rewards): (Vec<_>, Vec<_>) = beneficiaries.into_iter().unzip();
+		let (input, decoder) = block_reward_contract::functions::reward::call(addresses, rewards.into_iter().map(u16::from));
 
 		let output = caller(self.kind.clone(), input)
 			.map_err(Into::into)
 			.map_err(EngineError::FailedSystemCall)?;
 
-		// since this is a non-constant call we can't use ethabi's function output
-		// deserialization, sadness ensues.
-		let types = &[
-			ParamType::Array(Box::new(ParamType::Address)),
-			ParamType::Array(Box::new(ParamType::Uint(256))),
-		];
-
-		let tokens = ethabi::decode(types, &output)
+		let (addresses, rewards) = decoder.decode(&output)
 			.map_err(|err| err.to_string())
 			.map_err(EngineError::FailedSystemCall)?;
-
-		assert!(tokens.len() == 2);
-
-		let addresses = tokens[0].clone().to_array().expect("type checked by ethabi::decode; qed");
-		let rewards = tokens[1].clone().to_array().expect("type checked by ethabi::decode; qed");
 
 		if addresses.len() != rewards.len() {
 			return Err(EngineError::FailedSystemCall(
@@ -146,10 +131,7 @@ impl BlockRewardContract {
 			).into());
 		}
 
-		let addresses = addresses.into_iter().map(|t| t.to_address().expect("type checked by ethabi::decode; qed"));
-		let rewards = rewards.into_iter().map(|t| t.to_uint().expect("type checked by ethabi::decode; qed"));
-
-		Ok(addresses.zip(rewards).collect())
+		Ok(addresses.into_iter().zip(rewards.into_iter()).collect())
 	}
 }
 
@@ -222,7 +204,7 @@ mod test {
 		};
 
 		// if no beneficiaries are given no rewards are attributed
-		assert!(block_reward_contract.reward(&vec![], &mut call).unwrap().is_empty());
+		assert!(block_reward_contract.reward(vec![], &mut call).unwrap().is_empty());
 
 		// the contract rewards (1000 + kind) for each benefactor
 		let beneficiaries = vec![
@@ -231,7 +213,7 @@ mod test {
 			(Address::from_str("0000000000000000000000000000000000000035").unwrap(), RewardKind::EmptyStep),
 		];
 
-		let rewards = block_reward_contract.reward(&beneficiaries, &mut call).unwrap();
+		let rewards = block_reward_contract.reward(beneficiaries, &mut call).unwrap();
 		let expected = vec![
 			(Address::from_str("0000000000000000000000000000000000000033").unwrap(), U256::from(1000)),
 			(Address::from_str("0000000000000000000000000000000000000034").unwrap(), U256::from(1000 + 101)),

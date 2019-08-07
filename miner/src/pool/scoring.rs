@@ -34,7 +34,7 @@ use txpool::{self, scoring};
 use super::{verifier, PrioritizationStrategy, VerifiedTransaction, ScoredTransaction};
 
 /// Transaction with the same (sender, nonce) can be replaced only if
-/// `new_gas_price > old_gas_price + old_gas_price >> SHIFT`
+/// `new_gas_price >= old_gas_price + old_gas_price >> SHIFT`
 const GAS_PRICE_BUMP_SHIFT: usize = 3; // 2 = 25%, 3 = 12.5%, 4 = 6.25%
 
 /// Calculate minimal gas price requirement.

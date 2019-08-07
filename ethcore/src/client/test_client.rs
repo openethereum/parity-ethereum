@@ -20,6 +20,7 @@ use std::str::FromStr;
 use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering as AtomicOrder};
 use std::sync::Arc;
 use std::collections::{HashMap, BTreeMap};
+use blockchain::BlockProvider;
 use std::mem;
 
 use blockchain::{TreeRoute, BlockReceipts};
@@ -701,6 +702,10 @@ impl BlockChainClient for TestBlockChainClient {
 				Some(self.storage.read().get(&(address.clone(), position.clone())).cloned().unwrap_or_default()),
 			_ => None,
 		}
+	}
+
+	fn chain(&self) -> Arc<BlockProvider> {
+		unimplemented!()
 	}
 
 	fn list_accounts(&self, _id: BlockId, _after: Option<&Address>, _count: u64) -> Option<Vec<Address>> {
