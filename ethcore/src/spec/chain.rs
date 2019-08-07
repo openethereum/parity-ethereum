@@ -16,8 +16,7 @@
 
 //! Ethereum protocol module.
 //!
-//! Contains all Ethereum network specific stuff, such as denominations and
-//! consensus specifications.
+//! Loads all protocols supported by parity-ethereum client.
 
 macro_rules! bundle_release_spec {
 	($($path: expr => $name: ident), *) => {
