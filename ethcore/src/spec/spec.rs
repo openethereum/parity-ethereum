@@ -55,11 +55,6 @@ use trace::{NoopTracer, NoopVMTracer};
 
 pub use ethash::OptimizeFor;
 
-// helper for formatting errors.
-fn fmt_err<F: ::std::fmt::Display>(f: F) -> String {
-	format!("Spec json is invalid: {}", f)
-}
-
 /// Runtime parameters for the spec that are related to how the software should run the chain,
 /// rather than integral properties of the chain itself.
 pub struct SpecParams<'a> {
@@ -219,7 +214,7 @@ pub struct Spec {
 	/// Contract constructors to be executed on genesis.
 	pub constructors: Vec<(Address, Bytes)>,
 	/// May be prepopulated if we know this in advance.
-	pub state_root_memo: H256,
+	pub state_root: H256,
 	/// Genesis state as plain old data.
 	pub genesis_state: PodState,
 }
@@ -279,7 +274,7 @@ fn load_from(spec_params: SpecParams, s: ethjson::spec::Spec) -> Result<Spec, Er
 		.collect();
 	let genesis_state: PodState = s.accounts.into();
 
-	let (state_root_memo, _) = run_constructors(
+	let (state_root, _) = run_constructors(
 		&genesis_state,
 		&constructors,
 		&*engine,
@@ -308,7 +303,7 @@ fn load_from(spec_params: SpecParams, s: ethjson::spec::Spec) -> Result<Spec, Er
 		hardcoded_sync,
 		constructors,
 		genesis_state,
-		state_root_memo,
+		state_root,
 	};
 
 	Ok(s)
@@ -351,11 +346,6 @@ impl Spec {
 		}
 	}
 
-	/// Return the state root for the genesis state, memoising accordingly.
-	pub fn state_root(&self) -> H256 {
-		self.state_root_memo
-	}
-
 	/// Get common blockchain parameters.
 	pub fn params(&self) -> &CommonParams {
 		&self.engine.params()
@@ -391,7 +381,7 @@ impl Spec {
 		header.set_transactions_root(self.transactions_root.clone());
 		header.set_uncles_hash(keccak(RlpStream::new_list(0).out()));
 		header.set_extra_data(self.extra_data.clone());
-		header.set_state_root(self.state_root());
+		header.set_state_root(self.state_root);
 		header.set_receipts_root(self.receipts_root.clone());
 		header.set_log_bloom(Bloom::default());
 		header.set_gas_used(self.gas_used.clone());
@@ -445,13 +435,13 @@ impl Spec {
 			BasicBackend(journaldb::new_memory_db()),
 		)?;
 
-		self.state_root_memo = root;
+		self.state_root = root;
 		Ok(())
 	}
 
 	/// Ensure that the given state DB has the trie nodes in for the genesis state.
 	pub fn ensure_db_good<T: Backend>(&self, db: T, factories: &Factories) -> Result<T, Error> {
-		if db.as_hash_db().contains(&self.state_root(), hash_db::EMPTY_PREFIX) {
+		if db.as_hash_db().contains(&self.state_root, hash_db::EMPTY_PREFIX) {
 			return Ok(db);
 		}
 
@@ -468,14 +458,14 @@ impl Spec {
 			db
 		)?;
 
-		assert_eq!(root, self.state_root(), "Spec's state root has not been precomputed correctly.");
+		assert_eq!(root, self.state_root, "Spec's state root has not been precomputed correctly.");
 		Ok(db)
 	}
 
 	/// Loads just the state machine from a json file.
-	pub fn load_machine<R: Read>(reader: R) -> Result<Machine, String> {
+	pub fn load_machine<R: Read>(reader: R) -> Result<Machine, Error> {
 		ethjson::spec::Spec::load(reader)
-			.map_err(fmt_err)
+			.map_err(|e| Error::Msg(e.to_string()))
 			.map(|s| {
 				let builtins = s.accounts.builtins().into_iter().map(|p| (p.0.into(), From::from(p.1))).collect();
 				let params = CommonParams::from(s.params);
@@ -485,10 +475,10 @@ impl Spec {
 
 	/// Loads spec from json file. Provide factories for executing contracts and ensuring
 	/// storage goes to the right place.
-	pub fn load<'a, T: Into<SpecParams<'a>>, R: Read>(params: T, reader: R) -> Result<Self, String> {
+	pub fn load<'a, T: Into<SpecParams<'a>>, R: Read>(params: T, reader: R) -> Result<Self, Error> {
 		ethjson::spec::Spec::load(reader)
-			.map_err(fmt_err)
-			.and_then(|x| load_from(params.into(), x).map_err(fmt_err))
+			.map_err(|e| Error::Msg(e.to_string()))
+			.and_then(|x| load_from(params.into(), x))
 	}
 
 	/// initialize genesis epoch data, using in-memory database for
@@ -570,7 +560,7 @@ mod tests {
 		let test_spec = spec::new_test();
 
 		assert_eq!(
-			test_spec.state_root(),
+			test_spec.state_root,
 			H256::from_str("f3f4696bbf3b3b07775128eb7a3763279a394e382130f27c21e70233e04946a9").unwrap()
 		);
 		let genesis = test_spec.genesis_block();
@@ -588,7 +578,7 @@ mod tests {
 			.unwrap();
 		let state = State::from_existing(
 			db.boxed_clone(),
-			spec.state_root(),
+			spec.state_root,
 			spec.engine.account_start_nonce(0),
 			Default::default(),
 		).unwrap();
