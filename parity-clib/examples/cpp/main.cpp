@@ -16,14 +16,15 @@
 
 #include <atomic>
 #include <chrono>
+#include <iostream>
 #include <regex>
 #include <string>
-#include <cstdint>
+#include <stdexcept>
 #include <thread>
 #include "parity_client.hpp"
 #include "websocket_subscription.hpp"
 
-const int64_t SUBSCRIPTION_ID_LEN = 18;
+const uint64_t SUBSCRIPTION_ID_LEN = 18;
 const uint64_t TIMEOUT_ONE_MIN_AS_MILLIS = 60 * 1000;
 const uint64_t CALLBACK_RPC = 1;
 const uint64_t CALLBACK_WS = 2;
@@ -62,38 +63,43 @@ int main() {
 	std::string logger_mode {"rpc=debug,pubsub=debug"};
 	std::string log_file {};
 
-	ParityClient client {config, logger_mode, log_file};
+	try {
+		ParityClient client {config, logger_mode, log_file};
 
-	// make rpc queries
-	{
-		uint64_t type = CALLBACK_RPC;
-		callback_counter = 0;
+		// make rpc queries
+		{
+			uint64_t type = CALLBACK_RPC;
+			callback_counter = 0;
 
-		for (auto query : rpc_queries) {
-			client.rpc_query(query, callback, TIMEOUT_ONE_MIN_AS_MILLIS, &type);
+			for (auto query : rpc_queries) {
+				client.rpc_query(query, callback, TIMEOUT_ONE_MIN_AS_MILLIS, &type);
+			}
+			std::this_thread::sleep_for(std::chrono::seconds(60));
+
+			if (callback_counter.load() != rpc_queries.size()) {
+				return 1;
+			}
 		}
-		std::this_thread::sleep_for(std::chrono::seconds(60));
 
-		if (callback_counter.load() != rpc_queries.size()) {
-			return 1;
+		// make websocket subscriptions
+		{
+			uint64_t type = CALLBACK_WS;
+			callback_counter = 0;
+
+			// make sure the websocket subscriptions `live` long enough
+			auto one = client.websocket_subscribe(ws_subscriptions[0], callback, &type);
+			auto two = client.websocket_subscribe(ws_subscriptions[1], callback, &type);
+			auto three = client.websocket_subscribe(ws_subscriptions[2], callback, &type);
+
+			std::this_thread::sleep_for(std::chrono::seconds(60));
+
+			if (callback_counter.load() != ws_subscriptions.size()) {
+				return 1;
+			}
 		}
-	}
 
-	// make websocket subscriptions
-	{
-		uint64_t type = CALLBACK_WS;
-		callback_counter = 0;
-
-		// make sure the websocket subscriptions `live` long enough
-		auto one = client.websocket_subscribe(ws_subscriptions[0], callback, &type);
-		auto two = client.websocket_subscribe(ws_subscriptions[1], callback, &type);
-		auto three = client.websocket_subscribe(ws_subscriptions[2], callback, &type);
-
-		std::this_thread::sleep_for(std::chrono::seconds(60));
-
-		if (callback_counter.load() != ws_subscriptions.size()) {
-			return 1;
-		}
+	} catch (const std::exception &err) {
+		std::cerr << err.what() << std::endl;
 	}
 
 	return 0;

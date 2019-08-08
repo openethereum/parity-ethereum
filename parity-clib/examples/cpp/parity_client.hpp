@@ -23,11 +23,9 @@ class ParityClient {
 		ParityClient &operator=(ParityClient&& b) = delete;
 		ParityClient &operator=(const ParityClient& b) = delete;
 
-		// Perfrom a asyncronous rpc request
+		// Perform an asynchronous rpc request which invokes the callback when the request finished or timed out
 		//
-		// Throws expection the query failed
-		//
-		// Invokes the callback when the request finished or timed out
+		// Throws an exception if the query failed
 		void rpc_query(
 				std::string query,
 				void (*callback)(void* user_data, const char* response, size_t len),
@@ -35,10 +33,10 @@ class ParityClient {
 				void *user_data
 		) const;
 
-		// Subscribe to a websocket event which invokes the callback when events of `event` occurred.
+		// Subscribe to a websocket event which invokes the callback when events of the subscription occurred.
 		//
-		// Returns a WebsocketSubscription object on the stack when it is dropped the event is unsubscribed to.
-		// Be careful that you keep the subscription as long as just you want to subscribe to the event.
+		// Returns a WebsocketSubscription object on the stack.
+		// Be careful that you keep the subscription object as long as just you want to subscribe to the event.
 		WebsocketSubscription websocket_subscribe(
 				std::string event,
 				void (*callback)(void* ud, const char* response, size_t len),

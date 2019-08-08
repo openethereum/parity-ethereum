@@ -45,7 +45,9 @@ ParityClient::ParityClient(std::vector<const char*> config, std::string logger_m
 }
 
 ParityClient::~ParityClient() {
-	parity_destroy(inner);
+	if (inner) {
+		parity_destroy(inner);
+	}
 }
 
 void ParityClient::rpc_query(
