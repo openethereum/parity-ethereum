@@ -163,10 +163,10 @@ impl RollingFinality {
 			match self.sign_count.entry(*signer) {
 				Entry::Occupied(mut entry) => {
 					// decrement count for this signer and purge on zero.
-					*entry.get_mut() -= 1;
-
-					if *entry.get() == 0 {
+					if *entry.get() <= 1 {
 						entry.remove();
+					} else {
+						*entry.get_mut() -= 1;
 					}
 				}
 				Entry::Vacant(_) => {
