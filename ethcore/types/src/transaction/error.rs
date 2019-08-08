@@ -30,9 +30,6 @@ pub enum Error {
 	AlreadyImported,
 	/// Transaction is not valid anymore (state already has higher nonce)
 	Old,
-	/// Transaction has too low fee
-	/// (there is already a transaction with the same sender-nonce but higher gas price)
-	TooCheapToReplace,
 	/// Transaction was not imported to the queue because limit has been reached.
 	LimitReached,
 	/// Transaction's gas price is below threshold.
@@ -44,11 +41,11 @@ pub enum Error {
 	},
 	/// Transaction has too low fee
 	/// (there is already a transaction with the same sender-nonce but higher gas price)
-	TxTooCheapToReplace {
+	TooCheapToReplace {
 		/// previous transaction's gas price
-		prev: U256,
+		prev: Option<U256>,
 		/// new transaction's gas price
-		new: U256,
+		new: Option<U256>,
 	},
 	/// Transaction's gas is below currently set minimal gas requirement.
 	InsufficientGas {
@@ -109,9 +106,8 @@ impl fmt::Display for Error {
 		let msg = match *self {
 			AlreadyImported => "Already imported".into(),
 			Old => "No longer valid".into(),
-			TooCheapToReplace => "Gas price too low to replace".into(),
-			TxTooCheapToReplace { prev, new } =>
-				format!("Gas price too low to replace, previous tx gas: {}, new tx gas: {}",
+			TooCheapToReplace { prev, new } =>
+				format!("Gas price too low to replace, previous tx gas: {:?}, new tx gas: {:?}",
 						prev, new
 				),
 			LimitReached => "Transaction limit reached".into(),
