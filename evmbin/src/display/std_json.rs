@@ -332,20 +332,21 @@ pub mod tests {
 		}
 	}
 
-	pub fn informant() -> (Informant<TestWriter, TestWriter>, Arc<Mutex<Vec<u8>>>) {
+	pub fn informant() -> (Informant<TestWriter, TestWriter>, TestWriter, TestWriter) {
 		let trace_writer: TestWriter = Default::default();
 		let out_writer: TestWriter = Default::default();
-		let res = trace_writer.0.clone();
-		(Informant::new(trace_writer, out_writer), res)
+		let trace_copy = Clone::clone(&trace_writer);
+		let out_copy = Clone::clone(&out_writer);
+		(Informant::new(trace_writer, out_writer), trace_copy, out_copy)
 	}
 
 	#[test]
 	fn should_trace_failure() {
-		let (inf, res) = informant();
+		let (inf, res, _) = informant();
 		run_test(
 			inf,
 			move |_, expected| {
-				let bytes = res.lock().unwrap();
+				let bytes = res.0.lock().unwrap();
 				assert_eq!(expected, &String::from_utf8_lossy(&**bytes))
 			},
 			"60F8d6",
@@ -355,11 +356,11 @@ pub mod tests {
 "#,
 		);
 
-		let (inf, res) = informant();
+		let (inf, res, _) = informant();
 		run_test(
 			inf,
 			move |_, expected| {
-				let bytes = res.lock().unwrap();
+				let bytes = res.0.lock().unwrap();
 				assert_eq!(expected, &String::from_utf8_lossy(&**bytes))
 			},
 			"F8d6",
@@ -371,11 +372,11 @@ pub mod tests {
 
 	#[test]
 	fn should_trace_create_correctly() {
-		let (informant, res) = informant();
+		let (informant, res, _) = informant();
 		run_test(
 			informant,
 			move |_, expected| {
-				let bytes = res.lock().unwrap();
+				let bytes = res.0.lock().unwrap();
 				assert_eq!(expected, &String::from_utf8_lossy(&**bytes))
 			},
 			"32343434345830f138343438323439f0",
