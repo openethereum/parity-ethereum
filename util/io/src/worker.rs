@@ -14,17 +14,22 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
-use futures::future::{self, Loop};
-use std::sync::Arc;
-use std::thread::{JoinHandle, self};
-use std::sync::atomic::{AtomicBool, Ordering as AtomicOrdering};
-use deque;
-use service_mio::{HandlerId, IoChannel, IoContext};
-use tokio::{self};
-use IoHandler;
-use LOCAL_STACK_SIZE;
+use std::{
+	sync::{Arc, atomic::{AtomicBool, Ordering as AtomicOrdering}},
+	thread::{self, JoinHandle},
+};
 
+use crossbeam_deque as deque;
+use futures::future::{self, Loop};
+use log::{trace, error};
 use parking_lot::{Condvar, Mutex};
+use tokio;
+
+use crate::{
+	IoHandler,
+	LOCAL_STACK_SIZE,
+	service_mio::{HandlerId, IoChannel, IoContext},
+};
 
 const STACK_SIZE: usize = 16*1024*1024;
 
@@ -40,7 +45,7 @@ pub struct Work<Message> {
 	pub work_type: WorkType<Message>,
 	pub token: usize,
 	pub handler_id: HandlerId,
-	pub handler: Arc<IoHandler<Message>>,
+	pub handler: Arc<dyn IoHandler<Message>>,
 }
 
 /// An IO worker thread
@@ -54,13 +59,15 @@ pub struct Worker {
 
 impl Worker {
 	/// Creates a new worker instance.
-	pub fn new<Message>(index: usize,
-						stealer: deque::Stealer<Work<Message>>,
-						channel: IoChannel<Message>,
-						wait: Arc<Condvar>,
-						wait_mutex: Arc<Mutex<()>>,
-					   ) -> Worker
-					where Message: Send + Sync + 'static {
+	pub fn new<Message>(
+		index: usize,
+		stealer: deque::Stealer<Work<Message>>,
+		channel: IoChannel<Message>,
+		wait: Arc<Condvar>,
+		wait_mutex: Arc<Mutex<()>>,
+	) -> Worker
+	where Message: Send + Sync + 'static
+	{
 		let deleting = Arc::new(AtomicBool::new(false));
 		let mut worker = Worker {
 			thread: None,
