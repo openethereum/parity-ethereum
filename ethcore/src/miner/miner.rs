@@ -512,10 +512,10 @@ impl Miner {
 			let sender = transaction.sender();
 
 			// Re-verify transaction again vs current state.
-			let result = client.verify_signed(&transaction)
+			let result = client.verify_for_pending_block(&transaction, &open_block.header)
 				.map_err(|e| e.into())
 				.and_then(|_| {
-					self.engine.machine().verify_transaction_basic(&transaction, &open_block.header)
+					client.verify_signed(&transaction)
 				})
 				.map_err(|e| e.into())
 				.and_then(|_| {

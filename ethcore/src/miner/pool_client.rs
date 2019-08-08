@@ -120,6 +120,11 @@ impl<'a, C: 'a> PoolClient<'a, C> where
 	pub fn verify_signed(&self, tx: &SignedTransaction) -> Result<(), transaction::Error> {
 		self.engine.machine().verify_transaction(&tx, &self.best_block_header, self.chain)
 	}
+
+	/// Verifies transaction against its block (before its import into this block)
+	pub fn verify_for_pending_block(&self, transaction: &UnverifiedTransaction, header: &Header) -> Result<(), transaction::Error> {
+		self.engine.machine().verify_transaction_basic(transaction, header)
+	}
 }
 
 impl<'a, C: 'a> fmt::Debug for PoolClient<'a, C> {
