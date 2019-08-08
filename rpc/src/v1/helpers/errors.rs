@@ -421,7 +421,10 @@ pub fn transaction_message(error: &TransactionError) -> String {
 		AlreadyImported => "Transaction with the same hash was already imported.".into(),
 		Old => "Transaction nonce is too low. Try incrementing the nonce.".into(),
 		TooCheapToReplace { prev, new } => {
-			format!("Transaction gas price {:?}wei is too low. There is another transaction with same nonce in the queue with gas price: {:?}wei. Try increasing the gas price or incrementing the nonce.", new, prev)
+			format!("Transaction gas price {} is too low. There is another transaction with same nonce in the queue{}. Try increasing the gas price or incrementing the nonce.",
+					new.map(|gas| format!("{}wei", gas)).unwrap_or("supplied".into()),
+					prev.map(|gas| format!(" with gas price: {}wei", gas)).unwrap_or("".into())
+			)
 		}
 		LimitReached => {
 			"There are too many transactions in the queue. Your transaction was dropped due to limit. Try increasing the fee.".into()
