@@ -18,10 +18,6 @@
 //! code contained therein, as well as contract based transaction permissions. All ethereum
 //! engines embed a `Machine`.
 
-// todo[dvdplm]: fix ethabi for use with edition 2018
-#[macro_use]
-extern crate ethabi_derive;
-
 pub mod executed;
 pub mod executed_block;
 pub mod executive;
