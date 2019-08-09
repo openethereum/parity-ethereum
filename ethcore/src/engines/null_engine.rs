@@ -15,7 +15,7 @@
 // along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
 use engine::snapshot::SnapshotComponents;
-use engines::Engine;
+use engine::Engine;
 use engines::block_reward::{self, RewardKind};
 use ethereum_types::U256;
 use machine::{

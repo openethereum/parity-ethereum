@@ -71,9 +71,9 @@ impl ValidatorSet for TestSet {
 	fn is_epoch_end(&self, _first: bool, _chain_head: &Header) -> Option<Vec<u8>> { None }
 
 	fn signals_epoch_end(&self, _: bool, _: &Header, _: AuxiliaryData)
-		-> ::engines::EpochChange
+		-> engine::EpochChange
 	{
-		::engines::EpochChange::No
+		engine::EpochChange::No
 	}
 
 	fn epoch_set(&self, _: bool, _: &Machine, _: BlockNumber, _: &[u8]) -> Result<(SimpleList, Option<H256>), EthcoreError> {

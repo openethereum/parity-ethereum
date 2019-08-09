@@ -39,9 +39,8 @@ use types::{
 use parking_lot::RwLock;
 
 use call_contract::CallContract;
-use client::Nonce;
-use client_traits::BlockInfo;
-use engines::Engine;
+use client_traits::{BlockInfo, Nonce};
+use engine::Engine;
 use machine::transaction_ext::Transaction;
 use miner;
 

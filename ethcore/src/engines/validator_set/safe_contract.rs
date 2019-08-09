@@ -36,7 +36,7 @@ use types::{
 };
 use unexpected::Mismatch;
 
-use client::EngineClient;
+use client_traits::EngineClient;
 use machine::Machine;
 use super::{SystemCall, ValidatorSet};
 use super::simple_list::SimpleList;
@@ -59,7 +59,7 @@ struct StateProof {
 	header: Header,
 }
 
-impl ::engines::StateDependentProof for StateProof {
+impl engine::StateDependentProof for StateProof {
 	fn generate_proof(&self, caller: &Call) -> Result<Vec<u8>, String> {
 		prove_initial(self.contract_address, &self.header, caller)
 	}
@@ -314,7 +314,7 @@ impl ValidatorSet for ValidatorSafeContract {
 	}
 
 	fn signals_epoch_end(&self, first: bool, header: &Header, aux: AuxiliaryData)
-		-> ::engines::EpochChange
+		-> engine::EpochChange
 	{
 		let receipts = aux.receipts;
 
@@ -325,27 +325,27 @@ impl ValidatorSet for ValidatorSafeContract {
 				contract_address: self.contract_address,
 				header: header.clone(),
 			});
-			return ::engines::EpochChange::Yes(::engines::Proof::WithState(state_proof as Arc<_>));
+			return engine::EpochChange::Yes(engine::Proof::WithState(state_proof as Arc<_>));
 		}
 
 		// otherwise, we're checking for logs.
 		let bloom = self.expected_bloom(header);
 		let header_bloom = header.log_bloom();
 
-		if &bloom & header_bloom != bloom { return ::engines::EpochChange::No }
+		if &bloom & header_bloom != bloom { return engine::EpochChange::No }
 
 		trace!(target: "engine", "detected epoch change event bloom");
 
 		match receipts {
-			None => ::engines::EpochChange::Unsure(AuxiliaryRequest::Receipts),
+			None => engine::EpochChange::Unsure(AuxiliaryRequest::Receipts),
 			Some(receipts) => match self.extract_from_event(bloom, header, receipts) {
-				None => ::engines::EpochChange::No,
+				None => engine::EpochChange::No,
 				Some(list) => {
 					info!(target: "engine", "Signal for transition within contract. New validator list: {:?}",
 						&*list);
 
 					let proof = encode_proof(&header, receipts);
-					::engines::EpochChange::Yes(::engines::Proof::Known(proof))
+					engine::EpochChange::Yes(engine::Proof::Known(proof))
 				}
 			},
 		}

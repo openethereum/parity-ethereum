@@ -49,7 +49,7 @@ use types::{
 	block::Block,
 	header::Header,
 	ids::BlockId,
-	engines::{SealingState},
+	engines::{Seal, SealingState},
 	errors::{EthcoreError as Error, ExecutionError},
 	receipt::RichReceipt,
 };
@@ -57,9 +57,15 @@ use using_queue::{UsingQueue, GetAction};
 
 use block::{ClosedBlock, SealedBlock};
 use client::{
-	BlockChain, ChainInfo, BlockProducer, SealedBlockImporter, Nonce, TransactionInfo, ClientIoMessage,
+	BlockProducer, SealedBlockImporter, ClientIoMessage,
 };
-use engines::{Engine, Seal, EngineSigner};
+use client_traits::{
+	BlockChain, ChainInfo, Nonce, TransactionInfo,
+};
+use engine::{
+	Engine,
+	signer::EngineSigner
+};
 use machine::executive::contract_address;
 use spec::Spec;
 use account_state::State;

@@ -25,7 +25,7 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 
 use blockchain::{BlockChain, BlockChainDB, BlockProvider};
-use engines::Engine;
+use engine::Engine;
 use engine::snapshot::{SnapshotComponents, Rebuilder};
 use snapshot::block::AbridgedBlock;
 use ethereum_types::H256;

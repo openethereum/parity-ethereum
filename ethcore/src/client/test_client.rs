@@ -66,7 +66,7 @@ use client::{
 	SealedBlockImporter, IoClient, BadBlocks
 };
 use client_traits::BlockInfo;
-use engines::Engine;
+use engine::Engine;
 use machine::executed::Executed;
 use journaldb;
 use miner::{self, Miner, MinerService};
@@ -945,7 +945,7 @@ impl ProvingBlockChainClient for TestBlockChainClient {
 	}
 }
 
-impl super::traits::EngineClient for TestBlockChainClient {
+impl client_traits::EngineClient for TestBlockChainClient {
 	fn update_sealing(&self) {
 		self.miner.update_sealing(self)
 	}

@@ -17,7 +17,7 @@
 //! Consensus tests for `PoA Clique Engine`, see http://eips.ethereum.org/EIPS/eip-225 for more information
 
 use block::*;
-use engines::Engine;
+use engine::Engine;
 use ethereum_types::{Address, H256};
 use ethkey::{Secret, KeyPair};
 use state_db::StateDB;

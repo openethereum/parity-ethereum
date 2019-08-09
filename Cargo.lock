@@ -426,8 +426,18 @@ dependencies = [
 name = "client-traits"
 version = "0.1.0"
 dependencies = [
+ "account-state 0.1.0",
  "common-types 0.1.0",
+ "ethcore-blockchain 0.1.0",
+ "ethcore-call-contract 0.1.0",
+ "ethcore-db 0.1.0",
+ "ethcore-miner 1.12.0",
  "ethereum-types 0.6.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "itertools 0.5.10 (registry+https://github.com/rust-lang/crates.io-index)",
+ "parity-bytes 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "stats 0.1.0",
+ "trace 0.1.0",
+ "vm 0.1.0",
 ]
 
 [[package]]
@@ -757,6 +767,21 @@ dependencies = [
 ]
 
 [[package]]
+name = "engine"
+version = "0.1.0"
+dependencies = [
+ "client-traits 0.1.0",
+ "common-types 0.1.0",
+ "ethcore-blockchain 0.1.0",
+ "ethcore-builtin 0.1.0",
+ "ethereum-types 0.6.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "ethkey 0.3.0",
+ "machine 0.1.0",
+ "parity-bytes 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "vm 0.1.0",
+]
+
+[[package]]
 name = "enum_primitive"
 version = "0.1.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -869,6 +894,7 @@ dependencies = [
  "common-types 0.1.0",
  "criterion 0.2.5 (registry+https://github.com/rust-lang/crates.io-index)",
  "crossbeam-utils 0.6.5 (registry+https://github.com/rust-lang/crates.io-index)",
+ "engine 0.1.0",
  "env_logger 0.5.13 (registry+https://github.com/rust-lang/crates.io-index)",
  "ethabi 8.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "ethabi-contract 8.0.1 (registry+https://github.com/rust-lang/crates.io-index)",

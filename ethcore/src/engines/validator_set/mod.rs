@@ -37,7 +37,7 @@ use types::{
 	engines::machine::{Call, AuxiliaryData},
 };
 
-use client::EngineClient;
+use client_traits::EngineClient;
 
 #[cfg(test)]
 pub use self::test::TestSet;
@@ -117,7 +117,7 @@ pub trait ValidatorSet: Send + Sync + 'static {
 		first: bool,
 		header: &Header,
 		aux: AuxiliaryData,
-	) -> ::engines::EpochChange;
+	) -> engine::EpochChange;
 
 	/// Recover the validator set from the given proof, the block number, and
 	/// whether this header is first in its set.

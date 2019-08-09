@@ -22,7 +22,12 @@
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 
-use engines::{Engine, EpochVerifier, EpochTransition};
+use engine::{
+	Engine,
+	EpochVerifier,
+	snapshot::{SnapshotComponents, Rebuilder}
+};
+use engines::EpochTransition;
 
 use blockchain::{BlockChain, BlockChainDB, BlockProvider};
 use bytes::Bytes;
@@ -38,7 +43,7 @@ use types::{
 	receipt::Receipt,
 	snapshot::{ChunkSink, Progress, ManifestData}
 };
-use engine::snapshot::{SnapshotComponents, Rebuilder};
+
 /// Snapshot creation and restoration for PoA chains.
 /// Chunk format:
 ///
@@ -187,7 +192,7 @@ impl ChunkRebuilder {
 		transition_rlp: Rlp,
 		engine: &dyn Engine,
 	) -> Result<Verified, EthcoreError> {
-		use engines::ConstructedVerifier;
+		use engine::ConstructedVerifier;
 
 		// decode.
 		let header: Header = transition_rlp.val_at(0)?;

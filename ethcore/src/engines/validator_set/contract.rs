@@ -30,7 +30,7 @@ use types::{
 	engines::machine::{Call, AuxiliaryData},
 };
 
-use client::EngineClient;
+use client_traits::EngineClient;
 
 use super::{ValidatorSet, SimpleList, SystemCall};
 use super::safe_contract::ValidatorSafeContract;
@@ -93,7 +93,7 @@ impl ValidatorSet for ValidatorContract {
 		first: bool,
 		header: &Header,
 		aux: AuxiliaryData,
-	) -> ::engines::EpochChange {
+	) -> engine::EpochChange {
 		self.validators.signals_epoch_end(first, header, aux)
 	}
 

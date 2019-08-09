@@ -18,7 +18,7 @@
 
 use std::sync::Arc;
 
-use engines::{Engine, EpochVerifier};
+use engine::{Engine, EpochVerifier};
 
 use blockchain::BlockChain;
 use parking_lot::RwLock;

@@ -24,8 +24,8 @@ use std::sync::atomic::{AtomicUsize, AtomicBool, Ordering as AtomicOrdering};
 use std::sync::{Weak, Arc};
 use std::time::{UNIX_EPOCH, Duration};
 
-use client::EngineClient;
-use engines::{Engine, Seal, ConstructedVerifier};
+use client_traits::EngineClient;
+use engine::{Engine,ConstructedVerifier};
 use engines::block_reward;
 use engines::block_reward::{BlockRewardContract, RewardKind};
 use engine::snapshot::SnapshotComponents;
@@ -35,7 +35,7 @@ use machine::{
 	Machine,
 };
 use hash::keccak;
-use super::signer::EngineSigner;
+use engine::signer::EngineSigner;
 use super::validator_set::{ValidatorSet, SimpleList, new_validator_set};
 use self::finality::RollingFinality;
 use ethkey::{self, Signature};
@@ -51,6 +51,7 @@ use types::{
 	header::{Header, ExtendedHeader},
 	engines::{
 		params::CommonParams,
+		Seal,
 		SealingState,
 		machine::{Call, AuxiliaryData},
 	},
@@ -460,7 +461,7 @@ struct EpochVerifier {
 	empty_steps_transition: u64,
 }
 
-impl super::EpochVerifier for EpochVerifier {
+impl engine::EpochVerifier   for EpochVerifier {
 	fn verify_light(&self, header: &Header) -> Result<(), Error> {
 		// Validate the timestamp
 		verify_timestamp(&self.step.inner, header_step(header, self.empty_steps_transition)?)?;
@@ -1430,8 +1431,8 @@ impl Engine for AuthorityRound {
 			.map(|set_proof| combine_proofs(0, &set_proof, &[]))
 	}
 
-	fn signals_epoch_end(&self, header: &Header, aux: AuxiliaryData) -> super::EpochChange {
-		if self.immediate_transitions { return super::EpochChange::No }
+	fn signals_epoch_end(&self, header: &Header, aux: AuxiliaryData) -> engine::EpochChange {
+		if self.immediate_transitions { return engine::EpochChange::No }
 
 		let first = header.number() == 0;
 		self.validators.signals_epoch_end(first, header, aux)

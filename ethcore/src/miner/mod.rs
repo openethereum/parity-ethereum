@@ -48,9 +48,10 @@ use types::{
 use block::SealedBlock;
 use call_contract::{CallContract, RegistryInfo};
 use client::{
-	ScheduleInfo,
-	BlockChain, BlockProducer, SealedBlockImporter, ChainInfo,
-	AccountData, Nonce,
+	ScheduleInfo, BlockProducer, SealedBlockImporter,
+};
+use client_traits::{
+	BlockChain, ChainInfo, AccountData, Nonce,
 };
 use account_state::state::StateInfo;
 

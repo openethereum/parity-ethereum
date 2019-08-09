@@ -21,3 +21,12 @@
 pub mod engine;
 pub mod signer;
 pub mod snapshot;
+
+pub use engine::{
+	Engine,
+	EpochVerifier,
+	StateDependentProof,
+	ConstructedVerifier,
+	EpochChange,
+	Proof,
+};

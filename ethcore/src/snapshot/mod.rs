@@ -27,7 +27,6 @@ use hash::{keccak, KECCAK_NULL_RLP, KECCAK_EMPTY};
 
 use account_db::{AccountDB, AccountDBMut};
 use blockchain::{BlockChain, BlockProvider};
-use engines::Engine;
 use types::{
 	ids::BlockId,
 	header::Header,
@@ -52,7 +51,10 @@ use self::io::SnapshotWriter;
 
 use super::state_db::StateDB;
 use account_state::Account as StateAccount;
-use engine::snapshot::SnapshotComponents;
+use engine::{
+	Engine,
+	snapshot::SnapshotComponents
+};
 
 use crossbeam_utils::thread;
 use rand::{Rng, rngs::OsRng};

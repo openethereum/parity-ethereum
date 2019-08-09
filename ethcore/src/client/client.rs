@@ -39,20 +39,23 @@ use hash_db::EMPTY_PREFIX;
 use block::{LockedBlock, Drain, ClosedBlock, OpenBlock, enact_verified, SealedBlock};
 use client::ancient_import::AncientVerifier;
 use client::{
-	Nonce, Balance, ChainInfo, TransactionInfo,
 	ReopenBlock, PrepareOpenBlock, ScheduleInfo, ImportSealedBlock,
-	BroadcastProposalBlock, ImportBlock, StateOrBlock, StateInfo, StateClient, Call,
-	AccountData, BlockChain as BlockChainTrait, BlockProducer, SealedBlockImporter,
-	BlockChainReset
+	BroadcastProposalBlock, StateInfo, StateClient, Call,
+	BlockProducer, SealedBlockImporter,
+	BlockChainReset,
+	ClientConfig,
+	ChainNotify, NewBlocks, ChainRoute, ProvingBlockChainClient, EngineInfo, ChainMessageType,
+	 bad_blocks, ClientIoMessage,
 };
-use client::{
-	ClientConfig, BlockChainClient,
-	TraceFilter, CallAnalytics, Mode,
-	ChainNotify, NewBlocks, ChainRoute, PruningInfo, ProvingBlockChainClient, EngineInfo, ChainMessageType,
-	IoClient, BadBlocks, bad_blocks, ClientIoMessage,
+use client_traits::{
+	BlockInfo,
+	Nonce, Balance, ChainInfo, TransactionInfo, ImportBlock,
+	AccountData, BlockChain as BlockChainTrait, BlockChainClient,
+	IoClient, BadBlocks,
+	StateOrBlock
 };
-use client_traits::BlockInfo;
-use engines::{Engine, EpochTransition, ForkChoice};
+use engines::{EpochTransition, ForkChoice};
+use engine::Engine;
 use machine::{
 	executed::Executed,
 	executive::{Executive, TransactOptions, contract_address},
@@ -85,10 +88,14 @@ use types::{
 	receipt::{Receipt, LocalizedReceipt},
 	header::Header,
 	snapshot::Progress,
+	trace_filter::Filter as TraceFilter,
+	pruning_info::PruningInfo,
+	call_analytics::CallAnalytics,
+	client_types::Mode,
+	verification_queue_info::Unverified, // todo[dvdplm] rename the module
 };
 
 use verification::queue::kind::BlockLike;
-use verification::queue::kind::blocks::Unverified;
 use verification::{Verifier, BlockQueue};
 use verification;
 use ansi_term::Colour;
@@ -605,7 +612,7 @@ impl Importer {
 		state_db: &StateDB,
 		client: &Client,
 	) -> EthcoreResult<Option<PendingTransition>> {
-		use engines::EpochChange;
+		use engine::EpochChange;
 
 		let hash = header.hash();
 		let auxiliary = AuxiliaryData {
@@ -615,7 +622,7 @@ impl Importer {
 
 		match self.engine.signals_epoch_end(header, auxiliary) {
 			EpochChange::Yes(proof) => {
-				use engines::Proof;
+				use engine::Proof;
 
 				let proof = match proof {
 					Proof::Known(proof) => proof,
@@ -2509,7 +2516,7 @@ impl SealedBlockImporter for Client {}
 impl ::miner::TransactionVerifierClient for Client {}
 impl ::miner::BlockChainClient for Client {}
 
-impl super::traits::EngineClient for Client {
+impl client_traits::EngineClient for Client {
 	fn update_sealing(&self) {
 		self.importer.miner.update_sealing(self)
 	}

@@ -34,7 +34,8 @@ use types::{
 use unexpected::{OutOfBounds, Mismatch};
 
 use engines::block_reward::{self, BlockRewardContract, RewardKind};
-use engines::{self, Engine};
+use engines;
+use engine::Engine;
 use ethash::{self, quick_get_difficulty, slow_hash_block_number, EthashManager, OptimizeFor};
 use machine::{
 	ExecutedBlock,
@@ -191,14 +192,14 @@ impl Ethash {
 		ethash_params: EthashParams,
 		machine: Machine,
 		optimize_for: T,
-	) -> Arc<Self> {
+	) -> Self {
 		let progpow_transition = ethash_params.progpow_transition;
 
-		Arc::new(Ethash {
+		Ethash {
 			ethash_params,
 			machine,
 			pow: EthashManager::new(cache_dir.as_ref(), optimize_for.into(), progpow_transition),
-		})
+		}
 	}
 }
 
@@ -213,14 +214,18 @@ impl Ethash {
 // NOTE[dvdplm]: the reason we impl this for Arc<Ethash> and not plain Ethash is the
 // way `epoch_verifier()` works. This means `new()` returns an `Arc<Ethash>` which is
 // then re-wrapped in an Arc in `spec::engine()`.
-impl engines::EpochVerifier for Arc<Ethash> {
+
+//pub struct ArcEthash<'a>(Arc<&'a Ethash>);
+//impl engine::EpochVerifier for Arc<Ethash> {
+impl engine::EpochVerifier for Ethash {
 	fn verify_light(&self, _header: &Header) -> Result<(), Error> { Ok(()) }
 	fn verify_heavy(&self, header: &Header) -> Result<(), Error> {
 		self.verify_block_unordered(header).into()
 	}
 }
 
-impl Engine for Arc<Ethash> {
+//impl Engine for Arc<Ethash> {
+impl Engine for Ethash {
 	fn name(&self) -> &str { "Ethash" }
 	fn machine(&self) -> &Machine { &self.machine }
 
@@ -383,8 +388,13 @@ impl Engine for Arc<Ethash> {
 		Ok(())
 	}
 
-	fn epoch_verifier<'a>(&self, _header: &Header, _proof: &'a [u8]) -> engines::ConstructedVerifier<'a> {
-		engines::ConstructedVerifier::Trusted(Box::new(self.clone()))
+	fn epoch_verifier<'a>(&self, _header: &Header, _proof: &'a [u8]) -> engine::ConstructedVerifier<'a> {
+		// todo[dvdplm]: this one's tricky, not sure how to solve this.
+		engine::ConstructedVerifier::Trusted(Box::new(engine::engine::NoOp))
+//		engine::ConstructedVerifier::Trusted(Box::new(ArcEthash(Arc::new(self))))
+//		engine::ConstructedVerifier::Trusted(Box::new(self.clone()))
+//		engine::ConstructedVerifier::Trusted(Box::new(*self))
+//		engine::ConstructedVerifier::Trusted(Box::new(self))
 	}
 
 	fn snapshot_components(&self) -> Option<Box<dyn (SnapshotComponents)>> {
@@ -503,7 +513,7 @@ mod tests {
 		errors::{BlockError, EthcoreError as Error},
 	};
 	use spec::Spec;
-	use engines::Engine;
+	use engine::Engine;
 	use crate::spec::{new_morden, new_mcip3_test, new_homestead_test_machine};
 	use super::{Ethash, EthashParams, ecip1017_eras_block_reward};
 	use rlp;
