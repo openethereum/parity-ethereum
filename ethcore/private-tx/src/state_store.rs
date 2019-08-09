@@ -58,17 +58,15 @@ pub struct PrivateStateStorage {
 	private_state_db: Arc<PrivateStateDB>,
 	requests: RwLock<Vec<StateRequest>>,
 	syncing_hashes: RwLock<Vec<HashRequestSession>>,
-	logging: Option<Arc<Logging>>,
 }
 
 impl PrivateStateStorage {
 	/// Constructs the object
-	pub fn new(db: Arc<KeyValueDB>, logging: Option<Arc<Logging>>) -> Self {
+	pub fn new(db: Arc<KeyValueDB>) -> Self {
 		PrivateStateStorage {
 			private_state_db: Arc::new(PrivateStateDB::new(db)),
 			requests: RwLock::new(Vec::new()),
 			syncing_hashes: RwLock::default(),
-			logging,
 		}
 	}
 
@@ -133,11 +131,11 @@ impl PrivateStateStorage {
 	}
 
 	/// State retrieval timer's tick
-	pub fn tick(&self) {
+	pub fn tick(&self, logging: &Option<Logging>) {
 		let mut syncing_hashes = self.syncing_hashes.write();
 		for hash in syncing_hashes.iter() {
 			if hash.expiration_time >= Instant::now() {
-				self.mark_hash_stale(&hash.hash);
+				self.mark_hash_stale(&hash.hash, logging);
 			}
 		}
 		syncing_hashes.retain(|hash| hash.expiration_time < Instant::now());
@@ -153,7 +151,7 @@ impl PrivateStateStorage {
 		}
 	}
 
-	fn mark_hash_stale(&self, stale_hash: &H256) {
+	fn mark_hash_stale(&self, stale_hash: &H256, logging: &Option<Logging>) {
 		let mut requests = self.requests.write();
 		requests.retain(|request| {
 			let mut delete_request = false;
@@ -165,7 +163,7 @@ impl PrivateStateStorage {
 					}
 					RequestType::Creation(transaction) => {
 						tx_hash = transaction.hash();
-						if let Some(ref logging) = self.logging {
+						if let Some(ref logging) = logging {
 							logging.private_state_sync_failed(&tx_hash);
 						}
 					}

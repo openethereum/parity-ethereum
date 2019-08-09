@@ -217,7 +217,7 @@ pub struct Provider {
 	accounts: Arc<Signer>,
 	channel: IoChannel<ClientIoMessage>,
 	keys_provider: Arc<KeyProvider>,
-	logging: Option<Arc<Logging>>,
+	logging: Option<Logging>,
 	use_offchain_storage: bool,
 	state_storage: PrivateStateStorage,
 }
@@ -243,7 +243,6 @@ impl Provider {
 		db: Arc<KeyValueDB>,
 	) -> Self {
 		keys_provider.update_acl_contract();
-		let logging = config.logs_path.map(|path| Arc::new(Logging::new(Arc::new(FileLogsSerializer::with_path(path)))));
 		Provider {
 			encryptor,
 			validator_accounts: config.validator_accounts.into_iter().collect(),
@@ -256,9 +255,9 @@ impl Provider {
 			accounts,
 			channel,
 			keys_provider,
-			logging: logging.clone(),
+			logging: config.logs_path.map(|path| Logging::new(Arc::new(FileLogsSerializer::with_path(path)))),
 			use_offchain_storage: config.use_offchain_storage,
-			state_storage: PrivateStateStorage::new(db, logging),
+			state_storage: PrivateStateStorage::new(db),
 		}
 	}
 
@@ -305,38 +304,41 @@ impl Provider {
 		// in private-tx to avoid such mistakes.
 		let contract_nonce = self.get_contract_nonce(&contract, BlockId::Latest)?;
 		let private_state = self.execute_private_transaction(BlockId::Latest, &signed_transaction);
-		if let Err(err) = private_state {
-			match err {
-				Error::PrivateStateNotFound => {
-					trace!(target: "privatetx", "Private state for the contract not found, requesting from peers");
-					if let Some(ref logging) = self.logging {
-						let contract_validators = self.get_validators(BlockId::Latest, &contract)?;
-						logging.private_tx_created(&tx_hash, &contract_validators);
-						logging.private_state_request(&tx_hash);
-					}
-					let request = RequestType::Creation(signed_transaction);
-					self.request_private_state(&contract, request);
+		match private_state {
+			Err(err) => {
+				match err {
+					Error::PrivateStateNotFound => {
+						trace!(target: "privatetx", "Private state for the contract not found, requesting from peers");
+						if let Some(ref logging) = self.logging {
+							let contract_validators = self.get_validators(BlockId::Latest, &contract)?;
+							logging.private_tx_created(&tx_hash, &contract_validators);
+							logging.private_state_request(&tx_hash);
+						}
+						let request = RequestType::Creation(signed_transaction);
+						self.request_private_state(&contract, request);
+					},
+					_ => {},
 				}
-				_ => {}
+				Err(err)
 			}
-			return Err(err);
+			Ok(private_state) => {
+				trace!(target: "privatetx", "Private transaction created, encrypted transaction: {:?}, private state: {:?}", private, private_state);
+				let contract_validators = self.get_validators(BlockId::Latest, &contract)?;
+				trace!(target: "privatetx", "Required validators: {:?}", contract_validators);
+				let private_state_hash = self.calculate_state_hash(&private_state, contract_nonce);
+				trace!(target: "privatetx", "Hashed effective private state for sender: {:?}", private_state_hash);
+				self.transactions_for_signing.write().add_transaction(private.hash(), signed_transaction, &contract_validators, private_state, contract_nonce)?;
+				self.broadcast_private_transaction(private.hash(), private.rlp_bytes());
+				if let Some(ref logging) = self.logging {
+					logging.private_tx_created(&tx_hash, &contract_validators);
+				}
+				Ok(Receipt {
+					hash: tx_hash,
+					contract_address: contract,
+					status_code: 0,
+				})
+			}
 		}
-		let private_state = private_state.expect("Valid state since this");
-		trace!(target: "privatetx", "Private transaction created, encrypted transaction: {:?}, private state: {:?}", private, private_state);
-		let contract_validators = self.get_validators(BlockId::Latest, &contract)?;
-		trace!(target: "privatetx", "Required validators: {:?}", contract_validators);
-		let private_state_hash = self.calculate_state_hash(&private_state, contract_nonce);
-		trace!(target: "privatetx", "Hashed effective private state for sender: {:?}", private_state_hash);
-		self.transactions_for_signing.write().add_transaction(private.hash(), signed_transaction, &contract_validators, private_state, contract_nonce)?;
-		self.broadcast_private_transaction(private.hash(), private.rlp_bytes());
-		if let Some(ref logging) = self.logging {
-			logging.private_tx_created(&tx_hash, &contract_validators);
-		}
-		Ok(Receipt {
-			hash: tx_hash,
-			contract_address: contract,
-			status_code: 0,
-		})
 	}
 
 	/// Calculate hash from united private state and contract nonce
@@ -878,7 +880,7 @@ impl IoHandler<ClientIoMessage> for Provider {
 
 	fn timeout(&self, _io: &IoContext<ClientIoMessage>, timer: TimerToken) {
 		match timer {
-			STATE_RETRIEVAL_TIMER => self.state_storage.tick(),
+			STATE_RETRIEVAL_TIMER => self.state_storage.tick(&self.logging),
 			_ => warn!("IO service triggered unregistered timer '{}'", timer),
 		}
 	}
