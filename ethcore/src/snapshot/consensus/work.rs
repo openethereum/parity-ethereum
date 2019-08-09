@@ -84,7 +84,12 @@ impl SnapshotComponents for PowSnapshot {
 		db: Arc<dyn BlockChainDB>,
 		manifest: &ManifestData,
 	) -> Result<Box<dyn Rebuilder>, EthcoreError> {
-		PowRebuilder::new(chain, db.key_value().clone(), manifest, self.max_restore_blocks).map(|r| Box::new(r) as Box<_>)
+		PowRebuilder::new(
+			chain,
+			db.key_value().clone(),
+			manifest,
+			self.max_restore_blocks
+		).map(|r| Box::new(r) as Box<_>)
 	}
 
 	fn min_supported_version(&self) -> u64 { ::snapshot::MIN_SUPPORTED_STATE_CHUNK_VERSION }

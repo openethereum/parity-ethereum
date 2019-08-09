@@ -18,13 +18,11 @@
 
 use ethereum_types::{Address, U256};
 use bytes::Bytes;
-//use trace::{VMTrace, FlatTrace};
 
 use crate::{
 	log_entry::LogEntry,
 	receipt,
 	state_diff::StateDiff,
-	errors::ExecutionError,
 };
 
 /// Type alias for a function we can make calls through synchronously.
@@ -55,7 +53,6 @@ pub struct AuxiliaryData<'a> {
 
 /// Transaction execution receipt.
 #[derive(Debug, PartialEq, Clone)]
-//pub struct Executed<T = FlatTrace, V = VMTrace> {
 pub struct Executed<T, V> {
 	/// True if the outer call/create resulted in an exceptional exit.
 	pub exception: Option<vm::Error>,
@@ -96,6 +93,3 @@ pub struct Executed<T, V> {
 	/// The state diff, if we traced it.
 	pub state_diff: Option<StateDiff>,
 }
-
-///// Transaction execution result.
-//pub type ExecutionResult = Result<Box<Executed>, ExecutionError>;

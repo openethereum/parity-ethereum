@@ -75,6 +75,7 @@ pub trait SnapshotComponents: Send {
 	fn current_version(&self) -> u64;
 }
 
+// todo[dvdplm] moved
 /// Restore from secondary snapshot chunks.
 pub trait Rebuilder: Send {
 	/// Feed a chunk, potentially out of order.

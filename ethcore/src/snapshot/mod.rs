@@ -59,7 +59,7 @@ pub use self::consensus::*;
 pub use self::service::{SnapshotClient, Service, DatabaseRestore};
 pub use self::traits::SnapshotService;
 pub use self::watcher::Watcher;
-pub use types::snapshot_manifest::ManifestData;
+pub use types::snapshot::ManifestData;
 pub use types::restoration_status::RestorationStatus;
 pub use types::basic_account::BasicAccount;
 
@@ -111,6 +111,7 @@ impl Default for SnapshotConfiguration {
 	}
 }
 
+// todo[dvdplm] moved
 /// A progress indicator for snapshots.
 #[derive(Debug, Default)]
 pub struct Progress {
@@ -121,6 +122,7 @@ pub struct Progress {
 	abort: AtomicBool,
 }
 
+// todo[dvdplm] moved
 impl Progress {
 	/// Reset the progress.
 	pub fn reset(&self) {
@@ -145,8 +147,8 @@ impl Progress {
 
 	/// Whether the snapshot is complete.
 	pub fn done(&self) -> bool  { self.done.load(Ordering::Acquire) }
-
 }
+
 /// Take a snapshot using the given blockchain, starting block hash, and database, writing into the given writer.
 pub fn take_snapshot<W: SnapshotWriter + Send>(
 	chunker: Box<dyn SnapshotComponents>,

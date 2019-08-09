@@ -76,7 +76,7 @@ pub mod pruning_info;
 pub mod receipt;
 pub mod restoration_status;
 pub mod security_level;
-pub mod snapshot_manifest;
+pub mod snapshot;
 pub mod state_diff;
 pub mod trace_filter;
 pub mod transaction;
