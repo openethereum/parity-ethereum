@@ -314,7 +314,7 @@ impl Provider {
 							logging.private_state_request(&tx_hash);
 						}
 						let request = RequestType::Creation(signed_transaction);
-						self.request_private_state(&contract, request);
+						self.request_private_state(&contract, request)?;
 					},
 					_ => {},
 				}
@@ -403,7 +403,7 @@ impl Provider {
 						let contract = transaction.private_transaction.contract();
 						trace!(target: "privatetx", "Private state for the contract {:?} not found, requesting from peers", &contract);
 						let request = RequestType::Verification(transaction);
-						self.request_private_state(&contract, request);
+						self.request_private_state(&contract, request)?;
 					}
 					_ => {}
 				}
@@ -535,7 +535,7 @@ impl Provider {
 		self.notify(|notify| notify.broadcast(ChainMessageType::SignedPrivateTransaction(transaction_hash, message.clone())));
 	}
 
-	fn request_private_state(&self, address: &Address, request_type: RequestType) {
+	fn request_private_state(&self, address: &Address, request_type: RequestType) -> Result<(), Error> {
 		// Define the list of available contracts
 		let mut private_contracts = Vec::new();
 		private_contracts.push(*address);
@@ -553,7 +553,10 @@ impl Provider {
 		let mut stalled_contracts_hashes: HashSet<H256> = HashSet::new();
 		for address in private_contracts {
 			if let Ok(state_hash) = self.get_decrypted_state_from_contract(&address, BlockId::Latest) {
-				let state_hash = H256::from_slice(&state_hash[0..32]);
+				if state_hash.len() != H256::len_bytes() {
+					return Err(Error::StateIncorrect);
+				}
+				let state_hash = H256::from_slice(&state_hash);
 				if let Err(_) = self.state_storage.private_state_db().state(&state_hash) {
 					// State not found in the local db
 					stalled_contracts_hashes.insert(state_hash);
@@ -567,6 +570,7 @@ impl Provider {
 				self.notify(|notify| notify.broadcast(ChainMessageType::PrivateStateRequest(hash)));
 			}
 		}
+		Ok(())
 	}
 
 	fn private_state_sync_completed(&self, hash: &H256) -> Result<(), Error> {
@@ -626,7 +630,10 @@ impl Provider {
 		match self.use_offchain_storage {
 			true => {
 				let hashed_state = self.get_decrypted_state_from_contract(address, block)?;
-				let hashed_state = H256::from_slice(&hashed_state[0..32]);
+				if hashed_state.len() != H256::len_bytes() {
+					return Err(Error::StateIncorrect);
+				}
+				let hashed_state = H256::from_slice(&hashed_state);
 				let stored_state_data = self.state_storage.private_state_db().state(&hashed_state)?;
 				self.decrypt(address, &stored_state_data)
 			}
