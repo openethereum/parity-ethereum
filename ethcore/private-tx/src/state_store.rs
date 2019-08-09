@@ -14,7 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
-use std::collections::HashSet;
+use std::collections::{HashSet, HashMap};
 use std::sync::Arc;
 use std::time::{Instant, Duration};
 use parking_lot::RwLock;
@@ -27,11 +27,6 @@ use log::Logging;
 
 /// Max duration of retrieving state (in ms)
 const MAX_REQUEST_SESSION_DURATION: u64 = 120 * 1000;
-
-struct HashRequestSession {
-	hash: H256,
-	expiration_time: Instant,
-}
 
 /// Type of the stored reques
 pub enum RequestType {
@@ -57,7 +52,7 @@ struct StateRequest {
 pub struct PrivateStateStorage {
 	private_state_db: Arc<PrivateStateDB>,
 	requests: RwLock<Vec<StateRequest>>,
-	syncing_hashes: RwLock<Vec<HashRequestSession>>,
+	syncing_hashes: RwLock<HashMap<H256, Instant>>,
 }
 
 impl PrivateStateStorage {
@@ -79,9 +74,7 @@ impl PrivateStateStorage {
 	/// Signals that corresponding private state retrieved and added into the local db
 	pub fn state_sync_completed(&self, synced_state_hash: &H256) {
 		let mut syncing_hashes = self.syncing_hashes.write();
-		if let Some(index) = syncing_hashes.iter().position(|h| h.hash == *synced_state_hash) {
-			syncing_hashes.remove(index);
-		}
+		syncing_hashes.remove(synced_state_hash);
 		self.mark_hash_ready(synced_state_hash);
 	}
 
@@ -102,12 +95,7 @@ impl PrivateStateStorage {
 		let mut new_hashes = Vec::new();
 		for hash in request_hashes {
 			let mut hashes = self.syncing_hashes.write();
-			if hashes.iter().find(|&h| h.hash == hash).is_none() {
-				let hash_session = HashRequestSession {
-					hash,
-					expiration_time: Instant::now() + Duration::from_millis(MAX_REQUEST_SESSION_DURATION),
-				};
-				hashes.push(hash_session);
+			if hashes.insert(hash, Instant::now() + Duration::from_millis(MAX_REQUEST_SESSION_DURATION)).is_none() {
 				new_hashes.push(hash);
 			}
 		}
@@ -133,12 +121,12 @@ impl PrivateStateStorage {
 	/// State retrieval timer's tick
 	pub fn tick(&self, logging: &Option<Logging>) {
 		let mut syncing_hashes = self.syncing_hashes.write();
-		for hash in syncing_hashes.iter() {
-			if hash.expiration_time >= Instant::now() {
-				self.mark_hash_stale(&hash.hash, logging);
-			}
-		}
-		syncing_hashes.retain(|hash| hash.expiration_time < Instant::now());
+		let current_time = Instant::now();
+		syncing_hashes
+			.iter()
+			.filter(|&(_, expiration_time)| *expiration_time >= current_time)
+			.for_each(|(hash, _)| self.mark_hash_stale(&hash, logging));
+		syncing_hashes.retain(|_, expiration_time| *expiration_time < current_time);
 	}
 
 	fn mark_hash_ready(&self, ready_hash: &H256) {
