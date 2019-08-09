@@ -36,6 +36,7 @@ use trace::{self, Tracer, VMTracer};
 use common_types::{
 	errors::ExecutionError,
 	transaction::{Action, SignedTransaction},
+	engines::machine::Executed,
 };
 
 use crate::{
@@ -43,7 +44,6 @@ use crate::{
 	substate::Substate,
 	externalities::{Externalities, OutputPolicy, OriginInfo}, // todo: make explicit
 	transaction_ext::Transaction,
-	executed::Executed,
 };
 
 #[cfg(debug_assertions)]

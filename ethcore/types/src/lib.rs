@@ -64,6 +64,7 @@ pub mod block;
 pub mod block_status;
 pub mod blockchain_info;
 pub mod call_analytics;
+pub mod client_types;
 pub mod encoded;
 pub mod engines;
 pub mod errors;

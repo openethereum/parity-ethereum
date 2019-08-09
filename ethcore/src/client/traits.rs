@@ -53,8 +53,9 @@ use engines::Engine;
 use machine::executed::Executed;
 use account_state::state::StateInfo;
 use trace::LocalizedTrace;
-use verification::queue::kind::blocks::Unverified; // todo this is reexported from common_types
+use verification::queue::kind::blocks::Unverified;
 
+//todo[dvdplm] moved
 /// State information to be used during client query
 pub enum StateOrBlock {
 	/// State to be used, may be pending
@@ -64,18 +65,21 @@ pub enum StateOrBlock {
 	Block(BlockId)
 }
 
+//todo[dvdplm] moved
 impl From<Box<dyn StateInfo>> for StateOrBlock {
 	fn from(info: Box<dyn StateInfo>) -> StateOrBlock {
 		StateOrBlock::State(info)
 	}
 }
 
+//todo[dvdplm] moved
 impl From<BlockId> for StateOrBlock {
 	fn from(id: BlockId) -> StateOrBlock {
 		StateOrBlock::Block(id)
 	}
 }
 
+//todo[dvdplm] moved
 /// Provides `nonce` and `latest_nonce` methods
 pub trait Nonce {
 	/// Attempt to get address nonce at given block.
@@ -90,6 +94,7 @@ pub trait Nonce {
 	}
 }
 
+//todo[dvdplm] moved
 /// Provides `balance` and `latest_balance` methods
 pub trait Balance {
 	/// Get address balance at the given block's state.
@@ -106,15 +111,18 @@ pub trait Balance {
 	}
 }
 
+//todo[dvdplm] moved
 /// Provides methods to access account info
 pub trait AccountData: Nonce + Balance {}
 
+//todo[dvdplm] moved
 /// Provides `chain_info` method
 pub trait ChainInfo {
 	/// Get blockchain information.
 	fn chain_info(&self) -> BlockChainInfo;
 }
 
+//todo[dvdplm] moved
 /// Provides various information on a transaction by it's ID
 pub trait TransactionInfo {
 	/// Get the hash of block that contains the transaction, if any.
@@ -137,9 +145,11 @@ pub trait StateClient {
 	fn state_at(&self, id: BlockId) -> Option<Self::State>;
 }
 
+//todo[dvdplm] moved
 /// Provides various blockchain information, like block header, chain state etc.
 pub trait BlockChain: ChainInfo + BlockInfo + TransactionInfo {}
 
+// todo[dvdplm]: moved
 // FIXME Why these methods belong to BlockChainClient and not MiningBlockChainClient?
 /// Provides methods to import block into blockchain
 pub trait ImportBlock {
@@ -169,6 +179,7 @@ pub trait EngineInfo {
 	fn engine(&self) -> &dyn Engine;
 }
 
+// todo[dvdplm]: moved
 /// IO operations that should off-load heavy work to another thread.
 pub trait IoClient: Sync + Send {
 	/// Queue transactions for importing.
@@ -181,6 +192,7 @@ pub trait IoClient: Sync + Send {
 	fn queue_consensus_message(&self, message: Bytes);
 }
 
+// todo[dvdplm]: moved
 /// Provides recently seen bad blocks.
 pub trait BadBlocks {
 	/// Returns a list of blocks that were recently not imported because they were invalid.
@@ -404,6 +416,7 @@ pub trait BroadcastProposalBlock {
 /// Provides methods to import sealed block and broadcast a block proposal
 pub trait SealedBlockImporter: ImportSealedBlock + BroadcastProposalBlock {}
 
+// todo[dvdplm] moved
 /// Client facilities used by internally sealing Engines.
 pub trait EngineClient: Sync + Send + ChainInfo {
 	/// Make a new block and seal it.

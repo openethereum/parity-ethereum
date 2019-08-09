@@ -1275,6 +1275,7 @@ impl Client {
 		t: &SignedTransaction,
 		analytics: CallAnalytics,
 	) -> Result<Executed, CallError> {
+		use types::engines::machine::Executed as RawExecuted; //todo[dvdplm] better name
 		fn call<V, T>(
 			state: &mut State<StateDB>,
 			env_info: &EnvInfo,
@@ -1282,7 +1283,7 @@ impl Client {
 			state_diff: bool,
 			transaction: &SignedTransaction,
 			options: TransactOptions<T, V>,
-		) -> Result<Executed<T::Output, V::Output>, CallError> where
+		) -> Result<RawExecuted<T::Output, V::Output>, CallError> where
 			T: trace::Tracer,
 			V: trace::VMTracer,
 		{

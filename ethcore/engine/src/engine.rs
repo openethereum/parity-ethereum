@@ -16,40 +16,16 @@
 
 //! Consensus engine specification and basic implementations.
 
-mod authority_round;
-mod basic_authority;
-mod clique;
-mod ethash;
-mod instant_seal;
-mod null_engine;
-mod validator_set;
-
-pub mod block_reward;
-pub mod signer;
-
-pub use self::authority_round::AuthorityRound;
-pub use self::basic_authority::BasicAuthority;
-pub use self::instant_seal::{InstantSeal, InstantSealParams};
-pub use self::null_engine::NullEngine;
-pub use self::signer::EngineSigner;
-pub use self::clique::Clique;
-pub use self::ethash::{Ethash, Seal as EthashSeal};
-
-// TODO [ToDr] Remove re-export (#10130)
-pub use types::engines::ForkChoice;
-pub use types::engines::epoch::{self, Transition as EpochTransition};
-
 use std::sync::{Weak, Arc};
 use std::collections::BTreeMap;
 
 use builtin::Builtin;
-use vm::{EnvInfo, Schedule, CallType, ActionValue};
-use types::{
+use common_types::{
 	BlockNumber,
 	ancestry_action::AncestryAction,
 	header::{Header, ExtendedHeader},
 	engines::{
-		SealingState, Headers, PendingTransitionStore,
+		Seal, SealingState, Headers, PendingTransitionStore,
 		params::CommonParams,
 		machine as machine_types,
 		machine::{AuxiliaryData, AuxiliaryRequest},
@@ -57,26 +33,18 @@ use types::{
 	errors::{EthcoreError as Error, EngineError},
 	transaction::{self, UnverifiedTransaction},
 };
-use snapshot::SnapshotComponents;
-use client::EngineClient;
+//use snapshot::SnapshotComponents; //todo
+use client_traits::EngineClient;
 
+use ethereum_types::{H256, U256, Address};
 use ethkey::Signature;
 use machine::{
 	Machine,
 	executed_block::ExecutedBlock,
 };
-use ethereum_types::{H256, U256, Address};
-use bytes::Bytes;
+use vm::{EnvInfo, Schedule, CallType, ActionValue};
 
-// todo[dvdplm] remove
-/// Seal type.
-#[derive(Debug, PartialEq, Eq)]
-pub enum Seal {
-	/// Regular block seal; should be part of the blockchain.
-	Regular(Vec<Bytes>),
-	/// Engine does not generate seal for this block right now.
-	None,
-}
+use crate::signer::EngineSigner;
 
 /// A system-calling closure. Enacts calls on a block's state from the system address.
 pub type SystemCall<'a> = dyn FnMut(Address, Vec<u8>) -> Result<Vec<u8>, String> + 'a;
@@ -123,7 +91,6 @@ pub fn default_system_or_code_call<'a>(machine: &'a Machine, block: &'a mut Exec
 	}
 }
 
-// todo[dvdplm] moved
 /// Proof dependent on state.
 pub trait StateDependentProof: Send + Sync {
 	/// Generate a proof, given the state.
@@ -134,7 +101,6 @@ pub trait StateDependentProof: Send + Sync {
 	fn check_proof(&self, machine: &Machine, proof: &[u8]) -> Result<(), String>;
 }
 
-// todo[dvdplm] moved
 /// Proof generated on epoch change.
 pub enum Proof {
 	/// Known proof (extracted from signal)
@@ -143,7 +109,6 @@ pub enum Proof {
 	WithState(Arc<dyn StateDependentProof>),
 }
 
-// todo[dvdplm] moved
 /// Generated epoch verifier.
 pub enum ConstructedVerifier<'a> {
 	/// Fully trusted verifier.
@@ -155,7 +120,6 @@ pub enum ConstructedVerifier<'a> {
 	Err(Error),
 }
 
-// todo[dvdplm] moved
 impl<'a> ConstructedVerifier<'a> {
 	/// Convert to a result, indicating that any necessary confirmation has been done
 	/// already.
@@ -167,7 +131,6 @@ impl<'a> ConstructedVerifier<'a> {
 	}
 }
 
-// todo[dvdplm] moved
 /// Results of a query of whether an epoch change occurred at the given block.
 pub enum EpochChange {
 	/// Cannot determine until more data is passed.
@@ -341,11 +304,13 @@ pub trait Engine: Sync + Send {
 	/// Trigger next step of the consensus engine.
 	fn step(&self) {}
 
+	// todo[dvdplm] sort out this mess: SnapshotComponents depends on Rebuilder and that depends on Engine
 	/// Create a factory for building snapshot chunks and restoring from them.
 	/// Returning `None` indicates that this engine doesn't support snapshot creation.
-	fn snapshot_components(&self) -> Option<Box<dyn SnapshotComponents>> {
-		None
-	}
+//	fn snapshot_components(&self) -> Option<Box<dyn SnapshotComponents>> {
+//		None
+//	}
+	fn snapshot_components(&self) -> Option<bool> { None }
 
 	/// Whether this engine supports warp sync.
 	fn supports_warp(&self) -> bool {

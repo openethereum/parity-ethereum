@@ -54,7 +54,7 @@ pub trait SnapshotComponents: Send {
 		preferred_size: usize,
 	) -> Result<(), SnapshotError>;
 
-	/// Create a rebuilder, which will have chunks fed into it in aribtrary
+	/// Create a rebuilder, which will have chunks fed into it in arbitrary
 	/// order and then be finalized.
 	///
 	/// The manifest, a database, and fresh `BlockChain` are supplied.

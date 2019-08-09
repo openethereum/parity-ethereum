@@ -116,6 +116,7 @@ pub mod blocks {
 		}
 	}
 
+	// todo[dvdplm] moved to common-types
 	/// An unverified block.
 	#[derive(PartialEq, Debug, MallocSizeOf)]
 	pub struct Unverified {
@@ -128,7 +129,7 @@ pub mod blocks {
 		/// Raw block bytes.
 		pub bytes: Bytes,
 	}
-
+	// todo[dvdplm] moved to common-types
 	impl Unverified {
 		/// Create an `Unverified` from raw bytes.
 		pub fn from_rlp(bytes: Bytes) -> Result<Self, ::rlp::DecoderError> {

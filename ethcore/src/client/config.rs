@@ -56,6 +56,7 @@ impl FromStr for DatabaseCompactionProfile {
 	}
 }
 
+//todo[dvdplm] moved
 /// Operating mode for the client.
 #[derive(Debug, Eq, PartialEq, Clone)]
 pub enum Mode {
@@ -71,6 +72,7 @@ pub enum Mode {
 	Off,
 }
 
+//todo[dvdplm] moved
 impl Display for Mode {
 	fn fmt(&self, f: &mut Formatter) -> Result<(), FmtError> {
 		match *self {
