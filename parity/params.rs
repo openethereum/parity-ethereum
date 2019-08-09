@@ -34,7 +34,6 @@ pub enum SpecType {
 	Foundation,
 	Classic,
 	Poanet,
-	Tobalaba,
 	Volta,
 	Ewc,
 	Expanse,
@@ -67,7 +66,6 @@ impl str::FromStr for SpecType {
 			"ethereum" | "frontier" | "homestead" | "byzantium" | "foundation" | "mainnet" => SpecType::Foundation,
 			"classic" | "frontier-dogmatic" | "homestead-dogmatic" => SpecType::Classic,
 			"poanet" | "poacore" => SpecType::Poanet,
-			"tobalaba" => SpecType::Tobalaba,
 			"volta" => SpecType::Volta,
 			"ewc" | "energyweb" => SpecType::Ewc,
 			"expanse" => SpecType::Expanse,
@@ -95,7 +93,6 @@ impl fmt::Display for SpecType {
 			SpecType::Foundation => "foundation",
 			SpecType::Classic => "classic",
 			SpecType::Poanet => "poanet",
-			SpecType::Tobalaba => "tobalaba",
 			SpecType::Volta => "volta",
 			SpecType::Ewc => "energyweb",
 			SpecType::Expanse => "expanse",
@@ -123,7 +120,6 @@ impl SpecType {
 			SpecType::Foundation => Ok(spec::new_foundation(params)),
 			SpecType::Classic => Ok(spec::new_classic(params)),
 			SpecType::Poanet => Ok(spec::new_poanet(params)),
-			SpecType::Tobalaba => Ok(spec::new_tobalaba(params)),
 			SpecType::Volta => Ok(spec::new_volta(params)),
 			SpecType::Ewc => Ok(spec::new_ewc(params)),
 			SpecType::Expanse => Ok(spec::new_expanse(params)),
@@ -380,7 +376,6 @@ mod tests {
 		assert_eq!(SpecType::Classic, "homestead-dogmatic".parse().unwrap());
 		assert_eq!(SpecType::Poanet, "poanet".parse().unwrap());
 		assert_eq!(SpecType::Poanet, "poacore".parse().unwrap());
-		assert_eq!(SpecType::Tobalaba, "tobalaba".parse().unwrap());
 		assert_eq!(SpecType::Volta, "volta".parse().unwrap());
 		assert_eq!(SpecType::Ewc, "ewc".parse().unwrap());
 		assert_eq!(SpecType::Ewc, "energyweb".parse().unwrap());
@@ -412,7 +407,6 @@ mod tests {
 		assert_eq!(format!("{}", SpecType::Foundation), "foundation");
 		assert_eq!(format!("{}", SpecType::Classic), "classic");
 		assert_eq!(format!("{}", SpecType::Poanet), "poanet");
-		assert_eq!(format!("{}", SpecType::Tobalaba), "tobalaba");
 		assert_eq!(format!("{}", SpecType::Volta), "volta");
 		assert_eq!(format!("{}", SpecType::Ewc), "energyweb");
 		assert_eq!(format!("{}", SpecType::Expanse), "expanse");
