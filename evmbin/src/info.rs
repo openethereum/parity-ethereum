@@ -274,7 +274,7 @@ pub mod tests {
 	fn should_call_account_from_spec() {
 		use display::std_json::tests::informant;
 
-		let (inf, res) = informant();
+		let (inf, res, _) = informant();
 		let mut params = ActionParams::default();
 		params.code_address = Address::from_low_u64_be(0x20);
 		params.gas = 0xffff.into();
@@ -284,7 +284,7 @@ pub mod tests {
 		let _result = run_action(&spec, params, inf, TrieSpec::Secure);
 
 		assert_eq!(
-			&String::from_utf8_lossy(&**res.lock().unwrap()),
+			&String::from_utf8_lossy(&**res.0.lock().unwrap()),
 r#"{"pc":0,"op":98,"opName":"PUSH3","gas":"0xffff","stack":[],"storage":{},"depth":1}
 {"pc":4,"op":96,"opName":"PUSH1","gas":"0xfffc","stack":["0xaaaaaa"],"storage":{},"depth":1}
 {"pc":6,"op":96,"opName":"PUSH1","gas":"0xfff9","stack":["0xaaaaaa","0xaa"],"storage":{},"depth":1}
