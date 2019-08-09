@@ -84,6 +84,7 @@ use types::{
 	log_entry::LocalizedLogEntry,
 	receipt::{Receipt, LocalizedReceipt},
 	header::Header,
+	snapshot::Progress,
 };
 
 use verification::queue::kind::BlockLike;
@@ -1163,7 +1164,7 @@ impl Client {
 		&self,
 		writer: W,
 		at: BlockId,
-		p: &snapshot::Progress,
+		p: &Progress,
 	) -> Result<(), EthcoreError> {
 		let db = self.state_db.read().journal_db().boxed_clone();
 		let best_block_number = self.chain_info().best_block_number;

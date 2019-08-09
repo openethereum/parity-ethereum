@@ -25,11 +25,11 @@ use bytes::Bytes;
 /// A progress indicator for snapshots.
 #[derive(Debug, Default)]
 pub struct Progress {
-	accounts: AtomicUsize,
-	blocks: AtomicUsize,
-	size: AtomicU64,
-	done: AtomicBool,
-	abort: AtomicBool,
+	pub accounts: AtomicUsize,
+	pub blocks: AtomicUsize,
+	pub size: AtomicU64,
+	pub done: AtomicBool,
+	pub abort: AtomicBool,
 }
 
 impl Progress {

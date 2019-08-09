@@ -14,6 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
+use engine::snapshot::SnapshotComponents;
 use engines::Engine;
 use engines::block_reward::{self, RewardKind};
 use ethereum_types::U256;
@@ -103,7 +104,7 @@ impl Engine for NullEngine {
 		Ok(())
 	}
 
-	fn snapshot_components(&self) -> Option<Box<dyn (::snapshot::SnapshotComponents)>> {
+	fn snapshot_components(&self) -> Option<Box<dyn (SnapshotComponents)>> {
 		Some(Box::new(::snapshot::PowSnapshot::new(10000, 10000)))
 	}
 

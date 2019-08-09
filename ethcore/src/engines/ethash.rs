@@ -19,6 +19,7 @@ use std::collections::BTreeMap;
 use std::path::Path;
 use std::sync::Arc;
 
+use engine::snapshot::SnapshotComponents;
 use ethereum_types::{H256, H64, U256};
 use ethjson;
 use hash::{KECCAK_EMPTY_LIST_RLP};
@@ -386,7 +387,7 @@ impl Engine for Arc<Ethash> {
 		engines::ConstructedVerifier::Trusted(Box::new(self.clone()))
 	}
 
-	fn snapshot_components(&self) -> Option<Box<dyn (::snapshot::SnapshotComponents)>> {
+	fn snapshot_components(&self) -> Option<Box<dyn (SnapshotComponents)>> {
 		Some(Box::new(::snapshot::PowSnapshot::new(SNAPSHOT_BLOCKS, MAX_SNAPSHOT_BLOCKS)))
 	}
 

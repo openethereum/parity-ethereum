@@ -20,3 +20,4 @@
 // todo[dvdplm] do we need all of this exported?
 pub mod engine;
 pub mod signer;
+pub mod snapshot;

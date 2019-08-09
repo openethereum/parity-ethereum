@@ -20,15 +20,13 @@
 //! The secondary chunks in this instance are 30,000 "abridged blocks" from the head
 //! of the chain, which serve as an indication of valid chain.
 
-use super::{SnapshotComponents, Rebuilder, ChunkSink};
-
 use std::collections::VecDeque;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 
 use blockchain::{BlockChain, BlockChainDB, BlockProvider};
 use engines::Engine;
-use snapshot::{ManifestData, Progress};
+use engine::snapshot::{SnapshotComponents, Rebuilder};
 use snapshot::block::AbridgedBlock;
 use ethereum_types::H256;
 use kvdb::KeyValueDB;
@@ -38,6 +36,7 @@ use rand::rngs::OsRng;
 use types::{
 	encoded,
 	errors::{SnapshotError, EthcoreError},
+	snapshot::{ChunkSink, ManifestData, Progress},
 };
 
 /// Snapshot creation and restoration for PoW chains.

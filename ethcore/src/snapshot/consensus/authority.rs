@@ -19,13 +19,10 @@
 //!
 //! The chunks here contain state proofs of transitions, along with validator proofs.
 
-use super::{SnapshotComponents, Rebuilder, ChunkSink};
-
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 
 use engines::{Engine, EpochVerifier, EpochTransition};
-use snapshot::{ManifestData, Progress};
 
 use blockchain::{BlockChain, BlockChainDB, BlockProvider};
 use bytes::Bytes;
@@ -39,8 +36,9 @@ use types::{
 	ids::BlockId,
 	errors::{SnapshotError, EthcoreError},
 	receipt::Receipt,
+	snapshot::{ChunkSink, Progress, ManifestData}
 };
-
+use engine::snapshot::{SnapshotComponents, Rebuilder};
 /// Snapshot creation and restoration for PoA chains.
 /// Chunk format:
 ///

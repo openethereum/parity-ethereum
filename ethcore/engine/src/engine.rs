@@ -16,10 +16,9 @@
 
 //! Consensus engine specification and basic implementations.
 
-use std::sync::{Weak, Arc, atomic::AtomicBool};
+use std::sync::{Weak, Arc};
 use std::collections::BTreeMap;
 
-use blockchain::{BlockChain, BlockChainDB};
 use builtin::Builtin;
 use common_types::{
 	BlockNumber,
@@ -31,11 +30,9 @@ use common_types::{
 		machine as machine_types,
 		machine::{AuxiliaryData, AuxiliaryRequest},
 	},
-	errors::{EthcoreError as Error, EngineError, SnapshotError},
+	errors::{EthcoreError as Error, EngineError},
 	transaction::{self, UnverifiedTransaction},
-	snapshot::{ManifestData, ChunkSink, Progress},
 };
-//use snapshot::SnapshotComponents; //todo
 use client_traits::EngineClient;
 
 use ethereum_types::{H256, U256, Address};
@@ -46,7 +43,10 @@ use machine::{
 };
 use vm::{EnvInfo, Schedule, CallType, ActionValue};
 
-use crate::signer::EngineSigner;
+use crate::{
+	signer::EngineSigner,
+	snapshot::SnapshotComponents,
+};
 
 /// A system-calling closure. Enacts calls on a block's state from the system address.
 pub type SystemCall<'a> = dyn FnMut(Address, Vec<u8>) -> Result<Vec<u8>, String> + 'a;
@@ -418,67 +418,4 @@ pub struct NoOp;
 
 impl EpochVerifier for NoOp {
 	fn verify_light(&self, _header: &Header) -> Result<(), Error> { Ok(()) }
-}
-
-
-// todo[dvdplm] it's pretty weird to have this here
-/// Restore from secondary snapshot chunks.
-pub trait Rebuilder: Send {
-	/// Feed a chunk, potentially out of order.
-	///
-	/// Check `abort_flag` periodically while doing heavy work. If set to `false`, should bail with
-	/// `Error::RestorationAborted`.
-	fn feed(
-		&mut self,
-		chunk: &[u8],
-		engine: &dyn Engine,
-		abort_flag: &AtomicBool,
-	) -> Result<(), Error>;
-
-	/// Finalize the restoration. Will be done after all chunks have been
-	/// fed successfully.
-	///
-	/// This should apply the necessary "glue" between chunks,
-	/// and verify against the restored state.
-	fn finalize(&mut self) -> Result<(), Error>;
-}
-
-// todo[dvdplm] it's pretty weird to have this here – perhaps own crate?
-/// Components necessary for snapshot creation and restoration.
-pub trait SnapshotComponents: Send {
-	/// Create secondary snapshot chunks; these corroborate the state data
-	/// in the state chunks.
-	///
-	/// Chunks shouldn't exceed the given preferred size, and should be fed
-	/// uncompressed into the sink.
-	///
-	/// This will vary by consensus engine, so it's exposed as a trait.
-	fn chunk_all(
-		&mut self,
-		chain: &BlockChain,
-		block_at: H256,
-		chunk_sink: &mut ChunkSink,
-		progress: &Progress,
-		preferred_size: usize,
-	) -> Result<(), SnapshotError>;
-
-	/// Create a rebuilder, which will have chunks fed into it in arbitrary
-	/// order and then be finalized.
-	///
-	/// The manifest, a database, and fresh `BlockChain` are supplied.
-	///
-	/// The engine passed to the `Rebuilder` methods will be the same instance
-	/// that created the `SnapshotComponents`.
-	fn rebuilder(
-		&self,
-		chain: BlockChain,
-		db: Arc<dyn BlockChainDB>,
-		manifest: &ManifestData,
-	) -> Result<Box<dyn Rebuilder>, Error>;
-
-	/// Minimum supported snapshot version number.
-	fn min_supported_version(&self) -> u64;
-
-	/// Current version number
-	fn current_version(&self) -> u64;
 }

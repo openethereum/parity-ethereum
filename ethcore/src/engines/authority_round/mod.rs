@@ -28,6 +28,7 @@ use client::EngineClient;
 use engines::{Engine, Seal, ConstructedVerifier};
 use engines::block_reward;
 use engines::block_reward::{BlockRewardContract, RewardKind};
+use engine::snapshot::SnapshotComponents;
 use ethjson;
 use machine::{
 	ExecutedBlock,
@@ -1591,7 +1592,7 @@ impl Engine for AuthorityRound {
 		)
 	}
 
-	fn snapshot_components(&self) -> Option<Box<dyn (::snapshot::SnapshotComponents)>> {
+	fn snapshot_components(&self) -> Option<Box<dyn (SnapshotComponents)>> {
 		if self.immediate_transitions {
 			None
 		} else {

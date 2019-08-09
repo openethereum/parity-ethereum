@@ -22,6 +22,7 @@ use parking_lot::RwLock;
 use ethkey::{self, Signature};
 use engines::{Engine, Seal, ConstructedVerifier};
 use engines::signer::EngineSigner;
+use engine::snapshot::SnapshotComponents;
 use ethjson;
 use client::EngineClient;
 use machine::{
@@ -211,7 +212,7 @@ impl Engine for BasicAuthority {
 		)
 	}
 
-	fn snapshot_components(&self) -> Option<Box<dyn (::snapshot::SnapshotComponents)>> {
+	fn snapshot_components(&self) -> Option<Box<dyn (SnapshotComponents)>> {
 		None
 	}
 

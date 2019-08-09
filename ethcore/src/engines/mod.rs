@@ -57,7 +57,7 @@ use types::{
 	errors::{EthcoreError as Error, EngineError},
 	transaction::{self, UnverifiedTransaction},
 };
-use snapshot::SnapshotComponents;
+use engine::snapshot::SnapshotComponents;
 use client::EngineClient;
 
 use ethkey::Signature;
