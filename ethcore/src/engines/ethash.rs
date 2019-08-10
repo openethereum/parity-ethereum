@@ -242,19 +242,6 @@ fn verify_block_unordered(pow: &Arc<EthashManager>, header: &Header) -> Result<(
 // for any block in the chain.
 // in the future, we might move the Ethash epoch
 // caching onto this mechanism as well.
-// NOTE[dvdplm]: the reason we impl this for Arc<Ethash> and not plain Ethash is the
-// way `epoch_verifier()` works. This means `new()` returns an `Arc<Ethash>` which is
-// then re-wrapped in an Arc in `spec::engine()`.
-
-//pub struct ArcEthash<'a>(Arc<&'a Ethash>);
-//impl engine::EpochVerifier for Arc<Ethash> {
-//impl<'a> engine::EpochVerifier for &'a Ethash {
-//	fn verify_light(&self, _header: &Header) -> Result<(), Error> { Ok(()) }
-//	fn verify_heavy(&self, header: &Header) -> Result<(), Error> {
-//		self.verify_block_unordered(header).into()
-//	}
-//}
-
 struct EpochVerifier {
 	pow: Arc<EthashManager>
 }
