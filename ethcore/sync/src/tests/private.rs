@@ -19,10 +19,11 @@ use hash::keccak;
 use io::{IoHandler, IoChannel};
 use types::transaction::{Transaction, Action};
 use types::ids::BlockId;
+use client_traits::BlockChainClient;
+use engine::signer;
 use ethcore::{
 	CreateContractAddress,
-	client::{ClientIoMessage, BlockChainClient},
-	engines,
+	client::ClientIoMessage,
 	miner::{self, MinerService},
 	spec::Spec,
 	test_helpers::push_block_with_transactions,
@@ -54,8 +55,8 @@ fn send_private_transaction() {
 	let io_handler0: Arc<dyn IoHandler<ClientIoMessage>> = Arc::new(TestIoHandler::new(net.peer(0).chain.clone()));
 	let io_handler1: Arc<dyn IoHandler<ClientIoMessage>> = Arc::new(TestIoHandler::new(net.peer(1).chain.clone()));
 
-	net.peer(0).miner.set_author(miner::Author::Sealer(engines::signer::from_keypair(s0.clone())));
-	net.peer(1).miner.set_author(miner::Author::Sealer(engines::signer::from_keypair(s1.clone())));
+	net.peer(0).miner.set_author(miner::Author::Sealer(signer::from_keypair(s0.clone())));
+	net.peer(1).miner.set_author(miner::Author::Sealer(signer::from_keypair(s1.clone())));
 	net.peer(0).chain.engine().register_client(Arc::downgrade(&net.peer(0).chain) as _);
 	net.peer(1).chain.engine().register_client(Arc::downgrade(&net.peer(1).chain) as _);
 	net.peer(0).chain.set_io_channel(IoChannel::to_handler(Arc::downgrade(&io_handler0)));

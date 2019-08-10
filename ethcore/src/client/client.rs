@@ -92,7 +92,7 @@ use types::{
 	pruning_info::PruningInfo,
 	call_analytics::CallAnalytics,
 	client_types::Mode,
-	verification::Unverified, // todo[dvdplm] rename the module
+	verification::Unverified,
 };
 
 use verification::queue::kind::BlockLike;

@@ -14,8 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
-// todo[dvdplm]: docs
-//! This crate
+//! This crate defines the Engine trait and related types.
 
 // todo[dvdplm] do we need all of this exported?
 pub mod engine;

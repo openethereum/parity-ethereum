@@ -55,8 +55,6 @@ extern crate trace;
 extern crate transaction_pool as txpool;
 extern crate url;
 #[macro_use]
-extern crate log as ethlog;
-#[macro_use]
 extern crate ethabi_derive;
 #[macro_use]
 extern crate ethabi_contract;

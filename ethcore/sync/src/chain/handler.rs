@@ -742,9 +742,10 @@ impl SyncHandler {
 
 #[cfg(test)]
 mod tests {
-	use ethcore::client::{ChainInfo, EachBlockWith, TestBlockChainClient};
+	use client_traits::ChainInfo;
+	use ethcore::client::{EachBlockWith, TestBlockChainClient};
 	use parking_lot::RwLock;
-	use rlp::{Rlp};
+	use rlp::Rlp;
 	use std::collections::{VecDeque};
 	use tests::helpers::{TestIo};
 	use tests::snapshot::TestSnapshotService;

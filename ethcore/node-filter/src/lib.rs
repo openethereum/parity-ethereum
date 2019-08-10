@@ -128,8 +128,10 @@ impl ChainNotify for NodeFilter {
 #[cfg(test)]
 mod test {
 	use std::sync::{Arc, Weak};
+
+	use client_traits::BlockChainClient;
 	use ethcore::spec::Spec;
-	use ethcore::client::{BlockChainClient, Client, ClientConfig};
+	use ethcore::client::{Client, ClientConfig};
 	use ethcore::miner::Miner;
 	use ethcore::test_helpers;
 	use network::{ConnectionDirection, ConnectionFilter, NodeId};

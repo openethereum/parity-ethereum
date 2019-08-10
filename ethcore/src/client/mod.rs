@@ -40,12 +40,6 @@ pub use self::traits::{
     ReopenBlock, PrepareOpenBlock,ScheduleInfo, ImportSealedBlock, BroadcastProposalBlock,
     Call, EngineInfo, BlockProducer, SealedBlockImporter, BlockChainReset, ProvingBlockChainClient, StateClient,
 };
-// todo[dvdplm]: how many of these need to be exported?
-//pub use self::traits::{
-//    Nonce, Balance, ChainInfo, ReopenBlock, PrepareOpenBlock, TransactionInfo, ScheduleInfo, ImportSealedBlock, BroadcastProposalBlock, ImportBlock,
-//    StateOrBlock, StateClient, Call, EngineInfo, AccountData, BlockChain, BlockProducer, SealedBlockImporter, BadBlocks,
-//	BlockChainReset, BlockChainClient, EngineClient, ProvingBlockChainClient, IoClient
-//};
 pub use account_state::state::StateInfo;
 
 

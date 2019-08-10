@@ -14,7 +14,8 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
-//todo[dvdplm: document module
+//! This module contains traits used while creating/restoring snapshots. They
+//! are here because they use and are used by the Engine trait itself.
 
 use std::sync::{Arc, atomic::AtomicBool};
 
@@ -28,7 +29,6 @@ use common_types::{
 
 use crate::engine::Engine;
 
-// todo[dvdplm] it's pretty weird to have this here
 /// Restore from secondary snapshot chunks.
 pub trait Rebuilder: Send {
 	/// Feed a chunk, potentially out of order.
@@ -50,7 +50,6 @@ pub trait Rebuilder: Send {
 	fn finalize(&mut self) -> Result<(), Error>;
 }
 
-// todo[dvdplm] it's pretty weird to have this here – perhaps own crate?
 /// Components necessary for snapshot creation and restoration.
 pub trait SnapshotComponents: Send {
 	/// Create secondary snapshot chunks; these corroborate the state data

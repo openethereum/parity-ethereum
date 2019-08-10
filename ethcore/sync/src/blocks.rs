@@ -543,12 +543,13 @@ impl BlockCollection {
 #[cfg(test)]
 mod test {
 	use super::{BlockCollection, SyncHeader};
-	use ethcore::client::{TestBlockChainClient, EachBlockWith, BlockChainClient};
+	use client_traits::BlockChainClient;
+	use ethcore::client::{TestBlockChainClient, EachBlockWith};
 	use types::{
 		ids::BlockId,
-		BlockNumber
+		BlockNumber,
+		verification::Unverified,
 	};
-	use ethcore::verification::queue::kind::blocks::Unverified;
 	use rlp::*;
 
 	fn is_empty(bc: &BlockCollection) -> bool {

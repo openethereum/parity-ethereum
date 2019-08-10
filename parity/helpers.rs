@@ -351,10 +351,12 @@ mod tests {
 	use std::collections::HashSet;
 	use tempdir::TempDir;
 	use ethereum_types::U256;
-	use ethcore::client::Mode;
 	use ethcore::miner::PendingSet;
 	use ethkey::Password;
-	use types::ids::BlockId;
+	use types::{
+		ids::BlockId,
+		client_types::Mode,
+	};
 	use super::{to_duration, to_mode, to_block_id, to_u256, to_pending_set, to_address, to_addresses, to_price, geth_ipc_path, to_bootnodes, join_set, password_from_file};
 
 	#[test]

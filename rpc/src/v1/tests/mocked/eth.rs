@@ -20,7 +20,8 @@ use std::sync::Arc;
 use std::time::{Instant, Duration, SystemTime, UNIX_EPOCH};
 
 use accounts::AccountProvider;
-use ethcore::client::{BlockChainClient, EachBlockWith, TestBlockChainClient};
+use client_traits::BlockChainClient;
+use ethcore::client::{EachBlockWith, TestBlockChainClient};
 use ethcore::miner::{self, MinerService};
 use ethereum_types::{H160, H256, U256, Address, Bloom};
 use machine::executed::Executed;
