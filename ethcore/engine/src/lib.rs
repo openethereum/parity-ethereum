@@ -16,7 +16,6 @@
 
 //! This crate defines the Engine trait and related types.
 
-// todo[dvdplm] do we need all of this exported?
 mod engine;
 pub mod signer;
 pub mod snapshot;

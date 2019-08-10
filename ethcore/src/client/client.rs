@@ -1282,7 +1282,7 @@ impl Client {
 		t: &SignedTransaction,
 		analytics: CallAnalytics,
 	) -> Result<Executed, CallError> {
-		use types::engines::machine::Executed as RawExecuted; //todo[dvdplm] better name
+		use types::engines::machine::Executed as RawExecuted;
 		fn call<V, T>(
 			state: &mut State<StateDB>,
 			env_info: &EnvInfo,

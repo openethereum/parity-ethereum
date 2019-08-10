@@ -56,7 +56,6 @@ use trace::{
 	localized::LocalizedTrace,
 };
 use vm::LastHashes;
-use itertools::Itertools; // todo[dvdplm] get rid of this
 
 /// State information to be used during client query
 pub enum StateOrBlock {
@@ -331,7 +330,9 @@ pub trait BlockChainClient : Sync + Send + AccountData + BlockChain + CallContra
 				if block.number() == 0 {
 					return corpus.into();
 				}
-				block.transaction_views().iter().foreach(|t| corpus.push(t.gas_price()));
+				for t in block.transaction_views().iter() {
+					corpus.push( t.gas_price() )
+				}
 				h = block.parent_hash().clone();
 			}
 		}

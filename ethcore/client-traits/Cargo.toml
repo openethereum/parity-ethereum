@@ -17,6 +17,5 @@ bytes = { package = "parity-bytes", version = "0.1.0" }
 stats = { path = "../../util/stats" }
 vm = { path = "../vm" }
 trace = { path = "../trace" }
-itertools = "0.5" # todo[dvdplm] get rid of this
 ethcore-miner = { path = "../../miner" }
 

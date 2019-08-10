@@ -166,7 +166,7 @@ mod test {
 	use crate::spec;
 	use test_helpers::generate_dummy_client_with_spec;
 
-	use engines::SystemOrCodeCallKind;
+	use engine::SystemOrCodeCallKind;
 	use super::{BlockRewardContract, RewardKind};
 
 	#[test]
