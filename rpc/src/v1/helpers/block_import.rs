@@ -16,7 +16,7 @@
 
 //! Block import analysis functions.
 
-use ethcore::client::BlockQueueInfo;
+use types::verification::VerificationQueueInfo as BlockQueueInfo;
 use sync::SyncState;
 
 /// Check if client is during major sync or during block import and allows defining whether 'waiting for peers' should

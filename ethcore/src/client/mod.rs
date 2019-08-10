@@ -27,8 +27,7 @@ mod io_message;
 mod test_client;
 
 // todo[dvdplm]: really? re-export everything?
-pub use self::client::*;
-// todo[dvdplm]: Mode was rexported here
+pub use self::client::{Client, ClientReport};
 pub use self::config::{ClientConfig, DatabaseCompactionProfile, BlockChainConfig, VMType};
 #[cfg(any(test, feature = "test-helpers"))]
 pub use self::evm_test_client::{EvmTestClient, EvmTestError, TransactErr, TransactSuccess};

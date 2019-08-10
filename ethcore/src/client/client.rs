@@ -73,6 +73,8 @@ use types::{
 	ancestry_action::AncestryAction,
 	BlockNumber,
 	block::PreverifiedBlock,
+	block_status::BlockStatus,
+	blockchain_info::BlockChainInfo,
 	encoded,
 	engines::{
 		SealingState,
@@ -92,7 +94,7 @@ use types::{
 	pruning_info::PruningInfo,
 	call_analytics::CallAnalytics,
 	client_types::Mode,
-	verification::Unverified,
+	verification::{Unverified, VerificationQueueInfo as BlockQueueInfo},
 };
 
 use verification::queue::kind::BlockLike;
@@ -103,9 +105,6 @@ use ansi_term::Colour;
 // re-export
 pub use blockchain::CacheSize as BlockChainCacheSize;
 use db::{Writable, Readable, keys::BlockDetails};
-pub use types::blockchain_info::BlockChainInfo;
-pub use types::block_status::BlockStatus;
-pub use types::verification::VerificationQueueInfo as BlockQueueInfo;
 
 use_contract!(registry, "res/contracts/registrar.json");
 

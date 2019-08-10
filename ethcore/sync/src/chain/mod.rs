@@ -108,7 +108,6 @@ use bytes::Bytes;
 use rlp::{RlpStream, DecoderError};
 use network::{self, PeerId, PacketId};
 use network::client_version::ClientVersion;
-use ethcore::client::{BlockStatus, BlockChainInfo, BlockQueueInfo};
 use client_traits::BlockChainClient;
 use ethcore::snapshot::RestorationStatus;
 use sync_io::SyncIo;
@@ -122,7 +121,10 @@ use transactions_stats::{TransactionsStats, Stats as TransactionStats};
 use types::{
 	BlockNumber,
 	ids::BlockId,
-	transaction::UnverifiedTransaction
+	transaction::UnverifiedTransaction,
+	verification::VerificationQueueInfo as BlockQueueInfo,
+	blockchain_info::BlockChainInfo,
+	block_status::BlockStatus,
 };
 
 use self::handler::SyncHandler;

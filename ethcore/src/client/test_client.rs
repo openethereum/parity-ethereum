@@ -55,6 +55,8 @@ use types::{
 	views::BlockView,
 	verification::Unverified,
 	client_types::Mode,
+	blockchain_info::BlockChainInfo,
+	block_status::BlockStatus,
 };
 use vm::Schedule;
 
@@ -63,7 +65,7 @@ use call_contract::{CallContract, RegistryInfo};
 use client::{
 	ReopenBlock, PrepareOpenBlock, ProvingBlockChainClient, ScheduleInfo, ImportSealedBlock,
 	BroadcastProposalBlock, Call, StateClient, EngineInfo, BlockProducer, SealedBlockImporter,
-	BlockChainInfo, BlockStatus, LastHashes,
+	LastHashes,
 };
 use client_traits::{
 	BlockInfo, Nonce, Balance, ChainInfo, TransactionInfo, BlockChainClient, ImportBlock,
