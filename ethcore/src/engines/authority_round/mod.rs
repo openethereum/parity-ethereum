@@ -50,7 +50,9 @@ use types::{
 	BlockNumber,
 	header::{Header, ExtendedHeader},
 	engines::{
+		Headers,
 		params::CommonParams,
+		PendingTransitionStore,
 		Seal,
 		SealingState,
 		machine::{Call, AuxiliaryData},
@@ -1275,7 +1277,7 @@ impl Engine for AuthorityRound {
 
 		let rewards: Vec<_> = match self.block_reward_contract {
 			Some(ref c) if block.header.number() >= self.block_reward_contract_transition => {
-				let mut call = super::default_system_or_code_call(&self.machine, block);
+				let mut call = engine::default_system_or_code_call(&self.machine, block);
 
 				let rewards = c.reward(beneficiaries, &mut call)?;
 				rewards.into_iter().map(|(author, amount)| (author, RewardKind::External, amount)).collect()
@@ -1441,8 +1443,8 @@ impl Engine for AuthorityRound {
 	fn is_epoch_end_light(
 		&self,
 		chain_head: &Header,
-		chain: &super::Headers<Header>,
-		transition_store: &super::PendingTransitionStore,
+		chain: &Headers<Header>,
+		transition_store: &PendingTransitionStore,
 	) -> Option<Vec<u8>> {
 		// epochs only matter if we want to support light clients.
 		if self.immediate_transitions { return None }
@@ -1485,8 +1487,8 @@ impl Engine for AuthorityRound {
 		&self,
 		chain_head: &Header,
 		finalized: &[H256],
-		chain: &super::Headers<Header>,
-		transition_store: &super::PendingTransitionStore,
+		chain: &Headers<Header>,
+		transition_store: &PendingTransitionStore,
 	) -> Option<Vec<u8>> {
 		// epochs only matter if we want to support light clients.
 		if self.immediate_transitions { return None }

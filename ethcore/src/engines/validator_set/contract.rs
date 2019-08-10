@@ -31,8 +31,9 @@ use types::{
 };
 
 use client_traits::EngineClient;
+use engine::SystemCall;
 
-use super::{ValidatorSet, SimpleList, SystemCall};
+use super::{ValidatorSet, SimpleList};
 use super::safe_contract::ValidatorSafeContract;
 
 use_contract!(validator_report, "res/contracts/validator_report.json");

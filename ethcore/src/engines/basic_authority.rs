@@ -35,6 +35,8 @@ use machine::{
 use types::{
 	header::Header,
 	engines::{
+		Headers,
+		PendingTransitionStore,
 		SealingState,
 		Seal,
 		params::CommonParams,
@@ -165,8 +167,8 @@ impl Engine for BasicAuthority {
 		&self,
 		chain_head: &Header,
 		_finalized: &[H256],
-		_chain: &super::Headers<Header>,
-		_transition_store: &super::PendingTransitionStore,
+		_chain: &Headers<Header>,
+		_transition_store: &PendingTransitionStore,
 	) -> Option<Vec<u8>> {
 		let first = chain_head.number() == 0;
 
@@ -177,8 +179,8 @@ impl Engine for BasicAuthority {
 	fn is_epoch_end_light(
 		&self,
 		chain_head: &Header,
-		chain: &super::Headers<Header>,
-		transition_store: &super::PendingTransitionStore,
+		chain: &Headers<Header>,
+		transition_store: &PendingTransitionStore,
 	) -> Option<Vec<u8>> {
 		self.is_epoch_end(chain_head, &[], chain, transition_store)
 	}

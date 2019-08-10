@@ -34,7 +34,6 @@ use types::{
 use unexpected::{OutOfBounds, Mismatch};
 
 use engines::block_reward::{self, BlockRewardContract, RewardKind};
-use engines;
 use engine::Engine;
 use ethash::{self, quick_get_difficulty, slow_hash_block_number, EthashManager, OptimizeFor};
 use machine::{
@@ -293,7 +292,7 @@ impl Engine for Ethash {
 					beneficiaries.push((*uncle_author, RewardKind::uncle(number, u.number())));
 				}
 
-				let mut call = engines::default_system_or_code_call(&self.machine, block);
+				let mut call = engine::default_system_or_code_call(&self.machine, block);
 
 				let rewards = c.reward(beneficiaries, &mut call)?;
 				rewards.into_iter().map(|(author, amount)| (author, RewardKind::External, amount)).collect()
@@ -417,14 +416,8 @@ impl Engine for Ethash {
 	}
 
 	fn epoch_verifier<'a>(&self, _header: &Header, _proof: &'a [u8]) -> engine::ConstructedVerifier<'a> {
-		// todo[dvdplm]: this one's tricky, not sure how to solve this.
 		let v = EpochVerifier{pow: self.pow.clone()};
 		engine::ConstructedVerifier::Trusted(Box::new(v))
-//		engine::ConstructedVerifier::Trusted(Box::new(engine::engine::NoOp))
-//		engine::ConstructedVerifier::Trusted(Box::new(ArcEthash(Arc::new(self))))
-//		engine::ConstructedVerifier::Trusted(Box::new(self.clone())) // original
-//		engine::ConstructedVerifier::Trusted(Box::new(*self))
-//		engine::ConstructedVerifier::Trusted(Box::new(self))
 	}
 
 	fn populate_from_parent(&self, header: &mut Header, parent: &Header) {

@@ -26,7 +26,6 @@ mod io_message;
 #[cfg(any(test, feature = "test-helpers"))]
 mod test_client;
 
-// todo[dvdplm]: really? re-export everything?
 pub use self::client::{Client, ClientReport};
 pub use self::config::{ClientConfig, DatabaseCompactionProfile, BlockChainConfig, VMType};
 #[cfg(any(test, feature = "test-helpers"))]

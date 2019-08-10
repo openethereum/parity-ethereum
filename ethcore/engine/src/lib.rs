@@ -17,7 +17,7 @@
 //! This crate defines the Engine trait and related types.
 
 // todo[dvdplm] do we need all of this exported?
-pub mod engine;
+mod engine;
 pub mod signer;
 pub mod snapshot;
 
@@ -28,6 +28,10 @@ pub use crate::engine::{
 	ConstructedVerifier,
 	EpochChange,
 	Proof,
+	SystemCall,
+	SystemOrCodeCall,
+	SystemOrCodeCallKind,
+	default_system_or_code_call,
 };
 
 #[cfg(any(test, feature = "test-helpers"))]

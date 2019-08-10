@@ -28,7 +28,7 @@ use types::{
 	BlockNumber,
 	errors::{EngineError, EthcoreError as Error},
 };
-use super::{SystemOrCodeCall, SystemOrCodeCallKind};
+use engine::{SystemOrCodeCall, SystemOrCodeCallKind};
 use trace::{Tracer, ExecutiveTracer, Tracing};
 
 use_contract!(block_reward_contract, "res/contracts/block_reward.json");
