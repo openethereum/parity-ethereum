@@ -397,7 +397,7 @@ pub trait Engine: Sync + Send {
 pub trait EpochVerifier: Send + Sync {
 	/// Lightly verify the next block header.
 	/// This may not be a header belonging to a different epoch.
-	fn verify_light(&self, header: &Header) -> Result<(), Error>;
+	fn verify_light(&self, _header: &Header) -> Result<(), Error> { Ok(()) }
 
 	/// Perform potentially heavier checks on the next block header.
 	fn verify_heavy(&self, header: &Header) -> Result<(), Error> {
@@ -415,6 +415,4 @@ pub trait EpochVerifier: Send + Sync {
 /// Special "no-op" verifier for stateless, epoch-less engines.
 pub struct NoOp;
 
-impl EpochVerifier for NoOp {
-	fn verify_light(&self, _header: &Header) -> Result<(), Error> { Ok(()) }
-}
+impl EpochVerifier for NoOp {}

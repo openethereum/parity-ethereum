@@ -50,6 +50,7 @@ mod test_signer {
 	use std::sync::Arc;
 
 	use ethkey::Password;
+	use log::warn;
 	use accounts::{self, AccountProvider, SignError};
 
 	use super::*;
