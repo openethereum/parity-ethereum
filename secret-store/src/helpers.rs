@@ -14,7 +14,8 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
-use ethcore::client::{Client, BlockChainClient};
+use ethcore::client::Client;
+use client_traits::BlockChainClient;
 use common_types::ids::BlockId;
 use ethereum_types::H256;
 
