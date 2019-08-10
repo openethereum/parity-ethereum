@@ -25,7 +25,7 @@ use network;
 use types::{
 	transaction::UnverifiedTransaction,
 	header::Header as BlockHeader,
-	verification_queue_info::Unverified,
+	verification::Unverified,
 };
 
 malloc_size_of_is_0!(HeaderId);

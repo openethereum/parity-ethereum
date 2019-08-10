@@ -92,7 +92,7 @@ use types::{
 	pruning_info::PruningInfo,
 	call_analytics::CallAnalytics,
 	client_types::Mode,
-	verification_queue_info::Unverified, // todo[dvdplm] rename the module
+	verification::Unverified, // todo[dvdplm] rename the module
 };
 
 use verification::queue::kind::BlockLike;
@@ -105,7 +105,7 @@ pub use blockchain::CacheSize as BlockChainCacheSize;
 use db::{Writable, Readable, keys::BlockDetails};
 pub use types::blockchain_info::BlockChainInfo;
 pub use types::block_status::BlockStatus;
-pub use types::verification_queue_info::VerificationQueueInfo as BlockQueueInfo;
+pub use types::verification::VerificationQueueInfo as BlockQueueInfo;
 
 use_contract!(registry, "res/contracts/registrar.json");
 
@@ -2666,7 +2666,7 @@ impl IoChannelQueue {
 #[cfg(test)]
 mod tests {
 	use ethereum_types::{H256, Address};
-	use client::{BlockChainClient, ChainInfo};
+	use client_traits::{BlockChainClient, ChainInfo};
 	use types::{
 		encoded,
 		ids::{BlockId, TransactionId},

@@ -111,9 +111,11 @@ mod tests {
 	use ethereum_types::{H520, Address};
 	use test_helpers::get_temp_state_db;
 	use crate::spec;
-	use types::header::Header;
+	use types::{
+		header::Header,
+		engines::Seal,
+	};
 	use block::*;
-	use engines::Seal;
 
 	#[test]
 	fn instant_can_seal() {

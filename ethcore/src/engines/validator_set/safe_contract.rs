@@ -452,19 +452,24 @@ mod tests {
 	use std::sync::Arc;
 	use rustc_hex::FromHex;
 	use hash::keccak;
+	use engine::{EpochChange, Proof};
 	use ethereum_types::Address;
-	use types::ids::BlockId;
 	use crate::spec;
 	use accounts::AccountProvider;
-	use types::transaction::{Transaction, Action};
-	use client::{ChainInfo, ImportBlock};
-	use client_traits::BlockInfo;
+	use types::{
+		ids::BlockId,
+		engines::machine::AuxiliaryRequest,
+		header::Header,
+		log_entry::LogEntry,
+		transaction::{Transaction, Action},
+		verification::Unverified,
+	};
+	use client_traits::{BlockInfo, ChainInfo, ImportBlock, EngineClient};
 	use ethkey::Secret;
 	use miner::{self, MinerService};
 	use test_helpers::{generate_dummy_client_with_spec, generate_dummy_client_with_spec_and_data};
 	use super::super::ValidatorSet;
 	use super::{ValidatorSafeContract, EVENT_NAME_HASH};
-	use verification::queue::kind::blocks::Unverified;
 
 	#[test]
 	fn fetches_validators() {
@@ -500,7 +505,7 @@ mod tests {
 			data: "bfc708a000000000000000000000000082a978b3f5962a5b0957d9ee9eef472ee55b42f1".from_hex().unwrap(),
 		}.sign(&s0, Some(chain_id));
 		client.miner().import_own_transaction(client.as_ref(), tx.into()).unwrap();
-		::client::EngineClient::update_sealing(&*client);
+		EngineClient::update_sealing(&*client);
 		assert_eq!(client.chain_info().best_block_number, 1);
 		// Add "1" validator back in.
 		let tx = Transaction {
@@ -512,14 +517,14 @@ mod tests {
 			data: "4d238c8e00000000000000000000000082a978b3f5962a5b0957d9ee9eef472ee55b42f1".from_hex().unwrap(),
 		}.sign(&s0, Some(chain_id));
 		client.miner().import_own_transaction(client.as_ref(), tx.into()).unwrap();
-		::client::EngineClient::update_sealing(&*client);
+		EngineClient::update_sealing(&*client);
 		// The transaction is not yet included so still unable to seal.
 		assert_eq!(client.chain_info().best_block_number, 1);
 
 		// Switch to the validator that is still there.
 		let signer = Box::new((tap.clone(), v0, "".into()));
 		client.miner().set_author(miner::Author::Sealer(signer));
-		::client::EngineClient::update_sealing(&*client);
+		EngineClient::update_sealing(&*client);
 		assert_eq!(client.chain_info().best_block_number, 2);
 		// Switch back to the added validator, since the state is updated.
 		let signer = Box::new((tap.clone(), v1, "".into()));
@@ -533,7 +538,7 @@ mod tests {
 			data: Vec::new(),
 		}.sign(&s0, Some(chain_id));
 		client.miner().import_own_transaction(client.as_ref(), tx.into()).unwrap();
-		::client::EngineClient::update_sealing(&*client);
+		EngineClient::update_sealing(&*client);
 		// Able to seal again.
 		assert_eq!(client.chain_info().best_block_number, 3);
 
@@ -549,13 +554,6 @@ mod tests {
 
 	#[test]
 	fn detects_bloom() {
-		use engines::EpochChange;
-		use types::{
-			header::Header,
-			log_entry::LogEntry,
-			engines::machine::AuxiliaryRequest,
-		};
-
 		let client = generate_dummy_client_with_spec(spec::new_validator_safe_contract);
 		let engine = client.engine().clone();
 		let validator_contract = "0000000000000000000000000000000000000005".parse::<Address>().unwrap();
@@ -590,9 +588,6 @@ mod tests {
 
 	#[test]
 	fn initial_contract_is_signal() {
-		use types::header::Header;
-		use engines::{EpochChange, Proof};
-
 		let client = generate_dummy_client_with_spec(spec::new_validator_safe_contract);
 		let engine = client.engine().clone();
 

@@ -14,7 +14,14 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
-//! Verification queue info types
+//! Verification types
+
+use crate::{
+	header::Header,
+	transaction::UnverifiedTransaction,
+};
+use bytes::Bytes;
+use parity_util_mem::MallocSizeOf;
 
 /// Verification queue status
 #[derive(Debug, Clone)]
@@ -48,14 +55,6 @@ impl VerificationQueueInfo {
 		self.unverified_queue_size + self.verified_queue_size + self.verifying_queue_size == 0
 	}
 }
-
-//todo[dvdplm] move verification types into own module
-use crate::{
-	header::Header,
-	transaction::UnverifiedTransaction,
-};
-use bytes::Bytes;
-use parity_util_mem::MallocSizeOf;
 
 /// An unverified block.
 #[derive(PartialEq, Debug, MallocSizeOf)]

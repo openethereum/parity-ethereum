@@ -21,7 +21,7 @@ use ethereum_types::H256;
 use itertools::Itertools;
 use memory_cache::MemoryLruCache;
 use parking_lot::RwLock;
-use types::verification_queue_info::Unverified;
+use types::verification::Unverified;
 
 /// Recently seen bad blocks.
 pub struct BadBlocks {

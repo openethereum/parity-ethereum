@@ -73,7 +73,7 @@ pub mod blocks {
 	use types::{
 		block::PreverifiedBlock,
 		errors::{EthcoreError as Error, BlockError},
-		verification_queue_info::Unverified,
+		verification::Unverified,
 	};
 	use verification::{verify_block_basic, verify_block_unordered};
 

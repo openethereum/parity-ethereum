@@ -39,7 +39,7 @@ use types::{
 	header::Header,
 	view,
 	views::BlockView,
-	verification_queue_info::Unverified,
+	verification::Unverified,
 };
 
 use block::{OpenBlock, Drain};

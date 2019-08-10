@@ -36,7 +36,7 @@ use common_types::{
 	errors::EthcoreResult,
 	header::Header,
 	ids::BlockId,
-	verification_queue_info::VerificationQueueInfo as BlockQueueInfo,
+	verification::VerificationQueueInfo as BlockQueueInfo,
 };
 use kvdb::KeyValueDB;
 

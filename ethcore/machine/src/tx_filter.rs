@@ -153,12 +153,13 @@ mod test {
 	use tempdir::TempDir;
 	use ethereum_types::{U256, Address};
 
+	use client_traits::BlockChainClient;
 	use common_types::{
 		ids::BlockId,
 		transaction::{Transaction, Action}
 	};
 	use ethcore::{
-		client::{BlockChainClient, Client, ClientConfig},
+		client::{Client, ClientConfig},
 		spec::Spec,
 		miner::Miner,
 		test_helpers,

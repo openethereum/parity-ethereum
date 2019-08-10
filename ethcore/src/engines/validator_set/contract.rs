@@ -145,14 +145,15 @@ mod tests {
 	use bytes::ToPretty;
 	use rlp::encode;
 	use crate::spec;
-	use types::header::Header;
+	use types::{
+		header::Header,
+		ids::BlockId,
+	};
 	use accounts::AccountProvider;
 	use miner::{self, MinerService};
-	use types::ids::BlockId;
 	use test_helpers::generate_dummy_client_with_spec;
 	use call_contract::CallContract;
-	use client::{BlockChainClient, ChainInfo};
-	use client_traits::BlockInfo;
+	use client_traits::{BlockChainClient, ChainInfo, BlockInfo};
 	use super::super::ValidatorSet;
 	use super::ValidatorContract;
 

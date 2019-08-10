@@ -39,7 +39,7 @@ use types::{
 	errors::{EthcoreError as Error, BlockError},
 	engines::MAX_UNCLE_AGE,
 	block::PreverifiedBlock,
-	verification_queue_info::Unverified,
+	verification::Unverified,
 };
 
 use time_utils::CheckedSystemTime;

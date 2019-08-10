@@ -33,7 +33,7 @@ use types::{
 	block_status::BlockStatus,
 	ids::BlockId,
 	errors::{EthcoreError, ImportError, BlockError},
-	verification_queue_info::Unverified,
+	verification::Unverified,
 };
 
 use super::sync_packet::{PacketInfo, SyncPacket};

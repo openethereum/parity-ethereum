@@ -1489,12 +1489,15 @@ mod tests {
 	use ethkey::{Generator, Random};
 	use hash::keccak;
 	use rustc_hex::FromHex;
-	use types::BlockNumber;
 
-	use client::{TestBlockChainClient, EachBlockWith, ChainInfo, ImportSealedBlock};
+	use client::{TestBlockChainClient, EachBlockWith, ImportSealedBlock};
+	use client_traits::ChainInfo;
 	use miner::{MinerService, PendingOrdering};
 	use test_helpers::{generate_dummy_client, generate_dummy_client_with_spec};
-	use types::transaction::{Transaction};
+	use types::{
+		BlockNumber,
+		transaction::Transaction
+	};
 	use crate::spec;
 
 	#[test]

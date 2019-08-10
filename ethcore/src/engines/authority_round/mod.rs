@@ -1630,7 +1630,7 @@ mod tests {
 	use ethkey::Signature;
 	use types::{
 		header::Header,
-		engines::params::CommonParams,
+		engines::{Seal, params::CommonParams},
 		errors::{EthcoreError as Error, EngineError},
 		transaction::{Action, Transaction},
 	};
@@ -1641,7 +1641,7 @@ mod tests {
 		TestNotify
 	};
 	use crate::spec::{Spec, self};
-	use engines::{Seal, Engine};
+	use engine::Engine;
 	use engines::validator_set::{TestSet, SimpleList};
 	use super::{AuthorityRoundParams, AuthorityRound, EmptyStep, SealedEmptyStep, calculate_score};
 	use machine::Machine;

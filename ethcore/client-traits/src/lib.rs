@@ -35,7 +35,7 @@ use common_types::{
 	},
 	blockchain_info::BlockChainInfo,
 	block_status::BlockStatus,
-	verification_queue_info::{VerificationQueueInfo, Unverified}, //todo[dvdplm] better module name
+	verification::{VerificationQueueInfo, Unverified}, //todo[dvdplm] better module name
 	transaction::{self, LocalizedTransaction, CallError},
 	receipt::LocalizedReceipt,
 	tree_route::TreeRoute,

@@ -53,7 +53,7 @@ use types::{
 	receipt::{Receipt, LocalizedReceipt, TransactionOutcome},
 	view,
 	views::BlockView,
-	verification_queue_info::Unverified,
+	verification::Unverified,
 	client_types::Mode,
 };
 use vm::Schedule;

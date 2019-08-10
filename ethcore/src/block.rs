@@ -491,11 +491,13 @@ mod tests {
 	use state_db::StateDB;
 	use ethereum_types::Address;
 	use std::sync::Arc;
-	use verification::queue::kind::blocks::Unverified;
-	use types::transaction::SignedTransaction;
 	use types::{
-		header::Header, view, views::BlockView,
 		errors::EthcoreError as Error,
+		header::Header,
+		transaction::SignedTransaction,
+		view,
+		views::BlockView,
+		verification::Unverified,
 	};
 	use hash_db::EMPTY_PREFIX;
 	use crate::spec;
