@@ -17,6 +17,13 @@ machine = { path = "../machine" }
 bytes = { package = "parity-bytes", version = "0.1.0" }
 vm = { path = "../vm" }
 
+# used from test-helpers
+accounts = { package = "ethcore-accounts", path = "../../accounts", optional = true }
+log = { version = "0.4.8", optional = true }
+
 [dev-dependencies]
 accounts = { package = "ethcore-accounts", path = "../../accounts" }
 log = "0.4.8"
+
+[features]
+test-helpers = ["accounts", "log"]

@@ -22,7 +22,7 @@ pub mod engine;
 pub mod signer;
 pub mod snapshot;
 
-pub use engine::{
+pub use crate::engine::{
 	Engine,
 	EpochVerifier,
 	StateDependentProof,
@@ -30,3 +30,6 @@ pub use engine::{
 	EpochChange,
 	Proof,
 };
+
+#[cfg(any(test, feature = "test-helpers"))]
+pub mod test_helpers;
