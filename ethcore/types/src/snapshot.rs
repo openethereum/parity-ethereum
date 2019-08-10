@@ -25,10 +25,15 @@ use bytes::Bytes;
 /// A progress indicator for snapshots.
 #[derive(Debug, Default)]
 pub struct Progress {
+	/// Number of accounts processed so far
 	pub accounts: AtomicUsize,
+	/// Number of blocks processed so far
 	pub blocks: AtomicUsize,
+	/// Size in bytes of a all compressed chunks processed so far
 	pub size: AtomicU64,
+	/// Signals that the snapshotting process is completed
 	pub done: AtomicBool,
+	/// Signal snapshotting process to abort
 	pub abort: AtomicBool,
 }
 
