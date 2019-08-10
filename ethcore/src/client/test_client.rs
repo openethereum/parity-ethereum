@@ -40,6 +40,7 @@ use rustc_hex::FromHex;
 use types::{
 	BlockNumber,
 	encoded,
+	engines::epoch::Transition as EpochTransition,
 	ids::{BlockId, TransactionId, UncleId, TraceId},
 	basic_account::BasicAccount,
 	errors::{EthcoreError as Error, EthcoreResult},
@@ -964,7 +965,7 @@ impl client_traits::EngineClient for TestBlockChainClient {
 
 	fn broadcast_consensus_message(&self, _message: Bytes) {}
 
-	fn epoch_transition_for(&self, _block_hash: H256) -> Option<::engines::EpochTransition> {
+	fn epoch_transition_for(&self, _block_hash: H256) -> Option<EpochTransition> {
 		None
 	}
 

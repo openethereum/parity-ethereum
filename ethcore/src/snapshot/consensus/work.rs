@@ -35,6 +35,7 @@ use rlp::{RlpStream, Rlp};
 use rand::rngs::OsRng;
 use types::{
 	encoded,
+	engines::epoch::Transition as EpochTransition,
 	errors::{SnapshotError, EthcoreError},
 	snapshot::{ChunkSink, ManifestData, Progress},
 };
@@ -318,7 +319,7 @@ impl Rebuilder for PowRebuilder {
 		}
 
 		let genesis_hash = self.chain.genesis_hash();
-		self.chain.insert_epoch_transition(&mut batch, 0, ::engines::EpochTransition {
+		self.chain.insert_epoch_transition(&mut batch, 0, EpochTransition {
 			block_number: 0,
 			block_hash: genesis_hash,
 			proof: vec![],

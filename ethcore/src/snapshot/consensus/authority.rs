@@ -27,8 +27,6 @@ use engine::{
 	EpochVerifier,
 	snapshot::{SnapshotComponents, Rebuilder}
 };
-use engines::EpochTransition;
-
 use blockchain::{BlockChain, BlockChainDB, BlockProvider};
 use bytes::Bytes;
 use ethereum_types::{H256, U256};
@@ -37,6 +35,7 @@ use kvdb::KeyValueDB;
 use rlp::{RlpStream, Rlp};
 use types::{
 	encoded,
+	engines::epoch::Transition as EpochTransition,
 	header::Header,
 	ids::BlockId,
 	errors::{SnapshotError, EthcoreError},

@@ -36,6 +36,7 @@ use tempdir::TempDir;
 use types::{
 	transaction::{Action, Transaction, SignedTransaction},
 	encoded,
+	engines::ForkChoice,
 	header::Header,
 	view,
 	views::BlockView,
@@ -378,7 +379,7 @@ pub fn generate_dummy_blockchain(block_number: u32) -> BlockChain {
 	for block_order in 1..block_number {
 		// Total difficulty is always 0 here.
 		bc.insert_block(&mut batch, encoded::Block::new(create_unverifiable_block(block_order, bc.best_block_hash())), vec![], ExtrasInsert {
-			fork_choice: ::engines::ForkChoice::New,
+			fork_choice: ForkChoice::New,
 			is_finalized: false,
 		});
 		bc.commit();
@@ -396,7 +397,7 @@ pub fn generate_dummy_blockchain_with_extra(block_number: u32) -> BlockChain {
 	for block_order in 1..block_number {
 		// Total difficulty is always 0 here.
 		bc.insert_block(&mut batch, encoded::Block::new(create_unverifiable_block_with_extra(block_order, bc.best_block_hash(), None)), vec![], ExtrasInsert {
-			fork_choice: ::engines::ForkChoice::New,
+			fork_choice: ForkChoice::New,
 			is_finalized: false,
 		});
 		bc.commit();

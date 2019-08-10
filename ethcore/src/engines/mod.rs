@@ -32,7 +32,3 @@ pub use self::instant_seal::{InstantSeal, InstantSealParams};
 pub use self::null_engine::NullEngine;
 pub use self::clique::Clique;
 pub use self::ethash::{Ethash, Seal as EthashSeal};
-
-// TODO [ToDr] Remove re-export (#10130)
-pub use types::engines::ForkChoice;
-pub use types::engines::epoch::{self, Transition as EpochTransition};

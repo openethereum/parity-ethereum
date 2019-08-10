@@ -20,7 +20,6 @@ use std::sync::{Weak, Arc};
 
 use engine::{Engine, EpochChange, Proof};
 use ethcore::client::{ClientReport, EnvInfo, ClientIoMessage};
-use ethcore::engines::{epoch, EpochTransition};
 use ethcore::verification::queue::{self, HeaderQueue};
 use ethcore::spec::{Spec, SpecHardcodedSync};
 use io::IoChannel;
@@ -32,6 +31,7 @@ use common_types::{
 	block_status::BlockStatus,
 	blockchain_info::BlockChainInfo,
 	encoded,
+	engines::epoch::{Transition as EpochTransition, PendingTransition},
 	errors::EthcoreError as Error,
 	errors::EthcoreResult,
 	header::Header,
@@ -529,7 +529,7 @@ impl<T: ChainDataFetcher> Client<T> {
 		};
 
 		let mut batch = self.db.transaction();
-		self.chain.insert_pending_transition(&mut batch, header.hash(), &epoch::PendingTransition {
+		self.chain.insert_pending_transition(&mut batch, header.hash(), &PendingTransition {
 			proof,
 		});
 		self.db.write_buffered(batch);

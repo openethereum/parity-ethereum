@@ -50,7 +50,6 @@ use client_traits::{
 	IoClient, BadBlocks, ProvingBlockChainClient,
 	StateOrBlock
 };
-use engines::{EpochTransition, ForkChoice};
 use engine::Engine;
 use machine::{
 	executed::Executed,
@@ -73,9 +72,10 @@ use types::{
 	blockchain_info::BlockChainInfo,
 	encoded,
 	engines::{
+		ForkChoice,
 		SealingState,
 		MAX_UNCLE_AGE,
-		epoch::PendingTransition,
+		epoch::{PendingTransition, Transition as EpochTransition},
 		machine::{AuxiliaryData, Call as MachineCall},
 	},
 	errors::{EngineError, ExecutionError, BlockError, EthcoreError, SnapshotError, ImportError, EthcoreResult},
@@ -2527,7 +2527,7 @@ impl client_traits::EngineClient for Client {
 		self.notify(|notify| notify.broadcast(ChainMessageType::Consensus(message.clone())));
 	}
 
-	fn epoch_transition_for(&self, parent_hash: H256) -> Option<::engines::EpochTransition> {
+	fn epoch_transition_for(&self, parent_hash: H256) -> Option<EpochTransition> {
 		self.chain.read().epoch_transition_for(parent_hash)
 	}
 
@@ -2664,6 +2664,7 @@ mod tests {
 	use client_traits::{BlockChainClient, ChainInfo};
 	use types::{
 		encoded,
+		engines::ForkChoice,
 		ids::{BlockId, TransactionId},
 		log_entry::{LogEntry, LocalizedLogEntry},
 		receipt::{Receipt, LocalizedReceipt, TransactionOutcome},
@@ -2694,7 +2695,7 @@ mod tests {
 			thread::spawn(move || {
 				let mut batch = DBTransaction::new();
 				another_client.chain.read().insert_block(&mut batch, encoded::Block::new(new_block), Vec::new(), ExtrasInsert {
-					fork_choice: ::engines::ForkChoice::New,
+					fork_choice: ForkChoice::New,
 					is_finalized: false,
 				});
 				go_thread.store(true, Ordering::SeqCst);
