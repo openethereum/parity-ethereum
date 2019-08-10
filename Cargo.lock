@@ -772,10 +772,12 @@ version = "0.1.0"
 dependencies = [
  "client-traits 0.1.0",
  "common-types 0.1.0",
+ "ethcore-accounts 0.1.0",
  "ethcore-blockchain 0.1.0",
  "ethcore-builtin 0.1.0",
  "ethereum-types 0.6.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "ethkey 0.3.0",
+ "log 0.4.8 (registry+https://github.com/rust-lang/crates.io-index)",
  "machine 0.1.0",
  "parity-bytes 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "vm 0.1.0",

@@ -33,7 +33,7 @@ use jsonrpc_core::{BoxFuture, Result};
 use sync::{SyncProvider, ManageNetwork};
 use types::{
 	ids::BlockId,
-	verification_queue_info::Unverified,
+	verification::Unverified,
 };
 use updater::{Service as UpdateService};
 use version::version_data;

@@ -46,7 +46,7 @@ use types::{
 	ids::BlockId,
 	errors::{ImportError, EthcoreError},
 	client_types::Mode,
-	verification_queue_info::Unverified,
+	verification::Unverified,
 };
 
 #[derive(Debug, PartialEq)]
