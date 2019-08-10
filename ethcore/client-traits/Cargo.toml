@@ -18,4 +18,4 @@ stats = { path = "../../util/stats" }
 vm = { path = "../vm" }
 trace = { path = "../trace" }
 ethcore-miner = { path = "../../miner" }
-
+kvdb = "0.1.0"

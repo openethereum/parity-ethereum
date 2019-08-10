@@ -327,7 +327,7 @@ fn does_not_propagate_delayed_transactions() {
 
 #[test]
 fn transaction_proof() {
-	use ::client::ProvingBlockChainClient;
+	use client_traits::ProvingBlockChainClient;
 
 	let client = generate_dummy_client(0);
 	let address = Address::random();

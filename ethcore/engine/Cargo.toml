@@ -1,5 +1,5 @@
 [package]
-description = "Ethereum engine trai definition"
+description = "Ethereum engine trait definition"
 name = "engine"
 version = "0.1.0"
 authors = ["Parity Technologies <admin@parity.io>"]

@@ -36,7 +36,7 @@ pub use self::test_client::{TestBlockChainClient, EachBlockWith, TestState};
 pub use self::chain_notify::{ChainNotify, NewBlocks, ChainRoute, ChainRouteType, ChainMessageType};
 pub use self::traits::{
     ReopenBlock, PrepareOpenBlock, ImportSealedBlock, BroadcastProposalBlock,
-    Call, EngineInfo, BlockProducer, SealedBlockImporter, ProvingBlockChainClient,
+    Call, EngineInfo, BlockProducer, SealedBlockImporter,
 };
 pub use account_state::state::StateInfo;
 

@@ -39,15 +39,15 @@ use hash_db::EMPTY_PREFIX;
 use block::{LockedBlock, Drain, ClosedBlock, OpenBlock, enact_verified, SealedBlock};
 use client::ancient_import::AncientVerifier;
 use client::{
-	ReopenBlock, PrepareOpenBlock, ImportSealedBlock, BroadcastProposalBlock, StateInfo, Call,
-	BlockProducer, SealedBlockImporter, ChainNotify, ProvingBlockChainClient, EngineInfo,
+	ReopenBlock, PrepareOpenBlock, ImportSealedBlock, BroadcastProposalBlock, StateInfo,
+	Call, BlockProducer, SealedBlockImporter, ChainNotify, EngineInfo,
 	ClientConfig, NewBlocks, ChainRoute, ChainMessageType, bad_blocks, ClientIoMessage,
 };
 use client_traits::{
 	BlockInfo, ScheduleInfo, StateClient, BlockChainReset,
 	Nonce, Balance, ChainInfo, TransactionInfo, ImportBlock,
 	AccountData, BlockChain as BlockChainTrait, BlockChainClient,
-	IoClient, BadBlocks,
+	IoClient, BadBlocks, ProvingBlockChainClient,
 	StateOrBlock
 };
 use engines::{EpochTransition, ForkChoice};

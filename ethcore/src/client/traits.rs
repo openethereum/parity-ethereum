@@ -15,17 +15,13 @@
 // along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
 use bytes::Bytes;
-use client_traits::BlockChainClient;
 use ethereum_types::{H256, U256, Address};
-use kvdb::DBValue;
 use types::{
 	transaction::{SignedTransaction, CallError},
-	basic_account::BasicAccount,
 	call_analytics::CallAnalytics,
 	errors::EthcoreError as Error,
 	errors::EthcoreResult,
 	header::Header,
-	ids::*,
 };
 
 use block::{OpenBlock, SealedBlock, ClosedBlock};
@@ -88,25 +84,3 @@ pub trait BroadcastProposalBlock {
 
 /// Provides methods to import sealed block and broadcast a block proposal
 pub trait SealedBlockImporter: ImportSealedBlock + BroadcastProposalBlock {}
-
-/// Extended client interface for providing proofs of the state.
-pub trait ProvingBlockChainClient: BlockChainClient {
-	/// Prove account storage at a specific block id.
-	///
-	/// Both provided keys assume a secure trie.
-	/// Returns a vector of raw trie nodes (in order from the root) proving the storage query.
-	fn prove_storage(&self, key1: H256, key2: H256, id: BlockId) -> Option<(Vec<Bytes>, H256)>;
-
-	/// Prove account existence at a specific block id.
-	/// The key is the keccak hash of the account's address.
-	/// Returns a vector of raw trie nodes (in order from the root) proving the query.
-	fn prove_account(&self, key1: H256, id: BlockId) -> Option<(Vec<Bytes>, BasicAccount)>;
-
-	/// Prove execution of a transaction at the given block.
-	/// Returns the output of the call and a vector of database items necessary
-	/// to reproduce it.
-	fn prove_transaction(&self, transaction: SignedTransaction, id: BlockId) -> Option<(Bytes, Vec<DBValue>)>;
-
-	/// Get an epoch change signal by block hash.
-	fn epoch_signal(&self, hash: H256) -> Option<Vec<u8>>;
-}

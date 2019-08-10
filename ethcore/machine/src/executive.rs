@@ -42,7 +42,7 @@ use common_types::{
 use crate::{
 	Machine,
 	substate::Substate,
-	externalities::{Externalities, OutputPolicy, OriginInfo}, // todo: make explicit
+	externalities::{Externalities, OutputPolicy, OriginInfo},
 	transaction_ext::Transaction,
 };
 

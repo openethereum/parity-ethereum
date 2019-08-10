@@ -24,6 +24,7 @@ use blockchain::BlockProvider;
 use bytes::Bytes;
 use call_contract::{CallContract, RegistryInfo};
 use common_types::{
+	basic_account::BasicAccount,
 	block_status::BlockStatus,
 	blockchain_info::BlockChainInfo,
 	BlockNumber,
@@ -39,13 +40,14 @@ use common_types::{
 	pruning_info::PruningInfo,
 	receipt::LocalizedReceipt,
 	trace_filter::Filter as TraceFilter,
-	transaction::{self, LocalizedTransaction, CallError},
+	transaction::{self, LocalizedTransaction, CallError, SignedTransaction},
 	tree_route::TreeRoute,
 	verification::{VerificationQueueInfo, Unverified},
 };
 use ethereum_types::{Address, H256, U256};
 use ethcore_db::keys::BlockReceipts;
 use ethcore_miner::pool::VerifiedTransaction;
+use kvdb::DBValue;
 use stats;
 use trace::{
 	FlatTrace,
@@ -398,4 +400,26 @@ pub trait StateClient {
 	/// Otherwise, this can fail (but may not) if the DB prunes state or the block
 	/// is unknown.
 	fn state_at(&self, id: BlockId) -> Option<Self::State>;
+}
+
+/// Extended client interface for providing proofs of the state.
+pub trait ProvingBlockChainClient: BlockChainClient {
+	/// Prove account storage at a specific block id.
+	///
+	/// Both provided keys assume a secure trie.
+	/// Returns a vector of raw trie nodes (in order from the root) proving the storage query.
+	fn prove_storage(&self, key1: H256, key2: H256, id: BlockId) -> Option<(Vec<Bytes>, H256)>;
+
+	/// Prove account existence at a specific block id.
+	/// The key is the keccak hash of the account's address.
+	/// Returns a vector of raw trie nodes (in order from the root) proving the query.
+	fn prove_account(&self, key1: H256, id: BlockId) -> Option<(Vec<Bytes>, BasicAccount)>;
+
+	/// Prove execution of a transaction at the given block.
+	/// Returns the output of the call and a vector of database items necessary
+	/// to reproduce it.
+	fn prove_transaction(&self, transaction: SignedTransaction, id: BlockId) -> Option<(Bytes, Vec<DBValue>)>;
+
+	/// Get an epoch change signal by block hash.
+	fn epoch_signal(&self, hash: H256) -> Option<Vec<u8>>;
 }

@@ -25,11 +25,11 @@ use common_types::{
 	ids::BlockId,
 	transaction::PendingTransaction,
 };
-use ethcore::client::ProvingBlockChainClient;
 use client_traits::{
 	BlockChainClient,
 	BlockInfo as ClientBlockInfo,
 	ChainInfo,
+	ProvingBlockChainClient,
 };
 use ethereum_types::H256;
 use parking_lot::RwLock;
