@@ -306,7 +306,6 @@ pub trait Engine: Sync + Send {
 	/// Trigger next step of the consensus engine.
 	fn step(&self) {}
 
-	// todo[dvdplm] sort out this mess: SnapshotComponents depends on Rebuilder and that depends on Engine
 	/// Create a factory for building snapshot chunks and restoring from them.
 	/// Returning `None` indicates that this engine doesn't support snapshot creation.
 	fn snapshot_components(&self) -> Option<Box<dyn SnapshotComponents>> {

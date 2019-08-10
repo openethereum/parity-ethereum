@@ -461,7 +461,7 @@ struct EpochVerifier {
 	empty_steps_transition: u64,
 }
 
-impl engine::EpochVerifier   for EpochVerifier {
+impl engine::EpochVerifier for EpochVerifier {
 	fn verify_light(&self, header: &Header) -> Result<(), Error> {
 		// Validate the timestamp
 		verify_timestamp(&self.step.inner, header_step(header, self.empty_steps_transition)?)?;

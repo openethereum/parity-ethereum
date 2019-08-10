@@ -85,7 +85,7 @@ impl EthashManager {
 		EthashManager {
 			cache_dir: cache_dir.to_path_buf(),
 			nodecache_builder: NodeCacheBuilder::new(optimize_for.into().unwrap_or_default(), progpow_transition),
-			progpow_transition: progpow_transition,
+			progpow_transition,
 			cache: Mutex::new(LightCache {
 				recent_epoch: None,
 				recent: None,
