@@ -53,19 +53,23 @@ use types::{
 	receipt::{Receipt, LocalizedReceipt, TransactionOutcome},
 	view,
 	views::BlockView,
+	verification_queue_info::Unverified,
+	client_types::Mode,
 };
 use vm::Schedule;
 
 use block::{OpenBlock, SealedBlock, ClosedBlock};
 use call_contract::{CallContract, RegistryInfo};
 use client::{
-	Nonce, Balance, ChainInfo, ReopenBlock, TransactionInfo,
-	PrepareOpenBlock, BlockChainClient, BlockChainInfo, BlockStatus, Mode,
-	LastHashes, ProvingBlockChainClient, ScheduleInfo, ImportSealedBlock, BroadcastProposalBlock,
-	ImportBlock, StateOrBlock, Call, StateClient, EngineInfo, AccountData, BlockChain, BlockProducer,
-	SealedBlockImporter, IoClient, BadBlocks
+	ReopenBlock, PrepareOpenBlock, ProvingBlockChainClient, ScheduleInfo, ImportSealedBlock,
+	BroadcastProposalBlock, Call, StateClient, EngineInfo, BlockProducer, SealedBlockImporter,
+	BlockChainInfo, BlockStatus, LastHashes,
 };
-use client_traits::BlockInfo;
+use client_traits::{
+	BlockInfo, Nonce, Balance, ChainInfo, TransactionInfo, BlockChainClient, ImportBlock,
+	AccountData, BlockChain, IoClient, BadBlocks,
+	StateOrBlock
+};
 use engine::Engine;
 use machine::executed::Executed;
 use journaldb;
@@ -75,7 +79,6 @@ use account_state::state::StateInfo;
 use state_db::StateDB;
 use trace::LocalizedTrace;
 use verification::queue::QueueInfo as BlockQueueInfo;
-use verification::queue::kind::blocks::Unverified;
 
 /// Test client.
 pub struct TestBlockChainClient {

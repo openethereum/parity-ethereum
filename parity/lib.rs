@@ -44,6 +44,7 @@ extern crate cli_signer;
 
 extern crate client_traits;
 extern crate common_types as types;
+extern crate engine;
 extern crate ethcore;
 extern crate ethcore_call_contract as call_contract;
 extern crate ethcore_db;

@@ -18,10 +18,12 @@
 
 use std::sync::Arc;
 
-use common_types::encoded;
-use common_types::header::Header;
-use common_types::receipt::Receipt;
-use ethcore::engines::{Engine, StateDependentProof};
+use common_types::{
+	header::Header,
+	encoded,
+	receipt::Receipt,
+};
+use engine::{Engine, StateDependentProof};
 use ethereum_types::H256;
 use futures::future::IntoFuture;
 

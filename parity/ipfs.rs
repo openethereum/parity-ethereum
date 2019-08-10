@@ -17,7 +17,7 @@
 use std::sync::Arc;
 use parity_ipfs_api::{self, AccessControlAllowOrigin, Host, Listening};
 use parity_ipfs_api::error::ServerError;
-use ethcore::client::BlockChainClient;
+use client_traits::BlockChainClient;
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct Configuration {

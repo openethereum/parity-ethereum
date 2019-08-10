@@ -21,6 +21,7 @@
 //! https://github.com/ethereum/wiki/wiki/Ethereum-Wire-Protocol
 //!
 
+extern crate client_traits;
 extern crate common_types as types;
 extern crate ethcore;
 extern crate ethcore_io as io;

@@ -21,7 +21,7 @@ use std::fs::File;
 use std::collections::HashSet;
 use ethereum_types::{U256, Address};
 use journaldb::Algorithm;
-use ethcore::client::{Mode, VMType, DatabaseCompactionProfile, ClientConfig, VerifierType};
+use ethcore::client::{VMType, DatabaseCompactionProfile, ClientConfig, VerifierType};
 use ethcore::miner::{PendingSet, Penalization};
 use miner::pool::PrioritizationStrategy;
 use cache::CacheConfig;
@@ -32,7 +32,10 @@ use sync::{validate_node_url, self};
 use db::migrate;
 use path;
 use ethkey::Password;
-use types::ids::BlockId;
+use types::{
+	ids::BlockId,
+	client_types::Mode,
+};
 
 pub fn to_duration(s: &str) -> Result<Duration, String> {
 	to_seconds(s).map(Duration::from_secs)

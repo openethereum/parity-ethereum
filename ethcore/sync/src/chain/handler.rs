@@ -19,7 +19,6 @@ use block_sync::{BlockDownloaderImportError as DownloaderImportError, DownloadAc
 use bytes::Bytes;
 use enum_primitive::FromPrimitive;
 use ethcore::snapshot::{ManifestData, RestorationStatus};
-use ethcore::verification::queue::kind::blocks::Unverified;
 use ethereum_types::{H256, U256};
 use hash::keccak;
 use network::PeerId;
@@ -34,6 +33,7 @@ use types::{
 	block_status::BlockStatus,
 	ids::BlockId,
 	errors::{EthcoreError, ImportError, BlockError},
+	verification_queue_info::Unverified,
 };
 
 use super::sync_packet::{PacketInfo, SyncPacket};

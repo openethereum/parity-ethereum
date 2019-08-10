@@ -19,7 +19,7 @@
 use std::sync::Arc;
 use std::collections::{BTreeSet, VecDeque};
 
-use ethcore::client::BlockChainClient;
+use client_traits::BlockChainClient;
 use ethcore::miner::{self, MinerService};
 use ethereum_types::{H256, U256};
 use parking_lot::Mutex;

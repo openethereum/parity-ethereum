@@ -91,11 +91,12 @@ use ethkey::{Signature, recover, public_to_address};
 use io::IoChannel;
 use machine::{
 	executive::{Executive, TransactOptions, contract_address as ethcore_contract_address},
-	executed::Executed,
+	executed::Executed as FlatExecuted,
 };
 use types::{
 	ids::BlockId,
-	transaction::{SignedTransaction, Transaction, Action, UnverifiedTransaction}
+	transaction::{SignedTransaction, Transaction, Action, UnverifiedTransaction},
+	engines::machine::Executed,
 };
 use ethcore::client::{
 	Client, ChainNotify, NewBlocks, ChainMessageType, ClientIoMessage, Call
@@ -307,7 +308,7 @@ impl Provider {
 			nonce_cache,
 			engine,
 			local_accounts,
-			None,  // refuse_service_transactions = true
+			None, // refuse_service_transactions = true
 		)
 	}
 
@@ -456,7 +457,7 @@ impl Provider {
 		}
 	}
 
-	fn last_required_signature(&self, desc: &PrivateTransactionSigningDesc, sign: Signature) -> Result<(bool, Address), Error>  {
+	fn last_required_signature(&self, desc: &PrivateTransactionSigningDesc, sign: Signature) -> Result<(bool, Address), Error> {
 		let state_hash = self.calculate_state_hash(&desc.state, desc.contract_nonce);
 		match recover(&sign, &state_hash) {
 			Ok(public) => {
@@ -702,7 +703,7 @@ impl Provider {
 	}
 
 	/// Call into private contract.
-	pub fn private_call(&self, block: BlockId, transaction: &SignedTransaction) -> Result<Executed, Error> {
+	pub fn private_call(&self, block: BlockId, transaction: &SignedTransaction) -> Result<FlatExecuted, Error> {
 		let result = self.execute_private(transaction, TransactOptions::with_no_tracing(), block)?;
 		Ok(result.result)
 	}

@@ -33,20 +33,23 @@ use kvdb_rocksdb::{self, Database, DatabaseConfig};
 use parking_lot::RwLock;
 use rlp::{self, RlpStream};
 use tempdir::TempDir;
-use types::transaction::{Action, Transaction, SignedTransaction};
-use types::encoded;
-use types::header::Header;
-use types::view;
-use types::views::BlockView;
+use types::{
+	transaction::{Action, Transaction, SignedTransaction},
+	encoded,
+	header::Header,
+	view,
+	views::BlockView,
+	verification_queue_info::Unverified,
+};
 
 use block::{OpenBlock, Drain};
-use client::{Client, ClientConfig, ChainInfo, ImportBlock, ChainNotify, ChainMessageType, PrepareOpenBlock};
+use client::{Client, ClientConfig, ChainNotify, ChainMessageType, PrepareOpenBlock};
+use client_traits::{ChainInfo, ImportBlock};
 use trie_vm_factories::Factories;
 use miner::Miner;
 use spec::{Spec, self};
 use account_state::*;
 use state_db::StateDB;
-use verification::queue::kind::blocks::Unverified;
 
 /// Creates test block with corresponding header
 pub fn create_test_block(header: &Header) -> Bytes {

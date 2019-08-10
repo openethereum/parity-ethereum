@@ -19,7 +19,7 @@ use chain::sync_packet::{PacketInfo, SyncPacket};
 use network::{NetworkContext, PeerId, PacketId, Error, SessionInfo, ProtocolId};
 use network::client_version::ClientVersion;
 use bytes::Bytes;
-use ethcore::client::BlockChainClient;
+use client_traits::BlockChainClient;
 use types::BlockNumber;
 use ethcore::snapshot::SnapshotService;
 use parking_lot::RwLock;

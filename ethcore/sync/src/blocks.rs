@@ -22,9 +22,11 @@ use triehash_ethereum::ordered_trie_root;
 use bytes::Bytes;
 use rlp::{Rlp, RlpStream, DecoderError};
 use network;
-use ethcore::verification::queue::kind::blocks::Unverified;
-use types::transaction::UnverifiedTransaction;
-use types::header::Header as BlockHeader;
+use types::{
+	transaction::UnverifiedTransaction,
+	header::Header as BlockHeader,
+	verification_queue_info::Unverified,
+};
 
 malloc_size_of_is_0!(HeaderId);
 

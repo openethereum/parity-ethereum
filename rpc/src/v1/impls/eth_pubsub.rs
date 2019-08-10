@@ -31,7 +31,8 @@ use v1::traits::EthPubSub;
 use v1::types::{pubsub, RichHeader, Log};
 
 use sync::{SyncState, Notification};
-use ethcore::client::{BlockChainClient, ChainNotify, NewBlocks, ChainRouteType};
+use ethcore::client::{ChainNotify, NewBlocks, ChainRouteType};
+use client_traits::BlockChainClient;
 use ethereum_types::H256;
 use light::cache::Cache;
 use light::client::{LightChainClient, LightChainNotify};
