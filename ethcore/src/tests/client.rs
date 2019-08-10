@@ -31,8 +31,8 @@ use types::{
 	views::BlockView,
 };
 
-use client::{BlockChainReset, Client, ClientConfig, PrepareOpenBlock, ImportSealedBlock};
-use client_traits::{BlockInfo, BlockChainClient, ChainInfo, ImportBlock};
+use client::{Client, ClientConfig, PrepareOpenBlock, ImportSealedBlock};
+use client_traits::{BlockInfo, BlockChainClient, BlockChainReset, ChainInfo, ImportBlock};
 use crate::spec;
 use machine::executive::{Executive, TransactOptions};
 use miner::{Miner, PendingOrdering, MinerService};

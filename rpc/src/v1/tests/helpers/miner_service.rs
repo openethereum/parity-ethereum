@@ -20,10 +20,10 @@ use std::sync::Arc;
 use std::collections::{BTreeMap, BTreeSet, HashMap};
 
 use bytes::Bytes;
-use client_traits::Nonce;
+use client_traits::{Nonce, StateClient};
 use engine::{Engine, signer::EngineSigner};
 use ethcore::block::SealedBlock;
-use ethcore::client::{PrepareOpenBlock, StateClient, EngineInfo, TestState};
+use ethcore::client::{PrepareOpenBlock, EngineInfo, TestState};
 use ethcore::miner::{self, MinerService, AuthoringParams, FilterOptions};
 use ethereum_types::{H256, U256, Address};
 use miner::pool::local_transactions::Status as LocalTransactionStatus;

@@ -20,8 +20,8 @@ use std::collections::BTreeMap;
 
 use crypto::DEFAULT_MAC;
 use ethereum_types::{H64, H160, H256, H512, U64, U256};
-use ethcore::client::{StateClient, Call};
-use client_traits::BlockChainClient;
+use ethcore::client::Call;
+use client_traits::{BlockChainClient, StateClient};
 use ethcore::miner::{self, MinerService, FilterOptions};
 use ethcore::snapshot::{SnapshotService, RestorationStatus};
 use account_state::state::StateInfo;

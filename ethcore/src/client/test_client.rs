@@ -63,13 +63,13 @@ use vm::Schedule;
 use block::{OpenBlock, SealedBlock, ClosedBlock};
 use call_contract::{CallContract, RegistryInfo};
 use client::{
-	ReopenBlock, PrepareOpenBlock, ProvingBlockChainClient, ScheduleInfo, ImportSealedBlock,
-	BroadcastProposalBlock, Call, StateClient, EngineInfo, BlockProducer, SealedBlockImporter,
+	ReopenBlock, PrepareOpenBlock, ProvingBlockChainClient, ImportSealedBlock,
+	BroadcastProposalBlock, Call, EngineInfo, BlockProducer, SealedBlockImporter,
 	LastHashes,
 };
 use client_traits::{
 	BlockInfo, Nonce, Balance, ChainInfo, TransactionInfo, BlockChainClient, ImportBlock,
-	AccountData, BlockChain, IoClient, BadBlocks,
+	AccountData, BlockChain, IoClient, BadBlocks, ScheduleInfo, StateClient,
 	StateOrBlock
 };
 use engine::Engine;

@@ -17,7 +17,6 @@
 use bytes::Bytes;
 use client_traits::BlockChainClient;
 use ethereum_types::{H256, U256, Address};
-use evm::Schedule;
 use kvdb::DBValue;
 use types::{
 	transaction::{SignedTransaction, CallError},
@@ -33,22 +32,6 @@ use block::{OpenBlock, SealedBlock, ClosedBlock};
 use engine::Engine;
 use machine::executed::Executed;
 use account_state::state::StateInfo;
-
-/// Provides methods to access chain state
-pub trait StateClient {
-	/// Type representing chain state
-	type State: StateInfo;
-
-	/// Get a copy of the best block's state.
-	fn latest_state(&self) -> Self::State;
-
-	/// Attempt to get a copy of a specific block's final state.
-	///
-	/// This will not fail if given BlockId::Latest.
-	/// Otherwise, this can fail (but may not) if the DB prunes state or the block
-	/// is unknown.
-	fn state_at(&self, id: BlockId) -> Option<Self::State>;
-}
 
 /// Provides `call` and `call_many` methods
 pub trait Call {
@@ -72,7 +55,6 @@ pub trait EngineInfo {
 	fn engine(&self) -> &dyn Engine;
 }
 
-
 /// Provides `reopen_block` method
 pub trait ReopenBlock {
 	/// Reopens an OpenBlock and updates uncles.
@@ -91,12 +73,6 @@ pub trait PrepareOpenBlock {
 
 /// Provides methods used for sealing new state
 pub trait BlockProducer: PrepareOpenBlock + ReopenBlock {}
-
-/// Provides `latest_schedule` method
-pub trait ScheduleInfo {
-	/// Returns latest schedule.
-	fn latest_schedule(&self) -> Schedule;
-}
 
 ///Provides `import_sealed_block` method
 pub trait ImportSealedBlock {
@@ -133,10 +109,4 @@ pub trait ProvingBlockChainClient: BlockChainClient {
 
 	/// Get an epoch change signal by block hash.
 	fn epoch_signal(&self, hash: H256) -> Option<Vec<u8>>;
-}
-
-/// resets the blockchain
-pub trait BlockChainReset {
-	/// reset to best_block - n
-	fn reset(&self, num: u32) -> Result<(), String>;
 }

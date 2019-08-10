@@ -19,43 +19,40 @@ use std::{
 	sync::Arc,
 };
 
-use ethereum_types::{Address, H256, U256};
 use account_state::state::StateInfo;
 use blockchain::BlockProvider;
+use bytes::Bytes;
 use call_contract::{CallContract, RegistryInfo};
 use common_types::{
-	BlockNumber,
-	header::Header,
-	encoded,
-	errors::EthcoreResult,
-	ids::{BlockId, TransactionId, TraceId, UncleId},
-	engines::{
-		epoch::Transition as EpochTransition,
-		machine::Executed,
-	},
-	blockchain_info::BlockChainInfo,
 	block_status::BlockStatus,
-	verification::{VerificationQueueInfo, Unverified},
-	transaction::{self, LocalizedTransaction, CallError},
-	receipt::LocalizedReceipt,
-	tree_route::TreeRoute,
-	filter::Filter,
-	log_entry::LocalizedLogEntry,
+	blockchain_info::BlockChainInfo,
+	BlockNumber,
 	call_analytics::CallAnalytics,
-	pruning_info::PruningInfo,
 	client_types::Mode,
+	encoded,
+	engines::{epoch::Transition as EpochTransition, machine::Executed},
+	errors::EthcoreResult,
+	filter::Filter,
+	header::Header,
+	ids::{BlockId, TransactionId, TraceId, UncleId},
+	log_entry::LocalizedLogEntry,
+	pruning_info::PruningInfo,
+	receipt::LocalizedReceipt,
 	trace_filter::Filter as TraceFilter,
+	transaction::{self, LocalizedTransaction, CallError},
+	tree_route::TreeRoute,
+	verification::{VerificationQueueInfo, Unverified},
 };
-use bytes::Bytes;
+use ethereum_types::{Address, H256, U256};
 use ethcore_db::keys::BlockReceipts;
 use ethcore_miner::pool::VerifiedTransaction;
 use stats;
 use trace::{
 	FlatTrace,
-	VMTrace,
 	localized::LocalizedTrace,
+	VMTrace,
 };
-use vm::LastHashes;
+use vm::{LastHashes, Schedule};
 
 /// State information to be used during client query
 pub enum StateOrBlock {
@@ -372,4 +369,33 @@ pub trait BlockChainClient : Sync + Send + AccountData + BlockChain + CallContra
 
 	/// Get the address of the registry itself.
 	fn registrar_address(&self) -> Option<Address>;
+}
+
+/// resets the blockchain
+pub trait BlockChainReset {
+	/// reset to best_block - n
+	fn reset(&self, num: u32) -> Result<(), String>;
+}
+
+
+/// Provides `latest_schedule` method
+pub trait ScheduleInfo {
+	/// Returns latest schedule.
+	fn latest_schedule(&self) -> Schedule;
+}
+
+/// Provides methods to access chain state
+pub trait StateClient {
+	/// Type representing chain state
+	type State: StateInfo;
+
+	/// Get a copy of the best block's state.
+	fn latest_state(&self) -> Self::State;
+
+	/// Attempt to get a copy of a specific block's final state.
+	///
+	/// This will not fail if given BlockId::Latest.
+	/// Otherwise, this can fail (but may not) if the DB prunes state or the block
+	/// is unknown.
+	fn state_at(&self, id: BlockId) -> Option<Self::State>;
 }

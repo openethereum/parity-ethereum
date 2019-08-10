@@ -26,9 +26,9 @@ use hash::{keccak, KECCAK_NULL_RLP};
 use ethereum_types::{U256, H256, Address};
 use bytes::ToPretty;
 use rlp::PayloadInfo;
-use client_traits::{BlockInfo, Nonce, Balance, BlockChainClient, ImportBlock};
+use client_traits::{BlockInfo, BlockChainReset, Nonce, Balance, BlockChainClient, ImportBlock};
 use ethcore::{
-	client::{DatabaseCompactionProfile, VMType, BlockChainReset},
+	client::{DatabaseCompactionProfile, VMType},
 	miner::Miner,
 	verification::queue::VerifierSettings,
 };
