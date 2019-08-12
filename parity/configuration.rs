@@ -17,6 +17,7 @@
 use std::time::Duration;
 use std::io::Read;
 use std::net::{SocketAddr, ToSocketAddrs};
+use std::num::NonZeroU32;
 use std::path::PathBuf;
 use std::collections::{HashSet, BTreeMap};
 use std::iter::FromIterator;
