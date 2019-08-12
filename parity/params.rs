@@ -137,7 +137,7 @@ impl SpecType {
 			SpecType::Dev => Ok(spec::new_instant()),
 			SpecType::Custom(ref filename) => {
 				let file = fs::File::open(filename).map_err(|e| format!("Could not load specification file at {}: {}", filename, e))?;
-				Spec::load(params, file)
+				Spec::load(params, file).map_err(|e| e.to_string())
 			}
 		}
 	}

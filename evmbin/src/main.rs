@@ -439,8 +439,8 @@ impl Args {
 	pub fn spec(&self) -> Result<spec::Spec, String> {
 		Ok(match self.flag_chain {
 			Some(ref filename) => {
-				let file = fs::File::open(filename).map_err(|e| format!("{}", e))?;
-				spec::Spec::load(&::std::env::temp_dir(), file)?
+				let file = fs::File::open(filename).map_err(|e| e.to_string())?;
+				spec::Spec::load(&::std::env::temp_dir(), file).map_err(|e| e.to_string())?
 			},
 			None => {
 				spec::new_foundation(&::std::env::temp_dir())
