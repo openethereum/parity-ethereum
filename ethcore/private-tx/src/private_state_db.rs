@@ -15,19 +15,16 @@
 // along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
 use std::sync::Arc;
-use parking_lot::RwLock;
 use ethereum_types::H256;
 use bytes::Bytes;
-use journaldb::overlaydb::OverlayDB;
 use kvdb::{KeyValueDB, DBTransaction};
 use keccak_hasher::KeccakHasher;
-use hash_db::{HashDB, EMPTY_PREFIX, Hasher};
+use hash_db::Hasher;
 use ethcore_db::COL_PRIVATE_TRANSACTIONS_STATE;
 use error::Error;
 
 /// Wrapper around local db with private state for sync purposes
 pub struct PrivateStateDB {
-	private_state: RwLock<OverlayDB>,
 	db: Arc<KeyValueDB>,
 }
 
@@ -35,24 +32,24 @@ impl PrivateStateDB {
 	/// Constructs the object
 	pub fn new(db: Arc<KeyValueDB>) -> Self {
 		PrivateStateDB {
-			private_state: RwLock::new(OverlayDB::new(db.clone(), COL_PRIVATE_TRANSACTIONS_STATE)),
 			db,
 		}
 	}
 
 	/// Returns saved state for the hash
 	pub fn state(&self, state_hash: &H256) -> Result<Bytes, Error> {
-		let private_state = self.private_state.read();
 		trace!(target: "privatetx", "Retrieve private state from db with hash: {:?}", state_hash);
-		private_state.get(state_hash, EMPTY_PREFIX).map(|s| s.to_vec()).ok_or(Error::PrivateStateNotFound)
+		self.db.get(COL_PRIVATE_TRANSACTIONS_STATE, state_hash.as_bytes())
+			.expect("Low-level database error. Some issue with your hard disk?")
+			.map(|s| s.to_vec())
+			.ok_or(Error::PrivateStateNotFound)
 	}
 
 	/// Stores state for the hash
 	pub fn save_state(&self, storage: &Bytes) -> Result<H256, Error> {
-		let mut private_state = self.private_state.write();
-		let state_hash = private_state.insert(EMPTY_PREFIX, storage);
+		let state_hash = self.state_hash(storage)?;
 		let mut transaction = DBTransaction::new();
-		private_state.commit_to_batch(&mut transaction)?;
+		transaction.put(COL_PRIVATE_TRANSACTIONS_STATE, state_hash.as_bytes(), storage);
 		self.db.write(transaction).map_err(|_| Error::DatabaseWriteError)?;
 		trace!(target: "privatetx", "Private state saved to db, its hash: {:?}", state_hash);
 		Ok(state_hash)
