@@ -21,7 +21,7 @@
 pub enum RestorationStatus {
 	///	No restoration.
 	Inactive,
-	/// Restoration is initalizing
+	/// Restoration is initializing
 	Initializing {
 		/// Number of chunks done/imported
 		chunks_done: u32,

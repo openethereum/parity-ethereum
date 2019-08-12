@@ -57,9 +57,14 @@ pub fn new_poanet<'a, T: Into<SpecParams<'a>>>(params: T) -> Spec {
 	load(params.into(), include_bytes!("../../res/ethereum/poacore.json"))
 }
 
-/// Create a new Tobalaba mainnet chain spec.
-pub fn new_tobalaba<'a, T: Into<SpecParams<'a>>>(params: T) -> Spec {
-	load(params.into(), include_bytes!("../../res/ethereum/tobalaba.json"))
+/// Create a new Volta mainnet chain spec.
+pub fn new_volta<'a, T: Into<SpecParams<'a>>>(params: T) -> Spec {
+	load(params.into(), include_bytes!("../../res/ethereum/volta.json"))
+}
+
+/// Create a new EWC mainnet chain spec.
+pub fn new_ewc<'a, T: Into<SpecParams<'a>>>(params: T) -> Spec {
+	load(params.into(), include_bytes!("../../res/ethereum/ewc.json"))
 }
 
 /// Create a new Expanse mainnet chain spec.

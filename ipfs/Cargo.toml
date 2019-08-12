@@ -1,5 +1,5 @@
 [package]
-description = "Parity IPFS-compatible API"
+description = "Parity Ethereum IPFS-compatible API"
 name = "parity-ipfs-api"
 version = "1.12.0"
 license = "GPL-3.0"
