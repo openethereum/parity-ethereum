@@ -76,7 +76,8 @@ bundle_release_spec! {
 	"ethereum/poasokol" => new_sokol,
 	"ethereum/rinkeby" => new_rinkeby,
 	"ethereum/ropsten" => new_ropsten,
-	"ethereum/tobalaba" => new_tobalaba
+	"ethereum/volta" => new_volta,
+	"ethereum/ewc" => new_ewc
 }
 
 bundle_test_spec! {
