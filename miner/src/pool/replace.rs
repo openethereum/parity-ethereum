@@ -71,7 +71,11 @@ where
 			let old_score = (old.priority(), old.gas_price());
 			let new_score = (new.priority(), new.gas_price());
 			if new_score > old_score {
-				// check for an existing transaction with the same nonce
+				// Check if this is a replacement transaction.
+				// 
+				// With replacement transactions we can safely return `InsertNew` here, because
+				// we don't need to remove `old` (worst transaction in the pool) since `new` will replace
+			    // some other transaction in the pool so we will never go above limit anyway.
 				if let Some(txs) = new.pooled_by_sender {
 					if let Ok(index) = txs.binary_search_by(|old| self.scoring.compare(old, new)) {
 						return self.scoring.choose(&txs[index], new)
