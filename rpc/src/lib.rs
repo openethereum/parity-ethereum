@@ -123,6 +123,8 @@ extern crate fake_fetch;
 
 #[cfg(test)]
 extern crate ethcore_io as io;
+#[cfg(test)]
+extern crate client_traits;
 
 pub extern crate jsonrpc_ws_server as ws;
 

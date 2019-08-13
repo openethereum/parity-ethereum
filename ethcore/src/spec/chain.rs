@@ -74,7 +74,8 @@ bundle_release_spec! {
 	"ethereum/poasokol" => new_sokol,
 	"ethereum/rinkeby" => new_rinkeby,
 	"ethereum/ropsten" => new_ropsten,
-	"ethereum/tobalaba" => new_tobalaba
+	"ethereum/volta" => new_volta,
+	"ethereum/ewc" => new_ewc
 }
 
 bundle_test_spec! {
@@ -146,7 +147,7 @@ mod tests {
 		let tempdir = TempDir::new("").unwrap();
 		let morden = new_morden(&tempdir.path());
 
-		assert_eq!(morden.state_root(), "f3f4696bbf3b3b07775128eb7a3763279a394e382130f27c21e70233e04946a9".parse().unwrap());
+		assert_eq!(morden.state_root, "f3f4696bbf3b3b07775128eb7a3763279a394e382130f27c21e70233e04946a9".parse().unwrap());
 		let genesis = morden.genesis_block();
 		assert_eq!(view!(BlockView, &genesis).header_view().hash(), "0cd786a2425d16f152c658316c423e6ce1181e15c3295826d7c9904cba9ce303".parse().unwrap());
 	}
@@ -156,7 +157,7 @@ mod tests {
 		let tempdir = TempDir::new("").unwrap();
 		let frontier = new_foundation(&tempdir.path());
 
-		assert_eq!(frontier.state_root(), "d7f8974fb5ac78d9ac099b9ad5018bedc2ce0a72dad1827a1709da30580f0544".parse().unwrap());
+		assert_eq!(frontier.state_root, "d7f8974fb5ac78d9ac099b9ad5018bedc2ce0a72dad1827a1709da30580f0544".parse().unwrap());
 		let genesis = frontier.genesis_block();
 		assert_eq!(view!(BlockView, &genesis).header_view().hash(), "d4e56740f876aef8c010b86a40d5f56745a118d0906a34e69aec8c0db1cb8fa3".parse().unwrap());
 	}
