@@ -138,8 +138,10 @@ impl<'a, C: 'a> pool::client::Client for PoolClient<'a, C> where
 	}
 
 	fn verify_transaction(&self, tx: UnverifiedTransaction)-> Result<SignedTransaction, transaction::Error> {
+		self.engine.verify_transaction_basic(&tx, &self.best_block_header)?;
 		let tx = tx.verify_unordered()?;
-		self.verify_for_pending_block(&tx, &self.best_block_header)?;
+
+		self.engine.machine().verify_transaction(&tx, &self.best_block_header, self.chain)?;
 		Ok(tx)
 	}
 
