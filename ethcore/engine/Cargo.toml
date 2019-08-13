@@ -8,13 +8,13 @@ license = "GPL-3.0"
 
 [dependencies]
 blockchain = { package = "ethcore-blockchain", path = "../blockchain" }
+builtin = { path = "../builtin", package = "ethcore-builtin" }
+bytes = { package = "parity-bytes", version = "0.1.0" }
 client-traits = { path = "../client-traits" }
 common-types = { path = "../types" }
-builtin = { path = "../builtin", package = "ethcore-builtin" }
 ethereum-types = "0.6.0"
 ethkey = { path = "../../accounts/ethkey" }
 machine = { path = "../machine" }
-bytes = { package = "parity-bytes", version = "0.1.0" }
 vm = { path = "../vm" }
 
 # used from test-helpers
