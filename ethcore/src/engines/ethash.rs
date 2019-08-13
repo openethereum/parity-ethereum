@@ -20,14 +20,16 @@ use std::path::Path;
 use std::sync::Arc;
 
 use engine::snapshot::SnapshotComponents;
-use ethereum_types::{H256, H64, U256};
+use ethereum_types::{H256, U256};
 use ethjson;
 use hash::{KECCAK_EMPTY_LIST_RLP};
-use rlp::Rlp;
 use types::{
 	BlockNumber,
 	header::Header,
-	engines::params::CommonParams,
+	engines::{
+		EthashSeal,
+		params::CommonParams,
+	},
 	errors::{BlockError, EthcoreError as Error},
 };
 
@@ -46,38 +48,6 @@ use machine::{
 const SNAPSHOT_BLOCKS: u64 = 5000;
 /// Maximum number of blocks allowed in an ethash snapshot.
 const MAX_SNAPSHOT_BLOCKS: u64 = 30000;
-
-/// Ethash specific seal
-#[derive(Debug, PartialEq)]
-pub struct Seal {
-	/// Ethash seal mix_hash
-	pub mix_hash: H256,
-	/// Ethash seal nonce
-	pub nonce: H64,
-}
-
-impl Seal {
-	/// Tries to parse rlp as ethash seal.
-	pub fn parse_seal<T: AsRef<[u8]>>(seal: &[T]) -> Result<Self, Error> {
-		if seal.len() != 2 {
-			return Err(BlockError::InvalidSealArity(
-				Mismatch {
-					expected: 2,
-					found: seal.len()
-				}
-			).into());
-		}
-
-		let mix_hash = Rlp::new(seal[0].as_ref()).as_val::<H256>()?;
-		let nonce = Rlp::new(seal[1].as_ref()).as_val::<H64>()?;
-		let seal = Seal {
-			mix_hash,
-			nonce,
-		};
-
-		Ok(seal)
-	}
-}
 
 /// Ethash params.
 #[derive(Debug, PartialEq)]
@@ -207,7 +177,7 @@ impl Ethash {
 }
 
 fn verify_block_unordered(pow: &Arc<EthashManager>, header: &Header) -> Result<(), Error> {
-	let seal = Seal::parse_seal(header.seal())?;
+	let seal = EthashSeal::parse_seal(header.seal())?;
 
 	let result = pow.compute_light(
 		header.number() as u64,
@@ -260,7 +230,7 @@ impl Engine for Ethash {
 
 	/// Additional engine-specific information for the user/developer concerning `header`.
 	fn extra_info(&self, header: &Header) -> BTreeMap<String, String> {
-		match Seal::parse_seal(header.seal()) {
+		match EthashSeal::parse_seal(header.seal()) {
 			Ok(seal) => map![
 				"nonce".to_owned() => format!("0x{:x}", seal.nonce),
 				"mixHash".to_owned() => format!("0x{:x}", seal.mix_hash)
@@ -350,7 +320,7 @@ impl Engine for Ethash {
 
 	fn verify_block_basic(&self, header: &Header) -> Result<(), Error> {
 		// check the seal fields.
-		let seal = Seal::parse_seal(header.seal())?;
+		let seal = EthashSeal::parse_seal(header.seal())?;
 
 		// TODO: consider removing these lines.
 		let min_difficulty = self.ethash_params.minimum_difficulty;

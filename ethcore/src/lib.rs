@@ -58,6 +58,7 @@ extern crate account_state;
 extern crate ansi_term;
 extern crate client_traits;
 extern crate common_types as types;
+extern crate clique;
 extern crate crossbeam_utils;
 extern crate engine;
 extern crate ethabi;
@@ -84,7 +85,6 @@ extern crate kvdb;
 extern crate kvdb_memorydb;
 
 extern crate len_caching_lock;
-extern crate lru_cache;
 extern crate machine;
 extern crate memory_cache;
 extern crate num_cpus;

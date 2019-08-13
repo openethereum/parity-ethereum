@@ -16,16 +16,17 @@
 
 use std::collections::BTreeSet;
 
-use engines::clique::{ADDRESS_LENGTH, SIGNATURE_LENGTH, VANITY_LENGTH, NULL_NONCE, NULL_MIXHASH};
-use ethereum_types::{Address, H256};
-use ethkey::{public_to_address, recover as ec_recover, Signature};
-use lru_cache::LruCache;
-use parking_lot::RwLock;
-use rlp::encode;
-use types::{
+use common_types::{
 	header::Header,
 	errors::{EthcoreError as Error, EngineError},
 };
+use ethereum_types::{Address, H256};
+use ethkey::{public_to_address, recover as ec_recover, Signature};
+use lazy_static::lazy_static;
+use lru_cache::LruCache;
+use parking_lot::RwLock;
+use rlp::encode;
+use crate::{ADDRESS_LENGTH, SIGNATURE_LENGTH, VANITY_LENGTH, NULL_NONCE, NULL_MIXHASH};
 
 /// How many recovered signature to cache in the memory.
 pub const CREATOR_CACHE_NUM: usize = 4096;

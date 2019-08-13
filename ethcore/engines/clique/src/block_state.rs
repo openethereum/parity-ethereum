@@ -14,21 +14,27 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
-use std::collections::{HashMap, BTreeSet, VecDeque};
-use std::fmt;
-use std::time::{Duration, SystemTime, UNIX_EPOCH};
+use std::{
+	collections::{HashMap, BTreeSet, VecDeque},
+	fmt,
+	time::{Duration, SystemTime, UNIX_EPOCH},
+};
 
-use engines::clique::util::{extract_signers, recover_creator};
-use engines::clique::{VoteType, DIFF_INTURN, DIFF_NOTURN, NULL_AUTHOR, SIGNING_DELAY_NOTURN_MS};
-use ethereum_types::{Address, H64};
-use rand::Rng;
-use time_utils::CheckedSystemTime;
-use types::{
+use common_types::{
 	BlockNumber,
 	header::Header,
 	errors::{BlockError, EthcoreError as Error, EngineError},
 };
+use ethereum_types::{Address, H64};
+use log::{debug, trace};
+use rand::Rng;
+use time_utils::CheckedSystemTime;
 use unexpected::Mismatch;
+
+use crate::{
+	util::{extract_signers, recover_creator},
+	{VoteType, DIFF_INTURN, DIFF_NOTURN, NULL_AUTHOR, SIGNING_DELAY_NOTURN_MS},
+};
 
 /// Type that keeps track of the state for a given vote
 // Votes that go against the proposal aren't counted since it's equivalent to not voting

@@ -12,6 +12,7 @@ account-state = { path = "account-state" }
 ansi_term = "0.11"
 blooms-db = { path = "../util/blooms-db", optional = true }
 client-traits = { path = "./client-traits" }
+clique = { path = "./engines/clique" }
 common-types = { path = "types" }
 crossbeam-utils = "0.6"
 engine = { path = "./engine" }
@@ -44,7 +45,6 @@ kvdb-rocksdb = { version = "0.1.3", optional = true }
 lazy_static = "1.2.0"
 len-caching-lock = { path = "../util/len-caching-lock" }
 log = "0.4"
-lru-cache = "0.1"
 machine = { path = "./machine" }
 macros = { path = "../util/macros" }
 memory-cache = { path = "../util/memory-cache" }

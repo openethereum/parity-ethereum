@@ -18,7 +18,6 @@
 
 mod authority_round;
 mod basic_authority;
-mod clique;
 mod ethash;
 mod instant_seal;
 mod null_engine;
@@ -30,5 +29,4 @@ pub use self::authority_round::AuthorityRound;
 pub use self::basic_authority::BasicAuthority;
 pub use self::instant_seal::{InstantSeal, InstantSealParams};
 pub use self::null_engine::NullEngine;
-pub use self::clique::Clique;
-pub use self::ethash::{Ethash, Seal as EthashSeal};
+pub use self::ethash::Ethash;

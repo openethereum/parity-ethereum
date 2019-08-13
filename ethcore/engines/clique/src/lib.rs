@@ -58,40 +58,40 @@
 /// 7. Finally, `Clique::verify_local_seal()` is called. After this, the syncing code path will be followed
 ///    in order to import the new block.
 
-use std::cmp;
-use std::collections::{HashMap, VecDeque, BTreeMap};
-use std::sync::{Arc, Weak};
-use std::thread;
-use std::time;
-use std::time::{Instant, Duration, SystemTime, UNIX_EPOCH};
+use std::{
+	cmp,
+	collections::{HashMap, VecDeque, BTreeMap},
+	sync::{Arc, Weak},
+	thread,
+	time::{self, Instant, Duration, SystemTime, UNIX_EPOCH},
+};
 
 use client_traits::EngineClient;
-use engines::{
-	clique::util::{extract_signers, recover_creator},
-	EthashSeal,
-};
 use engine::{
 	Engine,
 	signer::EngineSigner,
 };
 use ethereum_types::{Address, H64, H160, H256, U256};
 use ethkey::Signature;
-use hash::KECCAK_EMPTY_LIST_RLP;
+use keccak_hash::KECCAK_EMPTY_LIST_RLP;
 use itertools::Itertools;
+use log::{trace, warn};
 use lru_cache::LruCache;
 use machine::{
 	ExecutedBlock,
 	Machine,
 };
+use macros::map;
 use parking_lot::RwLock;
 use rand::Rng;
 use unexpected::{Mismatch, OutOfBounds};
 use time_utils::CheckedSystemTime;
-use types::{
+use common_types::{
 	BlockNumber,
 	ids::BlockId,
 	header::Header,
 	engines::{
+		EthashSeal,
 		Seal,
 		SealingState,
 		params::CommonParams,
@@ -100,8 +100,12 @@ use types::{
 	errors::{BlockError, EthcoreError as Error, EngineError},
 };
 
-use self::block_state::CliqueBlockState;
-use self::params::CliqueParams;
+use crate::{
+	util::{extract_signers, recover_creator},
+	block_state::CliqueBlockState,
+	params::CliqueParams,
+};
+
 
 mod params;
 mod block_state;
@@ -214,7 +218,7 @@ impl Clique {
 		thread::Builder::new().name("StepService".into())
 			.spawn(move || {
 				loop {
- 					let next_step_at = Instant::now() + SEALING_FREQ;
+					let next_step_at = Instant::now() + SEALING_FREQ;
 					trace!(target: "miner", "StepService: triggering sealing");
 					if let Some(eng) = weak_eng.upgrade() {
 						eng.step()
@@ -237,7 +241,7 @@ impl Clique {
 	/// Note we need to `mock` the miner and it is introduced to test block verification to trigger new blocks
 	/// to mainly test consensus edge cases
 	pub fn with_test(epoch_length: u64, period: u64) -> Self {
-		use crate::spec;
+		use ethcore::spec;
 
 		Self {
 			epoch_length,

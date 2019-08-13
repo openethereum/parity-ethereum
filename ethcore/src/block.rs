@@ -265,7 +265,7 @@ impl<'x> OpenBlock<'x> {
 		})
 	}
 
-	#[cfg(test)]
+	#[cfg(any(test, feature = "test-helpers"))]
 	/// Return mutable block reference. To be used in tests only.
 	pub fn block_mut(&mut self) -> &mut ExecutedBlock { &mut self.block }
 }

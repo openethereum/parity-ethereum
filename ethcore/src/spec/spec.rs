@@ -40,9 +40,9 @@ use vm::{EnvInfo, CallType, ActionValue, ActionParams, ParamsType};
 
 use builtin::Builtin;
 use engine::Engine;
-use engines::{
-	NullEngine, InstantSeal, InstantSealParams, BasicAuthority, Clique,
-	AuthorityRound, Ethash,
+use clique::Clique;
+use crate::engines::{
+	NullEngine, InstantSeal, InstantSealParams, BasicAuthority, AuthorityRound, Ethash
 };
 use machine::{
 	executive::Executive,

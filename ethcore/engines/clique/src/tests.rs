@@ -16,17 +16,20 @@
 
 //! Consensus tests for `PoA Clique Engine`, see http://eips.ethereum.org/EIPS/eip-225 for more information
 
-use block::*;
+use std::sync::Arc;
+use std::collections::HashMap;
+
+use common_types::errors::{EthcoreError as Error, EngineError};
+use ethcore::{
+	block::*,
+	test_helpers::get_temp_state_db,
+};
 use engine::Engine;
 use ethereum_types::{Address, H256};
 use ethkey::{Secret, KeyPair};
 use state_db::StateDB;
-use super::*;
-use test_helpers::get_temp_state_db;
-use types::errors::{EthcoreError as Error, EngineError};
 
-use std::sync::Arc;
-use std::collections::HashMap;
+use super::*;
 
 /// Possible signers
 pub const SIGNER_TAGS: [char; 6] = ['A', 'B', 'C', 'D', 'E', 'F'];
