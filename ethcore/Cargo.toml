@@ -10,6 +10,7 @@ authors = ["Parity Technologies <admin@parity.io>"]
 account-db = { path = "account-db" }
 account-state = { path = "account-state" }
 ansi_term = "0.11"
+block-reward = { path = "./block-reward" }
 blooms-db = { path = "../util/blooms-db", optional = true }
 client-traits = { path = "./client-traits" }
 clique = { path = "./engines/clique" }
@@ -48,6 +49,7 @@ log = "0.4"
 machine = { path = "./machine" }
 macros = { path = "../util/macros" }
 memory-cache = { path = "../util/memory-cache" }
+null-engine = { path = "./engines/null-engine" }
 num_cpus = "1.2"
 parity-bytes = "0.1"
 parity-snappy = "0.1"

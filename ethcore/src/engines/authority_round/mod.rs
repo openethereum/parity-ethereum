@@ -26,8 +26,7 @@ use std::time::{UNIX_EPOCH, Duration};
 
 use client_traits::EngineClient;
 use engine::{Engine,ConstructedVerifier};
-use engines::block_reward;
-use engines::block_reward::{BlockRewardContract, RewardKind};
+use block_reward::{self, BlockRewardContract, RewardKind};
 use engine::snapshot::SnapshotComponents;
 use ethjson;
 use machine::{

@@ -14,24 +14,25 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
-//! A module with types for declaring block rewards and a client interface for interacting with a
+//! Types for declaring block rewards and a client interface for interacting with a
 //! block reward contract.
 
-use ethabi::FunctionOutputDecoder;
-use ethereum_types::{Address, U256};
-
 use std::sync::Arc;
-use hash::keccak;
-use machine::{Machine, ExecutedBlock};
-use trace;
-use types::{
+
+use ethabi::FunctionOutputDecoder;
+use ethabi_contract::use_contract;
+use ethereum_types::{Address, U256};
+use common_types::{
 	BlockNumber,
 	errors::{EngineError, EthcoreError as Error},
 };
+use keccak_hash::keccak;
+use machine::{Machine, ExecutedBlock};
 use engine::{SystemOrCodeCall, SystemOrCodeCallKind};
+use trace;
 use trace::{Tracer, ExecutiveTracer, Tracing};
 
-use_contract!(block_reward_contract, "res/contracts/block_reward.json");
+use_contract!(block_reward_contract, "res/block_reward.json");
 
 /// The kind of block reward.
 /// Depending on the consensus engine the allocated block reward might have
@@ -161,13 +162,14 @@ pub fn apply_block_rewards(
 #[cfg(test)]
 mod test {
 	use std::str::FromStr;
-	use client::PrepareOpenBlock;
+	use ethcore::{
+		client::PrepareOpenBlock,
+		spec,
+		test_helpers::generate_dummy_client_with_spec,
+	};
 	use ethereum_types::{U256, Address};
-	use crate::spec;
-	use test_helpers::generate_dummy_client_with_spec;
-
 	use engine::SystemOrCodeCallKind;
-	use super::{BlockRewardContract, RewardKind};
+	use crate::{BlockRewardContract, RewardKind};
 
 	#[test]
 	fn block_reward_contract() {

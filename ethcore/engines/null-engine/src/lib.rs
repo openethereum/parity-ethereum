@@ -14,19 +14,21 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
-use engine::snapshot::SnapshotComponents;
-use engine::Engine;
-use engines::block_reward::{self, RewardKind};
-use ethereum_types::U256;
-use machine::{
-	ExecutedBlock,
-	Machine,
-};
-use types::{
+use common_types::{
 	BlockNumber,
 	header::Header,
 	engines::params::CommonParams,
 	errors::EthcoreError as Error,
+};
+use engine::{
+	Engine,
+	snapshot::SnapshotComponents
+};
+use block_reward::{self, RewardKind};
+use ethereum_types::U256;
+use machine::{
+	ExecutedBlock,
+	Machine,
 };
 
 /// Params for a null engine.
@@ -36,8 +38,8 @@ pub struct NullEngineParams {
 	pub block_reward: U256,
 }
 
-impl From<::ethjson::spec::NullEngineParams> for NullEngineParams {
-	fn from(p: ::ethjson::spec::NullEngineParams) -> Self {
+impl From<ethjson::spec::NullEngineParams> for NullEngineParams {
+	fn from(p: ethjson::spec::NullEngineParams) -> Self {
 		NullEngineParams {
 			block_reward: p.block_reward.map_or_else(Default::default, Into::into),
 		}
@@ -61,9 +63,7 @@ impl NullEngine {
 }
 
 impl Engine for NullEngine {
-	fn name(&self) -> &str {
-		"NullEngine"
-	}
+	fn name(&self) -> &str { "NullEngine" }
 
 	fn machine(&self) -> &Machine { &self.machine }
 
@@ -105,7 +105,9 @@ impl Engine for NullEngine {
 	}
 
 	fn snapshot_components(&self) -> Option<Box<dyn (SnapshotComponents)>> {
-		Some(Box::new(::snapshot::PowSnapshot::new(10000, 10000)))
+		// todo[dvdplm] - this will be tricky
+		// Some(Box::new(::snapshot::PowSnapshot::new(10000, 10000)))
+		None
 	}
 
 	fn params(&self) -> &CommonParams {

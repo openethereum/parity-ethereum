@@ -35,7 +35,7 @@ use types::{
 
 use unexpected::{OutOfBounds, Mismatch};
 
-use engines::block_reward::{self, BlockRewardContract, RewardKind};
+use block_reward::{self, BlockRewardContract, RewardKind};
 use engine::Engine;
 use ethash::{self, quick_get_difficulty, slow_hash_block_number, EthashManager, OptimizeFor};
 use machine::{

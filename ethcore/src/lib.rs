@@ -56,6 +56,7 @@
 extern crate account_db;
 extern crate account_state;
 extern crate ansi_term;
+extern crate block_reward;
 extern crate client_traits;
 extern crate common_types as types;
 extern crate clique;
@@ -87,6 +88,7 @@ extern crate kvdb_memorydb;
 extern crate len_caching_lock;
 extern crate machine;
 extern crate memory_cache;
+extern crate null_engine;
 extern crate num_cpus;
 extern crate parity_bytes as bytes;
 extern crate parity_snappy as snappy;

@@ -20,13 +20,9 @@ mod authority_round;
 mod basic_authority;
 mod ethash;
 mod instant_seal;
-mod null_engine;
 mod validator_set;
-
-pub mod block_reward;
 
 pub use self::authority_round::AuthorityRound;
 pub use self::basic_authority::BasicAuthority;
 pub use self::instant_seal::{InstantSeal, InstantSealParams};
-pub use self::null_engine::NullEngine;
 pub use self::ethash::Ethash;
