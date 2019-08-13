@@ -15,9 +15,10 @@
 // along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
 //! Execution environment substate.
+
 use std::collections::HashSet;
 use ethereum_types::Address;
-use types::log_entry::LogEntry;
+use common_types::log_entry::LogEntry;
 
 /// State changes which should be applied in finalize,
 /// after transaction is fully executed.
@@ -58,7 +59,7 @@ impl Substate {
 #[cfg(test)]
 mod tests {
 	use ethereum_types::Address;
-	use types::log_entry::LogEntry;
+	use common_types::log_entry::LogEntry;
 	use super::Substate;
 
 	#[test]

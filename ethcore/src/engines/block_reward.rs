@@ -22,7 +22,7 @@ use ethereum_types::{Address, U256};
 
 use std::sync::Arc;
 use hash::keccak;
-use machine::Machine;
+use machine::{Machine, ExecutedBlock};
 use trace;
 use types::{
 	BlockNumber,
@@ -30,7 +30,6 @@ use types::{
 };
 use super::{SystemOrCodeCall, SystemOrCodeCallKind};
 use trace::{Tracer, ExecutiveTracer, Tracing};
-use block::ExecutedBlock;
 
 use_contract!(block_reward_contract, "res/contracts/block_reward.json");
 

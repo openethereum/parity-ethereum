@@ -19,15 +19,17 @@ use hash::keccak;
 use io::{IoHandler, IoChannel};
 use types::transaction::{Transaction, Action};
 use types::ids::BlockId;
-use ethcore::CreateContractAddress;
-use ethcore::client::{ClientIoMessage, BlockChainClient};
-use ethcore::executive::contract_address;
-use ethcore::engines;
-use ethcore::miner::{self, MinerService};
-use ethcore::spec::Spec;
-use ethcore::test_helpers::{push_block_with_transactions};
+use ethcore::{
+	CreateContractAddress,
+	client::{ClientIoMessage, BlockChainClient},
+	engines,
+	miner::{self, MinerService},
+	spec::Spec,
+	test_helpers::push_block_with_transactions,
+};
 use ethcore_private_tx::{Provider, ProviderConfig, NoopEncryptor, Importer, SignedPrivateTransaction, StoringKeyProvider};
 use ethkey::KeyPair;
+use machine::executive::contract_address;
 use tests::helpers::{TestNet, TestIoHandler};
 use rustc_hex::FromHex;
 use rlp::Rlp;

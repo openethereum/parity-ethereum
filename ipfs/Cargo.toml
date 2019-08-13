@@ -6,6 +6,7 @@ license = "GPL-3.0"
 authors = ["Parity Technologies <admin@parity.io>"]
 
 [dependencies]
+common-types = { path = "../ethcore/types" }
 ethcore = { path = "../ethcore" }
 parity-bytes = "0.1"
 ethereum-types = "0.6.0"

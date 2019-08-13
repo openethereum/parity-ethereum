@@ -20,12 +20,14 @@ use std::sync::Weak;
 use ethereum_types::{H256, H520};
 use parking_lot::RwLock;
 use ethkey::{self, Signature};
-use block::*;
 use engines::{Engine, Seal, ConstructedVerifier};
 use engines::signer::EngineSigner;
 use ethjson;
 use client::EngineClient;
-use machine::Machine;
+use machine::{
+	Machine,
+	executed_block::ExecutedBlock,
+};
 use types::{
 	header::Header,
 	engines::{

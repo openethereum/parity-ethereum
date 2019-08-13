@@ -24,13 +24,15 @@ use std::sync::atomic::{AtomicUsize, AtomicBool, Ordering as AtomicOrdering};
 use std::sync::{Weak, Arc};
 use std::time::{UNIX_EPOCH, Duration};
 
-use block::*;
 use client::EngineClient;
 use engines::{Engine, Seal, ConstructedVerifier};
 use engines::block_reward;
 use engines::block_reward::{BlockRewardContract, RewardKind};
 use ethjson;
-use machine::Machine;
+use machine::{
+	ExecutedBlock,
+	Machine,
+};
 use hash::keccak;
 use super::signer::EngineSigner;
 use super::validator_set::{ValidatorSet, SimpleList, new_validator_set};

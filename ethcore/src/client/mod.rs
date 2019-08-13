@@ -35,19 +35,18 @@ pub use self::io_message::ClientIoMessage;
 pub use self::test_client::{TestBlockChainClient, EachBlockWith, TestState};
 pub use self::chain_notify::{ChainNotify, NewBlocks, ChainRoute, ChainRouteType, ChainMessageType};
 pub use self::traits::{
-    Nonce, Balance, ChainInfo, BlockInfo, ReopenBlock, PrepareOpenBlock, TransactionInfo, ScheduleInfo, ImportSealedBlock, BroadcastProposalBlock, ImportBlock,
+    Nonce, Balance, ChainInfo, ReopenBlock, PrepareOpenBlock, TransactionInfo, ScheduleInfo, ImportSealedBlock, BroadcastProposalBlock, ImportBlock,
     StateOrBlock, StateClient, Call, EngineInfo, AccountData, BlockChain, BlockProducer, SealedBlockImporter, BadBlocks,
-	BlockChainReset
+	BlockChainReset, BlockChainClient, EngineClient, ProvingBlockChainClient, IoClient
 };
 pub use account_state::state::StateInfo;
-pub use self::traits::{BlockChainClient, EngineClient, ProvingBlockChainClient, IoClient};
 
-pub use types::ids::*;
-pub use types::trace_filter::Filter as TraceFilter;
-pub use types::pruning_info::PruningInfo;
-pub use types::call_analytics::CallAnalytics;
+use types::{
+	trace_filter::Filter as TraceFilter,
+	pruning_info::PruningInfo,
+	call_analytics::CallAnalytics,
+};
 
-pub use executive::{Executed, Executive, TransactOptions};
 pub use vm::{LastHashes, EnvInfo};
 
 pub use verification::VerifierType;

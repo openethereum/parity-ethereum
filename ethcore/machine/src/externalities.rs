@@ -15,21 +15,36 @@
 // along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
 //! Transaction Execution environment.
-use std::cmp;
-use std::sync::Arc;
+
+use std::{cmp, sync::Arc};
+
 use ethereum_types::{H256, U256, Address, BigEndianHash};
-use bytes::Bytes;
+use parity_bytes::Bytes;
+use log::{debug, trace, warn};
+
 use account_state::{Backend as StateBackend, State, CleanupMode};
-use substate::Substate;
-use machine::Machine;
-use executive::*;
+use common_types::{
+	transaction::UNSIGNED_SENDER,
+	log_entry::LogEntry,
+};
+use trace::{Tracer, VMTracer};
 use vm::{
 	self, ActionParams, ActionValue, EnvInfo, CallType, Schedule,
 	Ext, ContractCreateResult, MessageCallResult, CreateContractAddress,
 	ReturnData, TrapKind
 };
-use types::transaction::UNSIGNED_SENDER;
-use trace::{Tracer, VMTracer};
+
+use crate::{
+	Machine,
+	substate::Substate,
+	executive::{
+		Executive,
+		contract_address,
+		into_message_call_result,
+		into_contract_create_result,
+		cleanup_mode
+	},
+};
 
 /// Policy for handling output data on `RETURN` opcode.
 pub enum OutputPolicy {
@@ -97,18 +112,18 @@ impl<'a, T: 'a, V: 'a, B: 'a> Externalities<'a, T, V, B>
 		static_flag: bool,
 	) -> Self {
 		Externalities {
-			state: state,
-			env_info: env_info,
-			depth: depth,
-			stack_depth: stack_depth,
-			origin_info: origin_info,
-			substate: substate,
-			machine: machine,
-			schedule: schedule,
-			output: output,
-			tracer: tracer,
-			vm_tracer: vm_tracer,
-			static_flag: static_flag,
+			state,
+			env_info,
+			depth,
+			stack_depth,
+			origin_info,
+			substate,
+			machine,
+			schedule,
+			output,
+			tracer,
+			vm_tracer,
+			static_flag,
 		}
 	}
 }
@@ -135,10 +150,6 @@ impl<'a, T: 'a, V: 'a, B: 'a> Ext for Externalities<'a, T, V, B>
 		} else {
 			self.state.set_storage(&self.origin_info.address, key, value).map_err(Into::into)
 		}
-	}
-
-	fn is_static(&self) -> bool {
-		return self.static_flag
 	}
 
 	fn exists(&self, address: &Address) -> vm::Result<bool> {
@@ -178,9 +189,9 @@ impl<'a, T: 'a, V: 'a, B: 'a> Ext for Externalities<'a, T, V, B>
 				origin: self.origin_info.origin.clone(),
 				gas: self.machine.params().eip210_contract_gas,
 				gas_price: 0.into(),
-				code: code,
-				code_hash: code_hash,
-				code_version: code_version,
+				code,
+				code_hash,
+				code_version,
 				data: Some(data.as_bytes().to_vec()),
 				call_type: CallType::Call,
 				params_type: vm::ParamsType::Separate,
@@ -240,7 +251,7 @@ impl<'a, T: 'a, V: 'a, B: 'a> Ext for Externalities<'a, T, V, B>
 			gas_price: self.origin_info.gas_price,
 			value: ActionValue::Transfer(*value),
 			code: Some(Arc::new(code.to_vec())),
-			code_hash: code_hash,
+			code_hash,
 			code_version: *parent_version,
 			data: None,
 			call_type: CallType::None,
@@ -296,11 +307,11 @@ impl<'a, T: 'a, V: 'a, B: 'a> Ext for Externalities<'a, T, V, B>
 			origin: self.origin_info.origin.clone(),
 			gas: *gas,
 			gas_price: self.origin_info.gas_price,
-			code: code,
-			code_hash: code_hash,
-			code_version: code_version,
+			code,
+			code_hash,
+			code_version,
 			data: Some(data.to_vec()),
-			call_type: call_type,
+			call_type,
 			params_type: vm::ParamsType::Separate,
 		};
 
@@ -333,6 +344,21 @@ impl<'a, T: 'a, V: 'a, B: 'a> Ext for Externalities<'a, T, V, B>
 		Ok(self.state.code_size(address)?)
 	}
 
+	fn log(&mut self, topics: Vec<H256>, data: &[u8]) -> vm::Result<()> {
+		if self.static_flag {
+			return Err(vm::Error::MutableCallInStaticContext);
+		}
+
+		let address = self.origin_info.address.clone();
+		self.substate.logs.push(LogEntry {
+			address,
+			topics,
+			data: data.to_vec()
+		});
+
+		Ok(())
+	}
+
 	fn ret(self, gas: &U256, data: &ReturnData, apply_state: bool) -> vm::Result<U256>
 		where Self: Sized {
 		match self.output {
@@ -354,23 +380,6 @@ impl<'a, T: 'a, V: 'a, B: 'a> Ext for Externalities<'a, T, V, B>
 				Ok(*gas)
 			},
 		}
-	}
-
-	fn log(&mut self, topics: Vec<H256>, data: &[u8]) -> vm::Result<()> {
-		use types::log_entry::LogEntry;
-
-		if self.static_flag {
-			return Err(vm::Error::MutableCallInStaticContext);
-		}
-
-		let address = self.origin_info.address.clone();
-		self.substate.logs.push(LogEntry {
-			address: address,
-			topics: topics,
-			data: data.to_vec()
-		});
-
-		Ok(())
 	}
 
 	fn suicide(&mut self, refund_address: &Address) -> vm::Result<()> {
@@ -430,19 +439,27 @@ impl<'a, T: 'a, V: 'a, B: 'a> Ext for Externalities<'a, T, V, B>
 	fn trace_executed(&mut self, gas_used: U256, stack_push: &[U256], mem: &[u8]) {
 		self.vm_tracer.trace_executed(gas_used, stack_push, mem)
 	}
+
+	fn is_static(&self) -> bool {
+		return self.static_flag
+	}
 }
 
 #[cfg(test)]
 mod tests {
+	use std::str::FromStr;
 	use ethereum_types::{U256, Address};
 	use evm::{EnvInfo, Ext, CallType};
 	use account_state::State;
-	use substate::Substate;
-	use test_helpers::get_temp_state;
-	use super::*;
+	use ethcore::test_helpers::get_temp_state;
 	use trace::{NoopTracer, NoopVMTracer};
-	use std::str::FromStr;
-	use crate::spec;
+
+	use crate::{
+		machine::Machine,
+		substate::Substate,
+		test_helpers,
+	};
+	use super::*;
 
 	fn get_test_origin() -> OriginInfo {
 		OriginInfo {
@@ -467,7 +484,7 @@ mod tests {
 
 	struct TestSetup {
 		state: State<::state_db::StateDB>,
-		machine: ::machine::Machine,
+		machine: Machine,
 		schedule: Schedule,
 		sub_state: Substate,
 		env_info: EnvInfo
@@ -481,15 +498,15 @@ mod tests {
 
 	impl TestSetup {
 		fn new() -> Self {
-			let machine = spec::new_test_machine();
+			let machine = test_helpers::load_machine(include_bytes!("../../res/null_morden.json"));
 			let env_info = get_test_env_info();
 			let schedule = machine.schedule(env_info.number);
 			TestSetup {
 				state: get_temp_state(),
-				schedule: schedule,
-				machine: machine,
+				schedule,
+				machine,
 				sub_state: Substate::new(),
-				env_info: env_info,
+				env_info,
 			}
 		}
 	}

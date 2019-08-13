@@ -25,9 +25,10 @@ use ethereum_types::H256;
 use rlp::{self, Rlp};
 use types::{
 	BlockNumber,
+	block_status::BlockStatus,
+	ids::BlockId,
 	errors::{EthcoreError, BlockError, ImportError},
 };
-use ethcore::client::{BlockStatus, BlockId};
 use sync_io::SyncIo;
 use blocks::{BlockCollection, SyncBody, SyncHeader};
 use chain::BlockSet;

@@ -43,14 +43,16 @@ use engines::{
 	Engine, NullEngine, InstantSeal, InstantSealParams, BasicAuthority, Clique,
 	AuthorityRound, Ethash,
 };
-use executive::Executive;
+use machine::{
+	executive::Executive,
+	machine::Machine,
+	substate::Substate,
+};
 use trie_vm_factories::Factories;
-use machine::Machine;
 use pod::PodState;
 use spec::Genesis;
 use spec::seal::Generic as GenericSeal;
 use account_state::{Backend, State, backend::Basic as BasicBackend};
-use substate::Substate;
 use trace::{NoopTracer, NoopVMTracer};
 
 pub use ethash::OptimizeFor;
@@ -96,7 +98,7 @@ impl<'a, T: AsRef<Path>> From<&'a T> for SpecParams<'a> {
 fn run_constructors<T: Backend>(
 	genesis_state: &PodState,
 	constructors: &[(Address, Bytes)],
-	engine: &Engine,
+	engine: &dyn Engine,
 	author: Address,
 	timestamp: u64,
 	difficulty: U256,

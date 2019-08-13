@@ -19,11 +19,14 @@
 use std::sync::Arc;
 use std::collections::{BTreeSet, VecDeque};
 
-use ethcore::client::{BlockChainClient, BlockId};
+use ethcore::client::BlockChainClient;
 use ethcore::miner::{self, MinerService};
 use ethereum_types::{H256, U256};
 use parking_lot::Mutex;
-use types::filter::Filter as EthcoreFilter;
+use types::{
+	ids::BlockId,
+	filter::Filter as EthcoreFilter
+};
 
 use jsonrpc_core::{BoxFuture, Result};
 use jsonrpc_core::futures::{future, Future};

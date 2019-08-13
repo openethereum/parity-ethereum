@@ -18,10 +18,10 @@ use {rlp, multihash, IpfsHandler};
 use error::{Error, Result};
 use cid::{ToCid, Codec};
 
+use common_types::ids::{BlockId, TransactionId};
 use multihash::Hash;
 use ethereum_types::H256;
 use bytes::Bytes;
-use ethcore::client::{BlockId, TransactionId};
 
 type Reason = &'static str;
 

@@ -17,10 +17,10 @@
 //! Transaction execution format module.
 
 use ethereum_types::{U256, Address};
-use bytes::Bytes;
+use parity_bytes::Bytes;
 use vm;
 use trace::{VMTrace, FlatTrace};
-use types::{
+use common_types::{
 	state_diff::StateDiff,
 	log_entry::LogEntry,
 	errors::ExecutionError,

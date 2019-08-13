@@ -20,18 +20,22 @@ use std::sync::Arc;
 use std::time::{Instant, Duration, SystemTime, UNIX_EPOCH};
 
 use accounts::AccountProvider;
-use ethcore::client::{BlockChainClient, BlockId, EachBlockWith, Executed, TestBlockChainClient, TransactionId};
+use ethcore::client::{BlockChainClient, EachBlockWith, TestBlockChainClient};
 use ethcore::miner::{self, MinerService};
 use ethereum_types::{H160, H256, U256, Address, Bloom};
+use machine::executed::Executed;
 use miner::external::ExternalMiner;
 use parity_runtime::Runtime;
 use parking_lot::Mutex;
 use rlp;
 use rustc_hex::{FromHex, ToHex};
 use sync::SyncState;
-use types::transaction::{Transaction, Action};
-use types::log_entry::{LocalizedLogEntry, LogEntry};
-use types::receipt::{LocalizedReceipt, TransactionOutcome};
+use types::{
+	ids::{BlockId, TransactionId},
+	transaction::{Transaction, Action},
+	log_entry::{LocalizedLogEntry, LogEntry},
+	receipt::{LocalizedReceipt, TransactionOutcome},
+};
 
 use jsonrpc_core::IoHandler;
 use v1::{Eth, EthClient, EthClientOptions, EthFilter, EthFilterClient};

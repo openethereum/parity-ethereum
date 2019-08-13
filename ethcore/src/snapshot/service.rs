@@ -28,7 +28,8 @@ use super::{ManifestData, StateRebuilder, Rebuilder, RestorationStatus, Snapshot
 use super::io::{SnapshotReader, LooseReader, SnapshotWriter, LooseWriter};
 
 use blockchain::{BlockChain, BlockChainDB, BlockChainDBHandler};
-use client::{BlockChainClient, Client, ChainInfo, BlockInfo, ClientIoMessage};
+use client::{BlockChainClient, Client, ChainInfo, ClientIoMessage};
+use client_traits::BlockInfo;
 use engines::Engine;
 use hash::keccak;
 use types::{

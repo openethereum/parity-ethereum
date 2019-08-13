@@ -19,11 +19,14 @@
 
 use std::sync::Arc;
 
-use common_types::blockchain_info::BlockChainInfo;
-use common_types::encoded;
-use common_types::ids::BlockId;
-use common_types::transaction::PendingTransaction;
-use ethcore::client::{BlockChainClient, ProvingBlockChainClient, ChainInfo, BlockInfo as ClientBlockInfo};
+use common_types::{
+	blockchain_info::BlockChainInfo,
+	encoded,
+	ids::BlockId,
+	transaction::PendingTransaction,
+};
+use ethcore::client::{BlockChainClient, ProvingBlockChainClient, ChainInfo};
+use client_traits::BlockInfo as ClientBlockInfo;
 use ethereum_types::H256;
 use parking_lot::RwLock;
 

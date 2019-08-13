@@ -18,7 +18,8 @@ use std::sync::Arc;
 
 use serde::{Serialize, Serializer};
 use serde::ser::SerializeStruct;
-use ethcore::{contract_address, CreateContractAddress};
+use machine::executive::{contract_address};
+use vm::CreateContractAddress;
 use ethereum_types::{H160, H256, H512, U64, U256};
 use miner;
 use types::transaction::{LocalizedTransaction, Action, PendingTransaction, SignedTransaction};

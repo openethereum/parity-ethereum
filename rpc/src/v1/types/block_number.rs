@@ -17,7 +17,7 @@
 use std::fmt;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use serde::de::{Error, Visitor, MapAccess};
-use ethcore::client::BlockId;
+use types::ids::BlockId;
 use ethereum_types::H256;
 
 /// Represents rpc api block number param.
@@ -191,7 +191,7 @@ pub fn block_number_to_id(number: BlockNumber) -> BlockId {
 
 #[cfg(test)]
 mod tests {
-	use ethcore::client::BlockId;
+	use types::ids::BlockId;
 	use super::*;
 	use std::str::FromStr;
 	use serde_json;

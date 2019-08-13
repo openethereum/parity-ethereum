@@ -1194,11 +1194,12 @@ mod tests {
 	use std::str::FromStr;
 
 	use tempdir::TempDir;
-	use ethcore::client::{VMType, BlockId};
+	use ethcore::client::VMType;
 	use ethcore::miner::MinerOptions;
 	use miner::pool::PrioritizationStrategy;
 	use parity_rpc::NetworkSettings;
 	use updater::{UpdatePolicy, UpdateFilter, ReleaseTrack};
+	use types::ids::BlockId;
 
 	use account::{AccountCmd, NewAccount, ImportAccounts, ListAccounts};
 	use blockchain::{BlockchainCmd, ImportBlockchain, ExportBlockchain, DataFormat, ExportState};

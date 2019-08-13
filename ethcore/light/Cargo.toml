@@ -9,12 +9,14 @@ authors = ["Parity Technologies <admin@parity.io>"]
 [dependencies]
 log = "0.4"
 parity-bytes = "0.1"
+client-traits = { path = "../client-traits" }
 common-types = { path = "../types" }
 derive_more = "0.14.0"
 ethcore = { path = ".."}
 ethcore-db = { path = "../db" }
 ethcore-blockchain = { path = "../blockchain" }
 ethereum-types = "0.6.0"
+machine = { path = "../machine" }
 memory-db = "0.12.4"
 trie-db = "0.12.4"
 patricia-trie-ethereum = { path = "../../util/patricia-trie-ethereum" }

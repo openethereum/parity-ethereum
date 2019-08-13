@@ -20,8 +20,11 @@ use std::sync::Arc;
 use hash::keccak;
 use vm::{EnvInfo, ActionParams, ActionValue, CallType, ParamsType};
 use evm::{Factory, VMType};
-use executive::Executive;
-use substate::Substate;
+use machine::{
+	executive::Executive,
+	substate::Substate,
+	test_helpers::new_eip210_test_machine,
+};
 use test_helpers::get_temp_state_with_factory;
 use trace::{NoopVMTracer, NoopTracer};
 use types::transaction::SYSTEM_ADDRESS;
@@ -29,7 +32,6 @@ use types::transaction::SYSTEM_ADDRESS;
 use rustc_hex::FromHex;
 
 use ethereum_types::{H256, Address};
-use crate::spec;
 
 evm_test!{test_blockhash_eip210: test_blockhash_eip210_int}
 fn test_blockhash_eip210(factory: Factory) {
@@ -39,7 +41,7 @@ fn test_blockhash_eip210(factory: Factory) {
 	let test_blockhash_contract = "73fffffffffffffffffffffffffffffffffffffffe33141561007a57600143036020526000356101006020510755600061010060205107141561005057600035610100610100602051050761010001555b6000620100006020510714156100755760003561010062010000602051050761020001555b61014a565b4360003512151561009057600060405260206040f35b610100600035430312156100b357610100600035075460605260206060f3610149565b62010000600035430312156100d157600061010060003507146100d4565b60005b156100f6576101006101006000350507610100015460805260206080f3610148565b630100000060003543031215610116576000620100006000350714610119565b60005b1561013c57610100620100006000350507610200015460a052602060a0f3610147565b600060c052602060c0f35b5b5b5b5b";
 	let blockhash_contract_code = Arc::new(test_blockhash_contract.from_hex().unwrap());
 	let blockhash_contract_code_hash = keccak(blockhash_contract_code.as_ref());
-	let machine = spec::new_eip210_test_machine();
+	let machine = new_eip210_test_machine();
 	let mut env_info = EnvInfo::default();
 
 	// populate state with 256 last hashes

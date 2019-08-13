@@ -15,30 +15,36 @@
 // along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
 //! Transaction Execution environment.
-use std::cmp;
-use std::convert::TryFrom;
-use std::sync::Arc;
-use hash::keccak;
+
+use std::{cmp, convert::TryFrom, sync::Arc};
+
+use crossbeam_utils::thread;
 use ethereum_types::{H256, U256, U512, Address};
-use bytes::{Bytes, BytesRef};
+use keccak_hash::keccak;
+use parity_bytes::{Bytes, BytesRef};
+use rlp::RlpStream;
+use log::trace;
+
 use account_state::{Backend as StateBackend, State, CleanupMode};
-use substate::Substate;
-use machine::Machine;
 use evm::{CallType, Finalize, FinalizationResult};
 use vm::{
 	self, EnvInfo, CreateContractAddress, ReturnData, CleanDustMode, ActionParams,
 	ActionValue, Schedule, TrapError, ResumeCall, ResumeCreate
 };
 use trie_vm_factories::VmFactory;
-use externalities::*;
 use trace::{self, Tracer, VMTracer};
-use types::{
+use common_types::{
 	errors::ExecutionError,
 	transaction::{Action, SignedTransaction},
 };
-use transaction_ext::Transaction;
-use crossbeam_utils::thread;
-pub use executed::{Executed, ExecutionResult};
+
+use crate::{
+	Machine,
+	substate::Substate,
+	externalities::{Externalities, OutputPolicy, OriginInfo}, // todo: make explicit
+	transaction_ext::Transaction,
+	executed::Executed,
+};
 
 #[cfg(debug_assertions)]
 /// Roughly estimate what stack size each level of evm depth will use. (Debug build)
@@ -58,8 +64,6 @@ const STACK_SIZE_ENTRY_OVERHEAD: usize = 20 * 1024;
 
 /// Returns new address created from address, nonce, and code hash
 pub fn contract_address(address_scheme: CreateContractAddress, sender: &Address, nonce: &U256, code: &[u8]) -> (Address, Option<H256>) {
-	use rlp::RlpStream;
-
 	match address_scheme {
 		CreateContractAddress::FromSenderAndNonce => {
 			let mut stream = RlpStream::new_list(2);
@@ -995,7 +999,7 @@ impl<'a, B: 'a + StateBackend> Executive<'a, B> {
 		tracer: &mut T,
 		vm_tracer: &mut V
 	) -> vm::Result<FinalizationResult> where T: Tracer, V: VMTracer {
-		let local_stack_size = ::io::LOCAL_STACK_SIZE.with(|sz| sz.get());
+		let local_stack_size = ethcore_io::LOCAL_STACK_SIZE.with(|sz| sz.get());
 		let depth_threshold = local_stack_size.saturating_sub(STACK_SIZE_ENTRY_OVERHEAD) / STACK_SIZE_PER_DEPTH;
 
 		if stack_depth != depth_threshold {
@@ -1086,7 +1090,7 @@ impl<'a, B: 'a + StateBackend> Executive<'a, B> {
 		tracer: &mut T,
 		vm_tracer: &mut V,
 	) -> vm::Result<FinalizationResult> where T: Tracer, V: VMTracer {
-		let local_stack_size = ::io::LOCAL_STACK_SIZE.with(|sz| sz.get());
+		let local_stack_size = ethcore_io::LOCAL_STACK_SIZE.with(|sz| sz.get());
 		let depth_threshold = local_stack_size.saturating_sub(STACK_SIZE_ENTRY_OVERHEAD) / STACK_SIZE_PER_DEPTH;
 
 		if stack_depth != depth_threshold {
@@ -1208,36 +1212,52 @@ impl<'a, B: 'a + StateBackend> Executive<'a, B> {
 #[cfg(test)]
 #[allow(dead_code)]
 mod tests {
-	use std::sync::Arc;
-	use std::str::FromStr;
-	use std::collections::HashSet;
+	use std::{
+		sync::Arc,
+		str::FromStr,
+		collections::HashSet,
+	};
+
 	use rustc_hex::FromHex;
-	use ethkey::{Generator, Random};
-	use super::*;
 	use ethereum_types::{H256, U256, U512, Address, BigEndianHash};
-	use vm::{ActionParams, ActionValue, CallType, EnvInfo, CreateContractAddress};
-	use evm::{Factory, VMType};
-	use machine::Machine;
+
 	use account_state::CleanupMode;
-	use substate::Substate;
-	use test_helpers::{get_temp_state_with_factory, get_temp_state};
-	use trace::trace;
-	use trace::{FlatTrace, Tracer, NoopTracer, ExecutiveTracer};
-	use trace::{VMTrace, VMOperation, VMExecutedOperation, MemoryDiff, StorageDiff, VMTracer, NoopVMTracer, ExecutiveVMTracer};
-	use types::{
+	use common_types::{
 		errors::ExecutionError,
 		transaction::{Action, Transaction},
 	};
-	use crate::spec;
+	use ethkey::{Generator, Random};
+	use evm::{Factory, VMType, evm_test, evm_test_ignore};
+	use macros::vec_into;
+	use vm::{ActionParams, ActionValue, CallType, EnvInfo, CreateContractAddress};
+	use ::trace::{
+		trace,
+		FlatTrace, Tracer, NoopTracer, ExecutiveTracer,
+		VMTrace, VMOperation, VMExecutedOperation, MemoryDiff, StorageDiff, VMTracer, NoopVMTracer, ExecutiveVMTracer,
+	};
+
+	use super::*;
+
+	use crate::{
+		Machine,
+		substate::Substate,
+		test_helpers::{
+			new_frontier_test_machine,
+			new_byzantium_test_machine,
+			new_constantinople_test_machine,
+			new_kovan_wasm_test_machine,
+		},
+	};
+	use ethcore::test_helpers::{get_temp_state_with_factory, get_temp_state};
 
 	fn make_frontier_machine(max_depth: usize) -> Machine {
-		let mut machine = spec::new_frontier_test_machine();
+		let mut machine = new_frontier_test_machine();
 		machine.set_schedule_creation_rules(Box::new(move |s, _| s.max_depth = max_depth));
 		machine
 	}
 
 	fn make_byzantium_machine(max_depth: usize) -> Machine {
-		let mut machine = spec::new_byzantium_test_machine();
+		let mut machine = new_byzantium_test_machine();
 		machine.set_schedule_creation_rules(Box::new(move |s, _| s.max_depth = max_depth));
 		machine
 	}
@@ -1591,7 +1611,7 @@ mod tests {
 		let mut state = get_temp_state();
 		state.add_balance(&sender, &U256::from(100), CleanupMode::NoEmpty).unwrap();
 		let info = EnvInfo::default();
-		let machine = spec::new_byzantium_test_machine();
+		let machine = new_byzantium_test_machine();
 		let schedule = machine.schedule(info.number);
 		let mut substate = Substate::new();
 		let mut tracer = ExecutiveTracer::default();
@@ -2123,7 +2143,7 @@ mod tests {
 		params.code = Some(Arc::new(code));
 		params.value = ActionValue::Transfer(U256::zero());
 		let info = EnvInfo::default();
-		let machine = spec::new_byzantium_test_machine();
+		let machine = new_byzantium_test_machine();
 		let schedule = machine.schedule(info.number);
 		let mut substate = Substate::new();
 
@@ -2159,7 +2179,7 @@ mod tests {
 		state.init_code(&y2, "600060006000600061100162fffffff4".from_hex().unwrap()).unwrap();
 
 		let info = EnvInfo::default();
-		let machine = spec::new_constantinople_test_machine();
+		let machine = new_constantinople_test_machine();
 		let schedule = machine.schedule(info.number);
 
 		assert_eq!(state.storage_at(&operating_address, &k).unwrap(), BigEndianHash::from_uint(&U256::from(0)));
@@ -2229,7 +2249,7 @@ mod tests {
 		info.number = 100;
 
 		// Network with wasm activated at block 10
-		let machine = spec::new_kovan_wasm_test_machine();
+		let machine = new_kovan_wasm_test_machine();
 
 		let mut output = [0u8; 20];
 		let FinalizationResult { gas_left: result, return_data, .. } = {

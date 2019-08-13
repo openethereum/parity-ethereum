@@ -32,15 +32,18 @@ use types::transaction::{
 	UnverifiedTransaction,
 	SignedTransaction,
 };
-use types::header::Header;
+use types::{
+	header::Header,
+	ids::TransactionId,
+};
 use parking_lot::RwLock;
 
 use call_contract::CallContract;
-use client::{TransactionId, Nonce};
-use client::BlockInfo;
+use client::Nonce;
+use client_traits::BlockInfo;
 use engines::Engine;
+use machine::transaction_ext::Transaction;
 use miner;
-use transaction_ext::Transaction;
 
 /// Cache for state nonces.
 #[derive(Debug, Clone)]

@@ -46,13 +46,18 @@ use client::{
 	BlockChainReset
 };
 use client::{
-	BlockId, TransactionId, UncleId, TraceId, ClientConfig, BlockChainClient,
+	ClientConfig, BlockChainClient,
 	TraceFilter, CallAnalytics, Mode,
 	ChainNotify, NewBlocks, ChainRoute, PruningInfo, ProvingBlockChainClient, EngineInfo, ChainMessageType,
-	IoClient, BadBlocks, bad_blocks, BlockInfo, ClientIoMessage,
+	IoClient, BadBlocks, bad_blocks, ClientIoMessage,
 };
+use client_traits::BlockInfo;
 use engines::{Engine, EpochTransition, ForkChoice};
-use executive::{Executive, Executed, TransactOptions, contract_address};
+use machine::{
+	executed::Executed,
+	executive::{Executive, TransactOptions, contract_address},
+	transaction_ext::Transaction,
+};
 use trie_vm_factories::{Factories, VmFactory};
 use miner::{Miner, MinerService};
 use snapshot::{self, io as snapshot_io, SnapshotClient};
@@ -61,7 +66,6 @@ use account_state::State;
 use executive_state;
 use state_db::StateDB;
 use trace::{self, TraceDB, ImportRequest as TraceImportRequest, LocalizedTrace, Database as TraceDatabase};
-use transaction_ext::Transaction;
 use types::{
 	ancestry_action::AncestryAction,
 	BlockNumber,
@@ -74,6 +78,7 @@ use types::{
 		machine::{AuxiliaryData, Call as MachineCall},
 	},
 	errors::{EngineError, ExecutionError, BlockError, EthcoreError, SnapshotError, ImportError, EthcoreResult},
+	ids::{BlockId, TransactionId, UncleId, TraceId},
 	transaction::{self, LocalizedTransaction, UnverifiedTransaction, SignedTransaction, Action, CallError},
 	filter::Filter,
 	log_entry::LocalizedLogEntry,
@@ -1759,7 +1764,7 @@ impl BlockChainClient for Client {
 		self.config.spec_name.clone()
 	}
 
-	fn chain(&self) -> Arc<BlockProvider> {
+	fn chain(&self) -> Arc<dyn BlockProvider> {
 		self.chain.read().clone()
 	}
 
@@ -2652,20 +2657,27 @@ impl IoChannelQueue {
 #[cfg(test)]
 mod tests {
 	use ethereum_types::{H256, Address};
+	use client::{BlockChainClient, ChainInfo};
+	use types::{
+		encoded,
+		ids::{BlockId, TransactionId},
+		log_entry::{LogEntry, LocalizedLogEntry},
+		receipt::{Receipt, LocalizedReceipt, TransactionOutcome},
+		transaction::{Transaction, LocalizedTransaction, Action},
+	};
+	use test_helpers::{generate_dummy_client, get_good_dummy_block_hash, generate_dummy_client_with_data};
+	use std::thread;
+	use std::time::Duration;
+	use std::sync::Arc;
+	use std::sync::atomic::{AtomicBool, Ordering};
+	use kvdb::DBTransaction;
+	use blockchain::ExtrasInsert;
+	use hash::keccak;
+	use super::transaction_receipt;
+	use ethkey::KeyPair;
 
 	#[test]
 	fn should_not_cache_details_before_commit() {
-		use client::{BlockChainClient, ChainInfo};
-		use test_helpers::{generate_dummy_client, get_good_dummy_block_hash};
-
-		use std::thread;
-		use std::time::Duration;
-		use std::sync::Arc;
-		use std::sync::atomic::{AtomicBool, Ordering};
-		use kvdb::DBTransaction;
-		use blockchain::ExtrasInsert;
-		use types::encoded;
-
 		let client = generate_dummy_client(0);
 		let genesis = client.chain_info().best_block_hash;
 		let (new_hash, new_block) = get_good_dummy_block_hash();
@@ -2693,9 +2705,6 @@ mod tests {
 
 	#[test]
 	fn should_return_block_receipts() {
-		use client::{BlockChainClient, BlockId, TransactionId};
-		use test_helpers::{generate_dummy_client_with_data};
-
 		let client = generate_dummy_client_with_data(2, 2, &[1.into(), 1.into()]);
 		let receipts = client.localized_block_receipts(BlockId::Latest).unwrap();
 
@@ -2719,13 +2728,6 @@ mod tests {
 
 	#[test]
 	fn should_return_correct_log_index() {
-		use hash::keccak;
-		use super::transaction_receipt;
-		use ethkey::KeyPair;
-		use types::log_entry::{LogEntry, LocalizedLogEntry};
-		use types::receipt::{Receipt, LocalizedReceipt, TransactionOutcome};
-		use types::transaction::{Transaction, LocalizedTransaction, Action};
-
 		// given
 		let key = KeyPair::from_secret_slice(keccak("test").as_bytes()).unwrap();
 		let secret = key.secret();

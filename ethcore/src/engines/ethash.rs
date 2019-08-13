@@ -32,11 +32,13 @@ use types::{
 
 use unexpected::{OutOfBounds, Mismatch};
 
-use block::ExecutedBlock;
 use engines::block_reward::{self, BlockRewardContract, RewardKind};
 use engines::{self, Engine};
 use ethash::{self, quick_get_difficulty, slow_hash_block_number, EthashManager, OptimizeFor};
-use machine::Machine;
+use machine::{
+	ExecutedBlock,
+	Machine,
+};
 
 /// Number of blocks in an ethash snapshot.
 // make dependent on difficulty increment divisor?

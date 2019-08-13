@@ -24,6 +24,7 @@ extern crate ethcore_private_tx;
 extern crate ethkey;
 extern crate keccak_hash as hash;
 extern crate rustc_hex;
+extern crate machine;
 
 #[macro_use]
 extern crate log;
@@ -33,13 +34,15 @@ use rustc_hex::{FromHex, ToHex};
 
 use types::ids::BlockId;
 use types::transaction::{Transaction, Action};
-use ethcore::CreateContractAddress;
-use ethcore::client::BlockChainClient;
-use ethcore::executive::contract_address;
-use ethcore::miner::Miner;
-use ethcore::test_helpers::{generate_dummy_client, push_block_with_transactions};
-use ethcore::spec;
+use ethcore::{
+	CreateContractAddress,
+	client::BlockChainClient,
+	test_helpers::{generate_dummy_client, push_block_with_transactions},
+	miner::Miner,
+	spec,
+};
 use ethkey::{Secret, KeyPair, Signature};
+use machine::executive::contract_address;
 use hash::keccak;
 
 use ethcore_private_tx::{NoopEncryptor, Provider, ProviderConfig, StoringKeyProvider};

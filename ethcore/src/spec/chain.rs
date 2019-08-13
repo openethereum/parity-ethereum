@@ -14,9 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
-//! Ethereum protocol module.
-//!
-//! Loads all protocols supported by parity-ethereum client.
+//! Load chain specifications for all chains supported by the parity-ethereum client.
 
 macro_rules! bundle_release_spec {
 	($($path: expr => $name: ident), *) => {

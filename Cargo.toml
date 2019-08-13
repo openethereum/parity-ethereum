@@ -31,6 +31,7 @@ fdlimit = "0.1"
 ctrlc = { git = "https://github.com/paritytech/rust-ctrlc.git" }
 jsonrpc-core = "12.0.0"
 parity-bytes = "0.1"
+client-traits = { path = "ethcore/client-traits" }
 common-types = { path = "ethcore/types" }
 ethcore = { path = "ethcore", features = ["parity"] }
 ethcore-accounts = { path = "accounts", optional = true }

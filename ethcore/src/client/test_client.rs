@@ -37,33 +37,37 @@ use kvdb_memorydb;
 use parking_lot::RwLock;
 use rlp::{Rlp, RlpStream};
 use rustc_hex::FromHex;
-use types::transaction::{self, Transaction, LocalizedTransaction, SignedTransaction, Action, CallError};
-use types::BlockNumber;
-use types::basic_account::BasicAccount;
-use types::encoded;
-use types::errors::{EthcoreError as Error, EthcoreResult};
-use types::filter::Filter;
-use types::header::Header;
-use types::log_entry::LocalizedLogEntry;
-use types::pruning_info::PruningInfo;
-use types::receipt::{Receipt, LocalizedReceipt, TransactionOutcome};
-use types::view;
-use types::views::BlockView;
+use types::{
+	BlockNumber,
+	encoded,
+	ids::{BlockId, TransactionId, UncleId, TraceId},
+	basic_account::BasicAccount,
+	errors::{EthcoreError as Error, EthcoreResult},
+	transaction::{self, Transaction, LocalizedTransaction, SignedTransaction, Action, CallError},
+	filter::Filter,
+	trace_filter::Filter as TraceFilter,
+	call_analytics::CallAnalytics,
+	header::Header,
+	log_entry::LocalizedLogEntry,
+	pruning_info::PruningInfo,
+	receipt::{Receipt, LocalizedReceipt, TransactionOutcome},
+	view,
+	views::BlockView,
+};
 use vm::Schedule;
 
 use block::{OpenBlock, SealedBlock, ClosedBlock};
 use call_contract::{CallContract, RegistryInfo};
 use client::{
 	Nonce, Balance, ChainInfo, ReopenBlock, TransactionInfo,
-	PrepareOpenBlock, BlockChainClient, BlockChainInfo, BlockStatus, BlockId, Mode,
-	TransactionId, UncleId, TraceId, TraceFilter, LastHashes, CallAnalytics,
-	ProvingBlockChainClient, ScheduleInfo, ImportSealedBlock, BroadcastProposalBlock, ImportBlock, StateOrBlock,
-	Call, StateClient, EngineInfo, AccountData, BlockChain, BlockProducer, SealedBlockImporter, IoClient,
-	BadBlocks
+	PrepareOpenBlock, BlockChainClient, BlockChainInfo, BlockStatus, Mode,
+	LastHashes, ProvingBlockChainClient, ScheduleInfo, ImportSealedBlock, BroadcastProposalBlock,
+	ImportBlock, StateOrBlock, Call, StateClient, EngineInfo, AccountData, BlockChain, BlockProducer,
+	SealedBlockImporter, IoClient, BadBlocks
 };
-use client::BlockInfo;
+use client_traits::BlockInfo;
 use engines::Engine;
-use executive::Executed;
+use machine::executed::Executed;
 use journaldb;
 use miner::{self, Miner, MinerService};
 use spec::{Spec, self};
@@ -704,7 +708,7 @@ impl BlockChainClient for TestBlockChainClient {
 		}
 	}
 
-	fn chain(&self) -> Arc<BlockProvider> {
+	fn chain(&self) -> Arc<dyn BlockProvider> {
 		unimplemented!()
 	}
 

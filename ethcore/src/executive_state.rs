@@ -18,10 +18,12 @@
 //! `account-state` crates and contains everything that requires `Machine` or `Executive` (or types
 //! thereof).
 
-use machine::Machine;
+use machine::{
+	machine::Machine,
+	executive::{Executive, TransactOptions},
+	executed::Executed,
+};
 use vm::EnvInfo;
-use executive::{Executive, TransactOptions};
-use executed::Executed;
 use types::{
 	errors::{ExecutionError, EthcoreError as Error},
 	transaction::SignedTransaction,

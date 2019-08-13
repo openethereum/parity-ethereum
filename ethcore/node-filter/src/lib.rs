@@ -16,6 +16,7 @@
 
 //! Smart contract based node filter.
 
+extern crate common_types;
 extern crate ethabi;
 extern crate ethcore;
 extern crate ethcore_network as network;
@@ -40,8 +41,8 @@ extern crate log;
 use std::collections::{HashMap, VecDeque};
 use std::sync::Weak;
 
-use ethcore::client::{BlockChainClient, BlockId, ChainNotify, NewBlocks};
-
+use common_types::ids::BlockId;
+use ethcore::client::{BlockChainClient, ChainNotify, NewBlocks};
 use ethereum_types::{H256, Address};
 use ethabi::FunctionOutputDecoder;
 use network::{ConnectionFilter, ConnectionDirection};
@@ -68,7 +69,7 @@ pub const CACHE_SIZE: usize = MAX_NODES_IN_TABLE + 1024;
 
 impl NodeFilter {
 	/// Create a new instance. Accepts a contract address.
-	pub fn new(client: Weak<BlockChainClient>, contract_address: Address) -> NodeFilter {
+	pub fn new(client: Weak<dyn BlockChainClient>, contract_address: Address) -> NodeFilter {
 		NodeFilter {
 			client,
 			contract_address,

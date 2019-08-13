@@ -28,11 +28,10 @@
 //! `LockedBlock` is a version of a `ClosedBlock` that cannot be reopened. It can be sealed
 //! using an engine.
 //!
-//! `ExecutedBlock` is an underlying data structure used by all structs above to store block
-//! related info.
+//! `ExecutedBlock` from the `machine` crate is the underlying data structure used by all structs
+//! above to store block related info.
 
 use std::{cmp, ops};
-use std::collections::HashSet;
 use std::sync::Arc;
 
 use bytes::Bytes;
@@ -45,7 +44,7 @@ use account_state::State;
 use trace::Tracing;
 use triehash::ordered_trie_root;
 use unexpected::{Mismatch, OutOfBounds};
-use vm::{EnvInfo, LastHashes};
+use vm::LastHashes;
 
 use hash::keccak;
 use rlp::{RlpStream, Encodable, encode_list};
@@ -57,6 +56,7 @@ use types::{
 	receipt::{Receipt, TransactionOutcome},
 };
 use executive_state::ExecutiveState;
+use machine::ExecutedBlock;
 
 /// Block that is ready for transactions to be added.
 ///
@@ -92,71 +92,6 @@ pub struct LockedBlock {
 /// The block's header has valid seal arguments. The block cannot be reversed into a `ClosedBlock` or `OpenBlock`.
 pub struct SealedBlock {
 	block: ExecutedBlock,
-}
-
-/// An internal type for a block's common elements.
-#[derive(Clone)]
-pub struct ExecutedBlock {
-	/// Executed block header.
-	pub header: Header,
-	/// Executed transactions.
-	pub transactions: Vec<SignedTransaction>,
-	/// Uncles.
-	pub uncles: Vec<Header>,
-	/// Transaction receipts.
-	pub receipts: Vec<Receipt>,
-	/// Hashes of already executed transactions.
-	pub transactions_set: HashSet<H256>,
-	/// Underlying state.
-	pub state: State<StateDB>,
-	/// Transaction traces.
-	pub traces: Tracing,
-	/// Hashes of last 256 blocks.
-	pub last_hashes: Arc<LastHashes>,
-}
-
-impl ExecutedBlock {
-	/// Create a new block from the given `state`.
-	fn new(state: State<StateDB>, last_hashes: Arc<LastHashes>, tracing: bool) -> ExecutedBlock {
-		ExecutedBlock {
-			header: Default::default(),
-			transactions: Default::default(),
-			uncles: Default::default(),
-			receipts: Default::default(),
-			transactions_set: Default::default(),
-			state,
-			traces: if tracing {
-				Tracing::enabled()
-			} else {
-				Tracing::Disabled
-			},
-			last_hashes,
-		}
-	}
-
-	/// Get the environment info concerning this block.
-	pub fn env_info(&self) -> EnvInfo {
-		// TODO: memoise.
-		EnvInfo {
-			number: self.header.number(),
-			author: self.header.author().clone(),
-			timestamp: self.header.timestamp(),
-			difficulty: self.header.difficulty().clone(),
-			last_hashes: self.last_hashes.clone(),
-			gas_used: self.receipts.last().map_or(U256::zero(), |r| r.gas_used),
-			gas_limit: self.header.gas_limit().clone(),
-		}
-	}
-
-	/// Get mutable access to a state.
-	pub fn state_mut(&mut self) -> &mut State<StateDB> {
-		&mut self.state
-	}
-
-	/// Get mutable reference to traces.
-	pub fn traces_mut(&mut self) -> &mut Tracing {
-		&mut self.traces
-	}
 }
 
 /// Trait for an object that owns an `ExecutedBlock`

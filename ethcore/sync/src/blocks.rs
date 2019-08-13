@@ -541,8 +541,11 @@ impl BlockCollection {
 #[cfg(test)]
 mod test {
 	use super::{BlockCollection, SyncHeader};
-	use ethcore::client::{TestBlockChainClient, EachBlockWith, BlockId, BlockChainClient};
-	use types::BlockNumber;
+	use ethcore::client::{TestBlockChainClient, EachBlockWith, BlockChainClient};
+	use types::{
+		ids::BlockId,
+		BlockNumber
+	};
 	use ethcore::verification::queue::kind::blocks::Unverified;
 	use rlp::*;
 

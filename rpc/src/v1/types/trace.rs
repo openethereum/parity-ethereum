@@ -16,7 +16,7 @@
 
 use std::collections::BTreeMap;
 
-use ethcore::client::Executed;
+use machine::executed::Executed;
 use trace as et;
 use trace::{FlatTrace, LocalizedTrace as EthLocalizedTrace, trace, TraceError};
 use ethereum_types::{H160, H256, U256};

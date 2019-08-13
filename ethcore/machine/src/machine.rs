@@ -22,7 +22,9 @@ use std::sync::Arc;
 
 use ethereum_types::{U256, H256, Address};
 use rlp::Rlp;
-use types::{
+use log::debug;
+
+use common_types::{
 	BlockNumber,
 	header::Header,
 	engines::{
@@ -35,15 +37,18 @@ use types::{
 use vm::{CallType, ActionParams, ActionValue, ParamsType};
 use vm::{EnvInfo, Schedule};
 
-use block::ExecutedBlock;
-use builtin::Builtin;
-use call_contract::CallContract;
-use client::BlockInfo;
-use executive::Executive;
 use account_state::CleanupMode;
-use substate::Substate;
+use client_traits::BlockInfo;
+use ethcore_builtin::Builtin;
+use ethcore_call_contract::CallContract;
 use trace::{NoopTracer, NoopVMTracer};
-use tx_filter::TransactionFilter;
+
+use crate::{
+	executed_block::ExecutedBlock,
+	executive::Executive,
+	substate::Substate,
+	tx_filter::TransactionFilter,
+};
 
 /// Parity tries to round block.gas_limit to multiple of this constant
 pub const PARITY_GAS_LIMIT_DETERMINANT: U256 = U256([37, 0, 0, 0]);
@@ -93,7 +98,7 @@ impl Machine {
 
 	/// Execute a call as the system address. Block environment information passed to the
 	/// VM is modified to have its gas limit bounded at the upper limit of possible used
-	/// gases including this system call, capped at the maximum value able to be
+	/// gas, including this system call, capped at the maximum value able to be
 	/// represented by U256. This system call modifies the block state, but discards other
 	/// information. If suicides, logs or refunds happen within the system call, they
 	/// will not be executed or recorded. Gas used by this system call will not be counted
@@ -400,9 +405,10 @@ fn round_block_gas_limit(gas_limit: U256, lower_limit: U256, upper_limit: U256) 
 
 #[cfg(test)]
 mod tests {
-	use super::*;
 	use std::str::FromStr;
-	use crate::spec;
+	use common_types::header::Header;
+	use super::*;
+	use ethcore::spec;
 
 	fn get_default_ethash_extensions() -> EthashExtensions {
 		EthashExtensions {
@@ -425,7 +431,7 @@ mod tests {
 			Default::default(),
 			ethparams,
 		);
-		let mut header = ::types::header::Header::new();
+		let mut header = Header::new();
 		header.set_number(15);
 
 		let res = machine.verify_transaction_basic(&transaction, &header);
@@ -445,8 +451,8 @@ mod tests {
 			ethparams,
 		);
 
-		let mut parent = ::types::header::Header::new();
-		let mut header = ::types::header::Header::new();
+		let mut parent = Header::new();
+		let mut header = Header::new();
 		header.set_number(1);
 
 		// this test will work for this constant only

@@ -18,10 +18,14 @@
 
 use std::sync::Arc;
 
-use ethcore::client::{BlockChainClient, CallAnalytics, TransactionId, TraceId, StateClient, StateInfo, Call, BlockId};
+use ethcore::client::{BlockChainClient, StateClient, StateInfo, Call};
 use ethereum_types::H256;
 use rlp::Rlp;
-use types::transaction::SignedTransaction;
+use types::{
+	call_analytics::CallAnalytics,
+	ids::{BlockId, TransactionId, TraceId},
+	transaction::SignedTransaction,
+};
 
 use jsonrpc_core::Result;
 use v1::Metadata;
