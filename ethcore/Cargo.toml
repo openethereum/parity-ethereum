@@ -36,6 +36,7 @@ ethkey = { path = "../accounts/ethkey" }
 evm = { path = "evm" }
 futures = "0.1"
 hash-db = "0.12.4"
+instant-seal = { path = "./engines/instant-seal" }
 itertools = "0.5"
 journaldb = { path = "../util/journaldb" }
 keccak-hash = "0.2.0"

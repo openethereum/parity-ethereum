@@ -19,10 +19,8 @@
 mod authority_round;
 mod basic_authority;
 mod ethash;
-mod instant_seal;
 mod validator_set;
 
 pub use self::authority_round::AuthorityRound;
 pub use self::basic_authority::BasicAuthority;
-pub use self::instant_seal::{InstantSeal, InstantSealParams};
 pub use self::ethash::Ethash;

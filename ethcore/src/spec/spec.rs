@@ -42,9 +42,8 @@ use builtin::Builtin;
 use engine::Engine;
 use clique::Clique;
 use null_engine::NullEngine;
-use crate::engines::{
-	InstantSeal, InstantSealParams, BasicAuthority, AuthorityRound, Ethash
-};
+use instant_seal::{InstantSeal, InstantSealParams};
+use crate::engines::{BasicAuthority, AuthorityRound, Ethash};
 use machine::{
 	executive::Executive,
 	machine::Machine,

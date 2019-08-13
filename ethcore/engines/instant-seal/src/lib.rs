@@ -14,12 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
-use engine::Engine;
-use machine::{
-	ExecutedBlock,
-	Machine
-};
-use types::{
+use common_types::{
 	header::Header,
 	engines::{
 		Seal,
@@ -27,6 +22,12 @@ use types::{
 		params::CommonParams,
 	},
 	errors::EthcoreError as Error,
+};
+use engine::Engine;
+use ethjson;
+use machine::{
+	ExecutedBlock,
+	Machine
 };
 
 
@@ -37,8 +38,8 @@ pub struct InstantSealParams {
 	pub millisecond_timestamp: bool,
 }
 
-impl From<::ethjson::spec::InstantSealParams> for InstantSealParams {
-	fn from(p: ::ethjson::spec::InstantSealParams) -> Self {
+impl From<ethjson::spec::InstantSealParams> for InstantSealParams {
+	fn from(p: ethjson::spec::InstantSealParams) -> Self {
 		InstantSealParams {
 			millisecond_timestamp: p.millisecond_timestamp,
 		}
@@ -108,14 +109,16 @@ impl Engine for InstantSeal {
 #[cfg(test)]
 mod tests {
 	use std::sync::Arc;
-	use ethereum_types::{H520, Address};
-	use test_helpers::get_temp_state_db;
-	use crate::spec;
-	use types::{
+	use common_types::{
 		header::Header,
 		engines::Seal,
 	};
-	use block::*;
+	use ethereum_types::{H520, Address};
+	use ethcore::{
+		test_helpers::get_temp_state_db,
+		spec,
+		block::*,
+	};
 
 	#[test]
 	fn instant_can_seal() {
@@ -138,7 +141,7 @@ mod tests {
 
 		assert!(engine.verify_block_basic(&header).is_ok());
 
-		header.set_seal(vec![::rlp::encode(&H520::default())]);
+		header.set_seal(vec![rlp::encode(&H520::default())]);
 
 		assert!(engine.verify_block_unordered(&header).is_ok());
 	}

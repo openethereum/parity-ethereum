@@ -77,6 +77,7 @@ extern crate ethkey;
 extern crate trie_vm_factories;
 extern crate futures;
 extern crate hash_db;
+extern crate instant_seal;
 extern crate itertools;
 extern crate journaldb;
 extern crate keccak_hash as hash;
