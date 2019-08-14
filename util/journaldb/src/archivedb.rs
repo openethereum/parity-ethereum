@@ -107,9 +107,7 @@ impl JournalDB for ArchiveDB {
 	}
 
 	fn mem_used(&self) -> usize {
-		// TODO EMCH restore when update of parity-util-mem
-		//self.overlay.malloc_size_of()
-		0
+		self.overlay.malloc_size_of()
  	}
 
 	fn is_empty(&self) -> bool {

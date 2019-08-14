@@ -29,7 +29,7 @@ machine = { path = "../machine" }
 macros = { path = "../../util/macros" }
 parity-bytes = "0.1"
 parking_lot = "0.8"
-parity-util-mem = "0.1"
+parity-util-mem = "0.2.0"
 rand = "0.6"
 rlp = "0.4.0"
 trace-time = "0.1"

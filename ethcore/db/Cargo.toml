@@ -11,7 +11,7 @@ edition = "2018"
 common-types = { path = "../types" }
 ethereum-types = "0.6.0"
 kvdb = "0.1"
-parity-util-mem = "0.1"
+parity-util-mem = "0.2.0"
 parking_lot = "0.8"
 rlp = "0.4.0"
 rlp_derive = { path = "../../util/rlp-derive" }

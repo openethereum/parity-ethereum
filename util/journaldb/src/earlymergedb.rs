@@ -339,14 +339,11 @@ impl JournalDB for EarlyMergeDB {
 
 	fn mem_used(&self) -> usize {
 		let mut ops = new_malloc_size_ops();
-		// TODO EMCH restore when update of parity-util-mem
-		//self.overlay.size_of(&mut ops) + 
-		0 +
-		match self.refs {
+		self.overlay.size_of(&mut ops) + match self.refs {
 			Some(ref c) => c.read().size_of(&mut ops),
 			None => 0
 		}
- 	}
+	}
 
 	fn state(&self, id: &H256) -> Option<Bytes> {
 		self.backing.get_by_prefix(self.column, &id[0..DB_PREFIX_LEN]).map(|b| b.into_vec())

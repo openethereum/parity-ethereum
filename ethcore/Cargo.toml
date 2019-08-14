@@ -33,7 +33,7 @@ evm = { path = "evm" }
 trie-vm-factories = { path = "trie-vm-factories" }
 futures = "0.1"
 hash-db = "0.15.0"
-parity-util-mem = "0.1"
+parity-util-mem = "0.2.0"
 itertools = "0.5"
 journaldb = { path = "../util/journaldb" }
 keccak-hash = "0.2.0"
