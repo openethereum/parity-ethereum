@@ -19,11 +19,8 @@ use std::collections::BTreeMap;
 use std::path::Path;
 use std::sync::Arc;
 
-use engine::snapshot::SnapshotComponents;
-use ethereum_types::{H256, U256};
-use ethjson;
-use hash::{KECCAK_EMPTY_LIST_RLP};
-use types::{
+use block_reward::{self, BlockRewardContract, RewardKind};
+use common_types::{
 	BlockNumber,
 	header::Header,
 	engines::{
@@ -32,22 +29,24 @@ use types::{
 	},
 	errors::{BlockError, EthcoreError as Error},
 };
-
-use unexpected::{OutOfBounds, Mismatch};
-
-use block_reward::{self, BlockRewardContract, RewardKind};
 use engine::Engine;
+use ethereum_types::{H256, U256};
+use ethjson;
 use ethash::{self, quick_get_difficulty, slow_hash_block_number, EthashManager, OptimizeFor};
+use keccak_hash::{KECCAK_EMPTY_LIST_RLP};
+use log::trace;
+use macros::map;
 use machine::{
 	ExecutedBlock,
 	Machine,
 };
+use unexpected::{OutOfBounds, Mismatch};
 
 /// Number of blocks in an ethash snapshot.
 // make dependent on difficulty increment divisor?
-const SNAPSHOT_BLOCKS: u64 = 5000;
+pub const SNAPSHOT_BLOCKS: u64 = 5000;
 /// Maximum number of blocks allowed in an ethash snapshot.
-const MAX_SNAPSHOT_BLOCKS: u64 = 30000;
+pub const MAX_SNAPSHOT_BLOCKS: u64 = 30000;
 
 /// Ethash params.
 #[derive(Debug, PartialEq)]
@@ -371,9 +370,7 @@ impl Engine for Ethash {
 		header.set_difficulty(difficulty);
 	}
 
-	fn snapshot_components(&self) -> Option<Box<dyn (SnapshotComponents)>> {
-		Some(Box::new(::snapshot::PowSnapshot::new(SNAPSHOT_BLOCKS, MAX_SNAPSHOT_BLOCKS)))
-	}
+	fn supports_warp(&self) -> bool { true }
 
 	fn params(&self) -> &CommonParams { self.machine.params() }
 }
@@ -479,19 +476,19 @@ mod tests {
 	use std::str::FromStr;
 	use std::sync::Arc;
 	use std::collections::BTreeMap;
-	use ethereum_types::{H64, H256, U256, Address};
-	use block::*;
-	use test_helpers::get_temp_state_db;
-	use types::{
-		header::Header,
-		errors::{BlockError, EthcoreError as Error},
-	};
-	use spec::Spec;
+
+	use common_types::{header::Header, errors::{BlockError, EthcoreError as Error}};
 	use engine::Engine;
-	use crate::spec::{new_morden, new_mcip3_test, new_homestead_test_machine};
-	use super::{Ethash, EthashParams, ecip1017_eras_block_reward};
+	use ethereum_types::{H64, H256, U256, Address};
+	use ethcore::{
+		block::*,
+		test_helpers::get_temp_state_db,
+		spec::{new_morden, new_mcip3_test, new_homestead_test_machine, Spec},
+	};
 	use rlp;
 	use tempdir::TempDir;
+
+	use super::{Ethash, EthashParams, ecip1017_eras_block_reward};
 
 	fn test_spec() -> Spec {
 		let tempdir = TempDir::new("").unwrap();

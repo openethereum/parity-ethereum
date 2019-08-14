@@ -18,15 +18,9 @@
 
 use std::sync::{Weak, Arc};
 
-use bytes::Bytes;
-use ethabi::FunctionOutputDecoder;
-use ethereum_types::{H256, U256, Address, Bloom};
-use hash::keccak;
-use kvdb::DBValue;
-use memory_cache::MemoryLruCache;
-use parking_lot::RwLock;
-use rlp::{Rlp, RlpStream};
-use types::{
+use client_traits::EngineClient;
+use common_types::{
+	BlockNumber,
 	header::Header,
 	errors::{EngineError, EthcoreError, BlockError},
 	ids::BlockId,
@@ -34,14 +28,24 @@ use types::{
 	engines::machine::{Call, AuxiliaryData, AuxiliaryRequest},
 	receipt::Receipt,
 };
+use ethabi::FunctionOutputDecoder;
+use ethabi_contract::use_contract;
+use ethereum_types::{H256, U256, Address, Bloom};
+use keccak_hash::keccak;
+use kvdb::DBValue;
+use lazy_static::lazy_static;
+use log::{debug, info, trace};
+use machine::Machine;
+use memory_cache::MemoryLruCache;
+use parity_bytes::Bytes;
+use parking_lot::RwLock;
+use rlp::{Rlp, RlpStream};
 use unexpected::Mismatch;
 
-use client_traits::EngineClient;
-use machine::Machine;
 use super::{SystemCall, ValidatorSet};
 use super::simple_list::SimpleList;
 
-use_contract!(validator_set, "res/contracts/validator_set.json");
+use_contract!(validator_set, "res/validator_set.json");
 
 const MEMOIZE_CAPACITY: usize = 500;
 
@@ -99,12 +103,12 @@ fn encode_first_proof(header: &Header, state_items: &[Vec<u8>]) -> Bytes {
 fn check_first_proof(machine: &Machine, contract_address: Address, old_header: Header, state_items: &[DBValue])
 	-> Result<Vec<Address>, String>
 {
-	use types::transaction::{Action, Transaction};
+	use common_types::transaction::{Action, Transaction};
 
 	// TODO: match client contract_call_tx more cleanly without duplication.
 	const PROVIDED_GAS: u64 = 50_000_000;
 
-	let env_info = ::vm::EnvInfo {
+	let env_info = vm::EnvInfo {
 		number: old_header.number(),
 		author: *old_header.author(),
 		difficulty: *old_header.difficulty(),
@@ -133,7 +137,7 @@ fn check_first_proof(machine: &Machine, contract_address: Address, old_header: H
 		data,
 	}.fake_sign(from);
 
-	let res = ::executive_state::check_proof(
+	let res = executive_state::check_proof(
 		state_items,
 		*old_header.state_root(),
 		&tx,
@@ -142,9 +146,9 @@ fn check_first_proof(machine: &Machine, contract_address: Address, old_header: H
 	);
 
 	match res {
-		::executive_state::ProvedExecution::BadProof => Err("Bad proof".into()),
-		::executive_state::ProvedExecution::Failed(e) => Err(format!("Failed call: {}", e)),
-		::executive_state::ProvedExecution::Complete(e) => decoder.decode(&e.output).map_err(|e| e.to_string()),
+		executive_state::ProvedExecution::BadProof => Err("Bad proof".into()),
+		executive_state::ProvedExecution::Failed(e) => Err(format!("Failed call: {}", e)),
+		executive_state::ProvedExecution::Complete(e) => decoder.decode(&e.output).map_err(|e| e.to_string()),
 	}
 }
 
@@ -351,7 +355,7 @@ impl ValidatorSet for ValidatorSafeContract {
 		}
 	}
 
-	fn epoch_set(&self, first: bool, machine: &Machine, _number: ::types::BlockNumber, proof: &[u8])
+	fn epoch_set(&self, first: bool, machine: &Machine, _number: BlockNumber, proof: &[u8])
 		-> Result<(SimpleList, Option<H256>), EthcoreError>
 	{
 		let rlp = Rlp::new(proof);
@@ -374,7 +378,7 @@ impl ValidatorSet for ValidatorSafeContract {
 
 			// ensure receipts match header.
 			// TODO: optimize? these were just decoded.
-			let found_root = ::triehash::ordered_trie_root(
+			let found_root = triehash::ordered_trie_root(
 				receipts.iter().map(::rlp::encode)
 			);
 			if found_root != *old_header.receipts_root() {
@@ -450,13 +454,9 @@ impl ValidatorSet for ValidatorSafeContract {
 #[cfg(test)]
 mod tests {
 	use std::sync::Arc;
-	use rustc_hex::FromHex;
-	use hash::keccak;
-	use engine::{EpochChange, Proof};
-	use ethereum_types::Address;
-	use crate::spec;
+
 	use accounts::AccountProvider;
-	use types::{
+	use common_types::{
 		ids::BlockId,
 		engines::machine::AuxiliaryRequest,
 		header::Header,
@@ -465,9 +465,17 @@ mod tests {
 		verification::Unverified,
 	};
 	use client_traits::{BlockInfo, ChainInfo, ImportBlock, EngineClient};
+	use engine::{EpochChange, Proof};
+	use ethcore::{
+		spec,
+		miner::{self, MinerService},
+		test_helpers::{generate_dummy_client_with_spec, generate_dummy_client_with_spec_and_data}
+	};
 	use ethkey::Secret;
-	use miner::{self, MinerService};
-	use test_helpers::{generate_dummy_client_with_spec, generate_dummy_client_with_spec_and_data};
+	use ethereum_types::Address;
+	use keccak_hash::keccak;
+	use rustc_hex::FromHex;
+
 	use super::super::ValidatorSet;
 	use super::{ValidatorSafeContract, EVENT_NAME_HASH};
 

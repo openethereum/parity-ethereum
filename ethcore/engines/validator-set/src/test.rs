@@ -19,18 +19,20 @@
 use std::str::FromStr;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicUsize, Ordering as AtomicOrdering};
-use parity_util_mem::MallocSizeOf;
 
-use bytes::Bytes;
-use ethereum_types::{H256, Address};
-use types::{
+use log::trace;
+use parity_util_mem::MallocSizeOf;
+use common_types::{
 	BlockNumber,
+	ids::BlockId,
 	header::Header,
 	errors::EthcoreError,
 	engines::machine::{Call, AuxiliaryData},
 };
-
+use ethereum_types::{H256, Address};
 use machine::Machine;
+use parity_bytes::Bytes;
+
 use super::{ValidatorSet, SimpleList};
 
 /// Set used for testing with a single validator.
@@ -64,7 +66,7 @@ impl TestSet {
 }
 
 impl ValidatorSet for TestSet {
-	fn default_caller(&self, _block_id: ::types::ids::BlockId) -> Box<Call> {
+	fn default_caller(&self, _block_id: BlockId) -> Box<Call> {
 		Box::new(|_, _| Err("Test set doesn't require calls.".into()))
 	}
 

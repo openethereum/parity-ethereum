@@ -16,16 +16,18 @@
 
 /// Preconfigured validator list.
 
-use parity_util_mem::MallocSizeOf;
-use ethereum_types::{H256, Address};
-
-use machine::Machine;
-use types::{
+use common_types::{
 	BlockNumber,
+	ids::BlockId,
 	header::Header,
 	errors::EthcoreError,
 	engines::machine::{Call, AuxiliaryData},
 };
+use ethereum_types::{H256, Address};
+use log::warn;
+use machine::Machine;
+use parity_util_mem::MallocSizeOf;
+
 use super::ValidatorSet;
 
 /// Validator set containing a known set of addresses.
@@ -65,7 +67,7 @@ impl From<Vec<Address>> for SimpleList {
 }
 
 impl ValidatorSet for SimpleList {
-	fn default_caller(&self, _block_id: ::types::ids::BlockId) -> Box<Call> {
+	fn default_caller(&self, _block_id: BlockId) -> Box<Call> {
 		Box::new(|_, _| Err("Simple list doesn't require calls.".into()))
 	}
 

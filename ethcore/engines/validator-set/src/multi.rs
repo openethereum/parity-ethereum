@@ -19,19 +19,20 @@
 use std::collections::BTreeMap;
 use std::sync::Weak;
 
-use bytes::Bytes;
-use ethereum_types::{H256, Address};
-use parking_lot::RwLock;
-use types::{
+use common_types::{
 	BlockNumber,
 	header::Header,
 	ids::BlockId,
 	errors::EthcoreError,
 	engines::machine::{Call, AuxiliaryData},
 };
-
 use client_traits::EngineClient;
+use ethereum_types::{H256, Address};
+use log::{debug, trace};
+use parity_bytes::Bytes;
+use parking_lot::RwLock;
 use machine::Machine;
+
 use super::{SystemCall, ValidatorSet};
 
 type BlockNumberLookup = Box<dyn Fn(BlockId) -> Result<BlockNumber, String> + Send + Sync + 'static>;
@@ -153,22 +154,26 @@ impl ValidatorSet for Multi {
 mod tests {
 	use std::sync::Arc;
 	use std::collections::BTreeMap;
-	use hash::keccak;
+
 	use accounts::AccountProvider;
 	use client_traits::{BlockChainClient, BlockInfo, ChainInfo, ImportBlock, EngineClient};
-	use engine::EpochChange;
-	use engines::validator_set::ValidatorSet;
-	use ethkey::Secret;
-	use types::header::Header;
-	use miner::{self, MinerService};
-	use crate::spec;
-	use test_helpers::{generate_dummy_client_with_spec, generate_dummy_client_with_spec_and_data};
-	use types::{
+	use common_types::{
+		header::Header,
 		ids::BlockId,
 		verification::Unverified,
 	};
-	use ethereum_types::Address;
+	use engine::EpochChange;
 
+	use ethkey::Secret;
+	use ethcore::{
+		miner::{self, MinerService},
+		test_helpers::{generate_dummy_client_with_spec, generate_dummy_client_with_spec_and_data},
+		spec,
+	};
+	use ethereum_types::Address;
+	use keccak_hash::keccak;
+
+	use crate::ValidatorSet;
 	use super::Multi;
 
 	#[test]

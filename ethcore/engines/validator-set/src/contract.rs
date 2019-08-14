@@ -19,12 +19,15 @@
 
 use std::sync::Weak;
 
-use bytes::Bytes;
+use parity_bytes::Bytes;
+use ethabi_contract::use_contract;
 use ethereum_types::{H256, Address};
+use log::{warn, trace};
 use machine::Machine;
 use parking_lot::RwLock;
-use types::{
+use common_types::{
 	BlockNumber,
+	ids::BlockId,
 	header::Header,
 	errors::EthcoreError,
 	engines::machine::{Call, AuxiliaryData},
@@ -33,10 +36,12 @@ use types::{
 use client_traits::EngineClient;
 use engine::SystemCall;
 
-use super::{ValidatorSet, SimpleList};
-use super::safe_contract::ValidatorSafeContract;
+use crate::{
+	ValidatorSet, SimpleList,
+	safe_contract::ValidatorSafeContract
+};
 
-use_contract!(validator_report, "res/contracts/validator_report.json");
+use_contract!(validator_report, "res/validator_report.json");
 
 /// A validator contract with reporting.
 pub struct ValidatorContract {
@@ -73,7 +78,7 @@ impl ValidatorContract {
 }
 
 impl ValidatorSet for ValidatorContract {
-	fn default_caller(&self, id: ::types::ids::BlockId) -> Box<Call> {
+	fn default_caller(&self, id: BlockId) -> Box<Call> {
 		self.validators.default_caller(id)
 	}
 
@@ -140,21 +145,22 @@ impl ValidatorSet for ValidatorContract {
 #[cfg(test)]
 mod tests {
 	use std::sync::Arc;
-	use rustc_hex::FromHex;
-	use hash::keccak;
-	use ethereum_types::{H520, Address};
-	use bytes::ToPretty;
-	use rlp::encode;
-	use crate::spec;
-	use types::{
-		header::Header,
-		ids::BlockId,
+
+	use common_types::{header::Header, ids::BlockId};
+	use ethcore::{
+		miner::{self, MinerService},
+		spec,
+		test_helpers::generate_dummy_client_with_spec,
 	};
+	use ethereum_types::{H520, Address};
+	use keccak_hash::keccak;
+	use parity_bytes::ToPretty;
+	use rlp::encode;
+	use rustc_hex::FromHex;
 	use accounts::AccountProvider;
-	use miner::{self, MinerService};
-	use test_helpers::generate_dummy_client_with_spec;
 	use call_contract::CallContract;
 	use client_traits::{BlockChainClient, ChainInfo, BlockInfo};
+
 	use super::super::ValidatorSet;
 	use super::ValidatorContract;
 

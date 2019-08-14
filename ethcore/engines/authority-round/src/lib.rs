@@ -25,18 +25,17 @@ use std::sync::{Weak, Arc};
 use std::time::{UNIX_EPOCH, Duration};
 
 use client_traits::EngineClient;
-use engine::{Engine,ConstructedVerifier};
+use engine::{Engine, ConstructedVerifier};
 use block_reward::{self, BlockRewardContract, RewardKind};
-use engine::snapshot::SnapshotComponents;
 use ethjson;
 use machine::{
 	ExecutedBlock,
 	Machine,
 };
-use hash::keccak;
+use macros::map;
+use keccak_hash::keccak;
+use log::{info, debug, error, trace, warn};
 use engine::signer::EngineSigner;
-use super::validator_set::{ValidatorSet, SimpleList, new_validator_set};
-use self::finality::RollingFinality;
 use ethkey::{self, Signature};
 use io::{IoContext, IoHandler, TimerToken, IoService};
 use itertools::{self, Itertools};
@@ -44,7 +43,7 @@ use rlp::{encode, Decodable, DecoderError, Encodable, RlpStream, Rlp};
 use ethereum_types::{H256, H520, Address, U128, U256};
 use parking_lot::{Mutex, RwLock};
 use time_utils::CheckedSystemTime;
-use types::{
+use common_types::{
 	ancestry_action::AncestryAction,
 	BlockNumber,
 	header::{Header, ExtendedHeader},
@@ -60,7 +59,11 @@ use types::{
 };
 use unexpected::{Mismatch, OutOfBounds};
 
+use validator_set::{ValidatorSet, SimpleList, new_validator_set};
+
 mod finality;
+
+use self::finality::RollingFinality;
 
 /// `AuthorityRound` params.
 pub struct AuthorityRoundParams {
@@ -1594,13 +1597,7 @@ impl Engine for AuthorityRound {
 		)
 	}
 
-	fn snapshot_components(&self) -> Option<Box<dyn (SnapshotComponents)>> {
-		if self.immediate_transitions {
-			None
-		} else {
-			Some(Box::new(::snapshot::PoaSnapshot))
-		}
-	}
+	fn supports_warp(&self) -> bool { !self.immediate_transitions }
 
 	fn ancestry_actions(&self, header: &Header, ancestry: &mut dyn Iterator<Item=ExtendedHeader>) -> Vec<AncestryAction> {
 		let finalized = self.build_finality(
@@ -1625,27 +1622,30 @@ mod tests {
 	use std::collections::BTreeMap;
 	use std::sync::Arc;
 	use std::sync::atomic::{AtomicUsize, Ordering as AtomicOrdering};
-	use hash::keccak;
+	use keccak_hash::keccak;
 	use accounts::AccountProvider;
 	use ethereum_types::{Address, H520, H256, U256};
 	use ethkey::Signature;
-	use types::{
+	use common_types::{
 		header::Header,
 		engines::{Seal, params::CommonParams},
 		errors::{EthcoreError as Error, EngineError},
 		transaction::{Action, Transaction},
 	};
 	use rlp::encode;
-	use block::*;
-	use test_helpers::{
-		generate_dummy_client_with_spec, get_temp_state_db,
-		TestNotify
+	use ethcore::{
+		block::*,
+		test_helpers::{
+			generate_dummy_client_with_spec, get_temp_state_db,
+			TestNotify
+		},
+		spec::{self, Spec},
 	};
-	use crate::spec::{Spec, self};
 	use engine::Engine;
-	use engines::validator_set::{TestSet, SimpleList};
-	use super::{AuthorityRoundParams, AuthorityRound, EmptyStep, SealedEmptyStep, calculate_score};
 	use machine::Machine;
+	use validator_set::{TestSet, SimpleList};
+
+	use super::{AuthorityRoundParams, AuthorityRound, EmptyStep, SealedEmptyStep, calculate_score};
 
 	fn build_aura<F>(f: F) -> Arc<AuthorityRound> where
 		F: FnOnce(&mut AuthorityRoundParams),

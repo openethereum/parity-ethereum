@@ -20,10 +20,7 @@ use common_types::{
 	engines::params::CommonParams,
 	errors::EthcoreError as Error,
 };
-use engine::{
-	Engine,
-	snapshot::SnapshotComponents
-};
+use engine::Engine;
 use block_reward::{self, RewardKind};
 use ethereum_types::U256;
 use machine::{
@@ -61,7 +58,6 @@ impl NullEngine {
 		}
 	}
 }
-
 impl Engine for NullEngine {
 	fn name(&self) -> &str { "NullEngine" }
 
@@ -104,11 +100,7 @@ impl Engine for NullEngine {
 		Ok(())
 	}
 
-	fn snapshot_components(&self) -> Option<Box<dyn (SnapshotComponents)>> {
-		// todo[dvdplm] - this will be tricky
-		// Some(Box::new(::snapshot::PowSnapshot::new(10000, 10000)))
-		None
-	}
+	fn supports_warp(&self) -> bool { true }
 
 	fn params(&self) -> &CommonParams {
 		self.machine.params()

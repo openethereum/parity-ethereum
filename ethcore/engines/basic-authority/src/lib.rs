@@ -17,22 +17,8 @@
 //! A blockchain engine that supports a basic, non-BFT proof-of-authority.
 
 use std::sync::Weak;
-use ethereum_types::{H256, H520};
-use parking_lot::RwLock;
-use ethkey::{self, Signature};
-use engine::{
-	Engine,
-	ConstructedVerifier,
-	snapshot::SnapshotComponents,
-	signer::EngineSigner,
-};
-use ethjson;
-use client_traits::EngineClient;
-use machine::{
-	Machine,
-	executed_block::ExecutedBlock,
-};
-use types::{
+
+use common_types::{
 	header::Header,
 	engines::{
 		Headers,
@@ -44,8 +30,16 @@ use types::{
 	},
 	errors::{EngineError, BlockError, EthcoreError as Error},
 };
-
-use super::validator_set::{ValidatorSet, SimpleList, new_validator_set};
+use client_traits::EngineClient;
+use ethereum_types::{H256, H520};
+use parking_lot::RwLock;
+use engine::{Engine, ConstructedVerifier, signer::EngineSigner};
+use ethkey::{self, Signature};
+use ethjson;
+use log::trace;
+use machine::{Machine, executed_block::ExecutedBlock};
+use rlp::Rlp;
+use validator_set::{ValidatorSet, SimpleList, new_validator_set};
 
 /// `BasicAuthority` params.
 #[derive(Debug, PartialEq)]
@@ -73,8 +67,6 @@ impl engine::EpochVerifier for EpochVerifier {
 }
 
 fn verify_external(header: &Header, validators: &dyn ValidatorSet) -> Result<(), Error> {
-	use rlp::Rlp;
-
 	// Check if the signature belongs to a validator, can depend on parent state.
 	let sig = Rlp::new(&header.seal()[0]).as_val::<H520>()?;
 	let signer = ethkey::public_to_address(&ethkey::recover(&sig.into(), &header.bare_hash())?);
@@ -130,7 +122,7 @@ impl Engine for BasicAuthority {
 		if self.validators.contains(header.parent_hash(), author) {
 			// account should be pernamently unlocked, otherwise sealing will fail
 			if let Ok(signature) = self.sign(header.bare_hash()) {
-				return Seal::Regular(vec![::rlp::encode(&(H520::from(signature).as_bytes()))]);
+				return Seal::Regular(vec![rlp::encode(&(H520::from(signature).as_bytes()))]);
 			} else {
 				trace!(target: "basicauthority", "generate_seal: FAIL: accounts secret key unavailable");
 			}
@@ -150,13 +142,13 @@ impl Engine for BasicAuthority {
 		self.validators.genesis_epoch_data(header, call)
 	}
 
-	#[cfg(not(test))]
+	#[cfg(not(any(test, feature = "test-helpers")))]
 	fn signals_epoch_end(&self, _header: &Header, _auxiliary: AuxiliaryData) -> engine::EpochChange {
 		// don't bother signalling even though a contract might try.
 		engine::EpochChange::No
 	}
 
-	#[cfg(test)]
+	#[cfg(any(test, feature = "test-helpers"))]
 	fn signals_epoch_end(&self, header: &Header, auxiliary: AuxiliaryData) -> engine::EpochChange {
 		// in test mode, always signal even though they don't be finalized.
 		let first = header.number() == 0;
@@ -202,10 +194,6 @@ impl Engine for BasicAuthority {
 		}
 	}
 
-	fn register_client(&self, client: Weak<dyn EngineClient>) {
-		self.validators.register_client(client);
-	}
-
 	fn set_signer(&self, signer: Box<dyn EngineSigner>) {
 		*self.signer.write() = Some(signer);
 	}
@@ -218,8 +206,8 @@ impl Engine for BasicAuthority {
 		)
 	}
 
-	fn snapshot_components(&self) -> Option<Box<dyn (SnapshotComponents)>> {
-		None
+	fn register_client(&self, client: Weak<dyn EngineClient>) {
+		self.validators.register_client(client);
 	}
 
 	fn params(&self) -> &CommonParams {
@@ -230,19 +218,24 @@ impl Engine for BasicAuthority {
 #[cfg(test)]
 mod tests {
 	use std::sync::Arc;
-	use hash::keccak;
+	use keccak_hash::keccak;
 	use ethereum_types::H520;
-	use block::*;
-	use test_helpers::get_temp_state_db;
+	use ethcore::{
+		block::*,
+		spec,
+		test_helpers::get_temp_state_db
+	};
 	use accounts::AccountProvider;
-	use types::header::Header;
 	use spec::Spec;
-	use types::engines::{Seal, SealingState};
+	use common_types::{
+		header::Header,
+		engines::{Seal, SealingState}
+	};
 	use tempdir::TempDir;
 
 	/// Create a new test chain spec with `BasicAuthority` consensus engine.
 	fn new_test_authority() -> Spec {
-		let bytes: &[u8] = include_bytes!("../../res/basic_authority.json");
+		let bytes: &[u8] = include_bytes!("../res/basic_authority.json");
 		let tempdir = TempDir::new("").unwrap();
 		Spec::load(&tempdir.path(), bytes).expect("invalid chain spec")
 	}
@@ -264,7 +257,7 @@ mod tests {
 	fn can_do_signature_verification_fail() {
 		let engine = new_test_authority().engine;
 		let mut header: Header = Header::default();
-		header.set_seal(vec![::rlp::encode(&H520::default())]);
+		header.set_seal(vec![rlp::encode(&H520::default())]);
 
 		let verify_result = engine.verify_block_external(&header);
 		assert!(verify_result.is_err());

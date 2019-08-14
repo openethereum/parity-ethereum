@@ -20,8 +20,8 @@ use std::collections::{VecDeque};
 use std::collections::hash_map::{HashMap, Entry};
 
 use ethereum_types::{H256, Address};
-
-use engines::validator_set::SimpleList;
+use log::{trace, warn};
+use validator_set::SimpleList;
 
 /// Error indicating unknown validator.
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]

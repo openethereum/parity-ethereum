@@ -16,7 +16,7 @@
 
 /// Validator lists.
 
-#[cfg(test)]
+#[cfg(any(test, feature = "test-helpers"))]
 mod test;
 mod simple_list;
 mod safe_contract;
@@ -25,21 +25,23 @@ mod multi;
 
 use std::sync::Weak;
 
-use bytes::Bytes;
 use client_traits::EngineClient;
-use engine::SystemCall;
-use ethereum_types::{H256, Address};
-use ethjson::spec::ValidatorSet as ValidatorSpec;
-use machine::Machine;
-use types::{
+use common_types::{
 	BlockNumber,
 	header::Header,
 	ids::BlockId,
 	errors::EthcoreError,
 	engines::machine::{Call, AuxiliaryData},
 };
+use engine::SystemCall;
+use ethereum_types::{H256, Address};
+use ethjson::spec::ValidatorSet as ValidatorSpec;
+use machine::Machine;
+// The MallocSizeOf derive looks for this in the root
+use parity_util_mem as malloc_size_of;
+use parity_bytes::Bytes;
 
-#[cfg(test)]
+#[cfg(any(test, feature = "test-helpers"))]
 pub use self::test::TestSet;
 pub use self::simple_list::SimpleList;
 
