@@ -16,7 +16,6 @@
 
 use ethjson;
 use trie::{TrieFactory, TrieSpec};
-use ethtrie::{RlpCodec, Layout};
 use ethereum_types::H256;
 
 use super::HookType;

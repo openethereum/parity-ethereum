@@ -339,7 +339,10 @@ impl JournalDB for EarlyMergeDB {
 
 	fn mem_used(&self) -> usize {
 		let mut ops = new_malloc_size_ops();
-		self.overlay.size_of(&mut ops) + match self.refs {
+		// TODO EMCH restore when update of parity-util-mem
+		//self.overlay.size_of(&mut ops) + 
+		0 +
+		match self.refs {
 			Some(ref c) => c.read().size_of(&mut ops),
 			None => 0
 		}

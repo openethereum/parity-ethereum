@@ -17,13 +17,13 @@ ethcore-db = { path = "../db" }
 ethcore-blockchain = { path = "../blockchain" }
 ethereum-types = "0.6.0"
 machine = { path = "../machine" }
-memory-db = "0.12.2"
-trie-db = "0.12.2"
+memory-db = "0.15.0"
+trie-db = "0.15.0"
 patricia-trie-ethereum = { path = "../../util/patricia-trie-ethereum" }
 ethcore-network = { path = "../../util/network" }
 ethcore-miner = { path = "../../miner" }
 ethcore-io = { path = "../../util/io" }
-hash-db = "0.12.2"
+hash-db = "0.15.0"
 parity-util-mem = "0.1"
 vm = { path = "../vm" }
 fastmap = { path = "../../util/fastmap" }

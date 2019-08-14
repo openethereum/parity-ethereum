@@ -140,11 +140,5 @@ members = [
 	"util/fastmap",
 	"util/time-utils",
 ]
-
 [patch.crates-io]
-heapsize = { git = "https://github.com/cheme/heapsize.git", branch = "ec-macfix" }
-trie-db = { git = "https://github.com/cheme/trie.git", branch = "n_ext_trie" }
-memory-db = { git = "https://github.com/cheme/trie.git", branch = "n_ext_trie" }
-hash-db = { git = "https://github.com/cheme/trie.git", branch = "n_ext_trie" }
-keccak-hasher = { git = "https://github.com/cheme/trie.git", branch = "n_ext_trie" }
-triehash = { git = "https://github.com/cheme/parity-common.git", branch = "simple-codec" }
+triehash = { git = "https://github.com/cheme/parity-common", branch = "simple-codec-trie" }

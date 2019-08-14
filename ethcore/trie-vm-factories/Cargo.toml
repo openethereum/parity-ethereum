@@ -6,7 +6,7 @@ authors = ["Parity Technologies <admin@parity.io>"]
 edition = "2018"
 
 [dependencies]
-trie-db = "0.12.4"
+trie-db = "0.15.0"
 ethtrie = { package = "patricia-trie-ethereum", path = "../../util/patricia-trie-ethereum" }
 account-db = { path = "../account-db" }
 evm = { path = "../evm" }

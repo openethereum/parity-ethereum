@@ -39,12 +39,10 @@ pub type RlpCodec = RlpNodeCodec<KeccakHasher>;
 /// trie layout
 pub struct Layout;
 
-impl trie_db::TrieLayOut for Layout {
+impl trie_db::TrieLayout for Layout {
 	const USE_EXTENSION: bool = true;
-	type H = keccak_hasher::KeccakHasher;
-	type C = RlpNodeCodec<KeccakHasher>;
-	type N = trie_db::NibbleHalf;
-	type CB = trie_db::Cache16;
+	type Hash = keccak_hasher::KeccakHasher;
+	type Codec = RlpNodeCodec<KeccakHasher>;
 }
 
 /// Convenience type alias to instantiate a Keccak/Rlp-flavoured `TrieDB`

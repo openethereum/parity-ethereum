@@ -29,7 +29,7 @@ machine = { path = "../machine" }
 parity-bytes = "0.1"
 parity-crypto = "0.4.0"
 parking_lot = "0.8"
-trie-db = "0.12.2"
+trie-db = "0.15.0"
 patricia-trie-ethereum = { path = "../../util/patricia-trie-ethereum" }
 rand = "0.3"
 rlp = "0.4.0"
