@@ -53,7 +53,6 @@ fn encode_partial_inner_iter<'a>(
 ) -> impl Iterator<Item = u8> + 'a {
 	let encoded_type = if is_leaf {0x20} else {0};
 	let first = if odd {
-		let first_byte = first;
 		0x10 + encoded_type + first_byte
 	} else {
 		encoded_type
