@@ -57,7 +57,7 @@ pub mod ecdh {
 		};
 
 		let publ = key::PublicKey::from_slice(context, &pdata)?;
-		let sec = key::SecretKey::from_slice(context, &secret)?;
+		let sec = key::SecretKey::from_slice(context, secret.as_bytes())?;
 		let shared = ecdh::SharedSecret::new_raw(context, &publ, &sec);
 
 		Secret::from_unsafe_slice(&shared[0..32])
@@ -89,12 +89,12 @@ pub mod ecies {
 		msg[0] = 0x04u8;
 		{
 			let msgd = &mut msg[1..];
-			msgd[0..64].copy_from_slice(r.public());
+			msgd[0..64].copy_from_slice(r.public().as_bytes());
 			let iv = H128::random();
-			msgd[64..80].copy_from_slice(&iv);
+			msgd[64..80].copy_from_slice(iv.as_bytes());
 			{
 				let cipher = &mut msgd[(64 + 16)..(64 + 16 + plain.len())];
-				aes::encrypt_128_ctr(ekey, &iv, plain, cipher)?;
+				aes::encrypt_128_ctr(ekey, iv.as_bytes(), plain, cipher)?;
 			}
 			let mut hmac = hmac::Signer::with(&mkey);
 			{
@@ -156,7 +156,7 @@ pub mod ecies {
 			let mut hasher = digest::Hasher::sha256();
 			let ctrs = [(ctr >> 24) as u8, (ctr >> 16) as u8, (ctr >> 8) as u8, ctr as u8];
 			hasher.update(&ctrs);
-			hasher.update(secret);
+			hasher.update(secret.as_bytes());
 			hasher.update(s1);
 			let d = hasher.finish();
 			&mut dest[written..(written + 32)].copy_from_slice(&d);

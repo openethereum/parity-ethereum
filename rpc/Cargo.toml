@@ -1,5 +1,5 @@
 [package]
-description = "Parity JSON-RPC servers."
+description = "Parity Ethereum JSON-RPC Servers (WS, HTTP, IPC)"
 name = "parity-rpc"
 version = "1.12.0"
 license = "GPL-3.0"
@@ -8,14 +8,15 @@ authors = ["Parity Technologies <admin@parity.io>"]
 [lib]
 
 [dependencies]
-ansi_term = "0.10"
+ansi_term = "0.11"
 cid = "0.3"
 futures = "0.1.6"
 log = "0.4"
 multihash = "0.8"
 order-stat = "0.1"
-parking_lot = "0.7"
-rand = "0.4"
+parking_lot = "0.8"
+rand = "0.6"
+rand_xorshift = "0.1.1"
 rustc-hex = "1.0"
 semver = "0.9"
 serde = "1.0"
@@ -27,52 +28,54 @@ tokio-timer = "0.1"
 transient-hashmap = "0.4"
 itertools = "0.5"
 
-jsonrpc-core = "10.0.1"
-jsonrpc-derive = "10.0.2"
-jsonrpc-http-server = "10.0.1"
-jsonrpc-ws-server = "10.0.1"
-jsonrpc-ipc-server = "10.0.1"
-jsonrpc-pubsub = "10.0.1"
+jsonrpc-core = "12.0.0"
+jsonrpc-derive = "12.0.0"
+jsonrpc-http-server = "12.0.0"
+jsonrpc-ws-server = "12.0.0"
+jsonrpc-ipc-server = "12.0.0"
+jsonrpc-pubsub = "12.0.0"
 
 common-types = { path = "../ethcore/types" }
 ethash = { path = "../ethash" }
 ethcore = { path = "../ethcore", features = ["test-helpers"] }
 ethcore-accounts = { path = "../accounts", optional = true }
-ethcore-io = { path = "../util/io" }
 ethcore-light = { path = "../ethcore/light" }
 ethcore-logger = { path = "../parity/logger" }
 ethcore-miner = { path = "../miner" }
 ethcore-network = { path = "../util/network" }
 ethcore-private-tx = { path = "../ethcore/private-tx" }
 ethcore-sync = { path = "../ethcore/sync" }
-ethereum-types = "0.4"
+ethereum-types = "0.6.0"
 fastmap = { path = "../util/fastmap" }
+machine = { path = "../ethcore/machine" }
 parity-bytes = "0.1"
-parity-crypto = "0.3.0"
+parity-crypto = "0.4.0"
 
 eip-712 = { path = "../util/EIP-712" }
 ethjson = { path = "../json" }
 ethkey = { path = "../accounts/ethkey" }
 ethstore = { path = "../accounts/ethstore" }
 fetch = { path = "../util/fetch" }
-keccak-hash = "0.1.2"
+keccak-hash = "0.2.0"
 parity-runtime = { path = "../util/runtime" }
 parity-updater = { path = "../updater" }
 parity-version = { path = "../util/version" }
-trie-db = "0.12.2"
-rlp = { version = "0.3.0", features = ["ethereum"] }
+rlp = "0.4.0"
+account-state = { path = "../ethcore/account-state" }
 stats = { path = "../util/stats" }
+trace = { path = "../ethcore/trace" }
 vm = { path = "../ethcore/vm" }
 
 [dev-dependencies]
+client-traits = { path = "../ethcore/client-traits" }
 ethcore = { path = "../ethcore", features = ["test-helpers"] }
 ethcore-accounts = { path = "../accounts" }
+ethcore-io = { path = "../util/io" }
 ethcore-network = { path = "../util/network" }
 fake-fetch = { path = "../util/fake-fetch" }
-kvdb-memorydb = "0.1"
 macros = { path = "../util/macros" }
 pretty_assertions = "0.1"
-transaction-pool = "1.13"
+transaction-pool = "2.0"
 
 [features]
 accounts = ["ethcore-accounts"]

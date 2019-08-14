@@ -15,7 +15,7 @@
 // along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
 use std::cmp;
-use ethereum_types::{U256, H256, Address};
+use ethereum_types::{BigEndianHash, U256, H256, Address};
 use vm::{self, CallType};
 use wasmi::{self, MemoryRef, RuntimeArgs, RuntimeValue, Error as InterpreterError, Trap, TrapKind};
 use super::panic_payload;
@@ -25,13 +25,14 @@ pub struct RuntimeContext {
 	pub sender: Address,
 	pub origin: Address,
 	pub code_address: Address,
+	pub code_version: U256,
 	pub value: U256,
 }
 
 pub struct Runtime<'a> {
 	gas_counter: u64,
 	gas_limit: u64,
-	ext: &'a mut vm::Ext,
+	ext: &'a mut dyn vm::Ext,
 	context: RuntimeContext,
 	memory: MemoryRef,
 	args: Vec<u8>,
@@ -127,7 +128,7 @@ impl ::std::fmt::Display for Error {
 			Error::AllocationFailed => write!(f, "Memory allocation failed (OOM)"),
 			Error::BadUtf8 => write!(f, "String encoding is bad utf-8 sequence"),
 			Error::GasLimit => write!(f, "Invocation resulted in gas limit violated"),
-			Error::Log => write!(f, "Error occured while logging an event"),
+			Error::Log => write!(f, "Error occurred while logging an event"),
 			Error::InvalidSyscall => write!(f, "Invalid syscall signature encountered at runtime"),
 			Error::Other => write!(f, "Other unspecified error"),
 			Error::Unreachable => write!(f, "Unreachable instruction encountered"),
@@ -146,7 +147,7 @@ impl<'a> Runtime<'a> {
 
 	/// New runtime for wasm contract with specified params
 	pub fn with_params(
-		ext: &mut vm::Ext,
+		ext: &mut dyn vm::Ext,
 		memory: MemoryRef,
 		gas_limit: u64,
 		args: Vec<u8>,
@@ -168,7 +169,7 @@ impl<'a> Runtime<'a> {
 		let mut buf = [0u8; 32];
 		self.memory.get_into(ptr, &mut buf[..])?;
 
-		Ok(H256::from(&buf[..]))
+		Ok(H256::from_slice(&buf[..]))
 	}
 
 	/// Loads 160-bit hash (Ethereum address) from the specified sandboxed memory pointer
@@ -176,7 +177,7 @@ impl<'a> Runtime<'a> {
 		let mut buf = [0u8; 20];
 		self.memory.get_into(ptr, &mut buf[..])?;
 
-		Ok(Address::from(&buf[..]))
+		Ok(Address::from_slice(&buf[..]))
 	}
 
 	/// Loads 256-bit integer represented with bigendian from the specified sandboxed memory pointer
@@ -262,7 +263,7 @@ impl<'a> Runtime<'a> {
 
 		self.adjusted_charge(|schedule| schedule.sload_gas as u64)?;
 
-		self.memory.set(val_ptr as u32, &*val)?;
+		self.memory.set(val_ptr as u32, val.as_bytes())?;
 
 		Ok(())
 	}
@@ -502,14 +503,14 @@ impl<'a> Runtime<'a> {
 	fn return_address_ptr(&mut self, ptr: u32, val: Address) -> Result<()>
 	{
 		self.charge(|schedule| schedule.wasm().static_address as u64)?;
-		self.memory.set(ptr, &*val)?;
+		self.memory.set(ptr, val.as_bytes())?;
 		Ok(())
 	}
 
 	fn return_u256_ptr(&mut self, ptr: u32, val: U256) -> Result<()> {
-		let value: H256 = val.into();
+		let value: H256 = BigEndianHash::from_uint(&val);
 		self.charge(|schedule| schedule.wasm().static_u256 as u64)?;
-		self.memory.set(ptr, &*value)?;
+		self.memory.set(ptr, value.as_bytes())?;
 		Ok(())
 	}
 
@@ -529,9 +530,9 @@ impl<'a> Runtime<'a> {
 			* U256::from(self.ext.schedule().wasm().opcodes_mul)
 			/ U256::from(self.ext.schedule().wasm().opcodes_div);
 
-		match self.ext.create(&gas_left, &endowment, &code, scheme, false).ok().expect("Trap is false; trap error will not happen; qed") {
+		match self.ext.create(&gas_left, &endowment, &code, &self.context.code_version, scheme, false).ok().expect("Trap is false; trap error will not happen; qed") {
 			vm::ContractCreateResult::Created(address, gas_left) => {
-				self.memory.set(result_ptr, &*address)?;
+				self.memory.set(result_ptr, address.as_bytes())?;
 				self.gas_counter = self.gas_limit -
 					// this cannot overflow, since initial gas is in [0..u64::max) range,
 					// and gas_left cannot be bigger
@@ -598,7 +599,7 @@ impl<'a> Runtime<'a> {
 		trace!(target: "wasm", "runtime: CREATE2");
 		let endowment = self.u256_at(args.nth_checked(0)?)?;
 		trace!(target: "wasm", "       val: {:?}", endowment);
-		let salt: H256 = self.u256_at(args.nth_checked(1)?)?.into();
+		let salt: H256 = BigEndianHash::from_uint(&self.u256_at(args.nth_checked(1)?)?);
 		trace!(target: "wasm", "      salt: {:?}", salt);
 		let code_ptr: u32 = args.nth_checked(2)?;
 		trace!(target: "wasm", "  code_ptr: {:?}", code_ptr);
@@ -646,7 +647,7 @@ impl<'a> Runtime<'a> {
 	pub fn blockhash(&mut self, args: RuntimeArgs) -> Result<()> {
 		self.adjusted_charge(|schedule| schedule.blockhash_gas as u64)?;
 		let hash = self.ext.blockhash(&U256::from(args.nth_checked::<u64>(0)?));
-		self.memory.set(args.nth_checked(1)?, &*hash)?;
+		self.memory.set(args.nth_checked(1)?, hash.as_bytes())?;
 
 		Ok(())
 	}
@@ -736,7 +737,7 @@ impl<'a> Runtime<'a> {
 
 			*topics.get_mut(i as usize)
 				.expect("topics is resized to `topic_count`, i is in 0..topic count iterator, get_mut uses i as an indexer, get_mut cannot fail; qed")
-				= H256::from(&self.memory.get(offset, 32)?[..]);
+				= H256::from_slice(&self.memory.get(offset, 32)?[..]);
 		}
 		self.ext.log(topics, &self.memory.get(data_ptr, data_len as usize)?).map_err(|_| Error::Log)?;
 

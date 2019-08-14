@@ -220,7 +220,7 @@ mod tests {
 			num: 100.into(),
 		})).unwrap();
 		builder.push(Request::Receipts(IncompleteReceiptsRequest {
-			hash: H256::default().into(),
+			hash: H256::zero().into(),
 		})).unwrap();
 	}
 
@@ -254,5 +254,64 @@ mod tests {
 		builder.push(Request::Receipts(IncompleteReceiptsRequest {
 			hash: Field::BackReference(0, 0),
 		})).unwrap();
+	}
+
+	#[test]
+	fn batch_tx_index_backreference() {
+		let mut builder = Builder::default();
+		builder.push(Request::HeaderProof(IncompleteHeaderProofRequest {
+			num: 100.into(), // header proof puts hash at output 0.
+		})).unwrap();
+		builder.push(Request::TransactionIndex(IncompleteTransactionIndexRequest {
+			hash: Field::BackReference(0, 0),
+		})).unwrap();
+
+		let mut batch = builder.build();
+		batch.requests[1].fill(|_req_idx, _out_idx| Ok(Output::Hash(H256::from_low_u64_be(42))));
+
+		assert!(batch.next_complete().is_some());
+		batch.answered += 1;
+		assert!(batch.next_complete().is_some());
+	}
+
+	#[test]
+	fn batch_tx_index_backreference_public_api() {
+		let mut builder = Builder::default();
+		builder.push(Request::HeaderProof(IncompleteHeaderProofRequest {
+			num: 100.into(), // header proof puts hash at output 0.
+		})).unwrap();
+		builder.push(Request::TransactionIndex(IncompleteTransactionIndexRequest {
+			hash: Field::BackReference(0, 0),
+		})).unwrap();
+
+		let mut batch = builder.build();
+
+		assert!(batch.next_complete().is_some());
+		let hdr_proof_res = header_proof::Response {
+			proof: vec![],
+			hash: H256::from_low_u64_be(12),
+			td: 21.into(),
+		};
+		batch.supply_response_unchecked(&hdr_proof_res);
+
+		assert!(batch.next_complete().is_some());
+	}
+
+	#[test]
+	fn batch_receipts_backreference() {
+		let mut builder = Builder::default();
+		builder.push(Request::HeaderProof(IncompleteHeaderProofRequest {
+			num: 100.into(), // header proof puts hash at output 0.
+		})).unwrap();
+		builder.push(Request::Receipts(IncompleteReceiptsRequest {
+			hash: Field::BackReference(0, 0),
+		})).unwrap();
+
+		let mut batch = builder.build();
+		batch.requests[1].fill(|_req_idx, _out_idx| Ok(Output::Hash(H256::from_low_u64_be(42))));
+
+		assert!(batch.next_complete().is_some());
+		batch.answered += 1;
+		assert!(batch.next_complete().is_some());
 	}
 }

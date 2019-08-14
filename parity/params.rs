@@ -17,11 +17,9 @@
 use std::collections::HashSet;
 use std::time::Duration;
 use std::{str, fs, fmt};
-use std::num::NonZeroU32;
 
 use ethcore::client::Mode;
-use ethcore::ethereum;
-use ethcore::spec::{Spec, SpecParams};
+use ethcore::spec::{Spec, SpecParams, self};
 use ethereum_types::{U256, Address};
 use parity_runtime::Executor;
 use hash_fetch::fetch::Client as FetchClient;
@@ -36,17 +34,18 @@ pub enum SpecType {
 	Foundation,
 	Classic,
 	Poanet,
-	Tobalaba,
-	Expanse,
+	Volta,
+	Ewc,
 	Musicoin,
 	Ellaism,
-	Easthub,
-	Social,
 	Mix,
 	Callisto,
 	Morden,
 	Ropsten,
 	Kovan,
+	Rinkeby,
+	Goerli,
+	Kotti,
 	Sokol,
 	Dev,
 	Custom(String),
@@ -66,17 +65,18 @@ impl str::FromStr for SpecType {
 			"ethereum" | "frontier" | "homestead" | "byzantium" | "foundation" | "mainnet" => SpecType::Foundation,
 			"classic" | "frontier-dogmatic" | "homestead-dogmatic" => SpecType::Classic,
 			"poanet" | "poacore" => SpecType::Poanet,
-			"tobalaba" => SpecType::Tobalaba,
-			"expanse" => SpecType::Expanse,
+			"volta" => SpecType::Volta,
+			"ewc" | "energyweb" => SpecType::Ewc,
 			"musicoin" => SpecType::Musicoin,
 			"ellaism" => SpecType::Ellaism,
-			"easthub" => SpecType::Easthub,
-			"social" => SpecType::Social,
 			"mix" => SpecType::Mix,
 			"callisto" => SpecType::Callisto,
 			"morden" | "classic-testnet" => SpecType::Morden,
 			"ropsten" => SpecType::Ropsten,
 			"kovan" | "testnet" => SpecType::Kovan,
+			"rinkeby" => SpecType::Rinkeby,
+			"goerli" | "görli" => SpecType::Goerli,
+			"kotti" => SpecType::Kotti,
 			"sokol" | "poasokol" => SpecType::Sokol,
 			"dev" => SpecType::Dev,
 			other => SpecType::Custom(other.into()),
@@ -91,17 +91,18 @@ impl fmt::Display for SpecType {
 			SpecType::Foundation => "foundation",
 			SpecType::Classic => "classic",
 			SpecType::Poanet => "poanet",
-			SpecType::Tobalaba => "tobalaba",
-			SpecType::Expanse => "expanse",
+			SpecType::Volta => "volta",
+			SpecType::Ewc => "energyweb",
 			SpecType::Musicoin => "musicoin",
 			SpecType::Ellaism => "ellaism",
-			SpecType::Easthub => "easthub",
-			SpecType::Social => "social",
 			SpecType::Mix => "mix",
 			SpecType::Callisto => "callisto",
 			SpecType::Morden => "morden",
 			SpecType::Ropsten => "ropsten",
 			SpecType::Kovan => "kovan",
+			SpecType::Rinkeby => "rinkeby",
+			SpecType::Goerli => "goerli",
+			SpecType::Kotti => "kotti",
 			SpecType::Sokol => "sokol",
 			SpecType::Dev => "dev",
 			SpecType::Custom(ref custom) => custom,
@@ -113,25 +114,26 @@ impl SpecType {
 	pub fn spec<'a, T: Into<SpecParams<'a>>>(&self, params: T) -> Result<Spec, String> {
 		let params = params.into();
 		match *self {
-			SpecType::Foundation => Ok(ethereum::new_foundation(params)),
-			SpecType::Classic => Ok(ethereum::new_classic(params)),
-			SpecType::Poanet => Ok(ethereum::new_poanet(params)),
-			SpecType::Tobalaba => Ok(ethereum::new_tobalaba(params)),
-			SpecType::Expanse => Ok(ethereum::new_expanse(params)),
-			SpecType::Musicoin => Ok(ethereum::new_musicoin(params)),
-			SpecType::Ellaism => Ok(ethereum::new_ellaism(params)),
-			SpecType::Easthub => Ok(ethereum::new_easthub(params)),
-			SpecType::Social => Ok(ethereum::new_social(params)),
-			SpecType::Mix => Ok(ethereum::new_mix(params)),
-			SpecType::Callisto => Ok(ethereum::new_callisto(params)),
-			SpecType::Morden => Ok(ethereum::new_morden(params)),
-			SpecType::Ropsten => Ok(ethereum::new_ropsten(params)),
-			SpecType::Kovan => Ok(ethereum::new_kovan(params)),
-			SpecType::Sokol => Ok(ethereum::new_sokol(params)),
-			SpecType::Dev => Ok(Spec::new_instant()),
+			SpecType::Foundation => Ok(spec::new_foundation(params)),
+			SpecType::Classic => Ok(spec::new_classic(params)),
+			SpecType::Poanet => Ok(spec::new_poanet(params)),
+			SpecType::Volta => Ok(spec::new_volta(params)),
+			SpecType::Ewc => Ok(spec::new_ewc(params)),
+			SpecType::Musicoin => Ok(spec::new_musicoin(params)),
+			SpecType::Ellaism => Ok(spec::new_ellaism(params)),
+			SpecType::Mix => Ok(spec::new_mix(params)),
+			SpecType::Callisto => Ok(spec::new_callisto(params)),
+			SpecType::Morden => Ok(spec::new_morden(params)),
+			SpecType::Ropsten => Ok(spec::new_ropsten(params)),
+			SpecType::Kovan => Ok(spec::new_kovan(params)),
+			SpecType::Rinkeby => Ok(spec::new_rinkeby(params)),
+			SpecType::Goerli => Ok(spec::new_goerli(params)),
+			SpecType::Kotti => Ok(spec::new_kotti(params)),
+			SpecType::Sokol => Ok(spec::new_sokol(params)),
+			SpecType::Dev => Ok(spec::new_instant()),
 			SpecType::Custom(ref filename) => {
 				let file = fs::File::open(filename).map_err(|e| format!("Could not load specification file at {}: {}", filename, e))?;
-				Spec::load(params, file)
+				Spec::load(params, file).map_err(|e| e.to_string())
 			}
 		}
 	}
@@ -139,7 +141,6 @@ impl SpecType {
 	pub fn legacy_fork_name(&self) -> Option<String> {
 		match *self {
 			SpecType::Classic => Some("classic".to_owned()),
-			SpecType::Expanse => Some("expanse".to_owned()),
 			SpecType::Musicoin => Some("musicoin".to_owned()),
 			_ => None,
 		}
@@ -216,24 +217,22 @@ impl str::FromStr for ResealPolicy {
 
 #[derive(Debug, PartialEq)]
 pub struct AccountsConfig {
-	pub iterations: NonZeroU32,
+	pub iterations: u32,
 	pub refresh_time: u64,
 	pub testnet: bool,
 	pub password_files: Vec<String>,
 	pub unlocked_accounts: Vec<Address>,
-	pub enable_hardware_wallets: bool,
 	pub enable_fast_unlock: bool,
 }
 
 impl Default for AccountsConfig {
 	fn default() -> Self {
 		AccountsConfig {
-			iterations: NonZeroU32::new(10240).expect("10240 > 0; qed"),
+			iterations: 10240,
 			refresh_time: 5,
 			testnet: false,
 			password_files: Vec::new(),
 			unlocked_accounts: Vec::new(),
-			enable_hardware_wallets: true,
 			enable_fast_unlock: false,
 		}
 	}
@@ -372,12 +371,11 @@ mod tests {
 		assert_eq!(SpecType::Classic, "homestead-dogmatic".parse().unwrap());
 		assert_eq!(SpecType::Poanet, "poanet".parse().unwrap());
 		assert_eq!(SpecType::Poanet, "poacore".parse().unwrap());
-		assert_eq!(SpecType::Tobalaba, "tobalaba".parse().unwrap());
-		assert_eq!(SpecType::Expanse, "expanse".parse().unwrap());
+		assert_eq!(SpecType::Volta, "volta".parse().unwrap());
+		assert_eq!(SpecType::Ewc, "ewc".parse().unwrap());
+		assert_eq!(SpecType::Ewc, "energyweb".parse().unwrap());
 		assert_eq!(SpecType::Musicoin, "musicoin".parse().unwrap());
 		assert_eq!(SpecType::Ellaism, "ellaism".parse().unwrap());
-		assert_eq!(SpecType::Easthub, "easthub".parse().unwrap());
-		assert_eq!(SpecType::Social, "social".parse().unwrap());
 		assert_eq!(SpecType::Mix, "mix".parse().unwrap());
 		assert_eq!(SpecType::Callisto, "callisto".parse().unwrap());
 		assert_eq!(SpecType::Morden, "morden".parse().unwrap());
@@ -385,6 +383,10 @@ mod tests {
 		assert_eq!(SpecType::Ropsten, "ropsten".parse().unwrap());
 		assert_eq!(SpecType::Kovan, "kovan".parse().unwrap());
 		assert_eq!(SpecType::Kovan, "testnet".parse().unwrap());
+		assert_eq!(SpecType::Rinkeby, "rinkeby".parse().unwrap());
+		assert_eq!(SpecType::Goerli, "goerli".parse().unwrap());
+		assert_eq!(SpecType::Goerli, "görli".parse().unwrap());
+		assert_eq!(SpecType::Kotti, "kotti".parse().unwrap());
 		assert_eq!(SpecType::Sokol, "sokol".parse().unwrap());
 		assert_eq!(SpecType::Sokol, "poasokol".parse().unwrap());
 	}
@@ -399,17 +401,18 @@ mod tests {
 		assert_eq!(format!("{}", SpecType::Foundation), "foundation");
 		assert_eq!(format!("{}", SpecType::Classic), "classic");
 		assert_eq!(format!("{}", SpecType::Poanet), "poanet");
-		assert_eq!(format!("{}", SpecType::Tobalaba), "tobalaba");
-		assert_eq!(format!("{}", SpecType::Expanse), "expanse");
+		assert_eq!(format!("{}", SpecType::Volta), "volta");
+		assert_eq!(format!("{}", SpecType::Ewc), "energyweb");
 		assert_eq!(format!("{}", SpecType::Musicoin), "musicoin");
 		assert_eq!(format!("{}", SpecType::Ellaism), "ellaism");
-		assert_eq!(format!("{}", SpecType::Easthub), "easthub");
-		assert_eq!(format!("{}", SpecType::Social), "social");
 		assert_eq!(format!("{}", SpecType::Mix), "mix");
 		assert_eq!(format!("{}", SpecType::Callisto), "callisto");
 		assert_eq!(format!("{}", SpecType::Morden), "morden");
 		assert_eq!(format!("{}", SpecType::Ropsten), "ropsten");
 		assert_eq!(format!("{}", SpecType::Kovan), "kovan");
+		assert_eq!(format!("{}", SpecType::Rinkeby), "rinkeby");
+		assert_eq!(format!("{}", SpecType::Goerli), "goerli");
+		assert_eq!(format!("{}", SpecType::Kotti), "kotti");
 		assert_eq!(format!("{}", SpecType::Sokol), "sokol");
 		assert_eq!(format!("{}", SpecType::Dev), "dev");
 		assert_eq!(format!("{}", SpecType::Custom("foo/bar".into())), "foo/bar");

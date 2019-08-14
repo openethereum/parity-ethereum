@@ -70,20 +70,6 @@
 #![allow(deprecated)]
 
 #[cfg(feature = "mio")]
-extern crate mio;
-#[macro_use]
-extern crate log as rlog;
-extern crate slab;
-extern crate crossbeam_deque as deque;
-extern crate parking_lot;
-extern crate num_cpus;
-extern crate timer;
-extern crate fnv;
-extern crate time;
-extern crate tokio;
-extern crate futures;
-
-#[cfg(feature = "mio")]
 mod service_mio;
 #[cfg(not(feature = "mio"))]
 mod service_non_mio;
@@ -170,7 +156,7 @@ pub trait IoHandler<Message>: Send + Sync where Message: Send + Sync + 'static {
 	/// Re-register a stream with the event loop
 	#[cfg(feature = "mio")]
 	fn update_stream(&self, _stream: StreamToken, _reg: Token, _event_loop: &mut EventLoop<IoManager<Message>>) {}
-	/// Deregister a stream. Called whenstream is removed from event loop
+	/// Deregister a stream. Called when a stream is removed from the event loop
 	#[cfg(feature = "mio")]
 	fn deregister_stream(&self, _stream: StreamToken, _event_loop: &mut EventLoop<IoManager<Message>>) {}
 }
@@ -178,14 +164,15 @@ pub trait IoHandler<Message>: Send + Sync where Message: Send + Sync + 'static {
 #[cfg(feature = "mio")]
 pub use service_mio::{TimerToken, StreamToken, IoContext, IoService, IoChannel, IoManager, TOKENS_PER_HANDLER};
 #[cfg(not(feature = "mio"))]
-pub use service_non_mio::{TimerToken, IoContext, IoService, IoChannel, TOKENS_PER_HANDLER};
+pub use crate::service_non_mio::{TimerToken, IoContext, IoService, IoChannel, TOKENS_PER_HANDLER};
 
 #[cfg(test)]
 mod tests {
-	use std::sync::Arc;
-	use std::sync::atomic;
-	use std::thread;
-	use std::time::Duration;
+	use std::{
+		sync::{Arc, atomic},
+		thread,
+		time::Duration,
+	};
 	use super::*;
 
 	// Mio's behaviour is too unstable for this test. Sometimes we have to wait a few milliseconds,

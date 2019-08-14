@@ -17,7 +17,8 @@
 //! Watcher for snapshot-related chain events.
 
 use parking_lot::Mutex;
-use client::{BlockInfo, Client, ChainNotify, NewBlocks, ClientIoMessage};
+use client::{Client, ChainNotify, NewBlocks, ClientIoMessage};
+use client_traits::BlockInfo;
 use types::ids::BlockId;
 
 use io::IoChannel;
@@ -72,8 +73,8 @@ impl Broadcast for Mutex<IoChannel<ClientIoMessage>> {
 /// A `ChainNotify` implementation which will trigger a snapshot event
 /// at certain block numbers.
 pub struct Watcher {
-	oracle: Box<Oracle>,
-	broadcast: Box<Broadcast>,
+	oracle: Box<dyn Oracle>,
+	broadcast: Box<dyn Broadcast>,
 	period: u64,
 	history: u64,
 }
@@ -123,7 +124,7 @@ mod tests {
 
 	use client::{ChainNotify, NewBlocks, ChainRoute};
 
-	use ethereum_types::{H256, U256};
+	use ethereum_types::{H256, U256, BigEndianHash};
 
 	use std::collections::HashMap;
 	use std::time::Duration;
@@ -151,7 +152,7 @@ mod tests {
 	fn harness(numbers: Vec<u64>, period: u64, history: u64, expected: Option<u64>) {
 		const DURATION_ZERO: Duration = Duration::from_millis(0);
 
-		let hashes: Vec<_> = numbers.clone().into_iter().map(|x| H256::from(U256::from(x))).collect();
+		let hashes: Vec<_> = numbers.clone().into_iter().map(|x| BigEndianHash::from_uint(&U256::from(x))).collect();
 		let map = hashes.clone().into_iter().zip(numbers).collect();
 
 		let watcher = Watcher {

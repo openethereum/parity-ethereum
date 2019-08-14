@@ -1,0 +1,5 @@
+[stratum]
+disable = false
+interface = "some_interface"
+port = 8007
+secret = "Yellow"

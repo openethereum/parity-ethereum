@@ -20,12 +20,15 @@
 
 use std::collections::{HashSet, VecDeque};
 use std::cmp;
-use heapsize::HeapSizeOf;
+use parity_util_mem::MallocSizeOf;
 use ethereum_types::H256;
 use rlp::{self, Rlp};
-use types::BlockNumber;
-use ethcore::client::{BlockStatus, BlockId};
-use ethcore::error::{ImportErrorKind, QueueErrorKind, BlockError, Error as EthcoreError, ErrorKind as EthcoreErrorKind};
+use types::{
+	BlockNumber,
+	block_status::BlockStatus,
+	ids::BlockId,
+	errors::{EthcoreError, BlockError, ImportError},
+};
 use sync_io::SyncIo;
 use blocks::{BlockCollection, SyncBody, SyncHeader};
 use chain::BlockSet;
@@ -60,7 +63,7 @@ macro_rules! debug_sync {
 	};
 }
 
-#[derive(Copy, Clone, Eq, PartialEq, Debug)]
+#[derive(Copy, Clone, Eq, PartialEq, Debug, MallocSizeOf)]
 /// Downloader state
 pub enum State {
 	/// No active downloads.
@@ -113,6 +116,7 @@ impl From<rlp::DecoderError> for BlockDownloaderImportError {
 
 /// Block downloader strategy.
 /// Manages state and block data for a block download process.
+#[derive(MallocSizeOf)]
 pub struct BlockDownloader {
 	/// Which set of blocks to download
 	block_set: BlockSet,
@@ -223,18 +227,13 @@ impl BlockDownloader {
 		self.state = State::Blocks;
 	}
 
-	/// Returns used heap memory size.
-	pub fn heap_size(&self) -> usize {
-		self.blocks.heap_size() + self.round_parents.heap_size_of_children()
-	}
-
 	/// Returns best imported block number.
 	pub fn last_imported_block_number(&self) -> BlockNumber {
 		self.last_imported_block
 	}
 
 	/// Add new block headers.
-	pub fn import_headers(&mut self, io: &mut SyncIo, r: &Rlp, expected_hash: H256) -> Result<DownloadAction, BlockDownloaderImportError> {
+	pub fn import_headers(&mut self, io: &mut dyn SyncIo, r: &Rlp, expected_hash: H256) -> Result<DownloadAction, BlockDownloaderImportError> {
 		let item_count = r.item_count().unwrap_or(0);
 		if self.state == State::Idle {
 			trace_sync!(self, "Ignored unexpected block headers");
@@ -419,7 +418,7 @@ impl BlockDownloader {
 		Ok(())
 	}
 
-	fn start_sync_round(&mut self, io: &mut SyncIo) {
+	fn start_sync_round(&mut self, io: &mut dyn SyncIo) {
 		self.state = State::ChainHead;
 		trace_sync!(self, "Starting round (last imported count = {:?}, last started = {}, block = {:?}", self.imported_this_round, self.last_round_start, self.last_imported_block);
 		// Check if need to retract to find the common block. The problem is that the peers still return headers by hash even
@@ -467,7 +466,7 @@ impl BlockDownloader {
 	}
 
 	/// Find some headers or blocks to download for a peer.
-	pub fn request_blocks(&mut self, peer_id: PeerId, io: &mut SyncIo, num_active_peers: usize) -> Option<BlockRequest> {
+	pub fn request_blocks(&mut self, peer_id: PeerId, io: &mut dyn SyncIo, num_active_peers: usize) -> Option<BlockRequest> {
 		match self.state {
 			State::Idle => {
 				self.start_sync_round(io);
@@ -530,7 +529,7 @@ impl BlockDownloader {
 
 	/// Checks if there are blocks fully downloaded that can be imported into the blockchain and does the import.
 	/// Returns DownloadAction::Reset if it is imported all the the blocks it can and all downloading peers should be reset
-	pub fn collect_blocks(&mut self, io: &mut SyncIo, allow_out_of_order: bool) -> DownloadAction {
+	pub fn collect_blocks(&mut self, io: &mut dyn SyncIo, allow_out_of_order: bool) -> DownloadAction {
 		let mut download_action = DownloadAction::None;
 		let mut imported = HashSet::new();
 		let blocks = self.blocks.drain();
@@ -552,15 +551,21 @@ impl BlockDownloader {
 			let result = if let Some(receipts) = receipts {
 				io.chain().queue_ancient_block(block, receipts)
 			} else {
+				trace_sync!(self, "Importing block #{}/{}", number, h);
 				io.chain().import_block(block)
 			};
 
 			match result {
-				Err(EthcoreError(EthcoreErrorKind::Import(ImportErrorKind::AlreadyInChain), _)) => {
-					trace_sync!(self, "Block already in chain {:?}", h);
+				Err(EthcoreError::Import(ImportError::AlreadyInChain)) => {
+					let is_canonical = if io.chain().block_hash(BlockId::Number(number)).is_some() {
+						"canoncial"
+					} else {
+						"not canonical"
+					};
+					trace_sync!(self, "Block #{} is already in chain {:?} – {}", number, h, is_canonical);
 					self.block_imported(&h, number, &parent);
 				},
-				Err(EthcoreError(EthcoreErrorKind::Import(ImportErrorKind::AlreadyQueued), _)) => {
+				Err(EthcoreError::Import(ImportError::AlreadyQueued)) => {
 					trace_sync!(self, "Block already queued {:?}", h);
 					self.block_imported(&h, number, &parent);
 				},
@@ -569,18 +574,18 @@ impl BlockDownloader {
 					imported.insert(h.clone());
 					self.block_imported(&h, number, &parent);
 				},
-				Err(EthcoreError(EthcoreErrorKind::Block(BlockError::UnknownParent(_)), _)) if allow_out_of_order => {
+				Err(EthcoreError::Block(BlockError::UnknownParent(_))) if allow_out_of_order => {
 					break;
 				},
-				Err(EthcoreError(EthcoreErrorKind::Block(BlockError::UnknownParent(_)), _)) => {
+				Err(EthcoreError::Block(BlockError::UnknownParent(_))) => {
 					trace_sync!(self, "Unknown new block parent, restarting sync");
 					break;
 				},
-				Err(EthcoreError(EthcoreErrorKind::Block(BlockError::TemporarilyInvalid(_)), _)) => {
+				Err(EthcoreError::Block(BlockError::TemporarilyInvalid(_))) => {
 					debug_sync!(self, "Block temporarily invalid: {:?}, restarting sync", h);
 					break;
 				},
-				Err(EthcoreError(EthcoreErrorKind::Queue(QueueErrorKind::Full(limit)), _)) => {
+				Err(EthcoreError::FullQueue(limit)) => {
 					debug_sync!(self, "Block import queue full ({}), restarting sync", limit);
 					download_action = DownloadAction::Reset;
 					break;
@@ -632,7 +637,7 @@ fn all_expected<A, B, F>(values: &[A], expected_values: &[B], is_expected: F) ->
 mod tests {
 	use super::*;
 	use ethcore::client::TestBlockChainClient;
-	use ethcore::spec::Spec;
+	use ethcore::spec;
 	use ethkey::{Generator,Random};
 	use hash::keccak;
 	use parking_lot::RwLock;
@@ -659,7 +664,7 @@ mod tests {
 		Transaction::default().sign(keypair.secret(), None)
 	}
 
-	fn import_headers(headers: &[BlockHeader], downloader: &mut BlockDownloader, io: &mut SyncIo) -> Result<DownloadAction, BlockDownloaderImportError> {
+	fn import_headers(headers: &[BlockHeader], downloader: &mut BlockDownloader, io: &mut dyn SyncIo) -> Result<DownloadAction, BlockDownloaderImportError> {
 		let mut stream = RlpStream::new();
 		stream.append_list(headers);
 		let bytes = stream.out();
@@ -668,7 +673,7 @@ mod tests {
 		downloader.import_headers(io, &rlp, expected_hash)
 	}
 
-	fn import_headers_ok(headers: &[BlockHeader], downloader: &mut BlockDownloader, io: &mut SyncIo) {
+	fn import_headers_ok(headers: &[BlockHeader], downloader: &mut BlockDownloader, io: &mut dyn SyncIo) {
 		let res = import_headers(headers, downloader, io);
 		assert!(res.is_ok());
 	}
@@ -677,7 +682,7 @@ mod tests {
 	fn import_headers_in_chain_head_state() {
 		::env_logger::try_init().ok();
 
-		let spec = Spec::new_test();
+		let spec = spec::new_test();
 		let genesis_hash = spec.genesis_header().hash();
 
 		let mut downloader = BlockDownloader::new(BlockSet::NewBlocks, &genesis_hash, 0);
@@ -810,13 +815,13 @@ mod tests {
 		let mut parent_hash = H256::zero();
 		for i in 0..4 {
 			// Construct the block body
-			let mut uncles = if i > 0 {
+			let uncles = if i > 0 {
 				encode_list(&[dummy_header(i - 1, H256::random())])
 			} else {
 				::rlp::EMPTY_LIST_RLP.to_vec()
 			};
 
-			let mut txs = encode_list(&[dummy_signed_tx()]);
+			let txs = encode_list(&[dummy_signed_tx()]);
 			let tx_root = ordered_trie_root(Rlp::new(&txs).iter().map(|r| r.as_raw()));
 
 			let mut rlp = RlpStream::new_list(2);
@@ -881,7 +886,7 @@ mod tests {
 			//
 			// The RLP-encoded integers are clearly not receipts, but the BlockDownloader treats
 			// all receipts as byte blobs, so it does not matter.
-			let mut receipts_rlp = if i < 2 {
+			let receipts_rlp = if i < 2 {
 				encode_list(&[0u32])
 			} else {
 				encode_list(&[i as u32])
@@ -926,7 +931,7 @@ mod tests {
 	fn reset_after_multiple_sets_of_useless_headers() {
 		::env_logger::try_init().ok();
 
-		let spec = Spec::new_test();
+		let spec = spec::new_test();
 		let genesis_hash = spec.genesis_header().hash();
 
 		let mut downloader = BlockDownloader::new(BlockSet::NewBlocks, &genesis_hash, 0);
@@ -966,7 +971,7 @@ mod tests {
 	fn dont_reset_after_multiple_sets_of_useless_headers_for_chain_head() {
 		::env_logger::try_init().ok();
 
-		let spec = Spec::new_test();
+		let spec = spec::new_test();
 		let genesis_hash = spec.genesis_header().hash();
 
 		let mut downloader = BlockDownloader::new(BlockSet::NewBlocks, &genesis_hash, 0);

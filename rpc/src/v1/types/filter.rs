@@ -14,6 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
+use ethereum_types::{H160, H256};
 use jsonrpc_core::{Error as RpcError};
 use serde::de::{Error, DeserializeOwned};
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
@@ -21,7 +22,7 @@ use serde_json::{Value, from_value};
 use types::filter::Filter as EthFilter;
 use types::ids::BlockId;
 
-use v1::types::{BlockNumber, H160, H256, Log};
+use v1::types::{BlockNumber, Log};
 use v1::helpers::errors::invalid_params;
 
 /// Variadic value
@@ -81,16 +82,14 @@ impl Filter {
 		}
 
 		let num_to_id = |num| match num {
+			BlockNumber::Hash { hash, .. } => BlockId::Hash(hash),
 			BlockNumber::Num(n) => BlockId::Number(n),
 			BlockNumber::Earliest => BlockId::Earliest,
 			BlockNumber::Latest | BlockNumber::Pending => BlockId::Latest,
 		};
 
 		let (from_block, to_block) = match self.block_hash {
-			Some(hash) => {
-				let hash = hash.into();
-				(BlockId::Hash(hash), BlockId::Hash(hash))
-			},
+			Some(hash) => (BlockId::Hash(hash), BlockId::Hash(hash)),
 			None =>
 				(self.from_block.map_or_else(|| BlockId::Latest, &num_to_id),
 				 self.to_block.map_or_else(|| BlockId::Latest, &num_to_id)),
@@ -100,14 +99,14 @@ impl Filter {
 			from_block, to_block,
 			address: self.address.and_then(|address| match address {
 				VariadicValue::Null => None,
-				VariadicValue::Single(a) => Some(vec![a.into()]),
-				VariadicValue::Multiple(a) => Some(a.into_iter().map(Into::into).collect())
+				VariadicValue::Single(a) => Some(vec![a]),
+				VariadicValue::Multiple(a) => Some(a)
 			}),
 			topics: {
 				let mut iter = self.topics.map_or_else(Vec::new, |topics| topics.into_iter().take(4).map(|topic| match topic {
 					VariadicValue::Null => None,
-					VariadicValue::Single(t) => Some(vec![t.into()]),
-					VariadicValue::Multiple(t) => Some(t.into_iter().map(Into::into).collect())
+					VariadicValue::Single(t) => Some(vec![t]),
+					VariadicValue::Multiple(t) => Some(t)
 				}).collect()).into_iter();
 
 				vec![
@@ -190,7 +189,7 @@ mod tests {
 			address: Some(VariadicValue::Multiple(vec![])),
 			topics: Some(vec![
 				VariadicValue::Null,
-				VariadicValue::Single("000000000000000000000000a94f5374fce5edbc8e2a8697c15331677e6ebf0b".into()),
+				VariadicValue::Single(H256::from_str("000000000000000000000000a94f5374fce5edbc8e2a8697c15331677e6ebf0b").unwrap()),
 				VariadicValue::Null,
 			]),
 			limit: None,
@@ -203,7 +202,7 @@ mod tests {
 			address: Some(vec![]),
 			topics: vec![
 				None,
-				Some(vec!["000000000000000000000000a94f5374fce5edbc8e2a8697c15331677e6ebf0b".into()]),
+				Some(vec![H256::from_str("000000000000000000000000a94f5374fce5edbc8e2a8697c15331677e6ebf0b").unwrap()]),
 				None,
 				None,
 			],

@@ -74,7 +74,7 @@ impl<DB: HashDB<KeccakHasher, DBValue>> CHT<DB> {
 		if block_to_cht_number(num) != Some(self.number) { return Ok(None) }
 
 		let mut recorder = Recorder::with_depth(from_level);
-		let db: &HashDB<_,_> = &self.db;
+		let db: &dyn HashDB<_,_> = &self.db;
 		let t = TrieDB::new(&db, &self.root)?;
 		t.get_with(&key!(num), &mut recorder)?;
 
@@ -95,7 +95,8 @@ pub struct BlockInfo {
 /// Build an in-memory CHT from a closure which provides necessary information
 /// about blocks. If the fetcher ever fails to provide the info, the CHT
 /// will not be generated.
-pub fn build<F>(cht_num: u64, mut fetcher: F) -> Option<CHT<MemoryDB<KeccakHasher, memory_db::HashKey<KeccakHasher>, DBValue>>>
+pub fn build<F>(cht_num: u64, mut fetcher: F)
+	-> Option<CHT<MemoryDB<KeccakHasher, memory_db::HashKey<KeccakHasher>, DBValue>>>
 	where F: FnMut(BlockId) -> Option<BlockInfo>
 {
 	let mut db = new_memory_db();
@@ -104,7 +105,7 @@ pub fn build<F>(cht_num: u64, mut fetcher: F) -> Option<CHT<MemoryDB<KeccakHashe
 	let last_num = start_number(cht_num + 1) - 1;
 	let mut id = BlockId::Number(last_num);
 
-	let mut root = H256::default();
+	let mut root = H256::zero();
 
 	{
 		let mut t = TrieDBMut::new(&mut db, &mut root);

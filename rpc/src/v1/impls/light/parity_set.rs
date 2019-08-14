@@ -20,28 +20,32 @@
 use std::io;
 use std::sync::Arc;
 
-use sync::ManageNetwork;
+use ethereum_types::{H160, H256, U256};
 use fetch::{self, Fetch};
 use hash::keccak_buffer;
+use light::client::LightChainClient;
+use sync::ManageNetwork;
 
 use jsonrpc_core::{Result, BoxFuture};
 use jsonrpc_core::futures::Future;
 use v1::helpers::errors;
 use v1::traits::ParitySet;
-use v1::types::{Bytes, H160, H256, U256, ReleaseInfo, Transaction};
+use v1::types::{Bytes, ReleaseInfo, Transaction};
 
 /// Parity-specific rpc interface for operations altering the settings.
 pub struct ParitySetClient<F> {
+	client: Arc<LightChainClient>,
 	net: Arc<ManageNetwork>,
 	fetch: F,
 }
 
 impl<F: Fetch> ParitySetClient<F> {
 	/// Creates new `ParitySetClient` with given `Fetch`.
-	pub fn new(net: Arc<ManageNetwork>, fetch: F) -> Self {
+	pub fn new(client: Arc<LightChainClient>, net: Arc<ManageNetwork>, fetch: F) -> Self {
 		ParitySetClient {
-			net: net,
-			fetch: fetch,
+			client,
+			net,
+			fetch,
 		}
 	}
 }
@@ -117,8 +121,8 @@ impl<F: Fetch> ParitySet for ParitySetClient<F> {
 		Err(errors::light_unimplemented(None))
 	}
 
-	fn set_spec_name(&self, _spec_name: String) -> Result<bool> {
-		Err(errors::light_unimplemented(None))
+	fn set_spec_name(&self, spec_name: String) -> Result<bool> {
+		self.client.set_spec_name(spec_name).map(|_| true).map_err(|()| errors::cannot_restart())
 	}
 
 	fn hash_content(&self, url: String) -> BoxFuture<H256> {

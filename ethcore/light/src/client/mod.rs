@@ -19,22 +19,24 @@
 use std::sync::{Weak, Arc};
 
 use ethcore::client::{ClientReport, EnvInfo, ClientIoMessage};
-use ethcore::engines::{epoch, EthEngine, EpochChange, EpochTransition, Proof};
-use ethcore::machine::EthereumMachine;
-use ethcore::error::{Error, EthcoreResult};
+use ethcore::engines::{epoch, Engine, EpochChange, EpochTransition, Proof};
 use ethcore::verification::queue::{self, HeaderQueue};
 use ethcore::spec::{Spec, SpecHardcodedSync};
 use io::IoChannel;
 use parking_lot::{Mutex, RwLock};
 use ethereum_types::{H256, U256};
 use futures::{IntoFuture, Future};
-use common_types::BlockNumber;
-use common_types::block_status::BlockStatus;
-use common_types::blockchain_info::BlockChainInfo;
-use common_types::encoded;
-use common_types::header::Header;
-use common_types::ids::BlockId;
-
+use common_types::{
+	BlockNumber,
+	block_status::BlockStatus,
+	blockchain_info::BlockChainInfo,
+	encoded,
+	errors::EthcoreError as Error,
+	errors::EthcoreResult,
+	header::Header,
+	ids::BlockId,
+	verification_queue_info::VerificationQueueInfo as BlockQueueInfo,
+};
 use kvdb::KeyValueDB;
 
 use self::fetch::ChainDataFetcher;
@@ -79,7 +81,7 @@ impl Default for Config {
 /// Trait for interacting with the header chain abstractly.
 pub trait LightChainClient: Send + Sync {
 	/// Adds a new `LightChainNotify` listener.
-	fn add_listener(&self, listener: Weak<LightChainNotify>);
+	fn add_listener(&self, listener: Weak<dyn LightChainNotify>);
 
 	/// Get chain info.
 	fn chain_info(&self) -> BlockChainInfo;
@@ -91,6 +93,9 @@ pub trait LightChainClient: Send + Sync {
 	/// Attempt to get a block hash by block id.
 	fn block_hash(&self, id: BlockId) -> Option<H256>;
 
+	/// Get block queue information.
+	fn queue_info(&self) -> BlockQueueInfo;
+
 	/// Attempt to get block header by block id.
 	fn block_header(&self, id: BlockId) -> Option<encoded::Header>;
 
@@ -101,7 +106,7 @@ pub trait LightChainClient: Send + Sync {
 	fn score(&self, id: BlockId) -> Option<U256>;
 
 	/// Get an iterator over a block and its ancestry.
-	fn ancestry_iter<'a>(&'a self, start: BlockId) -> Box<Iterator<Item=encoded::Header> + 'a>;
+	fn ancestry_iter<'a>(&'a self, start: BlockId) -> Box<dyn Iterator<Item=encoded::Header> + 'a>;
 
 	/// Get the signing chain ID.
 	fn signing_chain_id(&self) -> Option<u64>;
@@ -111,19 +116,19 @@ pub trait LightChainClient: Send + Sync {
 	fn env_info(&self, id: BlockId) -> Option<EnvInfo>;
 
 	/// Get a handle to the consensus engine.
-	fn engine(&self) -> &Arc<EthEngine>;
+	fn engine(&self) -> &Arc<dyn Engine>;
 
 	/// Query whether a block is known.
 	fn is_known(&self, hash: &H256) -> bool;
+
+	/// Set the chain via a spec name.
+	fn set_spec_name(&self, new_spec_name: String) -> Result<(), ()>;
 
 	/// Clear the queue.
 	fn clear_queue(&self);
 
 	/// Flush the queue.
 	fn flush_queue(&self);
-
-	/// Get queue info.
-	fn queue_info(&self) -> queue::QueueInfo;
 
 	/// Get the `i`th CHT root.
 	fn cht_root(&self, i: usize) -> Option<H256>;
@@ -156,21 +161,23 @@ impl<T: LightChainClient> AsLightClient for T {
 /// Light client implementation.
 pub struct Client<T> {
 	queue: HeaderQueue,
-	engine: Arc<EthEngine>,
+	engine: Arc<dyn Engine>,
 	chain: HeaderChain,
 	report: RwLock<ClientReport>,
 	import_lock: Mutex<()>,
-	db: Arc<KeyValueDB>,
-	listeners: RwLock<Vec<Weak<LightChainNotify>>>,
+	db: Arc<dyn KeyValueDB>,
+	listeners: RwLock<Vec<Weak<dyn LightChainNotify>>>,
 	fetcher: T,
 	verify_full: bool,
+	/// A closure to call when we want to restart the client
+	exit_handler: Mutex<Option<Box<dyn Fn(String) + 'static + Send>>>,
 }
 
 impl<T: ChainDataFetcher> Client<T> {
 	/// Create a new `Client`.
 	pub fn new(
 		config: Config,
-		db: Arc<KeyValueDB>,
+		db: Arc<dyn KeyValueDB>,
 		chain_col: Option<u32>,
 		spec: &Spec,
 		fetcher: T,
@@ -190,6 +197,7 @@ impl<T: ChainDataFetcher> Client<T> {
 			listeners: RwLock::new(vec![]),
 			fetcher,
 			verify_full: config.verify_full,
+			exit_handler: Mutex::new(None),
 		})
 	}
 
@@ -202,7 +210,7 @@ impl<T: ChainDataFetcher> Client<T> {
 	}
 
 	/// Adds a new `LightChainNotify` listener.
-	pub fn add_listener(&self, listener: Weak<LightChainNotify>) {
+	pub fn add_listener(&self, listener: Weak<dyn LightChainNotify>) {
 		self.listeners.write().push(listener);
 	}
 
@@ -355,13 +363,21 @@ impl<T: ChainDataFetcher> Client<T> {
 
 	/// Get blockchain mem usage in bytes.
 	pub fn chain_mem_used(&self) -> usize {
-		use heapsize::HeapSizeOf;
+		use parity_util_mem::MallocSizeOfExt;
 
-		self.chain.heap_size_of_children()
+		self.chain.malloc_size_of()
+	}
+
+	/// Set a closure to call when the client wants to be restarted.
+	///
+	/// The parameter passed to the callback is the name of the new chain spec to use after
+	/// the restart.
+	pub fn set_exit_handler<F>(&self, f: F) where F: Fn(String) + 'static + Send {
+		*self.exit_handler.lock() = Some(Box::new(f));
 	}
 
 	/// Get a handle to the verification engine.
-	pub fn engine(&self) -> &Arc<EthEngine> {
+	pub fn engine(&self) -> &Arc<dyn Engine> {
 		&self.engine
 	}
 
@@ -402,7 +418,7 @@ impl<T: ChainDataFetcher> Client<T> {
 		Arc::new(v)
 	}
 
-	fn notify<F: Fn(&LightChainNotify)>(&self, f: F) {
+	fn notify<F: Fn(&dyn LightChainNotify)>(&self, f: F) {
 		for listener in &*self.listeners.read() {
 			if let Some(listener) = listener.upgrade() {
 				f(&*listener)
@@ -453,8 +469,8 @@ impl<T: ChainDataFetcher> Client<T> {
 		true
 	}
 
-	fn check_epoch_signal(&self, verified_header: &Header) -> Result<Option<Proof<EthereumMachine>>, T::Error> {
-		use ethcore::machine::{AuxiliaryRequest, AuxiliaryData};
+	fn check_epoch_signal(&self, verified_header: &Header) -> Result<Option<Proof>, T::Error> {
+		use common_types::engines::machine::{AuxiliaryRequest, AuxiliaryData};
 
 		let mut block: Option<Vec<u8>> = None;
 		let mut receipts: Option<Vec<_>> = None;
@@ -499,7 +515,7 @@ impl<T: ChainDataFetcher> Client<T> {
 	}
 
 	// attempts to fetch the epoch proof from the network until successful.
-	fn write_pending_proof(&self, header: &Header, proof: Proof<EthereumMachine>) -> Result<(), T::Error> {
+	fn write_pending_proof(&self, header: &Header, proof: Proof) -> Result<(), T::Error> {
 		let proof = match proof {
 			Proof::Known(known) => known,
 			Proof::WithState(state_dependent) => {
@@ -520,12 +536,17 @@ impl<T: ChainDataFetcher> Client<T> {
 	}
 }
 
+
 impl<T: ChainDataFetcher> LightChainClient for Client<T> {
-	fn add_listener(&self, listener: Weak<LightChainNotify>) {
+	fn add_listener(&self, listener: Weak<dyn LightChainNotify>) {
 		Client::add_listener(self, listener)
 	}
 
 	fn chain_info(&self) -> BlockChainInfo { Client::chain_info(self) }
+
+	fn queue_info(&self) -> queue::QueueInfo {
+		self.queue.queue_info()
+	}
 
 	fn queue_header(&self, header: Header) -> EthcoreResult<H256> {
 		self.import_header(header)
@@ -547,7 +568,7 @@ impl<T: ChainDataFetcher> LightChainClient for Client<T> {
 		Client::score(self, id)
 	}
 
-	fn ancestry_iter<'a>(&'a self, start: BlockId) -> Box<Iterator<Item=encoded::Header> + 'a> {
+	fn ancestry_iter<'a>(&'a self, start: BlockId) -> Box<dyn Iterator<Item=encoded::Header> + 'a> {
 		Box::new(Client::ancestry_iter(self, start))
 	}
 
@@ -559,8 +580,19 @@ impl<T: ChainDataFetcher> LightChainClient for Client<T> {
 		Client::env_info(self, id)
 	}
 
-	fn engine(&self) -> &Arc<EthEngine> {
+	fn engine(&self) -> &Arc<dyn Engine> {
 		Client::engine(self)
+	}
+
+	fn set_spec_name(&self, new_spec_name: String) -> Result<(), ()> {
+		trace!(target: "mode", "Client::set_spec_name({:?})", new_spec_name);
+		if let Some(ref h) = *self.exit_handler.lock() {
+			(*h)(new_spec_name);
+			Ok(())
+		} else {
+			warn!("Not hypervised; cannot change chain.");
+			Err(())
+		}
 	}
 
 	fn is_known(&self, hash: &H256) -> bool {
@@ -573,10 +605,6 @@ impl<T: ChainDataFetcher> LightChainClient for Client<T> {
 
 	fn flush_queue(&self) {
 		Client::flush_queue(self);
-	}
-
-	fn queue_info(&self) -> queue::QueueInfo {
-		self.queue.queue_info()
 	}
 
 	fn cht_root(&self, i: usize) -> Option<H256> {
@@ -607,7 +635,7 @@ impl<T: ChainDataFetcher> ::ethcore::client::EngineClient for Client<T> {
 		})
 	}
 
-	fn as_full_client(&self) -> Option<&::ethcore::client::BlockChainClient> {
+	fn as_full_client(&self) -> Option<&dyn (::ethcore::client::BlockChainClient)> {
 		None
 	}
 

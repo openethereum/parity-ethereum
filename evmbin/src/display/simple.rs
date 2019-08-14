@@ -14,9 +14,9 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
-//! Simple VM output.
+//! Log EVM instruction output data traces from a simple formatting informant.
 
-use ethcore::trace;
+use trace;
 use bytes::ToPretty;
 
 use display;

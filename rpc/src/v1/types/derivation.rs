@@ -18,9 +18,8 @@ use std::fmt;
 use serde::{Deserialize, Deserializer};
 use serde::de::{Error, Visitor};
 
+use ethereum_types::H256;
 use ethstore;
-
-use super::hash::H256;
 
 /// Type of derivation
 pub enum DerivationType {

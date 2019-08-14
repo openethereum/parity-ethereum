@@ -16,7 +16,9 @@
 
 use tests::helpers::TestNet;
 
-use ethcore::client::{BlockInfo, BlockId, EachBlockWith};
+use ethcore::client::EachBlockWith;
+use client_traits::BlockInfo;
+use types::ids::BlockId;
 
 mod test_net;
 

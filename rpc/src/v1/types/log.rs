@@ -14,8 +14,9 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
+use ethereum_types::{H160, H256, U256};
 use types::log_entry::{LocalizedLogEntry, LogEntry};
-use v1::types::{Bytes, H160, H256, U256};
+use v1::types::Bytes;
 
 /// Log
 #[derive(Debug, Serialize, PartialEq, Eq, Hash, Clone)]
@@ -50,12 +51,12 @@ pub struct Log {
 impl From<LocalizedLogEntry> for Log {
 	fn from(e: LocalizedLogEntry) -> Log {
 		Log {
-			address: e.entry.address.into(),
+			address: e.entry.address,
 			topics: e.entry.topics.into_iter().map(Into::into).collect(),
 			data: e.entry.data.into(),
-			block_hash: Some(e.block_hash.into()),
+			block_hash: Some(e.block_hash),
 			block_number: Some(e.block_number.into()),
-			transaction_hash: Some(e.transaction_hash.into()),
+			transaction_hash: Some(e.transaction_hash),
 			transaction_index: Some(e.transaction_index.into()),
 			log_index: Some(e.log_index.into()),
 			transaction_log_index: Some(e.transaction_log_index.into()),
@@ -68,7 +69,7 @@ impl From<LocalizedLogEntry> for Log {
 impl From<LogEntry> for Log {
 	fn from(e: LogEntry) -> Log {
 		Log {
-			address: e.address.into(),
+			address: e.address,
 			topics: e.topics.into_iter().map(Into::into).collect(),
 			data: e.data.into(),
 			block_hash: None,
@@ -87,7 +88,8 @@ impl From<LogEntry> for Log {
 mod tests {
 	use serde_json;
 	use std::str::FromStr;
-	use v1::types::{Log, H160, H256, U256};
+	use v1::types::Log;
+	use ethereum_types::{H160, H256, U256};
 
 	#[test]
 	fn log_serialization() {
@@ -102,7 +104,7 @@ mod tests {
 			data: vec![].into(),
 			block_hash: Some(H256::from_str("ed76641c68a1c641aee09a94b3b471f4dc0316efe5ac19cf488e2674cf8d05b5").unwrap()),
 			block_number: Some(U256::from(0x4510c)),
-			transaction_hash: Some(H256::default()),
+			transaction_hash: Some(H256::zero()),
 			transaction_index: Some(U256::default()),
 			transaction_log_index: Some(1.into()),
 			log_index: Some(U256::from(1)),

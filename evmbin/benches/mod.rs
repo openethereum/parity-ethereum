@@ -17,7 +17,7 @@
 //! benchmarking for EVM
 //! should be started with:
 //! ```bash
-//! multirust run nightly cargo bench
+//! rustup run nightly cargo bench
 //! ```
 
 #![feature(test)]
@@ -25,16 +25,18 @@
 extern crate test;
 extern crate ethcore;
 extern crate evm;
-extern crate ethcore_util;
-extern crate ethcore_bigint;
+extern crate ethereum_types;
 extern crate rustc_hex;
+extern crate vm;
 
+use std::sync::Arc;
 use self::test::{Bencher, black_box};
 
-use evm::run_vm;
-use ethcore::vm::ActionParams;
-use ethcore_bigint::prelude::U256;
+use ethereum_types::U256;
+use evm::Factory;
 use rustc_hex::FromHex;
+use vm::tests::FakeExt;
+use vm::{ActionParams, Ext};
 
 #[bench]
 fn simple_loop_usize(b: &mut Bencher) {
@@ -54,9 +56,11 @@ fn simple_loop(gas: U256, b: &mut Bencher) {
 	b.iter(|| {
 		let mut params = ActionParams::default();
 		params.gas = gas;
-		params.code = Some(code.clone());
+		params.code = Some(Arc::new(code.clone()));
 
-		run_vm(params)
+		let mut ext = FakeExt::new();
+		let evm = Factory::default().create(params, ext.schedule(), ext.depth());
+		let _ = evm.exec(&mut ext);
 	});
 }
 
@@ -78,8 +82,10 @@ fn rng(gas: U256, b: &mut Bencher) {
 	b.iter(|| {
 		let mut params = ActionParams::default();
 		params.gas = gas;
-		params.code = Some(code.clone());
+		params.code = Some(Arc::new(code.clone()));
 
-		run_vm(params)
+		let mut ext = FakeExt::new();
+		let evm = Factory::default().create(params, ext.schedule(), ext.depth());
+		let _ = evm.exec(&mut ext);
 	});
 }

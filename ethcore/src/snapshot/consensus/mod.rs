@@ -21,8 +21,9 @@ use std::sync::atomic::AtomicBool;
 use std::sync::Arc;
 
 use blockchain::{BlockChain, BlockChainDB};
-use engines::EthEngine;
-use snapshot::{Error, ManifestData, Progress};
+use engines::Engine;
+use snapshot::{ManifestData, Progress};
+use types::errors::{SnapshotError, EthcoreError};
 
 use ethereum_types::H256;
 
@@ -33,7 +34,7 @@ pub use self::authority::*;
 pub use self::work::*;
 
 /// A sink for produced chunks.
-pub type ChunkSink<'a> = FnMut(&[u8]) -> ::std::io::Result<()> + 'a;
+pub type ChunkSink<'a> = dyn FnMut(&[u8]) -> ::std::io::Result<()> + 'a;
 
 /// Components necessary for snapshot creation and restoration.
 pub trait SnapshotComponents: Send {
@@ -51,7 +52,7 @@ pub trait SnapshotComponents: Send {
 		chunk_sink: &mut ChunkSink,
 		progress: &Progress,
 		preferred_size: usize,
-	) -> Result<(), Error>;
+	) -> Result<(), SnapshotError>;
 
 	/// Create a rebuilder, which will have chunks fed into it in aribtrary
 	/// order and then be finalized.
@@ -63,9 +64,9 @@ pub trait SnapshotComponents: Send {
 	fn rebuilder(
 		&self,
 		chain: BlockChain,
-		db: Arc<BlockChainDB>,
+		db: Arc<dyn BlockChainDB>,
 		manifest: &ManifestData,
-	) -> Result<Box<Rebuilder>, ::error::Error>;
+	) -> Result<Box<dyn Rebuilder>, EthcoreError>;
 
 	/// Minimum supported snapshot version number.
 	fn min_supported_version(&self) -> u64;
@@ -83,14 +84,14 @@ pub trait Rebuilder: Send {
 	fn feed(
 		&mut self,
 		chunk: &[u8],
-		engine: &EthEngine,
+		engine: &dyn Engine,
 		abort_flag: &AtomicBool,
-	) -> Result<(), ::error::Error>;
+	) -> Result<(), EthcoreError>;
 
 	/// Finalize the restoration. Will be done after all chunks have been
 	/// fed successfully.
 	///
 	/// This should apply the necessary "glue" between chunks,
 	/// and verify against the restored state.
-	fn finalize(&mut self, engine: &EthEngine) -> Result<(), ::error::Error>;
+	fn finalize(&mut self) -> Result<(), EthcoreError>;
 }

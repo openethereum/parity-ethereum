@@ -32,14 +32,18 @@ use types::transaction::{
 	UnverifiedTransaction,
 	SignedTransaction,
 };
-use types::header::Header;
+use types::{
+	header::Header,
+	ids::TransactionId,
+};
 use parking_lot::RwLock;
 
 use call_contract::CallContract;
-use client::{TransactionId, BlockInfo, Nonce};
-use engines::EthEngine;
+use client::Nonce;
+use client_traits::BlockInfo;
+use engines::Engine;
+use machine::transaction_ext::Transaction;
 use miner;
-use transaction_ext::Transaction;
 
 /// Cache for state nonces.
 #[derive(Debug, Clone)]
@@ -72,10 +76,10 @@ impl NonceCache {
 pub struct PoolClient<'a, C: 'a> {
 	chain: &'a C,
 	cached_nonces: CachedNonceClient<'a, C>,
-	engine: &'a EthEngine,
-	accounts: &'a LocalAccounts,
+	engine: &'a dyn Engine,
+	accounts: &'a dyn LocalAccounts,
 	best_block_header: Header,
-	service_transaction_checker: Option<ServiceTransactionChecker>,
+	service_transaction_checker: Option<&'a ServiceTransactionChecker>,
 }
 
 impl<'a, C: 'a> Clone for PoolClient<'a, C> {
@@ -98,9 +102,9 @@ impl<'a, C: 'a> PoolClient<'a, C> where
 	pub fn new(
 		chain: &'a C,
 		cache: &'a NonceCache,
-		engine: &'a EthEngine,
-		accounts: &'a LocalAccounts,
-		refuse_service_transactions: bool,
+		engine: &'a dyn Engine,
+		accounts: &'a dyn LocalAccounts,
+		service_transaction_checker: Option<&'a ServiceTransactionChecker>,
 	) -> Self {
 		let best_block_header = chain.best_block_header();
 		PoolClient {
@@ -109,11 +113,7 @@ impl<'a, C: 'a> PoolClient<'a, C> where
 			engine,
 			accounts,
 			best_block_header,
-			service_transaction_checker: if refuse_service_transactions {
-				None
-			} else {
-				Some(Default::default())
-			},
+			service_transaction_checker,
 		}
 	}
 
@@ -140,7 +140,7 @@ impl<'a, C: 'a> pool::client::Client for PoolClient<'a, C> where
 
 	fn verify_transaction(&self, tx: UnverifiedTransaction)-> Result<SignedTransaction, transaction::Error> {
 		self.engine.verify_transaction_basic(&tx, &self.best_block_header)?;
-		let tx = self.engine.verify_transaction_unordered(tx, &self.best_block_header)?;
+		let tx = tx.verify_unordered()?;
 
 		self.verify_signed(&tx)?;
 

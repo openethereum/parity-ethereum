@@ -22,14 +22,14 @@ use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering as AtomicOrdering};
 use std::sync::Arc;
 use std::cmp;
 use std::collections::{VecDeque, HashSet, HashMap};
-use heapsize::HeapSizeOf;
+use parity_util_mem::{MallocSizeOf, MallocSizeOfExt};
 use ethereum_types::{H256, U256};
 use parking_lot::{Condvar, Mutex, RwLock};
 use io::*;
-use error::{BlockError, ImportErrorKind, ErrorKind, Error};
-use engines::EthEngine;
+use engines::Engine;
 use client::ClientIoMessage;
 use len_caching_lock::LenCachingMutex;
+use types::errors::{BlockError, EthcoreError as Error, ImportError};
 
 use self::kind::{BlockLike, Kind};
 
@@ -96,15 +96,10 @@ enum State {
 }
 
 /// An item which is in the process of being verified.
+#[derive(MallocSizeOf)]
 pub struct Verifying<K: Kind> {
 	hash: H256,
 	output: Option<K::Verified>,
-}
-
-impl<K: Kind> HeapSizeOf for Verifying<K> {
-	fn heap_size_of_children(&self) -> usize {
-		self.output.heap_size_of_children()
-	}
 }
 
 /// Status of items in the queue.
@@ -138,7 +133,7 @@ struct Sizes {
 /// A queue of items to be verified. Sits between network or other I/O and the `BlockChain`.
 /// Keeps them in the same order as inserted, minus invalid items.
 pub struct VerificationQueue<K: Kind> {
-	engine: Arc<EthEngine>,
+	engine: Arc<dyn Engine>,
 	more_to_verify: Arc<Condvar>,
 	verification: Arc<Verification<K>>,
 	deleting: Arc<AtomicBool>,
@@ -206,7 +201,7 @@ struct Verification<K: Kind> {
 
 impl<K: Kind> VerificationQueue<K> {
 	/// Creates a new queue instance.
-	pub fn new(config: Config, engine: Arc<EthEngine>, message_channel: IoChannel<ClientIoMessage>, check_seal: bool) -> Self {
+	pub fn new(config: Config, engine: Arc<dyn Engine>, message_channel: IoChannel<ClientIoMessage>, check_seal: bool) -> Self {
 		let verification = Arc::new(Verification {
 			unverified: LenCachingMutex::new(VecDeque::new()),
 			verifying: LenCachingMutex::new(VecDeque::new()),
@@ -293,7 +288,7 @@ impl<K: Kind> VerificationQueue<K> {
 
 	fn verify(
 		verification: Arc<Verification<K>>,
-		engine: Arc<EthEngine>,
+		engine: Arc<dyn Engine>,
 		wait: Arc<Condvar>,
 		ready: Arc<QueueSignal>,
 		empty: Arc<Condvar>,
@@ -353,7 +348,7 @@ impl<K: Kind> VerificationQueue<K> {
 					None => continue,
 				};
 
-				verification.sizes.unverified.fetch_sub(item.heap_size_of_children(), AtomicOrdering::SeqCst);
+				verification.sizes.unverified.fetch_sub(item.malloc_size_of(), AtomicOrdering::SeqCst);
 				verifying.push_back(Verifying { hash: item.hash(), output: None });
 				item
 			};
@@ -367,7 +362,7 @@ impl<K: Kind> VerificationQueue<K> {
 						if e.hash == hash {
 							idx = Some(i);
 
-							verification.sizes.verifying.fetch_add(verified.heap_size_of_children(), AtomicOrdering::SeqCst);
+							verification.sizes.verifying.fetch_add(verified.malloc_size_of(), AtomicOrdering::SeqCst);
 							e.output = Some(verified);
 							break;
 						}
@@ -417,7 +412,7 @@ impl<K: Kind> VerificationQueue<K> {
 
 		while let Some(output) = verifying.front_mut().and_then(|x| x.output.take()) {
 			assert!(verifying.pop_front().is_some());
-			let size = output.heap_size_of_children();
+			let size = output.malloc_size_of();
 			removed_size += size;
 
 			if bad.contains(&output.parent_hash()) {
@@ -474,23 +469,23 @@ impl<K: Kind> VerificationQueue<K> {
 		let hash = input.hash();
 		{
 			if self.processing.read().contains_key(&hash) {
-				bail!((input, ErrorKind::Import(ImportErrorKind::AlreadyQueued).into()));
+				return Err((input, Error::Import(ImportError::AlreadyQueued).into()));
 			}
 
 			let mut bad = self.verification.bad.lock();
 			if bad.contains(&hash) {
-				bail!((input, ErrorKind::Import(ImportErrorKind::KnownBad).into()));
+				return Err((input, Error::Import(ImportError::KnownBad).into()));
 			}
 
 			if bad.contains(&input.parent_hash()) {
 				bad.insert(hash);
-				bail!((input, ErrorKind::Import(ImportErrorKind::KnownBad).into()));
+				return Err((input, Error::Import(ImportError::KnownBad).into()));
 			}
 		}
 
 		match K::create(input, &*self.engine, self.verification.check_seal) {
 			Ok(item) => {
-				self.verification.sizes.unverified.fetch_add(item.heap_size_of_children(), AtomicOrdering::SeqCst);
+				self.verification.sizes.unverified.fetch_add(item.malloc_size_of(), AtomicOrdering::SeqCst);
 
 				self.processing.write().insert(hash, item.difficulty());
 				{
@@ -504,7 +499,7 @@ impl<K: Kind> VerificationQueue<K> {
 			Err((input, err)) => {
 				match err {
 					// Don't mark future blocks as bad.
-					Error(ErrorKind::Block(BlockError::TemporarilyInvalid(_)), _) => {},
+					Error::Block(BlockError::TemporarilyInvalid(_)) => {},
 					_ => {
 						self.verification.bad.lock().insert(hash);
 					}
@@ -537,7 +532,7 @@ impl<K: Kind> VerificationQueue<K> {
 		let mut removed_size = 0;
 		for output in verified.drain(..) {
 			if bad.contains(&output.parent_hash()) {
-				removed_size += output.heap_size_of_children();
+				removed_size += output.malloc_size_of();
 				bad.insert(output.hash());
 				if let Some(difficulty) = processing.remove(&output.hash()) {
 					let mut td = self.total_difficulty.write();
@@ -574,7 +569,7 @@ impl<K: Kind> VerificationQueue<K> {
 		let count = cmp::min(max, verified.len());
 		let result = verified.drain(..count).collect::<Vec<_>>();
 
-		let drained_size = result.iter().map(HeapSizeOf::heap_size_of_children).fold(0, |a, c| a + c);
+		let drained_size = result.iter().map(MallocSizeOfExt::malloc_size_of).fold(0, |a, c| a + c);
 		self.verification.sizes.verified.fetch_sub(drained_size, AtomicOrdering::SeqCst);
 
 		self.ready_signal.reset();
@@ -739,19 +734,21 @@ impl<K: Kind> Drop for VerificationQueue<K> {
 #[cfg(test)]
 mod tests {
 	use io::*;
-	use spec::Spec;
 	use super::{BlockQueue, Config, State};
 	use super::kind::blocks::Unverified;
 	use test_helpers::{get_good_dummy_block_seq, get_good_dummy_block};
-	use error::*;
 	use bytes::Bytes;
-	use types::view;
-	use types::views::BlockView;
+	use types::{
+		view,
+		views::BlockView,
+		errors::{EthcoreError, ImportError},
+	};
+	use crate::spec;
 
 	// create a test block queue.
 	// auto_scaling enables verifier adjustment.
 	fn get_test_queue(auto_scale: bool) -> BlockQueue {
-		let spec = Spec::new_test();
+		let spec = spec::new_test();
 		let engine = spec.engine;
 
 		let mut config = Config::default();
@@ -773,7 +770,7 @@ mod tests {
 	#[test]
 	fn can_be_created() {
 		// TODO better test
-		let spec = Spec::new_test();
+		let spec = spec::new_test();
 		let engine = spec.engine;
 		let _ = BlockQueue::new(Config::default(), engine, IoChannel::disconnected(), true);
 	}
@@ -797,7 +794,7 @@ mod tests {
 		match duplicate_import {
 			Err((_, e)) => {
 				match e {
-					Error(ErrorKind::Import(ImportErrorKind::AlreadyQueued), _) => {},
+					EthcoreError::Import(ImportError::AlreadyQueued) => {},
 					_ => { panic!("must return AlreadyQueued error"); }
 				}
 			}
@@ -851,7 +848,7 @@ mod tests {
 
 	#[test]
 	fn test_mem_limit() {
-		let spec = Spec::new_test();
+		let spec = spec::new_test();
 		let engine = spec.engine;
 		let mut config = Config::default();
 		config.max_mem_use = super::MIN_MEM_LIMIT;  // empty queue uses about 15000
@@ -902,7 +899,7 @@ mod tests {
 
 		#[test]
 		fn worker_threads_honor_specified_number_without_scaling() {
-			let spec = Spec::new_test();
+			let spec = spec::new_test();
 			let engine = spec.engine;
 			let config = get_test_config(1, false);
 			let queue = BlockQueue::new(config, engine, IoChannel::disconnected(), true);
@@ -912,7 +909,7 @@ mod tests {
 
 		#[test]
 		fn worker_threads_specified_to_zero_should_set_to_one() {
-			let spec = Spec::new_test();
+			let spec = spec::new_test();
 			let engine = spec.engine;
 			let config = get_test_config(0, false);
 			let queue = BlockQueue::new(config, engine, IoChannel::disconnected(), true);
@@ -922,7 +919,7 @@ mod tests {
 
 		#[test]
 		fn worker_threads_should_only_accept_max_number_cpus() {
-			let spec = Spec::new_test();
+			let spec = spec::new_test();
 			let engine = spec.engine;
 			let config = get_test_config(10_000, false);
 			let queue = BlockQueue::new(config, engine, IoChannel::disconnected(), true);
@@ -936,7 +933,7 @@ mod tests {
 			let num_cpus = ::num_cpus::get();
 			// only run the test with at least 2 CPUs
 			if num_cpus > 1 {
-				let spec = Spec::new_test();
+				let spec = spec::new_test();
 				let engine = spec.engine;
 				let config = get_test_config(num_cpus - 1, true);
 				let queue = BlockQueue::new(config, engine, IoChannel::disconnected(), true);

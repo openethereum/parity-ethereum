@@ -33,11 +33,11 @@ pub struct NoopPrivateTxHandler;
 
 impl PrivateTxHandler for NoopPrivateTxHandler {
 	fn import_private_transaction(&self, _rlp: &[u8]) -> Result<H256, String> {
-		Ok(H256::default())
+		Ok(H256::zero())
 	}
 
 	fn import_signed_private_transaction(&self, _rlp: &[u8]) -> Result<H256, String> {
-		Ok(H256::default())
+		Ok(H256::zero())
 	}
 }
 
@@ -53,11 +53,11 @@ pub struct SimplePrivateTxHandler {
 impl PrivateTxHandler for SimplePrivateTxHandler {
 	fn import_private_transaction(&self, rlp: &[u8]) -> Result<H256, String> {
 		self.txs.lock().push(rlp.to_vec());
-		Ok(H256::default())
+		Ok(H256::zero())
 	}
 
 	fn import_signed_private_transaction(&self, rlp: &[u8]) -> Result<H256, String> {
 		self.signed_txs.lock().push(rlp.to_vec());
-		Ok(H256::default())
+		Ok(H256::zero())
 	}
 }

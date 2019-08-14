@@ -20,15 +20,16 @@ use std::io::{BufReader, BufRead};
 use std::time::{Instant, Duration};
 use std::thread::sleep;
 use std::sync::Arc;
+
 use rustc_hex::FromHex;
 use hash::{keccak, KECCAK_NULL_RLP};
 use ethereum_types::{U256, H256, Address};
 use bytes::ToPretty;
 use rlp::PayloadInfo;
+use client_traits::BlockInfo;
 use ethcore::client::{
-	Mode, DatabaseCompactionProfile, VMType, Nonce, Balance, BlockChainClient, BlockId, BlockInfo, ImportBlock, BlockChainReset
+	Mode, DatabaseCompactionProfile, VMType, Nonce, Balance, BlockChainClient, ImportBlock, BlockChainReset
 };
-use ethcore::error::{ImportErrorKind, ErrorKind as EthcoreErrorKind, Error as EthcoreError};
 use ethcore::miner::Miner;
 use ethcore::verification::queue::VerifierSettings;
 use ethcore::verification::queue::kind::blocks::Unverified;
@@ -42,6 +43,10 @@ use user_defaults::UserDefaults;
 use ethcore_private_tx;
 use db;
 use ansi_term::Colour;
+use types::{
+	ids::BlockId,
+	errors::{ImportError, EthcoreError}
+};
 
 #[derive(Debug, PartialEq)]
 pub enum DataFormat {
@@ -272,7 +277,7 @@ fn execute_import_light(cmd: ImportBlockchain) -> Result<(), String> {
 		}
 
 		match client.import_header(header) {
-			Err(EthcoreError(EthcoreErrorKind::Import(ImportErrorKind::AlreadyInChain), _)) => {
+			Err(EthcoreError::Import(ImportError::AlreadyInChain)) => {
 				trace!("Skipping block already in chain.");
 			}
 			Err(e) => {
@@ -444,7 +449,7 @@ fn execute_import(cmd: ImportBlockchain) -> Result<(), String> {
 		let block = Unverified::from_rlp(bytes).map_err(|_| "Invalid block rlp")?;
 		while client.queue_info().is_full() { sleep(Duration::from_secs(1)); }
 		match client.import_block(block) {
-			Err(EthcoreError(EthcoreErrorKind::Import(ImportErrorKind::AlreadyInChain), _)) => {
+			Err(EthcoreError::Import(ImportError::AlreadyInChain)) => {
 				trace!("Skipping block already in chain.");
 			}
 			Err(e) => {

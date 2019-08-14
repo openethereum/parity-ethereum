@@ -20,13 +20,12 @@ use std::sync::Arc;
 
 use accounts::AccountProvider;
 use ethcore::client::{BlockChainClient, Client, ClientConfig, ChainInfo, ImportBlock};
-use ethcore::ethereum;
 use ethcore::miner::Miner;
-use ethcore::spec::{Genesis, Spec};
+use ethcore::spec::{Genesis, Spec, self};
 use ethcore::test_helpers;
 use ethcore::verification::VerifierType;
 use ethcore::verification::queue::kind::blocks::Unverified;
-use ethereum_types::{H256, Address};
+use ethereum_types::{Address, H256, U256};
 use ethjson::blockchain::BlockChain;
 use ethjson::spec::ForkSpec;
 use io::IoChannel;
@@ -42,7 +41,6 @@ use v1::impls::{EthClient, EthClientOptions, SigningUnsafeClient};
 use v1::metadata::Metadata;
 use v1::tests::helpers::{TestSnapshotService, TestSyncProvider, Config};
 use v1::traits::{Eth, EthSigning};
-use v1::types::U256 as NU256;
 
 fn account_provider() -> Arc<AccountProvider> {
 	Arc::new(AccountProvider::transient_provider())
@@ -65,11 +63,10 @@ fn snapshot_service() -> Arc<TestSnapshotService> {
 
 fn make_spec(chain: &BlockChain) -> Spec {
 	let genesis = Genesis::from(chain.genesis());
-	let mut spec = ethereum::new_frontier_test();
+	let mut spec = spec::new_frontier_test();
 	let state = chain.pre_state.clone().into();
 	spec.set_genesis_state(state).expect("unable to set genesis state");
 	spec.overwrite_genesis_params(genesis);
-	assert!(spec.is_state_root_valid());
 	spec
 }
 
@@ -144,7 +141,8 @@ impl EthTester {
 				send_block_number_in_get_work: true,
 				gas_price_percentile: 50,
 				allow_experimental_rpcs: true,
-				allow_missing_blocks: false
+				allow_missing_blocks: false,
+				no_ancient_blocks: false
 			},
 		);
 
@@ -459,7 +457,7 @@ fn verify_transaction_counts(name: String, chain: BlockChain) {
 			"jsonrpc": "2.0",
 			"method": "eth_getBlockTransactionCountByNumber",
 			"params": [
-				"#.to_owned() + &::serde_json::to_string(&NU256::from(num)).unwrap() + r#"
+				"#.to_owned() + &::serde_json::to_string(&U256::from(num)).unwrap() + r#"
 			],
 			"id": "# + format!("{}", *id).as_ref() + r#"
 		}"#;
@@ -495,7 +493,7 @@ fn verify_transaction_counts(name: String, chain: BlockChain) {
 #[test]
 fn starting_nonce_test() {
 	let tester = EthTester::from_spec(Spec::load(&env::temp_dir(), POSITIVE_NONCE_SPEC).expect("invalid chain spec"));
-	let address = Address::from(10);
+	let address = Address::from_low_u64_be(10);
 
 	let sample = tester.handler.handle_request_sync(&(r#"
 		{

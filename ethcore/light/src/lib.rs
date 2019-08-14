@@ -54,6 +54,7 @@ extern crate serde_derive;
 extern crate log;
 
 extern crate bincode;
+extern crate client_traits;
 extern crate common_types;
 extern crate ethcore_blockchain;
 extern crate ethcore_db;
@@ -61,13 +62,17 @@ extern crate ethcore_io as io;
 extern crate ethcore_network as network;
 extern crate parity_bytes as bytes;
 extern crate ethereum_types;
+extern crate ethcore_miner as miner;
 extern crate ethcore;
 extern crate hash_db;
-extern crate heapsize;
+extern crate parity_util_mem;
+extern crate parity_util_mem as mem;
+extern crate parity_util_mem as malloc_size_of;
 extern crate failsafe;
 extern crate futures;
 extern crate itertools;
 extern crate keccak_hasher;
+extern crate machine;
 extern crate memory_db;
 extern crate trie_db as trie;
 extern crate patricia_trie_ethereum as ethtrie;
@@ -85,8 +90,7 @@ extern crate keccak_hash as hash;
 extern crate triehash_ethereum as triehash;
 extern crate kvdb;
 extern crate memory_cache;
-#[macro_use]
-extern crate error_chain;
+extern crate derive_more;
 
 #[cfg(test)]
 extern crate kvdb_memorydb;

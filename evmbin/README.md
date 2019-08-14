@@ -30,7 +30,7 @@ Transaction options:
     --gas-price WEI    Supplied gas price as hex (without 0x).
 
 State test options:
-    --only NAME        Runs only a single test matching the name.
+    --only NAME        Runs only a single state test matching the name.
     --chain CHAIN      Run only tests from specific chain.
 
 General options:
@@ -52,4 +52,4 @@ _This project is a part of the Parity Ethereum toolchain._
 - [ethabi](https://github.com/paritytech/ethabi) - Parity Ethereum function calls encoding.
 - [ethstore](https://github.com/paritytech/parity-ethereum/blob/master/accounts/ethstore) - Parity Ethereum key management.
 - [ethkey](https://github.com/paritytech/parity-ethereum/blob/master/accounts/ethkey) - Parity Ethereum keys generator.
-- [whisper](https://github.com/paritytech/parity-ethereum/blob/master/whisper/) - Implementation of Whisper-v2 PoC.
+- [whisper](https://github.com/paritytech/whisper) - Implementation of Whisper-v2 PoC.

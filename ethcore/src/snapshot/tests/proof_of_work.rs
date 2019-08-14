@@ -18,7 +18,7 @@
 
 use std::sync::atomic::AtomicBool;
 use tempdir::TempDir;
-use error::{Error, ErrorKind};
+use types::errors::EthcoreError as Error;
 
 use blockchain::generator::{BlockGenerator, BlockBuilder};
 use blockchain::{BlockChain, ExtrasInsert};
@@ -29,6 +29,7 @@ use parking_lot::Mutex;
 use snappy;
 use kvdb::DBTransaction;
 use test_helpers;
+use crate::spec;
 
 const SNAPSHOT_MODE: ::snapshot::PowSnapshot = ::snapshot::PowSnapshot { blocks: 30000, max_restore_blocks: 30000 };
 
@@ -38,7 +39,7 @@ fn chunk_and_restore(amount: u64) {
 	let generator = BlockGenerator::new(vec![rest]);
 	let genesis = genesis.last();
 
-	let engine = ::spec::Spec::new_test().engine;
+	let engine = spec::new_test().engine;
 	let tempdir = TempDir::new("").unwrap();
 	let snapshot_path = tempdir.path().join("SNAP");
 
@@ -93,7 +94,7 @@ fn chunk_and_restore(amount: u64) {
 		rebuilder.feed(&chunk, engine.as_ref(), &flag).unwrap();
 	}
 
-	rebuilder.finalize(engine.as_ref()).unwrap();
+	rebuilder.finalize().unwrap();
 	drop(rebuilder);
 
 	// and test it.
@@ -119,7 +120,7 @@ fn checks_flag() {
 	let mut stream = RlpStream::new_list(5);
 
 	stream.append(&100u64)
-		.append(&H256::default())
+		.append(&H256::zero())
 		.append(&(!0u64));
 
 	stream.append_empty_data().append_empty_data();
@@ -128,7 +129,7 @@ fn checks_flag() {
 	let chunk = stream.out();
 
 	let db = test_helpers::new_db();
-	let engine = ::spec::Spec::new_test().engine;
+	let engine = spec::new_test().engine;
 	let chain = BlockChain::new(Default::default(), genesis.last().encoded().raw(), db.clone());
 
 	let manifest = ::snapshot::ManifestData {
@@ -137,13 +138,13 @@ fn checks_flag() {
 		block_hashes: Vec::new(),
 		state_root: ::hash::KECCAK_NULL_RLP,
 		block_number: 102,
-		block_hash: H256::default(),
+		block_hash: H256::zero(),
 	};
 
 	let mut rebuilder = SNAPSHOT_MODE.rebuilder(chain, db.clone(), &manifest).unwrap();
 
 	match rebuilder.feed(&chunk, engine.as_ref(), &AtomicBool::new(false)) {
-		Err(Error(ErrorKind::Snapshot(SnapshotError::RestorationAborted), _)) => {}
+		Err(Error::Snapshot(SnapshotError::RestorationAborted)) => {}
 		_ => panic!("Wrong result on abort flag set")
 	}
 }

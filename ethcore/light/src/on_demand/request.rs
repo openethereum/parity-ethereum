@@ -24,9 +24,8 @@ use common_types::basic_account::BasicAccount;
 use common_types::encoded;
 use common_types::receipt::Receipt;
 use common_types::transaction::SignedTransaction;
-use ethcore::engines::{EthEngine, StateDependentProof};
-use ethcore::machine::EthereumMachine;
-use ethcore::state::{self, ProvedExecution};
+use ethcore::engines::{Engine, StateDependentProof};
+use ethcore::executive_state::{ProvedExecution, self};
 use ethereum_types::{H256, U256, Address};
 use ethtrie::{TrieError, TrieDB};
 use hash::{KECCAK_NULL_RLP, KECCAK_EMPTY, KECCAK_EMPTY_LIST_RLP, keccak};
@@ -34,7 +33,7 @@ use hash_db::HashDB;
 use kvdb::DBValue;
 use parking_lot::Mutex;
 use request::{self as net_request, IncompleteRequest, CompleteRequest, Output, OutputKind, Field};
-use rlp::{RlpStream, Rlp};
+use rlp::RlpStream;
 use trie::Trie;
 use vm::EnvInfo;
 
@@ -983,15 +982,9 @@ impl Account {
 		let mut db = journaldb::new_memory_db();
 		for node in proof { db.insert(hash_db::EMPTY_PREFIX, &node[..]); }
 
-		match TrieDB::new(&db, &state_root).and_then(|t| t.get(&keccak(&self.address)))? {
+		match TrieDB::new(&db, &state_root).and_then(|t| t.get(keccak(&self.address).as_bytes()))? {
 			Some(val) => {
-				let rlp = Rlp::new(&val);
-				Ok(Some(BasicAccount {
-					nonce: rlp.val_at(0)?,
-					balance: rlp.val_at(1)?,
-					storage_root: rlp.val_at(2)?,
-					code_hash: rlp.val_at(3)?,
-				}))
+				Ok(Some(rlp::decode::<BasicAccount>(&val)?))
 			},
 			None => {
 				trace!(target: "on_demand", "Account {:?} not found", self.address);
@@ -1038,7 +1031,7 @@ pub struct TransactionProof {
 	// TODO: it's not really possible to provide this if the header is unknown.
 	pub env_info: EnvInfo,
 	/// Consensus engine.
-	pub engine: Arc<EthEngine>,
+	pub engine: Arc<dyn Engine>,
 }
 
 impl TransactionProof {
@@ -1049,7 +1042,7 @@ impl TransactionProof {
 		let mut env_info = self.env_info.clone();
 		env_info.gas_limit = self.tx.gas;
 
-		let proved_execution = state::check_proof(
+		let proved_execution = executive_state::check_proof(
 			state_items,
 			root,
 			&self.tx,
@@ -1081,9 +1074,9 @@ pub struct Signal {
 	/// Block hash and number to fetch proof for.
 	pub hash: H256,
 	/// Consensus engine, used to check the proof.
-	pub engine: Arc<EthEngine>,
+	pub engine: Arc<dyn Engine>,
 	/// Special checker for the proof.
-	pub proof_check: Arc<StateDependentProof<EthereumMachine>>,
+	pub proof_check: Arc<dyn StateDependentProof>,
 }
 
 impl Signal {
@@ -1106,7 +1099,8 @@ mod tests {
 	use trie::Recorder;
 	use hash::keccak;
 
-	use ethcore::client::{BlockChainClient, BlockInfo, TestBlockChainClient, EachBlockWith};
+	use ethcore::client::{BlockChainClient, TestBlockChainClient, EachBlockWith};
+	use client_traits::BlockInfo;
 	use common_types::header::Header;
 	use common_types::encoded;
 	use common_types::receipt::{Receipt, TransactionOutcome};
@@ -1162,7 +1156,7 @@ mod tests {
 
 	#[test]
 	fn check_header_with_ancestors() {
-		let mut last_header_hash = H256::default();
+		let mut last_header_hash = H256::zero();
 		let mut headers = (0..11).map(|num| {
 			let mut header = Header::new();
 			header.set_number(num);
@@ -1209,32 +1203,32 @@ mod tests {
 
 		// Incorrect responses
 		assert_eq!(header_with_ancestors(invalid_successor.hash().into(), 0)
-				   .check_response(&cache, &headers[0].hash().into(), &raw_headers[0..1]),
-				   Err(Error::WrongHash(invalid_successor.hash(), headers[0].hash())));
+				.check_response(&cache, &headers[0].hash().into(), &raw_headers[0..1]),
+				Err(Error::WrongHash(invalid_successor.hash(), headers[0].hash())));
 		assert_eq!(header_with_ancestors(headers[0].hash().into(), 0)
-				   .check_response(&cache, &headers[0].hash().into(), &[]),
-				   Err(Error::Empty));
+				.check_response(&cache, &headers[0].hash().into(), &[]),
+				Err(Error::Empty));
 		assert_eq!(header_with_ancestors(headers[0].hash().into(), 10)
-				   .check_response(&cache, &headers[0].hash().into(), &raw_headers[0..10]),
-				   Err(Error::TooFewResults(11, 10)));
+				.check_response(&cache, &headers[0].hash().into(), &raw_headers[0..10]),
+				Err(Error::TooFewResults(11, 10)));
 		assert_eq!(header_with_ancestors(headers[0].hash().into(), 9)
-				   .check_response(&cache, &headers[0].hash().into(), &raw_headers[0..11]),
-				   Err(Error::TooManyResults(10, 11)));
+				.check_response(&cache, &headers[0].hash().into(), &raw_headers[0..11]),
+				Err(Error::TooManyResults(10, 11)));
 
 		let response = &[raw_headers[0].clone(), raw_headers[2].clone()];
 		assert_eq!(header_with_ancestors(headers[0].hash().into(), 1)
-				   .check_response(&cache, &headers[0].hash().into(), response),
-				   Err(Error::WrongHeaderSequence));
+				.check_response(&cache, &headers[0].hash().into(), response),
+				Err(Error::WrongHeaderSequence));
 
 		let response = &[raw_invalid_successor.clone(), raw_headers[0].clone()];
 		assert_eq!(header_with_ancestors(invalid_successor.hash().into(), 1)
-				   .check_response(&cache, &invalid_successor.hash().into(), response),
-				   Err(Error::WrongHeaderSequence));
+				.check_response(&cache, &invalid_successor.hash().into(), response),
+				Err(Error::WrongHeaderSequence));
 
 		let response = &[raw_invalid_successor.clone(), raw_headers[1].clone()];
 		assert_eq!(header_with_ancestors(invalid_successor.hash().into(), 1)
-				   .check_response(&cache, &invalid_successor.hash().into(), response),
-				   Err(Error::WrongHeaderSequence));
+				.check_response(&cache, &invalid_successor.hash().into(), response),
+				Err(Error::WrongHeaderSequence));
 	}
 
 	#[test]
@@ -1278,7 +1272,7 @@ mod tests {
 	fn check_state_proof() {
 		use rlp::RlpStream;
 
-		let mut root = H256::default();
+		let mut root = H256::zero();
 		let mut db = journaldb::new_memory_db();
 		let mut header = Header::new();
 		header.set_number(123_456);
@@ -1298,17 +1292,17 @@ mod tests {
 			let mut trie = SecTrieDBMut::new(&mut db, &mut root);
 			for _ in 0..100 {
 				let address = Address::random();
-				trie.insert(&*address, &rand_acc()).unwrap();
+				trie.insert(address.as_bytes(), &rand_acc()).unwrap();
 			}
 
-			trie.insert(&*addr, &rand_acc()).unwrap();
+			trie.insert(addr.as_bytes(), &rand_acc()).unwrap();
 		}
 
 		let proof = {
 			let trie = SecTrieDB::new(&db, &root).unwrap();
 			let mut recorder = Recorder::new();
 
-			trie.get_with(&*addr, &mut recorder).unwrap().unwrap();
+			trie.get_with(addr.as_bytes(), &mut recorder).unwrap().unwrap();
 
 			recorder.drain().into_iter().map(|r| r.data).collect::<Vec<_>>()
 		};

@@ -19,6 +19,7 @@ extern crate cid;
 extern crate unicase;
 
 extern crate rlp;
+extern crate common_types;
 extern crate ethcore;
 extern crate parity_bytes as bytes;
 extern crate ethereum_types;

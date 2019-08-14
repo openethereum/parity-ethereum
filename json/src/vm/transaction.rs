@@ -40,6 +40,9 @@ pub struct Transaction {
 	pub origin: Address,
 	/// Sent value.
 	pub value: Uint,
+	/// Contract code version.
+	#[serde(default)]
+	pub code_version: Uint,
 }
 
 #[cfg(test)]

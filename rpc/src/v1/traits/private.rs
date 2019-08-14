@@ -16,14 +16,15 @@
 
 //! SecretStore-specific rpc interface.
 
+use ethereum_types::{H160, H256, U256};
 use jsonrpc_core::Error;
 use jsonrpc_derive::rpc;
 
-use v1::types::{Bytes, PrivateTransactionReceipt, H160, H256, U256, BlockNumber,
-	PrivateTransactionReceiptAndTransaction, CallRequest};
+use v1::types::{Bytes, PrivateTransactionReceipt, BlockNumber,
+	PrivateTransactionReceiptAndTransaction, CallRequest, PrivateTransactionLog};
 
 /// Private transaction management RPC interface.
-#[rpc]
+#[rpc(server)]
 pub trait Private {
 	/// RPC Metadata
 	type Metadata;
@@ -43,4 +44,8 @@ pub trait Private {
 	/// Retrieve the id of the key associated with the contract
 	#[rpc(name = "private_contractKey")]
 	fn private_contract_key(&self, H160) -> Result<H256, Error>;
+
+	/// Retrieve log information about private transaction
+	#[rpc(name = "private_log")]
+	fn private_log(&self, H256) -> Result<PrivateTransactionLog, Error>;
 }

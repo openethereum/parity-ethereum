@@ -22,17 +22,18 @@ use std::sync::atomic::{self, AtomicUsize};
 use std::collections::{BTreeMap, BTreeSet, HashMap};
 
 use ethereum_types::{H256, U256, Address};
+use futures::sync::mpsc;
 use parking_lot::RwLock;
 use txpool::{self, Verifier};
 use types::transaction;
 
 use pool::{
-	self, scoring, verifier, client, ready, listener,
-	PrioritizationStrategy, PendingOrdering, PendingSettings,
+	self, replace, scoring, verifier, client, ready, listener,
+	PrioritizationStrategy, PendingOrdering, PendingSettings, TxStatus
 };
 use pool::local_transactions::LocalTransactionsList;
 
-type Listener = (LocalTransactionsList, (listener::Notifier, listener::Logger));
+type Listener = (LocalTransactionsList, (listener::TransactionsPoolNotifier, listener::Logger));
 type Pool = txpool::Pool<pool::VerifiedTransaction, scoring::NonceAndGasPrice, Listener>;
 
 /// Max cache time in milliseconds for pending transactions.
@@ -240,10 +241,10 @@ impl TransactionQueue {
 	///
 	/// Given blockchain and state access (Client)
 	/// verifies and imports transactions to the pool.
-	pub fn import<C: client::Client>(
+	pub fn import<T: IntoIterator<Item = verifier::Transaction>, C: client::Client + client::NonceClient + Clone>(
 		&self,
 		client: C,
-		transactions: Vec<verifier::Transaction>,
+		transactions: T,
 	) -> Vec<Result<(), transaction::Error>> {
 		// Run verification
 		trace_time!("pool::verify_and_import");
@@ -263,11 +264,13 @@ impl TransactionQueue {
 		};
 
 		let verifier = verifier::Verifier::new(
-			client,
+			client.clone(),
 			options,
 			self.insertion_id.clone(),
 			transaction_to_replace,
 		);
+
+		let mut replace = replace::ReplaceByScoreAndReadiness::new(self.pool.read().scoring().clone(), client);
 
 		let results = transactions
 			.into_iter()
@@ -286,7 +289,7 @@ impl TransactionQueue {
 				let imported = verifier
 					.verify_transaction(transaction)
 					.and_then(|verified| {
-						self.pool.write().import(verified).map_err(convert_error)
+						self.pool.write().import(verified, &mut replace).map_err(convert_error)
 					});
 
 				match imported {
@@ -494,7 +497,7 @@ impl TransactionQueue {
 	/// removes them from the pool.
 	/// That method should be used if invalid transactions are detected
 	/// or you want to cancel a transaction.
-	pub fn remove<'a, T: IntoIterator<Item = &'a H256>>(
+	pub fn remove<'a, T: IntoIterator<Item=&'a H256>>(
 		&self,
 		hashes: T,
 		is_invalid: bool,
@@ -566,10 +569,16 @@ impl TransactionQueue {
 		self.pool.read().listener().0.all_transactions().iter().map(|(a, b)| (*a, b.clone())).collect()
 	}
 
-	/// Add a callback to be notified about all transactions entering the pool.
-	pub fn add_listener(&self, f: Box<Fn(&[H256]) + Send + Sync>) {
+	/// Add a listener to be notified about all transactions the pool
+	pub fn add_pending_listener(&self, f: mpsc::UnboundedSender<Arc<Vec<H256>>>) {
 		let mut pool = self.pool.write();
-		(pool.listener_mut().1).0.add(f);
+		(pool.listener_mut().1).0.add_pending_listener(f);
+	}
+
+	/// Add a listener to be notified about all transactions the pool
+	pub fn add_full_listener(&self, f: mpsc::UnboundedSender<Arc<Vec<(H256, TxStatus)>>>) {
+		let mut pool = self.pool.write();
+		(pool.listener_mut().1).0.add_full_listener(f);
 	}
 
 	/// Check if pending set is cached.
@@ -579,17 +588,13 @@ impl TransactionQueue {
 	}
 }
 
-fn convert_error(err: txpool::Error) -> transaction::Error {
-	use self::txpool::ErrorKind;
+fn convert_error<H: fmt::Debug + fmt::LowerHex>(err: txpool::Error<H>) -> transaction::Error {
+	use self::txpool::Error;
 
-	match *err.kind() {
-		ErrorKind::AlreadyImported(..) => transaction::Error::AlreadyImported,
-		ErrorKind::TooCheapToEnter(..) => transaction::Error::LimitReached,
-		ErrorKind::TooCheapToReplace(..) => transaction::Error::TooCheapToReplace,
-		ref e => {
-			warn!(target: "txqueue", "Unknown import error: {:?}", e);
-			transaction::Error::NotAllowed
-		},
+	match err {
+		Error::AlreadyImported(..) => transaction::Error::AlreadyImported,
+		Error::TooCheapToEnter(..) => transaction::Error::LimitReached,
+		Error::TooCheapToReplace(..) => transaction::Error::TooCheapToReplace
 	}
 }
 

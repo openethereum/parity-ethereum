@@ -15,6 +15,7 @@
 // along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
 use std::sync::Arc;
+use std::str::FromStr;
 
 use accounts::{AccountProvider, AccountProviderSettings};
 use ethereum_types::Address;
@@ -74,7 +75,7 @@ fn rpc_parity_accounts_info() {
 	assert_eq!(accounts.len(), 1);
 	let address = accounts[0];
 
-	tester.accounts.set_address_name(1.into(), "XX".into());
+	tester.accounts.set_address_name(Address::from_low_u64_be(1), "XX".into());
 	tester.accounts.set_account_name(address.clone(), "Test".into()).unwrap();
 	tester.accounts.set_account_meta(address.clone(), "{foo: 69}".into()).unwrap();
 
@@ -89,7 +90,7 @@ fn rpc_parity_default_account() {
 	let io = tester.io;
 
 	// Check empty
-	let address = Address::default();
+	let address = Address::zero();
 	let request = r#"{"jsonrpc": "2.0", "method": "parity_defaultAccount", "params": [], "id": 1}"#;
 	let response = format!("{{\"jsonrpc\":\"2.0\",\"result\":\"0x{:x}\",\"id\":1}}", address);
 	assert_eq!(io.handle_request_sync(request), Some(response));
@@ -456,7 +457,7 @@ fn should_import_wallet() {
 
 	assert_eq!(res, response);
 
-	let account_meta = tester.accounts.account_meta("0x00bac56a8a27232baa044c03f43bf3648c961735".into()).unwrap();
+	let account_meta = tester.accounts.account_meta(Address::from_str("00bac56a8a27232baa044c03f43bf3648c961735").unwrap()).unwrap();
 	let account_uuid: String = account_meta.uuid.unwrap().into();
 
 	// the RPC should import the account with a new id

@@ -16,7 +16,7 @@
 
 //! Gas prices histogram.
 
-use v1::types::U256;
+use ethereum_types::U256;
 
 /// Values of RPC settings.
 #[derive(Serialize, Deserialize)]

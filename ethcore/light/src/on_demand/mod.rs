@@ -24,7 +24,6 @@ use std::marker::PhantomData;
 use std::sync::Arc;
 use std::time::Duration;
 
-use ethcore::executed::{Executed, ExecutionError};
 use futures::{Poll, Future, Async};
 use futures::sync::oneshot::{self, Receiver};
 use network::PeerId;
@@ -40,11 +39,11 @@ use net::{
 use cache::Cache;
 use request::{self as basic_request, Request as NetworkRequest};
 use self::request::CheckedRequest;
+use machine::executed::ExecutionResult;
 
 pub use self::request::{Request, Response, HeaderRef, Error as ValidityError};
 pub use self::request_guard::{RequestGuard, Error as RequestError};
 pub use self::response_guard::{ResponseGuard, Error as ResponseGuardError, Inner as ResponseGuardInner};
-
 pub use types::request::ResponseError;
 
 #[cfg(test)]
@@ -53,9 +52,6 @@ mod tests;
 pub mod request;
 mod request_guard;
 mod response_guard;
-
-/// The result of execution
-pub type ExecutionResult = Result<Executed, ExecutionError>;
 
 /// The initial backoff interval for OnDemand queries
 pub const DEFAULT_REQUEST_MIN_BACKOFF_DURATION: Duration = Duration::from_secs(10);
@@ -72,27 +68,48 @@ pub const DEFAULT_NUM_CONSECUTIVE_FAILED_REQUESTS: usize = 1;
 pub mod error {
 	use futures::sync::oneshot::Canceled;
 
-	error_chain! {
+	/// OnDemand Error
+	#[derive(Debug, derive_more::Display, derive_more::From)]
+	pub enum Error {
+		/// Canceled oneshot channel
+		ChannelCanceled(Canceled),
+		/// Timeout bad response
+		BadResponse(String),
+		/// OnDemand requests limit exceeded
+		#[display(fmt = "OnDemand request maximum backoff iterations exceeded")]
+		RequestLimit,
+	}
 
-		foreign_links {
-			ChannelCanceled(Canceled) #[doc = "Canceled oneshot channel"];
-		}
-
-		errors {
-			#[doc = "Timeout bad response"]
-			BadResponse(err: String) {
-				description("Max response evaluation time exceeded")
-				display("{}", err)
-			}
-
-			#[doc = "OnDemand requests limit exceeded"]
-			RequestLimit {
-				description("OnDemand request maximum backoff iterations exceeded")
-				display("OnDemand request maximum backoff iterations exceeded")
+	impl std::error::Error for Error {
+		fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+			match self {
+				Error::ChannelCanceled(err) => Some(err),
+				_ => None,
 			}
 		}
 	}
+
+	/// OnDemand Result
+	pub type Result<T> = std::result::Result<T, Error>;
 }
+
+/// Public interface for performing network requests `OnDemand`
+pub trait OnDemandRequester: Send + Sync {
+	/// Submit a strongly-typed batch of requests.
+	///
+	/// Fails if back-reference are not coherent.
+	fn request<T>(&self, ctx: &dyn BasicContext, requests: T) -> Result<OnResponses<T>, basic_request::NoSuchOutput>
+	where
+		T: request::RequestAdapter;
+
+	/// Submit a vector of requests to be processed together.
+	///
+	/// Fails if back-references are not coherent.
+	/// The returned vector of responses will correspond to the requests exactly.
+	fn request_raw(&self, ctx: &dyn BasicContext, requests: Vec<Request>)
+		-> Result<Receiver<PendingResponse>, basic_request::NoSuchOutput>;
+}
+
 
 // relevant peer info.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -254,7 +271,7 @@ impl Pending {
 			response_err
 		);
 
-		let err = self::error::ErrorKind::BadResponse(err);
+		let err = self::error::Error::BadResponse(err);
 		if self.sender.send(Err(err.into())).is_err() {
 			debug!(target: "on_demand", "Dropped oneshot channel receiver on no response");
 		}
@@ -262,7 +279,7 @@ impl Pending {
 
 	// returning a peer discovery timeout during query attempts
 	fn request_limit_reached(self) {
-		let err = self::error::ErrorKind::RequestLimit;
+		let err = self::error::Error::RequestLimit;
 		if self.sender.send(Err(err.into())).is_err() {
 			debug!(target: "on_demand", "Dropped oneshot channel receiver on time out");
 		}
@@ -355,6 +372,74 @@ pub struct OnDemand {
 	request_number_of_consecutive_errors: usize
 }
 
+impl OnDemandRequester for OnDemand {
+	fn request_raw(&self, ctx: &dyn BasicContext, requests: Vec<Request>)
+		-> Result<Receiver<PendingResponse>, basic_request::NoSuchOutput>
+	{
+		let (sender, receiver) = oneshot::channel();
+		if requests.is_empty() {
+			assert!(sender.send(Ok(Vec::new())).is_ok(), "receiver still in scope; qed");
+			return Ok(receiver);
+		}
+
+		let mut builder = basic_request::Builder::default();
+
+		let responses = Vec::with_capacity(requests.len());
+
+		let mut header_producers = HashMap::new();
+		for (i, request) in requests.into_iter().enumerate() {
+			let request = CheckedRequest::from(request);
+
+			// ensure that all requests needing headers will get them.
+			if let Some((idx, field)) = request.needs_header() {
+				// a request chain with a header back-reference is valid only if it both
+				// points to a request that returns a header and has the same back-reference
+				// for the block hash.
+				match header_producers.get(&idx) {
+					Some(ref f) if &field == *f => {}
+					_ => return Err(basic_request::NoSuchOutput),
+				}
+			}
+			if let CheckedRequest::HeaderByHash(ref req, _) = request {
+				header_producers.insert(i, req.0);
+			}
+
+			builder.push(request)?;
+		}
+
+		let requests = builder.build();
+		let net_requests = requests.clone().map_requests(|req| req.into_net_request());
+		let capabilities = guess_capabilities(requests.requests());
+
+		self.submit_pending(ctx, Pending {
+			requests,
+			net_requests,
+			required_capabilities: capabilities,
+			responses,
+			sender,
+			request_guard: RequestGuard::new(
+				self.request_number_of_consecutive_errors as u32,
+				self.request_backoff_rounds_max,
+				self.request_backoff_start,
+				self.request_backoff_max,
+			),
+			response_guard: ResponseGuard::new(self.response_time_window),
+		});
+
+		Ok(receiver)
+	}
+
+	fn request<T>(&self, ctx: &dyn BasicContext, requests: T) -> Result<OnResponses<T>, basic_request::NoSuchOutput>
+		where T: request::RequestAdapter
+	{
+		self.request_raw(ctx, requests.make_requests()).map(|recv| OnResponses {
+			receiver: recv,
+			_marker: PhantomData,
+		})
+	}
+
+}
+
 impl OnDemand {
 
 	/// Create a new `OnDemand` service with the given cache.
@@ -415,81 +500,10 @@ impl OnDemand {
 		me
 	}
 
-	/// Submit a vector of requests to be processed together.
-	///
-	/// Fails if back-references are not coherent.
-	/// The returned vector of responses will correspond to the requests exactly.
-	pub fn request_raw(&self, ctx: &BasicContext, requests: Vec<Request>)
-		-> Result<Receiver<PendingResponse>, basic_request::NoSuchOutput>
-	{
-		let (sender, receiver) = oneshot::channel();
-		if requests.is_empty() {
-			assert!(sender.send(Ok(Vec::new())).is_ok(), "receiver still in scope; qed");
-			return Ok(receiver);
-		}
-
-		let mut builder = basic_request::Builder::default();
-
-		let responses = Vec::with_capacity(requests.len());
-
-		let mut header_producers = HashMap::new();
-		for (i, request) in requests.into_iter().enumerate() {
-			let request = CheckedRequest::from(request);
-
-			// ensure that all requests needing headers will get them.
-			if let Some((idx, field)) = request.needs_header() {
-				// a request chain with a header back-reference is valid only if it both
-				// points to a request that returns a header and has the same back-reference
-				// for the block hash.
-				match header_producers.get(&idx) {
-					Some(ref f) if &field == *f => {}
-					_ => return Err(basic_request::NoSuchOutput),
-				}
-			}
-			if let CheckedRequest::HeaderByHash(ref req, _) = request {
-				header_producers.insert(i, req.0);
-			}
-
-			builder.push(request)?;
-		}
-
-		let requests = builder.build();
-		let net_requests = requests.clone().map_requests(|req| req.into_net_request());
-		let capabilities = guess_capabilities(requests.requests());
-
-		self.submit_pending(ctx, Pending {
-			requests,
-			net_requests,
-			required_capabilities: capabilities,
-			responses,
-			sender,
-			request_guard: RequestGuard::new(
-				self.request_number_of_consecutive_errors as u32,
-				self.request_backoff_rounds_max,
-				self.request_backoff_start,
-				self.request_backoff_max,
-			),
-			response_guard: ResponseGuard::new(self.response_time_window),
-		});
-
-		Ok(receiver)
-	}
-
-	/// Submit a strongly-typed batch of requests.
-	///
-	/// Fails if back-reference are not coherent.
-	pub fn request<T>(&self, ctx: &BasicContext, requests: T) -> Result<OnResponses<T>, basic_request::NoSuchOutput>
-		where T: request::RequestAdapter
-	{
-		self.request_raw(ctx, requests.make_requests()).map(|recv| OnResponses {
-			receiver: recv,
-			_marker: PhantomData,
-		})
-	}
 
 	// maybe dispatch pending requests.
 	// sometimes
-	fn attempt_dispatch(&self, ctx: &BasicContext) {
+	fn attempt_dispatch(&self, ctx: &dyn BasicContext) {
 		if !self.no_immediate_dispatch {
 			self.dispatch_pending(ctx)
 		}
@@ -497,7 +511,7 @@ impl OnDemand {
 
 	// dispatch pending requests, and discard those for which the corresponding
 	// receiver has been dropped.
-	fn dispatch_pending(&self, ctx: &BasicContext) {
+	fn dispatch_pending(&self, ctx: &dyn BasicContext) {
 		if self.pending.read().is_empty() {
 			return
 		}
@@ -552,7 +566,7 @@ impl OnDemand {
 
 	// submit a pending request set. attempts to answer from cache before
 	// going to the network. if complete, sends response and consumes the struct.
-	fn submit_pending(&self, ctx: &BasicContext, mut pending: Pending) {
+	fn submit_pending(&self, ctx: &dyn BasicContext, mut pending: Pending) {
 		// answer as many requests from cache as we can, and schedule for dispatch
 		// if incomplete.
 
@@ -571,7 +585,7 @@ impl OnDemand {
 impl Handler for OnDemand {
 	fn on_connect(
 		&self,
-		ctx: &EventContext,
+		ctx: &dyn EventContext,
 		status: &Status,
 		capabilities: &Capabilities
 	) -> PeerStatus {
@@ -583,7 +597,7 @@ impl Handler for OnDemand {
 		PeerStatus::Kept
 	}
 
-	fn on_disconnect(&self, ctx: &EventContext, unfulfilled: &[ReqId]) {
+	fn on_disconnect(&self, ctx: &dyn EventContext, unfulfilled: &[ReqId]) {
 		self.peers.write().remove(&ctx.peer());
 		let ctx = ctx.as_basic();
 
@@ -600,7 +614,7 @@ impl Handler for OnDemand {
 		self.attempt_dispatch(ctx);
 	}
 
-	fn on_announcement(&self, ctx: &EventContext, announcement: &Announcement) {
+	fn on_announcement(&self, ctx: &dyn EventContext, announcement: &Announcement) {
 		{
 			let mut peers = self.peers.write();
 			if let Some(ref mut peer) = peers.get_mut(&ctx.peer()) {
@@ -612,7 +626,7 @@ impl Handler for OnDemand {
 		self.attempt_dispatch(ctx.as_basic());
 	}
 
-	fn on_responses(&self, ctx: &EventContext, req_id: ReqId, responses: &[basic_request::Response]) {
+	fn on_responses(&self, ctx: &dyn EventContext, req_id: ReqId, responses: &[basic_request::Response]) {
 		let mut pending = match self.in_transit.write().remove(&req_id) {
 			Some(req) => req,
 			None => return,
@@ -648,7 +662,7 @@ impl Handler for OnDemand {
 		self.submit_pending(ctx.as_basic(), pending);
 	}
 
-	fn tick(&self, ctx: &BasicContext) {
+	fn tick(&self, ctx: &dyn BasicContext) {
 		self.attempt_dispatch(ctx)
 	}
 }

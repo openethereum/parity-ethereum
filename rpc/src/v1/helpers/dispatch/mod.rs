@@ -86,7 +86,7 @@ use jsonrpc_core::{BoxFuture, Result, Error};
 use jsonrpc_core::futures::{future, Future, IntoFuture};
 use v1::helpers::{TransactionRequest, FilledTransactionRequest, ConfirmationPayload};
 use v1::types::{
-	H520 as RpcH520, Bytes as RpcBytes,
+	Bytes as RpcBytes,
 	RichRawTransaction as RpcRichRawTransaction,
 	ConfirmationPayload as RpcConfirmationPayload,
 	ConfirmationResponse,
@@ -294,7 +294,7 @@ pub fn execute<D: Dispatcher + 'static>(
 
 			Box::new(
 				dispatcher.sign(request, &signer, pass, post_sign).map(|(hash, token)| {
-					WithToken::from((ConfirmationResponse::SendTransaction(hash.into()), token))
+					WithToken::from((ConfirmationResponse::SendTransaction(hash), token))
 				})
 			)
 		},
@@ -309,7 +309,6 @@ pub fn execute<D: Dispatcher + 'static>(
 			let res = signer.sign_message(address, pass, SignMessage::Data(data))
 				.map(|result| result
 					.map(|s| H520(s.into_electrum()))
-			 		.map(RpcH520::from)
 					.map(ConfirmationResponse::Signature)
 				);
 
@@ -319,7 +318,6 @@ pub fn execute<D: Dispatcher + 'static>(
 			let res = signer.sign_message(address, pass, SignMessage::Hash(data))
 				.map(|result| result
 					.map(|rsv| H520(rsv.into_electrum()))
-					.map(RpcH520::from)
 					.map(ConfirmationResponse::Signature)
 				);
 
@@ -370,13 +368,13 @@ pub fn from_rpc<D>(payload: RpcConfirmationPayload, default_account: Address, di
 				.map(ConfirmationPayload::SignTransaction))
 		},
 		RpcConfirmationPayload::Decrypt(RpcDecryptRequest { address, msg }) => {
-			Box::new(future::ok(ConfirmationPayload::Decrypt(address.into(), msg.into())))
+			Box::new(future::ok(ConfirmationPayload::Decrypt(address, msg.into())))
 		},
 		RpcConfirmationPayload::EthSignMessage(RpcEthSignRequest { address, data }) => {
-			Box::new(future::ok(ConfirmationPayload::EthSignMessage(address.into(), data.into())))
+			Box::new(future::ok(ConfirmationPayload::EthSignMessage(address, data.into())))
 		},
 		RpcConfirmationPayload::EIP191SignMessage(RpcSignRequest { address, data }) => {
-			Box::new(future::ok(ConfirmationPayload::SignMessage(address.into(), data.into())))
+			Box::new(future::ok(ConfirmationPayload::SignMessage(address, data)))
 		},
 	}
 }

@@ -34,21 +34,16 @@ impl Into<U256> for Uint {
 
 impl Into<u64> for Uint {
 	fn into(self) -> u64 {
-		u64::from(self.0)
+		self.0.low_u64()
 	}
 }
 
 impl Into<usize> for Uint {
 	fn into(self) -> usize {
-		// TODO: clean it after util conversions refactored.
-		u64::from(self.0) as usize
+		self.0.low_u64() as usize
 	}
 }
-impl Into<u8> for Uint {
-	fn into(self) -> u8 {
-		u64::from(self.0) as u8
-	}
-}
+
 
 impl Serialize for Uint {
 	fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
@@ -101,7 +96,7 @@ pub fn validate_non_zero<'de, D>(d: D) -> Result<Uint, D::Error> where D: Deseri
 	let value = Uint::deserialize(d)?;
 
 	if value == Uint(U256::from(0)) {
-		return Err(Error::invalid_value(Unexpected::Unsigned(value.into()), &"a non-zero value"))
+		return Err(Error::invalid_value(Unexpected::Unsigned(0), &"a non-zero value"))
 	}
 
 	Ok(value)
@@ -112,7 +107,7 @@ pub fn validate_optional_non_zero<'de, D>(d: D) -> Result<Option<Uint>, D::Error
 
 	if let Some(value) = value {
 		if value == Uint(U256::from(0)) {
-			return Err(Error::invalid_value(Unexpected::Unsigned(value.into()), &"a non-zero value"))
+			return Err(Error::invalid_value(Unexpected::Unsigned(0), &"a non-zero value"))
 		}
 	}
 

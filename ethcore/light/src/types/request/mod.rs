@@ -907,7 +907,7 @@ pub mod transaction_index {
 		fn fill<F>(&mut self, oracle: F) where F: Fn(usize, usize) -> Result<Output, NoSuchOutput> {
 			if let Field::BackReference(req, idx) = self.hash {
 				self.hash = match oracle(req, idx) {
-					Ok(Output::Number(hash)) => Field::Scalar(hash.into()),
+					Ok(Output::Hash(hash)) => Field::Scalar(hash.into()),
 					_ => Field::BackReference(req, idx),
 				}
 			}
@@ -982,7 +982,7 @@ pub mod block_receipts {
 		fn fill<F>(&mut self, oracle: F) where F: Fn(usize, usize) -> Result<Output, NoSuchOutput> {
 			if let Field::BackReference(req, idx) = self.hash {
 				self.hash = match oracle(req, idx) {
-					Ok(Output::Number(hash)) => Field::Scalar(hash.into()),
+					Ok(Output::Hash(hash)) => Field::Scalar(hash.into()),
 					_ => Field::BackReference(req, idx),
 				}
 			}
@@ -1648,7 +1648,7 @@ mod tests {
 
 	#[test]
 	fn hash_or_number_roundtrip() {
-		let hash = HashOrNumber::Hash(H256::default());
+		let hash = HashOrNumber::Hash(H256::zero());
 		let number = HashOrNumber::Number(5);
 
 		check_roundtrip(hash);
@@ -1808,7 +1808,7 @@ mod tests {
 		let full_req = Request::Storage(req.clone());
 		let res = StorageResponse {
 			proof: vec![vec![1, 2, 3], vec![4, 5, 6]],
-			value: H256::default(),
+			value: H256::zero(),
 		};
 		let full_res = Response::Storage(res.clone());
 
@@ -1909,7 +1909,7 @@ mod tests {
 				code_hash: Default::default(),
 				storage_root: Default::default()
 			}),
-			Response::Storage(StorageResponse { proof: vec![], value: H256::default() }),
+			Response::Storage(StorageResponse { proof: vec![], value: H256::zero() }),
 			Response::Code(CodeResponse { code: vec![1, 2, 3, 4, 5] }),
 			Response::Execution(ExecutionResponse { items: vec![] }),
 		];

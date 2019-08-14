@@ -25,37 +25,37 @@
 use api::{ETH_PROTOCOL, WARP_SYNC_PROTOCOL_ID};
 use network::{PacketId, ProtocolId};
 
-/// An enum that defines all known packet ids in the context of
-/// synchronization and provides a mechanism to convert from
-/// packet ids (of type PacketId or u8) directly read from the network
-/// to enum variants. This implicitly provides a mechanism to
-/// check whether a given packet id is known, and to prevent
-/// packet id clashes when defining new ids.
 enum_from_primitive! {
-#[derive(Clone, Copy, Debug, PartialEq)]
-pub enum SyncPacket {
-	StatusPacket = 0x00,
-	NewBlockHashesPacket = 0x01,
-	TransactionsPacket = 0x02,
-	GetBlockHeadersPacket = 0x03,
-	BlockHeadersPacket = 0x04,
-	GetBlockBodiesPacket = 0x05,
-	BlockBodiesPacket = 0x06,
-	NewBlockPacket = 0x07,
+	/// An enum that defines all known packet ids in the context of
+	/// synchronization and provides a mechanism to convert from
+	/// packet ids (of type PacketId or u8) directly read from the network
+	/// to enum variants. This implicitly provides a mechanism to
+	/// check whether a given packet id is known, and to prevent
+	/// packet id clashes when defining new ids.
+	#[derive(Clone, Copy, Debug, PartialEq)]
+	pub enum SyncPacket {
+		StatusPacket = 0x00,
+		NewBlockHashesPacket = 0x01,
+		TransactionsPacket = 0x02,
+		GetBlockHeadersPacket = 0x03,
+		BlockHeadersPacket = 0x04,
+		GetBlockBodiesPacket = 0x05,
+		BlockBodiesPacket = 0x06,
+		NewBlockPacket = 0x07,
 
-	GetNodeDataPacket = 0x0d,
-	NodeDataPacket = 0x0e,
-	GetReceiptsPacket = 0x0f,
-	ReceiptsPacket = 0x10,
+		GetNodeDataPacket = 0x0d,
+		NodeDataPacket = 0x0e,
+		GetReceiptsPacket = 0x0f,
+		ReceiptsPacket = 0x10,
 
-	GetSnapshotManifestPacket = 0x11,
-	SnapshotManifestPacket = 0x12,
-	GetSnapshotDataPacket = 0x13,
-	SnapshotDataPacket = 0x14,
-	ConsensusDataPacket = 0x15,
-	PrivateTransactionPacket = 0x16,
-	SignedPrivateTransactionPacket = 0x17,
-}
+		GetSnapshotManifestPacket = 0x11,
+		SnapshotManifestPacket = 0x12,
+		GetSnapshotDataPacket = 0x13,
+		SnapshotDataPacket = 0x14,
+		ConsensusDataPacket = 0x15,
+		PrivateTransactionPacket = 0x16,
+		SignedPrivateTransactionPacket = 0x17,
+	}
 }
 
 use self::SyncPacket::*;

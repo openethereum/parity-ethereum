@@ -16,11 +16,13 @@
 
 //! Traces api implementation.
 
+use ethereum_types::H256;
 use jsonrpc_core::Result;
 use v1::Metadata;
 use v1::traits::Traces;
 use v1::helpers::errors;
-use v1::types::{TraceFilter, LocalizedTrace, BlockNumber, Index, CallRequest, Bytes, TraceResults, TraceResultsWithTransactionHash, TraceOptions, H256};
+use v1::types::{TraceFilter, LocalizedTrace, BlockNumber, Index, CallRequest, Bytes, TraceResults,
+	TraceResultsWithTransactionHash, TraceOptions};
 
 /// Traces api implementation.
 // TODO: all calling APIs should be possible w. proved remote TX execution.

@@ -19,9 +19,9 @@ use std::io::{Write, BufReader, BufRead};
 use std::time::Duration;
 use std::fs::File;
 use std::collections::HashSet;
-use ethereum_types::{U256, clean_0x, Address};
+use ethereum_types::{U256, Address};
 use journaldb::Algorithm;
-use ethcore::client::{Mode, BlockId, VMType, DatabaseCompactionProfile, ClientConfig, VerifierType};
+use ethcore::client::{Mode, VMType, DatabaseCompactionProfile, ClientConfig, VerifierType};
 use ethcore::miner::{PendingSet, Penalization};
 use miner::pool::PrioritizationStrategy;
 use cache::CacheConfig;
@@ -32,9 +32,19 @@ use sync::{validate_node_url, self};
 use db::migrate;
 use path;
 use ethkey::Password;
+use types::ids::BlockId;
 
 pub fn to_duration(s: &str) -> Result<Duration, String> {
 	to_seconds(s).map(Duration::from_secs)
+}
+
+// TODO: should we bring it back to ethereum-types?
+fn clean_0x(s: &str) -> &str {
+	if s.starts_with("0x") {
+		&s[2..]
+	} else {
+		s
+	}
 }
 
 fn to_seconds(s: &str) -> Result<u64, String> {
@@ -117,7 +127,7 @@ pub fn to_queue_penalization(time: Option<u64>) -> Result<Penalization, String> 
 pub fn to_address(s: Option<String>) -> Result<Address, String> {
 	match s {
 		Some(ref a) => clean_0x(a).parse().map_err(|_| format!("Invalid address: {:?}", a)),
-		None => Ok(Address::default())
+		None => Ok(Address::zero())
 	}
 }
 
@@ -177,7 +187,7 @@ pub fn to_bootnodes(bootnodes: &Option<String>) -> Result<Vec<String>, String> {
 		Some(ref x) if !x.is_empty() => x.split(',').map(|s| {
 			match validate_node_url(s).map(Into::into) {
 				None => Ok(s.to_owned()),
-				Some(sync::ErrorKind::AddressResolve(_)) => Err(format!("Failed to resolve hostname of a boot node: {}", s)),
+				Some(sync::Error::AddressResolve(_)) => Err(format!("Failed to resolve hostname of a boot node: {}", s)),
 				Some(_) => Err(format!("Invalid node address format given for a boot node: {}", s)),
 			}
 		}).collect(),
@@ -338,9 +348,10 @@ mod tests {
 	use std::collections::HashSet;
 	use tempdir::TempDir;
 	use ethereum_types::U256;
-	use ethcore::client::{Mode, BlockId};
+	use ethcore::client::Mode;
 	use ethcore::miner::PendingSet;
 	use ethkey::Password;
+	use types::ids::BlockId;
 	use super::{to_duration, to_mode, to_block_id, to_u256, to_pending_set, to_address, to_addresses, to_price, geth_ipc_path, to_bootnodes, join_set, password_from_file};
 
 	#[test]

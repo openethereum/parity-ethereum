@@ -20,26 +20,29 @@ use std::sync::Arc;
 use std::sync::atomic::AtomicBool;
 use hash::{KECCAK_NULL_RLP, keccak};
 
-use types::basic_account::BasicAccount;
+use types::{
+	basic_account::BasicAccount,
+	errors::EthcoreError as Error,
+};
 use snapshot::account;
 use snapshot::{chunk_state, Error as SnapshotError, Progress, StateRebuilder, SNAPSHOT_SUBPARTS};
 use snapshot::io::{PackedReader, PackedWriter, SnapshotReader, SnapshotWriter};
 use super::helpers::StateProducer;
-
-use error::{Error, ErrorKind};
-
-use rand::{XorShiftRng, SeedableRng};
+use rand::SeedableRng;
+use rand_xorshift::XorShiftRng;
 use ethereum_types::H256;
 use journaldb::{self, Algorithm};
 use kvdb_rocksdb::{Database, DatabaseConfig};
 use parking_lot::Mutex;
 use tempdir::TempDir;
 
+const RNG_SEED: [u8; 16] = [1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16];
+
 #[test]
 fn snap_and_restore() {
 	use hash_db::{HashDB, EMPTY_PREFIX};
 	let mut producer = StateProducer::new();
-	let mut rng = XorShiftRng::from_seed([1, 2, 3, 4]);
+	let mut rng = XorShiftRng::from_seed(RNG_SEED);
 	let mut old_db = journaldb::new_memory_db();
 	let db_cfg = DatabaseConfig::with_columns(::db::NUM_COLUMNS);
 
@@ -55,7 +58,7 @@ fn snap_and_restore() {
 
 	let mut state_hashes = Vec::new();
 	for part in 0..SNAPSHOT_SUBPARTS {
-		let mut hashes = chunk_state(&old_db, &state_root, &writer, &Progress::default(), Some(part)).unwrap();
+		let mut hashes = chunk_state(&old_db, &state_root, &writer, &Progress::default(), Some(part), 0).unwrap();
 		state_hashes.append(&mut hashes);
 	}
 
@@ -65,7 +68,7 @@ fn snap_and_restore() {
 		block_hashes: Vec::new(),
 		state_root: state_root,
 		block_number: 1000,
-		block_hash: H256::default(),
+		block_hash: H256::zero(),
 	}).unwrap();
 
 	let db_path = tempdir.path().join("db");
@@ -84,7 +87,7 @@ fn snap_and_restore() {
 		}
 
 		assert_eq!(rebuilder.state_root(), state_root);
-		rebuilder.finalize(1000, H256::default()).unwrap();
+		rebuilder.finalize(1000, H256::zero()).unwrap();
 
 		new_db
 	};
@@ -126,8 +129,8 @@ fn get_code_from_prev_chunk() {
 	let mut make_chunk = |acc, hash| {
 		let mut db = journaldb::new_memory_db();
 		AccountDBMut::from_hash(&mut db, hash).insert(EMPTY_PREFIX, &code[..]);
-
-		let fat_rlp = account::to_fat_rlps(&hash, &acc, &AccountDB::from_hash(&db, hash), &mut used_code, usize::max_value(), usize::max_value()).unwrap();
+		let p = Progress::default();
+		let fat_rlp = account::to_fat_rlps(&hash, &acc, &AccountDB::from_hash(&db, hash), &mut used_code, usize::max_value(), usize::max_value(), &p).unwrap();
 		let mut stream = RlpStream::new_list(1);
 		stream.append_raw(&fat_rlp[0], 1);
 		stream.out()
@@ -157,7 +160,7 @@ fn get_code_from_prev_chunk() {
 #[test]
 fn checks_flag() {
 	let mut producer = StateProducer::new();
-	let mut rng = XorShiftRng::from_seed([5, 6, 7, 8]);
+	let mut rng = XorShiftRng::from_seed(RNG_SEED);
 	let mut old_db = journaldb::new_memory_db();
 	let db_cfg = DatabaseConfig::with_columns(::db::NUM_COLUMNS);
 
@@ -171,15 +174,15 @@ fn checks_flag() {
 	let state_root = producer.state_root();
 	let writer = Mutex::new(PackedWriter::new(&snap_file).unwrap());
 
-	let state_hashes = chunk_state(&old_db, &state_root, &writer, &Progress::default(), None).unwrap();
+	let state_hashes = chunk_state(&old_db, &state_root, &writer, &Progress::default(), None, 0).unwrap();
 
 	writer.into_inner().finish(::snapshot::ManifestData {
 		version: 2,
-		state_hashes: state_hashes,
+		state_hashes,
 		block_hashes: Vec::new(),
-		state_root: state_root,
+		state_root,
 		block_number: 0,
-		block_hash: H256::default(),
+		block_hash: H256::zero(),
 	}).unwrap();
 
 	let tempdir = TempDir::new("").unwrap();
@@ -196,7 +199,7 @@ fn checks_flag() {
 			let chunk = ::snappy::decompress(&raw).unwrap();
 
 			match rebuilder.feed(&chunk, &flag) {
-				Err(Error(ErrorKind::Snapshot(SnapshotError::RestorationAborted), _)) => {},
+				Err(Error::Snapshot(SnapshotError::RestorationAborted)) => {},
 				_ => panic!("unexpected result when feeding with flag off"),
 			}
 		}

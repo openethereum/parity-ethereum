@@ -17,9 +17,16 @@
 use engines::Engine;
 use engines::block_reward::{self, RewardKind};
 use ethereum_types::U256;
-use machine::WithRewards;
-use parity_machine::{Machine, Header, LiveBlock, TotalScoredHeader};
-use types::BlockNumber;
+use machine::{
+	ExecutedBlock,
+	Machine,
+};
+use types::{
+	BlockNumber,
+	header::Header,
+	engines::params::CommonParams,
+	errors::EthcoreError as Error,
+};
 
 /// Params for a null engine.
 #[derive(Clone, Default)]
@@ -37,47 +44,44 @@ impl From<::ethjson::spec::NullEngineParams> for NullEngineParams {
 }
 
 /// An engine which does not provide any consensus mechanism and does not seal blocks.
-pub struct NullEngine<M> {
+pub struct NullEngine {
 	params: NullEngineParams,
-	machine: M,
+	machine: Machine,
 }
 
-impl<M> NullEngine<M> {
+impl NullEngine {
 	/// Returns new instance of NullEngine with default VM Factory
-	pub fn new(params: NullEngineParams, machine: M) -> Self {
+	pub fn new(params: NullEngineParams, machine: Machine) -> Self {
 		NullEngine {
-			params: params,
-			machine: machine,
+			params,
+			machine,
 		}
 	}
 }
 
-impl<M: Default> Default for NullEngine<M> {
-	fn default() -> Self {
-		Self::new(Default::default(), Default::default())
-	}
-}
-
-impl<M: Machine + WithRewards> Engine<M> for NullEngine<M>
-  where M::ExtendedHeader: TotalScoredHeader,
-        <M::ExtendedHeader as TotalScoredHeader>::Value: Ord
-{
+impl Engine for NullEngine {
 	fn name(&self) -> &str {
 		"NullEngine"
 	}
 
-	fn machine(&self) -> &M { &self.machine }
+	fn machine(&self) -> &Machine { &self.machine }
 
-	fn on_close_block(&self, block: &mut M::LiveBlock) -> Result<(), M::Error> {
+	fn maximum_uncle_count(&self, _block: BlockNumber) -> usize { 2 }
+
+	fn on_close_block(
+		&self,
+		block: &mut ExecutedBlock,
+		_parent_header: &Header
+	) -> Result<(), Error> {
 		use std::ops::Shr;
 
-		let author = *LiveBlock::header(&*block).author();
-		let number = LiveBlock::header(&*block).number();
+		let author = *block.header.author();
+		let number = block.header.number();
 
 		let reward = self.params.block_reward;
 		if reward == U256::zero() { return Ok(()) }
 
-		let n_uncles = LiveBlock::uncles(&*block).len();
+		let n_uncles = block.uncles.len();
 
 		let mut rewards = Vec::new();
 
@@ -86,7 +90,7 @@ impl<M: Machine + WithRewards> Engine<M> for NullEngine<M>
 		rewards.push((author, RewardKind::Author, result_block_reward));
 
 		// bestow uncle rewards.
-		for u in LiveBlock::uncles(&*block) {
+		for u in &block.uncles {
 			let uncle_author = u.author();
 			let result_uncle_reward = (reward * U256::from(8 + u.number() - number)).shr(3);
 			rewards.push((*uncle_author, RewardKind::uncle(number, u.number()), result_uncle_reward));
@@ -95,17 +99,15 @@ impl<M: Machine + WithRewards> Engine<M> for NullEngine<M>
 		block_reward::apply_block_rewards(&rewards, block, &self.machine)
 	}
 
-	fn maximum_uncle_count(&self, _block: BlockNumber) -> usize { 2 }
-
-	fn verify_local_seal(&self, _header: &M::Header) -> Result<(), M::Error> {
+	fn verify_local_seal(&self, _header: &Header) -> Result<(), Error> {
 		Ok(())
 	}
 
-	fn snapshot_components(&self) -> Option<Box<::snapshot::SnapshotComponents>> {
+	fn snapshot_components(&self) -> Option<Box<dyn (::snapshot::SnapshotComponents)>> {
 		Some(Box::new(::snapshot::PowSnapshot::new(10000, 10000)))
 	}
 
-	fn fork_choice(&self, new: &M::ExtendedHeader, current: &M::ExtendedHeader) -> super::ForkChoice {
-		super::total_difficulty_fork_choice(new, current)
+	fn params(&self) -> &CommonParams {
+		self.machine.params()
 	}
 }

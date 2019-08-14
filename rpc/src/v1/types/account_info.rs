@@ -16,8 +16,8 @@
 
 //! Return types for RPC calls
 
-use ethereum_types::{Public, Address};
-use v1::types::{H160, H256, U256, Bytes};
+use ethereum_types::{Public, Address, H160, H256, U256};
+use v1::types::Bytes;
 
 /// Account information.
 #[derive(Debug, Default, Clone, PartialEq, Serialize)]
@@ -26,7 +26,7 @@ pub struct AccountInfo {
 	pub name: String,
 }
 
-/// Datastructure with proof for one single storage-entry
+/// Data structure with proof for one single storage-entry
 #[derive(Debug, Default, Clone, PartialEq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct StorageProof {
@@ -58,15 +58,6 @@ pub struct ExtAccountInfo {
 	/// Account UUID (`None` for address book entries)
 	#[serde(skip_serializing_if = "Option::is_none")]
 	pub uuid: Option<String>,
-}
-
-/// Hardware wallet information.
-#[derive(Debug, Default, Clone, PartialEq, Serialize)]
-pub struct HwAccountInfo {
-	/// Device name.
-	pub name: String,
-	/// Device manufacturer.
-	pub manufacturer: String,
 }
 
 /// account derived from a signature

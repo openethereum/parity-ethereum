@@ -36,9 +36,6 @@ struct JavaCallback<'a> {
 	method_descriptor: &'a str,
 }
 
-unsafe impl<'a> Send for JavaCallback<'a> {}
-unsafe impl<'a> Sync for JavaCallback<'a> {}
-
 impl<'a> JavaCallback<'a> {
 	fn new(jvm: JavaVM, callback: GlobalRef) -> Self {
 		Self {

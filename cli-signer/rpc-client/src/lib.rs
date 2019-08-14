@@ -17,6 +17,7 @@
 pub mod client;
 pub mod signer_client;
 
+extern crate ethereum_types;
 extern crate futures;
 extern crate jsonrpc_core;
 extern crate jsonrpc_ws_server as ws;

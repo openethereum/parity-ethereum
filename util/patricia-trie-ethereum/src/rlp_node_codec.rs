@@ -57,7 +57,6 @@ fn encode_partial_it<'a>(mut partial: impl Iterator<Item = u8> + 'a, odd: bool, 
   std::iter::once(first).chain(partial)
 }
 
-
 // NOTE: what we'd really like here is:
 // `impl<H: Hasher> NodeCodec<H> for RlpNodeCodec<H> where H::Out: Decodable`
 // but due to the current limitations of Rust const evaluation we can't

@@ -18,6 +18,8 @@
 
 mod authority_round;
 mod basic_authority;
+mod clique;
+mod ethash;
 mod instant_seal;
 mod null_engine;
 mod validator_set;
@@ -27,106 +29,59 @@ pub mod signer;
 
 pub use self::authority_round::AuthorityRound;
 pub use self::basic_authority::BasicAuthority;
-pub use self::epoch::{EpochVerifier, Transition as EpochTransition};
 pub use self::instant_seal::{InstantSeal, InstantSealParams};
 pub use self::null_engine::NullEngine;
 pub use self::signer::EngineSigner;
+pub use self::clique::Clique;
+pub use self::ethash::{Ethash, Seal as EthashSeal};
 
 // TODO [ToDr] Remove re-export (#10130)
 pub use types::engines::ForkChoice;
-pub use types::engines::epoch;
+pub use types::engines::epoch::{self, Transition as EpochTransition};
 
 use std::sync::{Weak, Arc};
-use std::collections::{BTreeMap, HashMap};
-use std::{fmt, error};
+use std::collections::BTreeMap;
 
 use builtin::Builtin;
-use vm::{EnvInfo, Schedule, CreateContractAddress, CallType, ActionValue};
-use error::Error;
-use types::BlockNumber;
-use types::header::Header;
+use vm::{EnvInfo, Schedule, CallType, ActionValue};
+use types::{
+	BlockNumber,
+	ancestry_action::AncestryAction,
+	header::{Header, ExtendedHeader},
+	engines::{
+		SealingState, Headers, PendingTransitionStore,
+		params::CommonParams,
+		machine as machine_types,
+		machine::{AuxiliaryData, AuxiliaryRequest},
+	},
+	errors::{EthcoreError as Error, EngineError},
+	transaction::{self, UnverifiedTransaction},
+};
 use snapshot::SnapshotComponents;
-use spec::CommonParams;
-use types::transaction::{self, UnverifiedTransaction, SignedTransaction};
+use client::EngineClient;
 
-use ethkey::{Signature};
-use parity_machine::{Machine, LocalizedMachine as Localized, TotalScoredHeader};
+use ethkey::Signature;
+use machine::{
+	Machine,
+	executed_block::ExecutedBlock,
+};
 use ethereum_types::{H256, U256, Address};
-use unexpected::{Mismatch, OutOfBounds};
 use bytes::Bytes;
-use types::ancestry_action::AncestryAction;
-
-/// Default EIP-210 contract code.
-/// As defined in https://github.com/ethereum/EIPs/pull/210
-pub const DEFAULT_BLOCKHASH_CONTRACT: &'static str = "73fffffffffffffffffffffffffffffffffffffffe33141561006a5760014303600035610100820755610100810715156100455760003561010061010083050761010001555b6201000081071515610064576000356101006201000083050761020001555b5061013e565b4360003512151561008457600060405260206040f361013d565b61010060003543031315156100a857610100600035075460605260206060f361013c565b6101006000350715156100c55762010000600035430313156100c8565b60005b156100ea576101006101006000350507610100015460805260206080f361013b565b620100006000350715156101095763010000006000354303131561010c565b60005b1561012f57610100620100006000350507610200015460a052602060a0f361013a565b600060c052602060c0f35b5b5b5b5b";
-
-/// Voting errors.
-#[derive(Debug)]
-pub enum EngineError {
-	/// Signature or author field does not belong to an authority.
-	NotAuthorized(Address),
-	/// The same author issued different votes at the same step.
-	DoubleVote(Address),
-	/// The received block is from an incorrect proposer.
-	NotProposer(Mismatch<Address>),
-	/// Message was not expected.
-	UnexpectedMessage,
-	/// Seal field has an unexpected size.
-	BadSealFieldSize(OutOfBounds<usize>),
-	/// Validation proof insufficient.
-	InsufficientProof(String),
-	/// Failed system call.
-	FailedSystemCall(String),
-	/// Malformed consensus message.
-	MalformedMessage(String),
-	/// Requires client ref, but none registered.
-	RequiresClient,
-	/// Invalid engine specification or implementation.
-	InvalidEngine,
-}
-
-impl fmt::Display for EngineError {
-	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-		use self::EngineError::*;
-		let msg = match *self {
-			DoubleVote(ref address) => format!("Author {} issued too many blocks.", address),
-			NotProposer(ref mis) => format!("Author is not a current proposer: {}", mis),
-			NotAuthorized(ref address) => format!("Signer {} is not authorized.", address),
-			UnexpectedMessage => "This Engine should not be fed messages.".into(),
-			BadSealFieldSize(ref oob) => format!("Seal field has an unexpected length: {}", oob),
-			InsufficientProof(ref msg) => format!("Insufficient validation proof: {}", msg),
-			FailedSystemCall(ref msg) => format!("Failed to make system call: {}", msg),
-			MalformedMessage(ref msg) => format!("Received malformed consensus message: {}", msg),
-			RequiresClient => format!("Call requires client but none registered"),
-			InvalidEngine => format!("Invalid engine specification or implementation"),
-		};
-
-		f.write_fmt(format_args!("Engine error ({})", msg))
-	}
-}
-
-impl error::Error for EngineError {
-	fn description(&self) -> &str {
-		"Engine error"
-	}
-}
 
 /// Seal type.
 #[derive(Debug, PartialEq, Eq)]
 pub enum Seal {
-	/// Proposal seal; should be broadcasted, but not inserted into blockchain.
-	Proposal(Vec<Bytes>),
 	/// Regular block seal; should be part of the blockchain.
 	Regular(Vec<Bytes>),
-	/// Engine does generate seal for this block right now.
+	/// Engine does not generate seal for this block right now.
 	None,
 }
 
 /// A system-calling closure. Enacts calls on a block's state from the system address.
-pub type SystemCall<'a> = FnMut(Address, Vec<u8>) -> Result<Vec<u8>, String> + 'a;
+pub type SystemCall<'a> = dyn FnMut(Address, Vec<u8>) -> Result<Vec<u8>, String> + 'a;
 
 /// A system-calling closure. Enacts calls on a block's state with code either from an on-chain contract, or hard-coded EVM or WASM (if enabled on-chain) codes.
-pub type SystemOrCodeCall<'a> = FnMut(SystemOrCodeCallKind, Vec<u8>) -> Result<Vec<u8>, String> + 'a;
+pub type SystemOrCodeCall<'a> = dyn FnMut(SystemOrCodeCallKind, Vec<u8>) -> Result<Vec<u8>, String> + 'a;
 
 /// Kind of SystemOrCodeCall, this is either an on-chain address, or code.
 #[derive(PartialEq, Debug, Clone)]
@@ -138,7 +93,7 @@ pub enum SystemOrCodeCallKind {
 }
 
 /// Default SystemOrCodeCall implementation.
-pub fn default_system_or_code_call<'a>(machine: &'a ::machine::EthereumMachine, block: &'a mut ::block::ExecutedBlock) -> impl FnMut(SystemOrCodeCallKind, Vec<u8>) -> Result<Vec<u8>, String> + 'a {
+pub fn default_system_or_code_call<'a>(machine: &'a Machine, block: &'a mut ExecutedBlock) -> impl FnMut(SystemOrCodeCallKind, Vec<u8>) -> Result<Vec<u8>, String> + 'a {
 	move |to, data| {
 		let result = match to {
 			SystemOrCodeCallKind::Address(address) => {
@@ -167,46 +122,39 @@ pub fn default_system_or_code_call<'a>(machine: &'a ::machine::EthereumMachine, 
 	}
 }
 
-/// Type alias for a function we can get headers by hash through.
-pub type Headers<'a, H> = Fn(H256) -> Option<H> + 'a;
-
-/// Type alias for a function we can query pending transitions by block hash through.
-pub type PendingTransitionStore<'a> = Fn(H256) -> Option<epoch::PendingTransition> + 'a;
-
 /// Proof dependent on state.
-pub trait StateDependentProof<M: Machine>: Send + Sync {
+pub trait StateDependentProof: Send + Sync {
 	/// Generate a proof, given the state.
-	// TODO: make this into an &M::StateContext
-	fn generate_proof<'a>(&self, state: &<M as Localized<'a>>::StateContext) -> Result<Vec<u8>, String>;
+	fn generate_proof<'a>(&self, state: &machine_types::Call) -> Result<Vec<u8>, String>;
 	/// Check a proof generated elsewhere (potentially by a peer).
 	// `engine` needed to check state proofs, while really this should
 	// just be state machine params.
-	fn check_proof(&self, machine: &M, proof: &[u8]) -> Result<(), String>;
+	fn check_proof(&self, machine: &Machine, proof: &[u8]) -> Result<(), String>;
 }
 
 /// Proof generated on epoch change.
-pub enum Proof<M: Machine> {
+pub enum Proof {
 	/// Known proof (extracted from signal)
 	Known(Vec<u8>),
 	/// State dependent proof.
-	WithState(Arc<StateDependentProof<M>>),
+	WithState(Arc<dyn StateDependentProof>),
 }
 
 /// Generated epoch verifier.
-pub enum ConstructedVerifier<'a, M: Machine> {
+pub enum ConstructedVerifier<'a> {
 	/// Fully trusted verifier.
-	Trusted(Box<EpochVerifier<M>>),
+	Trusted(Box<dyn EpochVerifier>),
 	/// Verifier unconfirmed. Check whether given finality proof finalizes given hash
 	/// under previous epoch.
-	Unconfirmed(Box<EpochVerifier<M>>, &'a [u8], H256),
+	Unconfirmed(Box<dyn EpochVerifier>, &'a [u8], H256),
 	/// Error constructing verifier.
 	Err(Error),
 }
 
-impl<'a, M: Machine> ConstructedVerifier<'a, M> {
+impl<'a> ConstructedVerifier<'a> {
 	/// Convert to a result, indicating that any necessary confirmation has been done
 	/// already.
-	pub fn known_confirmed(self) -> Result<Box<EpochVerifier<M>>, Error> {
+	pub fn known_confirmed(self) -> Result<Box<dyn EpochVerifier>, Error> {
 		match self {
 			ConstructedVerifier::Trusted(v) | ConstructedVerifier::Unconfirmed(v, _, _) => Ok(v),
 			ConstructedVerifier::Err(e) => Err(e),
@@ -215,36 +163,33 @@ impl<'a, M: Machine> ConstructedVerifier<'a, M> {
 }
 
 /// Results of a query of whether an epoch change occurred at the given block.
-pub enum EpochChange<M: Machine> {
+pub enum EpochChange {
 	/// Cannot determine until more data is passed.
-	Unsure(M::AuxiliaryRequest),
+	Unsure(AuxiliaryRequest),
 	/// No epoch change.
 	No,
 	/// The epoch will change, with proof.
-	Yes(Proof<M>),
+	Yes(Proof),
 }
 
 /// A consensus mechanism for the chain. Generally either proof-of-work or proof-of-stake-based.
 /// Provides hooks into each of the major parts of block import.
-pub trait Engine<M: Machine>: Sync + Send {
+pub trait Engine: Sync + Send {
 	/// The name of this engine.
 	fn name(&self) -> &str;
 
 	/// Get access to the underlying state machine.
 	// TODO: decouple.
-	fn machine(&self) -> &M;
+	fn machine(&self) -> &Machine;
 
 	/// The number of additional header fields required for this engine.
-	fn seal_fields(&self, _header: &M::Header) -> usize { 0 }
+	fn seal_fields(&self, _header: &Header) -> usize { 0 }
 
 	/// Additional engine-specific information for the user/developer concerning `header`.
-	fn extra_info(&self, _header: &M::Header) -> BTreeMap<String, String> { BTreeMap::new() }
+	fn extra_info(&self, _header: &Header) -> BTreeMap<String, String> { BTreeMap::new() }
 
 	/// Maximum number of uncles a block is allowed to declare.
 	fn maximum_uncle_count(&self, _block: BlockNumber) -> usize { 0 }
-
-	/// The number of generations back that uncles can be.
-	fn maximum_uncle_age(&self) -> usize { 6 }
 
 	/// Optional maximum gas limit.
 	fn maximum_gas_limit(&self) -> Option<U256> { None }
@@ -253,22 +198,26 @@ pub trait Engine<M: Machine>: Sync + Send {
 	/// `epoch_begin` set to true if this block kicks off an epoch.
 	fn on_new_block(
 		&self,
-		_block: &mut M::LiveBlock,
+		_block: &mut ExecutedBlock,
 		_epoch_begin: bool,
-		_ancestry: &mut Iterator<Item=M::ExtendedHeader>,
-	) -> Result<(), M::Error> {
+	) -> Result<(), Error> {
 		Ok(())
 	}
 
 	/// Block transformation functions, after the transactions.
-	fn on_close_block(&self, _block: &mut M::LiveBlock) -> Result<(), M::Error> {
+	fn on_close_block(
+		&self,
+		_block: &mut ExecutedBlock,
+		_parent_header: &Header,
+	) -> Result<(), Error> {
 		Ok(())
 	}
 
-	/// None means that it requires external input (e.g. PoW) to seal a block.
-	/// Some(true) means the engine is currently prime for seal generation (i.e. node is the current validator).
-	/// Some(false) means that the node might seal internally but is not qualified now.
-	fn seals_internally(&self) -> Option<bool> { None }
+	/// Allow mutating the header during seal generation. Currently only used by Clique.
+	fn on_seal_block(&self, _block: &mut ExecutedBlock) -> Result<(), Error> { Ok(()) }
+
+	/// Returns the engine's current sealing state.
+	fn sealing_state(&self) -> SealingState { SealingState::External }
 
 	/// Attempt to seal the block internally.
 	///
@@ -279,7 +228,7 @@ pub trait Engine<M: Machine>: Sync + Send {
 	///
 	/// It is fine to require access to state or a full client for this function, since
 	/// light clients do not generate seals.
-	fn generate_seal(&self, _block: &M::LiveBlock, _parent: &M::Header) -> Seal { Seal::None }
+	fn generate_seal(&self, _block: &ExecutedBlock, _parent: &Header) -> Seal { Seal::None }
 
 	/// Verify a locally-generated seal of a header.
 	///
@@ -291,25 +240,25 @@ pub trait Engine<M: Machine>: Sync + Send {
 	///
 	/// It is fine to require access to state or a full client for this function, since
 	/// light clients do not generate seals.
-	fn verify_local_seal(&self, header: &M::Header) -> Result<(), M::Error>;
+	fn verify_local_seal(&self, header: &Header) -> Result<(), Error>;
 
 	/// Phase 1 quick block verification. Only does checks that are cheap. Returns either a null `Ok` or a general error detailing the problem with import.
 	/// The verification module can optionally avoid checking the seal (`check_seal`), if seal verification is disabled this method won't be called.
-	fn verify_block_basic(&self, _header: &M::Header) -> Result<(), M::Error> { Ok(()) }
+	fn verify_block_basic(&self, _header: &Header) -> Result<(), Error> { Ok(()) }
 
 	/// Phase 2 verification. Perform costly checks such as transaction signatures. Returns either a null `Ok` or a general error detailing the problem with import.
 	/// The verification module can optionally avoid checking the seal (`check_seal`), if seal verification is disabled this method won't be called.
-	fn verify_block_unordered(&self, _header: &M::Header) -> Result<(), M::Error> { Ok(()) }
+	fn verify_block_unordered(&self, _header: &Header) -> Result<(), Error> { Ok(()) }
 
 	/// Phase 3 verification. Check block information against parent. Returns either a null `Ok` or a general error detailing the problem with import.
-	fn verify_block_family(&self, _header: &M::Header, _parent: &M::Header) -> Result<(), M::Error> { Ok(()) }
+	fn verify_block_family(&self, _header: &Header, _parent: &Header) -> Result<(), Error> { Ok(()) }
 
 	/// Phase 4 verification. Verify block header against potentially external data.
 	/// Should only be called when `register_client` has been called previously.
-	fn verify_block_external(&self, _header: &M::Header) -> Result<(), M::Error> { Ok(()) }
+	fn verify_block_external(&self, _header: &Header) -> Result<(), Error> { Ok(()) }
 
 	/// Genesis epoch data.
-	fn genesis_epoch_data<'a>(&self, _header: &M::Header, _state: &<M as Localized<'a>>::StateContext) -> Result<Vec<u8>, String> { Ok(Vec::new()) }
+	fn genesis_epoch_data<'a>(&self, _header: &Header, _state: &machine_types::Call) -> Result<Vec<u8>, String> { Ok(Vec::new()) }
 
 	/// Whether an epoch change is signalled at the given header but will require finality.
 	/// If a change can be enacted immediately then return `No` from this function but
@@ -320,9 +269,7 @@ pub trait Engine<M: Machine>: Sync + Send {
 	/// Return `Yes` or `No` when the answer is definitively known.
 	///
 	/// Should not interact with state.
-	fn signals_epoch_end<'a>(&self, _header: &M::Header, _aux: <M as Localized<'a>>::AuxiliaryData)
-		-> EpochChange<M>
-	{
+	fn signals_epoch_end<'a>(&self, _header: &Header, _aux: AuxiliaryData<'a>) -> EpochChange {
 		EpochChange::No
 	}
 
@@ -336,9 +283,9 @@ pub trait Engine<M: Machine>: Sync + Send {
 	/// Return optional transition proof.
 	fn is_epoch_end(
 		&self,
-		_chain_head: &M::Header,
+		_chain_head: &Header,
 		_finalized: &[H256],
-		_chain: &Headers<M::Header>,
+		_chain: &Headers<Header>,
 		_transition_store: &PendingTransitionStore,
 	) -> Option<Vec<u8>> {
 		None
@@ -355,8 +302,8 @@ pub trait Engine<M: Machine>: Sync + Send {
 	/// Return optional transition proof.
 	fn is_epoch_end_light(
 		&self,
-		_chain_head: &M::Header,
-		_chain: &Headers<M::Header>,
+		_chain_head: &Header,
+		_chain: &Headers<Header>,
 		_transition_store: &PendingTransitionStore,
 	) -> Option<Vec<u8>> {
 		None
@@ -364,40 +311,33 @@ pub trait Engine<M: Machine>: Sync + Send {
 
 	/// Create an epoch verifier from validation proof and a flag indicating
 	/// whether finality is required.
-	fn epoch_verifier<'a>(&self, _header: &M::Header, _proof: &'a [u8]) -> ConstructedVerifier<'a, M> {
-		ConstructedVerifier::Trusted(Box::new(self::epoch::NoOp))
+	fn epoch_verifier<'a>(&self, _header: &Header, _proof: &'a [u8]) -> ConstructedVerifier<'a> {
+		ConstructedVerifier::Trusted(Box::new(NoOp))
 	}
 
 	/// Populate a header's fields based on its parent's header.
 	/// Usually implements the chain scoring rule based on weight.
-	fn populate_from_parent(&self, _header: &mut M::Header, _parent: &M::Header) { }
+	fn populate_from_parent(&self, _header: &mut Header, _parent: &Header) { }
 
 	/// Handle any potential consensus messages;
 	/// updating consensus state and potentially issuing a new one.
 	fn handle_message(&self, _message: &[u8]) -> Result<(), EngineError> { Err(EngineError::UnexpectedMessage) }
 
-	/// Find out if the block is a proposal block and should not be inserted into the DB.
-	/// Takes a header of a fully verified block.
-	fn is_proposal(&self, _verified_header: &M::Header) -> bool { false }
-
 	/// Register a component which signs consensus messages.
-	fn set_signer(&self, _signer: Box<EngineSigner>) {}
+	fn set_signer(&self, _signer: Box<dyn EngineSigner>) {}
 
 	/// Sign using the EngineSigner, to be used for consensus tx signing.
-	fn sign(&self, _hash: H256) -> Result<Signature, M::Error> { unimplemented!() }
+	fn sign(&self, _hash: H256) -> Result<Signature, Error> { unimplemented!() }
 
 	/// Add Client which can be used for sealing, potentially querying the state and sending messages.
-	fn register_client(&self, _client: Weak<M::EngineClient>) {}
+	fn register_client(&self, _client: Weak<dyn EngineClient>) {}
 
 	/// Trigger next step of the consensus engine.
 	fn step(&self) {}
 
-	/// Stops any services that the may hold the Engine and makes it safe to drop.
-	fn stop(&self) {}
-
 	/// Create a factory for building snapshot chunks and restoring from them.
 	/// Returning `None` indicates that this engine doesn't support snapshot creation.
-	fn snapshot_components(&self) -> Option<Box<SnapshotComponents>> {
+	fn snapshot_components(&self) -> Option<Box<dyn SnapshotComponents>> {
 		None
 	}
 
@@ -421,32 +361,17 @@ pub trait Engine<M: Machine>: Sync + Send {
 
 	/// Gather all ancestry actions. Called at the last stage when a block is committed. The Engine must guarantee that
 	/// the ancestry exists.
-	fn ancestry_actions(&self, _header: &M::Header, _ancestry: &mut Iterator<Item=M::ExtendedHeader>) -> Vec<AncestryAction> {
+	fn ancestry_actions(&self, _header: &Header, _ancestry: &mut dyn Iterator<Item = ExtendedHeader>) -> Vec<AncestryAction> {
 		Vec::new()
 	}
 
-	/// Check whether the given new block is the best block, after finalization check.
-	fn fork_choice(&self, new: &M::ExtendedHeader, best: &M::ExtendedHeader) -> ForkChoice;
-}
-
-/// Check whether a given block is the best block based on the default total difficulty rule.
-pub fn total_difficulty_fork_choice<T: TotalScoredHeader>(new: &T, best: &T) -> ForkChoice where <T as TotalScoredHeader>::Value: Ord {
-	if new.total_score() > best.total_score() {
-		ForkChoice::New
-	} else {
-		ForkChoice::Old
+	/// Returns author should used when executing tx's for this block.
+	fn executive_author(&self, header: &Header) -> Result<Address, Error> {
+		Ok(*header.author())
 	}
-}
 
-/// Common type alias for an engine coupled with an Ethereum-like state machine.
-// TODO: make this a _trait_ alias when those exist.
-// fortunately the effect is largely the same since engines are mostly used
-// via trait objects.
-pub trait EthEngine: Engine<::machine::EthereumMachine> {
 	/// Get the general parameters of the chain.
-	fn params(&self) -> &CommonParams {
-		self.machine().params()
-	}
+	fn params(&self) -> &CommonParams;
 
 	/// Get the EVM schedule for the given block number.
 	fn schedule(&self, block_number: BlockNumber) -> Schedule {
@@ -465,9 +390,7 @@ pub trait EthEngine: Engine<::machine::EthereumMachine> {
 	}
 
 	/// Some intrinsic operation parameters; by default they take their value from the `spec()`'s `engine_params`.
-	fn maximum_extra_data_size(&self) -> usize {
-		self.machine().maximum_extra_data_size()
-	}
+	fn maximum_extra_data_size(&self) -> usize { self.params().maximum_extra_data_size }
 
 	/// The nonce with which accounts begin at given block.
 	fn account_start_nonce(&self, block: BlockNumber) -> U256 {
@@ -477,23 +400,6 @@ pub trait EthEngine: Engine<::machine::EthereumMachine> {
 	/// The network ID that transactions should be signed with.
 	fn signing_chain_id(&self, env_info: &EnvInfo) -> Option<u64> {
 		self.machine().signing_chain_id(env_info)
-	}
-
-	/// Returns new contract address generation scheme at given block number.
-	fn create_address_scheme(&self, number: BlockNumber) -> CreateContractAddress {
-		self.machine().create_address_scheme(number)
-	}
-
-	/// Verify a particular transaction is valid.
-	///
-	/// Unordered verification doesn't rely on the transaction execution order,
-	/// i.e. it should only verify stuff that doesn't assume any previous transactions
-	/// has already been verified and executed.
-	///
-	/// NOTE This function consumes an `UnverifiedTransaction` and produces `SignedTransaction`
-	/// which implies that a heavy check of the signature is performed here.
-	fn verify_transaction_unordered(&self, t: UnverifiedTransaction, header: &Header) -> Result<SignedTransaction, transaction::Error> {
-		self.machine().verify_transaction_unordered(t, header)
 	}
 
 	/// Perform basic/cheap transaction verification.
@@ -510,16 +416,34 @@ pub trait EthEngine: Engine<::machine::EthereumMachine> {
 		self.machine().verify_transaction_basic(t, header)
 	}
 
-	/// Additional information.
-	fn additional_params(&self) -> HashMap<String, String> {
-		self.machine().additional_params()
-	}
-
 	/// Performs pre-validation of RLP decoded transaction before other processing
 	fn decode_transaction(&self, transaction: &[u8]) -> Result<UnverifiedTransaction, transaction::Error> {
 		self.machine().decode_transaction(transaction)
 	}
 }
 
-// convenience wrappers for existing functions.
-impl<T> EthEngine for T where T: Engine<::machine::EthereumMachine> { }
+/// Verifier for all blocks within an epoch with self-contained state.
+pub trait EpochVerifier: Send + Sync {
+	/// Lightly verify the next block header.
+	/// This may not be a header belonging to a different epoch.
+	fn verify_light(&self, header: &Header) -> Result<(), Error>;
+
+	/// Perform potentially heavier checks on the next block header.
+	fn verify_heavy(&self, header: &Header) -> Result<(), Error> {
+		self.verify_light(header)
+	}
+
+	/// Check a finality proof against this epoch verifier.
+	/// Returns `Some(hashes)` if the proof proves finality of these hashes.
+	/// Returns `None` if the proof doesn't prove anything.
+	fn check_finality_proof(&self, _proof: &[u8]) -> Option<Vec<H256>> {
+		None
+	}
+}
+
+/// Special "no-op" verifier for stateless, epoch-less engines.
+pub struct NoOp;
+
+impl EpochVerifier for NoOp {
+	fn verify_light(&self, _header: &Header) -> Result<(), Error> { Ok(()) }
+}

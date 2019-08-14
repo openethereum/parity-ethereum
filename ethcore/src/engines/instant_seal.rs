@@ -15,7 +15,19 @@
 // along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
 use engines::{Engine, Seal};
-use parity_machine::{Machine, Transactions, TotalScoredHeader};
+use machine::{
+	ExecutedBlock,
+	Machine
+};
+use types::{
+	header::Header,
+	engines::{
+		SealingState,
+		params::CommonParams,
+	},
+	errors::EthcoreError as Error,
+};
+
 
 /// `InstantSeal` params.
 #[derive(Default, Debug, PartialEq)]
@@ -34,38 +46,39 @@ impl From<::ethjson::spec::InstantSealParams> for InstantSealParams {
 
 /// An engine which does not provide any consensus mechanism, just seals blocks internally.
 /// Only seals blocks which have transactions.
-pub struct InstantSeal<M> {
+pub struct InstantSeal {
 	params: InstantSealParams,
-	machine: M,
+	machine: Machine,
 }
 
-impl<M> InstantSeal<M> {
+impl InstantSeal {
 	/// Returns new instance of InstantSeal over the given state machine.
-	pub fn new(params: InstantSealParams, machine: M) -> Self {
+	pub fn new(params: InstantSealParams, machine: Machine) -> Self {
 		InstantSeal {
-			params, machine,
+			params,
+			machine,
 		}
 	}
 }
 
-impl<M: Machine> Engine<M> for InstantSeal<M>
-  where M::LiveBlock: Transactions,
-        M::ExtendedHeader: TotalScoredHeader,
-        <M::ExtendedHeader as TotalScoredHeader>::Value: Ord
-{
+impl Engine for InstantSeal {
 	fn name(&self) -> &str {
 		"InstantSeal"
 	}
 
-	fn machine(&self) -> &M { &self.machine }
+	fn machine(&self) -> &Machine { &self.machine }
 
-	fn seals_internally(&self) -> Option<bool> { Some(true) }
+	fn sealing_state(&self) -> SealingState { SealingState::Ready }
 
-	fn generate_seal(&self, block: &M::LiveBlock, _parent: &M::Header) -> Seal {
-		if block.transactions().is_empty() { Seal::None } else { Seal::Regular(Vec::new()) }
+	fn generate_seal(&self, block: &ExecutedBlock, _parent: &Header) -> Seal {
+		if block.transactions.is_empty() {
+			Seal::None
+		} else {
+			Seal::Regular(Vec::new())
+		}
 	}
 
-	fn verify_local_seal(&self, _header: &M::Header) -> Result<(), M::Error> {
+	fn verify_local_seal(&self, _header: &Header) -> Result<(), Error> {
 		Ok(())
 	}
 
@@ -84,38 +97,40 @@ impl<M: Machine> Engine<M> for InstantSeal<M>
 		header_timestamp >= parent_timestamp
 	}
 
-	fn fork_choice(&self, new: &M::ExtendedHeader, current: &M::ExtendedHeader) -> super::ForkChoice {
-		super::total_difficulty_fork_choice(new, current)
+	fn params(&self) -> &CommonParams {
+		self.machine.params()
 	}
+
 }
+
 
 #[cfg(test)]
 mod tests {
 	use std::sync::Arc;
 	use ethereum_types::{H520, Address};
 	use test_helpers::get_temp_state_db;
-	use spec::Spec;
+	use crate::spec;
 	use types::header::Header;
 	use block::*;
 	use engines::Seal;
 
 	#[test]
 	fn instant_can_seal() {
-		let spec = Spec::new_instant();
+		let spec = spec::new_instant();
 		let engine = &*spec.engine;
 		let db = spec.ensure_db_good(get_temp_state_db(), &Default::default()).unwrap();
 		let genesis_header = spec.genesis_header();
 		let last_hashes = Arc::new(vec![genesis_header.hash()]);
-		let b = OpenBlock::new(engine, Default::default(), false, db, &genesis_header, last_hashes, Address::default(), (3141562.into(), 31415620.into()), vec![], false, &mut Vec::new().into_iter()).unwrap();
+		let b = OpenBlock::new(engine, Default::default(), false, db, &genesis_header, last_hashes, Address::zero(), (3141562.into(), 31415620.into()), vec![], false).unwrap();
 		let b = b.close_and_lock().unwrap();
-		if let Seal::Regular(seal) = engine.generate_seal(b.block(), &genesis_header) {
+		if let Seal::Regular(seal) = engine.generate_seal(&b, &genesis_header) {
 			assert!(b.try_seal(engine, seal).is_ok());
 		}
 	}
 
 	#[test]
 	fn instant_cant_verify() {
-		let engine = Spec::new_instant().engine;
+		let engine = spec::new_instant().engine;
 		let mut header: Header = Header::default();
 
 		assert!(engine.verify_block_basic(&header).is_ok());

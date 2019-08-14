@@ -68,24 +68,44 @@ impl Signature {
 	/// Create a signature object from the sig.
 	pub fn from_rsv(r: &H256, s: &H256, v: u8) -> Self {
 		let mut sig = [0u8; 65];
-		sig[0..32].copy_from_slice(&r);
-		sig[32..64].copy_from_slice(&s);
+		sig[0..32].copy_from_slice(r.as_ref());
+		sig[32..64].copy_from_slice(s.as_ref());
 		sig[64] = v;
 		Signature(sig)
 	}
 
 	/// Check if this is a "low" signature.
 	pub fn is_low_s(&self) -> bool {
-		H256::from_slice(self.s()) <= "7FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF5D576E7357A4501DDFE92F46681B20A0".into()
+		// "7FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF5D576E7357A4501DDFE92F46681B20A0"
+		const MASK: H256 = H256([
+			0x7F, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF,
+			0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF,
+			0x5D, 0x57, 0x6E, 0x73, 0x57, 0xA4, 0x50, 0x1D,
+			0xDF, 0xE9, 0x2F, 0x46, 0x68, 0x1B, 0x20, 0xA0,
+		]);
+		H256::from_slice(self.s()) <= MASK
 	}
 
 	/// Check if each component of the signature is in range.
 	pub fn is_valid(&self) -> bool {
+		// "fffffffffffffffffffffffffffffffebaaedce6af48a03bbfd25e8cd0364141"
+		const MASK: H256 = H256([
+			0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+			0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xfe,
+			0xba, 0xae, 0xdc, 0xe6, 0xaf, 0x48, 0xa0, 0x3b,
+			0xbf, 0xd2, 0x5e, 0x8c, 0xd0, 0x36, 0x41, 0x41,
+		]);
+		const ONE: H256 = H256([
+			0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+			0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+			0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+			0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01,
+		]);
+		let r = H256::from_slice(self.r());
+		let s = H256::from_slice(self.s());
 		self.v() <= 1 &&
-			H256::from_slice(self.r()) < "fffffffffffffffffffffffffffffffebaaedce6af48a03bbfd25e8cd0364141".into() &&
-			H256::from_slice(self.r()) >= 1.into() &&
-			H256::from_slice(self.s()) < "fffffffffffffffffffffffffffffffebaaedce6af48a03bbfd25e8cd0364141".into() &&
-			H256::from_slice(self.s()) >= 1.into()
+			r < MASK && r >= ONE &&
+			s < MASK && s >= ONE
 	}
 }
 
@@ -190,7 +210,7 @@ impl DerefMut for Signature {
 
 pub fn sign(secret: &Secret, message: &Message) -> Result<Signature, Error> {
 	let context = &SECP256K1;
-	let sec = SecretKey::from_slice(context, &secret)?;
+	let sec = SecretKey::from_slice(context, secret.as_ref())?;
 	let s = context.sign_recoverable(&SecpMessage::from_slice(&message[..])?, &sec)?;
 	let (rec_id, data) = s.serialize_compact(context);
 	let mut data_arr = [0; 65];
@@ -208,7 +228,7 @@ pub fn verify_public(public: &Public, signature: &Signature, message: &Message) 
 
 	let pdata: [u8; 65] = {
 		let mut temp = [4u8; 65];
-		temp[1..65].copy_from_slice(&**public);
+		temp[1..65].copy_from_slice(public.as_bytes());
 		temp
 	};
 
@@ -233,7 +253,7 @@ pub fn recover(signature: &Signature, message: &Message) -> Result<Public, Error
 	let serialized = pubkey.serialize_vec(context, false);
 
 	let mut public = Public::default();
-	public.copy_from_slice(&serialized[1..65]);
+	public.as_bytes_mut().copy_from_slice(&serialized[1..65]);
 	Ok(public)
 }
 

@@ -15,7 +15,7 @@
 // along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
 use ethkey::{Public, Secret, Signature, Random, Generator, math};
-use ethereum_types::{H256, U256};
+use ethereum_types::{H256, U256, BigEndianHash};
 use hash::keccak;
 use key_server_cluster::Error;
 
@@ -35,8 +35,8 @@ pub fn zero_scalar() -> Secret {
 
 /// Convert hash to EC scalar (modulo curve order).
 pub fn to_scalar(hash: H256) -> Result<Secret, Error> {
-	let scalar: U256 = hash.into();
-	let scalar: H256 = (scalar % math::curve_order()).into();
+	let scalar: U256 = hash.into_uint();
+	let scalar: H256 = BigEndianHash::from_uint(&(scalar % math::curve_order()));
 	let scalar = Secret::from(scalar.0);
 	scalar.check_validity()?;
 	Ok(scalar)
@@ -54,12 +54,12 @@ pub fn generate_random_point() -> Result<Public, Error> {
 
 /// Get X coordinate of point.
 fn public_x(public: &Public) -> H256 {
-	public[0..32].into()
+	H256::from_slice(&public.as_bytes()[0..32])
 }
 
 /// Get Y coordinate of point.
 fn public_y(public: &Public) -> H256 {
-	public[32..64].into()
+	H256::from_slice(&public.as_bytes()[32..64])
 }
 
 /// Compute publics sum.
@@ -478,7 +478,7 @@ pub fn serialize_ecdsa_signature(nonce_public: &Public, signature_r: Secret, mut
 	// compute recovery param
 	let mut signature_v = {
 		let nonce_public_x = public_x(nonce_public);
-		let nonce_public_y: U256 = public_y(nonce_public).into();
+		let nonce_public_y: U256 = public_y(nonce_public).into_uint();
 		let nonce_public_y_is_odd = !(nonce_public_y % 2).is_zero();
 		let bit0 = if nonce_public_y_is_odd { 1u8 } else { 0u8 };
 		let bit1 = if nonce_public_x != *signature_r { 2u8 } else { 0u8 };
@@ -488,17 +488,17 @@ pub fn serialize_ecdsa_signature(nonce_public: &Public, signature_r: Secret, mut
 	// fix high S
 	let curve_order = math::curve_order();
 	let curve_order_half = curve_order / 2;
-	let s_numeric: U256 = (*signature_s).into();
+	let s_numeric: U256 = (*signature_s).into_uint();
 	if s_numeric > curve_order_half {
-		let signature_s_hash: H256 = (curve_order - s_numeric).into();
+		let signature_s_hash: H256 = BigEndianHash::from_uint(&(curve_order - s_numeric));
 		signature_s = signature_s_hash.into();
 		signature_v ^= 1;
 	}
 
 	// serialize as [r][s]v
 	let mut signature = [0u8; 65];
-	signature[..32].copy_from_slice(&**signature_r);
-	signature[32..64].copy_from_slice(&**signature_s);
+	signature[..32].copy_from_slice(signature_r.as_bytes());
+	signature[32..64].copy_from_slice(signature_s.as_bytes());
 	signature[64] = signature_v;
 
 	signature.into()

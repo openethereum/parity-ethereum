@@ -19,6 +19,7 @@
 use std::sync::Arc;
 
 use ethcore::client::BlockChainClient;
+use types::header::Header;
 use types::transaction::LocalizedTransaction;
 
 use jsonrpc_core::Result;
@@ -50,7 +51,7 @@ impl<C: BlockChainClient + 'static> Debug for DebugClient<C> {
 			let hash = block.header.hash();
 			RichBlock {
 				inner: Block {
-					hash: Some(hash.into()),
+					hash: Some(hash),
 					size: Some(block.bytes.len().into()),
 					parent_hash: cast(block.header.parent_hash()),
 					uncles_hash: cast(block.header.uncles_hash()),
@@ -65,14 +66,14 @@ impl<C: BlockChainClient + 'static> Debug for DebugClient<C> {
 					timestamp: block.header.timestamp().into(),
 					difficulty: cast(block.header.difficulty()),
 					total_difficulty: None,
-					seal_fields: block.header.seal().into_iter().cloned().map(Into::into).collect(),
-					uncles: block.uncles.into_iter().map(|u| u.hash().into()).collect(),
+					seal_fields: block.header.seal().iter().cloned().map(Into::into).collect(),
+					uncles: block.uncles.iter().map(Header::hash).collect(),
 					transactions: BlockTransactions::Full(block.transactions
 						.into_iter()
 						.enumerate()
 						.map(|(transaction_index, signed)| Transaction::from_localized(LocalizedTransaction {
-							block_number: number.into(),
-							block_hash: hash.into(),
+							block_number: number,
+							block_hash: hash,
 							transaction_index,
 							signed,
 							cached_sender: None,

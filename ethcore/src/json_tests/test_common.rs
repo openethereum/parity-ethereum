@@ -111,6 +111,7 @@ macro_rules! test {
 	}
 }
 
+/// Declares a test
 #[macro_export]
 macro_rules! declare_test {
 	(skip => $arr: expr, $id: ident, $name: expr) => {

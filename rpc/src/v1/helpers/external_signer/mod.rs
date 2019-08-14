@@ -40,7 +40,7 @@ impl SignerService {
 		SignerService {
 			queue: Arc::new(ConfirmationsQueue::default()),
 			generate_new_token: Box::new(new_token),
-			is_enabled: is_enabled,
+			is_enabled,
 		}
 	}
 

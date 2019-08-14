@@ -19,9 +19,12 @@ use super::test_common::*;
 use client::EvmTestClient;
 use ethjson;
 use rlp::Rlp;
-use types::header::Header;
-use types::transaction::UnverifiedTransaction;
-use transaction_ext::Transaction;
+use types::{
+	header::Header,
+	errors::EthcoreError as Error,
+	transaction::UnverifiedTransaction
+};
+use machine::transaction_ext::Transaction;
 
 /// Run transaction jsontests on a given folder.
 pub fn run_test_path<H: FnMut(&str, HookType)>(p: &Path, skip: &[&'static str], h: &mut H) {
@@ -44,7 +47,7 @@ fn do_json_test<H: FnMut(&str, HookType)>(json_data: &[u8], start_stop_hook: &mu
 		start_stop_hook(&name, HookType::OnStart);
 
 		for (spec_name, result) in test.post_state {
-			let spec = match EvmTestClient::spec_from_json(&spec_name) {
+			let spec = match EvmTestClient::fork_spec_from_json(&spec_name) {
 				Some(spec) => spec,
 				None => {
 					println!("   - {} | {:?} Ignoring tests because of missing spec", name, spec_name);
@@ -60,7 +63,7 @@ fn do_json_test<H: FnMut(&str, HookType)>(json_data: &[u8], start_stop_hook: &mu
 			let rlp: Vec<u8> = test.rlp.clone().into();
 			let res = Rlp::new(&rlp)
 				.as_val()
-				.map_err(::error::Error::from)
+				.map_err(Error::from)
 				.and_then(|t: UnverifiedTransaction| {
 					let mut header: Header = Default::default();
 					// Use high enough number to activate all required features.
@@ -73,7 +76,7 @@ fn do_json_test<H: FnMut(&str, HookType)>(json_data: &[u8], start_stop_hook: &mu
 						}.into());
 					}
 					spec.engine.verify_transaction_basic(&t, &header)?;
-					Ok(spec.engine.verify_transaction_unordered(t, &header)?)
+					Ok(t.verify_unordered()?)
 				});
 
 			match (res, result.hash, result.sender) {

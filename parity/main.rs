@@ -34,7 +34,7 @@ extern crate ethcore_logger;
 
 use std::ffi::OsString;
 use std::fs::{remove_file, metadata, File, create_dir_all};
-use std::io::{self as stdio, Read, Write};
+use std::io::{Read, Write};
 use std::path::PathBuf;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -190,7 +190,10 @@ fn main_direct(force_can_restart: bool) -> i32 {
 		parity_ethereum::Configuration::parse_cli(&args).unwrap_or_else(|e| e.exit())
 	};
 
-	let logger = setup_log(&conf.logger_config()).expect("Logger is initialized only once; qed");
+	let logger = setup_log(&conf.logger_config()).unwrap_or_else(|e| {
+		eprintln!("{}", e);
+		process::exit(2)
+	});
 
 	if let Some(spec_override) = take_spec_name_override() {
 		conf.args.flag_testnet = false;
@@ -210,8 +213,6 @@ fn main_direct(force_can_restart: bool) -> i32 {
 					"{}",
 					Colour::Red.paint(format!("{}", e))
 				);
-				// flush before returning
-				let _ = std::io::stderr().flush();
 				return 1;
 			}
 		}
@@ -284,7 +285,7 @@ fn main_direct(force_can_restart: bool) -> i32 {
 					let e = exit.clone();
 					let exiting = exiting.clone();
 					move |panic_msg| {
-						let _ = stdio::stderr().write_all(panic_msg.as_bytes());
+						eprintln!("{}", panic_msg);
 						if !exiting.swap(true, Ordering::SeqCst) {
 							*e.0.lock() = ExitStatus {
 								panicking: true,
@@ -347,7 +348,7 @@ fn main_direct(force_can_restart: bool) -> i32 {
 			if let Some(mut handle) = handle {
 				handle.detach_with_msg(format!("{}", Colour::Red.paint(&err)))
 			}
-			writeln!(&mut stdio::stderr(), "{}", err).expect("StdErr available; qed");
+			eprintln!("{}", err);
 			1
 		},
 	};
@@ -362,7 +363,6 @@ fn println_trace_main(s: String) {
 	}
 }
 
-#[macro_export]
 macro_rules! trace_main {
 	($arg:expr) => (println_trace_main($arg.into()));
 	($($arg:tt)*) => (println_trace_main(format!("{}", format_args!($($arg)*))));

@@ -24,10 +24,14 @@ use crypto::DEFAULT_MAC;
 use ethkey::{crypto::ecies, Brain, Generator};
 use ethstore::random_phrase;
 use sync::{LightSyncInfo, LightSyncProvider, LightNetworkDispatcher, ManageNetwork};
+use updater::VersionInfo as UpdaterVersionInfo;
+use ethereum_types::{H64, H160, H256, H512, U64, U256};
+use ethcore::miner::FilterOptions;
 use ethcore_logger::RotatingLogger;
 
 use jsonrpc_core::{Result, BoxFuture};
 use jsonrpc_core::futures::{future, Future};
+use light::on_demand::OnDemandRequester;
 use v1::helpers::{self, errors, ipfs, NetworkSettings, verify_signature};
 use v1::helpers::external_signer::{SignerService, SigningQueue};
 use v1::helpers::dispatch::LightDispatcher;
@@ -35,7 +39,7 @@ use v1::helpers::light_fetch::{LightFetch, light_all_transactions};
 use v1::metadata::Metadata;
 use v1::traits::Parity;
 use v1::types::{
-	Bytes, U256, U64, H64, H160, H256, H512, CallRequest,
+	Bytes, CallRequest,
 	Peers, Transaction, RpcSettings, Histogram,
 	TransactionStats, LocalTransactionStatus,
 	LightBlockNumber, ChainStatus, Receipt,
@@ -44,10 +48,16 @@ use v1::types::{
 	Log, Filter,
 };
 use Host;
+use v1::helpers::errors::light_unimplemented;
+use v1::types::block_number_to_id;
 
 /// Parity implementation for light client.
-pub struct ParityClient<S: LightSyncProvider + LightNetworkDispatcher + ManageNetwork + 'static> {
-	light_dispatch: Arc<LightDispatcher<S>>,
+pub struct ParityClient<S, OD>
+where
+	S: LightSyncProvider + LightNetworkDispatcher + ManageNetwork + 'static,
+	OD: OnDemandRequester + 'static
+{
+	light_dispatch: Arc<LightDispatcher<S, OD>>,
 	logger: Arc<RotatingLogger>,
 	settings: Arc<NetworkSettings>,
 	signer: Option<Arc<SignerService>>,
@@ -55,13 +65,14 @@ pub struct ParityClient<S: LightSyncProvider + LightNetworkDispatcher + ManageNe
 	gas_price_percentile: usize,
 }
 
-impl<S> ParityClient<S>
+impl<S, OD> ParityClient<S, OD>
 where
-	S: LightSyncProvider + LightNetworkDispatcher + ManageNetwork + 'static
+	S: LightSyncProvider + LightNetworkDispatcher + ManageNetwork + 'static,
+	OD: OnDemandRequester + 'static
 {
 	/// Creates new `ParityClient`.
 	pub fn new(
-		light_dispatch: Arc<LightDispatcher<S>>,
+		light_dispatch: Arc<LightDispatcher<S, OD>>,
 		logger: Arc<RotatingLogger>,
 		settings: Arc<NetworkSettings>,
 		signer: Option<Arc<SignerService>>,
@@ -79,7 +90,7 @@ where
 	}
 
 	/// Create a light blockchain data fetcher.
-	fn fetcher(&self) -> LightFetch<S>
+	fn fetcher(&self) -> LightFetch<S, OD>
 	{
 		LightFetch {
 			client: self.light_dispatch.client.clone(),
@@ -91,9 +102,10 @@ where
 	}
 }
 
-impl<S> Parity for ParityClient<S>
+impl<S, OD> Parity for ParityClient<S, OD>
 where
-	S: LightSyncInfo + LightSyncProvider + LightNetworkDispatcher + ManageNetwork + 'static
+	S: LightSyncInfo + LightSyncProvider + LightNetworkDispatcher + ManageNetwork + 'static,
+	OD: OnDemandRequester + 'static
 {
 	type Metadata = Metadata;
 
@@ -138,7 +150,7 @@ where
 			active: peer_numbers.active,
 			connected: peer_numbers.connected,
 			max: peer_numbers.max as u32,
-			peers: peers,
+			peers,
 		})
 	}
 
@@ -151,12 +163,7 @@ where
 	}
 
 	fn registry_address(&self) -> Result<Option<H160>> {
-		let reg = self.light_dispatch.client.engine().params().registrar;
-		if reg == Default::default() {
-			Ok(None)
-		} else {
-			Ok(Some(reg.into()))
-		}
+		Ok(self.light_dispatch.client.engine().params().registrar)
 	}
 
 	fn rpc_settings(&self) -> Result<RpcSettings> {
@@ -189,7 +196,7 @@ where
 	}
 
 	fn phrase_to_address(&self, phrase: String) -> Result<H160> {
-		Ok(Brain::new(phrase).generate().unwrap().address().into())
+		Ok(Brain::new(phrase).generate().expect("Brain::generate always returns Ok; qed").address())
 	}
 
 	fn list_accounts(&self, _: u64, _: Option<H160>, _: Option<BlockNumber>) -> Result<Option<Vec<H160>>> {
@@ -201,19 +208,19 @@ where
 	}
 
 	fn encrypt_message(&self, key: H512, phrase: Bytes) -> Result<Bytes> {
-		ecies::encrypt(&key.into(), &DEFAULT_MAC, &phrase.0)
+		ecies::encrypt(&key, &DEFAULT_MAC, &phrase.0)
 			.map_err(errors::encryption)
 			.map(Into::into)
 	}
 
-	fn pending_transactions(&self, limit: Option<usize>) -> Result<Vec<Transaction>> {
+	fn pending_transactions(&self, limit: Option<usize>, _filter: Option<FilterOptions>) -> Result<Vec<Transaction>> {
 		let txq = self.light_dispatch.transaction_queue.read();
 		let chain_info = self.light_dispatch.client.chain_info();
 		Ok(
 			txq.ready_transactions(chain_info.best_block_number, chain_info.best_block_timestamp)
 				.into_iter()
 				.take(limit.unwrap_or_else(usize::max_value))
-				.map(|tx| Transaction::from_pending(tx))
+				.map(Transaction::from_pending)
 				.collect::<Vec<_>>()
 		)
 	}
@@ -221,7 +228,7 @@ where
 	fn all_transactions(&self) -> Result<Vec<Transaction>> {
 		Ok(
 			light_all_transactions(&self.light_dispatch)
-				.map(|tx| Transaction::from_pending(tx))
+				.map(Transaction::from_pending)
 				.collect()
 		)
 	}
@@ -229,7 +236,7 @@ where
 	fn all_transaction_hashes(&self) -> Result<Vec<H256>> {
 		Ok(
 			light_all_transactions(&self.light_dispatch)
-				.map(|tx| tx.transaction.hash().into())
+				.map(|tx| tx.transaction.hash())
 				.collect()
 		)
 	}
@@ -240,7 +247,7 @@ where
 		Ok(
 			txq.future_transactions(chain_info.best_block_number, chain_info.best_block_timestamp)
 				.into_iter()
-				.map(|tx| Transaction::from_pending(tx))
+				.map(Transaction::from_pending)
 				.collect::<Vec<_>>()
 		)
 	}
@@ -248,7 +255,7 @@ where
 	fn pending_transactions_stats(&self) -> Result<BTreeMap<H256, TransactionStats>> {
 		let stats = self.light_dispatch.sync.transactions_stats();
 		Ok(stats.into_iter()
-			.map(|(hash, stats)| (hash.into(), stats.into()))
+			.map(|(hash, stats)| (hash, stats.into()))
 			.collect()
 		)
 	}
@@ -260,11 +267,11 @@ where
 		let txq = self.light_dispatch.transaction_queue.read();
 
 		for pending in txq.ready_transactions(best_num, best_tm) {
-			map.insert(pending.hash().into(), LocalTransactionStatus::Pending);
+			map.insert(pending.hash(), LocalTransactionStatus::Pending);
 		}
 
 		for future in txq.future_transactions(best_num, best_tm) {
-			map.insert(future.hash().into(), LocalTransactionStatus::Future);
+			map.insert(future.hash(), LocalTransactionStatus::Future);
 		}
 
 		// TODO: other types?
@@ -274,11 +281,11 @@ where
 
 	fn ws_url(&self) -> Result<String> {
 		helpers::to_url(&self.ws_address)
-			.ok_or_else(|| errors::ws_disabled())
+			.ok_or_else(errors::ws_disabled)
 	}
 
 	fn next_nonce(&self, address: H160) -> BoxFuture<U256> {
-		Box::new(self.light_dispatch.next_nonce(address.into()).map(Into::into))
+		Box::new(self.light_dispatch.next_nonce(address))
 	}
 
 	fn mode(&self) -> Result<String> {
@@ -298,7 +305,7 @@ where
 	}
 
 	fn version_info(&self) -> Result<VersionInfo> {
-		Err(errors::light_unimplemented(None))
+		Ok(UpdaterVersionInfo::this().into())
 	}
 
 	fn releases_info(&self) -> Result<Option<OperationsInfo>> {
@@ -312,7 +319,7 @@ where
 			.and_then(|first| chain_info.first_block_number.map(|last| (first, U256::from(last))));
 
 		Ok(ChainStatus {
-			block_gap: gap.map(|(x, y)| (x.into(), y.into())),
+			block_gap: gap,
 		})
 	}
 
@@ -334,25 +341,25 @@ where
 			let extra_info = engine.extra_info(&header);
 			Ok(RichHeader {
 				inner: Header {
-					hash: Some(header.hash().into()),
+					hash: Some(header.hash()),
 					size: Some(encoded.rlp().as_raw().len().into()),
-					parent_hash: header.parent_hash().clone().into(),
-					uncles_hash: header.uncles_hash().clone().into(),
-					author: header.author().clone().into(),
-					miner: header.author().clone().into(),
-					state_root: header.state_root().clone().into(),
-					transactions_root: header.transactions_root().clone().into(),
-					receipts_root: header.receipts_root().clone().into(),
+					parent_hash: *header.parent_hash(),
+					uncles_hash: *header.uncles_hash(),
+					author: *header.author(),
+					miner: *header.author(),
+					state_root: *header.state_root(),
+					transactions_root: *header.transactions_root(),
+					receipts_root: *header.receipts_root(),
 					number: Some(header.number().into()),
-					gas_used: header.gas_used().clone().into(),
-					gas_limit: header.gas_limit().clone().into(),
-					logs_bloom: header.log_bloom().clone().into(),
+					gas_used: *header.gas_used(),
+					gas_limit: *header.gas_limit(),
+					logs_bloom: *header.log_bloom(),
 					timestamp: header.timestamp().into(),
-					difficulty: header.difficulty().clone().into(),
+					difficulty: *header.difficulty(),
 					seal_fields: header.seal().iter().cloned().map(Into::into).collect(),
 					extra_data: Bytes::new(header.extra_data().clone()),
 				},
-				extra_info: extra_info,
+				extra_info,
 			})
 		};
 		let id = number.unwrap_or_default().to_block_id();
@@ -388,7 +395,7 @@ where
 	}
 
 	fn logs_no_tx_hash(&self, filter: Filter) -> BoxFuture<Vec<Log>> {
-    let filter = match filter.try_into() {
+		let filter = match filter.try_into() {
 			Ok(value) => value,
 			Err(err) => return Box::new(future::err(err)),
 		};
@@ -397,5 +404,17 @@ where
 
 	fn verify_signature(&self, is_prefixed: bool, message: Bytes, r: H256, s: H256, v: U64) -> Result<RecoveredAccount> {
 		verify_signature(is_prefixed, message, r, s, v, self.light_dispatch.client.signing_chain_id())
+	}
+
+	fn get_raw_block_by_number(&self, block: BlockNumber) -> BoxFuture<Option<Bytes>> {
+		Box::new(
+			self.fetcher()
+				.block(block_number_to_id(block))
+				.map(|block| Some(Bytes::from(block.raw().to_vec())))
+		)
+	}
+
+	fn submit_raw_block(&self, _block: Bytes) -> Result<H256> {
+		Err(light_unimplemented(None))
 	}
 }

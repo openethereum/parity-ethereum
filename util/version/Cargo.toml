@@ -3,7 +3,7 @@
 [package]
 name = "parity-version"
 # NOTE: this value is used for Parity Ethereum version string (via env CARGO_PKG_VERSION)
-version = "2.4.0"
+version = "2.7.0"
 authors = ["Parity Technologies <admin@parity.io>"]
 build = "build.rs"
 
@@ -19,10 +19,11 @@ track = "nightly"
 foundation = { forkBlock = 7280000, critical = false }
 ropsten = { forkBlock = 4939394, critical = false }
 kovan = { forkBlock = 10255201, critical = false }
+goerli = { forkBlock = 0, critical = false }
 
 [dependencies]
 parity-bytes = "0.1"
-rlp = { version = "0.3.0", features = ["ethereum"] }
+rlp = "0.4.0"
 target_info = "0.1"
 
 [build-dependencies]

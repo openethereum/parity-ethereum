@@ -19,16 +19,17 @@
 use std::collections::BTreeSet;
 use std::sync::Arc;
 
-use crypto::DEFAULT_MAC;
-use ethkey::Secret;
 use accounts::AccountProvider;
+use crypto::DEFAULT_MAC;
+use ethereum_types::{H160, H256, H512};
+use ethkey::Secret;
 
 use jsonrpc_core::Result;
 use v1::helpers::errors;
 use v1::helpers::secretstore::{generate_document_key, encrypt_document,
 	decrypt_document, decrypt_document_with_shadow, ordered_servers_keccak};
 use v1::traits::SecretStore;
-use v1::types::{H160, H256, H512, Bytes, EncryptedDocumentKey};
+use v1::types::{Bytes, EncryptedDocumentKey};
 use ethkey::Password;
 
 /// Parity implementation.
