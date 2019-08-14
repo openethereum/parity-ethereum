@@ -4,14 +4,14 @@ stages:
   - publish
   - optional
 
-image:                             parity/parity-ci-linux:latest
+image:                             registry.parity.io/pub/ci/parity-ci-linux:latest
 variables:
   GIT_STRATEGY:                    fetch
   GIT_SUBMODULE_STRATEGY:          recursive
   CI_SERVER_NAME:                  "GitLab CI"
   CARGO_HOME:                      "/ci-cache/${CI_PROJECT_NAME}/cargo/${CI_JOB_NAME}"
-  SCCACHE_DIR:                     "/ci-cache/${CI_PROJECT_NAME}/sccache"
   CARGO_TARGET:                    x86_64-unknown-linux-gnu
+
 
 .no_git:                           &no_git # disable git strategy
   variables:
@@ -41,22 +41,7 @@ variables:
   before_script:
     - rustup show
     - cargo --version
-    - SCCACHE_ERROR_LOG=/builds/parity/parity-ethereum/sccache_debug.log
-        RUST_LOG=sccache=debug
-        sccache --start-server
-    - sccache -s
-  after_script:
-    # sccache debug info 
-    - if test -e sccache_debug.log;
-      then
-        echo "_____All crate-types:_____";
-        grep 'parse_arguments.*--crate-type' sccache_debug.log | sed -re 's/.*"--crate-type", "([^"]+)".*/\1/' | sort | uniq -c;
-        echo "_____Non-cacheable reasons:_____";
-        grep CannotCache sccache_debug.log | sed -re 's/.*CannotCache\((.+)\).*/\1/' | sort | uniq -c;
-      else
-        echo "_____No logs from sccache_____";
-        exit 0;
-      fi
+    - SCCACHE_REDIS=redis://:${REDIS}@172.17.0.1/0 sccache --start-server
   tags:
     - linux-docker
 
@@ -66,7 +51,6 @@ variables:
   <<:                              *collect_artifacts
   script:
     - scripts/gitlab/build-linux.sh
-    - sccache -s
   after_script:
     - mkdir -p tools
     - cp -r scripts/docker/hub/* ./tools
@@ -84,21 +68,18 @@ cargo-check 0 3:
   <<:                              *docker-cache-status
   script:
     - time cargo check --target $CARGO_TARGET --locked --no-default-features --verbose --color=always
-    - sccache -s
 
 cargo-check 1 3:
   stage:                           test
   <<:                              *docker-cache-status
   script:
     - time cargo check --target $CARGO_TARGET --locked --manifest-path util/io/Cargo.toml --no-default-features --verbose --color=always
-    - sccache -s
 
 cargo-check 2 3:
   stage:                           test
   <<:                              *docker-cache-status
   script:
     - time cargo check --target $CARGO_TARGET --locked --manifest-path util/io/Cargo.toml --features "mio" --verbose --color=always
-    - sccache -s
 
 cargo-audit:
   stage:                           test
@@ -112,21 +93,18 @@ validate-chainspecs:
   <<:                              *docker-cache-status
   script:
     - ./scripts/gitlab/validate-chainspecs.sh
-    - sccache -s
 
 test-cpp:
   stage:                           build
   <<:                              *docker-cache-status
   script:
     - ./scripts/gitlab/test-cpp.sh
-    - sccache -s
 
 test-linux:
   stage:                           build
   <<:                              *docker-cache-status
   script:
     - ./scripts/gitlab/test-linux.sh stable
-    - sccache -s
 
 test-linux-beta:
   stage:                           build
@@ -134,7 +112,6 @@ test-linux-beta:
   <<:                              *docker-cache-status
   script:
     - ./scripts/gitlab/test-linux.sh beta
-    - sccache -s
 
 test-linux-nightly:
   stage:                           build
@@ -142,7 +119,6 @@ test-linux-nightly:
   <<:                              *docker-cache-status
   script:
     - ./scripts/gitlab/test-linux.sh nightly
-    - sccache -s
   allow_failure:                   true
 
 build-android:
