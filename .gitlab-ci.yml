@@ -37,11 +37,11 @@ variables:
 .docker-cache-status:              &docker-cache-status
   variables:
     CARGO_HOME:                    "/ci-cache/parity-ethereum/cargo/${CI_JOB_NAME}"
+    SCCACHE_REDIS:                 "redis://:${REDIS}@172.17.0.1/0"
   dependencies:                    []
   before_script:
     - rustup show
     - cargo --version
-    - SCCACHE_REDIS=redis://:${REDIS}@172.17.0.1/0 sccache --start-server
   tags:
     - linux-docker
 
@@ -123,7 +123,7 @@ test-linux-nightly:
 
 build-android:
   <<:                              *build-on-linux
-  image:                           parity/parity-ci-android:stretch
+  image:                           registry.parity.io/pub/ci/parity-ci-android:stretch
   variables:
     CARGO_TARGET:                  armv7-linux-androideabi
 
@@ -134,21 +134,21 @@ build-linux:
 build-linux-i386:
   <<:                              *build-on-linux
   only:                            *releaseable_branches
-  image:                           parity/parity-ci-i386:latest
+  image:                           registry.parity.io/pub/ci/parity-ci-i386:latest
   variables:
     CARGO_TARGET:                  i686-unknown-linux-gnu
 
 build-linux-arm64:
   <<:                              *build-on-linux
   only:                            *releaseable_branches
-  image:                           parity/parity-ci-arm64:latest
+  image:                           registry.parity.io/pub/ci/parity-ci-arm64:latest
   variables:
     CARGO_TARGET:                  aarch64-unknown-linux-gnu
 
 build-linux-armhf:
   <<:                              *build-on-linux
   only:                            *releaseable_branches
-  image:                           parity/parity-ci-armhf:latest
+  image:                           registry.parity.io/pub/ci/parity-ci-armhf:latest
   variables:
     CARGO_TARGET:                  armv7-unknown-linux-gnueabihf
 
@@ -260,7 +260,7 @@ publish-onchain:
     - linux-docker
 
 publish-awss3-release:
-  image:                           parity/awscli:latest
+  image:                           registry.parity.io/pub/ci/awscli:latest
   stage:                           publish
   only:                            *releaseable_branches
   <<:                              *no_git
@@ -287,7 +287,7 @@ publish-awss3-release:
 
 publish-docs:
   stage:                           publish
-  image:                           parity/parity-ci-docs:latest
+  image:                           registry.parity.io/pub/ci/parity-ci-docs:latest
   only:
     - tags
   except:
