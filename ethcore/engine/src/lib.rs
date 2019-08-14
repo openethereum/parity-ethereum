@@ -18,7 +18,6 @@
 
 mod engine;
 pub mod signer;
-pub mod snapshot;
 
 pub use crate::engine::{
 	Engine,
