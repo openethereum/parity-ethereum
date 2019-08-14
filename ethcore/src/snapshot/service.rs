@@ -107,7 +107,6 @@ struct RestorationParams<'a> {
 impl Restoration {
 	// make a new restoration using the given parameters.
 	fn new(params: RestorationParams) -> Result<Self, Error> {
-		// todo[dvdplm] this is so ugly
 		if !params.engine.supports_warp() {
 			return Err(Error::Snapshot(SnapshotError::SnapshotsUnsupported))
 		}
