@@ -140,5 +140,3 @@ members = [
 	"util/fastmap",
 	"util/time-utils",
 ]
-[patch.crates-io]
-triehash = { git = "https://github.com/cheme/parity-common", branch = "simple-codec-trie" }

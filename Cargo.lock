@@ -3642,14 +3642,6 @@ dependencies = [
 [[package]]
 name = "rlp"
 version = "0.4.2"
-source = "git+https://github.com/cheme/parity-common?branch=simple-codec-trie#97606c51108036c1276a70124640f986b27d2ecc"
-dependencies = [
- "rustc-hex 2.0.1 (registry+https://github.com/rust-lang/crates.io-index)",
-]
-
-[[package]]
-name = "rlp"
-version = "0.4.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 dependencies = [
  "rustc-hex 2.0.1 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -4475,10 +4467,10 @@ dependencies = [
 [[package]]
 name = "triehash"
 version = "0.8.0"
-source = "git+https://github.com/cheme/parity-common?branch=simple-codec-trie#97606c51108036c1276a70124640f986b27d2ecc"
+source = "registry+https://github.com/rust-lang/crates.io-index"
 dependencies = [
  "hash-db 0.15.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "rlp 0.4.2 (git+https://github.com/cheme/parity-common?branch=simple-codec-trie)",
+ "rlp 0.4.2 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]
@@ -4487,7 +4479,7 @@ version = "0.2.0"
 dependencies = [
  "ethereum-types 0.6.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "keccak-hasher 0.1.1",
- "triehash 0.8.0 (git+https://github.com/cheme/parity-common?branch=simple-codec-trie)",
+ "triehash 0.8.0 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]
@@ -5106,7 +5098,6 @@ dependencies = [
 "checksum remove_dir_all 0.5.1 (registry+https://github.com/rust-lang/crates.io-index)" = "3488ba1b9a2084d38645c4c08276a1752dcbf2c7130d74f1569681ad5d2799c5"
 "checksum ring 0.14.6 (registry+https://github.com/rust-lang/crates.io-index)" = "426bc186e3e95cac1e4a4be125a4aca7e84c2d616ffc02244eef36e2a60a093c"
 "checksum ripemd160 0.8.0 (registry+https://github.com/rust-lang/crates.io-index)" = "ad5112e0dbbb87577bfbc56c42450235e3012ce336e29c5befd7807bd626da4a"
-"checksum rlp 0.4.2 (git+https://github.com/cheme/parity-common?branch=simple-codec-trie)" = "<none>"
 "checksum rlp 0.4.2 (registry+https://github.com/rust-lang/crates.io-index)" = "fa2f7f9c612d133da9101ef7bcd3e603ca7098901eca852e71f87a83dd3e6b59"
 "checksum rpassword 1.0.2 (registry+https://github.com/rust-lang/crates.io-index)" = "b273c91bd242ca03ad6d71c143b6f17a48790e61f21a6c78568fa2b6774a24a4"
 "checksum rprompt 1.0.3 (registry+https://github.com/rust-lang/crates.io-index)" = "1601f32bc5858aae3cbfa1c645c96c4d820cc5c16be0194f089560c00b6eb625"
@@ -5195,7 +5186,7 @@ dependencies = [
 "checksum transient-hashmap 0.4.1 (registry+https://github.com/rust-lang/crates.io-index)" = "aeb4b191d033a35edfce392a38cdcf9790b6cebcb30fa690c312c29da4dc433e"
 "checksum trie-db 0.15.0 (registry+https://github.com/rust-lang/crates.io-index)" = "9b65d609ae631d808c6c1cc23a622733d5a0b66a7d67e9f5cd5171562a1f4cb5"
 "checksum trie-standardmap 0.15.0 (registry+https://github.com/rust-lang/crates.io-index)" = "64fda153c00484d640bc91334624be22ead0e5baca917d9fd53ff29bdebcf9b2"
-"checksum triehash 0.8.0 (git+https://github.com/cheme/parity-common?branch=simple-codec-trie)" = "<none>"
+"checksum triehash 0.8.0 (registry+https://github.com/rust-lang/crates.io-index)" = "61d0a66fa2412c7eb7816640e8ea14cf6bd63b6c824e72315b6ca76d33851134"
 "checksum try-lock 0.2.2 (registry+https://github.com/rust-lang/crates.io-index)" = "e604eb7b43c06650e854be16a2a03155743d3752dd1c943f6829e26b7a36e382"
 "checksum typenum 1.10.0 (registry+https://github.com/rust-lang/crates.io-index)" = "612d636f949607bdf9b123b4a6f6d966dedf3ff669f7f045890d3a4a73948169"
 "checksum ucd-util 0.1.1 (registry+https://github.com/rust-lang/crates.io-index)" = "fd2be2d6639d0f8fe6cdda291ad456e23629558d466e2789d2c3e9892bda285d"
