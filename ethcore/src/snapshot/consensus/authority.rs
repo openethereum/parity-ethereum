@@ -22,11 +22,7 @@
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 
-use engine::{
-	Engine,
-	EpochVerifier,
-	snapshot::{SnapshotComponents, Rebuilder}
-};
+use engine::{Engine, EpochVerifier};
 use blockchain::{BlockChain, BlockChainDB, BlockProvider};
 use bytes::Bytes;
 use ethereum_types::{H256, U256};
@@ -42,6 +38,8 @@ use types::{
 	receipt::Receipt,
 	snapshot::{ChunkSink, Progress, ManifestData}
 };
+
+use snapshot::{SnapshotComponents, Rebuilder};
 
 /// Snapshot creation and restoration for PoA chains.
 /// Chunk format:

@@ -51,20 +51,16 @@ use self::io::SnapshotWriter;
 
 use super::state_db::StateDB;
 use account_state::Account as StateAccount;
-use engine::{
-	Engine,
-	snapshot::SnapshotComponents
-};
+use engine::Engine;
 
 use crossbeam_utils::thread;
 use rand::{Rng, rngs::OsRng};
 
 pub use self::consensus::*;
 pub use self::service::{SnapshotClient, Service, DatabaseRestore};
-pub use self::traits::SnapshotService;
+pub use self::traits::{SnapshotService, SnapshotComponents, Rebuilder};
 pub use self::watcher::Watcher;
-pub use types::snapshot::ManifestData;
-pub use types::restoration_status::RestorationStatus;
+pub use types::snapshot::{ManifestData, RestorationStatus};
 pub use types::basic_account::BasicAccount;
 
 pub mod io;

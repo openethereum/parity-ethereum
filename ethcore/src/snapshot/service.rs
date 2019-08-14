@@ -24,16 +24,20 @@ use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 use std::cmp;
 
-use super::{StateRebuilder, RestorationStatus, SnapshotService, MAX_CHUNK_SIZE};
-use super::io::{SnapshotReader, LooseReader, SnapshotWriter, LooseWriter};
+use super::{
+	StateRebuilder,
+	RestorationStatus,
+	SnapshotService,
+	Rebuilder,
+	MAX_CHUNK_SIZE,
+	io::{SnapshotReader, LooseReader, SnapshotWriter, LooseWriter},
+	chunker,
+};
 
 use blockchain::{BlockChain, BlockChainDB, BlockChainDBHandler};
 use client::{Client, ClientIoMessage};
-use client_traits::{
-	BlockInfo, BlockChainClient, ChainInfo
-};
+use client_traits::{BlockInfo, BlockChainClient, ChainInfo};
 use engine::Engine;
-use engine::snapshot::Rebuilder;
 use hash::keccak;
 use types::{
 	errors::{EthcoreError as Error, SnapshotError, SnapshotError::UnlinkedAncientBlockChain},
@@ -103,6 +107,11 @@ struct RestorationParams<'a> {
 impl Restoration {
 	// make a new restoration using the given parameters.
 	fn new(params: RestorationParams) -> Result<Self, Error> {
+		// todo[dvdplm] this is so ugly
+		if !params.engine.supports_warp() {
+			return Err(Error::Snapshot(SnapshotError::SnapshotsUnsupported))
+		}
+
 		let manifest = params.manifest;
 
 		let state_chunks = manifest.state_hashes.iter().cloned().collect();
@@ -111,10 +120,10 @@ impl Restoration {
 		let raw_db = params.db;
 
 		let chain = BlockChain::new(Default::default(), params.genesis, raw_db.clone());
-		let components = params.engine.snapshot_components()
-			.ok_or_else(|| ::snapshot::Error::SnapshotsUnsupported)?;
+		let chunker = chunker(params.engine.name())
+			.ok_or_else(|| Error::Snapshot(SnapshotError::SnapshotsUnsupported))?;
 
-		let secondary = components.rebuilder(chain, raw_db.clone(), &manifest)?;
+		let secondary = chunker.rebuilder(chain, raw_db.clone(), &manifest)?;
 
 		let final_state_root = manifest.state_root.clone();
 
@@ -801,7 +810,7 @@ impl SnapshotService for Service {
 	}
 
 	fn supported_versions(&self) -> Option<(u64, u64)> {
-		self.engine.snapshot_components()
+		chunker(self.engine.name())
 			.map(|c| (c.min_supported_version(), c.current_version()))
 	}
 

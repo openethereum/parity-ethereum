@@ -22,3 +22,19 @@ mod work;
 
 pub use self::authority::*;
 pub use self::work::*;
+
+use ethash_engine::{MAX_SNAPSHOT_BLOCKS, SNAPSHOT_BLOCKS};
+use snapshot::SnapshotComponents;
+
+/// Create a factory for building snapshot chunks and restoring from them.
+/// `None` indicates that the engine doesn't support snapshot creation.
+pub fn chunker(engine_name: &str) -> Option<Box<dyn SnapshotComponents>> {
+	// todo[dvdplm]: use constants, maybe from spec?
+	match engine_name {
+		"AuthorityRound" => Some(Box::new(PoaSnapshot)),
+		"Ethash" => Some(Box::new(PowSnapshot::new(SNAPSHOT_BLOCKS, MAX_SNAPSHOT_BLOCKS))),
+		"NullEngine" => Some(Box::new(PowSnapshot::new(10000, 10000))),
+		"BasicAuthority" | "Clique" | "InstantSeal" => None,
+		_ => None
+	}
+}

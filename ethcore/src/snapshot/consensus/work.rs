@@ -26,7 +26,6 @@ use std::sync::Arc;
 
 use blockchain::{BlockChain, BlockChainDB, BlockProvider};
 use engine::Engine;
-use engine::snapshot::{SnapshotComponents, Rebuilder};
 use snapshot::block::AbridgedBlock;
 use ethereum_types::H256;
 use kvdb::KeyValueDB;
@@ -39,6 +38,8 @@ use types::{
 	errors::{SnapshotError, EthcoreError},
 	snapshot::{ChunkSink, ManifestData, Progress},
 };
+
+use snapshot::{SnapshotComponents, Rebuilder};
 
 /// Snapshot creation and restoration for PoW chains.
 /// This includes blocks from the head of the chain as a
