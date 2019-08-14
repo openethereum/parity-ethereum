@@ -74,7 +74,6 @@ use engine::{
 use ethereum_types::{Address, H64, H160, H256, U256};
 use ethkey::Signature;
 use keccak_hash::KECCAK_EMPTY_LIST_RLP;
-use itertools::Itertools;
 use log::{trace, warn};
 use lru_cache::LruCache;
 use machine::{
@@ -428,7 +427,7 @@ impl Engine for Clique {
 			let votes = self.proposals.read().iter()
 				.filter(|(address, vote_type)| state.is_valid_vote(*address, **vote_type))
 				.map(|(address, vote_type)| (*address, *vote_type))
-				.collect_vec();
+				.collect::<Vec<_>>();
 
 			if !votes.is_empty() {
 				// Pick a random vote.
@@ -462,9 +461,9 @@ impl Engine for Clique {
 		// If we are building an checkpoint block, add all signers now.
 		if is_checkpoint {
 			seal.reserve(state.signers().len() * 20);
-			state.signers().iter().foreach(|addr| {
-				seal.extend_from_slice(&addr[..]);
-			});
+			for signer in state.signers().iter() {
+				seal.extend_from_slice(&signer[..]);
+			}
 		}
 
 		header.set_extra_data(seal.clone());
