@@ -46,7 +46,7 @@ fn encode_partial_from_iterator_iter<'a>(mut partial: impl Iterator<Item = u8> +
 
 /// Encode a partial value with an iterator as input.
 fn encode_partial_inner_iter<'a>(
-	first: u8,
+	first_byte: u8,
 	partial_remaining: impl Iterator<Item = u8> + 'a,
 	odd: bool,
 	is_leaf: bool,
