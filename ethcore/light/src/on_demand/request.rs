@@ -25,7 +25,7 @@ use common_types::encoded;
 use common_types::receipt::Receipt;
 use common_types::transaction::SignedTransaction;
 use engine::{Engine, StateDependentProof};
-use ethcore::executive_state::{ProvedExecution, self};
+use executive_state::{ProvedExecution, self};
 use ethereum_types::{H256, U256, Address};
 use ethtrie::{TrieError, TrieDB};
 use hash::{KECCAK_NULL_RLP, KECCAK_EMPTY, KECCAK_EMPTY_LIST_RLP, keccak};

@@ -43,7 +43,9 @@ use engine::Engine;
 use clique::Clique;
 use null_engine::NullEngine;
 use instant_seal::{InstantSeal, InstantSealParams};
-use crate::engines::{BasicAuthority, AuthorityRound, Ethash};
+use authority_round::AuthorityRound;
+use basic_authority::BasicAuthority;
+use ethash_engine::Ethash;
 use machine::{
 	executive::Executive,
 	machine::Machine,

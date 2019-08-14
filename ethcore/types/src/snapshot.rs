@@ -122,3 +122,34 @@ impl ManifestData {
 
 /// A sink for produced chunks.
 pub type ChunkSink<'a> = dyn FnMut(&[u8]) -> std::io::Result<()> + 'a;
+
+/// Statuses for snapshot restoration.
+#[derive(PartialEq, Eq, Clone, Copy, Debug)]
+pub enum RestorationStatus {
+	///	No restoration.
+	Inactive,
+	/// Restoration is initializing
+	Initializing {
+		/// Total number of state chunks.
+		state_chunks: u32,
+		/// Total number of block chunks.
+		block_chunks: u32,
+		/// Number of chunks done/imported
+		chunks_done: u32,
+	},
+	/// Ongoing restoration.
+	Ongoing {
+		/// Total number of state chunks.
+		state_chunks: u32,
+		/// Total number of block chunks.
+		block_chunks: u32,
+		/// Number of state chunks completed.
+		state_chunks_done: u32,
+		/// Number of block chunks completed.
+		block_chunks_done: u32,
+	},
+	/// Finalizing restoration
+	Finalizing,
+	/// Failed restoration.
+	Failed,
+}
