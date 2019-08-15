@@ -63,7 +63,6 @@ extern crate jsonrpc_pubsub;
 
 extern crate client_traits;
 extern crate common_types as types;
-extern crate engine;
 extern crate ethash;
 extern crate ethcore;
 extern crate fastmap;
@@ -104,6 +103,9 @@ extern crate serde_derive;
 
 #[cfg(test)]
 extern crate rand_xorshift;
+
+#[cfg(test)]
+extern crate engine;
 
 #[cfg(test)]
 extern crate ethjson;

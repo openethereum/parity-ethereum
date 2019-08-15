@@ -179,7 +179,7 @@ mod test {
 	use hash::keccak;
 	use bytes::Bytes;
 	use super::*;
-	use ethcore::snapshot::ManifestData;
+	use types::snapshot::ManifestData;
 
 	fn is_empty(snapshot: &Snapshot) -> bool {
 		snapshot.pending_block_chunks.is_empty() &&

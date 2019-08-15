@@ -276,6 +276,7 @@ mod tests {
 		spec,
 		test_helpers::{get_temp_state, get_temp_state_db}
 	};
+	use ethtrie;
 	use evm::CallType;
 	use machine::Machine;
 	use pod::{self, PodAccount, PodState};
@@ -1667,7 +1668,7 @@ mod tests {
 
 		let factories = Factories {
 			vm: Default::default(),
-			trie: TrieFactory::new(TrieSpec::Fat),
+			trie: TrieFactory::new(TrieSpec::Fat, ethtrie::Layout),
 			accountdb: Default::default(),
 		};
 

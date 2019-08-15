@@ -913,8 +913,9 @@ mod tests {
 	use io::{IoService};
 	use crate::spec;
 	use journaldb::Algorithm;
-	use snapshot::{ManifestData, RestorationStatus, SnapshotService};
+	use snapshot::SnapshotService;
 	use super::*;
+	use types::snapshot::{ManifestData, RestorationStatus};
 	use tempdir::TempDir;
 	use test_helpers::{generate_dummy_client_with_spec_and_data, restoration_db_handler};
 

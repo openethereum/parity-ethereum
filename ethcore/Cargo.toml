@@ -98,7 +98,7 @@ tempdir = "0.3"
 trie-standardmap = "0.15.0"
 
 [features]
-parity = ["work-notify", "price-info", "stratum"]
+parity = ["work-notify", "price-info", "stratum", "macros"]
 # Large optional features that are enabled by default for Parity,
 # but might be omitted for other dependent crates.
 work-notify = ["ethcore-miner/work-notify"]
@@ -125,7 +125,7 @@ ci-skip-tests = []
 # Run memory/cpu heavy tests.
 test-heavy = []
 # Compile test helpers
-test-helpers = ["tempdir", "kvdb-rocksdb", "blooms-db", "basic-authority/test-helpers"]
+test-helpers = ["tempdir", "kvdb-rocksdb", "blooms-db", "macros", "basic-authority/test-helpers"]
 
 [[bench]]
 name = "builtin"

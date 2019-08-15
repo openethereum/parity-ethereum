@@ -129,7 +129,7 @@ extern crate kvdb_rocksdb;
 #[cfg(any(test, feature = "json-tests"))]
 #[macro_use]
 extern crate lazy_static;
-#[cfg(any(test, feature = "json-tests"))]
+#[cfg(any(test, feature = "json-tests", feature = "test-helpers", feature = "parity"))]
 #[macro_use]
 extern crate macros;
 #[cfg(any(test, feature = "blooms-db"))]
