@@ -12,22 +12,22 @@ derive_more = "0.15.0"
 ethereum-types = "0.6.0"
 ethtrie = { package = "patricia-trie-ethereum", path = "../../util/patricia-trie-ethereum" }
 trie-vm-factories = { path = "../trie-vm-factories" }
-hash-db = "0.12.4"
+hash-db = "0.15.0"
 journaldb = { path = "../../util/journaldb" }
 keccak-hash = "0.2.0"
 keccak-hasher = { path = "../../util/keccak-hasher" }
 kvdb = "0.1.0"
 log = "0.4"
 lru-cache = "0.1.2"
-memory-db = "0.12.4"
+memory-db = "0.15.0"
 parity-bytes = "0.1.0"
-parity-util-mem = "0.1.0"
+parity-util-mem = "0.2.0"
 parking_lot = "0.8.0"
 pod = { path = "../pod" }
 rlp = "0.4.0"
 serde = { version = "1.0", features = ["derive"] }
 trace = { path = "../trace" }
-trie-db = "0.12.4"
+trie-db = "0.15.0"
 
 [dev-dependencies]
 account-db = { path = "../account-db" }

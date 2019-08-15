@@ -29,9 +29,12 @@ use blockchain::{BlockChainDB, BlockChainDBHandler};
 use ethcore::client::{Client, ClientConfig, ChainNotify, ClientIoMessage};
 use ethcore::miner::Miner;
 use ethcore::snapshot::service::{Service as SnapshotService, ServiceParams as SnapServiceParams};
-use ethcore::snapshot::{SnapshotService as _SnapshotService, RestorationStatus};
+use ethcore::snapshot::{SnapshotService as _SnapshotService};
 use ethcore::spec::Spec;
-use common_types::errors::{EthcoreError, SnapshotError};
+use common_types::{
+	errors::{EthcoreError, SnapshotError},
+	snapshot::RestorationStatus,
+};
 
 
 use ethcore_private_tx::{self, Importer, Signer};

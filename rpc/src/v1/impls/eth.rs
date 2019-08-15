@@ -37,7 +37,8 @@ use types::{
 	encoded,
 	ids::{BlockId, TransactionId, UncleId},
 	filter::Filter as EthcoreFilter,
-	transaction::{SignedTransaction, LocalizedTransaction}
+	transaction::{SignedTransaction, LocalizedTransaction},
+	snapshot::RestorationStatus,
 };
 
 use jsonrpc_core::{BoxFuture, Result};
@@ -518,8 +519,6 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM, T: StateInfo + 'static> Eth for EthClient<
 	}
 
 	fn syncing(&self) -> Result<SyncStatus> {
-		use ethcore::snapshot::RestorationStatus;
-
 		let status = self.sync.status();
 		let client = &self.client;
 		let snapshot_status = self.snapshot.status();

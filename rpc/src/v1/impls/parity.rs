@@ -23,7 +23,7 @@ use ethereum_types::{H64, H160, H256, H512, U64, U256};
 use ethcore::client::Call;
 use client_traits::{BlockChainClient, StateClient};
 use ethcore::miner::{self, MinerService, FilterOptions};
-use ethcore::snapshot::{SnapshotService, RestorationStatus};
+use ethcore::snapshot::SnapshotService;
 use account_state::state::StateInfo;
 use ethcore_logger::RotatingLogger;
 use ethkey::{crypto::ecies, Brain, Generator};
@@ -34,6 +34,7 @@ use sync::{SyncProvider, ManageNetwork};
 use types::{
 	ids::BlockId,
 	verification::Unverified,
+	snapshot::RestorationStatus,
 };
 use updater::{Service as UpdateService};
 use version::version_data;

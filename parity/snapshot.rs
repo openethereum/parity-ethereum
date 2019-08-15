@@ -21,7 +21,7 @@ use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 use hash::keccak;
-use ethcore::snapshot::{RestorationStatus, SnapshotConfiguration, SnapshotService as SS};
+use ethcore::snapshot::{SnapshotConfiguration, SnapshotService as SS};
 use ethcore::snapshot::io::{SnapshotReader, PackedReader, PackedWriter};
 use ethcore::snapshot::service::Service as SnapshotService;
 use ethcore::client::{DatabaseCompactionProfile, VMType};
@@ -31,6 +31,7 @@ use types::{
 	ids::BlockId,
 	snapshot::Progress,
 	client_types::Mode,
+	snapshot::RestorationStatus,
 };
 
 use cache::CacheConfig;

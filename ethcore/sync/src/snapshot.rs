@@ -14,9 +14,10 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
-use ethcore::snapshot::{ManifestData, SnapshotService};
+use ethcore::snapshot::SnapshotService;
 use ethereum_types::H256;
 use hash::keccak;
+use types::snapshot::ManifestData;
 
 use std::collections::HashSet;
 use std::iter::FromIterator;

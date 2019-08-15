@@ -26,7 +26,6 @@ use std::cmp;
 
 use super::{
 	StateRebuilder,
-	RestorationStatus,
 	SnapshotService,
 	Rebuilder,
 	MAX_CHUNK_SIZE,
@@ -42,7 +41,7 @@ use hash::keccak;
 use types::{
 	errors::{EthcoreError as Error, SnapshotError, SnapshotError::UnlinkedAncientBlockChain},
 	ids::BlockId,
-	snapshot::{ManifestData, Progress},
+	snapshot::{ManifestData, Progress, RestorationStatus},
 };
 
 use io::IoChannel;

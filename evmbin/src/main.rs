@@ -34,46 +34,22 @@
 
 #![warn(missing_docs)]
 
-extern crate account_state;
-extern crate common_types as types;
-extern crate docopt;
-extern crate env_logger;
-extern crate ethcore;
-extern crate ethereum_types;
-extern crate ethjson;
-extern crate evm;
-extern crate panic_hook;
-extern crate parity_bytes as bytes;
-extern crate pod;
-extern crate rustc_hex;
-extern crate serde;
-#[macro_use]
-extern crate serde_derive;
-extern crate serde_json;
-extern crate trace;
-extern crate vm;
-
-#[cfg(test)]
-#[macro_use]
-extern crate pretty_assertions;
-
-#[cfg(test)]
-extern crate tempdir;
-
 use std::sync::Arc;
 use std::{fmt, fs};
 use std::path::PathBuf;
+
+use parity_bytes::Bytes;
 use docopt::Docopt;
 use rustc_hex::FromHex;
 use ethereum_types::{U256, Address};
-use bytes::Bytes;
 use ethcore::{spec, json_tests, TrieSpec};
+use serde::Deserialize;
 use vm::{ActionParams, CallType};
 
 mod info;
 mod display;
 
-use info::{Informant, TxInput};
+use crate::info::{Informant, TxInput};
 
 const USAGE: &'static str = r#"
 EVM implementation for Parity.
@@ -289,7 +265,7 @@ fn run_state_test(args: Args) {
 }
 
 fn run_stats_jsontests_vm(args: Args) {
-	use json_tests::HookType;
+	use crate::json_tests::HookType;
 	use std::collections::HashMap;
 	use std::time::{Instant, Duration};
 
@@ -464,14 +440,17 @@ fn die<T: fmt::Display>(msg: T) -> ! {
 
 #[cfg(test)]
 mod tests {
-	use display::std_json::tests::informant;
+	use common_types::transaction;
 	use docopt::Docopt;
 	use ethcore::{TrieSpec};
 	use ethjson::state::test::{State};
-	use info::{self, TxInput};
-	use super::{Args, USAGE, Address, run_call};
-	use types::transaction;
+	use serde::Deserialize;
 
+	use super::{Args, USAGE, Address, run_call};
+	use crate::{
+		display::std_json::tests::informant,
+		info::{self, TxInput}
+	};
 
 	#[derive(Debug, PartialEq, Deserialize)]
 	pub struct SampleStateTests {

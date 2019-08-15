@@ -12,7 +12,7 @@ account-state = { path = "../account-state" }
 bytes = { package = "parity-bytes", version = "0.1.0" }
 common-types = { path = "../types" }
 ethereum-types = "0.6.0"
-hash-db = "0.12.4"
+hash-db = "0.15.0"
 keccak-hasher = { path = "../../util/keccak-hasher" }
 kvdb = "0.1.0"
 log = "0.4.8"
