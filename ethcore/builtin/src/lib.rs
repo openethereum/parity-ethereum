@@ -711,6 +711,7 @@ mod tests {
 			pricer: Box::new(ModexpPricer { divisor: 20 }),
 			native: ethereum_builtin("modexp"),
 			activate_at: 0,
+			deactivate_at: None,
 		};
 
 		// test for potential gas cost multiplication overflow
@@ -822,6 +823,7 @@ mod tests {
 			pricer: Box::new(Linear { base: 0, word: 0 }),
 			native: ethereum_builtin("alt_bn128_add"),
 			activate_at: 0,
+			deactivate_at: None,
 		};
 
 		// zero-points additions
@@ -881,6 +883,7 @@ mod tests {
 			pricer: Box::new(Linear { base: 0, word: 0 }),
 			native: ethereum_builtin("alt_bn128_mul"),
 			activate_at: 0,
+			deactivate_at: None,
 		};
 
 		// zero-point multiplication
@@ -921,6 +924,7 @@ mod tests {
 			pricer: Box::new(Linear { base: 0, word: 0 }),
 			native: ethereum_builtin("alt_bn128_pairing"),
 			activate_at: 0,
+			deactivate_at: None,
 		}
 	}
 
@@ -1005,6 +1009,7 @@ mod tests {
 			pricer: pricer as Box<dyn Pricer>,
 			native: ethereum_builtin("identity"),
 			activate_at: 100_000,
+			deactivate_at: None,
 		};
 
 		assert!(!b.is_active(99_999));
@@ -1019,6 +1024,7 @@ mod tests {
 			pricer: pricer as Box<dyn Pricer>,
 			native: ethereum_builtin("identity"),
 			activate_at: 1,
+			deactivate_at: None,
 		};
 
 		assert_eq!(b.cost(&[0; 0]), U256::from(10));
@@ -1041,6 +1047,7 @@ mod tests {
 				word: 20,
 			}),
 			activate_at: None,
+			deactivate_at: None,
 		});
 
 		assert_eq!(b.cost(&[0; 0]), U256::from(10));
