@@ -231,9 +231,9 @@ impl<C: Client> txpool::Verifier<Transaction> for Verifier<C, ::pool::scoring::N
 						tx.gas_price(),
 						vtx.transaction.gas_price,
 					);
-					return Err(transaction::Error::InsufficientGasPrice {
-						minimal: vtx.transaction.gas_price,
-						got: *tx.gas_price(),
+					return Err(transaction::Error::TooCheapToReplace {
+						prev: Some(vtx.transaction.gas_price),
+						new: Some(*tx.gas_price()),
 					});
 				}
 			}
