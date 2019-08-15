@@ -39,7 +39,11 @@ fn encode_partial_iter<'a>(partial: Partial<'a>, is_leaf: bool) -> impl Iterator
 }
 
 /// Encode a partial value with an iterator as input.
-fn encode_partial_from_iterator_iter<'a>(mut partial: impl Iterator<Item = u8> + 'a, odd: bool, is_leaf: bool) -> impl Iterator<Item = u8> + 'a {
+fn encode_partial_from_iterator_iter<'a>(
+	mut partial: impl Iterator<Item = u8> + 'a,
+	odd: bool,
+	is_leaf: bool,
+) -> impl Iterator<Item = u8> + 'a {
 	let first = if odd { partial.next().unwrap_or(0) } else { 0 }; 
 	encode_partial_inner_iter(first, partial, odd, is_leaf)
 }
@@ -85,9 +89,12 @@ impl NodeCodec<KeccakHasher> for RlpNodeCodec<KeccakHasher> {
 				let from_encoded = if enc_nibble.is_empty() {
 					(NibbleSlice::new(&[]), false)
 				} else {
+					// check leaf bit from header.
 					let is_leaf = enc_nibble[0] & 32 == 32;
-					let (st, of) = if enc_nibble[0] & 16 == 16 { (0, 1) } else { (1, 0) };
-					(NibbleSlice::new_offset(&enc_nibble[st..], of), is_leaf)
+					// check from headre bit if odd partial (only a niblle of heder info)
+					// or even partial (a full byte to skip).
+					let (start, byte_offset) = if enc_nibble[0] & 16 == 16 { (0, 1) } else { (1, 0) };
+					(NibbleSlice::new_offset(&enc_nibble[start..], byte_offset), is_leaf)
 				};
 				match from_encoded {
 					(slice, true) => Ok(Node::Leaf(slice, r.at(1)?.data()?)),
@@ -102,7 +109,11 @@ impl NodeCodec<KeccakHasher> for RlpNodeCodec<KeccakHasher> {
 					if value.is_empty() {
 						nodes[i] = None;
 					} else {
-						nodes[i] = Some(&value.as_raw()[1..]);
+						if value.is_data() && value.size() == KeccakHasher::LENGTH {
+							nodes[i] = Some(value.data()?);
+						} else {
+							return Err(DecoderError::Custom("Rlp is not valid."));
+						}
 					}
 				}
 				Ok(Node::Branch(nodes, if r.at(16)?.is_empty() { None } else { Some(r.at(16)?.data()?) }))
@@ -187,7 +198,7 @@ impl NodeCodec<KeccakHasher> for RlpNodeCodec<KeccakHasher> {
 		_number_nibble: usize,
 		_children: impl Iterator<Item = impl Borrow<Option<ChildReference<<KeccakHasher as Hasher>::Out>>>>,
 		_maybe_value: Option<&[u8]>) -> Vec<u8> {
-		unreachable!("This codec is only use with a trie Layout that uses extension node.")
+		unreachable!("This codec is only used with a trie Layout that uses extension node.")
 	}
 
 }

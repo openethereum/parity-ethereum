@@ -36,7 +36,8 @@ use rlp::DecoderError;
 pub type RlpCodec = RlpNodeCodec<KeccakHasher>;
 
 #[derive(Clone, Default)]
-/// trie layout
+/// Defines the working of a particular flavour of trie:
+/// how keys are hashed, how values are encoded, does it use extension nodes or not.
 pub struct Layout;
 
 impl trie_db::TrieLayout for Layout {
