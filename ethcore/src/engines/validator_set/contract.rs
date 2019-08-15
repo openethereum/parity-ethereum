@@ -30,9 +30,10 @@ use types::{
 	engines::machine::{Call, AuxiliaryData},
 };
 
-use client::EngineClient;
+use client_traits::EngineClient;
+use engine::SystemCall;
 
-use super::{ValidatorSet, SimpleList, SystemCall};
+use super::{ValidatorSet, SimpleList};
 use super::safe_contract::ValidatorSafeContract;
 
 use_contract!(validator_report, "res/contracts/validator_report.json");
@@ -93,7 +94,7 @@ impl ValidatorSet for ValidatorContract {
 		first: bool,
 		header: &Header,
 		aux: AuxiliaryData,
-	) -> ::engines::EpochChange {
+	) -> engine::EpochChange {
 		self.validators.signals_epoch_end(first, header, aux)
 	}
 
@@ -145,14 +146,15 @@ mod tests {
 	use bytes::ToPretty;
 	use rlp::encode;
 	use crate::spec;
-	use types::header::Header;
+	use types::{
+		header::Header,
+		ids::BlockId,
+	};
 	use accounts::AccountProvider;
 	use miner::{self, MinerService};
-	use types::ids::BlockId;
 	use test_helpers::generate_dummy_client_with_spec;
 	use call_contract::CallContract;
-	use client::{BlockChainClient, ChainInfo};
-	use client_traits::BlockInfo;
+	use client_traits::{BlockChainClient, ChainInfo, BlockInfo};
 	use super::super::ValidatorSet;
 	use super::ValidatorContract;
 

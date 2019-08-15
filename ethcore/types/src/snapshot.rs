@@ -14,11 +14,54 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
-//! Snapshot manifest type definition
+//! Snapshot type definitions
+
+use std::sync::atomic::{AtomicBool, AtomicUsize, AtomicU64, Ordering};
 
 use ethereum_types::H256;
 use rlp::{Rlp, RlpStream, DecoderError};
 use bytes::Bytes;
+
+/// A progress indicator for snapshots.
+#[derive(Debug, Default)]
+pub struct Progress {
+	/// Number of accounts processed so far
+	pub accounts: AtomicUsize,
+	/// Number of blocks processed so far
+	pub blocks: AtomicUsize,
+	/// Size in bytes of a all compressed chunks processed so far
+	pub size: AtomicU64,
+	/// Signals that the snapshotting process is completed
+	pub done: AtomicBool,
+	/// Signal snapshotting process to abort
+	pub abort: AtomicBool,
+}
+
+impl Progress {
+	/// Reset the progress.
+	pub fn reset(&self) {
+		self.accounts.store(0, Ordering::Release);
+		self.blocks.store(0, Ordering::Release);
+		self.size.store(0, Ordering::Release);
+		self.abort.store(false, Ordering::Release);
+
+		// atomic fence here to ensure the others are written first?
+		// logs might very rarely get polluted if not.
+		self.done.store(false, Ordering::Release);
+	}
+
+	/// Get the number of accounts snapshotted thus far.
+	pub fn accounts(&self) -> usize { self.accounts.load(Ordering::Acquire) }
+
+	/// Get the number of blocks snapshotted thus far.
+	pub fn blocks(&self) -> usize { self.blocks.load(Ordering::Acquire) }
+
+	/// Get the written size of the snapshot in bytes.
+	pub fn size(&self) -> u64 { self.size.load(Ordering::Acquire) }
+
+	/// Whether the snapshot is complete.
+	pub fn done(&self) -> bool  { self.done.load(Ordering::Acquire) }
+}
 
 /// Manifest data.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -67,12 +110,15 @@ impl ManifestData {
 		let block_hash: H256 = decoder.val_at(start + 4)?;
 
 		Ok(ManifestData {
-			version: version,
-			state_hashes: state_hashes,
-			block_hashes: block_hashes,
-			state_root: state_root,
-			block_number: block_number,
-			block_hash: block_hash,
+			version,
+			state_hashes,
+			block_hashes,
+			state_root,
+			block_number,
+			block_hash,
 		})
 	}
 }
+
+/// A sink for produced chunks.
+pub type ChunkSink<'a> = dyn FnMut(&[u8]) -> std::io::Result<()> + 'a;

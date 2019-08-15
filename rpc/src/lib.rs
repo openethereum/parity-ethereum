@@ -61,7 +61,9 @@ extern crate jsonrpc_http_server as http;
 extern crate jsonrpc_ipc_server as ipc;
 extern crate jsonrpc_pubsub;
 
+extern crate client_traits;
 extern crate common_types as types;
+extern crate engine;
 extern crate ethash;
 extern crate ethcore;
 extern crate fastmap;
@@ -121,8 +123,6 @@ extern crate fake_fetch;
 
 #[cfg(test)]
 extern crate ethcore_io as io;
-#[cfg(test)]
-extern crate client_traits;
 
 pub extern crate jsonrpc_ws_server as ws;
 

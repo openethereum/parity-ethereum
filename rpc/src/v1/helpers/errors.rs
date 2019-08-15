@@ -24,7 +24,7 @@ use types::transaction::Error as TransactionError;
 use ethcore_private_tx::Error as PrivateTransactionError;
 use vm::Error as VMError;
 use light::on_demand::error::{Error as OnDemandError};
-use ethcore::client::BlockChainClient;
+use client_traits::BlockChainClient;
 use types::{
 	ids::BlockId,
 	blockchain_info::BlockChainInfo,

@@ -20,7 +20,8 @@ use std::collections::BTreeMap;
 
 use crypto::DEFAULT_MAC;
 use ethereum_types::{H64, H160, H256, H512, U64, U256};
-use ethcore::client::{BlockChainClient, StateClient, Call};
+use ethcore::client::Call;
+use client_traits::{BlockChainClient, StateClient};
 use ethcore::miner::{self, MinerService, FilterOptions};
 use ethcore::snapshot::{SnapshotService, RestorationStatus};
 use account_state::state::StateInfo;
@@ -30,7 +31,10 @@ use ethstore::random_phrase;
 use jsonrpc_core::futures::future;
 use jsonrpc_core::{BoxFuture, Result};
 use sync::{SyncProvider, ManageNetwork};
-use types::ids::BlockId;
+use types::{
+	ids::BlockId,
+	verification::Unverified,
+};
 use updater::{Service as UpdateService};
 use version::version_data;
 
@@ -48,7 +52,6 @@ use v1::types::{
 	block_number_to_id
 };
 use Host;
-use ethcore::verification::queue::kind::blocks::Unverified;
 
 /// Parity implementation.
 pub struct ParityClient<C, M, U> {

@@ -376,7 +376,8 @@ mod test {
 	use rlp::{Rlp, RlpStream};
 	use super::{*, super::tests::*};
 	use blocks::SyncHeader;
-	use ethcore::client::{BlockChainClient, EachBlockWith, TestBlockChainClient};
+	use client_traits::BlockChainClient;
+	use ethcore::client::{EachBlockWith, TestBlockChainClient};
 	use std::str::FromStr;
 
 	#[test]

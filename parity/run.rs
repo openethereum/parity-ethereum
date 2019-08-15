@@ -22,8 +22,8 @@ use std::thread;
 use ansi_term::Colour;
 use bytes::Bytes;
 use call_contract::CallContract;
-use client_traits::BlockInfo;
-use ethcore::client::{Client, Mode, DatabaseCompactionProfile, VMType, BlockChainClient};
+use client_traits::{BlockInfo, BlockChainClient};
+use ethcore::client::{Client, DatabaseCompactionProfile, VMType};
 use ethcore::miner::{self, stratum, Miner, MinerService, MinerOptions};
 use ethcore::snapshot::{self, SnapshotConfiguration};
 use ethcore::spec::{SpecParams, OptimizeFor};
@@ -41,7 +41,10 @@ use miner::work_notify::WorkPoster;
 use node_filter::NodeFilter;
 use parity_runtime::Runtime;
 use sync::{self, SyncConfig, PrivateTxHandler};
-use types::ids::BlockId;
+use types::{
+	client_types::Mode,
+	ids::BlockId,
+};
 use parity_rpc::{
 	Origin, Metadata, NetworkSettings, informant, PubSubSession, FutureResult, FutureResponse, FutureOutput
 };

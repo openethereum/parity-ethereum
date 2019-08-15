@@ -19,7 +19,6 @@ use block_sync::{BlockDownloaderImportError as DownloaderImportError, DownloadAc
 use bytes::Bytes;
 use enum_primitive::FromPrimitive;
 use ethcore::snapshot::{ManifestData, RestorationStatus};
-use ethcore::verification::queue::kind::blocks::Unverified;
 use ethereum_types::{H256, U256};
 use hash::keccak;
 use network::PeerId;
@@ -34,6 +33,7 @@ use types::{
 	block_status::BlockStatus,
 	ids::BlockId,
 	errors::{EthcoreError, ImportError, BlockError},
+	verification::Unverified,
 };
 
 use super::sync_packet::{PacketInfo, SyncPacket};
@@ -742,9 +742,10 @@ impl SyncHandler {
 
 #[cfg(test)]
 mod tests {
-	use ethcore::client::{ChainInfo, EachBlockWith, TestBlockChainClient};
+	use client_traits::ChainInfo;
+	use ethcore::client::{EachBlockWith, TestBlockChainClient};
 	use parking_lot::RwLock;
-	use rlp::{Rlp};
+	use rlp::Rlp;
 	use std::collections::{VecDeque};
 	use tests::helpers::{TestIo};
 	use tests::snapshot::TestSnapshotService;

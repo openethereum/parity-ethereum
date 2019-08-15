@@ -16,6 +16,7 @@
 
 //! Contract for private transactions tests.
 
+extern crate client_traits;
 extern crate common_types as types;
 extern crate env_logger;
 extern crate ethcore;
@@ -36,11 +37,11 @@ use types::ids::BlockId;
 use types::transaction::{Transaction, Action};
 use ethcore::{
 	CreateContractAddress,
-	client::BlockChainClient,
 	test_helpers::{generate_dummy_client, push_block_with_transactions},
 	miner::Miner,
 	spec,
 };
+use client_traits::BlockChainClient;
 use ethkey::{Secret, KeyPair, Signature};
 use machine::executive::contract_address;
 use hash::keccak;

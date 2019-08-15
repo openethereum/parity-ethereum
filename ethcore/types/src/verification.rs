@@ -14,7 +14,14 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
-//! Verification queue info types
+//! Verification types
+
+use crate::{
+	header::Header,
+	transaction::UnverifiedTransaction,
+};
+use bytes::Bytes;
+use parity_util_mem::MallocSizeOf;
 
 /// Verification queue status
 #[derive(Debug, Clone)]
@@ -48,3 +55,38 @@ impl VerificationQueueInfo {
 		self.unverified_queue_size + self.verified_queue_size + self.verifying_queue_size == 0
 	}
 }
+
+/// An unverified block.
+#[derive(PartialEq, Debug, MallocSizeOf)]
+pub struct Unverified {
+	/// Unverified block header.
+	pub header: Header,
+	/// Unverified block transactions.
+	pub transactions: Vec<UnverifiedTransaction>,
+	/// Unverified block uncles.
+	pub uncles: Vec<Header>,
+	/// Raw block bytes.
+	pub bytes: Bytes,
+}
+
+impl Unverified {
+	/// Create an `Unverified` from raw bytes.
+	pub fn from_rlp(bytes: Bytes) -> Result<Self, rlp::DecoderError> {
+		use rlp::Rlp;
+		let (header, transactions, uncles) = {
+			let rlp = Rlp::new(&bytes);
+			let header = rlp.val_at(0)?;
+			let transactions = rlp.list_at(1)?;
+			let uncles = rlp.list_at(2)?;
+			(header, transactions, uncles)
+		};
+
+		Ok(Unverified {
+			header,
+			transactions,
+			uncles,
+			bytes,
+		})
+	}
+}
+

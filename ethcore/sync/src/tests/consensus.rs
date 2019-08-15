@@ -18,8 +18,9 @@ use std::sync::Arc;
 use hash::keccak;
 use ethereum_types::{U256, Address};
 use io::{IoHandler, IoChannel};
-use ethcore::client::{ChainInfo, ClientIoMessage};
-use ethcore::engines;
+use client_traits::ChainInfo;
+use engine::signer;
+use ethcore::client::{ClientIoMessage};
 use ethcore::spec;
 use ethcore::miner::{self, MinerService};
 use ethkey::{KeyPair, Secret};
@@ -49,8 +50,8 @@ fn authority_round() {
 	let io_handler0: Arc<dyn IoHandler<ClientIoMessage>> = Arc::new(TestIoHandler::new(net.peer(0).chain.clone()));
 	let io_handler1: Arc<dyn IoHandler<ClientIoMessage>> = Arc::new(TestIoHandler::new(net.peer(1).chain.clone()));
 	// Push transaction to both clients. Only one of them gets lucky to produce a block.
-	net.peer(0).miner.set_author(miner::Author::Sealer(engines::signer::from_keypair(s0.clone())));
-	net.peer(1).miner.set_author(miner::Author::Sealer(engines::signer::from_keypair(s1.clone())));
+	net.peer(0).miner.set_author(miner::Author::Sealer(signer::from_keypair(s0.clone())));
+	net.peer(1).miner.set_author(miner::Author::Sealer(signer::from_keypair(s1.clone())));
 	net.peer(0).chain.engine().register_client(Arc::downgrade(&net.peer(0).chain) as _);
 	net.peer(1).chain.engine().register_client(Arc::downgrade(&net.peer(1).chain) as _);
 	net.peer(0).chain.set_io_channel(IoChannel::to_handler(Arc::downgrade(&io_handler1)));

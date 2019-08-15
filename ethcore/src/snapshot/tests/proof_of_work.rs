@@ -18,7 +18,10 @@
 
 use std::sync::atomic::AtomicBool;
 use tempdir::TempDir;
-use types::errors::EthcoreError as Error;
+use types::{
+	errors::EthcoreError as Error,
+	engines::ForkChoice,
+};
 
 use blockchain::generator::{BlockGenerator, BlockBuilder};
 use blockchain::{BlockChain, ExtrasInsert};
@@ -50,7 +53,7 @@ fn chunk_and_restore(amount: u64) {
 	let mut batch = DBTransaction::new();
 	for block in generator {
 		bc.insert_block(&mut batch, block.encoded(), vec![], ExtrasInsert {
-			fork_choice: ::engines::ForkChoice::New,
+			fork_choice: ForkChoice::New,
 			is_finalized: false,
 		});
 		bc.commit();

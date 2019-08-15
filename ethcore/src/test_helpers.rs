@@ -33,20 +33,24 @@ use kvdb_rocksdb::{self, Database, DatabaseConfig};
 use parking_lot::RwLock;
 use rlp::{self, RlpStream};
 use tempdir::TempDir;
-use types::transaction::{Action, Transaction, SignedTransaction};
-use types::encoded;
-use types::header::Header;
-use types::view;
-use types::views::BlockView;
+use types::{
+	transaction::{Action, Transaction, SignedTransaction},
+	encoded,
+	engines::ForkChoice,
+	header::Header,
+	view,
+	views::BlockView,
+	verification::Unverified,
+};
 
 use block::{OpenBlock, Drain};
-use client::{Client, ClientConfig, ChainInfo, ImportBlock, ChainNotify, ChainMessageType, PrepareOpenBlock};
+use client::{Client, ClientConfig, ChainNotify, ChainMessageType, PrepareOpenBlock};
+use client_traits::{ChainInfo, ImportBlock};
 use trie_vm_factories::Factories;
 use miner::Miner;
 use spec::{Spec, self};
 use account_state::*;
 use state_db::StateDB;
-use verification::queue::kind::blocks::Unverified;
 
 /// Creates test block with corresponding header
 pub fn create_test_block(header: &Header) -> Bytes {
@@ -375,7 +379,7 @@ pub fn generate_dummy_blockchain(block_number: u32) -> BlockChain {
 	for block_order in 1..block_number {
 		// Total difficulty is always 0 here.
 		bc.insert_block(&mut batch, encoded::Block::new(create_unverifiable_block(block_order, bc.best_block_hash())), vec![], ExtrasInsert {
-			fork_choice: ::engines::ForkChoice::New,
+			fork_choice: ForkChoice::New,
 			is_finalized: false,
 		});
 		bc.commit();
@@ -393,7 +397,7 @@ pub fn generate_dummy_blockchain_with_extra(block_number: u32) -> BlockChain {
 	for block_order in 1..block_number {
 		// Total difficulty is always 0 here.
 		bc.insert_block(&mut batch, encoded::Block::new(create_unverifiable_block_with_extra(block_order, bc.best_block_hash(), None)), vec![], ExtrasInsert {
-			fork_choice: ::engines::ForkChoice::New,
+			fork_choice: ForkChoice::New,
 			is_finalized: false,
 		});
 		bc.commit();

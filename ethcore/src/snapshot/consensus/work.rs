@@ -20,15 +20,13 @@
 //! The secondary chunks in this instance are 30,000 "abridged blocks" from the head
 //! of the chain, which serve as an indication of valid chain.
 
-use super::{SnapshotComponents, Rebuilder, ChunkSink};
-
 use std::collections::VecDeque;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 
 use blockchain::{BlockChain, BlockChainDB, BlockProvider};
-use engines::Engine;
-use snapshot::{ManifestData, Progress};
+use engine::Engine;
+use engine::snapshot::{SnapshotComponents, Rebuilder};
 use snapshot::block::AbridgedBlock;
 use ethereum_types::H256;
 use kvdb::KeyValueDB;
@@ -37,7 +35,9 @@ use rlp::{RlpStream, Rlp};
 use rand::rngs::OsRng;
 use types::{
 	encoded,
+	engines::epoch::Transition as EpochTransition,
 	errors::{SnapshotError, EthcoreError},
+	snapshot::{ChunkSink, ManifestData, Progress},
 };
 
 /// Snapshot creation and restoration for PoW chains.
@@ -84,7 +84,12 @@ impl SnapshotComponents for PowSnapshot {
 		db: Arc<dyn BlockChainDB>,
 		manifest: &ManifestData,
 	) -> Result<Box<dyn Rebuilder>, EthcoreError> {
-		PowRebuilder::new(chain, db.key_value().clone(), manifest, self.max_restore_blocks).map(|r| Box::new(r) as Box<_>)
+		PowRebuilder::new(
+			chain,
+			db.key_value().clone(),
+			manifest,
+			self.max_restore_blocks
+		).map(|r| Box::new(r) as Box<_>)
 	}
 
 	fn min_supported_version(&self) -> u64 { ::snapshot::MIN_SUPPORTED_STATE_CHUNK_VERSION }
@@ -314,7 +319,7 @@ impl Rebuilder for PowRebuilder {
 		}
 
 		let genesis_hash = self.chain.genesis_hash();
-		self.chain.insert_epoch_transition(&mut batch, 0, ::engines::EpochTransition {
+		self.chain.insert_epoch_transition(&mut batch, 0, EpochTransition {
 			block_number: 0,
 			block_hash: genesis_hash,
 			proof: vec![],

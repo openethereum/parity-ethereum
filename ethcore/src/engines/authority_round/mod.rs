@@ -24,17 +24,18 @@ use std::sync::atomic::{AtomicUsize, AtomicBool, Ordering as AtomicOrdering};
 use std::sync::{Weak, Arc};
 use std::time::{UNIX_EPOCH, Duration};
 
-use client::EngineClient;
-use engines::{Engine, Seal, ConstructedVerifier};
+use client_traits::EngineClient;
+use engine::{Engine,ConstructedVerifier};
 use engines::block_reward;
 use engines::block_reward::{BlockRewardContract, RewardKind};
+use engine::snapshot::SnapshotComponents;
 use ethjson;
 use machine::{
 	ExecutedBlock,
 	Machine,
 };
 use hash::keccak;
-use super::signer::EngineSigner;
+use engine::signer::EngineSigner;
 use super::validator_set::{ValidatorSet, SimpleList, new_validator_set};
 use self::finality::RollingFinality;
 use ethkey::{self, Signature};
@@ -49,7 +50,10 @@ use types::{
 	BlockNumber,
 	header::{Header, ExtendedHeader},
 	engines::{
+		Headers,
 		params::CommonParams,
+		PendingTransitionStore,
+		Seal,
 		SealingState,
 		machine::{Call, AuxiliaryData},
 	},
@@ -459,7 +463,7 @@ struct EpochVerifier {
 	empty_steps_transition: u64,
 }
 
-impl super::EpochVerifier for EpochVerifier {
+impl engine::EpochVerifier for EpochVerifier {
 	fn verify_light(&self, header: &Header) -> Result<(), Error> {
 		// Validate the timestamp
 		verify_timestamp(&self.step.inner, header_step(header, self.empty_steps_transition)?)?;
@@ -1273,7 +1277,7 @@ impl Engine for AuthorityRound {
 
 		let rewards: Vec<_> = match self.block_reward_contract {
 			Some(ref c) if block.header.number() >= self.block_reward_contract_transition => {
-				let mut call = super::default_system_or_code_call(&self.machine, block);
+				let mut call = engine::default_system_or_code_call(&self.machine, block);
 
 				let rewards = c.reward(beneficiaries, &mut call)?;
 				rewards.into_iter().map(|(author, amount)| (author, RewardKind::External, amount)).collect()
@@ -1429,8 +1433,8 @@ impl Engine for AuthorityRound {
 			.map(|set_proof| combine_proofs(0, &set_proof, &[]))
 	}
 
-	fn signals_epoch_end(&self, header: &Header, aux: AuxiliaryData) -> super::EpochChange {
-		if self.immediate_transitions { return super::EpochChange::No }
+	fn signals_epoch_end(&self, header: &Header, aux: AuxiliaryData) -> engine::EpochChange {
+		if self.immediate_transitions { return engine::EpochChange::No }
 
 		let first = header.number() == 0;
 		self.validators.signals_epoch_end(first, header, aux)
@@ -1439,8 +1443,8 @@ impl Engine for AuthorityRound {
 	fn is_epoch_end_light(
 		&self,
 		chain_head: &Header,
-		chain: &super::Headers<Header>,
-		transition_store: &super::PendingTransitionStore,
+		chain: &Headers<Header>,
+		transition_store: &PendingTransitionStore,
 	) -> Option<Vec<u8>> {
 		// epochs only matter if we want to support light clients.
 		if self.immediate_transitions { return None }
@@ -1483,8 +1487,8 @@ impl Engine for AuthorityRound {
 		&self,
 		chain_head: &Header,
 		finalized: &[H256],
-		chain: &super::Headers<Header>,
-		transition_store: &super::PendingTransitionStore,
+		chain: &Headers<Header>,
+		transition_store: &PendingTransitionStore,
 	) -> Option<Vec<u8>> {
 		// epochs only matter if we want to support light clients.
 		if self.immediate_transitions { return None }
@@ -1591,7 +1595,7 @@ impl Engine for AuthorityRound {
 		)
 	}
 
-	fn snapshot_components(&self) -> Option<Box<dyn (::snapshot::SnapshotComponents)>> {
+	fn snapshot_components(&self) -> Option<Box<dyn (SnapshotComponents)>> {
 		if self.immediate_transitions {
 			None
 		} else {
@@ -1628,7 +1632,7 @@ mod tests {
 	use ethkey::Signature;
 	use types::{
 		header::Header,
-		engines::params::CommonParams,
+		engines::{Seal, params::CommonParams},
 		errors::{EthcoreError as Error, EngineError},
 		transaction::{Action, Transaction},
 	};
@@ -1639,7 +1643,7 @@ mod tests {
 		TestNotify
 	};
 	use crate::spec::{Spec, self};
-	use engines::{Seal, Engine};
+	use engine::Engine;
 	use engines::validator_set::{TestSet, SimpleList};
 	use super::{AuthorityRoundParams, AuthorityRound, EmptyStep, SealedEmptyStep, calculate_score};
 	use machine::Machine;

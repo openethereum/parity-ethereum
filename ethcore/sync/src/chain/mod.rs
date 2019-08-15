@@ -108,7 +108,7 @@ use bytes::Bytes;
 use rlp::{RlpStream, DecoderError};
 use network::{self, PeerId, PacketId};
 use network::client_version::ClientVersion;
-use ethcore::client::{BlockChainClient, BlockStatus, BlockChainInfo, BlockQueueInfo};
+use client_traits::BlockChainClient;
 use ethcore::snapshot::RestorationStatus;
 use sync_io::SyncIo;
 use super::{WarpSync, SyncConfig};
@@ -121,7 +121,10 @@ use transactions_stats::{TransactionsStats, Stats as TransactionStats};
 use types::{
 	BlockNumber,
 	ids::BlockId,
-	transaction::UnverifiedTransaction
+	transaction::UnverifiedTransaction,
+	verification::VerificationQueueInfo as BlockQueueInfo,
+	blockchain_info::BlockChainInfo,
+	block_status::BlockStatus,
 };
 
 use self::handler::SyncHandler;
@@ -1373,8 +1376,8 @@ pub mod tests {
 	use super::*;
 	use ::SyncConfig;
 	use super::{PeerInfo, PeerAsking};
-	use ethcore::client::{BlockChainClient, EachBlockWith, TestBlockChainClient, ChainInfo};
-	use client_traits::BlockInfo;
+	use ethcore::client::{EachBlockWith, TestBlockChainClient};
+	use client_traits::{BlockInfo, BlockChainClient, ChainInfo};
 	use ethcore::miner::{MinerService, PendingOrdering};
 	use types::header::Header;
 

@@ -26,6 +26,8 @@ mod multi;
 use std::sync::Weak;
 
 use bytes::Bytes;
+use client_traits::EngineClient;
+use engine::SystemCall;
 use ethereum_types::{H256, Address};
 use ethjson::spec::ValidatorSet as ValidatorSpec;
 use machine::Machine;
@@ -37,15 +39,13 @@ use types::{
 	engines::machine::{Call, AuxiliaryData},
 };
 
-use client::EngineClient;
-
 #[cfg(test)]
 pub use self::test::TestSet;
 pub use self::simple_list::SimpleList;
+
 use self::contract::ValidatorContract;
 use self::safe_contract::ValidatorSafeContract;
 use self::multi::Multi;
-use super::SystemCall;
 
 /// Creates a validator set from spec.
 pub fn new_validator_set(spec: ValidatorSpec) -> Box<dyn ValidatorSet> {
@@ -117,7 +117,7 @@ pub trait ValidatorSet: Send + Sync + 'static {
 		first: bool,
 		header: &Header,
 		aux: AuxiliaryData,
-	) -> ::engines::EpochChange;
+	) -> engine::EpochChange;
 
 	/// Recover the validator set from the given proof, the block number, and
 	/// whether this header is first in its set.

@@ -19,6 +19,7 @@ extern crate cid;
 extern crate unicase;
 
 extern crate rlp;
+extern crate client_traits;
 extern crate common_types;
 extern crate ethcore;
 extern crate parity_bytes as bytes;
@@ -35,7 +36,7 @@ use std::net::{SocketAddr, IpAddr};
 
 use core::futures::future::{self, FutureResult};
 use core::futures::{self, Future};
-use ethcore::client::BlockChainClient;
+use client_traits::BlockChainClient;
 use http::hyper::{self, server, Method, StatusCode, Body,
 	header::{self, HeaderValue},
 };

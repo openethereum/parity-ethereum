@@ -75,7 +75,7 @@ use std::ops::Deref;
 use std::sync::Arc;
 
 use bytes::Bytes;
-use ethcore::client::BlockChainClient;
+use client_traits::BlockChainClient;
 use ethcore::miner::MinerService;
 use ethereum_types::{H520, H256, U256, Address};
 use ethkey::{Password, Signature};

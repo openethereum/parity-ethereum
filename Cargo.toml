@@ -33,6 +33,7 @@ jsonrpc-core = "12.0.0"
 parity-bytes = "0.1"
 client-traits = { path = "ethcore/client-traits" }
 common-types = { path = "ethcore/types" }
+engine = { path = "ethcore/engine" }
 ethcore = { path = "ethcore", features = ["parity"] }
 ethcore-accounts = { path = "accounts", optional = true }
 ethcore-blockchain = { path = "ethcore/blockchain" }

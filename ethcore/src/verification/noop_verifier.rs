@@ -18,7 +18,7 @@
 
 use call_contract::CallContract;
 use client_traits::BlockInfo;
-use engines::Engine;
+use engine::Engine;
 use types::{
 	header::Header,
 	errors::EthcoreError as Error

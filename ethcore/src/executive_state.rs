@@ -25,6 +25,7 @@ use machine::{
 };
 use vm::EnvInfo;
 use types::{
+	engines::machine::Executed as RawExecuted,
 	errors::{ExecutionError, EthcoreError as Error},
 	transaction::SignedTransaction,
 	receipt::{TransactionOutcome, Receipt},
@@ -242,7 +243,7 @@ fn execute<B, T, V>(
 	t: &SignedTransaction,
 	options: TransactOptions<T, V>,
 	virt: bool
-) -> Result<Executed<T::Output, V::Output>, ExecutionError>
+) -> Result<RawExecuted<T::Output, V::Output>, ExecutionError>
 	where
 		B: Backend,
 		T: trace::Tracer,

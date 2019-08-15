@@ -26,8 +26,8 @@ mod io_message;
 #[cfg(any(test, feature = "test-helpers"))]
 mod test_client;
 
-pub use self::client::*;
-pub use self::config::{Mode, ClientConfig, DatabaseCompactionProfile, BlockChainConfig, VMType};
+pub use self::client::{Client, ClientReport};
+pub use self::config::{ClientConfig, DatabaseCompactionProfile, BlockChainConfig, VMType};
 #[cfg(any(test, feature = "test-helpers"))]
 pub use self::evm_test_client::{EvmTestClient, EvmTestError, TransactErr, TransactSuccess};
 pub use self::io_message::ClientIoMessage;
@@ -35,17 +35,11 @@ pub use self::io_message::ClientIoMessage;
 pub use self::test_client::{TestBlockChainClient, EachBlockWith, TestState};
 pub use self::chain_notify::{ChainNotify, NewBlocks, ChainRoute, ChainRouteType, ChainMessageType};
 pub use self::traits::{
-    Nonce, Balance, ChainInfo, ReopenBlock, PrepareOpenBlock, TransactionInfo, ScheduleInfo, ImportSealedBlock, BroadcastProposalBlock, ImportBlock,
-    StateOrBlock, StateClient, Call, EngineInfo, AccountData, BlockChain, BlockProducer, SealedBlockImporter, BadBlocks,
-	BlockChainReset, BlockChainClient, EngineClient, ProvingBlockChainClient, IoClient
+    ReopenBlock, PrepareOpenBlock, ImportSealedBlock, BroadcastProposalBlock,
+    Call, EngineInfo, BlockProducer, SealedBlockImporter,
 };
 pub use account_state::state::StateInfo;
 
-use types::{
-	trace_filter::Filter as TraceFilter,
-	pruning_info::PruningInfo,
-	call_analytics::CallAnalytics,
-};
 
 pub use vm::{LastHashes, EnvInfo};
 

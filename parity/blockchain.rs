@@ -26,13 +26,12 @@ use hash::{keccak, KECCAK_NULL_RLP};
 use ethereum_types::{U256, H256, Address};
 use bytes::ToPretty;
 use rlp::PayloadInfo;
-use client_traits::BlockInfo;
-use ethcore::client::{
-	Mode, DatabaseCompactionProfile, VMType, Nonce, Balance, BlockChainClient, ImportBlock, BlockChainReset
+use client_traits::{BlockInfo, BlockChainReset, Nonce, Balance, BlockChainClient, ImportBlock};
+use ethcore::{
+	client::{DatabaseCompactionProfile, VMType},
+	miner::Miner,
+	verification::queue::VerifierSettings,
 };
-use ethcore::miner::Miner;
-use ethcore::verification::queue::VerifierSettings;
-use ethcore::verification::queue::kind::blocks::Unverified;
 use ethcore_service::ClientService;
 use cache::CacheConfig;
 use informant::{Informant, FullNodeInformantData, MillisecondDuration};
@@ -45,7 +44,9 @@ use db;
 use ansi_term::Colour;
 use types::{
 	ids::BlockId,
-	errors::{ImportError, EthcoreError}
+	errors::{ImportError, EthcoreError},
+	client_types::Mode,
+	verification::Unverified,
 };
 
 #[derive(Debug, PartialEq)]

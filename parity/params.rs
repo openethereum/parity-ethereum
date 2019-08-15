@@ -18,7 +18,6 @@ use std::collections::HashSet;
 use std::time::Duration;
 use std::{str, fs, fmt};
 
-use ethcore::client::Mode;
 use ethcore::spec::{Spec, SpecParams, self};
 use ethereum_types::{U256, Address};
 use parity_runtime::Executor;
@@ -28,6 +27,7 @@ use miner::gas_pricer::GasPricer;
 use miner::gas_price_calibrator::{GasPriceCalibratorOptions, GasPriceCalibrator};
 use parity_version::version_data;
 use user_defaults::UserDefaults;
+use types::client_types::Mode;
 
 #[derive(Debug, PartialEq)]
 pub enum SpecType {

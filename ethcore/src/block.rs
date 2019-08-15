@@ -37,7 +37,7 @@ use std::sync::Arc;
 use bytes::Bytes;
 use ethereum_types::{H256, U256, Address, Bloom};
 
-use engines::Engine;
+use engine::Engine;
 use trie_vm_factories::Factories;
 use state_db::StateDB;
 use account_state::State;
@@ -485,17 +485,19 @@ pub fn enact_verified(
 mod tests {
 	use test_helpers::get_temp_state_db;
 	use super::*;
-	use engines::Engine;
+	use engine::Engine;
 	use vm::LastHashes;
 	use trie_vm_factories::Factories;
 	use state_db::StateDB;
 	use ethereum_types::Address;
 	use std::sync::Arc;
-	use verification::queue::kind::blocks::Unverified;
-	use types::transaction::SignedTransaction;
 	use types::{
-		header::Header, view, views::BlockView,
 		errors::EthcoreError as Error,
+		header::Header,
+		transaction::SignedTransaction,
+		view,
+		views::BlockView,
+		verification::Unverified,
 	};
 	use hash_db::EMPTY_PREFIX;
 	use crate::spec;

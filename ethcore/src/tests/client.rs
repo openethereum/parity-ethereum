@@ -26,12 +26,13 @@ use types::{
 	ids::BlockId,
 	transaction::{PendingTransaction, Transaction, Action, Condition},
 	filter::Filter,
+	verification::Unverified,
 	view,
 	views::BlockView,
 };
 
-use client::{BlockChainClient, BlockChainReset, Client, ClientConfig, ChainInfo, PrepareOpenBlock, ImportSealedBlock, ImportBlock};
-use client_traits::BlockInfo;
+use client::{Client, ClientConfig, PrepareOpenBlock, ImportSealedBlock};
+use client_traits::{BlockInfo, BlockChainClient, BlockChainReset, ChainInfo, ImportBlock};
 use crate::spec;
 use machine::executive::{Executive, TransactOptions};
 use miner::{Miner, PendingOrdering, MinerService};
@@ -41,7 +42,6 @@ use test_helpers::{
 	generate_dummy_client, push_blocks_to_client, get_test_client_with_blocks, get_good_dummy_block_seq,
 	generate_dummy_client_with_data, get_good_dummy_block, get_bad_state_dummy_block
 };
-use verification::queue::kind::blocks::Unverified;
 
 #[test]
 fn imports_from_empty() {
@@ -210,7 +210,7 @@ fn can_generate_gas_price_histogram() {
 	let client = generate_dummy_client_with_data(20, 1, slice_into![6354,8593,6065,4842,7845,7002,689,4958,4250,6098,5804,4320,643,8895,2296,8589,7145,2000,2512,1408]);
 
 	let hist = client.gas_price_corpus(20).histogram(5).unwrap();
-	let correct_hist = ::stats::Histogram { bucket_bounds: vec_into![643, 2294, 3945, 5596, 7247, 8898], counts: vec![4,2,4,6,4] };
+	let correct_hist = stats::Histogram { bucket_bounds: vec_into![643, 2294, 3945, 5596, 7247, 8898], counts: vec![4,2,4,6,4] };
 	assert_eq!(hist, correct_hist);
 }
 
@@ -327,7 +327,7 @@ fn does_not_propagate_delayed_transactions() {
 
 #[test]
 fn transaction_proof() {
-	use ::client::ProvingBlockChainClient;
+	use client_traits::ProvingBlockChainClient;
 
 	let client = generate_dummy_client(0);
 	let address = Address::random();

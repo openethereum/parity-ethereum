@@ -17,6 +17,7 @@
 //! Engine-specific types.
 
 use ethereum_types::{Address, H256};
+use bytes::Bytes;
 use ethjson;
 
 use crate::BlockNumber;
@@ -24,6 +25,15 @@ use crate::BlockNumber;
 pub mod epoch;
 pub mod params;
 pub mod machine;
+
+/// Seal type.
+#[derive(Debug, PartialEq, Eq)]
+pub enum Seal {
+	/// Regular block seal; should be part of the blockchain.
+	Regular(Vec<Bytes>),
+	/// Engine does not generate seal for this block right now.
+	None,
+}
 
 /// The type of sealing the engine is currently able to perform.
 #[derive(Debug, PartialEq, Eq)]

@@ -22,16 +22,16 @@
 use std::collections::{HashMap, HashSet};
 use std::cmp;
 use std::sync::Arc;
-use std::sync::atomic::{AtomicBool, AtomicU64, AtomicUsize, Ordering};
+use std::sync::atomic::{AtomicBool, Ordering};
 use hash::{keccak, KECCAK_NULL_RLP, KECCAK_EMPTY};
 
 use account_db::{AccountDB, AccountDBMut};
 use blockchain::{BlockChain, BlockProvider};
-use engines::Engine;
 use types::{
 	ids::BlockId,
 	header::Header,
 	errors::{SnapshotError as Error, EthcoreError},
+	snapshot::Progress,
 };
 use ethereum_types::{H256, U256};
 use hash_db::HashDB;
@@ -51,6 +51,10 @@ use self::io::SnapshotWriter;
 
 use super::state_db::StateDB;
 use account_state::Account as StateAccount;
+use engine::{
+	Engine,
+	snapshot::SnapshotComponents
+};
 
 use crossbeam_utils::thread;
 use rand::{Rng, rngs::OsRng};
@@ -59,7 +63,7 @@ pub use self::consensus::*;
 pub use self::service::{SnapshotClient, Service, DatabaseRestore};
 pub use self::traits::SnapshotService;
 pub use self::watcher::Watcher;
-pub use types::snapshot_manifest::ManifestData;
+pub use types::snapshot::ManifestData;
 pub use types::restoration_status::RestorationStatus;
 pub use types::basic_account::BasicAccount;
 
@@ -111,42 +115,6 @@ impl Default for SnapshotConfiguration {
 	}
 }
 
-/// A progress indicator for snapshots.
-#[derive(Debug, Default)]
-pub struct Progress {
-	accounts: AtomicUsize,
-	blocks: AtomicUsize,
-	size: AtomicU64,
-	done: AtomicBool,
-	abort: AtomicBool,
-}
-
-impl Progress {
-	/// Reset the progress.
-	pub fn reset(&self) {
-		self.accounts.store(0, Ordering::Release);
-		self.blocks.store(0, Ordering::Release);
-		self.size.store(0, Ordering::Release);
-		self.abort.store(false, Ordering::Release);
-
-		// atomic fence here to ensure the others are written first?
-		// logs might very rarely get polluted if not.
-		self.done.store(false, Ordering::Release);
-	}
-
-	/// Get the number of accounts snapshotted thus far.
-	pub fn accounts(&self) -> usize { self.accounts.load(Ordering::Acquire) }
-
-	/// Get the number of blocks snapshotted thus far.
-	pub fn blocks(&self) -> usize { self.blocks.load(Ordering::Acquire) }
-
-	/// Get the written size of the snapshot in bytes.
-	pub fn size(&self) -> u64 { self.size.load(Ordering::Acquire) }
-
-	/// Whether the snapshot is complete.
-	pub fn done(&self) -> bool  { self.done.load(Ordering::Acquire) }
-
-}
 /// Take a snapshot using the given blockchain, starting block hash, and database, writing into the given writer.
 pub fn take_snapshot<W: SnapshotWriter + Send>(
 	chunker: Box<dyn SnapshotComponents>,

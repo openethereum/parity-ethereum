@@ -12,6 +12,7 @@ parity-bytes = "0.1"
 client-traits = { path = "../client-traits" }
 common-types = { path = "../types" }
 derive_more = "0.14.0"
+engine = { path = "../engine" }
 ethcore = { path = ".."}
 ethcore-db = { path = "../db" }
 ethcore-blockchain = { path = "../blockchain" }

@@ -19,14 +19,14 @@
 //!
 //! The chunks here contain state proofs of transitions, along with validator proofs.
 
-use super::{SnapshotComponents, Rebuilder, ChunkSink};
-
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 
-use engines::{Engine, EpochVerifier, EpochTransition};
-use snapshot::{ManifestData, Progress};
-
+use engine::{
+	Engine,
+	EpochVerifier,
+	snapshot::{SnapshotComponents, Rebuilder}
+};
 use blockchain::{BlockChain, BlockChainDB, BlockProvider};
 use bytes::Bytes;
 use ethereum_types::{H256, U256};
@@ -35,10 +35,12 @@ use kvdb::KeyValueDB;
 use rlp::{RlpStream, Rlp};
 use types::{
 	encoded,
+	engines::epoch::Transition as EpochTransition,
 	header::Header,
 	ids::BlockId,
 	errors::{SnapshotError, EthcoreError},
 	receipt::Receipt,
+	snapshot::{ChunkSink, Progress, ManifestData}
 };
 
 /// Snapshot creation and restoration for PoA chains.
@@ -189,7 +191,7 @@ impl ChunkRebuilder {
 		transition_rlp: Rlp,
 		engine: &dyn Engine,
 	) -> Result<Verified, EthcoreError> {
-		use engines::ConstructedVerifier;
+		use engine::ConstructedVerifier;
 
 		// decode.
 		let header: Header = transition_rlp.val_at(0)?;

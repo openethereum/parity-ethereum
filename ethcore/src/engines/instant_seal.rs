@@ -14,7 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
-use engines::{Engine, Seal};
+use engine::Engine;
 use machine::{
 	ExecutedBlock,
 	Machine
@@ -22,6 +22,7 @@ use machine::{
 use types::{
 	header::Header,
 	engines::{
+		Seal,
 		SealingState,
 		params::CommonParams,
 	},
@@ -110,9 +111,11 @@ mod tests {
 	use ethereum_types::{H520, Address};
 	use test_helpers::get_temp_state_db;
 	use crate::spec;
-	use types::header::Header;
+	use types::{
+		header::Header,
+		engines::Seal,
+	};
 	use block::*;
-	use engines::Seal;
 
 	#[test]
 	fn instant_can_seal() {

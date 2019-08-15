@@ -21,6 +21,7 @@
 //! https://github.com/ethereum/wiki/wiki/Ethereum-Wire-Protocol
 //!
 
+extern crate client_traits;
 extern crate common_types as types;
 extern crate ethcore;
 extern crate ethcore_io as io;
@@ -46,8 +47,8 @@ extern crate ethcore_light as light;
 #[cfg(test)] extern crate kvdb_memorydb;
 #[cfg(test)] extern crate rustc_hex;
 #[cfg(test)] extern crate rand_xorshift;
-#[cfg(test)] extern crate client_traits;
 #[cfg(test)] extern crate machine;
+#[cfg(test)] extern crate engine;
 
 #[macro_use]
 extern crate enum_primitive;

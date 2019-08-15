@@ -30,7 +30,7 @@ use types::{
 	engines::machine::{Call, AuxiliaryData},
 };
 
-use client::EngineClient;
+use client_traits::EngineClient;
 use machine::Machine;
 use super::{SystemCall, ValidatorSet};
 
@@ -100,7 +100,7 @@ impl ValidatorSet for Multi {
 	}
 
 	fn signals_epoch_end(&self, _first: bool, header: &Header, aux: AuxiliaryData)
-		-> ::engines::EpochChange
+		-> engine::EpochChange
 	{
 		let (set_block, set) = self.correct_set_by_number(header.number());
 		let first = set_block == header.number();
@@ -155,18 +155,19 @@ mod tests {
 	use std::collections::BTreeMap;
 	use hash::keccak;
 	use accounts::AccountProvider;
-	use client::{BlockChainClient, ChainInfo, ImportBlock};
-	use client_traits::BlockInfo;
-	use engines::EpochChange;
+	use client_traits::{BlockChainClient, BlockInfo, ChainInfo, ImportBlock, EngineClient};
+	use engine::EpochChange;
 	use engines::validator_set::ValidatorSet;
 	use ethkey::Secret;
 	use types::header::Header;
 	use miner::{self, MinerService};
 	use crate::spec;
 	use test_helpers::{generate_dummy_client_with_spec, generate_dummy_client_with_spec_and_data};
-	use types::ids::BlockId;
+	use types::{
+		ids::BlockId,
+		verification::Unverified,
+	};
 	use ethereum_types::Address;
-	use verification::queue::kind::blocks::Unverified;
 
 	use super::Multi;
 
@@ -186,24 +187,24 @@ mod tests {
 		let signer = Box::new((tap.clone(), v1, "".into()));
 		client.miner().set_author(miner::Author::Sealer(signer));
 		client.transact_contract(Default::default(), Default::default()).unwrap();
-		::client::EngineClient::update_sealing(&*client);
+		EngineClient::update_sealing(&*client);
 		assert_eq!(client.chain_info().best_block_number, 0);
 		// Right signer for the first block.
 		let signer = Box::new((tap.clone(), v0, "".into()));
 		client.miner().set_author(miner::Author::Sealer(signer));
-		::client::EngineClient::update_sealing(&*client);
+		EngineClient::update_sealing(&*client);
 		assert_eq!(client.chain_info().best_block_number, 1);
 		// This time v0 is wrong.
 		client.transact_contract(Default::default(), Default::default()).unwrap();
-		::client::EngineClient::update_sealing(&*client);
+		EngineClient::update_sealing(&*client);
 		assert_eq!(client.chain_info().best_block_number, 1);
 		let signer = Box::new((tap.clone(), v1, "".into()));
 		client.miner().set_author(miner::Author::Sealer(signer));
-		::client::EngineClient::update_sealing(&*client);
+		EngineClient::update_sealing(&*client);
 		assert_eq!(client.chain_info().best_block_number, 2);
 		// v1 is still good.
 		client.transact_contract(Default::default(), Default::default()).unwrap();
-		::client::EngineClient::update_sealing(&*client);
+		EngineClient::update_sealing(&*client);
 		assert_eq!(client.chain_info().best_block_number, 3);
 
 		// Check syncing.

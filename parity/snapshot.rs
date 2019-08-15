@@ -21,13 +21,17 @@ use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 use hash::keccak;
-use ethcore::snapshot::{Progress, RestorationStatus, SnapshotConfiguration, SnapshotService as SS};
+use ethcore::snapshot::{RestorationStatus, SnapshotConfiguration, SnapshotService as SS};
 use ethcore::snapshot::io::{SnapshotReader, PackedReader, PackedWriter};
 use ethcore::snapshot::service::Service as SnapshotService;
-use ethcore::client::{Mode, DatabaseCompactionProfile, VMType};
+use ethcore::client::{DatabaseCompactionProfile, VMType};
 use ethcore::miner::Miner;
 use ethcore_service::ClientService;
-use types::ids::BlockId;
+use types::{
+	ids::BlockId,
+	snapshot::Progress,
+	client_types::Mode,
+};
 
 use cache::CacheConfig;
 use params::{SpecType, Pruning, Switch, tracing_switch_to_bool, fatdb_switch_to_bool};

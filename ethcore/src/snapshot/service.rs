@@ -24,17 +24,21 @@ use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 use std::cmp;
 
-use super::{ManifestData, StateRebuilder, Rebuilder, RestorationStatus, SnapshotService, MAX_CHUNK_SIZE};
+use super::{StateRebuilder, RestorationStatus, SnapshotService, MAX_CHUNK_SIZE};
 use super::io::{SnapshotReader, LooseReader, SnapshotWriter, LooseWriter};
 
 use blockchain::{BlockChain, BlockChainDB, BlockChainDBHandler};
-use client::{BlockChainClient, Client, ChainInfo, ClientIoMessage};
-use client_traits::BlockInfo;
-use engines::Engine;
+use client::{Client, ClientIoMessage};
+use client_traits::{
+	BlockInfo, BlockChainClient, ChainInfo
+};
+use engine::Engine;
+use engine::snapshot::Rebuilder;
 use hash::keccak;
 use types::{
 	errors::{EthcoreError as Error, SnapshotError, SnapshotError::UnlinkedAncientBlockChain},
 	ids::BlockId,
+	snapshot::{ManifestData, Progress},
 };
 
 use io::IoChannel;
@@ -245,7 +249,7 @@ pub struct Service {
 	state_chunks: AtomicUsize,
 	block_chunks: AtomicUsize,
 	client: Arc<dyn SnapshotClient>,
-	progress: super::Progress,
+	progress: Progress,
 	taking_snapshot: AtomicBool,
 	restoring_snapshot: AtomicBool,
 }

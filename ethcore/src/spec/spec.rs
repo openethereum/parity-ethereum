@@ -39,8 +39,9 @@ use types::{
 use vm::{EnvInfo, CallType, ActionValue, ActionParams, ParamsType};
 
 use builtin::Builtin;
+use engine::Engine;
 use engines::{
-	Engine, NullEngine, InstantSeal, InstantSealParams, BasicAuthority, Clique,
+	NullEngine, InstantSeal, InstantSealParams, BasicAuthority, Clique,
 	AuthorityRound, Ethash,
 };
 use machine::{

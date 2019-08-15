@@ -16,6 +16,7 @@
 
 //! Smart contract based node filter.
 
+extern crate client_traits;
 extern crate common_types;
 extern crate ethabi;
 extern crate ethcore;
@@ -25,8 +26,6 @@ extern crate ethereum_types;
 extern crate lru_cache;
 extern crate parking_lot;
 
-#[macro_use]
-extern crate ethabi_derive;
 #[macro_use]
 extern crate ethabi_contract;
 #[cfg(test)]
@@ -42,7 +41,8 @@ use std::collections::{HashMap, VecDeque};
 use std::sync::Weak;
 
 use common_types::ids::BlockId;
-use ethcore::client::{BlockChainClient, ChainNotify, NewBlocks};
+use ethcore::client::{ChainNotify, NewBlocks};
+use client_traits::BlockChainClient;
 use ethereum_types::{H256, Address};
 use ethabi::FunctionOutputDecoder;
 use network::{ConnectionFilter, ConnectionDirection};
@@ -54,7 +54,7 @@ use_contract!(peer_set, "res/peer_set.json");
 
 /// Connection filter that uses a contract to manage permissions.
 pub struct NodeFilter {
-	client: Weak<BlockChainClient>,
+	client: Weak<dyn BlockChainClient>,
 	contract_address: Address,
 	cache: RwLock<Cache>
 }
@@ -128,8 +128,10 @@ impl ChainNotify for NodeFilter {
 #[cfg(test)]
 mod test {
 	use std::sync::{Arc, Weak};
+
+	use client_traits::BlockChainClient;
 	use ethcore::spec::Spec;
-	use ethcore::client::{BlockChainClient, Client, ClientConfig};
+	use ethcore::client::{Client, ClientConfig};
 	use ethcore::miner::Miner;
 	use ethcore::test_helpers;
 	use network::{ConnectionDirection, ConnectionFilter, NodeId};

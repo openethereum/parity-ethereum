@@ -16,7 +16,7 @@
 
 use std::sync::Arc;
 
-use ethcore::client::BlockChainClient;
+use client_traits::BlockChainClient;
 use ethcore::miner::{self, MinerService};
 use ethereum_types::{H256, U256, Address};
 use types::transaction::{SignedTransaction, PendingTransaction};

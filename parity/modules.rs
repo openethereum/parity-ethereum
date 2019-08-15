@@ -16,7 +16,7 @@
 
 use std::sync::{Arc, mpsc};
 
-use ethcore::client::BlockChainClient;
+use client_traits::BlockChainClient;
 use sync::{self, SyncConfig, NetworkConfiguration, Params, ConnectionFilter};
 use ethcore::snapshot::SnapshotService;
 use light::Provider;

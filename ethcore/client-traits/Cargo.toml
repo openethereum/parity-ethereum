@@ -7,6 +7,15 @@ edition = "2018"
 license = "GPL-3.0"
 
 [dependencies]
-ethereum-types = "0.6.0"
+account-state = { path = "../account-state" }
+blockchain = { package = "ethcore-blockchain", path = "../blockchain" }
+bytes = { package = "parity-bytes", version = "0.1.0" }
+call-contract = { package = "ethcore-call-contract", path = "../call-contract" }
 common-types = { path = "../types" }
-
+ethcore-db = { path = "../db" }
+ethcore-miner = { path = "../../miner" }
+ethereum-types = "0.6.0"
+kvdb = "0.1.0"
+stats = { path = "../../util/stats" }
+trace = { path = "../trace" }
+vm = { path = "../vm" }

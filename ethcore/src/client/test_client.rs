@@ -40,6 +40,7 @@ use rustc_hex::FromHex;
 use types::{
 	BlockNumber,
 	encoded,
+	engines::epoch::Transition as EpochTransition,
 	ids::{BlockId, TransactionId, UncleId, TraceId},
 	basic_account::BasicAccount,
 	errors::{EthcoreError as Error, EthcoreResult},
@@ -53,20 +54,26 @@ use types::{
 	receipt::{Receipt, LocalizedReceipt, TransactionOutcome},
 	view,
 	views::BlockView,
+	verification::Unverified,
+	client_types::Mode,
+	blockchain_info::BlockChainInfo,
+	block_status::BlockStatus,
 };
 use vm::Schedule;
 
 use block::{OpenBlock, SealedBlock, ClosedBlock};
 use call_contract::{CallContract, RegistryInfo};
 use client::{
-	Nonce, Balance, ChainInfo, ReopenBlock, TransactionInfo,
-	PrepareOpenBlock, BlockChainClient, BlockChainInfo, BlockStatus, Mode,
-	LastHashes, ProvingBlockChainClient, ScheduleInfo, ImportSealedBlock, BroadcastProposalBlock,
-	ImportBlock, StateOrBlock, Call, StateClient, EngineInfo, AccountData, BlockChain, BlockProducer,
-	SealedBlockImporter, IoClient, BadBlocks
+	ReopenBlock, PrepareOpenBlock, ImportSealedBlock, BroadcastProposalBlock, Call,
+	EngineInfo, BlockProducer, SealedBlockImporter,
+	LastHashes,
 };
-use client_traits::BlockInfo;
-use engines::Engine;
+use client_traits::{
+	BlockInfo, Nonce, Balance, ChainInfo, TransactionInfo, BlockChainClient, ImportBlock,
+	AccountData, BlockChain, IoClient, BadBlocks, ScheduleInfo, StateClient, ProvingBlockChainClient,
+	StateOrBlock
+};
+use engine::Engine;
 use machine::executed::Executed;
 use journaldb;
 use miner::{self, Miner, MinerService};
@@ -75,7 +82,6 @@ use account_state::state::StateInfo;
 use state_db::StateDB;
 use trace::LocalizedTrace;
 use verification::queue::QueueInfo as BlockQueueInfo;
-use verification::queue::kind::blocks::Unverified;
 
 /// Test client.
 pub struct TestBlockChainClient {
@@ -945,7 +951,7 @@ impl ProvingBlockChainClient for TestBlockChainClient {
 	}
 }
 
-impl super::traits::EngineClient for TestBlockChainClient {
+impl client_traits::EngineClient for TestBlockChainClient {
 	fn update_sealing(&self) {
 		self.miner.update_sealing(self)
 	}
@@ -959,7 +965,7 @@ impl super::traits::EngineClient for TestBlockChainClient {
 
 	fn broadcast_consensus_message(&self, _message: Bytes) {}
 
-	fn epoch_transition_for(&self, _block_hash: H256) -> Option<::engines::EpochTransition> {
+	fn epoch_transition_for(&self, _block_hash: H256) -> Option<EpochTransition> {
 		None
 	}
 

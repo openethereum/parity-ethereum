@@ -44,36 +44,3 @@ impl EngineSigner for Signer {
 		self.0.address()
 	}
 }
-
-#[cfg(test)]
-mod test_signer {
-	use std::sync::Arc;
-
-	use ethkey::Password;
-	use accounts::{self, AccountProvider, SignError};
-
-	use super::*;
-
-	impl EngineSigner for (Arc<AccountProvider>, Address, Password) {
-		fn sign(&self, hash: H256) -> Result<Signature, ethkey::Error> {
-			match self.0.sign(self.1, Some(self.2.clone()), hash) {
-				Err(SignError::NotUnlocked) => unreachable!(),
-				Err(SignError::NotFound) => Err(ethkey::Error::InvalidAddress),
-				Err(SignError::SStore(accounts::Error::EthKey(err))) => Err(err),
-				Err(SignError::SStore(accounts::Error::EthKeyCrypto(err))) => {
-					warn!("Low level crypto error: {:?}", err);
-					Err(ethkey::Error::InvalidSecret)
-				},
-				Err(SignError::SStore(err)) => {
-					warn!("Error signing for engine: {:?}", err);
-					Err(ethkey::Error::InvalidSignature)
-				},
-				Ok(ok) => Ok(ok),
-			}
-		}
-
-		fn address(&self) -> Address {
-			self.1
-		}
-	}
-}

@@ -28,7 +28,7 @@ use types::{
 	BlockNumber,
 	errors::{EngineError, EthcoreError as Error},
 };
-use super::{SystemOrCodeCall, SystemOrCodeCallKind};
+use engine::{SystemOrCodeCall, SystemOrCodeCallKind};
 use trace::{Tracer, ExecutiveTracer, Tracing};
 
 use_contract!(block_reward_contract, "res/contracts/block_reward.json");
@@ -166,7 +166,7 @@ mod test {
 	use crate::spec;
 	use test_helpers::generate_dummy_client_with_spec;
 
-	use engines::SystemOrCodeCallKind;
+	use engine::SystemOrCodeCallKind;
 	use super::{BlockRewardContract, RewardKind};
 
 	#[test]

@@ -18,8 +18,8 @@
 
 use std::sync::{Weak, Arc};
 
+use engine::{Engine, EpochChange, Proof};
 use ethcore::client::{ClientReport, EnvInfo, ClientIoMessage};
-use ethcore::engines::{epoch, Engine, EpochChange, EpochTransition, Proof};
 use ethcore::verification::queue::{self, HeaderQueue};
 use ethcore::spec::{Spec, SpecHardcodedSync};
 use io::IoChannel;
@@ -31,11 +31,12 @@ use common_types::{
 	block_status::BlockStatus,
 	blockchain_info::BlockChainInfo,
 	encoded,
+	engines::epoch::{Transition as EpochTransition, PendingTransition},
 	errors::EthcoreError as Error,
 	errors::EthcoreResult,
 	header::Header,
 	ids::BlockId,
-	verification_queue_info::VerificationQueueInfo as BlockQueueInfo,
+	verification::VerificationQueueInfo as BlockQueueInfo,
 };
 use kvdb::KeyValueDB;
 
@@ -528,7 +529,7 @@ impl<T: ChainDataFetcher> Client<T> {
 		};
 
 		let mut batch = self.db.transaction();
-		self.chain.insert_pending_transition(&mut batch, header.hash(), &epoch::PendingTransition {
+		self.chain.insert_pending_transition(&mut batch, header.hash(), &PendingTransition {
 			proof,
 		});
 		self.db.write_buffered(batch);
@@ -616,13 +617,13 @@ impl<T: ChainDataFetcher> LightChainClient for Client<T> {
 	}
 }
 
-impl<T: ChainDataFetcher> ::ethcore::client::ChainInfo for Client<T> {
+impl<T: ChainDataFetcher> client_traits::ChainInfo for Client<T> {
 	fn chain_info(&self) -> BlockChainInfo {
 		Client::chain_info(self)
 	}
 }
 
-impl<T: ChainDataFetcher> ::ethcore::client::EngineClient for Client<T> {
+impl<T: ChainDataFetcher> client_traits::EngineClient for Client<T> {
 	fn update_sealing(&self) { }
 	fn submit_seal(&self, _block_hash: H256, _seal: Vec<Vec<u8>>) { }
 	fn broadcast_consensus_message(&self, _message: Vec<u8>) { }
@@ -635,7 +636,7 @@ impl<T: ChainDataFetcher> ::ethcore::client::EngineClient for Client<T> {
 		})
 	}
 
-	fn as_full_client(&self) -> Option<&dyn (::ethcore::client::BlockChainClient)> {
+	fn as_full_client(&self) -> Option<&dyn (client_traits::BlockChainClient)> {
 		None
 	}
 

@@ -26,14 +26,14 @@ use parity_util_mem::{MallocSizeOf, MallocSizeOfExt};
 use ethereum_types::{H256, U256};
 use parking_lot::{Condvar, Mutex, RwLock};
 use io::*;
-use engines::Engine;
+use engine::Engine;
 use client::ClientIoMessage;
 use len_caching_lock::LenCachingMutex;
 use types::errors::{BlockError, EthcoreError as Error, ImportError};
 
 use self::kind::{BlockLike, Kind};
 
-pub use types::verification_queue_info::VerificationQueueInfo as QueueInfo;
+pub use types::verification::VerificationQueueInfo as QueueInfo;
 
 pub mod kind;
 
@@ -735,13 +735,13 @@ impl<K: Kind> Drop for VerificationQueue<K> {
 mod tests {
 	use io::*;
 	use super::{BlockQueue, Config, State};
-	use super::kind::blocks::Unverified;
 	use test_helpers::{get_good_dummy_block_seq, get_good_dummy_block};
 	use bytes::Bytes;
 	use types::{
+		errors::{EthcoreError, ImportError},
+		verification::Unverified,
 		view,
 		views::BlockView,
-		errors::{EthcoreError, ImportError},
 	};
 	use crate::spec;
 

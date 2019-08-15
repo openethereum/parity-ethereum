@@ -20,10 +20,14 @@ use std::sync::Weak;
 use ethereum_types::{H256, H520};
 use parking_lot::RwLock;
 use ethkey::{self, Signature};
-use engines::{Engine, Seal, ConstructedVerifier};
-use engines::signer::EngineSigner;
+use engine::{
+	Engine,
+	ConstructedVerifier,
+	snapshot::SnapshotComponents,
+	signer::EngineSigner,
+};
 use ethjson;
-use client::EngineClient;
+use client_traits::EngineClient;
 use machine::{
 	Machine,
 	executed_block::ExecutedBlock,
@@ -31,7 +35,10 @@ use machine::{
 use types::{
 	header::Header,
 	engines::{
+		Headers,
+		PendingTransitionStore,
 		SealingState,
+		Seal,
 		params::CommonParams,
 		machine::{AuxiliaryData, Call},
 	},
@@ -59,7 +66,7 @@ struct EpochVerifier {
 	list: SimpleList,
 }
 
-impl super::EpochVerifier for EpochVerifier {
+impl engine::EpochVerifier for EpochVerifier {
 	fn verify_light(&self, header: &Header) -> Result<(), Error> {
 		verify_external(header, &self.list)
 	}
@@ -144,13 +151,13 @@ impl Engine for BasicAuthority {
 	}
 
 	#[cfg(not(test))]
-	fn signals_epoch_end(&self, _header: &Header, _auxiliary: AuxiliaryData) -> super::EpochChange {
+	fn signals_epoch_end(&self, _header: &Header, _auxiliary: AuxiliaryData) -> engine::EpochChange {
 		// don't bother signalling even though a contract might try.
-		super::EpochChange::No
+		engine::EpochChange::No
 	}
 
 	#[cfg(test)]
-	fn signals_epoch_end(&self, header: &Header, auxiliary: AuxiliaryData) -> super::EpochChange {
+	fn signals_epoch_end(&self, header: &Header, auxiliary: AuxiliaryData) -> engine::EpochChange {
 		// in test mode, always signal even though they don't be finalized.
 		let first = header.number() == 0;
 		self.validators.signals_epoch_end(first, header, auxiliary)
@@ -160,8 +167,8 @@ impl Engine for BasicAuthority {
 		&self,
 		chain_head: &Header,
 		_finalized: &[H256],
-		_chain: &super::Headers<Header>,
-		_transition_store: &super::PendingTransitionStore,
+		_chain: &Headers<Header>,
+		_transition_store: &PendingTransitionStore,
 	) -> Option<Vec<u8>> {
 		let first = chain_head.number() == 0;
 
@@ -172,8 +179,8 @@ impl Engine for BasicAuthority {
 	fn is_epoch_end_light(
 		&self,
 		chain_head: &Header,
-		chain: &super::Headers<Header>,
-		transition_store: &super::PendingTransitionStore,
+		chain: &Headers<Header>,
+		transition_store: &PendingTransitionStore,
 	) -> Option<Vec<u8>> {
 		self.is_epoch_end(chain_head, &[], chain, transition_store)
 	}
@@ -183,7 +190,7 @@ impl Engine for BasicAuthority {
 
 		match self.validators.epoch_set(first, &self.machine, header.number(), proof) {
 			Ok((list, finalize)) => {
-				let verifier = Box::new(EpochVerifier { list: list });
+				let verifier = Box::new(EpochVerifier { list });
 
 				// our epoch verifier will ensure no unverified verifier is ever verified.
 				match finalize {
@@ -211,7 +218,7 @@ impl Engine for BasicAuthority {
 		)
 	}
 
-	fn snapshot_components(&self) -> Option<Box<dyn (::snapshot::SnapshotComponents)>> {
+	fn snapshot_components(&self) -> Option<Box<dyn (SnapshotComponents)>> {
 		None
 	}
 
@@ -230,7 +237,7 @@ mod tests {
 	use accounts::AccountProvider;
 	use types::header::Header;
 	use spec::Spec;
-	use engines::{Seal, SealingState};
+	use types::engines::{Seal, SealingState};
 	use tempdir::TempDir;
 
 	/// Create a new test chain spec with `BasicAuthority` consensus engine.

@@ -21,19 +21,22 @@ use std::sync::Arc;
 
 use tempdir::TempDir;
 use blockchain::BlockProvider;
-use client::{Client, ClientConfig, ImportBlock};
-use client_traits::BlockInfo;
-use types::ids::BlockId;
+use client::{Client, ClientConfig};
+use client_traits::{BlockInfo, ImportBlock};
+use types::{
+	ids::BlockId,
+	snapshot::Progress,
+	verification::Unverified,
+};
 use snapshot::io::{PackedReader, PackedWriter, SnapshotReader, SnapshotWriter};
 use snapshot::service::{Service, ServiceParams};
-use snapshot::{chunk_state, chunk_secondary, ManifestData, Progress, SnapshotService, RestorationStatus};
+use snapshot::{chunk_state, chunk_secondary, ManifestData, SnapshotService, RestorationStatus};
 use crate::spec;
 use test_helpers::{new_db, new_temp_db, generate_dummy_client_with_spec_and_data, restoration_db_handler};
 
 use parking_lot::Mutex;
 use io::IoChannel;
 use kvdb_rocksdb::DatabaseConfig;
-use verification::queue::kind::blocks::Unverified;
 
 #[test]
 fn restored_is_equivalent() {

@@ -25,7 +25,7 @@ use account_utils::{self, AccountProvider};
 use ethcore::client::Client;
 use ethcore::miner::Miner;
 use ethcore::snapshot::SnapshotService;
-use ethcore::client::BlockChainClient;
+use client_traits::BlockChainClient;
 use sync::SyncState;
 use ethcore_logger::RotatingLogger;
 use ethcore_private_tx::Provider as PrivateTransactionManager;
