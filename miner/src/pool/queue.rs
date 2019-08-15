@@ -337,6 +337,11 @@ impl TransactionQueue {
 		self.pool.read().unordered_pending(ready).map(|tx| tx.hash).collect()
 	}
 
+	/// Clear the pending transactions cache
+	pub fn clear_pending_cache(&self) {
+		self.cached_pending.write().clear();
+	}
+
 	/// Returns current pending transactions ordered by priority.
 	///
 	/// NOTE: This may return a cached version of pending transaction set.

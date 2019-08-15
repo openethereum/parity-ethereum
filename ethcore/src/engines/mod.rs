@@ -420,6 +420,15 @@ pub trait Engine: Sync + Send {
 	fn decode_transaction(&self, transaction: &[u8]) -> Result<UnverifiedTransaction, transaction::Error> {
 		self.machine().decode_transaction(transaction)
 	}
+
+	/// Returns the fork choice given the new and current best total difficulties
+	fn fork_choice(&self, new_total_difficulty: U256, best_total_difficulty: U256) -> ForkChoice {
+		if new_total_difficulty > best_total_difficulty {
+			ForkChoice::New
+		} else {
+			ForkChoice::Old
+		}
+	}
 }
 
 /// Verifier for all blocks within an epoch with self-contained state.

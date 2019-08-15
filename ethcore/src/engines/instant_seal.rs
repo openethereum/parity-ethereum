@@ -14,11 +14,12 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
-use engines::{Engine, Seal};
+use engines::{Engine, Seal, ForkChoice};
 use machine::{
 	ExecutedBlock,
 	Machine
 };
+use ethereum_types::{U256};
 use types::{
 	header::Header,
 	engines::{
@@ -101,6 +102,10 @@ impl Engine for InstantSeal {
 		self.machine.params()
 	}
 
+	/// Always choose the newest block
+	fn fork_choice(&self, _new_total_difficulty: U256, _best_total_difficulty: U256) -> ForkChoice {
+		ForkChoice::New
+	}
 }
 
 
