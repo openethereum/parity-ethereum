@@ -46,7 +46,7 @@ variables:
         sccache --start-server
     - sccache -s
   after_script:
-    # sccache debug info 
+    # sccache debug info
     - if test -e sccache_debug.log;
       then
         echo "_____All crate-types:_____";
@@ -98,6 +98,13 @@ cargo-check 2 3:
   <<:                              *docker-cache-status
   script:
     - time cargo check --target $CARGO_TARGET --locked --manifest-path util/io/Cargo.toml --features "mio" --verbose --color=always
+    - sccache -s
+
+cargo-check-ethcore-benches:
+  stage:                           test
+  <<:                              *docker-cache-status
+  script:
+    - time cargo check -p ethcore --benches --target $CARGO_TARGET --locked --verbose --color=always
     - sccache -s
 
 cargo-audit:
@@ -223,7 +230,7 @@ publish-docker:
     DOCKER_DRIVER:                 overlay2
     GIT_STRATEGY:                  none
     # DOCKERFILE:                  tools/Dockerfile
-    # CONTAINER_IMAGE:             parity/parity 
+    # CONTAINER_IMAGE:             parity/parity
   script:
     # we stopped pushing nightlies to dockerhub, will push to own registry prb.
     - ./tools/publish-docker.sh
