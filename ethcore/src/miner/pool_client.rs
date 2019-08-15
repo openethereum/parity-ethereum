@@ -117,11 +117,13 @@ impl<'a, C: 'a> PoolClient<'a, C> where
 		}
 	}
 
-	/// Verifies if signed transaction is executable.
+	/// Verifies transaction against its block (before its import into this block)
+	/// Also Verifies if signed transaction is executable.
 	///
 	/// This should perform any verifications that rely on chain status.
-	pub fn verify_signed(&self, tx: &SignedTransaction) -> Result<(), transaction::Error> {
-		self.engine.machine().verify_transaction(&tx, &self.best_block_header, self.chain)
+	pub fn verify_for_pending_block(&self, tx: &SignedTransaction, header: &Header) -> Result<(), transaction::Error> {
+		self.engine.machine().verify_transaction_basic(tx, header)?;
+		self.engine.machine().verify_transaction(tx, &self.best_block_header, self.chain)
 	}
 }
 
@@ -142,8 +144,7 @@ impl<'a, C: 'a> pool::client::Client for PoolClient<'a, C> where
 		self.engine.verify_transaction_basic(&tx, &self.best_block_header)?;
 		let tx = tx.verify_unordered()?;
 
-		self.verify_signed(&tx)?;
-
+		self.engine.machine().verify_transaction(&tx, &self.best_block_header, self.chain)?;
 		Ok(tx)
 	}
 
