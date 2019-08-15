@@ -4,7 +4,7 @@ stages:
   - publish
   - optional
 
-image:                             registry.parity.io/pub/ci/parity-ci-linux:latest
+image:                             $CI_REGISTRY/parity/infrastructure/scripts/parity-ci-linux:latest
 variables:
   GIT_STRATEGY:                    fetch
   GIT_SUBMODULE_STRATEGY:          recursive
@@ -123,7 +123,7 @@ test-linux-nightly:
 
 build-android:
   <<:                              *build-on-linux
-  image:                           registry.parity.io/pub/ci/parity-ci-android:stretch
+  image:                           $CI_REGISTRY/parity/infrastructure/scripts/parity-ci-android:stretch
   variables:
     CARGO_TARGET:                  armv7-linux-androideabi
 
@@ -134,21 +134,21 @@ build-linux:
 build-linux-i386:
   <<:                              *build-on-linux
   only:                            *releaseable_branches
-  image:                           registry.parity.io/pub/ci/parity-ci-i386:latest
+  image:                           $CI_REGISTRY/parity/infrastructure/scripts/parity-ci-i386:latest
   variables:
     CARGO_TARGET:                  i686-unknown-linux-gnu
 
 build-linux-arm64:
   <<:                              *build-on-linux
   only:                            *releaseable_branches
-  image:                           registry.parity.io/pub/ci/parity-ci-arm64:latest
+  image:                           $CI_REGISTRY/parity/infrastructure/scripts/parity-ci-arm64:latest
   variables:
     CARGO_TARGET:                  aarch64-unknown-linux-gnu
 
 build-linux-armhf:
   <<:                              *build-on-linux
   only:                            *releaseable_branches
-  image:                           registry.parity.io/pub/ci/parity-ci-armhf:latest
+  image:                           $CI_REGISTRY/parity/infrastructure/scripts/parity-ci-armhf:latest
   variables:
     CARGO_TARGET:                  armv7-unknown-linux-gnueabihf
 
@@ -260,7 +260,7 @@ publish-onchain:
     - linux-docker
 
 publish-awss3-release:
-  image:                           registry.parity.io/pub/ci/awscli:latest
+  image:                           $CI_REGISTRY/parity/infrastructure/scripts/awscli:latest
   stage:                           publish
   only:                            *releaseable_branches
   <<:                              *no_git
@@ -287,7 +287,7 @@ publish-awss3-release:
 
 publish-docs:
   stage:                           publish
-  image:                           registry.parity.io/pub/ci/parity-ci-docs:latest
+  image:                           $CI_REGISTRY/parity/infrastructure/scripts/parity-ci-docs:latest
   only:
     - tags
   except:
