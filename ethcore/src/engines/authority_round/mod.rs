@@ -15,6 +15,10 @@
 // along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
 //! A blockchain engine that supports a non-instant BFT proof-of-authority.
+//!
+//! It is recommended to use the `two_thirds_majority_transition` option, to defend against the
+//! ["Attack of the Clones"](https://arxiv.org/pdf/1902.10244.pdf). Newly started networks can
+//! set this option to `0`, to use a 2/3 quorum from the beginning.
 
 use std::collections::{BTreeMap, BTreeSet, HashSet};
 use std::{cmp, fmt};
@@ -94,7 +98,7 @@ pub struct AuthorityRoundParams {
 	/// Empty step messages transition block.
 	pub empty_steps_transition: u64,
 	/// First block for which a 2/3 quorum (instead of 1/2) is required.
-	pub quorum_2_3_transition: BlockNumber,
+	pub two_thirds_majority_transition: BlockNumber,
 	/// Number of accepted empty steps.
 	pub maximum_empty_steps: usize,
 	/// Transition block to strict empty steps validation.
@@ -128,7 +132,7 @@ impl From<ethjson::spec::AuthorityRoundParams> for AuthorityRoundParams {
 			maximum_uncle_count: p.maximum_uncle_count.map_or(0, Into::into),
 			empty_steps_transition: p.empty_steps_transition.map_or(u64::max_value(), |n| ::std::cmp::max(n.into(), 1)),
 			maximum_empty_steps: p.maximum_empty_steps.map_or(0, Into::into),
-			quorum_2_3_transition: p.quorum_2_3_transition.map_or_else(BlockNumber::max_value, Into::into),
+			two_thirds_majority_transition: p.two_thirds_majority_transition.map_or_else(BlockNumber::max_value, Into::into),
 			strict_empty_steps_transition: p.strict_empty_steps_transition.map_or(0, Into::into),
 		}
 	}
@@ -224,11 +228,11 @@ struct EpochManager {
 }
 
 impl EpochManager {
-	fn blank(quorum_2_3_transition: BlockNumber) -> Self {
+	fn blank(two_thirds_majority_transition: BlockNumber) -> Self {
 		EpochManager {
 			epoch_transition_hash: H256::zero(),
 			epoch_transition_number: 0,
-			finality_checker: RollingFinality::blank(Vec::new(), quorum_2_3_transition),
+			finality_checker: RollingFinality::blank(Vec::new(), two_thirds_majority_transition),
 			force: true,
 		}
 	}
@@ -292,8 +296,8 @@ impl EpochManager {
 				})
 				.expect("proof produced by this engine; therefore it is valid; qed");
 
-			let quorum_2_3_transition = self.finality_checker.quorum_2_3_transition();
-			self.finality_checker = RollingFinality::blank(epoch_set, quorum_2_3_transition);
+			let two_thirds_majority_transition = self.finality_checker.two_thirds_majority_transition();
+			self.finality_checker = RollingFinality::blank(epoch_set, two_thirds_majority_transition);
 		}
 
 		self.epoch_transition_hash = last_transition.block_hash;
@@ -456,7 +460,7 @@ pub struct AuthorityRound {
 	maximum_uncle_count: usize,
 	empty_steps_transition: u64,
 	strict_empty_steps_transition: u64,
-	quorum_2_3_transition: BlockNumber,
+	two_thirds_majority_transition: BlockNumber,
 	maximum_empty_steps: usize,
 	machine: Machine,
 }
@@ -467,7 +471,7 @@ struct EpochVerifier {
 	subchain_validators: SimpleList,
 	empty_steps_transition: u64,
 	/// First block for which a 2/3 quorum (instead of 1/2) is required.
-	quorum_2_3_transition: BlockNumber,
+	two_thirds_majority_transition: BlockNumber,
 }
 
 impl engine::EpochVerifier for EpochVerifier {
@@ -481,7 +485,7 @@ impl engine::EpochVerifier for EpochVerifier {
 
 	fn check_finality_proof(&self, proof: &[u8]) -> Option<Vec<H256>> {
 		let signers = self.subchain_validators.clone().into_inner();
-		let mut finality_checker = RollingFinality::blank(signers, self.quorum_2_3_transition);
+		let mut finality_checker = RollingFinality::blank(signers, self.two_thirds_majority_transition);
 		let mut finalized = Vec::new();
 
 		let headers: Vec<Header> = Rlp::new(proof).as_list().ok()?;
@@ -717,7 +721,7 @@ impl AuthorityRound {
 				validate_score_transition: our_params.validate_score_transition,
 				validate_step_transition: our_params.validate_step_transition,
 				empty_steps: Default::default(),
-				epoch_manager: Mutex::new(EpochManager::blank(our_params.quorum_2_3_transition)),
+				epoch_manager: Mutex::new(EpochManager::blank(our_params.two_thirds_majority_transition)),
 				immediate_transitions: our_params.immediate_transitions,
 				block_reward: our_params.block_reward,
 				block_reward_contract_transition: our_params.block_reward_contract_transition,
@@ -726,7 +730,7 @@ impl AuthorityRound {
 				maximum_uncle_count: our_params.maximum_uncle_count,
 				empty_steps_transition: our_params.empty_steps_transition,
 				maximum_empty_steps: our_params.maximum_empty_steps,
-				quorum_2_3_transition: our_params.quorum_2_3_transition,
+				two_thirds_majority_transition: our_params.two_thirds_majority_transition,
 				strict_empty_steps_transition: our_params.strict_empty_steps_transition,
 				machine,
 			});
@@ -1267,8 +1271,8 @@ impl Engine for AuthorityRound {
 	) -> Result<(), Error> {
 		let mut beneficiaries = Vec::new();
 
-		if block.header.number() == self.quorum_2_3_transition {
-			info!(target: "engine", "Block {}: Transitioning to 2/3 quorum.", self.quorum_2_3_transition);
+		if block.header.number() == self.two_thirds_majority_transition {
+			info!(target: "engine", "Block {}: Transitioning to 2/3 quorum.", self.two_thirds_majority_transition);
 		}
 
 		if block.header.number() >= self.empty_steps_transition {
@@ -1583,7 +1587,7 @@ impl Engine for AuthorityRound {
 					step: self.step.clone(),
 					subchain_validators: list,
 					empty_steps_transition: self.empty_steps_transition,
-					quorum_2_3_transition: self.quorum_2_3_transition,
+					two_thirds_majority_transition: self.two_thirds_majority_transition,
 				});
 
 				match finalize {
@@ -1683,7 +1687,7 @@ mod tests {
 			block_reward_contract_transition: 0,
 			block_reward_contract: Default::default(),
 			strict_empty_steps_transition: 0,
-			quorum_2_3_transition: 0,
+			two_thirds_majority_transition: 0,
 		};
 
 		// mutate aura params

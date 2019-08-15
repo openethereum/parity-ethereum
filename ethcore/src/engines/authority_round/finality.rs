@@ -36,19 +36,19 @@ pub struct RollingFinality {
 	sign_count: HashMap<Address, usize>,
 	last_pushed: Option<H256>,
 	/// First block for which a 2/3 quorum (instead of 1/2) is required.
-	quorum_2_3_transition: BlockNumber,
+	two_thirds_majority_transition: BlockNumber,
 }
 
 impl RollingFinality {
 	/// Create a blank finality checker under the given validator set.
-	pub fn blank(signers: Vec<Address>, quorum_2_3_transition: BlockNumber) -> Self {
+	pub fn blank(signers: Vec<Address>, two_thirds_majority_transition: BlockNumber) -> Self {
 		trace!(target: "finality", "Instantiating blank RollingFinality with {} signers: {:?}", signers.len(), signers);
 		RollingFinality {
 			headers: VecDeque::new(),
 			signers: SimpleList::new(signers),
 			sign_count: HashMap::new(),
 			last_pushed: None,
-			quorum_2_3_transition,
+			two_thirds_majority_transition,
 		}
 	}
 
@@ -133,15 +133,15 @@ impl RollingFinality {
 	}
 
 	/// Returns the first block for which a 2/3 quorum (instead of 1/2) is required.
-	pub fn quorum_2_3_transition(&self) -> BlockNumber {
-		self.quorum_2_3_transition
+	pub fn two_thirds_majority_transition(&self) -> BlockNumber {
+		self.two_thirds_majority_transition
 	}
 
 	/// Returns whether the first entry in `self.headers` is finalized.
 	fn is_finalized(&self) -> bool {
 		match self.headers.front() {
 			None => false,
-			Some((_, number, _)) if *number < self.quorum_2_3_transition => {
+			Some((_, number, _)) if *number < self.two_thirds_majority_transition => {
 				self.sign_count.len() * 2 > self.signers.len()
 			}
 			Some((_, _, _)) => {
