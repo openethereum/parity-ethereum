@@ -91,7 +91,7 @@ impl NodeCodec<KeccakHasher> for RlpNodeCodec<KeccakHasher> {
 				} else {
 					// check leaf bit from header.
 					let is_leaf = enc_nibble[0] & 32 == 32;
-					// check from headre bit if odd partial (only a niblle of heder info)
+					// Check the header bit to see if we're dealing with an odd partial (only a nibble of header info)
 					// or even partial (a full byte to skip).
 					let (start, byte_offset) = if enc_nibble[0] & 16 == 16 { (0, 1) } else { (1, 0) };
 					(NibbleSlice::new_offset(&enc_nibble[start..], byte_offset), is_leaf)
