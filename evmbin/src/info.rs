@@ -17,13 +17,17 @@
 //! EVM runner.
 
 use std::time::{Instant, Duration};
-use ethcore::client::{self, EvmTestClient, EvmTestError, TransactErr, TransactSuccess};
-use ethcore::{spec, TrieSpec};
+
+use common_types::transaction;
+use ethcore::{
+	client::{self, EvmTestClient, EvmTestError, TransactErr, TransactSuccess},
+	spec,
+	TrieSpec,
+};
 use ethereum_types::{H256, U256};
 use ethjson;
 use pod::PodState;
 use trace;
-use types::transaction;
 use vm::ActionParams;
 
 /// EVM execution informant.
@@ -37,7 +41,7 @@ pub trait Informant: trace::VMTracer {
 	/// Clone sink.
 	fn clone_sink(&self) -> Self::Sink;
 	/// Display final result.
-	fn finish(result: RunResult<Self::Output>, &mut Self::Sink);
+	fn finish(result: RunResult<Self::Output>, _: &mut Self::Sink);
 }
 
 /// Execution finished correctly.
@@ -272,7 +276,7 @@ pub mod tests {
 
 	#[test]
 	fn should_call_account_from_spec() {
-		use display::std_json::tests::informant;
+		use crate::display::std_json::tests::informant;
 
 		let (inf, res, _) = informant();
 		let mut params = ActionParams::default();
