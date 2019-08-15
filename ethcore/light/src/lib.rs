@@ -54,6 +54,7 @@ extern crate serde_derive;
 extern crate log;
 
 extern crate bincode;
+extern crate client_traits;
 extern crate common_types;
 extern crate ethcore_blockchain;
 extern crate ethcore_db;
@@ -71,6 +72,7 @@ extern crate failsafe;
 extern crate futures;
 extern crate itertools;
 extern crate keccak_hasher;
+extern crate machine;
 extern crate memory_db;
 extern crate trie_db as trie;
 extern crate patricia_trie_ethereum as ethtrie;

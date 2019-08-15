@@ -26,8 +26,9 @@ use hash::{keccak, KECCAK_NULL_RLP};
 use ethereum_types::{U256, H256, Address};
 use bytes::ToPretty;
 use rlp::PayloadInfo;
+use client_traits::BlockInfo;
 use ethcore::client::{
-	Mode, DatabaseCompactionProfile, VMType, Nonce, Balance, BlockChainClient, BlockId, BlockInfo, ImportBlock, BlockChainReset
+	Mode, DatabaseCompactionProfile, VMType, Nonce, Balance, BlockChainClient, ImportBlock, BlockChainReset
 };
 use ethcore::miner::Miner;
 use ethcore::verification::queue::VerifierSettings;
@@ -42,7 +43,10 @@ use user_defaults::UserDefaults;
 use ethcore_private_tx;
 use db;
 use ansi_term::Colour;
-use types::errors::{ImportError, EthcoreError};
+use types::{
+	ids::BlockId,
+	errors::{ImportError, EthcoreError}
+};
 
 #[derive(Debug, PartialEq)]
 pub enum DataFormat {

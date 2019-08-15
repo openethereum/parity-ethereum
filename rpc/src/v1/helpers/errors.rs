@@ -18,7 +18,6 @@
 
 use std::fmt;
 
-use ethcore::client::BlockId;
 use jsonrpc_core::{futures, Result as RpcResult, Error, ErrorCode, Value};
 use rlp::DecoderError;
 use types::transaction::Error as TransactionError;
@@ -27,6 +26,7 @@ use vm::Error as VMError;
 use light::on_demand::error::{Error as OnDemandError};
 use ethcore::client::BlockChainClient;
 use types::{
+	ids::BlockId,
 	blockchain_info::BlockChainInfo,
 	errors::{EthcoreError},
 	transaction::CallError,
@@ -610,5 +610,15 @@ pub fn require_experimental(allow_experimental_rpcs: bool, eip: &str) -> Result<
 			message: format!("This method is not part of the official RPC API yet (EIP-{}). Run with `--jsonrpc-experimental` to enable it.", eip),
 			data: Some(Value::String(format!("See EIP: https://eips.ethereum.org/EIPS/eip-{}", eip))),
 		})
+	}
+}
+
+/// returns an error for when require_canonical was specified and
+pub fn invalid_input() -> Error {
+	Error {
+		// UNSUPPORTED_REQUEST shares the same error code for EIP-1898
+		code: ErrorCode::ServerError(codes::UNSUPPORTED_REQUEST),
+		message: "Invalid input".into(),
+		data: None
 	}
 }

@@ -1099,7 +1099,8 @@ mod tests {
 	use trie::Recorder;
 	use hash::keccak;
 
-	use ethcore::client::{BlockChainClient, BlockInfo, TestBlockChainClient, EachBlockWith};
+	use ethcore::client::{BlockChainClient, TestBlockChainClient, EachBlockWith};
+	use client_traits::BlockInfo;
 	use common_types::header::Header;
 	use common_types::encoded;
 	use common_types::receipt::{Receipt, TransactionOutcome};
@@ -1202,32 +1203,32 @@ mod tests {
 
 		// Incorrect responses
 		assert_eq!(header_with_ancestors(invalid_successor.hash().into(), 0)
-				   .check_response(&cache, &headers[0].hash().into(), &raw_headers[0..1]),
-				   Err(Error::WrongHash(invalid_successor.hash(), headers[0].hash())));
+				.check_response(&cache, &headers[0].hash().into(), &raw_headers[0..1]),
+				Err(Error::WrongHash(invalid_successor.hash(), headers[0].hash())));
 		assert_eq!(header_with_ancestors(headers[0].hash().into(), 0)
-				   .check_response(&cache, &headers[0].hash().into(), &[]),
-				   Err(Error::Empty));
+				.check_response(&cache, &headers[0].hash().into(), &[]),
+				Err(Error::Empty));
 		assert_eq!(header_with_ancestors(headers[0].hash().into(), 10)
-				   .check_response(&cache, &headers[0].hash().into(), &raw_headers[0..10]),
-				   Err(Error::TooFewResults(11, 10)));
+				.check_response(&cache, &headers[0].hash().into(), &raw_headers[0..10]),
+				Err(Error::TooFewResults(11, 10)));
 		assert_eq!(header_with_ancestors(headers[0].hash().into(), 9)
-				   .check_response(&cache, &headers[0].hash().into(), &raw_headers[0..11]),
-				   Err(Error::TooManyResults(10, 11)));
+				.check_response(&cache, &headers[0].hash().into(), &raw_headers[0..11]),
+				Err(Error::TooManyResults(10, 11)));
 
 		let response = &[raw_headers[0].clone(), raw_headers[2].clone()];
 		assert_eq!(header_with_ancestors(headers[0].hash().into(), 1)
-				   .check_response(&cache, &headers[0].hash().into(), response),
-				   Err(Error::WrongHeaderSequence));
+				.check_response(&cache, &headers[0].hash().into(), response),
+				Err(Error::WrongHeaderSequence));
 
 		let response = &[raw_invalid_successor.clone(), raw_headers[0].clone()];
 		assert_eq!(header_with_ancestors(invalid_successor.hash().into(), 1)
-				   .check_response(&cache, &invalid_successor.hash().into(), response),
-				   Err(Error::WrongHeaderSequence));
+				.check_response(&cache, &invalid_successor.hash().into(), response),
+				Err(Error::WrongHeaderSequence));
 
 		let response = &[raw_invalid_successor.clone(), raw_headers[1].clone()];
 		assert_eq!(header_with_ancestors(invalid_successor.hash().into(), 1)
-				   .check_response(&cache, &invalid_successor.hash().into(), response),
-				   Err(Error::WrongHeaderSequence));
+				.check_response(&cache, &invalid_successor.hash().into(), response),
+				Err(Error::WrongHeaderSequence));
 	}
 
 	#[test]

@@ -65,8 +65,7 @@ use std::thread;
 use std::time;
 use std::time::{Instant, Duration, SystemTime, UNIX_EPOCH};
 
-use block::ExecutedBlock;
-use client::{BlockId, EngineClient};
+use client::EngineClient;
 use engines::clique::util::{extract_signers, recover_creator};
 use engines::{Engine, Seal, SealingState, EthashSeal};
 use ethereum_types::{Address, H64, H160, H256, U256};
@@ -74,7 +73,10 @@ use ethkey::Signature;
 use hash::KECCAK_EMPTY_LIST_RLP;
 use itertools::Itertools;
 use lru_cache::LruCache;
-use machine::Machine;
+use machine::{
+	ExecutedBlock,
+	Machine,
+};
 use parking_lot::RwLock;
 use rand::Rng;
 use super::signer::EngineSigner;
@@ -82,6 +84,7 @@ use unexpected::{Mismatch, OutOfBounds};
 use time_utils::CheckedSystemTime;
 use types::{
 	BlockNumber,
+	ids::BlockId,
 	header::Header,
 	engines::{
 		params::CommonParams,
@@ -227,7 +230,7 @@ impl Clique {
 	/// Note we need to `mock` the miner and it is introduced to test block verification to trigger new blocks
 	/// to mainly test consensus edge cases
 	pub fn with_test(epoch_length: u64, period: u64) -> Self {
-		use spec::Spec;
+		use crate::spec;
 
 		Self {
 			epoch_length,
@@ -236,7 +239,7 @@ impl Clique {
 			block_state_by_hash: RwLock::new(LruCache::new(STATE_CACHE_NUM)),
 			proposals: Default::default(),
 			signer: Default::default(),
-			machine: Spec::new_test_machine(),
+			machine: spec::new_test_machine(),
 		}
 	}
 

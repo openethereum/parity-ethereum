@@ -39,11 +39,12 @@ use light::client::LightChainClient;
 use light::{cht, MAX_HEADERS_PER_REQUEST};
 use light::on_demand::{
 	request, OnDemandRequester, HeaderRef, Request as OnDemandRequest,
-	Response as OnDemandResponse, ExecutionResult,
+	Response as OnDemandResponse,
 };
 use light::on_demand::error::Error as OnDemandError;
 use light::request::Field;
 use light::TransactionQueue;
+use machine::executed::ExecutionResult;
 
 use sync::{LightNetworkDispatcher, ManageNetwork, LightSyncProvider};
 
@@ -263,6 +264,7 @@ where
 		//       (they don't have state) we can safely fallback to `Latest`.
 		let id = match num.unwrap_or_default() {
 			BlockNumber::Num(n) => BlockId::Number(n),
+			BlockNumber::Hash { hash, .. } => BlockId::Hash(hash),
 			BlockNumber::Earliest => BlockId::Earliest,
 			BlockNumber::Latest => BlockId::Latest,
 			BlockNumber::Pending => {

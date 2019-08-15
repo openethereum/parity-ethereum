@@ -20,17 +20,19 @@ extern crate criterion;
 #[macro_use]
 extern crate lazy_static;
 
+extern crate machine;
 extern crate ethcore;
+extern crate ethcore_builtin;
 extern crate ethereum_types;
 extern crate parity_bytes as bytes;
 extern crate rustc_hex;
 
 use criterion::{Criterion, Bencher};
 use bytes::BytesRef;
-use ethcore::builtin::Builtin;
-use ethcore::machine::Machine;
+use ethcore_builtin::Builtin;
 use ethereum_types::H160;
-use ethcore::ethereum::new_byzantium_test_machine;
+use machine::Machine;
+use machine::test_helpers::new_byzantium_test_machine;
 use rustc_hex::FromHex;
 
 lazy_static! {

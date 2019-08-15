@@ -21,26 +21,30 @@ use hash::keccak;
 use block::*;
 use ethereum_types::{U256, Address};
 use io::*;
-use spec::*;
+use crate::spec;
 use client::*;
 use test_helpers::get_temp_state_db;
 use client::{BlockChainClient, Client, ClientConfig};
 use std::sync::Arc;
 use std::str::FromStr;
 use miner::Miner;
-use types::transaction::{Action, Transaction};
 use trace::{RewardType, LocalizedTrace};
 use trace::trace::Action::Reward;
 use test_helpers;
 use verification::queue::kind::blocks::Unverified;
-use types::header::Header;
-use types::view;
-use types::views::BlockView;
+use types::{
+	ids::BlockId,
+	transaction::{Action, Transaction},
+	trace_filter::Filter as TraceFilter,
+	header::Header,
+	view,
+	views::BlockView,
+};
 
 #[test]
 fn can_trace_block_and_uncle_reward() {
 	let db = test_helpers::new_db();
-	let spec = Spec::new_test_with_reward();
+	let spec = spec::new_test_with_reward();
 	let engine = &*spec.engine;
 
 	// Create client

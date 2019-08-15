@@ -26,6 +26,12 @@ use v1::{EthPubSub, EthPubSubClient, Metadata};
 use ethcore::client::{TestBlockChainClient, EachBlockWith, ChainNotify, NewBlocks, ChainRoute, ChainRouteType};
 use parity_runtime::Runtime;
 use ethereum_types::{Address, H256};
+use client_traits::BlockInfo;
+use types::{
+	log_entry::{LocalizedLogEntry, LogEntry},
+	ids::BlockId,
+};
+
 
 const DURATION_ZERO: Duration = Duration::from_millis(0);
 
@@ -86,10 +92,6 @@ fn should_subscribe_to_new_heads() {
 
 #[test]
 fn should_subscribe_to_logs() {
-	use ethcore::client::BlockInfo;
-	use types::log_entry::{LocalizedLogEntry, LogEntry};
-	use types::ids::BlockId;
-
 	// given
 	let el = Runtime::with_thread_count(1);
 	let mut client = TestBlockChainClient::new();

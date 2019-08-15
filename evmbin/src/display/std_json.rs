@@ -14,17 +14,21 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
-//! Standardized JSON VM output.
+//! Log EVM instruction output data traces from a standardized JSON formatting informant.
 
 use std::collections::HashMap;
 use std::io;
 
 use ethereum_types::{H256, U256, BigEndianHash};
-use bytes::ToPretty;
-use trace;
+use parity_bytes::ToPretty;
 use pod::PodState;
-use display;
-use info as vm;
+use serde::Serialize;
+use trace;
+
+use crate::{
+	display,
+	info as vm,
+};
 
 pub trait Writer: io::Write + Send + Sized {
 	fn clone(&self) -> Self;
@@ -117,14 +121,14 @@ impl Default for Informant<io::Stderr, io::Stdout> {
 }
 
 impl Informant<io::Stdout, io::Stdout> {
-	/// std json informant using out only.
+	/// Standardized JSON formatting informant using stdout only.
 	pub fn out_only() -> Self {
 		Self::new(io::stdout(), io::stdout())
 	}
 }
 
 impl Informant<io::Stderr, io::Stderr> {
-	/// std json informant using err only.
+	/// Standardized JSON formatting informant using stderr only.
 	pub fn err_only() -> Self {
 		Self::new(io::stderr(), io::stderr())
 	}
@@ -312,7 +316,7 @@ impl<Trace: Writer, Out: Writer> trace::VMTracer for Informant<Trace, Out> {
 pub mod tests {
 	use std::sync::{Arc, Mutex};
 	use super::*;
-	use info::tests::run_test;
+	use crate::info::tests::run_test;
 
 	#[derive(Debug, Clone, Default)]
 	pub struct TestWriter(pub Arc<Mutex<Vec<u8>>>);
@@ -332,20 +336,21 @@ pub mod tests {
 		}
 	}
 
-	pub fn informant() -> (Informant<TestWriter, TestWriter>, Arc<Mutex<Vec<u8>>>) {
+	pub fn informant() -> (Informant<TestWriter, TestWriter>, TestWriter, TestWriter) {
 		let trace_writer: TestWriter = Default::default();
 		let out_writer: TestWriter = Default::default();
-		let res = trace_writer.0.clone();
-		(Informant::new(trace_writer, out_writer), res)
+		let trace_copy = Clone::clone(&trace_writer);
+		let out_copy = Clone::clone(&out_writer);
+		(Informant::new(trace_writer, out_writer), trace_copy, out_copy)
 	}
 
 	#[test]
 	fn should_trace_failure() {
-		let (inf, res) = informant();
+		let (inf, res, _) = informant();
 		run_test(
 			inf,
 			move |_, expected| {
-				let bytes = res.lock().unwrap();
+				let bytes = res.0.lock().unwrap();
 				assert_eq!(expected, &String::from_utf8_lossy(&**bytes))
 			},
 			"60F8d6",
@@ -355,11 +360,11 @@ pub mod tests {
 "#,
 		);
 
-		let (inf, res) = informant();
+		let (inf, res, _) = informant();
 		run_test(
 			inf,
 			move |_, expected| {
-				let bytes = res.lock().unwrap();
+				let bytes = res.0.lock().unwrap();
 				assert_eq!(expected, &String::from_utf8_lossy(&**bytes))
 			},
 			"F8d6",
@@ -371,11 +376,11 @@ pub mod tests {
 
 	#[test]
 	fn should_trace_create_correctly() {
-		let (informant, res) = informant();
+		let (informant, res, _) = informant();
 		run_test(
 			informant,
 			move |_, expected| {
-				let bytes = res.lock().unwrap();
+				let bytes = res.0.lock().unwrap();
 				assert_eq!(expected, &String::from_utf8_lossy(&**bytes))
 			},
 			"32343434345830f138343438323439f0",

@@ -16,7 +16,7 @@
 
 use std::sync::Arc;
 
-use ethcore::executed::Executed;
+use machine::executed::Executed;
 use trace::trace::{Action, Res, Call};
 use trace::LocalizedTrace;
 use ethcore::client::TestBlockChainClient;

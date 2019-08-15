@@ -15,7 +15,10 @@
 // along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
 use engines::{Engine, Seal};
-use machine::Machine;
+use machine::{
+	ExecutedBlock,
+	Machine
+};
 use types::{
 	header::Header,
 	engines::{
@@ -25,7 +28,6 @@ use types::{
 	errors::EthcoreError as Error,
 };
 
-use block::ExecutedBlock;
 
 /// `InstantSeal` params.
 #[derive(Default, Debug, PartialEq)]
@@ -107,14 +109,14 @@ mod tests {
 	use std::sync::Arc;
 	use ethereum_types::{H520, Address};
 	use test_helpers::get_temp_state_db;
-	use spec::Spec;
+	use crate::spec;
 	use types::header::Header;
 	use block::*;
 	use engines::Seal;
 
 	#[test]
 	fn instant_can_seal() {
-		let spec = Spec::new_instant();
+		let spec = spec::new_instant();
 		let engine = &*spec.engine;
 		let db = spec.ensure_db_good(get_temp_state_db(), &Default::default()).unwrap();
 		let genesis_header = spec.genesis_header();
@@ -128,7 +130,7 @@ mod tests {
 
 	#[test]
 	fn instant_cant_verify() {
-		let engine = Spec::new_instant().engine;
+		let engine = spec::new_instant().engine;
 		let mut header: Header = Header::default();
 
 		assert!(engine.verify_block_basic(&header).is_ok());

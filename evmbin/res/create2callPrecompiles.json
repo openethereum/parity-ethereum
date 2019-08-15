@@ -1,0 +1,140 @@
+{
+    "create2callPrecompiles": {
+        "_info": {
+            "comment": "CALL precompiles during init code of CREATE2 contract ",
+            "filledwith": "testeth 1.5.0.dev2-73+commit.1bcd29e5",
+            "lllcversion": "Version: 0.4.26-develop.2018.9.19+commit.785cbf40.Linux.g++",
+            "source": "src/GeneralStateTestsFiller/stCreate2/create2callPrecompilesFiller.json",
+            "sourceHash": "0dcd6d7b5819f61399ecfba9a67b7518c92c426866bd5b599516c184d194e51c"
+        },
+        "env": {
+            "currentCoinbase": "0x2adc25665018aa1fe0e6bc666dac8fc2697ff9ba",
+            "currentDifficulty": "0x20000",
+            "currentGasLimit": "0xe8d4a51000",
+            "currentNumber": "0x01",
+            "currentTimestamp": "0x03e8",
+            "previousHash": "0x5e20a0453cecd065ea59c37ac63e079ee08998b6045136a8ce6635c7912ec0b6"
+        },
+        "post": {
+            "Constantinople": [
+                {
+                    "hash": "0x3dfdcd1d19badbbba8b0c953504e8b4685270ee5b86e155350b6ef1042c9ce43",
+                    "indexes": {
+                        "data": 0,
+                        "gas": 0,
+                        "value": 0
+                    },
+                    "logs": "0x1dcc4de8dec75d7aab85b567b6ccd41ad312451b948a7413f0a142fd40d49347"
+                },
+                {
+                    "hash": "0x88803085d3420aec76078e215f67fc5f7b6f297fbe19d85c2236ad685d0fc7fc",
+                    "indexes": {
+                        "data": 1,
+                        "gas": 0,
+                        "value": 0
+                    },
+                    "logs": "0x1dcc4de8dec75d7aab85b567b6ccd41ad312451b948a7413f0a142fd40d49347"
+                },
+                {
+                    "hash": "0x57181dda5c067cb31f084c4118791b40d5028c39071e83e60e7f7403d683527e",
+                    "indexes": {
+                        "data": 2,
+                        "gas": 0,
+                        "value": 0
+                    },
+                    "logs": "0x1dcc4de8dec75d7aab85b567b6ccd41ad312451b948a7413f0a142fd40d49347"
+                },
+                {
+                    "hash": "0xf04c1039893eb6959354c3c16e9fe025d4b9dc3981362f79c56cc427dca0d544",
+                    "indexes": {
+                        "data": 3,
+                        "gas": 0,
+                        "value": 0
+                    },
+                    "logs": "0x1dcc4de8dec75d7aab85b567b6ccd41ad312451b948a7413f0a142fd40d49347"
+                },
+                {
+                    "hash": "0x5d5db3d6c4377b34b74ecf8638f684acb220cc7ce286ae5f000ffa74faf38bae",
+                    "indexes": {
+                        "data": 4,
+                        "gas": 0,
+                        "value": 0
+                    },
+                    "logs": "0x1dcc4de8dec75d7aab85b567b6ccd41ad312451b948a7413f0a142fd40d49347"
+                },
+                {
+                    "hash": "0xf8343b2e05ae120bf25947de840cedf1ca2c1bcda1cdb89d218427d8a84d4798",
+                    "indexes": {
+                        "data": 5,
+                        "gas": 0,
+                        "value": 0
+                    },
+                    "logs": "0x1dcc4de8dec75d7aab85b567b6ccd41ad312451b948a7413f0a142fd40d49347"
+                },
+                {
+                    "hash": "0x305a8a8a7d9da97d14ed2259503d9373d803ea4b7fbf8c360f50b1b30a3d04ed",
+                    "indexes": {
+                        "data": 6,
+                        "gas": 0,
+                        "value": 0
+                    },
+                    "logs": "0x1dcc4de8dec75d7aab85b567b6ccd41ad312451b948a7413f0a142fd40d49347"
+                },
+                {
+                    "hash": "0xde1d3953b508913c6e3e9bd412cd50daf60bb177517e5d1e8ccb0dab193aed03",
+                    "indexes": {
+                        "data": 7,
+                        "gas": 0,
+                        "value": 0
+                    },
+                    "logs": "0x1dcc4de8dec75d7aab85b567b6ccd41ad312451b948a7413f0a142fd40d49347"
+                }
+            ]
+        },
+        "pre": {
+            "0xa94f5374fce5edbc8e2a8697c15331677e6ebf0b": {
+                "balance": "0x0de0b6b3a7640000",
+                "code": "",
+                "nonce": "0x00",
+                "storage": {
+                }
+            },
+            "0xaddf5374fce5edbc8e2a8697c15331677e6ebf0b": {
+                "balance": "0x00",
+                "code": "0x600035600052602035602052604035604052606035606052604060c860806000600060066207a120f260005560c85160015560e851600255",
+                "nonce": "0x00",
+                "storage": {
+                }
+            },
+            "0xb94f5374fce5edbc8e2a8697c15331677e6ebf0b": {
+                "balance": "0x00",
+                "code": "0x60003560005260203560205260403560405260603560605260803560805260a03560a05260c03560c052604061012c60806000600060066207a120f2600055604061019060606080600060076207a120f260015561012c51600a5561014c51600b55610190516014556101b051601555601454600a5414600255601554600b5414600355",
+                "nonce": "0x00",
+                "storage": {
+                }
+            }
+        },
+        "transaction": {
+            "data": [
+                "0x6000609a80601260003960006000f55000fe7f18c547e4f7b0f325ad1e56f57e26c745b09a3e503d86e00e5255ff7f715d3d1c600052601c6020527f73b1693892219d736caba55bdb67216e485557ea6b6af75f37096c9aa6a5a75f6040527feeb940b1d03b21e36b0e47e79769f095fe2ab855bd91e3a38756b7d75a9c4549606052602060806080600060006001620493e0f160025560a060020a60805106600055600054321460015500",
+                "0x6000602380601260003960006000f55000fe64f34578907f6005526020600060256000600060026101f4f160025560005160005500",
+                "0x6000601a80601260003960006000f55000fe602060006000600060006003610258f160025560005160005500",
+                "0x6000602380601260003960006000f55000fe64f34578907f6000526020600060256000600060046101f4f160025560005160005500",
+                "0x6000609580601260003960006000f55000fe6001600052602060205260206040527f03fffffffffffffffffffffffffffffffffffffffffffffffffffffffefffffc6060527f2efffffffffffffffffffffffffffffffffffffffffffffffffffffffefffffc6080527f2f0000000000000000000000000000000000000000000000000000000000000060965260206103e860976000600060055af26001556103e85160025500",
+                "0x6000602180601260003960006000f55000fe600160005260206000610100600060006006620927c0f160025560005160005500",
+                "0x600060b680601260003960006000f55000fe7f0f25929bcb43d5a57391564615c9e70a992b10eafa4db109709649cf48c50dd26000527f16da2f5cb6be7a0aa72c440c53c9bbdfec6c36c7d515536431b3a865468acbba6020527f1de49a4b0233273bba8146af82042d004f2085ec982397db0d97da17204cc2866040527f0217327ffc463919bef80cc166d09c6172639d8589799928761bcd9f22c903d46060526000600060806000600073addf5374fce5edbc8e2a8697c15331677e6ebf0b6207a120f25000",
+                "0x600060c580601260003960006000f55000fe7f1de49a4b0233273bba8146af82042d004f2085ec982397db0d97da17204cc2866000527f0217327ffc463919bef80cc166d09c6172639d8589799928761bcd9f22c903d4602052600060405260006060527f1de49a4b0233273bba8146af82042d004f2085ec982397db0d97da17204cc2866080527f0217327ffc463919bef80cc166d09c6172639d8589799928761bcd9f22c903d460a052600160c0526000600060e06000600073b94f5374fce5edbc8e2a8697c15331677e6ebf0b6207a120f25000"
+            ],
+            "gasLimit": [
+                "0xe4e1c0"
+            ],
+            "gasPrice": "0x01",
+            "nonce": "0x00",
+            "secretKey": "0x45a915e4d060149eb4365960e6a7a45f334393093061116b197e3240065ff2d8",
+            "to": "",
+            "value": [
+                "0x01"
+            ]
+        }
+    }
+}

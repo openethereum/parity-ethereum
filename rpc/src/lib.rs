@@ -43,6 +43,7 @@ extern crate futures;
 extern crate ansi_term;
 extern crate cid;
 extern crate itertools;
+extern crate machine;
 extern crate multihash;
 extern crate order_stat;
 extern crate parking_lot;
@@ -120,6 +121,8 @@ extern crate fake_fetch;
 
 #[cfg(test)]
 extern crate ethcore_io as io;
+#[cfg(test)]
+extern crate client_traits;
 
 pub extern crate jsonrpc_ws_server as ws;
 

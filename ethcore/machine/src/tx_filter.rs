@@ -16,22 +16,25 @@
 
 //! Smart contract based transaction filter.
 
-use ethereum_types::{H256, U256, Address};
-use lru_cache::LruCache;
 use ethabi::FunctionOutputDecoder;
+use ethabi_contract::use_contract;
+use ethereum_types::{H256, U256, Address};
+use log::{trace, error};
+use lru_cache::LruCache;
 
-use call_contract::CallContract;
-use client::{BlockId, BlockInfo};
+use ethcore_call_contract::CallContract;
+use client_traits::BlockInfo;
 use parking_lot::Mutex;
-use types::{
+use common_types::{
 	BlockNumber,
+	ids::BlockId,
 	engines::params::CommonParams,
 	transaction::{Action, SignedTransaction}
 };
-use hash::KECCAK_EMPTY;
+use keccak_hash::KECCAK_EMPTY;
 
-use_contract!(transact_acl_deprecated, "res/contracts/tx_acl_deprecated.json");
-use_contract!(transact_acl, "res/contracts/tx_acl.json");
+use_contract!(transact_acl_deprecated, "res/tx_acl_deprecated.json");
+use_contract!(transact_acl, "res/tx_acl.json");
 
 const MAX_CACHE_SIZE: usize = 4096;
 
@@ -146,21 +149,29 @@ impl TransactionFilter {
 mod test {
 	use std::sync::Arc;
 	use std::str::FromStr;
-	use spec::Spec;
-	use client::{BlockChainClient, Client, ClientConfig, BlockId};
-	use miner::Miner;
-	use ethereum_types::{U256, Address};
-	use io::IoChannel;
-	use ethkey::{Secret, KeyPair};
-	use super::TransactionFilter;
-	use types::transaction::{Transaction, Action};
+
 	use tempdir::TempDir;
-	use test_helpers;
+	use ethereum_types::{U256, Address};
+
+	use common_types::{
+		ids::BlockId,
+		transaction::{Transaction, Action}
+	};
+	use ethcore::{
+		client::{BlockChainClient, Client, ClientConfig},
+		spec::Spec,
+		miner::Miner,
+		test_helpers,
+	};
+	use ethkey::{Secret, KeyPair};
+	use ethcore_io::IoChannel;
+
+	use super::TransactionFilter;
 
 	/// Contract code: https://gist.github.com/VladLupashevskyi/84f18eabb1e4afadf572cf92af3e7e7f
 	#[test]
 	fn transaction_filter() {
-		let spec_data = include_str!("../res/tx_permission_tests/contract_ver_2_genesis.json");
+		let spec_data = include_str!("../../res/tx_permission_tests/contract_ver_2_genesis.json");
 
 		let db = test_helpers::new_db();
 		let tempdir = TempDir::new("").unwrap();
@@ -239,7 +250,7 @@ mod test {
 	/// Contract code: https://gist.github.com/arkpar/38a87cb50165b7e683585eec71acb05a
 	#[test]
 	fn transaction_filter_deprecated() {
-		let spec_data = include_str!("../res/tx_permission_tests/deprecated_contract_genesis.json");
+		let spec_data = include_str!("../../res/tx_permission_tests/deprecated_contract_genesis.json");
 
 		let db = test_helpers::new_db();
 		let tempdir = TempDir::new("").unwrap();

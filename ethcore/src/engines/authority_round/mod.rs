@@ -24,13 +24,15 @@ use std::sync::atomic::{AtomicUsize, AtomicBool, Ordering as AtomicOrdering};
 use std::sync::{Weak, Arc};
 use std::time::{UNIX_EPOCH, Duration};
 
-use block::*;
 use client::EngineClient;
 use engines::{Engine, Seal, ConstructedVerifier};
 use engines::block_reward;
 use engines::block_reward::{BlockRewardContract, RewardKind};
 use ethjson;
-use machine::Machine;
+use machine::{
+	ExecutedBlock,
+	Machine,
+};
 use hash::keccak;
 use super::signer::EngineSigner;
 use super::validator_set::{ValidatorSet, SimpleList, new_validator_set};
@@ -1636,7 +1638,7 @@ mod tests {
 		generate_dummy_client_with_spec, get_temp_state_db,
 		TestNotify
 	};
-	use spec::Spec;
+	use crate::spec::{Spec, self};
 	use engines::{Seal, Engine};
 	use engines::validator_set::{TestSet, SimpleList};
 	use super::{AuthorityRoundParams, AuthorityRound, EmptyStep, SealedEmptyStep, calculate_score};
@@ -1673,13 +1675,13 @@ mod tests {
 
 	#[test]
 	fn has_valid_metadata() {
-		let engine = Spec::new_test_round().engine;
+		let engine = spec::new_test_round().engine;
 		assert!(!engine.name().is_empty());
 	}
 
 	#[test]
 	fn can_return_schedule() {
-		let engine = Spec::new_test_round().engine;
+		let engine = spec::new_test_round().engine;
 		let schedule = engine.schedule(10000000);
 
 		assert!(schedule.stack_limit > 0);
@@ -1687,7 +1689,7 @@ mod tests {
 
 	#[test]
 	fn can_do_signature_verification_fail() {
-		let engine = Spec::new_test_round().engine;
+		let engine = spec::new_test_round().engine;
 		let mut header: Header = Header::default();
 		header.set_seal(vec![encode(&H520::default())]);
 
@@ -1701,7 +1703,7 @@ mod tests {
 		let addr1 = tap.insert_account(keccak("1").into(), &"1".into()).unwrap();
 		let addr2 = tap.insert_account(keccak("2").into(), &"2".into()).unwrap();
 
-		let spec = Spec::new_test_round();
+		let spec = spec::new_test_round();
 		let engine = &*spec.engine;
 		let genesis_header = spec.genesis_header();
 		let db1 = spec.ensure_db_good(get_temp_state_db(), &Default::default()).unwrap();
@@ -1733,7 +1735,7 @@ mod tests {
 		let addr1 = tap.insert_account(keccak("1").into(), &"1".into()).unwrap();
 		let addr2 = tap.insert_account(keccak("0").into(), &"0".into()).unwrap();
 
-		let spec = Spec::new_test_round();
+		let spec = spec::new_test_round();
 		let engine = &*spec.engine;
 
 		let genesis_header = spec.genesis_header();
@@ -1773,7 +1775,7 @@ mod tests {
 		header.set_gas_limit("222222".parse::<U256>().unwrap());
 		header.set_author(addr);
 
-		let engine = Spec::new_test_round().engine;
+		let engine = spec::new_test_round().engine;
 
 		// Two validators.
 		// Spec starts with step 2.
@@ -1802,7 +1804,7 @@ mod tests {
 		header.set_gas_limit("222222".parse::<U256>().unwrap());
 		header.set_author(addr);
 
-		let engine = Spec::new_test_round().engine;
+		let engine = spec::new_test_round().engine;
 
 		// Two validators.
 		// Spec starts with step 2.
@@ -1828,7 +1830,7 @@ mod tests {
 		header.set_gas_limit("222222".parse::<U256>().unwrap());
 		header.set_author(addr);
 
-		let engine = Spec::new_test_round().engine;
+		let engine = spec::new_test_round().engine;
 
 		let signature = tap.sign(addr, Some("0".into()), header.bare_hash()).unwrap();
 		// Two validators.
@@ -1931,7 +1933,7 @@ mod tests {
 	}
 
 	fn setup_empty_steps() -> (Spec, Arc<AccountProvider>, Vec<Address>) {
-		let spec = Spec::new_test_round_empty_steps();
+		let spec = spec::new_test_round_empty_steps();
 		let tap = Arc::new(AccountProvider::transient_provider());
 
 		let addr1 = tap.insert_account(keccak("1").into(), &"1".into()).unwrap();
@@ -1984,7 +1986,7 @@ mod tests {
 
 		let last_hashes = Arc::new(vec![genesis_header.hash()]);
 
-		let client = generate_dummy_client_with_spec(Spec::new_test_round_empty_steps);
+		let client = generate_dummy_client_with_spec(spec::new_test_round_empty_steps);
 		let notify = Arc::new(TestNotify::default());
 		client.add_notify(notify.clone());
 		engine.register_client(Arc::downgrade(&client) as _);
@@ -2023,7 +2025,7 @@ mod tests {
 
 		let last_hashes = Arc::new(vec![genesis_header.hash()]);
 
-		let client = generate_dummy_client_with_spec(Spec::new_test_round_empty_steps);
+		let client = generate_dummy_client_with_spec(spec::new_test_round_empty_steps);
 		let notify = Arc::new(TestNotify::default());
 		client.add_notify(notify.clone());
 		engine.register_client(Arc::downgrade(&client) as _);
@@ -2076,7 +2078,7 @@ mod tests {
 
 		let last_hashes = Arc::new(vec![genesis_header.hash()]);
 
-		let client = generate_dummy_client_with_spec(Spec::new_test_round_empty_steps);
+		let client = generate_dummy_client_with_spec(spec::new_test_round_empty_steps);
 		let notify = Arc::new(TestNotify::default());
 		client.add_notify(notify.clone());
 		engine.register_client(Arc::downgrade(&client) as _);
@@ -2128,7 +2130,7 @@ mod tests {
 
 		let last_hashes = Arc::new(vec![genesis_header.hash()]);
 
-		let client = generate_dummy_client_with_spec(Spec::new_test_round_empty_steps);
+		let client = generate_dummy_client_with_spec(spec::new_test_round_empty_steps);
 		engine.register_client(Arc::downgrade(&client) as _);
 
 		// step 2
@@ -2215,7 +2217,7 @@ mod tests {
 
 	#[test]
 	fn block_reward_contract() {
-		let spec = Spec::new_test_round_block_reward_contract();
+		let spec = spec::new_test_round_block_reward_contract();
 		let tap = Arc::new(AccountProvider::transient_provider());
 
 		let addr1 = tap.insert_account(keccak("1").into(), &"1".into()).unwrap();
@@ -2227,7 +2229,7 @@ mod tests {
 
 		let last_hashes = Arc::new(vec![genesis_header.hash()]);
 
-		let client = generate_dummy_client_with_spec(Spec::new_test_round_block_reward_contract);
+		let client = generate_dummy_client_with_spec(spec::new_test_round_block_reward_contract);
 		engine.register_client(Arc::downgrade(&client) as _);
 
 		// step 2

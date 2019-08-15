@@ -29,6 +29,7 @@ use parking_lot::Mutex;
 use snappy;
 use kvdb::DBTransaction;
 use test_helpers;
+use crate::spec;
 
 const SNAPSHOT_MODE: ::snapshot::PowSnapshot = ::snapshot::PowSnapshot { blocks: 30000, max_restore_blocks: 30000 };
 
@@ -38,7 +39,7 @@ fn chunk_and_restore(amount: u64) {
 	let generator = BlockGenerator::new(vec![rest]);
 	let genesis = genesis.last();
 
-	let engine = ::spec::Spec::new_test().engine;
+	let engine = spec::new_test().engine;
 	let tempdir = TempDir::new("").unwrap();
 	let snapshot_path = tempdir.path().join("SNAP");
 
@@ -128,7 +129,7 @@ fn checks_flag() {
 	let chunk = stream.out();
 
 	let db = test_helpers::new_db();
-	let engine = ::spec::Spec::new_test().engine;
+	let engine = spec::new_test().engine;
 	let chain = BlockChain::new(Default::default(), genesis.last().encoded().raw(), db.clone());
 
 	let manifest = ::snapshot::ManifestData {

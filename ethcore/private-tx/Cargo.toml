@@ -7,6 +7,7 @@ authors = ["Parity Technologies <admin@parity.io>"]
 
 [dependencies]
 account-state = { path = "../account-state" }
+client-traits = { path = "../client-traits" }
 common-types = { path = "../types" }
 derive_more = "0.14.0"
 ethabi = "8.0"
@@ -21,13 +22,14 @@ ethjson = { path = "../../json" }
 ethkey = { path = "../../accounts/ethkey" }
 fetch = { path = "../../util/fetch" }
 futures = "0.1"
-parity-util-mem = "0.1"
+parity-util-mem = "0.2.0"
 keccak-hash = "0.2.0"
 log = "0.4"
+machine = { path = "../machine" }
 parity-bytes = "0.1"
 parity-crypto = "0.4.0"
 parking_lot = "0.8"
-trie-db = "0.12.4"
+trie-db = "0.15.0"
 patricia-trie-ethereum = { path = "../../util/patricia-trie-ethereum" }
 rand = "0.3"
 rlp = "0.4.0"

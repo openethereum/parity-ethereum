@@ -1,0 +1,46 @@
+[package]
+description = "Ethereum state machine"
+name = "machine"
+version = "0.1.0"
+authors = ["Parity Technologies <admin@parity.io>"]
+edition = "2018"
+license = "GPL-3.0"
+
+[dependencies]
+account-state = { path = "../account-state" }
+client-traits = { path = "../client-traits" }
+common-types = { path = "../types" }
+crossbeam-utils = "0.6"
+ethabi = "8.0.0"
+ethabi-contract = "8.0.0"
+ethabi-derive = "8.0.0"
+ethcore-builtin = { path = "../builtin" }
+ethcore-call-contract = { path = "../call-contract" }
+ethcore-io = { path = "../../util/io" }
+ethereum-types = "0.6.0"
+# Used for tests in other crates through the `test-helpers` feature
+ethjson = { path = "../../json", optional = true }
+evm = { path = "../evm" }
+keccak-hash = "0.2.0"
+log = "0.4"
+lru-cache = "0.1.2"
+parity-bytes = "0.1.0"
+parking_lot = "0.8.0"
+rlp = "0.4.2"
+state-db = { path = "../state-db" }
+trace = { path = "../trace" }
+trie-vm-factories = { path = "../trie-vm-factories" }
+vm = { path = "../vm" }
+
+[dev-dependencies]
+ethcore = { path = "../", features = ["test-helpers"] }
+ethcore-io = { path = "../../util/io" }
+ethjson = { path = "../../json" }
+ethkey = { path = "../../accounts/ethkey" }
+macros = { path = "../../util/macros" }
+rustc-hex = "1.0"
+tempdir = "0.3"
+trace = { path = "../trace" }
+
+[features]
+test-helpers = ["ethjson"]

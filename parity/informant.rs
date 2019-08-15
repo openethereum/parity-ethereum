@@ -24,10 +24,14 @@ use std::time::{Instant, Duration};
 
 use atty;
 use ethcore::client::{
-	BlockId, ChainInfo, BlockInfo, BlockChainInfo, BlockChainClient,
+	ChainInfo, BlockChainInfo, BlockChainClient,
 	BlockQueueInfo, ChainNotify, NewBlocks, ClientReport, Client, ClientIoMessage
 };
-use types::BlockNumber;
+use client_traits::BlockInfo;
+use types::{
+	BlockNumber,
+	ids::BlockId,
+};
 use ethcore::snapshot::{RestorationStatus, SnapshotService as SS};
 use ethcore::snapshot::service::Service as SnapshotService;
 use sync::{LightSyncProvider, LightSync, SyncProvider, ManageNetwork};

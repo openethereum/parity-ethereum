@@ -14,19 +14,23 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
-//! VM runner.
+//! EVM runner.
 
 use std::time::{Instant, Duration};
+
+use common_types::transaction;
+use ethcore::{
+	client::{self, EvmTestClient, EvmTestError, TransactErr, TransactSuccess},
+	spec,
+	TrieSpec,
+};
 use ethereum_types::{H256, U256};
-use ethcore::client::{self, EvmTestClient, EvmTestError, TransactErr, TransactSuccess};
-use ethcore::{spec, TrieSpec};
-use trace;
 use ethjson;
 use pod::PodState;
-use types::transaction;
+use trace;
 use vm::ActionParams;
 
-/// VM execution informant
+/// EVM execution informant.
 pub trait Informant: trace::VMTracer {
 	/// Sink to use with finish
 	type Sink;
@@ -37,44 +41,44 @@ pub trait Informant: trace::VMTracer {
 	/// Clone sink.
 	fn clone_sink(&self) -> Self::Sink;
 	/// Display final result.
-	fn finish(result: RunResult<Self::Output>, &mut Self::Sink);
+	fn finish(result: RunResult<Self::Output>, _: &mut Self::Sink);
 }
 
-/// Execution finished correctly
+/// Execution finished correctly.
 #[derive(Debug)]
 pub struct Success<T> {
-	/// State root
+	/// State root.
 	pub state_root: H256,
-	/// Used gas
+	/// Used gas.
 	pub gas_used: U256,
-	/// Output as bytes
+	/// Output as bytes.
 	pub output: Vec<u8>,
-	/// Time Taken
+	/// Time taken.
 	pub time: Duration,
-	/// Traces
+	/// Traces.
 	pub traces: Option<T>,
 	/// Optional end state dump
 	pub end_state: Option<PodState>,
 }
 
-/// Execution failed
+/// Execution failed.
 #[derive(Debug)]
 pub struct Failure<T> {
-	/// State root
+	/// State root.
 	pub state_root: H256,
-	/// Used gas
+	/// Used gas.
 	pub gas_used: U256,
-	/// Internal error
+	/// Internal error.
 	pub error: EvmTestError,
-	/// Duration
+	/// Duration.
 	pub time: Duration,
-	/// Traces
+	/// Traces.
 	pub traces: Option<T>,
 	/// Optional end state dump
 	pub end_state: Option<PodState>,
 }
 
-/// EVM Execution result
+/// EVM execution result.
 pub type RunResult<T> = Result<Success<T>, Failure<T>>;
 
 /// Execute given `ActionParams` and return the result.
@@ -88,12 +92,12 @@ pub fn run_action<T: Informant>(
 
 	// if the code is not overwritten from CLI, use code from spec file.
 	if params.code.is_none() {
-		if let Some(acc) = spec.genesis_state().get().get(&params.code_address) {
+		if let Some(acc) = spec.genesis_state.get().get(&params.code_address) {
 			params.code = acc.code.clone().map(::std::sync::Arc::new);
 			params.code_hash = None;
 		}
 	}
-	run(spec, trie_spec, params.gas, spec.genesis_state(), |mut client| {
+	run(spec, trie_spec, params.gas, &spec.genesis_state, |mut client| {
 		let result = match client.call(params, &mut trace::NoopTracer, &mut informant) {
 			Ok(r) => (Ok(r.return_data.to_vec()), Some(r.gas_left)),
 			Err(err) => (Err(err), None),
@@ -102,35 +106,62 @@ pub fn run_action<T: Informant>(
 	})
 }
 
-/// Execute given Transaction and verify resulting state root.
+/// Input data to run transaction.
+#[derive(Debug)]
+pub struct TxInput<'a, T> {
+	/// State test name associated with the transaction.
+	pub state_test_name: &'a str,
+	/// Transaction index from list of transactions within a state root hash corresponding to a chain.
+	pub tx_index: usize,
+	/// Fork specification (i.e. Constantinople, EIP150, EIP158, etc).
+	pub fork_spec_name: &'a ethjson::spec::ForkSpec,
+	/// State of all accounts in the system that is a binary tree mapping of each account address to account data
+	/// that is expressed as Plain Old Data containing the account balance, account nonce, account code in bytes,
+	/// and the account storage binary tree map.
+	pub pre_state: &'a PodState,
+	/// State root hash associated with the transaction.
+	pub post_root: H256,
+	/// Client environment information associated with the transaction's chain specification.
+	pub env_info: &'a client::EnvInfo,
+	/// Signed transaction accompanied by a signature that may be unverified and a successfully recovered
+	/// sender address. The unverified transaction contains a recoverable ECDSA signature that has been encoded
+	/// as RSV components and includes replay protection for the specified chain. Verification of the signed transaction
+	/// with a valid secret of an account's keypair and a specific chain may be used to recover the sender's public key
+	/// and their associated address by applying the Keccak-256 hash function.
+	pub transaction: transaction::SignedTransaction,
+	/// JSON formatting informant.
+	pub informant: T,
+	/// Trie specification (i.e. Generic trie, Secure trie, Secure with fat database).
+	pub trie_spec: TrieSpec,
+}
+
+/// Execute given transaction and verify resulting state root.
+/// Returns true if the transaction executes successfully.
 pub fn run_transaction<T: Informant>(
-	name: &str,
-	idx: usize,
-	spec: &ethjson::spec::ForkSpec,
-	pre_state: &PodState,
-	post_root: H256,
-	env_info: &client::EnvInfo,
-	transaction: transaction::SignedTransaction,
-	mut informant: T,
-	trie_spec: TrieSpec,
-) {
-	let spec_name = format!("{:?}", spec).to_lowercase();
-	let spec = match EvmTestClient::spec_from_json(spec) {
+	tx_input: TxInput<T>
+) -> bool {
+	let TxInput {
+		state_test_name, tx_index, fork_spec_name, pre_state, post_root, env_info, transaction, mut informant, trie_spec, ..
+	} = tx_input;
+	let fork_spec_name_formatted = format!("{:?}", fork_spec_name).to_lowercase();
+	let fork_spec = match EvmTestClient::fork_spec_from_json(&fork_spec_name) {
 		Some(spec) => {
-			informant.before_test(&format!("{}:{}:{}", name, spec_name, idx), "starting");
+			informant.before_test(
+				&format!("{}:{}:{}", &state_test_name, &fork_spec_name_formatted, tx_index), "starting");
 			spec
 		},
 		None => {
-			informant.before_test(&format!("{}:{}:{}", name, spec_name, idx), "skipping because of missing spec");
-			return;
+			informant.before_test(&format!("{}:{}:{}",
+				&state_test_name, fork_spec_name_formatted, &tx_index), "skipping because of missing fork specification");
+			return false;
 		},
 	};
 
 	informant.set_gas(env_info.gas_limit);
 
 	let mut sink = informant.clone_sink();
-	let result = run(&spec, trie_spec, transaction.gas, pre_state, |mut client| {
-		let result = client.transact(env_info, transaction, trace::NoopTracer, informant);
+	let result = run(&fork_spec, trie_spec, transaction.gas, &pre_state, |mut client| {
+		let result = client.transact(&env_info, transaction, trace::NoopTracer, informant);
 		match result {
 			Ok(TransactSuccess { state_root, gas_left, output, vm_trace, end_state, .. }) => {
 				if state_root != post_root {
@@ -151,10 +182,12 @@ pub fn run_transaction<T: Informant>(
 		}
 	});
 
-	T::finish(result, &mut sink)
+	let ok = result.is_ok();
+	T::finish(result, &mut sink);
+	ok
 }
 
-/// Execute VM with given `ActionParams`
+/// Execute EVM with given `ActionParams`.
 pub fn run<'a, F, X>(
 	spec: &'a spec::Spec,
 	trie_spec: TrieSpec,
@@ -211,6 +244,7 @@ pub mod tests {
 	use super::*;
 	use tempdir::TempDir;
 	use ethereum_types::Address;
+	use ethcore::spec::{self, Spec};
 
 	pub fn run_test<T, I, F>(
 		informant: I,
@@ -228,7 +262,7 @@ pub mod tests {
 		params.gas = gas.into();
 
 		let tempdir = TempDir::new("").unwrap();
-		let spec = ::ethcore::ethereum::new_foundation(&tempdir.path());
+		let spec = spec::new_foundation(&tempdir.path());
 		let result = run_action(&spec, params, informant, TrieSpec::Secure);
 		match result {
 			Ok(Success { traces, .. }) => {
@@ -242,18 +276,19 @@ pub mod tests {
 
 	#[test]
 	fn should_call_account_from_spec() {
-		use display::std_json::tests::informant;
+		use crate::display::std_json::tests::informant;
 
-		let (inf, res) = informant();
+		let (inf, res, _) = informant();
 		let mut params = ActionParams::default();
 		params.code_address = Address::from_low_u64_be(0x20);
 		params.gas = 0xffff.into();
 
-		let spec = ::ethcore::ethereum::load(None, include_bytes!("../res/testchain.json"));
+		let tempdir = TempDir::new("").unwrap();
+		let spec = Spec::load(&tempdir.path(), include_bytes!("../res/testchain.json") as &[u8]).unwrap();
 		let _result = run_action(&spec, params, inf, TrieSpec::Secure);
 
 		assert_eq!(
-			&String::from_utf8_lossy(&**res.lock().unwrap()),
+			&String::from_utf8_lossy(&**res.0.lock().unwrap()),
 r#"{"pc":0,"op":98,"opName":"PUSH3","gas":"0xffff","stack":[],"storage":{},"depth":1}
 {"pc":4,"op":96,"opName":"PUSH1","gas":"0xfffc","stack":["0xaaaaaa"],"storage":{},"depth":1}
 {"pc":6,"op":96,"opName":"PUSH1","gas":"0xfff9","stack":["0xaaaaaa","0xaa"],"storage":{},"depth":1}

@@ -46,6 +46,8 @@ extern crate ethcore_light as light;
 #[cfg(test)] extern crate kvdb_memorydb;
 #[cfg(test)] extern crate rustc_hex;
 #[cfg(test)] extern crate rand_xorshift;
+#[cfg(test)] extern crate client_traits;
+#[cfg(test)] extern crate machine;
 
 #[macro_use]
 extern crate enum_primitive;

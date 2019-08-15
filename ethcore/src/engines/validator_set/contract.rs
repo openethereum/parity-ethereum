@@ -144,7 +144,7 @@ mod tests {
 	use ethereum_types::{H520, Address};
 	use bytes::ToPretty;
 	use rlp::encode;
-	use spec::Spec;
+	use crate::spec;
 	use types::header::Header;
 	use accounts::AccountProvider;
 	use miner::{self, MinerService};
@@ -152,13 +152,13 @@ mod tests {
 	use test_helpers::generate_dummy_client_with_spec;
 	use call_contract::CallContract;
 	use client::{BlockChainClient, ChainInfo};
-	use client::BlockInfo;
+	use client_traits::BlockInfo;
 	use super::super::ValidatorSet;
 	use super::ValidatorContract;
 
 	#[test]
 	fn fetches_validators() {
-		let client = generate_dummy_client_with_spec(Spec::new_validator_contract);
+		let client = generate_dummy_client_with_spec(spec::new_validator_contract);
 		let vc = Arc::new(ValidatorContract::new("0000000000000000000000000000000000000005".parse::<Address>().unwrap()));
 		vc.register_client(Arc::downgrade(&client) as _);
 		let last_hash = client.best_block_header().hash();
@@ -171,7 +171,7 @@ mod tests {
 		let _ = ::env_logger::try_init();
 		let tap = Arc::new(AccountProvider::transient_provider());
 		let v1 = tap.insert_account(keccak("1").into(), &"".into()).unwrap();
-		let client = generate_dummy_client_with_spec(Spec::new_validator_contract);
+		let client = generate_dummy_client_with_spec(spec::new_validator_contract);
 		client.engine().register_client(Arc::downgrade(&client) as _);
 		let validator_contract = "0000000000000000000000000000000000000005".parse::<Address>().unwrap();
 

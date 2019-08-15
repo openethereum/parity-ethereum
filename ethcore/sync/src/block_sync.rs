@@ -25,9 +25,10 @@ use ethereum_types::H256;
 use rlp::{self, Rlp};
 use types::{
 	BlockNumber,
+	block_status::BlockStatus,
+	ids::BlockId,
 	errors::{EthcoreError, BlockError, ImportError},
 };
-use ethcore::client::{BlockStatus, BlockId};
 use sync_io::SyncIo;
 use blocks::{BlockCollection, SyncBody, SyncHeader};
 use chain::BlockSet;
@@ -636,7 +637,7 @@ fn all_expected<A, B, F>(values: &[A], expected_values: &[B], is_expected: F) ->
 mod tests {
 	use super::*;
 	use ethcore::client::TestBlockChainClient;
-	use ethcore::spec::Spec;
+	use ethcore::spec;
 	use ethkey::{Generator,Random};
 	use hash::keccak;
 	use parking_lot::RwLock;
@@ -681,7 +682,7 @@ mod tests {
 	fn import_headers_in_chain_head_state() {
 		::env_logger::try_init().ok();
 
-		let spec = Spec::new_test();
+		let spec = spec::new_test();
 		let genesis_hash = spec.genesis_header().hash();
 
 		let mut downloader = BlockDownloader::new(BlockSet::NewBlocks, &genesis_hash, 0);
@@ -930,7 +931,7 @@ mod tests {
 	fn reset_after_multiple_sets_of_useless_headers() {
 		::env_logger::try_init().ok();
 
-		let spec = Spec::new_test();
+		let spec = spec::new_test();
 		let genesis_hash = spec.genesis_header().hash();
 
 		let mut downloader = BlockDownloader::new(BlockSet::NewBlocks, &genesis_hash, 0);
@@ -970,7 +971,7 @@ mod tests {
 	fn dont_reset_after_multiple_sets_of_useless_headers_for_chain_head() {
 		::env_logger::try_init().ok();
 
-		let spec = Spec::new_test();
+		let spec = spec::new_test();
 		let genesis_hash = spec.genesis_header().hash();
 
 		let mut downloader = BlockDownloader::new(BlockSet::NewBlocks, &genesis_hash, 0);

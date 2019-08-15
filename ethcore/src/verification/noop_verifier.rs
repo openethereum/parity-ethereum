@@ -17,7 +17,7 @@
 //! No-op verifier.
 
 use call_contract::CallContract;
-use client::BlockInfo;
+use client_traits::BlockInfo;
 use engines::Engine;
 use types::{
 	header::Header,

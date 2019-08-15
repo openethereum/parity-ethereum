@@ -24,6 +24,7 @@ mod error;
 mod log;
 
 extern crate account_state;
+extern crate client_traits;
 extern crate common_types as types;
 extern crate ethabi;
 extern crate ethcore;
@@ -37,6 +38,7 @@ extern crate fetch;
 extern crate futures;
 extern crate parity_util_mem;
 extern crate keccak_hash as hash;
+extern crate machine;
 extern crate parity_bytes as bytes;
 extern crate parity_crypto as crypto;
 extern crate parking_lot;
@@ -87,14 +89,18 @@ use parking_lot::RwLock;
 use bytes::Bytes;
 use ethkey::{Signature, recover, public_to_address};
 use io::IoChannel;
-use ethcore::executive::{Executive, TransactOptions};
-use ethcore::executed::{Executed};
-use types::transaction::{SignedTransaction, Transaction, Action, UnverifiedTransaction};
-use ethcore::{contract_address as ethcore_contract_address};
-use ethcore::client::{
-	Client, ChainNotify, NewBlocks, ChainMessageType, ClientIoMessage, BlockId,
-	Call, BlockInfo
+use machine::{
+	executive::{Executive, TransactOptions, contract_address as ethcore_contract_address},
+	executed::Executed,
 };
+use types::{
+	ids::BlockId,
+	transaction::{SignedTransaction, Transaction, Action, UnverifiedTransaction}
+};
+use ethcore::client::{
+	Client, ChainNotify, NewBlocks, ChainMessageType, ClientIoMessage, Call
+};
+use client_traits::BlockInfo;
 use ethcore::miner::{self, Miner, MinerService, pool_client::NonceCache};
 use state_db::StateDB;
 use account_state::State;

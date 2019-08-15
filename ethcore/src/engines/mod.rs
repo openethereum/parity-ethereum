@@ -60,11 +60,13 @@ use types::{
 use snapshot::SnapshotComponents;
 use client::EngineClient;
 
-use ethkey::{Signature};
-use machine::Machine;
+use ethkey::Signature;
+use machine::{
+	Machine,
+	executed_block::ExecutedBlock,
+};
 use ethereum_types::{H256, U256, Address};
 use bytes::Bytes;
-use block::ExecutedBlock;
 
 /// Seal type.
 #[derive(Debug, PartialEq, Eq)]
@@ -91,7 +93,7 @@ pub enum SystemOrCodeCallKind {
 }
 
 /// Default SystemOrCodeCall implementation.
-pub fn default_system_or_code_call<'a>(machine: &'a Machine, block: &'a mut ::block::ExecutedBlock) -> impl FnMut(SystemOrCodeCallKind, Vec<u8>) -> Result<Vec<u8>, String> + 'a {
+pub fn default_system_or_code_call<'a>(machine: &'a Machine, block: &'a mut ExecutedBlock) -> impl FnMut(SystemOrCodeCallKind, Vec<u8>) -> Result<Vec<u8>, String> + 'a {
 	move |to, data| {
 		let result = match to {
 			SystemOrCodeCallKind::Address(address) => {

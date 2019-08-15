@@ -47,6 +47,7 @@ ethcore-private-tx = { path = "../ethcore/private-tx" }
 ethcore-sync = { path = "../ethcore/sync" }
 ethereum-types = "0.6.0"
 fastmap = { path = "../util/fastmap" }
+machine = { path = "../ethcore/machine" }
 parity-bytes = "0.1"
 parity-crypto = "0.4.0"
 
@@ -66,6 +67,7 @@ trace = { path = "../ethcore/trace" }
 vm = { path = "../ethcore/vm" }
 
 [dev-dependencies]
+client-traits = { path = "../ethcore/client-traits" }
 ethcore = { path = "../ethcore", features = ["test-helpers"] }
 ethcore-accounts = { path = "../accounts" }
 ethcore-io = { path = "../util/io" }

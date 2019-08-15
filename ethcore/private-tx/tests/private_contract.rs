@@ -24,6 +24,7 @@ extern crate ethcore_private_tx;
 extern crate ethkey;
 extern crate keccak_hash as hash;
 extern crate rustc_hex;
+extern crate machine;
 
 #[macro_use]
 extern crate log;
@@ -33,12 +34,15 @@ use rustc_hex::{FromHex, ToHex};
 
 use types::ids::BlockId;
 use types::transaction::{Transaction, Action};
-use ethcore::CreateContractAddress;
-use ethcore::client::BlockChainClient;
-use ethcore::executive::contract_address;
-use ethcore::miner::Miner;
-use ethcore::test_helpers::{generate_dummy_client, push_block_with_transactions};
+use ethcore::{
+	CreateContractAddress,
+	client::BlockChainClient,
+	test_helpers::{generate_dummy_client, push_block_with_transactions},
+	miner::Miner,
+	spec,
+};
 use ethkey::{Secret, KeyPair, Signature};
+use machine::executive::contract_address;
 use hash::keccak;
 
 use ethcore_private_tx::{NoopEncryptor, Provider, ProviderConfig, StoringKeyProvider};
@@ -63,7 +67,7 @@ fn private_contract() {
 	};
 
 	let io = ethcore_io::IoChannel::disconnected();
-	let miner = Arc::new(Miner::new_for_tests(&::ethcore::spec::Spec::new_test(), None));
+	let miner = Arc::new(Miner::new_for_tests(&spec::new_test(), None));
 	let private_keys = Arc::new(StoringKeyProvider::default());
 	let pm = Arc::new(Provider::new(
 			client.clone(),
@@ -198,7 +202,7 @@ fn call_other_private_contract() {
 	};
 
 	let io = ethcore_io::IoChannel::disconnected();
-	let miner = Arc::new(Miner::new_for_tests(&::ethcore::spec::Spec::new_test(), None));
+	let miner = Arc::new(Miner::new_for_tests(&spec::new_test(), None));
 	let private_keys = Arc::new(StoringKeyProvider::default());
 	let pm = Arc::new(Provider::new(
 			client.clone(),
