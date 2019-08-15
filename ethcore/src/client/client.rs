@@ -91,7 +91,7 @@ use verification::queue::kind::blocks::Unverified;
 use verification::{Verifier, BlockQueue};
 use verification;
 use ansi_term::Colour;
-
+use ethtrie::Layout;
 // re-export
 pub use blockchain::CacheSize as BlockChainCacheSize;
 use db::{Writable, Readable, keys::BlockDetails};
@@ -726,7 +726,7 @@ impl Client {
 			false => TrieSpec::Secure,
 		};
 
-		let trie_factory = TrieFactory::new(trie_spec);
+		let trie_factory = TrieFactory::new(trie_spec, Layout);
 		let factories = Factories {
 			vm: VmFactory::new(config.vm_type.clone(), config.jump_table_size),
 			trie: trie_factory,

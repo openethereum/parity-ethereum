@@ -15,12 +15,11 @@
 // along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
 use trie_db::TrieFactory;
-use ethtrie::RlpCodec;
+use ethtrie::Layout;
 use account_db::Factory as AccountFactory;
 use evm::{Factory as EvmFactory, VMType};
 use vm::{Exec, ActionParams, VersionedSchedule, Schedule};
 use wasm::WasmInterpreter;
-use keccak_hasher::KeccakHasher;
 
 const WASM_MAGIC_NUMBER: &'static [u8; 4] = b"\0asm";
 
@@ -67,7 +66,7 @@ pub struct Factories {
 	/// factory for evm.
 	pub vm: VmFactory,
 	/// factory for tries.
-	pub trie: TrieFactory<KeccakHasher, RlpCodec>,
+	pub trie: TrieFactory<Layout>,
 	/// factory for account databases.
 	pub accountdb: AccountFactory,
 }

@@ -1658,13 +1658,14 @@ mod tests {
 	#[test]
 	fn should_get_full_pod_storage_values() {
 		use trie::{TrieFactory, TrieSpec};
+		use ethtrie;
 
 		let a = Address::from_low_u64_be(10);
 		let db = get_temp_state_db();
 
 		let factories = Factories {
 			vm: Default::default(),
-			trie: TrieFactory::new(TrieSpec::Fat),
+			trie: TrieFactory::new(TrieSpec::Fat, ethtrie::Layout),
 			accountdb: Default::default(),
 		};
 

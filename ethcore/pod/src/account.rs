@@ -26,7 +26,7 @@ use keccak_hasher::KeccakHasher;
 use triehash::sec_trie_root;
 use parity_bytes::Bytes;
 use trie_db::TrieFactory;
-use ethtrie::RlpCodec;
+use ethtrie::Layout;
 use ethjson;
 use common_types::account_diff::*;
 use rlp::{self, RlpStream};
@@ -70,7 +70,7 @@ impl PodAccount {
 	}
 
 	/// Place additional data into given hash DB.
-	pub fn insert_additional(&self, db: &mut dyn HashDB<KeccakHasher, DBValue>, factory: &TrieFactory<KeccakHasher, RlpCodec>) {
+	pub fn insert_additional(&self, db: &mut dyn HashDB<KeccakHasher, DBValue>, factory: &TrieFactory<Layout>) {
 		match self.code {
 			Some(ref c) if !c.is_empty() => { db.insert(hash_db::EMPTY_PREFIX, c); }
 			_ => {}

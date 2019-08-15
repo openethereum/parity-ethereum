@@ -32,8 +32,8 @@ ethkey = { path = "../accounts/ethkey" }
 evm = { path = "evm" }
 trie-vm-factories = { path = "trie-vm-factories" }
 futures = "0.1"
-hash-db = "0.12.4"
-parity-util-mem = "0.1"
+hash-db = "0.15.0"
+parity-util-mem = "0.2.0"
 itertools = "0.5"
 journaldb = { path = "../util/journaldb" }
 keccak-hash = "0.2.0"
@@ -53,7 +53,7 @@ parity-bytes = "0.1"
 parity-snappy = "0.1"
 parking_lot = "0.8"
 pod = { path = "pod" }
-trie-db = "0.12.4"
+trie-db = "0.15.0"
 patricia-trie-ethereum = { path = "../util/patricia-trie-ethereum" }
 rand = "0.6"
 rayon = "1.1"
@@ -86,7 +86,7 @@ parity-runtime = { path = "../util/runtime" }
 rlp_compress = { path = "../util/rlp-compress" }
 serde_json = "1.0"
 tempdir = "0.3"
-trie-standardmap = "0.12.4"
+trie-standardmap = "0.15.0"
 machine = { path = "./machine", features = ["test-helpers"] }
 
 [features]
