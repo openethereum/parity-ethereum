@@ -20,11 +20,15 @@ use std::collections::HashMap;
 use std::io;
 
 use ethereum_types::{H256, U256, BigEndianHash};
-use bytes::ToPretty;
-use trace;
+use parity_bytes::ToPretty;
 use pod::PodState;
-use display;
-use info as vm;
+use serde::Serialize;
+use trace;
+
+use crate::{
+	display,
+	info as vm,
+};
 
 pub trait Writer: io::Write + Send + Sized {
 	fn clone(&self) -> Self;
@@ -312,7 +316,7 @@ impl<Trace: Writer, Out: Writer> trace::VMTracer for Informant<Trace, Out> {
 pub mod tests {
 	use std::sync::{Arc, Mutex};
 	use super::*;
-	use info::tests::run_test;
+	use crate::info::tests::run_test;
 
 	#[derive(Debug, Clone, Default)]
 	pub struct TestWriter(pub Arc<Mutex<Vec<u8>>>);

@@ -14,7 +14,7 @@ common-types = { path = "../types" }
 ethcore-db = { path = "../db" }
 ethereum-types = "0.6.0"
 keccak-hash = "0.2.0"
-parity-util-mem = "0.1"
+parity-util-mem = "0.2.0"
 itertools = "0.5"
 kvdb = "0.1"
 log = "0.4"

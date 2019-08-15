@@ -33,7 +33,8 @@ ethjson = { path = "../json" }
 ethkey = { path = "../accounts/ethkey" }
 evm = { path = "evm" }
 futures = "0.1"
-hash-db = "0.12.4"
+hash-db = "0.15.0"
+parity-util-mem = "0.2.0"
 itertools = "0.5"
 journaldb = { path = "../util/journaldb" }
 keccak-hash = "0.2.0"
@@ -53,6 +54,7 @@ parity-bytes = "0.1"
 parity-snappy = "0.1"
 parity-util-mem = "0.1"
 parking_lot = "0.8"
+trie-db = "0.15.0"
 patricia-trie-ethereum = { path = "../util/patricia-trie-ethereum" }
 pod = { path = "pod" }
 rand = "0.6"
@@ -89,7 +91,7 @@ parity-runtime = { path = "../util/runtime" }
 rlp_compress = { path = "../util/rlp-compress" }
 serde_json = "1.0"
 tempdir = "0.3"
-trie-standardmap = "0.12.4"
+trie-standardmap = "0.15.0"
 
 [features]
 parity = ["work-notify", "price-info", "stratum"]
@@ -113,7 +115,7 @@ evm-debug-tests = ["evm-debug", "evm/evm-debug-tests"]
 # EVM debug traces are printed.
 slow-blocks = []
 # Run JSON consensus tests.
-json-tests = ["env_logger", "test-helpers"]
+json-tests = ["env_logger", "test-helpers", "machine/test-helpers"]
 # Skip JSON consensus tests with pending issues.
 ci-skip-tests = []
 # Run memory/cpu heavy tests.

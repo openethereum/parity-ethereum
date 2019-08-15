@@ -343,7 +343,7 @@ impl JournalDB for EarlyMergeDB {
 			Some(ref c) => c.read().size_of(&mut ops),
 			None => 0
 		}
- 	}
+	}
 
 	fn state(&self, id: &H256) -> Option<Bytes> {
 		self.backing.get_by_prefix(self.column, &id[0..DB_PREFIX_LEN]).map(|b| b.into_vec())

@@ -8,7 +8,7 @@ authors = ["Parity Technologies <admin@parity.io>"]
 bit-set = "0.4"
 parity-bytes = "0.1"
 ethereum-types = "0.6.0"
-parity-util-mem = "0.1"
+parity-util-mem = "0.2.0"
 lazy_static = "1.0"
 log = "0.4"
 vm = { path = "../vm" }
