@@ -52,7 +52,6 @@ memory-cache = { path = "../util/memory-cache" }
 num_cpus = "1.2"
 parity-bytes = "0.1"
 parity-snappy = "0.1"
-parity-util-mem = "0.1"
 parking_lot = "0.8"
 trie-db = "0.15.0"
 patricia-trie-ethereum = { path = "../util/patricia-trie-ethereum" }
@@ -71,7 +70,6 @@ tempdir = { version = "0.3", optional = true }
 time-utils = { path = "../util/time-utils" }
 trace = { path = "trace" }
 trace-time = "0.1"
-trie-db = "0.12.4"
 trie-vm-factories = { path = "trie-vm-factories" }
 triehash-ethereum = { version = "0.2",  path = "../util/triehash-ethereum" }
 unexpected = { path = "../util/unexpected" }
