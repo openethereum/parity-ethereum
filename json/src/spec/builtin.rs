@@ -69,6 +69,8 @@ pub struct Builtin {
 	pub pricing: Pricing,
 	/// Activation block.
 	pub activate_at: Option<Uint>,
+	/// Deactivation block.
+	pub deactivate_at: Option<Uint>,
 }
 
 #[cfg(test)]
@@ -101,5 +103,19 @@ mod tests {
 		assert_eq!(deserialized.name, "late_start");
 		assert_eq!(deserialized.pricing, Pricing::Modexp(Modexp { divisor: 5 }));
 		assert_eq!(deserialized.activate_at, Some(Uint(100000.into())));
+	}
+
+	#[test]
+	fn deactivate_at() {
+		let s = r#"{
+			"name": "early_finish",
+			"deactivate_at": 200000,
+			"pricing": { "modexp": { "divisor": 5 } }
+		}"#;
+
+		let deserialized: Builtin = serde_json::from_str(s).unwrap();
+		assert_eq!(deserialized.name, "early_finish");
+		assert_eq!(deserialized.pricing, Pricing::Modexp(Modexp { divisor: 5 }));
+		assert_eq!(deserialized.deactivate_at, Some(Uint(200000.into())));
 	}
 }

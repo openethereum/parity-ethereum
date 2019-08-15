@@ -146,6 +146,7 @@ pub struct Builtin {
 	pricer: Box<dyn Pricer>,
 	native: Box<dyn Implementation>,
 	activate_at: u64,
+	deactivate_at: Option<u64>,
 }
 
 impl Builtin {
@@ -161,7 +162,7 @@ impl Builtin {
 
 	/// Whether the builtin is activated at the given block number.
 	pub fn is_active(&self, at: u64) -> bool {
-		at >= self.activate_at
+		at >= self.activate_at && self.deactivate_at.map(|inactive_block| at < inactive_block).unwrap_or(true)
 	}
 }
 
@@ -196,6 +197,7 @@ impl From<ethjson::spec::Builtin> for Builtin {
 			pricer: pricer,
 			native: ethereum_builtin(&b.name),
 			activate_at: b.activate_at.map(Into::into).unwrap_or(0),
+			deactivate_at: b.deactivate_at.map(Into::into),
 		}
 	}
 }
