@@ -20,6 +20,7 @@ use std::sync::atomic::{AtomicUsize, AtomicBool, Ordering as AtomicOrdering};
 use std::sync::{Arc, Weak};
 use std::time::{Instant, Duration};
 
+use account_state::state::StateInfo;
 use blockchain::{BlockReceipts, BlockChain, BlockChainDB, BlockProvider, TreeRoute, ImportRoute, TransactionAddress, ExtrasInsert, BlockNumberKey};
 use bytes::Bytes;
 use call_contract::{CallContract, RegistryInfo};
@@ -39,7 +40,7 @@ use hash_db::EMPTY_PREFIX;
 use block::{LockedBlock, Drain, ClosedBlock, OpenBlock, enact_verified, SealedBlock};
 use client::ancient_import::AncientVerifier;
 use client::{
-	ReopenBlock, PrepareOpenBlock, ImportSealedBlock, BroadcastProposalBlock, StateInfo,
+	ReopenBlock, PrepareOpenBlock, ImportSealedBlock, BroadcastProposalBlock,
 	Call, BlockProducer, SealedBlockImporter, ChainNotify, EngineInfo,
 	ClientConfig, NewBlocks, ChainRoute, ChainMessageType, bad_blocks, ClientIoMessage,
 };

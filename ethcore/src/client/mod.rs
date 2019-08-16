@@ -38,13 +38,8 @@ pub use self::traits::{
     ReopenBlock, PrepareOpenBlock, ImportSealedBlock, BroadcastProposalBlock,
     Call, EngineInfo, BlockProducer, SealedBlockImporter,
 };
-pub use account_state::state::StateInfo;
-
-
-pub use vm::{LastHashes, EnvInfo};
 
 pub use verification::VerifierType;
 
 mod traits;
-
 mod chain_notify;

@@ -21,7 +21,7 @@ use std::sync::Arc;
 use ethereum_types::{H256, U256, H160};
 use {trie_vm_factories, journaldb, trie, kvdb_memorydb};
 use kvdb::{self, KeyValueDB};
-use {state_db, client, trace, db, spec};
+use {state_db, trace, db, spec};
 use pod::PodState;
 use types::{
 	errors::EthcoreError,
@@ -214,7 +214,7 @@ impl<'a> EvmTestClient<'a> {
 	) -> Result<FinalizationResult, EvmTestError>
 	{
 		let genesis = self.spec.genesis_header();
-		let info = client::EnvInfo {
+		let info = vm::EnvInfo {
 			number: genesis.number(),
 			author: *genesis.author(),
 			timestamp: genesis.timestamp(),
@@ -233,7 +233,7 @@ impl<'a> EvmTestClient<'a> {
 		params: ActionParams,
 		tracer: &mut T,
 		vm_tracer: &mut V,
-		info: client::EnvInfo,
+		info: vm::EnvInfo,
 	) -> Result<FinalizationResult, EvmTestError>
 	{
 		let mut substate = Substate::new();
@@ -252,7 +252,7 @@ impl<'a> EvmTestClient<'a> {
 	/// Returns the state root, gas left and the output.
 	pub fn transact<T: trace::Tracer, V: trace::VMTracer>(
 		&mut self,
-		env_info: &client::EnvInfo,
+		env_info: &vm::EnvInfo,
 		transaction: transaction::SignedTransaction,
 		tracer: T,
 		vm_tracer: V,

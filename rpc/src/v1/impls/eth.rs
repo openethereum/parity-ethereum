@@ -24,9 +24,10 @@ use rlp::Rlp;
 use ethereum_types::{Address, H64, H160, H256, U64, U256, BigEndianHash};
 use parking_lot::Mutex;
 
+use account_state::state::StateInfo;
 use client_traits::{BlockChainClient, StateClient, ProvingBlockChainClient, StateOrBlock};
 use ethash::{self, SeedHashCompute};
-use ethcore::client::{StateInfo, Call, EngineInfo};
+use ethcore::client::{Call, EngineInfo};
 use ethcore::miner::{self, MinerService};
 use ethcore::snapshot::SnapshotService;
 use hash::keccak;

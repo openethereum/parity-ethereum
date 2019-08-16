@@ -19,7 +19,7 @@
 use std::sync::{Weak, Arc};
 
 use engine::{Engine, EpochChange, Proof};
-use ethcore::client::{ClientReport, EnvInfo, ClientIoMessage};
+use ethcore::client::{ClientReport, ClientIoMessage};
 use ethcore::verification::queue::{self, HeaderQueue};
 use ethcore::spec::{Spec, SpecHardcodedSync};
 use io::IoChannel;
@@ -39,6 +39,7 @@ use common_types::{
 	verification::VerificationQueueInfo as BlockQueueInfo,
 };
 use kvdb::KeyValueDB;
+use vm::EnvInfo;
 
 use self::fetch::ChainDataFetcher;
 use self::header_chain::{AncestryIter, HeaderChain, HardcodedSync};

@@ -122,7 +122,7 @@ pub struct TxInput<'a, T> {
 	/// State root hash associated with the transaction.
 	pub post_root: H256,
 	/// Client environment information associated with the transaction's chain specification.
-	pub env_info: &'a client::EnvInfo,
+	pub env_info: &'a vm::EnvInfo,
 	/// Signed transaction accompanied by a signature that may be unverified and a successfully recovered
 	/// sender address. The unverified transaction contains a recoverable ECDSA signature that has been encoded
 	/// as RSV components and includes replay protection for the specified chain. Verification of the signed transaction
