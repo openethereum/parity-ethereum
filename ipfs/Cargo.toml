@@ -4,15 +4,16 @@ name = "parity-ipfs-api"
 version = "1.12.0"
 license = "GPL-3.0"
 authors = ["Parity Technologies <admin@parity.io>"]
+edition = "2018"
 
 [dependencies]
 client-traits = { path = "../ethcore/client-traits" }
 common-types = { path = "../ethcore/types" }
 ethcore = { path = "../ethcore" }
-parity-bytes = "0.1"
+bytes = { package = "parity-bytes", version = "0.1"}
 ethereum-types = "0.6.0"
-jsonrpc-core = "12.0.0"
-jsonrpc-http-server = "12.0.0"
+core = { package = "jsonrpc-core", version = "12.0.0"}
+http = { package = "jsonrpc-http-server", version = "12.0.0"}
 rlp = "0.4.0"
 cid = "0.3"
 multihash = "0.8"

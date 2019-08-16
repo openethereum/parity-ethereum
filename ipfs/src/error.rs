@@ -15,7 +15,8 @@
 // along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
 use {multihash, cid, http};
-use route::Out;
+
+use crate::route::Out;
 
 pub type Result<T> = ::std::result::Result<T, Error>;
 
@@ -55,12 +56,12 @@ impl From<ServerError> for String {
 
 impl ::std::fmt::Display for ServerError {
 	fn fmt(&self, f: &mut ::std::fmt::Formatter) -> ::std::fmt::Result {
-        match self {
-        	ServerError::IoError(err) => write!(f, "Io Error: {}", err),
-        	ServerError::Other(err) => write!(f, "Other error: {}", err),
-        	ServerError::InvalidInterface => write!(f, "Invalid interface"),
-        }
-    }
+		match self {
+			ServerError::IoError(err) => write!(f, "Io Error: {}", err),
+			ServerError::Other(err) => write!(f, "Other error: {}", err),
+			ServerError::InvalidInterface => write!(f, "Invalid interface"),
+		}
+	}
 }
 
 impl ::std::error::Error for ServerError {}
