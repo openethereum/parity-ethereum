@@ -85,6 +85,7 @@ extern crate parking_lot;
 #[macro_use]
 extern crate rlp_derive;
 extern crate serde;
+extern crate spec;
 extern crate smallvec;
 extern crate stats;
 extern crate vm;

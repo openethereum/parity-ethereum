@@ -743,7 +743,7 @@ mod tests {
 		view,
 		views::BlockView,
 	};
-	use crate::spec;
+	use spec;
 
 	// create a test block queue.
 	// auto_scaling enables verifier adjustment.

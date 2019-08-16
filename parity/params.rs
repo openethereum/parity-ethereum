@@ -18,7 +18,7 @@ use std::collections::HashSet;
 use std::time::Duration;
 use std::{str, fs, fmt};
 
-use ethcore::spec::{Spec, SpecParams, self};
+use spec::{Spec, SpecParams, self};
 use ethereum_types::{U256, Address};
 use parity_runtime::Executor;
 use hash_fetch::fetch::Client as FetchClient;

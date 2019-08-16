@@ -1,0 +1,41 @@
+[package]
+description = "Ethereum engine specification"
+name = "spec"
+version = "0.1.0"
+authors = ["Parity Technologies <admin@parity.io>"]
+edition = "2018"
+license = "GPL-3.0"
+
+[dependencies]
+account-state = { path = "../account-state" }
+authority-round = { path = "../engines/authority-round" }
+basic-authority = { path = "../engines/basic-authority" }
+builtin = { package = "ethcore-builtin", path = "../builtin" }
+bytes = { package = "parity-bytes", version = "0.1.0" }
+clique = { path = "../engines/clique" }
+common-types = { path = "../types" }
+engine = { path = "../engine" }
+ethash = { path = "../../ethash" }
+ethash-engine = { path = "../engines/ethash" }
+ethereum-types = "0.6.0"
+ethjson = { path = "../../json" }
+evm = { path = "../evm" }
+executive-state = { path = "../executive-state" }
+hash-db = "0.15.0"
+instant-seal = { path = "../engines/instant-seal" }
+journaldb = { path = "../../util/journaldb" }
+keccak-hash = "0.2.0"
+kvdb-memorydb = "0.1.0"
+log = "0.4.8"
+machine = { path = "../machine" }
+null-engine = { path = "../engines/null-engine" }
+pod = { path = "../pod" }
+rlp = "0.4.2"
+trace = { path = "../trace" }
+trie-vm-factories = { path = "../trie-vm-factories" }
+vm = { path = "../vm" }
+
+[dev-dependencies]
+ethcore = { path = "..", features = ["test-helpers"] }
+env_logger = "0.5"
+tempdir = "0.3.7"

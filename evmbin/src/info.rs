@@ -20,13 +20,13 @@ use std::time::{Instant, Duration};
 
 use common_types::transaction;
 use ethcore::{
-	client::{self, EvmTestClient, EvmTestError, TransactErr, TransactSuccess},
-	spec,
+	client::{EvmTestClient, EvmTestError, TransactErr, TransactSuccess},
 	TrieSpec,
 };
 use ethereum_types::{H256, U256};
 use ethjson;
 use pod::PodState;
+use spec;
 use trace;
 use vm::ActionParams;
 
@@ -244,7 +244,7 @@ pub mod tests {
 	use super::*;
 	use tempdir::TempDir;
 	use ethereum_types::Address;
-	use ethcore::spec::{self, Spec};
+	use spec::{self, Spec};
 
 	pub fn run_test<T, I, F>(
 		informant: I,

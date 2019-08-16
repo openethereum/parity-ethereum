@@ -49,6 +49,7 @@ extern crate ethcore_light as light;
 #[cfg(test)] extern crate rand_xorshift;
 #[cfg(test)] extern crate machine;
 #[cfg(test)] extern crate engine;
+#[cfg(test)] extern crate spec;
 
 #[macro_use]
 extern crate enum_primitive;

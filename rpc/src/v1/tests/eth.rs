@@ -22,7 +22,7 @@ use accounts::AccountProvider;
 use client_traits::{BlockChainClient, ChainInfo, ImportBlock};
 use ethcore::client::{Client, ClientConfig};
 use ethcore::miner::Miner;
-use ethcore::spec::{Genesis, Spec, self};
+use spec::{Genesis, Spec, self};
 use ethcore::test_helpers;
 use ethcore::verification::VerifierType;
 use ethereum_types::{Address, H256, U256};

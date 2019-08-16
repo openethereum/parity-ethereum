@@ -39,7 +39,7 @@ use ethtrie;
 use rlp::RlpStream;
 use hash::keccak;
 use ethereum_types::BigEndianHash;
-use crate::spec;
+use spec;
 
 use super::HookType;
 

@@ -372,7 +372,7 @@ mod tests {
 	use hash::keccak;
 	use engine::Engine;
 	use ethkey::{Random, Generator};
-	use crate::spec;
+	use spec;
 	use test_helpers::{create_test_block_with_data, create_test_block};
 	use types::{
 		encoded,

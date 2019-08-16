@@ -27,4 +27,5 @@ unexpected = { path = "../../../util/unexpected" }
 
 [dev-dependencies]
 ethcore = { path = "../..", features = ["test-helpers"] }
+spec = { path = "../../spec" }
 state-db = { path = "../../state-db" }

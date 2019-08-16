@@ -25,6 +25,7 @@ engine = { path = "../../engine", features = ["test-helpers"] }
 ethcore = { path = "../..", features = ["test-helpers"] }
 keccak-hash = "0.2.0"
 tempdir = "0.3"
+spec = { path = "../../spec" }
 
 [features]
 test-helpers = []

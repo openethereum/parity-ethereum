@@ -23,7 +23,7 @@ mod work;
 pub use self::authority::*;
 pub use self::work::*;
 
-use ethash_engine::{MAX_SNAPSHOT_BLOCKS, SNAPSHOT_BLOCKS};
+use types::snapshot::{MAX_SNAPSHOT_BLOCKS, SNAPSHOT_BLOCKS};
 use snapshot::SnapshotComponents;
 
 /// Create a factory for building snapshot chunks and restoring from them.

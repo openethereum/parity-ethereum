@@ -33,7 +33,7 @@ use parking_lot::Mutex;
 use snappy;
 use kvdb::DBTransaction;
 use test_helpers;
-use crate::spec;
+use spec;
 
 const SNAPSHOT_MODE: ::snapshot::PowSnapshot = ::snapshot::PowSnapshot { blocks: 30000, max_restore_blocks: 30000 };
 

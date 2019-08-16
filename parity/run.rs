@@ -26,7 +26,7 @@ use client_traits::{BlockInfo, BlockChainClient};
 use ethcore::client::{Client, DatabaseCompactionProfile, VMType};
 use ethcore::miner::{self, stratum, Miner, MinerService, MinerOptions};
 use ethcore::snapshot::{self, SnapshotConfiguration};
-use ethcore::spec::{SpecParams, OptimizeFor};
+use spec::SpecParams;
 use ethcore::verification::queue::VerifierSettings;
 use ethcore_logger::{Config as LogConfig, RotatingLogger};
 use ethcore_service::ClientService;
@@ -44,6 +44,7 @@ use sync::{self, SyncConfig, PrivateTxHandler};
 use types::{
 	client_types::Mode,
 	ids::BlockId,
+	engines::OptimizeFor,
 };
 use parity_rpc::{
 	Origin, Metadata, NetworkSettings, informant, PubSubSession, FutureResult, FutureResponse, FutureOutput

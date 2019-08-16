@@ -15,6 +15,7 @@ ethcore-sync = { path = "../sync" }
 ethereum-types = "0.6.0"
 kvdb = "0.1"
 log = "0.4"
+spec = { path = "../spec" }
 trace-time = "0.1"
 
 [dev-dependencies]

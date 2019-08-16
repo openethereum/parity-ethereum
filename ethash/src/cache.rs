@@ -30,19 +30,9 @@ use std::path::{Path, PathBuf};
 use std::slice;
 use std::sync::Arc;
 
+use common_types::engines::OptimizeFor;
+
 type Cache = Either<Vec<Node>, MmapMut>;
-
-#[derive(PartialEq, Eq, Debug, Clone, Copy)]
-pub enum OptimizeFor {
-	Cpu,
-	Memory,
-}
-
-impl Default for OptimizeFor {
-	fn default() -> Self {
-		OptimizeFor::Cpu
-	}
-}
 
 fn byte_size(cache: &Cache) -> usize {
 	use self::Either::{Left, Right};

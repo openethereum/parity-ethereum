@@ -222,7 +222,6 @@ mod tests {
 	use ethereum_types::H520;
 	use ethcore::{
 		block::*,
-		spec,
 		test_helpers::get_temp_state_db
 	};
 	use accounts::AccountProvider;

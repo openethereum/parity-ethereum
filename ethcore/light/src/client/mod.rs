@@ -21,7 +21,7 @@ use std::sync::{Weak, Arc};
 use engine::{Engine, EpochChange, Proof};
 use ethcore::client::{ClientReport, ClientIoMessage};
 use ethcore::verification::queue::{self, HeaderQueue};
-use ethcore::spec::{Spec, SpecHardcodedSync};
+use spec::{Spec, SpecHardcodedSync};
 use io::IoChannel;
 use parking_lot::{Mutex, RwLock};
 use ethereum_types::{H256, U256};

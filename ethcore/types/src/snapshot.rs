@@ -22,6 +22,12 @@ use ethereum_types::H256;
 use rlp::{Rlp, RlpStream, DecoderError};
 use bytes::Bytes;
 
+/// Number of blocks in a PoW snapshot.
+// make dependent on difficulty increment divisor?
+pub const SNAPSHOT_BLOCKS: u64 = 5000;
+/// Maximum number of blocks allowed in a PoW snapshot.
+pub const MAX_SNAPSHOT_BLOCKS: u64 = 30000;
+
 /// A progress indicator for snapshots.
 #[derive(Debug, Default)]
 pub struct Progress {

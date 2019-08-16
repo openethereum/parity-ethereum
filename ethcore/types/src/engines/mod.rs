@@ -28,6 +28,21 @@ pub mod epoch;
 pub mod params;
 pub mod machine;
 
+/// Optimize cache for CPU or memory usage
+#[derive(PartialEq, Eq, Debug, Clone, Copy)]
+pub enum OptimizeFor {
+	/// Optimize cache for CPU
+	Cpu,
+	/// Optimize cache for memory
+	Memory,
+}
+
+impl Default for OptimizeFor {
+	fn default() -> Self {
+		OptimizeFor::Cpu
+	}
+}
+
 /// Ethash/Clique specific seal
 #[derive(Debug, PartialEq)]
 pub struct EthashSeal {

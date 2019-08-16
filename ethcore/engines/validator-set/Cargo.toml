@@ -11,8 +11,8 @@ client-traits = { path = "../../client-traits" }
 common-types = { path = "../../types" }
 engine = { path = "../../engine" }
 ethabi = "8.0.1"
-ethabi-derive = "8.0.0"
 ethabi-contract = "8.0.1"
+ethabi-derive = "8.0.0"
 ethereum-types = "0.6.0"
 ethjson = { path = "../../../json" }
 executive-state = { path = "../../executive-state" }
@@ -32,13 +32,14 @@ vm = { path = "../../vm" }
 
 [dev-dependencies]
 accounts = { package = "ethcore-accounts", path = "../../../accounts" }
-engine = { path = "../../engine", features = ["test-helpers"] }
-ethcore = { path = "../..", features = ["test-helpers"] }
-keccak-hash = "0.2.0"
-ethkey = { path = "../../../accounts/ethkey" }
-rustc-hex = "1.0"
 call-contract = { package = "ethcore-call-contract", path = "../../call-contract" }
+engine = { path = "../../engine", features = ["test-helpers"] }
 env_logger = "0.6.2"
+ethcore = { path = "../..", features = ["test-helpers"] }
+ethkey = { path = "../../../accounts/ethkey" }
+keccak-hash = "0.2.0"
+rustc-hex = "1.0"
+spec = { path = "../../spec" }
 
 [features]
 test-helpers = []

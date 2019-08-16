@@ -42,7 +42,8 @@ use parity_bytes::Bytes;
 use docopt::Docopt;
 use rustc_hex::FromHex;
 use ethereum_types::{U256, Address};
-use ethcore::{spec, json_tests, TrieSpec};
+use ethcore::{json_tests, TrieSpec};
+use spec;
 use serde::Deserialize;
 use vm::{ActionParams, CallType};
 

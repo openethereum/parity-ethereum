@@ -419,7 +419,8 @@ pub fn generate_cdag(cache: &[Node]) -> CDag {
 mod test {
 	use tempdir::TempDir;
 
-	use cache::{NodeCacheBuilder, OptimizeFor};
+	use common_types::engines::OptimizeFor;
+	use cache::NodeCacheBuilder;
 	use keccak::H256;
 	use rustc_hex::FromHex;
 	use serde_json::{self, Value};

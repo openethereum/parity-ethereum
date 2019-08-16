@@ -164,11 +164,12 @@ mod test {
 	use std::str::FromStr;
 	use ethcore::{
 		client::PrepareOpenBlock,
-		spec,
 		test_helpers::generate_dummy_client_with_spec,
 	};
 	use ethereum_types::{U256, Address};
 	use engine::SystemOrCodeCallKind;
+	use spec;
+
 	use crate::{BlockRewardContract, RewardKind};
 
 	#[test]

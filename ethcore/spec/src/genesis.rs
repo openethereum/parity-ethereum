@@ -16,8 +16,8 @@
 
 use ethereum_types::{H256, U256, Address};
 use ethjson;
-use hash::KECCAK_NULL_RLP;
-use spec::seal::Seal;
+use keccak_hash::KECCAK_NULL_RLP;
+use crate::seal::Seal;
 
 /// Genesis components.
 pub struct Genesis {

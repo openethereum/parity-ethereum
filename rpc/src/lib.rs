@@ -85,6 +85,7 @@ extern crate parity_version as version;
 extern crate eip_712;
 extern crate rlp;
 extern crate account_state;
+extern crate spec;
 extern crate stats;
 extern crate tempdir;
 extern crate trace;

@@ -17,4 +17,5 @@ trace = { path = "../../trace" }
 
 [dev-dependencies]
 ethcore = { path = "../..", features = ["test-helpers"] }
+spec = { path = "../../spec" }
 rlp = "0.4.2"

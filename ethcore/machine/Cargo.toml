@@ -39,6 +39,7 @@ ethjson = { path = "../../json" }
 ethkey = { path = "../../accounts/ethkey" }
 macros = { path = "../../util/macros" }
 rustc-hex = "1.0"
+spec = { path = "../spec" }
 tempdir = "0.3"
 trace = { path = "../trace" }
 

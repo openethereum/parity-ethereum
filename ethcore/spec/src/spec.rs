@@ -24,41 +24,42 @@ use std::{
 	sync::Arc,
 };
 
-use bytes::Bytes;
-use ethereum_types::{H256, Bloom, U256, Address};
-use ethjson;
-use hash::{KECCAK_NULL_RLP, keccak};
-use rlp::{Rlp, RlpStream};
-use types::{
+use common_types::{
 	BlockNumber,
 	header::Header,
 	encoded,
-	engines::params::CommonParams,
+	engines::{OptimizeFor, params::CommonParams},
 	errors::EthcoreError as Error,
+	transaction::{Action, Transaction},
 };
-use vm::{EnvInfo, CallType, ActionValue, ActionParams, ParamsType};
-
-use builtin::Builtin;
-use engine::Engine;
-use clique::Clique;
-use null_engine::NullEngine;
-use instant_seal::{InstantSeal, InstantSealParams};
+use account_state::{Backend, State, backend::Basic as BasicBackend};
 use authority_round::AuthorityRound;
 use basic_authority::BasicAuthority;
+use bytes::Bytes;
+use builtin::Builtin;
+use clique::Clique;
+use engine::Engine;
 use ethash_engine::Ethash;
-use machine::{
-	executive::Executive,
-	machine::Machine,
-	substate::Substate,
-};
-use trie_vm_factories::Factories;
+use ethereum_types::{H256, Bloom, U256, Address};
+use ethjson;
+use instant_seal::{InstantSeal, InstantSealParams};
+use keccak_hash::{KECCAK_NULL_RLP, keccak};
+use log::{trace, warn};
+use machine::{executive::Executive, Machine, substate::Substate};
+use null_engine::NullEngine;
 use pod::PodState;
-use spec::Genesis;
-use spec::seal::Generic as GenericSeal;
-use account_state::{Backend, State, backend::Basic as BasicBackend};
+use rlp::{Rlp, RlpStream};
 use trace::{NoopTracer, NoopVMTracer};
+use trie_vm_factories::Factories;
+use vm::{EnvInfo, CallType, ActionValue, ActionParams, ParamsType};
 
-pub use ethash::OptimizeFor;
+use crate::{
+	Genesis,
+	seal::Generic as GenericSeal,
+};
+
+
+
 
 /// Runtime parameters for the spec that are related to how the software should run the chain,
 /// rather than integral properties of the chain itself.
@@ -489,8 +490,6 @@ impl Spec {
 	/// initialize genesis epoch data, using in-memory database for
 	/// constructor.
 	pub fn genesis_epoch_data(&self) -> Result<Vec<u8>, String> {
-		use types::transaction::{Action, Transaction};
-
 		let genesis = self.genesis_header();
 
 		let factories = Default::default();
@@ -505,7 +504,7 @@ impl Spec {
 
 		let call = |a, d| {
 			let mut db = db.boxed_clone();
-			let env_info = ::evm::EnvInfo {
+			let env_info = evm::EnvInfo {
 				number: 0,
 				author: *genesis.author(),
 				timestamp: genesis.timestamp(),
@@ -525,7 +524,7 @@ impl Spec {
 				data: d,
 			}.fake_sign(from);
 
-			let res = ::executive_state::prove_transaction_virtual(
+			let res = executive_state::prove_transaction_virtual(
 				db.as_hash_db_mut(),
 				*genesis.state_root(),
 				&tx,
@@ -545,14 +544,15 @@ impl Spec {
 
 #[cfg(test)]
 mod tests {
-	use super::*;
-	use account_state::State;
-	use test_helpers::get_temp_state_db;
-	use tempdir::TempDir;
-	use types::view;
-	use types::views::BlockView;
 	use std::str::FromStr;
-	use crate::spec;
+
+	use account_state::State;
+	use common_types::{view, views::BlockView};
+	use ethereum_types::{Address, H256};
+	use ethcore::test_helpers::get_temp_state_db;
+	use tempdir::TempDir;
+
+	use super::Spec;
 
 	#[test]
 	fn test_load_empty() {
@@ -562,7 +562,7 @@ mod tests {
 
 	#[test]
 	fn test_chain() {
-		let test_spec = spec::new_test();
+		let test_spec = crate::new_test();
 
 		assert_eq!(
 			test_spec.state_root,
@@ -578,7 +578,7 @@ mod tests {
 	#[test]
 	fn genesis_constructor() {
 		let _ = ::env_logger::try_init();
-		let spec = spec::new_test_constructor();
+		let spec = crate::new_test_constructor();
 		let db = spec.ensure_db_good(get_temp_state_db(), &Default::default())
 			.unwrap();
 		let state = State::from_existing(

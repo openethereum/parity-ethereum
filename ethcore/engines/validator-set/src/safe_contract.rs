@@ -251,7 +251,7 @@ impl ValidatorSafeContract {
 
 		LogEntry {
 			address: self.contract_address,
-			topics: topics,
+			topics,
 			data: Vec::new(), // irrelevant for bloom.
 		}.bloom()
 	}
@@ -467,7 +467,6 @@ mod tests {
 	use client_traits::{BlockInfo, ChainInfo, ImportBlock, EngineClient};
 	use engine::{EpochChange, Proof};
 	use ethcore::{
-		spec,
 		miner::{self, MinerService},
 		test_helpers::{generate_dummy_client_with_spec, generate_dummy_client_with_spec_and_data}
 	};
@@ -475,6 +474,7 @@ mod tests {
 	use ethereum_types::Address;
 	use keccak_hash::keccak;
 	use rustc_hex::FromHex;
+	use spec;
 
 	use super::super::ValidatorSet;
 	use super::{ValidatorSafeContract, EVENT_NAME_HASH};

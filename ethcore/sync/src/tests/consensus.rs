@@ -21,7 +21,7 @@ use io::{IoHandler, IoChannel};
 use client_traits::ChainInfo;
 use engine::signer;
 use ethcore::client::{ClientIoMessage};
-use ethcore::spec;
+use spec;
 use ethcore::miner::{self, MinerService};
 use ethkey::{KeyPair, Secret};
 use types::transaction::{Action, PendingTransaction, Transaction};

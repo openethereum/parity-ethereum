@@ -46,3 +46,4 @@ ethcore-private-tx = { path = "../private-tx" }
 kvdb-memorydb = "0.1"
 rustc-hex = "1.0"
 rand_xorshift = "0.1.1"
+spec = { path = "../spec" }

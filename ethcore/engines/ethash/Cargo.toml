@@ -23,4 +23,5 @@ unexpected = { path = "../../../util/unexpected" }
 ethcore = { path = "../..", features = ["test-helpers"] }
 keccak-hash = "0.2.0"
 rlp = "0.4.2"
+spec = { path = "../../spec" }
 tempdir = "0.3"
