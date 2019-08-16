@@ -1029,6 +1029,7 @@ dependencies = [
  "ethcore-accounts 0.1.0",
  "ethcore-blockchain 0.1.0",
  "ethcore-bloom-journal 0.1.0",
+ "ethcore-builtin 0.1.0",
  "ethcore-call-contract 0.1.0",
  "ethcore-db 0.1.0",
  "ethcore-io 1.12.0",
