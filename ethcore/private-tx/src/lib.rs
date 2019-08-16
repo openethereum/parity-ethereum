@@ -22,6 +22,8 @@ mod private_transactions;
 mod messages;
 mod error;
 mod log;
+mod state_store;
+mod private_state_db;
 
 extern crate account_state;
 extern crate client_traits;
@@ -29,6 +31,7 @@ extern crate common_types as types;
 extern crate ethabi;
 extern crate ethcore;
 extern crate ethcore_call_contract as call_contract;
+extern crate ethcore_db;
 extern crate ethcore_io as io;
 extern crate ethcore_miner;
 extern crate ethereum_types;
@@ -37,8 +40,12 @@ extern crate ethkey;
 extern crate fetch;
 extern crate futures;
 extern crate parity_util_mem;
+extern crate hash_db;
 extern crate keccak_hash as hash;
+extern crate keccak_hasher;
+extern crate kvdb;
 extern crate machine;
+extern crate journaldb;
 extern crate parity_bytes as bytes;
 extern crate parity_crypto as crypto;
 extern crate parking_lot;
@@ -77,18 +84,21 @@ pub use encryptor::{Encryptor, SecretStoreEncryptor, EncryptorConfig, NoopEncryp
 pub use key_server_keys::{KeyProvider, SecretStoreKeys, StoringKeyProvider};
 pub use private_transactions::{VerifiedPrivateTransaction, VerificationStore, PrivateTransactionSigningDesc, SigningStore};
 pub use messages::{PrivateTransaction, SignedPrivateTransaction};
+pub use private_state_db::PrivateStateDB;
 pub use error::Error;
 pub use log::{Logging, TransactionLog, ValidatorLog, PrivateTxStatus, FileLogsSerializer};
+use state_store::{PrivateStateStorage, RequestType};
 
 use std::sync::{Arc, Weak};
 use std::collections::{HashMap, HashSet, BTreeMap};
+use std::time::Duration;
 use ethereum_types::{H128, H256, U256, Address, BigEndianHash};
 use hash::keccak;
 use rlp::*;
 use parking_lot::RwLock;
 use bytes::Bytes;
 use ethkey::{Signature, recover, public_to_address};
-use io::IoChannel;
+use io::{IoChannel, IoHandler, IoContext, TimerToken};
 use machine::{
 	executive::{Executive, TransactOptions, contract_address as ethcore_contract_address},
 	executed::Executed as FlatExecuted,
@@ -107,6 +117,7 @@ use state_db::StateDB;
 use account_state::State;
 use trace::{Tracer, VMTracer};
 use call_contract::CallContract;
+use kvdb::KeyValueDB;
 use rustc_hex::FromHex;
 use ethabi::FunctionOutputDecoder;
 use vm::CreateContractAddress;
@@ -128,6 +139,12 @@ const INITIAL_PRIVATE_CONTRACT_VER: usize = 1;
 /// Version for the private contract notification about private state changes added
 const PRIVATE_CONTRACT_WITH_NOTIFICATION_VER: usize = 2;
 
+/// Timer for private state retrieval
+const STATE_RETRIEVAL_TIMER: TimerToken = 0;
+
+/// Timer for private state retrieval, 5 secs duration
+const STATE_RETRIEVAL_TICK: Duration = Duration::from_secs(5);
+
 /// Configurtion for private transaction provider
 #[derive(Default, PartialEq, Debug, Clone)]
 pub struct ProviderConfig {
@@ -137,6 +154,8 @@ pub struct ProviderConfig {
 	pub signer_account: Option<Address>,
 	/// Path to private tx logs
 	pub logs_path: Option<String>,
+	/// Provider should store the state of the private contract offchain (in DB)
+	pub use_offchain_storage: bool,
 }
 
 #[derive(Debug)]
@@ -198,6 +217,8 @@ pub struct Provider {
 	channel: IoChannel<ClientIoMessage>,
 	keys_provider: Arc<KeyProvider>,
 	logging: Option<Logging>,
+	use_offchain_storage: bool,
+	state_storage: PrivateStateStorage,
 }
 
 #[derive(Debug)]
@@ -218,6 +239,7 @@ impl Provider {
 		config: ProviderConfig,
 		channel: IoChannel<ClientIoMessage>,
 		keys_provider: Arc<KeyProvider>,
+		db: Arc<KeyValueDB>,
 	) -> Self {
 		keys_provider.update_acl_contract();
 		Provider {
@@ -233,7 +255,14 @@ impl Provider {
 			channel,
 			keys_provider,
 			logging: config.logs_path.map(|path| Logging::new(Arc::new(FileLogsSerializer::with_path(path)))),
+			use_offchain_storage: config.use_offchain_storage,
+			state_storage: PrivateStateStorage::new(db),
 		}
+	}
+
+	/// Returns private state DB
+	pub fn private_state_db(&self) -> Arc<PrivateStateDB> {
+		self.state_storage.private_state_db()
 	}
 
 	// TODO [ToDr] Don't use `ChainNotify` here!
@@ -273,22 +302,42 @@ impl Provider {
 		// best would be to change the API and only allow H256 instead of BlockID
 		// in private-tx to avoid such mistakes.
 		let contract_nonce = self.get_contract_nonce(&contract, BlockId::Latest)?;
-		let private_state = self.execute_private_transaction(BlockId::Latest, &signed_transaction)?;
-		trace!(target: "privatetx", "Private transaction created, encrypted transaction: {:?}, private state: {:?}", private, private_state);
-		let contract_validators = self.get_validators(BlockId::Latest, &contract)?;
-		trace!(target: "privatetx", "Required validators: {:?}", contract_validators);
-		let private_state_hash = self.calculate_state_hash(&private_state, contract_nonce);
-		trace!(target: "privatetx", "Hashed effective private state for sender: {:?}", private_state_hash);
-		self.transactions_for_signing.write().add_transaction(private.hash(), signed_transaction, &contract_validators, private_state, contract_nonce)?;
-		self.broadcast_private_transaction(private.hash(), private.rlp_bytes());
-		if let Some(ref logging) = self.logging {
-			logging.private_tx_created(&tx_hash, &contract_validators);
+		let private_state = self.execute_private_transaction(BlockId::Latest, &signed_transaction);
+		match private_state {
+			Err(err) => {
+				match err {
+					Error::PrivateStateNotFound => {
+						trace!(target: "privatetx", "Private state for the contract not found, requesting from peers");
+						if let Some(ref logging) = self.logging {
+							let contract_validators = self.get_validators(BlockId::Latest, &contract)?;
+							logging.private_tx_created(&tx_hash, &contract_validators);
+							logging.private_state_request(&tx_hash);
+						}
+						let request = RequestType::Creation(signed_transaction);
+						self.request_private_state(&contract, request)?;
+					},
+					_ => {},
+				}
+				Err(err)
+			}
+			Ok(private_state) => {
+				trace!(target: "privatetx", "Private transaction created, encrypted transaction: {:?}, private state: {:?}", private, private_state);
+				let contract_validators = self.get_validators(BlockId::Latest, &contract)?;
+				trace!(target: "privatetx", "Required validators: {:?}", contract_validators);
+				let private_state_hash = self.calculate_state_hash(&private_state, contract_nonce);
+				trace!(target: "privatetx", "Hashed effective private state for sender: {:?}", private_state_hash);
+				self.transactions_for_signing.write().add_transaction(private.hash(), signed_transaction, &contract_validators, private_state, contract_nonce)?;
+				self.broadcast_private_transaction(private.hash(), private.rlp_bytes());
+				if let Some(ref logging) = self.logging {
+					logging.private_tx_created(&tx_hash, &contract_validators);
+				}
+				Ok(Receipt {
+					hash: tx_hash,
+					contract_address: contract,
+					status_code: 0,
+				})
+			}
 		}
-		Ok(Receipt {
-			hash: tx_hash,
-			contract_address: contract,
-			status_code: 0,
-		})
 	}
 
 	/// Calculate hash from united private state and contract nonce
@@ -312,55 +361,52 @@ impl Provider {
 		)
 	}
 
-	/// Retrieve and verify the first available private transaction for every sender
-	fn process_verification_queue(&self) -> Result<(), Error> {
-		let process_transaction = |transaction: &VerifiedPrivateTransaction| -> Result<_, String> {
-			let private_hash = transaction.private_transaction.hash();
-			match transaction.validator_account {
-				None => {
+	fn process_verification_transaction(&self, transaction: &VerifiedPrivateTransaction) -> Result<(), Error> {
+		let private_hash = transaction.private_transaction.hash();
+		match transaction.validator_account {
+			None => {
+				trace!(target: "privatetx", "Propagating transaction further");
+				self.broadcast_private_transaction(private_hash, transaction.private_transaction.rlp_bytes());
+				return Ok(());
+			}
+			Some(validator_account) => {
+				if !self.validator_accounts.contains(&validator_account) {
 					trace!(target: "privatetx", "Propagating transaction further");
 					self.broadcast_private_transaction(private_hash, transaction.private_transaction.rlp_bytes());
 					return Ok(());
 				}
-				Some(validator_account) => {
-					if !self.validator_accounts.contains(&validator_account) {
-						trace!(target: "privatetx", "Propagating transaction further");
-						self.broadcast_private_transaction(private_hash, transaction.private_transaction.rlp_bytes());
-						return Ok(());
-					}
-					let contract = Self::contract_address_from_transaction(&transaction.transaction)
-						.map_err(|_| "Incorrect type of action for the transaction")?;
-					// TODO #9825 [ToDr] Usage of BlockId::Latest
-					let contract_nonce = self.get_contract_nonce(&contract, BlockId::Latest);
-					if let Err(e) = contract_nonce {
-						return Err(format!("Cannot retrieve contract nonce: {:?}", e).into());
-					}
-					let contract_nonce = contract_nonce.expect("Error was checked before");
-					let private_state = self.execute_private_transaction(BlockId::Latest, &transaction.transaction);
-					if let Err(e) = private_state {
-						return Err(format!("Cannot retrieve private state: {:?}", e).into());
-					}
-					let private_state = private_state.expect("Error was checked before");
-					let private_state_hash = self.calculate_state_hash(&private_state, contract_nonce);
-					trace!(target: "privatetx", "Hashed effective private state for validator: {:?}", private_state_hash);
-					let signed_state = self.accounts.sign(validator_account, private_state_hash);
-					if let Err(e) = signed_state {
-						return Err(format!("Cannot sign the state: {:?}", e).into());
-					}
-					let signed_state = signed_state.expect("Error was checked before");
-					let signed_private_transaction = SignedPrivateTransaction::new(private_hash, signed_state, None);
-					trace!(target: "privatetx", "Sending signature for private transaction: {:?}", signed_private_transaction);
-					self.broadcast_signed_private_transaction(signed_private_transaction.hash(), signed_private_transaction.rlp_bytes());
-				}
+				let contract = Self::contract_address_from_transaction(&transaction.transaction)?;
+				// TODO #9825 [ToDr] Usage of BlockId::Latest
+				let contract_nonce = self.get_contract_nonce(&contract, BlockId::Latest)?;
+				let private_state = self.execute_private_transaction(BlockId::Latest, &transaction.transaction)?;
+				let private_state_hash = self.calculate_state_hash(&private_state, contract_nonce);
+				trace!(target: "privatetx", "Hashed effective private state for validator: {:?}", private_state_hash);
+				let signed_state = self.accounts.sign(validator_account, private_state_hash)?;
+				let signed_private_transaction = SignedPrivateTransaction::new(private_hash, signed_state, None);
+				trace!(target: "privatetx", "Sending signature for private transaction: {:?}", signed_private_transaction);
+				self.broadcast_signed_private_transaction(signed_private_transaction.hash(), signed_private_transaction.rlp_bytes());
 			}
-			Ok(())
-		};
+		}
+		Ok(())
+	}
+
+	/// Retrieve and verify the first available private transaction for every sender
+	fn process_verification_queue(&self) -> Result<(), Error> {
 		let nonce_cache = NonceCache::new(NONCE_CACHE_SIZE);
 		let local_accounts = HashSet::new();
 		let ready_transactions = self.transactions_for_verification.drain(self.pool_client(&nonce_cache, &local_accounts));
 		for transaction in ready_transactions {
-			if let Err(e) = process_transaction(&transaction) {
-				warn!(target: "privatetx", "Error: {:?}", e);
+			if let Err(err) = self.process_verification_transaction(&transaction) {
+				warn!(target: "privatetx", "Error: {:?}", err);
+				match err {
+					Error::PrivateStateNotFound => {
+						let contract = transaction.private_transaction.contract();
+						trace!(target: "privatetx", "Private state for the contract {:?} not found, requesting from peers", &contract);
+						let request = RequestType::Verification(transaction);
+						self.request_private_state(&contract, request)?;
+					}
+					_ => {}
+				}
 			}
 		}
 		Ok(())
@@ -383,6 +429,7 @@ impl Provider {
 		let original_tx_hash = desc.original_transaction.hash();
 
 		if last.0 {
+			let contract = Self::contract_address_from_transaction(&desc.original_transaction)?;
 			let mut signatures = desc.received_signatures.clone();
 			signatures.push(signed_tx.signature());
 			let rsv: Vec<Signature> = signatures.into_iter().map(|sign| sign.into_electrum().into()).collect();
@@ -411,7 +458,6 @@ impl Provider {
 				}
 			}
 			// Notify about state changes
-			let contract = Self::contract_address_from_transaction(&desc.original_transaction)?;
 			// TODO #9825 Usage of BlockId::Latest
 			if self.get_contract_version(BlockId::Latest, &contract) >= PRIVATE_CONTRACT_WITH_NOTIFICATION_VER {
 				match self.state_changes_notify(BlockId::Latest, &contract, &desc.original_transaction.sender(), desc.original_transaction.hash()) {
@@ -489,6 +535,75 @@ impl Provider {
 		self.notify(|notify| notify.broadcast(ChainMessageType::SignedPrivateTransaction(transaction_hash, message.clone())));
 	}
 
+	fn request_private_state(&self, address: &Address, request_type: RequestType) -> Result<(), Error> {
+		// Define the list of available contracts
+		let mut private_contracts = Vec::new();
+		private_contracts.push(*address);
+		if let Some(key_server_account) = self.keys_provider.key_server_account() {
+			if let Some(available_contracts) = self.keys_provider.available_keys(BlockId::Latest, &key_server_account) {
+				for private_contract in available_contracts {
+					if private_contract == *address {
+						continue;
+					}
+					private_contracts.push(private_contract);
+				}
+			}
+		}
+		// Check states for the avaialble contracts, if they're outdated
+		let mut stalled_contracts_hashes: HashSet<H256> = HashSet::new();
+		for address in private_contracts {
+			if let Ok(state_hash) = self.get_decrypted_state_from_contract(&address, BlockId::Latest) {
+				if state_hash.len() != H256::len_bytes() {
+					return Err(Error::StateIncorrect);
+				}
+				let state_hash = H256::from_slice(&state_hash);
+				if let Err(_) = self.state_storage.private_state_db().state(&state_hash) {
+					// State not found in the local db
+					stalled_contracts_hashes.insert(state_hash);
+				}
+			}
+		}
+		let hashes_to_sync = self.state_storage.add_request(request_type, stalled_contracts_hashes);
+		if !hashes_to_sync.is_empty() {
+			trace!(target: "privatetx", "Requesting states for the following hashes: {:?}", hashes_to_sync);
+			for hash in hashes_to_sync {
+				self.notify(|notify| notify.broadcast(ChainMessageType::PrivateStateRequest(hash)));
+			}
+		}
+		Ok(())
+	}
+
+	fn private_state_sync_completed(&self, hash: &H256) -> Result<(), Error> {
+		self.state_storage.state_sync_completed(hash);
+		if self.state_storage.requests_ready() {
+			trace!(target: "privatetx", "Private state sync completed, processing pending requests");
+			let ready_requests = self.state_storage.drain_ready_requests();
+			for request in ready_requests {
+				match request {
+					RequestType::Creation(transaction) => {
+						match self.create_private_transaction(transaction) {
+							Ok(receipt) => trace!(target: "privatetx", "Creation request processed, receipt: {:?}", receipt),
+							Err(e) => error!(target: "privatetx", "Cannot process creation request with error: {:?}", e),
+						}
+					}
+					RequestType::Verification(transaction) => {
+						if let Err(err) = self.process_verification_transaction(&transaction) {
+							warn!(target: "privatetx", "Error while processing pending verification request: {:?}", err);
+							match err {
+								Error::PrivateStateNotFound => {
+									let contract = transaction.private_transaction.contract();
+									error!(target: "privatetx", "Cannot retrieve private state after sync for {:?}", &contract);
+								}
+								_ => {}
+							}
+						}
+					}
+				}
+			}
+		}
+		Ok(())
+	}
+
 	fn iv_from_transaction(transaction: &SignedTransaction) -> H128 {
 		let nonce = keccak(&transaction.nonce.rlp_bytes());
 		let (iv, _) = nonce.as_bytes().split_at(INIT_VEC_LEN);
@@ -512,10 +627,28 @@ impl Provider {
 	}
 
 	fn get_decrypted_state(&self, address: &Address, block: BlockId) -> Result<Bytes, Error> {
+		match self.use_offchain_storage {
+			true => {
+				let hashed_state = self.get_decrypted_state_from_contract(address, block)?;
+				if hashed_state.len() != H256::len_bytes() {
+					return Err(Error::StateIncorrect);
+				}
+				let hashed_state = H256::from_slice(&hashed_state);
+				let stored_state_data = self.state_storage.private_state_db().state(&hashed_state)?;
+				self.decrypt(address, &stored_state_data)
+			}
+			false => self.get_decrypted_state_from_contract(address, block),
+		}
+	}
+
+	fn get_decrypted_state_from_contract(&self, address: &Address, block: BlockId) -> Result<Bytes, Error> {
 		let (data, decoder) = private_contract::functions::state::call();
 		let value = self.client.call_contract(block, *address, data)?;
 		let state = decoder.decode(&value).map_err(|e| Error::Call(format!("Contract call failed {:?}", e)))?;
-		self.decrypt(address, &state)
+		match self.use_offchain_storage {
+			true => Ok(state),
+			false => self.decrypt(address, &state),
+		}
 	}
 
 	fn get_decrypted_code(&self, address: &Address, block: BlockId) -> Result<Bytes, Error> {
@@ -610,9 +743,14 @@ impl Provider {
 			};
 			(enc_code, self.encrypt(&contract_address, &Self::iv_from_transaction(transaction), &Self::snapshot_from_storage(&storage))?)
 		};
+		let mut saved_state = encrypted_storage;
+		if self.use_offchain_storage {
+			// Save state into the storage and return its hash
+			saved_state = self.state_storage.private_state_db().save_state(&saved_state)?.0.to_vec();
+		}
 		Ok(PrivateExecutionResult {
 			code: encrypted_code,
-			state: encrypted_storage,
+			state: saved_state,
 			contract_address: contract_address,
 			result,
 		})
@@ -739,6 +877,21 @@ impl Provider {
 	}
 }
 
+impl IoHandler<ClientIoMessage> for Provider {
+	fn initialize(&self, io: &IoContext<ClientIoMessage>) {
+		if self.use_offchain_storage {
+			io.register_timer(STATE_RETRIEVAL_TIMER, STATE_RETRIEVAL_TICK).expect("Error registering state retrieval timer");
+		}
+	}
+
+	fn timeout(&self, _io: &IoContext<ClientIoMessage>, timer: TimerToken) {
+		match timer {
+			STATE_RETRIEVAL_TIMER => self.state_storage.tick(&self.logging),
+			_ => warn!("IO service triggered unregistered timer '{}'", timer),
+		}
+	}
+}
+
 pub trait Importer {
 	/// Process received private transaction
 	fn import_private_transaction(&self, _rlp: &[u8]) -> Result<H256, Error>;
@@ -747,6 +900,9 @@ pub trait Importer {
 	///
 	/// Creates corresponding public transaction if last required signature collected and sends it to the chain
 	fn import_signed_private_transaction(&self, _rlp: &[u8]) -> Result<H256, Error>;
+
+	/// Function called when requested private state retrieved from peer and saved to DB.
+	fn private_state_synced(&self, hash: &H256) -> Result<(), String>;
 }
 
 // TODO [ToDr] Offload more heavy stuff to the IoService thread.
@@ -809,6 +965,23 @@ impl Importer for Arc<Provider> {
 			warn!(target: "privatetx", "Error sending NewSignedPrivateTransaction message: {:?}", e);
 		}
 		Ok(private_hash)
+	}
+
+	fn private_state_synced(&self, hash: &H256) -> Result<(), String> {
+		trace!(target: "privatetx", "Private state synced, hash: {:?}", hash);
+		let provider = Arc::downgrade(self);
+		let completed_hash = *hash;
+		let result = self.channel.send(ClientIoMessage::execute(move |_| {
+			if let Some(provider) = provider.upgrade() {
+				if let Err(e) = provider.private_state_sync_completed(&completed_hash) {
+					warn!(target: "privatetx", "Unable to process the state synced signal: {}", e);
+				}
+			}
+		}));
+		if let Err(e) = result {
+			warn!(target: "privatetx", "Error sending private state synced message: {:?}", e);
+		}
+		Ok(())
 	}
 }
 

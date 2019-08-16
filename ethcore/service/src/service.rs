@@ -73,6 +73,16 @@ impl PrivateTxHandler for PrivateTxService {
 			}
 		}
 	}
+
+	fn private_state_synced(&self, hash: &H256) -> Result<(), String> {
+		match self.provider.private_state_synced(hash) {
+			Ok(handle_result) => Ok(handle_result),
+			Err(err) => {
+				warn!(target: "privatetx", "Unable to handle private state synced message: {}", err);
+				return Err(err.to_string())
+			}
+		}
+	}
 }
 
 /// Client service setup. Creates and registers client and network services with the IO subsystem.
@@ -139,8 +149,10 @@ impl ClientService {
 			private_tx_conf,
 			io_service.channel(),
 			private_keys,
+			blockchain_db.key_value().clone(),
 		));
-		let private_tx = Arc::new(PrivateTxService::new(provider));
+		let private_tx = Arc::new(PrivateTxService::new(provider.clone()));
+		io_service.register_handler(provider)?;
 
 		let client_io = Arc::new(ClientIoHandler {
 			client: client.clone(),

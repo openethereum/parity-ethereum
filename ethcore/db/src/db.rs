@@ -41,8 +41,10 @@ pub const COL_ACCOUNT_BLOOM: Option<u32> = Some(5);
 pub const COL_NODE_INFO: Option<u32> = Some(6);
 /// Column for the light client chain.
 pub const COL_LIGHT_CHAIN: Option<u32> = Some(7);
+/// Column for the private transactions state.
+pub const COL_PRIVATE_TRANSACTIONS_STATE: Option<u32> = Some(8);
 /// Number of columns in DB
-pub const NUM_COLUMNS: Option<u32> = Some(8);
+pub const NUM_COLUMNS: Option<u32> = Some(9);
 
 /// Modes for updating caches.
 #[derive(Clone, Copy)]

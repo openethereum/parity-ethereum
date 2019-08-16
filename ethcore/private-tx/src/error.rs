@@ -99,6 +99,12 @@ pub enum Error {
 	/// Account for signing requests to key server not set.
 	#[display(fmt = "Account for signing requests to key server not set.")]
 	KeyServerAccountNotSet,
+	/// Private state for the contract was not found in the local storage.
+	#[display(fmt = "Private state for the contract was not found in the local storage.")]
+	PrivateStateNotFound,
+	/// Cannot write state to the local database.
+	#[display(fmt = "Cannot write state to the local database.")]
+	DatabaseWriteError,
 	/// Encryption key is not found on key server.
 	#[display(fmt = "Encryption key is not found on key server for {}", _0)]
 	EncryptionKeyNotFound(Address),

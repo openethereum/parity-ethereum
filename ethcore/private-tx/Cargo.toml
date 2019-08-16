@@ -14,6 +14,7 @@ ethabi = "8.0"
 ethabi-contract = "8.0"
 ethabi-derive = "8.0"
 ethcore = { path = ".." }
+ethcore-db = { path = "../db" }
 ethcore-call-contract = { path = "../call-contract" }
 ethcore-io = { path = "../../util/io" }
 ethcore-miner = { path = "../../miner" }
@@ -23,9 +24,13 @@ ethkey = { path = "../../accounts/ethkey" }
 fetch = { path = "../../util/fetch" }
 futures = "0.1"
 parity-util-mem = "0.2.0"
+hash-db = "0.15.0"
 keccak-hash = "0.2.0"
+keccak-hasher = { path = "../../util/keccak-hasher" }
+kvdb = "0.1"
 log = "0.4"
 machine = { path = "../machine" }
+journaldb = { path = "../../util/journaldb" }
 parity-bytes = "0.1"
 parity-crypto = "0.4.0"
 parking_lot = "0.8"
