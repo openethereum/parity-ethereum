@@ -75,9 +75,11 @@ impl<C> State<C> {
 
 impl<C: NonceClient> txpool::Ready<VerifiedTransaction> for State<C> {
 	fn is_ready(&mut self, tx: &VerifiedTransaction) -> txpool::Readiness {
+		trace!(target: "txqueue", "Checking readiness for {}::State", tx.hash());
 		// Check max nonce
 		match self.max_nonce {
 			Some(nonce) if tx.transaction.nonce > nonce => {
+				trace!(target: "txqueue", "[{}::State] Ready? Nonce too high", tx.hash());
 				return txpool::Readiness::Future;
 			},
 			_ => {},
@@ -90,11 +92,21 @@ impl<C: NonceClient> txpool::Ready<VerifiedTransaction> for State<C> {
 		match tx.transaction.nonce.cmp(nonce) {
 			// Before marking as future check for stale ids
 			cmp::Ordering::Greater => match self.stale_id {
-				Some(id) if tx.insertion_id() < id => txpool::Readiness::Stale,
-				_ => txpool::Readiness::Future,
+				Some(id) if tx.insertion_id() < id => {
+					trace!(target: "txqueue", "[{}::State] Ready? Nonce higher but stale", tx.hash());
+					txpool::Readiness::Stale
+				},
+				_ => {
+					trace!(target: "txqueue", "[{}::State] Ready? Nonce higher", tx.hash());
+					txpool::Readiness::Future
+				},
 			},
-			cmp::Ordering::Less => txpool::Readiness::Stale,
+			cmp::Ordering::Less => {
+				trace!(target: "txqueue", "[{}::State] Ready? Nonce too low", tx.hash());
+				txpool::Readiness::Stale
+			},
 			cmp::Ordering::Equal => {
+				trace!(target: "txqueue", "[{}::State] Ready? Nonce ==", tx.hash());
 				*nonce = nonce.saturating_add(U256::from(1));
 				txpool::Readiness::Ready
 			},
@@ -121,9 +133,16 @@ impl Condition {
 
 impl txpool::Ready<VerifiedTransaction> for Condition {
 	fn is_ready(&mut self, tx: &VerifiedTransaction) -> txpool::Readiness {
+		trace!(target: "txqueue", "Checking readiness for {}::Condition", tx.hash());
 		match tx.transaction.condition {
-			Some(transaction::Condition::Number(block)) if block > self.block_number => txpool::Readiness::Future,
-			Some(transaction::Condition::Timestamp(time)) if time > self.now => txpool::Readiness::Future,
+			Some(transaction::Condition::Number(block)) if block > self.block_number => {
+				trace!(target: "txqueue", "[{}::Condition] Ready? Block number too high", tx.hash());
+				txpool::Readiness::Future
+			},
+			Some(transaction::Condition::Timestamp(time)) if time > self.now => {
+				trace!(target: "txqueue", "[{}::Condition] Ready? Time too high", tx.hash());
+				txpool::Readiness::Future
+			},
 			_ => txpool::Readiness::Ready,
 		}
 	}

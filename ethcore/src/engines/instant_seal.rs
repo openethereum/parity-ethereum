@@ -102,10 +102,10 @@ impl Engine for InstantSeal {
 		self.machine.params()
 	}
 
-	/// Always choose the newest block
-	fn fork_choice(&self, _new_total_difficulty: U256, _best_total_difficulty: U256) -> ForkChoice {
-		ForkChoice::New
-	}
+	// /// Always choose the newest block
+	// fn fork_choice(&self, _new_total_difficulty: U256, _best_total_difficulty: U256) -> ForkChoice {
+	// 	ForkChoice::New
+	// }
 }
 
 
