@@ -29,11 +29,12 @@ use io::*;
 use engine::Engine;
 use client::ClientIoMessage;
 use len_caching_lock::LenCachingMutex;
-use types::errors::{BlockError, EthcoreError as Error, ImportError};
+use types::{
+	errors::{BlockError, EthcoreError as Error, ImportError},
+	verification::VerificationQueueInfo as QueueInfo,
+};
 
 use self::kind::{BlockLike, Kind};
-
-pub use types::verification::VerificationQueueInfo as QueueInfo;
 
 pub mod kind;
 
