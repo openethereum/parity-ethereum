@@ -125,8 +125,8 @@ ci-skip-tests = []
 # Run memory/cpu heavy tests.
 test-heavy = []
 # Compile test helpers
-# todo[dvdplm] do we need this one too? "basic-authority/test-helpers"
-test-helpers = ["tempdir", "kvdb-rocksdb", "blooms-db", "ethash", "ethjson", "ethkey", "macros", "pod"]
+# note[dvdplm]: "basic-authority/test-helpers" is needed so that `generate_dummy_client_with_spec` works
+test-helpers = ["tempdir", "kvdb-rocksdb", "blooms-db", "ethash", "ethjson", "ethkey", "macros", "pod", "basic-authority/test-helpers"]
 
 [[bench]]
 name = "builtin"
