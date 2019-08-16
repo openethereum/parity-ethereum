@@ -37,7 +37,7 @@ use types::ids::BlockId;
 use types::transaction::{Transaction, Action};
 use ethcore::{
 	CreateContractAddress,
-	test_helpers::{generate_dummy_client, push_block_with_transactions},
+	test_helpers::{generate_dummy_client, push_block_with_transactions, new_db},
 	miner::Miner,
 	spec,
 };
