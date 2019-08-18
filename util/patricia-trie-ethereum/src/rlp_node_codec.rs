@@ -109,7 +109,7 @@ impl NodeCodec<KeccakHasher> for RlpNodeCodec<KeccakHasher> {
 					if value.is_empty() {
 						nodes[i] = None;
 					} else {
-						if value.is_data() && value.size() == KeccakHasher::LENGTH {
+						if value.is_data() && value.size() <= KeccakHasher::LENGTH {
 							nodes[i] = Some(value.data()?);
 						} else {
 							return Err(DecoderError::Custom("Rlp is not valid."));
