@@ -482,11 +482,6 @@ impl Service {
 	/// calling this while a restoration is in progress or vice versa
 	/// will lead to a race condition where the first one to finish will
 	/// have their produced snapshot overwritten.
-	// todo[dvdplm]:
-	//  need to move client.take_snapshot()
-	//  need chain_info()
-	//  need pruning_history()
-
 	pub fn take_snapshot<C>(&self, client: &C, num: u64) -> Result<(), Error>
 	where
 		C: ChainInfo + SnapshotClient

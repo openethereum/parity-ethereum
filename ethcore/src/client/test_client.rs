@@ -594,7 +594,7 @@ impl ImportBlock for TestBlockChainClient {
 	}
 
 	fn import_verified_blocks(&self) -> usize {
-		unimplemented!()
+		unimplemented!("TestClient does not implement import_verified_blocks()")
 	}
 }
 

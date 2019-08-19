@@ -36,13 +36,6 @@ use miner::pool_client::{PoolClient, CachedNonceClient, NonceCache};
 use miner;
 use parking_lot::{Mutex, RwLock};
 use rayon::prelude::*;
-use types::transaction::{
-	self,
-	Action,
-	UnverifiedTransaction,
-	SignedTransaction,
-	PendingTransaction,
-};
 use types::{
 	BlockNumber,
 	ids::TransactionId,
@@ -52,20 +45,20 @@ use types::{
 	engines::{Seal, SealingState},
 	errors::{EthcoreError as Error, ExecutionError},
 	receipt::RichReceipt,
+	transaction::{
+		self,
+		Action,
+		UnverifiedTransaction,
+		SignedTransaction,
+		PendingTransaction,
+	},
 };
 use using_queue::{UsingQueue, GetAction};
 
 use block::{ClosedBlock, SealedBlock};
-use client::{
-	BlockProducer, SealedBlockImporter, /*Client todo[dvdplm] this is the opposite of what we want*/
-};
-use client_traits::{
-	BlockChain, ChainInfo, Nonce, TransactionInfo, ClientIoMessage,
-};
-use engine::{
-	Engine,
-	signer::EngineSigner
-};
+use client::{BlockProducer, SealedBlockImporter};
+use client_traits::{BlockChain, ChainInfo, Nonce, TransactionInfo, ClientIoMessage};
+use engine::{Engine, signer::EngineSigner};
 use machine::executive::contract_address;
 use spec::Spec;
 use account_state::State;

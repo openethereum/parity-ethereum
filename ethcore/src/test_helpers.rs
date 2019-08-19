@@ -186,7 +186,6 @@ pub fn generate_dummy_client_with_spec_and_data<F>(test_spec: F, block_number: u
 		db = b.drain().state.drop().1;
 	}
 	client.flush_queue();
-	client.import_verified_blocks();
 	client
 }
 
@@ -239,7 +238,6 @@ pub fn push_block_with_transactions(client: &Arc<Client>, transactions: &[Signed
 	}
 
 	client.flush_queue();
-	client.import_verified_blocks();
 }
 
 /// Creates dummy client (not test client) with corresponding blocks
@@ -261,7 +259,6 @@ pub fn get_test_client_with_blocks(blocks: Vec<Bytes>) -> Arc<Client> {
 		}
 	}
 	client.flush_queue();
-	client.import_verified_blocks();
 	client
 }
 

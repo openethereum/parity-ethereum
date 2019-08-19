@@ -35,8 +35,6 @@ use len_caching_lock::LenCachingMutex;
 use log::{debug, trace};
 use parity_util_mem::{MallocSizeOf, MallocSizeOfExt};
 use parking_lot::{Condvar, Mutex, RwLock};
-//use client::{ClientIoMessage, Client /* todo[dvdplm] opposite of what we want*/};
-//use client::{Client /* todo[dvdplm] opposite of what we want*/};
 
 use self::kind::{BlockLike, Kind};
 
@@ -74,7 +72,6 @@ impl Default for Config {
 	}
 }
 
-// todo[dvdplm] move to common_types?
 /// Verifier settings.
 #[derive(Debug, PartialEq, Clone)]
 pub struct VerifierSettings {
@@ -741,7 +738,7 @@ mod tests {
 	use ethcore_io::*;
 	use super::{BlockQueue, Config, State};
 	use ethcore::test_helpers::{get_good_dummy_block_seq, get_good_dummy_block};
-	use ethcore::client::Client; // todo[dvdplm] TestClient?
+	use ethcore::client::Client;
 	use parity_bytes::Bytes;
 	use common_types::{
 		errors::{EthcoreError, ImportError},

@@ -58,7 +58,6 @@ fn imports_from_empty() {
 		Arc::new(Miner::new_for_tests(&spec, None)),
 		IoChannel::disconnected(),
 	).unwrap();
-	client.import_verified_blocks();
 	client.flush_queue();
 }
 
@@ -105,7 +104,6 @@ fn imports_good_block() {
 		panic!("error importing block being good by definition");
 	}
 	client.flush_queue();
-	client.import_verified_blocks();
 
 	let block = client.block_header(BlockId::Number(1)).unwrap();
 	assert!(!block.into_inner().is_empty());

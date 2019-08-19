@@ -226,7 +226,6 @@ fn keep_ancient_blocks() {
 		client2.import_block(Unverified::from_rlp(block.into_inner()).unwrap()).unwrap();
 	}
 
-	client2.import_verified_blocks();
 	client2.flush_queue();
 
 	// Restore the Snapshot

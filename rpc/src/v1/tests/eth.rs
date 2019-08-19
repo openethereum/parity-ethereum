@@ -98,7 +98,6 @@ impl EthTester {
 			if let Ok(block) = Unverified::from_rlp(b) {
 				let _ = tester.client.import_block(block);
 				tester.client.flush_queue();
-				tester.client.import_verified_blocks();
 			}
 		}
 
