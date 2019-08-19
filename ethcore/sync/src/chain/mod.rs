@@ -1582,7 +1582,7 @@ pub mod tests {
 		// Add some balance to clients and reset nonces
 		for h in &[good_blocks[0], retracted_blocks[0]] {
 			let block = client.block(BlockId::Hash(*h)).unwrap();
-			let sender = sender(&block.transactions()[0]);;
+			let sender = sender(&block.transactions()[0]);
 			client.set_balance(sender, U256::from(10_000_000_000_000_000_000u64));
 			client.set_nonce(sender, U256::from(0));
 		}

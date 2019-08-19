@@ -178,6 +178,7 @@ pub trait ImportBlock {
 	/// Import a block into the blockchain.
 	fn import_block(&self, block: Unverified) -> EthcoreResult<H256>;
 
+	// todo[dvdplm]: probably a bad place for this method
 	/// Triggered by a message from a block queue when the block is ready for insertion
 	fn import_verified_blocks(&self) -> usize;
 }
@@ -196,7 +197,7 @@ pub trait IoClient: Sync + Send {
 
 pub trait Tick {
 	/// Tick the client
-	fn tick(&self, prevent_sleep: bool) {}
+	fn tick(&self, _prevent_sleep: bool) {}
 }
 
 /// Provides recently seen bad blocks.

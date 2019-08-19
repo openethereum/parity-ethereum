@@ -18,7 +18,6 @@ use std::fmt;
 use bytes::Bytes;
 use ethereum_types::H256;
 use common_types::snapshot::ManifestData;
-use crate::BlockChainClient;
 
 /// Message type for external and internal events
 #[derive(Debug)]

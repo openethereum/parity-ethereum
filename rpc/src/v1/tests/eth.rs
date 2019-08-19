@@ -24,7 +24,7 @@ use ethcore::client::{Client, ClientConfig};
 use ethcore::miner::Miner;
 use spec::{Genesis, Spec, self};
 use ethcore::test_helpers;
-use ethcore::verification::VerifierType;
+use verification::VerifierType;
 use ethereum_types::{Address, H256, U256};
 use ethjson::blockchain::BlockChain;
 use ethjson::spec::ForkSpec;

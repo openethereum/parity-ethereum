@@ -68,6 +68,7 @@ spec = { path = "../ethcore/spec" }
 stats = { path = "../util/stats" }
 trace = { path = "../ethcore/trace" }
 vm = { path = "../ethcore/vm" }
+verification = { path = "../ethcore/verification" }
 
 [dev-dependencies]
 client-traits = { path = "../ethcore/client-traits" }

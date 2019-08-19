@@ -77,7 +77,7 @@ fn restored_is_equivalent() {
 	};
 
 	let service = Service::new(service_params).unwrap();
-	service.take_snapshot(&client, NUM_BLOCKS as u64).unwrap();
+	service.take_snapshot(&*client, NUM_BLOCKS as u64).unwrap();
 
 	let manifest = service.manifest().unwrap();
 
@@ -304,7 +304,7 @@ fn recover_aborted_recovery() {
 	};
 
 	let service = Service::new(service_params).unwrap();
-	service.take_snapshot(&client, NUM_BLOCKS as u64).unwrap();
+	service.take_snapshot(&*client, NUM_BLOCKS as u64).unwrap();
 
 	let manifest = service.manifest().unwrap();
 	service.init_restore(manifest.clone(), true).unwrap();

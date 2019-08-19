@@ -22,9 +22,9 @@ use bytes::Bytes;
 use network::{self, PeerId, ProtocolId, PacketId, SessionInfo};
 use network::client_version::ClientVersion;
 use tests::snapshot::*;
-use client_traits::BlockChainClient;
+use client_traits::{BlockChainClient, ClientIoMessage};
 use ethcore::client::{TestBlockChainClient, Client as EthcoreClient,
-	ClientConfig, ChainNotify, NewBlocks, ChainMessageType, ClientIoMessage};
+	ClientConfig, ChainNotify, NewBlocks, ChainMessageType};
 use ethcore::snapshot::SnapshotService;
 use spec::{self, Spec};
 use ethcore::miner::Miner;
@@ -526,8 +526,8 @@ impl TestIoHandler {
 	}
 }
 
-impl IoHandler<ClientIoMessage> for TestIoHandler {
-	fn message(&self, _io: &IoContext<ClientIoMessage>, net_message: &ClientIoMessage) {
+impl IoHandler<ClientIoMessage<EthcoreClient>> for TestIoHandler {
+	fn message(&self, _io: &IoContext<ClientIoMessage<EthcoreClient>>, net_message: &ClientIoMessage<EthcoreClient>) {
 		match *net_message {
 			ClientIoMessage::Execute(ref exec) => {
 				*self.private_tx_queued.lock() += 1;

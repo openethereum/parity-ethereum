@@ -19,11 +19,11 @@ use hash::keccak;
 use io::{IoHandler, IoChannel};
 use types::transaction::{Transaction, Action};
 use types::ids::BlockId;
-use client_traits::BlockChainClient;
+use client_traits::{BlockChainClient, ClientIoMessage};
 use engine::signer;
 use ethcore::{
+	client::Client,
 	CreateContractAddress,
-	client::ClientIoMessage,
 	miner::{self, MinerService},
 	test_helpers::push_block_with_transactions,
 };
@@ -52,8 +52,8 @@ fn send_private_transaction() {
 	let mut net = TestNet::with_spec(2, SyncConfig::default(), seal_spec);
 	let client0 = net.peer(0).chain.clone();
 	let client1 = net.peer(1).chain.clone();
-	let io_handler0: Arc<dyn IoHandler<ClientIoMessage>> = Arc::new(TestIoHandler::new(net.peer(0).chain.clone()));
-	let io_handler1: Arc<dyn IoHandler<ClientIoMessage>> = Arc::new(TestIoHandler::new(net.peer(1).chain.clone()));
+	let io_handler0: Arc<dyn IoHandler<ClientIoMessage<Client>>> = Arc::new(TestIoHandler::new(net.peer(0).chain.clone()));
+	let io_handler1: Arc<dyn IoHandler<ClientIoMessage<Client>>> = Arc::new(TestIoHandler::new(net.peer(1).chain.clone()));
 
 	net.peer(0).miner.set_author(miner::Author::Sealer(signer::from_keypair(s0.clone())));
 	net.peer(1).miner.set_author(miner::Author::Sealer(signer::from_keypair(s1.clone())));
@@ -65,7 +65,7 @@ fn send_private_transaction() {
 	let (address, _) = contract_address(CreateContractAddress::FromSenderAndNonce, &s0.address(), &0.into(), &[]);
 	let chain_id = client0.signing_chain_id();
 
-	// Exhange statuses
+	// Exchange statuses
 	net.sync();
 
 	// Setup private providers
