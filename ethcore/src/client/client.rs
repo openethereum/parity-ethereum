@@ -60,7 +60,7 @@ use machine::{
 };
 use trie_vm_factories::{Factories, VmFactory};
 use miner::{Miner, MinerService};
-use snapshot::{self, io as snapshot_io};
+use snapshot;
 use spec::Spec;
 use account_state::State;
 use executive_state;

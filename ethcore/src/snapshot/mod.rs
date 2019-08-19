@@ -27,7 +27,6 @@ use hash::{keccak, KECCAK_NULL_RLP, KECCAK_EMPTY};
 
 use account_db::{AccountDB, AccountDBMut};
 use blockchain::{BlockChain, BlockProvider};
-use client_traits::{SnapshotClient, DatabaseRestore};
 use types::{
 	ids::BlockId,
 	header::Header,
