@@ -99,9 +99,9 @@ use types::{
 	engines::machine::Executed,
 };
 use ethcore::client::{
-	Client, ChainNotify, NewBlocks, ChainMessageType, ClientIoMessage, Call
+	Client, ChainNotify, NewBlocks, ChainMessageType, Call
 };
-use client_traits::BlockInfo;
+use client_traits::{BlockInfo, ClientIoMessage};
 use ethcore::miner::{self, Miner, MinerService, pool_client::NonceCache};
 use state_db::StateDB;
 use account_state::State;
@@ -195,7 +195,7 @@ pub struct Provider {
 	client: Arc<Client>,
 	miner: Arc<Miner>,
 	accounts: Arc<Signer>,
-	channel: IoChannel<ClientIoMessage>,
+	channel: IoChannel<ClientIoMessage<Client>>,
 	keys_provider: Arc<KeyProvider>,
 	logging: Option<Logging>,
 }
@@ -216,7 +216,7 @@ impl Provider {
 		accounts: Arc<Signer>,
 		encryptor: Box<Encryptor>,
 		config: ProviderConfig,
-		channel: IoChannel<ClientIoMessage>,
+		channel: IoChannel<ClientIoMessage<Client>>,
 		keys_provider: Arc<KeyProvider>,
 	) -> Self {
 		keys_provider.update_acl_contract();
@@ -445,7 +445,7 @@ impl Provider {
 			}
 		}
 		Ok(())
- 	}
+	}
 
 	fn contract_address_from_transaction(transaction: &SignedTransaction) -> Result<Address, Error> {
 		match transaction.action {

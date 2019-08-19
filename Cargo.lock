@@ -1088,6 +1088,7 @@ dependencies = [
  "triehash-ethereum 0.2.0",
  "unexpected 0.1.0",
  "using_queue 0.1.0",
+ "verification 0.1.0",
  "vm 0.1.0",
 ]
 
@@ -1244,6 +1245,7 @@ dependencies = [
  "tempdir 0.3.7 (registry+https://github.com/rust-lang/crates.io-index)",
  "trie-db 0.15.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "triehash-ethereum 0.2.0",
+ "verification 0.1.0",
  "vm 0.1.0",
 ]
 
@@ -1445,6 +1447,7 @@ name = "ethcore-service"
 version = "0.1.0"
 dependencies = [
  "ansi_term 0.11.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "client-traits 0.1.0",
  "common-types 0.1.0",
  "ethcore 1.12.0",
  "ethcore-blockchain 0.1.0",
@@ -3015,6 +3018,7 @@ dependencies = [
  "term_size 0.3.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "textwrap 0.9.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "toml 0.4.10 (registry+https://github.com/rust-lang/crates.io-index)",
+ "verification 0.1.0",
  "winapi 0.3.6 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
@@ -4939,6 +4943,35 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 dependencies = [
  "bitflags 0.7.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "time 0.1.40 (registry+https://github.com/rust-lang/crates.io-index)",
+]
+
+[[package]]
+name = "verification"
+version = "0.1.0"
+dependencies = [
+ "client-traits 0.1.0",
+ "common-types 0.1.0",
+ "engine 0.1.0",
+ "ethcore 1.12.0",
+ "ethcore-blockchain 0.1.0",
+ "ethcore-call-contract 0.1.0",
+ "ethcore-io 1.12.0",
+ "ethereum-types 0.6.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "ethkey 0.3.0",
+ "keccak-hash 0.2.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "len-caching-lock 0.1.1",
+ "log 0.4.8 (registry+https://github.com/rust-lang/crates.io-index)",
+ "machine 0.1.0",
+ "null-engine 0.1.0",
+ "num_cpus 1.10.1 (registry+https://github.com/rust-lang/crates.io-index)",
+ "parity-bytes 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "parity-util-mem 0.2.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "parking_lot 0.8.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "rlp 0.4.2 (registry+https://github.com/rust-lang/crates.io-index)",
+ "spec 0.1.0",
+ "time-utils 0.1.0",
+ "triehash-ethereum 0.2.0",
+ "unexpected 0.1.0",
 ]
 
 [[package]]

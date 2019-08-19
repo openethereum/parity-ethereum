@@ -104,6 +104,7 @@ extern crate trace;
 extern crate triehash_ethereum as triehash;
 extern crate unexpected;
 extern crate using_queue;
+extern crate verification;
 extern crate vm;
 
 #[cfg(test)]
@@ -162,7 +163,6 @@ pub mod block;
 pub mod client;
 pub mod miner;
 pub mod snapshot;
-pub mod verification;
 
 #[cfg(test)]
 mod tests;

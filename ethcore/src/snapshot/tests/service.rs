@@ -22,14 +22,14 @@ use std::sync::Arc;
 use tempdir::TempDir;
 use blockchain::BlockProvider;
 use client::{Client, ClientConfig};
-use client_traits::{BlockInfo, ImportBlock};
+use client_traits::{BlockInfo, ImportBlock, SnapshotWriter};
 use types::{
 	ids::BlockId,
 	snapshot::Progress,
 	verification::Unverified,
 	snapshot::{ManifestData, RestorationStatus},
 };
-use snapshot::io::{PackedReader, PackedWriter, SnapshotReader, SnapshotWriter};
+use snapshot::io::{PackedReader, PackedWriter, SnapshotReader};
 use snapshot::service::{Service, ServiceParams};
 use snapshot::{chunk_state, chunk_secondary, SnapshotService};
 use spec;

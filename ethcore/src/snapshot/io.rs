@@ -26,6 +26,7 @@ use std::fs::{self, File};
 use std::path::{Path, PathBuf};
 
 use bytes::Bytes;
+use client_traits::SnapshotWriter;
 use ethereum_types::H256;
 use rlp::{RlpStream, Rlp};
 use types::{
@@ -35,20 +36,6 @@ use types::{
 
 const SNAPSHOT_VERSION: u64 = 2;
 
-/// Something which can write snapshots.
-/// Writing the same chunk multiple times will lead to implementation-defined
-/// behavior, and is not advised.
-pub trait SnapshotWriter {
-	/// Write a compressed state chunk.
-	fn write_state_chunk(&mut self, hash: H256, chunk: &[u8]) -> io::Result<()>;
-
-	/// Write a compressed block chunk.
-	fn write_block_chunk(&mut self, hash: H256, chunk: &[u8]) -> io::Result<()>;
-
-	/// Complete writing. The manifest's chunk lists must be consistent
-	/// with the chunks written.
-	fn finish(self, manifest: ManifestData) -> io::Result<()> where Self: Sized;
-}
 
 // (hash, len, offset)
 #[derive(RlpEncodable, RlpDecodable)]

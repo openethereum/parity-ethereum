@@ -24,9 +24,10 @@ use types::{
 	basic_account::BasicAccount,
 	errors::EthcoreError as Error,
 };
+use client_traits::SnapshotWriter;
 use snapshot::account;
 use snapshot::{chunk_state, Error as SnapshotError, Progress, StateRebuilder, SNAPSHOT_SUBPARTS};
-use snapshot::io::{PackedReader, PackedWriter, SnapshotReader, SnapshotWriter};
+use snapshot::io::{PackedReader, PackedWriter, SnapshotReader};
 use super::helpers::StateProducer;
 use rand::SeedableRng;
 use rand_xorshift::XorShiftRng;

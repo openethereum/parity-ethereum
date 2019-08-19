@@ -32,7 +32,10 @@ use types::{
 };
 
 use client::{Client, ClientConfig, PrepareOpenBlock, ImportSealedBlock};
-use client_traits::{BlockInfo, BlockChainClient, BlockChainReset, ChainInfo, ImportBlock};
+use client_traits::{
+	BlockInfo, BlockChainClient, BlockChainReset, ChainInfo,
+	ImportBlock, IoClient,
+};
 use spec;
 use machine::executive::{Executive, TransactOptions};
 use miner::{Miner, PendingOrdering, MinerService};

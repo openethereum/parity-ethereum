@@ -57,10 +57,10 @@ use using_queue::{UsingQueue, GetAction};
 
 use block::{ClosedBlock, SealedBlock};
 use client::{
-	BlockProducer, SealedBlockImporter, ClientIoMessage,
+	BlockProducer, SealedBlockImporter, /*Client todo[dvdplm] this is the opposite of what we want*/
 };
 use client_traits::{
-	BlockChain, ChainInfo, Nonce, TransactionInfo,
+	BlockChain, ChainInfo, Nonce, TransactionInfo, ClientIoMessage,
 };
 use engine::{
 	Engine,
@@ -262,7 +262,7 @@ pub struct Miner {
 	transaction_queue: Arc<TransactionQueue>,
 	engine: Arc<dyn Engine>,
 	accounts: Arc<dyn LocalAccounts>,
-	io_channel: RwLock<Option<IoChannel<ClientIoMessage>>>,
+	io_channel: RwLock<Option<IoChannel<ClientIoMessage<::client::Client>>>>,
 	service_transaction_checker: Option<ServiceTransactionChecker>,
 }
 
@@ -346,7 +346,7 @@ impl Miner {
 	}
 
 	/// Sets `IoChannel`
-	pub fn set_io_channel(&self, io_channel: IoChannel<ClientIoMessage>) {
+	pub fn set_io_channel(&self, io_channel: IoChannel<ClientIoMessage<::client::Client>>) {
 		*self.io_channel.write() = Some(io_channel);
 	}
 
@@ -1437,7 +1437,7 @@ impl miner::MinerService for Miner {
 					queue.cull(client);
 				};
 
-				if let Err(e) = channel.send(ClientIoMessage::execute(cull)) {
+				if let Err(e) = channel.send(ClientIoMessage::<::client::Client>::execute(cull)) {
 					warn!(target: "miner", "Error queueing cull: {:?}", e);
 				}
 			} else {

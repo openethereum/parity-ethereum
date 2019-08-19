@@ -30,7 +30,6 @@ use client_traits::{BlockInfo, BlockChainReset, Nonce, Balance, BlockChainClient
 use ethcore::{
 	client::{DatabaseCompactionProfile, VMType},
 	miner::Miner,
-	verification::queue::VerifierSettings,
 };
 use ethcore_service::ClientService;
 use cache::CacheConfig;
@@ -48,6 +47,7 @@ use types::{
 	client_types::Mode,
 	verification::Unverified,
 };
+use verification::queue::VerifierSettings;
 
 #[derive(Debug, PartialEq)]
 pub enum DataFormat {
@@ -234,7 +234,7 @@ fn execute_import_light(cmd: ImportBlockchain) -> Result<(), String> {
 						 &cmd.cache_config,
 						 &cmd.compaction).map_err(|e| format!("Failed to open database: {:?}", e))?;
 
-	// TODO: could epoch signals be avilable at the end of the file?
+	// TODO: could epoch signals be available at the end of the file?
 	let fetch = ::light::client::fetch::unavailable();
 	let service = LightClientService::start(config, &spec, fetch, db, cache)
 		.map_err(|e| format!("Failed to start client: {}", e))?;

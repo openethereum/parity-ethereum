@@ -16,13 +16,13 @@
 
 use std::fmt;
 use bytes::Bytes;
-use client::Client;
 use ethereum_types::H256;
-use types::snapshot::ManifestData;
+use common_types::snapshot::ManifestData;
+use crate::BlockChainClient;
 
 /// Message type for external and internal events
 #[derive(Debug)]
-pub enum ClientIoMessage {
+pub enum ClientIoMessage<C> {
 	/// Best Block Hash in chain has been changed
 	NewChainHead,
 	/// A block is ready
@@ -36,20 +36,22 @@ pub enum ClientIoMessage {
 	/// Take a snapshot for the block with given number.
 	TakeSnapshot(u64),
 	/// Execute wrapped closure
-	Execute(Callback),
+	Execute(Callback<C>),
 }
 
-impl ClientIoMessage {
+//impl<C: BlockChainClient> ClientIoMessage<C> {
+impl<C> ClientIoMessage<C> {
 	/// Create new `ClientIoMessage` that executes given procedure.
-	pub fn execute<F: Fn(&Client) + Send + Sync + 'static>(fun: F) -> Self {
+	pub fn execute<F: Fn(&C) + Send + Sync + 'static>(fun: F) -> Self {
 		ClientIoMessage::Execute(Callback(Box::new(fun)))
 	}
 }
 
 /// A function to invoke in the client thread.
-pub struct Callback(pub Box<dyn Fn(&Client) + Send + Sync>);
+//pub struct Callback(pub Box<dyn Fn(&Client) + Send + Sync>);
+pub struct Callback<C>(pub Box<dyn Fn(&C) + Send + Sync>); // NonceClient + Clone + BlockInfo + CallContract,
 
-impl fmt::Debug for Callback {
+impl<C> fmt::Debug for Callback<C> {
 	fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
 		write!(fmt, "<callback>")
 	}

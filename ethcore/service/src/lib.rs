@@ -16,6 +16,7 @@
 
 extern crate ansi_term;
 extern crate common_types;
+extern crate client_traits;
 extern crate ethcore;
 extern crate ethcore_blockchain as blockchain;
 extern crate ethcore_io as io;

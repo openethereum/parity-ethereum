@@ -26,7 +26,7 @@ use io::{IoContext, TimerToken, IoHandler, IoService, IoError};
 
 use sync::PrivateTxHandler;
 use blockchain::{BlockChainDB, BlockChainDBHandler};
-use ethcore::client::{Client, ClientConfig, ChainNotify, ClientIoMessage};
+use ethcore::client::{Client, ClientConfig, ChainNotify};
 use ethcore::miner::Miner;
 use ethcore::snapshot::service::{Service as SnapshotService, ServiceParams as SnapServiceParams};
 use ethcore::snapshot::{SnapshotService as _SnapshotService};
@@ -35,6 +35,7 @@ use common_types::{
 	errors::{EthcoreError, SnapshotError},
 	snapshot::RestorationStatus,
 };
+use client_traits::{IoClient, ImportBlock, ClientIoMessage, SnapshotClient, Tick};
 
 
 use ethcore_private_tx::{self, Importer, Signer};
@@ -80,7 +81,7 @@ impl PrivateTxHandler for PrivateTxService {
 
 /// Client service setup. Creates and registers client and network services with the IO subsystem.
 pub struct ClientService {
-	io_service: Arc<IoService<ClientIoMessage>>,
+	io_service: Arc<IoService<ClientIoMessage<Client>>>,
 	client: Arc<Client>,
 	snapshot: Arc<SnapshotService>,
 	private_tx: Arc<PrivateTxService>,
@@ -103,7 +104,7 @@ impl ClientService {
 		private_encryptor_conf: ethcore_private_tx::EncryptorConfig,
 		) -> Result<ClientService, EthcoreError>
 	{
-		let io_service = IoService::<ClientIoMessage>::start()?;
+		let io_service = IoService::<ClientIoMessage<Client>>::start()?;
 
 		info!("Configured for {} using {} engine", Colour::White.bold().paint(spec.name.clone()), Colour::Yellow.bold().paint(spec.engine.name()));
 
@@ -153,15 +154,15 @@ impl ClientService {
 
 		Ok(ClientService {
 			io_service: Arc::new(io_service),
-			client: client,
-			snapshot: snapshot,
+			client,
+			snapshot,
 			private_tx,
 			database: blockchain_db,
 		})
 	}
 
 	/// Get general IO interface
-	pub fn register_io_handler(&self, handler: Arc<IoHandler<ClientIoMessage> + Send>) -> Result<(), IoError> {
+	pub fn register_io_handler(&self, handler: Arc<IoHandler<ClientIoMessage<Client>> + Send>) -> Result<(), IoError> {
 		self.io_service.register_handler(handler)
 	}
 
@@ -181,7 +182,7 @@ impl ClientService {
 	}
 
 	/// Get network service component
-	pub fn io(&self) -> Arc<IoService<ClientIoMessage>> {
+	pub fn io(&self) -> Arc<IoService<ClientIoMessage<Client>>> {
 		self.io_service.clone()
 	}
 
@@ -201,8 +202,8 @@ impl ClientService {
 }
 
 /// IO interface for the Client handler
-struct ClientIoHandler {
-	client: Arc<Client>,
+struct ClientIoHandler<C> {
+	client: Arc<C>,
 	snapshot: Arc<SnapshotService>,
 }
 
@@ -212,13 +213,13 @@ const SNAPSHOT_TICK_TIMER: TimerToken = 1;
 const CLIENT_TICK: Duration = Duration::from_secs(5);
 const SNAPSHOT_TICK: Duration = Duration::from_secs(10);
 
-impl IoHandler<ClientIoMessage> for ClientIoHandler {
-	fn initialize(&self, io: &IoContext<ClientIoMessage>) {
+impl<C: IoClient + ImportBlock + SnapshotClient + Tick + 'static> IoHandler<ClientIoMessage<C>> for ClientIoHandler<C> {
+	fn initialize(&self, io: &IoContext<ClientIoMessage<C>>) {
 		io.register_timer(CLIENT_TICK_TIMER, CLIENT_TICK).expect("Error registering client timer");
 		io.register_timer(SNAPSHOT_TICK_TIMER, SNAPSHOT_TICK).expect("Error registering snapshot timer");
 	}
 
-	fn timeout(&self, _io: &IoContext<ClientIoMessage>, timer: TimerToken) {
+	fn timeout(&self, _io: &IoContext<ClientIoMessage<C>>, timer: TimerToken) {
 		trace_time!("service::read");
 		match timer {
 			CLIENT_TICK_TIMER => {
@@ -231,7 +232,7 @@ impl IoHandler<ClientIoMessage> for ClientIoHandler {
 		}
 	}
 
-	fn message(&self, _io: &IoContext<ClientIoMessage>, net_message: &ClientIoMessage) {
+	fn message(&self, _io: &IoContext<ClientIoMessage<C>>, net_message: &ClientIoMessage<C>) {
 		trace_time!("service::message");
 		use std::thread;
 

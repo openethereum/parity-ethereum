@@ -29,13 +29,15 @@ use super::{
 	SnapshotService,
 	Rebuilder,
 	MAX_CHUNK_SIZE,
-	io::{SnapshotReader, LooseReader, SnapshotWriter, LooseWriter},
+	// todo[dvdplm] put this back in snapshots once extracted
+//	io::{SnapshotReader, LooseReader, SnapshotWriter, LooseWriter},
+	io::{SnapshotReader, LooseReader,  LooseWriter},
 	chunker,
 };
 
 use blockchain::{BlockChain, BlockChainDB, BlockChainDBHandler};
-use client::{Client, ClientIoMessage};
-use client_traits::{BlockInfo, BlockChainClient, ChainInfo};
+use client::Client;
+use client_traits::{BlockInfo, BlockChainClient, ChainInfo, SnapshotClient, SnapshotWriter, ClientIoMessage};
 use engine::Engine;
 use hash::keccak;
 use types::{
@@ -71,12 +73,6 @@ impl Drop for Guard {
 			let _ = fs::remove_dir_all(&self.1);
 		}
 	}
-}
-
-/// External database restoration handler
-pub trait DatabaseRestore: Send + Sync {
-	/// Restart with a new backend. Takes ownership of passed database and moves it to a new location.
-	fn restore_db(&self, new_db: &str) -> Result<(), Error>;
 }
 
 /// State restoration manager.
@@ -217,10 +213,7 @@ impl Restoration {
 }
 
 /// Type alias for client io channel.
-pub type Channel = IoChannel<ClientIoMessage>;
-
-/// Trait alias for the Client Service used
-pub trait SnapshotClient: BlockChainClient + BlockInfo + DatabaseRestore {}
+pub type Channel = IoChannel<ClientIoMessage<Client>>;
 
 /// Snapshot service parameters.
 pub struct ServiceParams {
@@ -238,7 +231,8 @@ pub struct ServiceParams {
 	/// Usually "<chain hash>/snapshot"
 	pub snapshot_root: PathBuf,
 	/// A handle for database restoration.
-	pub client: Arc<dyn SnapshotClient>,
+//	pub client: Arc<dyn SnapshotClient>,
+	pub client: Arc<Client>,
 }
 
 /// `SnapshotService` implementation.
@@ -255,7 +249,8 @@ pub struct Service {
 	genesis_block: Bytes,
 	state_chunks: AtomicUsize,
 	block_chunks: AtomicUsize,
-	client: Arc<dyn SnapshotClient>,
+//	client: Arc<dyn SnapshotClient>,
+	client: Arc<Client>,
 	progress: Progress,
 	taking_snapshot: AtomicBool,
 	restoring_snapshot: AtomicBool,
@@ -487,7 +482,15 @@ impl Service {
 	/// calling this while a restoration is in progress or vice versa
 	/// will lead to a race condition where the first one to finish will
 	/// have their produced snapshot overwritten.
-	pub fn take_snapshot(&self, client: &Client, num: u64) -> Result<(), Error> {
+	// todo[dvdplm]:
+	//  need to move client.take_snapshot()
+	//  need chain_info()
+	//  need pruning_history()
+
+	pub fn take_snapshot<C>(&self, client: &C, num: u64) -> Result<(), Error>
+	where
+		C: ChainInfo + SnapshotClient
+	{
 		if self.taking_snapshot.compare_and_swap(false, true, Ordering::SeqCst) {
 			info!("Skipping snapshot at #{} as another one is currently in-progress.", num);
 			return Ok(());
@@ -693,7 +696,7 @@ impl Service {
 
 		let migrated_blocks = self.migrate_blocks()?;
 		info!(target: "snapshot", "Migrated {} ancient blocks", migrated_blocks);
-
+		use client_traits::DatabaseRestore;
 		// replace the Client's database with the new one (restart the Client).
 		self.client.restore_db(&*self.restoration_db().to_string_lossy())?;
 
@@ -909,13 +912,14 @@ impl Drop for Service {
 
 #[cfg(test)]
 mod tests {
-	use client::ClientIoMessage;
+	use client::Client;
 	use io::{IoService};
 	use spec;
 	use journaldb::Algorithm;
 	use snapshot::SnapshotService;
 	use super::*;
 	use types::snapshot::{ManifestData, RestorationStatus};
+	use client_traits::ClientIoMessage;
 	use tempdir::TempDir;
 	use test_helpers::{generate_dummy_client_with_spec_and_data, restoration_db_handler};
 
@@ -923,7 +927,7 @@ mod tests {
 	fn sends_async_messages() {
 		let gas_prices = vec![1.into(), 2.into(), 3.into(), 999.into()];
 		let client = generate_dummy_client_with_spec_and_data(spec::new_null, 400, 5, &gas_prices);
-		let service = IoService::<ClientIoMessage>::start().unwrap();
+		let service = IoService::<ClientIoMessage<Client>>::start().unwrap();
 		let spec = spec::new_test();
 
 		let tempdir = TempDir::new("").unwrap();
@@ -936,7 +940,7 @@ mod tests {
 			pruning: Algorithm::Archive,
 			channel: service.channel(),
 			snapshot_root: dir,
-			client: client,
+			client,
 		};
 
 		let service = Service::new(snapshot_params).unwrap();

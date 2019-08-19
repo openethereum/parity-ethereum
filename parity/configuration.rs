@@ -32,8 +32,8 @@ use ethkey::{Secret, Public};
 use ethcore::client::{VMType};
 use ethcore::miner::{stratum, MinerOptions};
 use ethcore::snapshot::SnapshotConfiguration;
-use ethcore::verification::queue::VerifierSettings;
 use miner::pool;
+use verification::queue::VerifierSettings;
 
 use rpc::{IpcConfiguration, HttpConfiguration, WsConfiguration};
 use parity_rpc::NetworkSettings;

@@ -26,7 +26,7 @@ use account_db::AccountDBMut;
 use types::basic_account::BasicAccount;
 use blockchain::{BlockChain, BlockChainDB};
 use client::Client;
-use client_traits::ChainInfo;
+use client_traits::{ChainInfo, SnapshotClient};
 use engine::Engine;
 use snapshot::{StateRebuilder};
 use snapshot::io::{SnapshotReader, PackedWriter, PackedReader};
