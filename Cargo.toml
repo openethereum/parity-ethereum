@@ -134,6 +134,4 @@ members = [
 	"ethcore/wasm/run",
 	"evmbin",
 	"parity-clib",
-	
-	"ethcore/verification"
 ]
