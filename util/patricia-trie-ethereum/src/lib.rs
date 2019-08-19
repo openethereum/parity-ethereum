@@ -145,3 +145,46 @@ pub type TrieFactory = trie::TrieFactory<Layout>;
 pub type TrieError = trie::TrieError<H256, DecoderError>;
 /// Convenience type alias for Keccak/Rlp flavoured trie results
 pub type Result<T> = trie::Result<T, H256, DecoderError>;
+
+#[cfg(test)]
+mod tests {
+
+	use ethereum_types::H256;
+	use crate::{TrieDB, TrieDBMut, trie::TrieMut};
+	use trie::Trie;
+
+	#[test]
+	fn test_inline_encoding_branch() {
+		let mut memdb = journaldb::new_memory_db();
+		let mut root = H256::zero();
+		{
+			let mut triedbmut = TrieDBMut::new(&mut memdb, &mut root);
+			triedbmut.insert(b"foo", b"bar").unwrap();
+			triedbmut.insert(b"fog", b"b").unwrap();
+			triedbmut.insert(b"fot", &vec![0u8;33][..]).unwrap();
+		}
+		let t = TrieDB::new(&memdb, &root).unwrap();
+		assert!(t.contains(b"foo").unwrap());
+		assert!(t.contains(b"fog").unwrap());
+		assert_eq!(t.get(b"foo").unwrap().unwrap(), b"bar".to_vec());
+		assert_eq!(t.get(b"fog").unwrap().unwrap(), b"b".to_vec());
+		assert_eq!(t.get(b"fot").unwrap().unwrap(), vec![0u8;33]);
+	}
+
+	#[test]
+	fn test_inline_encoding_extension() {
+		let mut memdb = journaldb::new_memory_db();
+		let mut root = H256::zero();
+		{
+			let mut triedbmut = TrieDBMut::new(&mut memdb, &mut root);
+			triedbmut.insert(b"foo", b"b").unwrap();
+			triedbmut.insert(b"fog", b"a").unwrap();
+		}
+		let t = TrieDB::new(&memdb, &root).unwrap();
+		assert!(t.contains(b"foo").unwrap());
+		assert!(t.contains(b"fog").unwrap());
+		assert_eq!(t.get(b"foo").unwrap().unwrap(), b"b".to_vec());
+		assert_eq!(t.get(b"fog").unwrap().unwrap(), b"a".to_vec());
+	}
+
+}

@@ -98,7 +98,14 @@ impl NodeCodec<KeccakHasher> for RlpNodeCodec<KeccakHasher> {
 				};
 				match from_encoded {
 					(slice, true) => Ok(Node::Leaf(slice, r.at(1)?.data()?)),
-					(slice, false) => Ok(Node::Extension(slice, r.at(1)?.data()?)),
+					(slice, false) => Ok(Node::Extension(slice, {
+						let value = r.at(1)?;
+						if value.is_data() && value.size() == KeccakHasher::LENGTH {
+							value.data()?
+						} else {
+							value.as_raw()
+						}
+					})),
 				}
 			},
 			// branch - first 16 are nodes, 17th is a value (or empty).
@@ -112,7 +119,7 @@ impl NodeCodec<KeccakHasher> for RlpNodeCodec<KeccakHasher> {
 						if value.is_data() && value.size() == KeccakHasher::LENGTH {
 							nodes[i] = Some(value.data()?);
 						} else {
-							return Err(DecoderError::Custom("Rlp is not valid."));
+							nodes[i] = Some(value.as_raw());
 						}
 					}
 				}
@@ -176,7 +183,9 @@ impl NodeCodec<KeccakHasher> for RlpNodeCodec<KeccakHasher> {
 		for child_ref in children {
 			match child_ref.borrow() {
 				Some(c) => match c {
-					ChildReference::Hash(h) => stream.append(h),
+					ChildReference::Hash(h) => {
+						stream.append(h)
+					},
 					ChildReference::Inline(inline_data, length) => {
 						let bytes = &AsRef::<[u8]>::as_ref(inline_data)[..*length];
 						stream.append_raw(bytes, 1)
