@@ -48,8 +48,7 @@ use bloom_journal::Bloom;
 use num_cpus;
 use types::snapshot::ManifestData;
 
-//use self::io::SnapshotWriter;
-// todo[dvdplm] put back in snapshots
+// todo[dvdplm] put back in snapshots once it's extracted
 use client_traits::SnapshotWriter;
 
 use super::state_db::StateDB;

@@ -38,7 +38,6 @@ pub enum ClientIoMessage<C> {
 	Execute(Callback<C>),
 }
 
-//impl<C: BlockChainClient> ClientIoMessage<C> {
 impl<C> ClientIoMessage<C> {
 	/// Create new `ClientIoMessage` that executes given procedure.
 	pub fn execute<F: Fn(&C) + Send + Sync + 'static>(fun: F) -> Self {
@@ -47,8 +46,7 @@ impl<C> ClientIoMessage<C> {
 }
 
 /// A function to invoke in the client thread.
-//pub struct Callback(pub Box<dyn Fn(&Client) + Send + Sync>);
-pub struct Callback<C>(pub Box<dyn Fn(&C) + Send + Sync>); // NonceClient + Clone + BlockInfo + CallContract,
+pub struct Callback<C>(pub Box<dyn Fn(&C) + Send + Sync>);
 
 impl<C> fmt::Debug for Callback<C> {
 	fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {

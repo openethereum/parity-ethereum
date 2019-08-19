@@ -22,7 +22,6 @@ mod client;
 mod config;
 #[cfg(any(test, feature = "test-helpers"))]
 mod evm_test_client;
-//mod io_message;
 #[cfg(any(test, feature = "test-helpers"))]
 mod test_client;
 
@@ -30,7 +29,6 @@ pub use self::client::Client;
 pub use self::config::{ClientConfig, DatabaseCompactionProfile, BlockChainConfig, VMType};
 #[cfg(any(test, feature = "test-helpers"))]
 pub use self::evm_test_client::{EvmTestClient, EvmTestError, TransactErr, TransactSuccess};
-//pub use self::io_message::ClientIoMessage;
 #[cfg(any(test, feature = "test-helpers"))]
 pub use self::test_client::{TestBlockChainClient, EachBlockWith, TestState};
 pub use self::chain_notify::{ChainNotify, NewBlocks, ChainRoute, ChainRouteType, ChainMessageType};

@@ -17,7 +17,6 @@
 //! Watcher for snapshot-related chain events.
 
 use parking_lot::Mutex;
-//use client::{Client, ChainNotify, NewBlocks, ClientIoMessage};
 use client::{Client, ChainNotify, NewBlocks};
 use client_traits::{BlockInfo, ClientIoMessage};
 use types::{

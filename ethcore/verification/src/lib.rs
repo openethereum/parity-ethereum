@@ -31,11 +31,6 @@ pub use self::verification::FullFamilyParams;
 pub use self::verifier::Verifier;
 pub use self::queue::{BlockQueue, Config as QueueConfig};
 
-//use self::verification::{
-//	verify_block_basic,
-//	verify_block_unordered,
-//	verify_header_params,
-//};
 use self::canon_verifier::CanonVerifier;
 use self::noop_verifier::NoopVerifier;
 

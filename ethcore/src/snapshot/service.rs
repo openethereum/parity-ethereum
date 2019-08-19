@@ -29,15 +29,17 @@ use super::{
 	SnapshotService,
 	Rebuilder,
 	MAX_CHUNK_SIZE,
-	// todo[dvdplm] put this back in snapshots once extracted
-//	io::{SnapshotReader, LooseReader, SnapshotWriter, LooseWriter},
 	io::{SnapshotReader, LooseReader,  LooseWriter},
 	chunker,
 };
 
 use blockchain::{BlockChain, BlockChainDB, BlockChainDBHandler};
 use client::Client;
-use client_traits::{BlockInfo, BlockChainClient, ChainInfo, SnapshotClient, SnapshotWriter, ClientIoMessage};
+// todo[dvdplm] put SnapshotWriter back in snapshots once extracted
+use client_traits::{
+	BlockInfo, BlockChainClient, ChainInfo,
+	SnapshotClient, SnapshotWriter, DatabaseRestore, ClientIoMessage
+};
 use engine::Engine;
 use hash::keccak;
 use types::{
@@ -231,7 +233,6 @@ pub struct ServiceParams {
 	/// Usually "<chain hash>/snapshot"
 	pub snapshot_root: PathBuf,
 	/// A handle for database restoration.
-//	pub client: Arc<dyn SnapshotClient>,
 	pub client: Arc<Client>,
 }
 
@@ -691,7 +692,7 @@ impl Service {
 
 		let migrated_blocks = self.migrate_blocks()?;
 		info!(target: "snapshot", "Migrated {} ancient blocks", migrated_blocks);
-		use client_traits::DatabaseRestore;
+
 		// replace the Client's database with the new one (restart the Client).
 		self.client.restore_db(&*self.restoration_db().to_string_lossy())?;
 
