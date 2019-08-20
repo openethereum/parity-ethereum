@@ -877,14 +877,14 @@ impl Provider {
 	}
 }
 
-impl IoHandler<ClientIoMessage> for Provider {
-	fn initialize(&self, io: &IoContext<ClientIoMessage>) {
+impl IoHandler<ClientIoMessage<Client>> for Provider {
+	fn initialize(&self, io: &IoContext<ClientIoMessage<Client>>) {
 		if self.use_offchain_storage {
 			io.register_timer(STATE_RETRIEVAL_TIMER, STATE_RETRIEVAL_TICK).expect("Error registering state retrieval timer");
 		}
 	}
 
-	fn timeout(&self, _io: &IoContext<ClientIoMessage>, timer: TimerToken) {
+	fn timeout(&self, _io: &IoContext<ClientIoMessage<Client>>, timer: TimerToken) {
 		match timer {
 			STATE_RETRIEVAL_TIMER => self.state_storage.tick(&self.logging),
 			_ => warn!("IO service triggered unregistered timer '{}'", timer),
