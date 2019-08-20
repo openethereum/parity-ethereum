@@ -55,6 +55,8 @@ enum_from_primitive! {
 		ConsensusDataPacket = 0x15,
 		PrivateTransactionPacket = 0x16,
 		SignedPrivateTransactionPacket = 0x17,
+		GetPrivateStatePacket = 0x18,
+		PrivateStatePacket = 0x19,
 	}
 }
 
@@ -94,7 +96,9 @@ impl PacketInfo for SyncPacket {
 			SnapshotDataPacket |
 			ConsensusDataPacket |
 			PrivateTransactionPacket |
-			SignedPrivateTransactionPacket
+			SignedPrivateTransactionPacket |
+			GetPrivateStatePacket |
+			PrivateStatePacket
 
 				=> WARP_SYNC_PROTOCOL_ID,
 		}

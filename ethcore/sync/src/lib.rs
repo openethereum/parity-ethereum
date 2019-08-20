@@ -35,6 +35,7 @@ extern crate keccak_hash as hash;
 extern crate parity_bytes as bytes;
 extern crate parity_runtime;
 extern crate parking_lot;
+extern crate ethcore_private_tx;
 extern crate rand;
 extern crate rlp;
 extern crate triehash_ethereum;
@@ -43,7 +44,6 @@ extern crate futures;
 extern crate ethcore_light as light;
 
 #[cfg(test)] extern crate env_logger;
-#[cfg(test)] extern crate ethcore_private_tx;
 #[cfg(test)] extern crate kvdb_memorydb;
 #[cfg(test)] extern crate rustc_hex;
 #[cfg(test)] extern crate rand_xorshift;

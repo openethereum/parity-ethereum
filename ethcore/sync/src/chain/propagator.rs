@@ -355,7 +355,7 @@ mod tests {
 		let mut sync = dummy_sync_with_peer(client.block_hash_delta_minus(5), &client);
 		let chain_info = client.chain_info();
 		let ss = TestSnapshotService::new();
-		let mut io = TestIo::new(&mut client, &ss, &queue, None);
+		let mut io = TestIo::new(&mut client, &ss, &queue, None, None);
 
 		let peers = sync.get_lagging_peers(&chain_info);
 		let peer_count = SyncPropagator::propagate_new_hashes(&mut sync, &chain_info, &mut io, &peers);
@@ -376,7 +376,7 @@ mod tests {
 		let mut sync = dummy_sync_with_peer(client.block_hash_delta_minus(5), &client);
 		let chain_info = client.chain_info();
 		let ss = TestSnapshotService::new();
-		let mut io = TestIo::new(&mut client, &ss, &queue, None);
+		let mut io = TestIo::new(&mut client, &ss, &queue, None, None);
 		let peers = sync.get_lagging_peers(&chain_info);
 		let peer_count = SyncPropagator::propagate_blocks(&mut sync, &chain_info, &mut io, &[], &peers);
 
@@ -397,7 +397,7 @@ mod tests {
 		let mut sync = dummy_sync_with_peer(client.block_hash_delta_minus(5), &client);
 		let chain_info = client.chain_info();
 		let ss = TestSnapshotService::new();
-		let mut io = TestIo::new(&mut client, &ss, &queue, None);
+		let mut io = TestIo::new(&mut client, &ss, &queue, None, None);
 		let peers = sync.get_lagging_peers(&chain_info);
 		let peer_count = SyncPropagator::propagate_blocks(&mut sync ,&chain_info, &mut io, &[hash.clone()], &peers);
 
@@ -427,6 +427,7 @@ mod tests {
 				asking: PeerAsking::Nothing,
 				asking_blocks: Vec::new(),
 				asking_hash: None,
+				asking_private_state: None,
 				ask_time: Instant::now(),
 				last_sent_transactions: Default::default(),
 				last_sent_private_transactions: Default::default(),
@@ -440,7 +441,7 @@ mod tests {
 				client_version: ClientVersion::from(""),
 			});
 		let ss = TestSnapshotService::new();
-		let mut io = TestIo::new(&mut client, &ss, &queue, None);
+		let mut io = TestIo::new(&mut client, &ss, &queue, None, None);
 		SyncPropagator::propagate_proposed_blocks(&mut sync, &mut io, &[block]);
 
 		// 1 message should be sent
@@ -457,7 +458,7 @@ mod tests {
 		let mut sync = dummy_sync_with_peer(client.block_hash_delta_minus(1), &client);
 		let queue = RwLock::new(VecDeque::new());
 		let ss = TestSnapshotService::new();
-		let mut io = TestIo::new(&mut client, &ss, &queue, None);
+		let mut io = TestIo::new(&mut client, &ss, &queue, None, None);
 		let peer_count = SyncPropagator::propagate_new_transactions(&mut sync, &mut io, || true);
 		// Try to propagate same transactions for the second time
 		let peer_count2 = SyncPropagator::propagate_new_transactions(&mut sync, &mut io, || true);
@@ -484,7 +485,7 @@ mod tests {
 		let mut sync = dummy_sync_with_peer(client.block_hash_delta_minus(1), &client);
 		let queue = RwLock::new(VecDeque::new());
 		let ss = TestSnapshotService::new();
-		let mut io = TestIo::new(&mut client, &ss, &queue, None);
+		let mut io = TestIo::new(&mut client, &ss, &queue, None, None);
 		let peer_count = SyncPropagator::propagate_new_transactions(&mut sync, &mut io, || true);
 		io.chain.insert_transaction_to_queue();
 		// New block import should not trigger propagation.
@@ -508,7 +509,7 @@ mod tests {
 		let mut sync = ChainSync::new(SyncConfig::default(), &client, None);
 		let queue = RwLock::new(VecDeque::new());
 		let ss = TestSnapshotService::new();
-		let mut io = TestIo::new(&mut client, &ss, &queue, None);
+		let mut io = TestIo::new(&mut client, &ss, &queue, None, None);
 		let peer_count = SyncPropagator::propagate_new_transactions(&mut sync, &mut io, || true);
 		sync.chain_new_blocks(&mut io, &[], &[], &[], &[], &[], &[]);
 		// Try to propagate same transactions for the second time
@@ -529,7 +530,7 @@ mod tests {
 		let ss = TestSnapshotService::new();
 		// should sent some
 		{
-			let mut io = TestIo::new(&mut client, &ss, &queue, None);
+			let mut io = TestIo::new(&mut client, &ss, &queue, None, None);
 			let peer_count = SyncPropagator::propagate_new_transactions(&mut sync, &mut io, || true);
 			assert_eq!(1, io.packets.len());
 			assert_eq!(1, peer_count);
@@ -537,7 +538,7 @@ mod tests {
 		// Insert some more
 		client.insert_transaction_to_queue();
 		let (peer_count2, peer_count3) = {
-			let mut io = TestIo::new(&mut client, &ss, &queue, None);
+			let mut io = TestIo::new(&mut client, &ss, &queue, None, None);
 			// Propagate new transactions
 			let peer_count2 = SyncPropagator::propagate_new_transactions(&mut sync, &mut io, || true);
 			// And now the peer should have all transactions
@@ -563,7 +564,7 @@ mod tests {
 		let mut sync = dummy_sync_with_peer(client.block_hash_delta_minus(1), &client);
 		let queue = RwLock::new(VecDeque::new());
 		let ss = TestSnapshotService::new();
-		let mut io = TestIo::new(&mut client, &ss, &queue, None);
+		let mut io = TestIo::new(&mut client, &ss, &queue, None, None);
 		SyncPropagator::propagate_new_transactions(&mut sync, &mut io, || true);
 
 		let stats = sync.transactions_stats();
@@ -578,7 +579,7 @@ mod tests {
 		let mut sync = ChainSync::new(SyncConfig::default(), &client, None);
 		let queue = RwLock::new(VecDeque::new());
 		let ss = TestSnapshotService::new();
-		let mut io = TestIo::new(&mut client, &ss, &queue, None);
+		let mut io = TestIo::new(&mut client, &ss, &queue, None, None);
 
 		// when peer#1 is Geth
 		insert_dummy_peer(&mut sync, 1, block_hash);
@@ -608,7 +609,7 @@ mod tests {
 		let mut sync = ChainSync::new(SyncConfig::default(), &client, None);
 		let queue = RwLock::new(VecDeque::new());
 		let ss = TestSnapshotService::new();
-		let mut io = TestIo::new(&mut client, &ss, &queue, None);
+		let mut io = TestIo::new(&mut client, &ss, &queue, None, None);
 
 		// when peer#1 is Parity, accepting service transactions
 		insert_dummy_peer(&mut sync, 1, block_hash);
