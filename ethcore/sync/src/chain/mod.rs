@@ -152,6 +152,8 @@ pub const PAR_PROTOCOL_VERSION_1: (u8, u8) = (1, 0x15);
 pub const PAR_PROTOCOL_VERSION_2: (u8, u8) = (2, 0x16);
 /// 3 version of Parity protocol (private transactions messages added).
 pub const PAR_PROTOCOL_VERSION_3: (u8, u8) = (3, 0x18);
+/// 4 version of Parity protocol (private state sync added).
+pub const PAR_PROTOCOL_VERSION_4: (u8, u8) = (4, 0x20);
 
 pub const MAX_BODIES_TO_SEND: usize = 256;
 pub const MAX_HEADERS_TO_SEND: usize = 512;
@@ -179,6 +181,7 @@ const RECEIPTS_TIMEOUT: Duration = Duration::from_secs(10);
 const FORK_HEADER_TIMEOUT: Duration = Duration::from_secs(3);
 const SNAPSHOT_MANIFEST_TIMEOUT: Duration = Duration::from_secs(5);
 const SNAPSHOT_DATA_TIMEOUT: Duration = Duration::from_secs(120);
+const PRIVATE_STATE_TIMEOUT: Duration = Duration::from_secs(120);
 
 /// Defines how much time we have to complete priority transaction or block propagation.
 /// after the deadline is reached the task is considered finished
@@ -277,6 +280,7 @@ pub enum PeerAsking {
 	BlockReceipts,
 	SnapshotManifest,
 	SnapshotData,
+	PrivateState,
 }
 
 #[derive(PartialEq, Eq, Debug, Clone, Copy, MallocSizeOf)]
@@ -316,6 +320,8 @@ pub struct PeerInfo {
 	asking_blocks: Vec<H256>,
 	/// Holds requested header hash if currently requesting block header by hash
 	asking_hash: Option<H256>,
+	/// Holds requested private state hash
+	asking_private_state: Option<H256>,
 	/// Holds requested snapshot chunk hash if any.
 	asking_snapshot_data: Option<H256>,
 	/// Request timestamp
@@ -352,6 +358,7 @@ impl PeerInfo {
 	fn reset_asking(&mut self) {
 		self.asking_blocks.clear();
 		self.asking_hash = None;
+		self.asking_private_state = None;
 		// mark any pending requests as expired
 		if self.asking != PeerAsking::Nothing && self.is_allowed() {
 			self.expired = true;
@@ -1185,6 +1192,7 @@ impl ChainSync {
 				PeerAsking::ForkHeader => elapsed > FORK_HEADER_TIMEOUT,
 				PeerAsking::SnapshotManifest => elapsed > SNAPSHOT_MANIFEST_TIMEOUT,
 				PeerAsking::SnapshotData => elapsed > SNAPSHOT_DATA_TIMEOUT,
+				PeerAsking::PrivateState => elapsed > PRIVATE_STATE_TIMEOUT,
 			};
 			if timeout {
 				debug!(target:"sync", "Timeout {}", peer_id);
@@ -1291,6 +1299,18 @@ impl ChainSync {
 		).collect()
 	}
 
+	fn get_private_state_peers(&self) -> Vec<PeerId> {
+		self.peers.iter().filter_map(
+			|(id, p)| if p.protocol_version >= PAR_PROTOCOL_VERSION_4.0
+				&& p.private_tx_enabled
+				&& self.active_peers.contains(id) {
+					Some(*id)
+				} else {
+					None
+				}
+		).collect()
+	}
+
 	/// Maintain other peers. Send out any new blocks and transactions
 	pub fn maintain_sync(&mut self, io: &mut dyn SyncIo) {
 		self.maybe_start_snapshot_sync(io);
@@ -1359,6 +1379,19 @@ impl ChainSync {
 	/// Broadcast private transaction message to peers.
 	pub fn propagate_private_transaction(&mut self, io: &mut dyn SyncIo, transaction_hash: H256, packet_id: SyncPacket, packet: Bytes) {
 		SyncPropagator::propagate_private_transaction(self, io, transaction_hash, packet_id, packet);
+	}
+
+	/// Request private state from peers
+	pub fn request_private_state(&mut self, io: &mut SyncIo, hash: &H256) {
+		let private_state_peers = self.get_private_state_peers();
+		if private_state_peers.is_empty() {
+			error!(target: "privatetx", "Cannot request private state, no peers with private tx enabled available");
+		} else {
+			trace!(target: "privatetx", "Requesting private stats from {:?}", private_state_peers);
+			for peer_id in private_state_peers {
+				SyncRequester::request_private_state(self, io, peer_id, hash);
+			}
+		}
 	}
 }
 
@@ -1480,6 +1513,7 @@ pub mod tests {
 				asking: PeerAsking::Nothing,
 				asking_blocks: Vec::new(),
 				asking_hash: None,
+				asking_private_state: None,
 				ask_time: Instant::now(),
 				last_sent_transactions: Default::default(),
 				last_sent_private_transactions: Default::default(),
@@ -1533,7 +1567,7 @@ pub mod tests {
 		let mut sync = dummy_sync_with_peer(client.block_hash_delta_minus(5), &client);
 		let chain_info = client.chain_info();
 		let ss = TestSnapshotService::new();
-		let mut io = TestIo::new(&mut client, &ss, &queue, None);
+		let mut io = TestIo::new(&mut client, &ss, &queue, None, None);
 
 		let peers = sync.get_lagging_peers(&chain_info);
 		SyncPropagator::propagate_new_hashes(&mut sync, &chain_info, &mut io, &peers);
@@ -1553,7 +1587,7 @@ pub mod tests {
 		let mut sync = dummy_sync_with_peer(client.block_hash_delta_minus(5), &client);
 		let chain_info = client.chain_info();
 		let ss = TestSnapshotService::new();
-		let mut io = TestIo::new(&mut client, &ss, &queue, None);
+		let mut io = TestIo::new(&mut client, &ss, &queue, None, None);
 
 		let peers = sync.get_lagging_peers(&chain_info);
 		SyncPropagator::propagate_blocks(&mut sync, &chain_info, &mut io, &[], &peers);
@@ -1591,7 +1625,7 @@ pub mod tests {
 		{
 			let queue = RwLock::new(VecDeque::new());
 			let ss = TestSnapshotService::new();
-			let mut io = TestIo::new(&mut client, &ss, &queue, None);
+			let mut io = TestIo::new(&mut client, &ss, &queue, None, None);
 			io.chain.miner.chain_new_blocks(io.chain, &[], &[], &[], &good_blocks, false);
 			sync.chain_new_blocks(&mut io, &[], &[], &[], &good_blocks, &[], &[]);
 			assert_eq!(io.chain.miner.ready_transactions(io.chain, 10, PendingOrdering::Priority).len(), 1);
@@ -1604,7 +1638,7 @@ pub mod tests {
 		{
 			let queue = RwLock::new(VecDeque::new());
 			let ss = TestSnapshotService::new();
-			let mut io = TestIo::new(&client, &ss, &queue, None);
+			let mut io = TestIo::new(&client, &ss, &queue, None, None);
 			io.chain.miner.chain_new_blocks(io.chain, &[], &[], &good_blocks, &retracted_blocks, false);
 			sync.chain_new_blocks(&mut io, &[], &[], &good_blocks, &retracted_blocks, &[], &[]);
 		}
@@ -1627,7 +1661,7 @@ pub mod tests {
 
 		let queue = RwLock::new(VecDeque::new());
 		let ss = TestSnapshotService::new();
-		let mut io = TestIo::new(&mut client, &ss, &queue, None);
+		let mut io = TestIo::new(&mut client, &ss, &queue, None, None);
 
 		// when
 		sync.chain_new_blocks(&mut io, &[], &[], &[], &good_blocks, &[], &[]);

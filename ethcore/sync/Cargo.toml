@@ -18,6 +18,7 @@ ethcore-light = { path = "../light" }
 ethcore-network = { path = "../../util/network" }
 ethcore-network-devp2p = { path = "../../util/network-devp2p" }
 ethereum-types = "0.6.0"
+ethcore-private-tx = { path = "../private-tx" }
 ethkey = { path = "../../accounts/ethkey" }
 ethstore = { path = "../../accounts/ethstore" }
 fastmap = { path = "../../util/fastmap" }
@@ -42,7 +43,6 @@ parity-runtime = { path = "../../util/runtime" }
 env_logger = "0.5"
 ethcore = { path = "..", features = ["test-helpers"] }
 ethcore-io = { path = "../../util/io", features = ["mio"] }
-ethcore-private-tx = { path = "../private-tx" }
 kvdb-memorydb = "0.1"
 rustc-hex = "1.0"
 rand_xorshift = "0.1.1"
