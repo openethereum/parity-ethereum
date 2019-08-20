@@ -1639,6 +1639,7 @@ impl Engine for AuthorityRound {
 #[cfg(test)]
 mod tests {
 	use std::collections::BTreeMap;
+	use std::str::FromStr;
 	use std::sync::Arc;
 	use std::sync::atomic::{AtomicUsize, Ordering as AtomicOrdering};
 	use hash::keccak;
@@ -1659,9 +1660,11 @@ mod tests {
 	};
 	use crate::spec::{Spec, self};
 	use engine::Engine;
+	use engines::block_reward::BlockRewardContract;
 	use engines::validator_set::{TestSet, SimpleList};
 	use super::{AuthorityRoundParams, AuthorityRound, EmptyStep, SealedEmptyStep, calculate_score};
 	use machine::Machine;
+	use ethjson;
 
 	fn build_aura<F>(f: F) -> Arc<AuthorityRound> where
 		F: FnOnce(&mut AuthorityRoundParams),
@@ -2443,5 +2446,56 @@ mod tests {
 		empty_steps.reverse();
 		set_empty_steps_seal(&mut header, step, &signature, &empty_steps);
 		assert_eq!(engine.verify_block_family(&header, &parent).unwrap(), ());
+	}
+
+	#[test]
+	fn should_collect_block_reward_transitions() {
+		let config = r#"{
+			"params": {
+				"stepDuration": "5",
+				"validators": {
+					"list" : ["0x1000000000000000000000000000000000000001"]
+				},
+                "blockRewardContractTransition": "0",
+				"blockRewardContractAddress": "0x2000000000000000000000000000000000000002",
+				"blockRewardContractTransitions": {
+					"7": "0x3000000000000000000000000000000000000003",
+					"42": "0x4000000000000000000000000000000000000004"
+				}
+			}
+		}"#;
+		let deserialized: ethjson::spec::AuthorityRound = serde_json::from_str(config).unwrap();
+		let params = AuthorityRoundParams::from(deserialized.params);
+		for ((block_num1, address1), (block_num2, address2)) in
+			params.block_reward_contract_transitions.iter().zip(
+				[(0u64, BlockRewardContract::new_from_address(Address::from_str("2000000000000000000000000000000000000002").unwrap())),
+				 (7u64, BlockRewardContract::new_from_address(Address::from_str("3000000000000000000000000000000000000003").unwrap())),
+				 (42u64, BlockRewardContract::new_from_address(Address::from_str("4000000000000000000000000000000000000004").unwrap())),
+				].iter())
+		{
+			assert_eq!(block_num1, block_num2);
+			assert_eq!(address1, address2);
+		}
+	}
+
+	#[test]
+	#[should_panic(expected="blockRewardContractTransition should be less than any of the keys in blockRewardContractTransitions")]
+	fn should_reject_out_of_order_block_reward_transition() {
+		let config = r#"{
+			"params": {
+				"stepDuration": "5",
+				"validators": {
+					"list" : ["0x1000000000000000000000000000000000000001"]
+				},
+                "blockRewardContractTransition": "7",
+				"blockRewardContractAddress": "0x2000000000000000000000000000000000000002",
+				"blockRewardContractTransitions": {
+					"0": "0x3000000000000000000000000000000000000003",
+					"42": "0x4000000000000000000000000000000000000004"
+				}
+			}
+		}"#;
+		let deserialized: ethjson::spec::AuthorityRound = serde_json::from_str(config).unwrap();
+		AuthorityRoundParams::from(deserialized.params);
 	}
 }
