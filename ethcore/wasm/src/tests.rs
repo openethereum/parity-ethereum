@@ -801,6 +801,7 @@ fn externs() {
 			gas_limit: 0x777777777777u64.into(),
 			last_hashes: Default::default(),
 			gas_used: 0.into(),
+			chain_id: 0.into(), // todo[dvdplm]: check if this is ok
 		},
 		{
 			let mut hashes = HashMap::new();
