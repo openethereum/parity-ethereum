@@ -30,7 +30,10 @@ pub struct Env {
 	/// Gas limit.
 	#[serde(rename = "currentGasLimit")]
 	pub gas_limit: Uint,
+	// todo[dvdplm]: so we need to update our json-tests with the new parameter I guess? Or should this
+	//               be optional? Or not be here at all?
 	/// Chain network ID.
+	#[serde(skip)]
 	#[serde(rename = "currentChainID")]
 	pub chain_id: Uint,
 	/// Number.
