@@ -639,7 +639,7 @@ fn execute_export(cmd: ExportBlockchain) -> Result<(), String> {
 				out.write(&b).map_err(|e| format!("Couldn't write to stream. Cause: {}", e))?;
 			}
 			DataFormat::Hex => {
-				out.write_fmt(format_args!("{}", b.pretty())).map_err(|e| format!("Couldn't write to stream. Cause: {}", e))?;
+				out.write_fmt(format_args!("{}\n", b.pretty())).map_err(|e| format!("Couldn't write to stream. Cause: {}", e))?;
 			}
 		}
 	}
