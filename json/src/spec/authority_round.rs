@@ -58,6 +58,8 @@ pub struct AuthorityRoundParams {
 	pub maximum_empty_steps: Option<Uint>,
 	/// Strict validation of empty steps transition block.
 	pub strict_empty_steps_transition: Option<Uint>,
+	/// First block for which a 2/3 quorum (instead of 1/2) is required.
+	pub two_thirds_majority_transition: Option<Uint>,
 }
 
 /// Authority engine deserialization.

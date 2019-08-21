@@ -37,7 +37,7 @@ use types::ids::BlockId;
 use types::transaction::{Transaction, Action};
 use ethcore::{
 	CreateContractAddress,
-	test_helpers::{generate_dummy_client, push_block_with_transactions},
+	test_helpers::{generate_dummy_client, push_block_with_transactions, new_db},
 	miner::Miner,
 	spec,
 };
@@ -65,11 +65,13 @@ fn private_contract() {
 		validator_accounts: vec![key3.address(), key4.address()],
 		signer_account: None,
 		logs_path: None,
+		use_offchain_storage: false,
 	};
 
 	let io = ethcore_io::IoChannel::disconnected();
 	let miner = Arc::new(Miner::new_for_tests(&spec::new_test(), None));
 	let private_keys = Arc::new(StoringKeyProvider::default());
+	let db = new_db();
 	let pm = Arc::new(Provider::new(
 			client.clone(),
 			miner,
@@ -78,6 +80,7 @@ fn private_contract() {
 			config,
 			io,
 			private_keys,
+			db.key_value().clone(),
 	));
 
 	let (address, _) = contract_address(CreateContractAddress::FromSenderAndNonce, &key1.address(), &0.into(), &[]);
@@ -200,11 +203,13 @@ fn call_other_private_contract() {
 		validator_accounts: vec![key3.address(), key4.address()],
 		signer_account: None,
 		logs_path: None,
+		use_offchain_storage: false,
 	};
 
 	let io = ethcore_io::IoChannel::disconnected();
 	let miner = Arc::new(Miner::new_for_tests(&spec::new_test(), None));
 	let private_keys = Arc::new(StoringKeyProvider::default());
+	let db = new_db();
 	let pm = Arc::new(Provider::new(
 			client.clone(),
 			miner,
@@ -213,6 +218,7 @@ fn call_other_private_contract() {
 			config,
 			io,
 			private_keys.clone(),
+			db.key_value().clone(),
 	));
 
 	// Deploy contract A

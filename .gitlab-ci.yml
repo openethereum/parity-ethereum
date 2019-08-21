@@ -13,10 +13,6 @@ variables:
   SCCACHE_DIR:                     "/ci-cache/${CI_PROJECT_NAME}/sccache"
   CARGO_TARGET:                    x86_64-unknown-linux-gnu
 
-.no_git:                           &no_git # disable git strategy
-  variables:
-    GIT_STRATEGY:                  none
-    GIT_SUBMODULE_STRATEGY:        none
 
 .releaseable_branches:             # list of git refs for building GitLab artifacts (think "pre-release binaries")
   only:                            &releaseable_branches
@@ -212,11 +208,10 @@ build-windows:
 
 publish-docker:
   stage:                           publish
-  <<:                              *no_git
   only:                            *releaseable_branches
   except:
-    variables:
-      - $SCHEDULE_TAG == "nightly"
+    - nightly
+  when:                            manual
   dependencies:
     - build-linux
   environment:
@@ -226,23 +221,24 @@ publish-docker:
   services:
     - docker:dind
   variables:
+    GIT_STRATEGY:                  none
     DOCKER_HOST:                   tcp://localhost:2375
     DOCKER_DRIVER:                 overlay2
     GIT_STRATEGY:                  none
     # DOCKERFILE:                  tools/Dockerfile
     # CONTAINER_IMAGE:             parity/parity
   script:
-    # we stopped pushing nightlies to dockerhub, will push to own registry prb.
     - ./tools/publish-docker.sh
   tags:
     - kubernetes-parity-build
 
-publish-snap:                      &publish-snap
+publish-snap-nightly:              &publish-snap
   stage:                           publish
-  <<:                              *no_git
-  only:                            *releaseable_branches
+  only:
+    - nightly
   image:                           snapcore/snapcraft
   variables:
+    GIT_STRATEGY:                  none
     BUILD_ARCH:                    amd64
   cache:                           {}
   dependencies:
@@ -252,7 +248,12 @@ publish-snap:                      &publish-snap
   script:
     - ./tools/publish-snap.sh
 
-publish-snap-i386:
+publish-snap-manually:
+  <<:                              *publish-snap
+  only:                            *releaseable_branches
+  when:                            manual
+
+publish-snap-i386-nightly:         &publish-snap-i386
   <<:                              *publish-snap
   variables:
     BUILD_ARCH:                    i386
@@ -260,7 +261,12 @@ publish-snap-i386:
   dependencies:
     - build-linux-i386
 
-publish-snap-arm64:
+publish-snap-i386-manually:
+  <<:                              *publish-snap-i386
+  only:                            *releaseable_branches
+  when:                            manual
+
+publish-snap-arm64-nightly:        &publish-snap-arm64
   <<:                              *publish-snap
   variables:
     BUILD_ARCH:                    arm64
@@ -268,7 +274,12 @@ publish-snap-arm64:
   dependencies:
     - build-linux-arm64
 
-publish-snap-armhf:
+publish-snap-arm64-manually:
+  <<:                              *publish-snap-arm64
+  only:                            *releaseable_branches
+  when:                            manual
+
+publish-snap-armhf-nightly:        &publish-snap-armhf
   <<:                              *publish-snap
   variables:
     BUILD_ARCH:                    armhf
@@ -276,11 +287,18 @@ publish-snap-armhf:
   dependencies:
     - build-linux-armhf
 
-publish-onchain:
-  stage:                           publish
-  <<:                              *no_git
+publish-snap-armhf-manually:
+  <<:                              *publish-snap-armhf
   only:                            *releaseable_branches
+  when:                            manual
+
+publish-onchain-nightly:           &publish-onchain
+  stage:                           publish
+  only:
+    - nightly
   cache:                           {}
+  variables:
+    GIT_STRATEGY:                  none
   dependencies:
     - build-linux
     - build-darwin
@@ -290,11 +308,18 @@ publish-onchain:
   tags:
     - linux-docker
 
-publish-awss3-release:
+publish-onchain-manually:
+  <<:                              *publish-onchain
+  only:                            *releaseable_branches
+  when:                            manual
+
+publish-release-awss3-nightly:     &publish-release-awss3
   image:                           parity/awscli:latest
   stage:                           publish
-  only:                            *releaseable_branches
-  <<:                              *no_git
+  only:
+    - nightly
+  variables:
+    GIT_STRATEGY:                  none
   cache:                           {}
   dependencies:
     - build-linux
@@ -316,6 +341,11 @@ publish-awss3-release:
   tags:
     - linux-docker
 
+publish-release-awss3-manually:
+  <<:                              *publish-release-awss3  
+  only:                            *releaseable_branches
+  when:                            manual
+
 publish-docs:
   stage:                           publish
   image:                           parity/parity-ci-docs:latest
@@ -323,6 +353,7 @@ publish-docs:
     - tags
   except:
     - nightly
+  when:                            manual
   cache:                           {}
   dependencies:                    []
   script:
@@ -333,11 +364,12 @@ publish-docs:
 
 publish-av-whitelist:
   stage:                          publish
-  <<:                             *no_git
+  variables:
+    GIT_STRATEGY:                  none
   only:                           *releaseable_branches
   except:
-    variables:
-      - $SCHEDULE_TAG == "nightly"
+    - nightly
+  when:                           manual
   cache:                          {}
   dependencies:
     - build-windows

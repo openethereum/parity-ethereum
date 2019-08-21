@@ -357,6 +357,10 @@ usage! {
 			"--private-tx-enabled",
 			"Enable private transactions.",
 
+			FLAG flag_private_state_offchain: (bool) = false, or |c: &Config| c.private_tx.as_ref()?.state_offchain,
+			"--private-state-offchain",
+			"Store private state offchain (in the local DB).",
+
 			ARG arg_private_signer: (Option<String>) = None, or |c: &Config| c.private_tx.as_ref()?.signer.clone(),
 			"--private-signer=[ACCOUNT]",
 			"Specify the account for signing public transaction created upon verified private transaction.",
@@ -1200,6 +1204,7 @@ struct Account {
 #[serde(deny_unknown_fields)]
 struct PrivateTransactions {
 	enabled: Option<bool>,
+	state_offchain: Option<bool>,
 	signer: Option<String>,
 	validators: Option<Vec<String>>,
 	account: Option<String>,
@@ -1766,6 +1771,7 @@ mod tests {
 
 			// -- Private Transactions Options
 			flag_private_enabled: true,
+			flag_private_state_offchain: false,
 			arg_private_signer: Some("0xdeadbeefcafe0000000000000000000000000000".into()),
 			arg_private_validators: Some("0xdeadbeefcafe0000000000000000000000000000".into()),
 			arg_private_passwords: Some("~/.safe/password.file".into()),

@@ -24,6 +24,10 @@ use ethcore_private_tx::{TransactionLog as EthTransactionLog, ValidatorLog as Et
 pub enum Status {
 	/// Private tx was created but no validation received yet
 	Created,
+	/// Private state not found locally and being retrived from peers
+	PrivateStateSync,
+	/// Retrieval of the private state failed, transaction not created
+	PrivateStateSyncFailed,
 	/// Several validators (but not all) validated the transaction
 	Validating,
 	/// All validators validated the private tx
@@ -35,6 +39,8 @@ impl From<EthStatus> for Status {
 	fn from(c: EthStatus) -> Self {
 		match c {
 			EthStatus::Created => Status::Created,
+			EthStatus::PrivateStateSync => Status::PrivateStateSync,
+			EthStatus::PrivateStateSyncFailed => Status::PrivateStateSyncFailed,
 			EthStatus::Validating => Status::Validating,
 			EthStatus::Deployed => Status::Deployed,
 		}

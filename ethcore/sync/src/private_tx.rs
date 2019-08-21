@@ -26,6 +26,9 @@ pub trait PrivateTxHandler: Send + Sync + 'static {
 	/// Function called on new signed private transaction received.
 	/// Returns the hash of the imported transaction
 	fn import_signed_private_transaction(&self, rlp: &[u8]) -> Result<H256, String>;
+
+	/// Function called when requested private state retrieved from peer and saved to DB.
+	fn private_state_synced(&self, hash: &H256) -> Result<(), String>;
 }
 
 /// Nonoperative private transaction handler.
@@ -39,6 +42,10 @@ impl PrivateTxHandler for NoopPrivateTxHandler {
 	fn import_signed_private_transaction(&self, _rlp: &[u8]) -> Result<H256, String> {
 		Ok(H256::zero())
 	}
+
+	fn private_state_synced(&self, _hash: &H256) -> Result<(), String> {
+		Ok(())
+	}
 }
 
 /// Simple private transaction handler. Used for tests.
@@ -48,6 +55,8 @@ pub struct SimplePrivateTxHandler {
 	pub txs: Mutex<Vec<Vec<u8>>>,
 	/// imported signed private transactions
 	pub signed_txs: Mutex<Vec<Vec<u8>>>,
+	/// synced private state hash
+	pub synced_hash: Mutex<H256>,
 }
 
 impl PrivateTxHandler for SimplePrivateTxHandler {
@@ -59,5 +68,10 @@ impl PrivateTxHandler for SimplePrivateTxHandler {
 	fn import_signed_private_transaction(&self, rlp: &[u8]) -> Result<H256, String> {
 		self.signed_txs.lock().push(rlp.to_vec());
 		Ok(H256::zero())
+	}
+
+	fn private_state_synced(&self, hash: &H256) -> Result<(), String> {
+		*self.synced_hash.lock() = *hash;
+		Ok(())
 	}
 }
