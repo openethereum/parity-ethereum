@@ -1,5 +1,5 @@
 [package]
-description = "Ethash PoW blockhain engine"
+description = "Ethash PoW blockchain engine"
 name = "ethash-engine"
 version = "0.1.0"
 authors = ["Parity Technologies <admin@parity.io>"]
