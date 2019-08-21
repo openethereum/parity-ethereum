@@ -24,6 +24,7 @@ use common_types::{
 	BlockNumber,
 	header::Header,
 	engines::{
+		EngineType,
 		EthashSeal,
 		params::CommonParams,
 	},
@@ -221,7 +222,7 @@ impl engine::EpochVerifier for EpochVerifier {
 }
 
 impl Engine for Ethash {
-	fn name(&self) -> &str { "Ethash" }
+	fn name(&self) -> EngineType { EngineType::Ethash }
 	fn machine(&self) -> &Machine { &self.machine }
 
 	// Two fields - nonce and mix.
@@ -477,7 +478,11 @@ mod tests {
 	use std::sync::Arc;
 	use std::collections::BTreeMap;
 
-	use common_types::{header::Header, errors::{BlockError, EthcoreError as Error}};
+	use common_types::{
+		engines::EngineType,
+		header::Header,
+		errors::{BlockError, EthcoreError as Error}
+	};
 	use engine::Engine;
 	use ethereum_types::{H64, H256, U256, Address};
 	use ethcore::{
@@ -611,7 +616,7 @@ mod tests {
 	#[test]
 	fn has_valid_metadata() {
 		let engine = test_spec().engine;
-		assert!(!engine.name().is_empty());
+		assert_eq!(engine.name(), EngineType::Ethash);
 	}
 
 	#[test]

@@ -17,7 +17,10 @@
 use common_types::{
 	BlockNumber,
 	header::Header,
-	engines::params::CommonParams,
+	engines::{
+		EngineType,
+		params::CommonParams,
+	},
 	errors::EthcoreError as Error,
 };
 use engine::Engine;
@@ -59,7 +62,7 @@ impl NullEngine {
 	}
 }
 impl Engine for NullEngine {
-	fn name(&self) -> &str { "NullEngine" }
+	fn name(&self) -> EngineType { EngineType::NullEngine }
 
 	fn machine(&self) -> &Machine { &self.machine }
 

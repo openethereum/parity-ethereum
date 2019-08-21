@@ -48,6 +48,7 @@ use common_types::{
 	BlockNumber,
 	header::{Header, ExtendedHeader},
 	engines::{
+		EngineType,
 		Headers,
 		params::CommonParams,
 		PendingTransitionStore,
@@ -957,7 +958,7 @@ impl IoHandler<()> for TransitionHandler {
 }
 
 impl Engine for AuthorityRound {
-	fn name(&self) -> &str { "AuthorityRound" }
+	fn name(&self) -> EngineType { EngineType::AuthorityRound }
 
 	fn machine(&self) -> &Machine { &self.machine }
 
@@ -1628,7 +1629,7 @@ mod tests {
 	use ethkey::Signature;
 	use common_types::{
 		header::Header,
-		engines::{Seal, params::CommonParams},
+		engines::{EngineType, Seal, params::CommonParams},
 		errors::{EthcoreError as Error, EngineError},
 		transaction::{Action, Transaction},
 	};
@@ -1679,7 +1680,7 @@ mod tests {
 	#[test]
 	fn has_valid_metadata() {
 		let engine = spec::new_test_round().engine;
-		assert!(!engine.name().is_empty());
+		assert_eq!(engine.name(), EngineType::AuthorityRound);
 	}
 
 	#[test]

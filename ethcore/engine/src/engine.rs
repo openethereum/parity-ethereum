@@ -25,6 +25,7 @@ use common_types::{
 	ancestry_action::AncestryAction,
 	header::{Header, ExtendedHeader},
 	engines::{
+		EngineType,
 		Seal, SealingState, Headers, PendingTransitionStore,
 		params::CommonParams,
 		machine as machine_types,
@@ -144,7 +145,7 @@ pub enum EpochChange {
 /// Provides hooks into each of the major parts of block import.
 pub trait Engine: Sync + Send {
 	/// The name of this engine.
-	fn name(&self) -> &str;
+	fn name(&self) -> EngineType;
 
 	/// Get access to the underlying state machine.
 	// TODO: decouple.

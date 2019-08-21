@@ -25,15 +25,16 @@ pub use self::work::*;
 
 use ethash_engine::{MAX_SNAPSHOT_BLOCKS, SNAPSHOT_BLOCKS};
 use snapshot::SnapshotComponents;
+use types::engines::EngineType;
 
 /// Create a factory for building snapshot chunks and restoring from them.
 /// `None` indicates that the engine doesn't support snapshot creation.
-pub fn chunker(engine_name: &str) -> Option<Box<dyn SnapshotComponents>> {
-	match engine_name {
-		"AuthorityRound" => Some(Box::new(PoaSnapshot)),
-		"Ethash" => Some(Box::new(PowSnapshot::new(SNAPSHOT_BLOCKS, MAX_SNAPSHOT_BLOCKS))),
-		"NullEngine" => Some(Box::new(PowSnapshot::new(10000, 10000))),
-		"BasicAuthority" | "Clique" | "InstantSeal" => None,
-		_ => None
+pub fn chunker(engine_type: EngineType) -> Option<Box<dyn SnapshotComponents>> {
+	use types::engines::EngineType::*;
+	match engine_type {
+		AuthorityRound => Some(Box::new(PoaSnapshot)),
+		Ethash => Some(Box::new(PowSnapshot::new(SNAPSHOT_BLOCKS, MAX_SNAPSHOT_BLOCKS))),
+		NullEngine => Some(Box::new(PowSnapshot::new(10000, 10000))),
+		BasicAuthority | Clique | InstantSeal => None,
 	}
 }

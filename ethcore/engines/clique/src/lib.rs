@@ -90,6 +90,7 @@ use common_types::{
 	ids::BlockId,
 	header::Header,
 	engines::{
+		EngineType,
 		EthashSeal,
 		Seal,
 		SealingState,
@@ -372,7 +373,7 @@ impl Clique {
 }
 
 impl Engine for Clique {
-	fn name(&self) -> &str { "Clique" }
+	fn name(&self) -> EngineType { EngineType::Clique }
 
 	fn machine(&self) -> &Machine { &self.machine }
 

@@ -17,6 +17,7 @@
 use common_types::{
 	header::Header,
 	engines::{
+		EngineType,
 		Seal,
 		SealingState,
 		params::CommonParams,
@@ -64,9 +65,7 @@ impl InstantSeal {
 }
 
 impl Engine for InstantSeal {
-	fn name(&self) -> &str {
-		"InstantSeal"
-	}
+	fn name(&self) -> EngineType { EngineType::InstantSeal }
 
 	fn machine(&self) -> &Machine { &self.machine }
 

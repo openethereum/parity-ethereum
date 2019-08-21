@@ -28,6 +28,23 @@ pub mod epoch;
 pub mod params;
 pub mod machine;
 
+/// Known engines
+#[derive(Debug, Display, PartialEq)]
+pub enum EngineType {
+	/// AuthorityRound: Non-instant BFT proof-of-authority blockchain engine
+	AuthorityRound,
+	/// BasicAuthority: Basic PoA blockchain engine
+	BasicAuthority,
+	/// Clique consensus engine
+	Clique,
+	/// Ethash PoW blockchain engine
+	Ethash,
+	/// InstantSeal: engine that seals instantly
+	InstantSeal,
+	/// Null engine: An ethereum engine which does not provide any consensus mechanism and does not seal blocks
+	NullEngine,
+}
+
 /// Ethash/Clique specific seal
 #[derive(Debug, PartialEq)]
 pub struct EthashSeal {
