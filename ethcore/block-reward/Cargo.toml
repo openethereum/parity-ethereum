@@ -1,5 +1,5 @@
 [package]
-description = "Block rewards"
+description = "A crate to interact with the block rewards contract."
 name = "block-reward"
 version = "0.1.0"
 authors = ["Parity Technologies <admin@parity.io>"]
