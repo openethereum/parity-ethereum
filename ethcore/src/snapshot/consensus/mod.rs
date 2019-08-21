@@ -31,7 +31,7 @@ use types::snapshot::Snapshotting::{self, *};
 pub fn chunker(snapshot_type: Snapshotting) -> Option<Box<dyn SnapshotComponents>> {
 	match snapshot_type {
 		PoA => Some(Box::new(PoaSnapshot)),
-		PoW{ blocks, max_restore_blocks } => Some(Box::new(PowSnapshot::new(blocks, max_restore_blocks))),
+		PoW { blocks, max_restore_blocks } => Some(Box::new(PowSnapshot::new(blocks, max_restore_blocks))),
 		Unsupported => None,
 	}
 }
