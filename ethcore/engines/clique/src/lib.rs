@@ -461,7 +461,7 @@ impl Engine for Clique {
 		// If we are building an checkpoint block, add all signers now.
 		if is_checkpoint {
 			seal.reserve(state.signers().len() * 20);
-			for signer in state.signers().iter() {
+			for signer in &state.signers() {
 				seal.extend_from_slice(&signer[..]);
 			}
 		}
