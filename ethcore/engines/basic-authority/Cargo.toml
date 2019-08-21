@@ -1,5 +1,5 @@
 [package]
-description = "Basic PoA blockhain engine"
+description = "Basic PoA blockchain engine."
 name = "basic-authority"
 version = "0.1.0"
 authors = ["Parity Technologies <admin@parity.io>"]
