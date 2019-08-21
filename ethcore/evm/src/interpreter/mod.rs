@@ -843,6 +843,9 @@ impl<Cost: CostType> Interpreter<Cost> {
 			instructions::GASLIMIT => {
 				self.stack.push(ext.env_info().gas_limit.clone());
 			},
+			instructions::CHAINID => {
+				self.stack.push(ext.env_info().chain_id.clone());
+			},
 
 			// Stack instructions
 

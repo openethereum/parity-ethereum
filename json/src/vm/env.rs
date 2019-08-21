@@ -30,6 +30,9 @@ pub struct Env {
 	/// Gas limit.
 	#[serde(rename = "currentGasLimit")]
 	pub gas_limit: Uint,
+	/// Chain network ID.
+	#[serde(rename = "currentChainID")]
+	pub chain_id: Uint,
 	/// Number.
 	#[serde(rename = "currentNumber")]
 	pub number: Uint,
