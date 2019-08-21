@@ -48,7 +48,6 @@ use common_types::{
 	BlockNumber,
 	header::{Header, ExtendedHeader},
 	engines::{
-		EngineType,
 		Headers,
 		params::CommonParams,
 		PendingTransitionStore,
@@ -57,6 +56,7 @@ use common_types::{
 		machine::{Call, AuxiliaryData},
 	},
 	errors::{BlockError, EthcoreError as Error, EngineError},
+	snapshot::Snapshotting,
 };
 use unexpected::{Mismatch, OutOfBounds};
 
@@ -958,7 +958,7 @@ impl IoHandler<()> for TransitionHandler {
 }
 
 impl Engine for AuthorityRound {
-	fn name(&self) -> EngineType { EngineType::AuthorityRound }
+	fn name(&self) -> &str { "AuthorityRound" }
 
 	fn machine(&self) -> &Machine { &self.machine }
 
@@ -1598,7 +1598,13 @@ impl Engine for AuthorityRound {
 		)
 	}
 
-	fn supports_warp(&self) -> bool { !self.immediate_transitions }
+	fn supports_warp(&self) -> Snapshotting {
+		if self.immediate_transitions {
+			Snapshotting::Unsupported
+		} else {
+			Snapshotting::PoA
+		}
+	}
 
 	fn ancestry_actions(&self, header: &Header, ancestry: &mut dyn Iterator<Item=ExtendedHeader>) -> Vec<AncestryAction> {
 		let finalized = self.build_finality(
@@ -1629,7 +1635,7 @@ mod tests {
 	use ethkey::Signature;
 	use common_types::{
 		header::Header,
-		engines::{EngineType, Seal, params::CommonParams},
+		engines::{Seal, params::CommonParams},
 		errors::{EthcoreError as Error, EngineError},
 		transaction::{Action, Transaction},
 	};
@@ -1680,7 +1686,7 @@ mod tests {
 	#[test]
 	fn has_valid_metadata() {
 		let engine = spec::new_test_round().engine;
-		assert_eq!(engine.name(), EngineType::AuthorityRound);
+		assert_eq!(engine.name(), "AuthorityRound");
 	}
 
 	#[test]

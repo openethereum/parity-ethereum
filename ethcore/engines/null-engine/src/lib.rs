@@ -17,10 +17,7 @@
 use common_types::{
 	BlockNumber,
 	header::Header,
-	engines::{
-		EngineType,
-		params::CommonParams,
-	},
+	engines::params::CommonParams,
 	errors::EthcoreError as Error,
 };
 use engine::Engine;
@@ -30,6 +27,7 @@ use machine::{
 	ExecutedBlock,
 	Machine,
 };
+use common_types::snapshot::Snapshotting;
 
 /// Params for a null engine.
 #[derive(Clone, Default)]
@@ -62,7 +60,7 @@ impl NullEngine {
 	}
 }
 impl Engine for NullEngine {
-	fn name(&self) -> EngineType { EngineType::NullEngine }
+	fn name(&self) -> &str { "NullEngine" }
 
 	fn machine(&self) -> &Machine { &self.machine }
 
@@ -103,7 +101,9 @@ impl Engine for NullEngine {
 		Ok(())
 	}
 
-	fn supports_warp(&self) -> bool { true }
+	fn supports_warp(&self) -> Snapshotting {
+		Snapshotting::PoW { blocks: 10_000, max_restore_blocks: 10_000 }
+	}
 
 	fn params(&self) -> &CommonParams {
 		self.machine.params()

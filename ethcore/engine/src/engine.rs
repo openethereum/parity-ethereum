@@ -25,13 +25,13 @@ use common_types::{
 	ancestry_action::AncestryAction,
 	header::{Header, ExtendedHeader},
 	engines::{
-		EngineType,
 		Seal, SealingState, Headers, PendingTransitionStore,
 		params::CommonParams,
 		machine as machine_types,
 		machine::{AuxiliaryData, AuxiliaryRequest},
 	},
 	errors::{EthcoreError as Error, EngineError},
+	snapshot::Snapshotting,
 	transaction::{self, UnverifiedTransaction},
 };
 use client_traits::EngineClient;
@@ -145,7 +145,7 @@ pub enum EpochChange {
 /// Provides hooks into each of the major parts of block import.
 pub trait Engine: Sync + Send {
 	/// The name of this engine.
-	fn name(&self) -> EngineType;
+	fn name(&self) -> &str;
 
 	/// Get access to the underlying state machine.
 	// TODO: decouple.
@@ -305,7 +305,7 @@ pub trait Engine: Sync + Send {
 	fn step(&self) {}
 
 	/// Whether this engine supports warp sync.
-	fn supports_warp(&self) -> bool { false }
+	fn supports_warp(&self) -> Snapshotting { Snapshotting::Unsupported }
 
 	/// Return a new open block header timestamp based on the parent timestamp.
 	fn open_block_header_timestamp(&self, parent_timestamp: u64) -> u64 {

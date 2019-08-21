@@ -24,11 +24,11 @@ use common_types::{
 	BlockNumber,
 	header::Header,
 	engines::{
-		EngineType,
 		EthashSeal,
 		params::CommonParams,
 	},
 	errors::{BlockError, EthcoreError as Error},
+	snapshot::Snapshotting,
 };
 use engine::Engine;
 use ethereum_types::{H256, U256};
@@ -45,9 +45,9 @@ use unexpected::{OutOfBounds, Mismatch};
 
 /// Number of blocks in an ethash snapshot.
 // make dependent on difficulty increment divisor?
-pub const SNAPSHOT_BLOCKS: u64 = 5000;
+const SNAPSHOT_BLOCKS: u64 = 5000;
 /// Maximum number of blocks allowed in an ethash snapshot.
-pub const MAX_SNAPSHOT_BLOCKS: u64 = 30000;
+const MAX_SNAPSHOT_BLOCKS: u64 = 30000;
 
 /// Ethash params.
 #[derive(Debug, PartialEq)]
@@ -222,7 +222,8 @@ impl engine::EpochVerifier for EpochVerifier {
 }
 
 impl Engine for Ethash {
-	fn name(&self) -> EngineType { EngineType::Ethash }
+	fn name(&self) -> &str { "Ethash" }
+
 	fn machine(&self) -> &Machine { &self.machine }
 
 	// Two fields - nonce and mix.
@@ -371,7 +372,9 @@ impl Engine for Ethash {
 		header.set_difficulty(difficulty);
 	}
 
-	fn supports_warp(&self) -> bool { true }
+	fn supports_warp(&self) -> Snapshotting {
+		Snapshotting::PoW { blocks: SNAPSHOT_BLOCKS, max_restore_blocks: MAX_SNAPSHOT_BLOCKS }
+	}
 
 	fn params(&self) -> &CommonParams { self.machine.params() }
 }
@@ -479,7 +482,6 @@ mod tests {
 	use std::collections::BTreeMap;
 
 	use common_types::{
-		engines::EngineType,
 		header::Header,
 		errors::{BlockError, EthcoreError as Error}
 	};
@@ -616,7 +618,7 @@ mod tests {
 	#[test]
 	fn has_valid_metadata() {
 		let engine = test_spec().engine;
-		assert_eq!(engine.name(), EngineType::Ethash);
+		assert_eq!(engine.name(), "Ethash");
 	}
 
 	#[test]

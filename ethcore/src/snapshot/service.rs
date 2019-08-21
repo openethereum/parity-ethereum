@@ -106,10 +106,6 @@ struct RestorationParams<'a> {
 impl Restoration {
 	// make a new restoration using the given parameters.
 	fn new(params: RestorationParams) -> Result<Self, Error> {
-		if !params.engine.supports_warp() {
-			return Err(Error::Snapshot(SnapshotError::SnapshotsUnsupported))
-		}
-
 		let manifest = params.manifest;
 
 		let state_chunks = manifest.state_hashes.iter().cloned().collect();
@@ -118,7 +114,7 @@ impl Restoration {
 		let raw_db = params.db;
 
 		let chain = BlockChain::new(Default::default(), params.genesis, raw_db.clone());
-		let chunker = chunker(params.engine.name())
+		let chunker = chunker(params.engine.supports_warp())
 			.ok_or_else(|| Error::Snapshot(SnapshotError::SnapshotsUnsupported))?;
 
 		let secondary = chunker.rebuilder(chain, raw_db.clone(), &manifest)?;
@@ -808,7 +804,7 @@ impl SnapshotService for Service {
 	}
 
 	fn supported_versions(&self) -> Option<(u64, u64)> {
-		chunker(self.engine.name())
+		chunker(self.engine.supports_warp())
 			.map(|c| (c.min_supported_version(), c.current_version()))
 	}
 

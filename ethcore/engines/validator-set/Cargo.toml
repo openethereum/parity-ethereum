@@ -1,5 +1,5 @@
 [package]
-description = "Manage validators and sets of validators"
+description = "Manage validators and sets of validators: creation, calling and validation of contracts, epoch management, proofs and proving"
 name = "validator-set"
 version = "0.1.0"
 authors = ["Parity Technologies <admin@parity.io>"]

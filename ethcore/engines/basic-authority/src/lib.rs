@@ -21,7 +21,6 @@ use std::sync::Weak;
 use common_types::{
 	header::Header,
 	engines::{
-		EngineType,
 		Headers,
 		PendingTransitionStore,
 		SealingState,
@@ -101,7 +100,7 @@ impl BasicAuthority {
 }
 
 impl Engine for BasicAuthority {
-	fn name(&self) -> EngineType { EngineType::BasicAuthority }
+	fn name(&self) -> &str { "BasicAuthority" }
 
 	fn machine(&self) -> &Machine { &self.machine }
 
@@ -230,10 +229,9 @@ mod tests {
 	use spec::Spec;
 	use common_types::{
 		header::Header,
-		engines::{EngineType, Seal, SealingState}
+		engines::{Seal, SealingState}
 	};
 	use tempdir::TempDir;
-	use ethjson::spec::Engine;
 
 	/// Create a new test chain spec with `BasicAuthority` consensus engine.
 	fn new_test_authority() -> Spec {
@@ -245,7 +243,7 @@ mod tests {
 	#[test]
 	fn has_valid_metadata() {
 		let engine = new_test_authority().engine;
-		assert_eq!(engine.name(), EngineType::BasicAuthority);
+		assert_eq!(engine.name(), "BasicAuthority");
 	}
 
 	#[test]
