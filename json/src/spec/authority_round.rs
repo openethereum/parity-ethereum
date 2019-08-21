@@ -64,13 +64,13 @@ pub struct AuthorityRoundParams {
 	pub immediate_transitions: Option<bool>,
 	/// Reward per block in wei.
 	pub block_reward: Option<Uint>,
-	/// Block at which the block reward contract should start being used. This option allows to add
-	/// a single block reward contract transition and is compatible with the multiple address option
-	/// `block_reward_contract_transitions` below.
+	/// Block at which the block reward contract should start being used. This option allows one to
+	/// add a single block reward contract transition and is compatible with the multiple address
+	/// option `block_reward_contract_transitions` below.
 	pub block_reward_contract_transition: Option<Uint>,
 	/// Block reward contract address which overrides the `block_reward` setting. This option allows
-	/// to add a single block reward contract address and is compatible with the multiple address
-	/// option `block_reward_contract_transitions` below.
+	/// one to add a single block reward contract address and is compatible with the multiple
+	/// address option `block_reward_contract_transitions` below.
 	pub block_reward_contract_address: Option<Address>,
 	/// Block reward contract addresses with their associated starting block numbers.
 	///
