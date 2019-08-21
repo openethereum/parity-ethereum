@@ -161,7 +161,7 @@ pub fn restore(
 	use std::sync::atomic::AtomicBool;
 
 	let flag = AtomicBool::new(true);
-	let chunker = crate::snapshot::chunker(engine.supports_warp()).expect("the engine used here supports snapshots");
+	let chunker = crate::snapshot::chunker(engine.snapshot_mode()).expect("the engine used here supports snapshots");
 	let manifest = reader.manifest();
 
 	let mut state = StateRebuilder::new(db.key_value().clone(), journaldb::Algorithm::Archive);

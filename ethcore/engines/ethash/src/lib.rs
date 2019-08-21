@@ -372,8 +372,11 @@ impl Engine for Ethash {
 		header.set_difficulty(difficulty);
 	}
 
-	fn supports_warp(&self) -> Snapshotting {
-		Snapshotting::PoW { blocks: SNAPSHOT_BLOCKS, max_restore_blocks: MAX_SNAPSHOT_BLOCKS }
+	fn snapshot_mode(&self) -> Snapshotting {
+		Snapshotting::PoW {
+			blocks: SNAPSHOT_BLOCKS,
+			max_restore_blocks: MAX_SNAPSHOT_BLOCKS
+		}
 	}
 
 	fn params(&self) -> &CommonParams { self.machine.params() }

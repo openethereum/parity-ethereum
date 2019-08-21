@@ -101,7 +101,7 @@ impl Engine for NullEngine {
 		Ok(())
 	}
 
-	fn supports_warp(&self) -> Snapshotting {
+	fn snapshot_mode(&self) -> Snapshotting {
 		Snapshotting::PoW { blocks: 10_000, max_restore_blocks: 10_000 }
 	}
 

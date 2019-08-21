@@ -1598,7 +1598,7 @@ impl Engine for AuthorityRound {
 		)
 	}
 
-	fn supports_warp(&self) -> Snapshotting {
+	fn snapshot_mode(&self) -> Snapshotting {
 		if self.immediate_transitions {
 			Snapshotting::Unsupported
 		} else {

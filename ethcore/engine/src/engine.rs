@@ -304,8 +304,8 @@ pub trait Engine: Sync + Send {
 	/// Trigger next step of the consensus engine.
 	fn step(&self) {}
 
-	/// Whether this engine supports warp sync.
-	fn supports_warp(&self) -> Snapshotting { Snapshotting::Unsupported }
+	/// Snapshot mode for the engine: Unsupported, PoW or PoA
+	fn snapshot_mode(&self) -> Snapshotting { Snapshotting::Unsupported }
 
 	/// Return a new open block header timestamp based on the parent timestamp.
 	fn open_block_header_timestamp(&self, parent_timestamp: u64) -> u64 {
