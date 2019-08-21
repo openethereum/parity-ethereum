@@ -479,6 +479,7 @@ mod tests {
 			last_hashes: Arc::new(vec![]),
 			gas_used: 0.into(),
 			gas_limit: 0.into(),
+			chain_id: 0.into(),
 		}
 	}
 

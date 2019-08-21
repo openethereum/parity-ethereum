@@ -144,6 +144,8 @@ fn run_constructors<T: Backend>(
 		last_hashes: Default::default(),
 		gas_used: U256::zero(),
 		gas_limit: U256::max_value(),
+		// todo[dvdplm] better to store a u64 in EnvInfo instead?
+		chain_id: engine.params().chain_id.into(),
 	};
 
 	let from = Address::zero();
@@ -510,6 +512,7 @@ impl Spec {
 				timestamp: genesis.timestamp(),
 				difficulty: *genesis.difficulty(),
 				gas_limit: U256::max_value(),
+				chain_id: self.chain_id().into(),
 				last_hashes: Arc::new(Vec::new()),
 				gas_used: 0.into(),
 			};

@@ -222,6 +222,7 @@ impl<'a> EvmTestClient<'a> {
 			last_hashes: Arc::new([H256::zero(); 256].to_vec()),
 			gas_used: 0.into(),
 			gas_limit: *genesis.gas_limit(),
+			chain_id: self.spec.engine.params().chain_id.into()
 		};
 		self.call_envinfo(params, tracer, vm_tracer, info)
 	}
