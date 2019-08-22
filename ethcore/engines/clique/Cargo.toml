@@ -1,0 +1,30 @@
+[package]
+description = "Clique consensus engine"
+name = "clique"
+version = "0.1.0"
+authors = ["Parity Technologies <admin@parity.io>"]
+edition = "2018"
+license = "GPL-3.0"
+
+[dependencies]
+client-traits = { path = "../../client-traits" }
+common-types = { path = "../../types" }
+ethereum-types = "0.6.0"
+ethjson = { path = "../../../json" }
+ethkey = { path = "../../../accounts/ethkey" }
+engine = { path = "../../engine" }
+keccak-hash = "0.2.0"
+lazy_static = "1.3.0"
+log = "0.4"
+lru-cache = "0.1"
+machine = { path = "../../machine" }
+macros = { path = "../../../util/macros" }
+parking_lot = "0.8"
+rand = "0.6"
+rlp = "0.4.0"
+time-utils = { path = "../../../util/time-utils" }
+unexpected = { path = "../../../util/unexpected" }
+
+[dev-dependencies]
+ethcore = { path = "../..", features = ["test-helpers"] }
+state-db = { path = "../../state-db" }

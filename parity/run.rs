@@ -44,6 +44,7 @@ use sync::{self, SyncConfig, PrivateTxHandler};
 use types::{
 	client_types::Mode,
 	ids::BlockId,
+	snapshot::Snapshotting,
 };
 use parity_rpc::{
 	Origin, Metadata, NetworkSettings, informant, PubSubSession, FutureResult, FutureResponse, FutureOutput
@@ -445,7 +446,14 @@ fn execute_impl<Cr, Rr>(cmd: RunCmd, logger: Arc<RotatingLogger>, on_client_rq: 
 	}
 
 	sync_config.fork_block = spec.fork_block();
-	let mut warp_sync = spec.engine.supports_warp() && cmd.warp_sync;
+	let snapshot_supported =
+		if let Snapshotting::Unsupported = spec.engine.snapshot_mode() {
+			false
+		} else {
+			true
+		};
+
+	let mut warp_sync = snapshot_supported && cmd.warp_sync;
 	if warp_sync {
 		// Logging is not initialized yet, so we print directly to stderr
 		if fat_db {

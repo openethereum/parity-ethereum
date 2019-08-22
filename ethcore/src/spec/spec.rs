@@ -40,10 +40,12 @@ use vm::{EnvInfo, CallType, ActionValue, ActionParams, ParamsType};
 
 use builtin::Builtin;
 use engine::Engine;
-use engines::{
-	NullEngine, InstantSeal, InstantSealParams, BasicAuthority, Clique,
-	AuthorityRound, Ethash,
-};
+use clique::Clique;
+use null_engine::NullEngine;
+use instant_seal::{InstantSeal, InstantSealParams};
+use authority_round::AuthorityRound;
+use basic_authority::BasicAuthority;
+use ethash_engine::Ethash;
 use machine::{
 	executive::Executive,
 	machine::Machine,

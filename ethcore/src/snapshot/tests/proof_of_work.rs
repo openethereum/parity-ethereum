@@ -21,11 +21,12 @@ use tempdir::TempDir;
 use types::{
 	errors::EthcoreError as Error,
 	engines::ForkChoice,
+	snapshot::Progress,
 };
 
 use blockchain::generator::{BlockGenerator, BlockBuilder};
 use blockchain::{BlockChain, ExtrasInsert};
-use snapshot::{chunk_secondary, Error as SnapshotError, Progress, SnapshotComponents};
+use snapshot::{chunk_secondary, Error as SnapshotError, SnapshotComponents};
 use snapshot::io::{PackedReader, PackedWriter, SnapshotReader, SnapshotWriter};
 
 use parking_lot::Mutex;

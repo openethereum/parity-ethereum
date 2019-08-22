@@ -31,6 +31,7 @@ use common_types::{
 		machine::{AuxiliaryData, AuxiliaryRequest},
 	},
 	errors::{EthcoreError as Error, EngineError},
+	snapshot::Snapshotting,
 	transaction::{self, UnverifiedTransaction},
 };
 use client_traits::EngineClient;
@@ -43,10 +44,7 @@ use machine::{
 };
 use vm::{EnvInfo, Schedule, CallType, ActionValue};
 
-use crate::{
-	signer::EngineSigner,
-	snapshot::SnapshotComponents,
-};
+use crate::signer::EngineSigner;
 
 /// A system-calling closure. Enacts calls on a block's state from the system address.
 pub type SystemCall<'a> = dyn FnMut(Address, Vec<u8>) -> Result<Vec<u8>, String> + 'a;
@@ -306,16 +304,8 @@ pub trait Engine: Sync + Send {
 	/// Trigger next step of the consensus engine.
 	fn step(&self) {}
 
-	/// Create a factory for building snapshot chunks and restoring from them.
-	/// Returning `None` indicates that this engine doesn't support snapshot creation.
-	fn snapshot_components(&self) -> Option<Box<dyn SnapshotComponents>> {
-		None
-	}
-
-	/// Whether this engine supports warp sync.
-	fn supports_warp(&self) -> bool {
-		self.snapshot_components().is_some()
-	}
+	/// Snapshot mode for the engine: Unsupported, PoW or PoA
+	fn snapshot_mode(&self) -> Snapshotting { Snapshotting::Unsupported }
 
 	/// Return a new open block header timestamp based on the parent timestamp.
 	fn open_block_header_timestamp(&self, parent_timestamp: u64) -> u64 {

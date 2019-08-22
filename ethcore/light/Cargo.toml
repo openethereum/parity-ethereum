@@ -17,6 +17,7 @@ ethcore = { path = ".."}
 ethcore-db = { path = "../db" }
 ethcore-blockchain = { path = "../blockchain" }
 ethereum-types = "0.6.0"
+executive-state = { path = "../executive-state" }
 machine = { path = "../machine" }
 memory-db = "0.15.0"
 trie-db = "0.15.0"

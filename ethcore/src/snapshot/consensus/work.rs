@@ -26,7 +26,6 @@ use std::sync::Arc;
 
 use blockchain::{BlockChain, BlockChainDB, BlockProvider};
 use engine::Engine;
-use engine::snapshot::{SnapshotComponents, Rebuilder};
 use snapshot::block::AbridgedBlock;
 use ethereum_types::H256;
 use kvdb::KeyValueDB;
@@ -40,6 +39,8 @@ use types::{
 	snapshot::{ChunkSink, ManifestData, Progress},
 };
 
+use snapshot::{SnapshotComponents, Rebuilder};
+
 /// Snapshot creation and restoration for PoW chains.
 /// This includes blocks from the head of the chain as a
 /// loose assurance that the chain is valid.
@@ -48,7 +49,7 @@ pub struct PowSnapshot {
 	/// Number of blocks from the head of the chain
 	/// to include in the snapshot.
 	pub blocks: u64,
-	/// Number of to allow in the snapshot when restoring.
+	/// Number of blocks to allow in the snapshot when restoring.
 	pub max_restore_blocks: u64,
 }
 

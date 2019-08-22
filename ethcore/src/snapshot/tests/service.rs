@@ -27,10 +27,11 @@ use types::{
 	ids::BlockId,
 	snapshot::Progress,
 	verification::Unverified,
+	snapshot::{ManifestData, RestorationStatus},
 };
 use snapshot::io::{PackedReader, PackedWriter, SnapshotReader, SnapshotWriter};
 use snapshot::service::{Service, ServiceParams};
-use snapshot::{chunk_state, chunk_secondary, ManifestData, SnapshotService, RestorationStatus};
+use snapshot::{chunk_state, chunk_secondary, SnapshotService};
 use crate::spec;
 use test_helpers::{new_db, new_temp_db, generate_dummy_client_with_spec_and_data, restoration_db_handler};
 

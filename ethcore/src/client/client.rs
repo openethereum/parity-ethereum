@@ -20,6 +20,7 @@ use std::sync::atomic::{AtomicUsize, AtomicBool, Ordering as AtomicOrdering};
 use std::sync::{Arc, Weak};
 use std::time::{Instant, Duration};
 
+use account_state::state::StateInfo;
 use blockchain::{BlockReceipts, BlockChain, BlockChainDB, BlockProvider, TreeRoute, ImportRoute, TransactionAddress, ExtrasInsert, BlockNumberKey};
 use bytes::Bytes;
 use call_contract::{CallContract, RegistryInfo};
@@ -39,7 +40,7 @@ use hash_db::EMPTY_PREFIX;
 use block::{LockedBlock, Drain, ClosedBlock, OpenBlock, enact_verified, SealedBlock};
 use client::ancient_import::AncientVerifier;
 use client::{
-	ReopenBlock, PrepareOpenBlock, ImportSealedBlock, BroadcastProposalBlock, StateInfo,
+	ReopenBlock, PrepareOpenBlock, ImportSealedBlock, BroadcastProposalBlock,
 	Call, BlockProducer, SealedBlockImporter, ChainNotify, EngineInfo,
 	ClientConfig, NewBlocks, ChainRoute, ChainMessageType, bad_blocks, ClientIoMessage,
 };
@@ -85,7 +86,7 @@ use types::{
 	log_entry::LocalizedLogEntry,
 	receipt::{Receipt, LocalizedReceipt},
 	header::Header,
-	snapshot::Progress,
+	snapshot::{Progress, Snapshotting},
 	trace_filter::Filter as TraceFilter,
 	pruning_info::PruningInfo,
 	call_analytics::CallAnalytics,
@@ -1020,7 +1021,7 @@ impl Client {
 	}
 
 	/// Get shared miner reference.
-	#[cfg(test)]
+	#[cfg(any(test, feature = "test-helpers"))]
 	pub fn miner(&self) -> Arc<Miner> {
 		self.importer.miner.clone()
 	}
@@ -1168,6 +1169,9 @@ impl Client {
 		at: BlockId,
 		p: &Progress,
 	) -> Result<(), EthcoreError> {
+		if let Snapshotting::Unsupported = self.engine.snapshot_mode() {
+			return Err(EthcoreError::Snapshot(SnapshotError::SnapshotsUnsupported));
+		}
 		let db = self.state_db.read().journal_db().boxed_clone();
 		let best_block_number = self.chain_info().best_block_number;
 		let block_number = self.block_number(at).ok_or_else(|| SnapshotError::InvalidStartingBlock(at))?;
@@ -1197,7 +1201,7 @@ impl Client {
 		};
 
 		let processing_threads = self.config.snapshot.processing_threads;
-		let chunker = self.engine.snapshot_components().ok_or_else(|| SnapshotError::SnapshotsUnsupported)?;
+		let chunker = snapshot::chunker(self.engine.snapshot_mode()).ok_or_else(|| SnapshotError::SnapshotsUnsupported)?;
 		snapshot::take_snapshot(
 			chunker,
 			&self.chain.read(),
@@ -1227,10 +1231,8 @@ impl Client {
 	fn transaction_address(&self, id: TransactionId) -> Option<TransactionAddress> {
 		match id {
 			TransactionId::Hash(ref hash) => self.chain.read().transaction_address(hash),
-			TransactionId::Location(id, index) => Self::block_hash(&self.chain.read(), id).map(|hash| TransactionAddress {
-				block_hash: hash,
-				index: index,
-			})
+			TransactionId::Location(id, index) => Self::block_hash(&self.chain.read(), id).map(|block_hash|
+				TransactionAddress { block_hash, index })
 		}
 	}
 

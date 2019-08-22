@@ -22,3 +22,16 @@ mod work;
 
 pub use self::authority::*;
 pub use self::work::*;
+
+use snapshot::SnapshotComponents;
+use types::snapshot::Snapshotting::{self, *};
+
+/// Create a factory for building snapshot chunks and restoring from them.
+/// `None` indicates that the engine doesn't support snapshot creation.
+pub fn chunker(snapshot_type: Snapshotting) -> Option<Box<dyn SnapshotComponents>> {
+	match snapshot_type {
+		PoA => Some(Box::new(PoaSnapshot)),
+		PoW { blocks, max_restore_blocks } => Some(Box::new(PowSnapshot::new(blocks, max_restore_blocks))),
+		Unsupported => None,
+	}
+}

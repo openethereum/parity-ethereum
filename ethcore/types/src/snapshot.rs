@@ -22,6 +22,22 @@ use ethereum_types::H256;
 use rlp::{Rlp, RlpStream, DecoderError};
 use bytes::Bytes;
 
+/// Modes of snapshotting
+pub enum Snapshotting {
+	/// Snapshotting and warp sync is not supported
+	Unsupported,
+	/// Snapshots for proof-of-work chains
+	PoW {
+		/// Number of blocks from the head of the chain
+		/// to include in the snapshot.
+		blocks: u64,
+		/// Number of blocks to allow in the snapshot when restoring.
+		max_restore_blocks: u64
+	},
+	/// Snapshots for proof-of-authority chains
+	PoA,
+}
+
 /// A progress indicator for snapshots.
 #[derive(Debug, Default)]
 pub struct Progress {
@@ -122,3 +138,34 @@ impl ManifestData {
 
 /// A sink for produced chunks.
 pub type ChunkSink<'a> = dyn FnMut(&[u8]) -> std::io::Result<()> + 'a;
+
+/// Statuses for snapshot restoration.
+#[derive(PartialEq, Eq, Clone, Copy, Debug)]
+pub enum RestorationStatus {
+	///	No restoration.
+	Inactive,
+	/// Restoration is initializing
+	Initializing {
+		/// Total number of state chunks.
+		state_chunks: u32,
+		/// Total number of block chunks.
+		block_chunks: u32,
+		/// Number of chunks done/imported
+		chunks_done: u32,
+	},
+	/// Ongoing restoration.
+	Ongoing {
+		/// Total number of state chunks.
+		state_chunks: u32,
+		/// Total number of block chunks.
+		block_chunks: u32,
+		/// Number of state chunks completed.
+		state_chunks_done: u32,
+		/// Number of block chunks completed.
+		block_chunks_done: u32,
+	},
+	/// Finalizing restoration
+	Finalizing,
+	/// Failed restoration.
+	Failed,
+}

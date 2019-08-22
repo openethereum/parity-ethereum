@@ -55,13 +55,17 @@
 
 extern crate account_db;
 extern crate account_state;
+extern crate authority_round;
 extern crate ansi_term;
+extern crate basic_authority;
 extern crate client_traits;
 extern crate common_types as types;
+extern crate clique;
 extern crate crossbeam_utils;
 extern crate engine;
 extern crate ethabi;
 extern crate ethash;
+extern crate ethash_engine;
 extern crate ethcore_blockchain as blockchain;
 extern crate ethcore_bloom_journal as bloom_journal;
 extern crate ethcore_builtin as builtin;
@@ -72,9 +76,11 @@ extern crate ethcore_miner;
 extern crate ethereum_types;
 extern crate ethjson;
 extern crate ethkey;
+extern crate executive_state;
 extern crate trie_vm_factories;
 extern crate futures;
 extern crate hash_db;
+extern crate instant_seal;
 extern crate itertools;
 extern crate journaldb;
 extern crate keccak_hash as hash;
@@ -84,9 +90,9 @@ extern crate kvdb;
 extern crate kvdb_memorydb;
 
 extern crate len_caching_lock;
-extern crate lru_cache;
 extern crate machine;
 extern crate memory_cache;
+extern crate null_engine;
 extern crate num_cpus;
 extern crate parity_bytes as bytes;
 extern crate parity_snappy as snappy;
@@ -120,6 +126,12 @@ extern crate ethcore_stratum;
 extern crate tempdir;
 #[cfg(any(test, feature = "kvdb-rocksdb"))]
 extern crate kvdb_rocksdb;
+#[cfg(any(test, feature = "json-tests"))]
+#[macro_use]
+extern crate lazy_static;
+#[cfg(any(test, feature = "json-tests", feature = "test-helpers", feature = "parity"))]
+#[macro_use]
+extern crate macros;
 #[cfg(any(test, feature = "blooms-db"))]
 extern crate blooms_db;
 #[cfg(any(test, feature = "env_logger"))]
@@ -131,10 +143,6 @@ extern crate serde_json;
 extern crate ethabi_contract;
 #[macro_use]
 extern crate log;
-#[macro_use]
-extern crate lazy_static;
-#[macro_use]
-extern crate macros;
 #[macro_use]
 extern crate rlp_derive;
 #[macro_use]
@@ -151,8 +159,6 @@ extern crate parity_runtime;
 
 pub mod block;
 pub mod client;
-pub mod engines;
-pub mod executive_state;
 pub mod miner;
 pub mod snapshot;
 pub mod spec;

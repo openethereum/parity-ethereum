@@ -1,0 +1,15 @@
+[package]
+description = "An ethereum engine which does not provide any consensus mechanism and does not seal blocks."
+name = "null-engine"
+version = "0.1.0"
+authors = ["Parity Technologies <admin@parity.io>"]
+edition = "2018"
+license = "GPL-3.0"
+
+[dependencies]
+common-types = { path = "../../types" }
+block-reward = { path = "../../block-reward" }
+engine = { path = "../../engine" }
+ethjson = { path = "../../../json" }
+ethereum-types = "0.6.0"
+machine = { path = "../../machine" }

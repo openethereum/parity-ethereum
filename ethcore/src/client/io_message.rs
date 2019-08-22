@@ -18,7 +18,7 @@ use std::fmt;
 use bytes::Bytes;
 use client::Client;
 use ethereum_types::H256;
-use snapshot::ManifestData;
+use types::snapshot::ManifestData;
 
 /// Message type for external and internal events
 #[derive(Debug)]

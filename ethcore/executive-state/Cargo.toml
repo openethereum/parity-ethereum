@@ -1,0 +1,33 @@
+[package]
+description = "Execute transactions producing a receipt and an optional trace."
+name = "executive-state"
+version = "0.1.0"
+authors = ["Parity Technologies <admin@parity.io>"]
+edition = "2018"
+license = "GPL-3.0"
+
+[dependencies]
+account-db = { path = "../account-db" }
+account-state = { path = "../account-state" }
+bytes = { package = "parity-bytes", version = "0.1.0" }
+common-types = { path = "../types" }
+ethereum-types = "0.6.0"
+hash-db = "0.15.0"
+keccak-hasher = { path = "../../util/keccak-hasher" }
+kvdb = "0.1.0"
+log = "0.4.8"
+machine = { path = "../machine" }
+trace = { path = "../trace" }
+trie-vm-factories = { path = "../trie-vm-factories" }
+vm = { path = "../vm" }
+
+[dev-dependencies]
+env_logger = "0.5"
+ethcore = { path = "..", features = ["test-helpers"] }
+ethkey = { path = "../../accounts/ethkey" }
+evm = { path = "../evm" }
+keccak-hash = "0.2.0"
+pod = { path = "../pod" }
+rustc-hex = "1.0"
+trie-db = "0.15.0"
+ethtrie = { package = "patricia-trie-ethereum", path = "../../util/patricia-trie-ethereum" }

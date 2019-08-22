@@ -28,9 +28,10 @@ use std::path::{Path, PathBuf};
 use bytes::Bytes;
 use ethereum_types::H256;
 use rlp::{RlpStream, Rlp};
-use types::errors::{SnapshotError, EthcoreError};
-
-use super::ManifestData;
+use types::{
+	errors::{SnapshotError, EthcoreError},
+	snapshot::ManifestData,
+};
 
 const SNAPSHOT_VERSION: u64 = 2;
 

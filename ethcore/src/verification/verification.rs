@@ -782,7 +782,7 @@ mod tests {
 		use ethkey::{Generator, Random};
 		use types::transaction::{Transaction, Action};
 		use machine::Machine;
-		use engines::NullEngine;
+		use null_engine::NullEngine;
 
 		let mut params = CommonParams::default();
 		params.dust_protection_transition = 0;

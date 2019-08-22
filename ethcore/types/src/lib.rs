@@ -74,7 +74,6 @@ pub mod ids;
 pub mod log_entry;
 pub mod pruning_info;
 pub mod receipt;
-pub mod restoration_status;
 pub mod security_level;
 pub mod snapshot;
 pub mod state_diff;

@@ -109,7 +109,6 @@ use rlp::{RlpStream, DecoderError};
 use network::{self, PeerId, PacketId};
 use network::client_version::ClientVersion;
 use client_traits::BlockChainClient;
-use ethcore::snapshot::RestorationStatus;
 use sync_io::SyncIo;
 use super::{WarpSync, SyncConfig};
 use block_sync::{BlockDownloader, DownloadAction};
@@ -125,6 +124,7 @@ use types::{
 	verification::VerificationQueueInfo as BlockQueueInfo,
 	blockchain_info::BlockChainInfo,
 	block_status::BlockStatus,
+	snapshot::RestorationStatus,
 };
 
 use self::handler::SyncHandler;
@@ -1616,7 +1616,7 @@ pub mod tests {
 		// Add some balance to clients and reset nonces
 		for h in &[good_blocks[0], retracted_blocks[0]] {
 			let block = client.block(BlockId::Hash(*h)).unwrap();
-			let sender = sender(&block.transactions()[0]);;
+			let sender = sender(&block.transactions()[0]);
 			client.set_balance(sender, U256::from(10_000_000_000_000_000_000u64));
 			client.set_nonce(sender, U256::from(0));
 		}

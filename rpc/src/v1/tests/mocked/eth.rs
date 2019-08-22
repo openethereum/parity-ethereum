@@ -36,6 +36,7 @@ use types::{
 	transaction::{Transaction, Action},
 	log_entry::{LocalizedLogEntry, LogEntry},
 	receipt::{LocalizedReceipt, TransactionOutcome},
+	snapshot::RestorationStatus,
 };
 
 use jsonrpc_core::IoHandler;
@@ -131,8 +132,6 @@ fn rpc_eth_protocol_version() {
 
 #[test]
 fn rpc_eth_syncing() {
-	use ethcore::snapshot::RestorationStatus;
-
 	let request = r#"{"jsonrpc": "2.0", "method": "eth_syncing", "params": [], "id": 1}"#;
 
 	let tester = EthTester::default();

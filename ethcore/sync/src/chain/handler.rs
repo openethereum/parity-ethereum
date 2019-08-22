@@ -18,7 +18,6 @@ use api::WARP_SYNC_PROTOCOL_ID;
 use block_sync::{BlockDownloaderImportError as DownloaderImportError, DownloadAction};
 use bytes::Bytes;
 use enum_primitive::FromPrimitive;
-use ethcore::snapshot::{ManifestData, RestorationStatus};
 use ethereum_types::{H256, U256};
 use hash::keccak;
 use network::PeerId;
@@ -34,6 +33,7 @@ use types::{
 	ids::BlockId,
 	errors::{EthcoreError, ImportError, BlockError},
 	verification::Unverified,
+	snapshot::{ManifestData, RestorationStatus},
 };
 
 use super::sync_packet::{PacketInfo, SyncPacket};

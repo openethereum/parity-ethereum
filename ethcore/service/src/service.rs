@@ -29,9 +29,12 @@ use blockchain::{BlockChainDB, BlockChainDBHandler};
 use ethcore::client::{Client, ClientConfig, ChainNotify, ClientIoMessage};
 use ethcore::miner::Miner;
 use ethcore::snapshot::service::{Service as SnapshotService, ServiceParams as SnapServiceParams};
-use ethcore::snapshot::{SnapshotService as _SnapshotService, RestorationStatus};
+use ethcore::snapshot::{SnapshotService as _SnapshotService};
 use ethcore::spec::Spec;
-use common_types::errors::{EthcoreError, SnapshotError};
+use common_types::{
+	errors::{EthcoreError, SnapshotError},
+	snapshot::RestorationStatus,
+};
 
 
 use ethcore_private_tx::{self, Importer, Signer};
@@ -112,7 +115,7 @@ impl ClientService {
 	{
 		let io_service = IoService::<ClientIoMessage>::start()?;
 
-		info!("Configured for {} using {} engine", Colour::White.bold().paint(spec.name.clone()), Colour::Yellow.bold().paint(spec.engine.name()));
+		info!("Configured for {} using {} engine", Colour::White.bold().paint(spec.name.clone()), Colour::Yellow.bold().paint(spec.engine.name().to_string()));
 
 		let pruning = config.pruning;
 		let client = Client::new(

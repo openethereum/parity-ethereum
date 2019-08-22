@@ -16,15 +16,45 @@
 
 //! Engine-specific types.
 
-use ethereum_types::{Address, H256};
+use ethereum_types::{Address, H256, H64};
 use bytes::Bytes;
 use ethjson;
+use rlp::Rlp;
+use unexpected::Mismatch;
 
-use crate::BlockNumber;
+use crate::{BlockNumber, errors::{BlockError, EthcoreError}};
 
 pub mod epoch;
 pub mod params;
 pub mod machine;
+
+/// Ethash/Clique specific seal
+#[derive(Debug, PartialEq)]
+pub struct EthashSeal {
+	/// Ethash seal mix_hash
+	pub mix_hash: H256,
+	/// Ethash seal nonce
+	pub nonce: H64,
+}
+
+impl EthashSeal {
+	/// Tries to parse rlp encoded bytes as an Ethash/Clique seal.
+	pub fn parse_seal<T: AsRef<[u8]>>(seal: &[T]) -> Result<Self, EthcoreError> {
+		if seal.len() != 2 {
+			return Err(BlockError::InvalidSealArity(
+				Mismatch {
+					expected: 2,
+					found: seal.len()
+				}
+			).into());
+		}
+
+		let mix_hash = Rlp::new(seal[0].as_ref()).as_val::<H256>()?;
+		let nonce = Rlp::new(seal[1].as_ref()).as_val::<H64>()?;
+		Ok(EthashSeal { mix_hash, nonce })
+	}
+}
+
 
 /// Seal type.
 #[derive(Debug, PartialEq, Eq)]

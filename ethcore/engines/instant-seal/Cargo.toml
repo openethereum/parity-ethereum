@@ -1,0 +1,20 @@
+[package]
+description = "Engine that seals instantly"
+name = "instant-seal"
+version = "0.1.0"
+authors = ["Parity Technologies <admin@parity.io>"]
+edition = "2018"
+license = "GPL-3.0"
+
+[dependencies]
+common-types = { path = "../../types" }
+engine = { path = "../../engine" }
+ethjson = { path = "../../../json" }
+ethereum-types = "0.6.0"
+keccak-hash = "0.2.0"
+machine = { path = "../../machine" }
+trace = { path = "../../trace" }
+
+[dev-dependencies]
+ethcore = { path = "../..", features = ["test-helpers"] }
+rlp = "0.4.2"

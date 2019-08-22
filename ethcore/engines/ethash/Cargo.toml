@@ -1,0 +1,26 @@
+[package]
+description = "Ethash PoW blockchain engine"
+name = "ethash-engine"
+version = "0.1.0"
+authors = ["Parity Technologies <admin@parity.io>"]
+edition = "2018"
+license = "GPL-3.0"
+
+[dependencies]
+block-reward = { path = "../../block-reward" }
+common-types = { path = "../../types" }
+engine = { path = "../../engine" }
+ethash= { path = "../../../ethash" }
+ethereum-types = "0.6.0"
+ethjson = { path = "../../../json" }
+keccak-hash = "0.2.0"
+log = "0.4.8"
+machine = { path = "../../machine" }
+macros = { path = "../../../util/macros" }
+unexpected = { path = "../../../util/unexpected" }
+
+[dev-dependencies]
+ethcore = { path = "../..", features = ["test-helpers"] }
+keccak-hash = "0.2.0"
+rlp = "0.4.2"
+tempdir = "0.3"

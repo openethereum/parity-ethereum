@@ -1,0 +1,21 @@
+[package]
+description = "A crate to interact with the block rewards contract."
+name = "block-reward"
+version = "0.1.0"
+authors = ["Parity Technologies <admin@parity.io>"]
+edition = "2018"
+license = "GPL-3.0"
+
+[dependencies]
+common-types = { path = "../types" }
+engine = { path = "../engine" }
+ethabi = "8.0.1"
+ethabi-derive = "8.0.0"
+ethabi-contract = "8.0.1"
+ethereum-types = "0.6.0"
+keccak-hash = "0.2.0"
+machine = { path = "../machine" }
+trace = { path = "../trace" }
+
+[dev-dependencies]
+ethcore = { path = "..", features = ["test-helpers"] }

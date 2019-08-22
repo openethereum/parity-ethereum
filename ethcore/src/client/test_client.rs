@@ -59,14 +59,13 @@ use types::{
 	blockchain_info::BlockChainInfo,
 	block_status::BlockStatus,
 };
-use vm::Schedule;
+use vm::{Schedule, LastHashes};
 
 use block::{OpenBlock, SealedBlock, ClosedBlock};
 use call_contract::{CallContract, RegistryInfo};
 use client::{
 	ReopenBlock, PrepareOpenBlock, ImportSealedBlock, BroadcastProposalBlock, Call,
 	EngineInfo, BlockProducer, SealedBlockImporter,
-	LastHashes,
 };
 use client_traits::{
 	BlockInfo, Nonce, Balance, ChainInfo, TransactionInfo, BlockChainClient, ImportBlock,

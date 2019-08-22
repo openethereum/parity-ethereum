@@ -1,0 +1,30 @@
+[package]
+description = "Basic PoA blockchain engine."
+name = "basic-authority"
+version = "0.1.0"
+authors = ["Parity Technologies <admin@parity.io>"]
+edition = "2018"
+license = "GPL-3.0"
+
+[dependencies]
+client-traits = { path = "../../client-traits" }
+common-types = { path = "../../types" }
+engine = { path = "../../engine" }
+ethereum-types = "0.6.0"
+ethjson = { path = "../../../json" }
+ethkey = { path = "../../../accounts/ethkey" }
+log = "0.4.8"
+machine = { path = "../../machine" }
+parking_lot = "0.8"
+rlp = "0.4.2"
+validator-set = { path = "../validator-set" }
+
+[dev-dependencies]
+accounts = { package = "ethcore-accounts", path = "../../../accounts" }
+engine = { path = "../../engine", features = ["test-helpers"] }
+ethcore = { path = "../..", features = ["test-helpers"] }
+keccak-hash = "0.2.0"
+tempdir = "0.3"
+
+[features]
+test-helpers = []

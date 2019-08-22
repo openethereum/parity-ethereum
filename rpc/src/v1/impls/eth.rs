@@ -24,9 +24,10 @@ use rlp::Rlp;
 use ethereum_types::{Address, H64, H160, H256, U64, U256, BigEndianHash};
 use parking_lot::Mutex;
 
+use account_state::state::StateInfo;
 use client_traits::{BlockChainClient, StateClient, ProvingBlockChainClient, StateOrBlock};
 use ethash::{self, SeedHashCompute};
-use ethcore::client::{StateInfo, Call, EngineInfo};
+use ethcore::client::{Call, EngineInfo};
 use ethcore::miner::{self, MinerService};
 use ethcore::snapshot::SnapshotService;
 use hash::keccak;
@@ -37,7 +38,8 @@ use types::{
 	encoded,
 	ids::{BlockId, TransactionId, UncleId},
 	filter::Filter as EthcoreFilter,
-	transaction::{SignedTransaction, LocalizedTransaction}
+	transaction::{SignedTransaction, LocalizedTransaction},
+	snapshot::RestorationStatus,
 };
 
 use jsonrpc_core::{BoxFuture, Result};
@@ -518,8 +520,6 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM, T: StateInfo + 'static> Eth for EthClient<
 	}
 
 	fn syncing(&self) -> Result<SyncStatus> {
-		use ethcore::snapshot::RestorationStatus;
-
 		let status = self.sync.status();
 		let client = &self.client;
 		let snapshot_status = self.snapshot.status();
