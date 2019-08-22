@@ -87,10 +87,8 @@ pub struct AuthorityRoundParams {
 	pub immediate_transitions: bool,
 	/// Block reward in base units.
 	pub block_reward: U256,
-	/// Block reward contract transition block.
-	pub block_reward_contract_transition: u64,
-	/// Block reward contract.
-	pub block_reward_contract: Option<BlockRewardContract>,
+	/// Block reward contract addresses with their associated starting block numbers.
+	pub block_reward_contract_transitions: BTreeMap<u64, BlockRewardContract>,
 	/// Number of accepted uncles transition block.
 	pub maximum_uncle_count_transition: u64,
 	/// Number of accepted uncles.
@@ -114,6 +112,30 @@ impl From<ethjson::spec::AuthorityRoundParams> for AuthorityRoundParams {
 			step_duration_usize = U16_MAX;
 			warn!(target: "engine", "step_duration is too high ({}), setting it to {}", step_duration_usize, U16_MAX);
 		}
+		let transition_block_num = p.block_reward_contract_transition.map_or(0, Into::into);
+		let mut br_transitions: BTreeMap<_, _> = p.block_reward_contract_transitions
+			.unwrap_or_default()
+			.into_iter()
+			.map(|(block_num, address)|
+				 (block_num.into(), BlockRewardContract::new_from_address(address.into())))
+			.collect();
+		if (p.block_reward_contract_code.is_some() || p.block_reward_contract_address.is_some()) &&
+			br_transitions.keys().next().map_or(false, |&block_num| block_num <= transition_block_num)
+		{
+			let s = "blockRewardContractTransition";
+			panic!("{} should be less than any of the keys in {}s", s, s);
+		}
+		if let Some(code) = p.block_reward_contract_code {
+			br_transitions.insert(
+				transition_block_num,
+				BlockRewardContract::new_from_code(Arc::new(code.into()))
+			);
+		} else if let Some(address) = p.block_reward_contract_address {
+			br_transitions.insert(
+				transition_block_num,
+				BlockRewardContract::new_from_address(address.into())
+			);
+		}
 		AuthorityRoundParams {
 			step_duration: step_duration_usize as u16,
 			validators: new_validator_set(p.validators),
@@ -122,12 +144,7 @@ impl From<ethjson::spec::AuthorityRoundParams> for AuthorityRoundParams {
 			validate_step_transition: p.validate_step_transition.map_or(0, Into::into),
 			immediate_transitions: p.immediate_transitions.unwrap_or(false),
 			block_reward: p.block_reward.map_or_else(Default::default, Into::into),
-			block_reward_contract_transition: p.block_reward_contract_transition.map_or(0, Into::into),
-			block_reward_contract: match (p.block_reward_contract_code, p.block_reward_contract_address) {
-				(Some(code), _) => Some(BlockRewardContract::new_from_code(Arc::new(code.into()))),
-				(_, Some(address)) => Some(BlockRewardContract::new_from_address(address.into())),
-				(None, None) => None,
-			},
+			block_reward_contract_transitions: br_transitions,
 			maximum_uncle_count_transition: p.maximum_uncle_count_transition.map_or(0, Into::into),
 			maximum_uncle_count: p.maximum_uncle_count.map_or(0, Into::into),
 			empty_steps_transition: p.empty_steps_transition.map_or(u64::max_value(), |n| ::std::cmp::max(n.into(), 1)),
@@ -454,8 +471,7 @@ pub struct AuthorityRound {
 	epoch_manager: Mutex<EpochManager>,
 	immediate_transitions: bool,
 	block_reward: U256,
-	block_reward_contract_transition: u64,
-	block_reward_contract: Option<BlockRewardContract>,
+	block_reward_contract_transitions: BTreeMap<u64, BlockRewardContract>,
 	maximum_uncle_count_transition: u64,
 	maximum_uncle_count: usize,
 	empty_steps_transition: u64,
@@ -724,8 +740,7 @@ impl AuthorityRound {
 				epoch_manager: Mutex::new(EpochManager::blank(our_params.two_thirds_majority_transition)),
 				immediate_transitions: our_params.immediate_transitions,
 				block_reward: our_params.block_reward,
-				block_reward_contract_transition: our_params.block_reward_contract_transition,
-				block_reward_contract: our_params.block_reward_contract,
+				block_reward_contract_transitions: our_params.block_reward_contract_transitions,
 				maximum_uncle_count_transition: our_params.maximum_uncle_count_transition,
 				maximum_uncle_count: our_params.maximum_uncle_count,
 				empty_steps_transition: our_params.empty_steps_transition,
@@ -1295,16 +1310,16 @@ impl Engine for AuthorityRound {
 		let author = *block.header.author();
 		beneficiaries.push((author, RewardKind::Author));
 
-		let rewards: Vec<_> = match self.block_reward_contract {
-			Some(ref c) if block.header.number() >= self.block_reward_contract_transition => {
-				let mut call = engine::default_system_or_code_call(&self.machine, block);
-
-				let rewards = c.reward(beneficiaries, &mut call)?;
-				rewards.into_iter().map(|(author, amount)| (author, RewardKind::External, amount)).collect()
-			},
-			_ => {
-				beneficiaries.into_iter().map(|(author, reward_kind)| (author, reward_kind, self.block_reward)).collect()
-			},
+		let block_reward_contract_transition = self
+			.block_reward_contract_transitions
+			.range(..=block.header.number())
+			.last();
+		let rewards: Vec<_> = if let Some((_, contract)) = block_reward_contract_transition {
+			let mut call = engine::default_system_or_code_call(&self.machine, block);
+			let rewards = contract.reward(beneficiaries, &mut call)?;
+			rewards.into_iter().map(|(author, amount)| (author, RewardKind::External, amount)).collect()
+		} else {
+			beneficiaries.into_iter().map(|(author, reward_kind)| (author, reward_kind, self.block_reward)).collect()
 		};
 
 		block_reward::apply_block_rewards(&rewards, block, &self.machine)
@@ -1645,6 +1660,7 @@ impl Engine for AuthorityRound {
 #[cfg(test)]
 mod tests {
 	use std::collections::BTreeMap;
+	use std::str::FromStr;
 	use std::sync::Arc;
 	use std::sync::atomic::{AtomicUsize, Ordering as AtomicOrdering};
 	use hash::keccak;
@@ -1665,9 +1681,11 @@ mod tests {
 	};
 	use crate::spec::{Spec, self};
 	use engine::Engine;
+	use engines::block_reward::BlockRewardContract;
 	use engines::validator_set::{TestSet, SimpleList};
 	use super::{AuthorityRoundParams, AuthorityRound, EmptyStep, SealedEmptyStep, calculate_score};
 	use machine::Machine;
+	use ethjson;
 
 	fn build_aura<F>(f: F) -> Arc<AuthorityRound> where
 		F: FnOnce(&mut AuthorityRoundParams),
@@ -1684,8 +1702,7 @@ mod tests {
 			empty_steps_transition: u64::max_value(),
 			maximum_empty_steps: 0,
 			block_reward: Default::default(),
-			block_reward_contract_transition: 0,
-			block_reward_contract: Default::default(),
+			block_reward_contract_transitions: Default::default(),
 			strict_empty_steps_transition: 0,
 			two_thirds_majority_transition: 0,
 		};
@@ -2451,5 +2468,56 @@ mod tests {
 		empty_steps.reverse();
 		set_empty_steps_seal(&mut header, step, &signature, &empty_steps);
 		assert_eq!(engine.verify_block_family(&header, &parent).unwrap(), ());
+	}
+
+	#[test]
+	fn should_collect_block_reward_transitions() {
+		let config = r#"{
+			"params": {
+				"stepDuration": "5",
+				"validators": {
+					"list" : ["0x1000000000000000000000000000000000000001"]
+				},
+                "blockRewardContractTransition": "0",
+				"blockRewardContractAddress": "0x2000000000000000000000000000000000000002",
+				"blockRewardContractTransitions": {
+					"7": "0x3000000000000000000000000000000000000003",
+					"42": "0x4000000000000000000000000000000000000004"
+				}
+			}
+		}"#;
+		let deserialized: ethjson::spec::AuthorityRound = serde_json::from_str(config).unwrap();
+		let params = AuthorityRoundParams::from(deserialized.params);
+		for ((block_num1, address1), (block_num2, address2)) in
+			params.block_reward_contract_transitions.iter().zip(
+				[(0u64, BlockRewardContract::new_from_address(Address::from_str("2000000000000000000000000000000000000002").unwrap())),
+				 (7u64, BlockRewardContract::new_from_address(Address::from_str("3000000000000000000000000000000000000003").unwrap())),
+				 (42u64, BlockRewardContract::new_from_address(Address::from_str("4000000000000000000000000000000000000004").unwrap())),
+				].iter())
+		{
+			assert_eq!(block_num1, block_num2);
+			assert_eq!(address1, address2);
+		}
+	}
+
+	#[test]
+	#[should_panic(expected="blockRewardContractTransition should be less than any of the keys in blockRewardContractTransitions")]
+	fn should_reject_out_of_order_block_reward_transition() {
+		let config = r#"{
+			"params": {
+				"stepDuration": "5",
+				"validators": {
+					"list" : ["0x1000000000000000000000000000000000000001"]
+				},
+                "blockRewardContractTransition": "7",
+				"blockRewardContractAddress": "0x2000000000000000000000000000000000000002",
+				"blockRewardContractTransitions": {
+					"0": "0x3000000000000000000000000000000000000003",
+					"42": "0x4000000000000000000000000000000000000004"
+				}
+			}
+		}"#;
+		let deserialized: ethjson::spec::AuthorityRound = serde_json::from_str(config).unwrap();
+		AuthorityRoundParams::from(deserialized.params);
 	}
 }
