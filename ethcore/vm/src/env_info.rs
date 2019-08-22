@@ -41,8 +41,6 @@ pub struct EnvInfo {
 	pub difficulty: U256,
 	/// The block gas limit.
 	pub gas_limit: U256,
-	/// The chain network ID
-	pub chain_id: U256,
 	/// The last 256 block hashes.
 	pub last_hashes: Arc<LastHashes>,
 	/// The gas used.
@@ -57,7 +55,6 @@ impl Default for EnvInfo {
 			timestamp: 0,
 			difficulty: 0.into(),
 			gas_limit: 0.into(),
-			chain_id: 0.into(),
 			last_hashes: Arc::new(vec![]),
 			gas_used: 0.into(),
 		}
@@ -72,7 +69,6 @@ impl From<ethjson::vm::Env> for EnvInfo {
 			author: e.author.into(),
 			difficulty: e.difficulty.into(),
 			gas_limit: e.gas_limit.into(),
-			chain_id: e.chain_id.into(),
 			timestamp: e.timestamp.into(),
 			last_hashes: Arc::new((1..cmp::min(number + 1, 257)).map(|i| keccak(format!("{}", number - i).as_bytes())).collect()),
 			gas_used: U256::default(),
@@ -94,14 +90,12 @@ mod tests {
 			number: ethjson::uint::Uint(U256::from(1_112_339)),
 			difficulty: ethjson::uint::Uint(U256::from(50_000)),
 			gas_limit: ethjson::uint::Uint(U256::from(40_000)),
-			chain_id: ethjson::uint::Uint(U256::from(42)),
 			timestamp: ethjson::uint::Uint(U256::from(1_100))
 		});
 
 		assert_eq!(env_info.number, 1112339);
 		assert_eq!(env_info.author, Address::from_str("000000f00000000f000000000000f00000000f00").unwrap());
 		assert_eq!(env_info.gas_limit, 40000.into());
-		assert_eq!(env_info.chain_id, 42.into());
 		assert_eq!(env_info.difficulty, 50000.into());
 		assert_eq!(env_info.gas_used, 0.into());
 	}

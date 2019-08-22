@@ -160,9 +160,7 @@ fn test_chain_id(factory: super::Factory) {
 	let mut params = ActionParams::default();
 	params.gas = U256::from(100_000);
 	params.code = Some(Arc::new(code));
-	let mut ext = FakeExt::new_istanbul();
-	ext.info.chain_id = U256::from(9);
-
+	let mut ext = FakeExt::new_istanbul().with_chain_id(9);
 
 	let gas_left = {
 		let vm = factory.create(params, ext.schedule(), ext.depth());

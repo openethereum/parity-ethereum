@@ -113,7 +113,6 @@ fn check_first_proof(machine: &Machine, contract_address: Address, old_header: H
 		author: *old_header.author(),
 		difficulty: *old_header.difficulty(),
 		gas_limit: PROVIDED_GAS.into(),
-		chain_id: machine.params().chain_id.into(),
 		timestamp: old_header.timestamp(),
 		last_hashes: {
 			// this will break if we don't include all 256 last hashes.
