@@ -36,3 +36,4 @@ env_logger = "0.6.2"
 ethcore = { path = "../..", features = ["test-helpers"] }
 state-db = { path = "../../state-db" }
 validator-set = { path = "../validator-set", features = ["test-helpers"] }
+serde_json = "1"
