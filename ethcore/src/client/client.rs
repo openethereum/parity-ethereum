@@ -86,7 +86,7 @@ use types::{
 	log_entry::LocalizedLogEntry,
 	receipt::{Receipt, LocalizedReceipt},
 	header::Header,
-	snapshot::Progress,
+	snapshot::{Progress, Snapshotting},
 	trace_filter::Filter as TraceFilter,
 	pruning_info::PruningInfo,
 	call_analytics::CallAnalytics,
@@ -1169,7 +1169,7 @@ impl Client {
 		at: BlockId,
 		p: &Progress,
 	) -> Result<(), EthcoreError> {
-		if !self.engine.supports_warp() {
+		if let Snapshotting::Unsupported = self.engine.snapshot_mode() {
 			return Err(EthcoreError::Snapshot(SnapshotError::SnapshotsUnsupported));
 		}
 		let db = self.state_db.read().journal_db().boxed_clone();
@@ -1201,7 +1201,7 @@ impl Client {
 		};
 
 		let processing_threads = self.config.snapshot.processing_threads;
-		let chunker = snapshot::chunker(self.engine.name()).ok_or_else(|| SnapshotError::SnapshotsUnsupported)?;
+		let chunker = snapshot::chunker(self.engine.snapshot_mode()).ok_or_else(|| SnapshotError::SnapshotsUnsupported)?;
 		snapshot::take_snapshot(
 			chunker,
 			&self.chain.read(),

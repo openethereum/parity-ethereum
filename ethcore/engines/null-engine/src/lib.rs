@@ -27,6 +27,7 @@ use machine::{
 	ExecutedBlock,
 	Machine,
 };
+use common_types::snapshot::Snapshotting;
 
 /// Params for a null engine.
 #[derive(Clone, Default)]
@@ -100,7 +101,9 @@ impl Engine for NullEngine {
 		Ok(())
 	}
 
-	fn supports_warp(&self) -> bool { true }
+	fn snapshot_mode(&self) -> Snapshotting {
+		Snapshotting::PoW { blocks: 10_000, max_restore_blocks: 10_000 }
+	}
 
 	fn params(&self) -> &CommonParams {
 		self.machine.params()
