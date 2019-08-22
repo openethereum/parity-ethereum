@@ -43,6 +43,7 @@ use parity_runtime::Runtime;
 use sync::{self, SyncConfig, PrivateTxHandler};
 use types::{
 	client_types::Mode,
+	engines::OptimizeFor,
 	ids::BlockId,
 	snapshot::Snapshotting,
 };
