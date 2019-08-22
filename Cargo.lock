@@ -1057,6 +1057,7 @@ dependencies = [
  "machine 0.1.0",
  "macros 0.1.0",
  "memory-cache 0.1.0",
+ "null-engine 0.1.0",
  "num_cpus 1.10.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "parity-bytes 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "parity-runtime 0.1.0",
