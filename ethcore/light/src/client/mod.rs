@@ -405,7 +405,6 @@ impl<T: ChainDataFetcher> Client<T> {
 			last_hashes: self.build_last_hashes(header.parent_hash()),
 			gas_used: Default::default(),
 			gas_limit: header.gas_limit(),
-			chain_id: self.engine.params().chain_id.into(),
 		})
 	}
 
