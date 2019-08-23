@@ -107,6 +107,11 @@ use ethtrie::Layout;
 // re-export
 pub use blockchain::CacheSize as BlockChainCacheSize;
 use db::{Writable, Readable, keys::BlockDetails};
+use rlp::PayloadInfo;
+use std::io::{BufReader, BufRead};
+use rustc_hex::FromHex;
+use std::str::from_utf8;
+use bytes::ToPretty;
 
 use_contract!(registry, "res/contracts/registrar.json");
 
@@ -2553,6 +2558,100 @@ impl SnapshotClient for Client {
 	}
 
 
+}
+
+impl ExportBlocks for Client {
+	fn export_blocks<'a>(&self, mut out: Box<dyn std::io::Write + 'a>, from: BlockId, to: BlockId, format: Option<DataFormat>) -> Result<(), String> {
+		let from = self.block_number(from).ok_or("From block could not be found")?;
+		let to = self.block_number(to).ok_or("To block could not be found")?;
+		let format = format.unwrap_or_default();
+
+		for i in from..(to + 1) {
+			if i % 10000 == 0 {
+				info!("#{}", i);
+			}
+			let b = self.block(BlockId::Number(i)).ok_or("Error exporting incomplete chain")?.into_inner();
+			match format {
+				DataFormat::Binary => {
+					out.write(&b).map_err(|e| format!("Couldn't write to stream. Cause: {}", e))?;
+				}
+				DataFormat::Hex => {
+					out.write_fmt(format_args!("{}\n", b.pretty())).map_err(|e| format!("Couldn't write to stream. Cause: {}", e))?;
+				}
+			}
+		}
+		Ok(())
+	}
+}
+
+
+impl ImportBlocks for Client {
+	fn import_blocks<'a>(&self, mut source: Box<dyn std::io::Read + 'a>, format: Option<DataFormat>) -> Result<(), String> {
+		const READAHEAD_BYTES: usize = 8;
+
+		let mut first_bytes: Vec<u8> = vec![0; READAHEAD_BYTES];
+		let mut first_read = 0;
+
+		let format = match format {
+			Some(format) => format,
+			None => {
+				first_read = source.read(&mut first_bytes).map_err(|_| "Error reading from the file/stream.")?;
+				match first_bytes[0] {
+					0xf9 => DataFormat::Binary,
+					_ => DataFormat::Hex,
+				}
+			}
+		};
+
+		let do_import = |bytes| {
+			let block = Unverified::from_rlp(bytes).map_err(|_| "Invalid block rlp")?;
+			while self.queue_info().is_full() { std::thread::sleep(Duration::from_secs(1)); }
+			match self.import_block(block) {
+				Err(EthcoreError::Import(ImportError::AlreadyInChain)) => {
+					trace!("Skipping block already in chain.");
+				}
+				Err(e) => {
+					return Err(format!("Cannot import block: {:?}", e));
+				},
+				Ok(_) => {},
+			}
+			Ok(())
+		};
+
+		match format {
+			DataFormat::Binary => {
+				loop {
+					let mut bytes = if first_read > 0 {
+						first_bytes.clone()
+					} else {
+						vec![0; READAHEAD_BYTES]
+					};
+					let n = if first_read > 0 {
+						first_read
+					} else {
+						source.read(&mut bytes).map_err(|_| "Error reading from the file/stream.")?
+					};
+					if n == 0 { break; }
+					first_read = 0;
+					let s = PayloadInfo::from(&bytes).map_err(|e| format!("Invalid RLP in the file/stream: {:?}", e))?.total();
+					bytes.resize(s, 0);
+					source.read_exact(&mut bytes[n..]).map_err(|_| "Error reading from the file/stream.")?;
+					do_import(bytes)?;
+				}
+			}
+			DataFormat::Hex => {
+				for line in BufReader::new(source).lines() {
+					let s = line.map_err(|_| "Error reading from the file/stream.")?;
+					let s = if first_read > 0 {from_utf8(&first_bytes).unwrap().to_owned() + &(s[..])} else {s};
+					first_read = 0;
+					let bytes = s.from_hex().map_err(|_| "Invalid hex in file/stream.")?;
+					do_import(bytes)?;
+				}
+			}
+		};
+		self.flush_queue();
+		Ok(())
+	}
 }
 
 /// Returns `LocalizedReceipt` given `LocalizedTransaction`

@@ -883,6 +883,25 @@ impl BlockChain {
 		self.block_details.write().clear();
 		self.block_hashes.write().clear();
 		self.block_headers.write().clear();
+		// Fetch best block details
+		let best_block_hash = self.db.key_value().get(db::COL_EXTRA, b"best")
+			.expect("Low-level database error when fetching 'best' block. Some issue with disk?")
+			.as_ref()
+			.map(|r| H256::from_slice(r))
+			.unwrap();
+		let best_block_total_difficulty = self.block_details(&best_block_hash)
+			.expect("Best block is from a known block hash; a known block hash always comes with a known block detail; qed")
+			.total_difficulty;
+		let best_block_rlp = self.block(&best_block_hash)
+			.expect("Best block is from a known block hash; qed");
+
+		// and write them
+		let mut best_block = self.best_block.write();
+		*best_block = BestBlock {
+			total_difficulty: best_block_total_difficulty,
+			header: best_block_rlp.decode_header(),
+			block: best_block_rlp,
+		};
 	}
 
 	/// Update the best ancient block to the given hash, after checking that

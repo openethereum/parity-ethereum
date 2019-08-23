@@ -56,6 +56,7 @@ use trace::{
 	VMTrace,
 };
 use vm::{LastHashes, Schedule};
+use std::str::FromStr;
 
 use common_types::snapshot::Progress;
 
@@ -509,4 +510,35 @@ pub trait ChainNotify: Send + Sync {
 	fn transactions_received(&self, _txs: &[UnverifiedTransaction], _peer_id: usize) {
 		// does nothing by default
 	}
+
+#[derive(Debug, PartialEq)]
+pub enum DataFormat {
+	Hex,
+	Binary,
+}
+
+impl Default for DataFormat {
+	fn default() -> Self {
+		DataFormat::Binary
+	}
+}
+
+impl FromStr for DataFormat {
+	type Err = String;
+
+	fn from_str(s: &str) -> Result<Self, Self::Err> {
+		match s {
+			"binary" | "bin" => Ok(DataFormat::Binary),
+			"hex" => Ok(DataFormat::Hex),
+			x => Err(format!("Invalid format: {}", x))
+		}
+	}
+}
+
+pub trait ExportBlocks {
+	fn export_blocks<'a>(&self, destination: Box<dyn std::io::Write + 'a>, from: BlockId, to: BlockId, format: Option<DataFormat>) -> Result<(), String>;
+}
+
+pub trait ImportBlocks {
+	fn import_blocks<'a>(&self, source: Box<dyn std::io::Read + 'a>, format: Option<DataFormat>) -> Result<(), String>;
 }
