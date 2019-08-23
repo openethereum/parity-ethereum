@@ -26,7 +26,7 @@ use client_traits::BlockChainClient;
 use ethcore::client::{TestBlockChainClient, Client as EthcoreClient,
 	ClientConfig, ChainNotify, NewBlocks, ChainMessageType, ClientIoMessage};
 use ethcore::snapshot::SnapshotService;
-use ethcore::spec::{self, Spec};
+use spec::{self, Spec};
 use ethcore_private_tx::PrivateStateDB;
 use ethcore::miner::Miner;
 use ethcore::test_helpers;

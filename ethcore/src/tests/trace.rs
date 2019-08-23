@@ -21,7 +21,7 @@ use hash::keccak;
 use block::*;
 use ethereum_types::{U256, Address};
 use io::*;
-use crate::spec;
+use spec;
 use test_helpers::get_temp_state_db;
 use client::{Client, ClientConfig};
 use client_traits::{BlockChainClient, ImportBlock};

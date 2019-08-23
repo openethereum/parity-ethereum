@@ -34,6 +34,8 @@ extern crate ethcore_io as io;
 extern crate kvdb_memorydb;
 #[cfg(test)]
 extern crate tempdir;
+#[cfg(test)]
+extern crate spec;
 #[macro_use]
 extern crate log;
 
@@ -130,7 +132,7 @@ mod test {
 	use std::sync::{Arc, Weak};
 
 	use client_traits::BlockChainClient;
-	use ethcore::spec::Spec;
+	use spec::Spec;
 	use ethcore::client::{Client, ClientConfig};
 	use ethcore::miner::Miner;
 	use ethcore::test_helpers;

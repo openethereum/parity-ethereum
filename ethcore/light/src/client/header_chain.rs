@@ -41,7 +41,7 @@ use common_types::{
 	header::Header,
 	ids::BlockId,
 };
-use ethcore::spec::{Spec, SpecHardcodedSync};
+use spec::{Spec, SpecHardcodedSync};
 use ethereum_types::{H256, H264, U256};
 use parity_util_mem::{MallocSizeOf, MallocSizeOfOps};
 use kvdb::{DBTransaction, KeyValueDB};
@@ -877,7 +877,7 @@ mod tests {
 	use cache::Cache;
 	use common_types::header::Header;
 	use common_types::ids::BlockId;
-	use ethcore::spec;
+	use spec;
 	use ethereum_types::U256;
 	use kvdb::KeyValueDB;
 	use kvdb_memorydb;

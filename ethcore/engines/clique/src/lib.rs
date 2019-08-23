@@ -240,8 +240,6 @@ impl Clique {
 	/// Note we need to `mock` the miner and it is introduced to test block verification to trigger new blocks
 	/// to mainly test consensus edge cases
 	pub fn with_test(epoch_length: u64, period: u64) -> Self {
-		use ethcore::spec;
-
 		Self {
 			epoch_length,
 			period,

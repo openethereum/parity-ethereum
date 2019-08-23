@@ -21,7 +21,7 @@ use std::sync::{Weak, Arc};
 use engine::{Engine, EpochChange, Proof};
 use ethcore::client::{ClientReport, ClientIoMessage};
 use ethcore::verification::queue::{self, HeaderQueue};
-use ethcore::spec::{Spec, SpecHardcodedSync};
+use spec::{Spec, SpecHardcodedSync};
 use io::IoChannel;
 use parking_lot::{Mutex, RwLock};
 use ethereum_types::{H256, U256};
@@ -252,7 +252,7 @@ impl<T: ChainDataFetcher> Client<T> {
 	}
 
 	/// Get the header queue info.
-	pub fn queue_info(&self) -> queue::QueueInfo {
+	pub fn queue_info(&self) -> BlockQueueInfo {
 		self.queue.queue_info()
 	}
 
@@ -546,7 +546,7 @@ impl<T: ChainDataFetcher> LightChainClient for Client<T> {
 
 	fn chain_info(&self) -> BlockChainInfo { Client::chain_info(self) }
 
-	fn queue_info(&self) -> queue::QueueInfo {
+	fn queue_info(&self) -> BlockQueueInfo {
 		self.queue.queue_info()
 	}
 

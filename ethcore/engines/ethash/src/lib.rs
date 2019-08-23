@@ -25,6 +25,7 @@ use common_types::{
 	header::Header,
 	engines::{
 		EthashSeal,
+		OptimizeFor,
 		params::CommonParams,
 	},
 	errors::{BlockError, EthcoreError as Error},
@@ -33,7 +34,7 @@ use common_types::{
 use engine::Engine;
 use ethereum_types::{H256, U256};
 use ethjson;
-use ethash::{self, quick_get_difficulty, slow_hash_block_number, EthashManager, OptimizeFor};
+use ethash::{self, quick_get_difficulty, slow_hash_block_number, EthashManager};
 use keccak_hash::{KECCAK_EMPTY_LIST_RLP};
 use log::trace;
 use macros::map;
@@ -493,9 +494,9 @@ mod tests {
 	use ethcore::{
 		block::*,
 		test_helpers::get_temp_state_db,
-		spec::{new_morden, new_mcip3_test, new_homestead_test_machine, Spec},
 	};
 	use rlp;
+	use spec::{new_morden, new_mcip3_test, new_homestead_test_machine, Spec};
 	use tempdir::TempDir;
 
 	use super::{Ethash, EthashParams, ecip1017_eras_block_reward};

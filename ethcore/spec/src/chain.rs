@@ -49,7 +49,7 @@ macro_rules! bundle_test_machine {
 	($($path: expr => $name: ident), *) => {
 		$(
 			/// Bundled test spec
-			pub fn $name() -> crate::machine::Machine {
+			pub fn $name() -> machine::Machine {
 				crate::spec::Spec::load_machine(
 					include_bytes!(concat!("../../res/", $path, ".json")) as &[u8]
 				).expect(concat!("Chain spec ", $path, " is invalid."))
@@ -119,10 +119,10 @@ bundle_test_machine! {
 #[cfg(test)]
 mod tests {
 	use account_state::State;
+	use common_types::{view, views::BlockView};
 	use ethereum_types::U256;
 	use tempdir::TempDir;
-	use test_helpers::get_temp_state_db;
-	use types::{view, views::BlockView};
+	use ethcore::test_helpers::get_temp_state_db;
 
 	use super::{new_morden, new_foundation};
 

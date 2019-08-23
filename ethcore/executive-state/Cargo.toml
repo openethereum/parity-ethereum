@@ -29,5 +29,6 @@ evm = { path = "../evm" }
 keccak-hash = "0.2.0"
 pod = { path = "../pod" }
 rustc-hex = "1.0"
+spec = { path = "../spec" }
 trie-db = "0.15.0"
 ethtrie = { package = "patricia-trie-ethereum", path = "../../util/patricia-trie-ethereum" }

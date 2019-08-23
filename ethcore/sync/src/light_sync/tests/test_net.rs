@@ -23,7 +23,7 @@ use light_sync::*;
 use tests::helpers::{TestNet, Peer as PeerLike, TestPacket};
 
 use ethcore::client::TestBlockChainClient;
-use ethcore::spec;
+use spec;
 use io::IoChannel;
 use kvdb_memorydb;
 use light::client::fetch::{self, Unavailable};

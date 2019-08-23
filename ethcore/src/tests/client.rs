@@ -33,7 +33,7 @@ use types::{
 
 use client::{Client, ClientConfig, PrepareOpenBlock, ImportSealedBlock};
 use client_traits::{BlockInfo, BlockChainClient, BlockChainReset, ChainInfo, ImportBlock};
-use crate::spec;
+use spec;
 use machine::executive::{Executive, TransactOptions};
 use miner::{Miner, PendingOrdering, MinerService};
 use account_state::{State, CleanupMode, backend};

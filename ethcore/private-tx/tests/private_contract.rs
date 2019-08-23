@@ -26,6 +26,7 @@ extern crate ethkey;
 extern crate keccak_hash as hash;
 extern crate rustc_hex;
 extern crate machine;
+extern crate spec;
 
 #[macro_use]
 extern crate log;
@@ -39,7 +40,6 @@ use ethcore::{
 	CreateContractAddress,
 	test_helpers::{generate_dummy_client, push_block_with_transactions, new_db},
 	miner::Miner,
-	spec,
 };
 use client_traits::BlockChainClient;
 use ethkey::{Secret, KeyPair, Signature};

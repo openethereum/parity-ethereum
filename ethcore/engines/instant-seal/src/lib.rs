@@ -114,9 +114,9 @@ mod tests {
 	use ethereum_types::{H520, Address};
 	use ethcore::{
 		test_helpers::get_temp_state_db,
-		spec,
 		block::*,
 	};
+	use spec;
 
 	#[test]
 	fn instant_can_seal() {

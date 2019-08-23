@@ -22,7 +22,7 @@ use client_traits::BlockInfo;
 use chain::SyncState;
 use super::helpers::*;
 use {SyncConfig, WarpSync};
-use ethcore::spec;
+use spec;
 
 #[test]
 fn two_peers() {

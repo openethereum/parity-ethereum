@@ -408,7 +408,7 @@ mod tests {
 	use std::str::FromStr;
 	use common_types::header::Header;
 	use super::*;
-	use ethcore::spec;
+	use spec;
 
 	fn get_default_ethash_extensions() -> EthashExtensions {
 		EthashExtensions {

@@ -156,22 +156,21 @@ mod tests {
 	use std::collections::BTreeMap;
 
 	use accounts::AccountProvider;
-	use client_traits::{BlockChainClient, BlockInfo, ChainInfo, ImportBlock, EngineClient};
 	use common_types::{
 		header::Header,
 		ids::BlockId,
 		verification::Unverified,
 	};
+	use client_traits::{BlockChainClient, BlockInfo, ChainInfo, ImportBlock, EngineClient};
 	use engine::EpochChange;
-
-	use ethkey::Secret;
 	use ethcore::{
 		miner::{self, MinerService},
 		test_helpers::{generate_dummy_client_with_spec, generate_dummy_client_with_spec_and_data},
-		spec,
 	};
 	use ethereum_types::Address;
+	use ethkey::Secret;
 	use keccak_hash::keccak;
+	use spec;
 
 	use crate::ValidatorSet;
 	use super::Multi;

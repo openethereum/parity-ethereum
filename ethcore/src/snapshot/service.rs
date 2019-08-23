@@ -907,7 +907,7 @@ impl Drop for Service {
 mod tests {
 	use client::ClientIoMessage;
 	use io::{IoService};
-	use crate::spec;
+	use spec;
 	use journaldb::Algorithm;
 	use snapshot::SnapshotService;
 	use super::*;

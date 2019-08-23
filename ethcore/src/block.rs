@@ -500,7 +500,7 @@ mod tests {
 		verification::Unverified,
 	};
 	use hash_db::EMPTY_PREFIX;
-	use crate::spec;
+	use spec;
 
 	/// Enact the block given by `block_bytes` using `engine` on the database `db` with given `parent` block header
 	fn enact_bytes(

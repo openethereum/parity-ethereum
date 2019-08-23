@@ -160,12 +160,12 @@ mod test {
 	};
 	use ethcore::{
 		client::{Client, ClientConfig},
-		spec::Spec,
 		miner::Miner,
 		test_helpers,
 	};
 	use ethkey::{Secret, KeyPair};
 	use ethcore_io::IoChannel;
+	use spec::Spec;
 
 	use super::TransactionFilter;
 

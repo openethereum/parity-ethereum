@@ -273,7 +273,6 @@ mod tests {
 	use ethkey::Secret;
 	use ethereum_types::{H256, U256, Address, BigEndianHash};
 	use ethcore::{
-		spec,
 		test_helpers::{get_temp_state, get_temp_state_db}
 	};
 	use ethtrie;
@@ -281,6 +280,7 @@ mod tests {
 	use machine::Machine;
 	use pod::{self, PodAccount, PodState};
 	use rustc_hex::FromHex;
+	use spec;
 	use ::trace::{FlatTrace, TraceError, trace};
 	use trie_db::{TrieFactory, TrieSpec};
 	use vm::EnvInfo;

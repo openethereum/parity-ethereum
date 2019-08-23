@@ -16,20 +16,26 @@
 
 //! Block verification utilities.
 
+use call_contract::CallContract;
+use client_traits::BlockInfo;
+
 mod verification;
 mod verifier;
 pub mod queue;
 mod canon_verifier;
 mod noop_verifier;
 
-pub use self::verification::*;
+pub use self::verification::FullFamilyParams;
 pub use self::verifier::Verifier;
-pub use self::canon_verifier::CanonVerifier;
-pub use self::noop_verifier::NoopVerifier;
-pub use self::queue::{BlockQueue, Config as QueueConfig, VerificationQueue, QueueInfo};
+pub use self::queue::{BlockQueue, Config as QueueConfig};
 
-use call_contract::CallContract;
-use client_traits::BlockInfo;
+use self::verification::{
+	verify_block_basic,
+	verify_block_unordered,
+	verify_header_params,
+};
+use self::canon_verifier::CanonVerifier;
+use self::noop_verifier::NoopVerifier;
 
 /// Verifier type.
 #[derive(Debug, PartialEq, Clone)]

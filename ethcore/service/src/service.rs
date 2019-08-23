@@ -30,7 +30,7 @@ use ethcore::client::{Client, ClientConfig, ChainNotify, ClientIoMessage};
 use ethcore::miner::Miner;
 use ethcore::snapshot::service::{Service as SnapshotService, ServiceParams as SnapServiceParams};
 use ethcore::snapshot::{SnapshotService as _SnapshotService};
-use ethcore::spec::Spec;
+use spec::Spec;
 use common_types::{
 	errors::{EthcoreError, SnapshotError},
 	snapshot::RestorationStatus,
@@ -298,7 +298,7 @@ mod tests {
 	use ethcore_db::NUM_COLUMNS;
 	use ethcore::client::ClientConfig;
 	use ethcore::miner::Miner;
-	use ethcore::spec;
+	use spec;
 	use ethcore::test_helpers;
 	use kvdb_rocksdb::{DatabaseConfig, CompactionProfile};
 	use super::*;

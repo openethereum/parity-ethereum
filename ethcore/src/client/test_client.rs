@@ -58,6 +58,7 @@ use types::{
 	client_types::Mode,
 	blockchain_info::BlockChainInfo,
 	block_status::BlockStatus,
+	verification::VerificationQueueInfo as BlockQueueInfo,
 };
 use vm::{Schedule, LastHashes};
 
@@ -80,7 +81,6 @@ use spec::{Spec, self};
 use account_state::state::StateInfo;
 use state_db::StateDB;
 use trace::LocalizedTrace;
-use verification::queue::QueueInfo as BlockQueueInfo;
 
 /// Test client.
 pub struct TestBlockChainClient {

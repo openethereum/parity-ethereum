@@ -9,12 +9,10 @@ authors = ["Parity Technologies <admin@parity.io>"]
 [dependencies]
 account-db = { path = "account-db" }
 account-state = { path = "account-state" }
-authority-round = { path = "./engines/authority-round" }
 ansi_term = "0.11"
-basic-authority = { path = "./engines/basic-authority" }
+basic-authority = { path = "./engines/basic-authority", optional = true} # used by test-helpers feature
 blooms-db = { path = "../util/blooms-db", optional = true }
 client-traits = { path = "./client-traits" }
-clique = { path = "./engines/clique" }
 common-types = { path = "types" }
 crossbeam-utils = "0.6"
 engine = { path = "./engine" }
@@ -22,25 +20,22 @@ env_logger = { version = "0.5", optional = true }
 ethabi = "8.0"
 ethabi-contract = "8.0"
 ethabi-derive = "8.0"
-ethash = { path = "../ethash" }
-ethash-engine = { path = "./engines/ethash" }
+ethash = { path = "../ethash", optional = true }
+ethjson = { path = "../json", optional = true }
+ethkey = { path = "../accounts/ethkey", optional = true }
 ethcore-blockchain = { path = "./blockchain" }
 ethcore-bloom-journal = { path = "../util/bloom" }
-ethcore-builtin = { path = "./builtin" }
 ethcore-call-contract = { path = "./call-contract" }
 ethcore-db = { path = "./db" }
 ethcore-io = { path = "../util/io" }
 ethcore-miner = { path = "../miner" }
 ethcore-stratum = { path = "../miner/stratum", optional = true }
 ethereum-types = "0.6.0"
-ethjson = { path = "../json" }
-ethkey = { path = "../accounts/ethkey" }
 evm = { path = "evm" }
 executive-state = { path = "executive-state" }
 futures = "0.1"
 hash-db = "0.15.0"
 parity-util-mem = "0.2.0"
-instant-seal = { path = "./engines/instant-seal" }
 itertools = "0.5"
 journaldb = { path = "../util/journaldb" }
 keccak-hash = "0.2.0"
@@ -54,14 +49,13 @@ log = "0.4"
 macros = { path = "../util/macros", optional = true }
 machine = { path = "./machine" }
 memory-cache = { path = "../util/memory-cache" }
-null-engine = { path = "./engines/null-engine" }
 num_cpus = "1.2"
 parity-bytes = "0.1"
 parity-snappy = "0.1"
 parking_lot = "0.8"
+pod = { path = "pod", optional = true }
 trie-db = "0.15.0"
 patricia-trie-ethereum = { path = "../util/patricia-trie-ethereum" }
-pod = { path = "pod" }
 rand = "0.6"
 rand_xorshift = "0.1.1"
 rayon = "1.1"
@@ -70,6 +64,7 @@ rlp_derive = { path = "../util/rlp-derive" }
 rustc-hex = "1.0"
 serde = "1.0"
 serde_derive = "1.0"
+spec = { path = "spec" }
 state-db = { path = "state-db" }
 stats = { path = "../util/stats" }
 tempdir = { version = "0.3", optional = true }
@@ -84,15 +79,21 @@ vm = { path = "vm" }
 
 [dev-dependencies]
 blooms-db = { path = "../util/blooms-db" }
+ethcore-builtin = { path = "./builtin" }
 criterion = "0.2"
 engine = { path = "./engine", features = ["test-helpers"] }
 env_logger = "0.5"
+ethash = { path = "../ethash" }
 ethcore-accounts = { path = "../accounts" }
+ethjson = { path = "../json" }
+ethkey = { path = "../accounts/ethkey" }
 fetch = { path = "../util/fetch" }
 kvdb-rocksdb = "0.1.3"
 machine = { path = "./machine", features = ["test-helpers"] }
 macros = { path = "../util/macros" }
+null-engine = { path = "./engines/null-engine" }
 parity-runtime = { path = "../util/runtime" }
+pod = { path = "pod" }
 rlp_compress = { path = "../util/rlp-compress" }
 serde_json = "1.0"
 tempdir = "0.3"
@@ -126,7 +127,8 @@ ci-skip-tests = []
 # Run memory/cpu heavy tests.
 test-heavy = []
 # Compile test helpers
-test-helpers = ["tempdir", "kvdb-rocksdb", "blooms-db", "macros", "basic-authority/test-helpers"]
+# note[dvdplm]: "basic-authority/test-helpers" is needed so that `generate_dummy_client_with_spec` works
+test-helpers = ["tempdir", "kvdb-rocksdb", "blooms-db", "ethash", "ethjson", "ethkey", "macros", "pod", "basic-authority/test-helpers"]
 
 [[bench]]
 name = "builtin"

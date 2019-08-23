@@ -25,7 +25,6 @@ use ethcore::{
 	CreateContractAddress,
 	client::ClientIoMessage,
 	miner::{self, MinerService},
-	spec::Spec,
 	test_helpers::{push_block_with_transactions, new_db},
 };
 use ethcore_private_tx::{Provider, ProviderConfig, NoopEncryptor, Importer, SignedPrivateTransaction, StoringKeyProvider};
@@ -34,6 +33,7 @@ use machine::executive::contract_address;
 use tests::helpers::{TestNet, TestIoHandler};
 use rustc_hex::FromHex;
 use rlp::Rlp;
+use spec::Spec;
 use SyncConfig;
 
 fn seal_spec() -> Spec {

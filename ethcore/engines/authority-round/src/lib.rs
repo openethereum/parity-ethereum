@@ -1683,12 +1683,12 @@ mod tests {
 			generate_dummy_client_with_spec, get_temp_state_db,
 			TestNotify
 		},
-		spec::{self, Spec},
 	};
 	use engine::Engine;
 	use block_reward::BlockRewardContract;
-	use validator_set::{TestSet, SimpleList};
 	use machine::Machine;
+	use spec::{self, Spec};
+	use validator_set::{TestSet, SimpleList};
 	use ethjson;
 	use serde_json;
 

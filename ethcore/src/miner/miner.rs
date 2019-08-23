@@ -1498,7 +1498,7 @@ mod tests {
 		BlockNumber,
 		transaction::Transaction
 	};
-	use crate::spec;
+	use spec;
 
 	#[test]
 	fn should_prepare_block_to_seal() {

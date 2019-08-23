@@ -146,10 +146,12 @@ impl ValidatorSet for ValidatorContract {
 mod tests {
 	use std::sync::Arc;
 
+	use accounts::AccountProvider;
+	use call_contract::CallContract;
 	use common_types::{header::Header, ids::BlockId};
+	use client_traits::{BlockChainClient, ChainInfo, BlockInfo};
 	use ethcore::{
 		miner::{self, MinerService},
-		spec,
 		test_helpers::generate_dummy_client_with_spec,
 	};
 	use ethereum_types::{H520, Address};
@@ -157,9 +159,7 @@ mod tests {
 	use parity_bytes::ToPretty;
 	use rlp::encode;
 	use rustc_hex::FromHex;
-	use accounts::AccountProvider;
-	use call_contract::CallContract;
-	use client_traits::{BlockChainClient, ChainInfo, BlockInfo};
+	use spec;
 
 	use super::super::ValidatorSet;
 	use super::ValidatorContract;

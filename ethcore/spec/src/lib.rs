@@ -23,4 +23,4 @@ mod spec;
 
 pub use self::chain::*;
 pub use self::genesis::Genesis;
-pub use self::spec::{Spec, SpecHardcodedSync, SpecParams, OptimizeFor};
+pub use self::spec::{Spec, SpecHardcodedSync, SpecParams};

@@ -637,7 +637,7 @@ fn all_expected<A, B, F>(values: &[A], expected_values: &[B], is_expected: F) ->
 mod tests {
 	use super::*;
 	use ethcore::client::TestBlockChainClient;
-	use ethcore::spec;
+	use spec;
 	use ethkey::{Generator,Random};
 	use hash::keccak;
 	use parking_lot::RwLock;

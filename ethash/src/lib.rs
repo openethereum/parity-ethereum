@@ -14,6 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
+extern crate common_types;
 extern crate either;
 extern crate ethereum_types;
 extern crate memmap;
@@ -51,14 +52,17 @@ pub mod progpow;
 #[cfg(not(feature = "bench"))]
 mod progpow;
 
-pub use cache::{NodeCacheBuilder, OptimizeFor};
+pub use cache::NodeCacheBuilder;
 pub use compute::{ProofOfWork, quick_get_difficulty, slow_hash_block_number};
+pub use seed_compute::SeedHashCompute;
+pub use shared::ETHASH_EPOCH_LENGTH;
+
+use common_types::engines::OptimizeFor;
 use compute::Light;
 use ethereum_types::{BigEndianHash, U256, U512};
 use keccak::H256;
 use parking_lot::Mutex;
-pub use seed_compute::SeedHashCompute;
-pub use shared::ETHASH_EPOCH_LENGTH;
+
 use std::mem;
 use std::path::{Path, PathBuf};
 use std::convert::TryFrom;
