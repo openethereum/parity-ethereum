@@ -262,7 +262,6 @@ fn test_calldataload(factory: super::Factory) {
 
 	assert_eq!(gas_left, U256::from(79_991));
 	assert_store(&ext, 0, "23ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff23");
-
 }
 
 evm_test!{test_author: test_author_int}
