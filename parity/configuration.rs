@@ -1202,9 +1202,9 @@ mod tests {
 	use parity_rpc::NetworkSettings;
 	use updater::{UpdatePolicy, UpdateFilter, ReleaseTrack};
 	use types::ids::BlockId;
-
+	use client_traits::DataFormat;
 	use account::{AccountCmd, NewAccount, ImportAccounts, ListAccounts};
-	use blockchain::{BlockchainCmd, ImportBlockchain, ExportBlockchain, DataFormat, ExportState};
+	use blockchain::{BlockchainCmd, ImportBlockchain, ExportBlockchain, ExportState};
 	use cli::Args;
 	use dir::{Directories, default_hypervisor_path};
 	use helpers::{default_network_config};
