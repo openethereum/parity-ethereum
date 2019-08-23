@@ -1,5 +1,5 @@
 [package]
-description = "Execute transactions and modify State"
+description = "Execute transactions producing a receipt and an optional trace."
 name = "executive-state"
 version = "0.1.0"
 authors = ["Parity Technologies <admin@parity.io>"]

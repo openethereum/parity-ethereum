@@ -88,7 +88,7 @@ use types::{
 	log_entry::LocalizedLogEntry,
 	receipt::{Receipt, LocalizedReceipt},
 	header::Header,
-	snapshot::Progress,
+	snapshot::{Progress, Snapshotting},
 	trace_filter::Filter as TraceFilter,
 	pruning_info::PruningInfo,
 	call_analytics::CallAnalytics,
