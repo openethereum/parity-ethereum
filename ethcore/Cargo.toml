@@ -89,7 +89,7 @@ kvdb-memorydb = "0.1"
 kvdb-rocksdb = "0.1.3"
 lazy_static = { version = "1.3" }
 machine = { path = "./machine", features = ["test-helpers"] }
-macros = { path = "../util/macros"}
+macros = { path = "../util/macros" }
 null-engine = { path = "./engines/null-engine" }
 parity-runtime = { path = "../util/runtime" }
 pod = { path = "pod" }

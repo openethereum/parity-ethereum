@@ -242,7 +242,7 @@ mod tests {
 	#[test]
 	fn has_valid_metadata() {
 		let engine = new_test_authority().engine;
-		assert!(!engine.name().is_empty());
+		assert_eq!(engine.name(), "BasicAuthority");
 	}
 
 	#[test]

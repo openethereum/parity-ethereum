@@ -64,9 +64,7 @@ impl InstantSeal {
 }
 
 impl Engine for InstantSeal {
-	fn name(&self) -> &str {
-		"InstantSeal"
-	}
+	fn name(&self) -> &str { "InstantSeal" }
 
 	fn machine(&self) -> &Machine { &self.machine }
 

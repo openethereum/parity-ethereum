@@ -49,7 +49,7 @@ pub struct PowSnapshot {
 	/// Number of blocks from the head of the chain
 	/// to include in the snapshot.
 	pub blocks: u64,
-	/// Number of to allow in the snapshot when restoring.
+	/// Number of blocks to allow in the snapshot when restoring.
 	pub max_restore_blocks: u64,
 }
 

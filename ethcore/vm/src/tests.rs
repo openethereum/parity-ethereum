@@ -100,7 +100,7 @@ impl FakeExt {
 		ext
 	}
 
-	/// New fake externalities with istanbul schedule rules
+	/// New fake externalities with Istanbul schedule rules
 	pub fn new_istanbul() -> Self {
 		let mut ext = FakeExt::default();
 		ext.schedule = Schedule::new_istanbul();

@@ -116,7 +116,7 @@ impl ClientService {
 	{
 		let io_service = IoService::<ClientIoMessage<Client>>::start()?;
 
-		info!("Configured for {} using {} engine", Colour::White.bold().paint(spec.name.clone()), Colour::Yellow.bold().paint(spec.engine.name()));
+		info!("Configured for {} using {} engine", Colour::White.bold().paint(spec.name.clone()), Colour::Yellow.bold().paint(spec.engine.name().to_string()));
 
 		let pruning = config.pruning;
 		let client = Client::new(
