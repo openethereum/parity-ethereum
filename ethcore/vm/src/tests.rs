@@ -98,6 +98,13 @@ impl FakeExt {
 		ext
 	}
 
+	/// New fake externalities with constantinople schedule rules
+	pub fn new_istanbul() -> Self {
+		let mut ext = FakeExt::default();
+		ext.schedule = Schedule::new_istanbul();
+		ext
+	}
+
 	/// Alter fake externalities to allow wasm
 	pub fn with_wasm(mut self) -> Self {
 		self.schedule.wasm = Some(Default::default());
