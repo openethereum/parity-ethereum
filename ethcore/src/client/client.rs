@@ -45,12 +45,25 @@ use client::{
 	ClientConfig, bad_blocks,
 };
 use client_traits::{
-	BlockInfo, ScheduleInfo, StateClient, BlockChainReset,
-	Nonce, Balance, ChainInfo, TransactionInfo, ImportBlock,
-	AccountData, BlockChain as BlockChainTrait, BlockChainClient,
-	IoClient, BadBlocks, ProvingBlockChainClient, SnapshotClient,
-	DatabaseRestore, SnapshotWriter, Tick, ChainNotify,
+	BlockInfo,
+	ScheduleInfo,
+	StateClient,
+	BlockChainReset,
+	Nonce,
+	Balance,
+	ChainInfo,
+	TransactionInfo,
+	ImportBlock,
+	AccountData,
+	BlockChain as BlockChainTrait,
+	BlockChainClient,
+	IoClient,
+	BadBlocks,
+	ProvingBlockChainClient,
 	StateOrBlock,
+	ExportBlocks,
+	DataFormat,
+	ImportBlocks
 };
 use engine::Engine;
 use machine::{
