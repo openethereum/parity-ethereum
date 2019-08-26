@@ -246,7 +246,6 @@ pub struct Service {
 	genesis_block: Bytes,
 	state_chunks: AtomicUsize,
 	block_chunks: AtomicUsize,
-//	client: Arc<dyn SnapshotClient>,
 	client: Arc<Client>,
 	progress: Progress,
 	taking_snapshot: AtomicBool,
