@@ -19,7 +19,6 @@ use std::str::FromStr;
 use std::hash::Hash;
 use std::sync::Arc;
 use std::collections::{HashMap, HashSet};
-//use rustc_hex::FromHex;
 use ethereum_types::{U256, H256, Address};
 use vm::{self, ActionParams, ActionValue, Ext};
 use vm::tests::{FakeExt, FakeCall, FakeCallType, test_finalize};
