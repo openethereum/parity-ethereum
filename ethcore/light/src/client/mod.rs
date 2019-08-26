@@ -162,8 +162,8 @@ impl<T: LightChainClient> AsLightClient for T {
 }
 
 /// Light client implementation.
-pub struct Client<T: 'static> {
-	queue: HeaderQueue<Self>,
+pub struct Client<T> {
+	queue: HeaderQueue<()>,
 	engine: Arc<dyn Engine>,
 	chain: HeaderChain,
 	report: RwLock<ClientReport>,
@@ -184,7 +184,7 @@ impl<T: ChainDataFetcher> Client<T> {
 		chain_col: Option<u32>,
 		spec: &Spec,
 		fetcher: T,
-		io_channel: IoChannel<ClientIoMessage<Self>>,
+		io_channel: IoChannel<ClientIoMessage<()>>,
 		cache: Arc<Mutex<Cache>>
 	) -> Result<Self, Error> {
 		Ok(Self {
