@@ -535,7 +535,12 @@ impl FromStr for DataFormat {
 	}
 }
 
+/// Provides a method for exporting blocks
 pub trait ExportBlocks {
+    /// Export blocks to destination, with the given from, to and format arguments.
+    /// destination could be a file or stdout.
+    /// if the format is hex, each block is written on a new line.
+    /// for binary exports, all block data is written to the same line.
 	fn export_blocks<'a>(
         &self,
         destination: Box<dyn std::io::Write + 'a>,
@@ -545,7 +550,13 @@ pub trait ExportBlocks {
     ) -> Result<(), String>;
 }
 
+/// Provides a method for importing blocks
 pub trait ImportBlocks {
+    /// Import blocks from destination, with the given format arguments
+    /// source could be a file or stdout.
+    /// For hex imports, it attempts to read the blocks on a line by line basis.
+    /// For binary imports, it'll read the 8 byte rlp header in order to decode the block
+    /// length to be read.
 	fn import_blocks<'a>(
         &self,
         source: Box<dyn std::io::Read + 'a>,
