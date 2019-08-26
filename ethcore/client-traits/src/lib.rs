@@ -200,6 +200,8 @@ pub trait Tick {
 	fn tick(&self, _prevent_sleep: bool) {}
 }
 
+impl Tick for () {}
+
 /// Provides recently seen bad blocks.
 pub trait BadBlocks {
 	/// Returns a list of blocks that were recently not imported because they were invalid.

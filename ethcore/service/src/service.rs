@@ -225,7 +225,10 @@ const SNAPSHOT_TICK_TIMER: TimerToken = 1;
 const CLIENT_TICK: Duration = Duration::from_secs(5);
 const SNAPSHOT_TICK: Duration = Duration::from_secs(10);
 
-impl<C: ImportBlock + SnapshotClient + Tick + 'static> IoHandler<ClientIoMessage<C>> for ClientIoHandler<C> {
+impl<C> IoHandler<ClientIoMessage<C>> for ClientIoHandler<C>
+where
+	C: ImportBlock + SnapshotClient + Tick + 'static,
+{
 	fn initialize(&self, io: &IoContext<ClientIoMessage<C>>) {
 		io.register_timer(CLIENT_TICK_TIMER, CLIENT_TICK).expect("Error registering client timer");
 		io.register_timer(SNAPSHOT_TICK_TIMER, SNAPSHOT_TICK).expect("Error registering snapshot timer");
