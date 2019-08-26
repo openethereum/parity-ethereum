@@ -1,5 +1,6 @@
 {
-  "name": "DaiChain",
+  "name": "xDai Chain",
+  "dataDir": "xdai",
   "engine": {
     "authorityRound": {
       "params": {
