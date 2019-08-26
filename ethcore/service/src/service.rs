@@ -133,7 +133,7 @@ impl ClientService {
 		));
 		let provider = Arc::new(ethcore_private_tx::Provider::new(
 			client.clone(),
-			miner.clone(),
+			miner,
 			signer,
 			encryptor,
 			private_tx_conf,
@@ -144,7 +144,6 @@ impl ClientService {
 
 		let client_io = Arc::new(ClientIoHandler {
 			client: client.clone(),
-			miner: miner,
 			snapshot: snapshot.clone(),
 		});
 		io_service.register_handler(client_io)?;
@@ -201,22 +200,18 @@ impl ClientService {
 /// IO interface for the Client handler
 struct ClientIoHandler {
 	client: Arc<Client>,
-	miner: Arc<Miner>,
 	snapshot: Arc<SnapshotService>,
 }
 
 const CLIENT_TICK_TIMER: TimerToken = 0;
-const MINER_TICK_TIMER: TimerToken = 1;
-const SNAPSHOT_TICK_TIMER: TimerToken = 2;
+const SNAPSHOT_TICK_TIMER: TimerToken = 1;
 
 const CLIENT_TICK: Duration = Duration::from_secs(5);
-const MINER_TICK: Duration = Duration::from_secs(5);
 const SNAPSHOT_TICK: Duration = Duration::from_secs(10);
 
 impl IoHandler<ClientIoMessage> for ClientIoHandler {
 	fn initialize(&self, io: &IoContext<ClientIoMessage>) {
 		io.register_timer(CLIENT_TICK_TIMER, CLIENT_TICK).expect("Error registering client timer");
-		io.register_timer(MINER_TICK_TIMER, MINER_TICK).expect("Error registering miner timer");
 		io.register_timer(SNAPSHOT_TICK_TIMER, SNAPSHOT_TICK).expect("Error registering snapshot timer");
 	}
 
@@ -228,7 +223,6 @@ impl IoHandler<ClientIoMessage> for ClientIoHandler {
 				let snapshot_restoration = if let RestorationStatus::Ongoing{..} = self.snapshot.status() { true } else { false };
 				self.client.tick(snapshot_restoration)
 			},
-			MINER_TICK_TIMER => self.miner.tick(&*self.client),
 			SNAPSHOT_TICK_TIMER => self.snapshot.tick(),
 			_ => warn!("IO service triggered unregistered timer '{}'", timer),
 		}

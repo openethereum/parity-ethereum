@@ -180,8 +180,7 @@ impl Handshake {
 				self.set_auth(secret, sig, pubk, nonce, PROTOCOL_VERSION)?;
 				self.write_ack(io)?;
 			}
-			Err(e) => {
-				trace!(target: "network", "Failed to decrypt auth message: {}", e);
+			Err(_) => {
 				// Try to interpret as EIP-8 packet
 				let total = ((u16::from(data[0]) << 8 | (u16::from(data[1]))) as usize) + 2;
 				if total < V4_AUTH_PACKET_SIZE {

@@ -339,15 +339,6 @@ impl Miner {
 		}, GasPricer::new_fixed(minimal_gas_price), spec, accounts.unwrap_or_default())
 	}
 
-	/// Tick the Miner for pending local transactions
-	pub fn tick<C: miner::BlockChainClient>(
-		&self,
-		chain: &C,
-	) {
-		// self.transaction_queue.clear_pending_cache();
-		// self.prepare_and_update_sealing(chain);
-	}
-
 	/// Sets `IoChannel`
 	pub fn set_io_channel(&self, io_channel: IoChannel<ClientIoMessage>) {
 		*self.io_channel.write() = Some(io_channel);
@@ -495,9 +486,6 @@ impl Miner {
 		} else {
 			MAX_SKIPPED_TRANSACTIONS.saturating_add(cmp::min(*open_block.header.gas_limit() / min_tx_gas, u64::max_value().into()).as_u64() as usize)
 		};
-
-		let all_tx = self.transaction_queue.all_transactions();
-		debug!(target: "miner", "Found {} transactions in total", all_tx.len());
 
 		let pending: Vec<Arc<_>> = self.transaction_queue.pending(
 			client.clone(),
@@ -1384,12 +1372,6 @@ impl miner::MinerService for Miner {
 		// First update gas limit in transaction queue and minimal gas price.
 		let gas_limit = *chain.best_block_header().gas_limit();
 		self.update_transaction_queue_limits(gas_limit);
-
-		trace!(target: "client", "chain_new_blocks: {} imported ; {} enacted ; {} retracted",
-			imported.len(),
-			enacted.len(),
-			retracted.len(),
-		);
 
 		// Then import all transactions from retracted blocks.
 		let client = self.pool_client(chain);

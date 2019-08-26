@@ -532,8 +532,10 @@ impl Importer {
 		let route = chain.tree_route(best_hash, *parent).expect("forks are only kept when it has common ancestors; tree route from best to prospective's parent always exists; qed");
 		let fork_choice = if route.is_from_route_finalized {
 			ForkChoice::Old
+		} else if new_total_difficulty > best_total_difficulty {
+			ForkChoice::New
 		} else {
-			self.engine.fork_choice(new_total_difficulty, best_total_difficulty)
+			ForkChoice::Old
 		};
 
 		// CHECK! I *think* this is fine, even if the state_root is equal to another
@@ -2415,7 +2417,6 @@ impl ScheduleInfo for Client {
 impl ImportSealedBlock for Client {
 	fn import_sealed_block(&self, block: SealedBlock) -> EthcoreResult<H256> {
 		let start = Instant::now();
-		let num_txs = block.transactions.len();
 		let raw = block.rlp_bytes();
 		let header = block.header.clone();
 		let hash = header.hash();
@@ -2451,8 +2452,7 @@ impl ImportSealedBlock for Client {
 				pending,
 				self
 			);
-			trace!(target: "client", "Imported sealed block #{} ({} // {}txs)",
-				header.number(), hash, num_txs);
+			trace!(target: "client", "Imported sealed block #{} ({})", header.number(), hash);
 			self.state_db.write().sync_cache(&route.enacted, &route.retracted, false);
 			route
 		};
