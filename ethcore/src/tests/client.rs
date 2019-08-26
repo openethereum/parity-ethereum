@@ -427,9 +427,9 @@ fn import_export_hex() {
 
 	client.import_blocks(Box::new(&*out), Some(DataFormat::Hex)).unwrap();
 
+	assert!(client.block_header(BlockId::Number(20)).is_some());
 	assert!(client.block_header(BlockId::Number(19)).is_some());
 	assert!(client.block_header(BlockId::Number(18)).is_some());
-	assert!(client.block_header(BlockId::Number(20)).is_some());
 	assert!(client.block_header(BlockId::Number(17)).is_some());
 	assert!(client.block_header(BlockId::Number(16)).is_some());
 }

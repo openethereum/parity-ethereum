@@ -536,9 +536,19 @@ impl FromStr for DataFormat {
 }
 
 pub trait ExportBlocks {
-	fn export_blocks<'a>(&self, destination: Box<dyn std::io::Write + 'a>, from: BlockId, to: BlockId, format: Option<DataFormat>) -> Result<(), String>;
+	fn export_blocks<'a>(
+        &self,
+        destination: Box<dyn std::io::Write + 'a>,
+        from: BlockId,
+        to: BlockId,
+        format: Option<DataFormat>
+    ) -> Result<(), String>;
 }
 
 pub trait ImportBlocks {
-	fn import_blocks<'a>(&self, source: Box<dyn std::io::Read + 'a>, format: Option<DataFormat>) -> Result<(), String>;
+	fn import_blocks<'a>(
+        &self,
+        source: Box<dyn std::io::Read + 'a>,
+        format: Option<DataFormat>
+    ) -> Result<(), String>;
 }

@@ -2566,7 +2566,7 @@ impl ExportBlocks for Client {
 		let to = self.block_number(to).ok_or("To block could not be found")?;
 		let format = format.unwrap_or_default();
 
-		for i in from..(to + 1) {
+		for i in from..=to {
 			if i % 10000 == 0 {
 				info!("#{}", i);
 			}
@@ -2586,7 +2586,11 @@ impl ExportBlocks for Client {
 
 
 impl ImportBlocks for Client {
-	fn import_blocks<'a>(&self, mut source: Box<dyn std::io::Read + 'a>, format: Option<DataFormat>) -> Result<(), String> {
+	fn import_blocks<'a>(
+		&self,
+		mut source: Box<dyn std::io::Read + 'a>,
+		format: Option<DataFormat>
+	) -> Result<(), String> {
 		const READAHEAD_BYTES: usize = 8;
 
 		let mut first_bytes: Vec<u8> = vec![0; READAHEAD_BYTES];
@@ -2621,30 +2625,36 @@ impl ImportBlocks for Client {
 		match format {
 			DataFormat::Binary => {
 				loop {
-					let mut bytes = if first_read > 0 {
-						first_bytes.clone()
+					let (mut bytes, n) = if first_read > 0 {
+						(first_bytes.clone(), first_read)
 					} else {
-						vec![0; READAHEAD_BYTES]
-					};
-					let n = if first_read > 0 {
-						first_read
-					} else {
-						source.read(&mut bytes).map_err(|_| "Error reading from the file/stream.")?
+						let mut bytes = vec![0; READAHEAD_BYTES];
+						let n = source.read(&mut bytes)
+							.map_err(|err| format!("Error reading from the file/stream: {:?}", err))?;
+						(bytes, n)
 					};
 					if n == 0 { break; }
 					first_read = 0;
-					let s = PayloadInfo::from(&bytes).map_err(|e| format!("Invalid RLP in the file/stream: {:?}", e))?.total();
+					let s = PayloadInfo::from(&bytes)
+						.map_err(|e| format!("Invalid RLP in the file/stream: {:?}", e))?.total();
 					bytes.resize(s, 0);
-					source.read_exact(&mut bytes[n..]).map_err(|_| "Error reading from the file/stream.")?;
+					source.read_exact(&mut bytes[n..])
+						.map_err(|err| format!("Error reading from the file/stream: {:?}", err))?;
 					do_import(bytes)?;
 				}
 			}
 			DataFormat::Hex => {
 				for line in BufReader::new(source).lines() {
-					let s = line.map_err(|_| "Error reading from the file/stream.")?;
-					let s = if first_read > 0 {from_utf8(&first_bytes).unwrap().to_owned() + &(s[..])} else {s};
+					let s = line.map_err(|err| format!("Error reading from the file/stream: {:?}", err))?;
+					let s = if first_read > 0 {
+						from_utf8(&first_bytes)
+							.map_err(|err| format!("Invalid UTF-8: {:?}", err))?
+							.to_owned() + &(s[..])
+					} else {
+						s
+					};
 					first_read = 0;
-					let bytes = s.from_hex().map_err(|_| "Invalid hex in file/stream.")?;
+					let bytes = s.from_hex().map_err(|err| format!("Invalid hex in file/stream: {:?}", err))?;
 					do_import(bytes)?;
 				}
 			}

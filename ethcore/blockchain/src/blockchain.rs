@@ -877,7 +877,7 @@ impl BlockChain {
 		}
 	}
 
-	/// clears all caches for testing purposes
+	/// clears all caches, re-loads best block from disk for testing purposes
 	pub fn clear_cache(&self) {
 		self.block_bodies.write().clear();
 		self.block_details.write().clear();
