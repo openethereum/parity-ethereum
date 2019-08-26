@@ -1391,38 +1391,41 @@ impl miner::MinerService for Miner {
 				});
 		}
 
+		// @todo Use IoChannel if available
+		// if has_new_best_block {
+		// 	// Make sure to cull transactions after we update sealing.
+		// 	// Not culling won't lead to old transactions being added to the block
+		// 	// (thanks to Ready), but culling can take significant amount of time,
+		// 	// so best to leave it after we create some work for miners to prevent increased
+		// 	// uncle rate.
+		// 	// If the io_channel is available attempt to offload culling to a separate task
+		// 	// to avoid blocking chain_new_blocks
+		// 	if let Some(ref channel) = *self.io_channel.read() {
+		// 		let queue = self.transaction_queue.clone();
+		// 		let nonce_cache = self.nonce_cache.clone();
+		// 		let engine = self.engine.clone();
+		// 		let accounts = self.accounts.clone();
+		// 		let service_transaction_checker = self.service_transaction_checker.clone();
+
+		// 		let cull = move |chain: &::client::Client| {
+		// 			let client = PoolClient::new(
+		// 				chain,
+		// 				&nonce_cache,
+		// 				&*engine,
+		// 				&*accounts,
+		// 				service_transaction_checker.as_ref(),
+		// 			);
+		// 			queue.cull(client);
+		// 		};
+
+		// 		if let Err(e) = channel.send(ClientIoMessage::execute(cull)) {
+		// 			warn!(target: "miner", "Error queueing cull: {:?}", e);
+		// 		}
+		// 	} else {
+		// 		self.transaction_queue.cull(client);
+		// 	}
+		// }
 		if has_new_best_block {
-			// // Make sure to cull transactions after we update sealing.
-			// // Not culling won't lead to old transactions being added to the block
-			// // (thanks to Ready), but culling can take significant amount of time,
-			// // so best to leave it after we create some work for miners to prevent increased
-			// // uncle rate.
-			// // If the io_channel is available attempt to offload culling to a separate task
-			// // to avoid blocking chain_new_blocks
-			// if let Some(ref channel) = *self.io_channel.read() {
-			// 	let queue = self.transaction_queue.clone();
-			// 	let nonce_cache = self.nonce_cache.clone();
-			// 	let engine = self.engine.clone();
-			// 	let accounts = self.accounts.clone();
-			// 	let service_transaction_checker = self.service_transaction_checker.clone();
-
-			// 	let cull = move |chain: &::client::Client| {
-			// 		let client = PoolClient::new(
-			// 			chain,
-			// 			&nonce_cache,
-			// 			&*engine,
-			// 			&*accounts,
-			// 			service_transaction_checker.as_ref(),
-			// 		);
-			// 		queue.cull(client);
-			// 	};
-
-			// 	if let Err(e) = channel.send(ClientIoMessage::execute(cull)) {
-			// 		warn!(target: "miner", "Error queueing cull: {:?}", e);
-			// 	}
-			// } else {
-			// 	self.transaction_queue.cull(client);
-			// }
 			self.transaction_queue.cull(client);
 		}
 
