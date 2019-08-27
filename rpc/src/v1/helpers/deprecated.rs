@@ -38,7 +38,7 @@ const PRINT_INTERVAL: Duration = Duration::from_secs(60);
 pub struct DeprecationNotice<T = fn() -> Instant> {
 	now: T,
 	next_warning_at: RwLock<HashMap<String, Instant>>,
-	printer: Box<Fn(MethodName, Option<&str>) + Send + Sync>,
+	printer: Box<dyn Fn(MethodName, Option<&str>) + Send + Sync>,
 }
 
 impl Default for DeprecationNotice {

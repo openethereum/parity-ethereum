@@ -138,7 +138,7 @@ pub enum Error {
 }
 
 impl error::Error for Error {
-	fn source(&self) -> Option<&(error::Error + 'static)> {
+	fn source(&self) -> Option<&(dyn error::Error + 'static)> {
 		match self {
 			Error::Io(e) => Some(e),
 			Error::Decoder(e) => Some(e),

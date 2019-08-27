@@ -95,18 +95,18 @@ pub enum URLHintResult {
 /// URLHint Contract interface
 pub trait URLHint: Send + Sync {
 	/// Resolves given id to registrar entry.
-	fn resolve(&self, id: H256) -> Box<Future<Item = Option<URLHintResult>, Error = String> + Send>;
+	fn resolve(&self, id: H256) -> Box<dyn Future<Item = Option<URLHintResult>, Error = String> + Send>;
 }
 
 /// `URLHintContract` API
 pub struct URLHintContract {
 	registrar: Registrar,
-	client: Arc<RegistrarClient<Call=Asynchronous>>,
+	client: Arc<dyn RegistrarClient<Call=Asynchronous>>,
 }
 
 impl URLHintContract {
 	/// Creates new `URLHintContract`
-	pub fn new(client: Arc<RegistrarClient<Call=Asynchronous>>) -> Self {
+	pub fn new(client: Arc<dyn RegistrarClient<Call=Asynchronous>>) -> Self {
 		URLHintContract {
 			registrar: Registrar::new(client.clone()),
 			client: client,
@@ -159,7 +159,7 @@ fn decode_urlhint_output(output: (String, [u8; 20], Address)) -> Option<URLHintR
 }
 
 impl URLHint for URLHintContract {
-	fn resolve(&self, id: H256) -> Box<Future<Item = Option<URLHintResult>, Error = String> + Send> {
+	fn resolve(&self, id: H256) -> Box<dyn Future<Item = Option<URLHintResult>, Error = String> + Send> {
 		let client = self.client.clone();
 
 		let future = self.registrar.get_address(GITHUB_HINT)

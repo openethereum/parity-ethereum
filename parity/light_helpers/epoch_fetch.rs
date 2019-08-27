@@ -35,7 +35,7 @@ use ethereum_types::H256;
 
 const ALL_VALID_BACKREFS: &str = "no back-references, therefore all back-references valid; qed";
 
-type BoxFuture<T, E> = Box<Future<Item = T, Error = E>>;
+type BoxFuture<T, E> = Box<dyn Future<Item = T, Error = E>>;
 
 /// Allows on-demand fetch of data useful for the light client.
 pub struct EpochFetch {
@@ -83,7 +83,7 @@ impl ChainDataFetcher for EpochFetch {
 	}
 
 	/// Fetch epoch transition proof at given header.
-	fn epoch_transition(&self, hash: H256, engine: Arc<Engine>, checker: Arc<StateDependentProof>)
+	fn epoch_transition(&self, hash: H256, engine: Arc<dyn Engine>, checker: Arc<dyn StateDependentProof>)
 		-> Self::Transition
 	{
 		self.request(request::Signal {

@@ -24,7 +24,7 @@ use dir;
 use Error;
 
 /// Import an account from a file.
-pub fn import_account(path: &Path, dst: &KeyDirectory) -> Result<Address, Error> {
+pub fn import_account(path: &Path, dst: &dyn KeyDirectory) -> Result<Address, Error> {
 	let key_manager = DiskKeyFileManager::default();
 	let existing_accounts = dst.load()?.into_iter().map(|a| a.address).collect::<HashSet<_>>();
 	let filename = path.file_name().and_then(|n| n.to_str()).map(|f| f.to_owned());
@@ -40,7 +40,7 @@ pub fn import_account(path: &Path, dst: &KeyDirectory) -> Result<Address, Error>
 }
 
 /// Import all accounts from one directory to the other.
-pub fn import_accounts(src: &KeyDirectory, dst: &KeyDirectory) -> Result<Vec<Address>, Error> {
+pub fn import_accounts(src: &dyn KeyDirectory, dst: &dyn KeyDirectory) -> Result<Vec<Address>, Error> {
 	let accounts = src.load()?;
 	let existing_accounts = dst.load()?.into_iter()
 		.map(|a| a.address)
@@ -64,7 +64,7 @@ pub fn read_geth_accounts(testnet: bool) -> Vec<Address> {
 }
 
 /// Import specific `desired` accounts from the Geth keystore into `dst`.
-pub fn import_geth_accounts(dst: &KeyDirectory, desired: HashSet<Address>, testnet: bool) -> Result<Vec<Address>, Error> {
+pub fn import_geth_accounts(dst: &dyn KeyDirectory, desired: HashSet<Address>, testnet: bool) -> Result<Vec<Address>, Error> {
 	let src = RootDiskDirectory::at(dir::geth(testnet));
 	let accounts = src.load()?;
 	let existing_accounts = dst.load()?.into_iter().map(|a| a.address).collect::<HashSet<_>>();
