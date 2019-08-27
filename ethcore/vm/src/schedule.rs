@@ -19,11 +19,13 @@ use std::collections::HashMap;
 use ethereum_types::U256;
 
 /// Definition of schedules that can be applied to a version.
+#[derive(Debug)]
 pub enum VersionedSchedule {
 	PWasm,
 }
 
 /// Definition of the cost schedule and other parameterisations for the EVM.
+#[derive(Debug)]
 pub struct Schedule {
 	/// Does it support exceptional failed code deposit
 	pub exceptional_failed_code_deposit: bool,
@@ -141,6 +143,7 @@ pub struct Schedule {
 }
 
 /// Wasm cost table
+#[derive(Debug)]
 pub struct WasmCosts {
 	/// Default opcode cost
 	pub regular: u32,
@@ -194,7 +197,7 @@ impl Default for WasmCosts {
 }
 
 /// Dust accounts cleanup mode.
-#[derive(PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq)]
 pub enum CleanDustMode {
 	/// Dust cleanup is disabled.
 	Off,
@@ -302,6 +305,7 @@ impl Schedule {
 		schedule.sload_gas = 800; // EIP 1884
 		schedule.balance_gas = 700; // EIP 1884
 		schedule.extcodehash_gas = 700; // EIP 1884
+		schedule.have_selfbalance = true; // EIP 1884
 		schedule
 	}
 
