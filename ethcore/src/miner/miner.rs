@@ -919,8 +919,6 @@ impl miner::MinerService for Miner {
 			// Disable sealing.
 			self.sealing.lock().enabled = false;
 			self.engine.clear_signer();
-		} else {
-			warn!("Clearing the engine signer while the engine does not require one.");
 		}
 	}
 
