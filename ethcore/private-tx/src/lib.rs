@@ -105,13 +105,14 @@ use machine::{
 };
 use types::{
 	ids::BlockId,
+	io_message::ClientIoMessage,
 	transaction::{SignedTransaction, Transaction, Action, UnverifiedTransaction},
 	engines::machine::Executed,
 };
 use ethcore::client::{
 	Client, ChainNotify, NewBlocks, ChainMessageType, Call
 };
-use client_traits::{BlockInfo, ClientIoMessage};
+use client_traits::BlockInfo;
 use ethcore::miner::{self, Miner, MinerService, pool_client::NonceCache};
 use state_db::StateDB;
 use account_state::State;

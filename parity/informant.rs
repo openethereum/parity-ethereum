@@ -24,11 +24,12 @@ use std::time::{Instant, Duration};
 
 use atty;
 use ethcore::client::{ChainNotify, NewBlocks, Client};
-use client_traits::{BlockInfo, ChainInfo, BlockChainClient, ClientIoMessage, IoClient};
+use client_traits::{BlockInfo, ChainInfo, BlockChainClient, IoClient};
 use types::{
 	BlockNumber,
 	client_types::ClientReport,
 	ids::BlockId,
+	io_message::ClientIoMessage,
 	blockchain_info::BlockChainInfo,
 	verification::VerificationQueueInfo as BlockQueueInfo,
 	snapshot::RestorationStatus,

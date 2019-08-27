@@ -32,10 +32,11 @@ use ethcore::snapshot::service::{Service as SnapshotService, ServiceParams as Sn
 use ethcore::snapshot::{SnapshotService as _SnapshotService};
 use spec::Spec;
 use common_types::{
+	io_message::ClientIoMessage,
 	errors::{EthcoreError, SnapshotError},
 	snapshot::RestorationStatus,
 };
-use client_traits::{ImportBlock, ClientIoMessage, SnapshotClient, Tick};
+use client_traits::{ImportBlock, SnapshotClient, Tick};
 
 
 use ethcore_private_tx::{self, Importer, Signer};

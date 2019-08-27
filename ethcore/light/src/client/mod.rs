@@ -36,9 +36,9 @@ use common_types::{
 	errors::EthcoreResult,
 	header::Header,
 	ids::BlockId,
+	io_message::ClientIoMessage,
 	verification::VerificationQueueInfo as BlockQueueInfo,
 };
-use client_traits::ClientIoMessage;
 use kvdb::KeyValueDB;
 use vm::EnvInfo;
 

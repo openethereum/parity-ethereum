@@ -42,6 +42,7 @@ use types::{
 	block::Block,
 	header::Header,
 	ids::BlockId,
+	io_message::ClientIoMessage,
 	engines::{Seal, SealingState},
 	errors::{EthcoreError as Error, ExecutionError},
 	receipt::RichReceipt,
@@ -57,7 +58,7 @@ use using_queue::{UsingQueue, GetAction};
 
 use block::{ClosedBlock, SealedBlock};
 use client::{BlockProducer, SealedBlockImporter, Client};
-use client_traits::{BlockChain, ChainInfo, Nonce, TransactionInfo, ClientIoMessage};
+use client_traits::{BlockChain, ChainInfo, Nonce, TransactionInfo};
 use engine::{Engine, signer::EngineSigner};
 use machine::executive::contract_address;
 use spec::Spec;

@@ -18,13 +18,16 @@ use std::sync::Arc;
 use hash::keccak;
 use ethereum_types::{U256, Address};
 use io::{IoHandler, IoChannel};
-use client_traits::{ChainInfo, ClientIoMessage};
+use client_traits::ChainInfo;
 use engine::signer;
 use spec;
 use ethcore::client::Client;
 use ethcore::miner::{self, MinerService};
 use ethkey::{KeyPair, Secret};
-use types::transaction::{Action, PendingTransaction, Transaction};
+use types::{
+	io_message::ClientIoMessage,
+	transaction::{Action, PendingTransaction, Transaction}
+};
 use super::helpers::*;
 use SyncConfig;
 

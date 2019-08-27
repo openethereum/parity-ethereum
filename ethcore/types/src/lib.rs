@@ -71,6 +71,7 @@ pub mod errors;
 pub mod filter;
 pub mod header;
 pub mod ids;
+pub mod io_message;
 pub mod log_entry;
 pub mod pruning_info;
 pub mod receipt;

@@ -50,7 +50,7 @@ use client_traits::{
 	AccountData, BlockChain as BlockChainTrait, BlockChainClient,
 	IoClient, BadBlocks, ProvingBlockChainClient, SnapshotClient,
 	DatabaseRestore, SnapshotWriter, Tick,
-	StateOrBlock, ClientIoMessage,
+	StateOrBlock,
 };
 use engine::Engine;
 use machine::{
@@ -73,6 +73,7 @@ use types::{
 	block_status::BlockStatus,
 	blockchain_info::BlockChainInfo,
 	client_types::ClientReport,
+	io_message::ClientIoMessage,
 	encoded,
 	engines::{
 		ForkChoice,

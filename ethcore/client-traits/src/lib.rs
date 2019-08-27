@@ -56,8 +56,6 @@ use trace::{
 };
 use vm::{LastHashes, Schedule};
 
-mod io_message;
-pub use self::io_message::ClientIoMessage;
 use common_types::snapshot::Progress;
 
 /// State information to be used during client query

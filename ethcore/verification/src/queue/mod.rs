@@ -22,9 +22,9 @@ use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering as AtomicOrdering};
 use std::sync::Arc;
 use std::cmp;
 use std::collections::{VecDeque, HashSet, HashMap};
-use client_traits::ClientIoMessage;
 use common_types::{
 	block_status::BlockStatus,
+	io_message::ClientIoMessage,
 	errors::{BlockError, EthcoreError as Error, ImportError},
 	verification::VerificationQueueInfo as QueueInfo,
 };
