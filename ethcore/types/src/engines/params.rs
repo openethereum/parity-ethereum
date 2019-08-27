@@ -169,6 +169,8 @@ impl CommonParams {
 		schedule.eip1283 = block_number >= self.eip1283_transition && !(block_number >= self.eip1283_disable_transition);
 		if block_number >= self.eip1884_transition {
 			schedule.sload_gas = 800;
+			schedule.balance_gas = 700;
+			schedule.extcodehash_gas = 700;
 		}
 		if block_number >= self.eip2028_transition {
 			schedule.tx_data_non_zero_gas = 16;
