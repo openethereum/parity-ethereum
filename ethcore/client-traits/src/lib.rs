@@ -170,7 +170,6 @@ pub trait EngineClient: Sync + Send + ChainInfo {
 	fn block_header(&self, id: BlockId) -> Option<encoded::Header>;
 }
 
-// FIXME Why these methods belong to BlockChainClient and not MiningBlockChainClient?
 /// Provides methods to import block into blockchain
 pub trait ImportBlock {
 	/// Import a block into the blockchain.
