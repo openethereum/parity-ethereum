@@ -244,7 +244,7 @@ fn execute_import_light(cmd: ImportBlockchain) -> Result<(), String> {
 
 	let client = service.client();
 
-	let mut instream: Box<io::Read> = match cmd.file_path {
+	let mut instream: Box<dyn io::Read> = match cmd.file_path {
 		Some(f) => Box::new(fs::File::open(&f).map_err(|_| format!("Cannot open given file: {}", f))?),
 		None => Box::new(io::stdin()),
 	};
@@ -412,7 +412,7 @@ fn execute_import(cmd: ImportBlockchain) -> Result<(), String> {
 
 	let client = service.client();
 
-	let mut instream: Box<io::Read> = match cmd.file_path {
+	let mut instream: Box<dyn io::Read> = match cmd.file_path {
 		Some(f) => Box::new(fs::File::open(&f).map_err(|_| format!("Cannot open given file: {}", f))?),
 		None => Box::new(io::stdin()),
 	};
@@ -621,7 +621,7 @@ fn execute_export(cmd: ExportBlockchain) -> Result<(), String> {
 
 	let client = service.client();
 
-	let mut out: Box<io::Write> = match cmd.file_path {
+	let mut out: Box<dyn io::Write> = match cmd.file_path {
 		Some(f) => Box::new(fs::File::create(&f).map_err(|_| format!("Cannot write to file given: {}", f))?),
 		None => Box::new(io::stdout()),
 	};
@@ -665,7 +665,7 @@ fn execute_export_state(cmd: ExportState) -> Result<(), String> {
 
 	let client = service.client();
 
-	let mut out: Box<io::Write> = match cmd.file_path {
+	let mut out: Box<dyn io::Write> = match cmd.file_path {
 		Some(f) => Box::new(fs::File::create(&f).map_err(|_| format!("Cannot write to file given: {}", f))?),
 		None => Box::new(io::stdout()),
 	};

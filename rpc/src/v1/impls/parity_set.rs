@@ -87,7 +87,7 @@ pub struct ParitySetClient<C, M, U, F = fetch::Client> {
 	client: Arc<C>,
 	miner: Arc<M>,
 	updater: Arc<U>,
-	net: Arc<ManageNetwork>,
+	net: Arc<dyn ManageNetwork>,
 	fetch: F,
 }
 
@@ -99,7 +99,7 @@ impl<C, M, U, F> ParitySetClient<C, M, U, F>
 		client: &Arc<C>,
 		miner: &Arc<M>,
 		updater: &Arc<U>,
-		net: &Arc<ManageNetwork>,
+		net: &Arc<dyn ManageNetwork>,
 		fetch: F,
 	) -> Self {
 		ParitySetClient {

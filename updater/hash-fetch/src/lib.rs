@@ -35,7 +35,7 @@ extern crate registrar;
 
 pub extern crate fetch;
 
-#[macro_use]
+// #[macro_use]
 extern crate ethabi_derive;
 #[macro_use]
 extern crate ethabi_contract;

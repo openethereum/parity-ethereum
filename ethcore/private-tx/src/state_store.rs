@@ -57,7 +57,7 @@ pub struct PrivateStateStorage {
 
 impl PrivateStateStorage {
 	/// Constructs the object
-	pub fn new(db: Arc<KeyValueDB>) -> Self {
+	pub fn new(db: Arc<dyn KeyValueDB>) -> Self {
 		PrivateStateStorage {
 			private_state_db: Arc::new(PrivateStateDB::new(db)),
 			requests: RwLock::new(Vec::new()),

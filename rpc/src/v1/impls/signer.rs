@@ -40,7 +40,7 @@ use v1::types::{TransactionModification, ConfirmationRequest, ConfirmationRespon
 /// Transactions confirmation (personal) rpc implementation.
 pub struct SignerClient<D: Dispatcher> {
 	signer: Arc<SignerService>,
-	accounts: Arc<dispatch::Accounts>,
+	accounts: Arc<dyn dispatch::Accounts>,
 	dispatcher: D,
 	subscribers: Arc<Mutex<Subscribers<Sink<Vec<ConfirmationRequest>>>>>,
 	deprecation_notice: DeprecationNotice,
@@ -49,7 +49,7 @@ pub struct SignerClient<D: Dispatcher> {
 impl<D: Dispatcher + 'static> SignerClient<D> {
 	/// Create new instance of signer client.
 	pub fn new(
-		accounts: Arc<dispatch::Accounts>,
+		accounts: Arc<dyn dispatch::Accounts>,
 		dispatcher: D,
 		signer: &Arc<SignerService>,
 		executor: Executor,
@@ -81,7 +81,7 @@ impl<D: Dispatcher + 'static> SignerClient<D> {
 	}
 
 	fn confirm_internal<F, T>(&self, id: U256, modification: TransactionModification, f: F) -> BoxFuture<WithToken<ConfirmationResponse>> where
-		F: FnOnce(D, &Arc<dispatch::Accounts>, ConfirmationPayload) -> T,
+		F: FnOnce(D, &Arc<dyn dispatch::Accounts>, ConfirmationPayload) -> T,
 		T: IntoFuture<Item=WithToken<ConfirmationResponse>, Error=Error>,
 		T::Future: Send + 'static
 	{

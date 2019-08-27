@@ -1382,7 +1382,7 @@ impl ChainSync {
 	}
 
 	/// Request private state from peers
-	pub fn request_private_state(&mut self, io: &mut SyncIo, hash: &H256) {
+	pub fn request_private_state(&mut self, io: &mut dyn SyncIo, hash: &H256) {
 		let private_state_peers = self.get_private_state_peers();
 		if private_state_peers.is_empty() {
 			error!(target: "privatetx", "Cannot request private state, no peers with private tx enabled available");

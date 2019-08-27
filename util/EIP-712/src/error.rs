@@ -67,7 +67,7 @@ pub(crate) fn serde_error(expected: &str, field: Option<&str>) -> ErrorKind {
 }
 
 impl Fail for Error {
-	fn cause(&self) -> Option<&Fail> {
+	fn cause(&self) -> Option<&dyn Fail> {
 		self.inner.cause()
 	}
 

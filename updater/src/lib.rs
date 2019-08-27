@@ -21,6 +21,7 @@
 extern crate client_traits;
 extern crate common_types;
 extern crate ethabi;
+extern crate ethabi_derive;
 extern crate ethcore;
 extern crate ethcore_sync as sync;
 extern crate ethereum_types;
@@ -36,8 +37,6 @@ extern crate target_info;
 
 #[macro_use]
 extern crate ethabi_contract;
-#[macro_use]
-extern crate ethabi_derive;
 #[macro_use]
 extern crate lazy_static;
 #[macro_use]

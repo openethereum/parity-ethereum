@@ -743,7 +743,7 @@ impl SyncHandler {
 		Ok(())
 	}
 
-	fn on_private_state_data(sync: &mut ChainSync, io: &mut SyncIo, peer_id: PeerId, r: &Rlp) -> Result<(), DownloaderImportError> {
+	fn on_private_state_data(sync: &mut ChainSync, io: &mut dyn SyncIo, peer_id: PeerId, r: &Rlp) -> Result<(), DownloaderImportError> {
 		if !sync.peers.get(&peer_id).map_or(false, |p| p.can_sync()) {
 			trace!(target: "sync", "{} Ignoring packet from unconfirmed/unknown peer", peer_id);
 			return Ok(());
