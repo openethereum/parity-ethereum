@@ -2496,8 +2496,6 @@ impl ProvingBlockChainClient for Client {
 }
 
 impl SnapshotClient for Client {
-	/// Take a snapshot at the given block.
-	/// If the ID given is "latest", this will default to 1000 blocks behind.
 	fn take_snapshot<W: SnapshotWriter + Send>(
 		&self,
 		writer: W,
