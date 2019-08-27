@@ -186,13 +186,13 @@ impl LogsSerializer for FileLogsSerializer {
 /// Private transactions logging
 pub struct Logging {
 	logs: RwLock<HashMap<H256, TransactionLog>>,
-	logs_serializer: Arc<LogsSerializer>,
+	logs_serializer: Arc<dyn LogsSerializer>,
 	mono_time: MonoTime,
 }
 
 impl Logging {
 	/// Creates the logging object
-	pub fn new(logs_serializer: Arc<LogsSerializer>) -> Self {
+	pub fn new(logs_serializer: Arc<dyn LogsSerializer>) -> Self {
 		let mut logging = Logging {
 			logs: RwLock::new(HashMap::new()),
 			logs_serializer,

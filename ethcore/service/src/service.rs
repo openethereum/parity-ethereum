@@ -94,7 +94,7 @@ pub struct ClientService {
 	client: Arc<Client>,
 	snapshot: Arc<SnapshotService>,
 	private_tx: Arc<PrivateTxService>,
-	database: Arc<BlockChainDB>,
+	database: Arc<dyn BlockChainDB>,
 }
 
 impl ClientService {
@@ -102,13 +102,13 @@ impl ClientService {
 	pub fn start(
 		config: ClientConfig,
 		spec: &Spec,
-		blockchain_db: Arc<BlockChainDB>,
+		blockchain_db: Arc<dyn BlockChainDB>,
 		snapshot_path: &Path,
-		restoration_db_handler: Box<BlockChainDBHandler>,
+		restoration_db_handler: Box<dyn BlockChainDBHandler>,
 		_ipc_path: &Path,
 		miner: Arc<Miner>,
-		signer: Arc<Signer>,
-		encryptor: Box<ethcore_private_tx::Encryptor>,
+		signer: Arc<dyn Signer>,
+		encryptor: Box<dyn ethcore_private_tx::Encryptor>,
 		private_tx_conf: ethcore_private_tx::ProviderConfig,
 		private_encryptor_conf: ethcore_private_tx::EncryptorConfig,
 		) -> Result<ClientService, EthcoreError>
@@ -173,7 +173,7 @@ impl ClientService {
 	}
 
 	/// Get general IO interface
-	pub fn register_io_handler(&self, handler: Arc<IoHandler<ClientIoMessage> + Send>) -> Result<(), IoError> {
+	pub fn register_io_handler(&self, handler: Arc<dyn IoHandler<ClientIoMessage> + Send>) -> Result<(), IoError> {
 		self.io_service.register_handler(handler)
 	}
 
@@ -198,12 +198,12 @@ impl ClientService {
 	}
 
 	/// Set the actor to be notified on certain chain events
-	pub fn add_notify(&self, notify: Arc<ChainNotify>) {
+	pub fn add_notify(&self, notify: Arc<dyn ChainNotify>) {
 		self.client.add_notify(notify);
 	}
 
 	/// Get a handle to the database.
-	pub fn db(&self) -> Arc<BlockChainDB> { self.database.clone() }
+	pub fn db(&self) -> Arc<dyn BlockChainDB> { self.database.clone() }
 
 	/// Shutdown the Client Service
 	pub fn shutdown(&self) {

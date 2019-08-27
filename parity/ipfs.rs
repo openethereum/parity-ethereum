@@ -40,7 +40,7 @@ impl Default for Configuration {
 	}
 }
 
-pub fn start_server(conf: Configuration, client: Arc<BlockChainClient>) -> Result<Option<Listening>, ServerError> {
+pub fn start_server(conf: Configuration, client: Arc<dyn BlockChainClient>) -> Result<Option<Listening>, ServerError> {
 	if !conf.enabled {
 		return Ok(None);
 	}
