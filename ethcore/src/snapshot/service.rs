@@ -24,17 +24,24 @@ use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 use std::cmp;
 
-use super::{ManifestData, StateRebuilder, Rebuilder, RestorationStatus, SnapshotService, MAX_CHUNK_SIZE};
-use super::io::{SnapshotReader, LooseReader, SnapshotWriter, LooseWriter};
+use super::{
+	StateRebuilder,
+	SnapshotService,
+	Rebuilder,
+	MAX_CHUNK_SIZE,
+	io::{SnapshotReader, LooseReader, SnapshotWriter, LooseWriter},
+	chunker,
+};
 
 use blockchain::{BlockChain, BlockChainDB, BlockChainDBHandler};
-use client::{BlockChainClient, Client, ChainInfo, ClientIoMessage};
-use client_traits::BlockInfo;
-use engines::Engine;
+use client::{Client, ClientIoMessage};
+use client_traits::{BlockInfo, BlockChainClient, ChainInfo};
+use engine::Engine;
 use hash::keccak;
 use types::{
 	errors::{EthcoreError as Error, SnapshotError, SnapshotError::UnlinkedAncientBlockChain},
 	ids::BlockId,
+	snapshot::{ManifestData, Progress, RestorationStatus},
 };
 
 use io::IoChannel;
@@ -107,10 +114,10 @@ impl Restoration {
 		let raw_db = params.db;
 
 		let chain = BlockChain::new(Default::default(), params.genesis, raw_db.clone());
-		let components = params.engine.snapshot_components()
-			.ok_or_else(|| ::snapshot::Error::SnapshotsUnsupported)?;
+		let chunker = chunker(params.engine.snapshot_mode())
+			.ok_or_else(|| Error::Snapshot(SnapshotError::SnapshotsUnsupported))?;
 
-		let secondary = components.rebuilder(chain, raw_db.clone(), &manifest)?;
+		let secondary = chunker.rebuilder(chain, raw_db.clone(), &manifest)?;
 
 		let final_state_root = manifest.state_root.clone();
 
@@ -245,7 +252,7 @@ pub struct Service {
 	state_chunks: AtomicUsize,
 	block_chunks: AtomicUsize,
 	client: Arc<dyn SnapshotClient>,
-	progress: super::Progress,
+	progress: Progress,
 	taking_snapshot: AtomicBool,
 	restoring_snapshot: AtomicBool,
 }
@@ -797,7 +804,7 @@ impl SnapshotService for Service {
 	}
 
 	fn supported_versions(&self) -> Option<(u64, u64)> {
-		self.engine.snapshot_components()
+		chunker(self.engine.snapshot_mode())
 			.map(|c| (c.min_supported_version(), c.current_version()))
 	}
 
@@ -900,10 +907,11 @@ impl Drop for Service {
 mod tests {
 	use client::ClientIoMessage;
 	use io::{IoService};
-	use crate::spec;
+	use spec;
 	use journaldb::Algorithm;
-	use snapshot::{ManifestData, RestorationStatus, SnapshotService};
+	use snapshot::SnapshotService;
 	use super::*;
+	use types::snapshot::{ManifestData, RestorationStatus};
 	use tempdir::TempDir;
 	use test_helpers::{generate_dummy_client_with_spec_and_data, restoration_db_handler};
 

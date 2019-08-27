@@ -741,7 +741,7 @@ where
 	tx: EthTransaction,
 	hdr: encoded::Header,
 	env_info: ::vm::EnvInfo,
-	engine: Arc<::ethcore::engines::Engine>,
+	engine: Arc<engine::Engine>,
 	on_demand: Arc<OD>,
 	sync: Arc<S>,
 }

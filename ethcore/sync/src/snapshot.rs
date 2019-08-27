@@ -14,9 +14,10 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
-use ethcore::snapshot::{ManifestData, SnapshotService};
+use ethcore::snapshot::SnapshotService;
 use ethereum_types::H256;
 use hash::keccak;
+use types::snapshot::ManifestData;
 
 use std::collections::HashSet;
 use std::iter::FromIterator;
@@ -178,7 +179,7 @@ mod test {
 	use hash::keccak;
 	use bytes::Bytes;
 	use super::*;
-	use ethcore::snapshot::ManifestData;
+	use types::snapshot::ManifestData;
 
 	fn is_empty(snapshot: &Snapshot) -> bool {
 		snapshot.pending_block_chunks.is_empty() &&

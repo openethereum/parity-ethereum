@@ -66,7 +66,7 @@ pub struct LocalTransactionsList {
 	max_old: usize,
 	transactions: LinkedHashMap<H256, Status>,
 	pending: usize,
-	in_chain: Option<Box<Fn(&H256) -> bool + Send + Sync>>,
+	in_chain: Option<Box<dyn Fn(&H256) -> bool + Send + Sync>>,
 }
 
 impl fmt::Debug for LocalTransactionsList {

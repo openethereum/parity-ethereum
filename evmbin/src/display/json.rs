@@ -20,11 +20,14 @@ use std::collections::HashMap;
 use std::mem;
 
 use ethereum_types::{U256, H256, BigEndianHash};
-use bytes::ToPretty;
+use parity_bytes::ToPretty;
+use serde::Serialize;
 use trace;
 
-use display;
-use info as vm;
+use crate::{
+	display,
+	info as vm,
+};
 
 /// JSON formatting informant.
 #[derive(Default)]
@@ -273,9 +276,11 @@ impl trace::VMTracer for Informant {
 
 #[cfg(test)]
 mod tests {
-	use super::*;
-	use info::tests::run_test;
+	use serde::{Deserialize, Serialize};
 	use serde_json;
+
+	use super::*;
+	use crate::info::tests::run_test;
 
 	#[derive(Serialize, Deserialize, Debug, PartialEq)]
 	#[serde(rename_all = "camelCase")]

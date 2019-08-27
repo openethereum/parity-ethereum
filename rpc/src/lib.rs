@@ -61,6 +61,7 @@ extern crate jsonrpc_http_server as http;
 extern crate jsonrpc_ipc_server as ipc;
 extern crate jsonrpc_pubsub;
 
+extern crate client_traits;
 extern crate common_types as types;
 extern crate ethash;
 extern crate ethcore;
@@ -84,6 +85,7 @@ extern crate parity_version as version;
 extern crate eip_712;
 extern crate rlp;
 extern crate account_state;
+extern crate spec;
 extern crate stats;
 extern crate tempdir;
 extern crate trace;
@@ -104,6 +106,9 @@ extern crate serde_derive;
 extern crate rand_xorshift;
 
 #[cfg(test)]
+extern crate engine;
+
+#[cfg(test)]
 extern crate ethjson;
 #[cfg(test)]
 extern crate transaction_pool as txpool;
@@ -121,8 +126,6 @@ extern crate fake_fetch;
 
 #[cfg(test)]
 extern crate ethcore_io as io;
-#[cfg(test)]
-extern crate client_traits;
 
 pub extern crate jsonrpc_ws_server as ws;
 

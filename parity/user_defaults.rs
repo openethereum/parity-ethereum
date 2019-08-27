@@ -22,7 +22,7 @@ use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use serde_json::de::from_reader;
 use serde_json::ser::to_string;
 use journaldb::Algorithm;
-use ethcore::client::{Mode as ClientMode};
+use types::client_types::Mode as ClientMode;
 
 #[derive(Clone)]
 pub struct Seconds(Duration);

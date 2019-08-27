@@ -42,10 +42,18 @@ pub const TO_V12: ChangeColumns = ChangeColumns {
 	version: 12,
 };
 
+/// The migration from v12 to v14.
+/// Adds a column for private transactions state storage.
+pub const TO_V14: ChangeColumns = ChangeColumns {
+	pre_columns: Some(8),
+	post_columns: Some(9),
+	version: 14,
+};
+
 /// Database is assumed to be at default version, when no version file is found.
 const DEFAULT_VERSION: u32 = 5;
 /// Current version of database models.
-const CURRENT_VERSION: u32 = 13;
+const CURRENT_VERSION: u32 = 14;
 /// A version of database at which blooms-db was introduced
 const BLOOMS_DB_VERSION: u32 = 13;
 /// Defines how many items are migrated to the new version of database at once.
@@ -147,6 +155,7 @@ fn consolidated_database_migrations(compaction_profile: &CompactionProfile) -> R
 	let mut manager = MigrationManager::new(default_migration_settings(compaction_profile));
 	manager.add_migration(TO_V11).map_err(|_| Error::MigrationImpossible)?;
 	manager.add_migration(TO_V12).map_err(|_| Error::MigrationImpossible)?;
+	manager.add_migration(TO_V14).map_err(|_| Error::MigrationImpossible)?;
 	Ok(manager)
 }
 

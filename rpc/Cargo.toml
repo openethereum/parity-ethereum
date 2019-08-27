@@ -35,7 +35,9 @@ jsonrpc-ws-server = "12.0.0"
 jsonrpc-ipc-server = "12.0.0"
 jsonrpc-pubsub = "12.0.0"
 
+client-traits = { path = "../ethcore/client-traits" }
 common-types = { path = "../ethcore/types" }
+engine = { path = "../ethcore/engine" }
 ethash = { path = "../ethash" }
 ethcore = { path = "../ethcore", features = ["test-helpers"] }
 ethcore-accounts = { path = "../accounts", optional = true }
@@ -62,6 +64,7 @@ parity-updater = { path = "../updater" }
 parity-version = { path = "../util/version" }
 rlp = "0.4.0"
 account-state = { path = "../ethcore/account-state" }
+spec = { path = "../ethcore/spec" }
 stats = { path = "../util/stats" }
 trace = { path = "../ethcore/trace" }
 vm = { path = "../ethcore/vm" }

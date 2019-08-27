@@ -91,7 +91,7 @@ pub struct Schedule {
 	pub tx_create_gas: usize,
 	/// Additional cost for empty data transaction
 	pub tx_data_zero_gas: usize,
-	/// Aditional cost for non-empty data transaction
+	/// Additional cost for non-empty data transaction
 	pub tx_data_non_zero_gas: usize,
 	/// Gas price for copying memory
 	pub copy_gas: usize,
@@ -285,6 +285,13 @@ impl Schedule {
 	pub fn new_constantinople() -> Schedule {
 		let mut schedule = Self::new_byzantium();
 		schedule.have_bitwise_shifting = true;
+		schedule
+	}
+
+	/// Schedule for the Istanbul fork of the Ethereum main net.
+	pub fn new_istanbul() -> Schedule {
+		let mut schedule = Self::new_constantinople();
+		schedule.tx_data_non_zero_gas = 16;
 		schedule
 	}
 

@@ -22,11 +22,11 @@ use std::thread;
 use ansi_term::Colour;
 use bytes::Bytes;
 use call_contract::CallContract;
-use client_traits::BlockInfo;
-use ethcore::client::{Client, Mode, DatabaseCompactionProfile, VMType, BlockChainClient};
+use client_traits::{BlockInfo, BlockChainClient};
+use ethcore::client::{Client, DatabaseCompactionProfile, VMType};
 use ethcore::miner::{self, stratum, Miner, MinerService, MinerOptions};
 use ethcore::snapshot::{self, SnapshotConfiguration};
-use ethcore::spec::{SpecParams, OptimizeFor};
+use spec::SpecParams;
 use ethcore::verification::queue::VerifierSettings;
 use ethcore_logger::{Config as LogConfig, RotatingLogger};
 use ethcore_service::ClientService;
@@ -41,7 +41,12 @@ use miner::work_notify::WorkPoster;
 use node_filter::NodeFilter;
 use parity_runtime::Runtime;
 use sync::{self, SyncConfig, PrivateTxHandler};
-use types::ids::BlockId;
+use types::{
+	client_types::Mode,
+	engines::OptimizeFor,
+	ids::BlockId,
+	snapshot::Snapshotting,
+};
 use parity_rpc::{
 	Origin, Metadata, NetworkSettings, informant, PubSubSession, FutureResult, FutureResponse, FutureOutput
 };
@@ -442,7 +447,14 @@ fn execute_impl<Cr, Rr>(cmd: RunCmd, logger: Arc<RotatingLogger>, on_client_rq: 
 	}
 
 	sync_config.fork_block = spec.fork_block();
-	let mut warp_sync = spec.engine.supports_warp() && cmd.warp_sync;
+	let snapshot_supported =
+		if let Snapshotting::Unsupported = spec.engine.snapshot_mode() {
+			false
+		} else {
+			true
+		};
+
+	let mut warp_sync = snapshot_supported && cmd.warp_sync;
 	if warp_sync {
 		// Logging is not initialized yet, so we print directly to stderr
 		if fat_db {
@@ -623,9 +635,9 @@ fn execute_impl<Cr, Rr>(cmd: RunCmd, logger: Arc<RotatingLogger>, on_client_rq: 
 			.map_err(|e| format!("Stratum start error: {:?}", e))?;
 	}
 
-	let private_tx_sync: Option<Arc<PrivateTxHandler>> = match cmd.private_tx_enabled {
-		true => Some(private_tx_service.clone() as Arc<PrivateTxHandler>),
-		false => None,
+	let (private_tx_sync, private_state) = match cmd.private_tx_enabled {
+		true => (Some(private_tx_service.clone() as Arc<PrivateTxHandler>), Some(private_tx_provider.private_state_db())),
+		false => (None, None),
 	};
 
 	// create sync object
@@ -636,6 +648,7 @@ fn execute_impl<Cr, Rr>(cmd: RunCmd, logger: Arc<RotatingLogger>, on_client_rq: 
 		client.clone(),
 		snapshot_service.clone(),
 		private_tx_sync,
+		private_state,
 		client.clone(),
 		&cmd.logger_config,
 		connection_filter.clone().map(|f| f as Arc<::sync::ConnectionFilter + 'static>),

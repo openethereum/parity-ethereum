@@ -18,18 +18,22 @@
 
 use std::sync::atomic::AtomicBool;
 use tempdir::TempDir;
-use types::errors::EthcoreError as Error;
+use types::{
+	errors::EthcoreError as Error,
+	engines::ForkChoice,
+	snapshot::Progress,
+};
 
 use blockchain::generator::{BlockGenerator, BlockBuilder};
 use blockchain::{BlockChain, ExtrasInsert};
-use snapshot::{chunk_secondary, Error as SnapshotError, Progress, SnapshotComponents};
+use snapshot::{chunk_secondary, Error as SnapshotError, SnapshotComponents};
 use snapshot::io::{PackedReader, PackedWriter, SnapshotReader, SnapshotWriter};
 
 use parking_lot::Mutex;
 use snappy;
 use kvdb::DBTransaction;
 use test_helpers;
-use crate::spec;
+use spec;
 
 const SNAPSHOT_MODE: ::snapshot::PowSnapshot = ::snapshot::PowSnapshot { blocks: 30000, max_restore_blocks: 30000 };
 
@@ -50,7 +54,7 @@ fn chunk_and_restore(amount: u64) {
 	let mut batch = DBTransaction::new();
 	for block in generator {
 		bc.insert_block(&mut batch, block.encoded(), vec![], ExtrasInsert {
-			fork_choice: ::engines::ForkChoice::New,
+			fork_choice: ForkChoice::New,
 			is_finalized: false,
 		});
 		bc.commit();

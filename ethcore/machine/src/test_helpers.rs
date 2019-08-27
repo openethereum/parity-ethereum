@@ -20,7 +20,6 @@ use common_types::engines::params::CommonParams;
 use ethjson;
 use crate::Machine;
 
-
 pub fn load_machine(reader: &[u8]) -> Machine {
 	let spec = ethjson::spec::Spec::load(reader).expect("chain spec is invalid");
 

@@ -1,0 +1,29 @@
+[package]
+description = "Ethereum engine trait definition"
+name = "engine"
+version = "0.1.0"
+authors = ["Parity Technologies <admin@parity.io>"]
+edition = "2018"
+license = "GPL-3.0"
+
+[dependencies]
+blockchain = { package = "ethcore-blockchain", path = "../blockchain" }
+builtin = { path = "../builtin", package = "ethcore-builtin" }
+bytes = { package = "parity-bytes", version = "0.1.0" }
+client-traits = { path = "../client-traits" }
+common-types = { path = "../types" }
+ethereum-types = "0.6.0"
+ethkey = { path = "../../accounts/ethkey" }
+machine = { path = "../machine" }
+vm = { path = "../vm" }
+
+# used from test-helpers
+accounts = { package = "ethcore-accounts", path = "../../accounts", optional = true }
+log = { version = "0.4.8", optional = true }
+
+[dev-dependencies]
+accounts = { package = "ethcore-accounts", path = "../../accounts" }
+log = "0.4.8"
+
+[features]
+test-helpers = ["accounts", "log"]

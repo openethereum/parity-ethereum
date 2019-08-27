@@ -14,11 +14,12 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
-use ethcore::snapshot::{ManifestData, RestorationStatus, SnapshotService};
+use ethcore::snapshot::SnapshotService;
 
 use bytes::Bytes;
 use ethereum_types::H256;
 use parking_lot::Mutex;
+use types::snapshot::{ManifestData, RestorationStatus};
 
 /// Mocked snapshot service (used for sync info extensions).
 pub struct TestSnapshotService {
@@ -48,8 +49,8 @@ impl SnapshotService for TestSnapshotService {
 	fn status(&self) -> RestorationStatus { self.status.lock().clone() }
 	fn begin_restore(&self, _manifest: ManifestData) { }
 	fn abort_restore(&self) { }
-	fn abort_snapshot(&self) {}
 	fn restore_state_chunk(&self, _hash: H256, _chunk: Bytes) { }
 	fn restore_block_chunk(&self, _hash: H256, _chunk: Bytes) { }
+	fn abort_snapshot(&self) {}
 	fn shutdown(&self) { }
 }

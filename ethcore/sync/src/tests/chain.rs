@@ -16,12 +16,13 @@
 
 use std::sync::Arc;
 use types::ids::BlockId;
-use ethcore::client::{TestBlockChainClient, BlockChainClient, EachBlockWith, ChainInfo};
+use client_traits::{BlockChainClient, ChainInfo};
+use ethcore::client::{TestBlockChainClient, EachBlockWith};
 use client_traits::BlockInfo;
 use chain::SyncState;
 use super::helpers::*;
 use {SyncConfig, WarpSync};
-use ethcore::spec;
+use spec;
 
 #[test]
 fn two_peers() {

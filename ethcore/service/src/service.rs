@@ -29,9 +29,12 @@ use blockchain::{BlockChainDB, BlockChainDBHandler};
 use ethcore::client::{Client, ClientConfig, ChainNotify, ClientIoMessage};
 use ethcore::miner::Miner;
 use ethcore::snapshot::service::{Service as SnapshotService, ServiceParams as SnapServiceParams};
-use ethcore::snapshot::{SnapshotService as _SnapshotService, RestorationStatus};
-use ethcore::spec::Spec;
-use common_types::errors::{EthcoreError, SnapshotError};
+use ethcore::snapshot::{SnapshotService as _SnapshotService};
+use spec::Spec;
+use common_types::{
+	errors::{EthcoreError, SnapshotError},
+	snapshot::RestorationStatus,
+};
 
 
 use ethcore_private_tx::{self, Importer, Signer};
@@ -73,6 +76,16 @@ impl PrivateTxHandler for PrivateTxService {
 			}
 		}
 	}
+
+	fn private_state_synced(&self, hash: &H256) -> Result<(), String> {
+		match self.provider.private_state_synced(hash) {
+			Ok(handle_result) => Ok(handle_result),
+			Err(err) => {
+				warn!(target: "privatetx", "Unable to handle private state synced message: {}", err);
+				return Err(err.to_string())
+			}
+		}
+	}
 }
 
 /// Client service setup. Creates and registers client and network services with the IO subsystem.
@@ -102,7 +115,7 @@ impl ClientService {
 	{
 		let io_service = IoService::<ClientIoMessage>::start()?;
 
-		info!("Configured for {} using {} engine", Colour::White.bold().paint(spec.name.clone()), Colour::Yellow.bold().paint(spec.engine.name()));
+		info!("Configured for {} using {} engine", Colour::White.bold().paint(spec.name.clone()), Colour::Yellow.bold().paint(spec.engine.name().to_string()));
 
 		let pruning = config.pruning;
 		let client = Client::new(
@@ -139,8 +152,10 @@ impl ClientService {
 			private_tx_conf,
 			io_service.channel(),
 			private_keys,
+			blockchain_db.key_value().clone(),
 		));
-		let private_tx = Arc::new(PrivateTxService::new(provider));
+		let private_tx = Arc::new(PrivateTxService::new(provider.clone()));
+		io_service.register_handler(provider)?;
 
 		let client_io = Arc::new(ClientIoHandler {
 			client: client.clone(),
@@ -283,7 +298,7 @@ mod tests {
 	use ethcore_db::NUM_COLUMNS;
 	use ethcore::client::ClientConfig;
 	use ethcore::miner::Miner;
-	use ethcore::spec;
+	use spec;
 	use ethcore::test_helpers;
 	use kvdb_rocksdb::{DatabaseConfig, CompactionProfile};
 	use super::*;

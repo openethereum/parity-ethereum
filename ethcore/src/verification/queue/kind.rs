@@ -16,7 +16,7 @@
 
 //! Definition of valid items for the verification queue.
 
-use engines::Engine;
+use engine::Engine;
 
 use parity_util_mem::MallocSizeOf;
 use ethereum_types::{H256, U256};
@@ -69,18 +69,15 @@ pub trait Kind: 'static + Sized + Send + Sync {
 pub mod blocks {
 	use super::{Kind, BlockLike};
 
-	use engines::Engine;
+	use engine::Engine;
 	use types::{
 		block::PreverifiedBlock,
-		header::Header,
 		errors::{EthcoreError as Error, BlockError},
-		transaction::UnverifiedTransaction
+		verification::Unverified,
 	};
 	use verification::{verify_block_basic, verify_block_unordered};
 
-	use parity_util_mem::MallocSizeOf;
 	use ethereum_types::{H256, U256};
-	use bytes::Bytes;
 
 	/// A mode for verifying blocks.
 	pub struct Blocks;
@@ -113,40 +110,6 @@ pub mod blocks {
 					Err(e)
 				}
 			}
-		}
-	}
-
-	/// An unverified block.
-	#[derive(PartialEq, Debug, MallocSizeOf)]
-	pub struct Unverified {
-		/// Unverified block header.
-		pub header: Header,
-		/// Unverified block transactions.
-		pub transactions: Vec<UnverifiedTransaction>,
-		/// Unverified block uncles.
-		pub uncles: Vec<Header>,
-		/// Raw block bytes.
-		pub bytes: Bytes,
-	}
-
-	impl Unverified {
-		/// Create an `Unverified` from raw bytes.
-		pub fn from_rlp(bytes: Bytes) -> Result<Self, ::rlp::DecoderError> {
-			use rlp::Rlp;
-			let (header, transactions, uncles) = {
-				let rlp = Rlp::new(&bytes);
-				let header = rlp.val_at(0)?;
-				let transactions = rlp.list_at(1)?;
-				let uncles = rlp.list_at(2)?;
-				(header, transactions, uncles)
-			};
-
-			Ok(Unverified {
-				header,
-				transactions,
-				uncles,
-				bytes,
-			})
 		}
 	}
 
@@ -183,7 +146,7 @@ pub mod blocks {
 pub mod headers {
 	use super::{Kind, BlockLike};
 
-	use engines::Engine;
+	use engine::Engine;
 	use types::{
 		header::Header,
 		errors::EthcoreError as Error,

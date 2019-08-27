@@ -13,7 +13,7 @@ ethjson = { path = "../../json" }
 ethkey = { path = "../../accounts/ethkey" }
 keccak-hash = "0.2.0"
 parity-bytes = "0.1"
-parity-util-mem = "0.1"
+parity-util-mem = "0.2.0"
 parity-snappy = "0.1"
 patricia-trie-ethereum = { path = "../../util/patricia-trie-ethereum" }
 rlp = "0.4.0"

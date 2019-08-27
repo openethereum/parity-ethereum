@@ -17,9 +17,11 @@
 #[macro_use]
 extern crate criterion;
 extern crate ethash;
+extern crate common_types;
 
 use criterion::Criterion;
-use ethash::{NodeCacheBuilder, OptimizeFor};
+use ethash::NodeCacheBuilder;
+use common_types::engines::OptimizeFor;
 
 const HASH: [u8; 32] = [
 	0xf5, 0x7e, 0x6f, 0x3a, 0xcf, 0xc0, 0xdd, 0x4b,

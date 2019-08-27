@@ -18,6 +18,7 @@
 
 #![warn(missing_docs)]
 
+extern crate client_traits;
 extern crate common_types;
 extern crate ethabi;
 extern crate ethcore;

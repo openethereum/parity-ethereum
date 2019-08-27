@@ -29,7 +29,6 @@ use machine::{
 	externalities::{OutputPolicy, OriginInfo, Externalities},
 	substate::Substate,
 	executive::contract_address,
-	test_helpers::new_frontier_test_machine,
 };
 
 use test_helpers::get_temp_state;
@@ -40,7 +39,7 @@ use ethtrie;
 use rlp::RlpStream;
 use hash::keccak;
 use ethereum_types::BigEndianHash;
-use crate::spec;
+use spec;
 
 use super::HookType;
 

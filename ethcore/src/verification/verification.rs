@@ -32,15 +32,15 @@ use unexpected::{Mismatch, OutOfBounds};
 use blockchain::*;
 use call_contract::CallContract;
 use client_traits::BlockInfo;
-use engines::Engine;
+use engine::Engine;
 use types::{
 	BlockNumber,
 	header::Header,
 	errors::{EthcoreError as Error, BlockError},
 	engines::MAX_UNCLE_AGE,
 	block::PreverifiedBlock,
+	verification::Unverified,
 };
-use verification::queue::kind::blocks::Unverified;
 
 use time_utils::CheckedSystemTime;
 
@@ -370,9 +370,9 @@ mod tests {
 	use blockchain::{BlockDetails, TransactionAddress, BlockReceipts};
 	use bytes::Bytes;
 	use hash::keccak;
-	use engines::Engine;
+	use engine::Engine;
 	use ethkey::{Random, Generator};
-	use crate::spec;
+	use spec;
 	use test_helpers::{create_test_block_with_data, create_test_block};
 	use types::{
 		encoded,
@@ -782,7 +782,7 @@ mod tests {
 		use ethkey::{Generator, Random};
 		use types::transaction::{Transaction, Action};
 		use machine::Machine;
-		use engines::NullEngine;
+		use null_engine::NullEngine;
 
 		let mut params = CommonParams::default();
 		params.dust_protection_transition = 0;

@@ -20,6 +20,7 @@ use std::sync::atomic::{AtomicUsize, AtomicBool, Ordering as AtomicOrdering};
 use std::sync::{Arc, Weak};
 use std::time::{Instant, Duration};
 
+use account_state::state::StateInfo;
 use blockchain::{BlockReceipts, BlockChain, BlockChainDB, BlockProvider, TreeRoute, ImportRoute, TransactionAddress, ExtrasInsert, BlockNumberKey};
 use bytes::Bytes;
 use call_contract::{CallContract, RegistryInfo};
@@ -39,20 +40,18 @@ use hash_db::EMPTY_PREFIX;
 use block::{LockedBlock, Drain, ClosedBlock, OpenBlock, enact_verified, SealedBlock};
 use client::ancient_import::AncientVerifier;
 use client::{
-	Nonce, Balance, ChainInfo, TransactionInfo,
-	ReopenBlock, PrepareOpenBlock, ScheduleInfo, ImportSealedBlock,
-	BroadcastProposalBlock, ImportBlock, StateOrBlock, StateInfo, StateClient, Call,
-	AccountData, BlockChain as BlockChainTrait, BlockProducer, SealedBlockImporter,
-	BlockChainReset
+	ReopenBlock, PrepareOpenBlock, ImportSealedBlock, BroadcastProposalBlock,
+	Call, BlockProducer, SealedBlockImporter, ChainNotify, EngineInfo,
+	ClientConfig, NewBlocks, ChainRoute, ChainMessageType, bad_blocks, ClientIoMessage,
 };
-use client::{
-	ClientConfig, BlockChainClient,
-	TraceFilter, CallAnalytics, Mode,
-	ChainNotify, NewBlocks, ChainRoute, PruningInfo, ProvingBlockChainClient, EngineInfo, ChainMessageType,
-	IoClient, BadBlocks, bad_blocks, ClientIoMessage,
+use client_traits::{
+	BlockInfo, ScheduleInfo, StateClient, BlockChainReset,
+	Nonce, Balance, ChainInfo, TransactionInfo, ImportBlock,
+	AccountData, BlockChain as BlockChainTrait, BlockChainClient,
+	IoClient, BadBlocks, ProvingBlockChainClient,
+	StateOrBlock
 };
-use client_traits::BlockInfo;
-use engines::{Engine, EpochTransition, ForkChoice};
+use engine::Engine;
 use machine::{
 	executed::Executed,
 	executive::{Executive, TransactOptions, contract_address},
@@ -70,11 +69,14 @@ use types::{
 	ancestry_action::AncestryAction,
 	BlockNumber,
 	block::PreverifiedBlock,
+	block_status::BlockStatus,
+	blockchain_info::BlockChainInfo,
 	encoded,
 	engines::{
+		ForkChoice,
 		SealingState,
 		MAX_UNCLE_AGE,
-		epoch::PendingTransition,
+		epoch::{PendingTransition, Transition as EpochTransition},
 		machine::{AuxiliaryData, Call as MachineCall},
 	},
 	errors::{EngineError, ExecutionError, BlockError, EthcoreError, SnapshotError, ImportError, EthcoreResult},
@@ -84,20 +86,22 @@ use types::{
 	log_entry::LocalizedLogEntry,
 	receipt::{Receipt, LocalizedReceipt},
 	header::Header,
+	snapshot::{Progress, Snapshotting},
+	trace_filter::Filter as TraceFilter,
+	pruning_info::PruningInfo,
+	call_analytics::CallAnalytics,
+	client_types::Mode,
+	verification::{Unverified, VerificationQueueInfo as BlockQueueInfo},
 };
 
 use verification::queue::kind::BlockLike;
-use verification::queue::kind::blocks::Unverified;
 use verification::{Verifier, BlockQueue};
 use verification;
 use ansi_term::Colour;
-
+use ethtrie::Layout;
 // re-export
 pub use blockchain::CacheSize as BlockChainCacheSize;
 use db::{Writable, Readable, keys::BlockDetails};
-pub use types::blockchain_info::BlockChainInfo;
-pub use types::block_status::BlockStatus;
-pub use types::verification_queue_info::VerificationQueueInfo as BlockQueueInfo;
 
 use_contract!(registry, "res/contracts/registrar.json");
 
@@ -604,7 +608,7 @@ impl Importer {
 		state_db: &StateDB,
 		client: &Client,
 	) -> EthcoreResult<Option<PendingTransition>> {
-		use engines::EpochChange;
+		use engine::EpochChange;
 
 		let hash = header.hash();
 		let auxiliary = AuxiliaryData {
@@ -614,7 +618,7 @@ impl Importer {
 
 		match self.engine.signals_epoch_end(header, auxiliary) {
 			EpochChange::Yes(proof) => {
-				use engines::Proof;
+				use engine::Proof;
 
 				let proof = match proof {
 					Proof::Known(proof) => proof,
@@ -726,7 +730,7 @@ impl Client {
 			false => TrieSpec::Secure,
 		};
 
-		let trie_factory = TrieFactory::new(trie_spec);
+		let trie_factory = TrieFactory::new(trie_spec, Layout);
 		let factories = Factories {
 			vm: VmFactory::new(config.vm_type.clone(), config.jump_table_size),
 			trie: trie_factory,
@@ -1017,7 +1021,7 @@ impl Client {
 	}
 
 	/// Get shared miner reference.
-	#[cfg(test)]
+	#[cfg(any(test, feature = "test-helpers"))]
 	pub fn miner(&self) -> Arc<Miner> {
 		self.importer.miner.clone()
 	}
@@ -1163,8 +1167,11 @@ impl Client {
 		&self,
 		writer: W,
 		at: BlockId,
-		p: &snapshot::Progress,
+		p: &Progress,
 	) -> Result<(), EthcoreError> {
+		if let Snapshotting::Unsupported = self.engine.snapshot_mode() {
+			return Err(EthcoreError::Snapshot(SnapshotError::SnapshotsUnsupported));
+		}
 		let db = self.state_db.read().journal_db().boxed_clone();
 		let best_block_number = self.chain_info().best_block_number;
 		let block_number = self.block_number(at).ok_or_else(|| SnapshotError::InvalidStartingBlock(at))?;
@@ -1194,7 +1201,7 @@ impl Client {
 		};
 
 		let processing_threads = self.config.snapshot.processing_threads;
-		let chunker = self.engine.snapshot_components().ok_or_else(|| SnapshotError::SnapshotsUnsupported)?;
+		let chunker = snapshot::chunker(self.engine.snapshot_mode()).ok_or_else(|| SnapshotError::SnapshotsUnsupported)?;
 		snapshot::take_snapshot(
 			chunker,
 			&self.chain.read(),
@@ -1224,10 +1231,8 @@ impl Client {
 	fn transaction_address(&self, id: TransactionId) -> Option<TransactionAddress> {
 		match id {
 			TransactionId::Hash(ref hash) => self.chain.read().transaction_address(hash),
-			TransactionId::Location(id, index) => Self::block_hash(&self.chain.read(), id).map(|hash| TransactionAddress {
-				block_hash: hash,
-				index: index,
-			})
+			TransactionId::Location(id, index) => Self::block_hash(&self.chain.read(), id).map(|block_hash|
+				TransactionAddress { block_hash, index })
 		}
 	}
 
@@ -1275,6 +1280,7 @@ impl Client {
 		t: &SignedTransaction,
 		analytics: CallAnalytics,
 	) -> Result<Executed, CallError> {
+		use types::engines::machine::Executed as RawExecuted;
 		fn call<V, T>(
 			state: &mut State<StateDB>,
 			env_info: &EnvInfo,
@@ -1282,7 +1288,7 @@ impl Client {
 			state_diff: bool,
 			transaction: &SignedTransaction,
 			options: TransactOptions<T, V>,
-		) -> Result<Executed<T::Output, V::Output>, CallError> where
+		) -> Result<RawExecuted<T::Output, V::Output>, CallError> where
 			T: trace::Tracer,
 			V: trace::VMTracer,
 		{
@@ -2507,7 +2513,7 @@ impl SealedBlockImporter for Client {}
 impl ::miner::TransactionVerifierClient for Client {}
 impl ::miner::BlockChainClient for Client {}
 
-impl super::traits::EngineClient for Client {
+impl client_traits::EngineClient for Client {
 	fn update_sealing(&self) {
 		self.importer.miner.update_sealing(self)
 	}
@@ -2523,7 +2529,7 @@ impl super::traits::EngineClient for Client {
 		self.notify(|notify| notify.broadcast(ChainMessageType::Consensus(message.clone())));
 	}
 
-	fn epoch_transition_for(&self, parent_hash: H256) -> Option<::engines::EpochTransition> {
+	fn epoch_transition_for(&self, parent_hash: H256) -> Option<EpochTransition> {
 		self.chain.read().epoch_transition_for(parent_hash)
 	}
 
@@ -2657,9 +2663,10 @@ impl IoChannelQueue {
 #[cfg(test)]
 mod tests {
 	use ethereum_types::{H256, Address};
-	use client::{BlockChainClient, ChainInfo};
+	use client_traits::{BlockChainClient, ChainInfo};
 	use types::{
 		encoded,
+		engines::ForkChoice,
 		ids::{BlockId, TransactionId},
 		log_entry::{LogEntry, LocalizedLogEntry},
 		receipt::{Receipt, LocalizedReceipt, TransactionOutcome},
@@ -2690,7 +2697,7 @@ mod tests {
 			thread::spawn(move || {
 				let mut batch = DBTransaction::new();
 				another_client.chain.read().insert_block(&mut batch, encoded::Block::new(new_block), Vec::new(), ExtrasInsert {
-					fork_choice: ::engines::ForkChoice::New,
+					fork_choice: ForkChoice::New,
 					is_finalized: false,
 				});
 				go_thread.store(true, Ordering::SeqCst);

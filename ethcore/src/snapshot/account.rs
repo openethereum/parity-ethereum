@@ -17,14 +17,17 @@
 //! Account state encoding and decoding
 
 use account_db::{AccountDB, AccountDBMut};
-use types::basic_account::BasicAccount;
+use types::{
+	basic_account::BasicAccount,
+	snapshot::Progress,
+	errors::SnapshotError as Error,
+};
 use bytes::Bytes;
 use ethereum_types::{H256, U256};
 use ethtrie::{TrieDB, TrieDBMut};
 use hash::{KECCAK_EMPTY, KECCAK_NULL_RLP};
 use hash_db::HashDB;
 use rlp::{RlpStream, Rlp};
-use snapshot::{Error, Progress};
 use std::collections::HashSet;
 use trie::{Trie, TrieMut};
 use std::sync::atomic::Ordering;

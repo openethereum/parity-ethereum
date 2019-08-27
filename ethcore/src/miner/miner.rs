@@ -49,7 +49,7 @@ use types::{
 	block::Block,
 	header::Header,
 	ids::BlockId,
-	engines::{SealingState},
+	engines::{Seal, SealingState},
 	errors::{EthcoreError as Error, ExecutionError},
 	receipt::RichReceipt,
 };
@@ -57,9 +57,15 @@ use using_queue::{UsingQueue, GetAction};
 
 use block::{ClosedBlock, SealedBlock};
 use client::{
-	BlockChain, ChainInfo, BlockProducer, SealedBlockImporter, Nonce, TransactionInfo, ClientIoMessage,
+	BlockProducer, SealedBlockImporter, ClientIoMessage,
 };
-use engines::{Engine, Seal, EngineSigner};
+use client_traits::{
+	BlockChain, ChainInfo, Nonce, TransactionInfo,
+};
+use engine::{
+	Engine,
+	signer::EngineSigner
+};
 use machine::executive::contract_address;
 use spec::Spec;
 use account_state::State;
@@ -513,7 +519,7 @@ impl Miner {
 			let sender = transaction.sender();
 
 			// Re-verify transaction again vs current state.
-			let result = client.verify_signed(&transaction)
+			let result = client.verify_for_pending_block(&transaction, &open_block.header)
 				.map_err(|e| e.into())
 				.and_then(|_| {
 					open_block.push_transaction(transaction, None)
@@ -1487,13 +1493,16 @@ mod tests {
 	use ethkey::{Generator, Random};
 	use hash::keccak;
 	use rustc_hex::FromHex;
-	use types::BlockNumber;
 
-	use client::{TestBlockChainClient, EachBlockWith, ChainInfo, ImportSealedBlock};
+	use client::{TestBlockChainClient, EachBlockWith, ImportSealedBlock};
+	use client_traits::ChainInfo;
 	use miner::{MinerService, PendingOrdering};
 	use test_helpers::{generate_dummy_client, generate_dummy_client_with_spec};
-	use types::transaction::{Transaction};
-	use crate::spec;
+	use types::{
+		BlockNumber,
+		transaction::Transaction
+	};
+	use spec;
 
 	#[test]
 	fn should_prepare_block_to_seal() {

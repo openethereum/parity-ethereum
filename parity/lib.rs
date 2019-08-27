@@ -44,6 +44,7 @@ extern crate cli_signer;
 
 extern crate client_traits;
 extern crate common_types as types;
+extern crate engine;
 extern crate ethcore;
 extern crate ethcore_call_contract as call_contract;
 extern crate ethcore_db;
@@ -72,6 +73,7 @@ extern crate parity_runtime;
 extern crate parity_updater as updater;
 extern crate parity_version;
 extern crate registrar;
+extern crate spec;
 
 #[macro_use]
 extern crate log as rlog;

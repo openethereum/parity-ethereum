@@ -25,8 +25,9 @@ use hash::{KECCAK_NULL_RLP};
 use account_db::AccountDBMut;
 use types::basic_account::BasicAccount;
 use blockchain::{BlockChain, BlockChainDB};
-use client::{Client, ChainInfo};
-use engines::Engine;
+use client::Client;
+use client_traits::ChainInfo;
+use engine::Engine;
 use snapshot::{StateRebuilder};
 use snapshot::io::{SnapshotReader, PackedWriter, PackedReader};
 
@@ -160,13 +161,13 @@ pub fn restore(
 	use std::sync::atomic::AtomicBool;
 
 	let flag = AtomicBool::new(true);
-	let components = engine.snapshot_components().unwrap();
+	let chunker = crate::snapshot::chunker(engine.snapshot_mode()).expect("the engine used here supports snapshots");
 	let manifest = reader.manifest();
 
 	let mut state = StateRebuilder::new(db.key_value().clone(), journaldb::Algorithm::Archive);
 	let mut secondary = {
 		let chain = BlockChain::new(Default::default(), genesis, db.clone());
-		components.rebuilder(chain, db, manifest).unwrap()
+		chunker.rebuilder(chain, db, manifest).unwrap()
 	};
 
 	let mut snappy_buffer = Vec::new();
