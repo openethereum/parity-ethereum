@@ -175,7 +175,7 @@ impl ClientService {
 	}
 
 	/// Get general IO interface
-	pub fn register_io_handler(&self, handler: Arc<dyn IoHandler<ClientIoMessage> + Send>) -> Result<(), IoError> {
+	pub fn register_io_handler(&self, handler: Arc<dyn IoHandler<ClientIoMessage<Client>> + Send>) -> Result<(), IoError> {
 		self.io_service.register_handler(handler)
 	}
 

@@ -214,7 +214,7 @@ pub struct Provider {
 	client: Arc<Client>,
 	miner: Arc<Miner>,
 	accounts: Arc<dyn Signer>,
-	channel: IoChannel<ClientIoMessage>,
+	channel: IoChannel<ClientIoMessage<Client>>,
 	keys_provider: Arc<dyn KeyProvider>,
 	logging: Option<Logging>,
 	use_offchain_storage: bool,
@@ -237,7 +237,7 @@ impl Provider {
 		accounts: Arc<dyn Signer>,
 		encryptor: Box<dyn Encryptor>,
 		config: ProviderConfig,
-		channel: IoChannel<ClientIoMessage>,
+		channel: IoChannel<ClientIoMessage<Client>>,
 		keys_provider: Arc<dyn KeyProvider>,
 		db: Arc<dyn KeyValueDB>,
 	) -> Self {
