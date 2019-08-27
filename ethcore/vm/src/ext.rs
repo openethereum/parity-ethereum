@@ -91,7 +91,7 @@ pub trait Ext {
 
 	/// Creates new contract.
 	///
-	/// Returns gas_left and contract address if contract creation was succesfull.
+	/// Returns gas_left and contract address if contract creation was successful.
 	fn create(
 		&mut self,
 		gas: &U256,

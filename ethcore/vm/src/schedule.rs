@@ -124,6 +124,8 @@ pub struct Schedule {
 	pub have_bitwise_shifting: bool,
 	/// CHAINID opcode enabled.
 	pub have_chain_id: bool,
+	/// SELFBALANCE opcode enabled.
+	pub have_selfbalance: bool,
 	/// Kill basic accounts below this balance if touched.
 	pub kill_dust: CleanDustMode,
 	/// Enable EIP-1283 rules
@@ -223,6 +225,7 @@ impl Schedule {
 			have_return_data: false,
 			have_bitwise_shifting: false,
 			have_chain_id: false,
+			have_selfbalance: false,
 			have_extcodehash: false,
 			stack_limit: 1024,
 			max_depth: 1024,
@@ -311,6 +314,7 @@ impl Schedule {
 			have_return_data: false,
 			have_bitwise_shifting: false,
 			have_chain_id: false,
+			have_selfbalance: false,
 			have_extcodehash: false,
 			stack_limit: 1024,
 			max_depth: 1024,
