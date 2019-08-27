@@ -64,7 +64,6 @@ parity-updater = { path = "../updater" }
 parity-version = { path = "../util/version" }
 rlp = "0.4.0"
 account-state = { path = "../ethcore/account-state" }
-spec = { path = "../ethcore/spec" }
 stats = { path = "../util/stats" }
 trace = { path = "../ethcore/trace" }
 vm = { path = "../ethcore/vm" }
@@ -77,6 +76,7 @@ ethcore-io = { path = "../util/io" }
 ethcore-network = { path = "../util/network" }
 fake-fetch = { path = "../util/fake-fetch" }
 macros = { path = "../util/macros" }
+spec = { path = "../ethcore/spec" }
 pretty_assertions = "0.1"
 transaction-pool = "2.0"
 
