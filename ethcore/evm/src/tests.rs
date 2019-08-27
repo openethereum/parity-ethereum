@@ -126,7 +126,7 @@ fn test_origin(factory: super::Factory) {
 
 evm_test!{test_selfbalance: test_selfbalance_int}
 fn test_selfbalance(factory: super::Factory) {
-	let own_addr = Address::from_str("cd1722f2947def4cf144679da39c4c32bdc35681").unwrap();
+	let own_addr = Address::from_str("1337000000000000000000000000000000000000").unwrap();
 	// 47       SELFBALANCE
 	// 60 ff    PUSH ff
 	// 55       SSTORE
@@ -139,15 +139,15 @@ fn test_selfbalance(factory: super::Factory) {
 	let mut ext = FakeExt::new_istanbul();
 	ext.balances = {
 		let mut x = HashMap::new();
-		x.insert(own_addr, U256::from(1337));
+		x.insert(own_addr, U256::from(1_025)); // 0x401
 		x
 	};
 	let gas_left = {
 		let vm = factory.create(params, ext.schedule(), ext.depth());
 		test_finalize(vm.exec(&mut ext).ok().unwrap()).unwrap()
 	};
-	assert_eq!(gas_left, U256::from(79_992));
-	assert_store(&ext, 0xff, "0000000000000000000000000000000000000000000000000000000000000539");
+	assert_eq!(gas_left, U256::from(79_992)); // TODO[dvdplm]: do the sums here, SELFBALANCE-5 + PUSH1-3 + ONEBYTE-4 + SSTORE-?? = 100_000 - 79_992
+	assert_store(&ext, 0xff, "0000000000000000000000000000000000000000000000000000000000000401");
 }
 
 evm_test!{test_sender: test_sender_int}
