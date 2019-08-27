@@ -913,10 +913,14 @@ impl miner::MinerService for Miner {
 	}
 
 	fn clear_author(&self) {
+		// Clear the author.
 		self.params.write().author = Default::default();
-		if self.engine.sealing_state() == SealingState::Ready {
+		if self.engine.sealing_state() != SealingState::External {
+			// Disable sealing.
 			self.sealing.lock().enabled = false;
 			self.engine.clear_signer();
+		} else {
+			warn!("Clearing the engine signer while the engine does not require one.");
 		}
 	}
 

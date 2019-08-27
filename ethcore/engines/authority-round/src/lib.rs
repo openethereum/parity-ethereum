@@ -1755,36 +1755,21 @@ mod tests {
 	fn generates_seal_and_does_not_double_propose() {
 		let tap = Arc::new(AccountProvider::transient_provider());
 		let addr1 = tap.insert_account(keccak("1").into(), &"1".into()).unwrap();
-		let addr2 = tap.insert_account(keccak("2").into(), &"2".into()).unwrap();
-
 		let spec = spec::new_test_round();
 		let engine = &*spec.engine;
 		let genesis_header = spec.genesis_header();
 		let db1 = spec.ensure_db_good(get_temp_state_db(), &Default::default()).unwrap();
-		let db2 = spec.ensure_db_good(get_temp_state_db(), &Default::default()).unwrap();
 		let last_hashes = Arc::new(vec![genesis_header.hash()]);
 		let b1 = OpenBlock::new(engine, Default::default(), false, db1, &genesis_header, last_hashes.clone(), addr1, (3141562.into(), 31415620.into()), vec![], false).unwrap();
 		let b1 = b1.close_and_lock().unwrap();
-		let b2 = OpenBlock::new(engine, Default::default(), false, db2, &genesis_header, last_hashes, addr2, (3141562.into(), 31415620.into()), vec![], false).unwrap();
-		let b2 = b2.close_and_lock().unwrap();
 
 		engine.set_signer(Box::new((tap.clone(), addr1, "1".into())));
 		if let Seal::Regular(seal) = engine.generate_seal(&b1, &genesis_header) {
 			assert!(b1.clone().try_seal(engine, seal).is_ok());
 			// Second proposal is forbidden.
 			assert!(engine.generate_seal(&b1, &genesis_header) == Seal::None);
-		}
-
-		engine.set_signer(Box::new((tap, addr2, "2".into())));
-		if let Seal::Regular(seal) = engine.generate_seal(&b2, &genesis_header) {
-			// FIXME: This branch is unreachable because the call to `generate_seal` above always
-			// returns `Seal::None`. Meanwhile it looks as if the intention of the test writer was
-			// to receive a `Seal::Regular` here. This can be achieved similarly to how it's done in
-			// `generates_seal_iff_sealer_is_set()`, by stepping the engine and issuing a block in
-			// the new step signed by `keccak("0")`.
-			assert!(b2.clone().try_seal(engine, seal).is_ok());
-			// Second proposal is forbidden.
-			assert!(engine.generate_seal(&b2, &genesis_header) == Seal::None);
+		} else {
+			panic!("block 1 not sealed");
 		}
 	}
 
@@ -1792,7 +1777,7 @@ mod tests {
 	fn generates_seal_iff_sealer_is_set() {
 		let tap = Arc::new(AccountProvider::transient_provider());
 		let addr1 = tap.insert_account(keccak("1").into(), &"1".into()).unwrap();
-		let spec = Spec::new_test_round();
+		let spec = spec::new_test_round();
 		let engine = &*spec.engine;
 		let genesis_header = spec.genesis_header();
 		let db1 = spec.ensure_db_good(get_temp_state_db(), &Default::default()).unwrap();
