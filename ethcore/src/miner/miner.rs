@@ -1353,7 +1353,7 @@ impl miner::MinerService for Miner {
 		Ok(sealed)
 	}
 
-	fn chain_new_blocks<C>(&self, chain: &C, imported: &[H256], _invalid: &[H256], enacted: &[H256], retracted: &[H256], is_internal_import: bool)
+	fn chain_new_blocks<C>(&self, chain: &C, imported: &[H256], _invalid: &[H256], enacted: &[H256], retracted: &[H256], _is_internal_import: bool)
 		where C: miner::BlockChainClient,
 	{
 		trace!(target: "miner", "chain_new_blocks");
@@ -1435,13 +1435,11 @@ impl miner::MinerService for Miner {
 			// new pending block.
 			self.sealing.lock().next_allowed_reseal = Instant::now();
 
-			// if !is_internal_import {
-				// --------------------------------------------------------------------------
-				// | NOTE Code below requires sealing locks.                                |
-				// | Make sure to release the locks before calling that method.             |
-				// --------------------------------------------------------------------------
-				self.update_sealing(chain);
-			// }
+			// --------------------------------------------------------------------------
+			// | NOTE Code below requires sealing locks.                                |
+			// | Make sure to release the locks before calling that method.             |
+			// --------------------------------------------------------------------------
+			self.update_sealing(chain);
 		}
 
 		if let Some(ref service_transaction_checker) = self.service_transaction_checker {
