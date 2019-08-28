@@ -18,7 +18,7 @@
 
 use ethereum_types::{U256, Address};
 use vm::{Error as VmError, ActionParams};
-use log::debug;
+use log::{debug, warn};
 use crate::{
 	Tracer, VMTracer, FlatTrace,
 	trace::{Call, Create, Action, Res, CreateResult, CallResult, VMTrace, VMOperation, VMExecutedOperation, MemoryDiff, StorageDiff, Suicide, Reward, RewardType},
@@ -248,7 +248,19 @@ impl VMTracer for ExecutiveVMTracer {
 	}
 
 	fn trace_executed(&mut self, gas_used: U256, stack_push: &[U256], mem: &[u8]) {
-		let mem_diff = self.last_mem_written.take().map(|(o, s)| (o, &(mem[o..o+s])));
+		let mem_diff = self.last_mem_written.take().map(|(o, s)| {
+			if o + s > mem.len() {
+				warn!(
+					target: "trace",
+					"Last mem written is out of bounds {} (mem is {})",
+					o + s,
+					mem.len(),
+				);
+				(o, &[][..])
+			} else {
+				(o, &(mem[o..o+s]))
+			}
+		});
 		let store_diff = self.last_store_written.take();
 		Self::with_trace_in_depth(&mut self.data, self.depth, move |trace| {
 			let ex = VMExecutedOperation {
