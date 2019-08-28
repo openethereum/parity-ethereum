@@ -107,11 +107,11 @@ pub trait NodeInfo: Send + Sync {
 
 /// Create a new local data store, given a database, a column to write to, and a node.
 /// Attempts to read data out of the store, and move it into the node.
-pub fn create<T: NodeInfo>(db: Arc<KeyValueDB>, col: Option<u32>, node: T) -> LocalDataStore<T> {
+pub fn create<T: NodeInfo>(db: Arc<dyn KeyValueDB>, col: Option<u32>, node: T) -> LocalDataStore<T> {
 	LocalDataStore {
-		db: db,
-		col: col,
-		node: node,
+		db,
+		col,
+		node,
 	}
 }
 
@@ -120,7 +120,7 @@ pub fn create<T: NodeInfo>(db: Arc<KeyValueDB>, col: Option<u32>, node: T) -> Lo
 /// In specific, this will be used to store things like unpropagated local transactions
 /// and the node security level.
 pub struct LocalDataStore<T: NodeInfo> {
-	db: Arc<KeyValueDB>,
+	db: Arc<dyn KeyValueDB>,
 	col: Option<u32>,
 	node: T,
 }

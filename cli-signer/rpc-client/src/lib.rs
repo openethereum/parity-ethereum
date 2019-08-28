@@ -36,7 +36,7 @@ extern crate log;
 extern crate matches;
 
 /// Boxed future response.
-pub type BoxFuture<T, E> = Box<futures::Future<Item=T, Error=E> + Send>;
+pub type BoxFuture<T, E> = Box<dyn futures::Future<Item=T, Error=E> + Send>;
 
 #[cfg(test)]
 mod tests {

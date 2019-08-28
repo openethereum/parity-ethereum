@@ -32,7 +32,7 @@ enum ProspectiveSignerState {
 }
 
 pub struct ProspectiveSigner<P: PostSign> {
-	signer: Arc<Accounts>,
+	signer: Arc<dyn Accounts>,
 	filled: FilledTransactionRequest,
 	chain_id: Option<u64>,
 	reserved: nonce::Reserved,
@@ -46,7 +46,7 @@ pub struct ProspectiveSigner<P: PostSign> {
 
 impl<P: PostSign> ProspectiveSigner<P> {
 	pub fn new(
-		signer: Arc<Accounts>,
+		signer: Arc<dyn Accounts>,
 		filled: FilledTransactionRequest,
 		chain_id: Option<u64>,
 		reserved: nonce::Reserved,

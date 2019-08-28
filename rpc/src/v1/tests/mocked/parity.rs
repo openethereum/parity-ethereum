@@ -45,7 +45,7 @@ pub struct Dependencies {
 	pub updater: Arc<TestUpdater>,
 	pub logger: Arc<RotatingLogger>,
 	pub settings: Arc<NetworkSettings>,
-	pub network: Arc<ManageNetwork>,
+	pub network: Arc<dyn ManageNetwork>,
 	pub ws_address: Option<Host>,
 }
 

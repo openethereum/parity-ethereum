@@ -118,7 +118,7 @@ impl<C: miner::BlockChainClient + BlockChainClient, M: MinerService> Dispatcher 
 	fn sign<P>(
 		&self,
 		filled: FilledTransactionRequest,
-		signer: &Arc<Accounts>,
+		signer: &Arc<dyn Accounts>,
 		password: SignWith,
 		post_sign: P,
 	) -> BoxFuture<P::Item>

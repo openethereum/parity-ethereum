@@ -100,7 +100,7 @@ impl SyncRequester {
 		SyncRequester::send_request(sync, io, peer_id, PeerAsking::SnapshotManifest, GetSnapshotManifestPacket, rlp.out());
 	}
 
-	pub fn request_private_state(sync: &mut ChainSync, io: &mut SyncIo, peer_id: PeerId, hash: &H256) {
+	pub fn request_private_state(sync: &mut ChainSync, io: &mut dyn SyncIo, peer_id: PeerId, hash: &H256) {
 		trace!(target: "privatetx", "{} <- GetPrivateStatePacket", peer_id);
 		let mut rlp = RlpStream::new_list(1);
 		rlp.append(hash);

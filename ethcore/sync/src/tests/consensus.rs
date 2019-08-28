@@ -24,7 +24,10 @@ use spec;
 use ethcore::client::Client;
 use ethcore::miner::{self, MinerService};
 use ethkey::{KeyPair, Secret};
-use types::transaction::{Action, PendingTransaction, Transaction};
+use types::{
+	io_message::ClientIoMessage,
+	transaction::{Action, PendingTransaction, Transaction}
+};
 use super::helpers::*;
 use SyncConfig;
 

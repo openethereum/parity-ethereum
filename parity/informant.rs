@@ -24,11 +24,12 @@ use std::time::{Instant, Duration};
 
 use atty;
 use ethcore::client::{ChainNotify, NewBlocks, Client};
-use client_traits::{BlockInfo, ChainInfo, BlockChainClient, ClientIoMessage, IoClient};
+use client_traits::{BlockInfo, ChainInfo, BlockChainClient, IoClient};
 use types::{
 	BlockNumber,
 	client_types::ClientReport,
 	ids::BlockId,
+	io_message::ClientIoMessage,
 	blockchain_info::BlockChainInfo,
 	verification::VerificationQueueInfo as BlockQueueInfo,
 	snapshot::RestorationStatus,
@@ -123,8 +124,8 @@ pub trait InformantData: Send + Sync {
 /// Informant data for a full node.
 pub struct FullNodeInformantData {
 	pub client: Arc<Client>,
-	pub sync: Option<Arc<SyncProvider>>,
-	pub net: Option<Arc<ManageNetwork>>,
+	pub sync: Option<Arc<dyn SyncProvider>>,
+	pub net: Option<Arc<dyn ManageNetwork>>,
 }
 
 impl InformantData for FullNodeInformantData {
@@ -179,7 +180,7 @@ impl InformantData for FullNodeInformantData {
 
 /// Informant data for a light node -- note that the network is required.
 pub struct LightNodeInformantData {
-	pub client: Arc<LightChainClient>,
+	pub client: Arc<dyn LightChainClient>,
 	pub sync: Arc<LightSync>,
 	pub cache: Arc<Mutex<LightDataCache>>,
 }

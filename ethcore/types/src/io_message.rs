@@ -14,10 +14,17 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
+//! Defines the `ClientIoMessage` type, used pervasively throughout various parts of the project to
+//! communicate between each other.
+
 use std::fmt;
 use bytes::Bytes;
 use ethereum_types::H256;
+<<<<<<< HEAD:ethcore/client-traits/src/io_message.rs
 use common_types::snapshot::ManifestData;
+=======
+use crate::snapshot::ManifestData;
+>>>>>>> master:ethcore/types/src/io_message.rs
 
 /// Message type for external and internal events
 #[derive(Debug)]

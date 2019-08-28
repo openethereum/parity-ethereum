@@ -56,8 +56,6 @@ use trace::{
 };
 use vm::{LastHashes, Schedule};
 
-mod io_message;
-pub use self::io_message::ClientIoMessage;
 use common_types::snapshot::Progress;
 
 /// State information to be used during client query
@@ -172,14 +170,13 @@ pub trait EngineClient: Sync + Send + ChainInfo {
 	fn block_header(&self, id: BlockId) -> Option<encoded::Header>;
 }
 
-// FIXME Why these methods belong to BlockChainClient and not MiningBlockChainClient?
 /// Provides methods to import block into blockchain
 pub trait ImportBlock {
 	/// Import a block into the blockchain.
 	fn import_block(&self, block: Unverified) -> EthcoreResult<H256>;
 
-	// todo[dvdplm]: probably a bad place for this method
-	/// Triggered by a message from a block queue when the block is ready for insertion
+	/// Triggered by a message from a block queue when the block is ready for insertion.
+	/// Returns the number of blocks imported.
 	fn import_verified_blocks(&self) -> usize;
 }
 
@@ -195,10 +192,13 @@ pub trait IoClient: Sync + Send {
 	fn queue_consensus_message(&self, message: Bytes);
 }
 
+/// Implement this for clients that need logic to decide when/how to advance.
 pub trait Tick {
 	/// Tick the client
 	fn tick(&self, _prevent_sleep: bool) {}
 }
+
+impl Tick for () {}
 
 /// Provides recently seen bad blocks.
 pub trait BadBlocks {
@@ -446,8 +446,10 @@ pub trait DatabaseRestore: Send + Sync {
 	fn restore_db(&self, new_db: &str) -> Result<(), EthcoreError>;
 }
 
-/// Trait alias for the Client traits used when taking snapshots
+/// Snapshot related functionality
 pub trait SnapshotClient: BlockChainClient + BlockInfo + DatabaseRestore + BlockChainReset {
+	/// Take a snapshot at the given block.
+	/// If the ID given is "latest", this will default to 1000 blocks behind.
 	fn take_snapshot<W: SnapshotWriter + Send>(
 		&self,
 		writer: W,

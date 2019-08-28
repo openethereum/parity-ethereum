@@ -356,7 +356,7 @@ impl SyncSupplier {
 	}
 
 	/// Respond to GetPrivateStatePacket
-	fn return_private_state(io: &SyncIo, r: &Rlp, peer_id: PeerId) -> RlpResponseResult {
+	fn return_private_state(io: &dyn SyncIo, r: &Rlp, peer_id: PeerId) -> RlpResponseResult {
 		let hash: H256 = r.val_at(0)?;
 		trace!(target: "privatetx", "{} -> GetPrivateStatePacket {:?}", peer_id, hash);
 		io.private_state().map_or(Ok(None), |db| {
