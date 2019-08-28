@@ -294,7 +294,7 @@ impl Schedule {
 	/// Schedule for the Istanbul fork of the Ethereum main net.
 	pub fn new_istanbul() -> Schedule {
 		let mut schedule = Self::new_constantinople();
-        schedule.have_chain_id = true;
+		schedule.have_chain_id = true;
 		schedule.tx_data_non_zero_gas = 16;
 		schedule
 	}
