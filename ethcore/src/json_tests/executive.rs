@@ -216,6 +216,8 @@ impl<'a, T: 'a, V: 'a, B: 'a> Ext for TestExt<'a, T, V, B>
 		self.ext.env_info()
 	}
 
+	fn chain_id(&self) -> u64 { 0 }
+
 	fn depth(&self) -> usize {
 		0
 	}

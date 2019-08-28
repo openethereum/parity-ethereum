@@ -145,6 +145,9 @@ pub trait Ext {
 	/// Returns environment info.
 	fn env_info(&self) -> &EnvInfo;
 
+	/// Returns the chain ID of the blockchain
+	fn chain_id(&self) -> u64;
+
 	/// Returns current depth of execution.
 	///
 	/// If contract A calls contract B, and contract B calls C,

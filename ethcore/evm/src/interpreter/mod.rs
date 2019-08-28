@@ -428,7 +428,8 @@ impl<Cost: CostType> Interpreter<Cost> {
 			((instruction == instructions::RETURNDATACOPY || instruction == instructions::RETURNDATASIZE) && !schedule.have_return_data) ||
 			(instruction == instructions::REVERT && !schedule.have_revert) ||
 			((instruction == instructions::SHL || instruction == instructions::SHR || instruction == instructions::SAR) && !schedule.have_bitwise_shifting) ||
-			(instruction == instructions::EXTCODEHASH && !schedule.have_extcodehash)
+			(instruction == instructions::EXTCODEHASH && !schedule.have_extcodehash) ||
+			(instruction == instructions::CHAINID && !schedule.have_chain_id)
 		{
 			return Err(vm::Error::BadInstruction {
 				instruction: instruction as u8
@@ -842,6 +843,9 @@ impl<Cost: CostType> Interpreter<Cost> {
 			},
 			instructions::GASLIMIT => {
 				self.stack.push(ext.env_info().gas_limit.clone());
+			},
+			instructions::CHAINID => {
+				self.stack.push(ext.chain_id().into())
 			},
 
 			// Stack instructions

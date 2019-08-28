@@ -89,7 +89,6 @@ extern crate account_state;
 extern crate stats;
 extern crate tempdir;
 extern crate trace;
-extern crate verification;
 extern crate vm;
 
 #[cfg(any(test, feature = "ethcore-accounts"))]
@@ -130,6 +129,8 @@ extern crate ethcore_io as io;
 
 #[cfg(test)]
 extern crate spec;
+#[cfg(test)]
+extern crate verification;
 
 pub extern crate jsonrpc_ws_server as ws;
 

@@ -67,7 +67,6 @@ account-state = { path = "../ethcore/account-state" }
 stats = { path = "../util/stats" }
 trace = { path = "../ethcore/trace" }
 vm = { path = "../ethcore/vm" }
-verification = { path = "../ethcore/verification" }
 
 [dev-dependencies]
 client-traits = { path = "../ethcore/client-traits" }
@@ -80,6 +79,7 @@ macros = { path = "../util/macros" }
 spec = { path = "../ethcore/spec" }
 pretty_assertions = "0.1"
 transaction-pool = "2.0"
+verification = { path = "../ethcore/verification" }
 
 [features]
 accounts = ["ethcore-accounts"]
