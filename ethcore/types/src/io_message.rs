@@ -20,11 +20,7 @@
 use std::fmt;
 use bytes::Bytes;
 use ethereum_types::H256;
-<<<<<<< HEAD:ethcore/client-traits/src/io_message.rs
-use common_types::snapshot::ManifestData;
-=======
 use crate::snapshot::ManifestData;
->>>>>>> master:ethcore/types/src/io_message.rs
 
 /// Message type for external and internal events
 #[derive(Debug)]
