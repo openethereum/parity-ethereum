@@ -35,16 +35,14 @@ evm = { path = "evm" }
 executive-state = { path = "executive-state" }
 futures = "0.1"
 hash-db = "0.15.0"
-parity-util-mem = "0.2.0"
 itertools = "0.5"
 journaldb = { path = "../util/journaldb" }
 keccak-hash = "0.2.0"
 keccak-hasher = { path = "../util/keccak-hasher" }
 kvdb = "0.1"
-kvdb-memorydb = "0.1"
+kvdb-memorydb = { version = "0.1", optional = true }
 kvdb-rocksdb = { version = "0.1.3", optional = true }
-lazy_static = "1.3.0"
-len-caching-lock = { path = "../util/len-caching-lock" }
+lazy_static = { version = "1.3", optional = true }
 log = "0.4"
 macros = { path = "../util/macros", optional = true }
 machine = { path = "./machine" }
@@ -61,20 +59,19 @@ rand_xorshift = "0.1.1"
 rayon = "1.1"
 rlp = "0.4.0"
 rlp_derive = { path = "../util/rlp-derive" }
-rustc-hex = "1.0"
+rustc-hex = { version = "1", optional = true }
 serde = "1.0"
 serde_derive = "1.0"
 spec = { path = "spec" }
 state-db = { path = "state-db" }
-stats = { path = "../util/stats" }
 tempdir = { version = "0.3", optional = true }
-time-utils = { path = "../util/time-utils" }
 trace = { path = "trace" }
 trace-time = "0.1"
 trie-vm-factories = { path = "trie-vm-factories" }
 triehash-ethereum = { version = "0.2",  path = "../util/triehash-ethereum" }
 unexpected = { path = "../util/unexpected" }
 using_queue = { path = "../miner/using-queue" }
+verification = { path = "./verification" }
 vm = { path = "vm" }
 
 [dev-dependencies]
@@ -88,14 +85,18 @@ ethcore-accounts = { path = "../accounts" }
 ethjson = { path = "../json" }
 ethkey = { path = "../accounts/ethkey" }
 fetch = { path = "../util/fetch" }
+kvdb-memorydb = "0.1"
 kvdb-rocksdb = "0.1.3"
+lazy_static = { version = "1.3" }
 machine = { path = "./machine", features = ["test-helpers"] }
 macros = { path = "../util/macros" }
 null-engine = { path = "./engines/null-engine" }
 parity-runtime = { path = "../util/runtime" }
 pod = { path = "pod" }
 rlp_compress = { path = "../util/rlp-compress" }
+rustc-hex = "1"
 serde_json = "1.0"
+stats = { path = "../util/stats" }
 tempdir = "0.3"
 trie-standardmap = "0.15.0"
 
@@ -121,14 +122,14 @@ evm-debug-tests = ["evm-debug", "evm/evm-debug-tests"]
 # EVM debug traces are printed.
 slow-blocks = []
 # Run JSON consensus tests.
-json-tests = ["env_logger", "test-helpers", "machine/test-helpers"]
+json-tests = ["env_logger", "test-helpers", "lazy_static", "machine/test-helpers"]
 # Skip JSON consensus tests with pending issues.
 ci-skip-tests = []
 # Run memory/cpu heavy tests.
 test-heavy = []
 # Compile test helpers
 # note[dvdplm]: "basic-authority/test-helpers" is needed so that `generate_dummy_client_with_spec` works
-test-helpers = ["tempdir", "kvdb-rocksdb", "blooms-db", "ethash", "ethjson", "ethkey", "macros", "pod", "basic-authority/test-helpers"]
+test-helpers = ["tempdir", "kvdb-memorydb", "kvdb-rocksdb", "blooms-db", "ethash", "ethjson", "ethkey", "macros", "pod", "rustc-hex", "basic-authority/test-helpers"]
 
 [[bench]]
 name = "builtin"

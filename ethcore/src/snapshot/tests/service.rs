@@ -22,14 +22,14 @@ use std::sync::Arc;
 use tempdir::TempDir;
 use blockchain::BlockProvider;
 use client::{Client, ClientConfig};
-use client_traits::{BlockInfo, ImportBlock};
+use client_traits::{BlockInfo, ImportBlock, SnapshotWriter};
 use types::{
 	ids::BlockId,
 	snapshot::Progress,
 	verification::Unverified,
 	snapshot::{ManifestData, RestorationStatus},
 };
-use snapshot::io::{PackedReader, PackedWriter, SnapshotReader, SnapshotWriter};
+use snapshot::io::{PackedReader, PackedWriter, SnapshotReader};
 use snapshot::service::{Service, ServiceParams};
 use snapshot::{chunk_state, chunk_secondary, SnapshotService};
 use spec;
@@ -77,7 +77,7 @@ fn restored_is_equivalent() {
 	};
 
 	let service = Service::new(service_params).unwrap();
-	service.take_snapshot(&client, NUM_BLOCKS as u64).unwrap();
+	service.take_snapshot(&*client, NUM_BLOCKS as u64).unwrap();
 
 	let manifest = service.manifest().unwrap();
 
@@ -226,7 +226,6 @@ fn keep_ancient_blocks() {
 		client2.import_block(Unverified::from_rlp(block.into_inner()).unwrap()).unwrap();
 	}
 
-	client2.import_verified_blocks();
 	client2.flush_queue();
 
 	// Restore the Snapshot
@@ -304,7 +303,7 @@ fn recover_aborted_recovery() {
 	};
 
 	let service = Service::new(service_params).unwrap();
-	service.take_snapshot(&client, NUM_BLOCKS as u64).unwrap();
+	service.take_snapshot(&*client, NUM_BLOCKS as u64).unwrap();
 
 	let manifest = service.manifest().unwrap();
 	service.init_restore(manifest.clone(), true).unwrap();

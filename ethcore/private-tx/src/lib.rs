@@ -104,11 +104,12 @@ use machine::{
 };
 use types::{
 	ids::BlockId,
+	io_message::ClientIoMessage,
 	transaction::{SignedTransaction, Transaction, Action, UnverifiedTransaction},
 	engines::machine::Executed,
 };
 use ethcore::client::{
-	Client, ChainNotify, NewBlocks, ChainMessageType, ClientIoMessage, Call
+	Client, ChainNotify, NewBlocks, ChainMessageType, Call
 };
 use client_traits::BlockInfo;
 use ethcore::miner::{self, Miner, MinerService, pool_client::NonceCache};
@@ -213,7 +214,7 @@ pub struct Provider {
 	client: Arc<Client>,
 	miner: Arc<Miner>,
 	accounts: Arc<dyn Signer>,
-	channel: IoChannel<ClientIoMessage>,
+	channel: IoChannel<ClientIoMessage<Client>>,
 	keys_provider: Arc<dyn KeyProvider>,
 	logging: Option<Logging>,
 	use_offchain_storage: bool,
@@ -236,7 +237,7 @@ impl Provider {
 		accounts: Arc<dyn Signer>,
 		encryptor: Box<dyn Encryptor>,
 		config: ProviderConfig,
-		channel: IoChannel<ClientIoMessage>,
+		channel: IoChannel<ClientIoMessage<Client>>,
 		keys_provider: Arc<dyn KeyProvider>,
 		db: Arc<dyn KeyValueDB>,
 	) -> Self {
@@ -490,7 +491,7 @@ impl Provider {
 			}
 		}
 		Ok(())
- 	}
+	}
 
 	fn contract_address_from_transaction(transaction: &SignedTransaction) -> Result<Address, Error> {
 		match transaction.action {
@@ -876,14 +877,14 @@ impl Provider {
 	}
 }
 
-impl IoHandler<ClientIoMessage> for Provider {
-	fn initialize(&self, io: &IoContext<ClientIoMessage>) {
+impl IoHandler<ClientIoMessage<Client>> for Provider {
+	fn initialize(&self, io: &IoContext<ClientIoMessage<Client>>) {
 		if self.use_offchain_storage {
 			io.register_timer(STATE_RETRIEVAL_TIMER, STATE_RETRIEVAL_TICK).expect("Error registering state retrieval timer");
 		}
 	}
 
-	fn timeout(&self, _io: &IoContext<ClientIoMessage>, timer: TimerToken) {
+	fn timeout(&self, _io: &IoContext<ClientIoMessage<Client>>, timer: TimerToken) {
 		match timer {
 			STATE_RETRIEVAL_TIMER => self.state_storage.tick(&self.logging),
 			_ => warn!("IO service triggered unregistered timer '{}'", timer),

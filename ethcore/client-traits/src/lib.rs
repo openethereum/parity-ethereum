@@ -32,7 +32,7 @@ use common_types::{
 	client_types::Mode,
 	encoded,
 	engines::{epoch::Transition as EpochTransition, machine::Executed},
-	errors::EthcoreResult,
+	errors::{EthcoreError, EthcoreResult},
 	filter::Filter,
 	header::Header,
 	ids::{BlockId, TransactionId, TraceId, UncleId},
@@ -55,6 +55,8 @@ use trace::{
 	VMTrace,
 };
 use vm::{LastHashes, Schedule};
+
+use common_types::snapshot::Progress;
 
 /// State information to be used during client query
 pub enum StateOrBlock {
@@ -168,11 +170,14 @@ pub trait EngineClient: Sync + Send + ChainInfo {
 	fn block_header(&self, id: BlockId) -> Option<encoded::Header>;
 }
 
-// FIXME Why these methods belong to BlockChainClient and not MiningBlockChainClient?
 /// Provides methods to import block into blockchain
 pub trait ImportBlock {
 	/// Import a block into the blockchain.
 	fn import_block(&self, block: Unverified) -> EthcoreResult<H256>;
+
+	/// Triggered by a message from a block queue when the block is ready for insertion.
+	/// Returns the number of blocks imported.
+	fn import_verified_blocks(&self) -> usize;
 }
 
 /// IO operations that should off-load heavy work to another thread.
@@ -186,6 +191,14 @@ pub trait IoClient: Sync + Send {
 	/// Queue consensus engine message.
 	fn queue_consensus_message(&self, message: Bytes);
 }
+
+/// Implement this for clients that need logic to decide when/how to advance.
+pub trait Tick {
+	/// Tick the client
+	fn tick(&self, _prevent_sleep: bool) {}
+}
+
+impl Tick for () {}
 
 /// Provides recently seen bad blocks.
 pub trait BadBlocks {
@@ -377,6 +390,9 @@ pub trait BlockChainClient : Sync + Send + AccountData + BlockChain + CallContra
 pub trait BlockChainReset {
 	/// reset to best_block - n
 	fn reset(&self, num: u32) -> Result<(), String>;
+
+	/// Number of eras kept in a journal before they are pruned
+	fn pruning_history(&self) -> u64;
 }
 
 
@@ -422,4 +438,39 @@ pub trait ProvingBlockChainClient: BlockChainClient {
 
 	/// Get an epoch change signal by block hash.
 	fn epoch_signal(&self, hash: H256) -> Option<Vec<u8>>;
+}
+
+/// External database restoration handler
+pub trait DatabaseRestore: Send + Sync {
+	/// Restart with a new backend. Takes ownership of passed database and moves it to a new location.
+	fn restore_db(&self, new_db: &str) -> Result<(), EthcoreError>;
+}
+
+/// Snapshot related functionality
+pub trait SnapshotClient: BlockChainClient + BlockInfo + DatabaseRestore + BlockChainReset {
+	/// Take a snapshot at the given block.
+	/// If the ID given is "latest", this will default to 1000 blocks behind.
+	fn take_snapshot<W: SnapshotWriter + Send>(
+		&self,
+		writer: W,
+		at: BlockId,
+		p: &Progress,
+	) -> Result<(), EthcoreError>;
+}
+
+
+// todo[dvdplm] move this back to snapshot once extracted from ethcore
+/// Something which can write snapshots.
+/// Writing the same chunk multiple times will lead to implementation-defined
+/// behavior, and is not advised.
+pub trait SnapshotWriter {
+	/// Write a compressed state chunk.
+	fn write_state_chunk(&mut self, hash: H256, chunk: &[u8]) -> std::io::Result<()>;
+
+	/// Write a compressed block chunk.
+	fn write_block_chunk(&mut self, hash: H256, chunk: &[u8]) -> std::io::Result<()>;
+
+	/// Complete writing. The manifest's chunk lists must be consistent
+	/// with the chunks written.
+	fn finish(self, manifest: common_types::snapshot::ManifestData) -> std::io::Result<()> where Self: Sized;
 }

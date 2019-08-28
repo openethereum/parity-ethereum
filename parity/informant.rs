@@ -23,13 +23,13 @@ use std::sync::atomic::{AtomicUsize, AtomicBool, Ordering as AtomicOrdering};
 use std::time::{Instant, Duration};
 
 use atty;
-use ethcore::client::{
-	ChainNotify, NewBlocks, ClientReport, Client, ClientIoMessage
-};
-use client_traits::{BlockInfo, ChainInfo, BlockChainClient};
+use ethcore::client::{ChainNotify, NewBlocks, Client};
+use client_traits::{BlockInfo, ChainInfo, BlockChainClient, IoClient};
 use types::{
 	BlockNumber,
+	client_types::ClientReport,
 	ids::BlockId,
+	io_message::ClientIoMessage,
 	blockchain_info::BlockChainInfo,
 	verification::VerificationQueueInfo as BlockQueueInfo,
 	snapshot::RestorationStatus,
@@ -451,12 +451,16 @@ impl LightChainNotify for Informant<LightNodeInformantData> {
 
 const INFO_TIMER: TimerToken = 0;
 
-impl<T: InformantData> IoHandler<ClientIoMessage> for Informant<T> {
-	fn initialize(&self, io: &IoContext<ClientIoMessage>) {
+impl<T, C> IoHandler<ClientIoMessage<C>> for Informant<T>
+where
+	T: InformantData,
+	C: client_traits::Tick + 'static,
+{
+	fn initialize(&self, io: &IoContext<ClientIoMessage<C>>) {
 		io.register_timer(INFO_TIMER, Duration::from_secs(5)).expect("Error registering timer");
 	}
 
-	fn timeout(&self, _io: &IoContext<ClientIoMessage>, timer: TimerToken) {
+	fn timeout(&self, _io: &IoContext<ClientIoMessage<C>>, timer: TimerToken) {
 		if timer == INFO_TIMER && !self.in_shutdown.load(AtomicOrdering::SeqCst) {
 			self.tick();
 		}

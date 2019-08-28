@@ -27,7 +27,7 @@ use ethcore::client::{Client, DatabaseCompactionProfile, VMType};
 use ethcore::miner::{self, stratum, Miner, MinerService, MinerOptions};
 use ethcore::snapshot::{self, SnapshotConfiguration};
 use spec::SpecParams;
-use ethcore::verification::queue::VerifierSettings;
+use verification::queue::VerifierSettings;
 use ethcore_logger::{Config as LogConfig, RotatingLogger};
 use ethcore_service::ClientService;
 use ethereum_types::Address;
@@ -307,18 +307,18 @@ fn execute_light_impl<Cr>(cmd: RunCmd, logger: Arc<RotatingLogger>, on_client_rq
 
 	// start RPCs
 	let deps_for_rpc_apis = Arc::new(rpc_apis::LightDependencies {
-		signer_service: signer_service,
+		signer_service,
 		client: client.clone(),
 		sync: light_sync.clone(),
 		net: light_sync.clone(),
 		accounts: account_provider,
-		logger: logger,
+		logger,
 		settings: Arc::new(cmd.net_settings),
-		on_demand: on_demand,
+		on_demand,
 		cache: cache.clone(),
 		transaction_queue: txq,
 		ws_address: cmd.ws_conf.address(),
-		fetch: fetch,
+		fetch,
 		geth_compatibility: cmd.geth_compatibility,
 		experimental_rpcs: cmd.experimental_rpcs,
 		executor: runtime.executor(),
@@ -344,7 +344,7 @@ fn execute_light_impl<Cr>(cmd: RunCmd, logger: Arc<RotatingLogger>, on_client_rq
 		LightNodeInformantData {
 			client: client.clone(),
 			sync: light_sync.clone(),
-			cache: cache,
+			cache,
 		},
 		None,
 		Some(rpc_stats),

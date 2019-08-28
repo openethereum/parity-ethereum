@@ -89,6 +89,7 @@ extern crate account_state;
 extern crate stats;
 extern crate tempdir;
 extern crate trace;
+extern crate verification;
 extern crate vm;
 
 #[cfg(any(test, feature = "ethcore-accounts"))]

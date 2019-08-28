@@ -18,11 +18,12 @@
 
 use call_contract::CallContract;
 use client_traits::BlockInfo;
-use engine::Engine;
-use types::{
+use common_types::{
 	header::Header,
 	errors::EthcoreError as Error,
 };
+use engine::Engine;
+
 use super::verification;
 
 /// Should be used to verify blocks.

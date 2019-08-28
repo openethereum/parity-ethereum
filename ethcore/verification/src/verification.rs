@@ -24,7 +24,7 @@
 use std::collections::HashSet;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
-use hash::keccak;
+use keccak_hash::keccak;
 use rlp::Rlp;
 use triehash::ordered_trie_root;
 use unexpected::{Mismatch, OutOfBounds};
@@ -33,7 +33,7 @@ use blockchain::*;
 use call_contract::CallContract;
 use client_traits::BlockInfo;
 use engine::Engine;
-use types::{
+use common_types::{
 	BlockNumber,
 	header::Header,
 	errors::{EthcoreError as Error, BlockError},
@@ -366,15 +366,19 @@ mod tests {
 
 	use std::collections::{BTreeMap, HashMap};
 	use std::time::{SystemTime, UNIX_EPOCH};
+
 	use ethereum_types::{H256, BloomRef, U256, Address};
 	use blockchain::{BlockDetails, TransactionAddress, BlockReceipts};
-	use bytes::Bytes;
-	use hash::keccak;
+	use parity_bytes::Bytes;
+	use keccak_hash::keccak;
 	use engine::Engine;
 	use ethkey::{Random, Generator};
 	use spec;
-	use test_helpers::{create_test_block_with_data, create_test_block};
-	use types::{
+	use ethcore::{
+		client::TestBlockChainClient,
+		test_helpers::{create_test_block_with_data, create_test_block}
+	};
+	use common_types::{
 		encoded,
 		engines::params::CommonParams,
 		errors::BlockError::*,
@@ -383,6 +387,8 @@ mod tests {
 	};
 	use rlp;
 	use triehash::ordered_trie_root;
+	use machine::Machine;
+	use null_engine::NullEngine;
 
 	fn check_ok(result: Result<(), Error>) {
 		result.unwrap_or_else(|e| panic!("Block verification failed: {:?}", e));
@@ -518,7 +524,7 @@ mod tests {
 		// additions that need access to state (tx filter in specific)
 		// no existing tests need access to test, so having this not function
 		// is fine.
-		let client = ::client::TestBlockChainClient::default();
+		let client = TestBlockChainClient::default();
 		let parent = bc.block_header_data(header.parent_hash())
 			.ok_or(BlockError::UnknownParent(*header.parent_hash()))?
 			.decode()?;
@@ -779,11 +785,6 @@ mod tests {
 
 	#[test]
 	fn dust_protection() {
-		use ethkey::{Generator, Random};
-		use types::transaction::{Transaction, Action};
-		use machine::Machine;
-		use null_engine::NullEngine;
-
 		let mut params = CommonParams::default();
 		params.dust_protection_transition = 0;
 		params.nonce_cap_increment = 2;
