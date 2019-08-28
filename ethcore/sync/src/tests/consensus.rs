@@ -18,7 +18,7 @@ use std::sync::Arc;
 use hash::keccak;
 use ethereum_types::{U256, Address};
 use io::{IoHandler, IoChannel};
-use client_traits::{ChainInfo, ClientIoMessage};
+use client_traits::ChainInfo;
 use engine::signer;
 use spec;
 use ethcore::client::Client;
