@@ -97,12 +97,12 @@ impl SocketAddrExt for Ipv4Addr {
 		self.is_multicast() ||
 		self.is_shared_space() ||
 		self.is_special_purpose() ||
-		self.is_benchmarking() ||
+		SocketAddrExt::is_benchmarking(self) ||
 		self.is_future_use()
 	}
 
 	fn is_usable_public(&self) -> bool {
-		!self.is_reserved() &&
+		!SocketAddrExt::is_reserved(self) &&
 		!self.is_private()
 	}
 
@@ -186,7 +186,7 @@ impl SocketAddrExt for IpAddr {
 
 	fn is_reserved(&self) -> bool {
 		match *self {
-			IpAddr::V4(ref ip) => ip.is_reserved(),
+			IpAddr::V4(ref ip) => SocketAddrExt::is_reserved(ip),
 			IpAddr::V6(ref ip) => ip.is_reserved(),
 		}
 	}
@@ -290,7 +290,7 @@ pub fn select_public_address(port: u16) -> SocketAddr {
 			//prefer IPV4 bindings
 			for addr in &list { //TODO: use better criteria than just the first in the list
 				match addr {
-					IpAddr::V4(a) if !a.is_reserved() => {
+					IpAddr::V4(a) if !SocketAddrExt::is_reserved(a) => {
 						return SocketAddr::V4(SocketAddrV4::new(*a, port));
 					},
 					_ => {},

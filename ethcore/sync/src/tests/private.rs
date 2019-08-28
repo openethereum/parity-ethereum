@@ -18,8 +18,11 @@ use std::sync::Arc;
 use hash::keccak;
 use io::{IoHandler, IoChannel};
 use types::transaction::{Transaction, Action};
-use types::ids::BlockId;
-use client_traits::{BlockChainClient, ClientIoMessage};
+use types::{
+	ids::BlockId,
+	io_message::ClientIoMessage,
+};
+use client_traits::BlockChainClient;
 use engine::signer;
 use ethcore::{
 	client::Client,

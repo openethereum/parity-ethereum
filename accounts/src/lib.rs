@@ -64,7 +64,7 @@ pub struct AccountProvider {
 	/// Address book.
 	address_book: RwLock<AddressBook>,
 	/// Accounts on disk
-	sstore: Box<SecretStore>,
+	sstore: Box<dyn SecretStore>,
 	/// Accounts unlocked with rolling tokens
 	transient_sstore: EthMultiStore,
 	/// When unlocking account permanently we additionally keep a raw secret in memory
@@ -80,7 +80,7 @@ fn transient_sstore() -> EthMultiStore {
 
 impl AccountProvider {
 	/// Creates new account provider.
-	pub fn new(sstore: Box<SecretStore>, settings: AccountProviderSettings) -> Self {
+	pub fn new(sstore: Box<dyn SecretStore>, settings: AccountProviderSettings) -> Self {
 		if let Ok(accounts) = sstore.accounts() {
 			for account in accounts.into_iter().filter(|a| settings.blacklisted_accounts.contains(&a.address)) {
 				warn!("Local Account {} has a blacklisted (known to be weak) address and will be ignored",

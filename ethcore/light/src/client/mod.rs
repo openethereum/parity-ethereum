@@ -36,9 +36,9 @@ use common_types::{
 	errors::EthcoreResult,
 	header::Header,
 	ids::BlockId,
+	io_message::ClientIoMessage,
 	verification::VerificationQueueInfo as BlockQueueInfo,
 };
-use client_traits::ClientIoMessage;
 use kvdb::KeyValueDB;
 use vm::EnvInfo;
 
@@ -162,8 +162,8 @@ impl<T: LightChainClient> AsLightClient for T {
 }
 
 /// Light client implementation.
-pub struct Client<T: 'static> {
-	queue: HeaderQueue<Self>,
+pub struct Client<T> {
+	queue: HeaderQueue<()>,
 	engine: Arc<dyn Engine>,
 	chain: HeaderChain,
 	report: RwLock<ClientReport>,
@@ -184,7 +184,7 @@ impl<T: ChainDataFetcher> Client<T> {
 		chain_col: Option<u32>,
 		spec: &Spec,
 		fetcher: T,
-		io_channel: IoChannel<ClientIoMessage<Self>>,
+		io_channel: IoChannel<ClientIoMessage<()>>,
 		cache: Arc<Mutex<Cache>>
 	) -> Result<Self, Error> {
 		Ok(Self {

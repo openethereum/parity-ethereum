@@ -38,11 +38,12 @@ use client::Client;
 // todo[dvdplm] put SnapshotWriter back in snapshots once extracted
 use client_traits::{
 	BlockInfo, BlockChainClient, ChainInfo,
-	SnapshotClient, SnapshotWriter, DatabaseRestore, ClientIoMessage
+	SnapshotClient, SnapshotWriter, DatabaseRestore,
 };
 use engine::Engine;
 use hash::keccak;
 use types::{
+	io_message::ClientIoMessage,
 	errors::{EthcoreError as Error, SnapshotError, SnapshotError::UnlinkedAncientBlockChain},
 	ids::BlockId,
 	snapshot::{ManifestData, Progress, RestorationStatus},
@@ -246,7 +247,6 @@ pub struct Service {
 	genesis_block: Bytes,
 	state_chunks: AtomicUsize,
 	block_chunks: AtomicUsize,
-//	client: Arc<dyn SnapshotClient>,
 	client: Arc<Client>,
 	progress: Progress,
 	taking_snapshot: AtomicBool,
@@ -910,8 +910,10 @@ mod tests {
 	use journaldb::Algorithm;
 	use snapshot::SnapshotService;
 	use super::*;
-	use types::snapshot::{ManifestData, RestorationStatus};
-	use client_traits::ClientIoMessage;
+	use types::{
+		io_message::ClientIoMessage,
+		snapshot::{ManifestData, RestorationStatus}
+	};
 	use tempdir::TempDir;
 	use test_helpers::{generate_dummy_client_with_spec_and_data, restoration_db_handler};
 

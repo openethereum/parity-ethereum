@@ -70,7 +70,7 @@ pub struct Stratum {
 impl Stratum {
 	pub fn start(
 		addr: &SocketAddr,
-		dispatcher: Arc<JobDispatcher>,
+		dispatcher: Arc<dyn JobDispatcher>,
 		secret: Option<H256>,
 	) -> Result<Arc<Stratum>, Error> {
 
@@ -128,7 +128,7 @@ struct StratumImpl {
 	/// List of workers supposed to receive job update
 	job_que: RwLock<HashSet<SocketAddr>>,
 	/// Payload manager
-	dispatcher: Arc<JobDispatcher>,
+	dispatcher: Arc<dyn JobDispatcher>,
 	/// Authorized workers (socket - worker_id)
 	workers: Arc<RwLock<HashMap<SocketAddr, String>>>,
 	/// Secret if any

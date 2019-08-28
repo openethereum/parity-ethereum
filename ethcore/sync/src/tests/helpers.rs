@@ -22,7 +22,8 @@ use bytes::Bytes;
 use network::{self, PeerId, ProtocolId, PacketId, SessionInfo};
 use network::client_version::ClientVersion;
 use tests::snapshot::*;
-use client_traits::{BlockChainClient, ClientIoMessage};
+use types::io_message::ClientIoMessage;
+use client_traits::BlockChainClient;
 use ethcore::client::{TestBlockChainClient, Client as EthcoreClient,
 	ClientConfig, ChainNotify, NewBlocks, ChainMessageType};
 use ethcore::snapshot::SnapshotService;
