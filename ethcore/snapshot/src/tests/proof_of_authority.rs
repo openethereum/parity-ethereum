@@ -27,7 +27,7 @@ use ethkey::Secret;
 use snapshot::tests::helpers as snapshot_helpers;
 use spec::Spec;
 use test_helpers::generate_dummy_client_with_spec;
-use types::transaction::{Transaction, Action, SignedTransaction};
+use common_types::transaction::{Transaction, Action, SignedTransaction};
 use tempdir::TempDir;
 
 use ethereum_types::Address;

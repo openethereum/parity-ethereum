@@ -3942,7 +3942,8 @@
 			}
 		},
 		"0x0000000000000000000000000000000000000008": {
-			"builtin": {
+			"builtin": [
+              {
 				"name": "alt_bn128_pairing",
 				"activate_at": "0x42ae50",
 				"pricing": {
@@ -3951,7 +3952,18 @@
 						"pair": 80000
 					}
 				}
-			}
+			},
+              {
+				"name": "alt_bn128_pairing",
+				"activate_at": "0xFFFFFF",
+				"pricing": {
+					"alt_bn128_pairing": {
+						"base": 123,
+						"pair": 456
+					}
+				}
+			},
+            ],
 		},
 		"0x3282791d6fd713f1e94f4bfd565eaa78b3a0599d": {
 			"balance": "0x487a9a304539440000"

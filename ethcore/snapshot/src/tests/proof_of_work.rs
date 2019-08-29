@@ -18,7 +18,7 @@
 
 use std::sync::atomic::AtomicBool;
 use tempdir::TempDir;
-use types::{
+use common_types::{
 	errors::EthcoreError as Error,
 	engines::ForkChoice,
 	snapshot::Progress,
@@ -31,7 +31,7 @@ use snapshot::{chunk_secondary, Error as SnapshotError, SnapshotComponents};
 use snapshot::io::{PackedReader, PackedWriter, SnapshotReader};
 
 use parking_lot::Mutex;
-use snappy;
+use parity_snappy;
 use kvdb::DBTransaction;
 use test_helpers;
 use spec;

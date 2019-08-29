@@ -23,7 +23,7 @@ use tempdir::TempDir;
 use blockchain::BlockProvider;
 use client::{Client, ClientConfig};
 use client_traits::{BlockInfo, ImportBlock, SnapshotWriter};
-use types::{
+use common_types::{
 	ids::BlockId,
 	snapshot::Progress,
 	verification::Unverified,
@@ -36,7 +36,7 @@ use spec;
 use test_helpers::{new_db, new_temp_db, generate_dummy_client_with_spec_and_data, restoration_db_handler};
 
 use parking_lot::Mutex;
-use io::IoChannel;
+use ethcore_io::IoChannel;
 use kvdb_rocksdb::DatabaseConfig;
 
 #[test]

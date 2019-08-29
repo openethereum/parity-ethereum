@@ -17,18 +17,20 @@
 //! Block RLP compression.
 
 use bytes::Bytes;
+use common_types::{
+	block::Block,
+	header::Header,
+	views::BlockView,
+};
 use ethereum_types::H256;
-use hash::keccak;
+use keccak_hash::keccak;
 use rlp::{DecoderError, RlpStream, Rlp};
 use triehash::ordered_trie_root;
-use types::block::Block;
-use types::header::Header;
-use types::views::BlockView;
 
 const HEADER_FIELDS: usize = 8;
 const BLOCK_FIELDS: usize = 2;
 
-pub struct AbridgedBlock {
+pub(crate) struct AbridgedBlock {
 	rlp: Bytes,
 }
 
@@ -122,11 +124,7 @@ impl AbridgedBlock {
 
 		header.set_seal(seal_fields);
 
-		Ok(Block {
-			header: header,
-			transactions: transactions,
-			uncles: uncles,
-		})
+		Ok(Block { header, transactions, uncles })
 	}
 }
 
@@ -136,10 +134,12 @@ mod tests {
 
 	use bytes::Bytes;
 	use ethereum_types::{H256, U256, Address};
-	use types::transaction::{Action, Transaction};
-	use types::block::Block;
-	use types::view;
-	use types::views::BlockView;
+	use common_types::{
+		transaction::{Action, Transaction},
+		block::Block,
+		view,
+		views::BlockView,
+	};
 
 	fn encode_block(b: &Block) -> Bytes {
 		b.rlp_bytes()

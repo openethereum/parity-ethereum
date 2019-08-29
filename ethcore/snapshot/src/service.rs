@@ -24,6 +24,31 @@ use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 use std::cmp;
 
+use blockchain::{BlockChain, BlockChainDB, BlockChainDBHandler};
+use bytes::Bytes;
+use client::Client; // todo[dvdplm]
+use common_types::{
+	io_message::ClientIoMessage,
+	errors::{EthcoreError as Error, SnapshotError, SnapshotError::UnlinkedAncientBlockChain},
+	ids::BlockId,
+	snapshot::{ManifestData, Progress, RestorationStatus},
+};
+// todo[dvdplm] put SnapshotWriter back in snapshots once extracted
+use client_traits::{
+	BlockInfo, BlockChainClient, ChainInfo,
+	SnapshotClient, SnapshotWriter, DatabaseRestore,
+};
+use engine::Engine;
+use ethereum_types::H256;
+use ethcore_io::IoChannel;
+use journaldb::Algorithm;
+use keccak_hash::keccak;
+use kvdb::DBTransaction;
+use log::{error, info, trace, warn};
+use parking_lot::{Mutex, RwLock, RwLockReadGuard};
+use snappy;
+use trie_db::TrieError;
+
 use super::{
 	StateRebuilder,
 	SnapshotService,
@@ -32,31 +57,6 @@ use super::{
 	io::{SnapshotReader, LooseReader,  LooseWriter},
 	chunker,
 };
-
-use blockchain::{BlockChain, BlockChainDB, BlockChainDBHandler};
-use client::Client;
-// todo[dvdplm] put SnapshotWriter back in snapshots once extracted
-use client_traits::{
-	BlockInfo, BlockChainClient, ChainInfo,
-	SnapshotClient, SnapshotWriter, DatabaseRestore,
-};
-use engine::Engine;
-use hash::keccak;
-use types::{
-	io_message::ClientIoMessage,
-	errors::{EthcoreError as Error, SnapshotError, SnapshotError::UnlinkedAncientBlockChain},
-	ids::BlockId,
-	snapshot::{ManifestData, Progress, RestorationStatus},
-};
-
-use io::IoChannel;
-
-use ethereum_types::H256;
-use parking_lot::{Mutex, RwLock, RwLockReadGuard};
-use bytes::Bytes;
-use journaldb::Algorithm;
-use kvdb::DBTransaction;
-use snappy;
 
 /// Helper for removing directories in case of error.
 struct Guard(bool, PathBuf);
@@ -140,7 +140,7 @@ impl Restoration {
 			let expected_len = snappy::decompressed_len(chunk)?;
 			if expected_len > MAX_CHUNK_SIZE {
 				trace!(target: "snapshot", "Discarding large chunk: {} vs {}", expected_len, MAX_CHUNK_SIZE);
-				return Err(::snapshot::Error::ChunkTooLarge.into());
+				return Err(SnapshotError::ChunkTooLarge.into());
 			}
 			let len = snappy::decompress_into(chunk, &mut self.snappy_buffer)?;
 
@@ -162,7 +162,7 @@ impl Restoration {
 			let expected_len = snappy::decompressed_len(chunk)?;
 			if expected_len > MAX_CHUNK_SIZE {
 				trace!(target: "snapshot", "Discarding large chunk: {} vs {}", expected_len, MAX_CHUNK_SIZE);
-				return Err(::snapshot::Error::ChunkTooLarge.into());
+				return Err(SnapshotError::ChunkTooLarge.into());
 			}
 			let len = snappy::decompress_into(chunk, &mut self.snappy_buffer)?;
 
@@ -179,8 +179,6 @@ impl Restoration {
 
 	// finish up restoration.
 	fn finalize(mut self) -> Result<(), Error> {
-		use trie::TrieError;
-
 		if !self.is_done() { return Ok(()) }
 
 		// verify final state root.
@@ -807,10 +805,6 @@ impl SnapshotService for Service {
 			.map(|c| (c.min_supported_version(), c.current_version()))
 	}
 
-	fn chunk(&self, hash: H256) -> Option<Bytes> {
-		self.reader.read().as_ref().and_then(|r| r.chunk(hash).ok())
-	}
-
 	fn completed_chunks(&self) -> Option<Vec<H256>> {
 		let restoration = self.restoration.lock();
 
@@ -831,6 +825,10 @@ impl SnapshotService for Service {
 			},
 			None => None,
 		}
+	}
+
+	fn chunk(&self, hash: H256) -> Option<Bytes> {
+		self.reader.read().as_ref().and_then(|r| r.chunk(hash).ok())
 	}
 
 	fn status(&self) -> RestorationStatus {
@@ -905,12 +903,12 @@ impl Drop for Service {
 #[cfg(test)]
 mod tests {
 	use client::Client;
-	use io::{IoService};
+	use ethcore_io::IoService;
 	use spec;
 	use journaldb::Algorithm;
 	use snapshot::SnapshotService;
 	use super::*;
-	use types::{
+	use common_types::{
 		io_message::ClientIoMessage,
 		snapshot::{ManifestData, RestorationStatus}
 	};

@@ -23,8 +23,8 @@ mod work;
 pub use self::authority::*;
 pub use self::work::*;
 
-use snapshot::SnapshotComponents;
-use types::snapshot::Snapshotting::{self, *};
+use crate::SnapshotComponents;
+use common_types::snapshot::Snapshotting::{self, *};
 
 /// Create a factory for building snapshot chunks and restoring from them.
 /// `None` indicates that the engine doesn't support snapshot creation.

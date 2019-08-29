@@ -23,46 +23,44 @@ use std::collections::{HashMap, HashSet};
 use std::cmp;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
-use hash::{keccak, KECCAK_NULL_RLP, KECCAK_EMPTY};
+
+use keccak_hash::{keccak, KECCAK_NULL_RLP, KECCAK_EMPTY};
 
 use account_db::{AccountDB, AccountDBMut};
+use account_state::Account as StateAccount;
 use blockchain::{BlockChain, BlockProvider};
-use types::{
+use bloom_journal::Bloom;
+use bytes::Bytes;
+// todo[dvdplm] put back in snapshots once it's extracted
+use client_traits::SnapshotWriter;
+use common_types::{
 	ids::BlockId,
 	header::Header,
 	errors::{SnapshotError as Error, EthcoreError},
-	snapshot::Progress,
+	snapshot::{Progress, ManifestData},
 };
-use ethereum_types::{H256, U256};
-use hash_db::HashDB;
-use keccak_hasher::KeccakHasher;
-use snappy;
-use bytes::Bytes;
-use parking_lot::Mutex;
-use journaldb::{self, Algorithm, JournalDB};
-use kvdb::{KeyValueDB, DBValue};
-use trie::{Trie, TrieMut};
-use ethtrie::{TrieDB, TrieDBMut};
-use rlp::{RlpStream, Rlp};
-use bloom_journal::Bloom;
-use num_cpus;
-use types::snapshot::ManifestData;
-
-// todo[dvdplm] put back in snapshots once it's extracted
-use client_traits::SnapshotWriter;
-
-use super::state_db::StateDB;
-use account_state::Account as StateAccount;
-use engine::Engine;
-
 use crossbeam_utils::thread;
+use engine::Engine;
+use ethereum_types::{H256, U256};
+use ethtrie::{TrieDB, TrieDBMut};
+use hash_db::HashDB;
+use journaldb::{self, Algorithm, JournalDB};
+use keccak_hasher::KeccakHasher;
+use parking_lot::Mutex;
+use kvdb::{KeyValueDB, DBValue};
+use log::{debug, info, trace};
+use num_cpus;
 use rand::{Rng, rngs::OsRng};
+use rlp::{RlpStream, Rlp};
+use snappy;
+use state_db::StateDB;
+use trie_db::{Trie, TrieMut};
 
 pub use self::consensus::*;
 pub use self::service::Service;
 pub use self::traits::{SnapshotService, SnapshotComponents, Rebuilder};
 pub use self::watcher::Watcher;
-pub use types::basic_account::BasicAccount;
+pub use common_types::basic_account::BasicAccount;
 
 pub mod io;
 pub mod service;
@@ -377,7 +375,7 @@ impl StateRebuilder {
 	/// Create a new state rebuilder to write into the given backing DB.
 	pub fn new(db: Arc<dyn KeyValueDB>, pruning: Algorithm) -> Self {
 		StateRebuilder {
-			db: journaldb::new(db.clone(), pruning, ::db::COL_STATE),
+			db: journaldb::new(db.clone(), pruning, ethcore_db::COL_STATE),
 			state_root: KECCAK_NULL_RLP,
 			known_code: HashMap::new(),
 			missing_code: HashMap::new(),

@@ -27,15 +27,16 @@ use std::path::{Path, PathBuf};
 
 use bytes::Bytes;
 use client_traits::SnapshotWriter;
-use ethereum_types::H256;
-use rlp::{RlpStream, Rlp};
-use types::{
+use common_types::{
 	errors::{SnapshotError, EthcoreError},
 	snapshot::ManifestData,
 };
+use ethereum_types::H256;
+use log::trace;
+use rlp::{RlpStream, Rlp};
+use rlp_derive::*;
 
 const SNAPSHOT_VERSION: u64 = 2;
-
 
 // (hash, len, offset)
 #[derive(RlpEncodable, RlpDecodable)]
@@ -320,7 +321,7 @@ impl SnapshotReader for LooseReader {
 #[cfg(test)]
 mod tests {
 	use tempdir::TempDir;
-	use hash::keccak;
+	use keccak_hash::keccak;
 
 	use snapshot::ManifestData;
 	use super::{SnapshotWriter, SnapshotReader, PackedWriter, PackedReader, LooseWriter, LooseReader, SNAPSHOT_VERSION};

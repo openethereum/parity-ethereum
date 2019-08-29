@@ -20,10 +20,10 @@
 extern crate trie_standardmap;
 
 use std::sync::Arc;
-use hash::{KECCAK_NULL_RLP};
+use keccak_hash::{KECCAK_NULL_RLP};
 
 use account_db::AccountDBMut;
-use types::basic_account::BasicAccount;
+use common_types::basic_account::BasicAccount;
 use blockchain::{BlockChain, BlockChainDB};
 use client::Client;
 use client_traits::{ChainInfo, SnapshotClient};
@@ -42,7 +42,7 @@ use journaldb;
 use trie::{TrieMut, Trie};
 use ethtrie::{SecTrieDBMut, TrieDB, TrieDBMut};
 use self::trie_standardmap::{Alphabet, StandardMap, ValueMode};
-use types::errors::EthcoreError;
+use common_types::errors::EthcoreError;
 
 // the proportion of accounts we will alter each tick.
 const ACCOUNT_CHURN: f32 = 0.01;
@@ -135,7 +135,7 @@ pub fn fill_storage(mut db: AccountDBMut, root: &mut H256, seed: &mut H256) {
 /// Take a snapshot from the given client into a temporary file.
 /// Return a snapshot reader for it.
 pub fn snap(client: &Client) -> (Box<dyn SnapshotReader>, TempDir) {
-	use types::ids::BlockId;
+	use common_types::ids::BlockId;
 
 	let tempdir = TempDir::new("").unwrap();
 	let path = tempdir.path().join("file");

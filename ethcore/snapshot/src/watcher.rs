@@ -16,18 +16,18 @@
 
 //! Watcher for snapshot-related chain events.
 
-use parking_lot::Mutex;
-use client::{Client, ChainNotify, NewBlocks};
+use std::sync::Arc;
+
+use client::{Client, ChainNotify, NewBlocks}; // todo[dvdplm]
 use client_traits::BlockInfo;
-use types::{
+use common_types::{
 	ids::BlockId,
 	io_message::ClientIoMessage,
 };
-
-use io::IoChannel;
 use ethereum_types::H256;
-
-use std::sync::Arc;
+use ethcore_io::IoChannel;
+use log::{trace, warn};
+use parking_lot::Mutex;
 
 // helper trait for transforming hashes to numbers and checking if syncing.
 trait Oracle: Send + Sync {
