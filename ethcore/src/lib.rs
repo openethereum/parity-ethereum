@@ -88,6 +88,7 @@ extern crate rand;
 extern crate rayon;
 extern crate rlp;
 extern crate serde;
+extern crate snapshot;
 extern crate spec;
 extern crate state_db;
 extern crate trace;
@@ -157,7 +158,6 @@ extern crate parity_runtime;
 pub mod block;
 pub mod client;
 pub mod miner;
-pub mod snapshot;
 
 #[cfg(test)]
 mod tests;

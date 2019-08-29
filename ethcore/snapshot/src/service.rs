@@ -34,10 +34,7 @@ use common_types::{
 	snapshot::{ManifestData, Progress, RestorationStatus},
 };
 // todo[dvdplm] put SnapshotWriter back in snapshots once extracted
-use client_traits::{
-	BlockInfo, BlockChainClient, ChainInfo,
-	SnapshotClient, SnapshotWriter, DatabaseRestore,
-};
+use client_traits::{ChainInfo, SnapshotClient, SnapshotWriter};
 use engine::Engine;
 use ethereum_types::H256;
 use ethcore_io::IoChannel;

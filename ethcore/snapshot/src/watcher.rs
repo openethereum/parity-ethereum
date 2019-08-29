@@ -23,7 +23,7 @@ use client_traits::{BlockInfo, ChainNotify};
 use common_types::{
 	ids::BlockId,
 	io_message::ClientIoMessage,
-	client_types::NewBlocks,
+	chain_notify::NewBlocks,
 };
 use ethereum_types::H256;
 use ethcore_io::IoChannel;
@@ -127,7 +127,7 @@ mod tests {
 	use std::time::Duration;
 
 	use client_traits::ChainNotify;
-	use common_types::client_types::{NewBlocks, ChainRouteType, ChainRoute};
+	use common_types::chain_notify::{NewBlocks, ChainRoute};
 
 	use ethereum_types::{H256, U256, BigEndianHash};
 

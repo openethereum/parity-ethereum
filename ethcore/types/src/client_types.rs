@@ -17,12 +17,15 @@
 //! Client related types.
 
 use std::{
+	cmp,
+	collections::HashMap,
 	fmt::{Display, Formatter, Error as FmtError},
 	ops,
-	cmp,
 	time::Duration,
 };
-use ethereum_types::U256;
+
+use bytes::Bytes;
+use ethereum_types::{H256, U256};
 use crate::header::Header;
 
 /// Operating mode for the client.
@@ -88,4 +91,3 @@ impl<'a> ops::Sub<&'a ClientReport> for ClientReport {
 		self
 	}
 }
-

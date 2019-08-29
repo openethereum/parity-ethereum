@@ -163,7 +163,6 @@ fn guards_delete_folders() {
 #[test]
 fn keep_ancient_blocks() {
 	let _ = ::env_logger::try_init();
-	use client_traits::BlockChainClient;
 	// Test variables
 	const NUM_BLOCKS: u64 = 500;
 	const NUM_SNAPSHOT_BLOCKS: u64 = 300;

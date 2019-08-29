@@ -21,7 +21,7 @@ use std::sync::{Arc, Weak};
 use std::time::{Instant, Duration};
 
 use account_state::state::StateInfo;
-use blockchain::{BlockReceipts, BlockChain, BlockChainDB, BlockProvider, TreeRoute, ImportRoute, TransactionAddress, ExtrasInsert, BlockNumberKey};
+use blockchain::{BlockReceipts, BlockChain, BlockChainDB, BlockProvider, TreeRoute, TransactionAddress, ExtrasInsert, BlockNumberKey};
 use bytes::Bytes;
 use call_contract::{CallContract, RegistryInfo};
 use ethcore_miner::pool::VerifiedTransaction;
@@ -41,15 +41,15 @@ use block::{LockedBlock, Drain, ClosedBlock, OpenBlock, enact_verified, SealedBl
 use client::ancient_import::AncientVerifier;
 use client::{
 	ReopenBlock, PrepareOpenBlock, ImportSealedBlock, BroadcastProposalBlock,
-	Call, BlockProducer, SealedBlockImporter, ChainNotify, EngineInfo,
-	ClientConfig, NewBlocks, ChainRoute, ChainMessageType, bad_blocks,
+	Call, BlockProducer, SealedBlockImporter, EngineInfo,
+	ClientConfig, bad_blocks,
 };
 use client_traits::{
 	BlockInfo, ScheduleInfo, StateClient, BlockChainReset,
 	Nonce, Balance, ChainInfo, TransactionInfo, ImportBlock,
 	AccountData, BlockChain as BlockChainTrait, BlockChainClient,
 	IoClient, BadBlocks, ProvingBlockChainClient, SnapshotClient,
-	DatabaseRestore, SnapshotWriter, Tick,
+	DatabaseRestore, SnapshotWriter, Tick, ChainNotify,
 	StateOrBlock,
 };
 use engine::Engine;
@@ -72,7 +72,9 @@ use types::{
 	block::PreverifiedBlock,
 	block_status::BlockStatus,
 	blockchain_info::BlockChainInfo,
+	chain_notify::{NewBlocks, ChainRoute, ChainMessageType},
 	client_types::ClientReport,
+	import_route::ImportRoute,
 	io_message::ClientIoMessage,
 	encoded,
 	engines::{
@@ -986,12 +988,14 @@ impl Client {
 		self.importer.miner.clone()
 	}
 
-	#[cfg(test)]
+	/// Access state from tests
+	#[cfg(any(test, feature = "test-helpers"))]
 	pub fn state_db(&self) -> ::parking_lot::RwLockReadGuard<StateDB> {
 		self.state_db.read()
 	}
 
-	#[cfg(test)]
+	/// Access the BlockChain from tests
+	#[cfg(any(test, feature = "test-helpers"))]
 	pub fn chain(&self) -> Arc<BlockChain> {
 		self.chain.read().clone()
 	}

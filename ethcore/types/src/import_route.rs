@@ -17,7 +17,9 @@
 //! Import route.
 
 use ethereum_types::H256;
-use crate::block_info::{BlockInfo, BlockLocation};
+use crate::block::{BlockInfo, BlockLocation};
+
+// todo[dvdplm]: what to do about the tests?
 
 /// Import route for newly inserted block.
 #[derive(Debug, PartialEq, Clone)]
@@ -69,7 +71,7 @@ impl From<BlockInfo> for ImportRoute {
 #[cfg(test)]
 mod tests {
 	use ethereum_types::{U256, BigEndianHash};
-	use crate::block_info::{BlockInfo, BlockLocation, BranchBecomingCanonChainData};
+	use crate::block::{BlockInfo, BlockLocation, BranchBecomingCanonChainData};
 	use super::ImportRoute;
 
 	#[test]
