@@ -18,17 +18,21 @@
 
 use std::fmt;
 
-use ethcore::error::{Error as EthcoreError, ErrorKind, CallError};
-use ethcore::client::BlockId;
 use jsonrpc_core::{futures, Result as RpcResult, Error, ErrorCode, Value};
 use rlp::DecoderError;
 use types::transaction::Error as TransactionError;
 use ethcore_private_tx::Error as PrivateTransactionError;
 use vm::Error as VMError;
-use light::on_demand::error::{Error as OnDemandError, ErrorKind as OnDemandErrorKind};
-use ethcore::client::BlockChainClient;
-use types::blockchain_info::BlockChainInfo;
+use light::on_demand::error::{Error as OnDemandError};
+use client_traits::BlockChainClient;
+use types::{
+	ids::BlockId,
+	blockchain_info::BlockChainInfo,
+	errors::{EthcoreError},
+	transaction::CallError,
+};
 use v1::types::BlockNumber;
+use v1::impls::EthClientOptions;
 
 mod codes {
 	// NOTE [ToDr] Codes from [-32099, -32000]
@@ -38,12 +42,15 @@ mod codes {
 	pub const NO_NEW_WORK: i64 = -32003;
 	pub const NO_WORK_REQUIRED: i64 = -32004;
 	pub const CANNOT_SUBMIT_WORK: i64 = -32005;
+	pub const CANNOT_SUBMIT_BLOCK: i64 = -32006;
 	pub const UNKNOWN_ERROR: i64 = -32009;
 	pub const TRANSACTION_ERROR: i64 = -32010;
 	pub const EXECUTION_ERROR: i64 = -32015;
 	pub const EXCEPTION_ERROR: i64 = -32016;
 	pub const DATABASE_ERROR: i64 = -32017;
+	#[cfg(any(test, feature = "accounts"))]
 	pub const ACCOUNT_LOCKED: i64 = -32020;
+	#[cfg(any(test, feature = "accounts"))]
 	pub const PASSWORD_INVALID: i64 = -32021;
 	pub const ACCOUNT_ERROR: i64 = -32023;
 	pub const PRIVATE_ERROR: i64 = -32024;
@@ -57,6 +64,7 @@ mod codes {
 	pub const NO_PEERS: i64 = -32066;
 	pub const DEPRECATED: i64 = -32070;
 	pub const EXPERIMENTAL_RPC: i64 = -32071;
+	pub const CANNOT_RESTART: i64 = -32080;
 }
 
 pub fn unimplemented(details: Option<String>) -> Error {
@@ -123,6 +131,14 @@ pub fn account<T: fmt::Debug>(error: &str, details: T) -> Error {
 	}
 }
 
+pub fn cannot_restart() -> Error {
+	Error {
+		code: ErrorCode::ServerError(codes::CANNOT_RESTART),
+		message: "Parity could not be restarted. This feature is disabled in development mode and if the binary name isn't parity.".into(),
+		data: None,
+	}
+}
+
 /// Internal error signifying a logic error in code.
 /// Should not be used when function can just fail
 /// because of invalid parameters or incomplete node state.
@@ -162,11 +178,11 @@ pub fn state_corrupt() -> Error {
 	internal("State corrupt", "")
 }
 
-pub fn exceptional() -> Error {
+pub fn exceptional<T: fmt::Display>(data: T) -> Error {
 	Error {
 		code: ErrorCode::ServerError(codes::EXCEPTION_ERROR),
 		message: "The execution failed due to an exception.".into(),
-		data: None,
+		data: Some(Value::String(data.to_string())),
 	}
 }
 
@@ -210,18 +226,42 @@ pub fn cannot_submit_work(err: EthcoreError) -> Error {
 	}
 }
 
-pub fn unavailable_block() -> Error {
+pub fn unavailable_block(no_ancient_block: bool, by_hash: bool) -> Error {
+	if no_ancient_block {
+		Error {
+			code: ErrorCode::ServerError(codes::UNSUPPORTED_REQUEST),
+			message: "Looks like you disabled ancient block download, unfortunately the information you're \
+			trying to fetch doesn't exist in the db and is probably in the ancient blocks.".into(),
+			data: None,
+		}
+	} else if by_hash {
+		Error {
+			code: ErrorCode::ServerError(codes::UNSUPPORTED_REQUEST),
+			message: "Block information is incomplete while ancient block sync is still in progress, before \
+					it's finished we can't determine the existence of requested item.".into(),
+			data: None,
+		}
+	} else {
+		Error {
+			code: ErrorCode::ServerError(codes::UNSUPPORTED_REQUEST),
+			message: "Requested block number is in a range that is not available yet, because the ancient block sync is still in progress.".into(),
+			data: None,
+		}
+	}
+}
+
+pub fn cannot_submit_block(err: EthcoreError) -> Error {
 	Error {
-		code: ErrorCode::ServerError(codes::UNSUPPORTED_REQUEST),
-		message: "Ancient block sync is still in progress".into(),
-		data: None,
+		code: ErrorCode::ServerError(codes::CANNOT_SUBMIT_BLOCK),
+		message: "Cannot submit block.".into(),
+		data: Some(Value::String(err.to_string())),
 	}
 }
 
 pub fn check_block_number_existence<'a, T, C>(
 	client: &'a C,
 	num: BlockNumber,
-	allow_missing_blocks: bool,
+	options: EthClientOptions,
 ) ->
 	impl Fn(Option<T>) -> RpcResult<Option<T>> + 'a
 	where C: BlockChainClient,
@@ -231,8 +271,8 @@ pub fn check_block_number_existence<'a, T, C>(
 			if let BlockNumber::Num(block_number) = num {
 				// tried to fetch block number and got nothing even though the block number is
 				// less than the latest block number
-				if block_number < client.chain_info().best_block_number && !allow_missing_blocks {
-					return Err(unavailable_block());
+				if block_number < client.chain_info().best_block_number && !options.allow_missing_blocks {
+					return Err(unavailable_block(options.no_ancient_blocks, false));
 				}
 			}
 		}
@@ -242,22 +282,17 @@ pub fn check_block_number_existence<'a, T, C>(
 
 pub fn check_block_gap<'a, T, C>(
 	client: &'a C,
-	allow_missing_blocks: bool,
+	options: EthClientOptions,
 ) -> impl Fn(Option<T>) -> RpcResult<Option<T>> + 'a
 	where C: BlockChainClient,
 {
 	move |response| {
-		if response.is_none() && !allow_missing_blocks {
+		if response.is_none() && !options.allow_missing_blocks {
 			let BlockChainInfo { ancient_block_hash, .. } = client.chain_info();
 			// block information was requested, but unfortunately we couldn't find it and there
 			// are gaps in the database ethcore/src/blockchain/blockchain.rs
 			if ancient_block_hash.is_some() {
-				return Err(Error {
-					code: ErrorCode::ServerError(codes::UNSUPPORTED_REQUEST),
-					message: "Block information is incomplete while ancient block sync is still in progress, before \
-					it's finished we can't determine the existence of requested item.".into(),
-					data: None,
-				})
+				return Err(unavailable_block(options.no_ancient_blocks, true))
 			}
 		}
 		Ok(response)
@@ -336,6 +371,7 @@ pub fn fetch<T: fmt::Debug>(error: T) -> Error {
 	}
 }
 
+#[cfg(any(test, feature = "accounts"))]
 pub fn invalid_call_data<T: fmt::Display>(error: T) -> Error {
 	Error {
 		code: ErrorCode::ServerError(codes::ENCODING_ERROR),
@@ -384,8 +420,11 @@ pub fn transaction_message(error: &TransactionError) -> String {
 	match *error {
 		AlreadyImported => "Transaction with the same hash was already imported.".into(),
 		Old => "Transaction nonce is too low. Try incrementing the nonce.".into(),
-		TooCheapToReplace => {
-			"Transaction gas price is too low. There is another transaction with same nonce in the queue. Try increasing the gas price or incrementing the nonce.".into()
+		TooCheapToReplace { prev, new } => {
+			format!("Transaction gas price {} is too low. There is another transaction with same nonce in the queue{}. Try increasing the gas price or incrementing the nonce.",
+					new.map(|gas| format!("{}wei", gas)).unwrap_or("supplied".into()),
+					prev.map(|gas| format!(" with gas price: {}wei", gas)).unwrap_or("".into())
+			)
 		}
 		LimitReached => {
 			"There are too many transactions in the queue. Your transaction was dropped due to limit. Try increasing the fee.".into()
@@ -416,7 +455,7 @@ pub fn transaction_message(error: &TransactionError) -> String {
 
 pub fn transaction<T: Into<EthcoreError>>(error: T) -> Error {
 	let error = error.into();
-	if let ErrorKind::Transaction(ref e) = *error.kind() {
+	if let EthcoreError::Transaction(ref e) = error {
 		Error {
 			code: ErrorCode::ServerError(codes::TRANSACTION_ERROR),
 			message: transaction_message(e),
@@ -432,9 +471,8 @@ pub fn transaction<T: Into<EthcoreError>>(error: T) -> Error {
 }
 
 pub fn decode<T: Into<EthcoreError>>(error: T) -> Error {
-	let error = error.into();
-	match *error.kind() {
-		ErrorKind::Decoder(ref dec_err) => rlp(dec_err.clone()),
+	match error.into() {
+		EthcoreError::Decoder(ref dec_err) => rlp(dec_err.clone()),
 		_ => Error {
 			code: ErrorCode::InternalError,
 			message: "decoding error".into(),
@@ -455,7 +493,7 @@ pub fn call(error: CallError) -> Error {
 	match error {
 		CallError::StatePruned => state_pruned(),
 		CallError::StateCorrupt => state_corrupt(),
-		CallError::Exceptional => exceptional(),
+		CallError::Exceptional(e) => exceptional(e),
 		CallError::Execution(e) => execution(e),
 		CallError::TransactionNotFound => internal("{}, this should not be the case with eth_call, most likely a bug.", CallError::TransactionNotFound),
 	}
@@ -523,10 +561,9 @@ pub fn filter_block_not_found(id: BlockId) -> Error {
 
 pub fn on_demand_error(err: OnDemandError) -> Error {
 	match err {
-		OnDemandError(OnDemandErrorKind::ChannelCanceled(e), _) => on_demand_cancel(e),
-		OnDemandError(OnDemandErrorKind::RequestLimit, _) => timeout_new_peer(&err),
-		OnDemandError(OnDemandErrorKind::BadResponse(_), _) => max_attempts_reached(&err),
-		_ => on_demand_others(&err),
+		OnDemandError::ChannelCanceled(e) => on_demand_cancel(e),
+		OnDemandError::RequestLimit => timeout_new_peer(&err),
+		OnDemandError::BadResponse(_) => max_attempts_reached(&err),
 	}
 }
 
@@ -546,14 +583,6 @@ pub fn max_attempts_reached(err: &OnDemandError) -> Error {
 pub fn timeout_new_peer(err: &OnDemandError) -> Error {
 	Error {
 		code: ErrorCode::ServerError(codes::NO_LIGHT_PEERS),
-		message: err.to_string(),
-		data: None,
-	}
-}
-
-pub fn on_demand_others(err: &OnDemandError) -> Error {
-	Error {
-		code: ErrorCode::ServerError(codes::UNKNOWN_ERROR),
 		message: err.to_string(),
 		data: None,
 	}
@@ -581,5 +610,15 @@ pub fn require_experimental(allow_experimental_rpcs: bool, eip: &str) -> Result<
 			message: format!("This method is not part of the official RPC API yet (EIP-{}). Run with `--jsonrpc-experimental` to enable it.", eip),
 			data: Some(Value::String(format!("See EIP: https://eips.ethereum.org/EIPS/eip-{}", eip))),
 		})
+	}
+}
+
+/// returns an error for when require_canonical was specified and
+pub fn invalid_input() -> Error {
+	Error {
+		// UNSUPPORTED_REQUEST shares the same error code for EIP-1898
+		code: ErrorCode::ServerError(codes::UNSUPPORTED_REQUEST),
+		message: "Invalid input".into(),
+		data: None
 	}
 }

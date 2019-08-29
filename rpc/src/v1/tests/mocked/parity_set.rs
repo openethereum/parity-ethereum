@@ -58,7 +58,7 @@ fn parity_set_client(
 		client,
 		miner,
 		updater,
-		&(net.clone() as Arc<ManageNetwork>),
+		&(net.clone() as Arc<dyn ManageNetwork>),
 		FakeFetch::new(Some(1)),
 	)
 }
@@ -112,7 +112,25 @@ fn rpc_parity_set_min_gas_price() {
 	io.extend_with(parity_set_client(&client, &miner, &updater, &network).to_delegate());
 
 	let request = r#"{"jsonrpc": "2.0", "method": "parity_setMinGasPrice", "params":["0xcd1722f3947def4cf144679da39c4c32bdc35681"], "id": 1}"#;
-	let response = r#"{"jsonrpc":"2.0","result":false,"id":1}"#;
+	let response = r#"{"jsonrpc":"2.0","result":true,"id":1}"#;
+
+	assert_eq!(io.handle_request_sync(request), Some(response.to_owned()));
+}
+
+#[test]
+fn rpc_parity_set_min_gas_price_with_automated_calibration_enabled() {
+	let miner = miner_service();
+	*miner.min_gas_price.write() = None;
+
+	let client = client_service();
+	let network = network_service();
+	let updater = updater_service();
+
+	let mut io = IoHandler::new();
+	io.extend_with(parity_set_client(&client, &miner, &updater, &network).to_delegate());
+
+	let request = r#"{"jsonrpc": "2.0", "method": "parity_setMinGasPrice", "params":["0xdeadbeef"], "id": 1}"#;
+	let response = r#"{"jsonrpc":"2.0","error":{"code":-32000,"message":"Can't update fixed gas price while automatic gas calibration is enabled."},"id":1}"#;
 
 	assert_eq!(io.handle_request_sync(request), Some(response.to_owned()));
 }
@@ -212,11 +230,11 @@ fn rpc_parity_remove_transaction() {
 		nonce: 1.into(),
 		gas_price: 0x9184e72a000u64.into(),
 		gas: 0x76c0.into(),
-		action: Action::Call(5.into()),
+		action: Action::Call(Address::from_low_u64_be(5)),
 		value: 0x9184e72au64.into(),
 		data: vec![]
 	};
-	let signed = tx.fake_sign(2.into());
+	let signed = tx.fake_sign(Address::from_low_u64_be(2));
 	let hash = signed.hash();
 
 	let request = r#"{"jsonrpc": "2.0", "method": "parity_removeTransaction", "params":[""#.to_owned() + &format!("0x{:x}", hash) + r#""], "id": 1}"#;
@@ -250,4 +268,3 @@ fn rpc_parity_set_engine_signer() {
 	let signature = miner.signer.read().as_ref().unwrap().sign(::hash::keccak("x")).unwrap().to_vec();
 	assert_eq!(&format!("{}", signature.pretty()), "6f46069ded2154af6e806706e4f7f6fd310ac45f3c6dccb85f11c0059ee20a09245df0a0008bb84a10882b1298284bc93058e7bc5938ea728e77620061687a6401");
 }
-

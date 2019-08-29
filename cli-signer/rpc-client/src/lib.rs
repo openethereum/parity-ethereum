@@ -17,6 +17,7 @@
 pub mod client;
 pub mod signer_client;
 
+extern crate ethereum_types;
 extern crate futures;
 extern crate jsonrpc_core;
 extern crate jsonrpc_ws_server as ws;
@@ -35,7 +36,7 @@ extern crate log;
 extern crate matches;
 
 /// Boxed future response.
-pub type BoxFuture<T, E> = Box<futures::Future<Item=T, Error=E> + Send>;
+pub type BoxFuture<T, E> = Box<dyn futures::Future<Item=T, Error=E> + Send>;
 
 #[cfg(test)]
 mod tests {

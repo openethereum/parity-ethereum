@@ -16,13 +16,14 @@
 
 use std::path::Path;
 use std::sync::Arc;
-use client::{EvmTestClient, Client, ClientConfig, ChainInfo, ImportBlock};
+use client::{EvmTestClient, Client, ClientConfig};
+use client_traits::{ImportBlock, ChainInfo};
 use spec::Genesis;
 use ethjson;
 use miner::Miner;
 use io::IoChannel;
 use test_helpers;
-use verification::queue::kind::blocks::Unverified;
+use types::verification::Unverified;
 use verification::VerifierType;
 use super::SKIP_TEST_STATE;
 use super::HookType;
@@ -65,7 +66,7 @@ pub fn json_chain_test<H: FnMut(&str, HookType)>(json_data: &[u8], start_stop_ho
 			flush!("   - {}...", name);
 
 			let spec = {
-				let mut spec = match EvmTestClient::spec_from_json(&blockchain.network) {
+				let mut spec = match EvmTestClient::fork_spec_from_json(&blockchain.network) {
 					Some(spec) => spec,
 					None => {
 						println!("   - {} | {:?} Ignoring tests because of missing spec", name, blockchain.network);
@@ -77,7 +78,6 @@ pub fn json_chain_test<H: FnMut(&str, HookType)>(json_data: &[u8], start_stop_ho
 				let state = From::from(blockchain.pre_state.clone());
 				spec.set_genesis_state(state).expect("Failed to overwrite genesis state");
 				spec.overwrite_genesis_params(genesis);
-				assert!(spec.is_state_root_valid());
 				spec
 			};
 
@@ -100,7 +100,6 @@ pub fn json_chain_test<H: FnMut(&str, HookType)>(json_data: &[u8], start_stop_ho
 					if let Ok(block) = Unverified::from_rlp(b) {
 						let _ = client.import_block(block);
 						client.flush_queue();
-						client.import_verified_blocks();
 					}
 				}
 				fail_unless(client.chain_info().best_block_hash == blockchain.best_block.into());

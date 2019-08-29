@@ -61,7 +61,6 @@ pub fn find_unique_filename_using_random_suffix(parent_path: &Path, original_fil
 /// Create a new file and restrict permissions to owner only. It errors if the file already exists.
 #[cfg(unix)]
 pub fn create_new_file_with_permissions_to_owner(file_path: &Path) -> io::Result<fs::File> {
-	use libc;
 	use std::os::unix::fs::OpenOptionsExt;
 
 	fs::OpenOptions::new()
@@ -83,7 +82,6 @@ pub fn create_new_file_with_permissions_to_owner(file_path: &Path) -> io::Result
 /// Create a new file and restrict permissions to owner only. It replaces the existing file if it already exists.
 #[cfg(unix)]
 pub fn replace_file_with_permissions_to_owner(file_path: &Path) -> io::Result<fs::File> {
-	use libc;
 	use std::os::unix::fs::PermissionsExt;
 
 	let file = fs::File::create(file_path)?;
@@ -286,7 +284,7 @@ impl<T> KeyDirectory for DiskDirectory<T> where T: KeyFileManager {
 
 	fn path(&self) -> Option<&PathBuf> { Some(&self.path) }
 
-	fn as_vault_provider(&self) -> Option<&VaultKeyDirectoryProvider> {
+	fn as_vault_provider(&self) -> Option<&dyn VaultKeyDirectoryProvider> {
 		Some(self)
 	}
 
@@ -296,12 +294,12 @@ impl<T> KeyDirectory for DiskDirectory<T> where T: KeyFileManager {
 }
 
 impl<T> VaultKeyDirectoryProvider for DiskDirectory<T> where T: KeyFileManager {
-	fn create(&self, name: &str, key: VaultKey) -> Result<Box<VaultKeyDirectory>, Error> {
+	fn create(&self, name: &str, key: VaultKey) -> Result<Box<dyn VaultKeyDirectory>, Error> {
 		let vault_dir = VaultDiskDirectory::create(&self.path, name, key)?;
 		Ok(Box::new(vault_dir))
 	}
 
-	fn open(&self, name: &str, key: VaultKey) -> Result<Box<VaultKeyDirectory>, Error> {
+	fn open(&self, name: &str, key: VaultKey) -> Result<Box<dyn VaultKeyDirectory>, Error> {
 		let vault_dir = VaultDiskDirectory::at(&self.path, name, key)?;
 		Ok(Box::new(vault_dir))
 	}
@@ -356,15 +354,10 @@ mod test {
 	extern crate tempdir;
 
 	use std::{env, fs};
-	use std::num::NonZeroU32;
 	use super::{KeyDirectory, RootDiskDirectory, VaultKey};
 	use account::SafeAccount;
 	use ethkey::{Random, Generator};
 	use self::tempdir::TempDir;
-
-	lazy_static! {
-		static ref ITERATIONS: NonZeroU32 = NonZeroU32::new(1024).expect("1024 > 0; qed");
-	}
 
 	#[test]
 	fn should_create_new_account() {
@@ -376,7 +369,7 @@ mod test {
 		let directory = RootDiskDirectory::create(dir.clone()).unwrap();
 
 		// when
-		let account = SafeAccount::create(&keypair, [0u8; 16], &password, *ITERATIONS, "Test".to_owned(), "{}".to_owned());
+		let account = SafeAccount::create(&keypair, [0u8; 16], &password, 1024, "Test".to_owned(), "{}".to_owned());
 		let res = directory.insert(account.unwrap());
 
 		// then
@@ -397,7 +390,7 @@ mod test {
 		let directory = RootDiskDirectory::create(dir.clone()).unwrap();
 
 		// when
-		let account = SafeAccount::create(&keypair, [0u8; 16], &password, *ITERATIONS, "Test".to_owned(), "{}".to_owned()).unwrap();
+		let account = SafeAccount::create(&keypair, [0u8; 16], &password, 1024, "Test".to_owned(), "{}".to_owned()).unwrap();
 		let filename = "test".to_string();
 		let dedup = true;
 
@@ -433,7 +426,7 @@ mod test {
 
 		// and when
 		let before_root_items_count = fs::read_dir(&dir).unwrap().count();
-		let vault = directory.as_vault_provider().unwrap().create(vault_name, VaultKey::new(&password, *ITERATIONS));
+		let vault = directory.as_vault_provider().unwrap().create(vault_name, VaultKey::new(&password, 1024));
 
 		// then
 		assert!(vault.is_ok());
@@ -441,7 +434,7 @@ mod test {
 		assert!(after_root_items_count > before_root_items_count);
 
 		// and when
-		let vault = directory.as_vault_provider().unwrap().open(vault_name, VaultKey::new(&password, *ITERATIONS));
+		let vault = directory.as_vault_provider().unwrap().open(vault_name, VaultKey::new(&password, 1024));
 
 		// then
 		assert!(vault.is_ok());
@@ -458,9 +451,8 @@ mod test {
 		let temp_path = TempDir::new("").unwrap();
 		let directory = RootDiskDirectory::create(&temp_path).unwrap();
 		let vault_provider = directory.as_vault_provider().unwrap();
-		let iter = NonZeroU32::new(1).expect("1 > 0; qed");
-		vault_provider.create("vault1", VaultKey::new(&"password1".into(), iter)).unwrap();
-		vault_provider.create("vault2", VaultKey::new(&"password2".into(), iter)).unwrap();
+		vault_provider.create("vault1", VaultKey::new(&"password1".into(), 1)).unwrap();
+		vault_provider.create("vault2", VaultKey::new(&"password2".into(), 1)).unwrap();
 
 		// then
 		let vaults = vault_provider.list_vaults().unwrap();
@@ -482,7 +474,7 @@ mod test {
 
 		let keypair = Random.generate().unwrap();
 		let password = "test pass".into();
-		let account = SafeAccount::create(&keypair, [0u8; 16], &password, *ITERATIONS, "Test".to_owned(), "{}".to_owned());
+		let account = SafeAccount::create(&keypair, [0u8; 16], &password, 1024, "Test".to_owned(), "{}".to_owned());
 		directory.insert(account.unwrap()).expect("Account should be inserted ok");
 
 		let new_hash = directory.files_hash().expect("New files hash should be calculated ok");

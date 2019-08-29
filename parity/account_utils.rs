@@ -30,12 +30,12 @@ mod accounts {
 	pub struct AccountProvider;
 
 	impl ::ethcore::miner::LocalAccounts for AccountProvider {
-		fn is_local(&self, address: &Address) -> bool {
+		fn is_local(&self, _address: &Address) -> bool {
 			false
 		}
 	}
 
-	pub fn prepare_account_provider(_spec: &SpecType, _dirs: &Directories, _data_dir: &str, cfg: AccountsConfig, _passwords: &[Password]) -> Result<AccountProvider, String> {
+	pub fn prepare_account_provider(_spec: &SpecType, _dirs: &Directories, _data_dir: &str, _cfg: AccountsConfig, _passwords: &[Password]) -> Result<AccountProvider, String> {
 		warn!("Note: Your instance of Parity Ethereum is running without account support. Some CLI options are ignored.");
 		Ok(AccountProvider)
 	}
@@ -61,6 +61,8 @@ mod accounts {
 mod accounts {
 	use super::*;
 	use upgrade::upgrade_key_location;
+	use ethereum_types::H160;
+	use std::str::FromStr;
 
 	pub use accounts::AccountProvider;
 
@@ -77,13 +79,11 @@ mod accounts {
 		upgrade_key_location(&dirs.legacy_keys_path(cfg.testnet), &path);
 		let dir = Box::new(RootDiskDirectory::create(&path).map_err(|e| format!("Could not open keys directory: {}", e))?);
 		let account_settings = AccountProviderSettings {
-			enable_hardware_wallets: cfg.enable_hardware_wallets,
-			hardware_wallet_classic_key: spec == &SpecType::Classic,
 			unlock_keep_secret: cfg.enable_fast_unlock,
 			blacklisted_accounts: 	match *spec {
 				SpecType::Morden | SpecType::Ropsten | SpecType::Kovan | SpecType::Sokol | SpecType::Dev => vec![],
 				_ => vec![
-					"00a329c0648769a73afac7f9381e08fb43dbea72".into()
+					H160::from_str("00a329c0648769a73afac7f9381e08fb43dbea72").expect("the string is valid hex; qed"),
 				],
 			},
 		};
@@ -133,7 +133,7 @@ mod accounts {
 	}
 
 	pub fn miner_author(spec: &SpecType, dirs: &Directories, account_provider: &Arc<AccountProvider>, engine_signer: Address, passwords: &[Password]) -> Result<Option<::ethcore::miner::Author>, String> {
-		use ethcore::engines::EngineSigner;
+		use engine::signer::EngineSigner;
 
 		// Check if engine signer exists
 		if !account_provider.has_account(engine_signer) {
@@ -199,14 +199,14 @@ mod accounts {
 		}
 	}
 
-	pub fn private_tx_signer(accounts: Arc<AccountProvider>, passwords: &[Password]) -> Result<Arc<::ethcore_private_tx::Signer>, String> {
+	pub fn private_tx_signer(accounts: Arc<AccountProvider>, passwords: &[Password]) -> Result<Arc<dyn (ethcore_private_tx::Signer)>, String> {
 		Ok(Arc::new(self::private_tx::AccountSigner {
 			accounts,
 			passwords: passwords.to_vec(),
 		}))
 	}
 
-	pub fn accounts_list(account_provider: Arc<AccountProvider>) -> Arc<Fn() -> Vec<Address> + Send + Sync> {
+	pub fn accounts_list(account_provider: Arc<AccountProvider>) -> Arc<dyn Fn() -> Vec<Address> + Send + Sync> {
 		Arc::new(move || account_provider.accounts().unwrap_or_default())
 	}
 
@@ -241,4 +241,3 @@ pub use self::accounts::{
 	private_tx_signer,
 	accounts_list,
 };
-

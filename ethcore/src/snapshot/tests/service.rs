@@ -21,18 +21,23 @@ use std::sync::Arc;
 
 use tempdir::TempDir;
 use blockchain::BlockProvider;
-use client::{Client, ClientConfig, ImportBlock, BlockInfo};
-use types::ids::BlockId;
-use snapshot::io::{PackedReader, PackedWriter, SnapshotReader, SnapshotWriter};
+use client::{Client, ClientConfig};
+use client_traits::{BlockInfo, ImportBlock, SnapshotWriter};
+use types::{
+	ids::BlockId,
+	snapshot::Progress,
+	verification::Unverified,
+	snapshot::{ManifestData, RestorationStatus},
+};
+use snapshot::io::{PackedReader, PackedWriter, SnapshotReader};
 use snapshot::service::{Service, ServiceParams};
-use snapshot::{chunk_state, chunk_secondary, ManifestData, Progress, SnapshotService, RestorationStatus};
-use spec::Spec;
+use snapshot::{chunk_state, chunk_secondary, SnapshotService};
+use spec;
 use test_helpers::{new_db, new_temp_db, generate_dummy_client_with_spec_and_data, restoration_db_handler};
 
 use parking_lot::Mutex;
 use io::IoChannel;
 use kvdb_rocksdb::DatabaseConfig;
-use verification::queue::kind::blocks::Unverified;
 
 #[test]
 fn restored_is_equivalent() {
@@ -42,7 +47,7 @@ fn restored_is_equivalent() {
 	const TX_PER: usize = 5;
 
 	let gas_prices = vec![1.into(), 2.into(), 3.into(), 999.into()];
-	let client = generate_dummy_client_with_spec_and_data(Spec::new_null, NUM_BLOCKS, TX_PER, &gas_prices);
+	let client = generate_dummy_client_with_spec_and_data(spec::new_null, NUM_BLOCKS, TX_PER, &gas_prices);
 
 	let tempdir = TempDir::new("").unwrap();
 	let client_db = tempdir.path().join("client_db");
@@ -52,7 +57,7 @@ fn restored_is_equivalent() {
 	let restoration = restoration_db_handler(db_config);
 	let blockchain_db = restoration.open(&client_db).unwrap();
 
-	let spec = Spec::new_null();
+	let spec = spec::new_null();
 	let client2 = Client::new(
 		Default::default(),
 		&spec,
@@ -72,7 +77,7 @@ fn restored_is_equivalent() {
 	};
 
 	let service = Service::new(service_params).unwrap();
-	service.take_snapshot(&client, NUM_BLOCKS as u64).unwrap();
+	service.take_snapshot(&*client, NUM_BLOCKS as u64).unwrap();
 
 	let manifest = service.manifest().unwrap();
 
@@ -106,9 +111,9 @@ fn restored_is_equivalent() {
 #[test]
 fn guards_delete_folders() {
 	let gas_prices = vec![1.into(), 2.into(), 3.into(), 999.into()];
-	let client = generate_dummy_client_with_spec_and_data(Spec::new_null, 400, 5, &gas_prices);
+	let client = generate_dummy_client_with_spec_and_data(spec::new_null, 400, 5, &gas_prices);
 
-	let spec = Spec::new_null();
+	let spec = spec::new_null();
 	let tempdir = TempDir::new("").unwrap();
 	let service_params = ServiceParams {
 		engine: spec.engine.clone(),
@@ -164,7 +169,7 @@ fn keep_ancient_blocks() {
 
 	// Generate blocks
 	let gas_prices = vec![1.into(), 2.into(), 3.into(), 999.into()];
-	let spec_f = Spec::new_null;
+	let spec_f = spec::new_null;
 	let spec = spec_f();
 	let client = generate_dummy_client_with_spec_and_data(spec_f, NUM_BLOCKS as u32, 5, &gas_prices);
 
@@ -184,18 +189,19 @@ fn keep_ancient_blocks() {
 	let start_header = bc.block_header_data(&best_hash).unwrap();
 	let state_root = start_header.state_root();
 	let state_hashes = chunk_state(
-		state_db.as_hashdb(),
+		state_db.as_hash_db(),
 		&state_root,
 		&writer,
 		&Progress::default(),
-		None
+		None,
+		0
 	).unwrap();
 
 	let manifest = ::snapshot::ManifestData {
 		version: 2,
-		state_hashes: state_hashes,
-		state_root: state_root,
-		block_hashes: block_hashes,
+		state_hashes,
+		state_root,
+		block_hashes,
 		block_number: NUM_BLOCKS,
 		block_hash: best_hash,
 	};
@@ -220,7 +226,6 @@ fn keep_ancient_blocks() {
 		client2.import_block(Unverified::from_rlp(block.into_inner()).unwrap()).unwrap();
 	}
 
-	client2.import_verified_blocks();
 	client2.flush_queue();
 
 	// Restore the Snapshot
@@ -274,9 +279,9 @@ fn recover_aborted_recovery() {
 
 	const NUM_BLOCKS: u32 = 400;
 	let gas_prices = vec![1.into(), 2.into(), 3.into(), 999.into()];
-	let client = generate_dummy_client_with_spec_and_data(Spec::new_null, NUM_BLOCKS, 5, &gas_prices);
+	let client = generate_dummy_client_with_spec_and_data(spec::new_null, NUM_BLOCKS, 5, &gas_prices);
 
-	let spec = Spec::new_null();
+	let spec = spec::new_null();
 	let tempdir = TempDir::new("").unwrap();
 	let db_config = DatabaseConfig::with_columns(::db::NUM_COLUMNS);
 	let client_db = new_db();
@@ -298,7 +303,7 @@ fn recover_aborted_recovery() {
 	};
 
 	let service = Service::new(service_params).unwrap();
-	service.take_snapshot(&client, NUM_BLOCKS as u64).unwrap();
+	service.take_snapshot(&*client, NUM_BLOCKS as u64).unwrap();
 
 	let manifest = service.manifest().unwrap();
 	service.init_restore(manifest.clone(), true).unwrap();

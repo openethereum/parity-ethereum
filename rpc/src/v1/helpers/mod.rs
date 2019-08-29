@@ -20,6 +20,7 @@ pub mod errors;
 pub mod block_import;
 pub mod deprecated;
 pub mod dispatch;
+#[cfg(any(test, feature = "accounts"))]
 pub mod eip191;
 #[cfg(any(test, feature = "accounts"))]
 pub mod engine_signer;
@@ -28,6 +29,7 @@ pub mod fake_sign;
 pub mod ipfs;
 pub mod light_fetch;
 pub mod nonce;
+#[cfg(any(test, feature = "accounts"))]
 pub mod secretstore;
 
 mod network_settings;

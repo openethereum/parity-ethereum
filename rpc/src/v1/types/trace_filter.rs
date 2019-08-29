@@ -16,9 +16,12 @@
 
 //! Trace filter deserialization.
 
-use ethcore::client::BlockId;
-use ethcore::client;
-use v1::types::{BlockNumber, H160};
+use ethereum_types::H160;
+use types::{
+	ids::BlockId,
+	trace_filter::Filter,
+};
+use v1::types::BlockNumber;
 
 /// Trace filter
 #[derive(Debug, PartialEq, Deserialize)]
@@ -39,9 +42,10 @@ pub struct TraceFilter {
 	pub count: Option<usize>,
 }
 
-impl Into<client::TraceFilter> for TraceFilter {
-	fn into(self) -> client::TraceFilter {
+impl Into<Filter> for TraceFilter {
+	fn into(self) -> Filter {
 		let num_to_id = |num| match num {
+			BlockNumber::Hash { hash, .. } => BlockId::Hash(hash),
 			BlockNumber::Num(n) => BlockId::Number(n),
 			BlockNumber::Earliest => BlockId::Earliest,
 			BlockNumber::Latest => BlockId::Latest,
@@ -52,7 +56,7 @@ impl Into<client::TraceFilter> for TraceFilter {
 		};
 		let start = self.from_block.map_or(BlockId::Latest, &num_to_id);
 		let end = self.to_block.map_or(BlockId::Latest, &num_to_id);
-		client::TraceFilter {
+		Filter {
 			range: start..end,
 			from_address: self.from_address.map_or_else(Vec::new, |x| x.into_iter().map(Into::into).collect()),
 			to_address: self.to_address.map_or_else(Vec::new, |x| x.into_iter().map(Into::into).collect()),
@@ -96,8 +100,8 @@ mod tests {
 		assert_eq!(deserialized, TraceFilter {
 			from_block: Some(BlockNumber::Latest),
 			to_block: Some(BlockNumber::Latest),
-			from_address: Some(vec![Address::from(3).into()]),
-			to_address: Some(vec![Address::from(5).into()]),
+			from_address: Some(vec![Address::from_low_u64_be(3).into()]),
+			to_address: Some(vec![Address::from_low_u64_be(5).into()]),
 			after: 50.into(),
 			count: 100.into(),
 		});

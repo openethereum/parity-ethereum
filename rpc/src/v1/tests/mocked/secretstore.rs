@@ -18,6 +18,7 @@ use std::sync::Arc;
 
 use crypto::DEFAULT_MAC;
 use accounts::AccountProvider;
+use ethereum_types::H256;
 use ethkey::{KeyPair, Signature, verify_public};
 
 use serde_json;
@@ -26,7 +27,7 @@ use v1::metadata::Metadata;
 use v1::SecretStoreClient;
 use v1::traits::secretstore::SecretStore;
 use v1::helpers::secretstore::ordered_servers_keccak;
-use v1::types::{H256, EncryptedDocumentKey};
+use v1::types::EncryptedDocumentKey;
 
 struct Dependencies {
 	pub accounts: Arc<AccountProvider>,

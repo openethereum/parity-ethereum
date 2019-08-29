@@ -1,0 +1,152 @@
+{
+  "name": "xDai Chain",
+  "dataDir": "xdai",
+  "engine": {
+    "authorityRound": {
+      "params": {
+        "stepDuration": 5,
+        "blockReward": "0x0",
+        "maximumUncleCountTransition": 0,
+        "maximumUncleCount": 0,
+        "validators": {
+          "multi": {
+            "0": {
+              "list": ["0xcace5b3c29211740e595850e80478416ee77ca21"]
+            },
+            "1300": {
+              "safeContract": "0x22e1229a2c5b95a60983b5577f745a603284f535"
+            }
+          }
+        },
+        "blockRewardContractAddress": "0x867305d19606aadba405ce534e303d0e225f9556",
+        "blockRewardContractTransition": 1310
+      }
+    }
+  },
+  "params": {
+    "gasLimitBoundDivisor": "0x400",
+    "maximumExtraDataSize": "0x20",
+    "minGasLimit": "0x1388",
+    "networkID": "100",
+    "eip140Transition": "0x0",
+    "eip211Transition": "0x0",
+    "eip214Transition": "0x0",
+    "eip658Transition": "0x0",
+    "eip145Transition": 1604400,
+    "eip1014Transition": 1604400,
+    "eip1052Transition": 1604400,
+    "eip1283Transition": 1604400,
+    "eip1283DisableTransition": 2508800,
+    "registrar": "0x1ec97dc137f5168af053c24460a1200502e1a9d2"
+  },
+  "genesis": {
+    "seal": {
+      "authorityRound": {
+        "step": "0x0",
+        "signature": "0x0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000"
+      }
+    },
+    "difficulty": "0x20000",
+    "gasLimit": "0x989680"
+  },
+  "accounts": {
+    "0000000000000000000000000000000000000005": {
+      "builtin": {
+        "name": "modexp",
+        "activate_at": "0x0",
+        "pricing": {
+          "modexp": {
+            "divisor": 20
+          }
+        }
+      }
+    },
+    "0000000000000000000000000000000000000006": {
+      "builtin": {
+        "name": "alt_bn128_add",
+        "activate_at": "0x0",
+        "pricing": {
+          "linear": {
+            "base": 500,
+            "word": 0
+          }
+        }
+      }
+    },
+    "0000000000000000000000000000000000000007": {
+      "builtin": {
+        "name": "alt_bn128_mul",
+        "activate_at": "0x0",
+        "pricing": {
+          "linear": {
+            "base": 40000,
+            "word": 0
+          }
+        }
+      }
+    },
+    "0000000000000000000000000000000000000008": {
+      "builtin": {
+        "name": "alt_bn128_pairing",
+        "activate_at": "0x0",
+        "pricing": {
+          "alt_bn128_pairing": {
+            "base": 100000,
+            "pair": 80000
+          }
+        }
+      }
+    },
+    "0x0000000000000000000000000000000000000001": {
+      "balance": "1",
+      "builtin": {
+        "name": "ecrecover",
+        "pricing": {
+          "linear": {
+            "base": 3000,
+            "word": 0
+          }
+        }
+      }
+    },
+    "0x0000000000000000000000000000000000000002": {
+      "balance": "1",
+      "builtin": {
+        "name": "sha256",
+        "pricing": {
+          "linear": {
+            "base": 60,
+            "word": 12
+          }
+        }
+      }
+    },
+    "0x0000000000000000000000000000000000000003": {
+      "balance": "1",
+      "builtin": {
+        "name": "ripemd160",
+        "pricing": {
+          "linear": {
+            "base": 600,
+            "word": 120
+          }
+        }
+      }
+    },
+    "0x0000000000000000000000000000000000000004": {
+      "balance": "1",
+      "builtin": {
+        "name": "identity",
+        "pricing": {
+          "linear": {
+            "base": 15,
+            "word": 3
+          }
+        }
+      }
+    }
+  },
+  "nodes": [
+  	"enode://66786c15390cb4fef3743571e12ec54ca343e7f119018136d68b670edd93604eedf74e5013dc5c2439f89e0e05593e29c409a97e155ea4165c6b832de131ef1e@3.214.113.185:30303"
+  ]
+}

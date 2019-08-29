@@ -33,8 +33,8 @@ update_wiki_docs() {
 
 setup_git() {
     echo "__________Set github__________"
-    git config --global user.email "devops@parity.com"
-    git config --global user.name "Devops Parity"
+    git config --global user.email "devops-team@parity.io"
+    git config --global user.name "Devops Team Parity"
 }
 
 set_remote_wiki() {
@@ -51,8 +51,11 @@ commit_files() {
 
 upload_files() {
     echo "__________Upload files__________"
-    git push -q origin HEAD
-    git push -q -f --tags
+    # this version of git (2.7.4) will dump the token on failure
+    git push -q origin HEAD 2>&1 \
+      | sed -r "s|(${GITHUB_USER}):[a-f0-9]+@|\1:REDACTED@|g"
+    git push -q -f --tags 2>&1 \
+      | sed -r "s|(${GITHUB_USER}):[a-f0-9]+@|\1:REDACTED@|g"
 }
 
 RPC_TRAITS_DIR="rpc/src/v1/traits"

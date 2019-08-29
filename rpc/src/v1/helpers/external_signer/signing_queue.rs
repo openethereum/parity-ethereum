@@ -15,6 +15,7 @@
 // along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
 use std::collections::BTreeMap;
+
 use ethereum_types::U256;
 use parking_lot::{Mutex, RwLock};
 use super::oneshot;
@@ -95,7 +96,7 @@ pub type ConfirmationReceiver =  oneshot::Receiver<ConfirmationResult>;
 pub struct ConfirmationsQueue {
 	id: Mutex<U256>,
 	queue: RwLock<BTreeMap<U256, ConfirmationSender>>,
-	on_event: RwLock<Vec<Box<Fn(QueueEvent) -> () + Send + Sync>>>,
+	on_event: RwLock<Vec<Box<dyn Fn(QueueEvent) -> () + Send + Sync>>>,
 }
 
 impl ConfirmationsQueue {
@@ -120,7 +121,7 @@ impl ConfirmationsQueue {
 		));
 
 		// notify confirmation receiver about resolution
-		let result = result.ok_or(errors::request_rejected());
+		let result = result.ok_or_else(errors::request_rejected);
 		sender.sender.send(result);
 
 		Some(sender.request)
@@ -149,7 +150,7 @@ impl SigningQueue for ConfirmationsQueue {
 		// Increment id
 		let id = {
 			let mut last_id = self.id.lock();
-			*last_id = *last_id + U256::from(1);
+			*last_id += U256::from(1);
 			*last_id
 		};
 		// Add request to queue
@@ -212,7 +213,7 @@ impl SigningQueue for ConfirmationsQueue {
 #[cfg(test)]
 mod test {
 	use std::sync::Arc;
-	use ethereum_types::{U256, Address};
+	use ethereum_types::{U256, Address, H256};
 	use parking_lot::Mutex;
 	use jsonrpc_core::futures::Future;
 	use v1::helpers::external_signer::{SigningQueue, ConfirmationsQueue, QueueEvent};
@@ -221,9 +222,9 @@ mod test {
 
 	fn request() -> ConfirmationPayload {
 		ConfirmationPayload::SendTransaction(FilledTransactionRequest {
-			from: Address::from(1),
+			from: Address::from_low_u64_be(1),
 			used_default_from: false,
-			to: Some(Address::from(2)),
+			to: Some(Address::from_low_u64_be(2)),
 			gas_price: 0.into(),
 			gas: 10_000.into(),
 			value: 10_000_000.into(),
@@ -242,11 +243,11 @@ mod test {
 		// when
 		let (id, future) = queue.add_request(request, Default::default()).unwrap();
 		let sender = queue.take(&id).unwrap();
-		queue.request_confirmed(sender, Ok(ConfirmationResponse::SendTransaction(1.into())));
+		queue.request_confirmed(sender, Ok(ConfirmationResponse::SendTransaction(H256::from_low_u64_be(1))));
 
 		// then
 		let confirmation = future.wait().unwrap();
-		assert_eq!(confirmation, Ok(ConfirmationResponse::SendTransaction(1.into())));
+		assert_eq!(confirmation, Ok(ConfirmationResponse::SendTransaction(H256::from_low_u64_be(1))));
 	}
 
 	#[test]
@@ -288,4 +289,3 @@ mod test {
 		assert_eq!(el.payload, request);
 	}
 }
-

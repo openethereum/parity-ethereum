@@ -14,11 +14,14 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
+use std::sync::Arc;
 use std::collections::HashMap;
+use chain::sync_packet::{PacketInfo, SyncPacket};
 use network::{NetworkContext, PeerId, PacketId, Error, SessionInfo, ProtocolId};
 use network::client_version::ClientVersion;
 use bytes::Bytes;
-use ethcore::client::BlockChainClient;
+use client_traits::BlockChainClient;
+use ethcore_private_tx::PrivateStateDB;
 use types::BlockNumber;
 use ethcore::snapshot::SnapshotService;
 use parking_lot::RwLock;
@@ -33,14 +36,14 @@ pub trait SyncIo {
 	fn disconnect_peer(&mut self, peer_id: PeerId);
 	/// Respond to current request with a packet. Can be called from an IO handler for incoming packet.
 	fn respond(&mut self, packet_id: PacketId, data: Vec<u8>) -> Result<(), Error>;
-	/// Send a packet to a peer.
-	fn send(&mut self, peer_id: PeerId, packet_id: PacketId, data: Vec<u8>) -> Result<(), Error>;
 	/// Send a packet to a peer using specified protocol.
-	fn send_protocol(&mut self, protocol: ProtocolId, peer_id: PeerId, packet_id: PacketId, data: Vec<u8>) -> Result<(), Error>;
+	fn send(&mut self, peer_id: PeerId, packet_id: SyncPacket, data: Vec<u8>) -> Result<(), Error>;
 	/// Get the blockchain
-	fn chain(&self) -> &BlockChainClient;
+	fn chain(&self) -> &dyn BlockChainClient;
 	/// Get the snapshot service.
-	fn snapshot_service(&self) -> &SnapshotService;
+	fn snapshot_service(&self) -> &dyn SnapshotService;
+	/// Get the private state wrapper
+	fn private_state(&self) -> Option<Arc<PrivateStateDB>>;
 	/// Returns peer version identifier
 	fn peer_version(&self, peer_id: PeerId) -> ClientVersion {
 		ClientVersion::from(peer_id.to_string())
@@ -65,23 +68,26 @@ pub trait SyncIo {
 
 /// Wraps `NetworkContext` and the blockchain client
 pub struct NetSyncIo<'s> {
-	network: &'s NetworkContext,
-	chain: &'s BlockChainClient,
-	snapshot_service: &'s SnapshotService,
+	network: &'s dyn NetworkContext,
+	chain: &'s dyn BlockChainClient,
+	snapshot_service: &'s dyn SnapshotService,
 	chain_overlay: &'s RwLock<HashMap<BlockNumber, Bytes>>,
+	private_state: Option<Arc<PrivateStateDB>>,
 }
 
 impl<'s> NetSyncIo<'s> {
 	/// Creates a new instance from the `NetworkContext` and the blockchain client reference.
-	pub fn new(network: &'s NetworkContext,
-		chain: &'s BlockChainClient,
-		snapshot_service: &'s SnapshotService,
-		chain_overlay: &'s RwLock<HashMap<BlockNumber, Bytes>>) -> NetSyncIo<'s> {
+	pub fn new(network: &'s dyn NetworkContext,
+		chain: &'s dyn BlockChainClient,
+		snapshot_service: &'s dyn SnapshotService,
+		chain_overlay: &'s RwLock<HashMap<BlockNumber, Bytes>>,
+		private_state: Option<Arc<PrivateStateDB>>) -> NetSyncIo<'s> {
 		NetSyncIo {
-			network: network,
-			chain: chain,
-			snapshot_service: snapshot_service,
-			chain_overlay: chain_overlay,
+			network,
+			chain,
+			snapshot_service,
+			chain_overlay,
+			private_state,
 		}
 	}
 }
@@ -99,15 +105,11 @@ impl<'s> SyncIo for NetSyncIo<'s> {
 		self.network.respond(packet_id, data)
 	}
 
-	fn send(&mut self, peer_id: PeerId, packet_id: PacketId, data: Vec<u8>) -> Result<(), Error>{
-		self.network.send(peer_id, packet_id, data)
+	fn send(&mut self, peer_id: PeerId, packet_id: SyncPacket, data: Vec<u8>) -> Result<(), Error>{
+		self.network.send_protocol(packet_id.protocol(), peer_id, packet_id.id(), data)
 	}
 
-	fn send_protocol(&mut self, protocol: ProtocolId, peer_id: PeerId, packet_id: PacketId, data: Vec<u8>) -> Result<(), Error>{
-		self.network.send_protocol(protocol, peer_id, packet_id, data)
-	}
-
-	fn chain(&self) -> &BlockChainClient {
+	fn chain(&self) -> &dyn BlockChainClient {
 		self.chain
 	}
 
@@ -115,8 +117,12 @@ impl<'s> SyncIo for NetSyncIo<'s> {
 		self.chain_overlay
 	}
 
-	fn snapshot_service(&self) -> &SnapshotService {
+	fn snapshot_service(&self) -> &dyn SnapshotService {
 		self.snapshot_service
+	}
+
+	fn private_state(&self) -> Option<Arc<PrivateStateDB>> {
+		self.private_state.clone()
 	}
 
 	fn peer_session_info(&self, peer_id: PeerId) -> Option<SessionInfo> {

@@ -20,11 +20,13 @@
 use std::fmt;
 use std::sync::Arc;
 
+use common_types::{
+	errors::EthcoreError as CoreError,
+	io_message::ClientIoMessage,
+};
 use ethcore_db as db;
 use ethcore_blockchain::BlockChainDB;
-use ethcore::client::ClientIoMessage;
-use ethcore::error::Error as CoreError;
-use ethcore::spec::Spec;
+use spec::Spec;
 use io::{IoContext, IoError, IoHandler, IoService};
 
 use cache::Cache;
@@ -58,15 +60,15 @@ impl fmt::Display for Error {
 }
 
 /// Light client service.
-pub struct Service<T> {
+pub struct Service<T: 'static> {
 	client: Arc<Client<T>>,
-	io_service: IoService<ClientIoMessage>,
+	io_service: IoService<ClientIoMessage<()>>,
 }
 
 impl<T: ChainDataFetcher> Service<T> {
 	/// Start the service: initialize I/O workers and client itself.
-	pub fn start(config: ClientConfig, spec: &Spec, fetcher: T, db: Arc<BlockChainDB>, cache: Arc<Mutex<Cache>>) -> Result<Self, Error> {
-		let io_service = IoService::<ClientIoMessage>::start().map_err(Error::Io)?;
+	pub fn start(config: ClientConfig, spec: &Spec, fetcher: T, db: Arc<dyn BlockChainDB>, cache: Arc<Mutex<Cache>>) -> Result<Self, Error> {
+		let io_service = IoService::<ClientIoMessage<()>>::start().map_err(Error::Io)?;
 		let client = Arc::new(Client::new(config,
 			db.key_value().clone(),
 			db::COL_LIGHT_CHAIN,
@@ -75,9 +77,8 @@ impl<T: ChainDataFetcher> Service<T> {
 			io_service.channel(),
 			cache,
 		)?);
-
-		io_service.register_handler(Arc::new(ImportBlocks(client.clone()))).map_err(Error::Io)?;
 		spec.engine.register_client(Arc::downgrade(&client) as _);
+		io_service.register_handler(Arc::new(ImportBlocks(client.clone()))).map_err(Error::Io)?;
 
 		Ok(Service {
 			client,
@@ -86,12 +87,12 @@ impl<T: ChainDataFetcher> Service<T> {
 	}
 
 	/// Set the actor to be notified on certain chain events
-	pub fn add_notify(&self, notify: Arc<LightChainNotify>) {
+	pub fn add_notify(&self, notify: Arc<dyn LightChainNotify>) {
 		self.client.add_listener(Arc::downgrade(&notify));
 	}
 
 	/// Register an I/O handler on the service.
-	pub fn register_handler(&self, handler: Arc<IoHandler<ClientIoMessage> + Send>) -> Result<(), IoError> {
+	pub fn register_handler(&self, handler: Arc<dyn IoHandler<ClientIoMessage<()>> + Send>) -> Result<(), IoError> {
 		self.io_service.register_handler(handler)
 	}
 
@@ -103,8 +104,8 @@ impl<T: ChainDataFetcher> Service<T> {
 
 struct ImportBlocks<T>(Arc<Client<T>>);
 
-impl<T: ChainDataFetcher> IoHandler<ClientIoMessage> for ImportBlocks<T> {
-	fn message(&self, _io: &IoContext<ClientIoMessage>, message: &ClientIoMessage) {
+impl<T: ChainDataFetcher> IoHandler<ClientIoMessage<()>> for ImportBlocks<T> {
+	fn message(&self, _io: &IoContext<ClientIoMessage<()>>, message: &ClientIoMessage<()>) {
 		if let ClientIoMessage::BlockVerified = *message {
 			self.0.import_verified();
 		}
@@ -114,7 +115,7 @@ impl<T: ChainDataFetcher> IoHandler<ClientIoMessage> for ImportBlocks<T> {
 #[cfg(test)]
 mod tests {
 	use super::Service;
-	use ethcore::spec::Spec;
+	use spec;
 
 	use std::sync::Arc;
 	use cache::Cache;
@@ -126,7 +127,7 @@ mod tests {
 	#[test]
 	fn it_works() {
 		let db = test_helpers::new_db();
-		let spec = Spec::new_test();
+		let spec = spec::new_test();
 		let cache = Arc::new(Mutex::new(Cache::new(Default::default(), Duration::from_secs(6 * 3600))));
 
 		Service::start(Default::default(), &spec, fetch::unavailable(), db, cache).unwrap();

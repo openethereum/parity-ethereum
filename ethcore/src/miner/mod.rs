@@ -20,12 +20,13 @@
 //! Keeps track of transactions and currently sealed pending block.
 
 mod miner;
-
+mod filter_options;
 pub mod pool_client;
 #[cfg(feature = "stratum")]
 pub mod stratum;
 
 pub use self::miner::{Miner, MinerOptions, Penalization, PendingSet, AuthoringParams, Author};
+pub use self::filter_options::FilterOptions;
 pub use ethcore_miner::local_accounts::LocalAccounts;
 pub use ethcore_miner::pool::PendingOrdering;
 
@@ -36,20 +37,19 @@ use bytes::Bytes;
 use ethcore_miner::pool::{VerifiedTransaction, QueueStatus, local_transactions};
 use ethereum_types::{H256, U256, Address};
 use types::transaction::{self, UnverifiedTransaction, SignedTransaction, PendingTransaction};
-use types::BlockNumber;
-use types::block::Block;
-use types::header::Header;
-use types::receipt::RichReceipt;
+use types::{
+	BlockNumber,
+	errors::EthcoreError as Error,
+	block::Block,
+	header::Header,
+	receipt::RichReceipt,
+};
 
 use block::SealedBlock;
 use call_contract::{CallContract, RegistryInfo};
-use client::{
-	ScheduleInfo,
-	BlockChain, BlockProducer, SealedBlockImporter, ChainInfo,
-	AccountData, Nonce,
-};
-use error::Error;
-use state::StateInfo;
+use client::{BlockProducer, SealedBlockImporter};
+use client_traits::{BlockChain, ChainInfo, AccountData, Nonce, ScheduleInfo};
+use account_state::state::StateInfo;
 
 /// Provides methods to verify incoming external transactions
 pub trait TransactionVerifierClient: Send + Sync
@@ -184,6 +184,14 @@ pub trait MinerService : Send + Sync {
 	fn ready_transactions<C>(&self, chain: &C, max_len: usize, ordering: PendingOrdering) -> Vec<Arc<VerifiedTransaction>>
 		where C: ChainInfo + Nonce + Sync;
 
+	/// Get a list of all ready transactions either ordered by priority or unordered (cheaper), optionally filtered by hash, sender or receiver.
+	///
+	/// Depending on the settings may look in transaction pool or only in pending block.
+	/// If you don't need a full set of transactions, you can add `max_len` and create only a limited set of
+	/// transactions.
+	fn ready_transactions_filtered<C>(&self, chain: &C, max_len: usize, filter: Option<FilterOptions>, ordering: PendingOrdering) -> Vec<Arc<VerifiedTransaction>>
+		where C: ChainInfo + Nonce + Sync;
+
 	/// Get a list of all transactions in the pool (some of them might not be ready for inclusion yet).
 	fn queued_transactions(&self) -> Vec<Arc<VerifiedTransaction>>;
 
@@ -205,4 +213,8 @@ pub trait MinerService : Send + Sync {
 
 	/// Suggested gas limit.
 	fn sensible_gas_limit(&self) -> U256;
+
+	/// Set a new minimum gas limit.
+	/// Will not work if dynamic gas calibration is set.
+	fn set_minimal_gas_price(&self, gas_price: U256) -> Result<bool, &str>;
 }

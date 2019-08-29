@@ -21,25 +21,30 @@ use hash::keccak;
 use block::*;
 use ethereum_types::{U256, Address};
 use io::*;
-use spec::*;
-use client::*;
+use spec;
 use test_helpers::get_temp_state_db;
-use client::{BlockChainClient, Client, ClientConfig};
+use client::{Client, ClientConfig};
+use client_traits::{BlockChainClient, ImportBlock};
 use std::sync::Arc;
+use std::str::FromStr;
 use miner::Miner;
-use types::transaction::{Action, Transaction};
 use trace::{RewardType, LocalizedTrace};
 use trace::trace::Action::Reward;
 use test_helpers;
-use verification::queue::kind::blocks::Unverified;
-use types::header::Header;
-use types::view;
-use types::views::BlockView;
+use types::{
+	ids::BlockId,
+	transaction::{Action, Transaction},
+	trace_filter::Filter as TraceFilter,
+	header::Header,
+	verification::Unverified,
+	view,
+	views::BlockView,
+};
 
 #[test]
 fn can_trace_block_and_uncle_reward() {
 	let db = test_helpers::new_db();
-	let spec = Spec::new_test_with_reward();
+	let spec = spec::new_test_with_reward();
 	let engine = &*spec.engine;
 
 	// Create client
@@ -71,7 +76,7 @@ fn can_trace_block_and_uncle_reward() {
 	let mut last_header = genesis_header.clone();
 	last_hashes.push(last_header.hash());
 
-	let kp = KeyPair::from_secret_slice(&keccak("")).unwrap();
+	let kp = KeyPair::from_secret_slice(keccak("").as_bytes()).unwrap();
 	let author = kp.address();
 
 	// Add root block first
@@ -86,7 +91,6 @@ fn can_trace_block_and_uncle_reward() {
 		(3141562.into(), 31415620.into()),
 		vec![],
 		false,
-		&mut Vec::new().into_iter(),
 	).unwrap();
 	rolling_timestamp += 10;
 	root_block.set_timestamp(rolling_timestamp);
@@ -115,7 +119,6 @@ fn can_trace_block_and_uncle_reward() {
 		(3141562.into(), 31415620.into()),
 		vec![],
 		false,
-		&mut Vec::new().into_iter(),
 	).unwrap();
 	rolling_timestamp += 10;
 	parent_block.set_timestamp(rolling_timestamp);
@@ -143,7 +146,6 @@ fn can_trace_block_and_uncle_reward() {
 		(3141562.into(), 31415620.into()),
 		vec![],
 		false,
-		&mut Vec::new().into_iter(),
 		).unwrap();
 	rolling_timestamp += 10;
 	block.set_timestamp(rolling_timestamp);
@@ -162,7 +164,7 @@ fn can_trace_block_and_uncle_reward() {
 	}
 
 	let mut uncle = Header::new();
-	let uncle_author: Address = "ef2d6d194084c2de36e0dabfce45d046b37d1106".into();
+	let uncle_author = Address::from_str("ef2d6d194084c2de36e0dabfce45d046b37d1106").unwrap();
 	uncle.set_author(uncle_author);
 	uncle.set_parent_hash(root_header.hash());
 	uncle.set_gas_limit(genesis_gas);
@@ -179,7 +181,6 @@ fn can_trace_block_and_uncle_reward() {
 
 	block.drain();
 	client.flush_queue();
-	client.import_verified_blocks();
 
 	// Test0. Check overall filter
 	let filter = TraceFilter {

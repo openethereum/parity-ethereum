@@ -84,6 +84,8 @@ pub struct ActionParams {
 	pub value: ActionValue,
 	/// Code being executed.
 	pub code: Option<Arc<Bytes>>,
+	/// Code version being executed.
+	pub code_version: U256,
 	/// Input data.
 	pub data: Option<Bytes>,
 	/// Type of call
@@ -96,15 +98,16 @@ impl Default for ActionParams {
 	/// Returns default ActionParams initialized with zeros
 	fn default() -> ActionParams {
 		ActionParams {
-			code_address: Address::new(),
+			code_address: Address::zero(),
 			code_hash: Some(KECCAK_EMPTY),
-			address: Address::new(),
-			sender: Address::new(),
-			origin: Address::new(),
+			address: Address::zero(),
+			sender: Address::zero(),
+			origin: Address::zero(),
 			gas: U256::zero(),
 			gas_price: U256::zero(),
 			value: ActionValue::Transfer(U256::zero()),
 			code: None,
+			code_version: U256::zero(),
 			data: None,
 			call_type: CallType::None,
 			params_type: ParamsType::Separate,
@@ -116,12 +119,13 @@ impl From<ethjson::vm::Transaction> for ActionParams {
 	fn from(t: ethjson::vm::Transaction) -> Self {
 		let address: Address = t.address.into();
 		ActionParams {
-			code_address: Address::new(),
+			code_address: Address::zero(),
 			code_hash: Some(keccak(&*t.code)),
 			address: address,
 			sender: t.sender.into(),
 			origin: t.origin.into(),
 			code: Some(Arc::new(t.code.into())),
+			code_version: t.code_version.into(),
 			data: Some(t.data.into()),
 			gas: t.gas.into(),
 			gas_price: t.gas_price.into(),

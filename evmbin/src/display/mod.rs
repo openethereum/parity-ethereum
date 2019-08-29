@@ -14,7 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
-//! VM Output display utils.
+//! EVM output display utils.
 
 use std::time::Duration;
 

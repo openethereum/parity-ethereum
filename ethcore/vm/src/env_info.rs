@@ -51,7 +51,7 @@ impl Default for EnvInfo {
 	fn default() -> Self {
 		EnvInfo {
 			number: 0,
-			author: Address::default(),
+			author: Address::zero(),
 			timestamp: 0,
 			difficulty: 0.into(),
 			gas_limit: 0.into(),
@@ -65,7 +65,7 @@ impl From<ethjson::vm::Env> for EnvInfo {
 	fn from(e: ethjson::vm::Env) -> Self {
 		let number = e.number.into();
 		EnvInfo {
-			number: number,
+			number,
 			author: e.author.into(),
 			difficulty: e.difficulty.into(),
 			gas_limit: e.gas_limit.into(),

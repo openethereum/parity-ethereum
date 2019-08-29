@@ -96,6 +96,12 @@ pub struct Params {
 	/// See `CommonParams` docs.
 	pub eip1706_transition: Option<Uint>,
 	/// See `CommonParams` docs.
+	pub eip1344_transition: Option<Uint>,
+	/// See `CommonParams` docs.
+	pub eip1884_transition: Option<Uint>,
+	/// See `CommonParams` docs.
+	pub eip2028_transition: Option<Uint>,
+	/// See `CommonParams` docs.
 	pub dust_protection_transition: Option<Uint>,
 	/// See `CommonParams` docs.
 	pub nonce_cap_increment: Option<Uint>,
@@ -120,8 +126,10 @@ pub struct Params {
 	pub transaction_permission_contract: Option<Address>,
 	/// Block at which the transaction permission contract should start being used.
 	pub transaction_permission_contract_transition: Option<Uint>,
-	/// Wasm activation block height, if not activated from start
+	/// Wasm activation block height, if not activated from start.
 	pub wasm_activation_transition: Option<Uint>,
+	/// Define a separate wasm version instead of using the prefix.
+	pub wasm_version: Option<Uint>,
 	/// KIP4 activiation block height.
 	pub kip4_transition: Option<Uint>,
 	/// KIP6 activiation block height.

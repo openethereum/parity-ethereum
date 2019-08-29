@@ -47,7 +47,7 @@ impl Generator for BrainPrefix {
 		for _ in 0..self.iterations {
 			let phrase = wordlist::random_phrase(self.no_of_words);
 			let keypair = Brain::new(phrase.clone()).generate().unwrap();
-			if keypair.address().starts_with(&self.prefix) {
+			if keypair.address().as_ref().starts_with(&self.prefix) {
 				self.last_phrase = phrase;
 				return Ok(keypair)
 			}
@@ -65,6 +65,6 @@ mod tests {
 	fn prefix_generator() {
 		let prefix = vec![0x00u8];
 		let keypair = BrainPrefix::new(prefix.clone(), usize::max_value(), 12).generate().unwrap();
-		assert!(keypair.address().starts_with(&prefix));
+		assert!(keypair.address().as_bytes().starts_with(&prefix));
 	}
 }

@@ -17,24 +17,29 @@
 use std::path::Path;
 use std::sync::Arc;
 use super::test_common::*;
-use state::{Backend as StateBackend, State, Substate};
-use executive::*;
+use account_state::{Backend as StateBackend, State};
 use evm::{VMType, Finalize};
 use vm::{
 	self, ActionParams, CallType, Schedule, Ext,
 	ContractCreateResult, EnvInfo, MessageCallResult,
 	CreateContractAddress, ReturnData,
 };
-use externalities::*;
+use machine::{
+	Machine,
+	externalities::{OutputPolicy, OriginInfo, Externalities},
+	substate::Substate,
+	executive::contract_address,
+};
+
 use test_helpers::get_temp_state;
 use ethjson;
-use trace::{Tracer, NoopTracer};
-use trace::{VMTracer, NoopVMTracer};
+use trace::{Tracer, NoopTracer, VMTracer, NoopVMTracer};
 use bytes::Bytes;
 use ethtrie;
 use rlp::RlpStream;
 use hash::keccak;
-use machine::EthereumMachine as Machine;
+use ethereum_types::BigEndianHash;
+use spec;
 
 use super::HookType;
 
@@ -145,6 +150,7 @@ impl<'a, T: 'a, V: 'a, B: 'a> Ext for TestExt<'a, T, V, B>
 		gas: &U256,
 		value: &U256,
 		code: &[u8],
+		_code_version: &U256,
 		address: CreateContractAddress,
 		_trap: bool
 	) -> Result<ContractCreateResult, vm::TrapKind> {
@@ -210,6 +216,8 @@ impl<'a, T: 'a, V: 'a, B: 'a> Ext for TestExt<'a, T, V, B>
 		self.ext.env_info()
 	}
 
+	fn chain_id(&self) -> u64 { 0 }
+
 	fn depth(&self) -> usize {
 		0
 	}
@@ -268,7 +276,7 @@ fn do_json_test_for<H: FnMut(&str, HookType)>(vm_type: &VMType, json_data: &[u8]
 		state.populate_from(From::from(vm.pre_state.clone()));
 		let info: EnvInfo = From::from(vm.env);
 		let machine = {
-			let mut machine = ::ethereum::new_frontier_test_machine();
+			let mut machine = spec::new_frontier_test_machine();
 			machine.set_schedule_creation_rules(Box::new(move |s, _| s.max_depth = 1));
 			machine
 		};
@@ -297,7 +305,7 @@ fn do_json_test_for<H: FnMut(&str, HookType)>(vm_type: &VMType, json_data: &[u8]
 				&mut tracer,
 				&mut vm_tracer,
 			));
-			let mut evm = vm_factory.create(params, &schedule, 0);
+			let evm = vm_factory.create(params, &schedule, 0).expect("Current tests are all of version 0; factory always return Some; qed");
 			let res = evm.exec(&mut ex).ok().expect("TestExt never trap; resume error never happens; qed");
 			// a return in finalize will not alter callcreates
 			let callcreates = ex.callcreates.clone();
@@ -339,8 +347,8 @@ fn do_json_test_for<H: FnMut(&str, HookType)>(vm_type: &VMType, json_data: &[u8]
 					for (k, v) in account.storage {
 						let key: U256 = k.into();
 						let value: U256 = v.into();
-						let found_storage = try_fail!(state.storage_at(&address, &From::from(key)));
-						fail_unless(found_storage == From::from(value), "storage is incorrect");
+						let found_storage = try_fail!(state.storage_at(&address, &BigEndianHash::from_uint(&key)));
+						fail_unless(found_storage == BigEndianHash::from_uint(&value), "storage is incorrect");
 					}
 				}
 

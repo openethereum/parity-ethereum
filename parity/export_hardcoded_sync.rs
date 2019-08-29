@@ -18,10 +18,10 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use ethcore::client::DatabaseCompactionProfile;
-use ethcore::spec::{SpecParams, OptimizeFor};
+use spec::SpecParams;
 use light::client::fetch::Unavailable as UnavailableDataFetcher;
 use light::Cache as LightDataCache;
-
+use types::engines::OptimizeFor;
 use params::{SpecType, Pruning};
 use helpers::execute_upgrades;
 use dir::Directories;
@@ -96,7 +96,7 @@ pub fn execute(cmd: ExportHsyncCmd) -> Result<String, String> {
 	let hs = service.client().read_hardcoded_sync()
 		.map_err(|e| format!("Error reading hardcoded sync: {}", e))?;
 	if let Some(hs) = hs {
-		Ok(::serde_json::to_string_pretty(&hs.to_json()).expect("generated JSON is always valid"))
+		Ok(format!("{}", hs))
 	} else {
 		Err("Error: cannot generate hardcoded sync because the database is empty.".into())
 	}

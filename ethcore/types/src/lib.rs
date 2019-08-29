@@ -33,24 +33,29 @@
 
 #![warn(missing_docs, unused_extern_crates)]
 
+extern crate ethbloom;
 extern crate ethereum_types;
 extern crate ethjson;
 extern crate ethkey;
-extern crate heapsize;
+#[macro_use]
+extern crate derive_more;
 extern crate keccak_hash as hash;
 extern crate parity_bytes as bytes;
-extern crate parity_machine;
+extern crate patricia_trie_ethereum as ethtrie;
 extern crate rlp;
+extern crate parity_snappy;
 extern crate unexpected;
 
 #[macro_use]
 extern crate rlp_derive;
-
-#[cfg(test)]
-extern crate rustc_hex;
+extern crate parity_util_mem;
+extern crate parity_util_mem as malloc_size_of;
 
 #[macro_use]
 pub mod views;
+
+#[cfg(test)]
+extern crate rustc_hex;
 
 pub mod account_diff;
 pub mod ancestry_action;
@@ -59,22 +64,24 @@ pub mod block;
 pub mod block_status;
 pub mod blockchain_info;
 pub mod call_analytics;
+pub mod client_types;
 pub mod encoded;
 pub mod engines;
+pub mod errors;
 pub mod filter;
 pub mod header;
 pub mod ids;
+pub mod io_message;
 pub mod log_entry;
 pub mod pruning_info;
 pub mod receipt;
-pub mod restoration_status;
 pub mod security_level;
-pub mod snapshot_manifest;
+pub mod snapshot;
 pub mod state_diff;
 pub mod trace_filter;
 pub mod transaction;
 pub mod tree_route;
-pub mod verification_queue_info;
+pub mod verification;
 
 /// Type for block number.
 pub type BlockNumber = u64;

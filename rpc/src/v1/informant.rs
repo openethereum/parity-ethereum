@@ -135,7 +135,7 @@ impl<T: Default + Copy + Ord> StatsCalculator<T> {
 #[derive(Default, Debug)]
 pub struct RpcStats {
 	requests: RwLock<RateCalculator>,
-	roundtrips: RwLock<StatsCalculator<u32>>,
+	roundtrips: RwLock<StatsCalculator<u128>>,
 	active_sessions: AtomicUsize,
 }
 
@@ -157,7 +157,7 @@ impl RpcStats {
 	}
 
 	/// Add roundtrip time (microseconds)
-	pub fn add_roundtrip(&self, microseconds: u32) {
+	pub fn add_roundtrip(&self, microseconds: u128) {
 		self.roundtrips.write().add(microseconds)
 	}
 
@@ -172,7 +172,7 @@ impl RpcStats {
 	}
 
 	/// Returns approximated roundtrip in microseconds
-	pub fn approximated_roundtrip(&self) -> u32 {
+	pub fn approximated_roundtrip(&self) -> u128 {
 		self.roundtrips.read().approximated_median()
 	}
 }
@@ -197,10 +197,6 @@ impl<T: ActivityNotifier> Middleware<T> {
 			notifier,
 		}
 	}
-
-	fn as_micro(dur: time::Duration) -> u32 {
-		(dur.as_secs() * 1_000_000) as u32 + dur.subsec_nanos() / 1_000
-	}
 }
 
 impl<M: core::Metadata, T: ActivityNotifier> core::Middleware<M> for Middleware<T> {
@@ -223,7 +219,7 @@ impl<M: core::Metadata, T: ActivityNotifier> core::Middleware<M> for Middleware<
 		let stats = self.stats.clone();
 
 		let future = process(request, meta).map(move |res| {
-			let time = Self::as_micro(start.elapsed());
+			let time = start.elapsed().as_micros();
 			if time > 10_000 {
 				debug!(target: "rpc", "[{:?}] Took {}ms", id, time / 1_000);
 			}

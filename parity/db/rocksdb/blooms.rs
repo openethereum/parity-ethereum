@@ -18,7 +18,7 @@
 
 use std::path::Path;
 use ethereum_types::Bloom;
-use ethcore::error::Error;
+use types::errors::EthcoreError as Error;
 use rlp;
 use super::kvdb_rocksdb::DatabaseConfig;
 use super::open_database;

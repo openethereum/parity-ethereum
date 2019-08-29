@@ -118,7 +118,7 @@ pub trait SecretStore: SimpleSecretStore {
 	/// Imports existing JSON wallet
 	fn import_wallet(&self, vault: SecretVaultRef, json: &[u8], password: &Password, gen_id: bool) -> Result<StoreAccountRef, Error>;
 	/// Copies account between stores and vaults.
-	fn copy_account(&self, new_store: &SimpleSecretStore, new_vault: SecretVaultRef, account: &StoreAccountRef, password: &Password, new_password: &Password) -> Result<(), Error>;
+	fn copy_account(&self, new_store: &dyn SimpleSecretStore, new_vault: SecretVaultRef, account: &StoreAccountRef, password: &Password, new_password: &Password) -> Result<(), Error>;
 	/// Checks if password matches given account.
 	fn test_password(&self, account: &StoreAccountRef, password: &Password) -> Result<bool, Error>;
 

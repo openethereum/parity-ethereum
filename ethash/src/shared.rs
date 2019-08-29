@@ -69,34 +69,7 @@ pub type NodeBytes = [u8; NODE_BYTES];
 pub type NodeWords = [u32; NODE_WORDS];
 pub type NodeDwords = [u64; NODE_DWORDS];
 
-macro_rules! static_assert_size_eq {
-	(@inner $a:ty, $b:ty, $($rest:ty),*) => {
-		fn first() {
-			static_assert_size_eq!($a, $b);
-		}
-
-		fn second() {
-			static_assert_size_eq!($b, $($rest),*);
-		}
-	};
-	(@inner $a:ty, $b:ty) => {
-		unsafe {
-			let val: $b = ::std::mem::uninitialized();
-			let _: $a = ::std::mem::transmute(val);
-		}
-	};
-	($($rest:ty),*) => {
-		static_assert_size_eq!(size_eq: $($rest),*);
-	};
-	($name:ident : $($rest:ty),*) => {
-		#[allow(dead_code)]
-		fn $name() {
-			static_assert_size_eq!(@inner $($rest),*);
-		}
-	};
-}
-
-static_assert_size_eq!(Node, NodeBytes, NodeWords, NodeDwords);
+assert_eq_size!(node; Node, NodeBytes, NodeWords, NodeDwords);
 
 #[repr(C)]
 pub union Node {

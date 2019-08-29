@@ -32,7 +32,7 @@ enum ProspectiveSignerState {
 }
 
 pub struct ProspectiveSigner<P: PostSign> {
-	signer: Arc<Accounts>,
+	signer: Arc<dyn Accounts>,
 	filled: FilledTransactionRequest,
 	chain_id: Option<u64>,
 	reserved: nonce::Reserved,
@@ -46,7 +46,7 @@ pub struct ProspectiveSigner<P: PostSign> {
 
 impl<P: PostSign> ProspectiveSigner<P> {
 	pub fn new(
-		signer: Arc<Accounts>,
+		signer: Arc<dyn Accounts>,
 		filled: FilledTransactionRequest,
 		chain_id: Option<u64>,
 		reserved: nonce::Reserved,
@@ -129,7 +129,7 @@ impl<P: PostSign> Future for ProspectiveSigner<P> {
 						.into_future());
 				},
 				WaitForPostSign => {
-					if let Some(mut fut) = self.post_sign_future.as_mut() {
+					if let Some(fut) = self.post_sign_future.as_mut() {
 						match fut.poll()? {
 							Async::Ready(item) => {
 								let nonce = self.ready

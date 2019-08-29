@@ -40,7 +40,7 @@ use futures::sync::mpsc;
 use parity_ethereum::{PubSubSession, RunningClient};
 use tokio_current_thread::CurrentThread;
 
-type Callback = Option<extern "C" fn(*mut c_void, *const c_char, usize)>;
+type CCallback = Option<extern "C" fn(*mut c_void, *const c_char, usize)>;
 type CheckedQuery<'a> = (&'a RunningClient, &'static str);
 
 pub mod error {
@@ -52,9 +52,31 @@ pub mod error {
 #[repr(C)]
 pub struct ParityParams {
 	pub configuration: *mut c_void,
-	pub on_client_restart_cb: Callback,
+	pub on_client_restart_cb: CCallback,
 	pub on_client_restart_cb_custom: *mut c_void,
 	pub logger: *mut c_void
+}
+
+/// Trait representing a callback that passes a string
+pub(crate) trait Callback: Send + Sync {
+	fn call(&self, msg: &str);
+}
+
+// Internal structure for handling callbacks that get passed a string.
+struct CallbackStr {
+	user_data: *mut c_void,
+	function: CCallback,
+}
+
+unsafe impl Send for CallbackStr {}
+unsafe impl Sync for CallbackStr {}
+impl Callback for CallbackStr {
+	fn call(&self, msg: &str) {
+		if let Some(ref cb) = self.function {
+			let cstr = CString::new(msg).expect("valid string with no nul bytes in the middle; qed").into_raw();
+			cb(self.user_data, cstr, msg.len())
+		}
+	}
 }
 
 #[no_mangle]
@@ -112,7 +134,6 @@ pub unsafe extern fn parity_start(cfg: *const ParityParams, output: *mut *mut c_
 	panic::catch_unwind(|| {
 		*output = ptr::null_mut();
 		let cfg: &ParityParams = &*cfg;
-
 		let logger = Arc::from_raw(cfg.logger as *mut parity_ethereum::RotatingLogger);
 		let config = Box::from_raw(cfg.configuration as *mut parity_ethereum::Configuration);
 
@@ -121,7 +142,7 @@ pub unsafe extern fn parity_start(cfg: *const ParityParams, output: *mut *mut c_
 				user_data: cfg.on_client_restart_cb_custom,
 				function: cfg.on_client_restart_cb,
 			};
-			move |new_chain: String| { cb.call(new_chain.as_bytes()); }
+			move |new_chain: String| { cb.call(&new_chain); }
 		};
 
 		let action = match parity_ethereum::start(*config, logger, on_client_restart_cb, || {}) {
@@ -133,7 +154,7 @@ pub unsafe extern fn parity_start(cfg: *const ParityParams, output: *mut *mut c_
 			parity_ethereum::ExecutionAction::Instant(Some(s)) => { println!("{}", s); 0 },
 			parity_ethereum::ExecutionAction::Instant(None) => 0,
 			parity_ethereum::ExecutionAction::Running(client) => {
-				*output = Box::into_raw(Box::<parity_ethereum::RunningClient>::new(client)) as *mut c_void;
+				*output = Box::into_raw(Box::new(client)) as *mut c_void;
 				0
 			}
 		}
@@ -148,47 +169,19 @@ pub unsafe extern fn parity_destroy(client: *mut c_void) {
 	});
 }
 
-unsafe fn parity_rpc_query_checker<'a>(client: *const c_void, query: *const c_char, len: usize)
-	-> Option<CheckedQuery<'a>>
-{
-	let query_str = {
-			let string = slice::from_raw_parts(query as *const u8, len);
-			str::from_utf8(string).ok()?
-	};
-	let client: &RunningClient = &*(client as *const RunningClient);
-	Some((client, query_str))
-}
-
 #[no_mangle]
 pub unsafe extern fn parity_rpc(
 	client: *const c_void,
 	query: *const c_char,
 	len: usize,
 	timeout_ms: usize,
-	callback: Callback,
+	callback: CCallback,
 	user_data: *mut c_void,
 ) -> c_int {
 	panic::catch_unwind(|| {
 		if let Some((client, query)) = parity_rpc_query_checker(client, query, len) {
-			let client = client as &RunningClient;
 			let callback = Arc::new(CallbackStr {user_data, function: callback} );
-			let cb = callback.clone();
-			let query = client.rpc_query(query, None).map(move |response| {
-				let response = response.unwrap_or_else(|| error::EMPTY.to_string());
-				callback.call(response.as_bytes());
-			});
-
-			let _handle = thread::Builder::new()
-			.name("rpc_query".to_string())
-			.spawn(move || {
-				let mut current_thread = CurrentThread::new();
-				current_thread.spawn(query);
-				let _ = current_thread.run_timeout(Duration::from_millis(timeout_ms as u64))
-				.map_err(|_e| {
-					cb.call(error::TIMEOUT.as_bytes());
-				});
-			})
-			.expect("rpc-query thread shouldn't fail; qed");
+			parity_rpc_worker(client, query, callback, timeout_ms as u64);
 			0
 		} else {
 			1
@@ -201,47 +194,13 @@ pub unsafe extern fn parity_subscribe_ws(
 	client: *const c_void,
 	query: *const c_char,
 	len: usize,
-	callback: Callback,
+	callback: CCallback,
 	user_data: *mut c_void,
 ) -> *const c_void {
-
 	panic::catch_unwind(|| {
 		if let Some((client, query)) = parity_rpc_query_checker(client, query, len) {
-			let (tx, mut rx) = mpsc::channel(1);
-			let session = Arc::new(PubSubSession::new(tx));
-			let query_future = client.rpc_query(query, Some(session.clone()));
-			let weak_session = Arc::downgrade(&session);
-			let cb = CallbackStr { user_data, function: callback};
-
-			let _handle = thread::Builder::new()
-				.name("ws-subscriber".into())
-				.spawn(move || {
-					// Wait for subscription ID
-					// Note this may block forever and be can't destroyed using the session object
-					// However, this will likely timeout or be catched the RPC layer
-					if let Ok(Some(response)) = query_future.wait() {
-						cb.call(response.as_bytes());
-					} else {
-						cb.call(error::SUBSCRIBE.as_bytes());
-						return;
-					}
-
-					loop {
-						for response in rx.by_ref().wait() {
-							if let Ok(r) = response {
-								cb.call(r.as_bytes());
-							}
-						}
-
-						let rc = weak_session.upgrade().map_or(0,|session| Arc::strong_count(&session));
-						// No subscription left, then terminate
-						if rc <= 1 {
-							break;
-						}
-					}
-			})
-			.expect("rpc-subscriber thread shouldn't fail; qed");
-			Arc::into_raw(session) as *const c_void
+			let callback = Arc::new(CallbackStr { user_data, function: callback});
+			parity_ws_worker(client, query, callback)
 		} else {
 			ptr::null()
 		}
@@ -257,10 +216,10 @@ pub unsafe extern fn parity_unsubscribe_ws(session: *const c_void) {
 }
 
 #[no_mangle]
-pub unsafe extern fn parity_set_panic_hook(callback: Callback, param: *mut c_void) {
+pub extern fn parity_set_panic_hook(callback: CCallback, param: *mut c_void) {
 	let cb = CallbackStr {user_data: param, function: callback};
 	panic_hook::set_with(move |panic_msg| {
-		cb.call(panic_msg.as_bytes());
+		cb.call(panic_msg);
 	});
 }
 
@@ -283,19 +242,63 @@ pub unsafe extern fn parity_set_logger(
 	*logger = Arc::into_raw(parity_ethereum::setup_log(&logger_cfg).expect("Logger initialized only once; qed")) as *mut _;
 }
 
-// Internal structure for handling callbacks that get passed a string.
-struct CallbackStr {
-	user_data: *mut c_void,
-	function: Callback,
+// WebSocket event loop
+fn parity_ws_worker(client: &RunningClient, query: &str, callback: Arc<Callback>) -> *const c_void {
+	let (tx, mut rx) = mpsc::channel(1);
+	let session = Arc::new(PubSubSession::new(tx));
+	let query_future = client.rpc_query(query, Some(session.clone()));
+	let weak_session = Arc::downgrade(&session);
+	let _handle = thread::Builder::new()
+		.name("ws-subscriber".into())
+		.spawn(move || {
+			// Wait for subscription ID
+			// Note this may block forever and be can't destroyed using the session object
+			// However, this will likely timeout or be catched the RPC layer
+			if let Ok(Some(response)) = query_future.wait() {
+				callback.call(&response);
+			} else {
+				callback.call(error::SUBSCRIBE);
+				return;
+			}
+
+			while weak_session.upgrade().map_or(0, |session| Arc::strong_count(&session)) > 1 {
+				for response in rx.by_ref().wait() {
+					if let Ok(r) = response {
+						callback.call(&r);
+					}
+				}
+			}
+		})
+		.expect("rpc-subscriber thread shouldn't fail; qed");
+	Arc::into_raw(session) as *const c_void
 }
 
-unsafe impl Send for CallbackStr {}
-unsafe impl Sync for CallbackStr {}
-impl CallbackStr {
-	fn call(&self, msg: &[u8]) {
-		if let Some(ref cb) = self.function {
-			let cstr = CString::new(msg).expect("valid string with no null bytes in the middle; qed").into_raw();
-			cb(self.user_data, cstr, msg.len())
-		}
-	}
+// RPC event loop that runs for at most `timeout_ms`
+fn parity_rpc_worker(client: &RunningClient, query: &str, callback: Arc<Callback>, timeout_ms: u64) {
+	let cb = callback.clone();
+	let query = client.rpc_query(query, None).map(move |response| {
+		let response = response.unwrap_or_else(|| error::EMPTY.to_string());
+		callback.call(&response);
+	});
+
+	let _handle = thread::Builder::new()
+		.name("rpc_query".to_string())
+		.spawn(move || {
+			let mut current_thread = CurrentThread::new();
+			current_thread.spawn(query);
+			let _ = current_thread
+				.run_timeout(Duration::from_millis(timeout_ms))
+				.map_err(|_e| {
+					cb.call(error::TIMEOUT);
+				});
+		})
+		.expect("rpc-query thread shouldn't fail; qed");
+}
+
+unsafe fn parity_rpc_query_checker<'a>(client: *const c_void, query: *const c_char, len: usize)
+	-> Option<CheckedQuery<'a>>
+{
+	let query_str = str::from_utf8(slice::from_raw_parts(query as *const u8, len)).ok()?;
+	let client: &RunningClient = &*(client as *const RunningClient);
+	Some((client, query_str))
 }

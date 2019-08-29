@@ -20,22 +20,25 @@ use std::sync::Arc;
 use std::collections::{BTreeMap, BTreeSet, HashMap};
 
 use bytes::Bytes;
-use ethcore::block::{SealedBlock, IsBlock};
-use ethcore::client::{Nonce, PrepareOpenBlock, StateClient, EngineInfo};
-use ethcore::engines::{EthEngine, signer::EngineSigner};
-use ethcore::error::Error;
-use ethcore::miner::{self, MinerService, AuthoringParams};
+use client_traits::{Nonce, StateClient};
+use engine::{Engine, signer::EngineSigner};
+use ethcore::block::SealedBlock;
+use ethcore::client::{PrepareOpenBlock, EngineInfo, TestState};
+use ethcore::miner::{self, MinerService, AuthoringParams, FilterOptions};
 use ethereum_types::{H256, U256, Address};
 use miner::pool::local_transactions::Status as LocalTransactionStatus;
 use miner::pool::{verifier, VerifiedTransaction, QueueStatus};
 use parking_lot::{RwLock, Mutex};
-use types::transaction::{self, UnverifiedTransaction, SignedTransaction, PendingTransaction};
 use txpool;
-use types::BlockNumber;
-use types::block::Block;
-use types::header::Header;
-use types::ids::BlockId;
-use types::receipt::RichReceipt;
+use types::{
+	BlockNumber,
+	block::Block,
+	header::Header,
+	errors::EthcoreError as Error,
+	ids::BlockId,
+	receipt::RichReceipt,
+	transaction::{self, UnverifiedTransaction, SignedTransaction, PendingTransaction},
+};
 
 /// Test miner service.
 pub struct TestMinerService {
@@ -49,8 +52,10 @@ pub struct TestMinerService {
 	pub pending_receipts: Mutex<Vec<RichReceipt>>,
 	/// Next nonces.
 	pub next_nonces: RwLock<HashMap<Address, U256>>,
+	/// Minimum gas price
+	pub min_gas_price: RwLock<Option<U256>>,
 	/// Signer (if any)
-	pub signer: RwLock<Option<Box<EngineSigner>>>,
+	pub signer: RwLock<Option<Box<dyn EngineSigner>>>,
 
 	authoring_params: RwLock<AuthoringParams>,
 }
@@ -63,6 +68,7 @@ impl Default for TestMinerService {
 			local_transactions: Default::default(),
 			pending_receipts: Default::default(),
 			next_nonces: Default::default(),
+			min_gas_price: RwLock::new(Some(0.into())),
 			authoring_params: RwLock::new(AuthoringParams {
 				author: Address::zero(),
 				gas_range_target: (12345.into(), 54321.into()),
@@ -84,25 +90,25 @@ impl TestMinerService {
 
 impl StateClient for TestMinerService {
 	// State will not be used by test client anyway, since all methods that accept state are mocked
-	type State = ();
+	type State = TestState;
 
 	fn latest_state(&self) -> Self::State {
-		()
+		TestState
 	}
 
 	fn state_at(&self, _id: BlockId) -> Option<Self::State> {
-		Some(())
+		Some(TestState)
 	}
 }
 
 impl EngineInfo for TestMinerService {
-	fn engine(&self) -> &EthEngine {
+	fn engine(&self) -> &dyn Engine {
 		unimplemented!()
 	}
 }
 
 impl MinerService for TestMinerService {
-	type State = ();
+	type State = TestState;
 
 	fn pending_state(&self, _latest_block_number: BlockNumber) -> Option<Self::State> {
 		None
@@ -190,7 +196,7 @@ impl MinerService for TestMinerService {
 		let params = self.authoring_params();
 		let open_block = chain.prepare_open_block(params.author, params.gas_range_target, params.extra_data).unwrap();
 		let closed = open_block.close().unwrap();
-		let header = closed.header();
+		let header = &closed.header;
 
 		Some((header.hash(), header.number(), header.timestamp(), *header.difficulty()))
 	}
@@ -216,6 +222,10 @@ impl MinerService for TestMinerService {
 	}
 
 	fn ready_transactions<C>(&self, _chain: &C, _max_len: usize, _ordering: miner::PendingOrdering) -> Vec<Arc<VerifiedTransaction>> {
+		self.queued_transactions()
+	}
+
+	fn ready_transactions_filtered<C>(&self, _chain: &C, _max_len: usize, _filter: Option<FilterOptions>, _ordering: miner::PendingOrdering) -> Vec<Arc<VerifiedTransaction>> {
 		self.queued_transactions()
 	}
 
@@ -278,5 +288,19 @@ impl MinerService for TestMinerService {
 
 	fn sensible_gas_limit(&self) -> U256 {
 		0x5208.into()
+	}
+
+	fn set_minimal_gas_price(&self, gas_price: U256) -> Result<bool, &str> {
+		let mut new_price = self.min_gas_price.write();
+		match *new_price {
+			Some(ref mut v) => {
+				*v = gas_price;
+				Ok(true)
+			},
+			None => {
+				let error_msg = "Can't update fixed gas price while automatic gas calibration is enabled.";
+				Err(error_msg)
+			},
+		}
 	}
 }

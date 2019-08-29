@@ -20,7 +20,7 @@ use v1::{Web3, Web3Client};
 
 #[test]
 fn rpc_web3_version() {
-	let web3 = Web3Client::new().to_delegate();
+	let web3 = Web3Client::default().to_delegate();
 	let mut io = IoHandler::new();
 	io.extend_with(web3);
 
@@ -34,7 +34,7 @@ fn rpc_web3_version() {
 
 #[test]
 fn rpc_web3_sha3() {
-	let web3 = Web3Client::new().to_delegate();
+	let web3 = Web3Client::default().to_delegate();
 	let mut io = IoHandler::new();
 	io.extend_with(web3);
 
@@ -46,7 +46,7 @@ fn rpc_web3_sha3() {
 
 #[test]
 fn rpc_web3_sha3_wiki() {
-	let web3 = Web3Client::new().to_delegate();
+	let web3 = Web3Client::default().to_delegate();
 	let mut io = IoHandler::new();
 	io.extend_with(web3);
 

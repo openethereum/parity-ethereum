@@ -23,12 +23,18 @@ use std::sync::atomic::{AtomicUsize, AtomicBool, Ordering as AtomicOrdering};
 use std::time::{Instant, Duration};
 
 use atty;
-use ethcore::client::{
-	BlockId, BlockChainClient, ChainInfo, BlockInfo, BlockChainInfo,
-	BlockQueueInfo, ChainNotify, NewBlocks, ClientReport, Client, ClientIoMessage
+use ethcore::client::{ChainNotify, NewBlocks, Client};
+use client_traits::{BlockInfo, ChainInfo, BlockChainClient};
+use types::{
+	BlockNumber,
+	client_types::ClientReport,
+	ids::BlockId,
+	io_message::ClientIoMessage,
+	blockchain_info::BlockChainInfo,
+	verification::VerificationQueueInfo as BlockQueueInfo,
+	snapshot::RestorationStatus,
 };
-use types::BlockNumber;
-use ethcore::snapshot::{RestorationStatus, SnapshotService as SS};
+use ethcore::snapshot::SnapshotService as SS;
 use ethcore::snapshot::service::Service as SnapshotService;
 use sync::{LightSyncProvider, LightSync, SyncProvider, ManageNetwork};
 use io::{TimerToken, IoContext, IoHandler};
@@ -118,8 +124,8 @@ pub trait InformantData: Send + Sync {
 /// Informant data for a full node.
 pub struct FullNodeInformantData {
 	pub client: Arc<Client>,
-	pub sync: Option<Arc<SyncProvider>>,
-	pub net: Option<Arc<ManageNetwork>>,
+	pub sync: Option<Arc<dyn SyncProvider>>,
+	pub net: Option<Arc<dyn ManageNetwork>>,
 }
 
 impl InformantData for FullNodeInformantData {
@@ -174,7 +180,7 @@ impl InformantData for FullNodeInformantData {
 
 /// Informant data for a light node -- note that the network is required.
 pub struct LightNodeInformantData {
-	pub client: Arc<LightChainClient>,
+	pub client: Arc<dyn LightChainClient>,
 	pub sync: Arc<LightSync>,
 	pub cache: Arc<Mutex<LightDataCache>>,
 }
@@ -259,7 +265,7 @@ impl<T: InformantData> Informant<T> {
 		let elapsed = now.duration_since(*self.last_tick.read());
 
 		let (client_report, full_report) = {
-			let mut last_report = self.last_report.lock();
+			let last_report = self.last_report.lock();
 			let full_report = self.target.report();
 			let diffed = full_report.client_report.clone() - &*last_report;
 			(diffed, full_report)
@@ -319,9 +325,16 @@ impl<T: InformantData> Informant<T> {
 								RestorationStatus::Ongoing { state_chunks, block_chunks, state_chunks_done, block_chunks_done } => {
 									format!("Syncing snapshot {}/{}", state_chunks_done + block_chunks_done, state_chunks + block_chunks)
 								},
-								RestorationStatus::Initializing { chunks_done } => {
-									format!("Snapshot initializing ({} chunks restored)", chunks_done)
+								RestorationStatus::Initializing { chunks_done, state_chunks, block_chunks } => {
+									let total_chunks = state_chunks + block_chunks;
+									// Note that the percentage here can be slightly misleading when
+									// they have chunks already on disk: we'll import the local
+									// chunks first and then download the rest.
+									format!("Snapshot initializing ({}/{} chunks restored, {:.0}%)", chunks_done, total_chunks, (chunks_done as f32 / total_chunks as f32) * 100.0)
 								},
+								RestorationStatus::Finalizing => {
+									format!("Snapshot finalization under way")
+								}
 								_ => String::new(),
 							}
 						)
@@ -438,12 +451,16 @@ impl LightChainNotify for Informant<LightNodeInformantData> {
 
 const INFO_TIMER: TimerToken = 0;
 
-impl<T: InformantData> IoHandler<ClientIoMessage> for Informant<T> {
-	fn initialize(&self, io: &IoContext<ClientIoMessage>) {
+impl<T, C> IoHandler<ClientIoMessage<C>> for Informant<T>
+where
+	T: InformantData,
+	C: client_traits::Tick + 'static,
+{
+	fn initialize(&self, io: &IoContext<ClientIoMessage<C>>) {
 		io.register_timer(INFO_TIMER, Duration::from_secs(5)).expect("Error registering timer");
 	}
 
-	fn timeout(&self, _io: &IoContext<ClientIoMessage>, timer: TimerToken) {
+	fn timeout(&self, _io: &IoContext<ClientIoMessage<C>>, timer: TimerToken) {
 		if timer == INFO_TIMER && !self.in_shutdown.load(AtomicOrdering::SeqCst) {
 			self.tick();
 		}

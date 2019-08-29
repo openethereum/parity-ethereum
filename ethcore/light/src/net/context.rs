@@ -116,13 +116,13 @@ pub trait EventContext: BasicContext {
 	fn peer(&self) -> PeerId;
 
 	/// Treat the event context as a basic context.
-	fn as_basic(&self) -> &BasicContext;
+	fn as_basic(&self) -> &dyn BasicContext;
 }
 
 /// Basic context.
 pub struct TickCtx<'a> {
 	/// Io context to enable dispatch.
-	pub io: &'a IoContext,
+	pub io: &'a dyn IoContext,
 	/// Protocol implementation.
 	pub proto: &'a LightProtocol,
 }
@@ -153,7 +153,7 @@ impl<'a> BasicContext for TickCtx<'a> {
 /// an io context.
 pub struct Ctx<'a> {
 	/// Io context to enable immediate response to events.
-	pub io: &'a IoContext,
+	pub io: &'a dyn IoContext,
 	/// Protocol implementation.
 	pub proto: &'a LightProtocol,
 	/// Relevant peer for event.
@@ -187,7 +187,7 @@ impl<'a> EventContext for Ctx<'a> {
 		self.peer
 	}
 
-	fn as_basic(&self) -> &BasicContext {
+	fn as_basic(&self) -> &dyn BasicContext {
 		&*self
 	}
 }

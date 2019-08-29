@@ -14,9 +14,28 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
-//! Parity RPC.
+//! Parity Ethereum JSON-RPC Servers (WS, HTTP, IPC).
 
-#![warn(missing_docs)]
+#![warn(missing_docs, unused_extern_crates)]
+#![cfg_attr(feature = "cargo-clippy", warn(clippy::all, clippy::pedantic))]
+#![cfg_attr(
+	feature = "cargo-clippy",
+	allow(
+		// things are often more readable this way
+		clippy::cast_lossless,
+		clippy::module_name_repetitions,
+		clippy::single_match_else,
+		clippy::type_complexity,
+		clippy::use_self,
+		// not practical
+		clippy::match_bool,
+		clippy::needless_pass_by_value,
+		clippy::similar_names,
+		// don't require markdown syntax for docs
+		clippy::doc_markdown,
+	),
+	warn(clippy::indexing_slicing)
+)]
 
 #[macro_use]
 extern crate futures;
@@ -24,6 +43,7 @@ extern crate futures;
 extern crate ansi_term;
 extern crate cid;
 extern crate itertools;
+extern crate machine;
 extern crate multihash;
 extern crate order_stat;
 extern crate parking_lot;
@@ -32,7 +52,6 @@ extern crate rustc_hex;
 extern crate semver;
 extern crate serde;
 extern crate serde_json;
-extern crate tiny_keccak;
 extern crate tokio_timer;
 extern crate transient_hashmap;
 
@@ -42,13 +61,13 @@ extern crate jsonrpc_http_server as http;
 extern crate jsonrpc_ipc_server as ipc;
 extern crate jsonrpc_pubsub;
 
+extern crate client_traits;
 extern crate common_types as types;
 extern crate ethash;
 extern crate ethcore;
 extern crate fastmap;
 extern crate parity_bytes as bytes;
 extern crate parity_crypto as crypto;
-extern crate ethcore_io as io;
 extern crate ethcore_light as light;
 extern crate ethcore_logger;
 extern crate ethcore_miner as miner;
@@ -63,19 +82,31 @@ extern crate keccak_hash as hash;
 extern crate parity_runtime;
 extern crate parity_updater as updater;
 extern crate parity_version as version;
-extern crate patricia_trie as trie;
 extern crate eip_712;
 extern crate rlp;
+extern crate account_state;
+
 extern crate stats;
+extern crate tempdir;
+extern crate trace;
 extern crate vm;
 
 #[cfg(any(test, feature = "ethcore-accounts"))]
 extern crate ethcore_accounts as accounts;
 
+#[cfg(any(test, feature = "ethcore-accounts"))]
+extern crate tiny_keccak;
+
 #[macro_use]
 extern crate log;
 #[macro_use]
 extern crate serde_derive;
+
+#[cfg(test)]
+extern crate rand_xorshift;
+
+#[cfg(test)]
+extern crate engine;
 
 #[cfg(test)]
 extern crate ethjson;
@@ -91,12 +122,15 @@ extern crate pretty_assertions;
 extern crate macros;
 
 #[cfg(test)]
-extern crate kvdb_memorydb;
-
-#[cfg(test)]
 extern crate fake_fetch;
 
-extern crate tempdir;
+#[cfg(test)]
+extern crate ethcore_io as io;
+
+#[cfg(test)]
+extern crate spec;
+#[cfg(test)]
+extern crate verification;
 
 pub extern crate jsonrpc_ws_server as ws;
 
@@ -116,7 +150,8 @@ pub use http::{
 };
 
 pub use v1::{NetworkSettings, Metadata, Origin, informant, dispatch, signer};
-pub use v1::block_import::{is_major_importing, is_major_importing_or_waiting};
+pub use v1::block_import::{is_major_importing_or_waiting};
+pub use v1::PubSubSyncStatus;
 pub use v1::extractors::{RpcExtractor, WsExtractor, WsStats, WsDispatcher};
 pub use authcodes::{AuthCodes, TimeProvider};
 pub use http_common::HttpMetaExtractor;
@@ -146,8 +181,8 @@ pub fn start_http<M, S, H, T>(
 	Ok(http::ServerBuilder::with_meta_extractor(handler, extractor)
 		.keep_alive(keep_alive)
 		.threads(threads)
-		.cors(cors_domains.into())
-		.allowed_hosts(allowed_hosts.into())
+		.cors(cors_domains)
+		.allowed_hosts(allowed_hosts)
 		.health_api(("/api/health", "parity_nodeStatus"))
 		.cors_allow_headers(AccessControlAllowHeaders::Any)
 		.max_request_body_size(max_payload * 1024 * 1024)
@@ -177,8 +212,8 @@ pub fn start_http_with_middleware<M, S, H, T, R>(
 	Ok(http::ServerBuilder::with_meta_extractor(handler, extractor)
 		.keep_alive(keep_alive)
 		.threads(threads)
-		.cors(cors_domains.into())
-		.allowed_hosts(allowed_hosts.into())
+		.cors(cors_domains)
+		.allowed_hosts(allowed_hosts)
 		.cors_allow_headers(AccessControlAllowHeaders::Any)
 		.max_request_body_size(max_payload * 1024 * 1024)
 		.request_middleware(middleware)

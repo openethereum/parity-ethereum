@@ -25,8 +25,9 @@ use hash::{KECCAK_NULL_RLP};
 use account_db::AccountDBMut;
 use types::basic_account::BasicAccount;
 use blockchain::{BlockChain, BlockChainDB};
-use client::{Client, ChainInfo};
-use engines::EthEngine;
+use client::Client;
+use client_traits::{ChainInfo, SnapshotClient};
+use engine::Engine;
 use snapshot::{StateRebuilder};
 use snapshot::io::{SnapshotReader, PackedWriter, PackedReader};
 
@@ -35,12 +36,13 @@ use rand::Rng;
 
 use kvdb::DBValue;
 use ethereum_types::H256;
-use hashdb::HashDB;
+use hash_db::HashDB;
 use keccak_hasher::KeccakHasher;
 use journaldb;
 use trie::{TrieMut, Trie};
 use ethtrie::{SecTrieDBMut, TrieDB, TrieDBMut};
 use self::trie_standardmap::{Alphabet, StandardMap, ValueMode};
+use types::errors::EthcoreError;
 
 // the proportion of accounts we will alter each tick.
 const ACCOUNT_CHURN: f32 = 0.01;
@@ -62,10 +64,10 @@ impl StateProducer {
 
 	/// Tick the state producer. This alters the state, writing new data into
 	/// the database.
-	pub fn tick<R: Rng>(&mut self, rng: &mut R, db: &mut HashDB<KeccakHasher, DBValue>) {
+	pub fn tick<R: Rng>(&mut self, rng: &mut R, db: &mut dyn HashDB<KeccakHasher, DBValue>) {
 		// modify existing accounts.
 		let mut accounts_to_modify: Vec<_> = {
-			let trie = TrieDB::new(&*db, &self.state_root).unwrap();
+			let trie = TrieDB::new(&db, &self.state_root).unwrap();
 			let temp = trie.iter().unwrap() // binding required due to complicated lifetime stuff
 				.filter(|_| rng.gen::<f32>() < ACCOUNT_CHURN)
 				.map(Result::unwrap)
@@ -97,7 +99,7 @@ impl StateProducer {
 			let address_hash = H256(rng.gen());
 			let balance: usize = rng.gen();
 			let nonce: usize = rng.gen();
-			let acc = ::state::Account::new_basic(balance.into(), nonce.into()).rlp();
+			let acc = account_state::Account::new_basic(balance.into(), nonce.into()).rlp();
 			trie.insert(&address_hash[..], &acc).unwrap();
 		}
 	}
@@ -124,24 +126,15 @@ pub fn fill_storage(mut db: AccountDBMut, root: &mut H256, seed: &mut H256) {
 			SecTrieDBMut::from_existing(&mut db, root).unwrap()
 		};
 
-		for (k, v) in map.make_with(seed) {
+		for (k, v) in map.make_with(&mut seed.to_fixed_bytes()) {
 			trie.insert(&k, &v).unwrap();
 		}
 	}
 }
 
-/// Compare two state dbs.
-pub fn compare_dbs(one: &HashDB<KeccakHasher, DBValue>, two: &HashDB<KeccakHasher, DBValue>) {
-	let keys = one.keys();
-
-	for key in keys.keys() {
-		assert_eq!(one.get(&key).unwrap(), two.get(&key).unwrap());
-	}
-}
-
 /// Take a snapshot from the given client into a temporary file.
 /// Return a snapshot reader for it.
-pub fn snap(client: &Client) -> (Box<SnapshotReader>, TempDir) {
+pub fn snap(client: &Client) -> (Box<dyn SnapshotReader>, TempDir) {
 	use types::ids::BlockId;
 
 	let tempdir = TempDir::new("").unwrap();
@@ -160,22 +153,21 @@ pub fn snap(client: &Client) -> (Box<SnapshotReader>, TempDir) {
 /// Restore a snapshot into a given database. This will read chunks from the given reader
 /// write into the given database.
 pub fn restore(
-	db: Arc<BlockChainDB>,
-	engine: &EthEngine,
-	reader: &SnapshotReader,
+	db: Arc<dyn BlockChainDB>,
+	engine: &dyn Engine,
+	reader: &dyn SnapshotReader,
 	genesis: &[u8],
-) -> Result<(), ::error::Error> {
+) -> Result<(), EthcoreError> {
 	use std::sync::atomic::AtomicBool;
-	use snappy;
 
 	let flag = AtomicBool::new(true);
-	let components = engine.snapshot_components().unwrap();
+	let chunker = crate::snapshot::chunker(engine.snapshot_mode()).expect("the engine used here supports snapshots");
 	let manifest = reader.manifest();
 
 	let mut state = StateRebuilder::new(db.key_value().clone(), journaldb::Algorithm::Archive);
 	let mut secondary = {
 		let chain = BlockChain::new(Default::default(), genesis, db.clone());
-		components.rebuilder(chain, db, manifest).unwrap()
+		chunker.rebuilder(chain, db, manifest).unwrap()
 	};
 
 	let mut snappy_buffer = Vec::new();
@@ -197,5 +189,5 @@ pub fn restore(
 
 	trace!(target: "snapshot", "finalizing");
 	state.finalize(manifest.block_number, manifest.block_hash)?;
-	secondary.finalize(engine)
+	secondary.finalize()
 }

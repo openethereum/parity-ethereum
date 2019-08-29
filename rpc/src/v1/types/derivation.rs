@@ -18,9 +18,8 @@ use std::fmt;
 use serde::{Deserialize, Deserializer};
 use serde::de::{Error, Visitor};
 
-use ethstore;
+use ethereum_types::H256;
 
-use super::hash::H256;
 
 /// Type of derivation
 pub enum DerivationType {
@@ -70,6 +69,7 @@ impl From<DeriveHash> for Derive {
 }
 
 /// Error converting request data
+#[cfg(any(test, feature = "accounts"))]
 #[derive(Debug)]
 pub enum ConvertError {
 	IndexOverlfow(u64),
@@ -77,6 +77,7 @@ pub enum ConvertError {
 
 impl Derive {
 	/// Convert to account provider struct dealing with possible overflows
+	#[cfg(any(test, feature = "accounts"))]
 	pub fn to_derivation(self) -> Result<ethstore::Derivation, ConvertError> {
 		Ok(match self {
 			Derive::Hierarchical(drv) => {

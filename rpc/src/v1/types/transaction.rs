@@ -18,10 +18,12 @@ use std::sync::Arc;
 
 use serde::{Serialize, Serializer};
 use serde::ser::SerializeStruct;
-use ethcore::{contract_address, CreateContractAddress};
+use machine::executive::{contract_address};
+use vm::CreateContractAddress;
+use ethereum_types::{H160, H256, H512, U64, U256};
 use miner;
 use types::transaction::{LocalizedTransaction, Action, PendingTransaction, SignedTransaction};
-use v1::types::{Bytes, H160, H256, U256, H512, U64, TransactionCondition};
+use v1::types::{Bytes, TransactionCondition};
 
 /// Transaction
 #[derive(Debug, Default, Clone, PartialEq, Serialize)]
@@ -176,22 +178,22 @@ impl Transaction {
 		let signature = t.signature();
 		let scheme = CreateContractAddress::FromSenderAndNonce;
 		Transaction {
-			hash: t.hash().into(),
-			nonce: t.nonce.into(),
-			block_hash: Some(t.block_hash.clone().into()),
+			hash: t.hash(),
+			nonce: t.nonce,
+			block_hash: Some(t.block_hash),
 			block_number: Some(t.block_number.into()),
 			transaction_index: Some(t.transaction_index.into()),
-			from: t.sender().into(),
+			from: t.sender(),
 			to: match t.action {
 				Action::Create => None,
-				Action::Call(ref address) => Some(address.clone().into())
+				Action::Call(ref address) => Some(*address)
 			},
-			value: t.value.into(),
-			gas_price: t.gas_price.into(),
-			gas: t.gas.into(),
+			value: t.value,
+			gas_price: t.gas_price,
+			gas: t.gas,
 			input: Bytes::new(t.data.clone()),
 			creates: match t.action {
-				Action::Create => Some(contract_address(scheme, &t.sender(), &t.nonce, &t.data).0.into()),
+				Action::Create => Some(contract_address(scheme, &t.sender(), &t.nonce, &t.data).0),
 				Action::Call(_) => None,
 			},
 			raw: ::rlp::encode(&t.signed).into(),
@@ -210,22 +212,22 @@ impl Transaction {
 		let signature = t.signature();
 		let scheme = CreateContractAddress::FromSenderAndNonce;
 		Transaction {
-			hash: t.hash().into(),
-			nonce: t.nonce.into(),
+			hash: t.hash(),
+			nonce: t.nonce,
 			block_hash: None,
 			block_number: None,
 			transaction_index: None,
-			from: t.sender().into(),
+			from: t.sender(),
 			to: match t.action {
 				Action::Create => None,
-				Action::Call(ref address) => Some(address.clone().into())
+				Action::Call(ref address) => Some(*address)
 			},
-			value: t.value.into(),
-			gas_price: t.gas_price.into(),
-			gas: t.gas.into(),
+			value: t.value,
+			gas_price: t.gas_price,
+			gas: t.gas,
 			input: Bytes::new(t.data.clone()),
 			creates: match t.action {
-				Action::Create => Some(contract_address(scheme, &t.sender(), &t.nonce, &t.data).0.into()),
+				Action::Create => Some(contract_address(scheme, &t.sender(), &t.nonce, &t.data).0),
 				Action::Call(_) => None,
 			},
 			raw: ::rlp::encode(&t).into(),
@@ -242,7 +244,7 @@ impl Transaction {
 	/// Convert `PendingTransaction` into RPC Transaction.
 	pub fn from_pending(t: PendingTransaction) -> Transaction {
 		let mut r = Transaction::from_signed(t.transaction);
-		r.condition = t.condition.map(|b| b.into());
+		r.condition = r.condition.map(Into::into);
 		r
 	}
 }
@@ -264,8 +266,8 @@ impl LocalTransactionStatus {
 			Canceled(tx) => LocalTransactionStatus::Canceled(convert(tx)),
 			Replaced { old, new } => LocalTransactionStatus::Replaced(
 				convert(old),
-				new.signed().gas_price.into(),
-				new.signed().hash().into(),
+				new.signed().gas_price,
+				new.signed().hash(),
 			),
 		}
 	}
@@ -285,6 +287,8 @@ mod tests {
 
 	#[test]
 	fn test_local_transaction_status_serialize() {
+		use ethereum_types::H256;
+
 		let tx_ser = serde_json::to_string(&Transaction::default()).unwrap();
 		let status1 = LocalTransactionStatus::Pending;
 		let status2 = LocalTransactionStatus::Future;
@@ -292,7 +296,7 @@ mod tests {
 		let status4 = LocalTransactionStatus::Dropped(Transaction::default());
 		let status5 = LocalTransactionStatus::Invalid(Transaction::default());
 		let status6 = LocalTransactionStatus::Rejected(Transaction::default(), "Just because".into());
-		let status7 = LocalTransactionStatus::Replaced(Transaction::default(), 5.into(), 10.into());
+		let status7 = LocalTransactionStatus::Replaced(Transaction::default(), 5.into(), H256::from_low_u64_be(10));
 
 		assert_eq!(
 			serde_json::to_string(&status1).unwrap(),

@@ -2,17 +2,17 @@ stages:
   - test
   - build
   - publish
-  - publish-onchain
   - optional
 
-image:                             parity/rust-parity-ethereum-build:stretch
-
+image:                             parity/parity-ci-linux:latest
 variables:
   GIT_STRATEGY:                    fetch
   GIT_SUBMODULE_STRATEGY:          recursive
   CI_SERVER_NAME:                  "GitLab CI"
-  CARGO_HOME:                      "${CI_PROJECT_DIR}/.cargo"
+  CARGO_HOME:                      "/ci-cache/${CI_PROJECT_NAME}/cargo/${CI_JOB_NAME}"
+  SCCACHE_DIR:                     "/ci-cache/${CI_PROJECT_NAME}/sccache"
   CARGO_TARGET:                    x86_64-unknown-linux-gnu
+
 
 .releaseable_branches:             # list of git refs for building GitLab artifacts (think "pre-release binaries")
   only:                            &releaseable_branches
@@ -21,185 +21,359 @@ variables:
     - tags
     - schedules
 
-
 .collect_artifacts:                &collect_artifacts
   artifacts:
     name:                          "${CI_JOB_NAME}_${SCHEDULE_TAG:-${CI_COMMIT_REF_NAME}}"
     when:                          on_success
     expire_in:                     1 mos
     paths:
-    - artifacts/
+      - artifacts/
+      - tools/
 
-.determine_version:                &determine_version
-  - VERSION="$(sed -r -n '1,/^version/s/^version = "([^"]+)".*$/\1/p' Cargo.toml)"
-  - DATE_STR="$(date +%Y%m%d)"
-  - ID_SHORT="$(echo ${CI_COMMIT_SHA} | cut -c 1-7)"
-  - test "${SCHEDULE_TAG:-${CI_COMMIT_REF_NAME}}" = "nightly" && VERSION="${VERSION}-${ID_SHORT}-${DATE_STR}"
-  - export VERSION
-  - echo "Version = ${VERSION}"
+.docker-cache-status:              &docker-cache-status
+  variables:
+    CARGO_HOME:                    "/ci-cache/parity-ethereum/cargo/${CI_JOB_NAME}"
+  dependencies:                    []
+  before_script:
+    - rustup show
+    - cargo --version
+    - SCCACHE_ERROR_LOG=/builds/parity/parity-ethereum/sccache_debug.log
+        RUST_LOG=sccache=debug
+        sccache --start-server
+    - sccache -s
+  after_script:
+    # sccache debug info
+    - if test -e sccache_debug.log;
+      then
+        echo "_____All crate-types:_____";
+        grep 'parse_arguments.*--crate-type' sccache_debug.log | sed -re 's/.*"--crate-type", "([^"]+)".*/\1/' | sort | uniq -c;
+        echo "_____Non-cacheable reasons:_____";
+        grep CannotCache sccache_debug.log | sed -re 's/.*CannotCache\((.+)\).*/\1/' | sort | uniq -c;
+      else
+        echo "_____No logs from sccache_____";
+        exit 0;
+      fi
+  tags:
+    - linux-docker
+
+.build-on-linux:                   &build-on-linux
+  stage:                           build
+  <<:                              *docker-cache-status
+  <<:                              *collect_artifacts
+  script:
+    - scripts/gitlab/build-linux.sh
+    - sccache -s
+  after_script:
+    - mkdir -p tools
+    - cp -r scripts/docker/hub/* ./tools
+    - cp scripts/gitlab/publish-snap.sh ./tools
+    - cp scripts/gitlab/publish-onchain.sh ./tools
+    - cp scripts/gitlab/safe-curl.sh ./tools
+    - echo v"$(sed -r -n '1,/^version/s/^version\s*=\s*"([^"]+)".*$/\1/p' Cargo.toml)" |
+      tee ./tools/VERSION
+    - echo "$(sed -r -n '1,/^track/s/^track\s*=\s*"([^"]+)".*$/\1/p' ./util/version/Cargo.toml)" |
+      tee ./tools/TRACK
+
+
+cargo-check 0 3:
+  stage:                           test
+  <<:                              *docker-cache-status
+  script:
+    - time cargo check --target $CARGO_TARGET --locked --no-default-features --verbose --color=always
+    - sccache -s
+
+cargo-check 1 3:
+  stage:                           test
+  <<:                              *docker-cache-status
+  script:
+    - time cargo check --target $CARGO_TARGET --locked --manifest-path util/io/Cargo.toml --no-default-features --verbose --color=always
+    - sccache -s
+
+cargo-check 2 3:
+  stage:                           test
+  <<:                              *docker-cache-status
+  script:
+    - time cargo check --target $CARGO_TARGET --locked --manifest-path util/io/Cargo.toml --features "mio" --verbose --color=always
+    - sccache -s
+
+cargo-check-ethcore-benches:
+  stage:                           test
+  <<:                              *docker-cache-status
+  script:
+    - time cargo check -p ethcore --benches --target $CARGO_TARGET --locked --verbose --color=always
+    - sccache -s
+
+cargo-audit:
+  stage:                           test
+  <<:                              *docker-cache-status
+  script:
+    - cargo audit
+  allow_failure:                   true # failed cargo audit shouldn't prevent a PR from being merged
+
+validate-chainspecs:
+  stage:                           test
+  <<:                              *docker-cache-status
+  script:
+    - ./scripts/gitlab/validate-chainspecs.sh
+    - sccache -s
+
+test-cpp:
+  stage:                           build
+  <<:                              *docker-cache-status
+  script:
+    - ./scripts/gitlab/test-cpp.sh
+    - sccache -s
 
 test-linux:
-  stage:                           test
-  variables:
-    RUN_TESTS:                     all
+  stage:                           build
+  <<:                              *docker-cache-status
   script:
-    - scripts/gitlab/test-all.sh
-  tags:
-    - linux-docker
+    - ./scripts/gitlab/test-linux.sh stable
+    - sccache -s
 
-test-audit:
-  stage:                           test
-  script:
-    - set -e
-    - set -u
-    - cargo audit
-  tags:
-    - linux-docker
-
-build-linux:
+test-linux-beta:
   stage:                           build
   only:                            *releaseable_branches
+  <<:                              *docker-cache-status
   script:
-    - scripts/gitlab/build-unix.sh
+    - ./scripts/gitlab/test-linux.sh beta
     - sccache -s
-  <<:                              *collect_artifacts
-  tags:
-    - linux-docker
+
+test-linux-nightly:
+  stage:                           build
+  only:                            *releaseable_branches
+  <<:                              *docker-cache-status
+  script:
+    - ./scripts/gitlab/test-linux.sh nightly
+    - sccache -s
+  allow_failure:                   true
+
+build-android:
+  <<:                              *build-on-linux
+  image:                           parity/parity-ci-android:stretch
+  variables:
+    CARGO_TARGET:                  armv7-linux-androideabi
+
+build-linux:
+  <<:                              *build-on-linux
+  only:                            *releaseable_branches
+
+build-linux-i386:
+  <<:                              *build-on-linux
+  only:                            *releaseable_branches
+  image:                           parity/parity-ci-i386:latest
+  variables:
+    CARGO_TARGET:                  i686-unknown-linux-gnu
+
+build-linux-arm64:
+  <<:                              *build-on-linux
+  only:                            *releaseable_branches
+  image:                           parity/parity-ci-arm64:latest
+  variables:
+    CARGO_TARGET:                  aarch64-unknown-linux-gnu
+
+build-linux-armhf:
+  <<:                              *build-on-linux
+  only:                            *releaseable_branches
+  image:                           parity/parity-ci-armhf:latest
+  variables:
+    CARGO_TARGET:                  armv7-unknown-linux-gnueabihf
 
 build-darwin:
   stage:                           build
+  <<:                              *collect_artifacts
   only:                            *releaseable_branches
   variables:
     CARGO_TARGET:                  x86_64-apple-darwin
+    CARGO_HOME:                    "${CI_PROJECT_DIR}/.cargo"
     CC:                            gcc
     CXX:                           g++
   script:
-    - scripts/gitlab/build-unix.sh
+    - scripts/gitlab/build-linux.sh
   tags:
     - rust-osx
-  <<:                              *collect_artifacts
 
 build-windows:
   stage:                           build
+  <<:                              *collect_artifacts
   only:                            *releaseable_branches
   variables:
     CARGO_TARGET:                  x86_64-pc-windows-msvc
+    CARGO_HOME:                    "C:/ci-cache/parity-ethereum/cargo/$CI_JOB_NAME"
+    GIT_SUBMODULE_STRATEGY:        none
   script:
     - sh scripts/gitlab/build-windows.sh
   tags:
-   - rust-windows
-  <<:                              *collect_artifacts
+    - rust-windows
 
 publish-docker:
   stage:                           publish
   only:                            *releaseable_branches
-  cache: {}
+  except:
+    - nightly
+  when:                            manual
   dependencies:
     - build-linux
-  tags:
-    - shell
-  script:
-    - scripts/gitlab/publish-docker.sh parity
-
-publish-snap:
-  stage:                           publish
-  only:                            *releaseable_branches
-  image:                           parity/snapcraft:gitlab-ci
-  variables:
-    BUILD_ARCH:                  amd64
-  cache: {}
-  before_script:                   *determine_version
-  dependencies:
-    - build-linux
-  tags:
-    - rust-stable
-  script:
-    - scripts/gitlab/publish-snap.sh
-  allow_failure:                   true
-  <<:                              *collect_artifacts
-
-publish:onnet:update:
-  stage:                           publish-onchain
-  only:                            *releaseable_branches
+  environment:
+    name: parity-build
   cache:                           {}
+  image:                           docker:stable
+  services:
+    - docker:dind
+  variables:
+    GIT_STRATEGY:                  none
+    DOCKER_HOST:                   tcp://localhost:2375
+    DOCKER_DRIVER:                 overlay2
+    GIT_STRATEGY:                  none
+    # DOCKERFILE:                  tools/Dockerfile
+    # CONTAINER_IMAGE:             parity/parity
+  script:
+    - ./tools/publish-docker.sh
+  tags:
+    - kubernetes-parity-build
+
+publish-snap-nightly:              &publish-snap
+  stage:                           publish
+  only:
+    - nightly
+  image:                           snapcore/snapcraft
+  variables:
+    GIT_STRATEGY:                  none
+    BUILD_ARCH:                    amd64
+  cache:                           {}
+  dependencies:
+    - build-linux
+  tags:
+    - linux-docker
+  script:
+    - ./tools/publish-snap.sh
+
+publish-snap-manually:
+  <<:                              *publish-snap
+  only:                            *releaseable_branches
+  when:                            manual
+
+publish-snap-i386-nightly:         &publish-snap-i386
+  <<:                              *publish-snap
+  variables:
+    BUILD_ARCH:                    i386
+    CARGO_TARGET:                  i686-unknown-linux-gnu
+  dependencies:
+    - build-linux-i386
+
+publish-snap-i386-manually:
+  <<:                              *publish-snap-i386
+  only:                            *releaseable_branches
+  when:                            manual
+
+publish-snap-arm64-nightly:        &publish-snap-arm64
+  <<:                              *publish-snap
+  variables:
+    BUILD_ARCH:                    arm64
+    CARGO_TARGET:                  aarch64-unknown-linux-gnu
+  dependencies:
+    - build-linux-arm64
+
+publish-snap-arm64-manually:
+  <<:                              *publish-snap-arm64
+  only:                            *releaseable_branches
+  when:                            manual
+
+publish-snap-armhf-nightly:        &publish-snap-armhf
+  <<:                              *publish-snap
+  variables:
+    BUILD_ARCH:                    armhf
+    CARGO_TARGET:                  armv7-unknown-linux-gnueabihf
+  dependencies:
+    - build-linux-armhf
+
+publish-snap-armhf-manually:
+  <<:                              *publish-snap-armhf
+  only:                            *releaseable_branches
+  when:                            manual
+
+publish-onchain-nightly:           &publish-onchain
+  stage:                           publish
+  only:
+    - nightly
+  cache:                           {}
+  variables:
+    GIT_STRATEGY:                  none
   dependencies:
     - build-linux
     - build-darwin
     - build-windows
-    - publish:awss3:release
-  before_script:                   *determine_version
   script:
-    - scripts/gitlab/publish-onnet-update.sh
+    - ./tools/publish-onchain.sh
   tags:
     - linux-docker
 
-# configures aws for fast uploads/syncs
-.s3_before_script:                &s3_before_script
-  before_script:
-    - mkdir -p ${HOME}/.aws
-    - |
-      cat > ${HOME}/.aws/config <<EOC
-      [default]
-      s3 =
-        max_concurrent_requests = 20
-        max_queue_size = 10000
-        multipart_threshold = 64MB
-        multipart_chunksize = 16MB
-        max_bandwidth = 50MB/s
-        use_accelerate_endpoint = false
-        addressing_style = path
-      EOC
+publish-onchain-manually:
+  <<:                              *publish-onchain
+  only:                            *releaseable_branches
+  when:                            manual
 
-publish:awss3:release:
+publish-release-awss3-nightly:     &publish-release-awss3
   image:                           parity/awscli:latest
   stage:                           publish
-  only:                            *releaseable_branches
+  only:
+    - nightly
+  variables:
+    GIT_STRATEGY:                  none
   cache:                           {}
   dependencies:
     - build-linux
     - build-darwin
     - build-windows
-  variables:
-    GIT_STRATEGY:                  none
-  <<:                              *s3_before_script
   script:
     - echo "__________Push binaries to AWS S3____________"
     - case "${SCHEDULE_TAG:-${CI_COMMIT_REF_NAME}}" in
-        (beta|stable|nightly)
-          export BUCKET=releases.parity.io/ethereum;
-          ;;
-        (*)
-          export BUCKET=builds-parity;
-          ;;
-      esac
+       (beta|stable|nightly)
+         export BUCKET=releases.parity.io/ethereum;
+         ;;
+       (*)
+         export BUCKET=builds-parity;
+         ;;
+     esac
     - aws s3 sync ./artifacts s3://${BUCKET}/${SCHEDULE_TAG:-${CI_COMMIT_REF_NAME}}/
-  after_script:
-    - aws s3 ls s3://${BUCKET}/latest/
-        --recursive --human-readable --summarize
+    - echo "__________Read from S3____________"
+    - aws s3 ls s3://${BUCKET}/${SCHEDULE_TAG:-${CI_COMMIT_REF_NAME}} --recursive --human-readable --summarize
   tags:
-  - linux-docker
+    - linux-docker
+
+publish-release-awss3-manually:
+  <<:                              *publish-release-awss3  
+  only:                            *releaseable_branches
+  when:                            manual
 
 publish-docs:
-  stage:                            publish
+  stage:                           publish
+  image:                           parity/parity-ci-docs:latest
   only:
     - tags
   except:
     - nightly
-  cache: {}
+  when:                            manual
+  cache:                           {}
+  dependencies:                    []
   script:
     - scripts/gitlab/publish-docs.sh
   tags:
     - linux-docker
+  allow_failure:                   true
 
-build-android:
-  stage:                           optional
-  image:                           parity/rust-android:gitlab-ci
+publish-av-whitelist:
+  stage:                          publish
   variables:
-    CARGO_TARGET:                  armv7-linux-androideabi
+    GIT_STRATEGY:                  none
+  only:                           *releaseable_branches
+  except:
+    - nightly
+  when:                           manual
+  cache:                          {}
+  dependencies:
+    - build-windows
   script:
-    - scripts/gitlab/build-unix.sh
+    - scripts/gitlab/publish-av-whitelists.sh
   tags:
     - linux-docker
-  allow_failure:                   true
-  <<:                              *collect_artifacts
-

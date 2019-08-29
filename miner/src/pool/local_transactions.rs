@@ -66,7 +66,7 @@ pub struct LocalTransactionsList {
 	max_old: usize,
 	transactions: LinkedHashMap<H256, Status>,
 	pending: usize,
-	in_chain: Option<Box<Fn(&H256) -> bool + Send + Sync>>,
+	in_chain: Option<Box<dyn Fn(&H256) -> bool + Send + Sync>>,
 }
 
 impl fmt::Debug for LocalTransactionsList {
@@ -171,7 +171,7 @@ impl txpool::Listener<Transaction> for LocalTransactionsList {
 		}
 	}
 
-	fn rejected(&mut self, tx: &Arc<Transaction>, reason: &txpool::ErrorKind) {
+	fn rejected<H: fmt::Debug + fmt::LowerHex>(&mut self, tx: &Arc<Transaction>, reason: &txpool::Error<H>) {
 		if !tx.priority().is_local() {
 			return;
 		}

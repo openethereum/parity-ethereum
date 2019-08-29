@@ -16,14 +16,13 @@
 
 use std::fmt;
 use secp256k1::key;
-use rustc_hex::ToHex;
-use keccak::Keccak256;
 use super::{Secret, Public, Address, SECP256K1, Error};
+use parity_crypto::Keccak256 as _;
 
 pub fn public_to_address(public: &Public) -> Address {
 	let hash = public.keccak256();
-	let mut result = Address::default();
-	result.copy_from_slice(&hash[12..]);
+	let mut result = Address::zero();
+	result.as_bytes_mut().copy_from_slice(&hash[12..]);
 	result
 }
 
@@ -36,9 +35,9 @@ pub struct KeyPair {
 
 impl fmt::Display for KeyPair {
 	fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
-		writeln!(f, "secret:  {}", self.secret.to_hex())?;
-		writeln!(f, "public:  {}", self.public.to_hex())?;
-		write!(f, "address: {}", self.address().to_hex())
+		writeln!(f, "secret:  {:x}", self.secret)?;
+		writeln!(f, "public:  {:x}", self.public)?;
+		write!(f, "address: {:x}", self.address())
 	}
 }
 
@@ -51,7 +50,7 @@ impl KeyPair {
 		let serialized = pub_key.serialize_vec(context, false);
 
 		let mut public = Public::default();
-		public.copy_from_slice(&serialized[1..65]);
+		public.as_bytes_mut().copy_from_slice(&serialized[1..65]);
 
 		let keypair = KeyPair {
 			secret: secret,
@@ -70,7 +69,7 @@ impl KeyPair {
 		let serialized = publ.serialize_vec(context, false);
 		let secret = Secret::from(sec);
 		let mut public = Public::default();
-		public.copy_from_slice(&serialized[1..65]);
+		public.as_bytes_mut().copy_from_slice(&serialized[1..65]);
 
 		KeyPair {
 			secret: secret,

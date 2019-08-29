@@ -20,8 +20,11 @@ use std::sync::Arc;
 use hash::keccak;
 use vm::{EnvInfo, ActionParams, ActionValue, CallType, ParamsType};
 use evm::{Factory, VMType};
-use executive::Executive;
-use state::Substate;
+use machine::{
+	executive::Executive,
+	substate::Substate,
+	test_helpers::new_eip210_test_machine,
+};
 use test_helpers::get_temp_state_with_factory;
 use trace::{NoopVMTracer, NoopTracer};
 use types::transaction::SYSTEM_ADDRESS;
@@ -38,12 +41,12 @@ fn test_blockhash_eip210(factory: Factory) {
 	let test_blockhash_contract = "73fffffffffffffffffffffffffffffffffffffffe33141561007a57600143036020526000356101006020510755600061010060205107141561005057600035610100610100602051050761010001555b6000620100006020510714156100755760003561010062010000602051050761020001555b61014a565b4360003512151561009057600060405260206040f35b610100600035430312156100b357610100600035075460605260206060f3610149565b62010000600035430312156100d157600061010060003507146100d4565b60005b156100f6576101006101006000350507610100015460805260206080f3610148565b630100000060003543031215610116576000620100006000350714610119565b60005b1561013c57610100620100006000350507610200015460a052602060a0f3610147565b600060c052602060c0f35b5b5b5b5b";
 	let blockhash_contract_code = Arc::new(test_blockhash_contract.from_hex().unwrap());
 	let blockhash_contract_code_hash = keccak(blockhash_contract_code.as_ref());
-	let machine = ::ethereum::new_eip210_test_machine();
+	let machine = new_eip210_test_machine();
 	let mut env_info = EnvInfo::default();
 
 	// populate state with 256 last hashes
 	let mut state = get_temp_state_with_factory(factory);
-	let contract_address: Address = 0xf0.into();
+	let contract_address = Address::from_low_u64_be(0xf0);
 	state.init_code(&contract_address, (*blockhash_contract_code).clone()).unwrap();
 	for i in 1 .. 257 {
 		env_info.number = i.into();
@@ -57,7 +60,8 @@ fn test_blockhash_eip210(factory: Factory) {
 			value: ActionValue::Transfer(0.into()),
 			code: Some(blockhash_contract_code.clone()),
 			code_hash: Some(blockhash_contract_code_hash),
-			data: Some(H256::from(i - 1).to_vec()),
+			code_version: 0.into(),
+			data: Some(H256::from_low_u64_be(i - 1).as_bytes().to_vec()),
 			call_type: CallType::Call,
 			params_type: ParamsType::Separate,
 		};
@@ -71,15 +75,16 @@ fn test_blockhash_eip210(factory: Factory) {
 
 	env_info.number = 256;
 	let params = ActionParams {
-		code_address: Address::new(),
-		address: Address::new(),
-		sender: Address::new(),
-		origin: Address::new(),
+		code_address: Address::zero(),
+		address: Address::zero(),
+		sender: Address::zero(),
+		origin: Address::zero(),
 		gas: 100000.into(),
 		gas_price: 0.into(),
 		value: ActionValue::Transfer(0.into()),
 		code: Some(get_prev_hash_code),
 		code_hash: Some(get_prev_hash_code_hash),
+		code_version: 0.into(),
 		data: None,
 		call_type: CallType::Call,
 		params_type: ParamsType::Separate,
@@ -89,10 +94,10 @@ fn test_blockhash_eip210(factory: Factory) {
 	let mut substate = Substate::new();
 	let res = ex.call(params, &mut substate, &mut NoopTracer, &mut NoopVMTracer);
 	let output = match res {
-		Ok(res) => H256::from(&res.return_data[..32]),
+		Ok(res) => H256::from_slice(&res.return_data[..32]),
 		Err(e) => {
 			panic!("Encountered error on getting last hash: {}", e);
 		},
 	};
-	assert_eq!(output, 255.into());
+	assert_eq!(output, H256::from_low_u64_be(255));
 }

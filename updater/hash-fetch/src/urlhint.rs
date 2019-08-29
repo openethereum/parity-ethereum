@@ -95,18 +95,18 @@ pub enum URLHintResult {
 /// URLHint Contract interface
 pub trait URLHint: Send + Sync {
 	/// Resolves given id to registrar entry.
-	fn resolve(&self, id: H256) -> Box<Future<Item = Option<URLHintResult>, Error = String> + Send>;
+	fn resolve(&self, id: H256) -> Box<dyn Future<Item = Option<URLHintResult>, Error = String> + Send>;
 }
 
 /// `URLHintContract` API
 pub struct URLHintContract {
 	registrar: Registrar,
-	client: Arc<RegistrarClient<Call=Asynchronous>>,
+	client: Arc<dyn RegistrarClient<Call=Asynchronous>>,
 }
 
 impl URLHintContract {
 	/// Creates new `URLHintContract`
-	pub fn new(client: Arc<RegistrarClient<Call=Asynchronous>>) -> Self {
+	pub fn new(client: Arc<dyn RegistrarClient<Call=Asynchronous>>) -> Self {
 		URLHintContract {
 			registrar: Registrar::new(client.clone()),
 			client: client,
@@ -126,7 +126,7 @@ fn get_urlhint_content(account_slash_repo: String, owner: Address) -> Content {
 fn decode_urlhint_output(output: (String, [u8; 20], Address)) -> Option<URLHintResult> {
 	let (account_slash_repo, commit, owner) = output;
 
-	if owner == Address::default() {
+	if owner == Address::zero() {
 		return None;
 	}
 
@@ -159,7 +159,7 @@ fn decode_urlhint_output(output: (String, [u8; 20], Address)) -> Option<URLHintR
 }
 
 impl URLHint for URLHintContract {
-	fn resolve(&self, id: H256) -> Box<Future<Item = Option<URLHintResult>, Error = String> + Send> {
+	fn resolve(&self, id: H256) -> Box<dyn Future<Item = Option<URLHintResult>, Error = String> + Send> {
 		let client = self.client.clone();
 
 		let future = self.registrar.get_address(GITHUB_HINT)
@@ -249,6 +249,12 @@ pub mod tests {
 		}
 	}
 
+	fn h256_from_short_str(s: &str) -> H256 {
+		let mut bytes = s.as_bytes().to_vec();
+		bytes.resize(32usize, 0u8);
+		H256::from_slice(bytes.as_ref())
+	}
+
 	#[test]
 	fn should_call_registrar_and_urlhint_contracts() {
 		// given
@@ -263,7 +269,7 @@ pub mod tests {
 		let urlhint = URLHintContract::new(Arc::new(registrar));
 
 		// when
-		let res = urlhint.resolve("test".as_bytes().into()).wait().unwrap();
+		let res = urlhint.resolve(h256_from_short_str("test")).wait().unwrap();
 		let calls = calls.lock();
 		let call0 = calls.get(0).expect("Registrar resolve called");
 		let call1 = calls.get(1).expect("URLHint Resolve called");
@@ -291,7 +297,7 @@ pub mod tests {
 		let urlhint = URLHintContract::new(Arc::new(registrar));
 
 		// when
-		let res = urlhint.resolve("test".as_bytes().into()).wait().unwrap();
+		let res = urlhint.resolve(h256_from_short_str("test")).wait().unwrap();
 
 		// then
 		assert_eq!(res, Some(URLHintResult::Dapp(GithubApp {
@@ -313,7 +319,7 @@ pub mod tests {
 		let urlhint = URLHintContract::new(Arc::new(registrar));
 
 		// when
-		let res = urlhint.resolve("test".as_bytes().into()).wait().unwrap();
+		let res = urlhint.resolve(h256_from_short_str("test")).wait().unwrap();
 
 		// then
 		assert_eq!(res, Some(URLHintResult::Content(Content {
@@ -330,7 +336,7 @@ pub mod tests {
 			account: "test".into(),
 			repo: "xyz".into(),
 			commit: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19],
-			owner: Address::default(),
+			owner: Address::zero(),
 		};
 
 		// when

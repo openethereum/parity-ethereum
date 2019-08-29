@@ -19,17 +19,20 @@
 use std::sync::Arc;
 use std::collections::{BTreeSet, VecDeque};
 
-use ethcore::client::{BlockChainClient, BlockId};
+use client_traits::BlockChainClient;
 use ethcore::miner::{self, MinerService};
-use ethereum_types::H256;
+use ethereum_types::{H256, U256};
 use parking_lot::Mutex;
-use types::filter::Filter as EthcoreFilter;
+use types::{
+	ids::BlockId,
+	filter::Filter as EthcoreFilter
+};
 
 use jsonrpc_core::{BoxFuture, Result};
 use jsonrpc_core::futures::{future, Future};
 use jsonrpc_core::futures::future::Either;
 use v1::traits::EthFilter;
-use v1::types::{BlockNumber, Index, Filter, FilterChanges, Log, H256 as RpcH256, U256 as RpcU256};
+use v1::types::{BlockNumber, Index, Filter, FilterChanges, Log};
 use v1::helpers::{errors, SyncPollFilter, PollFilter, PollManager, limit_logs};
 use v1::impls::eth::pending_logs;
 
@@ -68,8 +71,8 @@ impl<C, M> EthFilterClient<C, M> {
 	/// Creates new Eth filter client.
 	pub fn new(client: Arc<C>, miner: Arc<M>, poll_lifetime: u32) -> Self {
 		EthFilterClient {
-			client: client,
-			miner: miner,
+			client,
+			miner,
 			polls: Mutex::new(PollManager::new(poll_lifetime)),
 		}
 	}
@@ -137,7 +140,7 @@ impl<C, M> Filterable for EthFilterClient<C, M> where
 }
 
 impl<T: Filterable + Send + Sync + 'static> EthFilter for T {
-	fn new_filter(&self, filter: Filter) -> Result<RpcU256> {
+	fn new_filter(&self, filter: Filter) -> Result<U256> {
 		let mut polls = self.polls().lock();
 		let block_number = self.best_block_number();
 		let include_pending = filter.to_block == Some(BlockNumber::Pending);
@@ -150,7 +153,7 @@ impl<T: Filterable + Send + Sync + 'static> EthFilter for T {
 		Ok(id.into())
 	}
 
-	fn new_block_filter(&self) -> Result<RpcU256> {
+	fn new_block_filter(&self) -> Result<U256> {
 		let mut polls = self.polls().lock();
 		// +1, since we don't want to include the current block
 		let id = polls.create_poll(SyncPollFilter::new(PollFilter::Block {
@@ -160,7 +163,7 @@ impl<T: Filterable + Send + Sync + 'static> EthFilter for T {
 		Ok(id.into())
 	}
 
-	fn new_pending_transaction_filter(&self) -> Result<RpcU256> {
+	fn new_pending_transaction_filter(&self) -> Result<U256> {
 		let mut polls = self.polls().lock();
 		let pending_transactions = self.pending_transaction_hashes();
 		let id = polls.create_poll(SyncPollFilter::new(PollFilter::PendingTransaction(pending_transactions)));
@@ -188,17 +191,14 @@ impl<T: Filterable + Send + Sync + 'static> EthFilter for T {
 				let mut hashes = Vec::new();
 				for n in (*last_block_number + 1)..=current_number {
 					let block_number = BlockId::Number(n);
-					match self.block_hash(block_number) {
-						Some(hash) => {
-							*last_block_number = n;
-							hashes.push(RpcH256::from(hash));
-							// Only keep the most recent history
-							if recent_reported_hashes.len() >= PollFilter::MAX_BLOCK_HISTORY_SIZE {
-								recent_reported_hashes.pop_back();
-							}
-							recent_reported_hashes.push_front((n, hash));
-						},
-						None => (),
+					if let Some(hash) = self.block_hash(block_number) {
+						*last_block_number = n;
+						hashes.push(hash);
+						// Only keep the most recent history
+						if recent_reported_hashes.len() >= PollFilter::MAX_BLOCK_HISTORY_SIZE {
+							recent_reported_hashes.pop_back();
+						}
+						recent_reported_hashes.push_front((n, hash));
 					}
 				}
 

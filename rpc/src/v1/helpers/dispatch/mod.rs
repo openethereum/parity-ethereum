@@ -75,7 +75,7 @@ use std::ops::Deref;
 use std::sync::Arc;
 
 use bytes::Bytes;
-use ethcore::client::BlockChainClient;
+use client_traits::BlockChainClient;
 use ethcore::miner::MinerService;
 use ethereum_types::{H520, H256, U256, Address};
 use ethkey::{Password, Signature};
@@ -86,7 +86,7 @@ use jsonrpc_core::{BoxFuture, Result, Error};
 use jsonrpc_core::futures::{future, Future, IntoFuture};
 use v1::helpers::{TransactionRequest, FilledTransactionRequest, ConfirmationPayload};
 use v1::types::{
-	H520 as RpcH520, Bytes as RpcBytes,
+	Bytes as RpcBytes,
 	RichRawTransaction as RpcRichRawTransaction,
 	ConfirmationPayload as RpcConfirmationPayload,
 	ConfirmationResponse,
@@ -111,7 +111,7 @@ pub trait Dispatcher: Send + Sync + Clone {
 	fn sign<P>(
 		&self,
 		filled: FilledTransactionRequest,
-		signer: &Arc<Accounts>,
+		signer: &Arc<dyn Accounts>,
 		password: SignWith,
 		post_sign: P,
 	) -> BoxFuture<P::Item> where
@@ -201,6 +201,7 @@ pub enum SignWith {
 }
 
 impl SignWith {
+	#[cfg(any(test, feature = "accounts"))]
 	fn is_password(&self) -> bool {
 		if let SignWith::Password(_) = *self {
 			true
@@ -276,7 +277,7 @@ impl<T: Debug> From<(T, Option<AccountToken>)> for WithToken<T> {
 /// Execute a confirmation payload.
 pub fn execute<D: Dispatcher + 'static>(
 	dispatcher: D,
-	signer: &Arc<Accounts>,
+	signer: &Arc<dyn Accounts>,
 	payload: ConfirmationPayload,
 	pass: SignWith
 ) -> BoxFuture<WithToken<ConfirmationResponse>> {
@@ -293,7 +294,7 @@ pub fn execute<D: Dispatcher + 'static>(
 
 			Box::new(
 				dispatcher.sign(request, &signer, pass, post_sign).map(|(hash, token)| {
-					WithToken::from((ConfirmationResponse::SendTransaction(hash.into()), token))
+					WithToken::from((ConfirmationResponse::SendTransaction(hash), token))
 				})
 			)
 		},
@@ -308,7 +309,6 @@ pub fn execute<D: Dispatcher + 'static>(
 			let res = signer.sign_message(address, pass, SignMessage::Data(data))
 				.map(|result| result
 					.map(|s| H520(s.into_electrum()))
-			 		.map(RpcH520::from)
 					.map(ConfirmationResponse::Signature)
 				);
 
@@ -318,7 +318,6 @@ pub fn execute<D: Dispatcher + 'static>(
 			let res = signer.sign_message(address, pass, SignMessage::Hash(data))
 				.map(|result| result
 					.map(|rsv| H520(rsv.into_electrum()))
-					.map(RpcH520::from)
 					.map(ConfirmationResponse::Signature)
 				);
 
@@ -369,13 +368,13 @@ pub fn from_rpc<D>(payload: RpcConfirmationPayload, default_account: Address, di
 				.map(ConfirmationPayload::SignTransaction))
 		},
 		RpcConfirmationPayload::Decrypt(RpcDecryptRequest { address, msg }) => {
-			Box::new(future::ok(ConfirmationPayload::Decrypt(address.into(), msg.into())))
+			Box::new(future::ok(ConfirmationPayload::Decrypt(address, msg.into())))
 		},
 		RpcConfirmationPayload::EthSignMessage(RpcEthSignRequest { address, data }) => {
-			Box::new(future::ok(ConfirmationPayload::EthSignMessage(address.into(), data.into())))
+			Box::new(future::ok(ConfirmationPayload::EthSignMessage(address, data.into())))
 		},
 		RpcConfirmationPayload::EIP191SignMessage(RpcSignRequest { address, data }) => {
-			Box::new(future::ok(ConfirmationPayload::SignMessage(address.into(), data.into())))
+			Box::new(future::ok(ConfirmationPayload::SignMessage(address, data)))
 		},
 	}
 }

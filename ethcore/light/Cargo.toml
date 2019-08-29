@@ -1,5 +1,5 @@
 [package]
-description = "Parity Light Client Implementation"
+description = "Parity Ethereum (EthCore) Light Client Implementation (Block Import IO Service, Blockchain Data Fetching, Light Client Header Chain Storage, Parity Light Protocol (PLP) Provider, Light Transaction Queue, CHT Definitions, Light Client Data Cache), Parity Light Protocol (PLP) Implementation, P2P Network I/O and Event Context Generalization, Peer Error Handling & Punishment, Request Load Timer & Distribution Manager, Pending Request Set Storage, Request Credit Management, Light Client Request Types, Request Chain Builder Utility, On-demand Chain Request Service over LES (for RPCs), ResponseGuard Implementation)"
 homepage = "http://parity.io"
 license = "GPL-3.0"
 name = "ethcore-light"
@@ -9,38 +9,46 @@ authors = ["Parity Technologies <admin@parity.io>"]
 [dependencies]
 log = "0.4"
 parity-bytes = "0.1"
+client-traits = { path = "../client-traits" }
 common-types = { path = "../types" }
-ethcore = { path = ".."}
+derive_more = "0.14.0"
+engine = { path = "../engine" }
 ethcore-db = { path = "../db" }
 ethcore-blockchain = { path = "../blockchain" }
-ethereum-types = "0.4"
-memorydb = "0.3.0"
-patricia-trie = "0.3.0"
+ethereum-types = "0.6.0"
+executive-state = { path = "../executive-state" }
+machine = { path = "../machine" }
+memory-db = "0.15.0"
+trie-db = "0.15.0"
 patricia-trie-ethereum = { path = "../../util/patricia-trie-ethereum" }
 ethcore-network = { path = "../../util/network" }
+ethcore-miner = { path = "../../miner" }
 ethcore-io = { path = "../../util/io" }
-hashdb = "0.3.0"
-heapsize = "0.4"
+hash-db = "0.15.0"
+parity-util-mem = "0.2.0"
 vm = { path = "../vm" }
 fastmap = { path = "../../util/fastmap" }
 failsafe = { version = "0.3.0", default-features = false, features = ["parking_lot_mutex"] }
-rlp = { version = "0.3.0", features = ["ethereum"] }
+rlp = "0.4.0"
 rlp_derive = { path = "../../util/rlp-derive" }
 smallvec = "0.6"
 futures = "0.1"
-rand = "0.4"
+rand = "0.6"
 itertools = "0.5"
-bincode = "0.8.0"
+bincode = "1.1"
 serde = "1.0"
 serde_derive = "1.0"
-parking_lot = "0.7"
+spec = { path = "../spec" }
+parking_lot = "0.8"
 stats = { path = "../../util/stats" }
-keccak-hash = "0.1"
+keccak-hash = "0.2.0"
 keccak-hasher = { path = "../../util/keccak-hasher" }
 triehash-ethereum = { version = "0.2",  path = "../../util/triehash-ethereum" }
 kvdb = "0.1"
 memory-cache = { path = "../../util/memory-cache" }
 error-chain = { version = "0.12", default-features = false }
+journaldb = { path = "../../util/journaldb" }
+verification = { path = "../verification" }
 
 [dev-dependencies]
 ethcore = { path = "..", features = ["test-helpers"] }

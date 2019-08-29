@@ -18,7 +18,6 @@
 
 extern crate backtrace;
 
-use std::io::{self, Write};
 use std::panic::{self, PanicInfo};
 use std::thread;
 use std::process;
@@ -27,7 +26,7 @@ use backtrace::Backtrace;
 /// Set the panic hook to write to stderr and abort the process when a panic happens.
 pub fn set_abort() {
 	set_with(|msg| {
-		let _ = io::stderr().write_all(msg.as_bytes());
+		eprintln!("{}", msg);
 		process::abort()
 	});
 }

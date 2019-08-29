@@ -33,14 +33,11 @@ impl EngineSigner {
 	}
 }
 
-impl ethcore::engines::EngineSigner for EngineSigner {
+impl engine::signer::EngineSigner for EngineSigner {
 	fn sign(&self, message: ethkey::Message) -> Result<ethkey::Signature, ethkey::Error> {
 		match self.accounts.sign(self.address, Some(self.password.clone()), message) {
 			Ok(ok) => Ok(ok),
-			Err(e) => {
-				warn!("Unable to sign consensus message: {:?}", e);
-				Err(ethkey::Error::InvalidSecret)
-			},
+			Err(_) => Err(ethkey::Error::InvalidSecret),
 		}
 	}
 

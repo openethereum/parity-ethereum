@@ -84,6 +84,8 @@ pub struct Configuration {
 	pub data_path: String,
 	/// Administrator public key.
 	pub admin_public: Option<Public>,
+	// Allowed CORS domains
+	pub cors: Option<Vec<String>>,
 }
 
 /// Secret store dependencies
@@ -91,7 +93,7 @@ pub struct Dependencies<'a> {
 	/// Blockchain client.
 	pub client: Arc<Client>,
 	/// Sync provider.
-	pub sync: Arc<SyncProvider>,
+	pub sync: Arc<dyn SyncProvider>,
 	/// Miner service.
 	pub miner: Arc<Miner>,
 	/// Account provider.
@@ -195,6 +197,7 @@ mod server {
 					admin_public: conf.admin_public,
 					auto_migrate_enabled: conf.auto_migrate_enabled,
 				},
+				cors: conf.cors
 			};
 
 			cconf.cluster_config.nodes.insert(self_secret.public().clone(), cconf.cluster_config.listener_address.clone());
@@ -234,6 +237,7 @@ impl Default for Configuration {
 			http_interface: "127.0.0.1".to_owned(),
 			http_port: 8082,
 			data_path: replace_home(&data_dir, "$BASE/secretstore"),
+			cors: Some(vec![]),
 		}
 	}
 }

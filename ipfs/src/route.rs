@@ -14,14 +14,17 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
-use {rlp, multihash, IpfsHandler};
-use error::{Error, Result};
-use cid::{ToCid, Codec};
+use crate::{
+	IpfsHandler,
+	error::{Error, Result},
+};
 
-use multihash::Hash;
-use ethereum_types::H256;
 use bytes::Bytes;
-use ethcore::client::{BlockId, TransactionId};
+use cid::{ToCid, Codec};
+use common_types::ids::{BlockId, TransactionId};
+use ethereum_types::H256;
+use multihash::{self, Hash};
+use rlp;
 
 type Reason = &'static str;
 
@@ -56,7 +59,7 @@ impl IpfsHandler {
 
 		if mh.alg != Hash::Keccak256 { return Err(Error::UnsupportedHash); }
 
-		let hash: H256 = mh.digest.into();
+		let hash = H256::from_slice(&mh.digest);
 
 		match cid.codec {
 			Codec::EthereumBlock => self.block(hash),

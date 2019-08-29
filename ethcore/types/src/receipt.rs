@@ -17,14 +17,14 @@
 //! Receipt
 
 use ethereum_types::{H160, H256, U256, Address, Bloom};
-use heapsize::HeapSizeOf;
+use parity_util_mem::MallocSizeOf;
 use rlp::{Rlp, RlpStream, Encodable, Decodable, DecoderError};
 
 use BlockNumber;
 use log_entry::{LogEntry, LocalizedLogEntry};
 
 /// Transaction outcome store in the receipt.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, MallocSizeOf)]
 pub enum TransactionOutcome {
 	/// Status and state root are unknown under EIP-98 rules.
 	Unknown,
@@ -35,7 +35,7 @@ pub enum TransactionOutcome {
 }
 
 /// Information describing execution of a transaction.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, MallocSizeOf)]
 pub struct Receipt {
 	/// The total gas used in the block following execution of the transaction.
 	pub gas_used: U256,
@@ -110,12 +110,6 @@ impl Decodable for Receipt {
 	}
 }
 
-impl HeapSizeOf for Receipt {
-	fn heap_size_of_children(&self) -> usize {
-		self.logs.heap_size_of_children()
-	}
-}
-
 /// Receipt with additional info.
 #[derive(Debug, Clone, PartialEq)]
 pub struct RichReceipt {
@@ -168,8 +162,9 @@ pub struct LocalizedReceipt {
 
 #[cfg(test)]
 mod tests {
-	use super::{Receipt, TransactionOutcome};
+	use super::{Receipt, TransactionOutcome, Address, H256};
 	use log_entry::LogEntry;
+	use std::str::FromStr;
 
 	#[test]
 	fn test_no_state_root() {
@@ -178,7 +173,7 @@ mod tests {
 			TransactionOutcome::Unknown,
 			0x40cae.into(),
 			vec![LogEntry {
-				address: "dcf421d093428b096ca501a7cd1a740855a7976f".into(),
+				address: Address::from_str("dcf421d093428b096ca501a7cd1a740855a7976f").unwrap(),
 				topics: vec![],
 				data: vec![0u8; 32]
 			}]
@@ -190,10 +185,10 @@ mod tests {
 	fn test_basic() {
 		let expected = ::rustc_hex::FromHex::from_hex("f90162a02f697d671e9ae4ee24a43c4b0d7e15f1cb4ba6de1561120d43b9a4e8c4a8a6ee83040caeb9010000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000400000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000008000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000200000000000000000000000000000000000000000000000000000000000000000f838f794dcf421d093428b096ca501a7cd1a740855a7976fc0a00000000000000000000000000000000000000000000000000000000000000000").unwrap();
 		let r = Receipt::new(
-			TransactionOutcome::StateRoot("2f697d671e9ae4ee24a43c4b0d7e15f1cb4ba6de1561120d43b9a4e8c4a8a6ee".into()),
+			TransactionOutcome::StateRoot(H256::from_str("2f697d671e9ae4ee24a43c4b0d7e15f1cb4ba6de1561120d43b9a4e8c4a8a6ee").unwrap()),
 			0x40cae.into(),
 			vec![LogEntry {
-				address: "dcf421d093428b096ca501a7cd1a740855a7976f".into(),
+				address: Address::from_str("dcf421d093428b096ca501a7cd1a740855a7976f").unwrap(),
 				topics: vec![],
 				data: vec![0u8; 32]
 			}]
@@ -211,7 +206,7 @@ mod tests {
 			TransactionOutcome::StatusCode(0),
 			0x40cae.into(),
 			vec![LogEntry {
-				address: "dcf421d093428b096ca501a7cd1a740855a7976f".into(),
+				address: Address::from_str("dcf421d093428b096ca501a7cd1a740855a7976f").unwrap(),
 				topics: vec![],
 				data: vec![0u8; 32]
 			}]

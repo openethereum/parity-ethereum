@@ -61,7 +61,7 @@ macro_rules! difficulty_json_test {
 
 	fn do_json_test<H: FnMut(&str, HookType)>(json_data: &[u8], h: &mut H) -> Vec<String> {
 		let tempdir = TempDir::new("").unwrap();
-		json_difficulty_test(json_data, ::ethereum::$spec(&tempdir.path()), h)
+		json_difficulty_test(json_data, crate::spec::$spec(&tempdir.path()), h)
 	}
 
 	}
@@ -74,7 +74,7 @@ macro_rules! difficulty_json_test_nopath {
 	use json_tests::HookType;
 
 	fn do_json_test<H: FnMut(&str, HookType)>(json_data: &[u8], h: &mut H) -> Vec<String> {
-		json_difficulty_test(json_data, ::ethereum::$spec(), h)
+		json_difficulty_test(json_data, crate::spec::$spec(), h)
 	}
 
 	}

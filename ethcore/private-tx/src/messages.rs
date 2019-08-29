@@ -14,7 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
-use ethereum_types::{H256, U256, Address};
+use ethereum_types::{H256, U256, Address, BigEndianHash};
 use bytes::Bytes;
 use hash::keccak;
 use rlp::Encodable;
@@ -38,7 +38,7 @@ impl PrivateTransaction {
 		PrivateTransaction {
 			encrypted,
 			contract,
-			hash: 0.into(),
+			hash: H256::zero(),
 		}.compute_hash()
 	}
 
@@ -87,7 +87,7 @@ impl SignedPrivateTransaction {
 			r: sig.r().into(),
 			s: sig.s().into(),
 			v: add_chain_replay_protection(sig.v() as u64, chain_id),
-			hash: 0.into(),
+			hash: H256::zero(),
 		}.compute_hash()
 	}
 
@@ -100,7 +100,11 @@ impl SignedPrivateTransaction {
 
 	/// Construct a signature object from the sig.
 	pub fn signature(&self) -> Signature {
-		Signature::from_rsv(&self.r.into(), &self.s.into(), self.standard_v())
+		Signature::from_rsv(
+			&BigEndianHash::from_uint(&self.r),
+			&BigEndianHash::from_uint(&self.s),
+			self.standard_v(),
+		)
 	}
 
 	/// Get the hash of of the original transaction.

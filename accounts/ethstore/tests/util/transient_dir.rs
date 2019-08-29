@@ -16,7 +16,7 @@
 
 use std::path::PathBuf;
 use std::{env, fs};
-use rand::{Rng, OsRng};
+use rand::{RngCore, rngs::OsRng};
 use ethstore::accounts_dir::{KeyDirectory, RootDiskDirectory};
 use ethstore::{Error, SafeAccount};
 

@@ -1,5 +1,5 @@
 [package]
-description = "Parity Miner interface."
+description = "Parity Ethereum Miner Interface."
 name = "ethcore-miner"
 homepage = "http://parity.io"
 license = "GPL-3.0"
@@ -14,25 +14,28 @@ hyper = { version = "0.12", optional = true }
 url = { version = "1", optional = true }
 
 # Miner
-ansi_term = "0.10"
+ansi_term = "0.11"
 common-types = { path = "../ethcore/types" }
 error-chain = "0.12"
-ethabi = "6.0"
-ethabi-derive = "6.0"
-ethabi-contract = "6.0"
+ethabi = "8.0"
+ethabi-derive = "8.0"
+ethabi-contract = "8.0"
 ethcore-call-contract = { path = "../ethcore/call-contract" }
-ethereum-types = "0.4"
+ethereum-types = "0.6.0"
 futures = "0.1"
-heapsize = "0.4"
-keccak-hash = "0.1"
+parity-util-mem = "0.2.0"
+keccak-hash = "0.2.0"
 linked-hash-map = "0.5"
 log = "0.4"
 parity-runtime = { path = "../util/runtime" }
-parking_lot = "0.7"
+parking_lot = "0.8"
 price-info = { path = "./price-info", optional = true }
-rlp = { version = "0.3.0", features = ["ethereum"] }
+rlp = "0.4.0"
+serde = "1.0"
+serde_derive = "1.0"
+serde_json = "1.0"
 trace-time = "0.1"
-transaction-pool = "1.13"
+transaction-pool = "2.0"
 
 [dev-dependencies]
 env_logger = "0.5"

@@ -19,7 +19,7 @@
 extern crate bit_set;
 extern crate ethereum_types;
 extern crate parking_lot;
-extern crate heapsize;
+extern crate parity_util_mem;
 extern crate vm;
 extern crate keccak_hash as hash;
 extern crate memory_cache;
@@ -33,6 +33,8 @@ extern crate log;
 
 #[cfg(test)]
 extern crate rustc_hex;
+#[cfg(test)]
+extern crate hex_literal;
 
 pub mod evm;
 pub mod interpreter;

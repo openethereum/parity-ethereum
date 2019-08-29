@@ -16,15 +16,18 @@
 
 use std::sync::{Arc, Weak};
 use std::thread;
-use deque;
-use slab::Slab;
-use fnv::FnvHashMap;
-use {IoError, IoHandler};
-use parking_lot::{RwLock, Mutex};
-use num_cpus;
 use std::time::Duration;
-use timer::{Timer, Guard as TimerGuard};
+
+use crossbeam_deque as deque;
+use fnv::FnvHashMap;
+use log::{trace, debug};
+use num_cpus;
+use parking_lot::{Mutex, RwLock};
+use slab::Slab;
 use time::Duration as TimeDuration;
+use timer::{Guard as TimerGuard, Timer};
+
+use crate::{IoError, IoHandler};
 
 /// Timer ID
 pub type TimerToken = usize;
@@ -48,7 +51,7 @@ impl<Message> IoContext<Message> where Message: Send + Sync + 'static {
 
 		let msg = WorkTask::TimerTrigger {
 			handler_id: self.handler,
-			token: token,
+			token,
 		};
 
 		let delay = TimeDuration::from_std(delay)
@@ -68,7 +71,7 @@ impl<Message> IoContext<Message> where Message: Send + Sync + 'static {
 
 		let msg = WorkTask::TimerTrigger {
 			handler_id: self.handler,
-			token: token,
+			token,
 		};
 
 		let delay = TimeDuration::from_std(delay)
@@ -189,7 +192,7 @@ pub struct IoService<Message> where Message: Send + Sync + 'static {
 // Struct shared throughout the whole implementation.
 struct Shared<Message> where Message: Send + Sync + 'static {
 	// All the I/O handlers that have been registered.
-	handlers: RwLock<Slab<Arc<IoHandler<Message>>>>,
+	handlers: RwLock<Slab<Arc<dyn IoHandler<Message>>>>,
 	// All the background threads, so that we can unpark them.
 	threads: RwLock<Vec<thread::Thread>>,
 	// Used to create timeouts.
@@ -273,7 +276,7 @@ impl<Message> IoService<Message> where Message: Send + Sync + 'static {
 	}
 
 	/// Register an IO handler with the event loop.
-	pub fn register_handler(&self, handler: Arc<IoHandler<Message>+Send>) -> Result<(), IoError> {
+	pub fn register_handler(&self, handler: Arc<dyn IoHandler<Message>+Send>) -> Result<(), IoError> {
 		let id = self.shared.handlers.write().insert(handler.clone());
 		assert!(id <= MAX_HANDLERS, "Too many handlers registered");
 		let ctxt = IoContext { handler: id, shared: self.shared.clone() };

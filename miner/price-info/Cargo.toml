@@ -5,14 +5,14 @@ license = "GPL-3.0"
 name = "price-info"
 version = "1.12.0"
 authors = ["Parity Technologies <admin@parity.io>"]
+edition = "2018"
 
 [dependencies]
 fetch = { path = "../../util/fetch" }
 futures = "0.1"
-parity-runtime = { path = "../../util/runtime" }
 log = "0.4"
+parity-runtime = { path = "../../util/runtime" }
 serde_json = "1.0"
 
 [dev-dependencies]
-parking_lot = "0.7"
 fake-fetch = { path = "../../util/fake-fetch" }

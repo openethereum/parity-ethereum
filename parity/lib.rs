@@ -15,7 +15,6 @@
 // along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
 //! Ethcore client application.
-
 #![warn(missing_docs)]
 
 extern crate ansi_term;
@@ -42,7 +41,10 @@ extern crate toml;
 
 extern crate blooms_db;
 extern crate cli_signer;
+
+extern crate client_traits;
 extern crate common_types as types;
+extern crate engine;
 extern crate ethcore;
 extern crate ethcore_call_contract as call_contract;
 extern crate ethcore_db;
@@ -70,8 +72,9 @@ extern crate parity_rpc;
 extern crate parity_runtime;
 extern crate parity_updater as updater;
 extern crate parity_version;
-extern crate parity_whisper;
 extern crate registrar;
+extern crate spec;
+extern crate verification;
 
 #[macro_use]
 extern crate log as rlog;
@@ -88,10 +91,6 @@ extern crate pretty_assertions;
 
 #[cfg(test)]
 extern crate tempdir;
-
-#[cfg(test)]
-#[macro_use]
-extern crate lazy_static;
 
 mod account;
 mod account_utils;
@@ -116,7 +115,6 @@ mod signer;
 mod snapshot;
 mod upgrade;
 mod user_defaults;
-mod whisper;
 mod db;
 
 use std::fs::File;

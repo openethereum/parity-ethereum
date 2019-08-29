@@ -34,18 +34,20 @@ extern crate ethcore_logger;
 
 use std::ffi::OsString;
 use std::fs::{remove_file, metadata, File, create_dir_all};
-use std::io::{self as stdio, Read, Write};
+use std::io::{Read, Write};
 use std::path::PathBuf;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::{process, env};
+
 use ansi_term::Colour;
 use ctrlc::CtrlC;
 use dir::default_hypervisor_path;
 use fdlimit::raise_fd_limit;
-use parity_ethereum::{start, ExecutionAction};
-use parking_lot::{Condvar, Mutex};
 use ethcore_logger::setup_log;
+use parity_ethereum::{start, ExecutionAction};
+use parity_daemonize::AsHandle;
+use parking_lot::{Condvar, Mutex};
 
 const PLEASE_RESTART_EXIT_CODE: i32 = 69;
 const PARITY_EXECUTABLE_NAME: &str = "parity";
@@ -188,14 +190,19 @@ fn main_direct(force_can_restart: bool) -> i32 {
 		parity_ethereum::Configuration::parse_cli(&args).unwrap_or_else(|e| e.exit())
 	};
 
-	let logger = setup_log(&conf.logger_config()).expect("Logger is initialized only once; qed");
+	let logger = setup_log(&conf.logger_config()).unwrap_or_else(|e| {
+		eprintln!("{}", e);
+		process::exit(2)
+	});
 
 	if let Some(spec_override) = take_spec_name_override() {
 		conf.args.flag_testnet = false;
 		conf.args.arg_chain = spec_override;
 	}
 
-	let handle = if let Some(ref pid) = conf.args.arg_daemon_pid_file {
+	// FIXME: `pid_file` shouldn't need to cloned here
+	// see: `https://github.com/paritytech/parity-daemonize/pull/13` for more info
+	let handle = if let Some(pid) = conf.args.arg_daemon_pid_file.clone() {
 		info!("{}", Colour::Blue.paint("starting in daemon mode").to_string());
 		let _ = std::io::stdout().flush();
 
@@ -206,8 +213,6 @@ fn main_direct(force_can_restart: bool) -> i32 {
 					"{}",
 					Colour::Red.paint(format!("{}", e))
 				);
-				// flush before returning
-				let _ = std::io::stderr().flush();
 				return 1;
 			}
 		}
@@ -280,7 +285,7 @@ fn main_direct(force_can_restart: bool) -> i32 {
 					let e = exit.clone();
 					let exiting = exiting.clone();
 					move |panic_msg| {
-						let _ = stdio::stderr().write_all(panic_msg.as_bytes());
+						eprintln!("{}", panic_msg);
 						if !exiting.swap(true, Ordering::SeqCst) {
 							*e.0.lock() = ExitStatus {
 								panicking: true,
@@ -343,7 +348,7 @@ fn main_direct(force_can_restart: bool) -> i32 {
 			if let Some(mut handle) = handle {
 				handle.detach_with_msg(format!("{}", Colour::Red.paint(&err)))
 			}
-			writeln!(&mut stdio::stderr(), "{}", err).expect("StdErr available; qed");
+			eprintln!("{}", err);
 			1
 		},
 	};
@@ -358,7 +363,6 @@ fn println_trace_main(s: String) {
 	}
 }
 
-#[macro_export]
 macro_rules! trace_main {
 	($arg:expr) => (println_trace_main($arg.into()));
 	($($arg:tt)*) => (println_trace_main(format!("{}", format_args!($($arg)*))));

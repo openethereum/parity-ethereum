@@ -15,36 +15,40 @@
 // along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
 //! Impls of the `AsHashDB` upcast trait for all different variants of DB
-use hashdb::{HashDB, AsHashDB};
+use hash_db::{HashDB, AsHashDB};
 use keccak_hasher::KeccakHasher;
-use archivedb::ArchiveDB;
-use earlymergedb::EarlyMergeDB;
-use overlayrecentdb::OverlayRecentDB;
-use refcounteddb::RefCountedDB;
-use overlaydb::OverlayDB;
+
 use kvdb::DBValue;
 
+use crate::{
+	archivedb::ArchiveDB,
+	earlymergedb::EarlyMergeDB,
+	overlayrecentdb::OverlayRecentDB,
+	refcounteddb::RefCountedDB,
+	overlaydb::OverlayDB,
+};
+
 impl AsHashDB<KeccakHasher, DBValue> for ArchiveDB {
-	fn as_hashdb(&self) -> &HashDB<KeccakHasher, DBValue> { self }
-	fn as_hashdb_mut(&mut self) -> &mut HashDB<KeccakHasher, DBValue> { self }
+	fn as_hash_db(&self) -> &dyn HashDB<KeccakHasher, DBValue> { self }
+	fn as_hash_db_mut(&mut self) -> &mut dyn HashDB<KeccakHasher, DBValue> { self }
 }
 
 impl AsHashDB<KeccakHasher, DBValue> for EarlyMergeDB {
-	fn as_hashdb(&self) -> &HashDB<KeccakHasher, DBValue> { self }
-	fn as_hashdb_mut(&mut self) -> &mut HashDB<KeccakHasher, DBValue> { self }
+	fn as_hash_db(&self) -> &dyn HashDB<KeccakHasher, DBValue> { self }
+	fn as_hash_db_mut(&mut self) -> &mut dyn HashDB<KeccakHasher, DBValue> { self }
 }
 
 impl AsHashDB<KeccakHasher, DBValue> for OverlayRecentDB {
-	fn as_hashdb(&self) -> &HashDB<KeccakHasher, DBValue> { self }
-	fn as_hashdb_mut(&mut self) -> &mut HashDB<KeccakHasher, DBValue> { self }
+	fn as_hash_db(&self) -> &dyn HashDB<KeccakHasher, DBValue> { self }
+	fn as_hash_db_mut(&mut self) -> &mut dyn HashDB<KeccakHasher, DBValue> { self }
 }
 
 impl AsHashDB<KeccakHasher, DBValue> for RefCountedDB {
-	fn as_hashdb(&self) -> &HashDB<KeccakHasher, DBValue> { self }
-	fn as_hashdb_mut(&mut self) -> &mut HashDB<KeccakHasher, DBValue> { self }
+	fn as_hash_db(&self) -> &dyn HashDB<KeccakHasher, DBValue> { self }
+	fn as_hash_db_mut(&mut self) -> &mut dyn HashDB<KeccakHasher, DBValue> { self }
 }
 
 impl AsHashDB<KeccakHasher, DBValue> for OverlayDB {
-	fn as_hashdb(&self) -> &HashDB<KeccakHasher, DBValue> { self }
-	fn as_hashdb_mut(&mut self) -> &mut HashDB<KeccakHasher, DBValue> { self }
+	fn as_hash_db(&self) -> &dyn HashDB<KeccakHasher, DBValue> { self }
+	fn as_hash_db_mut(&mut self) -> &mut dyn HashDB<KeccakHasher, DBValue> { self }
 }

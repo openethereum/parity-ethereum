@@ -45,13 +45,16 @@ use light::net::{
 	EventContext, Capabilities, ReqId, Status,
 	Error as NetError,
 };
+use chain::SyncState as ChainSyncState;
 use light::request::{self, CompleteHeadersRequest as HeadersRequest};
 use network::PeerId;
 use ethereum_types::{H256, U256};
 use parking_lot::{Mutex, RwLock};
-use rand::{Rng, OsRng};
+use rand::{rngs::OsRng, seq::SliceRandom};
+use futures::sync::mpsc;
 
 use self::sync_round::{AbortReason, SyncRound, ResponseContext};
+use api::Notification;
 
 mod response;
 mod sync_round;
@@ -117,7 +120,7 @@ impl AncestorSearch {
 		}
 	}
 
-	fn process_response<L>(self, ctx: &ResponseContext, client: &L) -> AncestorSearch
+	fn process_response<L>(self, ctx: &dyn ResponseContext, client: &L) -> AncestorSearch
 		where L: AsLightClient
 	{
 		let client = client.as_light_client();
@@ -255,7 +258,7 @@ impl Deref for SyncStateWrapper {
 struct ResponseCtx<'a> {
 	peer: PeerId,
 	req_id: ReqId,
-	ctx: &'a BasicContext,
+	ctx: &'a dyn BasicContext,
 	data: &'a [encoded::Header],
 }
 
@@ -275,6 +278,7 @@ pub struct LightSync<L: AsLightClient> {
 	client: Arc<L>,
 	rng: Mutex<OsRng>,
 	state: Mutex<SyncStateWrapper>,
+	senders: RwLock<Vec<mpsc::UnboundedSender<ChainSyncState>>>,
 	// We duplicate this state tracking to avoid deadlocks in `is_major_importing`.
 	is_idle: Mutex<bool>,
 }
@@ -288,7 +292,7 @@ struct PendingReq {
 impl<L: AsLightClient + Send + Sync> Handler for LightSync<L> {
 	fn on_connect(
 		&self,
-		ctx: &EventContext,
+		ctx: &dyn EventContext,
 		status: &Status,
 		capabilities: &Capabilities
 	) -> PeerStatus {
@@ -315,7 +319,7 @@ impl<L: AsLightClient + Send + Sync> Handler for LightSync<L> {
 		}
 	}
 
-	fn on_disconnect(&self, ctx: &EventContext, unfulfilled: &[ReqId]) {
+	fn on_disconnect(&self, ctx: &dyn EventContext, unfulfilled: &[ReqId]) {
 		let peer_id = ctx.peer();
 
 		let peer = match self.peers.write().remove(&peer_id).map(|p| p.into_inner()) {
@@ -366,7 +370,7 @@ impl<L: AsLightClient + Send + Sync> Handler for LightSync<L> {
 		self.maintain_sync(ctx.as_basic());
 	}
 
-	fn on_announcement(&self, ctx: &EventContext, announcement: &Announcement) {
+	fn on_announcement(&self, ctx: &dyn EventContext, announcement: &Announcement) {
 		let (last_td, chain_info) = {
 			let peers = self.peers.read();
 			match peers.get(&ctx.peer()) {
@@ -402,7 +406,7 @@ impl<L: AsLightClient + Send + Sync> Handler for LightSync<L> {
 		self.maintain_sync(ctx.as_basic());
 	}
 
-	fn on_responses(&self, ctx: &EventContext, req_id: ReqId, responses: &[request::Response]) {
+	fn on_responses(&self, ctx: &dyn EventContext, req_id: ReqId, responses: &[request::Response]) {
 		let peer = ctx.peer();
 		if !self.peers.read().contains_key(&peer) {
 			return
@@ -444,7 +448,7 @@ impl<L: AsLightClient + Send + Sync> Handler for LightSync<L> {
 		self.maintain_sync(ctx.as_basic());
 	}
 
-	fn tick(&self, ctx: &BasicContext) {
+	fn tick(&self, ctx: &dyn BasicContext) {
 		self.maintain_sync(ctx);
 	}
 }
@@ -454,7 +458,19 @@ impl<L: AsLightClient> LightSync<L> {
 	/// Sets the LightSync's state, and update
 	/// `is_idle`
 	fn set_state(&self, state: &mut SyncStateWrapper, next_state: SyncState) {
+
+		match next_state {
+			SyncState::Idle => self.notify_senders(ChainSyncState::Idle),
+			_ => self.notify_senders(ChainSyncState::Blocks)
+		};
+
 		state.set(next_state, &mut self.is_idle.lock());
+	}
+
+	fn notify_senders(&self, state: ChainSyncState) {
+		self.senders.write().retain(|sender| {
+			sender.unbounded_send(state).is_ok()
+		})
 	}
 
 	// Begins a search for the common ancestor and our best block.
@@ -476,8 +492,8 @@ impl<L: AsLightClient> LightSync<L> {
 	}
 
 	// handles request dispatch, block import, state machine transitions, and timeouts.
-	fn maintain_sync(&self, ctx: &BasicContext) {
-		use ethcore::error::{Error as EthcoreError, ErrorKind as EthcoreErrorKind, ImportErrorKind};
+	fn maintain_sync(&self, ctx: &dyn BasicContext) {
+		use types::errors::{EthcoreError, ImportError};
 
 		const DRAIN_AMOUNT: usize = 128;
 
@@ -508,10 +524,10 @@ impl<L: AsLightClient> LightSync<L> {
 				for header in sink.drain(..) {
 					match client.queue_header(header) {
 						Ok(_) => {}
-						Err(EthcoreError(EthcoreErrorKind::Import(ImportErrorKind::AlreadyInChain), _)) => {
+						Err(EthcoreError::Import(ImportError::AlreadyInChain)) => {
 							trace!(target: "sync", "Block already in chain. Continuing.");
 						},
-						Err(EthcoreError(EthcoreErrorKind::Import(ImportErrorKind::AlreadyQueued), _)) => {
+						Err(EthcoreError::Import(ImportError::AlreadyQueued)) => {
 							trace!(target: "sync", "Block already queued. Continuing.");
 						},
 						Err(e) => {
@@ -621,7 +637,7 @@ impl<L: AsLightClient> LightSync<L> {
 			// naive request dispatcher: just give to any peer which says it will
 			// give us responses. but only one request per peer per state transition.
 			let dispatcher = move |req: HeadersRequest| {
-				rng.shuffle(&mut peer_ids);
+				peer_ids.shuffle(&mut *rng);
 
 				let request = {
 					let mut builder = request::Builder::default();
@@ -667,6 +683,14 @@ impl<L: AsLightClient> LightSync<L> {
 			self.set_state(&mut state, next_state);
 		}
 	}
+
+	// returns receiving end of futures::mpsc::unbounded channel
+	// poll the channel for changes to sync state.
+	fn sync_notification(&self) -> Notification<ChainSyncState> {
+		let (sender, receiver) = futures::sync::mpsc::unbounded();
+		self.senders.write().push(sender);
+		receiver
+	}
 }
 
 // public API
@@ -683,6 +707,7 @@ impl<L: AsLightClient> LightSync<L> {
 			pending_reqs: Mutex::new(HashMap::new()),
 			client: client,
 			rng: Mutex::new(OsRng::new()?),
+			senders: RwLock::new(Vec::new()),
 			state: Mutex::new(SyncStateWrapper::idle()),
 			is_idle: Mutex::new(true),
 		})
@@ -699,6 +724,10 @@ pub trait SyncInfo {
 
 	/// Whether major sync is underway.
 	fn is_major_importing(&self) -> bool;
+
+	/// returns the receieving end of a futures::mpsc unbounded channel
+	/// poll the channel for changes to sync state
+	fn sync_notification(&self) -> Notification<ChainSyncState>;
 }
 
 impl<L: AsLightClient> SyncInfo for LightSync<L> {
@@ -720,4 +749,7 @@ impl<L: AsLightClient> SyncInfo for LightSync<L> {
 		is_verifying || is_syncing
 	}
 
+	fn sync_notification(&self) -> Notification<ChainSyncState> {
+		self.sync_notification()
+	}
 }

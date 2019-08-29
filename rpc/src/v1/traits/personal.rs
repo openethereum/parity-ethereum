@@ -16,13 +16,14 @@
 
 //! Personal rpc interface.
 use eip_712::EIP712;
+use ethereum_types::{H160, H256, H520, U128};
 use jsonrpc_core::types::Value;
 use jsonrpc_core::{BoxFuture, Result};
 use jsonrpc_derive::rpc;
-use v1::types::{Bytes, U128, H160, H256, H520, TransactionRequest, RichRawTransaction as RpcRichRawTransaction, EIP191Version};
+use v1::types::{Bytes, TransactionRequest, RichRawTransaction as RpcRichRawTransaction, EIP191Version};
 
 /// Personal rpc interface. Safe (read-only) functions.
-#[rpc]
+#[rpc(server)]
 pub trait Personal {
 	/// RPC Metadata
 	type Metadata;
@@ -70,5 +71,4 @@ pub trait Personal {
 	/// @deprecated alias for `personal_sendTransaction`.
 	#[rpc(meta, name = "personal_signAndSendTransaction")]
 	fn sign_and_send_transaction(&self, Self::Metadata, TransactionRequest, String) -> BoxFuture<H256>;
-
 }

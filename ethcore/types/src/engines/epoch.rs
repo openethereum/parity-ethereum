@@ -17,7 +17,6 @@
 //! Epoch verifiers and transitions.
 
 use ethereum_types::H256;
-
 use rlp::{Encodable, Decodable, DecoderError, RlpStream, Rlp};
 
 /// A full epoch transition.
@@ -69,30 +68,4 @@ impl Decodable for PendingTransition {
 			proof: rlp.as_val()?,
 		})
 	}
-}
-
-/// Verifier for all blocks within an epoch with self-contained state.
-pub trait EpochVerifier<M: ::parity_machine::Machine>: Send + Sync {
-	/// Lightly verify the next block header.
-	/// This may not be a header belonging to a different epoch.
-	fn verify_light(&self, header: &M::Header) -> Result<(), M::Error>;
-
-	/// Perform potentially heavier checks on the next block header.
-	fn verify_heavy(&self, header: &M::Header) -> Result<(), M::Error> {
-		self.verify_light(header)
-	}
-
-	/// Check a finality proof against this epoch verifier.
-	/// Returns `Some(hashes)` if the proof proves finality of these hashes.
-	/// Returns `None` if the proof doesn't prove anything.
-	fn check_finality_proof(&self, _proof: &[u8]) -> Option<Vec<H256>> {
-		None
-	}
-}
-
-/// Special "no-op" verifier for stateless, epoch-less engines.
-pub struct NoOp;
-
-impl<M: ::parity_machine::Machine> EpochVerifier<M> for NoOp {
-	fn verify_light(&self, _header: &M::Header) -> Result<(), M::Error> { Ok(()) }
 }

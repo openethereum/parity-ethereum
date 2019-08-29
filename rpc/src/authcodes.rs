@@ -19,8 +19,7 @@ use std::path::Path;
 use std::{fs, time, mem};
 
 use itertools::Itertools;
-use rand::Rng;
-use rand::os::OsRng;
+use rand::{Rng, rngs::OsRng, distributions::Alphanumeric};
 use hash::keccak;
 use ethereum_types::H256;
 
@@ -51,7 +50,7 @@ const TIME_THRESHOLD: u64 = 7;
 /// minimal length of hash
 const TOKEN_LENGTH: usize = 16;
 /// Separator between fields in serialized tokens file.
-const SEPARATOR: &'static str = ";";
+const SEPARATOR: &str = ";";
 /// Number of seconds to keep unused tokens.
 const UNUSED_TOKEN_TIMEOUT: u64 = 3600 * 24; // a day
 
@@ -115,7 +114,7 @@ impl AuthCodes<DefaultTimeProvider> {
 			})
 			.collect();
 		Ok(AuthCodes {
-			codes: codes,
+			codes,
 			now: time_provider,
 		})
 	}
@@ -128,7 +127,7 @@ impl<T: TimeProvider> AuthCodes<T> {
 	pub fn to_file(&self, file: &Path) -> io::Result<()> {
 		let mut file = fs::File::create(file)?;
 		let content = self.codes.iter().map(|code| {
-			let mut data = vec![code.code.clone(), encode_time(code.created_at.clone())];
+			let mut data = vec![code.code.clone(), encode_time(code.created_at)];
 			if let Some(used_at) = code.last_used_at {
 				data.push(encode_time(used_at));
 			}
@@ -141,11 +140,11 @@ impl<T: TimeProvider> AuthCodes<T> {
 	pub fn new(codes: Vec<String>, now: T) -> Self {
 		AuthCodes {
 			codes: codes.into_iter().map(|code| Code {
-				code: code,
+				code,
 				created_at: time::Duration::from_secs(now.now()),
 				last_used_at: None,
 			}).collect(),
-			now: now,
+			now,
 		}
 	}
 
@@ -175,7 +174,7 @@ impl<T: TimeProvider> AuthCodes<T> {
 	/// Generates and returns a new code that can be used by `SignerUIs`
 	pub fn generate_new(&mut self) -> io::Result<String> {
 		let mut rng = OsRng::new()?;
-		let code = rng.gen_ascii_chars().take(TOKEN_LENGTH).collect::<String>();
+		let code = rng.sample_iter(&Alphanumeric).take(TOKEN_LENGTH).collect::<String>();
 		let readable_code = code.as_bytes()
 			.chunks(4)
 			.filter_map(|f| String::from_utf8(f.to_vec()).ok())
@@ -183,7 +182,7 @@ impl<T: TimeProvider> AuthCodes<T> {
 			.join("-");
 		trace!(target: "signer", "New authentication token generated.");
 		self.codes.push(Code {
-			code: code,
+			code,
 			created_at: time::Duration::from_secs(self.now.now()),
 			last_used_at: None,
 		});

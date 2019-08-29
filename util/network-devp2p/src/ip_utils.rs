@@ -16,12 +16,15 @@
 
 // Based on original work by David Levy https://raw.githubusercontent.com/dlevy47/rust-interfaces
 
-use std::net::{IpAddr, Ipv4Addr, Ipv6Addr, SocketAddr, SocketAddrV4, SocketAddrV6};
 use std::io;
-use igd::{PortMappingProtocol, search_gateway_from_timeout};
+use std::net::{IpAddr, Ipv4Addr, Ipv6Addr, SocketAddr, SocketAddrV4, SocketAddrV6};
 use std::time::Duration;
-use node_table::NodeEndpoint;
+
+use igd::{PortMappingProtocol, search_gateway, SearchOptions};
 use ipnetwork::IpNetwork;
+use log::debug;
+
+use crate::node_table::NodeEndpoint;
 
 /// Socket address extension for rustc beta. To be replaces with now unstable API
 pub trait SocketAddrExt {
@@ -94,12 +97,12 @@ impl SocketAddrExt for Ipv4Addr {
 		self.is_multicast() ||
 		self.is_shared_space() ||
 		self.is_special_purpose() ||
-		self.is_benchmarking() ||
+		SocketAddrExt::is_benchmarking(self) ||
 		self.is_future_use()
 	}
 
 	fn is_usable_public(&self) -> bool {
-		!self.is_reserved() &&
+		!SocketAddrExt::is_reserved(self) &&
 		!self.is_private()
 	}
 
@@ -183,7 +186,7 @@ impl SocketAddrExt for IpAddr {
 
 	fn is_reserved(&self) -> bool {
 		match *self {
-			IpAddr::V4(ref ip) => ip.is_reserved(),
+			IpAddr::V4(ref ip) => SocketAddrExt::is_reserved(ip),
 			IpAddr::V6(ref ip) => ip.is_reserved(),
 		}
 	}
@@ -212,10 +215,11 @@ impl SocketAddrExt for IpAddr {
 
 #[cfg(not(any(windows, target_os = "android")))]
 mod getinterfaces {
-	use std::{mem, io};
+	use std::{io, mem};
+	use std::net::{IpAddr, Ipv4Addr, Ipv6Addr};
+
 	use libc::{AF_INET, AF_INET6};
-	use libc::{getifaddrs, freeifaddrs, ifaddrs, sockaddr, sockaddr_in, sockaddr_in6};
-	use std::net::{Ipv4Addr, Ipv6Addr, IpAddr};
+	use libc::{freeifaddrs, getifaddrs, ifaddrs, sockaddr, sockaddr_in, sockaddr_in6};
 
 	fn convert_sockaddr(sa: *mut sockaddr) -> Option<IpAddr> {
 		if sa.is_null() { return None; }
@@ -286,7 +290,7 @@ pub fn select_public_address(port: u16) -> SocketAddr {
 			//prefer IPV4 bindings
 			for addr in &list { //TODO: use better criteria than just the first in the list
 				match addr {
-					IpAddr::V4(a) if !a.is_reserved() => {
+					IpAddr::V4(a) if !SocketAddrExt::is_reserved(a) => {
 						return SocketAddr::V4(SocketAddrV4::new(*a, port));
 					},
 					_ => {},
@@ -313,7 +317,14 @@ pub fn map_external_address(local: &NodeEndpoint) -> Option<NodeEndpoint> {
 		let local_udp_port = local.udp_port;
 
 		let search_gateway_child = ::std::thread::spawn(move || {
-			match search_gateway_from_timeout(local_ip, Duration::new(5, 0)) {
+			let search_options = SearchOptions {
+				timeout: Some(Duration::new(5, 0)),
+				// igd 0.7 used port 0 by default.
+				// Let's not change this behaviour
+				bind_addr: SocketAddr::V4(SocketAddrV4::new(local_ip, 0)),
+				..Default::default()
+			};
+			match search_gateway(search_options) {
 				Err(ref err) => debug!("Gateway search error: {}", err),
 				Ok(gateway) => {
 					match gateway.get_external_ip() {

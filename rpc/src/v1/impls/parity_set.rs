@@ -19,9 +19,10 @@ use std::io;
 use std::sync::Arc;
 use std::time::Duration;
 
-use ethcore::client::{BlockChainClient, Mode};
+use client_traits::BlockChainClient;
+use types::client_types::Mode;
 use ethcore::miner::{self, MinerService};
-use ethereum_types::H256 as EthH256;
+use ethereum_types::{H160, H256, U256};
 use ethkey;
 use fetch::{self, Fetch};
 use hash::keccak_buffer;
@@ -32,7 +33,7 @@ use jsonrpc_core::{BoxFuture, Result};
 use jsonrpc_core::futures::Future;
 use v1::helpers::errors;
 use v1::traits::ParitySet;
-use v1::types::{Bytes, H160, H256, U256, ReleaseInfo, Transaction};
+use v1::types::{Bytes, ReleaseInfo, Transaction};
 
 #[cfg(any(test, feature = "accounts"))]
 pub mod accounts {
@@ -86,7 +87,7 @@ pub struct ParitySetClient<C, M, U, F = fetch::Client> {
 	client: Arc<C>,
 	miner: Arc<M>,
 	updater: Arc<U>,
-	net: Arc<ManageNetwork>,
+	net: Arc<dyn ManageNetwork>,
 	fetch: F,
 }
 
@@ -98,7 +99,7 @@ impl<C, M, U, F> ParitySetClient<C, M, U, F>
 		client: &Arc<C>,
 		miner: &Arc<M>,
 		updater: &Arc<U>,
-		net: &Arc<ManageNetwork>,
+		net: &Arc<dyn ManageNetwork>,
 		fetch: F,
 	) -> Self {
 		ParitySetClient {
@@ -118,9 +119,11 @@ impl<C, M, U, F> ParitySet for ParitySetClient<C, M, U, F> where
 	F: Fetch + 'static,
 {
 
-	fn set_min_gas_price(&self, _gas_price: U256) -> Result<bool> {
-		warn!("setMinGasPrice is deprecated. Ignoring request.");
-		Ok(false)
+	fn set_min_gas_price(&self, gas_price: U256) -> Result<bool> {
+		match self.miner.set_minimal_gas_price(gas_price) {
+			Ok(success) => Ok(success),
+			Err(e) => Err(errors::unsupported(e, None)),
+		}
 	}
 
 	fn set_transactions_limit(&self, _limit: usize) -> Result<bool> {
@@ -134,15 +137,15 @@ impl<C, M, U, F> ParitySet for ParitySetClient<C, M, U, F> where
 	}
 
 	fn set_gas_floor_target(&self, target: U256) -> Result<bool> {
-		let mut range = self.miner.authoring_params().gas_range_target.clone();
-		range.0 = target.into();
+		let mut range = self.miner.authoring_params().gas_range_target;
+		range.0 = target;
 		self.miner.set_gas_range_target(range);
 		Ok(true)
 	}
 
 	fn set_gas_ceil_target(&self, target: U256) -> Result<bool> {
-		let mut range = self.miner.authoring_params().gas_range_target.clone();
-		range.1 = target.into();
+		let mut range = self.miner.authoring_params().gas_range_target;
+		range.1 = target;
 		self.miner.set_gas_range_target(range);
 		Ok(true)
 	}
@@ -153,14 +156,13 @@ impl<C, M, U, F> ParitySet for ParitySetClient<C, M, U, F> where
 	}
 
 	fn set_author(&self, address: H160) -> Result<bool> {
-		self.miner.set_author(miner::Author::External(address.into()));
+		self.miner.set_author(miner::Author::External(address));
 		Ok(true)
 	}
 
 	fn set_engine_signer_secret(&self, secret: H256) -> Result<bool> {
-		let secret: EthH256 = secret.into();
 		let keypair = ethkey::KeyPair::from_secret(secret.into()).map_err(|e| errors::account("Invalid secret", e))?;
-		self.miner.set_author(miner::Author::Sealer(ethcore::engines::signer::from_keypair(keypair)));
+		self.miner.set_author(miner::Author::Sealer(engine::signer::from_keypair(keypair)));
 		Ok(true)
 	}
 
@@ -210,8 +212,7 @@ impl<C, M, U, F> ParitySet for ParitySetClient<C, M, U, F> where
 	}
 
 	fn set_spec_name(&self, spec_name: String) -> Result<bool> {
-		self.client.set_spec_name(spec_name);
-		Ok(true)
+		self.client.set_spec_name(spec_name).map(|_| true).map_err(|()| errors::cannot_restart())
 	}
 
 	fn hash_content(&self, url: String) -> BoxFuture<H256> {
@@ -236,10 +237,8 @@ impl<C, M, U, F> ParitySet for ParitySetClient<C, M, U, F> where
 	}
 
 	fn remove_transaction(&self, hash: H256) -> Result<Option<Transaction>> {
-		let hash = hash.into();
-
 		Ok(self.miner.remove_transaction(&hash)
-		   .map(|t| Transaction::from_pending(t.pending().clone()))
+			.map(|t| Transaction::from_pending(t.pending().clone()))
 		)
 	}
 }

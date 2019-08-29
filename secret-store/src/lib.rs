@@ -15,6 +15,7 @@
 // along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
 extern crate byteorder;
+extern crate client_traits;
 extern crate common_types;
 extern crate ethabi;
 extern crate ethcore;
@@ -37,6 +38,7 @@ extern crate tokio;
 extern crate tokio_io;
 extern crate tokio_service;
 extern crate url;
+extern crate jsonrpc_server_utils;
 
 #[macro_use]
 extern crate ethabi_derive;
@@ -107,7 +109,7 @@ pub fn start(client: Arc<Client>, sync: Arc<SyncProvider>, miner: Arc<Miner>, se
 
 	// prepare HTTP listener
 	let http_listener = match config.listener_address {
-		Some(listener_address) => Some(listener::http_listener::KeyServerHttpListener::start(listener_address, Arc::downgrade(&key_server), executor)?),
+		Some(listener_address) => Some(listener::http_listener::KeyServerHttpListener::start(listener_address, config.cors, Arc::downgrade(&key_server), executor)?),
 		None => None,
 	};
 

@@ -14,17 +14,21 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
-//! Standardized JSON VM output.
+//! Log EVM instruction output data traces from a standardized JSON formatting informant.
 
 use std::collections::HashMap;
 use std::io;
 
-use ethereum_types::{H256, U256};
-use bytes::ToPretty;
-use ethcore::{trace, pod_state};
+use ethereum_types::{H256, U256, BigEndianHash};
+use parity_bytes::ToPretty;
+use pod::PodState;
+use serde::Serialize;
+use trace;
 
-use display;
-use info as vm;
+use crate::{
+	display,
+	info as vm,
+};
 
 pub trait Writer: io::Write + Send + Sized {
 	fn clone(&self) -> Self;
@@ -64,6 +68,52 @@ pub struct Informant<Trace, Out> {
 	out_sink: Out,
 }
 
+#[derive(Serialize, Debug)]
+#[serde(rename_all = "camelCase")]
+pub struct TraceData<'a> {
+	pc: usize,
+	op: u8,
+	op_name: &'a str,
+	gas: &'a str,
+	stack: &'a [U256],
+	storage: &'a HashMap<H256, H256>,
+	depth: usize,
+}
+
+#[derive(Serialize, Debug)]
+pub struct MessageInitial<'a> {
+	action: &'a str,
+	test: &'a str,
+}
+
+#[derive(Serialize, Debug)]
+#[serde(rename_all = "camelCase")]
+pub struct MessageSuccess<'a> {
+	output: &'a str,
+	gas_used: &'a str,
+	time: &'a u64,
+}
+
+#[derive(Serialize, Debug)]
+#[serde(rename_all = "camelCase")]
+pub struct MessageFailure<'a> {
+	error: &'a str,
+	gas_used: &'a str,
+	time: &'a u64,
+}
+
+#[derive(Serialize, Debug)]
+pub struct DumpData<'a> {
+	root: &'a H256,
+	accounts: &'a PodState,
+}
+
+#[derive(Serialize, Debug)]
+#[serde(rename_all = "camelCase")]
+pub struct TraceDataStateRoot<'a> {
+	state_root: &'a H256,
+}
+
 impl Default for Informant<io::Stderr, io::Stdout> {
 	fn default() -> Self {
 		Self::new(io::stderr(), io::stdout())
@@ -71,14 +121,14 @@ impl Default for Informant<io::Stderr, io::Stdout> {
 }
 
 impl Informant<io::Stdout, io::Stdout> {
-	/// std json informant using out only.
+	/// Standardized JSON formatting informant using stdout only.
 	pub fn out_only() -> Self {
 		Self::new(io::stdout(), io::stdout())
 	}
 }
 
 impl Informant<io::Stderr, io::Stderr> {
-	/// std json informant using err only.
+	/// Standardized JSON formatting informant using stderr only.
 	pub fn err_only() -> Self {
 		Self::new(io::stderr(), io::stderr())
 	}
@@ -95,7 +145,8 @@ impl<Trace: Writer, Out: Writer> Informant<Trace, Out> {
 			storage: Default::default(),
 			subinfos: Default::default(),
 			subdepth: 0,
-			trace_sink, out_sink
+			trace_sink,
+			out_sink,
 		}
 	}
 
@@ -107,13 +158,17 @@ impl<Trace: Writer, Out: Writer> Informant<Trace, Out> {
 		}
 	}
 
-	fn dump_state_into(trace_sink: &mut Trace, root: H256, end_state: &Option<pod_state::PodState>) {
-		if let Some(ref end_state) =	end_state {
-			let dump_data = json!({
-				"root": root,
-				"accounts": end_state,
-			});
-			writeln!(trace_sink, "{}", dump_data).expect("The sink must be writeable.");
+	fn dump_state_into(trace_sink: &mut Trace, root: H256, end_state: &Option<PodState>) {
+		if let Some(ref end_state) = end_state {
+			let dump_data =
+				DumpData {
+					root: &root,
+					accounts: end_state,
+				}
+			;
+
+			let s = serde_json::to_string(&dump_data).expect("Serialization cannot fail; qed");
+			writeln!(trace_sink, "{}", s).expect("The sink must be writeable.");
 		}
 	}
 
@@ -124,12 +179,15 @@ impl<Trace: Writer, Out: Writer> vm::Informant for Informant<Trace, Out> {
 	type Sink = (Trace, Out);
 
 	fn before_test(&mut self, name: &str, action: &str) {
-		let out_data = json!({
-			"action": action,
-			"test": name,
-		});
+		let message_init =
+			MessageInitial {
+				action,
+				test: &name,
+			}
+		;
 
-		writeln!(&mut self.out_sink, "{}", out_data).expect("The sink must be writeable.");
+		let s = serde_json::to_string(&message_init).expect("Serialization cannot fail; qed");
+		writeln!(&mut self.out_sink, "{}", s).expect("The sink must be writeable.");
 	}
 
 	fn set_gas(&mut self, _gas: U256) {}
@@ -137,34 +195,46 @@ impl<Trace: Writer, Out: Writer> vm::Informant for Informant<Trace, Out> {
 	fn clone_sink(&self) -> Self::Sink {
 		(self.trace_sink.clone(), self.out_sink.clone())
 	}
+
 	fn finish(result: vm::RunResult<<Self as trace::VMTracer>::Output>, (ref mut trace_sink, ref mut out_sink): &mut Self::Sink) {
 
 		match result {
 			Ok(success) => {
-				let trace_data = json!({"stateRoot": success.state_root});
-				writeln!(trace_sink, "{}", trace_data)
-					.expect("The sink must be writeable.");
+				let state_root_data =
+					TraceDataStateRoot {
+						state_root: &success.state_root,
+					}
+				;
+
+				let s = serde_json::to_string(&state_root_data).expect("Serialization cannot fail; qed");
+				writeln!(trace_sink, "{}", s).expect("The sink must be writeable.");
 
 				Self::dump_state_into(trace_sink, success.state_root, &success.end_state);
 
-				let out_data = json!({
-					"output": format!("0x{}", success.output.to_hex()),
-					"gasUsed": format!("{:#x}", success.gas_used),
-					"time": display::as_micros(&success.time),
-				});
+				let message_success =
+					MessageSuccess {
+						output: &format!("0x{}", success.output.to_hex()),
+						gas_used: &format!("{:#x}", success.gas_used),
+						time: &display::as_micros(&success.time),
+					}
+				;
 
-				writeln!(out_sink, "{}", out_data).expect("The sink must be writeable.");
+				let s = serde_json::to_string(&message_success).expect("Serialization cannot fail; qed");
+				writeln!(out_sink, "{}", s).expect("The sink must be writeable.");
 			},
 			Err(failure) => {
-				let out_data = json!({
-					"error": &failure.error.to_string(),
-					"gasUsed": format!("{:#x}", failure.gas_used),
-					"time": display::as_micros(&failure.time),
-				});
+				let message_failure =
+					MessageFailure {
+						error: &failure.error.to_string(),
+						gas_used: &format!("{:#x}", failure.gas_used),
+						time: &display::as_micros(&failure.time),
+					}
+				;
 
 				Self::dump_state_into(trace_sink, failure.state_root, &failure.end_state);
 
-				writeln!(out_sink, "{}", out_data).expect("The sink must be writeable.");
+				let s = serde_json::to_string(&message_failure).expect("Serialization cannot fail; qed");
+				writeln!(out_sink, "{}", s).expect("The sink must be writeable.");
 			},
 		}
 	}
@@ -178,17 +248,22 @@ impl<Trace: Writer, Out: Writer> trace::VMTracer for Informant<Trace, Out> {
 		Self::with_informant_in_depth(self, subdepth, |informant: &mut Informant<Trace, Out>| {
 			let info = ::evm::Instruction::from_u8(instruction).map(|i| i.info());
 			informant.instruction = instruction;
-			let trace_data = json!({
-				"pc": pc,
-				"op": instruction,
-				"opName": info.map(|i| i.name).unwrap_or(""),
-				"gas": format!("{:#x}", current_gas),
-				"stack": informant.stack,
-				"storage": informant.storage,
-				"depth": informant.depth,
-			});
 
-			writeln!(&mut informant.trace_sink, "{}", trace_data).expect("The sink must be writeable.");
+			let trace_data =
+				TraceData {
+					pc: pc,
+					op: instruction,
+					op_name: info.map(|i| i.name).unwrap_or(""),
+					gas: &format!("{:#x}", current_gas),
+					stack: &informant.stack,
+					storage: &informant.storage,
+					depth: informant.depth,
+				}
+			;
+
+			let s = serde_json::to_string(&trace_data).expect("Serialization cannot fail; qed");
+
+			writeln!(&mut informant.trace_sink, "{}", s).expect("The sink must be writeable.");
 		});
 		true
 	}
@@ -197,7 +272,7 @@ impl<Trace: Writer, Out: Writer> trace::VMTracer for Informant<Trace, Out> {
 		let subdepth = self.subdepth;
 		Self::with_informant_in_depth(self, subdepth, |informant: &mut Informant<Trace, Out>| {
 			if let Some((pos, val)) = store_written {
-				informant.storage.insert(pos.into(), val.into());
+				informant.storage.insert(BigEndianHash::from_uint(&pos), BigEndianHash::from_uint(&val));
 			}
 		});
 	}
@@ -241,7 +316,7 @@ impl<Trace: Writer, Out: Writer> trace::VMTracer for Informant<Trace, Out> {
 pub mod tests {
 	use std::sync::{Arc, Mutex};
 	use super::*;
-	use info::tests::run_test;
+	use crate::info::tests::run_test;
 
 	#[derive(Debug, Clone, Default)]
 	pub struct TestWriter(pub Arc<Mutex<Vec<u8>>>);
@@ -261,78 +336,79 @@ pub mod tests {
 		}
 	}
 
-	pub fn informant() -> (Informant<TestWriter, TestWriter>, Arc<Mutex<Vec<u8>>>) {
+	pub fn informant() -> (Informant<TestWriter, TestWriter>, TestWriter, TestWriter) {
 		let trace_writer: TestWriter = Default::default();
 		let out_writer: TestWriter = Default::default();
-		let res = trace_writer.0.clone();
-		(Informant::new(trace_writer, out_writer), res)
+		let trace_copy = Clone::clone(&trace_writer);
+		let out_copy = Clone::clone(&out_writer);
+		(Informant::new(trace_writer, out_writer), trace_copy, out_copy)
 	}
 
 	#[test]
 	fn should_trace_failure() {
-		let (inf, res) = informant();
+		let (inf, res, _) = informant();
 		run_test(
 			inf,
 			move |_, expected| {
-				let bytes = res.lock().unwrap();
+				let bytes = res.0.lock().unwrap();
 				assert_eq!(expected, &String::from_utf8_lossy(&**bytes))
 			},
 			"60F8d6",
 			0xffff,
-			r#"{"depth":1,"gas":"0xffff","op":96,"opName":"PUSH1","pc":0,"stack":[],"storage":{}}
-{"depth":1,"gas":"0xfffc","op":214,"opName":"","pc":2,"stack":["0xf8"],"storage":{}}
+			r#"{"pc":0,"op":96,"opName":"PUSH1","gas":"0xffff","stack":[],"storage":{},"depth":1}
+{"pc":2,"op":214,"opName":"","gas":"0xfffc","stack":["0xf8"],"storage":{},"depth":1}
 "#,
 		);
 
-		let (inf, res) = informant();
+		let (inf, res, _) = informant();
 		run_test(
 			inf,
 			move |_, expected| {
-				let bytes = res.lock().unwrap();
+				let bytes = res.0.lock().unwrap();
 				assert_eq!(expected, &String::from_utf8_lossy(&**bytes))
 			},
 			"F8d6",
 			0xffff,
-			r#"{"depth":1,"gas":"0xffff","op":248,"opName":"","pc":0,"stack":[],"storage":{}}
+			r#"{"pc":0,"op":248,"opName":"","gas":"0xffff","stack":[],"storage":{},"depth":1}
 "#,
 		);
 	}
 
 	#[test]
 	fn should_trace_create_correctly() {
-		let (informant, res) = informant();
+		let (informant, res, _) = informant();
 		run_test(
 			informant,
 			move |_, expected| {
-				let bytes = res.lock().unwrap();
+				let bytes = res.0.lock().unwrap();
 				assert_eq!(expected, &String::from_utf8_lossy(&**bytes))
 			},
 			"32343434345830f138343438323439f0",
 			0xffff,
-			r#"{"depth":1,"gas":"0xffff","op":50,"opName":"ORIGIN","pc":0,"stack":[],"storage":{}}
-{"depth":1,"gas":"0xfffd","op":52,"opName":"CALLVALUE","pc":1,"stack":["0x0"],"storage":{}}
-{"depth":1,"gas":"0xfffb","op":52,"opName":"CALLVALUE","pc":2,"stack":["0x0","0x0"],"storage":{}}
-{"depth":1,"gas":"0xfff9","op":52,"opName":"CALLVALUE","pc":3,"stack":["0x0","0x0","0x0"],"storage":{}}
-{"depth":1,"gas":"0xfff7","op":52,"opName":"CALLVALUE","pc":4,"stack":["0x0","0x0","0x0","0x0"],"storage":{}}
-{"depth":1,"gas":"0xfff5","op":88,"opName":"PC","pc":5,"stack":["0x0","0x0","0x0","0x0","0x0"],"storage":{}}
-{"depth":1,"gas":"0xfff3","op":48,"opName":"ADDRESS","pc":6,"stack":["0x0","0x0","0x0","0x0","0x0","0x5"],"storage":{}}
-{"depth":1,"gas":"0xfff1","op":241,"opName":"CALL","pc":7,"stack":["0x0","0x0","0x0","0x0","0x0","0x5","0x0"],"storage":{}}
-{"depth":1,"gas":"0x9e21","op":56,"opName":"CODESIZE","pc":8,"stack":["0x1"],"storage":{}}
-{"depth":1,"gas":"0x9e1f","op":52,"opName":"CALLVALUE","pc":9,"stack":["0x1","0x10"],"storage":{}}
-{"depth":1,"gas":"0x9e1d","op":52,"opName":"CALLVALUE","pc":10,"stack":["0x1","0x10","0x0"],"storage":{}}
-{"depth":1,"gas":"0x9e1b","op":56,"opName":"CODESIZE","pc":11,"stack":["0x1","0x10","0x0","0x0"],"storage":{}}
-{"depth":1,"gas":"0x9e19","op":50,"opName":"ORIGIN","pc":12,"stack":["0x1","0x10","0x0","0x0","0x10"],"storage":{}}
-{"depth":1,"gas":"0x9e17","op":52,"opName":"CALLVALUE","pc":13,"stack":["0x1","0x10","0x0","0x0","0x10","0x0"],"storage":{}}
-{"depth":1,"gas":"0x9e15","op":57,"opName":"CODECOPY","pc":14,"stack":["0x1","0x10","0x0","0x0","0x10","0x0","0x0"],"storage":{}}
-{"depth":1,"gas":"0x9e0c","op":240,"opName":"CREATE","pc":15,"stack":["0x1","0x10","0x0","0x0"],"storage":{}}
-{"depth":2,"gas":"0x210c","op":50,"opName":"ORIGIN","pc":0,"stack":[],"storage":{}}
-{"depth":2,"gas":"0x210a","op":52,"opName":"CALLVALUE","pc":1,"stack":["0x0"],"storage":{}}
-{"depth":2,"gas":"0x2108","op":52,"opName":"CALLVALUE","pc":2,"stack":["0x0","0x0"],"storage":{}}
-{"depth":2,"gas":"0x2106","op":52,"opName":"CALLVALUE","pc":3,"stack":["0x0","0x0","0x0"],"storage":{}}
-{"depth":2,"gas":"0x2104","op":52,"opName":"CALLVALUE","pc":4,"stack":["0x0","0x0","0x0","0x0"],"storage":{}}
-{"depth":2,"gas":"0x2102","op":88,"opName":"PC","pc":5,"stack":["0x0","0x0","0x0","0x0","0x0"],"storage":{}}
-{"depth":2,"gas":"0x2100","op":48,"opName":"ADDRESS","pc":6,"stack":["0x0","0x0","0x0","0x0","0x0","0x5"],"storage":{}}
-{"depth":2,"gas":"0x20fe","op":241,"opName":"CALL","pc":7,"stack":["0x0","0x0","0x0","0x0","0x0","0x5","0xbd770416a3345f91e4b34576cb804a576fa48eb1"],"storage":{}}
+			r#"{"pc":0,"op":50,"opName":"ORIGIN","gas":"0xffff","stack":[],"storage":{},"depth":1}
+{"pc":1,"op":52,"opName":"CALLVALUE","gas":"0xfffd","stack":["0x0"],"storage":{},"depth":1}
+{"pc":2,"op":52,"opName":"CALLVALUE","gas":"0xfffb","stack":["0x0","0x0"],"storage":{},"depth":1}
+{"pc":3,"op":52,"opName":"CALLVALUE","gas":"0xfff9","stack":["0x0","0x0","0x0"],"storage":{},"depth":1}
+{"pc":4,"op":52,"opName":"CALLVALUE","gas":"0xfff7","stack":["0x0","0x0","0x0","0x0"],"storage":{},"depth":1}
+{"pc":5,"op":88,"opName":"PC","gas":"0xfff5","stack":["0x0","0x0","0x0","0x0","0x0"],"storage":{},"depth":1}
+{"pc":6,"op":48,"opName":"ADDRESS","gas":"0xfff3","stack":["0x0","0x0","0x0","0x0","0x0","0x5"],"storage":{},"depth":1}
+{"pc":7,"op":241,"opName":"CALL","gas":"0xfff1","stack":["0x0","0x0","0x0","0x0","0x0","0x5","0x0"],"storage":{},"depth":1}
+{"pc":8,"op":56,"opName":"CODESIZE","gas":"0x9e21","stack":["0x1"],"storage":{},"depth":1}
+{"pc":9,"op":52,"opName":"CALLVALUE","gas":"0x9e1f","stack":["0x1","0x10"],"storage":{},"depth":1}
+{"pc":10,"op":52,"opName":"CALLVALUE","gas":"0x9e1d","stack":["0x1","0x10","0x0"],"storage":{},"depth":1}
+{"pc":11,"op":56,"opName":"CODESIZE","gas":"0x9e1b","stack":["0x1","0x10","0x0","0x0"],"storage":{},"depth":1}
+{"pc":12,"op":50,"opName":"ORIGIN","gas":"0x9e19","stack":["0x1","0x10","0x0","0x0","0x10"],"storage":{},"depth":1}
+{"pc":13,"op":52,"opName":"CALLVALUE","gas":"0x9e17","stack":["0x1","0x10","0x0","0x0","0x10","0x0"],"storage":{},"depth":1}
+{"pc":14,"op":57,"opName":"CODECOPY","gas":"0x9e15","stack":["0x1","0x10","0x0","0x0","0x10","0x0","0x0"],"storage":{},"depth":1}
+{"pc":15,"op":240,"opName":"CREATE","gas":"0x9e0c","stack":["0x1","0x10","0x0","0x0"],"storage":{},"depth":1}
+{"pc":0,"op":50,"opName":"ORIGIN","gas":"0x210c","stack":[],"storage":{},"depth":2}
+{"pc":1,"op":52,"opName":"CALLVALUE","gas":"0x210a","stack":["0x0"],"storage":{},"depth":2}
+{"pc":2,"op":52,"opName":"CALLVALUE","gas":"0x2108","stack":["0x0","0x0"],"storage":{},"depth":2}
+{"pc":3,"op":52,"opName":"CALLVALUE","gas":"0x2106","stack":["0x0","0x0","0x0"],"storage":{},"depth":2}
+{"pc":4,"op":52,"opName":"CALLVALUE","gas":"0x2104","stack":["0x0","0x0","0x0","0x0"],"storage":{},"depth":2}
+{"pc":5,"op":88,"opName":"PC","gas":"0x2102","stack":["0x0","0x0","0x0","0x0","0x0"],"storage":{},"depth":2}
+{"pc":6,"op":48,"opName":"ADDRESS","gas":"0x2100","stack":["0x0","0x0","0x0","0x0","0x0","0x5"],"storage":{},"depth":2}
+{"pc":7,"op":241,"opName":"CALL","gas":"0x20fe","stack":["0x0","0x0","0x0","0x0","0x0","0x5","0xbd770416a3345f91e4b34576cb804a576fa48eb1"],"storage":{},"depth":2}
 "#,
 		)
 	}

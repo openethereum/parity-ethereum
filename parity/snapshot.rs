@@ -20,14 +20,20 @@ use std::time::Duration;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
+use client_traits::SnapshotClient;
 use hash::keccak;
-use ethcore::snapshot::{Progress, RestorationStatus, SnapshotConfiguration, SnapshotService as SS};
+use ethcore::snapshot::{SnapshotConfiguration, SnapshotService as SS};
 use ethcore::snapshot::io::{SnapshotReader, PackedReader, PackedWriter};
 use ethcore::snapshot::service::Service as SnapshotService;
-use ethcore::client::{Mode, DatabaseCompactionProfile, VMType};
+use ethcore::client::{DatabaseCompactionProfile, VMType};
 use ethcore::miner::Miner;
 use ethcore_service::ClientService;
-use types::ids::BlockId;
+use types::{
+	ids::BlockId,
+	snapshot::Progress,
+	client_types::Mode,
+	snapshot::RestorationStatus,
+};
 
 use cache::CacheConfig;
 use params::{SpecType, Pruning, Switch, tracing_switch_to_bool, fatdb_switch_to_bool};
@@ -123,6 +129,7 @@ fn restore_using<R: SnapshotReader>(snapshot: Arc<SnapshotService>, reader: &R, 
 	match snapshot.status() {
 		RestorationStatus::Ongoing { .. } => Err("Snapshot file is incomplete and missing chunks.".into()),
 		RestorationStatus::Initializing { .. } => Err("Snapshot restoration is still initializing.".into()),
+		RestorationStatus::Finalizing => Err("Snapshot restoration is still finalizing.".into()),
 		RestorationStatus::Failed => Err("Snapshot restoration failed.".into()),
 		RestorationStatus::Inactive => {
 			info!("Restoration complete.");
@@ -261,7 +268,7 @@ impl SnapshotCommand {
 				let cur_size = p.size();
 				if cur_size != last_size {
 					last_size = cur_size;
-					let bytes = ::informant::format_bytes(p.size());
+					let bytes = ::informant::format_bytes(cur_size as usize);
 					info!("Snapshot: {} accounts {} blocks {}", p.accounts(), p.blocks(), bytes);
 				}
 

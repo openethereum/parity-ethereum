@@ -31,7 +31,7 @@ use crypto;
 use futures::Future;
 use fetch::{Fetch, Client as FetchClient, Method, BodyReader, Request};
 use bytes::{Bytes, ToPretty};
-use error::{Error, ErrorKind};
+use error::Error;
 use url::Url;
 use super::Signer;
 use super::key_server_keys::address_to_key;
@@ -60,7 +60,7 @@ pub trait Encryptor: Send + Sync + 'static {
 	) -> Result<Bytes, Error>;
 }
 
-/// Configurtion for key server encryptor
+/// Configuration for key server encryptor
 #[derive(Default, PartialEq, Debug, Clone)]
 pub struct EncryptorConfig {
 	/// URL to key server
@@ -81,7 +81,7 @@ pub struct SecretStoreEncryptor {
 	config: EncryptorConfig,
 	client: FetchClient,
 	sessions: Mutex<HashMap<Address, EncryptionSession>>,
-	signer: Arc<Signer>,
+	signer: Arc<dyn Signer>,
 }
 
 impl SecretStoreEncryptor {
@@ -89,7 +89,7 @@ impl SecretStoreEncryptor {
 	pub fn new(
 		config: EncryptorConfig,
 		client: FetchClient,
-		signer: Arc<Signer>,
+		signer: Arc<dyn Signer>,
 	) -> Result<Self, Error> {
 		Ok(SecretStoreEncryptor {
 			config,
@@ -111,11 +111,11 @@ impl SecretStoreEncryptor {
 			return Ok(key);
 		}
 		let contract_address_signature = self.sign_contract_address(contract_address)?;
-		let requester = self.config.key_server_account.ok_or_else(|| ErrorKind::KeyServerAccountNotSet)?;
+		let requester = self.config.key_server_account.ok_or_else(|| Error::KeyServerAccountNotSet)?;
 
 		// key id in SS is H256 && we have H160 here => expand with assitional zeros
-		let contract_address_extended: H256 = contract_address.into();
-		let base_url = self.config.base_url.clone().ok_or_else(|| ErrorKind::KeyServerNotSet)?;
+		let contract_address_extended: H256 = (*contract_address).into();
+		let base_url = self.config.base_url.clone().ok_or_else(|| Error::KeyServerNotSet)?;
 
 		// prepare request url
 		let url = format!("{}/{}/{}{}",
@@ -132,16 +132,16 @@ impl SecretStoreEncryptor {
 			Method::GET
 		};
 
-		let url = Url::from_str(&url).map_err(|e| ErrorKind::Encrypt(e.to_string()))?;
+		let url = Url::from_str(&url).map_err(|e| Error::Encrypt(e.to_string()))?;
 		let response = self.client.fetch(Request::new(url, method), Default::default()).wait()
-			.map_err(|e| ErrorKind::Encrypt(e.to_string()))?;
+			.map_err(|e| Error::Encrypt(e.to_string()))?;
 
 		if response.is_not_found() {
-			bail!(ErrorKind::EncryptionKeyNotFound(*contract_address));
+			return Err(Error::EncryptionKeyNotFound(*contract_address));
 		}
 
 		if !response.is_success() {
-			bail!(ErrorKind::Encrypt(response.status().canonical_reason().unwrap_or("unknown").into()));
+			return Err(Error::Encrypt(response.status().canonical_reason().unwrap_or("unknown").into()));
 		}
 
 		// read HTTP response
@@ -149,14 +149,14 @@ impl SecretStoreEncryptor {
 		BodyReader::new(response).read_to_string(&mut result)?;
 
 		// response is JSON string (which is, in turn, hex-encoded, encrypted Public)
-		let encrypted_bytes: ethjson::bytes::Bytes = result.trim_matches('\"').parse().map_err(|e| ErrorKind::Encrypt(e))?;
+		let encrypted_bytes: ethjson::bytes::Bytes = result.trim_matches('\"').parse().map_err(|e| Error::Encrypt(e))?;
 
 		// decrypt Public
 		let decrypted_bytes = self.signer.decrypt(requester, &crypto::DEFAULT_MAC, &encrypted_bytes)?;
 		let decrypted_key = Public::from_slice(&decrypted_bytes);
 
 		// and now take x coordinate of Public as a key
-		let key: Bytes = (*decrypted_key)[..INIT_VEC_LEN].into();
+		let key: Bytes = decrypted_key.as_bytes()[..INIT_VEC_LEN].into();
 
 		// cache the key in the session and clear expired sessions
 		self.sessions.lock().insert(*contract_address, EncryptionSession{
@@ -189,7 +189,7 @@ impl SecretStoreEncryptor {
 	}
 
 	fn sign_contract_address(&self, contract_address: &Address) -> Result<Signature, Error> {
-		let key_server_account = self.config.key_server_account.ok_or_else(|| ErrorKind::KeyServerAccountNotSet)?;
+		let key_server_account = self.config.key_server_account.ok_or_else(|| Error::KeyServerAccountNotSet)?;
 		Ok(self.signer.sign(key_server_account, address_to_key(contract_address))?)
 	}
 }
@@ -204,7 +204,7 @@ impl Encryptor for SecretStoreEncryptor {
 		// retrieve the key, try to generate it if it doesn't exist yet
 		let key = match self.retrieve_key("", false, contract_address) {
 			Ok(key) => Ok(key),
-			Err(Error(ErrorKind::EncryptionKeyNotFound(_), _)) => {
+			Err(Error::EncryptionKeyNotFound(_)) => {
 				trace!(target: "privatetx", "Key for account wasnt found in sstore. Creating. Address: {:?}", contract_address);
 				self.retrieve_key(&format!("/{}", self.config.threshold), true, contract_address)
 			}
@@ -212,11 +212,11 @@ impl Encryptor for SecretStoreEncryptor {
 		}?;
 
 		// encrypt data
-		let mut cypher = Vec::with_capacity(plain_data.len() + initialisation_vector.len());
+		let mut cypher = Vec::with_capacity(plain_data.len() + initialisation_vector.as_bytes().len());
 		cypher.extend(repeat(0).take(plain_data.len()));
-		crypto::aes::encrypt_128_ctr(&key, initialisation_vector, plain_data, &mut cypher)
-			.map_err(|e| ErrorKind::Encrypt(e.to_string()))?;
-		cypher.extend_from_slice(&initialisation_vector);
+		crypto::aes::encrypt_128_ctr(&key, initialisation_vector.as_bytes(), plain_data, &mut cypher)
+			.map_err(|e| Error::Encrypt(e.to_string()))?;
+		cypher.extend_from_slice(&initialisation_vector.as_bytes());
 
 		Ok(cypher)
 	}
@@ -230,7 +230,7 @@ impl Encryptor for SecretStoreEncryptor {
 		// initialization vector takes INIT_VEC_LEN bytes
 		let cypher_len = cypher.len();
 		if cypher_len < INIT_VEC_LEN {
-			bail!(ErrorKind::Decrypt("Invalid cypher".into()));
+			return Err(Error::Decrypt("Invalid cypher".into()));
 		}
 
 		// retrieve existing key
@@ -241,7 +241,7 @@ impl Encryptor for SecretStoreEncryptor {
 		let mut plain_data = Vec::with_capacity(cypher_len - INIT_VEC_LEN);
 		plain_data.extend(repeat(0).take(cypher_len - INIT_VEC_LEN));
 		crypto::aes::decrypt_128_ctr(&key, &iv, cypher, &mut plain_data)
-			.map_err(|e| ErrorKind::Decrypt(e.to_string()))?;
+			.map_err(|e| Error::Decrypt(e.to_string()))?;
 		Ok(plain_data)
 	}
 }

@@ -26,27 +26,16 @@ use std::fs::{self, File};
 use std::path::{Path, PathBuf};
 
 use bytes::Bytes;
+use client_traits::SnapshotWriter;
 use ethereum_types::H256;
 use rlp::{RlpStream, Rlp};
-
-use super::ManifestData;
+use types::{
+	errors::{SnapshotError, EthcoreError},
+	snapshot::ManifestData,
+};
 
 const SNAPSHOT_VERSION: u64 = 2;
 
-/// Something which can write snapshots.
-/// Writing the same chunk multiple times will lead to implementation-defined
-/// behavior, and is not advised.
-pub trait SnapshotWriter {
-	/// Write a compressed state chunk.
-	fn write_state_chunk(&mut self, hash: H256, chunk: &[u8]) -> io::Result<()>;
-
-	/// Write a compressed block chunk.
-	fn write_block_chunk(&mut self, hash: H256, chunk: &[u8]) -> io::Result<()>;
-
-	/// Complete writing. The manifest's chunk lists must be consistent
-	/// with the chunks written.
-	fn finish(self, manifest: ManifestData) -> io::Result<()> where Self: Sized;
-}
 
 // (hash, len, offset)
 #[derive(RlpEncodable, RlpDecodable)]
@@ -206,7 +195,7 @@ impl PackedReader {
 	/// Create a new `PackedReader` for the file at the given path.
 	/// This will fail if any io errors are encountered or the file
 	/// is not a valid packed snapshot.
-	pub fn new(path: &Path) -> Result<Option<Self>, ::snapshot::error::Error> {
+	pub fn new(path: &Path) -> Result<Option<Self>, SnapshotError> {
 		let mut file = File::open(path)?;
 		let file_len = file.metadata()?.len();
 		if file_len < 8 {
@@ -246,7 +235,7 @@ impl PackedReader {
 		};
 
 		if version > SNAPSHOT_VERSION {
-			return Err(::snapshot::error::Error::VersionNotSupported(version));
+			return Err(SnapshotError::VersionNotSupported(version));
 		}
 
 		let state: Vec<ChunkInfo> = rlp.list_at(0 + start)?;
@@ -299,7 +288,7 @@ pub struct LooseReader {
 impl LooseReader {
 	/// Create a new `LooseReader` which will read the manifest and chunk data from
 	/// the given directory.
-	pub fn new(mut dir: PathBuf) -> Result<Self, ::error::Error> {
+	pub fn new(mut dir: PathBuf) -> Result<Self, EthcoreError> {
 		let mut manifest_buf = Vec::new();
 
 		dir.push("MANIFEST");
@@ -310,10 +299,7 @@ impl LooseReader {
 
 		dir.pop();
 
-		Ok(LooseReader {
-			dir: dir,
-			manifest: manifest,
-		})
+		Ok(LooseReader { dir, manifest })
 	}
 }
 

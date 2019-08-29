@@ -33,20 +33,24 @@ use kvdb_rocksdb::{self, Database, DatabaseConfig};
 use parking_lot::RwLock;
 use rlp::{self, RlpStream};
 use tempdir::TempDir;
-use types::transaction::{Action, Transaction, SignedTransaction};
-use types::encoded;
-use types::header::Header;
-use types::view;
-use types::views::BlockView;
+use types::{
+	transaction::{Action, Transaction, SignedTransaction},
+	encoded,
+	engines::ForkChoice,
+	header::Header,
+	view,
+	views::BlockView,
+	verification::Unverified,
+};
 
 use block::{OpenBlock, Drain};
-use client::{Client, ClientConfig, ChainInfo, ImportBlock, ChainNotify, ChainMessageType, PrepareOpenBlock};
-use factory::Factories;
+use client::{Client, ClientConfig, ChainNotify, ChainMessageType, PrepareOpenBlock};
+use client_traits::{ChainInfo, ImportBlock};
+use trie_vm_factories::Factories;
 use miner::Miner;
-use spec::Spec;
-use state::*;
+use spec::{Spec, self};
+use account_state::*;
 use state_db::StateDB;
-use verification::queue::kind::blocks::Unverified;
 
 /// Creates test block with corresponding header
 pub fn create_test_block(header: &Header) -> Bytes {
@@ -100,16 +104,16 @@ pub fn create_test_block_with_data(header: &Header, transactions: &[SignedTransa
 
 /// Generates dummy client (not test client) with corresponding amount of blocks
 pub fn generate_dummy_client(block_number: u32) -> Arc<Client> {
-	generate_dummy_client_with_spec_and_data(Spec::new_test, block_number, 0, &[])
+	generate_dummy_client_with_spec_and_data(spec::new_test, block_number, 0, &[])
 }
 
 /// Generates dummy client (not test client) with corresponding amount of blocks and txs per every block
 pub fn generate_dummy_client_with_data(block_number: u32, txs_per_block: usize, tx_gas_prices: &[U256]) -> Arc<Client> {
-	generate_dummy_client_with_spec_and_data(Spec::new_null, block_number, txs_per_block, tx_gas_prices)
+	generate_dummy_client_with_spec_and_data(spec::new_null, block_number, txs_per_block, tx_gas_prices)
 }
 
 /// Generates dummy client (not test client) with corresponding spec and accounts
-pub fn generate_dummy_client_with_spec<F>(test_spec: F) -> Arc<Client> where F: Fn()->Spec {
+pub fn generate_dummy_client_with_spec<F>(test_spec: F) -> Arc<Client> where F: Fn() -> Spec {
 	generate_dummy_client_with_spec_and_data(test_spec, 0, 0, &[])
 }
 
@@ -136,7 +140,7 @@ pub fn generate_dummy_client_with_spec_and_data<F>(test_spec: F, block_number: u
 	let mut last_hashes = vec![];
 	let mut last_header = genesis_header.clone();
 
-	let kp = KeyPair::from_secret_slice(&keccak("")).unwrap();
+	let kp = KeyPair::from_secret_slice(keccak("").as_bytes()).unwrap();
 	let author = kp.address();
 
 	let mut n = 0;
@@ -155,7 +159,6 @@ pub fn generate_dummy_client_with_spec_and_data<F>(test_spec: F, block_number: u
 			(3141562.into(), 31415620.into()),
 			vec![],
 			false,
-			&mut Vec::new().into_iter(),
 		).unwrap();
 		rolling_timestamp += 10;
 		b.set_timestamp(rolling_timestamp);
@@ -183,13 +186,12 @@ pub fn generate_dummy_client_with_spec_and_data<F>(test_spec: F, block_number: u
 		db = b.drain().state.drop().1;
 	}
 	client.flush_queue();
-	client.import_verified_blocks();
 	client
 }
 
 /// Adds blocks to the client
 pub fn push_blocks_to_client(client: &Arc<Client>, timestamp_salt: u64, starting_number: usize, block_number: usize) {
-	let test_spec = Spec::new_test();
+	let test_spec = spec::new_test();
 	let state_root = test_spec.genesis_header().state_root().clone();
 	let genesis_gas = test_spec.genesis_header().gas_limit().clone();
 
@@ -219,11 +221,11 @@ pub fn push_blocks_to_client(client: &Arc<Client>, timestamp_salt: u64, starting
 
 /// Adds one block with transactions
 pub fn push_block_with_transactions(client: &Arc<Client>, transactions: &[SignedTransaction]) {
-	let test_spec = Spec::new_test();
+	let test_spec = spec::new_test();
 	let test_engine = &*test_spec.engine;
 	let block_number = client.chain_info().best_block_number as u64 + 1;
 
-	let mut b = client.prepare_open_block(Address::default(), (0.into(), 5000000.into()), Bytes::new()).unwrap();
+	let mut b = client.prepare_open_block(Address::zero(), (0.into(), 5000000.into()), Bytes::new()).unwrap();
 	b.set_timestamp(block_number * 10);
 
 	for t in transactions {
@@ -236,12 +238,11 @@ pub fn push_block_with_transactions(client: &Arc<Client>, transactions: &[Signed
 	}
 
 	client.flush_queue();
-	client.import_verified_blocks();
 }
 
 /// Creates dummy client (not test client) with corresponding blocks
 pub fn get_test_client_with_blocks(blocks: Vec<Bytes>) -> Arc<Client> {
-	let test_spec = Spec::new_test();
+	let test_spec = spec::new_test();
 	let client_db = new_db();
 
 	let client = Client::new(
@@ -258,7 +259,6 @@ pub fn get_test_client_with_blocks(blocks: Vec<Bytes>) -> Arc<Client> {
 		}
 	}
 	client.flush_queue();
-	client.import_verified_blocks();
 	client
 }
 
@@ -267,11 +267,11 @@ struct TestBlockChainDB {
 	_trace_blooms_dir: TempDir,
 	blooms: blooms_db::Database,
 	trace_blooms: blooms_db::Database,
-	key_value: Arc<KeyValueDB>,
+	key_value: Arc<dyn KeyValueDB>,
 }
 
 impl BlockChainDB for TestBlockChainDB {
-	fn key_value(&self) -> &Arc<KeyValueDB> {
+	fn key_value(&self) -> &Arc<dyn KeyValueDB> {
 		&self.key_value
 	}
 
@@ -285,7 +285,7 @@ impl BlockChainDB for TestBlockChainDB {
 }
 
 /// Creates new test instance of `BlockChainDB`
-pub fn new_db() -> Arc<BlockChainDB> {
+pub fn new_db() -> Arc<dyn BlockChainDB> {
 	let blooms_dir = TempDir::new("").unwrap();
 	let trace_blooms_dir = TempDir::new("").unwrap();
 
@@ -301,7 +301,7 @@ pub fn new_db() -> Arc<BlockChainDB> {
 }
 
 /// Creates a new temporary `BlockChainDB` on FS
-pub fn new_temp_db(tempdir: &Path) -> Arc<BlockChainDB> {
+pub fn new_temp_db(tempdir: &Path) -> Arc<dyn BlockChainDB> {
 	let blooms_dir = TempDir::new("").unwrap();
 	let trace_blooms_dir = TempDir::new("").unwrap();
 	let key_value_dir = tempdir.join("key_value");
@@ -321,7 +321,7 @@ pub fn new_temp_db(tempdir: &Path) -> Arc<BlockChainDB> {
 }
 
 /// Creates new instance of KeyValueDBHandler
-pub fn restoration_db_handler(config: kvdb_rocksdb::DatabaseConfig) -> Box<BlockChainDBHandler> {
+pub fn restoration_db_handler(config: kvdb_rocksdb::DatabaseConfig) -> Box<dyn BlockChainDBHandler> {
 	struct RestorationDBHandler {
 		config: kvdb_rocksdb::DatabaseConfig,
 	}
@@ -329,11 +329,11 @@ pub fn restoration_db_handler(config: kvdb_rocksdb::DatabaseConfig) -> Box<Block
 	struct RestorationDB {
 		blooms: blooms_db::Database,
 		trace_blooms: blooms_db::Database,
-		key_value: Arc<KeyValueDB>,
+		key_value: Arc<dyn KeyValueDB>,
 	}
 
 	impl BlockChainDB for RestorationDB {
-		fn key_value(&self) -> &Arc<KeyValueDB> {
+		fn key_value(&self) -> &Arc<dyn KeyValueDB> {
 			&self.key_value
 		}
 
@@ -347,7 +347,7 @@ pub fn restoration_db_handler(config: kvdb_rocksdb::DatabaseConfig) -> Box<Block
 	}
 
 	impl BlockChainDBHandler for RestorationDBHandler {
-		fn open(&self, db_path: &Path) -> io::Result<Arc<BlockChainDB>> {
+		fn open(&self, db_path: &Path) -> io::Result<Arc<dyn BlockChainDB>> {
 			let key_value = Arc::new(kvdb_rocksdb::Database::open(&self.config, &db_path.to_string_lossy())?);
 			let blooms_path = db_path.join("blooms");
 			let trace_blooms_path = db_path.join("trace_blooms");
@@ -376,7 +376,7 @@ pub fn generate_dummy_blockchain(block_number: u32) -> BlockChain {
 	for block_order in 1..block_number {
 		// Total difficulty is always 0 here.
 		bc.insert_block(&mut batch, encoded::Block::new(create_unverifiable_block(block_order, bc.best_block_hash())), vec![], ExtrasInsert {
-			fork_choice: ::engines::ForkChoice::New,
+			fork_choice: ForkChoice::New,
 			is_finalized: false,
 		});
 		bc.commit();
@@ -394,7 +394,7 @@ pub fn generate_dummy_blockchain_with_extra(block_number: u32) -> BlockChain {
 	for block_order in 1..block_number {
 		// Total difficulty is always 0 here.
 		bc.insert_block(&mut batch, encoded::Block::new(create_unverifiable_block_with_extra(block_order, bc.best_block_hash(), None)), vec![], ExtrasInsert {
-			fork_choice: ::engines::ForkChoice::New,
+			fork_choice: ForkChoice::New,
 			is_finalized: false,
 		});
 		bc.commit();
@@ -433,13 +433,13 @@ pub fn get_temp_state_db() -> StateDB {
 
 /// Returns sequence of hashes of the dummy blocks
 pub fn get_good_dummy_block_seq(count: usize) -> Vec<Bytes> {
-	let test_spec = Spec::new_test();
+	let test_spec = spec::new_test();
 	get_good_dummy_block_fork_seq(1, count, &test_spec.genesis_header().hash())
 }
 
 /// Returns sequence of hashes of the dummy blocks beginning from corresponding parent
 pub fn get_good_dummy_block_fork_seq(start_number: usize, count: usize, parent_hash: &H256) -> Vec<Bytes> {
-	let test_spec = Spec::new_test();
+	let test_spec = spec::new_test();
 	let genesis_gas = test_spec.genesis_header().gas_limit().clone();
 	let mut rolling_timestamp = start_number as u64 * 10;
 	let mut parent = *parent_hash;
@@ -464,7 +464,7 @@ pub fn get_good_dummy_block_fork_seq(start_number: usize, count: usize, parent_h
 /// Returns hash and header of the correct dummy block
 pub fn get_good_dummy_block_hash() -> (H256, Bytes) {
 	let mut block_header = Header::new();
-	let test_spec = Spec::new_test();
+	let test_spec = spec::new_test();
 	let genesis_gas = test_spec.genesis_header().gas_limit().clone();
 	block_header.set_gas_limit(genesis_gas);
 	block_header.set_difficulty(U256::from(0x20000));
@@ -485,7 +485,7 @@ pub fn get_good_dummy_block() -> Bytes {
 /// Returns hash of the dummy block with incorrect state root
 pub fn get_bad_state_dummy_block() -> Bytes {
 	let mut block_header = Header::new();
-	let test_spec = Spec::new_test();
+	let test_spec = spec::new_test();
 	let genesis_gas = test_spec.genesis_header().gas_limit().clone();
 
 	block_header.set_gas_limit(genesis_gas);
@@ -493,7 +493,7 @@ pub fn get_bad_state_dummy_block() -> Bytes {
 	block_header.set_timestamp(40);
 	block_header.set_number(1);
 	block_header.set_parent_hash(test_spec.genesis_header().hash());
-	block_header.set_state_root(0xbad.into());
+	block_header.set_state_root(H256::from_low_u64_be(0xbad));
 
 	create_test_block(&block_header)
 }
@@ -511,6 +511,7 @@ impl ChainNotify for TestNotify {
 			ChainMessageType::Consensus(data) => data,
 			ChainMessageType::SignedPrivateTransaction(_, data) => data,
 			ChainMessageType::PrivateTransaction(_, data) => data,
+			ChainMessageType::PrivateStateRequest(_) => Vec::new(),
 		};
 		self.messages.write().push(data);
 	}

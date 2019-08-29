@@ -37,7 +37,7 @@ pub trait HashFetch: Send + Sync + 'static {
 	/// 2. `on_done` - callback function invoked when the content is ready (or there was error during fetch)
 	///
 	/// This function may fail immediately when fetch cannot be initialized or content cannot be resolved.
-	fn fetch(&self, hash: H256, abort: fetch::Abort, on_done: Box<Fn(Result<PathBuf, Error>) + Send>);
+	fn fetch(&self, hash: H256, abort: fetch::Abort, on_done: Box<dyn Fn(Result<PathBuf, Error>) + Send>);
 }
 
 /// Hash-fetching error.
@@ -111,12 +111,12 @@ pub struct Client<F: Fetch + 'static = fetch::Client> {
 	contract: URLHintContract,
 	fetch: F,
 	executor: Executor,
-	random_path: Arc<Fn() -> PathBuf + Sync + Send>,
+	random_path: Arc<dyn Fn() -> PathBuf + Sync + Send>,
 }
 
 impl<F: Fetch + 'static> Client<F> {
 	/// Creates new instance of the `Client` given on-chain contract client, fetch service and task runner.
-	pub fn with_fetch(contract: Arc<RegistrarClient<Call=Asynchronous>>, fetch: F, executor: Executor) -> Self {
+	pub fn with_fetch(contract: Arc<dyn RegistrarClient<Call=Asynchronous>>, fetch: F, executor: Executor) -> Self {
 		Client {
 			contract: URLHintContract::new(contract),
 			fetch: fetch,
@@ -127,7 +127,7 @@ impl<F: Fetch + 'static> Client<F> {
 }
 
 impl<F: Fetch + 'static> HashFetch for Client<F> {
-	fn fetch(&self, hash: H256, abort: fetch::Abort, on_done: Box<Fn(Result<PathBuf, Error>) + Send>) {
+	fn fetch(&self, hash: H256, abort: fetch::Abort, on_done: Box<dyn Fn(Result<PathBuf, Error>) + Send>) {
 		debug!(target: "fetch", "Fetching: {:?}", hash);
 
 		let random_path = self.random_path.clone();
@@ -176,11 +176,11 @@ impl<F: Fetch + 'static> HashFetch for Client<F> {
 }
 
 fn random_temp_path() -> PathBuf {
-	use ::rand::Rng;
+	use rand::{Rng, rngs::OsRng, distributions::Alphanumeric};
 	use ::std::env;
 
-	let mut rng = ::rand::OsRng::new().expect("Reliable random source is required to work.");
-	let file: String = rng.gen_ascii_chars().take(12).collect();
+	let mut rng = OsRng::new().expect("Reliable random source is required to work.");
+	let file: String = rng.sample_iter(&Alphanumeric).take(12).collect();
 
 	let mut path = env::temp_dir();
 	path.push(file);
@@ -195,7 +195,8 @@ mod tests {
 	use parking_lot::Mutex;
 	use parity_runtime::Executor;
 	use urlhint::tests::{FakeRegistrar, URLHINT};
-	use super::{Error, Client, HashFetch, random_temp_path};
+	use super::{Error, Client, HashFetch, random_temp_path, H256};
+	use std::str::FromStr;
 
 	fn registrar() -> FakeRegistrar {
 		let mut registrar = FakeRegistrar::new();
@@ -215,7 +216,7 @@ mod tests {
 
 		// when
 		let (tx, rx) = mpsc::channel();
-		client.fetch(2.into(), Default::default(), Box::new(move |result| {
+		client.fetch(H256::from_low_u64_be(2), Default::default(), Box::new(move |result| {
 			tx.send(result).unwrap();
 		}));
 
@@ -233,7 +234,7 @@ mod tests {
 
 		// when
 		let (tx, rx) = mpsc::channel();
-		client.fetch(2.into(), Default::default(), Box::new(move |result| {
+		client.fetch(H256::from_low_u64_be(2), Default::default(), Box::new(move |result| {
 			tx.send(result).unwrap();
 		}));
 
@@ -254,14 +255,14 @@ mod tests {
 
 		// when
 		let (tx, rx) = mpsc::channel();
-		client.fetch(2.into(), Default::default(), Box::new(move |result| {
+		client.fetch(H256::from_low_u64_be(2), Default::default(), Box::new(move |result| {
 			tx.send(result).unwrap();
 		}));
 
 		// then
 		let result = rx.recv().unwrap();
-		let hash = "0x2be00befcf008bc0e7d9cdefc194db9c75352e8632f48498b5a6bfce9f02c88e".into();
-		assert_eq!(result.unwrap_err(), Error::HashMismatch { expected: 2.into(), got: hash });
+		let hash = H256::from_str("2be00befcf008bc0e7d9cdefc194db9c75352e8632f48498b5a6bfce9f02c88e").unwrap();
+		assert_eq!(result.unwrap_err(), Error::HashMismatch { expected: H256::from_low_u64_be(2), got: hash });
 		assert!(!path.exists(), "Temporary file should be removed.");
 	}
 
@@ -274,7 +275,7 @@ mod tests {
 
 		// when
 		let (tx, rx) = mpsc::channel();
-		client.fetch("0x2be00befcf008bc0e7d9cdefc194db9c75352e8632f48498b5a6bfce9f02c88e".into(),
+		client.fetch(H256::from_str("2be00befcf008bc0e7d9cdefc194db9c75352e8632f48498b5a6bfce9f02c88e").unwrap(),
 			Default::default(),
 			Box::new(move |result| { tx.send(result).unwrap(); }));
 

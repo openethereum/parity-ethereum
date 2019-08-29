@@ -1,4 +1,5 @@
 [package]
+description = "Parity Ethereum Virtual Machine (EVM) Rust Implementation"
 name = "evm"
 version = "0.1.0"
 authors = ["Parity Technologies <admin@parity.io>"]
@@ -6,18 +7,19 @@ authors = ["Parity Technologies <admin@parity.io>"]
 [dependencies]
 bit-set = "0.4"
 parity-bytes = "0.1"
-ethereum-types = "0.4"
-heapsize = "0.4"
+ethereum-types = "0.6.0"
+parity-util-mem = "0.2.0"
 lazy_static = "1.0"
 log = "0.4"
 vm = { path = "../vm" }
-keccak-hash = "0.1"
-parking_lot = "0.7"
+keccak-hash = "0.2.0"
+parking_lot = "0.8"
 memory-cache = { path = "../../util/memory-cache" }
 
 [dev-dependencies]
 rustc-hex = "1.0"
 criterion = "0.2"
+hex-literal = "0.2.0"
 
 [features]
 evm-debug = []

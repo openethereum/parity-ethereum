@@ -16,7 +16,8 @@
 
 //! Gas prices histogram.
 
-use v1::types::U256;
+use ethereum_types::U256;
+use stats;
 
 /// Values of RPC settings.
 #[derive(Serialize, Deserialize)]
@@ -25,12 +26,12 @@ use v1::types::U256;
 pub struct Histogram {
 	/// Gas prices for bucket edges.
 	pub bucket_bounds: Vec<U256>,
-	/// Transacion counts for each bucket.
+	/// Transaction counts for each bucket.
 	pub counts: Vec<usize>,
 }
 
-impl From<::stats::Histogram<::ethereum_types::U256>> for Histogram {
-	fn from(h: ::stats::Histogram<::ethereum_types::U256>) -> Self {
+impl From<stats::Histogram<U256>> for Histogram {
+	fn from(h: stats::Histogram<U256>) -> Self {
 		Histogram {
 			bucket_bounds: h.bucket_bounds.into_iter().map(Into::into).collect(),
 			counts: h.counts

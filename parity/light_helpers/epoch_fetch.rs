@@ -16,25 +16,26 @@
 
 use std::sync::{Arc, Weak};
 
-use ethcore::engines::{EthEngine, StateDependentProof};
-use ethcore::machine::EthereumMachine;
-use sync::LightSync;
-use types::encoded;
-use types::header::Header;
-use types::receipt::Receipt;
+use engine::{Engine, StateDependentProof};
+use sync::{LightSync, LightNetworkDispatcher};
+use types::{
+	header::Header,
+	encoded,
+	receipt::Receipt,
+};
 
 use futures::{future, Future};
 use futures::future::Either;
 
 use light::client::fetch::ChainDataFetcher;
-use light::on_demand::{request, OnDemand};
+use light::on_demand::{request, OnDemand, OnDemandRequester};
 
 use parking_lot::RwLock;
 use ethereum_types::H256;
 
 const ALL_VALID_BACKREFS: &str = "no back-references, therefore all back-references valid; qed";
 
-type BoxFuture<T, E> = Box<Future<Item = T, Error = E>>;
+type BoxFuture<T, E> = Box<dyn Future<Item = T, Error = E>>;
 
 /// Allows on-demand fetch of data useful for the light client.
 pub struct EpochFetch {
@@ -82,7 +83,7 @@ impl ChainDataFetcher for EpochFetch {
 	}
 
 	/// Fetch epoch transition proof at given header.
-	fn epoch_transition(&self, hash: H256, engine: Arc<EthEngine>, checker: Arc<StateDependentProof<EthereumMachine>>)
+	fn epoch_transition(&self, hash: H256, engine: Arc<dyn Engine>, checker: Arc<dyn StateDependentProof>)
 		-> Self::Transition
 	{
 		self.request(request::Signal {

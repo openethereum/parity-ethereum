@@ -14,7 +14,8 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
-use v1::types::{Bytes, H512};
+use ethereum_types::H512;
+use v1::types::Bytes;
 
 /// Encrypted document key.
 #[derive(Default, Debug, Serialize, PartialEq)]
@@ -22,7 +23,7 @@ use v1::types::{Bytes, H512};
 pub struct EncryptedDocumentKey {
 	/// Common encryption point. Pass this to Secret Store 'Document key storing session'
 	pub common_point: H512,
-	/// Ecnrypted point. Pass this to Secret Store 'Document key storing session'.
+	/// Encrypted point. Pass this to Secret Store 'Document key storing session'.
 	pub encrypted_point: H512,
 	/// Document key itself, encrypted with passed account public. Pass this to 'secretstore_encrypt'.
 	pub encrypted_key: Bytes,
@@ -31,13 +32,13 @@ pub struct EncryptedDocumentKey {
 #[cfg(test)]
 mod tests {
 	use serde_json;
-	use super::EncryptedDocumentKey;
+	use super::{EncryptedDocumentKey, H512};
 
 	#[test]
 	fn test_serialize_encrypted_document_key() {
 		let initial = EncryptedDocumentKey {
-			common_point: 1.into(),
-			encrypted_point: 2.into(),
+			common_point: H512::from_low_u64_be(1),
+			encrypted_point: H512::from_low_u64_be(2),
 			encrypted_key: vec![3].into(),
 		};
 
@@ -45,8 +46,8 @@ mod tests {
 		assert_eq!(serialized, r#"{"common_point":"0x00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000001","encrypted_point":"0x00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000002","encrypted_key":"0x03"}"#);
 
 		let deserialized: EncryptedDocumentKey = serde_json::from_str(&serialized).unwrap();
-		assert_eq!(deserialized.common_point, 1.into());
-		assert_eq!(deserialized.encrypted_point, 2.into());
+		assert_eq!(deserialized.common_point, H512::from_low_u64_be(1));
+		assert_eq!(deserialized.encrypted_point, H512::from_low_u64_be(2));
 		assert_eq!(deserialized.encrypted_key, vec![3].into());
 	}
 }

@@ -53,17 +53,14 @@
 //!   cargo build --release
 //!   ```
 
-// Recursion limit required because of
-// error_chain foreign_links.
-#![recursion_limit="128"]
-
+extern crate account_db;
+extern crate account_state;
 extern crate ansi_term;
-extern crate bn;
-extern crate byteorder;
+extern crate client_traits;
 extern crate common_types as types;
-extern crate crossbeam;
+extern crate crossbeam_utils;
+extern crate engine;
 extern crate ethabi;
-extern crate ethash;
 extern crate ethcore_blockchain as blockchain;
 extern crate ethcore_bloom_journal as bloom_journal;
 extern crate ethcore_call_contract as call_contract;
@@ -71,102 +68,96 @@ extern crate ethcore_db as db;
 extern crate ethcore_io as io;
 extern crate ethcore_miner;
 extern crate ethereum_types;
-extern crate ethjson;
-extern crate ethkey;
-extern crate hashdb;
-extern crate heapsize;
+extern crate executive_state;
+extern crate futures;
+extern crate hash_db;
 extern crate itertools;
 extern crate journaldb;
 extern crate keccak_hash as hash;
 extern crate keccak_hasher;
 extern crate kvdb;
-extern crate kvdb_memorydb;
-extern crate len_caching_lock;
-extern crate lru_cache;
+extern crate machine;
 extern crate memory_cache;
-extern crate memorydb;
-extern crate num;
 extern crate num_cpus;
 extern crate parity_bytes as bytes;
-extern crate parity_crypto;
-extern crate parity_machine;
 extern crate parity_snappy as snappy;
 extern crate parking_lot;
-extern crate patricia_trie as trie;
+extern crate trie_db as trie;
 extern crate patricia_trie_ethereum as ethtrie;
 extern crate rand;
 extern crate rayon;
 extern crate rlp;
-extern crate rustc_hex;
 extern crate serde;
-extern crate stats;
+extern crate spec;
+extern crate state_db;
+extern crate trace;
+extern crate trie_vm_factories;
 extern crate triehash_ethereum as triehash;
 extern crate unexpected;
 extern crate using_queue;
+extern crate verification;
 extern crate vm;
-extern crate wasm;
 
+#[cfg(test)]
+extern crate rand_xorshift;
 #[cfg(test)]
 extern crate ethcore_accounts as accounts;
 #[cfg(feature = "stratum")]
 extern crate ethcore_stratum;
-#[cfg(any(test, feature = "tempdir"))]
-extern crate tempdir;
+#[cfg(any(test, feature = "stratum"))]
+extern crate ethash;
+
+#[cfg(any(test, feature = "test-helpers"))]
+extern crate ethkey;
+#[cfg(any(test, feature = "test-helpers"))]
+extern crate ethjson;
+#[cfg(any(test, feature = "test-helpers"))]
+extern crate kvdb_memorydb;
 #[cfg(any(test, feature = "kvdb-rocksdb"))]
 extern crate kvdb_rocksdb;
+#[cfg(any(test, feature = "json-tests"))]
+#[macro_use]
+extern crate lazy_static;
+#[cfg(any(test, feature = "test-helpers"))]
+#[macro_use]
+extern crate macros;
+#[cfg(test)]
+extern crate null_engine;
+#[cfg(any(test, feature = "test-helpers"))]
+extern crate pod;
 #[cfg(any(test, feature = "blooms-db"))]
 extern crate blooms_db;
 #[cfg(any(test, feature = "env_logger"))]
 extern crate env_logger;
+#[cfg(any(test, feature = "test-helpers"))]
+extern crate rustc_hex;
 #[cfg(test)]
-extern crate rlp_compress;
+extern crate serde_json;
+#[cfg(any(test, feature = "tempdir"))]
+extern crate tempdir;
 
-#[macro_use]
-extern crate ethabi_derive;
 #[macro_use]
 extern crate ethabi_contract;
 #[macro_use]
-extern crate error_chain;
-#[macro_use]
 extern crate log;
-#[macro_use]
-extern crate lazy_static;
-#[macro_use]
-extern crate macros;
 #[macro_use]
 extern crate rlp_derive;
 #[macro_use]
 extern crate trace_time;
-#[macro_use]
-extern crate serde_derive;
 
 #[cfg_attr(test, macro_use)]
 extern crate evm;
 
-pub mod block;
-pub mod builtin;
-pub mod client;
-pub mod engines;
-pub mod error;
-pub mod ethereum;
-pub mod executed;
-pub mod executive;
-pub mod machine;
-pub mod miner;
-pub mod pod_state;
-pub mod pod_account;
-pub mod snapshot;
-pub mod spec;
-pub mod state;
-pub mod state_db;
-pub mod trace;
-pub mod transaction_ext;
-pub mod verification;
+#[cfg(all(test, feature = "price-info"))]
+extern crate fetch;
 
-mod account_db;
-mod externalities;
-mod factory;
-mod tx_filter;
+#[cfg(all(test, feature = "price-info"))]
+extern crate parity_runtime;
+
+pub mod block;
+pub mod client;
+pub mod miner;
+pub mod snapshot;
 
 #[cfg(test)]
 mod tests;
@@ -175,6 +166,5 @@ pub mod json_tests;
 #[cfg(any(test, feature = "test-helpers"))]
 pub mod test_helpers;
 
-pub use executive::contract_address;
 pub use evm::CreateContractAddress;
 pub use trie::TrieSpec;

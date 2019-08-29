@@ -17,8 +17,12 @@
 //! Watcher for snapshot-related chain events.
 
 use parking_lot::Mutex;
-use client::{BlockInfo, Client, ChainNotify, NewBlocks, ClientIoMessage};
-use types::ids::BlockId;
+use client::{Client, ChainNotify, NewBlocks};
+use client_traits::BlockInfo;
+use types::{
+	ids::BlockId,
+	io_message::ClientIoMessage,
+};
 
 use io::IoChannel;
 use ethereum_types::H256;
@@ -54,7 +58,7 @@ trait Broadcast: Send + Sync {
 	fn take_at(&self, num: Option<u64>);
 }
 
-impl Broadcast for Mutex<IoChannel<ClientIoMessage>> {
+impl Broadcast for Mutex<IoChannel<ClientIoMessage<Client>>> {
 	fn take_at(&self, num: Option<u64>) {
 		let num = match num {
 			Some(n) => n,
@@ -72,8 +76,8 @@ impl Broadcast for Mutex<IoChannel<ClientIoMessage>> {
 /// A `ChainNotify` implementation which will trigger a snapshot event
 /// at certain block numbers.
 pub struct Watcher {
-	oracle: Box<Oracle>,
-	broadcast: Box<Broadcast>,
+	oracle: Box<dyn Oracle>,
+	broadcast: Box<dyn Broadcast>,
 	period: u64,
 	history: u64,
 }
@@ -82,7 +86,7 @@ impl Watcher {
 	/// Create a new `Watcher` which will trigger a snapshot event
 	/// once every `period` blocks, but only after that block is
 	/// `history` blocks old.
-	pub fn new<F>(client: Arc<Client>, sync_status: F, channel: IoChannel<ClientIoMessage>, period: u64, history: u64) -> Self
+	pub fn new<F>(client: Arc<Client>, sync_status: F, channel: IoChannel<ClientIoMessage<Client>>, period: u64, history: u64) -> Self
 		where F: 'static + Send + Sync + Fn() -> bool
 	{
 		Watcher {
@@ -123,7 +127,7 @@ mod tests {
 
 	use client::{ChainNotify, NewBlocks, ChainRoute};
 
-	use ethereum_types::{H256, U256};
+	use ethereum_types::{H256, U256, BigEndianHash};
 
 	use std::collections::HashMap;
 	use std::time::Duration;
@@ -151,7 +155,7 @@ mod tests {
 	fn harness(numbers: Vec<u64>, period: u64, history: u64, expected: Option<u64>) {
 		const DURATION_ZERO: Duration = Duration::from_millis(0);
 
-		let hashes: Vec<_> = numbers.clone().into_iter().map(|x| H256::from(U256::from(x))).collect();
+		let hashes: Vec<_> = numbers.clone().into_iter().map(|x| BigEndianHash::from_uint(&U256::from(x))).collect();
 		let map = hashes.clone().into_iter().zip(numbers).collect();
 
 		let watcher = Watcher {

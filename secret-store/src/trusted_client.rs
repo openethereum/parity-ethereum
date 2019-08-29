@@ -17,9 +17,13 @@
 use std::sync::{Arc, Weak};
 use bytes::Bytes;
 use call_contract::RegistryInfo;
-use common_types::transaction::{Transaction, SignedTransaction, Action};
+use common_types::{
+	ids::BlockId,
+	transaction::{Transaction, SignedTransaction, Action},
+};
 use ethereum_types::Address;
-use ethcore::client::{Client, BlockChainClient, ChainInfo, Nonce, BlockId};
+use ethcore::client::Client;
+use client_traits::{ChainInfo, Nonce};
 use ethcore::miner::{Miner, MinerService};
 use sync::SyncProvider;
 use helpers::{get_confirmed_block_hash, REQUEST_CONFIRMATIONS_REQUIRED};
@@ -40,9 +44,9 @@ pub struct TrustedClient {
 
 impl TrustedClient {
 	/// Create new trusted client.
-	pub fn new(self_key_pair: Arc<NodeKeyPair>, client: Arc<Client>, sync: Arc<SyncProvider>, miner: Arc<Miner>) -> Self {
+	pub fn new(self_key_pair: Arc<dyn NodeKeyPair>, client: Arc<Client>, sync: Arc<dyn SyncProvider>, miner: Arc<Miner>) -> Self {
 		TrustedClient {
-			self_key_pair: self_key_pair,
+			self_key_pair,
 			client: Arc::downgrade(&client),
 			sync: Arc::downgrade(&sync),
 			miner: Arc::downgrade(&miner),
@@ -54,7 +58,7 @@ impl TrustedClient {
 		self.client.upgrade()
 			.and_then(|client| self.sync.upgrade().map(|sync| (client, sync)))
 			.and_then(|(client, sync)| {
-				let is_synced = !sync.status().is_syncing(client.queue_info());
+				let is_synced = !sync.is_major_syncing();
 				let is_trusted = client.chain_info().security_level().is_full();
 				match is_synced && is_trusted {
 					true => Some(client),
