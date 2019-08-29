@@ -249,9 +249,9 @@ pub fn from_fat_rlp(
 mod tests {
 	use account_db::{AccountDB, AccountDBMut};
 	use common_types::basic_account::BasicAccount;
-	use test_helpers::get_temp_state_db;
-	use snapshot::tests::helpers::fill_storage;
-	use snapshot::Progress;
+	use ethcore::test_helpers::get_temp_state_db;
+	use crate::tests::helpers::fill_storage;
+	use common_types::snapshot::Progress;
 
 	use keccak_hash::{KECCAK_EMPTY, KECCAK_NULL_RLP, keccak};
 	use ethereum_types::{H256, Address};

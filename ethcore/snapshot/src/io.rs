@@ -323,7 +323,7 @@ mod tests {
 	use tempdir::TempDir;
 	use keccak_hash::keccak;
 
-	use snapshot::ManifestData;
+	use common_types::snapshot::ManifestData;
 	use super::{SnapshotWriter, SnapshotReader, PackedWriter, PackedReader, LooseWriter, LooseReader, SNAPSHOT_VERSION};
 
 	const STATE_CHUNKS: &'static [&'static [u8]] = &[b"dog", b"cat", b"hello world", b"hi", b"notarealchunk"];
@@ -352,8 +352,8 @@ mod tests {
 
 		let manifest = ManifestData {
 			version: SNAPSHOT_VERSION,
-			state_hashes: state_hashes,
-			block_hashes: block_hashes,
+			state_hashes,
+			block_hashes,
 			state_root: keccak(b"notarealroot"),
 			block_number: 12345678987654321,
 			block_hash: keccak(b"notarealblock"),

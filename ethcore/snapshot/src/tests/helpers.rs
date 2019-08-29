@@ -17,31 +17,32 @@
 //! Snapshot test helpers. These are used to build blockchains and state tries
 //! which can be queried before and after a full snapshot/restore cycle.
 
-extern crate trie_standardmap;
-
 use std::sync::Arc;
-use keccak_hash::{KECCAK_NULL_RLP};
+use std::sync::atomic::AtomicBool;
 
+use keccak_hash::{KECCAK_NULL_RLP};
 use account_db::AccountDBMut;
 use common_types::basic_account::BasicAccount;
 use blockchain::{BlockChain, BlockChainDB};
-use client::Client;
+use ethcore::client::Client;
 use client_traits::{ChainInfo, SnapshotClient};
 use engine::Engine;
-use snapshot::{StateRebuilder};
-use snapshot::io::{SnapshotReader, PackedWriter, PackedReader};
+use crate::{
+	StateRebuilder,
+	io::{SnapshotReader, PackedWriter, PackedReader},
+};
 
 use tempdir::TempDir;
 use rand::Rng;
-
+use log::trace;
 use kvdb::DBValue;
 use ethereum_types::H256;
 use hash_db::HashDB;
 use keccak_hasher::KeccakHasher;
 use journaldb;
-use trie::{TrieMut, Trie};
+use trie_db::{TrieMut, Trie};
 use ethtrie::{SecTrieDBMut, TrieDB, TrieDBMut};
-use self::trie_standardmap::{Alphabet, StandardMap, ValueMode};
+use trie_standardmap::{Alphabet, StandardMap, ValueMode};
 use common_types::errors::EthcoreError;
 
 // the proportion of accounts we will alter each tick.
@@ -158,10 +159,8 @@ pub fn restore(
 	reader: &dyn SnapshotReader,
 	genesis: &[u8],
 ) -> Result<(), EthcoreError> {
-	use std::sync::atomic::AtomicBool;
-
 	let flag = AtomicBool::new(true);
-	let chunker = crate::snapshot::chunker(engine.snapshot_mode()).expect("the engine used here supports snapshots");
+	let chunker = crate::chunker(engine.snapshot_mode()).expect("the engine used here supports snapshots");
 	let manifest = reader.manifest();
 
 	let mut state = StateRebuilder::new(db.key_value().clone(), journaldb::Algorithm::Archive);
