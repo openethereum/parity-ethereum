@@ -299,7 +299,12 @@ impl<Cost: CostType> Interpreter<Cost> {
 		let result = if self.gasometer.is_none() {
 			InterpreterResult::Done(Err(vm::Error::OutOfGas))
 		} else if self.reader.len() == 0 {
-			InterpreterResult::Done(Ok(GasLeft::Known(self.gasometer.as_ref().expect("Gasometer None case is checked above; qed").current_gas.as_u256())))
+			let current_gas = self.gasometer
+				.as_ref()
+				.expect("Gasometer None case is checked above; qed")
+				.current_gas
+				.as_u256();
+			InterpreterResult::Done(Ok(GasLeft::Known(current_gas)))
 		} else {
 			self.step_inner(ext)
 		};
@@ -308,7 +313,7 @@ impl<Cost: CostType> Interpreter<Cost> {
 			self.done = true;
 			self.informant.done();
 		}
-		return result;
+		result
 	}
 
 	/// Inner helper function for step.
@@ -429,7 +434,8 @@ impl<Cost: CostType> Interpreter<Cost> {
 			(instruction == instructions::REVERT && !schedule.have_revert) ||
 			((instruction == instructions::SHL || instruction == instructions::SHR || instruction == instructions::SAR) && !schedule.have_bitwise_shifting) ||
 			(instruction == instructions::EXTCODEHASH && !schedule.have_extcodehash) ||
-			(instruction == instructions::CHAINID && !schedule.have_chain_id)
+			(instruction == instructions::CHAINID && !schedule.have_chain_id) ||
+			(instruction == instructions::SELFBALANCE && !schedule.have_selfbalance)
 		{
 			return Err(vm::Error::BadInstruction {
 				instruction: instruction as u8
@@ -847,6 +853,9 @@ impl<Cost: CostType> Interpreter<Cost> {
 			instructions::CHAINID => {
 				self.stack.push(ext.chain_id().into())
 			},
+			instructions::SELFBALANCE => {
+				self.stack.push(ext.balance(&self.params.address)?);
+			}
 
 			// Stack instructions
 

@@ -92,6 +92,8 @@ pub struct CommonParams {
 	pub eip1014_transition: BlockNumber,
 	/// Number of first block where EIP-1344 rules begin: https://github.com/ethereum/EIPs/blob/master/EIPS/eip-1344.md
 	pub eip1344_transition: BlockNumber,
+	/// Number of first block where EIP-1884 rules begin:https://github.com/ethereum/EIPs/blob/master/EIPS/eip-1884.md
+	pub eip1884_transition: BlockNumber,
 	/// Number of first block where EIP-2028 rules begin.
 	pub eip2028_transition: BlockNumber,
 	/// Number of first block where dust cleanup rules (EIP-168 and EIP169) begin.
@@ -165,6 +167,13 @@ impl CommonParams {
 		schedule.have_extcodehash = block_number >= self.eip1052_transition;
 		schedule.have_chain_id = block_number >= self.eip1344_transition;
 		schedule.eip1283 = block_number >= self.eip1283_transition && !(block_number >= self.eip1283_disable_transition);
+
+		if block_number >= self.eip1884_transition {
+			schedule.have_selfbalance = true;
+			schedule.sload_gas = 800;
+			schedule.balance_gas = 700;
+			schedule.extcodehash_gas = 700;
+		}
 		if block_number >= self.eip2028_transition {
 			schedule.tx_data_non_zero_gas = 16;
 		}
@@ -286,6 +295,10 @@ impl From<ethjson::spec::Params> for CommonParams {
 				Into::into,
 			),
 			eip1344_transition: p.eip1344_transition.map_or_else(
+				BlockNumber::max_value,
+				Into::into,
+			),
+			eip1884_transition: p.eip1884_transition.map_or_else(
 				BlockNumber::max_value,
 				Into::into,
 			),
