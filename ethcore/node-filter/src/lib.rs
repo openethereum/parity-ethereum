@@ -42,9 +42,11 @@ extern crate log;
 use std::collections::{HashMap, VecDeque};
 use std::sync::Weak;
 
-use common_types::ids::BlockId;
-use ethcore::client::{ChainNotify, NewBlocks};
-use client_traits::BlockChainClient;
+use common_types::{
+	ids::BlockId,
+	chain_notify::NewBlocks,
+};
+use client_traits::{BlockChainClient, ChainNotify};
 use ethereum_types::{H256, Address};
 use ethabi::FunctionOutputDecoder;
 use network::{ConnectionFilter, ConnectionDirection};

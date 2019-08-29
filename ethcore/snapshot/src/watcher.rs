@@ -59,7 +59,7 @@ trait Broadcast: Send + Sync {
 	fn take_at(&self, num: Option<u64>);
 }
 
-impl<C> Broadcast for Mutex<IoChannel<ClientIoMessage<C>>> {
+impl<C: 'static> Broadcast for Mutex<IoChannel<ClientIoMessage<C>>> {
 	fn take_at(&self, num: Option<u64>) {
 		let num = match num {
 			Some(n) => n,
