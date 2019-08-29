@@ -167,6 +167,7 @@ mod eip712;
 mod error;
 mod parser;
 mod encode;
+mod blake2_f;
 
 /// the EIP-712 encoding function
 pub use crate::encode::hash_structured_data;
