@@ -132,6 +132,8 @@ pub struct Schedule {
 	pub kill_dust: CleanDustMode,
 	/// Enable EIP-1283 rules
 	pub eip1283: bool,
+	/// Enable EIP-1706 rules
+	pub eip1706: bool,
 	/// VM execution does not increase null signed address nonce if this field is true.
 	pub keep_unsigned_nonce: bool,
 	/// Wasm extra schedule settings, if wasm activated
@@ -269,6 +271,7 @@ impl Schedule {
 			have_static_call: false,
 			kill_dust: CleanDustMode::Off,
 			eip1283: false,
+			eip1706: false,
 			keep_unsigned_nonce: false,
 			wasm: None,
 		}
@@ -357,6 +360,7 @@ impl Schedule {
 			have_static_call: false,
 			kill_dust: CleanDustMode::Off,
 			eip1283: false,
+			eip1706: false,
 			keep_unsigned_nonce: false,
 			wasm: None,
 		}
