@@ -36,6 +36,7 @@ pub enum SpecType {
 	Foundation,
 	Classic,
 	Poanet,
+	Xdai,
 	Volta,
 	Ewc,
 	Expanse,
@@ -68,6 +69,7 @@ impl str::FromStr for SpecType {
 			"ethereum" | "frontier" | "homestead" | "byzantium" | "foundation" | "mainnet" => SpecType::Foundation,
 			"classic" | "frontier-dogmatic" | "homestead-dogmatic" => SpecType::Classic,
 			"poanet" | "poacore" => SpecType::Poanet,
+			"xdai" => SpecType::Xdai,
 			"volta" => SpecType::Volta,
 			"ewc" | "energyweb" => SpecType::Ewc,
 			"expanse" => SpecType::Expanse,
@@ -95,6 +97,7 @@ impl fmt::Display for SpecType {
 			SpecType::Foundation => "foundation",
 			SpecType::Classic => "classic",
 			SpecType::Poanet => "poanet",
+			SpecType::Xdai => "xdai",
 			SpecType::Volta => "volta",
 			SpecType::Ewc => "energyweb",
 			SpecType::Expanse => "expanse",
@@ -122,6 +125,7 @@ impl SpecType {
 			SpecType::Foundation => Ok(ethereum::new_foundation(params)),
 			SpecType::Classic => Ok(ethereum::new_classic(params)),
 			SpecType::Poanet => Ok(ethereum::new_poanet(params)),
+			SpecType::Xdai => Ok(ethereum::new_xdai(params)),
 			SpecType::Volta => Ok(ethereum::new_volta(params)),
 			SpecType::Ewc => Ok(ethereum::new_ewc(params)),
 			SpecType::Expanse => Ok(ethereum::new_expanse(params)),
@@ -380,6 +384,7 @@ mod tests {
 		assert_eq!(SpecType::Classic, "homestead-dogmatic".parse().unwrap());
 		assert_eq!(SpecType::Poanet, "poanet".parse().unwrap());
 		assert_eq!(SpecType::Poanet, "poacore".parse().unwrap());
+		assert_eq!(SpecType::Xdai, "xdai".parse().unwrap());
 		assert_eq!(SpecType::Volta, "volta".parse().unwrap());
 		assert_eq!(SpecType::Ewc, "ewc".parse().unwrap());
 		assert_eq!(SpecType::Ewc, "energyweb".parse().unwrap());
@@ -411,6 +416,7 @@ mod tests {
 		assert_eq!(format!("{}", SpecType::Foundation), "foundation");
 		assert_eq!(format!("{}", SpecType::Classic), "classic");
 		assert_eq!(format!("{}", SpecType::Poanet), "poanet");
+		assert_eq!(format!("{}", SpecType::Xdai), "xdai");
 		assert_eq!(format!("{}", SpecType::Volta), "volta");
 		assert_eq!(format!("{}", SpecType::Ewc), "energyweb");
 		assert_eq!(format!("{}", SpecType::Expanse), "expanse");
