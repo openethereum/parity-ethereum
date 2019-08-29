@@ -87,6 +87,7 @@ extern crate rlp;
 extern crate account_state;
 
 extern crate stats;
+extern crate snapshot;
 extern crate tempdir;
 extern crate trace;
 extern crate vm;

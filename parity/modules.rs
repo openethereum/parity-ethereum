@@ -16,15 +16,14 @@
 
 use std::sync::{Arc, mpsc};
 
-use client_traits::BlockChainClient;
+use client_traits::{BlockChainClient, ChainNotify};
 use sync::{self, SyncConfig, NetworkConfiguration, Params, ConnectionFilter};
-use ethcore::snapshot::SnapshotService;
+use snapshot::SnapshotService;
 use ethcore_private_tx::PrivateStateDB;
 use light::Provider;
 use parity_runtime::Executor;
 
 pub use sync::{EthSync, SyncProvider, ManageNetwork, PrivateTxHandler};
-pub use ethcore::client::ChainNotify;
 use ethcore_logger::Config as LogConfig;
 
 pub type SyncModules = (
