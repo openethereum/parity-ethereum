@@ -57,6 +57,11 @@ pub fn new_poanet<'a, T: Into<SpecParams<'a>>>(params: T) -> Spec {
 	load(params.into(), include_bytes!("../../res/ethereum/poacore.json"))
 }
 
+/// Create a new xDai mainnet chain spec.
+pub fn new_xdai<'a, T: Into<SpecParams<'a>>>(params: T) -> Spec {
+        load(params.into(), include_bytes!("../../res/ethereum/xdai.json"))
+}
+
 /// Create a new Volta mainnet chain spec.
 pub fn new_volta<'a, T: Into<SpecParams<'a>>>(params: T) -> Spec {
 	load(params.into(), include_bytes!("../../res/ethereum/volta.json"))
