@@ -14,7 +14,8 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
-// todo[dvdplm] module docs
+//! Types pertaining to sending messages and finding routes through the chain. Used mostly by the
+//! ChainNotify trait.
 
 use bytes::Bytes;
 use ethereum_types::{H256, U256};
@@ -120,7 +121,8 @@ impl ChainRoute {
 	}
 }
 
-/// Used by `ChainNotify` `new_blocks()`
+/// Used by `ChainNotify` `new_blocks()` and contains information about new blocks imported to the
+/// chain.
 pub struct NewBlocks {
 	/// Imported blocks
 	pub imported: Vec<H256>,

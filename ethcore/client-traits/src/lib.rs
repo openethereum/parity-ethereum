@@ -506,10 +506,7 @@ pub trait ChainNotify : Send + Sync {
 	}
 
 	/// fires when new transactions are received from a peer
-	fn transactions_received(&self,
-	                         _txs: &[UnverifiedTransaction],
-	                         _peer_id: usize,
-	) {
+	fn transactions_received(&self, _txs: &[UnverifiedTransaction], _peer_id: usize) {
 		// does nothing by default
 	}
 }

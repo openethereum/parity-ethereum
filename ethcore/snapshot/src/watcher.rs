@@ -18,7 +18,6 @@
 
 use std::sync::Arc;
 
-//use client::{Client, ChainNotify, NewBlocks}; // todo[dvdplm]
 use client_traits::{BlockInfo, ChainNotify};
 use common_types::{
 	ids::BlockId,

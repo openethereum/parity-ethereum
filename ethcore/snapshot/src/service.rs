@@ -26,7 +26,6 @@ use std::cmp;
 
 use blockchain::{BlockChain, BlockChainDB, BlockChainDBHandler};
 use bytes::Bytes;
-//use client::Client; // todo[dvdplm]
 use common_types::{
 	io_message::ClientIoMessage,
 	errors::{EthcoreError as Error, SnapshotError, SnapshotError::UnlinkedAncientBlockChain},
