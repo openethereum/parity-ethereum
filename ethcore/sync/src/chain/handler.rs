@@ -23,10 +23,12 @@ use hash::keccak;
 use network::PeerId;
 use network::client_version::ClientVersion;
 use rlp::Rlp;
-use snapshot::ChunkType;
+use crate::{
+	snapshot_sync::ChunkType,
+	sync_io::SyncIo,
+};
 use std::time::Instant;
 use std::{mem, cmp};
-use sync_io::SyncIo;
 use types::{
 	BlockNumber,
 	block_status::BlockStatus,
@@ -711,7 +713,7 @@ impl SyncHandler {
 			Err(e) => {
 				trace!(target: "privatetx", "Ignoring the message, error queueing: {}", e);
 			}
- 		}
+		}
 		Ok(())
 	}
 
@@ -739,7 +741,7 @@ impl SyncHandler {
 			Err(e) => {
 				trace!(target: "privatetx", "Ignoring the message, error queueing: {}", e);
 			}
- 		}
+		}
 		Ok(())
 	}
 
