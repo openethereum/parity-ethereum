@@ -56,7 +56,7 @@ pub struct AltBn128Pairing {
 	pub pair: usize,
 	/// EIP 1108 transition base price
 	pub eip1108_transition_base: usize,
-	/// EIP 1108 transition price per point,
+	/// EIP 1108 transition price per point pair
 	pub eip1108_transition_pair: usize,
 }
 
