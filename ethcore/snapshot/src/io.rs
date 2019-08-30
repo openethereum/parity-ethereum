@@ -183,7 +183,6 @@ pub trait SnapshotReader {
 	fn chunk(&self, hash: H256) -> io::Result<Bytes>;
 }
 
-
 /// Something which can write snapshots.
 /// Writing the same chunk multiple times will lead to implementation-defined
 /// behavior, and is not advised.
@@ -198,7 +197,6 @@ pub trait SnapshotWriter {
 	/// with the chunks written.
 	fn finish(self, manifest: ManifestData) -> std::io::Result<()> where Self: Sized;
 }
-
 
 /// Packed snapshot reader.
 pub struct PackedReader {

@@ -69,7 +69,6 @@ impl CodeState {
 	}
 }
 
-// todo[dvdplm] move to test helpers?
 // walk the account's storage trie, returning a vector of RLP items containing the
 // account address hash, account properties and the storage. Each item contains at most `max_storage_items`
 // storage records split according to snapshot format definition.
@@ -171,7 +170,6 @@ pub fn to_fat_rlps(
 	}
 }
 
-// todo[dvdplm] move to test helpers?
 // decode a fat rlp, and rebuild the storage trie as we go.
 // returns the account structure along with its newly recovered code,
 // if it exists.

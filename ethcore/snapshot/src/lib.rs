@@ -78,9 +78,6 @@ pub mod watcher;
 #[cfg(not(any(test, feature = "test-helpers")))]
 mod watcher;
 
-//#[cfg(test)]
-//mod tests;
-
 mod traits;
 
 // Try to have chunks be around 4MB (before compression)

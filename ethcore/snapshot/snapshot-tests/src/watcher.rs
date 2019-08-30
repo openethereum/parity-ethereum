@@ -71,8 +71,6 @@ fn harness(numbers: Vec<u64>, period: u64, history: u64, expected: Option<u64>) 
 	));
 }
 
-// helper
-
 #[test]
 fn should_not_fire() {
 	harness(vec![0], 5, 0, None);
