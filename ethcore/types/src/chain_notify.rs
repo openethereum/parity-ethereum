@@ -18,10 +18,9 @@
 //! ChainNotify trait.
 
 use bytes::Bytes;
-use ethereum_types::{H256, U256};
+use ethereum_types::H256;
 use crate::{
 	import_route::ImportRoute,
-	transaction::UnverifiedTransaction
 };
 use std::time::Duration;
 use std::collections::HashMap;

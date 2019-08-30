@@ -106,6 +106,7 @@ pub enum BlockLocation {
 	BranchBecomingCanonChain(BranchBecomingCanonChainData),
 }
 
+/// Info about heaviest fork
 #[derive(Debug, Clone, PartialEq)]
 pub struct BranchBecomingCanonChainData {
 	/// Hash of the newest common ancestor with old canon chain.
