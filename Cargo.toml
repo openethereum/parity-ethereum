@@ -122,6 +122,7 @@ name = "parity"
 
 [profile.release]
 debug = false
+# todo[dvdplm] re-enable
 lto = false
 
 [workspace]
@@ -136,5 +137,5 @@ members = [
 	"evmbin",
 	"parity-clib",
 	
-	"ethcore/snapshot"
+	"ethcore/snapshot/snapshot-tests"
 ]

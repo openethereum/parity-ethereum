@@ -16,25 +16,37 @@
 
 //! Snapshot tests.
 
+#[cfg(test)]
+mod abridged_block;
+#[cfg(test)]
+mod account;
+#[cfg(test)]
+mod io;
+#[cfg(test)]
 mod proof_of_work;
+#[cfg(test)]
 mod proof_of_authority;
+#[cfg(test)]
 mod state;
+#[cfg(test)]
 mod service;
+#[cfg(test)]
+mod watcher;
 
-pub mod helpers;
-
-use common_types::snapshot::ManifestData;
+#[cfg(test)]
+mod helpers;
 
 #[test]
 fn manifest_rlp() {
-	let manifest = ManifestData {
-		version: 2,
-		block_hashes: Vec::new(),
-		state_hashes: Vec::new(),
-		block_number: 1234567,
-		state_root: Default::default(),
-		block_hash: Default::default(),
-	};
-	let raw = manifest.clone().into_rlp();
-	assert_eq!(ManifestData::from_rlp(&raw).unwrap(), manifest);
+    use common_types::snapshot::ManifestData;
+    let manifest = ManifestData {
+        version: 2,
+        block_hashes: Vec::new(),
+        state_hashes: Vec::new(),
+        block_number: 1234567,
+        state_root: Default::default(),
+        block_hash: Default::default(),
+    };
+    let raw = manifest.clone().into_rlp();
+    assert_eq!(ManifestData::from_rlp(&raw).unwrap(), manifest);
 }

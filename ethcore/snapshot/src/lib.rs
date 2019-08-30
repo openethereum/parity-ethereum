@@ -31,8 +31,6 @@ use account_state::Account as StateAccount;
 use blockchain::{BlockChain, BlockProvider};
 use bloom_journal::Bloom;
 use bytes::Bytes;
-// todo[dvdplm] put back in snapshots once it's extracted
-use client_traits::SnapshotWriter;
 use common_types::{
 	ids::BlockId,
 	header::Header,
@@ -57,21 +55,31 @@ use state_db::StateDB;
 use trie_db::{Trie, TrieMut};
 
 pub use self::consensus::*;
-pub use self::service::Service;
-pub use self::traits::{SnapshotService, SnapshotComponents, Rebuilder};
+pub use self::service::{Service, Guard, Restoration, RestorationParams};
+pub use self::traits::{SnapshotService, SnapshotClient, SnapshotComponents, Rebuilder};
+pub use self::io::SnapshotWriter;
 pub use self::watcher::Watcher;
-pub use common_types::basic_account::BasicAccount;
+use common_types::basic_account::BasicAccount;
 
 pub mod io;
 pub mod service;
 
+#[cfg(any(test, feature = "test-helpers"))]
+pub mod account;
+#[cfg(not(any(test, feature = "test-helpers")))]
 mod account;
+#[cfg(any(test, feature = "test-helpers"))]
+pub mod block;
+#[cfg(not(any(test, feature = "test-helpers")))]
 mod block;
 mod consensus;
+#[cfg(any(test, feature = "test-helpers"))]
+pub mod watcher;
+#[cfg(not(any(test, feature = "test-helpers")))]
 mod watcher;
 
-#[cfg(test)]
-mod tests;
+//#[cfg(test)]
+//mod tests;
 
 mod traits;
 
@@ -88,7 +96,7 @@ const MIN_SUPPORTED_STATE_CHUNK_VERSION: u64 = 1;
 // current state chunk version.
 const STATE_CHUNK_VERSION: u64 = 2;
 /// number of snapshot subparts, must be a power of 2 in [1; 256]
-const SNAPSHOT_SUBPARTS: usize = 16;
+pub const SNAPSHOT_SUBPARTS: usize = 16;
 /// Maximum number of snapshot subparts (must be a multiple of `SNAPSHOT_SUBPARTS`)
 const MAX_SNAPSHOT_SUBPARTS: usize = 256;
 

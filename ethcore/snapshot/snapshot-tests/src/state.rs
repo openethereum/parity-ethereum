@@ -18,19 +18,17 @@
 
 use std::sync::Arc;
 use std::sync::atomic::AtomicBool;
-use keccak_hash::{KECCAK_NULL_RLP, keccak};
 
+use keccak_hash::{KECCAK_NULL_RLP, keccak};
 use common_types::{
 	basic_account::BasicAccount,
-	errors::EthcoreError as Error,
-	snapshot::ManifestData,
+	errors::{EthcoreError as Error, SnapshotError},
+	snapshot::{ManifestData, Progress},
 };
-use client_traits::SnapshotWriter;
-use crate::{
+use snapshot::{
 	account,
-	{chunk_state, Error as SnapshotError, Progress, StateRebuilder, SNAPSHOT_SUBPARTS},
-	io::{PackedReader, PackedWriter, SnapshotReader},
-	tests::helpers::StateProducer,
+	chunk_state, StateRebuilder, SNAPSHOT_SUBPARTS,
+	io::{PackedReader, PackedWriter, SnapshotReader, SnapshotWriter},
 };
 use rand::SeedableRng;
 use rand_xorshift::XorShiftRng;
@@ -39,6 +37,8 @@ use journaldb::{self, Algorithm};
 use kvdb_rocksdb::{Database, DatabaseConfig};
 use parking_lot::Mutex;
 use tempdir::TempDir;
+
+use crate::helpers::StateProducer;
 
 const RNG_SEED: [u8; 16] = [1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16];
 

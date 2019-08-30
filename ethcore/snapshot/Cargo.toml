@@ -52,3 +52,6 @@ lazy_static = { version = "1.3" }
 spec = { path = "../spec" }
 tempdir = "0.3"
 trie-standardmap = "0.15.0"
+
+[features]
+test-helpers = []

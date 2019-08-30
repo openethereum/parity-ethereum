@@ -48,8 +48,8 @@ use client_traits::{
 	BlockInfo, ScheduleInfo, StateClient, BlockChainReset,
 	Nonce, Balance, ChainInfo, TransactionInfo, ImportBlock,
 	AccountData, BlockChain as BlockChainTrait, BlockChainClient,
-	IoClient, BadBlocks, ProvingBlockChainClient, SnapshotClient,
-	DatabaseRestore, SnapshotWriter, Tick, ChainNotify,
+	IoClient, BadBlocks, ProvingBlockChainClient,
+	DatabaseRestore, Tick, ChainNotify,
 	StateOrBlock,
 };
 use engine::Engine;
@@ -64,6 +64,7 @@ use snapshot;
 use spec::Spec;
 use account_state::State;
 use executive_state;
+use snapshot::{SnapshotClient, SnapshotWriter};
 use state_db::StateDB;
 use trace::{self, TraceDB, ImportRequest as TraceImportRequest, LocalizedTrace, Database as TraceDatabase};
 use types::{
