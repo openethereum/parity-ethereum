@@ -3921,7 +3921,7 @@
 			"builtin": {
 				"name": "alt_bn128_add",
 				"activate_at": "0x42ae50",
-				"eip1108_transition": "0xffffff",
+				"eip1108_transition": "0x7fffffffffffff",
 				"pricing": {
 					"alt_bn128_const_operations": {
 						"price": 500,
@@ -3934,7 +3934,7 @@
 			"builtin": {
 				"name": "alt_bn128_mul",
 				"activate_at": "0x42ae50",
-				"eip1108_transition": "0xffffff",
+				"eip1108_transition": "0x7fffffffffffff",
 				"pricing": {
 					"alt_bn128_const_operations": {
 						"price": 40000,
@@ -3947,7 +3947,7 @@
 			"builtin": {
 				"name": "alt_bn128_pairing",
 				"activate_at": "0x42ae50",
-				"eip1108_transition": "0xffffff",
+				"eip1108_transition": "0x7fffffffffffff",
 				"pricing": {
 					"alt_bn128_pairing": {
 						"base": 100000,
