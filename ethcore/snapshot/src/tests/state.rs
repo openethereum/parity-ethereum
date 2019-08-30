@@ -96,7 +96,7 @@ fn snap_and_restore() {
 		new_db
 	};
 
-	let new_db = journaldb::new(db, Algorithm::OverlayRecent,  ethcore_db::COL_STATE);
+	let new_db = journaldb::new(db, Algorithm::OverlayRecent, ethcore_db::COL_STATE);
 	assert_eq!(new_db.earliest_era(), Some(1000));
 	let keys = old_db.keys();
 

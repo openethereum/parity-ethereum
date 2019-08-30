@@ -14,12 +14,10 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
-//! Import route.
+//! Calculate import route for newly inserted blocks.
 
 use ethereum_types::H256;
 use crate::block::{BlockInfo, BlockLocation};
-
-// todo[dvdplm]: what to do about the tests?
 
 /// Import route for newly inserted block.
 #[derive(Debug, PartialEq, Clone)]
