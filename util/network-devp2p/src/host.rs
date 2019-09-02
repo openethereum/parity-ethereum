@@ -261,6 +261,8 @@ struct ProtocolTimer {
 }
 
 /// Root IO handler. Manages protocol handlers, IO timers and network connections.
+///
+/// NOTE: must keep the lock in order of: reserved_nodes (rwlock) -> session (mutex, from sessions)
 pub struct Host {
 	pub info: RwLock<HostInfo>,
 	udp_socket: Mutex<Option<UdpSocket>>,
