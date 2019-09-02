@@ -7,6 +7,7 @@ authors = ["Parity Technologies <admin@parity.io>"]
 [dependencies]
 ansi_term = "0.11"
 common-types = { path = "../types" }
+client-traits = { path = "../client-traits" }
 ethcore = { path = ".." }
 ethcore-blockchain = { path = "../blockchain" }
 ethcore-io = { path = "../../util/io" }

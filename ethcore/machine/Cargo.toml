@@ -33,6 +33,7 @@ trie-vm-factories = { path = "../trie-vm-factories" }
 vm = { path = "../vm" }
 
 [dev-dependencies]
+common-types = { path = "../types", features = ["test-helpers"] }
 ethcore = { path = "../", features = ["test-helpers"] }
 ethcore-io = { path = "../../util/io" }
 ethjson = { path = "../../json" }

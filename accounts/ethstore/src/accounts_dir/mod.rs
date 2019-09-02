@@ -57,7 +57,7 @@ pub trait KeyDirectory: Send + Sync {
 	/// Get directory filesystem path, if available
 	fn path(&self) -> Option<&PathBuf> { None }
 	/// Return vault provider, if available
-	fn as_vault_provider(&self) -> Option<&VaultKeyDirectoryProvider> { None }
+	fn as_vault_provider(&self) -> Option<&dyn VaultKeyDirectoryProvider> { None }
 	/// Unique representation of directory account collection
 	fn unique_repr(&self) -> Result<u64, Error>;
 }
@@ -65,9 +65,9 @@ pub trait KeyDirectory: Send + Sync {
 /// Vaults provider
 pub trait VaultKeyDirectoryProvider {
 	/// Create new vault with given key
-	fn create(&self, name: &str, key: VaultKey) -> Result<Box<VaultKeyDirectory>, Error>;
+	fn create(&self, name: &str, key: VaultKey) -> Result<Box<dyn VaultKeyDirectory>, Error>;
 	/// Open existing vault with given key
-	fn open(&self, name: &str, key: VaultKey) -> Result<Box<VaultKeyDirectory>, Error>;
+	fn open(&self, name: &str, key: VaultKey) -> Result<Box<dyn VaultKeyDirectory>, Error>;
 	/// List all vaults
 	fn list_vaults(&self) -> Result<Vec<String>, Error>;
 	/// Get vault meta
@@ -77,7 +77,7 @@ pub trait VaultKeyDirectoryProvider {
 /// Vault directory
 pub trait VaultKeyDirectory: KeyDirectory {
 	/// Cast to `KeyDirectory`
-	fn as_key_directory(&self) -> &KeyDirectory;
+	fn as_key_directory(&self) -> &dyn KeyDirectory;
 	/// Vault name
 	fn name(&self) -> &str;
 	/// Get vault key

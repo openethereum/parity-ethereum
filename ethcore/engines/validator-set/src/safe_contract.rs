@@ -115,7 +115,7 @@ fn check_first_proof(machine: &Machine, contract_address: Address, old_header: H
 		gas_limit: PROVIDED_GAS.into(),
 		timestamp: old_header.timestamp(),
 		last_hashes: {
-			// this will break if we don't inclue all 256 last hashes.
+			// this will break if we don't include all 256 last hashes.
 			let mut last_hashes: Vec<_> = (0..256).map(|_| H256::zero()).collect();
 			last_hashes[255] = *old_header.parent_hash();
 			Arc::new(last_hashes)

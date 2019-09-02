@@ -21,7 +21,7 @@ use engine::Engine;
 use parity_util_mem::MallocSizeOf;
 use ethereum_types::{H256, U256};
 
-use types::errors::EthcoreError as Error;
+use common_types::errors::EthcoreError as Error;
 
 pub use self::blocks::Blocks;
 pub use self::headers::Headers;
@@ -70,12 +70,13 @@ pub mod blocks {
 	use super::{Kind, BlockLike};
 
 	use engine::Engine;
-	use types::{
+	use common_types::{
 		block::PreverifiedBlock,
 		errors::{EthcoreError as Error, BlockError},
 		verification::Unverified,
 	};
-	use verification::{verify_block_basic, verify_block_unordered};
+	use log::{debug, warn};
+	use crate::verification::{verify_block_basic, verify_block_unordered};
 
 	use ethereum_types::{H256, U256};
 
@@ -147,11 +148,11 @@ pub mod headers {
 	use super::{Kind, BlockLike};
 
 	use engine::Engine;
-	use types::{
+	use common_types::{
 		header::Header,
 		errors::EthcoreError as Error,
 	};
-	use verification::verify_header_params;
+	use crate::verification::verify_header_params;
 
 	use ethereum_types::{H256, U256};
 

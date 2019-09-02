@@ -91,7 +91,7 @@ pub trait Ext {
 
 	/// Creates new contract.
 	///
-	/// Returns gas_left and contract address if contract creation was succesfull.
+	/// Returns gas_left and contract address if contract creation was successful.
 	fn create(
 		&mut self,
 		gas: &U256,
@@ -144,6 +144,9 @@ pub trait Ext {
 
 	/// Returns environment info.
 	fn env_info(&self) -> &EnvInfo;
+
+	/// Returns the chain ID of the blockchain
+	fn chain_id(&self) -> u64;
 
 	/// Returns current depth of execution.
 	///

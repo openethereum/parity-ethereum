@@ -18,6 +18,8 @@
 
 use call_contract::CallContract;
 use client_traits::BlockInfo;
+// The MallocSizeOf derive looks for this in the root
+use parity_util_mem as malloc_size_of;
 
 mod verification;
 mod verifier;
@@ -29,11 +31,6 @@ pub use self::verification::FullFamilyParams;
 pub use self::verifier::Verifier;
 pub use self::queue::{BlockQueue, Config as QueueConfig};
 
-use self::verification::{
-	verify_block_basic,
-	verify_block_unordered,
-	verify_header_params,
-};
 use self::canon_verifier::CanonVerifier;
 use self::noop_verifier::NoopVerifier;
 

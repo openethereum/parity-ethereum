@@ -47,7 +47,7 @@ impl Factory {
 	/// for caching jump destinations.
 	pub fn new(evm: VMType, cache_size: usize) -> Self {
 		Factory {
-			evm: evm,
+			evm,
 			evm_cache: Arc::new(SharedCache::new(cache_size)),
 		}
 	}

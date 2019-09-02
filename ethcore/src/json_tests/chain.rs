@@ -100,7 +100,6 @@ pub fn json_chain_test<H: FnMut(&str, HookType)>(json_data: &[u8], start_stop_ho
 					if let Ok(block) = Unverified::from_rlp(b) {
 						let _ = client.import_block(block);
 						client.flush_queue();
-						client.import_verified_blocks();
 					}
 				}
 				fail_unless(client.chain_info().best_block_hash == blockchain.best_block.into());

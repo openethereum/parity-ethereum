@@ -48,7 +48,8 @@ use bloom_journal::Bloom;
 use num_cpus;
 use types::snapshot::ManifestData;
 
-use self::io::SnapshotWriter;
+// todo[dvdplm] put back in snapshots once it's extracted
+use client_traits::SnapshotWriter;
 
 use super::state_db::StateDB;
 use account_state::Account as StateAccount;
@@ -58,7 +59,7 @@ use crossbeam_utils::thread;
 use rand::{Rng, rngs::OsRng};
 
 pub use self::consensus::*;
-pub use self::service::{SnapshotClient, Service, DatabaseRestore};
+pub use self::service::Service;
 pub use self::traits::{SnapshotService, SnapshotComponents, Rebuilder};
 pub use self::watcher::Watcher;
 pub use types::basic_account::BasicAccount;

@@ -26,8 +26,9 @@ use types::{
 
 use blockchain::generator::{BlockGenerator, BlockBuilder};
 use blockchain::{BlockChain, ExtrasInsert};
+use client_traits::SnapshotWriter;
 use snapshot::{chunk_secondary, Error as SnapshotError, SnapshotComponents};
-use snapshot::io::{PackedReader, PackedWriter, SnapshotReader, SnapshotWriter};
+use snapshot::io::{PackedReader, PackedWriter, SnapshotReader};
 
 use parking_lot::Mutex;
 use snappy;

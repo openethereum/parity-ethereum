@@ -85,7 +85,7 @@ extern crate parity_version as version;
 extern crate eip_712;
 extern crate rlp;
 extern crate account_state;
-extern crate spec;
+
 extern crate stats;
 extern crate tempdir;
 extern crate trace;
@@ -126,6 +126,11 @@ extern crate fake_fetch;
 
 #[cfg(test)]
 extern crate ethcore_io as io;
+
+#[cfg(test)]
+extern crate spec;
+#[cfg(test)]
+extern crate verification;
 
 pub extern crate jsonrpc_ws_server as ws;
 

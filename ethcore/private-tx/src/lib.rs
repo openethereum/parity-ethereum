@@ -63,7 +63,6 @@ extern crate transaction_pool as txpool;
 extern crate url;
 #[macro_use]
 extern crate log as ethlog;
-#[macro_use]
 extern crate ethabi_derive;
 #[macro_use]
 extern crate ethabi_contract;
@@ -105,11 +104,12 @@ use machine::{
 };
 use types::{
 	ids::BlockId,
+	io_message::ClientIoMessage,
 	transaction::{SignedTransaction, Transaction, Action, UnverifiedTransaction},
 	engines::machine::Executed,
 };
 use ethcore::client::{
-	Client, ChainNotify, NewBlocks, ChainMessageType, ClientIoMessage, Call
+	Client, ChainNotify, NewBlocks, ChainMessageType, Call
 };
 use client_traits::BlockInfo;
 use ethcore::miner::{self, Miner, MinerService, pool_client::NonceCache};
@@ -205,17 +205,17 @@ impl Signer for KeyPairSigner {
 
 /// Manager of private transactions
 pub struct Provider {
-	encryptor: Box<Encryptor>,
+	encryptor: Box<dyn Encryptor>,
 	validator_accounts: HashSet<Address>,
 	signer_account: Option<Address>,
-	notify: RwLock<Vec<Weak<ChainNotify>>>,
+	notify: RwLock<Vec<Weak<dyn ChainNotify>>>,
 	transactions_for_signing: RwLock<SigningStore>,
 	transactions_for_verification: VerificationStore,
 	client: Arc<Client>,
 	miner: Arc<Miner>,
-	accounts: Arc<Signer>,
-	channel: IoChannel<ClientIoMessage>,
-	keys_provider: Arc<KeyProvider>,
+	accounts: Arc<dyn Signer>,
+	channel: IoChannel<ClientIoMessage<Client>>,
+	keys_provider: Arc<dyn KeyProvider>,
 	logging: Option<Logging>,
 	use_offchain_storage: bool,
 	state_storage: PrivateStateStorage,
@@ -234,12 +234,12 @@ impl Provider {
 	pub fn new(
 		client: Arc<Client>,
 		miner: Arc<Miner>,
-		accounts: Arc<Signer>,
-		encryptor: Box<Encryptor>,
+		accounts: Arc<dyn Signer>,
+		encryptor: Box<dyn Encryptor>,
 		config: ProviderConfig,
-		channel: IoChannel<ClientIoMessage>,
-		keys_provider: Arc<KeyProvider>,
-		db: Arc<KeyValueDB>,
+		channel: IoChannel<ClientIoMessage<Client>>,
+		keys_provider: Arc<dyn KeyProvider>,
+		db: Arc<dyn KeyValueDB>,
 	) -> Self {
 		keys_provider.update_acl_contract();
 		Provider {
@@ -268,11 +268,11 @@ impl Provider {
 	// TODO [ToDr] Don't use `ChainNotify` here!
 	// Better to create a separate notification type for this.
 	/// Adds an actor to be notified on certain events
-	pub fn add_notify(&self, target: Arc<ChainNotify>) {
+	pub fn add_notify(&self, target: Arc<dyn ChainNotify>) {
 		self.notify.write().push(Arc::downgrade(&target));
 	}
 
-	fn notify<F>(&self, f: F) where F: Fn(&ChainNotify) {
+	fn notify<F>(&self, f: F) where F: Fn(&dyn ChainNotify) {
 		for np in self.notify.read().iter() {
 			if let Some(n) = np.upgrade() {
 				f(&*n);
@@ -491,7 +491,7 @@ impl Provider {
 			}
 		}
 		Ok(())
- 	}
+	}
 
 	fn contract_address_from_transaction(transaction: &SignedTransaction) -> Result<Address, Error> {
 		match transaction.action {
@@ -877,14 +877,14 @@ impl Provider {
 	}
 }
 
-impl IoHandler<ClientIoMessage> for Provider {
-	fn initialize(&self, io: &IoContext<ClientIoMessage>) {
+impl IoHandler<ClientIoMessage<Client>> for Provider {
+	fn initialize(&self, io: &IoContext<ClientIoMessage<Client>>) {
 		if self.use_offchain_storage {
 			io.register_timer(STATE_RETRIEVAL_TIMER, STATE_RETRIEVAL_TICK).expect("Error registering state retrieval timer");
 		}
 	}
 
-	fn timeout(&self, _io: &IoContext<ClientIoMessage>, timer: TimerToken) {
+	fn timeout(&self, _io: &IoContext<ClientIoMessage<Client>>, timer: TimerToken) {
 		match timer {
 			STATE_RETRIEVAL_TIMER => self.state_storage.tick(&self.logging),
 			_ => warn!("IO service triggered unregistered timer '{}'", timer),

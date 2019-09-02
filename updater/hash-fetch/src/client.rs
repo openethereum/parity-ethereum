@@ -37,7 +37,7 @@ pub trait HashFetch: Send + Sync + 'static {
 	/// 2. `on_done` - callback function invoked when the content is ready (or there was error during fetch)
 	///
 	/// This function may fail immediately when fetch cannot be initialized or content cannot be resolved.
-	fn fetch(&self, hash: H256, abort: fetch::Abort, on_done: Box<Fn(Result<PathBuf, Error>) + Send>);
+	fn fetch(&self, hash: H256, abort: fetch::Abort, on_done: Box<dyn Fn(Result<PathBuf, Error>) + Send>);
 }
 
 /// Hash-fetching error.
@@ -111,12 +111,12 @@ pub struct Client<F: Fetch + 'static = fetch::Client> {
 	contract: URLHintContract,
 	fetch: F,
 	executor: Executor,
-	random_path: Arc<Fn() -> PathBuf + Sync + Send>,
+	random_path: Arc<dyn Fn() -> PathBuf + Sync + Send>,
 }
 
 impl<F: Fetch + 'static> Client<F> {
 	/// Creates new instance of the `Client` given on-chain contract client, fetch service and task runner.
-	pub fn with_fetch(contract: Arc<RegistrarClient<Call=Asynchronous>>, fetch: F, executor: Executor) -> Self {
+	pub fn with_fetch(contract: Arc<dyn RegistrarClient<Call=Asynchronous>>, fetch: F, executor: Executor) -> Self {
 		Client {
 			contract: URLHintContract::new(contract),
 			fetch: fetch,
@@ -127,7 +127,7 @@ impl<F: Fetch + 'static> Client<F> {
 }
 
 impl<F: Fetch + 'static> HashFetch for Client<F> {
-	fn fetch(&self, hash: H256, abort: fetch::Abort, on_done: Box<Fn(Result<PathBuf, Error>) + Send>) {
+	fn fetch(&self, hash: H256, abort: fetch::Abort, on_done: Box<dyn Fn(Result<PathBuf, Error>) + Send>) {
 		debug!(target: "fetch", "Fetching: {:?}", hash);
 
 		let random_path = self.random_path.clone();

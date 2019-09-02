@@ -65,7 +65,6 @@ extern crate executive_state;
 extern crate parity_bytes as bytes;
 extern crate ethereum_types;
 extern crate ethcore_miner as miner;
-extern crate ethcore;
 extern crate hash_db;
 extern crate parity_util_mem;
 extern crate parity_util_mem as mem;
@@ -94,7 +93,10 @@ extern crate triehash_ethereum as triehash;
 extern crate kvdb;
 extern crate memory_cache;
 extern crate derive_more;
+extern crate verification;
 
+#[cfg(test)]
+extern crate ethcore;
 #[cfg(test)]
 extern crate kvdb_memorydb;
 #[cfg(test)]

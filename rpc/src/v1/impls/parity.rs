@@ -59,13 +59,13 @@ pub struct ParityClient<C, M, U> {
 	client: Arc<C>,
 	miner: Arc<M>,
 	updater: Arc<U>,
-	sync: Arc<SyncProvider>,
-	net: Arc<ManageNetwork>,
+	sync: Arc<dyn SyncProvider>,
+	net: Arc<dyn ManageNetwork>,
 	logger: Arc<RotatingLogger>,
 	settings: Arc<NetworkSettings>,
 	signer: Option<Arc<SignerService>>,
 	ws_address: Option<Host>,
-	snapshot: Option<Arc<SnapshotService>>,
+	snapshot: Option<Arc<dyn SnapshotService>>,
 }
 
 impl<C, M, U> ParityClient<C, M, U> where
@@ -75,14 +75,14 @@ impl<C, M, U> ParityClient<C, M, U> where
 	pub fn new(
 		client: Arc<C>,
 		miner: Arc<M>,
-		sync: Arc<SyncProvider>,
+		sync: Arc<dyn SyncProvider>,
 		updater: Arc<U>,
-		net: Arc<ManageNetwork>,
+		net: Arc<dyn ManageNetwork>,
 		logger: Arc<RotatingLogger>,
 		settings: Arc<NetworkSettings>,
 		signer: Option<Arc<SignerService>>,
 		ws_address: Option<Host>,
-		snapshot: Option<Arc<SnapshotService>>,
+		snapshot: Option<Arc<dyn SnapshotService>>,
 	) -> Self {
 		ParityClient {
 			client,

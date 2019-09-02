@@ -96,7 +96,7 @@ pub type ConfirmationReceiver =  oneshot::Receiver<ConfirmationResult>;
 pub struct ConfirmationsQueue {
 	id: Mutex<U256>,
 	queue: RwLock<BTreeMap<U256, ConfirmationSender>>,
-	on_event: RwLock<Vec<Box<Fn(QueueEvent) -> () + Send + Sync>>>,
+	on_event: RwLock<Vec<Box<dyn Fn(QueueEvent) -> () + Send + Sync>>>,
 }
 
 impl ConfirmationsQueue {

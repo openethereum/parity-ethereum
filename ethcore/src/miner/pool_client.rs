@@ -221,30 +221,30 @@ impl<'a, C: 'a> CachedNonceClient<'a, C> {
 impl<'a, C: 'a> NonceClient for CachedNonceClient<'a, C> where
 	C: Nonce + Sync,
 {
-  fn account_nonce(&self, address: &Address) -> U256 {
-	  if let Some(nonce) = self.cache.nonces.read().get(address) {
-		  return *nonce;
-	  }
+	fn account_nonce(&self, address: &Address) -> U256 {
+		if let Some(nonce) = self.cache.nonces.read().get(address) {
+			return *nonce;
+		}
 
-	  // We don't check again if cache has been populated.
-	  // It's not THAT expensive to fetch the nonce from state.
-	  let mut cache = self.cache.nonces.write();
-	  let nonce = self.client.latest_nonce(address);
-	  cache.insert(*address, nonce);
+		// We don't check again if cache has been populated.
+		// It's not THAT expensive to fetch the nonce from state.
+		let mut cache = self.cache.nonces.write();
+		let nonce = self.client.latest_nonce(address);
+		cache.insert(*address, nonce);
 
-	  if cache.len() < self.cache.limit {
-		  return nonce
-	  }
+		if cache.len() < self.cache.limit {
+			return nonce
+		}
 
-	  debug!(target: "txpool", "NonceCache: reached limit.");
-	  trace_time!("nonce_cache:clear");
+		debug!(target: "txpool", "NonceCache: reached limit.");
+		trace_time!("nonce_cache:clear");
 
-	  // Remove excessive amount of entries from the cache
-	  let to_remove: Vec<_> = cache.keys().take(self.cache.limit / 2).cloned().collect();
-	  for x in to_remove {
-		cache.remove(&x);
-	  }
+		// Remove excessive amount of entries from the cache
+		let to_remove: Vec<_> = cache.keys().take(self.cache.limit / 2).cloned().collect();
+		for x in to_remove {
+			cache.remove(&x);
+		}
 
-	  nonce
-  }
+		nonce
+	}
 }

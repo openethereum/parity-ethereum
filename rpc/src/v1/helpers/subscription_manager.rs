@@ -87,7 +87,7 @@ impl<S: core::Middleware<Metadata>> GenericPollManager<S> {
 		}).is_some()
 	}
 
-	pub fn tick(&self) -> Box<Future<Item=(), Error=()> + Send> {
+	pub fn tick(&self) -> Box<dyn Future<Item=(), Error=()> + Send> {
 		let mut futures = Vec::new();
 		// poll all subscriptions
 		for (id, subscription) in self.subscribers.iter() {

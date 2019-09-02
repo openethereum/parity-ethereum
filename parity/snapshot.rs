@@ -20,6 +20,7 @@ use std::time::Duration;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
+use client_traits::SnapshotClient;
 use hash::keccak;
 use ethcore::snapshot::{SnapshotConfiguration, SnapshotService as SS};
 use ethcore::snapshot::io::{SnapshotReader, PackedReader, PackedWriter};
