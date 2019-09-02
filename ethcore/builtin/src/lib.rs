@@ -18,10 +18,11 @@
 
 use std::{
 	cmp::{max, min},
-	io::{self, Read},
+	io::{self, Read, Cursor},
 };
 
 use bn;
+use byteorder::{BigEndian, LittleEndian, ReadBytesExt};
 use ethereum_types::{H256, U256};
 use ethjson;
 use ethkey::{Signature, recover as ec_recover};
@@ -29,7 +30,7 @@ use keccak_hash::keccak;
 use log::{warn, trace};
 use num::{BigUint, Zero, One};
 use parity_bytes::BytesRef;
-use parity_crypto::digest;
+use parity_crypto::{blake2_f, digest};
 
 /// Native implementation of a built-in contract.
 trait Implementation: Send + Sync {
@@ -359,9 +360,46 @@ impl Implementation for Sha256 {
 
 impl Implementation for Blake2F {
 	fn execute(&self, input: &[u8], output: &mut BytesRef) -> Result<(), &'static str> {
-		// todo[dvdplm] plug in impl here
-		let d = digest::sha256(input);
-		output.write(0, &*d);
+		const BLAKE2_F_ARG_LEN: usize = 213;
+
+		if input.len() != BLAKE2_F_ARG_LEN {
+			// todo[dvdplm] what's the right 'target' here?
+			trace!(target: "evm", "Invalid input length, must be exactly 213 bytes, was {}", input.len());
+			return Err("Invalid input length, must be exactly 213 bytes")
+		}
+
+		let mut rdr = Cursor::new(input);
+		let rounds = rdr.read_u32::<BigEndian>().expect("todo – prove this is ok or handle");
+		// todo[dvdplm] is this even not an error? According to the EIP it is not. Seems fishy though.
+//		if rounds == 0 {
+//			return Err("No rounds argument passed");
+//		}
+		// state vector, h
+		let mut h = [0u64; 8];
+		for i in 0..8 {
+			h[i] = rdr.read_u64::<LittleEndian>().expect("todo - prove this is ok or handle");
+		}
+
+		// message block vector, m
+		let mut m = [0u64; 16];
+		for i in 0..16 {
+			m[i] = rdr.read_u64::<LittleEndian>().expect("todo - prove this is ok or handle");
+		}
+
+		// 2w-bit offset counter, t
+		let t0 = rdr.read_u64::<LittleEndian>().expect("todo - prove this is ok or handle");
+		let t1 = rdr.read_u64::<LittleEndian>().expect("todo - prove this is ok or handle");
+
+		// final block indicator flag, "f"
+		let f = match input.last() {
+				Some(1) => true,
+				Some(0) => false,
+				_ => return Err("Final block indicator flag must be a byte set to 1 or 0.")
+			};
+
+		blake2_f::blake2_f(&mut h, m, [t0, t1], f, rounds as usize);
+
+		output.write(0, unsafe { std::slice::from_raw_parts(h.as_ptr() as *const u8, h.len() * std::mem::size_of::<u64>())});
 		Ok(())
 	}
 }
@@ -630,7 +668,35 @@ mod tests {
 	use parity_bytes::BytesRef;
 	use rustc_hex::FromHex;
 	use hex_literal::hex;
-	use super::{Builtin, Linear, Fixed, ethereum_builtin, Pricer, ModexpPricer, modexp as me};
+	use super::{Builtin, Linear, ethereum_builtin, Pricer, ModexpPricer, modexp as me};
+
+	#[test]
+	fn blake2f_cost() {
+		let f = Builtin {
+			pricer: Box::new(123),
+			native: ethereum_builtin("blake2_f"),
+			activate_at: 0,
+		};
+
+		let input = [1u8; 213];
+		let mut output = [255u8; 64];
+		f.execute(&input[..], &mut BytesRef::Fixed(&mut output[..])).unwrap();
+		// todo[dvdplm] this is wrong ofc, replace with correct expected output
+		//assert_eq!(&expected_output[..], hex!("e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"));
+
+		assert_eq!(f.cost(&input[..], 0), U256::from(123));
+	}
+
+	#[test]
+	fn blake2_f_test_vector_4() {
+		let blake2 = ethereum_builtin("blake2_f");
+		// Test vector 4 and expected output from https://github.com/ethereum/EIPs/blob/master/EIPS/eip-152.md#test-vector-4
+		let input = hex!("0000000048c9bdf267e6096a3ba7ca8485ae67bb2bf894fe72f36e3cf1361d5f3af54fa5d182e6ad7f520e511f6c3e2b8c68059b6bbd41fbabd9831f79217e1319cde05b61626300000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000300000000000000000000000000000001");
+		let expected = hex!("08c9bcf367e6096a3ba7ca8485ae67bb2bf894fe72f36e3cf1361d5f3af54fa5d282e6ad7f520e511f6c3e2b8c68059b9442be0454267ce079217e1319cde05b");
+		let mut output = [0u8; 64];
+		blake2.execute(&input[..], &mut BytesRef::Fixed(&mut output[..])).expect("Builtin does not fail");
+		assert_eq!(&output[..], &expected[..]);
+	}
 
 	#[test]
 	fn modexp_func() {
@@ -706,24 +772,6 @@ mod tests {
 		let mut ov = vec![];
 		f.execute(&i[..], &mut BytesRef::Flexible(&mut ov)).expect("Builtin should not fail");
 		assert_eq!(&ov[..], &(FromHex::from_hex("e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855").unwrap())[..]);
-	}
-
-	#[test]
-	fn blake2f() {
-		let f = Builtin {
-			pricer: Box::new(123),
-			native: ethereum_builtin("blake2_f"),
-			activate_at: 0,
-		};
-
-
-		let input = [0u8; 0];
-		let mut expected_output = [255u8; 32];
-		f.execute(&input[..], &mut BytesRef::Fixed(&mut expected_output[..])).expect("Builtin does not fail");
-		// todo[dvdplm] this is wrong ofc, replace with correct expected output
-		assert_eq!(&expected_output[..], hex!("e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"));
-
-		assert_eq!(f.cost(&input[..], 0), U256::from(123));
 	}
 
 	#[test]
