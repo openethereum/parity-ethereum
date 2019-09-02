@@ -18,6 +18,14 @@
 
 use uint::Uint;
 
+/// Fixed pricing: each call cost the same
+#[derive(Debug, PartialEq, Deserialize, Clone)]
+#[serde(deny_unknown_fields)]
+pub struct Fixed {
+	/// Coefficient: cost is 1 * coefficient
+	pub coefficient: usize,
+}
+
 /// Linear pricing.
 #[derive(Debug, PartialEq, Deserialize, Clone)]
 #[serde(deny_unknown_fields)]
@@ -65,6 +73,8 @@ pub struct AltBn128Pairing {
 #[serde(deny_unknown_fields)]
 #[serde(rename_all = "snake_case")]
 pub enum Pricing {
+	/// Fixed pricing.
+	Fixed(Fixed),
 	/// Linear pricing.
 	Linear(Linear),
 	/// Pricing for modular exponentiation.
@@ -92,7 +102,7 @@ pub struct Builtin {
 #[cfg(test)]
 mod tests {
 	use serde_json;
-	use spec::builtin::{Builtin, Pricing, Linear, Modexp};
+	use spec::builtin::{Builtin, Pricing, Fixed, Linear, Modexp};
 	use uint::Uint;
 
 	#[test]
@@ -105,6 +115,19 @@ mod tests {
 		assert_eq!(deserialized.name, "ecrecover");
 		assert_eq!(deserialized.pricing, Pricing::Linear(Linear { base: 3000, word: 0 }));
 		assert!(deserialized.activate_at.is_none());
+	}
+
+	#[test]
+	fn deserialization_blake2_f_builtin() {
+		let s = r#"{
+			"name": "blake2_f",
+			"activate_at": "0xffffff",
+			"pricing": { "fixed": { "coefficient": 123 } }
+		}"#;
+		let deserialized: Builtin = serde_json::from_str(s).unwrap();
+		assert_eq!(deserialized.name, "blake2_f");
+		assert_eq!(deserialized.pricing, Pricing::Fixed(Fixed { coefficient: 123 }));
+		assert!(deserialized.activate_at.is_some());
 	}
 
 	#[test]

@@ -45,6 +45,17 @@ trait Pricer: Send + Sync {
 }
 
 /// A linear pricing model. This computes a price using a base cost and a cost per-word.
+struct Fixed {
+	coefficient: usize,
+}
+
+impl Pricer for Fixed {
+	fn cost(&self, _input: &[u8], _at: u64) -> U256 {
+		U256::from(self.coefficient)
+	}
+}
+
+/// A linear pricing model. This computes a price using a base cost and a cost per-word.
 struct Linear {
 	base: usize,
 	word: usize,
@@ -199,6 +210,9 @@ impl Builtin {
 impl From<ethjson::spec::Builtin> for Builtin {
 	fn from(b: ethjson::spec::Builtin) -> Self {
 		let pricer: Box<dyn Pricer> = match b.pricing {
+			ethjson::spec::Pricing::Fixed(fixed) => {
+				Box::new(Fixed { coefficient: fixed.coefficient })
+			},
 			ethjson::spec::Pricing::Linear(linear) => {
 				Box::new(Linear {
 					base: linear.base,
@@ -256,6 +270,7 @@ fn ethereum_builtin(name: &str) -> Box<dyn Implementation> {
 		"alt_bn128_add" => Box::new(Bn128Add) as Box<dyn Implementation>,
 		"alt_bn128_mul" => Box::new(Bn128Mul) as Box<dyn Implementation>,
 		"alt_bn128_pairing" => Box::new(Bn128Pairing) as Box<dyn Implementation>,
+		"blake2_f" => Box::new(Blake2F) as Box<dyn Implementation>,
 		_ => panic!("invalid builtin name: {}", name),
 	}
 }
@@ -267,6 +282,10 @@ fn ethereum_builtin(name: &str) -> Box<dyn Implementation> {
 // - sha256
 // - ripemd160
 // - modexp (EIP198)
+// - alt_bn128_add
+// - alt_bn128_mul
+// - alt_bn128_pairing
+// - blake2_f (The Blake2 compression function F, EIP-152)
 
 #[derive(Debug)]
 struct Identity;
@@ -291,6 +310,9 @@ struct Bn128Mul;
 
 #[derive(Debug)]
 struct Bn128Pairing;
+
+#[derive(Debug)]
+struct Blake2F;
 
 impl Implementation for Identity {
 	fn execute(&self, input: &[u8], output: &mut BytesRef) -> Result<(), &'static str> {
@@ -331,6 +353,15 @@ impl Implementation for EcRecover {
 
 impl Implementation for Sha256 {
 	fn execute(&self, input: &[u8], output: &mut BytesRef) -> Result<(), &'static str> {
+		let d = digest::sha256(input);
+		output.write(0, &*d);
+		Ok(())
+	}
+}
+
+impl Implementation for Blake2F {
+	fn execute(&self, input: &[u8], output: &mut BytesRef) -> Result<(), &'static str> {
+		// todo[dvdplm] plug in impl here
 		let d = digest::sha256(input);
 		output.write(0, &*d);
 		Ok(())
@@ -600,7 +631,8 @@ mod tests {
 	use num::{BigUint, Zero, One};
 	use parity_bytes::BytesRef;
 	use rustc_hex::FromHex;
-	use super::{Builtin, Linear, ethereum_builtin, Pricer, ModexpPricer, modexp as me};
+	use hex_literal::hex;
+	use super::{Builtin, Linear, Fixed, ethereum_builtin, Pricer, ModexpPricer, modexp as me};
 
 	#[test]
 	fn modexp_func() {
@@ -676,6 +708,24 @@ mod tests {
 		let mut ov = vec![];
 		f.execute(&i[..], &mut BytesRef::Flexible(&mut ov)).expect("Builtin should not fail");
 		assert_eq!(&ov[..], &(FromHex::from_hex("e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855").unwrap())[..]);
+	}
+
+	#[test]
+	fn blake2f() {
+		let f = Builtin {
+			pricer: Box::new(Fixed { coefficient: 123 }),
+			native: ethereum_builtin("blake2_f"),
+			activate_at: 0,
+		};
+
+
+		let input = [0u8; 0];
+		let mut expected_output = [255u8; 32];
+		f.execute(&input[..], &mut BytesRef::Fixed(&mut expected_output[..])).expect("Builtin does not fail");
+		// todo[dvdplm] this is wrong ofc, replace with correct expected output
+		assert_eq!(&expected_output[..], hex!("e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"));
+
+		assert_eq!(f.cost(&input[..], 0), U256::from(123));
 	}
 
 	#[test]
