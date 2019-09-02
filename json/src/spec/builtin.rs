@@ -19,13 +19,7 @@
 use uint::Uint;
 
 /// Fixed pricing: each call cost the same
-//#[derive(Debug, PartialEq, Deserialize, Clone)]
-//#[serde(deny_unknown_fields)]
 pub type Fixed = u64;
-//pub struct Fixed {
-//	/// Coefficient: cost is 1 * coefficient
-//	pub coefficient: usize,
-//}
 
 /// Linear pricing.
 #[derive(Debug, PartialEq, Deserialize, Clone)]
