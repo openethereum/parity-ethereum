@@ -195,6 +195,12 @@ pub trait BlockProvider {
 		where F: Fn(&LogEntry) -> bool + Send + Sync, Self: Sized;
 }
 
+/// Interface for querying blocks by hash and by number with pending transaction.
+trait InTransactionBlockProvider {
+	/// Get the familial details concerning a block.
+	fn uncommitted_block_details(&self, hash: &H256) -> Option<BlockDetails>;
+}
+
 #[derive(Debug, Hash, Eq, PartialEq, Clone)]
 enum CacheId {
 	BlockHeader(H256),
@@ -421,6 +427,14 @@ impl BlockProvider for BlockChain {
 			.collect::<Vec<LocalizedLogEntry>>();
 		logs.reverse();
 		logs
+	}
+}
+
+impl InTransactionBlockProvider for BlockChain {
+	fn uncommitted_block_details(&self, hash: &H256) -> Option<BlockDetails> {
+		let result = self.db.key_value().read_with_two_layer_cache(db::COL_EXTRA, &self.pending_block_details, &self.block_details, hash)?;
+		self.cache_man.lock().note_used(CacheId::BlockDetails(*hash));
+		Some(result)
 	}
 }
 
@@ -1344,7 +1358,7 @@ impl BlockChain {
 	/// Uses the given parent details or attempts to load them from the database.
 	fn prepare_block_details_update(&self, parent_hash: H256, info: &BlockInfo, is_finalized: bool) -> HashMap<H256, BlockDetails> {
 		// update parent
-		let mut parent_details = self.block_details(&parent_hash).unwrap_or_else(|| panic!("Invalid parent hash: {:?}", parent_hash));
+		let mut parent_details = self.uncommitted_block_details(&parent_hash).unwrap_or_else(|| panic!("Invalid parent hash: {:?}", parent_hash));
 		parent_details.children.push(info.hash);
 
 		// create current block details.
