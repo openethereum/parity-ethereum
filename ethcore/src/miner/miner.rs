@@ -675,8 +675,8 @@ impl Miner {
 	fn seal_and_import_block_internally<C>(&self, chain: &C, block: ClosedBlock) -> bool
 		where C: BlockChain + SealedBlockImporter,
 	{
+		let mut sealing = self.sealing.lock();
 		{
-			let sealing = self.sealing.lock();
 			if block.transactions.is_empty()
 				&& !self.forced_sealing()
 				&& Instant::now() <= sealing.next_mandatory_reseal
@@ -709,7 +709,7 @@ impl Miner {
 				Seal::Regular(seal) => {
 					trace!(target: "miner", "Block #{}: Received a Regular seal.", block_number);
 					{
-						let mut sealing = self.sealing.lock();
+						// let mut sealing = self.sealing.lock();
 						sealing.next_mandatory_reseal = Instant::now() + self.options.reseal_max_period;
 					}
 
@@ -1359,7 +1359,7 @@ impl miner::MinerService for Miner {
 		Ok(sealed)
 	}
 
-	fn chain_new_blocks<C>(&self, chain: &C, imported: &[H256], _invalid: &[H256], enacted: &[H256], retracted: &[H256], _is_internal_import: bool)
+	fn chain_new_blocks<C>(&self, chain: &C, imported: &[H256], _invalid: &[H256], enacted: &[H256], retracted: &[H256], is_internal_import: bool)
 		where C: miner::BlockChainClient,
 	{
 		trace!(target: "miner", "chain_new_blocks");
@@ -1397,56 +1397,58 @@ impl miner::MinerService for Miner {
 				});
 		}
 
-		// @todo Use IoChannel if available
-		// if has_new_best_block {
-		// 	// Make sure to cull transactions after we update sealing.
-		// 	// Not culling won't lead to old transactions being added to the block
-		// 	// (thanks to Ready), but culling can take significant amount of time,
-		// 	// so best to leave it after we create some work for miners to prevent increased
-		// 	// uncle rate.
-		// 	// If the io_channel is available attempt to offload culling to a separate task
-		// 	// to avoid blocking chain_new_blocks
-		// 	if let Some(ref channel) = *self.io_channel.read() {
-		// 		let queue = self.transaction_queue.clone();
-		// 		let nonce_cache = self.nonce_cache.clone();
-		// 		let engine = self.engine.clone();
-		// 		let accounts = self.accounts.clone();
-		// 		let service_transaction_checker = self.service_transaction_checker.clone();
-
-		// 		let cull = move |chain: &::client::Client| {
-		// 			let client = PoolClient::new(
-		// 				chain,
-		// 				&nonce_cache,
-		// 				&*engine,
-		// 				&*accounts,
-		// 				service_transaction_checker.as_ref(),
-		// 			);
-		// 			queue.cull(client);
-		// 		};
-
-		// 		if let Err(e) = channel.send(ClientIoMessage::execute(cull)) {
-		// 			warn!(target: "miner", "Error queueing cull: {:?}", e);
-		// 		}
-		// 	} else {
-		// 		self.transaction_queue.cull(client);
-		// 	}
-		// }
-		if has_new_best_block {
-			self.transaction_queue.cull(client);
-		}
-
 		if has_new_best_block || (imported.len() > 0 && self.options.reseal_on_uncle) {
 			// Reset `next_allowed_reseal` in case a block is imported.
 			// Even if min_period is high, we will always attempt to create
 			// new pending block.
 			self.sealing.lock().next_allowed_reseal = Instant::now();
 
-			// --------------------------------------------------------------------------
-			// | NOTE Code below requires sealing locks.                                |
-			// | Make sure to release the locks before calling that method.             |
-			// --------------------------------------------------------------------------
-			self.update_sealing(chain);
+			if !is_internal_import {
+				// --------------------------------------------------------------------------
+				// | NOTE Code below requires sealing locks.                                |
+				// | Make sure to release the locks before calling that method.             |
+				// --------------------------------------------------------------------------
+				self.update_sealing(chain);
+			}
 		}
+
+		// @todo Use IoChannel if available
+		if has_new_best_block {
+			// Make sure to cull transactions after we update sealing.
+			// Not culling won't lead to old transactions being added to the block
+			// (thanks to Ready), but culling can take significant amount of time,
+			// so best to leave it after we create some work for miners to prevent increased
+			// uncle rate.
+			// If the io_channel is available attempt to offload culling to a separate task
+			// to avoid blocking chain_new_blocks
+			if let Some(ref channel) = *self.io_channel.read() {
+				let queue = self.transaction_queue.clone();
+				let nonce_cache = self.nonce_cache.clone();
+				let engine = self.engine.clone();
+				let accounts = self.accounts.clone();
+				let service_transaction_checker = self.service_transaction_checker.clone();
+
+				let cull = move |chain: &::client::Client| {
+					let client = PoolClient::new(
+						chain,
+						&nonce_cache,
+						&*engine,
+						&*accounts,
+						service_transaction_checker.as_ref(),
+					);
+					queue.cull(client);
+				};
+
+				if let Err(e) = channel.send(ClientIoMessage::execute(cull)) {
+					warn!(target: "miner", "Error queueing cull: {:?}", e);
+				}
+			} else {
+				self.transaction_queue.cull(client);
+			}
+		}
+		// if has_new_best_block {
+		// 	self.transaction_queue.cull(client);
+		// }
 
 		if let Some(ref service_transaction_checker) = self.service_transaction_checker {
 			match service_transaction_checker.refresh_cache(chain) {
