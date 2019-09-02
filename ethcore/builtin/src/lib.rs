@@ -45,13 +45,11 @@ trait Pricer: Send + Sync {
 }
 
 /// A linear pricing model. This computes a price using a base cost and a cost per-word.
-struct Fixed {
-	coefficient: usize,
-}
+pub type Fixed = u64;
 
 impl Pricer for Fixed {
 	fn cost(&self, _input: &[u8], _at: u64) -> U256 {
-		U256::from(self.coefficient)
+		U256::from(*self)
 	}
 }
 
@@ -211,7 +209,7 @@ impl From<ethjson::spec::Builtin> for Builtin {
 	fn from(b: ethjson::spec::Builtin) -> Self {
 		let pricer: Box<dyn Pricer> = match b.pricing {
 			ethjson::spec::Pricing::Fixed(fixed) => {
-				Box::new(Fixed { coefficient: fixed.coefficient })
+				Box::new(fixed)
 			},
 			ethjson::spec::Pricing::Linear(linear) => {
 				Box::new(Linear {
@@ -713,7 +711,7 @@ mod tests {
 	#[test]
 	fn blake2f() {
 		let f = Builtin {
-			pricer: Box::new(Fixed { coefficient: 123 }),
+			pricer: Box::new(123),
 			native: ethereum_builtin("blake2_f"),
 			activate_at: 0,
 		};
