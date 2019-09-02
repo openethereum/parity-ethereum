@@ -370,10 +370,7 @@ impl Implementation for Blake2F {
 
 		let mut rdr = Cursor::new(input);
 		let rounds = rdr.read_u32::<BigEndian>().expect("todo – prove this is ok or handle");
-		// todo[dvdplm] is this even not an error? According to the EIP it is not. Seems fishy though.
-//		if rounds == 0 {
-//			return Err("No rounds argument passed");
-//		}
+
 		// state vector, h
 		let mut h = [0u64; 8];
 		for i in 0..8 {
@@ -667,7 +664,7 @@ mod tests {
 	use num::{BigUint, Zero, One};
 	use parity_bytes::BytesRef;
 	use rustc_hex::FromHex;
-	use hex_literal::hex;
+	use hex_literal::hex; // todo[dvdplm] switch tests to hex_literal
 	use super::{Builtin, Linear, ethereum_builtin, Pricer, ModexpPricer, modexp as me};
 
 	#[test]
