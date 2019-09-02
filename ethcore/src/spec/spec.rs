@@ -65,7 +65,7 @@ fn fmt_err<F: ::std::fmt::Display>(f: F) -> String {
 /// we define a "bugfix" hard fork as any hard fork which
 /// you would put on-by-default in a new chain.
 #[derive(Debug, PartialEq, Default)]
-#[cfg_attr(test, derive(Clone))]
+#[cfg_attr(any(test, feature = "test-helpers"), derive(Clone))] 
 pub struct CommonParams {
 	/// Account start nonce.
 	pub account_start_nonce: U256,

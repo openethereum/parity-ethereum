@@ -16,4 +16,7 @@ rlp_derive = { path = "../../util/rlp-derive" }
 unexpected = { path = "../../util/unexpected" }
 
 [dev-dependencies]
-rustc-hex= "1.0"
+rustc-hex = "1.0"
+
+[features]
+test-helpers = []
