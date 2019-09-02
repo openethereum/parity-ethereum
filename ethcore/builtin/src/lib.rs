@@ -38,9 +38,10 @@ trait Implementation: Send + Sync {
 }
 
 /// A gas pricing scheme for built-in contracts.
+// TODO: refactor this trait, see https://github.com/paritytech/parity-ethereum/issues/11014
 trait Pricer: Send + Sync {
-	/// The gas cost of running this built-in for the given input data.
-	fn cost(&self, input: &[u8]) -> U256;
+	/// The gas cost of running this built-in for the given input data at block number `at`
+	fn cost(&self, input: &[u8], at: u64) -> U256;
 }
 
 /// A linear pricing model. This computes a price using a base cost and a cost per-word.
@@ -55,26 +56,56 @@ struct ModexpPricer {
 }
 
 impl Pricer for Linear {
-	fn cost(&self, input: &[u8]) -> U256 {
+	fn cost(&self, input: &[u8], _at: u64) -> U256 {
 		U256::from(self.base) + U256::from(self.word) * U256::from((input.len() + 31) / 32)
 	}
 }
 
-/// A alt_bn128_parinig pricing model. This computes a price using a base cost and a cost per pair.
-struct AltBn128PairingPricer {
+/// alt_bn128 constant operations (add and mul) pricing model.
+struct AltBn128ConstOperations {
+	price: usize,
+	eip1108_transition_at: u64,
+	eip1108_transition_price: usize,
+}
+
+impl Pricer for AltBn128ConstOperations {
+	fn cost(&self, _input: &[u8], at: u64) -> U256 {
+		if at >= self.eip1108_transition_at {
+			self.eip1108_transition_price.into()
+		} else {
+			self.price.into()
+		}
+	}
+}
+
+/// alt_bn128 pairing price
+#[derive(Debug, Copy, Clone)]
+struct AltBn128PairingPrice {
 	base: usize,
 	pair: usize,
 }
 
+/// alt_bn128_pairing pricing model. This computes a price using a base cost and a cost per pair.
+struct AltBn128PairingPricer {
+	price: AltBn128PairingPrice,
+	eip1108_transition_at: u64,
+	eip1108_transition_price: AltBn128PairingPrice,
+}
+
 impl Pricer for AltBn128PairingPricer {
-	fn cost(&self, input: &[u8]) -> U256 {
-		let cost = U256::from(self.base) + U256::from(self.pair) * U256::from(input.len() / 192);
-		cost
+	fn cost(&self, input: &[u8], at: u64) -> U256 {
+		let price = if at >= self.eip1108_transition_at {
+			self.eip1108_transition_price
+		} else {
+			self.price
+		};
+
+		U256::from(price.base) + U256::from(price.pair) * U256::from(input.len() / 192)
 	}
 }
 
 impl Pricer for ModexpPricer {
-	fn cost(&self, input: &[u8]) -> U256 {
+	fn cost(&self, input: &[u8], _at: u64) -> U256 {
 		let mut reader = input.chain(io::repeat(0));
 		let mut buf = [0; 32];
 
@@ -150,8 +181,8 @@ pub struct Builtin {
 
 impl Builtin {
 	/// Simple forwarder for cost.
-	pub fn cost(&self, input: &[u8]) -> U256 {
-		self.pricer.cost(input)
+	pub fn cost(&self, input: &[u8], at: u64) -> U256 {
+		self.pricer.cost(input, at)
 	}
 
 	/// Simple forwarder for execute.
@@ -186,16 +217,30 @@ impl From<ethjson::spec::Builtin> for Builtin {
 			}
 			ethjson::spec::Pricing::AltBn128Pairing(pricer) => {
 				Box::new(AltBn128PairingPricer {
-					base: pricer.base,
-					pair: pricer.pair,
+					price: AltBn128PairingPrice {
+						base: pricer.base,
+						pair: pricer.pair,
+					},
+					eip1108_transition_at: b.eip1108_transition.map_or(u64::max_value(), Into::into),
+					eip1108_transition_price: AltBn128PairingPrice {
+						base: pricer.eip1108_transition_base,
+						pair: pricer.eip1108_transition_pair,
+					},
+				})
+			}
+			ethjson::spec::Pricing::AltBn128ConstOperations(pricer) => {
+				Box::new(AltBn128ConstOperations {
+						price: pricer.price,
+						eip1108_transition_price: pricer.eip1108_transition_price,
+						eip1108_transition_at: b.eip1108_transition.map_or(u64::max_value(), Into::into)
 				})
 			}
 		};
 
 		Builtin {
-			pricer: pricer,
+			pricer,
 			native: ethereum_builtin(&b.name),
-			activate_at: b.activate_at.map(Into::into).unwrap_or(0),
+			activate_at: b.activate_at.map_or(0, Into::into),
 		}
 	}
 }
@@ -477,7 +522,7 @@ impl Implementation for Bn128Pairing {
 	///     - any of even points does not belong to the twisted bn128 curve over the field F_p^2 = F_p[i] / (i^2 + 1)
 	fn execute(&self, input: &[u8], output: &mut BytesRef) -> Result<(), &'static str> {
 		if input.len() % 192 != 0 {
-			return Err("Invalid input length, must be multiple of 192 (3 * (32*2))".into())
+			return Err("Invalid input length, must be multiple of 192 (3 * (32*2))")
 		}
 
 		if let Err(err) = self.execute_with_error(input, output) {
@@ -551,7 +596,7 @@ impl Bn128Pairing {
 #[cfg(test)]
 mod tests {
 	use ethereum_types::U256;
-	use ethjson;
+	use ethjson::uint::Uint;
 	use num::{BigUint, Zero, One};
 	use parity_bytes::BytesRef;
 	use rustc_hex::FromHex;
@@ -715,7 +760,7 @@ mod tests {
 		{
 			let input = FromHex::from_hex("0000000000000000000000000000000000000000000000000000000000000001000000000000000000000000000000000000000000000000000000003b27bafd00000000000000000000000000000000000000000000000000000000503c8ac3").unwrap();
 			let expected_cost = U256::max_value();
-			assert_eq!(f.cost(&input[..]), expected_cost.into());
+			assert_eq!(f.cost(&input[..], 0), expected_cost.into());
 		}
 
 		// test for potential exp len overflow
@@ -732,7 +777,7 @@ mod tests {
 
 			f.execute(&input[..], &mut BytesRef::Fixed(&mut output[..])).expect("Builtin should fail");
 			assert_eq!(output, expected);
-			assert_eq!(f.cost(&input[..]), expected_cost.into());
+			assert_eq!(f.cost(&input[..], 0), expected_cost.into());
 		}
 
 		// fermat's little theorem example.
@@ -752,7 +797,7 @@ mod tests {
 
 			f.execute(&input[..], &mut BytesRef::Fixed(&mut output[..])).expect("Builtin should not fail");
 			assert_eq!(output, expected);
-			assert_eq!(f.cost(&input[..]), expected_cost.into());
+			assert_eq!(f.cost(&input[..], 0), expected_cost.into());
 		}
 
 		// second example from EIP: zero base.
@@ -771,7 +816,7 @@ mod tests {
 
 			f.execute(&input[..], &mut BytesRef::Fixed(&mut output[..])).expect("Builtin should not fail");
 			assert_eq!(output, expected);
-			assert_eq!(f.cost(&input[..]), expected_cost.into());
+			assert_eq!(f.cost(&input[..], 0), expected_cost.into());
 		}
 
 		// another example from EIP: zero-padding
@@ -791,7 +836,7 @@ mod tests {
 
 			f.execute(&input[..], &mut BytesRef::Fixed(&mut output[..])).expect("Builtin should not fail");
 			assert_eq!(output, expected);
-			assert_eq!(f.cost(&input[..]), expected_cost.into());
+			assert_eq!(f.cost(&input[..], 0), expected_cost.into());
 		}
 
 		// zero-length modulus.
@@ -809,7 +854,7 @@ mod tests {
 
 			f.execute(&input[..], &mut BytesRef::Flexible(&mut output)).expect("Builtin should not fail");
 			assert_eq!(output.len(), 0); // shouldn't have written any output.
-			assert_eq!(f.cost(&input[..]), expected_cost.into());
+			assert_eq!(f.cost(&input[..], 0), expected_cost.into());
 		}
 	}
 
@@ -1019,10 +1064,10 @@ mod tests {
 			activate_at: 1,
 		};
 
-		assert_eq!(b.cost(&[0; 0]), U256::from(10));
-		assert_eq!(b.cost(&[0; 1]), U256::from(30));
-		assert_eq!(b.cost(&[0; 32]), U256::from(30));
-		assert_eq!(b.cost(&[0; 33]), U256::from(50));
+		assert_eq!(b.cost(&[0; 0], 0), U256::from(10));
+		assert_eq!(b.cost(&[0; 1], 0), U256::from(30));
+		assert_eq!(b.cost(&[0; 32], 0), U256::from(30));
+		assert_eq!(b.cost(&[0; 33], 0), U256::from(50));
 
 		let i = [0u8, 1, 2, 3];
 		let mut o = [255u8; 4];
@@ -1039,16 +1084,67 @@ mod tests {
 				word: 20,
 			}),
 			activate_at: None,
+			eip1108_transition: None,
 		});
 
-		assert_eq!(b.cost(&[0; 0]), U256::from(10));
-		assert_eq!(b.cost(&[0; 1]), U256::from(30));
-		assert_eq!(b.cost(&[0; 32]), U256::from(30));
-		assert_eq!(b.cost(&[0; 33]), U256::from(50));
+		assert_eq!(b.cost(&[0; 0], 0), U256::from(10));
+		assert_eq!(b.cost(&[0; 1], 0), U256::from(30));
+		assert_eq!(b.cost(&[0; 32], 0), U256::from(30));
+		assert_eq!(b.cost(&[0; 33], 0), U256::from(50));
 
 		let i = [0u8, 1, 2, 3];
 		let mut o = [255u8; 4];
 		b.execute(&i[..], &mut BytesRef::Fixed(&mut o[..])).expect("Builtin should not fail");
 		assert_eq!(i, o);
+	}
+
+	#[test]
+	fn bn128_pairing_eip1108_transition() {
+		let b = Builtin::from(ethjson::spec::Builtin {
+			name: "alt_bn128_pairing".to_owned(),
+			pricing: ethjson::spec::Pricing::AltBn128Pairing(ethjson::spec::builtin::AltBn128Pairing {
+				base: 100_000,
+				pair: 80_000,
+				eip1108_transition_base: 45_000,
+				eip1108_transition_pair: 34_000,
+			}),
+			activate_at: Some(Uint(U256::from(10))),
+			eip1108_transition: Some(Uint(U256::from(20))),
+		});
+
+		assert_eq!(b.cost(&[0; 192 * 3], 10), U256::from(340_000), "80 000 * 3 + 100 000 == 340 000");
+		assert_eq!(b.cost(&[0; 192 * 7], 20), U256::from(283_000), "34 000 * 7 + 45 000 == 283 000");
+	}
+
+	#[test]
+	fn bn128_add_eip1108_transition() {
+		let b = Builtin::from(ethjson::spec::Builtin {
+			name: "alt_bn128_add".to_owned(),
+			pricing: ethjson::spec::Pricing::AltBn128ConstOperations(ethjson::spec::builtin::AltBn128ConstOperations {
+				price: 500,
+				eip1108_transition_price: 150,
+			}),
+			activate_at: Some(Uint(U256::from(10))),
+			eip1108_transition: Some(Uint(U256::from(20))),
+		});
+
+		assert_eq!(b.cost(&[0; 192], 10), U256::from(500));
+		assert_eq!(b.cost(&[0; 10], 20), U256::from(150), "after istanbul hardfork gas cost for add should be 150");
+	}
+
+	#[test]
+	fn bn128_mul_eip1108_transition() {
+		let b = Builtin::from(ethjson::spec::Builtin {
+			name: "alt_bn128_mul".to_owned(),
+			pricing: ethjson::spec::Pricing::AltBn128ConstOperations(ethjson::spec::builtin::AltBn128ConstOperations {
+				price: 40_000,
+				eip1108_transition_price: 6000,
+			}),
+			activate_at: Some(Uint(U256::from(10))),
+			eip1108_transition: Some(Uint(U256::from(20))),
+		});
+
+		assert_eq!(b.cost(&[0; 192], 10), U256::from(40_000));
+		assert_eq!(b.cost(&[0; 10], 20), U256::from(6_000), "after istanbul hardfork gas cost for mul should be 6 000");
 	}
 }

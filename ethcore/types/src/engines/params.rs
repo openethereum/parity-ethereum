@@ -31,8 +31,8 @@ const MAX_TRANSACTION_SIZE: usize = 300 * 1024;
 ///
 /// we define a "bugfix" hard fork as any hard fork which
 /// you would put on-by-default in a new chain.
-// NOTE [dvdplm]: `Clone` is needed only for tests.
-#[derive(Debug, PartialEq, Default, Clone)]
+#[derive(Debug, PartialEq, Default)]
+#[cfg_attr(any(test, feature = "test-helpers"), derive(Clone))]
 pub struct CommonParams {
 	/// Account start nonce.
 	pub account_start_nonce: U256,
