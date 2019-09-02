@@ -2780,6 +2780,9 @@ impl IoChannelQueue {
 
 #[cfg(test)]
 mod tests {
+	use test_helpers::{generate_dummy_client, generate_dummy_client_with_data, generate_dummy_client_with_spec_and_data, get_good_dummy_block_hash};
+	use blockchain::{BlockProvider, ExtrasInsert};
+	use spec::Spec;
 
 	#[test]
 	fn should_not_cache_details_before_commit() {
@@ -2791,7 +2794,6 @@ mod tests {
 		use std::sync::Arc;
 		use std::sync::atomic::{AtomicBool, Ordering};
 		use kvdb::DBTransaction;
-		use blockchain::ExtrasInsert;
 		use types::encoded;
 
 		let client = generate_dummy_client(0);
@@ -2932,6 +2934,24 @@ mod tests {
 			log_bloom: Default::default(),
 			outcome: TransactionOutcome::StateRoot(state_root),
 		});
+	}
+
+	#[test]
+	fn should_mark_finalization_correctly_for_parent() {
+		let client = generate_dummy_client_with_spec_and_data(Spec::new_test_with_finality, 2, 0, &[]);
+		let chain = client.chain();
+
+		let block1_details = chain.block_hash(1).and_then(|h| chain.block_details(&h));
+		assert!(block1_details.is_some());
+		let block1_details = block1_details.unwrap();
+		assert_eq!(block1_details.children.len(), 1);
+		assert!(block1_details.is_finalized);
+
+		let block2_details = chain.block_hash(2).and_then(|h| chain.block_details(&h));
+		assert!(block2_details.is_some());
+		let block2_details = block2_details.unwrap();
+		assert_eq!(block2_details.children.len(), 0);
+		assert!(!block2_details.is_finalized);
 	}
 }
 
