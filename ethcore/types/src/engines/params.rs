@@ -88,8 +88,12 @@ pub struct CommonParams {
 	pub eip1283_transition: BlockNumber,
 	/// Number of first block where EIP-1283 rules end.
 	pub eip1283_disable_transition: BlockNumber,
+	/// Number of first block where EIP-1283 rules re-enabled.
+	pub eip1283_reenable_transition: BlockNumber,
 	/// Number of first block where EIP-1014 rules begin.
 	pub eip1014_transition: BlockNumber,
+	/// Number of first block where EIP-1706 rules begin.
+	pub eip1706_transition: BlockNumber,
 	/// Number of first block where EIP-1344 rules begin: https://github.com/ethereum/EIPs/blob/master/EIPS/eip-1344.md
 	pub eip1344_transition: BlockNumber,
 	/// Number of first block where EIP-1884 rules begin:https://github.com/ethereum/EIPs/blob/master/EIPS/eip-1884.md
@@ -166,7 +170,11 @@ impl CommonParams {
 		schedule.have_bitwise_shifting = block_number >= self.eip145_transition;
 		schedule.have_extcodehash = block_number >= self.eip1052_transition;
 		schedule.have_chain_id = block_number >= self.eip1344_transition;
-		schedule.eip1283 = block_number >= self.eip1283_transition && !(block_number >= self.eip1283_disable_transition);
+		schedule.eip1283 =
+			(block_number >= self.eip1283_transition &&
+			 !(block_number >= self.eip1283_disable_transition)) ||
+			block_number >= self.eip1283_reenable_transition;
+		schedule.eip1706 = block_number >= self.eip1706_transition;
 
 		if block_number >= self.eip1884_transition {
 			schedule.have_selfbalance = true;
@@ -287,6 +295,14 @@ impl From<ethjson::spec::Params> for CommonParams {
 				Into::into,
 			),
 			eip1283_disable_transition: p.eip1283_disable_transition.map_or_else(
+				BlockNumber::max_value,
+				Into::into,
+			),
+			eip1283_reenable_transition: p.eip1283_reenable_transition.map_or_else(
+				BlockNumber::max_value,
+				Into::into,
+			),
+			eip1706_transition: p.eip1706_transition.map_or_else(
 				BlockNumber::max_value,
 				Into::into,
 			),

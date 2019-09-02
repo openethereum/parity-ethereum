@@ -38,8 +38,7 @@ trait Implementation: Send + Sync {
 }
 
 /// A gas pricing scheme for built-in contracts.
-// NOTE(niklasad1): maybe refactor this trait because only `bn128_operations` are using
-// block number in order to comply with `eip1108`
+// TODO: refactor this trait, see https://github.com/paritytech/parity-ethereum/issues/11014
 trait Pricer: Send + Sync {
 	/// The gas cost of running this built-in for the given input data at block number `at`
 	fn cost(&self, input: &[u8], at: u64) -> U256;
