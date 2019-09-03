@@ -611,7 +611,7 @@ impl Implementation for Bn128Pairing {
 		}
 
 		if let Err(err) = self.execute_with_error(input, output) {
-			trace!(target: "builtin", "Pairining error: {:?}", err);
+			trace!(target: "builtin", "Pairing error: {:?}", err);
 			return Err(err)
 		}
 		Ok(())
