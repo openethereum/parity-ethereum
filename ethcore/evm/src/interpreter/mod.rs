@@ -279,6 +279,8 @@ impl<Cost: CostType> Interpreter<Cost> {
 			cache, params, reader, informant,
 			valid_jump_destinations, gasometer, stack,
 			done: false,
+			// Overridden in `step_inner` based on
+			// the result of `ext.trace_next_instruction`.
 			do_trace: true,
 			mem: Vec::new(),
 			return_data: ReturnData::empty(),
