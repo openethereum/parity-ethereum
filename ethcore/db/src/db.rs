@@ -190,7 +190,7 @@ pub trait Readable {
 		})
 	}
 
-	/// Returns value for given key either in tow-layered cache or in database.
+	/// Returns value for given key either in two-layered cache or in database.
 	fn read_with_two_layer_cache<K, T, C>(&self, col: Option<u32>, l1_cache: &RwLock<C>, l2_cache: &RwLock<C>, key: &K) -> Option<T> where
 		K: Key<T> + Eq + Hash + Clone,
 		T: Clone + rlp::Decodable,
