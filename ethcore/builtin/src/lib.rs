@@ -30,7 +30,8 @@ use keccak_hash::keccak;
 use log::{warn, trace};
 use num::{BigUint, Zero, One};
 use parity_bytes::BytesRef;
-use parity_crypto::{blake2_f, digest};
+use parity_crypto::digest;
+use eip_152::compress;
 
 /// Native implementation of a built-in contract.
 trait Implementation: Send + Sync {
@@ -401,7 +402,7 @@ impl Implementation for Blake2F {
 				}
 			};
 
-		blake2_f::blake2_f(&mut h, m, [t0, t1], f, rounds as usize);
+		compress(&mut h, m, [t0, t1], f, rounds as usize);
 
 		output.write(0, unsafe { std::slice::from_raw_parts(h.as_ptr() as *const u8, h.len() * std::mem::size_of::<u64>())});
 		Ok(())
