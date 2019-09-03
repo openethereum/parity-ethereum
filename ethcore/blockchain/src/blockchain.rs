@@ -23,18 +23,22 @@ use std::sync::Arc;
 
 use ansi_term::Colour;
 use blooms_db;
-use common_types::BlockNumber;
-use common_types::blockchain_info::BlockChainInfo;
-use common_types::encoded;
-use common_types::engines::ForkChoice;
-use common_types::engines::epoch::{Transition as EpochTransition, PendingTransition as PendingEpochTransition};
-use common_types::header::{Header, ExtendedHeader};
-use common_types::log_entry::{LogEntry, LocalizedLogEntry};
-use common_types::receipt::Receipt;
-use common_types::transaction::LocalizedTransaction;
-use common_types::tree_route::TreeRoute;
-use common_types::view;
-use common_types::views::{BlockView, HeaderView};
+use common_types::{
+	BlockNumber,
+	blockchain_info::BlockChainInfo,
+	block::{BlockInfo, BlockLocation, BranchBecomingCanonChainData},
+	encoded,
+	engines::ForkChoice,
+	engines::epoch::{Transition as EpochTransition, PendingTransition as PendingEpochTransition},
+	header::{Header, ExtendedHeader},
+	import_route::ImportRoute,
+	log_entry::{LogEntry, LocalizedLogEntry},
+	receipt::Receipt,
+	transaction::LocalizedTransaction,
+	tree_route::TreeRoute,
+	view,
+	views::{BlockView, HeaderView},
+};
 use ethcore_db::cache_manager::CacheManager;
 use ethcore_db::keys::{BlockReceipts, BlockDetails, TransactionAddress, EPOCH_KEY_PREFIX, EpochTransitions};
 use ethcore_db::{self as db, Writable, Readable, CacheUpdatePolicy};
@@ -50,9 +54,8 @@ use rlp::RlpStream;
 use rlp_compress::{compress, decompress, blocks_swapper};
 
 use crate::best_block::{BestBlock, BestAncientBlock};
-use crate::block_info::{BlockInfo, BlockLocation, BranchBecomingCanonChainData};
 use crate::update::{ExtrasUpdate, ExtrasInsert};
-use crate::{CacheSize, ImportRoute, Config};
+use crate::{CacheSize, Config};
 
 /// Database backing `BlockChain`.
 pub trait BlockChainDB: Send + Sync {

@@ -18,17 +18,20 @@
 
 use std::sync::Arc;
 use std::sync::atomic::AtomicBool;
-use hash::{KECCAK_NULL_RLP, keccak};
+use keccak_hash::{KECCAK_NULL_RLP, keccak};
 
-use types::{
+use common_types::{
 	basic_account::BasicAccount,
 	errors::EthcoreError as Error,
+	snapshot::ManifestData,
 };
 use client_traits::SnapshotWriter;
-use snapshot::account;
-use snapshot::{chunk_state, Error as SnapshotError, Progress, StateRebuilder, SNAPSHOT_SUBPARTS};
-use snapshot::io::{PackedReader, PackedWriter, SnapshotReader};
-use super::helpers::StateProducer;
+use crate::{
+	account,
+	{chunk_state, Error as SnapshotError, Progress, StateRebuilder, SNAPSHOT_SUBPARTS},
+	io::{PackedReader, PackedWriter, SnapshotReader},
+	tests::helpers::StateProducer,
+};
 use rand::SeedableRng;
 use rand_xorshift::XorShiftRng;
 use ethereum_types::H256;
@@ -45,7 +48,7 @@ fn snap_and_restore() {
 	let mut producer = StateProducer::new();
 	let mut rng = XorShiftRng::from_seed(RNG_SEED);
 	let mut old_db = journaldb::new_memory_db();
-	let db_cfg = DatabaseConfig::with_columns(::db::NUM_COLUMNS);
+	let db_cfg = DatabaseConfig::with_columns(ethcore_db::NUM_COLUMNS);
 
 	for _ in 0..150 {
 		producer.tick(&mut rng, &mut old_db);
@@ -63,11 +66,11 @@ fn snap_and_restore() {
 		state_hashes.append(&mut hashes);
 	}
 
-	writer.into_inner().finish(::snapshot::ManifestData {
+	writer.into_inner().finish(ManifestData {
 		version: 2,
-		state_hashes: state_hashes,
+		state_hashes,
 		block_hashes: Vec::new(),
-		state_root: state_root,
+		state_root,
 		block_number: 1000,
 		block_hash: H256::zero(),
 	}).unwrap();
@@ -82,7 +85,7 @@ fn snap_and_restore() {
 
 		for chunk_hash in &reader.manifest().state_hashes {
 			let raw = reader.chunk(*chunk_hash).unwrap();
-			let chunk = ::snappy::decompress(&raw).unwrap();
+			let chunk = snappy::decompress(&raw).unwrap();
 
 			rebuilder.feed(&chunk, &flag).unwrap();
 		}
@@ -93,7 +96,7 @@ fn snap_and_restore() {
 		new_db
 	};
 
-	let new_db = journaldb::new(db, Algorithm::OverlayRecent, ::db::COL_STATE);
+	let new_db = journaldb::new(db, Algorithm::OverlayRecent, ethcore_db::COL_STATE);
 	assert_eq!(new_db.earliest_era(), Some(1000));
 	let keys = old_db.keys();
 
@@ -141,7 +144,7 @@ fn get_code_from_prev_chunk() {
 	let chunk2 = make_chunk(acc, h2);
 
 	let tempdir = TempDir::new("").unwrap();
-	let db_cfg = DatabaseConfig::with_columns(::db::NUM_COLUMNS);
+	let db_cfg = DatabaseConfig::with_columns(ethcore_db::NUM_COLUMNS);
 	let new_db = Arc::new(Database::open(&db_cfg, tempdir.path().to_str().unwrap()).unwrap());
 
 	{
@@ -154,7 +157,7 @@ fn get_code_from_prev_chunk() {
 		rebuilder.finalize(1000, H256::random()).unwrap();
 	}
 
-	let state_db = journaldb::new(new_db, Algorithm::OverlayRecent, ::db::COL_STATE);
+	let state_db = journaldb::new(new_db, Algorithm::OverlayRecent, ethcore_db::COL_STATE);
 	assert_eq!(state_db.earliest_era(), Some(1000));
 }
 
@@ -163,7 +166,7 @@ fn checks_flag() {
 	let mut producer = StateProducer::new();
 	let mut rng = XorShiftRng::from_seed(RNG_SEED);
 	let mut old_db = journaldb::new_memory_db();
-	let db_cfg = DatabaseConfig::with_columns(::db::NUM_COLUMNS);
+	let db_cfg = DatabaseConfig::with_columns(ethcore_db::NUM_COLUMNS);
 
 	for _ in 0..10 {
 		producer.tick(&mut rng, &mut old_db);
@@ -177,7 +180,7 @@ fn checks_flag() {
 
 	let state_hashes = chunk_state(&old_db, &state_root, &writer, &Progress::default(), None, 0).unwrap();
 
-	writer.into_inner().finish(::snapshot::ManifestData {
+	writer.into_inner().finish(ManifestData {
 		version: 2,
 		state_hashes,
 		block_hashes: Vec::new(),
@@ -197,7 +200,7 @@ fn checks_flag() {
 
 		for chunk_hash in &reader.manifest().state_hashes {
 			let raw = reader.chunk(*chunk_hash).unwrap();
-			let chunk = ::snappy::decompress(&raw).unwrap();
+			let chunk = snappy::decompress(&raw).unwrap();
 
 			match rebuilder.feed(&chunk, &flag) {
 				Err(Error::Snapshot(SnapshotError::RestorationAborted)) => {},

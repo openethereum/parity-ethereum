@@ -25,21 +25,27 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 
 use blockchain::{BlockChain, BlockChainDB, BlockProvider};
-use engine::Engine;
-use snapshot::block::AbridgedBlock;
-use ethereum_types::H256;
-use kvdb::KeyValueDB;
 use bytes::Bytes;
-use rlp::{RlpStream, Rlp};
-use rand::rngs::OsRng;
-use types::{
+use common_types::{
 	encoded,
 	engines::epoch::Transition as EpochTransition,
 	errors::{SnapshotError, EthcoreError},
 	snapshot::{ChunkSink, ManifestData, Progress},
+	receipt::Receipt,
 };
+use engine::Engine;
+use ethereum_types::{H256, U256};
+use kvdb::KeyValueDB;
+use log::trace;
+use rand::rngs::OsRng;
+use rlp::{RlpStream, Rlp};
+use triehash::ordered_trie_root;
 
-use snapshot::{SnapshotComponents, Rebuilder};
+use crate::{
+	SnapshotComponents, Rebuilder,
+	block::AbridgedBlock,
+	verify_old_block
+};
 
 /// Snapshot creation and restoration for PoW chains.
 /// This includes blocks from the head of the chain as a
@@ -93,8 +99,8 @@ impl SnapshotComponents for PowSnapshot {
 		).map(|r| Box::new(r) as Box<_>)
 	}
 
-	fn min_supported_version(&self) -> u64 { ::snapshot::MIN_SUPPORTED_STATE_CHUNK_VERSION }
-	fn current_version(&self) -> u64 { ::snapshot::STATE_CHUNK_VERSION }
+	fn min_supported_version(&self) -> u64 { crate::MIN_SUPPORTED_STATE_CHUNK_VERSION }
+	fn current_version(&self) -> u64 { crate::STATE_CHUNK_VERSION }
 }
 
 /// Used to build block chunks.
@@ -231,10 +237,6 @@ impl Rebuilder for PowRebuilder {
 	/// Feed the rebuilder an uncompressed block chunk.
 	/// Returns the number of blocks fed or any errors.
 	fn feed(&mut self, chunk: &[u8], engine: &dyn Engine, abort_flag: &AtomicBool) -> Result<(), EthcoreError> {
-		use snapshot::verify_old_block;
-		use ethereum_types::U256;
-		use triehash::ordered_trie_root;
-
 		let rlp = Rlp::new(chunk);
 		let item_count = rlp.item_count()?;
 		let num_blocks = (item_count - 3) as u64;
@@ -256,7 +258,7 @@ impl Rebuilder for PowRebuilder {
 			let pair = rlp.at(idx)?;
 			let abridged_rlp = pair.at(0)?.as_raw().to_owned();
 			let abridged_block = AbridgedBlock::from_raw(abridged_rlp);
-			let receipts: Vec<::types::receipt::Receipt> = pair.list_at(1)?;
+			let receipts: Vec<Receipt> = pair.list_at(1)?;
 			let receipts_root = ordered_trie_root(pair.at(1)?.iter().map(|r| r.as_raw()));
 
 			let block = abridged_block.to_block(parent_hash, cur_number, receipts_root)?;

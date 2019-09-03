@@ -23,7 +23,7 @@ use bytes::Bytes;
 use client_traits::BlockChainClient;
 use ethcore_private_tx::PrivateStateDB;
 use types::BlockNumber;
-use ethcore::snapshot::SnapshotService;
+use snapshot::SnapshotService;
 use parking_lot::RwLock;
 
 /// IO interface for the syncing handler.
