@@ -31,7 +31,7 @@ use sync::{NetworkConfiguration, validate_node_url, self};
 use ethkey::{Secret, Public};
 use ethcore::client::{VMType};
 use ethcore::miner::{stratum, MinerOptions};
-use ethcore::snapshot::SnapshotConfiguration;
+use snapshot::SnapshotConfiguration;
 use miner::pool;
 use verification::queue::VerifierSettings;
 
@@ -52,7 +52,7 @@ use blockchain::{BlockchainCmd, ImportBlockchain, ExportBlockchain, KillBlockcha
 use export_hardcoded_sync::ExportHsyncCmd;
 use presale::ImportWallet;
 use account::{AccountCmd, NewAccount, ListAccounts, ImportAccounts, ImportFromGethAccounts};
-use snapshot::{self, SnapshotCommand};
+use snapshot_cmd::{self, SnapshotCommand};
 use network::{IpFilter};
 
 const DEFAULT_MAX_PEERS: u16 = 50;
@@ -321,7 +321,7 @@ impl Configuration {
 				fat_db: fat_db,
 				compaction: compaction,
 				file_path: self.args.arg_snapshot_file.clone(),
-				kind: snapshot::Kind::Take,
+				kind: snapshot_cmd::Kind::Take,
 				block_at: to_block_id(&self.args.arg_snapshot_at)?,
 				max_round_blocks_to_import: self.args.arg_max_round_blocks_to_import,
 				snapshot_conf: snapshot_conf,
@@ -339,7 +339,7 @@ impl Configuration {
 				fat_db: fat_db,
 				compaction: compaction,
 				file_path: self.args.arg_restore_file.clone(),
-				kind: snapshot::Kind::Restore,
+				kind: snapshot_cmd::Kind::Restore,
 				block_at: to_block_id("latest")?, // unimportant.
 				max_round_blocks_to_import: self.args.arg_max_round_blocks_to_import,
 				snapshot_conf: snapshot_conf,

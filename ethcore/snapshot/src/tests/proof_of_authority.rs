@@ -21,26 +21,32 @@ use std::sync::Arc;
 use std::str::FromStr;
 
 use accounts::AccountProvider;
-use client::Client;
+use ethcore::client::Client;
 use client_traits::{BlockChainClient, ChainInfo};
 use ethkey::Secret;
-use snapshot::tests::helpers as snapshot_helpers;
+use crate::tests::helpers as snapshot_helpers;
 use spec::Spec;
-use test_helpers::generate_dummy_client_with_spec;
-use types::transaction::{Transaction, Action, SignedTransaction};
+use ethcore::test_helpers::generate_dummy_client_with_spec;
+use common_types::transaction::{Transaction, Action, SignedTransaction};
 use tempdir::TempDir;
-
+use log::trace;
 use ethereum_types::Address;
-use test_helpers;
+use ethcore::{
+	test_helpers,
+	miner::{self, MinerService},
+};
+use keccak_hash::keccak;
+use ethabi_contract::use_contract;
+use lazy_static::lazy_static;
 
-use_contract!(test_validator_set, "res/contracts/test_validator_set.json");
+use_contract!(test_validator_set, "../res/contracts/test_validator_set.json");
 
 const PASS: &'static str = "";
 const TRANSITION_BLOCK_1: usize = 2; // block at which the contract becomes activated.
 const TRANSITION_BLOCK_2: usize = 10; // block at which the second contract activates.
 
 macro_rules! secret {
-	($e: expr) => { Secret::from($crate::hash::keccak($e).0) }
+	($e: expr) => { Secret::from(keccak($e).0) }
 }
 
 lazy_static! {
@@ -100,8 +106,6 @@ fn make_chain(accounts: Arc<AccountProvider>, blocks_beyond: usize, transitions:
 	{
 		// push a block with given number, signed by one of the signers, with given transactions.
 		let push_block = |signers: &[Address], n, txs: Vec<SignedTransaction>| {
-			use miner::{self, MinerService};
-
 			let idx = n as usize % signers.len();
 			trace!(target: "snapshot", "Pushing block #{}, {} txs, author={}",
 				n, txs.len(), signers[idx]);

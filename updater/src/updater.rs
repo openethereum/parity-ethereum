@@ -29,9 +29,9 @@ use common_types::{
 	BlockNumber,
 	ids::BlockId,
 	filter::Filter,
+	chain_notify::NewBlocks,
 };
-use ethcore::client::{ChainNotify, NewBlocks};
-use client_traits::BlockChainClient;
+use client_traits::{BlockChainClient, ChainNotify};
 use ethereum_types::{H256, H160};
 use hash_fetch::{self as fetch, HashFetch};
 use parity_path::restrict_permissions_owner;

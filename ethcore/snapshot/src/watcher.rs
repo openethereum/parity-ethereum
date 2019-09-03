@@ -16,18 +16,18 @@
 
 //! Watcher for snapshot-related chain events.
 
-use parking_lot::Mutex;
-use client::{Client, ChainNotify, NewBlocks};
-use client_traits::BlockInfo;
-use types::{
+use std::sync::Arc;
+
+use client_traits::{BlockInfo, ChainNotify};
+use common_types::{
 	ids::BlockId,
 	io_message::ClientIoMessage,
+	chain_notify::NewBlocks,
 };
-
-use io::IoChannel;
 use ethereum_types::H256;
-
-use std::sync::Arc;
+use ethcore_io::IoChannel;
+use log::{trace, warn};
+use parking_lot::Mutex;
 
 // helper trait for transforming hashes to numbers and checking if syncing.
 trait Oracle: Send + Sync {
@@ -37,7 +37,7 @@ trait Oracle: Send + Sync {
 }
 
 struct StandardOracle<F> where F: 'static + Send + Sync + Fn() -> bool {
-	client: Arc<Client>,
+	client: Arc<dyn BlockInfo>,
 	sync_status: F,
 }
 
@@ -58,7 +58,7 @@ trait Broadcast: Send + Sync {
 	fn take_at(&self, num: Option<u64>);
 }
 
-impl Broadcast for Mutex<IoChannel<ClientIoMessage<Client>>> {
+impl<C: 'static> Broadcast for Mutex<IoChannel<ClientIoMessage<C>>> {
 	fn take_at(&self, num: Option<u64>) {
 		let num = match num {
 			Some(n) => n,
@@ -86,17 +86,16 @@ impl Watcher {
 	/// Create a new `Watcher` which will trigger a snapshot event
 	/// once every `period` blocks, but only after that block is
 	/// `history` blocks old.
-	pub fn new<F>(client: Arc<Client>, sync_status: F, channel: IoChannel<ClientIoMessage<Client>>, period: u64, history: u64) -> Self
-		where F: 'static + Send + Sync + Fn() -> bool
+	pub fn new<F, C>(client: Arc<dyn BlockInfo>, sync_status: F, channel: IoChannel<ClientIoMessage<C>>, period: u64, history: u64) -> Self
+		where
+			F: 'static + Send + Sync + Fn() -> bool,
+			C: 'static + Send + Sync,
 	{
 		Watcher {
-			oracle: Box::new(StandardOracle {
-				client: client,
-				sync_status: sync_status,
-			}),
+			oracle: Box::new(StandardOracle { client, sync_status }),
 			broadcast: Box::new(Mutex::new(channel)),
-			period: period,
-			history: history,
+			period,
+			history,
 		}
 	}
 }
@@ -123,14 +122,15 @@ impl ChainNotify for Watcher {
 
 #[cfg(test)]
 mod tests {
-	use super::{Broadcast, Oracle, Watcher};
+	use std::collections::HashMap;
+	use std::time::Duration;
 
-	use client::{ChainNotify, NewBlocks, ChainRoute};
+	use client_traits::ChainNotify;
+	use common_types::chain_notify::{NewBlocks, ChainRoute};
 
 	use ethereum_types::{H256, U256, BigEndianHash};
 
-	use std::collections::HashMap;
-	use std::time::Duration;
+	use super::{Broadcast, Oracle, Watcher};
 
 	struct TestOracle(HashMap<H256, u64>);
 
@@ -161,8 +161,8 @@ mod tests {
 		let watcher = Watcher {
 			oracle: Box::new(TestOracle(map)),
 			broadcast: Box::new(TestBroadcast(expected)),
-			period: period,
-			history: history,
+			period,
+			history,
 		};
 
 		watcher.new_blocks(NewBlocks::new(

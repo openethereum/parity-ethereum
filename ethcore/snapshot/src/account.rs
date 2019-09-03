@@ -16,21 +16,23 @@
 
 //! Account state encoding and decoding
 
+use std::collections::HashSet;
+use std::sync::atomic::Ordering;
+
 use account_db::{AccountDB, AccountDBMut};
-use types::{
+use bytes::Bytes;
+use common_types::{
 	basic_account::BasicAccount,
 	snapshot::Progress,
 	errors::SnapshotError as Error,
 };
-use bytes::Bytes;
 use ethereum_types::{H256, U256};
 use ethtrie::{TrieDB, TrieDBMut};
-use hash::{KECCAK_EMPTY, KECCAK_NULL_RLP};
 use hash_db::HashDB;
+use keccak_hash::{KECCAK_EMPTY, KECCAK_NULL_RLP};
+use log::{trace, warn};
 use rlp::{RlpStream, Rlp};
-use std::collections::HashSet;
-use trie::{Trie, TrieMut};
-use std::sync::atomic::Ordering;
+use trie_db::{Trie, TrieMut};
 
 // An empty account -- these were replaced with RLP null data for a space optimization in v1.
 const ACC_EMPTY: BasicAccount = BasicAccount {
@@ -246,12 +248,12 @@ pub fn from_fat_rlp(
 #[cfg(test)]
 mod tests {
 	use account_db::{AccountDB, AccountDBMut};
-	use types::basic_account::BasicAccount;
-	use test_helpers::get_temp_state_db;
-	use snapshot::tests::helpers::fill_storage;
-	use snapshot::Progress;
+	use common_types::basic_account::BasicAccount;
+	use ethcore::test_helpers::get_temp_state_db;
+	use crate::tests::helpers::fill_storage;
+	use common_types::snapshot::Progress;
 
-	use hash::{KECCAK_EMPTY, KECCAK_NULL_RLP, keccak};
+	use keccak_hash::{KECCAK_EMPTY, KECCAK_NULL_RLP, keccak};
 	use ethereum_types::{H256, Address};
 	use hash_db::{HashDB, EMPTY_PREFIX};
 	use kvdb::DBValue;

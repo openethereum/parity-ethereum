@@ -18,25 +18,29 @@
 
 use std::sync::atomic::AtomicBool;
 use tempdir::TempDir;
-use types::{
+use common_types::{
 	errors::EthcoreError as Error,
 	engines::ForkChoice,
-	snapshot::Progress,
+	snapshot::{Progress, ManifestData},
 };
 
 use blockchain::generator::{BlockGenerator, BlockBuilder};
 use blockchain::{BlockChain, ExtrasInsert};
 use client_traits::SnapshotWriter;
-use snapshot::{chunk_secondary, Error as SnapshotError, SnapshotComponents};
-use snapshot::io::{PackedReader, PackedWriter, SnapshotReader};
-
+use crate::{
+	chunk_secondary,
+	Error as SnapshotError, SnapshotComponents,
+	io::{PackedReader, PackedWriter, SnapshotReader},
+	PowSnapshot,
+};
 use parking_lot::Mutex;
 use snappy;
+use keccak_hash::KECCAK_NULL_RLP;
 use kvdb::DBTransaction;
-use test_helpers;
+use ethcore::test_helpers;
 use spec;
 
-const SNAPSHOT_MODE: ::snapshot::PowSnapshot = ::snapshot::PowSnapshot { blocks: 30000, max_restore_blocks: 30000 };
+const SNAPSHOT_MODE: PowSnapshot = PowSnapshot { blocks: 30000, max_restore_blocks: 30000 };
 
 fn chunk_and_restore(amount: u64) {
 	let genesis = BlockBuilder::genesis();
@@ -75,11 +79,11 @@ fn chunk_and_restore(amount: u64) {
 		&Progress::default()
 	).unwrap();
 
-	let manifest = ::snapshot::ManifestData {
+	let manifest = ManifestData {
 		version: 2,
 		state_hashes: Vec::new(),
-		block_hashes: block_hashes,
-		state_root: ::hash::KECCAK_NULL_RLP,
+		block_hashes,
+		state_root: KECCAK_NULL_RLP,
 		block_number: amount,
 		block_hash: best_hash,
 	};
@@ -137,11 +141,11 @@ fn checks_flag() {
 	let engine = spec::new_test().engine;
 	let chain = BlockChain::new(Default::default(), genesis.last().encoded().raw(), db.clone());
 
-	let manifest = ::snapshot::ManifestData {
+	let manifest = ManifestData {
 		version: 2,
 		state_hashes: Vec::new(),
 		block_hashes: Vec::new(),
-		state_root: ::hash::KECCAK_NULL_RLP,
+		state_root: KECCAK_NULL_RLP,
 		block_number: 102,
 		block_hash: H256::zero(),
 	};

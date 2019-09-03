@@ -1,0 +1,54 @@
+[package]
+description = "Take and restore snapshots of the blockchain and read/write it in chunks from/to disk"
+name = "snapshot"
+version = "0.1.0"
+authors = ["Parity Technologies <admin@parity.io>"]
+edition = "2018"
+license = "GPL-3.0"
+
+[dependencies]
+account-db = { path = "../account-db" }
+account-state = { path = "../account-state" }
+blockchain = { package = "ethcore-blockchain", path = "../blockchain" }
+bloom-journal = { package = "ethcore-bloom-journal", path = "../../util/bloom" }
+bytes = { package = "parity-bytes", version = "0.1.0" }
+client-traits = { path = "../client-traits" }
+common-types = { path = "../types" }
+crossbeam-utils = "0.6"
+engine = { path = "../engine" }
+ethcore-db = { path = "../db" }
+ethcore-io = { path = "../../util/io" }
+ethereum-types = "0.6.0"
+ethtrie  = { package = "patricia-trie-ethereum", path = "../../util/patricia-trie-ethereum" }
+hash-db = "0.15.0"
+itertools = "0.5"
+journaldb = { path = "../../util/journaldb" }
+keccak-hash = "0.2.0"
+keccak-hasher = { path = "../../util/keccak-hasher" }
+kvdb = "0.1.0"
+log = "0.4.8"
+num_cpus = "1.10.1"
+parking_lot = "0.8.0"
+rand = "0.6"
+rand_xorshift = "0.1.1"
+rlp = "0.4.2"
+rlp_derive = { path = "../../util/rlp-derive" }
+snappy = { package = "parity-snappy", version ="0.1.0" }
+state-db = { path = "../state-db" }
+trie-db = "0.15.0"
+triehash = { package = "triehash-ethereum", version = "0.2",  path = "../../util/triehash-ethereum" }
+
+[dev-dependencies]
+accounts = { package = "ethcore-accounts", path = "../../accounts" }
+engine = { path = "../engine", features = ["test-helpers"] }
+env_logger = "0.5"
+ethabi = "8.0"
+ethabi-contract = "8.0"
+ethabi-derive = "8.0"
+ethcore = { path = "..", features = ["test-helpers"] }
+ethkey = { path = "../../accounts/ethkey" }
+kvdb-rocksdb = { version = "0.1.3" }
+lazy_static = { version = "1.3" }
+spec = { path = "../spec" }
+tempdir = "0.3"
+trie-standardmap = "0.15.0"

@@ -31,7 +31,6 @@ pub use self::config::{ClientConfig, DatabaseCompactionProfile, BlockChainConfig
 pub use self::evm_test_client::{EvmTestClient, EvmTestError, TransactErr, TransactSuccess};
 #[cfg(any(test, feature = "test-helpers"))]
 pub use self::test_client::{TestBlockChainClient, EachBlockWith, TestState};
-pub use self::chain_notify::{ChainNotify, NewBlocks, ChainRoute, ChainRouteType, ChainMessageType};
 pub use self::traits::{
     ReopenBlock, PrepareOpenBlock, ImportSealedBlock, BroadcastProposalBlock,
     Call, EngineInfo, BlockProducer, SealedBlockImporter,
@@ -40,4 +39,3 @@ pub use self::traits::{
 pub use verification::VerifierType;
 
 mod traits;
-mod chain_notify;
