@@ -3963,7 +3963,7 @@
             "name": "blake2_f",
             "activate_at": "0xffffff",
             "pricing": {
-              "blake2_f_pricer": 1
+              "blake2_f": 1
             }
           }
         },
