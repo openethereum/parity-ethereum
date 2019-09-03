@@ -86,7 +86,6 @@ fn blake2_f(h: &mut [u64; 8], m: [u64; 16], c: [u64; 2], f: bool, rounds: usize)
 		v11 = v11.overflowing_add(v15).0;
 		v7 ^= v11;
 		v7 = v7.rotate_right(24);
-
 		v0 = v0.overflowing_add(m[s[4]]).0;
 		v0 = v0.overflowing_add(v4).0;
 		v12 ^= v0;
@@ -115,7 +114,6 @@ fn blake2_f(h: &mut [u64; 8], m: [u64; 16], c: [u64; 2], f: bool, rounds: usize)
 		v11 = v11.overflowing_add(v15).0;
 		v7 ^= v11;
 		v7 = v7.rotate_right(63);
-
 		v0 = v0.overflowing_add(m[s[8]]).0;
 		v0 = v0.overflowing_add(v5).0;
 		v15 ^= v0;
@@ -144,7 +142,6 @@ fn blake2_f(h: &mut [u64; 8], m: [u64; 16], c: [u64; 2], f: bool, rounds: usize)
 		v9 = v9.overflowing_add(v14).0;
 		v4 ^= v9;
 		v4 = v4.rotate_right(24);
-
 		v0 = v0.overflowing_add(m[s[12]]).0;
 		v0 = v0.overflowing_add(v5).0;
 		v15 ^= v0;

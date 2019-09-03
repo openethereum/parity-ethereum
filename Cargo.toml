@@ -16,6 +16,7 @@ client-traits = { path = "ethcore/client-traits" }
 common-types = { path = "ethcore/types" }
 ctrlc = { git = "https://github.com/paritytech/rust-ctrlc.git" }
 dir = { path = "util/dir" }
+eip-152 = { path = "util/EIP-152" }
 docopt = "1.0"
 engine = { path = "ethcore/engine" }
 ethcore = { path = "ethcore", features = ["parity"] }
@@ -134,4 +135,5 @@ members = [
 	"ethcore/wasm/run",
 	"evmbin",
 	"parity-clib",
+	"util/EIP-152"
 ]

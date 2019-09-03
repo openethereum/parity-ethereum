@@ -822,6 +822,13 @@ version = "2.0.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 
 [[package]]
+name = "eip-152"
+version = "0.1.0"
+dependencies = [
+ "rustc-hex 2.0.1 (registry+https://github.com/rust-lang/crates.io-index)",
+]
+
+[[package]]
 name = "eip-712"
 version = "0.1.0"
 dependencies = [
@@ -2978,6 +2985,7 @@ dependencies = [
  "ctrlc 1.1.1 (git+https://github.com/paritytech/rust-ctrlc.git)",
  "dir 0.1.2",
  "docopt 1.0.2 (registry+https://github.com/rust-lang/crates.io-index)",
+ "eip-152 0.1.0",
  "engine 0.1.0",
  "ethcore 1.12.0",
  "ethcore-accounts 0.1.0",
