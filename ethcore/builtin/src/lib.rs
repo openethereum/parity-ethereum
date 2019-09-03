@@ -54,8 +54,9 @@ impl Pricer for Blake2FPricer {
 	fn cost(&self, input: &[u8], _at: u64) -> U256 {
 		use std::convert::TryInto;
 		let (rounds_bytes, _) = input.split_at(std::mem::size_of::<u32>());
-		// todo[dvdplm] what's the error handling strategy here? panic? return U256::MAX? Is the input len checked before this call?
-		let rounds = u32::from_be_bytes(rounds_bytes.try_into().unwrap_or_else(|_| [0xFF; 4] ));
+		// Returning zero if the conversion fails is fine because `execute()` will check the length
+		// and bail with the appropriate error.
+		let rounds = u32::from_be_bytes(rounds_bytes.try_into().unwrap_or_else(|_| [0u8; 4] ));
 		U256::from(*self * rounds as u64)
 	}
 }
