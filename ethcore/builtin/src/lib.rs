@@ -372,7 +372,7 @@ impl Implementation for Blake2F {
 			return Err("input length for Blake2 F precompile should be exactly 213 bytes")
 		}
 
-		let mut rdr = Cursor::new(input);
+		let mut cursor = Cursor::new(input);
 		const PROOF: &str = "Checked the length of the input above; qed";
 		let rounds = rdr.read_u32::<BigEndian>().expect(PROOF);
 
