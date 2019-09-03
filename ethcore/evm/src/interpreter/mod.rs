@@ -353,7 +353,9 @@ impl<Cost: CostType> Interpreter<Cost> {
 					ext.trace_prepare_execute(self.reader.position - 1, opcode, requirements.gas_cost.as_u256(), Self::mem_written(instruction, &self.stack), Self::store_written(instruction, &self.stack));
 				}
 				if let Err(e) = self.gasometer.as_mut().expect(GASOMETER_PROOF).verify_gas(&requirements.gas_cost) {
-					ext.trace_failed();
+					if self.do_trace {
+						ext.trace_failed();
+					}
 					return InterpreterResult::Done(Err(e));
 				}
 				self.mem.expand(requirements.memory_required_size);
@@ -368,7 +370,9 @@ impl<Cost: CostType> Interpreter<Cost> {
 					current_gas, ext, instruction, requirements.provide_gas
 				) {
 					Err(x) => {
-						ext.trace_failed();
+						if self.do_trace {
+							ext.trace_failed();
+						}
 						return InterpreterResult::Done(Err(x));
 					},
 					Ok(x) => x,
