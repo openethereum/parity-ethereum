@@ -7,6 +7,7 @@ version = "1.12.0"
 authors = ["Parity Technologies <admin@parity.io>"]
 
 [dependencies]
+account-db = { path = "account-db", optional = true }
 account-state = { path = "account-state" }
 ansi_term = "0.11"
 basic-authority = { path = "./engines/basic-authority", optional = true} # used by test-helpers feature
@@ -125,7 +126,20 @@ ci-skip-tests = []
 test-heavy = []
 # Compile test helpers
 # note[dvdplm]: "basic-authority/test-helpers" is needed so that `generate_dummy_client_with_spec` works
-test-helpers = ["tempdir", "kvdb-memorydb", "kvdb-rocksdb", "blooms-db", "ethash", "ethjson", "ethkey", "macros", "pod", "rustc-hex", "basic-authority/test-helpers"]
+test-helpers = [
+    "account-db",
+    "blooms-db",
+    "ethash",
+    "ethjson",
+    "ethkey",
+    "kvdb-memorydb",
+    "kvdb-rocksdb",
+    "macros",
+    "pod",
+    "rustc-hex",
+    "tempdir",
+    "basic-authority/test-helpers"
+ ]
 
 [[bench]]
 name = "builtin"

@@ -19,16 +19,28 @@
 use std::sync::atomic::AtomicBool;
 use tempdir::TempDir;
 use common_types::{
+<<<<<<< HEAD:ethcore/snapshot/snapshot-tests/src/proof_of_work.rs
 	errors::{EthcoreError as Error, SnapshotError},
+=======
+	errors::EthcoreError as Error,
+>>>>>>> master:ethcore/snapshot/src/tests/proof_of_work.rs
 	engines::ForkChoice,
 	snapshot::{Progress, ManifestData},
 };
 use blockchain::generator::{BlockGenerator, BlockBuilder};
 use blockchain::{BlockChain, ExtrasInsert};
+<<<<<<< HEAD:ethcore/snapshot/snapshot-tests/src/proof_of_work.rs
 use snapshot::{
 	chunk_secondary,
 	SnapshotComponents,
 	io::{PackedReader, PackedWriter, SnapshotReader, SnapshotWriter},
+=======
+use client_traits::SnapshotWriter;
+use crate::{
+	chunk_secondary,
+	Error as SnapshotError, SnapshotComponents,
+	io::{PackedReader, PackedWriter, SnapshotReader},
+>>>>>>> master:ethcore/snapshot/src/tests/proof_of_work.rs
 	PowSnapshot,
 };
 use parking_lot::Mutex;

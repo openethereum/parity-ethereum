@@ -36,6 +36,16 @@ pub struct Modexp {
 	pub divisor: usize,
 }
 
+/// Pricing for constant alt_bn128 operations (ECADD and ECMUL)
+#[derive(Debug, PartialEq, Deserialize, Clone)]
+#[serde(deny_unknown_fields)]
+pub struct AltBn128ConstOperations {
+	/// price
+	pub price: usize,
+	/// EIP 1108 transition price
+	pub eip1108_transition_price: usize,
+}
+
 /// Pricing for alt_bn128_pairing.
 #[derive(Debug, PartialEq, Deserialize, Clone)]
 #[serde(deny_unknown_fields)]
@@ -44,6 +54,10 @@ pub struct AltBn128Pairing {
 	pub base: usize,
 	/// Price per point pair.
 	pub pair: usize,
+	/// EIP 1108 transition base price
+	pub eip1108_transition_base: usize,
+	/// EIP 1108 transition price per point pair
+	pub eip1108_transition_pair: usize,
 }
 
 /// Pricing variants.
@@ -57,6 +71,8 @@ pub enum Pricing {
 	Modexp(Modexp),
 	/// Pricing for alt_bn128_pairing exponentiation.
 	AltBn128Pairing(AltBn128Pairing),
+	/// Pricing for constant alt_bn128 operations
+	AltBn128ConstOperations(AltBn128ConstOperations),
 }
 
 /// Spec builtin.
@@ -69,6 +85,8 @@ pub struct Builtin {
 	pub pricing: Pricing,
 	/// Activation block.
 	pub activate_at: Option<Uint>,
+	/// EIP 1108
+	pub eip1108_transition: Option<Uint>,
 }
 
 #[cfg(test)]

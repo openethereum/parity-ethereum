@@ -21,6 +21,10 @@ use std::sync::Arc;
 use std::str::FromStr;
 
 use accounts::AccountProvider;
+<<<<<<< HEAD:ethcore/snapshot/snapshot-tests/src/proof_of_authority.rs
+=======
+use ethcore::client::Client;
+>>>>>>> master:ethcore/snapshot/src/tests/proof_of_authority.rs
 use client_traits::{BlockChainClient, ChainInfo};
 use common_types::transaction::{Transaction, Action, SignedTransaction};
 use ethabi_contract::use_contract;
@@ -31,6 +35,7 @@ use ethcore::{
 };
 use ethereum_types::Address;
 use ethkey::Secret;
+<<<<<<< HEAD:ethcore/snapshot/snapshot-tests/src/proof_of_authority.rs
 use keccak_hash::keccak;
 use lazy_static::lazy_static;
 use log::trace;
@@ -40,6 +45,24 @@ use tempdir::TempDir;
 use crate::helpers as snapshot_helpers;
 
 use_contract!(test_validator_set, "../../res/contracts/test_validator_set.json");
+=======
+use crate::tests::helpers as snapshot_helpers;
+use spec::Spec;
+use ethcore::test_helpers::generate_dummy_client_with_spec;
+use common_types::transaction::{Transaction, Action, SignedTransaction};
+use tempdir::TempDir;
+use log::trace;
+use ethereum_types::Address;
+use ethcore::{
+	test_helpers,
+	miner::{self, MinerService},
+};
+use keccak_hash::keccak;
+use ethabi_contract::use_contract;
+use lazy_static::lazy_static;
+
+use_contract!(test_validator_set, "../res/contracts/test_validator_set.json");
+>>>>>>> master:ethcore/snapshot/src/tests/proof_of_authority.rs
 
 const PASS: &'static str = "";
 const TRANSITION_BLOCK_1: usize = 2; // block at which the contract becomes activated.

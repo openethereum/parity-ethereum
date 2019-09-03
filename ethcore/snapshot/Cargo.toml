@@ -1,5 +1,5 @@
 [package]
-description = "Snapshot TODO"
+description = "Take and restore snapshots of the blockchain and read/write it in chunks from/to disk"
 name = "snapshot"
 version = "0.1.0"
 authors = ["Parity Technologies <admin@parity.io>"]

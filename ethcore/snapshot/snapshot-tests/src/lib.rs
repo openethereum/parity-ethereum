@@ -33,8 +33,14 @@ mod service;
 #[cfg(test)]
 mod watcher;
 
+<<<<<<< HEAD:ethcore/snapshot/snapshot-tests/src/lib.rs
 #[cfg(test)]
 mod helpers;
+=======
+pub mod helpers;
+
+use common_types::snapshot::ManifestData;
+>>>>>>> master:ethcore/snapshot/src/tests/mod.rs
 
 #[test]
 fn manifest_rlp() {

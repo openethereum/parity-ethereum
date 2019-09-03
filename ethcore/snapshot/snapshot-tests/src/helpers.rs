@@ -20,7 +20,9 @@
 use std::sync::Arc;
 use std::sync::atomic::AtomicBool;
 
+use keccak_hash::{KECCAK_NULL_RLP};
 use account_db::AccountDBMut;
+<<<<<<< HEAD:ethcore/snapshot/snapshot-tests/src/helpers.rs
 use account_state;
 use blockchain::{BlockChain, BlockChainDB};
 use client_traits::ChainInfo;
@@ -31,10 +33,27 @@ use common_types::{
 };
 use engine::Engine;
 use ethcore::client::Client;
+=======
+use common_types::basic_account::BasicAccount;
+use blockchain::{BlockChain, BlockChainDB};
+use ethcore::client::Client;
+use client_traits::{ChainInfo, SnapshotClient};
+use engine::Engine;
+use crate::{
+	StateRebuilder,
+	io::{SnapshotReader, PackedWriter, PackedReader},
+};
+
+use tempdir::TempDir;
+use rand::Rng;
+use log::trace;
+use kvdb::DBValue;
+>>>>>>> master:ethcore/snapshot/src/tests/helpers.rs
 use ethereum_types::H256;
 use ethtrie::{SecTrieDBMut, TrieDB, TrieDBMut};
 use hash_db::HashDB;
 use journaldb;
+<<<<<<< HEAD:ethcore/snapshot/snapshot-tests/src/helpers.rs
 use keccak_hash::{KECCAK_NULL_RLP};
 use keccak_hasher::KeccakHasher;
 use kvdb::DBValue;
@@ -50,6 +69,12 @@ use snapshot::{
 use tempdir::TempDir;
 use trie_db::{TrieMut, Trie};
 use trie_standardmap::{Alphabet, StandardMap, ValueMode};
+=======
+use trie_db::{TrieMut, Trie};
+use ethtrie::{SecTrieDBMut, TrieDB, TrieDBMut};
+use trie_standardmap::{Alphabet, StandardMap, ValueMode};
+use common_types::errors::EthcoreError;
+>>>>>>> master:ethcore/snapshot/src/tests/helpers.rs
 
 // the proportion of accounts we will alter each tick.
 const ACCOUNT_CHURN: f32 = 0.01;
@@ -142,6 +167,11 @@ pub fn fill_storage(mut db: AccountDBMut, root: &mut H256, seed: &mut H256) {
 /// Take a snapshot from the given client into a temporary file.
 /// Return a snapshot reader for it.
 pub fn snap(client: &Client) -> (Box<dyn SnapshotReader>, TempDir) {
+<<<<<<< HEAD:ethcore/snapshot/snapshot-tests/src/helpers.rs
+=======
+	use common_types::ids::BlockId;
+
+>>>>>>> master:ethcore/snapshot/src/tests/helpers.rs
 	let tempdir = TempDir::new("").unwrap();
 	let path = tempdir.path().join("file");
 	let writer = PackedWriter::new(&path).unwrap();
@@ -164,7 +194,11 @@ pub fn restore(
 	genesis: &[u8],
 ) -> Result<(), EthcoreError> {
 	let flag = AtomicBool::new(true);
+<<<<<<< HEAD:ethcore/snapshot/snapshot-tests/src/helpers.rs
 	let chunker = chunker(engine.snapshot_mode()).expect("the engine used here supports snapshots");
+=======
+	let chunker = crate::chunker(engine.snapshot_mode()).expect("the engine used here supports snapshots");
+>>>>>>> master:ethcore/snapshot/src/tests/helpers.rs
 	let manifest = reader.manifest();
 
 	let mut state = StateRebuilder::new(db.key_value().clone(), journaldb::Algorithm::Archive);
