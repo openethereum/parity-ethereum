@@ -32,7 +32,8 @@ use keccak_hash::keccak;
 use log::{warn, trace};
 use num::{BigUint, Zero, One};
 use parity_bytes::BytesRef;
-use parity_crypto::{blake2_f, digest};
+use parity_crypto::digest;
+use eip_152::compress;
 
 /// Native implementation of a built-in contract.
 trait Implementation: Send + Sync {
@@ -59,7 +60,7 @@ impl Pricer for Blake2FPricer {
 		// Returning zero if the conversion fails is fine because `execute()` will check the length
 		// and bail with the appropriate error.
 		let rounds = u32::from_be_bytes(rounds_bytes.try_into().unwrap_or_else(|_| [0u8; 4] ));
-		U256::from(*self * rounds as u64)
+		U256::from(*self as u128 * rounds as u128)
 	}
 }
 
@@ -408,7 +409,7 @@ impl Implementation for Blake2F {
 				}
 			};
 
-		blake2_f::blake2_f(&mut h, m, [t0, t1], f, rounds as usize);
+		compress(&mut h, m, [t0, t1], f, rounds as usize);
 
 		output.write(0, unsafe {
 			// `from_raw_parts` is safe under the assumption that `h` is
