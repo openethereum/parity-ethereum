@@ -19,6 +19,8 @@
 use std::{
 	cmp::{max, min},
 	io::{self, Read, Cursor},
+	mem::size_of,
+	slice,
 };
 
 use bn;
@@ -228,7 +230,7 @@ impl From<ethjson::spec::Builtin> for Builtin {
 			ethjson::spec::Pricing::Modexp(exp) => {
 				Box::new(ModexpPricer {
 					divisor: if exp.divisor == 0 {
-						warn!("Zero modexp divisor specified. Falling back to default.");
+						warn!(target: "builtin", "Zero modexp divisor specified. Falling back to default.");
 						10
 					} else {
 						exp.divisor
@@ -373,7 +375,7 @@ impl Implementation for Blake2F {
 
 		if input.len() != BLAKE2_F_ARG_LEN {
 			// todo[dvdplm] what's the right 'target' here?
-			trace!(target: "evm", "input length for Blake2 F precompile should be exactly 213 bytes, was {}", input.len());
+			trace!(target: "builtin", "input length for Blake2 F precompile should be exactly 213 bytes, was {}", input.len());
 			return Err("input length for Blake2 F precompile should be exactly 213 bytes")
 		}
 
@@ -401,14 +403,20 @@ impl Implementation for Blake2F {
 				Some(1) => true,
 				Some(0) => false,
 				_ => {
-					trace!(target: "evm", "incorrect final block indicator flag, was: {:?}", input.last());
+					trace!(target: "builtin", "incorrect final block indicator flag, was: {:?}", input.last());
 					return Err("incorrect final block indicator flag")
 				}
 			};
 
 		blake2_f::blake2_f(&mut h, m, [t0, t1], f, rounds as usize);
 
-		output.write(0, unsafe { std::slice::from_raw_parts(h.as_ptr() as *const u8, h.len() * std::mem::size_of::<u64>())});
+		output.write(0, unsafe {
+			// `from_raw_parts` is safe under the assumption that `h` is
+			// 1. immutable,
+			// 2. comprised of `u64`
+			// …and because we're using the (known) length of `h`
+			slice::from_raw_parts(h.as_ptr() as *const u8, h.len() * size_of::<u64>())
+		});
 		Ok(())
 	}
 }
@@ -602,7 +610,7 @@ impl Implementation for Bn128Pairing {
 		}
 
 		if let Err(err) = self.execute_with_error(input, output) {
-			trace!("Pairining error: {:?}", err);
+			trace!(target: "builtin", "Pairining error: {:?}", err);
 			return Err(err)
 		}
 		Ok(())
