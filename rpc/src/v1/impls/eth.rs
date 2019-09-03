@@ -29,7 +29,7 @@ use client_traits::{BlockChainClient, StateClient, ProvingBlockChainClient, Stat
 use ethash::{self, SeedHashCompute};
 use ethcore::client::{Call, EngineInfo};
 use ethcore::miner::{self, MinerService};
-use ethcore::snapshot::SnapshotService;
+use snapshot::SnapshotService;
 use hash::keccak;
 use miner::external::ExternalMinerService;
 use sync::SyncProvider;

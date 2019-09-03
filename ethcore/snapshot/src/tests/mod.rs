@@ -23,7 +23,7 @@ mod service;
 
 pub mod helpers;
 
-use super::ManifestData;
+use common_types::snapshot::ManifestData;
 
 #[test]
 fn manifest_rlp() {

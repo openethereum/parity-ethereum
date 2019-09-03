@@ -25,7 +25,7 @@ use call_contract::CallContract;
 use client_traits::{BlockInfo, BlockChainClient};
 use ethcore::client::{Client, DatabaseCompactionProfile, VMType};
 use ethcore::miner::{self, stratum, Miner, MinerService, MinerOptions};
-use ethcore::snapshot::{self, SnapshotConfiguration};
+use snapshot::{self, SnapshotConfiguration};
 use spec::SpecParams;
 use verification::queue::VerifierSettings;
 use ethcore_logger::{Config as LogConfig, RotatingLogger};

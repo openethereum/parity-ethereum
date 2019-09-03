@@ -21,22 +21,28 @@ use std::sync::Arc;
 
 use tempdir::TempDir;
 use blockchain::BlockProvider;
-use client::{Client, ClientConfig};
+use ethcore::client::{Client, ClientConfig};
 use client_traits::{BlockInfo, ImportBlock, SnapshotWriter};
-use types::{
+use common_types::{
 	ids::BlockId,
 	snapshot::Progress,
 	verification::Unverified,
 	snapshot::{ManifestData, RestorationStatus},
 };
-use snapshot::io::{PackedReader, PackedWriter, SnapshotReader};
-use snapshot::service::{Service, ServiceParams};
-use snapshot::{chunk_state, chunk_secondary, SnapshotService};
+use crate::{
+	chunk_state, chunk_secondary, SnapshotService,
+	io::{PackedReader, PackedWriter, SnapshotReader},
+	service::{Service, ServiceParams},
+	PowSnapshot,
+};
 use spec;
-use test_helpers::{new_db, new_temp_db, generate_dummy_client_with_spec_and_data, restoration_db_handler};
+use ethcore::{
+	miner,
+	test_helpers::{new_db, new_temp_db, generate_dummy_client_with_spec_and_data, restoration_db_handler}
+};
 
 use parking_lot::Mutex;
-use io::IoChannel;
+use ethcore_io::IoChannel;
 use kvdb_rocksdb::DatabaseConfig;
 
 #[test]
@@ -53,7 +59,7 @@ fn restored_is_equivalent() {
 	let client_db = tempdir.path().join("client_db");
 	let path = tempdir.path().join("snapshot");
 
-	let db_config = DatabaseConfig::with_columns(::db::NUM_COLUMNS);
+	let db_config = DatabaseConfig::with_columns(ethcore_db::NUM_COLUMNS);
 	let restoration = restoration_db_handler(db_config);
 	let blockchain_db = restoration.open(&client_db).unwrap();
 
@@ -62,7 +68,7 @@ fn restored_is_equivalent() {
 		Default::default(),
 		&spec,
 		blockchain_db,
-		Arc::new(::miner::Miner::new_for_tests(&spec, None)),
+		Arc::new(miner::Miner::new_for_tests(&spec, None)),
 		IoChannel::disconnected(),
 	).unwrap();
 
@@ -118,7 +124,7 @@ fn guards_delete_folders() {
 	let service_params = ServiceParams {
 		engine: spec.engine.clone(),
 		genesis_block: spec.genesis_block(),
-		restoration_db_handler: restoration_db_handler(DatabaseConfig::with_columns(::db::NUM_COLUMNS)),
+		restoration_db_handler: restoration_db_handler(DatabaseConfig::with_columns(ethcore_db::NUM_COLUMNS)),
 		pruning: ::journaldb::Algorithm::Archive,
 		channel: IoChannel::disconnected(),
 		snapshot_root: tempdir.path().to_owned(),
@@ -157,11 +163,10 @@ fn guards_delete_folders() {
 #[test]
 fn keep_ancient_blocks() {
 	let _ = ::env_logger::try_init();
-
 	// Test variables
 	const NUM_BLOCKS: u64 = 500;
 	const NUM_SNAPSHOT_BLOCKS: u64 = 300;
-	const SNAPSHOT_MODE: ::snapshot::PowSnapshot = ::snapshot::PowSnapshot { blocks: NUM_SNAPSHOT_BLOCKS, max_restore_blocks: NUM_SNAPSHOT_BLOCKS };
+	const SNAPSHOT_MODE: PowSnapshot = PowSnapshot { blocks: NUM_SNAPSHOT_BLOCKS, max_restore_blocks: NUM_SNAPSHOT_BLOCKS };
 
 	// Temporary folders
 	let tempdir = TempDir::new("").unwrap();
@@ -197,7 +202,7 @@ fn keep_ancient_blocks() {
 		0
 	).unwrap();
 
-	let manifest = ::snapshot::ManifestData {
+	let manifest = ManifestData {
 		version: 2,
 		state_hashes,
 		state_root,
@@ -209,13 +214,13 @@ fn keep_ancient_blocks() {
 	writer.into_inner().finish(manifest.clone()).unwrap();
 
 	// Initialize the Client
-	let db_config = DatabaseConfig::with_columns(::db::NUM_COLUMNS);
+	let db_config = DatabaseConfig::with_columns(ethcore_db::NUM_COLUMNS);
 	let client_db = new_temp_db(&tempdir.path());
 	let client2 = Client::new(
 		ClientConfig::default(),
 		&spec,
 		client_db,
-		Arc::new(::miner::Miner::new_for_tests(&spec, None)),
+		Arc::new(miner::Miner::new_for_tests(&spec, None)),
 		IoChannel::disconnected(),
 	).unwrap();
 
@@ -283,13 +288,13 @@ fn recover_aborted_recovery() {
 
 	let spec = spec::new_null();
 	let tempdir = TempDir::new("").unwrap();
-	let db_config = DatabaseConfig::with_columns(::db::NUM_COLUMNS);
+	let db_config = DatabaseConfig::with_columns(ethcore_db::NUM_COLUMNS);
 	let client_db = new_db();
 	let client2 = Client::new(
 		Default::default(),
 		&spec,
 		client_db,
-		Arc::new(::miner::Miner::new_for_tests(&spec, None)),
+		Arc::new(miner::Miner::new_for_tests(&spec, None)),
 		IoChannel::disconnected(),
 	).unwrap();
 	let service_params = ServiceParams {

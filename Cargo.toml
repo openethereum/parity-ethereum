@@ -69,6 +69,7 @@ semver = "0.9"
 serde = "1.0"
 serde_derive = "1.0"
 serde_json = "1.0"
+snapshot = { path = "ethcore/snapshot" }
 spec = { path = "ethcore/spec" }
 term_size = "0.3"
 textwrap = "0.9"

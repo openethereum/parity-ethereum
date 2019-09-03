@@ -14,10 +14,14 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
+//! Types pertaining to sending messages and finding routes through the chain. Used mostly by the
+//! ChainNotify trait.
+
 use bytes::Bytes;
-use ethereum_types::{H256, U256};
-use types::transaction::UnverifiedTransaction;
-use blockchain::ImportRoute;
+use ethereum_types::H256;
+use crate::{
+	import_route::ImportRoute,
+};
 use std::time::Duration;
 use std::collections::HashMap;
 
@@ -116,7 +120,8 @@ impl ChainRoute {
 	}
 }
 
-/// Used by `ChainNotify` `new_blocks()`
+/// Used by `ChainNotify` `new_blocks()` and contains information about new blocks imported to the
+/// chain.
 pub struct NewBlocks {
 	/// Imported blocks
 	pub imported: Vec<H256>,
@@ -154,42 +159,5 @@ impl NewBlocks {
 			duration,
 			has_more_blocks_to_import,
 		}
-	}
-}
-
-/// Represents what has to be handled by actor listening to chain events
-pub trait ChainNotify : Send + Sync {
-	/// fires when chain has new blocks.
-	fn new_blocks(&self, _new_blocks: NewBlocks) {
-		// does nothing by default
-	}
-
-	/// fires when chain achieves active mode
-	fn start(&self) {
-		// does nothing by default
-	}
-
-	/// fires when chain achieves passive mode
-	fn stop(&self) {
-		// does nothing by default
-	}
-
-	/// fires when chain broadcasts a message
-	fn broadcast(&self, _message_type: ChainMessageType) {
-		// does nothing by default
-	}
-
-	/// fires when new block is about to be imported
-	/// implementations should be light
-	fn block_pre_import(&self, _bytes: &Bytes, _hash: &H256, _difficulty: &U256) {
-		// does nothing by default
-	}
-
-	/// fires when new transactions are received from a peer
-	fn transactions_received(&self,
-		_txs: &[UnverifiedTransaction],
-		_peer_id: usize,
-	) {
-		// does nothing by default
 	}
 }

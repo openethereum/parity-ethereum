@@ -34,6 +34,7 @@ use parking_lot::RwLock;
 use rlp::{self, RlpStream};
 use tempdir::TempDir;
 use types::{
+	chain_notify::ChainMessageType,
 	transaction::{Action, Transaction, SignedTransaction},
 	encoded,
 	engines::ForkChoice,
@@ -44,8 +45,8 @@ use types::{
 };
 
 use block::{OpenBlock, Drain};
-use client::{Client, ClientConfig, ChainNotify, ChainMessageType, PrepareOpenBlock};
-use client_traits::{ChainInfo, ImportBlock};
+use client::{Client, ClientConfig, PrepareOpenBlock};
+use client_traits::{ChainInfo, ChainNotify, ImportBlock};
 use trie_vm_factories::Factories;
 use miner::Miner;
 use spec::{Spec, self};

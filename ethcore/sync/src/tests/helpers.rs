@@ -22,11 +22,17 @@ use bytes::Bytes;
 use network::{self, PeerId, ProtocolId, PacketId, SessionInfo};
 use network::client_version::ClientVersion;
 use tests::snapshot::*;
-use types::io_message::ClientIoMessage;
-use client_traits::BlockChainClient;
-use ethcore::client::{TestBlockChainClient, Client as EthcoreClient,
-	ClientConfig, ChainNotify, NewBlocks, ChainMessageType};
-use ethcore::snapshot::SnapshotService;
+use types::{
+	chain_notify::{NewBlocks, ChainMessageType},
+	io_message::ClientIoMessage,
+};
+use client_traits::{BlockChainClient, ChainNotify};
+use ethcore::client::{
+	TestBlockChainClient,
+	Client as EthcoreClient,
+	ClientConfig,
+};
+use snapshot::SnapshotService;
 use spec::{self, Spec};
 use ethcore_private_tx::PrivateStateDB;
 use ethcore::miner::Miner;

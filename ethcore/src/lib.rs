@@ -53,16 +53,13 @@
 //!   cargo build --release
 //!   ```
 
-extern crate account_db;
 extern crate account_state;
 extern crate ansi_term;
 extern crate client_traits;
 extern crate common_types as types;
-extern crate crossbeam_utils;
 extern crate engine;
 extern crate ethabi;
 extern crate ethcore_blockchain as blockchain;
-extern crate ethcore_bloom_journal as bloom_journal;
 extern crate ethcore_call_contract as call_contract;
 extern crate ethcore_db as db;
 extern crate ethcore_io as io;
@@ -74,13 +71,10 @@ extern crate hash_db;
 extern crate itertools;
 extern crate journaldb;
 extern crate keccak_hash as hash;
-extern crate keccak_hasher;
 extern crate kvdb;
 extern crate machine;
 extern crate memory_cache;
-extern crate num_cpus;
 extern crate parity_bytes as bytes;
-extern crate parity_snappy as snappy;
 extern crate parking_lot;
 extern crate trie_db as trie;
 extern crate patricia_trie_ethereum as ethtrie;
@@ -88,6 +82,7 @@ extern crate rand;
 extern crate rayon;
 extern crate rlp;
 extern crate serde;
+extern crate snapshot;
 extern crate spec;
 extern crate state_db;
 extern crate trace;
@@ -107,6 +102,8 @@ extern crate ethcore_stratum;
 #[cfg(any(test, feature = "stratum"))]
 extern crate ethash;
 
+#[cfg(any(test, feature = "test-helpers"))]
+extern crate account_db;
 #[cfg(any(test, feature = "test-helpers"))]
 extern crate ethkey;
 #[cfg(any(test, feature = "test-helpers"))]
@@ -157,7 +154,6 @@ extern crate parity_runtime;
 pub mod block;
 pub mod client;
 pub mod miner;
-pub mod snapshot;
 
 #[cfg(test)]
 mod tests;
