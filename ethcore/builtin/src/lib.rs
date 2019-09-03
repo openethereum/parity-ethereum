@@ -373,7 +373,8 @@ impl Implementation for Blake2F {
 		}
 
 		let mut rdr = Cursor::new(input);
-		let rounds = rdr.read_u32::<BigEndian>().expect("todo – prove this is ok or handle");
+		const PROOF: &str = "Checked the length of the input above; qed";
+		let rounds = rdr.read_u32::<BigEndian>().expect(PROOF);
 
 		// state vector, h
 		let mut h = [0u64; 8];
