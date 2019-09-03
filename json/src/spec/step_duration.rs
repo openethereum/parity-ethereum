@@ -23,8 +23,8 @@ use serde::Deserialize;
 use crate::uint::Uint;
 
 /// Step duration can be specified either as a `Uint` (in seconds), in which case it will be
-/// constant, or as a list of pairs consisting of a block number and a duration, in which case the
-/// duration of a step will be determined by a mapping arising from that list.
+/// constant, or as a list of pairs consisting of a timestamp of type `Uint` and a duration, in
+/// which case the duration of a step will be determined by a mapping arising from that list.
 #[derive(Debug, PartialEq, Deserialize)]
 #[serde(deny_unknown_fields)]
 #[serde(untagged)]

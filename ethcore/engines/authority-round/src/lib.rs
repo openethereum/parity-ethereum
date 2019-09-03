@@ -32,7 +32,7 @@ use std::u64;
 use client_traits::EngineClient;
 use engine::{Engine, ConstructedVerifier};
 use block_reward::{self, BlockRewardContract, RewardKind};
-use ethjson::{self, spec::step_duration::StepDuration};
+use ethjson;
 use machine::{
 	ExecutedBlock,
 	Machine,
