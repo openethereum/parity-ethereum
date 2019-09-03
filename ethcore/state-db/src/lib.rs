@@ -207,9 +207,9 @@ impl StateDB {
 	/// Journal all recent operations under the given era and ID.
 	pub fn journal_under(&mut self, batch: &mut DBTransaction, now: u64, id: &H256) -> io::Result<u32> {
 		{
- 			let mut bloom_lock = self.account_bloom.lock();
- 			Self::commit_bloom(batch, bloom_lock.drain_journal())?;
- 		}
+			let mut bloom_lock = self.account_bloom.lock();
+			Self::commit_bloom(batch, bloom_lock.drain_journal())?;
+		}
 		let records = self.db.journal_under(batch, now, id)?;
 		self.commit_hash = Some(id.clone());
 		self.commit_number = Some(now);

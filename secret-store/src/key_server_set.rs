@@ -20,9 +20,12 @@ use std::collections::{BTreeMap, HashSet};
 use parking_lot::Mutex;
 use call_contract::CallContract;
 use ethabi::FunctionOutputDecoder;
-use ethcore::client::{Client, ChainNotify, NewBlocks};
-use client_traits::BlockChainClient;
-use common_types::ids::BlockId;
+use ethcore::client::Client;
+use client_traits::{BlockChainClient, ChainNotify};
+use common_types::{
+	chain_notify::NewBlocks,
+	ids::BlockId,
+};
 use ethereum_types::{H256, Address};
 use ethkey::public_to_address;
 use bytes::Bytes;

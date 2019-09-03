@@ -16,13 +16,14 @@
 
 use std::collections::HashMap;
 
-use common_types::BlockNumber;
-use common_types::encoded::Block;
-use common_types::engines::ForkChoice;
+use common_types::{
+	BlockNumber,
+	encoded::Block,
+	engines::ForkChoice,
+	block::BlockInfo,
+};
 use ethcore_db::keys::{BlockDetails, BlockReceipts, TransactionAddress};
 use ethereum_types::{H256, Bloom};
-
-use crate::block_info::BlockInfo;
 
 /// Block extras update info.
 pub struct ExtrasUpdate {

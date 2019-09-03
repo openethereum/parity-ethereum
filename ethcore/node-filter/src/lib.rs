@@ -42,9 +42,11 @@ extern crate log;
 use std::collections::{HashMap, VecDeque};
 use std::sync::Weak;
 
-use common_types::ids::BlockId;
-use ethcore::client::{ChainNotify, NewBlocks};
-use client_traits::BlockChainClient;
+use common_types::{
+	ids::BlockId,
+	chain_notify::NewBlocks,
+};
+use client_traits::{BlockChainClient, ChainNotify};
 use ethereum_types::{H256, Address};
 use ethabi::FunctionOutputDecoder;
 use network::{ConnectionFilter, ConnectionDirection};
@@ -159,7 +161,7 @@ mod test {
 			Arc::new(Miner::new_for_tests(&spec, None)),
 			IoChannel::disconnected(),
 		).unwrap();
-		let filter = NodeFilter::new(Arc::downgrade(&client) as Weak<BlockChainClient>, contract_addr);
+		let filter = NodeFilter::new(Arc::downgrade(&client) as Weak<dyn BlockChainClient>, contract_addr);
 		let self1 = NodeId::from_str("00000000000000000000000000000000000000000000000000000000000000010000000000000000000000000000000000000000000000000000000000000002").unwrap();
 		let self2 = NodeId::from_str("00000000000000000000000000000000000000000000000000000000000000020000000000000000000000000000000000000000000000000000000000000003").unwrap();
 		let node1 = NodeId::from_str("00000000000000000000000000000000000000000000000000000000000000110000000000000000000000000000000000000000000000000000000000000012").unwrap();

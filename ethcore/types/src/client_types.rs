@@ -17,11 +17,12 @@
 //! Client related types.
 
 use std::{
+	cmp,
 	fmt::{Display, Formatter, Error as FmtError},
 	ops,
-	cmp,
 	time::Duration,
 };
+
 use ethereum_types::U256;
 use crate::header::Header;
 
@@ -88,4 +89,3 @@ impl<'a> ops::Sub<&'a ClientReport> for ClientReport {
 		self
 	}
 }
-
