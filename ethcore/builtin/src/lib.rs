@@ -45,15 +45,17 @@ trait Pricer: Send + Sync {
 	fn cost(&self, input: &[u8], at: u64) -> U256;
 }
 
-/// A linear pricing model. This computes a price using a base cost and a cost per-word.
-pub type Fixed = u64;
+/// Pricing for the Blake2 compression function (aka "F").
+/// Computes the price as a fixed cost per round where the number of rounds is part of the input
+/// byte slice.
+pub type Blake2FPricer = u64;
 
-impl Pricer for Fixed {
+impl Pricer for Blake2FPricer {
 	fn cost(&self, input: &[u8], _at: u64) -> U256 {
 		use std::convert::TryInto;
 		let (rounds_bytes, _) = input.split_at(std::mem::size_of::<u32>());
 		// todo[dvdplm] what's the error handling strategy here? panic? return U256::MAX? Is the input len checked before this call?
-		let rounds = u32::from_be_bytes(rounds_bytes.try_into().unwrap());
+		let rounds = u32::from_be_bytes(rounds_bytes.try_into().unwrap_or_else(|_| [0xFF; 4] ));
 		U256::from(*self * rounds as u64)
 	}
 }
@@ -213,8 +215,8 @@ impl Builtin {
 impl From<ethjson::spec::Builtin> for Builtin {
 	fn from(b: ethjson::spec::Builtin) -> Self {
 		let pricer: Box<dyn Pricer> = match b.pricing {
-			ethjson::spec::Pricing::Fixed(fixed) => {
-				Box::new(fixed)
+			ethjson::spec::Pricing::Blake2F(cost_per_round) => {
+				Box::new(cost_per_round)
 			},
 			ethjson::spec::Pricing::Linear(linear) => {
 				Box::new(Linear {
@@ -363,8 +365,10 @@ impl Implementation for Sha256 {
 }
 
 impl Implementation for Blake2F {
+	/// Format of `input`: `[4 bytes for rounds][64 bytes for h][128 bytes for m][8 bytes for t_0][8 bytes for t_1][1 byte for f]`
 	fn execute(&self, input: &[u8], output: &mut BytesRef) -> Result<(), &'static str> {
 		const BLAKE2_F_ARG_LEN: usize = 213;
+		const PROOF: &str = "Checked the length of the input above; qed";
 
 		if input.len() != BLAKE2_F_ARG_LEN {
 			// todo[dvdplm] what's the right 'target' here?
@@ -373,24 +377,23 @@ impl Implementation for Blake2F {
 		}
 
 		let mut cursor = Cursor::new(input);
-		const PROOF: &str = "Checked the length of the input above; qed";
-		let rounds = rdr.read_u32::<BigEndian>().expect(PROOF);
+		let rounds = cursor.read_u32::<BigEndian>().expect(PROOF);
 
 		// state vector, h
 		let mut h = [0u64; 8];
 		for i in 0..8 {
-			h[i] = rdr.read_u64::<LittleEndian>().expect("todo - prove this is ok or handle");
+			h[i] = cursor.read_u64::<LittleEndian>().expect(PROOF);
 		}
 
 		// message block vector, m
 		let mut m = [0u64; 16];
 		for i in 0..16 {
-			m[i] = rdr.read_u64::<LittleEndian>().expect("todo - prove this is ok or handle");
+			m[i] = cursor.read_u64::<LittleEndian>().expect(PROOF);
 		}
 
 		// 2w-bit offset counter, t
-		let t0 = rdr.read_u64::<LittleEndian>().expect("todo - prove this is ok or handle");
-		let t1 = rdr.read_u64::<LittleEndian>().expect("todo - prove this is ok or handle");
+		let t0 = cursor.read_u64::<LittleEndian>().expect(PROOF);
+		let t1 = cursor.read_u64::<LittleEndian>().expect(PROOF);
 
 		// final block indicator flag, "f"
 		let f = match input.last() {

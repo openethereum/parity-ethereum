@@ -18,8 +18,8 @@
 
 use uint::Uint;
 
-/// Fixed pricing: each call cost the same
-pub type Fixed = u64;
+/// Pricing for Blake2 compression function: each call costs the same amount per round.
+pub type Blake2F = u64;
 
 /// Linear pricing.
 #[derive(Debug, PartialEq, Deserialize, Clone)]
@@ -69,7 +69,7 @@ pub struct AltBn128Pairing {
 #[serde(rename_all = "snake_case")]
 pub enum Pricing {
 	/// Fixed pricing.
-	Fixed(Fixed),
+	Blake2F(Blake2F),
 	/// Linear pricing.
 	Linear(Linear),
 	/// Pricing for modular exponentiation.
@@ -117,11 +117,11 @@ mod tests {
 		let s = r#"{
 			"name": "blake2_f",
 			"activate_at": "0xffffff",
-			"pricing": { "fixed": 123 }
+			"pricing": { "blake2_f": 123 }
 		}"#;
 		let deserialized: Builtin = serde_json::from_str(s).unwrap();
 		assert_eq!(deserialized.name, "blake2_f");
-		assert_eq!(deserialized.pricing, Pricing::Fixed(123));
+		assert_eq!(deserialized.pricing, Pricing::Blake2F(123));
 		assert!(deserialized.activate_at.is_some());
 	}
 
