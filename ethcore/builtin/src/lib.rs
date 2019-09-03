@@ -58,7 +58,7 @@ impl Pricer for Blake2FPricer {
 		// Returning zero if the conversion fails is fine because `execute()` will check the length
 		// and bail with the appropriate error.
 		let rounds = u32::from_be_bytes(rounds_bytes.try_into().unwrap_or_else(|_| [0u8; 4] ));
-		U256::from(*self * rounds as u64)
+		U256::from(*self as u128 * rounds as u128)
 	}
 }
 
