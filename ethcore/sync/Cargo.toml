@@ -34,7 +34,7 @@ parity-bytes = "0.1"
 parity-runtime = { path = "../../util/runtime" }
 parity-util-mem = "0.2.0"
 parking_lot = "0.8"
-rand = "0.6"
+rand = "0.7"
 rlp = "0.4.0"
 snapshot = { path = "../snapshot" }
 trace-time = "0.1"
