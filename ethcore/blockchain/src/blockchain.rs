@@ -614,7 +614,7 @@ impl BlockChain {
 			let best_block_rlp = bc.block(&best_block_hash)
 				.expect("Best block is from a known block hash; qed");
 
-			// and write them
+			// and write them to the cache.
 			let mut best_block = bc.best_block.write();
 			*best_block = BestBlock {
 				total_difficulty: best_block_total_difficulty,
@@ -883,7 +883,7 @@ impl BlockChain {
 		self.block_details.write().clear();
 		self.block_hashes.write().clear();
 		self.block_headers.write().clear();
-		// Fetch best block details
+		// Fetch best block details from disk
 		let best_block_hash = self.db.key_value().get(db::COL_EXTRA, b"best")
 			.expect("Low-level database error when fetching 'best' block. Some issue with disk?")
 			.as_ref()
@@ -895,7 +895,7 @@ impl BlockChain {
 		let best_block_rlp = self.block(&best_block_hash)
 			.expect("Best block is from a known block hash; qed");
 
-		// and write them
+		// and write them to the cache
 		let mut best_block = self.best_block.write();
 		*best_block = BestBlock {
 			total_difficulty: best_block_total_difficulty,

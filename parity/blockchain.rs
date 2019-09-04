@@ -26,7 +26,7 @@ use hash::{keccak, KECCAK_NULL_RLP};
 use ethereum_types::{U256, H256, Address};
 use bytes::ToPretty;
 use rlp::PayloadInfo;
-use client_traits::{BlockChainReset, Nonce, Balance, BlockChainClient, ImportBlocks, ExportBlocks};
+use client_traits::{BlockChainReset, Nonce, Balance, BlockChainClient, ImportExportBlocks};
 use ethcore::{
 	client::{DatabaseCompactionProfile, VMType},
 	miner::Miner,
@@ -46,7 +46,8 @@ use types::{
 	errors::{ImportError, EthcoreError},
 	client_types::Mode,
 };
-use client_traits::DataFormat;
+use types::data_format::DataFormat;
+use verification::queue::VerifierSettings;
 
 #[derive(Debug, PartialEq)]
 pub enum BlockchainCmd {
@@ -387,7 +388,7 @@ fn execute_import(cmd: ImportBlockchain) -> Result<(), String> {
 
 	let client = service.client();
 
-	let instream: Box<io::Read> = match cmd.file_path {
+	let instream: Box<dyn io::Read> = match cmd.file_path {
 		Some(f) => Box::new(fs::File::open(&f).map_err(|_| format!("Cannot open given file: {}", f))?),
 		None => Box::new(io::stdin()),
 	};
@@ -536,7 +537,7 @@ fn execute_export(cmd: ExportBlockchain) -> Result<(), String> {
 	)?;
 	let client = service.client();
 
-	let out: Box<io::Write> = match cmd.file_path {
+	let out: Box<dyn io::Write> = match cmd.file_path {
 		Some(f) => Box::new(fs::File::create(&f).map_err(|_| format!("Cannot write to file given: {}", f))?),
 		None => Box::new(io::stdout()),
 	};

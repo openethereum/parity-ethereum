@@ -55,6 +55,7 @@ use trace::{
 	localized::LocalizedTrace,
 	VMTrace,
 };
+use common_types::data_format::DataFormat;
 use vm::{LastHashes, Schedule};
 use std::str::FromStr;
 
@@ -510,34 +511,11 @@ pub trait ChainNotify: Send + Sync {
 	fn transactions_received(&self, _txs: &[UnverifiedTransaction], _peer_id: usize) {
 		// does nothing by default
 	}
-
-#[derive(Debug, PartialEq)]
-pub enum DataFormat {
-	Hex,
-	Binary,
 }
 
-impl Default for DataFormat {
-	fn default() -> Self {
-		DataFormat::Binary
-	}
-}
-
-impl FromStr for DataFormat {
-	type Err = String;
-
-	fn from_str(s: &str) -> Result<Self, Self::Err> {
-		match s {
-			"binary" | "bin" => Ok(DataFormat::Binary),
-			"hex" => Ok(DataFormat::Hex),
-			x => Err(format!("Invalid format: {}", x))
-		}
-	}
-}
-
-/// Provides a method for exporting blocks
-pub trait ExportBlocks {
-    /// Export blocks to destination, with the given from, to and format arguments.
+/// Provides a method for importing/exporting blocks
+pub trait ImportExportBlocks {
+    /// Export blocks to destination, with the given from, to and format argument.
     /// destination could be a file or stdout.
     /// if the format is hex, each block is written on a new line.
     /// for binary exports, all block data is written to the same line.
@@ -548,18 +526,15 @@ pub trait ExportBlocks {
         to: BlockId,
         format: Option<DataFormat>
     ) -> Result<(), String>;
-}
 
-/// Provides a method for importing blocks
-pub trait ImportBlocks {
-    /// Import blocks from destination, with the given format arguments
-    /// source could be a file or stdout.
-    /// For hex imports, it attempts to read the blocks on a line by line basis.
-    /// For binary imports, it'll read the 8 byte rlp header in order to decode the block
+	/// Import blocks from destination, with the given format argument
+    /// Source could be a file or stdout.
+    /// For hex format imports, it attempts to read the blocks on a line by line basis.
+    /// For binary format imports, reads the 8 byte RLP header in order to decode the block
     /// length to be read.
 	fn import_blocks<'a>(
-        &self,
-        source: Box<dyn std::io::Read + 'a>,
-        format: Option<DataFormat>
-    ) -> Result<(), String>;
+		&self,
+		source: Box<dyn std::io::Read + 'a>,
+		format: Option<DataFormat>
+	) -> Result<(), String>;
 }
