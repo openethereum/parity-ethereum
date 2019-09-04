@@ -669,8 +669,8 @@ impl Miner {
 	fn seal_and_import_block_internally<C>(&self, chain: &C, block: ClosedBlock) -> bool
 		where C: BlockChain + SealedBlockImporter,
 	{
-		let mut sealing = self.sealing.lock();
 		{
+			let sealing = self.sealing.lock();
 			if block.transactions.is_empty()
 				&& !self.forced_sealing()
 				&& Instant::now() <= sealing.next_mandatory_reseal
@@ -703,7 +703,7 @@ impl Miner {
 				Seal::Regular(seal) => {
 					trace!(target: "miner", "Block #{}: Received a Regular seal.", block_number);
 					{
-						// let mut sealing = self.sealing.lock();
+						let mut sealing = self.sealing.lock();
 						sealing.next_mandatory_reseal = Instant::now() + self.options.reseal_max_period;
 					}
 
@@ -875,6 +875,14 @@ impl Miner {
 				}
 			}
 			SealingState::NotReady => { self.maybe_enable_sealing(); },
+		}
+	}
+
+	/// Call `update_sealing` if needed
+	pub fn maybe_update_sealing<C: miner::BlockChainClient>(&self, chain: &C) {
+		if self.transaction_queue.has_local_pending_transactions() {
+			eprintln!("Has local pending txs. Calling `update_sealing`.");
+			self.prepare_and_update_sealing(chain);
 		}
 	}
 }
@@ -1243,7 +1251,7 @@ impl miner::MinerService for Miner {
 	/// Update sealing if required.
 	/// Prepare the block and work if the Engine does not seal internally.
 	fn update_sealing<C>(&self, chain: &C) where
-		C: BlockChain + CallContract + BlockProducer + SealedBlockImporter + Nonce + Sync,
+		C: miner::BlockChainClient,
 	{
 		trace!(target: "miner", "update_sealing");
 
@@ -1406,7 +1414,6 @@ impl miner::MinerService for Miner {
 			}
 		}
 
-		// @todo Use IoChannel if available
 		if has_new_best_block {
 			// Make sure to cull transactions after we update sealing.
 			// Not culling won't lead to old transactions being added to the block
@@ -1431,6 +1438,7 @@ impl miner::MinerService for Miner {
 						service_transaction_checker.as_ref(),
 					);
 					queue.cull(client);
+					chain.maybe_update_sealing();
 				};
 
 				if let Err(e) = channel.send(ClientIoMessage::<Client>::execute(cull)) {
@@ -1438,11 +1446,9 @@ impl miner::MinerService for Miner {
 				}
 			} else {
 				self.transaction_queue.cull(client);
+				self.maybe_update_sealing(chain);
 			}
 		}
-		// if has_new_best_block {
-		// 	self.transaction_queue.cull(client);
-		// }
 
 		if let Some(ref service_transaction_checker) = self.service_transaction_checker {
 			match service_transaction_checker.refresh_cache(chain) {

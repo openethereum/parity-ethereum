@@ -1233,6 +1233,11 @@ impl Client {
 			_   => self.block_header(id).and_then(|h| h.decode().ok())
 		}
 	}
+
+	/// Maybe call `update_sealing` method on the Miner
+	pub fn maybe_update_sealing(&self) {
+		self.importer.miner.maybe_update_sealing(self);
+	}
 }
 
 impl DatabaseRestore for Client {
