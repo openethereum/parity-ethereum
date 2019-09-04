@@ -23,6 +23,7 @@ use hash::keccak;
 use io::IoChannel;
 use tempdir::TempDir;
 use types::{
+	data_format::DataFormat,
 	ids::BlockId,
 	transaction::{PendingTransaction, Transaction, Action, Condition},
 	filter::Filter,
@@ -34,7 +35,7 @@ use types::{
 use client::{Client, ClientConfig, PrepareOpenBlock, ImportSealedBlock};
 use client_traits::{
 	BlockInfo, BlockChainClient, BlockChainReset, ChainInfo,
-	ImportBlock, Tick,
+	ImportExportBlocks, Tick, ImportBlock
 };
 use spec;
 use machine::executive::{Executive, TransactOptions};
