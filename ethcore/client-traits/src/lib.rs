@@ -528,10 +528,10 @@ pub trait ImportExportBlocks {
     ) -> Result<(), String>;
 
 	/// Import blocks from destination, with the given format argument
-    /// Source could be a file or stdout.
-    /// For hex format imports, it attempts to read the blocks on a line by line basis.
-    /// For binary format imports, reads the 8 byte RLP header in order to decode the block
-    /// length to be read.
+	/// Source could be a file or stdout.
+	/// For hex format imports, it attempts to read the blocks on a line by line basis.
+	/// For binary format imports, reads the 8 byte RLP header in order to decode the block
+	/// length to be read.
 	fn import_blocks<'a>(
 		&self,
 		source: Box<dyn std::io::Read + 'a>,
