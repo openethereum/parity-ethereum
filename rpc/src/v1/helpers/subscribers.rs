@@ -43,11 +43,11 @@ impl Id {
 
 #[cfg(not(test))]
 mod random {
-	use rand;
+	use rand::rngs::OsRng;
 
 	pub type Rng = rand::rngs::OsRng;
 
-	pub fn new() -> Rng { Rng::new().expect("Valid random source is required.") }
+	pub fn new() -> Rng { OsRng }
 }
 
 #[cfg(test)]

@@ -173,7 +173,7 @@ impl<T: TimeProvider> AuthCodes<T> {
 
 	/// Generates and returns a new code that can be used by `SignerUIs`
 	pub fn generate_new(&mut self) -> io::Result<String> {
-		let mut rng = OsRng::new()?;
+		let rng = OsRng;
 		let code = rng.sample_iter(&Alphanumeric).take(TOKEN_LENGTH).collect::<String>();
 		let readable_code = code.as_bytes()
 			.chunks(4)
