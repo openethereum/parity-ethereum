@@ -14,7 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
-use std::collections::HashSet;
+use std::sync::atomic::{AtomicU64, Ordering};
 
 use common_types::{
 	header::Header,
@@ -24,7 +24,6 @@ use common_types::{
 		params::CommonParams,
 	},
 	errors::EthcoreError as Error,
-	BlockNumber,
 };
 use engine::Engine;
 use ethjson;
@@ -32,7 +31,6 @@ use machine::{
 	ExecutedBlock,
 	Machine
 };
-use parking_lot::Mutex;
 
 
 /// `InstantSeal` params.
@@ -55,7 +53,7 @@ impl From<ethjson::spec::InstantSealParams> for InstantSealParams {
 pub struct InstantSeal {
 	params: InstantSealParams,
 	machine: Machine,
-	sealed_blocks: Mutex<HashSet<BlockNumber>>,
+	last_sealed_block: AtomicU64,
 }
 
 impl InstantSeal {
@@ -64,7 +62,7 @@ impl InstantSeal {
 		InstantSeal {
 			params,
 			machine,
-			sealed_blocks: Mutex::new(HashSet::new()),
+			last_sealed_block: AtomicU64::new(0),
 		}
 	}
 }
@@ -80,10 +78,10 @@ impl Engine for InstantSeal {
 		if block.transactions.is_empty() {
 			Seal::None
 		} else {
-			let mut sealed_blocks = self.sealed_blocks.lock();
 			let block_number = block.header.number();
-			if !sealed_blocks.contains(&block_number) {
-				sealed_blocks.insert(block_number);
+			let last_sealed_block = self.last_sealed_block.load(Ordering::SeqCst);
+			if block_number > last_sealed_block {
+				self.last_sealed_block.store(block_number, Ordering::SeqCst);
 				Seal::Regular(Vec::new())
 			} else {
 				Seal::None

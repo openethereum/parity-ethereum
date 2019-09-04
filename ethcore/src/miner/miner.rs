@@ -880,8 +880,9 @@ impl Miner {
 
 	/// Call `update_sealing` if needed
 	pub fn maybe_update_sealing<C: miner::BlockChainClient>(&self, chain: &C) {
+		use miner::MinerService;
 		if self.transaction_queue.has_local_pending_transactions() {
-			self.prepare_and_update_sealing(chain);
+			self.update_sealing(chain);
 		}
 	}
 }
@@ -1250,7 +1251,7 @@ impl miner::MinerService for Miner {
 	/// Update sealing if required.
 	/// Prepare the block and work if the Engine does not seal internally.
 	fn update_sealing<C>(&self, chain: &C) where
-		C: miner::BlockChainClient,
+		C: BlockChain + CallContract + BlockProducer + SealedBlockImporter + Nonce + Sync,
 	{
 		trace!(target: "miner", "update_sealing");
 

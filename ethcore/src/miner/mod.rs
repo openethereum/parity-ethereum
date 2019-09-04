@@ -84,7 +84,7 @@ pub trait MinerService : Send + Sync {
 
 	/// Update current pending block
 	fn update_sealing<C>(&self, chain: &C)
-		where C: BlockChainClient;
+		where C: BlockChain + CallContract + BlockProducer + SealedBlockImporter + Nonce + Sync;
 
 	// Notifications
 
