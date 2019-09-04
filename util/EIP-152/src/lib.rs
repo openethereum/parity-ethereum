@@ -57,9 +57,9 @@ fn g(v: &mut [u64], a: usize, b: usize, c: usize, d: usize, x: u64, y: u64) {
 /// block indicator flag `f`, and number of rounds `rounds`. The state vector provided as the first
 /// parameter is modified by the function.
 pub fn compress(h: &mut [u64; 8], m: [u64; 16], t: [u64; 2], f: bool, rounds: usize) {
-	let mut v = Vec::new();
-	v.extend(h.iter().cloned()); // First half from state.
-	v.extend_from_slice(&IV);    // Second half from IV.
+	let mut v = [0u64; 16];
+	v[..h.len()].copy_from_slice(h);    // First half from state.
+	v[h.len()..].copy_from_slice(&IV);  // Second half from IV.
 
 	v[12] ^= t[0];
 	v[13] ^= t[1];
