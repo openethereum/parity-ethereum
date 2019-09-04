@@ -18,7 +18,7 @@
 
 use uint::Uint;
 
-/// Pricing for Blake2 compression function: each call costs the same amount per round.
+/// Price per round of Blake2 compression.
 pub type Blake2F = u64;
 
 /// Linear pricing.
