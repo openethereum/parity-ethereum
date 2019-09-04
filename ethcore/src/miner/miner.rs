@@ -881,7 +881,6 @@ impl Miner {
 	/// Call `update_sealing` if needed
 	pub fn maybe_update_sealing<C: miner::BlockChainClient>(&self, chain: &C) {
 		if self.transaction_queue.has_local_pending_transactions() {
-			eprintln!("Has local pending txs. Calling `update_sealing`.");
 			self.prepare_and_update_sealing(chain);
 		}
 	}
