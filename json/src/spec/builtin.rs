@@ -68,7 +68,7 @@ pub struct AltBn128Pairing {
 #[serde(deny_unknown_fields)]
 #[serde(rename_all = "snake_case")]
 pub enum Pricing {
-	/// Fixed pricing.
+	/// Pricing for Blake2 compression function: each call costs the same amount per round.
 	Blake2F(Blake2F),
 	/// Linear pricing.
 	Linear(Linear),
