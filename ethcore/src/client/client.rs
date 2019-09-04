@@ -14,14 +14,14 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
-use std::{cmp, ops};
+use std::cmp;
 use std::collections::{HashSet, BTreeMap, VecDeque};
 use std::sync::atomic::{AtomicUsize, AtomicBool, Ordering as AtomicOrdering};
 use std::sync::{Arc, Weak};
 use std::time::{Instant, Duration};
 
 use account_state::state::StateInfo;
-use blockchain::{BlockReceipts, BlockChain, BlockChainDB, BlockProvider, TreeRoute, ImportRoute, TransactionAddress, ExtrasInsert, BlockNumberKey};
+use blockchain::{BlockReceipts, BlockChain, BlockChainDB, BlockProvider, TreeRoute, TransactionAddress, ExtrasInsert, BlockNumberKey};
 use bytes::Bytes;
 use call_contract::{CallContract, RegistryInfo};
 use ethcore_miner::pool::VerifiedTransaction;
@@ -41,15 +41,16 @@ use block::{LockedBlock, Drain, ClosedBlock, OpenBlock, enact_verified, SealedBl
 use client::ancient_import::AncientVerifier;
 use client::{
 	ReopenBlock, PrepareOpenBlock, ImportSealedBlock, BroadcastProposalBlock,
-	Call, BlockProducer, SealedBlockImporter, ChainNotify, EngineInfo,
-	ClientConfig, NewBlocks, ChainRoute, ChainMessageType, bad_blocks, ClientIoMessage,
+	Call, BlockProducer, SealedBlockImporter, EngineInfo,
+	ClientConfig, bad_blocks,
 };
 use client_traits::{
 	BlockInfo, ScheduleInfo, StateClient, BlockChainReset,
 	Nonce, Balance, ChainInfo, TransactionInfo, ImportBlock,
 	AccountData, BlockChain as BlockChainTrait, BlockChainClient,
-	IoClient, BadBlocks, ProvingBlockChainClient,
-	StateOrBlock
+	IoClient, BadBlocks, ProvingBlockChainClient, SnapshotClient,
+	DatabaseRestore, SnapshotWriter, Tick, ChainNotify,
+	StateOrBlock,
 };
 use engine::Engine;
 use machine::{
@@ -59,7 +60,7 @@ use machine::{
 };
 use trie_vm_factories::{Factories, VmFactory};
 use miner::{Miner, MinerService};
-use snapshot::{self, io as snapshot_io, SnapshotClient};
+use snapshot;
 use spec::Spec;
 use account_state::State;
 use executive_state;
@@ -71,6 +72,10 @@ use types::{
 	block::PreverifiedBlock,
 	block_status::BlockStatus,
 	blockchain_info::BlockChainInfo,
+	chain_notify::{NewBlocks, ChainRoute, ChainMessageType},
+	client_types::ClientReport,
+	import_route::ImportRoute,
+	io_message::ClientIoMessage,
 	encoded,
 	engines::{
 		ForkChoice,
@@ -111,44 +116,6 @@ const MAX_ANCIENT_BLOCKS_TO_IMPORT: usize = 4;
 const MAX_QUEUE_SIZE_TO_SLEEP_ON: usize = 2;
 const MIN_HISTORY_SIZE: u64 = 8;
 
-/// Report on the status of a client.
-#[derive(Default, Clone, Debug, Eq, PartialEq)]
-pub struct ClientReport {
-	/// How many blocks have been imported so far.
-	pub blocks_imported: usize,
-	/// How many transactions have been applied so far.
-	pub transactions_applied: usize,
-	/// How much gas has been processed so far.
-	pub gas_processed: U256,
-	/// Memory used by state DB
-	pub state_db_mem: usize,
-}
-
-impl ClientReport {
-	/// Alter internal reporting to reflect the additional `block` has been processed.
-	pub fn accrue_block(&mut self, header: &Header, transactions: usize) {
-		self.blocks_imported += 1;
-		self.transactions_applied += transactions;
-		self.gas_processed = self.gas_processed + *header.gas_used();
-	}
-}
-
-impl<'a> ops::Sub<&'a ClientReport> for ClientReport {
-	type Output = Self;
-
-	fn sub(mut self, other: &'a ClientReport) -> Self {
-		let higher_mem = cmp::max(self.state_db_mem, other.state_db_mem);
-		let lower_mem = cmp::min(self.state_db_mem, other.state_db_mem);
-
-		self.blocks_imported -= other.blocks_imported;
-		self.transactions_applied -= other.transactions_applied;
-		self.gas_processed = self.gas_processed - other.gas_processed;
-		self.state_db_mem = higher_mem - lower_mem;
-
-		self
-	}
-}
-
 struct SleepState {
 	last_activity: Option<Instant>,
 	last_autosleep: Option<Instant>,
@@ -171,7 +138,7 @@ struct Importer {
 	pub verifier: Box<dyn Verifier<Client>>,
 
 	/// Queue containing pending blocks
-	pub block_queue: BlockQueue,
+	pub block_queue: BlockQueue<Client>,
 
 	/// Handles block sealing
 	pub miner: Arc<Miner>,
@@ -222,7 +189,7 @@ pub struct Client {
 
 	/// Flag changed by `sleep` and `wake_up` methods. Not to be confused with `enabled`.
 	liveness: AtomicBool,
-	io_channel: RwLock<IoChannel<ClientIoMessage>>,
+	io_channel: RwLock<IoChannel<ClientIoMessage<Self>>>,
 
 	/// List of actors to be notified on certain chain events
 	notify: RwLock<Vec<Weak<dyn ChainNotify>>>,
@@ -261,7 +228,7 @@ impl Importer {
 	pub fn new(
 		config: &ClientConfig,
 		engine: Arc<dyn Engine>,
-		message_channel: IoChannel<ClientIoMessage>,
+		message_channel: IoChannel<ClientIoMessage<Client>>,
 		miner: Arc<Miner>,
 	) -> Result<Importer, EthcoreError> {
 		let block_queue = BlockQueue::new(
@@ -723,7 +690,7 @@ impl Client {
 		spec: &Spec,
 		db: Arc<dyn BlockChainDB>,
 		miner: Arc<Miner>,
-		message_channel: IoChannel<ClientIoMessage>,
+		message_channel: IoChannel<ClientIoMessage<Self>>,
 	) -> Result<Arc<Client>, EthcoreError> {
 		let trie_spec = match config.fat_db {
 			true => TrieSpec::Fat,
@@ -948,11 +915,6 @@ impl Client {
 		Arc::new(last_hashes)
 	}
 
-	/// This is triggered by a message coming from a block queue when the block is ready for insertion
-	pub fn import_verified_blocks(&self) -> usize {
-		self.importer.import_verified_blocks(self)
-	}
-
 	// use a state-proving closure for the given block.
 	fn with_proving_caller<F, T>(&self, id: BlockId, with_call: F) -> T
 		where F: FnOnce(&MachineCall) -> T
@@ -1026,18 +988,20 @@ impl Client {
 		self.importer.miner.clone()
 	}
 
-	#[cfg(test)]
+	/// Access state from tests
+	#[cfg(any(test, feature = "test-helpers"))]
 	pub fn state_db(&self) -> ::parking_lot::RwLockReadGuard<StateDB> {
 		self.state_db.read()
 	}
 
-	#[cfg(test)]
+	/// Access the BlockChain from tests
+	#[cfg(any(test, feature = "test-helpers"))]
 	pub fn chain(&self) -> Arc<BlockChain> {
 		self.chain.read().clone()
 	}
 
 	/// Replace io channel. Useful for testing.
-	pub fn set_io_channel(&self, io_channel: IoChannel<ClientIoMessage>) {
+	pub fn set_io_channel(&self, io_channel: IoChannel<ClientIoMessage<Self>>) {
 		*self.io_channel.write() = io_channel;
 	}
 
@@ -1112,15 +1076,6 @@ impl Client {
 		report
 	}
 
-	/// Tick the client.
-	// TODO: manage by real events.
-	pub fn tick(&self, prevent_sleep: bool) {
-		self.check_garbage();
-		if !prevent_sleep {
-			self.check_snooze();
-		}
-	}
-
 	fn check_garbage(&self) {
 		self.chain.read().collect_garbage();
 		self.importer.block_queue.collect_garbage();
@@ -1159,64 +1114,6 @@ impl Client {
 			}
 			_ => {}
 		}
-	}
-
-	/// Take a snapshot at the given block.
-	/// If the ID given is "latest", this will default to 1000 blocks behind.
-	pub fn take_snapshot<W: snapshot_io::SnapshotWriter + Send>(
-		&self,
-		writer: W,
-		at: BlockId,
-		p: &Progress,
-	) -> Result<(), EthcoreError> {
-		if let Snapshotting::Unsupported = self.engine.snapshot_mode() {
-			return Err(EthcoreError::Snapshot(SnapshotError::SnapshotsUnsupported));
-		}
-		let db = self.state_db.read().journal_db().boxed_clone();
-		let best_block_number = self.chain_info().best_block_number;
-		let block_number = self.block_number(at).ok_or_else(|| SnapshotError::InvalidStartingBlock(at))?;
-
-		if db.is_prunable() && self.pruning_info().earliest_state > block_number {
-			return Err(SnapshotError::OldBlockPrunedDB.into());
-		}
-
-		let history = cmp::min(self.history, 1000);
-
-		let start_hash = match at {
-			BlockId::Latest => {
-				let start_num = match db.earliest_era() {
-					Some(era) => cmp::max(era, best_block_number.saturating_sub(history)),
-					None => best_block_number.saturating_sub(history),
-				};
-
-				match self.block_hash(BlockId::Number(start_num)) {
-					Some(h) => h,
-					None => return Err(SnapshotError::InvalidStartingBlock(at).into()),
-				}
-			}
-			_ => match self.block_hash(at) {
-				Some(hash) => hash,
-				None => return Err(SnapshotError::InvalidStartingBlock(at).into()),
-			},
-		};
-
-		let processing_threads = self.config.snapshot.processing_threads;
-		let chunker = snapshot::chunker(self.engine.snapshot_mode()).ok_or_else(|| SnapshotError::SnapshotsUnsupported)?;
-		snapshot::take_snapshot(
-			chunker,
-			&self.chain.read(),
-			start_hash,
-			db.as_hash_db(),
-			writer,
-			p,
-			processing_threads,
-		)?;
-		Ok(())
-	}
-
-	/// Ask the client what the history parameter is.
-	pub fn pruning_history(&self) -> u64 {
-		self.history
 	}
 
 	fn block_hash(chain: &BlockChain, id: BlockId) -> Option<H256> {
@@ -1342,7 +1239,7 @@ impl Client {
 	}
 }
 
-impl snapshot::DatabaseRestore for Client {
+impl DatabaseRestore for Client {
 	/// Restart the client with a new backend
 	fn restore_db(&self, new_db: &str) -> Result<(), EthcoreError> {
 		trace!(target: "snapshot", "Replacing client database with {:?}", new_db);
@@ -1425,6 +1322,11 @@ impl BlockChainReset for Client {
 		info!("New best block hash {}", Colour::Green.bold().paint(format!("{:?}", best_block_hash)));
 
 		Ok(())
+	}
+
+	/// Ask the client what the history parameter is.
+	fn pruning_history(&self) -> u64 {
+		self.history
 	}
 }
 
@@ -1546,6 +1448,11 @@ impl ImportBlock for Client {
 			},
 			Err((_, e)) => Err(e),
 		}
+	}
+
+	/// Triggered by a message from a block queue when the block is ready for insertion
+	fn import_verified_blocks(&self) -> usize {
+		self.importer.import_verified_blocks(self)
 	}
 }
 
@@ -2341,6 +2248,18 @@ impl IoClient for Client {
 			}
 		}
 	}
+
+}
+
+impl Tick for Client {
+	/// Tick the client.
+	// TODO: manage by real events.
+	fn tick(&self, prevent_sleep: bool) {
+		self.check_garbage();
+		if !prevent_sleep {
+			self.check_snooze();
+		}
+	}
 }
 
 impl ReopenBlock for Client {
@@ -2581,7 +2500,60 @@ impl ProvingBlockChainClient for Client {
 	}
 }
 
-impl SnapshotClient for Client {}
+impl SnapshotClient for Client {
+	fn take_snapshot<W: SnapshotWriter + Send>(
+		&self,
+		writer: W,
+		at: BlockId,
+		p: &Progress,
+	) -> Result<(), EthcoreError> {
+		if let Snapshotting::Unsupported = self.engine.snapshot_mode() {
+			return Err(EthcoreError::Snapshot(SnapshotError::SnapshotsUnsupported));
+		}
+		let db = self.state_db.read().journal_db().boxed_clone();
+		let best_block_number = self.chain_info().best_block_number;
+		let block_number = self.block_number(at).ok_or_else(|| SnapshotError::InvalidStartingBlock(at))?;
+
+		if db.is_prunable() && self.pruning_info().earliest_state > block_number {
+			return Err(SnapshotError::OldBlockPrunedDB.into());
+		}
+
+		let history = cmp::min(self.history, 1000);
+
+		let start_hash = match at {
+			BlockId::Latest => {
+				let start_num = match db.earliest_era() {
+					Some(era) => cmp::max(era, best_block_number.saturating_sub(history)),
+					None => best_block_number.saturating_sub(history),
+				};
+
+				match self.block_hash(BlockId::Number(start_num)) {
+					Some(h) => h,
+					None => return Err(SnapshotError::InvalidStartingBlock(at).into()),
+				}
+			}
+			_ => match self.block_hash(at) {
+				Some(hash) => hash,
+				None => return Err(SnapshotError::InvalidStartingBlock(at).into()),
+			},
+		};
+
+		let processing_threads = self.config.snapshot.processing_threads;
+		let chunker = snapshot::chunker(self.engine.snapshot_mode()).ok_or_else(|| SnapshotError::SnapshotsUnsupported)?;
+		snapshot::take_snapshot(
+			chunker,
+			&self.chain.read(),
+			start_hash,
+			db.as_hash_db(),
+			writer,
+			p,
+			processing_threads,
+		)?;
+		Ok(())
+	}
+
+
+}
 
 /// Returns `LocalizedReceipt` given `LocalizedTransaction`
 /// and a vector of receipts from given block up to transaction index.
@@ -2641,7 +2613,7 @@ impl IoChannelQueue {
 		}
 	}
 
-	pub fn queue<F>(&self, channel: &IoChannel<ClientIoMessage>, count: usize, fun: F) -> EthcoreResult<()> where
+	pub fn queue<F>(&self, channel: &IoChannel<ClientIoMessage<Client>>, count: usize, fun: F) -> EthcoreResult<()> where
 		F: Fn(&Client) + Send + Sync + 'static,
 	{
 		let queue_size = self.currently_queued.load(AtomicOrdering::Relaxed);

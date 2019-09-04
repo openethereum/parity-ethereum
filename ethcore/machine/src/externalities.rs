@@ -416,6 +416,10 @@ impl<'a, T: 'a, V: 'a, B: 'a> Ext for Externalities<'a, T, V, B>
 		self.env_info
 	}
 
+	fn chain_id(&self) -> u64 {
+		self.machine.params().chain_id
+	}
+
 	fn depth(&self) -> usize {
 		self.depth
 	}

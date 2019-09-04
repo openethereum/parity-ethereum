@@ -25,12 +25,12 @@ use error::Error;
 
 /// Wrapper around local db with private state for sync purposes
 pub struct PrivateStateDB {
-	db: Arc<KeyValueDB>,
+	db: Arc<dyn KeyValueDB>,
 }
 
 impl PrivateStateDB {
 	/// Constructs the object
-	pub fn new(db: Arc<KeyValueDB>) -> Self {
+	pub fn new(db: Arc<dyn KeyValueDB>) -> Self {
 		PrivateStateDB {
 			db,
 		}

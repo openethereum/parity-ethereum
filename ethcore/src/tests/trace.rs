@@ -181,7 +181,6 @@ fn can_trace_block_and_uncle_reward() {
 
 	block.drain();
 	client.flush_queue();
-	client.import_verified_blocks();
 
 	// Test0. Check overall filter
 	let filter = TraceFilter {

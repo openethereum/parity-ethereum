@@ -19,7 +19,7 @@ use serde::{Deserialize, Deserializer};
 use serde::de::{Error, Visitor};
 
 use ethereum_types::H256;
-use ethstore;
+
 
 /// Type of derivation
 pub enum DerivationType {

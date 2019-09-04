@@ -36,36 +36,30 @@ use miner::pool_client::{PoolClient, CachedNonceClient, NonceCache};
 use miner;
 use parking_lot::{Mutex, RwLock};
 use rayon::prelude::*;
-use types::transaction::{
-	self,
-	Action,
-	UnverifiedTransaction,
-	SignedTransaction,
-	PendingTransaction,
-};
 use types::{
 	BlockNumber,
 	ids::TransactionId,
 	block::Block,
 	header::Header,
 	ids::BlockId,
+	io_message::ClientIoMessage,
 	engines::{Seal, SealingState},
 	errors::{EthcoreError as Error, ExecutionError},
 	receipt::RichReceipt,
+	transaction::{
+		self,
+		Action,
+		UnverifiedTransaction,
+		SignedTransaction,
+		PendingTransaction,
+	},
 };
 use using_queue::{UsingQueue, GetAction};
 
 use block::{ClosedBlock, SealedBlock};
-use client::{
-	BlockProducer, SealedBlockImporter, ClientIoMessage,
-};
-use client_traits::{
-	BlockChain, ChainInfo, Nonce, TransactionInfo,
-};
-use engine::{
-	Engine,
-	signer::EngineSigner
-};
+use client::{BlockProducer, SealedBlockImporter, Client};
+use client_traits::{BlockChain, ChainInfo, Nonce, TransactionInfo};
+use engine::{Engine, signer::EngineSigner};
 use machine::executive::contract_address;
 use spec::Spec;
 use account_state::State;
@@ -262,7 +256,7 @@ pub struct Miner {
 	transaction_queue: Arc<TransactionQueue>,
 	engine: Arc<dyn Engine>,
 	accounts: Arc<dyn LocalAccounts>,
-	io_channel: RwLock<Option<IoChannel<ClientIoMessage>>>,
+	io_channel: RwLock<Option<IoChannel<ClientIoMessage<Client>>>>,
 	service_transaction_checker: Option<ServiceTransactionChecker>,
 }
 
@@ -346,7 +340,7 @@ impl Miner {
 	}
 
 	/// Sets `IoChannel`
-	pub fn set_io_channel(&self, io_channel: IoChannel<ClientIoMessage>) {
+	pub fn set_io_channel(&self, io_channel: IoChannel<ClientIoMessage<Client>>) {
 		*self.io_channel.write() = Some(io_channel);
 	}
 
@@ -1426,7 +1420,7 @@ impl miner::MinerService for Miner {
 				let accounts = self.accounts.clone();
 				let service_transaction_checker = self.service_transaction_checker.clone();
 
-				let cull = move |chain: &::client::Client| {
+				let cull = move |chain: &Client| {
 					let client = PoolClient::new(
 						chain,
 						&nonce_cache,
@@ -1437,7 +1431,7 @@ impl miner::MinerService for Miner {
 					queue.cull(client);
 				};
 
-				if let Err(e) = channel.send(ClientIoMessage::execute(cull)) {
+				if let Err(e) = channel.send(ClientIoMessage::<Client>::execute(cull)) {
 					warn!(target: "miner", "Error queueing cull: {:?}", e);
 				}
 			} else {

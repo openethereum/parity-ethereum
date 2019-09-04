@@ -13,7 +13,6 @@ client-traits = { path = "../client-traits" }
 common-types = { path = "../types" }
 derive_more = "0.14.0"
 engine = { path = "../engine" }
-ethcore = { path = ".."}
 ethcore-db = { path = "../db" }
 ethcore-blockchain = { path = "../blockchain" }
 ethereum-types = "0.6.0"
@@ -49,6 +48,7 @@ kvdb = "0.1"
 memory-cache = { path = "../../util/memory-cache" }
 error-chain = { version = "0.12", default-features = false }
 journaldb = { path = "../../util/journaldb" }
+verification = { path = "../verification" }
 
 [dev-dependencies]
 ethcore = { path = "..", features = ["test-helpers"] }

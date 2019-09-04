@@ -20,7 +20,7 @@ use hash::keccak;
 use ethereum_types::H256;
 use parking_lot::Mutex;
 use bytes::Bytes;
-use ethcore::snapshot::SnapshotService;
+use snapshot::SnapshotService;
 use ethcore::client::EachBlockWith;
 use types::{
 	BlockNumber,

@@ -24,7 +24,7 @@ pub use parity_rpc::signer::SignerService;
 use account_utils::{self, AccountProvider};
 use ethcore::client::Client;
 use ethcore::miner::Miner;
-use ethcore::snapshot::SnapshotService;
+use snapshot::SnapshotService;
 use client_traits::BlockChainClient;
 use sync::SyncState;
 use ethcore_logger::RotatingLogger;
@@ -235,16 +235,16 @@ pub trait Dependencies {
 pub struct FullDependencies {
 	pub signer_service: Arc<SignerService>,
 	pub client: Arc<Client>,
-	pub snapshot: Arc<SnapshotService>,
-	pub sync: Arc<SyncProvider>,
-	pub net: Arc<ManageNetwork>,
+	pub snapshot: Arc<dyn SnapshotService>,
+	pub sync: Arc<dyn SyncProvider>,
+	pub net: Arc<dyn ManageNetwork>,
 	pub accounts: Arc<AccountProvider>,
 	pub private_tx_service: Option<Arc<PrivateTxService>>,
 	pub miner: Arc<Miner>,
 	pub external_miner: Arc<ExternalMiner>,
 	pub logger: Arc<RotatingLogger>,
 	pub settings: Arc<NetworkSettings>,
-	pub net_service: Arc<ManageNetwork>,
+	pub net_service: Arc<dyn ManageNetwork>,
 	pub updater: Arc<Updater>,
 	pub geth_compatibility: bool,
 	pub experimental_rpcs: bool,
@@ -485,7 +485,7 @@ pub struct LightDependencies<T> {
 	pub signer_service: Arc<SignerService>,
 	pub client: Arc<T>,
 	pub sync: Arc<LightSync>,
-	pub net: Arc<ManageNetwork>,
+	pub net: Arc<dyn ManageNetwork>,
 	pub accounts: Arc<AccountProvider>,
 	pub logger: Arc<RotatingLogger>,
 	pub settings: Arc<NetworkSettings>,

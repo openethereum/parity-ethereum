@@ -71,6 +71,7 @@ bundle_release_spec! {
 	"ethereum/morden" => new_morden,
 	"ethereum/musicoin" => new_musicoin,
 	"ethereum/poacore" => new_poanet,
+	"ethereum/xdai" => new_xdai,
 	"ethereum/poasokol" => new_sokol,
 	"ethereum/rinkeby" => new_rinkeby,
 	"ethereum/ropsten" => new_ropsten,

@@ -53,57 +53,44 @@
 //!   cargo build --release
 //!   ```
 
-extern crate account_db;
 extern crate account_state;
 extern crate ansi_term;
 extern crate client_traits;
 extern crate common_types as types;
-extern crate crossbeam_utils;
 extern crate engine;
 extern crate ethabi;
 extern crate ethcore_blockchain as blockchain;
-extern crate ethcore_bloom_journal as bloom_journal;
 extern crate ethcore_call_contract as call_contract;
 extern crate ethcore_db as db;
 extern crate ethcore_io as io;
 extern crate ethcore_miner;
 extern crate ethereum_types;
 extern crate executive_state;
-extern crate trie_vm_factories;
 extern crate futures;
 extern crate hash_db;
 extern crate itertools;
 extern crate journaldb;
 extern crate keccak_hash as hash;
-extern crate keccak_hasher;
 extern crate kvdb;
-#[cfg(any(test, feature = "test-helpers"))]
-extern crate kvdb_memorydb;
-
-extern crate len_caching_lock;
 extern crate machine;
 extern crate memory_cache;
-extern crate num_cpus;
 extern crate parity_bytes as bytes;
-extern crate parity_snappy as snappy;
 extern crate parking_lot;
 extern crate trie_db as trie;
 extern crate patricia_trie_ethereum as ethtrie;
 extern crate rand;
 extern crate rayon;
 extern crate rlp;
-extern crate parity_util_mem;
-extern crate parity_util_mem as malloc_size_of;
-#[cfg(any(test, feature = "test-helpers"))]
-extern crate rustc_hex;
 extern crate serde;
+extern crate snapshot;
 extern crate spec;
 extern crate state_db;
-extern crate time_utils;
 extern crate trace;
+extern crate trie_vm_factories;
 extern crate triehash_ethereum as triehash;
 extern crate unexpected;
 extern crate using_queue;
+extern crate verification;
 extern crate vm;
 
 #[cfg(test)]
@@ -116,11 +103,13 @@ extern crate ethcore_stratum;
 extern crate ethash;
 
 #[cfg(any(test, feature = "test-helpers"))]
+extern crate account_db;
+#[cfg(any(test, feature = "test-helpers"))]
 extern crate ethkey;
 #[cfg(any(test, feature = "test-helpers"))]
 extern crate ethjson;
-#[cfg(any(test, feature = "tempdir"))]
-extern crate tempdir;
+#[cfg(any(test, feature = "test-helpers"))]
+extern crate kvdb_memorydb;
 #[cfg(any(test, feature = "kvdb-rocksdb"))]
 extern crate kvdb_rocksdb;
 #[cfg(any(test, feature = "json-tests"))]
@@ -137,8 +126,12 @@ extern crate pod;
 extern crate blooms_db;
 #[cfg(any(test, feature = "env_logger"))]
 extern crate env_logger;
+#[cfg(any(test, feature = "test-helpers"))]
+extern crate rustc_hex;
 #[cfg(test)]
 extern crate serde_json;
+#[cfg(any(test, feature = "tempdir"))]
+extern crate tempdir;
 
 #[macro_use]
 extern crate ethabi_contract;
@@ -161,8 +154,6 @@ extern crate parity_runtime;
 pub mod block;
 pub mod client;
 pub mod miner;
-pub mod snapshot;
-pub mod verification;
 
 #[cfg(test)]
 mod tests;

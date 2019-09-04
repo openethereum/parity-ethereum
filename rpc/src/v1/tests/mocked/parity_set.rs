@@ -58,7 +58,7 @@ fn parity_set_client(
 		client,
 		miner,
 		updater,
-		&(net.clone() as Arc<ManageNetwork>),
+		&(net.clone() as Arc<dyn ManageNetwork>),
 		FakeFetch::new(Some(1)),
 	)
 }

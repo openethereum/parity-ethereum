@@ -16,21 +16,20 @@
 
 use std::sync::{Arc, mpsc};
 
-use client_traits::BlockChainClient;
+use client_traits::{BlockChainClient, ChainNotify};
 use sync::{self, SyncConfig, NetworkConfiguration, Params, ConnectionFilter};
-use ethcore::snapshot::SnapshotService;
+use snapshot::SnapshotService;
 use ethcore_private_tx::PrivateStateDB;
 use light::Provider;
 use parity_runtime::Executor;
 
 pub use sync::{EthSync, SyncProvider, ManageNetwork, PrivateTxHandler};
-pub use ethcore::client::ChainNotify;
 use ethcore_logger::Config as LogConfig;
 
 pub type SyncModules = (
-	Arc<SyncProvider>,
-	Arc<ManageNetwork>,
-	Arc<ChainNotify>,
+	Arc<dyn SyncProvider>,
+	Arc<dyn ManageNetwork>,
+	Arc<dyn ChainNotify>,
 	mpsc::Sender<sync::PriorityTask>,
 );
 
@@ -38,13 +37,13 @@ pub fn sync(
 	config: SyncConfig,
 	executor: Executor,
 	network_config: NetworkConfiguration,
-	chain: Arc<BlockChainClient>,
-	snapshot_service: Arc<SnapshotService>,
-	private_tx_handler: Option<Arc<PrivateTxHandler>>,
+	chain: Arc<dyn BlockChainClient>,
+	snapshot_service: Arc<dyn SnapshotService>,
+	private_tx_handler: Option<Arc<dyn PrivateTxHandler>>,
 	private_state: Option<Arc<PrivateStateDB>>,
-	provider: Arc<Provider>,
+	provider: Arc<dyn Provider>,
 	_log_settings: &LogConfig,
-	connection_filter: Option<Arc<ConnectionFilter>>,
+	connection_filter: Option<Arc<dyn ConnectionFilter>>,
 ) -> Result<SyncModules, sync::Error> {
 	let eth_sync = EthSync::new(Params {
 		config,
@@ -59,9 +58,9 @@ pub fn sync(
 	connection_filter)?;
 
 	Ok((
-		eth_sync.clone() as Arc<SyncProvider>,
-		eth_sync.clone() as Arc<ManageNetwork>,
-		eth_sync.clone() as Arc<ChainNotify>,
+		eth_sync.clone() as Arc<dyn SyncProvider>,
+		eth_sync.clone() as Arc<dyn ManageNetwork>,
+		eth_sync.clone() as Arc<dyn ChainNotify>,
 		eth_sync.priority_tasks()
 	))
 }

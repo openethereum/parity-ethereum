@@ -24,25 +24,25 @@ use_contract!(registrar, "res/registrar.json");
 // Maps a domain name to an Ethereum address
 const DNS_A_RECORD: &'static str = "A";
 
-pub type Asynchronous = Box<Future<Item=Bytes, Error=String> + Send>;
+pub type Asynchronous = Box<dyn Future<Item=Bytes, Error=String> + Send>;
 pub type Synchronous = Result<Bytes, String>;
 
 /// Registrar is dedicated interface to access the registrar contract
 /// which in turn generates an address when a client requests one
 pub struct Registrar {
-	client: Arc<RegistrarClient<Call=Asynchronous>>,
+	client: Arc<dyn RegistrarClient<Call=Asynchronous>>,
 }
 
 impl Registrar {
 	/// Registrar constructor
-	pub fn new(client: Arc<RegistrarClient<Call=Asynchronous>>) -> Self {
+	pub fn new(client: Arc<dyn RegistrarClient<Call=Asynchronous>>) -> Self {
 		Self {
 			client: client,
 		}
 	}
 
 	/// Generate an address for the given key
-	pub fn get_address<'a>(&self, key: &'a str) -> Box<Future<Item = Address, Error = String> + Send> {
+	pub fn get_address<'a>(&self, key: &'a str) -> Box<dyn Future<Item = Address, Error = String> + Send> {
 		// Address of the registrar itself
 		let registrar_address = match self.client.registrar_address() {
 			Ok(a) => a,

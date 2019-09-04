@@ -17,9 +17,14 @@
 //! Client related types.
 
 use std::{
+	cmp,
 	fmt::{Display, Formatter, Error as FmtError},
+	ops,
 	time::Duration,
 };
+
+use ethereum_types::U256;
+use crate::header::Header;
 
 /// Operating mode for the client.
 #[derive(Debug, Eq, PartialEq, Clone)]
@@ -47,3 +52,40 @@ impl Display for Mode {
 	}
 }
 
+/// Report on the status of a client.
+#[derive(Default, Clone, Debug, Eq, PartialEq)]
+pub struct ClientReport {
+	/// How many blocks have been imported so far.
+	pub blocks_imported: usize,
+	/// How many transactions have been applied so far.
+	pub transactions_applied: usize,
+	/// How much gas has been processed so far.
+	pub gas_processed: U256,
+	/// Memory used by state DB
+	pub state_db_mem: usize,
+}
+
+impl ClientReport {
+	/// Alter internal reporting to reflect the additional `block` has been processed.
+	pub fn accrue_block(&mut self, header: &Header, transactions: usize) {
+		self.blocks_imported += 1;
+		self.transactions_applied += transactions;
+		self.gas_processed = self.gas_processed + *header.gas_used();
+	}
+}
+
+impl<'a> ops::Sub<&'a ClientReport> for ClientReport {
+	type Output = Self;
+
+	fn sub(mut self, other: &'a ClientReport) -> Self {
+		let higher_mem = cmp::max(self.state_db_mem, other.state_db_mem);
+		let lower_mem = cmp::min(self.state_db_mem, other.state_db_mem);
+
+		self.blocks_imported -= other.blocks_imported;
+		self.transactions_applied -= other.transactions_applied;
+		self.gas_processed = self.gas_processed - other.gas_processed;
+		self.state_db_mem = higher_mem - lower_mem;
+
+		self
+	}
+}

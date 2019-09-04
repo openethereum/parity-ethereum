@@ -19,8 +19,7 @@
 use std::sync::{Weak, Arc};
 
 use engine::{Engine, EpochChange, Proof};
-use ethcore::client::{ClientReport, ClientIoMessage};
-use ethcore::verification::queue::{self, HeaderQueue};
+use verification::queue::{self, HeaderQueue};
 use spec::{Spec, SpecHardcodedSync};
 use io::IoChannel;
 use parking_lot::{Mutex, RwLock};
@@ -30,12 +29,14 @@ use common_types::{
 	BlockNumber,
 	block_status::BlockStatus,
 	blockchain_info::BlockChainInfo,
+	client_types::ClientReport,
 	encoded,
 	engines::epoch::{Transition as EpochTransition, PendingTransition},
 	errors::EthcoreError as Error,
 	errors::EthcoreResult,
 	header::Header,
 	ids::BlockId,
+	io_message::ClientIoMessage,
 	verification::VerificationQueueInfo as BlockQueueInfo,
 };
 use kvdb::KeyValueDB;
@@ -162,7 +163,7 @@ impl<T: LightChainClient> AsLightClient for T {
 
 /// Light client implementation.
 pub struct Client<T> {
-	queue: HeaderQueue,
+	queue: HeaderQueue<()>,
 	engine: Arc<dyn Engine>,
 	chain: HeaderChain,
 	report: RwLock<ClientReport>,
@@ -183,7 +184,7 @@ impl<T: ChainDataFetcher> Client<T> {
 		chain_col: Option<u32>,
 		spec: &Spec,
 		fetcher: T,
-		io_channel: IoChannel<ClientIoMessage>,
+		io_channel: IoChannel<ClientIoMessage<()>>,
 		cache: Arc<Mutex<Cache>>
 	) -> Result<Self, Error> {
 		Ok(Self {
@@ -649,3 +650,5 @@ impl<T: ChainDataFetcher> client_traits::EngineClient for Client<T> {
 		Client::block_header(self, id)
 	}
 }
+
+impl<T> client_traits::Tick for Client<T> {}

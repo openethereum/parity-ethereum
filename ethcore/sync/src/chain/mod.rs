@@ -109,11 +109,13 @@ use rlp::{RlpStream, DecoderError};
 use network::{self, PeerId, PacketId};
 use network::client_version::ClientVersion;
 use client_traits::BlockChainClient;
-use sync_io::SyncIo;
+use crate::{
+	sync_io::SyncIo,
+	snapshot_sync::Snapshot,
+};
 use super::{WarpSync, SyncConfig};
 use block_sync::{BlockDownloader, DownloadAction};
 use rand::{Rng, seq::SliceRandom};
-use snapshot::{Snapshot};
 use api::{EthProtocolInfo as PeerInfoDigest, WARP_SYNC_PROTOCOL_ID, PriorityTask};
 use private_tx::PrivateTxHandler;
 use transactions_stats::{TransactionsStats, Stats as TransactionStats};
@@ -1382,7 +1384,7 @@ impl ChainSync {
 	}
 
 	/// Request private state from peers
-	pub fn request_private_state(&mut self, io: &mut SyncIo, hash: &H256) {
+	pub fn request_private_state(&mut self, io: &mut dyn SyncIo, hash: &H256) {
 		let private_state_peers = self.get_private_state_peers();
 		if private_state_peers.is_empty() {
 			error!(target: "privatetx", "Cannot request private state, no peers with private tx enabled available");

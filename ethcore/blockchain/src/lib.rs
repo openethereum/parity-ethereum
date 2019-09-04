@@ -22,11 +22,9 @@ extern crate parity_util_mem as util_mem;
 extern crate parity_util_mem as malloc_size_of;
 
 mod best_block;
-mod block_info;
 mod blockchain;
 mod cache;
 mod config;
-mod import_route;
 mod update;
 
 pub mod generator;
@@ -35,7 +33,6 @@ pub use crate::{
 	blockchain::{BlockProvider, BlockChain, BlockChainDB, BlockChainDBHandler},
 	cache::CacheSize,
 	config::Config,
-	import_route::ImportRoute,
 	update::ExtrasInsert,
 };
 pub use ethcore_db::keys::{BlockReceipts, BlockDetails, TransactionAddress, BlockNumberKey};
