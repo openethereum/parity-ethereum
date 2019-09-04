@@ -59,7 +59,7 @@ impl Pricer for Blake2FPricer {
 		let (rounds_bytes, _) = input.split_at(std::mem::size_of::<u32>());
 		// Returning zero if the conversion fails is fine because `execute()` will check the length
 		// and bail with the appropriate error.
-		let rounds = u32::from_be_bytes(rounds_bytes.try_into().unwrap_or_else(|_| [0u8; 4] ));
+		let rounds = u32::from_be_bytes(rounds_bytes.try_into().unwrap_or([0u8; 4]));
 		U256::from(*self as u128 * rounds as u128)
 	}
 }
@@ -369,7 +369,8 @@ impl Implementation for Sha256 {
 }
 
 impl Implementation for Blake2F {
-	/// Format of `input`: `[4 bytes for rounds][64 bytes for h][128 bytes for m][8 bytes for t_0][8 bytes for t_1][1 byte for f]`
+	/// Format of `input`:
+	/// [4 bytes for rounds][64 bytes for h][128 bytes for m][8 bytes for t_0][8 bytes for t_1][1 byte for f]
 	fn execute(&self, input: &[u8], output: &mut BytesRef) -> Result<(), &'static str> {
 		const BLAKE2_F_ARG_LEN: usize = 213;
 		const PROOF: &str = "Checked the length of the input above; qed";
@@ -384,19 +385,21 @@ impl Implementation for Blake2F {
 
 		// state vector, h
 		let mut h = [0u64; 8];
-		for i in 0..8 {
-			h[i] = cursor.read_u64::<LittleEndian>().expect(PROOF);
+		for state_byte in h.iter_mut() {
+			*state_byte = cursor.read_u64::<LittleEndian>().expect(PROOF);
 		}
 
 		// message block vector, m
 		let mut m = [0u64; 16];
-		for i in 0..16 {
-			m[i] = cursor.read_u64::<LittleEndian>().expect(PROOF);
+		for msg_byte in m.iter_mut() {
+			*msg_byte = cursor.read_u64::<LittleEndian>().expect(PROOF);
 		}
 
 		// 2w-bit offset counter, t
-		let t0 = cursor.read_u64::<LittleEndian>().expect(PROOF);
-		let t1 = cursor.read_u64::<LittleEndian>().expect(PROOF);
+		let t = [
+			cursor.read_u64::<LittleEndian>().expect(PROOF),
+			cursor.read_u64::<LittleEndian>().expect(PROOF),
+		];
 
 		// final block indicator flag, "f"
 		let f = match input.last() {
@@ -408,7 +411,7 @@ impl Implementation for Blake2F {
 				}
 			};
 
-		compress(&mut h, m, [t0, t1], f, rounds as usize);
+		compress(&mut h, m, t, f, rounds as usize);
 
 		output.write(0, unsafe {
 			// `from_raw_parts` is safe under the assumption that `h` is
