@@ -71,10 +71,6 @@ mod finality;
 
 use self::finality::RollingFinality;
 
-type TransitionStep = u64;
-type TransitionTimestamp = u64;
-type StepDuration = u64;
-
 /// `AuthorityRound` params.
 pub struct AuthorityRoundParams {
 	/// A map defining intervals of blocks with the given times (in seconds) to wait before next
@@ -83,7 +79,7 @@ pub struct AuthorityRoundParams {
 	///
 	/// Wait times (durations) are additionally required to be less than 65535 since larger values
 	/// lead to slow block issuance.
-	pub step_durations: BTreeMap<TransitionTimestamp, StepDuration>,
+	pub step_durations: BTreeMap<u64, u64>,
 	/// Starting step,
 	pub start_step: Option<u64>,
 	/// Valid validators.
@@ -180,13 +176,21 @@ impl From<ethjson::spec::AuthorityRoundParams> for AuthorityRoundParams {
 	}
 }
 
+/// A triple containing the first step number and the starting timestamp of the given step duration.
+#[derive(Clone, Debug)]
+struct StepDurationInfo {
+	transition_step: u64,
+	transition_timestamp: u64,
+	step_duration: u64,
+}
+
 /// Helper for managing the step.
 #[derive(Debug)]
 struct Step {
 	calibrate: bool, // whether calibration is enabled.
 	inner: AtomicU64,
 	/// Planned durations of steps.
-	durations: Vec<(TransitionStep, TransitionTimestamp, StepDuration)>,
+	durations: Vec<StepDurationInfo>,
 }
 
 impl Step {
@@ -206,12 +210,14 @@ impl Step {
 	/// under- or overflow.
 	fn opt_duration_remaining(&self) -> Option<Duration> {
 		let next_step = self.load().checked_add(1)?;
-		let (step, time, dur) = self.durations.iter()
-			.take_while(|(step, _, _)| *step < next_step)
+		let StepDurationInfo { transition_step, transition_timestamp, step_duration } =
+			self.durations.iter()
+			.take_while(|info| info.transition_step < next_step)
 			.last()
 			.expect("durations cannot be empty")
 			.clone();
-		let next_time = time.checked_add(next_step.checked_sub(step)?.checked_mul(dur)?)?;
+		let next_time = transition_timestamp
+			.checked_add(next_step.checked_sub(transition_step)?.checked_mul(step_duration)?)?;
 		Some(Duration::from_secs(next_time.saturating_sub(unix_now().as_secs())))
 	}
 
@@ -241,12 +247,14 @@ impl Step {
 	/// Calibrates the AuRa step number according to the current time.
 	fn opt_calibrate(&self) -> Option<()> {
 		let now = unix_now().as_secs();
-		let (step, time, dur) = self.durations.iter()
-			.take_while(|(_, time, _)| *time < now)
+		let StepDurationInfo { transition_step, transition_timestamp, step_duration } =
+			self.durations.iter()
+			.take_while(|info| info.transition_timestamp < now)
 			.last()
 			.expect("durations cannot be empty")
 			.clone();
-		let new_step = (now.checked_sub(time)? / dur).checked_add(step)?;
+		let new_step = (now.checked_sub(transition_timestamp)? / step_duration)
+			.checked_add(transition_step)?;
 		self.inner.store(new_step, AtomicOrdering::SeqCst);
 		Some(())
 	}
@@ -268,8 +276,9 @@ impl Step {
 			Err(None)
 		// wait a bit for blocks in near future
 		} else if given > current {
-			let d = self.durations.iter().take_while(|(step, _, _)| *step <= current).last()
-				.expect("Duration map has at least a 0 entry.").2;
+			let d = self.durations.iter().take_while(|info| info.transition_step <= current).last()
+				.expect("Duration map has at least a 0 entry.")
+				.step_duration;
 			Err(Some(OutOfBounds {
 				min: None,
 				max: Some(d * current),
@@ -778,11 +787,24 @@ impl AuthorityRound {
 		let mut prev_step = 0u64;
 		let mut prev_time = 0u64;
 		let mut prev_dur = our_params.step_durations[&0];
-		durations.push((prev_step, prev_time, prev_dur));
+		durations.push(StepDurationInfo {
+			transition_step: prev_step,
+			transition_timestamp: prev_time,
+			step_duration: prev_dur
+		});
 		for (time, dur) in our_params.step_durations.iter().skip(1) {
-			let (step, time) = next_step_time_duration(prev_step, prev_time, prev_dur, *time)
+			let (step, time) = next_step_time_duration(
+				StepDurationInfo{
+					transition_step: prev_step,
+					transition_timestamp: prev_time,
+					step_duration: prev_dur,
+				}, *time)
 				.ok_or(BlockError::TimestampOverflow)?;
-			durations.push((step, time, *dur));
+			durations.push(StepDurationInfo {
+				transition_step: step,
+				transition_timestamp: time,
+				step_duration: *dur
+			});
 			prev_step = step;
 			prev_time = time;
 			prev_dur = *dur;
@@ -1728,21 +1750,15 @@ impl Engine for AuthorityRound {
 
 /// A helper accumulator function mapping a step duration and a step duration transition timestamp
 /// to the corresponding step number and the correct starting second of the step.
-fn next_step_time_duration(
-	prev_step: TransitionStep,
-	prev_time: TransitionTimestamp,
-	prev_dur: StepDuration,
-	time: TransitionTimestamp,
-) ->
-	Option<(TransitionStep, TransitionTimestamp)>
+fn next_step_time_duration(info: StepDurationInfo, time: u64) -> Option<(u64, u64)>
 {
-	let step_diff = time.checked_add(prev_dur)?
+	let step_diff = time.checked_add(info.step_duration)?
 		.checked_sub(1)?
-		.checked_sub(prev_time)?
-		.checked_div(prev_dur)?;
+		.checked_sub(info.transition_timestamp)?
+		.checked_div(info.step_duration)?;
 	Some((
-		prev_step.checked_add(step_diff)?,
-		step_diff.checked_mul(prev_dur)?.checked_add(time)?,
+		info.transition_step.checked_add(step_diff)?,
+		step_diff.checked_mul(info.step_duration)?.checked_add(time)?,
 	))
 }
 
@@ -1779,7 +1795,10 @@ mod tests {
 	use ethjson;
 	use serde_json;
 
-	use super::{AuthorityRoundParams, AuthorityRound, EmptyStep, SealedEmptyStep, calculate_score};
+	use super::{
+		AuthorityRoundParams, AuthorityRound, EmptyStep, SealedEmptyStep, StepDurationInfo,
+		calculate_score,
+	};
 
 	fn build_aura<F>(f: F) -> Arc<AuthorityRound> where
 		F: FnOnce(&mut AuthorityRoundParams),
@@ -2044,7 +2063,11 @@ mod tests {
 		let step = Step {
 			calibrate: false,
 			inner: AtomicU64::new(::std::u64::MAX),
-			durations: [(0, 0, 1)].to_vec().into_iter().collect(),
+			durations: [StepDurationInfo {
+				transition_step: 0,
+				transition_timestamp: 0,
+				step_duration: 1,
+			}].to_vec().into_iter().collect(),
 		};
 		step.increment();
 	}
@@ -2056,7 +2079,11 @@ mod tests {
 		let step = Step {
 			calibrate: false,
 			inner: AtomicU64::new(::std::u64::MAX),
-			durations: [(0, 0, 1)].to_vec().into_iter().collect(),
+			durations: [StepDurationInfo {
+				transition_step: 0,
+				transition_timestamp: 0,
+				step_duration: 1,
+			}].to_vec().into_iter().collect(),
 		};
 		step.duration_remaining();
 	}
@@ -2071,9 +2098,9 @@ mod tests {
 			calibrate: true,
 			inner: AtomicU64::new(::std::u64::MAX),
 			durations: [
-				(0, 0, 1),
-				(now, now, 2),
-				(now + 1, now + 2, 4)
+				StepDurationInfo { transition_step: 0, transition_timestamp: 0, step_duration: 1 },
+				StepDurationInfo { transition_step: now, transition_timestamp: now, step_duration: 2 },
+				StepDurationInfo { transition_step: now + 1, transition_timestamp: now + 2, step_duration: 4 },
 			].to_vec().into_iter().collect(),
 		};
 		// calibrated step `now`
@@ -2095,7 +2122,7 @@ mod tests {
 	#[should_panic(expected="called `Result::unwrap()` on an `Err` value: Engine(Custom(\"step duration cannot be 0\"))")]
 	fn test_step_duration_zero() {
 		build_aura(|params| {
-			params.step_durations = [(0, 0)].to_vec().into_iter().collect();;
+			params.step_durations = [(0, 0)].to_vec().into_iter().collect();
 		});
 	}
 
