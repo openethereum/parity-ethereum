@@ -1438,7 +1438,9 @@ impl miner::MinerService for Miner {
 						service_transaction_checker.as_ref(),
 					);
 					queue.cull(client);
-					chain.maybe_update_sealing();
+					if is_internal_import {
+						chain.maybe_update_sealing();
+					}
 				};
 
 				if let Err(e) = channel.send(ClientIoMessage::<Client>::execute(cull)) {
@@ -1446,7 +1448,9 @@ impl miner::MinerService for Miner {
 				}
 			} else {
 				self.transaction_queue.cull(client);
-				self.maybe_update_sealing(chain);
+				if is_internal_import {
+					self.maybe_update_sealing(chain);
+				}
 			}
 		}
 
