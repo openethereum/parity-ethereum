@@ -20,7 +20,7 @@ lru-cache = "0.1"
 machine = { path = "../../machine" }
 macros = { path = "../../../util/macros" }
 parking_lot = "0.8"
-rand = "0.6"
+rand = "0.7"
 rlp = "0.4.0"
 time-utils = { path = "../../../util/time-utils" }
 unexpected = { path = "../../../util/unexpected" }
