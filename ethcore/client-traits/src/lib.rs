@@ -517,8 +517,8 @@ pub trait ChainNotify: Send + Sync {
 pub trait ImportExportBlocks {
     /// Export blocks to destination, with the given from, to and format argument.
     /// destination could be a file or stdout.
-    /// if the format is hex, each block is written on a new line.
-    /// for binary exports, all block data is written to the same line.
+    /// If the format is hex, each block is written on a new line.
+    /// For binary exports, all block data is written to the same line.
 	fn export_blocks<'a>(
         &self,
         destination: Box<dyn std::io::Write + 'a>,

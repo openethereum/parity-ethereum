@@ -2641,10 +2641,10 @@ impl ImportExportBlocks for Client {
 			while self.queue_info().is_full() { std::thread::sleep(Duration::from_secs(1)); }
 			match self.import_block(block) {
 				Err(EthcoreError::Import(ImportError::AlreadyInChain)) => {
-					trace!("Skipping block already in chain.");
+					trace!("Skipping block #{}: already in chain.", block.number());
 				}
 				Err(e) => {
-					return Err(format!("Cannot import block: {:?}", e));
+					return Err(format!("Cannot import block #{}: {:?}", block.number(), e));
 				},
 				Ok(_) => {},
 			}
