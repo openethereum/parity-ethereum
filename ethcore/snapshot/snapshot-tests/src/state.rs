@@ -18,7 +18,6 @@
 
 use std::sync::Arc;
 use std::sync::atomic::AtomicBool;
-<<<<<<< HEAD:ethcore/snapshot/snapshot-tests/src/state.rs
 
 use keccak_hash::{KECCAK_NULL_RLP, keccak};
 use common_types::{
@@ -31,22 +30,6 @@ use snapshot::{
 	chunk_state, StateRebuilder, SNAPSHOT_SUBPARTS,
 	io::{PackedReader, PackedWriter, SnapshotReader, SnapshotWriter},
 };
-=======
-use keccak_hash::{KECCAK_NULL_RLP, keccak};
-
-use common_types::{
-	basic_account::BasicAccount,
-	errors::EthcoreError as Error,
-	snapshot::ManifestData,
-};
-use client_traits::SnapshotWriter;
-use crate::{
-	account,
-	{chunk_state, Error as SnapshotError, Progress, StateRebuilder, SNAPSHOT_SUBPARTS},
-	io::{PackedReader, PackedWriter, SnapshotReader},
-	tests::helpers::StateProducer,
-};
->>>>>>> master:ethcore/snapshot/src/tests/state.rs
 use rand::SeedableRng;
 use rand_xorshift::XorShiftRng;
 use ethereum_types::H256;
@@ -113,11 +96,7 @@ fn snap_and_restore() {
 		new_db
 	};
 
-<<<<<<< HEAD:ethcore/snapshot/snapshot-tests/src/state.rs
 	let new_db = journaldb::new(db, Algorithm::OverlayRecent,  ethcore_db::COL_STATE);
-=======
-	let new_db = journaldb::new(db, Algorithm::OverlayRecent, ethcore_db::COL_STATE);
->>>>>>> master:ethcore/snapshot/src/tests/state.rs
 	assert_eq!(new_db.earliest_era(), Some(1000));
 	let keys = old_db.keys();
 

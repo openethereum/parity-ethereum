@@ -22,30 +22,18 @@ use std::sync::Arc;
 use tempdir::TempDir;
 use blockchain::BlockProvider;
 use ethcore::client::{Client, ClientConfig};
-<<<<<<< HEAD:ethcore/snapshot/snapshot-tests/src/service.rs
 use client_traits::{BlockInfo, ImportBlock};
 use common_types::{
 	io_message::ClientIoMessage,
-=======
-use client_traits::{BlockInfo, ImportBlock, SnapshotWriter};
-use common_types::{
->>>>>>> master:ethcore/snapshot/src/tests/service.rs
 	ids::BlockId,
 	snapshot::Progress,
 	verification::Unverified,
 	snapshot::{ManifestData, RestorationStatus},
 };
-<<<<<<< HEAD:ethcore/snapshot/snapshot-tests/src/service.rs
 use snapshot::{
 	chunk_state, chunk_secondary, SnapshotService,
 	io::{PackedReader, PackedWriter, SnapshotReader, SnapshotWriter},
 	service::{Service, ServiceParams, Guard, Restoration, RestorationParams},
-=======
-use crate::{
-	chunk_state, chunk_secondary, SnapshotService,
-	io::{PackedReader, PackedWriter, SnapshotReader},
-	service::{Service, ServiceParams},
->>>>>>> master:ethcore/snapshot/src/tests/service.rs
 	PowSnapshot,
 };
 use spec;
@@ -55,11 +43,7 @@ use ethcore::{
 };
 
 use parking_lot::Mutex;
-<<<<<<< HEAD:ethcore/snapshot/snapshot-tests/src/service.rs
 use ethcore_io::{IoChannel, IoService};
-=======
-use ethcore_io::IoChannel;
->>>>>>> master:ethcore/snapshot/src/tests/service.rs
 use kvdb_rocksdb::DatabaseConfig;
 use journaldb::Algorithm;
 
