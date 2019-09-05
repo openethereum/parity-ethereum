@@ -1,9 +1,10 @@
-Parity Ethereum
+Parity Ethereum Client.
   version {}
 Copyright 2015-2019 Parity Technologies (UK) Ltd.
 License GPLv3+: GNU GPL version 3 or later <http://gnu.org/licenses/gpl.html>.
 This is free software: you are free to change and redistribute it.
 There is NO WARRANTY, to the extent permitted by law.
 
-By Wood/Paronyan/Kotewicz/Drwięga/Volf
-   Habermeier/Czaban/Greeff/Gotchac/Redmann
+By Wood/Paronyan/Kotewicz/Drwięga/Volf/Greeff
+   Habermeier/Czaban/Gotchac/Redman/Nikolsky
+   Schoedon/Tang/Adolfsson/Silva/Palm/Hirsz et al.
