@@ -16,9 +16,10 @@
 
 //! Simple executive tracer.
 
+use std::cmp::min;
 use ethereum_types::{U256, Address};
 use vm::{Error as VmError, ActionParams};
-use log::debug;
+use log::{debug, warn};
 use crate::{
 	Tracer, VMTracer, FlatTrace,
 	trace::{Call, Create, Action, Res, CreateResult, CallResult, VMTrace, VMOperation, VMExecutedOperation, MemoryDiff, StorageDiff, Suicide, Reward, RewardType},
@@ -255,7 +256,12 @@ impl VMTracer for ExecutiveVMTracer {
 
 	fn trace_executed(&mut self, gas_used: U256, stack_push: &[U256], mem: &[u8]) {
 		let TraceData { mem_written, store_written } = self.trace_stack.pop().expect("pushed in trace_prepare_execute; qed");
-		let mem_diff = mem_written.map(|(o, s)| (o, &mem[o..o+s]));
+		let mem_diff = mem_written.map(|(o, s)| {
+			if o + s > mem.len() {
+				warn!(target: "trace", "mem_written is out of bounds");
+			}
+			(o, &mem[min(mem.len(), o)..min(o + s, mem.len())])
+		});
 		let store_diff = store_written;
 		Self::with_trace_in_depth(&mut self.data, self.depth, move |trace| {
 			let ex = VMExecutedOperation {
