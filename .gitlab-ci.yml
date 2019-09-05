@@ -96,11 +96,14 @@ cargo-check 2 3:
     - time cargo check --target $CARGO_TARGET --locked --manifest-path util/io/Cargo.toml --features "mio" --verbose --color=always
     - sccache -s
 
-cargo-check-ethcore-benches:
+cargo-check-benches:
   stage:                           test
   <<:                              *docker-cache-status
   script:
-    - time cargo check -p ethcore --benches --target $CARGO_TARGET --locked --verbose --color=always
+    - time (
+        cargo check --all --benches --exclude ethash --target $CARGO_TARGET --locked --verbose --color=always;
+        (cd ethash; time cargo check --benches --features bench --target $CARGO_TARGET --locked --verbose --color=always)
+      )
     - sccache -s
 
 cargo-audit:
