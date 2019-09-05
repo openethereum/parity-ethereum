@@ -222,7 +222,7 @@ impl PowRebuilder {
 		Ok(PowRebuilder {
 			chain,
 			db,
-			rng: OsRng::new().map_err(|e| format!("{}", e))?,
+			rng: OsRng,
 			disconnected: Vec::new(),
 			best_number: manifest.block_number,
 			best_hash: manifest.block_hash,
