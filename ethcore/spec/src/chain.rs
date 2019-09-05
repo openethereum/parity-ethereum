@@ -102,6 +102,7 @@ bundle_test_spec! {
 	"null" => new_null,
 	"null_morden" => new_test,
 	"null_morden_with_reward" => new_test_with_reward,
+	"null_morden_with_finality" => new_test_with_finality,
 	"validator_contract" => new_validator_contract,
 	"validator_multi" => new_validator_multi,
 	"validator_safe_contract" => new_validator_safe_contract
