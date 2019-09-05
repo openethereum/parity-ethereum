@@ -26,6 +26,8 @@ use serde::Deserialize;
 pub struct NullEngineParams {
 	/// Block reward.
 	pub block_reward: Option<Uint>,
+	/// Immediate finalization.
+	pub immediate_finalization: Option<bool>
 }
 
 /// Null engine descriptor

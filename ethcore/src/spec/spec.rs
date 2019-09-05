@@ -980,6 +980,10 @@ impl Spec {
 	#[cfg(any(test, feature = "test-helpers"))]
 	pub fn new_test_with_reward() -> Spec { load_bundled!("null_morden_with_reward") }
 
+	/// Create a new Spec which conforms to the Frontier-era Morden chain except that it's a NullEngine consensus with finality
+	#[cfg(any(test, feature = "test-helpers"))]
+	pub fn new_test_with_finality() -> Spec { load_bundled!("null_morden_with_finality") }
+
 	/// Create a new Spec which is a NullEngine consensus with a premine of address whose
 	/// secret is keccak('').
 	#[cfg(any(test, feature = "test-helpers"))]

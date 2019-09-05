@@ -17,23 +17,29 @@
 use engines::Engine;
 use engines::block_reward::{self, RewardKind};
 use ethereum_types::U256;
-use machine::Machine;
-use types::BlockNumber;
-use types::header::{Header, ExtendedHeader};
 use block::ExecutedBlock;
 use error::Error;
+use machine::Machine;
+use types::BlockNumber;
+use types::{
+	ancestry_action::AncestryAction,
+	header::{Header, ExtendedHeader},
+};
 
 /// Params for a null engine.
 #[derive(Clone, Default)]
 pub struct NullEngineParams {
 	/// base reward for a block.
 	pub block_reward: U256,
+	/// Immediate finalization.
+	pub immediate_finalization: bool
 }
 
 impl From<::ethjson::spec::NullEngineParams> for NullEngineParams {
 	fn from(p: ::ethjson::spec::NullEngineParams) -> Self {
 		NullEngineParams {
 			block_reward: p.block_reward.map_or_else(Default::default, Into::into),
+			immediate_finalization: p.immediate_finalization.unwrap_or(false)
 		}
 	}
 }
@@ -104,5 +110,14 @@ impl Engine for NullEngine {
 
 	fn fork_choice(&self, new: &ExtendedHeader, current: &ExtendedHeader) -> super::ForkChoice {
 		super::total_difficulty_fork_choice(new, current)
+	}
+
+	fn ancestry_actions(&self, _header: &Header, ancestry: &mut dyn Iterator<Item=ExtendedHeader>) -> Vec<AncestryAction> {
+		if self.params.immediate_finalization {
+			// always mark parent finalized
+			ancestry.take(1).map(|e| AncestryAction::MarkFinalized(e.header.hash())).collect()
+		} else {
+			Vec::new()
+		}
 	}
 }

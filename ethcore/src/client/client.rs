@@ -2939,6 +2939,24 @@ mod tests {
 			outcome: TransactionOutcome::StateRoot(state_root),
 		});
 	}
+
+	#[test]
+	fn should_mark_finalization_correctly_for_parent() {
+		let client = generate_dummy_client_with_spec_and_data(::spec::Spec::new_test_with_finality, 2, 0, &[]);
+		let chain = client.chain();
+
+		let block1_details = chain.block_hash(1).and_then(|h| chain.block_details(&h));
+		assert!(block1_details.is_some());
+		let block1_details = block1_details.unwrap();
+		assert_eq!(block1_details.children.len(), 1);
+		assert!(block1_details.is_finalized);
+
+		let block2_details = chain.block_hash(2).and_then(|h| chain.block_details(&h));
+		assert!(block2_details.is_some());
+		let block2_details = block2_details.unwrap();
+		assert_eq!(block2_details.children.len(), 0);
+		assert!(!block2_details.is_finalized);
+	}
 }
 
 /// Queue some items to be processed by IO client.
