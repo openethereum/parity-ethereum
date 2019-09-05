@@ -2638,13 +2638,14 @@ impl ImportExportBlocks for Client {
 
 		let do_import = |bytes: Vec<u8>| {
 			let block = Unverified::from_rlp(bytes).map_err(|_| "Invalid block rlp")?;
+			let number = block.header.number();
 			while self.queue_info().is_full() { std::thread::sleep(Duration::from_secs(1)); }
 			match self.import_block(block) {
 				Err(EthcoreError::Import(ImportError::AlreadyInChain)) => {
-					trace!("Skipping block #{}: already in chain.", block.number());
+					trace!("Skipping block #{}: already in chain.", number);
 				}
 				Err(e) => {
-					return Err(format!("Cannot import block #{}: {:?}", block.number(), e));
+					return Err(format!("Cannot import block #{}: {:?}", number, e));
 				},
 				Ok(_) => {},
 			}

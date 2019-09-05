@@ -57,7 +57,6 @@ use trace::{
 };
 use common_types::data_format::DataFormat;
 use vm::{LastHashes, Schedule};
-use std::str::FromStr;
 
 use common_types::snapshot::Progress;
 
