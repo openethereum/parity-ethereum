@@ -29,7 +29,7 @@ trace = { path = "../ethcore/trace" }
 vm = { path = "../ethcore/vm" }
 
 [dev-dependencies]
-criterion = "0.2"
+criterion = "0.3"
 tempdir = "0.3"
 
 [features]

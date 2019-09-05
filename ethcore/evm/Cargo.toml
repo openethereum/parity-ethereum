@@ -18,7 +18,7 @@ memory-cache = { path = "../../util/memory-cache" }
 
 [dev-dependencies]
 rustc-hex = "1.0"
-criterion = "0.2"
+criterion = "0.3"
 hex-literal = "0.2.0"
 
 [features]

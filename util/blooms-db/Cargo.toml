@@ -10,7 +10,7 @@ ethbloom = "0.6.4"
 parking_lot = "0.8"
 
 [dev-dependencies]
-criterion = "0.2"
+criterion = "0.3"
 tempdir = "0.3"
 
 [[bench]]
