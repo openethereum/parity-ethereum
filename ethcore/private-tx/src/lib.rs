@@ -75,8 +75,6 @@ extern crate vm;
 extern crate time_utils;
 
 #[cfg(test)]
-extern crate rand;
-#[cfg(test)]
 extern crate env_logger;
 
 pub use encryptor::{Encryptor, SecretStoreEncryptor, EncryptorConfig, NoopEncryptor};
