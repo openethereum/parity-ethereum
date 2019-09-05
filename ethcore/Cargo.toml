@@ -76,7 +76,7 @@ rand_xorshift = "0.1.1"
 
 [dev-dependencies]
 blooms-db = { path = "../util/blooms-db" }
-criterion = "0.2"
+criterion = "0.3"
 env_logger = "0.5"
 ethcore-accounts = { path = "../accounts" }
 ethjson = { path = "../json", features = ["test-helpers"] }

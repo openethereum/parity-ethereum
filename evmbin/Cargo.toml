@@ -26,7 +26,12 @@ vm = { path = "../ethcore/vm" }
 
 [dev-dependencies]
 pretty_assertions = "0.1"
+criterion = "0.3"
 tempdir = "0.3"
 
 [features]
 evm-debug = ["ethcore/evm-debug-tests"]
+
+[[bench]]
+name = "mod"
+harness = false
