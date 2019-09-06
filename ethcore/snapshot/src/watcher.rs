@@ -29,10 +29,12 @@ use ethcore_io::IoChannel;
 use log::{trace, warn};
 use parking_lot::Mutex;
 
-// helper trait for transforming hashes to numbers and checking if syncing.
+/// Helper trait for transforming hashes to block numbers and checking if syncing.
 pub trait Oracle: Send + Sync {
+	/// Maps a block hash to a block number
 	fn to_number(&self, hash: H256) -> Option<u64>;
 
+	/// Are we currently syncing?
 	fn is_major_importing(&self) -> bool;
 }
 
@@ -53,7 +55,7 @@ impl<F> Oracle for StandardOracle<F>
 	}
 }
 
-// helper trait for broadcasting a block to take a snapshot at.
+/// Helper trait for broadcasting a block to take a snapshot at.
 pub trait Broadcast: Send + Sync {
 	fn take_at(&self, num: Option<u64>);
 }
@@ -65,7 +67,7 @@ impl<C: 'static> Broadcast for Mutex<IoChannel<ClientIoMessage<C>>> {
 			None => return,
 		};
 
-		trace!(target: "snapshot_watcher", "broadcast: {}", num);
+		trace!(target: "snapshot_watcher", "Snapshot requested at block #{}", num);
 
 		if let Err(e) = self.lock().send(ClientIoMessage::TakeSnapshot(num)) {
 			warn!("Snapshot watcher disconnected from IoService: {}", e);
@@ -86,7 +88,14 @@ impl Watcher {
 	/// Create a new `Watcher` which will trigger a snapshot event
 	/// once every `period` blocks, but only after that block is
 	/// `history` blocks old.
-	pub fn new<F, C>(client: Arc<dyn BlockInfo>, sync_status: F, channel: IoChannel<ClientIoMessage<C>>, period: u64, history: u64) -> Self
+	pub fn new<F, C>(
+		client: Arc<dyn BlockInfo>,
+		sync_status: F,
+		channel:
+		IoChannel<ClientIoMessage<C>>,
+		period: u64,
+		history: u64
+	) -> Self
 		where
 			F: 'static + Send + Sync + Fn() -> bool,
 			C: 'static + Send + Sync,
@@ -100,6 +109,7 @@ impl Watcher {
 	}
 
 	#[cfg(any(test, feature = "test-helpers"))]
+	/// Instantiate a `Watcher` using anything that impls `Oracle` and `Broadcast`. Test only.
 	pub fn new_test(oracle: Box<dyn Oracle>, broadcast: Box<dyn Broadcast>, period: u64, history: u64) -> Self {
 		Watcher { oracle, broadcast, period, history }
 	}

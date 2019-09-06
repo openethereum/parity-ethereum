@@ -89,6 +89,7 @@ pub struct Restoration {
 	db: Arc<dyn BlockChainDB>,
 }
 
+/// Params to initialise restoration
 pub struct RestorationParams<'a> {
 	manifest: ManifestData, // manifest to base restoration on.
 	pruning: Algorithm, // pruning algorithm for the database.
@@ -115,7 +116,7 @@ impl<'a> RestorationParams<'a> {
 }
 
 impl Restoration {
-	// make a new restoration using the given parameters.
+	/// Build a Restoration using the given parameters.
 	pub fn new(params: RestorationParams) -> Result<Self, Error> {
 		let manifest = params.manifest;
 
@@ -146,7 +147,7 @@ impl Restoration {
 		})
 	}
 
-	// feeds a state chunk, aborts early if `flag` becomes false.
+	/// Feeds a chunk of state data to the Restoration. Aborts early if `flag` becomes false.
 	pub fn feed_state(&mut self, hash: H256, chunk: &[u8], flag: &AtomicBool) -> Result<(), Error> {
 		if self.state_chunks_left.contains(&hash) {
 			let expected_len = snappy::decompressed_len(chunk)?;
@@ -168,7 +169,7 @@ impl Restoration {
 		Ok(())
 	}
 
-	// feeds a block chunk
+	/// Feeds a chunk of block data to the `Restoration`. Aborts early if `flag` becomes false.
 	pub fn feed_blocks(&mut self, hash: H256, chunk: &[u8], engine: &dyn Engine, flag: &AtomicBool) -> Result<(), Error> {
 		if self.block_chunks_left.contains(&hash) {
 			let expected_len = snappy::decompressed_len(chunk)?;
@@ -215,7 +216,7 @@ impl Restoration {
 		Ok(())
 	}
 
-	// is everything done?
+	/// Check if we're done restoring: no more block chunks and no more state chunks to process.
 	pub fn is_done(&self) -> bool {
 		self.block_chunks_left.is_empty() && self.state_chunks_left.is_empty()
 	}
