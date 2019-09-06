@@ -75,6 +75,7 @@ extern crate parity_version;
 extern crate registrar;
 extern crate snapshot;
 extern crate spec;
+extern crate validator_reporting_config;
 extern crate verification;
 
 #[macro_use]

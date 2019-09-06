@@ -71,6 +71,7 @@ use rpc_apis;
 use secretstore;
 use signer;
 use db;
+use validator_reporting_config::ReportingConfig;
 
 // how often to take periodic snapshots.
 const SNAPSHOT_PERIOD: u64 = 5000;
@@ -144,6 +145,8 @@ pub struct RunCmd {
 	pub on_demand_request_backoff_max: Option<u64>,
 	pub on_demand_request_backoff_rounds_max: Option<usize>,
 	pub on_demand_request_consecutive_failures: Option<usize>,
+	pub benign_reporting: ReportingConfig,
+	pub malicious_reporting: ReportingConfig,
 }
 
 // node info fetcher for the local store.
@@ -488,6 +491,9 @@ fn execute_impl<Cr, Rr>(cmd: RunCmd, logger: Arc<RotatingLogger>, on_client_rq: 
 	let fetch = fetch::Client::new(FETCH_FULL_NUM_DNS_THREADS).map_err(|e| format!("Error starting fetch client: {:?}", e))?;
 
 	let txpool_size = cmd.miner_options.pool_limits.max_count;
+
+	spec.engine.set_reporting(cmd.benign_reporting, cmd.malicious_reporting);
+
 	// create miner
 	let miner = Arc::new(Miner::new(
 		cmd.miner_options,

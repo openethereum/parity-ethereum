@@ -15,6 +15,7 @@ common-types = { path = "../types" }
 ethereum-types = "0.6.0"
 ethkey = { path = "../../accounts/ethkey" }
 machine = { path = "../machine" }
+validator-reporting-config = { path = "../engines/validator-set/reporting-config" }
 vm = { path = "../vm" }
 
 # used from test-helpers

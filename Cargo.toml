@@ -74,6 +74,7 @@ spec = { path = "ethcore/spec" }
 term_size = "0.3"
 textwrap = "0.9"
 toml = "0.4"
+validator-reporting-config = { path = "ethcore/engines/validator-set/reporting-config" }
 verification = { path = "ethcore/verification" }
 
 [build-dependencies]

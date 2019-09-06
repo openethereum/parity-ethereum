@@ -41,6 +41,8 @@ use machine::Machine;
 use parity_util_mem as malloc_size_of;
 use parity_bytes::Bytes;
 
+use validator_reporting_config::ReportingConfig;
+
 #[cfg(any(test, feature = "test-helpers"))]
 pub use self::test::TestSet;
 pub use self::simple_list::SimpleList;
@@ -60,6 +62,29 @@ pub fn new_validator_set(spec: ValidatorSpec) -> Box<dyn ValidatorSet> {
 		),
 	}
 }
+
+#[derive(Default)]
+pub struct ValidatorReporting {
+	config: ReportingConfig,
+	checked_last_block: Option<u64>,
+	cached_result: bool
+}
+
+impl ValidatorReporting {
+	pub fn new(config: ReportingConfig) -> Self {
+		ValidatorReporting{
+			config,
+			checked_last_block: Default::default(),
+			cached_result: Default::default()
+		}
+	}
+
+	pub fn update_cache(&mut self, last_block_number: u64, result: bool) {
+		self.checked_last_block = Some(last_block_number);
+		self.cached_result = result;
+	}
+}
+
 
 /// A validator set.
 pub trait ValidatorSet: Send + Sync + 'static {
@@ -143,9 +168,9 @@ pub trait ValidatorSet: Send + Sync + 'static {
 	fn count_with_caller(&self, parent_block_hash: &H256, caller: &Call) -> usize;
 
 	/// Notifies about malicious behaviour.
-	fn report_malicious(&self, _validator: &Address, _set_block: BlockNumber, _block: BlockNumber, _proof: Bytes) {}
+	fn report_malicious(&self, _validator: &Address, _set_block: BlockNumber, _block: BlockNumber, _proof: Bytes, _reporting: &mut ValidatorReporting) {}
 	/// Notifies about benign misbehaviour.
-	fn report_benign(&self, _validator: &Address, _set_block: BlockNumber, _block: BlockNumber) {}
+	fn report_benign(&self, _validator: &Address, _set_block: BlockNumber, _block: BlockNumber, _reporting: &mut ValidatorReporting) {}
 	/// Allows blockchain state access.
 	fn register_client(&self, _client: Weak<dyn EngineClient>) {}
 }

@@ -191,6 +191,7 @@ dependencies = [
  "state-db 0.1.0",
  "time-utils 0.1.0",
  "unexpected 0.1.0",
+ "validator-reporting-config 0.1.0",
  "validator-set 0.1.0",
 ]
 
@@ -870,6 +871,7 @@ dependencies = [
  "log 0.4.8 (registry+https://github.com/rust-lang/crates.io-index)",
  "machine 0.1.0",
  "parity-bytes 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "validator-reporting-config 0.1.0",
  "vm 0.1.0",
 ]
 
@@ -3037,6 +3039,7 @@ dependencies = [
  "term_size 0.3.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "textwrap 0.9.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "toml 0.4.10 (registry+https://github.com/rust-lang/crates.io-index)",
+ "validator-reporting-config 0.1.0",
  "verification 0.1.0",
  "winapi 0.3.6 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
@@ -4993,6 +4996,10 @@ dependencies = [
 ]
 
 [[package]]
+name = "validator-reporting-config"
+version = "0.1.0"
+
+[[package]]
 name = "validator-set"
 version = "0.1.0"
 dependencies = [
@@ -5024,6 +5031,7 @@ dependencies = [
  "spec 0.1.0",
  "triehash-ethereum 0.2.0",
  "unexpected 0.1.0",
+ "validator-reporting-config 0.1.0",
  "vm 0.1.0",
 ]
 

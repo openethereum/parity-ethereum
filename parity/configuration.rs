@@ -55,6 +55,8 @@ use account::{AccountCmd, NewAccount, ListAccounts, ImportAccounts, ImportFromGe
 use snapshot_cmd::{self, SnapshotCommand};
 use network::{IpFilter};
 
+use validator_reporting_config::ReportingConfig;
+
 const DEFAULT_MAX_PEERS: u16 = 50;
 const DEFAULT_MIN_PEERS: u16 = 25;
 
@@ -418,6 +420,8 @@ impl Configuration {
 				on_demand_request_backoff_max: self.args.arg_on_demand_request_backoff_max,
 				on_demand_request_backoff_rounds_max: self.args.arg_on_demand_request_backoff_rounds_max,
 				on_demand_request_consecutive_failures: self.args.arg_on_demand_request_consecutive_failures,
+				benign_reporting: ReportingConfig::from_str_and_call_every(self.args.arg_benign_reporting, self.args.arg_report_cache_call_every)?,
+				malicious_reporting: ReportingConfig::from_str_and_call_every(self.args.arg_malicious_reporting, self.args.arg_report_cache_call_every)?,
 			};
 			Cmd::Run(run_cmd)
 		};
@@ -1480,6 +1484,8 @@ mod tests {
 			on_demand_request_backoff_max: None,
 			on_demand_request_backoff_rounds_max: None,
 			on_demand_request_consecutive_failures: None,
+			benign_reporting: Default::default(),
+			malicious_reporting: Default::default(),
 		};
 		expected.secretstore_conf.enabled = cfg!(feature = "secretstore");
 		expected.secretstore_conf.http_enabled = cfg!(feature = "secretstore");

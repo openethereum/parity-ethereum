@@ -28,6 +28,7 @@ parking_lot = "0.8"
 rlp = "0.4.2"
 triehash = { package = "triehash-ethereum", version = "0.2",  path = "../../../util/triehash-ethereum" }
 unexpected = { path = "../../../util/unexpected" }
+validator-reporting-config = { path = "./reporting-config" }
 vm = { path = "../../vm" }
 
 [dev-dependencies]

@@ -834,6 +834,19 @@ usage! {
 			"--max-round-blocks-to-import=[S]",
 			"Maximal number of blocks to import for each import round.",
 
+		["Reporting configuration"]
+			ARG arg_benign_reporting: (Option<String>) = None, or |c: &Config| c.reporting.as_ref()?.benign_reporting.clone(),
+			"--benign_reporting=[force|call|disable]",
+			"AuRa benign reporting configuration.",
+
+			ARG arg_malicious_reporting: (Option<String>) = None, or |c: &Config| c.reporting.as_ref()?.malicious_reporting.clone(),
+			"--malicious_reporting=[force|call|disable]",
+			"AuRa malicious reporting configuration.",
+
+			ARG arg_report_cache_call_every: (u64) = 100u64, or |c: &Config| c.reporting.as_ref()?.cache_call_every.clone(),
+			"--report_cache_call_every=[BLOCK_NUM]",
+			"AuRa cache call report successfulness for specified amount if blocks.",
+
 		["Internal Options"]
 			FLAG flag_can_restart: (bool) = false, or |_| None,
 			"--can-restart",
@@ -1163,6 +1176,7 @@ struct Config {
 	stratum: Option<Stratum>,
 	whisper: Option<Whisper>,
 	light: Option<Light>,
+	reporting: Option<ReportingConfig>
 }
 
 #[derive(Default, Debug, PartialEq, Deserialize)]
@@ -1445,12 +1459,20 @@ struct Light {
 	on_demand_request_consecutive_failures: Option<usize>,
 }
 
+#[derive(Default, Debug, PartialEq, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct ReportingConfig {
+	benign_reporting: Option<String>,
+	malicious_reporting: Option<String>,
+	cache_call_every: Option<u64>,
+}
+
 #[cfg(test)]
 mod tests {
 	use super::{
 		Args, ArgsError,
 		Config, Operating, Account, Ui, Network, Ws, Rpc, Ipc, Dapps, Ipfs, Mining, Footprint,
-		Snapshots, Misc, Whisper, SecretStore, Light,
+		Snapshots, Misc, Whisper, SecretStore, Light, ReportingConfig
 	};
 	use toml;
 	use clap::{ErrorKind as ClapErrorKind};
@@ -1997,6 +2019,11 @@ mod tests {
 			arg_log_file: Some("/var/log/parity.log".into()),
 			flag_no_color: false,
 			flag_no_config: false,
+
+			// -- Reporting Options
+			arg_benign_reporting: Some("call".into()),
+			arg_malicious_reporting: Some("force".into()),
+			arg_report_cache_call_every: 100,
 		});
 	}
 
@@ -2221,6 +2248,7 @@ mod tests {
 				pool_size: Some(50),
 			}),
 			stratum: None,
+			reporting: None,
 		});
 	}
 

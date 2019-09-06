@@ -45,6 +45,7 @@ use machine::{
 use vm::{EnvInfo, Schedule, CallType, ActionValue};
 
 use crate::signer::EngineSigner;
+use validator_reporting_config::ReportingConfig;
 
 /// A system-calling closure. Enacts calls on a block's state from the system address.
 pub type SystemCall<'a> = dyn FnMut(Address, Vec<u8>) -> Result<Vec<u8>, String> + 'a;
@@ -381,6 +382,9 @@ pub trait Engine: Sync + Send {
 	fn decode_transaction(&self, transaction: &[u8]) -> Result<UnverifiedTransaction, transaction::Error> {
 		self.machine().decode_transaction(transaction)
 	}
+
+	/// Set reporting
+	fn set_reporting(&self, benign_reporting: ReportingConfig, malicious_reporting: ReportingConfig) {}
 }
 
 /// Verifier for all blocks within an epoch with self-contained state.
