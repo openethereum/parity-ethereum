@@ -38,10 +38,4 @@ vm = { path = "../vm" }
 [dev-dependencies]
 ethcore = { path = "..", features = ["test-helpers"] }
 env_logger = "0.5"
-pod = { path = "../pod", features = ["test-helpers"] }
 tempdir = "0.3.7"
-
-[features]
-test-helpers = [
-	"pod/test-helpers"
-]

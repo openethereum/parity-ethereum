@@ -78,7 +78,7 @@ ethcore-network = { path = "../util/network" }
 ethjson = { path = "../json", features = ["test-helpers"] }
 fake-fetch = { path = "../util/fake-fetch" }
 macros = { path = "../util/macros" }
-spec = { path = "../ethcore/spec", features = ["test-helpers"] }
+spec = { path = "../ethcore/spec" }
 pretty_assertions = "0.1"
 transaction-pool = "2.0"
 verification = { path = "../ethcore/verification" }

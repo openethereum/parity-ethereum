@@ -31,7 +31,6 @@ vm = { path = "../ethcore/vm" }
 [dev-dependencies]
 criterion = "0.3"
 tempdir = "0.3"
-pod = { path = "../ethcore/pod", features = ["test-helpers"] }
 
 [features]
 evm-debug = ["ethcore/evm-debug-tests"]

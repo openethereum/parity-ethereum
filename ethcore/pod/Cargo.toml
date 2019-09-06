@@ -25,8 +25,4 @@ trie-db = "0.15.0"
 triehash = { package = "triehash-ethereum", version = "0.2",  path = "../../util/triehash-ethereum" }
 
 [dev-dependencies]
-ethjson = { path = "../../json", features = ["test-helpers"] }
 macros = { path = "../../util/macros" }
-
-[features]
-test-helpers = []
