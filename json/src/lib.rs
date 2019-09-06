@@ -14,9 +14,9 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
-#![warn(missing_docs)]
-
 //! JSON deserialization library
+
+#![warn(missing_docs)]
 
 pub mod bytes;
 pub mod hash;

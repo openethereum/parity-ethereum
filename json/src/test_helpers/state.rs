@@ -16,9 +16,6 @@
 
 //! State test deserialization.
 
-// pub mod state;
-// pub mod transaction;
-
 /// Type for running `State` tests
 pub type Test = super::tester::GenericTester<String, State>;
 

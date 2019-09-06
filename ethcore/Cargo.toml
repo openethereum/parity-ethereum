@@ -20,7 +20,7 @@ ethabi = "8.0"
 ethabi-contract = "8.0"
 ethabi-derive = "8.0"
 ethash = { path = "../ethash", optional = true }
-ethjson = { path = "../json", features = ["test-helpers"], optional = true }
+ethjson = { path = "../json", optional = true }
 ethkey = { path = "../accounts/ethkey", optional = true }
 ethcore-blockchain = { path = "./blockchain" }
 ethcore-call-contract = { path = "./call-contract" }
