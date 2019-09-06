@@ -16,9 +16,8 @@
 
 //! Spec hardcoded synchronization deserialization for the light client.
 
-use hash::H256;
-use uint::Uint;
-use bytes::Bytes;
+use crate::{bytes::Bytes, hash::H256, uint::Uint};
+use serde::Deserialize;
 
 /// Spec hardcoded sync.
 #[derive(Debug, PartialEq, Deserialize)]
@@ -36,11 +35,8 @@ pub struct HardcodedSync {
 
 #[cfg(test)]
 mod tests {
-	use serde_json;
-	use uint::Uint;
+	use super::*;
 	use ethereum_types::{U256, H256 as Eth256};
-	use hash::H256;
-	use spec::hardcoded_sync::HardcodedSync;
 	use std::str::FromStr;
 
 	#[test]

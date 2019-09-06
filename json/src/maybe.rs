@@ -61,11 +61,10 @@ impl<'a, T> Visitor<'a> for MaybeEmptyVisitor<T> where T: Deserialize<'a> {
 	}
 
 	fn visit_string<E>(self, value: String) -> Result<Self::Value, E> where E: Error {
-		match value.is_empty() {
-			true => Ok(MaybeEmpty::None),
-			false => {
-				T::deserialize(value.into_deserializer()).map(MaybeEmpty::Some)
-			}
+		if value.is_empty() {
+			Ok(MaybeEmpty::None)
+		} else {
+			T::deserialize(value.into_deserializer()).map(MaybeEmpty::Some)
 		}
 	}
 }
@@ -81,11 +80,9 @@ impl<T> Into<Option<T>> for MaybeEmpty<T> {
 
 #[cfg(test)]
 mod tests {
+	use super::*;
 	use std::str::FromStr;
-	use serde_json;
-	use ethereum_types;
-	use hash::H256;
-	use maybe::MaybeEmpty;
+	use crate::hash::H256;
 
 	#[test]
 	fn maybe_deserialization() {

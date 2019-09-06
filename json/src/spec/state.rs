@@ -14,14 +14,18 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
-//! Blockchain test state deserializer.
+//! Blockchain state deserializer.
 
 use std::collections::BTreeMap;
-use hash::Address;
-use bytes::Bytes;
-use spec::{Account, Builtin};
+use crate::{
+	bytes::Bytes,
+	hash::Address,
+	spec::{Account, Builtin}
+};
+use serde::Deserialize;
 
-/// Blockchain test state deserializer.
+/// Blockchain state deserializer.
+#[cfg_attr(any(test, feature = "test-helpers"), derive(Clone))]
 #[derive(Debug, PartialEq, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct State(BTreeMap<Address, Account>);

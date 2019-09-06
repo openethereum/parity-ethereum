@@ -17,6 +17,7 @@
 //! Clique params deserialization.
 
 use std::num::NonZeroU64;
+use serde::Deserialize;
 
 /// Clique params deserialization.
 #[derive(Debug, PartialEq, Deserialize)]
