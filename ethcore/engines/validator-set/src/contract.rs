@@ -76,17 +76,15 @@ impl ValidatorContract {
 					ReportingConfig::Disable => return Err("Reporting is disabled.".into()),
 					ReportingConfig::Force => {},
 					ReportingConfig::Call(blk_num) => {
-						if let Some(checked_last_block) = reporting.checked_last_block {
-							if (latest_block_num - checked_last_block) >= blk_num {
-								reporting.update_cache(latest_block_num, false);
-								c.call_contract(BlockId::Latest, self.contract_address, data.clone())?;
-								reporting.update_cache(latest_block_num, true);
-							}
-							if !reporting.cached_result {
-								return Err("Reporting is skipped due to cached failed call check.".into());
-							}
+						let checked_last_block = reporting.checked_last_block;
+						if checked_last_block.is_none() || (latest_block_num - checked_last_block.expect("checked for None before")) >= blk_num {
+							reporting.update_cache(latest_block_num, false);
+							c.call_contract(BlockId::Latest, self.contract_address, data.clone())?;
+							reporting.update_cache(latest_block_num, true);
 						}
-
+						if !reporting.cached_result {
+							return Err("Reporting is skipped due to cached failed call check.".into());
+						}
 					}
 				}
 				c.transact_contract(self.contract_address, data)
