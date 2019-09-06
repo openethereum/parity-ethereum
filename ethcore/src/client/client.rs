@@ -35,7 +35,7 @@ use kvdb::{DBValue, KeyValueDB, DBTransaction};
 use parking_lot::{Mutex, RwLock};
 use rand::rngs::OsRng;
 use trie::{TrieSpec, TrieFactory, Trie};
-use vm::{EnvInfo, LastHashes, CreateContractAddress};
+use vm::{EnvInfo, LastHashes, CreateContractAddress, Error as VmError};
 use hash_db::EMPTY_PREFIX;
 use block::{LockedBlock, Drain, ClosedBlock, OpenBlock, enact_verified, SealedBlock};
 use client::ancient_import::AncientVerifier;
@@ -1408,10 +1408,16 @@ impl CallContract for Client {
 		let header = self.block_header_decoded(block_id).ok_or_else(&state_pruned)?;
 
 		let transaction = self.contract_call_tx(block_id, address, data);
-
-		self.call(&transaction, Default::default(), state, &header)
-			.map_err(|e| format!("{:?}", e))
-			.map(|executed| executed.output)
+		let executed = self.call(&transaction, Default::default(), state, &header).map_err(|e| format!("{:?}", e))?;
+		if let Some(exception) = executed.exception {
+			let mut error = format!("{:?}", exception);
+			if exception == VmError::Reverted {
+				let output = executed.output.clone();
+			}
+			Err(error)
+		} else {
+			Ok(executed.output)
+		}
 	}
 }
 
