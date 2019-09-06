@@ -21,7 +21,7 @@ use client_traits::BlockInfo;
 // The MallocSizeOf derive looks for this in the root
 use parity_util_mem as malloc_size_of;
 
-mod verification;
+pub mod verification;
 mod verifier;
 pub mod queue;
 mod canon_verifier;

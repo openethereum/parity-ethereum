@@ -392,7 +392,10 @@ impl SealedBlock {
 		block_rlp.append(&self.block.header);
 		block_rlp.append_list(&self.block.transactions);
 		block_rlp.append_list(&self.block.uncles);
-		block_rlp.out()
+		let o= block_rlp.out();
+		trace!(target: "dp", "block #{}", self.block.header.number());
+		trace!(target: "dp", "\n---\n{:?}\n", o);
+		o
 	}
 }
 
