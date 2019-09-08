@@ -25,7 +25,7 @@ use ethereum_types::{H256, Address};
 use log::{warn, trace};
 use machine::Machine;
 use parking_lot::RwLock;
-use call_contract::CallOptions;
+use call_contract::CallOptionsBuilder;
 use common_types::{
 	BlockNumber,
 	ids::BlockId,
@@ -65,7 +65,7 @@ impl ValidatorContract {
 }
 
 impl ValidatorContract {
-	fn transact(&self, data: Bytes, reporting: &mut ValidatorReporting) -> Result<(), String> {
+	fn transact(&self, data: Bytes, reporting: &mut ValidatorReporting, sender: Address) -> Result<(), String> {
 		let client = self.client.read().as_ref()
 			.and_then(Weak::upgrade)
 			.ok_or_else(|| "No client!")?;
@@ -80,7 +80,12 @@ impl ValidatorContract {
 						let checked_last_block = reporting.checked_last_block;
 						if checked_last_block.is_none() || (latest_block_num - checked_last_block.expect("checked for None before")) >= blk_num {
 							reporting.update_cache(latest_block_num, false);
-							c.call_contract(BlockId::Latest, CallOptions::new(self.contract_address, data.clone())).map_err(|e| e.to_string())?;
+                            let call_options = CallOptionsBuilder::default()
+                                .contract_address(self.contract_address)
+                                .data(data.clone())
+                                .sender(sender)
+                                .build().unwrap();
+							c.call_contract(BlockId::Latest, call_options).map_err(|e| e.to_string())?;
 							reporting.update_cache(latest_block_num, true);
 						}
 						if !reporting.cached_result {
@@ -139,18 +144,18 @@ impl ValidatorSet for ValidatorContract {
 		self.validators.count_with_caller(bh, caller)
 	}
 
-	fn report_malicious(&self, address: &Address, _set_block: BlockNumber, block: BlockNumber, proof: Bytes, reporting: &mut ValidatorReporting) {
+	fn report_malicious(&self, address: &Address, _set_block: BlockNumber, block: BlockNumber, proof: Bytes, reporting: &mut ValidatorReporting, sender: Address) {
 		let data = validator_report::functions::report_malicious::encode_input(*address, block, proof);
-		match self.transact(data, reporting) {
+		match self.transact(data, reporting, sender) {
 			Ok(_) => warn!(target: "engine", "Reported malicious validator {}", address),
 			Err(s) => warn!(target: "engine", "Validator {} could not be reported {}", address, s),
 		}
 	}
 
-	fn report_benign(&self, address: &Address, _set_block: BlockNumber, block: BlockNumber, reporting: &mut ValidatorReporting) {
+	fn report_benign(&self, address: &Address, _set_block: BlockNumber, block: BlockNumber, reporting: &mut ValidatorReporting, sender: Address) {
 		trace!(target: "engine", "validator set recording benign misbehaviour at block #{} by {:#x}", block, address);
 		let data = validator_report::functions::report_benign::encode_input(*address, block);
-		match self.transact(data, reporting) {
+		match self.transact(data, reporting, sender) {
 			Ok(_) => warn!(target: "engine", "Reported benign validator misbehaviour {}", address),
 			Err(s) => warn!(target: "engine", "Validator {} could not be reported {}", address, s),
 		}

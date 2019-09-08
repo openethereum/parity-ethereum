@@ -876,7 +876,13 @@ impl AuthorityRound {
 					if !reported.insert(skipped_primary) { break; }
 					trace!(target: "engine", "Reporting benign misbehaviour (cause: skipped step) at block #{}, epoch set number {}, step proposer={:#x}. Own address: {}",
 						header.number(), set_number, skipped_primary, me);
-					self.validators.report_benign(&skipped_primary, set_number, header.number(), &mut *self.benign_reporting.lock());
+					self.validators.report_benign(
+						&skipped_primary,
+						set_number,
+						header.number(),
+						&mut *self.benign_reporting.lock(),
+						me
+					);
 				} else {
 					trace!(target: "engine", "Primary that skipped is self, not self-reporting. Own address: {}", me);
 				}
@@ -1355,9 +1361,16 @@ impl Engine for AuthorityRound {
 				// - This specific check is only relevant if you're importing (since it checks
 				//   against wall clock)
 				if let Ok((_, set_number)) = self.epoch_set(header) {
+					let me = self.address().unwrap_or_default();
 					trace!(target: "engine", "Reporting benign misbehaviour (cause: InvalidSeal) at block #{}, epoch set number {}. Own address: {}",
-						header.number(), set_number, self.address().unwrap_or_default());
-					self.validators.report_benign(header.author(), set_number, header.number(), &mut *self.benign_reporting.lock());
+						header.number(), set_number, me);
+					self.validators.report_benign(
+						header.author(),
+						set_number,
+						header.number(),
+						&mut *self.benign_reporting.lock(),
+						me
+					);
 				}
 
 				Err(BlockError::InvalidSeal.into())
@@ -1379,7 +1392,14 @@ impl Engine for AuthorityRound {
 			|| (header.number() >= self.validate_step_transition && step <= parent_step) {
 			warn!(target: "engine", "Multiple blocks proposed for step {}.", parent_step);
 
-			self.validators.report_malicious(header.author(), set_number, header.number(), Default::default(), &mut *self.malicious_reporting.lock());
+			self.validators.report_malicious(
+				header.author(),
+				set_number,
+				header.number(),
+				Default::default(),
+				&mut *self.malicious_reporting.lock(),
+				self.address().unwrap_or_default()
+			);
 			Err(EngineError::DoubleVote(*header.author()))?;
 		}
 
@@ -1427,9 +1447,16 @@ impl Engine for AuthorityRound {
 			match validate_empty_steps() {
 				Ok(len) => len,
 				Err(err) => {
+					let me = self.address().unwrap_or_default();
 					trace!(target: "engine", "Reporting benign misbehaviour (cause: invalid empty steps) at block #{}, epoch set number {}. Own address: {}",
-						header.number(), set_number, self.address().unwrap_or_default());
-					self.validators.report_benign(header.author(), set_number, header.number(), &mut *self.benign_reporting.lock());
+						header.number(), set_number, me);
+					self.validators.report_benign(
+						header.author(),
+						set_number,
+						header.number(),
+						&mut *self.benign_reporting.lock(),
+						me
+					);
 					return Err(err);
 				},
 			}
@@ -1458,9 +1485,16 @@ impl Engine for AuthorityRound {
 		let res = verify_external(header, &*validators, self.empty_steps_transition);
 		match res {
 			Err(Error::Engine(EngineError::NotProposer(_))) => {
+				let me = self.address().unwrap_or_default();
 				trace!(target: "engine", "Reporting benign misbehaviour (cause: block from incorrect proposer) at block #{}, epoch set number {}. Own address: {}",
-					header.number(), set_number, self.address().unwrap_or_default());
-				self.validators.report_benign(header.author(), set_number, header.number(), &mut *self.benign_reporting.lock());
+					header.number(), set_number, me);
+				self.validators.report_benign(
+					header.author(),
+					set_number,
+					header.number(),
+					&mut *self.benign_reporting.lock(),
+					me
+				);
 			},
 			Ok(_) => {
 				// we can drop all accumulated empty step messages that are older than this header's step

@@ -94,11 +94,11 @@ impl ValidatorSet for TestSet {
 		1
 	}
 
-	fn report_malicious(&self, _validator: &Address, _set_block: BlockNumber, block: BlockNumber, _proof: Bytes, _reporting: &mut ValidatorReporting) {
+	fn report_malicious(&self, _validator: &Address, _set_block: BlockNumber, block: BlockNumber, _proof: Bytes, _reporting: &mut ValidatorReporting, _sender: Address) {
 		self.last_malicious.store(block as usize, AtomicOrdering::SeqCst)
 	}
 
-	fn report_benign(&self, _validator: &Address, _set_block: BlockNumber, block: BlockNumber, _reporting: &mut ValidatorReporting) {
+	fn report_benign(&self, _validator: &Address, _set_block: BlockNumber, block: BlockNumber, _reporting: &mut ValidatorReporting, _sender: Address) {
 		trace!(target: "engine", "test validator set recording benign misbehaviour");
 		self.last_benign.store(block as usize, AtomicOrdering::SeqCst)
 	}

@@ -168,9 +168,9 @@ pub trait ValidatorSet: Send + Sync + 'static {
 	fn count_with_caller(&self, parent_block_hash: &H256, caller: &Call) -> usize;
 
 	/// Notifies about malicious behaviour.
-	fn report_malicious(&self, _validator: &Address, _set_block: BlockNumber, _block: BlockNumber, _proof: Bytes, _reporting: &mut ValidatorReporting) {}
+	fn report_malicious(&self, _validator: &Address, _set_block: BlockNumber, _block: BlockNumber, _proof: Bytes, _reporting: &mut ValidatorReporting, _sender: Address) {}
 	/// Notifies about benign misbehaviour.
-	fn report_benign(&self, _validator: &Address, _set_block: BlockNumber, _block: BlockNumber, _reporting: &mut ValidatorReporting) {}
+	fn report_benign(&self, _validator: &Address, _set_block: BlockNumber, _block: BlockNumber, _reporting: &mut ValidatorReporting, _sender: Address) {}
 	/// Allows blockchain state access.
 	fn register_client(&self, _client: Weak<dyn EngineClient>) {}
 }
