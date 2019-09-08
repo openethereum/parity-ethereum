@@ -1400,8 +1400,28 @@ impl RegistryInfo for Client {
 	}
 }
 
+const SOLIDITY_ERROR_SELECTOR: [u8; 4] = [0x08, 0xc3, 0x79, 0xa0];
+
+/// Try to decode Solidity revert string
+fn try_decode_solidity_revert_msg(data: &Bytes) -> Option<String> {
+    use ethabi::{decode, ParamType, Token};
+    let mut result = None;
+    if data.len() > 4 {
+        let (fn_selector, enc_string) = data.split_at(4);
+        // Error(string) selector. Details: https://solidity.readthedocs.io/en/v0.5.8/control-structures.html#error-handling-assert-require-revert-and-exceptions
+        if fn_selector == SOLIDITY_ERROR_SELECTOR {
+            result = decode(&[ParamType::String], enc_string)
+                .as_ref()
+                .map(|d| if let Token::String(str) = &d[0] { Some(str.as_str().to_string()) } else { None })
+                .unwrap_or_else(|_| None);
+        }
+    }
+    result
+}
+
 impl CallContract for Client {
 	fn call_contract(&self, block_id: BlockId, call_options: CallOptions) -> Result<Bytes, ContractCallError> {
+        use ethabi::Token;
 		let state_pruned = || ContractCallError::Other(CallError::StatePruned.to_string());
 		let state = &mut self.state_at(block_id).ok_or_else(&state_pruned)?;
 		let header = self.block_header_decoded(block_id).ok_or_else(&state_pruned)?;
@@ -1409,11 +1429,13 @@ impl CallContract for Client {
 		let transaction = self.contract_call_tx(block_id, call_options);
 		let executed = self.call(&transaction, Default::default(), state, &header).map_err(|e| ContractCallError::Other(format!("{:?}", e)))?;
 		if let Some(exception) = executed.exception {
-			let mut error = format!("{:?}", exception);
-			if exception == VmError::Reverted {
-				let output = executed.output.clone();
-			}
-			Err(ContractCallError::Reverted(error))
+            if exception == VmError::Reverted {
+                let output = executed.output.clone();
+                let msg = try_decode_solidity_revert_msg(&output).unwrap_or_else(|| format!("{}", Token::Bytes(output)));
+                Err(ContractCallError::Reverted(msg))
+            } else {
+                Err(ContractCallError::Other(format!("{:?}", exception)))
+            }
 		} else {
 			Ok(executed.output)
 		}
