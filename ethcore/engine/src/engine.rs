@@ -384,7 +384,7 @@ pub trait Engine: Sync + Send {
 	}
 
 	/// Set reporting
-	fn set_reporting(&self, benign_reporting: ReportingConfig, malicious_reporting: ReportingConfig) {}
+	fn set_reporting(&self, _benign_reporting: ReportingConfig, _malicious_reporting: ReportingConfig) {}
 }
 
 /// Verifier for all blocks within an epoch with self-contained state.
