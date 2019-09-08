@@ -58,7 +58,7 @@ pub struct CallOptions {
 impl CallOptions {
 	/// Convenience method for creating the most common use case.
 	pub fn new(contract: Address, data: Bytes) -> Self {
-		CallOptionsBuilder::default().contract_address(contract).data(data).gas_price(U256::from(50_000_000)).build().unwrap()
+		CallOptionsBuilder::default().contract_address(contract).data(data).gas(U256::from(50_000_000)).build().unwrap()
 	}
 }
 
