@@ -38,7 +38,7 @@ impl fmt::Display for CallError {
 }
 
 #[derive(Builder, Default, Clone)]
-#[builder(setter(into))]
+#[builder(default)]
 /// Options to make a call to contract
 pub struct CallOptions {
 	/// Contract address
