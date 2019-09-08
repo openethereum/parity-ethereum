@@ -7,6 +7,7 @@ edition = "2018"
 license = "GPL-3.0"
 
 [dependencies]
+call-contract = { package = "ethcore-call-contract", path = "../../call-contract" }
 client-traits = { path = "../../client-traits" }
 common-types = { path = "../../types" }
 engine = { path = "../../engine" }
@@ -33,7 +34,6 @@ vm = { path = "../../vm" }
 
 [dev-dependencies]
 accounts = { package = "ethcore-accounts", path = "../../../accounts" }
-call-contract = { package = "ethcore-call-contract", path = "../../call-contract" }
 engine = { path = "../../engine", features = ["test-helpers"] }
 env_logger = "0.6.2"
 ethcore = { path = "../..", features = ["test-helpers"] }

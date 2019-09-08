@@ -23,7 +23,7 @@ use std::time::{Instant, Duration};
 use account_state::state::StateInfo;
 use blockchain::{BlockReceipts, BlockChain, BlockChainDB, BlockProvider, TreeRoute, TransactionAddress, ExtrasInsert, BlockNumberKey};
 use bytes::Bytes;
-use call_contract::{CallContract, RegistryInfo};
+use call_contract::{CallContract, CallOptions, CallError as ContractCallError, RegistryInfo};
 use ethcore_miner::pool::VerifiedTransaction;
 use ethereum_types::{H256, H264, Address, U256};
 use evm::Schedule;
@@ -605,7 +605,7 @@ impl Importer {
 							let backend = account_state::backend::Proving::new(state_db.as_hash_db_mut());
 
 							let transaction =
-								client.contract_call_tx(BlockId::Hash(*header.parent_hash()), addr, data);
+								client.contract_call_tx(BlockId::Hash(*header.parent_hash()), CallOptions::new(addr, data));
 
 							let mut state = State::from_existing(
 								backend,
@@ -920,7 +920,7 @@ impl Client {
 		where F: FnOnce(&MachineCall) -> T
 	{
 		let call = |a, d| {
-			let tx = self.contract_call_tx(id, a, d);
+			let tx = self.contract_call_tx(id, CallOptions::new(a, d));
 			let (result, items) = self.prove_transaction(tx, id)
 				.ok_or_else(|| format!("Unable to make call. State unavailable?"))?;
 
@@ -1157,16 +1157,15 @@ impl Client {
 	}
 
 	// transaction for calling contracts from services like engine.
-	// from the null sender, with 50M gas.
-	fn contract_call_tx(&self, block_id: BlockId, address: Address, data: Bytes) -> SignedTransaction {
-		let from = Address::zero();
+	fn contract_call_tx(&self, block_id: BlockId, call_options: CallOptions) -> SignedTransaction {
+		let from = call_options.contract_address;
 		transaction::Transaction {
 			nonce: self.nonce(&from, block_id).unwrap_or_else(|| self.engine.account_start_nonce(0)),
-			action: Action::Call(address),
-			gas: U256::from(50_000_000),
-			gas_price: U256::default(),
-			value: U256::default(),
-			data: data,
+			action: Action::Call(call_options.contract_address),
+			gas: call_options.gas,
+			gas_price: call_options.gas_price,
+			value: call_options.value,
+			data: call_options.data,
 		}.fake_sign(from)
 	}
 
@@ -1392,7 +1391,7 @@ impl RegistryInfo for Client {
 		let address = self.registrar_address?;
 
 		let (data, decoder) = registry::functions::get_address::call(keccak(name.as_bytes()), "A");
-		let value = decoder.decode(&self.call_contract(block, address, data).ok()?).ok()?;
+		let value = decoder.decode(&self.call_contract(block, CallOptions::new(address, data)).ok()?).ok()?;
 		if value.is_zero() {
 			None
 		} else {
@@ -1402,19 +1401,19 @@ impl RegistryInfo for Client {
 }
 
 impl CallContract for Client {
-	fn call_contract(&self, block_id: BlockId, address: Address, data: Bytes) -> Result<Bytes, String> {
-		let state_pruned = || CallError::StatePruned.to_string();
+	fn call_contract(&self, block_id: BlockId, call_options: CallOptions) -> Result<Bytes, ContractCallError> {
+		let state_pruned = || ContractCallError::Other(CallError::StatePruned.to_string());
 		let state = &mut self.state_at(block_id).ok_or_else(&state_pruned)?;
 		let header = self.block_header_decoded(block_id).ok_or_else(&state_pruned)?;
 
-		let transaction = self.contract_call_tx(block_id, address, data);
-		let executed = self.call(&transaction, Default::default(), state, &header).map_err(|e| format!("{:?}", e))?;
+		let transaction = self.contract_call_tx(block_id, call_options);
+		let executed = self.call(&transaction, Default::default(), state, &header).map_err(|e| ContractCallError::Other(format!("{:?}", e)))?;
 		if let Some(exception) = executed.exception {
 			let mut error = format!("{:?}", exception);
 			if exception == VmError::Reverted {
 				let output = executed.output.clone();
 			}
-			Err(error)
+			Err(ContractCallError::Reverted(error))
 		} else {
 			Ok(executed.output)
 		}

@@ -16,14 +16,63 @@
 
 //! Provides CallContract and RegistryInfo traits
 
+use std::fmt;
 use bytes::Bytes;
-use ethereum_types::Address;
+use derive_builder::Builder;
+use ethereum_types::{Address, U256};
 use types::ids::BlockId;
+
+#[derive(Debug)]
+/// Transaction call error
+pub enum CallError {
+	/// Call reverted
+	Reverted(String),
+	/// Other error
+	Other(String),
+}
+
+impl fmt::Display for CallError {
+	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+		fmt::Debug::fmt(&self, f)
+	}
+}
+
+#[derive(Builder, Default, Clone)]
+#[builder(setter(into))]
+/// Options to make a call to contract
+pub struct CallOptions {
+	/// Contract address
+	pub contract_address: Address,
+	/// Transaction sender
+	pub sender: Address,
+	/// Transaction data
+	pub data: Bytes,
+	/// Value in wei
+	pub value: U256,
+	/// Provided gas
+	pub gas: U256,
+	/// Gas price
+	pub gas_price: U256,
+}
+
+impl CallOptions {
+	/// Convenience method for creating the most common use case.
+	pub fn new(contract: Address, data: Bytes) -> Self {
+		CallOptionsBuilder::default().contract_address(contract).data(data).gas_price(U256::from(50_000_000)).build().unwrap()
+	}
+}
 
 /// Provides `call_contract` method
 pub trait CallContract {
-	/// Like `call`, but with various defaults. Designed to be used for calling contracts.
-	fn call_contract(&self, id: BlockId, address: Address, data: Bytes) -> Result<Bytes, String>;
+	/// Executes a transient call to a contract at given `BlockId`.
+	///
+	/// The constructed transaction must be executed on top of state at block `id`,
+	/// any changes introduce by the call must be discarded.
+	/// Returns:
+	/// - A return data from the contract if the call was successful,
+	/// - A `CallError::Reverted(msg)` error in case the call was reverted with an exception and message.
+	/// - A `CallError::Other(msg)` in case the call did not succeed for other reasons.
+	fn call_contract(&self, id: BlockId, call_options: CallOptions) -> Result<Bytes, CallError>;
 }
 
 /// Provides information on a blockchain service and it's registry

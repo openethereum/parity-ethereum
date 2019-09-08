@@ -25,6 +25,7 @@ use ethereum_types::{H256, Address};
 use log::{warn, trace};
 use machine::Machine;
 use parking_lot::RwLock;
+use call_contract::CallOptions;
 use common_types::{
 	BlockNumber,
 	ids::BlockId,
@@ -79,7 +80,7 @@ impl ValidatorContract {
 						let checked_last_block = reporting.checked_last_block;
 						if checked_last_block.is_none() || (latest_block_num - checked_last_block.expect("checked for None before")) >= blk_num {
 							reporting.update_cache(latest_block_num, false);
-							c.call_contract(BlockId::Latest, self.contract_address, data.clone())?;
+							c.call_contract(BlockId::Latest, CallOptions::new(self.contract_address, data.clone())).map_err(|e| e.to_string())?;
 							reporting.update_cache(latest_block_num, true);
 						}
 						if !reporting.cached_result {
@@ -166,7 +167,7 @@ mod tests {
 	use std::sync::Arc;
 
 	use accounts::AccountProvider;
-	use call_contract::CallContract;
+	use call_contract::{CallContract, CallOptions};
 	use common_types::{header::Header, ids::BlockId};
 	use client_traits::{BlockChainClient, ChainInfo, BlockInfo};
 	use ethcore::{
@@ -232,7 +233,7 @@ mod tests {
 		assert_eq!(client.chain_info().best_block_number, 1);
 		// Check if the unresponsive validator is `disliked`.
 		assert_eq!(
-			client.call_contract(BlockId::Latest, validator_contract, "d8f2e0bf".from_hex().unwrap()).unwrap().to_hex(),
+			client.call_contract(BlockId::Latest, CallOptions::new(validator_contract, "d8f2e0bf".from_hex().unwrap())).unwrap().to_hex(),
 			"0000000000000000000000007d577a597b2742b498cb5cf0c26cdcd726d39e6e"
 		);
 		// Simulate a misbehaving validator by handling a double proposal.

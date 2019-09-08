@@ -22,7 +22,7 @@ use ethereum_types::{H256, U256, Address};
 use log::{trace, error};
 use lru_cache::LruCache;
 
-use ethcore_call_contract::CallContract;
+use ethcore_call_contract::{CallContract, CallOptions};
 use client_traits::BlockInfo;
 use parking_lot::Mutex;
 use common_types::{
@@ -95,7 +95,7 @@ impl TransactionFilter {
 		let contract_address = self.contract_address;
 		let contract_version = contract_version_cache.get_mut(parent_hash).and_then(|v| *v).or_else(||  {
 			let (data, decoder) = transact_acl::functions::contract_version::call();
-			decoder.decode(&client.call_contract(BlockId::Hash(*parent_hash), contract_address, data).ok()?).ok()
+			decoder.decode(&client.call_contract(BlockId::Hash(*parent_hash), CallOptions::new(contract_address, data)).ok()?).ok()
 		});
 		contract_version_cache.insert(*parent_hash, contract_version);
 
@@ -107,11 +107,12 @@ impl TransactionFilter {
 				match version_u64 {
 					2 => {
 						let (data, decoder) = transact_acl::functions::allowed_tx_types::call(sender, to, value);
-						client.call_contract(BlockId::Hash(*parent_hash), contract_address, data)
+						client.call_contract(BlockId::Hash(*parent_hash), CallOptions::new(contract_address, data))
+							.map_err(|e| e.to_string())
 							.and_then(|value| decoder.decode(&value).map_err(|e| e.to_string()))
 							.map(|(p, f)| (p.low_u32(), f))
 							.unwrap_or_else(|e| {
-								error!(target: "tx_filter", "Error calling tx permissions contract: {:?}", e);
+								error!(target: "tx_filter", "Error calling tx permissions contract: {}", e);
 								(tx_permissions::NONE, true)
 							})
 					},
@@ -124,11 +125,12 @@ impl TransactionFilter {
 			None => {
 				trace!(target: "tx_filter", "Fallback to the deprecated version of tx permission contract");
 				let (data, decoder) = transact_acl_deprecated::functions::allowed_tx_types::call(sender);
-				(client.call_contract(BlockId::Hash(*parent_hash), contract_address, data)
+				(client.call_contract(BlockId::Hash(*parent_hash), CallOptions::new(contract_address, data))
+				 	.map_err(|e| e.to_string())
 					.and_then(|value| decoder.decode(&value).map_err(|e| e.to_string()))
 					.map(|p| p.low_u32())
 					.unwrap_or_else(|e| {
-						error!(target: "tx_filter", "Error calling tx permissions contract: {:?}", e);
+						error!(target: "tx_filter", "Error calling tx permissions contract: {}", e);
 						tx_permissions::NONE
 					}), true)
 			}

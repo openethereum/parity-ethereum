@@ -19,7 +19,7 @@
 use std::sync::Arc;
 use parking_lot::RwLock;
 use ethereum_types::{H256, Address};
-use call_contract::{CallContract, RegistryInfo};
+use call_contract::{CallContract, CallOptions, RegistryInfo};
 use types::ids::BlockId;
 use ethabi::FunctionOutputDecoder;
 
@@ -79,7 +79,7 @@ impl<C> KeyProvider for SecretStoreKeys<C> where C: CallContract + RegistryInfo 
 		match *self.keys_acl_contract.read() {
 			Some(acl_contract_address) => {
 				let (data, decoder) = keys_acl_contract::functions::available_keys::call(*account);
-				if let Ok(value) = self.client.call_contract(block, acl_contract_address, data) {
+				if let Ok(value) = self.client.call_contract(block, CallOptions::new(acl_contract_address, data)) {
 					decoder.decode(&value).ok().map(|key_values| {
 						key_values.iter().map(key_to_address).collect()
 					})
@@ -159,7 +159,7 @@ mod tests {
 	}
 
 	impl CallContract for DummyRegistryClient {
-		fn call_contract(&self, _id: BlockId, _address: Address, _data: Bytes) -> Result<Bytes, String> { Ok(vec![]) }
+		fn call_contract(&self, _id: BlockId, _call_options: CallOptions) -> Result<Bytes, String> { Ok(vec![]) }
 	}
 
 	#[test]

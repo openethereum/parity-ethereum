@@ -63,7 +63,7 @@ use types::{
 use vm::{Schedule, LastHashes};
 
 use block::{OpenBlock, SealedBlock, ClosedBlock};
-use call_contract::{CallContract, RegistryInfo};
+use call_contract::{CallContract, CallOptions, RegistryInfo, CallError as ContractCallError};
 use client::{
 	ReopenBlock, PrepareOpenBlock, ImportSealedBlock, BroadcastProposalBlock, Call,
 	EngineInfo, BlockProducer, SealedBlockImporter,
@@ -532,7 +532,7 @@ impl BlockInfo for TestBlockChainClient {
 }
 
 impl CallContract for TestBlockChainClient {
-	fn call_contract(&self, _id: BlockId, _address: Address, _data: Bytes) -> Result<Bytes, String> { Ok(vec![]) }
+	fn call_contract(&self, _id: BlockId, _call_options: CallOptions) -> Result<Bytes, ContractCallError> { Ok(vec![]) }
 }
 
 impl TransactionInfo for TestBlockChainClient {

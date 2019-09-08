@@ -18,6 +18,7 @@
 
 use std::sync::{Weak, Arc};
 
+use call_contract::CallOptions;
 use client_traits::EngineClient;
 use common_types::{
 	BlockNumber,
@@ -294,7 +295,7 @@ impl ValidatorSet for ValidatorSafeContract {
 			.ok_or_else(|| "No client!".into())
 			.and_then(|c| {
 				match c.as_full_client() {
-					Some(c) => c.call_contract(id, addr, data),
+					Some(c) => c.call_contract(id, CallOptions::new(addr, data)).map_err(|e| e.to_string()),
 					None => Err("No full client!".into()),
 				}
 			})

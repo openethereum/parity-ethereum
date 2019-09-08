@@ -10,3 +10,4 @@ edition = "2018"
 types = { path = "../types", package = "common-types" }
 ethereum-types = "0.6.0"
 bytes = { version = "0.1", package = "parity-bytes" }
+derive_builder = "0.7.2"

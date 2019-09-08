@@ -16,6 +16,7 @@
 
 //! Smart contract based node filter.
 
+extern crate call_contract;
 extern crate client_traits;
 extern crate common_types;
 extern crate ethabi;
@@ -42,6 +43,7 @@ extern crate log;
 use std::collections::{HashMap, VecDeque};
 use std::sync::Weak;
 
+use call_contract::CallOptions;
 use common_types::{
 	ids::BlockId,
 	chain_notify::NewBlocks,
@@ -103,10 +105,11 @@ impl ConnectionFilter for NodeFilter {
 		let id_high = H256::from_slice(&connecting_id[32..64]);
 
 		let (data, decoder) = peer_set::functions::connection_allowed::call(own_low, own_high, id_low, id_high);
-		let allowed = client.call_contract(BlockId::Latest, address, data)
+		let allowed = client.call_contract(BlockId::Latest, CallOptions::new(address, data))
+			.map_err(|e| e.to_string())
 			.and_then(|value| decoder.decode(&value).map_err(|e| e.to_string()))
 			.unwrap_or_else(|e| {
-				debug!("Error callling peer set contract: {:?}", e);
+				debug!("Error calling peer set contract: {:?}", e);
 				false
 			});
 		let mut cache = self.cache.write();

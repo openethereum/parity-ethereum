@@ -21,7 +21,7 @@ use std::thread;
 
 use ansi_term::Colour;
 use bytes::Bytes;
-use call_contract::CallContract;
+use call_contract::{CallContract, CallOptions};
 use client_traits::{BlockInfo, BlockChainClient};
 use ethcore::client::{Client, DatabaseCompactionProfile, VMType};
 use ethcore::miner::{self, stratum, Miner, MinerService, MinerOptions};
@@ -702,7 +702,7 @@ fn execute_impl<Cr, Rr>(cmd: RunCmd, logger: Arc<RotatingLogger>, on_client_rq: 
 					.ok_or_else(|| "Registrar not defined.".into())
 			}
 			fn call_contract(&self, address: Address, data: Bytes) -> Self::Call {
-				Box::new(self.client.call_contract(BlockId::Latest, address, data).into_future())
+				Box::new(self.client.call_contract(BlockId::Latest, CallOptions::new(address, data)).map_err(|e| e.to_string()).into_future())
 			}
 		}
 
