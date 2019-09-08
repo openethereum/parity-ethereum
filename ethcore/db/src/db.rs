@@ -190,6 +190,21 @@ pub trait Readable {
 		})
 	}
 
+	/// Returns value for given key either in two-layered cache or in database.
+	fn read_with_two_layer_cache<K, T, C>(&self, col: Option<u32>, l1_cache: &RwLock<C>, l2_cache: &RwLock<C>, key: &K) -> Option<T> where
+		K: Key<T> + Eq + Hash + Clone,
+		T: Clone + rlp::Decodable,
+		C: Cache<K, T> {
+		{
+			let read = l1_cache.read();
+			if let Some(v) = read.get(key) {
+				return Some(v.clone());
+			}
+		}
+
+		self.read_with_cache(col, l2_cache, key)
+	}
+
 	/// Returns true if given value exists.
 	fn exists<T, R>(&self, col: Option<u32>, key: &dyn Key<T, Target = R>) -> bool where R: AsRef<[u8]>;
 

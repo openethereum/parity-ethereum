@@ -198,6 +198,12 @@ pub trait BlockProvider {
 		where F: Fn(&LogEntry) -> bool + Send + Sync, Self: Sized;
 }
 
+/// Interface for querying blocks with pending db transaction by hash and by number.
+trait InTransactionBlockProvider {
+	/// Get the familial details concerning a block.
+	fn uncommitted_block_details(&self, hash: &H256) -> Option<BlockDetails>;
+}
+
 #[derive(Debug, Hash, Eq, PartialEq, Clone)]
 enum CacheId {
 	BlockHeader(H256),
@@ -424,6 +430,19 @@ impl BlockProvider for BlockChain {
 			.collect::<Vec<LocalizedLogEntry>>();
 		logs.reverse();
 		logs
+	}
+}
+
+impl InTransactionBlockProvider for BlockChain {
+	fn uncommitted_block_details(&self, hash: &H256) -> Option<BlockDetails> {
+		let result = self.db.key_value().read_with_two_layer_cache(
+			db::COL_EXTRA,
+			&self.pending_block_details,
+			&self.block_details,
+			hash
+		)?;
+		self.cache_man.lock().note_used(CacheId::BlockDetails(*hash));
+		Some(result)
 	}
 }
 
@@ -795,7 +814,7 @@ impl BlockChain {
 		batch.put(db::COL_HEADERS, hash.as_bytes(), &compressed_header);
 		batch.put(db::COL_BODIES, hash.as_bytes(), &compressed_body);
 
-		let maybe_parent = self.block_details(&block_parent_hash);
+		let maybe_parent = self.uncommitted_block_details(&block_parent_hash);
 
 		if let Some(parent_details) = maybe_parent {
 			// parent known to be in chain.
@@ -1047,7 +1066,7 @@ impl BlockChain {
 	///
 	/// Used in snapshots to glue the chunks together at the end.
 	pub fn add_child(&self, batch: &mut DBTransaction, block_hash: H256, child_hash: H256) {
-		let mut parent_details = self.block_details(&block_hash)
+		let mut parent_details = self.uncommitted_block_details(&block_hash)
 			.unwrap_or_else(|| panic!("Invalid block hash: {:?}", block_hash));
 
 		parent_details.children.push(child_hash);
@@ -1154,7 +1173,7 @@ impl BlockChain {
 	/// Mark a block to be considered finalized. Returns `Some(())` if the operation succeeds, and `None` if the block
 	/// hash is not found.
 	pub fn mark_finalized(&self, batch: &mut DBTransaction, block_hash: H256) -> Option<()> {
-		let mut block_details = self.block_details(&block_hash)?;
+		let mut block_details = self.uncommitted_block_details(&block_hash)?;
 		block_details.is_finalized = true;
 
 		self.update_block_details(batch, block_hash, block_details);
@@ -1347,7 +1366,7 @@ impl BlockChain {
 	/// Uses the given parent details or attempts to load them from the database.
 	fn prepare_block_details_update(&self, parent_hash: H256, info: &BlockInfo, is_finalized: bool) -> HashMap<H256, BlockDetails> {
 		// update parent
-		let mut parent_details = self.block_details(&parent_hash).unwrap_or_else(|| panic!("Invalid parent hash: {:?}", parent_hash));
+		let mut parent_details = self.uncommitted_block_details(&parent_hash).unwrap_or_else(|| panic!("Invalid parent hash: {:?}", parent_hash));
 		parent_details.children.push(info.hash);
 
 		// create current block details.
@@ -1653,7 +1672,7 @@ mod tests {
 		let fork_choice = {
 			let header = block.header_view();
 			let parent_hash = header.parent_hash();
-			let parent_details = bc.block_details(&parent_hash).unwrap_or_else(|| panic!("Invalid parent hash: {:?}", parent_hash));
+			let parent_details = bc.uncommitted_block_details(&parent_hash).unwrap_or_else(|| panic!("Invalid parent hash: {:?}", parent_hash));
 			let block_total_difficulty = parent_details.total_difficulty + header.difficulty();
 			if block_total_difficulty > bc.best_block_total_difficulty() {
 				common_types::engines::ForkChoice::New
