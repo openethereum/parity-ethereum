@@ -138,6 +138,7 @@ impl KeyProvider for StoringKeyProvider {
 #[cfg(test)]
 mod tests {
 	use std::sync::Arc;
+	use call_contract::CallError;
 	use ethkey::{Secret, KeyPair};
 	use bytes::Bytes;
 	use super::*;
@@ -159,7 +160,7 @@ mod tests {
 	}
 
 	impl CallContract for DummyRegistryClient {
-		fn call_contract(&self, _id: BlockId, _call_options: CallOptions) -> Result<Bytes, String> { Ok(vec![]) }
+		fn call_contract(&self, _id: BlockId, _call_options: CallOptions) -> Result<Bytes, CallError> { Ok(vec![]) }
 	}
 
 	#[test]

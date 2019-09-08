@@ -18,7 +18,7 @@ use std::sync::Arc;
 use std::net::SocketAddr;
 use std::collections::{BTreeMap, HashSet};
 use parking_lot::Mutex;
-use call_contract::CallContract;
+use call_contract::{CallContract, CallOptions};
 use ethabi::FunctionOutputDecoder;
 use ethcore::client::Client;
 use client_traits::{BlockChainClient, ChainNotify};
@@ -358,7 +358,7 @@ impl CachedContract {
 			},
 		};
 
-		let do_call = |data| client.call_contract(BlockId::Latest, contract_address, data);
+		let do_call = |data| client.call_contract(BlockId::Latest, CallOptions::new(contract_address, data)).map_err(|e| e.to_string());
 
 		let current_set = Self::read_key_server_set(CurrentKeyServerSubset, &do_call);
 

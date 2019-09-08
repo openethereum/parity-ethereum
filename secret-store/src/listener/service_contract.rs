@@ -480,7 +480,7 @@ impl ServerKeyGenerationService {
 	/// Read pending requests count.
 	fn read_pending_requests_count(client: &Client, contract_address: &Address, block: &BlockId) -> Result<U256, String> {
 		let (encoded, decoder) = service::functions::server_key_generation_requests_count::call();
-		decoder.decode(&client.call_contract(*block, CallOptions:new(*contract_address, encoded))?)
+		decoder.decode(&client.call_contract(*block, CallOptions::new(*contract_address, encoded)).map_err(|e| e.to_string())?)
 			.map_err(|e| e.to_string())
 	}
 
@@ -489,12 +489,13 @@ impl ServerKeyGenerationService {
 		let self_address = public_to_address(self_key_pair.public());
 
 		let (encoded, decoder) = service::functions::get_server_key_generation_request::call(index);
-		let (server_key_id, author, threshold) = decoder.decode(&client.call_contract(*block, CallOptions:new(*contract_address, encoded))?)
+		let (server_key_id, author, threshold) = decoder
+            .decode(&client.call_contract(*block, CallOptions::new(*contract_address, encoded)).map_err(|e| e.to_string())?)
 			.map_err(|e| e.to_string())?;
 		let threshold = parse_threshold(threshold)?;
 
 		let (encoded, decoder) = service::functions::is_server_key_generation_response_required::call(server_key_id, self_address);
-		let not_confirmed = decoder.decode(&client.call_contract(*block, CallOptions:new(*contract_address, encoded))?)
+		let not_confirmed = decoder.decode(&client.call_contract(*block, CallOptions::new(*contract_address, encoded)).map_err(|e| e.to_string())?)
 			.map_err(|e| e.to_string())?;
 
 		let task = ServiceTask::GenerateServerKey(
@@ -540,7 +541,7 @@ impl ServerKeyRetrievalService {
 	/// Read pending requests count.
 	fn read_pending_requests_count(client: &Client, contract_address: &Address, block: &BlockId) -> Result<U256, String> {
 		let (encoded, decoder) = service::functions::server_key_retrieval_requests_count::call();
-		decoder.decode(&client.call_contract(*block, CallOptions::new(*contract_address, encoded))?)
+		decoder.decode(&client.call_contract(*block, CallOptions::new(*contract_address, encoded)).map_err(|e| e.to_string())?)
 			.map_err(|e| e.to_string())
 	}
 
@@ -549,11 +550,11 @@ impl ServerKeyRetrievalService {
 		let self_address = public_to_address(self_key_pair.public());
 
 		let (encoded, decoder) = service::functions::get_server_key_retrieval_request::call(index);
-		let server_key_id = decoder.decode(&client.call_contract(*block, CallOptions:new(*contract_address, encoded))?)
+		let server_key_id = decoder.decode(&client.call_contract(*block, CallOptions::new(*contract_address, encoded)).map_err(|e| e.to_string())?)
 			.map_err(|e| e.to_string())?;
 
 		let (encoded, decoder) = service::functions::is_server_key_retrieval_response_required::call(server_key_id, self_address);
-		let not_confirmed = decoder.decode(&client.call_contract(*block, CallOptions:new(*contract_address, encoded))?)
+		let not_confirmed = decoder.decode(&client.call_contract(*block, CallOptions::new(*contract_address, encoded)).map_err(|e| e.to_string())?)
 			.map_err(|e| e.to_string())?;
 
 		let task = ServiceTask::RetrieveServerKey(
@@ -603,7 +604,7 @@ impl DocumentKeyStoreService {
 	/// Read pending requests count.
 	fn read_pending_requests_count(client: &Client, contract_address: &Address, block: &BlockId) -> Result<U256, String> {
 		let (encoded, decoder) = service::functions::document_key_store_requests_count::call();
-		decoder.decode(&client.call_contract(*block, CallOptions:new(*contract_address, encoded))?)
+		decoder.decode(&client.call_contract(*block, CallOptions::new(*contract_address, encoded)).map_err(|e| e.to_string())?)
 			.map_err(|e| e.to_string())
 	}
 
@@ -611,11 +612,11 @@ impl DocumentKeyStoreService {
 	fn read_pending_request(self_key_pair: &NodeKeyPair, client: &Client, contract_address: &Address, block: &BlockId, index: U256) -> Result<(bool, ServiceTask), String> {
 		let self_address = public_to_address(self_key_pair.public());
 		let (encoded, decoder) = service::functions::get_document_key_store_request::call(index);
-		let (server_key_id, author, common_point, encrypted_point) = decoder.decode(&client.call_contract(*block, CallOptions:new(*contract_address, encoded))?)
+		let (server_key_id, author, common_point, encrypted_point) = decoder.decode(&client.call_contract(*block, CallOptions::new(*contract_address, encoded)).map_err(|e| e.to_string())?)
 			.map_err(|e| e.to_string())?;
 
 		let (encoded, decoder) = service::functions::is_document_key_store_response_required::call(server_key_id, self_address);
-		let not_confirmed = decoder.decode(&client.call_contract(*block, CallOptions:new(*contract_address, encoded))?)
+		let not_confirmed = decoder.decode(&client.call_contract(*block, CallOptions::new(*contract_address, encoded)).map_err(|e| e.to_string())?)
 			.map_err(|e| e.to_string())?;
 
 		let task = ServiceTask::StoreDocumentKey(
@@ -683,7 +684,7 @@ impl DocumentKeyShadowRetrievalService {
 	/// Read pending requests count.
 	fn read_pending_requests_count(client: &Client, contract_address: &Address, block: &BlockId) -> Result<U256, String> {
 		let (encoded, decoder) = service::functions::document_key_shadow_retrieval_requests_count::call();
-		decoder.decode(&client.call_contract(*block, CallOptions:new(*contract_address, encoded))?)
+		decoder.decode(&client.call_contract(*block, CallOptions::new(*contract_address, encoded)).map_err(|e| e.to_string())?)
 			.map_err(|e| e.to_string())
 	}
 
@@ -693,12 +694,12 @@ impl DocumentKeyShadowRetrievalService {
 
 		let (encoded, decoder) = service::functions::get_document_key_shadow_retrieval_request::call(index);
 		let (server_key_id, requester, is_common_retrieval_completed) =
-			decoder.decode(&client.call_contract(*block, CallOptions:new(*contract_address, encoded))?)
+			decoder.decode(&client.call_contract(*block, CallOptions::new(*contract_address, encoded)).map_err(|e| e.to_string())?)
 			.map_err(|e| e.to_string())?;
 
 		let requester = Public::from_slice(&requester);
 		let (encoded, decoder) = service::functions::is_document_key_shadow_retrieval_response_required::call(server_key_id, public_to_address(&requester), self_address);
-		let not_confirmed = decoder.decode(&client.call_contract(*block, CallOptions:new(*contract_address, encoded))?)
+		let not_confirmed = decoder.decode(&client.call_contract(*block, CallOptions::new(*contract_address, encoded)).map_err(|e| e.to_string())?)
 			.map_err(|e| e.to_string())?;
 
 		let task = match is_common_retrieval_completed {
@@ -721,7 +722,7 @@ impl DocumentKeyShadowRetrievalService {
 	fn map_key_server_address(client: &Client, contract_address: &Address, key_server: Address) -> Result<u8, String> {
 		// we're checking confirmation in Latest block, because tx ,ust be appended to the latest state
 		let (encoded, decoder) = service::functions::require_key_server::call(key_server);
-		let index = decoder.decode(&client.call_contract(BlockId::Latest, CallOptions::new(*contract_address, encoded))?)
+		let index = decoder.decode(&client.call_contract(BlockId::Latest, CallOptions::new(*contract_address, encoded)).map_err(|e| e.to_string())?)
 			.map_err(|e| e.to_string())?;
 
 		if index > u8::max_value().into() {
