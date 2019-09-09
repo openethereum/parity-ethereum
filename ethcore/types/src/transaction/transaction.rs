@@ -134,20 +134,20 @@ impl Transaction {
 	}
 }
 
-impl From<ethjson::transaction::TransactionWithSigningInfo> for SignedTransaction {
-	fn from(t: ethjson::transaction::TransactionWithSigningInfo) -> Self {
-		let to: Option<ethjson::hash::Address> = t.transaction.to.into();
+impl From<ethjson::transaction::Transaction> for SignedTransaction {
+	fn from(t: ethjson::transaction::Transaction) -> Self {
+		let to: Option<ethjson::hash::Address> = t.to.into();
 		let secret = t.secret.map(|s| Secret::from(s.0));
 		let tx = Transaction {
-			nonce: t.transaction.nonce.into(),
-			gas_price: t.transaction.gas_price.into(),
-			gas: t.transaction.gas_limit.into(),
+			nonce: t.nonce.into(),
+			gas_price: t.gas_price.into(),
+			gas: t.gas_limit.into(),
 			action: match to {
 				Some(to) => Action::Call(to.into()),
 				None => Action::Create
 			},
-			value: t.transaction.value.into(),
-			data: t.transaction.data.into(),
+			value: t.value.into(),
+			data: t.data.into(),
 		};
 		match secret {
 			Some(s) => tx.sign(&s, None),
@@ -156,20 +156,20 @@ impl From<ethjson::transaction::TransactionWithSigningInfo> for SignedTransactio
 	}
 }
 
-impl From<ethjson::transaction::TransactionWithSigningInfo> for UnverifiedTransaction {
-	fn from(t: ethjson::transaction::TransactionWithSigningInfo) -> Self {
-		let to: Option<ethjson::hash::Address> = t.transaction.to.into();
+impl From<ethjson::transaction::Transaction> for UnverifiedTransaction {
+	fn from(t: ethjson::transaction::Transaction) -> Self {
+		let to: Option<ethjson::hash::Address> = t.to.into();
 		UnverifiedTransaction {
 			unsigned: Transaction {
-				nonce: t.transaction.nonce.into(),
-				gas_price: t.transaction.gas_price.into(),
-				gas: t.transaction.gas_limit.into(),
+				nonce: t.nonce.into(),
+				gas_price: t.gas_price.into(),
+				gas: t.gas_limit.into(),
 				action: match to {
 					Some(to) => Action::Call(to.into()),
 					None => Action::Create
 				},
-				value: t.transaction.value.into(),
-				data: t.transaction.data.into(),
+				value: t.value.into(),
+				data: t.data.into(),
 			},
 			r: t.r.into(),
 			s: t.s.into(),

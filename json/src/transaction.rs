@@ -19,7 +19,7 @@
 use crate::{bytes::Bytes, hash::{Address, H256}, maybe::MaybeEmpty, uint::Uint};
 use serde::Deserialize;
 
-/// Plain transaction deserialization.
+/// Unsigned transaction with signing information deserialization.
 #[derive(Debug, PartialEq, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Transaction {
@@ -35,14 +35,6 @@ pub struct Transaction {
 	pub to: MaybeEmpty<Address>,
 	/// Value.
 	pub value: Uint,
-}
-
-/// Unsigned transaction with signing information deserialization
-#[derive(Debug, PartialEq, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct TransactionWithSigningInfo {
-	/// Transaction
-	pub transaction: Transaction,
 	/// R.
 	pub r: Uint,
 	/// S.
@@ -56,7 +48,7 @@ pub struct TransactionWithSigningInfo {
 
 #[cfg(test)]
 mod tests {
-	use super::{Transaction, TransactionWithSigningInfo};
+	use super::Transaction;
 
 	#[test]
 	fn transaction_deserialization() {
@@ -66,29 +58,13 @@ mod tests {
 			"gasPrice" : "0x09184e72a000",
 			"nonce" : "0x00",
 			"to" : "",
-			"value" : "0x00"
-		}"#;
-		let _deserialized: Transaction = serde_json::from_str(s).unwrap();
-		// TODO: validate all fields
-	}
-
-	#[test]
-	fn transaction_with_signing_info_deserialization() {
-		let s = r#"{
-			"transaction": {
-				"data" : "0x",
-				"gasLimit" : "0xf388",
-				"gasPrice" : "0x09184e72a000",
-				"nonce" : "0x00",
-				"to" : "",
-				"value" : "0x00"
-			},
+			"value" : "0x00",
 			"r": 0,
 			"s": 1,
 			"v": 2,
 			"secretKey": "0x0000000000000000000000000000000000000000000000000000000000000000"
 		}"#;
-		let _deserialized: TransactionWithSigningInfo = serde_json::from_str(s).unwrap();
+		let _deserialized: Transaction = serde_json::from_str(s).unwrap();
 		// TODO: validate all fields
 	}
 }

@@ -27,7 +27,7 @@ use crate::{
 	maybe::MaybeEmpty,
 	uint::Uint,
 	spec::{ForkSpec, State as AccountState},
-	transaction::{Transaction, TransactionWithSigningInfo},
+	transaction::Transaction,
 	vm::Env
 };
 
@@ -69,16 +69,14 @@ pub struct MultiTransaction {
 
 impl MultiTransaction {
 	/// Build transaction with given indexes.
-	pub fn select(&self, indexes: &PostStateIndexes) -> TransactionWithSigningInfo {
-		TransactionWithSigningInfo {
-			transaction: Transaction {
-				data: self.data[indexes.data as usize].clone(),
-				gas_limit: self.gas_limit[indexes.gas as usize].clone(),
-				gas_price: self.gas_price.clone(),
-				nonce: self.nonce.clone(),
-				to: self.to.clone(),
-				value: self.value[indexes.value as usize].clone(),
-			},
+	pub fn select(&self, indexes: &PostStateIndexes) -> Transaction {
+		Transaction {
+			data: self.data[indexes.data as usize].clone(),
+			gas_limit: self.gas_limit[indexes.gas as usize],
+			gas_price: self.gas_price,
+			nonce: self.nonce,
+			to: self.to.clone(),
+			value: self.value[indexes.value as usize],
 			r: Default::default(),
 			s: Default::default(),
 			v: Default::default(),
