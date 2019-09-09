@@ -20,7 +20,6 @@ use std::{
 	cmp::{max, min},
 	io::{self, Read, Cursor},
 	mem::size_of,
-	slice,
 };
 
 use bn;
@@ -385,14 +384,14 @@ impl Implementation for Blake2F {
 
 		// state vector, h
 		let mut h = [0u64; 8];
-		for state_byte in h.iter_mut() {
-			*state_byte = cursor.read_u64::<LittleEndian>().expect(PROOF);
+		for state_word in h.iter_mut() {
+			*state_word = cursor.read_u64::<LittleEndian>().expect(PROOF);
 		}
 
 		// message block vector, m
 		let mut m = [0u64; 16];
-		for msg_byte in m.iter_mut() {
-			*msg_byte = cursor.read_u64::<LittleEndian>().expect(PROOF);
+		for msg_word in m.iter_mut() {
+			*msg_word = cursor.read_u64::<LittleEndian>().expect(PROOF);
 		}
 
 		// 2w-bit offset counter, t
@@ -413,13 +412,11 @@ impl Implementation for Blake2F {
 
 		compress(&mut h, m, t, f, rounds as usize);
 
-		output.write(0, unsafe {
-			// `from_raw_parts` is safe under the assumption that `h` is
-			// 1. immutable,
-			// 2. comprised of `u64`
-			// …and because we're using the (known) length of `h`
-			slice::from_raw_parts(h.as_ptr() as *const u8, h.len() * size_of::<u64>())
-		});
+		let mut output_buf = [0u8; 8 * size_of::<u64>()];
+		for (i, state_word) in h.iter().enumerate() {
+			output_buf[i*8..(i+1)*8].copy_from_slice(&state_word.to_le_bytes());
+		}
+		output.write(0, &output_buf[..]);
 		Ok(())
 	}
 }
