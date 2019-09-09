@@ -498,6 +498,13 @@ version = "2.0.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 
 [[package]]
+name = "eip-152"
+version = "0.1.0"
+dependencies = [
+ "rustc-hex 2.0.1 (registry+https://github.com/rust-lang/crates.io-index)",
+]
+
+[[package]]
 name = "eip-712"
 version = "0.1.0"
 dependencies = [
@@ -643,6 +650,7 @@ dependencies = [
  "common-types 0.1.0",
  "criterion 0.2.5 (registry+https://github.com/rust-lang/crates.io-index)",
  "crossbeam-utils 0.6.6 (registry+https://github.com/rust-lang/crates.io-index)",
+ "eip-152 0.1.0",
  "env_logger 0.5.13 (registry+https://github.com/rust-lang/crates.io-index)",
  "error-chain 0.12.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "ethabi 6.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -664,6 +672,7 @@ dependencies = [
  "fetch 0.1.0",
  "hash-db 0.11.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "heapsize 0.4.2 (git+https://github.com/cheme/heapsize.git?branch=ec-macfix)",
+ "hex-literal 0.2.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "itertools 0.5.10 (registry+https://github.com/rust-lang/crates.io-index)",
  "journaldb 0.2.0",
  "keccak-hash 0.1.2 (registry+https://github.com/rust-lang/crates.io-index)",
