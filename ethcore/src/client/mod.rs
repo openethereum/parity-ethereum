@@ -38,7 +38,7 @@ pub use self::chain_notify::{ChainNotify, NewBlocks, ChainRoute, ChainRouteType,
 pub use self::traits::{
     Nonce, Balance, ChainInfo, BlockInfo, ReopenBlock, PrepareOpenBlock, TransactionInfo, ScheduleInfo, ImportSealedBlock, BroadcastProposalBlock, ImportBlock,
     StateOrBlock, StateClient, Call, EngineInfo, AccountData, BlockChain, BlockProducer, SealedBlockImporter, BadBlocks,
-	BlockChainReset
+	BlockChainReset, ImportExportBlocks
 };
 pub use state::StateInfo;
 pub use self::traits::{BlockChainClient, EngineClient, ProvingBlockChainClient, IoClient};
