@@ -20,7 +20,7 @@ mod input;
 
 pub use self::input::Input;
 
-/// Type from `trie` tests
+/// Type used by `trie` tests
 pub type Test = super::tester::GenericTester<String, Trie>;
 
 use serde::Deserialize;
