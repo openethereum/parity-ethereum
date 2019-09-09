@@ -45,7 +45,6 @@ keccak-hasher = { path = "../../util/keccak-hasher" }
 triehash-ethereum = { version = "0.2",  path = "../../util/triehash-ethereum" }
 kvdb = "0.1"
 memory-cache = { path = "../../util/memory-cache" }
-error-chain = { version = "0.12", default-features = false }
 journaldb = { path = "../../util/journaldb" }
 verification = { path = "../verification" }
 
