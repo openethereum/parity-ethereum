@@ -14,7 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
-use std::str::FromStr;
+use std::str::{FromStr, from_utf8};
 use std::sync::Arc;
 
 use ethereum_types::{U256, Address};
@@ -23,6 +23,7 @@ use hash::keccak;
 use io::IoChannel;
 use tempdir::TempDir;
 use types::{
+	data_format::DataFormat,
 	ids::BlockId,
 	transaction::{PendingTransaction, Transaction, Action, Condition},
 	filter::Filter,
@@ -34,7 +35,7 @@ use types::{
 use client::{Client, ClientConfig, PrepareOpenBlock, ImportSealedBlock};
 use client_traits::{
 	BlockInfo, BlockChainClient, BlockChainReset, ChainInfo,
-	ImportBlock, Tick,
+	ImportExportBlocks, Tick, ImportBlock
 };
 use spec;
 use machine::executive::{Executive, TransactOptions};
@@ -45,6 +46,7 @@ use test_helpers::{
 	generate_dummy_client, push_blocks_to_client, get_test_client_with_blocks, get_good_dummy_block_seq,
 	generate_dummy_client_with_data, get_good_dummy_block, get_bad_state_dummy_block
 };
+use rustc_hex::ToHex;
 
 #[test]
 fn imports_from_empty() {
@@ -386,4 +388,80 @@ fn reset_blockchain() {
 	assert!(client.block_header(BlockId::Number(16)).is_none());
 
 	assert!(client.block_header(BlockId::Number(15)).is_some());
+}
+
+#[test]
+fn import_export_hex() {
+	let client = get_test_client_with_blocks(get_good_dummy_block_seq(19));
+	let block_rlps = (15..20)
+		.filter_map(|num| client.block(BlockId::Number(num)))
+		.map(|header| {
+			header.raw().to_hex()
+		})
+		.collect::<Vec<_>>();
+
+	let mut out = Vec::new();
+
+	client.export_blocks(
+		Box::new(&mut out),
+		BlockId::Number(15),
+		BlockId::Number(20),
+		Some(DataFormat::Hex)
+	).unwrap();
+
+	let written = from_utf8(&out)
+		.unwrap()
+		.split("\n")
+		// last line is empty, ignore it.
+		.take(5)
+		.collect::<Vec<_>>();
+	assert_eq!(block_rlps, written);
+
+	assert!(client.reset(5).is_ok());
+	client.chain().clear_cache();
+
+	assert!(client.block_header(BlockId::Number(20)).is_none());
+	assert!(client.block_header(BlockId::Number(19)).is_none());
+	assert!(client.block_header(BlockId::Number(18)).is_none());
+	assert!(client.block_header(BlockId::Number(17)).is_none());
+	assert!(client.block_header(BlockId::Number(16)).is_none());
+
+	client.import_blocks(Box::new(&*out), Some(DataFormat::Hex)).unwrap();
+
+	assert!(client.block_header(BlockId::Number(20)).is_some());
+	assert!(client.block_header(BlockId::Number(19)).is_some());
+	assert!(client.block_header(BlockId::Number(18)).is_some());
+	assert!(client.block_header(BlockId::Number(17)).is_some());
+	assert!(client.block_header(BlockId::Number(16)).is_some());
+}
+
+#[test]
+fn import_export_binary() {
+	let client = get_test_client_with_blocks(get_good_dummy_block_seq(19));
+
+	let mut out = Vec::new();
+
+	client.export_blocks(
+		Box::new(&mut out),
+		BlockId::Number(15),
+		BlockId::Number(20),
+		Some(DataFormat::Binary)
+	).unwrap();
+
+	assert!(client.reset(5).is_ok());
+	client.chain().clear_cache();
+
+	assert!(client.block_header(BlockId::Number(20)).is_none());
+	assert!(client.block_header(BlockId::Number(19)).is_none());
+	assert!(client.block_header(BlockId::Number(18)).is_none());
+	assert!(client.block_header(BlockId::Number(17)).is_none());
+	assert!(client.block_header(BlockId::Number(16)).is_none());
+
+	client.import_blocks(Box::new(&*out), Some(DataFormat::Binary)).unwrap();
+
+	assert!(client.block_header(BlockId::Number(19)).is_some());
+	assert!(client.block_header(BlockId::Number(18)).is_some());
+	assert!(client.block_header(BlockId::Number(20)).is_some());
+	assert!(client.block_header(BlockId::Number(17)).is_some());
+	assert!(client.block_header(BlockId::Number(16)).is_some());
 }

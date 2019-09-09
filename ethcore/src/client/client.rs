@@ -15,98 +15,129 @@
 // along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
 use std::cmp;
-use std::collections::{HashSet, BTreeMap, VecDeque};
-use std::sync::atomic::{AtomicUsize, AtomicBool, Ordering as AtomicOrdering};
+use std::collections::{BTreeMap, HashSet, VecDeque};
+use std::io::{BufRead, BufReader};
+use std::str::from_utf8;
 use std::sync::{Arc, Weak};
-use std::time::{Instant, Duration};
+use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering as AtomicOrdering};
+use std::time::{Duration, Instant};
 
-use account_state::state::StateInfo;
-use blockchain::{BlockReceipts, BlockChain, BlockChainDB, BlockProvider, TreeRoute, TransactionAddress, ExtrasInsert, BlockNumberKey};
+use ansi_term::Colour;
 use bytes::Bytes;
-use call_contract::{CallContract, RegistryInfo};
-use ethcore_miner::pool::VerifiedTransaction;
-use ethereum_types::{H256, H264, Address, U256};
-use evm::Schedule;
+use bytes::ToPretty;
+use ethereum_types::{Address, H256, H264, U256};
 use hash::keccak;
-use io::IoChannel;
+use hash_db::EMPTY_PREFIX;
 use itertools::Itertools;
-use journaldb;
-use kvdb::{DBValue, KeyValueDB, DBTransaction};
+use kvdb::{DBTransaction, DBValue, KeyValueDB};
 use parking_lot::{Mutex, RwLock};
 use rand::rngs::OsRng;
-use trie::{TrieSpec, TrieFactory, Trie};
-use vm::{EnvInfo, LastHashes, CreateContractAddress};
-use hash_db::EMPTY_PREFIX;
-use block::{LockedBlock, Drain, ClosedBlock, OpenBlock, enact_verified, SealedBlock};
-use client::ancient_import::AncientVerifier;
+use rlp::PayloadInfo;
+use rustc_hex::FromHex;
+use trie::{Trie, TrieFactory, TrieSpec};
+
+use account_state::State;
+use account_state::state::StateInfo;
+use block::{ClosedBlock, Drain, enact_verified, LockedBlock, OpenBlock, SealedBlock};
+use blockchain::{
+	BlockChain,
+	BlockChainDB,
+	BlockNumberKey,
+	BlockProvider,
+	BlockReceipts,
+	ExtrasInsert,
+	TransactionAddress,
+	TreeRoute
+};
+// re-export
+pub use blockchain::CacheSize as BlockChainCacheSize;
+use call_contract::{CallContract, RegistryInfo};
 use client::{
-	ReopenBlock, PrepareOpenBlock, ImportSealedBlock, BroadcastProposalBlock,
-	Call, BlockProducer, SealedBlockImporter, EngineInfo,
-	ClientConfig, bad_blocks,
+	bad_blocks, BlockProducer, BroadcastProposalBlock, Call,
+	ClientConfig, EngineInfo, ImportSealedBlock, PrepareOpenBlock,
+	ReopenBlock, SealedBlockImporter,
 };
+use client::ancient_import::AncientVerifier;
 use client_traits::{
-	BlockInfo, ScheduleInfo, StateClient, BlockChainReset,
-	Nonce, Balance, ChainInfo, TransactionInfo, ImportBlock,
-	AccountData, BlockChain as BlockChainTrait, BlockChainClient,
-	IoClient, BadBlocks, ProvingBlockChainClient, SnapshotClient,
-	DatabaseRestore, SnapshotWriter, Tick, ChainNotify,
+	AccountData,
+	BadBlocks,
+	Balance,
+	BlockChain as BlockChainTrait,
+	BlockChainClient,
+	BlockChainReset,
+	BlockInfo,
+	ChainInfo,
+	ChainNotify,
+	DatabaseRestore,
+	ImportBlock,
+	ImportExportBlocks,
+	IoClient,
+	Nonce,
+	ProvingBlockChainClient,
+	ScheduleInfo,
+	SnapshotClient,
+	SnapshotWriter,
+	StateClient,
 	StateOrBlock,
+	Tick,
+	TransactionInfo
 };
+use db::{keys::BlockDetails, Readable, Writable};
 use engine::Engine;
+use ethcore_miner::pool::VerifiedTransaction;
+use ethtrie::Layout;
+use evm::Schedule;
+use executive_state;
+use io::IoChannel;
+use journaldb;
 use machine::{
 	executed::Executed,
-	executive::{Executive, TransactOptions, contract_address},
+	executive::{contract_address, Executive, TransactOptions},
 	transaction_ext::Transaction,
 };
-use trie_vm_factories::{Factories, VmFactory};
 use miner::{Miner, MinerService};
 use snapshot;
 use spec::Spec;
-use account_state::State;
-use executive_state;
 use state_db::StateDB;
-use trace::{self, TraceDB, ImportRequest as TraceImportRequest, LocalizedTrace, Database as TraceDatabase};
+use trace::{self, Database as TraceDatabase, ImportRequest as TraceImportRequest, LocalizedTrace, TraceDB};
+use trie_vm_factories::{Factories, VmFactory};
 use types::{
 	ancestry_action::AncestryAction,
-	BlockNumber,
 	block::PreverifiedBlock,
 	block_status::BlockStatus,
 	blockchain_info::BlockChainInfo,
-	chain_notify::{NewBlocks, ChainRoute, ChainMessageType},
+	BlockNumber,
+	call_analytics::CallAnalytics,
+	chain_notify::{ChainMessageType, ChainRoute, NewBlocks},
 	client_types::ClientReport,
-	import_route::ImportRoute,
-	io_message::ClientIoMessage,
+	client_types::Mode,
 	encoded,
 	engines::{
-		ForkChoice,
-		SealingState,
-		MAX_UNCLE_AGE,
 		epoch::{PendingTransition, Transition as EpochTransition},
+		ForkChoice,
 		machine::{AuxiliaryData, Call as MachineCall},
+		MAX_UNCLE_AGE,
+		SealingState,
 	},
-	errors::{EngineError, ExecutionError, BlockError, EthcoreError, SnapshotError, ImportError, EthcoreResult},
-	ids::{BlockId, TransactionId, UncleId, TraceId},
-	transaction::{self, LocalizedTransaction, UnverifiedTransaction, SignedTransaction, Action, CallError},
+	errors::{BlockError, EngineError, EthcoreError, EthcoreResult, ExecutionError, ImportError, SnapshotError},
 	filter::Filter,
-	log_entry::LocalizedLogEntry,
-	receipt::{Receipt, LocalizedReceipt},
 	header::Header,
+	ids::{BlockId, TraceId, TransactionId, UncleId},
+	import_route::ImportRoute,
+	io_message::ClientIoMessage,
+	log_entry::LocalizedLogEntry,
+	pruning_info::PruningInfo,
+	receipt::{LocalizedReceipt, Receipt},
 	snapshot::{Progress, Snapshotting},
 	trace_filter::Filter as TraceFilter,
-	pruning_info::PruningInfo,
-	call_analytics::CallAnalytics,
-	client_types::Mode,
+	transaction::{self, Action, CallError, LocalizedTransaction, SignedTransaction, UnverifiedTransaction},
 	verification::{Unverified, VerificationQueueInfo as BlockQueueInfo},
 };
-
-use verification::queue::kind::BlockLike;
-use verification::{Verifier, BlockQueue};
+use types::data_format::DataFormat;
+use verification::{BlockQueue, Verifier};
 use verification;
-use ansi_term::Colour;
-use ethtrie::Layout;
-// re-export
-pub use blockchain::CacheSize as BlockChainCacheSize;
-use db::{Writable, Readable, keys::BlockDetails};
+use verification::queue::kind::BlockLike;
+use vm::{CreateContractAddress, EnvInfo, LastHashes};
 
 use_contract!(registry, "res/contracts/registrar.json");
 
@@ -2555,6 +2586,116 @@ impl SnapshotClient for Client {
 
 }
 
+impl ImportExportBlocks for Client {
+	fn export_blocks<'a>(
+		&self,
+		mut out: Box<dyn std::io::Write + 'a>,
+		from: BlockId,
+		to: BlockId,
+		format: Option<DataFormat>
+	) -> Result<(), String> {
+		let from = self.block_number(from).ok_or("Starting block could not be found")?;
+		let to = self.block_number(to).ok_or("End block could not be found")?;
+		let format = format.unwrap_or_default();
+
+		for i in from..=to {
+			if i % 10000 == 0 {
+				info!("#{}", i);
+			}
+			let b = self.block(BlockId::Number(i)).ok_or("Error exporting incomplete chain")?.into_inner();
+			match format {
+				DataFormat::Binary => {
+					out.write(&b).map_err(|e| format!("Couldn't write to stream. Cause: {}", e))?;
+				}
+				DataFormat::Hex => {
+					out.write_fmt(format_args!("{}\n", b.pretty())).map_err(|e| format!("Couldn't write to stream. Cause: {}", e))?;
+				}
+			}
+		}
+		Ok(())
+	}
+
+	fn import_blocks<'a>(
+		&self,
+		mut source: Box<dyn std::io::Read + 'a>,
+		format: Option<DataFormat>
+	) -> Result<(), String> {
+		const READAHEAD_BYTES: usize = 8;
+
+		let mut first_bytes: Vec<u8> = vec![0; READAHEAD_BYTES];
+		let mut first_read = 0;
+
+		let format = match format {
+			Some(format) => format,
+			None => {
+				first_read = source.read(&mut first_bytes).map_err(|_| "Error reading from the file/stream.")?;
+				match first_bytes[0] {
+					0xf9 => DataFormat::Binary,
+					_ => DataFormat::Hex,
+				}
+			}
+		};
+
+		let do_import = |bytes: Vec<u8>| {
+			let block = Unverified::from_rlp(bytes).map_err(|_| "Invalid block rlp")?;
+			let number = block.header.number();
+			while self.queue_info().is_full() { std::thread::sleep(Duration::from_secs(1)); }
+			match self.import_block(block) {
+				Err(EthcoreError::Import(ImportError::AlreadyInChain)) => {
+					trace!("Skipping block #{}: already in chain.", number);
+				}
+				Err(e) => {
+					return Err(format!("Cannot import block #{}: {:?}", number, e));
+				},
+				Ok(_) => {},
+			}
+			Ok(())
+		};
+
+		match format {
+			DataFormat::Binary => {
+				loop {
+					let (mut bytes, n) = if first_read > 0 {
+						(first_bytes.clone(), first_read)
+					} else {
+						let mut bytes = vec![0; READAHEAD_BYTES];
+						let n = source.read(&mut bytes)
+							.map_err(|err| format!("Error reading from the file/stream: {:?}", err))?;
+						(bytes, n)
+					};
+					if n == 0 { break; }
+					first_read = 0;
+					let s = PayloadInfo::from(&bytes)
+						.map_err(|e| format!("Invalid RLP in the file/stream: {:?}", e))?.total();
+					bytes.resize(s, 0);
+					source.read_exact(&mut bytes[n..])
+						.map_err(|err| format!("Error reading from the file/stream: {:?}", err))?;
+					do_import(bytes)?;
+				}
+			}
+			DataFormat::Hex => {
+				for line in BufReader::new(source).lines() {
+					let s = line
+						.map_err(|err| format!("Error reading from the file/stream: {:?}", err))?;
+					let s = if first_read > 0 {
+						from_utf8(&first_bytes)
+							.map_err(|err| format!("Invalid UTF-8: {:?}", err))?
+							.to_owned() + &(s[..])
+					} else {
+						s
+					};
+					first_read = 0;
+					let bytes = s.from_hex()
+						.map_err(|err| format!("Invalid hex in file/stream: {:?}", err))?;
+					do_import(bytes)?;
+				}
+			}
+		};
+		self.flush_queue();
+		Ok(())
+	}
+}
+
 /// Returns `LocalizedReceipt` given `LocalizedTransaction`
 /// and a vector of receipts from given block up to transaction index.
 fn transaction_receipt(
@@ -2634,26 +2775,28 @@ impl IoChannelQueue {
 
 #[cfg(test)]
 mod tests {
-	use ethereum_types::{H256, Address};
+	use std::sync::Arc;
+	use std::sync::atomic::{AtomicBool, Ordering};
+	use std::thread;
+	use std::time::Duration;
+
+	use ethereum_types::{Address, H256};
+	use hash::keccak;
+	use kvdb::DBTransaction;
+
+	use blockchain::{ExtrasInsert, BlockProvider};
 	use client_traits::{BlockChainClient, ChainInfo};
+	use ethkey::KeyPair;
 	use types::{
 		encoded,
 		engines::ForkChoice,
 		ids::{BlockId, TransactionId},
-		log_entry::{LogEntry, LocalizedLogEntry},
-		receipt::{Receipt, LocalizedReceipt, TransactionOutcome},
-		transaction::{Transaction, LocalizedTransaction, Action},
+		log_entry::{LocalizedLogEntry, LogEntry},
+		receipt::{LocalizedReceipt, Receipt, TransactionOutcome},
+		transaction::{Action, LocalizedTransaction, Transaction},
 	};
 	use test_helpers::{generate_dummy_client, generate_dummy_client_with_data, generate_dummy_client_with_spec_and_data, get_good_dummy_block_hash};
-	use std::thread;
-	use std::time::Duration;
-	use std::sync::Arc;
-	use std::sync::atomic::{AtomicBool, Ordering};
-	use kvdb::DBTransaction;
-	use blockchain::{BlockProvider, ExtrasInsert};
-	use hash::keccak;
 	use super::transaction_receipt;
-	use ethkey::KeyPair;
 
 	#[test]
 	fn should_not_cache_details_before_commit() {
