@@ -74,6 +74,7 @@ pub mod trace_filter;
 pub mod transaction;
 pub mod tree_route;
 pub mod verification_queue_info;
+pub mod data_format;
 
 /// Type for block number.
 pub type BlockNumber = u64;
