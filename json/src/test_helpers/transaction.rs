@@ -44,7 +44,7 @@ pub struct PostState {
 
 #[cfg(test)]
 mod tests {
-	use super::*;
+	use super::TransactionTest;
 
 	#[test]
 	fn transaction_deserialization() {

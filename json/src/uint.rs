@@ -118,7 +118,7 @@ pub fn validate_optional_non_zero<'de, D>(d: D) -> Result<Option<Uint>, D::Error
 
 #[cfg(test)]
 mod test {
-	use super::*;
+	use super::Uint;
 	use ethereum_types::U256;
 
 	#[test]

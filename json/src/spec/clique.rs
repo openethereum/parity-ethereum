@@ -22,9 +22,9 @@ use serde::Deserialize;
 /// Clique params deserialization.
 #[derive(Debug, PartialEq, Deserialize)]
 pub struct CliqueParams {
-	/// period as defined in EIP
+	/// period as defined in EIP 225
 	pub period: Option<u64>,
-	/// epoch length as defined in EIP
+	/// epoch length as defined in EIP 225
 	pub epoch: Option<NonZeroU64>
 }
 
@@ -37,8 +37,7 @@ pub struct Clique {
 
 #[cfg(test)]
 mod tests {
-	use serde_json;
-	use super::*;
+	use super::{Clique, NonZeroU64};
 
 	#[test]
 	fn clique_deserialization() {

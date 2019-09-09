@@ -69,7 +69,7 @@ impl Spec {
 
 #[cfg(test)]
 mod tests {
-	use super::*;
+	use super::Spec;
 
 	#[test]
 	fn should_error_on_unknown_fields() {

@@ -94,7 +94,7 @@ impl_hash!(Bloom, Hash2048);
 
 #[cfg(test)]
 mod test {
-	use super::*;
+	use super::H256;
 	use std::str::FromStr;
 
 	#[test]

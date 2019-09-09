@@ -41,7 +41,7 @@ pub enum Engine {
 
 #[cfg(test)]
 mod tests {
-	use super::*;
+	use super::Engine;
 
 	#[test]
 	fn engine_deserialization() {

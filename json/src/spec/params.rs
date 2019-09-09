@@ -143,7 +143,7 @@ pub struct Params {
 
 #[cfg(test)]
 mod tests {
-	use super::*;
+	use super::{Params, Uint};
 	use ethereum_types::U256;
 
 	#[test]

@@ -51,8 +51,7 @@ impl Account {
 
 #[cfg(test)]
 mod tests {
-	use super::*;
-	use std::collections::BTreeMap;
+	use super::{Account, Bytes, BTreeMap, Uint};
 	use ethereum_types::U256;
 
 	#[test]

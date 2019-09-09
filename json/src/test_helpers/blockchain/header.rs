@@ -67,7 +67,7 @@ pub struct Header {
 
 #[cfg(test)]
 mod tests {
-	use super::*;
+	use super::Header;
 
 	#[test]
 	fn header_deserialization() {

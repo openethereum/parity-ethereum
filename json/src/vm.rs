@@ -122,7 +122,7 @@ pub struct Env {
 #[cfg(test)]
 mod tests {
 	use std::str::FromStr;
-	use super::*;
+	use super::{Address, Call, Env, MaybeEmpty, Transaction, Uint, Vm};
 	use ethereum_types::{U256, H160 as Hash160};
 
 	#[test]

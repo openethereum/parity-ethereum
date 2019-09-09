@@ -100,7 +100,7 @@ impl<'a> Visitor<'a> for BytesVisitor {
 
 #[cfg(test)]
 mod test {
-	use super::*;
+	use super::Bytes;
 
 	#[test]
 	fn bytes_deserialization() {
@@ -117,8 +117,7 @@ mod test {
 
 	#[test]
 	fn bytes_into() {
-		let bytes = Bytes(vec![0xff, 0x11]);
-		let v: Vec<u8> = bytes.into();
+		let v: Vec<u8> = Bytes(vec![0xff, 0x11]).into();
 		assert_eq!(vec![0xff, 0x11], v);
 	}
 }

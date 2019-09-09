@@ -41,12 +41,10 @@ pub struct BasicAuthority {
 
 #[cfg(test)]
 mod tests {
-	use super::*;
-	use ethereum_types::{U256, H160};
-	use crate::hash::Address;
-	use crate::spec::basic_authority::BasicAuthority;
-	use crate::spec::validator_set::ValidatorSet;
 	use std::str::FromStr;
+	use super::{BasicAuthority, Uint};
+	use ethereum_types::{U256, H160};
+	use crate::{hash::Address, spec::validator_set::ValidatorSet};
 
 	#[test]
 	fn basic_authority_deserialization() {

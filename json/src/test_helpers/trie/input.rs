@@ -117,7 +117,7 @@ impl<'a> Visitor<'a> for InputVisitor {
 
 #[cfg(test)]
 mod tests {
-	use super::*;
+	use super::{BTreeMap, Bytes, Input};
 
 	#[test]
 	fn input_deserialization_from_map() {

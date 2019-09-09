@@ -20,7 +20,7 @@ use crate::{
 	bytes::Bytes,
 	hash::{Address, H256},
 	spec::Seal,
-	uint::{Uint, self},
+	uint::{self, Uint},
 };
 use serde::Deserialize;
 
@@ -56,13 +56,13 @@ pub struct Genesis {
 
 #[cfg(test)]
 mod tests {
-	use super::*;
+	use std::str::FromStr;
+	use super::{Address, Bytes, Genesis, H256, Uint};
 	use crate::{
 		hash::H64,
 		spec::{Ethereum, Seal}
 	};
 	use ethereum_types::{U256, H160, H64 as Eth64, H256 as Eth256};
-	use std::str::FromStr;
 
 	#[test]
 	fn genesis_deserialization() {

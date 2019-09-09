@@ -80,8 +80,8 @@ impl<T> Into<Option<T>> for MaybeEmpty<T> {
 
 #[cfg(test)]
 mod tests {
-	use super::*;
 	use std::str::FromStr;
+	use super::MaybeEmpty;
 	use crate::hash::H256;
 
 	#[test]

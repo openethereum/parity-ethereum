@@ -107,7 +107,7 @@ pub struct AuthorityRound {
 
 #[cfg(test)]
 mod tests {
-	use super::*;
+	use super::{Address, Uint};
 	use ethereum_types::{U256, H160};
 	use crate::spec::{validator_set::ValidatorSet, authority_round::AuthorityRound};
 	use std::str::FromStr;

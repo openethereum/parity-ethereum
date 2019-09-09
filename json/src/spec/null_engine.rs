@@ -40,7 +40,7 @@ pub struct NullEngine {
 
 #[cfg(test)]
 mod tests {
-	use super::*;
+	use super::{NullEngine, Uint};
 	use ethereum_types::U256;
 
 	#[test]

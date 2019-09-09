@@ -56,7 +56,7 @@ pub struct TransactionWithSigningInfo {
 
 #[cfg(test)]
 mod tests {
-	use super::*;
+	use super::{Transaction, TransactionWithSigningInfo};
 
 	#[test]
 	fn transaction_deserialization() {

@@ -69,11 +69,9 @@ pub enum Seal {
 
 #[cfg(test)]
 mod tests {
-	use super::*;
-	use serde_json;
-	use ethereum_types::{U256, H64 as Eth64, H256 as Eth256, H520 as Eth520};
-	use crate::spec::{Ethereum, AuthorityRoundSeal, TendermintSeal, Seal};
 	use std::str::FromStr;
+	use super::{AuthorityRoundSeal, Bytes, Ethereum, H64, H256, H520, TendermintSeal, Seal, Uint};
+	use ethereum_types::{U256, H64 as Eth64, H256 as Eth256, H520 as Eth520};
 
 	#[test]
 	fn seal_deserialization() {

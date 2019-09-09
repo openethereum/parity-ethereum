@@ -29,7 +29,9 @@ use serde::Deserialize;
 #[serde(deny_unknown_fields)]
 #[serde(untagged)]
 pub enum BlockReward {
+	/// Single block reward
 	Single(Uint),
+	/// Several block rewards
 	Multi(BTreeMap<Uint, Uint>),
 }
 
@@ -113,9 +115,9 @@ pub struct Ethash {
 
 #[cfg(test)]
 mod tests {
-	use super::*;
-	use ethereum_types::{H160, U256};
 	use std::str::FromStr;
+	use super::{Address, BlockReward, Ethash, EthashParams, Uint};
+	use ethereum_types::{H160, U256};
 
 	#[test]
 	fn ethash_deserialization() {

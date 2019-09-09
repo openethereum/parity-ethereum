@@ -105,7 +105,7 @@ impl BlockChain {
 
 #[cfg(test)]
 mod tests {
-	use super::*;
+	use super::BlockChain;
 
 	#[test]
 	fn blockchain_deserialization() {

@@ -97,7 +97,7 @@ pub struct Builtin {
 
 #[cfg(test)]
 mod tests {
-	use super::*;
+	use super::{Builtin, Modexp, Linear, Pricing, Uint};
 
 	#[test]
 	fn builtin_deserialization() {
