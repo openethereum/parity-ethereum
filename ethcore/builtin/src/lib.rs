@@ -18,10 +18,12 @@
 
 use std::{
 	cmp::{max, min},
-	io::{self, Read},
+	io::{self, Read, Cursor},
+	mem::size_of,
 };
 
 use bn;
+use byteorder::{BigEndian, LittleEndian, ReadBytesExt};
 use ethereum_types::{H256, U256};
 use ethjson;
 use ethkey::{Signature, recover as ec_recover};
@@ -30,6 +32,7 @@ use log::{warn, trace};
 use num::{BigUint, Zero, One};
 use parity_bytes::BytesRef;
 use parity_crypto::digest;
+use eip_152::compress;
 
 /// Native implementation of a built-in contract.
 trait Implementation: Send + Sync {
@@ -42,6 +45,22 @@ trait Implementation: Send + Sync {
 trait Pricer: Send + Sync {
 	/// The gas cost of running this built-in for the given input data at block number `at`
 	fn cost(&self, input: &[u8], at: u64) -> U256;
+}
+
+/// Pricing for the Blake2 compression function (aka "F").
+/// Computes the price as a fixed cost per round where the number of rounds is part of the input
+/// byte slice.
+pub type Blake2FPricer = u64;
+
+impl Pricer for Blake2FPricer {
+	fn cost(&self, input: &[u8], _at: u64) -> U256 {
+		use std::convert::TryInto;
+		let (rounds_bytes, _) = input.split_at(std::mem::size_of::<u32>());
+		// Returning zero if the conversion fails is fine because `execute()` will check the length
+		// and bail with the appropriate error.
+		let rounds = u32::from_be_bytes(rounds_bytes.try_into().unwrap_or([0u8; 4]));
+		U256::from(*self as u128 * rounds as u128)
+	}
 }
 
 /// A linear pricing model. This computes a price using a base cost and a cost per-word.
@@ -199,6 +218,9 @@ impl Builtin {
 impl From<ethjson::spec::Builtin> for Builtin {
 	fn from(b: ethjson::spec::Builtin) -> Self {
 		let pricer: Box<dyn Pricer> = match b.pricing {
+			ethjson::spec::Pricing::Blake2F(cost_per_round) => {
+				Box::new(cost_per_round)
+			},
 			ethjson::spec::Pricing::Linear(linear) => {
 				Box::new(Linear {
 					base: linear.base,
@@ -208,7 +230,7 @@ impl From<ethjson::spec::Builtin> for Builtin {
 			ethjson::spec::Pricing::Modexp(exp) => {
 				Box::new(ModexpPricer {
 					divisor: if exp.divisor == 0 {
-						warn!("Zero modexp divisor specified. Falling back to default.");
+						warn!(target: "builtin", "Zero modexp divisor specified. Falling back to default.");
 						10
 					} else {
 						exp.divisor
@@ -256,6 +278,7 @@ fn ethereum_builtin(name: &str) -> Box<dyn Implementation> {
 		"alt_bn128_add" => Box::new(Bn128Add) as Box<dyn Implementation>,
 		"alt_bn128_mul" => Box::new(Bn128Mul) as Box<dyn Implementation>,
 		"alt_bn128_pairing" => Box::new(Bn128Pairing) as Box<dyn Implementation>,
+		"blake2_f" => Box::new(Blake2F) as Box<dyn Implementation>,
 		_ => panic!("invalid builtin name: {}", name),
 	}
 }
@@ -267,6 +290,10 @@ fn ethereum_builtin(name: &str) -> Box<dyn Implementation> {
 // - sha256
 // - ripemd160
 // - modexp (EIP198)
+// - alt_bn128_add
+// - alt_bn128_mul
+// - alt_bn128_pairing
+// - blake2_f (The Blake2 compression function F, EIP-152)
 
 #[derive(Debug)]
 struct Identity;
@@ -291,6 +318,9 @@ struct Bn128Mul;
 
 #[derive(Debug)]
 struct Bn128Pairing;
+
+#[derive(Debug)]
+struct Blake2F;
 
 impl Implementation for Identity {
 	fn execute(&self, input: &[u8], output: &mut BytesRef) -> Result<(), &'static str> {
@@ -333,6 +363,60 @@ impl Implementation for Sha256 {
 	fn execute(&self, input: &[u8], output: &mut BytesRef) -> Result<(), &'static str> {
 		let d = digest::sha256(input);
 		output.write(0, &*d);
+		Ok(())
+	}
+}
+
+impl Implementation for Blake2F {
+	/// Format of `input`:
+	/// [4 bytes for rounds][64 bytes for h][128 bytes for m][8 bytes for t_0][8 bytes for t_1][1 byte for f]
+	fn execute(&self, input: &[u8], output: &mut BytesRef) -> Result<(), &'static str> {
+		const BLAKE2_F_ARG_LEN: usize = 213;
+		const PROOF: &str = "Checked the length of the input above; qed";
+
+		if input.len() != BLAKE2_F_ARG_LEN {
+			trace!(target: "builtin", "input length for Blake2 F precompile should be exactly 213 bytes, was {}", input.len());
+			return Err("input length for Blake2 F precompile should be exactly 213 bytes")
+		}
+
+		let mut cursor = Cursor::new(input);
+		let rounds = cursor.read_u32::<BigEndian>().expect(PROOF);
+
+		// state vector, h
+		let mut h = [0u64; 8];
+		for state_word in h.iter_mut() {
+			*state_word = cursor.read_u64::<LittleEndian>().expect(PROOF);
+		}
+
+		// message block vector, m
+		let mut m = [0u64; 16];
+		for msg_word in m.iter_mut() {
+			*msg_word = cursor.read_u64::<LittleEndian>().expect(PROOF);
+		}
+
+		// 2w-bit offset counter, t
+		let t = [
+			cursor.read_u64::<LittleEndian>().expect(PROOF),
+			cursor.read_u64::<LittleEndian>().expect(PROOF),
+		];
+
+		// final block indicator flag, "f"
+		let f = match input.last() {
+				Some(1) => true,
+				Some(0) => false,
+				_ => {
+					trace!(target: "builtin", "incorrect final block indicator flag, was: {:?}", input.last());
+					return Err("incorrect final block indicator flag")
+				}
+			};
+
+		compress(&mut h, m, t, f, rounds as usize);
+
+		let mut output_buf = [0u8; 8 * size_of::<u64>()];
+		for (i, state_word) in h.iter().enumerate() {
+			output_buf[i*8..(i+1)*8].copy_from_slice(&state_word.to_le_bytes());
+		}
+		output.write(0, &output_buf[..]);
 		Ok(())
 	}
 }
@@ -526,7 +610,7 @@ impl Implementation for Bn128Pairing {
 		}
 
 		if let Err(err) = self.execute_with_error(input, output) {
-			trace!("Pairining error: {:?}", err);
+			trace!(target: "builtin", "Pairing error: {:?}", err);
 			return Err(err)
 		}
 		Ok(())
@@ -599,8 +683,116 @@ mod tests {
 	use ethjson::uint::Uint;
 	use num::{BigUint, Zero, One};
 	use parity_bytes::BytesRef;
-	use rustc_hex::FromHex;
+	use hex_literal::hex;
 	use super::{Builtin, Linear, ethereum_builtin, Pricer, ModexpPricer, modexp as me};
+
+	#[test]
+	fn blake2f_cost() {
+		let f = Builtin {
+			pricer: Box::new(123),
+			native: ethereum_builtin("blake2_f"),
+			activate_at: 0,
+		};
+		// 5 rounds
+		let input = hex!("0000000548c9bdf267e6096a3ba7ca8485ae67bb2bf894fe72f36e3cf1361d5f3af54fa5d182e6ad7f520e511f6c3e2b8c68059b6bbd41fbabd9831f79217e1319cde05b61626300000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000300000000000000000000000000000001");
+		let mut output = [0u8; 64];
+		f.execute(&input[..], &mut BytesRef::Fixed(&mut output[..])).unwrap();
+
+		assert_eq!(f.cost(&input[..], 0), U256::from(123*5));
+	}
+
+	#[test]
+	fn blake2_f_is_err_on_invalid_length() {
+		let blake2 = ethereum_builtin("blake2_f");
+		// Test vector 1 and expected output from https://github.com/ethereum/EIPs/blob/master/EIPS/eip-152.md#test-vector-1
+		let input = hex!("00000c48c9bdf267e6096a3ba7ca8485ae67bb2bf894fe72f36e3cf1361d5f3af54fa5d182e6ad7f520e511f6c3e2b8c68059b6bbd41fbabd9831f79217e1319cde05b61626300000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000300000000000000000000000000000001");
+		let mut out = [0u8; 64];
+
+		let result = blake2.execute(&input[..], &mut BytesRef::Fixed(&mut out[..]));
+		assert!(result.is_err());
+		assert_eq!(result.unwrap_err(), "input length for Blake2 F precompile should be exactly 213 bytes");
+	}
+
+	#[test]
+	fn blake2_f_is_err_on_invalid_length_2() {
+		let blake2 = ethereum_builtin("blake2_f");
+		// Test vector 2 and expected output from https://github.com/ethereum/EIPs/blob/master/EIPS/eip-152.md#test-vector-2
+		let input = hex!("000000000c48c9bdf267e6096a3ba7ca8485ae67bb2bf894fe72f36e3cf1361d5f3af54fa5d182e6ad7f520e511f6c3e2b8c68059b6bbd41fbabd9831f79217e1319cde05b61626300000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000300000000000000000000000000000001");
+		let mut out = [0u8; 64];
+
+		let result = blake2.execute(&input[..], &mut BytesRef::Fixed(&mut out[..]));
+		assert!(result.is_err());
+		assert_eq!(result.unwrap_err(), "input length for Blake2 F precompile should be exactly 213 bytes");
+	}
+
+	#[test]
+	fn blake2_f_is_err_on_bad_finalization_flag() {
+		let blake2 = ethereum_builtin("blake2_f");
+		// Test vector 3 and expected output from https://github.com/ethereum/EIPs/blob/master/EIPS/eip-152.md#test-vector-3
+		let input = hex!("0000000c48c9bdf267e6096a3ba7ca8485ae67bb2bf894fe72f36e3cf1361d5f3af54fa5d182e6ad7f520e511f6c3e2b8c68059b6bbd41fbabd9831f79217e1319cde05b61626300000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000300000000000000000000000000000002");
+		let mut out = [0u8; 64];
+
+		let result = blake2.execute(&input[..], &mut BytesRef::Fixed(&mut out[..]));
+		assert!(result.is_err());
+		assert_eq!(result.unwrap_err(), "incorrect final block indicator flag");
+	}
+
+	#[test]
+	fn blake2_f_zero_rounds_is_ok_test_vector_4() {
+		let blake2 = ethereum_builtin("blake2_f");
+		// Test vector 4 and expected output from https://github.com/ethereum/EIPs/blob/master/EIPS/eip-152.md#test-vector-4
+		let input = hex!("0000000048c9bdf267e6096a3ba7ca8485ae67bb2bf894fe72f36e3cf1361d5f3af54fa5d182e6ad7f520e511f6c3e2b8c68059b6bbd41fbabd9831f79217e1319cde05b61626300000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000300000000000000000000000000000001");
+		let expected = hex!("08c9bcf367e6096a3ba7ca8485ae67bb2bf894fe72f36e3cf1361d5f3af54fa5d282e6ad7f520e511f6c3e2b8c68059b9442be0454267ce079217e1319cde05b");
+		let mut output = [0u8; 64];
+		blake2.execute(&input[..], &mut BytesRef::Fixed(&mut output[..])).unwrap();
+		assert_eq!(&output[..], &expected[..]);
+	}
+
+	#[test]
+	fn blake2_f_test_vector_5() {
+		let blake2 = ethereum_builtin("blake2_f");
+		// Test vector 5 and expected output from https://github.com/ethereum/EIPs/blob/master/EIPS/eip-152.md#test-vector-5
+		let input = hex!("0000000c48c9bdf267e6096a3ba7ca8485ae67bb2bf894fe72f36e3cf1361d5f3af54fa5d182e6ad7f520e511f6c3e2b8c68059b6bbd41fbabd9831f79217e1319cde05b61626300000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000300000000000000000000000000000001");
+		let expected = hex!("ba80a53f981c4d0d6a2797b69f12f6e94c212f14685ac4b74b12bb6fdbffa2d17d87c5392aab792dc252d5de4533cc9518d38aa8dbf1925ab92386edd4009923");
+		let mut out = [0u8; 64];
+		blake2.execute(&input[..], &mut BytesRef::Fixed(&mut out[..])).unwrap();
+		assert_eq!(&out[..], &expected[..]);
+	}
+
+	#[test]
+	fn blake2_f_test_vector_6() {
+		let blake2 = ethereum_builtin("blake2_f");
+		// Test vector 6 and expected output from https://github.com/ethereum/EIPs/blob/master/EIPS/eip-152.md#test-vector-6
+		let input = hex!("0000000c48c9bdf267e6096a3ba7ca8485ae67bb2bf894fe72f36e3cf1361d5f3af54fa5d182e6ad7f520e511f6c3e2b8c68059b6bbd41fbabd9831f79217e1319cde05b61626300000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000300000000000000000000000000000000");
+		let expected = hex!("75ab69d3190a562c51aef8d88f1c2775876944407270c42c9844252c26d2875298743e7f6d5ea2f2d3e8d226039cd31b4e426ac4f2d3d666a610c2116fde4735");
+		let mut out = [0u8; 64];
+		blake2.execute(&input[..], &mut BytesRef::Fixed(&mut out[..])).unwrap();
+		assert_eq!(&out[..], &expected[..]);
+	}
+
+	#[test]
+	fn blake2_f_test_vector_7() {
+		let blake2 = ethereum_builtin("blake2_f");
+		// Test vector 7 and expected output from https://github.com/ethereum/EIPs/blob/master/EIPS/eip-152.md#test-vector-7
+		let input = hex!("0000000148c9bdf267e6096a3ba7ca8485ae67bb2bf894fe72f36e3cf1361d5f3af54fa5d182e6ad7f520e511f6c3e2b8c68059b6bbd41fbabd9831f79217e1319cde05b61626300000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000300000000000000000000000000000001");
+		let expected = hex!("b63a380cb2897d521994a85234ee2c181b5f844d2c624c002677e9703449d2fba551b3a8333bcdf5f2f7e08993d53923de3d64fcc68c034e717b9293fed7a421");
+		let mut out = [0u8; 64];
+		blake2.execute(&input[..], &mut BytesRef::Fixed(&mut out[..])).unwrap();
+		assert_eq!(&out[..], &expected[..]);
+	}
+
+	#[ignore]
+	#[test]
+	fn blake2_f_test_vector_8() {
+		let blake2 = ethereum_builtin("blake2_f");
+		// Test vector 8 and expected output from https://github.com/ethereum/EIPs/blob/master/EIPS/eip-152.md#test-vector-8
+		// Note this test is slow, 4294967295/0xffffffff rounds take a while.
+		let input = hex!("ffffffff48c9bdf267e6096a3ba7ca8485ae67bb2bf894fe72f36e3cf1361d5f3af54fa5d182e6ad7f520e511f6c3e2b8c68059b6bbd41fbabd9831f79217e1319cde05b61626300000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000300000000000000000000000000000001");
+		let expected = hex!("fc59093aafa9ab43daae0e914c57635c5402d8e3d2130eb9b3cc181de7f0ecf9b22bf99a7815ce16419e200e01846e6b5df8cc7703041bbceb571de6631d2615");
+		let mut out = [0u8; 64];
+		blake2.execute(&input[..], &mut BytesRef::Fixed(&mut out[..])).unwrap();
+		assert_eq!(&out[..], &expected[..]);
+	}
 
 	#[test]
 	fn modexp_func() {
@@ -663,19 +855,19 @@ mod tests {
 
 		let mut o = [255u8; 32];
 		f.execute(&i[..], &mut BytesRef::Fixed(&mut o[..])).expect("Builtin should not fail");
-		assert_eq!(&o[..], &(FromHex::from_hex("e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855").unwrap())[..]);
+		assert_eq!(&o[..], hex!("e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"));
 
 		let mut o8 = [255u8; 8];
 		f.execute(&i[..], &mut BytesRef::Fixed(&mut o8[..])).expect("Builtin should not fail");
-		assert_eq!(&o8[..], &(FromHex::from_hex("e3b0c44298fc1c14").unwrap())[..]);
+		assert_eq!(&o8[..], hex!("e3b0c44298fc1c14"));
 
 		let mut o34 = [255u8; 34];
 		f.execute(&i[..], &mut BytesRef::Fixed(&mut o34[..])).expect("Builtin should not fail");
-		assert_eq!(&o34[..], &(FromHex::from_hex("e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855ffff").unwrap())[..]);
+		assert_eq!(&o34[..], &hex!("e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855ffff")[..]);
 
 		let mut ov = vec![];
 		f.execute(&i[..], &mut BytesRef::Flexible(&mut ov)).expect("Builtin should not fail");
-		assert_eq!(&ov[..], &(FromHex::from_hex("e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855").unwrap())[..]);
+		assert_eq!(&ov[..], &hex!("e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855")[..]);
 	}
 
 	#[test]
@@ -686,59 +878,59 @@ mod tests {
 
 		let mut o = [255u8; 32];
 		f.execute(&i[..], &mut BytesRef::Fixed(&mut o[..])).expect("Builtin should not fail");
-		assert_eq!(&o[..], &(FromHex::from_hex("0000000000000000000000009c1185a5c5e9fc54612808977ee8f548b2258d31").unwrap())[..]);
+		assert_eq!(&o[..], &hex!("0000000000000000000000009c1185a5c5e9fc54612808977ee8f548b2258d31")[..]);
 
 		let mut o8 = [255u8; 8];
 		f.execute(&i[..], &mut BytesRef::Fixed(&mut o8[..])).expect("Builtin should not fail");
-		assert_eq!(&o8[..], &(FromHex::from_hex("0000000000000000").unwrap())[..]);
+		assert_eq!(&o8[..], &hex!("0000000000000000")[..]);
 
 		let mut o34 = [255u8; 34];
 		f.execute(&i[..], &mut BytesRef::Fixed(&mut o34[..])).expect("Builtin should not fail");
-		assert_eq!(&o34[..], &(FromHex::from_hex("0000000000000000000000009c1185a5c5e9fc54612808977ee8f548b2258d31ffff").unwrap())[..]);
+		assert_eq!(&o34[..], &hex!("0000000000000000000000009c1185a5c5e9fc54612808977ee8f548b2258d31ffff")[..]);
 	}
 
 	#[test]
 	fn ecrecover() {
 		let f = ethereum_builtin("ecrecover");
 
-		let i = FromHex::from_hex("47173285a8d7341e5e972fc677286384f802f8ef42a5ec5f03bbfa254cb01fad000000000000000000000000000000000000000000000000000000000000001b650acf9d3f5f0a2c799776a1254355d5f4061762a237396a99a0e0e3fc2bcd6729514a0dacb2e623ac4abd157cb18163ff942280db4d5caad66ddf941ba12e03").unwrap();
+		let i = hex!("47173285a8d7341e5e972fc677286384f802f8ef42a5ec5f03bbfa254cb01fad000000000000000000000000000000000000000000000000000000000000001b650acf9d3f5f0a2c799776a1254355d5f4061762a237396a99a0e0e3fc2bcd6729514a0dacb2e623ac4abd157cb18163ff942280db4d5caad66ddf941ba12e03");
 
 		let mut o = [255u8; 32];
 		f.execute(&i[..], &mut BytesRef::Fixed(&mut o[..])).expect("Builtin should not fail");
-		assert_eq!(&o[..], &(FromHex::from_hex("000000000000000000000000c08b5542d177ac6686946920409741463a15dddb").unwrap())[..]);
+		assert_eq!(&o[..], &hex!("000000000000000000000000c08b5542d177ac6686946920409741463a15dddb")[..]);
 
 		let mut o8 = [255u8; 8];
 		f.execute(&i[..], &mut BytesRef::Fixed(&mut o8[..])).expect("Builtin should not fail");
-		assert_eq!(&o8[..], &(FromHex::from_hex("0000000000000000").unwrap())[..]);
+		assert_eq!(&o8[..], &hex!("0000000000000000")[..]);
 
 		let mut o34 = [255u8; 34];
 		f.execute(&i[..], &mut BytesRef::Fixed(&mut o34[..])).expect("Builtin should not fail");
-		assert_eq!(&o34[..], &(FromHex::from_hex("000000000000000000000000c08b5542d177ac6686946920409741463a15dddbffff").unwrap())[..]);
+		assert_eq!(&o34[..], &hex!("000000000000000000000000c08b5542d177ac6686946920409741463a15dddbffff")[..]);
 
-		let i_bad = FromHex::from_hex("47173285a8d7341e5e972fc677286384f802f8ef42a5ec5f03bbfa254cb01fad000000000000000000000000000000000000000000000000000000000000001a650acf9d3f5f0a2c799776a1254355d5f4061762a237396a99a0e0e3fc2bcd6729514a0dacb2e623ac4abd157cb18163ff942280db4d5caad66ddf941ba12e03").unwrap();
+		let i_bad = hex!("47173285a8d7341e5e972fc677286384f802f8ef42a5ec5f03bbfa254cb01fad000000000000000000000000000000000000000000000000000000000000001a650acf9d3f5f0a2c799776a1254355d5f4061762a237396a99a0e0e3fc2bcd6729514a0dacb2e623ac4abd157cb18163ff942280db4d5caad66ddf941ba12e03");
 		let mut o = [255u8; 32];
 		f.execute(&i_bad[..], &mut BytesRef::Fixed(&mut o[..])).expect("Builtin should not fail");
-		assert_eq!(&o[..], &(FromHex::from_hex("ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff").unwrap())[..]);
+		assert_eq!(&o[..], &hex!("ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff")[..]);
 
-		let i_bad = FromHex::from_hex("47173285a8d7341e5e972fc677286384f802f8ef42a5ec5f03bbfa254cb01fad000000000000000000000000000000000000000000000000000000000000001b000000000000000000000000000000000000000000000000000000000000001b0000000000000000000000000000000000000000000000000000000000000000").unwrap();
+		let i_bad = hex!("47173285a8d7341e5e972fc677286384f802f8ef42a5ec5f03bbfa254cb01fad000000000000000000000000000000000000000000000000000000000000001b000000000000000000000000000000000000000000000000000000000000001b0000000000000000000000000000000000000000000000000000000000000000");
 		let mut o = [255u8; 32];
 		f.execute(&i_bad[..], &mut BytesRef::Fixed(&mut o[..])).expect("Builtin should not fail");
-		assert_eq!(&o[..], &(FromHex::from_hex("ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff").unwrap())[..]);
+		assert_eq!(&o[..], &hex!("ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff")[..]);
 
-		let i_bad = FromHex::from_hex("47173285a8d7341e5e972fc677286384f802f8ef42a5ec5f03bbfa254cb01fad000000000000000000000000000000000000000000000000000000000000001b0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000001b").unwrap();
+		let i_bad = hex!("47173285a8d7341e5e972fc677286384f802f8ef42a5ec5f03bbfa254cb01fad000000000000000000000000000000000000000000000000000000000000001b0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000001b");
 		let mut o = [255u8; 32];
 		f.execute(&i_bad[..], &mut BytesRef::Fixed(&mut o[..])).expect("Builtin should not fail");
-		assert_eq!(&o[..], &(FromHex::from_hex("ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff").unwrap())[..]);
+		assert_eq!(&o[..], &hex!("ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff")[..]);
 
-		let i_bad = FromHex::from_hex("47173285a8d7341e5e972fc677286384f802f8ef42a5ec5f03bbfa254cb01fad000000000000000000000000000000000000000000000000000000000000001bffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff000000000000000000000000000000000000000000000000000000000000001b").unwrap();
+		let i_bad = hex!("47173285a8d7341e5e972fc677286384f802f8ef42a5ec5f03bbfa254cb01fad000000000000000000000000000000000000000000000000000000000000001bffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff000000000000000000000000000000000000000000000000000000000000001b");
 		let mut o = [255u8; 32];
 		f.execute(&i_bad[..], &mut BytesRef::Fixed(&mut o[..])).expect("Builtin should not fail");
-		assert_eq!(&o[..], &(FromHex::from_hex("ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff").unwrap())[..]);
+		assert_eq!(&o[..], &hex!("ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff")[..]);
 
-		let i_bad = FromHex::from_hex("47173285a8d7341e5e972fc677286384f802f8ef42a5ec5f03bbfa254cb01fad000000000000000000000000000000000000000000000000000000000000001b000000000000000000000000000000000000000000000000000000000000001bffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff").unwrap();
+		let i_bad = hex!("47173285a8d7341e5e972fc677286384f802f8ef42a5ec5f03bbfa254cb01fad000000000000000000000000000000000000000000000000000000000000001b000000000000000000000000000000000000000000000000000000000000001bffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff");
 		let mut o = [255u8; 32];
 		f.execute(&i_bad[..], &mut BytesRef::Fixed(&mut o[..])).expect("Builtin should not fail");
-		assert_eq!(&o[..], &(FromHex::from_hex("ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff").unwrap())[..]);
+		assert_eq!(&o[..], &hex!("ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff")[..]);
 
 		// TODO: Should this (corrupted version of the above) fail rather than returning some address?
 	/*	let i_bad = FromHex::from_hex("48173285a8d7341e5e972fc677286384f802f8ef42a5ec5f03bbfa254cb01fad000000000000000000000000000000000000000000000000000000000000001b650acf9d3f5f0a2c799776a1254355d5f4061762a237396a99a0e0e3fc2bcd6729514a0dacb2e623ac4abd157cb18163ff942280db4d5caad66ddf941ba12e03").unwrap();
@@ -758,21 +950,21 @@ mod tests {
 
 		// test for potential gas cost multiplication overflow
 		{
-			let input = FromHex::from_hex("0000000000000000000000000000000000000000000000000000000000000001000000000000000000000000000000000000000000000000000000003b27bafd00000000000000000000000000000000000000000000000000000000503c8ac3").unwrap();
+			let input = hex!("0000000000000000000000000000000000000000000000000000000000000001000000000000000000000000000000000000000000000000000000003b27bafd00000000000000000000000000000000000000000000000000000000503c8ac3");
 			let expected_cost = U256::max_value();
 			assert_eq!(f.cost(&input[..], 0), expected_cost.into());
 		}
 
 		// test for potential exp len overflow
 		{
-			let input = FromHex::from_hex("\
-				00000000000000000000000000000000000000000000000000000000000000ff\
-				2a1e530000000000000000000000000000000000000000000000000000000000\
+			let input = hex!("
+				00000000000000000000000000000000000000000000000000000000000000ff
+				2a1e530000000000000000000000000000000000000000000000000000000000
 				0000000000000000000000000000000000000000000000000000000000000000"
-				).unwrap();
+				);
 
 			let mut output = vec![0u8; 32];
-			let expected = FromHex::from_hex("0000000000000000000000000000000000000000000000000000000000000000").unwrap();
+			let expected = hex!("0000000000000000000000000000000000000000000000000000000000000000");
 			let expected_cost = U256::max_value();
 
 			f.execute(&input[..], &mut BytesRef::Fixed(&mut output[..])).expect("Builtin should fail");
@@ -782,17 +974,17 @@ mod tests {
 
 		// fermat's little theorem example.
 		{
-			let input = FromHex::from_hex("\
-				0000000000000000000000000000000000000000000000000000000000000001\
-				0000000000000000000000000000000000000000000000000000000000000020\
-				0000000000000000000000000000000000000000000000000000000000000020\
-				03\
-				fffffffffffffffffffffffffffffffffffffffffffffffffffffffefffffc2e\
+			let input = hex!("
+				0000000000000000000000000000000000000000000000000000000000000001
+				0000000000000000000000000000000000000000000000000000000000000020
+				0000000000000000000000000000000000000000000000000000000000000020
+				03
+				fffffffffffffffffffffffffffffffffffffffffffffffffffffffefffffc2e
 				fffffffffffffffffffffffffffffffffffffffffffffffffffffffefffffc2f"
-			).unwrap();
+			);
 
 			let mut output = vec![0u8; 32];
-			let expected = FromHex::from_hex("0000000000000000000000000000000000000000000000000000000000000001").unwrap();
+			let expected = hex!("0000000000000000000000000000000000000000000000000000000000000001");
 			let expected_cost = 13056;
 
 			f.execute(&input[..], &mut BytesRef::Fixed(&mut output[..])).expect("Builtin should not fail");
@@ -802,16 +994,16 @@ mod tests {
 
 		// second example from EIP: zero base.
 		{
-			let input = FromHex::from_hex("\
-				0000000000000000000000000000000000000000000000000000000000000000\
-				0000000000000000000000000000000000000000000000000000000000000020\
-				0000000000000000000000000000000000000000000000000000000000000020\
-				fffffffffffffffffffffffffffffffffffffffffffffffffffffffefffffc2e\
+			let input = hex!("
+				0000000000000000000000000000000000000000000000000000000000000000
+				0000000000000000000000000000000000000000000000000000000000000020
+				0000000000000000000000000000000000000000000000000000000000000020
+				fffffffffffffffffffffffffffffffffffffffffffffffffffffffefffffc2e
 				fffffffffffffffffffffffffffffffffffffffffffffffffffffffefffffc2f"
-			).unwrap();
+			);
 
 			let mut output = vec![0u8; 32];
-			let expected = FromHex::from_hex("0000000000000000000000000000000000000000000000000000000000000000").unwrap();
+			let expected = hex!("0000000000000000000000000000000000000000000000000000000000000000");
 			let expected_cost = 13056;
 
 			f.execute(&input[..], &mut BytesRef::Fixed(&mut output[..])).expect("Builtin should not fail");
@@ -821,17 +1013,17 @@ mod tests {
 
 		// another example from EIP: zero-padding
 		{
-			let input = FromHex::from_hex("\
-				0000000000000000000000000000000000000000000000000000000000000001\
-				0000000000000000000000000000000000000000000000000000000000000002\
-				0000000000000000000000000000000000000000000000000000000000000020\
-				03\
-				ffff\
+			let input = hex!("
+				0000000000000000000000000000000000000000000000000000000000000001
+				0000000000000000000000000000000000000000000000000000000000000002
+				0000000000000000000000000000000000000000000000000000000000000020
+				03
+				ffff
 				80"
-			).unwrap();
+			);
 
 			let mut output = vec![0u8; 32];
-			let expected = FromHex::from_hex("3b01b01ac41f2d6e917c6d6a221ce793802469026d9ab7578fa2e79e4da6aaab").unwrap();
+			let expected = hex!("3b01b01ac41f2d6e917c6d6a221ce793802469026d9ab7578fa2e79e4da6aaab");
 			let expected_cost = 768;
 
 			f.execute(&input[..], &mut BytesRef::Fixed(&mut output[..])).expect("Builtin should not fail");
@@ -841,13 +1033,13 @@ mod tests {
 
 		// zero-length modulus.
 		{
-			let input = FromHex::from_hex("\
-				0000000000000000000000000000000000000000000000000000000000000001\
-				0000000000000000000000000000000000000000000000000000000000000002\
-				0000000000000000000000000000000000000000000000000000000000000000\
-				03\
+			let input = hex!("
+				0000000000000000000000000000000000000000000000000000000000000001
+				0000000000000000000000000000000000000000000000000000000000000002
+				0000000000000000000000000000000000000000000000000000000000000000
+				03
 				ffff"
-			).unwrap();
+			);
 
 			let mut output = vec![];
 			let expected_cost = 0;
@@ -869,21 +1061,21 @@ mod tests {
 
 		// zero-points additions
 		{
-			let input = FromHex::from_hex("\
-				0000000000000000000000000000000000000000000000000000000000000000\
-				0000000000000000000000000000000000000000000000000000000000000000\
-				0000000000000000000000000000000000000000000000000000000000000000\
+			let input = hex!("
+				0000000000000000000000000000000000000000000000000000000000000000
+				0000000000000000000000000000000000000000000000000000000000000000
+				0000000000000000000000000000000000000000000000000000000000000000
 				0000000000000000000000000000000000000000000000000000000000000000"
-			).unwrap();
+			);
 
 			let mut output = vec![0u8; 64];
-			let expected = FromHex::from_hex("\
-				0000000000000000000000000000000000000000000000000000000000000000\
+			let expected = hex!("
+				0000000000000000000000000000000000000000000000000000000000000000
 				0000000000000000000000000000000000000000000000000000000000000000"
-			).unwrap();
+			);
 
 			f.execute(&input[..], &mut BytesRef::Fixed(&mut output[..])).expect("Builtin should not fail");
-			assert_eq!(output, expected);
+			assert_eq!(output, &expected[..]);
 		}
 
 		// no input, should not fail
@@ -892,23 +1084,23 @@ mod tests {
 			let input = BytesRef::Fixed(&mut empty);
 
 			let mut output = vec![0u8; 64];
-			let expected = FromHex::from_hex("\
-				0000000000000000000000000000000000000000000000000000000000000000\
+			let expected = hex!("
+				0000000000000000000000000000000000000000000000000000000000000000
 				0000000000000000000000000000000000000000000000000000000000000000"
-			).unwrap();
+			);
 
 			f.execute(&input[..], &mut BytesRef::Fixed(&mut output[..])).expect("Builtin should not fail");
-			assert_eq!(output, expected);
+			assert_eq!(output, &expected[..]);
 		}
 
 		// should fail - point not on curve
 		{
-			let input = FromHex::from_hex("\
-				1111111111111111111111111111111111111111111111111111111111111111\
-				1111111111111111111111111111111111111111111111111111111111111111\
-				1111111111111111111111111111111111111111111111111111111111111111\
+			let input = hex!("
+				1111111111111111111111111111111111111111111111111111111111111111
+				1111111111111111111111111111111111111111111111111111111111111111
+				1111111111111111111111111111111111111111111111111111111111111111
 				1111111111111111111111111111111111111111111111111111111111111111"
-			).unwrap();
+			);
 
 			let mut output = vec![0u8; 64];
 
@@ -928,29 +1120,29 @@ mod tests {
 
 		// zero-point multiplication
 		{
-			let input = FromHex::from_hex("\
-				0000000000000000000000000000000000000000000000000000000000000000\
-				0000000000000000000000000000000000000000000000000000000000000000\
+			let input = hex!("
+				0000000000000000000000000000000000000000000000000000000000000000
+				0000000000000000000000000000000000000000000000000000000000000000
 				0200000000000000000000000000000000000000000000000000000000000000"
-			).unwrap();
+			);
 
 			let mut output = vec![0u8; 64];
-			let expected = FromHex::from_hex("\
-				0000000000000000000000000000000000000000000000000000000000000000\
+			let expected = hex!("
+				0000000000000000000000000000000000000000000000000000000000000000
 				0000000000000000000000000000000000000000000000000000000000000000"
-			).unwrap();
+			);
 
 			f.execute(&input[..], &mut BytesRef::Fixed(&mut output[..])).expect("Builtin should not fail");
-			assert_eq!(output, expected);
+			assert_eq!(output, &expected[..]);
 		}
 
 		// should fail - point not on curve
 		{
-			let input = FromHex::from_hex("\
-				1111111111111111111111111111111111111111111111111111111111111111\
-				1111111111111111111111111111111111111111111111111111111111111111\
+			let input = hex!("
+				1111111111111111111111111111111111111111111111111111111111111111
+				1111111111111111111111111111111111111111111111111111111111111111
 				0f00000000000000000000000000000000000000000000000000000000000000"
-			).unwrap();
+			);
 
 			let mut output = vec![0u8; 64];
 
@@ -991,16 +1183,12 @@ mod tests {
 		}
 	}
 
-	fn bytes(s: &'static str) -> Vec<u8> {
-		FromHex::from_hex(s).expect("static str should contain valid hex bytes")
-	}
-
 	#[test]
 	fn bn128_pairing_empty() {
 		// should not fail, because empty input is a valid input of 0 elements
 		empty_test(
 			builtin_pairing(),
-			bytes("0000000000000000000000000000000000000000000000000000000000000001"),
+			hex!("0000000000000000000000000000000000000000000000000000000000000001").to_vec(),
 		);
 	}
 
@@ -1009,12 +1197,12 @@ mod tests {
 		// should fail - point not on curve
 		error_test(
 			builtin_pairing(),
-			&bytes("\
-				1111111111111111111111111111111111111111111111111111111111111111\
-				1111111111111111111111111111111111111111111111111111111111111111\
-				1111111111111111111111111111111111111111111111111111111111111111\
-				1111111111111111111111111111111111111111111111111111111111111111\
-				1111111111111111111111111111111111111111111111111111111111111111\
+			&hex!("
+				1111111111111111111111111111111111111111111111111111111111111111
+				1111111111111111111111111111111111111111111111111111111111111111
+				1111111111111111111111111111111111111111111111111111111111111111
+				1111111111111111111111111111111111111111111111111111111111111111
+				1111111111111111111111111111111111111111111111111111111111111111
 				1111111111111111111111111111111111111111111111111111111111111111"
 			),
 			Some("not on curve"),
@@ -1026,9 +1214,9 @@ mod tests {
 		// should fail - input length is invalid
 		error_test(
 			builtin_pairing(),
-			&bytes("\
-				1111111111111111111111111111111111111111111111111111111111111111\
-				1111111111111111111111111111111111111111111111111111111111111111\
+			&hex!("
+				1111111111111111111111111111111111111111111111111111111111111111
+				1111111111111111111111111111111111111111111111111111111111111111
 				111111111111111111111111111111"
 			),
 			Some("Invalid input length"),
