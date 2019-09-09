@@ -2784,10 +2784,9 @@ mod tests {
 	use hash::keccak;
 	use kvdb::DBTransaction;
 
-	use blockchain::ExtrasInsert;
+	use blockchain::{ExtrasInsert, BlockProvider};
 	use client_traits::{BlockChainClient, ChainInfo};
 	use ethkey::KeyPair;
-	use test_helpers::{generate_dummy_client, generate_dummy_client_with_data, get_good_dummy_block_hash};
 	use types::{
 		encoded,
 		engines::ForkChoice,
@@ -2797,14 +2796,6 @@ mod tests {
 		transaction::{Action, LocalizedTransaction, Transaction},
 	};
 	use test_helpers::{generate_dummy_client, generate_dummy_client_with_data, generate_dummy_client_with_spec_and_data, get_good_dummy_block_hash};
-	use std::thread;
-	use std::time::Duration;
-	use std::sync::Arc;
-	use std::sync::atomic::{AtomicBool, Ordering};
-	use kvdb::DBTransaction;
-	use blockchain::{BlockProvider, ExtrasInsert};
-	use hash::keccak;
-
 	use super::transaction_receipt;
 
 	#[test]
