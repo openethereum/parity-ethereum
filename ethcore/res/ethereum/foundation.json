@@ -3958,15 +3958,6 @@
 				}
 			}
 		},
-        "0x0000000000000000000000000000000000000009": {
-          "builtin": {
-            "name": "blake2_f",
-            "activate_at": "0xffffff",
-            "pricing": {
-              "blake2_f": 1
-            }
-          }
-        },
 		"0x3282791d6fd713f1e94f4bfd565eaa78b3a0599d": {
 			"balance": "0x487a9a304539440000"
 		},
