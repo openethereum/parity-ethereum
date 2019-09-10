@@ -101,9 +101,9 @@ cargo-check-benches:
   <<:                              *docker-cache-status
   script:
     - time (
-        cargo check --all --benches --exclude ethash, verification --target $CARGO_TARGET --locked --verbose --color=always;
-        (pushd ethash; cargo check --benches --features bench --target $CARGO_TARGET --locked --verbose --color=always; popd)
-        (pushd ethcore/verification; cargo check --benches --features bench --target $CARGO_TARGET --locked --verbose --color=always; popd)
+        (cargo check --all --benches --exclude ethash, verification --target $CARGO_TARGET --locked --verbose --color=always);
+        (pushd ethash; cargo check --benches --features bench --target $CARGO_TARGET --locked --verbose --color=always; popd);
+        (pushd ethcore/verification; cargo check --benches --features bench --target $CARGO_TARGET --locked --verbose --color=always; popd);
       )
     - sccache -s
 
