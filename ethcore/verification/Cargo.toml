@@ -38,5 +38,10 @@ machine = { path = "../machine" }
 null-engine = { path = "../engines/null-engine" }
 spec = { path = "../spec" }
 
-tempdir = "0.3.7"
+# Benches
 ethash = { package = "ethash-engine", path = "../engines/ethash" }
+tempdir = "0.3.7"
+
+[features]
+# Used to selectively expose code for benchmarks.
+bench = []

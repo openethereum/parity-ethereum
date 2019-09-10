@@ -18,44 +18,54 @@
 
 use std::collections::BTreeMap;
 
-use ethereum_types::U256;
+use common_types::verification::Unverified;
 use criterion::{Criterion, criterion_group, criterion_main};
-
-use ::verification::verification;
-use common_types::{
-	verification::Unverified
-};
-use tempdir::TempDir;
-use spec::new_constantinople_test_machine;
 use ethash::{EthashParams, Ethash};
+use ethereum_types::U256;
+use ethcore::client::TestBlockChainClient;
+use spec::new_constantinople_test_machine;
+use tempdir::TempDir;
 
+use ::verification::{
+	FullFamilyParams,
+	verification,
+	test_helpers::TestBlockChain,
+};
 
-fn default_ethash_params() -> EthashParams {
+// These are current production values. Needed when using real blocks.
+fn ethash_params() -> EthashParams {
 	EthashParams {
 		minimum_difficulty: U256::from(131072),
 		difficulty_bound_divisor: U256::from(2048),
 		difficulty_increment_divisor: 10,
 		metropolis_difficulty_increment_divisor: 9,
-		homestead_transition: 1150000,
 		duration_limit: 13,
-		block_reward: {
-			let mut ret = BTreeMap::new();
-			ret.insert(0, 0.into());
-			ret
-		},
+		homestead_transition: 1150000,
 		difficulty_hardfork_transition: u64::max_value(),
-		difficulty_hardfork_bound_divisor: U256::from(0),
+		difficulty_hardfork_bound_divisor: U256::from(2048),
 		bomb_defuse_transition: u64::max_value(),
-		eip100b_transition: u64::max_value(),
+		eip100b_transition: 4370000,
 		ecip1010_pause_transition: u64::max_value(),
 		ecip1010_continue_transition: u64::max_value(),
 		ecip1017_era_rounds: u64::max_value(),
+		block_reward: {
+			let mut m = BTreeMap::<u64, U256>::new();
+			m.insert(0, 5000000000000000000u64.into());
+			m.insert(4370000, 3000000000000000000u64.into());
+			m.insert(7280000, 2000000000000000000u64.into());
+			m
+		},
 		expip2_transition: u64::max_value(),
 		expip2_duration_limit: 30,
-		block_reward_contract: None,
 		block_reward_contract_transition: 0,
-		difficulty_bomb_delays: BTreeMap::new(),
-		progpow_transition: u64::max_value(),
+		block_reward_contract: None,
+		difficulty_bomb_delays: {
+			let mut m = BTreeMap::new();
+			m.insert(4370000, 3000000);
+			m.insert(7280000, 2000000);
+			m
+		},
+		progpow_transition: u64::max_value()
 	}
 }
 
@@ -64,24 +74,93 @@ fn build_unverified_block() -> Unverified {
 	Unverified::from_rlp(rlp_bytes).expect("RLP bytes from disk are ok")
 }
 
-fn block_verification(c: &mut Criterion) {
+fn build_ethash() -> Ethash {
 	let machine = new_constantinople_test_machine();
-	let ethparams = default_ethash_params();
-	let tempdir = TempDir::new("").unwrap();
-	let ethash = Ethash::new(tempdir.path(), ethparams, machine, None);
-	let unverified_block = build_unverified_block();
+	let ethash_params = ethash_params();
+	let cache_dir = TempDir::new("").unwrap();
+	Ethash::new(
+		cache_dir.path(),
+		ethash_params,
+		machine,
+		None
+	)
+}
 
+fn block_verification(c: &mut Criterion) {
+	const PROOF: &'static str = "bytes from disk are ok";
+
+	let ethash = build_ethash();
+
+	// A fairly large block (32kb) with one uncle
+	let rlp_8481476 = include_bytes!("./8481476-one-uncle.rlp").to_vec();
+	// Parent of #8481476
+	let rlp_8481475 = include_bytes!("./8481475.rlp").to_vec();
+	// Parent of the uncle in #8481476
+	let rlp_8481474 = include_bytes!("./8481474-parent-to-uncle.rlp").to_vec();
+
+	// Phase 1 verification
 	c.bench_function("verify_block_basic", |b| {
+		let block = Unverified::from_rlp(rlp_8481476.clone()).expect(PROOF);
 		b.iter(|| {
-			verification::verify_block_basic(&unverified_block, &ethash, true)
+			assert!(verification::verify_block_basic(
+				&block,
+				&ethash,
+				true
+			).is_ok());
 		})
 	});
 
+	// Phase 2 verification
 	c.bench_function("verify_block_unordered", |b| {
+		let block = Unverified::from_rlp(rlp_8481476.clone()).expect(PROOF);
 		b.iter( || {
-			let unverified_block = build_unverified_block();
-			let _ = verification::verify_block_unordered(unverified_block, &ethash, true);
+			assert!(verification::verify_block_unordered(
+				block.clone(),
+				&ethash,
+				true
+			).is_ok());
 		})
+	});
+
+	// Phase 3 verification
+	let block = Unverified::from_rlp(rlp_8481476.clone()).expect(PROOF);
+	let preverified = verification::verify_block_unordered(block, &ethash, true).expect(PROOF);
+	let parent = Unverified::from_rlp(rlp_8481475.clone()).expect(PROOF);
+
+	// "partial" means we skip uncle and tx verification
+	c.bench_function("verify_block_family (partial)", |b| {
+		b.iter(|| {
+			let o = verification::verify_block_family::<TestBlockChainClient>(
+				&preverified.header,
+				&parent.header,
+				&ethash,
+				None
+			);
+			if let Err(e) = o {
+				panic!("verify_block_family (partial) ERROR: {:?}", e);
+			}
+		});
+	});
+
+	let mut block_provider = TestBlockChain::new();
+	block_provider.insert(rlp_8481476.clone()); // block to verify
+	block_provider.insert(rlp_8481475.clone()); // parent
+	block_provider.insert(rlp_8481474.clone()); // uncle's parent
+
+	let client = TestBlockChainClient::default();
+	c.bench_function("verify_block_family (full)", |b| {
+		b.iter(|| {
+			let full = FullFamilyParams { block: &preverified, block_provider: &block_provider, client: &client };
+			let o= verification::verify_block_family::<TestBlockChainClient>(
+				&preverified.header,
+				&parent.header,
+				&ethash,
+				Some(full),
+			);
+			if let Err(e) = o {
+				panic!("verify_block_family (full) ERROR: {:?}", e)
+			}
+		});
 	});
 }
 
