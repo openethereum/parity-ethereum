@@ -2128,7 +2128,6 @@ dependencies = [
  "ethjson 0.1.0",
  "keccak-hash 0.2.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "machine 0.1.0",
- "parking_lot 0.8.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "rlp 0.4.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "spec 0.1.0",
  "trace 0.1.0",
