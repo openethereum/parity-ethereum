@@ -16,9 +16,8 @@
 
 //! Authority params deserialization.
 
-use hash::Address;
-use uint::Uint;
-use bytes::Bytes;
+use crate::{bytes::Bytes, hash::Address, uint::Uint};
+use serde::Deserialize;
 use super::ValidatorSet;
 
 /// Authority params deserialization.

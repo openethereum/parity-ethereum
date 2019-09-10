@@ -15,8 +15,8 @@
 // along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
 //! rpc integration tests.
-use std::env;
-use std::sync::Arc;
+
+use std::{env, sync::Arc};
 
 use accounts::AccountProvider;
 use ethcore::client::{BlockChainClient, Client, ClientConfig, ChainInfo, ImportBlock};
@@ -27,7 +27,7 @@ use ethcore::test_helpers;
 use ethcore::verification::VerifierType;
 use ethcore::verification::queue::kind::blocks::Unverified;
 use ethereum_types::{Address, H256, U256};
-use ethjson::blockchain::BlockChain;
+use ethjson::test_helpers::blockchain::BlockChain;
 use ethjson::spec::ForkSpec;
 use io::IoChannel;
 use miner::external::ExternalMiner;
@@ -84,7 +84,7 @@ struct EthTester {
 impl EthTester {
 	fn from_chain(chain: &BlockChain) -> Self {
 
-		let tester = if ::ethjson::blockchain::Engine::NoProof == chain.engine {
+		let tester = if ethjson::test_helpers::blockchain::Engine::NoProof == chain.engine {
 			let mut config = ClientConfig::default();
 			config.verifier_type = VerifierType::CanonNoSeal;
 			config.check_seal = false;

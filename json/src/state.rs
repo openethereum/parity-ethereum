@@ -14,11 +14,15 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
-//! State test log deserialization.
-use hash::{Address, H256, Bloom};
-use bytes::Bytes;
+//! State deserialization types
 
-/// State test log deserialization.
+use crate::{
+	bytes::Bytes,
+	hash::{Address, H256, Bloom},
+};
+use serde::Deserialize;
+
+/// State log deserialization.
 #[derive(Debug, PartialEq, Deserialize)]
 pub struct Log {
 	/// Address.
@@ -33,8 +37,7 @@ pub struct Log {
 
 #[cfg(test)]
 mod tests {
-	use serde_json;
-	use state::Log;
+	use super::Log;
 
 	#[test]
 	fn log_deserialization() {

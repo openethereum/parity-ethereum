@@ -92,6 +92,7 @@ impl<'a> Visitor<'a> for UintVisitor {
 	}
 }
 
+/// Deserialize and validate that the value is non-zero
 pub fn validate_non_zero<'de, D>(d: D) -> Result<Uint, D::Error> where D: Deserializer<'de> {
 	let value = Uint::deserialize(d)?;
 
@@ -102,6 +103,7 @@ pub fn validate_non_zero<'de, D>(d: D) -> Result<Uint, D::Error> where D: Deseri
 	Ok(value)
 }
 
+/// Deserialize and validate that the value is non-zero
 pub fn validate_optional_non_zero<'de, D>(d: D) -> Result<Option<Uint>, D::Error> where D: Deserializer<'de> {
 	let value: Option<Uint> = Option::deserialize(d)?;
 
@@ -116,9 +118,8 @@ pub fn validate_optional_non_zero<'de, D>(d: D) -> Result<Option<Uint>, D::Error
 
 #[cfg(test)]
 mod test {
-	use serde_json;
+	use super::Uint;
 	use ethereum_types::U256;
-	use uint::Uint;
 
 	#[test]
 	fn uint_deserialization() {

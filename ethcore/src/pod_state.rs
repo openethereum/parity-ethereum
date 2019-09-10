@@ -40,13 +40,6 @@ impl PodState {
 	pub fn drain(self) -> BTreeMap<Address, PodAccount> { self.0 }
 }
 
-impl From<ethjson::blockchain::State> for PodState {
-	fn from(s: ethjson::blockchain::State) -> PodState {
-		let state = s.into_iter().map(|(addr, acc)| (addr.into(), PodAccount::from(acc))).collect();
-		PodState(state)
-	}
-}
-
 impl From<ethjson::spec::State> for PodState {
 	fn from(s: ethjson::spec::State) -> PodState {
 		let state: BTreeMap<_,_> = s.into_iter()

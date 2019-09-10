@@ -14,16 +14,20 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
-use ethjson;
-use types::header::Header;
 use ethereum_types::U256;
+use ethjson::test_helpers::difficulty::DifficultyTest;
+use types::header::Header;
 use spec::Spec;
 
 use super::HookType;
 
-pub fn json_difficulty_test<H: FnMut(&str, HookType)>(json_data: &[u8], spec: Spec, start_stop_hook: &mut H) -> Vec<String> {
-	let _ = ::env_logger::try_init();
-	let tests = ethjson::test::DifficultyTest::load(json_data).unwrap();
+pub fn json_difficulty_test<H: FnMut(&str, HookType)>(
+	json_data: &[u8],
+	spec: Spec,
+	start_stop_hook: &mut H
+) -> Vec<String> {
+	let _ = env_logger::try_init();
+	let tests = DifficultyTest::load(json_data).unwrap();
 	let engine = &spec.engine;
 
 	for (name, test) in tests.into_iter() {

@@ -21,7 +21,7 @@ use std::io::Read;
 use std::path::Path;
 use std::sync::Arc;
 
-use bytes::Bytes;
+use bytes::{Bytes, ToPretty};
 use ethereum_types::{H256, Bloom, U256, Address};
 use ethjson;
 use hash::{KECCAK_NULL_RLP, keccak};
