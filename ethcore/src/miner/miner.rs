@@ -33,7 +33,7 @@ use futures::sync::mpsc;
 use io::IoChannel;
 use miner::filter_options::{FilterOptions, FilterOperator};
 use miner::pool_client::{PoolClient, CachedNonceClient, NonceCache};
-use miner;
+use miner::{self, MinerService};
 use parking_lot::{Mutex, RwLock};
 use rayon::prelude::*;
 use types::{
@@ -862,7 +862,6 @@ impl Miner {
 
 	/// Prepare pending block, check whether sealing is needed, and then update sealing.
 	fn prepare_and_update_sealing<C: miner::BlockChainClient>(&self, chain: &C) {
-		use miner::MinerService;
 		match self.engine.sealing_state() {
 			SealingState::Ready => {
 				self.maybe_enable_sealing();
@@ -878,9 +877,10 @@ impl Miner {
 		}
 	}
 
-	/// Call `update_sealing` if needed
+	/// Call `update_sealing` if there are some local pending transactions.
+	/// This should be called after an internal block import, which might not have
+	/// included all the pending local transactions.
 	pub fn maybe_update_sealing<C: miner::BlockChainClient>(&self, chain: &C) {
-		use miner::MinerService;
 		if self.transaction_queue.has_local_pending_transactions() {
 			self.update_sealing(chain);
 		}
