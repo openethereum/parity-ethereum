@@ -16,7 +16,8 @@
 
 //! Spec builtin deserialization.
 
-use uint::Uint;
+use crate::uint::Uint;
+use serde::Deserialize;
 
 
 /// Linear pricing.
@@ -97,9 +98,7 @@ pub struct Builtin {
 
 #[cfg(test)]
 mod tests {
-	use serde_json;
-	use spec::builtin::{Builtin, Pricing, Linear, Modexp};
-	use uint::Uint;
+	use super::{Builtin, Modexp, Linear, Pricing, Uint};
 
 	#[test]
 	fn builtin_deserialization() {

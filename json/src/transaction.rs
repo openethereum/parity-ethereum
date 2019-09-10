@@ -14,14 +14,12 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
-//! Transaction test transaction deserialization.
+//! Transaction deserialization.
 
-use uint::Uint;
-use bytes::Bytes;
-use hash::Address;
-use maybe::MaybeEmpty;
+use crate::{bytes::Bytes, hash::{Address, H256}, maybe::MaybeEmpty, uint::Uint};
+use serde::Deserialize;
 
-/// Transaction test transaction deserialization.
+/// Unsigned transaction with signing information deserialization.
 #[derive(Debug, PartialEq, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Transaction {
@@ -43,12 +41,15 @@ pub struct Transaction {
 	pub s: Uint,
 	/// V.
 	pub v: Uint,
+	/// Secret
+	#[serde(rename = "secretKey")]
+	pub secret: Option<H256>,
 }
 
 #[cfg(test)]
 mod tests {
-	use serde_json;
-	use transaction::Transaction;
+	use super::{Bytes, H256, MaybeEmpty, Transaction, Uint};
+	use ethereum_types::{H256 as Eth256, U256};
 
 	#[test]
 	fn transaction_deserialization() {
@@ -57,13 +58,23 @@ mod tests {
 			"gasLimit" : "0xf388",
 			"gasPrice" : "0x09184e72a000",
 			"nonce" : "0x00",
-			"r" : "0x2c",
-			"s" : "0x04",
 			"to" : "",
-			"v" : "0x1b",
-			"value" : "0x00"
+			"value" : "0x00",
+			"r": 0,
+			"s": 1,
+			"v": 2,
+			"secretKey": "0x0000000000000000000000000000000000000000000000000000000000000000"
 		}"#;
-		let _deserialized: Transaction = serde_json::from_str(s).unwrap();
-		// TODO: validate all fields
+		let tx: Transaction = serde_json::from_str(s).unwrap();
+		assert_eq!(tx.data, Bytes::new(Vec::new()));
+		assert_eq!(tx.gas_limit, Uint(U256::from(0xf388)));
+		assert_eq!(tx.gas_price, Uint(U256::from(0x09184e72a000_u64)));
+		assert_eq!(tx.nonce, Uint(U256::zero()));
+		assert_eq!(tx.to, MaybeEmpty::None);
+		assert_eq!(tx.value, Uint(U256::zero()));
+		assert_eq!(tx.r, Uint(U256::zero()));
+		assert_eq!(tx.s, Uint(U256::one()));
+		assert_eq!(tx.v, Uint(U256::from(2)));
+		assert_eq!(tx.secret, Some(H256(Eth256::zero())));
 	}
 }

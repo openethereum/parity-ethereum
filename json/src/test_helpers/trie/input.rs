@@ -19,7 +19,7 @@
 use std::fmt;
 use std::collections::BTreeMap;
 use std::str::FromStr;
-use bytes::Bytes;
+use crate::bytes::Bytes;
 use serde::{Deserialize, Deserializer};
 use serde::de::{Error as ErrorTrait, Visitor, MapAccess, SeqAccess};
 
@@ -89,8 +89,8 @@ impl<'a> Visitor<'a> for InputVisitor {
 				return Err(V::Error::custom("Invalid key value pair."));
 			}
 
-			let ref key_str: Option<String> = keyval[0];
-			let ref val_str: Option<String> = keyval[1];
+			let key_str = &keyval[0];
+			let val_str = &keyval[1];
 
 			let key = match *key_str {
 				Some(ref k) if k.starts_with("0x") => Bytes::from_str(k).map_err(V::Error::custom)?,
@@ -117,10 +117,7 @@ impl<'a> Visitor<'a> for InputVisitor {
 
 #[cfg(test)]
 mod tests {
-	use std::collections::BTreeMap;
-	use serde_json;
-	use bytes::Bytes;
-	use super::Input;
+	use super::{BTreeMap, Bytes, Input};
 
 	#[test]
 	fn input_deserialization_from_map() {

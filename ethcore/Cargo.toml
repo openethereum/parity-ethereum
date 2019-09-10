@@ -79,7 +79,7 @@ engine = { path = "./engine", features = ["test-helpers"] }
 env_logger = "0.5"
 ethash = { path = "../ethash" }
 ethcore-accounts = { path = "../accounts" }
-ethjson = { path = "../json" }
+ethjson = { path = "../json", features = ["test-helpers"] }
 ethkey = { path = "../accounts/ethkey" }
 fetch = { path = "../util/fetch" }
 kvdb-memorydb = "0.1"
@@ -89,7 +89,6 @@ machine = { path = "./machine", features = ["test-helpers"] }
 macros = { path = "../util/macros" }
 null-engine = { path = "./engines/null-engine" }
 parity-runtime = { path = "../util/runtime" }
-pod = { path = "pod" }
 rlp_compress = { path = "../util/rlp-compress" }
 rustc-hex = "1"
 serde_json = "1.0"

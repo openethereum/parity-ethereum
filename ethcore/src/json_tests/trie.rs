@@ -26,7 +26,7 @@ pub use self::secure::run_test_path as run_secure_test_path;
 pub use self::secure::run_test_file as run_secure_test_file;
 
 fn test_trie<H: FnMut(&str, HookType)>(json: &[u8], trie: TrieSpec, start_stop_hook: &mut H) -> Vec<String> {
-	let tests = ethjson::trie::Test::load(json).unwrap();
+	let tests = ethjson::test_helpers::trie::Test::load(json).unwrap();
 	let factory = TrieFactory::new(trie, ethtrie::Layout);
 	let mut result = vec![];
 

@@ -122,7 +122,7 @@ fn main() {
 }
 
 fn run_state_test(args: Args) {
-	use ethjson::state::test::Test;
+	use ethjson::test_helpers::state::Test;
 
 	// Parse the specified state test JSON file provided to the command `state-test <file>`.
 	let file = args.arg_file.expect("PATH to a state test JSON file is required");
@@ -443,8 +443,8 @@ fn die<T: fmt::Display>(msg: T) -> ! {
 mod tests {
 	use common_types::transaction;
 	use docopt::Docopt;
-	use ethcore::{TrieSpec};
-	use ethjson::state::test::{State};
+	use ethcore::TrieSpec;
+	use ethjson::test_helpers::state::State;
 	use serde::Deserialize;
 
 	use super::{Args, USAGE, Address, run_call};

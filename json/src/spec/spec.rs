@@ -17,9 +17,9 @@
 //! Spec deserialization.
 
 use std::io::Read;
-use serde_json;
+use crate::spec::{Params, Genesis, Engine, State, HardcodedSync};
+use serde::Deserialize;
 use serde_json::Error;
-use spec::{Params, Genesis, Engine, State, HardcodedSync};
 
 /// Fork spec definition
 #[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Deserialize)]
@@ -70,8 +70,7 @@ impl Spec {
 
 #[cfg(test)]
 mod tests {
-	use serde_json;
-	use spec::spec::Spec;
+	use super::Spec;
 
 	#[test]
 	fn should_error_on_unknown_fields() {
