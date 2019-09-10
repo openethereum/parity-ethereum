@@ -86,6 +86,7 @@ bundle_test_spec! {
 	"constructor" => new_test_constructor,
 	"ethereum/byzantium_test" => new_byzantium_test,
 	"ethereum/constantinople_test" => new_constantinople_test,
+	"ethereum/istanbul_test" => new_istanbul_test,
 	"ethereum/eip150_test" => new_eip150_test,
 	"ethereum/eip161_test" => new_eip161_test,
 	"ethereum/eip210_test" => new_eip210_test,
@@ -111,6 +112,7 @@ bundle_test_spec! {
 bundle_test_machine! {
 	"ethereum/byzantium_test" => new_byzantium_test_machine,
 	"ethereum/constantinople_test" => new_constantinople_test_machine,
+	"ethereum/istanbul_test" => new_istanbul_test_machine,
 	"ethereum/eip210_test" => new_eip210_test_machine,
 	"ethereum/frontier_test" => new_frontier_test_machine,
 	"ethereum/homestead_test" => new_homestead_test_machine,
