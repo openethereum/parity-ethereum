@@ -252,7 +252,7 @@ pub fn verify_block_final(expected: &Header, got: &Header) -> Result<(), Error> 
 }
 
 /// Check basic header parameters.
-pub fn verify_header_params(header: &Header, engine: &dyn Engine, is_full: bool, check_seal: bool) -> Result<(), Error> {
+pub(crate) fn verify_header_params(header: &Header, engine: &dyn Engine, is_full: bool, check_seal: bool) -> Result<(), Error> {
 	if check_seal {
 		let expected_seal_fields = engine.seal_fields(header);
 		if header.seal().len() != expected_seal_fields {

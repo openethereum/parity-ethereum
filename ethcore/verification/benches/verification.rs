@@ -69,11 +69,6 @@ fn ethash_params() -> EthashParams {
 	}
 }
 
-fn build_unverified_block() -> Unverified {
-	let rlp_bytes = include_bytes!("./8447676.rlp").to_vec();
-	Unverified::from_rlp(rlp_bytes).expect("RLP bytes from disk are ok")
-}
-
 fn build_ethash() -> Ethash {
 	let machine = new_constantinople_test_machine();
 	let ethash_params = ethash_params();
