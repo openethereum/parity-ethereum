@@ -24,8 +24,14 @@ use crate::{
 };
 use serde::Deserialize;
 
+/// Blockchain state deserializer for tests
+#[cfg(any(test, feature = "test-helpers"))]
+#[derive(Clone, Debug, PartialEq, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct State(pub BTreeMap<Address, Account>);
+
 /// Blockchain state deserializer.
-#[cfg_attr(any(test, feature = "test-helpers"), derive(Clone))]
+#[cfg(not(any(test, feature = "test-helpers")))]
 #[derive(Debug, PartialEq, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct State(BTreeMap<Address, Account>);
