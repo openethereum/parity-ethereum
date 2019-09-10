@@ -458,7 +458,6 @@ impl TransactionQueue {
 			let state_readiness = ready::State::new(client.clone(), stale_id, nonce_cap);
 			removed += self.pool.write().cull(Some(chunk), state_readiness);
 		}
-		self.cached_pending.write().clear();
 		debug!(target: "txqueue", "Removed {} stalled transactions. {}", removed, self.status());
 	}
 

@@ -75,18 +75,19 @@ impl Engine for InstantSeal {
 	fn sealing_state(&self) -> SealingState { SealingState::Ready }
 
 	fn generate_seal(&self, block: &ExecutedBlock, _parent: &Header) -> Seal {
-		if block.transactions.is_empty() {
-			Seal::None
-		} else {
+		if !block.transactions.is_empty() {
 			let block_number = block.header.number();
 			let last_sealed_block = self.last_sealed_block.load(Ordering::SeqCst);
+			// Return a regular seal if the given block is _higher_ than
+			// the last sealed one
 			if block_number > last_sealed_block {
-				self.last_sealed_block.store(block_number, Ordering::SeqCst);
-				Seal::Regular(Vec::new())
-			} else {
-				Seal::None
+				let prev_last_sealed_block = self.last_sealed_block.compare_and_swap(last_sealed_block, block_number, Ordering::SeqCst);
+				if prev_last_sealed_block == last_sealed_block {
+					return Seal::Regular(Vec::new())
+				}
 			}
 		}
+		Seal::None
 	}
 
 	fn verify_local_seal(&self, _header: &Header) -> Result<(), Error> {
