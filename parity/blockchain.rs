@@ -14,7 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
-use std::str::{FromStr, from_utf8};
+use std::str::from_utf8;
 use std::{io, fs};
 use std::io::{BufReader, BufRead};
 use std::time::{Instant, Duration};
@@ -26,7 +26,7 @@ use hash::{keccak, KECCAK_NULL_RLP};
 use ethereum_types::{U256, H256, Address};
 use bytes::ToPretty;
 use rlp::PayloadInfo;
-use client_traits::{BlockInfo, BlockChainReset, Nonce, Balance, BlockChainClient, ImportBlock};
+use client_traits::{BlockChainReset, Nonce, Balance, BlockChainClient, ImportExportBlocks};
 use ethcore::{
 	client::{DatabaseCompactionProfile, VMType},
 	miner::Miner,
@@ -45,33 +45,9 @@ use types::{
 	ids::BlockId,
 	errors::{ImportError, EthcoreError},
 	client_types::Mode,
-	verification::Unverified,
 };
+use types::data_format::DataFormat;
 use verification::queue::VerifierSettings;
-
-#[derive(Debug, PartialEq)]
-pub enum DataFormat {
-	Hex,
-	Binary,
-}
-
-impl Default for DataFormat {
-	fn default() -> Self {
-		DataFormat::Binary
-	}
-}
-
-impl FromStr for DataFormat {
-	type Err = String;
-
-	fn from_str(s: &str) -> Result<Self, Self::Err> {
-		match s {
-			"binary" | "bin" => Ok(DataFormat::Binary),
-			"hex" => Ok(DataFormat::Hex),
-			x => Err(format!("Invalid format: {}", x))
-		}
-	}
-}
 
 #[derive(Debug, PartialEq)]
 pub enum BlockchainCmd {
@@ -412,25 +388,9 @@ fn execute_import(cmd: ImportBlockchain) -> Result<(), String> {
 
 	let client = service.client();
 
-	let mut instream: Box<dyn io::Read> = match cmd.file_path {
+	let instream: Box<dyn io::Read> = match cmd.file_path {
 		Some(f) => Box::new(fs::File::open(&f).map_err(|_| format!("Cannot open given file: {}", f))?),
 		None => Box::new(io::stdin()),
-	};
-
-	const READAHEAD_BYTES: usize = 8;
-
-	let mut first_bytes: Vec<u8> = vec![0; READAHEAD_BYTES];
-	let mut first_read = 0;
-
-	let format = match cmd.format {
-		Some(format) => format,
-		None => {
-			first_read = instream.read(&mut first_bytes).map_err(|_| "Error reading from the file/stream.")?;
-			match first_bytes[0] {
-				0xf9 => DataFormat::Binary,
-				_ => DataFormat::Hex,
-			}
-		}
 	};
 
 	let informant = Arc::new(Informant::new(
@@ -446,49 +406,7 @@ fn execute_import(cmd: ImportBlockchain) -> Result<(), String> {
 
 	service.register_io_handler(informant).map_err(|_| "Unable to register informant handler".to_owned())?;
 
-	let do_import = |bytes| {
-		let block = Unverified::from_rlp(bytes).map_err(|_| "Invalid block rlp")?;
-		while client.queue_info().is_full() { sleep(Duration::from_secs(1)); }
-		match client.import_block(block) {
-			Err(EthcoreError::Import(ImportError::AlreadyInChain)) => {
-				trace!("Skipping block already in chain.");
-			}
-			Err(e) => {
-				return Err(format!("Cannot import block: {:?}", e));
-			},
-			Ok(_) => {},
-		}
-		Ok(())
-	};
-
-	match format {
-		DataFormat::Binary => {
-			loop {
-				let mut bytes = if first_read > 0 {first_bytes.clone()} else {vec![0; READAHEAD_BYTES]};
-				let n = if first_read > 0 {
-					first_read
-				} else {
-					instream.read(&mut bytes).map_err(|_| "Error reading from the file/stream.")?
-				};
-				if n == 0 { break; }
-				first_read = 0;
-				let s = PayloadInfo::from(&bytes).map_err(|e| format!("Invalid RLP in the file/stream: {:?}", e))?.total();
-				bytes.resize(s, 0);
-				instream.read_exact(&mut bytes[n..]).map_err(|_| "Error reading from the file/stream.")?;
-				do_import(bytes)?;
-			}
-		}
-		DataFormat::Hex => {
-			for line in BufReader::new(instream).lines() {
-				let s = line.map_err(|_| "Error reading from the file/stream.")?;
-				let s = if first_read > 0 {from_utf8(&first_bytes).unwrap().to_owned() + &(s[..])} else {s};
-				first_read = 0;
-				let bytes = s.from_hex().map_err(|_| "Invalid hex in file/stream.")?;
-				do_import(bytes)?;
-			}
-		}
-	}
-	client.flush_queue();
+	client.import_blocks(instream, cmd.format)?;
 
 	// save user defaults
 	user_defaults.pruning = algorithm;
@@ -617,32 +535,14 @@ fn execute_export(cmd: ExportBlockchain) -> Result<(), String> {
 		false,
 		cmd.max_round_blocks_to_import,
 	)?;
-	let format = cmd.format.unwrap_or_default();
-
 	let client = service.client();
 
-	let mut out: Box<dyn io::Write> = match cmd.file_path {
+	let out: Box<dyn io::Write> = match cmd.file_path {
 		Some(f) => Box::new(fs::File::create(&f).map_err(|_| format!("Cannot write to file given: {}", f))?),
 		None => Box::new(io::stdout()),
 	};
 
-	let from = client.block_number(cmd.from_block).ok_or("From block could not be found")?;
-	let to = client.block_number(cmd.to_block).ok_or("To block could not be found")?;
-
-	for i in from..(to + 1) {
-		if i % 10000 == 0 {
-			info!("#{}", i);
-		}
-		let b = client.block(BlockId::Number(i)).ok_or("Error exporting incomplete chain")?.into_inner();
-		match format {
-			DataFormat::Binary => {
-				out.write(&b).map_err(|e| format!("Couldn't write to stream. Cause: {}", e))?;
-			}
-			DataFormat::Hex => {
-				out.write_fmt(format_args!("{}", b.pretty())).map_err(|e| format!("Couldn't write to stream. Cause: {}", e))?;
-			}
-		}
-	}
+	client.export_blocks(out, cmd.from_block, cmd.to_block, cmd.format)?;
 
 	info!("Export completed.");
 	Ok(())

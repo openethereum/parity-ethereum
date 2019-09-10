@@ -14,37 +14,22 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
-//! General test deserialization.
+//! State test deserialization.
 
-use std::io::Read;
+/// Type for running `State` tests
+pub type Test = super::tester::GenericTester<String, State>;
+
 use std::collections::BTreeMap;
-use uint::Uint;
-use bytes::Bytes;
-use hash::{Address, H256};
-use spec::ForkSpec;
-use state::{Env, AccountState, Transaction};
-use maybe::MaybeEmpty;
-use serde_json::{self, Error};
-
-/// State test deserializer.
-#[derive(Debug, PartialEq, Deserialize)]
-pub struct Test(BTreeMap<String, State>);
-
-impl IntoIterator for Test {
-	type Item = <BTreeMap<String, State> as IntoIterator>::Item;
-	type IntoIter = <BTreeMap<String, State> as IntoIterator>::IntoIter;
-
-	fn into_iter(self) -> Self::IntoIter {
-		self.0.into_iter()
-	}
-}
-
-impl Test {
-	/// Loads test from json.
-	pub fn load<R>(reader: R) -> Result<Self, Error> where R: Read {
-		serde_json::from_reader(reader)
-	}
-}
+use serde::Deserialize;
+use crate::{
+	bytes::Bytes,
+	hash::{Address, H256},
+	maybe::MaybeEmpty,
+	uint::Uint,
+	spec::{ForkSpec, State as AccountState},
+	transaction::Transaction,
+	vm::Env
+};
 
 /// State test deserialization.
 #[derive(Debug, PartialEq, Deserialize)]
@@ -87,12 +72,15 @@ impl MultiTransaction {
 	pub fn select(&self, indexes: &PostStateIndexes) -> Transaction {
 		Transaction {
 			data: self.data[indexes.data as usize].clone(),
-			gas_limit: self.gas_limit[indexes.gas as usize].clone(),
-			gas_price: self.gas_price.clone(),
-			nonce: self.nonce.clone(),
-			secret: self.secret.clone(),
+			gas_limit: self.gas_limit[indexes.gas as usize],
+			gas_price: self.gas_price,
+			nonce: self.nonce,
 			to: self.to.clone(),
-			value: self.value[indexes.value as usize].clone(),
+			value: self.value[indexes.value as usize],
+			r: Default::default(),
+			s: Default::default(),
+			v: Default::default(),
+			secret: self.secret.clone(),
 		}
 	}
 }

@@ -29,7 +29,12 @@ trace = { path = "../ethcore/trace" }
 vm = { path = "../ethcore/vm" }
 
 [dev-dependencies]
+criterion = "0.3"
 tempdir = "0.3"
 
 [features]
 evm-debug = ["ethcore/evm-debug-tests"]
+
+[[bench]]
+name = "mod"
+harness = false

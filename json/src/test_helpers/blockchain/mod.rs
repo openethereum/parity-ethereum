@@ -14,14 +14,24 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
-//! Blockchain deserialization.
+//! Blockchain test deserialization.
 
-use bytes::Bytes;
-use hash::H256;
-use blockchain::state::State;
-use blockchain::header::Header;
-use blockchain::block::Block;
-use spec::{ForkSpec, Genesis, Seal, Ethereum};
+use crate::{
+	bytes::Bytes,
+	hash::H256,
+	spec::{Ethereum, ForkSpec, Genesis, Seal, State}
+
+};
+use serde::Deserialize;
+
+pub mod block;
+pub mod header;
+
+pub use self::block::Block;
+pub use self::header::Header;
+
+/// Type for running `Blockchain` tests
+pub type Test = super::tester::GenericTester<String, BlockChain>;
 
 /// Json Block test possible engine kind.
 #[derive(Debug, PartialEq, Deserialize)]
@@ -95,8 +105,7 @@ impl BlockChain {
 
 #[cfg(test)]
 mod tests {
-	use serde_json;
-	use blockchain::blockchain::BlockChain;
+	use super::BlockChain;
 
 	#[test]
 	fn blockchain_deserialization() {

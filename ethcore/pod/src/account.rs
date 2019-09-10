@@ -85,22 +85,6 @@ impl PodAccount {
 	}
 }
 
-impl From<ethjson::blockchain::Account> for PodAccount {
-	fn from(a: ethjson::blockchain::Account) -> Self {
-		PodAccount {
-			balance: a.balance.into(),
-			nonce: a.nonce.into(),
-			code: Some(a.code.into()),
-			storage: a.storage.into_iter().map(|(key, value)| {
-				let key: U256 = key.into();
-				let value: U256 = value.into();
-				(BigEndianHash::from_uint(&key), BigEndianHash::from_uint(&value))
-			}).collect(),
-			version: a.version.into(),
-		}
-	}
-}
-
 impl From<ethjson::spec::Account> for PodAccount {
 	fn from(a: ethjson::spec::Account) -> Self {
 		PodAccount {

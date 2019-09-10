@@ -75,6 +75,7 @@ ethcore = { path = "../ethcore", features = ["test-helpers"] }
 ethcore-accounts = { path = "../accounts" }
 ethcore-io = { path = "../util/io" }
 ethcore-network = { path = "../util/network" }
+ethjson = { path = "../json", features = ["test-helpers"] }
 fake-fetch = { path = "../util/fake-fetch" }
 macros = { path = "../util/macros" }
 spec = { path = "../ethcore/spec" }

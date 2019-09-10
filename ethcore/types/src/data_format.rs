@@ -14,21 +14,30 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
-//! Blockchain test transaction deserialization.
+//! Data format for importing/exporting blocks from disk
+use std::str::FromStr;
 
-use uint::Uint;
-use bytes::Bytes;
+/// Format for importing/exporting blocks
+#[derive(Debug, PartialEq)]
+pub enum DataFormat {
+    Hex,
+    Binary,
+}
 
-/// Blockchain test transaction deserialization.
-#[derive(Debug, PartialEq, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct Transaction {
-	data: Bytes,
-	gas_limit: Uint,
-	gas_price: Uint,
-	nonce: Uint,
-	r: Uint,
-	s: Uint,
-	v: Uint,
-	value: Uint
+impl Default for DataFormat {
+    fn default() -> Self {
+        DataFormat::Binary
+    }
+}
+
+impl FromStr for DataFormat {
+    type Err = String;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s {
+            "binary" | "bin" => Ok(DataFormat::Binary),
+            "hex" => Ok(DataFormat::Hex),
+            x => Err(format!("Invalid format: {}", x))
+        }
+    }
 }

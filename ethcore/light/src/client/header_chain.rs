@@ -550,7 +550,7 @@ impl HeaderChain {
 						let canon = &era_entry.candidates[0];
 						(canon.hash, canon.total_difficulty)
 					};
-					cht::compute_root(cht_num, ::itertools::repeat_call(iter))
+					cht::compute_root(cht_num, std::iter::repeat_with(iter))
 						.expect("fails only when too few items; this is checked; qed")
 				};
 
