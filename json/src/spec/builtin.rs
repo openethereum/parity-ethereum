@@ -18,8 +18,6 @@
 
 use uint::Uint;
 
-/// Price per round of Blake2 compression.
-pub type Blake2F = u64;
 
 /// Linear pricing.
 #[derive(Debug, PartialEq, Deserialize, Clone)]
@@ -69,7 +67,10 @@ pub struct AltBn128Pairing {
 #[serde(rename_all = "snake_case")]
 pub enum Pricing {
 	/// Pricing for Blake2 compression function: each call costs the same amount per round.
-	Blake2F(Blake2F),
+	Blake2F {
+		/// Price per round of Blake2 compression function.
+		gas_per_round: u64,
+	},
 	/// Linear pricing.
 	Linear(Linear),
 	/// Pricing for modular exponentiation.
@@ -117,11 +118,11 @@ mod tests {
 		let s = r#"{
 			"name": "blake2_f",
 			"activate_at": "0xffffff",
-			"pricing": { "blake2_f": 123 }
+			"pricing": { "blake2_f": { "gas_per_round": 123 } }
 		}"#;
 		let deserialized: Builtin = serde_json::from_str(s).unwrap();
 		assert_eq!(deserialized.name, "blake2_f");
-		assert_eq!(deserialized.pricing, Pricing::Blake2F(123));
+		assert_eq!(deserialized.pricing, Pricing::Blake2F { gas_per_round: 123 });
 		assert!(deserialized.activate_at.is_some());
 	}
 

@@ -218,8 +218,8 @@ impl Builtin {
 impl From<ethjson::spec::Builtin> for Builtin {
 	fn from(b: ethjson::spec::Builtin) -> Self {
 		let pricer: Box<dyn Pricer> = match b.pricing {
-			ethjson::spec::Pricing::Blake2F(cost_per_round) => {
-				Box::new(cost_per_round)
+			ethjson::spec::Pricing::Blake2F { gas_per_round } => {
+				Box::new(gas_per_round)
 			},
 			ethjson::spec::Pricing::Linear(linear) => {
 				Box::new(Linear {
