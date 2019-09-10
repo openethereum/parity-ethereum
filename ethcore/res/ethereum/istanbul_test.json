@@ -109,7 +109,9 @@
 				"name": "blake2_f",
 				"activate_at": "0x00",
 				"pricing": {
-					"blake2_f": 1
+					"blake2_f": {
+						"gas_per_round": 1
+					}
 				}
 			}
 		}
