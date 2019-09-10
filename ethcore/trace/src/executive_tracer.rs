@@ -16,6 +16,7 @@
 
 //! Simple executive tracer.
 
+use std::cmp::min;
 use ethereum_types::{U256, Address};
 use vm::{Error as VmError, ActionParams};
 use log::{debug, warn};
@@ -196,12 +197,16 @@ impl Tracer for ExecutiveTracer {
 	}
 }
 
+struct TraceData {
+	mem_written: Option<(usize, usize)>,
+	store_written: Option<(U256, U256)>,
+}
+
 /// Simple VM tracer. Traces all operations.
 pub struct ExecutiveVMTracer {
 	data: VMTrace,
 	depth: usize,
-	last_mem_written: Option<(usize, usize)>,
-	last_store_written: Option<(U256, U256)>,
+	trace_stack: Vec<TraceData>,
 }
 
 impl ExecutiveVMTracer {
@@ -215,8 +220,7 @@ impl ExecutiveVMTracer {
 				subs: vec![],
 			},
 			depth: 0,
-			last_mem_written: None,
-			last_store_written: None,
+			trace_stack: vec![],
 		}
 	}
 
@@ -243,30 +247,27 @@ impl VMTracer for ExecutiveVMTracer {
 				executed: None,
 			});
 		});
-		self.last_mem_written = mem_written;
-		self.last_store_written = store_written;
+		self.trace_stack.push(TraceData { mem_written, store_written });
+	}
+
+	fn trace_failed(&mut self) {
+		let _ = self.trace_stack.pop().expect("pushed in trace_prepare_execute; qed");
 	}
 
 	fn trace_executed(&mut self, gas_used: U256, stack_push: &[U256], mem: &[u8]) {
-		let mem_diff = self.last_mem_written.take().map(|(o, s)| {
+		let TraceData { mem_written, store_written } = self.trace_stack.pop().expect("pushed in trace_prepare_execute; qed");
+		let mem_diff = mem_written.map(|(o, s)| {
 			if o + s > mem.len() {
-				warn!(
-					target: "trace",
-					"Last mem written is out of bounds {} (mem is {})",
-					o + s,
-					mem.len(),
-				);
-				(o, &[][..])
-			} else {
-				(o, &(mem[o..o+s]))
+				warn!(target: "trace", "mem_written is out of bounds");
 			}
+			(o, &mem[min(mem.len(), o)..min(o + s, mem.len())])
 		});
-		let store_diff = self.last_store_written.take();
+		let store_diff = store_written;
 		Self::with_trace_in_depth(&mut self.data, self.depth, move |trace| {
 			let ex = VMExecutedOperation {
 				gas_used: gas_used,
-				stack_push: stack_push.iter().cloned().collect(),
-				mem_diff: mem_diff.map(|(s, r)| MemoryDiff { offset: s, data: r.iter().cloned().collect() }),
+				stack_push: stack_push.to_vec(),
+				mem_diff: mem_diff.map(|(s, r)| MemoryDiff { offset: s, data: r.to_vec() }),
 				store_diff: store_diff.map(|(l, v)| StorageDiff { location: l, value: v }),
 			};
 			trace.operations.last_mut().expect("trace_executed is always called after a trace_prepare_execute; trace.operations cannot be empty; qed").executed = Some(ex);

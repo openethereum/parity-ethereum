@@ -14,27 +14,27 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
-//! Blockchain database.
+//! Snapshot tests.
 
-#![warn(missing_docs)]
+mod proof_of_work;
+mod proof_of_authority;
+mod state;
+mod service;
 
-extern crate parity_util_mem as util_mem;
-extern crate parity_util_mem as malloc_size_of;
+pub mod helpers;
 
-mod best_block;
-mod blockchain;
-mod cache;
-mod config;
-mod update;
+use common_types::snapshot::ManifestData;
 
-pub mod generator;
-
-pub use crate::{
-	blockchain::{BlockProvider, BlockChain, BlockChainDB, BlockChainDBHandler},
-	cache::CacheSize,
-	config::Config,
-	update::ExtrasInsert,
-};
-pub use ethcore_db::keys::{BlockReceipts, BlockDetails, TransactionAddress, BlockNumberKey};
-pub use common_types::tree_route::TreeRoute;
-
+#[test]
+fn manifest_rlp() {
+	let manifest = ManifestData {
+		version: 2,
+		block_hashes: Vec::new(),
+		state_hashes: Vec::new(),
+		block_number: 1234567,
+		state_root: Default::default(),
+		block_hash: Default::default(),
+	};
+	let raw = manifest.clone().into_rlp();
+	assert_eq!(ManifestData::from_rlp(&raw).unwrap(), manifest);
+}

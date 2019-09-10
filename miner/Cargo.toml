@@ -16,7 +16,6 @@ url = { version = "1", optional = true }
 # Miner
 ansi_term = "0.11"
 common-types = { path = "../ethcore/types" }
-error-chain = "0.12"
 ethabi = "8.0"
 ethabi-derive = "8.0"
 ethabi-contract = "8.0"

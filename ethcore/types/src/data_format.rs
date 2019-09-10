@@ -14,27 +14,30 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
-//! Snapshot tests.
+//! Data format for importing/exporting blocks from disk
+use std::str::FromStr;
 
-mod proof_of_work;
-mod proof_of_authority;
-mod state;
-mod service;
+/// Format for importing/exporting blocks
+#[derive(Debug, PartialEq)]
+pub enum DataFormat {
+    Hex,
+    Binary,
+}
 
-pub mod helpers;
+impl Default for DataFormat {
+    fn default() -> Self {
+        DataFormat::Binary
+    }
+}
 
-use super::ManifestData;
+impl FromStr for DataFormat {
+    type Err = String;
 
-#[test]
-fn manifest_rlp() {
-	let manifest = ManifestData {
-		version: 2,
-		block_hashes: Vec::new(),
-		state_hashes: Vec::new(),
-		block_number: 1234567,
-		state_root: Default::default(),
-		block_hash: Default::default(),
-	};
-	let raw = manifest.clone().into_rlp();
-	assert_eq!(ManifestData::from_rlp(&raw).unwrap(), manifest);
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s {
+            "binary" | "bin" => Ok(DataFormat::Binary),
+            "hex" => Ok(DataFormat::Hex),
+            x => Err(format!("Invalid format: {}", x))
+        }
+    }
 }

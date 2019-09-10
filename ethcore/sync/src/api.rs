@@ -25,16 +25,13 @@ use network::{NetworkProtocolHandler, NetworkContext, PeerId, ProtocolId,
 	NetworkConfiguration as BasicNetworkConfiguration, NonReservedPeerMode, Error,
 	ConnectionFilter};
 use network::client_version::ClientVersion;
-
-use types::pruning_info::PruningInfo;
 use ethereum_types::{H256, H512, U256};
 use futures::sync::mpsc as futures_mpsc;
 use futures::Stream;
 use io::{TimerToken};
 use ethkey::Secret;
-use ethcore::client::{ChainNotify, NewBlocks, ChainMessageType};
-use client_traits::BlockChainClient;
-use ethcore::snapshot::SnapshotService;
+use client_traits::{BlockChainClient, ChainNotify};
+use snapshot::SnapshotService;
 use ethcore_private_tx::PrivateStateDB;
 use types::BlockNumber;
 use sync_io::NetSyncIo;
@@ -55,7 +52,11 @@ use parity_runtime::Executor;
 use std::sync::atomic::{AtomicBool, Ordering};
 use network::IpFilter;
 use private_tx::PrivateTxHandler;
-use types::transaction::UnverifiedTransaction;
+use types::{
+	chain_notify::{NewBlocks, ChainMessageType},
+	pruning_info::PruningInfo,
+	transaction::UnverifiedTransaction,
+};
 
 use super::light_sync::SyncInfo;
 

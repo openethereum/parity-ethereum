@@ -31,8 +31,7 @@ use v1::traits::EthPubSub;
 use v1::types::{pubsub, RichHeader, Log};
 
 use sync::{SyncState, Notification};
-use ethcore::client::{ChainNotify, NewBlocks, ChainRouteType};
-use client_traits::BlockChainClient;
+use client_traits::{BlockChainClient, ChainNotify};
 use ethereum_types::H256;
 use light::cache::Cache;
 use light::client::{LightChainClient, LightChainNotify};
@@ -43,6 +42,7 @@ use parking_lot::{RwLock, Mutex};
 use sync::{LightSyncProvider, LightNetworkDispatcher, ManageNetwork};
 
 use types::{
+	chain_notify::{NewBlocks, ChainRouteType},
 	ids::BlockId,
 	encoded,
 	filter::Filter as EthFilter,

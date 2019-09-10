@@ -64,6 +64,7 @@ pub mod block;
 pub mod block_status;
 pub mod blockchain_info;
 pub mod call_analytics;
+pub mod chain_notify;
 pub mod client_types;
 pub mod encoded;
 pub mod engines;
@@ -72,6 +73,7 @@ pub mod filter;
 pub mod header;
 pub mod ids;
 pub mod io_message;
+pub mod import_route;
 pub mod log_entry;
 pub mod pruning_info;
 pub mod receipt;
@@ -82,6 +84,7 @@ pub mod trace_filter;
 pub mod transaction;
 pub mod tree_route;
 pub mod verification;
+pub mod data_format;
 
 /// Type for block number.
 pub type BlockNumber = u64;

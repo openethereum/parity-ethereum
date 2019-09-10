@@ -75,8 +75,6 @@ extern crate vm;
 extern crate time_utils;
 
 #[cfg(test)]
-extern crate rand;
-#[cfg(test)]
 extern crate env_logger;
 
 pub use encryptor::{Encryptor, SecretStoreEncryptor, EncryptorConfig, NoopEncryptor};
@@ -103,15 +101,14 @@ use machine::{
 	executed::Executed as FlatExecuted,
 };
 use types::{
+	chain_notify::{NewBlocks, ChainMessageType},
 	ids::BlockId,
 	io_message::ClientIoMessage,
 	transaction::{SignedTransaction, Transaction, Action, UnverifiedTransaction},
 	engines::machine::Executed,
 };
-use ethcore::client::{
-	Client, ChainNotify, NewBlocks, ChainMessageType, Call
-};
-use client_traits::BlockInfo;
+use ethcore::client::{Client, Call};
+use client_traits::{BlockInfo, ChainNotify};
 use ethcore::miner::{self, Miner, MinerService, pool_client::NonceCache};
 use state_db::StateDB;
 use account_state::State;

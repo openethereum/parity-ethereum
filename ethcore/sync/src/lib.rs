@@ -27,19 +27,20 @@ extern crate ethcore;
 extern crate ethcore_io as io;
 extern crate ethcore_network as network;
 extern crate ethcore_network_devp2p as devp2p;
+extern crate ethcore_private_tx;
 extern crate ethereum_types;
 extern crate ethkey;
 extern crate ethstore;
 extern crate fastmap;
+extern crate futures;
 extern crate keccak_hash as hash;
 extern crate parity_bytes as bytes;
 extern crate parity_runtime;
 extern crate parking_lot;
-extern crate ethcore_private_tx;
 extern crate rand;
 extern crate rlp;
+extern crate snapshot;
 extern crate triehash_ethereum;
-extern crate futures;
 
 extern crate ethcore_light as light;
 
@@ -69,7 +70,7 @@ mod blocks;
 mod block_sync;
 mod sync_io;
 mod private_tx;
-mod snapshot;
+mod snapshot_sync;
 mod transactions_stats;
 
 pub mod light_sync;

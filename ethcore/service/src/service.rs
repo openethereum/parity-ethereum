@@ -23,13 +23,13 @@ use std::time::Duration;
 use ansi_term::Colour;
 use ethereum_types::H256;
 use io::{IoContext, TimerToken, IoHandler, IoService, IoError};
-
+use client_traits::ChainNotify;
 use sync::PrivateTxHandler;
 use blockchain::{BlockChainDB, BlockChainDBHandler};
-use ethcore::client::{Client, ClientConfig, ChainNotify};
+use ethcore::client::{Client, ClientConfig};
 use ethcore::miner::Miner;
-use ethcore::snapshot::service::{Service as SnapshotService, ServiceParams as SnapServiceParams};
-use ethcore::snapshot::{SnapshotService as _SnapshotService};
+use snapshot::service::{Service as SnapshotService, ServiceParams as SnapServiceParams};
+use snapshot::{SnapshotService as _SnapshotService};
 use spec::Spec;
 use common_types::{
 	io_message::ClientIoMessage,
@@ -94,7 +94,7 @@ impl PrivateTxHandler for PrivateTxService {
 pub struct ClientService {
 	io_service: Arc<IoService<ClientIoMessage<Client>>>,
 	client: Arc<Client>,
-	snapshot: Arc<SnapshotService>,
+	snapshot: Arc<SnapshotService<Client>>,
 	private_tx: Arc<PrivateTxService>,
 	database: Arc<dyn BlockChainDB>,
 }
@@ -185,7 +185,7 @@ impl ClientService {
 	}
 
 	/// Get snapshot interface.
-	pub fn snapshot_service(&self) -> Arc<SnapshotService> {
+	pub fn snapshot_service(&self) -> Arc<SnapshotService<Client>> {
 		self.snapshot.clone()
 	}
 
@@ -215,9 +215,9 @@ impl ClientService {
 }
 
 /// IO interface for the Client handler
-struct ClientIoHandler<C> {
+struct ClientIoHandler<C: Send + Sync + 'static> {
 	client: Arc<C>,
-	snapshot: Arc<SnapshotService>,
+	snapshot: Arc<SnapshotService<C>>,
 }
 
 const CLIENT_TICK_TIMER: TimerToken = 0;
@@ -239,7 +239,7 @@ where
 		trace_time!("service::read");
 		match timer {
 			CLIENT_TICK_TIMER => {
-				use ethcore::snapshot::SnapshotService;
+				use snapshot::SnapshotService;
 				let snapshot_restoration = if let RestorationStatus::Ongoing{..} = self.snapshot.status() { true } else { false };
 				self.client.tick(snapshot_restoration)
 			},

@@ -16,10 +16,13 @@
 
 use std::sync::Arc;
 use std::collections::{HashMap, HashSet};
-use common_types::ids::BlockId;
+use common_types::{
+	chain_notify::NewBlocks,
+	ids::BlockId
+};
 use parking_lot::{Mutex, RwLock};
 use call_contract::CallContract;
-use ethcore::client::{ChainNotify, NewBlocks};
+use client_traits::ChainNotify;
 use ethereum_types::Address;
 use ethabi::FunctionOutputDecoder;
 use trusted_client::TrustedClient;

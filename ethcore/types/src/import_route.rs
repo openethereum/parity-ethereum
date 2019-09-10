@@ -14,10 +14,10 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
-//! Import route.
+//! Calculate import route for newly inserted blocks.
 
 use ethereum_types::H256;
-use crate::block_info::{BlockInfo, BlockLocation};
+use crate::block::{BlockInfo, BlockLocation};
 
 /// Import route for newly inserted block.
 #[derive(Debug, PartialEq, Clone)]
@@ -69,7 +69,7 @@ impl From<BlockInfo> for ImportRoute {
 #[cfg(test)]
 mod tests {
 	use ethereum_types::{U256, BigEndianHash};
-	use crate::block_info::{BlockInfo, BlockLocation, BranchBecomingCanonChainData};
+	use crate::block::{BlockInfo, BlockLocation, BranchBecomingCanonChainData};
 	use super::ImportRoute;
 
 	#[test]

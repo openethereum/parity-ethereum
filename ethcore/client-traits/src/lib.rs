@@ -29,6 +29,7 @@ use common_types::{
 	blockchain_info::BlockChainInfo,
 	BlockNumber,
 	call_analytics::CallAnalytics,
+	chain_notify::{NewBlocks, ChainMessageType},
 	client_types::Mode,
 	encoded,
 	engines::{epoch::Transition as EpochTransition, machine::Executed},
@@ -40,7 +41,7 @@ use common_types::{
 	pruning_info::PruningInfo,
 	receipt::LocalizedReceipt,
 	trace_filter::Filter as TraceFilter,
-	transaction::{self, LocalizedTransaction, CallError, SignedTransaction},
+	transaction::{self, LocalizedTransaction, CallError, SignedTransaction, UnverifiedTransaction},
 	tree_route::TreeRoute,
 	verification::{VerificationQueueInfo, Unverified},
 };
@@ -54,6 +55,7 @@ use trace::{
 	localized::LocalizedTrace,
 	VMTrace,
 };
+use common_types::data_format::DataFormat;
 use vm::{LastHashes, Schedule};
 
 use common_types::snapshot::Progress;
@@ -119,7 +121,7 @@ pub trait ChainInfo {
 }
 
 /// Provides various information on a block by it's ID
-pub trait BlockInfo {
+pub trait BlockInfo: Send + Sync {
 	/// Get raw block header data by block id.
 	fn block_header(&self, id: BlockId) -> Option<encoded::Header>;
 
@@ -473,4 +475,65 @@ pub trait SnapshotWriter {
 	/// Complete writing. The manifest's chunk lists must be consistent
 	/// with the chunks written.
 	fn finish(self, manifest: common_types::snapshot::ManifestData) -> std::io::Result<()> where Self: Sized;
+}
+
+
+/// Represents what has to be handled by actor listening to chain events
+pub trait ChainNotify: Send + Sync {
+	/// fires when chain has new blocks.
+	fn new_blocks(&self, _new_blocks: NewBlocks) {
+		// does nothing by default
+	}
+
+	/// fires when chain achieves active mode
+	fn start(&self) {
+		// does nothing by default
+	}
+
+	/// fires when chain achieves passive mode
+	fn stop(&self) {
+		// does nothing by default
+	}
+
+	/// fires when chain broadcasts a message
+	fn broadcast(&self, _message_type: ChainMessageType) {
+		// does nothing by default
+	}
+
+	/// fires when new block is about to be imported
+	/// implementations should be light
+	fn block_pre_import(&self, _bytes: &Bytes, _hash: &H256, _difficulty: &U256) {
+		// does nothing by default
+	}
+
+	/// fires when new transactions are received from a peer
+	fn transactions_received(&self, _txs: &[UnverifiedTransaction], _peer_id: usize) {
+		// does nothing by default
+	}
+}
+
+/// Provides a method for importing/exporting blocks
+pub trait ImportExportBlocks {
+    /// Export blocks to destination, with the given from, to and format argument.
+    /// destination could be a file or stdout.
+    /// If the format is hex, each block is written on a new line.
+    /// For binary exports, all block data is written to the same line.
+	fn export_blocks<'a>(
+        &self,
+        destination: Box<dyn std::io::Write + 'a>,
+        from: BlockId,
+        to: BlockId,
+        format: Option<DataFormat>
+    ) -> Result<(), String>;
+
+	/// Import blocks from destination, with the given format argument
+	/// Source could be a file or stdout.
+	/// For hex format imports, it attempts to read the blocks on a line by line basis.
+	/// For binary format imports, reads the 8 byte RLP header in order to decode the block
+	/// length to be read.
+	fn import_blocks<'a>(
+		&self,
+		source: Box<dyn std::io::Read + 'a>,
+		format: Option<DataFormat>
+	) -> Result<(), String>;
 }

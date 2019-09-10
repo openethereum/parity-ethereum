@@ -24,6 +24,27 @@ use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 use std::cmp;
 
+use blockchain::{BlockChain, BlockChainDB, BlockChainDBHandler};
+use bytes::Bytes;
+use common_types::{
+	io_message::ClientIoMessage,
+	errors::{EthcoreError as Error, SnapshotError, SnapshotError::UnlinkedAncientBlockChain},
+	ids::BlockId,
+	snapshot::{ManifestData, Progress, RestorationStatus},
+};
+// todo[dvdplm] put SnapshotWriter back in snapshots once extracted
+use client_traits::{ChainInfo, SnapshotClient, SnapshotWriter};
+use engine::Engine;
+use ethereum_types::H256;
+use ethcore_io::IoChannel;
+use journaldb::Algorithm;
+use keccak_hash::keccak;
+use kvdb::DBTransaction;
+use log::{error, info, trace, warn};
+use parking_lot::{Mutex, RwLock, RwLockReadGuard};
+use snappy;
+use trie_db::TrieError;
+
 use super::{
 	StateRebuilder,
 	SnapshotService,
@@ -32,31 +53,6 @@ use super::{
 	io::{SnapshotReader, LooseReader,  LooseWriter},
 	chunker,
 };
-
-use blockchain::{BlockChain, BlockChainDB, BlockChainDBHandler};
-use client::Client;
-// todo[dvdplm] put SnapshotWriter back in snapshots once extracted
-use client_traits::{
-	BlockInfo, BlockChainClient, ChainInfo,
-	SnapshotClient, SnapshotWriter, DatabaseRestore,
-};
-use engine::Engine;
-use hash::keccak;
-use types::{
-	io_message::ClientIoMessage,
-	errors::{EthcoreError as Error, SnapshotError, SnapshotError::UnlinkedAncientBlockChain},
-	ids::BlockId,
-	snapshot::{ManifestData, Progress, RestorationStatus},
-};
-
-use io::IoChannel;
-
-use ethereum_types::H256;
-use parking_lot::{Mutex, RwLock, RwLockReadGuard};
-use bytes::Bytes;
-use journaldb::Algorithm;
-use kvdb::DBTransaction;
-use snappy;
 
 /// Helper for removing directories in case of error.
 struct Guard(bool, PathBuf);
@@ -140,7 +136,7 @@ impl Restoration {
 			let expected_len = snappy::decompressed_len(chunk)?;
 			if expected_len > MAX_CHUNK_SIZE {
 				trace!(target: "snapshot", "Discarding large chunk: {} vs {}", expected_len, MAX_CHUNK_SIZE);
-				return Err(::snapshot::Error::ChunkTooLarge.into());
+				return Err(SnapshotError::ChunkTooLarge.into());
 			}
 			let len = snappy::decompress_into(chunk, &mut self.snappy_buffer)?;
 
@@ -162,7 +158,7 @@ impl Restoration {
 			let expected_len = snappy::decompressed_len(chunk)?;
 			if expected_len > MAX_CHUNK_SIZE {
 				trace!(target: "snapshot", "Discarding large chunk: {} vs {}", expected_len, MAX_CHUNK_SIZE);
-				return Err(::snapshot::Error::ChunkTooLarge.into());
+				return Err(SnapshotError::ChunkTooLarge.into());
 			}
 			let len = snappy::decompress_into(chunk, &mut self.snappy_buffer)?;
 
@@ -179,8 +175,6 @@ impl Restoration {
 
 	// finish up restoration.
 	fn finalize(mut self) -> Result<(), Error> {
-		use trie::TrieError;
-
 		if !self.is_done() { return Ok(()) }
 
 		// verify final state root.
@@ -212,10 +206,10 @@ impl Restoration {
 }
 
 /// Type alias for client io channel.
-pub type Channel = IoChannel<ClientIoMessage<Client>>;
+pub type Channel<C> = IoChannel<ClientIoMessage<C>>;
 
 /// Snapshot service parameters.
-pub struct ServiceParams {
+pub struct ServiceParams<C: 'static> {
 	/// The consensus engine this is built on.
 	pub engine: Arc<dyn Engine>,
 	/// The chain's genesis block.
@@ -225,21 +219,21 @@ pub struct ServiceParams {
 	/// Handler for opening a restoration DB.
 	pub restoration_db_handler: Box<dyn BlockChainDBHandler>,
 	/// Async IO channel for sending messages.
-	pub channel: Channel,
+	pub channel: Channel<C>,
 	/// The directory to put snapshots in.
 	/// Usually "<chain hash>/snapshot"
 	pub snapshot_root: PathBuf,
 	/// A handle for database restoration.
-	pub client: Arc<Client>,
+	pub client: Arc<C>,
 }
 
 /// `SnapshotService` implementation.
 /// This controls taking snapshots and restoring from them.
-pub struct Service {
+pub struct Service<C: Send + Sync + 'static> {
 	restoration: Mutex<Option<Restoration>>,
 	restoration_db_handler: Box<dyn BlockChainDBHandler>,
 	snapshot_root: PathBuf,
-	io_channel: Mutex<Channel>,
+	io_channel: Mutex<Channel<C>>,
 	pruning: Algorithm,
 	status: Mutex<RestorationStatus>,
 	reader: RwLock<Option<LooseReader>>,
@@ -247,15 +241,15 @@ pub struct Service {
 	genesis_block: Bytes,
 	state_chunks: AtomicUsize,
 	block_chunks: AtomicUsize,
-	client: Arc<Client>,
+	client: Arc<C>,
 	progress: Progress,
 	taking_snapshot: AtomicBool,
 	restoring_snapshot: AtomicBool,
 }
 
-impl Service {
+impl<C> Service<C> where C: SnapshotClient + ChainInfo {
 	/// Create a new snapshot service from the given parameters.
-	pub fn new(params: ServiceParams) -> Result<Self, Error> {
+	pub fn new(params: ServiceParams<C>) -> Result<Self, Error> {
 		let mut service = Service {
 			restoration: Mutex::new(None),
 			restoration_db_handler: params.restoration_db_handler,
@@ -479,10 +473,7 @@ impl Service {
 	/// calling this while a restoration is in progress or vice versa
 	/// will lead to a race condition where the first one to finish will
 	/// have their produced snapshot overwritten.
-	pub fn take_snapshot<C>(&self, client: &C, num: u64) -> Result<(), Error>
-	where
-		C: ChainInfo + SnapshotClient
-	{
+	pub fn take_snapshot(&self, client: &C, num: u64) -> Result<(), Error> {
 		if self.taking_snapshot.compare_and_swap(false, true, Ordering::SeqCst) {
 			info!("Skipping snapshot at #{} as another one is currently in-progress.", num);
 			return Ok(());
@@ -797,7 +788,7 @@ impl Service {
 	}
 }
 
-impl SnapshotService for Service {
+impl<C: Send + Sync> SnapshotService for Service<C> {
 	fn manifest(&self) -> Option<ManifestData> {
 		self.reader.read().as_ref().map(|r| r.manifest().clone())
 	}
@@ -805,10 +796,6 @@ impl SnapshotService for Service {
 	fn supported_versions(&self) -> Option<(u64, u64)> {
 		chunker(self.engine.snapshot_mode())
 			.map(|c| (c.min_supported_version(), c.current_version()))
-	}
-
-	fn chunk(&self, hash: H256) -> Option<Bytes> {
-		self.reader.read().as_ref().and_then(|r| r.chunk(hash).ok())
 	}
 
 	fn completed_chunks(&self) -> Option<Vec<H256>> {
@@ -831,6 +818,10 @@ impl SnapshotService for Service {
 			},
 			None => None,
 		}
+	}
+
+	fn chunk(&self, hash: H256) -> Option<Bytes> {
+		self.reader.read().as_ref().and_then(|r| r.chunk(hash).ok())
 	}
 
 	fn status(&self) -> RestorationStatus {
@@ -892,7 +883,7 @@ impl SnapshotService for Service {
 	}
 }
 
-impl Drop for Service {
+impl<C: Send + Sync> Drop for Service<C> {
 	fn drop(&mut self) {
 		trace!(target: "shutdown", "Dropping Service");
 		self.abort_restore();
@@ -904,18 +895,18 @@ impl Drop for Service {
 
 #[cfg(test)]
 mod tests {
-	use client::Client;
-	use io::{IoService};
+	use ethcore::client::Client;
+	use ethcore_io::IoService;
 	use spec;
 	use journaldb::Algorithm;
-	use snapshot::SnapshotService;
+	use crate::SnapshotService;
 	use super::*;
-	use types::{
+	use common_types::{
 		io_message::ClientIoMessage,
 		snapshot::{ManifestData, RestorationStatus}
 	};
 	use tempdir::TempDir;
-	use test_helpers::{generate_dummy_client_with_spec_and_data, restoration_db_handler};
+	use ethcore::test_helpers::{generate_dummy_client_with_spec_and_data, restoration_db_handler};
 
 	#[test]
 	fn sends_async_messages() {
@@ -968,7 +959,7 @@ mod tests {
 
 		let state_hashes: Vec<_> = (0..5).map(|_| H256::random()).collect();
 		let block_hashes: Vec<_> = (0..5).map(|_| H256::random()).collect();
-		let db_config = DatabaseConfig::with_columns(::db::NUM_COLUMNS);
+		let db_config = DatabaseConfig::with_columns(ethcore_db::NUM_COLUMNS);
 		let gb = spec.genesis_block();
 		let flag = ::std::sync::atomic::AtomicBool::new(true);
 

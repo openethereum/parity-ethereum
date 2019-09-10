@@ -18,11 +18,12 @@ use std::sync::{Arc, atomic::AtomicBool};
 
 use blockchain::{BlockChain, BlockChainDB};
 use bytes::Bytes;
-use ethereum_types::H256;
-use types::{
+use common_types::{
 	errors::{EthcoreError as Error, SnapshotError},
 	snapshot::{ManifestData, ChunkSink, Progress, RestorationStatus},
 };
+use engine::Engine;
+use ethereum_types::H256;
 
 
 /// The interface for a snapshot network service.
@@ -68,8 +69,6 @@ pub trait SnapshotService : Sync + Send {
 	/// Shutdown the Snapshot Service by aborting any ongoing restore
 	fn shutdown(&self);
 }
-
-use crate::engine::Engine;
 
 /// Restore from secondary snapshot chunks.
 pub trait Rebuilder: Send {
