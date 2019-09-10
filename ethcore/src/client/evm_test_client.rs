@@ -109,6 +109,7 @@ impl<'a> EvmTestClient<'a> {
 			ForkSpec::Byzantium => Some(spec::new_byzantium_test()),
 			ForkSpec::Constantinople => Some(spec::new_constantinople_test()),
 			ForkSpec::ConstantinopleFix => Some(spec::new_constantinople_fix_test()),
+			ForkSpec::Istanbul => Some(spec::new_istanbul_test()),
 			ForkSpec::EIP158ToByzantiumAt5 => Some(spec::new_transition_test()),
 			ForkSpec::FrontierToHomesteadAt5 | ForkSpec::HomesteadToDaoAt5 | ForkSpec::HomesteadToEIP150At5 => None,
 		}
