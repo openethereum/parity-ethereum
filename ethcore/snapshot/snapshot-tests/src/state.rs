@@ -26,7 +26,7 @@ use common_types::{
 	snapshot::{ManifestData, Progress},
 };
 use snapshot::{
-	account,
+	test_helpers::to_fat_rlps,
 	chunk_state, StateRebuilder, SNAPSHOT_SUBPARTS,
 	io::{PackedReader, PackedWriter, SnapshotReader, SnapshotWriter},
 };
@@ -134,7 +134,7 @@ fn get_code_from_prev_chunk() {
 		let mut db = journaldb::new_memory_db();
 		AccountDBMut::from_hash(&mut db, hash).insert(EMPTY_PREFIX, &code[..]);
 		let p = Progress::default();
-		let fat_rlp = account::to_fat_rlps(&hash, &acc, &AccountDB::from_hash(&db, hash), &mut used_code, usize::max_value(), usize::max_value(), &p).unwrap();
+		let fat_rlp = to_fat_rlps(&hash, &acc, &AccountDB::from_hash(&db, hash), &mut used_code, usize::max_value(), usize::max_value(), &p).unwrap();
 		let mut stream = RlpStream::new_list(1);
 		stream.append_raw(&fat_rlp[0], 1);
 		stream.out()

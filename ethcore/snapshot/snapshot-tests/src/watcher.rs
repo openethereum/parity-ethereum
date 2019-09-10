@@ -24,8 +24,9 @@ use common_types::chain_notify::{NewBlocks, ChainRoute};
 use ethereum_types::{H256, U256, BigEndianHash};
 
 use snapshot::{
-	Watcher,
-	watcher::{Broadcast, Oracle},
+	Broadcast,
+	Oracle,
+	test_helpers::Watcher,
 };
 
 struct TestOracle(HashMap<H256, u64>);

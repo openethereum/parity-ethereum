@@ -29,7 +29,7 @@ use hash_db::{HashDB, EMPTY_PREFIX};
 use keccak_hash::{KECCAK_EMPTY, KECCAK_NULL_RLP, keccak};
 use kvdb::DBValue;
 use rlp::Rlp;
-use snapshot::account::{ACC_EMPTY, to_fat_rlps, from_fat_rlp};
+use snapshot::test_helpers::{ACC_EMPTY, to_fat_rlps, from_fat_rlp};
 
 use crate::helpers::fill_storage;
 

@@ -16,24 +16,17 @@
 
 //! Snapshot tests.
 
-#[cfg(test)]
+#![cfg(test)]
+
 mod abridged_block;
-#[cfg(test)]
 mod account;
-#[cfg(test)]
 mod io;
-#[cfg(test)]
 mod proof_of_work;
-#[cfg(test)]
 mod proof_of_authority;
-#[cfg(test)]
 mod state;
-#[cfg(test)]
 mod service;
-#[cfg(test)]
 mod watcher;
 
-#[cfg(test)]
 mod helpers;
 
 #[test]

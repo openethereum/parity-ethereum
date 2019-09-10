@@ -16,7 +16,7 @@
 
 //! Tests for block RLP encoding
 
-use snapshot::block::AbridgedBlock;
+use snapshot::test_helpers::AbridgedBlock;
 
 use bytes::Bytes;
 use ethereum_types::{H256, U256, Address};

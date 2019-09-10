@@ -29,14 +29,7 @@ use ethcore_io::IoChannel;
 use log::{trace, warn};
 use parking_lot::Mutex;
 
-/// Helper trait for transforming hashes to block numbers and checking if syncing.
-pub trait Oracle: Send + Sync {
-	/// Maps a block hash to a block number
-	fn to_number(&self, hash: H256) -> Option<u64>;
-
-	/// Are we currently syncing?
-	fn is_major_importing(&self) -> bool;
-}
+use crate::traits::{Broadcast, Oracle};
 
 struct StandardOracle<F> where F: 'static + Send + Sync + Fn() -> bool {
 	client: Arc<dyn BlockInfo>,
@@ -53,11 +46,6 @@ impl<F> Oracle for StandardOracle<F>
 	fn is_major_importing(&self) -> bool {
 		(self.sync_status)()
 	}
-}
-
-/// Helper trait for broadcasting a block to take a snapshot at.
-pub trait Broadcast: Send + Sync {
-	fn take_at(&self, num: Option<u64>);
 }
 
 impl<C: 'static> Broadcast for Mutex<IoChannel<ClientIoMessage<C>>> {
@@ -91,8 +79,7 @@ impl Watcher {
 	pub fn new<F, C>(
 		client: Arc<dyn BlockInfo>,
 		sync_status: F,
-		channel:
-		IoChannel<ClientIoMessage<C>>,
+		channel: IoChannel<ClientIoMessage<C>>,
 		period: u64,
 		history: u64
 	) -> Self

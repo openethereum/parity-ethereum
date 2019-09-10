@@ -144,3 +144,19 @@ pub trait SnapshotClient: BlockChainClient + BlockInfo + DatabaseRestore + Block
 		p: &Progress,
 	) -> Result<(), Error>;
 }
+
+/// Helper trait for broadcasting a block to take a snapshot at.
+pub trait Broadcast: Send + Sync {
+	/// Start a snapshot from the given block number.
+	fn take_at(&self, num: Option<u64>);
+}
+
+
+/// Helper trait for transforming hashes to block numbers and checking if syncing.
+pub trait Oracle: Send + Sync {
+	/// Maps a block hash to a block number
+	fn to_number(&self, hash: H256) -> Option<u64>;
+
+	/// Are we currently syncing?
+	fn is_major_importing(&self) -> bool;
+}

@@ -56,7 +56,7 @@ use trie_db::{Trie, TrieMut};
 
 pub use self::consensus::*;
 pub use self::service::{Service, Guard, Restoration, RestorationParams};
-pub use self::traits::{SnapshotService, SnapshotClient, SnapshotComponents, Rebuilder};
+pub use self::traits::{Broadcast, Oracle, SnapshotService, SnapshotClient, SnapshotComponents, Rebuilder};
 pub use self::io::SnapshotWriter;
 pub use self::watcher::Watcher;
 use common_types::basic_account::BasicAccount;
@@ -64,21 +64,20 @@ use common_types::basic_account::BasicAccount;
 pub mod io;
 pub mod service;
 
-#[cfg(any(test, feature = "test-helpers"))]
-pub mod account;
-#[cfg(not(any(test, feature = "test-helpers")))]
+#[cfg(feature = "test-helpers" )]
+pub mod test_helpers {
+	pub use super::{
+		account::{ACC_EMPTY, to_fat_rlps, from_fat_rlp},
+		block::AbridgedBlock,
+		watcher::Watcher,
+	};
+}
+
 mod account;
-#[cfg(any(test, feature = "test-helpers"))]
-pub mod block;
-#[cfg(not(any(test, feature = "test-helpers")))]
 mod block;
 mod consensus;
-#[cfg(any(test, feature = "test-helpers"))]
-pub mod watcher;
-#[cfg(not(any(test, feature = "test-helpers")))]
-mod watcher;
-
 mod traits;
+mod watcher;
 
 // Try to have chunks be around 4MB (before compression)
 const PREFERRED_CHUNK_SIZE: usize = 4 * 1024 * 1024;

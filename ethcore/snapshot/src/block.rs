@@ -30,6 +30,7 @@ use triehash::ordered_trie_root;
 const HEADER_FIELDS: usize = 8;
 const BLOCK_FIELDS: usize = 2;
 
+/// Convenience type to convert raw RLP to and from blocks.
 pub struct AbridgedBlock {
 	rlp: Bytes,
 }
