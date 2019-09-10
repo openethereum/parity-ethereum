@@ -29,14 +29,14 @@ use blockchain::{BlockChainDB, BlockChainDBHandler};
 use ethcore::client::{Client, ClientConfig};
 use ethcore::miner::Miner;
 use snapshot::service::{Service as SnapshotService, ServiceParams as SnapServiceParams};
-use snapshot::{SnapshotService as _SnapshotService};
+use snapshot::{SnapshotService as _SnapshotService, SnapshotClient};
 use spec::Spec;
 use common_types::{
 	io_message::ClientIoMessage,
 	errors::{EthcoreError, SnapshotError},
 	snapshot::RestorationStatus,
 };
-use client_traits::{ImportBlock, SnapshotClient, Tick};
+use client_traits::{ImportBlock, Tick};
 
 
 use ethcore_private_tx::{self, Importer, Signer};

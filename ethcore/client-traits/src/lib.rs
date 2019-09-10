@@ -58,8 +58,6 @@ use trace::{
 use common_types::data_format::DataFormat;
 use vm::{LastHashes, Schedule};
 
-use common_types::snapshot::Progress;
-
 /// State information to be used during client query
 pub enum StateOrBlock {
 	/// State to be used, may be pending
@@ -447,36 +445,6 @@ pub trait DatabaseRestore: Send + Sync {
 	/// Restart with a new backend. Takes ownership of passed database and moves it to a new location.
 	fn restore_db(&self, new_db: &str) -> Result<(), EthcoreError>;
 }
-
-/// Snapshot related functionality
-pub trait SnapshotClient: BlockChainClient + BlockInfo + DatabaseRestore + BlockChainReset {
-	/// Take a snapshot at the given block.
-	/// If the ID given is "latest", this will default to 1000 blocks behind.
-	fn take_snapshot<W: SnapshotWriter + Send>(
-		&self,
-		writer: W,
-		at: BlockId,
-		p: &Progress,
-	) -> Result<(), EthcoreError>;
-}
-
-
-// todo[dvdplm] move this back to snapshot once extracted from ethcore
-/// Something which can write snapshots.
-/// Writing the same chunk multiple times will lead to implementation-defined
-/// behavior, and is not advised.
-pub trait SnapshotWriter {
-	/// Write a compressed state chunk.
-	fn write_state_chunk(&mut self, hash: H256, chunk: &[u8]) -> std::io::Result<()>;
-
-	/// Write a compressed block chunk.
-	fn write_block_chunk(&mut self, hash: H256, chunk: &[u8]) -> std::io::Result<()>;
-
-	/// Complete writing. The manifest's chunk lists must be consistent
-	/// with the chunks written.
-	fn finish(self, manifest: common_types::snapshot::ManifestData) -> std::io::Result<()> where Self: Sized;
-}
-
 
 /// Represents what has to be handled by actor listening to chain events
 pub trait ChainNotify: Send + Sync {

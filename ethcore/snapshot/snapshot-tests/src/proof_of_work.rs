@@ -19,18 +19,16 @@
 use std::sync::atomic::AtomicBool;
 use tempdir::TempDir;
 use common_types::{
-	errors::EthcoreError as Error,
+	errors::{EthcoreError as Error, SnapshotError},
 	engines::ForkChoice,
 	snapshot::{Progress, ManifestData},
 };
-
 use blockchain::generator::{BlockGenerator, BlockBuilder};
 use blockchain::{BlockChain, ExtrasInsert};
-use client_traits::SnapshotWriter;
-use crate::{
+use snapshot::{
 	chunk_secondary,
-	Error as SnapshotError, SnapshotComponents,
-	io::{PackedReader, PackedWriter, SnapshotReader},
+	SnapshotComponents,
+	io::{PackedReader, PackedWriter, SnapshotReader, SnapshotWriter},
 	PowSnapshot,
 };
 use parking_lot::Mutex;

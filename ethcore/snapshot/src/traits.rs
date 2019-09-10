@@ -18,13 +18,16 @@ use std::sync::{Arc, atomic::AtomicBool};
 
 use blockchain::{BlockChain, BlockChainDB};
 use bytes::Bytes;
+use client_traits::{BlockChainClient, BlockInfo, DatabaseRestore, BlockChainReset};
 use common_types::{
+	ids::BlockId,
 	errors::{EthcoreError as Error, SnapshotError},
 	snapshot::{ManifestData, ChunkSink, Progress, RestorationStatus},
 };
 use engine::Engine;
 use ethereum_types::H256;
 
+use crate::io::SnapshotWriter;
 
 /// The interface for a snapshot network service.
 /// This handles:
@@ -128,4 +131,32 @@ pub trait SnapshotComponents: Send {
 
 	/// Current version number
 	fn current_version(&self) -> u64;
+}
+
+/// Snapshot related functionality
+pub trait SnapshotClient: BlockChainClient + BlockInfo + DatabaseRestore + BlockChainReset {
+	/// Take a snapshot at the given block.
+	/// If the ID given is "latest", this will default to 1000 blocks behind.
+	fn take_snapshot<W: SnapshotWriter + Send>(
+		&self,
+		writer: W,
+		at: BlockId,
+		p: &Progress,
+	) -> Result<(), Error>;
+}
+
+/// Helper trait for broadcasting a block to take a snapshot at.
+pub trait Broadcast: Send + Sync {
+	/// Start a snapshot from the given block number.
+	fn take_at(&self, num: Option<u64>);
+}
+
+
+/// Helper trait for transforming hashes to block numbers and checking if syncing.
+pub trait Oracle: Send + Sync {
+	/// Maps a block hash to a block number
+	fn to_number(&self, hash: H256) -> Option<u64>;
+
+	/// Are we currently syncing?
+	fn is_major_importing(&self) -> bool;
 }

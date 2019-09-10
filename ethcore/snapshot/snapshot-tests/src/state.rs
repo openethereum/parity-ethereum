@@ -18,19 +18,17 @@
 
 use std::sync::Arc;
 use std::sync::atomic::AtomicBool;
-use keccak_hash::{KECCAK_NULL_RLP, keccak};
 
+use keccak_hash::{KECCAK_NULL_RLP, keccak};
 use common_types::{
 	basic_account::BasicAccount,
-	errors::EthcoreError as Error,
-	snapshot::ManifestData,
+	errors::{EthcoreError as Error, SnapshotError},
+	snapshot::{ManifestData, Progress},
 };
-use client_traits::SnapshotWriter;
-use crate::{
-	account,
-	{chunk_state, Error as SnapshotError, Progress, StateRebuilder, SNAPSHOT_SUBPARTS},
-	io::{PackedReader, PackedWriter, SnapshotReader},
-	tests::helpers::StateProducer,
+use snapshot::{
+	test_helpers::to_fat_rlps,
+	chunk_state, StateRebuilder, SNAPSHOT_SUBPARTS,
+	io::{PackedReader, PackedWriter, SnapshotReader, SnapshotWriter},
 };
 use rand::SeedableRng;
 use rand_xorshift::XorShiftRng;
@@ -39,6 +37,8 @@ use journaldb::{self, Algorithm};
 use kvdb_rocksdb::{Database, DatabaseConfig};
 use parking_lot::Mutex;
 use tempdir::TempDir;
+
+use crate::helpers::StateProducer;
 
 const RNG_SEED: [u8; 16] = [1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16];
 
@@ -96,7 +96,7 @@ fn snap_and_restore() {
 		new_db
 	};
 
-	let new_db = journaldb::new(db, Algorithm::OverlayRecent, ethcore_db::COL_STATE);
+	let new_db = journaldb::new(db, Algorithm::OverlayRecent,  ethcore_db::COL_STATE);
 	assert_eq!(new_db.earliest_era(), Some(1000));
 	let keys = old_db.keys();
 
@@ -134,7 +134,7 @@ fn get_code_from_prev_chunk() {
 		let mut db = journaldb::new_memory_db();
 		AccountDBMut::from_hash(&mut db, hash).insert(EMPTY_PREFIX, &code[..]);
 		let p = Progress::default();
-		let fat_rlp = account::to_fat_rlps(&hash, &acc, &AccountDB::from_hash(&db, hash), &mut used_code, usize::max_value(), usize::max_value(), &p).unwrap();
+		let fat_rlp = to_fat_rlps(&hash, &acc, &AccountDB::from_hash(&db, hash), &mut used_code, usize::max_value(), usize::max_value(), &p).unwrap();
 		let mut stream = RlpStream::new_list(1);
 		stream.append_raw(&fat_rlp[0], 1);
 		stream.out()

@@ -22,17 +22,18 @@ use std::sync::Arc;
 use tempdir::TempDir;
 use blockchain::BlockProvider;
 use ethcore::client::{Client, ClientConfig};
-use client_traits::{BlockInfo, ImportBlock, SnapshotWriter};
+use client_traits::{BlockInfo, ImportBlock};
 use common_types::{
+	io_message::ClientIoMessage,
 	ids::BlockId,
 	snapshot::Progress,
 	verification::Unverified,
 	snapshot::{ManifestData, RestorationStatus},
 };
-use crate::{
+use snapshot::{
 	chunk_state, chunk_secondary, SnapshotService,
-	io::{PackedReader, PackedWriter, SnapshotReader},
-	service::{Service, ServiceParams},
+	io::{PackedReader, PackedWriter, SnapshotReader, SnapshotWriter},
+	service::{Service, ServiceParams, Guard, Restoration, RestorationParams},
 	PowSnapshot,
 };
 use spec;
@@ -42,8 +43,97 @@ use ethcore::{
 };
 
 use parking_lot::Mutex;
-use ethcore_io::IoChannel;
+use ethcore_io::{IoChannel, IoService};
 use kvdb_rocksdb::DatabaseConfig;
+use journaldb::Algorithm;
+
+#[test]
+fn sends_async_messages() {
+	let gas_prices = vec![1.into(), 2.into(), 3.into(), 999.into()];
+	let client = generate_dummy_client_with_spec_and_data(spec::new_null, 400, 5, &gas_prices);
+	let service = IoService::<ClientIoMessage<Client>>::start().unwrap();
+	let spec = spec::new_test();
+
+	let tempdir = TempDir::new("").unwrap();
+	let dir = tempdir.path().join("snapshot");
+
+	let snapshot_params = ServiceParams {
+		engine: spec.engine.clone(),
+		genesis_block: spec.genesis_block(),
+		restoration_db_handler: restoration_db_handler(Default::default()),
+		pruning: Algorithm::Archive,
+		channel: service.channel(),
+		snapshot_root: dir,
+		client,
+	};
+
+	let service = Service::new(snapshot_params).unwrap();
+
+	assert!(service.manifest().is_none());
+	assert!(service.chunk(Default::default()).is_none());
+	assert_eq!(service.status(), RestorationStatus::Inactive);
+
+	let manifest = ManifestData {
+		version: 2,
+		state_hashes: vec![],
+		block_hashes: vec![],
+		state_root: Default::default(),
+		block_number: 0,
+		block_hash: Default::default(),
+	};
+
+	service.begin_restore(manifest);
+	service.abort_restore();
+	service.restore_state_chunk(Default::default(), vec![]);
+	service.restore_block_chunk(Default::default(), vec![]);
+}
+
+#[test]
+fn cannot_finish_with_invalid_chunks() {
+	use ethereum_types::H256;
+	use kvdb_rocksdb::DatabaseConfig;
+
+	let spec = spec::new_test();
+	let tempdir = TempDir::new("").unwrap();
+
+	let state_hashes: Vec<_> = (0..5).map(|_| H256::random()).collect();
+	let block_hashes: Vec<_> = (0..5).map(|_| H256::random()).collect();
+	let db_config = DatabaseConfig::with_columns(ethcore_db::NUM_COLUMNS);
+	let gb = spec.genesis_block();
+	let flag = ::std::sync::atomic::AtomicBool::new(true);
+
+	let engine = &*spec.engine.clone();
+	let params = RestorationParams::new(
+		ManifestData {
+			version: 2,
+			state_hashes: state_hashes.clone(),
+			block_hashes: block_hashes.clone(),
+			state_root: H256::zero(),
+			block_number: 100000,
+			block_hash: H256::zero(),
+		},
+		Algorithm::Archive,
+		restoration_db_handler(db_config).open(&tempdir.path().to_owned()).unwrap(),
+		None,
+		&gb,
+		Guard::benign(),
+		engine,
+	);
+
+	let mut restoration = Restoration::new(params).unwrap();
+	let definitely_bad_chunk = [1, 2, 3, 4, 5];
+
+	for hash in state_hashes {
+		assert!(restoration.feed_state(hash, &definitely_bad_chunk, &flag).is_err());
+		assert!(!restoration.is_done());
+	}
+
+	for hash in block_hashes {
+		assert!(restoration.feed_blocks(hash, &definitely_bad_chunk, &*spec.engine, &flag).is_err());
+		assert!(!restoration.is_done());
+	}
+}
+
 
 #[test]
 fn restored_is_equivalent() {
@@ -280,7 +370,7 @@ fn keep_ancient_blocks() {
 
 #[test]
 fn recover_aborted_recovery() {
-	let _ = ::env_logger::try_init();
+	let _ = env_logger::try_init();
 
 	const NUM_BLOCKS: u32 = 400;
 	let gas_prices = vec![1.into(), 2.into(), 3.into(), 999.into()];

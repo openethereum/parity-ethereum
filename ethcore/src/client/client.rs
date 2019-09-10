@@ -75,8 +75,6 @@ use client_traits::{
 	Nonce,
 	ProvingBlockChainClient,
 	ScheduleInfo,
-	SnapshotClient,
-	SnapshotWriter,
 	StateClient,
 	StateOrBlock,
 	Tick,
@@ -96,7 +94,7 @@ use machine::{
 	transaction_ext::Transaction,
 };
 use miner::{Miner, MinerService};
-use snapshot;
+use snapshot::{self, SnapshotClient, SnapshotWriter};
 use spec::Spec;
 use state_db::StateDB;
 use trace::{self, Database as TraceDatabase, ImportRequest as TraceImportRequest, LocalizedTrace, TraceDB};

@@ -20,30 +20,36 @@
 use std::sync::Arc;
 use std::sync::atomic::AtomicBool;
 
-use keccak_hash::{KECCAK_NULL_RLP};
 use account_db::AccountDBMut;
-use common_types::basic_account::BasicAccount;
+use account_state;
 use blockchain::{BlockChain, BlockChainDB};
-use ethcore::client::Client;
-use client_traits::{ChainInfo, SnapshotClient};
+use client_traits::ChainInfo;
+use common_types::{
+	ids::BlockId,
+	basic_account::BasicAccount,
+	errors::EthcoreError
+};
 use engine::Engine;
-use crate::{
+use ethcore::client::Client;
+use ethereum_types::H256;
+use ethtrie::{SecTrieDBMut, TrieDB, TrieDBMut};
+use hash_db::HashDB;
+use journaldb;
+use keccak_hash::{KECCAK_NULL_RLP};
+use keccak_hasher::KeccakHasher;
+use kvdb::DBValue;
+use log::trace;
+use rand::Rng;
+use rlp;
+use snapshot::{
+	SnapshotClient,
 	StateRebuilder,
 	io::{SnapshotReader, PackedWriter, PackedReader},
+	chunker,
 };
-
 use tempdir::TempDir;
-use rand::Rng;
-use log::trace;
-use kvdb::DBValue;
-use ethereum_types::H256;
-use hash_db::HashDB;
-use keccak_hasher::KeccakHasher;
-use journaldb;
 use trie_db::{TrieMut, Trie};
-use ethtrie::{SecTrieDBMut, TrieDB, TrieDBMut};
 use trie_standardmap::{Alphabet, StandardMap, ValueMode};
-use common_types::errors::EthcoreError;
 
 // the proportion of accounts we will alter each tick.
 const ACCOUNT_CHURN: f32 = 0.01;
@@ -80,10 +86,10 @@ impl StateProducer {
 
 		// sweep once to alter storage tries.
 		for &mut (ref mut address_hash, ref mut account_data) in &mut accounts_to_modify {
-			let mut account: BasicAccount = ::rlp::decode(&*account_data).expect("error decoding basic account");
+			let mut account: BasicAccount = rlp::decode(&*account_data).expect("error decoding basic account");
 			let acct_db = AccountDBMut::from_hash(db, *address_hash);
 			fill_storage(acct_db, &mut account.storage_root, &mut self.storage_seed);
-			*account_data = DBValue::from_vec(::rlp::encode(&account));
+			*account_data = DBValue::from_vec(rlp::encode(&account));
 		}
 
 		// sweep again to alter account trie.
@@ -136,8 +142,6 @@ pub fn fill_storage(mut db: AccountDBMut, root: &mut H256, seed: &mut H256) {
 /// Take a snapshot from the given client into a temporary file.
 /// Return a snapshot reader for it.
 pub fn snap(client: &Client) -> (Box<dyn SnapshotReader>, TempDir) {
-	use common_types::ids::BlockId;
-
 	let tempdir = TempDir::new("").unwrap();
 	let path = tempdir.path().join("file");
 	let writer = PackedWriter::new(&path).unwrap();
@@ -160,7 +164,7 @@ pub fn restore(
 	genesis: &[u8],
 ) -> Result<(), EthcoreError> {
 	let flag = AtomicBool::new(true);
-	let chunker = crate::chunker(engine.snapshot_mode()).expect("the engine used here supports snapshots");
+	let chunker = chunker(engine.snapshot_mode()).expect("the engine used here supports snapshots");
 	let manifest = reader.manifest();
 
 	let mut state = StateRebuilder::new(db.key_value().clone(), journaldb::Algorithm::Archive);
