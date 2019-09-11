@@ -20,24 +20,26 @@ use std::str::FromStr;
 /// Format for importing/exporting blocks
 #[derive(Debug, PartialEq)]
 pub enum DataFormat {
-    Hex,
-    Binary,
+	/// Hexadecimal format
+	Hex,
+	/// Binary format
+	Binary,
 }
 
 impl Default for DataFormat {
-    fn default() -> Self {
-        DataFormat::Binary
-    }
+	fn default() -> Self {
+		DataFormat::Binary
+	}
 }
 
 impl FromStr for DataFormat {
-    type Err = String;
+	type Err = String;
 
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        match s {
-            "binary" | "bin" => Ok(DataFormat::Binary),
-            "hex" => Ok(DataFormat::Hex),
-            x => Err(format!("Invalid format: {}", x))
-        }
-    }
+	fn from_str(s: &str) -> Result<Self, Self::Err> {
+		match s {
+			"binary" | "bin" => Ok(DataFormat::Binary),
+			"hex" => Ok(DataFormat::Hex),
+			x => Err(format!("Invalid format: {}", x))
+		}
+	}
 }
