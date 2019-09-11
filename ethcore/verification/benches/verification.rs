@@ -82,7 +82,7 @@ fn build_ethash() -> Ethash {
 }
 
 fn block_verification(c: &mut Criterion) {
-	const PROOF: &'static str = "bytes from disk are ok";
+	const PROOF: &str = "bytes from disk are ok";
 
 	let ethash = build_ethash();
 
@@ -125,13 +125,12 @@ fn block_verification(c: &mut Criterion) {
 	// "partial" means we skip uncle and tx verification
 	c.bench_function("verify_block_family (partial)", |b| {
 		b.iter(|| {
-			let o = verification::verify_block_family::<TestBlockChainClient>(
+			if let Err(e) = verification::verify_block_family::<TestBlockChainClient>(
 				&preverified.header,
 				&parent.header,
 				&ethash,
 				None
-			);
-			if let Err(e) = o {
+			) {
 				panic!("verify_block_family (partial) ERROR: {:?}", e);
 			}
 		});
@@ -146,13 +145,12 @@ fn block_verification(c: &mut Criterion) {
 	c.bench_function("verify_block_family (full)", |b| {
 		b.iter(|| {
 			let full = FullFamilyParams { block: &preverified, block_provider: &block_provider, client: &client };
-			let o= verification::verify_block_family::<TestBlockChainClient>(
+			if let Err(e) = verification::verify_block_family::<TestBlockChainClient>(
 				&preverified.header,
 				&parent.header,
 				&ethash,
 				Some(full),
-			);
-			if let Err(e) = o {
+			) {
 				panic!("verify_block_family (full) ERROR: {:?}", e)
 			}
 		});

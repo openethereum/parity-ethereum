@@ -28,24 +28,14 @@ use common_types::{
 use ethereum_types::{BloomRef, H256};
 use parity_bytes::Bytes;
 
+#[derive(Default)]
 pub struct TestBlockChain {
 	blocks: HashMap<H256, Bytes>,
 	numbers: HashMap<BlockNumber, H256>,
 }
 
-impl Default for TestBlockChain {
-	fn default() -> Self {
-		TestBlockChain::new()
-	}
-}
-
 impl TestBlockChain {
-	pub fn new() -> Self {
-		TestBlockChain {
-			blocks: HashMap::new(),
-			numbers: HashMap::new(),
-		}
-	}
+	pub fn new() -> Self { TestBlockChain::default() }
 
 	pub fn insert(&mut self, bytes: Bytes) {
 		let header = Unverified::from_rlp(bytes.clone()).unwrap().header;
