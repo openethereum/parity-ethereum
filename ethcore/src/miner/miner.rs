@@ -881,9 +881,7 @@ impl Miner {
 	/// This should be called after an internal block import, which might not have
 	/// included all the pending local transactions.
 	pub fn maybe_update_sealing<C: miner::BlockChainClient>(&self, chain: &C) {
-		if self.transaction_queue.has_local_pending_transactions() {
-			self.update_sealing(chain);
-		}
+		self.update_sealing(chain);
 	}
 }
 
