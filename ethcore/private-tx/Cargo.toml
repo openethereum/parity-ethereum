@@ -47,7 +47,7 @@ state-db = { path = "../state-db" }
 time-utils = { path = "../../util/time-utils" }
 tiny-keccak = "1.4"
 trace = { path = "../trace" }
-transaction-pool = "2.0"
+transaction-pool = "2.0.1"
 url = "1"
 vm = { path = "../vm" }
 
