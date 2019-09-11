@@ -81,6 +81,7 @@ extern crate patricia_trie_ethereum as ethtrie;
 extern crate rand;
 extern crate rayon;
 extern crate rlp;
+extern crate rustc_hex;
 extern crate serde;
 extern crate snapshot;
 extern crate spec;
@@ -126,8 +127,6 @@ extern crate pod;
 extern crate blooms_db;
 #[cfg(any(test, feature = "env_logger"))]
 extern crate env_logger;
-#[cfg(any(test, feature = "test-helpers"))]
-extern crate rustc_hex;
 #[cfg(test)]
 extern crate serde_json;
 #[cfg(any(test, feature = "tempdir"))]
