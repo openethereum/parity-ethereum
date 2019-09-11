@@ -608,7 +608,7 @@ mod tests {
 	use ethereum_types::U256;
 	use ethjson::uint::Uint;
 	use num::{BigUint, Zero, One};
-	use parity_bytes::BytesRef;
+	use bytes::BytesRef;
 	use rustc_hex::FromHex;
 	use super::{Builtin, Linear, ethereum_builtin, Pricer, ModexpPricer, modexp as me};
 
