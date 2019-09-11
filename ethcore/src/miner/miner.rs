@@ -58,7 +58,7 @@ use using_queue::{UsingQueue, GetAction};
 
 use block::{ClosedBlock, SealedBlock};
 use client::{BlockProducer, SealedBlockImporter, Client};
-use client_traits::{BlockChain, ChainInfo, Nonce, TransactionInfo};
+use client_traits::{BlockChain, ChainInfo, EngineClient, Nonce, TransactionInfo};
 use engine::{Engine, signer::EngineSigner};
 use machine::executive::contract_address;
 use spec::Spec;
@@ -876,13 +876,6 @@ impl Miner {
 			SealingState::NotReady => { self.maybe_enable_sealing(); },
 		}
 	}
-
-	/// Call `update_sealing` if there are some local pending transactions.
-	/// This should be called after an internal block import, which might not have
-	/// included all the pending local transactions.
-	pub fn maybe_update_sealing<C: miner::BlockChainClient>(&self, chain: &C) {
-		self.update_sealing(chain);
-	}
 }
 
 impl miner::MinerService for Miner {
@@ -1437,7 +1430,7 @@ impl miner::MinerService for Miner {
 					);
 					queue.cull(client);
 					if is_internal_import {
-						chain.maybe_update_sealing();
+						chain.update_sealing();
 					}
 				};
 
@@ -1447,7 +1440,7 @@ impl miner::MinerService for Miner {
 			} else {
 				self.transaction_queue.cull(client);
 				if is_internal_import {
-					self.maybe_update_sealing(chain);
+					self.update_sealing(chain);
 				}
 			}
 		}
