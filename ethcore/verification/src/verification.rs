@@ -119,7 +119,12 @@ pub struct FullFamilyParams<'a, C: BlockInfo + CallContract + 'a> {
 }
 
 /// Phase 3 verification. Check block information against parent and uncles.
-pub fn verify_block_family<C: BlockInfo + CallContract>(header: &Header, parent: &Header, engine: &dyn Engine, do_full: Option<FullFamilyParams<C>>) -> Result<(), Error> {
+pub fn verify_block_family<C: BlockInfo + CallContract>(
+	header: &Header,
+	parent: &Header,
+	engine: &dyn Engine,
+	do_full: Option<FullFamilyParams<C>>
+) -> Result<(), Error> {
 	// TODO: verify timestamp
 	verify_parent(&header, &parent, engine)?;
 	engine.verify_block_family(&header, &parent)?;
@@ -128,7 +133,6 @@ pub fn verify_block_family<C: BlockInfo + CallContract>(header: &Header, parent:
 		Some(x) => x,
 		None => return Ok(()),
 	};
-
 	verify_uncles(params.block, params.block_provider, engine)?;
 
 	for tx in &params.block.transactions {
@@ -248,7 +252,7 @@ pub fn verify_block_final(expected: &Header, got: &Header) -> Result<(), Error> 
 }
 
 /// Check basic header parameters.
-pub fn verify_header_params(header: &Header, engine: &dyn Engine, is_full: bool, check_seal: bool) -> Result<(), Error> {
+pub(crate) fn verify_header_params(header: &Header, engine: &dyn Engine, is_full: bool, check_seal: bool) -> Result<(), Error> {
 	if check_seal {
 		let expected_seal_fields = engine.seal_fields(header);
 		if header.seal().len() != expected_seal_fields {
@@ -306,7 +310,7 @@ pub fn verify_header_params(header: &Header, engine: &dyn Engine, is_full: bool,
 	Ok(())
 }
 
-/// Check header parameters agains parent header.
+/// Check header parameters against parent header.
 fn verify_parent(header: &Header, parent: &Header, engine: &dyn Engine) -> Result<(), Error> {
 	assert!(header.parent_hash().is_zero() || &parent.hash() == header.parent_hash(),
 			"Parent hash should already have been verified; qed");
@@ -364,11 +368,10 @@ fn verify_block_integrity(block: &Unverified) -> Result<(), Error> {
 mod tests {
 	use super::*;
 
-	use std::collections::{BTreeMap, HashMap};
+	use std::collections::BTreeMap;
 	use std::time::{SystemTime, UNIX_EPOCH};
 
-	use ethereum_types::{H256, BloomRef, U256, Address};
-	use blockchain::{BlockDetails, TransactionAddress, BlockReceipts};
+	use ethereum_types::{H256, U256, Address};
 	use parity_bytes::Bytes;
 	use keccak_hash::keccak;
 	use engine::Engine;
@@ -379,16 +382,16 @@ mod tests {
 		test_helpers::{create_test_block_with_data, create_test_block}
 	};
 	use common_types::{
-		encoded,
 		engines::params::CommonParams,
 		errors::BlockError::*,
 		transaction::{SignedTransaction, Transaction, UnverifiedTransaction, Action},
-		log_entry::{LogEntry, LocalizedLogEntry},
 	};
 	use rlp;
 	use triehash::ordered_trie_root;
 	use machine::Machine;
 	use null_engine::NullEngine;
+
+	use crate::test_helpers::TestBlockChain;
 
 	fn check_ok(result: Result<(), Error>) {
 		result.unwrap_or_else(|e| panic!("Block verification failed: {:?}", e));
@@ -409,101 +412,6 @@ mod tests {
 			Err(Error::Block(BlockError::TemporarilyInvalid(_))) if temp => (),
 			Err(other) => panic!("Block verification failed.\nExpected: {}\nGot: {:?}", name, other),
 			Ok(_) => panic!("Block verification failed.\nExpected: {}\nGot: Ok", name),
-		}
-	}
-
-	struct TestBlockChain {
-		blocks: HashMap<H256, Bytes>,
-		numbers: HashMap<BlockNumber, H256>,
-	}
-
-	impl Default for TestBlockChain {
-		fn default() -> Self {
-			TestBlockChain::new()
-		}
-	}
-
-	impl TestBlockChain {
-		pub fn new() -> Self {
-			TestBlockChain {
-				blocks: HashMap::new(),
-				numbers: HashMap::new(),
-			}
-		}
-
-		pub fn insert(&mut self, bytes: Bytes) {
-			let header = Unverified::from_rlp(bytes.clone()).unwrap().header;
-			let hash = header.hash();
-			self.blocks.insert(hash, bytes);
-			self.numbers.insert(header.number(), hash);
-		}
-	}
-
-	impl BlockProvider for TestBlockChain {
-		fn is_known(&self, hash: &H256) -> bool {
-			self.blocks.contains_key(hash)
-		}
-
-		fn first_block(&self) -> Option<H256> {
-			unimplemented!()
-		}
-
-		/// Get raw block data
-		fn block(&self, hash: &H256) -> Option<encoded::Block> {
-			self.blocks.get(hash).cloned().map(encoded::Block::new)
-		}
-
-		fn block_header_data(&self, hash: &H256) -> Option<encoded::Header> {
-			self.block(hash)
-				.map(|b| b.header_view().rlp().as_raw().to_vec())
-				.map(encoded::Header::new)
-		}
-
-		fn block_body(&self, hash: &H256) -> Option<encoded::Body> {
-			self.block(hash)
-				.map(|b| BlockChain::block_to_body(&b.into_inner()))
-				.map(encoded::Body::new)
-		}
-
-		fn best_ancient_block(&self) -> Option<H256> {
-			None
-		}
-
-		/// Get the familial details concerning a block.
-		fn block_details(&self, hash: &H256) -> Option<BlockDetails> {
-			self.blocks.get(hash).map(|bytes| {
-				let header = Unverified::from_rlp(bytes.to_vec()).unwrap().header;
-				BlockDetails {
-					number: header.number(),
-					total_difficulty: *header.difficulty(),
-					parent: *header.parent_hash(),
-					children: Vec::new(),
-					is_finalized: false,
-				}
-			})
-		}
-
-		fn transaction_address(&self, _hash: &H256) -> Option<TransactionAddress> {
-			unimplemented!()
-		}
-
-		/// Get the hash of given block's number.
-		fn block_hash(&self, index: BlockNumber) -> Option<H256> {
-			self.numbers.get(&index).cloned()
-		}
-
-		fn block_receipts(&self, _hash: &H256) -> Option<BlockReceipts> {
-			unimplemented!()
-		}
-
-		fn blocks_with_bloom<'a, B, I, II>(&self, _blooms: II, _from_block: BlockNumber, _to_block: BlockNumber) -> Vec<BlockNumber>
-		where BloomRef<'a>: From<B>, II: IntoIterator<Item = B, IntoIter = I> + Copy, I: Iterator<Item = B>, Self: Sized {
-			unimplemented!()
-		}
-
-		fn logs<F>(&self, _blocks: Vec<H256>, _matches: F, _limit: Option<usize>) -> Vec<LocalizedLogEntry>
-			where F: Fn(&LogEntry) -> bool, Self: Sized {
-			unimplemented!()
 		}
 	}
 

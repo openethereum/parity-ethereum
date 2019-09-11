@@ -4996,7 +4996,9 @@ version = "0.1.0"
 dependencies = [
  "client-traits 0.1.0",
  "common-types 0.1.0",
+ "criterion 0.3.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "engine 0.1.0",
+ "ethash-engine 0.1.0",
  "ethcore 1.12.0",
  "ethcore-blockchain 0.1.0",
  "ethcore-call-contract 0.1.0",
@@ -5014,6 +5016,7 @@ dependencies = [
  "parking_lot 0.8.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "rlp 0.4.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "spec 0.1.0",
+ "tempdir 0.3.7 (registry+https://github.com/rust-lang/crates.io-index)",
  "time-utils 0.1.0",
  "triehash-ethereum 0.2.0",
  "unexpected 0.1.0",
