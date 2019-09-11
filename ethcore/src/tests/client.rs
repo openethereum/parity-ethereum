@@ -393,12 +393,12 @@ fn reset_blockchain() {
 #[test]
 fn import_export_hex() {
 	let client = get_test_client_with_blocks(get_good_dummy_block_seq(19));
-	let block_rlps = (15..20)
+	let block_rlps: Vec<String> = (15..20)
 		.filter_map(|num| client.block(BlockId::Number(num)))
 		.map(|header| {
 			header.raw().to_hex()
 		})
-		.collect::<Vec<_>>();
+		.collect();
 
 	let mut out = Vec::new();
 
