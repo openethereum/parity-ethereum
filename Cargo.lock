@@ -1263,7 +1263,7 @@ dependencies = [
  "serde_derive 1.0.89 (registry+https://github.com/rust-lang/crates.io-index)",
  "serde_json 1.0.40 (registry+https://github.com/rust-lang/crates.io-index)",
  "trace-time 0.1.1 (registry+https://github.com/rust-lang/crates.io-index)",
- "transaction-pool 2.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "transaction-pool 2.0.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "url 1.7.1 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
@@ -1366,7 +1366,7 @@ dependencies = [
  "time-utils 0.1.0",
  "tiny-keccak 1.4.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "trace 0.1.0",
- "transaction-pool 2.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "transaction-pool 2.0.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "trie-db 0.15.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "url 1.7.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "vm 0.1.0",
@@ -3141,7 +3141,7 @@ dependencies = [
  "tiny-keccak 1.4.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "tokio-timer 0.1.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "trace 0.1.0",
- "transaction-pool 2.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "transaction-pool 2.0.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "transient-hashmap 0.4.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "verification 0.1.0",
  "vm 0.1.0",
@@ -4737,7 +4737,7 @@ dependencies = [
 
 [[package]]
 name = "transaction-pool"
-version = "2.0.0"
+version = "2.0.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 dependencies = [
  "log 0.4.8 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -5568,7 +5568,7 @@ dependencies = [
 "checksum toml 0.5.1 (registry+https://github.com/rust-lang/crates.io-index)" = "b8c96d7873fa7ef8bdeb3a9cda3ac48389b4154f32b9803b4bc26220b677b039"
 "checksum toolshed 0.4.0 (registry+https://github.com/rust-lang/crates.io-index)" = "450441e131c7663af72e63a33c02a6a1fbaaa8601dc652ed6757813bb55aeec7"
 "checksum trace-time 0.1.1 (registry+https://github.com/rust-lang/crates.io-index)" = "dbe82f2f0bf1991e163e757baf044282823155dd326e70f44ce2186c3c320cc9"
-"checksum transaction-pool 2.0.0 (registry+https://github.com/rust-lang/crates.io-index)" = "f8d8bd3123931aa6e49dd03bc8a2400490e14701d779458d1f1fff1f04c6f666"
+"checksum transaction-pool 2.0.1 (registry+https://github.com/rust-lang/crates.io-index)" = "454adc482e32785c3beab9415dd0f3c689f29cc2d16717eb62f6a784d53544b4"
 "checksum transient-hashmap 0.4.1 (registry+https://github.com/rust-lang/crates.io-index)" = "aeb4b191d033a35edfce392a38cdcf9790b6cebcb30fa690c312c29da4dc433e"
 "checksum trie-db 0.15.0 (registry+https://github.com/rust-lang/crates.io-index)" = "9b65d609ae631d808c6c1cc23a622733d5a0b66a7d67e9f5cd5171562a1f4cb5"
 "checksum trie-standardmap 0.15.0 (registry+https://github.com/rust-lang/crates.io-index)" = "64fda153c00484d640bc91334624be22ead0e5baca917d9fd53ff29bdebcf9b2"
