@@ -16,9 +16,7 @@
 
 //! Spec builtin deserialization.
 
-use crate::uint::Uint;
 use serde::Deserialize;
-
 
 /// Linear pricing.
 #[derive(Debug, PartialEq, Deserialize, Clone)]
@@ -38,16 +36,6 @@ pub struct Modexp {
 	pub divisor: usize,
 }
 
-/// Pricing for constant alt_bn128 operations (ECADD and ECMUL)
-#[derive(Debug, PartialEq, Deserialize, Clone)]
-#[serde(deny_unknown_fields)]
-pub struct AltBn128ConstOperations {
-	/// price
-	pub price: usize,
-	/// EIP 1108 transition price
-	pub eip1108_transition_price: usize,
-}
-
 /// Pricing for alt_bn128_pairing.
 #[derive(Debug, PartialEq, Deserialize, Clone)]
 #[serde(deny_unknown_fields)]
@@ -56,10 +44,6 @@ pub struct AltBn128Pairing {
 	pub base: usize,
 	/// Price per point pair.
 	pub pair: usize,
-	/// EIP 1108 transition base price
-	pub eip1108_transition_base: usize,
-	/// EIP 1108 transition price per point pair
-	pub eip1108_transition_pair: usize,
 }
 
 /// Pricing variants.
@@ -78,64 +62,131 @@ pub enum Pricing {
 	Modexp(Modexp),
 	/// Pricing for alt_bn128_pairing exponentiation.
 	AltBn128Pairing(AltBn128Pairing),
-	/// Pricing for constant alt_bn128 operations
-	AltBn128ConstOperations(AltBn128ConstOperations),
 }
 
 /// Spec builtin.
 #[derive(Debug, PartialEq, Deserialize, Clone)]
 #[serde(deny_unknown_fields)]
 pub struct Builtin {
-	/// Builtin name.
+	/// Builtin name
 	pub name: String,
+	/// One or several builtin prices
+	pub price: BuiltinPrice,
+}
+
+/// Builtin price
+#[derive(Debug, PartialEq, Deserialize, Clone)]
+#[serde(rename_all = "snake_case")]
+#[serde(deny_unknown_fields)]
+#[serde(untagged)]
+pub enum BuiltinPrice {
+	/// Single builtin
+	Single(PricingWithActivation),
+	/// Multiple builtins
+	// TODO(niklasad1): maybe change to BTreeMap
+	Multi(Vec<PricingWithActivation>),
+}
+
+/// Builtin price with which block to activate it on
+#[derive(Debug, PartialEq, Deserialize, Clone)]
+#[serde(deny_unknown_fields)]
+pub struct PricingWithActivation {
 	/// Builtin pricing.
 	pub pricing: Pricing,
 	/// Activation block.
-	pub activate_at: Option<Uint>,
-	/// EIP 1108
-	pub eip1108_transition: Option<Uint>,
+	pub activate_at: Option<u64>,
 }
 
 #[cfg(test)]
 mod tests {
-	use super::{Builtin, Modexp, Linear, Pricing, Uint};
+	use super::{Builtin, BuiltinPrice, Modexp, Linear, Pricing, PricingWithActivation};
 
 	#[test]
 	fn builtin_deserialization() {
 		let s = r#"{
 			"name": "ecrecover",
-			"pricing": { "linear": { "base": 3000, "word": 0 } }
+			"price": {
+				"pricing": {
+					"linear": {
+						"base": 3000,
+						"word": 0
+					}
+				}
+			}
 		}"#;
-		let deserialized: Builtin = serde_json::from_str(s).unwrap();
-		assert_eq!(deserialized.name, "ecrecover");
-		assert_eq!(deserialized.pricing, Pricing::Linear(Linear { base: 3000, word: 0 }));
-		assert!(deserialized.activate_at.is_none());
+		let builtin: Builtin = serde_json::from_str(s).unwrap();
+		assert_eq!(builtin.name, "ecrecover");
+		assert_eq!(builtin.price, BuiltinPrice::Single(PricingWithActivation {
+			pricing: Pricing::Linear(Linear {
+				base: 3000,
+				word: 0
+			}),
+			activate_at: None
+		}));
 	}
 
 	#[test]
 	fn deserialization_blake2_f_builtin() {
 		let s = r#"{
 			"name": "blake2_f",
-			"activate_at": "0xffffff",
-			"pricing": { "blake2_f": { "gas_per_round": 123 } }
+			"price": {
+				"pricing": {
+					"blake2_f": {
+						"gas_per_round": 123
+					}
+				},
+				"activate_at": 16777215
+			}
 		}"#;
-		let deserialized: Builtin = serde_json::from_str(s).unwrap();
-		assert_eq!(deserialized.name, "blake2_f");
-		assert_eq!(deserialized.pricing, Pricing::Blake2F { gas_per_round: 123 });
-		assert!(deserialized.activate_at.is_some());
+		let builtin: Builtin = serde_json::from_str(s).unwrap();
+		assert_eq!(builtin.name, "blake2_f");
+		assert_eq!(builtin.price, BuiltinPrice::Single(PricingWithActivation {
+			pricing: Pricing::Blake2F {
+				gas_per_round: 123,
+			},
+			activate_at: Some(0xffffff)
+		}));
 	}
 
 	#[test]
-	fn activate_at() {
+	fn builtin_multi_deserialization() {
 		let s = r#"{
 			"name": "late_start",
-			"activate_at": 100000,
-			"pricing": { "modexp": { "divisor": 5 } }
+			"price": [
+				{
+					"pricing": { "modexp": { "divisor": 5 } },
+					"activate_at": 0
+				},
+				{
+					"pricing": { "modexp": { "divisor": 5 } },
+					"activate_at": 100000
+				}
+			]
 		}"#;
+		let builtin: Builtin = serde_json::from_str(s).unwrap();
+		assert_eq!(builtin.name, "late_start");
 
-		let deserialized: Builtin = serde_json::from_str(s).unwrap();
-		assert_eq!(deserialized.name, "late_start");
-		assert_eq!(deserialized.pricing, Pricing::Modexp(Modexp { divisor: 5 }));
-		assert_eq!(deserialized.activate_at, Some(Uint(100000.into())));
+		let expected = vec![
+			PricingWithActivation {
+				pricing: Pricing::Modexp(Modexp { divisor: 5 }),
+				activate_at: Some(0)
+			},
+			PricingWithActivation {
+				pricing: Pricing::Modexp(Modexp { divisor: 5 }),
+				activate_at: Some(100_000)
+			}
+		];
+		assert_eq!(builtin.price, BuiltinPrice::Multi(expected));
+	}
+
+
+	#[test]
+	fn builtin_multi_deserialization_empty() {
+		let s = r#"{
+			"name": "builtin_with_price",
+			"price": []
+		}"#;
+		let builtin: Builtin = serde_json::from_str(s).unwrap();
+		assert_eq!(builtin.price, BuiltinPrice::Multi(Vec::new()));
 	}
 }

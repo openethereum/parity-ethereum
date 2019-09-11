@@ -25,6 +25,7 @@ use serde::Deserialize;
 #[cfg_attr(any(test, feature = "test-helpers"), derive(Clone))]
 #[derive(Debug, PartialEq, Deserialize)]
 #[serde(deny_unknown_fields)]
+#[serde(rename_all = "camelCase")]
 pub struct Account {
 	/// Builtin contract.
 	pub builtin: Option<Builtin>,
@@ -101,7 +102,17 @@ mod tests {
 	#[test]
 	fn account_empty() {
 		let s = r#"{
-			"builtin": { "name": "ecrecover", "pricing": { "linear": { "base": 3000, "word": 0 } } }
+			"builtin": {
+				"name": "ecrecover",
+				"price": {
+					"pricing": {
+						"linear": {
+							"base": 3000,
+							"word": 0
+						}
+					}
+				}
+			}
 		}"#;
 		let deserialized: Account = serde_json::from_str(s).unwrap();
 		assert!(deserialized.is_empty());
@@ -112,8 +123,18 @@ mod tests {
 		let s = r#"{
 			"balance": "1",
 			"nonce": "0",
-			"builtin": { "name": "ecrecover", "pricing": { "linear": { "base": 3000, "word": 0 } } },
-			"code": "1234"
+			"code": "1234",
+			"builtin": {
+				"name": "ecrecover",
+				"price": {
+					"pricing": {
+						"linear": {
+							"base": 3000,
+							"word": 0
+						}
+					}
+				}
+			}
 		}"#;
 		let deserialized: Account = serde_json::from_str(s).unwrap();
 		assert!(!deserialized.is_empty());

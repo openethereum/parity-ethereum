@@ -263,6 +263,8 @@ fn load_from(spec_params: SpecParams, s: ethjson::spec::Spec) -> Result<Spec, Er
 		.into_iter()
 		.map(|p| (p.0.into(), From::from(p.1)))
 		.collect();
+
+
 	let g = Genesis::from(s.genesis);
 	let GenericSeal(seal_rlp) = g.seal.into();
 	let params = CommonParams::from(s.params);

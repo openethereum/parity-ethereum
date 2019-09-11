@@ -24,17 +24,29 @@ use serde_json::Error;
 /// Fork spec definition
 #[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Deserialize)]
 pub enum ForkSpec {
+	/// EIP 150
 	EIP150,
+	/// EIP 158
 	EIP158,
+	/// Frontier
 	Frontier,
+	/// Homestead
 	Homestead,
+	/// Byzantium
 	Byzantium,
+	/// Constantinople
 	Constantinople,
+	/// ConstantinopleFix
 	ConstantinopleFix,
+	/// Istanbul
 	Istanbul,
+	/// EIP158 to Byzantium at block 5
 	EIP158ToByzantiumAt5,
+	/// Frontier to homestead at block 5
 	FrontierToHomesteadAt5,
+	/// Homestead to Dao at block 5
 	HomesteadToDaoAt5,
+	/// Homestead to EIP 150 at block 5
 	HomesteadToEIP150At5,
 }
 
@@ -182,10 +194,66 @@ mod tests {
 		"enode://b1217cbaa440e35ed471157123fe468e19e8b5ad5bedb4b1fdbcbdab6fb2f5ed3e95dd9c24a22a79fdb2352204cea207df27d92bfd21bfd41545e8b16f637499@104.44.138.37:30303"
 	],
 	"accounts": {
-		"0000000000000000000000000000000000000001": { "balance": "1", "nonce": "1048576", "builtin": { "name": "ecrecover", "pricing": { "linear": { "base": 3000, "word": 0 } } } },
-		"0000000000000000000000000000000000000002": { "balance": "1", "nonce": "1048576", "builtin": { "name": "sha256", "pricing": { "linear": { "base": 60, "word": 12 } } } },
-		"0000000000000000000000000000000000000003": { "balance": "1", "nonce": "1048576", "builtin": { "name": "ripemd160", "pricing": { "linear": { "base": 600, "word": 120 } } } },
-		"0000000000000000000000000000000000000004": { "balance": "1", "nonce": "1048576", "builtin": { "name": "identity", "pricing": { "linear": { "base": 15, "word": 3 } } } },
+		"0000000000000000000000000000000000000001": {
+			"balance": "1",
+			"nonce": "1048576",
+			"builtin": {
+				"name": "ecrecover",
+				"price": {
+					"pricing": {
+						"linear": {
+							"base": 3000,
+							"word": 0
+						}
+					}
+				}
+			}
+		},
+		"0000000000000000000000000000000000000002": {
+			"balance": "1",
+			"nonce": "1048576",
+			"builtin": {
+				"name": "sha256",
+				"price": {
+					"pricing": {
+						"linear": {
+							"base": 60,
+							"word": 12
+						}
+					}
+				}
+			}
+		},
+		"0000000000000000000000000000000000000003": {
+			"balance": "1",
+			"nonce": "1048576",
+			"builtin": {
+				"name": "ripemd160",
+				"price": {
+					"pricing": {
+						"linear": {
+							"base": 600,
+							"word": 120
+						}
+					}
+				}
+			}
+		},
+		"0000000000000000000000000000000000000004": {
+			"balance": "1",
+			"nonce": "1048576",
+			"builtin": {
+				"name": "identity",
+				"price": {
+					"pricing": {
+						"linear": {
+							"base": 15,
+							"word": 3
+						}
+					}
+				}
+			}
+		},
 		"102e61f5d8f9bc71d0ad4a084df4e65e05ce0e1c": { "balance": "1606938044258990275541962092341162602522202993782792835301376", "nonce": "1048576" }
 	},
 	"hardcodedSync": {
