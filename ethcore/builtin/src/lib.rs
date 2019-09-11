@@ -666,8 +666,10 @@ impl Bn128Pairing {
 #[cfg(test)]
 mod tests {
 	use ethereum_types::U256;
-	use ethjson::spec::builtin::{InnerBuiltin, Linear as JsonLinear};
-	use ethjson::uint::Uint;
+	use ethjson::spec::builtin::{
+		Builtin as JsonBuiltin, BuiltinPrice as JsonBuiltinPrice, Linear as JsonLinearPricing,
+		PricingWithActivation, AltBn128Pairing as JsonAltBn128PairingPricing, Pricing as JsonPricing
+	};
 	use hex_literal::hex;
 	use macros::map;
 	use num::{BigUint, Zero, One};
@@ -1246,14 +1248,16 @@ mod tests {
 
 	#[test]
 	fn from_json() {
-		let b = Builtin::from(ethjson::spec::Builtin::Single(InnerBuiltin {
+		let b = Builtin::from(JsonBuiltin {
 			name: "identity".to_owned(),
-			pricing: ethjson::spec::Pricing::Linear(JsonLinear {
-				base: 10,
-				word: 20,
-			}),
-			activate_at: 0,
-		}));
+			price: JsonBuiltinPrice::Single(PricingWithActivation {
+				pricing: JsonPricing::Linear(JsonLinearPricing {
+					base: 10,
+					word: 20,
+				}),
+				activate_at: Some(0),
+			})
+		});
 
 		assert_eq!(b.cost(&[0; 0], 0), U256::from(10));
 		assert_eq!(b.cost(&[0; 1], 0), U256::from(30));
@@ -1268,24 +1272,25 @@ mod tests {
 
 	#[test]
 	fn bn128_pairing_eip1108_transition() {
-		let b = Builtin::from(ethjson::spec::Builtin::Multi(vec![
-			InnerBuiltin {
-				name: "alt_bn128_pairing".to_owned(),
-				pricing: ethjson::spec::Pricing::AltBn128Pairing(ethjson::spec::builtin::AltBn128Pairing {
-					base: 100_000,
-					pair: 80_000,
-				}),
-				activate_at: 10,
-			},
-			InnerBuiltin {
-				name: "alt_bn128_pairing".to_owned(),
-				pricing: ethjson::spec::Pricing::AltBn128Pairing(ethjson::spec::builtin::AltBn128Pairing {
-					base: 45_000,
-					pair: 34_000,
-				}),
-				activate_at: 20,
-			}
-		]));
+		let b = Builtin::from(JsonBuiltin {
+			name: "alt_bn128_pairing".to_owned(),
+			price: JsonBuiltinPrice::Multi(vec![
+				PricingWithActivation {
+					pricing: JsonPricing::AltBn128Pairing(JsonAltBn128PairingPricing {
+						base: 100_000,
+						pair: 80_000,
+					}),
+					activate_at: Some(10),
+				},
+				PricingWithActivation {
+					pricing: JsonPricing::AltBn128Pairing(JsonAltBn128PairingPricing {
+						base: 45_000,
+						pair: 34_000,
+					}),
+					activate_at: Some(20),
+				},
+			]),
+		});
 
 		assert_eq!(b.cost(&[0; 192 * 3], 10), U256::from(340_000), "80 000 * 3 + 100 000 == 340 000");
 		assert_eq!(b.cost(&[0; 192 * 7], 20), U256::from(283_000), "34 000 * 7 + 45 000 == 283 000");
@@ -1293,24 +1298,25 @@ mod tests {
 
 	#[test]
 	fn bn128_add_eip1108_transition() {
-		let b = Builtin::from(ethjson::spec::Builtin::Multi(vec![
-			InnerBuiltin {
-				name: "alt_bn128_add".to_owned(),
-				pricing: ethjson::spec::Pricing::Linear(JsonLinear {
-					base: 500,
-					word: 0,
-				}),
-				activate_at: 10,
-			},
-			InnerBuiltin {
-				name: "alt_bn128_add".to_owned(),
-				pricing: ethjson::spec::Pricing::Linear(JsonLinear {
-					base: 150,
-					word: 0,
-				}),
-				activate_at: 20,
-			}
-		]));
+		let b = Builtin::from(JsonBuiltin {
+			name: "alt_bn128_add".to_owned(),
+			price: JsonBuiltinPrice::Multi(vec![
+				PricingWithActivation {
+					pricing: JsonPricing::Linear(JsonLinearPricing {
+						base: 500,
+						word: 0,
+					}),
+					activate_at: Some(10),
+				},
+				PricingWithActivation {
+					pricing: JsonPricing::Linear(JsonLinearPricing {
+						base: 150,
+						word: 0,
+					}),
+					activate_at: Some(20),
+				}
+			])
+		});
 
 		assert_eq!(b.cost(&[0; 192], 10), U256::from(500));
 		assert_eq!(b.cost(&[0; 10], 20), U256::from(150), "after istanbul hardfork gas cost for add should be 150");
@@ -1318,24 +1324,25 @@ mod tests {
 
 	#[test]
 	fn bn128_mul_eip1108_transition() {
-		let b = Builtin::from(ethjson::spec::Builtin::Multi(vec![
-			InnerBuiltin {
-				name: "alt_bn128_mul".to_owned(),
-				pricing: ethjson::spec::Pricing::Linear(JsonLinear {
-					base: 40_000,
-					word: 0,
-				}),
-				activate_at: 10,
-			},
-			InnerBuiltin {
-				name: "alt_bn128_mul".to_owned(),
-				pricing: ethjson::spec::Pricing::Linear(JsonLinear {
-					base: 6_000,
-					word: 0,
-				}),
-				activate_at: 20,
-			}
-		]));
+		let b = Builtin::from(JsonBuiltin {
+			name: "alt_bn128_mul".to_owned(),
+			price: JsonBuiltinPrice::Multi(vec![
+				PricingWithActivation {
+					pricing: JsonPricing::Linear(JsonLinearPricing {
+						base: 40_000,
+						word: 0,
+					}),
+					activate_at: Some(10),
+				},
+				PricingWithActivation {
+					pricing: JsonPricing::Linear(JsonLinearPricing {
+						base: 6_000,
+						word: 0,
+					}),
+					activate_at: Some(20),
+				}
+			]),
+		});
 
 		assert_eq!(b.cost(&[0; 192], 10), U256::from(40_000));
 		assert_eq!(b.cost(&[0; 10], 20), U256::from(6_000), "after istanbul hardfork gas cost for mul should be 6 000");
