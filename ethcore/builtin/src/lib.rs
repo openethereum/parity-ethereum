@@ -124,7 +124,6 @@ impl Pricer for ModexpPricer {
 		let m = max(mod_len, base_len);
 		// read fist 32-byte word of the exponent.
 		let exp_low = if base_len + 96 >= input.len() as u64 { U256::zero() } else {
-			let mut buf = [0; 32];
 			let mut reader = input[(96 + base_len as usize)..].chain(io::repeat(0));
 			let len = min(exp_len, 32) as usize;
 			reader.read_exact(&mut buf[(32 - len)..]).expect("reading from zero-extended memory cannot fail; qed");
@@ -328,7 +327,7 @@ impl Implementation for EcRecover {
 		let s = H256::from_slice(&input[96..128]);
 
 		let bit = match v[31] {
-			27 | 28 if &v.0[..31] == &[0; 31] => v[31] - 27,
+			27 | 28 if v.0[..31] == [0; 31] => v[31] - 27,
 			_ => { return Ok(()); },
 		};
 
@@ -370,13 +369,13 @@ impl Implementation for Blake2F {
 
 		// state vector, h
 		let mut h = [0u64; 8];
-		for state_word in h.iter_mut() {
+		for state_word in &mut h {
 			*state_word = cursor.read_u64::<LittleEndian>().expect(PROOF);
 		}
 
 		// message block vector, m
 		let mut m = [0u64; 16];
-		for msg_word in m.iter_mut() {
+		for msg_word in &mut m {
 			*msg_word = cursor.read_u64::<LittleEndian>().expect(PROOF);
 		}
 
@@ -429,7 +428,7 @@ fn modexp(mut base: BigUint, exp: Vec<u8>, modulus: BigUint) -> BigUint {
 	let mut exp = exp.into_iter().skip_while(|d| *d == 0).peekable();
 
 	// n^0 % m
-	if let None = exp.peek() {
+	if exp.peek().is_none() {
 		return BigUint::one();
 	}
 
@@ -438,7 +437,7 @@ fn modexp(mut base: BigUint, exp: Vec<u8>, modulus: BigUint) -> BigUint {
 		return BigUint::zero();
 	}
 
-	base = base % &modulus;
+	base %= &modulus;
 
 	// Fast path for base divisible by modulus.
 	if base.is_zero() { return BigUint::zero() }
@@ -607,10 +606,11 @@ impl Bn128Pairing {
 	fn execute_with_error(&self, input: &[u8], output: &mut BytesRef) -> Result<(), &'static str> {
 		use bn::{AffineG1, AffineG2, Fq, Fq2, pairing_batch, G1, G2, Gt, Group};
 
-		let elements = input.len() / 192; // (a, b_a, b_b - each 64-byte affine coordinates)
-		let ret_val = if input.len() == 0 {
+		let ret_val = if input.is_empty() {
 			U256::one()
 		} else {
+			// (a, b_a, b_b - each 64-byte affine coordinates)
+			let elements = input.len() / 192;
 			let mut vals = Vec::new();
 			for idx in 0..elements {
 				let a_x = Fq::from_slice(&input[idx*192..idx*192+32])
