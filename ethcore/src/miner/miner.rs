@@ -905,7 +905,7 @@ impl miner::MinerService for Miner {
 				// | (some `Engine`s call `EngineClient.update_sealing()`)                  |
 				// | Make sure to release the locks before calling that method.             |
 				// --------------------------------------------------------------------------
-				self.engine.set_signer(signer);
+				self.engine.set_signer(Some(signer));
 			} else {
 				warn!("Setting an EngineSigner while Engine does not require one.");
 			}
@@ -918,7 +918,7 @@ impl miner::MinerService for Miner {
 		if self.engine.sealing_state() != SealingState::External {
 			// Disable sealing.
 			self.sealing.lock().enabled = false;
-			self.engine.clear_signer();
+			self.engine.set_signer(None);
 		}
 	}
 

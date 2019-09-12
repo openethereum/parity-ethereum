@@ -762,9 +762,8 @@ impl Engine for Clique {
 		}
 	}
 
-	fn set_signer(&self, signer: Box<dyn EngineSigner>) {
-		trace!(target: "engine", "set_signer: {}", signer.address());
-		*self.signer.write() = Some(signer);
+	fn set_signer(&self, signer: Option<Box<dyn EngineSigner>>) {
+		*self.signer.write() = signer;
 	}
 
 	fn register_client(&self, client: Weak<dyn EngineClient>) {
