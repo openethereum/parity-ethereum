@@ -64,8 +64,8 @@ impl<M: Machine> Engine<M> for InstantSeal<M> {
 	fn seals_internally(&self) -> Option<bool> { Some(true) }
 
 	fn generate_seal(&self, block: &ExecutedBlock, _parent: &Header) -> Seal {
-				if !block.transactions.is_empty() {
-						let block_number = block.header.number();
+		if !block.transactions.is_empty() {
+			let block_number = block.header.number();
 			let last_sealed_block = self.last_sealed_block.load(Ordering::SeqCst);
 			// Return a regular seal if the given block is _higher_ than
 			// the last sealed one
