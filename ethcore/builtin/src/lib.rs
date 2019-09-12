@@ -76,10 +76,10 @@ enum Pricing {
 impl Pricer for Pricing {
 	fn cost(&self, input: &[u8]) -> U256 {
 		match self {
-			Pricing::AltBn128Pairing(inner) => inner.cost(input),
-			Pricing::Blake2F(inner) => inner.cost(input),
-			Pricing::Linear(inner) => inner.cost(input),
-			Pricing::Modexp(inner) => inner.cost(input),
+			Self::AltBn128Pairing(inner) => inner.cost(input),
+			Self::Blake2F(inner) => inner.cost(input),
+			Self::Linear(inner) => inner.cost(input),
+			Self::Modexp(inner) => inner.cost(input),
 		}
 	}
 }
@@ -187,14 +187,18 @@ impl ModexpPricer {
 /// on the given input, and `is_active` to determine whether the contract is active.
 ///
 /// Unless `is_active` is true,
-pub struct Builtin
-{
+pub struct Builtin {
 	pricer: BTreeMap<u64, Pricing>,
 	native: EthereumBuiltin,
 }
 
 impl Builtin {
 	/// Simple forwarder for cost.
+	///
+	/// Return the cost of the most recently activated pricer at the current block number.
+	/// If no pricer is actived `zero` is returned
+	// NOTE(niklasad1): we could remove is_active and replace with `fn cost(...) -> Option<U256>`
+	// but it would require some changes that I don't want to do...
 	pub fn cost(&self, input: &[u8], at: u64) -> U256 {
 		for (&activate_at, pricer) in self.pricer.iter().rev() {
 			if at >= activate_at {
@@ -217,8 +221,6 @@ impl Builtin {
 
 impl From<ethjson::spec::Builtin> for Builtin {
 	fn from(b: ethjson::spec::Builtin) -> Self {
-		println!("deserialize builtin: {:?}", b);
-
 		let native = EthereumBuiltin::from_str(&b.name).unwrap();
 		let pricer = match b.price {
 			ethjson::spec::builtin::BuiltinPrice::Single(builtin) => {
@@ -246,16 +248,16 @@ impl From<ethjson::spec::Pricing> for Pricing {
 	fn from(pricing: ethjson::spec::Pricing) -> Self {
 		match pricing {
 			ethjson::spec::Pricing::Blake2F { gas_per_round } => {
-				Pricing::Blake2F(gas_per_round)
+				Self::Blake2F(gas_per_round)
 			},
 			ethjson::spec::Pricing::Linear(linear) => {
-				Pricing::Linear(Linear {
+				Self::Linear(Linear {
 					base: linear.base,
 					word: linear.word,
 				})
 			}
 			ethjson::spec::Pricing::Modexp(exp) => {
-				Pricing::Modexp(ModexpPricer {
+				Self::Modexp(ModexpPricer {
 					divisor: if exp.divisor == 0 {
 						warn!("Zero modexp divisor specified. Falling back to default.");
 						10
@@ -265,7 +267,7 @@ impl From<ethjson::spec::Pricing> for Pricing {
 				})
 			}
 			ethjson::spec::Pricing::AltBn128Pairing(pricer) => {
-				Pricing::AltBn128Pairing(AltBn128PairingPricer {
+				Self::AltBn128Pairing(AltBn128PairingPricer {
 					price: AltBn128PairingPrice {
 						base: pricer.base,
 						pair: pricer.pair,
@@ -303,15 +305,15 @@ impl FromStr for EthereumBuiltin {
 
     fn from_str(name: &str) -> Result<Self, Self::Err> {
 		match name {
-			"identity" => Ok(EthereumBuiltin::Identity(Identity)),
-			"ecrecover" => Ok(EthereumBuiltin::EcRecover(EcRecover)),
-			"sha256" => Ok(EthereumBuiltin::Sha256(Sha256)),
-			"ripemd160" => Ok(EthereumBuiltin::Ripemd160(Ripemd160)),
-			"modexp" => Ok(EthereumBuiltin::Modexp(Modexp)),
-			"alt_bn128_add" => Ok(EthereumBuiltin::Bn128Add(Bn128Add)),
-			"alt_bn128_mul" => Ok(EthereumBuiltin::Bn128Mul(Bn128Mul)),
-			"alt_bn128_pairing" => Ok(EthereumBuiltin::Bn128Pairing(Bn128Pairing)),
-			"blake2_f" => Ok(EthereumBuiltin::Blake2F(Blake2F)),
+			"identity" => Ok(Self::Identity(Identity)),
+			"ecrecover" => Ok(Self::EcRecover(EcRecover)),
+			"sha256" => Ok(Self::Sha256(Sha256)),
+			"ripemd160" => Ok(Self::Ripemd160(Ripemd160)),
+			"modexp" => Ok(Self::Modexp(Modexp)),
+			"alt_bn128_add" => Ok(Self::Bn128Add(Bn128Add)),
+			"alt_bn128_mul" => Ok(Self::Bn128Mul(Bn128Mul)),
+			"alt_bn128_pairing" => Ok(Self::Bn128Pairing(Bn128Pairing)),
+			"blake2_f" => Ok(Self::Blake2F(Blake2F)),
 			_ => Err(format!("invalid builtin name: {}", name)),
 		}
     }
@@ -320,15 +322,15 @@ impl FromStr for EthereumBuiltin {
 impl Implementation for EthereumBuiltin {
 	fn execute(&self, input: &[u8], output: &mut BytesRef) -> Result<(), &'static str> {
 		match self {
-			EthereumBuiltin::Identity(inner) => inner.execute(input, output),
-			EthereumBuiltin::EcRecover(inner) => inner.execute(input, output),
-			EthereumBuiltin::Sha256(inner) => inner.execute(input, output),
-			EthereumBuiltin::Ripemd160(inner) => inner.execute(input, output),
-			EthereumBuiltin::Modexp(inner) => inner.execute(input, output),
-			EthereumBuiltin::Bn128Add(inner) => inner.execute(input, output),
-			EthereumBuiltin::Bn128Mul(inner) => inner.execute(input, output),
-			EthereumBuiltin::Bn128Pairing(inner) => inner.execute(input, output),
-			EthereumBuiltin::Blake2F(inner) => inner.execute(input, output),
+			Self::Identity(inner) => inner.execute(input, output),
+			Self::EcRecover(inner) => inner.execute(input, output),
+			Self::Sha256(inner) => inner.execute(input, output),
+			Self::Ripemd160(inner) => inner.execute(input, output),
+			Self::Modexp(inner) => inner.execute(input, output),
+			Self::Bn128Add(inner) => inner.execute(input, output),
+			Self::Bn128Mul(inner) => inner.execute(input, output),
+			Self::Bn128Pairing(inner) => inner.execute(input, output),
+			Self::Blake2F(inner) => inner.execute(input, output),
 		}
 	}
 }
@@ -1402,5 +1404,43 @@ mod tests {
 
 		assert_eq!(b.cost(&[0; 192], 10), U256::from(40_000));
 		assert_eq!(b.cost(&[0; 10], 20), U256::from(6_000), "after istanbul hardfork gas cost for mul should be 6 000");
+	}
+
+
+	#[test]
+	fn multimap_use_most_recent_on_activate() {
+		let b = Builtin::from(JsonBuiltin {
+			name: "alt_bn128_mul".to_owned(),
+			price: JsonBuiltinPrice::Multi(vec![
+				PricingWithActivation {
+					pricing: JsonPricing::Linear(JsonLinearPricing {
+						base: 40_000,
+						word: 0,
+					}),
+					activate_at: Some(10),
+				},
+				PricingWithActivation {
+					pricing: JsonPricing::Linear(JsonLinearPricing {
+						base: 6_000,
+						word: 0,
+					}),
+					activate_at: Some(20),
+				},
+				PricingWithActivation {
+					pricing: JsonPricing::Linear(JsonLinearPricing {
+						base: 1_337,
+						word: 0,
+					}),
+					activate_at: Some(100),
+				}
+			]),
+		});
+
+		assert_eq!(b.cost(&[0; 2], 0), U256::zero(), "not activated yet; should be zero");
+		assert_eq!(b.cost(&[0; 3], 10), U256::from(40_000), "use price #1");
+		assert_eq!(b.cost(&[0; 4], 20), U256::from(6_000), "use price #2");
+		assert_eq!(b.cost(&[0; 1], 99), U256::from(6_000), "use price #2");
+		assert_eq!(b.cost(&[0; 1], 100), U256::from(1_337), "use price #3");
+		assert_eq!(b.cost(&[0; 1], u64::max_value()), U256::from(1_337), "use price #3 indefinitely");
 	}
 }

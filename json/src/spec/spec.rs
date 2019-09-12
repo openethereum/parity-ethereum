@@ -23,30 +23,19 @@ use serde_json::Error;
 
 /// Fork spec definition
 #[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Deserialize)]
+#[allow(missing_docs)]
 pub enum ForkSpec {
-	/// EIP 150
 	EIP150,
-	/// EIP 158
 	EIP158,
-	/// Frontier
 	Frontier,
-	/// Homestead
 	Homestead,
-	/// Byzantium
 	Byzantium,
-	/// Constantinople
 	Constantinople,
-	/// ConstantinopleFix
 	ConstantinopleFix,
-	/// Istanbul
 	Istanbul,
-	/// EIP158 to Byzantium at block 5
 	EIP158ToByzantiumAt5,
-	/// Frontier to homestead at block 5
 	FrontierToHomesteadAt5,
-	/// Homestead to Dao at block 5
 	HomesteadToDaoAt5,
-	/// Homestead to EIP 150 at block 5
 	HomesteadToEIP150At5,
 }
 

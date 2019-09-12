@@ -83,7 +83,6 @@ pub enum BuiltinPrice {
 	/// Single builtin
 	Single(PricingWithActivation),
 	/// Multiple builtins
-	// TODO(niklasad1): maybe change to BTreeMap
 	Multi(Vec<PricingWithActivation>),
 }
 
