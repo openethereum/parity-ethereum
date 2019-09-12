@@ -38,6 +38,7 @@ use client_traits::{
 	ImportExportBlocks, Tick, ImportBlock
 };
 use spec;
+use stats;
 use machine::executive::{Executive, TransactOptions};
 use miner::{Miner, PendingOrdering, MinerService};
 use account_state::{State, CleanupMode, backend};

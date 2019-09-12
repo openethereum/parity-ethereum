@@ -17,41 +17,6 @@
 #![warn(missing_docs, unused_extern_crates)]
 
 //! Ethcore library
-//!
-//! ### Rust version:
-//! - nightly
-//!
-//! ### Supported platforms:
-//! - OSX
-//! - Linux
-//!
-//! ### Building:
-//!
-//! - Ubuntu 14.04 and later:
-//!
-//!   ```bash
-//!
-//!   # install rustup
-//!   curl https://sh.rustup.rs -sSf | sh
-//!
-//!   # download and build parity
-//!   git clone https://github.com/paritytech/parity-ethereum
-//!   cd parity
-//!   cargo build --release
-//!   ```
-//!
-//! - OSX:
-//!
-//!   ```bash
-//!   # install rocksdb && rustup
-//!   brew update
-//!   curl https://sh.rustup.rs -sSf | sh
-//!
-//!   # download and build parity
-//!   git clone https://github.com/paritytech/parity-ethereum
-//!   cd parity
-//!   cargo build --release
-//!   ```
 
 extern crate account_state;
 extern crate ansi_term;
@@ -95,16 +60,18 @@ extern crate verification;
 extern crate vm;
 
 #[cfg(test)]
-extern crate rand_xorshift;
+extern crate account_db;
 #[cfg(test)]
 extern crate ethcore_accounts as accounts;
+#[cfg(test)]
+extern crate stats;
+
 #[cfg(feature = "stratum")]
 extern crate ethcore_stratum;
-#[cfg(any(test, feature = "stratum"))]
+
+#[cfg(feature = "stratum")]
 extern crate ethash;
 
-#[cfg(any(test, feature = "test-helpers"))]
-extern crate account_db;
 #[cfg(any(test, feature = "test-helpers"))]
 extern crate ethkey;
 #[cfg(any(test, feature = "test-helpers"))]
@@ -113,19 +80,17 @@ extern crate ethjson;
 extern crate kvdb_memorydb;
 #[cfg(any(test, feature = "kvdb-rocksdb"))]
 extern crate kvdb_rocksdb;
-#[cfg(any(test, feature = "json-tests"))]
+#[cfg(feature = "json-tests")]
 #[macro_use]
 extern crate lazy_static;
-#[cfg(any(test, feature = "test-helpers"))]
+#[cfg(any(test, feature = "json-tests"))]
 #[macro_use]
 extern crate macros;
-#[cfg(test)]
-extern crate null_engine;
 #[cfg(any(test, feature = "test-helpers"))]
 extern crate pod;
 #[cfg(any(test, feature = "blooms-db"))]
 extern crate blooms_db;
-#[cfg(any(test, feature = "env_logger"))]
+#[cfg(feature = "env_logger")]
 extern crate env_logger;
 #[cfg(test)]
 extern crate serde_json;
@@ -136,8 +101,6 @@ extern crate tempdir;
 extern crate ethabi_contract;
 #[macro_use]
 extern crate log;
-#[macro_use]
-extern crate rlp_derive;
 #[macro_use]
 extern crate trace_time;
 
