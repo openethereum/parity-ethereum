@@ -18,6 +18,7 @@ use engines::{Engine, Seal};
 use machine::Machine;
 use types::header::{Header, ExtendedHeader};
 use block::ExecutedBlock;
+use std::sync::atomic::{AtomicU64, Ordering};
 
 /// `InstantSeal` params.
 #[derive(Default, Debug, PartialEq)]
@@ -39,13 +40,16 @@ impl From<::ethjson::spec::InstantSealParams> for InstantSealParams {
 pub struct InstantSeal<M> {
 	params: InstantSealParams,
 	machine: M,
+		last_sealed_block: AtomicU64,
 }
 
 impl<M> InstantSeal<M> {
 	/// Returns new instance of InstantSeal over the given state machine.
 	pub fn new(params: InstantSealParams, machine: M) -> Self {
 		InstantSeal {
-			params, machine,
+			params,
+			machine,
+			last_sealed_block: AtomicU64::new(0),
 		}
 	}
 }
@@ -60,11 +64,19 @@ impl<M: Machine> Engine<M> for InstantSeal<M> {
 	fn seals_internally(&self) -> Option<bool> { Some(true) }
 
 	fn generate_seal(&self, block: &ExecutedBlock, _parent: &Header) -> Seal {
-		if block.transactions.is_empty() {
-			Seal::None
-		} else {
-			Seal::Regular(Vec::new())
+				if !block.transactions.is_empty() {
+						let block_number = block.header.number();
+			let last_sealed_block = self.last_sealed_block.load(Ordering::SeqCst);
+			// Return a regular seal if the given block is _higher_ than
+			// the last sealed one
+			if block_number > last_sealed_block {
+				let prev_last_sealed_block = self.last_sealed_block.compare_and_swap(last_sealed_block, block_number, Ordering::SeqCst);
+				if prev_last_sealed_block == last_sealed_block {
+					return Seal::Regular(Vec::new())
+				}
+			}
 		}
+		Seal::None
 	}
 
 	fn verify_local_seal(&self, _header: &Header) -> Result<(), M::Error> {
