@@ -67,6 +67,8 @@ pub struct FakeExt {
 	pub balances: HashMap<Address, U256>,
 	pub tracing: bool,
 	pub is_static: bool,
+
+	chain_id: u64,
 }
 
 // similar to the normal `finalize` function, but ignoring NeedsReturn.
@@ -98,9 +100,22 @@ impl FakeExt {
 		ext
 	}
 
+	/// New fake externalities with Istanbul schedule rules
+	pub fn new_istanbul() -> Self {
+		let mut ext = FakeExt::default();
+		ext.schedule = Schedule::new_istanbul();
+		ext
+	}
+
 	/// Alter fake externalities to allow wasm
 	pub fn with_wasm(mut self) -> Self {
 		self.schedule.wasm = Some(Default::default());
+		self
+	}
+
+	/// Set chain ID
+	pub fn with_chain_id(mut self, chain_id: u64) -> Self {
+		self.chain_id = chain_id;
 		self
 	}
 }
@@ -200,7 +215,7 @@ impl Ext for FakeExt {
 
 	fn log(&mut self, topics: Vec<H256>, data: &[u8]) -> Result<()> {
 		self.logs.push(FakeLogEntry {
-			topics: topics,
+			topics,
 			data: data.to_vec()
 		});
 		Ok(())
@@ -221,6 +236,10 @@ impl Ext for FakeExt {
 
 	fn env_info(&self) -> &EnvInfo {
 		&self.info
+	}
+
+	fn chain_id(&self) -> u64 {
+		self.chain_id
 	}
 
 	fn depth(&self) -> usize {

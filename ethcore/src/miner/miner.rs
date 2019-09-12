@@ -31,7 +31,7 @@ use ethcore_miner::work_notify::NotifyWork;
 use ethereum_types::{H256, U256, Address};
 use io::IoChannel;
 use miner::pool_client::{PoolClient, CachedNonceClient, NonceCache};
-use miner;
+use miner::{self, MinerService};
 use parking_lot::{Mutex, RwLock};
 use rayon::prelude::*;
 use types::transaction::{
@@ -52,6 +52,7 @@ use client::{
 	BlockChain, ChainInfo, BlockProducer, SealedBlockImporter, Nonce, TransactionInfo, TransactionId
 };
 use client::{BlockId, ClientIoMessage};
+use client::traits::EngineClient;
 use engines::{EthEngine, Seal, EngineSigner};
 use error::{Error, ErrorKind};
 use executed::ExecutionError;
@@ -494,7 +495,7 @@ impl Miner {
 			let sender = transaction.sender();
 
 			// Re-verify transaction again vs current state.
-			let result = client.verify_signed(&transaction)
+			let result = client.verify_for_pending_block(&transaction, &open_block.header)
 				.map_err(|e| e.into())
 				.and_then(|_| {
 					open_block.push_transaction(transaction, None)
@@ -830,7 +831,6 @@ impl Miner {
 
 	/// Prepare pending block, check whether sealing is needed, and then update sealing.
 	fn prepare_and_update_sealing<C: miner::BlockChainClient>(&self, chain: &C) {
-		use miner::MinerService;
 
 		// Make sure to do it after transaction is imported and lock is dropped.
 		// We need to create pending block and enable sealing.
@@ -1307,6 +1307,9 @@ impl miner::MinerService for Miner {
 						service_transaction_checker.as_ref(),
 					);
 					queue.cull(client);
+					if is_internal_import {
+						chain.update_sealing();
+					}
 				};
 
 				if let Err(e) = channel.send(ClientIoMessage::execute(cull)) {
@@ -1314,6 +1317,9 @@ impl miner::MinerService for Miner {
 				}
 			} else {
 				self.transaction_queue.cull(client);
+				if is_internal_import {
+					self.update_sealing(chain);
+				}
 			}
 		}
 		if let Some(ref service_transaction_checker) = self.service_transaction_checker {

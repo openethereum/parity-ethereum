@@ -21,11 +21,13 @@ use ethereum_types::{U256, H256, Bloom};
 
 use common_types::encoded;
 use common_types::header::Header;
-use common_types::transaction::SignedTransaction;
+use common_types::transaction::{SignedTransaction, Transaction, Action};
 use common_types::view;
 use common_types::views::BlockView;
+use keccak_hash::keccak;
 use rlp::encode;
 use rlp_derive::RlpEncodable;
+use triehash_ethereum::ordered_trie_root;
 
 /// Helper structure, used for encoding blocks.
 #[derive(Default, Clone, RlpEncodable)]
@@ -136,6 +138,29 @@ impl BlockBuilder {
 		})
 	}
 
+	/// Add a block with randomly generated transactions.
+	#[inline]
+	pub fn add_block_with_random_transactions(&self) -> Self {
+		// Maximum of ~50 transactions
+		let count = rand::random::<u8>() as usize / 5;
+		let transactions = std::iter::repeat_with(|| {
+			let data_len = rand::random::<u8>();
+			let data = std::iter::repeat_with(|| rand::random::<u8>())
+				.take(data_len as usize)
+				.collect::<Vec<_>>();
+			Transaction {
+				nonce: 0.into(),
+				gas_price: 0.into(),
+				gas: 100_000.into(),
+				action: Action::Create,
+				value: 100.into(),
+				data,
+			}.sign(&keccak("").into(), None)
+		}).take(count);
+
+		self.add_block_with_transactions(transactions)
+	}
+
 	/// Add a block with given transactions.
 	#[inline]
 	pub fn add_block_with_transactions<T>(&self, transactions: T) -> Self
@@ -166,11 +191,15 @@ impl BlockBuilder {
 			let mut block = Block::default();
 			let metadata = get_metadata();
 			let block_number = parent_number + 1;
+			let transactions = metadata.transactions;
+			let transactions_root = ordered_trie_root(transactions.iter().map(rlp::encode));
+
 			block.header.set_parent_hash(parent_hash);
 			block.header.set_number(block_number);
 			block.header.set_log_bloom(metadata.bloom);
 			block.header.set_difficulty(metadata.difficulty);
-			block.transactions = metadata.transactions;
+			block.header.set_transactions_root(transactions_root);
+			block.transactions = transactions;
 
 			parent_hash = block.hash();
 			parent_number = block_number;

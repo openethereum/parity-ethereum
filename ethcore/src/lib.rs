@@ -62,6 +62,7 @@ extern crate bn;
 extern crate byteorder;
 extern crate common_types as types;
 extern crate crossbeam_utils;
+extern crate eip_152;
 extern crate ethabi;
 extern crate ethash;
 extern crate ethcore_blockchain as blockchain;
@@ -120,6 +121,9 @@ extern crate blooms_db;
 extern crate env_logger;
 #[cfg(test)]
 extern crate rlp_compress;
+#[cfg(test)]
+#[macro_use]
+extern crate hex_literal;
 
 #[macro_use]
 extern crate ethabi_derive;

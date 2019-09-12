@@ -149,6 +149,8 @@ enum_with_from_u8! {
 		DIFFICULTY = 0x44,
 		#[doc = "get the block's gas limit"]
 		GASLIMIT = 0x45,
+		#[doc = "get chain ID"]
+		CHAINID = 0x46,
 
 		#[doc = "remove item from stack"]
 		POP = 0x50,
@@ -442,12 +444,7 @@ pub struct InstructionInfo {
 impl InstructionInfo {
 	/// Create new instruction info.
 	pub fn new(name: &'static str, args: usize, ret: usize, tier: GasPriceTier) -> Self {
-		InstructionInfo {
-			name: name,
-			args: args,
-			ret: ret,
-			tier: tier
-		}
+		InstructionInfo { name, args, ret, tier }
 	}
 }
 
@@ -504,6 +501,7 @@ lazy_static! {
 		arr[NUMBER as usize] = Some(InstructionInfo::new("NUMBER", 0, 1, GasPriceTier::Base));
 		arr[DIFFICULTY as usize] = Some(InstructionInfo::new("DIFFICULTY", 0, 1, GasPriceTier::Base));
 		arr[GASLIMIT as usize] = Some(InstructionInfo::new("GASLIMIT", 0, 1, GasPriceTier::Base));
+		arr[CHAINID as usize] = Some(InstructionInfo::new("CHAINID", 0, 1, GasPriceTier::Base));
 		arr[POP as usize] = Some(InstructionInfo::new("POP", 1, 0, GasPriceTier::Base));
 		arr[MLOAD as usize] = Some(InstructionInfo::new("MLOAD", 1, 1, GasPriceTier::VeryLow));
 		arr[MSTORE as usize] = Some(InstructionInfo::new("MSTORE", 2, 0, GasPriceTier::VeryLow));

@@ -84,7 +84,7 @@ pub struct Schedule {
 	pub tx_create_gas: usize,
 	/// Additional cost for empty data transaction
 	pub tx_data_zero_gas: usize,
-	/// Aditional cost for non-empty data transaction
+	/// Additional cost for non-empty data transaction
 	pub tx_data_non_zero_gas: usize,
 	/// Gas price for copying memory
 	pub copy_gas: usize,
@@ -115,6 +115,8 @@ pub struct Schedule {
 	pub have_return_data: bool,
 	/// SHL, SHR, SAR opcodes enabled.
 	pub have_bitwise_shifting: bool,
+	/// CHAINID opcode enabled.
+	pub have_chain_id: bool,
 	/// Kill basic accounts below this balance if touched.
 	pub kill_dust: CleanDustMode,
 	/// Enable EIP-1283 rules
@@ -209,6 +211,7 @@ impl Schedule {
 			have_revert: false,
 			have_return_data: false,
 			have_bitwise_shifting: false,
+			have_chain_id: false,
 			have_extcodehash: false,
 			stack_limit: 1024,
 			max_depth: 1024,
@@ -275,6 +278,14 @@ impl Schedule {
 		schedule
 	}
 
+	/// Schedule for the Istanbul fork of the Ethereum main net.
+	pub fn new_istanbul() -> Schedule {
+		let mut schedule = Self::new_constantinople();
+		schedule.have_chain_id = true;
+		schedule.tx_data_non_zero_gas = 16;
+		schedule
+	}
+
 	fn new(efcd: bool, hdc: bool, tcg: usize) -> Schedule {
 		Schedule {
 			exceptional_failed_code_deposit: efcd,
@@ -283,6 +294,7 @@ impl Schedule {
 			have_revert: false,
 			have_return_data: false,
 			have_bitwise_shifting: false,
+			have_chain_id: false,
 			have_extcodehash: false,
 			stack_limit: 1024,
 			max_depth: 1024,
