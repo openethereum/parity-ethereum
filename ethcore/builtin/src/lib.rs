@@ -16,11 +16,14 @@
 
 //! Standard built-in contracts.
 
+#![warn(missing_docs)]
+
 use std::{
 	cmp::{max, min},
 	collections::BTreeMap,
 	io::{self, Read, Cursor},
 	mem::size_of,
+	str::FromStr
 };
 
 use byteorder::{BigEndian, LittleEndian, ReadBytesExt};
@@ -59,6 +62,25 @@ impl Pricer for Blake2FPricer {
 		// and bail with the appropriate error.
 		let rounds = u32::from_be_bytes(rounds_bytes.try_into().unwrap_or([0u8; 4]));
 		U256::from(*self as u128 * rounds as u128)
+	}
+}
+
+/// Pricing model
+enum Pricing {
+	AltBn128Pairing(AltBn128PairingPricer),
+	Blake2F(Blake2FPricer),
+	Linear(Linear),
+	Modexp(ModexpPricer),
+}
+
+impl Pricer for Pricing {
+	fn cost(&self, input: &[u8]) -> U256 {
+		match self {
+			Pricing::AltBn128Pairing(inner) => inner.cost(input),
+			Pricing::Blake2F(inner) => inner.cost(input),
+			Pricing::Linear(inner) => inner.cost(input),
+			Pricing::Modexp(inner) => inner.cost(input),
+		}
 	}
 }
 
@@ -165,9 +187,10 @@ impl ModexpPricer {
 /// on the given input, and `is_active` to determine whether the contract is active.
 ///
 /// Unless `is_active` is true,
-pub struct Builtin {
-	pricer: BTreeMap<u64, Box<dyn Pricer>>,
-	native: Box<dyn Implementation>,
+pub struct Builtin
+{
+	pricer: BTreeMap<u64, Pricing>,
+	native: EthereumBuiltin,
 }
 
 impl Builtin {
@@ -195,90 +218,120 @@ impl Builtin {
 impl From<ethjson::spec::Builtin> for Builtin {
 	fn from(b: ethjson::spec::Builtin) -> Self {
 		println!("deserialize builtin: {:?}", b);
+
+		let native = EthereumBuiltin::from_str(&b.name).unwrap();
 		let pricer = match b.price {
 			ethjson::spec::builtin::BuiltinPrice::Single(builtin) => {
-				map![builtin.activate_at.unwrap_or(0) => into_pricer(builtin.pricing)]
+				map![builtin.activate_at.unwrap_or(0) => builtin.pricing.into()]
 			}
 
 			ethjson::spec::builtin::BuiltinPrice::Multi(builtins) => {
-				assert!(!builtins.is_empty());
-				let mut pricers = BTreeMap::new();
+				assert!(!builtins.is_empty(), "chainspec contains multiple builtins; but no values found");
 
+				let mut pricers = BTreeMap::new();
 				for builtin in builtins {
-					pricers.insert(builtin.activate_at.unwrap_or(0), into_pricer(builtin.pricing));
+					pricers.insert(builtin.activate_at.unwrap_or(0), builtin.pricing.into());
 				}
 
 				pricers
 			}
 		};
 
-		Builtin {
-			pricer,
-			native: ethereum_builtin(&b.name),
-		}
+		Self { pricer, native }
 	}
 }
 
 
-fn into_pricer(pricing: ethjson::spec::Pricing) -> Box<dyn Pricer> {
-	match pricing {
-		ethjson::spec::Pricing::Blake2F { gas_per_round } => {
-			Box::new(gas_per_round)
-		},
-		ethjson::spec::Pricing::Linear(linear) => {
-			Box::new(Linear {
-				base: linear.base,
-				word: linear.word,
-			})
-		}
-		ethjson::spec::Pricing::Modexp(exp) => {
-			Box::new(ModexpPricer {
-				divisor: if exp.divisor == 0 {
-					warn!("Zero modexp divisor specified. Falling back to default.");
-					10
-				} else {
-					exp.divisor
-				}
-			})
-		}
-		ethjson::spec::Pricing::AltBn128Pairing(pricer) => {
-			Box::new(AltBn128PairingPricer {
-				price: AltBn128PairingPrice {
-					base: pricer.base,
-					pair: pricer.pair,
-				},
-			})
+impl From<ethjson::spec::Pricing> for Pricing {
+	fn from(pricing: ethjson::spec::Pricing) -> Self {
+		match pricing {
+			ethjson::spec::Pricing::Blake2F { gas_per_round } => {
+				Pricing::Blake2F(gas_per_round)
+			},
+			ethjson::spec::Pricing::Linear(linear) => {
+				Pricing::Linear(Linear {
+					base: linear.base,
+					word: linear.word,
+				})
+			}
+			ethjson::spec::Pricing::Modexp(exp) => {
+				Pricing::Modexp(ModexpPricer {
+					divisor: if exp.divisor == 0 {
+						warn!("Zero modexp divisor specified. Falling back to default.");
+						10
+					} else {
+						exp.divisor
+					}
+				})
+			}
+			ethjson::spec::Pricing::AltBn128Pairing(pricer) => {
+				Pricing::AltBn128Pairing(AltBn128PairingPricer {
+					price: AltBn128PairingPrice {
+						base: pricer.base,
+						pair: pricer.pair,
+					},
+				})
+			}
 		}
 	}
 }
 
-/// Ethereum built-in factory.
-fn ethereum_builtin(name: &str) -> Box<dyn Implementation> {
-	match name {
-		"identity" => Box::new(Identity) as Box<dyn Implementation>,
-		"ecrecover" => Box::new(EcRecover) as Box<dyn Implementation>,
-		"sha256" => Box::new(Sha256) as Box<dyn Implementation>,
-		"ripemd160" => Box::new(Ripemd160) as Box<dyn Implementation>,
-		"modexp" => Box::new(Modexp) as Box<dyn Implementation>,
-		"alt_bn128_add" => Box::new(Bn128Add) as Box<dyn Implementation>,
-		"alt_bn128_mul" => Box::new(Bn128Mul) as Box<dyn Implementation>,
-		"alt_bn128_pairing" => Box::new(Bn128Pairing) as Box<dyn Implementation>,
-		"blake2_f" => Box::new(Blake2F) as Box<dyn Implementation>,
-		_ => panic!("invalid builtin name: {}", name),
-	}
+/// Ethereum builtins:
+enum EthereumBuiltin {
+	/// The identity function
+	Identity(Identity),
+	/// ec recovery
+	EcRecover(EcRecover),
+	/// sha256
+	Sha256(Sha256),
+	/// ripemd160
+	Ripemd160(Ripemd160),
+	/// modexp (EIP 198)
+	Modexp(Modexp),
+	/// alt_bn128_add
+	Bn128Add(Bn128Add),
+	/// alt_bn128_mul
+	Bn128Mul(Bn128Mul),
+	/// alt_bn128_pairing
+	Bn128Pairing(Bn128Pairing),
+	/// blake2_f (The Blake2 compression function F, EIP-152)
+	Blake2F(Blake2F),
 }
 
-// Ethereum builtins:
-//
-// - The identity function
-// - ec recovery
-// - sha256
-// - ripemd160
-// - modexp (EIP198)
-// - alt_bn128_add
-// - alt_bn128_mul
-// - alt_bn128_pairing
-// - blake2_f (The Blake2 compression function F, EIP-152)
+impl FromStr for EthereumBuiltin {
+    type Err = String;
+
+    fn from_str(name: &str) -> Result<Self, Self::Err> {
+		match name {
+			"identity" => Ok(EthereumBuiltin::Identity(Identity)),
+			"ecrecover" => Ok(EthereumBuiltin::EcRecover(EcRecover)),
+			"sha256" => Ok(EthereumBuiltin::Sha256(Sha256)),
+			"ripemd160" => Ok(EthereumBuiltin::Ripemd160(Ripemd160)),
+			"modexp" => Ok(EthereumBuiltin::Modexp(Modexp)),
+			"alt_bn128_add" => Ok(EthereumBuiltin::Bn128Add(Bn128Add)),
+			"alt_bn128_mul" => Ok(EthereumBuiltin::Bn128Mul(Bn128Mul)),
+			"alt_bn128_pairing" => Ok(EthereumBuiltin::Bn128Pairing(Bn128Pairing)),
+			"blake2_f" => Ok(EthereumBuiltin::Blake2F(Blake2F)),
+			_ => Err(format!("invalid builtin name: {}", name)),
+		}
+    }
+}
+
+impl Implementation for EthereumBuiltin {
+	fn execute(&self, input: &[u8], output: &mut BytesRef) -> Result<(), &'static str> {
+		match self {
+			EthereumBuiltin::Identity(inner) => inner.execute(input, output),
+			EthereumBuiltin::EcRecover(inner) => inner.execute(input, output),
+			EthereumBuiltin::Sha256(inner) => inner.execute(input, output),
+			EthereumBuiltin::Ripemd160(inner) => inner.execute(input, output),
+			EthereumBuiltin::Modexp(inner) => inner.execute(input, output),
+			EthereumBuiltin::Bn128Add(inner) => inner.execute(input, output),
+			EthereumBuiltin::Bn128Mul(inner) => inner.execute(input, output),
+			EthereumBuiltin::Bn128Pairing(inner) => inner.execute(input, output),
+			EthereumBuiltin::Blake2F(inner) => inner.execute(input, output),
+		}
+	}
+}
 
 #[derive(Debug)]
 struct Identity;
@@ -674,25 +727,28 @@ mod tests {
 	use macros::map;
 	use num::{BigUint, Zero, One};
 	use parity_bytes::BytesRef;
-	use super::{BTreeMap, Builtin, Linear, ethereum_builtin, ModexpPricer, modexp as me, Pricer};
+	use super::{
+		BTreeMap, Builtin, EthereumBuiltin, FromStr, Implementation, Linear,
+		ModexpPricer, modexp as me, Pricing
+	};
 
-	// #[test]
-	// fn blake2f_cost() {
-	//     let f = Builtin {
-	//         pricer: map![0 => Box::new(123) as Box<dyn Pricer>],
-	//         native: ethereum_builtin("blake2_f"),
-	//     };
-	//     // 5 rounds
-	//     let input = hex!("0000000548c9bdf267e6096a3ba7ca8485ae67bb2bf894fe72f36e3cf1361d5f3af54fa5d182e6ad7f520e511f6c3e2b8c68059b6bbd41fbabd9831f79217e1319cde05b61626300000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000300000000000000000000000000000001");
-	//     let mut output = [0u8; 64];
-	//     f.execute(&input[..], &mut BytesRef::Fixed(&mut output[..])).unwrap();
-    //
-	//     assert_eq!(f.cost(&input[..], 0), U256::from(123*5));
-	// }
+	#[test]
+	fn blake2f_cost() {
+		let f = Builtin {
+			pricer: map![0 => Pricing::Blake2F(123)],
+			native: EthereumBuiltin::from_str("blake2_f").unwrap(),
+		};
+		// 5 rounds
+		let input = hex!("0000000548c9bdf267e6096a3ba7ca8485ae67bb2bf894fe72f36e3cf1361d5f3af54fa5d182e6ad7f520e511f6c3e2b8c68059b6bbd41fbabd9831f79217e1319cde05b61626300000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000300000000000000000000000000000001");
+		let mut output = [0u8; 64];
+		f.execute(&input[..], &mut BytesRef::Fixed(&mut output[..])).unwrap();
+
+		assert_eq!(f.cost(&input[..], 0), U256::from(123*5));
+	}
 
 	#[test]
 	fn blake2_f_is_err_on_invalid_length() {
-		let blake2 = ethereum_builtin("blake2_f");
+		let blake2 = EthereumBuiltin::from_str("blake2_f").unwrap();
 		// Test vector 1 and expected output from https://github.com/ethereum/EIPs/blob/master/EIPS/eip-152.md#test-vector-1
 		let input = hex!("00000c48c9bdf267e6096a3ba7ca8485ae67bb2bf894fe72f36e3cf1361d5f3af54fa5d182e6ad7f520e511f6c3e2b8c68059b6bbd41fbabd9831f79217e1319cde05b61626300000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000300000000000000000000000000000001");
 		let mut out = [0u8; 64];
@@ -704,7 +760,7 @@ mod tests {
 
 	#[test]
 	fn blake2_f_is_err_on_invalid_length_2() {
-		let blake2 = ethereum_builtin("blake2_f");
+		let blake2 = EthereumBuiltin::from_str("blake2_f").unwrap();
 		// Test vector 2 and expected output from https://github.com/ethereum/EIPs/blob/master/EIPS/eip-152.md#test-vector-2
 		let input = hex!("000000000c48c9bdf267e6096a3ba7ca8485ae67bb2bf894fe72f36e3cf1361d5f3af54fa5d182e6ad7f520e511f6c3e2b8c68059b6bbd41fbabd9831f79217e1319cde05b61626300000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000300000000000000000000000000000001");
 		let mut out = [0u8; 64];
@@ -716,7 +772,7 @@ mod tests {
 
 	#[test]
 	fn blake2_f_is_err_on_bad_finalization_flag() {
-		let blake2 = ethereum_builtin("blake2_f");
+		let blake2 = EthereumBuiltin::from_str("blake2_f").unwrap();
 		// Test vector 3 and expected output from https://github.com/ethereum/EIPs/blob/master/EIPS/eip-152.md#test-vector-3
 		let input = hex!("0000000c48c9bdf267e6096a3ba7ca8485ae67bb2bf894fe72f36e3cf1361d5f3af54fa5d182e6ad7f520e511f6c3e2b8c68059b6bbd41fbabd9831f79217e1319cde05b61626300000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000300000000000000000000000000000002");
 		let mut out = [0u8; 64];
@@ -728,7 +784,7 @@ mod tests {
 
 	#[test]
 	fn blake2_f_zero_rounds_is_ok_test_vector_4() {
-		let blake2 = ethereum_builtin("blake2_f");
+		let blake2 = EthereumBuiltin::from_str("blake2_f").unwrap();
 		// Test vector 4 and expected output from https://github.com/ethereum/EIPs/blob/master/EIPS/eip-152.md#test-vector-4
 		let input = hex!("0000000048c9bdf267e6096a3ba7ca8485ae67bb2bf894fe72f36e3cf1361d5f3af54fa5d182e6ad7f520e511f6c3e2b8c68059b6bbd41fbabd9831f79217e1319cde05b61626300000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000300000000000000000000000000000001");
 		let expected = hex!("08c9bcf367e6096a3ba7ca8485ae67bb2bf894fe72f36e3cf1361d5f3af54fa5d282e6ad7f520e511f6c3e2b8c68059b9442be0454267ce079217e1319cde05b");
@@ -739,7 +795,7 @@ mod tests {
 
 	#[test]
 	fn blake2_f_test_vector_5() {
-		let blake2 = ethereum_builtin("blake2_f");
+		let blake2 = EthereumBuiltin::from_str("blake2_f").unwrap();
 		// Test vector 5 and expected output from https://github.com/ethereum/EIPs/blob/master/EIPS/eip-152.md#test-vector-5
 		let input = hex!("0000000c48c9bdf267e6096a3ba7ca8485ae67bb2bf894fe72f36e3cf1361d5f3af54fa5d182e6ad7f520e511f6c3e2b8c68059b6bbd41fbabd9831f79217e1319cde05b61626300000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000300000000000000000000000000000001");
 		let expected = hex!("ba80a53f981c4d0d6a2797b69f12f6e94c212f14685ac4b74b12bb6fdbffa2d17d87c5392aab792dc252d5de4533cc9518d38aa8dbf1925ab92386edd4009923");
@@ -750,7 +806,7 @@ mod tests {
 
 	#[test]
 	fn blake2_f_test_vector_6() {
-		let blake2 = ethereum_builtin("blake2_f");
+		let blake2 = EthereumBuiltin::from_str("blake2_f").unwrap();
 		// Test vector 6 and expected output from https://github.com/ethereum/EIPs/blob/master/EIPS/eip-152.md#test-vector-6
 		let input = hex!("0000000c48c9bdf267e6096a3ba7ca8485ae67bb2bf894fe72f36e3cf1361d5f3af54fa5d182e6ad7f520e511f6c3e2b8c68059b6bbd41fbabd9831f79217e1319cde05b61626300000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000300000000000000000000000000000000");
 		let expected = hex!("75ab69d3190a562c51aef8d88f1c2775876944407270c42c9844252c26d2875298743e7f6d5ea2f2d3e8d226039cd31b4e426ac4f2d3d666a610c2116fde4735");
@@ -761,7 +817,7 @@ mod tests {
 
 	#[test]
 	fn blake2_f_test_vector_7() {
-		let blake2 = ethereum_builtin("blake2_f");
+		let blake2 = EthereumBuiltin::from_str("blake2_f").unwrap();
 		// Test vector 7 and expected output from https://github.com/ethereum/EIPs/blob/master/EIPS/eip-152.md#test-vector-7
 		let input = hex!("0000000148c9bdf267e6096a3ba7ca8485ae67bb2bf894fe72f36e3cf1361d5f3af54fa5d182e6ad7f520e511f6c3e2b8c68059b6bbd41fbabd9831f79217e1319cde05b61626300000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000300000000000000000000000000000001");
 		let expected = hex!("b63a380cb2897d521994a85234ee2c181b5f844d2c624c002677e9703449d2fba551b3a8333bcdf5f2f7e08993d53923de3d64fcc68c034e717b9293fed7a421");
@@ -773,7 +829,7 @@ mod tests {
 	#[ignore]
 	#[test]
 	fn blake2_f_test_vector_8() {
-		let blake2 = ethereum_builtin("blake2_f");
+		let blake2 = EthereumBuiltin::from_str("blake2_f").unwrap();
 		// Test vector 8 and expected output from https://github.com/ethereum/EIPs/blob/master/EIPS/eip-152.md#test-vector-8
 		// Note this test is slow, 4294967295/0xffffffff rounds take a while.
 		let input = hex!("ffffffff48c9bdf267e6096a3ba7ca8485ae67bb2bf894fe72f36e3cf1361d5f3af54fa5d182e6ad7f520e511f6c3e2b8c68059b6bbd41fbabd9831f79217e1319cde05b61626300000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000300000000000000000000000000000001");
@@ -818,7 +874,7 @@ mod tests {
 
 	#[test]
 	fn identity() {
-		let f = ethereum_builtin("identity");
+		let f = EthereumBuiltin::from_str("identity").unwrap();
 
 		let i = [0u8, 1, 2, 3];
 
@@ -838,7 +894,7 @@ mod tests {
 
 	#[test]
 	fn sha256() {
-		let f = ethereum_builtin("sha256");
+		let f = EthereumBuiltin::from_str("sha256").unwrap();
 
 		let i = [0u8; 0];
 
@@ -861,7 +917,7 @@ mod tests {
 
 	#[test]
 	fn ripemd160() {
-		let f = ethereum_builtin("ripemd160");
+		let f = EthereumBuiltin::from_str("ripemd160").unwrap();
 
 		let i = [0u8; 0];
 
@@ -880,7 +936,7 @@ mod tests {
 
 	#[test]
 	fn ecrecover() {
-		let f = ethereum_builtin("ecrecover");
+		let f = EthereumBuiltin::from_str("ecrecover").unwrap();
 
 		let i = hex!("47173285a8d7341e5e972fc677286384f802f8ef42a5ec5f03bbfa254cb01fad000000000000000000000000000000000000000000000000000000000000001b650acf9d3f5f0a2c799776a1254355d5f4061762a237396a99a0e0e3fc2bcd6729514a0dacb2e623ac4abd157cb18163ff942280db4d5caad66ddf941ba12e03");
 
@@ -932,8 +988,8 @@ mod tests {
 	fn modexp() {
 
 		let f = Builtin {
-			pricer: map![0 => Box::new(ModexpPricer { divisor: 20 }) as Box<dyn Pricer>],
-			native: ethereum_builtin("modexp"),
+			pricer: map![0 => Pricing::Modexp(ModexpPricer { divisor: 20 })],
+			native: EthereumBuiltin::from_str("modexp").unwrap(),
 		};
 
 		// test for potential gas cost multiplication overflow
@@ -1042,8 +1098,8 @@ mod tests {
 	fn bn128_add() {
 
 		let f = Builtin {
-			pricer: map![0 => Box::new(Linear { base: 0, word: 0 }) as Box<dyn Pricer>],
-			native: ethereum_builtin("alt_bn128_add"),
+			pricer: map![0 => Pricing::Linear(Linear { base: 0, word: 0 })],
+			native: EthereumBuiltin::from_str("alt_bn128_add").unwrap(),
 		};
 
 		// zero-points additions
@@ -1100,8 +1156,8 @@ mod tests {
 	fn bn128_mul() {
 
 		let f = Builtin {
-			pricer: map![0 => Box::new(Linear { base: 0, word: 0 }) as Box<dyn Pricer>],
-			native: ethereum_builtin("alt_bn128_mul"),
+			pricer: map![0 => Pricing::Linear(Linear { base: 0, word: 0 })],
+			native: EthereumBuiltin::from_str("alt_bn128_mul").unwrap(),
 		};
 
 		// zero-point multiplication
@@ -1139,8 +1195,8 @@ mod tests {
 
 	fn builtin_pairing() -> Builtin {
 		Builtin {
-			pricer: map![0 => Box::new(Linear { base: 0, word: 0 }) as Box<dyn Pricer>],
-			native: ethereum_builtin("alt_bn128_pairing"),
+			pricer: map![0 => Pricing::Linear(Linear { base: 0, word: 0 })],
+			native: EthereumBuiltin::from_str("alt_bn128_pairing").unwrap(),
 		}
 	}
 
@@ -1211,15 +1267,15 @@ mod tests {
 	#[test]
 	#[should_panic]
 	fn from_unknown_linear() {
-		let _ = ethereum_builtin("foo");
+		let _ = EthereumBuiltin::from_str("foo").unwrap();
 	}
 
 	#[test]
 	fn is_active() {
-		let pricer = Box::new(Linear { base: 10, word: 20} );
+		let pricer = Pricing::Linear(Linear { base: 10, word: 20 });
 		let b = Builtin {
-			pricer: map![100_000 => pricer as Box<dyn Pricer>],
-			native: ethereum_builtin("identity"),
+			pricer: map![100_000 => pricer],
+			native: EthereumBuiltin::from_str("identity").unwrap(),
 		};
 
 		assert!(!b.is_active(99_999));
@@ -1229,10 +1285,10 @@ mod tests {
 
 	#[test]
 	fn from_named_linear() {
-		let pricer = Box::new(Linear { base: 10, word: 20 });
+		let pricer = Pricing::Linear(Linear { base: 10, word: 20 });
 		let b = Builtin {
-			pricer: map![0 => pricer as Box<dyn Pricer>],
-			native: ethereum_builtin("identity"),
+			pricer: map![0 => pricer],
+			native: EthereumBuiltin::from_str("identity").unwrap(),
 		};
 
 		assert_eq!(b.cost(&[0; 0], 0), U256::from(10));
