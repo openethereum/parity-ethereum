@@ -54,7 +54,7 @@ pub use vm::{LastHashes, EnvInfo};
 pub use error::TransactionImportError;
 pub use verification::VerifierType;
 
-mod traits;
+pub mod traits;
 
 mod chain_notify;
 mod private_notify;

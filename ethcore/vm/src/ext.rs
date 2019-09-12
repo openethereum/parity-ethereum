@@ -144,6 +144,9 @@ pub trait Ext {
 	/// Returns environment info.
 	fn env_info(&self) -> &EnvInfo;
 
+	/// Returns the chain ID of the blockchain
+	fn chain_id(&self) -> u64;
+
 	/// Returns current depth of execution.
 	///
 	/// If contract A calls contract B, and contract B calls C,
@@ -160,7 +163,11 @@ pub trait Ext {
 	fn trace_next_instruction(&mut self, _pc: usize, _instruction: u8, _current_gas: U256) -> bool { false }
 
 	/// Prepare to trace an operation. Passthrough for the VM trace.
+	/// For each call of `trace_prepare_execute` either `trace_failed` or `trace_executed` MUST be called.
 	fn trace_prepare_execute(&mut self, _pc: usize, _instruction: u8, _gas_cost: U256, _mem_written: Option<(usize, usize)>, _store_written: Option<(U256, U256)>) {}
+
+	/// Trace the execution failure of a single instruction.
+	fn trace_failed(&mut self) {}
 
 	/// Trace the finalised execution of a single instruction.
 	fn trace_executed(&mut self, _gas_used: U256, _stack_push: &[U256], _mem: &[u8]) {}

@@ -276,6 +276,8 @@ impl<Cost: CostType> Interpreter<Cost> {
 			cache, params, reader, informant,
 			valid_jump_destinations, gasometer, stack,
 			done: false,
+			// Overridden in `step_inner` based on
+			// the result of `ext.trace_next_instruction`.
 			do_trace: true,
 			mem: Vec::new(),
 			return_data: ReturnData::empty(),
@@ -345,6 +347,9 @@ impl<Cost: CostType> Interpreter<Cost> {
 					ext.trace_prepare_execute(self.reader.position - 1, opcode, requirements.gas_cost.as_u256(), Self::mem_written(instruction, &self.stack), Self::store_written(instruction, &self.stack));
 				}
 				if let Err(e) = self.gasometer.as_mut().expect(GASOMETER_PROOF).verify_gas(&requirements.gas_cost) {
+					if self.do_trace {
+						ext.trace_failed();
+					}
 					return InterpreterResult::Done(Err(e));
 				}
 				self.mem.expand(requirements.memory_required_size);
@@ -358,7 +363,12 @@ impl<Cost: CostType> Interpreter<Cost> {
 				let result = match self.exec_instruction(
 					current_gas, ext, instruction, requirements.provide_gas
 				) {
-					Err(x) => return InterpreterResult::Done(Err(x)),
+					Err(x) => {
+						if self.do_trace {
+							ext.trace_failed();
+						}
+						return InterpreterResult::Done(Err(x));
+					},
 					Ok(x) => x,
 				};
 				evm_debug!({ self.informant.after_instruction(instruction) });
@@ -425,7 +435,8 @@ impl<Cost: CostType> Interpreter<Cost> {
 			((instruction == instructions::RETURNDATACOPY || instruction == instructions::RETURNDATASIZE) && !schedule.have_return_data) ||
 			(instruction == instructions::REVERT && !schedule.have_revert) ||
 			((instruction == instructions::SHL || instruction == instructions::SHR || instruction == instructions::SAR) && !schedule.have_bitwise_shifting) ||
-			(instruction == instructions::EXTCODEHASH && !schedule.have_extcodehash)
+			(instruction == instructions::EXTCODEHASH && !schedule.have_extcodehash) ||
+			(instruction == instructions::CHAINID && !schedule.have_chain_id)
 		{
 			return Err(vm::Error::BadInstruction {
 				instruction: instruction as u8
@@ -839,6 +850,9 @@ impl<Cost: CostType> Interpreter<Cost> {
 			},
 			instructions::GASLIMIT => {
 				self.stack.push(ext.env_info().gas_limit.clone());
+			},
+			instructions::CHAINID => {
+				self.stack.push(ext.chain_id().into())
 			},
 
 			// Stack instructions

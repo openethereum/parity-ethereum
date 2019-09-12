@@ -18,6 +18,9 @@
 
 use uint::Uint;
 
+/// Price per round of Blake2 compression.
+pub type Blake2F = u64;
+
 /// Linear pricing.
 #[derive(Debug, PartialEq, Deserialize, Clone)]
 #[serde(deny_unknown_fields)]
@@ -36,6 +39,16 @@ pub struct Modexp {
 	pub divisor: usize,
 }
 
+/// Pricing for constant alt_bn128 operations (ECADD and ECMUL)
+#[derive(Debug, PartialEq, Deserialize, Clone)]
+#[serde(deny_unknown_fields)]
+pub struct AltBn128ConstOperations {
+	/// price
+	pub price: usize,
+	/// EIP 1108 transition price
+	pub eip1108_transition_price: usize,
+}
+
 /// Pricing for alt_bn128_pairing.
 #[derive(Debug, PartialEq, Deserialize, Clone)]
 #[serde(deny_unknown_fields)]
@@ -44,6 +57,10 @@ pub struct AltBn128Pairing {
 	pub base: usize,
 	/// Price per point pair.
 	pub pair: usize,
+	/// EIP 1108 transition base price
+	pub eip1108_transition_base: usize,
+	/// EIP 1108 transition price per point pair
+	pub eip1108_transition_pair: usize,
 }
 
 /// Pricing variants.
@@ -51,12 +68,16 @@ pub struct AltBn128Pairing {
 #[serde(deny_unknown_fields)]
 #[serde(rename_all = "snake_case")]
 pub enum Pricing {
+	/// Pricing for Blake2 compression function: each call costs the same amount per round.
+	Blake2F(Blake2F),
 	/// Linear pricing.
 	Linear(Linear),
 	/// Pricing for modular exponentiation.
 	Modexp(Modexp),
 	/// Pricing for alt_bn128_pairing exponentiation.
 	AltBn128Pairing(AltBn128Pairing),
+	/// Pricing for constant alt_bn128 operations
+	AltBn128ConstOperations(AltBn128ConstOperations),
 }
 
 /// Spec builtin.
@@ -69,6 +90,8 @@ pub struct Builtin {
 	pub pricing: Pricing,
 	/// Activation block.
 	pub activate_at: Option<Uint>,
+	/// EIP 1108
+	pub eip1108_transition: Option<Uint>,
 }
 
 #[cfg(test)]
@@ -87,6 +110,19 @@ mod tests {
 		assert_eq!(deserialized.name, "ecrecover");
 		assert_eq!(deserialized.pricing, Pricing::Linear(Linear { base: 3000, word: 0 }));
 		assert!(deserialized.activate_at.is_none());
+	}
+
+	#[test]
+	fn deserialization_blake2_f_builtin() {
+		let s = r#"{
+			"name": "blake2_f",
+			"activate_at": "0xffffff",
+			"pricing": { "blake2_f": 123 }
+		}"#;
+		let deserialized: Builtin = serde_json::from_str(s).unwrap();
+		assert_eq!(deserialized.name, "blake2_f");
+		assert_eq!(deserialized.pricing, Pricing::Blake2F(123));
+		assert!(deserialized.activate_at.is_some());
 	}
 
 	#[test]

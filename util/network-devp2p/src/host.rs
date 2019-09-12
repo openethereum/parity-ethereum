@@ -261,6 +261,8 @@ struct ProtocolTimer {
 }
 
 /// Root IO handler. Manages protocol handlers, IO timers and network connections.
+///
+/// NOTE: must keep the lock in order of: reserved_nodes (rwlock) -> session (mutex, from sessions)
 pub struct Host {
 	pub info: RwLock<HostInfo>,
 	udp_socket: Mutex<Option<UdpSocket>>,
@@ -722,12 +724,13 @@ impl Host {
 					let session_result = session.lock().readable(io, &self.info.read());
 					match session_result {
 						Err(e) => {
+							let reserved_nodes = self.reserved_nodes.read();
 							let s = session.lock();
 							trace!(target: "network", "Session read error: {}:{:?} ({:?}) {:?}", token, s.id(), s.remote_addr(), e);
 							match e {
 								Error::Disconnect(DisconnectReason::IncompatibleProtocol) | Error::Disconnect(DisconnectReason::UselessPeer) => {
 									if let Some(id) = s.id() {
-										if !self.reserved_nodes.read().contains(id) {
+										if !reserved_nodes.contains(id) {
 											let mut nodes = self.nodes.write();
 											nodes.note_failure(&id);
 											nodes.mark_as_useless(id);
@@ -741,6 +744,7 @@ impl Host {
 						},
 						Ok(SessionData::Ready) => {
 							let (_, egress_count, ingress_count) = self.session_count();
+							let reserved_nodes = self.reserved_nodes.read();
 							let mut s = session.lock();
 							let (min_peers, mut max_peers, reserved_only, self_id) = {
 								let info = self.info.read();
@@ -765,7 +769,7 @@ impl Host {
 							if reserved_only ||
 								(s.info.originated && egress_count > min_peers) ||
 								(!s.info.originated && ingress_count > max_ingress) {
-								if !self.reserved_nodes.read().contains(&id) {
+								if !reserved_nodes.contains(&id) {
 									// only proceed if the connecting peer is reserved.
 									trace!(target: "network", "Disconnecting non-reserved peer {:?}", id);
 									s.disconnect(io, DisconnectReason::TooManyPeers);
@@ -980,7 +984,8 @@ impl Host {
 		for i in to_remove {
 			trace!(target: "network", "Removed from node table: {}", i);
 		}
-		self.nodes.write().update(node_changes, &*self.reserved_nodes.read());
+		let reserved_nodes = self.reserved_nodes.read();
+		self.nodes.write().update(node_changes, &*reserved_nodes);
 	}
 
 	pub fn with_context<F>(&self, protocol: ProtocolId, io: &IoContext<NetworkIoMessage>, action: F) where F: FnOnce(&dyn NetworkContextTrait) {
@@ -1066,8 +1071,9 @@ impl IoHandler<NetworkIoMessage> for Host {
 			},
 			NODE_TABLE => {
 				trace!(target: "network", "Refreshing node table");
-				self.nodes.write().clear_useless();
-				self.nodes.write().save();
+				let mut nodes = self.nodes.write();
+				nodes.clear_useless();
+				nodes.save();
 			},
 			_ => match self.timers.read().get(&token).cloned() {
 				Some(timer) => match self.handlers.read().get(&timer.protocol).cloned() {

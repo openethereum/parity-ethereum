@@ -65,7 +65,7 @@ fn fmt_err<F: ::std::fmt::Display>(f: F) -> String {
 /// we define a "bugfix" hard fork as any hard fork which
 /// you would put on-by-default in a new chain.
 #[derive(Debug, PartialEq, Default)]
-#[cfg_attr(test, derive(Clone))]
+#[cfg_attr(any(test, feature = "test-helpers"), derive(Clone))]
 pub struct CommonParams {
 	/// Account start nonce.
 	pub account_start_nonce: U256,
@@ -123,6 +123,10 @@ pub struct CommonParams {
 	pub eip1283_disable_transition: BlockNumber,
 	/// Number of first block where EIP-1014 rules begin.
 	pub eip1014_transition: BlockNumber,
+	/// Number of first block where EIP-1344 rules begin: https://github.com/ethereum/EIPs/blob/master/EIPS/eip-1344.md
+	pub eip1344_transition: BlockNumber,
+	/// Number of first block where EIP-2028 rules begin.
+	pub eip2028_transition: BlockNumber,
 	/// Number of first block where dust cleanup rules (EIP-168 and EIP169) begin.
 	pub dust_protection_transition: BlockNumber,
 	/// Nonce cap increase per block. Nonce cap is only checked if dust protection is enabled.
@@ -189,7 +193,11 @@ impl CommonParams {
 		schedule.have_return_data = block_number >= self.eip211_transition;
 		schedule.have_bitwise_shifting = block_number >= self.eip145_transition;
 		schedule.have_extcodehash = block_number >= self.eip1052_transition;
+		schedule.have_chain_id = block_number >= self.eip1344_transition;
 		schedule.eip1283 = block_number >= self.eip1283_transition && !(block_number >= self.eip1283_disable_transition);
+		if block_number >= self.eip2028_transition {
+			schedule.tx_data_non_zero_gas = 16;
+		}
 		if block_number >= self.eip210_transition {
 			schedule.blockhash_gas = 800;
 		}
@@ -305,6 +313,14 @@ impl From<ethjson::spec::Params> for CommonParams {
 				Into::into,
 			),
 			eip1014_transition: p.eip1014_transition.map_or_else(
+				BlockNumber::max_value,
+				Into::into,
+			),
+			eip1344_transition: p.eip1344_transition.map_or_else(
+				BlockNumber::max_value,
+				Into::into,
+			),
+			eip2028_transition: p.eip2028_transition.map_or_else(
 				BlockNumber::max_value,
 				Into::into,
 			),

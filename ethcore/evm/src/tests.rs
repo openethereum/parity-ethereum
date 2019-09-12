@@ -25,6 +25,7 @@ use vm::{self, ActionParams, ActionValue, Ext};
 use vm::tests::{FakeExt, FakeCall, FakeCallType, test_finalize};
 use factory::Factory;
 use vmtype::VMType;
+use hex_literal::hex;
 
 evm_test!{test_add: test_add_int}
 fn test_add(factory: super::Factory) {
@@ -128,6 +129,27 @@ fn test_sender(factory: super::Factory) {
 
 	assert_eq!(gas_left, U256::from(79_995));
 	assert_store(&ext, 0, "000000000000000000000000cd1722f2947def4cf144679da39c4c32bdc35681");
+}
+
+evm_test!{test_chain_id: test_chain_id_int}
+fn test_chain_id(factory: super::Factory) {
+	// 46       CHAINID
+	// 60 00    PUSH 0
+	// 55       SSTORE
+	let code = hex!("46 60 00 55").to_vec();
+
+	let mut params = ActionParams::default();
+	params.gas = U256::from(100_000);
+	params.code = Some(Arc::new(code));
+	let mut ext = FakeExt::new_istanbul().with_chain_id(9);
+
+	let gas_left = {
+		let vm = factory.create(params, ext.schedule(), ext.depth());
+		test_finalize(vm.exec(&mut ext).ok().unwrap()).unwrap()
+	};
+
+	assert_eq!(gas_left, U256::from(79_995));
+	assert_store(&ext, 0, "0000000000000000000000000000000000000000000000000000000000000009");
 }
 
 evm_test!{test_extcodecopy: test_extcodecopy_int}
@@ -262,7 +284,6 @@ fn test_calldataload(factory: super::Factory) {
 
 	assert_eq!(gas_left, U256::from(79_991));
 	assert_store(&ext, 0, "23ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff23");
-
 }
 
 evm_test!{test_author: test_author_int}
