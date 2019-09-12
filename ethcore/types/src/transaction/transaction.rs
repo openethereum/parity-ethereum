@@ -54,7 +54,11 @@ impl Default for Action {
 impl rlp::Decodable for Action {
 	fn decode(rlp: &Rlp) -> Result<Self, DecoderError> {
 		if rlp.is_empty() {
-			Ok(Action::Create)
+			if rlp.is_data() {
+				Ok(Action::Create)
+			} else {
+				Err(DecoderError::RlpExpectedToBeData)
+			}
 		} else {
 			Ok(Action::Call(rlp.as_val()?))
 		}
@@ -569,6 +573,20 @@ mod tests {
 		assert_eq!(t.value, U256::from(0x0au64));
 		assert_eq!(public_to_address(&t.recover_public().unwrap()), Address::from_str("0f65fe9276bc9a24ae7083ae28e2660ef72df99e").unwrap());
 		assert_eq!(t.chain_id(), None);
+	}
+
+	#[test]
+	fn empty_atom_as_create_action() {
+		let empty_atom = [0x80];
+		let action: Action = rlp::decode(&empty_atom).unwrap();
+		assert_eq!(action, Action::Create);
+	}
+
+	#[test]
+	fn empty_list_as_create_action_rejected() {
+		let empty_list = [0xc0];
+		let action: Result<Action, DecoderError> = rlp::decode(&empty_list);
+		assert_eq!(action, Err(DecoderError::RlpExpectedToBeData));
 	}
 
 	#[test]
