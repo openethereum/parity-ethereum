@@ -18,7 +18,7 @@
 
 use std::sync::Arc;
 
-use ethcore::client::BlockChainClient;
+use client_traits::BlockChainClient;
 use types::header::Header;
 use types::transaction::LocalizedTransaction;
 

@@ -21,7 +21,7 @@ use std::sync::Arc;
 use ethereum_types::{H256, U256, H160};
 use {trie_vm_factories, journaldb, trie, kvdb_memorydb};
 use kvdb::{self, KeyValueDB};
-use {state_db, client, executive, trace, db, spec};
+use {state_db, trace, db, spec};
 use pod::PodState;
 use types::{
 	errors::EthcoreError,
@@ -29,12 +29,16 @@ use types::{
 	receipt,
 	transaction
 };
+use ethjson::spec::ForkSpec;
 use trie_vm_factories::Factories;
 use evm::{VMType, FinalizationResult};
 use vm::{self, ActionParams, CreateContractAddress};
 use ethtrie;
 use account_state::{CleanupMode, State};
-use substate::Substate;
+use machine::{
+	executive,
+	substate::Substate,
+};
 
 use executive_state::ExecutiveState;
 
@@ -70,9 +74,6 @@ impl fmt::Display for EvmTestError {
 	}
 }
 
-use ethereum;
-use ethjson::spec::ForkSpec;
-
 /// Simplified, single-block EVM test client.
 pub struct EvmTestClient<'a> {
 	state: State<state_db::StateDB>,
@@ -99,16 +100,17 @@ impl<'a> fmt::Debug for EvmTestClient<'a> {
 
 impl<'a> EvmTestClient<'a> {
 	/// Converts a json spec definition into spec.
-	pub fn spec_from_json(spec: &ForkSpec) -> Option<spec::Spec> {
+	pub fn fork_spec_from_json(spec: &ForkSpec) -> Option<spec::Spec> {
 		match *spec {
-			ForkSpec::Frontier => Some(ethereum::new_frontier_test()),
-			ForkSpec::Homestead => Some(ethereum::new_homestead_test()),
-			ForkSpec::EIP150 => Some(ethereum::new_eip150_test()),
-			ForkSpec::EIP158 => Some(ethereum::new_eip161_test()),
-			ForkSpec::Byzantium => Some(ethereum::new_byzantium_test()),
-			ForkSpec::Constantinople => Some(ethereum::new_constantinople_test()),
-			ForkSpec::ConstantinopleFix => Some(ethereum::new_constantinople_fix_test()),
-			ForkSpec::EIP158ToByzantiumAt5 => Some(ethereum::new_transition_test()),
+			ForkSpec::Frontier => Some(spec::new_frontier_test()),
+			ForkSpec::Homestead => Some(spec::new_homestead_test()),
+			ForkSpec::EIP150 => Some(spec::new_eip150_test()),
+			ForkSpec::EIP158 => Some(spec::new_eip161_test()),
+			ForkSpec::Byzantium => Some(spec::new_byzantium_test()),
+			ForkSpec::Constantinople => Some(spec::new_constantinople_test()),
+			ForkSpec::ConstantinopleFix => Some(spec::new_constantinople_fix_test()),
+			ForkSpec::Istanbul => Some(spec::new_istanbul_test()),
+			ForkSpec::EIP158ToByzantiumAt5 => Some(spec::new_transition_test()),
 			ForkSpec::FrontierToHomesteadAt5 | ForkSpec::HomesteadToDaoAt5 | ForkSpec::HomesteadToEIP150At5 => None,
 		}
 	}
@@ -157,7 +159,7 @@ impl<'a> EvmTestClient<'a> {
 	fn factories(trie_spec: trie::TrieSpec) -> Factories {
 		Factories {
 			vm: trie_vm_factories::VmFactory::new(VMType::Interpreter, 5 * 1024),
-			trie: trie::TrieFactory::new(trie_spec),
+			trie: trie::TrieFactory::new(trie_spec, ethtrie::Layout),
 			accountdb: Default::default(),
 		}
 	}
@@ -213,7 +215,7 @@ impl<'a> EvmTestClient<'a> {
 	) -> Result<FinalizationResult, EvmTestError>
 	{
 		let genesis = self.spec.genesis_header();
-		let info = client::EnvInfo {
+		let info = vm::EnvInfo {
 			number: genesis.number(),
 			author: *genesis.author(),
 			timestamp: genesis.timestamp(),
@@ -232,7 +234,7 @@ impl<'a> EvmTestClient<'a> {
 		params: ActionParams,
 		tracer: &mut T,
 		vm_tracer: &mut V,
-		info: client::EnvInfo,
+		info: vm::EnvInfo,
 	) -> Result<FinalizationResult, EvmTestError>
 	{
 		let mut substate = Substate::new();
@@ -251,7 +253,7 @@ impl<'a> EvmTestClient<'a> {
 	/// Returns the state root, gas left and the output.
 	pub fn transact<T: trace::Tracer, V: trace::VMTracer>(
 		&mut self,
-		env_info: &client::EnvInfo,
+		env_info: &vm::EnvInfo,
 		transaction: transaction::SignedTransaction,
 		tracer: T,
 		vm_tracer: V,

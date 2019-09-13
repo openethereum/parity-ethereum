@@ -35,6 +35,17 @@ use rlp::DecoderError;
 /// Convenience type alias to instantiate a Keccak-flavoured `RlpNodeCodec`
 pub type RlpCodec = RlpNodeCodec<KeccakHasher>;
 
+#[derive(Clone, Default)]
+/// Defines the working of a particular flavour of trie:
+/// how keys are hashed, how values are encoded, does it use extension nodes or not.
+pub struct Layout;
+
+impl trie_db::TrieLayout for Layout {
+	const USE_EXTENSION: bool = true;
+	type Hash = keccak_hasher::KeccakHasher;
+	type Codec = RlpNodeCodec<KeccakHasher>;
+}
+
 /// Convenience type alias to instantiate a Keccak/Rlp-flavoured `TrieDB`
 ///
 /// Use it as a `Trie` trait object. You can use `db()` to get the backing database object.
@@ -70,13 +81,13 @@ pub type RlpCodec = RlpNodeCodec<KeccakHasher>;
 ///   assert_eq!(t.get(b"foo").unwrap().unwrap(), DBValue::from_slice(b"bar"));
 /// }
 /// ```
-pub type TrieDB<'db> = trie::TrieDB<'db, KeccakHasher, RlpCodec>;
+pub type TrieDB<'db> = trie::TrieDB<'db, Layout>;
 
 /// Convenience type alias to instantiate a Keccak/Rlp-flavoured `SecTrieDB`
-pub type SecTrieDB<'db> = trie::SecTrieDB<'db, KeccakHasher, RlpCodec>;
+pub type SecTrieDB<'db> = trie::SecTrieDB<'db, Layout>;
 
 /// Convenience type alias to instantiate a Keccak/Rlp-flavoured `FatDB`
-pub type FatDB<'db> = trie::FatDB<'db, KeccakHasher, RlpCodec>;
+pub type FatDB<'db> = trie::FatDB<'db, Layout>;
 
 /// Convenience type alias to instantiate a Keccak/Rlp-flavoured `TrieDBMut`
 ///
@@ -102,6 +113,7 @@ pub type FatDB<'db> = trie::FatDB<'db, KeccakHasher, RlpCodec>;
 /// use memory_db::*;
 /// use ethereum_types::H256;
 /// use elastic_array::ElasticArray128;
+/// use trie::Trie;
 ///
 /// type DBValue = ElasticArray128<u8>;
 ///
@@ -118,18 +130,61 @@ pub type FatDB<'db> = trie::FatDB<'db, KeccakHasher, RlpCodec>;
 ///   assert!(!t.contains(b"foo").unwrap());
 /// }
 /// ```
-pub type TrieDBMut<'db> = trie::TrieDBMut<'db, KeccakHasher, RlpCodec>;
+pub type TrieDBMut<'db> = trie::TrieDBMut<'db, Layout>;
 
 /// Convenience type alias to instantiate a Keccak/Rlp-flavoured `SecTrieDBMut`
-pub type SecTrieDBMut<'db> = trie::SecTrieDBMut<'db, KeccakHasher, RlpCodec>;
+pub type SecTrieDBMut<'db> = trie::SecTrieDBMut<'db, Layout>;
 
 /// Convenience type alias to instantiate a Keccak/Rlp-flavoured `FatDBMut`
-pub type FatDBMut<'db> = trie::FatDBMut<'db, KeccakHasher, RlpCodec>;
+pub type FatDBMut<'db> = trie::FatDBMut<'db, Layout>;
 
 /// Convenience type alias to instantiate a Keccak/Rlp-flavoured `TrieFactory`
-pub type TrieFactory = trie::TrieFactory<KeccakHasher, RlpCodec>;
+pub type TrieFactory = trie::TrieFactory<Layout>;
 
 /// Convenience type alias for Keccak/Rlp flavoured trie errors
 pub type TrieError = trie::TrieError<H256, DecoderError>;
 /// Convenience type alias for Keccak/Rlp flavoured trie results
 pub type Result<T> = trie::Result<T, H256, DecoderError>;
+
+#[cfg(test)]
+mod tests {
+
+	use ethereum_types::H256;
+	use crate::{TrieDB, TrieDBMut, trie::TrieMut};
+	use trie::Trie;
+
+	#[test]
+	fn test_inline_encoding_branch() {
+		let mut memdb = journaldb::new_memory_db();
+		let mut root = H256::zero();
+		{
+			let mut triedbmut = TrieDBMut::new(&mut memdb, &mut root);
+			triedbmut.insert(b"foo", b"bar").unwrap();
+			triedbmut.insert(b"fog", b"b").unwrap();
+			triedbmut.insert(b"fot", &vec![0u8;33][..]).unwrap();
+		}
+		let t = TrieDB::new(&memdb, &root).unwrap();
+		assert!(t.contains(b"foo").unwrap());
+		assert!(t.contains(b"fog").unwrap());
+		assert_eq!(t.get(b"foo").unwrap().unwrap(), b"bar".to_vec());
+		assert_eq!(t.get(b"fog").unwrap().unwrap(), b"b".to_vec());
+		assert_eq!(t.get(b"fot").unwrap().unwrap(), vec![0u8;33]);
+	}
+
+	#[test]
+	fn test_inline_encoding_extension() {
+		let mut memdb = journaldb::new_memory_db();
+		let mut root = H256::zero();
+		{
+			let mut triedbmut = TrieDBMut::new(&mut memdb, &mut root);
+			triedbmut.insert(b"foo", b"b").unwrap();
+			triedbmut.insert(b"fog", b"a").unwrap();
+		}
+		let t = TrieDB::new(&memdb, &root).unwrap();
+		assert!(t.contains(b"foo").unwrap());
+		assert!(t.contains(b"fog").unwrap());
+		assert_eq!(t.get(b"foo").unwrap().unwrap(), b"b".to_vec());
+		assert_eq!(t.get(b"fog").unwrap().unwrap(), b"a".to_vec());
+	}
+
+}

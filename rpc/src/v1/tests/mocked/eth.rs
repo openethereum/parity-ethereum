@@ -20,18 +20,24 @@ use std::sync::Arc;
 use std::time::{Instant, Duration, SystemTime, UNIX_EPOCH};
 
 use accounts::AccountProvider;
-use ethcore::client::{BlockChainClient, BlockId, EachBlockWith, Executed, TestBlockChainClient, TransactionId};
+use client_traits::BlockChainClient;
+use ethcore::client::{EachBlockWith, TestBlockChainClient};
 use ethcore::miner::{self, MinerService};
 use ethereum_types::{H160, H256, U256, Address, Bloom};
+use machine::executed::Executed;
 use miner::external::ExternalMiner;
 use parity_runtime::Runtime;
 use parking_lot::Mutex;
 use rlp;
 use rustc_hex::{FromHex, ToHex};
 use sync::SyncState;
-use types::transaction::{Transaction, Action};
-use types::log_entry::{LocalizedLogEntry, LogEntry};
-use types::receipt::{LocalizedReceipt, TransactionOutcome};
+use types::{
+	ids::{BlockId, TransactionId},
+	transaction::{Transaction, Action},
+	log_entry::{LocalizedLogEntry, LogEntry},
+	receipt::{LocalizedReceipt, TransactionOutcome},
+	snapshot::RestorationStatus,
+};
 
 use jsonrpc_core::IoHandler;
 use v1::{Eth, EthClient, EthClientOptions, EthFilter, EthFilterClient};
@@ -126,8 +132,6 @@ fn rpc_eth_protocol_version() {
 
 #[test]
 fn rpc_eth_syncing() {
-	use ethcore::snapshot::RestorationStatus;
-
 	let request = r#"{"jsonrpc": "2.0", "method": "eth_syncing", "params": [], "id": 1}"#;
 
 	let tester = EthTester::default();

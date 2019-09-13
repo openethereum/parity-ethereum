@@ -22,9 +22,11 @@ use triehash_ethereum::ordered_trie_root;
 use bytes::Bytes;
 use rlp::{Rlp, RlpStream, DecoderError};
 use network;
-use ethcore::verification::queue::kind::blocks::Unverified;
-use types::transaction::UnverifiedTransaction;
-use types::header::Header as BlockHeader;
+use types::{
+	transaction::UnverifiedTransaction,
+	header::Header as BlockHeader,
+	verification::Unverified,
+};
 
 malloc_size_of_is_0!(HeaderId);
 
@@ -541,9 +543,13 @@ impl BlockCollection {
 #[cfg(test)]
 mod test {
 	use super::{BlockCollection, SyncHeader};
-	use ethcore::client::{TestBlockChainClient, EachBlockWith, BlockId, BlockChainClient};
-	use types::BlockNumber;
-	use ethcore::verification::queue::kind::blocks::Unverified;
+	use client_traits::BlockChainClient;
+	use ethcore::client::{TestBlockChainClient, EachBlockWith};
+	use types::{
+		ids::BlockId,
+		BlockNumber,
+		verification::Unverified,
+	};
 	use rlp::*;
 
 	fn is_empty(bc: &BlockCollection) -> bool {

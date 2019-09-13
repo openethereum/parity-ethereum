@@ -93,7 +93,7 @@ pub struct Dependencies<'a> {
 	/// Blockchain client.
 	pub client: Arc<Client>,
 	/// Sync provider.
-	pub sync: Arc<SyncProvider>,
+	pub sync: Arc<dyn SyncProvider>,
 	/// Miner service.
 	pub miner: Arc<Miner>,
 	/// Account provider.

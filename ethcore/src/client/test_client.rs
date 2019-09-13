@@ -20,6 +20,7 @@ use std::str::FromStr;
 use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering as AtomicOrder};
 use std::sync::Arc;
 use std::collections::{HashMap, BTreeMap};
+use blockchain::BlockProvider;
 use std::mem;
 
 use blockchain::{TreeRoute, BlockReceipts};
@@ -36,41 +37,50 @@ use kvdb_memorydb;
 use parking_lot::RwLock;
 use rlp::{Rlp, RlpStream};
 use rustc_hex::FromHex;
-use types::transaction::{self, Transaction, LocalizedTransaction, SignedTransaction, Action, CallError};
-use types::BlockNumber;
-use types::basic_account::BasicAccount;
-use types::encoded;
-use types::errors::{EthcoreError as Error, EthcoreResult};
-use types::filter::Filter;
-use types::header::Header;
-use types::log_entry::LocalizedLogEntry;
-use types::pruning_info::PruningInfo;
-use types::receipt::{Receipt, LocalizedReceipt, TransactionOutcome};
-use types::view;
-use types::views::BlockView;
-use vm::Schedule;
+use types::{
+	BlockNumber,
+	encoded,
+	engines::epoch::Transition as EpochTransition,
+	ids::{BlockId, TransactionId, UncleId, TraceId},
+	basic_account::BasicAccount,
+	errors::{EthcoreError as Error, EthcoreResult},
+	transaction::{self, Transaction, LocalizedTransaction, SignedTransaction, Action, CallError},
+	filter::Filter,
+	trace_filter::Filter as TraceFilter,
+	call_analytics::CallAnalytics,
+	header::Header,
+	log_entry::LocalizedLogEntry,
+	pruning_info::PruningInfo,
+	receipt::{Receipt, LocalizedReceipt, TransactionOutcome},
+	view,
+	views::BlockView,
+	verification::Unverified,
+	client_types::Mode,
+	blockchain_info::BlockChainInfo,
+	block_status::BlockStatus,
+	verification::VerificationQueueInfo as BlockQueueInfo,
+};
+use vm::{Schedule, LastHashes};
 
 use block::{OpenBlock, SealedBlock, ClosedBlock};
 use call_contract::{CallContract, RegistryInfo};
 use client::{
-	Nonce, Balance, ChainInfo, ReopenBlock, TransactionInfo,
-	PrepareOpenBlock, BlockChainClient, BlockChainInfo, BlockStatus, BlockId, Mode,
-	TransactionId, UncleId, TraceId, TraceFilter, LastHashes, CallAnalytics,
-	ProvingBlockChainClient, ScheduleInfo, ImportSealedBlock, BroadcastProposalBlock, ImportBlock, StateOrBlock,
-	Call, StateClient, EngineInfo, AccountData, BlockChain, BlockProducer, SealedBlockImporter, IoClient,
-	BadBlocks
+	ReopenBlock, PrepareOpenBlock, ImportSealedBlock, BroadcastProposalBlock, Call,
+	EngineInfo, BlockProducer, SealedBlockImporter,
 };
-use client::BlockInfo;
-use engines::Engine;
-use executive::Executed;
+use client_traits::{
+	BlockInfo, Nonce, Balance, ChainInfo, TransactionInfo, BlockChainClient, ImportBlock,
+	AccountData, BlockChain, IoClient, BadBlocks, ScheduleInfo, StateClient, ProvingBlockChainClient,
+	StateOrBlock
+};
+use engine::Engine;
+use machine::executed::Executed;
 use journaldb;
 use miner::{self, Miner, MinerService};
-use spec::Spec;
+use spec::{Spec, self};
 use account_state::state::StateInfo;
 use state_db::StateDB;
 use trace::LocalizedTrace;
-use verification::queue::QueueInfo as BlockQueueInfo;
-use verification::queue::kind::blocks::Unverified;
 
 /// Test client.
 pub struct TestBlockChainClient {
@@ -151,7 +161,7 @@ impl TestBlockChainClient {
 
 	/// Creates new test client with specified extra data for each block
 	pub fn new_with_extra_data(extra_data: Bytes) -> Self {
-		let spec = Spec::new_test();
+		let spec = spec::new_test();
 		TestBlockChainClient::new_with_spec_and_extra(spec, extra_data)
 	}
 
@@ -582,6 +592,10 @@ impl ImportBlock for TestBlockChainClient {
 		}
 		Ok(h)
 	}
+
+	fn import_verified_blocks(&self) -> usize {
+		unimplemented!("TestClient does not implement import_verified_blocks()")
+	}
 }
 
 impl Call for TestBlockChainClient {
@@ -701,6 +715,10 @@ impl BlockChainClient for TestBlockChainClient {
 				Some(self.storage.read().get(&(address.clone(), position.clone())).cloned().unwrap_or_default()),
 			_ => None,
 		}
+	}
+
+	fn chain(&self) -> Arc<dyn BlockProvider> {
+		unimplemented!()
 	}
 
 	fn list_accounts(&self, _id: BlockId, _after: Option<&Address>, _count: u64) -> Option<Vec<Address>> {
@@ -936,7 +954,7 @@ impl ProvingBlockChainClient for TestBlockChainClient {
 	}
 }
 
-impl super::traits::EngineClient for TestBlockChainClient {
+impl client_traits::EngineClient for TestBlockChainClient {
 	fn update_sealing(&self) {
 		self.miner.update_sealing(self)
 	}
@@ -950,7 +968,7 @@ impl super::traits::EngineClient for TestBlockChainClient {
 
 	fn broadcast_consensus_message(&self, _message: Bytes) {}
 
-	fn epoch_transition_for(&self, _block_hash: H256) -> Option<::engines::EpochTransition> {
+	fn epoch_transition_for(&self, _block_hash: H256) -> Option<EpochTransition> {
 		None
 	}
 

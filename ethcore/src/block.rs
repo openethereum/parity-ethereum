@@ -28,24 +28,23 @@
 //! `LockedBlock` is a version of a `ClosedBlock` that cannot be reopened. It can be sealed
 //! using an engine.
 //!
-//! `ExecutedBlock` is an underlying data structure used by all structs above to store block
-//! related info.
+//! `ExecutedBlock` from the `machine` crate is the underlying data structure used by all structs
+//! above to store block related info.
 
 use std::{cmp, ops};
-use std::collections::HashSet;
 use std::sync::Arc;
 
 use bytes::Bytes;
 use ethereum_types::{H256, U256, Address, Bloom};
 
-use engines::Engine;
+use engine::Engine;
 use trie_vm_factories::Factories;
 use state_db::StateDB;
 use account_state::State;
 use trace::Tracing;
 use triehash::ordered_trie_root;
 use unexpected::{Mismatch, OutOfBounds};
-use vm::{EnvInfo, LastHashes};
+use vm::LastHashes;
 
 use hash::keccak;
 use rlp::{RlpStream, Encodable, encode_list};
@@ -57,6 +56,7 @@ use types::{
 	receipt::{Receipt, TransactionOutcome},
 };
 use executive_state::ExecutiveState;
+use machine::ExecutedBlock;
 
 /// Block that is ready for transactions to be added.
 ///
@@ -92,71 +92,6 @@ pub struct LockedBlock {
 /// The block's header has valid seal arguments. The block cannot be reversed into a `ClosedBlock` or `OpenBlock`.
 pub struct SealedBlock {
 	block: ExecutedBlock,
-}
-
-/// An internal type for a block's common elements.
-#[derive(Clone)]
-pub struct ExecutedBlock {
-	/// Executed block header.
-	pub header: Header,
-	/// Executed transactions.
-	pub transactions: Vec<SignedTransaction>,
-	/// Uncles.
-	pub uncles: Vec<Header>,
-	/// Transaction receipts.
-	pub receipts: Vec<Receipt>,
-	/// Hashes of already executed transactions.
-	pub transactions_set: HashSet<H256>,
-	/// Underlying state.
-	pub state: State<StateDB>,
-	/// Transaction traces.
-	pub traces: Tracing,
-	/// Hashes of last 256 blocks.
-	pub last_hashes: Arc<LastHashes>,
-}
-
-impl ExecutedBlock {
-	/// Create a new block from the given `state`.
-	fn new(state: State<StateDB>, last_hashes: Arc<LastHashes>, tracing: bool) -> ExecutedBlock {
-		ExecutedBlock {
-			header: Default::default(),
-			transactions: Default::default(),
-			uncles: Default::default(),
-			receipts: Default::default(),
-			transactions_set: Default::default(),
-			state,
-			traces: if tracing {
-				Tracing::enabled()
-			} else {
-				Tracing::Disabled
-			},
-			last_hashes,
-		}
-	}
-
-	/// Get the environment info concerning this block.
-	pub fn env_info(&self) -> EnvInfo {
-		// TODO: memoise.
-		EnvInfo {
-			number: self.header.number(),
-			author: self.header.author().clone(),
-			timestamp: self.header.timestamp(),
-			difficulty: self.header.difficulty().clone(),
-			last_hashes: self.last_hashes.clone(),
-			gas_used: self.receipts.last().map_or(U256::zero(), |r| r.gas_used),
-			gas_limit: self.header.gas_limit().clone(),
-		}
-	}
-
-	/// Get mutable access to a state.
-	pub fn state_mut(&mut self) -> &mut State<StateDB> {
-		&mut self.state
-	}
-
-	/// Get mutable reference to traces.
-	pub fn traces_mut(&mut self) -> &mut Tracing {
-		&mut self.traces
-	}
 }
 
 /// Trait for an object that owns an `ExecutedBlock`
@@ -330,7 +265,7 @@ impl<'x> OpenBlock<'x> {
 		})
 	}
 
-	#[cfg(test)]
+	#[cfg(any(test, feature = "test-helpers"))]
 	/// Return mutable block reference. To be used in tests only.
 	pub fn block_mut(&mut self) -> &mut ExecutedBlock { &mut self.block }
 }
@@ -550,19 +485,22 @@ pub fn enact_verified(
 mod tests {
 	use test_helpers::get_temp_state_db;
 	use super::*;
-	use engines::Engine;
+	use engine::Engine;
 	use vm::LastHashes;
 	use trie_vm_factories::Factories;
 	use state_db::StateDB;
 	use ethereum_types::Address;
 	use std::sync::Arc;
-	use verification::queue::kind::blocks::Unverified;
-	use types::transaction::SignedTransaction;
 	use types::{
-		header::Header, view, views::BlockView,
 		errors::EthcoreError as Error,
+		header::Header,
+		transaction::SignedTransaction,
+		view,
+		views::BlockView,
+		verification::Unverified,
 	};
 	use hash_db::EMPTY_PREFIX;
+	use spec;
 
 	/// Enact the block given by `block_bytes` using `engine` on the database `db` with given `parent` block header
 	fn enact_bytes(
@@ -633,8 +571,7 @@ mod tests {
 
 	#[test]
 	fn open_block() {
-		use spec::*;
-		let spec = Spec::new_test();
+		let spec = spec::new_test();
 		let genesis_header = spec.genesis_header();
 		let db = spec.ensure_db_good(get_temp_state_db(), &Default::default()).unwrap();
 		let last_hashes = Arc::new(vec![genesis_header.hash()]);
@@ -645,8 +582,7 @@ mod tests {
 
 	#[test]
 	fn enact_block() {
-		use spec::*;
-		let spec = Spec::new_test();
+		let spec = spec::new_test();
 		let engine = &*spec.engine;
 		let genesis_header = spec.genesis_header();
 
@@ -670,8 +606,7 @@ mod tests {
 
 	#[test]
 	fn enact_block_with_uncle() {
-		use spec::*;
-		let spec = Spec::new_test();
+		let spec = spec::new_test();
 		let engine = &*spec.engine;
 		let genesis_header = spec.genesis_header();
 

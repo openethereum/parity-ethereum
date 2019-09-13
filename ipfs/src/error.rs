@@ -14,16 +14,15 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
-use {multihash, cid, http};
-use route::Out;
+use crate::route::Out;
 
-pub type Result<T> = ::std::result::Result<T, Error>;
+pub type Result<T> = std::result::Result<T, Error>;
 
 /// IPFS server error
 #[derive(Debug)]
 pub enum ServerError {
 	/// Wrapped `std::io::Error`
-	IoError(::std::io::Error),
+	IoError(std::io::Error),
 	/// Other `hyper` error
 	Other(http::hyper::error::Error),
 	/// Invalid --ipfs-api-interface
@@ -31,8 +30,8 @@ pub enum ServerError {
 }
 
 /// Handle IO errors (ports taken when starting the server).
-impl From<::std::io::Error> for ServerError {
-	fn from(err: ::std::io::Error) -> ServerError {
+impl From<std::io::Error> for ServerError {
+	fn from(err: std::io::Error) -> ServerError {
 		ServerError::IoError(err)
 	}
 }
@@ -53,17 +52,17 @@ impl From<ServerError> for String {
 	}
 }
 
-impl ::std::fmt::Display for ServerError {
-	fn fmt(&self, f: &mut ::std::fmt::Formatter) -> ::std::fmt::Result {
-        match self {
-        	ServerError::IoError(err) => write!(f, "Io Error: {}", err),
-        	ServerError::Other(err) => write!(f, "Other error: {}", err),
-        	ServerError::InvalidInterface => write!(f, "Invalid interface"),
-        }
-    }
+impl std::fmt::Display for ServerError {
+	fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+		match self {
+			ServerError::IoError(err) => write!(f, "Io Error: {}", err),
+			ServerError::Other(err) => write!(f, "Other error: {}", err),
+			ServerError::InvalidInterface => write!(f, "Invalid interface"),
+		}
+	}
 }
 
-impl ::std::error::Error for ServerError {}
+impl std::error::Error for ServerError {}
 
 #[derive(Debug, PartialEq)]
 pub enum Error {

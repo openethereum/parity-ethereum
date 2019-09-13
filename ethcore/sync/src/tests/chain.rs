@@ -15,10 +15,14 @@
 // along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
 use std::sync::Arc;
-use ethcore::client::{TestBlockChainClient, BlockChainClient, BlockId, EachBlockWith, ChainInfo, BlockInfo};
-use chain::{SyncState};
+use types::ids::BlockId;
+use client_traits::{BlockChainClient, ChainInfo};
+use ethcore::client::{TestBlockChainClient, EachBlockWith};
+use client_traits::BlockInfo;
+use chain::SyncState;
 use super::helpers::*;
 use {SyncConfig, WarpSync};
+use spec;
 
 #[test]
 fn two_peers() {
@@ -101,7 +105,7 @@ fn forked_with_misbehaving_peer() {
 	::env_logger::try_init().ok();
 	let mut net = TestNet::new(3);
 
-	let mut alt_spec = ::ethcore::spec::Spec::new_test();
+	let mut alt_spec = spec::new_test();
 	alt_spec.extra_data = b"fork".to_vec();
 	// peer 0 is on a totally different chain with higher total difficulty
 	net.peer_mut(0).chain = Arc::new(TestBlockChainClient::new_with_spec(alt_spec));

@@ -8,5 +8,5 @@ license = "GPL-3.0"
 [dependencies]
 ethereum-types = "0.6.0"
 tiny-keccak = "1.4.2"
-hash-db = "0.12.4"
+hash-db = "0.15.0"
 plain_hasher = "0.2"

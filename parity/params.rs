@@ -18,9 +18,7 @@ use std::collections::HashSet;
 use std::time::Duration;
 use std::{str, fs, fmt};
 
-use ethcore::client::Mode;
-use ethcore::ethereum;
-use ethcore::spec::{Spec, SpecParams};
+use spec::{Spec, SpecParams, self};
 use ethereum_types::{U256, Address};
 use parity_runtime::Executor;
 use hash_fetch::fetch::Client as FetchClient;
@@ -29,14 +27,16 @@ use miner::gas_pricer::GasPricer;
 use miner::gas_price_calibrator::{GasPriceCalibratorOptions, GasPriceCalibrator};
 use parity_version::version_data;
 use user_defaults::UserDefaults;
+use types::client_types::Mode;
 
 #[derive(Debug, PartialEq)]
 pub enum SpecType {
 	Foundation,
 	Classic,
 	Poanet,
-	Tobalaba,
-	Expanse,
+	Xdai,
+	Volta,
+	Ewc,
 	Musicoin,
 	Ellaism,
 	Mix,
@@ -66,8 +66,9 @@ impl str::FromStr for SpecType {
 			"ethereum" | "frontier" | "homestead" | "byzantium" | "foundation" | "mainnet" => SpecType::Foundation,
 			"classic" | "frontier-dogmatic" | "homestead-dogmatic" => SpecType::Classic,
 			"poanet" | "poacore" => SpecType::Poanet,
-			"tobalaba" => SpecType::Tobalaba,
-			"expanse" => SpecType::Expanse,
+			"xdai" => SpecType::Xdai,
+			"volta" => SpecType::Volta,
+			"ewc" | "energyweb" => SpecType::Ewc,
 			"musicoin" => SpecType::Musicoin,
 			"ellaism" => SpecType::Ellaism,
 			"mix" => SpecType::Mix,
@@ -92,8 +93,9 @@ impl fmt::Display for SpecType {
 			SpecType::Foundation => "foundation",
 			SpecType::Classic => "classic",
 			SpecType::Poanet => "poanet",
-			SpecType::Tobalaba => "tobalaba",
-			SpecType::Expanse => "expanse",
+			SpecType::Xdai => "xdai",
+			SpecType::Volta => "volta",
+			SpecType::Ewc => "energyweb",
 			SpecType::Musicoin => "musicoin",
 			SpecType::Ellaism => "ellaism",
 			SpecType::Mix => "mix",
@@ -115,26 +117,27 @@ impl SpecType {
 	pub fn spec<'a, T: Into<SpecParams<'a>>>(&self, params: T) -> Result<Spec, String> {
 		let params = params.into();
 		match *self {
-			SpecType::Foundation => Ok(ethereum::new_foundation(params)),
-			SpecType::Classic => Ok(ethereum::new_classic(params)),
-			SpecType::Poanet => Ok(ethereum::new_poanet(params)),
-			SpecType::Tobalaba => Ok(ethereum::new_tobalaba(params)),
-			SpecType::Expanse => Ok(ethereum::new_expanse(params)),
-			SpecType::Musicoin => Ok(ethereum::new_musicoin(params)),
-			SpecType::Ellaism => Ok(ethereum::new_ellaism(params)),
-			SpecType::Mix => Ok(ethereum::new_mix(params)),
-			SpecType::Callisto => Ok(ethereum::new_callisto(params)),
-			SpecType::Morden => Ok(ethereum::new_morden(params)),
-			SpecType::Ropsten => Ok(ethereum::new_ropsten(params)),
-			SpecType::Kovan => Ok(ethereum::new_kovan(params)),
-			SpecType::Rinkeby => Ok(ethereum::new_rinkeby(params)),
-			SpecType::Goerli => Ok(ethereum::new_goerli(params)),
-			SpecType::Kotti => Ok(ethereum::new_kotti(params)),
-			SpecType::Sokol => Ok(ethereum::new_sokol(params)),
-			SpecType::Dev => Ok(Spec::new_instant()),
+			SpecType::Foundation => Ok(spec::new_foundation(params)),
+			SpecType::Classic => Ok(spec::new_classic(params)),
+			SpecType::Poanet => Ok(spec::new_poanet(params)),
+			SpecType::Xdai => Ok(spec::new_xdai(params)),
+			SpecType::Volta => Ok(spec::new_volta(params)),
+			SpecType::Ewc => Ok(spec::new_ewc(params)),
+			SpecType::Musicoin => Ok(spec::new_musicoin(params)),
+			SpecType::Ellaism => Ok(spec::new_ellaism(params)),
+			SpecType::Mix => Ok(spec::new_mix(params)),
+			SpecType::Callisto => Ok(spec::new_callisto(params)),
+			SpecType::Morden => Ok(spec::new_morden(params)),
+			SpecType::Ropsten => Ok(spec::new_ropsten(params)),
+			SpecType::Kovan => Ok(spec::new_kovan(params)),
+			SpecType::Rinkeby => Ok(spec::new_rinkeby(params)),
+			SpecType::Goerli => Ok(spec::new_goerli(params)),
+			SpecType::Kotti => Ok(spec::new_kotti(params)),
+			SpecType::Sokol => Ok(spec::new_sokol(params)),
+			SpecType::Dev => Ok(spec::new_instant()),
 			SpecType::Custom(ref filename) => {
 				let file = fs::File::open(filename).map_err(|e| format!("Could not load specification file at {}: {}", filename, e))?;
-				Spec::load(params, file)
+				Spec::load(params, file).map_err(|e| e.to_string())
 			}
 		}
 	}
@@ -142,7 +145,6 @@ impl SpecType {
 	pub fn legacy_fork_name(&self) -> Option<String> {
 		match *self {
 			SpecType::Classic => Some("classic".to_owned()),
-			SpecType::Expanse => Some("expanse".to_owned()),
 			SpecType::Musicoin => Some("musicoin".to_owned()),
 			_ => None,
 		}
@@ -373,8 +375,10 @@ mod tests {
 		assert_eq!(SpecType::Classic, "homestead-dogmatic".parse().unwrap());
 		assert_eq!(SpecType::Poanet, "poanet".parse().unwrap());
 		assert_eq!(SpecType::Poanet, "poacore".parse().unwrap());
-		assert_eq!(SpecType::Tobalaba, "tobalaba".parse().unwrap());
-		assert_eq!(SpecType::Expanse, "expanse".parse().unwrap());
+		assert_eq!(SpecType::Xdai, "xdai".parse().unwrap());
+		assert_eq!(SpecType::Volta, "volta".parse().unwrap());
+		assert_eq!(SpecType::Ewc, "ewc".parse().unwrap());
+		assert_eq!(SpecType::Ewc, "energyweb".parse().unwrap());
 		assert_eq!(SpecType::Musicoin, "musicoin".parse().unwrap());
 		assert_eq!(SpecType::Ellaism, "ellaism".parse().unwrap());
 		assert_eq!(SpecType::Mix, "mix".parse().unwrap());
@@ -402,8 +406,9 @@ mod tests {
 		assert_eq!(format!("{}", SpecType::Foundation), "foundation");
 		assert_eq!(format!("{}", SpecType::Classic), "classic");
 		assert_eq!(format!("{}", SpecType::Poanet), "poanet");
-		assert_eq!(format!("{}", SpecType::Tobalaba), "tobalaba");
-		assert_eq!(format!("{}", SpecType::Expanse), "expanse");
+		assert_eq!(format!("{}", SpecType::Xdai), "xdai");
+		assert_eq!(format!("{}", SpecType::Volta), "volta");
+		assert_eq!(format!("{}", SpecType::Ewc), "energyweb");
 		assert_eq!(format!("{}", SpecType::Musicoin), "musicoin");
 		assert_eq!(format!("{}", SpecType::Ellaism), "ellaism");
 		assert_eq!(format!("{}", SpecType::Mix), "mix");

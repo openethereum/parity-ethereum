@@ -145,7 +145,7 @@ impl From<Option<io::Error>> for AddressResolveError {
 }
 
 impl error::Error for Error {
-	fn source(&self) -> Option<&(error::Error + 'static)> {
+	fn source(&self) -> Option<&(dyn error::Error + 'static)> {
 		match self {
 			Error::Decompression(e) => Some(e),
 			Error::Rlp(e) => Some(e),

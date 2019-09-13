@@ -15,25 +15,27 @@
 // along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
 //! rpc integration tests.
-use std::env;
-use std::sync::Arc;
+
+use std::{env, sync::Arc};
 
 use accounts::AccountProvider;
-use ethcore::client::{BlockChainClient, Client, ClientConfig, ChainInfo, ImportBlock};
-use ethcore::ethereum;
+use client_traits::{BlockChainClient, ChainInfo, ImportBlock};
+use ethcore::client::{Client, ClientConfig};
 use ethcore::miner::Miner;
-use ethcore::spec::{Genesis, Spec};
+use spec::{Genesis, Spec, self};
 use ethcore::test_helpers;
-use ethcore::verification::VerifierType;
-use ethcore::verification::queue::kind::blocks::Unverified;
+use verification::VerifierType;
 use ethereum_types::{Address, H256, U256};
-use ethjson::blockchain::BlockChain;
+use ethjson::test_helpers::blockchain::BlockChain;
 use ethjson::spec::ForkSpec;
 use io::IoChannel;
 use miner::external::ExternalMiner;
 use parity_runtime::Runtime;
 use parking_lot::Mutex;
-use types::ids::BlockId;
+use types::{
+	ids::BlockId,
+	verification::Unverified,
+};
 
 use jsonrpc_core::IoHandler;
 use v1::helpers::dispatch::{self, FullDispatcher};
@@ -64,11 +66,10 @@ fn snapshot_service() -> Arc<TestSnapshotService> {
 
 fn make_spec(chain: &BlockChain) -> Spec {
 	let genesis = Genesis::from(chain.genesis());
-	let mut spec = ethereum::new_frontier_test();
+	let mut spec = spec::new_frontier_test();
 	let state = chain.pre_state.clone().into();
 	spec.set_genesis_state(state).expect("unable to set genesis state");
 	spec.overwrite_genesis_params(genesis);
-	assert!(spec.is_state_root_valid());
 	spec
 }
 
@@ -84,7 +85,7 @@ struct EthTester {
 impl EthTester {
 	fn from_chain(chain: &BlockChain) -> Self {
 
-		let tester = if ::ethjson::blockchain::Engine::NoProof == chain.engine {
+		let tester = if ethjson::test_helpers::blockchain::Engine::NoProof == chain.engine {
 			let mut config = ClientConfig::default();
 			config.verifier_type = VerifierType::CanonNoSeal;
 			config.check_seal = false;
@@ -97,7 +98,6 @@ impl EthTester {
 			if let Ok(block) = Unverified::from_rlp(b) {
 				let _ = tester.client.import_block(block);
 				tester.client.flush_queue();
-				tester.client.import_verified_blocks();
 			}
 		}
 
@@ -116,7 +116,7 @@ impl EthTester {
 		let runtime = Runtime::with_thread_count(1);
 		let account_provider = account_provider();
 		let ap = account_provider.clone();
-		let accounts  = Arc::new(move || ap.accounts().unwrap_or_default()) as _;
+		let accounts = Arc::new(move || ap.accounts().unwrap_or_default()) as _;
 		let miner_service = miner_service(&spec);
 		let snapshot_service = snapshot_service();
 
@@ -217,8 +217,7 @@ fn eth_get_proof() {
 	}"#;
 
 	let res_latest = r#","address":"0xaaaf5374fce5edbc8e2a8697c15331677e6ebaaa","balance":"0x9","codeHash":"0xc5d2460186f7233c927e7db2dcc703c0e500b653ca82273b7bfad8045d85a470","nonce":"0x0","storageHash":"0x56e81f171bcc55a6ff8345e692c0f86e5b48e01b996cadc001622fb5e363b421","storageProof":[]},"id":1}"#.to_owned();
-    assert!(tester.handler.handle_request_sync(req_latest).unwrap().to_string().ends_with(res_latest.as_str()));
-
+	assert!(tester.handler.handle_request_sync(req_latest).unwrap().to_string().ends_with(res_latest.as_str()));
 	// non-existant account
 	let req_new_acc = r#"{
 		"jsonrpc": "2.0",
@@ -228,7 +227,7 @@ fn eth_get_proof() {
 	}"#;
 
 	let res_new_acc = r#","address":"0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa","balance":"0x0","codeHash":"0xc5d2460186f7233c927e7db2dcc703c0e500b653ca82273b7bfad8045d85a470","nonce":"0x0","storageHash":"0x56e81f171bcc55a6ff8345e692c0f86e5b48e01b996cadc001622fb5e363b421","storageProof":[]},"id":3}"#.to_owned();
-    assert!(tester.handler.handle_request_sync(req_new_acc).unwrap().to_string().ends_with(res_new_acc.as_str()));
+	assert!(tester.handler.handle_request_sync(req_new_acc).unwrap().to_string().ends_with(res_new_acc.as_str()));
 }
 
 #[test]

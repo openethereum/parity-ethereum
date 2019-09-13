@@ -32,15 +32,17 @@ use types::transaction::{
 	UnverifiedTransaction,
 	SignedTransaction,
 };
-use types::header::Header;
+use types::{
+	header::Header,
+	ids::TransactionId,
+};
 use parking_lot::RwLock;
 
 use call_contract::CallContract;
-use client::{TransactionId, Nonce};
-use client::BlockInfo;
-use engines::Engine;
+use client_traits::{BlockInfo, Nonce};
+use engine::Engine;
+use machine::transaction_ext::Transaction;
 use miner;
-use transaction_ext::Transaction;
 
 /// Cache for state nonces.
 #[derive(Debug, Clone)]
@@ -114,11 +116,13 @@ impl<'a, C: 'a> PoolClient<'a, C> where
 		}
 	}
 
-	/// Verifies if signed transaction is executable.
+	/// Verifies transaction against its block (before its import into this block)
+	/// Also Verifies if signed transaction is executable.
 	///
 	/// This should perform any verifications that rely on chain status.
-	pub fn verify_signed(&self, tx: &SignedTransaction) -> Result<(), transaction::Error> {
-		self.engine.machine().verify_transaction(&tx, &self.best_block_header, self.chain)
+	pub fn verify_for_pending_block(&self, tx: &SignedTransaction, header: &Header) -> Result<(), transaction::Error> {
+		self.engine.machine().verify_transaction_basic(tx, header)?;
+		self.engine.machine().verify_transaction(tx, &self.best_block_header, self.chain)
 	}
 }
 
@@ -139,8 +143,7 @@ impl<'a, C: 'a> pool::client::Client for PoolClient<'a, C> where
 		self.engine.verify_transaction_basic(&tx, &self.best_block_header)?;
 		let tx = tx.verify_unordered()?;
 
-		self.verify_signed(&tx)?;
-
+		self.engine.machine().verify_transaction(&tx, &self.best_block_header, self.chain)?;
 		Ok(tx)
 	}
 
@@ -218,30 +221,30 @@ impl<'a, C: 'a> CachedNonceClient<'a, C> {
 impl<'a, C: 'a> NonceClient for CachedNonceClient<'a, C> where
 	C: Nonce + Sync,
 {
-  fn account_nonce(&self, address: &Address) -> U256 {
-	  if let Some(nonce) = self.cache.nonces.read().get(address) {
-		  return *nonce;
-	  }
+	fn account_nonce(&self, address: &Address) -> U256 {
+		if let Some(nonce) = self.cache.nonces.read().get(address) {
+			return *nonce;
+		}
 
-	  // We don't check again if cache has been populated.
-	  // It's not THAT expensive to fetch the nonce from state.
-	  let mut cache = self.cache.nonces.write();
-	  let nonce = self.client.latest_nonce(address);
-	  cache.insert(*address, nonce);
+		// We don't check again if cache has been populated.
+		// It's not THAT expensive to fetch the nonce from state.
+		let mut cache = self.cache.nonces.write();
+		let nonce = self.client.latest_nonce(address);
+		cache.insert(*address, nonce);
 
-	  if cache.len() < self.cache.limit {
-		  return nonce
-	  }
+		if cache.len() < self.cache.limit {
+			return nonce
+		}
 
-	  debug!(target: "txpool", "NonceCache: reached limit.");
-	  trace_time!("nonce_cache:clear");
+		debug!(target: "txpool", "NonceCache: reached limit.");
+		trace_time!("nonce_cache:clear");
 
-	  // Remove excessive amount of entries from the cache
-	  let to_remove: Vec<_> = cache.keys().take(self.cache.limit / 2).cloned().collect();
-	  for x in to_remove {
-		cache.remove(&x);
-	  }
+		// Remove excessive amount of entries from the cache
+		let to_remove: Vec<_> = cache.keys().take(self.cache.limit / 2).cloned().collect();
+		for x in to_remove {
+			cache.remove(&x);
+		}
 
-	  nonce
-  }
+		nonce
+	}
 }

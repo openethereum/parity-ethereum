@@ -18,15 +18,15 @@
 
 use std::fmt;
 
-use ethcore::client::BlockId;
 use jsonrpc_core::{futures, Result as RpcResult, Error, ErrorCode, Value};
 use rlp::DecoderError;
 use types::transaction::Error as TransactionError;
 use ethcore_private_tx::Error as PrivateTransactionError;
 use vm::Error as VMError;
 use light::on_demand::error::{Error as OnDemandError};
-use ethcore::client::BlockChainClient;
+use client_traits::BlockChainClient;
 use types::{
+	ids::BlockId,
 	blockchain_info::BlockChainInfo,
 	errors::{EthcoreError},
 	transaction::CallError,
@@ -420,8 +420,11 @@ pub fn transaction_message(error: &TransactionError) -> String {
 	match *error {
 		AlreadyImported => "Transaction with the same hash was already imported.".into(),
 		Old => "Transaction nonce is too low. Try incrementing the nonce.".into(),
-		TooCheapToReplace => {
-			"Transaction gas price is too low. There is another transaction with same nonce in the queue. Try increasing the gas price or incrementing the nonce.".into()
+		TooCheapToReplace { prev, new } => {
+			format!("Transaction gas price {} is too low. There is another transaction with same nonce in the queue{}. Try increasing the gas price or incrementing the nonce.",
+					new.map(|gas| format!("{}wei", gas)).unwrap_or("supplied".into()),
+					prev.map(|gas| format!(" with gas price: {}wei", gas)).unwrap_or("".into())
+			)
 		}
 		LimitReached => {
 			"There are too many transactions in the queue. Your transaction was dropped due to limit. Try increasing the fee.".into()
@@ -607,5 +610,15 @@ pub fn require_experimental(allow_experimental_rpcs: bool, eip: &str) -> Result<
 			message: format!("This method is not part of the official RPC API yet (EIP-{}). Run with `--jsonrpc-experimental` to enable it.", eip),
 			data: Some(Value::String(format!("See EIP: https://eips.ethereum.org/EIPS/eip-{}", eip))),
 		})
+	}
+}
+
+/// returns an error for when require_canonical was specified and
+pub fn invalid_input() -> Error {
+	Error {
+		// UNSUPPORTED_REQUEST shares the same error code for EIP-1898
+		code: ErrorCode::ServerError(codes::UNSUPPORTED_REQUEST),
+		message: "Invalid input".into(),
+		data: None
 	}
 }

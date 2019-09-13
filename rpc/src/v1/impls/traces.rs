@@ -18,10 +18,16 @@
 
 use std::sync::Arc;
 
-use ethcore::client::{BlockChainClient, CallAnalytics, TransactionId, TraceId, StateClient, StateInfo, Call, BlockId};
+use account_state::state::StateInfo;
+use ethcore::client::Call;
+use client_traits::{BlockChainClient, StateClient};
 use ethereum_types::H256;
 use rlp::Rlp;
-use types::transaction::SignedTransaction;
+use types::{
+	call_analytics::CallAnalytics,
+	ids::{BlockId, TransactionId, TraceId},
+	transaction::SignedTransaction,
+};
 
 use jsonrpc_core::Result;
 use v1::Metadata;
@@ -95,6 +101,7 @@ impl<C, S> Traces for TracesClient<C> where
 		let signed = fake_sign::sign_call(request)?;
 
 		let id = match block {
+			BlockNumber::Hash { hash, .. } => BlockId::Hash(hash),
 			BlockNumber::Num(num) => BlockId::Number(num),
 			BlockNumber::Earliest => BlockId::Earliest,
 			BlockNumber::Latest => BlockId::Latest,
@@ -122,6 +129,7 @@ impl<C, S> Traces for TracesClient<C> where
 			.collect::<Result<Vec<_>>>()?;
 
 		let id = match block {
+			BlockNumber::Hash { hash, .. } => BlockId::Hash(hash),
 			BlockNumber::Num(num) => BlockId::Number(num),
 			BlockNumber::Earliest => BlockId::Earliest,
 			BlockNumber::Latest => BlockId::Latest,
@@ -144,6 +152,7 @@ impl<C, S> Traces for TracesClient<C> where
 		let signed = SignedTransaction::new(tx).map_err(errors::transaction)?;
 
 		let id = match block {
+			BlockNumber::Hash { hash, .. } => BlockId::Hash(hash),
 			BlockNumber::Num(num) => BlockId::Number(num),
 			BlockNumber::Earliest => BlockId::Earliest,
 			BlockNumber::Latest => BlockId::Latest,
@@ -167,6 +176,7 @@ impl<C, S> Traces for TracesClient<C> where
 
 	fn replay_block_transactions(&self, block_number: BlockNumber, flags: TraceOptions) -> Result<Vec<TraceResultsWithTransactionHash>> {
 		let id = match block_number {
+			BlockNumber::Hash { hash, .. } => BlockId::Hash(hash),
 			BlockNumber::Num(num) => BlockId::Number(num),
 			BlockNumber::Earliest => BlockId::Earliest,
 			BlockNumber::Latest => BlockId::Latest,

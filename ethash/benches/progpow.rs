@@ -3,14 +3,16 @@ extern crate criterion;
 extern crate ethash;
 extern crate rustc_hex;
 extern crate tempdir;
+extern crate common_types;
 
 use criterion::Criterion;
 use ethash::progpow;
 
 use tempdir::TempDir;
 use rustc_hex::FromHex;
-use ethash::{NodeCacheBuilder, OptimizeFor};
+use ethash::NodeCacheBuilder;
 use ethash::compute::light_compute;
+use common_types::engines::OptimizeFor;
 
 fn bench_hashimoto_light(c: &mut Criterion) {
 	let builder = NodeCacheBuilder::new(OptimizeFor::Memory, u64::max_value());

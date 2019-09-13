@@ -15,13 +15,17 @@
 // along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
 use std::sync::Arc;
-use ethcore::client::{TestBlockChainClient, Executed, TransactionId};
+use ethcore::client::TestBlockChainClient;
 use ethcore_logger::RotatingLogger;
 use ethereum_types::{Address, U256, H256, BigEndianHash, Bloom};
 use ethstore::ethkey::{Generator, Random};
+use machine::executed::Executed;
 use miner::pool::local_transactions::Status as LocalTransactionStatus;
 use sync::ManageNetwork;
-use types::receipt::{LocalizedReceipt, TransactionOutcome};
+use types::{
+	ids::TransactionId,
+	receipt::{LocalizedReceipt, TransactionOutcome},
+};
 
 use jsonrpc_core::IoHandler;
 use v1::{Parity, ParityClient};
@@ -41,7 +45,7 @@ pub struct Dependencies {
 	pub updater: Arc<TestUpdater>,
 	pub logger: Arc<RotatingLogger>,
 	pub settings: Arc<NetworkSettings>,
-	pub network: Arc<ManageNetwork>,
+	pub network: Arc<dyn ManageNetwork>,
 	pub ws_address: Option<Host>,
 }
 

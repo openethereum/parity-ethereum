@@ -16,6 +16,7 @@
 
 //! Contract for private transactions tests.
 
+extern crate client_traits;
 extern crate common_types as types;
 extern crate env_logger;
 extern crate ethcore;
@@ -24,6 +25,8 @@ extern crate ethcore_private_tx;
 extern crate ethkey;
 extern crate keccak_hash as hash;
 extern crate rustc_hex;
+extern crate machine;
+extern crate spec;
 
 #[macro_use]
 extern crate log;
@@ -33,12 +36,14 @@ use rustc_hex::{FromHex, ToHex};
 
 use types::ids::BlockId;
 use types::transaction::{Transaction, Action};
-use ethcore::CreateContractAddress;
-use ethcore::client::BlockChainClient;
-use ethcore::executive::contract_address;
-use ethcore::miner::Miner;
-use ethcore::test_helpers::{generate_dummy_client, push_block_with_transactions};
+use ethcore::{
+	CreateContractAddress,
+	test_helpers::{generate_dummy_client, push_block_with_transactions, new_db},
+	miner::Miner,
+};
+use client_traits::BlockChainClient;
 use ethkey::{Secret, KeyPair, Signature};
+use machine::executive::contract_address;
 use hash::keccak;
 
 use ethcore_private_tx::{NoopEncryptor, Provider, ProviderConfig, StoringKeyProvider};
@@ -60,11 +65,13 @@ fn private_contract() {
 		validator_accounts: vec![key3.address(), key4.address()],
 		signer_account: None,
 		logs_path: None,
+		use_offchain_storage: false,
 	};
 
 	let io = ethcore_io::IoChannel::disconnected();
-	let miner = Arc::new(Miner::new_for_tests(&::ethcore::spec::Spec::new_test(), None));
+	let miner = Arc::new(Miner::new_for_tests(&spec::new_test(), None));
 	let private_keys = Arc::new(StoringKeyProvider::default());
+	let db = new_db();
 	let pm = Arc::new(Provider::new(
 			client.clone(),
 			miner,
@@ -73,6 +80,7 @@ fn private_contract() {
 			config,
 			io,
 			private_keys,
+			db.key_value().clone(),
 	));
 
 	let (address, _) = contract_address(CreateContractAddress::FromSenderAndNonce, &key1.address(), &0.into(), &[]);
@@ -195,11 +203,13 @@ fn call_other_private_contract() {
 		validator_accounts: vec![key3.address(), key4.address()],
 		signer_account: None,
 		logs_path: None,
+		use_offchain_storage: false,
 	};
 
 	let io = ethcore_io::IoChannel::disconnected();
-	let miner = Arc::new(Miner::new_for_tests(&::ethcore::spec::Spec::new_test(), None));
+	let miner = Arc::new(Miner::new_for_tests(&spec::new_test(), None));
 	let private_keys = Arc::new(StoringKeyProvider::default());
+	let db = new_db();
 	let pm = Arc::new(Provider::new(
 			client.clone(),
 			miner,
@@ -208,6 +218,7 @@ fn call_other_private_contract() {
 			config,
 			io,
 			private_keys.clone(),
+			db.key_value().clone(),
 	));
 
 	// Deploy contract A

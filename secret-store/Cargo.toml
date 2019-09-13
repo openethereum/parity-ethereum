@@ -7,6 +7,7 @@ authors = ["Parity Technologies <admin@parity.io>"]
 
 [dependencies]
 byteorder = "1.0"
+client-traits = { path = "../ethcore/client-traits" }
 common-types = { path = "../ethcore/types" }
 ethabi = "8.0"
 ethabi-contract = "8.0"

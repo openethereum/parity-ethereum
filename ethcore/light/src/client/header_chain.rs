@@ -33,12 +33,15 @@ use cht;
 use common_types::{
 	block_status::BlockStatus,
 	encoded,
+	engines::epoch::{
+		Transition as EpochTransition,
+		PendingTransition as PendingEpochTransition,
+	},
 	errors::{EthcoreError as Error, BlockError, EthcoreResult},
 	header::Header,
 	ids::BlockId,
 };
-use ethcore::engines::epoch::{Transition as EpochTransition, PendingTransition as PendingEpochTransition};
-use ethcore::spec::{Spec, SpecHardcodedSync};
+use spec::{Spec, SpecHardcodedSync};
 use ethereum_types::{H256, H264, U256};
 use parity_util_mem::{MallocSizeOf, MallocSizeOfOps};
 use kvdb::{DBTransaction, KeyValueDB};
@@ -547,7 +550,7 @@ impl HeaderChain {
 						let canon = &era_entry.candidates[0];
 						(canon.hash, canon.total_difficulty)
 					};
-					cht::compute_root(cht_num, ::itertools::repeat_call(iter))
+					cht::compute_root(cht_num, std::iter::repeat_with(iter))
 						.expect("fails only when too few items; this is checked; qed")
 				};
 
@@ -874,7 +877,7 @@ mod tests {
 	use cache::Cache;
 	use common_types::header::Header;
 	use common_types::ids::BlockId;
-	use ethcore::spec::Spec;
+	use spec;
 	use ethereum_types::U256;
 	use kvdb::KeyValueDB;
 	use kvdb_memorydb;
@@ -888,7 +891,7 @@ mod tests {
 
 	#[test]
 	fn basic_chain() {
-		let spec = Spec::new_test();
+		let spec = spec::new_test();
 		let genesis_header = spec.genesis_header();
 		let db = make_db();
 
@@ -922,7 +925,7 @@ mod tests {
 
 	#[test]
 	fn reorganize() {
-		let spec = Spec::new_test();
+		let spec = spec::new_test();
 		let genesis_header = spec.genesis_header();
 		let db = make_db();
 		let cache = Arc::new(Mutex::new(Cache::new(Default::default(), Duration::from_secs(6 * 3600))));
@@ -1005,7 +1008,7 @@ mod tests {
 
 	#[test]
 	fn earliest_is_latest() {
-		let spec = Spec::new_test();
+		let spec = spec::new_test();
 		let db = make_db();
 		let cache = Arc::new(Mutex::new(Cache::new(Default::default(), Duration::from_secs(6 * 3600))));
 
@@ -1017,7 +1020,7 @@ mod tests {
 
 	#[test]
 	fn restore_from_db() {
-		let spec = Spec::new_test();
+		let spec = spec::new_test();
 		let genesis_header = spec.genesis_header();
 		let db = make_db();
 		let cache = Arc::new(Mutex::new(Cache::new(Default::default(), Duration::from_secs(6 * 3600))));
@@ -1055,7 +1058,7 @@ mod tests {
 
 	#[test]
 	fn restore_higher_non_canonical() {
-		let spec = Spec::new_test();
+		let spec = spec::new_test();
 		let genesis_header = spec.genesis_header();
 		let db = make_db();
 		let cache = Arc::new(Mutex::new(Cache::new(Default::default(), Duration::from_secs(6 * 3600))));
@@ -1112,7 +1115,7 @@ mod tests {
 
 	#[test]
 	fn genesis_header_available() {
-		let spec = Spec::new_test();
+		let spec = spec::new_test();
 		let genesis_header = spec.genesis_header();
 		let db = make_db();
 		let cache = Arc::new(Mutex::new(Cache::new(Default::default(), Duration::from_secs(6 * 3600))));
@@ -1127,7 +1130,7 @@ mod tests {
 
 	#[test]
 	fn epoch_transitions_available_after_cht() {
-		let spec = Spec::new_test();
+		let spec = spec::new_test();
 		let genesis_header = spec.genesis_header();
 		let db = make_db();
 		let cache = Arc::new(Mutex::new(Cache::new(Default::default(), Duration::from_secs(6 * 3600))));
@@ -1193,7 +1196,7 @@ mod tests {
 
 	#[test]
 	fn hardcoded_sync_gen() {
-		let spec = Spec::new_test();
+		let spec = spec::new_test();
 		let genesis_header = spec.genesis_header();
 		let db = make_db();
 

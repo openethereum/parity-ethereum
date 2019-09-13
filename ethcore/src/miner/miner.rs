@@ -33,33 +33,34 @@ use futures::sync::mpsc;
 use io::IoChannel;
 use miner::filter_options::{FilterOptions, FilterOperator};
 use miner::pool_client::{PoolClient, CachedNonceClient, NonceCache};
-use miner;
+use miner::{self, MinerService};
 use parking_lot::{Mutex, RwLock};
 use rayon::prelude::*;
-use types::transaction::{
-	self,
-	Action,
-	UnverifiedTransaction,
-	SignedTransaction,
-	PendingTransaction,
-};
 use types::{
 	BlockNumber,
+	ids::TransactionId,
 	block::Block,
 	header::Header,
-	engines::{SealingState},
+	ids::BlockId,
+	io_message::ClientIoMessage,
+	engines::{Seal, SealingState},
 	errors::{EthcoreError as Error, ExecutionError},
 	receipt::RichReceipt,
+	transaction::{
+		self,
+		Action,
+		UnverifiedTransaction,
+		SignedTransaction,
+		PendingTransaction,
+	},
 };
 use using_queue::{UsingQueue, GetAction};
 
 use block::{ClosedBlock, SealedBlock};
-use client::{
-	BlockChain, ChainInfo, BlockProducer, SealedBlockImporter, Nonce, TransactionInfo, TransactionId, ClientIoMessage,
-};
-use client::BlockId;
-use engines::{Engine, Seal, EngineSigner};
-use executive::contract_address;
+use client::{BlockProducer, SealedBlockImporter, Client};
+use client_traits::{BlockChain, ChainInfo, EngineClient, Nonce, TransactionInfo};
+use engine::{Engine, signer::EngineSigner};
+use machine::executive::contract_address;
 use spec::Spec;
 use account_state::State;
 use vm::CreateContractAddress;
@@ -255,7 +256,7 @@ pub struct Miner {
 	transaction_queue: Arc<TransactionQueue>,
 	engine: Arc<dyn Engine>,
 	accounts: Arc<dyn LocalAccounts>,
-	io_channel: RwLock<Option<IoChannel<ClientIoMessage>>>,
+	io_channel: RwLock<Option<IoChannel<ClientIoMessage<Client>>>>,
 	service_transaction_checker: Option<ServiceTransactionChecker>,
 }
 
@@ -339,7 +340,7 @@ impl Miner {
 	}
 
 	/// Sets `IoChannel`
-	pub fn set_io_channel(&self, io_channel: IoChannel<ClientIoMessage>) {
+	pub fn set_io_channel(&self, io_channel: IoChannel<ClientIoMessage<Client>>) {
 		*self.io_channel.write() = Some(io_channel);
 	}
 
@@ -512,7 +513,7 @@ impl Miner {
 			let sender = transaction.sender();
 
 			// Re-verify transaction again vs current state.
-			let result = client.verify_signed(&transaction)
+			let result = client.verify_for_pending_block(&transaction, &open_block.header)
 				.map_err(|e| e.into())
 				.and_then(|_| {
 					open_block.push_transaction(transaction, None)
@@ -858,11 +859,14 @@ impl Miner {
 			false
 		}
 	}
+
 	/// Prepare pending block, check whether sealing is needed, and then update sealing.
 	fn prepare_and_update_sealing<C: miner::BlockChainClient>(&self, chain: &C) {
-		use miner::MinerService;
 		match self.engine.sealing_state() {
-			SealingState::Ready => self.update_sealing(chain),
+			SealingState::Ready => {
+				self.maybe_enable_sealing();
+				self.update_sealing(chain)
+			}
 			SealingState::External => {
 				// this calls `maybe_enable_sealing()`
 				if self.prepare_pending_block(chain) == BlockPreparationStatus::NotPrepared {
@@ -1107,7 +1111,7 @@ impl miner::MinerService for Miner {
 						Eq(value) => tx_value == value,
 						GreaterThan(value) => tx_value > value,
 						LessThan(value) => tx_value < value,
-						// Will always occure on `Any`, other operators
+						// Will always occur on `Any`, other operators
 						// get handled during deserialization
 						_ => true,
 					}
@@ -1123,7 +1127,7 @@ impl miner::MinerService for Miner {
 							let sender = tx.signed().sender();
 							match filter.from {
 								Eq(value) => sender == value,
-								// Will always occure on `Any`, other operators
+								// Will always occur on `Any`, other operators
 								// get handled during deserialization
 								_ => true,
 							}
@@ -1136,7 +1140,7 @@ impl miner::MinerService for Miner {
 							match filter.to {
 								// Could apply to `Some(Address)` or `None` (for contract creation)
 								Eq(value) => receiver == value,
-								// Will always occure on `Any`, other operators
+								// Will always occur on `Any`, other operators
 								// get handled during deserialization
 								_ => true,
 							}
@@ -1416,7 +1420,7 @@ impl miner::MinerService for Miner {
 				let accounts = self.accounts.clone();
 				let service_transaction_checker = self.service_transaction_checker.clone();
 
-				let cull = move |chain: &::client::Client| {
+				let cull = move |chain: &Client| {
 					let client = PoolClient::new(
 						chain,
 						&nonce_cache,
@@ -1425,15 +1429,22 @@ impl miner::MinerService for Miner {
 						service_transaction_checker.as_ref(),
 					);
 					queue.cull(client);
+					if is_internal_import {
+						chain.update_sealing();
+					}
 				};
 
-				if let Err(e) = channel.send(ClientIoMessage::execute(cull)) {
+				if let Err(e) = channel.send(ClientIoMessage::<Client>::execute(cull)) {
 					warn!(target: "miner", "Error queueing cull: {:?}", e);
 				}
 			} else {
 				self.transaction_queue.cull(client);
+				if is_internal_import {
+					self.update_sealing(chain);
+				}
 			}
 		}
+
 		if let Some(ref service_transaction_checker) = self.service_transaction_checker {
 			match service_transaction_checker.refresh_cache(chain) {
 				Ok(true) => {
@@ -1479,18 +1490,22 @@ mod tests {
 	use ethkey::{Generator, Random};
 	use hash::keccak;
 	use rustc_hex::FromHex;
-	use types::BlockNumber;
 
-	use client::{TestBlockChainClient, EachBlockWith, ChainInfo, ImportSealedBlock};
+	use client::{TestBlockChainClient, EachBlockWith, ImportSealedBlock};
+	use client_traits::ChainInfo;
 	use miner::{MinerService, PendingOrdering};
 	use test_helpers::{generate_dummy_client, generate_dummy_client_with_spec};
-	use types::transaction::{Transaction};
+	use types::{
+		BlockNumber,
+		transaction::Transaction
+	};
+	use spec;
 
 	#[test]
 	fn should_prepare_block_to_seal() {
 		// given
 		let client = TestBlockChainClient::default();
-		let miner = Miner::new_for_tests(&Spec::new_test(), None);
+		let miner = Miner::new_for_tests(&spec::new_test(), None);
 
 		// when
 		let sealing_work = miner.work_package(&client);
@@ -1501,7 +1516,7 @@ mod tests {
 	fn should_still_work_after_a_couple_of_blocks() {
 		// given
 		let client = TestBlockChainClient::default();
-		let miner = Miner::new_for_tests(&Spec::new_test(), None);
+		let miner = Miner::new_for_tests(&spec::new_test(), None);
 
 		let res = miner.work_package(&client);
 		let hash = res.unwrap().0;
@@ -1545,7 +1560,7 @@ mod tests {
 				},
 			},
 			GasPricer::new_fixed(0u64.into()),
-			&Spec::new_test(),
+			&spec::new_test(),
 			::std::collections::HashSet::new(), // local accounts
 		)
 	}
@@ -1668,7 +1683,7 @@ mod tests {
 				..miner().options
 			},
 			GasPricer::new_fixed(0u64.into()),
-			&Spec::new_test(),
+			&spec::new_test(),
 			local_accounts,
 		);
 		let transaction = transaction();
@@ -1711,7 +1726,7 @@ mod tests {
 				..miner().options
 			},
 			GasPricer::new_fixed(0u64.into()),
-			&Spec::new_test(),
+			&spec::new_test(),
 			HashSet::from_iter(vec![transaction.sender()].into_iter()),
 		);
 		let best_block = 0;
@@ -1743,7 +1758,7 @@ mod tests {
 	#[test]
 	fn internal_seals_without_work() {
 		let _ = env_logger::try_init();
-		let spec = Spec::new_instant();
+		let spec = spec::new_instant();
 		let miner = Miner::new_for_tests(&spec, None);
 
 		let client = generate_dummy_client(2);
@@ -1772,7 +1787,7 @@ mod tests {
 
 	#[test]
 	fn should_not_fail_setting_engine_signer_without_account_provider() {
-		let spec = Spec::new_test_round;
+		let spec = spec::new_test_round;
 		let tap = Arc::new(AccountProvider::transient_provider());
 		let addr = tap.insert_account(keccak("1").into(), &"".into()).unwrap();
 		let client = generate_dummy_client_with_spec(spec);
@@ -1788,7 +1803,7 @@ mod tests {
 
 	#[test]
 	fn should_mine_if_internal_sealing_is_enabled() {
-		let spec = Spec::new_instant();
+		let spec = spec::new_instant();
 		let miner = Miner::new_for_tests(&spec, None);
 
 		let client = generate_dummy_client(2);
@@ -1799,7 +1814,7 @@ mod tests {
 
 	#[test]
 	fn should_not_mine_if_internal_sealing_is_disabled() {
-		let spec = Spec::new_test_round();
+		let spec = spec::new_test_round();
 		let miner = Miner::new_for_tests(&spec, None);
 
 		let client = generate_dummy_client(2);
@@ -1810,7 +1825,7 @@ mod tests {
 
 	#[test]
 	fn should_not_mine_if_no_fetch_work_request() {
-		let spec = Spec::new_test();
+		let spec = spec::new_test();
 		let miner = Miner::new_for_tests(&spec, None);
 
 		let client = generate_dummy_client(2);
@@ -1828,7 +1843,7 @@ mod tests {
 			fn notify(&self, _pow_hash: H256, _difficulty: U256, _number: u64) { }
 		}
 
-		let spec = Spec::new_test();
+		let spec = spec::new_test();
 		let miner = Miner::new_for_tests(&spec, None);
 		miner.add_work_listener(Box::new(DummyNotifyWork));
 
@@ -1841,7 +1856,7 @@ mod tests {
 	#[test]
 	fn should_set_new_minimum_gas_price() {
 		// Creates a new GasPricer::Fixed behind the scenes
-		let miner = Miner::new_for_tests(&Spec::new_test(), None);
+		let miner = Miner::new_for_tests(&spec::new_test(), None);
 
 		let expected_minimum_gas_price: U256 = 0x1337.into();
 		miner.set_minimal_gas_price(expected_minimum_gas_price).unwrap();
@@ -1879,7 +1894,7 @@ mod tests {
 	#[cfg(feature = "price-info")]
 	fn should_fail_to_set_new_minimum_gas_price() {
 		// We get a fixed gas pricer by default, need to change that
-		let miner = Miner::new_for_tests(&Spec::new_test(), None);
+		let miner = Miner::new_for_tests(&spec::new_test(), None);
 		let calibrated_gas_pricer = dynamic_gas_pricer();
 		*miner.gas_pricer.lock() = calibrated_gas_pricer;
 

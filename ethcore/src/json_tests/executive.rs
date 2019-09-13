@@ -18,25 +18,28 @@ use std::path::Path;
 use std::sync::Arc;
 use super::test_common::*;
 use account_state::{Backend as StateBackend, State};
-use substate::Substate;
-use executive::*;
 use evm::{VMType, Finalize};
 use vm::{
 	self, ActionParams, CallType, Schedule, Ext,
 	ContractCreateResult, EnvInfo, MessageCallResult,
 	CreateContractAddress, ReturnData,
 };
-use externalities::*;
+use machine::{
+	Machine,
+	externalities::{OutputPolicy, OriginInfo, Externalities},
+	substate::Substate,
+	executive::contract_address,
+};
+
 use test_helpers::get_temp_state;
 use ethjson;
-use trace::{Tracer, NoopTracer};
-use trace::{VMTracer, NoopVMTracer};
+use trace::{Tracer, NoopTracer, VMTracer, NoopVMTracer};
 use bytes::Bytes;
 use ethtrie;
 use rlp::RlpStream;
 use hash::keccak;
-use machine::Machine;
 use ethereum_types::BigEndianHash;
+use spec;
 
 use super::HookType;
 
@@ -213,6 +216,8 @@ impl<'a, T: 'a, V: 'a, B: 'a> Ext for TestExt<'a, T, V, B>
 		self.ext.env_info()
 	}
 
+	fn chain_id(&self) -> u64 { 0 }
+
 	fn depth(&self) -> usize {
 		0
 	}
@@ -238,8 +243,12 @@ fn do_json_test<H: FnMut(&str, HookType)>(json_data: &[u8], h: &mut H) -> Vec<St
 		.collect()
 }
 
-fn do_json_test_for<H: FnMut(&str, HookType)>(vm_type: &VMType, json_data: &[u8], start_stop_hook: &mut H) -> Vec<String> {
-	let tests = ethjson::vm::Test::load(json_data).unwrap();
+fn do_json_test_for<H: FnMut(&str, HookType)>(
+	vm_type: &VMType,
+	json_data: &[u8],
+	start_stop_hook: &mut H
+) -> Vec<String> {
+	let tests = ethjson::test_helpers::vm::Test::load(json_data).unwrap();
 	let mut failed = Vec::new();
 
 	for (name, vm) in tests.into_iter() {
@@ -271,7 +280,7 @@ fn do_json_test_for<H: FnMut(&str, HookType)>(vm_type: &VMType, json_data: &[u8]
 		state.populate_from(From::from(vm.pre_state.clone()));
 		let info: EnvInfo = From::from(vm.env);
 		let machine = {
-			let mut machine = ::ethereum::new_frontier_test_machine();
+			let mut machine = spec::new_frontier_test_machine();
 			machine.set_schedule_creation_rules(Box::new(move |s, _| s.max_depth = 1));
 			machine
 		};
@@ -300,7 +309,7 @@ fn do_json_test_for<H: FnMut(&str, HookType)>(vm_type: &VMType, json_data: &[u8]
 				&mut tracer,
 				&mut vm_tracer,
 			));
-			let mut evm = vm_factory.create(params, &schedule, 0).expect("Current tests are all of version 0; factory always return Some; qed");
+			let evm = vm_factory.create(params, &schedule, 0).expect("Current tests are all of version 0; factory always return Some; qed");
 			let res = evm.exec(&mut ex).ok().expect("TestExt never trap; resume error never happens; qed");
 			// a return in finalize will not alter callcreates
 			let callcreates = ex.callcreates.clone();
@@ -331,15 +340,15 @@ fn do_json_test_for<H: FnMut(&str, HookType)>(vm_type: &VMType, json_data: &[u8]
 
 				for (address, account) in vm.post_state.unwrap().into_iter() {
 					let address = address.into();
-					let code: Vec<u8> = account.code.into();
+					let code: Vec<u8> = account.code.expect("code is missing from json; test should have code").into();
 					let found_code = try_fail!(state.code(&address));
 					let found_balance = try_fail!(state.balance(&address));
 					let found_nonce = try_fail!(state.nonce(&address));
 
 					fail_unless(found_code.as_ref().map_or_else(|| code.is_empty(), |c| &**c == &code), "code is incorrect");
-					fail_unless(found_balance == account.balance.into(), "balance is incorrect");
-					fail_unless(found_nonce == account.nonce.into(), "nonce is incorrect");
-					for (k, v) in account.storage {
+					fail_unless(account.balance.as_ref().map_or(false, |b| b.0 == found_balance), "balance is incorrect");
+					fail_unless(account.nonce.as_ref().map_or(false, |n| n.0 == found_nonce), "nonce is incorrect");
+					for (k, v) in account.storage.expect("test should have storage") {
 						let key: U256 = k.into();
 						let value: U256 = v.into();
 						let found_storage = try_fail!(state.storage_at(&address, &BigEndianHash::from_uint(&key)));

@@ -33,20 +33,25 @@ use kvdb_rocksdb::{self, Database, DatabaseConfig};
 use parking_lot::RwLock;
 use rlp::{self, RlpStream};
 use tempdir::TempDir;
-use types::transaction::{Action, Transaction, SignedTransaction};
-use types::encoded;
-use types::header::Header;
-use types::view;
-use types::views::BlockView;
+use types::{
+	chain_notify::ChainMessageType,
+	transaction::{Action, Transaction, SignedTransaction},
+	encoded,
+	engines::ForkChoice,
+	header::Header,
+	view,
+	views::BlockView,
+	verification::Unverified,
+};
 
 use block::{OpenBlock, Drain};
-use client::{Client, ClientConfig, ChainInfo, ImportBlock, ChainNotify, ChainMessageType, PrepareOpenBlock};
+use client::{Client, ClientConfig, PrepareOpenBlock};
+use client_traits::{ChainInfo, ChainNotify, ImportBlock};
 use trie_vm_factories::Factories;
 use miner::Miner;
-use spec::Spec;
+use spec::{Spec, self};
 use account_state::*;
 use state_db::StateDB;
-use verification::queue::kind::blocks::Unverified;
 
 /// Creates test block with corresponding header
 pub fn create_test_block(header: &Header) -> Bytes {
@@ -100,16 +105,16 @@ pub fn create_test_block_with_data(header: &Header, transactions: &[SignedTransa
 
 /// Generates dummy client (not test client) with corresponding amount of blocks
 pub fn generate_dummy_client(block_number: u32) -> Arc<Client> {
-	generate_dummy_client_with_spec_and_data(Spec::new_test, block_number, 0, &[])
+	generate_dummy_client_with_spec_and_data(spec::new_test, block_number, 0, &[])
 }
 
 /// Generates dummy client (not test client) with corresponding amount of blocks and txs per every block
 pub fn generate_dummy_client_with_data(block_number: u32, txs_per_block: usize, tx_gas_prices: &[U256]) -> Arc<Client> {
-	generate_dummy_client_with_spec_and_data(Spec::new_null, block_number, txs_per_block, tx_gas_prices)
+	generate_dummy_client_with_spec_and_data(spec::new_null, block_number, txs_per_block, tx_gas_prices)
 }
 
 /// Generates dummy client (not test client) with corresponding spec and accounts
-pub fn generate_dummy_client_with_spec<F>(test_spec: F) -> Arc<Client> where F: Fn()->Spec {
+pub fn generate_dummy_client_with_spec<F>(test_spec: F) -> Arc<Client> where F: Fn() -> Spec {
 	generate_dummy_client_with_spec_and_data(test_spec, 0, 0, &[])
 }
 
@@ -182,13 +187,12 @@ pub fn generate_dummy_client_with_spec_and_data<F>(test_spec: F, block_number: u
 		db = b.drain().state.drop().1;
 	}
 	client.flush_queue();
-	client.import_verified_blocks();
 	client
 }
 
 /// Adds blocks to the client
 pub fn push_blocks_to_client(client: &Arc<Client>, timestamp_salt: u64, starting_number: usize, block_number: usize) {
-	let test_spec = Spec::new_test();
+	let test_spec = spec::new_test();
 	let state_root = test_spec.genesis_header().state_root().clone();
 	let genesis_gas = test_spec.genesis_header().gas_limit().clone();
 
@@ -218,7 +222,7 @@ pub fn push_blocks_to_client(client: &Arc<Client>, timestamp_salt: u64, starting
 
 /// Adds one block with transactions
 pub fn push_block_with_transactions(client: &Arc<Client>, transactions: &[SignedTransaction]) {
-	let test_spec = Spec::new_test();
+	let test_spec = spec::new_test();
 	let test_engine = &*test_spec.engine;
 	let block_number = client.chain_info().best_block_number as u64 + 1;
 
@@ -235,12 +239,11 @@ pub fn push_block_with_transactions(client: &Arc<Client>, transactions: &[Signed
 	}
 
 	client.flush_queue();
-	client.import_verified_blocks();
 }
 
 /// Creates dummy client (not test client) with corresponding blocks
 pub fn get_test_client_with_blocks(blocks: Vec<Bytes>) -> Arc<Client> {
-	let test_spec = Spec::new_test();
+	let test_spec = spec::new_test();
 	let client_db = new_db();
 
 	let client = Client::new(
@@ -257,7 +260,6 @@ pub fn get_test_client_with_blocks(blocks: Vec<Bytes>) -> Arc<Client> {
 		}
 	}
 	client.flush_queue();
-	client.import_verified_blocks();
 	client
 }
 
@@ -375,7 +377,7 @@ pub fn generate_dummy_blockchain(block_number: u32) -> BlockChain {
 	for block_order in 1..block_number {
 		// Total difficulty is always 0 here.
 		bc.insert_block(&mut batch, encoded::Block::new(create_unverifiable_block(block_order, bc.best_block_hash())), vec![], ExtrasInsert {
-			fork_choice: ::engines::ForkChoice::New,
+			fork_choice: ForkChoice::New,
 			is_finalized: false,
 		});
 		bc.commit();
@@ -393,7 +395,7 @@ pub fn generate_dummy_blockchain_with_extra(block_number: u32) -> BlockChain {
 	for block_order in 1..block_number {
 		// Total difficulty is always 0 here.
 		bc.insert_block(&mut batch, encoded::Block::new(create_unverifiable_block_with_extra(block_order, bc.best_block_hash(), None)), vec![], ExtrasInsert {
-			fork_choice: ::engines::ForkChoice::New,
+			fork_choice: ForkChoice::New,
 			is_finalized: false,
 		});
 		bc.commit();
@@ -432,13 +434,13 @@ pub fn get_temp_state_db() -> StateDB {
 
 /// Returns sequence of hashes of the dummy blocks
 pub fn get_good_dummy_block_seq(count: usize) -> Vec<Bytes> {
-	let test_spec = Spec::new_test();
+	let test_spec = spec::new_test();
 	get_good_dummy_block_fork_seq(1, count, &test_spec.genesis_header().hash())
 }
 
 /// Returns sequence of hashes of the dummy blocks beginning from corresponding parent
 pub fn get_good_dummy_block_fork_seq(start_number: usize, count: usize, parent_hash: &H256) -> Vec<Bytes> {
-	let test_spec = Spec::new_test();
+	let test_spec = spec::new_test();
 	let genesis_gas = test_spec.genesis_header().gas_limit().clone();
 	let mut rolling_timestamp = start_number as u64 * 10;
 	let mut parent = *parent_hash;
@@ -463,7 +465,7 @@ pub fn get_good_dummy_block_fork_seq(start_number: usize, count: usize, parent_h
 /// Returns hash and header of the correct dummy block
 pub fn get_good_dummy_block_hash() -> (H256, Bytes) {
 	let mut block_header = Header::new();
-	let test_spec = Spec::new_test();
+	let test_spec = spec::new_test();
 	let genesis_gas = test_spec.genesis_header().gas_limit().clone();
 	block_header.set_gas_limit(genesis_gas);
 	block_header.set_difficulty(U256::from(0x20000));
@@ -484,7 +486,7 @@ pub fn get_good_dummy_block() -> Bytes {
 /// Returns hash of the dummy block with incorrect state root
 pub fn get_bad_state_dummy_block() -> Bytes {
 	let mut block_header = Header::new();
-	let test_spec = Spec::new_test();
+	let test_spec = spec::new_test();
 	let genesis_gas = test_spec.genesis_header().gas_limit().clone();
 
 	block_header.set_gas_limit(genesis_gas);
@@ -510,6 +512,7 @@ impl ChainNotify for TestNotify {
 			ChainMessageType::Consensus(data) => data,
 			ChainMessageType::SignedPrivateTransaction(_, data) => data,
 			ChainMessageType::PrivateTransaction(_, data) => data,
+			ChainMessageType::PrivateStateRequest(_) => Vec::new(),
 		};
 		self.messages.write().push(data);
 	}
