@@ -19,7 +19,7 @@ error-chain = { version = "0.12", default-features = false }
 ethabi = "6.0"
 ethabi-contract = "6.0"
 ethabi-derive = "6.0"
-ethash = { path = "../ethash" }
+ethash = { path = "../ethash", optional = true}
 ethcore-blockchain = { path = "./blockchain" }
 ethcore-bloom-journal = { path = "../util/bloom" }
 ethcore-call-contract = { path = "./call-contract" }
@@ -91,7 +91,11 @@ parity = ["work-notify", "price-info", "stratum"]
 # but might be omitted for other dependent crates.
 work-notify = ["ethcore-miner/work-notify"]
 price-info = ["ethcore-miner/price-info"]
-stratum = ["ethcore-stratum"]
+stratum = [
+	"ethash",
+	"ethcore-stratum"
+]
+
 
 # Disables seal verification for mined blocks.
 # This allows you to submit any seal via RPC to test and benchmark
