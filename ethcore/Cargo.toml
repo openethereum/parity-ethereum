@@ -97,7 +97,11 @@ parity = ["work-notify", "price-info", "stratum", "macros"]
 # but might be omitted for other dependent crates.
 work-notify = ["ethcore-miner/work-notify"]
 price-info = ["ethcore-miner/price-info"]
-stratum = ["ethcore-stratum"]
+stratum = [
+	"ethash",
+	"ethcore-stratum"
+]
+
 
 # Disables seal verification for mined blocks.
 # This allows you to submit any seal via RPC to test and benchmark
@@ -122,7 +126,6 @@ test-heavy = []
 # note[dvdplm]: "basic-authority/test-helpers" is needed so that `generate_dummy_client_with_spec` works
 test-helpers = [
     "blooms-db",
-    "ethash",
     "ethjson",
     "ethkey",
     "kvdb-memorydb",

@@ -39,7 +39,7 @@ client-traits = { path = "../ethcore/client-traits" }
 common-types = { path = "../ethcore/types" }
 engine = { path = "../ethcore/engine" }
 ethash = { path = "../ethash" }
-ethcore = { path = "../ethcore", features = ["test-helpers"] }
+ethcore = { path = "../ethcore" }
 ethcore-accounts = { path = "../accounts", optional = true }
 ethcore-light = { path = "../ethcore/light" }
 ethcore-logger = { path = "../parity/logger" }
