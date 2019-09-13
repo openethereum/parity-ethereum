@@ -1,4 +1,51 @@
 {
-	"block": [],
-	"state": []
+	"block": [
+		{
+			"reference": "TODO: Add an issue for these",
+			"failing": "stRevertTest",
+			"subtests": [
+				"RevertPrecompiledTouch_d0g0v0_Byzantium",
+				"RevertPrecompiledTouch_d0g0v0_Constantinople",
+				"RevertPrecompiledTouch_d0g0v0_EIP158",
+				"RevertPrecompiledTouchCC_d0g0v0_Byzantium",
+				"RevertPrecompiledTouchCC_d0g0v0_Constantinople",
+				"RevertPrecompiledTouchCC_d0g0v0_EIP158",
+				"RevertPrecompiledTouchDC_d0g0v0_Byzantium",
+				"RevertPrecompiledTouchDC_d0g0v0_Constantinople",
+				"RevertPrecompiledTouchDC_d0g0v0_EIP158"
+				]
+		}
+	],
+	"state": [
+		{
+			"reference": "TODO: Add an issue for these",
+			"failing": "stRevertTest",
+			"subtests": {
+				"RevertPrecompiledTouch_d0g0v0": {
+					"subnumbers": ["*"],
+					"chain": "Constantinople (test)"
+				}
+			}
+		},
+		{
+			"reference": "TODO: Add an issue for these",
+			"failing": "stRevertTest",
+			"subtests": {
+				"RevertPrecompiledTouchCC_d0g0v0": {
+					"subnumbers": ["*"],
+					"chain": "Constantinople (test)"
+				}
+			}
+		},
+		{
+			"reference": "TODO: Add an issue for these",
+			"failing": "stRevertTest",
+			"subtests": {
+				"RevertPrecompiledTouchDC_d0g0v0": {
+					"subnumbers": ["*"],
+					"chain": "Constantinople (test)"
+				}
+			}
+		}
+	]
 }

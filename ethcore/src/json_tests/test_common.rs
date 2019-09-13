@@ -38,7 +38,7 @@ pub fn run_test_path<H: FnMut(&str, HookType)>(
 	let mut errors = Vec::new();
 	run_test_path_inner(p, skip, runner, start_stop_hook, &mut errors);
 	let empty: [String; 0] = [];
-	assert_eq!(errors, empty);
+	assert_eq!(errors, empty, "\nThere were {} tests in '{}' that failed.\nSkip list: {:?}\n", errors.len(), p.display(), skip);
 }
 
 fn run_test_path_inner<H: FnMut(&str, HookType)>(
