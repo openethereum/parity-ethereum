@@ -16,19 +16,19 @@
 
 //! State tests to skip.
 
-use ethjson;
+use ethjson::test_helpers::skip::SkipStates;
 
 #[cfg(feature="ci-skip-tests")]
-lazy_static!{
-	pub static ref SKIP_TEST_STATE: ethjson::test::SkipStates = {
+lazy_static! {
+	pub static ref SKIP_TEST_STATE: SkipStates = {
 		let skip_data = include_bytes!("../../res/ethereum/tests-issues/currents.json");
-		ethjson::test::SkipStates::load(&skip_data[..]).expect("No invalid json allowed")
+		SkipStates::load(&skip_data[..]).expect("No invalid json allowed")
 	};
 }
 
 #[cfg(not(feature="ci-skip-tests"))]
 lazy_static!{
-	pub static ref SKIP_TEST_STATE: ethjson::test::SkipStates = {
-		ethjson::test::SkipStates::empty()
+	pub static ref SKIP_TEST_STATE: SkipStates = {
+		SkipStates::empty()
 	};
 }

@@ -52,3 +52,9 @@ lazy_static = { version = "1.3" }
 spec = { path = "../spec" }
 tempdir = "0.3"
 trie-standardmap = "0.15.0"
+# Note[dvdplm]: Ensure the snapshot tests are included in the dependency tree, which in turn means that
+# `cargo test --all` runs the tests.
+snapshot-tests = { path = "./snapshot-tests" }
+
+[features]
+test-helpers = []

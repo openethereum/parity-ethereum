@@ -49,7 +49,7 @@ fn skip_test(subname: &str, chain: &String, number: usize) -> bool {
 
 pub fn json_chain_test<H: FnMut(&str, HookType)>(json_data: &[u8], start_stop_hook: &mut H) -> Vec<String> {
 	let _ = ::env_logger::try_init();
-	let tests = ethjson::state::test::Test::load(json_data).unwrap();
+	let tests = ethjson::test_helpers::state::Test::load(json_data).unwrap();
 	let mut failed = Vec::new();
 
 	for (name, test) in tests.into_iter() {

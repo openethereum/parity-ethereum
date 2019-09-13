@@ -33,7 +33,7 @@ use futures::sync::mpsc;
 use io::IoChannel;
 use miner::filter_options::{FilterOptions, FilterOperator};
 use miner::pool_client::{PoolClient, CachedNonceClient, NonceCache};
-use miner;
+use miner::{self, MinerService};
 use parking_lot::{Mutex, RwLock};
 use rayon::prelude::*;
 use types::{
@@ -58,7 +58,7 @@ use using_queue::{UsingQueue, GetAction};
 
 use block::{ClosedBlock, SealedBlock};
 use client::{BlockProducer, SealedBlockImporter, Client};
-use client_traits::{BlockChain, ChainInfo, Nonce, TransactionInfo};
+use client_traits::{BlockChain, ChainInfo, EngineClient, Nonce, TransactionInfo};
 use engine::{Engine, signer::EngineSigner};
 use machine::executive::contract_address;
 use spec::Spec;
@@ -859,9 +859,9 @@ impl Miner {
 			false
 		}
 	}
+
 	/// Prepare pending block, check whether sealing is needed, and then update sealing.
 	fn prepare_and_update_sealing<C: miner::BlockChainClient>(&self, chain: &C) {
-		use miner::MinerService;
 		match self.engine.sealing_state() {
 			SealingState::Ready => {
 				self.maybe_enable_sealing();
@@ -1429,6 +1429,9 @@ impl miner::MinerService for Miner {
 						service_transaction_checker.as_ref(),
 					);
 					queue.cull(client);
+					if is_internal_import {
+						chain.update_sealing();
+					}
 				};
 
 				if let Err(e) = channel.send(ClientIoMessage::<Client>::execute(cull)) {
@@ -1436,8 +1439,12 @@ impl miner::MinerService for Miner {
 				}
 			} else {
 				self.transaction_queue.cull(client);
+				if is_internal_import {
+					self.update_sealing(chain);
+				}
 			}
 		}
+
 		if let Some(ref service_transaction_checker) = self.service_transaction_checker {
 			match service_transaction_checker.refresh_cache(chain) {
 				Ok(true) => {

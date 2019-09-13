@@ -55,9 +55,8 @@ use trace::{
 	localized::LocalizedTrace,
 	VMTrace,
 };
+use common_types::data_format::DataFormat;
 use vm::{LastHashes, Schedule};
-
-use common_types::snapshot::Progress;
 
 /// State information to be used during client query
 pub enum StateOrBlock {
@@ -447,36 +446,6 @@ pub trait DatabaseRestore: Send + Sync {
 	fn restore_db(&self, new_db: &str) -> Result<(), EthcoreError>;
 }
 
-/// Snapshot related functionality
-pub trait SnapshotClient: BlockChainClient + BlockInfo + DatabaseRestore + BlockChainReset {
-	/// Take a snapshot at the given block.
-	/// If the ID given is "latest", this will default to 1000 blocks behind.
-	fn take_snapshot<W: SnapshotWriter + Send>(
-		&self,
-		writer: W,
-		at: BlockId,
-		p: &Progress,
-	) -> Result<(), EthcoreError>;
-}
-
-
-// todo[dvdplm] move this back to snapshot once extracted from ethcore
-/// Something which can write snapshots.
-/// Writing the same chunk multiple times will lead to implementation-defined
-/// behavior, and is not advised.
-pub trait SnapshotWriter {
-	/// Write a compressed state chunk.
-	fn write_state_chunk(&mut self, hash: H256, chunk: &[u8]) -> std::io::Result<()>;
-
-	/// Write a compressed block chunk.
-	fn write_block_chunk(&mut self, hash: H256, chunk: &[u8]) -> std::io::Result<()>;
-
-	/// Complete writing. The manifest's chunk lists must be consistent
-	/// with the chunks written.
-	fn finish(self, manifest: common_types::snapshot::ManifestData) -> std::io::Result<()> where Self: Sized;
-}
-
-
 /// Represents what has to be handled by actor listening to chain events
 pub trait ChainNotify: Send + Sync {
 	/// fires when chain has new blocks.
@@ -509,4 +478,30 @@ pub trait ChainNotify: Send + Sync {
 	fn transactions_received(&self, _txs: &[UnverifiedTransaction], _peer_id: usize) {
 		// does nothing by default
 	}
+}
+
+/// Provides a method for importing/exporting blocks
+pub trait ImportExportBlocks {
+    /// Export blocks to destination, with the given from, to and format argument.
+    /// destination could be a file or stdout.
+    /// If the format is hex, each block is written on a new line.
+    /// For binary exports, all block data is written to the same line.
+	fn export_blocks<'a>(
+        &self,
+        destination: Box<dyn std::io::Write + 'a>,
+        from: BlockId,
+        to: BlockId,
+        format: Option<DataFormat>
+    ) -> Result<(), String>;
+
+	/// Import blocks from destination, with the given format argument
+	/// Source could be a file or stdout.
+	/// For hex format imports, it attempts to read the blocks on a line by line basis.
+	/// For binary format imports, reads the 8 byte RLP header in order to decode the block
+	/// length to be read.
+	fn import_blocks<'a>(
+		&self,
+		source: Box<dyn std::io::Read + 'a>,
+		format: Option<DataFormat>
+	) -> Result<(), String>;
 }

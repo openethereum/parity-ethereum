@@ -16,7 +16,7 @@ docopt = "1.0"
 env_logger = "0.5"
 ethcore = { path = "../ethcore", features = ["test-helpers", "json-tests"] }
 ethereum-types = "0.6.0"
-ethjson = { path = "../json" }
+ethjson = { path = "../json", features = ["test-helpers"] }
 evm = { path = "../ethcore/evm" }
 panic_hook = { path = "../util/panic-hook" }
 parity-bytes = "0.1"

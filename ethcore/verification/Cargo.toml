@@ -6,6 +6,10 @@ authors = ["Parity Technologies <admin@parity.io>"]
 edition = "2018"
 license = "GPL-3.0"
 
+[[bench]]
+name = "verification"
+harness = false
+
 [dependencies]
 blockchain = { package = "ethcore-blockchain", path = "../blockchain" }
 call-contract = { package = "ethcore-call-contract", path = "../call-contract" }
@@ -27,8 +31,17 @@ triehash = { package = "triehash-ethereum", version = "0.2",  path = "../../util
 unexpected = { path = "../../util/unexpected" }
 
 [dev-dependencies]
+criterion = "0.3"
 ethcore = { path = "../", features = ["test-helpers"] }
 ethkey = { path = "../../accounts/ethkey" }
 machine = { path = "../machine" }
 null-engine = { path = "../engines/null-engine" }
 spec = { path = "../spec" }
+
+# Benches
+ethash = { package = "ethash-engine", path = "../engines/ethash" }
+tempdir = "0.3.7"
+
+[features]
+# Used to selectively expose code for benchmarks.
+bench = []

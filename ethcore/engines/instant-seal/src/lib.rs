@@ -14,6 +14,8 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
+use std::sync::atomic::{AtomicU64, Ordering};
+
 use common_types::{
 	header::Header,
 	engines::{
@@ -51,6 +53,7 @@ impl From<ethjson::spec::InstantSealParams> for InstantSealParams {
 pub struct InstantSeal {
 	params: InstantSealParams,
 	machine: Machine,
+	last_sealed_block: AtomicU64,
 }
 
 impl InstantSeal {
@@ -59,6 +62,7 @@ impl InstantSeal {
 		InstantSeal {
 			params,
 			machine,
+			last_sealed_block: AtomicU64::new(0),
 		}
 	}
 }
@@ -71,11 +75,19 @@ impl Engine for InstantSeal {
 	fn sealing_state(&self) -> SealingState { SealingState::Ready }
 
 	fn generate_seal(&self, block: &ExecutedBlock, _parent: &Header) -> Seal {
-		if block.transactions.is_empty() {
-			Seal::None
-		} else {
-			Seal::Regular(Vec::new())
+		if !block.transactions.is_empty() {
+			let block_number = block.header.number();
+			let last_sealed_block = self.last_sealed_block.load(Ordering::SeqCst);
+			// Return a regular seal if the given block is _higher_ than
+			// the last sealed one
+			if block_number > last_sealed_block {
+				let prev_last_sealed_block = self.last_sealed_block.compare_and_swap(last_sealed_block, block_number, Ordering::SeqCst);
+				if prev_last_sealed_block == last_sealed_block {
+					return Seal::Regular(Vec::new())
+				}
+			}
 		}
+		Seal::None
 	}
 
 	fn verify_local_seal(&self, _header: &Header) -> Result<(), Error> {

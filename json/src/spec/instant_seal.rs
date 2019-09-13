@@ -16,6 +16,8 @@
 
 //! Instant seal engine params deserialization.
 
+use serde::Deserialize;
+
 /// Instant seal engine params deserialization.
 #[derive(Debug, PartialEq, Deserialize)]
 #[serde(deny_unknown_fields)]

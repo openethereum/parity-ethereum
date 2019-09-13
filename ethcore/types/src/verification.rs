@@ -57,7 +57,7 @@ impl VerificationQueueInfo {
 }
 
 /// An unverified block.
-#[derive(PartialEq, Debug, MallocSizeOf)]
+#[derive(Clone, PartialEq, Debug, MallocSizeOf)]
 pub struct Unverified {
 	/// Unverified block header.
 	pub header: Header,
