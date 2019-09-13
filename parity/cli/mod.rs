@@ -1472,7 +1472,7 @@ mod tests {
 	use super::{
 		Args, ArgsError,
 		Config, Operating, Account, Ui, Network, Ws, Rpc, Ipc, Dapps, Ipfs, Mining, Footprint,
-		Snapshots, Misc, Whisper, SecretStore, Light, ReportingConfig
+		Snapshots, Misc, Whisper, SecretStore, Light
 	};
 	use toml;
 	use clap::{ErrorKind as ClapErrorKind};
