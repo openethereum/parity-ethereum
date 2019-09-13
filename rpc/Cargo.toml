@@ -36,7 +36,7 @@ jsonrpc-pubsub = "10.0.1"
 
 common-types = { path = "../ethcore/types" }
 ethash = { path = "../ethash" }
-ethcore = { path = "../ethcore", features = ["test-helpers"] }
+ethcore = { path = "../ethcore" }
 ethcore-accounts = { path = "../accounts", optional = true }
 ethcore-light = { path = "../ethcore/light" }
 ethcore-logger = { path = "../parity/logger" }
