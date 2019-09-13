@@ -891,7 +891,7 @@ dependencies = [
 [[package]]
 name = "eth-secp256k1"
 version = "0.5.7"
-source = "git+https://github.com/paritytech/rust-secp256k1#9791e79f21a5309dcb6e0bd254b1ef88fca2f1f4"
+source = "git+https://github.com/paritytech/rust-secp256k1#a96ad75aead23caa7f79cb61620c3a8c77d711d9"
 dependencies = [
  "arrayvec 0.4.7 (registry+https://github.com/rust-lang/crates.io-index)",
  "cc 1.0.28 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -3651,7 +3651,7 @@ name = "rand_chacha"
 version = "0.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 dependencies = [
- "rand_core 0.3.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "rand_core 0.2.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "rustc_version 0.2.3 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
@@ -3681,7 +3681,7 @@ name = "rand_hc"
 version = "0.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 dependencies = [
- "rand_core 0.3.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "rand_core 0.2.2 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]
@@ -3715,7 +3715,7 @@ name = "rand_xorshift"
 version = "0.1.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 dependencies = [
- "rand_core 0.3.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "rand_core 0.2.2 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]
