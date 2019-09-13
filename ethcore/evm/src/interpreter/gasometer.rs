@@ -121,6 +121,10 @@ impl<Gas: evm::CostType> Gasometer<Gas> {
 				Request::Gas(Gas::from(1))
 			},
 			instructions::SSTORE => {
+				if schedule.eip1706 && self.current_gas <= Gas::from(schedule.call_stipend) {
+					return Err(vm::Error::OutOfGas);
+				}
+
 				let address = BigEndianHash::from_uint(stack.peek(0));
 				let newval = stack.peek(1);
 				let val = ext.storage_at(&address)?.into_uint();

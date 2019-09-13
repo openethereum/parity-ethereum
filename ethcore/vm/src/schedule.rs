@@ -15,8 +15,17 @@
 // along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
 //! Cost schedule and other parameterisations for the EVM.
+use std::collections::HashMap;
+use ethereum_types::U256;
+
+/// Definition of schedules that can be applied to a version.
+#[derive(Debug)]
+pub enum VersionedSchedule {
+	PWasm,
+}
 
 /// Definition of the cost schedule and other parameterisations for the EVM.
+#[derive(Debug)]
 pub struct Schedule {
 	/// Does it support exceptional failed code deposit
 	pub exceptional_failed_code_deposit: bool,
@@ -117,10 +126,14 @@ pub struct Schedule {
 	pub have_bitwise_shifting: bool,
 	/// CHAINID opcode enabled.
 	pub have_chain_id: bool,
+	/// SELFBALANCE opcode enabled.
+	pub have_selfbalance: bool,
 	/// Kill basic accounts below this balance if touched.
 	pub kill_dust: CleanDustMode,
 	/// Enable EIP-1283 rules
 	pub eip1283: bool,
+	/// Enable EIP-1706 rules
+	pub eip1706: bool,
 	/// VM execution does not increase null signed address nonce if this field is true.
 	pub keep_unsigned_nonce: bool,
 	/// Wasm extra schedule settings, if wasm activated
@@ -128,6 +141,7 @@ pub struct Schedule {
 }
 
 /// Wasm cost table
+#[derive(Debug)]
 pub struct WasmCosts {
 	/// Default opcode cost
 	pub regular: u32,
@@ -181,7 +195,7 @@ impl Default for WasmCosts {
 }
 
 /// Dust accounts cleanup mode.
-#[derive(PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq)]
 pub enum CleanDustMode {
 	/// Dust cleanup is disabled.
 	Off,
@@ -212,6 +226,7 @@ impl Schedule {
 			have_return_data: false,
 			have_bitwise_shifting: false,
 			have_chain_id: false,
+			have_selfbalance: false,
 			have_extcodehash: false,
 			stack_limit: 1024,
 			max_depth: 1024,
@@ -256,6 +271,7 @@ impl Schedule {
 			have_static_call: false,
 			kill_dust: CleanDustMode::Off,
 			eip1283: false,
+			eip1706: false,
 			keep_unsigned_nonce: false,
 			wasm: None,
 		}
@@ -281,8 +297,12 @@ impl Schedule {
 	/// Schedule for the Istanbul fork of the Ethereum main net.
 	pub fn new_istanbul() -> Schedule {
 		let mut schedule = Self::new_constantinople();
-		schedule.have_chain_id = true;
-		schedule.tx_data_non_zero_gas = 16;
+		schedule.have_chain_id = true; // EIP 1344
+		schedule.tx_data_non_zero_gas = 16; // EIP 2028
+		schedule.sload_gas = 800; // EIP 1884
+		schedule.balance_gas = 700; // EIP 1884
+		schedule.extcodehash_gas = 700; // EIP 1884
+		schedule.have_selfbalance = true; // EIP 1884
 		schedule
 	}
 
@@ -295,6 +315,7 @@ impl Schedule {
 			have_return_data: false,
 			have_bitwise_shifting: false,
 			have_chain_id: false,
+			have_selfbalance: false,
 			have_extcodehash: false,
 			stack_limit: 1024,
 			max_depth: 1024,
@@ -339,6 +360,7 @@ impl Schedule {
 			have_static_call: false,
 			kill_dust: CleanDustMode::Off,
 			eip1283: false,
+			eip1706: false,
 			keep_unsigned_nonce: false,
 			wasm: None,
 		}

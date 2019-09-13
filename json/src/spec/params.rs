@@ -92,9 +92,15 @@ pub struct Params {
 	/// See `CommonParams` docs.
 	pub eip1283_disable_transition: Option<Uint>,
 	/// See `CommonParams` docs.
+	pub eip1283_reenable_transition: Option<Uint>,
+	/// See `CommonParams` docs.
 	pub eip1014_transition: Option<Uint>,
 	/// See `CommonParams` docs.
+	pub eip1706_transition: Option<Uint>,
+	/// See `CommonParams` docs.
 	pub eip1344_transition: Option<Uint>,
+	/// See `CommonParams` docs.
+	pub eip1884_transition: Option<Uint>,
 	/// See `CommonParams` docs.
 	pub eip2028_transition: Option<Uint>,
 	/// See `CommonParams` docs.
