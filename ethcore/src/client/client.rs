@@ -1158,7 +1158,7 @@ impl Client {
 
 	// transaction for calling contracts from services like engine.
 	fn contract_call_tx(&self, block_id: BlockId, call_options: CallOptions) -> SignedTransaction {
-		let from = call_options.contract_address;
+		let from = call_options.sender;
 		transaction::Transaction {
 			nonce: self.nonce(&from, block_id).unwrap_or_else(|| self.engine.account_start_nonce(0)),
 			action: Action::Call(call_options.contract_address),
