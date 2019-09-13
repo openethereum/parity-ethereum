@@ -51,7 +51,7 @@ use blockchain::{
 };
 // re-export
 pub use blockchain::CacheSize as BlockChainCacheSize;
-use call_contract::{CallContract, CallError as ContractCallError, RegistryInfo};
+use call_contract::{CallContract, CallError as ContractCallError, CallOptions, RegistryInfo};
 use client::{
 	bad_blocks, BlockProducer, BroadcastProposalBlock, Call,
 	ClientConfig, EngineInfo, ImportSealedBlock, PrepareOpenBlock,
