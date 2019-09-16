@@ -135,7 +135,7 @@ unsafe fn undiagonalize(a: &mut __m256i, _b: &mut __m256i, c: &mut __m256i, d: &
 /// Takes as an argument the state vector `state`, message block vector `message`, offset counter, final
 /// block indicator flag `f`, and number of rounds `rounds`. The state vector provided as the first
 /// parameter is modified by the function.
-#[inline(always)]
+#[target_feature(enable = "avx2")]
 pub unsafe fn compress(state: &mut [u64; 8], message: [u64; 16], count: [u64; 2], f: bool, rounds: usize) {
     let (state_low, state_high) = mut_array_refs!(state, 4, 4);
     let (iv_low, iv_high) = array_refs!(&IV, 4, 4);
