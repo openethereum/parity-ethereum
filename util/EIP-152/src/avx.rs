@@ -23,8 +23,6 @@ use core::arch::x86::*;
 #[cfg(target_arch = "x86_64")]
 use core::arch::x86_64::*;
 use arrayref::{array_refs, mut_array_refs};
-use core::cmp;
-use core::mem;
 
 #[inline(always)]
 unsafe fn loadu(src: *const [u64; 4]) -> __m256i {
@@ -66,12 +64,12 @@ macro_rules! _MM_SHUFFLE {
 }
 
 #[inline(always)]
-unsafe fn rot32(x: __m256i) -> __m256i {
+unsafe fn rotate_right_32(x: __m256i) -> __m256i {
     _mm256_shuffle_epi32(x, _MM_SHUFFLE!(2, 3, 0, 1))
 }
 
 #[inline(always)]
-unsafe fn rot24(x: __m256i) -> __m256i {
+unsafe fn rotate_right_24(x: __m256i) -> __m256i {
     let rotate24 = _mm256_setr_epi8(
         3, 4, 5, 6, 7, 0, 1, 2, 11, 12, 13, 14, 15, 8, 9, 10, 3, 4, 5, 6, 7, 0, 1, 2, 11, 12, 13,
         14, 15, 8, 9, 10,
@@ -80,7 +78,7 @@ unsafe fn rot24(x: __m256i) -> __m256i {
 }
 
 #[inline(always)]
-unsafe fn rot16(x: __m256i) -> __m256i {
+unsafe fn rotate_right_16(x: __m256i) -> __m256i {
     let rotate16 = _mm256_setr_epi8(
         2, 3, 4, 5, 6, 7, 0, 1, 10, 11, 12, 13, 14, 15, 8, 9, 2, 3, 4, 5, 6, 7, 0, 1, 10, 11, 12,
         13, 14, 15, 8, 9,
@@ -89,7 +87,7 @@ unsafe fn rot16(x: __m256i) -> __m256i {
 }
 
 #[inline(always)]
-unsafe fn rot63(x: __m256i) -> __m256i {
+unsafe fn rotate_right_63(x: __m256i) -> __m256i {
     _mm256_or_si256(_mm256_srli_epi64(x, 63), add(x, x))
 }
 
@@ -98,10 +96,10 @@ unsafe fn g1(a: &mut __m256i, b: &mut __m256i, c: &mut __m256i, d: &mut __m256i,
     *a = add(*a, *m);
     *a = add(*a, *b);
     *d = xor(*d, *a);
-    *d = rot32(*d);
+    *d = rotate_right_32(*d);
     *c = add(*c, *d);
     *b = xor(*b, *c);
-    *b = rot24(*b);
+    *b = rotate_right_24(*b);
 }
 
 #[inline(always)]
@@ -109,10 +107,10 @@ unsafe fn g2(a: &mut __m256i, b: &mut __m256i, c: &mut __m256i, d: &mut __m256i,
     *a = add(*a, *m);
     *a = add(*a, *b);
     *d = xor(*d, *a);
-    *d = rot16(*d);
+    *d = rotate_right_16(*d);
     *c = add(*c, *d);
     *b = xor(*b, *c);
-    *b = rot63(*b);
+    *b = rotate_right_63(*b);
 }
 
 // Note the optimization here of leaving b as the unrotated row, rather than a.
@@ -370,7 +368,7 @@ pub unsafe fn compress(state: &mut [u64; 8], message: [u64; 16], count: [u64; 2]
                 g2(&mut a, &mut b, &mut c, &mut d, &mut b0);
                 undiagonalize(&mut a, &mut b, &mut c, &mut d);
             },
-            9 => {
+            _ => {
                 // round 10
                 t0 = _mm256_unpacklo_epi64(m5, m4);
                 t1 = _mm256_unpackhi_epi64(m3, m0);
@@ -391,7 +389,6 @@ pub unsafe fn compress(state: &mut [u64; 8], message: [u64; 16], count: [u64; 2]
                 g2(&mut a, &mut b, &mut c, &mut d, &mut b0);
                 undiagonalize(&mut a, &mut b, &mut c, &mut d);
             },
-            _ => unreachable!("numbers 0-10 covered; qed")
         }
     }
 
@@ -402,4 +399,14 @@ pub unsafe fn compress(state: &mut [u64; 8], message: [u64; 16], count: [u64; 2]
 
     storeu(a, state_low);
     storeu(b, state_high);
+}
+
+#[cfg(test)]
+mod tests {
+    #[test]
+    fn test_mm_shuffle() {
+        assert_eq!(_MM_SHUFFLE!(0, 1, 1, 3), 0b00_01_01_11);
+        assert_eq!(_MM_SHUFFLE!(3, 1, 1, 0), 0b11_01_01_00);
+        assert_eq!(_MM_SHUFFLE!(1, 2, 2, 1), 0b01_10_10_01);
+    }
 }

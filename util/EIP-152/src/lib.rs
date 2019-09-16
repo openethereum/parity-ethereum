@@ -14,8 +14,8 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
-mod portable;
-mod avx;
+pub mod portable;
+pub mod avx;
 
 /// The precomputed values for BLAKE2b [from the spec](https://tools.ietf.org/html/rfc7693#section-2.7)
 /// There are 10 16-byte arrays - one for each round
@@ -42,7 +42,7 @@ const IV: [u64; 8] = [
 ];
 
 /// blake2b compression function
-fn compress(h: &mut [u64; 8], m: [u64; 16], t: [u64; 2], f: bool, rounds: usize) {
+pub fn compress(h: &mut [u64; 8], m: [u64; 16], t: [u64; 2], f: bool, rounds: usize) {
 	if is_x86_feature_detected!("avx2") {
 		unsafe {
 			avx::compress(h, m, t, f, rounds);
@@ -59,7 +59,7 @@ mod tests {
 	use rustc_hex::FromHex;
 
 	#[test]
-	fn test_blake2_portable_f() {
+	fn test_blake2_f() {
 		// test from https://github.com/ethereum/EIPs/blob/master/EIPS/eip-152.md#example-usage-in-solidity
 		let mut h_in = [
 			0x6a09e667f2bdc948_u64, 0xbb67ae8584caa73b_u64,
@@ -97,8 +97,10 @@ mod tests {
 		];
 
 		// avx
-		unsafe {
-			avx::compress(&mut h_in, m, c, f, rounds);
+		if is_x86_feature_detected!("avx2") {
+			unsafe {
+				avx::compress(&mut h_in, m, c, f, rounds);
+			}
 		}
 		assert_eq!(h_in, h_out);
 	}
@@ -110,7 +112,7 @@ mod tests {
 	}
 
 	#[test]
-	fn test_vectors_from_eip_po() {
+	fn test_vectors_from_eip() {
 		let vec = vec![
 			(
 				// Test vector 4
@@ -161,12 +163,15 @@ mod tests {
 			let mut out = [0u64; 8];
 			to_u64_slice(&output[..], &mut out);
 
-			// avx
-			unsafe {
-				avx::compress(&mut h, m, t, f, rounds as usize);
+			{
+				// avx
+				if is_x86_feature_detected!("avx2") {
+					unsafe {
+						avx::compress(&mut h, m, t, f, rounds as usize);
+					}
+				}
+				assert_eq!(out, h);
 			}
-			assert_eq!(out, h);
-
 
 			{
 				// portable
