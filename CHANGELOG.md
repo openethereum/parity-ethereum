@@ -1,3 +1,36 @@
+ ## Parity-Ethereum [v2.6.3](https://github.com/paritytech/parity-ethereum/releases/tag/v2.6.3)
+
+Parity Ethereum v2.6.3-stable is a patch release that improves security, stability and performance.
+
+* The most noteworthy improvement in this release is incorporating all the EIPs required for the Istanbul hard fork.
+* This release also fixes certain security and performance issues, one of which was suspected to be consensus-threatening but turned out to be benign. Thanks to Martin Holst Swende and Felix Lange from the Ethereum Foundation for bringing the suspicious issue to our attention.
+
+The full list of included changes:
+
+* add more tx tests (#11038)
+* Fix parallel transactions race-condition (#10995)
+* Add blake2_f precompile (#11017)
+* [trace] introduce trace failed to Ext (#11019)
+* Edit publish-onchain.sh to use https (#11016)
+* Fix deadlock in network-devp2p (#11013)
+* EIP 1108: Reduce alt_bn128 precompile gas costs (#11008)
+* xDai chain support and nodes list update (#10989)
+* EIP 2028: transaction gas lowered from 68 to 16 (#10987)
+* EIP-1344 Add CHAINID op-code (#10983)
+* manual publish jobs for releases, no changes for nightlies (#10977)
+* [blooms-db] Fix benchmarks (#10974)
+* Verify transaction against its block during import (#10954)
+* Better error message for rpc gas price errors (#10931)
+* Fix fork choice (#10837)
+* Fix compilation on recent nightlies (#10991)
+* Don't build rpc with ethcore test-helpers (#11048) 
+* EIP 1884 Re-pricing of trie-size dependent operations  (#10992)
+* Implement EIP-1283 reenable transition, EIP-1706 and EIP-2200  (#10191)
+
+## Parity-Ethereum [v2.6.2](https://github.com/paritytech/parity-ethereum/releases/tag/v2.6.2)
+
+Parity Ethereum v2.6.2-stable is a bugfix release that fixes a potential DoS attack in the trace_call RPC method. This is a critical upgrade for anyone running Parity nodes with RPC exposed to the public internet (and highly recommended for anyone else). For details see this blog post.
+
 ## Parity-Ethereum [v2.6.1](https://github.com/paritytech/parity-ethereum/releases/tag/v2.6.1)
 
 Parity-Ethereum 2.6.1-beta is a patch release that improves stability.
