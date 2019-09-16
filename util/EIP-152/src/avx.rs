@@ -132,7 +132,7 @@ unsafe fn undiagonalize(a: &mut __m256i, _b: &mut __m256i, c: &mut __m256i, d: &
 
 
 /// The Blake2b compression function F. See https://tools.ietf.org/html/rfc7693#section-3.2
-/// Takes as an argument the state vector  `state`, message block vector `message`, offset counter, final
+/// Takes as an argument the state vector `state`, message block vector `message`, offset counter, final
 /// block indicator flag `f`, and number of rounds `rounds`. The state vector provided as the first
 /// parameter is modified by the function.
 #[inline(always)]
