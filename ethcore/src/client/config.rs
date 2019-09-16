@@ -21,10 +21,9 @@ use journaldb;
 use snapshot::SnapshotConfiguration;
 use trace::Config as TraceConfig;
 use types::client_types::Mode;
-use verification::QueueConfig;
+use verification::{VerifierType, QueueConfig};
 
 pub use evm::VMType;
-pub use verification::VerifierType;
 
 /// Client state db compaction profile
 #[derive(Debug, PartialEq, Clone)]
