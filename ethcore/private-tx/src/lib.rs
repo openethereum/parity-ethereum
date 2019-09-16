@@ -120,7 +120,7 @@ use ethabi::FunctionOutputDecoder;
 use vm::CreateContractAddress;
 
 // Source avaiable at https://github.com/parity-contracts/private-tx/blob/master/contracts/PrivateContract.sol
-const DEFAULT_STUB_CONTRACT: &'static str = include_str!("../res/private.evm");
+const DEFAULT_STUB_CONTRACT: &str = include_str!("../res/private.evm");
 
 use_contract!(private_contract, "res/private.json");
 

@@ -16,15 +16,15 @@
 
 use std::str::FromStr;
 
-use verification::{VerifierType, QueueConfig};
+use blockchain::Config as BlockChainConfig;
 use journaldb;
 use snapshot::SnapshotConfiguration;
+use trace::Config as TraceConfig;
 use types::client_types::Mode;
+use verification::QueueConfig;
 
-pub use std::time::Duration;
-pub use blockchain::Config as BlockChainConfig;
-pub use trace::Config as TraceConfig;
 pub use evm::VMType;
+pub use verification::VerifierType;
 
 /// Client state db compaction profile
 #[derive(Debug, PartialEq, Clone)]

@@ -25,6 +25,7 @@ extern crate client_traits;
 extern crate common_types as types;
 extern crate ethcore;
 extern crate ethcore_io as io;
+extern crate ethcore_light as light;
 extern crate ethcore_network as network;
 extern crate ethcore_network_devp2p as devp2p;
 extern crate ethcore_private_tx;
@@ -41,8 +42,6 @@ extern crate rand;
 extern crate rlp;
 extern crate snapshot;
 extern crate triehash_ethereum;
-
-extern crate ethcore_light as light;
 
 #[cfg(test)] extern crate env_logger;
 #[cfg(test)] extern crate kvdb_memorydb;
