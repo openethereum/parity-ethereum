@@ -38,7 +38,7 @@ rand = "0.6"
 rlp = "0.4.0"
 snapshot = { path = "../snapshot" }
 trace-time = "0.1"
-triehash-ethereum = {version = "0.2", path = "../../util/triehash-ethereum" }
+triehash-ethereum = { version = "0.2", path = "../../util/triehash-ethereum" }
 
 [dev-dependencies]
 env_logger = "0.5"

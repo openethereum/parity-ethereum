@@ -53,6 +53,11 @@ use spec::{Spec, self};
 use account_state::*;
 use state_db::StateDB;
 
+/// Re-export for tests only
+pub use evm::CreateContractAddress;
+/// Re-export for tests only
+pub use trie::TrieSpec;
+
 /// Creates test block with corresponding header
 pub fn create_test_block(header: &Header) -> Bytes {
 	let mut rlp = RlpStream::new_list(3);

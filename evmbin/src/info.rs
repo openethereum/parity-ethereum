@@ -21,7 +21,7 @@ use std::time::{Instant, Duration};
 use common_types::transaction;
 use ethcore::{
 	client::{EvmTestClient, EvmTestError, TransactErr, TransactSuccess},
-	TrieSpec,
+	test_helpers::TrieSpec,
 };
 use ethereum_types::{H256, U256};
 use ethjson;

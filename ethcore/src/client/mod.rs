@@ -20,22 +20,21 @@ mod ancient_import;
 mod bad_blocks;
 mod client;
 mod config;
+mod traits;
+
 #[cfg(any(test, feature = "test-helpers"))]
 mod evm_test_client;
 #[cfg(any(test, feature = "test-helpers"))]
 mod test_client;
 
 pub use self::client::Client;
-pub use self::config::{ClientConfig, DatabaseCompactionProfile, BlockChainConfig, VMType};
-#[cfg(any(test, feature = "test-helpers"))]
-pub use self::evm_test_client::{EvmTestClient, EvmTestError, TransactErr, TransactSuccess};
-#[cfg(any(test, feature = "test-helpers"))]
-pub use self::test_client::{TestBlockChainClient, EachBlockWith, TestState};
+pub use self::config::{ClientConfig, DatabaseCompactionProfile, VMType};
 pub use self::traits::{
     ReopenBlock, PrepareOpenBlock, ImportSealedBlock, BroadcastProposalBlock,
     Call, EngineInfo, BlockProducer, SealedBlockImporter,
 };
 
-pub use verification::VerifierType;
-
-mod traits;
+#[cfg(any(test, feature = "test-helpers"))]
+pub use self::evm_test_client::{EvmTestClient, EvmTestError, TransactErr, TransactSuccess};
+#[cfg(any(test, feature = "test-helpers"))]
+pub use self::test_client::{TestBlockChainClient, EachBlockWith, TestState};
