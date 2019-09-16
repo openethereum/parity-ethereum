@@ -10,9 +10,7 @@ authors = ["Parity Technologies <admin@parity.io>"]
 [dependencies]
 client-traits = { path = "../client-traits" }
 common-types = { path = "../types" }
-engine = { path = "../engine" }
 enum_primitive = "0.1.1"
-ethcore = { path = ".." }
 ethcore-io = { path = "../../util/io" }
 ethcore-light = { path = "../light" }
 ethcore-network = { path = "../../util/network" }
@@ -20,15 +18,10 @@ ethcore-network-devp2p = { path = "../../util/network-devp2p" }
 ethcore-private-tx = { path = "../private-tx" }
 ethereum-types = "0.6.0"
 ethkey = { path = "../../accounts/ethkey" }
-ethstore = { path = "../../accounts/ethstore" }
 fastmap = { path = "../../util/fastmap" }
 futures = "0.1"
-hash-db = "0.15.0"
 keccak-hash = "0.2.0"
-keccak-hasher = { path = "../../util/keccak-hasher" }
-kvdb = "0.1"
 log = "0.4"
-machine = { path = "../machine" }
 macros = { path = "../../util/macros" }
 parity-bytes = "0.1"
 parity-runtime = { path = "../../util/runtime" }
@@ -42,9 +35,11 @@ triehash-ethereum = { version = "0.2", path = "../../util/triehash-ethereum" }
 
 [dev-dependencies]
 env_logger = "0.5"
+engine = { path = "../engine" }
 ethcore = { path = "..", features = ["test-helpers"] }
 ethcore-io = { path = "../../util/io", features = ["mio"] }
 kvdb-memorydb = "0.1"
+machine = { path = "../machine" }
 rand_xorshift = "0.1.1"
 rustc-hex = "1.0"
 spec = { path = "../spec" }

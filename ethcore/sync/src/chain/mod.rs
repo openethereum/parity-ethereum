@@ -377,11 +377,17 @@ pub mod random {
 	use rand;
 	pub fn new() -> rand::rngs::ThreadRng { rand::thread_rng() }
 }
+
 #[cfg(test)]
 pub mod random {
 	use rand::SeedableRng;
+	use rand_xorshift::XorShiftRng;
+
 	const RNG_SEED: [u8; 16] = [1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16];
-	pub fn new() -> rand_xorshift::XorShiftRng { rand_xorshift::XorShiftRng::from_seed(RNG_SEED) }
+
+	pub fn new() -> XorShiftRng {
+		XorShiftRng::from_seed(RNG_SEED)
+	}
 }
 
 pub type RlpResponseResult = Result<Option<(PacketId, RlpStream)>, PacketDecodeError>;
