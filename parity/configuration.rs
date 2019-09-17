@@ -670,10 +670,20 @@ impl Configuration {
 			return Ok(GasPricerConfig::Calibrated {
 				usd_per_tx: usd_per_tx,
 				recalibration_period: to_duration(self.args.arg_price_update_period.as_str())?,
+				api_endpoint: "https://api.etherscan.io/api?module=stats&action=ethprice".to_owned(),
 			});
 		}
 
-		let usd_per_eth = to_price(&self.args.arg_usd_per_eth)?;
+		let usd_per_eth_parsed = to_price(&self.args.arg_usd_per_eth);
+		if let Err(_) = usd_per_eth_parsed {
+			return Ok(GasPricerConfig::Calibrated {
+				usd_per_tx: usd_per_tx,
+				recalibration_period: to_duration(self.args.arg_price_update_period.as_str())?,
+				api_endpoint: self.args.arg_usd_per_eth.clone(),
+			});
+		}
+
+		let usd_per_eth = usd_per_eth_parsed?;
 		let wei_per_gas = wei_per_gas(usd_per_tx, usd_per_eth);
 
 		info!(
