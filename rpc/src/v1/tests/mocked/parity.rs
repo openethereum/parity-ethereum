@@ -15,7 +15,7 @@
 // along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
 use std::sync::Arc;
-use ethcore::client::TestBlockChainClient;
+use ethcore::test_helpers::TestBlockChainClient;
 use ethcore_logger::RotatingLogger;
 use ethereum_types::{Address, U256, H256, BigEndianHash, Bloom};
 use ethstore::ethkey::{Generator, Random};

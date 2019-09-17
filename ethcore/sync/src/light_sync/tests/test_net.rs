@@ -22,7 +22,7 @@ use std::sync::Arc;
 use light_sync::*;
 use tests::helpers::{TestNet, Peer as PeerLike, TestPacket};
 
-use ethcore::client::TestBlockChainClient;
+use ethcore::test_helpers::TestBlockChainClient;
 use spec;
 use io::IoChannel;
 use kvdb_memorydb;

@@ -636,15 +636,15 @@ fn all_expected<A, B, F>(values: &[A], expected_values: &[B], is_expected: F) ->
 #[cfg(test)]
 mod tests {
 	use super::*;
-	use ethcore::client::TestBlockChainClient;
+	use ethcore::test_helpers::TestBlockChainClient;
 	use spec;
-	use ethkey::{Generator,Random};
+	use ethkey::{Generator, Random};
 	use hash::keccak;
 	use parking_lot::RwLock;
-	use rlp::{encode_list,RlpStream};
+	use rlp::{encode_list, RlpStream};
 	use tests::helpers::TestIo;
 	use tests::snapshot::TestSnapshotService;
-	use types::transaction::{Transaction,SignedTransaction};
+	use types::transaction::{Transaction, SignedTransaction};
 	use triehash_ethereum::ordered_trie_root;
 	use types::header::Header as BlockHeader;
 

@@ -22,19 +22,9 @@ mod client;
 mod config;
 mod traits;
 
-#[cfg(any(test, feature = "test-helpers"))]
-mod evm_test_client;
-#[cfg(any(test, feature = "test-helpers"))]
-mod test_client;
-
 pub use self::client::Client;
 pub use self::config::{ClientConfig, DatabaseCompactionProfile, VMType};
 pub use self::traits::{
     ReopenBlock, PrepareOpenBlock, ImportSealedBlock, BroadcastProposalBlock,
     Call, EngineInfo, BlockProducer, SealedBlockImporter,
 };
-
-#[cfg(any(test, feature = "test-helpers"))]
-pub use self::evm_test_client::{EvmTestClient, EvmTestError, TransactErr, TransactSuccess};
-#[cfg(any(test, feature = "test-helpers"))]
-pub use self::test_client::{TestBlockChainClient, EachBlockWith, TestState};

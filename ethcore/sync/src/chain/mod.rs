@@ -1408,7 +1408,7 @@ pub mod tests {
 	use std::collections::{VecDeque};
 	use ethkey;
 	use network::PeerId;
-	use tests::helpers::{TestIo};
+	use tests::helpers::TestIo;
 	use tests::snapshot::TestSnapshotService;
 	use ethereum_types::{H256, U256, Address};
 	use parking_lot::RwLock;
@@ -1417,7 +1417,7 @@ pub mod tests {
 	use super::*;
 	use ::SyncConfig;
 	use super::{PeerInfo, PeerAsking};
-	use ethcore::client::{EachBlockWith, TestBlockChainClient};
+	use ethcore::test_helpers::{EachBlockWith, TestBlockChainClient};
 	use client_traits::{BlockInfo, BlockChainClient, ChainInfo};
 	use ethcore::miner::{MinerService, PendingOrdering};
 	use types::header::Header;

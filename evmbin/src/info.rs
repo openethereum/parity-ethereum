@@ -19,10 +19,7 @@
 use std::time::{Instant, Duration};
 
 use common_types::transaction;
-use ethcore::{
-	client::{EvmTestClient, EvmTestError, TransactErr, TransactSuccess},
-	test_helpers::TrieSpec,
-};
+use ethcore::test_helpers::{EvmTestClient, EvmTestError, TransactErr, TransactSuccess, TrieSpec};
 use ethereum_types::{H256, U256};
 use ethjson;
 use pod::PodState;

@@ -16,7 +16,7 @@
 
 use std::sync::Arc;
 
-use ethcore::client::TestBlockChainClient;
+use ethcore::test_helpers::TestBlockChainClient;
 
 use jsonrpc_core::IoHandler;
 use v1::{Debug, DebugClient};

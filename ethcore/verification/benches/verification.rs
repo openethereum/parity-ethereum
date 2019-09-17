@@ -22,7 +22,7 @@ use common_types::verification::Unverified;
 use criterion::{Criterion, criterion_group, criterion_main};
 use ethash::{EthashParams, Ethash};
 use ethereum_types::U256;
-use ethcore::client::TestBlockChainClient;
+use ethcore::test_helpers::TestBlockChainClient;
 use spec::new_constantinople_test_machine;
 use tempdir::TempDir;
 

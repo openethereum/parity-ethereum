@@ -16,7 +16,7 @@
 
 use std::path::Path;
 use super::test_common::*;
-use client::EvmTestClient;
+use test_helpers::EvmTestClient;
 use ethjson;
 use rlp::Rlp;
 use types::{
