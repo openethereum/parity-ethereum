@@ -394,17 +394,17 @@ impl SyncSupplier {
 
 #[cfg(test)]
 mod test {
-	use std::collections::{VecDeque};
-	use tests::helpers::{TestIo};
+	use std::collections::VecDeque;
+	use tests::helpers::TestIo;
 	use tests::snapshot::TestSnapshotService;
-	use ethereum_types::{H256};
+	use ethereum_types::H256;
 	use parking_lot::RwLock;
 	use bytes::Bytes;
 	use rlp::{Rlp, RlpStream};
 	use super::{*, super::tests::*};
 	use blocks::SyncHeader;
 	use client_traits::BlockChainClient;
-	use ethcore::client::{EachBlockWith, TestBlockChainClient};
+	use ethcore::test_helpers::{EachBlockWith, TestBlockChainClient};
 	use std::str::FromStr;
 
 	#[test]

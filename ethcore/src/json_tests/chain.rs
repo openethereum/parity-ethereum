@@ -16,13 +16,13 @@
 
 use std::path::Path;
 use std::sync::Arc;
-use client::{EvmTestClient, Client, ClientConfig};
+use client::{Client, ClientConfig};
 use client_traits::{ImportBlock, ChainInfo};
 use spec::Genesis;
 use ethjson;
 use miner::Miner;
 use io::IoChannel;
-use test_helpers;
+use test_helpers::{self, EvmTestClient};
 use types::verification::Unverified;
 use verification::VerifierType;
 use super::SKIP_TEST_STATE;

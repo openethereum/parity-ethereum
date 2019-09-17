@@ -27,10 +27,9 @@ use types::{
 	io_message::ClientIoMessage,
 };
 use client_traits::{BlockChainClient, ChainNotify};
-use ethcore::client::{
-	TestBlockChainClient,
-	Client as EthcoreClient,
-	ClientConfig,
+use ethcore::{
+	client::{Client as EthcoreClient, ClientConfig},
+	test_helpers::TestBlockChainClient
 };
 use snapshot::SnapshotService;
 use spec::{self, Spec};

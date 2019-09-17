@@ -23,7 +23,7 @@ use jsonrpc_pubsub::Session;
 use std::time::Duration;
 
 use v1::{EthPubSub, EthPubSubClient, Metadata};
-use ethcore::client::{TestBlockChainClient, EachBlockWith};
+use ethcore::test_helpers::{TestBlockChainClient, EachBlockWith};
 use parity_runtime::Runtime;
 use ethereum_types::{Address, H256};
 use client_traits::{BlockInfo, ChainNotify};

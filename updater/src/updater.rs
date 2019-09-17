@@ -723,7 +723,7 @@ pub mod tests {
 	use std::sync::Arc;
 	use semver::Version;
 	use tempdir::TempDir;
-	use ethcore::client::{TestBlockChainClient, EachBlockWith};
+	use ethcore::test_helpers::{TestBlockChainClient, EachBlockWith};
 	use self::fetch::Error;
 	use super::*;
 

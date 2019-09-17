@@ -16,7 +16,7 @@
 
 use tests::helpers::TestNet;
 
-use ethcore::client::EachBlockWith;
+use ethcore::test_helpers::EachBlockWith;
 use client_traits::BlockInfo;
 use types::ids::BlockId;
 

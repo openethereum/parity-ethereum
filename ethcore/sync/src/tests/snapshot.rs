@@ -21,7 +21,7 @@ use ethereum_types::H256;
 use parking_lot::Mutex;
 use bytes::Bytes;
 use snapshot::SnapshotService;
-use ethcore::client::EachBlockWith;
+use ethcore::test_helpers::EachBlockWith;
 use types::{
 	BlockNumber,
 	snapshot::{ManifestData, RestorationStatus},

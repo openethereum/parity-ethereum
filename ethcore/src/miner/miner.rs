@@ -1491,10 +1491,12 @@ mod tests {
 	use hash::keccak;
 	use rustc_hex::FromHex;
 
-	use client::{TestBlockChainClient, EachBlockWith, ImportSealedBlock};
 	use client_traits::ChainInfo;
+	use client::ImportSealedBlock;
 	use miner::{MinerService, PendingOrdering};
-	use test_helpers::{generate_dummy_client, generate_dummy_client_with_spec};
+	use test_helpers::{
+		generate_dummy_client, generate_dummy_client_with_spec, TestBlockChainClient, EachBlockWith
+	};
 	use types::{
 		BlockNumber,
 		transaction::Transaction

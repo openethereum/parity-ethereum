@@ -1099,7 +1099,7 @@ mod tests {
 	use trie::Recorder;
 	use hash::keccak;
 
-	use ethcore::client::{TestBlockChainClient, EachBlockWith};
+	use ethcore::test_helpers::{TestBlockChainClient, EachBlockWith};
 	use client_traits::{BlockInfo, BlockChainClient};
 	use common_types::header::Header;
 	use common_types::encoded;

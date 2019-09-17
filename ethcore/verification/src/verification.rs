@@ -377,9 +377,8 @@ mod tests {
 	use engine::Engine;
 	use ethkey::{Random, Generator};
 	use spec;
-	use ethcore::{
-		client::TestBlockChainClient,
-		test_helpers::{create_test_block_with_data, create_test_block}
+	use ethcore::test_helpers::{
+		create_test_block_with_data, create_test_block, TestBlockChainClient
 	};
 	use common_types::{
 		engines::params::CommonParams,
