@@ -24,7 +24,7 @@ use miner::Miner;
 use io::IoChannel;
 use test_helpers;
 use types::verification::Unverified;
-use verification::VerifierType;
+use verification::{VerifierType, queue::kind::BlockLike};
 use super::SKIP_TEST_STATE;
 use super::HookType;
 
@@ -39,7 +39,10 @@ pub fn run_test_file<H: FnMut(&str, HookType)>(p: &Path, h: &mut H) {
 }
 
 fn skip_test(name: &String) -> bool {
-	SKIP_TEST_STATE.block.iter().any(|block_test|block_test.subtests.contains(name))
+	SKIP_TEST_STATE
+		.block
+		.iter()
+		.any(|block_test|block_test.subtests.contains(name))
 }
 
 pub fn json_chain_test<H: FnMut(&str, HookType)>(json_data: &[u8], start_stop_hook: &mut H) -> Vec<String> {
@@ -52,18 +55,23 @@ pub fn json_chain_test<H: FnMut(&str, HookType)>(json_data: &[u8], start_stop_ho
 			println!("   - {} | {:?} Ignoring tests because in skip list", name, blockchain.network);
 			continue;
 		}
+
 		start_stop_hook(&name, HookType::OnStart);
 
 		let mut fail = false;
 		{
-			let mut fail_unless = |cond: bool| if !cond && !fail {
-				failed.push(name.clone());
-				flushln!("FAIL");
-				fail = true;
-				true
-			} else {false};
+			let mut fail_unless = |cond: bool| {
+				if !cond && !fail {
+					failed.push(name.clone());
+					flushln!("FAIL");
+					fail = true;
+					true
+				} else {
+					false
+				}
+			};
 
-			flush!("   - {}...", name);
+			info!("   - {}...", name);
 
 			let spec = {
 				let mut spec = match EvmTestClient::fork_spec_from_json(&blockchain.network) {
@@ -89,16 +97,25 @@ pub fn json_chain_test<H: FnMut(&str, HookType)>(json_data: &[u8], start_stop_ho
 					config.check_seal = false;
 				}
 				config.history = 8;
+				config.queue.verifier_settings.num_verifiers = 1;
 				let client = Client::new(
 					config,
 					&spec,
 					db,
 					Arc::new(Miner::new_for_tests(&spec, None)),
 					IoChannel::disconnected(),
-				).unwrap();
+				).expect("Failed to instantiate a new Client");
+
 				for b in blockchain.blocks_rlp() {
+					let bytes_len = b.len();
 					if let Ok(block) = Unverified::from_rlp(b) {
-						let _ = client.import_block(block);
+						let num = block.header.number();
+						let hash = block.hash();
+						trace!(target: "json-tests", "{} – Importing {} bytes. Block #{}/{}", name, bytes_len, num, hash);
+						let res = client.import_block(block);
+						if let Err(e) = res {
+							warn!(target: "json-tests", "{} – Error importing block #{}/{}: {:?}", name, num, hash, e);
+						}
 						client.flush_queue();
 					}
 				}
@@ -113,7 +130,9 @@ pub fn json_chain_test<H: FnMut(&str, HookType)>(json_data: &[u8], start_stop_ho
 		start_stop_hook(&name, HookType::OnStop);
 	}
 
-	println!("!!! {:?} tests from failed.", failed.len());
+	if failed.len() > 0 {
+		println!("!!! {:?} tests failed.", failed.len());
+	}
 	failed
 }
 

@@ -58,9 +58,6 @@ use crate::{
 	seal::Generic as GenericSeal,
 };
 
-
-
-
 /// Runtime parameters for the spec that are related to how the software should run the chain,
 /// rather than integral properties of the chain itself.
 pub struct SpecParams<'a> {
@@ -219,7 +216,7 @@ pub struct Spec {
 	pub hardcoded_sync: Option<SpecHardcodedSync>,
 	/// Contract constructors to be executed on genesis.
 	pub constructors: Vec<(Address, Bytes)>,
-	/// May be prepopulated if we know this in advance.
+	/// May be pre-populated if we know this in advance.
 	pub state_root: H256,
 	/// Genesis state as plain old data.
 	pub genesis_state: PodState,
