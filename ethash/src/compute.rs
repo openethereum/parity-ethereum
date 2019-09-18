@@ -312,7 +312,6 @@ fn hash_compute(light: &Light, full_size: usize, header_hash: &H256, nonce: u64)
 	ProofOfWork { mix_hash: mix_hash, value: value }
 }
 
-// TODO: Use the `simd` crate
 pub fn calculate_dag_item(node_index: u32, cache: &[Node]) -> Node {
 	let num_parent_nodes = cache.len();
 	let mut ret = cache[node_index as usize % num_parent_nodes].clone();
@@ -326,10 +325,8 @@ pub fn calculate_dag_item(node_index: u32, cache: &[Node]) -> Node {
 			num_parent_nodes as u32;
 		let parent = &cache[parent_index as usize];
 
-		unroll! {
-			for w in 0..16 {
-				ret.as_words_mut()[w] = fnv_hash(ret.as_words()[w], parent.as_words()[w]);
-			}
+		for (a, b) in ret.as_words_mut().iter_mut().zip(parent.as_words()) {
+			*a = fnv_hash(*a, *b);
 		}
 	}
 
