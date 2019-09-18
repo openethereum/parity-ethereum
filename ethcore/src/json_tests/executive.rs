@@ -235,20 +235,22 @@ impl<'a, T: 'a, V: 'a, B: 'a> Ext for TestExt<'a, T, V, B>
 	}
 }
 
-fn do_json_test<H: FnMut(&str, HookType)>(json_data: &[u8], h: &mut H) -> Vec<String> {
+fn do_json_test<H: FnMut(&str, HookType)>(path: &Path, json_data: &[u8], h: &mut H) -> Vec<String> {
 	let vms = VMType::all();
 	vms
 		.iter()
-		.flat_map(|vm| do_json_test_for(vm, json_data, h))
+		.flat_map(|vm| do_json_test_for(path, vm, json_data, h))
 		.collect()
 }
 
 fn do_json_test_for<H: FnMut(&str, HookType)>(
+	path: &Path,
 	vm_type: &VMType,
 	json_data: &[u8],
 	start_stop_hook: &mut H
 ) -> Vec<String> {
-	let tests = ethjson::test_helpers::vm::Test::load(json_data).unwrap();
+	let tests = ethjson::test_helpers::vm::Test::load(json_data)
+		.expect(&format!("Could not parse JSON executive test data from {}", path.display()));
 	let mut failed = Vec::new();
 
 	for (name, vm) in tests.into_iter() {

@@ -47,9 +47,10 @@ fn skip_test(subname: &str, chain: &String, number: usize) -> bool {
 	})
 }
 
-pub fn json_chain_test<H: FnMut(&str, HookType)>(json_data: &[u8], start_stop_hook: &mut H) -> Vec<String> {
+pub fn json_chain_test<H: FnMut(&str, HookType)>(path: &Path, json_data: &[u8], start_stop_hook: &mut H) -> Vec<String> {
 	let _ = ::env_logger::try_init();
-	let tests = ethjson::test_helpers::state::Test::load(json_data).expect("Could not parse JSON test file");
+	let tests = ethjson::test_helpers::state::Test::load(json_data)
+		.expect(&format!("Could not parse JSON state test data from {}", path.display()));
 	let mut failed = Vec::new();
 
 	for (name, test) in tests.into_iter() {
@@ -123,11 +124,13 @@ pub fn json_chain_test<H: FnMut(&str, HookType)>(json_data: &[u8], start_stop_ho
 
 #[cfg(test)]
 mod state_tests {
+	use std::path::Path;
+
 	use super::json_chain_test;
 	use json_tests::HookType;
 
-	fn do_json_test<H: FnMut(&str, HookType)>(json_data: &[u8], h: &mut H) -> Vec<String> {
-		json_chain_test(json_data, h)
+	fn do_json_test<H: FnMut(&str, HookType)>(path: &Path, json_data: &[u8], h: &mut H) -> Vec<String> {
+		json_chain_test(path, json_data, h)
 	}
 
 	declare_test!{GeneralStateTest_stArgsZeroOneBalance, "GeneralStateTests/stArgsZeroOneBalance/"}

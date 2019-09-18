@@ -32,7 +32,7 @@ pub enum HookType {
 
 pub fn run_test_path<H: FnMut(&str, HookType)>(
 	p: &Path, skip: &[&'static str],
-	runner: fn(json_data: &[u8], start_stop_hook: &mut H) -> Vec<String>,
+	runner: fn(path: &Path, json_data: &[u8], start_stop_hook: &mut H) -> Vec<String>,
 	start_stop_hook: &mut H
 ) {
 	let mut errors = Vec::new();
@@ -43,7 +43,7 @@ pub fn run_test_path<H: FnMut(&str, HookType)>(
 
 fn run_test_path_inner<H: FnMut(&str, HookType)>(
 	p: &Path, skip: &[&'static str],
-	runner: fn(json_data: &[u8], start_stop_hook: &mut H) -> Vec<String>,
+	runner: fn(path: &Path, json_data: &[u8], start_stop_hook: &mut H) -> Vec<String>,
 	start_stop_hook: &mut H,
 	errors: &mut Vec<String>
 ) {
@@ -75,7 +75,7 @@ fn run_test_path_inner<H: FnMut(&str, HookType)>(
 
 fn run_test_file_append<H: FnMut(&str, HookType)>(
 	path: &Path,
-	runner: fn(json_data: &[u8], start_stop_hook: &mut H) -> Vec<String>,
+	runner: fn(path: &Path, json_data: &[u8], start_stop_hook: &mut H) -> Vec<String>,
 	start_stop_hook: &mut H,
 	errors: &mut Vec<String>
 ) {
@@ -85,12 +85,12 @@ fn run_test_file_append<H: FnMut(&str, HookType)>(
 		Err(_) => panic!("Error opening test file at: {:?}", path),
 	};
 	file.read_to_end(&mut data).expect("Error reading test file");
-	errors.append(&mut runner(&data, start_stop_hook));
+	errors.append(&mut runner(&path, &data, start_stop_hook));
 }
 
 pub fn run_test_file<H: FnMut(&str, HookType)>(
 	path: &Path,
-	runner: fn(json_data: &[u8], start_stop_hook: &mut H) -> Vec<String>,
+	runner: fn(path: &Path, json_data: &[u8], start_stop_hook: &mut H) -> Vec<String>,
 	start_stop_hook: &mut H
 ) {
 	let mut data = Vec::new();
@@ -99,7 +99,7 @@ pub fn run_test_file<H: FnMut(&str, HookType)>(
 		Err(_) => panic!("Error opening test file at: {:?}", path),
 	};
 	file.read_to_end(&mut data).expect("Error reading test file");
-	let results = runner(&data, start_stop_hook);
+	let results = runner(&path, &data, start_stop_hook);
 	let empty: [String; 0] = [];
 	assert_eq!(results, empty);
 }
@@ -107,7 +107,12 @@ pub fn run_test_file<H: FnMut(&str, HookType)>(
 #[cfg(test)]
 macro_rules! test {
 	($name: expr, $skip: expr) => {
-		::json_tests::test_common::run_test_path(::std::path::Path::new(concat!("res/ethereum/tests/", $name)), &$skip, do_json_test, &mut |_, _| ());
+		::json_tests::test_common::run_test_path(
+			::std::path::Path::new(concat!("res/ethereum/tests/", $name)),
+			&$skip,
+			do_json_test,
+			&mut |_, _| ()
+		);
 	}
 }
 

@@ -19,7 +19,7 @@ use std::sync::Arc;
 use client::{Client, ClientConfig};
 use client_traits::{ImportBlock, ChainInfo};
 use spec::Genesis;
-use ethjson;
+use ethjson::test_helpers::blockchain;
 use miner::Miner;
 use io::IoChannel;
 use test_helpers::{self, EvmTestClient};
@@ -45,9 +45,10 @@ fn skip_test(name: &String) -> bool {
 		.any(|block_test|block_test.subtests.contains(name))
 }
 
-pub fn json_chain_test<H: FnMut(&str, HookType)>(json_data: &[u8], start_stop_hook: &mut H) -> Vec<String> {
+pub fn json_chain_test<H: FnMut(&str, HookType)>(path: &Path, json_data: &[u8], start_stop_hook: &mut H) -> Vec<String> {
 	let _ = ::env_logger::try_init();
-	let tests = ethjson::test_helpers::blockchain::Test::load(json_data).expect("Could not parse JSON test file");
+	let tests = blockchain::Test::load(json_data)
+		.expect(&format!("Could not parse JSON chain test data from {}", path.display()));
 	let mut failed = Vec::new();
 
 	for (name, blockchain) in tests.into_iter() {
@@ -138,11 +139,13 @@ pub fn json_chain_test<H: FnMut(&str, HookType)>(json_data: &[u8], start_stop_ho
 
 #[cfg(test)]
 mod block_tests {
+	use std::path::Path;
+
 	use super::json_chain_test;
 	use json_tests::HookType;
 
-	fn do_json_test<H: FnMut(&str, HookType)>(json_data: &[u8], h: &mut H) -> Vec<String> {
-		json_chain_test(json_data, h)
+	fn do_json_test<H: FnMut(&str, HookType)>(path: &Path, json_data: &[u8], h: &mut H) -> Vec<String> {
+		json_chain_test(path, json_data, h)
 	}
 
 	declare_test!{BlockchainTests_bcBlockGasLimitTest, "BlockchainTests/bcBlockGasLimitTest"}
