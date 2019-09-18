@@ -83,16 +83,15 @@ impl Pricer for Linear {
 /// alt_bn128 constant operations (add and mul) pricing model.
 struct AltBn128ConstOperations {
 	price: usize,
-	eip1108_transition_at: u64,
-	eip1108_transition_price: usize,
+	eip1108_transition_at: Option<u64>,
+	eip1108_transition_price: Option<usize>,
 }
 
 impl Pricer for AltBn128ConstOperations {
 	fn cost(&self, _input: &[u8], at: u64) -> U256 {
-		if at >= self.eip1108_transition_at {
-			self.eip1108_transition_price.into()
-		} else {
-			self.price.into()
+		match (self.eip1108_transition_at, self.eip1108_transition_price) {
+			(Some(eip1108_at), Some(eip1108_price)) if at >= eip1108_at => eip1108_price.into(),
+			_ => self.price.into(),
 		}
 	}
 }
@@ -107,16 +106,15 @@ struct AltBn128PairingPrice {
 /// alt_bn128_pairing pricing model. This computes a price using a base cost and a cost per pair.
 struct AltBn128PairingPricer {
 	price: AltBn128PairingPrice,
-	eip1108_transition_at: u64,
-	eip1108_transition_price: AltBn128PairingPrice,
+	eip1108_transition_at: Option<u64>,
+	eip1108_transition_price: Option<AltBn128PairingPrice>,
 }
 
 impl Pricer for AltBn128PairingPricer {
 	fn cost(&self, input: &[u8], at: u64) -> U256 {
-		let price = if at >= self.eip1108_transition_at {
-			self.eip1108_transition_price
-		} else {
-			self.price
+		let price = match (self.eip1108_transition_at, self.eip1108_transition_price) {
+			(Some(eip1108_at), Some(eip1108_price)) if at >= eip1108_at => eip1108_price,
+			_ => self.price,
 		};
 
 		U256::from(price.base) + U256::from(price.pair) * U256::from(input.len() / 192)
@@ -238,23 +236,28 @@ impl From<ethjson::spec::Builtin> for Builtin {
 				})
 			}
 			ethjson::spec::Pricing::AltBn128Pairing(pricer) => {
+				let eip1108_transition_price = match (
+					pricer.eip1108_transition_base,
+					pricer.eip1108_transition_pair
+				) {
+					(Some(base), Some(pair)) => Some(AltBn128PairingPrice { base, pair }),
+					_ => None,
+				};
+
 				Box::new(AltBn128PairingPricer {
 					price: AltBn128PairingPrice {
 						base: pricer.base,
 						pair: pricer.pair,
 					},
-					eip1108_transition_at: b.eip1108_transition.map_or(u64::max_value(), Into::into),
-					eip1108_transition_price: AltBn128PairingPrice {
-						base: pricer.eip1108_transition_base,
-						pair: pricer.eip1108_transition_pair,
-					},
+					eip1108_transition_at: b.eip1108_transition.map(Into::into),
+					eip1108_transition_price,
 				})
 			}
 			ethjson::spec::Pricing::AltBn128ConstOperations(pricer) => {
 				Box::new(AltBn128ConstOperations {
 						price: pricer.price,
 						eip1108_transition_price: pricer.eip1108_transition_price,
-						eip1108_transition_at: b.eip1108_transition.map_or(u64::max_value(), Into::into)
+						eip1108_transition_at: b.eip1108_transition.map(Into::into)
 				})
 			}
 		};
@@ -1293,8 +1296,8 @@ mod tests {
 			pricing: ethjson::spec::Pricing::AltBn128Pairing(ethjson::spec::builtin::AltBn128Pairing {
 				base: 100_000,
 				pair: 80_000,
-				eip1108_transition_base: 45_000,
-				eip1108_transition_pair: 34_000,
+				eip1108_transition_base: Some(45_000),
+				eip1108_transition_pair: Some(34_000),
 			}),
 			activate_at: Some(Uint(U256::from(10))),
 			eip1108_transition: Some(Uint(U256::from(20))),
@@ -1310,7 +1313,7 @@ mod tests {
 			name: "alt_bn128_add".to_owned(),
 			pricing: ethjson::spec::Pricing::AltBn128ConstOperations(ethjson::spec::builtin::AltBn128ConstOperations {
 				price: 500,
-				eip1108_transition_price: 150,
+				eip1108_transition_price: Some(150),
 			}),
 			activate_at: Some(Uint(U256::from(10))),
 			eip1108_transition: Some(Uint(U256::from(20))),
@@ -1326,7 +1329,7 @@ mod tests {
 			name: "alt_bn128_mul".to_owned(),
 			pricing: ethjson::spec::Pricing::AltBn128ConstOperations(ethjson::spec::builtin::AltBn128ConstOperations {
 				price: 40_000,
-				eip1108_transition_price: 6000,
+				eip1108_transition_price: Some(6000),
 			}),
 			activate_at: Some(Uint(U256::from(10))),
 			eip1108_transition: Some(Uint(U256::from(20))),
@@ -1334,5 +1337,41 @@ mod tests {
 
 		assert_eq!(b.cost(&[0; 192], 10), U256::from(40_000));
 		assert_eq!(b.cost(&[0; 10], 20), U256::from(6_000), "after istanbul hardfork gas cost for mul should be 6 000");
+	}
+
+	#[test]
+	fn const_operation_without_eip1108_transition_should_not_change_price() {
+		let b = Builtin::from(ethjson::spec::Builtin {
+			name: "alt_bn128_mul".to_owned(),
+			pricing: ethjson::spec::Pricing::AltBn128ConstOperations(ethjson::spec::builtin::AltBn128ConstOperations {
+				price: 40_000,
+				eip1108_transition_price: Some(6000),
+			}),
+			activate_at: Some(Uint(U256::from(10))),
+			eip1108_transition: None,
+		});
+
+		assert_eq!(b.cost(&[0; 192], 10), U256::from(40_000));
+		assert_eq!(b.cost(&[0; 192], 10), U256::from(40_000));
+		assert_eq!(b.cost(&[0; 192], u64::max_value()), U256::from(40_000));
+	}
+
+	#[test]
+	fn bn_pairing_without_eip1108_pairing_price_should_not_change_price() {
+		let b = Builtin::from(ethjson::spec::Builtin {
+			name: "alt_bn128_pairing".to_owned(),
+			pricing: ethjson::spec::Pricing::AltBn128Pairing(ethjson::spec::builtin::AltBn128Pairing {
+				base: 100_000,
+				pair: 80_000,
+				eip1108_transition_base: Some(45_000),
+				eip1108_transition_pair: None,
+			}),
+			activate_at: Some(Uint(U256::from(10))),
+			eip1108_transition: Some(Uint(U256::from(20))),
+		});
+
+		assert_eq!(b.cost(&[0; 192 * 3], 19), U256::from(340_000));
+		assert_eq!(b.cost(&[0; 192 * 3], 20), U256::from(340_000));
+		assert_eq!(b.cost(&[0; 192 * 3], u64::max_value()), U256::from(340_000));
 	}
 }
