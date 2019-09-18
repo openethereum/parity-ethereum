@@ -13,6 +13,8 @@
 
 // You should have received a copy of the GNU General Public License
 // along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
+use std::mem;
+use std::sync::atomic::{AtomicPtr, Ordering};
 
 pub mod portable;
 pub mod avx;
@@ -41,16 +43,38 @@ const IV: [u64; 8] = [
 	0x510e527fade682d1, 0x9b05688c2b3e6c1f, 0x1f83d9abfb41bd6b, 0x5be0cd19137e2179,
 ];
 
-/// blake2b compression function
-pub fn compress(h: &mut [u64; 8], m: [u64; 16], t: [u64; 2], f: bool, rounds: usize) {
-	if is_x86_feature_detected!("avx2") {
-		unsafe {
-			avx::compress(h, m, t, f, rounds);
-		}
+// raw fn pointer type, can be cast to any fn type
+type FnRaw = *mut ();
+// Blake2bF fn pointer type
+type Blake2bFn = fn(&mut [u64; 8], [u64; 16], [u64; 2], bool, usize);
+
+// holds the pointer to the compress function
+static FN: AtomicPtr<()> = AtomicPtr::new(detect as FnRaw);
+
+// called the the first time, will check if avx is supported
+// and store the appropriate fn pointer in `FN`
+fn detect(state: &mut [u64; 8], message: [u64; 16], count: [u64; 2], f: bool, rounds: usize) {
+	let fun = if is_x86_feature_detected!("avx2") {
+		avx::compress as FnRaw
 	} else {
-		portable::compress(h, m, t, f, rounds);
+		portable::compress as FnRaw
+	};
+	// store fn pointer
+	FN.store(fun as FnRaw, Ordering::Relaxed);
+	// call the fn
+	unsafe {
+		mem::transmute::<FnRaw, Blake2bFn>(fun)(state, message, count, f, rounds)
 	}
 }
+
+/// blake2b compression function
+pub fn compress(state: &mut [u64; 8], message: [u64; 16], count: [u64; 2], f: bool, rounds: usize) {
+	unsafe {
+		let fun = FN.load(Ordering::Relaxed);
+		mem::transmute::<FnRaw, Blake2bFn>(fun)(state, message, count, f, rounds)
+	}
+}
+
 
 
 #[cfg(test)]

@@ -15,7 +15,7 @@
 // along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
 //! AVX2 implementation of the blake2b compression function
-#[allow(dead_code)]
+#![allow(dead_code)]
 use crate::IV;
 
 #[cfg(target_arch = "x86")]
@@ -137,9 +137,12 @@ unsafe fn undiagonalize(a: &mut __m256i, _b: &mut __m256i, c: &mut __m256i, d: &
 /// parameter is modified by the function.
 #[target_feature(enable = "avx2")]
 pub unsafe fn compress(state: &mut [u64; 8], message: [u64; 16], count: [u64; 2], f: bool, rounds: usize) {
+    // get a mutable reference to state[0..4], state[4..]
     let (state_low, state_high) = mut_array_refs!(state, 4, 4);
+    // get a reference to IV[0..4], IV[4..]
     let (iv_low, iv_high) = array_refs!(&IV, 4, 4);
 
+    // loads 4 u64s into a __m256i
     let mut a = loadu(state_low);
     let mut b = loadu(state_high);
     let mut c = loadu(iv_low);
@@ -160,7 +163,10 @@ pub unsafe fn compress(state: &mut [u64; 8], message: [u64; 16], count: [u64; 2]
 
     let mut d = xor(loadu(iv_high), flags);
 
+    // get a reference to message[(0..2)+,]
     let msg_chunks = array_refs!(&message, 2, 2, 2, 2, 2, 2, 2, 2);
+    // load each [u64; 2] into a __m128i, broadcast it into both lanes of
+    // an __m256i.
     let m0 = _mm256_broadcastsi128_si256(loadu_128(msg_chunks.0));
     let m1 = _mm256_broadcastsi128_si256(loadu_128(msg_chunks.1));
     let m2 = _mm256_broadcastsi128_si256(loadu_128(msg_chunks.2));
@@ -180,7 +186,8 @@ pub unsafe fn compress(state: &mut [u64; 8], message: [u64; 16], count: [u64; 2]
     for i in 0..rounds {
         match i % 10 {
             0 => {
-                // sigma for round 1 [ 0,  1,  2,  3,  4,  5,  6,  7,  8,  9, 10, 11, 12, 13, 14, 15]
+                // message mixing is done based on sigma values, for a given round. e.g
+                // SIGMA for round 1 [ 0,  1,  2,  3,  4,  5,  6,  7,  8,  9, 10, 11, 12, 13, 14, 15]
                 t0 = _mm256_unpacklo_epi64(m0, m1); // ([0, 1, 0, 1], [2, 3, 2, 3]) = [0, 2, 0, 2]
                 t1 = _mm256_unpacklo_epi64(m2, m3); // ([4, 5, 4, 5], [6, 7, 6, 7]) = [4, 6, 4, 6]
                 b0 = _mm256_blend_epi32(t0, t1, 0xF0); // ([0, 2, 0, 2], [4, 6, 4, 6]) = [0, 2, 4, 6]
@@ -201,12 +208,11 @@ pub unsafe fn compress(state: &mut [u64; 8], message: [u64; 16], count: [u64; 2]
                 undiagonalize(&mut a, &mut b, &mut c, &mut d);
             },
             1 => {
-                // round 2
-                t0 = _mm256_unpacklo_epi64(m7, m2); // ([14, 15, 14, 15], [4, 5, 4, 5]) = [14, 4, 14, 4]
-                t1 = _mm256_unpackhi_epi64(m4, m6); // ([8, 9, 8, 9], [12, 13, 12, 13]) = [9, 13, 9, 13]
-                b0 = _mm256_blend_epi32(t0, t1, 0xF0); // ([14, 4, 14, 4], [9, 13, 9, 13]) = [14, 4, 9, 13]
+                t0 = _mm256_unpacklo_epi64(m7, m2);
+                t1 = _mm256_unpackhi_epi64(m4, m6);
+                b0 = _mm256_blend_epi32(t0, t1, 0xF0);
                 g1(&mut a, &mut b, &mut c, &mut d, &mut b0);
-                t0 = _mm256_unpacklo_epi64(m5, m4); // ([])
+                t0 = _mm256_unpacklo_epi64(m5, m4);
                 t1 = _mm256_alignr_epi8(m3, m7, 8);
                 b0 = _mm256_blend_epi32(t0, t1, 0xF0);
                 g2(&mut a, &mut b, &mut c, &mut d, &mut b0);
