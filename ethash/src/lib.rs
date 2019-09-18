@@ -44,6 +44,9 @@ mod compute;
 
 mod seed_compute;
 mod cache;
+#[cfg(feature = "bench")]
+pub mod keccak;
+#[cfg(not(feature = "bench"))]
 mod keccak;
 mod shared;
 
