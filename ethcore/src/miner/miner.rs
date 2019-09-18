@@ -1886,6 +1886,7 @@ mod tests {
 				},
 				fetch,
 				p,
+				"dummy".to_owned(),
 			)
 		)
 	}
