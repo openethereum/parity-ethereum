@@ -45,12 +45,11 @@ use blockchain::{
 	BlockNumberKey,
 	BlockProvider,
 	BlockReceipts,
+	CacheSize as BlockChainCacheSize,
 	ExtrasInsert,
 	TransactionAddress,
 	TreeRoute
 };
-// re-export
-pub use blockchain::CacheSize as BlockChainCacheSize;
 use call_contract::{CallContract, RegistryInfo};
 use client::{
 	bad_blocks, BlockProducer, BroadcastProposalBlock, Call,
@@ -93,7 +92,7 @@ use machine::{
 	executive::{contract_address, Executive, TransactOptions},
 	transaction_ext::Transaction,
 };
-use miner::{Miner, MinerService};
+use miner::{Miner, MinerService, PendingOrdering};
 use snapshot::{self, SnapshotClient, SnapshotWriter};
 use spec::Spec;
 use state_db::StateDB;
@@ -2124,7 +2123,7 @@ impl BlockChainClient for Client {
 				).as_u64() as usize
 			)
 		};
-		self.importer.miner.ready_transactions(self, max_len, ::miner::PendingOrdering::Priority)
+		self.importer.miner.ready_transactions(self, max_len, PendingOrdering::Priority)
 	}
 
 	fn signing_chain_id(&self) -> Option<u64> {

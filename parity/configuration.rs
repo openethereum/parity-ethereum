@@ -29,7 +29,7 @@ use bytes::Bytes;
 use ansi_term::Colour;
 use sync::{NetworkConfiguration, validate_node_url, self};
 use ethkey::{Secret, Public};
-use ethcore::client::{VMType};
+use ethcore::client::VMType;
 use ethcore::miner::{stratum, MinerOptions};
 use snapshot::SnapshotConfiguration;
 use miner::pool;

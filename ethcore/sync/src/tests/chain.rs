@@ -17,7 +17,7 @@
 use std::sync::Arc;
 use types::ids::BlockId;
 use client_traits::{BlockChainClient, ChainInfo};
-use ethcore::client::{TestBlockChainClient, EachBlockWith};
+use ethcore::test_helpers::{TestBlockChainClient, EachBlockWith};
 use client_traits::BlockInfo;
 use chain::SyncState;
 use super::helpers::*;

@@ -544,7 +544,7 @@ impl BlockCollection {
 mod test {
 	use super::{BlockCollection, SyncHeader};
 	use client_traits::BlockChainClient;
-	use ethcore::client::{TestBlockChainClient, EachBlockWith};
+	use ethcore::test_helpers::{TestBlockChainClient, EachBlockWith};
 	use types::{
 		ids::BlockId,
 		BlockNumber,

@@ -20,7 +20,7 @@ use rustc_hex::FromHex;
 use ethereum_types::{U256, Address};
 
 use ethcore::miner::MinerService;
-use ethcore::client::TestBlockChainClient;
+use ethcore::test_helpers::TestBlockChainClient;
 use sync::ManageNetwork;
 
 use jsonrpc_core::IoHandler;
