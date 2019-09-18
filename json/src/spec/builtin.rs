@@ -19,7 +19,6 @@
 use crate::uint::Uint;
 use serde::Deserialize;
 
-
 /// Linear pricing.
 #[derive(Debug, PartialEq, Deserialize, Clone)]
 #[serde(deny_unknown_fields)]
@@ -45,7 +44,7 @@ pub struct AltBn128ConstOperations {
 	/// price
 	pub price: usize,
 	/// EIP 1108 transition price
-	pub eip1108_transition_price: usize,
+	pub eip1108_transition_price: Option<usize>,
 }
 
 /// Pricing for alt_bn128_pairing.
@@ -57,9 +56,9 @@ pub struct AltBn128Pairing {
 	/// Price per point pair.
 	pub pair: usize,
 	/// EIP 1108 transition base price
-	pub eip1108_transition_base: usize,
+	pub eip1108_transition_base: Option<usize>,
 	/// EIP 1108 transition price per point pair
-	pub eip1108_transition_pair: usize,
+	pub eip1108_transition_pair: Option<usize>,
 }
 
 /// Pricing variants.
