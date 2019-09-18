@@ -40,7 +40,7 @@ pub use self::params::Params;
 pub use self::spec::{Spec, ForkSpec};
 pub use self::seal::{Seal, Ethereum, AuthorityRoundSeal, TendermintSeal};
 pub use self::engine::Engine;
-pub use self::state::State;
+pub use self::state::{State, HashOrMap};
 pub use self::ethash::{Ethash, EthashParams, BlockReward};
 pub use self::validator_set::ValidatorSet;
 pub use self::basic_authority::{BasicAuthority, BasicAuthorityParams};

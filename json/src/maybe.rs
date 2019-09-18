@@ -83,6 +83,13 @@ impl<T> Into<Option<T>> for MaybeEmpty<T> {
 	}
 }
 
+#[cfg(test)]
+impl From<Uint> for MaybeEmpty<Uint> {
+	fn from(uint: Uint) -> Self {
+		MaybeEmpty::Some(uint)
+	}
+}
+
 impl From<MaybeEmpty<Uint>> for U256 {
 	fn from(maybe: MaybeEmpty<Uint>) -> U256 {
 		match maybe {

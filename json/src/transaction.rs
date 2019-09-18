@@ -63,12 +63,12 @@ mod tests {
 			"nonce" : "0x00",
 			"to" : "",
 			"value" : "0x00",
-			"r": 0,
-			"s": 1,
-			"v": 2,
+			"r": "0",
+			"s": "1",
+			"v": "2",
 			"secretKey": "0x0000000000000000000000000000000000000000000000000000000000000000"
 		}"#;
-		let tx: Transaction = serde_json::from_str(s).unwrap();
+		let tx: Transaction = serde_json::from_str(s).expect("JSON string is valid");
 		assert_eq!(tx.data, Bytes::new(Vec::new()));
 		assert_eq!(tx.gas_limit, Uint(U256::from(0xf388)));
 		assert_eq!(tx.gas_price, Uint(U256::from(0x09184e72a000_u64)));
