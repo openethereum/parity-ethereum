@@ -19,46 +19,54 @@ use std::collections::{HashMap, BTreeMap};
 use std::io;
 use std::ops::RangeInclusive;
 use std::time::Duration;
-use bytes::Bytes;
-use devp2p::NetworkService;
-use network::{NetworkProtocolHandler, NetworkContext, PeerId, ProtocolId,
-	NetworkConfiguration as BasicNetworkConfiguration, NonReservedPeerMode, Error,
-	ConnectionFilter};
-use network::client_version::ClientVersion;
-use ethereum_types::{H256, H512, U256};
-use futures::sync::mpsc as futures_mpsc;
-use futures::Stream;
-use io::{TimerToken};
-use ethkey::Secret;
-use client_traits::{BlockChainClient, ChainNotify};
-use snapshot::SnapshotService;
-use ethcore_private_tx::PrivateStateDB;
-use types::BlockNumber;
-use sync_io::NetSyncIo;
-use chain::{ChainSyncApi, SyncStatus as EthSyncStatus};
 use std::net::{SocketAddr, AddrParseError};
 use std::str::FromStr;
-use parking_lot::{RwLock, Mutex};
-use chain::{ETH_PROTOCOL_VERSION_63, ETH_PROTOCOL_VERSION_62,
-	PAR_PROTOCOL_VERSION_1, PAR_PROTOCOL_VERSION_2, PAR_PROTOCOL_VERSION_3, PAR_PROTOCOL_VERSION_4, SyncState};
-use chain::sync_packet::SyncPacket::{PrivateTransactionPacket, SignedPrivateTransactionPacket};
+use std::sync::atomic::{AtomicBool, Ordering};
+
+use crate::sync_io::NetSyncIo;
+use crate::light_sync::{self, SyncInfo};
+use crate::private_tx::PrivateTxHandler;
+use crate::chain::{
+	sync_packet::SyncPacket::{PrivateTransactionPacket, SignedPrivateTransactionPacket},
+	ChainSyncApi, SyncState, SyncStatus as EthSyncStatus, ETH_PROTOCOL_VERSION_62,
+	ETH_PROTOCOL_VERSION_63, PAR_PROTOCOL_VERSION_1, PAR_PROTOCOL_VERSION_2,
+	PAR_PROTOCOL_VERSION_3, PAR_PROTOCOL_VERSION_4,
+};
+
+use bytes::Bytes;
+use client_traits::{BlockChainClient, ChainNotify};
+use devp2p::NetworkService;
+use ethcore_io::TimerToken;
+use ethcore_private_tx::PrivateStateDB;
+use ethereum_types::{H256, H512, U256};
+use ethkey::Secret;
+use futures::sync::mpsc as futures_mpsc;
+use futures::Stream;
 use light::client::AsLightClient;
 use light::Provider;
 use light::net::{
 	self as light_net, LightProtocol, Params as LightParams,
 	Capabilities, Handler as LightHandler, EventContext, SampleStore,
 };
+use log::{trace, warn};
+use macros::hash_map;
+use network::{
+	client_version::ClientVersion,
+	NetworkProtocolHandler, NetworkContext, PeerId, ProtocolId,
+	NetworkConfiguration as BasicNetworkConfiguration, NonReservedPeerMode, Error,
+	ConnectionFilter, IpFilter
+};
+use snapshot::SnapshotService;
+use parking_lot::{RwLock, Mutex};
 use parity_runtime::Executor;
-use std::sync::atomic::{AtomicBool, Ordering};
-use network::IpFilter;
-use private_tx::PrivateTxHandler;
+use trace_time::trace_time;
 use types::{
+	BlockNumber,
 	chain_notify::{NewBlocks, ChainMessageType},
 	pruning_info::PruningInfo,
 	transaction::UnverifiedTransaction,
 };
 
-use super::light_sync::SyncInfo;
 
 /// Parity sync protocol
 pub const WARP_SYNC_PROTOCOL_ID: ProtocolId = *b"par";
@@ -946,7 +954,7 @@ impl LightSync {
 }
 
 impl ::std::ops::Deref for LightSync {
-	type Target = dyn (::light_sync::SyncInfo);
+	type Target = dyn (light_sync::SyncInfo);
 
 	fn deref(&self) -> &Self::Target { &*self.sync }
 }

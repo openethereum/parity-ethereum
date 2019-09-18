@@ -14,21 +14,37 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
-use api::WARP_SYNC_PROTOCOL_ID;
-use block_sync::{BlockDownloaderImportError as DownloaderImportError, DownloadAction};
+use std::time::Instant;
+use std::{mem, cmp};
+
+use crate::{
+	snapshot_sync::ChunkType,
+	sync_io::SyncIo,
+	api::WARP_SYNC_PROTOCOL_ID,
+	block_sync::{BlockDownloaderImportError as DownloaderImportError, DownloadAction},
+	chain::{
+		sync_packet::{
+			PacketInfo,
+			SyncPacket::{
+				self, BlockBodiesPacket, BlockHeadersPacket, NewBlockHashesPacket, NewBlockPacket,
+				PrivateStatePacket, PrivateTransactionPacket, ReceiptsPacket, SignedPrivateTransactionPacket,
+				SnapshotDataPacket, SnapshotManifestPacket, StatusPacket,
+			}
+		},
+		BlockSet, ChainSync, ForkConfirmation, PacketDecodeError, PeerAsking, PeerInfo, SyncRequester,
+		SyncState, ETH_PROTOCOL_VERSION_62, ETH_PROTOCOL_VERSION_63, MAX_NEW_BLOCK_AGE, MAX_NEW_HASHES,
+		PAR_PROTOCOL_VERSION_1, PAR_PROTOCOL_VERSION_3, PAR_PROTOCOL_VERSION_4,
+	}
+};
+
 use bytes::Bytes;
 use enum_primitive::FromPrimitive;
 use ethereum_types::{H256, U256};
 use hash::keccak;
 use network::PeerId;
 use network::client_version::ClientVersion;
+use log::{debug, trace, error};
 use rlp::Rlp;
-use crate::{
-	snapshot_sync::ChunkType,
-	sync_io::SyncIo,
-};
-use std::time::Instant;
-use std::{mem, cmp};
 use types::{
 	BlockNumber,
 	block_status::BlockStatus,
@@ -38,38 +54,6 @@ use types::{
 	snapshot::{ManifestData, RestorationStatus},
 };
 
-use super::sync_packet::{PacketInfo, SyncPacket};
-use super::sync_packet::SyncPacket::{
-	StatusPacket,
-	NewBlockHashesPacket,
-	BlockHeadersPacket,
-	BlockBodiesPacket,
-	NewBlockPacket,
-	ReceiptsPacket,
-	SnapshotManifestPacket,
-	SnapshotDataPacket,
-	PrivateTransactionPacket,
-	SignedPrivateTransactionPacket,
-	PrivateStatePacket,
-};
-
-use super::{
-	BlockSet,
-	ChainSync,
-	ForkConfirmation,
-	PacketDecodeError,
-	PeerAsking,
-	PeerInfo,
-	SyncRequester,
-	SyncState,
-	ETH_PROTOCOL_VERSION_62,
-	ETH_PROTOCOL_VERSION_63,
-	MAX_NEW_BLOCK_AGE,
-	MAX_NEW_HASHES,
-	PAR_PROTOCOL_VERSION_1,
-	PAR_PROTOCOL_VERSION_3,
-	PAR_PROTOCOL_VERSION_4,
-};
 
 /// The Chain Sync Handler: handles responses from peers
 pub struct SyncHandler;
@@ -800,21 +784,19 @@ impl SyncHandler {
 
 #[cfg(test)]
 mod tests {
+	use std::collections::VecDeque;
+
+	use super::{
+		super::tests::{dummy_sync_with_peer, get_dummy_block, get_dummy_blocks, get_dummy_hashes},
+		SyncHandler
+	};
+
+	use crate::tests::{helpers::TestIo, snapshot::TestSnapshotService};
+
 	use client_traits::ChainInfo;
 	use ethcore::test_helpers::{EachBlockWith, TestBlockChainClient};
 	use parking_lot::RwLock;
 	use rlp::Rlp;
-	use std::collections::VecDeque;
-	use tests::helpers::TestIo;
-	use tests::snapshot::TestSnapshotService;
-
-	use super::*;
-	use super::super::tests::{
-		dummy_sync_with_peer,
-		get_dummy_block,
-		get_dummy_blocks,
-		get_dummy_hashes,
-	};
 
 	#[test]
 	fn handles_peer_new_hashes() {

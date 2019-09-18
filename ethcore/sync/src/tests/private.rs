@@ -15,13 +15,12 @@
 // along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
 use std::sync::Arc;
-use hash::keccak;
-use io::{IoHandler, IoChannel};
-use types::transaction::{Transaction, Action};
-use types::{
-	ids::BlockId,
-	io_message::ClientIoMessage,
+
+use crate::{
+	api::SyncConfig,
+	tests::helpers::{TestIoHandler, TestNet}
 };
+
 use client_traits::BlockChainClient;
 use engine::signer;
 use ethcore::{
@@ -29,14 +28,21 @@ use ethcore::{
 	miner::{self, MinerService},
 	test_helpers::{CreateContractAddress, push_block_with_transactions, new_db},
 };
-use ethcore_private_tx::{Provider, ProviderConfig, NoopEncryptor, Importer, SignedPrivateTransaction, StoringKeyProvider};
+use ethcore_io::{IoHandler, IoChannel};
+use ethcore_private_tx::{
+	Provider, ProviderConfig, NoopEncryptor, Importer, SignedPrivateTransaction, StoringKeyProvider
+};
 use ethkey::KeyPair;
+use hash::keccak;
 use machine::executive::contract_address;
-use tests::helpers::{TestNet, TestIoHandler};
 use rustc_hex::FromHex;
 use rlp::Rlp;
 use spec::Spec;
-use SyncConfig;
+use types::{
+	ids::BlockId,
+	io_message::ClientIoMessage,
+	transaction::{Transaction, Action},
+};
 
 fn seal_spec() -> Spec {
 	let spec_data = include_str!("../res/private_spec.json");
