@@ -50,7 +50,7 @@
 		"eip1344Transition": "0x62f756",
 		"eip1706Transition": "0x62f756",
 		"eip1884Transition": "0x62f756",
-		"eip2028Transition": "0x62f756",
+		"eip2028Transition": "0x62f756"
 	},
 	"genesis": {
 		"seal": {
