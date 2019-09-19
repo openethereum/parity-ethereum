@@ -540,7 +540,7 @@ mod test {
 		BlockNumber,
 		verification::Unverified,
 	};
-	use rlp::*;
+	use rlp::Rlp;
 
 	fn is_empty(bc: &BlockCollection) -> bool {
 		bc.heads.is_empty() &&
