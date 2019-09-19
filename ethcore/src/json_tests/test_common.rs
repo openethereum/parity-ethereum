@@ -140,6 +140,9 @@ macro_rules! test {
 /// Declares a test but skip the named test files inside the folder (no extension):
 ///
 /// declare_test!(skip => ["a-test-file", "other-test-file"], test_name, "path/to/folder/with/tests");
+///
+/// NOTE: a skipped test is considered a passing test as far as `cargo test` is concerned. Normally
+/// one test corresponds to a folder full of test files, each of which may contain many tests.
 #[macro_export]
 macro_rules! declare_test {
 	(skip => $arr: expr, $id: ident, $name: expr) => {
