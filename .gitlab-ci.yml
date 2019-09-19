@@ -100,9 +100,7 @@ cargo-check-benches:
   stage:                           test
   <<:                              *docker-cache-status
   script:
-    - time (cargo check --all --benches --exclude ethash --exclude verification --target $CARGO_TARGET --locked --verbose --color=always)
-    - time (cd ethash; cargo check --benches --features bench --target $CARGO_TARGET --locked --verbose --color=always)
-    - time (cd ethcore/verification; cargo check --benches --features bench --target $CARGO_TARGET --locked --verbose --color=always)
+    - time cargo check --all --benches --target $CARGO_TARGET --locked --verbose --color=always
     - sccache -s
 
 cargo-audit:
@@ -344,7 +342,7 @@ publish-release-awss3-nightly:     &publish-release-awss3
     - linux-docker
 
 publish-release-awss3-manually:
-  <<:                              *publish-release-awss3  
+  <<:                              *publish-release-awss3
   only:                            *releaseable_branches
   when:                            manual
 
