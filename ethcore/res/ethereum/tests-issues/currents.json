@@ -12,8 +12,9 @@
 				"RevertPrecompiledTouchCC_d0g0v0_EIP158",
 				"RevertPrecompiledTouchDC_d0g0v0_Byzantium",
 				"RevertPrecompiledTouchDC_d0g0v0_Constantinople",
-				"RevertPrecompiledTouchDC_d0g0v0_EIP158"
-				]
+				"RevertPrecompiledTouchDC_d0g0v0_EIP158",
+				"RevertPrecompiledTouch_storage_d0g0v0_ConstantinopleFix"
+			]
 		}
 	],
 	"state": [
@@ -44,6 +45,34 @@
 				"RevertPrecompiledTouchDC_d0g0v0": {
 					"subnumbers": ["*"],
 					"chain": "Constantinople (test)"
+				}
+			}
+		},
+		{
+			"reference": "TODO: Add an issue for these",
+			"failing": "stCreate2",
+			"subtests": {
+				"Create2Recursive_d0g0v0_Constantinople": {
+					"subnumbers": ["*"],
+					"chain": "Constantinople"
+				},
+				"Create2Recursive_d0g0v0_ConstantinopleFix": {
+					"subnumbers": ["*"],
+					"chain": "ConstantinopleFix"
+				}
+			}
+		},
+		{
+			"reference": "TODO: Add an issue for these",
+			"failing": "stCreate2Recursive",
+			"subtests": {
+				"Create2Recursive_d0g0v0_ConstantinopleFix": {
+					"subnumbers": ["*"],
+					"chain": "Constantinople"
+				},
+				"Create2Recursive_d0g1v0_ConstantinopleFix": {
+					"subnumbers": ["*"],
+					"chain": "ConstantinopleFix"
 				}
 			}
 		}

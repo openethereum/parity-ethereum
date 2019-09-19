@@ -31,7 +31,8 @@ pub enum HookType {
 }
 
 pub fn run_test_path<H: FnMut(&str, HookType)>(
-	p: &Path, skip: &[&'static str],
+	p: &Path,
+	skip: &[&'static str],
 	runner: fn(path: &Path, json_data: &[u8], start_stop_hook: &mut H) -> Vec<String>,
 	start_stop_hook: &mut H
 ) {
