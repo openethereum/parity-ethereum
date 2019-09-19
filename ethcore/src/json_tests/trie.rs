@@ -22,11 +22,6 @@ use ethereum_types::H256;
 
 use super::HookType;
 
-pub use self::generic::run_test_path as run_generic_test_path;
-pub use self::generic::run_test_file as run_generic_test_file;
-pub use self::secure::run_test_path as run_secure_test_path;
-pub use self::secure::run_test_file as run_secure_test_file;
-
 fn test_trie<H: FnMut(&str, HookType)>(path: &Path, json: &[u8], trie: TrieSpec, start_stop_hook: &mut H) -> Vec<String> {
 	let tests = ethjson::test_helpers::trie::Test::load(json)
 		.expect(&format!("Could not parse JSON trie test data from {}", path.display()));
@@ -67,16 +62,6 @@ mod generic {
 
 	use super::HookType;
 
-	/// Run generic trie jsontests on a given folder.
-	pub fn run_test_path<H: FnMut(&str, HookType)>(p: &Path, skip: &[&'static str], h: &mut H) {
-		::json_tests::test_common::run_test_path(p, skip, do_json_test, h)
-	}
-
-	/// Run generic trie jsontests on a given file.
-	pub fn run_test_file<H: FnMut(&str, HookType)>(p: &Path, h: &mut H) {
-		::json_tests::test_common::run_test_file(p, do_json_test, h)
-	}
-
 	fn do_json_test<H: FnMut(&str, HookType)>(path: &Path, json: &[u8], h: &mut H) -> Vec<String> {
 		super::test_trie(path, json, TrieSpec::Generic, h)
 	}
@@ -90,16 +75,6 @@ mod secure {
 	use trie::TrieSpec;
 
 	use super::HookType;
-
-	/// Run secure trie jsontests on a given folder.
-	pub fn run_test_path<H: FnMut(&str, HookType)>(p: &Path, skip: &[&'static str], h: &mut H) {
-		::json_tests::test_common::run_test_path(p, skip, do_json_test, h)
-	}
-
-	/// Run secure trie jsontests on a given file.
-	pub fn run_test_file<H: FnMut(&str, HookType)>(p: &Path, h: &mut H) {
-		::json_tests::test_common::run_test_file(p, do_json_test, h)
-	}
 
 	fn do_json_test<H: FnMut(&str, HookType)>(path: &Path, json: &[u8], h: &mut H) -> Vec<String> {
 		super::test_trie(path, json, TrieSpec::Secure, h)

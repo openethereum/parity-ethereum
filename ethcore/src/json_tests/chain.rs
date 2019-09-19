@@ -28,16 +28,6 @@ use verification::{VerifierType, queue::kind::BlockLike};
 use super::SKIP_TEST_STATE;
 use super::HookType;
 
-/// Run chain jsontests on a given folder.
-pub fn run_test_path<H: FnMut(&str, HookType)>(p: &Path, skip: &[&'static str], h: &mut H) {
-	::json_tests::test_common::run_test_path(p, skip, json_chain_test, h)
-}
-
-/// Run chain jsontests on a given file.
-pub fn run_test_file<H: FnMut(&str, HookType)>(p: &Path, h: &mut H) {
-	::json_tests::test_common::run_test_file(p, json_chain_test, h)
-}
-
 fn skip_test(name: &String) -> bool {
 	SKIP_TEST_STATE
 		.block

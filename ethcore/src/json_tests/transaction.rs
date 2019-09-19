@@ -26,16 +26,6 @@ use types::{
 };
 use machine::transaction_ext::Transaction;
 
-/// Run transaction jsontests on a given folder.
-pub fn run_test_path<H: FnMut(&str, HookType)>(p: &Path, skip: &[&'static str], h: &mut H) {
-	::json_tests::test_common::run_test_path(p, skip, do_json_test, h)
-}
-
-/// Run transaction jsontests on a given file.
-pub fn run_test_file<H: FnMut(&str, HookType)>(p: &Path, h: &mut H) {
-	::json_tests::test_common::run_test_file(p, do_json_test, h)
-}
-
 // Block number used to run the tests.
 // Make sure that all the specified features are activated.
 const BLOCK_NUMBER: u64 = 0x6ffffffffffffe;
