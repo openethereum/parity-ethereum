@@ -400,6 +400,7 @@ mod test {
 
 	use crate::{
 		blocks::SyncHeader,
+		chain::RlpResponseResult,
 		tests::{helpers::TestIo, snapshot::TestSnapshotService}
 	};
 
@@ -436,7 +437,8 @@ mod test {
 			rlp.append(&if reverse {1u32} else {0u32});
 			rlp.out()
 		}
-		fn to_header_vec(rlp: crate::chain::RlpResponseResult) -> Vec<SyncHeader> {
+
+		fn to_header_vec(rlp: RlpResponseResult) -> Vec<SyncHeader> {
 			Rlp::new(&rlp.unwrap().unwrap().1.out()).iter().map(|r| SyncHeader::from_rlp(r.as_raw().to_vec()).unwrap()).collect()
 		}
 
