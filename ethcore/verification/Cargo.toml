@@ -9,6 +9,7 @@ license = "GPL-3.0"
 [[bench]]
 name = "verification"
 harness = false
+required-features = ['bench']
 
 [dependencies]
 blockchain = { package = "ethcore-blockchain", path = "../blockchain" }
