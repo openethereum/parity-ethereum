@@ -18,7 +18,7 @@ use std::collections::{HashSet, HashMap, hash_map};
 
 use bytes::Bytes;
 use ethereum_types::H256;
-use hash::{keccak, KECCAK_NULL_RLP, KECCAK_EMPTY_LIST_RLP};
+use keccak_hash::{keccak, KECCAK_NULL_RLP, KECCAK_EMPTY_LIST_RLP};
 use log::{trace, warn};
 use parity_util_mem::MallocSizeOf;
 use rlp::{Rlp, RlpStream, DecoderError};

@@ -114,7 +114,7 @@ use client_traits::BlockChainClient;
 use ethereum_types::{H256, U256};
 use fastmap::{H256FastMap, H256FastSet};
 use futures::sync::mpsc as futures_mpsc;
-use hash::keccak;
+use keccak_hash::keccak;
 use log::{error, trace, debug};
 use network::client_version::ClientVersion;
 use network::{self, PeerId, PacketId};

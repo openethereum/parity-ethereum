@@ -38,7 +38,7 @@ use ethcore_private_tx::{
 	Provider, ProviderConfig, NoopEncryptor, Importer, SignedPrivateTransaction, StoringKeyProvider
 };
 use ethkey::KeyPair;
-use hash::keccak;
+use keccak_hash::keccak;
 use machine::executive::contract_address;
 use rustc_hex::FromHex;
 use rlp::Rlp;
@@ -46,7 +46,7 @@ use spec::Spec;
 
 fn seal_spec() -> Spec {
 	let spec_data = include_str!("../res/private_spec.json");
-	Spec::load(&::std::env::temp_dir(), spec_data.as_bytes()).unwrap()
+	Spec::load(&std::env::temp_dir(), spec_data.as_bytes()).unwrap()
 }
 
 #[test]

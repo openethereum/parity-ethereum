@@ -648,7 +648,7 @@ mod tests {
 
 	use ethcore::test_helpers::TestBlockChainClient;
 	use ethkey::{Random, Generator};
-	use hash::keccak;
+	use keccak_hash::keccak;
 	use parking_lot::RwLock;
 	use rlp::{encode_list, RlpStream};
 	use triehash_ethereum::ordered_trie_root;

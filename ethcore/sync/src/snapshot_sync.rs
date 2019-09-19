@@ -18,7 +18,7 @@ use std::collections::HashSet;
 use std::iter::FromIterator;
 
 use ethereum_types::H256;
-use hash::keccak;
+use keccak_hash::keccak;
 use log::trace;
 use snapshot::SnapshotService;
 use common_types::snapshot::ManifestData;
@@ -169,9 +169,10 @@ impl Snapshot {
 
 #[cfg(test)]
 mod test {
-	use hash::keccak;
+	use super::{ChunkType, H256, Snapshot};
+
 	use bytes::Bytes;
-	use super::*;
+	use keccak_hash::keccak;
 	use common_types::snapshot::ManifestData;
 
 	fn is_empty(snapshot: &Snapshot) -> bool {

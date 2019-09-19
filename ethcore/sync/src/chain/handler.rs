@@ -40,7 +40,7 @@ use crate::{
 use bytes::Bytes;
 use enum_primitive::FromPrimitive;
 use ethereum_types::{H256, U256};
-use hash::keccak;
+use keccak_hash::keccak;
 use network::PeerId;
 use network::client_version::ClientVersion;
 use log::{debug, trace, error};

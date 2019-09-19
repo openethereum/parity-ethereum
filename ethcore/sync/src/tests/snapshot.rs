@@ -25,7 +25,7 @@ use crate::{
 use bytes::Bytes;
 use ethcore::test_helpers::EachBlockWith;
 use ethereum_types::H256;
-use hash::keccak;
+use keccak_hash::keccak;
 use parking_lot::Mutex;
 use snapshot::SnapshotService;
 use common_types::{
