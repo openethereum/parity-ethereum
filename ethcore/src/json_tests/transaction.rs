@@ -26,11 +26,12 @@ use types::{
 };
 use machine::transaction_ext::Transaction;
 
-// Block number used to run the tests.
-// Make sure that all the specified features are activated.
-const BLOCK_NUMBER: u64 = 0x6ffffffffffffe;
-
+#[allow(dead_code)]
 fn do_json_test<H: FnMut(&str, HookType)>(path: &Path, json_data: &[u8], start_stop_hook: &mut H) -> Vec<String> {
+	// Block number used to run the tests.
+	// Make sure that all the specified features are activated.
+	const BLOCK_NUMBER: u64 = 0x6ffffffffffffe;
+
 	let tests = ethjson::test_helpers::transaction::Test::load(json_data)
 		.expect(&format!("Could not parse JSON transaction test data from {}", path.display()));
 	let mut failed = Vec::new();

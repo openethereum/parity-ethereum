@@ -25,6 +25,7 @@ use vm::EnvInfo;
 use super::SKIP_TEST_STATE;
 use super::HookType;
 
+#[allow(dead_code)]
 fn skip_test(subname: &str, chain: &String, number: usize) -> bool {
 	SKIP_TEST_STATE.state.iter().any(|state_test|{
 		if let Some(subtest) = state_test.subtests.get(subname) {
@@ -37,6 +38,7 @@ fn skip_test(subname: &str, chain: &String, number: usize) -> bool {
 	})
 }
 
+#[allow(dead_code)]
 pub fn json_chain_test<H: FnMut(&str, HookType)>(path: &Path, json_data: &[u8], start_stop_hook: &mut H) -> Vec<String> {
 	let _ = ::env_logger::try_init();
 	let tests = ethjson::test_helpers::state::Test::load(json_data)

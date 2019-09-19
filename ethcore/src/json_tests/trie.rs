@@ -22,6 +22,7 @@ use ethereum_types::H256;
 
 use super::HookType;
 
+#[allow(dead_code)]
 fn test_trie<H: FnMut(&str, HookType)>(path: &Path, json: &[u8], trie: TrieSpec, start_stop_hook: &mut H) -> Vec<String> {
 	let tests = ethjson::test_helpers::trie::Test::load(json)
 		.expect(&format!("Could not parse JSON trie test data from {}", path.display()));
@@ -62,6 +63,7 @@ mod generic {
 
 	use super::HookType;
 
+	#[allow(dead_code)]
 	fn do_json_test<H: FnMut(&str, HookType)>(path: &Path, json: &[u8], h: &mut H) -> Vec<String> {
 		super::test_trie(path, json, TrieSpec::Generic, h)
 	}
@@ -76,6 +78,7 @@ mod secure {
 
 	use super::HookType;
 
+	#[allow(dead_code)]
 	fn do_json_test<H: FnMut(&str, HookType)>(path: &Path, json: &[u8], h: &mut H) -> Vec<String> {
 		super::test_trie(path, json, TrieSpec::Secure, h)
 	}
