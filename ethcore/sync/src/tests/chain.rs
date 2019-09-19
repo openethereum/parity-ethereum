@@ -23,6 +23,7 @@ use crate::{
 };
 
 use client_traits::{BlockChainClient, BlockInfo, ChainInfo};
+use common_types::ids::BlockId;
 use ethcore::test_helpers::{TestBlockChainClient, EachBlockWith};
 
 #[test]
