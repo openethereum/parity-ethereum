@@ -126,7 +126,7 @@ test-heavy = []
 # note[dvdplm]: "basic-authority/test-helpers" is needed so that `generate_dummy_client_with_spec` works
 test-helpers = [
     "blooms-db",
-    "ethjson",
+    "ethjson/test-helpers",
     "ethkey",
     "kvdb-memorydb",
     "kvdb-rocksdb",
