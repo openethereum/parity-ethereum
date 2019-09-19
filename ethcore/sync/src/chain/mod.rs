@@ -88,38 +88,41 @@
 //! All other messages are ignored.
 
 mod handler;
-pub mod sync_packet;
 mod propagator;
 mod requester;
 mod supplier;
+
+pub mod sync_packet;
 
 use std::sync::{Arc, mpsc};
 use std::collections::{HashSet, HashMap, BTreeMap};
 use std::cmp;
 use std::time::{Duration, Instant};
-use hash::keccak;
-use parity_util_mem::MallocSizeOfExt;
-use futures::sync::mpsc as futures_mpsc;
-use api::Notification;
-use ethereum_types::{H256, U256};
-use fastmap::{H256FastMap, H256FastSet};
-use parking_lot::{Mutex, RwLock, RwLockWriteGuard};
-use bytes::Bytes;
-use rlp::{RlpStream, DecoderError};
-use network::{self, PeerId, PacketId};
-use network::client_version::ClientVersion;
-use client_traits::BlockChainClient;
+
 use crate::{
+	EthProtocolInfo as PeerInfoDigest, PriorityTask, SyncConfig, WarpSync, WARP_SYNC_PROTOCOL_ID,
+	api::{Notification, PRIORITY_TIMER_INTERVAL},
+	block_sync::{BlockDownloader, DownloadAction},
 	sync_io::SyncIo,
 	snapshot_sync::Snapshot,
+	transactions_stats::{TransactionsStats, Stats as TransactionStats},
+	private_tx::PrivateTxHandler,
 };
-use super::{WarpSync, SyncConfig};
-use block_sync::{BlockDownloader, DownloadAction};
+
+use bytes::Bytes;
+use client_traits::BlockChainClient;
+use ethereum_types::{H256, U256};
+use fastmap::{H256FastMap, H256FastSet};
+use futures::sync::mpsc as futures_mpsc;
+use keccak_hash::keccak;
+use log::{error, trace, debug};
+use network::client_version::ClientVersion;
+use network::{self, PeerId, PacketId};
+use parity_util_mem::{MallocSizeOfExt, malloc_size_of_is_0};
+use parking_lot::{Mutex, RwLock, RwLockWriteGuard};
 use rand::{Rng, seq::SliceRandom};
-use api::{EthProtocolInfo as PeerInfoDigest, WARP_SYNC_PROTOCOL_ID, PriorityTask};
-use private_tx::PrivateTxHandler;
-use transactions_stats::{TransactionsStats, Stats as TransactionStats};
-use types::{
+use rlp::{RlpStream, DecoderError};
+use common_types::{
 	BlockNumber,
 	ids::BlockId,
 	transaction::UnverifiedTransaction,
@@ -434,7 +437,7 @@ impl ChainSyncApi {
 	}
 
 	/// Returns transactions propagation statistics
-	pub fn transactions_stats(&self) -> BTreeMap<H256, ::TransactionStats> {
+	pub fn transactions_stats(&self) -> BTreeMap<H256, crate::api::TransactionStats> {
 		self.sync.read().transactions_stats()
 			.iter()
 			.map(|(hash, stats)| (*hash, stats.into()))
@@ -463,7 +466,7 @@ impl ChainSyncApi {
 		}
 
 		// deadline to get the task from the queue
-		let deadline = Instant::now() + ::api::PRIORITY_TIMER_INTERVAL;
+		let deadline = Instant::now() + PRIORITY_TIMER_INTERVAL;
 		let mut work = || {
 			let task = {
 				let tasks = self.priority_tasks.try_lock_until(deadline)?;
@@ -1405,22 +1408,27 @@ impl ChainSync {
 
 #[cfg(test)]
 pub mod tests {
-	use std::collections::{VecDeque};
-	use ethkey;
-	use network::PeerId;
-	use tests::helpers::TestIo;
-	use tests::snapshot::TestSnapshotService;
-	use ethereum_types::{H256, U256, Address};
-	use parking_lot::RwLock;
+	use std::{collections::VecDeque, time::Instant};
+
+	use super::{
+		BlockId, BlockQueueInfo, ChainSync, ClientVersion, PeerInfo, PeerAsking,
+		SyncHandler, SyncState, SyncStatus, SyncPropagator, UnverifiedTransaction
+	};
+
+	use crate::{
+		api::SyncConfig,
+		tests::{helpers::TestIo, snapshot::TestSnapshotService},
+	};
+
 	use bytes::Bytes;
-	use rlp::{Rlp, RlpStream};
-	use super::*;
-	use ::SyncConfig;
-	use super::{PeerInfo, PeerAsking};
-	use ethcore::test_helpers::{EachBlockWith, TestBlockChainClient};
 	use client_traits::{BlockInfo, BlockChainClient, ChainInfo};
+	use ethcore::test_helpers::{EachBlockWith, TestBlockChainClient};
 	use ethcore::miner::{MinerService, PendingOrdering};
-	use types::header::Header;
+	use ethereum_types::{H256, U256, Address};
+	use network::PeerId;
+	use parking_lot::RwLock;
+	use rlp::{Rlp, RlpStream};
+	use common_types::header::Header;
 
 	pub fn get_dummy_block(order: u32, parent_hash: H256) -> Bytes {
 		let mut header = Header::new();

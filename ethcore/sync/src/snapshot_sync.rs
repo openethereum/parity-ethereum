@@ -14,13 +14,14 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
-use snapshot::SnapshotService;
-use ethereum_types::H256;
-use hash::keccak;
-use types::snapshot::ManifestData;
-
 use std::collections::HashSet;
 use std::iter::FromIterator;
+
+use ethereum_types::H256;
+use keccak_hash::keccak;
+use log::trace;
+use snapshot::SnapshotService;
+use common_types::snapshot::ManifestData;
 
 #[derive(PartialEq, Eq, Debug)]
 pub enum ChunkType {
@@ -28,7 +29,7 @@ pub enum ChunkType {
 	Block(H256),
 }
 
-#[derive(MallocSizeOf)]
+#[derive(Default, MallocSizeOf)]
 pub struct Snapshot {
 	pending_state_chunks: Vec<H256>,
 	pending_block_chunks: Vec<H256>,
@@ -41,16 +42,8 @@ pub struct Snapshot {
 
 impl Snapshot {
 	/// Create a new instance.
-	pub fn new() -> Snapshot {
-		Snapshot {
-			pending_state_chunks: Vec::new(),
-			pending_block_chunks: Vec::new(),
-			downloading_chunks: HashSet::new(),
-			completed_chunks: HashSet::new(),
-			snapshot_hash: None,
-			bad_hashes: HashSet::new(),
-			initialized: false,
-		}
+	pub fn new() -> Self {
+		Default::default()
 	}
 
 	/// Sync the Snapshot completed chunks with the Snapshot Service
@@ -176,10 +169,11 @@ impl Snapshot {
 
 #[cfg(test)]
 mod test {
-	use hash::keccak;
+	use super::{ChunkType, H256, Snapshot};
+
 	use bytes::Bytes;
-	use super::*;
-	use types::snapshot::ManifestData;
+	use keccak_hash::keccak;
+	use common_types::snapshot::ManifestData;
 
 	fn is_empty(snapshot: &Snapshot) -> bool {
 		snapshot.pending_block_chunks.is_empty() &&

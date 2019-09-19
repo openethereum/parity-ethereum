@@ -15,21 +15,24 @@
 // along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
 use std::sync::Arc;
-use hash::keccak;
-use ethereum_types::{U256, Address};
-use io::{IoHandler, IoChannel};
+
+use crate::{
+	api::SyncConfig,
+	tests::helpers::{TestIoHandler, TestNet},
+};
+
 use client_traits::ChainInfo;
 use engine::signer;
-use spec;
 use ethcore::client::Client;
 use ethcore::miner::{self, MinerService};
+use ethcore_io::{IoHandler, IoChannel};
+use ethereum_types::{U256, Address};
 use ethkey::{KeyPair, Secret};
-use types::{
+use keccak_hash::keccak;
+use common_types::{
 	io_message::ClientIoMessage,
 	transaction::{Action, PendingTransaction, Transaction}
 };
-use super::helpers::*;
-use SyncConfig;
 
 fn new_tx(secret: &Secret, nonce: U256, chain_id: u64) -> PendingTransaction {
 	let signed = Transaction {

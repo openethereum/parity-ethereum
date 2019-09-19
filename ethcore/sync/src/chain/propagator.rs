@@ -17,19 +17,18 @@
 use std::cmp;
 use std::collections::HashSet;
 
+use crate::{sync_io::SyncIo, chain::sync_packet::SyncPacket};
+
 use bytes::Bytes;
 use ethereum_types::H256;
 use fastmap::H256FastSet;
+use log::{debug, error, trace};
 use network::client_version::ClientCapabilities;
 use network::PeerId;
 use rand::RngCore;
 use rlp::{Encodable, RlpStream};
-use sync_io::SyncIo;
-use types::transaction::SignedTransaction;
-use types::BlockNumber;
-use types::blockchain_info::BlockChainInfo;
+use common_types::{blockchain_info::BlockChainInfo, transaction::SignedTransaction, BlockNumber};
 
-use super::sync_packet::SyncPacket;
 use super::sync_packet::SyncPacket::{
 	NewBlockHashesPacket,
 	TransactionsPacket,
@@ -335,17 +334,26 @@ impl SyncPropagator {
 
 #[cfg(test)]
 mod tests {
-	use client_traits::{BlockInfo, ChainInfo};
-	use ethcore::test_helpers::{EachBlockWith, TestBlockChainClient};
-	use parking_lot::RwLock;
-	use rlp::Rlp;
-	use std::collections::VecDeque;
-	use tests::{
-		helpers::TestIo,
-		snapshot::TestSnapshotService,
+	use std::{collections::VecDeque, time::Instant};
+
+	use crate::{
+		api::SyncConfig,
+		chain::{ChainSync, ForkConfirmation, PeerAsking, PeerInfo},
+		tests::{helpers::TestIo, snapshot::TestSnapshotService},
 	};
 
-	use super::{*, super::{*, tests::*}};
+	use super::{
+		super::tests::{dummy_sync_with_peer, insert_dummy_peer},
+		SyncPropagator,
+	};
+
+	use client_traits::{BlockChainClient, BlockInfo, ChainInfo};
+	use ethcore::test_helpers::{EachBlockWith, TestBlockChainClient};
+	use ethereum_types::{H256, U256};
+	use network::client_version::ClientVersion;
+	use parking_lot::RwLock;
+	use rlp::Rlp;
+	use common_types::{ids::BlockId, transaction::UnverifiedTransaction};
 
 	#[test]
 	fn sends_new_hashes_to_lagging_peer() {

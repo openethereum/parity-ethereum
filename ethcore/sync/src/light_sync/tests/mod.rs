@@ -14,11 +14,11 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
-use tests::helpers::TestNet;
+use crate::tests::helpers::TestNet;
 
 use ethcore::test_helpers::EachBlockWith;
 use client_traits::BlockInfo;
-use types::ids::BlockId;
+use common_types::ids::BlockId;
 
 mod test_net;
 
