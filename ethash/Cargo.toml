@@ -28,7 +28,9 @@ bench = []
 [[bench]]
 name = "basic"
 harness = false
+required-features = ['bench']
 
 [[bench]]
 name = "progpow"
 harness = false
+required-features = ['bench']
