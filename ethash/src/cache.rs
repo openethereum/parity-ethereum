@@ -21,7 +21,7 @@ use memmap::MmapMut;
 use parking_lot::Mutex;
 use seed_compute::SeedHashCompute;
 
-use shared::{ETHASH_CACHE_ROUNDS, NODE_BYTES, NODE_DWORDS, Node, epoch, get_cache_size, to_hex};
+use shared::{ETHASH_CACHE_ROUNDS, NODE_BYTES, Node, epoch, get_cache_size, to_hex};
 
 use std::borrow::Cow;
 use std::fs;
@@ -317,11 +317,6 @@ unsafe fn initialize_memory(memory: *mut Node, num_nodes: usize, ident: &H256) {
 	// Now this is initialized, we can treat it as a slice.
 	let nodes: &mut [Node] = slice::from_raw_parts_mut(memory, num_nodes);
 
-	// For `unroll!`, see below. If the literal in `unroll!` is not the same as the RHS here then
-	// these have got out of sync! Don't let this happen!
-	debug_assert_eq!(NODE_DWORDS, 8);
-
-	// This _should_ get unrolled by the compiler, since it's not using the loop variable.
 	for _ in 0..ETHASH_CACHE_ROUNDS {
 		for i in 0..num_nodes {
 			let data_idx = (num_nodes - 1 + i) % num_nodes;
@@ -331,11 +326,8 @@ unsafe fn initialize_memory(memory: *mut Node, num_nodes: usize, ident: &H256) {
 				let mut data: Node = nodes.get_unchecked(data_idx).clone();
 				let rhs: &Node = nodes.get_unchecked(idx);
 
-				unroll! {
-					for w in 0..8 {
-						*data.as_dwords_mut().get_unchecked_mut(w) ^=
-							*rhs.as_dwords().get_unchecked(w);
-					}
+				for (a, b) in data.as_dwords_mut().iter_mut().zip(rhs.as_dwords()) {
+					*a ^= *b;
 				}
 
 				data

@@ -22,8 +22,6 @@ extern crate parking_lot;
 extern crate primal;
 
 #[macro_use]
-extern crate crunchy;
-#[macro_use]
 extern crate log;
 #[macro_use]
 extern crate static_assertions;
