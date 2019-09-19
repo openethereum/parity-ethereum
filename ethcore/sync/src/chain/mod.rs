@@ -122,7 +122,7 @@ use parity_util_mem::{MallocSizeOfExt, malloc_size_of_is_0};
 use parking_lot::{Mutex, RwLock, RwLockWriteGuard};
 use rand::{Rng, seq::SliceRandom};
 use rlp::{RlpStream, DecoderError};
-use types::{
+use common_types::{
 	BlockNumber,
 	ids::BlockId,
 	transaction::UnverifiedTransaction,
@@ -1428,7 +1428,7 @@ pub mod tests {
 	use network::PeerId;
 	use parking_lot::RwLock;
 	use rlp::{Rlp, RlpStream};
-	use types::header::Header;
+	use common_types::header::Header;
 
 	pub fn get_dummy_block(order: u32, parent_hash: H256) -> Bytes {
 		let mut header = Header::new();

@@ -29,7 +29,7 @@ use ethcore_io::{IoHandler, IoChannel};
 use ethereum_types::{U256, Address};
 use ethkey::{KeyPair, Secret};
 use hash::keccak;
-use types::{
+use common_types::{
 	io_message::ClientIoMessage,
 	transaction::{Action, PendingTransaction, Transaction}
 };

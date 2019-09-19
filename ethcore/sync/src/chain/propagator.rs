@@ -27,9 +27,7 @@ use network::client_version::ClientCapabilities;
 use network::PeerId;
 use rand::RngCore;
 use rlp::{Encodable, RlpStream};
-use types::transaction::SignedTransaction;
-use types::BlockNumber;
-use types::blockchain_info::BlockChainInfo;
+use common_types::{blockchain_info::BlockChainInfo, transaction::SignedTransaction, BlockNumber};
 
 use super::sync_packet::SyncPacket::{
 	NewBlockHashesPacket,
@@ -355,7 +353,7 @@ mod tests {
 	use network::client_version::ClientVersion;
 	use parking_lot::RwLock;
 	use rlp::Rlp;
-	use types::{ids::BlockId, transaction::UnverifiedTransaction};
+	use common_types::{ids::BlockId, transaction::UnverifiedTransaction};
 
 	#[test]
 	fn sends_new_hashes_to_lagging_peer() {

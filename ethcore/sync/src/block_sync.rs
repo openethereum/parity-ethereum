@@ -32,7 +32,7 @@ use log::{debug, trace};
 use network::{client_version::ClientCapabilities, PeerId};
 use rlp::Rlp;
 use parity_util_mem::MallocSizeOf;
-use types::{
+use common_types::{
 	BlockNumber,
 	block_status::BlockStatus,
 	ids::BlockId,
@@ -652,7 +652,7 @@ mod tests {
 	use parking_lot::RwLock;
 	use rlp::{encode_list, RlpStream};
 	use triehash_ethereum::ordered_trie_root;
-	use types::{
+	use common_types::{
 		transaction::{Transaction, SignedTransaction},
 		header::Header as BlockHeader,
 	};

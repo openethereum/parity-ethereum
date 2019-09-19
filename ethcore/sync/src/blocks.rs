@@ -23,7 +23,7 @@ use log::{trace, warn};
 use parity_util_mem::MallocSizeOf;
 use rlp::{Rlp, RlpStream, DecoderError};
 use triehash_ethereum::ordered_trie_root;
-use types::{
+use common_types::{
 	transaction::UnverifiedTransaction,
 	header::Header as BlockHeader,
 	verification::Unverified,
@@ -535,7 +535,7 @@ mod test {
 	use super::{BlockCollection, SyncHeader};
 	use client_traits::BlockChainClient;
 	use ethcore::test_helpers::{TestBlockChainClient, EachBlockWith};
-	use types::{
+	use common_types::{
 		ids::BlockId,
 		BlockNumber,
 		verification::Unverified,

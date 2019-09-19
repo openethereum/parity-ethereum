@@ -21,7 +21,7 @@ use ethereum_types::H256;
 use hash::keccak;
 use log::trace;
 use snapshot::SnapshotService;
-use types::snapshot::ManifestData;
+use common_types::snapshot::ManifestData;
 
 #[derive(PartialEq, Eq, Debug)]
 pub enum ChunkType {
@@ -172,7 +172,7 @@ mod test {
 	use hash::keccak;
 	use bytes::Bytes;
 	use super::*;
-	use types::snapshot::ManifestData;
+	use common_types::snapshot::ManifestData;
 
 	fn is_empty(snapshot: &Snapshot) -> bool {
 		snapshot.pending_block_chunks.is_empty() &&

@@ -26,7 +26,7 @@ use ethereum_types::H256;
 use log::{debug, trace, warn};
 use network::{PeerId};
 use rlp::RlpStream;
-use types::BlockNumber;
+use common_types::BlockNumber;
 
 use super::sync_packet::SyncPacket;
 use super::sync_packet::SyncPacket::{

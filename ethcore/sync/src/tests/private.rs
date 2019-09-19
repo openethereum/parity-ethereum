@@ -22,6 +22,11 @@ use crate::{
 };
 
 use client_traits::BlockChainClient;
+use common_types::{
+	ids::BlockId,
+	io_message::ClientIoMessage,
+	transaction::{Transaction, Action},
+};
 use engine::signer;
 use ethcore::{
 	client::Client,
@@ -38,11 +43,6 @@ use machine::executive::contract_address;
 use rustc_hex::FromHex;
 use rlp::Rlp;
 use spec::Spec;
-use types::{
-	ids::BlockId,
-	io_message::ClientIoMessage,
-	transaction::{Transaction, Action},
-};
 
 fn seal_spec() -> Spec {
 	let spec_data = include_str!("../res/private_spec.json");

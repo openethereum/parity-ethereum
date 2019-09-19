@@ -16,6 +16,8 @@
 
 use std::cmp;
 
+use crate::sync_io::SyncIo;
+
 use bytes::Bytes;
 use enum_primitive::FromPrimitive;
 use ethereum_types::H256;
@@ -23,10 +25,7 @@ use log::{debug, trace};
 use network::{self, PeerId};
 use parking_lot::RwLock;
 use rlp::{Rlp, RlpStream};
-use types::BlockNumber;
-use types::ids::BlockId;
-
-use crate::sync_io::SyncIo;
+use common_types::{ids::BlockId, BlockNumber};
 
 use super::sync_packet::{PacketInfo, SyncPacket};
 use super::sync_packet::SyncPacket::{

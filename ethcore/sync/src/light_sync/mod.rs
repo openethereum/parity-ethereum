@@ -43,7 +43,7 @@ use crate::{
 	chain::SyncState as ChainSyncState,
 };
 
-use types::encoded;
+use common_types::encoded;
 use light::client::{AsLightClient, LightChainClient};
 use light::net::{
 	PeerStatus, Announcement, Handler, BasicContext,
@@ -503,7 +503,7 @@ impl<L: AsLightClient> LightSync<L> {
 
 	// handles request dispatch, block import, state machine transitions, and timeouts.
 	fn maintain_sync(&self, ctx: &dyn BasicContext) {
-		use types::errors::{EthcoreError, ImportError};
+		use common_types::errors::{EthcoreError, ImportError};
 
 		const DRAIN_AMOUNT: usize = 128;
 

@@ -60,7 +60,7 @@ use snapshot::SnapshotService;
 use parking_lot::{RwLock, Mutex};
 use parity_runtime::Executor;
 use trace_time::trace_time;
-use types::{
+use common_types::{
 	BlockNumber,
 	chain_notify::{NewBlocks, ChainMessageType},
 	pruning_info::PruningInfo,
@@ -654,14 +654,14 @@ impl ChainNotify for EthSync {
 struct TxRelay(Arc<dyn BlockChainClient>);
 
 impl LightHandler for TxRelay {
-	fn on_transactions(&self, ctx: &dyn EventContext, relay: &[::types::transaction::UnverifiedTransaction]) {
+	fn on_transactions(&self, ctx: &dyn EventContext, relay: &[UnverifiedTransaction]) {
 		trace!(target: "pip", "Relaying {} transactions from peer {}", relay.len(), ctx.peer());
-		self.0.queue_transactions(relay.iter().map(|tx| ::rlp::encode(tx)).collect(), ctx.peer())
+		self.0.queue_transactions(relay.iter().map(|tx| rlp::encode(tx)).collect(), ctx.peer())
 	}
 }
 
 /// Trait for managing network
-pub trait ManageNetwork : Send + Sync {
+pub trait ManageNetwork: Send + Sync {
 	/// Set to allow unreserved peers to connect
 	fn accept_unreserved_peers(&self);
 	/// Set to deny unreserved peers to connect
@@ -953,7 +953,7 @@ impl LightSync {
 
 }
 
-impl ::std::ops::Deref for LightSync {
+impl std::ops::Deref for LightSync {
 	type Target = dyn (light_sync::SyncInfo);
 
 	fn deref(&self) -> &Self::Target { &*self.sync }
@@ -961,7 +961,7 @@ impl ::std::ops::Deref for LightSync {
 
 
 impl LightNetworkDispatcher for LightSync {
-	fn with_context<F, T>(&self, f: F) -> Option<T> where F: FnOnce(&dyn (::light::net::BasicContext)) -> T {
+	fn with_context<F, T>(&self, f: F) -> Option<T> where F: FnOnce(&dyn (light::net::BasicContext)) -> T {
 		self.network.with_context_eval(
 			self.subprotocol_name,
 			move |ctx| self.proto.with_context(&ctx, f),

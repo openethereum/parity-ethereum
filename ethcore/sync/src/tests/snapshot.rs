@@ -28,7 +28,7 @@ use ethereum_types::H256;
 use hash::keccak;
 use parking_lot::Mutex;
 use snapshot::SnapshotService;
-use types::{
+use common_types::{
 	BlockNumber,
 	snapshot::{ManifestData, RestorationStatus},
 };

@@ -20,12 +20,11 @@ use std::cmp::Ordering;
 use std::collections::{BinaryHeap, HashMap, HashSet, VecDeque};
 use std::fmt;
 
-use types::encoded;
-use types::header::Header;
+use common_types::{encoded, header::Header};
 
 use light::net::ReqId;
 use light::request::CompleteHeadersRequest as HeadersRequest;
-use log::{trace};
+use log::trace;
 
 use network::PeerId;
 use ethereum_types::H256;

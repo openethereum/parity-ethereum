@@ -9,22 +9,22 @@ edition = "2018"
 [lib]
 
 [dependencies]
+bytes = { package = "parity-bytes", version = "0.1" }
 client-traits = { path = "../client-traits" }
-types = { package = "common-types", path = "../types" }
+common-types = { path = "../types" }
+devp2p = { package = "ethcore-network-devp2p", path = "../../util/network-devp2p" }
 enum_primitive = "0.1.1"
 ethcore-io = { path = "../../util/io" }
-light = { package = "ethcore-light", path = "../light" }
-network = { package = "ethcore-network", path = "../../util/network" }
-devp2p = { package = "ethcore-network-devp2p", path = "../../util/network-devp2p" }
 ethcore-private-tx = { path = "../private-tx" }
 ethereum-types = "0.6.0"
 ethkey = { path = "../../accounts/ethkey" }
 fastmap = { path = "../../util/fastmap" }
 futures = "0.1"
 hash = { package = "keccak-hash", version = "0.2.0"}
+light = { package = "ethcore-light", path = "../light" }
 log = "0.4"
 macros = { path = "../../util/macros" }
-bytes = { package = "parity-bytes", version = "0.1" }
+network = { package = "ethcore-network", path = "../../util/network" }
 parity-runtime = { path = "../../util/runtime" }
 parity-util-mem = "0.2.0"
 parking_lot = "0.8"

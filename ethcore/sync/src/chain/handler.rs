@@ -45,7 +45,7 @@ use network::PeerId;
 use network::client_version::ClientVersion;
 use log::{debug, trace, error};
 use rlp::Rlp;
-use types::{
+use common_types::{
 	BlockNumber,
 	block_status::BlockStatus,
 	ids::BlockId,

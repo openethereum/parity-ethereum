@@ -18,7 +18,7 @@ use crate::tests::helpers::TestNet;
 
 use ethcore::test_helpers::EachBlockWith;
 use client_traits::BlockInfo;
-use types::ids::BlockId;
+use common_types::ids::BlockId;
 
 mod test_net;
 

@@ -24,7 +24,6 @@ use crate::{
 
 use client_traits::{BlockChainClient, BlockInfo, ChainInfo};
 use ethcore::test_helpers::{TestBlockChainClient, EachBlockWith};
-use types::ids::BlockId;
 
 #[test]
 fn two_peers() {

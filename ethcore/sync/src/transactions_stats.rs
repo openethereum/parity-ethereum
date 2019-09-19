@@ -21,7 +21,7 @@ use crate::api::TransactionStats;
 
 use ethereum_types::{H256, H512};
 use fastmap::H256FastMap;
-use types::BlockNumber;
+use common_types::BlockNumber;
 
 type NodeId = H512;
 

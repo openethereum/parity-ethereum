@@ -32,12 +32,16 @@ use crate::{
 };
 
 use client_traits::{BlockChainClient, ChainNotify};
+use common_types::{
+	chain_notify::{NewBlocks, ChainMessageType},
+	io_message::ClientIoMessage,
+	BlockNumber,
+};
 use ethcore::{
 	client::{Client as EthcoreClient, ClientConfig},
-	test_helpers::TestBlockChainClient
+	test_helpers::{self, TestBlockChainClient},
 };
 use ethcore::miner::Miner;
-use ethcore::test_helpers;
 use ethcore_io::{IoChannel, IoContext, IoHandler};
 use ethcore_private_tx::PrivateStateDB;
 use ethereum_types::H256;
@@ -48,11 +52,6 @@ use log::trace;
 use snapshot::SnapshotService;
 use spec::Spec;
 use parking_lot::{RwLock, Mutex};
-use types::{
-	chain_notify::{NewBlocks, ChainMessageType},
-	io_message::ClientIoMessage,
-	BlockNumber,
-};
 
 pub trait FlushingBlockChainClient: BlockChainClient {
 	fn flush(&self) {}

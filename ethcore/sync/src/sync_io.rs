@@ -26,7 +26,7 @@ use network::client_version::ClientVersion;
 use network::{NetworkContext, PeerId, PacketId, Error, SessionInfo, ProtocolId};
 use parking_lot::RwLock;
 use snapshot::SnapshotService;
-use types::BlockNumber;
+use common_types::BlockNumber;
 
 /// IO interface for the syncing handler.
 /// Provides peer connection management and an interface to the blockchain client.
