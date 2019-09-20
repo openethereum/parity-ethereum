@@ -26,7 +26,7 @@
 //!
 //! To skip a state test, add a JSON object to the `state` array. The `failing` works like for block
 //! tests, but the `subtests` key is an object on the form:
-//! "testName": {"subtests": [INDEX_OF_SKIPPED_SUBTESTS | "*"], "chain": "Blockchain name (informational)"}`
+//! "testName": {"subnumbers": [INDEX_OF_SKIPPED_SUBTESTS | "*"], "chain": "Blockchain name (informational)"}`
 //!
 //! Use the `reference` key to point to the github issue tracking to solution to the problem.
 //!

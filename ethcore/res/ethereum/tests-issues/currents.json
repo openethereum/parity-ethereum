@@ -6,14 +6,50 @@
 			"subtests": [
 				"RevertPrecompiledTouch_d0g0v0_Byzantium",
 				"RevertPrecompiledTouch_d0g0v0_Constantinople",
+				"RevertPrecompiledTouch_d0g0v0_ConstantinopleFix",
 				"RevertPrecompiledTouch_d0g0v0_EIP158",
+				"RevertPrecompiledTouch_d3g0v0_ConstantinopleFix",
 				"RevertPrecompiledTouchCC_d0g0v0_Byzantium",
 				"RevertPrecompiledTouchCC_d0g0v0_Constantinople",
 				"RevertPrecompiledTouchCC_d0g0v0_EIP158",
 				"RevertPrecompiledTouchDC_d0g0v0_Byzantium",
 				"RevertPrecompiledTouchDC_d0g0v0_Constantinople",
 				"RevertPrecompiledTouchDC_d0g0v0_EIP158",
+				"RevertPrecompiledTouchExactOOG_d7g1v0_ConstantinopleFix",
+				"RevertPrecompiledTouchExactOOG_d31g1v0_ConstantinopleFix",
+				"RevertPrecompiledTouch_storage_d3g0v0_ConstantinopleFix",
 				"RevertPrecompiledTouch_storage_d0g0v0_ConstantinopleFix"
+			]
+		},
+		{
+			"reference": "TODO: Add an issue for these",
+			"failing": "stReturnDataTest",
+			"subtests": [
+				"returndatasize_after_successful_callcode_d0g0v0_ConstantinopleFix"
+			]
+		},
+		{
+			"reference": "TODO: Add an issue for these",
+			"failing": "stSpecialTest",
+			"subtests": [
+				"tx_e1c174e2_d0g0v0_ConstantinopleFix"
+			]
+		},
+		{
+			"reference": "TODO: Add an issue for these",
+			"failing": "stStaticCall",
+			"subtests": [
+				"static_callBasic_d0g0v0_ConstantinopleFix",
+				"static_callBasic_d1g0v0_ConstantinopleFix",
+				"static_callBasic_d2g0v0_ConstantinopleFix",
+				"static_callBasic_d3g0v0_ConstantinopleFix"
+			]
+		},
+		{
+			"reference": "TODO: Add an issue for these",
+			"failing": "stTransactionTest",
+			"subtests": [
+				"Opcodes_TransactionInit_d0g0v0_ConstantinopleFix", "Opcodes_TransactionInit_d100g0v0_ConstantinopleFix", "Opcodes_TransactionInit_d101g0v0_ConstantinopleFix", "Opcodes_TransactionInit_d102g0v0_ConstantinopleFix", "Opcodes_TransactionInit_d103g0v0_ConstantinopleFix", "Opcodes_TransactionInit_d104g0v0_ConstantinopleFix", "Opcodes_TransactionInit_d105g0v0_ConstantinopleFix", "Opcodes_TransactionInit_d106g0v0_ConstantinopleFix", "Opcodes_TransactionInit_d107g0v0_ConstantinopleFix", "Opcodes_TransactionInit_d108g0v0_ConstantinopleFix", "Opcodes_TransactionInit_d109g0v0_ConstantinopleFix", "Opcodes_TransactionInit_d10g0v0_ConstantinopleFix", "Opcodes_TransactionInit_d110g0v0_ConstantinopleFix", "Opcodes_TransactionInit_d111g0v0_ConstantinopleFix", "Opcodes_TransactionInit_d112g0v0_ConstantinopleFix", "Opcodes_TransactionInit_d113g0v0_ConstantinopleFix", "Opcodes_TransactionInit_d114g0v0_ConstantinopleFix", "Opcodes_TransactionInit_d115g0v0_ConstantinopleFix", "Opcodes_TransactionInit_d116g0v0_ConstantinopleFix", "Opcodes_TransactionInit_d117g0v0_ConstantinopleFix", "Opcodes_TransactionInit_d118g0v0_ConstantinopleFix", "Opcodes_TransactionInit_d119g0v0_ConstantinopleFix", "Opcodes_TransactionInit_d11g0v0_ConstantinopleFix", "Opcodes_TransactionInit_d120g0v0_ConstantinopleFix", "Opcodes_TransactionInit_d121g0v0_ConstantinopleFix", "Opcodes_TransactionInit_d122g0v0_ConstantinopleFix", "Opcodes_TransactionInit_d123g0v0_ConstantinopleFix", "Opcodes_TransactionInit_d124g0v0_ConstantinopleFix", "Opcodes_TransactionInit_d125g0v0_ConstantinopleFix", "Opcodes_TransactionInit_d126g0v0_ConstantinopleFix", "Opcodes_TransactionInit_d127g0v0_ConstantinopleFix", "Opcodes_TransactionInit_d12g0v0_ConstantinopleFix", "Opcodes_TransactionInit_d13g0v0_ConstantinopleFix", "Opcodes_TransactionInit_d14g0v0_ConstantinopleFix", "Opcodes_TransactionInit_d15g0v0_ConstantinopleFix", "Opcodes_TransactionInit_d16g0v0_ConstantinopleFix", "Opcodes_TransactionInit_d17g0v0_ConstantinopleFix", "Opcodes_TransactionInit_d18g0v0_ConstantinopleFix", "Opcodes_TransactionInit_d19g0v0_ConstantinopleFix", "Opcodes_TransactionInit_d1g0v0_ConstantinopleFix", "Opcodes_TransactionInit_d20g0v0_ConstantinopleFix", "Opcodes_TransactionInit_d21g0v0_ConstantinopleFix", "Opcodes_TransactionInit_d22g0v0_ConstantinopleFix", "Opcodes_TransactionInit_d23g0v0_ConstantinopleFix", "Opcodes_TransactionInit_d24g0v0_ConstantinopleFix", "Opcodes_TransactionInit_d25g0v0_ConstantinopleFix", "Opcodes_TransactionInit_d26g0v0_ConstantinopleFix", "Opcodes_TransactionInit_d27g0v0_ConstantinopleFix", "Opcodes_TransactionInit_d28g0v0_ConstantinopleFix", "Opcodes_TransactionInit_d29g0v0_ConstantinopleFix", "Opcodes_TransactionInit_d2g0v0_ConstantinopleFix", "Opcodes_TransactionInit_d30g0v0_ConstantinopleFix", "Opcodes_TransactionInit_d31g0v0_ConstantinopleFix", "Opcodes_TransactionInit_d32g0v0_ConstantinopleFix", "Opcodes_TransactionInit_d33g0v0_ConstantinopleFix", "Opcodes_TransactionInit_d34g0v0_ConstantinopleFix", "Opcodes_TransactionInit_d35g0v0_ConstantinopleFix", "Opcodes_TransactionInit_d36g0v0_ConstantinopleFix", "Opcodes_TransactionInit_d37g0v0_ConstantinopleFix", "Opcodes_TransactionInit_d38g0v0_ConstantinopleFix", "Opcodes_TransactionInit_d39g0v0_ConstantinopleFix", "Opcodes_TransactionInit_d3g0v0_ConstantinopleFix", "Opcodes_TransactionInit_d40g0v0_ConstantinopleFix", "Opcodes_TransactionInit_d41g0v0_ConstantinopleFix", "Opcodes_TransactionInit_d42g0v0_ConstantinopleFix", "Opcodes_TransactionInit_d43g0v0_ConstantinopleFix", "Opcodes_TransactionInit_d44g0v0_ConstantinopleFix", "Opcodes_TransactionInit_d45g0v0_ConstantinopleFix", "Opcodes_TransactionInit_d46g0v0_ConstantinopleFix", "Opcodes_TransactionInit_d47g0v0_ConstantinopleFix", "Opcodes_TransactionInit_d48g0v0_ConstantinopleFix", "Opcodes_TransactionInit_d49g0v0_ConstantinopleFix", "Opcodes_TransactionInit_d4g0v0_ConstantinopleFix", "Opcodes_TransactionInit_d50g0v0_ConstantinopleFix", "Opcodes_TransactionInit_d51g0v0_ConstantinopleFix", "Opcodes_TransactionInit_d52g0v0_ConstantinopleFix", "Opcodes_TransactionInit_d53g0v0_ConstantinopleFix", "Opcodes_TransactionInit_d54g0v0_ConstantinopleFix", "Opcodes_TransactionInit_d55g0v0_ConstantinopleFix", "Opcodes_TransactionInit_d56g0v0_ConstantinopleFix", "Opcodes_TransactionInit_d57g0v0_ConstantinopleFix", "Opcodes_TransactionInit_d58g0v0_ConstantinopleFix", "Opcodes_TransactionInit_d59g0v0_ConstantinopleFix", "Opcodes_TransactionInit_d5g0v0_ConstantinopleFix", "Opcodes_TransactionInit_d60g0v0_ConstantinopleFix", "Opcodes_TransactionInit_d61g0v0_ConstantinopleFix", "Opcodes_TransactionInit_d62g0v0_ConstantinopleFix", "Opcodes_TransactionInit_d63g0v0_ConstantinopleFix", "Opcodes_TransactionInit_d64g0v0_ConstantinopleFix", "Opcodes_TransactionInit_d65g0v0_ConstantinopleFix", "Opcodes_TransactionInit_d66g0v0_ConstantinopleFix", "Opcodes_TransactionInit_d67g0v0_ConstantinopleFix", "Opcodes_TransactionInit_d68g0v0_ConstantinopleFix", "Opcodes_TransactionInit_d69g0v0_ConstantinopleFix", "Opcodes_TransactionInit_d6g0v0_ConstantinopleFix", "Opcodes_TransactionInit_d70g0v0_ConstantinopleFix", "Opcodes_TransactionInit_d71g0v0_ConstantinopleFix", "Opcodes_TransactionInit_d72g0v0_ConstantinopleFix", "Opcodes_TransactionInit_d73g0v0_ConstantinopleFix", "Opcodes_TransactionInit_d74g0v0_ConstantinopleFix", "Opcodes_TransactionInit_d75g0v0_ConstantinopleFix", "Opcodes_TransactionInit_d76g0v0_ConstantinopleFix", "Opcodes_TransactionInit_d77g0v0_ConstantinopleFix", "Opcodes_TransactionInit_d78g0v0_ConstantinopleFix", "Opcodes_TransactionInit_d79g0v0_ConstantinopleFix", "Opcodes_TransactionInit_d7g0v0_ConstantinopleFix", "Opcodes_TransactionInit_d80g0v0_ConstantinopleFix", "Opcodes_TransactionInit_d81g0v0_ConstantinopleFix", "Opcodes_TransactionInit_d82g0v0_ConstantinopleFix", "Opcodes_TransactionInit_d83g0v0_ConstantinopleFix", "Opcodes_TransactionInit_d84g0v0_ConstantinopleFix", "Opcodes_TransactionInit_d85g0v0_ConstantinopleFix", "Opcodes_TransactionInit_d86g0v0_ConstantinopleFix", "Opcodes_TransactionInit_d87g0v0_ConstantinopleFix", "Opcodes_TransactionInit_d88g0v0_ConstantinopleFix", "Opcodes_TransactionInit_d89g0v0_ConstantinopleFix", "Opcodes_TransactionInit_d8g0v0_ConstantinopleFix", "Opcodes_TransactionInit_d90g0v0_ConstantinopleFix", "Opcodes_TransactionInit_d91g0v0_ConstantinopleFix", "Opcodes_TransactionInit_d92g0v0_ConstantinopleFix", "Opcodes_TransactionInit_d93g0v0_ConstantinopleFix", "Opcodes_TransactionInit_d94g0v0_ConstantinopleFix", "Opcodes_TransactionInit_d95g0v0_ConstantinopleFix", "Opcodes_TransactionInit_d96g0v0_ConstantinopleFix", "Opcodes_TransactionInit_d97g0v0_ConstantinopleFix", "Opcodes_TransactionInit_d98g0v0_ConstantinopleFix", "Opcodes_TransactionInit_d99g0v0_ConstantinopleFix", "Opcodes_TransactionInit_d9g0v0_ConstantinopleFix"
 			]
 		}
 	],
@@ -22,9 +58,9 @@
 			"reference": "TODO: Add an issue for these",
 			"failing": "stRevertTest",
 			"subtests": {
-				"RevertPrecompiledTouch_d0g0v0": {
-					"subnumbers": ["*"],
-					"chain": "Constantinople (test)"
+				"RevertPrecompiledTouch_storage": {
+					"subnumbers": ["1", "2"],
+					"chain": "St. Peter's (test)"
 				}
 			}
 		},
@@ -32,9 +68,9 @@
 			"reference": "TODO: Add an issue for these",
 			"failing": "stRevertTest",
 			"subtests": {
-				"RevertPrecompiledTouchCC_d0g0v0": {
-					"subnumbers": ["*"],
-					"chain": "Constantinople (test)"
+				"RevertPrecompiledTouchExactOOG": {
+					"subnumbers": ["61", "64"],
+					"chain": "St. Peter's (test)"
 				}
 			}
 		},
@@ -42,37 +78,9 @@
 			"reference": "TODO: Add an issue for these",
 			"failing": "stRevertTest",
 			"subtests": {
-				"RevertPrecompiledTouchDC_d0g0v0": {
-					"subnumbers": ["*"],
-					"chain": "Constantinople (test)"
-				}
-			}
-		},
-		{
-			"reference": "TODO: Add an issue for these",
-			"failing": "stCreate2",
-			"subtests": {
-				"Create2Recursive_d0g0v0_Constantinople": {
-					"subnumbers": ["*"],
-					"chain": "Constantinople"
-				},
-				"Create2Recursive_d0g0v0_ConstantinopleFix": {
-					"subnumbers": ["*"],
-					"chain": "ConstantinopleFix"
-				}
-			}
-		},
-		{
-			"reference": "TODO: Add an issue for these",
-			"failing": "stCreate2Recursive",
-			"subtests": {
-				"Create2Recursive_d0g0v0_ConstantinopleFix": {
-					"subnumbers": ["*"],
-					"chain": "Constantinople"
-				},
-				"Create2Recursive_d0g1v0_ConstantinopleFix": {
-					"subnumbers": ["*"],
-					"chain": "ConstantinopleFix"
+				"RevertPrecompiledTouch": {
+					"subnumbers": ["1", "2"],
+					"chain": "St. Peter's (test)"
 				}
 			}
 		}

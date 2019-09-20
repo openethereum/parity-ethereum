@@ -27,11 +27,15 @@ use super::HookType;
 
 #[allow(dead_code)]
 fn skip_test(subname: &str, chain: &String, number: usize) -> bool {
+	trace!(target: "json-tests", "[state, skip_test] subname: '{}', chain: '{}', number: {}", subname, chain, number);
 	SKIP_TESTS.state.iter().any(|state_test|{
 		if let Some(subtest) = state_test.subtests.get(subname) {
+			trace!(target: "json-tests", "[state, skip_test] Maybe skipping {:?}", subtest);
 			chain == &subtest.chain &&
-			(subtest.subnumbers[0] == "*"
-				 || subtest.subnumbers.contains(&number.to_string()))
+			(
+				subtest.subnumbers[0] == "*" ||
+				subtest.subnumbers.contains(&number.to_string())
+			)
 		} else {
 			false
 		}
@@ -164,12 +168,7 @@ mod state_tests {
 	//      "RevertPrecompiledTouchExactOOG" contains a ton of tests, only two fails
 	//      "RevertPrecompiledTouch" has 4 tests, 2 failures
 	//  Have not investigated. Also: why do these tests appear both as blockchain tests and state tests?
-	declare_test!{skip => [
-		"RevertPrecompiledTouch_storage",
-		"RevertPrecompiledTouchExactOOG",
-		"RevertPrecompiledTouch",
-		],
-		GeneralStateTest_stRevertTest, "GeneralStateTests/stRevertTest/"}
+	declare_test!{GeneralStateTest_stRevertTest, "GeneralStateTests/stRevertTest/"}
 	declare_test!{GeneralStateTest_stSStoreTest, "GeneralStateTests/stSStoreTest/"}
 	declare_test!{GeneralStateTest_stShift, "GeneralStateTests/stShift/"}
 	declare_test!{GeneralStateTest_stSolidityTest, "GeneralStateTests/stSolidityTest/"}
