@@ -25,12 +25,12 @@ use io::IoChannel;
 use test_helpers::{self, EvmTestClient};
 use types::verification::Unverified;
 use verification::{VerifierType, queue::kind::BlockLike};
-use super::SKIP_TEST_STATE;
+use super::SKIP_TESTS;
 use super::HookType;
 
 #[allow(dead_code)]
 fn skip_test(name: &String) -> bool {
-	SKIP_TEST_STATE
+	SKIP_TESTS
 		.block
 		.iter()
 		.any(|block_test|block_test.subtests.contains(name))
@@ -64,7 +64,7 @@ pub fn json_chain_test<H: FnMut(&str, HookType)>(path: &Path, json_data: &[u8], 
 				}
 			};
 
-			info!("   - {}...", name);
+			flush!("   - {}...", name);
 
 			let spec = {
 				let mut spec = match EvmTestClient::fork_spec_from_json(&blockchain.network) {
@@ -118,6 +118,8 @@ pub fn json_chain_test<H: FnMut(&str, HookType)>(path: &Path, json_data: &[u8], 
 
 		if !fail {
 			flushln!("ok");
+		} else {
+			flushln!("fail");
 		}
 
 		start_stop_hook(&name, HookType::OnStop);

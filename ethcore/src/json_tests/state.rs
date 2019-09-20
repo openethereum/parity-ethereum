@@ -22,12 +22,12 @@ use ethjson;
 use test_helpers::{EvmTestClient, EvmTestError, TransactErr, TransactSuccess};
 use types::transaction::SignedTransaction;
 use vm::EnvInfo;
-use super::SKIP_TEST_STATE;
+use super::SKIP_TESTS;
 use super::HookType;
 
 #[allow(dead_code)]
 fn skip_test(subname: &str, chain: &String, number: usize) -> bool {
-	SKIP_TEST_STATE.state.iter().any(|state_test|{
+	SKIP_TESTS.state.iter().any(|state_test|{
 		if let Some(subtest) = state_test.subtests.get(subname) {
 			chain == &subtest.chain &&
 			(subtest.subnumbers[0] == "*"

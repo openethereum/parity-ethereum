@@ -33,19 +33,19 @@
 //! Note: the `declare_test!` macro can also be use to skip tests, but skips entire files rather
 //! than single tests.
 
-use ethjson::test_helpers::skip::SkipStates;
+use ethjson::test_helpers::skip::SkipTests;
 
 #[cfg(feature="ci-skip-tests")]
 lazy_static! {
-	pub static ref SKIP_TEST_STATE: SkipStates = {
+	pub static ref SKIP_TESTS: SkipTests = {
 		let skip_data = include_bytes!("../../res/ethereum/tests-issues/currents.json");
-		SkipStates::load(&skip_data[..]).expect("No invalid json allowed")
+		SkipTests::load(&skip_data[..]).expect("JSON from disk is valid")
 	};
 }
 
 #[cfg(not(feature="ci-skip-tests"))]
 lazy_static!{
-	pub static ref SKIP_TEST_STATE: SkipStates = {
-		SkipStates::empty()
+	pub static ref SKIP_TESTS: SkipTests = {
+		SkipTests::empty()
 	};
 }

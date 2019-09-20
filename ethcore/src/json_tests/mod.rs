@@ -33,4 +33,4 @@ pub use self::test_common::HookType;
 pub use self::executive::run_test_path as run_executive_test_path;
 pub use self::executive::run_test_file as run_executive_test_file;
 
-use self::skip::SKIP_TEST_STATE;
+use self::skip::SKIP_TESTS;
