@@ -45,7 +45,7 @@ pub fn json_chain_test<H: FnMut(&str, HookType)>(path: &Path, json_data: &[u8], 
 
 	for (name, blockchain) in tests.into_iter() {
 		if skip_test(&name) {
-			println!("   - {} | {:?} Ignoring tests because in skip list", name, blockchain.network);
+			println!("   - {} | {:?}: SKIPPED", name, blockchain.network);
 			continue;
 		}
 
@@ -70,7 +70,7 @@ pub fn json_chain_test<H: FnMut(&str, HookType)>(path: &Path, json_data: &[u8], 
 				let mut spec = match EvmTestClient::fork_spec_from_json(&blockchain.network) {
 					Some(spec) => spec,
 					None => {
-						println!("   - {} | {:?} Ignoring tests because of missing spec", name, blockchain.network);
+						println!("   - {} | {:?} Ignoring tests because of missing chainspec", name, blockchain.network);
 						continue;
 					}
 				};

@@ -80,7 +80,7 @@ fn run_test_path_inner<H: FnMut(&str, HookType)>(
 			run_test_path_inner(&test_file, skip, runner, start_stop_hook, errors);
 		}
 	} else if extension == Some("swp") || extension == None {
-		trace!(target: "json-tests", "ignoring '{}' – Junk?", path.display());
+		trace!(target: "json-tests", "ignoring '{}', extension {:?} – Junk?", path.display(), extension);
 		// Ignore junk
 	} else {
 		trace!(target: "json-tests", "running tests in '{}'", path.display());
