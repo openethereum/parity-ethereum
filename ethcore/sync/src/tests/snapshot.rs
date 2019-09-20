@@ -16,37 +16,35 @@
 
 use std::collections::HashMap;
 use std::sync::Arc;
-use hash::keccak;
-use ethereum_types::H256;
-use parking_lot::Mutex;
+
+use crate::{
+	api::{SyncConfig, WarpSync},
+	tests::helpers::TestNet
+};
+
 use bytes::Bytes;
-use snapshot::SnapshotService;
 use ethcore::test_helpers::EachBlockWith;
-use types::{
+use ethereum_types::H256;
+use keccak_hash::keccak;
+use parking_lot::Mutex;
+use snapshot::SnapshotService;
+use common_types::{
 	BlockNumber,
 	snapshot::{ManifestData, RestorationStatus},
 };
-use super::helpers::*;
-use {SyncConfig, WarpSync};
 
+#[derive(Default)]
 pub struct TestSnapshotService {
 	manifest: Option<ManifestData>,
 	chunks: HashMap<H256, Bytes>,
-
 	restoration_manifest: Mutex<Option<ManifestData>>,
 	state_restoration_chunks: Mutex<HashMap<H256, Bytes>>,
 	block_restoration_chunks: Mutex<HashMap<H256, Bytes>>,
 }
 
 impl TestSnapshotService {
-	pub fn new() -> TestSnapshotService {
-		TestSnapshotService {
-			manifest: None,
-			chunks: HashMap::new(),
-			restoration_manifest: Mutex::new(None),
-			state_restoration_chunks: Mutex::new(HashMap::new()),
-			block_restoration_chunks: Mutex::new(HashMap::new()),
-		}
+	pub fn new() -> Self {
+		Default::default()
 	}
 
 	pub fn new_with_snapshot(num_chunks: usize, block_hash: H256, block_number: BlockNumber) -> TestSnapshotService {

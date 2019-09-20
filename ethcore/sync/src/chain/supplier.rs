@@ -14,17 +14,18 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
+use std::cmp;
+
+use crate::sync_io::SyncIo;
+
 use bytes::Bytes;
 use enum_primitive::FromPrimitive;
 use ethereum_types::H256;
+use log::{debug, trace};
 use network::{self, PeerId};
 use parking_lot::RwLock;
 use rlp::{Rlp, RlpStream};
-use std::cmp;
-use types::BlockNumber;
-use types::ids::BlockId;
-
-use sync_io::SyncIo;
+use common_types::{ids::BlockId, BlockNumber};
 
 use super::sync_packet::{PacketInfo, SyncPacket};
 use super::sync_packet::SyncPacket::{
@@ -394,18 +395,27 @@ impl SyncSupplier {
 
 #[cfg(test)]
 mod test {
-	use std::collections::VecDeque;
-	use tests::helpers::TestIo;
-	use tests::snapshot::TestSnapshotService;
-	use ethereum_types::H256;
-	use parking_lot::RwLock;
+	use std::{collections::VecDeque, str::FromStr};
+
+	use crate::{
+		blocks::SyncHeader,
+		chain::RlpResponseResult,
+		tests::{helpers::TestIo, snapshot::TestSnapshotService}
+	};
+
+	use super::{
+		SyncPacket::{GetReceiptsPacket, GetNodeDataPacket},
+		BlockNumber, BlockId, SyncSupplier, PacketInfo
+	};
+
+	use super::super::tests::dummy_sync_with_peer;
+
 	use bytes::Bytes;
-	use rlp::{Rlp, RlpStream};
-	use super::{*, super::tests::*};
-	use blocks::SyncHeader;
 	use client_traits::BlockChainClient;
 	use ethcore::test_helpers::{EachBlockWith, TestBlockChainClient};
-	use std::str::FromStr;
+	use ethereum_types::H256;
+	use parking_lot::RwLock;
+	use rlp::{Rlp, RlpStream};
 
 	#[test]
 	fn return_block_headers() {
@@ -426,7 +436,8 @@ mod test {
 			rlp.append(&if reverse {1u32} else {0u32});
 			rlp.out()
 		}
-		fn to_header_vec(rlp: ::chain::RlpResponseResult) -> Vec<SyncHeader> {
+
+		fn to_header_vec(rlp: RlpResponseResult) -> Vec<SyncHeader> {
 			Rlp::new(&rlp.unwrap().unwrap().1.out()).iter().map(|r| SyncHeader::from_rlp(r.as_raw().to_vec()).unwrap()).collect()
 		}
 

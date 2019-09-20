@@ -18,26 +18,27 @@
 
 use std::collections::{HashSet, VecDeque};
 use std::sync::Arc;
+use std::time::Duration;
 
-use light_sync::*;
-use tests::helpers::{TestNet, Peer as PeerLike, TestPacket};
+use crate::{
+	light_sync::LightSync,
+	tests::helpers::{TestNet, Peer as PeerLike, TestPacket}
+};
 
 use ethcore::test_helpers::TestBlockChainClient;
-use spec;
-use io::IoChannel;
-use kvdb_memorydb;
-use light::client::fetch::{self, Unavailable};
-use light::net::{LightProtocol, IoContext, Capabilities, Params as LightParams};
-use light::provider::LightProvider;
+use ethcore_io::IoChannel;
+use light::{
+	cache::Cache,
+	client::fetch::{self, Unavailable},
+	net::{LightProtocol, IoContext, Capabilities, Params as LightParams},
+	provider::LightProvider
+};
 use network::{NodeId, PeerId};
-use parking_lot::RwLock;
-
-use std::time::Duration;
-use light::cache::Cache;
+use parking_lot::{Mutex, RwLock};
 
 const NETWORK_ID: u64 = 0xcafebabe;
 
-pub type LightClient = ::light::client::Client<Unavailable>;
+pub type LightClient = light::client::Client<Unavailable>;
 
 struct TestIoContext<'a> {
 	queue: &'a RwLock<VecDeque<TestPacket>>,
@@ -49,7 +50,7 @@ impl<'a> IoContext for TestIoContext<'a> {
 	fn send(&self, peer: PeerId, packet_id: u8, packet_body: Vec<u8>) {
 		self.queue.write().push_back(TestPacket {
 			data: packet_body,
-			packet_id: packet_id,
+			packet_id,
 			recipient: peer,
 		})
 	}
@@ -64,11 +65,21 @@ impl<'a> IoContext for TestIoContext<'a> {
 		self.to_disconnect.write().insert(peer);
 	}
 
-	fn disable_peer(&self, peer: PeerId) { self.disconnect_peer(peer) }
-	fn protocol_version(&self, _peer: PeerId) -> Option<u8> { Some(::light::net::MAX_PROTOCOL_VERSION) }
+	fn disable_peer(&self, peer: PeerId) {
+		self.disconnect_peer(peer)
+	}
 
-	fn persistent_peer_id(&self, _peer: PeerId) -> Option<NodeId> { unimplemented!() }
-	fn is_reserved_peer(&self, _peer: PeerId) -> bool { false }
+	fn protocol_version(&self, _peer: PeerId) -> Option<u8> {
+		Some(light::net::MAX_PROTOCOL_VERSION)
+	}
+
+	fn persistent_peer_id(&self, _peer: PeerId) -> Option<NodeId> {
+		unimplemented!()
+	}
+
+	fn is_reserved_peer(&self, _peer: PeerId) -> bool {
+		false
+	}
 }
 
 // peer-specific data.
@@ -219,7 +230,7 @@ impl TestNet<Peer> {
 	pub fn light(n_light: usize, n_full: usize) -> Self {
 		let mut peers = Vec::with_capacity(n_light + n_full);
 		for _ in 0..n_light {
-			let mut config = ::light::client::Config::default();
+			let mut config = light::client::Config::default();
 
 			// skip full verification because the blocks are bad.
 			config.verify_full = false;
@@ -242,8 +253,8 @@ impl TestNet<Peer> {
 			peers.push(Arc::new(Peer::new_full(Arc::new(TestBlockChainClient::new()))))
 		}
 
-		TestNet {
-			peers: peers,
+		Self {
+			peers,
 			started: false,
 			disconnect_events: Vec::new(),
 		}

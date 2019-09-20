@@ -15,18 +15,20 @@
 // along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
 use std::sync::Arc;
-use types::ids::BlockId;
-use client_traits::{BlockChainClient, ChainInfo};
+
+use crate::{
+	api::{SyncConfig, WarpSync},
+	chain::SyncState,
+	tests::helpers::TestNet,
+};
+
+use client_traits::{BlockChainClient, BlockInfo, ChainInfo};
+use common_types::ids::BlockId;
 use ethcore::test_helpers::{TestBlockChainClient, EachBlockWith};
-use client_traits::BlockInfo;
-use chain::SyncState;
-use super::helpers::*;
-use {SyncConfig, WarpSync};
-use spec;
 
 #[test]
 fn two_peers() {
-	::env_logger::try_init().ok();
+	env_logger::try_init().ok();
 	let mut net = TestNet::new(3);
 	net.peer(1).chain.add_blocks(1000, EachBlockWith::Uncle);
 	net.peer(2).chain.add_blocks(1000, EachBlockWith::Uncle);
@@ -37,7 +39,7 @@ fn two_peers() {
 
 #[test]
 fn long_chain() {
-	::env_logger::try_init().ok();
+	env_logger::try_init().ok();
 	let mut net = TestNet::new(2);
 	net.peer(1).chain.add_blocks(50000, EachBlockWith::Nothing);
 	net.sync();
@@ -47,7 +49,7 @@ fn long_chain() {
 
 #[test]
 fn status_after_sync() {
-	::env_logger::try_init().ok();
+	env_logger::try_init().ok();
 	let mut net = TestNet::new(3);
 	net.peer(1).chain.add_blocks(1000, EachBlockWith::Uncle);
 	net.peer(2).chain.add_blocks(1000, EachBlockWith::Uncle);
@@ -67,7 +69,7 @@ fn takes_few_steps() {
 
 #[test]
 fn empty_blocks() {
-	::env_logger::try_init().ok();
+	env_logger::try_init().ok();
 	let mut net = TestNet::new(3);
 	for n in 0..200 {
 		let with = if n % 2 == 0 { EachBlockWith::Nothing } else { EachBlockWith::Uncle };
@@ -81,7 +83,7 @@ fn empty_blocks() {
 
 #[test]
 fn forked() {
-	::env_logger::try_init().ok();
+	env_logger::try_init().ok();
 	let mut net = TestNet::new(3);
 	net.peer(0).chain.add_blocks(30, EachBlockWith::Uncle);
 	net.peer(1).chain.add_blocks(30, EachBlockWith::Uncle);
@@ -102,7 +104,7 @@ fn forked() {
 
 #[test]
 fn forked_with_misbehaving_peer() {
-	::env_logger::try_init().ok();
+	env_logger::try_init().ok();
 	let mut net = TestNet::new(3);
 
 	let mut alt_spec = spec::new_test();
@@ -126,7 +128,7 @@ fn forked_with_misbehaving_peer() {
 
 #[test]
 fn net_hard_fork() {
-	::env_logger::try_init().ok();
+	env_logger::try_init().ok();
 	let ref_client = TestBlockChainClient::new();
 	ref_client.add_blocks(50, EachBlockWith::Uncle);
 	{
@@ -145,7 +147,7 @@ fn net_hard_fork() {
 
 #[test]
 fn restart() {
-	::env_logger::try_init().ok();
+	env_logger::try_init().ok();
 	let mut net = TestNet::new(3);
 	net.peer(1).chain.add_blocks(1000, EachBlockWith::Uncle);
 	net.peer(2).chain.add_blocks(1000, EachBlockWith::Uncle);
@@ -229,7 +231,7 @@ fn propagate_blocks() {
 
 #[test]
 fn restart_on_malformed_block() {
-	::env_logger::try_init().ok();
+	env_logger::try_init().ok();
 	let mut net = TestNet::new(2);
 	net.peer(1).chain.add_blocks(5, EachBlockWith::Nothing);
 	net.peer(1).chain.add_block(EachBlockWith::Nothing, |mut header| {
@@ -255,7 +257,7 @@ fn reject_on_broken_chain() {
 
 #[test]
 fn disconnect_on_unrelated_chain() {
-	::env_logger::try_init().ok();
+	env_logger::try_init().ok();
 	let mut net = TestNet::new(2);
 	net.peer(0).chain.set_history(Some(20));
 	net.peer(1).chain.set_history(Some(20));

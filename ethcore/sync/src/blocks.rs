@@ -15,14 +15,15 @@
 // along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
 use std::collections::{HashSet, HashMap, hash_map};
-use hash::{keccak, KECCAK_NULL_RLP, KECCAK_EMPTY_LIST_RLP};
-use parity_util_mem::MallocSizeOf;
-use ethereum_types::H256;
-use triehash_ethereum::ordered_trie_root;
+
 use bytes::Bytes;
+use ethereum_types::H256;
+use keccak_hash::{keccak, KECCAK_NULL_RLP, KECCAK_EMPTY_LIST_RLP};
+use log::{trace, warn};
+use parity_util_mem::MallocSizeOf;
 use rlp::{Rlp, RlpStream, DecoderError};
-use network;
-use types::{
+use triehash_ethereum::ordered_trie_root;
+use common_types::{
 	transaction::UnverifiedTransaction,
 	header::Header as BlockHeader,
 	verification::Unverified,
@@ -40,7 +41,7 @@ pub struct SyncHeader {
 impl SyncHeader {
 	pub fn from_rlp(bytes: Bytes) -> Result<Self, DecoderError> {
 		let result = SyncHeader {
-			header: ::rlp::decode(&bytes)?,
+			header: rlp::decode(&bytes)?,
 			bytes,
 		};
 
@@ -151,18 +152,7 @@ pub struct BlockCollection {
 impl BlockCollection {
 	/// Create a new instance.
 	pub fn new(download_receipts: bool) -> BlockCollection {
-		BlockCollection {
-			need_receipts: download_receipts,
-			blocks: HashMap::new(),
-			header_ids: HashMap::new(),
-			receipt_ids: HashMap::new(),
-			heads: Vec::new(),
-			parents: HashMap::new(),
-			head: None,
-			downloading_headers: HashSet::new(),
-			downloading_bodies: HashSet::new(),
-			downloading_receipts: HashSet::new(),
-		}
+		Self { need_receipts: download_receipts, ..Default::default() }
 	}
 
 	/// Clear everything.
@@ -545,12 +535,12 @@ mod test {
 	use super::{BlockCollection, SyncHeader};
 	use client_traits::BlockChainClient;
 	use ethcore::test_helpers::{TestBlockChainClient, EachBlockWith};
-	use types::{
+	use common_types::{
 		ids::BlockId,
 		BlockNumber,
 		verification::Unverified,
 	};
-	use rlp::*;
+	use rlp::Rlp;
 
 	fn is_empty(bc: &BlockCollection) -> bool {
 		bc.heads.is_empty() &&

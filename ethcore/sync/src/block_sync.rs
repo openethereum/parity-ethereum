@@ -20,20 +20,24 @@
 
 use std::collections::{HashSet, VecDeque};
 use std::cmp;
-use parity_util_mem::MallocSizeOf;
+
+use crate::{
+	blocks::{BlockCollection, SyncBody, SyncHeader},
+	chain::BlockSet,
+	sync_io::SyncIo
+};
+
 use ethereum_types::H256;
-use rlp::{self, Rlp};
-use types::{
+use log::{debug, trace};
+use network::{client_version::ClientCapabilities, PeerId};
+use rlp::Rlp;
+use parity_util_mem::MallocSizeOf;
+use common_types::{
 	BlockNumber,
 	block_status::BlockStatus,
 	ids::BlockId,
 	errors::{EthcoreError, BlockError, ImportError},
 };
-use sync_io::SyncIo;
-use blocks::{BlockCollection, SyncBody, SyncHeader};
-use chain::BlockSet;
-use network::PeerId;
-use network::client_version::ClientCapabilities;
 
 const MAX_HEADERS_TO_REQUEST: usize = 128;
 const MAX_BODIES_TO_REQUEST_LARGE: usize = 128;
@@ -635,18 +639,23 @@ fn all_expected<A, B, F>(values: &[A], expected_values: &[B], is_expected: F) ->
 
 #[cfg(test)]
 mod tests {
-	use super::*;
+	use super::{
+		BlockSet, BlockDownloader, BlockDownloaderImportError, DownloadAction, SyncIo, H256,
+		MAX_HEADERS_TO_REQUEST, MAX_USELESS_HEADERS_PER_ROUND, SUBCHAIN_SIZE, State, Rlp, VecDeque
+	};
+
+	use crate::tests::{helpers::TestIo, snapshot::TestSnapshotService};
+
 	use ethcore::test_helpers::TestBlockChainClient;
-	use spec;
-	use ethkey::{Generator, Random};
-	use hash::keccak;
+	use ethkey::{Random, Generator};
+	use keccak_hash::keccak;
 	use parking_lot::RwLock;
 	use rlp::{encode_list, RlpStream};
-	use tests::helpers::TestIo;
-	use tests::snapshot::TestSnapshotService;
-	use types::transaction::{Transaction, SignedTransaction};
 	use triehash_ethereum::ordered_trie_root;
-	use types::header::Header as BlockHeader;
+	use common_types::{
+		transaction::{Transaction, SignedTransaction},
+		header::Header as BlockHeader,
+	};
 
 	fn dummy_header(number: u64, parent_hash: H256) -> BlockHeader {
 		let mut header = BlockHeader::new();
@@ -680,7 +689,7 @@ mod tests {
 
 	#[test]
 	fn import_headers_in_chain_head_state() {
-		::env_logger::try_init().ok();
+		env_logger::try_init().ok();
 
 		let spec = spec::new_test();
 		let genesis_hash = spec.genesis_header().hash();
@@ -752,7 +761,7 @@ mod tests {
 
 	#[test]
 	fn import_headers_in_blocks_state() {
-		::env_logger::try_init().ok();
+		env_logger::try_init().ok();
 
 		let mut chain = TestBlockChainClient::new();
 		let snapshot_service = TestSnapshotService::new();
@@ -802,7 +811,7 @@ mod tests {
 
 	#[test]
 	fn import_bodies() {
-		::env_logger::try_init().ok();
+		env_logger::try_init().ok();
 
 		let mut chain = TestBlockChainClient::new();
 		let snapshot_service = TestSnapshotService::new();
@@ -870,7 +879,7 @@ mod tests {
 
 	#[test]
 	fn import_receipts() {
-		::env_logger::try_init().ok();
+		env_logger::try_init().ok();
 
 		let mut chain = TestBlockChainClient::new();
 		let snapshot_service = TestSnapshotService::new();
@@ -929,7 +938,7 @@ mod tests {
 
 	#[test]
 	fn reset_after_multiple_sets_of_useless_headers() {
-		::env_logger::try_init().ok();
+		env_logger::try_init().ok();
 
 		let spec = spec::new_test();
 		let genesis_hash = spec.genesis_header().hash();
@@ -969,7 +978,7 @@ mod tests {
 
 	#[test]
 	fn dont_reset_after_multiple_sets_of_useless_headers_for_chain_head() {
-		::env_logger::try_init().ok();
+		env_logger::try_init().ok();
 
 		let spec = spec::new_test();
 		let genesis_hash = spec.genesis_header().hash();
