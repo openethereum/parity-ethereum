@@ -26,20 +26,7 @@ use serde::Deserialize;
 
 /// Recent JSON tests can be either a map or a hash (represented by a string).
 /// See https://github.com/ethereum/tests/issues/637
-#[cfg(any(test, feature = "test-helpers"))]
-#[derive(Clone, Debug, PartialEq, Deserialize)]
-#[serde(untagged)]
-pub enum HashOrMap {
-	/// When the `postState` is large, tests sometimes just include the state root of the last
-	/// successful block here.
-	Hash(H256),
-	/// The expected `postState` of a test
-	Map(BTreeMap<Address, Account>),
-}
-
-/// Recent JSON tests can be either a map or a string. See https://github.com/ethereum/tests/issues/637
-// todo[dvdplm]: what is the point of doing this for non-test code? Needed?
-#[cfg(not(any(test, feature = "test-helpers")))]
+#[cfg_attr(any(test, feature = "test-helpers"), derive(Clone))]
 #[derive(Debug, PartialEq, Deserialize)]
 #[serde(untagged)]
 pub enum HashOrMap {
@@ -50,14 +37,8 @@ pub enum HashOrMap {
 	Map(BTreeMap<Address, Account>),
 }
 
-/// Blockchain state deserializer for tests
-#[cfg(any(test, feature = "test-helpers"))]
-#[derive(Clone, Debug, PartialEq, Deserialize)]
-#[serde(deny_unknown_fields)]
-pub struct State(pub HashOrMap);
-
 /// Blockchain state deserializer.
-#[cfg(not(any(test, feature = "test-helpers")))]
+#[cfg_attr(any(test, feature = "test-helpers"), derive(Clone))]
 #[derive(Debug, PartialEq, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct State(pub HashOrMap);
