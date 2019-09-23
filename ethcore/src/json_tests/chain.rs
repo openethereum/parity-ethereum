@@ -188,7 +188,6 @@ mod block_tests {
 	declare_test!{BlockchainTests_GeneralStateTest_stRandom2, "BlockchainTests/GeneralStateTests/stRandom2/"}
 	declare_test!{BlockchainTests_GeneralStateTest_stRecursiveCreate, "BlockchainTests/GeneralStateTests/stRecursiveCreate/"}
 	declare_test!{BlockchainTests_GeneralStateTest_stRefundTest, "BlockchainTests/GeneralStateTests/stRefundTest/"}
-	// todo[dvdplm]: 1 test fails. Single test. Have not investigated. Ignored in currents.json.
 	declare_test!{ BlockchainTests_GeneralStateTest_stReturnDataTest, "BlockchainTests/GeneralStateTests/stReturnDataTest/"}
 	// todo[dvdplm]:
 	//      "RevertPrecompiledTouch_storage" contains 4 tests, only two fails
