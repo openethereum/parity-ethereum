@@ -131,6 +131,7 @@ fn run_constructors<T: Backend>(
 	let start_nonce = engine.account_start_nonce(0);
 
 	let mut state = State::from_existing(db, root, start_nonce, factories.clone())?;
+	state.populate_from(genesis_state.clone());
 
 	// Execute contract constructors.
 	let env_info = EnvInfo {
@@ -177,6 +178,7 @@ fn run_constructors<T: Backend>(
 
 		let _ = state.commit()?;
 	}
+	let _ = state.commit()?;
 
 	Ok(state.drop())
 }
