@@ -118,8 +118,6 @@ evm-debug-tests = ["evm-debug", "evm/evm-debug-tests"]
 slow-blocks = []
 # Run JSON consensus tests.
 json-tests = ["env_logger", "test-helpers", "lazy_static", "machine/test-helpers"]
-# Skip JSON consensus tests with pending issues.
-ci-skip-tests = []
 # Run memory/cpu heavy tests.
 test-heavy = []
 # Compile test helpers

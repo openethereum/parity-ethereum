@@ -35,17 +35,9 @@
 
 use ethjson::test_helpers::skip::SkipTests;
 
-#[cfg(feature="ci-skip-tests")]
 lazy_static! {
 	pub static ref SKIP_TESTS: SkipTests = {
 		let skip_data = include_bytes!("../../res/ethereum/tests-issues/currents.json");
 		SkipTests::load(&skip_data[..]).expect("JSON from disk is valid")
-	};
-}
-
-#[cfg(not(feature="ci-skip-tests"))]
-lazy_static!{
-	pub static ref SKIP_TESTS: SkipTests = {
-		SkipTests::empty()
 	};
 }
