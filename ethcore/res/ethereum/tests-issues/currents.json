@@ -22,13 +22,6 @@
 			]
 		},
 		{
-			"reference": "issue https://github.com/paritytech/parity-ethereum/issues/11074",
-			"failing": "stReturnDataTest",
-			"subtests": [
-				"returndatasize_after_successful_callcode_d0g0v0_ConstantinopleFix"
-			]
-		},
-		{
 			"reference": "Issue https://github.com/paritytech/parity-ethereum/issues/11075",
 			"failing": "stSpecialTest",
 			"subtests": [
