@@ -101,15 +101,21 @@ pub fn json_chain_test<H: FnMut(&str, HookType)>(path: &Path, json_data: &[u8], 
 
 				for b in blockchain.blocks_rlp() {
 					let bytes_len = b.len();
-					if let Ok(block) = Unverified::from_rlp(b) {
-						let num = block.header.number();
-						let hash = block.hash();
-						trace!(target: "json-tests", "{} – Importing {} bytes. Block #{}/{}", name, bytes_len, num, hash);
-						let res = client.import_block(block);
-						if let Err(e) = res {
-							warn!(target: "json-tests", "{} – Error importing block #{}/{}: {:?}", name, num, hash, e);
+					let block = Unverified::from_rlp(b);
+					match block {
+						Ok(block) => {
+							let num = block.header.number();
+							let hash = block.hash();
+							trace!(target: "json-tests", "{} – Importing {} bytes. Block #{}/{}", name, bytes_len, num, hash);
+							let res = client.import_block(block);
+							if let Err(e) = res {
+								warn!(target: "json-tests", "{} – Error importing block #{}/{}: {:?}", name, num, hash, e);
+							}
+							client.flush_queue();
+						},
+						Err(decoder_err) => {
+							warn!(target: "json-tests", "Error decoding test block: {:?} ({} bytes)", decoder_err, bytes_len);
 						}
-						client.flush_queue();
 					}
 				}
 				fail_unless(client.chain_info().best_block_hash == blockchain.best_block.into());
