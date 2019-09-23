@@ -22,13 +22,6 @@
 			]
 		},
 		{
-			"reference": "Issue https://github.com/paritytech/parity-ethereum/issues/11075",
-			"failing": "stSpecialTest",
-			"subtests": [
-				"tx_e1c174e2_d0g0v0_ConstantinopleFix"
-			]
-		},
-		{
 			"reference": "Issue https://github.com/paritytech/parity-ethereum/issues/11076",
 			"failing": "stStaticCall",
 			"subtests": [
