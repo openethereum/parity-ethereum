@@ -167,7 +167,11 @@ mod state_tests {
 	//      "RevertPrecompiledTouch_storage" contains 4 tests, only two fails
 	//      "RevertPrecompiledTouchExactOOG" contains a ton of tests, only two fails
 	//      "RevertPrecompiledTouch" has 4 tests, 2 failures
-	//  Have not investigated. Also: why do these tests appear both as blockchain tests and state tests?
+	//      Ignored in `currents.json`.
+	//      Issues:
+	//          https://github.com/paritytech/parity-ethereum/issues/11078
+	//          https://github.com/paritytech/parity-ethereum/issues/11079
+	//          https://github.com/paritytech/parity-ethereum/issues/11080
 	declare_test!{GeneralStateTest_stRevertTest, "GeneralStateTests/stRevertTest/"}
 	declare_test!{GeneralStateTest_stSStoreTest, "GeneralStateTests/stSStoreTest/"}
 	declare_test!{GeneralStateTest_stShift, "GeneralStateTests/stShift/"}

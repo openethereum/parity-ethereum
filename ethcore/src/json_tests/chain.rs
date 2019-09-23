@@ -142,6 +142,7 @@ mod block_tests {
 		json_chain_test(path, json_data, h)
 	}
 	//todo[dvdplm] do these tests match all folders in `res/` or are there tests we're missing?
+	//Issue: https://github.com/paritytech/parity-ethereum/issues/11085
 	declare_test!{BlockchainTests_bcBlockGasLimitTest, "BlockchainTests/bcBlockGasLimitTest"}
 	declare_test!{BlockchainTests_bcExploitTest, "BlockchainTests/bcExploitTest"}
 	declare_test!{BlockchainTests_bcForgedTest, "BlockchainTests/bcForgedTest"}
@@ -188,23 +189,19 @@ mod block_tests {
 	declare_test!{BlockchainTests_GeneralStateTest_stRandom2, "BlockchainTests/GeneralStateTests/stRandom2/"}
 	declare_test!{BlockchainTests_GeneralStateTest_stRecursiveCreate, "BlockchainTests/GeneralStateTests/stRecursiveCreate/"}
 	declare_test!{BlockchainTests_GeneralStateTest_stRefundTest, "BlockchainTests/GeneralStateTests/stRefundTest/"}
-	// todo[dvdplm]: 1 test fails. Single test. Have not investigated. Ignored in currents.json.
 	declare_test!{ BlockchainTests_GeneralStateTest_stReturnDataTest, "BlockchainTests/GeneralStateTests/stReturnDataTest/"}
 	// todo[dvdplm]:
 	//      "RevertPrecompiledTouch_storage" contains 4 tests, only two fails
 	//      "RevertPrecompiledTouchExactOOG" contains a ton of tests, only two fails
 	//      "RevertPrecompiledTouch" has 4 tests, 2 failures
-	//  Ignored in currents.json, have not investigated
+	//  Ignored in currents.json, issue: https://github.com/paritytech/parity-ethereum/issues/11073
 	declare_test!{BlockchainTests_GeneralStateTest_stRevertTest, "BlockchainTests/GeneralStateTests/stRevertTest/"}
 	declare_test!{BlockchainTests_GeneralStateTest_stShift, "BlockchainTests/GeneralStateTests/stShift/"}
 	declare_test!{BlockchainTests_GeneralStateTest_stSolidityTest, "BlockchainTests/GeneralStateTests/stSolidityTest/"}
-	//  todo[dvdplm]: Ignored in currents.json, single test, failure caused by Parity calculating the state root for the genesis block differently than expected by the test.
 	declare_test!{BlockchainTests_GeneralStateTest_stSpecialTest, "BlockchainTests/GeneralStateTests/stSpecialTest/"}
 	declare_test!{BlockchainTests_GeneralStateTest_stStackTests, "BlockchainTests/GeneralStateTests/stStackTests/"}
-	// todo[dvdplm]: Ignored in currents.json, 4 failing tests out of 4. Have not investigated.
 	declare_test!{BlockchainTests_GeneralStateTest_stStaticCall, "BlockchainTests/GeneralStateTests/stStaticCall/"}
 	declare_test!{BlockchainTests_GeneralStateTest_stSystemOperationsTest, "BlockchainTests/GeneralStateTests/stSystemOperationsTest/"}
-	//	todo[dvdplm]: Ignored in currents.json, 128 failures; have not investigated
 	declare_test!{BlockchainTests_GeneralStateTest_stTransactionTest, "BlockchainTests/GeneralStateTests/stTransactionTest/"}
 	declare_test!{BlockchainTests_GeneralStateTest_stTransitionTest, "BlockchainTests/GeneralStateTests/stTransitionTest/"}
 	declare_test!{BlockchainTests_GeneralStateTest_stWalletTest, "BlockchainTests/GeneralStateTests/stWalletTest/"}
