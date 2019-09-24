@@ -14,8 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
-use keccak::Keccak256;
-use super::{KeyPair, Generator, Secret};
+use parity_crypto::{KeyPair, Generator, Secret, Keccak256};
 use parity_wordlist;
 
 /// Simple brainwallet.
