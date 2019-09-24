@@ -221,18 +221,19 @@ impl Builtin {
 
 impl From<ethjson::spec::Builtin> for Builtin {
 	fn from(b: ethjson::spec::Builtin) -> Self {
+		// TODO(niklasad1): change this to `try_from` and propogate the error
 		let native = EthereumBuiltin::from_str(&b.name).unwrap();
-		let pricer = match b.price {
-			ethjson::spec::builtin::BuiltinPrice::Single(builtin) => {
-				map![builtin.activate_at.unwrap_or(0) => builtin.pricing.into()]
+		let pricer = match b.pricing {
+			ethjson::spec::builtin::Pricing::Single(pricer) => {
+				map![b.activate_at.map_or(u64::max_value(), Into::into) => pricer.into()]
 			}
 
-			ethjson::spec::builtin::BuiltinPrice::Multi(builtins) => {
-				assert!(!builtins.is_empty(), "chainspec contains multiple builtins; but no values found");
+			ethjson::spec::builtin::Pricing::Multi(pricer) => {
+				assert!(!pricer.is_empty(), "chainspec contains multiple builtins; but no values found");
 
 				let mut pricers = BTreeMap::new();
-				for builtin in builtins {
-					pricers.insert(builtin.activate_at.unwrap_or(0), builtin.pricing.into());
+				for p in pricer {
+					pricers.insert(p.activate_at.into(), p.price.into());
 				}
 
 				pricers
@@ -244,19 +245,19 @@ impl From<ethjson::spec::Builtin> for Builtin {
 }
 
 
-impl From<ethjson::spec::Pricing> for Pricing {
-	fn from(pricing: ethjson::spec::Pricing) -> Self {
+impl From<ethjson::spec::builtin::InnerPricing> for Pricing {
+	fn from(pricing: ethjson::spec::builtin::InnerPricing) -> Self {
 		match pricing {
-			ethjson::spec::Pricing::Blake2F { gas_per_round } => {
+			ethjson::spec::builtin::InnerPricing::Blake2F { gas_per_round } => {
 				Self::Blake2F(gas_per_round)
 			},
-			ethjson::spec::Pricing::Linear(linear) => {
+			ethjson::spec::builtin::InnerPricing::Linear(linear) => {
 				Self::Linear(Linear {
 					base: linear.base,
 					word: linear.word,
 				})
 			}
-			ethjson::spec::Pricing::Modexp(exp) => {
+			ethjson::spec::builtin::InnerPricing::Modexp(exp) => {
 				Self::Modexp(ModexpPricer {
 					divisor: if exp.divisor == 0 {
 						warn!("Zero modexp divisor specified. Falling back to default.");
@@ -266,7 +267,7 @@ impl From<ethjson::spec::Pricing> for Pricing {
 					}
 				})
 			}
-			ethjson::spec::Pricing::AltBn128Pairing(pricer) => {
+			ethjson::spec::builtin::InnerPricing::AltBn128Pairing(pricer) => {
 				Self::AltBn128Pairing(AltBn128PairingPricer {
 					price: AltBn128PairingPrice {
 						base: pricer.base,

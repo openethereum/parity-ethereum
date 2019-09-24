@@ -104,12 +104,10 @@ mod tests {
 		let s = r#"{
 			"builtin": {
 				"name": "ecrecover",
-				"price": {
-					"pricing": {
-						"linear": {
-							"base": 3000,
-							"word": 0
-						}
+				"pricing": {
+					"linear": {
+						"base": 3000,
+						"word": 0
 					}
 				}
 			}
@@ -126,12 +124,10 @@ mod tests {
 			"code": "1234",
 			"builtin": {
 				"name": "ecrecover",
-				"price": {
-					"pricing": {
-						"linear": {
-							"base": 3000,
-							"word": 0
-						}
+				"pricing": {
+					"linear": {
+						"base": 3000,
+						"word": 0
 					}
 				}
 			}

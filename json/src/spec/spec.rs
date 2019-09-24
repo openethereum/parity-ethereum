@@ -188,12 +188,10 @@ mod tests {
 			"nonce": "1048576",
 			"builtin": {
 				"name": "ecrecover",
-				"price": {
-					"pricing": {
-						"linear": {
-							"base": 3000,
-							"word": 0
-						}
+				"pricing": {
+					"linear": {
+						"base": 3000,
+						"word": 0
 					}
 				}
 			}
@@ -203,12 +201,10 @@ mod tests {
 			"nonce": "1048576",
 			"builtin": {
 				"name": "sha256",
-				"price": {
-					"pricing": {
-						"linear": {
-							"base": 60,
-							"word": 12
-						}
+				"pricing": {
+					"linear": {
+						"base": 60,
+						"word": 12
 					}
 				}
 			}
@@ -218,14 +214,12 @@ mod tests {
 			"nonce": "1048576",
 			"builtin": {
 				"name": "ripemd160",
-				"price": {
 					"pricing": {
 						"linear": {
 							"base": 600,
 							"word": 120
 						}
 					}
-				}
 			}
 		},
 		"0000000000000000000000000000000000000004": {
@@ -233,12 +227,10 @@ mod tests {
 			"nonce": "1048576",
 			"builtin": {
 				"name": "identity",
-				"price": {
-					"pricing": {
-						"linear": {
-							"base": 15,
-							"word": 3
-						}
+				"pricing": {
+					"linear": {
+						"base": 15,
+						"word": 3
 					}
 				}
 			}
