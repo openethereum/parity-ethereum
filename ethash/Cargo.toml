@@ -6,7 +6,6 @@ authors = ["Parity Technologies <admin@parity.io>"]
 
 [dependencies]
 common-types = { path = "../ethcore/types" }
-crunchy = "0.1.0"
 either = "1.0.0"
 ethereum-types = "0.6.0"
 keccak-hash = "0.2.0"
@@ -29,7 +28,9 @@ bench = []
 [[bench]]
 name = "basic"
 harness = false
+required-features = ['bench']
 
 [[bench]]
 name = "progpow"
 harness = false
+required-features = ['bench']
