@@ -56,18 +56,14 @@ static FN: AtomicPtr<()> = AtomicPtr::new(detect as FnRaw);
 // called the the first time, will check if avx is supported
 // and store the appropriate fn pointer in `FN`
 fn detect(state: &mut [u64; 8], message: [u64; 16], count: [u64; 2], f: bool, rounds: usize) {
+		#[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
 		let fun = if is_x86_feature_detected!("avx2") {
-				#[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
-				{
-						avx2::compress as FnRaw
-				}
-				#[cfg(not(any(target_arch = "x86", target_arch = "x86_64")))]
-				{
-						portable::compress as FnRaw
-				}
+				avx2::compress as FnRaw
 		} else {
 				portable::compress as FnRaw
 		};
+		#[cfg(not(any(target_arch = "x86", target_arch = "x86_64")))]
+		let fun = portable::compress as FnRaw;
 		// store fn pointer
 		FN.store(fun as FnRaw, Ordering::Relaxed);
 		// call the fn
