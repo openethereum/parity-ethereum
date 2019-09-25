@@ -76,10 +76,10 @@ enum Pricing {
 impl Pricer for Pricing {
 	fn cost(&self, input: &[u8]) -> U256 {
 		match self {
-			Self::AltBn128Pairing(inner) => inner.cost(input),
-			Self::Blake2F(inner) => inner.cost(input),
-			Self::Linear(inner) => inner.cost(input),
-			Self::Modexp(inner) => inner.cost(input),
+			Pricing::AltBn128Pairing(inner) => inner.cost(input),
+			Pricing::Blake2F(inner) => inner.cost(input),
+			Pricing::Linear(inner) => inner.cost(input),
+			Pricing::Modexp(inner) => inner.cost(input),
 		}
 	}
 }
@@ -307,17 +307,17 @@ enum EthereumBuiltin {
 impl FromStr for EthereumBuiltin {
     type Err = String;
 
-    fn from_str(name: &str) -> Result<Self, Self::Err> {
+    fn from_str(name: &str) -> Result<EthereumBuiltin, Self::Err> {
 		match name {
-			"identity" => Ok(Self::Identity(Identity)),
-			"ecrecover" => Ok(Self::EcRecover(EcRecover)),
-			"sha256" => Ok(Self::Sha256(Sha256)),
-			"ripemd160" => Ok(Self::Ripemd160(Ripemd160)),
-			"modexp" => Ok(Self::Modexp(Modexp)),
-			"alt_bn128_add" => Ok(Self::Bn128Add(Bn128Add)),
-			"alt_bn128_mul" => Ok(Self::Bn128Mul(Bn128Mul)),
-			"alt_bn128_pairing" => Ok(Self::Bn128Pairing(Bn128Pairing)),
-			"blake2_f" => Ok(Self::Blake2F(Blake2F)),
+			"identity" => Ok(EthereumBuiltin::Identity(Identity)),
+			"ecrecover" => Ok(EthereumBuiltin::EcRecover(EcRecover)),
+			"sha256" => Ok(EthereumBuiltin::Sha256(Sha256)),
+			"ripemd160" => Ok(EthereumBuiltin::Ripemd160(Ripemd160)),
+			"modexp" => Ok(EthereumBuiltin::Modexp(Modexp)),
+			"alt_bn128_add" => Ok(EthereumBuiltin::Bn128Add(Bn128Add)),
+			"alt_bn128_mul" => Ok(EthereumBuiltin::Bn128Mul(Bn128Mul)),
+			"alt_bn128_pairing" => Ok(EthereumBuiltin::Bn128Pairing(Bn128Pairing)),
+			"blake2_f" => Ok(EthereumBuiltin::Blake2F(Blake2F)),
 			_ => Err(format!("invalid builtin name: {}", name)),
 		}
     }
@@ -326,15 +326,15 @@ impl FromStr for EthereumBuiltin {
 impl Implementation for EthereumBuiltin {
 	fn execute(&self, input: &[u8], output: &mut BytesRef) -> Result<(), &'static str> {
 		match self {
-			Self::Identity(inner) => inner.execute(input, output),
-			Self::EcRecover(inner) => inner.execute(input, output),
-			Self::Sha256(inner) => inner.execute(input, output),
-			Self::Ripemd160(inner) => inner.execute(input, output),
-			Self::Modexp(inner) => inner.execute(input, output),
-			Self::Bn128Add(inner) => inner.execute(input, output),
-			Self::Bn128Mul(inner) => inner.execute(input, output),
-			Self::Bn128Pairing(inner) => inner.execute(input, output),
-			Self::Blake2F(inner) => inner.execute(input, output),
+			EthereumBuiltin::Identity(inner) => inner.execute(input, output),
+			EthereumBuiltin::EcRecover(inner) => inner.execute(input, output),
+			EthereumBuiltin::Sha256(inner) => inner.execute(input, output),
+			EthereumBuiltin::Ripemd160(inner) => inner.execute(input, output),
+			EthereumBuiltin::Modexp(inner) => inner.execute(input, output),
+			EthereumBuiltin::Bn128Add(inner) => inner.execute(input, output),
+			EthereumBuiltin::Bn128Mul(inner) => inner.execute(input, output),
+			EthereumBuiltin::Bn128Pairing(inner) => inner.execute(input, output),
+			EthereumBuiltin::Blake2F(inner) => inner.execute(input, output),
 		}
 	}
 }
