@@ -16,7 +16,7 @@
 
 //! Spec hardcoded synchronization deserialization for the light client.
 
-use crate::{bytes::Bytes, hash::H256, uint::Uint};
+use crate::{hash::H256, uint::Uint};
 use serde::{Deserialize, Serialize};
 
 /// Spec hardcoded sync.

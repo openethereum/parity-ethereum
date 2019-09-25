@@ -69,12 +69,13 @@ pub struct AuthorityRound {
 
 #[cfg(test)]
 mod tests {
+	use crate::{bytes::Bytes, hash::Address, uint::Uint};
 	use ethereum_types::{U256, H160};
-	use uint::Uint;
 	use serde_json;
-	use hash::Address;
-	use spec::validator_set::ValidatorSet;
-	use spec::authority_round::AuthorityRound;
+	use crate::spec::{
+		validator_set::ValidatorSet,
+		authority_round::AuthorityRound,
+	};
 	use std::str::FromStr;
 
 	#[test]
