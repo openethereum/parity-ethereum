@@ -15,7 +15,7 @@ ethjson = { path = "../../../json" }
 ethkey = { path = "../../../accounts/ethkey" }
 log = "0.4.8"
 machine = { path = "../../machine" }
-parking_lot = "0.8"
+parking_lot = "0.9"
 rlp = "0.4.2"
 validator-set = { path = "../validator-set" }
 

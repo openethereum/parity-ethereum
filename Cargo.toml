@@ -59,7 +59,7 @@ parity-runtime = { path = "util/runtime" }
 parity-updater = { path = "updater" }
 parity-util-mem = { version = "0.2.0", features = ["jemalloc-global"] }
 parity-version = { path = "util/version" }
-parking_lot = "0.8"
+parking_lot = "0.9"
 regex = "1.0"
 registrar = { path = "util/registrar" }
 rlp = "0.4.0"
@@ -135,3 +135,8 @@ members = [
 	"evmbin",
 	"parity-clib",
 ]
+
+[patch.crates-io]
+#kvdb-memorydb = { path = "../parity-common/kvdb-memorydb" }
+kvdb = { git = "https://github.com/paritytech/parity-common.git", branch = "dp/chore/bump-parking-lot-to-0.9" }
+kvdb-memorydb = { git = "https://github.com/paritytech/parity-common.git", branch = "dp/chore/bump-parking-lot-to-0.9" }
