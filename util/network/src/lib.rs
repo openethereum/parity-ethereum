@@ -69,7 +69,7 @@ pub type NodeId = H512;
 /// Local (temporary) peer session ID.
 pub type PeerId = usize;
 
-/// Messages used to communitate with the event loop from other threads.
+/// Messages used to communicate with the event loop from other threads.
 #[derive(Clone)]
 pub enum NetworkIoMessage {
 	/// Register a new protocol handler.
