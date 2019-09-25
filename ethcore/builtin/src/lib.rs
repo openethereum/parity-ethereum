@@ -252,16 +252,16 @@ impl From<ethjson::spec::builtin::InnerPricing> for Pricing {
 	fn from(pricing: ethjson::spec::builtin::InnerPricing) -> Self {
 		match pricing {
 			ethjson::spec::builtin::InnerPricing::Blake2F { gas_per_round } => {
-				Self::Blake2F(gas_per_round)
+				Pricing::Blake2F(gas_per_round)
 			},
 			ethjson::spec::builtin::InnerPricing::Linear(linear) => {
-				Self::Linear(Linear {
+				Pricing::Linear(Linear {
 					base: linear.base,
 					word: linear.word,
 				})
 			}
 			ethjson::spec::builtin::InnerPricing::Modexp(exp) => {
-				Self::Modexp(ModexpPricer {
+				Pricing::Modexp(ModexpPricer {
 					divisor: if exp.divisor == 0 {
 						warn!("Zero modexp divisor specified. Falling back to default.");
 						10
@@ -271,7 +271,7 @@ impl From<ethjson::spec::builtin::InnerPricing> for Pricing {
 				})
 			}
 			ethjson::spec::builtin::InnerPricing::AltBn128Pairing(pricer) => {
-				Self::AltBn128Pairing(AltBn128PairingPricer {
+				Pricing::AltBn128Pairing(AltBn128PairingPricer {
 					price: AltBn128PairingPrice {
 						base: pricer.base,
 						pair: pricer.pair,
