@@ -16,10 +16,11 @@
 
 use std::cmp;
 use std::collections::{BTreeMap, HashSet, VecDeque};
+use std::convert::TryFrom;
 use std::io::{BufRead, BufReader};
 use std::str::from_utf8;
 use std::sync::{Arc, Weak};
-use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering as AtomicOrdering};
+use std::sync::atomic::{AtomicBool, AtomicI64, Ordering as AtomicOrdering};
 use std::time::{Duration, Instant};
 
 use ansi_term::Colour;
@@ -2739,12 +2740,17 @@ fn transaction_receipt(
 
 /// Queue some items to be processed by IO client.
 struct IoChannelQueue {
-	currently_queued: Arc<AtomicUsize>,
-	limit: usize,
+	/// Using a *signed* integer for counting currently queued messages since the
+	/// order in which the counter is incremented and decremented is not defined.
+	/// Using an unsigned integer can (and will) result in integer underflow,
+	/// incorrectly rejecting messages and returning a FullQueue error.
+	currently_queued: Arc<AtomicI64>,
+	limit: i64,
 }
 
 impl IoChannelQueue {
 	pub fn new(limit: usize) -> Self {
+		let limit = i64::try_from(limit).unwrap_or(i64::max_value());
 		IoChannelQueue {
 			currently_queued: Default::default(),
 			limit,
@@ -2756,8 +2762,11 @@ impl IoChannelQueue {
 	{
 		let queue_size = self.currently_queued.load(AtomicOrdering::Relaxed);
 		if queue_size >= self.limit {
-			return Err(EthcoreError::FullQueue(self.limit))
+			let err_limit = usize::try_from(self.limit).unwrap_or(usize::max_value());
+			return Err(EthcoreError::FullQueue(err_limit))
 		};
+
+		let count = i64::try_from(count).unwrap_or(i64::max_value());
 
 		let currently_queued = self.currently_queued.clone();
 		let _ok = channel.send(ClientIoMessage::execute(move |client| {
