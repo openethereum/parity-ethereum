@@ -199,6 +199,9 @@ impl Builtin {
 	/// If no pricer is actived `zero` is returned
 	// NOTE(niklasad1): we could remove is_active and replace with `fn cost(...) -> Option<U256>`
 	// but it would require some changes that I don't want to do...
+	//
+	//
+	// TODO: how to handle several prices at the same `activation block`? Maybe use the lowest price?!
 	pub fn cost(&self, input: &[u8], at: u64) -> U256 {
 		for (&activate_at, pricer) in self.pricer.iter().rev() {
 			if at >= activate_at {

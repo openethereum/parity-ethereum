@@ -4391,12 +4391,10 @@
 		"0x0000000000000000000000000000000000000001": {
 			"builtin": {
 				"name": "ecrecover",
-				"price": {
-					"pricing": {
-						"linear": {
-							"base": 3000,
-							"word": 0
-						}
+				"pricing": {
+					"linear": {
+						"base": 3000,
+						"word": 0
 					}
 				}
 			}
@@ -4404,12 +4402,10 @@
 		"0x0000000000000000000000000000000000000002": {
 			"builtin": {
 				"name": "sha256",
-				"price": {
-					"pricing": {
-						"linear": {
-							"base": 60,
-							"word": 12
-						}
+				"pricing": {
+					"linear": {
+						"base": 60,
+						"word": 12
 					}
 				}
 			}
@@ -4417,12 +4413,10 @@
 		"0x0000000000000000000000000000000000000003": {
 			"builtin": {
 				"name": "ripemd160",
-				"price": {
-					"pricing": {
-						"linear": {
-							"base": 600,
-							"word": 120
-						}
+				"pricing": {
+					"linear": {
+						"base": 600,
+						"word": 120
 					}
 				}
 			}
@@ -4430,12 +4424,10 @@
 		"0x0000000000000000000000000000000000000004": {
 			"builtin": {
 				"name": "identity",
-				"price": {
-					"pricing": {
-						"linear": {
-							"base": 15,
-							"word": 3
-						}
+				"pricing": {
+					"linear": {
+						"base": 15,
+						"word": 3
 					}
 				}
 			}
@@ -4443,12 +4435,10 @@
 		"0x0000000000000000000000000000000000000005": {
 			"builtin": {
 				"name": "modexp",
-				"price": {
-					"activate_at": 4370000,
-					"pricing": {
-						"modexp": {
-							"divisor": 20
-						}
+				"activate_at": 4370000,
+				"pricing": {
+					"modexp": {
+						"divisor": 20
 					}
 				}
 			}
@@ -4456,10 +4446,10 @@
 		"0x0000000000000000000000000000000000000006": {
 			"builtin": {
 				"name": "alt_bn128_add",
-				"price": [
+				"pricing": [
 					{
 						"activate_at": 4370000,
-						"pricing": {
+						"price": {
 							"linear": {
 								"base": 500,
 								"word": 0
@@ -4468,7 +4458,7 @@
 					},
 					{
 						"activate_at": 36028797018963967,
-						"pricing": {
+						"price": {
 							"linear": {
 								"base": 150,
 								"word": 0
@@ -4481,10 +4471,10 @@
 		"0x0000000000000000000000000000000000000007": {
 			"builtin": {
 				"name": "alt_bn128_mul",
-				"price": [
+				"pricing": [
 					{
 						"activate_at": 4370000,
-						"pricing": {
+						"price": {
 							"linear": {
 								"base": 40000,
 								"word": 0
@@ -4493,7 +4483,7 @@
 					},
 					{
 						"activate_at": 36028797018963967,
-						"pricing": {
+						"price": {
 							"linear": {
 								"base": 6000,
 								"word": 0
@@ -4506,10 +4496,10 @@
 		"0x0000000000000000000000000000000000000008": {
 			"builtin": {
 				"name": "alt_bn128_pairing",
-				"price": [
+				"pricing": [
 					{
 						"activate_at": 4370000,
-						"pricing": {
+						"price": {
 							"alt_bn128_pairing": {
 								"base": 100000,
 								"pair": 80000
@@ -4518,7 +4508,7 @@
 					},
 					{
 						"activate_at": 36028797018963967,
-						"pricing": {
+						"price": {
 							"linear": {
 								"base": 45000,
 								"word": 34000
