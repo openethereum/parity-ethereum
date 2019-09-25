@@ -725,9 +725,11 @@ impl Bn128Pairing {
 #[cfg(test)]
 mod tests {
 	use ethereum_types::U256;
+	use ethjson::uint::Uint;
 	use ethjson::spec::builtin::{
-		Builtin as JsonBuiltin, BuiltinPrice as JsonBuiltinPrice, Linear as JsonLinearPricing,
-		PricingWithActivation, AltBn128Pairing as JsonAltBn128PairingPricing, Pricing as JsonPricing
+		Builtin as JsonBuiltin, Linear as JsonLinearPricing,
+		PricingWithActivation, AltBn128Pairing as JsonAltBn128PairingPricing, Pricing as JsonPricing,
+		InnerPricing as JsonPricingInner
 	};
 	use hex_literal::hex;
 	use macros::map;
@@ -1312,13 +1314,12 @@ mod tests {
 	fn from_json() {
 		let b = Builtin::from(JsonBuiltin {
 			name: "identity".to_owned(),
-			price: JsonBuiltinPrice::Single(PricingWithActivation {
-				pricing: JsonPricing::Linear(JsonLinearPricing {
+			pricing: JsonPricing::Single(
+				JsonPricingInner::Linear(JsonLinearPricing {
 					base: 10,
 					word: 20,
-				}),
-				activate_at: Some(0),
-			})
+			})),
+			activate_at: Some(Uint(0.into())),
 		});
 
 		assert_eq!(b.cost(&[0; 0], 0), U256::from(10));
@@ -1336,22 +1337,23 @@ mod tests {
 	fn bn128_pairing_eip1108_transition() {
 		let b = Builtin::from(JsonBuiltin {
 			name: "alt_bn128_pairing".to_owned(),
-			price: JsonBuiltinPrice::Multi(vec![
+			pricing: JsonPricing::Multi(vec![
 				PricingWithActivation {
-					pricing: JsonPricing::AltBn128Pairing(JsonAltBn128PairingPricing {
+					price: JsonPricingInner::AltBn128Pairing(JsonAltBn128PairingPricing {
 						base: 100_000,
 						pair: 80_000,
 					}),
-					activate_at: Some(10),
+					activate_at: Uint(10.into()),
 				},
 				PricingWithActivation {
-					pricing: JsonPricing::AltBn128Pairing(JsonAltBn128PairingPricing {
+					price: JsonPricingInner::AltBn128Pairing(JsonAltBn128PairingPricing {
 						base: 45_000,
 						pair: 34_000,
 					}),
-					activate_at: Some(20),
+					activate_at: Uint(20.into()),
 				},
 			]),
+			activate_at: None,
 		});
 
 		assert_eq!(b.cost(&[0; 192 * 3], 10), U256::from(340_000), "80 000 * 3 + 100 000 == 340 000");
@@ -1362,22 +1364,23 @@ mod tests {
 	fn bn128_add_eip1108_transition() {
 		let b = Builtin::from(JsonBuiltin {
 			name: "alt_bn128_add".to_owned(),
-			price: JsonBuiltinPrice::Multi(vec![
+			pricing: JsonPricing::Multi(vec![
 				PricingWithActivation {
-					pricing: JsonPricing::Linear(JsonLinearPricing {
+					price: JsonPricingInner::Linear(JsonLinearPricing {
 						base: 500,
 						word: 0,
 					}),
-					activate_at: Some(10),
+					activate_at: Uint(10.into()),
 				},
 				PricingWithActivation {
-					pricing: JsonPricing::Linear(JsonLinearPricing {
+					price: JsonPricingInner::Linear(JsonLinearPricing {
 						base: 150,
 						word: 0,
 					}),
-					activate_at: Some(20),
+					activate_at: Uint(20.into()),
 				}
-			])
+			]),
+			activate_at: None,
 		});
 
 		assert_eq!(b.cost(&[0; 192], 10), U256::from(500));
@@ -1388,22 +1391,23 @@ mod tests {
 	fn bn128_mul_eip1108_transition() {
 		let b = Builtin::from(JsonBuiltin {
 			name: "alt_bn128_mul".to_owned(),
-			price: JsonBuiltinPrice::Multi(vec![
+			pricing: JsonPricing::Multi(vec![
 				PricingWithActivation {
-					pricing: JsonPricing::Linear(JsonLinearPricing {
+					price: JsonPricingInner::Linear(JsonLinearPricing {
 						base: 40_000,
 						word: 0,
 					}),
-					activate_at: Some(10),
+					activate_at: Uint(10.into()),
 				},
 				PricingWithActivation {
-					pricing: JsonPricing::Linear(JsonLinearPricing {
+					price: JsonPricingInner::Linear(JsonLinearPricing {
 						base: 6_000,
 						word: 0,
 					}),
-					activate_at: Some(20),
+					activate_at: Uint(20.into()),
 				}
 			]),
+			activate_at: None,
 		});
 
 		assert_eq!(b.cost(&[0; 192], 10), U256::from(40_000));
@@ -1415,29 +1419,30 @@ mod tests {
 	fn multimap_use_most_recent_on_activate() {
 		let b = Builtin::from(JsonBuiltin {
 			name: "alt_bn128_mul".to_owned(),
-			price: JsonBuiltinPrice::Multi(vec![
+			pricing: JsonPricing::Multi(vec![
 				PricingWithActivation {
-					pricing: JsonPricing::Linear(JsonLinearPricing {
+					price: JsonPricingInner::Linear(JsonLinearPricing {
 						base: 40_000,
 						word: 0,
 					}),
-					activate_at: Some(10),
+					activate_at: Uint(10.into()),
 				},
 				PricingWithActivation {
-					pricing: JsonPricing::Linear(JsonLinearPricing {
+					price: JsonPricingInner::Linear(JsonLinearPricing {
 						base: 6_000,
 						word: 0,
 					}),
-					activate_at: Some(20),
+					activate_at: Uint(20.into()),
 				},
 				PricingWithActivation {
-					pricing: JsonPricing::Linear(JsonLinearPricing {
+					price: JsonPricingInner::Linear(JsonLinearPricing {
 						base: 1_337,
 						word: 0,
 					}),
-					activate_at: Some(100),
+					activate_at: Uint(100.into()),
 				}
 			]),
+			activate_at: None,
 		});
 
 		assert_eq!(b.cost(&[0; 2], 0), U256::zero(), "not activated yet; should be zero");
