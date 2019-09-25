@@ -22,34 +22,31 @@ use ethjson;
 use test_helpers::{EvmTestClient, EvmTestError, TransactErr, TransactSuccess};
 use types::transaction::SignedTransaction;
 use vm::EnvInfo;
-use super::SKIP_TEST_STATE;
+use super::SKIP_TESTS;
 use super::HookType;
 
-/// Run state jsontests on a given folder.
-pub fn run_test_path<H: FnMut(&str, HookType)>(p: &Path, skip: &[&'static str], h: &mut H) {
-	::json_tests::test_common::run_test_path(p, skip, json_chain_test, h)
-}
-
-/// Run state jsontests on a given file.
-pub fn run_test_file<H: FnMut(&str, HookType)>(p: &Path, h: &mut H) {
-	::json_tests::test_common::run_test_file(p, json_chain_test, h)
-}
-
+#[allow(dead_code)]
 fn skip_test(subname: &str, chain: &String, number: usize) -> bool {
-	SKIP_TEST_STATE.state.iter().any(|state_test|{
+	trace!(target: "json-tests", "[state, skip_test] subname: '{}', chain: '{}', number: {}", subname, chain, number);
+	SKIP_TESTS.state.iter().any(|state_test|{
 		if let Some(subtest) = state_test.subtests.get(subname) {
+			trace!(target: "json-tests", "[state, skip_test] Maybe skipping {:?}", subtest);
 			chain == &subtest.chain &&
-			(subtest.subnumbers[0] == "*"
-				 || subtest.subnumbers.contains(&number.to_string()))
+			(
+				subtest.subnumbers[0] == "*" ||
+				subtest.subnumbers.contains(&number.to_string())
+			)
 		} else {
 			false
 		}
 	})
 }
 
-pub fn json_chain_test<H: FnMut(&str, HookType)>(json_data: &[u8], start_stop_hook: &mut H) -> Vec<String> {
+#[allow(dead_code)]
+pub fn json_chain_test<H: FnMut(&str, HookType)>(path: &Path, json_data: &[u8], start_stop_hook: &mut H) -> Vec<String> {
 	let _ = ::env_logger::try_init();
-	let tests = ethjson::test_helpers::state::Test::load(json_data).unwrap();
+	let tests = ethjson::test_helpers::state::Test::load(json_data)
+		.expect(&format!("Could not parse JSON state test data from {}", path.display()));
 	let mut failed = Vec::new();
 
 	for (name, test) in tests.into_iter() {
@@ -65,7 +62,7 @@ pub fn json_chain_test<H: FnMut(&str, HookType)>(json_data: &[u8], start_stop_ho
 				let spec = match EvmTestClient::fork_spec_from_json(&spec_name) {
 					Some(spec) => spec,
 					None => {
-						println!("   - {} | {:?} Ignoring tests because of missing spec", name, spec_name);
+						println!("   - {} | {:?} Ignoring tests because of missing chainspec", name, spec_name);
 						continue;
 					}
 				};
@@ -73,7 +70,7 @@ pub fn json_chain_test<H: FnMut(&str, HookType)>(json_data: &[u8], start_stop_ho
 				for (i, state) in states.into_iter().enumerate() {
 					let info = format!("   - {} | {:?} ({}/{}) ...", name, spec_name, i + 1, total);
 					if skip_test(&name, &spec.name, i + 1) {
-						println!("{} in skip list : SKIPPED", info);
+						println!("{}: SKIPPED", info);
 						continue;
 					}
 
@@ -123,11 +120,13 @@ pub fn json_chain_test<H: FnMut(&str, HookType)>(json_data: &[u8], start_stop_ho
 
 #[cfg(test)]
 mod state_tests {
+	use std::path::Path;
+
 	use super::json_chain_test;
 	use json_tests::HookType;
 
-	fn do_json_test<H: FnMut(&str, HookType)>(json_data: &[u8], h: &mut H) -> Vec<String> {
-		json_chain_test(json_data, h)
+	fn do_json_test<H: FnMut(&str, HookType)>(path: &Path, json_data: &[u8], h: &mut H) -> Vec<String> {
+		json_chain_test(path, json_data, h)
 	}
 
 	declare_test!{GeneralStateTest_stArgsZeroOneBalance, "GeneralStateTests/stArgsZeroOneBalance/"}
@@ -164,6 +163,15 @@ mod state_tests {
 	declare_test!{GeneralStateTest_stRecursiveCreate, "GeneralStateTests/stRecursiveCreate/"}
 	declare_test!{GeneralStateTest_stRefundTest, "GeneralStateTests/stRefundTest/"}
 	declare_test!{GeneralStateTest_stReturnDataTest, "GeneralStateTests/stReturnDataTest/"}
+	// todo[dvdplm]:
+	//      "RevertPrecompiledTouch_storage" contains 4 tests, only two fails
+	//      "RevertPrecompiledTouchExactOOG" contains a ton of tests, only two fails
+	//      "RevertPrecompiledTouch" has 4 tests, 2 failures
+	//      Ignored in `currents.json`.
+	//      Issues:
+	//          https://github.com/paritytech/parity-ethereum/issues/11078
+	//          https://github.com/paritytech/parity-ethereum/issues/11079
+	//          https://github.com/paritytech/parity-ethereum/issues/11080
 	declare_test!{GeneralStateTest_stRevertTest, "GeneralStateTests/stRevertTest/"}
 	declare_test!{GeneralStateTest_stSStoreTest, "GeneralStateTests/stSStoreTest/"}
 	declare_test!{GeneralStateTest_stShift, "GeneralStateTests/stShift/"}

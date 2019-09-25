@@ -26,8 +26,11 @@ pub type Test = super::tester::GenericTester<String, TransactionTest>;
 /// Transaction test deserialization.
 #[derive(Debug, Deserialize)]
 pub struct TransactionTest {
+	/// RLP of the transaction
 	pub rlp: Bytes,
+	#[allow(missing_docs)]
 	pub _info: serde::de::IgnoredAny,
+	/// State of the transaction after the test runs
 	#[serde(flatten)]
 	pub post_state: BTreeMap<ForkSpec, PostState>,
 }

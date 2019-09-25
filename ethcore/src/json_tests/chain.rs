@@ -19,49 +19,50 @@ use std::sync::Arc;
 use client::{Client, ClientConfig};
 use client_traits::{ImportBlock, ChainInfo};
 use spec::Genesis;
-use ethjson;
+use ethjson::test_helpers::blockchain;
 use miner::Miner;
 use io::IoChannel;
 use test_helpers::{self, EvmTestClient};
 use types::verification::Unverified;
-use verification::VerifierType;
-use super::SKIP_TEST_STATE;
+use verification::{VerifierType, queue::kind::BlockLike};
+use super::SKIP_TESTS;
 use super::HookType;
 
-/// Run chain jsontests on a given folder.
-pub fn run_test_path<H: FnMut(&str, HookType)>(p: &Path, skip: &[&'static str], h: &mut H) {
-	::json_tests::test_common::run_test_path(p, skip, json_chain_test, h)
-}
-
-/// Run chain jsontests on a given file.
-pub fn run_test_file<H: FnMut(&str, HookType)>(p: &Path, h: &mut H) {
-	::json_tests::test_common::run_test_file(p, json_chain_test, h)
-}
-
+#[allow(dead_code)]
 fn skip_test(name: &String) -> bool {
-	SKIP_TEST_STATE.block.iter().any(|block_test|block_test.subtests.contains(name))
+	SKIP_TESTS
+		.block
+		.iter()
+		.any(|block_test|block_test.subtests.contains(name))
 }
 
-pub fn json_chain_test<H: FnMut(&str, HookType)>(json_data: &[u8], start_stop_hook: &mut H) -> Vec<String> {
+#[allow(dead_code)]
+pub fn json_chain_test<H: FnMut(&str, HookType)>(path: &Path, json_data: &[u8], start_stop_hook: &mut H) -> Vec<String> {
 	let _ = ::env_logger::try_init();
-	let tests = ethjson::test_helpers::blockchain::Test::load(json_data).unwrap();
+	let tests = blockchain::Test::load(json_data)
+		.expect(&format!("Could not parse JSON chain test data from {}", path.display()));
 	let mut failed = Vec::new();
 
 	for (name, blockchain) in tests.into_iter() {
 		if skip_test(&name) {
-			println!("   - {} | {:?} Ignoring tests because in skip list", name, blockchain.network);
+			println!("   - {} | {:?}: SKIPPED", name, blockchain.network);
 			continue;
 		}
+
 		start_stop_hook(&name, HookType::OnStart);
 
 		let mut fail = false;
 		{
-			let mut fail_unless = |cond: bool| if !cond && !fail {
-				failed.push(name.clone());
-				flushln!("FAIL");
-				fail = true;
-				true
-			} else {false};
+			let mut fail_unless = |cond: bool| {
+				if !cond && !fail {
+					failed.push(name.clone());
+					flushln!("FAIL");
+					fail = true;
+					true
+				} else {
+					false
+				}
+			};
 
 			flush!("   - {}...", name);
 
@@ -69,7 +70,7 @@ pub fn json_chain_test<H: FnMut(&str, HookType)>(json_data: &[u8], start_stop_ho
 				let mut spec = match EvmTestClient::fork_spec_from_json(&blockchain.network) {
 					Some(spec) => spec,
 					None => {
-						println!("   - {} | {:?} Ignoring tests because of missing spec", name, blockchain.network);
+						println!("   - {} | {:?} Ignoring tests because of missing chainspec", name, blockchain.network);
 						continue;
 					}
 				};
@@ -89,17 +90,32 @@ pub fn json_chain_test<H: FnMut(&str, HookType)>(json_data: &[u8], start_stop_ho
 					config.check_seal = false;
 				}
 				config.history = 8;
+				config.queue.verifier_settings.num_verifiers = 1;
 				let client = Client::new(
 					config,
 					&spec,
 					db,
 					Arc::new(Miner::new_for_tests(&spec, None)),
 					IoChannel::disconnected(),
-				).unwrap();
+				).expect("Failed to instantiate a new Client");
+
 				for b in blockchain.blocks_rlp() {
-					if let Ok(block) = Unverified::from_rlp(b) {
-						let _ = client.import_block(block);
-						client.flush_queue();
+					let bytes_len = b.len();
+					let block = Unverified::from_rlp(b);
+					match block {
+						Ok(block) => {
+							let num = block.header.number();
+							let hash = block.hash();
+							trace!(target: "json-tests", "{} – Importing {} bytes. Block #{}/{}", name, bytes_len, num, hash);
+							let res = client.import_block(block);
+							if let Err(e) = res {
+								warn!(target: "json-tests", "{} – Error importing block #{}/{}: {:?}", name, num, hash, e);
+							}
+							client.flush_queue();
+						},
+						Err(decoder_err) => {
+							warn!(target: "json-tests", "Error decoding test block: {:?} ({} bytes)", decoder_err, bytes_len);
+						}
 					}
 				}
 				fail_unless(client.chain_info().best_block_hash == blockchain.best_block.into());
@@ -108,24 +124,31 @@ pub fn json_chain_test<H: FnMut(&str, HookType)>(json_data: &[u8], start_stop_ho
 
 		if !fail {
 			flushln!("ok");
+		} else {
+			flushln!("fail");
 		}
 
 		start_stop_hook(&name, HookType::OnStop);
 	}
 
-	println!("!!! {:?} tests from failed.", failed.len());
+	if failed.len() > 0 {
+		println!("!!! {:?} tests failed.", failed.len());
+	}
 	failed
 }
 
 #[cfg(test)]
 mod block_tests {
+	use std::path::Path;
+
 	use super::json_chain_test;
 	use json_tests::HookType;
 
-	fn do_json_test<H: FnMut(&str, HookType)>(json_data: &[u8], h: &mut H) -> Vec<String> {
-		json_chain_test(json_data, h)
+	fn do_json_test<H: FnMut(&str, HookType)>(path: &Path, json_data: &[u8], h: &mut H) -> Vec<String> {
+		json_chain_test(path, json_data, h)
 	}
-
+	//todo[dvdplm] do these tests match all folders in `res/` or are there tests we're missing?
+	//Issue: https://github.com/paritytech/parity-ethereum/issues/11085
 	declare_test!{BlockchainTests_bcBlockGasLimitTest, "BlockchainTests/bcBlockGasLimitTest"}
 	declare_test!{BlockchainTests_bcExploitTest, "BlockchainTests/bcExploitTest"}
 	declare_test!{BlockchainTests_bcForgedTest, "BlockchainTests/bcForgedTest"}
@@ -172,7 +195,12 @@ mod block_tests {
 	declare_test!{BlockchainTests_GeneralStateTest_stRandom2, "BlockchainTests/GeneralStateTests/stRandom2/"}
 	declare_test!{BlockchainTests_GeneralStateTest_stRecursiveCreate, "BlockchainTests/GeneralStateTests/stRecursiveCreate/"}
 	declare_test!{BlockchainTests_GeneralStateTest_stRefundTest, "BlockchainTests/GeneralStateTests/stRefundTest/"}
-	declare_test!{BlockchainTests_GeneralStateTest_stReturnDataTest, "BlockchainTests/GeneralStateTests/stReturnDataTest/"}
+	declare_test!{ BlockchainTests_GeneralStateTest_stReturnDataTest, "BlockchainTests/GeneralStateTests/stReturnDataTest/"}
+	// todo[dvdplm]:
+	//      "RevertPrecompiledTouch_storage" contains 4 tests, only two fails
+	//      "RevertPrecompiledTouchExactOOG" contains a ton of tests, only two fails
+	//      "RevertPrecompiledTouch" has 4 tests, 2 failures
+	//  Ignored in currents.json, issue: https://github.com/paritytech/parity-ethereum/issues/11073
 	declare_test!{BlockchainTests_GeneralStateTest_stRevertTest, "BlockchainTests/GeneralStateTests/stRevertTest/"}
 	declare_test!{BlockchainTests_GeneralStateTest_stShift, "BlockchainTests/GeneralStateTests/stShift/"}
 	declare_test!{BlockchainTests_GeneralStateTest_stSolidityTest, "BlockchainTests/GeneralStateTests/stSolidityTest/"}

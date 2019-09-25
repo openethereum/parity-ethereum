@@ -3,17 +3,17 @@ use serde::Deserialize;
 
 /// Test to skip (only if issue ongoing)
 #[derive(Debug, PartialEq, Deserialize)]
-pub struct SkipStates {
+pub struct SkipTests {
 	/// Block tests
-	pub block: Vec<BlockSkipStates>,
+	pub block: Vec<SkipBlockchainTest>,
 	/// State tests
-	pub state: Vec<StateSkipStates>,
+	pub state: Vec<SkipStateTest>,
 
 }
 
 /// Block test to skip.
 #[derive(Debug, PartialEq, Deserialize)]
-pub struct BlockSkipStates {
+pub struct SkipBlockchainTest {
 	/// Issue reference.
 	pub reference: String,
 	/// Test failing name.
@@ -24,7 +24,7 @@ pub struct BlockSkipStates {
 
 /// State test to skip.
 #[derive(Debug, PartialEq, Deserialize)]
-pub struct StateSkipStates {
+pub struct SkipStateTest {
 	/// Issue reference.
 	pub reference: String,
 	/// Test failing name.
@@ -42,10 +42,10 @@ pub struct StateSkipSubStates {
 	pub chain: String,
 }
 
-impl SkipStates {
+impl SkipTests {
 	/// Empty skip states.
 	pub fn empty() -> Self {
-		SkipStates {
+		SkipTests {
 			block: Vec::new(),
 			state: Vec::new(),
 		}

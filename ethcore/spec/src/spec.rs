@@ -58,9 +58,6 @@ use crate::{
 	seal::Generic as GenericSeal,
 };
 
-
-
-
 /// Runtime parameters for the spec that are related to how the software should run the chain,
 /// rather than integral properties of the chain itself.
 pub struct SpecParams<'a> {
@@ -134,53 +131,56 @@ fn run_constructors<T: Backend>(
 	let start_nonce = engine.account_start_nonce(0);
 
 	let mut state = State::from_existing(db, root, start_nonce, factories.clone())?;
-
-	// Execute contract constructors.
-	let env_info = EnvInfo {
-		number: 0,
-		author,
-		timestamp,
-		difficulty,
-		last_hashes: Default::default(),
-		gas_used: U256::zero(),
-		gas_limit: U256::max_value(),
-	};
-
-	let from = Address::zero();
-	for &(ref address, ref constructor) in constructors.iter() {
-		trace!(target: "spec", "run_constructors: Creating a contract at {}.", address);
-		trace!(target: "spec", "  .. root before = {}", state.root());
-		let params = ActionParams {
-			code_address: address.clone(),
-			code_hash: Some(keccak(constructor)),
-			code_version: U256::zero(),
-			address: address.clone(),
-			sender: from.clone(),
-			origin: from.clone(),
-			gas: U256::max_value(),
-			gas_price: Default::default(),
-			value: ActionValue::Transfer(Default::default()),
-			code: Some(Arc::new(constructor.clone())),
-			data: None,
-			call_type: CallType::None,
-			params_type: ParamsType::Embedded,
+	if constructors.is_empty() {
+		state.populate_from(genesis_state.clone());
+		let _ = state.commit()?;
+	} else {
+		// Execute contract constructors.
+		let env_info = EnvInfo {
+			number: 0,
+			author,
+			timestamp,
+			difficulty,
+			last_hashes: Default::default(),
+			gas_used: U256::zero(),
+			gas_limit: U256::max_value(),
 		};
 
-		let mut substate = Substate::new();
+		let from = Address::zero();
+		for &(ref address, ref constructor) in constructors.iter() {
+			trace!(target: "spec", "run_constructors: Creating a contract at {}.", address);
+			trace!(target: "spec", "  .. root before = {}", state.root());
+			let params = ActionParams {
+				code_address: address.clone(),
+				code_hash: Some(keccak(constructor)),
+				code_version: U256::zero(),
+				address: address.clone(),
+				sender: from.clone(),
+				origin: from.clone(),
+				gas: U256::max_value(),
+				gas_price: Default::default(),
+				value: ActionValue::Transfer(Default::default()),
+				code: Some(Arc::new(constructor.clone())),
+				data: None,
+				call_type: CallType::None,
+				params_type: ParamsType::Embedded,
+			};
 
-		{
-			let machine = engine.machine();
-			let schedule = machine.schedule(env_info.number);
-			let mut exec = Executive::new(&mut state, &env_info, &machine, &schedule);
-			// failing create is not a bug
-			if let Err(e) = exec.create(params, &mut substate, &mut NoopTracer, &mut NoopVMTracer) {
-				warn!(target: "spec", "Genesis constructor execution at {} failed: {}.", address, e);
+			let mut substate = Substate::new();
+
+			{
+				let machine = engine.machine();
+				let schedule = machine.schedule(env_info.number);
+				let mut exec = Executive::new(&mut state, &env_info, &machine, &schedule);
+				// failing create is not a bug
+				if let Err(e) = exec.create(params, &mut substate, &mut NoopTracer, &mut NoopVMTracer) {
+					warn!(target: "spec", "Genesis constructor execution at {} failed: {}.", address, e);
+				}
 			}
+
+			let _ = state.commit()?;
 		}
-
-		let _ = state.commit()?;
 	}
-
 	Ok(state.drop())
 }
 
@@ -219,7 +219,7 @@ pub struct Spec {
 	pub hardcoded_sync: Option<SpecHardcodedSync>,
 	/// Contract constructors to be executed on genesis.
 	pub constructors: Vec<(Address, Bytes)>,
-	/// May be prepopulated if we know this in advance.
+	/// May be pre-populated if we know this in advance.
 	pub state_root: H256,
 	/// Genesis state as plain old data.
 	pub genesis_state: PodState,
