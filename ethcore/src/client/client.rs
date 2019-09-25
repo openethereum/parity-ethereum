@@ -16,7 +16,8 @@
 
 use std::cmp;
 use std::collections::{HashSet, BTreeMap, VecDeque};
-use std::sync::atomic::{AtomicUsize, AtomicBool, Ordering as AtomicOrdering};
+use std::convert::TryFrom;
+use std::sync::atomic::{AtomicUsize, AtomicBool, AtomicI64, Ordering as AtomicOrdering};
 use std::sync::{Arc, Weak};
 use std::time::{Instant, Duration};
 
@@ -2764,38 +2765,42 @@ mod tests {
 
 /// Queue some items to be processed by IO client.
 struct IoChannelQueue {
-	currently_queued: Arc<AtomicUsize>,
-	limit: usize,
+	/// Using a *signed* integer for counting currently queued messages since the
+	/// order in which the counter is incremented and decremented is not defined.
+	/// Using an unsigned integer can (and will) result in integer underflow,
+	/// incorrectly rejecting messages and returning a FullQueue error.
+	currently_queued: Arc<AtomicI64>,
+	limit: i64,
 }
 
 impl IoChannelQueue {
 	pub fn new(limit: usize) -> Self {
+		let limit = i64::try_from(limit).unwrap_or(i64::max_value());
 		IoChannelQueue {
 			currently_queued: Default::default(),
 			limit,
 		}
 	}
 
-	pub fn queue<F>(&self, channel: &IoChannel<ClientIoMessage>, count: usize, fun: F) -> Result<(), QueueError> where
+	pub fn queue<F>(&self, channel: &IoChannel<ClientIoMessage>, count: usize, fun: F) -> EthcoreResult<()> where
 		F: Fn(&Client) + Send + Sync + 'static,
 	{
 		let queue_size = self.currently_queued.load(AtomicOrdering::Relaxed);
 		if queue_size >= self.limit {
-			return Err(QueueError::Full(self.limit))
+			let err_limit = usize::try_from(self.limit).unwrap_or(usize::max_value());
+			return Err(EthcoreError::Queue(QueueError::Full(err_limit)))
 		};
 
+		let count = i64::try_from(count).unwrap_or(i64::max_value());
+
 		let currently_queued = self.currently_queued.clone();
-		let result = channel.send(ClientIoMessage::execute(move |client| {
+		let _ok = channel.send(ClientIoMessage::execute(move |client| {
 			currently_queued.fetch_sub(count, AtomicOrdering::SeqCst);
 			fun(client);
-		}));
+		}))?;
 
-		match result {
-			Ok(_) => {
-				self.currently_queued.fetch_add(count, AtomicOrdering::SeqCst);
-				Ok(())
-			},
-			Err(e) => return Err(QueueError::Channel(e)),
-		}
+		self.currently_queued.fetch_add(count, AtomicOrdering::SeqCst);
+		Ok(())
 	}
 }
+
