@@ -57,7 +57,7 @@ fn build_dependencies<'a>(message_type: &'a str, message_types: &'a MessageTypes
 
 			for field in fields {
 				// check if this field is an array type
-				let field_type = if let Some (index) = field.type_.find('[') {
+				let field_type = if let Some(index) = field.type_.find('[') {
 					&field.type_[..index]
 				} else {
 					&field.type_
