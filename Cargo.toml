@@ -135,7 +135,3 @@ members = [
 	"evmbin",
 	"parity-clib",
 ]
-
-[patch.crates-io]
-kvdb = { git = "https://github.com/paritytech/parity-common.git", branch = "dp/chore/bump-parking-lot-to-0.9" }
-kvdb-memorydb = { git = "https://github.com/paritytech/parity-common.git", branch = "dp/chore/bump-parking-lot-to-0.9" }
