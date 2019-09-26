@@ -1,3 +1,12 @@
+## Parity-Ethereum [v2.5.9](https://github.com/paritytech/parity-ethereum/releases/tag/v2.5.8)
+
+Parity Ethereum v2.5.9-stable is a patch release that adds the block numbers for activating the Istanbul hardfork.
+
+The full list of included changes:
+
+* ethcore/res: activate Istanbul on Ropsten, Görli, Rinkeby, Kovan (#11068)
+* [json-spec] make blake2 pricing spec more readable (#11034)
+
 ## Parity-Ethereum [v2.5.8](https://github.com/paritytech/parity-ethereum/releases/tag/v2.5.8)
 
 Parity Ethereum v2.5.8-stable is a patch release that improves security, stability and performance.
