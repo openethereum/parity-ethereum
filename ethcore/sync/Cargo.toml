@@ -39,7 +39,7 @@ env_logger = "0.5"
 engine = { path = "../engine" }
 ethcore = { path = "..", features = ["test-helpers"] }
 ethcore-io = { path = "../../util/io", features = ["mio"] }
-kvdb-memorydb = "0.2"
+kvdb-memorydb = "0.1.2"
 machine = { path = "../machine" }
 rand_xorshift = "0.1.1"
 rustc-hex = "1.0"

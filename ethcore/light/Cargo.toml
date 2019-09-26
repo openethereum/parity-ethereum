@@ -50,7 +50,7 @@ verification = { path = "../verification" }
 
 [dev-dependencies]
 ethcore = { path = "..", features = ["test-helpers"] }
-kvdb-memorydb = "0.2"
+kvdb-memorydb = "0.1.2"
 tempdir = "0.3"
 
 [features]

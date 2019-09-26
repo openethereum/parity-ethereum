@@ -1028,7 +1028,7 @@ dependencies = [
  "journaldb 0.2.0",
  "keccak-hash 0.2.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "kvdb 0.1.0 (git+https://github.com/paritytech/parity-common.git?branch=dp/chore/bump-parking-lot-to-0.9)",
- "kvdb-memorydb 0.2.0 (git+https://github.com/paritytech/parity-common.git?branch=dp/chore/bump-parking-lot-to-0.9)",
+ "kvdb-memorydb 0.1.2 (git+https://github.com/paritytech/parity-common.git?branch=dp/chore/bump-parking-lot-to-0.9)",
  "kvdb-rocksdb 0.1.5 (registry+https://github.com/rust-lang/crates.io-index)",
  "lazy_static 1.3.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "log 0.4.8 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -1093,7 +1093,7 @@ dependencies = [
  "itertools 0.5.10 (registry+https://github.com/rust-lang/crates.io-index)",
  "keccak-hash 0.2.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "kvdb 0.1.0 (git+https://github.com/paritytech/parity-common.git?branch=dp/chore/bump-parking-lot-to-0.9)",
- "kvdb-memorydb 0.2.0 (git+https://github.com/paritytech/parity-common.git?branch=dp/chore/bump-parking-lot-to-0.9)",
+ "kvdb-memorydb 0.1.2 (git+https://github.com/paritytech/parity-common.git?branch=dp/chore/bump-parking-lot-to-0.9)",
  "log 0.4.8 (registry+https://github.com/rust-lang/crates.io-index)",
  "parity-bytes 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "parity-util-mem 0.2.0 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -1197,7 +1197,7 @@ dependencies = [
  "keccak-hash 0.2.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "keccak-hasher 0.1.1",
  "kvdb 0.1.0 (git+https://github.com/paritytech/parity-common.git?branch=dp/chore/bump-parking-lot-to-0.9)",
- "kvdb-memorydb 0.2.0 (git+https://github.com/paritytech/parity-common.git?branch=dp/chore/bump-parking-lot-to-0.9)",
+ "kvdb-memorydb 0.1.2 (git+https://github.com/paritytech/parity-common.git?branch=dp/chore/bump-parking-lot-to-0.9)",
  "log 0.4.8 (registry+https://github.com/rust-lang/crates.io-index)",
  "machine 0.1.0",
  "memory-cache 0.1.0",
@@ -1474,7 +1474,7 @@ dependencies = [
  "fastmap 0.1.0",
  "futures 0.1.25 (registry+https://github.com/rust-lang/crates.io-index)",
  "keccak-hash 0.2.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "kvdb-memorydb 0.2.0 (git+https://github.com/paritytech/parity-common.git?branch=dp/chore/bump-parking-lot-to-0.9)",
+ "kvdb-memorydb 0.1.2 (git+https://github.com/paritytech/parity-common.git?branch=dp/chore/bump-parking-lot-to-0.9)",
  "log 0.4.8 (registry+https://github.com/rust-lang/crates.io-index)",
  "machine 0.1.0",
  "macros 0.1.0",
@@ -2194,7 +2194,7 @@ dependencies = [
  "keccak-hash 0.2.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "keccak-hasher 0.1.1",
  "kvdb 0.1.0 (git+https://github.com/paritytech/parity-common.git?branch=dp/chore/bump-parking-lot-to-0.9)",
- "kvdb-memorydb 0.2.0 (git+https://github.com/paritytech/parity-common.git?branch=dp/chore/bump-parking-lot-to-0.9)",
+ "kvdb-memorydb 0.1.2 (git+https://github.com/paritytech/parity-common.git?branch=dp/chore/bump-parking-lot-to-0.9)",
  "log 0.4.8 (registry+https://github.com/rust-lang/crates.io-index)",
  "memory-db 0.15.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "parity-bytes 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -2346,7 +2346,7 @@ dependencies = [
 [[package]]
 name = "kvdb"
 version = "0.1.0"
-source = "git+https://github.com/paritytech/parity-common.git?branch=dp/chore/bump-parking-lot-to-0.9#425b610c884ebc6ded50ea09b6ad044223e527aa"
+source = "git+https://github.com/paritytech/parity-common.git?branch=dp/chore/bump-parking-lot-to-0.9#ce3b946c100604c6fe685a5138c451aa04c94249"
 dependencies = [
  "elastic-array 0.10.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "parity-bytes 0.1.0 (git+https://github.com/paritytech/parity-common.git?branch=dp/chore/bump-parking-lot-to-0.9)",
@@ -2354,17 +2354,8 @@ dependencies = [
 
 [[package]]
 name = "kvdb-memorydb"
-version = "0.1.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-dependencies = [
- "kvdb 0.1.0 (git+https://github.com/paritytech/parity-common.git?branch=dp/chore/bump-parking-lot-to-0.9)",
- "parking_lot 0.6.4 (registry+https://github.com/rust-lang/crates.io-index)",
-]
-
-[[package]]
-name = "kvdb-memorydb"
-version = "0.2.0"
-source = "git+https://github.com/paritytech/parity-common.git?branch=dp/chore/bump-parking-lot-to-0.9#425b610c884ebc6ded50ea09b6ad044223e527aa"
+version = "0.1.2"
+source = "git+https://github.com/paritytech/parity-common.git?branch=dp/chore/bump-parking-lot-to-0.9#ce3b946c100604c6fe685a5138c451aa04c94249"
 dependencies = [
  "kvdb 0.1.0 (git+https://github.com/paritytech/parity-common.git?branch=dp/chore/bump-parking-lot-to-0.9)",
  "parking_lot 0.9.0 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -2734,7 +2725,7 @@ dependencies = [
  "ethcore-network 1.12.0",
  "ethcore-network-devp2p 1.12.0",
  "ethereum-types 0.6.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "kvdb-memorydb 0.2.0 (git+https://github.com/paritytech/parity-common.git?branch=dp/chore/bump-parking-lot-to-0.9)",
+ "kvdb-memorydb 0.1.2 (git+https://github.com/paritytech/parity-common.git?branch=dp/chore/bump-parking-lot-to-0.9)",
  "log 0.4.8 (registry+https://github.com/rust-lang/crates.io-index)",
  "lru-cache 0.1.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "parking_lot 0.9.0 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -2869,7 +2860,7 @@ dependencies = [
 [[package]]
 name = "parity-bytes"
 version = "0.1.0"
-source = "git+https://github.com/paritytech/parity-common.git?branch=dp/chore/bump-parking-lot-to-0.9#425b610c884ebc6ded50ea09b6ad044223e527aa"
+source = "git+https://github.com/paritytech/parity-common.git?branch=dp/chore/bump-parking-lot-to-0.9#ce3b946c100604c6fe685a5138c451aa04c94249"
 
 [[package]]
 name = "parity-bytes"
@@ -3056,7 +3047,7 @@ dependencies = [
  "ethcore-io 1.12.0",
  "ethkey 0.3.0",
  "kvdb 0.1.0 (git+https://github.com/paritytech/parity-common.git?branch=dp/chore/bump-parking-lot-to-0.9)",
- "kvdb-memorydb 0.2.0 (git+https://github.com/paritytech/parity-common.git?branch=dp/chore/bump-parking-lot-to-0.9)",
+ "kvdb-memorydb 0.1.2 (git+https://github.com/paritytech/parity-common.git?branch=dp/chore/bump-parking-lot-to-0.9)",
  "log 0.4.8 (registry+https://github.com/rust-lang/crates.io-index)",
  "rlp 0.4.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "serde 1.0.99 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -4255,7 +4246,7 @@ dependencies = [
  "instant-seal 0.1.0",
  "journaldb 0.2.0",
  "keccak-hash 0.2.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "kvdb-memorydb 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "kvdb-memorydb 0.1.2 (git+https://github.com/paritytech/parity-common.git?branch=dp/chore/bump-parking-lot-to-0.9)",
  "log 0.4.8 (registry+https://github.com/rust-lang/crates.io-index)",
  "machine 0.1.0",
  "null-engine 0.1.0",
@@ -5379,8 +5370,7 @@ dependencies = [
 "checksum keccak-hasher 0.15.0 (registry+https://github.com/rust-lang/crates.io-index)" = "3bf18164fd7ce989041f8fc4a1ae72a8bd1bec3575f2aeaf1d4968fc053aabef"
 "checksum kernel32-sys 0.2.2 (registry+https://github.com/rust-lang/crates.io-index)" = "7507624b29483431c0ba2d82aece8ca6cdba9382bff4ddd0f7490560c056098d"
 "checksum kvdb 0.1.0 (git+https://github.com/paritytech/parity-common.git?branch=dp/chore/bump-parking-lot-to-0.9)" = "<none>"
-"checksum kvdb-memorydb 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)" = "45bcdf5eb083602cff61a6f8438dce2a7900d714e893fc48781c39fb119d37aa"
-"checksum kvdb-memorydb 0.2.0 (git+https://github.com/paritytech/parity-common.git?branch=dp/chore/bump-parking-lot-to-0.9)" = "<none>"
+"checksum kvdb-memorydb 0.1.2 (git+https://github.com/paritytech/parity-common.git?branch=dp/chore/bump-parking-lot-to-0.9)" = "<none>"
 "checksum kvdb-rocksdb 0.1.5 (registry+https://github.com/rust-lang/crates.io-index)" = "96eb0e0112bb66fe5401294ca0f43c9cb771456af9270443545026e55fd00912"
 "checksum lazy_static 1.3.0 (registry+https://github.com/rust-lang/crates.io-index)" = "bc5729f27f159ddd61f4df6228e827e86643d4d3e7c32183cb30a1c08f604a14"
 "checksum lazycell 1.2.0 (registry+https://github.com/rust-lang/crates.io-index)" = "ddba4c30a78328befecec92fc94970e53b3ae385827d28620f0f5bb2493081e0"
