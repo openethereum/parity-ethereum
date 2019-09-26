@@ -23,7 +23,7 @@ use std::str::FromStr;
 use itertools::Itertools;
 use indexmap::IndexSet;
 use serde_json::to_value;
-use crate::parser::{Parser, Type};
+use crate::parser::{parse_type, Type};
 use crate::error::{Result, ErrorKind, serde_error};
 use crate::eip712::{EIP712, MessageTypes};
 use rustc_hex::FromHex;
@@ -105,7 +105,6 @@ fn type_hash(message_type: &str, typed_data: &MessageTypes) -> Result<H256> {
 }
 
 fn encode_data(
-	parser: &Parser,
 	message_type: &Type,
 	message_types: &MessageTypes,
 	value: &Value,
@@ -128,7 +127,7 @@ fn encode_data(
 			}
 
 			for item in values {
-				let mut encoded = encode_data(parser, &*inner, &message_types, item, field_name)?;
+				let mut encoded = encode_data(&*inner, &message_types, item, field_name)?;
 				items.append(&mut encoded);
 			}
 
@@ -141,8 +140,8 @@ fn encode_data(
 
 			for field in message_types.get(ident).expect("Already checked in match guard; qed") {
 				let value = &value[&field.name];
-				let type_ = parser.parse_type(&*field.type_)?;
-				let mut encoded = encode_data(parser, &type_, &message_types, &value, Some(&*field.name))?;
+				let type_ = parse_type(&*field.type_)?;
+				let mut encoded = encode_data(&type_, &message_types, &value, Some(&*field.name))?;
 				tokens.append(&mut encoded);
 			}
 
@@ -219,10 +218,9 @@ pub fn hash_structured_data(typed_data: EIP712) -> Result<H256> {
 	// EIP-191 compliant
 	let prefix = (b"\x19\x01").to_vec();
 	let domain = to_value(&typed_data.domain).unwrap();
-	let parser = Parser::new();
 	let (domain_hash, data_hash) = (
-		encode_data(&parser, &Type::Custom("EIP712Domain".into()), &typed_data.types, &domain, None)?,
-		encode_data(&parser, &Type::Custom(typed_data.primary_type), &typed_data.types, &typed_data.message, None)?
+		encode_data(&Type::Custom("EIP712Domain".into()), &typed_data.types, &domain, None)?,
+		encode_data(&Type::Custom(typed_data.primary_type), &typed_data.types, &typed_data.message, None)?
 	);
 	let concat = [&prefix[..], &domain_hash[..], &data_hash[..]].concat();
 	Ok(keccak(concat))
