@@ -83,8 +83,11 @@ Transaction options:
     --gas-price WEI    Supplied gas price as hex (without 0x).
 
 State test options:
+    --chain CHAIN      Run only from specific chain name (i.e. one of EIP150, EIP158,
+                       Frontier, Homestead, Byzantium, Constantinople,
+                       ConstantinopleFix, Istanbul, EIP158ToByzantiumAt5, FrontierToHomesteadAt5,
+                       HomesteadToDaoAt5, HomesteadToEIP150At5).
     --only NAME        Runs only a single test matching the name.
-    --chain CHAIN      Run only tests from specific chain.
 
 General options:
     --json             Display verbose results in JSON.
