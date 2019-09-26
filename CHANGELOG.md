@@ -1,6 +1,6 @@
 ## Parity-Ethereum [v2.5.9](https://github.com/paritytech/parity-ethereum/releases/tag/v2.5.8)
 
-Parity Ethereum v2.5.9-stable is a patch release that adds the block numbers for activating the Istanbul hardfork.
+Parity Ethereum v2.5.9-stable is a patch release that adds the block numbers for activating the Istanbul hardfork on test networks: Ropsten, Görli, Rinkeby and Kovan.
 
 The full list of included changes:
 
