@@ -174,7 +174,7 @@ fn run_stats_jsontests_vm(args: Args) {
 }
 
 fn run_state_test(args: Args) {
-	use ethjson::state::test::Test;
+	use ethjson::test_helpers::state::Test;
 
 	let file = args.arg_file.expect("FILE is required");
 	let mut file = match fs::File::open(&file) {

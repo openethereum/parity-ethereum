@@ -20,6 +20,7 @@ use hash::KECCAK_NULL_RLP;
 use spec::seal::Seal;
 
 /// Genesis components.
+#[derive(Debug)]
 pub struct Genesis {
 	/// Seal.
 	pub seal: Seal,

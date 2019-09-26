@@ -94,10 +94,8 @@ impl_hash!(Bloom, Hash2048);
 
 #[cfg(test)]
 mod test {
+	use super::H256;
 	use std::str::FromStr;
-	use serde_json;
-	use ethereum_types;
-	use hash::H256;
 
 	#[test]
 	fn hash_deserialization() {

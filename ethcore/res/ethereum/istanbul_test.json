@@ -1,5 +1,5 @@
 {
-	"name": "St. Peter's (test)",
+	"name": "Istanbul (test)",
 	"engine": {
 		"Ethash": {
 			"params": {
@@ -37,7 +37,12 @@
 		"eip1014Transition": "0x0",
 		"eip1052Transition": "0x0",
 		"eip1283Transition": "0x0",
-		"eip1283DisableTransition": "0x0"
+		"eip1283DisableTransition": "0x0",
+		"eip1283ReenableTransition": "0x0",
+		"eip1344Transition": "0x0",
+		"eip1706Transition": "0x0",
+		"eip1884Transition": "0x0",
+		"eip2028Transition": "0x0"
 	},
 	"genesis": {
 		"seal": {
@@ -62,8 +67,8 @@
 		"0000000000000000000000000000000000000006": {
 			"builtin": {
 				"name": "alt_bn128_add",
-				"activate_at": "0x0",
-				"eip1108_transition": "0x7fffffffffffff",
+				"activate_at": "0x00",
+				"eip1108_transition": "0x0",
 				"pricing": {
 					"alt_bn128_const_operations": {
 						"price": 500,
@@ -75,8 +80,8 @@
 		"0000000000000000000000000000000000000007": {
 			"builtin": {
 				"name": "alt_bn128_mul",
-				"activate_at": "0x0",
-				"eip1108_transition": "0x7fffffffffffff",
+				"activate_at": "0x00",
+				"eip1108_transition": "0x0",
 				"pricing": {
 					"alt_bn128_const_operations": {
 						"price": 40000,
@@ -88,14 +93,25 @@
 		"0000000000000000000000000000000000000008": {
 			"builtin": {
 				"name": "alt_bn128_pairing",
-				"activate_at": "0x0",
-				"eip1108_transition": "0x7fffffffffffff",
+				"activate_at": "0x00",
+				"eip1108_transition": "0x0",
 				"pricing": {
 					"alt_bn128_pairing": {
 						"base": 100000,
 						"pair": 80000,
 						"eip1108_transition_base": 45000,
 						"eip1108_transition_pair": 34000
+					}
+				}
+			}
+		},
+		"0000000000000000000000000000000000000009": {
+			"builtin": {
+				"name": "blake2_f",
+				"activate_at": "0x00",
+				"pricing": {
+					"blake2_f": {
+						"gas_per_round": 1
 					}
 				}
 			}

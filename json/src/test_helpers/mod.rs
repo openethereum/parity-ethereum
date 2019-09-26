@@ -14,21 +14,24 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
-//! Blockchain test deserialization.
+//! Test structures for JSON deserialization.
 
-pub mod account;
-pub mod block;
+/// Blockchain test helpers
 pub mod blockchain;
-pub mod header;
+/// Difficulty test helpers
+pub mod difficulty;
+/// Tests to skip helpers
+pub mod skip;
+/// State test helpers
 pub mod state;
+/// Test primitives
+pub mod tester;
+/// Transaction test helpers
 pub mod transaction;
-pub mod test;
-
-pub use self::account::Account;
-pub use self::block::Block;
-pub use self::blockchain::BlockChain;
-pub use self::blockchain::Engine;
-pub use self::header::Header;
-pub use self::state::State;
-pub use self::test::Test;
-pub use self::transaction::Transaction;
+/// Trie test helpers
+pub mod trie;
+/// Vm test helpers
+pub mod vm {
+	/// Type for running `vm` tests
+	pub type Test = super::tester::GenericTester<String, crate::vm::Vm>;
+}

@@ -18,8 +18,12 @@
 
 use std::fmt;
 use std::marker::PhantomData;
+
+use ethereum_types::U256;
 use serde::{Deserialize, Deserializer};
 use serde::de::{Error, Visitor, IntoDeserializer};
+
+use crate::uint::Uint;
 
 /// Deserializer of empty string values into optionals.
 #[derive(Debug, PartialEq, Clone)]
@@ -32,7 +36,8 @@ pub enum MaybeEmpty<T> {
 
 impl<'a, T> Deserialize<'a> for MaybeEmpty<T> where T: Deserialize<'a> {
 	fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-		where D: Deserializer<'a> {
+		where D: Deserializer<'a>
+	{
 		deserializer.deserialize_any(MaybeEmptyVisitor::new())
 	}
 }
@@ -61,11 +66,10 @@ impl<'a, T> Visitor<'a> for MaybeEmptyVisitor<T> where T: Deserialize<'a> {
 	}
 
 	fn visit_string<E>(self, value: String) -> Result<Self::Value, E> where E: Error {
-		match value.is_empty() {
-			true => Ok(MaybeEmpty::None),
-			false => {
-				T::deserialize(value.into_deserializer()).map(MaybeEmpty::Some)
-			}
+		if value.is_empty() {
+			Ok(MaybeEmpty::None)
+		} else {
+			T::deserialize(value.into_deserializer()).map(MaybeEmpty::Some)
 		}
 	}
 }
@@ -80,12 +84,41 @@ impl<T> Into<Option<T>> for MaybeEmpty<T> {
 }
 
 #[cfg(test)]
+impl From<Uint> for MaybeEmpty<Uint> {
+	fn from(uint: Uint) -> Self {
+		MaybeEmpty::Some(uint)
+	}
+}
+
+impl From<MaybeEmpty<Uint>> for U256 {
+	fn from(maybe: MaybeEmpty<Uint>) -> U256 {
+		match maybe {
+			MaybeEmpty::Some(v) => v.0,
+			MaybeEmpty::None => U256::zero(),
+		}
+	}
+}
+
+impl From<MaybeEmpty<Uint>> for u64 {
+	fn from(maybe: MaybeEmpty<Uint>) -> u64 {
+		match maybe {
+			MaybeEmpty::Some(v) => v.0.low_u64(),
+			MaybeEmpty::None => 0u64,
+		}
+	}
+}
+
+impl Default for MaybeEmpty<Uint> {
+	fn default() -> Self {
+		MaybeEmpty::Some(Uint::default())
+	}
+}
+
+#[cfg(test)]
 mod tests {
 	use std::str::FromStr;
-	use serde_json;
-	use ethereum_types;
-	use hash::H256;
-	use maybe::MaybeEmpty;
+	use super::MaybeEmpty;
+	use crate::hash::H256;
 
 	#[test]
 	fn maybe_deserialization() {

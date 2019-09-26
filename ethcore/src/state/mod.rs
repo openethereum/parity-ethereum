@@ -2608,7 +2608,7 @@ mod tests {
 	fn should_not_panic_on_state_diff_with_storage() {
 		let mut state = get_temp_state();
 		let a = Address::from_low_u64_be(0xa);
-		state.init_code(&a, b"abcdefg".to_vec()).unwrap();;
+		state.init_code(&a, b"abcdefg".to_vec()).unwrap();
 		state.add_balance(&a, &256.into(), CleanupMode::NoEmpty).unwrap();
 		state.set_storage(&a, H256::from_low_u64_be(0xb), H256::from_low_u64_be(0xc).into()).unwrap();
 

@@ -17,16 +17,20 @@
 //! Transaction test deserialization.
 
 use std::collections::BTreeMap;
-use bytes::Bytes;
-use hash::Address;
-use hash::H256;
-use spec::ForkSpec;
+use crate::{bytes::Bytes, hash::{Address, H256}, spec::ForkSpec};
+use serde::Deserialize;
+
+/// Type for running `Transaction` tests
+pub type Test = super::tester::GenericTester<String, TransactionTest>;
 
 /// Transaction test deserialization.
 #[derive(Debug, Deserialize)]
 pub struct TransactionTest {
+	/// RLP of the transaction
 	pub rlp: Bytes,
-	pub _info: ::serde::de::IgnoredAny,
+	#[allow(missing_docs)]
+	pub _info: serde::de::IgnoredAny,
+	/// State of the transaction after the test runs
 	#[serde(flatten)]
 	pub post_state: BTreeMap<ForkSpec, PostState>,
 }
@@ -43,8 +47,7 @@ pub struct PostState {
 
 #[cfg(test)]
 mod tests {
-	use serde_json;
-	use transaction::TransactionTest;
+	use super::TransactionTest;
 
 	#[test]
 	fn transaction_deserialization() {
