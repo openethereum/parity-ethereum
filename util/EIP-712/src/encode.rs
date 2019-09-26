@@ -56,11 +56,18 @@ fn build_dependencies<'a>(message_type: &'a str, message_types: &'a MessageTypes
 			deps.insert(item);
 
 			for field in fields {
+				// check if this field is an array type
+				let field_type = if field.type_.contains('[') {
+					let index = field.type_.find('[').expect("alrady checked in if statement; qed");
+					&field.type_[..index]
+				} else {
+					&field.type_
+				};
 				// seen this type before? or not a custom type skip
-				if deps.contains(&*field.type_) || !message_types.contains_key(&*field.type_) {
-					continue;
+				if deps.contains(field_type) || !message_types.contains_key(field_type) {
+					continue
 				}
-				types.insert(&*field.type_);
+				types.insert(field_type);
 			}
 		}
 	};
@@ -411,5 +418,197 @@ mod tests {
 			hash_structured_data(typed_data).unwrap_err().kind(),
 			ErrorKind::UnequalArrayItems(2, "Person[2]".into(), 1)
 		)
+	}
+
+	#[test]
+	fn test_typed_data_v4() {
+		let string = r#"{
+            "types": {
+                "EIP712Domain": [
+                    {
+                      "name": "name",
+                      "type": "string"
+                    },
+                    {
+                      "name": "version",
+                      "type": "string"
+                    },
+                    {
+                      "name": "chainId",
+                      "type": "uint256"
+                    },
+                    {
+                      "name": "verifyingContract",
+                      "type": "address"
+                    }
+                ],
+                "Person": [
+                    {
+                      "name": "name",
+                      "type": "string"
+                    },
+                    {
+                      "name": "wallets",
+                      "type": "address[]"
+                    }
+                ],
+                "Mail": [
+                    {
+                      "name": "from",
+                      "type": "Person"
+                    },
+                    {
+                      "name": "to",
+                      "type": "Person[]"
+                    },
+                    {
+                      "name": "contents",
+                      "type": "string"
+                    }
+                ],
+                "Group": [
+                    {
+                      "name": "name",
+                      "type": "string"
+                    },
+                    {
+                      "name": "members",
+                      "type": "Person[]"
+                    }
+                ]
+            },
+            "domain": {
+                "name": "Ether Mail",
+                "version": "1",
+                "chainId": "0x1",
+                "verifyingContract": "0xCcCCccccCCCCcCCCCCCcCcCccCcCCCcCcccccccC"
+            },
+            "primaryType": "Mail",
+            "message": {
+                "from": {
+                    "name": "Cow",
+                    "wallets": [
+                      "0xCD2a3d9F938E13CD947Ec05AbC7FE734Df8DD826",
+                      "0xDeaDbeefdEAdbeefdEadbEEFdeadbeEFdEaDbeeF"
+                    ]
+                },
+                "to": [
+                    {
+                        "name": "Bob",
+                        "wallets": [
+                            "0xbBbBBBBbbBBBbbbBbbBbbbbBBbBbbbbBbBbbBBbB",
+                            "0xB0BdaBea57B0BDABeA57b0bdABEA57b0BDabEa57",
+                            "0xB0B0b0b0b0b0B000000000000000000000000000"
+                        ]
+                    }
+                ],
+                "contents": "Hello, Bob!"
+            }
+        }"#;
+
+		let typed_data = from_str::<EIP712>(string).expect("alas error!");
+		let hash = hash_structured_data(typed_data.clone()).expect("alas error!");
+		assert_eq!(
+			&format!("{:x}", hash)[..],
+
+			"a85c2e2b118698e88db68a8105b794a8cc7cec074e89ef991cb4f5f533819cc2",
+		);
+	}
+
+	#[test]
+	fn test_typed_data_v4_custom_array() {
+		let string = r#"{
+            "types": {
+                "EIP712Domain": [
+                    {
+                        "name": "name",
+                        "type": "string"
+                    },
+                    {
+                        "name": "version",
+                        "type": "string"
+                    },
+                    {
+                        "name": "chainId",
+                        "type": "uint256"
+                    },
+                    {
+                        "name": "verifyingContract",
+                        "type": "address"
+                    }
+                ],
+              "Person": [
+                {
+                  "name": "name",
+                  "type": "string"
+                },
+                {
+                  "name": "wallets",
+                  "type": "address[]"
+                }
+              ],
+              "Mail": [
+                {
+                  "name": "from",
+                  "type": "Person"
+                },
+                {
+                  "name": "to",
+                  "type": "Group"
+                },
+                {
+                  "name": "contents",
+                  "type": "string"
+                }
+              ],
+              "Group": [
+                {
+                  "name": "name",
+                  "type": "string"
+                },
+                {
+                  "name": "members",
+                  "type": "Person[]"
+                }
+              ]
+            },
+            "domain": {
+              "name": "Ether Mail",
+              "version": "1",
+              "chainId": "0x1",
+              "verifyingContract": "0xCcCCccccCCCCcCCCCCCcCcCccCcCCCcCcccccccC"
+            },
+            "primaryType": "Mail",
+            "message": {
+              "from": {
+                "name": "Cow",
+                "wallets": [
+                  "0xCD2a3d9F938E13CD947Ec05AbC7FE734Df8DD826",
+                  "0xDeaDbeefdEAdbeefdEadbEEFdeadbeEFdEaDbeeF"
+                ]
+              },
+              "to": {
+                "name": "Farmers",
+                "members": [
+                  {
+                    "name": "Bob",
+                    "wallets": [
+                      "0xbBbBBBBbbBBBbbbBbbBbbbbBBbBbbbbBbBbbBBbB",
+                      "0xB0BdaBea57B0BDABeA57b0bdABEA57b0BDabEa57",
+                      "0xB0B0b0b0b0b0B000000000000000000000000000"
+                    ]
+                  }
+                ]
+              },
+              "contents": "Hello, Bob!"
+            }
+          }"#;
+		let typed_data = from_str::<EIP712>(string).expect("alas error!");
+		let hash = hash_structured_data(typed_data.clone()).expect("alas error!");
+
+		assert_eq!(
+			&format!("{:x}", hash)[..],
+			"cd8b34cd09c541cfc0a2fcd147e47809b98b335649c2aa700db0b0c4501a02a0",
+		);
 	}
 }
