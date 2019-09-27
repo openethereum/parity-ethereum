@@ -86,6 +86,13 @@ cargo-check-evmbin:
     - time cargo check -p evmbin --target $CARGO_TARGET --locked --verbose --color=always
     - sccache -s
 
+cargo-check-evmbin:
+  stage:                           test
+  <<:                              *docker-cache-status
+  script:
+    - time cargo check -p evmbin --target $CARGO_TARGET --locked --verbose --color=always
+    - sccache -s
+
 cargo-check-benches:
   stage:                           test
   <<:                              *docker-cache-status
