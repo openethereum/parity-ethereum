@@ -13,7 +13,7 @@ lazy_static = "1.0"
 log = "0.4"
 vm = { path = "../vm" }
 keccak-hash = "0.2.0"
-parking_lot = "0.8"
+parking_lot = "0.9"
 memory-cache = { path = "../../util/memory-cache" }
 
 [dev-dependencies]

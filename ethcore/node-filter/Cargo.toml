@@ -14,7 +14,7 @@ ethcore-network = { path = "../../util/network" }
 ethcore-network-devp2p = { path = "../../util/network-devp2p" }
 ethereum-types = "0.6.0"
 log = "0.4"
-parking_lot = "0.8"
+parking_lot = "0.9"
 ethabi = "8.0"
 ethabi-derive = "8.0"
 ethabi-contract = "8.0"
@@ -22,7 +22,7 @@ lru-cache = "0.1"
 
 [dev-dependencies]
 ethcore = { path = "..", features = ["test-helpers"] }
-kvdb-memorydb = "0.1"
+kvdb-memorydb = "0.1.2"
 ethcore-io = { path = "../../util/io" }
 spec = { path = "../spec" }
 tempdir = "0.3"

@@ -27,7 +27,7 @@ keccak-hash = "0.2.0"
 linked-hash-map = "0.5"
 log = "0.4"
 parity-runtime = { path = "../util/runtime" }
-parking_lot = "0.8"
+parking_lot = "0.9"
 price-info = { path = "./price-info", optional = true }
 rlp = "0.4.0"
 serde = "1.0"

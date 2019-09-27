@@ -33,7 +33,7 @@ machine = { path = "../machine" }
 journaldb = { path = "../../util/journaldb" }
 parity-bytes = "0.1"
 parity-crypto = "0.4.0"
-parking_lot = "0.8"
+parking_lot = "0.9"
 trie-db = "0.15.0"
 patricia-trie-ethereum = { path = "../../util/patricia-trie-ethereum" }
 rlp = "0.4.0"
