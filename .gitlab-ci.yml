@@ -96,6 +96,13 @@ cargo-check 2 3:
     - time cargo check --target $CARGO_TARGET --locked --manifest-path util/io/Cargo.toml --features "mio" --verbose --color=always
     - sccache -s
 
+cargo-check-evmbin:
+  stage:                           test
+  <<:                              *docker-cache-status
+  script:
+    - time cargo check -p evmbin --target $CARGO_TARGET --locked --verbose --color=always
+    - sccache -s
+
 cargo-check-benches:
   stage:                           test
   <<:                              *docker-cache-status
