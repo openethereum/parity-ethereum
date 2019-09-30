@@ -31,8 +31,8 @@ pub enum Type {
 	Custom(String),
 	Array {
 		length: Option<u64>,
-		inner: Box<Type>,
-	},
+		inner: Box<Type>
+	}
 }
 
 impl From<Type> for String {
@@ -130,7 +130,7 @@ pub fn parse_type(field_type: &str) -> Result<Type> {
 		lexer.advance();
 	}
 
-	Ok(token.ok_or_else(|| ErrorKind::NonExistentType)?)
+	Ok(token.ok_or(ErrorKind::NonExistentType)?)
 }
 
 #[cfg(test)]

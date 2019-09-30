@@ -63,10 +63,9 @@ fn build_dependencies<'a>(message_type: &'a str, message_types: &'a MessageTypes
 					&field.type_
 				};
 				// seen this type before? or not a custom type skip
-				if deps.contains(field_type) || !message_types.contains_key(field_type) {
-					continue
+				if !deps.contains(field_type) || message_types.contains_key(field_type) {
+					types.insert(field_type);
 				}
-				types.insert(field_type);
 			}
 		}
 	};
@@ -76,7 +75,8 @@ fn build_dependencies<'a>(message_type: &'a str, message_types: &'a MessageTypes
 
 fn encode_type(message_type: &str, message_types: &MessageTypes) -> Result<String> {
 	let deps = {
-		let mut temp = build_dependencies(message_type, message_types).ok_or_else(|| ErrorKind::NonExistentType)?;
+		let mut temp = build_dependencies(message_type, message_types)
+			.ok_or( ErrorKind::NonExistentType)?;
 		temp.remove(message_type);
 		let mut temp = temp.into_iter().collect::<Vec<_>>();
 		(&mut temp[..]).sort_unstable();
@@ -117,17 +117,25 @@ fn encode_data(
 			length
 		} => {
 			let mut items = vec![];
-			let values = value.as_array().ok_or_else(|| serde_error("array", field_name))?;
+			let values = value.as_array()
+				.ok_or( serde_error("array", field_name))?;
 
 			// check if the type definition actually matches
 			// the length of items to be encoded
 			if length.is_some() && Some(values.len() as u64) != *length {
 				let array_type = format!("{}[{}]", *inner, length.unwrap());
-				return Err(ErrorKind::UnequalArrayItems(length.unwrap(), array_type, values.len() as u64))?
+				return Err(
+					ErrorKind::UnequalArrayItems(length.unwrap(), array_type, values.len() as u64)
+				)?
 			}
 
 			for item in values {
-				let mut encoded = encode_data(&*inner, &message_types, item, field_name)?;
+				let mut encoded = encode_data(
+					&*inner,
+					&message_types,
+					item,
+					field_name
+				)?;
 				items.append(&mut encoded);
 			}
 
@@ -141,7 +149,12 @@ fn encode_data(
 			for field in message_types.get(ident).expect("Already checked in match guard; qed") {
 				let value = &value[&field.name];
 				let type_ = parse_type(&*field.type_)?;
-				let mut encoded = encode_data(&type_, &message_types, &value, Some(&*field.name))?;
+				let mut encoded = encode_data(
+					&type_,
+					&message_types,
+					&value,
+					Some(&*field.name)
+				)?;
 				tokens.append(&mut encoded);
 			}
 
@@ -149,7 +162,8 @@ fn encode_data(
 		}
 
 		Type::Bytes => {
-			let string = value.as_str().ok_or_else(|| serde_error("string", field_name))?;
+			let string = value.as_str()
+				.ok_or( serde_error("string", field_name))?;
 
 			check_hex(&string)?;
 
@@ -162,7 +176,8 @@ fn encode_data(
 		}
 
 		Type::Byte(_) => {
-			let string = value.as_str().ok_or_else(|| serde_error("string", field_name))?;
+			let string = value.as_str()
+				.ok_or( serde_error("string", field_name))?;
 
 			check_hex(&string)?;
 
@@ -174,28 +189,34 @@ fn encode_data(
 		}
 
 		Type::String => {
-			let value = value.as_str().ok_or_else(|| serde_error("string", field_name))?;
+			let value = value.as_str()
+				.ok_or( serde_error("string", field_name))?;
 			let hash = keccak(value).as_ref().to_vec();
 			encode(&[EthAbiToken::FixedBytes(hash)])
 		}
 
-		Type::Bool => encode(&[EthAbiToken::Bool(value.as_bool().ok_or_else(|| serde_error("bool", field_name))?)]),
+		Type::Bool => encode(&[EthAbiToken::Bool(value.as_bool()
+			.ok_or( serde_error("bool", field_name))?)]),
 
 		Type::Address => {
-			let addr = value.as_str().ok_or_else(|| serde_error("string", field_name))?;
+			let addr = value.as_str()
+				.ok_or( serde_error("string", field_name))?;
 			if addr.len() != 42 {
 				return Err(ErrorKind::InvalidAddressLength(addr.len()))?;
 			}
-			let address = EthAddress::from_str(&addr[2..]).map_err(|err| ErrorKind::HexParseError(format!("{}", err)))?;
+			let address = EthAddress::from_str(&addr[2..])
+				.map_err(|err| ErrorKind::HexParseError(format!("{}", err)))?;
 			encode(&[EthAbiToken::Address(address)])
 		}
 
 		Type::Uint | Type::Int => {
-			let string = value.as_str().ok_or_else(|| serde_error("int/uint", field_name))?;
+			let string = value.as_str()
+				.ok_or( serde_error("int/uint", field_name))?;
 
 			check_hex(&string)?;
 
-			let uint = U256::from_str(&string[2..]).map_err(|err| ErrorKind::HexParseError(format!("{}", err)))?;
+			let uint = U256::from_str(&string[2..])
+				.map_err(|err| ErrorKind::HexParseError(format!("{}", err)))?;
 
 			let token = if *message_type == Type::Uint {
 				EthAbiToken::Uint(uint)
@@ -205,7 +226,12 @@ fn encode_data(
 			encode(&[token])
 		}
 
-		_ => return Err(ErrorKind::UnknownType(format!("{}", field_name.unwrap_or("")), format!("{}", *message_type)))?
+		_ => return Err(
+			ErrorKind::UnknownType(
+				format!("{}", field_name.unwrap_or("")),
+				format!("{}", *message_type)
+			).into()
+		)
 	};
 
 	Ok(encoded)
@@ -219,8 +245,18 @@ pub fn hash_structured_data(typed_data: EIP712) -> Result<H256> {
 	let prefix = (b"\x19\x01").to_vec();
 	let domain = to_value(&typed_data.domain).unwrap();
 	let (domain_hash, data_hash) = (
-		encode_data(&Type::Custom("EIP712Domain".into()), &typed_data.types, &domain, None)?,
-		encode_data(&Type::Custom(typed_data.primary_type), &typed_data.types, &typed_data.message, None)?
+		encode_data(
+			&Type::Custom("EIP712Domain".into()),
+			&typed_data.types,
+			&domain,
+			None
+		)?,
+		encode_data(
+			&Type::Custom(typed_data.primary_type),
+			&typed_data.types,
+			&typed_data.message,
+			None
+		)?
 	);
 	let concat = [&prefix[..], &domain_hash[..], &data_hash[..]].concat();
 	Ok(keccak(concat))
