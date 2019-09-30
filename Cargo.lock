@@ -3814,6 +3814,7 @@ dependencies = [
  "ethabi 8.0.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "ethabi-contract 8.0.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "ethabi-derive 8.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "ethcore-call-contract 0.1.0",
  "futures 0.1.25 (registry+https://github.com/rust-lang/crates.io-index)",
  "keccak-hash 0.2.0 (registry+https://github.com/rust-lang/crates.io-index)",
 ]

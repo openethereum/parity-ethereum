@@ -15,6 +15,7 @@
 // along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
 extern crate futures;
+extern crate call_contract;
 extern crate ethabi;
 extern crate ethabi_derive;
 extern crate keccak_hash;

@@ -15,6 +15,7 @@
 // along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
 use futures::{Future, future, IntoFuture};
+use call_contract::CallContract;
 use ethabi::{Address, Bytes};
 use std::sync::Arc;
 use keccak_hash::keccak;
@@ -27,11 +28,9 @@ const DNS_A_RECORD: &'static str = "A";
 
 /// Registrar contract interface
 /// Should execute transaction using current blockchain state.
-pub trait RegistrarClient: Send + Sync {
+pub trait RegistrarClient: CallContract + Send + Sync {
 	/// Get registrar address
 	fn registrar_address(&self) -> Result<Address, String>;
-	/// Call Contract
-	fn call_contract(&self, block: BlockId, address: Address, data: Bytes) -> Box<dyn Future<Item=Bytes, Error=String> + Send>;
 
 	fn get_address<'a>(&self, key: &'a str, block: BlockId) -> Box<dyn Future<Item = Address, Error = String> + Send> {
 		// Address of the registrar itself

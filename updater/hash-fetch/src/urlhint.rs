@@ -21,7 +21,7 @@ use rustc_hex::ToHex;
 use mime::{self, Mime};
 use mime_guess;
 
-use futures::{future, Future};
+use futures::{future, Future, IntoFuture};
 use futures::future::Either;
 use ethereum_types::{H256, Address};
 use registrar::RegistrarClient;
@@ -165,6 +165,7 @@ impl URLHint for URLHintContract {
 			.and_then(move |addr| if !addr.is_zero() {
 				let data = urlhint::functions::entries::encode_input(id);
 				let result = client.call_contract(BlockId::Latest, addr, data)
+					.into_future()
 					.and_then(move |output| urlhint::functions::entries::decode_output(&output).map_err(|e| e.to_string()))
 					.map(decode_urlhint_output);
 				Either::B(result)
@@ -234,15 +235,18 @@ pub mod tests {
 		}
 	}
 
+	impl CallContract for FakeRegistrar {
+		fn call_contract(&self, _block: BlockId, address: Address, data: Bytes) -> Result<Bytes, String> {
+			self.calls.lock().push((address.to_hex(), data.to_hex()));
+			let res = self.responses.lock().remove(0);
+
+			res
+		}
+	}
+
 	impl RegistrarClient for FakeRegistrar {
 		fn registrar_address(&self) -> Result<Address, String> {
 			Ok(REGISTRAR.parse().unwrap())
-		}
-
-		fn call_contract(&self, _block: BlockId, address: Address, data: Bytes) -> Box<dyn Future<Item=Bytes, Error=String> + Send> {
-			self.calls.lock().push((address.to_hex(), data.to_hex()));
-			let res = self.responses.lock().remove(0);
-			Box::new(res.into_future())
 		}
 	}
 

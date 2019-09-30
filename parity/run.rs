@@ -31,7 +31,7 @@ use verification::queue::VerifierSettings;
 use ethcore_logger::{Config as LogConfig, RotatingLogger};
 use ethcore_service::ClientService;
 use ethereum_types::Address;
-use futures::{IntoFuture, Future, Stream};
+use futures::Stream;
 use hash_fetch::{self, fetch};
 use informant::{Informant, LightNodeInformantData, FullNodeInformantData};
 use journaldb::Algorithm;
@@ -689,13 +689,15 @@ fn execute_impl<Cr, Rr>(cmd: RunCmd, logger: Arc<RotatingLogger>, on_client_rq: 
 
 	let contract_client = {
 		struct FullRegistrar { client: Arc<Client> }
+		impl CallContract for FullRegistrar {
+			fn call_contract(&self, id: BlockId, address: Address, data: Bytes) -> Result<Bytes, String> {
+				self.client.call_contract(id, address, data)
+			}
+		}
 		impl RegistrarClient for FullRegistrar {
 			fn registrar_address(&self) -> Result<Address, String> {
 				self.client.registrar_address()
 					.ok_or_else(|| "Registrar not defined.".into())
-			}
-			fn call_contract(&self, block: BlockId, address: Address, data: Bytes) -> Box<dyn Future<Item=Bytes, Error=String> + Send> {
-				Box::new(self.client.call_contract(block, address, data).into_future())
 			}
 		}
 
