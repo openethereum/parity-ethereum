@@ -26,7 +26,7 @@ use fetch::{self, Fetch};
 use futures::{Future, IntoFuture};
 use parity_runtime::Executor;
 use urlhint::{URLHintContract, URLHint, URLHintResult};
-use registrar::{RegistrarClient, Asynchronous};
+use registrar::RegistrarClient;
 use ethereum_types::H256;
 
 /// API for fetching by hash.
@@ -116,7 +116,7 @@ pub struct Client<F: Fetch + 'static = fetch::Client> {
 
 impl<F: Fetch + 'static> Client<F> {
 	/// Creates new instance of the `Client` given on-chain contract client, fetch service and task runner.
-	pub fn with_fetch(contract: Arc<dyn RegistrarClient<Call=Asynchronous>>, fetch: F, executor: Executor) -> Self {
+	pub fn with_fetch(contract: Arc<dyn RegistrarClient>, fetch: F, executor: Executor) -> Self {
 		Client {
 			contract: URLHintContract::new(contract),
 			fetch: fetch,

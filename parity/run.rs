@@ -31,7 +31,7 @@ use verification::queue::VerifierSettings;
 use ethcore_logger::{Config as LogConfig, RotatingLogger};
 use ethcore_service::ClientService;
 use ethereum_types::Address;
-use futures::{IntoFuture, Stream};
+use futures::{IntoFuture, Future, Stream};
 use hash_fetch::{self, fetch};
 use informant::{Informant, LightNodeInformantData, FullNodeInformantData};
 use journaldb::Algorithm;
@@ -65,7 +65,7 @@ use user_defaults::UserDefaults;
 use ipfs;
 use jsonrpc_core;
 use modules;
-use registrar::{RegistrarClient, Asynchronous};
+use registrar::RegistrarClient;
 use rpc;
 use rpc_apis;
 use secretstore;
@@ -690,12 +690,11 @@ fn execute_impl<Cr, Rr>(cmd: RunCmd, logger: Arc<RotatingLogger>, on_client_rq: 
 	let contract_client = {
 		struct FullRegistrar { client: Arc<Client> }
 		impl RegistrarClient for FullRegistrar {
-			type Call = Asynchronous;
 			fn registrar_address(&self) -> Result<Address, String> {
 				self.client.registrar_address()
 					.ok_or_else(|| "Registrar not defined.".into())
 			}
-			fn call_contract(&self, block: BlockId, address: Address, data: Bytes) -> Self::Call {
+			fn call_contract(&self, block: BlockId, address: Address, data: Bytes) -> Box<dyn Future<Item=Bytes, Error=String> + Send> {
 				Box::new(self.client.call_contract(block, address, data).into_future())
 			}
 		}

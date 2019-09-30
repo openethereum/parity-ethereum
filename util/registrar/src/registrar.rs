@@ -25,18 +25,15 @@ use_contract!(registrar, "res/registrar.json");
 // Maps a domain name to an Ethereum address
 const DNS_A_RECORD: &'static str = "A";
 
-pub type Asynchronous = Box<dyn Future<Item=Bytes, Error=String> + Send>;
-pub type Synchronous = Result<Bytes, String>;
-
 /// Registrar is dedicated interface to access the registrar contract
 /// which in turn generates an address when a client requests one
 pub struct Registrar {
-	client: Arc<dyn RegistrarClient<Call=Asynchronous>>,
+	client: Arc<dyn RegistrarClient>,
 }
 
 impl Registrar {
 	/// Registrar constructor
-	pub fn new(client: Arc<dyn RegistrarClient<Call=Asynchronous>>) -> Self {
+	pub fn new(client: Arc<dyn RegistrarClient>) -> Self {
 		Self {
 			client: client,
 		}
@@ -63,11 +60,25 @@ impl Registrar {
 /// Registrar contract interface
 /// Should execute transaction using current blockchain state.
 pub trait RegistrarClient: Send + Sync {
-	/// Specifies synchronous or asynchronous communication
-	type Call: IntoFuture<Item=Bytes, Error=String>;
-
 	/// Get registrar address
 	fn registrar_address(&self) -> Result<Address, String>;
 	/// Call Contract
-	fn call_contract(&self, block: BlockId, address: Address, data: Bytes) -> Self::Call;
+	fn call_contract(&self, block: BlockId, address: Address, data: Bytes) -> Box<dyn Future<Item=Bytes, Error=String> + Send>;
+
+	fn get_address<'a>(&self, key: &'a str, block: BlockId) -> Box<dyn Future<Item = Address, Error = String> + Send> {
+		// Address of the registrar itself
+		let registrar_address = match self.registrar_address() {
+			Ok(a) => a,
+			Err(e) => return Box::new(future::err(e)),
+		};
+
+		let hashed_key: [u8; 32] = keccak(key).into();
+		let id = registrar::functions::get_address::encode_input(hashed_key, DNS_A_RECORD);
+
+		let future = self.call_contract(block, registrar_address, id)
+			.into_future()
+			.and_then(move |address| registrar::functions::get_address::decode_output(&address).map_err(|e| e.to_string()));
+
+		Box::new(future)
+	}
 }
