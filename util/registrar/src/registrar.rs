@@ -18,6 +18,7 @@ use futures::{Future, future, IntoFuture};
 use ethabi::{Address, Bytes};
 use std::sync::Arc;
 use keccak_hash::keccak;
+use types::ids::BlockId;
 
 use_contract!(registrar, "res/registrar.json");
 
@@ -42,7 +43,7 @@ impl Registrar {
 	}
 
 	/// Generate an address for the given key
-	pub fn get_address<'a>(&self, key: &'a str) -> Box<dyn Future<Item = Address, Error = String> + Send> {
+	pub fn get_address<'a>(&self, key: &'a str, block: BlockId) -> Box<dyn Future<Item = Address, Error = String> + Send> {
 		// Address of the registrar itself
 		let registrar_address = match self.client.registrar_address() {
 			Ok(a) => a,
@@ -52,7 +53,7 @@ impl Registrar {
 		let hashed_key: [u8; 32] = keccak(key).into();
 		let id = registrar::functions::get_address::encode_input(hashed_key, DNS_A_RECORD);
 
-		let future = self.client.call_contract(registrar_address, id)
+		let future = self.client.call_contract(block, registrar_address, id)
 			.and_then(move |address| registrar::functions::get_address::decode_output(&address).map_err(|e| e.to_string()));
 
 		Box::new(future)
@@ -68,5 +69,5 @@ pub trait RegistrarClient: Send + Sync {
 	/// Get registrar address
 	fn registrar_address(&self) -> Result<Address, String>;
 	/// Call Contract
-	fn call_contract(&self, address: Address, data: Bytes) -> Self::Call;
+	fn call_contract(&self, block: BlockId, address: Address, data: Bytes) -> Self::Call;
 }

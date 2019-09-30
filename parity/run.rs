@@ -695,8 +695,8 @@ fn execute_impl<Cr, Rr>(cmd: RunCmd, logger: Arc<RotatingLogger>, on_client_rq: 
 				self.client.registrar_address()
 					.ok_or_else(|| "Registrar not defined.".into())
 			}
-			fn call_contract(&self, address: Address, data: Bytes) -> Self::Call {
-				Box::new(self.client.call_contract(BlockId::Latest, address, data).into_future())
+			fn call_contract(&self, block: BlockId, address: Address, data: Bytes) -> Self::Call {
+				Box::new(self.client.call_contract(block, address, data).into_future())
 			}
 		}
 

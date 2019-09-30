@@ -32,6 +32,7 @@ extern crate parity_runtime;
 extern crate rand;
 extern crate rustc_hex;
 extern crate registrar;
+extern crate types;
 
 pub extern crate fetch;
 

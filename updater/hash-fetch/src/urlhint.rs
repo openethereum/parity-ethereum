@@ -25,6 +25,7 @@ use futures::{future, Future};
 use futures::future::Either;
 use ethereum_types::{H256, Address};
 use registrar::{Registrar, RegistrarClient, Asynchronous};
+use types::ids::BlockId;
 
 use_contract!(urlhint, "res/urlhint.json");
 
@@ -162,10 +163,10 @@ impl URLHint for URLHintContract {
 	fn resolve(&self, id: H256) -> Box<dyn Future<Item = Option<URLHintResult>, Error = String> + Send> {
 		let client = self.client.clone();
 
-		let future = self.registrar.get_address(GITHUB_HINT)
+		let future = self.registrar.get_address(GITHUB_HINT, BlockId::Latest)
 			.and_then(move |addr| if !addr.is_zero() {
 				let data = urlhint::functions::entries::encode_input(id);
-				let result = client.call_contract(addr, data)
+				let result = client.call_contract(BlockId::Latest, addr, data)
 					.and_then(move |output| urlhint::functions::entries::decode_output(&output).map_err(|e| e.to_string()))
 					.map(decode_urlhint_output);
 				Either::B(result)
@@ -242,7 +243,7 @@ pub mod tests {
 			Ok(REGISTRAR.parse().unwrap())
 		}
 
-		fn call_contract(&self, address: Address, data: Bytes) -> Self::Call {
+		fn call_contract(&self, _block: BlockId, address: Address, data: Bytes) -> Self::Call {
 			self.calls.lock().push((address.to_hex(), data.to_hex()));
 			let res = self.responses.lock().remove(0);
 			Box::new(res.into_future())
