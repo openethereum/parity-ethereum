@@ -24,7 +24,7 @@ use mime_guess;
 use futures::{future, Future};
 use futures::future::Either;
 use ethereum_types::{H256, Address};
-use registrar::{Registrar, RegistrarClient};
+use registrar::RegistrarClient;
 use types::ids::BlockId;
 
 use_contract!(urlhint, "res/urlhint.json");
@@ -101,7 +101,6 @@ pub trait URLHint: Send + Sync {
 
 /// `URLHintContract` API
 pub struct URLHintContract {
-	registrar: Registrar,
 	client: Arc<dyn RegistrarClient>,
 }
 
@@ -109,7 +108,6 @@ impl URLHintContract {
 	/// Creates new `URLHintContract`
 	pub fn new(client: Arc<dyn RegistrarClient>) -> Self {
 		URLHintContract {
-			registrar: Registrar::new(client.clone()),
 			client: client,
 		}
 	}
@@ -163,7 +161,7 @@ impl URLHint for URLHintContract {
 	fn resolve(&self, id: H256) -> Box<dyn Future<Item = Option<URLHintResult>, Error = String> + Send> {
 		let client = self.client.clone();
 
-		let future = self.registrar.get_address(GITHUB_HINT, BlockId::Latest)
+		let future = client.get_address(GITHUB_HINT, BlockId::Latest)
 			.and_then(move |addr| if !addr.is_zero() {
 				let data = urlhint::functions::entries::encode_input(id);
 				let result = client.call_contract(BlockId::Latest, addr, data)

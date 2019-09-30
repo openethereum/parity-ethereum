@@ -24,4 +24,4 @@ extern crate types;
 extern crate ethabi_contract;
 
 mod registrar;
-pub use registrar::{Registrar, RegistrarClient};
+pub use registrar::RegistrarClient;
