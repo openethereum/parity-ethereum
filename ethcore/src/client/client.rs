@@ -51,7 +51,7 @@ use blockchain::{
 	TransactionAddress,
 	TreeRoute
 };
-use call_contract::{CallContract, RegistryInfo};
+use call_contract::{CallContract, RegistryInfoDeprecated};
 use client::{
 	bad_blocks, BlockProducer, BroadcastProposalBlock, Call,
 	ClientConfig, EngineInfo, ImportSealedBlock, PrepareOpenBlock,
@@ -1414,7 +1414,7 @@ impl TransactionInfo for Client {
 
 impl BlockChainTrait for Client {}
 
-impl RegistryInfo for Client {
+impl RegistryInfoDeprecated for Client {
 	fn registry_address(&self, name: String, block: BlockId) -> Option<Address> {
 		use ethabi::FunctionOutputDecoder;
 

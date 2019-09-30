@@ -16,7 +16,7 @@
 
 use std::sync::{Arc, Weak};
 use bytes::Bytes;
-use call_contract::RegistryInfo;
+use call_contract::RegistryInfoDeprecated;
 use common_types::{
 	ids::BlockId,
 	transaction::{Transaction, SignedTransaction, Action},

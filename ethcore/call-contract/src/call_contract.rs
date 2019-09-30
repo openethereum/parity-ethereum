@@ -27,7 +27,7 @@ pub trait CallContract {
 }
 
 /// Provides information on a blockchain service and it's registry
-pub trait RegistryInfo {
+pub trait RegistryInfoDeprecated {
 	/// Get the address of a particular blockchain service, if available.
 	fn registry_address(&self, name: String, block: BlockId) -> Option<Address>;
 }

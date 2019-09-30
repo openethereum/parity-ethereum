@@ -19,7 +19,7 @@
 use std::collections::HashMap;
 use std::mem;
 use std::sync::Arc;
-use call_contract::{RegistryInfo, CallContract};
+use call_contract::{RegistryInfoDeprecated, CallContract};
 use types::ids::BlockId;
 use types::transaction::SignedTransaction;
 use ethabi::FunctionOutputDecoder;
@@ -39,7 +39,7 @@ pub struct ServiceTransactionChecker {
 impl ServiceTransactionChecker {
 
 	/// Checks if given address in tx is whitelisted to send service transactions.
-	pub fn check<C: CallContract + RegistryInfo>(&self, client: &C, tx: &SignedTransaction) -> Result<bool, String> {
+	pub fn check<C: CallContract + RegistryInfoDeprecated>(&self, client: &C, tx: &SignedTransaction) -> Result<bool, String> {
 		let sender = tx.sender();
 		// Skip checking the contract if the transaction does not have zero gas price
 		if !tx.gas_price.is_zero() {
@@ -50,7 +50,7 @@ impl ServiceTransactionChecker {
 	}
 
 	/// Checks if given address is whitelisted to send service transactions.
-	pub fn check_address<C: CallContract + RegistryInfo>(&self, client: &C, sender: Address) -> Result<bool, String> {
+	pub fn check_address<C: CallContract + RegistryInfoDeprecated>(&self, client: &C, sender: Address) -> Result<bool, String> {
 		trace!(target: "txqueue", "Checking service transaction checker contract from {}", sender);
 		if let Some(allowed) = self.certified_addresses_cache.try_read().as_ref().and_then(|c| c.get(&sender)) {
 			return Ok(*allowed);
@@ -66,7 +66,7 @@ impl ServiceTransactionChecker {
 	}
 
 	/// Refresh certified addresses cache
-	pub fn refresh_cache<C: CallContract + RegistryInfo>(&self, client: &C) -> Result<bool, String> {
+	pub fn refresh_cache<C: CallContract + RegistryInfoDeprecated>(&self, client: &C) -> Result<bool, String> {
 		trace!(target: "txqueue", "Refreshing certified addresses cache");
 		// replace the cache with an empty list,
 		// since it's not recent it won't be used anyway.
@@ -86,7 +86,7 @@ impl ServiceTransactionChecker {
 		}
 	}
 
-	fn call_contract<C: CallContract + RegistryInfo>(&self, client: &C, contract_address: Address, sender: Address) -> Result<bool, String> {
+	fn call_contract<C: CallContract + RegistryInfoDeprecated>(&self, client: &C, contract_address: Address, sender: Address) -> Result<bool, String> {
 		let (data, decoder) = service_transaction::functions::certified::call(sender);
 		let value = client.call_contract(BlockId::Latest, contract_address, data)?;
 		decoder.decode(&value).map_err(|e| e.to_string())

@@ -19,7 +19,7 @@
 use std::sync::Arc;
 use parking_lot::RwLock;
 use ethereum_types::{H256, Address};
-use call_contract::{CallContract, RegistryInfo};
+use call_contract::{CallContract, RegistryInfoDeprecated};
 use types::ids::BlockId;
 use ethabi::FunctionOutputDecoder;
 
@@ -53,13 +53,13 @@ pub trait KeyProvider: Send + Sync + 'static {
 }
 
 /// Secret Store keys provider
-pub struct SecretStoreKeys<C> where C: CallContract + RegistryInfo + Send + Sync + 'static {
+pub struct SecretStoreKeys<C> where C: CallContract + RegistryInfoDeprecated + Send + Sync + 'static {
 	client: Arc<C>,
 	key_server_account: Option<Address>,
 	keys_acl_contract: RwLock<Option<Address>>,
 }
 
-impl<C> SecretStoreKeys<C> where C: CallContract + RegistryInfo + Send + Sync + 'static {
+impl<C> SecretStoreKeys<C> where C: CallContract + RegistryInfoDeprecated + Send + Sync + 'static {
 	/// Create provider
 	pub fn new(client: Arc<C>, key_server_account: Option<Address>) -> Self {
 		SecretStoreKeys {
@@ -70,7 +70,7 @@ impl<C> SecretStoreKeys<C> where C: CallContract + RegistryInfo + Send + Sync + 
 	}
 }
 
-impl<C> KeyProvider for SecretStoreKeys<C> where C: CallContract + RegistryInfo + Send + Sync + 'static {
+impl<C> KeyProvider for SecretStoreKeys<C> where C: CallContract + RegistryInfoDeprecated + Send + Sync + 'static {
 	fn key_server_account(&self) -> Option<Address> {
 		self.key_server_account
 	}
@@ -141,6 +141,7 @@ mod tests {
 	use ethkey::{Secret, KeyPair};
 	use bytes::Bytes;
 	use super::*;
+	use registrar::{RegistrarClient, Synchronous};
 
 	struct DummyRegistryClient {
 		registry_address: Option<Address>,
@@ -154,7 +155,7 @@ mod tests {
 		}
 	}
 
-	impl RegistryInfo for DummyRegistryClient {
+	impl RegistryInfoDeprecated for DummyRegistryClient {
 		fn registry_address(&self, _name: String, _block: BlockId) -> Option<Address> { self.registry_address }
 	}
 

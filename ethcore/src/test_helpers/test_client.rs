@@ -63,7 +63,7 @@ use types::{
 use vm::{Schedule, LastHashes};
 
 use block::{OpenBlock, SealedBlock, ClosedBlock};
-use call_contract::{CallContract, RegistryInfo};
+use call_contract::{CallContract, RegistryInfoDeprecated};
 use client::{
 	ReopenBlock, PrepareOpenBlock, ImportSealedBlock, BroadcastProposalBlock, Call,
 	EngineInfo, BlockProducer, SealedBlockImporter,
@@ -543,7 +543,7 @@ impl TransactionInfo for TestBlockChainClient {
 
 impl BlockChain for TestBlockChainClient {}
 
-impl RegistryInfo for TestBlockChainClient {
+impl RegistryInfoDeprecated for TestBlockChainClient {
 	fn registry_address(&self, _name: String, _block: BlockId) -> Option<Address> { None }
 }
 
