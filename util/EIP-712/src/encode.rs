@@ -76,7 +76,7 @@ fn build_dependencies<'a>(message_type: &'a str, message_types: &'a MessageTypes
 fn encode_type(message_type: &str, message_types: &MessageTypes) -> Result<String> {
 	let deps = {
 		let mut temp = build_dependencies(message_type, message_types)
-			.ok_or( ErrorKind::NonExistentType)?;
+			.ok_or(ErrorKind::NonExistentType)?;
 		temp.remove(message_type);
 		let mut temp = temp.into_iter().collect::<Vec<_>>();
 		(&mut temp[..]).sort_unstable();
@@ -118,7 +118,7 @@ fn encode_data(
 		} => {
 			let mut items = vec![];
 			let values = value.as_array()
-				.ok_or( serde_error("array", field_name))?;
+				.ok_or(serde_error("array", field_name))?;
 
 			// check if the type definition actually matches
 			// the length of items to be encoded
@@ -163,7 +163,7 @@ fn encode_data(
 
 		Type::Bytes => {
 			let string = value.as_str()
-				.ok_or( serde_error("string", field_name))?;
+				.ok_or(serde_error("string", field_name))?;
 
 			check_hex(&string)?;
 
@@ -177,7 +177,7 @@ fn encode_data(
 
 		Type::Byte(_) => {
 			let string = value.as_str()
-				.ok_or( serde_error("string", field_name))?;
+				.ok_or(serde_error("string", field_name))?;
 
 			check_hex(&string)?;
 
@@ -190,17 +190,17 @@ fn encode_data(
 
 		Type::String => {
 			let value = value.as_str()
-				.ok_or( serde_error("string", field_name))?;
+				.ok_or(serde_error("string", field_name))?;
 			let hash = keccak(value).as_ref().to_vec();
 			encode(&[EthAbiToken::FixedBytes(hash)])
 		}
 
 		Type::Bool => encode(&[EthAbiToken::Bool(value.as_bool()
-			.ok_or( serde_error("bool", field_name))?)]),
+			.ok_or(serde_error("bool", field_name))?)]),
 
 		Type::Address => {
 			let addr = value.as_str()
-				.ok_or( serde_error("string", field_name))?;
+				.ok_or(serde_error("string", field_name))?;
 			if addr.len() != 42 {
 				return Err(ErrorKind::InvalidAddressLength(addr.len()))?;
 			}
@@ -211,7 +211,7 @@ fn encode_data(
 
 		Type::Uint | Type::Int => {
 			let string = value.as_str()
-				.ok_or( serde_error("int/uint", field_name))?;
+				.ok_or(serde_error("int/uint", field_name))?;
 
 			check_hex(&string)?;
 
