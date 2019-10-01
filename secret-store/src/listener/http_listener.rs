@@ -29,7 +29,7 @@ use tokio;
 use tokio::net::TcpListener;
 use parity_runtime::Executor;
 use futures::{future, Future, Stream};
-use url::percent_encoding::percent_decode;
+use percent_encoding::percent_decode;
 
 use traits::KeyServer;
 use serialization::{SerializableEncryptedDocumentKeyShadow, SerializableBytes, SerializablePublic};
