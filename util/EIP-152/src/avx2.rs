@@ -23,6 +23,13 @@ use core::arch::x86::*;
 use core::arch::x86_64::*;
 use arrayref::{array_refs, mut_array_refs};
 
+// Adapted from https://github.com/rust-lang-nursery/stdsimd/pull/479.
+macro_rules! _MM_SHUFFLE {
+    ($z:expr, $y:expr, $x:expr, $w:expr) => {
+        ($z << 6) | ($y << 4) | ($x << 2) | $w
+    };
+}
+
 /// The Blake2b compression function F. See https://tools.ietf.org/html/rfc7693#section-3.2
 /// Takes as an argument the state vector `state`, message block vector `message`, offset counter, final
 /// block indicator flag `f`, and number of rounds `rounds`. The state vector provided as the first
@@ -380,13 +387,6 @@ unsafe fn xor(a: __m256i, b: __m256i) -> __m256i {
 #[inline(always)]
 unsafe fn set4(a: u64, b: u64, c: u64, d: u64) -> __m256i {
 	_mm256_setr_epi64x(a as i64, b as i64, c as i64, d as i64)
-}
-
-// Adapted from https://github.com/rust-lang-nursery/stdsimd/pull/479.
-macro_rules! _MM_SHUFFLE {
-    ($z:expr, $y:expr, $x:expr, $w:expr) => {
-        ($z << 6) | ($y << 4) | ($x << 2) | $w
-    };
 }
 
 #[inline(always)]
