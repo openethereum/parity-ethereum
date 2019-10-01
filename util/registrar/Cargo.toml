@@ -6,7 +6,6 @@ license = "GPL-3.0"
 authors = ["Parity Technologies <admin@parity.io>"]
 
 [dependencies]
-futures = "0.1"
 call-contract = { package = "ethcore-call-contract", path = "../../ethcore/call-contract" }
 ethabi = "8.0"
 ethabi-derive = "8.0"

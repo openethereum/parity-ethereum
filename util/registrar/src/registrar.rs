@@ -14,10 +14,8 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
-use futures::{Future, future, IntoFuture};
 use call_contract::CallContract;
-use ethabi::{Address, Bytes};
-use std::sync::Arc;
+use ethabi::Address;
 use keccak_hash::keccak;
 use types::ids::BlockId;
 
@@ -29,23 +27,19 @@ const DNS_A_RECORD: &'static str = "A";
 /// Registrar contract interface
 /// Should execute transaction using current blockchain state.
 pub trait RegistrarClient: CallContract + Send + Sync {
-	/// Get registrar address
+	/// Get address of the registrar itself
 	fn registrar_address(&self) -> Result<Address, String>;
 
-	fn get_address<'a>(&self, key: &'a str, block: BlockId) -> Box<dyn Future<Item = Address, Error = String> + Send> {
-		// Address of the registrar itself
-		let registrar_address = match self.registrar_address() {
-			Ok(a) => a,
-			Err(e) => return Box::new(future::err(e)),
-		};
+	fn get_address<'a>(&self, key: &'a str, block: BlockId) -> Result<Address, String> {
+		let registrar_address = self.registrar_address()?;
 
 		let hashed_key: [u8; 32] = keccak(key).into();
 		let id = registrar::functions::get_address::encode_input(hashed_key, DNS_A_RECORD);
 
-		let future = self.call_contract(block, registrar_address, id)
-			.into_future()
-			.and_then(move |address| registrar::functions::get_address::decode_output(&address).map_err(|e| e.to_string()));
+		let address_bytes = self.call_contract(block, registrar_address, id)?;
 
-		Box::new(future)
+		let address = registrar::functions::get_address::decode_output(&address_bytes).map_err(|e| e.to_string())?;
+
+		Ok(address)
 	}
 }

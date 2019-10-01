@@ -21,8 +21,6 @@ use rustc_hex::ToHex;
 use mime::{self, Mime};
 use mime_guess;
 
-use futures::{future, Future, IntoFuture};
-use futures::future::Either;
 use ethereum_types::{H256, Address};
 use registrar::RegistrarClient;
 use types::ids::BlockId;
@@ -96,7 +94,7 @@ pub enum URLHintResult {
 /// URLHint Contract interface
 pub trait URLHint: Send + Sync {
 	/// Resolves given id to registrar entry.
-	fn resolve(&self, id: H256) -> Box<dyn Future<Item = Option<URLHintResult>, Error = String> + Send>;
+	fn resolve(&self, id: H256) -> Result<Option<URLHintResult>, String>;
 }
 
 /// `URLHintContract` API
@@ -122,9 +120,7 @@ fn get_urlhint_content(account_slash_repo: String, owner: Address) -> Content {
 	}
 }
 
-fn decode_urlhint_output(output: (String, [u8; 20], Address)) -> Option<URLHintResult> {
-	let (account_slash_repo, commit, owner) = output;
-
+fn decode_urlhint_output(account_slash_repo: String, commit: [u8; 20], owner: Address) -> Option<URLHintResult> {
 	if owner == Address::zero() {
 		return None;
 	}
@@ -158,21 +154,21 @@ fn decode_urlhint_output(output: (String, [u8; 20], Address)) -> Option<URLHintR
 }
 
 impl URLHint for URLHintContract {
-	fn resolve(&self, id: H256) -> Box<dyn Future<Item = Option<URLHintResult>, Error = String> + Send> {
+	fn resolve(&self, id: H256) -> Result<Option<URLHintResult>, String>  {
 		let client = self.client.clone();
 
-		let future = client.get_address(GITHUB_HINT, BlockId::Latest)
-			.and_then(move |addr| if !addr.is_zero() {
-				let data = urlhint::functions::entries::encode_input(id);
-				let result = client.call_contract(BlockId::Latest, addr, data)
-					.into_future()
-					.and_then(move |output| urlhint::functions::entries::decode_output(&output).map_err(|e| e.to_string()))
-					.map(decode_urlhint_output);
-				Either::B(result)
-			} else {
-				Either::A(future::ok(None))
-		});
-		Box::new(future)
+		let address = client.get_address(GITHUB_HINT, BlockId::Latest)?;
+
+		let url_hint = if !address.is_zero() {
+			let data = urlhint::functions::entries::encode_input(id);
+			let output_bytes = client.call_contract(BlockId::Latest, address, data)?;
+			let (account_slash_repo, commit, owner) = urlhint::functions::entries::decode_output(&output_bytes).map_err(|e| e.to_string())?;
+			decode_urlhint_output(account_slash_repo, commit, owner)
+		} else {
+			None
+		};
+
+		Ok(url_hint)
 	}
 }
 

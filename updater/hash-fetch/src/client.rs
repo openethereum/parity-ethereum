@@ -133,6 +133,7 @@ impl<F: Fetch + 'static> HashFetch for Client<F> {
 		let random_path = self.random_path.clone();
 		let remote_fetch = self.fetch.clone();
 		let future = self.contract.resolve(hash)
+			.into_future()
 			.map_err(|e| { warn!("Error resolving URL: {}", e); Error::NoResolution })
 			.and_then(|maybe_url| maybe_url.ok_or(Error::NoResolution))
 			.map(|content| match content {
