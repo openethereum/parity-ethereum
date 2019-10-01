@@ -1415,17 +1415,21 @@ impl TransactionInfo for Client {
 impl BlockChainTrait for Client {}
 
 impl RegistryInfoDeprecated for Client {
-	fn registry_address(&self, name: &str, block: BlockId) -> Option<Address> {
+	fn registry_address(&self, name: &str, block: BlockId) -> Result<Option<Address>, String> {
 		use ethabi::FunctionOutputDecoder;
 
-		let address = self.registrar_address?;
+		let registrar_address = match self.registrar_address {
+			Some(address) => address,
+			None => return Err("Registry not defined.".to_owned())
+		};
 
 		let (data, decoder) = registry::functions::get_address::call(keccak(name), "A");
-		let value = decoder.decode(&self.call_contract(block, address, data).ok()?).ok()?;
-		if value.is_zero() {
-			None
+		let encoded_address = self.call_contract(block, registrar_address, data)?;
+		let value = decoder.decode(&encoded_address).map_err(|e| e.to_string())?;
+		if !value.is_zero() {
+			Ok(Some(value))
 		} else {
-			Some(value)
+			Ok(None)
 		}
 	}
 }

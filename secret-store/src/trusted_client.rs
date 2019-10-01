@@ -100,7 +100,10 @@ impl TrustedClient {
 			ContractAddress::Address(ref address) => Some(address.clone()),
 			ContractAddress::Registry => self.get().and_then(|client|
 				get_confirmed_block_hash(&*client, REQUEST_CONFIRMATIONS_REQUIRED)
-					.and_then(|block| client.registry_address(registry_name, BlockId::Hash(block)))
+					.and_then(|block| {
+						client.registry_address(registry_name, BlockId::Hash(block))
+							.unwrap_or(None)
+					})
 			),
 		}
 	}

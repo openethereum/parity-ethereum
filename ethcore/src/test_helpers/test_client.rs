@@ -544,7 +544,7 @@ impl TransactionInfo for TestBlockChainClient {
 impl BlockChain for TestBlockChainClient {}
 
 impl RegistryInfoDeprecated for TestBlockChainClient {
-	fn registry_address(&self, _name: &str, _block: BlockId) -> Option<Address> { None }
+	fn registry_address(&self, _name: &str, _block: BlockId) -> Result<Option<Address>, String> { None }
 }
 
 impl ImportBlock for TestBlockChainClient {
