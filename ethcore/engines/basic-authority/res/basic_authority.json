@@ -39,6 +39,7 @@
 		"0000000000000000000000000000000000000004": { "balance": "1", "nonce": "1048576", "builtin": { "name": "identity", "pricing": { "linear": { "base": 15, "word": 3 } } } },
 		"0000000000000000000000000000000000000005": { "balance": "1", "builtin": { "name": "modexp", "activate_at": 0, "pricing": { "modexp": { "divisor": 20 } } } },
 		"0000000000000000000000000000000000000006": {
+			"balance": "1",
 			"builtin": {
 				"name": "alt_bn128_add",
 				"pricing": [
@@ -54,6 +55,7 @@
 			}
 		},
 		"0000000000000000000000000000000000000007": {
+			"balance": "1",
 			"builtin": {
 				"name": "alt_bn128_mul",
 				"pricing": [
@@ -69,6 +71,7 @@
 			}
 		},
 		"0000000000000000000000000000000000000008": {
+			"balance": "1",
 			"builtin": {
 				"name": "alt_bn128_pairing",
 				"pricing": [

@@ -66,6 +66,7 @@ impl Pricer for Blake2FPricer {
 }
 
 /// Pricing model
+#[derive(Debug)]
 enum Pricing {
 	AltBn128Pairing(AltBn128PairingPricer),
 	Blake2F(Blake2FPricer),
@@ -85,12 +86,14 @@ impl Pricer for Pricing {
 }
 
 /// A linear pricing model. This computes a price using a base cost and a cost per-word.
+#[derive(Debug)]
 struct Linear {
 	base: usize,
 	word: usize,
 }
 
 /// A special pricing model for modular exponentiation.
+#[derive(Debug)]
 struct ModexpPricer {
 	divisor: usize,
 }
@@ -109,6 +112,7 @@ struct AltBn128PairingPrice {
 }
 
 /// alt_bn128_pairing pricing model. This computes a price using a base cost and a cost per pair.
+#[derive(Debug)]
 struct AltBn128PairingPricer {
 	price: AltBn128PairingPrice,
 }
@@ -145,7 +149,10 @@ impl Pricer for ModexpPricer {
 
 		let m = max(mod_len, base_len);
 		// read fist 32-byte word of the exponent.
-		let exp_low = if base_len + 96 >= input.len() as u64 { U256::zero() } else {
+		let exp_low = if base_len + 96 >= input.len() as u64 {
+			U256::zero()
+		} else {
+			buf.iter_mut().for_each(|b| *b = 0);
 			let mut reader = input[(96 + base_len as usize)..].chain(io::repeat(0));
 			let len = min(exp_len, 32) as usize;
 			reader.read_exact(&mut buf[(32 - len)..]).expect("reading from zero-extended memory cannot fail; qed");
@@ -196,12 +203,14 @@ impl Builtin {
 	/// Simple forwarder for cost.
 	///
 	/// Return the cost of the most recently activated pricer at the current block number.
+	///
 	/// If no pricer is actived `zero` is returned
+	///
+	/// If multiple `activation_at` has the same block number the last one is used
+	/// which follows the BTreeMap semantics
+	///
 	// NOTE(niklasad1): we could remove is_active and replace with `fn cost(...) -> Option<U256>`
 	// but it would require some changes that I don't want to do...
-	//
-	//
-	// TODO: how to handle several prices at the same `activation block`? Maybe use the lowest price?!
 	pub fn cost(&self, input: &[u8], at: u64) -> U256 {
 		for (&activate_at, pricer) in self.pricer.iter().rev() {
 			if at >= activate_at {
@@ -218,17 +227,19 @@ impl Builtin {
 
 	/// Whether the builtin is activated at the given block number.
 	pub fn is_active(&self, at: u64) -> bool {
-		self.pricer.keys().any(|&other_at| at >= other_at)
+		self.pricer.keys().rev().any(|&other_at| at >= other_at)
 	}
 }
 
 impl From<ethjson::spec::Builtin> for Builtin {
 	fn from(b: ethjson::spec::Builtin) -> Self {
-		// TODO(niklasad1): change this to `try_from` and propogate the error
+		// TODO(niklasad1): change this to `try_from` and propogate the error accordingly
 		let native = EthereumBuiltin::from_str(&b.name).unwrap();
 		let pricer = match b.pricing {
 			ethjson::spec::builtin::Pricing::Single(pricer) => {
-				map![b.activate_at.map_or(u64::max_value(), Into::into) => pricer.into()]
+				// TODO(niklasad1): change chain specs and don't enable by default!?
+				// Seems more reasonable to do it the otherway around but would be a breaking change
+				map![b.activate_at.map_or(0, Into::into) => pricer.into()]
 			}
 
 			ethjson::spec::builtin::Pricing::Multi(pricer) => {
@@ -1451,5 +1462,40 @@ mod tests {
 		assert_eq!(b.cost(&[0; 1], 99), U256::from(6_000), "use price #2");
 		assert_eq!(b.cost(&[0; 1], 100), U256::from(1_337), "use price #3");
 		assert_eq!(b.cost(&[0; 1], u64::max_value()), U256::from(1_337), "use price #3 indefinitely");
+	}
+
+
+	#[test]
+	fn multimap_use_last_with_same_activate_at() {
+		let b = Builtin::from(JsonBuiltin {
+			name: "alt_bn128_mul".to_owned(),
+			pricing: JsonPricing::Multi(vec![
+				PricingWithActivation {
+					price: JsonPricingInner::Linear(JsonLinearPricing {
+						base: 40_000,
+						word: 0,
+					}),
+					activate_at: Uint(1.into()),
+				},
+				PricingWithActivation {
+					price: JsonPricingInner::Linear(JsonLinearPricing {
+						base: 6_000,
+						word: 0,
+					}),
+					activate_at: Uint(1.into()),
+				},
+				PricingWithActivation {
+					price: JsonPricingInner::Linear(JsonLinearPricing {
+						base: 1_337,
+						word: 0,
+					}),
+					activate_at: Uint(1.into()),
+				}
+			]),
+			activate_at: None,
+		});
+
+		assert_eq!(b.cost(&[0; 1], 0), U256::from(0), "not activated yet");
+		assert_eq!(b.cost(&[0; 1], 1), U256::from(1_337), "use price #3");
 	}
 }

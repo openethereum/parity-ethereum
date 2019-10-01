@@ -237,7 +237,16 @@ pub struct CallCreateExecutive<'a> {
 
 impl<'a> CallCreateExecutive<'a> {
 	/// Create a new call executive using raw data.
-	pub fn new_call_raw(params: ActionParams, info: &'a EnvInfo, machine: &'a Machine, schedule: &'a Schedule, factory: &'a VmFactory, depth: usize, stack_depth: usize, parent_static_flag: bool) -> Self {
+	pub fn new_call_raw(
+		params: ActionParams,
+		info: &'a EnvInfo,
+		machine: &'a Machine,
+		schedule: &'a Schedule,
+		factory: &'a VmFactory,
+		depth: usize,
+		stack_depth: usize,
+		parent_static_flag: bool
+	) -> Self {
 		trace!("Executive::call(params={:?}) self.env_info={:?}, parent_static={}", params, info, parent_static_flag);
 
 		let gas = params.gas;
@@ -247,6 +256,7 @@ impl<'a> CallCreateExecutive<'a> {
 		let kind = if let Some(builtin) = machine.builtin(&params.code_address, info.number) {
 			// Engines aren't supposed to return builtins until activation, but
 			// prefer to fail rather than silently break consensus.
+
 			if !builtin.is_active(info.number) {
 				panic!("Consensus failure: engine implementation prematurely enabled built-in at {}", params.code_address);
 			}
@@ -409,10 +419,12 @@ impl<'a> CallCreateExecutive<'a> {
 					state.checkpoint();
 					Self::transfer_exec_balance(&params, self.schedule, state, substate)?;
 
-					let default = [];
-					let data = if let Some(ref d) = params.data { d as &[u8] } else { &default as &[u8] };
+					let data = if let Some(ref d) = params.data {
+						d as &[u8]
+					} else {
+						&[]
+					};
 
-					// NOTE(niklasad1): block number is used by `builtin alt_bn128 ops` to enable eip1108
 					let cost = builtin.cost(data, self.info.number);
 					if cost <= params.gas {
 						let mut builtin_out_buffer = Vec::new();
