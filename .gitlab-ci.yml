@@ -4,7 +4,7 @@ stages:
   - publish
   - optional
 
-image:                             parity/parity-ci-linux:latest
+image:                             ${REGISTRY}/parity-ci-linux:latest
 variables:
   GIT_STRATEGY:                    fetch
   GIT_SUBMODULE_STRATEGY:          recursive
@@ -12,6 +12,7 @@ variables:
   CARGO_HOME:                      "/ci-cache/${CI_PROJECT_NAME}/cargo/${CI_JOB_NAME}"
   SCCACHE_DIR:                     "/ci-cache/${CI_PROJECT_NAME}/sccache"
   CARGO_TARGET:                    x86_64-unknown-linux-gnu
+  REGISTRY:                        registry.parity.io/parity/infrastructure/scripts
 
 
 .releaseable_branches:             # list of git refs for building GitLab artifacts (think "pre-release binaries")
@@ -96,6 +97,13 @@ cargo-check 2 3:
     - time cargo check --target $CARGO_TARGET --locked --manifest-path util/io/Cargo.toml --features "mio" --verbose --color=always
     - sccache -s
 
+cargo-check-evmbin:
+  stage:                           test
+  <<:                              *docker-cache-status
+  script:
+    - time cargo check -p evmbin --target $CARGO_TARGET --locked --verbose --color=always
+    - sccache -s
+
 cargo-check-benches:
   stage:                           test
   <<:                              *docker-cache-status
@@ -150,7 +158,7 @@ test-linux-nightly:
 
 build-android:
   <<:                              *build-on-linux
-  image:                           parity/parity-ci-android:stretch
+  image:                           ${REGISTRY}/parity-ci-android:stretch
   variables:
     CARGO_TARGET:                  armv7-linux-androideabi
 
@@ -161,21 +169,21 @@ build-linux:
 build-linux-i386:
   <<:                              *build-on-linux
   only:                            *releaseable_branches
-  image:                           parity/parity-ci-i386:latest
+  image:                           ${REGISTRY}/parity-ci-i386:latest
   variables:
     CARGO_TARGET:                  i686-unknown-linux-gnu
 
 build-linux-arm64:
   <<:                              *build-on-linux
   only:                            *releaseable_branches
-  image:                           parity/parity-ci-arm64:latest
+  image:                           ${REGISTRY}/parity-ci-arm64:latest
   variables:
     CARGO_TARGET:                  aarch64-unknown-linux-gnu
 
 build-linux-armhf:
   <<:                              *build-on-linux
   only:                            *releaseable_branches
-  image:                           parity/parity-ci-armhf:latest
+  image:                           ${REGISTRY}/parity-ci-armhf:latest
   variables:
     CARGO_TARGET:                  armv7-unknown-linux-gnueabihf
 
@@ -314,7 +322,7 @@ publish-onchain-manually:
   when:                            manual
 
 publish-release-awss3-nightly:     &publish-release-awss3
-  image:                           parity/awscli:latest
+  image:                           ${REGISTRY}/awscli:latest
   stage:                           publish
   only:
     - nightly
@@ -348,7 +356,7 @@ publish-release-awss3-manually:
 
 publish-docs:
   stage:                           publish
-  image:                           parity/parity-ci-docs:latest
+  image:                           ${REGISTRY}/parity-ci-docs:latest
   only:
     - tags
   except:

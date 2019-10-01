@@ -23,7 +23,7 @@ use std::str::FromStr;
 use itertools::Itertools;
 use indexmap::IndexSet;
 use serde_json::to_value;
-use crate::parser::{Parser, Type};
+use crate::parser::{parse_type, Type};
 use crate::error::{Result, ErrorKind, serde_error};
 use crate::eip712::{EIP712, MessageTypes};
 use rustc_hex::FromHex;
@@ -56,11 +56,16 @@ fn build_dependencies<'a>(message_type: &'a str, message_types: &'a MessageTypes
 			deps.insert(item);
 
 			for field in fields {
+				// check if this field is an array type
+				let field_type = if let Some(index) = field.type_.find('[') {
+					&field.type_[..index]
+				} else {
+					&field.type_
+				};
 				// seen this type before? or not a custom type skip
-				if deps.contains(&*field.type_) || !message_types.contains_key(&*field.type_) {
-					continue;
+				if !deps.contains(field_type) || message_types.contains_key(field_type) {
+					types.insert(field_type);
 				}
-				types.insert(&*field.type_);
 			}
 		}
 	};
@@ -70,7 +75,8 @@ fn build_dependencies<'a>(message_type: &'a str, message_types: &'a MessageTypes
 
 fn encode_type(message_type: &str, message_types: &MessageTypes) -> Result<String> {
 	let deps = {
-		let mut temp = build_dependencies(message_type, message_types).ok_or_else(|| ErrorKind::NonExistentType)?;
+		let mut temp = build_dependencies(message_type, message_types)
+			.ok_or(ErrorKind::NonExistentType)?;
 		temp.remove(message_type);
 		let mut temp = temp.into_iter().collect::<Vec<_>>();
 		(&mut temp[..]).sort_unstable();
@@ -99,7 +105,6 @@ fn type_hash(message_type: &str, typed_data: &MessageTypes) -> Result<H256> {
 }
 
 fn encode_data(
-	parser: &Parser,
 	message_type: &Type,
 	message_types: &MessageTypes,
 	value: &Value,
@@ -112,17 +117,25 @@ fn encode_data(
 			length
 		} => {
 			let mut items = vec![];
-			let values = value.as_array().ok_or_else(|| serde_error("array", field_name))?;
+			let values = value.as_array()
+				.ok_or(serde_error("array", field_name))?;
 
 			// check if the type definition actually matches
 			// the length of items to be encoded
 			if length.is_some() && Some(values.len() as u64) != *length {
 				let array_type = format!("{}[{}]", *inner, length.unwrap());
-				return Err(ErrorKind::UnequalArrayItems(length.unwrap(), array_type, values.len() as u64))?
+				return Err(
+					ErrorKind::UnequalArrayItems(length.unwrap(), array_type, values.len() as u64)
+				)?
 			}
 
 			for item in values {
-				let mut encoded = encode_data(parser, &*inner, &message_types, item, field_name)?;
+				let mut encoded = encode_data(
+					&*inner,
+					&message_types,
+					item,
+					field_name
+				)?;
 				items.append(&mut encoded);
 			}
 
@@ -135,8 +148,13 @@ fn encode_data(
 
 			for field in message_types.get(ident).expect("Already checked in match guard; qed") {
 				let value = &value[&field.name];
-				let type_ = parser.parse_type(&*field.type_)?;
-				let mut encoded = encode_data(parser, &type_, &message_types, &value, Some(&*field.name))?;
+				let type_ = parse_type(&*field.type_)?;
+				let mut encoded = encode_data(
+					&type_,
+					&message_types,
+					&value,
+					Some(&*field.name)
+				)?;
 				tokens.append(&mut encoded);
 			}
 
@@ -144,7 +162,8 @@ fn encode_data(
 		}
 
 		Type::Bytes => {
-			let string = value.as_str().ok_or_else(|| serde_error("string", field_name))?;
+			let string = value.as_str()
+				.ok_or(serde_error("string", field_name))?;
 
 			check_hex(&string)?;
 
@@ -157,7 +176,8 @@ fn encode_data(
 		}
 
 		Type::Byte(_) => {
-			let string = value.as_str().ok_or_else(|| serde_error("string", field_name))?;
+			let string = value.as_str()
+				.ok_or(serde_error("string", field_name))?;
 
 			check_hex(&string)?;
 
@@ -169,28 +189,34 @@ fn encode_data(
 		}
 
 		Type::String => {
-			let value = value.as_str().ok_or_else(|| serde_error("string", field_name))?;
+			let value = value.as_str()
+				.ok_or(serde_error("string", field_name))?;
 			let hash = keccak(value).as_ref().to_vec();
 			encode(&[EthAbiToken::FixedBytes(hash)])
 		}
 
-		Type::Bool => encode(&[EthAbiToken::Bool(value.as_bool().ok_or_else(|| serde_error("bool", field_name))?)]),
+		Type::Bool => encode(&[EthAbiToken::Bool(value.as_bool()
+			.ok_or(serde_error("bool", field_name))?)]),
 
 		Type::Address => {
-			let addr = value.as_str().ok_or_else(|| serde_error("string", field_name))?;
+			let addr = value.as_str()
+				.ok_or(serde_error("string", field_name))?;
 			if addr.len() != 42 {
 				return Err(ErrorKind::InvalidAddressLength(addr.len()))?;
 			}
-			let address = EthAddress::from_str(&addr[2..]).map_err(|err| ErrorKind::HexParseError(format!("{}", err)))?;
+			let address = EthAddress::from_str(&addr[2..])
+				.map_err(|err| ErrorKind::HexParseError(format!("{}", err)))?;
 			encode(&[EthAbiToken::Address(address)])
 		}
 
 		Type::Uint | Type::Int => {
-			let string = value.as_str().ok_or_else(|| serde_error("int/uint", field_name))?;
+			let string = value.as_str()
+				.ok_or(serde_error("int/uint", field_name))?;
 
 			check_hex(&string)?;
 
-			let uint = U256::from_str(&string[2..]).map_err(|err| ErrorKind::HexParseError(format!("{}", err)))?;
+			let uint = U256::from_str(&string[2..])
+				.map_err(|err| ErrorKind::HexParseError(format!("{}", err)))?;
 
 			let token = if *message_type == Type::Uint {
 				EthAbiToken::Uint(uint)
@@ -200,7 +226,12 @@ fn encode_data(
 			encode(&[token])
 		}
 
-		_ => return Err(ErrorKind::UnknownType(format!("{}", field_name.unwrap_or("")), format!("{}", *message_type)))?
+		_ => return Err(
+			ErrorKind::UnknownType(
+				format!("{}", field_name.unwrap_or("")),
+				format!("{}", *message_type)
+			).into()
+		)
 	};
 
 	Ok(encoded)
@@ -213,10 +244,19 @@ pub fn hash_structured_data(typed_data: EIP712) -> Result<H256> {
 	// EIP-191 compliant
 	let prefix = (b"\x19\x01").to_vec();
 	let domain = to_value(&typed_data.domain).unwrap();
-	let parser = Parser::new();
 	let (domain_hash, data_hash) = (
-		encode_data(&parser, &Type::Custom("EIP712Domain".into()), &typed_data.types, &domain, None)?,
-		encode_data(&parser, &Type::Custom(typed_data.primary_type), &typed_data.types, &typed_data.message, None)?
+		encode_data(
+			&Type::Custom("EIP712Domain".into()),
+			&typed_data.types,
+			&domain,
+			None
+		)?,
+		encode_data(
+			&Type::Custom(typed_data.primary_type),
+			&typed_data.types,
+			&typed_data.message,
+			None
+		)?
 	);
 	let concat = [&prefix[..], &domain_hash[..], &data_hash[..]].concat();
 	Ok(keccak(concat))
@@ -411,5 +451,197 @@ mod tests {
 			hash_structured_data(typed_data).unwrap_err().kind(),
 			ErrorKind::UnequalArrayItems(2, "Person[2]".into(), 1)
 		)
+	}
+
+	#[test]
+	fn test_typed_data_v4() {
+		let string = r#"{
+            "types": {
+                "EIP712Domain": [
+                    {
+                      "name": "name",
+                      "type": "string"
+                    },
+                    {
+                      "name": "version",
+                      "type": "string"
+                    },
+                    {
+                      "name": "chainId",
+                      "type": "uint256"
+                    },
+                    {
+                      "name": "verifyingContract",
+                      "type": "address"
+                    }
+                ],
+                "Person": [
+                    {
+                      "name": "name",
+                      "type": "string"
+                    },
+                    {
+                      "name": "wallets",
+                      "type": "address[]"
+                    }
+                ],
+                "Mail": [
+                    {
+                      "name": "from",
+                      "type": "Person"
+                    },
+                    {
+                      "name": "to",
+                      "type": "Person[]"
+                    },
+                    {
+                      "name": "contents",
+                      "type": "string"
+                    }
+                ],
+                "Group": [
+                    {
+                      "name": "name",
+                      "type": "string"
+                    },
+                    {
+                      "name": "members",
+                      "type": "Person[]"
+                    }
+                ]
+            },
+            "domain": {
+                "name": "Ether Mail",
+                "version": "1",
+                "chainId": "0x1",
+                "verifyingContract": "0xCcCCccccCCCCcCCCCCCcCcCccCcCCCcCcccccccC"
+            },
+            "primaryType": "Mail",
+            "message": {
+                "from": {
+                    "name": "Cow",
+                    "wallets": [
+                      "0xCD2a3d9F938E13CD947Ec05AbC7FE734Df8DD826",
+                      "0xDeaDbeefdEAdbeefdEadbEEFdeadbeEFdEaDbeeF"
+                    ]
+                },
+                "to": [
+                    {
+                        "name": "Bob",
+                        "wallets": [
+                            "0xbBbBBBBbbBBBbbbBbbBbbbbBBbBbbbbBbBbbBBbB",
+                            "0xB0BdaBea57B0BDABeA57b0bdABEA57b0BDabEa57",
+                            "0xB0B0b0b0b0b0B000000000000000000000000000"
+                        ]
+                    }
+                ],
+                "contents": "Hello, Bob!"
+            }
+        }"#;
+
+		let typed_data = from_str::<EIP712>(string).expect("alas error!");
+		let hash = hash_structured_data(typed_data.clone()).expect("alas error!");
+		assert_eq!(
+			&format!("{:x}", hash)[..],
+
+			"a85c2e2b118698e88db68a8105b794a8cc7cec074e89ef991cb4f5f533819cc2",
+		);
+	}
+
+	#[test]
+	fn test_typed_data_v4_custom_array() {
+		let string = r#"{
+            "types": {
+                "EIP712Domain": [
+                    {
+                        "name": "name",
+                        "type": "string"
+                    },
+                    {
+                        "name": "version",
+                        "type": "string"
+                    },
+                    {
+                        "name": "chainId",
+                        "type": "uint256"
+                    },
+                    {
+                        "name": "verifyingContract",
+                        "type": "address"
+                    }
+                ],
+              "Person": [
+                {
+                  "name": "name",
+                  "type": "string"
+                },
+                {
+                  "name": "wallets",
+                  "type": "address[]"
+                }
+              ],
+              "Mail": [
+                {
+                  "name": "from",
+                  "type": "Person"
+                },
+                {
+                  "name": "to",
+                  "type": "Group"
+                },
+                {
+                  "name": "contents",
+                  "type": "string"
+                }
+              ],
+              "Group": [
+                {
+                  "name": "name",
+                  "type": "string"
+                },
+                {
+                  "name": "members",
+                  "type": "Person[]"
+                }
+              ]
+            },
+            "domain": {
+              "name": "Ether Mail",
+              "version": "1",
+              "chainId": "0x1",
+              "verifyingContract": "0xCcCCccccCCCCcCCCCCCcCcCccCcCCCcCcccccccC"
+            },
+            "primaryType": "Mail",
+            "message": {
+              "from": {
+                "name": "Cow",
+                "wallets": [
+                  "0xCD2a3d9F938E13CD947Ec05AbC7FE734Df8DD826",
+                  "0xDeaDbeefdEAdbeefdEadbEEFdeadbeEFdEaDbeeF"
+                ]
+              },
+              "to": {
+                "name": "Farmers",
+                "members": [
+                  {
+                    "name": "Bob",
+                    "wallets": [
+                      "0xbBbBBBBbbBBBbbbBbbBbbbbBBbBbbbbBbBbbBBbB",
+                      "0xB0BdaBea57B0BDABeA57b0bdABEA57b0BDabEa57",
+                      "0xB0B0b0b0b0b0B000000000000000000000000000"
+                    ]
+                  }
+                ]
+              },
+              "contents": "Hello, Bob!"
+            }
+          }"#;
+		let typed_data = from_str::<EIP712>(string).expect("alas error!");
+		let hash = hash_structured_data(typed_data.clone()).expect("alas error!");
+
+		assert_eq!(
+			&format!("{:x}", hash)[..],
+			"cd8b34cd09c541cfc0a2fcd147e47809b98b335649c2aa700db0b0c4501a02a0",
+		);
 	}
 }

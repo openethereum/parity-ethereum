@@ -21,7 +21,7 @@ parity-bytes = "0.1"
 parity-hash-fetch = { path = "hash-fetch" }
 parity-path = "0.1"
 parity-version = { path = "../util/version" }
-parking_lot = "0.8"
+parking_lot = "0.9"
 rand = "0.6"
 semver = "0.9"
 target_info = "0.1"

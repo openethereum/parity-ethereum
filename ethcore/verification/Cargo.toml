@@ -25,7 +25,7 @@ log = "0.4"
 num_cpus = "1.2"
 parity-bytes = "0.1.0"
 parity-util-mem = "0.2.0"
-parking_lot = "0.8.0"
+parking_lot = "0.9"
 rlp = "0.4.2"
 time-utils = { path = "../../util/time-utils" }
 triehash = { package = "triehash-ethereum", version = "0.2",  path = "../../util/triehash-ethereum" }

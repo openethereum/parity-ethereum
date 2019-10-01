@@ -7,7 +7,7 @@ edition = "2018"
 
 [dependencies]
 ethbloom = "0.6.4"
-parking_lot = "0.8"
+parking_lot = "0.9"
 
 [dev-dependencies]
 criterion = "0.3"

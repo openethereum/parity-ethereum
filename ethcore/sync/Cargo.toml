@@ -27,7 +27,7 @@ macros = { path = "../../util/macros" }
 network = { package = "ethcore-network", path = "../../util/network" }
 parity-runtime = { path = "../../util/runtime" }
 parity-util-mem = "0.2.0"
-parking_lot = "0.8"
+parking_lot = "0.9"
 rand = "0.6"
 rlp = "0.4.0"
 snapshot = { path = "../snapshot" }
@@ -39,7 +39,7 @@ env_logger = "0.5"
 engine = { path = "../engine" }
 ethcore = { path = "..", features = ["test-helpers"] }
 ethcore-io = { path = "../../util/io", features = ["mio"] }
-kvdb-memorydb = "0.1"
+kvdb-memorydb = "0.1.2"
 machine = { path = "../machine" }
 rand_xorshift = "0.1.1"
 rustc-hex = "1.0"
