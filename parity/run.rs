@@ -20,8 +20,6 @@ use std::time::{Duration, Instant};
 use std::thread;
 
 use ansi_term::Colour;
-use bytes::Bytes;
-use call_contract::CallContract;
 use client_traits::{BlockInfo, BlockChainClient};
 use ethcore::client::{Client, DatabaseCompactionProfile, VMType};
 use ethcore::miner::{self, stratum, Miner, MinerService, MinerOptions};
@@ -30,7 +28,6 @@ use spec::SpecParams;
 use verification::queue::VerifierSettings;
 use ethcore_logger::{Config as LogConfig, RotatingLogger};
 use ethcore_service::ClientService;
-use ethereum_types::Address;
 use futures::Stream;
 use hash_fetch::{self, fetch};
 use informant::{Informant, LightNodeInformantData, FullNodeInformantData};
@@ -44,7 +41,6 @@ use sync::{self, SyncConfig, PrivateTxHandler};
 use types::{
 	client_types::Mode,
 	engines::OptimizeFor,
-	ids::BlockId,
 	snapshot::Snapshotting,
 };
 use parity_rpc::{
@@ -65,7 +61,6 @@ use user_defaults::UserDefaults;
 use ipfs;
 use jsonrpc_core;
 use modules;
-use registrar::RegistrarClient;
 use rpc;
 use rpc_apis;
 use secretstore;
@@ -687,30 +682,13 @@ fn execute_impl<Cr, Rr>(cmd: RunCmd, logger: Arc<RotatingLogger>, on_client_rq: 
 		chain_notify.start();
 	}
 
-	// TODO remove this
-	let contract_client = {
-		struct FullRegistrar { client: Arc<Client> }
-		impl CallContract for FullRegistrar {
-			fn call_contract(&self, block_id: BlockId, address: Address, data: Bytes) -> Result<Bytes, String> {
-				self.client.call_contract(block_id, address, data)
-			}
-		}
-		impl RegistrarClient for FullRegistrar {
-			fn registrar_address(&self) -> Option<Address> {
-				self.client.registrar_address()
-			}
-		}
-
-		Arc::new(FullRegistrar { client: client.clone() })
-	};
-
 	// the updater service
 	let updater_fetch = fetch.clone();
 	let updater = Updater::new(
 		&Arc::downgrade(&(service.client() as Arc<dyn BlockChainClient>)),
 		&Arc::downgrade(&sync_provider),
 		update_policy,
-		hash_fetch::Client::with_fetch(contract_client.clone(), updater_fetch, runtime.executor())
+		hash_fetch::Client::with_fetch(client.clone(), updater_fetch, runtime.executor())
 	);
 	service.add_notify(updater.clone());
 
