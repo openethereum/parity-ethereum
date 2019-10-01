@@ -33,6 +33,7 @@ extern crate parity_runtime;
 extern crate parking_lot;
 #[cfg(feature = "price-info")]
 extern crate price_info;
+extern crate registrar;
 extern crate rlp;
 extern crate transaction_pool as txpool;
 extern crate serde;

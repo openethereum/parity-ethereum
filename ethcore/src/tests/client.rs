@@ -78,7 +78,7 @@ fn should_return_registrar() {
 		IoChannel::disconnected(),
 	).unwrap();
 	let address = client.registrar_address();
-	assert_eq!(address, Some("52dff57a8a1532e6afb3dc07e2af58bb9eb05b3d".parse().unwrap()));
+	assert_eq!(address, Ok("52dff57a8a1532e6afb3dc07e2af58bb9eb05b3d".parse().unwrap()));
 }
 
 #[test]

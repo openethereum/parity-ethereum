@@ -28,10 +28,13 @@ const DNS_A_RECORD: &'static str = "A";
 /// Should execute transaction using current blockchain state.
 pub trait RegistrarClient: CallContract + Send + Sync {
 	/// Get address of the registrar itself
-	fn registrar_address(&self) -> Result<Address, String>;
+	fn registrar_address(&self) -> Option<Address>;
 
 	fn get_address<'a>(&self, key: &'a str, block: BlockId) -> Result<Option<Address>, String> {
-		let registrar_address = self.registrar_address()?;
+		let registrar_address = match self.registrar_address() {
+			Some(address) => address,
+			None => return Err("Registrar address not defined.".to_owned())
+		};
 
 		let hashed_key: [u8; 32] = keccak(key).into();
 		let id = registrar::functions::get_address::encode_input(hashed_key, DNS_A_RECORD);

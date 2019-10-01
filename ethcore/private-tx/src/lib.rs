@@ -51,6 +51,7 @@ extern crate parity_crypto as crypto;
 extern crate parking_lot;
 extern crate trie_db as trie;
 extern crate patricia_trie_ethereum as ethtrie;
+extern crate registrar;
 extern crate rlp;
 #[macro_use]
 extern crate serde_derive;

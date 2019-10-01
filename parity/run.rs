@@ -687,6 +687,7 @@ fn execute_impl<Cr, Rr>(cmd: RunCmd, logger: Arc<RotatingLogger>, on_client_rq: 
 		chain_notify.start();
 	}
 
+	// TODO remove this
 	let contract_client = {
 		struct FullRegistrar { client: Arc<Client> }
 		impl CallContract for FullRegistrar {
@@ -695,9 +696,8 @@ fn execute_impl<Cr, Rr>(cmd: RunCmd, logger: Arc<RotatingLogger>, on_client_rq: 
 			}
 		}
 		impl RegistrarClient for FullRegistrar {
-			fn registrar_address(&self) -> Result<Address, String> {
+			fn registrar_address(&self) -> Option<Address> {
 				self.client.registrar_address()
-					.ok_or_else(|| "Registrar not defined.".into())
 			}
 		}
 

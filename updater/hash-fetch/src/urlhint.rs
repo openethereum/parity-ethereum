@@ -242,8 +242,8 @@ pub mod tests {
 	}
 
 	impl RegistrarClient for FakeRegistrar {
-		fn registrar_address(&self) -> Result<Address, String> {
-			Ok(REGISTRAR.parse().unwrap())
+		fn registrar_address(&self) -> Option<Address> {
+			Some(REGISTRAR.parse().unwrap())
 		}
 	}
 

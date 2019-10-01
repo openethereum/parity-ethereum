@@ -51,7 +51,7 @@ use blockchain::{
 	TransactionAddress,
 	TreeRoute
 };
-use call_contract::{CallContract, RegistryInfoDeprecated};
+use call_contract::CallContract;
 use client::{
 	bad_blocks, BlockProducer, BroadcastProposalBlock, Call,
 	ClientConfig, EngineInfo, ImportSealedBlock, PrepareOpenBlock,
@@ -94,6 +94,7 @@ use machine::{
 	transaction_ext::Transaction,
 };
 use miner::{Miner, MinerService, PendingOrdering};
+use registrar::RegistrarClient;
 use snapshot::{self, SnapshotClient, SnapshotWriter};
 use spec::Spec;
 use state_db::StateDB;
@@ -1414,26 +1415,6 @@ impl TransactionInfo for Client {
 
 impl BlockChainTrait for Client {}
 
-impl RegistryInfoDeprecated for Client {
-	fn registry_address(&self, name: &str, block: BlockId) -> Result<Option<Address>, String> {
-		use ethabi::FunctionOutputDecoder;
-
-		let registrar_address = match self.registrar_address {
-			Some(address) => address,
-			None => return Err("Registry not defined.".to_owned())
-		};
-
-		let (data, decoder) = registry::functions::get_address::call(keccak(name), "A");
-		let encoded_address = self.call_contract(block, registrar_address, data)?;
-		let value = decoder.decode(&encoded_address).map_err(|e| e.to_string())?;
-		if !value.is_zero() {
-			Ok(Some(value))
-		} else {
-			Ok(None)
-		}
-	}
-}
-
 impl CallContract for Client {
 	fn call_contract(&self, block_id: BlockId, address: Address, data: Bytes) -> Result<Bytes, String> {
 		let state_pruned = || CallError::StatePruned.to_string();
@@ -1445,6 +1426,12 @@ impl CallContract for Client {
 		self.call(&transaction, Default::default(), state, &header)
 			.map_err(|e| format!("{:?}", e))
 			.map(|executed| executed.output)
+	}
+}
+
+impl RegistrarClient for Client {
+	fn registrar_address(&self) -> Option<Address> {
+		self.registrar_address
 	}
 }
 
@@ -2180,10 +2167,6 @@ impl BlockChainClient for Client {
 			.map_err(|e| transaction::Error::InvalidSignature(e.to_string()))?;
 		let signed = SignedTransaction::new(transaction.with_signature(signature, chain_id))?;
 		self.importer.miner.import_own_transaction(self, signed.into())
-	}
-
-	fn registrar_address(&self) -> Option<Address> {
-		self.registrar_address.clone()
 	}
 }
 

@@ -16,7 +16,6 @@
 
 use std::sync::{Arc, Weak};
 use bytes::Bytes;
-use call_contract::RegistryInfoDeprecated;
 use common_types::{
 	ids::BlockId,
 	transaction::{Transaction, SignedTransaction, Action},
@@ -101,7 +100,7 @@ impl TrustedClient {
 			ContractAddress::Registry => self.get().and_then(|client|
 				get_confirmed_block_hash(&*client, REQUEST_CONFIRMATIONS_REQUIRED)
 					.and_then(|block| {
-						client.registry_address(registry_name, BlockId::Hash(block))
+						client.get_address(registry_name, BlockId::Hash(block))
 							.unwrap_or(None)
 					})
 			),
