@@ -690,8 +690,8 @@ fn execute_impl<Cr, Rr>(cmd: RunCmd, logger: Arc<RotatingLogger>, on_client_rq: 
 	let contract_client = {
 		struct FullRegistrar { client: Arc<Client> }
 		impl CallContract for FullRegistrar {
-			fn call_contract(&self, id: BlockId, address: Address, data: Bytes) -> Result<Bytes, String> {
-				self.client.call_contract(id, address, data)
+			fn call_contract(&self, block_id: BlockId, address: Address, data: Bytes) -> Result<Bytes, String> {
+				self.client.call_contract(block_id, address, data)
 			}
 		}
 		impl RegistrarClient for FullRegistrar {

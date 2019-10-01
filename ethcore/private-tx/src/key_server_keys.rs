@@ -160,7 +160,7 @@ mod tests {
 	}
 
 	impl CallContract for DummyRegistryClient {
-		fn call_contract(&self, _id: BlockId, _address: Address, _data: Bytes) -> Result<Bytes, String> { Ok(vec![]) }
+		fn call_contract(&self, _block_id: BlockId, _address: Address, _data: Bytes) -> Result<Bytes, String> { Ok(vec![]) }
 	}
 
 	#[test]

@@ -157,18 +157,19 @@ impl URLHint for URLHintContract {
 	fn resolve(&self, id: H256) -> Result<Option<URLHintResult>, String>  {
 		let client = self.client.clone();
 
-		let address = client.get_address(GITHUB_HINT, BlockId::Latest)?;
+		let returned_address = client.get_address(GITHUB_HINT, BlockId::Latest)?;
 
-		let url_hint = if !address.is_zero() {
+		if let Some(address) = returned_address {
 			let data = urlhint::functions::entries::encode_input(id);
 			let output_bytes = client.call_contract(BlockId::Latest, address, data)?;
 			let (account_slash_repo, commit, owner) = urlhint::functions::entries::decode_output(&output_bytes).map_err(|e| e.to_string())?;
-			decode_urlhint_output(account_slash_repo, commit, owner)
-		} else {
-			None
-		};
 
-		Ok(url_hint)
+			let url_hint = decode_urlhint_output(account_slash_repo, commit, owner);
+
+			Ok(url_hint)
+		} else {
+			Ok(None)
+		}
 	}
 }
 

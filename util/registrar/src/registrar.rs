@@ -30,7 +30,7 @@ pub trait RegistrarClient: CallContract + Send + Sync {
 	/// Get address of the registrar itself
 	fn registrar_address(&self) -> Result<Address, String>;
 
-	fn get_address<'a>(&self, key: &'a str, block: BlockId) -> Result<Address, String> {
+	fn get_address<'a>(&self, key: &'a str, block: BlockId) -> Result<Option<Address>, String> {
 		let registrar_address = self.registrar_address()?;
 
 		let hashed_key: [u8; 32] = keccak(key).into();
@@ -40,6 +40,10 @@ pub trait RegistrarClient: CallContract + Send + Sync {
 
 		let address = registrar::functions::get_address::decode_output(&address_bytes).map_err(|e| e.to_string())?;
 
-		Ok(address)
+		if address.is_zero() {
+			Ok(None)
+		} else {
+			Ok(Some(address))
+		}
 	}
 }
