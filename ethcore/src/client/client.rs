@@ -138,8 +138,6 @@ use verification;
 use verification::queue::kind::BlockLike;
 use vm::{CreateContractAddress, EnvInfo, LastHashes};
 
-use_contract!(registry, "res/contracts/registrar.json");
-
 const MAX_ANCIENT_BLOCKS_QUEUE_SIZE: usize = 4096;
 // Max number of blocks imported at once.
 const MAX_ANCIENT_BLOCKS_TO_IMPORT: usize = 4;
