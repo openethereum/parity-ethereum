@@ -71,7 +71,9 @@ impl<C> SecretStoreKeys<C> where C: CallContract + RegistrarClient + Send + Sync
 	}
 }
 
-impl<C> KeyProvider for SecretStoreKeys<C> where C: CallContract + RegistrarClient + Send + Sync + 'static {
+impl<C> KeyProvider for SecretStoreKeys<C>
+	where C: CallContract + RegistrarClient + Send + Sync + 'static
+{
 	fn key_server_account(&self) -> Option<Address> {
 		self.key_server_account
 	}
@@ -161,12 +163,24 @@ mod tests {
 	}
 
 	impl RegistrarClient for DummyRegistryClient {
-		fn registrar_address(&self) -> Option<Address> { unimplemented!() }
-		fn get_address(&self, _name: &str, _block: BlockId) -> Result<Option<Address>, String> { Ok(self.registry_address) }
+		fn registrar_address(&self) -> Option<Address> {
+			unimplemented!()
+		}
+
+		fn get_address(&self, _name: &str, _block: BlockId) -> Result<Option<Address>, String> {
+			Ok(self.registry_address)
+		}
 	}
 
 	impl CallContract for DummyRegistryClient {
-		fn call_contract(&self, _block_id: BlockId, _address: Address, _data: Bytes) -> Result<Bytes, String> { Ok(vec![]) }
+		fn call_contract(
+			&self,
+			_block_id: BlockId,
+			_address: Address,
+			_data: Bytes
+		) -> Result<Bytes, String> {
+			Ok(vec![])
+		}
 	}
 
 	#[test]

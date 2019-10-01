@@ -120,7 +120,11 @@ fn get_urlhint_content(account_slash_repo: String, owner: Address) -> Content {
 	}
 }
 
-fn decode_urlhint_output(account_slash_repo: String, commit: [u8; 20], owner: Address) -> Option<URLHintResult> {
+fn decode_urlhint_output(
+	account_slash_repo: String,
+	commit: [u8; 20],
+	owner: Address
+) -> Option<URLHintResult> {
 	if owner == Address::zero() {
 		return None;
 	}
@@ -155,14 +159,17 @@ fn decode_urlhint_output(account_slash_repo: String, commit: [u8; 20], owner: Ad
 
 impl URLHint for URLHintContract {
 	fn resolve(&self, id: H256) -> Result<Option<URLHintResult>, String>  {
+		use urlhint::urlhint::functions::entries::{encode_input, decode_output};
+
 		let client = self.client.clone();
 
 		let returned_address = client.get_address(GITHUB_HINT, BlockId::Latest)?;
 
 		if let Some(address) = returned_address {
-			let data = urlhint::functions::entries::encode_input(id);
+			let data = encode_input(id);
 			let output_bytes = client.call_contract(BlockId::Latest, address, data)?;
-			let (account_slash_repo, commit, owner) = urlhint::functions::entries::decode_output(&output_bytes).map_err(|e| e.to_string())?;
+			let (account_slash_repo, commit, owner) = decode_output(&output_bytes)
+				.map_err(|e| e.to_string())?;
 
 			let url_hint = decode_urlhint_output(account_slash_repo, commit, owner);
 
@@ -232,7 +239,12 @@ pub mod tests {
 	}
 
 	impl CallContract for FakeRegistrar {
-		fn call_contract(&self, _block: BlockId, address: Address, data: Bytes) -> Result<Bytes, String> {
+		fn call_contract(
+			&self,
+			_block: BlockId,
+			address: Address,
+			data: Bytes
+		) -> Result<Bytes, String> {
 			self.calls.lock().push((address.to_hex(), data.to_hex()));
 			let res = self.responses.lock().remove(0);
 

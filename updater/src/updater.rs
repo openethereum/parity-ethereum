@@ -253,7 +253,9 @@ impl OperationsClient for OperationsContractClient {
 		let client = self.client.upgrade().ok_or_else(|| "Cannot obtain client")?;
 		let address = client.get_address("operations", BlockId::Latest)?
 			.ok_or_else(|| "Cannot get operations contract address")?;
-		let do_call = |data| client.call_contract(BlockId::Latest, address, data).map_err(|e| format!("{:?}", e));
+		let do_call = |data| {
+			client.call_contract(BlockId::Latest, address, data).map_err(|e| format!("{:?}", e))
+		};
 
 		trace!(target: "updater", "Looking up this_fork for our release: {}/{:?}", CLIENT_ID, this.hash);
 

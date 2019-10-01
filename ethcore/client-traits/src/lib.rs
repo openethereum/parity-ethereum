@@ -209,8 +209,10 @@ pub trait BadBlocks {
 
 
 /// Blockchain database client. Owns and manages a blockchain and a block queue.
-pub trait BlockChainClient : Sync + Send + AccountData + BlockChain + CallContract + RegistrarClient + ImportBlock
-+ IoClient + BadBlocks {
+pub trait BlockChainClient:
+	Sync + Send + AccountData + BlockChain + CallContract + RegistrarClient
+	+ ImportBlock + IoClient + BadBlocks
+{
 	/// Look up the block number for the given block ID.
 	fn block_number(&self, id: BlockId) -> Option<BlockNumber>;
 

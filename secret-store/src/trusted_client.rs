@@ -95,7 +95,11 @@ impl TrustedClient {
 	/// Read contract address. If address source is registry, address only returned if current client state is
 	/// trusted. Address from registry is read from registry from block latest block with
 	/// REQUEST_CONFIRMATIONS_REQUIRED confirmations.
-	pub fn read_contract_address(&self, registry_name: &str, address: &ContractAddress) -> Option<Address> {
+	pub fn read_contract_address(
+		&self,
+		registry_name: &str,
+		address: &ContractAddress
+	) -> Option<Address> {
 		match *address {
 			ContractAddress::Address(ref address) => Some(address.clone()),
 			ContractAddress::Registry => self.get().and_then(|client|
