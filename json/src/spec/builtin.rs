@@ -93,6 +93,8 @@ pub enum Pricing {
 #[derive(Debug, PartialEq, Deserialize, Clone)]
 #[serde(deny_unknown_fields)]
 pub struct PricingWithActivation {
+	/// Description of the activation
+	pub info: Option<String>,
 	/// Builtin pricing.
 	pub price: InnerPricing,
 	/// Activation block.
@@ -125,6 +127,7 @@ mod tests {
 					"price": {"linear": { "base": 3000, "word": 0 }}
 				},
 				{
+					"info": "enable fake EIP at block 500",
 					"activate_at": 500,
 					"price": {"linear": { "base": 10, "word": 0 }}
 				}
@@ -134,10 +137,12 @@ mod tests {
 		assert_eq!(deserialized.name, "ecrecover");
 		assert_eq!(deserialized.pricing, Pricing::Multi(vec![
 			PricingWithActivation {
+				info: None,
 				activate_at: Uint(0.into()),
 				price: InnerPricing::Linear(Linear { base: 3000, word: 0 })
 			},
 			PricingWithActivation {
+				info: Some(String::from("enable fake EIP at block 500")),
 				activate_at: Uint(500.into()),
 				price: InnerPricing::Linear(Linear { base: 10, word: 0 })
 			}

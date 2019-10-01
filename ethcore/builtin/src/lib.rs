@@ -1350,6 +1350,7 @@ mod tests {
 			name: "alt_bn128_pairing".to_owned(),
 			pricing: JsonPricing::Multi(vec![
 				PricingWithActivation {
+					info: None,
 					price: JsonPricingInner::AltBn128Pairing(JsonAltBn128PairingPricing {
 						base: 100_000,
 						pair: 80_000,
@@ -1357,6 +1358,7 @@ mod tests {
 					activate_at: Uint(10.into()),
 				},
 				PricingWithActivation {
+					info: None,
 					price: JsonPricingInner::AltBn128Pairing(JsonAltBn128PairingPricing {
 						base: 45_000,
 						pair: 34_000,
@@ -1377,6 +1379,7 @@ mod tests {
 			name: "alt_bn128_add".to_owned(),
 			pricing: JsonPricing::Multi(vec![
 				PricingWithActivation {
+					info: None,
 					price: JsonPricingInner::Linear(JsonLinearPricing {
 						base: 500,
 						word: 0,
@@ -1384,6 +1387,7 @@ mod tests {
 					activate_at: Uint(10.into()),
 				},
 				PricingWithActivation {
+					info: None,
 					price: JsonPricingInner::Linear(JsonLinearPricing {
 						base: 150,
 						word: 0,
@@ -1404,6 +1408,7 @@ mod tests {
 			name: "alt_bn128_mul".to_owned(),
 			pricing: JsonPricing::Multi(vec![
 				PricingWithActivation {
+					info: None,
 					price: JsonPricingInner::Linear(JsonLinearPricing {
 						base: 40_000,
 						word: 0,
@@ -1411,6 +1416,7 @@ mod tests {
 					activate_at: Uint(10.into()),
 				},
 				PricingWithActivation {
+					info: None,
 					price: JsonPricingInner::Linear(JsonLinearPricing {
 						base: 6_000,
 						word: 0,
@@ -1432,6 +1438,7 @@ mod tests {
 			name: "alt_bn128_mul".to_owned(),
 			pricing: JsonPricing::Multi(vec![
 				PricingWithActivation {
+					info: None,
 					price: JsonPricingInner::Linear(JsonLinearPricing {
 						base: 40_000,
 						word: 0,
@@ -1439,6 +1446,7 @@ mod tests {
 					activate_at: Uint(10.into()),
 				},
 				PricingWithActivation {
+					info: None,
 					price: JsonPricingInner::Linear(JsonLinearPricing {
 						base: 6_000,
 						word: 0,
@@ -1446,6 +1454,7 @@ mod tests {
 					activate_at: Uint(20.into()),
 				},
 				PricingWithActivation {
+					info: None,
 					price: JsonPricingInner::Linear(JsonLinearPricing {
 						base: 1_337,
 						word: 0,
@@ -1471,6 +1480,7 @@ mod tests {
 			name: "alt_bn128_mul".to_owned(),
 			pricing: JsonPricing::Multi(vec![
 				PricingWithActivation {
+					info: None,
 					price: JsonPricingInner::Linear(JsonLinearPricing {
 						base: 40_000,
 						word: 0,
@@ -1478,6 +1488,7 @@ mod tests {
 					activate_at: Uint(1.into()),
 				},
 				PricingWithActivation {
+					info: None,
 					price: JsonPricingInner::Linear(JsonLinearPricing {
 						base: 6_000,
 						word: 0,
@@ -1485,6 +1496,7 @@ mod tests {
 					activate_at: Uint(1.into()),
 				},
 				PricingWithActivation {
+					info: None,
 					price: JsonPricingInner::Linear(JsonLinearPricing {
 						base: 1_337,
 						word: 0,
