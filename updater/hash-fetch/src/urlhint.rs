@@ -202,7 +202,7 @@ pub mod tests {
 	use std::str::FromStr;
 	use rustc_hex::FromHex;
 
-	use futures::{Future, IntoFuture};
+	use futures::Future;
 
 	use super::*;
 	use super::guess_mime_type;

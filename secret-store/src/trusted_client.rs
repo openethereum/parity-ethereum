@@ -27,6 +27,7 @@ use ethcore::miner::{Miner, MinerService};
 use sync::SyncProvider;
 use helpers::{get_confirmed_block_hash, REQUEST_CONFIRMATIONS_REQUIRED};
 use {Error, NodeKeyPair, ContractAddress};
+use registrar::RegistrarClient;
 
 #[derive(Clone)]
 /// 'Trusted' client weak reference.

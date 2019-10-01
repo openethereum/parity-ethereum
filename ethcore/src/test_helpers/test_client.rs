@@ -63,7 +63,8 @@ use types::{
 use vm::{Schedule, LastHashes};
 
 use block::{OpenBlock, SealedBlock, ClosedBlock};
-use call_contract::{CallContract, RegistryInfoDeprecated};
+use call_contract::CallContract;
+use registrar::RegistrarClient;
 use client::{
 	ReopenBlock, PrepareOpenBlock, ImportSealedBlock, BroadcastProposalBlock, Call,
 	EngineInfo, BlockProducer, SealedBlockImporter,
@@ -535,6 +536,12 @@ impl CallContract for TestBlockChainClient {
 	fn call_contract(&self, _block_id: BlockId, _address: Address, _data: Bytes) -> Result<Bytes, String> { Ok(vec![]) }
 }
 
+impl RegistrarClient for TestBlockChainClient {
+	fn registrar_address(&self) -> Option<Address> {
+		None
+	}
+}
+
 impl TransactionInfo for TestBlockChainClient {
 	fn transaction_block(&self, _id: TransactionId) -> Option<H256> {
 		None	// Simple default.
@@ -542,10 +549,6 @@ impl TransactionInfo for TestBlockChainClient {
 }
 
 impl BlockChain for TestBlockChainClient {}
-
-impl RegistryInfoDeprecated for TestBlockChainClient {
-	fn registry_address(&self, _name: &str, _block: BlockId) -> Result<Option<Address>, String> { None }
-}
 
 impl ImportBlock for TestBlockChainClient {
 	fn import_block(&self, unverified: Unverified) -> EthcoreResult<H256> {
@@ -916,8 +919,6 @@ impl BlockChainClient for TestBlockChainClient {
 		let signed = SignedTransaction::new(transaction.with_signature(sig, chain_id)).unwrap();
 		self.miner.import_own_transaction(self, signed.into())
 	}
-
-	fn registrar_address(&self) -> Option<Address> { None }
 }
 
 impl IoClient for TestBlockChainClient {
