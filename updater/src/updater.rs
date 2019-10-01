@@ -251,7 +251,7 @@ impl OperationsClient for OperationsContractClient {
 		}
 
 		let client = self.client.upgrade().ok_or_else(|| "Cannot obtain client")?;
-		let address = client.registry_address("operations".into(), BlockId::Latest).ok_or_else(|| "Cannot get operations contract address")?;
+		let address = client.registry_address("operations", BlockId::Latest).ok_or_else(|| "Cannot get operations contract address")?;
 		let do_call = |data| client.call_contract(BlockId::Latest, address, data).map_err(|e| format!("{:?}", e));
 
 		trace!(target: "updater", "Looking up this_fork for our release: {}/{:?}", CLIENT_ID, this.hash);
@@ -304,7 +304,7 @@ impl OperationsClient for OperationsContractClient {
 
 	fn release_block_number(&self, from: BlockNumber, release: &ReleaseInfo) -> Option<BlockNumber> {
 		let client = self.client.upgrade()?;
-		let address = client.registry_address("operations".into(), BlockId::Latest)?;
+		let address = client.registry_address("operations", BlockId::Latest)?;
 
 		let topics = operations::events::release_added::filter(Some(*CLIENT_ID_HASH), Some(release.fork.into()), Some(release.is_critical));
 		let topics = vec![topics.topic0, topics.topic1, topics.topic2, topics.topic3];

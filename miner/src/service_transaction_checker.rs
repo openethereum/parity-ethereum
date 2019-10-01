@@ -55,7 +55,7 @@ impl ServiceTransactionChecker {
 		if let Some(allowed) = self.certified_addresses_cache.try_read().as_ref().and_then(|c| c.get(&sender)) {
 			return Ok(*allowed);
 		}
-		let contract_address = client.registry_address(SERVICE_TRANSACTION_CONTRACT_REGISTRY_NAME.to_owned(), BlockId::Latest)
+		let contract_address = client.registry_address(SERVICE_TRANSACTION_CONTRACT_REGISTRY_NAME, BlockId::Latest)
 			.ok_or_else(|| "contract is not configured")?;
 		self.call_contract(client, contract_address, sender).and_then(|allowed| {
 			if let Some(mut cache) = self.certified_addresses_cache.try_write() {
@@ -72,7 +72,7 @@ impl ServiceTransactionChecker {
 		// since it's not recent it won't be used anyway.
 		let cache = mem::replace(&mut *self.certified_addresses_cache.write(), HashMap::default());
 
-		if let Some(contract_address) = client.registry_address(SERVICE_TRANSACTION_CONTRACT_REGISTRY_NAME.to_owned(), BlockId::Latest) {
+		if let Some(contract_address) = client.registry_address(SERVICE_TRANSACTION_CONTRACT_REGISTRY_NAME, BlockId::Latest) {
 			let addresses: Vec<_> = cache.keys().collect();
 			let mut cache: HashMap<Address, bool> = HashMap::default();
 			for address in addresses {

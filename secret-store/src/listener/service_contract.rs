@@ -222,7 +222,7 @@ impl OnChainServiceContract {
 
 	/// Update service contract address.
 	fn update_contract_address(&self) -> bool {
-		let contract_address = self.client.read_contract_address(self.name.clone(), &self.address_source);
+		let contract_address = self.client.read_contract_address(&self.name, &self.address_source);
 		let mut data = self.data.write();
 		if contract_address != data.contract_address {
 			trace!(target: "secretstore", "{}: installing {} service contract from address {:?}",

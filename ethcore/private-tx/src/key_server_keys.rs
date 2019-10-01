@@ -92,7 +92,7 @@ impl<C> KeyProvider for SecretStoreKeys<C> where C: CallContract + RegistryInfoD
 	}
 
 	fn update_acl_contract(&self) {
-		let contract_address = self.client.registry_address(ACL_CHECKER_CONTRACT_REGISTRY_NAME.into(), BlockId::Latest);
+		let contract_address = self.client.registry_address(ACL_CHECKER_CONTRACT_REGISTRY_NAME, BlockId::Latest);
 		if *self.keys_acl_contract.read() != contract_address {
 			trace!(target: "privatetx", "Configuring for ACL checker contract from address {:?}",
 				contract_address);
@@ -156,7 +156,7 @@ mod tests {
 	}
 
 	impl RegistryInfoDeprecated for DummyRegistryClient {
-		fn registry_address(&self, _name: String, _block: BlockId) -> Option<Address> { self.registry_address }
+		fn registry_address(&self, _name: &str, _block: BlockId) -> Option<Address> { self.registry_address }
 	}
 
 	impl CallContract for DummyRegistryClient {

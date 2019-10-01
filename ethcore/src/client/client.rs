@@ -1415,12 +1415,12 @@ impl TransactionInfo for Client {
 impl BlockChainTrait for Client {}
 
 impl RegistryInfoDeprecated for Client {
-	fn registry_address(&self, name: String, block: BlockId) -> Option<Address> {
+	fn registry_address(&self, name: &str, block: BlockId) -> Option<Address> {
 		use ethabi::FunctionOutputDecoder;
 
 		let address = self.registrar_address?;
 
-		let (data, decoder) = registry::functions::get_address::call(keccak(name.as_bytes()), "A");
+		let (data, decoder) = registry::functions::get_address::call(keccak(name), "A");
 		let value = decoder.decode(&self.call_contract(block, address, data).ok()?).ok()?;
 		if value.is_zero() {
 			None
