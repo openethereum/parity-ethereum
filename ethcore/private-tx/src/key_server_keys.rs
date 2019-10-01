@@ -146,7 +146,7 @@ mod tests {
 	use ethkey::{Secret, KeyPair};
 	use bytes::Bytes;
 	use super::*;
-	use registrar::{RegistrarClient, Synchronous};
+	use registrar::RegistrarClient;
 
 	struct DummyRegistryClient {
 		registry_address: Option<Address>,
@@ -160,8 +160,9 @@ mod tests {
 		}
 	}
 
-	impl RegistryInfoDeprecated for DummyRegistryClient {
-		fn registry_address(&self, _name: &str, _block: BlockId) -> Result<Option<Address>, String> { self.registry_address }
+	impl RegistrarClient for DummyRegistryClient {
+		fn registrar_address(&self) -> Option<Address> { unimplemented!() }
+		fn get_address(&self, _name: &str, _block: BlockId) -> Result<Option<Address>, String> { Ok(self.registry_address) }
 	}
 
 	impl CallContract for DummyRegistryClient {

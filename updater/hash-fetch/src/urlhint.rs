@@ -202,13 +202,12 @@ pub mod tests {
 	use std::str::FromStr;
 	use rustc_hex::FromHex;
 
-	use futures::Future;
-
 	use super::*;
 	use super::guess_mime_type;
 	use parking_lot::Mutex;
 	use ethereum_types::Address;
 	use bytes::{Bytes, ToPretty};
+	use call_contract::CallContract;
 
 	pub struct FakeRegistrar {
 		pub calls: Arc<Mutex<Vec<(String, String)>>>,
@@ -267,7 +266,7 @@ pub mod tests {
 		let urlhint = URLHintContract::new(Arc::new(registrar));
 
 		// when
-		let res = urlhint.resolve(h256_from_short_str("test")).wait().unwrap();
+		let res = urlhint.resolve(h256_from_short_str("test")).unwrap();
 		let calls = calls.lock();
 		let call0 = calls.get(0).expect("Registrar resolve called");
 		let call1 = calls.get(1).expect("URLHint Resolve called");
@@ -295,7 +294,7 @@ pub mod tests {
 		let urlhint = URLHintContract::new(Arc::new(registrar));
 
 		// when
-		let res = urlhint.resolve(h256_from_short_str("test")).wait().unwrap();
+		let res = urlhint.resolve(h256_from_short_str("test")).unwrap();
 
 		// then
 		assert_eq!(res, Some(URLHintResult::Dapp(GithubApp {
@@ -317,7 +316,7 @@ pub mod tests {
 		let urlhint = URLHintContract::new(Arc::new(registrar));
 
 		// when
-		let res = urlhint.resolve(h256_from_short_str("test")).wait().unwrap();
+		let res = urlhint.resolve(h256_from_short_str("test")).unwrap();
 
 		// then
 		assert_eq!(res, Some(URLHintResult::Content(Content {
