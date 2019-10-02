@@ -198,6 +198,7 @@ mod tests {
 	use urlhint::tests::{FakeRegistrar, URLHINT};
 	use super::{Error, Client, HashFetch, random_temp_path, H256};
 	use std::str::FromStr;
+	use registrar::RegistrarClient;
 
 	fn registrar() -> FakeRegistrar {
 		let mut registrar = FakeRegistrar::new();
@@ -211,9 +212,9 @@ mod tests {
 	#[test]
 	fn should_return_error_if_hash_not_found() {
 		// given
-		let contract = Arc::new(FakeRegistrar::new());
+		let contract = Arc::new(FakeRegistrar::new()) as Arc<dyn RegistrarClient>;
 		let fetch = FakeFetch::new(None::<usize>);
-		let client = Client::with_fetch(contract.clone(), fetch, Executor::new_sync());
+		let client = Client::with_fetch(Arc::downgrade(&contract), fetch, Executor::new_sync());
 
 		// when
 		let (tx, rx) = mpsc::channel();
@@ -229,9 +230,9 @@ mod tests {
 	#[test]
 	fn should_return_error_if_response_is_not_successful() {
 		// given
-		let registrar = Arc::new(registrar());
+		let registrar = Arc::new(registrar()) as Arc<dyn RegistrarClient>;
 		let fetch = FakeFetch::new(None::<usize>);
-		let client = Client::with_fetch(registrar.clone(), fetch, Executor::new_sync());
+		let client = Client::with_fetch(Arc::downgrade(&registrar), fetch, Executor::new_sync());
 
 		// when
 		let (tx, rx) = mpsc::channel();
@@ -247,9 +248,9 @@ mod tests {
 	#[test]
 	fn should_return_hash_mismatch() {
 		// given
-		let registrar = Arc::new(registrar());
+		let registrar = Arc::new(registrar()) as Arc<dyn RegistrarClient>;
 		let fetch = FakeFetch::new(Some(1));
-		let mut client = Client::with_fetch(registrar.clone(), fetch, Executor::new_sync());
+		let mut client = Client::with_fetch(Arc::downgrade(&registrar), fetch, Executor::new_sync());
 		let path = random_temp_path();
 		let path2 = path.clone();
 		client.random_path = Arc::new(move || path2.clone());
@@ -270,9 +271,9 @@ mod tests {
 	#[test]
 	fn should_return_path_if_hash_matches() {
 		// given
-		let registrar = Arc::new(registrar());
+		let registrar = Arc::new(registrar()) as Arc<dyn RegistrarClient>;
 		let fetch = FakeFetch::new(Some(1));
-		let client = Client::with_fetch(registrar.clone(), fetch, Executor::new_sync());
+		let client = Client::with_fetch(Arc::downgrade(&registrar), fetch, Executor::new_sync());
 
 		// when
 		let (tx, rx) = mpsc::channel();

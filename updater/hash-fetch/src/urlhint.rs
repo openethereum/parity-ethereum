@@ -276,7 +276,9 @@ pub mod tests {
 		registrar.responses.lock()[1] = Ok(resolve_result);
 
 		let calls = registrar.calls.clone();
-		let urlhint = URLHintContract::new(Arc::new(registrar));
+
+		let registrar = Arc::new(registrar) as Arc<dyn RegistrarClient>;
+		let urlhint = URLHintContract::new(Arc::downgrade(&registrar));
 
 		// when
 		let res = urlhint.resolve(h256_from_short_str("test")).unwrap();
@@ -304,7 +306,9 @@ pub mod tests {
 			Ok(format!("000000000000000000000000{}", URLHINT).from_hex().unwrap()),
 			Ok("0000000000000000000000000000000000000000000000000000000000000060ec4c1fe06c808fe3739858c347109b1f5f1ed4b5000000000000000000000000000000000000000000000000deadcafebeefbeefcafedeaddeedfeedffffffff0000000000000000000000000000000000000000000000000000000000000011657468636f72652f64616f2e636c61696d000000000000000000000000000000".from_hex().unwrap()),
 		]);
-		let urlhint = URLHintContract::new(Arc::new(registrar));
+
+		let registrar = Arc::new(registrar) as Arc<dyn RegistrarClient>;
+		let urlhint = URLHintContract::new(Arc::downgrade(&registrar));
 
 		// when
 		let res = urlhint.resolve(h256_from_short_str("test")).unwrap();
@@ -326,7 +330,9 @@ pub mod tests {
 			Ok(format!("000000000000000000000000{}", URLHINT).from_hex().unwrap()),
 			Ok("00000000000000000000000000000000000000000000000000000000000000600000000000000000000000000000000000000000000000000000000000000000000000000000000000000000deadcafebeefbeefcafedeaddeedfeedffffffff000000000000000000000000000000000000000000000000000000000000003c68747470733a2f2f7061726974792e696f2f6173736574732f696d616765732f657468636f72652d626c61636b2d686f72697a6f6e74616c2e706e6700000000".from_hex().unwrap()),
 		]);
-		let urlhint = URLHintContract::new(Arc::new(registrar));
+
+		let registrar = Arc::new(registrar) as Arc<dyn RegistrarClient>;
+		let urlhint = URLHintContract::new(Arc::downgrade(&registrar));
 
 		// when
 		let res = urlhint.resolve(h256_from_short_str("test")).unwrap();
