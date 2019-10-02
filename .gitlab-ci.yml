@@ -37,7 +37,6 @@ variables:
 .docker-cache-status:              &docker-cache-status
   variables:
     CARGO_HOME:                    "/ci-cache/parity-ethereum/cargo/${CI_JOB_NAME}"
-    SCCACHE_REDIS:                 "redis://:${REDIS}@172.17.0.1/0"
   dependencies:                    []
   before_script:
     - rustup show
@@ -68,18 +67,21 @@ cargo-check 0 3:
   <<:                              *docker-cache-status
   script:
     - time cargo check --target $CARGO_TARGET --locked --no-default-features --verbose --color=always
+    - sccache --stop-server
 
 cargo-check 1 3:
   stage:                           test
   <<:                              *docker-cache-status
   script:
     - time cargo check --target $CARGO_TARGET --locked --manifest-path util/io/Cargo.toml --no-default-features --verbose --color=always
+    - sccache --stop-server
 
 cargo-check 2 3:
   stage:                           test
   <<:                              *docker-cache-status
   script:
     - time cargo check --target $CARGO_TARGET --locked --manifest-path util/io/Cargo.toml --features "mio" --verbose --color=always
+    - sccache --stop-server
 
 cargo-audit:
   stage:                           test
@@ -199,7 +201,7 @@ publish-docker:
     DOCKER_DRIVER:                 overlay2
     GIT_STRATEGY:                  none
     # DOCKERFILE:                  tools/Dockerfile
-    # CONTAINER_IMAGE:             parity/parity 
+    # CONTAINER_IMAGE:             parity/parity
   script:
     # we stopped pushing nightlies to dockerhub, will push to own registry prb.
     - ./tools/publish-docker.sh
