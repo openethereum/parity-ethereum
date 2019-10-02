@@ -37,13 +37,13 @@ pub struct KeyServerImpl {
 
 /// Secret store key server data.
 pub struct KeyServerCore {
-	cluster: Arc<ClusterClient>,
+	cluster: Arc<dyn ClusterClient>,
 }
 
 impl KeyServerImpl {
 	/// Create new key server instance
-	pub fn new(config: &ClusterConfiguration, key_server_set: Arc<KeyServerSet>, self_key_pair: Arc<NodeKeyPair>,
-		acl_storage: Arc<AclStorage>, key_storage: Arc<KeyStorage>, executor: Executor) -> Result<Self, Error>
+	pub fn new(config: &ClusterConfiguration, key_server_set: Arc<dyn KeyServerSet>, self_key_pair: Arc<dyn NodeKeyPair>,
+		acl_storage: Arc<dyn AclStorage>, key_storage: Arc<dyn KeyStorage>, executor: Executor) -> Result<Self, Error>
 	{
 		Ok(KeyServerImpl {
 			data: Arc::new(Mutex::new(KeyServerCore::new(config, key_server_set, self_key_pair, acl_storage, key_storage, executor)?)),
@@ -51,7 +51,7 @@ impl KeyServerImpl {
 	}
 
 	/// Get cluster client reference.
-	pub fn cluster(&self) -> Arc<ClusterClient> {
+	pub fn cluster(&self) -> Arc<dyn ClusterClient> {
 		self.data.lock().cluster.clone()
 	}
 }
@@ -64,7 +64,7 @@ impl AdminSessionsServer for KeyServerImpl {
 		old_set_signature: RequestSignature,
 		new_set_signature: RequestSignature,
 		new_servers_set: BTreeSet<NodeId>,
-	) -> Box<Future<Item=(), Error=Error> + Send> {
+	) -> Box<dyn Future<Item=(), Error=Error> + Send> {
 		return_session(self.data.lock().cluster
 			.new_servers_set_change_session(None, None, new_servers_set, old_set_signature, new_set_signature))
 	}
@@ -76,7 +76,7 @@ impl ServerKeyGenerator for KeyServerImpl {
 		key_id: ServerKeyId,
 		author: Requester,
 		threshold: usize,
-	) -> Box<Future<Item=Public, Error=Error> + Send> {
+	) -> Box<dyn Future<Item=Public, Error=Error> + Send> {
 		// recover requestor' address key from signature
 		let address = author.address(&key_id).map_err(Error::InsufficientRequesterData);
 
@@ -89,7 +89,7 @@ impl ServerKeyGenerator for KeyServerImpl {
 		&self,
 		key_id: ServerKeyId,
 		author: Requester,
-	) -> Box<Future<Item=Public, Error=Error> + Send> {
+	) -> Box<dyn Future<Item=Public, Error=Error> + Send> {
 		// recover requestor' public key from signature
 		let session_and_address = author
 			.address(&key_id)
@@ -121,7 +121,7 @@ impl DocumentKeyServer for KeyServerImpl {
 		author: Requester,
 		common_point: Public,
 		encrypted_document_key: Public,
-	) -> Box<Future<Item=(), Error=Error> + Send> {
+	) -> Box<dyn Future<Item=(), Error=Error> + Send> {
 		// store encrypted key
 		return_session(self.data.lock().cluster.new_encryption_session(key_id,
 			author.clone(), common_point, encrypted_document_key))
@@ -132,7 +132,7 @@ impl DocumentKeyServer for KeyServerImpl {
 		key_id: ServerKeyId,
 		author: Requester,
 		threshold: usize,
-	) -> Box<Future<Item=EncryptedDocumentKey, Error=Error> + Send> {
+	) -> Box<dyn Future<Item=EncryptedDocumentKey, Error=Error> + Send> {
 		// recover requestor' public key from signature
 		let public = result(author.public(&key_id).map_err(Error::InsufficientRequesterData));
 
@@ -174,7 +174,7 @@ impl DocumentKeyServer for KeyServerImpl {
 		&self,
 		key_id: ServerKeyId,
 		requester: Requester,
-	) -> Box<Future<Item=EncryptedDocumentKey, Error=Error> + Send> {
+	) -> Box<dyn Future<Item=EncryptedDocumentKey, Error=Error> + Send> {
 		// recover requestor' public key from signature
 		let public = result(requester.public(&key_id).map_err(Error::InsufficientRequesterData));
 
@@ -200,7 +200,7 @@ impl DocumentKeyServer for KeyServerImpl {
 		&self,
 		key_id: ServerKeyId,
 		requester: Requester,
-	) -> Box<Future<Item=EncryptedDocumentKeyShadow, Error=Error> + Send> {
+	) -> Box<dyn Future<Item=EncryptedDocumentKeyShadow, Error=Error> + Send> {
 		return_session(self.data.lock().cluster.new_decryption_session(key_id,
 			None, requester.clone(), None, true, false))
 	}
@@ -212,7 +212,7 @@ impl MessageSigner for KeyServerImpl {
 		key_id: ServerKeyId,
 		requester: Requester,
 		message: MessageHash,
-	) -> Box<Future<Item=EncryptedMessageSignature, Error=Error> + Send> {
+	) -> Box<dyn Future<Item=EncryptedMessageSignature, Error=Error> + Send> {
 		// recover requestor' public key from signature
 		let public = result(requester.public(&key_id).map_err(Error::InsufficientRequesterData));
 
@@ -246,7 +246,7 @@ impl MessageSigner for KeyServerImpl {
 		key_id: ServerKeyId,
 		requester: Requester,
 		message: MessageHash,
-	) -> Box<Future<Item=EncryptedMessageSignature, Error=Error> + Send> {
+	) -> Box<dyn Future<Item=EncryptedMessageSignature, Error=Error> + Send> {
 		// recover requestor' public key from signature
 		let public = result(requester.public(&key_id).map_err(Error::InsufficientRequesterData));
 
@@ -269,8 +269,8 @@ impl MessageSigner for KeyServerImpl {
 }
 
 impl KeyServerCore {
-	pub fn new(config: &ClusterConfiguration, key_server_set: Arc<KeyServerSet>, self_key_pair: Arc<NodeKeyPair>,
-		acl_storage: Arc<AclStorage>, key_storage: Arc<KeyStorage>, executor: Executor) -> Result<Self, Error>
+	pub fn new(config: &ClusterConfiguration, key_server_set: Arc<dyn KeyServerSet>, self_key_pair: Arc<dyn NodeKeyPair>,
+		acl_storage: Arc<dyn AclStorage>, key_storage: Arc<dyn KeyStorage>, executor: Executor) -> Result<Self, Error>
 	{
 		let cconfig = NetClusterConfiguration {
 			self_key_pair: self_key_pair.clone(),
@@ -298,7 +298,7 @@ impl KeyServerCore {
 
 fn return_session<S: ClusterSession>(
 	session: Result<WaitableSession<S>, Error>,
-) -> Box<Future<Item=S::SuccessfulResult, Error=Error> + Send> {
+) -> Box<dyn Future<Item=S::SuccessfulResult, Error=Error> + Send> {
 	match session {
 		Ok(session) => Box::new(session.into_wait_future()),
 		Err(error) => Box::new(err(error))
@@ -340,7 +340,7 @@ pub mod tests {
 			_old_set_signature: RequestSignature,
 			_new_set_signature: RequestSignature,
 			_new_servers_set: BTreeSet<NodeId>,
-		) -> Box<Future<Item=(), Error=Error> + Send> {
+		) -> Box<dyn Future<Item=(), Error=Error> + Send> {
 			unimplemented!("test-only")
 		}
 	}
@@ -351,7 +351,7 @@ pub mod tests {
 			_key_id: ServerKeyId,
 			_author: Requester,
 			_threshold: usize,
-		) -> Box<Future<Item=Public, Error=Error> + Send> {
+		) -> Box<dyn Future<Item=Public, Error=Error> + Send> {
 			unimplemented!("test-only")
 		}
 
@@ -359,7 +359,7 @@ pub mod tests {
 			&self,
 			_key_id: ServerKeyId,
 			_author: Requester,
-		) -> Box<Future<Item=Public, Error=Error> + Send> {
+		) -> Box<dyn Future<Item=Public, Error=Error> + Send> {
 			unimplemented!("test-only")
 		}
 	}
@@ -371,7 +371,7 @@ pub mod tests {
 			_author: Requester,
 			_common_point: Public,
 			_encrypted_document_key: Public,
-		) -> Box<Future<Item=(), Error=Error> + Send> {
+		) -> Box<dyn Future<Item=(), Error=Error> + Send> {
 			unimplemented!("test-only")
 		}
 
@@ -380,7 +380,7 @@ pub mod tests {
 			_key_id: ServerKeyId,
 			_author: Requester,
 			_threshold: usize,
-		) -> Box<Future<Item=EncryptedDocumentKey, Error=Error> + Send> {
+		) -> Box<dyn Future<Item=EncryptedDocumentKey, Error=Error> + Send> {
 			unimplemented!("test-only")
 		}
 
@@ -388,7 +388,7 @@ pub mod tests {
 			&self,
 			_key_id: ServerKeyId,
 			_requester: Requester,
-		) -> Box<Future<Item=EncryptedDocumentKey, Error=Error> + Send> {
+		) -> Box<dyn Future<Item=EncryptedDocumentKey, Error=Error> + Send> {
 			unimplemented!("test-only")
 		}
 
@@ -396,7 +396,7 @@ pub mod tests {
 			&self,
 			_key_id: ServerKeyId,
 			_requester: Requester,
-		) -> Box<Future<Item=EncryptedDocumentKeyShadow, Error=Error> + Send> {
+		) -> Box<dyn Future<Item=EncryptedDocumentKeyShadow, Error=Error> + Send> {
 			unimplemented!("test-only")
 		}
 	}
@@ -407,7 +407,7 @@ pub mod tests {
 			_key_id: ServerKeyId,
 			_requester: Requester,
 			_message: MessageHash,
-		) -> Box<Future<Item=EncryptedMessageSignature, Error=Error> + Send> {
+		) -> Box<dyn Future<Item=EncryptedMessageSignature, Error=Error> + Send> {
 			unimplemented!("test-only")
 		}
 
@@ -416,7 +416,7 @@ pub mod tests {
 			_key_id: ServerKeyId,
 			_requester: Requester,
 			_message: MessageHash,
-		) -> Box<Future<Item=EncryptedMessageSignature, Error=Error> + Send> {
+		) -> Box<dyn Future<Item=EncryptedMessageSignature, Error=Error> + Send> {
 			unimplemented!("test-only")
 		}
 	}

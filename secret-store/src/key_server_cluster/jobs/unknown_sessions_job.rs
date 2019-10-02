@@ -24,18 +24,18 @@ pub struct UnknownSessionsJob {
 	/// Target node id.
 	target_node_id: Option<NodeId>,
 	/// Keys storage.
-	key_storage: Arc<KeyStorage>,
+	key_storage: Arc<dyn KeyStorage>,
 }
 
 impl UnknownSessionsJob {
-	pub fn new_on_slave(key_storage: Arc<KeyStorage>) -> Self {
+	pub fn new_on_slave(key_storage: Arc<dyn KeyStorage>) -> Self {
 		UnknownSessionsJob {
 			target_node_id: None,
 			key_storage: key_storage,
 		}
 	}
 
-	pub fn new_on_master(key_storage: Arc<KeyStorage>, self_node_id: NodeId) -> Self {
+	pub fn new_on_master(key_storage: Arc<dyn KeyStorage>, self_node_id: NodeId) -> Self {
 		UnknownSessionsJob {
 			target_node_id: Some(self_node_id),
 			key_storage: key_storage,

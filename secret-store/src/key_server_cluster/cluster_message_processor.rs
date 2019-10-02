@@ -32,7 +32,7 @@ pub trait MessageProcessor: Send + Sync {
 	/// Process disconnect from the remote node.
 	fn process_disconnect(&self, node: &NodeId);
 	/// Process single message from the connection.
-	fn process_connection_message(&self, connection: Arc<Connection>, message: Message);
+	fn process_connection_message(&self, connection: Arc<dyn Connection>, message: Message);
 
 	/// Start servers set change session. This is typically used by ConnectionManager when
 	/// it detects that auto-migration session needs to be started.
@@ -49,19 +49,19 @@ pub trait MessageProcessor: Send + Sync {
 
 /// Bridge between ConnectionManager and ClusterSessions.
 pub struct SessionsMessageProcessor {
-	self_key_pair: Arc<NodeKeyPair>,
-	servers_set_change_creator_connector: Arc<ServersSetChangeSessionCreatorConnector>,
+	self_key_pair: Arc<dyn NodeKeyPair>,
+	servers_set_change_creator_connector: Arc<dyn ServersSetChangeSessionCreatorConnector>,
 	sessions: Arc<ClusterSessions>,
-	connections: Arc<ConnectionProvider>,
+	connections: Arc<dyn ConnectionProvider>,
 }
 
 impl SessionsMessageProcessor {
 	/// Create new instance of SessionsMessageProcessor.
 	pub fn new(
-		self_key_pair: Arc<NodeKeyPair>,
-		servers_set_change_creator_connector: Arc<ServersSetChangeSessionCreatorConnector>,
+		self_key_pair: Arc<dyn NodeKeyPair>,
+		servers_set_change_creator_connector: Arc<dyn ServersSetChangeSessionCreatorConnector>,
 		sessions: Arc<ClusterSessions>,
-		connections: Arc<ConnectionProvider>,
+		connections: Arc<dyn ConnectionProvider>,
 	) -> Self {
 		SessionsMessageProcessor {
 			self_key_pair,
@@ -75,7 +75,7 @@ impl SessionsMessageProcessor {
 	fn process_message<S: ClusterSession, SC: ClusterSessionCreator<S>>(
 		&self,
 		sessions: &ClusterSessionsContainer<S, SC>,
-		connection: Arc<Connection>,
+		connection: Arc<dyn Connection>,
 		mut message: Message,
 	) -> Option<Arc<S>>
 		where
@@ -198,7 +198,7 @@ impl SessionsMessageProcessor {
 	}
 
 	/// Process single cluster message from the connection.
-	fn process_cluster_message(&self, connection: Arc<Connection>, message: ClusterMessage) {
+	fn process_cluster_message(&self, connection: Arc<dyn Connection>, message: ClusterMessage) {
 		match message {
 			ClusterMessage::KeepAlive(_) => {
 				let msg = Message::Cluster(ClusterMessage::KeepAliveResponse(message::KeepAliveResponse {
@@ -220,7 +220,7 @@ impl MessageProcessor for SessionsMessageProcessor {
 		self.sessions.on_connection_timeout(node);
 	}
 
-	fn process_connection_message(&self, connection: Arc<Connection>, message: Message) {
+	fn process_connection_message(&self, connection: Arc<dyn Connection>, message: Message) {
 		trace!(target: "secretstore_net", "{}: received message {} from {}",
 			self.self_key_pair.public(), message, connection.node_id());
 

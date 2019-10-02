@@ -26,7 +26,7 @@ use key_server_cluster::io::{handshake, Handshake, Deadline, deadline};
 use key_server_cluster::net::Connection;
 
 /// Create future for connecting to other node.
-pub fn connect(address: &SocketAddr, self_key_pair: Arc<NodeKeyPair>, trusted_nodes: BTreeSet<NodeId>) -> Deadline<Connect> {
+pub fn connect(address: &SocketAddr, self_key_pair: Arc<dyn NodeKeyPair>, trusted_nodes: BTreeSet<NodeId>) -> Deadline<Connect> {
 	let connect = Connect {
 		state: ConnectState::TcpConnect(TcpStream::connect(address)),
 		address: address.clone(),
@@ -47,7 +47,7 @@ enum ConnectState {
 pub struct Connect {
 	state: ConnectState,
 	address: SocketAddr,
-	self_key_pair: Arc<NodeKeyPair>,
+	self_key_pair: Arc<dyn NodeKeyPair>,
 	trusted_nodes: BTreeSet<NodeId>,
 }
 
