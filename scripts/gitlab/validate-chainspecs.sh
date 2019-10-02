@@ -15,5 +15,6 @@ done
 for spec in ethcore/res/ethereum/*.json; do
     if ! ./target/release/chainspec "$spec"; then ERR=1; fi
 done
-
+#show sccache statistics
+sccache --stop-server
 exit $ERR
