@@ -871,7 +871,7 @@ mod test {
 		type ReqBody = hyper::Body;
 		type ResBody = hyper::Body;
 		type Error = Error;
-		type Future = Box<Future<Item=hyper::Response<Self::ResBody>, Error=Self::Error> + Send + 'static>;
+		type Future = Box<dyn Future<Item=hyper::Response<Self::ResBody>, Error=Self::Error> + Send + 'static>;
 
 		fn call(&mut self, req: hyper::Request<hyper::Body>) -> Self::Future {
 			match req.uri().path() {

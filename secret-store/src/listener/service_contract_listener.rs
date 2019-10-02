@@ -62,17 +62,17 @@ pub struct ServiceContractListener {
 /// Service contract listener parameters.
 pub struct ServiceContractListenerParams {
 	/// Service contract.
-	pub contract: Arc<ServiceContract>,
+	pub contract: Arc<dyn ServiceContract>,
 	/// This node key pair.
-	pub self_key_pair: Arc<NodeKeyPair>,
+	pub self_key_pair: Arc<dyn NodeKeyPair>,
 	/// Key servers set.
-	pub key_server_set: Arc<KeyServerSet>,
+	pub key_server_set: Arc<dyn KeyServerSet>,
 	/// ACL storage reference.
-	pub acl_storage: Arc<AclStorage>,
+	pub acl_storage: Arc<dyn AclStorage>,
 	/// Cluster reference.
-	pub cluster: Arc<ClusterClient>,
+	pub cluster: Arc<dyn ClusterClient>,
 	/// Key storage reference.
-	pub key_storage: Arc<KeyStorage>,
+	pub key_storage: Arc<dyn KeyStorage>,
 }
 
 /// Service contract listener data.
@@ -84,17 +84,17 @@ struct ServiceContractListenerData {
 	/// Service tasks queue.
 	pub tasks_queue: Arc<TasksQueue<ServiceTask>>,
 	/// Service contract.
-	pub contract: Arc<ServiceContract>,
+	pub contract: Arc<dyn ServiceContract>,
 	/// ACL storage reference.
-	pub acl_storage: Arc<AclStorage>,
+	pub acl_storage: Arc<dyn AclStorage>,
 	/// Cluster client reference.
-	pub cluster: Arc<ClusterClient>,
+	pub cluster: Arc<dyn ClusterClient>,
 	/// This node key pair.
-	pub self_key_pair: Arc<NodeKeyPair>,
+	pub self_key_pair: Arc<dyn NodeKeyPair>,
 	/// Key servers set.
-	pub key_server_set: Arc<KeyServerSet>,
+	pub key_server_set: Arc<dyn KeyServerSet>,
 	/// Key storage reference.
-	pub key_storage: Arc<KeyStorage>,
+	pub key_storage: Arc<dyn KeyStorage>,
 
 }
 
@@ -561,7 +561,7 @@ fn log_service_task_result(task: &ServiceTask, self_id: &Public, result: Result<
 }
 
 /// Returns true when session, related to `server_key_id` must be started on `node`.
-fn is_processed_by_this_key_server(key_server_set: &KeyServerSet, node: &NodeId, server_key_id: &H256) -> bool {
+fn is_processed_by_this_key_server(key_server_set: &dyn KeyServerSet, node: &NodeId, server_key_id: &H256) -> bool {
 	let servers = key_server_set.snapshot().current_set;
 	let total_servers_count = servers.len();
 	match total_servers_count {
@@ -613,7 +613,7 @@ mod tests {
 		key_storage
 	}
 
-	fn make_servers_set(is_isolated: bool) -> Arc<KeyServerSet> {
+	fn make_servers_set(is_isolated: bool) -> Arc<dyn KeyServerSet> {
 		Arc::new(MapKeyServerSet::new(is_isolated, vec![
 			("79be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798483ada7726a3c4655da4fbfc0e1108a8fd17b448a68554199c47d08ffb10d4b8".parse().unwrap(),
 				"127.0.0.1:8080".parse().unwrap()),
@@ -624,7 +624,7 @@ mod tests {
 		].into_iter().collect()))
 	}
 
-	fn make_service_contract_listener(contract: Option<Arc<ServiceContract>>, cluster: Option<Arc<DummyClusterClient>>, key_storage: Option<Arc<KeyStorage>>, acl_storage: Option<Arc<AclStorage>>, servers_set: Option<Arc<KeyServerSet>>) -> Arc<ServiceContractListener> {
+	fn make_service_contract_listener(contract: Option<Arc<dyn ServiceContract>>, cluster: Option<Arc<DummyClusterClient>>, key_storage: Option<Arc<dyn KeyStorage>>, acl_storage: Option<Arc<dyn AclStorage>>, servers_set: Option<Arc<dyn KeyServerSet>>) -> Arc<ServiceContractListener> {
 		let contract = contract.unwrap_or_else(|| Arc::new(DummyServiceContract::default()));
 		let cluster = cluster.unwrap_or_else(|| Arc::new(DummyClusterClient::default()));
 		let key_storage = key_storage.unwrap_or_else(|| Arc::new(DummyKeyStorage::default()));

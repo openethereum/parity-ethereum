@@ -44,9 +44,9 @@ pub struct SessionImpl {
 	/// Encrypted data.
 	encrypted_data: Option<DocumentKeyShare>,
 	/// Key storage.
-	key_storage: Arc<KeyStorage>,
+	key_storage: Arc<dyn KeyStorage>,
 	/// Cluster which allows this node to send messages to other nodes in the cluster.
-	cluster: Arc<Cluster>,
+	cluster: Arc<dyn Cluster>,
 	/// Session nonce.
 	nonce: u64,
 	/// Session completion signal.
@@ -64,9 +64,9 @@ pub struct SessionParams {
 	/// Encrypted data (result of running generation_session::SessionImpl).
 	pub encrypted_data: Option<DocumentKeyShare>,
 	/// Key storage.
-	pub key_storage: Arc<KeyStorage>,
+	pub key_storage: Arc<dyn KeyStorage>,
 	/// Cluster
-	pub cluster: Arc<Cluster>,
+	pub cluster: Arc<dyn Cluster>,
 	/// Session nonce.
 	pub nonce: u64,
 }
@@ -331,7 +331,7 @@ pub fn check_encrypted_data(key_share: Option<&DocumentKeyShare>) -> Result<(), 
 }
 
 /// Update key share with encrypted document key.
-pub fn update_encrypted_data(key_storage: &Arc<KeyStorage>, key_id: ServerKeyId, mut key_share: DocumentKeyShare, author: Address, common_point: Public, encrypted_point: Public) -> Result<(), Error> {
+pub fn update_encrypted_data(key_storage: &Arc<dyn KeyStorage>, key_id: ServerKeyId, mut key_share: DocumentKeyShare, author: Address, common_point: Public, encrypted_point: Public) -> Result<(), Error> {
 	// author must be the same
 	if key_share.author != author {
 		return Err(Error::AccessDenied);

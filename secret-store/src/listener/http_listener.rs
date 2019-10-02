@@ -89,13 +89,13 @@ struct KeyServerHttpHandler {
 
 /// Shared http handler
 struct KeyServerSharedHttpHandler {
-	key_server: Weak<KeyServer>,
+	key_server: Weak<dyn KeyServer>,
 }
 
 
 impl KeyServerHttpListener {
 	/// Start KeyServer http listener
-	pub fn start(listener_address: NodeAddress, cors_domains: Option<Vec<String>>, key_server: Weak<KeyServer>, executor: Executor) -> Result<Self, Error> {
+	pub fn start(listener_address: NodeAddress, cors_domains: Option<Vec<String>>, key_server: Weak<dyn KeyServer>, executor: Executor) -> Result<Self, Error> {
 		let shared_handler = Arc::new(KeyServerSharedHttpHandler {
 			key_server: key_server,
 		});
@@ -130,7 +130,7 @@ impl KeyServerHttpListener {
 }
 
 impl KeyServerHttpHandler {
-	fn key_server(&self) -> Result<Arc<KeyServer>, Error> {
+	fn key_server(&self) -> Result<Arc<dyn KeyServer>, Error> {
 		self.handler.key_server.upgrade()
 			.ok_or_else(|| Error::Internal("KeyServer is already destroyed".into()))
 	}
@@ -142,7 +142,7 @@ impl KeyServerHttpHandler {
 		path: &str,
 		req_body: &[u8],
 		cors: AllowCors<AccessControlAllowOrigin>,
-	) -> Box<Future<Item=HttpResponse<Body>, Error=hyper::Error> + Send> {
+	) -> Box<dyn Future<Item=HttpResponse<Body>, Error=hyper::Error> + Send> {
 		match parse_request(&req_method, &path, &req_body) {
 			Request::GenerateServerKey(document, signature, threshold) =>
 				Box::new(result(self.key_server())
@@ -219,7 +219,7 @@ impl Service for KeyServerHttpHandler {
 	type ReqBody = Body;
 	type ResBody = Body;
 	type Error = hyper::Error;
-	type Future = Box<Future<Item = HttpResponse<Self::ResBody>, Error=Self::Error> + Send>;
+	type Future = Box<dyn Future<Item = HttpResponse<Self::ResBody>, Error=Self::Error> + Send>;
 
 	fn call(&mut self, req: HttpRequest<Body>) -> Self::Future {
 		let cors = cors::get_cors_allow_origin(
@@ -462,7 +462,7 @@ mod tests {
 
 	#[test]
 	fn http_listener_successfully_drops() {
-		let key_server: Arc<KeyServer> = Arc::new(DummyKeyServer::default());
+		let key_server: Arc<dyn KeyServer> = Arc::new(DummyKeyServer::default());
 		let address = NodeAddress { address: "127.0.0.1".into(), port: 9000 };
 		let runtime = Runtime::with_thread_count(1);
 		let listener = KeyServerHttpListener::start(address, None, Arc::downgrade(&key_server),

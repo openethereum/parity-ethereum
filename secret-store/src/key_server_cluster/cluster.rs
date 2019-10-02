@@ -104,11 +104,11 @@ pub trait ClusterClient: Send + Sync {
 	) -> Result<WaitableSession<AdminSession>, Error>;
 
 	/// Listen for new generation sessions.
-	fn add_generation_listener(&self, listener: Arc<ClusterSessionsListener<GenerationSession>>);
+	fn add_generation_listener(&self, listener: Arc<dyn ClusterSessionsListener<GenerationSession>>);
 	/// Listen for new decryption sessions.
-	fn add_decryption_listener(&self, listener: Arc<ClusterSessionsListener<DecryptionSession>>);
+	fn add_decryption_listener(&self, listener: Arc<dyn ClusterSessionsListener<DecryptionSession>>);
 	/// Listen for new key version negotiation sessions.
-	fn add_key_version_negotiation_listener(&self, listener: Arc<ClusterSessionsListener<KeyVersionNegotiationSession<KeyVersionNegotiationSessionTransport>>>);
+	fn add_key_version_negotiation_listener(&self, listener: Arc<dyn ClusterSessionsListener<KeyVersionNegotiationSession<KeyVersionNegotiationSessionTransport>>>);
 
 	/// Ask node to make 'faulty' generation sessions.
 	#[cfg(test)]
@@ -143,13 +143,13 @@ pub trait Cluster: Send + Sync {
 #[derive(Clone)]
 pub struct ClusterConfiguration {
 	/// KeyPair this node holds.
-	pub self_key_pair: Arc<NodeKeyPair>,
+	pub self_key_pair: Arc<dyn NodeKeyPair>,
 	/// Cluster nodes set.
-	pub key_server_set: Arc<KeyServerSet>,
+	pub key_server_set: Arc<dyn KeyServerSet>,
 	/// Reference to key storage
-	pub key_storage: Arc<KeyStorage>,
+	pub key_storage: Arc<dyn KeyStorage>,
 	/// Reference to ACL storage
-	pub acl_storage: Arc<AclStorage>,
+	pub acl_storage: Arc<dyn AclStorage>,
 	/// Administrator public key.
 	pub admin_public: Option<Public>,
 	/// Do not remove sessions from container.
@@ -172,8 +172,8 @@ pub struct ClusterClientImpl<C: ConnectionManager> {
 pub struct ClusterView {
 	configured_nodes_count: usize,
 	connected_nodes: BTreeSet<NodeId>,
-	connections: Arc<ConnectionProvider>,
-	self_key_pair: Arc<NodeKeyPair>,
+	connections: Arc<dyn ConnectionProvider>,
+	self_key_pair: Arc<dyn NodeKeyPair>,
 }
 
 /// Cross-thread shareable cluster data.
@@ -181,15 +181,15 @@ pub struct ClusterData<C: ConnectionManager> {
 	/// Cluster configuration.
 	pub config: ClusterConfiguration,
 	/// KeyPair this node holds.
-	pub self_key_pair: Arc<NodeKeyPair>,
+	pub self_key_pair: Arc<dyn NodeKeyPair>,
 	/// Connections data.
 	pub connections: C,
 	/// Active sessions data.
 	pub sessions: Arc<ClusterSessions>,
 	// Messages processor.
-	pub message_processor: Arc<MessageProcessor>,
+	pub message_processor: Arc<dyn MessageProcessor>,
 	/// Link between servers set chnage session and the connections manager.
-	pub servers_set_change_creator_connector: Arc<ServersSetChangeSessionCreatorConnector>,
+	pub servers_set_change_creator_connector: Arc<dyn ServersSetChangeSessionCreatorConnector>,
 }
 
 /// Create new network-backed cluster.
@@ -206,7 +206,7 @@ pub fn new_network_cluster(
 		connections: BTreeMap::new(),
 	}));
 
-	let connection_trigger: Box<ConnectionTrigger> = match net_config.auto_migrate_enabled {
+	let connection_trigger: Box<dyn ConnectionTrigger> = match net_config.auto_migrate_enabled {
 		false => Box::new(SimpleConnectionTrigger::with_config(&config)),
 		true if config.admin_public.is_none() => Box::new(ConnectionTriggerWithMigration::with_config(&config)),
 		true => return Err(Error::Internal(
@@ -264,9 +264,9 @@ pub fn new_test_cluster(
 impl<C: ConnectionManager> ClusterCore<C> {
 	pub fn new(
 		sessions: Arc<ClusterSessions>,
-		message_processor: Arc<MessageProcessor>,
+		message_processor: Arc<dyn MessageProcessor>,
 		connections: C,
-		servers_set_change_creator_connector: Arc<ServersSetChangeSessionCreatorConnector>,
+		servers_set_change_creator_connector: Arc<dyn ServersSetChangeSessionCreatorConnector>,
 		config: ClusterConfiguration,
 	) -> Result<Arc<Self>, Error> {
 		Ok(Arc::new(ClusterCore {
@@ -282,7 +282,7 @@ impl<C: ConnectionManager> ClusterCore<C> {
 	}
 
 	/// Create new client interface.
-	pub fn client(&self) -> Arc<ClusterClient> {
+	pub fn client(&self) -> Arc<dyn ClusterClient> {
 		Arc::new(ClusterClientImpl::new(self.data.clone()))
 	}
 
@@ -293,7 +293,7 @@ impl<C: ConnectionManager> ClusterCore<C> {
 	}
 
 	#[cfg(test)]
-	pub fn view(&self) -> Result<Arc<Cluster>, Error> {
+	pub fn view(&self) -> Result<Arc<dyn Cluster>, Error> {
 		let connections = self.data.connections.provider();
 		let mut connected_nodes = connections.connected_nodes()?;
 		let disconnected_nodes = connections.disconnected_nodes();
@@ -311,8 +311,8 @@ impl<C: ConnectionManager> ClusterCore<C> {
 
 impl ClusterView {
 	pub fn new(
-		self_key_pair: Arc<NodeKeyPair>,
-		connections: Arc<ConnectionProvider>,
+		self_key_pair: Arc<dyn NodeKeyPair>,
+		connections: Arc<dyn ConnectionProvider>,
 		nodes: BTreeSet<NodeId>,
 		configured_nodes_count: usize
 	) -> Self {
@@ -555,15 +555,15 @@ impl<C: ConnectionManager> ClusterClient for ClusterClientImpl<C> {
 			})
 	}
 
-	fn add_generation_listener(&self, listener: Arc<ClusterSessionsListener<GenerationSession>>) {
+	fn add_generation_listener(&self, listener: Arc<dyn ClusterSessionsListener<GenerationSession>>) {
 		self.data.sessions.generation_sessions.add_listener(listener);
 	}
 
-	fn add_decryption_listener(&self, listener: Arc<ClusterSessionsListener<DecryptionSession>>) {
+	fn add_decryption_listener(&self, listener: Arc<dyn ClusterSessionsListener<DecryptionSession>>) {
 		self.data.sessions.decryption_sessions.add_listener(listener);
 	}
 
-	fn add_key_version_negotiation_listener(&self, listener: Arc<ClusterSessionsListener<KeyVersionNegotiationSession<KeyVersionNegotiationSessionTransport>>>) {
+	fn add_key_version_negotiation_listener(&self, listener: Arc<dyn ClusterSessionsListener<KeyVersionNegotiationSession<KeyVersionNegotiationSessionTransport>>>) {
 		self.data.sessions.negotiation_sessions.add_listener(listener);
 	}
 
@@ -597,10 +597,10 @@ pub struct ServersSetChangeParams {
 }
 
 pub fn new_servers_set_change_session(
-	self_key_pair: Arc<NodeKeyPair>,
+	self_key_pair: Arc<dyn NodeKeyPair>,
 	sessions: &ClusterSessions,
-	connections: Arc<ConnectionProvider>,
-	servers_set_change_creator_connector: Arc<ServersSetChangeSessionCreatorConnector>,
+	connections: Arc<dyn ConnectionProvider>,
+	servers_set_change_creator_connector: Arc<dyn ServersSetChangeSessionCreatorConnector>,
 	params: ServersSetChangeParams,
 ) -> Result<WaitableSession<AdminSession>, Error> {
 	let session_id = match params.session_id {
@@ -757,9 +757,9 @@ pub mod tests {
 			unimplemented!("test-only")
 		}
 
-		fn add_generation_listener(&self, _listener: Arc<ClusterSessionsListener<GenerationSession>>) {}
-		fn add_decryption_listener(&self, _listener: Arc<ClusterSessionsListener<DecryptionSession>>) {}
-		fn add_key_version_negotiation_listener(&self, _listener: Arc<ClusterSessionsListener<KeyVersionNegotiationSession<KeyVersionNegotiationSessionTransport>>>) {}
+		fn add_generation_listener(&self, _listener: Arc<dyn ClusterSessionsListener<GenerationSession>>) {}
+		fn add_decryption_listener(&self, _listener: Arc<dyn ClusterSessionsListener<DecryptionSession>>) {}
+		fn add_key_version_negotiation_listener(&self, _listener: Arc<dyn ClusterSessionsListener<KeyVersionNegotiationSession<KeyVersionNegotiationSessionTransport>>>) {}
 
 		fn make_faulty_generation_sessions(&self) { unimplemented!("test-only") }
 		fn generation_session(&self, _session_id: &SessionId) -> Option<Arc<GenerationSession>> { unimplemented!("test-only") }
