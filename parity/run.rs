@@ -22,12 +22,12 @@ use std::thread;
 use ansi_term::Colour;
 use bytes::Bytes;
 use call_contract::CallContract;
-use client_traits::BlockInfo;
-use ethcore::client::{Client, Mode, DatabaseCompactionProfile, VMType, BlockChainClient};
+use client_traits::{BlockInfo, BlockChainClient};
+use ethcore::client::{Client, DatabaseCompactionProfile, VMType};
 use ethcore::miner::{self, stratum, Miner, MinerService, MinerOptions};
-use ethcore::snapshot::{self, SnapshotConfiguration};
-use ethcore::spec::{SpecParams, OptimizeFor};
-use ethcore::verification::queue::VerifierSettings;
+use snapshot::{self, SnapshotConfiguration};
+use spec::SpecParams;
+use verification::queue::VerifierSettings;
 use ethcore_logger::{Config as LogConfig, RotatingLogger};
 use ethcore_service::ClientService;
 use ethereum_types::Address;
@@ -41,7 +41,12 @@ use miner::work_notify::WorkPoster;
 use node_filter::NodeFilter;
 use parity_runtime::Runtime;
 use sync::{self, SyncConfig, PrivateTxHandler};
-use types::ids::BlockId;
+use types::{
+	client_types::Mode,
+	engines::OptimizeFor,
+	ids::BlockId,
+	snapshot::Snapshotting,
+};
 use parity_rpc::{
 	Origin, Metadata, NetworkSettings, informant, PubSubSession, FutureResult, FutureResponse, FutureOutput
 };
@@ -302,18 +307,18 @@ fn execute_light_impl<Cr>(cmd: RunCmd, logger: Arc<RotatingLogger>, on_client_rq
 
 	// start RPCs
 	let deps_for_rpc_apis = Arc::new(rpc_apis::LightDependencies {
-		signer_service: signer_service,
+		signer_service,
 		client: client.clone(),
 		sync: light_sync.clone(),
 		net: light_sync.clone(),
 		accounts: account_provider,
-		logger: logger,
+		logger,
 		settings: Arc::new(cmd.net_settings),
-		on_demand: on_demand,
+		on_demand,
 		cache: cache.clone(),
 		transaction_queue: txq,
 		ws_address: cmd.ws_conf.address(),
-		fetch: fetch,
+		fetch,
 		geth_compatibility: cmd.geth_compatibility,
 		experimental_rpcs: cmd.experimental_rpcs,
 		executor: runtime.executor(),
@@ -339,7 +344,7 @@ fn execute_light_impl<Cr>(cmd: RunCmd, logger: Arc<RotatingLogger>, on_client_rq
 		LightNodeInformantData {
 			client: client.clone(),
 			sync: light_sync.clone(),
-			cache: cache,
+			cache,
 		},
 		None,
 		Some(rpc_stats),
@@ -442,7 +447,14 @@ fn execute_impl<Cr, Rr>(cmd: RunCmd, logger: Arc<RotatingLogger>, on_client_rq: 
 	}
 
 	sync_config.fork_block = spec.fork_block();
-	let mut warp_sync = spec.engine.supports_warp() && cmd.warp_sync;
+	let snapshot_supported =
+		if let Snapshotting::Unsupported = spec.engine.snapshot_mode() {
+			false
+		} else {
+			true
+		};
+
+	let mut warp_sync = snapshot_supported && cmd.warp_sync;
 	if warp_sync {
 		// Logging is not initialized yet, so we print directly to stderr
 		if fat_db {
@@ -571,7 +583,7 @@ fn execute_impl<Cr, Rr>(cmd: RunCmd, logger: Arc<RotatingLogger>, on_client_rq: 
 	// take handle to private transactions service
 	let private_tx_service = service.private_tx_service();
 	let private_tx_provider = private_tx_service.provider();
-	let connection_filter = connection_filter_address.map(|a| Arc::new(NodeFilter::new(Arc::downgrade(&client) as Weak<BlockChainClient>, a)));
+	let connection_filter = connection_filter_address.map(|a| Arc::new(NodeFilter::new(Arc::downgrade(&client) as Weak<dyn BlockChainClient>, a)));
 	let snapshot_service = service.snapshot_service();
 	if let Some(filter) = connection_filter.clone() {
 		service.add_notify(filter.clone());
@@ -623,9 +635,9 @@ fn execute_impl<Cr, Rr>(cmd: RunCmd, logger: Arc<RotatingLogger>, on_client_rq: 
 			.map_err(|e| format!("Stratum start error: {:?}", e))?;
 	}
 
-	let private_tx_sync: Option<Arc<PrivateTxHandler>> = match cmd.private_tx_enabled {
-		true => Some(private_tx_service.clone() as Arc<PrivateTxHandler>),
-		false => None,
+	let (private_tx_sync, private_state) = match cmd.private_tx_enabled {
+		true => (Some(private_tx_service.clone() as Arc<dyn PrivateTxHandler>), Some(private_tx_provider.private_state_db())),
+		false => (None, None),
 	};
 
 	// create sync object
@@ -636,9 +648,10 @@ fn execute_impl<Cr, Rr>(cmd: RunCmd, logger: Arc<RotatingLogger>, on_client_rq: 
 		client.clone(),
 		snapshot_service.clone(),
 		private_tx_sync,
+		private_state,
 		client.clone(),
 		&cmd.logger_config,
-		connection_filter.clone().map(|f| f as Arc<::sync::ConnectionFilter + 'static>),
+		connection_filter.clone().map(|f| f as Arc<dyn sync::ConnectionFilter + 'static>),
 	).map_err(|e| format!("Sync error: {}", e))?;
 
 	service.add_notify(chain_notify.clone());
@@ -693,7 +706,7 @@ fn execute_impl<Cr, Rr>(cmd: RunCmd, logger: Arc<RotatingLogger>, on_client_rq: 
 	// the updater service
 	let updater_fetch = fetch.clone();
 	let updater = Updater::new(
-		&Arc::downgrade(&(service.client() as Arc<BlockChainClient>)),
+		&Arc::downgrade(&(service.client() as Arc<dyn BlockChainClient>)),
 		&Arc::downgrade(&sync_provider),
 		update_policy,
 		hash_fetch::Client::with_fetch(contract_client.clone(), updater_fetch, runtime.executor())
@@ -830,14 +843,14 @@ enum RunningClientInner {
 		rpc: jsonrpc_core::MetaIoHandler<Metadata, informant::Middleware<rpc_apis::LightClientNotifier>>,
 		informant: Arc<Informant<LightNodeInformantData>>,
 		client: Arc<LightClient>,
-		keep_alive: Box<Any>,
+		keep_alive: Box<dyn Any>,
 	},
 	Full {
 		rpc: jsonrpc_core::MetaIoHandler<Metadata, informant::Middleware<informant::ClientNotifier>>,
 		informant: Arc<Informant<FullNodeInformantData>>,
 		client: Arc<Client>,
 		client_service: Arc<ClientService>,
-		keep_alive: Box<Any>,
+		keep_alive: Box<dyn Any>,
 	},
 }
 

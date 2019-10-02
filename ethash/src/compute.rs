@@ -239,24 +239,16 @@ fn hash_compute(light: &Light, full_size: usize, header_hash: &H256, nonce: u64)
 			fnv_hash(first_val ^ i, mix_words[i as usize % MIX_WORDS]) % num_full_pages
 		};
 
-		unroll! {
-			// MIX_NODES
-			for n in 0..2 {
-				let tmp_node = calculate_dag_item(
-					index * MIX_NODES as u32 + n as u32,
-					cache,
-				);
+		// MIX_NODES
+		for n in 0..2 {
+			let tmp_node = calculate_dag_item(
+				index * MIX_NODES as u32 + n as u32,
+				cache,
+			);
 
-				unroll! {
-					// NODE_WORDS
-					for w in 0..16 {
-						mix[n].as_words_mut()[w] =
-							fnv_hash(
-								mix[n].as_words()[w],
-								tmp_node.as_words()[w],
-							);
-					}
-				}
+			// NODE_WORDS
+			for (a, b) in mix[n].as_words_mut().iter_mut().zip(tmp_node.as_words()) {
+				*a = fnv_hash(*a, *b);
 			}
 		}
 	}
@@ -277,16 +269,14 @@ fn hash_compute(light: &Light, full_size: usize, header_hash: &H256, nonce: u64)
 
 		// Compress mix
 		debug_assert_eq!(MIX_WORDS / 4, 8);
-		unroll! {
-			for i in 0..8 {
-				let w = i * 4;
+		for i in 0..8 {
+			let w = i * 4;
 
-				let mut reduction = mix_words[w + 0];
-				reduction = reduction.wrapping_mul(FNV_PRIME) ^ mix_words[w + 1];
-				reduction = reduction.wrapping_mul(FNV_PRIME) ^ mix_words[w + 2];
-				reduction = reduction.wrapping_mul(FNV_PRIME) ^ mix_words[w + 3];
-				compress[i] = reduction;
-			}
+			let mut reduction = mix_words[w + 0];
+			reduction = reduction.wrapping_mul(FNV_PRIME) ^ mix_words[w + 1];
+			reduction = reduction.wrapping_mul(FNV_PRIME) ^ mix_words[w + 2];
+			reduction = reduction.wrapping_mul(FNV_PRIME) ^ mix_words[w + 3];
+			compress[i] = reduction;
 		}
 	}
 
@@ -312,7 +302,6 @@ fn hash_compute(light: &Light, full_size: usize, header_hash: &H256, nonce: u64)
 	ProofOfWork { mix_hash: mix_hash, value: value }
 }
 
-// TODO: Use the `simd` crate
 pub fn calculate_dag_item(node_index: u32, cache: &[Node]) -> Node {
 	let num_parent_nodes = cache.len();
 	let mut ret = cache[node_index as usize % num_parent_nodes].clone();
@@ -326,10 +315,8 @@ pub fn calculate_dag_item(node_index: u32, cache: &[Node]) -> Node {
 			num_parent_nodes as u32;
 		let parent = &cache[parent_index as usize];
 
-		unroll! {
-			for w in 0..16 {
-				ret.as_words_mut()[w] = fnv_hash(ret.as_words()[w], parent.as_words()[w]);
-			}
+		for (a, b) in ret.as_words_mut().iter_mut().zip(parent.as_words()) {
+			*a = fnv_hash(*a, *b);
 		}
 	}
 

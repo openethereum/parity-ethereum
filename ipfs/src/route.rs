@@ -14,14 +14,17 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
-use {rlp, multihash, IpfsHandler};
-use error::{Error, Result};
-use cid::{ToCid, Codec};
+use crate::{
+	IpfsHandler,
+	error::{Error, Result},
+};
 
-use common_types::ids::{BlockId, TransactionId};
-use multihash::Hash;
-use ethereum_types::H256;
 use bytes::Bytes;
+use cid::{ToCid, Codec};
+use common_types::ids::{BlockId, TransactionId};
+use ethereum_types::H256;
+use multihash::{self, Hash};
+use rlp;
 
 type Reason = &'static str;
 
@@ -117,7 +120,7 @@ fn get_param<'a>(query: &'a str, name: &str) -> Option<&'a str> {
 mod tests {
 	use std::sync::Arc;
 	use super::*;
-	use ethcore::client::TestBlockChainClient;
+	use ethcore::test_helpers::TestBlockChainClient;
 
 	fn get_mocked_handler() -> IpfsHandler {
 		IpfsHandler::new(None.into(), None.into(), Arc::new(TestBlockChainClient::new()))

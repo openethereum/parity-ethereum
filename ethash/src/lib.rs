@@ -14,14 +14,13 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
+extern crate common_types;
 extern crate either;
 extern crate ethereum_types;
 extern crate memmap;
 extern crate parking_lot;
 extern crate primal;
 
-#[macro_use]
-extern crate crunchy;
 #[macro_use]
 extern crate log;
 #[macro_use]
@@ -43,6 +42,9 @@ mod compute;
 
 mod seed_compute;
 mod cache;
+#[cfg(feature = "bench")]
+pub mod keccak;
+#[cfg(not(feature = "bench"))]
 mod keccak;
 mod shared;
 
@@ -51,14 +53,17 @@ pub mod progpow;
 #[cfg(not(feature = "bench"))]
 mod progpow;
 
-pub use cache::{NodeCacheBuilder, OptimizeFor};
+pub use cache::NodeCacheBuilder;
 pub use compute::{ProofOfWork, quick_get_difficulty, slow_hash_block_number};
+pub use seed_compute::SeedHashCompute;
+pub use shared::ETHASH_EPOCH_LENGTH;
+
+use common_types::engines::OptimizeFor;
 use compute::Light;
 use ethereum_types::{BigEndianHash, U256, U512};
 use keccak::H256;
 use parking_lot::Mutex;
-pub use seed_compute::SeedHashCompute;
-pub use shared::ETHASH_EPOCH_LENGTH;
+
 use std::mem;
 use std::path::{Path, PathBuf};
 use std::convert::TryFrom;
@@ -85,7 +90,7 @@ impl EthashManager {
 		EthashManager {
 			cache_dir: cache_dir.to_path_buf(),
 			nodecache_builder: NodeCacheBuilder::new(optimize_for.into().unwrap_or_default(), progpow_transition),
-			progpow_transition: progpow_transition,
+			progpow_transition,
 			cache: Mutex::new(LightCache {
 				recent_epoch: None,
 				recent: None,

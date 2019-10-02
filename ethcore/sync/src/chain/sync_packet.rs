@@ -22,7 +22,10 @@
 //! to convert to/from the packet id values transmitted over the
 //! wire.
 
-use api::{ETH_PROTOCOL, WARP_SYNC_PROTOCOL_ID};
+use crate::api::{ETH_PROTOCOL, WARP_SYNC_PROTOCOL_ID};
+use self::SyncPacket::*;
+
+use enum_primitive::{enum_from_primitive, enum_from_primitive_impl, enum_from_primitive_impl_ty};
 use network::{PacketId, ProtocolId};
 
 enum_from_primitive! {
@@ -55,15 +58,19 @@ enum_from_primitive! {
 		ConsensusDataPacket = 0x15,
 		PrivateTransactionPacket = 0x16,
 		SignedPrivateTransactionPacket = 0x17,
+		GetPrivateStatePacket = 0x18,
+		PrivateStatePacket = 0x19,
 	}
 }
 
-use self::SyncPacket::*;
 
 /// Provide both subprotocol and packet id information within the
 /// same object.
 pub trait PacketInfo {
+	/// Get packet id
 	fn id(&self) -> PacketId;
+
+	/// Get protocol id
 	fn protocol(&self) -> ProtocolId;
 }
 
@@ -94,7 +101,9 @@ impl PacketInfo for SyncPacket {
 			SnapshotDataPacket |
 			ConsensusDataPacket |
 			PrivateTransactionPacket |
-			SignedPrivateTransactionPacket
+			SignedPrivateTransactionPacket |
+			GetPrivateStatePacket |
+			PrivateStatePacket
 
 				=> WARP_SYNC_PROTOCOL_ID,
 		}
@@ -109,7 +118,6 @@ impl PacketInfo for SyncPacket {
 #[cfg(test)]
 mod tests {
 	use super::*;
-
 	use enum_primitive::FromPrimitive;
 
 	#[test]

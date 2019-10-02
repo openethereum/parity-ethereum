@@ -75,7 +75,7 @@ use std::ops::Deref;
 use std::sync::Arc;
 
 use bytes::Bytes;
-use ethcore::client::BlockChainClient;
+use client_traits::BlockChainClient;
 use ethcore::miner::MinerService;
 use ethereum_types::{H520, H256, U256, Address};
 use ethkey::{Password, Signature};
@@ -111,7 +111,7 @@ pub trait Dispatcher: Send + Sync + Clone {
 	fn sign<P>(
 		&self,
 		filled: FilledTransactionRequest,
-		signer: &Arc<Accounts>,
+		signer: &Arc<dyn Accounts>,
 		password: SignWith,
 		post_sign: P,
 	) -> BoxFuture<P::Item> where
@@ -277,7 +277,7 @@ impl<T: Debug> From<(T, Option<AccountToken>)> for WithToken<T> {
 /// Execute a confirmation payload.
 pub fn execute<D: Dispatcher + 'static>(
 	dispatcher: D,
-	signer: &Arc<Accounts>,
+	signer: &Arc<dyn Accounts>,
 	payload: ConfirmationPayload,
 	pass: SignWith
 ) -> BoxFuture<WithToken<ConfirmationResponse>> {

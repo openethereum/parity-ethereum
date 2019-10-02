@@ -14,18 +14,6 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
-extern crate multihash;
-extern crate cid;
-extern crate unicase;
-
-extern crate rlp;
-extern crate common_types;
-extern crate ethcore;
-extern crate parity_bytes as bytes;
-extern crate ethereum_types;
-extern crate jsonrpc_core as core;
-extern crate jsonrpc_http_server as http;
-
 pub mod error;
 mod route;
 
@@ -33,9 +21,9 @@ use std::thread;
 use std::sync::{mpsc, Arc};
 use std::net::{SocketAddr, IpAddr};
 
-use core::futures::future::{self, FutureResult};
-use core::futures::{self, Future};
-use ethcore::client::BlockChainClient;
+use jsonrpc_core::futures::future::{self, FutureResult};
+use jsonrpc_core::futures::{self, Future};
+use client_traits::BlockChainClient;
 use http::hyper::{self, server, Method, StatusCode, Body,
 	header::{self, HeaderValue},
 };
@@ -52,19 +40,19 @@ pub struct IpfsHandler {
 	/// Hostnames allowed in the `Host` request header
 	allowed_hosts: Option<Vec<Host>>,
 	/// Reference to the Blockchain Client
-	client: Arc<BlockChainClient>,
+	client: Arc<dyn BlockChainClient>,
 }
 
 impl IpfsHandler {
-	pub fn client(&self) -> &BlockChainClient {
+	pub fn client(&self) -> &dyn BlockChainClient {
 		&*self.client
 	}
 
-	pub fn new(cors: DomainsValidation<AccessControlAllowOrigin>, hosts: DomainsValidation<Host>, client: Arc<BlockChainClient>) -> Self {
+	pub fn new(cors: DomainsValidation<AccessControlAllowOrigin>, hosts: DomainsValidation<Host>, client: Arc<dyn BlockChainClient>) -> Self {
 		IpfsHandler {
 			cors_domains: cors.into(),
 			allowed_hosts: hosts.into(),
-			client: client,
+			client,
 		}
 	}
 	pub fn on_request(&self, req: hyper::Request<Body>) -> (Option<HeaderValue>, Out) {
@@ -155,7 +143,7 @@ pub fn start_server(
 	interface: String,
 	cors: DomainsValidation<AccessControlAllowOrigin>,
 	hosts: DomainsValidation<Host>,
-	client: Arc<BlockChainClient>
+	client: Arc<dyn BlockChainClient>
 ) -> Result<Listening, ServerError> {
 
 	let ip: IpAddr = interface.parse().map_err(|_| ServerError::InvalidInterface)?;
@@ -183,12 +171,12 @@ pub fn start_server(
 		};
 
 		let server = server_bldr
-	        .serve(new_service)
-	        .map_err(|_| ())
-	        .select(shutdown_signal.map_err(|_| ()))
-	        .then(|_| Ok(()));
+			.serve(new_service)
+			.map_err(|_| ())
+			.select(shutdown_signal.map_err(|_| ()))
+			.then(|_| Ok(()));
 
-	    hyper::rt::run(server);
+		hyper::rt::run(server);
 		send(Ok(()));
 	});
 

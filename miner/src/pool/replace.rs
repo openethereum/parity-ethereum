@@ -133,7 +133,7 @@ mod tests {
 		verified_tx
 	}
 
-	fn should_replace(replace: &ShouldReplace<VerifiedTransaction>, old: VerifiedTransaction, new: VerifiedTransaction) -> Choice {
+	fn should_replace(replace: &dyn ShouldReplace<VerifiedTransaction>, old: VerifiedTransaction, new: VerifiedTransaction) -> Choice {
 		let old_tx = txpool::Transaction { insertion_id: 0, transaction: Arc::new(old) };
 		let new_tx = txpool::Transaction { insertion_id: 0, transaction: Arc::new(new) };
 		let old = ReplaceTransaction::new(&old_tx, Default::default());

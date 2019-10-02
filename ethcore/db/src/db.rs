@@ -41,8 +41,10 @@ pub const COL_ACCOUNT_BLOOM: Option<u32> = Some(5);
 pub const COL_NODE_INFO: Option<u32> = Some(6);
 /// Column for the light client chain.
 pub const COL_LIGHT_CHAIN: Option<u32> = Some(7);
+/// Column for the private transactions state.
+pub const COL_PRIVATE_TRANSACTIONS_STATE: Option<u32> = Some(8);
 /// Number of columns in DB
-pub const NUM_COLUMNS: Option<u32> = Some(8);
+pub const NUM_COLUMNS: Option<u32> = Some(9);
 
 /// Modes for updating caches.
 #[derive(Clone, Copy)]
@@ -186,6 +188,21 @@ pub trait Readable {
 			write.insert(key.clone(), value.clone());
 			value
 		})
+	}
+
+	/// Returns value for given key either in two-layered cache or in database.
+	fn read_with_two_layer_cache<K, T, C>(&self, col: Option<u32>, l1_cache: &RwLock<C>, l2_cache: &RwLock<C>, key: &K) -> Option<T> where
+		K: Key<T> + Eq + Hash + Clone,
+		T: Clone + rlp::Decodable,
+		C: Cache<K, T> {
+		{
+			let read = l1_cache.read();
+			if let Some(v) = read.get(key) {
+				return Some(v.clone());
+			}
+		}
+
+		self.read_with_cache(col, l2_cache, key)
 	}
 
 	/// Returns true if given value exists.

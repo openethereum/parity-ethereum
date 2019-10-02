@@ -36,14 +36,14 @@ use trace::{self, Tracer, VMTracer};
 use common_types::{
 	errors::ExecutionError,
 	transaction::{Action, SignedTransaction},
+	engines::machine::Executed,
 };
 
 use crate::{
 	Machine,
 	substate::Substate,
-	externalities::{Externalities, OutputPolicy, OriginInfo}, // todo: make explicit
+	externalities::{Externalities, OutputPolicy, OriginInfo},
 	transaction_ext::Transaction,
-	executed::Executed,
 };
 
 #[cfg(debug_assertions)]
@@ -412,7 +412,8 @@ impl<'a> CallCreateExecutive<'a> {
 					let default = [];
 					let data = if let Some(ref d) = params.data { d as &[u8] } else { &default as &[u8] };
 
-					let cost = builtin.cost(data);
+					// NOTE(niklasad1): block number is used by `builtin alt_bn128 ops` to enable eip1108
+					let cost = builtin.cost(data, self.info.number);
 					if cost <= params.gas {
 						let mut builtin_out_buffer = Vec::new();
 						let result = {

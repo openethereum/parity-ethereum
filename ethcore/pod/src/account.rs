@@ -26,7 +26,7 @@ use keccak_hasher::KeccakHasher;
 use triehash::sec_trie_root;
 use parity_bytes::Bytes;
 use trie_db::TrieFactory;
-use ethtrie::RlpCodec;
+use ethtrie::Layout;
 use ethjson;
 use common_types::account_diff::*;
 use rlp::{self, RlpStream};
@@ -70,7 +70,7 @@ impl PodAccount {
 	}
 
 	/// Place additional data into given hash DB.
-	pub fn insert_additional(&self, db: &mut dyn HashDB<KeccakHasher, DBValue>, factory: &TrieFactory<KeccakHasher, RlpCodec>) {
+	pub fn insert_additional(&self, db: &mut dyn HashDB<KeccakHasher, DBValue>, factory: &TrieFactory<Layout>) {
 		match self.code {
 			Some(ref c) if !c.is_empty() => { db.insert(hash_db::EMPTY_PREFIX, c); }
 			_ => {}
@@ -81,22 +81,6 @@ impl PodAccount {
 			if let Err(e) = t.insert(k.as_bytes(), &rlp::encode(&v.into_uint())) {
 				warn!("Encountered potential DB corruption: {}", e);
 			}
-		}
-	}
-}
-
-impl From<ethjson::blockchain::Account> for PodAccount {
-	fn from(a: ethjson::blockchain::Account) -> Self {
-		PodAccount {
-			balance: a.balance.into(),
-			nonce: a.nonce.into(),
-			code: Some(a.code.into()),
-			storage: a.storage.into_iter().map(|(key, value)| {
-				let key: U256 = key.into();
-				let value: U256 = value.into();
-				(BigEndianHash::from_uint(&key), BigEndianHash::from_uint(&value))
-			}).collect(),
-			version: a.version.into(),
 		}
 	}
 }

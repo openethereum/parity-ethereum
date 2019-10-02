@@ -594,7 +594,7 @@ fn convert_error<H: fmt::Debug + fmt::LowerHex>(err: txpool::Error<H>) -> transa
 	match err {
 		Error::AlreadyImported(..) => transaction::Error::AlreadyImported,
 		Error::TooCheapToEnter(..) => transaction::Error::LimitReached,
-		Error::TooCheapToReplace(..) => transaction::Error::TooCheapToReplace
+		Error::TooCheapToReplace(..) => transaction::Error::TooCheapToReplace { prev: None, new: None }
 	}
 }
 

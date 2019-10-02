@@ -14,15 +14,19 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
+use std::sync::Arc;
 use std::collections::HashMap;
-use chain::sync_packet::{PacketInfo, SyncPacket};
-use network::{NetworkContext, PeerId, PacketId, Error, SessionInfo, ProtocolId};
-use network::client_version::ClientVersion;
+
+use crate::chain::sync_packet::{PacketInfo, SyncPacket};
+
 use bytes::Bytes;
-use ethcore::client::BlockChainClient;
-use types::BlockNumber;
-use ethcore::snapshot::SnapshotService;
+use client_traits::BlockChainClient;
+use ethcore_private_tx::PrivateStateDB;
+use network::client_version::ClientVersion;
+use network::{NetworkContext, PeerId, PacketId, Error, SessionInfo, ProtocolId};
 use parking_lot::RwLock;
+use snapshot::SnapshotService;
+use common_types::BlockNumber;
 
 /// IO interface for the syncing handler.
 /// Provides peer connection management and an interface to the blockchain client.
@@ -40,6 +44,8 @@ pub trait SyncIo {
 	fn chain(&self) -> &dyn BlockChainClient;
 	/// Get the snapshot service.
 	fn snapshot_service(&self) -> &dyn SnapshotService;
+	/// Get the private state wrapper
+	fn private_state(&self) -> Option<Arc<PrivateStateDB>>;
 	/// Returns peer version identifier
 	fn peer_version(&self, peer_id: PeerId) -> ClientVersion {
 		ClientVersion::from(peer_id.to_string())
@@ -68,6 +74,7 @@ pub struct NetSyncIo<'s> {
 	chain: &'s dyn BlockChainClient,
 	snapshot_service: &'s dyn SnapshotService,
 	chain_overlay: &'s RwLock<HashMap<BlockNumber, Bytes>>,
+	private_state: Option<Arc<PrivateStateDB>>,
 }
 
 impl<'s> NetSyncIo<'s> {
@@ -75,12 +82,14 @@ impl<'s> NetSyncIo<'s> {
 	pub fn new(network: &'s dyn NetworkContext,
 		chain: &'s dyn BlockChainClient,
 		snapshot_service: &'s dyn SnapshotService,
-		chain_overlay: &'s RwLock<HashMap<BlockNumber, Bytes>>) -> NetSyncIo<'s> {
+		chain_overlay: &'s RwLock<HashMap<BlockNumber, Bytes>>,
+		private_state: Option<Arc<PrivateStateDB>>) -> NetSyncIo<'s> {
 		NetSyncIo {
-			network: network,
-			chain: chain,
-			snapshot_service: snapshot_service,
-			chain_overlay: chain_overlay,
+			network,
+			chain,
+			snapshot_service,
+			chain_overlay,
+			private_state,
 		}
 	}
 }
@@ -112,6 +121,10 @@ impl<'s> SyncIo for NetSyncIo<'s> {
 
 	fn snapshot_service(&self) -> &dyn SnapshotService {
 		self.snapshot_service
+	}
+
+	fn private_state(&self) -> Option<Arc<PrivateStateDB>> {
+		self.private_state.clone()
 	}
 
 	fn peer_session_info(&self, peer_id: PeerId) -> Option<SessionInfo> {

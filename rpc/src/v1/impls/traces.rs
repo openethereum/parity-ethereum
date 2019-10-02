@@ -18,7 +18,9 @@
 
 use std::sync::Arc;
 
-use ethcore::client::{BlockChainClient, StateClient, StateInfo, Call};
+use account_state::state::StateInfo;
+use ethcore::client::Call;
+use client_traits::{BlockChainClient, StateClient};
 use ethereum_types::H256;
 use rlp::Rlp;
 use types::{

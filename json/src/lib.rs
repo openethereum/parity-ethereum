@@ -14,20 +14,18 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
-extern crate rustc_hex;
-extern crate serde;
-extern crate serde_json;
-extern crate ethereum_types;
-#[macro_use] extern crate serde_derive;
+//! JSON deserialization library
 
-pub mod hash;
-pub mod uint;
+#![warn(missing_docs)]
+
 pub mod bytes;
-pub mod blockchain;
-pub mod spec;
-pub mod trie;
-pub mod vm;
+pub mod hash;
 pub mod maybe;
-pub mod state;
+pub mod spec;
+pub mod uint;
+pub mod vm;
 pub mod transaction;
-pub mod test;
+pub mod state;
+
+#[cfg(any(test, feature = "test-helpers"))]
+pub mod test_helpers;

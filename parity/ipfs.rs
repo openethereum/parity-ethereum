@@ -17,7 +17,7 @@
 use std::sync::Arc;
 use parity_ipfs_api::{self, AccessControlAllowOrigin, Host, Listening};
 use parity_ipfs_api::error::ServerError;
-use ethcore::client::BlockChainClient;
+use client_traits::BlockChainClient;
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct Configuration {
@@ -40,7 +40,7 @@ impl Default for Configuration {
 	}
 }
 
-pub fn start_server(conf: Configuration, client: Arc<BlockChainClient>) -> Result<Option<Listening>, ServerError> {
+pub fn start_server(conf: Configuration, client: Arc<dyn BlockChainClient>) -> Result<Option<Listening>, ServerError> {
 	if !conf.enabled {
 		return Ok(None);
 	}

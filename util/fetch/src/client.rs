@@ -271,7 +271,7 @@ impl Client {
 }
 
 impl Fetch for Client {
-	type Result = Box<Future<Item=Response, Error=Error> + Send + 'static>;
+	type Result = Box<dyn Future<Item=Response, Error=Error> + Send + 'static>;
 
 	fn fetch(&self, request: Request, abort: Abort) -> Self::Result {
 		debug!(target: "fetch", "fetching: {:?}", request.url());
@@ -608,7 +608,7 @@ impl fmt::Display for Error {
 
 impl ::std::error::Error for Error {
 	fn description(&self) -> &str { "Fetch client error" }
-	fn cause(&self) -> Option<&::std::error::Error> { None }
+	fn cause(&self) -> Option<&dyn std::error::Error> { None }
 }
 
 impl From<hyper::Error> for Error {
@@ -871,7 +871,7 @@ mod test {
 		type ReqBody = hyper::Body;
 		type ResBody = hyper::Body;
 		type Error = Error;
-		type Future = Box<Future<Item=hyper::Response<Self::ResBody>, Error=Self::Error> + Send + 'static>;
+		type Future = Box<dyn Future<Item=hyper::Response<Self::ResBody>, Error=Self::Error> + Send + 'static>;
 
 		fn call(&mut self, req: hyper::Request<hyper::Body>) -> Self::Future {
 			match req.uri().path() {

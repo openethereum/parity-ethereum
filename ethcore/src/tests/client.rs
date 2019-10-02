@@ -14,7 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
-use std::str::FromStr;
+use std::str::{FromStr, from_utf8};
 use std::sync::Arc;
 
 use ethereum_types::{U256, Address};
@@ -23,16 +23,22 @@ use hash::keccak;
 use io::IoChannel;
 use tempdir::TempDir;
 use types::{
+	data_format::DataFormat,
 	ids::BlockId,
 	transaction::{PendingTransaction, Transaction, Action, Condition},
 	filter::Filter,
+	verification::Unverified,
 	view,
 	views::BlockView,
 };
 
-use client::{BlockChainClient, BlockChainReset, Client, ClientConfig, ChainInfo, PrepareOpenBlock, ImportSealedBlock, ImportBlock};
-use client_traits::BlockInfo;
-use crate::spec;
+use client::{Client, ClientConfig, PrepareOpenBlock, ImportSealedBlock};
+use client_traits::{
+	BlockInfo, BlockChainClient, BlockChainReset, ChainInfo,
+	ImportExportBlocks, Tick, ImportBlock
+};
+use spec;
+use stats;
 use machine::executive::{Executive, TransactOptions};
 use miner::{Miner, PendingOrdering, MinerService};
 use account_state::{State, CleanupMode, backend};
@@ -41,7 +47,7 @@ use test_helpers::{
 	generate_dummy_client, push_blocks_to_client, get_test_client_with_blocks, get_good_dummy_block_seq,
 	generate_dummy_client_with_data, get_good_dummy_block, get_bad_state_dummy_block
 };
-use verification::queue::kind::blocks::Unverified;
+use rustc_hex::ToHex;
 
 #[test]
 fn imports_from_empty() {
@@ -55,7 +61,6 @@ fn imports_from_empty() {
 		Arc::new(Miner::new_for_tests(&spec, None)),
 		IoChannel::disconnected(),
 	).unwrap();
-	client.import_verified_blocks();
 	client.flush_queue();
 }
 
@@ -102,7 +107,6 @@ fn imports_good_block() {
 		panic!("error importing block being good by definition");
 	}
 	client.flush_queue();
-	client.import_verified_blocks();
 
 	let block = client.block_header(BlockId::Number(1)).unwrap();
 	assert!(!block.into_inner().is_empty());
@@ -210,7 +214,7 @@ fn can_generate_gas_price_histogram() {
 	let client = generate_dummy_client_with_data(20, 1, slice_into![6354,8593,6065,4842,7845,7002,689,4958,4250,6098,5804,4320,643,8895,2296,8589,7145,2000,2512,1408]);
 
 	let hist = client.gas_price_corpus(20).histogram(5).unwrap();
-	let correct_hist = ::stats::Histogram { bucket_bounds: vec_into![643, 2294, 3945, 5596, 7247, 8898], counts: vec![4,2,4,6,4] };
+	let correct_hist = stats::Histogram { bucket_bounds: vec_into![643, 2294, 3945, 5596, 7247, 8898], counts: vec![4,2,4,6,4] };
 	assert_eq!(hist, correct_hist);
 }
 
@@ -327,7 +331,7 @@ fn does_not_propagate_delayed_transactions() {
 
 #[test]
 fn transaction_proof() {
-	use ::client::ProvingBlockChainClient;
+	use client_traits::ProvingBlockChainClient;
 
 	let client = generate_dummy_client(0);
 	let address = Address::random();
@@ -385,4 +389,80 @@ fn reset_blockchain() {
 	assert!(client.block_header(BlockId::Number(16)).is_none());
 
 	assert!(client.block_header(BlockId::Number(15)).is_some());
+}
+
+#[test]
+fn import_export_hex() {
+	let client = get_test_client_with_blocks(get_good_dummy_block_seq(19));
+	let block_rlps: Vec<String> = (15..20)
+		.filter_map(|num| client.block(BlockId::Number(num)))
+		.map(|header| {
+			header.raw().to_hex()
+		})
+		.collect();
+
+	let mut out = Vec::new();
+
+	client.export_blocks(
+		Box::new(&mut out),
+		BlockId::Number(15),
+		BlockId::Number(20),
+		Some(DataFormat::Hex)
+	).unwrap();
+
+	let written = from_utf8(&out)
+		.unwrap()
+		.split("\n")
+		// last line is empty, ignore it.
+		.take(5)
+		.collect::<Vec<_>>();
+	assert_eq!(block_rlps, written);
+
+	assert!(client.reset(5).is_ok());
+	client.chain().clear_cache();
+
+	assert!(client.block_header(BlockId::Number(20)).is_none());
+	assert!(client.block_header(BlockId::Number(19)).is_none());
+	assert!(client.block_header(BlockId::Number(18)).is_none());
+	assert!(client.block_header(BlockId::Number(17)).is_none());
+	assert!(client.block_header(BlockId::Number(16)).is_none());
+
+	client.import_blocks(Box::new(&*out), Some(DataFormat::Hex)).unwrap();
+
+	assert!(client.block_header(BlockId::Number(20)).is_some());
+	assert!(client.block_header(BlockId::Number(19)).is_some());
+	assert!(client.block_header(BlockId::Number(18)).is_some());
+	assert!(client.block_header(BlockId::Number(17)).is_some());
+	assert!(client.block_header(BlockId::Number(16)).is_some());
+}
+
+#[test]
+fn import_export_binary() {
+	let client = get_test_client_with_blocks(get_good_dummy_block_seq(19));
+
+	let mut out = Vec::new();
+
+	client.export_blocks(
+		Box::new(&mut out),
+		BlockId::Number(15),
+		BlockId::Number(20),
+		Some(DataFormat::Binary)
+	).unwrap();
+
+	assert!(client.reset(5).is_ok());
+	client.chain().clear_cache();
+
+	assert!(client.block_header(BlockId::Number(20)).is_none());
+	assert!(client.block_header(BlockId::Number(19)).is_none());
+	assert!(client.block_header(BlockId::Number(18)).is_none());
+	assert!(client.block_header(BlockId::Number(17)).is_none());
+	assert!(client.block_header(BlockId::Number(16)).is_none());
+
+	client.import_blocks(Box::new(&*out), Some(DataFormat::Binary)).unwrap();
+
+	assert!(client.block_header(BlockId::Number(19)).is_some());
+	assert!(client.block_header(BlockId::Number(18)).is_some());
+	assert!(client.block_header(BlockId::Number(20)).is_some());
+	assert!(client.block_header(BlockId::Number(17)).is_some());
+	assert!(client.block_header(BlockId::Number(16)).is_some());
 }

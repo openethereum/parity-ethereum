@@ -37,14 +37,14 @@ use v1::types::{
 
 /// Implementation of functions that require signing when no trusted signer is used.
 pub struct SigningUnsafeClient<D> {
-	accounts: Arc<dispatch::Accounts>,
+	accounts: Arc<dyn dispatch::Accounts>,
 	dispatcher: D,
 	deprecation_notice: DeprecationNotice,
 }
 
 impl<D: Dispatcher + 'static> SigningUnsafeClient<D> {
 	/// Creates new SigningUnsafeClient.
-	pub fn new(accounts: &Arc<dispatch::Accounts>, dispatcher: D) -> Self {
+	pub fn new(accounts: &Arc<dyn dispatch::Accounts>, dispatcher: D) -> Self {
 		SigningUnsafeClient {
 			accounts: accounts.clone(),
 			dispatcher,

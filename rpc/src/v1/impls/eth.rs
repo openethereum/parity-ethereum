@@ -24,10 +24,12 @@ use rlp::Rlp;
 use ethereum_types::{Address, H64, H160, H256, U64, U256, BigEndianHash};
 use parking_lot::Mutex;
 
+use account_state::state::StateInfo;
+use client_traits::{BlockChainClient, StateClient, ProvingBlockChainClient, StateOrBlock};
 use ethash::{self, SeedHashCompute};
-use ethcore::client::{BlockChainClient, StateOrBlock, StateClient, StateInfo, Call, EngineInfo, ProvingBlockChainClient};
+use ethcore::client::{Call, EngineInfo};
 use ethcore::miner::{self, MinerService};
-use ethcore::snapshot::SnapshotService;
+use snapshot::SnapshotService;
 use hash::keccak;
 use miner::external::ExternalMinerService;
 use sync::SyncProvider;
@@ -36,7 +38,8 @@ use types::{
 	encoded,
 	ids::{BlockId, TransactionId, UncleId},
 	filter::Filter as EthcoreFilter,
-	transaction::{SignedTransaction, LocalizedTransaction}
+	transaction::{SignedTransaction, LocalizedTransaction},
+	snapshot::RestorationStatus,
 };
 
 use jsonrpc_core::{BoxFuture, Result};
@@ -110,7 +113,7 @@ pub struct EthClient<C, SN: ?Sized, S: ?Sized, M, EM> where
 	client: Arc<C>,
 	snapshot: Arc<SN>,
 	sync: Arc<S>,
-	accounts: Arc<Fn() -> Vec<Address> + Send + Sync>,
+	accounts: Arc<dyn Fn() -> Vec<Address> + Send + Sync>,
 	miner: Arc<M>,
 	external_miner: Arc<EM>,
 	seed_compute: Mutex<SeedHashCompute>,
@@ -190,7 +193,7 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM, T: StateInfo + 'static> EthClient<C, SN, S
 		client: &Arc<C>,
 		snapshot: &Arc<SN>,
 		sync: &Arc<S>,
-		accounts: &Arc<Fn() -> Vec<Address> + Send + Sync>,
+		accounts: &Arc<dyn Fn() -> Vec<Address> + Send + Sync>,
 		miner: &Arc<M>,
 		em: &Arc<EM>,
 		options: EthClientOptions
@@ -446,8 +449,8 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM, T: StateInfo + 'static> EthClient<C, SN, S
 
 				self.miner
 					.pending_state(info.best_block_number)
-					.map(|s| Box::new(s) as Box<StateInfo>)
-					.unwrap_or(Box::new(self.client.latest_state()) as Box<StateInfo>)
+					.map(|s| Box::new(s) as Box<dyn StateInfo>)
+					.unwrap_or(Box::new(self.client.latest_state()) as Box<dyn StateInfo>)
 					.into()
 			}
 		}
@@ -517,8 +520,6 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM, T: StateInfo + 'static> Eth for EthClient<
 	}
 
 	fn syncing(&self) -> Result<SyncStatus> {
-		use ethcore::snapshot::RestorationStatus;
-
 		let status = self.sync.status();
 		let client = &self.client;
 		let snapshot_status = self.snapshot.status();

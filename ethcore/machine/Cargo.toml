@@ -25,7 +25,7 @@ keccak-hash = "0.2.0"
 log = "0.4"
 lru-cache = "0.1.2"
 parity-bytes = "0.1.0"
-parking_lot = "0.8.0"
+parking_lot = "0.9"
 rlp = "0.4.2"
 state-db = { path = "../state-db" }
 trace = { path = "../trace" }
@@ -33,12 +33,14 @@ trie-vm-factories = { path = "../trie-vm-factories" }
 vm = { path = "../vm" }
 
 [dev-dependencies]
+common-types = { path = "../types", features = ["test-helpers"] }
 ethcore = { path = "../", features = ["test-helpers"] }
 ethcore-io = { path = "../../util/io" }
 ethjson = { path = "../../json" }
 ethkey = { path = "../../accounts/ethkey" }
 macros = { path = "../../util/macros" }
 rustc-hex = "1.0"
+spec = { path = "../spec" }
 tempdir = "0.3"
 trace = { path = "../trace" }
 

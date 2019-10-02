@@ -20,9 +20,10 @@ use std::collections::BTreeMap;
 
 use crypto::DEFAULT_MAC;
 use ethereum_types::{H64, H160, H256, H512, U64, U256};
-use ethcore::client::{BlockChainClient, StateClient, Call};
+use ethcore::client::Call;
+use client_traits::{BlockChainClient, StateClient};
 use ethcore::miner::{self, MinerService, FilterOptions};
-use ethcore::snapshot::{SnapshotService, RestorationStatus};
+use snapshot::SnapshotService;
 use account_state::state::StateInfo;
 use ethcore_logger::RotatingLogger;
 use ethkey::{crypto::ecies, Brain, Generator};
@@ -30,7 +31,11 @@ use ethstore::random_phrase;
 use jsonrpc_core::futures::future;
 use jsonrpc_core::{BoxFuture, Result};
 use sync::{SyncProvider, ManageNetwork};
-use types::ids::BlockId;
+use types::{
+	ids::BlockId,
+	verification::Unverified,
+	snapshot::RestorationStatus,
+};
 use updater::{Service as UpdateService};
 use version::version_data;
 
@@ -48,20 +53,19 @@ use v1::types::{
 	block_number_to_id
 };
 use Host;
-use ethcore::verification::queue::kind::blocks::Unverified;
 
 /// Parity implementation.
 pub struct ParityClient<C, M, U> {
 	client: Arc<C>,
 	miner: Arc<M>,
 	updater: Arc<U>,
-	sync: Arc<SyncProvider>,
-	net: Arc<ManageNetwork>,
+	sync: Arc<dyn SyncProvider>,
+	net: Arc<dyn ManageNetwork>,
 	logger: Arc<RotatingLogger>,
 	settings: Arc<NetworkSettings>,
 	signer: Option<Arc<SignerService>>,
 	ws_address: Option<Host>,
-	snapshot: Option<Arc<SnapshotService>>,
+	snapshot: Option<Arc<dyn SnapshotService>>,
 }
 
 impl<C, M, U> ParityClient<C, M, U> where
@@ -71,14 +75,14 @@ impl<C, M, U> ParityClient<C, M, U> where
 	pub fn new(
 		client: Arc<C>,
 		miner: Arc<M>,
-		sync: Arc<SyncProvider>,
+		sync: Arc<dyn SyncProvider>,
 		updater: Arc<U>,
-		net: Arc<ManageNetwork>,
+		net: Arc<dyn ManageNetwork>,
 		logger: Arc<RotatingLogger>,
 		settings: Arc<NetworkSettings>,
 		signer: Option<Arc<SignerService>>,
 		ws_address: Option<Host>,
-		snapshot: Option<Arc<SnapshotService>>,
+		snapshot: Option<Arc<dyn SnapshotService>>,
 	) -> Self {
 		ParityClient {
 			client,

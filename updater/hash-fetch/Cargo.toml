@@ -25,5 +25,5 @@ ethabi-derive = "8.0"
 ethabi-contract = "8.0"
 
 [dev-dependencies]
-parking_lot = "0.8"
+parking_lot = "0.9"
 fake-fetch = { path = "../../util/fake-fetch" }

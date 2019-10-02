@@ -746,7 +746,7 @@ impl<B: Backend> State<B> {
 	/// Propagate local cache into shared canonical state cache.
 	fn propagate_to_global_cache(&mut self) {
 		let mut addresses = self.cache.borrow_mut();
-		trace!("Committing cache {:?} entries", addresses.len());
+		trace!(target: "state", "Committing cache {:?} entries", addresses.len());
 		for (address, a) in addresses.drain().filter(|&(_, ref a)| a.state == AccountState::Committed || a.state == AccountState::CleanFresh) {
 			self.db.add_to_account_cache(address, a.account, a.state == AccountState::Committed);
 		}

@@ -17,9 +17,11 @@
 #[macro_use]
 extern crate criterion;
 extern crate ethash;
+extern crate common_types;
 
 use criterion::Criterion;
-use ethash::{NodeCacheBuilder, OptimizeFor};
+use ethash::{NodeCacheBuilder, keccak};
+use common_types::engines::OptimizeFor;
 
 const HASH: [u8; 32] = [
 	0xf5, 0x7e, 0x6f, 0x3a, 0xcf, 0xc0, 0xdd, 0x4b,
@@ -38,7 +40,8 @@ const NONCE: u64 = 0xd7b3ac70a301a249;
 criterion_group! {
 	name = basic;
 	config = dont_take_an_eternity_to_run();
-	targets = bench_light_compute_memmap,
+	targets = bench_keccak_512_inplace,
+		bench_light_compute_memmap,
 		bench_light_compute_memory,
 		bench_light_new_round_trip_memmap,
 		bench_light_new_round_trip_memory,
@@ -52,6 +55,13 @@ fn dont_take_an_eternity_to_run() -> Criterion {
 	Criterion::default().nresamples(1_000)
 		.without_plots()
 		.sample_size(10)
+}
+
+fn bench_keccak_512_inplace(b: &mut Criterion) {
+	b.bench_function("bench_keccak_512_inplace", move |b| b.iter(|| {
+		let mut data = [4u8; 64];
+		keccak::keccak_512::inplace(&mut data);
+	}));
 }
 
 fn bench_light_compute_memmap(b: &mut Criterion) {

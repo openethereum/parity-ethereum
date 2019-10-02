@@ -17,4 +17,4 @@ serde_json = "1.0"
 
 [dev-dependencies]
 ethkey = { path = "../../accounts/ethkey" }
-kvdb-memorydb = "0.1"
+kvdb-memorydb = "0.1.2"

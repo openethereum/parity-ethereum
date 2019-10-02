@@ -22,7 +22,8 @@ use common_types::{
 	transaction::{Transaction, SignedTransaction, Action},
 };
 use ethereum_types::Address;
-use ethcore::client::{Client, ChainInfo, Nonce};
+use ethcore::client::Client;
+use client_traits::{ChainInfo, Nonce};
 use ethcore::miner::{Miner, MinerService};
 use sync::SyncProvider;
 use helpers::{get_confirmed_block_hash, REQUEST_CONFIRMATIONS_REQUIRED};
@@ -32,20 +33,20 @@ use {Error, NodeKeyPair, ContractAddress};
 /// 'Trusted' client weak reference.
 pub struct TrustedClient {
 	/// This key server node key pair.
-	self_key_pair: Arc<NodeKeyPair>,
+	self_key_pair: Arc<dyn NodeKeyPair>,
 	/// Blockchain client.
 	client: Weak<Client>,
 	/// Sync provider.
-	sync: Weak<SyncProvider>,
+	sync: Weak<dyn SyncProvider>,
 	/// Miner service.
 	miner: Weak<Miner>,
 }
 
 impl TrustedClient {
 	/// Create new trusted client.
-	pub fn new(self_key_pair: Arc<NodeKeyPair>, client: Arc<Client>, sync: Arc<SyncProvider>, miner: Arc<Miner>) -> Self {
+	pub fn new(self_key_pair: Arc<dyn NodeKeyPair>, client: Arc<Client>, sync: Arc<dyn SyncProvider>, miner: Arc<Miner>) -> Self {
 		TrustedClient {
-			self_key_pair: self_key_pair,
+			self_key_pair,
 			client: Arc::downgrade(&client),
 			sync: Arc::downgrade(&sync),
 			miner: Arc::downgrade(&miner),

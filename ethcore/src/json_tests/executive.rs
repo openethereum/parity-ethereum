@@ -29,7 +29,6 @@ use machine::{
 	externalities::{OutputPolicy, OriginInfo, Externalities},
 	substate::Substate,
 	executive::contract_address,
-	test_helpers::new_frontier_test_machine,
 };
 
 use test_helpers::get_temp_state;
@@ -40,7 +39,7 @@ use ethtrie;
 use rlp::RlpStream;
 use hash::keccak;
 use ethereum_types::BigEndianHash;
-use crate::spec;
+use spec;
 
 use super::HookType;
 
@@ -217,6 +216,8 @@ impl<'a, T: 'a, V: 'a, B: 'a> Ext for TestExt<'a, T, V, B>
 		self.ext.env_info()
 	}
 
+	fn chain_id(&self) -> u64 { 0 }
+
 	fn depth(&self) -> usize {
 		0
 	}
@@ -234,16 +235,22 @@ impl<'a, T: 'a, V: 'a, B: 'a> Ext for TestExt<'a, T, V, B>
 	}
 }
 
-fn do_json_test<H: FnMut(&str, HookType)>(json_data: &[u8], h: &mut H) -> Vec<String> {
+fn do_json_test<H: FnMut(&str, HookType)>(path: &Path, json_data: &[u8], h: &mut H) -> Vec<String> {
 	let vms = VMType::all();
 	vms
 		.iter()
-		.flat_map(|vm| do_json_test_for(vm, json_data, h))
+		.flat_map(|vm| do_json_test_for(path, vm, json_data, h))
 		.collect()
 }
 
-fn do_json_test_for<H: FnMut(&str, HookType)>(vm_type: &VMType, json_data: &[u8], start_stop_hook: &mut H) -> Vec<String> {
-	let tests = ethjson::vm::Test::load(json_data).unwrap();
+fn do_json_test_for<H: FnMut(&str, HookType)>(
+	path: &Path,
+	vm_type: &VMType,
+	json_data: &[u8],
+	start_stop_hook: &mut H
+) -> Vec<String> {
+	let tests = ethjson::test_helpers::vm::Test::load(json_data)
+		.expect(&format!("Could not parse JSON executive test data from {}", path.display()));
 	let mut failed = Vec::new();
 
 	for (name, vm) in tests.into_iter() {
@@ -335,15 +342,15 @@ fn do_json_test_for<H: FnMut(&str, HookType)>(vm_type: &VMType, json_data: &[u8]
 
 				for (address, account) in vm.post_state.unwrap().into_iter() {
 					let address = address.into();
-					let code: Vec<u8> = account.code.into();
+					let code: Vec<u8> = account.code.expect("code is missing from json; test should have code").into();
 					let found_code = try_fail!(state.code(&address));
 					let found_balance = try_fail!(state.balance(&address));
 					let found_nonce = try_fail!(state.nonce(&address));
 
 					fail_unless(found_code.as_ref().map_or_else(|| code.is_empty(), |c| &**c == &code), "code is incorrect");
-					fail_unless(found_balance == account.balance.into(), "balance is incorrect");
-					fail_unless(found_nonce == account.nonce.into(), "nonce is incorrect");
-					for (k, v) in account.storage {
+					fail_unless(account.balance.as_ref().map_or(false, |b| b.0 == found_balance), "balance is incorrect");
+					fail_unless(account.nonce.as_ref().map_or(false, |n| n.0 == found_nonce), "nonce is incorrect");
+					for (k, v) in account.storage.expect("test should have storage") {
 						let key: U256 = k.into();
 						let value: U256 = v.into();
 						let found_storage = try_fail!(state.storage_at(&address, &BigEndianHash::from_uint(&key)));

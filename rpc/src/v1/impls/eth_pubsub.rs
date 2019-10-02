@@ -31,7 +31,7 @@ use v1::traits::EthPubSub;
 use v1::types::{pubsub, RichHeader, Log};
 
 use sync::{SyncState, Notification};
-use ethcore::client::{BlockChainClient, ChainNotify, NewBlocks, ChainRouteType};
+use client_traits::{BlockChainClient, ChainNotify};
 use ethereum_types::H256;
 use light::cache::Cache;
 use light::client::{LightChainClient, LightChainNotify};
@@ -42,6 +42,7 @@ use parking_lot::{RwLock, Mutex};
 use sync::{LightSyncProvider, LightNetworkDispatcher, ManageNetwork};
 
 use types::{
+	chain_notify::{NewBlocks, ChainRouteType},
 	ids::BlockId,
 	encoded,
 	filter::Filter as EthFilter,
@@ -136,7 +137,7 @@ where
 {
 	/// Creates a new `EthPubSubClient` for `LightClient`.
 	pub fn light(
-		client: Arc<LightChainClient>,
+		client: Arc<dyn LightChainClient>,
 		on_demand: Arc<OD>,
 		sync: Arc<S>,
 		cache: Arc<Mutex<Cache>>,

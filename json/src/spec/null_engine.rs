@@ -16,7 +16,8 @@
 
 //! Null engine params deserialization.
 
-use uint::Uint;
+use crate::uint::Uint;
+use serde::Deserialize;
 
 /// Authority params deserialization.
 #[derive(Debug, PartialEq, Deserialize)]
@@ -25,6 +26,8 @@ use uint::Uint;
 pub struct NullEngineParams {
 	/// Block reward.
 	pub block_reward: Option<Uint>,
+	/// Immediate finalization.
+	pub immediate_finalization: Option<bool>
 }
 
 /// Null engine descriptor
@@ -37,10 +40,8 @@ pub struct NullEngine {
 
 #[cfg(test)]
 mod tests {
-	use serde_json;
-	use uint::Uint;
+	use super::{NullEngine, Uint};
 	use ethereum_types::U256;
-	use super::*;
 
 	#[test]
 	fn null_engine_deserialization() {

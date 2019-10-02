@@ -300,7 +300,7 @@ usage! {
 
 			ARG arg_chain: (String) = "foundation", or |c: &Config| c.parity.as_ref()?.chain.clone(),
 			"--chain=[CHAIN]",
-			"Specify the blockchain type. CHAIN may be either a JSON chain specification file or ethereum, classic, poacore, volta, ewc, musicoin, ellaism, mix, callisto, morden, ropsten, kovan, rinkeby, goerli, kotti, poasokol, testnet, or dev.",
+			"Specify the blockchain type. CHAIN may be either a JSON chain specification file or ethereum, classic, poacore, xdai, volta, ewc, musicoin, ellaism, mix, callisto, morden, ropsten, kovan, rinkeby, goerli, kotti, poasokol, testnet, or dev.",
 
 			ARG arg_keys_path: (String) = "$BASE/keys", or |c: &Config| c.parity.as_ref()?.keys_path.clone(),
 			"--keys-path=[PATH]",
@@ -356,6 +356,10 @@ usage! {
 			FLAG flag_private_enabled: (bool) = false, or |c: &Config| c.private_tx.as_ref()?.enabled,
 			"--private-tx-enabled",
 			"Enable private transactions.",
+
+			FLAG flag_private_state_offchain: (bool) = false, or |c: &Config| c.private_tx.as_ref()?.state_offchain,
+			"--private-state-offchain",
+			"Store private state offchain (in the local DB).",
 
 			ARG arg_private_signer: (Option<String>) = None, or |c: &Config| c.private_tx.as_ref()?.signer.clone(),
 			"--private-signer=[ACCOUNT]",
@@ -1200,6 +1204,7 @@ struct Account {
 #[serde(deny_unknown_fields)]
 struct PrivateTransactions {
 	enabled: Option<bool>,
+	state_offchain: Option<bool>,
 	signer: Option<String>,
 	validators: Option<Vec<String>>,
 	account: Option<String>,
@@ -1766,6 +1771,7 @@ mod tests {
 
 			// -- Private Transactions Options
 			flag_private_enabled: true,
+			flag_private_state_offchain: false,
 			arg_private_signer: Some("0xdeadbeefcafe0000000000000000000000000000".into()),
 			arg_private_validators: Some("0xdeadbeefcafe0000000000000000000000000000".into()),
 			arg_private_passwords: Some("~/.safe/password.file".into()),

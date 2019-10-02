@@ -14,7 +14,7 @@ futures = "0.1.6"
 log = "0.4"
 multihash = "0.8"
 order-stat = "0.1"
-parking_lot = "0.8"
+parking_lot = "0.9"
 rand = "0.6"
 rand_xorshift = "0.1.1"
 rustc-hex = "1.0"
@@ -28,16 +28,18 @@ tokio-timer = "0.1"
 transient-hashmap = "0.4"
 itertools = "0.5"
 
-jsonrpc-core = "12.0.0"
-jsonrpc-derive = "12.0.0"
-jsonrpc-http-server = "12.0.0"
-jsonrpc-ws-server = "12.0.0"
-jsonrpc-ipc-server = "12.0.0"
-jsonrpc-pubsub = "12.0.0"
+jsonrpc-core = "13.2.0"
+jsonrpc-derive = "13.2.0"
+jsonrpc-http-server = "13.2.0"
+jsonrpc-ws-server = "13.2.0"
+jsonrpc-ipc-server = "13.2.0"
+jsonrpc-pubsub = "13.2.0"
 
+client-traits = { path = "../ethcore/client-traits" }
 common-types = { path = "../ethcore/types" }
+engine = { path = "../ethcore/engine" }
 ethash = { path = "../ethash" }
-ethcore = { path = "../ethcore", features = ["test-helpers"] }
+ethcore = { path = "../ethcore" }
 ethcore-accounts = { path = "../accounts", optional = true }
 ethcore-light = { path = "../ethcore/light" }
 ethcore-logger = { path = "../parity/logger" }
@@ -62,6 +64,7 @@ parity-updater = { path = "../updater" }
 parity-version = { path = "../util/version" }
 rlp = "0.4.0"
 account-state = { path = "../ethcore/account-state" }
+snapshot = { path = "../ethcore/snapshot" }
 stats = { path = "../util/stats" }
 trace = { path = "../ethcore/trace" }
 vm = { path = "../ethcore/vm" }
@@ -72,10 +75,13 @@ ethcore = { path = "../ethcore", features = ["test-helpers"] }
 ethcore-accounts = { path = "../accounts" }
 ethcore-io = { path = "../util/io" }
 ethcore-network = { path = "../util/network" }
+ethjson = { path = "../json", features = ["test-helpers"] }
 fake-fetch = { path = "../util/fake-fetch" }
 macros = { path = "../util/macros" }
+spec = { path = "../ethcore/spec" }
 pretty_assertions = "0.1"
-transaction-pool = "2.0"
+transaction-pool = "2.0.1"
+verification = { path = "../ethcore/verification" }
 
 [features]
 accounts = ["ethcore-accounts"]

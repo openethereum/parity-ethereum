@@ -23,18 +23,22 @@ use std::sync::Arc;
 
 use ansi_term::Colour;
 use blooms_db;
-use common_types::BlockNumber;
-use common_types::blockchain_info::BlockChainInfo;
-use common_types::encoded;
-use common_types::engines::ForkChoice;
-use common_types::engines::epoch::{Transition as EpochTransition, PendingTransition as PendingEpochTransition};
-use common_types::header::{Header, ExtendedHeader};
-use common_types::log_entry::{LogEntry, LocalizedLogEntry};
-use common_types::receipt::Receipt;
-use common_types::transaction::LocalizedTransaction;
-use common_types::tree_route::TreeRoute;
-use common_types::view;
-use common_types::views::{BlockView, HeaderView};
+use common_types::{
+	BlockNumber,
+	blockchain_info::BlockChainInfo,
+	block::{BlockInfo, BlockLocation, BranchBecomingCanonChainData},
+	encoded,
+	engines::ForkChoice,
+	engines::epoch::{Transition as EpochTransition, PendingTransition as PendingEpochTransition},
+	header::{Header, ExtendedHeader},
+	import_route::ImportRoute,
+	log_entry::{LogEntry, LocalizedLogEntry},
+	receipt::Receipt,
+	transaction::LocalizedTransaction,
+	tree_route::TreeRoute,
+	view,
+	views::{BlockView, HeaderView},
+};
 use ethcore_db::cache_manager::CacheManager;
 use ethcore_db::keys::{BlockReceipts, BlockDetails, TransactionAddress, EPOCH_KEY_PREFIX, EpochTransitions};
 use ethcore_db::{self as db, Writable, Readable, CacheUpdatePolicy};
@@ -50,9 +54,8 @@ use rlp::RlpStream;
 use rlp_compress::{compress, decompress, blocks_swapper};
 
 use crate::best_block::{BestBlock, BestAncientBlock};
-use crate::block_info::{BlockInfo, BlockLocation, BranchBecomingCanonChainData};
 use crate::update::{ExtrasUpdate, ExtrasInsert};
-use crate::{CacheSize, ImportRoute, Config};
+use crate::{CacheSize, Config};
 
 /// Database backing `BlockChain`.
 pub trait BlockChainDB: Send + Sync {
@@ -193,6 +196,12 @@ pub trait BlockProvider {
 	/// Returns logs matching given filter.
 	fn logs<F>(&self, blocks: Vec<H256>, matches: F, limit: Option<usize>) -> Vec<LocalizedLogEntry>
 		where F: Fn(&LogEntry) -> bool + Send + Sync, Self: Sized;
+}
+
+/// Interface for querying blocks with pending db transaction by hash and by number.
+trait InTransactionBlockProvider {
+	/// Get the familial details concerning a block.
+	fn uncommitted_block_details(&self, hash: &H256) -> Option<BlockDetails>;
 }
 
 #[derive(Debug, Hash, Eq, PartialEq, Clone)]
@@ -424,6 +433,19 @@ impl BlockProvider for BlockChain {
 	}
 }
 
+impl InTransactionBlockProvider for BlockChain {
+	fn uncommitted_block_details(&self, hash: &H256) -> Option<BlockDetails> {
+		let result = self.db.key_value().read_with_two_layer_cache(
+			db::COL_EXTRA,
+			&self.pending_block_details,
+			&self.block_details,
+			hash
+		)?;
+		self.cache_man.lock().note_used(CacheId::BlockDetails(*hash));
+		Some(result)
+	}
+}
+
 /// An iterator which walks the blockchain towards the genesis.
 #[derive(Clone)]
 pub struct AncestryIter<'a> {
@@ -592,7 +614,7 @@ impl BlockChain {
 			let best_block_rlp = bc.block(&best_block_hash)
 				.expect("Best block is from a known block hash; qed");
 
-			// and write them
+			// and write them to the cache.
 			let mut best_block = bc.best_block.write();
 			*best_block = BestBlock {
 				total_difficulty: best_block_total_difficulty,
@@ -792,7 +814,7 @@ impl BlockChain {
 		batch.put(db::COL_HEADERS, hash.as_bytes(), &compressed_header);
 		batch.put(db::COL_BODIES, hash.as_bytes(), &compressed_body);
 
-		let maybe_parent = self.block_details(&block_parent_hash);
+		let maybe_parent = self.uncommitted_block_details(&block_parent_hash);
 
 		if let Some(parent_details) = maybe_parent {
 			// parent known to be in chain.
@@ -855,12 +877,31 @@ impl BlockChain {
 		}
 	}
 
-	/// clears all caches for testing purposes
+	/// clears all caches, re-loads best block from disk for testing purposes
 	pub fn clear_cache(&self) {
 		self.block_bodies.write().clear();
 		self.block_details.write().clear();
 		self.block_hashes.write().clear();
 		self.block_headers.write().clear();
+		// Fetch best block details from disk
+		let best_block_hash = self.db.key_value().get(db::COL_EXTRA, b"best")
+			.expect("Low-level database error when fetching 'best' block. Some issue with disk?")
+			.as_ref()
+			.map(|r| H256::from_slice(r))
+			.unwrap();
+		let best_block_total_difficulty = self.block_details(&best_block_hash)
+			.expect("Best block is from a known block hash; a known block hash always comes with a known block detail; qed")
+			.total_difficulty;
+		let best_block_rlp = self.block(&best_block_hash)
+			.expect("Best block is from a known block hash; qed");
+
+		// and write them to the cache
+		let mut best_block = self.best_block.write();
+		*best_block = BestBlock {
+			total_difficulty: best_block_total_difficulty,
+			header: best_block_rlp.decode_header(),
+			block: best_block_rlp,
+		};
 	}
 
 	/// Update the best ancient block to the given hash, after checking that
@@ -1044,7 +1085,7 @@ impl BlockChain {
 	///
 	/// Used in snapshots to glue the chunks together at the end.
 	pub fn add_child(&self, batch: &mut DBTransaction, block_hash: H256, child_hash: H256) {
-		let mut parent_details = self.block_details(&block_hash)
+		let mut parent_details = self.uncommitted_block_details(&block_hash)
 			.unwrap_or_else(|| panic!("Invalid block hash: {:?}", block_hash));
 
 		parent_details.children.push(child_hash);
@@ -1151,7 +1192,7 @@ impl BlockChain {
 	/// Mark a block to be considered finalized. Returns `Some(())` if the operation succeeds, and `None` if the block
 	/// hash is not found.
 	pub fn mark_finalized(&self, batch: &mut DBTransaction, block_hash: H256) -> Option<()> {
-		let mut block_details = self.block_details(&block_hash)?;
+		let mut block_details = self.uncommitted_block_details(&block_hash)?;
 		block_details.is_finalized = true;
 
 		self.update_block_details(batch, block_hash, block_details);
@@ -1344,7 +1385,7 @@ impl BlockChain {
 	/// Uses the given parent details or attempts to load them from the database.
 	fn prepare_block_details_update(&self, parent_hash: H256, info: &BlockInfo, is_finalized: bool) -> HashMap<H256, BlockDetails> {
 		// update parent
-		let mut parent_details = self.block_details(&parent_hash).unwrap_or_else(|| panic!("Invalid parent hash: {:?}", parent_hash));
+		let mut parent_details = self.uncommitted_block_details(&parent_hash).unwrap_or_else(|| panic!("Invalid parent hash: {:?}", parent_hash));
 		parent_details.children.push(info.hash);
 
 		// create current block details.
@@ -1650,7 +1691,7 @@ mod tests {
 		let fork_choice = {
 			let header = block.header_view();
 			let parent_hash = header.parent_hash();
-			let parent_details = bc.block_details(&parent_hash).unwrap_or_else(|| panic!("Invalid parent hash: {:?}", parent_hash));
+			let parent_details = bc.uncommitted_block_details(&parent_hash).unwrap_or_else(|| panic!("Invalid parent hash: {:?}", parent_hash));
 			let block_total_difficulty = parent_details.total_difficulty + header.difficulty();
 			if block_total_difficulty > bc.best_block_total_difficulty() {
 				common_types::engines::ForkChoice::New

@@ -32,7 +32,7 @@ use std::{fs, io, error};
 use kvdb::DBTransaction;
 use kvdb_rocksdb::{CompactionProfile, Database, DatabaseConfig};
 
-fn other_io_err<E>(e: E) -> io::Error where E: Into<Box<error::Error + Send + Sync>> {
+fn other_io_err<E>(e: E) -> io::Error where E: Into<Box<dyn error::Error + Send + Sync>> {
 	io::Error::new(io::ErrorKind::Other, e)
 }
 
@@ -209,7 +209,7 @@ impl TempIndex {
 /// Manages database migration.
 pub struct Manager {
 	config: Config,
-	migrations: Vec<Box<Migration>>,
+	migrations: Vec<Box<dyn Migration>>,
 }
 
 impl Manager {
@@ -317,7 +317,7 @@ impl Manager {
 	}
 
 	/// Find all needed migrations.
-	fn migrations_from(&mut self, version: u32) -> Vec<&mut Box<Migration>> {
+	fn migrations_from(&mut self, version: u32) -> Vec<&mut Box<dyn Migration>> {
 		self.migrations.iter_mut().filter(|m| m.version() > version).collect()
 	}
 }

@@ -43,9 +43,9 @@ pub struct ShareChangeSession {
 	/// Share change session meta.
 	meta: ShareChangeSessionMeta,
 	/// Cluster.
-	cluster: Arc<Cluster>,
+	cluster: Arc<dyn Cluster>,
 	/// Key storage.
-	key_storage: Arc<KeyStorage>,
+	key_storage: Arc<dyn KeyStorage>,
 	/// Key version.
 	key_version: H256,
 	/// Nodes that have reported version ownership.
@@ -82,9 +82,9 @@ pub struct ShareChangeSessionParams {
 	/// Share change session meta.
 	pub meta: ShareChangeSessionMeta,
 	/// Cluster.
-	pub cluster: Arc<Cluster>,
+	pub cluster: Arc<dyn Cluster>,
 	/// Keys storage.
-	pub key_storage: Arc<KeyStorage>,
+	pub key_storage: Arc<dyn KeyStorage>,
 	/// Session plan.
 	pub plan: ShareChangeSessionPlan,
 }
@@ -97,7 +97,7 @@ pub struct ShareChangeTransport {
 	/// Session nonce.
 	nonce: u64,
 	/// Cluster.
-	cluster: Arc<Cluster>,
+	cluster: Arc<dyn Cluster>,
 }
 
 impl ShareChangeSession {
@@ -201,7 +201,7 @@ impl ShareChangeSession {
 }
 
 impl ShareChangeTransport {
-	pub fn new(session_id: SessionId, nonce: u64, cluster: Arc<Cluster>) -> Self {
+	pub fn new(session_id: SessionId, nonce: u64, cluster: Arc<dyn Cluster>) -> Self {
 		ShareChangeTransport {
 			session_id: session_id,
 			nonce: nonce,

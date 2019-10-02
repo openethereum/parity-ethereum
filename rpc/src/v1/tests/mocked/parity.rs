@@ -15,7 +15,7 @@
 // along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
 use std::sync::Arc;
-use ethcore::client::TestBlockChainClient;
+use ethcore::test_helpers::TestBlockChainClient;
 use ethcore_logger::RotatingLogger;
 use ethereum_types::{Address, U256, H256, BigEndianHash, Bloom};
 use ethstore::ethkey::{Generator, Random};
@@ -45,7 +45,7 @@ pub struct Dependencies {
 	pub updater: Arc<TestUpdater>,
 	pub logger: Arc<RotatingLogger>,
 	pub settings: Arc<NetworkSettings>,
-	pub network: Arc<ManageNetwork>,
+	pub network: Arc<dyn ManageNetwork>,
 	pub ws_address: Option<Host>,
 }
 

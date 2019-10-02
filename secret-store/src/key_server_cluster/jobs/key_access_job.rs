@@ -26,13 +26,13 @@ pub struct KeyAccessJob {
 	/// Has key share?
 	has_key_share: bool,
 	/// ACL storage.
-	acl_storage: Arc<AclStorage>,
+	acl_storage: Arc<dyn AclStorage>,
 	/// Requester data.
 	requester: Option<Requester>,
 }
 
 impl KeyAccessJob {
-	pub fn new_on_slave(id: SessionId, acl_storage: Arc<AclStorage>) -> Self {
+	pub fn new_on_slave(id: SessionId, acl_storage: Arc<dyn AclStorage>) -> Self {
 		KeyAccessJob {
 			id: id,
 			has_key_share: true,
@@ -41,7 +41,7 @@ impl KeyAccessJob {
 		}
 	}
 
-	pub fn new_on_master(id: SessionId, acl_storage: Arc<AclStorage>, requester: Requester) -> Self {
+	pub fn new_on_master(id: SessionId, acl_storage: Arc<dyn AclStorage>, requester: Requester) -> Self {
 		KeyAccessJob {
 			id: id,
 			has_key_share: true,
@@ -76,7 +76,7 @@ impl JobExecutor for KeyAccessJob {
 		if !self.has_key_share {
 			return Ok(JobPartialRequestAction::Reject(false));
 		}
-		
+
 		self.requester = Some(partial_request.clone());
 		self.acl_storage.check(partial_request.address(&self.id).map_err(Error::InsufficientRequesterData)?, &self.id)
 			.map(|is_confirmed| if is_confirmed { JobPartialRequestAction::Respond(true) } else { JobPartialRequestAction::Reject(false) })

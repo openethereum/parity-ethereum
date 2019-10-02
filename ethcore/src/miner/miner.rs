@@ -33,33 +33,33 @@ use futures::sync::mpsc;
 use io::IoChannel;
 use miner::filter_options::{FilterOptions, FilterOperator};
 use miner::pool_client::{PoolClient, CachedNonceClient, NonceCache};
-use miner;
+use miner::{self, MinerService};
 use parking_lot::{Mutex, RwLock};
 use rayon::prelude::*;
-use types::transaction::{
-	self,
-	Action,
-	UnverifiedTransaction,
-	SignedTransaction,
-	PendingTransaction,
-};
 use types::{
 	BlockNumber,
 	ids::TransactionId,
 	block::Block,
 	header::Header,
 	ids::BlockId,
-	engines::{SealingState},
+	io_message::ClientIoMessage,
+	engines::{Seal, SealingState},
 	errors::{EthcoreError as Error, ExecutionError},
 	receipt::RichReceipt,
+	transaction::{
+		self,
+		Action,
+		UnverifiedTransaction,
+		SignedTransaction,
+		PendingTransaction,
+	},
 };
 use using_queue::{UsingQueue, GetAction};
 
 use block::{ClosedBlock, SealedBlock};
-use client::{
-	BlockChain, ChainInfo, BlockProducer, SealedBlockImporter, Nonce, TransactionInfo, ClientIoMessage,
-};
-use engines::{Engine, Seal, EngineSigner};
+use client::{BlockProducer, SealedBlockImporter, Client};
+use client_traits::{BlockChain, ChainInfo, EngineClient, Nonce, TransactionInfo};
+use engine::{Engine, signer::EngineSigner};
 use machine::executive::contract_address;
 use spec::Spec;
 use account_state::State;
@@ -256,7 +256,7 @@ pub struct Miner {
 	transaction_queue: Arc<TransactionQueue>,
 	engine: Arc<dyn Engine>,
 	accounts: Arc<dyn LocalAccounts>,
-	io_channel: RwLock<Option<IoChannel<ClientIoMessage>>>,
+	io_channel: RwLock<Option<IoChannel<ClientIoMessage<Client>>>>,
 	service_transaction_checker: Option<ServiceTransactionChecker>,
 }
 
@@ -340,7 +340,7 @@ impl Miner {
 	}
 
 	/// Sets `IoChannel`
-	pub fn set_io_channel(&self, io_channel: IoChannel<ClientIoMessage>) {
+	pub fn set_io_channel(&self, io_channel: IoChannel<ClientIoMessage<Client>>) {
 		*self.io_channel.write() = Some(io_channel);
 	}
 
@@ -513,7 +513,7 @@ impl Miner {
 			let sender = transaction.sender();
 
 			// Re-verify transaction again vs current state.
-			let result = client.verify_signed(&transaction)
+			let result = client.verify_for_pending_block(&transaction, &open_block.header)
 				.map_err(|e| e.into())
 				.and_then(|_| {
 					open_block.push_transaction(transaction, None)
@@ -859,9 +859,9 @@ impl Miner {
 			false
 		}
 	}
+
 	/// Prepare pending block, check whether sealing is needed, and then update sealing.
 	fn prepare_and_update_sealing<C: miner::BlockChainClient>(&self, chain: &C) {
-		use miner::MinerService;
 		match self.engine.sealing_state() {
 			SealingState::Ready => {
 				self.maybe_enable_sealing();
@@ -1420,7 +1420,7 @@ impl miner::MinerService for Miner {
 				let accounts = self.accounts.clone();
 				let service_transaction_checker = self.service_transaction_checker.clone();
 
-				let cull = move |chain: &::client::Client| {
+				let cull = move |chain: &Client| {
 					let client = PoolClient::new(
 						chain,
 						&nonce_cache,
@@ -1429,15 +1429,22 @@ impl miner::MinerService for Miner {
 						service_transaction_checker.as_ref(),
 					);
 					queue.cull(client);
+					if is_internal_import {
+						chain.update_sealing();
+					}
 				};
 
-				if let Err(e) = channel.send(ClientIoMessage::execute(cull)) {
+				if let Err(e) = channel.send(ClientIoMessage::<Client>::execute(cull)) {
 					warn!(target: "miner", "Error queueing cull: {:?}", e);
 				}
 			} else {
 				self.transaction_queue.cull(client);
+				if is_internal_import {
+					self.update_sealing(chain);
+				}
 			}
 		}
+
 		if let Some(ref service_transaction_checker) = self.service_transaction_checker {
 			match service_transaction_checker.refresh_cache(chain) {
 				Ok(true) => {
@@ -1483,13 +1490,18 @@ mod tests {
 	use ethkey::{Generator, Random};
 	use hash::keccak;
 	use rustc_hex::FromHex;
-	use types::BlockNumber;
 
-	use client::{TestBlockChainClient, EachBlockWith, ChainInfo, ImportSealedBlock};
+	use client_traits::ChainInfo;
+	use client::ImportSealedBlock;
 	use miner::{MinerService, PendingOrdering};
-	use test_helpers::{generate_dummy_client, generate_dummy_client_with_spec};
-	use types::transaction::{Transaction};
-	use crate::spec;
+	use test_helpers::{
+		generate_dummy_client, generate_dummy_client_with_spec, TestBlockChainClient, EachBlockWith
+	};
+	use types::{
+		BlockNumber,
+		transaction::Transaction
+	};
+	use spec;
 
 	#[test]
 	fn should_prepare_block_to_seal() {

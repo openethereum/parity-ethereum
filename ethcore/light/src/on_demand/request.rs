@@ -24,8 +24,8 @@ use common_types::basic_account::BasicAccount;
 use common_types::encoded;
 use common_types::receipt::Receipt;
 use common_types::transaction::SignedTransaction;
-use ethcore::engines::{Engine, StateDependentProof};
-use ethcore::executive_state::{ProvedExecution, self};
+use engine::{Engine, StateDependentProof};
+use executive_state::{ProvedExecution, self};
 use ethereum_types::{H256, U256, Address};
 use ethtrie::{TrieError, TrieDB};
 use hash::{KECCAK_NULL_RLP, KECCAK_EMPTY, KECCAK_EMPTY_LIST_RLP, keccak};
@@ -1099,8 +1099,8 @@ mod tests {
 	use trie::Recorder;
 	use hash::keccak;
 
-	use ethcore::client::{BlockChainClient, TestBlockChainClient, EachBlockWith};
-	use client_traits::BlockInfo;
+	use ethcore::test_helpers::{TestBlockChainClient, EachBlockWith};
+	use client_traits::{BlockInfo, BlockChainClient};
 	use common_types::header::Header;
 	use common_types::encoded;
 	use common_types::receipt::{Receipt, TransactionOutcome};

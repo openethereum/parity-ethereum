@@ -20,8 +20,12 @@ use std::collections::{BTreeMap, HashSet};
 use parking_lot::Mutex;
 use call_contract::CallContract;
 use ethabi::FunctionOutputDecoder;
-use ethcore::client::{Client, BlockChainClient, ChainNotify, NewBlocks};
-use common_types::ids::BlockId;
+use ethcore::client::Client;
+use client_traits::{BlockChainClient, ChainNotify};
+use common_types::{
+	chain_notify::NewBlocks,
+	ids::BlockId,
+};
 use ethereum_types::{H256, Address};
 use ethkey::public_to_address;
 use bytes::Bytes;
@@ -117,11 +121,11 @@ struct CachedContract {
 	/// Previous confirm migration transaction.
 	confirm_migration_tx: Option<PreviousMigrationTransaction>,
 	/// This node key pair.
-	self_key_pair: Arc<NodeKeyPair>,
+	self_key_pair: Arc<dyn NodeKeyPair>,
 }
 
 impl OnChainKeyServerSet {
-	pub fn new(trusted_client: TrustedClient, contract_address_source: Option<ContractAddress>, self_key_pair: Arc<NodeKeyPair>, auto_migrate_enabled: bool, key_servers: BTreeMap<Public, NodeAddress>) -> Result<Arc<Self>, Error> {
+	pub fn new(trusted_client: TrustedClient, contract_address_source: Option<ContractAddress>, self_key_pair: Arc<dyn NodeKeyPair>, auto_migrate_enabled: bool, key_servers: BTreeMap<Public, NodeAddress>) -> Result<Arc<Self>, Error> {
 		let client = trusted_client.get_untrusted();
 		let key_server_set = Arc::new(OnChainKeyServerSet {
 			contract: Mutex::new(CachedContract::new(trusted_client, contract_address_source, self_key_pair, auto_migrate_enabled, key_servers)?),
@@ -228,7 +232,7 @@ impl <F: Fn(Vec<u8>) -> Result<Vec<u8>, String>> KeyServerSubset<F> for NewKeySe
 }
 
 impl CachedContract {
-	pub fn new(client: TrustedClient, contract_address_source: Option<ContractAddress>, self_key_pair: Arc<NodeKeyPair>, auto_migrate_enabled: bool, key_servers: BTreeMap<Public, NodeAddress>) -> Result<Self, Error> {
+	pub fn new(client: TrustedClient, contract_address_source: Option<ContractAddress>, self_key_pair: Arc<dyn NodeKeyPair>, auto_migrate_enabled: bool, key_servers: BTreeMap<Public, NodeAddress>) -> Result<Self, Error> {
 		let server_set = match contract_address_source.is_none() {
 			true => key_servers.into_iter()
 				.map(|(p, addr)| {
@@ -467,7 +471,7 @@ impl CachedContract {
 		key_servers
 	}
 
-	fn update_number_of_confirmations_if_required(&mut self, client: &BlockChainClient) {
+	fn update_number_of_confirmations_if_required(&mut self, client: &dyn BlockChainClient) {
 		if !self.auto_migrate_enabled {
 			return;
 		}
@@ -570,11 +574,11 @@ fn update_last_transaction_block(client: &Client, migration_id: &H256, previous_
 	true
 }
 
-fn latest_block_hash(client: &BlockChainClient) -> H256 {
+fn latest_block_hash(client: &dyn BlockChainClient) -> H256 {
 	client.block_hash(BlockId::Latest).unwrap_or_default()
 }
 
-fn block_confirmations(client: &BlockChainClient, block: H256) -> Option<u64> {
+fn block_confirmations(client: &dyn BlockChainClient, block: H256) -> Option<u64> {
 	client.block_number(BlockId::Hash(block))
 		.and_then(|block| client.block_number(BlockId::Latest).map(|last_block| (block, last_block)))
 		.map(|(block, last_block)| last_block - block)

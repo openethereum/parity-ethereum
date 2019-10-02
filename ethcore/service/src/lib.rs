@@ -16,6 +16,7 @@
 
 extern crate ansi_term;
 extern crate common_types;
+extern crate client_traits;
 extern crate ethcore;
 extern crate ethcore_blockchain as blockchain;
 extern crate ethcore_io as io;
@@ -23,6 +24,8 @@ extern crate ethcore_private_tx;
 extern crate ethcore_sync as sync;
 extern crate ethereum_types;
 extern crate kvdb;
+extern crate spec;
+extern crate snapshot;
 
 #[macro_use]
 extern crate log;

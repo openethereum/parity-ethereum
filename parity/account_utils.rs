@@ -133,7 +133,7 @@ mod accounts {
 	}
 
 	pub fn miner_author(spec: &SpecType, dirs: &Directories, account_provider: &Arc<AccountProvider>, engine_signer: Address, passwords: &[Password]) -> Result<Option<::ethcore::miner::Author>, String> {
-		use ethcore::engines::EngineSigner;
+		use engine::signer::EngineSigner;
 
 		// Check if engine signer exists
 		if !account_provider.has_account(engine_signer) {
@@ -199,14 +199,14 @@ mod accounts {
 		}
 	}
 
-	pub fn private_tx_signer(accounts: Arc<AccountProvider>, passwords: &[Password]) -> Result<Arc<::ethcore_private_tx::Signer>, String> {
+	pub fn private_tx_signer(accounts: Arc<AccountProvider>, passwords: &[Password]) -> Result<Arc<dyn (ethcore_private_tx::Signer)>, String> {
 		Ok(Arc::new(self::private_tx::AccountSigner {
 			accounts,
 			passwords: passwords.to_vec(),
 		}))
 	}
 
-	pub fn accounts_list(account_provider: Arc<AccountProvider>) -> Arc<Fn() -> Vec<Address> + Send + Sync> {
+	pub fn accounts_list(account_provider: Arc<AccountProvider>) -> Arc<dyn Fn() -> Vec<Address> + Send + Sync> {
 		Arc::new(move || account_provider.accounts().unwrap_or_default())
 	}
 

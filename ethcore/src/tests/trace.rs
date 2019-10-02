@@ -21,22 +21,22 @@ use hash::keccak;
 use block::*;
 use ethereum_types::{U256, Address};
 use io::*;
-use crate::spec;
-use client::*;
+use spec;
 use test_helpers::get_temp_state_db;
-use client::{BlockChainClient, Client, ClientConfig};
+use client::{Client, ClientConfig};
+use client_traits::{BlockChainClient, ImportBlock};
 use std::sync::Arc;
 use std::str::FromStr;
 use miner::Miner;
 use trace::{RewardType, LocalizedTrace};
 use trace::trace::Action::Reward;
 use test_helpers;
-use verification::queue::kind::blocks::Unverified;
 use types::{
 	ids::BlockId,
 	transaction::{Action, Transaction},
 	trace_filter::Filter as TraceFilter,
 	header::Header,
+	verification::Unverified,
 	view,
 	views::BlockView,
 };
@@ -181,7 +181,6 @@ fn can_trace_block_and_uncle_reward() {
 
 	block.drain();
 	client.flush_queue();
-	client.import_verified_blocks();
 
 	// Test0. Check overall filter
 	let filter = TraceFilter {

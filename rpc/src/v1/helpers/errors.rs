@@ -24,7 +24,7 @@ use types::transaction::Error as TransactionError;
 use ethcore_private_tx::Error as PrivateTransactionError;
 use vm::Error as VMError;
 use light::on_demand::error::{Error as OnDemandError};
-use ethcore::client::BlockChainClient;
+use client_traits::BlockChainClient;
 use types::{
 	ids::BlockId,
 	blockchain_info::BlockChainInfo,
@@ -420,8 +420,11 @@ pub fn transaction_message(error: &TransactionError) -> String {
 	match *error {
 		AlreadyImported => "Transaction with the same hash was already imported.".into(),
 		Old => "Transaction nonce is too low. Try incrementing the nonce.".into(),
-		TooCheapToReplace => {
-			"Transaction gas price is too low. There is another transaction with same nonce in the queue. Try increasing the gas price or incrementing the nonce.".into()
+		TooCheapToReplace { prev, new } => {
+			format!("Transaction gas price {} is too low. There is another transaction with same nonce in the queue{}. Try increasing the gas price or incrementing the nonce.",
+					new.map(|gas| format!("{}wei", gas)).unwrap_or("supplied".into()),
+					prev.map(|gas| format!(" with gas price: {}wei", gas)).unwrap_or("".into())
+			)
 		}
 		LimitReached => {
 			"There are too many transactions in the queue. Your transaction was dropped due to limit. Try increasing the fee.".into()

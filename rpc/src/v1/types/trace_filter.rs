@@ -16,7 +16,6 @@
 
 //! Trace filter deserialization.
 
-use ethcore::client;
 use ethereum_types::H160;
 use types::{
 	ids::BlockId,

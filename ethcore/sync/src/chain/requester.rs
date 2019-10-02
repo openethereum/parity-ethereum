@@ -14,14 +14,19 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
-use block_sync::BlockRequest;
+use std::time::Instant;
+
+use crate::{
+	block_sync::BlockRequest,
+	sync_io::SyncIo
+};
+
 use bytes::Bytes;
 use ethereum_types::H256;
+use log::{debug, trace, warn};
 use network::{PeerId};
 use rlp::RlpStream;
-use std::time::Instant;
-use sync_io::SyncIo;
-use types::BlockNumber;
+use common_types::BlockNumber;
 
 use super::sync_packet::SyncPacket;
 use super::sync_packet::SyncPacket::{
@@ -30,6 +35,7 @@ use super::sync_packet::SyncPacket::{
 	GetReceiptsPacket,
 	GetSnapshotManifestPacket,
 	GetSnapshotDataPacket,
+	GetPrivateStatePacket,
 };
 
 use super::{
@@ -97,6 +103,15 @@ impl SyncRequester {
 		trace!(target: "sync", "{} <- GetSnapshotManifest", peer_id);
 		let rlp = RlpStream::new_list(0);
 		SyncRequester::send_request(sync, io, peer_id, PeerAsking::SnapshotManifest, GetSnapshotManifestPacket, rlp.out());
+	}
+
+	pub fn request_private_state(sync: &mut ChainSync, io: &mut dyn SyncIo, peer_id: PeerId, hash: &H256) {
+		trace!(target: "privatetx", "{} <- GetPrivateStatePacket", peer_id);
+		let mut rlp = RlpStream::new_list(1);
+		rlp.append(hash);
+		SyncRequester::send_request(sync, io, peer_id, PeerAsking::PrivateState, GetPrivateStatePacket, rlp.out());
+		let peer = sync.peers.get_mut(&peer_id).expect("peer_id may originate either from on_packet, where it is already validated or from enumerating self.peers. qed");
+		peer.asking_private_state = Some(hash.clone());
 	}
 
 	/// Request headers from a peer by block hash

@@ -17,13 +17,14 @@
 //! EVM runner.
 
 use std::time::{Instant, Duration};
-use ethcore::client::{self, EvmTestClient, EvmTestError, TransactErr, TransactSuccess};
-use ethcore::{spec, TrieSpec};
+
+use common_types::transaction;
+use ethcore::test_helpers::{EvmTestClient, EvmTestError, TransactErr, TransactSuccess, TrieSpec};
 use ethereum_types::{H256, U256};
 use ethjson;
 use pod::PodState;
+use spec;
 use trace;
-use types::transaction;
 use vm::ActionParams;
 
 /// EVM execution informant.
@@ -37,7 +38,7 @@ pub trait Informant: trace::VMTracer {
 	/// Clone sink.
 	fn clone_sink(&self) -> Self::Sink;
 	/// Display final result.
-	fn finish(result: RunResult<Self::Output>, &mut Self::Sink);
+	fn finish(result: RunResult<Self::Output>, _: &mut Self::Sink);
 }
 
 /// Execution finished correctly.
@@ -118,7 +119,7 @@ pub struct TxInput<'a, T> {
 	/// State root hash associated with the transaction.
 	pub post_root: H256,
 	/// Client environment information associated with the transaction's chain specification.
-	pub env_info: &'a client::EnvInfo,
+	pub env_info: &'a vm::EnvInfo,
 	/// Signed transaction accompanied by a signature that may be unverified and a successfully recovered
 	/// sender address. The unverified transaction contains a recoverable ECDSA signature that has been encoded
 	/// as RSV components and includes replay protection for the specified chain. Verification of the signed transaction
@@ -240,7 +241,7 @@ pub mod tests {
 	use super::*;
 	use tempdir::TempDir;
 	use ethereum_types::Address;
-	use ethcore::spec::{self, Spec};
+	use spec::{self, Spec};
 
 	pub fn run_test<T, I, F>(
 		informant: I,
@@ -272,7 +273,7 @@ pub mod tests {
 
 	#[test]
 	fn should_call_account_from_spec() {
-		use display::std_json::tests::informant;
+		use crate::display::std_json::tests::informant;
 
 		let (inf, res, _) = informant();
 		let mut params = ActionParams::default();

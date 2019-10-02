@@ -16,6 +16,7 @@
 
 //! Smart contract based node filter.
 
+extern crate client_traits;
 extern crate common_types;
 extern crate ethabi;
 extern crate ethcore;
@@ -26,8 +27,6 @@ extern crate lru_cache;
 extern crate parking_lot;
 
 #[macro_use]
-extern crate ethabi_derive;
-#[macro_use]
 extern crate ethabi_contract;
 #[cfg(test)]
 extern crate ethcore_io as io;
@@ -35,14 +34,19 @@ extern crate ethcore_io as io;
 extern crate kvdb_memorydb;
 #[cfg(test)]
 extern crate tempdir;
+#[cfg(test)]
+extern crate spec;
 #[macro_use]
 extern crate log;
 
 use std::collections::{HashMap, VecDeque};
 use std::sync::Weak;
 
-use common_types::ids::BlockId;
-use ethcore::client::{BlockChainClient, ChainNotify, NewBlocks};
+use common_types::{
+	ids::BlockId,
+	chain_notify::NewBlocks,
+};
+use client_traits::{BlockChainClient, ChainNotify};
 use ethereum_types::{H256, Address};
 use ethabi::FunctionOutputDecoder;
 use network::{ConnectionFilter, ConnectionDirection};
@@ -54,7 +58,7 @@ use_contract!(peer_set, "res/peer_set.json");
 
 /// Connection filter that uses a contract to manage permissions.
 pub struct NodeFilter {
-	client: Weak<BlockChainClient>,
+	client: Weak<dyn BlockChainClient>,
 	contract_address: Address,
 	cache: RwLock<Cache>
 }
@@ -128,8 +132,10 @@ impl ChainNotify for NodeFilter {
 #[cfg(test)]
 mod test {
 	use std::sync::{Arc, Weak};
-	use ethcore::spec::Spec;
-	use ethcore::client::{BlockChainClient, Client, ClientConfig};
+
+	use client_traits::BlockChainClient;
+	use spec::Spec;
+	use ethcore::client::{Client, ClientConfig};
 	use ethcore::miner::Miner;
 	use ethcore::test_helpers;
 	use network::{ConnectionDirection, ConnectionFilter, NodeId};
@@ -155,7 +161,7 @@ mod test {
 			Arc::new(Miner::new_for_tests(&spec, None)),
 			IoChannel::disconnected(),
 		).unwrap();
-		let filter = NodeFilter::new(Arc::downgrade(&client) as Weak<BlockChainClient>, contract_addr);
+		let filter = NodeFilter::new(Arc::downgrade(&client) as Weak<dyn BlockChainClient>, contract_addr);
 		let self1 = NodeId::from_str("00000000000000000000000000000000000000000000000000000000000000010000000000000000000000000000000000000000000000000000000000000002").unwrap();
 		let self2 = NodeId::from_str("00000000000000000000000000000000000000000000000000000000000000020000000000000000000000000000000000000000000000000000000000000003").unwrap();
 		let node1 = NodeId::from_str("00000000000000000000000000000000000000000000000000000000000000110000000000000000000000000000000000000000000000000000000000000012").unwrap();

@@ -18,10 +18,10 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use ethcore::client::DatabaseCompactionProfile;
-use ethcore::spec::{SpecParams, OptimizeFor};
+use spec::SpecParams;
 use light::client::fetch::Unavailable as UnavailableDataFetcher;
 use light::Cache as LightDataCache;
-
+use types::engines::OptimizeFor;
 use params::{SpecType, Pruning};
 use helpers::execute_upgrades;
 use dir::Directories;

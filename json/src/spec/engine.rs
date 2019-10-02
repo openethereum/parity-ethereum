@@ -17,6 +17,7 @@
 //! Engine deserialization.
 
 use super::{Ethash, BasicAuthority, AuthorityRound, NullEngine, InstantSeal, Clique};
+use serde::Deserialize;
 
 /// Engine deserialization.
 #[derive(Debug, PartialEq, Deserialize)]
@@ -40,8 +41,7 @@ pub enum Engine {
 
 #[cfg(test)]
 mod tests {
-	use serde_json;
-	use spec::Engine;
+	use super::Engine;
 
 	#[test]
 	fn engine_deserialization() {

@@ -45,7 +45,7 @@ where
 	/// Sync service.
 	pub sync: Arc<S>,
 	/// Header chain client.
-	pub client: Arc<LightChainClient>,
+	pub client: Arc<dyn LightChainClient>,
 	/// On-demand request service.
 	pub on_demand: Arc<OD>,
 	/// Data cache.
@@ -68,7 +68,7 @@ where
 	/// For correct operation, the OnDemand service is assumed to be registered as a network handler,
 	pub fn new(
 		sync: Arc<S>,
-		client: Arc<LightChainClient>,
+		client: Arc<dyn LightChainClient>,
 		on_demand: Arc<OD>,
 		cache: Arc<Mutex<LightDataCache>>,
 		transaction_queue: Arc<RwLock<LightTransactionQueue>>,
@@ -215,7 +215,7 @@ where
 	fn sign<P>(
 		&self,
 		filled: FilledTransactionRequest,
-		signer: &Arc<Accounts>,
+		signer: &Arc<dyn Accounts>,
 		password: SignWith,
 		post_sign: P
 	) -> BoxFuture<P::Item>
@@ -248,7 +248,7 @@ where
 // TODO: this could be `impl Trait`.
 pub fn fetch_gas_price_corpus<S, OD>(
 	sync: Arc<S>,
-	client: Arc<LightChainClient>,
+	client: Arc<dyn LightChainClient>,
 	on_demand: Arc<OD>,
 	cache: Arc<Mutex<LightDataCache>>,
 ) -> BoxFuture<Corpus<U256>>

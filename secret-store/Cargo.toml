@@ -7,6 +7,7 @@ authors = ["Parity Technologies <admin@parity.io>"]
 
 [dependencies]
 byteorder = "1.0"
+client-traits = { path = "../ethcore/client-traits" }
 common-types = { path = "../ethcore/types" }
 ethabi = "8.0"
 ethabi-contract = "8.0"
@@ -26,7 +27,8 @@ log = "0.4"
 parity-bytes = "0.1"
 parity-crypto = "0.4.0"
 parity-runtime = { path = "../util/runtime" }
-parking_lot = "0.8"
+parking_lot = "0.9"
+percent-encoding = "2.1.0"
 rustc-hex = "1.0"
 serde = "1.0"
 serde_derive = "1.0"
@@ -35,14 +37,14 @@ tiny-keccak = "1.4"
 tokio = "~0.1.11"
 tokio-io = "0.1"
 tokio-service = "0.1"
-url = "1.0"
-jsonrpc-server-utils = "12.0.0"
+url = "2.1.0"
+jsonrpc-server-utils = "13.2.0"
 
 [dev-dependencies]
 env_logger = "0.5"
 ethcore = { path = "../ethcore", features = ["test-helpers"] }
 tempdir = "0.3"
-kvdb-rocksdb = "0.1.3"
+kvdb-rocksdb = "0.1.5"
 
 [features]
 accounts = ["ethcore-accounts"]

@@ -37,7 +37,7 @@ use std::sync::Arc;
 use bytes::Bytes;
 use ethereum_types::{H256, U256, Address, Bloom};
 
-use engines::Engine;
+use engine::Engine;
 use trie_vm_factories::Factories;
 use state_db::StateDB;
 use account_state::State;
@@ -265,7 +265,7 @@ impl<'x> OpenBlock<'x> {
 		})
 	}
 
-	#[cfg(test)]
+	#[cfg(any(test, feature = "test-helpers"))]
 	/// Return mutable block reference. To be used in tests only.
 	pub fn block_mut(&mut self) -> &mut ExecutedBlock { &mut self.block }
 }
@@ -485,20 +485,22 @@ pub fn enact_verified(
 mod tests {
 	use test_helpers::get_temp_state_db;
 	use super::*;
-	use engines::Engine;
+	use engine::Engine;
 	use vm::LastHashes;
 	use trie_vm_factories::Factories;
 	use state_db::StateDB;
 	use ethereum_types::Address;
 	use std::sync::Arc;
-	use verification::queue::kind::blocks::Unverified;
-	use types::transaction::SignedTransaction;
 	use types::{
-		header::Header, view, views::BlockView,
 		errors::EthcoreError as Error,
+		header::Header,
+		transaction::SignedTransaction,
+		view,
+		views::BlockView,
+		verification::Unverified,
 	};
 	use hash_db::EMPTY_PREFIX;
-	use crate::spec;
+	use spec;
 
 	/// Enact the block given by `block_bytes` using `engine` on the database `db` with given `parent` block header
 	fn enact_bytes(
