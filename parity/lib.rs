@@ -71,6 +71,7 @@ extern crate parity_rpc;
 extern crate parity_runtime;
 extern crate parity_updater as updater;
 extern crate parity_version;
+extern crate registrar;
 extern crate snapshot;
 extern crate spec;
 extern crate verification;

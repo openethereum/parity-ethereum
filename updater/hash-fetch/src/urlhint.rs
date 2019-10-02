@@ -16,7 +16,7 @@
 
 //! URLHint Contract
 
-use std::sync::Arc;
+use std::sync::Weak;
 use rustc_hex::ToHex;
 use mime::{self, Mime};
 use mime_guess;
@@ -99,12 +99,12 @@ pub trait URLHint: Send + Sync {
 
 /// `URLHintContract` API
 pub struct URLHintContract {
-	client: Arc<dyn RegistrarClient>,
+	client: Weak<dyn RegistrarClient>,
 }
 
 impl URLHintContract {
 	/// Creates new `URLHintContract`
-	pub fn new(client: Arc<dyn RegistrarClient>) -> Self {
+	pub fn new(client: Weak<dyn RegistrarClient>) -> Self {
 		URLHintContract {
 			client: client,
 		}
@@ -161,7 +161,8 @@ impl URLHint for URLHintContract {
 	fn resolve(&self, id: H256) -> Result<Option<URLHintResult>, String>  {
 		use urlhint::urlhint::functions::entries::{encode_input, decode_output};
 
-		let client = self.client.clone();
+		let client = self.client.clone().upgrade()
+			.ok_or_else(|| "Registrar/contract client unavailable".to_owned())?;
 
 		let returned_address = client.get_address(GITHUB_HINT, BlockId::Latest)?;
 

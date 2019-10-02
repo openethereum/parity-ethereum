@@ -66,6 +66,7 @@ use rpc_apis;
 use secretstore;
 use signer;
 use db;
+use registrar::RegistrarClient;
 
 // how often to take periodic snapshots.
 const SNAPSHOT_PERIOD: u64 = 5000;
@@ -682,13 +683,18 @@ fn execute_impl<Cr, Rr>(cmd: RunCmd, logger: Arc<RotatingLogger>, on_client_rq: 
 		chain_notify.start();
 	}
 
+	let fetcher = hash_fetch::Client::with_fetch(
+		Arc::downgrade(&(service.client() as Arc<dyn RegistrarClient>)),
+		fetch.clone(),
+		runtime.executor()
+	);
+
 	// the updater service
-	let updater_fetch = fetch.clone();
 	let updater = Updater::new(
 		&Arc::downgrade(&(service.client() as Arc<dyn BlockChainClient>)),
 		&Arc::downgrade(&sync_provider),
 		update_policy,
-		hash_fetch::Client::with_fetch(client.clone(), updater_fetch, runtime.executor())
+		fetcher
 	);
 	service.add_notify(updater.clone());
 

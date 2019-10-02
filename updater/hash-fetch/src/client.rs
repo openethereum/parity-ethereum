@@ -18,7 +18,7 @@
 
 use std::{io, fs};
 use std::io::Write;
-use std::sync::Arc;
+use std::sync::{Arc, Weak};
 use std::path::PathBuf;
 
 use hash::keccak_buffer;
@@ -116,7 +116,7 @@ pub struct Client<F: Fetch + 'static = fetch::Client> {
 
 impl<F: Fetch + 'static> Client<F> {
 	/// Creates new instance of the `Client` given on-chain contract client, fetch service and task runner.
-	pub fn with_fetch(contract: Arc<dyn RegistrarClient>, fetch: F, executor: Executor) -> Self {
+	pub fn with_fetch(contract: Weak<dyn RegistrarClient>, fetch: F, executor: Executor) -> Self {
 		Client {
 			contract: URLHintContract::new(contract),
 			fetch: fetch,
