@@ -12,3 +12,11 @@ edition = "2018"
 
 [dependencies]
 rustc-hex = "2.0.1"
+arrayref = "0.3.5"
+
+[dev-dependencies]
+criterion = "0.3"
+
+[[bench]]
+name = "bench"
+harness = false
