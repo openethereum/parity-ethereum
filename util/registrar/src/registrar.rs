@@ -25,12 +25,12 @@ use_contract!(registrar, "res/registrar.json");
 const DNS_A_RECORD: &'static str = "A";
 
 /// Registrar contract interface
-/// Should execute transaction using current blockchain state.
 pub trait RegistrarClient: CallContract + Send + Sync {
 	/// Get address of the registrar itself
 	fn registrar_address(&self) -> Option<Address>;
 
-	fn get_address<'a>(&self, key: &'a str, block: BlockId) -> Result<Option<Address>, String> {
+	/// Get address from registrar for the specified key.
+	fn get_address(&self, key: &str, block: BlockId) -> Result<Option<Address>, String> {
 		use registrar::registrar::functions::get_address::{encode_input, decode_output};
 
 		let registrar_address = match self.registrar_address() {
