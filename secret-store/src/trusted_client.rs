@@ -33,11 +33,11 @@ use {Error, NodeKeyPair, ContractAddress};
 /// 'Trusted' client weak reference.
 pub struct TrustedClient {
 	/// This key server node key pair.
-	self_key_pair: Arc<NodeKeyPair>,
+	self_key_pair: Arc<dyn NodeKeyPair>,
 	/// Blockchain client.
 	client: Weak<Client>,
 	/// Sync provider.
-	sync: Weak<SyncProvider>,
+	sync: Weak<dyn SyncProvider>,
 	/// Miner service.
 	miner: Weak<Miner>,
 }

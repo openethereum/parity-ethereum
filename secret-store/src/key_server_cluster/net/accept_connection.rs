@@ -25,7 +25,7 @@ use key_server_cluster::io::{accept_handshake, Handshake, Deadline, deadline};
 use key_server_cluster::net::Connection;
 
 /// Create future for accepting incoming connection.
-pub fn accept_connection(stream: TcpStream, self_key_pair: Arc<NodeKeyPair>) -> Deadline<AcceptConnection> {
+pub fn accept_connection(stream: TcpStream, self_key_pair: Arc<dyn NodeKeyPair>) -> Deadline<AcceptConnection> {
 	// TODO: This could fail so it would be better either to accept the
 	// address as a separate argument or return a result.
 	let address = stream.peer_addr().expect("Unable to determine tcp peer address");

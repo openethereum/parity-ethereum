@@ -42,7 +42,7 @@ pub struct ApiMask {
 
 /// Combined HTTP + service contract listener.
 pub struct Listener {
-	key_server: Arc<KeyServer>,
+	key_server: Arc<dyn KeyServer>,
 	_http: Option<http_listener::KeyServerHttpListener>,
 	_contract: Option<Arc<service_contract_listener::ServiceContractListener>>,
 }
@@ -61,7 +61,7 @@ impl ApiMask {
 
 impl Listener {
 	/// Create new listener.
-	pub fn new(key_server: Arc<KeyServer>, http: Option<http_listener::KeyServerHttpListener>, contract: Option<Arc<service_contract_listener::ServiceContractListener>>) -> Self {
+	pub fn new(key_server: Arc<dyn KeyServer>, http: Option<http_listener::KeyServerHttpListener>, contract: Option<Arc<service_contract_listener::ServiceContractListener>>) -> Self {
 		Self {
 			key_server: key_server,
 			_http: http,
@@ -78,7 +78,7 @@ impl ServerKeyGenerator for Listener {
 		key_id: ServerKeyId,
 		author: Requester,
 		threshold: usize,
-	) -> Box<Future<Item=Public, Error=Error> + Send> {
+	) -> Box<dyn Future<Item=Public, Error=Error> + Send> {
 		self.key_server.generate_key(key_id, author, threshold)
 	}
 
@@ -86,7 +86,7 @@ impl ServerKeyGenerator for Listener {
 		&self,
 		key_id: ServerKeyId,
 		author: Requester,
-	) -> Box<Future<Item=Public, Error=Error> + Send> {
+	) -> Box<dyn Future<Item=Public, Error=Error> + Send> {
 		self.key_server.restore_key_public(key_id, author)
 	}
 }
@@ -98,7 +98,7 @@ impl DocumentKeyServer for Listener {
 		author: Requester,
 		common_point: Public,
 		encrypted_document_key: Public,
-	) -> Box<Future<Item=(), Error=Error> + Send> {
+	) -> Box<dyn Future<Item=(), Error=Error> + Send> {
 		self.key_server.store_document_key(key_id, author, common_point, encrypted_document_key)
 	}
 
@@ -107,7 +107,7 @@ impl DocumentKeyServer for Listener {
 		key_id: ServerKeyId,
 		author: Requester,
 		threshold: usize,
-	) -> Box<Future<Item=EncryptedDocumentKey, Error=Error> + Send> {
+	) -> Box<dyn Future<Item=EncryptedDocumentKey, Error=Error> + Send> {
 		self.key_server.generate_document_key(key_id, author, threshold)
 	}
 
@@ -115,7 +115,7 @@ impl DocumentKeyServer for Listener {
 		&self,
 		key_id: ServerKeyId,
 		requester: Requester,
-	) -> Box<Future<Item=EncryptedDocumentKey, Error=Error> + Send> {
+	) -> Box<dyn Future<Item=EncryptedDocumentKey, Error=Error> + Send> {
 		self.key_server.restore_document_key(key_id, requester)
 	}
 
@@ -123,7 +123,7 @@ impl DocumentKeyServer for Listener {
 		&self,
 		key_id: ServerKeyId,
 		requester: Requester,
-	) -> Box<Future<Item=EncryptedDocumentKeyShadow, Error=Error> + Send> {
+	) -> Box<dyn Future<Item=EncryptedDocumentKeyShadow, Error=Error> + Send> {
 		self.key_server.restore_document_key_shadow(key_id, requester)
 	}
 }
@@ -134,7 +134,7 @@ impl MessageSigner for Listener {
 		key_id: ServerKeyId,
 		requester: Requester,
 		message: MessageHash,
-	) -> Box<Future<Item=EncryptedMessageSignature, Error=Error> + Send> {
+	) -> Box<dyn Future<Item=EncryptedMessageSignature, Error=Error> + Send> {
 		self.key_server.sign_message_schnorr(key_id, requester, message)
 	}
 
@@ -143,7 +143,7 @@ impl MessageSigner for Listener {
 		key_id: ServerKeyId,
 		requester: Requester,
 		message: MessageHash,
-	) -> Box<Future<Item=EncryptedMessageSignature, Error=Error> + Send> {
+	) -> Box<dyn Future<Item=EncryptedMessageSignature, Error=Error> + Send> {
 		self.key_server.sign_message_ecdsa(key_id, requester, message)
 	}
 }
@@ -154,7 +154,7 @@ impl AdminSessionsServer for Listener {
 		old_set_signature: RequestSignature,
 		new_set_signature: RequestSignature,
 		new_servers_set: BTreeSet<NodeId>,
-	) -> Box<Future<Item=(), Error=Error> + Send> {
+	) -> Box<dyn Future<Item=(), Error=Error> + Send> {
 		self.key_server.change_servers_set(old_set_signature, new_set_signature, new_servers_set)
 	}
 }

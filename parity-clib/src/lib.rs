@@ -243,7 +243,7 @@ pub unsafe extern fn parity_set_logger(
 }
 
 // WebSocket event loop
-fn parity_ws_worker(client: &RunningClient, query: &str, callback: Arc<Callback>) -> *const c_void {
+fn parity_ws_worker(client: &RunningClient, query: &str, callback: Arc<dyn Callback>) -> *const c_void {
 	let (tx, mut rx) = mpsc::channel(1);
 	let session = Arc::new(PubSubSession::new(tx));
 	let query_future = client.rpc_query(query, Some(session.clone()));
@@ -274,7 +274,7 @@ fn parity_ws_worker(client: &RunningClient, query: &str, callback: Arc<Callback>
 }
 
 // RPC event loop that runs for at most `timeout_ms`
-fn parity_rpc_worker(client: &RunningClient, query: &str, callback: Arc<Callback>, timeout_ms: u64) {
+fn parity_rpc_worker(client: &RunningClient, query: &str, callback: Arc<dyn Callback>, timeout_ms: u64) {
 	let cb = callback.clone();
 	let query = client.rpc_query(query, None).map(move |response| {
 		let response = response.unwrap_or_else(|| error::EMPTY.to_string());
