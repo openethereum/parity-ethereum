@@ -77,6 +77,7 @@ use client_traits::{
 	ScheduleInfo,
 	StateClient,
 	StateOrBlock,
+	StateResult,
 	Tick,
 	TransactionInfo
 };
@@ -1758,14 +1759,14 @@ impl BlockChainClient for Client {
 		Self::block_hash(&chain, id)
 	}
 
-	fn code(&self, address: &Address, state: StateOrBlock) -> Option<Option<Bytes>> {
+	fn code(&self, address: &Address, state: StateOrBlock) -> StateResult<Option<Bytes>> {
 		let result = match state {
 			StateOrBlock::State(s) => s.code(address).ok(),
 			StateOrBlock::Block(id) => self.state_at(id).and_then(|s| s.code(address).ok())
 		};
 
-		// Converting from `Option<Option<Arc<Bytes>>>` to `Option<Option<Bytes>>`
-		result.map(|c| c.map(|c| (&*c).clone()))
+		// Converting from `Option<Option<Arc<Bytes>>>` to `StateResult<Option<Bytes>>`
+		result.map_or(StateResult::Missing, |c| StateResult::Some(c.map(|c| (&*c).clone())))
 	}
 
 	fn storage_at(&self, address: &Address, position: &H256, state: StateOrBlock) -> Option<H256> {

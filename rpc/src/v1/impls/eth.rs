@@ -25,7 +25,7 @@ use ethereum_types::{Address, H64, H160, H256, U64, U256, BigEndianHash};
 use parking_lot::Mutex;
 
 use account_state::state::StateInfo;
-use client_traits::{BlockChainClient, StateClient, ProvingBlockChainClient, StateOrBlock};
+use client_traits::{BlockChainClient, StateClient, ProvingBlockChainClient, StateOrBlock, StateResult};
 use ethash::{self, SeedHashCompute};
 use ethcore::client::{Call, EngineInfo};
 use ethcore::miner::{self, MinerService};
@@ -742,8 +742,8 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM, T: StateInfo + 'static> Eth for EthClient<
 		try_bf!(check_known(&*self.client, num.clone()));
 
 		let res = match self.client.code(&address, self.get_state(num)) {
-			Some(code) => Ok(code.map_or_else(Bytes::default, Bytes::new)),
-			None => Err(errors::state_pruned()),
+			StateResult::Some(code) => Ok(code.map_or_else(Bytes::default, Bytes::new)),
+			StateResult::Missing => Err(errors::state_pruned()),
 		};
 
 		Box::new(future::done(res))
