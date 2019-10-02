@@ -122,6 +122,7 @@
 			}
 		},
 		"0x0000000000000000000000000000000000000006": {
+			"balance": "0x1",
 			"builtin": {
 				"name": "alt_bn128_add",
 				"activate_at": "0xfcc25",
@@ -135,6 +136,7 @@
 			}
 		},
 		"0x0000000000000000000000000000000000000007": {
+			"balance": "0x1",
 			"builtin": {
 				"name": "alt_bn128_mul",
 				"activate_at": "0xfcc25",
@@ -148,6 +150,7 @@
 			}
 		},
 		"0x0000000000000000000000000000000000000008": {
+			"balance": "0x1",
 			"builtin": {
 				"name": "alt_bn128_pairing",
 				"activate_at": "0xfcc25",
