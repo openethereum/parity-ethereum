@@ -28,6 +28,7 @@ parity-bytes = "0.1"
 parity-crypto = "0.4.0"
 parity-runtime = { path = "../util/runtime" }
 parking_lot = "0.9"
+percent-encoding = "2.1.0"
 rustc-hex = "1.0"
 serde = "1.0"
 serde_derive = "1.0"
@@ -36,8 +37,8 @@ tiny-keccak = "1.4"
 tokio = "~0.1.11"
 tokio-io = "0.1"
 tokio-service = "0.1"
-url = "1.0"
-jsonrpc-server-utils = "12.0.0"
+url = "2.1.0"
+jsonrpc-server-utils = "13.2.0"
 
 [dev-dependencies]
 env_logger = "0.5"

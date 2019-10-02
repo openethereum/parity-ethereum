@@ -48,7 +48,7 @@ time-utils = { path = "../../util/time-utils" }
 tiny-keccak = "1.4"
 trace = { path = "../trace" }
 transaction-pool = "2.0.1"
-url = "1"
+url = "2"
 vm = { path = "../vm" }
 
 [dev-dependencies]
