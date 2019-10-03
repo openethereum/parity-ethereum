@@ -26,7 +26,7 @@ use hash::{keccak, KECCAK_NULL_RLP};
 use ethereum_types::{U256, H256, Address};
 use bytes::ToPretty;
 use rlp::PayloadInfo;
-use client_traits::{BlockChainReset, Nonce, Balance, BlockChainClient, ImportExportBlocks, StateResult};
+use client_traits::{BlockChainReset, Nonce, Balance, BlockChainClient, ImportExportBlocks};
 use ethcore::{
 	client::{DatabaseCompactionProfile, VMType},
 	miner::Miner,
@@ -44,7 +44,7 @@ use ansi_term::Colour;
 use types::{
 	ids::BlockId,
 	errors::{ImportError, EthcoreError},
-	client_types::Mode,
+	client_types::{Mode, StateResult},
 };
 use types::data_format::DataFormat;
 use verification::queue::VerifierSettings;
