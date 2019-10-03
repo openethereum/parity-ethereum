@@ -68,6 +68,7 @@ pub enum StateOrBlock {
 }
 
 /// Result to be used during get address code at given block's state
+// todo[botika] move to `common-types`
 pub enum StateResult<T> {
 	/// State is missing
 	Missing,
