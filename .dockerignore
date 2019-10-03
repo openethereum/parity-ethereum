@@ -6,6 +6,7 @@ target
 *.swo
 *.swn
 *.DS_Store
+*.md
 
 # Visual Studio Code stuff
 .vscode
@@ -18,5 +19,6 @@ target
 
 # git stuff
 .git
+.cache
 
 ethcore/res/ethereum/tests
