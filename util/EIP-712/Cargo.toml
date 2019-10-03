@@ -1,6 +1,6 @@
 [package]
 name = "eip-712"
-version = "0.1.0"
+version = "0.1.1"
 authors = ["Parity Technologies <admin@parity.io>"]
 repository = "https://github.com/paritytech/parity-ethereum"
 documentation = "https://docs.rs/eip-712"
