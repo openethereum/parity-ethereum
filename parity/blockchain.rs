@@ -26,7 +26,7 @@ use hash::{keccak, KECCAK_NULL_RLP};
 use ethereum_types::{U256, H256, Address};
 use bytes::ToPretty;
 use rlp::PayloadInfo;
-use client_traits::{BlockChainReset, Nonce, Balance, BlockChainClient, ImportExportBlocks};
+use client_traits::{BlockChainReset, Nonce, Balance, BlockChainClient, ImportExportBlocks, StateResult};
 use ethcore::{
 	client::{DatabaseCompactionProfile, VMType},
 	miner::Miner,
@@ -592,7 +592,10 @@ fn execute_export_state(cmd: ExportState) -> Result<(), String> {
 				out.write(b",").expect("Write error");
 			}
 			out.write_fmt(format_args!("\n\"0x{:x}\": {{\"balance\": \"{:x}\", \"nonce\": \"{:x}\"", account, balance, client.nonce(&account, at).unwrap_or_else(U256::zero))).expect("Write error");
-			let code = client.code(&account, at.into()).unwrap_or(None).unwrap_or_else(Vec::new);
+			let code = match client.code(&account, at.into()) {
+				StateResult::Missing => Vec::new(),
+				StateResult::Some(t) => t.unwrap_or_else(Vec::new),
+			};
 			if !code.is_empty() {
 				out.write_fmt(format_args!(", \"code_hash\": \"0x{:x}\"", keccak(&code))).expect("Write error");
 				if cmd.code {

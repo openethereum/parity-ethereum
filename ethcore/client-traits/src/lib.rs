@@ -67,6 +67,16 @@ pub enum StateOrBlock {
 	Block(BlockId)
 }
 
+/// Result to be used during get address code at given block's state
+// todo[botika] move to `common-types`
+pub enum StateResult<T> {
+	/// State is missing
+	Missing,
+
+	/// State is some
+	Some(T),
+}
+
 impl From<Box<dyn StateInfo>> for StateOrBlock {
 	fn from(info: Box<dyn StateInfo>) -> StateOrBlock {
 		StateOrBlock::State(info)
@@ -231,12 +241,14 @@ pub trait BlockChainClient : Sync + Send + AccountData + BlockChain + CallContra
 	fn block_hash(&self, id: BlockId) -> Option<H256>;
 
 	/// Get address code at given block's state.
-	fn code(&self, address: &Address, state: StateOrBlock) -> Option<Option<Bytes>>;
+	fn code(&self, address: &Address, state: StateOrBlock) -> StateResult<Option<Bytes>>;
 
 	/// Get address code at the latest block's state.
 	fn latest_code(&self, address: &Address) -> Option<Bytes> {
-		self.code(address, BlockId::Latest.into())
-			.expect("code will return Some if given BlockId::Latest; qed")
+		match self.code(address, BlockId::Latest.into()) {
+			StateResult::Missing => panic!("code will return Some if given BlockId::Latest; qed"),
+			StateResult::Some(t) => t,
+		}
 	}
 
 	/// Get a reference to the `BlockProvider`.

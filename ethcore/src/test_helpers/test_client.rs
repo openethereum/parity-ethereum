@@ -71,7 +71,7 @@ use client::{
 use client_traits::{
 	BlockInfo, Nonce, Balance, ChainInfo, TransactionInfo, BlockChainClient, ImportBlock,
 	AccountData, BlockChain, IoClient, BadBlocks, ScheduleInfo, StateClient, ProvingBlockChainClient,
-	StateOrBlock
+	StateOrBlock, StateResult
 };
 use engine::Engine;
 use machine::executed::Executed;
@@ -702,10 +702,10 @@ impl BlockChainClient for TestBlockChainClient {
 		None
 	}
 
-	fn code(&self, address: &Address, state: StateOrBlock) -> Option<Option<Bytes>> {
+	fn code(&self, address: &Address, state: StateOrBlock) -> StateResult<Option<Bytes>> {
 		match state {
-			StateOrBlock::Block(BlockId::Latest) => Some(self.code.read().get(address).cloned()),
-			_ => None,
+			StateOrBlock::Block(BlockId::Latest) => StateResult::Some(self.code.read().get(address).cloned()),
+			_ => StateResult::Missing,
 		}
 	}
 
