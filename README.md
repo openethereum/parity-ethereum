@@ -33,6 +33,14 @@
 - Minimal memory and storage footprint
 - Synchronise in hours, not days with Warp Sync
 - Modular for light integration into your service or product
+ 
+ Build your own highly customisable blockchains for private use, enterprise environments, and research and development experimentation.
+
+ - Multiple consensus mechanisms with Pluggable Consensus
+ - Exclusive privacy and access control features
+ - Variety of deployment solutions
+ - Fast transaction processing
+ - Supports shared key generation and management
 
 ## 2. Technical Overview <a id="chapter-002"></a>
 
@@ -79,6 +87,20 @@ Once you have `rustup` installed, then you need to install:
 
 Make sure that these binaries are in your `PATH`. After that, you should be able to build Parity Ethereum from source.
 
+or
+
+ You can build Parity Ethereum from the sources; you can launch Parity Ethereum using the binaries built for the latest releases for Linux, Mac/Homebrew and Windows or, if you’re on an Ubuntu Snappy platform, just use our Snappy App.
+ 
+ For Linux systems:
+
+Ubuntu, Debian
+
+  ```$ apt-get install build-essential cmake libudev-dev```
+CentOS
+
+  ```$ yum install libudev-devel```
+  ```$ yum group install "Development Tools"```
+
 ### 3.2 Build from Source Code <a id="chapter-0032"></a>
 
 ```bash
@@ -87,8 +109,12 @@ $ git clone https://github.com/paritytech/parity-ethereum
 $ cd parity-ethereum
 
 # build in release mode
-$ cargo build --release --features final
+$ cargo build --release -p features final
 ```
+For tests, also update submodules:
+
+```$ git submodule init```
+```$ git submodule update```
 
 This produces an executable in the `./target/release` subdirectory.
 
@@ -96,6 +122,7 @@ Note: if cargo fails to parse manifest try:
 
 ```bash
 $ ~/.cargo/bin/cargo build --release
+$ ./target/release/features final --help
 ```
 
 Note, when compiling a crate and you receive errors, it's in most cases your outdated version of Rust, or some of your crates have to be recompiled. Cleaning the repository will most likely solve the issue if you are on the latest stable version of Rust, try:
