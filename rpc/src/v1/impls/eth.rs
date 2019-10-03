@@ -25,7 +25,7 @@ use ethereum_types::{Address, H64, H160, H256, U64, U256, BigEndianHash};
 use parking_lot::Mutex;
 
 use account_state::state::StateInfo;
-use client_traits::{BlockChainClient, StateClient, ProvingBlockChainClient, StateOrBlock, StateResult};
+use client_traits::{BlockChainClient, StateClient, ProvingBlockChainClient, StateOrBlock};
 use ethash::{self, SeedHashCompute};
 use ethcore::client::{Call, EngineInfo};
 use ethcore::miner::{self, MinerService};
@@ -35,6 +35,7 @@ use miner::external::ExternalMinerService;
 use sync::SyncProvider;
 use types::{
 	BlockNumber as EthBlockNumber,
+	client_types::StateResult,
 	encoded,
 	ids::{BlockId, TransactionId, UncleId},
 	filter::Filter as EthcoreFilter,

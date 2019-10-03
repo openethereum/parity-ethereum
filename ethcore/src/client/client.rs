@@ -77,7 +77,6 @@ use client_traits::{
 	ScheduleInfo,
 	StateClient,
 	StateOrBlock,
-	StateResult,
 	Tick,
 	TransactionInfo
 };
@@ -109,8 +108,7 @@ use types::{
 	BlockNumber,
 	call_analytics::CallAnalytics,
 	chain_notify::{ChainMessageType, ChainRoute, NewBlocks},
-	client_types::ClientReport,
-	client_types::Mode,
+	client_types::{ClientReport, Mode, StateResult},
 	encoded,
 	engines::{
 		epoch::{PendingTransition, Transition as EpochTransition},

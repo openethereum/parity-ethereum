@@ -56,7 +56,10 @@ use trace::{
 	localized::LocalizedTrace,
 	VMTrace,
 };
-use common_types::data_format::DataFormat;
+use common_types::{
+	data_format::DataFormat,
+	client_types::StateResult
+};
 use vm::{LastHashes, Schedule};
 
 /// State information to be used during client query
@@ -66,16 +69,6 @@ pub enum StateOrBlock {
 
 	/// Id of an existing block from a chain to get state from
 	Block(BlockId)
-}
-
-/// Result to be used during get address code at given block's state
-// todo[botika] move to `common-types`
-pub enum StateResult<T> {
-	/// State is missing
-	Missing,
-
-	/// State is some
-	Some(T),
 }
 
 impl From<Box<dyn StateInfo>> for StateOrBlock {

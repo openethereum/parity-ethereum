@@ -89,3 +89,13 @@ impl<'a> ops::Sub<&'a ClientReport> for ClientReport {
 		self
 	}
 }
+
+/// Result to be used during get address code at given block's state
+pub enum StateResult<T> {
+	/// State is missing
+	Missing,
+
+	/// State is some
+	Some(T),
+}
+

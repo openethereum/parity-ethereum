@@ -55,7 +55,7 @@ use types::{
 	view,
 	views::BlockView,
 	verification::Unverified,
-	client_types::Mode,
+	client_types::{Mode, StateResult},
 	blockchain_info::BlockChainInfo,
 	block_status::BlockStatus,
 	verification::VerificationQueueInfo as BlockQueueInfo,
@@ -72,7 +72,7 @@ use client::{
 use client_traits::{
 	BlockInfo, Nonce, Balance, ChainInfo, TransactionInfo, BlockChainClient, ImportBlock,
 	AccountData, BlockChain, IoClient, BadBlocks, ScheduleInfo, StateClient, ProvingBlockChainClient,
-	StateOrBlock, StateResult
+	StateOrBlock
 };
 use engine::Engine;
 use machine::executed::Executed;
