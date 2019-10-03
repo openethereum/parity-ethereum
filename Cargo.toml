@@ -21,7 +21,6 @@ engine = { path = "ethcore/engine" }
 ethcore = { path = "ethcore", features = ["parity"] }
 ethcore-accounts = { path = "accounts", optional = true }
 ethcore-blockchain = { path = "ethcore/blockchain" }
-ethcore-call-contract = { path = "ethcore/call-contract"}
 ethcore-db = { path = "ethcore/db" }
 ethcore-io = { path = "util/io" }
 ethcore-light = { path = "ethcore/light" }

@@ -29,6 +29,7 @@ parity-crypto = "0.4.0"
 parity-runtime = { path = "../util/runtime" }
 parking_lot = "0.9"
 percent-encoding = "2.1.0"
+registrar = { path = "../util/registrar" }
 rustc-hex = "1.0"
 serde = "1.0"
 serde_derive = "1.0"

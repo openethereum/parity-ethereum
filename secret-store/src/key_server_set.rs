@@ -266,7 +266,10 @@ impl CachedContract {
 
 	pub fn update_contract_address(&mut self) {
 		if let Some(ref contract_address_source) = self.contract_address_source {
-			let contract_address = self.client.read_contract_address(KEY_SERVER_SET_CONTRACT_REGISTRY_NAME.into(), contract_address_source);
+			let contract_address = self.client.read_contract_address(
+				KEY_SERVER_SET_CONTRACT_REGISTRY_NAME,
+				contract_address_source
+			);
 			if contract_address != self.contract_address {
 				trace!(target: "secretstore", "{}: Configuring for key server set contract from address {:?}",
 					self.self_key_pair.public(), contract_address);

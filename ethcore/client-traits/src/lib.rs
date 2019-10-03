@@ -22,7 +22,8 @@ use std::{
 use account_state::state::StateInfo;
 use blockchain::BlockProvider;
 use bytes::Bytes;
-use call_contract::{CallContract, RegistryInfo};
+use call_contract::CallContract;
+use registrar::RegistrarClient;
 use common_types::{
 	basic_account::BasicAccount,
 	block_status::BlockStatus,
@@ -218,8 +219,10 @@ pub trait BadBlocks {
 
 
 /// Blockchain database client. Owns and manages a blockchain and a block queue.
-pub trait BlockChainClient : Sync + Send + AccountData + BlockChain + CallContract + RegistryInfo + ImportBlock
-+ IoClient + BadBlocks {
+pub trait BlockChainClient:
+	Sync + Send + AccountData + BlockChain + CallContract + RegistrarClient
+	+ ImportBlock + IoClient + BadBlocks
+{
 	/// Look up the block number for the given block ID.
 	fn block_number(&self, id: BlockId) -> Option<BlockNumber>;
 
@@ -393,9 +396,6 @@ pub trait BlockChainClient : Sync + Send + AccountData + BlockChain + CallContra
 
 	/// Schedule state-altering transaction to be executed on the next pending block.
 	fn transact_contract(&self, address: Address, data: Bytes) -> Result<(), transaction::Error>;
-
-	/// Get the address of the registry itself.
-	fn registrar_address(&self) -> Option<Address>;
 }
 
 /// resets the blockchain

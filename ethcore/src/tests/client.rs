@@ -48,6 +48,7 @@ use test_helpers::{
 	generate_dummy_client_with_data, get_good_dummy_block, get_bad_state_dummy_block
 };
 use rustc_hex::ToHex;
+use registrar::RegistrarClient;
 
 #[test]
 fn imports_from_empty() {

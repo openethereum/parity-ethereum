@@ -23,7 +23,6 @@ extern crate ansi_term;
 extern crate client_traits;
 extern crate common_types as types;
 extern crate engine;
-extern crate ethabi;
 extern crate ethcore_blockchain as blockchain;
 extern crate ethcore_call_contract as call_contract;
 extern crate ethcore_db as db;
@@ -45,6 +44,7 @@ extern crate trie_db as trie;
 extern crate patricia_trie_ethereum as ethtrie;
 extern crate rand;
 extern crate rayon;
+extern crate registrar;
 extern crate rlp;
 extern crate rustc_hex;
 extern crate serde;
@@ -97,8 +97,6 @@ extern crate serde_json;
 #[cfg(any(test, feature = "tempdir"))]
 extern crate tempdir;
 
-#[macro_use]
-extern crate ethabi_contract;
 #[macro_use]
 extern crate log;
 #[macro_use]

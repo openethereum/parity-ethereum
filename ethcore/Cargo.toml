@@ -15,9 +15,6 @@ client-traits = { path = "./client-traits" }
 common-types = { path = "types" }
 engine = { path = "./engine" }
 env_logger = { version = "0.5", optional = true }
-ethabi = "8.0"
-ethabi-contract = "8.0"
-ethabi-derive = "8.0"
 ethash = { path = "../ethash", optional = true }
 ethjson = { path = "../json", optional = true }
 ethkey = { path = "../accounts/ethkey", optional = true }
@@ -50,6 +47,7 @@ trie-db = "0.15.0"
 patricia-trie-ethereum = { path = "../util/patricia-trie-ethereum" }
 rand = "0.6"
 rayon = "1.1"
+registrar = { path = "../util/registrar" }
 rlp = "0.4.0"
 rustc-hex = "2"
 serde = "1.0"

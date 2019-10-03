@@ -51,7 +51,7 @@ use blockchain::{
 	TransactionAddress,
 	TreeRoute
 };
-use call_contract::{CallContract, RegistryInfo};
+use call_contract::CallContract;
 use client::{
 	bad_blocks, BlockProducer, BroadcastProposalBlock, Call,
 	ClientConfig, EngineInfo, ImportSealedBlock, PrepareOpenBlock,
@@ -95,6 +95,7 @@ use machine::{
 	transaction_ext::Transaction,
 };
 use miner::{Miner, MinerService, PendingOrdering};
+use registrar::RegistrarClient;
 use snapshot::{self, SnapshotClient, SnapshotWriter};
 use spec::Spec;
 use state_db::StateDB;
@@ -137,8 +138,6 @@ use verification::{BlockQueue, Verifier};
 use verification;
 use verification::queue::kind::BlockLike;
 use vm::{CreateContractAddress, EnvInfo, LastHashes};
-
-use_contract!(registry, "res/contracts/registrar.json");
 
 const MAX_ANCIENT_BLOCKS_QUEUE_SIZE: usize = 4096;
 // Max number of blocks imported at once.
@@ -1415,22 +1414,6 @@ impl TransactionInfo for Client {
 
 impl BlockChainTrait for Client {}
 
-impl RegistryInfo for Client {
-	fn registry_address(&self, name: String, block: BlockId) -> Option<Address> {
-		use ethabi::FunctionOutputDecoder;
-
-		let address = self.registrar_address?;
-
-		let (data, decoder) = registry::functions::get_address::call(keccak(name.as_bytes()), "A");
-		let value = decoder.decode(&self.call_contract(block, address, data).ok()?).ok()?;
-		if value.is_zero() {
-			None
-		} else {
-			Some(value)
-		}
-	}
-}
-
 impl CallContract for Client {
 	fn call_contract(&self, block_id: BlockId, address: Address, data: Bytes) -> Result<Bytes, String> {
 		let state_pruned = || CallError::StatePruned.to_string();
@@ -1442,6 +1425,12 @@ impl CallContract for Client {
 		self.call(&transaction, Default::default(), state, &header)
 			.map_err(|e| format!("{:?}", e))
 			.map(|executed| executed.output)
+	}
+}
+
+impl RegistrarClient for Client {
+	fn registrar_address(&self) -> Option<Address> {
+		self.registrar_address
 	}
 }
 
@@ -2177,10 +2166,6 @@ impl BlockChainClient for Client {
 			.map_err(|e| transaction::Error::InvalidSignature(e.to_string()))?;
 		let signed = SignedTransaction::new(transaction.with_signature(signature, chain_id))?;
 		self.importer.miner.import_own_transaction(self, signed.into())
-	}
-
-	fn registrar_address(&self) -> Option<Address> {
-		self.registrar_address.clone()
 	}
 }
 

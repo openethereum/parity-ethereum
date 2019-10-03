@@ -19,7 +19,8 @@
 use std::collections::HashMap;
 use std::mem;
 use std::sync::Arc;
-use call_contract::{RegistryInfo, CallContract};
+use call_contract::CallContract;
+use registrar::RegistrarClient;
 use types::ids::BlockId;
 use types::transaction::SignedTransaction;
 use ethabi::FunctionOutputDecoder;
@@ -37,9 +38,12 @@ pub struct ServiceTransactionChecker {
 }
 
 impl ServiceTransactionChecker {
-
 	/// Checks if given address in tx is whitelisted to send service transactions.
-	pub fn check<C: CallContract + RegistryInfo>(&self, client: &C, tx: &SignedTransaction) -> Result<bool, String> {
+	pub fn check<C: CallContract + RegistrarClient>(
+		&self,
+		client: &C,
+		tx: &SignedTransaction
+	) -> Result<bool, String> {
 		let sender = tx.sender();
 		// Skip checking the contract if the transaction does not have zero gas price
 		if !tx.gas_price.is_zero() {
@@ -50,13 +54,28 @@ impl ServiceTransactionChecker {
 	}
 
 	/// Checks if given address is whitelisted to send service transactions.
-	pub fn check_address<C: CallContract + RegistryInfo>(&self, client: &C, sender: Address) -> Result<bool, String> {
+	pub fn check_address<C>(&self, client: &C, sender: Address) -> Result<bool, String>
+		where C: CallContract + RegistrarClient
+	{
 		trace!(target: "txqueue", "Checking service transaction checker contract from {}", sender);
-		if let Some(allowed) = self.certified_addresses_cache.try_read().as_ref().and_then(|c| c.get(&sender)) {
+		if let Some(allowed) = self
+			.certified_addresses_cache
+			.try_read()
+			.as_ref()
+			.and_then(|c| c.get(&sender))
+		{
 			return Ok(*allowed);
 		}
-		let contract_address = client.registry_address(SERVICE_TRANSACTION_CONTRACT_REGISTRY_NAME.to_owned(), BlockId::Latest)
-			.ok_or_else(|| "contract is not configured")?;
+
+		let contract_address = match client.get_address(
+			SERVICE_TRANSACTION_CONTRACT_REGISTRY_NAME,
+			BlockId::Latest
+		) {
+			Ok(Some(addr)) => addr,
+			Ok(None) => return Err("contract is not configured".to_owned()),
+			Err(e) => return Err(e)
+		};
+
 		self.call_contract(client, contract_address, sender).and_then(|allowed| {
 			if let Some(mut cache) = self.certified_addresses_cache.try_write() {
 				cache.insert(sender, allowed);
@@ -66,13 +85,20 @@ impl ServiceTransactionChecker {
 	}
 
 	/// Refresh certified addresses cache
-	pub fn refresh_cache<C: CallContract + RegistryInfo>(&self, client: &C) -> Result<bool, String> {
+	pub fn refresh_cache<C>(&self, client: &C) -> Result<bool, String>
+		where C: CallContract + RegistrarClient
+	{
 		trace!(target: "txqueue", "Refreshing certified addresses cache");
 		// replace the cache with an empty list,
 		// since it's not recent it won't be used anyway.
 		let cache = mem::replace(&mut *self.certified_addresses_cache.write(), HashMap::default());
 
-		if let Some(contract_address) = client.registry_address(SERVICE_TRANSACTION_CONTRACT_REGISTRY_NAME.to_owned(), BlockId::Latest) {
+		let contract_address_fetch = client.get_address(
+			SERVICE_TRANSACTION_CONTRACT_REGISTRY_NAME,
+			BlockId::Latest
+		)?;
+
+		if let Some(contract_address) = contract_address_fetch {
 			let addresses: Vec<_> = cache.keys().collect();
 			let mut cache: HashMap<Address, bool> = HashMap::default();
 			for address in addresses {
@@ -86,7 +112,14 @@ impl ServiceTransactionChecker {
 		}
 	}
 
-	fn call_contract<C: CallContract + RegistryInfo>(&self, client: &C, contract_address: Address, sender: Address) -> Result<bool, String> {
+	fn call_contract<C>(
+		&self,
+		client: &C,
+		contract_address: Address,
+		sender: Address
+	) -> Result<bool, String>
+		where C: CallContract + RegistrarClient
+	{
 		let (data, decoder) = service_transaction::functions::certified::call(sender);
 		let value = client.call_contract(BlockId::Latest, contract_address, data)?;
 		decoder.decode(&value).map_err(|e| e.to_string())

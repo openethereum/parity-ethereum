@@ -14,7 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
-//! Provides CallContract and RegistryInfo traits
+//! Provides CallContract trait
 
 use bytes::Bytes;
 use ethereum_types::Address;
@@ -23,11 +23,10 @@ use types::ids::BlockId;
 /// Provides `call_contract` method
 pub trait CallContract {
 	/// Like `call`, but with various defaults. Designed to be used for calling contracts.
-	fn call_contract(&self, id: BlockId, address: Address, data: Bytes) -> Result<Bytes, String>;
-}
-
-/// Provides information on a blockchain service and it's registry
-pub trait RegistryInfo {
-	/// Get the address of a particular blockchain service, if available.
-	fn registry_address(&self, name: String, block: BlockId) -> Option<Address>;
+	fn call_contract(
+		&self,
+		block_id: BlockId,
+		address: Address,
+		data: Bytes
+	) -> Result<Bytes, String>;
 }

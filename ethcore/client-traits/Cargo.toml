@@ -16,6 +16,7 @@ ethcore-db = { path = "../db" }
 ethcore-miner = { path = "../../miner" }
 ethereum-types = "0.6.0"
 kvdb = "0.1"
+registrar = { path = "../../util/registrar" }
 stats = { path = "../../util/stats" }
 trace = { path = "../trace" }
 vm = { path = "../vm" }

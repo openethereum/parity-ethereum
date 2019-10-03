@@ -19,7 +19,8 @@
 use std::sync::Arc;
 use parking_lot::RwLock;
 use ethereum_types::{H256, Address};
-use call_contract::{CallContract, RegistryInfo};
+use call_contract::CallContract;
+use registrar::RegistrarClient;
 use types::ids::BlockId;
 use ethabi::FunctionOutputDecoder;
 
@@ -53,13 +54,13 @@ pub trait KeyProvider: Send + Sync + 'static {
 }
 
 /// Secret Store keys provider
-pub struct SecretStoreKeys<C> where C: CallContract + RegistryInfo + Send + Sync + 'static {
+pub struct SecretStoreKeys<C> where C: CallContract + RegistrarClient + Send + Sync + 'static {
 	client: Arc<C>,
 	key_server_account: Option<Address>,
 	keys_acl_contract: RwLock<Option<Address>>,
 }
 
-impl<C> SecretStoreKeys<C> where C: CallContract + RegistryInfo + Send + Sync + 'static {
+impl<C> SecretStoreKeys<C> where C: CallContract + RegistrarClient + Send + Sync + 'static {
 	/// Create provider
 	pub fn new(client: Arc<C>, key_server_account: Option<Address>) -> Self {
 		SecretStoreKeys {
@@ -70,7 +71,9 @@ impl<C> SecretStoreKeys<C> where C: CallContract + RegistryInfo + Send + Sync + 
 	}
 }
 
-impl<C> KeyProvider for SecretStoreKeys<C> where C: CallContract + RegistryInfo + Send + Sync + 'static {
+impl<C> KeyProvider for SecretStoreKeys<C>
+	where C: CallContract + RegistrarClient + Send + Sync + 'static
+{
 	fn key_server_account(&self) -> Option<Address> {
 		self.key_server_account
 	}
@@ -92,7 +95,11 @@ impl<C> KeyProvider for SecretStoreKeys<C> where C: CallContract + RegistryInfo 
 	}
 
 	fn update_acl_contract(&self) {
-		let contract_address = self.client.registry_address(ACL_CHECKER_CONTRACT_REGISTRY_NAME.into(), BlockId::Latest);
+		let contract_address = self.client.get_address(
+			ACL_CHECKER_CONTRACT_REGISTRY_NAME,
+			BlockId::Latest
+		).unwrap_or(None);
+
 		if *self.keys_acl_contract.read() != contract_address {
 			trace!(target: "privatetx", "Configuring for ACL checker contract from address {:?}",
 				contract_address);
@@ -141,6 +148,7 @@ mod tests {
 	use ethkey::{Secret, KeyPair};
 	use bytes::Bytes;
 	use super::*;
+	use registrar::RegistrarClient;
 
 	struct DummyRegistryClient {
 		registry_address: Option<Address>,
@@ -154,12 +162,25 @@ mod tests {
 		}
 	}
 
-	impl RegistryInfo for DummyRegistryClient {
-		fn registry_address(&self, _name: String, _block: BlockId) -> Option<Address> { self.registry_address }
+	impl RegistrarClient for DummyRegistryClient {
+		fn registrar_address(&self) -> Option<Address> {
+			unimplemented!()
+		}
+
+		fn get_address(&self, _name: &str, _block: BlockId) -> Result<Option<Address>, String> {
+			Ok(self.registry_address)
+		}
 	}
 
 	impl CallContract for DummyRegistryClient {
-		fn call_contract(&self, _id: BlockId, _address: Address, _data: Bytes) -> Result<Bytes, String> { Ok(vec![]) }
+		fn call_contract(
+			&self,
+			_block_id: BlockId,
+			_address: Address,
+			_data: Bytes
+		) -> Result<Bytes, String> {
+			Ok(vec![])
+		}
 	}
 
 	#[test]
