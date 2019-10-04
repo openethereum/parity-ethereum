@@ -134,3 +134,12 @@ members = [
 	"evmbin",
 	"parity-clib",
 ]
+
+[patch.crates-io]
+# todo[dvdplm]: remove when https://github.com/paritytech/jsonrpc/pull/495 lands
+jsonrpc-core = { path = "../jsonrpc/core" }
+jsonrpc-derive = { path = "../jsonrpc/derive" }
+jsonrpc-http-server = { path = "../jsonrpc/http" }
+jsonrpc-ws-server = { path = "../jsonrpc/ws" }
+jsonrpc-ipc-server = { path = "../jsonrpc/ipc" }
+jsonrpc-pubsub = { path = "../jsonrpc/pubsub" }
