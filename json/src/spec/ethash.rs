@@ -91,6 +91,7 @@ pub struct EthashParams {
 	pub ecip1010_continue_transition: Option<Uint>,
 
 	/// See main EthashParams docs.
+	#[serde(default, deserialize_with="uint::validate_optional_non_zero")]
 	pub ecip1017_era_rounds: Option<Uint>,
 
 	/// Delays of difficulty bombs.
@@ -101,7 +102,6 @@ pub struct EthashParams {
 	/// EXPIP-2 duration limit
 	pub expip2_duration_limit: Option<Uint>,
 	/// Block to transition to progpow
-	#[serde(rename="progpowTransition")]
 	pub progpow_transition: Option<Uint>,
 }
 
