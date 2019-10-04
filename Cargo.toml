@@ -134,12 +134,3 @@ members = [
 	"evmbin",
 	"parity-clib",
 ]
-
-[patch.crates-io]
-# todo[dvdplm]: remove when https://github.com/paritytech/jsonrpc/pull/495 lands
-jsonrpc-core = { git = "https://github.com/paritytech/jsonrpc.git", branch = "td-tokio" }
-jsonrpc-derive = { git = "https://github.com/paritytech/jsonrpc.git", branch = "td-tokio" }
-jsonrpc-http-server = { git = "https://github.com/paritytech/jsonrpc.git", branch = "td-tokio" }
-jsonrpc-ws-server = { git = "https://github.com/paritytech/jsonrpc.git", branch = "td-tokio" }
-jsonrpc-ipc-server = { git = "https://github.com/paritytech/jsonrpc.git", branch = "td-tokio" }
-jsonrpc-pubsub = { git = "https://github.com/paritytech/jsonrpc.git", branch = "td-tokio" }
