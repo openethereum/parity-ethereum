@@ -37,6 +37,17 @@ pub struct Modexp {
 	pub divisor: usize,
 }
 
+/// Pricing for constant alt_bn128 operations
+#[derive(Debug, PartialEq, Deserialize, Clone)]
+#[serde(deny_unknown_fields)]
+pub struct AltBn128ConstOperations {
+	/// price
+	pub price: usize,
+	/// EIP 1108 transition price
+	// for backward compability
+	pub eip1108_transition_price: Option<usize>,
+}
+
 /// Pricing for alt_bn128_pairing.
 #[derive(Debug, PartialEq, Deserialize, Clone)]
 #[serde(deny_unknown_fields)]
@@ -45,6 +56,12 @@ pub struct AltBn128Pairing {
 	pub base: usize,
 	/// Price per point pair.
 	pub pair: usize,
+	/// EIP 1108 transition base price
+	// for backward compability
+	pub eip1108_transition_base: Option<usize>,
+	/// EIP 1108 transition price per point pair
+	// for backward compability
+	pub eip1108_transition_pair: Option<usize>,
 }
 
 /// Pricing variants.
@@ -63,6 +80,8 @@ pub enum InnerPricing {
 	Modexp(Modexp),
 	/// Pricing for alt_bn128_pairing exponentiation.
 	AltBn128Pairing(AltBn128Pairing),
+	/// Pricing for constant alt_bn128 operations
+	AltBn128ConstOperations(AltBn128ConstOperations),
 }
 
 /// Spec builtin.
@@ -75,6 +94,9 @@ pub struct Builtin {
 	pub pricing: Pricing,
 	/// Activation block.
 	pub activate_at: Option<Uint>,
+	/// EIP 1108
+	// for backward comptabiltity
+	pub eip1108_transition: Option<Uint>,
 }
 
 /// Builtin price
@@ -103,7 +125,7 @@ pub struct PricingWithActivation {
 
 #[cfg(test)]
 mod tests {
-	use super::{Builtin, Pricing, InnerPricing, PricingWithActivation, Uint, Linear, Modexp};
+	use super::{Builtin, Pricing, InnerPricing, PricingWithActivation, Uint, Linear, Modexp, AltBn128ConstOperations};
 
 	#[test]
 	fn builtin_deserialization() {
@@ -175,5 +197,31 @@ mod tests {
 		assert_eq!(deserialized.name, "late_start");
 		assert_eq!(deserialized.pricing, Pricing::Single(InnerPricing::Modexp(Modexp { divisor: 5 })));
 		assert_eq!(deserialized.activate_at, Some(Uint(100000.into())));
+	}
+
+	#[test]
+	fn optional_eip1108_fields() {
+		let s = r#"{
+			"name": "alt_bn128_add",
+			"activate_at": "0x00",
+			"eip1108_transition": "0x17d433",
+			"pricing": {
+				"alt_bn128_const_operations": {
+					"price": 500,
+					"eip1108_transition_price": 150
+				}
+			}
+		}"#;
+		let deserialized: Builtin = serde_json::from_str(s).unwrap();
+		assert_eq!(deserialized.name, "alt_bn128_add");
+		assert_eq!(
+			deserialized.pricing,
+			Pricing::Single(InnerPricing::AltBn128ConstOperations(AltBn128ConstOperations {
+				price: 500,
+				eip1108_transition_price: Some(150),
+			}))
+		);
+		assert_eq!(deserialized.activate_at, Some(Uint(0.into())));
+		assert_eq!(deserialized.eip1108_transition, Some(Uint(0x17d433.into())));
 	}
 }

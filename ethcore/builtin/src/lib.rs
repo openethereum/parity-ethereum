@@ -31,7 +31,6 @@ use ethereum_types::{H256, U256};
 use ethkey::{Signature, recover as ec_recover};
 use keccak_hash::keccak;
 use log::{warn, trace};
-use macros::map;
 use num::{BigUint, Zero, One};
 use parity_bytes::BytesRef;
 use parity_crypto::digest;
@@ -69,6 +68,7 @@ impl Pricer for Blake2FPricer {
 #[derive(Debug)]
 enum Pricing {
 	AltBn128Pairing(AltBn128PairingPricer),
+	AltBn128ConstOperations(AltBn128ConstOperations),
 	Blake2F(Blake2FPricer),
 	Linear(Linear),
 	Modexp(ModexpPricer),
@@ -78,6 +78,7 @@ impl Pricer for Pricing {
 	fn cost(&self, input: &[u8]) -> U256 {
 		match self {
 			Pricing::AltBn128Pairing(inner) => inner.cost(input),
+			Pricing::AltBn128ConstOperations(inner) => inner.cost(input),
 			Pricing::Blake2F(inner) => inner.cost(input),
 			Pricing::Linear(inner) => inner.cost(input),
 			Pricing::Modexp(inner) => inner.cost(input),
@@ -115,6 +116,19 @@ struct AltBn128PairingPrice {
 #[derive(Debug)]
 struct AltBn128PairingPricer {
 	price: AltBn128PairingPrice,
+}
+
+/// Pricing for constant alt_bn128 operations
+#[derive(Debug, Copy, Clone)]
+pub struct AltBn128ConstOperations {
+	/// price
+	pub price: usize,
+}
+
+impl Pricer for AltBn128ConstOperations {
+	fn cost(&self, _input: &[u8]) -> U256 {
+		self.price.into()
+	}
 }
 
 impl Pricer for AltBn128PairingPricer {
@@ -234,12 +248,30 @@ impl Builtin {
 impl From<ethjson::spec::Builtin> for Builtin {
 	fn from(b: ethjson::spec::Builtin) -> Self {
 		// TODO(niklasad1): change this to `try_from` and propogate the error accordingly
-		let native = EthereumBuiltin::from_str(&b.name).unwrap();
+		let native = match EthereumBuiltin::from_str(&b.name) {
+			Ok(native) => native,
+			Err(err) => panic!("{}", err),
+		};
+
 		let pricer = match b.pricing {
 			ethjson::spec::builtin::Pricing::Single(pricer) => {
-				// TODO(niklasad1): change chain specs and don't enable by default!?
-				// Seems more reasonable to do it the otherway around but would be a breaking change
-				map![b.activate_at.map_or(0, Into::into) => pricer.into()]
+				let mut pricers = BTreeMap::new();
+
+				let (first, maybe_second) = into_pricing(pricer);
+
+				if b.activate_at.is_none() {
+					warn!(target: "builtin",
+						"builtin: {}, missing which block to activate it on, failing back to default: 0",
+						b.name
+					);
+				}
+
+				pricers.insert(b.activate_at.map_or(0, Into::into), first);
+
+				if let (Some(activate), Some(second)) = (b.eip1108_transition, maybe_second) {
+					pricers.insert(activate.into(), second);
+				}
+				pricers
 			}
 
 			ethjson::spec::builtin::Pricing::Multi(pricer) => {
@@ -247,48 +279,76 @@ impl From<ethjson::spec::Builtin> for Builtin {
 
 				let mut pricers = BTreeMap::new();
 				for p in pricer {
-					pricers.insert(p.activate_at.into(), p.price.into());
-				}
+					let (first, maybe_second) = into_pricing(p.price);
 
+					if let Some(_second) = maybe_second {
+						// these are supposed to only be used single pricing because `activate_at` would
+						// not be known for each,
+						warn!(target: "builtin", "multi-pricing with eip1108_transition is ignored for {}", b.name);
+					}
+
+					pricers.insert(p.activate_at.into(), first);
+				}
 				pricers
 			}
 		};
-
 		Self { pricer, native }
 	}
 }
 
+// Convert `JSON pricing` into Pricing
+//
+// Because `AltBn128XX` has two different pricings included both are return which `Option<Pricing>` is for
+fn into_pricing(pricing: ethjson::spec::builtin::InnerPricing) -> (Pricing, Option<Pricing>) {
+	match pricing {
+		ethjson::spec::builtin::InnerPricing::Blake2F { gas_per_round } => {
+			let pricing = Pricing::Blake2F(gas_per_round);
+			(pricing, None)
+		},
+		ethjson::spec::builtin::InnerPricing::Linear(linear) => {
+			let pricing = Pricing::Linear(Linear { base: linear.base, word: linear.word });
+			(pricing, None)
+		}
+		ethjson::spec::builtin::InnerPricing::Modexp(exp) => {
+			let pricing = Pricing::Modexp(ModexpPricer {
+				divisor: if exp.divisor == 0 {
+					warn!(target: "builtin", "Zero modexp divisor specified. Falling back to default: 10.");
+					10
+				} else {
+					exp.divisor
+				}
+			});
+			(pricing, None)
+		}
+		ethjson::spec::builtin::InnerPricing::AltBn128Pairing(pricer) => {
+			let price1 = Pricing::AltBn128Pairing(AltBn128PairingPricer {
+				price: AltBn128PairingPrice {
+					base: pricer.base,
+					pair: pricer.pair,
+				},
+			});
 
-impl From<ethjson::spec::builtin::InnerPricing> for Pricing {
-	fn from(pricing: ethjson::spec::builtin::InnerPricing) -> Self {
-		match pricing {
-			ethjson::spec::builtin::InnerPricing::Blake2F { gas_per_round } => {
-				Pricing::Blake2F(gas_per_round)
-			},
-			ethjson::spec::builtin::InnerPricing::Linear(linear) => {
-				Pricing::Linear(Linear {
-					base: linear.base,
-					word: linear.word,
-				})
-			}
-			ethjson::spec::builtin::InnerPricing::Modexp(exp) => {
-				Pricing::Modexp(ModexpPricer {
-					divisor: if exp.divisor == 0 {
-						warn!(target: "builtin", "Zero modexp divisor specified. Falling back to default: 10.");
-						10
-					} else {
-						exp.divisor
-					}
-				})
-			}
-			ethjson::spec::builtin::InnerPricing::AltBn128Pairing(pricer) => {
-				Pricing::AltBn128Pairing(AltBn128PairingPricer {
-					price: AltBn128PairingPrice {
-						base: pricer.base,
-						pair: pricer.pair,
-					},
-				})
-			}
+			let price2 = match (pricer.eip1108_transition_base, pricer.eip1108_transition_pair) {
+				(Some(base), Some(pair)) => {
+					Some(Pricing::AltBn128Pairing(AltBn128PairingPricer {
+						price: AltBn128PairingPrice { base, pair },
+					}))
+				}
+				_ => None,
+			};
+			(price1, price2)
+		}
+		ethjson::spec::builtin::InnerPricing::AltBn128ConstOperations(pricer) => {
+			let price1 = Pricing::AltBn128ConstOperations(AltBn128ConstOperations {
+				price: pricer.price,
+			});
+
+			let price2 = if let Some(price) = pricer.eip1108_transition_price {
+				Some(Pricing::AltBn128ConstOperations(AltBn128ConstOperations { price }))
+			} else {
+				None
+			};
+			(price1, price2)
 		}
 	}
 }
@@ -1331,6 +1391,7 @@ mod tests {
 					word: 20,
 			})),
 			activate_at: Some(Uint(0.into())),
+			eip1108_transition: None,
 		});
 
 		assert_eq!(b.cost(&[0; 0], 0), U256::from(10));
@@ -1354,6 +1415,8 @@ mod tests {
 					price: JsonPricingInner::AltBn128Pairing(JsonAltBn128PairingPricing {
 						base: 100_000,
 						pair: 80_000,
+						eip1108_transition_base: None,
+						eip1108_transition_pair: None,
 					}),
 					activate_at: Uint(10.into()),
 				},
@@ -1362,11 +1425,14 @@ mod tests {
 					price: JsonPricingInner::AltBn128Pairing(JsonAltBn128PairingPricing {
 						base: 45_000,
 						pair: 34_000,
+						eip1108_transition_base: None,
+						eip1108_transition_pair: None,
 					}),
 					activate_at: Uint(20.into()),
 				},
 			]),
 			activate_at: None,
+			eip1108_transition: None,
 		});
 
 		assert_eq!(b.cost(&[0; 192 * 3], 10), U256::from(340_000), "80 000 * 3 + 100 000 == 340 000");
@@ -1396,6 +1462,7 @@ mod tests {
 				}
 			]),
 			activate_at: None,
+			eip1108_transition: None,
 		});
 
 		assert_eq!(b.cost(&[0; 192], 10), U256::from(500));
@@ -1425,6 +1492,7 @@ mod tests {
 				}
 			]),
 			activate_at: None,
+			eip1108_transition: None,
 		});
 
 		assert_eq!(b.cost(&[0; 192], 10), U256::from(40_000));
@@ -1463,6 +1531,7 @@ mod tests {
 				}
 			]),
 			activate_at: None,
+			eip1108_transition: None,
 		});
 
 		assert_eq!(b.cost(&[0; 2], 0), U256::zero(), "not activated yet; should be zero");
@@ -1505,6 +1574,7 @@ mod tests {
 				}
 			]),
 			activate_at: None,
+			eip1108_transition: None,
 		});
 
 		assert_eq!(b.cost(&[0; 1], 0), U256::from(0), "not activated yet");
