@@ -472,7 +472,7 @@ impl Ethash {
 /// This function will panic if `era_rounds` is less than `2`
 fn ecip1017_eras_block_reward(era_rounds: u64, mut reward: U256, block_number: u64) -> (u64, U256) {
 	// NOTE(niklasad1): all numbers is divisible by 1, it will cause the if below
-	// to succeed except the first block. Thus, `era_rounds - 1 == 0` and cause `divide by zero`
+	// to succeed except for the first block. Thus, `era_rounds - 1 == 0` and cause `divide by zero`
 	//
 	// TODO(niklasad): We could set `eras` to zero if this occurs, but I'm not sure of the implications
 	assert!(era_rounds > 1, "ecip1017EraRounds must be bigger than 1");
