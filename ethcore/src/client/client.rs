@@ -1805,7 +1805,7 @@ impl BlockChainClient for Client {
 		Some(accounts)
 	}
 
-	fn list_storage(&self, id: BlockId, account: &Address, after: Option<&H256>, count: u64) -> Option<Vec<H256>> {
+	fn list_storage(&self, id: BlockId, account: &Address, after: Option<&H256>, count: Option<u64>) -> Option<Vec<H256>> {
 		if !self.factories.trie.is_fat() {
 			trace!(target: "fatdb", "list_storage: Not a fat DB");
 			return None;
@@ -1846,9 +1846,16 @@ impl BlockChainClient for Client {
 			}
 		}
 
-		let keys = iter.filter_map(|item| {
-			item.ok().map(|(key, _)| H256::from_slice(&key))
-		}).take(count as usize).collect();
+		let keys = {
+			let f = iter.filter_map(|item| {
+				item.ok().map(|(key, _)| H256::from_slice(&key))
+			});
+			if let Some(count) = count {
+				f.take(count as usize).collect()
+			} else {
+				f.collect()
+			}
+		};
 
 		Some(keys)
 	}
