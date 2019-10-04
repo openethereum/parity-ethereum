@@ -140,7 +140,7 @@ mod tests {
 	}
 
 	#[test]
-	fn builtin_v2_deserialization() {
+	fn deserialize_multiple_pricings() {
 		let s = r#"{
 			"name": "ecrecover",
 			"pricing": [
