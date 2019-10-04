@@ -609,7 +609,7 @@ fn execute_export_state(cmd: ExportState) -> Result<(), String> {
 					out.write_fmt(format_args!(", \"storage\": {{")).expect("Write error");
 					let mut last_storage: Option<H256> = None;
 					loop {
-						let keys = client.list_storage(at, &account, last_storage.as_ref(), 1000).ok_or("Specified block not found")?;
+						let keys = client.list_storage(at, &account, last_storage.as_ref(), Some(1000)).ok_or("Specified block not found")?;
 						if keys.is_empty() {
 							break;
 						}

@@ -117,7 +117,7 @@ pub trait Parity {
 	/// Returns all storage keys of the given address (first parameter) if Fat DB is enabled (`--fat-db`),
 	/// or null if not.
 	#[rpc(name = "parity_listStorageKeys")]
-	fn list_storage_keys(&self, H160, u64, Option<H256>, Option<BlockNumber>) -> Result<Option<Vec<H256>>>;
+	fn list_storage_keys(&self, H160, Option<u64>, Option<H256>, Option<BlockNumber>) -> Result<Option<Vec<H256>>>;
 
 	/// Encrypt some data with a public key under ECIES.
 	/// First parameter is the 512-byte destination public key, second is the message.

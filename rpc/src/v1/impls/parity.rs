@@ -222,7 +222,7 @@ impl<C, M, U, S> Parity for ParityClient<C, M, U> where
 			.map(|a| a.into_iter().map(Into::into).collect()))
 	}
 
-	fn list_storage_keys(&self, address: H160, count: u64, after: Option<H256>, block_number: Option<BlockNumber>) -> Result<Option<Vec<H256>>> {
+	fn list_storage_keys(&self, address: H160, count: Option<u64>, after: Option<H256>, block_number: Option<BlockNumber>) -> Result<Option<Vec<H256>>> {
 		let number = match block_number.unwrap_or_default() {
 			BlockNumber::Pending => {
 				warn!("BlockNumber::Pending is unsupported");
