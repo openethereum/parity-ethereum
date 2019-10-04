@@ -222,9 +222,6 @@ impl Builtin {
 	///
 	/// If multiple `activation_at` has the same block number the last one is used
 	/// which follows the BTreeMap semantics
-	///
-	// NOTE(niklasad1): we could remove is_active and replace with `fn cost(...) -> Option<U256>`
-	// but it would require some changes that I don't want to do...
 	pub fn cost(&self, input: &[u8], at: u64) -> U256 {
 		for (&activate_at, pricer) in self.pricer.iter().rev() {
 			if at >= activate_at {
@@ -298,7 +295,11 @@ impl From<ethjson::spec::Builtin> for Builtin {
 
 // Convert `JSON pricing` into Pricing
 //
-// Because `AltBn128XX` has two different pricings included both are return which `Option<Pricing>` is for
+// Because `AltBn128XX` has two different pricings for `eip1108 transition` both need
+// to be taken into account.
+//
+// Returns `(Pricing, Some(Pricing))` if eip1108_transition is enabled with an activation
+// otherwise it returns `(Pricing, None)`
 fn into_pricing(pricing: ethjson::spec::builtin::InnerPricing) -> (Pricing, Option<Pricing>) {
 	match pricing {
 		ethjson::spec::builtin::InnerPricing::Blake2F { gas_per_round } => {
