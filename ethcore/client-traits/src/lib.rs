@@ -491,9 +491,9 @@ pub trait ImportExportBlocks {
 	/// destination could be a file or stdout.
 	/// If the format is hex, each block is written on a new line.
 	/// For binary exports, all block data is written to the same line.
-	fn export_blocks<'a>(
+	fn export_blocks(
 		&self,
-		destination: Box<dyn std::io::Write + 'a>,
+		destination: Box<dyn std::io::Write>,
 		from: BlockId,
 		to: BlockId,
 		format: Option<DataFormat>
@@ -504,9 +504,9 @@ pub trait ImportExportBlocks {
 	/// For hex format imports, it attempts to read the blocks on a line by line basis.
 	/// For binary format imports, reads the 8 byte RLP header in order to decode the block
 	/// length to be read.
-	fn import_blocks<'a>(
+	fn import_blocks(
 		&self,
-		source: Box<dyn std::io::Read + 'a>,
+		source: Box<dyn std::io::Read>,
 		format: Option<DataFormat>
 	) -> Result<(), String>;
 }
