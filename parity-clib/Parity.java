@@ -67,7 +67,7 @@ public class Parity {
 
 	// FIXME: `finalize` is deprecated - https://github.com/paritytech/parity-ethereum/issues/10066
 	@Override
-	protected void finalize​() {
+	protected void finalize() {
 		destroy(inner);
 	}
 

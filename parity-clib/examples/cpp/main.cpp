@@ -16,13 +16,14 @@
 
 #include <chrono>
 #include <parity.h>
+#include <parity.hpp>
 #include <regex>
 #include <string>
 #include <thread>
 
-void* parity_run(std::vector<const char*>);
-int parity_subscribe_to_websocket(void*);
-int parity_rpc_queries(void*);
+static void* parity_run(std::vector<const char*>);
+static int parity_subscribe_to_websocket(void*);
+static int parity_rpc_queries(void*);
 
 const int SUBSCRIPTION_ID_LEN = 18;
 const size_t TIMEOUT_ONE_MIN_AS_MILLIS = 60 * 1000;
@@ -56,7 +57,7 @@ void callback(void* user_data, const char* response, size_t _len) {
 		cb->counter -= 1;
 	} else if (cb->type == CALLBACK_WS) {
 		std::regex is_subscription ("\\{\"jsonrpc\":\"2.0\",\"result\":\"0[xX][a-fA-F0-9]{16}\",\"id\":1\\}");
-		if (std::regex_match(response, is_subscription) == true) {
+		if (std::regex_match(response, is_subscription)) {
 			cb->counter -= 1;
 		}
 	}
