@@ -121,7 +121,7 @@ struct AltBn128PairingPricer {
 /// Pricing for constant alt_bn128 operations
 #[derive(Debug, Copy, Clone)]
 pub struct AltBn128ConstOperations {
-	/// price
+	/// Fixed price.
 	pub price: usize,
 }
 
