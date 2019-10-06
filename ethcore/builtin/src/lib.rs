@@ -344,11 +344,11 @@ fn into_pricing(pricing: ethjson::spec::builtin::PricingInner) -> (Pricing, Opti
 				price: pricer.price,
 			});
 
-			let price2 = if let Some(price) = pricer.eip1108_transition_price {
-				Some(Pricing::AltBn128ConstOperations(AltBn128ConstOperations { price }))
-			} else {
-				None
-			};
+			let price2 = pricer.eip1108_transition_price.map(|price| {
+				Pricing::AltBn128ConstOperations(AltBn128ConstOperations {
+					price
+				})
+			});
 			(price1, price2)
 		}
 	}
