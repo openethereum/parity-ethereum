@@ -254,37 +254,44 @@ impl From<ethjson::spec::Builtin> for Builtin {
 			ethjson::spec::builtin::Pricing::Single(pricer) => {
 				let mut pricers = BTreeMap::new();
 
-				let (first, maybe_second) = into_pricing(pricer);
+				let (pricing, eip1108_pricing) = into_pricing(pricer);
 
 				if b.activate_at.is_none() {
 					warn!(target: "builtin",
-						"builtin: {}, missing which block to activate it on, failing back to default: 0",
+						"Builtin contract: {} is missing which block to activate it on, failing back to default: 0",
 						b.name
 					);
 				}
 
-				pricers.insert(b.activate_at.map_or(0, Into::into), first);
+				pricers.insert(b.activate_at.map_or(0, Into::into), pricing);
 
-				if let (Some(activate), Some(second)) = (b.eip1108_transition, maybe_second) {
-					pricers.insert(activate.into(), second);
+				if let (Some(activate), Some(p)) = (b.eip1108_transition, eip1108_pricing) {
+					pricers.insert(activate.into(), p);
+					warn!(target: "builtin",
+						"Builtin contract: {} enabled with eip1108_transition which is deprecated. \
+						Use builtin contract with multiple activations instead in your chain specification",
+						b.name
+					);
 				}
 				pricers
 			}
 
 			ethjson::spec::builtin::Pricing::Multi(pricer) => {
-				assert!(!pricer.is_empty(), "chainspec contains multiple builtins; but no values found");
+				assert!(!pricer.is_empty(), "Chainspec with builtin contract with multiple activations was empty");
 
 				let mut pricers = BTreeMap::new();
 				for p in pricer {
-					let (first, maybe_second) = into_pricing(p.price);
+					let (pricing, eip1108_pricing) = into_pricing(p.price);
 
-					if let Some(_second) = maybe_second {
-						// these are supposed to only be used single pricing because `activate_at` would
-						// not be known for each,
-						warn!(target: "builtin", "multi-pricing with eip1108_transition is ignored for {}", b.name);
+					if eip1108_pricing.is_some() {
+						warn!(target: "builtin",
+							"Builtin contract: {} is with configured multiple activations but contains \
+							eip1108_transition which is not supported. The contract is activated on block: {:?}",
+							b.name, p.activate_at
+						);
 					}
 
-					pricers.insert(p.activate_at.into(), first);
+					pricers.insert(p.activate_at.into(), pricing);
 				}
 				pricers
 			}
@@ -322,14 +329,14 @@ fn into_pricing(pricing: ethjson::spec::builtin::PricingInner) -> (Pricing, Opti
 			(pricing, None)
 		}
 		ethjson::spec::builtin::PricingInner::AltBn128Pairing(pricer) => {
-			let price1 = Pricing::AltBn128Pairing(AltBn128PairingPricer {
+			let pricing = Pricing::AltBn128Pairing(AltBn128PairingPricer {
 				price: AltBn128PairingPrice {
 					base: pricer.base,
 					pair: pricer.pair,
 				},
 			});
 
-			let price2 = match (pricer.eip1108_transition_base, pricer.eip1108_transition_pair) {
+			let eip1108_pricing = match (pricer.eip1108_transition_base, pricer.eip1108_transition_pair) {
 				(Some(base), Some(pair)) => {
 					Some(Pricing::AltBn128Pairing(AltBn128PairingPricer {
 						price: AltBn128PairingPrice { base, pair },
@@ -337,19 +344,21 @@ fn into_pricing(pricing: ethjson::spec::builtin::PricingInner) -> (Pricing, Opti
 				}
 				_ => None,
 			};
-			(price1, price2)
+
+			(pricing, eip1108_pricing)
 		}
 		ethjson::spec::builtin::PricingInner::AltBn128ConstOperations(pricer) => {
-			let price1 = Pricing::AltBn128ConstOperations(AltBn128ConstOperations {
+			let pricing = Pricing::AltBn128ConstOperations(AltBn128ConstOperations {
 				price: pricer.price,
 			});
 
-			let price2 = pricer.eip1108_transition_price.map(|price| {
+			let eip1108_pricing = pricer.eip1108_transition_price.map(|price| {
 				Pricing::AltBn128ConstOperations(AltBn128ConstOperations {
 					price
 				})
 			});
-			(price1, price2)
+
+			(pricing, eip1108_pricing)
 		}
 	}
 }
