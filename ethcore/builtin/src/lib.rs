@@ -300,17 +300,17 @@ impl From<ethjson::spec::Builtin> for Builtin {
 //
 // Returns `(Pricing, Some(Pricing))` if eip1108_transition is enabled with an activation
 // otherwise it returns `(Pricing, None)`
-fn into_pricing(pricing: ethjson::spec::builtin::InnerPricing) -> (Pricing, Option<Pricing>) {
+fn into_pricing(pricing: ethjson::spec::builtin::PricingInner) -> (Pricing, Option<Pricing>) {
 	match pricing {
-		ethjson::spec::builtin::InnerPricing::Blake2F { gas_per_round } => {
+		ethjson::spec::builtin::PricingInner::Blake2F { gas_per_round } => {
 			let pricing = Pricing::Blake2F(gas_per_round);
 			(pricing, None)
 		},
-		ethjson::spec::builtin::InnerPricing::Linear(linear) => {
+		ethjson::spec::builtin::PricingInner::Linear(linear) => {
 			let pricing = Pricing::Linear(Linear { base: linear.base, word: linear.word });
 			(pricing, None)
 		}
-		ethjson::spec::builtin::InnerPricing::Modexp(exp) => {
+		ethjson::spec::builtin::PricingInner::Modexp(exp) => {
 			let pricing = Pricing::Modexp(ModexpPricer {
 				divisor: if exp.divisor == 0 {
 					warn!(target: "builtin", "Zero modexp divisor specified. Falling back to default: 10.");
@@ -321,7 +321,7 @@ fn into_pricing(pricing: ethjson::spec::builtin::InnerPricing) -> (Pricing, Opti
 			});
 			(pricing, None)
 		}
-		ethjson::spec::builtin::InnerPricing::AltBn128Pairing(pricer) => {
+		ethjson::spec::builtin::PricingInner::AltBn128Pairing(pricer) => {
 			let price1 = Pricing::AltBn128Pairing(AltBn128PairingPricer {
 				price: AltBn128PairingPrice {
 					base: pricer.base,
@@ -339,7 +339,7 @@ fn into_pricing(pricing: ethjson::spec::builtin::InnerPricing) -> (Pricing, Opti
 			};
 			(price1, price2)
 		}
-		ethjson::spec::builtin::InnerPricing::AltBn128ConstOperations(pricer) => {
+		ethjson::spec::builtin::PricingInner::AltBn128ConstOperations(pricer) => {
 			let price1 = Pricing::AltBn128ConstOperations(AltBn128ConstOperations {
 				price: pricer.price,
 			});
@@ -800,8 +800,8 @@ mod tests {
 	use ethjson::uint::Uint;
 	use ethjson::spec::builtin::{
 		Builtin as JsonBuiltin, Linear as JsonLinearPricing,
-		PricingWithActivation, AltBn128Pairing as JsonAltBn128PairingPricing, Pricing as JsonPricing,
-		InnerPricing as JsonPricingInner
+		PricingAt, AltBn128Pairing as JsonAltBn128PairingPricing, Pricing as JsonPricing,
+		PricingInner as JsonPricingInner
 	};
 	use hex_literal::hex;
 	use macros::map;
@@ -1411,7 +1411,7 @@ mod tests {
 		let b = Builtin::from(JsonBuiltin {
 			name: "alt_bn128_pairing".to_owned(),
 			pricing: JsonPricing::Multi(vec![
-				PricingWithActivation {
+				PricingAt {
 					info: None,
 					price: JsonPricingInner::AltBn128Pairing(JsonAltBn128PairingPricing {
 						base: 100_000,
@@ -1421,7 +1421,7 @@ mod tests {
 					}),
 					activate_at: Uint(10.into()),
 				},
-				PricingWithActivation {
+				PricingAt {
 					info: None,
 					price: JsonPricingInner::AltBn128Pairing(JsonAltBn128PairingPricing {
 						base: 45_000,
@@ -1445,7 +1445,7 @@ mod tests {
 		let b = Builtin::from(JsonBuiltin {
 			name: "alt_bn128_add".to_owned(),
 			pricing: JsonPricing::Multi(vec![
-				PricingWithActivation {
+				PricingAt {
 					info: None,
 					price: JsonPricingInner::Linear(JsonLinearPricing {
 						base: 500,
@@ -1453,7 +1453,7 @@ mod tests {
 					}),
 					activate_at: Uint(10.into()),
 				},
-				PricingWithActivation {
+				PricingAt {
 					info: None,
 					price: JsonPricingInner::Linear(JsonLinearPricing {
 						base: 150,
@@ -1475,7 +1475,7 @@ mod tests {
 		let b = Builtin::from(JsonBuiltin {
 			name: "alt_bn128_mul".to_owned(),
 			pricing: JsonPricing::Multi(vec![
-				PricingWithActivation {
+				PricingAt {
 					info: None,
 					price: JsonPricingInner::Linear(JsonLinearPricing {
 						base: 40_000,
@@ -1483,7 +1483,7 @@ mod tests {
 					}),
 					activate_at: Uint(10.into()),
 				},
-				PricingWithActivation {
+				PricingAt {
 					info: None,
 					price: JsonPricingInner::Linear(JsonLinearPricing {
 						base: 6_000,
@@ -1506,7 +1506,7 @@ mod tests {
 		let b = Builtin::from(JsonBuiltin {
 			name: "alt_bn128_mul".to_owned(),
 			pricing: JsonPricing::Multi(vec![
-				PricingWithActivation {
+				PricingAt {
 					info: None,
 					price: JsonPricingInner::Linear(JsonLinearPricing {
 						base: 40_000,
@@ -1514,7 +1514,7 @@ mod tests {
 					}),
 					activate_at: Uint(10.into()),
 				},
-				PricingWithActivation {
+				PricingAt {
 					info: None,
 					price: JsonPricingInner::Linear(JsonLinearPricing {
 						base: 6_000,
@@ -1522,7 +1522,7 @@ mod tests {
 					}),
 					activate_at: Uint(20.into()),
 				},
-				PricingWithActivation {
+				PricingAt {
 					info: None,
 					price: JsonPricingInner::Linear(JsonLinearPricing {
 						base: 1_337,
@@ -1549,7 +1549,7 @@ mod tests {
 		let b = Builtin::from(JsonBuiltin {
 			name: "alt_bn128_mul".to_owned(),
 			pricing: JsonPricing::Multi(vec![
-				PricingWithActivation {
+				PricingAt {
 					info: None,
 					price: JsonPricingInner::Linear(JsonLinearPricing {
 						base: 40_000,
@@ -1557,7 +1557,7 @@ mod tests {
 					}),
 					activate_at: Uint(1.into()),
 				},
-				PricingWithActivation {
+				PricingAt {
 					info: None,
 					price: JsonPricingInner::Linear(JsonLinearPricing {
 						base: 6_000,
@@ -1565,7 +1565,7 @@ mod tests {
 					}),
 					activate_at: Uint(1.into()),
 				},
-				PricingWithActivation {
+				PricingAt {
 					info: None,
 					price: JsonPricingInner::Linear(JsonLinearPricing {
 						base: 1_337,

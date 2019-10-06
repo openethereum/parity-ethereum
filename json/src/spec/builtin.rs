@@ -68,7 +68,7 @@ pub struct AltBn128Pairing {
 #[derive(Debug, PartialEq, Deserialize, Clone)]
 #[serde(deny_unknown_fields)]
 #[serde(rename_all = "snake_case")]
-pub enum InnerPricing {
+pub enum PricingInner {
 	/// Pricing for Blake2 compression function: each call costs the same amount per round.
 	Blake2F {
 		/// Price per round of Blake2 compression function.
@@ -106,26 +106,26 @@ pub struct Builtin {
 #[serde(untagged)]
 pub enum Pricing {
 	/// Single builtin
-	Single(InnerPricing),
+	Single(PricingInner),
 	/// Multiple builtins
-	Multi(Vec<PricingWithActivation>),
+	Multi(Vec<PricingAt>),
 }
 
 /// Builtin price with which block to activate it on
 #[derive(Debug, PartialEq, Deserialize, Clone)]
 #[serde(deny_unknown_fields)]
-pub struct PricingWithActivation {
+pub struct PricingAt {
 	/// Description of the activation
 	pub info: Option<String>,
 	/// Builtin pricing.
-	pub price: InnerPricing,
+	pub price: PricingInner,
 	/// Activation block.
 	pub activate_at: Uint,
 }
 
 #[cfg(test)]
 mod tests {
-	use super::{Builtin, Pricing, InnerPricing, PricingWithActivation, Uint, Linear, Modexp, AltBn128ConstOperations};
+	use super::{Builtin, Pricing, PricingInner, PricingAt, Uint, Linear, Modexp, AltBn128ConstOperations};
 
 	#[test]
 	fn builtin_deserialization() {
@@ -135,7 +135,7 @@ mod tests {
 		}"#;
 		let deserialized: Builtin = serde_json::from_str(s).unwrap();
 		assert_eq!(deserialized.name, "ecrecover");
-		assert_eq!(deserialized.pricing, Pricing::Single(InnerPricing::Linear(Linear { base: 3000, word: 0 })));
+		assert_eq!(deserialized.pricing, Pricing::Single(PricingInner::Linear(Linear { base: 3000, word: 0 })));
 		assert!(deserialized.activate_at.is_none());
 	}
 
@@ -158,15 +158,15 @@ mod tests {
 		let deserialized: Builtin = serde_json::from_str(s).unwrap();
 		assert_eq!(deserialized.name, "ecrecover");
 		assert_eq!(deserialized.pricing, Pricing::Multi(vec![
-			PricingWithActivation {
+			PricingAt {
 				info: None,
 				activate_at: Uint(0.into()),
-				price: InnerPricing::Linear(Linear { base: 3000, word: 0 })
+				price: PricingInner::Linear(Linear { base: 3000, word: 0 })
 			},
-			PricingWithActivation {
+			PricingAt {
 				info: Some(String::from("enable fake EIP at block 500")),
 				activate_at: Uint(500.into()),
-				price: InnerPricing::Linear(Linear { base: 10, word: 0 })
+				price: PricingInner::Linear(Linear { base: 10, word: 0 })
 			}
 		]));
 		assert!(deserialized.activate_at.is_none());
@@ -181,7 +181,7 @@ mod tests {
 		}"#;
 		let deserialized: Builtin = serde_json::from_str(s).unwrap();
 		assert_eq!(deserialized.name, "blake2_f");
-		assert_eq!(deserialized.pricing, Pricing::Single(InnerPricing::Blake2F { gas_per_round: 123 }));
+		assert_eq!(deserialized.pricing, Pricing::Single(PricingInner::Blake2F { gas_per_round: 123 }));
 		assert!(deserialized.activate_at.is_some());
 	}
 
@@ -195,7 +195,7 @@ mod tests {
 
 		let deserialized: Builtin = serde_json::from_str(s).unwrap();
 		assert_eq!(deserialized.name, "late_start");
-		assert_eq!(deserialized.pricing, Pricing::Single(InnerPricing::Modexp(Modexp { divisor: 5 })));
+		assert_eq!(deserialized.pricing, Pricing::Single(PricingInner::Modexp(Modexp { divisor: 5 })));
 		assert_eq!(deserialized.activate_at, Some(Uint(100000.into())));
 	}
 
@@ -216,7 +216,7 @@ mod tests {
 		assert_eq!(deserialized.name, "alt_bn128_add");
 		assert_eq!(
 			deserialized.pricing,
-			Pricing::Single(InnerPricing::AltBn128ConstOperations(AltBn128ConstOperations {
+			Pricing::Single(PricingInner::AltBn128ConstOperations(AltBn128ConstOperations {
 				price: 500,
 				eip1108_transition_price: Some(150),
 			}))
