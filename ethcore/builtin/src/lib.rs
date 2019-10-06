@@ -89,14 +89,14 @@ impl Pricer for Pricing {
 /// A linear pricing model. This computes a price using a base cost and a cost per-word.
 #[derive(Debug)]
 struct Linear {
-	base: usize,
-	word: usize,
+	base: u64,
+	word: u64,
 }
 
 /// A special pricing model for modular exponentiation.
 #[derive(Debug)]
 struct ModexpPricer {
-	divisor: usize,
+	divisor: u64,
 }
 
 impl Pricer for Linear {
@@ -108,8 +108,8 @@ impl Pricer for Linear {
 /// alt_bn128 pairing price
 #[derive(Debug, Copy, Clone)]
 struct AltBn128PairingPrice {
-	base: usize,
-	pair: usize,
+	base: u64,
+	pair: u64,
 }
 
 /// alt_bn128_pairing pricing model. This computes a price using a base cost and a cost per pair.
@@ -122,7 +122,7 @@ struct AltBn128PairingPricer {
 #[derive(Debug, Copy, Clone)]
 pub struct AltBn128ConstOperations {
 	/// Fixed price.
-	pub price: usize,
+	pub price: u64,
 }
 
 impl Pricer for AltBn128ConstOperations {

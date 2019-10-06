@@ -24,9 +24,9 @@ use serde::Deserialize;
 #[serde(deny_unknown_fields)]
 pub struct Linear {
 	/// Base price.
-	pub base: usize,
+	pub base: u64,
 	/// Price for word.
-	pub word: usize,
+	pub word: u64,
 }
 
 /// Pricing for modular exponentiation.
@@ -34,7 +34,7 @@ pub struct Linear {
 #[serde(deny_unknown_fields)]
 pub struct Modexp {
 	/// Price divisor.
-	pub divisor: usize,
+	pub divisor: u64,
 }
 
 /// Pricing for constant alt_bn128 operations (ECADD and ECMUL)
@@ -42,10 +42,10 @@ pub struct Modexp {
 #[serde(deny_unknown_fields)]
 pub struct AltBn128ConstOperations {
 	/// price
-	pub price: usize,
+	pub price: u64,
 	/// EIP 1108 transition price
 	// for backward compability
-	pub eip1108_transition_price: Option<usize>,
+	pub eip1108_transition_price: Option<u64>,
 }
 
 /// Pricing for alt_bn128_pairing.
@@ -53,15 +53,15 @@ pub struct AltBn128ConstOperations {
 #[serde(deny_unknown_fields)]
 pub struct AltBn128Pairing {
 	/// Base price.
-	pub base: usize,
+	pub base: u64,
 	/// Price per point pair.
-	pub pair: usize,
+	pub pair: u64,
 	/// EIP 1108 transition base price
 	// for backward compability
-	pub eip1108_transition_base: Option<usize>,
+	pub eip1108_transition_base: Option<u64>,
 	/// EIP 1108 transition price per point pair
 	// for backward compability
-	pub eip1108_transition_pair: Option<usize>,
+	pub eip1108_transition_pair: Option<u64>,
 }
 
 /// Pricing variants.
