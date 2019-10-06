@@ -197,7 +197,7 @@ impl ModexpPricer {
 		match x {
 			x if x <= 64 => x * x,
 			x if x <= 1024 => (x * x) / 4 + 96 * x - 3072,
-			x => (x * x) / 16 + 480 * x - 199680,
+			x => (x * x) / 16 + 480 * x - 199_680,
 		}
 	}
 }
@@ -1085,7 +1085,7 @@ mod tests {
 		{
 			let input = hex!("0000000000000000000000000000000000000000000000000000000000000001000000000000000000000000000000000000000000000000000000003b27bafd00000000000000000000000000000000000000000000000000000000503c8ac3");
 			let expected_cost = U256::max_value();
-			assert_eq!(f.cost(&input[..], 0), expected_cost.into());
+			assert_eq!(f.cost(&input[..], 0), expected_cost);
 		}
 
 		// test for potential exp len overflow
@@ -1102,7 +1102,7 @@ mod tests {
 
 			f.execute(&input[..], &mut BytesRef::Fixed(&mut output[..])).expect("Builtin should fail");
 			assert_eq!(output, expected);
-			assert_eq!(f.cost(&input[..], 0), expected_cost.into());
+			assert_eq!(f.cost(&input[..], 0), expected_cost);
 		}
 
 		// fermat's little theorem example.
