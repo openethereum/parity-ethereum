@@ -244,7 +244,7 @@ impl Builtin {
 
 impl From<ethjson::spec::Builtin> for Builtin {
 	fn from(b: ethjson::spec::Builtin) -> Self {
-		// TODO(niklasad1): change this to `try_from` and propogate the error accordingly
+		// TODO: https://github.com/paritytech/parity-ethereum/issues/11134
 		let native = match EthereumBuiltin::from_str(&b.name) {
 			Ok(native) => native,
 			Err(err) => panic!("{}", err),
