@@ -37,7 +37,7 @@ pub struct Modexp {
 	pub divisor: usize,
 }
 
-/// Pricing for constant alt_bn128 operations
+/// Pricing for constant alt_bn128 operations (ECADD and ECMUL)
 #[derive(Debug, PartialEq, Deserialize, Clone)]
 #[serde(deny_unknown_fields)]
 pub struct AltBn128ConstOperations {

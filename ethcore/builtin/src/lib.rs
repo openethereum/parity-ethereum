@@ -118,7 +118,7 @@ struct AltBn128PairingPricer {
 	price: AltBn128PairingPrice,
 }
 
-/// Pricing for constant alt_bn128 operations
+/// Pricing for constant alt_bn128 operations (ECADD and ECMUL)
 #[derive(Debug, Copy, Clone)]
 pub struct AltBn128ConstOperations {
 	/// Fixed price.
