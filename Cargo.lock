@@ -3169,7 +3169,7 @@ dependencies = [
  "parking_lot 0.9.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "pretty_assertions 0.1.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "rand 0.7.2 (registry+https://github.com/rust-lang/crates.io-index)",
- "rand_xorshift 0.1.1 (registry+https://github.com/rust-lang/crates.io-index)",
+ "rand_xorshift 0.2.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "rlp 0.4.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "rustc-hex 1.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "semver 0.9.0 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -3800,6 +3800,14 @@ version = "0.1.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 dependencies = [
  "rand_core 0.3.1 (registry+https://github.com/rust-lang/crates.io-index)",
+]
+
+[[package]]
+name = "rand_xorshift"
+version = "0.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+dependencies = [
+ "rand_core 0.5.1 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]
@@ -5557,6 +5565,7 @@ dependencies = [
 "checksum rand_os 0.2.2 (registry+https://github.com/rust-lang/crates.io-index)" = "a788ae3edb696cfcba1c19bfd388cc4b8c21f8a408432b199c072825084da58a"
 "checksum rand_pcg 0.1.1 (registry+https://github.com/rust-lang/crates.io-index)" = "086bd09a33c7044e56bb44d5bdde5a60e7f119a9e95b0775f545de759a32fe05"
 "checksum rand_xorshift 0.1.1 (registry+https://github.com/rust-lang/crates.io-index)" = "cbf7e9e623549b0e21f6e97cf8ecf247c1a8fd2e8a992ae265314300b2455d5c"
+"checksum rand_xorshift 0.2.0 (registry+https://github.com/rust-lang/crates.io-index)" = "77d416b86801d23dde1aa643023b775c3a462efc0ed96443add11546cdf1dca8"
 "checksum rand_xoshiro 0.3.1 (registry+https://github.com/rust-lang/crates.io-index)" = "0e18c91676f670f6f0312764c759405f13afb98d5d73819840cf72a518487bff"
 "checksum rayon 1.1.0 (registry+https://github.com/rust-lang/crates.io-index)" = "a4b0186e22767d5b9738a05eab7c6ac90b15db17e5b5f9bd87976dd7d89a10a4"
 "checksum rayon-core 1.5.0 (registry+https://github.com/rust-lang/crates.io-index)" = "ebbe0df8435ac0c397d467b6cad6d25543d06e8a019ef3f6af3c384597515bd2"
