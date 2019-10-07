@@ -93,6 +93,10 @@ impl ServiceTransactionChecker {
 		// since it's not recent it won't be used anyway.
 		let cache = mem::replace(&mut *self.certified_addresses_cache.write(), HashMap::default());
 
+		if client.registrar_address().is_none() {
+			return Ok(false);
+		}
+
 		let contract_address_fetch = client.get_address(
 			SERVICE_TRANSACTION_CONTRACT_REGISTRY_NAME,
 			BlockId::Latest
