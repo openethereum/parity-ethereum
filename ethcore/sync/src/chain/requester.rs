@@ -14,14 +14,19 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
-use block_sync::BlockRequest;
+use std::time::Instant;
+
+use crate::{
+	block_sync::BlockRequest,
+	sync_io::SyncIo
+};
+
 use bytes::Bytes;
 use ethereum_types::H256;
+use log::{debug, trace, warn};
 use network::{PeerId};
 use rlp::RlpStream;
-use std::time::Instant;
-use sync_io::SyncIo;
-use types::BlockNumber;
+use common_types::BlockNumber;
 
 use super::sync_packet::SyncPacket;
 use super::sync_packet::SyncPacket::{

@@ -33,9 +33,10 @@ machine = { path = "../machine" }
 journaldb = { path = "../../util/journaldb" }
 parity-bytes = "0.1"
 parity-crypto = "0.4.0"
-parking_lot = "0.8"
+parking_lot = "0.9"
 trie-db = "0.15.0"
 patricia-trie-ethereum = { path = "../../util/patricia-trie-ethereum" }
+registrar = { path = "../../util/registrar" }
 rlp = "0.4.0"
 rlp_derive = { path = "../../util/rlp-derive" }
 rustc-hex = "1.0"
@@ -47,8 +48,8 @@ state-db = { path = "../state-db" }
 time-utils = { path = "../../util/time-utils" }
 tiny-keccak = "1.4"
 trace = { path = "../trace" }
-transaction-pool = "2.0"
-url = "1"
+transaction-pool = "2.0.1"
+url = "2"
 vm = { path = "../vm" }
 
 [dev-dependencies]

@@ -17,23 +17,36 @@
 //! Spec deserialization.
 
 use std::io::Read;
-use serde_json;
+use crate::spec::{Params, Genesis, Engine, State, HardcodedSync};
+use serde::Deserialize;
 use serde_json::Error;
-use spec::{Params, Genesis, Engine, State, HardcodedSync};
 
 /// Fork spec definition
 #[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Deserialize)]
 pub enum ForkSpec {
+	/// EIP 150 Tangerine Whistle: Gas cost changes for IO-heavy operations (#2,463,000, 2016-10-18)
 	EIP150,
+	/// EIP 158/EIP 161 Spurious Dragon: State trie clearing (#2,675,000, 2016-11-22)
 	EIP158,
+	/// Frontier (#1, 2015-07-30)
 	Frontier,
+	/// Homestead (#1,150,000, 2016-03-14)
 	Homestead,
+	/// Byzantium Metropolis phase 1 (#4,370,000, 2017-10-16)
 	Byzantium,
+	/// Constantinople Metropolis phase 2 (#7,280,000, 2019-02-28)
 	Constantinople,
+	/// Constantinople transition test-net
 	ConstantinopleFix,
+	/// Istanbul (To be announced)
+	Istanbul,
+	/// Byzantium transition test-net
 	EIP158ToByzantiumAt5,
+	/// Homestead transition test-net
 	FrontierToHomesteadAt5,
+	/// Homestead transition test-net
 	HomesteadToDaoAt5,
+	/// EIP158/EIP161 transition test-net
 	HomesteadToEIP150At5,
 }
 
@@ -69,8 +82,7 @@ impl Spec {
 
 #[cfg(test)]
 mod tests {
-	use serde_json;
-	use spec::spec::Spec;
+	use super::Spec;
 
 	#[test]
 	fn should_error_on_unknown_fields() {

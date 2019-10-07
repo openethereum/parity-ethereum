@@ -15,11 +15,11 @@ keccak-hasher = { path = "../keccak-hasher" }
 kvdb = "0.1"
 log = "0.4"
 memory-db = "0.15.0"
-parking_lot = "0.8"
+parking_lot = "0.9"
 fastmap = { path = "../../util/fastmap" }
 rlp = "0.4.0"
 
 [dev-dependencies]
 env_logger = "0.5"
 keccak-hash = "0.2.0"
-kvdb-memorydb = "0.1"
+kvdb-memorydb = "0.1.2"

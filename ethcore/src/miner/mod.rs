@@ -46,7 +46,8 @@ use types::{
 };
 
 use block::SealedBlock;
-use call_contract::{CallContract, RegistryInfo};
+use call_contract::CallContract;
+use registrar::RegistrarClient;
 use client::{BlockProducer, SealedBlockImporter};
 use client_traits::{BlockChain, ChainInfo, AccountData, Nonce, ScheduleInfo};
 use account_state::state::StateInfo;
@@ -54,7 +55,7 @@ use account_state::state::StateInfo;
 /// Provides methods to verify incoming external transactions
 pub trait TransactionVerifierClient: Send + Sync
 	// Required for ServiceTransactionChecker
-	+ CallContract + RegistryInfo
+	+ CallContract + RegistrarClient
 	// Required for verifiying transactions
 	+ BlockChain + ScheduleInfo + AccountData
 {}

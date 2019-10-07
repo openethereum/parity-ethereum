@@ -19,7 +19,7 @@ use std::time::Duration;
 use futures::{Future, Poll};
 use tokio::timer::timeout::{Timeout, Error as TimeoutError};
 
-type DeadlineBox<F> = Box<Future<
+type DeadlineBox<F> = Box<dyn Future<
 	Item = DeadlineStatus<<F as Future>::Item>,
 	Error = TimeoutError<<F as Future>::Error>
 > + Send>;

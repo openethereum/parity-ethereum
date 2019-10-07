@@ -25,12 +25,12 @@ use {ServerKeyId};
 /// Aggregated on-chain service contract.
 pub struct OnChainServiceContractAggregate {
 	/// All hosted service contracts.
-	contracts: Vec<Arc<ServiceContract>>,
+	contracts: Vec<Arc<dyn ServiceContract>>,
 }
 
 impl OnChainServiceContractAggregate {
 	/// Create new aggregated service contract listener.
-	pub fn new(contracts: Vec<Arc<ServiceContract>>) -> Self {
+	pub fn new(contracts: Vec<Arc<dyn ServiceContract>>) -> Self {
 		debug_assert!(contracts.len() > 1);
 		OnChainServiceContractAggregate {
 			contracts: contracts,
@@ -47,15 +47,15 @@ impl ServiceContract for OnChainServiceContractAggregate {
 		result
 	}
 
-	fn read_logs(&self) -> Box<Iterator<Item=ServiceTask>> {
+	fn read_logs(&self) -> Box<dyn Iterator<Item=ServiceTask>> {
 		self.contracts.iter()
-			.fold(Box::new(::std::iter::empty()) as Box<Iterator<Item=ServiceTask>>, |i, c|
+			.fold(Box::new(::std::iter::empty()) as Box<dyn Iterator<Item=ServiceTask>>, |i, c|
 				Box::new(i.chain(c.read_logs())))
 	}
 
-	fn read_pending_requests(&self) -> Box<Iterator<Item=(bool, ServiceTask)>> {
+	fn read_pending_requests(&self) -> Box<dyn Iterator<Item=(bool, ServiceTask)>> {
 		self.contracts.iter()
-			.fold(Box::new(::std::iter::empty()) as Box<Iterator<Item=(bool, ServiceTask)>>, |i, c|
+			.fold(Box::new(::std::iter::empty()) as Box<dyn Iterator<Item=(bool, ServiceTask)>>, |i, c|
 				Box::new(i.chain(c.read_pending_requests())))
 	}
 

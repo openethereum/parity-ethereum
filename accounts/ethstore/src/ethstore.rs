@@ -709,7 +709,7 @@ mod tests {
 	}
 
 	struct RootDiskDirectoryGuard {
-		pub key_dir: Option<Box<KeyDirectory>>,
+		pub key_dir: Option<Box<dyn KeyDirectory>>,
 		_path: TempDir,
 	}
 

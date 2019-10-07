@@ -35,6 +35,7 @@ use miner::external::ExternalMinerService;
 use sync::SyncProvider;
 use types::{
 	BlockNumber as EthBlockNumber,
+	client_types::StateResult,
 	encoded,
 	ids::{BlockId, TransactionId, UncleId},
 	filter::Filter as EthcoreFilter,
@@ -742,8 +743,8 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM, T: StateInfo + 'static> Eth for EthClient<
 		try_bf!(check_known(&*self.client, num.clone()));
 
 		let res = match self.client.code(&address, self.get_state(num)) {
-			Some(code) => Ok(code.map_or_else(Bytes::default, Bytes::new)),
-			None => Err(errors::state_pruned()),
+			StateResult::Some(code) => Ok(code.map_or_else(Bytes::default, Bytes::new)),
+			StateResult::Missing => Err(errors::state_pruned()),
 		};
 
 		Box::new(future::done(res))

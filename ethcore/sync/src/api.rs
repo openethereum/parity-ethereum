@@ -19,46 +19,54 @@ use std::collections::{HashMap, BTreeMap};
 use std::io;
 use std::ops::RangeInclusive;
 use std::time::Duration;
-use bytes::Bytes;
-use devp2p::NetworkService;
-use network::{NetworkProtocolHandler, NetworkContext, PeerId, ProtocolId,
-	NetworkConfiguration as BasicNetworkConfiguration, NonReservedPeerMode, Error,
-	ConnectionFilter};
-use network::client_version::ClientVersion;
-use ethereum_types::{H256, H512, U256};
-use futures::sync::mpsc as futures_mpsc;
-use futures::Stream;
-use io::{TimerToken};
-use ethkey::Secret;
-use client_traits::{BlockChainClient, ChainNotify};
-use snapshot::SnapshotService;
-use ethcore_private_tx::PrivateStateDB;
-use types::BlockNumber;
-use sync_io::NetSyncIo;
-use chain::{ChainSyncApi, SyncStatus as EthSyncStatus};
 use std::net::{SocketAddr, AddrParseError};
 use std::str::FromStr;
-use parking_lot::{RwLock, Mutex};
-use chain::{ETH_PROTOCOL_VERSION_63, ETH_PROTOCOL_VERSION_62,
-	PAR_PROTOCOL_VERSION_1, PAR_PROTOCOL_VERSION_2, PAR_PROTOCOL_VERSION_3, PAR_PROTOCOL_VERSION_4, SyncState};
-use chain::sync_packet::SyncPacket::{PrivateTransactionPacket, SignedPrivateTransactionPacket};
+use std::sync::atomic::{AtomicBool, Ordering};
+
+use crate::sync_io::NetSyncIo;
+use crate::light_sync::{self, SyncInfo};
+use crate::private_tx::PrivateTxHandler;
+use crate::chain::{
+	sync_packet::SyncPacket::{PrivateTransactionPacket, SignedPrivateTransactionPacket},
+	ChainSyncApi, SyncState, SyncStatus as EthSyncStatus, ETH_PROTOCOL_VERSION_62,
+	ETH_PROTOCOL_VERSION_63, PAR_PROTOCOL_VERSION_1, PAR_PROTOCOL_VERSION_2,
+	PAR_PROTOCOL_VERSION_3, PAR_PROTOCOL_VERSION_4,
+};
+
+use bytes::Bytes;
+use client_traits::{BlockChainClient, ChainNotify};
+use devp2p::NetworkService;
+use ethcore_io::TimerToken;
+use ethcore_private_tx::PrivateStateDB;
+use ethereum_types::{H256, H512, U256};
+use ethkey::Secret;
+use futures::sync::mpsc as futures_mpsc;
+use futures::Stream;
 use light::client::AsLightClient;
 use light::Provider;
 use light::net::{
 	self as light_net, LightProtocol, Params as LightParams,
 	Capabilities, Handler as LightHandler, EventContext, SampleStore,
 };
+use log::{trace, warn};
+use macros::hash_map;
+use network::{
+	client_version::ClientVersion,
+	NetworkProtocolHandler, NetworkContext, PeerId, ProtocolId,
+	NetworkConfiguration as BasicNetworkConfiguration, NonReservedPeerMode, Error,
+	ConnectionFilter, IpFilter
+};
+use snapshot::SnapshotService;
+use parking_lot::{RwLock, Mutex};
 use parity_runtime::Executor;
-use std::sync::atomic::{AtomicBool, Ordering};
-use network::IpFilter;
-use private_tx::PrivateTxHandler;
-use types::{
+use trace_time::trace_time;
+use common_types::{
+	BlockNumber,
 	chain_notify::{NewBlocks, ChainMessageType},
 	pruning_info::PruningInfo,
 	transaction::UnverifiedTransaction,
 };
 
-use super::light_sync::SyncInfo;
 
 /// Parity sync protocol
 pub const WARP_SYNC_PROTOCOL_ID: ProtocolId = *b"par";
@@ -646,14 +654,14 @@ impl ChainNotify for EthSync {
 struct TxRelay(Arc<dyn BlockChainClient>);
 
 impl LightHandler for TxRelay {
-	fn on_transactions(&self, ctx: &dyn EventContext, relay: &[::types::transaction::UnverifiedTransaction]) {
+	fn on_transactions(&self, ctx: &dyn EventContext, relay: &[UnverifiedTransaction]) {
 		trace!(target: "pip", "Relaying {} transactions from peer {}", relay.len(), ctx.peer());
-		self.0.queue_transactions(relay.iter().map(|tx| ::rlp::encode(tx)).collect(), ctx.peer())
+		self.0.queue_transactions(relay.iter().map(|tx| rlp::encode(tx)).collect(), ctx.peer())
 	}
 }
 
 /// Trait for managing network
-pub trait ManageNetwork : Send + Sync {
+pub trait ManageNetwork: Send + Sync {
 	/// Set to allow unreserved peers to connect
 	fn accept_unreserved_peers(&self);
 	/// Set to deny unreserved peers to connect
@@ -945,15 +953,15 @@ impl LightSync {
 
 }
 
-impl ::std::ops::Deref for LightSync {
-	type Target = dyn (::light_sync::SyncInfo);
+impl std::ops::Deref for LightSync {
+	type Target = dyn (light_sync::SyncInfo);
 
 	fn deref(&self) -> &Self::Target { &*self.sync }
 }
 
 
 impl LightNetworkDispatcher for LightSync {
-	fn with_context<F, T>(&self, f: F) -> Option<T> where F: FnOnce(&dyn (::light::net::BasicContext)) -> T {
+	fn with_context<F, T>(&self, f: F) -> Option<T> where F: FnOnce(&dyn (light::net::BasicContext)) -> T {
 		self.network.with_context_eval(
 			self.subprotocol_name,
 			move |ctx| self.proto.with_context(&ctx, f),

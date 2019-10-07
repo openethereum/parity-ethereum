@@ -42,9 +42,9 @@ pub struct SessionImpl {
 	/// Public identifier of this node.
 	self_node_id: NodeId,
 	/// Key storage.
-	key_storage: Option<Arc<KeyStorage>>,
+	key_storage: Option<Arc<dyn KeyStorage>>,
 	/// Cluster which allows this node to send messages to other nodes in the cluster.
-	cluster: Arc<Cluster>,
+	cluster: Arc<dyn Cluster>,
 	/// Session-level nonce.
 	nonce: u64,
 	/// Mutable session data.
@@ -60,9 +60,9 @@ pub struct SessionParams {
 	/// Id of node, on which this session is running.
 	pub self_node_id: Public,
 	/// Key storage.
-	pub key_storage: Option<Arc<KeyStorage>>,
+	pub key_storage: Option<Arc<dyn KeyStorage>>,
 	/// Cluster
-	pub cluster: Arc<Cluster>,
+	pub cluster: Arc<dyn Cluster>,
 	/// Session nonce.
 	pub nonce: Option<u64>,
 }

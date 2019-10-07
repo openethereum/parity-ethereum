@@ -20,8 +20,6 @@ use std::time::{Duration, Instant};
 use std::thread;
 
 use ansi_term::Colour;
-use bytes::Bytes;
-use call_contract::CallContract;
 use client_traits::{BlockInfo, BlockChainClient};
 use ethcore::client::{Client, DatabaseCompactionProfile, VMType};
 use ethcore::miner::{self, stratum, Miner, MinerService, MinerOptions};
@@ -30,8 +28,7 @@ use spec::SpecParams;
 use verification::queue::VerifierSettings;
 use ethcore_logger::{Config as LogConfig, RotatingLogger};
 use ethcore_service::ClientService;
-use ethereum_types::Address;
-use futures::{IntoFuture, Stream};
+use futures::Stream;
 use hash_fetch::{self, fetch};
 use informant::{Informant, LightNodeInformantData, FullNodeInformantData};
 use journaldb::Algorithm;
@@ -44,7 +41,6 @@ use sync::{self, SyncConfig, PrivateTxHandler};
 use types::{
 	client_types::Mode,
 	engines::OptimizeFor,
-	ids::BlockId,
 	snapshot::Snapshotting,
 };
 use parity_rpc::{
@@ -65,12 +61,12 @@ use user_defaults::UserDefaults;
 use ipfs;
 use jsonrpc_core;
 use modules;
-use registrar::{RegistrarClient, Asynchronous};
 use rpc;
 use rpc_apis;
 use secretstore;
 use signer;
 use db;
+use registrar::RegistrarClient;
 
 // how often to take periodic snapshots.
 const SNAPSHOT_PERIOD: u64 = 5000;
@@ -687,29 +683,18 @@ fn execute_impl<Cr, Rr>(cmd: RunCmd, logger: Arc<RotatingLogger>, on_client_rq: 
 		chain_notify.start();
 	}
 
-	let contract_client = {
-		struct FullRegistrar { client: Arc<Client> }
-		impl RegistrarClient for FullRegistrar {
-			type Call = Asynchronous;
-			fn registrar_address(&self) -> Result<Address, String> {
-				self.client.registrar_address()
-					.ok_or_else(|| "Registrar not defined.".into())
-			}
-			fn call_contract(&self, address: Address, data: Bytes) -> Self::Call {
-				Box::new(self.client.call_contract(BlockId::Latest, address, data).into_future())
-			}
-		}
-
-		Arc::new(FullRegistrar { client: client.clone() })
-	};
+	let fetcher = hash_fetch::Client::with_fetch(
+		Arc::downgrade(&(service.client() as Arc<dyn RegistrarClient>)),
+		fetch.clone(),
+		runtime.executor()
+	);
 
 	// the updater service
-	let updater_fetch = fetch.clone();
 	let updater = Updater::new(
 		&Arc::downgrade(&(service.client() as Arc<dyn BlockChainClient>)),
 		&Arc::downgrade(&sync_provider),
 		update_policy,
-		hash_fetch::Client::with_fetch(contract_client.clone(), updater_fetch, runtime.executor())
+		fetcher
 	);
 	service.add_notify(updater.clone());
 

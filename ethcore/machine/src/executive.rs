@@ -806,7 +806,13 @@ impl<'a, B: 'a + StateBackend> Executive<'a, B> {
 	pub fn transact<T, V>(&'a mut self, t: &SignedTransaction, options: TransactOptions<T, V>)
 		-> Result<Executed<T::Output, V::Output>, ExecutionError> where T: Tracer, V: VMTracer,
 	{
-		self.transact_with_tracer(t, options.check_nonce, options.output_from_init_contract, options.tracer, options.vm_tracer)
+		self.transact_with_tracer(
+			t,
+			options.check_nonce,
+			options.output_from_init_contract,
+			options.tracer,
+			options.vm_tracer
+		)
 	}
 
 	/// Execute a transaction in a "virtual" context.
@@ -1142,7 +1148,7 @@ impl<'a, B: 'a + StateBackend> Executive<'a, B> {
 		let suicide_refunds = U256::from(schedule.suicide_refund_gas) * U256::from(substate.suicides.len());
 		let refunds_bound = sstore_refunds + suicide_refunds;
 
-		// real ammount to refund
+		// real amount to refund
 		let gas_left_prerefund = match result { Ok(FinalizationResult{ gas_left, .. }) => gas_left, _ => 0.into() };
 		let refunded = cmp::min(refunds_bound, (t.gas - gas_left_prerefund) >> 1);
 		let gas_left = gas_left_prerefund + refunded;
@@ -1155,14 +1161,14 @@ impl<'a, B: 'a + StateBackend> Executive<'a, B> {
 		}
 
 
-		trace!("exec::finalize: t.gas={}, sstore_refunds={}, suicide_refunds={}, refunds_bound={}, gas_left_prerefund={}, refunded={}, gas_left={}, gas_used={}, refund_value={}, fees_value={}\n",
+		trace!(target: "executive", "exec::finalize: t.gas={}, sstore_refunds={}, suicide_refunds={}, refunds_bound={}, gas_left_prerefund={}, refunded={}, gas_left={}, gas_used={}, refund_value={}, fees_value={}\n",
 			t.gas, sstore_refunds, suicide_refunds, refunds_bound, gas_left_prerefund, refunded, gas_left, gas_used, refund_value, fees_value);
 
 		let sender = t.sender();
-		trace!("exec::finalize: Refunding refund_value={}, sender={}\n", refund_value, sender);
+		trace!(target: "executive", "exec::finalize: Refunding refund_value={}, sender={}\n", refund_value, sender);
 		// Below: NoEmpty is safe since the sender must already be non-null to have sent this transaction
 		self.state.add_balance(&sender, &refund_value, CleanupMode::NoEmpty)?;
-		trace!("exec::finalize: Compensating author: fees_value={}, author={}\n", fees_value, &self.info.author);
+		trace!(target: "executive", "exec::finalize: Compensating author: fees_value={}, author={}\n", fees_value, &self.info.author);
 		self.state.add_balance(&self.info.author, &fees_value, cleanup_mode(&mut substate, &schedule))?;
 
 		// perform suicides

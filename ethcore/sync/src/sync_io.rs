@@ -16,15 +16,17 @@
 
 use std::sync::Arc;
 use std::collections::HashMap;
-use chain::sync_packet::{PacketInfo, SyncPacket};
-use network::{NetworkContext, PeerId, PacketId, Error, SessionInfo, ProtocolId};
-use network::client_version::ClientVersion;
+
+use crate::chain::sync_packet::{PacketInfo, SyncPacket};
+
 use bytes::Bytes;
 use client_traits::BlockChainClient;
 use ethcore_private_tx::PrivateStateDB;
-use types::BlockNumber;
-use snapshot::SnapshotService;
+use network::client_version::ClientVersion;
+use network::{NetworkContext, PeerId, PacketId, Error, SessionInfo, ProtocolId};
 use parking_lot::RwLock;
+use snapshot::SnapshotService;
+use common_types::BlockNumber;
 
 /// IO interface for the syncing handler.
 /// Provides peer connection management and an interface to the blockchain client.

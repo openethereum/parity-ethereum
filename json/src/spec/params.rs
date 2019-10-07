@@ -16,9 +16,12 @@
 
 //! Spec params deserialization.
 
-use uint::{self, Uint};
-use hash::{H256, Address};
-use bytes::Bytes;
+use crate::{
+	bytes::Bytes,
+	hash::{H256, Address},
+	uint::{self, Uint}
+};
+use serde::Deserialize;
 
 /// Spec params.
 #[derive(Debug, PartialEq, Deserialize)]
@@ -140,18 +143,16 @@ pub struct Params {
 
 #[cfg(test)]
 mod tests {
-	use serde_json;
-	use uint::Uint;
+	use super::{Params, Uint};
 	use ethereum_types::U256;
-	use spec::params::Params;
 
 	#[test]
 	fn params_deserialization() {
 		let s = r#"{
 			"maximumExtraDataSize": "0x20",
-			"networkID" : "0x1",
-			"chainID" : "0x15",
-			"subprotocolName" : "exp",
+			"networkID": "0x1",
+			"chainID": "0x15",
+			"subprotocolName": "exp",
 			"minGasLimit": "0x1388",
 			"accountStartNonce": "0x01",
 			"gasLimitBoundDivisor": "0x20",

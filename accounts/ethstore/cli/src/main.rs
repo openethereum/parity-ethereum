@@ -163,7 +163,7 @@ fn main() {
 	}
 }
 
-fn key_dir(location: &str, password: Option<Password>) -> Result<Box<KeyDirectory>, Error> {
+fn key_dir(location: &str, password: Option<Password>) -> Result<Box<dyn KeyDirectory>, Error> {
 	let dir: RootDiskDirectory = match location {
 		"geth" => RootDiskDirectory::create(dir::geth(false))?,
 		"geth-test" => RootDiskDirectory::create(dir::geth(true))?,

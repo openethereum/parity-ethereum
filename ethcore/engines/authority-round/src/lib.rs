@@ -1506,7 +1506,7 @@ impl Engine for AuthorityRound {
 
 		let mut hash = *chain_head.parent_hash();
 
-		let mut ancestry = itertools::repeat_call(move || {
+		let mut ancestry = std::iter::repeat_with(move || {
 			chain(hash).and_then(|header| {
 				if header.number() == 0 { return None }
 				hash = *header.parent_hash();
@@ -1548,7 +1548,7 @@ impl Engine for AuthorityRound {
 				// to construct transition proof. author == ec_recover(sig) known
 				// since the blocks are in the DB.
 				let mut hash = chain_head.hash();
-				let mut finality_proof: Vec<_> = itertools::repeat_call(move || {
+				let mut finality_proof: Vec<_> = std::iter::repeat_with(move || {
 					chain(hash).and_then(|header| {
 						hash = *header.parent_hash();
 						if header.number() == 0 { None }

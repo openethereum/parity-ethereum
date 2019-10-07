@@ -21,7 +21,7 @@ use common_types::blockchain_info::BlockChainInfo;
 use common_types::encoded;
 use common_types::ids::BlockId;
 use common_types::transaction::{Action, PendingTransaction};
-use ethcore::client::{EachBlockWith, TestBlockChainClient};
+use ethcore::test_helpers::{EachBlockWith, TestBlockChainClient};
 use ethereum_types::{H256, U256, Address, BigEndianHash};
 use net::context::IoContext;
 use net::load_timer::MOVING_SAMPLE_SIZE;

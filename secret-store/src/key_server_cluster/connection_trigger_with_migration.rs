@@ -33,9 +33,9 @@ use {NodeKeyPair};
 /// Key servers set change trigger with automated migration procedure.
 pub struct ConnectionTriggerWithMigration {
 	/// This node key pair.
-	self_key_pair: Arc<NodeKeyPair>,
+	self_key_pair: Arc<dyn NodeKeyPair>,
 	/// Key server set.
-	key_server_set: Arc<KeyServerSet>,
+	key_server_set: Arc<dyn KeyServerSet>,
 	/// Last server set state.
 	snapshot: KeyServerSetSnapshot,
 	/// Required connections action.
@@ -105,9 +105,9 @@ struct TriggerSession {
 	/// Servers set change session creator connector.
 	connector: Arc<ServersSetChangeSessionCreatorConnectorWithMigration>,
 	/// This node key pair.
-	self_key_pair: Arc<NodeKeyPair>,
+	self_key_pair: Arc<dyn NodeKeyPair>,
 	/// Key server set.
-	key_server_set: Arc<KeyServerSet>,
+	key_server_set: Arc<dyn KeyServerSet>,
 }
 
 impl ConnectionTriggerWithMigration {
@@ -117,7 +117,7 @@ impl ConnectionTriggerWithMigration {
 	}
 
 	/// Create new trigge with migration.
-	pub fn new(key_server_set: Arc<KeyServerSet>, self_key_pair: Arc<NodeKeyPair>) -> Self {
+	pub fn new(key_server_set: Arc<dyn KeyServerSet>, self_key_pair: Arc<dyn NodeKeyPair>) -> Self {
 		let snapshot = key_server_set.snapshot();
 		let migration = snapshot.migration.clone();
 
@@ -203,7 +203,7 @@ impl ConnectionTrigger for ConnectionTriggerWithMigration {
 		}
 	}
 
-	fn servers_set_change_creator_connector(&self) -> Arc<ServersSetChangeSessionCreatorConnector> {
+	fn servers_set_change_creator_connector(&self) -> Arc<dyn ServersSetChangeSessionCreatorConnector> {
 		self.session.connector.clone()
 	}
 }

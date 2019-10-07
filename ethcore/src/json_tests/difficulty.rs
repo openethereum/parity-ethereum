@@ -14,16 +14,24 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
-use ethjson;
-use types::header::Header;
+use std::path::Path;
+
 use ethereum_types::U256;
+use ethjson::test_helpers::difficulty::DifficultyTest;
+use types::header::Header;
 use spec::Spec;
 
 use super::HookType;
 
-pub fn json_difficulty_test<H: FnMut(&str, HookType)>(json_data: &[u8], spec: Spec, start_stop_hook: &mut H) -> Vec<String> {
-	let _ = ::env_logger::try_init();
-	let tests = ethjson::test::DifficultyTest::load(json_data).unwrap();
+pub fn json_difficulty_test<H: FnMut(&str, HookType)>(
+	path: &Path,
+	json_data: &[u8],
+	spec: Spec,
+	start_stop_hook: &mut H
+) -> Vec<String> {
+	let _ = env_logger::try_init();
+	let tests = DifficultyTest::load(json_data)
+		.expect(&format!("Could not parse JSON difficulty test data from {}", path.display()));
 	let engine = &spec.engine;
 
 	for (name, test) in tests.into_iter() {
@@ -55,13 +63,14 @@ pub fn json_difficulty_test<H: FnMut(&str, HookType)>(json_data: &[u8], spec: Sp
 macro_rules! difficulty_json_test {
 	( $spec:ident ) => {
 
+	use std::path::Path;
 	use super::json_difficulty_test;
 	use tempdir::TempDir;
 	use json_tests::HookType;
 
-	fn do_json_test<H: FnMut(&str, HookType)>(json_data: &[u8], h: &mut H) -> Vec<String> {
+	fn do_json_test<H: FnMut(&str, HookType)>(path: &Path, json_data: &[u8], h: &mut H) -> Vec<String> {
 		let tempdir = TempDir::new("").unwrap();
-		json_difficulty_test(json_data, crate::spec::$spec(&tempdir.path()), h)
+		json_difficulty_test(path, json_data, crate::spec::$spec(&tempdir.path()), h)
 	}
 
 	}
@@ -69,12 +78,13 @@ macro_rules! difficulty_json_test {
 
 macro_rules! difficulty_json_test_nopath {
 	( $spec:ident ) => {
+	use std::path::Path;
 
 	use super::json_difficulty_test;
 	use json_tests::HookType;
 
-	fn do_json_test<H: FnMut(&str, HookType)>(json_data: &[u8], h: &mut H) -> Vec<String> {
-		json_difficulty_test(json_data, crate::spec::$spec(), h)
+	fn do_json_test<H: FnMut(&str, HookType)>(path: &Path, json_data: &[u8], h: &mut H) -> Vec<String> {
+		json_difficulty_test(path, json_data, crate::spec::$spec(), h)
 	}
 
 	}

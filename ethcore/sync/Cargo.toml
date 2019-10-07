@@ -4,47 +4,43 @@ name = "ethcore-sync"
 version = "1.12.0"
 license = "GPL-3.0"
 authors = ["Parity Technologies <admin@parity.io>"]
+edition = "2018"
 
 [lib]
 
 [dependencies]
+bytes = { package = "parity-bytes", version = "0.1" }
 client-traits = { path = "../client-traits" }
 common-types = { path = "../types" }
-engine = { path = "../engine" }
+devp2p = { package = "ethcore-network-devp2p", path = "../../util/network-devp2p" }
 enum_primitive = "0.1.1"
-ethcore = { path = ".." }
 ethcore-io = { path = "../../util/io" }
-ethcore-light = { path = "../light" }
-ethcore-network = { path = "../../util/network" }
-ethcore-network-devp2p = { path = "../../util/network-devp2p" }
 ethcore-private-tx = { path = "../private-tx" }
 ethereum-types = "0.6.0"
 ethkey = { path = "../../accounts/ethkey" }
-ethstore = { path = "../../accounts/ethstore" }
 fastmap = { path = "../../util/fastmap" }
 futures = "0.1"
-hash-db = "0.15.0"
 keccak-hash = "0.2.0"
-keccak-hasher = { path = "../../util/keccak-hasher" }
-kvdb = "0.1"
+light = { package = "ethcore-light", path = "../light" }
 log = "0.4"
-machine = { path = "../machine" }
 macros = { path = "../../util/macros" }
-parity-bytes = "0.1"
+network = { package = "ethcore-network", path = "../../util/network" }
 parity-runtime = { path = "../../util/runtime" }
 parity-util-mem = "0.2.0"
-parking_lot = "0.8"
 rand = "0.7"
+parking_lot = "0.9"
 rlp = "0.4.0"
 snapshot = { path = "../snapshot" }
 trace-time = "0.1"
-triehash-ethereum = {version = "0.2", path = "../../util/triehash-ethereum" }
+triehash-ethereum = { version = "0.2", path = "../../util/triehash-ethereum" }
 
 [dev-dependencies]
 env_logger = "0.5"
+engine = { path = "../engine" }
 ethcore = { path = "..", features = ["test-helpers"] }
 ethcore-io = { path = "../../util/io", features = ["mio"] }
-kvdb-memorydb = "0.1"
+kvdb-memorydb = "0.1.2"
+machine = { path = "../machine" }
 rand_xorshift = "0.1.1"
 rustc-hex = "1.0"
 spec = { path = "../spec" }

@@ -37,7 +37,7 @@ pub trait Connection: Send + Sync {
 /// Connections manager. Responsible for keeping us connected to all required nodes.
 pub trait ConnectionManager: 'static + Send + Sync {
 	/// Returns shared reference to connections provider.
-	fn provider(&self) -> Arc<ConnectionProvider>;
+	fn provider(&self) -> Arc<dyn ConnectionProvider>;
 	/// Try to reach all disconnected nodes immediately. This method is exposed mostly for
 	/// tests, where all 'nodes' are starting listening for incoming connections first and
 	/// only after this, they're actually start connecting to each other.
@@ -55,7 +55,7 @@ pub trait ConnectionProvider: Send + Sync {
 	/// Returns the set of currently disconnected nodes.
 	fn disconnected_nodes(&self) -> BTreeSet<NodeId>;
 	/// Returns the reference to the active node connection or None if the node is not connected.
-	fn connection(&self, node: &NodeId) -> Option<Arc<Connection>>;
+	fn connection(&self, node: &NodeId) -> Option<Arc<dyn Connection>>;
 }
 
 #[cfg(test)]
@@ -110,7 +110,7 @@ pub mod tests {
 	}
 
 	impl ConnectionManager for Arc<TestConnections> {
-		fn provider(&self) -> Arc<ConnectionProvider> {
+		fn provider(&self) -> Arc<dyn ConnectionProvider> {
 			self.clone()
 		}
 
@@ -129,7 +129,7 @@ pub mod tests {
 			self.disconnected_nodes.lock().clone()
 		}
 
-		fn connection(&self, node: &NodeId) -> Option<Arc<Connection>> {
+		fn connection(&self, node: &NodeId) -> Option<Arc<dyn Connection>> {
 			match self.connected_nodes.lock().contains(node) {
 				true => Some(Arc::new(TestConnection {
 					from: self.node,

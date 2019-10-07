@@ -20,9 +20,8 @@ use std::time::Duration;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
-use client_traits::SnapshotClient;
 use hash::keccak;
-use snapshot::{SnapshotConfiguration, SnapshotService as SS};
+use snapshot::{SnapshotConfiguration, SnapshotService as SS, SnapshotClient};
 use snapshot::io::{SnapshotReader, PackedReader, PackedWriter};
 use snapshot::service::Service as SnapshotService;
 use ethcore::client::{Client, DatabaseCompactionProfile, VMType};

@@ -36,6 +36,7 @@
 		"eip145Transition": "0x0",
 		"eip1014Transition": "0x0",
 		"eip1052Transition": "0x0",
+		"eip1283Transition": "0x0",
 		"eip1283DisableTransition": "0x0"
 	},
 	"genesis": {

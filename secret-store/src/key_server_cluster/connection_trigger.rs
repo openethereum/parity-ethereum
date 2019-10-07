@@ -52,7 +52,7 @@ pub trait ConnectionTrigger: Send + Sync {
 	/// Maintain active connections.
 	fn maintain_connections(&mut self, connections: &mut NetConnectionsContainer);
 	/// Return connector for the servers set change session creator.
-	fn servers_set_change_creator_connector(&self) -> Arc<ServersSetChangeSessionCreatorConnector>;
+	fn servers_set_change_creator_connector(&self) -> Arc<dyn ServersSetChangeSessionCreatorConnector>;
 }
 
 /// Servers set change session creator connector.
@@ -67,11 +67,11 @@ pub trait ServersSetChangeSessionCreatorConnector: Send + Sync {
 /// Simple connection trigger, which only keeps connections to current_set.
 pub struct SimpleConnectionTrigger {
 	/// Key server set cluster.
-	key_server_set: Arc<KeyServerSet>,
+	key_server_set: Arc<dyn KeyServerSet>,
 	/// Trigger connections.
 	connections: TriggerConnections,
 	/// Servers set change session creator connector.
-	connector: Arc<ServersSetChangeSessionCreatorConnector>,
+	connector: Arc<dyn ServersSetChangeSessionCreatorConnector>,
 }
 
 /// Simple Servers set change session creator connector, which will just return
@@ -93,7 +93,7 @@ pub enum ConnectionsAction {
 /// Trigger connections.
 pub struct TriggerConnections {
 	/// This node key pair.
-	pub self_key_pair: Arc<NodeKeyPair>,
+	pub self_key_pair: Arc<dyn NodeKeyPair>,
 }
 
 impl SimpleConnectionTrigger {
@@ -103,7 +103,7 @@ impl SimpleConnectionTrigger {
 	}
 
 	/// Create new simple connection trigger.
-	pub fn new(key_server_set: Arc<KeyServerSet>, self_key_pair: Arc<NodeKeyPair>, admin_public: Option<Public>) -> Self {
+	pub fn new(key_server_set: Arc<dyn KeyServerSet>, self_key_pair: Arc<dyn NodeKeyPair>, admin_public: Option<Public>) -> Self {
 		SimpleConnectionTrigger {
 			key_server_set: key_server_set,
 			connections: TriggerConnections {
@@ -139,7 +139,7 @@ impl ConnectionTrigger for SimpleConnectionTrigger {
 		self.connections.maintain(ConnectionsAction::ConnectToCurrentSet, connections, &self.key_server_set.snapshot())
 	}
 
-	fn servers_set_change_creator_connector(&self) -> Arc<ServersSetChangeSessionCreatorConnector> {
+	fn servers_set_change_creator_connector(&self) -> Arc<dyn ServersSetChangeSessionCreatorConnector> {
 		self.connector.clone()
 	}
 }

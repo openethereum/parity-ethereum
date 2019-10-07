@@ -33,12 +33,10 @@ extern crate log;
 
 use std::sync::Arc;
 use rustc_hex::{FromHex, ToHex};
-
 use types::ids::BlockId;
 use types::transaction::{Transaction, Action};
 use ethcore::{
-	CreateContractAddress,
-	test_helpers::{generate_dummy_client, push_block_with_transactions, new_db},
+	test_helpers::{CreateContractAddress, generate_dummy_client, push_block_with_transactions, new_db},
 	miner::Miner,
 };
 use client_traits::BlockChainClient;

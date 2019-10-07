@@ -22,7 +22,8 @@ use std::{
 use account_state::state::StateInfo;
 use blockchain::BlockProvider;
 use bytes::Bytes;
-use call_contract::{CallContract, RegistryInfo};
+use call_contract::CallContract;
+use registrar::RegistrarClient;
 use common_types::{
 	basic_account::BasicAccount,
 	block_status::BlockStatus,
@@ -55,9 +56,11 @@ use trace::{
 	localized::LocalizedTrace,
 	VMTrace,
 };
+use common_types::{
+	data_format::DataFormat,
+	client_types::StateResult
+};
 use vm::{LastHashes, Schedule};
-
-use common_types::snapshot::Progress;
 
 /// State information to be used during client query
 pub enum StateOrBlock {
@@ -209,8 +212,10 @@ pub trait BadBlocks {
 
 
 /// Blockchain database client. Owns and manages a blockchain and a block queue.
-pub trait BlockChainClient : Sync + Send + AccountData + BlockChain + CallContract + RegistryInfo + ImportBlock
-+ IoClient + BadBlocks {
+pub trait BlockChainClient:
+	Sync + Send + AccountData + BlockChain + CallContract + RegistrarClient
+	+ ImportBlock + IoClient + BadBlocks
+{
 	/// Look up the block number for the given block ID.
 	fn block_number(&self, id: BlockId) -> Option<BlockNumber>;
 
@@ -232,12 +237,14 @@ pub trait BlockChainClient : Sync + Send + AccountData + BlockChain + CallContra
 	fn block_hash(&self, id: BlockId) -> Option<H256>;
 
 	/// Get address code at given block's state.
-	fn code(&self, address: &Address, state: StateOrBlock) -> Option<Option<Bytes>>;
+	fn code(&self, address: &Address, state: StateOrBlock) -> StateResult<Option<Bytes>>;
 
 	/// Get address code at the latest block's state.
 	fn latest_code(&self, address: &Address) -> Option<Bytes> {
-		self.code(address, BlockId::Latest.into())
-			.expect("code will return Some if given BlockId::Latest; qed")
+		match self.code(address, BlockId::Latest.into()) {
+			StateResult::Missing => panic!("code will return Some if given BlockId::Latest; qed"),
+			StateResult::Some(t) => t,
+		}
 	}
 
 	/// Get a reference to the `BlockProvider`.
@@ -267,7 +274,7 @@ pub trait BlockChainClient : Sync + Send + AccountData + BlockChain + CallContra
 
 	/// Get a list of all storage keys in the block `id`, if fat DB is in operation, otherwise `None`.
 	/// If `after` is set the list starts with the following item.
-	fn list_storage(&self, id: BlockId, account: &Address, after: Option<&H256>, count: u64) -> Option<Vec<H256>>;
+	fn list_storage(&self, id: BlockId, account: &Address, after: Option<&H256>, count: Option<u64>) -> Option<Vec<H256>>;
 
 	/// Get transaction with given hash.
 	fn transaction(&self, id: TransactionId) -> Option<LocalizedTransaction>;
@@ -382,9 +389,6 @@ pub trait BlockChainClient : Sync + Send + AccountData + BlockChain + CallContra
 
 	/// Schedule state-altering transaction to be executed on the next pending block.
 	fn transact_contract(&self, address: Address, data: Bytes) -> Result<(), transaction::Error>;
-
-	/// Get the address of the registry itself.
-	fn registrar_address(&self) -> Option<Address>;
 }
 
 /// resets the blockchain
@@ -447,36 +451,6 @@ pub trait DatabaseRestore: Send + Sync {
 	fn restore_db(&self, new_db: &str) -> Result<(), EthcoreError>;
 }
 
-/// Snapshot related functionality
-pub trait SnapshotClient: BlockChainClient + BlockInfo + DatabaseRestore + BlockChainReset {
-	/// Take a snapshot at the given block.
-	/// If the ID given is "latest", this will default to 1000 blocks behind.
-	fn take_snapshot<W: SnapshotWriter + Send>(
-		&self,
-		writer: W,
-		at: BlockId,
-		p: &Progress,
-	) -> Result<(), EthcoreError>;
-}
-
-
-// todo[dvdplm] move this back to snapshot once extracted from ethcore
-/// Something which can write snapshots.
-/// Writing the same chunk multiple times will lead to implementation-defined
-/// behavior, and is not advised.
-pub trait SnapshotWriter {
-	/// Write a compressed state chunk.
-	fn write_state_chunk(&mut self, hash: H256, chunk: &[u8]) -> std::io::Result<()>;
-
-	/// Write a compressed block chunk.
-	fn write_block_chunk(&mut self, hash: H256, chunk: &[u8]) -> std::io::Result<()>;
-
-	/// Complete writing. The manifest's chunk lists must be consistent
-	/// with the chunks written.
-	fn finish(self, manifest: common_types::snapshot::ManifestData) -> std::io::Result<()> where Self: Sized;
-}
-
-
 /// Represents what has to be handled by actor listening to chain events
 pub trait ChainNotify: Send + Sync {
 	/// fires when chain has new blocks.
@@ -509,4 +483,30 @@ pub trait ChainNotify: Send + Sync {
 	fn transactions_received(&self, _txs: &[UnverifiedTransaction], _peer_id: usize) {
 		// does nothing by default
 	}
+}
+
+/// Provides a method for importing/exporting blocks
+pub trait ImportExportBlocks {
+	/// Export blocks to destination, with the given from, to and format argument.
+	/// destination could be a file or stdout.
+	/// If the format is hex, each block is written on a new line.
+	/// For binary exports, all block data is written to the same line.
+	fn export_blocks<'a>(
+		&self,
+		destination: Box<dyn std::io::Write + 'a>,
+		from: BlockId,
+		to: BlockId,
+		format: Option<DataFormat>
+	) -> Result<(), String>;
+
+	/// Import blocks from destination, with the given format argument
+	/// Source could be a file or stdout.
+	/// For hex format imports, it attempts to read the blocks on a line by line basis.
+	/// For binary format imports, reads the 8 byte RLP header in order to decode the block
+	/// length to be read.
+	fn import_blocks<'a>(
+		&self,
+		source: Box<dyn std::io::Read + 'a>,
+		format: Option<DataFormat>
+	) -> Result<(), String>;
 }

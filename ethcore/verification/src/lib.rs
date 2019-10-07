@@ -21,11 +21,16 @@ use client_traits::BlockInfo;
 // The MallocSizeOf derive looks for this in the root
 use parity_util_mem as malloc_size_of;
 
+#[cfg(feature = "bench" )]
+pub mod verification;
+#[cfg(not(feature = "bench" ))]
 mod verification;
 mod verifier;
 pub mod queue;
 mod canon_verifier;
 mod noop_verifier;
+#[cfg(any(test, feature = "bench" ))]
+pub mod test_helpers;
 
 pub use self::verification::FullFamilyParams;
 pub use self::verifier::Verifier;

@@ -51,6 +51,7 @@ extern crate parity_crypto as crypto;
 extern crate parking_lot;
 extern crate trie_db as trie;
 extern crate patricia_trie_ethereum as ethtrie;
+extern crate registrar;
 extern crate rlp;
 #[macro_use]
 extern crate serde_derive;
@@ -120,7 +121,7 @@ use ethabi::FunctionOutputDecoder;
 use vm::CreateContractAddress;
 
 // Source avaiable at https://github.com/parity-contracts/private-tx/blob/master/contracts/PrivateContract.sol
-const DEFAULT_STUB_CONTRACT: &'static str = include_str!("../res/private.evm");
+const DEFAULT_STUB_CONTRACT: &str = include_str!("../res/private.evm");
 
 use_contract!(private_contract, "res/private.json");
 

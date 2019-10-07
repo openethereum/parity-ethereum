@@ -32,8 +32,7 @@ use common_types::{
 	ids::BlockId,
 	snapshot::{ManifestData, Progress, RestorationStatus},
 };
-// todo[dvdplm] put SnapshotWriter back in snapshots once extracted
-use client_traits::{ChainInfo, SnapshotClient, SnapshotWriter};
+use client_traits::ChainInfo;
 use engine::Engine;
 use ethereum_types::H256;
 use ethcore_io::IoChannel;
@@ -45,6 +44,8 @@ use parking_lot::{Mutex, RwLock, RwLockReadGuard};
 use snappy;
 use trie_db::TrieError;
 
+use crate::{SnapshotClient, SnapshotWriter};
+
 use super::{
 	StateRebuilder,
 	SnapshotService,
@@ -55,13 +56,13 @@ use super::{
 };
 
 /// Helper for removing directories in case of error.
-struct Guard(bool, PathBuf);
+pub struct Guard(bool, PathBuf);
 
 impl Guard {
 	fn new(path: PathBuf) -> Self { Guard(true, path) }
 
-	#[cfg(test)]
-	fn benign() -> Self { Guard(false, PathBuf::default()) }
+	#[cfg(any(test, feature = "test-helpers"))]
+	pub fn benign() -> Self { Guard(false, PathBuf::default()) }
 
 	fn disarm(mut self) { self.0 = false }
 }
@@ -75,7 +76,7 @@ impl Drop for Guard {
 }
 
 /// State restoration manager.
-struct Restoration {
+pub struct Restoration {
 	manifest: ManifestData,
 	state_chunks_left: HashSet<H256>,
 	block_chunks_left: HashSet<H256>,
@@ -88,7 +89,8 @@ struct Restoration {
 	db: Arc<dyn BlockChainDB>,
 }
 
-struct RestorationParams<'a> {
+/// Params to initialise restoration
+pub struct RestorationParams<'a> {
 	manifest: ManifestData, // manifest to base restoration on.
 	pruning: Algorithm, // pruning algorithm for the database.
 	db: Arc<dyn BlockChainDB>, // database
@@ -98,9 +100,24 @@ struct RestorationParams<'a> {
 	engine: &'a dyn Engine,
 }
 
+#[cfg(any(test, feature = "test-helpers"))]
+impl<'a> RestorationParams<'a> {
+	pub fn new(
+		manifest: ManifestData,
+		pruning: Algorithm,
+		db: Arc<dyn BlockChainDB>,
+		writer: Option<LooseWriter>,
+		genesis: &'a [u8],
+		guard: Guard,
+		engine: &'a dyn Engine,
+	) -> Self {
+		Self { manifest, pruning, db, writer, genesis, guard, engine }
+	}
+}
+
 impl Restoration {
-	// make a new restoration using the given parameters.
-	fn new(params: RestorationParams) -> Result<Self, Error> {
+	/// Build a Restoration using the given parameters.
+	pub fn new(params: RestorationParams) -> Result<Self, Error> {
 		let manifest = params.manifest;
 
 		let state_chunks = manifest.state_hashes.iter().cloned().collect();
@@ -130,8 +147,8 @@ impl Restoration {
 		})
 	}
 
-	// feeds a state chunk, aborts early if `flag` becomes false.
-	fn feed_state(&mut self, hash: H256, chunk: &[u8], flag: &AtomicBool) -> Result<(), Error> {
+	/// Feeds a chunk of state data to the Restoration. Aborts early if `flag` becomes false.
+	pub fn feed_state(&mut self, hash: H256, chunk: &[u8], flag: &AtomicBool) -> Result<(), Error> {
 		if self.state_chunks_left.contains(&hash) {
 			let expected_len = snappy::decompressed_len(chunk)?;
 			if expected_len > MAX_CHUNK_SIZE {
@@ -152,8 +169,8 @@ impl Restoration {
 		Ok(())
 	}
 
-	// feeds a block chunk
-	fn feed_blocks(&mut self, hash: H256, chunk: &[u8], engine: &dyn Engine, flag: &AtomicBool) -> Result<(), Error> {
+	/// Feeds a chunk of block data to the `Restoration`. Aborts early if `flag` becomes false.
+	pub fn feed_blocks(&mut self, hash: H256, chunk: &[u8], engine: &dyn Engine, flag: &AtomicBool) -> Result<(), Error> {
 		if self.block_chunks_left.contains(&hash) {
 			let expected_len = snappy::decompressed_len(chunk)?;
 			if expected_len > MAX_CHUNK_SIZE {
@@ -199,8 +216,8 @@ impl Restoration {
 		Ok(())
 	}
 
-	// is everything done?
-	fn is_done(&self) -> bool {
+	/// Check if we're done restoring: no more block chunks and no more state chunks to process.
+	pub fn is_done(&self) -> bool {
 		self.block_chunks_left.is_empty() && self.state_chunks_left.is_empty()
 	}
 }
@@ -890,107 +907,5 @@ impl<C: Send + Sync> Drop for Service<C> {
 		trace!(target: "shutdown", "Dropping Service - restore aborted");
 		self.abort_snapshot();
 		trace!(target: "shutdown", "Dropping Service - snapshot aborted");
-	}
-}
-
-#[cfg(test)]
-mod tests {
-	use ethcore::client::Client;
-	use ethcore_io::IoService;
-	use spec;
-	use journaldb::Algorithm;
-	use crate::SnapshotService;
-	use super::*;
-	use common_types::{
-		io_message::ClientIoMessage,
-		snapshot::{ManifestData, RestorationStatus}
-	};
-	use tempdir::TempDir;
-	use ethcore::test_helpers::{generate_dummy_client_with_spec_and_data, restoration_db_handler};
-
-	#[test]
-	fn sends_async_messages() {
-		let gas_prices = vec![1.into(), 2.into(), 3.into(), 999.into()];
-		let client = generate_dummy_client_with_spec_and_data(spec::new_null, 400, 5, &gas_prices);
-		let service = IoService::<ClientIoMessage<Client>>::start().unwrap();
-		let spec = spec::new_test();
-
-		let tempdir = TempDir::new("").unwrap();
-		let dir = tempdir.path().join("snapshot");
-
-		let snapshot_params = ServiceParams {
-			engine: spec.engine.clone(),
-			genesis_block: spec.genesis_block(),
-			restoration_db_handler: restoration_db_handler(Default::default()),
-			pruning: Algorithm::Archive,
-			channel: service.channel(),
-			snapshot_root: dir,
-			client,
-		};
-
-		let service = Service::new(snapshot_params).unwrap();
-
-		assert!(service.manifest().is_none());
-		assert!(service.chunk(Default::default()).is_none());
-		assert_eq!(service.status(), RestorationStatus::Inactive);
-
-		let manifest = ManifestData {
-			version: 2,
-			state_hashes: vec![],
-			block_hashes: vec![],
-			state_root: Default::default(),
-			block_number: 0,
-			block_hash: Default::default(),
-		};
-
-		service.begin_restore(manifest);
-		service.abort_restore();
-		service.restore_state_chunk(Default::default(), vec![]);
-		service.restore_block_chunk(Default::default(), vec![]);
-	}
-
-	#[test]
-	fn cannot_finish_with_invalid_chunks() {
-		use ethereum_types::H256;
-		use kvdb_rocksdb::DatabaseConfig;
-
-		let spec = spec::new_test();
-		let tempdir = TempDir::new("").unwrap();
-
-		let state_hashes: Vec<_> = (0..5).map(|_| H256::random()).collect();
-		let block_hashes: Vec<_> = (0..5).map(|_| H256::random()).collect();
-		let db_config = DatabaseConfig::with_columns(ethcore_db::NUM_COLUMNS);
-		let gb = spec.genesis_block();
-		let flag = ::std::sync::atomic::AtomicBool::new(true);
-
-		let params = RestorationParams {
-			manifest: ManifestData {
-				version: 2,
-				state_hashes: state_hashes.clone(),
-				block_hashes: block_hashes.clone(),
-				state_root: H256::zero(),
-				block_number: 100000,
-				block_hash: H256::zero(),
-			},
-			pruning: Algorithm::Archive,
-			db: restoration_db_handler(db_config).open(&tempdir.path().to_owned()).unwrap(),
-			writer: None,
-			genesis: &gb,
-			guard: Guard::benign(),
-			engine: &*spec.engine.clone(),
-		};
-
-		let mut restoration = Restoration::new(params).unwrap();
-		let definitely_bad_chunk = [1, 2, 3, 4, 5];
-
-		for hash in state_hashes {
-			assert!(restoration.feed_state(hash, &definitely_bad_chunk, &flag).is_err());
-			assert!(!restoration.is_done());
-		}
-
-		for hash in block_hashes {
-			assert!(restoration.feed_blocks(hash, &definitely_bad_chunk, &*spec.engine, &flag).is_err());
-			assert!(!restoration.is_done());
-		}
 	}
 }
