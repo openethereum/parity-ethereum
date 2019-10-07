@@ -17,14 +17,14 @@ common-types = { path = "../types" }
 engine = { path = "../engine" }
 ethash = { path = "../../ethash" }
 ethash-engine = { path = "../engines/ethash" }
-ethereum-types = "0.6.0"
+ethereum-types = "0.8.0"
 ethjson = { path = "../../json" }
 evm = { path = "../evm" }
 executive-state = { path = "../executive-state" }
 hash-db = "0.15.0"
 instant-seal = { path = "../engines/instant-seal" }
 journaldb = { path = "../../util/journaldb" }
-keccak-hash = "0.2.0"
+keccak-hash = "0.4.0"
 kvdb-memorydb = "0.1.2"
 log = "0.4.8"
 machine = { path = "../machine" }
