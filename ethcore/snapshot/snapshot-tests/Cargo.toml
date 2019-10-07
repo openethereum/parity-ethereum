@@ -28,8 +28,8 @@ kvdb = "0.1"
 kvdb-rocksdb = { version = "0.1.5" }
 log = "0.4.8"
 parking_lot = "0.9"
-rand = "0.6"
-rand_xorshift = "0.1.1"
+rand = "0.7"
+rand_xorshift = "0.2"
 rlp = "0.4.2"
 snappy = { package = "parity-snappy", version ="0.1.0" }
 snapshot = { path = "../../snapshot", features = ["test-helpers"] }
