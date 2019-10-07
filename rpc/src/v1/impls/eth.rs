@@ -183,10 +183,11 @@ pub fn base_logs<C, M, T: StateInfo + 'static> (client: &C, miner: &M, filter: F
 	Box::new(future::ok(logs))
 }
 
-impl<C, SN: ?Sized, S: ?Sized, M, EM, T: StateInfo + 'static> EthClient<C, SN, S, M, EM> where
+impl<C, SN: ?Sized, S: ?Sized, M, EM, T> EthClient<C, SN, S, M, EM> where
 	C: miner::BlockChainClient + BlockChainClient + StateClient<State=T> + Call<State=T> + EngineInfo,
 	SN: SnapshotService,
 	S: SyncProvider,
+	T: StateInfo + 'static,
 	M: MinerService<State=T>,
 	EM: ExternalMinerService {
 
@@ -472,21 +473,27 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM, T: StateInfo + 'static> EthClient<C, SN, S
 
 	/// Get the state and header of best pending block. On failure, fall back to the best imported
 	/// blocks state&header.
-	// todo[dvdplm]: better name?
-	// todo[dvdplm]: Scary thought: what if the state is not pending but the header is? We'd return the state from
-	//  `client.latest_state()` but the header from the pending set. Is that a possible scenario?
 	fn pending_state_and_header_with_fallback(&self) -> (T, Header) {
-		let info = self.client.chain_info();
+		let best_block_number = self.client.chain_info().best_block_number;
 
-		let state = self.miner.pending_state(info.best_block_number)
-			.unwrap_or_else(|| self.client.latest_state());
-		let header = self.miner.pending_block_header(info.best_block_number)
-			.unwrap_or_else(|| {
-				warn!("Fallback to `BlockId::Latest`");
-				self.client.best_block_header()
-			});
+		let (maybe_state, maybe_header) = (
+				// todo:[dvdplm]: this takes the queue lock twice and is inelegant. It would be
+				//  better to move `map_existing_pending_block()` to the trait and impl the
+				//  `pending_*` methods in terms of it rather than pollute it with more special-cased
+				//  methods. That does not work currently because of the generic `T` returned here.
+				//  (Tbh I wonder if the whole `MinerService` trait actually carries its weight.)
+				self.miner.pending_state(best_block_number),
+				self.miner.pending_block_header(best_block_number)
+			);
 
-		(state, header)
+		match (maybe_state, maybe_header) {
+			(Some(state), Some(header)) => (state, header),
+			_ => {
+				warn!("Falling back to \"Latest\"");
+				(self.client.latest_state(), self.client.best_block_header())
+
+			}
+		}
 	}
 }
 
