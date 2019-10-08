@@ -132,10 +132,7 @@ pub trait MinerService : Send + Sync {
 	/// Set info necessary to sign consensus messages and block authoring.
 	///
 	/// On chains where sealing is done externally (e.g. PoW) we provide only reward beneficiary.
-	fn set_author(&self, author: Author);
-
-	/// Clears the engine signer and stops signing.
-	fn clear_author(&self);
+	fn set_author<T: Into<Option<Author>>>(&self, author: T);
 
 	// Transaction Pool
 

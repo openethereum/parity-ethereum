@@ -167,7 +167,7 @@ impl<C, M, U, F> ParitySet for ParitySetClient<C, M, U, F> where
 	}
 
 	fn clear_engine_signer(&self) -> Result<bool> {
-		self.miner.clear_author();
+		self.miner.set_author(None);
 		Ok(true)
 	}
 
