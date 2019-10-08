@@ -44,7 +44,7 @@ pub struct AltBn128ConstOperations {
 	/// price
 	pub price: u64,
 	/// EIP 1108 transition price
-	// for backward compability
+	// for backward compatibility
 	pub eip1108_transition_price: Option<u64>,
 }
 
@@ -57,10 +57,10 @@ pub struct AltBn128Pairing {
 	/// Price per point pair.
 	pub pair: u64,
 	/// EIP 1108 transition base price
-	// for backward compability
+	// for backward compatibility
 	pub eip1108_transition_base: Option<u64>,
 	/// EIP 1108 transition price per point pair
-	// for backward compability
+	// for backward compatibility
 	pub eip1108_transition_pair: Option<u64>,
 }
 
@@ -95,7 +95,7 @@ pub struct Builtin {
 	/// Activation block.
 	pub activate_at: Option<Uint>,
 	/// EIP 1108
-	// for backward comptabiltity
+	// for backward compatibility
 	pub eip1108_transition: Option<Uint>,
 }
 
