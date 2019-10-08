@@ -21,4 +21,4 @@ echo "________Running Parity Full Test Suite________"
 CARGO_INCREMENTAL=0 RUSTFLAGS="-C opt-level=3 -C overflow-checks=on -C debuginfo=2 -Ctarget-feature=+aes,+sse2,+ssse3" time cargo test $OPTIONS --features "$FEATURES" --locked --all --target $CARGO_TARGET --verbose --color=never -- --test-threads $THREADS
 
 #show sccache statistics
-sccache --stop-server
+sccache --show-stats

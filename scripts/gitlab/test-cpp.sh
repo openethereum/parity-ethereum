@@ -18,4 +18,4 @@ make VERBOSE=1 -j $THREADS
 cd -
 rm -rf $DIR
 #show sccache statistics
-sccache --stop-server
+sccache --show-stats
