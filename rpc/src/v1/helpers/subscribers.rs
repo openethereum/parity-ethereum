@@ -19,7 +19,6 @@
 use std::{ops, str};
 use std::collections::HashMap;
 
-use rand::RngCore;
 use jsonrpc_pubsub::{typed::{Subscriber, Sink}, SubscriptionId};
 use ethereum_types::H64;
 
@@ -80,9 +79,7 @@ impl<T> Default for Subscribers<T> {
 
 impl<T> Subscribers<T> {
 	fn next_id(&mut self) -> Id {
-		let mut data = H64::default();
-		// TODO [grbIzl] rework with proper H64::random_using with rand 0.7
-		self.rand.fill_bytes(&mut data.as_bytes_mut());
+		let data = H64::random_using(&mut self.rand);
 		Id(data)
 	}
 
