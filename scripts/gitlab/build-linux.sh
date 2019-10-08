@@ -58,4 +58,4 @@ do
   fi
 done
 #show sccache statistics
-sccache --stop-server
+sccache -s
