@@ -58,4 +58,4 @@ do
   fi
 done
 #show sccache statistics
-sccache -s
+sccache --show-stats
