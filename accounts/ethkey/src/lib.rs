@@ -19,12 +19,12 @@
 extern crate edit_distance;
 extern crate parity_crypto;
 extern crate parity_wordlist;
-//extern crate serde;
+extern crate serde;
 
-//#[macro_use]
-//extern crate log;
-//#[macro_use]
-//extern crate serde_derive;
+#[macro_use]
+extern crate log;
+#[macro_use]
+extern crate serde_derive;
 
 mod brain;
 mod brain_prefix;

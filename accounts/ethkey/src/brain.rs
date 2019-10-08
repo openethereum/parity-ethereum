@@ -14,7 +14,9 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
-use parity_crypto::{KeyPair, Generator, Secret, Keccak256};
+use std::convert::Infallible;
+use parity_crypto::publickey::{KeyPair, Generator, Secret};
+use parity_crypto::{Keccak256};
 use parity_wordlist;
 
 /// Simple brainwallet.
@@ -31,7 +33,7 @@ impl Brain {
 }
 
 impl Generator for Brain {
-    type Error = ::Void;
+	type Error = Infallible;
 
 	fn generate(&mut self) -> Result<KeyPair, Self::Error> {
 		let seed = self.0.clone();
@@ -44,7 +46,7 @@ impl Generator for Brain {
 			match i > 16384 {
 				false => i += 1,
 				true => {
-					if let Ok(pair) = Secret::from_unsafe_slice(&secret)
+					if let Ok(pair) = Secret::import_key(&secret)
 						.and_then(KeyPair::from_secret)
 					{
 						if pair.address()[0] == 0 {
@@ -60,7 +62,8 @@ impl Generator for Brain {
 
 #[cfg(test)]
 mod tests {
-	use {Brain, Generator};
+	use {Brain};
+	use parity_crypto::publickey::{Generator};
 
 	#[test]
 	fn test_brain() {
