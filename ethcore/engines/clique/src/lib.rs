@@ -763,12 +763,13 @@ impl Engine for Clique {
 	}
 
 	fn set_signer(&self, signer: Option<Box<dyn EngineSigner>>) {
+		let mut current_signer = self.signer.write();
 		if let Some(signer) = signer.as_ref() {
 			trace!(target: "engine", "set_signer: {:?}", signer.address());
-		} else if let Some(signer) = &*self.signer.read() {
+		} else if let Some(signer) = &*current_signer {
 			trace!(target: "engine", "set_signer: cleared; previous signer: {:?})", signer.address());
 		}
-		*self.signer.write() = signer;
+		*current_signer = signer;
 	}
 
 	fn register_client(&self, client: Weak<dyn EngineClient>) {
