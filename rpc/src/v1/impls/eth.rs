@@ -464,7 +464,8 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM, T> EthClient<C, SN, S, M, EM> where
 						// is triggered, then I get a `StateOrBlock::State` back. Shouldn't it be
 						// consistent?
 						warn!("Asked for best pending state, but none found. Falling back to latest state");
-						Box::new(self.client.latest_state()) as Box<dyn StateInfo>
+						let (state, _) = self.client.latest_state_and_header();
+						Box::new(state)  as Box<dyn StateInfo>
 					})
 					.into()
 			}
@@ -490,7 +491,7 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM, T> EthClient<C, SN, S, M, EM> where
 			(Some(state), Some(header)) => (state, header),
 			_ => {
 				warn!("Falling back to \"Latest\"");
-				(self.client.latest_state(), self.client.best_block_header())
+				self.client.latest_state_and_header()
 
 			}
 		}

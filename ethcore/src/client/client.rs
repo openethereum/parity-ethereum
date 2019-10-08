@@ -1033,15 +1033,16 @@ impl Client {
 	}
 
 	/// Get a copy of the best block's state.
-	pub fn latest_state(&self) -> State<StateDB> {
+	pub fn latest_state_and_header(&self) -> (State<StateDB>, Header) {
 		let header = self.best_block_header();
-		State::from_existing(
+		let state = State::from_existing(
 			self.state_db.read().boxed_clone_canon(&header.hash()),
 			*header.state_root(),
 			self.engine.account_start_nonce(header.number()),
 			self.factories.clone()
 		)
-		.expect("State root of best block header always valid.")
+		.expect("State root of best block header always valid.");
+		(state, header)
 	}
 
 	/// Attempt to get a copy of a specific block's final state.
@@ -1052,7 +1053,10 @@ impl Client {
 	pub fn state_at(&self, id: BlockId) -> Option<State<StateDB>> {
 		// fast path for latest state.
 		match id.clone() {
-			BlockId::Latest => return Some(self.latest_state()),
+			BlockId::Latest => {
+				let (state, _) = self.latest_state_and_header();
+				return Some(state)
+			},
 			_ => {},
 		}
 
@@ -1088,7 +1092,8 @@ impl Client {
 
 	/// Get a copy of the best block's state.
 	pub fn state(&self) -> Box<dyn StateInfo> {
-		Box::new(self.latest_state()) as Box<_>
+		let (state, _) = self.latest_state_and_header();
+		Box::new(state) as Box<_>
 	}
 
 	/// Get info on the cache.
@@ -1476,8 +1481,8 @@ impl ImportBlock for Client {
 impl StateClient for Client {
 	type State = State<::state_db::StateDB>;
 
-	fn latest_state(&self) -> Self::State {
-		Client::latest_state(self)
+	fn latest_state_and_header(&self) -> (Self::State, Header) {
+		Client::latest_state_and_header(self)
 	}
 
 	fn state_at(&self, id: BlockId) -> Option<Self::State> {
