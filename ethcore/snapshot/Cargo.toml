@@ -18,12 +18,12 @@ crossbeam-utils = "0.6"
 engine = { path = "../engine" }
 ethcore-db = { path = "../db" }
 ethcore-io = { path = "../../util/io" }
-ethereum-types = "0.6.0"
+ethereum-types = "0.8.0"
 ethtrie  = { package = "patricia-trie-ethereum", path = "../../util/patricia-trie-ethereum" }
 hash-db = "0.15.0"
 itertools = "0.5"
 journaldb = { path = "../../util/journaldb" }
-keccak-hash = "0.2.0"
+keccak-hash = "0.4.0"
 keccak-hasher = { path = "../../util/keccak-hasher" }
 kvdb = "0.1"
 log = "0.4.8"
@@ -42,9 +42,9 @@ triehash = { package = "triehash-ethereum", version = "0.2",  path = "../../util
 accounts = { package = "ethcore-accounts", path = "../../accounts" }
 engine = { path = "../engine", features = ["test-helpers"] }
 env_logger = "0.5"
-ethabi = "8.0"
-ethabi-contract = "8.0"
-ethabi-derive = "8.0"
+ethabi = "9.0.1"
+ethabi-contract = "9.0.0"
+ethabi-derive = "9.0.1"
 ethcore = { path = "..", features = ["test-helpers"] }
 ethkey = { path = "../../accounts/ethkey" }
 kvdb-rocksdb = { version = "0.1.5" }

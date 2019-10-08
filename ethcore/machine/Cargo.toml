@@ -11,17 +11,17 @@ account-state = { path = "../account-state" }
 client-traits = { path = "../client-traits" }
 common-types = { path = "../types" }
 crossbeam-utils = "0.6"
-ethabi = "8.0.0"
-ethabi-contract = "8.0.0"
-ethabi-derive = "8.0.0"
+ethabi = "9.0.1"
+ethabi-contract = "9.0.0"
+ethabi-derive = "9.0.1"
 ethcore-builtin = { path = "../builtin" }
 ethcore-call-contract = { path = "../call-contract" }
 ethcore-io = { path = "../../util/io" }
-ethereum-types = "0.6.0"
+ethereum-types = "0.8.0"
 # Used for tests in other crates through the `test-helpers` feature
 ethjson = { path = "../../json", optional = true }
 evm = { path = "../evm" }
-keccak-hash = "0.2.0"
+keccak-hash = "0.4.0"
 log = "0.4"
 lru-cache = "0.1.2"
 parity-bytes = "0.1.0"

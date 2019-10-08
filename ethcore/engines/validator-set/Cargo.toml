@@ -10,13 +10,13 @@ license = "GPL-3.0"
 client-traits = { path = "../../client-traits" }
 common-types = { path = "../../types" }
 engine = { path = "../../engine" }
-ethabi = "8.0.1"
-ethabi-contract = "8.0.1"
-ethabi-derive = "8.0.0"
-ethereum-types = "0.6.0"
+ethabi = "9.0.1"
+ethabi-contract = "9.0.0"
+ethabi-derive = "9.0.1"
+ethereum-types = "0.8.0"
 ethjson = { path = "../../../json" }
 executive-state = { path = "../../executive-state" }
-keccak-hash = "0.2.0"
+keccak-hash = "0.4.0"
 kvdb = "0.1"
 lazy_static = "1.3.0"
 log = "0.4.8"
@@ -37,7 +37,7 @@ engine = { path = "../../engine", features = ["test-helpers"] }
 env_logger = "0.6.2"
 ethcore = { path = "../..", features = ["test-helpers"] }
 ethkey = { path = "../../../accounts/ethkey" }
-keccak-hash = "0.2.0"
+keccak-hash = "0.4.0"
 rustc-hex = "1.0"
 spec = { path = "../../spec" }
 

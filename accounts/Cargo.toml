@@ -17,5 +17,5 @@ serde_derive = "1.0"
 serde_json = "1.0"
 
 [dev-dependencies]
-ethereum-types = "0.6.0"
+ethereum-types = "0.8.0"
 tempdir = "0.3"

@@ -8,13 +8,13 @@ authors = ["Parity Technologies <admin@parity.io>"]
 [dependencies]
 client-traits = { path = "../ethcore/client-traits" }
 common-types = { path = "../ethcore/types" }
-ethabi = "8.0"
-ethabi-contract = "8.0"
-ethabi-derive = "8.0"
+ethabi = "9.0.1"
+ethabi-contract = "9.0.0"
+ethabi-derive = "9.0.1"
 ethcore = { path = "../ethcore" }
 ethcore-sync = { path = "../ethcore/sync" }
-ethereum-types = "0.6.0"
-keccak-hash = "0.2.0"
+ethereum-types = "0.8.0"
+keccak-hash = "0.4.0"
 lazy_static = "1.0"
 log = "0.4"
 parity-bytes = "0.1"

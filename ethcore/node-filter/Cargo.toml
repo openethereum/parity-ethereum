@@ -12,12 +12,12 @@ common-types = { path = "../types" }
 ethcore = { path = ".."}
 ethcore-network = { path = "../../util/network" }
 ethcore-network-devp2p = { path = "../../util/network-devp2p" }
-ethereum-types = "0.6.0"
+ethereum-types = "0.8.0"
 log = "0.4"
 parking_lot = "0.9"
-ethabi = "8.0"
-ethabi-derive = "8.0"
-ethabi-contract = "8.0"
+ethabi = "9.0.1"
+ethabi-derive = "9.0.1"
+ethabi-contract = "9.0.0"
 lru-cache = "0.1"
 
 [dev-dependencies]

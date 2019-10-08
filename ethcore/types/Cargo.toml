@@ -6,12 +6,12 @@ authors = ["Parity Technologies <admin@parity.io>"]
 
 [dependencies]
 derive_more = "0.15.0"
-ethbloom = "0.6"
+ethbloom = "0.8.0"
 ethcore-io = { path = "../../util/io" }
-ethereum-types = "0.6.0"
+ethereum-types = "0.8.0"
 ethjson = { path = "../../json" }
 ethkey = { path = "../../accounts/ethkey" }
-keccak-hash = "0.2.0"
+keccak-hash = "0.4.0"
 parity-bytes = "0.1"
 parity-util-mem = "0.2.0"
 parity-snappy = "0.1"
