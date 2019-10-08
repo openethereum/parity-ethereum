@@ -7,8 +7,8 @@ authors = ["Parity Technologies <admin@parity.io>"]
 [dependencies]
 common-types = { path = "../ethcore/types" }
 either = "1.0.0"
-ethereum-types = "0.6.0"
-keccak-hash = "0.2.0"
+ethereum-types = "0.8.0"
+keccak-hash = "0.4.0"
 log = "0.4"
 memmap = "0.6"
 parking_lot = "0.9"

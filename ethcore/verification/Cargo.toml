@@ -18,8 +18,8 @@ client-traits = { path = "../client-traits" }
 common-types = { path = "../types" }
 engine = { path = "../engine" }
 ethcore-io = { path = "../../util/io" }
-ethereum-types = "0.6.0"
-keccak-hash = "0.2.0"
+ethereum-types = "0.8.0"
+keccak-hash = "0.4.0"
 len-caching-lock = { path = "../../util/len-caching-lock" }
 log = "0.4"
 num_cpus = "1.2"

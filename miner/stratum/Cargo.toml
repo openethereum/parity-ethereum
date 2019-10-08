@@ -6,8 +6,8 @@ license = "GPL-3.0"
 authors = ["Parity Technologies <admin@parity.io>"]
 
 [dependencies]
-ethereum-types = "0.6.0"
-keccak-hash = "0.2.0"
+ethereum-types = "0.8.0"
+keccak-hash = "0.4.0"
 jsonrpc-core = "13.2.0"
 jsonrpc-tcp-server = "13.2.0"
 log = "0.4"
