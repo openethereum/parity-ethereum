@@ -54,7 +54,7 @@ do
   then
       ./parity tools hash $binary > $binary.sha3
   else
-      echo "> ${binary} cannot be hashed with cross-compiled binary (keccak256)"
+      echo ">[WARN] ${binary} cannot be hashed with cross-compiled binary (keccak256)"
   fi
 done
 #show sccache statistics
