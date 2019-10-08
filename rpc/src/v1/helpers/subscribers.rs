@@ -80,6 +80,7 @@ impl<T> Default for Subscribers<T> {
 impl<T> Subscribers<T> {
 	fn next_id(&mut self) -> Id {
 		let mut data = H64::default();
+		// TODO [grbIzl] rework with proper H64::random_using with rand 0.7
 		self.rand.fill_bytes(&mut data.as_bytes_mut());
 		Id(data)
 	}
