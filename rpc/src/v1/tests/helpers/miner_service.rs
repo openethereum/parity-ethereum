@@ -127,10 +127,13 @@ impl MinerService for TestMinerService {
 		self.authoring_params.read().clone()
 	}
 
-	fn set_author(&self, author: miner::Author) {
-		self.authoring_params.write().author = author.address();
-		if let miner::Author::Sealer(signer) = author {
-			*self.signer.write() = Some(signer);
+	fn set_author<T: Into<Option<miner::Author>>>(&self, author: T) {
+		let author_opt = author.into();
+		self.authoring_params.write().author = author_opt.as_ref().map(miner::Author::address).unwrap_or_default();
+		match author_opt {
+			Some(miner::Author::Sealer(signer)) => *self.signer.write() = Some(signer),
+			Some(miner::Author::External(_addr)) => (),
+			None => *self.signer.write() = None,
 		}
 	}
 
