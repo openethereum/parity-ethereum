@@ -13,7 +13,7 @@ ethcore-blockchain = { path = "../blockchain" }
 ethcore-io = { path = "../../util/io" }
 ethcore-private-tx = { path = "../private-tx" }
 ethcore-sync = { path = "../sync" }
-ethereum-types = "0.6.0"
+ethereum-types = "0.8.0"
 kvdb = "0.1"
 log = "0.4"
 snapshot = { path = "../snapshot" }

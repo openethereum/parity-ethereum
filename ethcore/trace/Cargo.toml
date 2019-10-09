@@ -9,7 +9,7 @@ edition = "2018"
 [dependencies]
 ethcore-blockchain = { path = "../blockchain" }
 ethcore-db = { path = "../db" }
-ethereum-types = "0.6"
+ethereum-types = "0.8.0"
 evm = { path = "../evm" }
 kvdb = "0.1"
 log = "0.4"

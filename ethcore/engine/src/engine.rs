@@ -293,7 +293,7 @@ pub trait Engine: Sync + Send {
 	fn handle_message(&self, _message: &[u8]) -> Result<(), EngineError> { Err(EngineError::UnexpectedMessage) }
 
 	/// Register a component which signs consensus messages.
-	fn set_signer(&self, _signer: Box<dyn EngineSigner>) {}
+	fn set_signer(&self, _signer: Option<Box<dyn EngineSigner>>) {}
 
 	/// Sign using the EngineSigner, to be used for consensus tx signing.
 	fn sign(&self, _hash: H256) -> Result<Signature, Error> { unimplemented!() }

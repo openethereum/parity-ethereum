@@ -18,6 +18,7 @@
 
 use std::{
 	collections::BTreeMap,
+	convert::TryFrom,
 	fmt,
 	io::Read,
 	path::Path,
@@ -256,13 +257,22 @@ impl fmt::Display for SpecHardcodedSync {
 	}
 }
 
+fn convert_json_to_spec(
+	pair: (ethjson::hash::Address, ethjson::spec::Builtin),
+) -> Result<(Address, Builtin), Error> {
+	let builtin = Builtin::try_from(pair.1)?;
+	Ok((pair.0.into(), builtin))
+}
+
 /// Load from JSON object.
 fn load_from(spec_params: SpecParams, s: ethjson::spec::Spec) -> Result<Spec, Error> {
-	let builtins = s.accounts
+	let builtins: Result<BTreeMap<Address, Builtin>, _> = s
+		.accounts
 		.builtins()
 		.into_iter()
-		.map(|p| (p.0.into(), From::from(p.1)))
+		.map(convert_json_to_spec)
 		.collect();
+	let builtins = builtins?;
 	let g = Genesis::from(s.genesis);
 	let GenericSeal(seal_rlp) = g.seal.into();
 	let params = CommonParams::from(s.params);
@@ -472,10 +482,16 @@ impl Spec {
 	pub fn load_machine<R: Read>(reader: R) -> Result<Machine, Error> {
 		ethjson::spec::Spec::load(reader)
 			.map_err(|e| Error::Msg(e.to_string()))
-			.map(|s| {
-				let builtins = s.accounts.builtins().into_iter().map(|p| (p.0.into(), From::from(p.1))).collect();
+			.and_then(|s| {
+				let builtins: Result<BTreeMap<Address, Builtin>, _> = s
+					.accounts
+					.builtins()
+					.into_iter()
+					.map(convert_json_to_spec)
+					.collect();
+				let builtins = builtins?;
 				let params = CommonParams::from(s.params);
-				Spec::machine(&s.engine, params, builtins)
+				Ok(Spec::machine(&s.engine, params, builtins))
 			})
 	}
 

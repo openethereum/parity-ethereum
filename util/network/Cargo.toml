@@ -10,7 +10,7 @@ authors = ["Parity Technologies <admin@parity.io>"]
 derive_more = "0.14.0"
 parity-crypto = "0.4.0"
 ethcore-io = { path = "../io" }
-ethereum-types = "0.6.0"
+ethereum-types = "0.8.0"
 ethkey = { path = "../../accounts/ethkey" }
 ipnetwork = "0.12.6"
 lazy_static = "1.0"

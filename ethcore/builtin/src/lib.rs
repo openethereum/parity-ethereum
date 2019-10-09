@@ -21,12 +21,14 @@
 use std::{
 	cmp::{max, min},
 	collections::BTreeMap,
+	convert::TryFrom,
 	io::{self, Read, Cursor},
 	mem::size_of,
 	str::FromStr
 };
 
 use byteorder::{BigEndian, LittleEndian, ReadBytesExt};
+use common_types::errors::EthcoreError;
 use ethereum_types::{H256, U256};
 use ethkey::{Signature, recover as ec_recover};
 use keccak_hash::keccak;
@@ -242,18 +244,15 @@ impl Builtin {
 	}
 }
 
-impl From<ethjson::spec::Builtin> for Builtin {
-	fn from(b: ethjson::spec::Builtin) -> Self {
-		// TODO: https://github.com/paritytech/parity-ethereum/issues/11134
-		let native = match EthereumBuiltin::from_str(&b.name) {
-			Ok(native) => native,
-			Err(err) => panic!("{}", err),
-		};
+impl TryFrom<ethjson::spec::Builtin> for Builtin {
+	type Error = EthcoreError;
+
+	fn try_from(b: ethjson::spec::Builtin) -> Result<Self, Self::Error> {
+		let native = EthereumBuiltin::from_str(&b.name)?;
 
 		let pricer = match b.pricing {
 			ethjson::spec::builtin::Pricing::Single(pricer) => {
 				let mut pricers = BTreeMap::new();
-
 				let (pricing, eip1108_pricing) = into_pricing(pricer);
 
 				if b.activate_at.is_none() {
@@ -275,7 +274,6 @@ impl From<ethjson::spec::Builtin> for Builtin {
 				}
 				pricers
 			}
-
 			ethjson::spec::builtin::Pricing::Multi(pricer) => {
 				assert!(!pricer.is_empty(), "Chainspec with builtin contract with multiple activations was empty");
 
@@ -296,7 +294,7 @@ impl From<ethjson::spec::Builtin> for Builtin {
 				pricers
 			}
 		};
-		Self { pricer, native }
+		Ok(Self { pricer, native })
 	}
 }
 
@@ -382,13 +380,14 @@ enum EthereumBuiltin {
 	/// alt_bn128_pairing
 	Bn128Pairing(Bn128Pairing),
 	/// blake2_f (The Blake2 compression function F, EIP-152)
-	Blake2F(Blake2F),
+	Blake2F(Blake2F)
 }
 
-impl FromStr for EthereumBuiltin {
-    type Err = String;
 
-    fn from_str(name: &str) -> Result<EthereumBuiltin, Self::Err> {
+impl FromStr for EthereumBuiltin {
+	type Err = EthcoreError;
+
+	fn from_str(name: &str) -> Result<EthereumBuiltin, Self::Err> {
 		match name {
 			"identity" => Ok(EthereumBuiltin::Identity(Identity)),
 			"ecrecover" => Ok(EthereumBuiltin::EcRecover(EcRecover)),
@@ -399,9 +398,9 @@ impl FromStr for EthereumBuiltin {
 			"alt_bn128_mul" => Ok(EthereumBuiltin::Bn128Mul(Bn128Mul)),
 			"alt_bn128_pairing" => Ok(EthereumBuiltin::Bn128Pairing(Bn128Pairing)),
 			"blake2_f" => Ok(EthereumBuiltin::Blake2F(Blake2F)),
-			_ => Err(format!("invalid builtin name: {}", name)),
+			_ => return Err(EthcoreError::Msg(format!("invalid builtin name: {}", name))),
 		}
-    }
+	}
 }
 
 impl Implementation for EthereumBuiltin {
@@ -805,6 +804,7 @@ impl Bn128Pairing {
 
 #[cfg(test)]
 mod tests {
+	use std::convert::TryFrom;
 	use ethereum_types::U256;
 	use ethjson::uint::Uint;
 	use ethjson::spec::builtin::{
@@ -964,7 +964,6 @@ mod tests {
 	#[test]
 	fn identity() {
 		let f = EthereumBuiltin::from_str("identity").unwrap();
-
 		let i = [0u8, 1, 2, 3];
 
 		let mut o2 = [255u8; 2];
@@ -984,7 +983,6 @@ mod tests {
 	#[test]
 	fn sha256() {
 		let f = EthereumBuiltin::from_str("sha256").unwrap();
-
 		let i = [0u8; 0];
 
 		let mut o = [255u8; 32];
@@ -1007,7 +1005,6 @@ mod tests {
 	#[test]
 	fn ripemd160() {
 		let f = EthereumBuiltin::from_str("ripemd160").unwrap();
-
 		let i = [0u8; 0];
 
 		let mut o = [255u8; 32];
@@ -1075,7 +1072,6 @@ mod tests {
 
 	#[test]
 	fn modexp() {
-
 		let f = Builtin {
 			pricer: map![0 => Pricing::Modexp(ModexpPricer { divisor: 20 })],
 			native: EthereumBuiltin::from_str("modexp").unwrap(),
@@ -1393,7 +1389,7 @@ mod tests {
 
 	#[test]
 	fn from_json() {
-		let b = Builtin::from(JsonBuiltin {
+		let b = Builtin::try_from(ethjson::spec::Builtin {
 			name: "identity".to_owned(),
 			pricing: JsonPricing::Single(
 				JsonPricingInner::Linear(JsonLinearPricing {
@@ -1402,7 +1398,7 @@ mod tests {
 			})),
 			activate_at: Some(Uint(0.into())),
 			eip1108_transition: None,
-		});
+		}).expect("known builtin");
 
 		assert_eq!(b.cost(&[0; 0], 0), U256::from(10));
 		assert_eq!(b.cost(&[0; 1], 0), U256::from(30));
@@ -1417,7 +1413,7 @@ mod tests {
 
 	#[test]
 	fn bn128_pairing_eip1108_transition() {
-		let b = Builtin::from(JsonBuiltin {
+		let b = Builtin::try_from(JsonBuiltin {
 			name: "alt_bn128_pairing".to_owned(),
 			pricing: JsonPricing::Multi(vec![
 				PricingAt {
@@ -1443,7 +1439,7 @@ mod tests {
 			]),
 			activate_at: None,
 			eip1108_transition: None,
-		});
+		}).unwrap();
 
 		assert_eq!(b.cost(&[0; 192 * 3], 10), U256::from(340_000), "80 000 * 3 + 100 000 == 340 000");
 		assert_eq!(b.cost(&[0; 192 * 7], 20), U256::from(283_000), "34 000 * 7 + 45 000 == 283 000");
@@ -1451,7 +1447,7 @@ mod tests {
 
 	#[test]
 	fn bn128_add_eip1108_transition() {
-		let b = Builtin::from(JsonBuiltin {
+		let b = Builtin::try_from(JsonBuiltin {
 			name: "alt_bn128_add".to_owned(),
 			pricing: JsonPricing::Multi(vec![
 				PricingAt {
@@ -1473,7 +1469,7 @@ mod tests {
 			]),
 			activate_at: None,
 			eip1108_transition: None,
-		});
+		}).unwrap();
 
 		assert_eq!(b.cost(&[0; 192], 10), U256::from(500));
 		assert_eq!(b.cost(&[0; 10], 20), U256::from(150), "after istanbul hardfork gas cost for add should be 150");
@@ -1481,7 +1477,7 @@ mod tests {
 
 	#[test]
 	fn bn128_mul_eip1108_transition() {
-		let b = Builtin::from(JsonBuiltin {
+		let b = Builtin::try_from(JsonBuiltin {
 			name: "alt_bn128_mul".to_owned(),
 			pricing: JsonPricing::Multi(vec![
 				PricingAt {
@@ -1503,7 +1499,7 @@ mod tests {
 			]),
 			activate_at: None,
 			eip1108_transition: None,
-		});
+		}).unwrap();
 
 		assert_eq!(b.cost(&[0; 192], 10), U256::from(40_000));
 		assert_eq!(b.cost(&[0; 10], 20), U256::from(6_000), "after istanbul hardfork gas cost for mul should be 6 000");
@@ -1512,7 +1508,7 @@ mod tests {
 
 	#[test]
 	fn multimap_use_most_recent_on_activate() {
-		let b = Builtin::from(JsonBuiltin {
+		let b = Builtin::try_from(JsonBuiltin {
 			name: "alt_bn128_mul".to_owned(),
 			pricing: JsonPricing::Multi(vec![
 				PricingAt {
@@ -1542,7 +1538,7 @@ mod tests {
 			]),
 			activate_at: None,
 			eip1108_transition: None,
-		});
+		}).unwrap();
 
 		assert_eq!(b.cost(&[0; 2], 0), U256::zero(), "not activated yet; should be zero");
 		assert_eq!(b.cost(&[0; 3], 10), U256::from(40_000), "use price #1");
@@ -1555,7 +1551,7 @@ mod tests {
 
 	#[test]
 	fn multimap_use_last_with_same_activate_at() {
-		let b = Builtin::from(JsonBuiltin {
+		let b = Builtin::try_from(JsonBuiltin {
 			name: "alt_bn128_mul".to_owned(),
 			pricing: JsonPricing::Multi(vec![
 				PricingAt {
@@ -1585,7 +1581,7 @@ mod tests {
 			]),
 			activate_at: None,
 			eip1108_transition: None,
-		});
+		}).unwrap();
 
 		assert_eq!(b.cost(&[0; 1], 0), U256::from(0), "not activated yet");
 		assert_eq!(b.cost(&[0; 1], 1), U256::from(1_337), "use price #3");
