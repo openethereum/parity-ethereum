@@ -19,13 +19,13 @@
 use std::{
 	cmp::{max, min},
 	convert::TryFrom,
-	io::{self, Cursor, Read},
+	io::{self, Read, Cursor},
 	mem::size_of,
 };
 
 use bn;
 use byteorder::{BigEndian, LittleEndian, ReadBytesExt};
-use common_types::errors::EthcoreError as Error;
+use common_types::errors::EthcoreError;
 use ethereum_types::{H256, U256};
 use ethjson;
 use ethkey::{Signature, recover as ec_recover};
@@ -218,41 +218,47 @@ impl Builtin {
 }
 
 impl TryFrom<ethjson::spec::Builtin> for Builtin {
-	type Error = Error;
+	type Error = EthcoreError;
 
 	fn try_from(b: ethjson::spec::Builtin) -> Result<Self, Self::Error> {
 		let pricer: Box<dyn Pricer> = match b.pricing {
-			ethjson::spec::Pricing::Blake2F { gas_per_round } => Box::new(gas_per_round),
-			ethjson::spec::Pricing::Linear(linear) => Box::new(Linear {
-				base: linear.base,
-				word: linear.word,
-			}),
-			ethjson::spec::Pricing::Modexp(exp) => Box::new(ModexpPricer {
-				divisor: if exp.divisor == 0 {
-					warn!(target: "builtin", "Zero modexp divisor specified. Falling back to default.");
-					10
-				} else {
-					exp.divisor
-				},
-			}),
-			ethjson::spec::Pricing::AltBn128Pairing(pricer) => Box::new(AltBn128PairingPricer {
-				price: AltBn128PairingPrice {
-					base: pricer.base,
-					pair: pricer.pair,
-				},
-				eip1108_transition_at: b.eip1108_transition.map_or(u64::max_value(), Into::into),
-				eip1108_transition_price: AltBn128PairingPrice {
-					base: pricer.eip1108_transition_base,
-					pair: pricer.eip1108_transition_pair,
-				},
-			}),
+			ethjson::spec::Pricing::Blake2F { gas_per_round } => {
+				Box::new(gas_per_round)
+			},
+			ethjson::spec::Pricing::Linear(linear) => {
+				Box::new(Linear {
+					base: linear.base,
+					word: linear.word,
+				})
+			}
+			ethjson::spec::Pricing::Modexp(exp) => {
+				Box::new(ModexpPricer {
+					divisor: if exp.divisor == 0 {
+						warn!(target: "builtin", "Zero modexp divisor specified. Falling back to default.");
+						10
+					} else {
+						exp.divisor
+					}
+				})
+			}
+			ethjson::spec::Pricing::AltBn128Pairing(pricer) => {
+				Box::new(AltBn128PairingPricer {
+					price: AltBn128PairingPrice {
+						base: pricer.base,
+						pair: pricer.pair,
+					},
+					eip1108_transition_at: b.eip1108_transition.map_or(u64::max_value(), Into::into),
+					eip1108_transition_price: AltBn128PairingPrice {
+						base: pricer.eip1108_transition_base,
+						pair: pricer.eip1108_transition_pair,
+					},
+				})
+			}
 			ethjson::spec::Pricing::AltBn128ConstOperations(pricer) => {
 				Box::new(AltBn128ConstOperations {
-					price: pricer.price,
-					eip1108_transition_price: pricer.eip1108_transition_price,
-					eip1108_transition_at: b
-						.eip1108_transition
-						.map_or(u64::max_value(), Into::into),
+						price: pricer.price,
+						eip1108_transition_price: pricer.eip1108_transition_price,
+						eip1108_transition_at: b.eip1108_transition.map_or(u64::max_value(), Into::into)
 				})
 			}
 		};
@@ -267,7 +273,7 @@ impl TryFrom<ethjson::spec::Builtin> for Builtin {
 }
 
 /// Ethereum built-in factory.
-fn ethereum_builtin(name: &str) -> Result<Box<dyn Implementation>, Error> {
+fn ethereum_builtin(name: &str) -> Result<Box<dyn Implementation>, EthcoreError> {
 	let implementation = match name {
 		"identity" => Box::new(Identity) as Box<dyn Implementation>,
 		"ecrecover" => Box::new(EcRecover) as Box<dyn Implementation>,
@@ -278,7 +284,7 @@ fn ethereum_builtin(name: &str) -> Result<Box<dyn Implementation>, Error> {
 		"alt_bn128_mul" => Box::new(Bn128Mul) as Box<dyn Implementation>,
 		"alt_bn128_pairing" => Box::new(Bn128Pairing) as Box<dyn Implementation>,
 		"blake2_f" => Box::new(Blake2F) as Box<dyn Implementation>,
-		_ => return Err(Error::Msg(format!("invalid builtin name: {}", name))),
+		_ => return Err(EthcoreError::Msg(format!("invalid builtin name: {}", name))),
 	};
 	Ok(implementation)
 }
@@ -679,7 +685,7 @@ impl Bn128Pairing {
 
 #[cfg(test)]
 mod tests {
-    use std::convert::TryFrom;
+	use std::convert::TryFrom;
 	use ethereum_types::U256;
 	use ethjson::uint::Uint;
 	use num::{BigUint, Zero, One};
