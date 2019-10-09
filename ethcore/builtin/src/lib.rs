@@ -1274,7 +1274,7 @@ mod tests {
 			}),
 			activate_at: None,
 			eip1108_transition: None,
-		}).expect("bad spec");
+		}).expect("known builtin");
 
 		assert_eq!(b.cost(&[0; 0], 0), U256::from(10));
 		assert_eq!(b.cost(&[0; 1], 0), U256::from(30));
@@ -1299,7 +1299,7 @@ mod tests {
 			}),
 			activate_at: Some(Uint(U256::from(10))),
 			eip1108_transition: Some(Uint(U256::from(20))),
-		}).expect("bad spec");
+		}).expect("known builtin");
 
 		assert_eq!(b.cost(&[0; 192 * 3], 10), U256::from(340_000), "80 000 * 3 + 100 000 == 340 000");
 		assert_eq!(b.cost(&[0; 192 * 7], 20), U256::from(283_000), "34 000 * 7 + 45 000 == 283 000");
@@ -1315,7 +1315,7 @@ mod tests {
 			}),
 			activate_at: Some(Uint(U256::from(10))),
 			eip1108_transition: Some(Uint(U256::from(20))),
-		}).expect("bad spec");
+		}).expect("known builtin");
 
 		assert_eq!(b.cost(&[0; 192], 10), U256::from(500));
 		assert_eq!(b.cost(&[0; 10], 20), U256::from(150), "after istanbul hardfork gas cost for add should be 150");
@@ -1331,7 +1331,7 @@ mod tests {
 			}),
 			activate_at: Some(Uint(U256::from(10))),
 			eip1108_transition: Some(Uint(U256::from(20))),
-		}).expect("bad spec");
+		}).expect("known builtin");
 
 		assert_eq!(b.cost(&[0; 192], 10), U256::from(40_000));
 		assert_eq!(b.cost(&[0; 10], 20), U256::from(6_000), "after istanbul hardfork gas cost for mul should be 6 000");
