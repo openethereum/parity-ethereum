@@ -221,8 +221,7 @@ impl StratumImpl {
 				*counter
 			};
 
-			// most of the cases won't be needed, hence avoid allocation
-			let mut hup_peers = HashSet::with_capacity(0);
+			let mut hup_peers = HashSet::new();
 			let workers_msg = format!("{{ \"id\": {}, \"method\": \"mining.notify\", \"params\": {} }}", next_request_id, payload);
 			trace!(target: "stratum", "pushing work for {} workers (payload: '{}')", workers.len(), &workers_msg);
 			for (addr, _) in workers.iter() {
