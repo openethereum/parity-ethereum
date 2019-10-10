@@ -893,21 +893,38 @@ impl miner::MinerService for Miner {
 		self.params.write().extra_data = extra_data;
 	}
 
-	fn set_author(&self, author: Author) {
-		self.params.write().author = author.address();
+	fn set_author<T: Into<Option<Author>>>(&self, author: T) {
+		let author_opt = author.into();
+		self.params.write().author = author_opt.as_ref().map(Author::address).unwrap_or_default();
 
-		if let Author::Sealer(signer) = author {
-			if self.engine.sealing_state() != SealingState::External {
-				// Enable sealing
-				self.sealing.lock().enabled = true;
-				// --------------------------------------------------------------------------
-				// | NOTE Code below may require author and sealing locks                   |
-				// | (some `Engine`s call `EngineClient.update_sealing()`)                  |
-				// | Make sure to release the locks before calling that method.             |
-				// --------------------------------------------------------------------------
-				self.engine.set_signer(signer);
-			} else {
-				warn!("Setting an EngineSigner while Engine does not require one.");
+		match author_opt {
+			Some(Author::Sealer(signer)) => {
+				if self.engine.sealing_state() != SealingState::External {
+					// Enable sealing
+					self.sealing.lock().enabled = true;
+					// --------------------------------------------------------------------------
+					// | NOTE Code below may require author and sealing locks                   |
+					// | (some `Engine`s call `EngineClient.update_sealing()`)                  |
+					// | Make sure to release the locks before calling that method.             |
+					// --------------------------------------------------------------------------
+					self.engine.set_signer(Some(signer));
+				} else {
+					warn!("Setting an EngineSigner while Engine does not require one.");
+				}
+			}
+			Some(Author::External(_address)) => (),
+			None => {
+				// Clear the author.
+				if self.engine.sealing_state() != SealingState::External {
+					// Disable sealing.
+					self.sealing.lock().enabled = false;
+					// --------------------------------------------------------------------------
+					// | NOTE Code below may require author and sealing locks                   |
+					// | (some `Engine`s call `EngineClient.update_sealing()`)                  |
+					// | Make sure to release the locks before calling that method.             |
+					// --------------------------------------------------------------------------
+					self.engine.set_signer(None);
+				}
 			}
 		}
 	}
