@@ -497,4 +497,11 @@ mod tests {
 			"{ \"id\": 17, \"method\": \"mining.notify\", \"params\": { \"00040008\", \"100500\" } }\n",
 			response);
 	}
+
+	#[test]
+	fn jsonprc_server_is_send_and_sync() {
+		fn is_send_and_sync<T: Send + Sync>() {}
+
+		is_send_and_sync::<JsonRpcServer>();
+	}
 }

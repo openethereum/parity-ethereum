@@ -22,7 +22,7 @@ use jsonrpc_derive::rpc;
 use v1::types::Bytes;
 
 /// Web3 rpc interface.
-#[rpc]
+#[rpc(server)]
 pub trait Web3 {
 	/// Returns current client version.
 	#[rpc(name = "web3_clientVersion")]
@@ -30,5 +30,5 @@ pub trait Web3 {
 
 	/// Returns sha3 of the given data
 	#[rpc(name = "web3_sha3")]
-	fn sha3(&self, Bytes) -> Result<H256>;
+	fn sha3(&self, _: Bytes) -> Result<H256>;
 }
