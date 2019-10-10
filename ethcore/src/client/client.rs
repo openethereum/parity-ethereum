@@ -1052,12 +1052,9 @@ impl Client {
 	/// is unknown.
 	pub fn state_at(&self, id: BlockId) -> Option<State<StateDB>> {
 		// fast path for latest state.
-		match id.clone() {
-			BlockId::Latest => {
-				let (state, _) = self.latest_state_and_header();
-				return Some(state)
-			},
-			_ => {},
+		if let BlockId::Latest = id {
+			let (state, _) = self.latest_state_and_header();
+			return Some(state)
 		}
 
 		let block_number = match self.block_number(id) {
@@ -1091,9 +1088,9 @@ impl Client {
 	}
 
 	/// Get a copy of the best block's state.
-	pub fn state(&self) -> Box<dyn StateInfo> {
+	pub fn state(&self) -> impl StateInfo {
 		let (state, _) = self.latest_state_and_header();
-		Box::new(state) as Box<_>
+		state
 	}
 
 	/// Get info on the cache.
