@@ -19,9 +19,9 @@ use std::u16;
 use std::ops::Deref;
 use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
 use serde_json;
-use ethkey::crypto::ecies;
-use ethkey::{Secret, KeyPair};
-use ethkey::math::curve_order;
+use crypto::publickey::ecies;
+use crypto::publickey::{Secret, KeyPair};
+use crypto::publickey::math::curve_order;
 use ethereum_types::{H256, U256, BigEndianHash};
 use key_server_cluster::Error;
 use key_server_cluster::message::{Message, ClusterMessage, GenerationMessage, EncryptionMessage, DecryptionMessage,
@@ -305,8 +305,8 @@ pub mod tests {
 	use std::io;
 	use futures::Poll;
 	use tokio_io::{AsyncRead, AsyncWrite};
-	use ethkey::{Random, Generator, KeyPair};
-	use ethkey::crypto::ecdh::agree;
+	use crypto::publickey::{Random, Generator, KeyPair};
+	use crypto::publickey::ecdh::agree;
 	use key_server_cluster::Error;
 	use key_server_cluster::message::Message;
 	use super::{MESSAGE_HEADER_SIZE, CURRENT_HEADER_VERSION, MessageHeader, fix_shared_key, encrypt_message,

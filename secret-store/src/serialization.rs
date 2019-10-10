@@ -19,7 +19,7 @@ use std::ops::Deref;
 use rustc_hex::{self, FromHex};
 use serde::{Serialize, Deserialize, Serializer, Deserializer};
 use serde::de::{Visitor, Error as SerdeError};
-use ethkey::{Public, Secret, Signature};
+use crypto::publickey::{Public, Secret, Signature};
 use ethereum_types::{H160, H256};
 use bytes::Bytes;
 use types::Requester;

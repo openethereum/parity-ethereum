@@ -23,7 +23,7 @@ use call_contract::CallContract;
 use ethcore::client::Client;
 use client_traits::BlockChainClient;
 use common_types::ids::BlockId;
-use ethkey::{Public, public_to_address};
+use crypto::publickey::{Public, public_to_address};
 use hash::keccak;
 use bytes::Bytes;
 use ethereum_types::{H256, U256, Address, H512};

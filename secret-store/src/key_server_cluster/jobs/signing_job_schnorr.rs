@@ -15,7 +15,7 @@
 // along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
 use std::collections::{BTreeSet, BTreeMap};
-use ethkey::{Public, Secret};
+use crypto::publickey::{Public, Secret};
 use ethereum_types::H256;
 use key_server_cluster::{Error, NodeId, DocumentKeyShare};
 use key_server_cluster::math;

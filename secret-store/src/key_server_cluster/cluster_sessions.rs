@@ -21,7 +21,7 @@ use std::collections::{VecDeque, BTreeMap, BTreeSet};
 use futures::{oneshot, Oneshot, Complete, Future};
 use parking_lot::{Mutex, RwLock, Condvar};
 use ethereum_types::H256;
-use ethkey::Secret;
+use crypto::publickey::Secret;
 use key_server_cluster::{Error, NodeId, SessionId, NodeKeyPair};
 use key_server_cluster::cluster::{Cluster, ClusterConfiguration, ClusterView};
 use key_server_cluster::cluster_connections::ConnectionProvider;

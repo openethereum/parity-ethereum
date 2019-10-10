@@ -17,7 +17,7 @@
 use std::sync::Arc;
 use std::collections::{BTreeSet, BTreeMap};
 use ethereum_types::{H256, Address};
-use ethkey::{Public, Secret, Signature};
+use crypto::publickey::{Public, Secret, Signature};
 use futures::Oneshot;
 use parking_lot::Mutex;
 use key_server_cluster::{Error, SessionId, NodeId, DocumentKeyShare, DocumentKeyShareVersion, KeyStorage};

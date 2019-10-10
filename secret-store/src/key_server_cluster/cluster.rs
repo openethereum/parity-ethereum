@@ -17,7 +17,7 @@
 use std::sync::Arc;
 use std::collections::{BTreeMap, BTreeSet};
 use parking_lot::RwLock;
-use ethkey::{Public, Signature, Random, Generator};
+use crypto::publickey::{Public, Signature, Random, Generator};
 use ethereum_types::{Address, H256};
 use parity_runtime::Executor;
 use key_server_cluster::{Error, NodeId, SessionId, Requester, AclStorage, KeyStorage, KeyServerSet, NodeKeyPair};
