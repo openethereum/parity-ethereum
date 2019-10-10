@@ -467,10 +467,13 @@ fn net_maintain(data: Arc<NetConnectionsData>) {
 
 /// Send keep alive messages to remote nodes.
 fn net_keep_alive(data: Arc<NetConnectionsData>) {
-	let now = Instant::now();
 	let active_connections = data.active_connections();
 	for connection in active_connections {
-		let last_message_diff = now - connection.last_message_time();
+		// the last_message_time could change after active_connections() call
+		// => we always need to call Instant::now() after getting last_message_time
+		let last_message_time = connection.last_message_time();
+		let now = Instant::now();
+		let last_message_diff = now - last_message_time;
 		if last_message_diff > KEEP_ALIVE_DISCONNECT_INTERVAL {
 			warn!(target: "secretstore_net", "{}: keep alive timeout for node {}",
 				data.self_key_pair.public(), connection.node_id());
