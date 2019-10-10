@@ -76,7 +76,7 @@ impl Stratum {
 
 		let implementation = Arc::new(StratumImpl {
 			subscribers: RwLock::default(),
-			job_que: RwLock::default(),
+			job_queue: RwLock::default(),
 			dispatcher,
 			workers: Arc::new(RwLock::default()),
 			secret,
@@ -106,7 +106,7 @@ impl Stratum {
 }
 
 impl PushWorkHandler for Stratum {
-	fn push_work_all(&self, payload: String) -> Result<(), Error> {
+	fn push_work_all(&self, payload: String) {
 		self.implementation.push_work_all(payload, &self.tcp_dispatcher)
 	}
 
@@ -126,14 +126,14 @@ struct StratumImpl {
 	/// Subscribed clients
 	subscribers: RwLock<Vec<SocketAddr>>,
 	/// List of workers supposed to receive job update
-	job_que: RwLock<HashSet<SocketAddr>>,
+	job_queue: RwLock<HashSet<SocketAddr>>,
 	/// Payload manager
 	dispatcher: Arc<dyn JobDispatcher>,
 	/// Authorized workers (socket - worker_id)
 	workers: Arc<RwLock<HashMap<SocketAddr, String>>>,
 	/// Secret if any
 	secret: Option<H256>,
-	/// Dispatch notify couinter
+	/// Dispatch notify counter
 	notify_counter: RwLock<u32>,
 }
 
@@ -143,7 +143,7 @@ impl StratumImpl {
 		use std::str::FromStr;
 
 		self.subscribers.write().push(meta.addr().clone());
-		self.job_que.write().insert(meta.addr().clone());
+		self.job_queue.write().insert(meta.addr().clone());
 		trace!(target: "stratum", "Subscription request from {:?}", meta.addr());
 
 		Ok(match self.dispatcher.initial() {
@@ -204,31 +204,33 @@ impl StratumImpl {
 	/// Helper method
 	fn update_peers(&self, tcp_dispatcher: &Dispatcher) {
 		if let Some(job) = self.dispatcher.job() {
-			if let Err(e) = self.push_work_all(job, tcp_dispatcher) {
-				warn!("Failed to update some of the peers: {:?}", e);
-			}
+			self.push_work_all(job, tcp_dispatcher)
 		}
 	}
 
-	fn push_work_all(&self, payload: String, tcp_dispatcher: &Dispatcher) -> Result<(), Error> {
+	fn push_work_all(&self, payload: String, tcp_dispatcher: &Dispatcher) {
 		let hup_peers = {
 			let workers = self.workers.read();
 			let next_request_id = {
 				let mut counter = self.notify_counter.write();
-				if *counter == ::std::u32::MAX { *counter = NOTIFY_COUNTER_INITIAL; }
-				else { *counter = *counter + 1 }
+				if *counter == ::std::u32::MAX {
+					*counter = NOTIFY_COUNTER_INITIAL;
+				} else {
+					*counter = *counter + 1
+				}
 				*counter
 			};
 
-			let mut hup_peers = HashSet::with_capacity(0); // most of the cases won't be needed, hence avoid allocation
+			// most of the cases won't be needed, hence avoid allocation
+			let mut hup_peers = HashSet::with_capacity(0);
 			let workers_msg = format!("{{ \"id\": {}, \"method\": \"mining.notify\", \"params\": {} }}", next_request_id, payload);
 			trace!(target: "stratum", "pushing work for {} workers (payload: '{}')", workers.len(), &workers_msg);
-			for (ref addr, _) in workers.iter() {
+			for (addr, _) in workers.iter() {
 				trace!(target: "stratum", "pusing work to {}", addr);
 				match tcp_dispatcher.push_message(addr, workers_msg.clone()) {
 					Err(PushMessageError::NoSuchPeer) => {
-						trace!(target: "stratum", "Worker no longer connected: {}", &addr);
-						hup_peers.insert(*addr.clone());
+						trace!(target: "stratum", "Worker no longer connected: {}", addr);
+						hup_peers.insert(addr.clone());
 					},
 					Err(e) => {
 						warn!(target: "stratum", "Unexpected transport error: {:?}", e);
@@ -241,10 +243,10 @@ impl StratumImpl {
 
 		if !hup_peers.is_empty() {
 			let mut workers = self.workers.write();
-			for hup_peer in hup_peers { workers.remove(&hup_peer); }
+			for hup_peer in hup_peers {
+				workers.remove(&hup_peer);
+			}
 		}
-
-		Ok(())
 	}
 
 	fn push_work(&self, payloads: Vec<String>, tcp_dispatcher: &Dispatcher) -> Result<(), Error> {
@@ -475,8 +477,7 @@ mod tests {
 			.map_err(|err: timeout::Error<()>| panic!("Timeout: {:?}", err))
 			.and_then(move |stream| {
 				trace!(target: "stratum", "Pusing work to peers");
-				stratum.push_work_all(r#"{ "00040008", "100500" }"#.to_owned())
-					.expect("Pushing work should produce no errors");
+				stratum.push_work_all(r#"{ "00040008", "100500" }"#.to_owned());
 				Timeout::new(future::ok(stream), ::std::time::Duration::from_millis(100))
 			})
 			.map_err(|err: timeout::Error<()>| panic!("Timeout: {:?}", err))
