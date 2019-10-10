@@ -54,7 +54,7 @@ impl SecretStoreClient {
 	/// Decrypt secret key using account' private key
 	fn decrypt_secret(&self, address: H160, password: Password, key: Bytes) -> Result<Secret> {
 		self.decrypt_key(address, password, key)
-			.and_then(|s| Secret::from_unsafe_slice(&s).map_err(|e| errors::account("invalid secret", e)))
+			.and_then(|s| Secret::import_key(&s).map_err(|e| errors::account("invalid secret", e)))
 	}
 }
 

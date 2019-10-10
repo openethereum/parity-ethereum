@@ -134,7 +134,7 @@ impl ParityAccounts for ParityAccountsClient {
 
 	fn new_account_from_secret(&self, secret: H256, pass: Password) -> Result<H160> {
 		self.deprecation_notice("parity_newAccountFromSecret");
-		let secret = Secret::from_unsafe_slice(&secret.0)
+		let secret = Secret::import_key(&secret.0)
 			.map_err(|e| errors::account("Could not create account.", e))?;
 		self.accounts.insert_account(secret, &pass)
 			.map(Into::into)
