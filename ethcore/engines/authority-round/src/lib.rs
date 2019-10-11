@@ -1401,9 +1401,10 @@ impl Engine for AuthorityRound {
 			self.received_step_hashes.write().insert(received_step_key, new_hash);
 		}
 
-		// Remove hash records older than 100 steps (picked as a reasonable trade-off between memory consumption and fault-tolerance).
-		const SIBLING_MALICE_DETECTION_PERIOD: u64 = 100;
-		let oldest_step = parent_step.saturating_sub(SIBLING_MALICE_DETECTION_PERIOD);
+		// Remove hash records older than two full rounds of steps (picked as a reasonable trade-off between
+		// memory consumption and fault-tolerance).
+		let sibling_malice_detection_period = 2 * validators.count(&parent.hash()) as u64;
+		let oldest_step = parent_step.saturating_sub(sibling_malice_detection_period);
 		if oldest_step > 0 {
 			let mut rsh = self.received_step_hashes.write();
 			let new_rsh = rsh.split_off(&(oldest_step, Address::zero()));
