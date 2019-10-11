@@ -458,11 +458,6 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM, T> EthClient<C, SN, S, M, EM> where
 					.pending_state(info.best_block_number)
 					.map(|s| Box::new(s) as Box<dyn StateInfo>)
 					.unwrap_or_else(|| {
-						// todo[dvdplm]: this strikes me as odd. If I call `get_state` with
-						// `BlockNumber::Latest` I get a `StateOrBlock::Block` back, but if I call
-						// it with `BlockNumber::Pending` and the state is not there so the fallback
-						// is triggered, then I get a `StateOrBlock::State` back. Shouldn't it be
-						// consistent?
 						warn!("Asked for best pending state, but none found. Falling back to latest state");
 						let (state, _) = self.client.latest_state_and_header();
 						Box::new(state)  as Box<dyn StateInfo>
@@ -476,23 +471,16 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM, T> EthClient<C, SN, S, M, EM> where
 	/// blocks state&header.
 	fn pending_state_and_header_with_fallback(&self) -> (T, Header) {
 		let best_block_number = self.client.chain_info().best_block_number;
-
-		let (maybe_state, maybe_header) = (
-				// todo:[dvdplm]: this takes the queue lock twice and is inelegant. It would be
-				//  better to move `map_existing_pending_block()` to the trait and impl the
-				//  `pending_*` methods in terms of it rather than pollute it with more special-cased
-				//  methods. That does not work currently because of the generic `T` returned here.
-				//  (Tbh I wonder if the whole `MinerService` trait actually carries its weight.)
-				self.miner.pending_state(best_block_number),
-				self.miner.pending_block_header(best_block_number)
-			);
+		let (maybe_state, maybe_header) =
+			self.miner.pending_state(best_block_number).map_or_else(|| (None, None),|s| {
+				(Some(s), self.miner.pending_block_header(best_block_number))
+			});
 
 		match (maybe_state, maybe_header) {
 			(Some(state), Some(header)) => (state, header),
 			_ => {
 				warn!("Falling back to \"Latest\"");
 				self.client.latest_state_and_header()
-
 			}
 		}
 	}
