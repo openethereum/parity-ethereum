@@ -465,7 +465,7 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM, T> EthClient<C, SN, S, M, EM> where
 						// consistent?
 						warn!("Asked for best pending state, but none found. Falling back to latest state");
 						let (state, _) = self.client.latest_state_and_header();
-						Box::new(state)  as Box<dyn StateInfo>
+						Box::new(state) as Box<dyn StateInfo>
 					})
 					.into()
 			}
