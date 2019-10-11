@@ -37,7 +37,7 @@ ethstore = { path = "accounts/ethstore" }
 fdlimit = "0.1"
 futures = "0.1"
 journaldb = { path = "util/journaldb" }
-jsonrpc-core = "13.2.0"
+jsonrpc-core = "14.0.0"
 keccak-hash = "0.4.0"
 kvdb = "0.1"
 kvdb-rocksdb = "0.1.5"
