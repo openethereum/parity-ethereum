@@ -146,7 +146,7 @@ pub trait StateClient {
 	type State: StateInfo;
 
 	/// Get a copy of the best block's state.
-	fn latest_state(&self) -> Self::State;
+	fn latest_state_and_header(&self) -> (Self::State, Header);
 
 	/// Attempt to get a copy of a specific block's final state.
 	///
