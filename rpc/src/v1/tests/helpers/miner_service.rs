@@ -89,8 +89,8 @@ impl StateClient for TestMinerService {
 	// State will not be used by test client anyway, since all methods that accept state are mocked
 	type State = ();
 
-	fn latest_state(&self) -> Self::State {
-		()
+	fn latest_state_and_header(&self) -> (Self::State, Header) {
+		(TestState, Header::default())
 	}
 
 	fn state_at(&self, _id: BlockId) -> Option<Self::State> {
