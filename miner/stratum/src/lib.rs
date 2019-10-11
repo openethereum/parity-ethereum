@@ -109,10 +109,6 @@ impl PushWorkHandler for Stratum {
 	fn push_work_all(&self, payload: String) {
 		self.implementation.push_work_all(payload, &self.tcp_dispatcher)
 	}
-
-	fn push_work(&self, payloads: Vec<String>) -> Result<(), Error> {
-		self.implementation.push_work(payloads, &self.tcp_dispatcher)
-	}
 }
 
 impl Drop for Stratum {
@@ -160,7 +156,7 @@ impl StratumImpl {
 
 	/// rpc method `mining.authorize`
 	fn authorize(&self, params: Params, meta: SocketMetadata) -> RpcResult {
-		params.parse::<(String, String)>().map(|(worker_id, secret)|{
+		params.parse::<(String, String)>().map(|(worker_id, secret)| {
 			if let Some(valid_secret) = self.secret {
 				let hash = keccak(secret);
 				if hash != valid_secret {
@@ -184,15 +180,15 @@ impl StratumImpl {
 						_ => None
 					})
 					.collect::<Vec<String>>()) {
-						Ok(()) => {
-							self.update_peers(&meta.tcp_dispatcher.expect("tcp_dispatcher is always initialized; qed"));
-							to_value(true)
-						},
-						Err(submit_err) => {
-							warn!("Error while submitting share: {:?}", submit_err);
-							to_value(false)
-						}
+					Ok(()) => {
+						self.update_peers(&meta.tcp_dispatcher.expect("tcp_dispatcher is always initialized; qed"));
+						to_value(true)
+					},
+					Err(submit_err) => {
+						warn!("Error while submitting share: {:?}", submit_err);
+						to_value(false)
 					}
+				}
 			},
 			_ => {
 				trace!(target: "stratum", "Invalid submit work format {:?}", params);
@@ -234,7 +230,7 @@ impl StratumImpl {
 					Err(e) => {
 						warn!(target: "stratum", "Unexpected transport error: {:?}", e);
 					},
-					Ok(_) => { },
+					Ok(_) => {},
 				}
 			}
 			hup_peers
@@ -246,29 +242,6 @@ impl StratumImpl {
 				workers.remove(&hup_peer);
 			}
 		}
-	}
-
-	fn push_work(&self, payloads: Vec<String>, tcp_dispatcher: &Dispatcher) -> Result<(), Error> {
-		if !payloads.len() > 0 {
-			return Err(Error::NoWork);
-		}
-		let workers = self.workers.read();
-		let addrs = workers.keys().collect::<Vec<&SocketAddr>>();
-		if !workers.len() > 0 {
-			return Err(Error::NoWorkers);
-		}
-		let mut que = payloads;
-		let mut addr_index = 0;
-		while que.len() > 0 {
-			let next_worker = addrs[addr_index];
-			let mut next_payload = que.drain(0..1);
-			tcp_dispatcher.push_message(
-				next_worker,
-				next_payload.nth(0).expect("drained successfully of 0..1, so 0-th element should exist")
-			)?;
-			addr_index = addr_index + 1;
-		}
-		Ok(())
 	}
 }
 

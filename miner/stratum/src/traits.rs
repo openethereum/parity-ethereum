@@ -56,9 +56,6 @@ pub trait JobDispatcher: Send + Sync {
 pub trait PushWorkHandler: Send + Sync {
 	/// push the same work package for all workers (`payload`: json of pow-specific set of work specification)
 	fn push_work_all(&self, payload: String);
-
-	/// push the work packages worker-wise (`payload`: json of pow-specific set of work specification)
-	fn push_work(&self, payloads: Vec<String>) -> Result<(), Error>;
 }
 
 pub struct ServiceConfiguration {
