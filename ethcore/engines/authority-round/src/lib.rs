@@ -1401,7 +1401,7 @@ impl Engine for AuthorityRound {
 			self.received_step_hashes.write().insert(received_step_key, new_hash);
 		}
 
-		// Remove older step hash records.
+		// Remove hash records older than 100 steps (picked as a reasonable trade-off between memory consumption and fault-tolerance).
 		const SIBLING_MALICE_DETECTION_PERIOD: u64 = 100;
 		let oldest_step = parent_step.saturating_sub(SIBLING_MALICE_DETECTION_PERIOD);
 		if oldest_step > 0 {
