@@ -274,7 +274,7 @@ impl From<ethjson::spec::builtin::Pricing> for Pricing {
 			ethjson::spec::builtin::Pricing::Modexp(exp) => {
 				Pricing::Modexp(ModexpPricer {
 					divisor: if exp.divisor == 0 {
-						warn!("Zero modexp divisor specified. Falling back to default.");
+						warn!(target: "builtin", "Zero modexp divisor specified. Falling back to default: 10.");
 						10
 					} else {
 						exp.divisor
