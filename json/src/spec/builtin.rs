@@ -110,11 +110,11 @@ pub enum Pricing {
 /// Builtin compability layer
 #[derive(Debug, PartialEq, Deserialize, Clone)]
 #[serde(deny_unknown_fields)]
-pub struct BuiltinCombat {
+pub struct BuiltinCompat {
 	/// Builtin name.
 	name: String,
 	/// Builtin pricing.
-	pricing: PricingCombat,
+	pricing: PricingCompat,
 	/// Activation block.
 	activate_at: Option<Uint>,
 	/// EIP 1108
@@ -131,10 +131,10 @@ pub struct Builtin {
 	pub pricing: BTreeMap<u64, PricingAt>,
 }
 
-impl From<BuiltinCombat> for Builtin {
-	fn from(legacy: BuiltinCombat) -> Self {
+impl From<BuiltinCompat> for Builtin {
+	fn from(legacy: BuiltinCompat) -> Self {
 		let pricing: BTreeMap<u64, PricingAt> = match legacy.pricing {
-			PricingCombat::Single(pricing) => {
+			PricingCompat::Single(pricing) => {
 				let mut map: BTreeMap<u64, PricingAt> = BTreeMap::new();
 				let activate_at: u64 = legacy.activate_at.map_or(0, Into::into);
 
@@ -183,7 +183,7 @@ impl From<BuiltinCombat> for Builtin {
 				};
 				map
 			}
-			PricingCombat::Multi(pricings) => {
+			PricingCompat::Multi(pricings) => {
 				pricings.into_iter().map(|(a, p)| (a.into(), p)).collect()
 			}
 		};
@@ -196,7 +196,7 @@ impl From<BuiltinCombat> for Builtin {
 #[serde(rename_all = "snake_case")]
 #[serde(deny_unknown_fields)]
 #[serde(untagged)]
-enum PricingCombat {
+enum PricingCompat {
 	/// Single builtin
 	Single(Pricing),
 	/// Multiple builtins
@@ -215,7 +215,7 @@ pub struct PricingAt {
 
 #[cfg(test)]
 mod tests {
-	use super::{Builtin, BuiltinCombat, BTreeMap, Pricing, PricingAt, Linear, Modexp, AltBn128ConstOperations};
+	use super::{Builtin, BuiltinCompat, BTreeMap, Pricing, PricingAt, Linear, Modexp, AltBn128ConstOperations};
 	use macros::map;
 
 	#[test]
@@ -224,7 +224,7 @@ mod tests {
 			"name": "ecrecover",
 			"pricing": { "linear": { "base": 3000, "word": 0 } }
 		}"#;
-		let builtin: Builtin = serde_json::from_str::<BuiltinCombat>(s).unwrap().into();
+		let builtin: Builtin = serde_json::from_str::<BuiltinCompat>(s).unwrap().into();
 		assert_eq!(builtin.name, "ecrecover");
 		assert_eq!(builtin.pricing, map![
 			0 => PricingAt {
@@ -248,7 +248,7 @@ mod tests {
 				}
 			}
 		}"#;
-		let builtin: Builtin = serde_json::from_str::<BuiltinCombat>(s).unwrap().into();
+		let builtin: Builtin = serde_json::from_str::<BuiltinCompat>(s).unwrap().into();
 		assert_eq!(builtin.name, "ecrecover");
 		assert_eq!(builtin.pricing, map![
 			0 => PricingAt {
@@ -269,7 +269,7 @@ mod tests {
 			"activate_at": "0xffffff",
 			"pricing": { "blake2_f": { "gas_per_round": 123 } }
 		}"#;
-		let builtin: Builtin = serde_json::from_str::<BuiltinCombat>(s).unwrap().into();
+		let builtin: Builtin = serde_json::from_str::<BuiltinCompat>(s).unwrap().into();
 		assert_eq!(builtin.name, "blake2_f");
 		assert_eq!(builtin.pricing, map![
 			0xffffff => PricingAt {
@@ -287,7 +287,7 @@ mod tests {
 			"pricing": { "modexp": { "divisor": 5 } }
 		}"#;
 
-		let builtin: Builtin = serde_json::from_str::<BuiltinCombat>(s).unwrap().into();
+		let builtin: Builtin = serde_json::from_str::<BuiltinCompat>(s).unwrap().into();
 		assert_eq!(builtin.name, "late_start");
 		assert_eq!(builtin.pricing, map![
 			100_000 => PricingAt {
@@ -310,7 +310,7 @@ mod tests {
 				}
 			}
 		}"#;
-		let builtin: Builtin = serde_json::from_str::<BuiltinCombat>(s).unwrap().into();
+		let builtin: Builtin = serde_json::from_str::<BuiltinCompat>(s).unwrap().into();
 		assert_eq!(builtin.name, "alt_bn128_add");
 		assert_eq!(builtin.pricing, map![
 			0 => PricingAt {

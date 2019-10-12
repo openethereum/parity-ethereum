@@ -18,7 +18,7 @@
 
 use std::collections::BTreeMap;
 
-use crate::{bytes::Bytes, spec::builtin::BuiltinCombat, uint::Uint};
+use crate::{bytes::Bytes, spec::builtin::BuiltinCompat, uint::Uint};
 use serde::Deserialize;
 
 /// Spec account.
@@ -28,7 +28,7 @@ use serde::Deserialize;
 #[serde(rename_all = "camelCase")]
 pub struct Account {
 	/// Builtin contract.
-	pub builtin: Option<BuiltinCombat>,
+	pub builtin: Option<BuiltinCompat>,
 	/// Balance.
 	pub balance: Option<Uint>,
 	/// Nonce.
