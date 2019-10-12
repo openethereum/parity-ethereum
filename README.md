@@ -26,12 +26,12 @@
 
 ## 1. Description <a id="chapter-001"></a>
 
-**Built for mission-critical use**: Miners, service providers, and exchanges need fast synchronisation and maximum uptime. Parity Ethereum provides the core infrastructure essential for speedy and reliable services.
+**Built for mission-critical use**: Miners, service providers, and exchanges need fast synchronization and maximum uptime. Parity Ethereum provides the core infrastructure essential for speedy and reliable services.
 
-- Clean, modular codebase for easy customisation
+- Clean, modular codebase for easy customization
 - Advanced CLI-based client
 - Minimal memory and storage footprint
-- Synchronise in hours, not days with Warp Sync
+- Synchronize in hours, not days with Warp Sync
 - Modular for light integration into your service or product
 
 ## 2. Technical Overview <a id="chapter-002"></a>
@@ -50,7 +50,7 @@ Parity Ethereum's current beta-release is 2.6. You can download it at [the relea
 
 Parity Ethereum requires **latest stable Rust version** to build.
 
-We recommend installing Rust through [rustup](https://www.rustup.rs/). If you don't already have `rustup`, you can install it like this:
+We recommend installing Rust-through [rustup](https://www.rustup.rs/). If you don't already have `rustup`, you can install it like this:
 
 - Linux:
   ```bash
@@ -77,7 +77,7 @@ Once you have `rustup` installed, then you need to install:
 * [Perl](https://www.perl.org)
 * [Yasm](https://yasm.tortall.net)
 
-Make sure that these binaries are in your `PATH`. After that, you should be able to build Parity Ethereum from source.
+Make sure that these binaries are in your `PATH`. After that, you should be able to build Parity Ethereum from the source.
 
 ### 3.2 Build from Source Code <a id="chapter-0032"></a>
 
@@ -175,7 +175,7 @@ Be sure to [check out our wiki](https://wiki.parity.io) for more information.
 
 ### Viewing documentation for Parity Ethereum packages
 
-You can generate documentation for Parity Ethereum Rust packages that automatically opens in your web browser using [rustdoc with Cargo](https://doc.rust-lang.org/rustdoc/what-is-rustdoc.html#using-rustdoc-with-cargo) (of the The Rustdoc Book), by running the the following commands:
+You can generate documentation for Parity Ethereum Rust packages that automatically opens in your web browser using [rustdoc with Cargo](https://doc.rust-lang.org/rustdoc/what-is-rustdoc.html#using-rustdoc-with-cargo) (of the The Rustdoc Book), by running  the following commands:
 
 * **All** packages
   ```
