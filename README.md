@@ -26,19 +26,19 @@
 
 ## 1. Description <a id="chapter-001"></a>
 
-**Built for mission-critical use**: Miners, service providers, and exchanges need fast synchronisation and maximum uptime. Parity Ethereum provides the core infrastructure essential for speedy and reliable services.
+**Built for mission-critical use**: Miners, service providers, and exchanges need fast synchronization and maximum uptime. Parity Ethereum provides the core infrastructure essential for speedy and reliable services.
 
-- Clean, modular codebase for easy customisation
+- Clean, modular codebase for easy customization
 - Advanced CLI-based client
 - Minimal memory and storage footprint
-- Synchronise in hours, not days with Warp Sync
+- Synchronize in hours, not days with Warp Sync
 - Modular for light integration into your service or product
 
 ## 2. Technical Overview <a id="chapter-002"></a>
 
 Parity Ethereum's goal is to be the fastest, lightest, and most secure Ethereum client. We are developing Parity Ethereum using the sophisticated and cutting-edge **Rust programming language**. Parity Ethereum is licensed under the GPLv3 and can be used for all your Ethereum needs.
 
-By default, Parity Ethereum runs a JSON-RPC HTTP server on port `:8545` and a Web-Sockets server on port `:8546`. This is fully configurable and supports a number of APIs.
+By default, Parity Ethereum runs a JSON-RPC HTTP server on port `:8545` and a Web-Sockets server on port `:8546`. This is fully configurable and supports several APIs.
 
 If you run into problems while using Parity Ethereum, check out the [wiki for documentation](https://wiki.parity.io/), feel free to [file an issue in this repository](https://github.com/paritytech/parity-ethereum/issues/new), or hop on our [Gitter](https://gitter.im/paritytech/parity) or [Riot](https://riot.im/app/#/group/+parity:matrix.parity.io) chat room to ask a question. We are glad to help! **For security-critical issues**, please refer to the security policy outlined in [SECURITY.md](SECURITY.md).
 
@@ -50,7 +50,7 @@ Parity Ethereum's current beta-release is 2.6. You can download it at [the relea
 
 Parity Ethereum requires **latest stable Rust version** to build.
 
-We recommend installing Rust through [rustup](https://www.rustup.rs/). If you don't already have `rustup`, you can install it like this:
+We recommend installing Rust-through [rustup](https://www.rustup.rs/). If you don't already have `rustup`, you can install it like this:
 
 - Linux:
   ```bash
@@ -77,7 +77,7 @@ Once you have `rustup` installed, then you need to install:
 * [Perl](https://www.perl.org)
 * [Yasm](https://yasm.tortall.net)
 
-Make sure that these binaries are in your `PATH`. After that, you should be able to build Parity Ethereum from source.
+Make sure that these binaries are in your `PATH`. After that, you should be able to build Parity Ethereum from the source.
 
 ### 3.2 Build from Source Code <a id="chapter-0032"></a>
 
@@ -175,7 +175,7 @@ Be sure to [check out our wiki](https://wiki.parity.io) for more information.
 
 ### Viewing documentation for Parity Ethereum packages
 
-You can generate documentation for Parity Ethereum Rust packages that automatically opens in your web browser using [rustdoc with Cargo](https://doc.rust-lang.org/rustdoc/what-is-rustdoc.html#using-rustdoc-with-cargo) (of the The Rustdoc Book), by running the the following commands:
+You can generate documentation for Parity Ethereum Rust packages that automatically opens in your web browser using [rustdoc with Cargo](https://doc.rust-lang.org/rustdoc/what-is-rustdoc.html#using-rustdoc-with-cargo) (of the The Rustdoc Book), by running the following commands:
 
 * **All** packages
   ```
