@@ -38,48 +38,45 @@
 			"balance": "1",
 			"builtin": {
 				"name": "alt_bn128_add",
-				"pricing": [
-					{
-						"activate_at": 0,
+				"pricing": {
+					"0": {
 						"price": { "linear": { "base": 500, "word": 0 }}
 					},
-					{
-						"activate_at": "0x7fffffffffffff",
+					"0x7fffffffffffff": {
+						"info": "EIP1108 transition",
 						"price": { "linear": { "base": 150, "word": 0 }}
 					}
-				]
+				}
 			}
 		},
 		"0000000000000000000000000000000000000007": {
 			"balance": "1",
 			"builtin": {
 				"name": "alt_bn128_mul",
-				"pricing": [
-					{
-						"activate_at": 0,
-						"price": { "linear": { "base": 40000, "word": 0 }}
+				"pricing": {
+					"0": {
+						"price": { "linear": {"base": 40000, "word": 0 }}
 					},
-					{
-						"activate_at": "0x7fffffffffffff",
+					"0x7fffffffffffff": {
+						"info": "EIP1108 transition",
 						"price": { "linear": { "base": 6000, "word": 0 }}
 					}
-				]
+				}
 			}
 		},
 		"0000000000000000000000000000000000000008": {
 			"balance": "1",
 			"builtin": {
 				"name": "alt_bn128_pairing",
-				"pricing": [
-					{
-						"activate_at": 0,
+				"pricing": {
+					"0": {
 						"price": { "alt_bn128_pairing": { "base": 100000, "pair": 80000 }}
 					},
-					{
-						"activate_at": "0x7fffffffffffff",
+					"0x7fffffffffffff": {
+						"info": "EIP1108 transition",
 						"price": { "alt_bn128_pairing": { "base": 45000, "pair": 34000 }}
 					}
-				]
+				}
 			}
 		},
 		"0000000000000000000000000000000000001337": { "balance": "1", "constructor": "60606040526000805460ff19166001179055346000575b6075806100246000396000f300606060405263ffffffff60e060020a60003504166394b91deb81146022575b6000565b34600057602c6040565b604080519115158252519081900360200190f35b60005460ff16815600a165627a7a723058207882eb60ebce23178b3fa06d4cd8e5adc17711937ccddacb18a04abca2a2c9ee0029" }

@@ -16,6 +16,8 @@
 
 //! Spec builtin deserialization.
 
+use std::collections::BTreeMap;
+
 use crate::uint::Uint;
 use serde::Deserialize;
 
@@ -48,6 +50,12 @@ pub struct AltBn128ConstOperations {
 	pub eip1108_transition_price: Option<u64>,
 }
 
+impl AltBn128ConstOperations {
+	fn clear_eip1108(&mut self) {
+		self.eip1108_transition_price = None;
+	}
+}
+
 /// Pricing for alt_bn128_pairing.
 #[derive(Debug, PartialEq, Deserialize, Clone)]
 #[serde(deny_unknown_fields)]
@@ -64,11 +72,26 @@ pub struct AltBn128Pairing {
 	pub eip1108_transition_pair: Option<u64>,
 }
 
+impl AltBn128Pairing {
+	fn clear_eip1108(&mut self) {
+		self.eip1108_transition_base = None;
+		self.eip1108_transition_pair = None;
+	}
+
+	fn eip1108_fields(&self) -> Option<(u64, u64)> {
+		if let (Some(b), Some(p)) = (self.eip1108_transition_base, self.eip1108_transition_pair) {
+			Some((b, p))
+		} else {
+			None
+		}
+	}
+}
+
 /// Pricing variants.
 #[derive(Debug, PartialEq, Deserialize, Clone)]
 #[serde(deny_unknown_fields)]
 #[serde(rename_all = "snake_case")]
-pub enum PricingInner {
+pub enum Pricing {
 	/// Pricing for Blake2 compression function: each call costs the same amount per round.
 	Blake2F {
 		/// Price per round of Blake2 compression function.
@@ -84,31 +107,100 @@ pub enum PricingInner {
 	AltBn128ConstOperations(AltBn128ConstOperations),
 }
 
-/// Spec builtin.
+/// Builtin compability layer
 #[derive(Debug, PartialEq, Deserialize, Clone)]
 #[serde(deny_unknown_fields)]
+pub struct BuiltinCombat {
+	/// Builtin name.
+	name: String,
+	/// Builtin pricing.
+	pricing: PricingCombat,
+	/// Activation block.
+	activate_at: Option<Uint>,
+	/// EIP 1108
+	// for backward compatibility
+	eip1108_transition: Option<Uint>,
+}
+
+/// Spec builtin.
+#[derive(Debug, PartialEq, Clone)]
 pub struct Builtin {
 	/// Builtin name.
 	pub name: String,
 	/// Builtin pricing.
-	pub pricing: Pricing,
-	/// Activation block.
-	pub activate_at: Option<Uint>,
-	/// EIP 1108
-	// for backward compatibility
-	pub eip1108_transition: Option<Uint>,
+	pub pricing: BTreeMap<u64, PricingAt>,
 }
 
-/// Builtin price
+impl From<BuiltinCombat> for Builtin {
+	fn from(legacy: BuiltinCombat) -> Self {
+		let pricing: BTreeMap<u64, PricingAt> = match legacy.pricing {
+			PricingCombat::Single(pricing) => {
+				let mut map: BTreeMap<u64, PricingAt> = BTreeMap::new();
+				let activate_at: u64 = legacy.activate_at.map_or(0, Into::into);
+
+				match pricing {
+					Pricing::AltBn128Pairing(mut p) => {
+						let mut pricing = p.clone();
+
+						pricing.clear_eip1108();
+						map.insert(activate_at, PricingAt {
+							info: None,
+							price: Pricing::AltBn128Pairing(pricing),
+						});
+
+						if let (Some(a), Some(pairing)) = (legacy.eip1108_transition, p.eip1108_fields()) {
+							p.clear_eip1108();
+							p.base = pairing.0;
+							p.pair = pairing.1;
+							map.insert(a.into(), PricingAt {
+								info: Some("EIP1108 transition".to_string()),
+								price: Pricing::AltBn128Pairing(p),
+							});
+						}
+					}
+					Pricing::AltBn128ConstOperations(mut p) => {
+						let mut pricing = p.clone();
+
+						pricing.clear_eip1108();
+						map.insert(activate_at, PricingAt {
+							info: None,
+							price: Pricing::AltBn128ConstOperations(pricing),
+						});
+
+						if let (Some(a), Some(price)) = (legacy.eip1108_transition, p.eip1108_transition_price) {
+							p.clear_eip1108();
+							p.price = price;
+							map.insert(a.into(), PricingAt {
+								info: Some("EIP1108 transition".to_string()),
+								price: Pricing::AltBn128ConstOperations(p),
+							});
+						}
+					}
+					price => {
+						let activate_at: u64 = legacy.activate_at.map_or(0, Into::into);
+						map.insert(activate_at, PricingAt { info: None, price });
+					}
+				};
+				map
+			}
+			PricingCombat::Multi(pricings) => {
+				pricings.into_iter().map(|(a, p)| (a.into(), p)).collect()
+			}
+		};
+		Self { name: legacy.name, pricing }
+	}
+}
+
+/// Compability layer for different pricings
 #[derive(Debug, PartialEq, Deserialize, Clone)]
 #[serde(rename_all = "snake_case")]
 #[serde(deny_unknown_fields)]
 #[serde(untagged)]
-pub enum Pricing {
+enum PricingCombat {
 	/// Single builtin
-	Single(PricingInner),
+	Single(Pricing),
 	/// Multiple builtins
-	Multi(Vec<PricingAt>),
+	Multi(BTreeMap<Uint, PricingAt>),
 }
 
 /// Builtin price with which block to activate it on
@@ -118,14 +210,13 @@ pub struct PricingAt {
 	/// Description of the activation
 	pub info: Option<String>,
 	/// Builtin pricing.
-	pub price: PricingInner,
-	/// Activation block.
-	pub activate_at: Uint,
+	pub price: Pricing,
 }
 
 #[cfg(test)]
 mod tests {
-	use super::{Builtin, Pricing, PricingInner, PricingAt, Uint, Linear, Modexp, AltBn128ConstOperations};
+	use super::{Builtin, BuiltinCombat, BTreeMap, Pricing, PricingAt, Linear, Modexp, AltBn128ConstOperations};
+	use macros::map;
 
 	#[test]
 	fn builtin_deserialization() {
@@ -133,43 +224,42 @@ mod tests {
 			"name": "ecrecover",
 			"pricing": { "linear": { "base": 3000, "word": 0 } }
 		}"#;
-		let deserialized: Builtin = serde_json::from_str(s).unwrap();
-		assert_eq!(deserialized.name, "ecrecover");
-		assert_eq!(deserialized.pricing, Pricing::Single(PricingInner::Linear(Linear { base: 3000, word: 0 })));
-		assert!(deserialized.activate_at.is_none());
+		let builtin: Builtin = serde_json::from_str::<BuiltinCombat>(s).unwrap().into();
+		assert_eq!(builtin.name, "ecrecover");
+		assert_eq!(builtin.pricing, map![
+			0 => PricingAt {
+				info: None,
+				price: Pricing::Linear(Linear { base: 3000, word: 0 })
+			}
+		]);
 	}
 
 	#[test]
 	fn deserialize_multiple_pricings() {
 		let s = r#"{
 			"name": "ecrecover",
-			"pricing": [
-				{
-					"activate_at": 0,
+			"pricing": {
+				"0": {
 					"price": {"linear": { "base": 3000, "word": 0 }}
 				},
-				{
+				"500": {
 					"info": "enable fake EIP at block 500",
-					"activate_at": 500,
 					"price": {"linear": { "base": 10, "word": 0 }}
 				}
-			]
-		}"#;
-		let deserialized: Builtin = serde_json::from_str(s).unwrap();
-		assert_eq!(deserialized.name, "ecrecover");
-		assert_eq!(deserialized.pricing, Pricing::Multi(vec![
-			PricingAt {
-				info: None,
-				activate_at: Uint(0.into()),
-				price: PricingInner::Linear(Linear { base: 3000, word: 0 })
-			},
-			PricingAt {
-				info: Some(String::from("enable fake EIP at block 500")),
-				activate_at: Uint(500.into()),
-				price: PricingInner::Linear(Linear { base: 10, word: 0 })
 			}
-		]));
-		assert!(deserialized.activate_at.is_none());
+		}"#;
+		let builtin: Builtin = serde_json::from_str::<BuiltinCombat>(s).unwrap().into();
+		assert_eq!(builtin.name, "ecrecover");
+		assert_eq!(builtin.pricing, map![
+			0 => PricingAt {
+				info: None,
+				price: Pricing::Linear(Linear { base: 3000, word: 0 })
+			},
+			500 => PricingAt {
+				info: Some(String::from("enable fake EIP at block 500")),
+				price: Pricing::Linear(Linear { base: 10, word: 0 })
+			}
+		]);
 	}
 
 	#[test]
@@ -179,10 +269,14 @@ mod tests {
 			"activate_at": "0xffffff",
 			"pricing": { "blake2_f": { "gas_per_round": 123 } }
 		}"#;
-		let deserialized: Builtin = serde_json::from_str(s).unwrap();
-		assert_eq!(deserialized.name, "blake2_f");
-		assert_eq!(deserialized.pricing, Pricing::Single(PricingInner::Blake2F { gas_per_round: 123 }));
-		assert!(deserialized.activate_at.is_some());
+		let builtin: Builtin = serde_json::from_str::<BuiltinCombat>(s).unwrap().into();
+		assert_eq!(builtin.name, "blake2_f");
+		assert_eq!(builtin.pricing, map![
+			0xffffff => PricingAt {
+				info: None,
+				price: Pricing::Blake2F { gas_per_round: 123 }
+			}
+		]);
 	}
 
 	#[test]
@@ -193,10 +287,14 @@ mod tests {
 			"pricing": { "modexp": { "divisor": 5 } }
 		}"#;
 
-		let deserialized: Builtin = serde_json::from_str(s).unwrap();
-		assert_eq!(deserialized.name, "late_start");
-		assert_eq!(deserialized.pricing, Pricing::Single(PricingInner::Modexp(Modexp { divisor: 5 })));
-		assert_eq!(deserialized.activate_at, Some(Uint(100000.into())));
+		let builtin: Builtin = serde_json::from_str::<BuiltinCombat>(s).unwrap().into();
+		assert_eq!(builtin.name, "late_start");
+		assert_eq!(builtin.pricing, map![
+			100_000 => PricingAt {
+				info: None,
+				price: Pricing::Modexp(Modexp { divisor: 5 })
+			}
+		]);
 	}
 
 	#[test]
@@ -212,16 +310,23 @@ mod tests {
 				}
 			}
 		}"#;
-		let deserialized: Builtin = serde_json::from_str(s).unwrap();
-		assert_eq!(deserialized.name, "alt_bn128_add");
-		assert_eq!(
-			deserialized.pricing,
-			Pricing::Single(PricingInner::AltBn128ConstOperations(AltBn128ConstOperations {
-				price: 500,
-				eip1108_transition_price: Some(150),
-			}))
-		);
-		assert_eq!(deserialized.activate_at, Some(Uint(0.into())));
-		assert_eq!(deserialized.eip1108_transition, Some(Uint(0x17d433.into())));
+		let builtin: Builtin = serde_json::from_str::<BuiltinCombat>(s).unwrap().into();
+		assert_eq!(builtin.name, "alt_bn128_add");
+		assert_eq!(builtin.pricing, map![
+			0 => PricingAt {
+				info: None,
+				price: Pricing::AltBn128ConstOperations(AltBn128ConstOperations {
+					price: 500,
+					eip1108_transition_price: None
+				})
+			},
+			0x17d433 => PricingAt {
+				info: Some("EIP1108 transition".to_string()),
+				price: Pricing::AltBn128ConstOperations(AltBn128ConstOperations {
+					price: 150,
+					eip1108_transition_price: None
+				})
+			}
+		]);
 	}
 }

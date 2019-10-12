@@ -244,119 +244,56 @@ impl Builtin {
 	}
 }
 
-impl TryFrom<ethjson::spec::Builtin> for Builtin {
+impl TryFrom<ethjson::spec::builtin::Builtin> for Builtin {
 	type Error = EthcoreError;
 
-	fn try_from(b: ethjson::spec::Builtin) -> Result<Self, Self::Error> {
+	fn try_from(b: ethjson::spec::builtin::Builtin) -> Result<Self, Self::Error> {
 		let native = EthereumBuiltin::from_str(&b.name)?;
+		let mut pricer = BTreeMap::new();
 
-		let pricer = match b.pricing {
-			ethjson::spec::builtin::Pricing::Single(pricer) => {
-				let mut pricers = BTreeMap::new();
-				let (pricing, eip1108_pricing) = into_pricing(pricer);
+		for (activate_at, p) in b.pricing {
+			pricer.insert(activate_at, p.price.into());
+		}
 
-				if b.activate_at.is_none() {
-					warn!(target: "builtin",
-						"Builtin contract: {} is missing which block to activate it on, failing back to default: 0",
-						b.name
-					);
-				}
-
-				pricers.insert(b.activate_at.map_or(0, Into::into), pricing);
-
-				if let (Some(activate), Some(p)) = (b.eip1108_transition, eip1108_pricing) {
-					pricers.insert(activate.into(), p);
-					warn!(target: "builtin",
-						"Builtin contract: {} enabled with eip1108_transition which is deprecated. \
-						Use builtin contract with multiple activations instead in your chain specification",
-						b.name
-					);
-				}
-				pricers
-			}
-			ethjson::spec::builtin::Pricing::Multi(pricer) => {
-				assert!(!pricer.is_empty(), "Chainspec with builtin contract with multiple activations was empty");
-
-				let mut pricers = BTreeMap::new();
-				for p in pricer {
-					let (pricing, eip1108_pricing) = into_pricing(p.price);
-
-					if eip1108_pricing.is_some() {
-						warn!(target: "builtin",
-							"Builtin contract: {} is with configured multiple activations but contains \
-							eip1108_transition which is not supported. The contract is activated on block: {:?}",
-							b.name, p.activate_at
-						);
-					}
-
-					pricers.insert(p.activate_at.into(), pricing);
-				}
-				pricers
-			}
-		};
 		Ok(Self { pricer, native })
 	}
 }
 
-// Convert `JSON pricing` into Pricing
-//
-// Because `AltBn128XX` has two different pricings for `eip1108 transition` both need
-// to be taken into account.
-//
-// Returns `(Pricing, Some(Pricing))` if eip1108_transition is enabled with an activation
-// otherwise it returns `(Pricing, None)`
-fn into_pricing(pricing: ethjson::spec::builtin::PricingInner) -> (Pricing, Option<Pricing>) {
-	match pricing {
-		ethjson::spec::builtin::PricingInner::Blake2F { gas_per_round } => {
-			let pricing = Pricing::Blake2F(gas_per_round);
-			(pricing, None)
-		},
-		ethjson::spec::builtin::PricingInner::Linear(linear) => {
-			let pricing = Pricing::Linear(Linear { base: linear.base, word: linear.word });
-			(pricing, None)
-		}
-		ethjson::spec::builtin::PricingInner::Modexp(exp) => {
-			let pricing = Pricing::Modexp(ModexpPricer {
-				divisor: if exp.divisor == 0 {
-					warn!(target: "builtin", "Zero modexp divisor specified. Falling back to default: 10.");
-					10
-				} else {
-					exp.divisor
-				}
-			});
-			(pricing, None)
-		}
-		ethjson::spec::builtin::PricingInner::AltBn128Pairing(pricer) => {
-			let pricing = Pricing::AltBn128Pairing(AltBn128PairingPricer {
-				price: AltBn128PairingPrice {
-					base: pricer.base,
-					pair: pricer.pair,
-				},
-			});
-
-			let eip1108_pricing = match (pricer.eip1108_transition_base, pricer.eip1108_transition_pair) {
-				(Some(base), Some(pair)) => {
-					Some(Pricing::AltBn128Pairing(AltBn128PairingPricer {
-						price: AltBn128PairingPrice { base, pair },
-					}))
-				}
-				_ => None,
-			};
-
-			(pricing, eip1108_pricing)
-		}
-		ethjson::spec::builtin::PricingInner::AltBn128ConstOperations(pricer) => {
-			let pricing = Pricing::AltBn128ConstOperations(AltBn128ConstOperations {
-				price: pricer.price,
-			});
-
-			let eip1108_pricing = pricer.eip1108_transition_price.map(|price| {
-				Pricing::AltBn128ConstOperations(AltBn128ConstOperations {
-					price
+impl From<ethjson::spec::builtin::Pricing> for Pricing {
+	fn from(pricing: ethjson::spec::builtin::Pricing) -> Self {
+		match pricing {
+			ethjson::spec::builtin::Pricing::Blake2F { gas_per_round } => {
+				Pricing::Blake2F(gas_per_round)
+			}
+			ethjson::spec::builtin::Pricing::Linear(linear) => {
+				Pricing::Linear(Linear {
+					base: linear.base,
+					word: linear.word,
 				})
-			});
-
-			(pricing, eip1108_pricing)
+			}
+			ethjson::spec::builtin::Pricing::Modexp(exp) => {
+				Pricing::Modexp(ModexpPricer {
+					divisor: if exp.divisor == 0 {
+						warn!("Zero modexp divisor specified. Falling back to default.");
+						10
+					} else {
+						exp.divisor
+					}
+				})
+			}
+			ethjson::spec::builtin::Pricing::AltBn128Pairing(pricer) => {
+				Pricing::AltBn128Pairing(AltBn128PairingPricer {
+					price: AltBn128PairingPrice {
+						base: pricer.base,
+						pair: pricer.pair,
+					},
+				})
+			}
+			ethjson::spec::builtin::Pricing::AltBn128ConstOperations(pricer) => {
+				Pricing::AltBn128ConstOperations(AltBn128ConstOperations {
+					price: pricer.price
+				})
+			}
 		}
 	}
 }
@@ -382,7 +319,6 @@ enum EthereumBuiltin {
 	/// blake2_f (The Blake2 compression function F, EIP-152)
 	Blake2F(Blake2F)
 }
-
 
 impl FromStr for EthereumBuiltin {
 	type Err = EthcoreError;
@@ -806,11 +742,9 @@ impl Bn128Pairing {
 mod tests {
 	use std::convert::TryFrom;
 	use ethereum_types::U256;
-	use ethjson::uint::Uint;
 	use ethjson::spec::builtin::{
 		Builtin as JsonBuiltin, Linear as JsonLinearPricing,
 		PricingAt, AltBn128Pairing as JsonAltBn128PairingPricing, Pricing as JsonPricing,
-		PricingInner as JsonPricingInner
 	};
 	use hex_literal::hex;
 	use macros::map;
@@ -1391,13 +1325,12 @@ mod tests {
 	fn from_json() {
 		let b = Builtin::try_from(ethjson::spec::Builtin {
 			name: "identity".to_owned(),
-			pricing: JsonPricing::Single(
-				JsonPricingInner::Linear(JsonLinearPricing {
-					base: 10,
-					word: 20,
-			})),
-			activate_at: Some(Uint(0.into())),
-			eip1108_transition: None,
+			pricing: map![
+				0 => PricingAt {
+					info: None,
+					price: JsonPricing::Linear(JsonLinearPricing { base: 10, word: 20 })
+				}
+			]
 		}).expect("known builtin");
 
 		assert_eq!(b.cost(&[0; 0], 0), U256::from(10));
@@ -1415,30 +1348,26 @@ mod tests {
 	fn bn128_pairing_eip1108_transition() {
 		let b = Builtin::try_from(JsonBuiltin {
 			name: "alt_bn128_pairing".to_owned(),
-			pricing: JsonPricing::Multi(vec![
-				PricingAt {
+			pricing: map![
+				10 => PricingAt {
 					info: None,
-					price: JsonPricingInner::AltBn128Pairing(JsonAltBn128PairingPricing {
+					price: JsonPricing::AltBn128Pairing(JsonAltBn128PairingPricing {
 						base: 100_000,
 						pair: 80_000,
 						eip1108_transition_base: None,
 						eip1108_transition_pair: None,
 					}),
-					activate_at: Uint(10.into()),
 				},
-				PricingAt {
+				20 => PricingAt {
 					info: None,
-					price: JsonPricingInner::AltBn128Pairing(JsonAltBn128PairingPricing {
+					price: JsonPricing::AltBn128Pairing(JsonAltBn128PairingPricing {
 						base: 45_000,
 						pair: 34_000,
 						eip1108_transition_base: None,
 						eip1108_transition_pair: None,
 					}),
-					activate_at: Uint(20.into()),
-				},
-			]),
-			activate_at: None,
-			eip1108_transition: None,
+				}
+			],
 		}).unwrap();
 
 		assert_eq!(b.cost(&[0; 192 * 3], 10), U256::from(340_000), "80 000 * 3 + 100 000 == 340 000");
@@ -1449,26 +1378,22 @@ mod tests {
 	fn bn128_add_eip1108_transition() {
 		let b = Builtin::try_from(JsonBuiltin {
 			name: "alt_bn128_add".to_owned(),
-			pricing: JsonPricing::Multi(vec![
-				PricingAt {
+			pricing: map![
+				10 => PricingAt {
 					info: None,
-					price: JsonPricingInner::Linear(JsonLinearPricing {
+					price: JsonPricing::Linear(JsonLinearPricing {
 						base: 500,
 						word: 0,
 					}),
-					activate_at: Uint(10.into()),
 				},
-				PricingAt {
+				20 => PricingAt {
 					info: None,
-					price: JsonPricingInner::Linear(JsonLinearPricing {
+					price: JsonPricing::Linear(JsonLinearPricing {
 						base: 150,
 						word: 0,
 					}),
-					activate_at: Uint(20.into()),
 				}
-			]),
-			activate_at: None,
-			eip1108_transition: None,
+			],
 		}).unwrap();
 
 		assert_eq!(b.cost(&[0; 192], 10), U256::from(500));
@@ -1479,26 +1404,22 @@ mod tests {
 	fn bn128_mul_eip1108_transition() {
 		let b = Builtin::try_from(JsonBuiltin {
 			name: "alt_bn128_mul".to_owned(),
-			pricing: JsonPricing::Multi(vec![
-				PricingAt {
+			pricing: map![
+				10 => PricingAt {
 					info: None,
-					price: JsonPricingInner::Linear(JsonLinearPricing {
+					price: JsonPricing::Linear(JsonLinearPricing {
 						base: 40_000,
 						word: 0,
 					}),
-					activate_at: Uint(10.into()),
 				},
-				PricingAt {
+				20 => PricingAt {
 					info: None,
-					price: JsonPricingInner::Linear(JsonLinearPricing {
+					price: JsonPricing::Linear(JsonLinearPricing {
 						base: 6_000,
 						word: 0,
 					}),
-					activate_at: Uint(20.into()),
 				}
-			]),
-			activate_at: None,
-			eip1108_transition: None,
+			],
 		}).unwrap();
 
 		assert_eq!(b.cost(&[0; 192], 10), U256::from(40_000));
@@ -1510,34 +1431,29 @@ mod tests {
 	fn multimap_use_most_recent_on_activate() {
 		let b = Builtin::try_from(JsonBuiltin {
 			name: "alt_bn128_mul".to_owned(),
-			pricing: JsonPricing::Multi(vec![
-				PricingAt {
+			pricing: map![
+				10 => PricingAt {
 					info: None,
-					price: JsonPricingInner::Linear(JsonLinearPricing {
+					price: JsonPricing::Linear(JsonLinearPricing {
 						base: 40_000,
 						word: 0,
 					}),
-					activate_at: Uint(10.into()),
 				},
-				PricingAt {
+				20 => PricingAt {
 					info: None,
-					price: JsonPricingInner::Linear(JsonLinearPricing {
+					price: JsonPricing::Linear(JsonLinearPricing {
 						base: 6_000,
 						word: 0,
-					}),
-					activate_at: Uint(20.into()),
+					})
 				},
-				PricingAt {
+				100 => PricingAt {
 					info: None,
-					price: JsonPricingInner::Linear(JsonLinearPricing {
+					price: JsonPricing::Linear(JsonLinearPricing {
 						base: 1_337,
 						word: 0,
-					}),
-					activate_at: Uint(100.into()),
+					})
 				}
-			]),
-			activate_at: None,
-			eip1108_transition: None,
+			]
 		}).unwrap();
 
 		assert_eq!(b.cost(&[0; 2], 0), U256::zero(), "not activated yet; should be zero");
@@ -1553,34 +1469,29 @@ mod tests {
 	fn multimap_use_last_with_same_activate_at() {
 		let b = Builtin::try_from(JsonBuiltin {
 			name: "alt_bn128_mul".to_owned(),
-			pricing: JsonPricing::Multi(vec![
-				PricingAt {
+			pricing: map![
+				1 => PricingAt {
 					info: None,
-					price: JsonPricingInner::Linear(JsonLinearPricing {
+					price: JsonPricing::Linear(JsonLinearPricing {
 						base: 40_000,
 						word: 0,
 					}),
-					activate_at: Uint(1.into()),
 				},
-				PricingAt {
+				1 => PricingAt {
 					info: None,
-					price: JsonPricingInner::Linear(JsonLinearPricing {
+					price: JsonPricing::Linear(JsonLinearPricing {
 						base: 6_000,
 						word: 0,
 					}),
-					activate_at: Uint(1.into()),
 				},
-				PricingAt {
+				1 => PricingAt {
 					info: None,
-					price: JsonPricingInner::Linear(JsonLinearPricing {
+					price: JsonPricing::Linear(JsonLinearPricing {
 						base: 1_337,
 						word: 0,
 					}),
-					activate_at: Uint(1.into()),
 				}
-			]),
-			activate_at: None,
-			eip1108_transition: None,
+			],
 		}).unwrap();
 
 		assert_eq!(b.cost(&[0; 1], 0), U256::from(0), "not activated yet");

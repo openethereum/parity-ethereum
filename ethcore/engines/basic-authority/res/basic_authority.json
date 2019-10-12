@@ -42,48 +42,42 @@
 			"balance": "1",
 			"builtin": {
 				"name": "alt_bn128_add",
-				"pricing": [
-					{
-						"activate_at": "0x0",
+				"pricing": {
+					"0x0": {
 						"price": { "linear": { "base": 500, "word": 0 }}
 					},
-					{
-						"activate_at": "0x7fffffffffffff",
+					"0x7fffffffffffff": {
 						"price": { "linear": { "base": 150, "word": 0 }}
 					}
-				]
+				}
 			}
 		},
 		"0000000000000000000000000000000000000007": {
 			"balance": "1",
 			"builtin": {
 				"name": "alt_bn128_mul",
-				"pricing": [
-					{
-						"activate_at": "0x0",
+				"pricing": {
+					"0x0": {
 						"price": { "linear": { "base": 40000, "word": 0 }}
 					},
-					{
-						"activate_at": "0x7fffffffffffff",
+					"0x7fffffffffffff": {
 						"price": { "linear": { "base": 6000, "word": 0 }}
 					}
-				]
+				}
 			}
 		},
 		"0000000000000000000000000000000000000008": {
 			"balance": "1",
 			"builtin": {
 				"name": "alt_bn128_pairing",
-				"pricing": [
-					{
-						"activate_at": "0x0",
+				"pricing": {
+					"0x0": {
 						"price": { "alt_bn128_pairing": { "base": 100000, "pair": 80000 }}
 					},
-					{
-						"activate_at": "0x7fffffffffffff",
+					"0x7fffffffffffff": {
 						"price": { "alt_bn128_pairing": { "base": 45000, "pair": 34000 }}
 					}
-				]
+				}
 			}
 		},
 		"9cce34f7ab185c7aba1b7c8140d620b4bda941d6": { "balance": "1606938044258990275541962092341162602522202993782792835301376", "nonce": "1048576" }
