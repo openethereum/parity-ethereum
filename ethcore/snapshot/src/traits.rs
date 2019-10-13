@@ -136,7 +136,7 @@ pub trait SnapshotComponents: Send {
 /// Snapshot related functionality
 pub trait SnapshotClient: BlockChainClient + BlockInfo + DatabaseRestore + BlockChainReset {
 	/// Take a snapshot at the given block.
-	/// If the ID given is "latest", this will default to 1000 blocks behind.
+	/// If the BlockId is 'Latest', this will default to 1000 blocks behind.
 	fn take_snapshot<W: SnapshotWriter + Send>(
 		&self,
 		writer: W,

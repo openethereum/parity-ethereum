@@ -69,10 +69,10 @@ use db;
 use registrar::RegistrarClient;
 
 // how often to take periodic snapshots.
-const SNAPSHOT_PERIOD: u64 = 5000;
+const SNAPSHOT_PERIOD: u64 = 50;
 
 // how many blocks to wait before starting a periodic snapshot.
-const SNAPSHOT_HISTORY: u64 = 100;
+const SNAPSHOT_HISTORY: u64 = 10;
 
 // Number of minutes before a given gas price corpus should expire.
 // Light client only.

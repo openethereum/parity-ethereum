@@ -2521,7 +2521,7 @@ impl ProvingBlockChainClient for Client {
 		self.chain.read().get_pending_transition(hash).map(|pending| pending.proof)
 	}
 }
-
+// todo[dvdplm]: move snapshotting code to own module?
 impl SnapshotClient for Client {
 	fn take_snapshot<W: SnapshotWriter + Send>(
 		&self,
@@ -2533,39 +2533,43 @@ impl SnapshotClient for Client {
 			return Err(EthcoreError::Snapshot(SnapshotError::SnapshotsUnsupported));
 		}
 		let db = self.state_db.read().journal_db().boxed_clone();
-		let best_block_number = self.chain_info().best_block_number;
+
 		let block_number = self.block_number(at).ok_or_else(|| SnapshotError::InvalidStartingBlock(at))?;
 
 		if db.is_prunable() && self.pruning_info().earliest_state > block_number {
 			return Err(SnapshotError::OldBlockPrunedDB.into());
 		}
 
-		let history = cmp::min(self.history, 1000);
+		let history = cmp::min(self.history, 1000); // `history`: number of eras kept in the journal before they are pruned
 
-		let start_hash = match at {
+		let (actual_block_nr, block_hash) = match at {
 			BlockId::Latest => {
+				let best_block_number = self.chain_info().best_block_number;
 				let start_num = match db.earliest_era() {
 					Some(era) => cmp::max(era, best_block_number.saturating_sub(history)),
 					None => best_block_number.saturating_sub(history),
 				};
 
 				match self.block_hash(BlockId::Number(start_num)) {
-					Some(h) => h,
+					Some(hash) => (start_num, hash),
 					None => return Err(SnapshotError::InvalidStartingBlock(at).into()),
 				}
 			}
 			_ => match self.block_hash(at) {
-				Some(hash) => hash,
+				Some(hash) => (block_number, hash),
 				None => return Err(SnapshotError::InvalidStartingBlock(at).into()),
 			},
 		};
 
 		let processing_threads = self.config.snapshot.processing_threads;
+		trace!(target: "snapshot", "Snapshot requested at block {:?}. Using block #{}/{:?}. Earliest block: #{}, earliest state era #{}. Using {} threads.",
+			at, actual_block_nr, block_hash, self.pruning_info().earliest_chain, self.pruning_info().earliest_state, processing_threads,
+		);
 		let chunker = snapshot::chunker(self.engine.snapshot_mode()).ok_or_else(|| SnapshotError::SnapshotsUnsupported)?;
 		snapshot::take_snapshot(
 			chunker,
 			&self.chain.read(),
-			start_hash,
+			block_hash,
 			db.as_hash_db(),
 			writer,
 			p,

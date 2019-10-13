@@ -129,7 +129,7 @@ pub fn take_snapshot<W: SnapshotWriter + Send>(
 	let state_root = start_header.state_root();
 	let block_number = start_header.number();
 
-	info!("Taking snapshot starting at block {}", block_number);
+	info!("Taking snapshot starting at block #{}/{:?}", block_number, block_hash);
 
 	let version = chunker.current_version();
 	let writer = Mutex::new(writer);
@@ -141,10 +141,10 @@ pub fn take_snapshot<W: SnapshotWriter + Send>(
 
 		// The number of threads must be between 1 and SNAPSHOT_SUBPARTS
 		assert!(processing_threads >= 1, "Cannot use less than 1 threads for creating snapshots");
-		let num_threads: usize = cmp::min(processing_threads, SNAPSHOT_SUBPARTS);
+		let num_threads = cmp::min(processing_threads, SNAPSHOT_SUBPARTS);
 		info!(target: "snapshot", "Using {} threads for Snapshot creation.", num_threads);
 
-		let mut state_guards = Vec::with_capacity(num_threads as usize);
+		let mut state_guards = Vec::with_capacity(num_threads);
 
 		for thread_idx in 0..num_threads {
 			let state_guard = scope.spawn(move |_| -> Result<Vec<H256>, Error> {
@@ -349,7 +349,15 @@ pub fn chunk_state<'a>(
 		let account = ::rlp::decode(&*account_data)?;
 		let account_db = AccountDB::from_hash(db, account_key_hash);
 
-		let fat_rlps = account::to_fat_rlps(&account_key_hash, &account, &account_db, &mut used_code, PREFERRED_CHUNK_SIZE - chunker.chunk_size(), PREFERRED_CHUNK_SIZE, progress)?;
+		let fat_rlps = account::to_fat_rlps(
+			&account_key_hash,
+			&account,
+			&account_db,
+			&mut used_code,
+			PREFERRED_CHUNK_SIZE - chunker.chunk_size(),
+			PREFERRED_CHUNK_SIZE,
+			progress
+		)?;
 		for (i, fat_rlp) in fat_rlps.into_iter().enumerate() {
 			if i > 0 {
 				chunker.write_chunk()?;

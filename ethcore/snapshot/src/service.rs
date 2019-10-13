@@ -483,11 +483,11 @@ impl<C> Service<C> where C: SnapshotClient + ChainInfo {
 		if self.progress.done() || !self.taking_snapshot.load(Ordering::SeqCst) { return }
 
 		let p = &self.progress;
-		info!("Snapshot: {} accounts {} blocks {} bytes", p.accounts(), p.blocks(), p.size());
+		info!("Snapshot: {} accounts, {} blocks, {} bytes", p.accounts(), p.blocks(), p.size());
 	}
 
 	/// Take a snapshot at the block with the given number.
-	/// calling this while a restoration is in progress or vice versa
+	/// Calling this while a restoration is in progress or vice versa
 	/// will lead to a race condition where the first one to finish will
 	/// have their produced snapshot overwritten.
 	pub fn take_snapshot(&self, client: &C, num: u64) -> Result<(), Error> {
@@ -505,6 +505,7 @@ impl<C> Service<C> where C: SnapshotClient + ChainInfo {
 		let _ = fs::remove_dir_all(&temp_dir);
 
 		let writer = LooseWriter::new(temp_dir.clone())?;
+
 
 		let guard = Guard::new(temp_dir.clone());
 		let res = client.take_snapshot(writer, BlockId::Number(num), &self.progress);

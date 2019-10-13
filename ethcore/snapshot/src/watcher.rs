@@ -55,10 +55,12 @@ impl<C: 'static> Broadcast for Mutex<IoChannel<ClientIoMessage<C>>> {
 			None => return,
 		};
 
-		trace!(target: "snapshot_watcher", "Snapshot requested at block #{}", num);
+		trace!(target: "snapshot_watcher", "Requesting snapshot at block #{}", num);
 
 		if let Err(e) = self.lock().send(ClientIoMessage::TakeSnapshot(num)) {
-			warn!("Snapshot watcher disconnected from IoService: {}", e);
+			warn!(target: "snapshot_watcher", "Snapshot watcher disconnected from IoService: {}", e);
+		} else {
+			trace!(target: "snapshot_watcher", "Snapshot requested at block #{}", num);
 		}
 	}
 }
@@ -68,7 +70,9 @@ impl<C: 'static> Broadcast for Mutex<IoChannel<ClientIoMessage<C>>> {
 pub struct Watcher {
 	oracle: Box<dyn Oracle>,
 	broadcast: Box<dyn Broadcast>,
+	// how often to take periodic snapshots.
 	period: u64,
+	// how many blocks to wait before starting a periodic snapshot.
 	history: u64,
 }
 
@@ -104,16 +108,22 @@ impl Watcher {
 
 impl ChainNotify for Watcher {
 	fn new_blocks(&self, new_blocks: NewBlocks) {
-		if self.oracle.is_major_importing() || new_blocks.has_more_blocks_to_import { return }
+		if self.oracle.is_major_importing() {
+			trace!(target: "snapshot_watcher", "Is major importing; not taking snapshot");
+		} else if new_blocks.has_more_blocks_to_import {
+			trace!(target: "snapshot_watcher", "Has more blocks to import; not taking snapshot");
+			return
+		}
 
-		trace!(target: "snapshot_watcher", "{} imported", new_blocks.imported.len());
+		trace!(target: "snapshot_watcher", "{} blocks imported", new_blocks.imported.len());
 
+		// Decide if the imported blocks is the new "best block"
 		let highest = new_blocks.imported.into_iter()
-			.filter_map(|h| self.oracle.to_number(h))
-			.filter(|&num| num >= self.period + self.history)
-			.map(|num| num - self.history)
-			.filter(|num| num % self.period == 0)
-			.fold(0, ::std::cmp::max);
+			.filter_map(|h| self.oracle.to_number(h))           // convert block hashes to block numbers for all newly imported blocks
+			.filter(|&num| num >= self.period + self.history)   // …only keep the new blocks that have numbers bigger than period + history (todo: this seems nonsensical: period is always 5000 and history is always 100, so this filters out blocknumbers that are lower than 5100; what's the point of that?)
+			.map(|num| num - self.history)                             // subtract history (todo: why? Here we back off 100 blocks such that the final block number from which we start the snapshot is "(new) best block" - 100)
+			.filter(|num| num % self.period == 0)              // …filter out blocks that do not fall on the a multiple of `period` (todo: why? it means we only ever start a snapshot on blocks that are multiples of 5000 but I fail to see the point of that.)
+			.fold(0, ::std::cmp::max);                              // Pick biggest block number of the candidates: this is where we want to snapshot from.
 
 		match highest {
 			0 => self.broadcast.take_at(None),
