@@ -207,7 +207,7 @@ enum PricingCompat {
 #[derive(Debug, PartialEq, Deserialize, Clone)]
 #[serde(deny_unknown_fields)]
 pub struct PricingAt {
-	/// Description of the activation
+	/// Description of the activation, e.g. "PunyPony HF, March 12, 2025".
 	pub info: Option<String>,
 	/// Builtin pricing.
 	pub price: Pricing,
