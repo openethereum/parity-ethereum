@@ -117,13 +117,24 @@ impl ChainNotify for Watcher {
 
 		trace!(target: "snapshot_watcher", "{} blocks imported", new_blocks.imported.len());
 
-		// Decide if the imported blocks is the new "best block"
+		// Decide if the imported blocks is the new "best block".
 		let highest = new_blocks.imported.into_iter()
-			.filter_map(|h| self.oracle.to_number(h))           // convert block hashes to block numbers for all newly imported blocks
-			.filter(|&num| num >= self.period + self.history)   // …only keep the new blocks that have numbers bigger than period + history (todo: this seems nonsensical: period is always 5000 and history is always 100, so this filters out blocknumbers that are lower than 5100; what's the point of that?)
-			.map(|num| num - self.history)                             // subtract history (todo: why? Here we back off 100 blocks such that the final block number from which we start the snapshot is "(new) best block" - 100)
-			.filter(|num| num % self.period == 0)              // …filter out blocks that do not fall on the a multiple of `period` (todo: why? it means we only ever start a snapshot on blocks that are multiples of 5000 but I fail to see the point of that.)
-			.fold(0, ::std::cmp::max);                              // Pick biggest block number of the candidates: this is where we want to snapshot from.
+			// Convert block hashes to block numbers for all newly imported blocks
+			.filter_map(|h| self.oracle.to_number(h))
+			// …only keep the new blocks that have numbers bigger than period + history
+			// todo:    this seems nonsensical: period is always 5000 and history is always 100, so
+			//          this filters out blocknumbers that are lower than 5100; what's the point of that?
+			.filter(|&num| num >= self.period + self.history)
+			// Subtract `history` (i.e. `SNAPSHOT_HISTORY`, i.e. 100) from the block numbers.
+			// todo:    why? Here we back off 100 blocks such that the final block
+			//          number from which we start the snapshot is "(new) best block" - 100)
+			.map(|num| num - self.history)
+			// …filter out blocks that do not fall on the a multiple of `period`
+			// todo:    why? it means we only ever start a snapshot on blocks that are multiples of
+			//          5000 but I fail to see the point of that.
+			.filter(|num| num % self.period == 0)
+			// Pick biggest block number of the candidates: this is where we want to snapshot from.
+			.fold(0, ::std::cmp::max);
 
 		match highest {
 			0 => self.broadcast.take_at(None),
