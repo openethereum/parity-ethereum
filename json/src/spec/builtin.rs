@@ -203,7 +203,7 @@ enum PricingCompat {
 	Multi(BTreeMap<Uint, PricingAt>),
 }
 
-/// Builtin price with which block to activate it on
+/// Price for a builtin, with the block number to activate it on
 #[derive(Debug, PartialEq, Deserialize, Clone)]
 #[serde(deny_unknown_fields)]
 pub struct PricingAt {
