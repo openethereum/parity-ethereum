@@ -18,7 +18,6 @@
 
 use std::collections::BTreeMap;
 
-use log::warn;
 use crate::uint::Uint;
 use serde::Deserialize;
 
@@ -46,9 +45,6 @@ pub struct Modexp {
 pub struct AltBn128ConstOperations {
 	/// price
 	pub price: u64,
-	/// EIP 1108 transition price
-	// for backward compatibility
-	pub eip1108_transition_price: Option<u64>,
 }
 
 /// Pricing for alt_bn128_pairing.
@@ -59,12 +55,6 @@ pub struct AltBn128Pairing {
 	pub base: u64,
 	/// Price per point pair.
 	pub pair: u64,
-	/// EIP 1108 transition base price
-	// for backward compatibility
-	pub eip1108_transition_base: Option<u64>,
-	/// EIP 1108 transition price per point pair
-	// for backward compatibility
-	pub eip1108_transition_pair: Option<u64>,
 }
 
 /// Pricing variants.
@@ -97,9 +87,6 @@ pub struct BuiltinCompat {
 	pricing: PricingCompat,
 	/// Activation block.
 	activate_at: Option<Uint>,
-	/// EIP 1108
-	// for backward compatibility
-	eip1108_transition: Option<Uint>,
 }
 
 /// Spec builtin.
@@ -112,85 +99,12 @@ pub struct Builtin {
 }
 
 impl From<BuiltinCompat> for Builtin {
-	// NOTE(niklasad1): this hack does additional checks for backward compatibility with
-	// `eip1108` params and converts `legacy builtin format` to format that support multiple pricings
 	fn from(legacy: BuiltinCompat) -> Self {
-		let pricing: BTreeMap<u64, PricingAt> = match legacy.pricing {
+		let pricing = match legacy.pricing {
 			PricingCompat::Single(pricing) => {
-				let mut map: BTreeMap<u64, PricingAt> = BTreeMap::new();
+				let mut map = BTreeMap::new();
 				let activate_at: u64 = legacy.activate_at.map_or(0, Into::into);
-
-				if legacy.activate_at.is_none() {
-					warn!(target: "builtin",
-						"Builtin contract: {} is missing which block to activate it on, failing back to default: 0",
-						legacy.name
-					);
-				}
-
-				match pricing {
-					Pricing::AltBn128Pairing(p) => {
-						map.insert(activate_at, PricingAt {
-							info: None,
-							price: Pricing::AltBn128Pairing(AltBn128Pairing {
-								base: p.base,
-								pair: p.pair,
-								eip1108_transition_base: None,
-								eip1108_transition_pair: None,
-							}),
-						});
-
-						if let (Some(a), Some(base), Some(pair)) = (
-							legacy.eip1108_transition,
-							p.eip1108_transition_base,
-							p.eip1108_transition_pair
-						) {
-							map.insert(a.into(), PricingAt {
-								info: Some("EIP1108 transition".to_string()),
-								price: Pricing::AltBn128Pairing(AltBn128Pairing {
-									base,
-									pair,
-									eip1108_transition_base: None,
-									eip1108_transition_pair: None,
-								}),
-							});
-
-							warn!(target: "builtin",
-								"Builtin contract: {} enabled with eip1108_transition which is deprecated. \
-								Use builtin contract with multiple activations instead in your chain specification",
-								legacy.name
-							);
-						}
-					}
-					Pricing::AltBn128ConstOperations(p) => {
-						map.insert(activate_at, PricingAt {
-							info: None,
-							price: Pricing::AltBn128ConstOperations(AltBn128ConstOperations {
-								price: p.price,
-								eip1108_transition_price: None,
-							}),
-						});
-
-						if let (Some(a), Some(price)) = (legacy.eip1108_transition, p.eip1108_transition_price) {
-							map.insert(a.into(), PricingAt {
-								info: Some("EIP1108 transition".to_string()),
-								price: Pricing::AltBn128ConstOperations(AltBn128ConstOperations {
-									price,
-									eip1108_transition_price: None,
-								}),
-							});
-
-							warn!(target: "builtin",
-								"Builtin contract: {} enabled with eip1108_transition which is deprecated. \
-								Use builtin contract with multiple activations instead in your chain specification",
-								legacy.name
-							);
-						}
-					}
-					price => {
-						let activate_at: u64 = legacy.activate_at.map_or(0, Into::into);
-						map.insert(activate_at, PricingAt { info: None, price });
-					}
-				};
+				map.insert(activate_at, PricingAt { info: None, price: pricing });
 				map
 			}
 			PricingCompat::Multi(pricings) => {
@@ -303,39 +217,6 @@ mod tests {
 			100_000 => PricingAt {
 				info: None,
 				price: Pricing::Modexp(Modexp { divisor: 5 })
-			}
-		]);
-	}
-
-	#[test]
-	fn optional_eip1108_fields() {
-		let s = r#"{
-			"name": "alt_bn128_add",
-			"activate_at": "0x00",
-			"eip1108_transition": "0x17d433",
-			"pricing": {
-				"alt_bn128_const_operations": {
-					"price": 500,
-					"eip1108_transition_price": 150
-				}
-			}
-		}"#;
-		let builtin: Builtin = serde_json::from_str::<BuiltinCompat>(s).unwrap().into();
-		assert_eq!(builtin.name, "alt_bn128_add");
-		assert_eq!(builtin.pricing, map![
-			0 => PricingAt {
-				info: None,
-				price: Pricing::AltBn128ConstOperations(AltBn128ConstOperations {
-					price: 500,
-					eip1108_transition_price: None
-				})
-			},
-			0x17d433 => PricingAt {
-				info: Some("EIP1108 transition".to_string()),
-				price: Pricing::AltBn128ConstOperations(AltBn128ConstOperations {
-					price: 150,
-					eip1108_transition_price: None
-				})
 			}
 		]);
 	}
