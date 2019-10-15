@@ -1354,8 +1354,6 @@ mod tests {
 					price: JsonPricing::AltBn128Pairing(JsonAltBn128PairingPricing {
 						base: 100_000,
 						pair: 80_000,
-						eip1108_transition_base: None,
-						eip1108_transition_pair: None,
 					}),
 				},
 				20 => PricingAt {
@@ -1363,8 +1361,6 @@ mod tests {
 					price: JsonPricing::AltBn128Pairing(JsonAltBn128PairingPricing {
 						base: 45_000,
 						pair: 34_000,
-						eip1108_transition_base: None,
-						eip1108_transition_pair: None,
 					}),
 				}
 			],

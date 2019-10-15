@@ -45,15 +45,6 @@ pub struct Modexp {
 pub struct AltBn128ConstOperations {
 	/// price
 	pub price: u64,
-	/// EIP 1108 transition price
-	// for backward compatibility
-	pub eip1108_transition_price: Option<u64>,
-}
-
-impl AltBn128ConstOperations {
-	fn clear_eip1108(&mut self) {
-		self.eip1108_transition_price = None;
-	}
 }
 
 /// Pricing for alt_bn128_pairing.
@@ -64,27 +55,6 @@ pub struct AltBn128Pairing {
 	pub base: u64,
 	/// Price per point pair.
 	pub pair: u64,
-	/// EIP 1108 transition base price
-	// for backward compatibility
-	pub eip1108_transition_base: Option<u64>,
-	/// EIP 1108 transition price per point pair
-	// for backward compatibility
-	pub eip1108_transition_pair: Option<u64>,
-}
-
-impl AltBn128Pairing {
-	fn clear_eip1108(&mut self) {
-		self.eip1108_transition_base = None;
-		self.eip1108_transition_pair = None;
-	}
-
-	fn eip1108_fields(&self) -> Option<(u64, u64)> {
-		if let (Some(b), Some(p)) = (self.eip1108_transition_base, self.eip1108_transition_pair) {
-			Some((b, p))
-		} else {
-			None
-		}
-	}
 }
 
 /// Pricing variants.
@@ -117,9 +87,6 @@ pub struct BuiltinCompat {
 	pricing: PricingCompat,
 	/// Activation block.
 	activate_at: Option<Uint>,
-	/// EIP 1108
-	// for backward compatibility
-	eip1108_transition: Option<Uint>,
 }
 
 /// Spec builtin.
@@ -135,52 +102,9 @@ impl From<BuiltinCompat> for Builtin {
 	fn from(legacy: BuiltinCompat) -> Self {
 		let pricing: BTreeMap<u64, PricingAt> = match legacy.pricing {
 			PricingCompat::Single(pricing) => {
-				let mut map: BTreeMap<u64, PricingAt> = BTreeMap::new();
+				let mut map = BTreeMap::new();
 				let activate_at: u64 = legacy.activate_at.map_or(0, Into::into);
-
-				match pricing {
-					Pricing::AltBn128Pairing(mut p) => {
-						let mut pricing = p.clone();
-
-						pricing.clear_eip1108();
-						map.insert(activate_at, PricingAt {
-							info: None,
-							price: Pricing::AltBn128Pairing(pricing),
-						});
-
-						if let (Some(a), Some(pairing)) = (legacy.eip1108_transition, p.eip1108_fields()) {
-							p.clear_eip1108();
-							p.base = pairing.0;
-							p.pair = pairing.1;
-							map.insert(a.into(), PricingAt {
-								info: Some("EIP1108 transition".to_string()),
-								price: Pricing::AltBn128Pairing(p),
-							});
-						}
-					}
-					Pricing::AltBn128ConstOperations(mut p) => {
-						let mut pricing = p.clone();
-
-						pricing.clear_eip1108();
-						map.insert(activate_at, PricingAt {
-							info: None,
-							price: Pricing::AltBn128ConstOperations(pricing),
-						});
-
-						if let (Some(a), Some(price)) = (legacy.eip1108_transition, p.eip1108_transition_price) {
-							p.clear_eip1108();
-							p.price = price;
-							map.insert(a.into(), PricingAt {
-								info: Some("EIP1108 transition".to_string()),
-								price: Pricing::AltBn128ConstOperations(p),
-							});
-						}
-					}
-					price => {
-						let activate_at: u64 = legacy.activate_at.map_or(0, Into::into);
-						map.insert(activate_at, PricingAt { info: None, price });
-					}
-				};
+				map.insert(activate_at, PricingAt { info: None, price: pricing });
 				map
 			}
 			PricingCompat::Multi(pricings) => {
@@ -293,39 +217,6 @@ mod tests {
 			100_000 => PricingAt {
 				info: None,
 				price: Pricing::Modexp(Modexp { divisor: 5 })
-			}
-		]);
-	}
-
-	#[test]
-	fn optional_eip1108_fields() {
-		let s = r#"{
-			"name": "alt_bn128_add",
-			"activate_at": "0x00",
-			"eip1108_transition": "0x17d433",
-			"pricing": {
-				"alt_bn128_const_operations": {
-					"price": 500,
-					"eip1108_transition_price": 150
-				}
-			}
-		}"#;
-		let builtin: Builtin = serde_json::from_str::<BuiltinCompat>(s).unwrap().into();
-		assert_eq!(builtin.name, "alt_bn128_add");
-		assert_eq!(builtin.pricing, map![
-			0 => PricingAt {
-				info: None,
-				price: Pricing::AltBn128ConstOperations(AltBn128ConstOperations {
-					price: 500,
-					eip1108_transition_price: None
-				})
-			},
-			0x17d433 => PricingAt {
-				info: Some("EIP1108 transition".to_string()),
-				price: Pricing::AltBn128ConstOperations(AltBn128ConstOperations {
-					price: 150,
-					eip1108_transition_price: None
-				})
 			}
 		]);
 	}
