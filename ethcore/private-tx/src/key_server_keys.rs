@@ -145,7 +145,8 @@ impl KeyProvider for StoringKeyProvider {
 #[cfg(test)]
 mod tests {
 	use std::sync::Arc;
-	use ethkey::{Secret, KeyPair};
+	use std::str::FromStr;
+	use crypto::publickey::{Secret, KeyPair};
 	use bytes::Bytes;
 	use super::*;
 	use registrar::RegistrarClient;
@@ -185,7 +186,7 @@ mod tests {
 
 	#[test]
 	fn should_update_acl_contract() {
-		let key = KeyPair::from_secret(Secret::from("0000000000000000000000000000000000000000000000000000000000000011")).unwrap();
+		let key = KeyPair::from_secret(Secret::from_str("0000000000000000000000000000000000000000000000000000000000000011").unwrap()).unwrap();
 		let client = DummyRegistryClient::new(Some(key.address()));
 		let keys_data = SecretStoreKeys::new(Arc::new(client), None);
 		keys_data.update_acl_contract();

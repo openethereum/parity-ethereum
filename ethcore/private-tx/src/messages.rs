@@ -18,7 +18,7 @@ use ethereum_types::{H256, U256, Address, BigEndianHash};
 use bytes::Bytes;
 use hash::keccak;
 use rlp::Encodable;
-use ethkey::Signature;
+use crypto::publickey::Signature;
 use types::transaction::signature::{add_chain_replay_protection, check_replay_protection};
 
 /// Message with private transaction encrypted
