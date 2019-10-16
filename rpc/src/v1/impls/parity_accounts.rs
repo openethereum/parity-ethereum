@@ -22,7 +22,8 @@ use std::collections::{
 };
 
 use ethereum_types::{Address, H160, H256, H520};
-use ethkey::{Brain, Generator, Secret};
+use ethkey::{Brain, Password};
+use crypto::publickey::{Generator, Secret};
 use ethstore::KeyFile;
 use accounts::AccountProvider;
 use jsonrpc_core::Result;
@@ -30,7 +31,6 @@ use v1::helpers::deprecated::{self, DeprecationNotice};
 use v1::helpers::errors;
 use v1::traits::{ParityAccounts, ParityAccountsInfo};
 use v1::types::{Derive, DeriveHierarchical, DeriveHash, ExtAccountInfo, AccountInfo};
-use ethkey::Password;
 
 /// Account management (personal) rpc implementation.
 pub struct ParityAccountsClient {

@@ -22,7 +22,7 @@ use accounts::AccountProvider;
 use bytes::Bytes;
 use eip_712::{EIP712, hash_structured_data};
 use ethereum_types::{H160, H256, H520, U128, Address};
-use ethkey::{public_to_address, recover, Signature};
+use crypto::publickey::{public_to_address, recover, Signature};
 use types::transaction::{PendingTransaction, SignedTransaction};
 
 use jsonrpc_core::futures::{future, Future};

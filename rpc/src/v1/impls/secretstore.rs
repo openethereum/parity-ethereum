@@ -22,7 +22,7 @@ use std::sync::Arc;
 use accounts::AccountProvider;
 use crypto::DEFAULT_MAC;
 use ethereum_types::{H160, H256, H512};
-use ethkey::Secret;
+use crypto::publickey::Secret;
 
 use jsonrpc_core::Result;
 use v1::helpers::errors;
