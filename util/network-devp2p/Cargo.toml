@@ -24,7 +24,6 @@ parity-bytes = "0.1"
 parity-crypto = { git = "https://github.com/paritytech/parity-common/", rev = "669933f", features = ["publickey"] }
 network = { package = "ethcore-network", path = "../network" }
 ethereum-types = "0.8.0"
-ethkey = { path = "../../accounts/ethkey" }
 rlp = "0.4.0"
 parity-path = "0.1"
 ipnetwork = "0.12.6"
