@@ -1567,6 +1567,7 @@ dependencies = [
  "env_logger 0.5.13 (registry+https://github.com/rust-lang/crates.io-index)",
  "ethkey 0.4.0",
  "panic_hook 0.1.0",
+ "parity-crypto 0.4.2 (git+https://github.com/paritytech/parity-common/?rev=669933f)",
  "parity-wordlist 1.3.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "rustc-hex 1.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "serde 1.0.99 (registry+https://github.com/rust-lang/crates.io-index)",
