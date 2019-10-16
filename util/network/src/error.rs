@@ -17,7 +17,7 @@
 use std::{error, io, net, fmt};
 use libc::{ENFILE, EMFILE};
 use io::IoError;
-use {rlp, ethkey, crypto, snappy};
+use {rlp, crypto, snappy};
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub enum DisconnectReason
@@ -182,14 +182,8 @@ impl From<io::Error> for Error {
 	}
 }
 
-impl From<ethkey::Error> for Error {
-	fn from(_err: ethkey::Error) -> Self {
-		Error::Auth
-	}
-}
-
-impl From<ethkey::crypto::Error> for Error {
-	fn from(_err: ethkey::crypto::Error) -> Self {
+impl From<crypto::publickey::Error> for Error {
+	fn from(_err: crypto::publickey::Error) -> Self {
 		Error::Auth
 	}
 }
@@ -218,7 +212,7 @@ fn test_errors() {
 		_ => panic!("Unexpected error"),
 	}
 
-	match <Error as From<ethkey::crypto::Error>>::from(ethkey::crypto::Error::InvalidMessage) {
+	match <Error as From<crypto::publickey::Error>>::from(crypto::publickey::Error::InvalidMessage) {
 		Error::Auth => {},
 		_ => panic!("Unexpected error"),
 	}
