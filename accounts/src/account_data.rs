@@ -22,7 +22,7 @@ use std::{
 };
 
 use parity_crypto::publickey::{Address};
-use parity_crypto::publickey::{Password};
+use ethkey::{Password};
 use serde_derive::{Serialize, Deserialize};
 use serde_json;
 

@@ -24,7 +24,7 @@ kvdb = "0.1"
 lazy_static = "1.0"
 log = "0.4"
 parity-bytes = "0.1"
-parity-crypto = { git = "https://github.com/paritytech/parity-common/", branch = "EthKeyCrypto", features = ["publickey"] }
+parity-crypto = { git = "https://github.com/paritytech/parity-common/", rev = "669933f", features = ["publickey"] }
 parity-runtime = { path = "../util/runtime" }
 parking_lot = "0.9"
 percent-encoding = "2.1.0"

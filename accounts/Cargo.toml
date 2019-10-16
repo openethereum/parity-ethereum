@@ -11,7 +11,7 @@ edition = "2018"
 ethkey = { path = "ethkey" }
 ethstore = { path = "ethstore" }
 log = "0.4"
-parity-crypto = { git = "https://github.com/paritytech/parity-common/", branch = "EthKeyCrypto", features = ["publickey"] }
+parity-crypto = { git = "https://github.com/paritytech/parity-common/", rev = "669933f", features = ["publickey"] }
 parking_lot = "0.9"
 serde = "1.0"
 serde_derive = "1.0"

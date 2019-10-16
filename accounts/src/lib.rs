@@ -29,7 +29,7 @@ use std::collections::HashMap;
 use std::time::{Instant, Duration};
 
 use ethkey::{Password};
-use parity_crypto::publickey::{Address, Message, Public, Secret, Random, Generator};
+use parity_crypto::publickey::{Address, Message, Public, Secret, Random, Generator, Signature};
 use ethstore::accounts_dir::MemoryDirectory;
 use ethstore::{
 	SimpleSecretStore, SecretStore, EthStore, EthMultiStore,
@@ -503,7 +503,7 @@ impl AccountProvider {
 mod tests {
 	use super::{AccountProvider, Unlock};
 	use std::time::{Duration, Instant};
-	use ethkey::{Generator, Random, Address};
+	use parity_crypto::publickey::{Generator, Random, Address};
 	use ethstore::{StoreAccountRef, Derivation};
 	use ethereum_types::H256;
 
