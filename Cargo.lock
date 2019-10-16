@@ -3001,6 +3001,7 @@ dependencies = [
  "number_prefix 0.2.8 (registry+https://github.com/rust-lang/crates.io-index)",
  "panic_hook 0.1.0",
  "parity-bytes 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "parity-crypto 0.4.2 (git+https://github.com/paritytech/parity-common/?rev=669933f)",
  "parity-daemonize 0.3.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "parity-hash-fetch 1.12.0",
  "parity-ipfs-api 1.12.0",
