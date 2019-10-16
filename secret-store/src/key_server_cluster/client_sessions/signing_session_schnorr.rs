@@ -819,7 +819,7 @@ mod tests {
 	use std::str::FromStr;
 	use std::collections::BTreeMap;
 	use ethereum_types::{Address, H256};
-	use crypto::publickey::{self, Random, Generator, Public, Secret, public_to_address};
+	use crypto::publickey::{Random, Generator, Public, Secret, public_to_address};
 	use acl_storage::DummyAclStorage;
 	use key_server_cluster::{SessionId, Requester, SessionMeta, Error, KeyStorage};
 	use key_server_cluster::cluster::tests::MessageLoop as ClusterMessageLoop;

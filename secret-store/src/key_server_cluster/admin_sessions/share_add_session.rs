@@ -888,7 +888,7 @@ impl SessionTransport for IsolatedSessionTransport {
 #[cfg(test)]
 pub mod tests {
 	use std::collections::BTreeSet;
-	use ethkey::{Random, Generator, Public};
+	use crypto::publickey::{Random, Generator, Public};
 	use key_server_cluster::{NodeId, Error, KeyStorage, NodeKeyPair};
 	use key_server_cluster::cluster::tests::MessageLoop as ClusterMessageLoop;
 	use key_server_cluster::servers_set_change_session::tests::{MessageLoop, AdminSessionAdapter, generate_key};

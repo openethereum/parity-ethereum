@@ -754,7 +754,7 @@ fn serialize_threshold(threshold: usize) -> Result<U256, String> {
 pub mod tests {
 	use parking_lot::Mutex;
 	use bytes::Bytes;
-	use ethkey::Public;
+	use crypto::publickey::Public;
 	use ethereum_types::Address;
 	use listener::service_contract_listener::ServiceTask;
 	use {ServerKeyId};

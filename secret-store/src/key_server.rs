@@ -314,7 +314,7 @@ pub mod tests {
 	use std::collections::BTreeMap;
 	use futures::Future;
 	use crypto::DEFAULT_MAC;
-	use crypto::publickey::{self, Secret, Random, Generator, verify_public};
+	use crypto::publickey::{Secret, Random, Generator, verify_public};
 	use acl_storage::DummyAclStorage;
 	use key_storage::KeyStorage;
 	use key_storage::tests::DummyKeyStorage;
@@ -605,8 +605,8 @@ pub mod tests {
 				message_hash,
 			).wait().unwrap();
 			let combined_signature = crypto::publickey::ecies::decrypt(&requestor_secret, &DEFAULT_MAC, &combined_signature).unwrap();
-			let signature_c = Secret::from_slice(&combined_signature[..32]).unwrap();
-			let signature_s = Secret::from_slice(&combined_signature[32..]).unwrap();
+			let signature_c = Secret::copy_from_slice(&combined_signature[..32]).unwrap();
+			let signature_s = Secret::copy_from_slice(&combined_signature[32..]).unwrap();
 
 			// check signature
 			assert_eq!(math::verify_schnorr_signature(&server_public, &(signature_c, signature_s), &message_hash), Ok(true));
@@ -664,8 +664,8 @@ pub mod tests {
 			message_hash,
 		).wait().unwrap();
 		let combined_signature = crypto::publickey::ecies::decrypt(&requestor_secret, &DEFAULT_MAC, &combined_signature).unwrap();
-		let signature_c = Secret::from_slice(&combined_signature[..32]).unwrap();
-		let signature_s = Secret::from_slice(&combined_signature[32..]).unwrap();
+		let signature_c = Secret::copy_from_slice(&combined_signature[..32]).unwrap();
+		let signature_s = Secret::copy_from_slice(&combined_signature[32..]).unwrap();
 
 		// check signature
 		assert_eq!(math::verify_schnorr_signature(&server_public, &(signature_c, signature_s), &message_hash), Ok(true));

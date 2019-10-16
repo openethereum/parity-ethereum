@@ -15,7 +15,7 @@
 // along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
 use crypto::publickey::ecdh::agree;
-use crypto::publickey::KeyPair, Public, Signature, Error as EthKeyError, sign, public_to_address};
+use crypto::publickey::{KeyPair, Public, Signature, Error as EthKeyError, sign, public_to_address};
 use ethereum_types::{H256, Address};
 use traits::NodeKeyPair;
 

@@ -668,7 +668,7 @@ pub fn create_cluster_view(self_key_pair: Arc<dyn NodeKeyPair>, connections: Arc
 mod tests {
 	use std::sync::Arc;
 	use std::sync::atomic::{AtomicUsize, Ordering};
-	use ethkey::{Random, Generator};
+	use crypto::publickey::{Random, Generator};
 	use key_server_cluster::{Error, DummyAclStorage, DummyKeyStorage, MapKeyServerSet, PlainNodeKeyPair};
 	use key_server_cluster::cluster::ClusterConfiguration;
 	use key_server_cluster::connection_trigger::SimpleServersSetChangeSessionCreatorConnector;

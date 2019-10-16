@@ -18,7 +18,7 @@ use std::fmt;
 use std::net;
 use std::io::Error as IoError;
 
-use {crypto::publickey, crypto};
+use {crypto};
 
 /// Secret store error.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]

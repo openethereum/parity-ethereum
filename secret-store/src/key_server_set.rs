@@ -27,7 +27,7 @@ use common_types::{
 	ids::BlockId,
 };
 use ethereum_types::{H256, Address};
-use parity_crypto::publickey::public_to_address;
+use crypto::publickey::public_to_address;
 use bytes::Bytes;
 use types::{Error, Public, NodeAddress, NodeId};
 use trusted_client::TrustedClient;

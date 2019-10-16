@@ -1070,7 +1070,7 @@ impl JobTransport for SigningJobTransport {
 mod tests {
 	use std::sync::Arc;
 	use ethereum_types::H256;
-	use crypto::publickey::{self, Random, Generator, Public, verify_public, public_to_address};
+	use crypto::publickey::{Random, Generator, Public, verify_public, public_to_address};
 	use key_server_cluster::{SessionId, Error, KeyStorage};
 	use key_server_cluster::cluster::tests::{MessageLoop as ClusterMessageLoop};
 	use key_server_cluster::signing_session_ecdsa::SessionImpl;

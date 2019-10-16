@@ -846,7 +846,7 @@ mod tests {
 	use std::sync::Arc;
 	use std::collections::{BTreeMap, VecDeque};
 	use acl_storage::DummyAclStorage;
-	use crypto::publickey::{self, KeyPair, Random, Generator, Public, Secret, public_to_address};
+	use crypto::publickey::{KeyPair, Random, Generator, Public, Secret, public_to_address};
 	use key_server_cluster::{NodeId, DocumentKeyShare, DocumentKeyShareVersion, SessionId, Requester,
 		Error, EncryptedDocumentKeyShadow, SessionMeta};
 	use key_server_cluster::cluster::tests::DummyCluster;
@@ -1316,7 +1316,7 @@ mod tests {
 		use crypto::DEFAULT_MAC;
 		use crypto::publickey::ecies::decrypt;
 		let decrypt_shadows: Vec<_> = decrypted_secret.decrypt_shadows.unwrap().into_iter()
-			.map(|c| Secret::from_slice(&decrypt(key_pair.secret(), &DEFAULT_MAC, &c).unwrap()).unwrap())
+			.map(|c| Secret::copy_from_slice(&decrypt(key_pair.secret(), &DEFAULT_MAC, &c).unwrap()).unwrap())
 			.collect();
 		let decrypted_secret = math::decrypt_with_shadow_coefficients(decrypted_secret.decrypted_secret, decrypted_secret.common_point.unwrap(), decrypt_shadows).unwrap();
 		assert_eq!(decrypted_secret, H512::from_str(SECRET_PLAIN).unwrap());
@@ -1462,7 +1462,7 @@ mod tests {
 		let result = sessions[0].decrypted_secret().unwrap().unwrap();
 		assert_eq!(3, sessions.iter().skip(1).filter(|s| s.decrypted_secret() == Some(Ok(result.clone()))).count());
 		let decrypt_shadows: Vec<_> = result.decrypt_shadows.unwrap().into_iter()
-			.map(|c| Secret::from_slice(&decrypt(key_pair.secret(), &DEFAULT_MAC, &c).unwrap()).unwrap())
+			.map(|c| Secret::copy_from_slice(&decrypt(key_pair.secret(), &DEFAULT_MAC, &c).unwrap()).unwrap())
 			.collect();
 		let decrypted_secret = math::decrypt_with_shadow_coefficients(result.decrypted_secret, result.common_point.unwrap(), decrypt_shadows).unwrap();
 		assert_eq!(decrypted_secret, H512::from_str(SECRET_PLAIN).unwrap());

@@ -655,7 +655,7 @@ pub mod tests {
 	use futures::Future;
 	use parking_lot::{Mutex, RwLock};
 	use ethereum_types::{Address, H256};
-	use ethkey::{Random, Generator, Public, Signature, sign};
+	use crypto::publickey::{Random, Generator, Public, Signature, sign};
 	use key_server_cluster::{NodeId, SessionId, Requester, Error, DummyAclStorage, DummyKeyStorage,
 		MapKeyServerSet, PlainNodeKeyPair, NodeKeyPair};
 	use key_server_cluster::message::Message;
