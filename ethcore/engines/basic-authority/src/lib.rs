@@ -194,8 +194,8 @@ impl Engine for BasicAuthority {
 		}
 	}
 
-	fn set_signer(&self, signer: Box<dyn EngineSigner>) {
-		*self.signer.write() = Some(signer);
+	fn set_signer(&self, signer: Option<Box<dyn EngineSigner>>) {
+		*self.signer.write() = signer;
 	}
 
 	fn sign(&self, hash: H256) -> Result<Signature, Error> {
@@ -269,7 +269,7 @@ mod tests {
 
 		let spec = new_test_authority();
 		let engine = &*spec.engine;
-		engine.set_signer(Box::new((Arc::new(tap), addr, "".into())));
+		engine.set_signer(Some(Box::new((Arc::new(tap), addr, "".into()))));
 		let genesis_header = spec.genesis_header();
 		let db = spec.ensure_db_good(get_temp_state_db(), &Default::default()).unwrap();
 		let last_hashes = Arc::new(vec![genesis_header.hash()]);
@@ -287,7 +287,9 @@ mod tests {
 
 		let engine = new_test_authority().engine;
 		assert_eq!(SealingState::NotReady, engine.sealing_state());
-		engine.set_signer(Box::new((Arc::new(tap), authority, "".into())));
+		engine.set_signer(Some(Box::new((Arc::new(tap), authority, "".into()))));
 		assert_eq!(SealingState::Ready, engine.sealing_state());
+		engine.set_signer(None);
+		assert_eq!(SealingState::NotReady, engine.sealing_state());
 	}
 }

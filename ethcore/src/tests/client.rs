@@ -17,6 +17,7 @@
 use std::str::{FromStr, from_utf8};
 use std::sync::Arc;
 
+use account_state::state::StateInfo;
 use ethereum_types::{U256, Address};
 use ethkey::KeyPair;
 use hash::keccak;

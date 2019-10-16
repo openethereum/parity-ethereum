@@ -7,6 +7,7 @@ edition = "2018"
 
 [dependencies]
 bn = { git = "https://github.com/paritytech/bn", default-features = false }
+common-types = { path = "../types" }
 ethereum-types = "0.8.0"
 ethjson = { path = "../../json" }
 ethkey = { path = "../../accounts/ethkey" }

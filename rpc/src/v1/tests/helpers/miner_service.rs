@@ -93,8 +93,8 @@ impl StateClient for TestMinerService {
 	// State will not be used by test client anyway, since all methods that accept state are mocked
 	type State = TestState;
 
-	fn latest_state(&self) -> Self::State {
-		TestState
+	fn latest_state_and_header(&self) -> (Self::State, Header) {
+		(TestState, Header::default())
 	}
 
 	fn state_at(&self, _id: BlockId) -> Option<Self::State> {
@@ -127,10 +127,13 @@ impl MinerService for TestMinerService {
 		self.authoring_params.read().clone()
 	}
 
-	fn set_author(&self, author: miner::Author) {
-		self.authoring_params.write().author = author.address();
-		if let miner::Author::Sealer(signer) = author {
-			*self.signer.write() = Some(signer);
+	fn set_author<T: Into<Option<miner::Author>>>(&self, author: T) {
+		let author_opt = author.into();
+		self.authoring_params.write().author = author_opt.as_ref().map(miner::Author::address).unwrap_or_default();
+		match author_opt {
+			Some(miner::Author::Sealer(signer)) => *self.signer.write() = Some(signer),
+			Some(miner::Author::External(_addr)) => (),
+			None => *self.signer.write() = None,
 		}
 	}
 

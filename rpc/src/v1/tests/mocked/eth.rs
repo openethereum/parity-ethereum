@@ -664,6 +664,43 @@ fn rpc_eth_call_latest() {
 }
 
 #[test]
+fn rpc_eth_call_pending() {
+	let tester = EthTester::default();
+	tester.client.set_execution_result(Ok(Executed {
+		exception: None,
+		gas: U256::zero(),
+		gas_used: U256::from(0xff30),
+		refunded: U256::from(0x5),
+		cumulative_gas_used: U256::zero(),
+		logs: vec![],
+		contracts_created: vec![],
+		output: vec![0x12, 0x34, 0xff],
+		trace: vec![],
+		vm_trace: None,
+		state_diff: None,
+	}));
+
+	let request = r#"{
+		"jsonrpc": "2.0",
+		"method": "eth_call",
+		"params": [{
+			"from": "0xb60e8dd61c5d32be8058bb8eb970870f07233155",
+			"to": "0xd46e8dd67c5d32be8058bb8eb970870f07244567",
+			"gas": "0x76c0",
+			"gasPrice": "0x9184e72a000",
+			"value": "0x9184e72a",
+			"data": "0xd46e8dd67c5d32be8d46e8dd67c5d32be8058bb8eb970870f072445675058bb8eb970870f072445675"
+		},
+		"pending"],
+		"id": 1
+	}"#;
+	// Falls back to "Latest" and gives the same result.
+	let response = r#"{"jsonrpc":"2.0","result":"0x1234ff","id":1}"#;
+
+	assert_eq!(tester.io.handle_request_sync(request), Some(response.to_owned()));
+}
+
+#[test]
 fn rpc_eth_call() {
 	let tester = EthTester::default();
 	tester.client.set_execution_result(Ok(Executed {
@@ -765,6 +802,43 @@ fn rpc_eth_estimate_gas() {
 		"latest"],
 		"id": 1
 	}"#;
+	let response = r#"{"jsonrpc":"2.0","result":"0x5208","id":1}"#;
+
+	assert_eq!(tester.io.handle_request_sync(request), Some(response.to_owned()));
+}
+
+#[test]
+fn rpc_eth_estimate_gas_pending() {
+	let tester = EthTester::default();
+	tester.client.set_execution_result(Ok(Executed {
+		exception: None,
+		gas: U256::zero(),
+		gas_used: U256::from(0xff30),
+		refunded: U256::from(0x5),
+		cumulative_gas_used: U256::zero(),
+		logs: vec![],
+		contracts_created: vec![],
+		output: vec![0x12, 0x34, 0xff],
+		trace: vec![],
+		vm_trace: None,
+		state_diff: None,
+	}));
+
+	let request = r#"{
+		"jsonrpc": "2.0",
+		"method": "eth_estimateGas",
+		"params": [{
+			"from": "0xb60e8dd61c5d32be8058bb8eb970870f07233155",
+			"to": "0xd46e8dd67c5d32be8058bb8eb970870f07244567",
+			"gas": "0x76c0",
+			"gasPrice": "0x9184e72a000",
+			"value": "0x9184e72a",
+			"data": "0xd46e8dd67c5d32be8d46e8dd67c5d32be8058bb8eb970870f072445675058bb8eb970870f072445675"
+		},
+		"pending"],
+		"id": 1
+	}"#;
+	// Falls back to "Latest" so the result is the same
 	let response = r#"{"jsonrpc":"2.0","result":"0x5208","id":1}"#;
 
 	assert_eq!(tester.io.handle_request_sync(request), Some(response.to_owned()));
