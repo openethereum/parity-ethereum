@@ -842,6 +842,7 @@ impl Host {
 				if duplicate {
 					trace!(target: "network", "Rejected duplicate connection: {}", token);
 					session.lock().disconnect(io, DisconnectReason::DuplicatePeer);
+					drop(handlers);
 					self.kill_connection(token, io, false);
 					return;
 				}
