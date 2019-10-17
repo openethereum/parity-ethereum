@@ -51,7 +51,7 @@ use macros::map;
 use keccak_hash::keccak;
 use log::{info, debug, error, trace, warn};
 use engine::signer::EngineSigner;
-use parity_crypto::publickey::{Signature};
+use parity_crypto::publickey::Signature;
 use io::{IoContext, IoHandler, TimerToken, IoService};
 use itertools::{self, Itertools};
 use rlp::{encode, Decodable, DecoderError, Encodable, RlpStream, Rlp};
@@ -1703,7 +1703,7 @@ mod tests {
 	use keccak_hash::keccak;
 	use accounts::AccountProvider;
 	use ethereum_types::{Address, H520, H256, U256};
-	use parity_crypto::publickey::{Signature};
+	use parity_crypto::publickey::Signature;
 	use common_types::{
 		header::Header,
 		engines::{Seal, params::CommonParams},

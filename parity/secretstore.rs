@@ -21,7 +21,7 @@ use dir::default_data_path;
 use dir::helpers::replace_home;
 use ethcore::client::Client;
 use ethcore::miner::Miner;
-use ethkey::{Password};
+use ethkey::Password;
 use parity_crypto::publickey::{Secret, Public};
 use sync::SyncProvider;
 use ethereum_types::Address;

@@ -21,7 +21,7 @@ use std::collections::BTreeMap;
 use version::version_data;
 
 use crypto::DEFAULT_MAC;
-use ethkey::{Brain};
+use ethkey::Brain;
 use crypto::publickey::{Generator, ecies};
 use ethstore::random_phrase;
 use sync::{LightSyncInfo, LightSyncProvider, LightNetworkDispatcher, ManageNetwork};

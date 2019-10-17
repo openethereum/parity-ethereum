@@ -23,7 +23,7 @@ use client_traits::BlockChainClient;
 use types::client_types::Mode;
 use ethcore::miner::{self, MinerService};
 use ethereum_types::{H160, H256, U256};
-use crypto::publickey::{KeyPair};
+use crypto::publickey::KeyPair;
 use fetch::{self, Fetch};
 use hash::keccak_buffer;
 use sync::ManageNetwork;

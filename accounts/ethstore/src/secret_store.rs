@@ -18,7 +18,7 @@ use std::hash::{Hash, Hasher};
 use std::path::PathBuf;
 use std::cmp::Ordering;
 use crypto::publickey::{Address, Message, Signature, Secret, Public};
-use ethkey::{Password};
+use ethkey::Password;
 use Error;
 use json::{Uuid, OpaqueKeyFile};
 use ethereum_types::H256;

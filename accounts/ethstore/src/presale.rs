@@ -18,7 +18,7 @@ use std::fs;
 use std::path::Path;
 use json;
 use crypto::publickey::{Address, Secret, KeyPair};
-use ethkey::{Password};
+use ethkey::Password;
 use crypto::{Keccak256, pbkdf2};
 use {crypto, Error};
 

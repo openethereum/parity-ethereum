@@ -28,7 +28,7 @@ use self::stores::AddressBook;
 use std::collections::HashMap;
 use std::time::{Instant, Duration};
 
-use ethkey::{Password};
+use ethkey::Password;
 use parity_crypto::publickey::{Address, Message, Public, Secret, Random, Generator, Signature};
 use ethstore::accounts_dir::MemoryDirectory;
 use ethstore::{

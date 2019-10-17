@@ -34,7 +34,7 @@ use client_traits::EngineClient;
 use ethereum_types::{H256, H520};
 use parking_lot::RwLock;
 use engine::{Engine, ConstructedVerifier, signer::EngineSigner};
-use parity_crypto::publickey::{Signature};
+use parity_crypto::publickey::Signature;
 use ethjson;
 use log::trace;
 use machine::{Machine, executed_block::ExecutedBlock};

@@ -74,7 +74,7 @@ pub use self::parity_wordlist::random_phrase;
 pub struct OpaqueSecret(crypto::publickey::Secret);
 
 // Additional converters for Address
-use crypto::publickey::{Address};
+use crypto::publickey::Address;
 
 impl Into<json::H160> for Address {
 	fn into(self) -> json::H160 {

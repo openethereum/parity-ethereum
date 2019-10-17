@@ -19,7 +19,7 @@ use std::sync::Arc;
 use futures::{future::{err, result}, Future};
 use parking_lot::Mutex;
 use crypto::DEFAULT_MAC;
-use crypto::publickey::{public_to_address};
+use crypto::publickey::public_to_address;
 use parity_runtime::Executor;
 use super::acl_storage::AclStorage;
 use super::key_storage::KeyStorage;

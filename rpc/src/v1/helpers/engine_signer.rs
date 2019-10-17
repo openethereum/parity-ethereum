@@ -17,7 +17,7 @@
 use std::sync::Arc;
 
 use accounts::AccountProvider;
-use ethkey::{Password};
+use ethkey::Password;
 use crypto::publickey::{Address, Message, Signature, Error};
 
 /// An implementation of EngineSigner using internal account management.

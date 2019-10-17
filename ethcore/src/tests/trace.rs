@@ -16,7 +16,7 @@
 
 //! Client tests of tracing
 
-use parity_crypto::publickey::{KeyPair};
+use parity_crypto::publickey::KeyPair;
 use hash::keccak;
 use block::*;
 use ethereum_types::{U256, Address};

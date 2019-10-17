@@ -26,7 +26,7 @@ use ethcore::miner::{self, MinerService, FilterOptions};
 use snapshot::SnapshotService;
 use account_state::state::StateInfo;
 use ethcore_logger::RotatingLogger;
-use ethkey::{Brain};
+use ethkey::Brain;
 use crypto::publickey::{ecies, Generator};
 use ethstore::random_phrase;
 use jsonrpc_core::futures::future;

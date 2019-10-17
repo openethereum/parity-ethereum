@@ -22,7 +22,7 @@ use std::time::Duration;
 
 use bytes::{Buf, BufMut};
 use parity_crypto::aes::{AesCtr256, AesEcb256};
-use parity_crypto::publickey::{Secret};
+use parity_crypto::publickey::Secret;
 use ethereum_types::{H128, H256, H512};
 use keccak_hash::{keccak, write_keccak};
 use log::{debug, trace, warn};

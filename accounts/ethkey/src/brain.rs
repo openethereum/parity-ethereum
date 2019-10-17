@@ -63,7 +63,7 @@ impl Generator for Brain {
 #[cfg(test)]
 mod tests {
 	use {Brain};
-	use parity_crypto::publickey::{Generator};
+	use parity_crypto::publickey::Generator;
 
 	#[test]
 	fn test_brain() {

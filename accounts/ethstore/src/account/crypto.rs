@@ -15,8 +15,8 @@
 // along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
 use std::str;
-use crypto::publickey::{Secret};
-use ethkey::{Password};
+use crypto::publickey::Secret;
+use ethkey::Password;
 use {json, Error, crypto};
 use crypto::Keccak256;
 use random::Random;

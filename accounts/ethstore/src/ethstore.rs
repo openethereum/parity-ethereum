@@ -23,7 +23,7 @@ use std::time::{Instant, Duration};
 use crypto::KEY_ITERATIONS;
 use random::Random;
 use crypto::publickey::{Signature, Address, Message, Secret, Public, KeyPair, ExtendedKeyPair};
-use ethkey::{Password};
+use ethkey::Password;
 use accounts_dir::{KeyDirectory, VaultKeyDirectory, VaultKey, SetKeyError};
 use account::SafeAccount;
 use presale::PresaleWallet;

@@ -19,7 +19,7 @@
 use std::sync::Arc;
 
 use ethereum_types::{Address, H256};
-use ethkey::{Password};
+use ethkey::Password;
 use parity_crypto::publickey::{Signature, Error};
 use log::warn;
 use accounts::{self, AccountProvider, SignError};
