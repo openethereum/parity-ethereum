@@ -159,7 +159,7 @@ impl Crypto {
 
 #[cfg(test)]
 mod tests {
-	use ethkey::{Generator, Random};
+	use crypto::publickey::{Generator, Random};
 	use super::{Crypto, Error};
 
 	#[test]

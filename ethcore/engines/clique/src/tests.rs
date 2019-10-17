@@ -26,7 +26,7 @@ use ethcore::{
 };
 use engine::Engine;
 use ethereum_types::{Address, H256};
-use parity_crypto::publickey::{Signature};{Secret, KeyPair};
+use parity_crypto::publickey::{Signature, Secret, KeyPair};
 use state_db::StateDB;
 
 use super::*;

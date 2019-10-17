@@ -200,7 +200,7 @@ impl SafeAccount {
 
 #[cfg(test)]
 mod tests {
-	use ethkey::{Generator, Random, verify_public, Message};
+	use crypto::publickey::{Generator, Random, verify_public, Message};
 	use super::SafeAccount;
 
 	#[test]
