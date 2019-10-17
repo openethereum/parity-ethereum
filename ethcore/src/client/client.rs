@@ -2557,7 +2557,7 @@ impl SnapshotClient for Client {
 		let (actual_block_nr, block_hash) = match at {
 			BlockId::Latest => {
 				// Start `self.history` blocks from the best block, but no further back than 1000 blocks.
-				let history = cmp::min(self.history, 1000); // `history`: number of eras kept in the journal before they are pruned
+				let history = cmp::min(self.history, 1000);
 				let best_block_number = self.chain_info().best_block_number;
 				let start_num = cmp::max(earliest_era, best_block_number.saturating_sub(history));
 

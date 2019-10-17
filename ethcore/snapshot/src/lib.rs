@@ -134,9 +134,10 @@ pub fn take_snapshot<W: SnapshotWriter + Send>(
 	let writer = Mutex::new(writer);
 	let (state_hashes, block_hashes) = thread::scope(|scope| -> Result<(Vec<H256>, Vec<H256>), Error> {
 		let writer = &writer;
-		let block_guard = scope.spawn(move |_| {
+		let tb = scope.builder().name("snapshots: Blocks".to_string());
+		let block_guard = tb.spawn(move |_| {
 			chunk_secondary(chunker, chain, block_hash, writer, p)
-		});
+		})?;
 
 		// The number of threads must be between 1 and SNAPSHOT_SUBPARTS
 		assert!(processing_threads >= 1, "Cannot use less than 1 threads for creating snapshots");
@@ -146,7 +147,8 @@ pub fn take_snapshot<W: SnapshotWriter + Send>(
 		let mut state_guards = Vec::with_capacity(num_threads);
 
 		for thread_idx in 0..num_threads {
-			let state_guard = scope.spawn(move |_| -> Result<Vec<H256>, Error> {
+			let tb = scope.builder().name(format!("snapshots: State-{}", thread_idx).to_string());
+			let state_guard = tb.spawn(move |_| -> Result<Vec<H256>, Error> {
 				let mut chunk_hashes = Vec::new();
 				for part in (thread_idx..SNAPSHOT_SUBPARTS).step_by(num_threads) {
 					debug!(target: "snapshot", "Chunking part {} of the state at {} in thread {}", part, block_number, thread_idx);
@@ -154,7 +156,7 @@ pub fn take_snapshot<W: SnapshotWriter + Send>(
 					chunk_hashes.append(&mut hashes);
 				}
 				Ok(chunk_hashes)
-			});
+			})?;
 			state_guards.push(state_guard);
 		}
 
