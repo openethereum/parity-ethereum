@@ -212,7 +212,7 @@ impl Restoration {
 		}
 
 		self.guard.disarm();
-		trace!(target: "snapshot", "restoration finalised correctly");
+		trace!(target: "snapshot", "Restoration finalised correctly");
 		Ok(())
 	}
 
@@ -413,7 +413,10 @@ impl<C> Service<C> where C: SnapshotClient + ChainInfo {
 			Some(x) => x,
 			None => return Ok(0),
 		};
-
+		info!(target: "snapshot", "Migrating blocks from old db to new. Start: #{}/{:?}, Target: #{}/{:?}",
+			self.client.block_number(BlockId::Hash(start_hash)).unwrap_or_default(), start_hash,
+			self.client.block_number(BlockId::Hash(target_hash)).unwrap_or_default(), target_hash,
+		);
 		let mut batch = DBTransaction::new();
 		let mut parent_hash = start_hash;
 		while parent_hash != target_hash {
@@ -455,10 +458,10 @@ impl<C> Service<C> where C: SnapshotClient + ChainInfo {
 				next_chain.commit();
 				next_db.key_value().flush().expect("DB flush failed.");
 				batch = DBTransaction::new();
-			}
 
-			if block_number % 10_000 == 0 {
-				info!(target: "snapshot", "Block restoration at #{}", block_number);
+				if block_number % 10_000 == 0 {
+					info!(target: "snapshot", "Block restoration at #{}", block_number);
+				}
 			}
 		}
 
@@ -497,6 +500,7 @@ impl<C> Service<C> where C: SnapshotClient + ChainInfo {
 		}
 
 		info!("Taking snapshot at #{}", num);
+		let start_time = std::time::Instant::now();
 		self.progress.reset();
 
 		let temp_dir = self.temp_snapshot_dir();
@@ -506,21 +510,21 @@ impl<C> Service<C> where C: SnapshotClient + ChainInfo {
 
 		let writer = LooseWriter::new(temp_dir.clone())?;
 
-
 		let guard = Guard::new(temp_dir.clone());
 		let res = client.take_snapshot(writer, BlockId::Number(num), &self.progress);
 		self.taking_snapshot.store(false, Ordering::SeqCst);
 		if let Err(e) = res {
+			// TODO[dvdplm]: when freezing pruning this condition is always met, causing this message to be logged at shutdown.
 			if client.chain_info().best_block_number >= num + client.pruning_history() {
-				// The state we were snapshotting was pruned before we could finish.
-				info!("Periodic snapshot failed: block state pruned. Run with a longer `--pruning-history` or with `--no-periodic-snapshot`");
+				info!("Periodic snapshot failed: the state at #{} was pruned before we could finish. Run with a longer `--pruning-history` (currently {}) or with `--no-periodic-snapshot`?", num, client.pruning_history());
+				trace!(target: "snapshot", "snapshot error: {:?}", e);
 				return Err(e);
 			} else {
 				return Err(e);
 			}
 		}
-
-		info!("Finished taking snapshot at #{}", num);
+		let end_time = std::time::Instant::now();
+		info!("Finished taking snapshot at #{}, in {:#?}", num, end_time - start_time);
 
 		let mut reader = self.reader.write();
 
@@ -528,11 +532,12 @@ impl<C> Service<C> where C: SnapshotClient + ChainInfo {
 		*reader = None;
 
 		if snapshot_dir.exists() {
+			trace!(target: "snapshot", "Removing previous snapshot at {:?}", &snapshot_dir);
 			fs::remove_dir_all(&snapshot_dir)?;
 		}
 
 		fs::rename(temp_dir, &snapshot_dir)?;
-
+		trace!(target: "snapshot", "Moved new snapshot into place at {:?}", &snapshot_dir);
 		*reader = Some(LooseReader::new(snapshot_dir)?);
 
 		guard.disarm();
@@ -655,13 +660,18 @@ impl<C> Service<C> where C: SnapshotClient + ChainInfo {
 		Ok(())
 	}
 
-	/// Import a previous chunk at the given path. Returns whether the block was imported or not
-	fn import_prev_chunk(&self, restoration: &mut Option<Restoration>, manifest: &ManifestData, file: io::Result<fs::DirEntry>) -> Result<bool, Error> {
+	/// Import a previous chunk at the given path. Returns whether the chunk was imported or not
+	fn import_prev_chunk(
+		&self,
+		restoration: &mut Option<Restoration>,
+		manifest: &ManifestData,
+		file: io::Result<fs::DirEntry>
+	) -> Result<bool, Error> {
 		let file = file?;
 		let path = file.path();
 
 		let mut file = File::open(path.clone())?;
-		let mut buffer = Vec::new();
+		let mut buffer = Vec::new(); // todo[dvdplm] estimate size and allocate up-front.
 		file.read_to_end(&mut buffer)?;
 
 		let hash = keccak(&buffer);
@@ -671,6 +681,7 @@ impl<C> Service<C> where C: SnapshotClient + ChainInfo {
 		} else if manifest.state_hashes.contains(&hash) {
 			true
 		} else {
+			warn!(target: "snapshot", "Hash of the content of {:?} not present in the manifest block/state hashes.", path);
 			return Ok(false);
 		};
 
@@ -681,11 +692,10 @@ impl<C> Service<C> where C: SnapshotClient + ChainInfo {
 		Ok(true)
 	}
 
-	// finalize the restoration. this accepts an already-locked
-	// restoration as an argument -- so acquiring it again _will_
-	// lead to deadlock.
+	// Finalize the restoration. This accepts an already-locked restoration as an argument -- so
+	// acquiring it again _will_ lead to deadlock.
 	fn finalize_restoration(&self, rest: &mut Option<Restoration>) -> Result<(), Error> {
-		trace!(target: "snapshot", "finalizing restoration");
+		trace!(target: "snapshot", "Finalizing restoration");
 		*self.status.lock() = RestorationStatus::Finalizing;
 
 		let recover = rest.as_ref().map_or(false, |rest| rest.writer.is_some());
@@ -696,7 +706,7 @@ impl<C> Service<C> where C: SnapshotClient + ChainInfo {
 			.unwrap_or(Ok(()))?;
 
 		let migrated_blocks = self.migrate_blocks()?;
-		info!(target: "snapshot", "Migrated {} ancient blocks", migrated_blocks);
+		info!(target: "snapshot", "Migrated {} ancient blocks from the old DB", migrated_blocks);
 
 		// replace the Client's database with the new one (restart the Client).
 		self.client.restore_db(&*self.restoration_db().to_string_lossy())?;
@@ -708,11 +718,11 @@ impl<C> Service<C> where C: SnapshotClient + ChainInfo {
 			let snapshot_dir = self.snapshot_dir();
 
 			if snapshot_dir.exists() {
-				trace!(target: "snapshot", "removing old snapshot dir at {}", snapshot_dir.to_string_lossy());
+				trace!(target: "snapshot", "Removing old snapshot dir at {}", snapshot_dir.to_string_lossy());
 				fs::remove_dir_all(&snapshot_dir)?;
 			}
 
-			trace!(target: "snapshot", "copying restored snapshot files over");
+			trace!(target: "snapshot", "Copying restored snapshot files over");
 			fs::rename(self.temp_recovery_dir(), &snapshot_dir)?;
 
 			*reader = Some(LooseReader::new(snapshot_dir)?);

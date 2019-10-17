@@ -130,7 +130,6 @@ pub fn take_snapshot<W: SnapshotWriter + Send>(
 	let block_number = start_header.number();
 
 	info!("Taking snapshot starting at block #{}/{:?}", block_number, block_hash);
-
 	let version = chunker.current_version();
 	let writer = Mutex::new(writer);
 	let (state_hashes, block_hashes) = thread::scope(|scope| -> Result<(Vec<H256>, Vec<H256>), Error> {
@@ -149,13 +148,11 @@ pub fn take_snapshot<W: SnapshotWriter + Send>(
 		for thread_idx in 0..num_threads {
 			let state_guard = scope.spawn(move |_| -> Result<Vec<H256>, Error> {
 				let mut chunk_hashes = Vec::new();
-
 				for part in (thread_idx..SNAPSHOT_SUBPARTS).step_by(num_threads) {
-					debug!(target: "snapshot", "Chunking part {} in thread {}", part, thread_idx);
+					debug!(target: "snapshot", "Chunking part {} of the state at {} in thread {}", part, block_number, thread_idx);
 					let mut hashes = chunk_state(state_db, &state_root, writer, p, Some(part), thread_idx)?;
 					chunk_hashes.append(&mut hashes);
 				}
-
 				Ok(chunk_hashes)
 			});
 			state_guards.push(state_guard);
@@ -170,6 +167,7 @@ pub fn take_snapshot<W: SnapshotWriter + Send>(
 		}
 
 		debug!(target: "snapshot", "Took a snapshot of {} accounts", p.accounts.load(Ordering::SeqCst));
+
 		Ok((state_hashes, block_hashes))
 	}).expect("Sub-thread never panics; qed")?;
 
@@ -327,7 +325,7 @@ pub fn chunk_state<'a>(
 	if let Some(part) = part {
 		assert!(part < 16, "Wrong chunk state part number (must be <16) in snapshot creation.");
 
-		let part_offset = MAX_SNAPSHOT_SUBPARTS / SNAPSHOT_SUBPARTS;
+		let part_offset = MAX_SNAPSHOT_SUBPARTS / SNAPSHOT_SUBPARTS; // 16
 		let mut seek_from = vec![0; 32];
 		seek_from[0] = (part * part_offset) as u8;
 		account_iter.seek(&seek_from)?;

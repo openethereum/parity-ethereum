@@ -70,9 +70,10 @@ impl<C: 'static> Broadcast for Mutex<IoChannel<ClientIoMessage<C>>> {
 pub struct Watcher {
 	oracle: Box<dyn Oracle>,
 	broadcast: Box<dyn Broadcast>,
-	// how often to take periodic snapshots.
+	// How often we attempt to take a snapshot: only snapshot on blocknumbers that are multiples of
+	// `period`. Always set to `SNAPSHOT_PERIOD`, i.e. 5000.
 	period: u64,
-	// how many blocks to wait before starting a periodic snapshot.
+	// Start snapshots `history` blocks from the tip. Always set to `SNAPSHOT_HISTORY`, i.e. 100.
 	history: u64,
 }
 
@@ -115,9 +116,7 @@ impl ChainNotify for Watcher {
 			return
 		}
 
-		trace!(target: "snapshot_watcher", "{} blocks imported", new_blocks.imported.len());
-
-		// Decide if the imported blocks is the new "best block".
+		// Decide if it's time for a snapshot: the highest of the imported blocks is .
 		let highest = new_blocks.imported.into_iter()
 			// Convert block hashes to block numbers for all newly imported blocks
 			.filter_map(|h| self.oracle.to_number(h))
@@ -127,18 +126,19 @@ impl ChainNotify for Watcher {
 			.filter(|&num| num >= self.period + self.history)
 			// Subtract `history` (i.e. `SNAPSHOT_HISTORY`, i.e. 100) from the block numbers.
 			// todo:    why? Here we back off 100 blocks such that the final block
-			//          number from which we start the snapshot is "(new) best block" - 100)
+			//          number from which we start the snapshot is "(new) highest block" - 100)
+			//          Maybe we do this to avoid IO contention on the tip? Or for reorgs? If the
+			//          latter, it should be maybe be higher?
 			.map(|num| num - self.history)
-			// …filter out blocks that do not fall on the a multiple of `period`
-			// todo:    why? it means we only ever start a snapshot on blocks that are multiples of
-			//          5000 but I fail to see the point of that.
-			.filter(|num| num % self.period == 0)
-			// Pick biggest block number of the candidates: this is where we want to snapshot from.
+			// …filter out blocks that do not fall on the a multiple of `period`. This regulates the
+			// frequency of snapshots and ensures more snapshots are produced from similar points in
+			// the chain.
+			.filter(|num| num % self.period == 0 )
+			// Pick newest of the candidates: this is where we want to snapshot from.
 			.fold(0, ::std::cmp::max);
 
-		match highest {
-			0 => self.broadcast.take_at(None),
-			_ => self.broadcast.take_at(Some(highest)),
+		if highest > 0 {
+			self.broadcast.take_at(Some(highest));
 		}
 	}
 }

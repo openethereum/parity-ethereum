@@ -268,7 +268,7 @@ impl SnapshotCommand {
 				if cur_size != last_size {
 					last_size = cur_size;
 					let bytes = ::informant::format_bytes(cur_size as usize);
-					info!("Snapshot: {} accounts {} blocks {}", p.accounts(), p.blocks(), bytes);
+					info!("Snapshot: {} accounts (state), {} blocks, {} bytes", p.accounts(), p.blocks(), bytes);
 				}
 
 				::std::thread::sleep(Duration::from_secs(5));

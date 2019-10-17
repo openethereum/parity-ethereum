@@ -277,7 +277,6 @@ where
 							EthcoreError::Snapshot(SnapshotError::SnapshotAborted) => info!("Snapshot aborted"),
 							_ => warn!("Failed to take snapshot at block #{}: {}", num, e),
 						}
-
 					}
 				});
 
