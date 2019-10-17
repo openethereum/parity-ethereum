@@ -30,7 +30,7 @@ use ethcore::{
 	miner::{self, MinerService},
 };
 use ethereum_types::Address;
-use ethkey::Secret;
+use parity_crypto::publickey::Secret;
 use keccak_hash::keccak;
 use lazy_static::lazy_static;
 use log::trace;
