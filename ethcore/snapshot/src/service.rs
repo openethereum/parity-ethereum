@@ -671,7 +671,8 @@ impl<C> Service<C> where C: SnapshotClient + ChainInfo {
 		let path = file.path();
 
 		let mut file = File::open(path.clone())?;
-		let mut buffer = Vec::new(); // todo[dvdplm] estimate size and allocate up-front.
+		let filesize = file.metadata()?.len();
+		let mut buffer = Vec::with_capacity(filesize as usize + 1); // +1 for EOF
 		file.read_to_end(&mut buffer)?;
 
 		let hash = keccak(&buffer);
