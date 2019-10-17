@@ -33,7 +33,7 @@ pub struct EcdsaSigningJob {
 	nonce_public: Public,
 	/// Request id.
 	request_id: Option<Secret>,
-	///
+	/// ECDSA reversed-nonce coefficient
 	inversed_nonce_coeff: Option<Secret>,
 	/// Message hash.
 	message_hash: Option<H256>,
@@ -43,7 +43,7 @@ pub struct EcdsaSigningJob {
 pub struct EcdsaPartialSigningRequest {
 	/// Request id.
 	pub id: Secret,
-	///
+	/// ECDSA reversed-nonce coefficient
 	pub inversed_nonce_coeff: Secret,
 	/// Message hash to sign.
 	pub message_hash: H256,

@@ -633,7 +633,7 @@ pub struct EcdsaRequestPartialSignature {
 	pub session_nonce: u64,
 	/// Request id.
 	pub request_id: SerializableSecret,
-	///
+	/// ECDSA reversed-nonce coefficient
 	pub inversed_nonce_coeff: SerializableSecret,
 	/// Message hash.
 	pub message_hash: SerializableMessageHash,
