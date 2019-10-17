@@ -1236,6 +1236,11 @@ impl miner::MinerService for Miner {
 					let prev_gas = if index == 0 { Default::default() } else { receipts[index - 1].gas_used };
 					let receipt = &receipts[index];
 					RichReceipt {
+						from: tx.sender(),
+						to: match tx.action {
+							Action::Create => None,
+							Action::Call(ref address) => Some(*address),
+						},
 						transaction_hash: tx.hash(),
 						transaction_index: index,
 						cumulative_gas_used: receipt.gas_used,

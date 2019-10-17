@@ -129,6 +129,10 @@ pub struct RichReceipt {
 	pub log_bloom: Bloom,
 	/// Transaction outcome.
 	pub outcome: TransactionOutcome,
+	/// Receiver address
+	pub to: Option<H160>,
+	/// Sender
+	pub from: H160
 }
 
 /// Receipt with additional info.
