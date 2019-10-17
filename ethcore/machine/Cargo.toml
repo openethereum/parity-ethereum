@@ -37,7 +37,7 @@ common-types = { path = "../types", features = ["test-helpers"] }
 ethcore = { path = "../", features = ["test-helpers"] }
 ethcore-io = { path = "../../util/io" }
 ethjson = { path = "../../json" }
-ethkey = { path = "../../accounts/ethkey" }
+parity-crypto = { git = "https://github.com/paritytech/parity-common/", rev = "669933f", features = ["publickey"] }
 macros = { path = "../../util/macros" }
 rustc-hex = "1.0"
 spec = { path = "../spec" }
