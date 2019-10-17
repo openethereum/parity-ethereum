@@ -24,7 +24,6 @@ impl Generator for Random {
 	type Error = std::io::Error;
 
 	fn generate(&mut self) -> Result<KeyPair, Self::Error> {
-		// TODO(niklasad1): Generator::generate always returns `Ok`, then use expect instead?!
 		Generator::generate(&mut OsRng).map_err(|void| {
 			match void {} // LLVM unreachable
 		})
