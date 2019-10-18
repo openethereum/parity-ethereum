@@ -16,7 +16,7 @@
 
 use crypto::publickey::{KeyPair, sign, Address, Signature, Message, Public, Secret};
 use ethkey::Password;
-use crypto::publickey::ecdh::{agree};
+use crypto::publickey::ecdh::agree;
 use {json, Error};
 use account::Version;
 use crypto;

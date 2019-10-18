@@ -14,7 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
-use super::{Brain};
+use super::Brain;
 use parity_crypto::publickey::{Generator, KeyPair, Error};
 use parity_wordlist as wordlist;
 
@@ -60,7 +60,7 @@ impl Generator for BrainPrefix {
 
 #[cfg(test)]
 mod tests {
-	use {BrainPrefix};
+	use BrainPrefix;
 	use parity_crypto::publickey::Generator;
 
 	#[test]

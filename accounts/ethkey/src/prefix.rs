@@ -48,7 +48,7 @@ impl Generator for Prefix {
 
 #[cfg(test)]
 mod tests {
-	use {Prefix};
+	use Prefix;
 	use parity_crypto::publickey::Generator;
 
 	#[test]

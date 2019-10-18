@@ -16,7 +16,7 @@
 
 use std::convert::Infallible;
 use parity_crypto::publickey::{KeyPair, Generator, Secret};
-use parity_crypto::{Keccak256};
+use parity_crypto::Keccak256;
 use parity_wordlist;
 
 /// Simple brainwallet.
@@ -62,7 +62,7 @@ impl Generator for Brain {
 
 #[cfg(test)]
 mod tests {
-	use {Brain};
+	use Brain;
 	use parity_crypto::publickey::Generator;
 
 	#[test]
