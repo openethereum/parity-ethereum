@@ -515,16 +515,11 @@ impl<C> Service<C> where C: SnapshotClient + ChainInfo {
 			let writer = LooseWriter::new(temp_dir.clone())?;
 
 			let guard = Guard::new(temp_dir.clone());
-			let res = client.take_snapshot(writer, BlockId::Number(num), &self.progress);
-
-			if res.is_err() {
-				return res
-			}
+			let _ = client.take_snapshot(writer, BlockId::Number(num), &self.progress)?;
 			info!("Finished taking snapshot at #{}, in {:#?}", num, start_time.elapsed());
 
-			let mut reader = self.reader.write();
-
 			// destroy the old snapshot reader.
+			let mut reader = self.reader.write();
 			*reader = None;
 
 			if snapshot_dir.exists() {

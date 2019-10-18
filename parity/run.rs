@@ -73,7 +73,7 @@ use registrar::RegistrarClient;
 const SNAPSHOT_PERIOD: u64 = 50;
 
 // Start snapshots `history` blocks from the tip.
- const SNAPSHOT_HISTORY: u64 = 100;
+const SNAPSHOT_HISTORY: u64 = 100;
 
 // Number of minutes before a given gas price corpus should expire.
 // Light client only.
