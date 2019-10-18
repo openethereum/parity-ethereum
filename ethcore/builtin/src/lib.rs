@@ -18,7 +18,7 @@
 
 use std::{
 	cmp::{max, min},
-	convert::TryFrom,
+	convert::{TryFrom, TryInto},
 	io::{self, Read, Cursor},
 	mem::size_of,
 };
@@ -56,11 +56,14 @@ pub type Blake2FPricer = u64;
 
 impl Pricer for Blake2FPricer {
 	fn cost(&self, input: &[u8], _at: u64) -> U256 {
-		use std::convert::TryInto;
-		let (rounds_bytes, _) = input.split_at(std::mem::size_of::<u32>());
+		const FOUR: usize = std::mem::size_of::<u32>();
 		// Returning zero if the conversion fails is fine because `execute()` will check the length
 		// and bail with the appropriate error.
-		let rounds = u32::from_be_bytes(rounds_bytes.try_into().unwrap_or([0u8; 4]));
+		if input.len() < FOUR {
+			return U256::zero();
+		}
+		let (rounds_bytes, _) = input.split_at(FOUR);
+		let rounds = u32::from_be_bytes(rounds_bytes.try_into().unwrap_or([0u8; FOUR]));
 		U256::from(*self as u128 * rounds as u128)
 	}
 }
