@@ -510,7 +510,7 @@ impl<C> Service<C> where C: SnapshotClient + ChainInfo {
 			let temp_dir = self.temp_snapshot_dir();
 			let snapshot_dir = self.snapshot_dir();
 
-			let _ = fs::remove_dir_all(&temp_dir)?;
+			let _ = fs::remove_dir_all(&temp_dir); // expected to fail
 
 			let writer = LooseWriter::new(temp_dir.clone())?;
 
