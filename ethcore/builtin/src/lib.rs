@@ -60,7 +60,11 @@ impl Pricer for Blake2FPricer {
 		const FOUR: usize = std::mem::size_of::<u32>();
 		// Returning zero if the conversion fails is fine because `execute()` will check the length
 		// and bail with the appropriate error.
-		let rounds = u32::from_be_bytes(rounds_bytes.try_into().unwrap_or([0u8; 4]));
+		if input.len() < FOUR {
+			return U256::zero();
+		}
+		let (rounds_bytes, _) = input.split_at(FOUR);
+		let rounds = u32::from_be_bytes(rounds_bytes.try_into().unwrap_or([0u8; FOUR]));
 		U256::from(*self as u128 * rounds as u128)
 	}
 }
