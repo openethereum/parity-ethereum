@@ -109,7 +109,7 @@ impl ChainNotify for Watcher {
 			return
 		}
 
-		// Decide if it's time for a snapshot: the highest of the imported blocks is .
+		// Decide if it's time for a snapshot: the highest of the imported blocks is a multiple of 5000?
 		let highest = new_blocks.imported.into_iter()
 			// Convert block hashes to block numbers for all newly imported blocks
 			.filter_map(|h| self.oracle.to_number(h))
