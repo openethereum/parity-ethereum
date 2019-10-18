@@ -49,7 +49,8 @@ pub struct Receipt {
 	/// Logs bloom
 	pub logs_bloom: H2048,
 	/// Status code
-	#[serde(rename = "status")]
+	// NOTE(niklasad1): Unknown after EIP98 rules, if it's missing then skip serializing it
+	#[serde(skip_serializing_if = "Option::is_none", rename = "status")]
 	pub status_code: Option<U64>,
 }
 
