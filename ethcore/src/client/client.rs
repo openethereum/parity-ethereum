@@ -469,7 +469,7 @@ impl Importer {
 		{
 			trace_time!("import_old_block");
 			// verify the block, passing the chain for updating the epoch verifier.
-			let mut rng = OsRng::new().map_err(|e| format!("{}", e))?;
+			let mut rng = OsRng;
 			self.ancient_verifier.verify(&mut rng, &unverified.header, &chain)?;
 
 			// Commit results

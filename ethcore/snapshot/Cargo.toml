@@ -28,9 +28,9 @@ keccak-hasher = { path = "../../util/keccak-hasher" }
 kvdb = "0.1"
 log = "0.4.8"
 num_cpus = "1.10.1"
+rand = "0.7"
+rand_xorshift = "0.2"
 parking_lot = "0.9"
-rand = "0.6"
-rand_xorshift = "0.1.1"
 rlp = "0.4.2"
 rlp_derive = { path = "../../util/rlp-derive" }
 snappy = { package = "parity-snappy", version ="0.1.0" }

@@ -21,14 +21,12 @@ use super::{Generator, KeyPair, SECP256K1};
 pub struct Random;
 
 impl Generator for Random {
-	type Error = ::std::io::Error;
+	type Error = std::io::Error;
 
 	fn generate(&mut self) -> Result<KeyPair, Self::Error> {
-		let mut rng = OsRng::new()?;
-		match rng.generate() {
-			Ok(pair) => Ok(pair),
-			Err(void) => match void {}, // LLVM unreachable
-		}
+		Generator::generate(&mut OsRng).map_err(|void| {
+			match void {} // LLVM unreachable
+		})
 	}
 }
 
