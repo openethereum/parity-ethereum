@@ -2556,7 +2556,8 @@ impl SnapshotClient for Client {
 
 		let (actual_block_nr, block_hash) = match at {
 			BlockId::Latest => {
-				// Start `self.history` blocks from the best block, but no further back than 1000 blocks.
+				// Start `self.history` blocks from the best block, but no further back than 1000
+				// blocks (or earliest era, whichever is greatest).
 				let history = cmp::min(self.history, 1000);
 				let best_block_number = self.chain_info().best_block_number;
 				let start_num = cmp::max(earliest_era, best_block_number.saturating_sub(history));
@@ -2579,6 +2580,7 @@ impl SnapshotClient for Client {
 		trace!(target: "snapshot", "Snapshot requested at block {:?}. Using block #{}/{:?}. Earliest block: #{}, earliest state era #{}. Using {} threads.",
 			at, actual_block_nr, block_hash, self.pruning_info().earliest_chain, earliest_era, processing_threads,
 		);
+		// Stop pruning from happening while the snapshot is under way.
 		self.snapshotting_at.write().store(actual_block_nr, Ordering::SeqCst);
 		{
 			scopeguard::defer! {{
@@ -2586,6 +2588,7 @@ impl SnapshotClient for Client {
 				self.snapshotting_at.write().store(0, Ordering::SeqCst)
 			}};
 			let chunker = snapshot::chunker(self.engine.snapshot_mode()).ok_or_else(|| SnapshotError::SnapshotsUnsupported)?;
+			// Spawn threads and take snapshot
 			snapshot::take_snapshot(
 				chunker,
 				&self.chain.read(),
@@ -2598,8 +2601,6 @@ impl SnapshotClient for Client {
 			Ok(())
 		}
 	}
-
-
 }
 
 impl ImportExportBlocks for Client {

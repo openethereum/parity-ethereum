@@ -500,48 +500,45 @@ impl<C> Service<C> where C: SnapshotClient + ChainInfo {
 		}
 
 		info!("Taking snapshot at #{}", num);
-		let start_time = std::time::Instant::now();
-		self.progress.reset();
+		{
+			scopeguard::defer! {{
+				self.taking_snapshot.store(false, Ordering::SeqCst);
+			}}
+			let start_time = std::time::Instant::now();
+			self.progress.reset();
 
-		let temp_dir = self.temp_snapshot_dir();
-		let snapshot_dir = self.snapshot_dir();
+			let temp_dir = self.temp_snapshot_dir();
+			let snapshot_dir = self.snapshot_dir();
 
-		let _ = fs::remove_dir_all(&temp_dir);
+			let _ = fs::remove_dir_all(&temp_dir)?;
 
-		let writer = LooseWriter::new(temp_dir.clone())?;
+			let writer = LooseWriter::new(temp_dir.clone())?;
 
-		let guard = Guard::new(temp_dir.clone());
-		let res = client.take_snapshot(writer, BlockId::Number(num), &self.progress);
-		self.taking_snapshot.store(false, Ordering::SeqCst);
-		if let Err(e) = res {
-			// TODO[dvdplm]: when freezing pruning this condition is always met, causing this message to be logged at shutdown.
-			if client.chain_info().best_block_number >= num + client.pruning_history() {
-				info!("Periodic snapshot failed: the state at #{} was pruned before we could finish. Run with a longer `--pruning-history` (currently {}) or with `--no-periodic-snapshot`?", num, client.pruning_history());
-				trace!(target: "snapshot", "snapshot error: {:?}", e);
-				return Err(e);
-			} else {
-				return Err(e);
+			let guard = Guard::new(temp_dir.clone());
+			let res = client.take_snapshot(writer, BlockId::Number(num), &self.progress);
+
+			if res.is_err() {
+				return res
 			}
+			info!("Finished taking snapshot at #{}, in {:#?}", num, start_time.elapsed());
+
+			let mut reader = self.reader.write();
+
+			// destroy the old snapshot reader.
+			*reader = None;
+
+			if snapshot_dir.exists() {
+				trace!(target: "snapshot", "Removing previous snapshot at {:?}", &snapshot_dir);
+				fs::remove_dir_all(&snapshot_dir)?;
+			}
+
+			fs::rename(temp_dir, &snapshot_dir)?;
+			trace!(target: "snapshot", "Moved new snapshot into place at {:?}", &snapshot_dir);
+			*reader = Some(LooseReader::new(snapshot_dir)?);
+
+			guard.disarm();
+			Ok(())
 		}
-		let end_time = std::time::Instant::now();
-		info!("Finished taking snapshot at #{}, in {:#?}", num, end_time - start_time);
-
-		let mut reader = self.reader.write();
-
-		// destroy the old snapshot reader.
-		*reader = None;
-
-		if snapshot_dir.exists() {
-			trace!(target: "snapshot", "Removing previous snapshot at {:?}", &snapshot_dir);
-			fs::remove_dir_all(&snapshot_dir)?;
-		}
-
-		fs::rename(temp_dir, &snapshot_dir)?;
-		trace!(target: "snapshot", "Moved new snapshot into place at {:?}", &snapshot_dir);
-		*reader = Some(LooseReader::new(snapshot_dir)?);
-
-		guard.disarm();
-		Ok(())
 	}
 
 	/// Initialize the restoration synchronously.

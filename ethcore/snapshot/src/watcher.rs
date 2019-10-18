@@ -49,14 +49,7 @@ impl<F> Oracle for StandardOracle<F>
 }
 
 impl<C: 'static> Broadcast for Mutex<IoChannel<ClientIoMessage<C>>> {
-	fn take_at(&self, num: Option<u64>) {
-		let num = match num {
-			Some(n) => n,
-			None => return,
-		};
-
-		trace!(target: "snapshot_watcher", "Requesting snapshot at block #{}", num);
-
+	fn request_snapshot_at(&self, num: u64) {
 		if let Err(e) = self.lock().send(ClientIoMessage::TakeSnapshot(num)) {
 			warn!(target: "snapshot_watcher", "Snapshot watcher disconnected from IoService: {}", e);
 		} else {
@@ -138,7 +131,7 @@ impl ChainNotify for Watcher {
 			.fold(0, ::std::cmp::max);
 
 		if highest > 0 {
-			self.broadcast.take_at(Some(highest));
+			self.broadcast.request_snapshot_at(highest);
 		}
 	}
 }
