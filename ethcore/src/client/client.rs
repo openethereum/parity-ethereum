@@ -205,7 +205,7 @@ pub struct Client {
 	pruning: journaldb::Algorithm,
 
 	/// Don't prune the state we're currently snapshotting
-	snapshotting_at: RwLock<AtomicU64>,
+	snapshotting_at: AtomicU64,
 
 	/// Client uses this to store blocks, traces, etc.
 	db: RwLock<Arc<dyn BlockChainDB>>,
@@ -783,7 +783,7 @@ impl Client {
 			tracedb,
 			engine,
 			pruning: config.pruning.clone(),
-			snapshotting_at: RwLock::new(AtomicU64::new(0)),
+			snapshotting_at: AtomicU64::new(0),
 			db: RwLock::new(db.clone()),
 			state_db: RwLock::new(state_db),
 			report: RwLock::new(Default::default()),
@@ -984,7 +984,7 @@ impl Client {
 
 			match state_db.journal_db().earliest_era() {
 				Some(earliest_era) if earliest_era + self.history <= latest_era => {
-					let freeze_at = self.snapshotting_at.read().load(Ordering::SeqCst); // todo[dvdplm]: can be `Acquire` I think?
+					let freeze_at = self.snapshotting_at.load(Ordering::SeqCst); // todo[dvdplm]: can be `Acquire` I think?
 					if freeze_at > 0 && freeze_at == earliest_era {
 						trace!(target: "pruning", "Pruning is freezed at era {}; earliest era={}, latest era={}, journal_size={}, mem_used={}. Not pruning.",
 						       freeze_at, earliest_era, latest_era, state_db.journal_db().journal_size(), state_db.journal_db().mem_used());
@@ -2581,11 +2581,11 @@ impl SnapshotClient for Client {
 			at, actual_block_nr, block_hash, self.pruning_info().earliest_chain, earliest_era, processing_threads,
 		);
 		// Stop pruning from happening while the snapshot is under way.
-		self.snapshotting_at.write().store(actual_block_nr, Ordering::SeqCst);
+		self.snapshotting_at.store(actual_block_nr, Ordering::SeqCst);
 		{
 			scopeguard::defer! {{
 				trace!(target: "snapshot", "(defer) Unfreezing pruning, setting snapshotting_at back to 0");
-				self.snapshotting_at.write().store(0, Ordering::SeqCst)
+				self.snapshotting_at.store(0, Ordering::SeqCst)
 			}};
 			let chunker = snapshot::chunker(self.engine.snapshot_mode()).ok_or_else(|| SnapshotError::SnapshotsUnsupported)?;
 			// Spawn threads and take snapshot
