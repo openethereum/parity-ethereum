@@ -122,6 +122,7 @@ pub struct RichReceipt {
 	/// The gas used in the execution of the transaction. Note the difference of meaning to `Receipt::gas_used`.
 	pub gas_used: U256,
 	/// Contract address.
+	/// NOTE: It is an Option because only `Action::Create` transactions has a contract address
 	pub contract_address: Option<Address>,
 	/// Logs
 	pub logs: Vec<LogEntry>,
@@ -130,6 +131,7 @@ pub struct RichReceipt {
 	/// Transaction outcome.
 	pub outcome: TransactionOutcome,
 	/// Receiver address
+	/// NOTE: It is an Option because only `Action::Call` transactions has a receiver address
 	pub to: Option<H160>,
 	/// Sender
 	pub from: H160
@@ -151,6 +153,7 @@ pub struct LocalizedReceipt {
 	/// The gas used in the execution of the transaction. Note the difference of meaning to `Receipt::gas_used`.
 	pub gas_used: U256,
 	/// Contract address.
+	/// NOTE: It is an Option because only `Action::Create` transactions has a contract address
 	pub contract_address: Option<Address>,
 	/// Logs
 	pub logs: Vec<LocalizedLogEntry>,
@@ -159,6 +162,7 @@ pub struct LocalizedReceipt {
 	/// Transaction outcome.
 	pub outcome: TransactionOutcome,
 	/// Receiver address
+	/// NOTE: It is an Option because only `Action::Call` transactions has a receiver address
 	pub to: Option<H160>,
 	/// Sender
 	pub from: H160
