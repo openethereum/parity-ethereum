@@ -712,6 +712,19 @@ mod tests {
 	}
 
 	#[test]
+	fn blake2f_cost_on_invalid_length() {
+		let f = Builtin {
+			pricer: Box::new(123),
+			native: ethereum_builtin("blake2_f").expect("known builtin"),
+			activate_at: 0,
+		};
+		// invalid input (too short)
+		let input = hex!("00");
+
+		assert_eq!(f.cost(&input[..], 0), U256::from(0));
+	}
+
+	#[test]
 	fn blake2_f_is_err_on_invalid_length() {
 		let blake2 = ethereum_builtin("blake2_f").expect("known builtin");
 		// Test vector 1 and expected output from https://github.com/ethereum/EIPs/blob/master/EIPS/eip-152.md#test-vector-1
