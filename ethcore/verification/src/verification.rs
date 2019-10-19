@@ -61,6 +61,14 @@ pub fn verify_block_basic(block: &Unverified, engine: &dyn Engine, check_seal: b
 		}
 	}
 
+	if let Some(gas_limit) = engine.gas_limit_override(&block.header) {
+		if *block.header.gas_limit() != gas_limit {
+			return Err(From::from(BlockError::InvalidGasLimit(
+				OutOfBounds { min: Some(gas_limit), max: Some(gas_limit), found: *block.header.gas_limit() }
+			)));
+		}
+	}
+
 	for t in &block.transactions {
 		engine.verify_transaction_basic(t, &block.header)?;
 	}
@@ -284,6 +292,25 @@ pub(crate) fn verify_header_params(header: &Header, engine: &dyn Engine, check_s
 			found: *header.gas_used()
 		})));
 	}
+	if engine.gas_limit_override(header).is_none() {
+		let min_gas_limit = engine.min_gas_limit();
+		if header.gas_limit() < &min_gas_limit {
+			return Err(From::from(BlockError::InvalidGasLimit(OutOfBounds {
+				min: Some(min_gas_limit),
+				max: None,
+				found: *header.gas_limit()
+			})));
+		}
+		if let Some(limit) = engine.maximum_gas_limit() {
+			if header.gas_limit() > &limit {
+				return Err(From::from(BlockError::InvalidGasLimit(OutOfBounds {
+					min: None,
+					max: Some(limit),
+					found: *header.gas_limit()
+				})));
+			}
+		}
+	}
 	let maximum_extra_data_size = engine.maximum_extra_data_size();
 	if header.number() != 0 && header.extra_data().len() > maximum_extra_data_size {
 		return Err(From::from(BlockError::ExtraDataOutOfBounds(OutOfBounds {
@@ -341,8 +368,6 @@ fn verify_parent(header: &Header, parent: &Header, engine: &dyn Engine) -> Resul
 	assert!(header.parent_hash().is_zero() || &parent.hash() == header.parent_hash(),
 			"Parent hash should already have been verified; qed");
 
-	let gas_limit_divisor = engine.params().gas_limit_bound_divisor;
-
 	if !engine.is_timestamp_valid(header.timestamp(), parent.timestamp()) {
 		let now = SystemTime::now();
 		let min = CheckedSystemTime::checked_add(now, Duration::from_secs(parent.timestamp().saturating_add(1)))
@@ -365,31 +390,8 @@ fn verify_parent(header: &Header, parent: &Header, engine: &dyn Engine) -> Resul
 			found: header.number()
 		}).into());
 	}
-	if let Some(gas_limit) = engine.gas_limit_override(header) {
-		if *header.gas_limit() != gas_limit {
-			return Err(BlockError::InvalidGasLimit(
-				OutOfBounds { min: Some(gas_limit), max: Some(gas_limit), found: *header.gas_limit() }
-			).into());
-		}
-	} else {
-		let min_gas_limit = engine.params().min_gas_limit;
-		if header.gas_limit() < &min_gas_limit {
-			return Err(From::from(BlockError::InvalidGasLimit(OutOfBounds {
-				min: Some(min_gas_limit),
-				max: None,
-				found: *header.gas_limit()
-			})));
-		}
-		if let Some(limit) = engine.maximum_gas_limit() {
-			if header.gas_limit() > &limit {
-				return Err(From::from(BlockError::InvalidGasLimit(OutOfBounds {
-					min: None,
-					max: Some(limit),
-					found: *header.gas_limit()
-				})));
-			}
-		}
-
+	if engine.gas_limit_override(header).is_none() {
+		let gas_limit_divisor = engine.params().gas_limit_bound_divisor;
 		let parent_gas_limit = *parent.gas_limit();
 		let min_gas = parent_gas_limit - parent_gas_limit / gas_limit_divisor;
 		let max_gas = parent_gas_limit + parent_gas_limit / gas_limit_divisor;
@@ -658,9 +660,8 @@ mod tests {
 		header.set_uncles_hash(good_uncles_hash.clone());
 		check_ok(basic_test(&create_test_block_with_data(&header, &good_transactions, &good_uncles), engine));
 
-		header = good.clone();
 		header.set_gas_limit(min_gas_limit - 1);
-		check_fail(family_test(&create_test_block(&header), engine, &bc),
+		check_fail(basic_test(&create_test_block(&header), engine),
 			InvalidGasLimit(OutOfBounds { min: Some(min_gas_limit), max: None, found: header.gas_limit().clone() }));
 
 		header = good.clone();

@@ -52,6 +52,7 @@ use machine::{
 use macros::map;
 use keccak_hash::keccak;
 use log::{info, debug, error, trace, warn};
+use lru_cache::LruCache;
 use engine::signer::EngineSigner;
 use parity_crypto::publickey::Signature;
 use io::{IoContext, IoHandler, TimerToken, IoService};
@@ -130,6 +131,9 @@ pub struct AuthorityRoundParams {
 }
 
 const U16_MAX: usize = ::std::u16::MAX as usize;
+
+/// The number of recent block hashes for which the gas limit override is memoized.
+const GAS_LIMIT_OVERRIDE_CACHE_CAPACITY: usize = 10;
 
 impl From<ethjson::spec::AuthorityRoundParams> for AuthorityRoundParams {
 	fn from(p: ethjson::spec::AuthorityRoundParams) -> Self {
@@ -577,6 +581,8 @@ pub struct AuthorityRound {
 	randomness_contract_address: BTreeMap<u64, Address>,
 	/// The addresses of contracts that determine the block gas limit.
 	block_gas_limit_contract_transitions: BTreeMap<u64, Address>,
+	/// Memoized gas limit overrides, by block hash.
+	gas_limit_override_cache: Mutex<LruCache<H256, Option<U256>>>,
 }
 
 // header-chain validator.
@@ -880,6 +886,7 @@ impl AuthorityRound {
 				received_step_hashes: RwLock::new(Default::default()),
 				randomness_contract_address: our_params.randomness_contract_address,
 				block_gas_limit_contract_transitions: our_params.block_gas_limit_contract_transitions,
+				gas_limit_override_cache: Mutex::new(LruCache::new(GAS_LIMIT_OVERRIDE_CACHE_CAPACITY)),
 			});
 
 		// Do not initialize timeouts for tests.
@@ -1872,7 +1879,12 @@ impl Engine for AuthorityRound {
 				return None;
 			}
 		};
-		block_gas_limit(full_client, header, address)
+		if let Some(limit) = self.gas_limit_override_cache.lock().get_mut(&header.hash()) {
+			return *limit;
+		}
+		let limit = block_gas_limit(full_client, header, address);
+		self.gas_limit_override_cache.lock().insert(header.hash(), limit);
+		limit
 	}
 }
 
