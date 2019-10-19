@@ -39,7 +39,7 @@ use ethcore_io::IoChannel;
 use journaldb::Algorithm;
 use keccak_hash::keccak;
 use kvdb::DBTransaction;
-use log::{error, info, trace, warn};
+use log::{debug, error, info, trace, warn};
 use parking_lot::{Mutex, RwLock, RwLockReadGuard};
 use snappy;
 use trie_db::TrieError;
@@ -280,7 +280,7 @@ impl<C> Service<C> where C: SnapshotClient + ChainInfo {
 			state_chunks: AtomicUsize::new(0),
 			block_chunks: AtomicUsize::new(0),
 			client: params.client,
-			progress: Default::default(),
+			progress: Progress::new(),
 			taking_snapshot: AtomicBool::new(false),
 			restoring_snapshot: AtomicBool::new(false),
 		};
@@ -486,7 +486,9 @@ impl<C> Service<C> where C: SnapshotClient + ChainInfo {
 		if self.progress.done() || !self.taking_snapshot.load(Ordering::SeqCst) { return }
 
 		let p = &self.progress;
-		info!("Snapshot: {} accounts, {} blocks, {} bytes", p.accounts(), p.blocks(), p.size());
+		info!("Snapshot: {} accounts, {} blocks, {} bytes", p.accounts(), p.blocks(), p.bytes());
+		let rate = p.rate();
+		debug!(target: "snapshot", "Current progress rate: {:.0} acc/s, {:.0} bytes/s (compressed)", rate.0, rate.1);
 	}
 
 	/// Take a snapshot at the block with the given number.
@@ -516,7 +518,7 @@ impl<C> Service<C> where C: SnapshotClient + ChainInfo {
 
 			let guard = Guard::new(temp_dir.clone());
 			let _ = client.take_snapshot(writer, BlockId::Number(num), &self.progress)?;
-			info!("Finished taking snapshot at #{}, in {:#?}", num, start_time.elapsed());
+			info!("Finished taking snapshot at #{}, in {:.0?}", num, start_time.elapsed());
 
 			// destroy the old snapshot reader.
 			let mut reader = self.reader.write();

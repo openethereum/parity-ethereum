@@ -168,7 +168,7 @@ pub fn take_snapshot<W: SnapshotWriter + Send>(
 			state_hashes.extend(part_state_hashes);
 		}
 
-		debug!(target: "snapshot", "Took a snapshot of {} accounts", p.accounts.load(Ordering::SeqCst));
+		info!("Took a snapshot at #{} of {} accounts", block_number, p.accounts());
 
 		Ok((state_hashes, block_hashes))
 	}).expect("Sub-thread never panics; qed")?;
@@ -218,7 +218,7 @@ pub fn chunk_secondary<'a>(
 			trace!(target: "snapshot", "wrote secondary chunk. hash: {:x}, size: {}, uncompressed size: {}",
 				hash, size, raw_data.len());
 
-			progress.size.fetch_add(size as u64, Ordering::SeqCst);
+			progress.update(0, size);
 			chunk_hashes.push(hash);
 			Ok(())
 		};
@@ -275,8 +275,7 @@ impl<'a> StateChunker<'a> {
 		self.writer.lock().write_state_chunk(hash, compressed)?;
 		trace!(target: "snapshot", "Thread {} wrote state chunk. size: {}, uncompressed size: {}", self.thread_idx, compressed_size, raw_data.len());
 
-		self.progress.accounts.fetch_add(num_entries, Ordering::SeqCst);
-		self.progress.size.fetch_add(compressed_size as u64, Ordering::SeqCst);
+		self.progress.update(num_entries, compressed_size);
 
 		self.hashes.push(hash);
 		self.cur_size = 0;

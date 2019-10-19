@@ -973,8 +973,10 @@ impl Client {
 			None => return Ok(()),
 		};
 
-		// prune all ancient eras until we're below the memory target,
-		// but have at least the minimum number of states, i.e. `history` .
+		// Prune all ancient eras until we're below the memory target (default: 32Mb),
+		// but have at least the minimum number of states, i.e. `history`.
+		// If a snapshot is under way, no pruning happens and memory consumption is allowed to
+		// increase above the memory target until the snapshot has finished.
 		loop {
 			let needs_pruning = state_db.journal_db().journal_size() >= self.config.history_mem;
 
@@ -984,7 +986,7 @@ impl Client {
 
 			match state_db.journal_db().earliest_era() {
 				Some(earliest_era) if earliest_era + self.history <= latest_era => {
-					let freeze_at = self.snapshotting_at.load(Ordering::SeqCst); // todo[dvdplm]: can be `Acquire` I think?
+					let freeze_at = self.snapshotting_at.load(Ordering::SeqCst);
 					if freeze_at > 0 && freeze_at == earliest_era {
 						trace!(target: "pruning", "Pruning is freezed at era {}; earliest era={}, latest era={}, journal_size={}, mem_used={}. Not pruning.",
 						       freeze_at, earliest_era, latest_era, state_db.journal_db().journal_size(), state_db.journal_db().mem_used());
@@ -992,8 +994,8 @@ impl Client {
 					}
 					trace!(target: "pruning", "Pruning state for ancient era #{}; latest era={}, journal_size={}, mem_used={}.",
 					       earliest_era, latest_era, state_db.journal_db().journal_size(), state_db.journal_db().mem_used());
-// todo[dvdplm] reinstate this before merge, logging mem is expensive:
-//  trace!(target: "pruning", "Pruning state for ancient era #{}", earliest_era);
+					// todo[dvdplm] reinstate this before merge, logging mem is expensive:
+					//  trace!(target: "pruning", "Pruning state for ancient era #{}", earliest_era);
 					match chain.block_hash(earliest_era) {
 						Some(ancient_hash) => {
 							let mut batch = DBTransaction::new();
