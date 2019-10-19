@@ -30,5 +30,5 @@ pub trait Web3 {
 
 	/// Returns sha3 of the given data
 	#[rpc(name = "web3_sha3")]
-	fn sha3(&self, Bytes) -> Result<H256>;
+	fn sha3(&self, _: Bytes) -> Result<H256>;
 }

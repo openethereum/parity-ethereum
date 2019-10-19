@@ -35,19 +35,24 @@ pub trait Signer {
 
 	/// Confirm specific request.
 	#[rpc(name = "signer_confirmRequest")]
-	fn confirm_request(&self, U256, TransactionModification, String) -> BoxFuture<ConfirmationResponse>;
+	fn confirm_request(&self, _: U256, _: TransactionModification, _: String) -> BoxFuture<ConfirmationResponse>;
 
 	/// Confirm specific request with token.
 	#[rpc(name = "signer_confirmRequestWithToken")]
-	fn confirm_request_with_token(&self, U256, TransactionModification, String) -> BoxFuture<ConfirmationResponseWithToken>;
+	fn confirm_request_with_token(
+		&self,
+		_: U256,
+		_: TransactionModification,
+		_: String
+	) -> BoxFuture<ConfirmationResponseWithToken>;
 
 	/// Confirm specific request with already signed data.
 	#[rpc(name = "signer_confirmRequestRaw")]
-	fn confirm_request_raw(&self, U256, Bytes) -> Result<ConfirmationResponse>;
+	fn confirm_request_raw(&self, _: U256, _: Bytes) -> Result<ConfirmationResponse>;
 
 	/// Reject the confirmation request.
 	#[rpc(name = "signer_rejectRequest")]
-	fn reject_request(&self, U256) -> Result<bool>;
+	fn reject_request(&self, _: U256) -> Result<bool>;
 
 	/// Generates new authorization token.
 	#[rpc(name = "signer_generateAuthorizationToken")]
@@ -55,9 +60,9 @@ pub trait Signer {
 
 	/// Subscribe to new pending requests on signer interface.
 	#[pubsub(subscription = "signer_pending", subscribe, name = "signer_subscribePending")]
-	fn subscribe_pending(&self, Self::Metadata, Subscriber<Vec<ConfirmationRequest>>);
+	fn subscribe_pending(&self, _: Self::Metadata, _: Subscriber<Vec<ConfirmationRequest>>);
 
 	/// Unsubscribe from pending requests subscription.
 	#[pubsub(subscription = "signer_pending", unsubscribe, name = "signer_unsubscribePending")]
-	fn unsubscribe_pending(&self, Option<Self::Metadata>, SubscriptionId) -> Result<bool>;
+	fn unsubscribe_pending(&self, _: Option<Self::Metadata>, _: SubscriptionId) -> Result<bool>;
 }
