@@ -113,16 +113,9 @@ impl ChainNotify for Watcher {
 		let highest = new_blocks.imported.into_iter()
 			// Convert block hashes to block numbers for all newly imported blocks
 			.filter_map(|h| self.oracle.to_number(h))
-			// …only keep the new blocks that have numbers bigger than period + history
-			// todo:    this seems nonsensical: period is always 5000 and history is always 100, so
-			//          this filters out blocknumbers that are lower than 5100; what's the point of that?
-			.filter(|&num| num >= self.period + self.history)
-			// Subtract `history` (i.e. `SNAPSHOT_HISTORY`, i.e. 100) from the block numbers.
-			// todo:    why? Here we back off 100 blocks such that the final block
-			//          number from which we start the snapshot is "(new) highest block" - 100)
-			//          Maybe we do this to avoid IO contention on the tip? Or for reorgs? If the
-			//          latter, it should be maybe be higher?
-			.map(|num| num - self.history)
+			// Subtract `history` (i.e. `SNAPSHOT_HISTORY`, i.e. 100) from the block numbers to stay
+			// clear of reorgs.
+			.map(|num| num.saturating_sub(self.history) )
 			// …filter out blocks that do not fall on the a multiple of `period`. This regulates the
 			// frequency of snapshots and ensures more snapshots are produced from similar points in
 			// the chain.
