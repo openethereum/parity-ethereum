@@ -988,7 +988,7 @@ impl Client {
 				Some(earliest_era) if earliest_era + self.history <= latest_era => {
 					let freeze_at = self.snapshotting_at.load(Ordering::SeqCst);
 					if freeze_at > 0 && freeze_at == earliest_era {
-						trace!(target: "pruning", "Pruning is freezed at era {}; earliest era={}, latest era={}, journal_size={}, mem_used={}. Not pruning.",
+						trace!(target: "pruning", "Pruning is frozen at era {}; earliest era={}, latest era={}, journal_size={}, mem_used={}. Not pruning.",
 						       freeze_at, earliest_era, latest_era, state_db.journal_db().journal_size(), state_db.journal_db().mem_used());
 						break;
 					}
