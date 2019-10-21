@@ -284,7 +284,7 @@ impl Miner {
 
 	/// Creates new instance of miner Arc.
 	pub fn new<A: LocalAccounts + 'static>(
-		options: MinerOptions,
+		mut options: MinerOptions,
 		gas_pricer: GasPricer,
 		spec: &Spec,
 		accounts: A,
@@ -294,6 +294,14 @@ impl Miner {
 		let tx_queue_strategy = options.tx_queue_strategy;
 		let nonce_cache_size = cmp::max(4096, limits.max_count / 4);
 		let refuse_service_transactions = options.refuse_service_transactions;
+		let engine = spec.engine.clone();
+
+		// For the InstantSeal engine, set the reseal_{max & min}_period to zero
+		// This allows blocks to be sealed Instantly ;)
+		if engine.name() == "InstantSeal" {
+			options.reseal_max_period = Duration::from_secs(0);
+			options.reseal_min_period = Duration::from_secs(0);
+		}
 
 		Miner {
 			sealing: Mutex::new(SealingWork {
@@ -312,7 +320,7 @@ impl Miner {
 			options,
 			transaction_queue: Arc::new(TransactionQueue::new(limits, verifier_options, tx_queue_strategy)),
 			accounts: Arc::new(accounts),
-			engine: spec.engine.clone(),
+			engine,
 			io_channel: RwLock::new(None),
 			service_transaction_checker: if refuse_service_transactions {
 				None
