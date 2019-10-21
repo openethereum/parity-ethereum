@@ -19,6 +19,17 @@
 //! It is recommended to use the `two_thirds_majority_transition` option, to defend against the
 //! ["Attack of the Clones"](https://arxiv.org/pdf/1902.10244.pdf). Newly started networks can
 //! set this option to `0`, to use a 2/3 quorum from the beginning.
+//!
+//! To support on-chain governance, the [ValidatorSet] is pluggable: Aura supports simple
+//! constant lists of validators as well as smart contract-based dynamic validator sets.
+//! Misbehavior is reported to the [ValidatorSet] as well, so that e.g. governance contracts
+//! can penalize or ban attacker's nodes.
+//!
+//! * "Benign" misbehavior are faults that can happen in normal operation, like failing
+//!   to propose a block in your slot, which could be due to a temporary network outage, or
+//!   wrong timestamps (due to out-of-sync clocks).
+//! * "Malicious" reports are made only if the sender misbehaved deliberately (or due to a
+//!   software bug), e.g. if they proposed multiple blocks with the same step number.
 
 use std::collections::{BTreeMap, BTreeSet, HashSet};
 use std::{cmp, fmt};
@@ -482,6 +493,8 @@ pub struct AuthorityRound {
 	two_thirds_majority_transition: BlockNumber,
 	maximum_empty_steps: usize,
 	machine: Machine,
+	/// History of step hashes recently received from peers.
+	received_step_hashes: RwLock<BTreeMap<(u64, Address), H256>>,
 }
 
 // header-chain validator.
@@ -572,7 +585,7 @@ fn header_expected_seal_fields(header: &Header, empty_steps_transition: u64) -> 
 
 fn header_step(header: &Header, empty_steps_transition: u64) -> Result<u64, ::rlp::DecoderError> {
 	Rlp::new(&header.seal().get(0).unwrap_or_else(||
-		panic!("was either checked with verify_block_basic or is genesis; has {} fields; qed (Make sure the spec
+		panic!("was either checked with verify_block_basic or is genesis; has {} fields; qed (Make sure the spec \
 				file has a correct genesis seal)", header_expected_seal_fields(header, empty_steps_transition))
 	))
 	.as_val()
@@ -751,6 +764,7 @@ impl AuthorityRound {
 				two_thirds_majority_transition: our_params.two_thirds_majority_transition,
 				strict_empty_steps_transition: our_params.strict_empty_steps_transition,
 				machine,
+				received_step_hashes: RwLock::new(Default::default()),
 			});
 
 		// Do not initialize timeouts for tests.
@@ -1377,6 +1391,26 @@ impl Engine for AuthorityRound {
 			Err(EngineError::DoubleVote(*header.author()))?;
 		}
 
+		// Report malice if the validator produced other sibling blocks in the same step.
+		let received_step_key = (step, *header.author());
+		let new_hash = header.hash();
+		if self.received_step_hashes.read().get(&received_step_key).map_or(false, |h| *h != new_hash) {
+			trace!(target: "engine", "Validator {} produced sibling blocks in the same step", header.author());
+			self.validators.report_malicious(header.author(), set_number, header.number(), Default::default());
+		} else {
+			self.received_step_hashes.write().insert(received_step_key, new_hash);
+		}
+
+		// Remove hash records older than two full rounds of steps (picked as a reasonable trade-off between
+		// memory consumption and fault-tolerance).
+		let sibling_malice_detection_period = 2 * validators.count(&parent.hash()) as u64;
+		let oldest_step = parent_step.saturating_sub(sibling_malice_detection_period);
+		if oldest_step > 0 {
+			let mut rsh = self.received_step_hashes.write();
+			let new_rsh = rsh.split_off(&(oldest_step, Address::zero()));
+			*rsh = new_rsh;
+		}
+
 		// If empty step messages are enabled we will validate the messages in the seal, missing messages are not
 		// reported as there's no way to tell whether the empty step message was never sent or simply not included.
 		let empty_steps_len = if header.number() >= self.empty_steps_transition {
@@ -1936,8 +1970,6 @@ mod tests {
 
 	#[test]
 	fn reports_skipped() {
-		let _ = ::env_logger::try_init();
-
 		let validator1 = Address::from_low_u64_be(1);
 		let validator2 = Address::from_low_u64_be(2);
 		let last_benign = Arc::new(AtomicUsize::new(0));
@@ -1978,6 +2010,38 @@ mod tests {
 		header.set_number(2);
 		assert!(aura.verify_block_family(&header, &parent_header).is_ok());
 		assert_eq!(last_benign.load(AtomicOrdering::SeqCst), 2);
+	}
+
+	#[test]
+	fn reports_multiple_blocks_per_step() {
+		let tap = AccountProvider::transient_provider();
+		let addr0 = tap.insert_account(keccak("0").into(), &"0".into()).unwrap();
+		let addr1 = tap.insert_account(keccak("1").into(), &"1".into()).unwrap();
+
+		let validator_set = TestSet::from_validators(vec![addr0, addr1]);
+		let aura = build_aura(|p| p.validators = Box::new(validator_set.clone()));
+
+		aura.set_signer(Some(Box::new((Arc::new(tap), addr0, "0".into()))));
+
+		let mut parent_header: Header = Header::default();
+		parent_header.set_number(2);
+		parent_header.set_seal(vec![encode(&1usize)]);
+		parent_header.set_gas_limit("222222".parse::<U256>().unwrap());
+		let mut header: Header = Header::default();
+		header.set_number(3);
+		header.set_difficulty(calculate_score(1, 2, 0));
+		header.set_gas_limit("222222".parse::<U256>().unwrap());
+		header.set_seal(vec![encode(&2usize)]);
+		header.set_author(addr1);
+
+		// First sibling block.
+		assert!(aura.verify_block_family(&header, &parent_header).is_ok());
+		assert_eq!(validator_set.last_malicious(), 0);
+
+		// Second sibling block: should be reported.
+		header.set_gas_limit("222223".parse::<U256>().unwrap());
+		assert!(aura.verify_block_family(&header, &parent_header).is_ok());
+		assert_eq!(validator_set.last_malicious(), 3);
 	}
 
 	#[test]

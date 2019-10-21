@@ -118,7 +118,7 @@ fn into_document_key(key: Bytes) -> Result<Bytes, Error> {
 
 fn initialization_vector() -> [u8; INIT_VEC_LEN] {
 	let mut result = [0u8; INIT_VEC_LEN];
-	let mut rng = OsRng::new().unwrap();
+	let mut rng = OsRng;
 	rng.fill_bytes(&mut result);
 	result
 }

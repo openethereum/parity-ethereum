@@ -28,9 +28,9 @@ pub trait PubSub {
 
 	/// Subscribe to changes of any RPC method in Parity.
 	#[pubsub(subscription = "parity_subscription", subscribe, name = "parity_subscribe")]
-	fn parity_subscribe(&self, Self::Metadata, Subscriber<Value>, String, Option<Params>);
+	fn parity_subscribe(&self, _: Self::Metadata, _: Subscriber<Value>, _: String, _: Option<Params>);
 
 	/// Unsubscribe from existing Parity subscription.
 	#[pubsub(subscription = "parity_subscription", unsubscribe, name = "parity_unsubscribe")]
-	fn parity_unsubscribe(&self, Option<Self::Metadata>, SubscriptionId) -> Result<bool>;
+	fn parity_unsubscribe(&self, _: Option<Self::Metadata>, _: SubscriptionId) -> Result<bool>;
 }

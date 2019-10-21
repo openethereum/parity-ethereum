@@ -20,8 +20,7 @@
 
 use std::{
 	cmp::{max, min},
-	collections::BTreeMap,
-	convert::TryFrom,
+	convert::{TryFrom, TryInto},
 	io::{self, Read, Cursor},
 	mem::size_of,
 	str::FromStr
@@ -56,12 +55,15 @@ trait Pricer: Send + Sync {
 pub type Blake2FPricer = u64;
 
 impl Pricer for Blake2FPricer {
-	fn cost(&self, input: &[u8]) -> U256 {
-		use std::convert::TryInto;
-		let (rounds_bytes, _) = input.split_at(std::mem::size_of::<u32>());
+	fn cost(&self, input: &[u8], _at: u64) -> U256 {
+		const FOUR: usize = std::mem::size_of::<u32>();
 		// Returning zero if the conversion fails is fine because `execute()` will check the length
 		// and bail with the appropriate error.
-		let rounds = u32::from_be_bytes(rounds_bytes.try_into().unwrap_or([0u8; 4]));
+		if input.len() < FOUR {
+			return U256::zero();
+		}
+		let (rounds_bytes, _) = input.split_at(FOUR);
+		let rounds = u32::from_be_bytes(rounds_bytes.try_into().unwrap_or([0u8; FOUR]));
 		U256::from(*self as u128 * rounds as u128)
 	}
 }
@@ -767,6 +769,19 @@ mod tests {
 		f.execute(&input[..], &mut BytesRef::Fixed(&mut output[..])).unwrap();
 
 		assert_eq!(f.cost(&input[..], 0), U256::from(123*5));
+	}
+
+	#[test]
+	fn blake2f_cost_on_invalid_length() {
+		let f = Builtin {
+			pricer: Box::new(123),
+			native: ethereum_builtin("blake2_f").expect("known builtin"),
+			activate_at: 0,
+		};
+		// invalid input (too short)
+		let input = hex!("00");
+
+		assert_eq!(f.cost(&input[..], 0), U256::from(0));
 	}
 
 	#[test]
