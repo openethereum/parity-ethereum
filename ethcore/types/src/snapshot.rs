@@ -54,6 +54,17 @@ pub struct Progress {
 }
 
 impl Progress {
+	/// Instantiate a new Progress meter
+	pub fn new() -> Self {
+		Progress {
+			accounts: AtomicUsize::new(0),
+			blocks: AtomicUsize::new(0),
+			size: AtomicU64::new(0),
+			abort: AtomicBool::new(false),
+			done: AtomicBool::new(false),
+		}
+	}
+
 	/// Reset the progress.
 	pub fn reset(&self) {
 		self.accounts.store(0, Ordering::Release);
