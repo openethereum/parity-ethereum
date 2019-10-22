@@ -17,7 +17,6 @@
 //! Benchmark snapshot::account::to_fat_rlps() which is a hot call during snapshots.
 
 use std::collections::HashSet;
-use std::str::FromStr;
 
 use account_db::AccountDB;
 use common_types::{
@@ -38,43 +37,58 @@ fn fat_rlps(c: &mut Criterion) {
 
 	let mut state_rebuilder = snapshot::StateRebuilder::new(blockchain_db.key_value().clone(), journaldb::Algorithm::OverlayRecent);
 
-	//	Data dumped off Ropsten using a custom build on 2019-10-21:  Snapshot Worker #2 - State TRACE snapshot  BAIL with account_key_hash: 0x2032dfb6ad93f1928dac70627a8767d2232568a1a7bf1c91ea416988000f8275 first_chunk_size: 4194304 max_chunk_size: 4194304 part: Some(2) root: 0xbc6a2ecc1ece1716dc4c249af4bd5ff5437eb850b87ebebea9bcba3700439197 fat_rlp len: 5279
-	let chunk = include_bytes!("./state-chunk-5279-0x2032dfb6ad93f1928dac70627a8767d2232568a1a7bf1c91ea416988000f8275.rlp").to_vec();
-	let flag = std::sync::atomic::AtomicBool::new(true);
+	// Chunk data collected from mainnet/ropsten around blocks 8.7M/6.8M (end of Oct '19). The data
+	// sizes represent roughly the 99-percentile of account sizes. It takes some effort to find
+	// accounts of representative size that are self-contained (i.e. do not have code in other
+	// chunks).
+	let chunks = vec![
+		// Ropsten
+		include_bytes!("./state-chunk-5279-0x2032dfb6ad93f1928dac70627a8767d2232568a1a7bf1c91ea416988000f8275.rlp").to_vec(),
+		// Ropsten
+		include_bytes!("./state-chunk-5905-0x104ff12a3fda9e0cb1aeef41fe7092982134eb116292c0eec725c32a815ef0ea.rlp").to_vec(),
+		// Ropsten
+		include_bytes!("./state-chunk-6341-0x3042ea62f982fd0cea02847ff0fd103a0beef3bb19389f5e77113c3ea355f803.rlp").to_vec(),
+		// Ropsten
+		include_bytes!("./state-chunk-6720-0x2075481dccdc2c4419112bfea2d09219a7223614656722a1a05a930baf2b0dd7.rlp").to_vec(),
+		// Mainnet
+		include_bytes!("./state-chunk-6933-0x104102770901b53230e78cfc8f6edce282eb21bfa00aa1c3543c79cb3402cf2d.rlp").to_vec(),
+	];
 
-	state_rebuilder.feed(&chunk, &flag).expect("feed fail");
+	let flag = std::sync::atomic::AtomicBool::new(true);
+	for chunk in &chunks {
+		state_rebuilder.feed(&chunk, &flag).expect("feed fail");
+	}
 	let state_root = state_rebuilder.state_root();
 	let journal_db = state_rebuilder.finalize(123, H256::random()).expect("finalize fail");
 	let hashdb = journal_db.as_hash_db();
-
 	let account_trie = TrieDB::new(&hashdb, &state_root).expect("triedb has our root");
-	let mut account_iter = account_trie.iter().expect("there's a root in our trie");
+	let account_iter = account_trie.iter().expect("there's a root in our trie");
 
-	let (account_key, account_data) = account_iter.next().expect("there is data in the trie").expect("…for real");
-	let account_hash = H256::from_slice(&account_key);
-	assert_eq!(account_hash, H256::from_str("2032dfb6ad93f1928dac70627a8767d2232568a1a7bf1c91ea416988000f8275").unwrap());
+	for (idx, item) in account_iter.enumerate() {
+		let (account_key, account_data) = item.expect("data is the db is ok");
+		let account_hash = H256::from_slice(&account_key);
+		let basic_account: BasicAccount = rlp::decode(&*account_data).expect("rlp from disk is ok");
+		let account_db = AccountDB::from_hash(hashdb, account_hash);
+		let progress = Progress::new();
+		let mut used_code = HashSet::new();
 
-	let basic_account: BasicAccount = rlp::decode(&*account_data).expect("rlp from disk is ok");
-	let account_db = AccountDB::from_hash(hashdb, account_hash);
+		let bench_name = format!("to_fat_rlps, {} bytes, ({})", chunks[idx].len(), account_hash);
+		c.bench_function(&bench_name, |b| {
+			b.iter(|| {
+				let _ = to_fat_rlps(
+					black_box(&account_hash),
+					black_box(&basic_account),
+					black_box(&account_db),
+					black_box(&mut used_code),
+					black_box(4194304),
+					black_box(4194304),
+					&progress
+				);
+			})
+		});
 
-	let progress = Progress::new();
-	let mut used_code = HashSet::new();
-
-	c.bench_function("Ropsten 5kb fat_rlp", |b| {
-		b.iter(|| {
-			let _ = to_fat_rlps(
-				black_box(&account_hash),
-				black_box(&basic_account),
-				black_box(&account_db),
-				black_box(&mut used_code),
-				black_box(4194304),
-				black_box(4194304),
-				&progress
-			);
-		})
-	});
+	}
 }
-
 
 criterion_group!(benches, fat_rlps);
 criterion_main!(benches);
