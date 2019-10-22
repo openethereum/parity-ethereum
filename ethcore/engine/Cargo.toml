@@ -13,7 +13,7 @@ bytes = { package = "parity-bytes", version = "0.1.0" }
 client-traits = { path = "../client-traits" }
 common-types = { path = "../types" }
 ethereum-types = "0.8.0"
-parity-crypto = { git = "https://github.com/paritytech/parity-common/", rev = "669933f", features = ["publickey"] }
+parity-crypto = { git = "https://github.com/paritytech/parity-common/", rev = "bd91ef6", features = ["publickey"] }
 machine = { path = "../machine" }
 vm = { path = "../vm" }
 

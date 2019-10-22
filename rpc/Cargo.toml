@@ -51,7 +51,7 @@ ethereum-types = "0.8.0"
 fastmap = { path = "../util/fastmap" }
 machine = { path = "../ethcore/machine" }
 parity-bytes = "0.1"
-parity-crypto = { git = "https://github.com/paritytech/parity-common/", rev = "669933f", features = ["publickey"] }
+parity-crypto = { git = "https://github.com/paritytech/parity-common/", rev = "bd91ef6", features = ["publickey"] }
 
 eip-712 = { path = "../util/EIP-712" }
 ethjson = { path = "../json" }

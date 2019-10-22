@@ -8,7 +8,7 @@ authors = ["Parity Technologies <admin@parity.io>"]
 
 [dependencies]
 derive_more = "0.14.0"
-parity-crypto = { git = "https://github.com/paritytech/parity-common/", rev = "669933f", features = ["publickey"] }
+parity-crypto = { git = "https://github.com/paritytech/parity-common/", rev = "bd91ef6", features = ["publickey"] }
 ethcore-io = { path = "../io" }
 ethereum-types = "0.8.0"
 ipnetwork = "0.12.6"
