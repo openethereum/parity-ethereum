@@ -42,7 +42,6 @@ extern crate tokio_service;
 extern crate url;
 extern crate jsonrpc_server_utils;
 
-#[macro_use]
 extern crate ethabi_derive;
 #[macro_use]
 extern crate ethabi_contract;
