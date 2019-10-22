@@ -86,7 +86,6 @@ fn fat_rlps(c: &mut Criterion) {
 				);
 			})
 		});
-
 	}
 }
 
