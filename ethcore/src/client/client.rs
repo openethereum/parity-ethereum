@@ -2536,7 +2536,7 @@ impl ProvingBlockChainClient for Client {
 		self.chain.read().get_pending_transition(hash).map(|pending| pending.proof)
 	}
 }
-// todo[dvdplm]: move snapshotting code to own module?
+
 impl SnapshotClient for Client {
 	fn take_snapshot<W: SnapshotWriter + Send>(
 		&self,

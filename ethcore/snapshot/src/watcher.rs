@@ -102,12 +102,7 @@ impl Watcher {
 
 impl ChainNotify for Watcher {
 	fn new_blocks(&self, new_blocks: NewBlocks) {
-		if self.oracle.is_major_importing() {
-			trace!(target: "snapshot_watcher", "Is major importing; not taking snapshot");
-		} else if new_blocks.has_more_blocks_to_import {
-			trace!(target: "snapshot_watcher", "Has more blocks to import; not taking snapshot");
-			return
-		}
+		if self.oracle.is_major_importing() || new_blocks.has_more_blocks_to_import { return }
 
 		// Decide if it's time for a snapshot: the highest of the imported blocks is a multiple of 5000?
 		let highest = new_blocks.imported.into_iter()

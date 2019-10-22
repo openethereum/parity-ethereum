@@ -69,14 +69,10 @@ use db;
 use registrar::RegistrarClient;
 
 // How often we attempt to take a snapshot: only snapshot on blocknumbers that are multiples of this.
-// todo[dvdplm] reinstate before merging
-// const SNAPSHOT_PERIOD: u64 = 5000;
-const SNAPSHOT_PERIOD: u64 = 50;
+const SNAPSHOT_PERIOD: u64 = 5000;
 
 // Start snapshots `history` blocks from the tip. Should be smaller than `SNAPSHOT_HISTORY`.
-// todo[dvdplm] reinstate before merging
-//const SNAPSHOT_HISTORY: u64 = 100;
-const SNAPSHOT_HISTORY: u64 = 10;
+const SNAPSHOT_HISTORY: u64 = 100;
 
 // Number of minutes before a given gas price corpus should expire.
 // Light client only.
