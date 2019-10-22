@@ -33,7 +33,7 @@ rlp = "0.4.0"
 rlp_derive = { path = "../../util/rlp-derive" }
 smallvec = "0.6"
 futures = "0.1"
-rand = "0.6"
+rand = "0.7"
 bincode = "1.1"
 serde = "1.0"
 serde_derive = "1.0"

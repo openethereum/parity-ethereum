@@ -12,8 +12,8 @@ common-types = { path = "../ethcore/types" }
 ethcore = { path = "../ethcore" }
 bytes = { package = "parity-bytes", version = "0.1"}
 ethereum-types = "0.8.0"
-jsonrpc-core = "14.0.0"
-http = { package = "jsonrpc-http-server", version = "14.0.0"}
+jsonrpc-core = "14.0.1"
+http = { package = "jsonrpc-http-server", version = "14.0.1"}
 rlp = "0.4.0"
 cid = "0.3"
 multihash = "0.8"

@@ -36,7 +36,7 @@ use parity_bytes::Bytes;
 use super::{ValidatorSet, SimpleList};
 
 /// Set used for testing with a single validator.
-#[derive(MallocSizeOf, Debug)]
+#[derive(Clone, MallocSizeOf, Debug)]
 pub struct TestSet {
 	validator: SimpleList,
 	#[ignore_malloc_size_of = "zero sized"]
@@ -62,6 +62,18 @@ impl TestSet {
 			last_malicious,
 			last_benign,
 		}
+	}
+
+	pub fn from_validators(validators: Vec<Address>) -> Self {
+		TestSet::new(Default::default(), Default::default(), validators)
+	}
+
+	pub fn last_malicious(&self) -> usize {
+		self.last_malicious.load(AtomicOrdering::SeqCst)
+	}
+
+	pub fn last_benign(&self) -> usize {
+		self.last_benign.load(AtomicOrdering::SeqCst)
 	}
 }
 

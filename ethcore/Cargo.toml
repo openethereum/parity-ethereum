@@ -45,7 +45,8 @@ parking_lot = "0.9"
 pod = { path = "pod", optional = true }
 trie-db = "0.15.0"
 patricia-trie-ethereum = { path = "../util/patricia-trie-ethereum" }
-rand = "0.6"
+rand = "0.7"
+rand_xorshift = "0.2"
 rayon = "1.1"
 registrar = { path = "../util/registrar" }
 rlp = "0.4.0"
