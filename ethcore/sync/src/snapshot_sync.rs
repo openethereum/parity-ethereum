@@ -24,18 +24,30 @@ use snapshot::SnapshotService;
 use common_types::snapshot::ManifestData;
 
 #[derive(PartialEq, Eq, Debug)]
+/// The type of data contained in a chunk: state or block.
 pub enum ChunkType {
+	/// The chunk contains state data (aka account data).
 	State(H256),
+	/// The chunk contains block data.
 	Block(H256),
 }
 
 #[derive(Default, MallocSizeOf)]
 pub struct Snapshot {
+	/// List of hashes of the state chunks we need to complete the warp sync from this snapshot.
+	/// These hashes are contained in the Manifest we downloaded from the peer(s).
 	pending_state_chunks: Vec<H256>,
+	/// List of hashes of the block chunks we need to complete the warp sync from this snapshot.
+	/// These hashes are contained in the Manifest we downloaded from the peer(s).
 	pending_block_chunks: Vec<H256>,
+	/// Set of hashes of chunks we are currently downloading.
 	downloading_chunks: HashSet<H256>,
+	/// The set of chunks (block or state) that we have successfully downloaded.
 	completed_chunks: HashSet<H256>,
+	/// The hash of the the `ManifestData` RLP that we're downloading.
 	snapshot_hash: Option<H256>,
+	/// Set of chunk hashes we failed to import.
+	// todo[dvdplm]: check ^^^
 	bad_hashes: HashSet<H256>,
 	initialized: bool,
 }
@@ -57,7 +69,7 @@ impl Snapshot {
 		}
 
 		trace!(
-			target: "snapshot",
+			target: "snapshot_sync",
 			"Snapshot is now initialized with {} completed chunks.",
 			self.completed_chunks.len(),
 		);
@@ -65,7 +77,7 @@ impl Snapshot {
 		self.initialized = true;
 	}
 
-	/// Clear everything.
+	/// Clear everything and set `initialized` to false.
 	pub fn clear(&mut self) {
 		self.pending_state_chunks.clear();
 		self.pending_block_chunks.clear();
@@ -75,12 +87,13 @@ impl Snapshot {
 		self.initialized = false;
 	}
 
-	/// Check if currently downloading a snapshot.
+	/// Check if we're currently downloading a snapshot.
 	pub fn have_manifest(&self) -> bool {
 		self.snapshot_hash.is_some()
 	}
 
-	/// Reset collection for a manifest RLP
+	/// Clear the `Snapshot` and reset it with data from a `ManifestData` (i.e. the lists of
+	/// block&state chunk hashes contained in the `ManifestData`).
 	pub fn reset_to(&mut self, manifest: &ManifestData, hash: &H256) {
 		self.clear();
 		self.pending_state_chunks = manifest.state_hashes.clone();
@@ -88,11 +101,13 @@ impl Snapshot {
 		self.snapshot_hash = Some(hash.clone());
 	}
 
-	/// Validate chunk and mark it as downloaded
+	/// Check if the the chunk is known, i.e. downloaded already or currently downloading; if so add
+	/// it to the `completed_chunks` set.
+	/// Returns a `ChunkType` with the hash of the chunk.
 	pub fn validate_chunk(&mut self, chunk: &[u8]) -> Result<ChunkType, ()> {
 		let hash = keccak(chunk);
 		if self.completed_chunks.contains(&hash) {
-			trace!(target: "sync", "Ignored proccessed chunk: {:x}", hash);
+			trace!(target: "snapshot_sync", "Already proccessed chunk {:x}. Ignoring.", hash);
 			return Err(());
 		}
 		self.downloading_chunks.remove(&hash);
@@ -104,11 +119,12 @@ impl Snapshot {
 			self.completed_chunks.insert(hash.clone());
 			return Ok(ChunkType::State(hash));
 		}
-		trace!(target: "sync", "Ignored unknown chunk: {:x}", hash);
+		trace!(target: "snapshot_sync", "Ignoring unknown chunk: {:x}", hash);
 		Err(())
 	}
 
 	/// Find a chunk to download
+	// todo[dvdplm] plenty of iterating through the pending `Vec`s here (which are never deleted from btw)
 	pub fn needed_chunk(&mut self) -> Option<H256> {
 		// Find next needed chunk: first block, then state chunks
 		let chunk = {
@@ -136,32 +152,40 @@ impl Snapshot {
 		chunk
 	}
 
+	/// Remove a chunk from the set of chunks we're interested in downloading.
 	pub fn clear_chunk_download(&mut self, hash: &H256) {
 		self.downloading_chunks.remove(hash);
 	}
 
-	// note snapshot hash as bad.
+	/// Mark a snapshot hash as bad.
 	pub fn note_bad(&mut self, hash: H256) {
 		self.bad_hashes.insert(hash);
 	}
 
-	// whether snapshot hash is known to be bad.
+	/// Whether snapshot hash is known to be bad.
 	pub fn is_known_bad(&self, hash: &H256) -> bool {
 		self.bad_hashes.contains(hash)
 	}
 
+	/// Hash of the snapshot we're currently downloading/importing.
+	// todo[dvdplm]: verify ^^^
 	pub fn snapshot_hash(&self) -> Option<H256> {
 		self.snapshot_hash
 	}
 
+	/// Total number of chunks in the snapshot we're currently working on (state + block chunks).
+	// todo[dvdplm]: verify ^^^
 	pub fn total_chunks(&self) -> usize {
 		self.pending_block_chunks.len() + self.pending_state_chunks.len()
 	}
 
+	/// Number of chunks we've processed so far (state and block chunks).
+	// todo[dvdplm]: verify ^^^
 	pub fn done_chunks(&self) -> usize {
 		self.completed_chunks.len()
 	}
 
+	/// Are we done downloading all chunks?
 	pub fn is_complete(&self) -> bool {
 		self.total_chunks() == self.completed_chunks.len()
 	}

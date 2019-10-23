@@ -176,6 +176,7 @@ const MAX_TRANSACTION_PACKET_SIZE: usize = 5 * 1024 * 1024;
 const SNAPSHOT_RESTORE_THRESHOLD: BlockNumber = 30000;
 const SNAPSHOT_MIN_PEERS: usize = 3;
 
+// todo[dvdplm] One problem with warp-sync is when the remote peer we're downloading from goes offline. Would it make sense to increase the number of chunks here so we download as much data as we can?
 const MAX_SNAPSHOT_CHUNKS_DOWNLOAD_AHEAD: usize = 3;
 
 const WAIT_PEERS_TIMEOUT: Duration = Duration::from_secs(5);
@@ -319,7 +320,7 @@ pub struct PeerInfo {
 	latest_hash: H256,
 	/// Peer total difficulty if known
 	difficulty: Option<U256>,
-	/// Type of data currenty being requested from peer.
+	/// Type of data currently being requested from peer.
 	asking: PeerAsking,
 	/// A set of block numbers being requested
 	asking_blocks: Vec<H256>,
@@ -787,7 +788,7 @@ impl ChainSync {
 	pub fn reset_and_continue(&mut self, io: &mut dyn SyncIo) {
 		trace!(target: "sync", "Restarting");
 		if self.state == SyncState::SnapshotData {
-			debug!(target:"sync", "Aborting snapshot restore");
+			debug!(target:"snapshot_sync", "Aborting snapshot restore");
 			io.snapshot_service().abort_restore();
 		}
 		self.snapshot.clear();
@@ -804,11 +805,11 @@ impl ChainSync {
 
 	fn maybe_start_snapshot_sync(&mut self, io: &mut dyn SyncIo) {
 		if !self.warp_sync.is_enabled() || io.snapshot_service().supported_versions().is_none() {
-			trace!(target: "sync", "Skipping warp sync. Disabled or not supported.");
+			trace!(target: "snapshot_sync", "Skipping warp sync. Disabled or not supported.");
 			return;
 		}
 		if self.state != SyncState::WaitingPeers && self.state != SyncState::Blocks && self.state != SyncState::Waiting {
-			trace!(target: "sync", "Skipping warp sync. State: {:?}", self.state);
+			trace!(target: "snapshot_sync", "Skipping warp sync. State: {:?}", self.state);
 			return;
 		}
 		// Make sure the snapshot block is not too far away from best block and network best block and
@@ -824,7 +825,7 @@ impl ChainSync {
 			//collect snapshot infos from peers
 			let snapshots = self.peers.iter()
 				.filter(|&(_, p)| p.is_allowed() && p.snapshot_number.map_or(false, |sn|
-					// Snapshot must be old enough that it's usefull to sync with it
+					// Snapshot must be old enough that it's useful to sync with it
 					our_best_block < sn && (sn - our_best_block) > SNAPSHOT_RESTORE_THRESHOLD &&
 					// Snapshot must have been taken after the Fork
 					sn > fork_block &&
@@ -856,14 +857,14 @@ impl ChainSync {
 
 		if let (Some(hash), Some(peers)) = (best_hash, best_hash.map_or(None, |h| snapshot_peers.get(&h))) {
 			if max_peers >= SNAPSHOT_MIN_PEERS {
-				trace!(target: "sync", "Starting confirmed snapshot sync {:?} with {:?}", hash, peers);
+				debug!(target: "snapshot_sync", "Starting confirmed snapshot sync {:?} with {:?}", hash, peers);
 				self.start_snapshot_sync(io, peers);
 			} else if timeout {
-				trace!(target: "sync", "Starting unconfirmed snapshot sync {:?} with {:?}", hash, peers);
+				debug!(target: "snapshot_sync", "Starting unconfirmed snapshot sync {:?} with {:?}", hash, peers);
 				self.start_snapshot_sync(io, peers);
 			}
 		} else if timeout && !self.warp_sync.is_warp_only() {
-			trace!(target: "sync", "No snapshots found, starting full sync");
+			debug!(target: "snapshot_sync", "No snapshots found, starting full sync");
 			self.set_state(SyncState::Idle);
 			self.continue_sync(io);
 		}
@@ -927,7 +928,7 @@ impl ChainSync {
 			).collect();
 
 			if peers.len() > 0 {
-				trace!(
+				debug!(
 					target: "sync",
 					"Syncing with peers: {} active, {} available, {} total",
 					self.active_peers.len(), peers.len(), self.peers.len()
@@ -989,8 +990,8 @@ impl ChainSync {
 			match self.state {
 				SyncState::WaitingPeers => {
 					trace!(
-						target: "sync",
-						"Checking snapshot sync: {} vs {} (peer: {})",
+						target: "snapshot_sync",
+						"Can we snapshot from them? Their highest block: #{} vs our highest: #{} (peer: {})",
 						peer_snapshot_number,
 						chain_info.best_block_number,
 						peer_id
@@ -1042,13 +1043,14 @@ impl ChainSync {
 							// Initialize the snapshot if not already done
 							self.snapshot.initialize(io.snapshot_service());
 							if self.snapshot.done_chunks() - (state_chunks_done + block_chunks_done) as usize > MAX_SNAPSHOT_CHUNKS_DOWNLOAD_AHEAD {
-								trace!(target: "sync", "Snapshot queue full, pausing sync");
+								trace!(target: "snapshot_sync", "Snapshot queue full, pausing sync");
 								self.set_state(SyncState::SnapshotWaiting);
 								return;
 							}
 						},
-						RestorationStatus::Initializing { .. } => {
-							trace!(target: "warp", "Snapshot is stil initializing.");
+						RestorationStatus::Initializing { state_chunks, block_chunks, chunks_done } => {
+							debug!(target: "snapshot_sync", "Snapshot is still initializing: state chunks={}, block chunks={}, chunks done={}",
+							       state_chunks, block_chunks, chunks_done);
 							return;
 						},
 						_ => {

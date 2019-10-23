@@ -117,14 +117,13 @@ impl SyncHandler {
 			sync.active_peers.remove(&peer_id);
 
 			if sync.state == SyncState::SnapshotManifest {
-				// Check if we are asking other peers for
-				// the snapshot manifest as well.
-				// If not, return to initial state
-				let still_asking_manifest = sync.peers.iter()
+				// Check if we are asking other peers for a snapshot manifest as well. If not,
+				// set our state to initial state (`Idle` or `WaitingPeers`).
+				let still_seeking_manifest = sync.peers.iter()
 					.filter(|&(id, p)| sync.active_peers.contains(id) && p.asking == PeerAsking::SnapshotManifest)
-					.next().is_none();
+					.next().is_some();
 
-				if still_asking_manifest {
+				if !still_seeking_manifest {
 					sync.state = ChainSync::get_init_state(sync.warp_sync, io.chain());
 				}
 			}
@@ -466,12 +465,12 @@ impl SyncHandler {
 	/// Called when snapshot manifest is downloaded from a peer.
 	fn on_snapshot_manifest(sync: &mut ChainSync, io: &mut dyn SyncIo, peer_id: PeerId, r: &Rlp) -> Result<(), DownloaderImportError> {
 		if !sync.peers.get(&peer_id).map_or(false, |p| p.can_sync()) {
-			trace!(target: "sync", "Ignoring snapshot manifest from unconfirmed peer {}", peer_id);
+			trace!(target: "snapshot_sync", "Ignoring snapshot manifest from unconfirmed peer {}", peer_id);
 			return Ok(());
 		}
 		sync.clear_peer_download(peer_id);
 		if !sync.reset_peer_asking(peer_id, PeerAsking::SnapshotManifest) || sync.state != SyncState::SnapshotManifest {
-			trace!(target: "sync", "{}: Ignored unexpected/expired manifest", peer_id);
+			trace!(target: "snapshot_sync", "{}: Ignored unexpected/expired manifest", peer_id);
 			return Ok(());
 		}
 
@@ -482,10 +481,12 @@ impl SyncHandler {
 			.map_or(false, |(l, h)| manifest.version >= l && manifest.version <= h);
 
 		if !is_supported_version {
-			trace!(target: "sync", "{}: Snapshot manifest version not supported: {}", peer_id, manifest.version);
+			warn!(target: "snapshot_sync", "{}: Snapshot manifest version not supported: {}", peer_id, manifest.version);
 			return Err(DownloaderImportError::Invalid);
 		}
 		sync.snapshot.reset_to(&manifest, &keccak(manifest_rlp.as_raw()));
+		debug!(target: "snapshot_sync", "{}: Peer sent a snapshot manifest we can use. Block number #{}, block chunks: {}, state chunks: {}",
+			manifest.block_number, manifest.block_hashes.len(), manifest.state_hashes.len());
 		io.snapshot_service().begin_restore(manifest);
 		sync.state = SyncState::SnapshotData;
 
@@ -495,12 +496,12 @@ impl SyncHandler {
 	/// Called when snapshot data is downloaded from a peer.
 	fn on_snapshot_data(sync: &mut ChainSync, io: &mut dyn SyncIo, peer_id: PeerId, r: &Rlp) -> Result<(), DownloaderImportError> {
 		if !sync.peers.get(&peer_id).map_or(false, |p| p.can_sync()) {
-			trace!(target: "sync", "Ignoring snapshot data from unconfirmed peer {}", peer_id);
+			trace!(target: "snapshot_sync", "Ignoring snapshot data from unconfirmed peer {}", peer_id);
 			return Ok(());
 		}
 		sync.clear_peer_download(peer_id);
 		if !sync.reset_peer_asking(peer_id, PeerAsking::SnapshotData) || (sync.state != SyncState::SnapshotData && sync.state != SyncState::SnapshotWaiting) {
-			trace!(target: "sync", "{}: Ignored unexpected snapshot data", peer_id);
+			trace!(target: "snapshot_sync", "{}: Ignored unexpected snapshot data", peer_id);
 			return Ok(());
 		}
 
@@ -508,12 +509,13 @@ impl SyncHandler {
 		let status = io.snapshot_service().status();
 		match status {
 			RestorationStatus::Inactive | RestorationStatus::Failed => {
-				trace!(target: "sync", "{}: Snapshot restoration aborted", peer_id);
+				trace!(target: "snapshot_sync", "{}: Snapshot restoration aborted", peer_id);
 				sync.state = SyncState::WaitingPeers;
 
 				// only note bad if restoration failed.
 				if let (Some(hash), RestorationStatus::Failed) = (sync.snapshot.snapshot_hash(), status) {
-					trace!(target: "sync", "Noting snapshot hash {} as bad", hash);
+					// todo[dvdplm]: how do we know we `Failed` because of them and not because something happened on our end, say disk was full?
+					debug!(target: "snapshot_sync", "Marking snapshot hash {} as bad", hash);
 					sync.snapshot.note_bad(hash);
 				}
 
@@ -521,30 +523,34 @@ impl SyncHandler {
 				return Ok(());
 			},
 			RestorationStatus::Initializing { .. } => {
-				trace!(target: "warp", "{}: Snapshot restoration is initializing", peer_id);
+				trace!(target: "snapshot_sync", "{}: Snapshot restoration is initializing", peer_id);
 				return Ok(());
 			}
 			RestorationStatus::Finalizing => {
-				trace!(target: "warp", "{}: Snapshot finalizing restoration", peer_id);
+				trace!(target: "snapshot_sync", "{}: Snapshot finalizing restoration", peer_id);
 				return Ok(());
 			}
 			RestorationStatus::Ongoing { .. } => {
-				trace!(target: "sync", "{}: Snapshot restoration is ongoing", peer_id);
+				trace!(target: "snapshot_sync", "{}: Snapshot restoration is ongoing", peer_id);
 			},
 		}
 
 		let snapshot_data: Bytes = r.val_at(0)?;
 		match sync.snapshot.validate_chunk(&snapshot_data) {
 			Ok(ChunkType::Block(hash)) => {
-				trace!(target: "sync", "{}: Processing block chunk", peer_id);
+				trace!(target: "snapshot_sync", "{}: Processing block chunk", peer_id);
 				io.snapshot_service().restore_block_chunk(hash, snapshot_data);
 			}
 			Ok(ChunkType::State(hash)) => {
-				trace!(target: "sync", "{}: Processing state chunk", peer_id);
+				trace!(target: "snapshot_sync", "{}: Processing state chunk", peer_id);
 				io.snapshot_service().restore_state_chunk(hash, snapshot_data);
 			}
 			Err(()) => {
-				trace!(target: "sync", "{}: Got bad snapshot chunk", peer_id);
+				// todo[dvdplm] this seems wrong: we'll get `Err(())` back even if we happened to
+				//  have seen this chunk already. Should a peer be disconnected if they happen to
+				//  send us the same chunk twice? Can't we be downloading chunks from more than one
+				//  peer?
+				trace!(target: "snapshot_sync", "{}: Got bad snapshot chunk", peer_id);
 				io.disconnect_peer(peer_id);
 				return Ok(());
 			}
