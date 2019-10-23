@@ -2586,7 +2586,7 @@ impl SnapshotClient for Client {
 		self.snapshotting_at.store(actual_block_nr, Ordering::SeqCst);
 		{
 			scopeguard::defer! {{
-				trace!(target: "snapshot", "(defer) Unfreezing pruning, setting snapshotting_at back to 0");
+				trace!(target: "snapshot", "Re-enabling pruning.");
 				self.snapshotting_at.store(0, Ordering::SeqCst)
 			}};
 			let chunker = snapshot::chunker(self.engine.snapshot_mode()).ok_or_else(|| SnapshotError::SnapshotsUnsupported)?;
