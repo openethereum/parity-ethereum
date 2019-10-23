@@ -20,11 +20,14 @@
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Wc++98-compat"
 #endif
+#if __cplusplus < 201703L
+#error C++17 is required
+#endif
 #include <cassert>
 #include <exception>
 #include <functional>
-#include <parity.h>
 #include <memory>
+#include <parity.h>
 #include <stdexcept>
 #include <string>
 #include <vector>
@@ -73,8 +76,7 @@ class ParityConfig final {
   parity_config *config;
 
 public:
-  ParityConfig(const std::vector<std::string> &cli_args)
-      : config(nullptr) {
+  ParityConfig(const std::vector<std::string> &cli_args) : config(nullptr) {
     std::vector<size_t> len_vecs((cli_args.size()));
     std::vector<char const *> args((cli_args.size()));
     for (const auto &i : cli_args) {
@@ -102,23 +104,27 @@ public:
   ~ParityConfig() {
     if (this->config)
       assert(false && "ParityConfig objects must be moved into a "
-                             "ParityParams, not destroyed");
+                      "ParityParams, not destroyed");
   }
 };
 
 class ParityEthereum final {
   struct ::parity_ethereum *parity_ethereum_instance;
   std::unique_ptr<std::function<void(std::string_view)>> callback;
+
 public:
   ParityEthereum(ParityConfig config, ParityLogger logger,
                  std::function<void(std::string_view)> new_chain_spec_callback)
-      : parity_ethereum_instance(nullptr), callback(std::make_unique<decltype(new_chain_spec_callback)>(std::move(new_chain_spec_callback))) {
+      : parity_ethereum_instance(nullptr),
+        callback(std::make_unique<decltype(new_chain_spec_callback)>(
+            std::move(new_chain_spec_callback))) {
     struct ::ParityParams params = {
         config.config,
-            [](void *custom, const char *new_chain, size_t new_chain_len) {
-              auto view = std::string_view(new_chain, new_chain_len);
-              reinterpret_cast<decltype(new_chain_spec_callback) *>(custom)->operator()(view);
-            },
+        [](void *custom, const char *new_chain, size_t new_chain_len) {
+          auto view = std::string_view(new_chain, new_chain_len);
+          reinterpret_cast<decltype(new_chain_spec_callback) *>(custom)->
+          operator()(view);
+        },
         this->callback.get(),
         logger.logger,
     };
@@ -138,9 +144,7 @@ public:
     }
     return *this;
   }
-  ~ParityEthereum() {
-    parity_destroy(this->parity_ethereum_instance);
-  }
+  ~ParityEthereum() { parity_destroy(this->parity_ethereum_instance); }
 };
 } // namespace ethereum
 } // namespace parity

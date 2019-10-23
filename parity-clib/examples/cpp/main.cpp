@@ -21,9 +21,9 @@
 #include <string>
 #include <thread>
 
-static void* parity_run(std::vector<const char*>);
-static int parity_subscribe_to_websocket(void*);
-static int parity_rpc_queries(void*);
+static parity_ethereum* parity_run(std::vector<const char*>);
+static int parity_subscribe_to_websocket(parity_ethereum *);
+static int parity_rpc_queries(parity_ethereum*);
 
 const int SUBSCRIPTION_ID_LEN = 18;
 const size_t TIMEOUT_ONE_MIN_AS_MILLIS = 60 * 1000;
@@ -67,7 +67,7 @@ int main() {
 	// run full-client
 	{
 		std::vector<const char*> config = {"--no-ipc" , "--jsonrpc-apis=all", "--chain", "kovan"};
-		void* parity = parity_run(config);
+		struct parity_ethereum* parity = parity_run(config);
 		if (parity_rpc_queries(parity)) {
 			printf("rpc_queries failed\r\n");
 			return 1;
@@ -86,7 +86,7 @@ int main() {
 	// run light-client
 	{
 		std::vector<const char*> light_config = {"--no-ipc", "--light", "--jsonrpc-apis=all", "--chain", "kovan"};
-		void* parity = parity_run(light_config);
+		struct parity_ethereum *parity = parity_run(light_config);
 
 		if (parity_rpc_queries(parity)) {
 			printf("rpc_queries failed\r\n");
@@ -105,7 +105,7 @@ int main() {
 	return 0;
 }
 
-int parity_rpc_queries(void* parity) {
+int parity_rpc_queries(struct parity_ethereum *parity) {
 	if (!parity) {
 		return 1;
 	}
@@ -123,17 +123,17 @@ int parity_rpc_queries(void* parity) {
 }
 
 
-int parity_subscribe_to_websocket(void* parity) {
+int parity_subscribe_to_websocket(struct parity_ethereum *parity) {
 	if (!parity) {
 		return 1;
 	}
 
-	std::vector<const void*> sessions;
+	std::vector<const struct parity_subscription*> sessions;
 
 	Callback cb { .type = CALLBACK_WS, .counter = ws_subscriptions.size() };
 
 	for (auto sub : ws_subscriptions) {
-		void *const session = parity_subscribe_ws(parity, sub.c_str(), sub.length(), callback, &cb);
+		struct parity_subscription *const session = parity_subscribe_ws(parity, sub.c_str(), sub.length(), callback, &cb);
 		if (!session) {
 			return 1;
 		}
@@ -148,7 +148,7 @@ int parity_subscribe_to_websocket(void* parity) {
 	return 0;
 }
 
-void* parity_run(std::vector<const char*> args) {
+parity_ethereum *parity_run(std::vector<const char*> args) {
 	ParityParams cfg = {
 		.configuration = nullptr,
 		.on_client_restart_cb = callback,
@@ -177,7 +177,7 @@ void* parity_run(std::vector<const char*> args) {
 	char log_mode [] = "rpc=trace";
 	parity_set_logger(log_mode, strlen(log_mode), nullptr, 0, &cfg.logger);
 
-	void *parity = nullptr;
+	parity_ethereum *parity = nullptr;
 	if (parity_start(&cfg, &parity) != 0) {
 		return nullptr;
 	}

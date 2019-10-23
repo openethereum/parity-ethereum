@@ -1,7 +1,9 @@
 cmake_minimum_required(VERSION 3.5)
 include(ExternalProject)
 include_directories("${CMAKE_SOURCE_DIR}/../..")
-set (CMAKE_CXX_STANDARD 11) # Enforce C++11
+set (CMAKE_CXX_STANDARD 17) # Enforce C++11
+set (CMAKE_CXX_STANDARD_REQUIRED ON) # Enforce C++11
+set (CMAKE_CXX_EXTENSIONS OFF) # Enforce C++11
 add_executable(parity-example main.cpp)
 
 ExternalProject_Add(
