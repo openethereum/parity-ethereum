@@ -26,7 +26,7 @@ use std::collections::hash_map::Entry;
 use parking_lot::Mutex;
 use ethereum_types::{H128, H256, Address};
 use ethjson;
-use ethkey::{Signature, Public};
+use crypto::publickey::{Signature, Public};
 use crypto;
 use futures::Future;
 use fetch::{Fetch, Client as FetchClient, Method, BodyReader, Request};

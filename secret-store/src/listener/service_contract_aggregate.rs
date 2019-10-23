@@ -17,7 +17,7 @@
 use std::sync::Arc;
 use bytes::Bytes;
 use ethereum_types::Address;
-use ethkey::Public;
+use crypto::publickey::Public;
 use listener::service_contract::ServiceContract;
 use listener::service_contract_listener::ServiceTask;
 use {ServerKeyId};

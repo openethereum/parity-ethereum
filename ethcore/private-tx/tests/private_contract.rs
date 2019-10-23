@@ -22,7 +22,7 @@ extern crate env_logger;
 extern crate ethcore;
 extern crate ethcore_io;
 extern crate ethcore_private_tx;
-extern crate ethkey;
+extern crate parity_crypto;
 extern crate keccak_hash as hash;
 extern crate rustc_hex;
 extern crate machine;
@@ -32,6 +32,7 @@ extern crate spec;
 extern crate log;
 
 use std::sync::Arc;
+use std::str::FromStr;
 use rustc_hex::{FromHex, ToHex};
 use types::ids::BlockId;
 use types::transaction::{Transaction, Action};
@@ -40,7 +41,7 @@ use ethcore::{
 	miner::Miner,
 };
 use client_traits::BlockChainClient;
-use ethkey::{Secret, KeyPair, Signature};
+use parity_crypto::publickey::{Secret, KeyPair, Signature};
 use machine::executive::contract_address;
 use hash::keccak;
 
@@ -52,10 +53,10 @@ fn private_contract() {
 	let _ = ::env_logger::try_init();
 	let client = generate_dummy_client(0);
 	let chain_id = client.signing_chain_id();
-	let key1 = KeyPair::from_secret(Secret::from("0000000000000000000000000000000000000000000000000000000000000011")).unwrap();
-	let _key2 = KeyPair::from_secret(Secret::from("0000000000000000000000000000000000000000000000000000000000000012")).unwrap();
-	let key3 = KeyPair::from_secret(Secret::from("0000000000000000000000000000000000000000000000000000000000000013")).unwrap();
-	let key4 = KeyPair::from_secret(Secret::from("0000000000000000000000000000000000000000000000000000000000000014")).unwrap();
+	let key1 = KeyPair::from_secret(Secret::from_str("0000000000000000000000000000000000000000000000000000000000000011").unwrap()).unwrap();
+	let _key2 = KeyPair::from_secret(Secret::from_str("0000000000000000000000000000000000000000000000000000000000000012").unwrap()).unwrap();
+	let key3 = KeyPair::from_secret(Secret::from_str("0000000000000000000000000000000000000000000000000000000000000013").unwrap()).unwrap();
+	let key4 = KeyPair::from_secret(Secret::from_str("0000000000000000000000000000000000000000000000000000000000000014").unwrap()).unwrap();
 
 	let signer = Arc::new(ethcore_private_tx::KeyPairSigner(vec![key1.clone(), key3.clone(), key4.clone()]));
 
@@ -118,7 +119,7 @@ fn private_contract() {
 	let private_state = pm.execute_private_transaction(BlockId::Latest, &private_tx).unwrap();
 	let nonced_state_hash = pm.calculate_state_hash(&private_state, private_contract_nonce);
 	let signatures: Vec<_> = [&key3, &key4].iter().map(|k|
-		Signature::from(::ethkey::sign(&k.secret(), &nonced_state_hash).unwrap().into_electrum())).collect();
+		Signature::from(parity_crypto::publickey::sign(&k.secret(), &nonced_state_hash).unwrap().into_electrum())).collect();
 	let public_tx = pm.public_transaction(private_state, &private_tx, &signatures, 1.into(), 0.into()).unwrap();
 	let public_tx = public_tx.sign(&key1.secret(), chain_id);
 	push_block_with_transactions(&client, &[public_tx]);
@@ -145,7 +146,7 @@ fn private_contract() {
 	let private_state = pm.execute_private_transaction(BlockId::Latest, &private_tx).unwrap();
 	let private_state_hash = keccak(&private_state);
 	let signatures: Vec<_> = [&key4].iter().map(|k|
-		Signature::from(::ethkey::sign(&k.secret(), &private_state_hash).unwrap().into_electrum())).collect();
+		Signature::from(parity_crypto::publickey::sign(&k.secret(), &private_state_hash).unwrap().into_electrum())).collect();
 	let public_tx = pm.public_transaction(private_state, &private_tx, &signatures, 2.into(), 0.into()).unwrap();
 	let public_tx = public_tx.sign(&key1.secret(), chain_id);
 	push_block_with_transactions(&client, &[public_tx]);
@@ -191,10 +192,10 @@ fn call_other_private_contract() {
 	// Create client and provider
 	let client = generate_dummy_client(0);
 	let chain_id = client.signing_chain_id();
-	let key1 = KeyPair::from_secret(Secret::from("0000000000000000000000000000000000000000000000000000000000000011")).unwrap();
-	let _key2 = KeyPair::from_secret(Secret::from("0000000000000000000000000000000000000000000000000000000000000012")).unwrap();
-	let key3 = KeyPair::from_secret(Secret::from("0000000000000000000000000000000000000000000000000000000000000013")).unwrap();
-	let key4 = KeyPair::from_secret(Secret::from("0000000000000000000000000000000000000000000000000000000000000014")).unwrap();
+	let key1 = KeyPair::from_secret(Secret::from_str("0000000000000000000000000000000000000000000000000000000000000011").unwrap()).unwrap();
+	let _key2 = KeyPair::from_secret(Secret::from_str("0000000000000000000000000000000000000000000000000000000000000012").unwrap()).unwrap();
+	let key3 = KeyPair::from_secret(Secret::from_str("0000000000000000000000000000000000000000000000000000000000000013").unwrap()).unwrap();
+	let key4 = KeyPair::from_secret(Secret::from_str("0000000000000000000000000000000000000000000000000000000000000014").unwrap()).unwrap();
 	let signer = Arc::new(ethcore_private_tx::KeyPairSigner(vec![key1.clone(), key3.clone(), key4.clone()]));
 
 	let config = ProviderConfig{
@@ -268,7 +269,7 @@ fn call_other_private_contract() {
 	let private_state = pm.execute_private_transaction(BlockId::Latest, &private_tx).unwrap();
 	let nonced_state_hash = pm.calculate_state_hash(&private_state, private_contract_nonce);
 	let signatures: Vec<_> = [&key3, &key4].iter().map(|k|
-		Signature::from(::ethkey::sign(&k.secret(), &nonced_state_hash).unwrap().into_electrum())).collect();
+		Signature::from(parity_crypto::publickey::sign(&k.secret(), &nonced_state_hash).unwrap().into_electrum())).collect();
 	let public_tx = pm.public_transaction(private_state, &private_tx, &signatures, 2.into(), 0.into()).unwrap();
 	let public_tx = public_tx.sign(&key1.secret(), chain_id);
 	push_block_with_transactions(&client, &[public_tx]);

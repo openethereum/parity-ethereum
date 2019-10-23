@@ -26,7 +26,7 @@ use parking_lot::Mutex;
 
 use network::{PeerId, NetworkContext, NetworkProtocolHandler, NetworkConfiguration};
 use ethcore_network_devp2p::NetworkService;
-use ethkey::{Generator, Random};
+use parity_crypto::publickey::{Generator, Random};
 use ethcore_io::TimerToken;
 
 pub struct TestProtocol {

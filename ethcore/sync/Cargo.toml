@@ -17,7 +17,6 @@ enum_primitive = "0.1.1"
 ethcore-io = { path = "../../util/io" }
 ethcore-private-tx = { path = "../private-tx" }
 ethereum-types = "0.8.0"
-ethkey = { path = "../../accounts/ethkey" }
 fastmap = { path = "../../util/fastmap" }
 futures = "0.1"
 keccak-hash = "0.4.0"
@@ -26,6 +25,7 @@ log = "0.4"
 macros = { path = "../../util/macros" }
 network = { package = "ethcore-network", path = "../../util/network" }
 parity-runtime = { path = "../../util/runtime" }
+parity-crypto = { version = "0.4.2", features = ["publickey"] }
 parity-util-mem = "0.2.0"
 rand = "0.7"
 parking_lot = "0.9"

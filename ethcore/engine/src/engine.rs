@@ -37,7 +37,7 @@ use common_types::{
 use client_traits::EngineClient;
 
 use ethereum_types::{H256, U256, Address};
-use ethkey::Signature;
+use parity_crypto::publickey::Signature;
 use machine::{
 	Machine,
 	executed_block::ExecutedBlock,

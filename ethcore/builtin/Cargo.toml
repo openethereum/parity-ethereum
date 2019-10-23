@@ -10,13 +10,12 @@ bn = { git = "https://github.com/paritytech/bn", default-features = false }
 common-types = { path = "../types" }
 ethereum-types = "0.8.0"
 ethjson = { path = "../../json" }
-ethkey = { path = "../../accounts/ethkey" }
 keccak-hash = "0.4.0"
 log = "0.4"
 num = { version = "0.1", default-features = false, features = ["bigint"] }
 parity-bytes = "0.1"
 eip-152 = { path = "../../util/EIP-152" }
-parity-crypto = "0.4.0"
+parity-crypto = { version = "0.4.2", features = ["publickey"] }
 byteorder = "1.3.2"
 
 [dev-dependencies]

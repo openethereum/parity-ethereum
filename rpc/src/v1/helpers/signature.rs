@@ -14,7 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
-use ethkey::{recover, public_to_address, Signature};
+use crypto::publickey::{recover, public_to_address, Signature};
 use ethereum_types::{H256, U64};
 use jsonrpc_core::Result;
 use v1::types::{Bytes, RecoveredAccount};
@@ -54,7 +54,7 @@ pub fn verify_signature(
 #[cfg(test)]
 mod tests {
 	use super::*;
-	use ethkey::Generator;
+	use crypto::publickey::{Generator, Random};
 	use ethereum_types::{H160, U64};
 
 	pub fn add_chain_replay_protection(v: u64, chain_id: Option<u64>) -> u64 {
@@ -71,9 +71,9 @@ mod tests {
 	/// mocked signer
 	fn sign(should_prefix: bool, data: Vec<u8>, signing_chain_id: Option<u64>) -> (H160, [u8; 32], [u8; 32], U64) {
 		let hash = if should_prefix { eth_data_hash(data) } else { keccak(data) };
-		let account = ethkey::Random.generate().unwrap();
+		let account = Random.generate().unwrap();
 		let address = account.address();
-		let sig = ethkey::sign(account.secret(), &hash).unwrap();
+		let sig = crypto::publickey::sign(account.secret(), &hash).unwrap();
 		let (r, s, v) = (sig.r(), sig.s(), sig.v());
 		let v = add_chain_replay_protection(v as u64, signing_chain_id);
 		let (r_buf, s_buf) = {

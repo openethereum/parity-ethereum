@@ -28,7 +28,8 @@ use self::stores::AddressBook;
 use std::collections::HashMap;
 use std::time::{Instant, Duration};
 
-use ethkey::{Address, Message, Public, Secret, Password, Random, Generator};
+use ethkey::Password;
+use parity_crypto::publickey::{Address, Message, Public, Secret, Random, Generator, Signature};
 use ethstore::accounts_dir::MemoryDirectory;
 use ethstore::{
 	SimpleSecretStore, SecretStore, EthStore, EthMultiStore,
@@ -37,7 +38,6 @@ use ethstore::{
 use log::warn;
 use parking_lot::RwLock;
 
-pub use ethkey::Signature;
 pub use ethstore::{Derivation, IndexDerivation, KeyFile, Error};
 
 pub use self::account_data::AccountMeta;
@@ -503,7 +503,7 @@ impl AccountProvider {
 mod tests {
 	use super::{AccountProvider, Unlock};
 	use std::time::{Duration, Instant};
-	use ethkey::{Generator, Random, Address};
+	use parity_crypto::publickey::{Generator, Random, Address};
 	use ethstore::{StoreAccountRef, Derivation};
 	use ethereum_types::H256;
 

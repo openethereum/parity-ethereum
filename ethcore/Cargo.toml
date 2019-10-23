@@ -17,7 +17,6 @@ engine = { path = "./engine" }
 env_logger = { version = "0.5", optional = true }
 ethash = { path = "../ethash", optional = true }
 ethjson = { path = "../json", optional = true }
-ethkey = { path = "../accounts/ethkey", optional = true }
 ethcore-blockchain = { path = "./blockchain" }
 ethcore-call-contract = { path = "./call-contract" }
 ethcore-db = { path = "./db" }
@@ -44,6 +43,7 @@ parity-bytes = "0.1"
 parking_lot = "0.9"
 pod = { path = "pod", optional = true }
 trie-db = "0.15.0"
+parity-crypto = { version = "0.4.2", features = ["publickey"], optional = true }
 patricia-trie-ethereum = { path = "../util/patricia-trie-ethereum" }
 rand = "0.7"
 rand_xorshift = "0.2"
@@ -76,7 +76,7 @@ ethash = { path = "../ethash" }
 ethcore-accounts = { path = "../accounts" }
 ethcore-builtin = { path = "./builtin" }
 ethjson = { path = "../json", features = ["test-helpers"] }
-ethkey = { path = "../accounts/ethkey" }
+parity-crypto = { version = "0.4.2", features = ["publickey"] }
 fetch = { path = "../util/fetch" }
 kvdb-memorydb = "0.1.2"
 kvdb-rocksdb = "0.1.5"
@@ -124,7 +124,7 @@ test-heavy = []
 test-helpers = [
     "blooms-db",
     "ethjson/test-helpers",
-    "ethkey",
+    "parity-crypto",
     "kvdb-memorydb",
     "kvdb-rocksdb",
     "macros",

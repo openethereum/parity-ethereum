@@ -26,7 +26,7 @@ use ethcore::{
 };
 use engine::Engine;
 use ethereum_types::{Address, H256};
-use ethkey::{Secret, KeyPair};
+use parity_crypto::publickey::{Secret, KeyPair};
 use state_db::StateDB;
 
 use super::*;
@@ -183,7 +183,7 @@ impl CliqueTester {
 			b.header.set_difficulty(difficulty);
 			b.header.set_seal(seal);
 
-			let sign = ethkey::sign(self.signers[&signer].secret(), &b.header.hash()).unwrap();
+			let sign = parity_crypto::publickey::sign(self.signers[&signer].secret(), &b.header.hash()).unwrap();
 			let mut extra_data = b.header.extra_data().clone();
 			extra_data.extend_from_slice(&*sign);
 			b.header.set_extra_data(extra_data);

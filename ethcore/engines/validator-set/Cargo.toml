@@ -36,7 +36,7 @@ call-contract = { package = "ethcore-call-contract", path = "../../call-contract
 engine = { path = "../../engine", features = ["test-helpers"] }
 env_logger = "0.6.2"
 ethcore = { path = "../..", features = ["test-helpers"] }
-ethkey = { path = "../../../accounts/ethkey" }
+parity-crypto = { version = "0.4.2", features = ["publickey"] }
 keccak-hash = "0.4.0"
 rustc-hex = "1.0"
 spec = { path = "../../spec" }

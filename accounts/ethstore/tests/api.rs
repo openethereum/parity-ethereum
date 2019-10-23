@@ -17,11 +17,12 @@
 extern crate rand;
 extern crate ethstore;
 extern crate ethereum_types;
+extern crate parity_crypto;
 
 mod util;
 
 use ethstore::{EthStore, SimpleSecretStore, SecretVaultRef, StoreAccountRef};
-use ethstore::ethkey::{Random, Generator, Secret, KeyPair, verify_address};
+use parity_crypto::publickey::{Random, Generator, Secret, KeyPair, verify_address};
 use ethstore::accounts_dir::RootDiskDirectory;
 use util::TransientDir;
 use ethereum_types::Address;

@@ -51,7 +51,7 @@ use macros::map;
 use keccak_hash::keccak;
 use log::{info, debug, error, trace, warn};
 use engine::signer::EngineSigner;
-use ethkey::{self, Signature};
+use parity_crypto::publickey::Signature;
 use io::{IoContext, IoHandler, TimerToken, IoService};
 use itertools::{self, Itertools};
 use rlp::{encode, Decodable, DecoderError, Encodable, RlpStream, Rlp};
@@ -385,14 +385,14 @@ impl EmptyStep {
 		let message = keccak(empty_step_rlp(self.step, &self.parent_hash));
 		let correct_proposer = step_proposer(validators, &self.parent_hash, self.step);
 
-		ethkey::verify_address(&correct_proposer, &self.signature.into(), &message)
+		parity_crypto::publickey::verify_address(&correct_proposer, &self.signature.into(), &message)
 			.map_err(|e| e.into())
 	}
 
 	fn author(&self) -> Result<Address, Error> {
 		let message = keccak(empty_step_rlp(self.step, &self.parent_hash));
-		let public = ethkey::recover(&self.signature.into(), &message)?;
-		Ok(ethkey::public_to_address(&public))
+		let public = parity_crypto::publickey::recover(&self.signature.into(), &message)?;
+		Ok(parity_crypto::publickey::public_to_address(&public))
 	}
 
 	fn sealed(&self) -> SealedEmptyStep {
@@ -673,7 +673,7 @@ fn verify_external(header: &Header, validators: &dyn ValidatorSet, empty_steps_t
 		};
 
 		let header_seal_hash = header_seal_hash(header, empty_steps_rlp);
-		!ethkey::verify_address(&correct_proposer, &proposer_signature, &header_seal_hash)?
+		!parity_crypto::publickey::verify_address(&correct_proposer, &proposer_signature, &header_seal_hash)?
 	};
 
 	if is_invalid_proposer {
@@ -1663,7 +1663,7 @@ impl Engine for AuthorityRound {
 	fn sign(&self, hash: H256) -> Result<Signature, Error> {
 		Ok(self.signer.read()
 			.as_ref()
-			.ok_or(ethkey::Error::InvalidAddress)?
+			.ok_or(parity_crypto::publickey::Error::InvalidAddress)?
 			.sign(hash)?
 		)
 	}
@@ -1703,7 +1703,7 @@ mod tests {
 	use keccak_hash::keccak;
 	use accounts::AccountProvider;
 	use ethereum_types::{Address, H520, H256, U256};
-	use ethkey::Signature;
+	use parity_crypto::publickey::Signature;
 	use common_types::{
 		header::Header,
 		engines::{Seal, params::CommonParams},
@@ -2112,7 +2112,7 @@ mod tests {
 		SealedEmptyStep { signature, step }
 	}
 
-	fn set_empty_steps_seal(header: &mut Header, step: u64, block_signature: &ethkey::Signature, empty_steps: &[SealedEmptyStep]) {
+	fn set_empty_steps_seal(header: &mut Header, step: u64, block_signature: &Signature, empty_steps: &[SealedEmptyStep]) {
 		header.set_seal(vec![
 			encode(&(step as usize)),
 			encode(&(&**block_signature as &[u8])),
