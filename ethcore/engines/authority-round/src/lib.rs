@@ -57,6 +57,7 @@ use io::{IoContext, IoHandler, TimerToken, IoService};
 use itertools::{self, Itertools};
 use rlp::{encode, Decodable, DecoderError, Encodable, RlpStream, Rlp};
 use ethereum_types::{H256, H520, Address, U128, U256};
+use parity_bytes::Bytes;
 use parking_lot::{Mutex, RwLock};
 use time_utils::CheckedSystemTime;
 use common_types::{
@@ -72,11 +73,13 @@ use common_types::{
 		machine::{Call, AuxiliaryData},
 	},
 	errors::{BlockError, EthcoreError as Error, EngineError},
+	ids::BlockId,
 	snapshot::Snapshotting,
+    transaction::{Action, SignedTransaction},
 };
 use unexpected::{Mismatch, OutOfBounds};
 
-use validator_set::{ValidatorSet, SimpleList, new_validator_set};
+use validator_set::{ValidatorSet, SimpleList, new_validator_set_posdao};
 
 mod finality;
 
@@ -117,6 +120,9 @@ pub struct AuthorityRoundParams {
 	pub maximum_empty_steps: usize,
 	/// Transition block to strict empty steps validation.
 	pub strict_empty_steps_transition: u64,
+	/// If set, this is the block number at which the consensus engine switches from AuRa to AuRa
+	/// with POSDAO modifications.
+	pub posdao_transition: Option<BlockNumber>,
 }
 
 const U16_MAX: usize = ::std::u16::MAX as usize;
@@ -170,7 +176,7 @@ impl From<ethjson::spec::AuthorityRoundParams> for AuthorityRoundParams {
 		}
 		AuthorityRoundParams {
 			step_durations,
-			validators: new_validator_set(p.validators),
+			validators: new_validator_set_posdao(p.validators, p.posdao_transition.map(Into::into)),
 			start_step: p.start_step.map(Into::into),
 			validate_score_transition: p.validate_score_transition.map_or(0, Into::into),
 			validate_step_transition: p.validate_step_transition.map_or(0, Into::into),
@@ -183,6 +189,7 @@ impl From<ethjson::spec::AuthorityRoundParams> for AuthorityRoundParams {
 			maximum_empty_steps: p.maximum_empty_steps.map_or(0, Into::into),
 			two_thirds_majority_transition: p.two_thirds_majority_transition.map_or_else(BlockNumber::max_value, Into::into),
 			strict_empty_steps_transition: p.strict_empty_steps_transition.map_or(0, Into::into),
+			posdao_transition: p.posdao_transition.map(Into::into),
 		}
 	}
 }
@@ -550,6 +557,9 @@ pub struct AuthorityRound {
 	machine: Machine,
 	/// History of step hashes recently received from peers.
 	received_step_hashes: RwLock<BTreeMap<(u64, Address), H256>>,
+	/// The block number at which the consensus engine switches from AuRa to AuRa with POSDAO
+	/// modifications.
+	posdao_transition: Option<BlockNumber>,
 }
 
 // header-chain validator.
@@ -851,6 +861,7 @@ impl AuthorityRound {
 				strict_empty_steps_transition: our_params.strict_empty_steps_transition,
 				machine,
 				received_step_hashes: RwLock::new(Default::default()),
+				posdao_transition: our_params.posdao_transition,
 			});
 
 		// Do not initialize timeouts for tests.
@@ -1430,6 +1441,52 @@ impl Engine for AuthorityRound {
 		block_reward::apply_block_rewards(&rewards, block, &self.machine)
 	}
 
+	/// Make calls to the randomness and validator set contracts.
+	fn on_prepare_block(&self, block: &ExecutedBlock) -> Result<Vec<SignedTransaction>, Error> {
+		// Skip the rest of the function unless there has been a transition to POSDAO AuRa.
+		if self.posdao_transition.map_or(true, |block_num| block.header.number() < block_num) {
+			trace!(target: "engine", "Skipping calls to POSDAO randomness and validator set contracts");
+			return Ok(Vec::new());
+		}
+
+		let opt_signer = self.signer.read();
+		let signer = match opt_signer.as_ref() {
+			Some(signer) => signer,
+			None => return Ok(Vec::new()), // We are not a validator, so we shouldn't call the contracts.
+		};
+		let our_addr = signer.address();
+		let client = self.client.read().as_ref().and_then(|weak| weak.upgrade()).ok_or_else(|| {
+			debug!(target: "engine", "Unable to prepare block: missing client ref.");
+			EngineError::RequiresClient
+		})?;
+		let full_client = client.as_full_client()
+			.ok_or_else(|| EngineError::FailedSystemCall("Failed to upgrade to BlockchainClient.".to_string()))?;
+
+		// Makes a constant contract call.
+		let mut call = |to: Address, data: Bytes| {
+			full_client.call_contract(BlockId::Latest, to, data).map_err(|e| format!("{}", e))
+		};
+
+		// Our current account nonce. The transactions must have consecutive nonces, starting with this one.
+		let mut tx_nonce = block.state.nonce(&our_addr)?;
+		let mut transactions = Vec::new();
+
+		// Creates and signs a transaction with the given contract call.
+		let mut make_transaction = |to: Address, data: Bytes| -> Result<SignedTransaction, Error> {
+			let nonce = Some(tx_nonce);
+			tx_nonce += U256::one(); // Increment the nonce for the next transaction.
+			Ok(full_client.create_transaction(Action::Call(to), data, None, Some(U256::zero()), nonce)?)
+		};
+
+		// Genesis is never a new block, but might as well check.
+		let first = block.header.number() == 0;
+		for (addr, data) in self.validators.on_prepare_block(first, &block.header, &mut call)? {
+			transactions.push(make_transaction(addr, data)?);
+		}
+
+		Ok(transactions)
+	}
+
 	/// Check the number of seal fields.
 	fn verify_block_basic(&self, header: &Header) -> Result<(), Error> {
 		if header.number() >= self.validate_score_transition && *header.difficulty() >= U256::from(U128::max_value()) {
@@ -1852,6 +1909,7 @@ mod tests {
 			block_reward_contract_transitions: Default::default(),
 			strict_empty_steps_transition: 0,
 			two_thirds_majority_transition: 0,
+			posdao_transition: Some(0),
 		};
 
 		// mutate aura params

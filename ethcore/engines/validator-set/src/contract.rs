@@ -51,10 +51,10 @@ pub struct ValidatorContract {
 }
 
 impl ValidatorContract {
-	pub fn new(contract_address: Address) -> Self {
+	pub fn new(contract_address: Address, posdao_transition: Option<BlockNumber>) -> Self {
 		ValidatorContract {
 			contract_address,
-			validators: ValidatorSafeContract::new(contract_address),
+			validators: ValidatorSafeContract::new(contract_address, posdao_transition),
 			client: RwLock::new(None),
 		}
 	}
@@ -80,6 +80,12 @@ impl ValidatorContract {
 impl ValidatorSet for ValidatorContract {
 	fn default_caller(&self, id: BlockId) -> Box<Call> {
 		self.validators.default_caller(id)
+	}
+
+	fn on_prepare_block(&self, first: bool, header: &Header, call: &mut SystemCall)
+		-> Result<Vec<(Address, Bytes)>, EthcoreError>
+	{
+		self.validators.on_prepare_block(first, header, call)
 	}
 
 	fn on_epoch_begin(&self, first: bool, header: &Header, call: &mut SystemCall) -> Result<(), EthcoreError> {
@@ -167,7 +173,8 @@ mod tests {
 	#[test]
 	fn fetches_validators() {
 		let client = generate_dummy_client_with_spec(spec::new_validator_contract);
-		let vc = Arc::new(ValidatorContract::new("0000000000000000000000000000000000000005".parse::<Address>().unwrap()));
+		let addr: Address = "0000000000000000000000000000000000000005".parse().unwrap();
+		let vc = Arc::new(ValidatorContract::new(addr, None));
 		vc.register_client(Arc::downgrade(&client) as _);
 		let last_hash = client.best_block_header().hash();
 		assert!(vc.contains(&last_hash, &"7d577a597b2742b498cb5cf0c26cdcd726d39e6e".parse::<Address>().unwrap()));

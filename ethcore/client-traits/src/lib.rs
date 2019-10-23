@@ -42,7 +42,7 @@ use common_types::{
 	pruning_info::PruningInfo,
 	receipt::LocalizedReceipt,
 	trace_filter::Filter as TraceFilter,
-	transaction::{self, LocalizedTransaction, CallError, SignedTransaction, UnverifiedTransaction},
+	transaction::{self, Action, LocalizedTransaction, CallError, SignedTransaction, UnverifiedTransaction},
 	tree_route::TreeRoute,
 	verification::{VerificationQueueInfo, Unverified},
 };
@@ -388,7 +388,27 @@ pub trait BlockChainClient:
 	fn pruning_info(&self) -> PruningInfo;
 
 	/// Schedule state-altering transaction to be executed on the next pending block.
-	fn transact_contract(&self, address: Address, data: Bytes) -> Result<(), transaction::Error>;
+	fn transact_contract(&self, address: Address, data: Bytes) -> Result<(), transaction::Error> {
+		self.transact(Action::Call(address), data, None, None, None)
+	}
+
+	/// Returns a signed transaction. If gas limit, gas price, or nonce are not
+	/// specified, the defaults are used.
+	fn create_transaction(
+		&self,
+		action: Action,
+		data: Bytes,
+		gas: Option<U256>,
+		gas_price: Option<U256>,
+		nonce: Option<U256>
+	) -> Result<SignedTransaction, transaction::Error>;
+
+	/// Schedule state-altering transaction to be executed on the next pending
+	/// block with the given gas and nonce parameters.
+	///
+	/// If they are `None`, sensible values are selected automatically.
+	fn transact(&self, action: Action, data: Bytes, gas: Option<U256>, gas_price: Option<U256>, nonce: Option<U256>)
+		-> Result<(), transaction::Error>;
 }
 
 /// resets the blockchain

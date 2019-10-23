@@ -95,6 +95,9 @@ pub struct AuthorityRoundParams {
 	pub strict_empty_steps_transition: Option<Uint>,
 	/// First block for which a 2/3 quorum (instead of 1/2) is required.
 	pub two_thirds_majority_transition: Option<Uint>,
+	/// The block number at which the consensus engine switches from AuRa to AuRa with POSDAO
+	/// modifications.
+	pub posdao_transition: Option<Uint>,
 }
 
 /// Authority engine deserialization.
