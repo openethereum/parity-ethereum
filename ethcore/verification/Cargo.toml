@@ -34,7 +34,7 @@ unexpected = { path = "../../util/unexpected" }
 [dev-dependencies]
 criterion = "0.3"
 ethcore = { path = "../", features = ["test-helpers"] }
-parity-crypto = { git = "https://github.com/paritytech/parity-common/", rev = "bd91ef6", features = ["publickey"] }
+parity-crypto = { version = "0.4.2", features = ["publickey"] }
 machine = { path = "../machine" }
 null-engine = { path = "../engines/null-engine" }
 spec = { path = "../spec" }

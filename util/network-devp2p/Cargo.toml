@@ -21,7 +21,7 @@ ansi_term = "0.11"
 rustc-hex = "1.0"
 ethcore-io = { path = "../io", features = ["mio"] }
 parity-bytes = "0.1"
-parity-crypto = { git = "https://github.com/paritytech/parity-common/", rev = "bd91ef6", features = ["publickey"] }
+parity-crypto = { version = "0.4.2", features = ["publickey"] }
 network = { package = "ethcore-network", path = "../network" }
 ethereum-types = "0.8.0"
 rlp = "0.4.0"

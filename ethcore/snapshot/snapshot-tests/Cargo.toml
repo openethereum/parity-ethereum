@@ -27,7 +27,7 @@ kvdb = "0.1"
 kvdb-rocksdb = { version = "0.1.5" }
 log = "0.4.8"
 parking_lot = "0.9"
-parity-crypto = { git = "https://github.com/paritytech/parity-common/", rev = "bd91ef6", features = ["publickey"] }
+parity-crypto = { version = "0.4.2", features = ["publickey"] }
 rand = "0.7"
 rand_xorshift = "0.2"
 rlp = "0.4.2"

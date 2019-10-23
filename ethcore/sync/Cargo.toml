@@ -25,7 +25,7 @@ log = "0.4"
 macros = { path = "../../util/macros" }
 network = { package = "ethcore-network", path = "../../util/network" }
 parity-runtime = { path = "../../util/runtime" }
-parity-crypto = { git = "https://github.com/paritytech/parity-common/", rev = "bd91ef6", features = ["publickey"] }
+parity-crypto = { version = "0.4.2", features = ["publickey"] }
 parity-util-mem = "0.2.0"
 rand = "0.7"
 parking_lot = "0.9"
