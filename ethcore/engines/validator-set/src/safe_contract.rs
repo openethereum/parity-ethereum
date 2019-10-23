@@ -86,6 +86,9 @@ pub struct ValidatorSafeContract {
 	/// is the validator set valid for the blocks following that hash.
 	validators: RwLock<MemoryLruCache<H256, SimpleList>>,
 	client: RwLock<Option<Weak<dyn EngineClient>>>, // TODO [keorn]: remove
+	/// If set, this is the block number at which the consensus engine switches from AuRa to AuRa
+	/// with POSDAO modifications.
+	posdao_transition: Option<BlockNumber>,
 }
 
 // first proof is just a state proof call of `getValidators` at header's state.
@@ -200,11 +203,12 @@ fn prove_initial(contract_address: Address, header: &Header, caller: &Call) -> R
 }
 
 impl ValidatorSafeContract {
-	pub fn new(contract_address: Address) -> Self {
+	pub fn new(contract_address: Address, posdao_transition: Option<BlockNumber>) -> Self {
 		ValidatorSafeContract {
 			contract_address,
 			validators: RwLock::new(MemoryLruCache::new(MEMOIZE_CAPACITY)),
 			client: RwLock::new(None),
+			posdao_transition,
 		}
 	}
 
@@ -298,6 +302,28 @@ impl ValidatorSet for ValidatorSafeContract {
 				}
 			})
 			.map(|out| (out, Vec::new()))) // generate no proofs in general
+	}
+
+	fn generate_engine_transactions(&self, _first: bool, header: &Header, caller: &mut SystemCall)
+		-> Result<Vec<(Address, Bytes)>, EthcoreError>
+	{
+		// Skip the rest of the function unless there has been a transition to POSDAO AuRa.
+		if self.posdao_transition.map_or(true, |block_num| header.number() < block_num) {
+			trace!(target: "engine", "Skipping a call to emitInitiateChange");
+			return Ok(Vec::new());
+		}
+		let (data, decoder) = validator_set::functions::emit_initiate_change_callable::call();
+		if !caller(self.contract_address, data)
+			.and_then(|x| decoder.decode(&x)
+			.map_err(|x| format!("chain spec bug: could not decode: {:?}", x)))
+			.map_err(EngineError::FailedSystemCall)?
+		{
+			trace!(target: "engine", "New block #{} issued ― no need to call emitInitiateChange()", header.number());
+			return Ok(Vec::new());
+		}
+		trace!(target: "engine", "New block issued #{} ― calling emitInitiateChange()", header.number());
+		let (data, _decoder) = validator_set::functions::emit_initiate_change::call();
+		Ok(vec![(self.contract_address, data)])
 	}
 
 	fn on_epoch_begin(&self, _first: bool, _header: &Header, caller: &mut SystemCall) -> Result<(), EthcoreError> {
@@ -481,7 +507,8 @@ mod tests {
 	#[test]
 	fn fetches_validators() {
 		let client = generate_dummy_client_with_spec(spec::new_validator_safe_contract);
-		let vc = Arc::new(ValidatorSafeContract::new("0000000000000000000000000000000000000005".parse::<Address>().unwrap()));
+		let addr: Address = "0000000000000000000000000000000000000005".parse().unwrap();
+		let vc = Arc::new(ValidatorSafeContract::new(addr, None));
 		vc.register_client(Arc::downgrade(&client) as _);
 		let last_hash = client.best_block_header().hash();
 		assert!(vc.contains(&last_hash, &"7d577a597b2742b498cb5cf0c26cdcd726d39e6e".parse::<Address>().unwrap()));
