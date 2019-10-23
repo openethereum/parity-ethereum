@@ -31,6 +31,7 @@ use ethtrie::{TrieDB, TrieDBMut};
 use hash_db::HashDB;
 use keccak_hash::{KECCAK_EMPTY, KECCAK_NULL_RLP};
 use log::{trace, warn};
+use parking_lot::RwLock;
 use rlp::{RlpStream, Rlp};
 use trie_db::{Trie, TrieMut};
 
@@ -79,7 +80,7 @@ pub fn to_fat_rlps(
 	used_code: &mut HashSet<H256>,
 	first_chunk_size: usize,
 	max_chunk_size: usize,
-	p: &Progress,
+	p: &RwLock<Progress>,
 ) -> Result<Vec<Bytes>, Error> {
 	let db = &(acct_db as &dyn HashDB<_,_>);
 	let db = TrieDB::new(db, &acc.storage_root)?;
@@ -135,7 +136,7 @@ pub fn to_fat_rlps(
 		}
 
 		loop {
-			if p.abort.load(Ordering::SeqCst) {
+			if p.read().abort {
 				trace!(target: "snapshot", "to_fat_rlps: aborting snapshot");
 				return Err(Error::SnapshotAborted);
 			}
