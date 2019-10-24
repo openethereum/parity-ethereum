@@ -509,13 +509,13 @@ impl SyncHandler {
 		let status = io.snapshot_service().status();
 		match status {
 			RestorationStatus::Inactive | RestorationStatus::Failed => {
-				trace!(target: "snapshot_sync", "{}: Snapshot restoration aborted", peer_id);
+				trace!(target: "snapshot_sync", "{}: Snapshot restoration status: {:?}", peer_id, status);
 				sync.state = SyncState::WaitingPeers;
 
 				// only note bad if restoration failed.
 				if let (Some(hash), RestorationStatus::Failed) = (sync.snapshot.snapshot_hash(), status) {
 					// todo[dvdplm]: how do we know we `Failed` because of them and not because something happened on our end, say disk was full?
-					debug!(target: "snapshot_sync", "Marking snapshot hash {} as bad", hash);
+					debug!(target: "snapshot_sync", "Marking snapshot manifest hash {} as bad", hash);
 					sync.snapshot.note_bad(hash);
 				}
 
@@ -523,11 +523,11 @@ impl SyncHandler {
 				return Ok(());
 			},
 			RestorationStatus::Initializing { .. } => {
-				trace!(target: "snapshot_sync", "{}: Snapshot restoration is initializing", peer_id);
+				trace!(target: "snapshot_sync", "{}: Snapshot restoration is initializing. Can't accept data right now.", peer_id);
 				return Ok(());
 			}
 			RestorationStatus::Finalizing => {
-				trace!(target: "snapshot_sync", "{}: Snapshot finalizing restoration", peer_id);
+				trace!(target: "snapshot_sync", "{}: Snapshot finalizing restoration. Can't accept data right now.", peer_id);
 				return Ok(());
 			}
 			RestorationStatus::Ongoing { .. } => {

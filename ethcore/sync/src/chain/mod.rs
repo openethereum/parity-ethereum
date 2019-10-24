@@ -277,7 +277,7 @@ impl SyncStatus {
 }
 
 #[derive(PartialEq, Eq, Debug, Clone)]
-/// Peer data type requested
+/// Peer data type requested from a peer by us.
 pub enum PeerAsking {
 	Nothing,
 	ForkHeader,
@@ -297,7 +297,7 @@ pub enum BlockSet {
 	/// Missing old blocks
 	OldBlocks,
 }
-#[derive(Clone, Eq, PartialEq)]
+#[derive(Clone, Eq, PartialEq, Debug)]
 pub enum ForkConfirmation {
 	/// Fork block confirmation pending.
 	Unconfirmed,
@@ -307,7 +307,7 @@ pub enum ForkConfirmation {
 	Confirmed,
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 /// Syncing peer information
 pub struct PeerInfo {
 	/// eth protocol version
@@ -320,6 +320,7 @@ pub struct PeerInfo {
 	latest_hash: H256,
 	/// Peer total difficulty if known
 	difficulty: Option<U256>,
+	// todo[dvdplm]: clarify if these "asking*" fields are things **we** ask **them** for or vice versa
 	/// Type of data currently being requested from peer.
 	asking: PeerAsking,
 	/// A set of block numbers being requested
@@ -616,7 +617,7 @@ pub struct ChainSync {
 	state: SyncState,
 	/// Last block number for the start of sync
 	starting_block: BlockNumber,
-	/// Highest block number seen
+	/// Highest block number seen on the network.
 	highest_block: Option<BlockNumber>,
 	/// All connected peers
 	peers: Peers,
@@ -803,9 +804,10 @@ impl ChainSync {
 		self.active_peers.remove(&peer_id);
 	}
 
+	// Called once per second.
 	fn maybe_start_snapshot_sync(&mut self, io: &mut dyn SyncIo) {
 		if !self.warp_sync.is_enabled() || io.snapshot_service().supported_versions().is_none() {
-			trace!(target: "snapshot_sync", "Skipping warp sync. Disabled or not supported.");
+//			trace!(target: "snapshot_sync", "Skipping warp sync. Disabled or not supported.");
 			return;
 		}
 		if self.state != SyncState::WaitingPeers && self.state != SyncState::Blocks && self.state != SyncState::Waiting {
@@ -822,22 +824,33 @@ impl ChainSync {
 				WarpSync::OnlyAndAfter(block) => block,
 				_ => 0,
 			};
-			//collect snapshot infos from peers
+			// Collect snapshot info from peers: filter out expired peers and peers from whom we do
+			// not have fork confirmation.
 			let snapshots = self.peers.iter()
 				.filter(|&(_, p)| p.is_allowed() && p.snapshot_number.map_or(false, |sn|
-					// Snapshot must be old enough that it's useful to sync with it
+					// Snapshot must be sufficiently better than what we have that it's useful to
+					// sync with it: more than 30k blocks beyond our best block
 					our_best_block < sn && (sn - our_best_block) > SNAPSHOT_RESTORE_THRESHOLD &&
-					// Snapshot must have been taken after the Fork
+					// Snapshot must have been taken after the fork block (if any is configured)
 					sn > fork_block &&
 					// Snapshot must be greater than the warp barrier if any
 					sn > expected_warp_block &&
-					// If we know a highest block, snapshot must be recent enough
+					// If we know what the highest block on the network is, snapshot must be recent
+					// enough: either it's better than the highest we've seen on the network or it's
+					// within 30k blocks of the best we've seen.
 					self.highest_block.map_or(true, |highest| {
 						highest < sn || (highest - sn) <= SNAPSHOT_RESTORE_THRESHOLD
 					})
 				))
 				.filter_map(|(p, peer)| peer.snapshot_hash.map(|hash| (p, hash.clone())))
-				.filter(|&(_, ref hash)| !self.snapshot.is_known_bad(hash));
+				.filter(|&(p, ref hash)| {
+					if self.snapshot.is_known_bad(hash) {
+						trace!(target: "snapshot_sync", "{}: Snapshot with hash {:?} is known to have failed before; not trying again", p, hash);
+						false
+					} else {
+						true
+					}
+				});
 
 			let mut snapshot_peers = HashMap::new();
 			let mut max_peers: usize = 0;
@@ -870,6 +883,9 @@ impl ChainSync {
 		}
 	}
 
+	/// Start a snapshot with all peers that we are not currently asking something else from. If
+	/// we're already snapshotting with a peer, set sync state to `SnapshotData` and continue
+	/// fetching the snapshot.
 	fn start_snapshot_sync(&mut self, io: &mut dyn SyncIo, peers: &[PeerId]) {
 		if !self.snapshot.have_manifest() {
 			for p in peers {
@@ -878,10 +894,10 @@ impl ChainSync {
 				}
 			}
 			self.set_state(SyncState::SnapshotManifest);
-			trace!(target: "sync", "New snapshot sync with {:?}", peers);
+			trace!(target: "snapshot_sync", "New snapshot sync with {:?}", peers);
 		} else {
 			self.set_state(SyncState::SnapshotData);
-			trace!(target: "sync", "Resumed snapshot sync with {:?}", peers);
+			trace!(target: "snapshot_sync", "Resumed snapshot sync with {:?}", peers);
 		}
 	}
 
@@ -991,10 +1007,11 @@ impl ChainSync {
 				SyncState::WaitingPeers => {
 					trace!(
 						target: "snapshot_sync",
-						"Can we snapshot from them? Their highest block: #{} vs our highest: #{} (peer: {})",
+						"Can we snapshot from them? Their highest block: #{} vs our highest: #{} (peer: {}, {})",
 						peer_snapshot_number,
 						chain_info.best_block_number,
-						peer_id
+						peer_id,
+						io.peer_enode(peer_id),
 					);
 					self.maybe_start_snapshot_sync(io);
 				},
@@ -1073,6 +1090,7 @@ impl ChainSync {
 	}
 
 	/// Clear all blocks/headers marked as being downloaded by a peer.
+	// todo[dvdplm] ^^^ should be **from a peer** I think?
 	fn clear_peer_download(&mut self, peer_id: PeerId) {
 		if let Some(ref peer) = self.peers.get(&peer_id) {
 			match peer.asking {
@@ -1152,7 +1170,7 @@ impl ChainSync {
 			peer.expired = false;
 			peer.block_set = None;
 			if peer.asking != asking {
-				trace!(target:"sync", "Asking {:?} while expected {:?}", peer.asking, asking);
+				trace!(target:"sync", "{}: Asking {:?} while expected {:?}", peer_id, peer.asking, asking);
 				peer.asking = PeerAsking::Nothing;
 				return false;
 			} else {

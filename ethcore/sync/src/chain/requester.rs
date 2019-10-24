@@ -100,8 +100,8 @@ impl SyncRequester {
 
 	/// Request snapshot manifest from a peer.
 	pub fn request_snapshot_manifest(sync: &mut ChainSync, io: &mut dyn SyncIo, peer_id: PeerId) {
-		trace!(target: "sync", "{} <- GetSnapshotManifest", peer_id);
-		let rlp = RlpStream::new_list(0);
+		trace!(target: "sync", "{}: requesting a snapshot manifest", peer_id);
+		let rlp = RlpStream::new_list(0); // todo[dvdplm]: make this a const
 		SyncRequester::send_request(sync, io, peer_id, PeerAsking::SnapshotManifest, GetSnapshotManifestPacket, rlp.out());
 	}
 
