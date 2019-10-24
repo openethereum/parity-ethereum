@@ -43,7 +43,7 @@ use ethereum_types::{H256, U256};
 use keccak_hash::keccak;
 use network::PeerId;
 use network::client_version::ClientVersion;
-use log::{debug, trace, error};
+use log::{debug, trace, error, warn};
 use rlp::Rlp;
 use common_types::{
 	BlockNumber,
@@ -486,7 +486,7 @@ impl SyncHandler {
 		}
 		sync.snapshot.reset_to(&manifest, &keccak(manifest_rlp.as_raw()));
 		debug!(target: "snapshot_sync", "{}: Peer sent a snapshot manifest we can use. Block number #{}, block chunks: {}, state chunks: {}",
-			manifest.block_number, manifest.block_hashes.len(), manifest.state_hashes.len());
+			peer_id, manifest.block_number, manifest.block_hashes.len(), manifest.state_hashes.len());
 		io.snapshot_service().begin_restore(manifest);
 		sync.state = SyncState::SnapshotData;
 
