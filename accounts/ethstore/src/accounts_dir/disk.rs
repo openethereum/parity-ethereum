@@ -356,7 +356,7 @@ mod test {
 	use std::{env, fs};
 	use super::{KeyDirectory, RootDiskDirectory, VaultKey};
 	use account::SafeAccount;
-	use ethkey::{Random, Generator};
+	use crypto::publickey::{Random, Generator};
 	use self::tempdir::TempDir;
 
 	#[test]

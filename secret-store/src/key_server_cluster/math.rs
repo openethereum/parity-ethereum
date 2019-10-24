@@ -14,7 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
-use ethkey::{Public, Secret, Signature, Random, Generator, math};
+use crypto::publickey::{Public, Secret, Signature, Random, Generator, ec_math_utils};
 use ethereum_types::{H256, U256, BigEndianHash};
 use hash::keccak;
 use key_server_cluster::Error;
@@ -36,7 +36,7 @@ pub fn zero_scalar() -> Secret {
 /// Convert hash to EC scalar (modulo curve order).
 pub fn to_scalar(hash: H256) -> Result<Secret, Error> {
 	let scalar: U256 = hash.into_uint();
-	let scalar: H256 = BigEndianHash::from_uint(&(scalar % math::curve_order()));
+	let scalar: H256 = BigEndianHash::from_uint(&(scalar % *ec_math_utils::CURVE_ORDER));
 	let scalar = Secret::from(scalar.0);
 	scalar.check_validity()?;
 	Ok(scalar)
@@ -66,7 +66,7 @@ fn public_y(public: &Public) -> H256 {
 pub fn compute_public_sum<'a, I>(mut publics: I) -> Result<Public, Error> where I: Iterator<Item=&'a Public> {
 	let mut sum = publics.next().expect("compute_public_sum is called when there's at least one public; qed").clone();
 	while let Some(public) = publics.next() {
-		math::public_add(&mut sum, &public)?;
+		ec_math_utils::public_add(&mut sum, &public)?;
 	}
 	Ok(sum)
 }
@@ -113,7 +113,7 @@ pub fn compute_shadow_mul<'a, I>(coeff: &Secret, self_secret: &Secret, mut other
 
 /// Update point by multiplying to random scalar
 pub fn update_random_point(point: &mut Public) -> Result<(), Error> {
-	Ok(math::public_mul_secret(point, &generate_random_scalar()?)?)
+	Ok(ec_math_utils::public_mul_secret(point, &generate_random_scalar()?)?)
 }
 
 /// Generate random polynom of threshold degree
@@ -153,14 +153,14 @@ pub fn public_values_generation(threshold: usize, derived_point: &Public, polyno
 	for i in 0..threshold + 1 {
 		let coeff1 = &polynom1[i];
 
-		let mut multiplication1 = math::generation_point();
-		math::public_mul_secret(&mut multiplication1, &coeff1)?;
+		let mut multiplication1 = ec_math_utils::generation_point();
+		ec_math_utils::public_mul_secret(&mut multiplication1, &coeff1)?;
 
 		let coeff2 = &polynom2[i];
 		let mut multiplication2 = derived_point.clone();
-		math::public_mul_secret(&mut multiplication2, &coeff2)?;
+		ec_math_utils::public_mul_secret(&mut multiplication2, &coeff2)?;
 
-		math::public_add(&mut multiplication1, &multiplication2)?;
+		ec_math_utils::public_add(&mut multiplication1, &multiplication2)?;
 
 		publics.push(multiplication1);
 	}
@@ -172,13 +172,13 @@ pub fn public_values_generation(threshold: usize, derived_point: &Public, polyno
 /// Check keys passed by other participants.
 pub fn keys_verification(threshold: usize, derived_point: &Public, number_id: &Secret, secret1: &Secret, secret2: &Secret, publics: &[Public]) -> Result<bool, Error> {
 	// calculate left part
-	let mut multiplication1 = math::generation_point();
-	math::public_mul_secret(&mut multiplication1, secret1)?;
+	let mut multiplication1 = ec_math_utils::generation_point();
+	ec_math_utils::public_mul_secret(&mut multiplication1, secret1)?;
 
 	let mut multiplication2 = derived_point.clone();
-	math::public_mul_secret(&mut multiplication2, secret2)?;
+	ec_math_utils::public_mul_secret(&mut multiplication2, secret2)?;
 
-	math::public_add(&mut multiplication1, &multiplication2)?;
+	ec_math_utils::public_add(&mut multiplication1, &multiplication2)?;
 	let left = multiplication1;
 
 	// calculate right part
@@ -188,9 +188,9 @@ pub fn keys_verification(threshold: usize, derived_point: &Public, number_id: &S
 		secret_pow.pow(i)?;
 
 		let mut public_k = publics[i].clone();
-		math::public_mul_secret(&mut public_k, &secret_pow)?;
+		ec_math_utils::public_mul_secret(&mut public_k, &secret_pow)?;
 
-		math::public_add(&mut right, &public_k)?;
+		ec_math_utils::public_add(&mut right, &public_k)?;
 	}
 
 	Ok(left == right)
@@ -213,8 +213,8 @@ pub fn compute_secret_share<'a, I>(secret_values: I) -> Result<Secret, Error> wh
 
 /// Compute public key share.
 pub fn compute_public_share(self_secret_value: &Secret) -> Result<Public, Error> {
-	let mut public_share = math::generation_point();
-	math::public_mul_secret(&mut public_share, self_secret_value)?;
+	let mut public_share = ec_math_utils::generation_point();
+	ec_math_utils::public_mul_secret(&mut public_share, self_secret_value)?;
 	Ok(public_share)
 }
 
@@ -256,13 +256,13 @@ pub fn encrypt_secret(secret: &Public, joint_public: &Public) -> Result<Encrypte
 	let key_pair = Random.generate()?;
 
 	// k * T
-	let mut common_point = math::generation_point();
-	math::public_mul_secret(&mut common_point, key_pair.secret())?;
+	let mut common_point = ec_math_utils::generation_point();
+	ec_math_utils::public_mul_secret(&mut common_point, key_pair.secret())?;
 
 	// M + k * y
 	let mut encrypted_point = joint_public.clone();
-	math::public_mul_secret(&mut encrypted_point, key_pair.secret())?;
-	math::public_add(&mut encrypted_point, secret)?;
+	ec_math_utils::public_mul_secret(&mut encrypted_point, key_pair.secret())?;
+	ec_math_utils::public_add(&mut encrypted_point, secret)?;
 
 	Ok(EncryptedSecret {
 		common_point: common_point,
@@ -292,7 +292,7 @@ pub fn compute_node_shadow_point(access_key: &Secret, common_point: &Public, nod
 	shadow_key.mul(access_key)?;
 
 	let mut node_shadow_point = common_point.clone();
-	math::public_mul_secret(&mut node_shadow_point, &shadow_key)?;
+	ec_math_utils::public_mul_secret(&mut node_shadow_point, &shadow_key)?;
 	Ok((node_shadow_point, decrypt_shadow))
 }
 
@@ -308,7 +308,7 @@ pub fn compute_joint_shadow_point_test<'a, I>(access_key: &Secret, common_point:
 	joint_shadow.mul(access_key)?;
 
 	let mut joint_shadow_point = common_point.clone();
-	math::public_mul_secret(&mut joint_shadow_point, &joint_shadow)?;
+	ec_math_utils::public_mul_secret(&mut joint_shadow_point, &joint_shadow)?;
 	Ok(joint_shadow_point)
 }
 
@@ -318,13 +318,13 @@ pub fn decrypt_with_joint_shadow(threshold: usize, access_key: &Secret, encrypte
 	inv_access_key.inv()?;
 
 	let mut mul = joint_shadow_point.clone();
-	math::public_mul_secret(&mut mul, &inv_access_key)?;
+	ec_math_utils::public_mul_secret(&mut mul, &inv_access_key)?;
 
 	let mut decrypted_point = encrypted_point.clone();
 	if threshold % 2 != 0 {
-		math::public_add(&mut decrypted_point, &mul)?;
+		ec_math_utils::public_add(&mut decrypted_point, &mul)?;
 	} else {
-		math::public_sub(&mut decrypted_point, &mul)?;
+		ec_math_utils::public_sub(&mut decrypted_point, &mul)?;
 	}
 
 	Ok(decrypted_point)
@@ -335,7 +335,7 @@ pub fn make_common_shadow_point(threshold: usize, mut common_point: Public) -> R
 	if threshold % 2 != 1 {
 		Ok(common_point)
 	} else {
-		math::public_negate(&mut common_point)?;
+		ec_math_utils::public_negate(&mut common_point)?;
 		Ok(common_point)
 	}
 }
@@ -344,8 +344,8 @@ pub fn make_common_shadow_point(threshold: usize, mut common_point: Public) -> R
 #[cfg(test)]
 pub fn decrypt_with_shadow_coefficients(mut decrypted_shadow: Public, mut common_shadow_point: Public, shadow_coefficients: Vec<Secret>) -> Result<Public, Error> {
 	let shadow_coefficients_sum = compute_secret_sum(shadow_coefficients.iter())?;
-	math::public_mul_secret(&mut common_shadow_point, &shadow_coefficients_sum)?;
-	math::public_add(&mut decrypted_shadow, &common_shadow_point)?;
+	ec_math_utils::public_mul_secret(&mut common_shadow_point, &shadow_coefficients_sum)?;
+	ec_math_utils::public_add(&mut decrypted_shadow, &common_shadow_point)?;
 	Ok(decrypted_shadow)
 }
 
@@ -353,10 +353,10 @@ pub fn decrypt_with_shadow_coefficients(mut decrypted_shadow: Public, mut common
 #[cfg(test)]
 pub fn decrypt_with_joint_secret(encrypted_point: &Public, common_point: &Public, joint_secret: &Secret) -> Result<Public, Error> {
 	let mut common_point_mul = common_point.clone();
-	math::public_mul_secret(&mut common_point_mul, joint_secret)?;
+	ec_math_utils::public_mul_secret(&mut common_point_mul, joint_secret)?;
 
 	let mut decrypted_point = encrypted_point.clone();
-	math::public_sub(&mut decrypted_point, &common_point_mul)?;
+	ec_math_utils::public_sub(&mut decrypted_point, &common_point_mul)?;
 
 	Ok(decrypted_point)
 }
@@ -417,8 +417,8 @@ pub fn compute_schnorr_signature<'a, I>(signature_shares: I) -> Result<Secret, E
 /// Locally compute Schnorr signature as described in https://en.wikipedia.org/wiki/Schnorr_signature#Signing.
 #[cfg(test)]
 pub fn local_compute_schnorr_signature(nonce: &Secret, secret: &Secret, message_hash: &Secret) -> Result<(Secret, Secret), Error> {
-	let mut nonce_public = math::generation_point();
-	math::public_mul_secret(&mut nonce_public, &nonce).unwrap();
+	let mut nonce_public = ec_math_utils::generation_point();
+	ec_math_utils::public_mul_secret(&mut nonce_public, &nonce).unwrap();
 
 	let combined_hash = combine_message_hash_with_public(message_hash, &nonce_public)?;
 
@@ -433,11 +433,11 @@ pub fn local_compute_schnorr_signature(nonce: &Secret, secret: &Secret, message_
 /// Verify Schnorr signature as described in https://en.wikipedia.org/wiki/Schnorr_signature#Verifying.
 #[cfg(test)]
 pub fn verify_schnorr_signature(public: &Public, signature: &(Secret, Secret), message_hash: &H256) -> Result<bool, Error> {
-	let mut addendum = math::generation_point();
-	math::public_mul_secret(&mut addendum, &signature.1)?;
+	let mut addendum = ec_math_utils::generation_point();
+	ec_math_utils::public_mul_secret(&mut addendum, &signature.1)?;
 	let mut nonce_public = public.clone();
-	math::public_mul_secret(&mut nonce_public, &signature.0)?;
-	math::public_add(&mut nonce_public, &addendum)?;
+	ec_math_utils::public_mul_secret(&mut nonce_public, &signature.0)?;
+	ec_math_utils::public_add(&mut nonce_public, &addendum)?;
 
 	let combined_hash = combine_message_hash_with_public(message_hash, &nonce_public)?;
 	Ok(combined_hash == signature.0)
@@ -486,11 +486,10 @@ pub fn serialize_ecdsa_signature(nonce_public: &Public, signature_r: Secret, mut
 	};
 
 	// fix high S
-	let curve_order = math::curve_order();
-	let curve_order_half = curve_order / 2;
+	let curve_order_half = *ec_math_utils::CURVE_ORDER / 2;
 	let s_numeric: U256 = (*signature_s).into_uint();
 	if s_numeric > curve_order_half {
-		let signature_s_hash: H256 = BigEndianHash::from_uint(&(curve_order - s_numeric));
+		let signature_s_hash: H256 = BigEndianHash::from_uint(&(*ec_math_utils::CURVE_ORDER - s_numeric));
 		signature_s = signature_s_hash.into();
 		signature_v ^= 1;
 	}
@@ -534,7 +533,7 @@ pub fn compute_ecdsa_inversed_secret_coeff_from_shares(t: usize, id_numbers: &[S
 #[cfg(test)]
 pub mod tests {
 	use std::iter::once;
-	use ethkey::{KeyPair, recover, verify_public};
+	use crypto::publickey::{KeyPair, recover, verify_public};
 	use super::*;
 
 	#[derive(Clone)]

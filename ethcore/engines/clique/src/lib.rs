@@ -72,7 +72,7 @@ use engine::{
 	signer::EngineSigner,
 };
 use ethereum_types::{Address, H64, H160, H256, U256};
-use ethkey::Signature;
+use parity_crypto::publickey::Signature;
 use keccak_hash::KECCAK_EMPTY_LIST_RLP;
 use log::{trace, warn};
 use lru_cache::LruCache;

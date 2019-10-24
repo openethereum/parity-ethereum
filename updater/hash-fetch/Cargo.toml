@@ -12,7 +12,7 @@ futures = "0.1"
 log = "0.4"
 mime = "0.3"
 mime_guess = "2.0.0-alpha.2"
-rand = "0.6"
+rand = "0.7"
 rustc-hex = "1.0"
 fetch = { path = "../../util/fetch" }
 parity-bytes = "0.1"

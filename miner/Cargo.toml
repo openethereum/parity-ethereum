@@ -39,7 +39,7 @@ transaction-pool = "2.0.1"
 
 [dev-dependencies]
 env_logger = "0.5"
-ethkey = { path = "../accounts/ethkey" }
+parity-crypto = { version = "0.4.2", features = ["publickey"] }
 rustc-hex = "1.0"
 
 [features]

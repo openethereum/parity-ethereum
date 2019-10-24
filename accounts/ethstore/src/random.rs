@@ -23,7 +23,7 @@ pub trait Random {
 impl Random for [u8; 16] {
 	fn random() -> Self {
 		let mut result = [0u8; 16];
-		let mut rng = OsRng::new().unwrap();
+		let mut rng = OsRng;
 		rng.fill_bytes(&mut result);
 		result
 	}
@@ -32,7 +32,7 @@ impl Random for [u8; 16] {
 impl Random for [u8; 32] {
 	fn random() -> Self {
 		let mut result = [0u8; 32];
-		let mut rng = OsRng::new().unwrap();
+		let mut rng = OsRng;
 		rng.fill_bytes(&mut result);
 		result
 	}
@@ -40,6 +40,6 @@ impl Random for [u8; 32] {
 
 /// Generate a random string of given length.
 pub fn random_string(length: usize) -> String {
-	let mut rng = OsRng::new().expect("Not able to operate without random source.");
+	let rng = OsRng;
 	rng.sample_iter(&Alphanumeric).take(length).collect()
 }

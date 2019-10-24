@@ -27,7 +27,7 @@ use ethcore::client::Client;
 use ethcore::miner::{self, MinerService};
 use ethcore_io::{IoHandler, IoChannel};
 use ethereum_types::{U256, Address};
-use ethkey::{KeyPair, Secret};
+use parity_crypto::publickey::{KeyPair, Secret};
 use keccak_hash::keccak;
 use common_types::{
 	io_message::ClientIoMessage,

@@ -34,7 +34,7 @@ use v1::tests::helpers::TestMinerService;
 use v1::types::{EIP191Version, PresignedTransaction};
 use rustc_hex::ToHex;
 use serde_json::to_value;
-use ethkey::Secret;
+use crypto::publickey::Secret;
 
 struct PersonalTester {
 	_runtime: Runtime,

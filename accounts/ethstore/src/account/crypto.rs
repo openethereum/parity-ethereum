@@ -15,7 +15,8 @@
 // along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
 use std::str;
-use ethkey::{Password, Secret};
+use crypto::publickey::Secret;
+use ethkey::Password;
 use {json, Error, crypto};
 use crypto::Keccak256;
 use random::Random;
@@ -120,7 +121,7 @@ impl Crypto {
 		}
 
 		let secret = self.do_decrypt(password, 32)?;
-		Ok(Secret::from_unsafe_slice(&secret)?)
+		Ok(Secret::import_key(&secret)?)
 	}
 
 	/// Try to decrypt and return result as is
@@ -158,7 +159,7 @@ impl Crypto {
 
 #[cfg(test)]
 mod tests {
-	use ethkey::{Generator, Random};
+	use crypto::publickey::{Generator, Random};
 	use super::{Crypto, Error};
 
 	#[test]

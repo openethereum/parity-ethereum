@@ -104,7 +104,7 @@ pub trait Parity {
 
 	/// Returns whatever address would be derived from the given phrase if it were to seed a brainwallet.
 	#[rpc(name = "parity_phraseToAddress")]
-	fn phrase_to_address(&self, String) -> Result<H160>;
+	fn phrase_to_address(&self, _: String) -> Result<H160>;
 
 	/// Returns the value of the registrar for this network.
 	#[rpc(name = "parity_registryAddress")]
@@ -112,21 +112,27 @@ pub trait Parity {
 
 	/// Returns all addresses if Fat DB is enabled (`--fat-db`), or null if not.
 	#[rpc(name = "parity_listAccounts")]
-	fn list_accounts(&self, u64, Option<H160>, Option<BlockNumber>) -> Result<Option<Vec<H160>>>;
+	fn list_accounts(&self, _: u64, _: Option<H160>, _: Option<BlockNumber>) -> Result<Option<Vec<H160>>>;
 
 	/// Returns all storage keys of the given address (first parameter) if Fat DB is enabled (`--fat-db`),
 	/// or null if not.
 	#[rpc(name = "parity_listStorageKeys")]
-	fn list_storage_keys(&self, H160, Option<u64>, Option<H256>, Option<BlockNumber>) -> Result<Option<Vec<H256>>>;
+	fn list_storage_keys(
+		&self,
+		_: H160,
+		_: Option<u64>,
+		_: Option<H256>,
+		_: Option<BlockNumber>,
+	) -> Result<Option<Vec<H256>>>;
 
 	/// Encrypt some data with a public key under ECIES.
 	/// First parameter is the 512-byte destination public key, second is the message.
 	#[rpc(name = "parity_encryptMessage")]
-	fn encrypt_message(&self, H512, Bytes) -> Result<Bytes>;
+	fn encrypt_message(&self, _: H512, _: Bytes) -> Result<Bytes>;
 
 	/// Returns all pending transactions from transaction queue.
 	#[rpc(name = "parity_pendingTransactions")]
-	fn pending_transactions(&self, Option<usize>, Option<FilterOptions>) -> Result<Vec<Transaction>>;
+	fn pending_transactions(&self, _: Option<usize>, _: Option<FilterOptions>) -> Result<Vec<Transaction>>;
 
 	/// Returns all transactions from transaction queue.
 	///
@@ -156,7 +162,7 @@ pub trait Parity {
 
 	/// Returns next nonce for particular sender. Should include all transactions in the queue.
 	#[rpc(name = "parity_nextNonce")]
-	fn next_nonce(&self, H160) -> BoxFuture<U256>;
+	fn next_nonce(&self, _: H160) -> BoxFuture<U256>;
 
 	/// Get the mode. Returns one of: "active", "passive", "dark", "offline".
 	#[rpc(name = "parity_mode")]
@@ -193,26 +199,26 @@ pub trait Parity {
 	/// Get block header.
 	/// Same as `eth_getBlockByNumber` but without uncles and transactions.
 	#[rpc(name = "parity_getBlockHeaderByNumber")]
-	fn block_header(&self, Option<BlockNumber>) -> BoxFuture<RichHeader>;
+	fn block_header(&self, _: Option<BlockNumber>) -> BoxFuture<RichHeader>;
 
 	/// Get block receipts.
 	/// Allows you to fetch receipts from the entire block at once.
 	/// If no parameter is provided defaults to `latest`.
 	#[rpc(name = "parity_getBlockReceipts")]
-	fn block_receipts(&self, Option<BlockNumber>) -> BoxFuture<Vec<Receipt>>;
+	fn block_receipts(&self, _: Option<BlockNumber>) -> BoxFuture<Vec<Receipt>>;
 
 	/// Get IPFS CIDv0 given protobuf encoded bytes.
 	#[rpc(name = "parity_cidV0")]
-	fn ipfs_cid(&self, Bytes) -> Result<String>;
+	fn ipfs_cid(&self, _: Bytes) -> Result<String>;
 
 	/// Call contract, returning the output data.
 	#[rpc(name = "parity_call")]
-	fn call(&self, Vec<CallRequest>, Option<BlockNumber>) -> Result<Vec<Bytes>>;
+	fn call(&self, _: Vec<CallRequest>, _: Option<BlockNumber>) -> Result<Vec<Bytes>>;
 
 	/// Used for submitting a proof-of-work solution (similar to `eth_submitWork`,
 	/// but returns block hash on success, and returns an explicit error message on failure).
 	#[rpc(name = "parity_submitWorkDetail")]
-	fn submit_work_detail(&self, H64, H256, H256) -> Result<H256>;
+	fn submit_work_detail(&self, _: H64, _: H256, _: H256) -> Result<H256>;
 
 	/// Returns the status of the node. Used as the health endpoint.
 	///
@@ -227,18 +233,18 @@ pub trait Parity {
 	/// Extracts Address and public key from signature using the r, s and v params. Equivalent to Solidity erecover
 	/// as well as checks the signature for chain replay protection
 	#[rpc(name = "parity_verifySignature")]
-	fn verify_signature(&self, bool, Bytes, H256, H256, U64) -> Result<RecoveredAccount>;
+	fn verify_signature(&self, _: bool, _: Bytes, _: H256, _: H256, _: U64) -> Result<RecoveredAccount>;
 
 	/// Returns logs matching given filter object.
 	/// Is allowed to skip filling transaction hash for faster query.
 	#[rpc(name = "parity_getLogsNoTransactionHash")]
-	fn logs_no_tx_hash(&self, Filter) -> BoxFuture<Vec<Log>>;
+	fn logs_no_tx_hash(&self, _: Filter) -> BoxFuture<Vec<Log>>;
 
 	/// Returns raw block RLP with given number.
 	#[rpc(name = "parity_getRawBlockByNumber")]
-	fn get_raw_block_by_number(&self, BlockNumber) -> BoxFuture<Option<Bytes>>;
+	fn get_raw_block_by_number(&self, _: BlockNumber) -> BoxFuture<Option<Bytes>>;
 
 	/// Submit raw block to be published to the network
 	#[rpc(name = "parity_submitRawBlock")]
-	fn submit_raw_block(&self, Bytes) -> Result<H256>;
+	fn submit_raw_block(&self, _: Bytes) -> Result<H256>;
 }

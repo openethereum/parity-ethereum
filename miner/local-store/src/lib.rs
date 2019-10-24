@@ -201,7 +201,8 @@ mod tests {
 
 	use std::sync::Arc;
 	use common_types::transaction::{Transaction, Condition, PendingTransaction};
-	use ethkey::{Brain, Generator};
+	use ethkey::Brain;
+	use parity_crypto::publickey::Generator;
 
 	// we want to test: round-trip of good transactions.
 	// failure to roundtrip bad transactions (but that it doesn't panic)

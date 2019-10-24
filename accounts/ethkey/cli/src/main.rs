@@ -19,6 +19,7 @@ extern crate env_logger;
 extern crate ethkey;
 extern crate panic_hook;
 extern crate parity_wordlist;
+extern crate parity_crypto;
 extern crate rustc_hex;
 extern crate serde;
 extern crate threadpool;
@@ -30,7 +31,8 @@ use std::num::ParseIntError;
 use std::{env, fmt, process, io, sync};
 
 use docopt::Docopt;
-use ethkey::{KeyPair, Random, Brain, BrainPrefix, Prefix, Error as EthkeyError, Generator, sign, verify_public, verify_address, brain_recover};
+use ethkey::{Brain, BrainPrefix, Prefix, brain_recover};
+use parity_crypto::publickey::{KeyPair, Random, Error as EthkeyError, Generator, sign, verify_public, verify_address};
 use rustc_hex::{FromHex, FromHexError};
 
 const USAGE: &'static str = r#"
@@ -200,7 +202,7 @@ fn execute<S, I>(command: I) -> Result<String, Error> where I: IntoIterator<Item
 			let keypair = Brain::new(phrase).generate().expect("Brain wallet generator is infallible; qed");
 			(keypair, Some(phrase_info))
 		} else {
-			let secret = args.arg_secret_or_phrase.parse().map_err(|_| EthkeyError::InvalidSecret)?;
+			let secret = args.arg_secret_or_phrase.parse().map_err(|_| EthkeyError::InvalidSecretKey)?;
 			(KeyPair::from_secret(secret)?, None)
 		};
 		Ok(display(result, display_mode))
@@ -241,7 +243,7 @@ fn execute<S, I>(command: I) -> Result<String, Error> where I: IntoIterator<Item
 		};
 		Ok(display(result, display_mode))
 	} else if args.cmd_sign {
-		let secret = args.arg_secret.parse().map_err(|_| EthkeyError::InvalidSecret)?;
+		let secret = args.arg_secret.parse().map_err(|_| EthkeyError::InvalidSecretKey)?;
 		let message = args.arg_message.parse().map_err(|_| EthkeyError::InvalidMessage)?;
 		let signature = sign(&secret, &message)?;
 		Ok(format!("{}", signature))
@@ -249,7 +251,7 @@ fn execute<S, I>(command: I) -> Result<String, Error> where I: IntoIterator<Item
 		let signature = args.arg_signature.parse().map_err(|_| EthkeyError::InvalidSignature)?;
 		let message = args.arg_message.parse().map_err(|_| EthkeyError::InvalidMessage)?;
 		let ok = if args.cmd_public {
-			let public = args.arg_public.parse().map_err(|_| EthkeyError::InvalidPublic)?;
+			let public = args.arg_public.parse().map_err(|_| EthkeyError::InvalidPublicKey)?;
 			verify_public(&public, &signature, &message)?
 		} else if args.cmd_address {
 			let address = args.arg_address.parse().map_err(|_| EthkeyError::InvalidAddress)?;

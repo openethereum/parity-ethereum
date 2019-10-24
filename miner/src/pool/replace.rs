@@ -119,7 +119,7 @@ mod tests {
 	use super::*;
 
 	use std::sync::Arc;
-	use ethkey::{Random, Generator, KeyPair};
+	use parity_crypto::publickey::{Random, Generator, KeyPair};
 	use pool::tests::tx::{Tx, TxExt};
 	use pool::tests::client::TestClient;
 	use pool::scoring::*;

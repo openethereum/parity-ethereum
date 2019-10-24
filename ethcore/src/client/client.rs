@@ -472,7 +472,7 @@ impl Importer {
 		{
 			trace_time!("import_old_block");
 			// verify the block, passing the chain for updating the epoch verifier.
-			let mut rng = OsRng::new().map_err(|e| format!("{}", e))?;
+			let mut rng = OsRng;
 			self.ancient_verifier.verify(&mut rng, &unverified.header, &chain)?;
 
 			// Commit results
@@ -2054,7 +2054,7 @@ impl BlockChainClient for Client {
 			blocks
 		};
 
-		Ok(self.chain.read().logs(blocks, |entry| filter.matches(entry), filter.limit))
+		Ok(chain.logs(blocks, |entry| filter.matches(entry), filter.limit))
 	}
 
 	fn filter_traces(&self, filter: TraceFilter) -> Option<Vec<LocalizedTrace>> {
@@ -2814,7 +2814,7 @@ mod tests {
 
 	use blockchain::{ExtrasInsert, BlockProvider};
 	use client_traits::{BlockChainClient, ChainInfo};
-	use ethkey::KeyPair;
+	use parity_crypto::publickey::KeyPair;
 	use types::{
 		encoded,
 		engines::ForkChoice,

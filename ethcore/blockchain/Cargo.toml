@@ -19,8 +19,8 @@ itertools = "0.5"
 kvdb = "0.1"
 log = "0.4"
 parity-bytes = "0.1"
+rand = "0.7"
 parking_lot = "0.9"
-rand = "0.6"
 rayon = "1.0"
 rlp = "0.4.0"
 rlp_compress = { path = "../../util/rlp-compress" }
@@ -29,7 +29,7 @@ triehash-ethereum = { version = "0.2",  path = "../../util/triehash-ethereum" }
 
 [dev-dependencies]
 env_logger = "0.5"
-ethkey = { path = "../../accounts/ethkey" }
+parity-crypto = { version = "0.4.2", features = ["publickey"] }
 rustc-hex = "1.0"
 tempdir = "0.3"
 kvdb-memorydb = "0.1.2"

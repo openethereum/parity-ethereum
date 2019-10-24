@@ -23,7 +23,7 @@ use call_contract::CallContract;
 use ethcore::client::Client;
 use client_traits::BlockChainClient;
 use common_types::ids::BlockId;
-use ethkey::{Public, public_to_address};
+use crypto::publickey::{Public, public_to_address};
 use hash::keccak;
 use bytes::Bytes;
 use ethereum_types::{H256, U256, Address, H512};
@@ -754,7 +754,7 @@ fn serialize_threshold(threshold: usize) -> Result<U256, String> {
 pub mod tests {
 	use parking_lot::Mutex;
 	use bytes::Bytes;
-	use ethkey::Public;
+	use crypto::publickey::Public;
 	use ethereum_types::Address;
 	use listener::service_contract_listener::ServiceTask;
 	use {ServerKeyId};
