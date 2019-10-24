@@ -17,27 +17,27 @@
 //! A signer used by Engines which need to sign messages.
 
 use ethereum_types::{H256, Address};
-use ethkey::{self, Signature};
+use parity_crypto::publickey::{Signature, KeyPair, Error};
 
 /// Everything that an Engine needs to sign messages.
 pub trait EngineSigner: Send + Sync {
 	/// Sign a consensus message hash.
-	fn sign(&self, hash: H256) -> Result<Signature, ethkey::Error>;
+	fn sign(&self, hash: H256) -> Result<Signature, Error>;
 
 	/// Signing address
 	fn address(&self) -> Address;
 }
 
 /// Creates a new `EngineSigner` from given key pair.
-pub fn from_keypair(keypair: ethkey::KeyPair) -> Box<dyn EngineSigner> {
+pub fn from_keypair(keypair: KeyPair) -> Box<dyn EngineSigner> {
 	Box::new(Signer(keypair))
 }
 
-struct Signer(ethkey::KeyPair);
+struct Signer(KeyPair);
 
 impl EngineSigner for Signer {
-	fn sign(&self, hash: H256) -> Result<Signature, ethkey::Error> {
-		ethkey::sign(self.0.secret(), &hash)
+	fn sign(&self, hash: H256) -> Result<Signature, Error> {
+		parity_crypto::publickey::sign(self.0.secret(), &hash)
 	}
 
 	fn address(&self) -> Address {

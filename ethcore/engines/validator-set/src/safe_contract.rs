@@ -470,7 +470,7 @@ mod tests {
 		miner::{self, MinerService},
 		test_helpers::{generate_dummy_client_with_spec, generate_dummy_client_with_spec_and_data}
 	};
-	use ethkey::Secret;
+	use parity_crypto::publickey::Secret;
 	use ethereum_types::Address;
 	use keccak_hash::keccak;
 	use rustc_hex::FromHex;

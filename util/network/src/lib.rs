@@ -19,7 +19,6 @@
 extern crate parity_crypto as crypto;
 extern crate ethcore_io as io;
 extern crate ethereum_types;
-extern crate ethkey;
 extern crate rlp;
 extern crate ipnetwork;
 extern crate parity_snappy as snappy;
@@ -54,7 +53,7 @@ use std::str::{self, FromStr};
 use std::sync::Arc;
 use std::time::Duration;
 use ipnetwork::{IpNetwork, IpNetworkError};
-use ethkey::Secret;
+use crypto::publickey::Secret;
 use ethereum_types::H512;
 use rlp::{Decodable, DecoderError, Rlp};
 

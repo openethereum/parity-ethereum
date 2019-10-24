@@ -367,7 +367,7 @@ impl<ConsensusExecutor, ConsensusTransport, ComputationExecutor, ComputationTran
 #[cfg(test)]
 mod tests {
 	use std::sync::Arc;
-	use ethkey::{KeyPair, Random, Generator, sign, public_to_address};
+	use crypto::publickey::{KeyPair, Random, Generator, sign, public_to_address};
 	use key_server_cluster::{Error, NodeId, SessionId, Requester, DummyAclStorage};
 	use key_server_cluster::message::{ConsensusMessage, InitializeConsensusSession, ConfirmConsensusInitialization};
 	use key_server_cluster::jobs::job_session::tests::{make_master_session_meta, make_slave_session_meta, SquaredSumJobExecutor, DummyJobTransport};

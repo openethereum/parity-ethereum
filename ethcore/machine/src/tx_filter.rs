@@ -178,7 +178,7 @@ mod test {
 		miner::Miner,
 		test_helpers,
 	};
-	use ethkey::{Secret, KeyPair};
+	use parity_crypto::publickey::{Secret, KeyPair};
 	use ethcore_io::IoChannel;
 	use spec::Spec;
 
@@ -200,13 +200,13 @@ mod test {
 			Arc::new(Miner::new_for_tests(&spec, None)),
 			IoChannel::disconnected(),
 		).unwrap();
-		let key1 = KeyPair::from_secret(Secret::from("0000000000000000000000000000000000000000000000000000000000000001")).unwrap();
-		let key2 = KeyPair::from_secret(Secret::from("0000000000000000000000000000000000000000000000000000000000000002")).unwrap();
-		let key3 = KeyPair::from_secret(Secret::from("0000000000000000000000000000000000000000000000000000000000000003")).unwrap();
-		let key4 = KeyPair::from_secret(Secret::from("0000000000000000000000000000000000000000000000000000000000000004")).unwrap();
-		let key5 = KeyPair::from_secret(Secret::from("0000000000000000000000000000000000000000000000000000000000000005")).unwrap();
-		let key6 = KeyPair::from_secret(Secret::from("0000000000000000000000000000000000000000000000000000000000000006")).unwrap();
-		let key7 = KeyPair::from_secret(Secret::from("0000000000000000000000000000000000000000000000000000000000000007")).unwrap();
+		let key1 = KeyPair::from_secret(Secret::from_str("0000000000000000000000000000000000000000000000000000000000000001").unwrap()).unwrap();
+		let key2 = KeyPair::from_secret(Secret::from_str("0000000000000000000000000000000000000000000000000000000000000002").unwrap()).unwrap();
+		let key3 = KeyPair::from_secret(Secret::from_str("0000000000000000000000000000000000000000000000000000000000000003").unwrap()).unwrap();
+		let key4 = KeyPair::from_secret(Secret::from_str("0000000000000000000000000000000000000000000000000000000000000004").unwrap()).unwrap();
+		let key5 = KeyPair::from_secret(Secret::from_str("0000000000000000000000000000000000000000000000000000000000000005").unwrap()).unwrap();
+		let key6 = KeyPair::from_secret(Secret::from_str("0000000000000000000000000000000000000000000000000000000000000006").unwrap()).unwrap();
+		let key7 = KeyPair::from_secret(Secret::from_str("0000000000000000000000000000000000000000000000000000000000000007").unwrap()).unwrap();
 
 		let filter = TransactionFilter::from_params(spec.params()).unwrap();
 		let mut basic_tx = Transaction::default();
@@ -279,7 +279,7 @@ mod test {
 			Arc::new(Miner::new_for_tests(&spec, None)),
 			IoChannel::disconnected(),
 		).unwrap();
-		let key1 = KeyPair::from_secret(Secret::from("0000000000000000000000000000000000000000000000000000000000000001")).unwrap();
+		let key1 = KeyPair::from_secret(Secret::from_str("0000000000000000000000000000000000000000000000000000000000000001").unwrap()).unwrap();
 
 		// The only difference to version 2 is that the contract now knows the transaction's gas price and data.
 		// So we only test those: The contract allows only transactions with either nonzero gas price or short data.
@@ -321,10 +321,10 @@ mod test {
 			Arc::new(Miner::new_for_tests(&spec, None)),
 			IoChannel::disconnected(),
 		).unwrap();
-		let key1 = KeyPair::from_secret(Secret::from("0000000000000000000000000000000000000000000000000000000000000001")).unwrap();
-		let key2 = KeyPair::from_secret(Secret::from("0000000000000000000000000000000000000000000000000000000000000002")).unwrap();
-		let key3 = KeyPair::from_secret(Secret::from("0000000000000000000000000000000000000000000000000000000000000003")).unwrap();
-		let key4 = KeyPair::from_secret(Secret::from("0000000000000000000000000000000000000000000000000000000000000004")).unwrap();
+		let key1 = KeyPair::from_secret(Secret::from_str("0000000000000000000000000000000000000000000000000000000000000001").unwrap()).unwrap();
+		let key2 = KeyPair::from_secret(Secret::from_str("0000000000000000000000000000000000000000000000000000000000000002").unwrap()).unwrap();
+		let key3 = KeyPair::from_secret(Secret::from_str("0000000000000000000000000000000000000000000000000000000000000003").unwrap()).unwrap();
+		let key4 = KeyPair::from_secret(Secret::from_str("0000000000000000000000000000000000000000000000000000000000000004").unwrap()).unwrap();
 
 		let filter = TransactionFilter::from_params(spec.params()).unwrap();
 		let mut basic_tx = Transaction::default();

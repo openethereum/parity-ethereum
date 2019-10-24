@@ -18,7 +18,7 @@ use std::collections::{BTreeSet, BTreeMap};
 use std::net::SocketAddr;
 use std::sync::Arc;
 use ethereum_types::H256;
-use ethkey::Public;
+use crypto::publickey::Public;
 use parking_lot::Mutex;
 use key_server_cluster::{KeyServerSet, KeyServerSetSnapshot, KeyServerSetMigration, is_migration_required};
 use key_server_cluster::cluster::{ClusterConfiguration, ServersSetChangeParams};

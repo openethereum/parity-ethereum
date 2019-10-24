@@ -29,7 +29,7 @@ triehash-ethereum = { version = "0.2",  path = "../../util/triehash-ethereum" }
 
 [dev-dependencies]
 env_logger = "0.5"
-ethkey = { path = "../../accounts/ethkey" }
+parity-crypto = { version = "0.4.2", features = ["publickey"] }
 rustc-hex = "1.0"
 tempdir = "0.3"
 kvdb-memorydb = "0.1.2"

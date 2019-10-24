@@ -19,7 +19,7 @@ use std::collections::btree_map::Entry;
 use std::sync::Arc;
 use futures::Oneshot;
 use parking_lot::Mutex;
-use ethkey::{Public, Secret, Signature, sign};
+use crypto::publickey::{Public, Secret, Signature, sign};
 use ethereum_types::H256;
 use key_server_cluster::{Error, NodeId, SessionId, SessionMeta, AclStorage, DocumentKeyShare, Requester};
 use key_server_cluster::cluster::{Cluster};
@@ -1070,7 +1070,7 @@ impl JobTransport for SigningJobTransport {
 mod tests {
 	use std::sync::Arc;
 	use ethereum_types::H256;
-	use ethkey::{self, Random, Generator, Public, verify_public, public_to_address};
+	use crypto::publickey::{Random, Generator, Public, verify_public, public_to_address};
 	use key_server_cluster::{SessionId, Error, KeyStorage};
 	use key_server_cluster::cluster::tests::{MessageLoop as ClusterMessageLoop};
 	use key_server_cluster::signing_session_ecdsa::SessionImpl;
@@ -1090,7 +1090,7 @@ mod tests {
 		pub fn init_with_version(self, key_version: Option<H256>) -> Result<(Self, Public, H256), Error> {
 			let message_hash = H256::random();
 			let requester = Random.generate().unwrap();
-			let signature = ethkey::sign(requester.secret(), &SessionId::default()).unwrap();
+			let signature = crypto::publickey::sign(requester.secret(), &SessionId::default()).unwrap();
 			self.0.cluster(0).client()
 				.new_ecdsa_signing_session(Default::default(), signature.into(), key_version, message_hash)
 				.map(|_| (self, *requester.public(), message_hash))

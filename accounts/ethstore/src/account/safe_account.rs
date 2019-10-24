@@ -14,8 +14,9 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
-use ethkey::{self, KeyPair, sign, Address, Password, Signature, Message, Public, Secret};
-use ethkey::crypto::ecdh::agree;
+use crypto::publickey::{KeyPair, sign, Address, Signature, Message, Public, Secret};
+use ethkey::Password;
+use crypto::publickey::ecdh::agree;
 use {json, Error};
 use account::Version;
 use crypto;
@@ -161,7 +162,7 @@ impl SafeAccount {
 	/// Decrypt a message.
 	pub fn decrypt(&self, password: &Password, shared_mac: &[u8], message: &[u8]) -> Result<Vec<u8>, Error> {
 		let secret = self.crypto.secret(password)?;
-		ethkey::crypto::ecies::decrypt(&secret, shared_mac, message).map_err(From::from)
+		crypto::publickey::ecies::decrypt(&secret, shared_mac, message).map_err(From::from)
 	}
 
 	/// Agree on shared key.
@@ -199,7 +200,7 @@ impl SafeAccount {
 
 #[cfg(test)]
 mod tests {
-	use ethkey::{Generator, Random, verify_public, Message};
+	use crypto::publickey::{Generator, Random, verify_public, Message};
 	use super::SafeAccount;
 
 	#[test]

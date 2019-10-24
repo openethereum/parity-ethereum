@@ -34,7 +34,7 @@ use client_traits::EngineClient;
 use ethereum_types::{H256, H520};
 use parking_lot::RwLock;
 use engine::{Engine, ConstructedVerifier, signer::EngineSigner};
-use ethkey::{self, Signature};
+use parity_crypto::publickey::Signature;
 use ethjson;
 use log::trace;
 use machine::{Machine, executed_block::ExecutedBlock};
@@ -69,7 +69,7 @@ impl engine::EpochVerifier for EpochVerifier {
 fn verify_external(header: &Header, validators: &dyn ValidatorSet) -> Result<(), Error> {
 	// Check if the signature belongs to a validator, can depend on parent state.
 	let sig = Rlp::new(&header.seal()[0]).as_val::<H520>()?;
-	let signer = ethkey::public_to_address(&ethkey::recover(&sig.into(), &header.bare_hash())?);
+	let signer = parity_crypto::publickey::public_to_address(&parity_crypto::publickey::recover(&sig.into(), &header.bare_hash())?);
 
 	if *header.author() != signer {
 		return Err(EngineError::NotAuthorized(*header.author()).into())
@@ -201,7 +201,7 @@ impl Engine for BasicAuthority {
 	fn sign(&self, hash: H256) -> Result<Signature, Error> {
 		Ok(self.signer.read()
 			.as_ref()
-			.ok_or_else(|| ethkey::Error::InvalidAddress)?
+			.ok_or_else(|| parity_crypto::publickey::Error::InvalidAddress)?
 			.sign(hash)?
 		)
 	}

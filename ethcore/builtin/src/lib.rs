@@ -28,7 +28,7 @@ use byteorder::{BigEndian, LittleEndian, ReadBytesExt};
 use common_types::errors::EthcoreError;
 use ethereum_types::{H256, U256};
 use ethjson;
-use ethkey::{Signature, recover as ec_recover};
+use parity_crypto::publickey::{Signature, recover as ec_recover};
 use keccak_hash::keccak;
 use log::{warn, trace};
 use num::{BigUint, Zero, One};

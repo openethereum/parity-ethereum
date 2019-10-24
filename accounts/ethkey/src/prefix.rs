@@ -14,7 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
-use super::{Random, Generator, KeyPair, Error};
+use parity_crypto::publickey::{Random, Generator, KeyPair, Error};
 
 /// Tries to find keypair with address starting with given prefix.
 pub struct Prefix {
@@ -48,7 +48,8 @@ impl Generator for Prefix {
 
 #[cfg(test)]
 mod tests {
-	use {Generator, Prefix};
+	use Prefix;
+	use parity_crypto::publickey::Generator;
 
 	#[test]
 	fn prefix_generator() {

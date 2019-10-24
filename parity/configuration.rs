@@ -28,7 +28,7 @@ use parity_version::{version_data, version};
 use bytes::Bytes;
 use ansi_term::Colour;
 use sync::{NetworkConfiguration, validate_node_url, self};
-use ethkey::{Secret, Public};
+use parity_crypto::publickey::{Secret, Public};
 use ethcore::client::VMType;
 use ethcore::miner::{stratum, MinerOptions};
 use snapshot::SnapshotConfiguration;
@@ -749,7 +749,7 @@ impl Configuration {
 		ret.listen_address = Some(format!("{}", listen));
 		ret.public_address = public.map(|p| format!("{}", p));
 		ret.use_secret = match self.args.arg_node_key.as_ref()
-			.map(|s| s.parse::<Secret>().or_else(|_| Secret::from_unsafe_slice(keccak(s).as_bytes())).map_err(|e| format!("Invalid key: {:?}", e))
+			.map(|s| s.parse::<Secret>().or_else(|_| Secret::import_key(keccak(s).as_bytes())).map_err(|e| format!("Invalid key: {:?}", e))
 			) {
 			None => None,
 			Some(Ok(key)) => Some(key),

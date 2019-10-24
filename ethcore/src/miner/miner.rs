@@ -1509,7 +1509,7 @@ mod tests {
 
 	use super::*;
 	use accounts::AccountProvider;
-	use ethkey::{Generator, Random};
+	use parity_crypto::publickey::{Generator, Random};
 	use hash::keccak;
 	use rustc_hex::FromHex;
 

@@ -2785,7 +2785,7 @@ mod tests {
 
 	use blockchain::{ExtrasInsert, BlockProvider};
 	use client_traits::{BlockChainClient, ChainInfo};
-	use ethkey::KeyPair;
+	use parity_crypto::publickey::KeyPair;
 	use types::{
 		encoded,
 		engines::ForkChoice,

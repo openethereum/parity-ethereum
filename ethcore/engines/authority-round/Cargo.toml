@@ -12,7 +12,7 @@ client-traits = { path = "../../client-traits" }
 common-types = { path = "../../types" }
 ethereum-types = "0.8.0"
 ethjson = { path = "../../../json" }
-ethkey = { path = "../../../accounts/ethkey" }
+parity-crypto = { version = "0.4.2", features = ["publickey"] }
 engine = { path = "../../engine" }
 io = { package = "ethcore-io", path = "../../../util/io" }
 itertools = "0.5"

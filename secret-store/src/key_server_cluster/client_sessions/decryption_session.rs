@@ -19,7 +19,7 @@ use std::sync::Arc;
 use futures::Oneshot;
 use parking_lot::Mutex;
 use ethereum_types::{Address, H256};
-use ethkey::Secret;
+use crypto::publickey::Secret;
 use key_server_cluster::{Error, AclStorage, DocumentKeyShare, NodeId, SessionId, Requester,
 	EncryptedDocumentKeyShadow, SessionMeta};
 use key_server_cluster::cluster::Cluster;
@@ -846,7 +846,7 @@ mod tests {
 	use std::sync::Arc;
 	use std::collections::{BTreeMap, VecDeque};
 	use acl_storage::DummyAclStorage;
-	use ethkey::{self, KeyPair, Random, Generator, Public, Secret, public_to_address};
+	use crypto::publickey::{KeyPair, Random, Generator, Public, Secret, public_to_address};
 	use key_server_cluster::{NodeId, DocumentKeyShare, DocumentKeyShareVersion, SessionId, Requester,
 		Error, EncryptedDocumentKeyShadow, SessionMeta};
 	use key_server_cluster::cluster::tests::DummyCluster;
@@ -906,7 +906,7 @@ mod tests {
 			cluster
 		}).collect();
 		let requester = Random.generate().unwrap();
-		let signature = Some(ethkey::sign(requester.secret(), &SessionId::default()).unwrap());
+		let signature = Some(crypto::publickey::sign(requester.secret(), &SessionId::default()).unwrap());
 		let sessions: Vec<_> = (0..5).map(|i| SessionImpl::new(SessionParams {
 			meta: SessionMeta {
 				id: session_id.clone(),
@@ -997,7 +997,7 @@ mod tests {
 			acl_storage: Arc::new(DummyAclStorage::default()),
 			cluster: Arc::new(DummyCluster::new(self_node_id.clone())),
 			nonce: 0,
-		}, Some(Requester::Signature(ethkey::sign(Random.generate().unwrap().secret(), &SessionId::default()).unwrap()))) {
+		}, Some(Requester::Signature(crypto::publickey::sign(Random.generate().unwrap().secret(), &SessionId::default()).unwrap()))) {
 			Ok(_) => (),
 			_ => panic!("unexpected"),
 		}
@@ -1021,7 +1021,7 @@ mod tests {
 			cluster: Arc::new(DummyCluster::new(self_node_id.clone())),
 			nonce: 0,
 		}, Some(Requester::Signature(
-			ethkey::sign(Random.generate().unwrap().secret(), &SessionId::default()).unwrap()
+			crypto::publickey::sign(Random.generate().unwrap().secret(), &SessionId::default()).unwrap()
 		))).unwrap().0;
 		assert_eq!(session.initialize(Default::default(), Default::default(), false, false), Err(Error::InvalidMessage));
 	}
@@ -1058,7 +1058,7 @@ mod tests {
 			cluster: Arc::new(DummyCluster::new(self_node_id.clone())),
 			nonce: 0,
 		}, Some(Requester::Signature(
-			ethkey::sign(Random.generate().unwrap().secret(), &SessionId::default()).unwrap()
+			crypto::publickey::sign(Random.generate().unwrap().secret(), &SessionId::default()).unwrap()
 		))).unwrap().0;
 		assert_eq!(session.initialize(Default::default(), Default::default(), false, false), Err(Error::ConsensusUnreachable));
 	}
@@ -1080,7 +1080,7 @@ mod tests {
 				session_nonce: 0,
 				origin: None,
 				message: message::ConsensusMessage::InitializeConsensusSession(message::InitializeConsensusSession {
-					requester: Requester::Signature(ethkey::sign(
+					requester: Requester::Signature(crypto::publickey::sign(
 						Random.generate().unwrap().secret(), &SessionId::default()).unwrap()).into(),
 					version: Default::default(),
 				}),
@@ -1096,7 +1096,7 @@ mod tests {
 				session_nonce: 0,
 				origin: None,
 				message: message::ConsensusMessage::InitializeConsensusSession(message::InitializeConsensusSession {
-					requester: Requester::Signature(ethkey::sign(Random.generate().unwrap().secret(),
+					requester: Requester::Signature(crypto::publickey::sign(Random.generate().unwrap().secret(),
 						&SessionId::default()).unwrap()).into(),
 					version: Default::default(),
 				}),
@@ -1121,7 +1121,7 @@ mod tests {
 				session_nonce: 0,
 				origin: None,
 				message: message::ConsensusMessage::InitializeConsensusSession(message::InitializeConsensusSession {
-					requester: Requester::Signature(ethkey::sign(Random.generate().unwrap().secret(),
+					requester: Requester::Signature(crypto::publickey::sign(Random.generate().unwrap().secret(),
 						&SessionId::default()).unwrap()).into(),
 					version: Default::default(),
 				}),
@@ -1314,9 +1314,9 @@ mod tests {
 		assert!(decrypted_secret.decrypt_shadows.is_some());
 		// check that KS client is able to restore original secret
 		use crypto::DEFAULT_MAC;
-		use ethkey::crypto::ecies::decrypt;
+		use crypto::publickey::ecies::decrypt;
 		let decrypt_shadows: Vec<_> = decrypted_secret.decrypt_shadows.unwrap().into_iter()
-			.map(|c| Secret::from_slice(&decrypt(key_pair.secret(), &DEFAULT_MAC, &c).unwrap()).unwrap())
+			.map(|c| Secret::copy_from_slice(&decrypt(key_pair.secret(), &DEFAULT_MAC, &c).unwrap()).unwrap())
 			.collect();
 		let decrypted_secret = math::decrypt_with_shadow_coefficients(decrypted_secret.decrypted_secret, decrypted_secret.common_point.unwrap(), decrypt_shadows).unwrap();
 		assert_eq!(decrypted_secret, H512::from_str(SECRET_PLAIN).unwrap());
@@ -1458,11 +1458,11 @@ mod tests {
 
 		// 4 nodes must be able to recover original secret
 		use crypto::DEFAULT_MAC;
-		use ethkey::crypto::ecies::decrypt;
+		use crypto::publickey::ecies::decrypt;
 		let result = sessions[0].decrypted_secret().unwrap().unwrap();
 		assert_eq!(3, sessions.iter().skip(1).filter(|s| s.decrypted_secret() == Some(Ok(result.clone()))).count());
 		let decrypt_shadows: Vec<_> = result.decrypt_shadows.unwrap().into_iter()
-			.map(|c| Secret::from_slice(&decrypt(key_pair.secret(), &DEFAULT_MAC, &c).unwrap()).unwrap())
+			.map(|c| Secret::copy_from_slice(&decrypt(key_pair.secret(), &DEFAULT_MAC, &c).unwrap()).unwrap())
 			.collect();
 		let decrypted_secret = math::decrypt_with_shadow_coefficients(result.decrypted_secret, result.common_point.unwrap(), decrypt_shadows).unwrap();
 		assert_eq!(decrypted_secret, H512::from_str(SECRET_PLAIN).unwrap());

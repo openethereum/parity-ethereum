@@ -27,7 +27,7 @@ use lru_cache::LruCache;
 use parity_bytes::Bytes;
 use rlp::{Rlp, RlpStream};
 
-use ethkey::{KeyPair, recover, Secret, sign};
+use parity_crypto::publickey::{KeyPair, recover, Secret, sign};
 use network::Error;
 use network::IpFilter;
 
@@ -901,7 +901,7 @@ mod tests {
 
 	use rustc_hex::FromHex;
 
-	use ethkey::{Generator, Random};
+	use parity_crypto::publickey::{Generator, Random};
 
 	use crate::node_table::{Node, NodeEndpoint, NodeId};
 

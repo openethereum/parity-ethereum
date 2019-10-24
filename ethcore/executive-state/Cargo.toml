@@ -24,7 +24,7 @@ vm = { path = "../vm" }
 [dev-dependencies]
 env_logger = "0.5"
 ethcore = { path = "..", features = ["test-helpers"] }
-ethkey = { path = "../../accounts/ethkey" }
+parity-crypto = { version = "0.4.2", features = ["publickey"] }
 evm = { path = "../evm" }
 keccak-hash = "0.4.0"
 pod = { path = "../pod" }

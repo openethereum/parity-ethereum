@@ -17,7 +17,7 @@
 use std::sync::Arc;
 use std::collections::{BTreeSet, BTreeMap};
 use ethereum_types::{H256, Address};
-use ethkey::{Public, Secret, Signature};
+use crypto::publickey::{Public, Secret, Signature};
 use futures::Oneshot;
 use parking_lot::Mutex;
 use key_server_cluster::{Error, SessionId, NodeId, DocumentKeyShare, DocumentKeyShareVersion, KeyStorage};
@@ -888,7 +888,7 @@ impl SessionTransport for IsolatedSessionTransport {
 #[cfg(test)]
 pub mod tests {
 	use std::collections::BTreeSet;
-	use ethkey::{Random, Generator, Public};
+	use crypto::publickey::{Random, Generator, Public};
 	use key_server_cluster::{NodeId, Error, KeyStorage, NodeKeyPair};
 	use key_server_cluster::cluster::tests::MessageLoop as ClusterMessageLoop;
 	use key_server_cluster::servers_set_change_session::tests::{MessageLoop, AdminSessionAdapter, generate_key};
