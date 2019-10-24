@@ -284,7 +284,7 @@ impl Miner {
 
 	/// Creates new instance of miner Arc.
 	pub fn new<A: LocalAccounts + 'static>(
-		mut options: MinerOptions,
+		options: MinerOptions,
 		gas_pricer: GasPricer,
 		spec: &Spec,
 		accounts: A,
@@ -295,13 +295,6 @@ impl Miner {
 		let nonce_cache_size = cmp::max(4096, limits.max_count / 4);
 		let refuse_service_transactions = options.refuse_service_transactions;
 		let engine = spec.engine.clone();
-
-		// For the InstantSeal engine, set the reseal_{max & min}_period to zero
-		// This allows blocks to be sealed Instantly ;)
-		if engine.name() == "InstantSeal" {
-			options.reseal_max_period = Duration::from_secs(0);
-			options.reseal_min_period = Duration::from_secs(0);
-		}
 
 		Miner {
 			sealing: Mutex::new(SealingWork {
@@ -873,12 +866,12 @@ impl Miner {
 		match self.engine.sealing_state() {
 			SealingState::Ready => {
 				self.maybe_enable_sealing();
-				self.update_sealing(chain)
+				self.update_sealing(chain);
 			}
 			SealingState::External => {
 				// this calls `maybe_enable_sealing()`
 				if self.prepare_pending_block(chain) == BlockPreparationStatus::NotPrepared {
-					self.update_sealing(chain)
+					self.update_sealing(chain);
 				}
 			}
 			SealingState::NotReady => { self.maybe_enable_sealing(); },
@@ -1271,7 +1264,7 @@ impl miner::MinerService for Miner {
 
 	/// Update sealing if required.
 	/// Prepare the block and work if the Engine does not seal internally.
-	fn update_sealing<C>(&self, chain: &C) where
+	fn update_sealing<C>(&self, chain: &C) -> bool where
 		C: BlockChain + CallContract + BlockProducer + SealedBlockImporter + Nonce + Sync,
 	{
 		trace!(target: "miner", "update_sealing");
@@ -1279,12 +1272,12 @@ impl miner::MinerService for Miner {
 		// Do nothing if reseal is not required,
 		// but note that `requires_reseal` updates internal state.
 		if !self.requires_reseal(chain.chain_info().best_block_number) {
-			return;
+			return false;
 		}
 
 		let sealing_state = self.engine.sealing_state();
 		if sealing_state == SealingState::NotReady {
-			return;
+			return false;
 		}
 
 		// --------------------------------------------------------------------------
@@ -1294,7 +1287,7 @@ impl miner::MinerService for Miner {
 		trace!(target: "miner", "update_sealing: preparing a block");
 		let (block, original_work_hash) = match self.prepare_block(chain) {
 			Some((block, original_work_hash)) => (block, original_work_hash),
-			None => return,
+			None => return false,
 		};
 
 		// refuse to seal the first block of the chain if it contains hard forks
@@ -1303,23 +1296,27 @@ impl miner::MinerService for Miner {
 			if let Some(name) = self.engine.params().nonzero_bugfix_hard_fork() {
 				warn!("Your chain specification contains one or more hard forks which are required to be \
 						on by default. Please remove these forks and start your chain again: {}.", name);
-				return;
+				return false;
 			}
 		}
 
 		match sealing_state {
 			SealingState::Ready => {
 				trace!(target: "miner", "update_sealing: engine indicates internal sealing");
-				if self.seal_and_import_block_internally(chain, block) {
+				let seal_and_import_block_internally = self.seal_and_import_block_internally(chain, block);
+				if seal_and_import_block_internally {
 					trace!(target: "miner", "update_sealing: imported internally sealed block");
 				}
+				return seal_and_import_block_internally
 			},
 			SealingState::NotReady => unreachable!("We returned right after sealing_state was computed. qed."),
 			SealingState::External => {
 				trace!(target: "miner", "update_sealing: engine does not seal internally, preparing work");
-				self.prepare_work(block, original_work_hash)
+				self.prepare_work(block, original_work_hash);
 			},
-		}
+		};
+
+		false
 	}
 
 	fn is_currently_sealing(&self) -> bool {
@@ -1449,7 +1446,7 @@ impl miner::MinerService for Miner {
 				let engine = self.engine.clone();
 				let accounts = self.accounts.clone();
 				let service_transaction_checker = self.service_transaction_checker.clone();
-
+				let cloned_tx_queue = self.transaction_queue.clone();
 				let cull = move |chain: &Client| {
 					let client = PoolClient::new(
 						chain,
@@ -1459,8 +1456,11 @@ impl miner::MinerService for Miner {
 						service_transaction_checker.as_ref(),
 					);
 					queue.cull(client);
-					if is_internal_import {
-						chain.update_sealing();
+					if cloned_tx_queue.all_transaction_hashes().len() > 0 {
+						if !chain.update_sealing() {
+							// TODO: call some method that waits `reseal_min_period` and re-tries
+							// `update_sealing` again
+						}
 					}
 				};
 
@@ -1469,8 +1469,11 @@ impl miner::MinerService for Miner {
 				}
 			} else {
 				self.transaction_queue.cull(client);
-				if is_internal_import {
-					self.update_sealing(chain);
+				if self.transaction_queue.all_transaction_hashes().len() > 0 {
+					if !self.update_sealing(chain) {
+						// TODO: call some method that waits `reseal_min_period` and tries
+						// `update_sealing` again
+					}
 				}
 			}
 		}

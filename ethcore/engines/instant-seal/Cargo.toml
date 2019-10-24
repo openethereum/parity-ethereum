@@ -10,6 +10,7 @@ license = "GPL-3.0"
 common-types = { path = "../../types" }
 engine = { path = "../../engine" }
 ethjson = { path = "../../../json" }
+client-traits = { path = "../../client-traits" }
 ethereum-types = "0.8.0"
 keccak-hash = "0.4.0"
 machine = { path = "../../machine" }

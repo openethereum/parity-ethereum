@@ -963,7 +963,7 @@ impl ProvingBlockChainClient for TestBlockChainClient {
 }
 
 impl client_traits::EngineClient for TestBlockChainClient {
-	fn update_sealing(&self) {
+	fn update_sealing(&self) -> bool {
 		self.miner.update_sealing(self)
 	}
 

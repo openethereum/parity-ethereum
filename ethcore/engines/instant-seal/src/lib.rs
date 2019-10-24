@@ -27,6 +27,8 @@ use common_types::{
 };
 use engine::Engine;
 use ethjson;
+use std::sync::Weak;
+use client_traits::EngineClient;
 use machine::{
 	ExecutedBlock,
 	Machine
@@ -73,6 +75,10 @@ impl Engine for InstantSeal {
 	fn machine(&self) -> &Machine { &self.machine }
 
 	fn sealing_state(&self) -> SealingState { SealingState::Ready }
+
+	fn register_client(&self, _client: Weak<dyn EngineClient>) {
+
+	}
 
 	fn generate_seal(&self, block: &ExecutedBlock, _parent: &Header) -> Seal {
 		if !block.transactions.is_empty() {
