@@ -61,7 +61,6 @@ pub use self::traits::KeyedHashDB;
 /// Export as keyed hash trait
 pub use self::traits::AsKeyedHashDB;
 
-
 /// Alias to ethereum MemoryDB
 type MemoryDB = memory_db::MemoryDB<
 	keccak_hasher::KeccakHasher,

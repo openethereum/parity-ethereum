@@ -27,7 +27,7 @@ use types::basic_account::BasicAccount;
 use blockchain::{BlockChain, BlockChainDB};
 use client::{Client, ChainInfo};
 use engines::Engine;
-use snapshot::{StateRebuilder};
+use snapshot::{StateRebuilder, Progress};
 use snapshot::io::{SnapshotReader, PackedWriter, PackedReader};
 
 use tempdir::TempDir;
@@ -138,7 +138,7 @@ pub fn snap(client: &Client) -> (Box<dyn SnapshotReader>, TempDir) {
 	let tempdir = TempDir::new("").unwrap();
 	let path = tempdir.path().join("file");
 	let writer = PackedWriter::new(&path).unwrap();
-	let progress = Default::default();
+	let progress = Progress::new();
 
 	let hash = client.chain_info().best_block_hash;
 	client.take_snapshot(writer, BlockId::Hash(hash), &progress).unwrap();

@@ -23,8 +23,9 @@ use std::collections::{HashMap, HashSet};
 use std::cmp;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, AtomicU64, AtomicUsize, Ordering};
-use hash::{keccak, KECCAK_NULL_RLP, KECCAK_EMPTY};
+use std::time::Instant;
 
+use hash::{keccak, KECCAK_NULL_RLP, KECCAK_EMPTY};
 use account_db::{AccountDB, AccountDBMut};
 use blockchain::{BlockChain, BlockProvider};
 use engines::Engine;
@@ -36,7 +37,7 @@ use hash_db::HashDB;
 use keccak_hasher::KeccakHasher;
 use snappy;
 use bytes::Bytes;
-use parking_lot::Mutex;
+use parking_lot::{Mutex, RwLock};
 use journaldb::{self, Algorithm, JournalDB};
 use kvdb::{KeyValueDB, DBValue};
 use trie::{Trie, TrieMut};
@@ -113,21 +114,38 @@ impl Default for SnapshotConfiguration {
 }
 
 /// A progress indicator for snapshots.
-#[derive(Debug, Default)]
+#[derive(Debug)]
 pub struct Progress {
 	accounts: AtomicUsize,
+	prev_accounts: AtomicUsize,
 	blocks: AtomicUsize,
-	size: AtomicU64,
+	bytes: AtomicUsize,
+	prev_bytes: AtomicUsize,
 	done: AtomicBool,
 	abort: AtomicBool,
+	last_tick: RwLock<Instant>,
 }
 
 impl Progress {
+	/// Create a new progress tracker.
+	pub fn new() -> Progress {
+		Progress {
+			accounts: AtomicUsize::new(0),
+			prev_accounts: AtomicUsize::new(0),
+			blocks: AtomicUsize::new(0),
+			bytes: AtomicUsize::new(0),
+			prev_bytes: AtomicUsize::new(0),
+			abort: AtomicBool::new(false),
+			done: AtomicBool::new(false),
+			last_tick: RwLock::new(Instant::now()),
+		}
+	}
+
 	/// Reset the progress.
 	pub fn reset(&self) {
 		self.accounts.store(0, Ordering::Release);
 		self.blocks.store(0, Ordering::Release);
-		self.size.store(0, Ordering::Release);
+		self.bytes.store(0, Ordering::Release);
 		self.abort.store(false, Ordering::Release);
 
 		// atomic fence here to ensure the others are written first?
@@ -142,12 +160,39 @@ impl Progress {
 	pub fn blocks(&self) -> usize { self.blocks.load(Ordering::Acquire) }
 
 	/// Get the written size of the snapshot in bytes.
-	pub fn size(&self) -> u64 { self.size.load(Ordering::Acquire) }
+	pub fn bytes(&self) -> usize { self.bytes.load(Ordering::Acquire) }
 
 	/// Whether the snapshot is complete.
 	pub fn done(&self) -> bool  { self.done.load(Ordering::Acquire) }
 
+	/// Return the progress rate over the last tick (i.e. since last update).
+	pub fn rate(&self) -> (f64, f64) {
+		let last_tick = *self.last_tick.read();
+		let dt = last_tick.elapsed().as_secs_f64();
+		if dt < 1.0 {
+			return (0f64, 0f64);
+		}
+		let delta_acc = self.accounts.load(Ordering::Relaxed)
+			.saturating_sub(self.prev_accounts.load(Ordering::Relaxed));
+		let delta_bytes = self.bytes.load(Ordering::Relaxed)
+			.saturating_sub(self.prev_bytes.load(Ordering::Relaxed));
+		(delta_acc as f64 / dt, delta_bytes as f64 / dt)
+	}
+
+	/// Update state progress counters and set the last tick.
+	pub fn update(&self, accounts_delta: usize, bytes_delta: usize) {
+		*self.last_tick.write() = Instant::now();
+		self.prev_accounts.store(
+			self.accounts.fetch_add(accounts_delta, Ordering::SeqCst),
+			Ordering::SeqCst
+		);
+		self.prev_bytes.store(
+			self.bytes.fetch_add(bytes_delta, Ordering::SeqCst),
+			Ordering::SeqCst
+		);
+	}
 }
+
 /// Take a snapshot using the given blockchain, starting block hash, and database, writing into the given writer.
 pub fn take_snapshot<W: SnapshotWriter + Send>(
 	chunker: Box<dyn SnapshotComponents>,
@@ -163,35 +208,34 @@ pub fn take_snapshot<W: SnapshotWriter + Send>(
 	let state_root = start_header.state_root();
 	let block_number = start_header.number();
 
-	info!("Taking snapshot starting at block {}", block_number);
-
+	info!("Taking snapshot starting at block #{}/{:?}", block_number, block_hash);
 	let version = chunker.current_version();
 	let writer = Mutex::new(writer);
 	let (state_hashes, block_hashes) = thread::scope(|scope| -> Result<(Vec<H256>, Vec<H256>), Error> {
 		let writer = &writer;
-		let block_guard = scope.spawn(move |_| {
+		let tb = scope.builder().name("Snapshot Worker - Blocks".to_string());
+		let block_guard = tb.spawn(move |_| {
 			chunk_secondary(chunker, chain, block_hash, writer, p)
-		});
+		})?;
 
 		// The number of threads must be between 1 and SNAPSHOT_SUBPARTS
 		assert!(processing_threads >= 1, "Cannot use less than 1 threads for creating snapshots");
-		let num_threads: usize = cmp::min(processing_threads, SNAPSHOT_SUBPARTS);
+		let num_threads = cmp::min(processing_threads, SNAPSHOT_SUBPARTS);
 		info!(target: "snapshot", "Using {} threads for Snapshot creation.", num_threads);
 
-		let mut state_guards = Vec::with_capacity(num_threads as usize);
+		let mut state_guards = Vec::with_capacity(num_threads);
 
 		for thread_idx in 0..num_threads {
-			let state_guard = scope.spawn(move |_| -> Result<Vec<H256>, Error> {
+			let tb = scope.builder().name(format!("Snapshot Worker #{} - State", thread_idx).to_string());
+			let state_guard = tb.spawn(move |_| -> Result<Vec<H256>, Error> {
 				let mut chunk_hashes = Vec::new();
-
 				for part in (thread_idx..SNAPSHOT_SUBPARTS).step_by(num_threads) {
-					debug!(target: "snapshot", "Chunking part {} in thread {}", part, thread_idx);
+					debug!(target: "snapshot", "Chunking part {} of the state at {} in thread {}", part, block_number, thread_idx);
 					let mut hashes = chunk_state(state_db, &state_root, writer, p, Some(part), thread_idx)?;
 					chunk_hashes.append(&mut hashes);
 				}
-
 				Ok(chunk_hashes)
-			});
+			})?;
 			state_guards.push(state_guard);
 		}
 
@@ -203,7 +247,8 @@ pub fn take_snapshot<W: SnapshotWriter + Send>(
 			state_hashes.extend(part_state_hashes);
 		}
 
-		debug!(target: "snapshot", "Took a snapshot of {} accounts", p.accounts.load(Ordering::SeqCst));
+		info!("Took a snapshot at #{} of {} accounts", block_number, p.accounts());
+
 		Ok((state_hashes, block_hashes))
 	}).expect("Sub-thread never panics; qed")?;
 
@@ -252,7 +297,7 @@ pub fn chunk_secondary<'a>(
 			trace!(target: "snapshot", "wrote secondary chunk. hash: {:x}, size: {}, uncompressed size: {}",
 				hash, size, raw_data.len());
 
-			progress.size.fetch_add(size as u64, Ordering::SeqCst);
+			progress.update(0, size);
 			chunk_hashes.push(hash);
 			Ok(())
 		};
@@ -309,8 +354,7 @@ impl<'a> StateChunker<'a> {
 		self.writer.lock().write_state_chunk(hash, compressed)?;
 		trace!(target: "snapshot", "Thread {} wrote state chunk. size: {}, uncompressed size: {}", self.thread_idx, compressed_size, raw_data.len());
 
-		self.progress.accounts.fetch_add(num_entries, Ordering::SeqCst);
-		self.progress.size.fetch_add(compressed_size as u64, Ordering::SeqCst);
+		self.progress.update(num_entries, compressed_size);
 
 		self.hashes.push(hash);
 		self.cur_size = 0;
@@ -361,7 +405,7 @@ pub fn chunk_state<'a>(
 	if let Some(part) = part {
 		assert!(part < 16, "Wrong chunk state part number (must be <16) in snapshot creation.");
 
-		let part_offset = MAX_SNAPSHOT_SUBPARTS / SNAPSHOT_SUBPARTS;
+		let part_offset = MAX_SNAPSHOT_SUBPARTS / SNAPSHOT_SUBPARTS; // 16
 		let mut seek_from = vec![0; 32];
 		seek_from[0] = (part * part_offset) as u8;
 		account_iter.seek(&seek_from)?;
@@ -383,7 +427,15 @@ pub fn chunk_state<'a>(
 		let account = ::rlp::decode(&*account_data)?;
 		let account_db = AccountDB::from_hash(db, account_key_hash);
 
-		let fat_rlps = account::to_fat_rlps(&account_key_hash, &account, &account_db, &mut used_code, PREFERRED_CHUNK_SIZE - chunker.chunk_size(), PREFERRED_CHUNK_SIZE, progress)?;
+		let fat_rlps = account::to_fat_rlps(
+			&account_key_hash,
+			&account,
+			&account_db,
+			&mut used_code,
+			PREFERRED_CHUNK_SIZE - chunker.chunk_size(),
+			PREFERRED_CHUNK_SIZE,
+			progress
+		)?;
 		for (i, fat_rlp) in fat_rlps.into_iter().enumerate() {
 			if i > 0 {
 				chunker.write_chunk()?;

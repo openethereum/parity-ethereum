@@ -20,7 +20,7 @@ use std::convert::TryFrom;
 use std::io::{BufRead, BufReader};
 use std::str::from_utf8;
 use std::sync::{Arc, Weak};
-use std::sync::atomic::{AtomicBool, AtomicUsize, AtomicI64, Ordering as AtomicOrdering};
+use std::sync::atomic::{AtomicBool, AtomicI64, Ordering as AtomicOrdering, Ordering, AtomicU64};
 use std::time::{Duration, Instant};
 
 use ansi_term::Colour;
@@ -70,7 +70,7 @@ use engines::{MAX_UNCLE_AGE, Engine, EpochTransition, ForkChoice, EngineError, S
 use engines::epoch::PendingTransition;
 use error::{
 	ImportError, ExecutionError, CallError, BlockError,
-	QueueError, Error as EthcoreError, EthcoreResult,
+	QueueError, Error as EthcoreError, EthcoreResult
 };
 use ethcore_miner::pool::VerifiedTransaction;
 use evm::Schedule;
@@ -79,7 +79,8 @@ use factory::{Factories, VmFactory};
 use io::IoChannel;
 use journaldb;
 use miner::{Miner, MinerService};
-use snapshot::{self, io as snapshot_io, SnapshotClient};
+use snapshot::{self, io as snapshot_io, SnapshotClient, Error as SnapshotError, Progress};
+use snapshot::io::SnapshotWriter;
 use spec::Spec;
 use state::{self, State};
 use state_db::StateDB;
@@ -214,6 +215,9 @@ pub struct Client {
 
 	/// Database pruning strategy to use for StateDB
 	pruning: journaldb::Algorithm,
+
+	/// Don't prune the state we're currently snapshotting
+	snapshotting_at: AtomicU64,
 
 	/// Client uses this to store blocks, traces, etc.
 	db: RwLock<Arc<dyn BlockChainDB>>,
@@ -794,6 +798,7 @@ impl Client {
 			tracedb,
 			engine,
 			pruning: config.pruning.clone(),
+			snapshotting_at: AtomicU64::new(0),
 			db: RwLock::new(db.clone()),
 			state_db: RwLock::new(state_db),
 			report: RwLock::new(Default::default()),
@@ -978,31 +983,47 @@ impl Client {
 	}
 
 	// prune ancient states until below the memory limit or only the minimum amount remain.
-	fn prune_ancient(&self, mut state_db: StateDB, chain: &BlockChain) -> Result<(), ::error::Error> {
-		let number = match state_db.journal_db().latest_era() {
+	fn prune_ancient(&self, mut state_db: StateDB, chain: &BlockChain) -> Result<(), EthcoreError> {
+		if !state_db.journal_db().is_pruned() {
+			return Ok(())
+		}
+
+		let latest_era = match state_db.journal_db().latest_era() {
 			Some(n) => n,
 			None => return Ok(()),
 		};
 
-		// prune all ancient eras until we're below the memory target,
-		// but have at least the minimum number of states.
+		// Prune all ancient eras until we're below the memory target (default: 32Mb),
+		// but have at least the minimum number of states, i.e. `history`.
+		// If a snapshot is under way, no pruning happens and memory consumption is allowed to
+		// increase above the memory target until the snapshot has finished.
 		loop {
 			let needs_pruning = state_db.journal_db().is_pruned() &&
 				state_db.journal_db().journal_size() >= self.config.history_mem;
 
 			if !needs_pruning { break }
 			match state_db.journal_db().earliest_era() {
-				Some(era) if era + self.history <= number => {
-					trace!(target: "client", "Pruning state for ancient era {}", era);
-					match chain.block_hash(era) {
+				Some(earliest_era) if earliest_era + self.history <= latest_era => {
+					let freeze_at = self.snapshotting_at.load(Ordering::SeqCst);
+					if freeze_at > 0 && freeze_at == earliest_era {
+						// Note: journal_db().mem_used() can be used for a more accurate memory
+						// consumption measurement but it can be expensive so sticking with the
+						// faster `journal_size()` instead.
+						trace!(target: "pruning", "Pruning is paused at era {} (snapshot under way); earliest era={}, latest era={}, journal_size={} – Not pruning.",
+						       freeze_at, earliest_era, latest_era, state_db.journal_db().journal_size());
+						break;
+					}
+					trace!(target: "pruning", "Pruning state for ancient era #{}; latest era={}, journal_size={}",
+					       earliest_era, latest_era, state_db.journal_db().journal_size());
+					match chain.block_hash(earliest_era) {
 						Some(ancient_hash) => {
 							let mut batch = DBTransaction::new();
-							state_db.mark_canonical(&mut batch, era, &ancient_hash)?;
+							state_db.mark_canonical(&mut batch, earliest_era, &ancient_hash)?;
 							self.db.read().key_value().write_buffered(batch);
 							state_db.journal_db().flush();
 						}
 						None =>
-							debug!(target: "client", "Missing expected hash for block {}", era),
+							debug!(target: "pruning", "Missing expected hash for block {}", earliest_era),
 					}
 				}
 				_ => break, // means that every era is kept, no pruning necessary.

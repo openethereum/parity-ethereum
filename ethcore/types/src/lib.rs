@@ -37,6 +37,7 @@ extern crate ethereum_types;
 extern crate ethjson;
 extern crate ethkey;
 extern crate keccak_hash as hash;
+extern crate parking_lot;
 extern crate parity_bytes as bytes;
 extern crate rlp;
 extern crate unexpected;
