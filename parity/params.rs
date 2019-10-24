@@ -75,7 +75,7 @@ impl str::FromStr for SpecType {
 			"mix" => SpecType::Mix,
 			"callisto" => SpecType::Callisto,
 			"morden" => SpecType::Morden,
-			"mordor" | "classic-testnet" => SpecType::Morden,
+			"mordor" | "classic-testnet" => SpecType::Mordor,
 			"ropsten" => SpecType::Ropsten,
 			"kovan" => SpecType::Kovan,
 			"rinkeby" => SpecType::Rinkeby,
