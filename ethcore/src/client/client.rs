@@ -2558,16 +2558,6 @@ impl ProvingBlockChainClient for Client {
 
 impl SnapshotClient for Client {}
 
-impl Drop for Client {
-	fn drop(&mut self) {
-		if let Some(c) = Arc::get_mut(&mut self.engine) {
-			c.stop()
-		} else {
-			warn!(target: "shutdown", "unable to get mut ref for engine for shutdown.");
-		}
-	}
-}
-
 /// Returns `LocalizedReceipt` given `LocalizedTransaction`
 /// and a vector of receipts from given block up to transaction index.
 fn transaction_receipt(
