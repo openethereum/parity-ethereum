@@ -23,8 +23,7 @@ use types::{
 	errors::{EthcoreError, ExecutionError},
 	transaction::Error as TransactionError,
 };
-use ethkey::Error as KeyError;
-use ethkey::crypto::Error as CryptoError;
+use crypto::publickey::Error as CryptoError;
 use txpool::VerifiedTransaction;
 use private_transactions::VerifiedPrivateTransaction;
 use serde_json::{Error as SerdeError};
@@ -123,9 +122,6 @@ pub enum Error {
 	/// VM execution error.
 	#[display(fmt = "VM execution error {}", _0)]
 	Execution(ExecutionError),
-	/// General signing error.
-	#[display(fmt = "General signing error {}", _0)]
-	Key(KeyError),
 	/// Error of transactions processing.
 	#[display(fmt = "Error of transactions processing {}", _0)]
 	Transaction(TransactionError),
@@ -147,7 +143,6 @@ impl error::Error for Error {
 			Error::Json(e) => Some(e),
 			Error::Crypto(e) => Some(e),
 			Error::Execution(e) => Some(e),
-			Error::Key(e) => Some(e),
 			Error::Transaction(e) => Some(e),
 			Error::Ethcore(e) => Some(e),
 			_ => None,
@@ -164,12 +159,6 @@ impl From<String> for Error {
 impl From<std::io::Error> for Error {
 	fn from(err: std::io::Error) -> Self {
 		Error::Io(err).into()
-	}
-}
-
-impl From<KeyError> for Error {
-	fn from(err: KeyError) -> Self {
-		Error::Key(err).into()
 	}
 }
 

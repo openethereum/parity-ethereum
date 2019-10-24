@@ -43,7 +43,7 @@ pub fn execute(cmd: ImportWallet) -> Result<String, String> {
 }
 
 #[cfg(feature = "accounts")]
-pub fn import_account(cmd: &ImportWallet, kp: ethkey::KeyPair, password: Password) {
+pub fn import_account(cmd: &ImportWallet, kp: parity_crypto::publickey::KeyPair, password: Password) {
 	use accounts::{AccountProvider, AccountProviderSettings};
 	use ethstore::EthStore;
 	use ethstore::accounts_dir::RootDiskDirectory;
@@ -55,4 +55,4 @@ pub fn import_account(cmd: &ImportWallet, kp: ethkey::KeyPair, password: Passwor
 }
 
 #[cfg(not(feature = "accounts"))]
-pub fn import_account(_cmd: &ImportWallet, _kp: ethkey::KeyPair, _password: Password) {}
+pub fn import_account(_cmd: &ImportWallet, _kp: parity_crypto::publickey::KeyPair, _password: Password) {}

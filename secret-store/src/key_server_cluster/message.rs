@@ -16,7 +16,7 @@
 
 use std::fmt;
 use std::collections::{BTreeSet, BTreeMap};
-use ethkey::Secret;
+use crypto::publickey::Secret;
 use key_server_cluster::SessionId;
 use super::{Error, SerializableH256, SerializablePublic, SerializableSecret,
 	SerializableSignature, SerializableMessageHash, SerializableRequester, SerializableAddress};
@@ -240,7 +240,7 @@ pub enum KeyVersionNegotiationMessage {
 pub struct NodePublicKey {
 	/// Node identifier (aka node public key).
 	pub node_id: MessageNodeId,
-	/// Random data, which must be signed by peer to prove that he owns the corresponding private key. 
+	/// Random data, which must be signed by peer to prove that he owns the corresponding private key.
 	pub confirmation_plain: SerializableH256,
 	/// The same random `confirmation_plain`, signed with one-time session key.
 	pub confirmation_signed_session: SerializableSignature,
@@ -633,7 +633,7 @@ pub struct EcdsaRequestPartialSignature {
 	pub session_nonce: u64,
 	/// Request id.
 	pub request_id: SerializableSecret,
-	///
+	/// ECDSA reversed-nonce coefficient
 	pub inversed_nonce_coeff: SerializableSecret,
 	/// Message hash.
 	pub message_hash: SerializableMessageHash,

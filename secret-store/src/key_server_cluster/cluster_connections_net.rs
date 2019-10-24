@@ -25,7 +25,7 @@ use parking_lot::{Mutex, RwLock};
 use tokio::net::{TcpListener, TcpStream};
 use tokio::timer::{Interval, timeout::Error as TimeoutError};
 use tokio_io::IoFuture;
-use ethkey::KeyPair;
+use crypto::publickey::KeyPair;
 use parity_runtime::Executor;
 use key_server_cluster::{Error, NodeId, ClusterConfiguration, NodeKeyPair};
 use key_server_cluster::cluster_connections::{ConnectionProvider, Connection, ConnectionManager};

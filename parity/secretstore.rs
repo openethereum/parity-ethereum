@@ -21,7 +21,8 @@ use dir::default_data_path;
 use dir::helpers::replace_home;
 use ethcore::client::Client;
 use ethcore::miner::Miner;
-use ethkey::{Secret, Public, Password};
+use ethkey::Password;
+use parity_crypto::publickey::{Secret, Public};
 use sync::SyncProvider;
 use ethereum_types::Address;
 use parity_runtime::Executor;
@@ -121,7 +122,7 @@ mod server {
 mod server {
 	use std::sync::Arc;
 	use ethcore_secretstore;
-	use ethkey::KeyPair;
+	use parity_crypto::publickey::KeyPair;
 	use ansi_term::Colour::{Red, White};
 	use db;
 	use super::{Configuration, Dependencies, NodeSecretKey, ContractAddress, Executor};

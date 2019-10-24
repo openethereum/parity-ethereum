@@ -19,9 +19,9 @@ use std::u16;
 use std::ops::Deref;
 use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
 use serde_json;
-use ethkey::crypto::ecies;
-use ethkey::{Secret, KeyPair};
-use ethkey::math::curve_order;
+use crypto::publickey::ecies;
+use crypto::publickey::{Secret, KeyPair};
+use crypto::publickey::ec_math_utils::CURVE_ORDER;
 use ethereum_types::{H256, U256, BigEndianHash};
 use key_server_cluster::Error;
 use key_server_cluster::message::{Message, ClusterMessage, GenerationMessage, EncryptionMessage, DecryptionMessage,
@@ -258,7 +258,7 @@ pub fn fix_shared_key(shared_secret: &Secret) -> Result<KeyPair, Error> {
 	// => let's do it manually
 	let shared_secret: H256 = (**shared_secret).into();
 	let shared_secret: U256 = shared_secret.into_uint();
-	let shared_secret: H256 = BigEndianHash::from_uint(&(shared_secret % curve_order()));
+	let shared_secret: H256 = BigEndianHash::from_uint(&(shared_secret % *CURVE_ORDER));
 	let shared_key_pair = KeyPair::from_secret_slice(shared_secret.as_bytes())?;
 	Ok(shared_key_pair)
 }
@@ -305,8 +305,8 @@ pub mod tests {
 	use std::io;
 	use futures::Poll;
 	use tokio_io::{AsyncRead, AsyncWrite};
-	use ethkey::{Random, Generator, KeyPair};
-	use ethkey::crypto::ecdh::agree;
+	use crypto::publickey::{Random, Generator, KeyPair};
+	use crypto::publickey::ecdh::agree;
 	use key_server_cluster::Error;
 	use key_server_cluster::message::Message;
 	use super::{MESSAGE_HEADER_SIZE, CURRENT_HEADER_VERSION, MessageHeader, fix_shared_key, encrypt_message,

@@ -1616,7 +1616,7 @@ pub mod tests {
 	#[test]
 	fn should_add_transactions_to_queue() {
 		fn sender(tx: &UnverifiedTransaction) -> Address {
-			ethkey::public_to_address(&tx.recover_public().unwrap())
+			parity_crypto::publickey::public_to_address(&tx.recover_public().unwrap())
 		}
 
 		// given

@@ -375,7 +375,7 @@ mod tests {
 	use parity_bytes::Bytes;
 	use keccak_hash::keccak;
 	use engine::Engine;
-	use ethkey::{Random, Generator};
+	use parity_crypto::publickey::{Random, Generator};
 	use spec;
 	use ethcore::test_helpers::{
 		create_test_block_with_data, create_test_block, TestBlockChainClient
@@ -587,7 +587,7 @@ mod tests {
 		bad_header.set_transactions_root(eip86_transactions_root.clone());
 		bad_header.set_uncles_hash(good_uncles_hash.clone());
 		match basic_test(&create_test_block_with_data(&bad_header, &eip86_transactions, &good_uncles), engine) {
-			Err(Error::Transaction(ref e)) if e == &::ethkey::Error::InvalidSignature.into() => (),
+			Err(Error::Transaction(ref e)) if e == &parity_crypto::publickey::Error::InvalidSignature.into() => (),
 			e => panic!("Block verification failed.\nExpected: Transaction Error (Invalid Signature)\nGot: {:?}", e),
 		}
 

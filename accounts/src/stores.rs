@@ -20,7 +20,7 @@ use std::{fs, fmt, hash, ops};
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 
-use ethkey::Address;
+use parity_crypto::publickey::Address;
 use log::{trace, warn};
 
 use crate::AccountMeta;

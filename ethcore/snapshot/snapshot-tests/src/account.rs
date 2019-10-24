@@ -48,7 +48,7 @@ fn encoding_basic() {
 
 	let thin_rlp = ::rlp::encode(&account);
 	assert_eq!(::rlp::decode::<BasicAccount>(&thin_rlp).unwrap(), account);
-	let p = Progress::default();
+	let p = Progress::new();
 	let fat_rlps = to_fat_rlps(&keccak(&addr), &account, &AccountDB::from_hash(db.as_hash_db(), keccak(addr)), &mut Default::default(), usize::max_value(), usize::max_value(), &p).unwrap();
 	let fat_rlp = Rlp::new(&fat_rlps[0]).at(1).unwrap();
 	assert_eq!(from_fat_rlp(&mut AccountDBMut::from_hash(db.as_hash_db_mut(), keccak(addr)), fat_rlp, H256::zero()).unwrap().0, account);
@@ -69,7 +69,7 @@ fn encoding_version() {
 
 	let thin_rlp = ::rlp::encode(&account);
 	assert_eq!(::rlp::decode::<BasicAccount>(&thin_rlp).unwrap(), account);
-	let p = Progress::default();
+	let p = Progress::new();
 	let fat_rlps = to_fat_rlps(&keccak(&addr), &account, &AccountDB::from_hash(db.as_hash_db(), keccak(addr)), &mut Default::default(), usize::max_value(), usize::max_value(), &p).unwrap();
 	let fat_rlp = Rlp::new(&fat_rlps[0]).at(1).unwrap();
 	assert_eq!(from_fat_rlp(&mut AccountDBMut::from_hash(db.as_hash_db_mut(), keccak(addr)), fat_rlp, H256::zero()).unwrap().0, account);
@@ -96,7 +96,7 @@ fn encoding_storage() {
 	let thin_rlp = ::rlp::encode(&account);
 	assert_eq!(::rlp::decode::<BasicAccount>(&thin_rlp).unwrap(), account);
 
-	let p = Progress::default();
+	let p = Progress::new();
 
 	let fat_rlp = to_fat_rlps(&keccak(&addr), &account, &AccountDB::from_hash(db.as_hash_db(), keccak(addr)), &mut Default::default(), usize::max_value(), usize::max_value(), &p).unwrap();
 	let fat_rlp = Rlp::new(&fat_rlp[0]).at(1).unwrap();
@@ -124,7 +124,7 @@ fn encoding_storage_split() {
 	let thin_rlp = ::rlp::encode(&account);
 	assert_eq!(::rlp::decode::<BasicAccount>(&thin_rlp).unwrap(), account);
 
-	let p = Progress::default();
+	let p = Progress::new();
 	let fat_rlps = to_fat_rlps(&keccak(addr), &account, &AccountDB::from_hash(db.as_hash_db(), keccak(addr)), &mut Default::default(), 500, 1000, &p).unwrap();
 	let mut root = KECCAK_NULL_RLP;
 	let mut restored_account = None;
@@ -170,8 +170,8 @@ fn encoding_code() {
 	};
 
 	let mut used_code = HashSet::new();
-	let p1 = Progress::default();
-	let p2 = Progress::default();
+	let p1 = Progress::new();
+	let p2 = Progress::new();
 	let fat_rlp1 = to_fat_rlps(&keccak(&addr1), &account1, &AccountDB::from_hash(db.as_hash_db(), keccak(addr1)), &mut used_code, usize::max_value(), usize::max_value(), &p1).unwrap();
 	let fat_rlp2 = to_fat_rlps(&keccak(&addr2), &account2, &AccountDB::from_hash(db.as_hash_db(), keccak(addr2)), &mut used_code, usize::max_value(), usize::max_value(), &p2).unwrap();
 	assert_eq!(used_code.len(), 1);

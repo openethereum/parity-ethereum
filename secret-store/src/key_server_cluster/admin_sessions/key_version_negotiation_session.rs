@@ -17,7 +17,7 @@
 use std::sync::Arc;
 use std::collections::{BTreeSet, BTreeMap};
 use ethereum_types::{Address, H256};
-use ethkey::Secret;
+use crypto::publickey::Secret;
 use futures::Oneshot;
 use parking_lot::Mutex;
 use key_server_cluster::{Error, SessionId, NodeId, DocumentKeyShare};
@@ -617,7 +617,7 @@ mod tests {
 	use std::sync::Arc;
 	use std::collections::{VecDeque, BTreeMap, BTreeSet};
 	use ethereum_types::{H512, H160, Address};
-	use ethkey::public_to_address;
+	use crypto::publickey::public_to_address;
 	use key_server_cluster::{NodeId, SessionId, Error, KeyStorage, DummyKeyStorage,
 		DocumentKeyShare, DocumentKeyShareVersion};
 	use key_server_cluster::math;

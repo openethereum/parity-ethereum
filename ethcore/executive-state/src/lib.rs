@@ -270,7 +270,7 @@ mod tests {
 	use account_state::{Account, CleanupMode};
 	use common_types::transaction::*;
 	use keccak_hash::{keccak, KECCAK_NULL_RLP};
-	use ethkey::Secret;
+	use parity_crypto::publickey::Secret;
 	use ethereum_types::{H256, U256, Address, BigEndianHash};
 	use ethcore::{
 		test_helpers::{get_temp_state, get_temp_state_db}

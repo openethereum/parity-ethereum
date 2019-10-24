@@ -1625,7 +1625,7 @@ mod tests {
 	use common_types::receipt::{Receipt, TransactionOutcome};
 	use common_types::transaction::{Transaction, Action};
 	use crate::generator::{BlockGenerator, BlockBuilder, BlockOptions};
-	use ethkey::Secret;
+	use parity_crypto::publickey::Secret;
 	use keccak_hash::keccak;
 	use rustc_hex::FromHex;
 	use tempdir::TempDir;

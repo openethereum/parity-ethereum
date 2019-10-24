@@ -20,7 +20,7 @@ use std::sync::Arc;
 use futures::Oneshot;
 use parking_lot::Mutex;
 use ethereum_types::Address;
-use ethkey::{Public, Secret};
+use crypto::publickey::{Public, Secret};
 use key_server_cluster::{Error, NodeId, SessionId, KeyStorage, DocumentKeyShare, DocumentKeyShareVersion};
 use key_server_cluster::math;
 use key_server_cluster::cluster::Cluster;
@@ -951,7 +951,7 @@ fn check_threshold(threshold: usize, nodes: &BTreeSet<NodeId>) -> Result<(), Err
 pub mod tests {
 	use std::sync::Arc;
 	use ethereum_types::H256;
-	use ethkey::{Random, Generator, KeyPair, Secret};
+	use crypto::publickey::{Random, Generator, KeyPair, Secret};
 	use key_server_cluster::{NodeId, Error, KeyStorage};
 	use key_server_cluster::message::{self, Message, GenerationMessage, KeysDissemination,
 		PublicKeyShare, ConfirmInitialization};

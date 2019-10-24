@@ -18,7 +18,7 @@ use std::sync::Arc;
 use ethcore::test_helpers::TestBlockChainClient;
 use ethcore_logger::RotatingLogger;
 use ethereum_types::{Address, U256, H256, BigEndianHash, Bloom};
-use ethstore::ethkey::{Generator, Random};
+use crypto::publickey::{Generator, Random};
 use machine::executed::Executed;
 use miner::pool::local_transactions::Status as LocalTransactionStatus;
 use sync::ManageNetwork;
@@ -316,11 +316,44 @@ fn rpc_parity_unsigned_transactions_count_when_signer_disabled() {
 }
 
 #[test]
-fn rpc_parity_pending_transactions() {
+fn rpc_parity_pending_transactions_without_limit_without_filter() {
 	let deps = Dependencies::new();
 	let io = deps.default_client();
 
 	let request = r#"{"jsonrpc": "2.0", "method": "parity_pendingTransactions", "params":[], "id": 1}"#;
+	let response = r#"{"jsonrpc":"2.0","result":[],"id":1}"#;
+
+	assert_eq!(io.handle_request_sync(request), Some(response.to_owned()));
+}
+
+#[test]
+fn rpc_parity_pending_transactions_with_limit_without_filter() {
+	let deps = Dependencies::new();
+	let io = deps.default_client();
+
+	let request = r#"{"jsonrpc": "2.0", "method": "parity_pendingTransactions", "params":[5], "id": 1}"#;
+	let response = r#"{"jsonrpc":"2.0","result":[],"id":1}"#;
+
+	assert_eq!(io.handle_request_sync(request), Some(response.to_owned()));
+}
+
+#[test]
+fn rpc_parity_pending_transactions_without_limit_with_filter() {
+	let deps = Dependencies::new();
+	let io = deps.default_client();
+
+	let request = r#"{"jsonrpc": "2.0", "method": "parity_pendingTransactions", "params":[null,{"to":{"eq":"0xe8b2d01ffa0a15736b2370b6e5064f9702c891b6"},"gas":{"gt":"0x493e0"}}], "id": 1}"#;
+	let response = r#"{"jsonrpc":"2.0","result":[],"id":1}"#;
+
+	assert_eq!(io.handle_request_sync(request), Some(response.to_owned()));
+}
+
+#[test]
+fn rpc_parity_pending_transactions_with_limit_with_filter() {
+	let deps = Dependencies::new();
+	let io = deps.default_client();
+
+	let request = r#"{"jsonrpc": "2.0", "method": "parity_pendingTransactions", "params":[5,{"to":{"eq":"0xe8b2d01ffa0a15736b2370b6e5064f9702c891b6"},"gas":{"gt":"0x493e0"}}], "id": 1}"#;
 	let response = r#"{"jsonrpc":"2.0","result":[],"id":1}"#;
 
 	assert_eq!(io.handle_request_sync(request), Some(response.to_owned()));

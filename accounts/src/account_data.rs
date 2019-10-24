@@ -21,7 +21,8 @@ use std::{
 	time::Instant,
 };
 
-use ethkey::{Address, Password};
+use parity_crypto::publickey::Address;
+use ethkey::Password;
 use serde_derive::{Serialize, Deserialize};
 use serde_json;
 

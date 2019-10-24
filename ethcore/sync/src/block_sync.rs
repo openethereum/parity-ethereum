@@ -647,7 +647,7 @@ mod tests {
 	use crate::tests::{helpers::TestIo, snapshot::TestSnapshotService};
 
 	use ethcore::test_helpers::TestBlockChainClient;
-	use ethkey::{Random, Generator};
+	use parity_crypto::publickey::{Random, Generator};
 	use keccak_hash::keccak;
 	use parking_lot::RwLock;
 	use rlp::{encode_list, RlpStream};

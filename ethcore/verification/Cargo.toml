@@ -34,7 +34,7 @@ unexpected = { path = "../../util/unexpected" }
 [dev-dependencies]
 criterion = "0.3"
 ethcore = { path = "../", features = ["test-helpers"] }
-ethkey = { path = "../../accounts/ethkey" }
+parity-crypto = { version = "0.4.2", features = ["publickey"] }
 machine = { path = "../machine" }
 null-engine = { path = "../engines/null-engine" }
 spec = { path = "../spec" }

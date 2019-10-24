@@ -19,25 +19,26 @@
 use std::sync::Arc;
 
 use ethereum_types::{Address, H256};
-use ethkey::{Password, Signature};
+use ethkey::Password;
+use parity_crypto::publickey::{Signature, Error};
 use log::warn;
 use accounts::{self, AccountProvider, SignError};
 
 use crate::signer::EngineSigner;
 
 impl EngineSigner for (Arc<AccountProvider>, Address, Password) {
-	fn sign(&self, hash: H256) -> Result<Signature, ethkey::Error> {
+	fn sign(&self, hash: H256) -> Result<Signature, Error> {
 		match self.0.sign(self.1, Some(self.2.clone()), hash) {
 			Err(SignError::NotUnlocked) => unreachable!(),
-			Err(SignError::NotFound) => Err(ethkey::Error::InvalidAddress),
-			Err(SignError::SStore(accounts::Error::EthKey(err))) => Err(err),
-			Err(SignError::SStore(accounts::Error::EthKeyCrypto(err))) => {
+			Err(SignError::NotFound) => Err(Error::InvalidAddress),
+			Err(SignError::SStore(accounts::Error::EthCrypto(err))) => Err(Error::Custom(err.to_string())),
+			Err(SignError::SStore(accounts::Error::EthPublicKeyCrypto(err))) => {
 				warn!("Low level crypto error: {:?}", err);
-				Err(ethkey::Error::InvalidSecret)
+				Err(Error::InvalidSecretKey)
 			},
 			Err(SignError::SStore(err)) => {
 				warn!("Error signing for engine: {:?}", err);
-				Err(ethkey::Error::InvalidSignature)
+				Err(Error::InvalidSignature)
 			},
 			Ok(ok) => Ok(ok),
 		}

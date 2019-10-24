@@ -30,7 +30,7 @@ use std::{
 use byteorder::{BigEndian, LittleEndian, ReadBytesExt};
 use common_types::errors::EthcoreError;
 use ethereum_types::{H256, U256};
-use ethkey::{Signature, recover as ec_recover};
+use parity_crypto::publickey::{Signature, recover as ec_recover};
 use keccak_hash::keccak;
 use log::{warn, trace};
 use num::{BigUint, Zero, One};
@@ -39,7 +39,7 @@ use parity_crypto::digest;
 use eip_152::compress;
 
 /// Native implementation of a built-in contract.
-trait Implementation: Send + Sync {
+pub trait Implementation: Send + Sync {
 	/// execute this built-in on the given input, writing to the given output.
 	fn execute(&self, input: &[u8], output: &mut BytesRef) -> Result<(), &'static str>;
 }
@@ -359,31 +359,31 @@ impl Implementation for EthereumBuiltin {
 }
 
 #[derive(Debug)]
-struct Identity;
+pub struct Identity;
 
 #[derive(Debug)]
-struct EcRecover;
+pub struct EcRecover;
 
 #[derive(Debug)]
-struct Sha256;
+pub struct Sha256;
 
 #[derive(Debug)]
-struct Ripemd160;
+pub struct Ripemd160;
 
 #[derive(Debug)]
-struct Modexp;
+pub struct Modexp;
 
 #[derive(Debug)]
-struct Bn128Add;
+pub struct Bn128Add;
 
 #[derive(Debug)]
-struct Bn128Mul;
+pub struct Bn128Mul;
 
 #[derive(Debug)]
-struct Bn128Pairing;
+pub struct Bn128Pairing;
 
 #[derive(Debug)]
-struct Blake2F;
+pub struct Blake2F;
 
 impl Implementation for Identity {
 	fn execute(&self, input: &[u8], output: &mut BytesRef) -> Result<(), &'static str> {
