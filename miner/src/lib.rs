@@ -50,7 +50,7 @@ extern crate trace_time;
 #[cfg(test)]
 extern crate rustc_hex;
 #[cfg(test)]
-extern crate ethkey;
+extern crate parity_crypto;
 #[cfg(test)]
 extern crate env_logger;
 

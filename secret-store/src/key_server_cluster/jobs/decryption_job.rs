@@ -16,9 +16,9 @@
 
 use std::collections::{BTreeSet, BTreeMap};
 use ethereum_types::H256;
-use ethkey::{Public, Secret};
+use crypto::publickey::{Public, Secret};
 use crypto::DEFAULT_MAC;
-use ethkey::crypto::ecies::encrypt;
+use crypto::publickey::ecies::encrypt;
 use key_server_cluster::{Error, NodeId, DocumentKeyShare, EncryptedDocumentKeyShadow};
 use key_server_cluster::math;
 use key_server_cluster::jobs::job_session::{JobPartialRequestAction, JobPartialResponseAction, JobExecutor};

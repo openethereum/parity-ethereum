@@ -17,7 +17,8 @@
 use std::hash::{Hash, Hasher};
 use std::path::PathBuf;
 use std::cmp::Ordering;
-use ethkey::{Address, Message, Signature, Secret, Password, Public};
+use crypto::publickey::{Address, Message, Signature, Secret, Public};
+use ethkey::Password;
 use Error;
 use json::{Uuid, OpaqueKeyFile};
 use ethereum_types::H256;
@@ -110,7 +111,7 @@ pub trait SecretStore: SimpleSecretStore {
 
 	/// Signs a message with raw secret.
 	fn sign_with_secret(&self, secret: &OpaqueSecret, message: &Message) -> Result<Signature, Error> {
-		Ok(::ethkey::sign(&secret.0, message)?)
+		Ok(crypto::publickey::sign(&secret.0, message)?)
 	}
 
 	/// Imports presale wallet

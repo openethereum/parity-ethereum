@@ -20,7 +20,7 @@ use std::sync::Arc;
 use futures::Oneshot;
 use parking_lot::Mutex;
 use ethereum_types::Address;
-use ethkey::Public;
+use crypto::publickey::Public;
 use key_server_cluster::{Error, NodeId, SessionId, Requester, KeyStorage,
 	DocumentKeyShare, ServerKeyId};
 use key_server_cluster::cluster::Cluster;

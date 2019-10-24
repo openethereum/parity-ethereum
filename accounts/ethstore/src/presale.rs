@@ -17,7 +17,8 @@
 use std::fs;
 use std::path::Path;
 use json;
-use ethkey::{Address, Secret, KeyPair, Password};
+use crypto::publickey::{Address, Secret, KeyPair};
+use ethkey::Password;
 use crypto::{Keccak256, pbkdf2};
 use {crypto, Error};
 
@@ -65,7 +66,7 @@ impl PresaleWallet {
 			.map_err(|_| Error::InvalidPassword)?;
 		let unpadded = &key[..len];
 
-		let secret = Secret::from_unsafe_slice(&unpadded.keccak256())?;
+		let secret = Secret::import_key(&unpadded.keccak256())?;
 		if let Ok(kp) = KeyPair::from_secret(secret) {
 			if kp.address() == self.address {
 				return Ok(kp)

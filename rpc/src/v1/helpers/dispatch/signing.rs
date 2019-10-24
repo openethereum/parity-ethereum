@@ -20,7 +20,7 @@ use accounts::AccountProvider;
 use bytes::Bytes;
 use crypto::DEFAULT_MAC;
 use ethereum_types::{H256, U256, Address};
-use ethkey::{Signature};
+use crypto::publickey::Signature;
 use types::transaction::{Transaction, Action, SignedTransaction};
 
 use jsonrpc_core::Result;

@@ -19,35 +19,35 @@ use std::ops::Deref;
 use rustc_hex::{self, FromHex};
 use serde::{Serialize, Deserialize, Serializer, Deserializer};
 use serde::de::{Visitor, Error as SerdeError};
-use ethkey::{Public, Secret, Signature};
+use crypto::publickey::{Public, Secret, Signature};
 use ethereum_types::{H160, H256};
 use bytes::Bytes;
 use types::Requester;
 
 trait ToHex {
-    fn to_hex(&self) -> String;
+	fn to_hex(&self) -> String;
 }
 
 impl ToHex for Bytes {
-    fn to_hex(&self) -> String {
+	fn to_hex(&self) -> String {
 		format!("0x{}", rustc_hex::ToHex::to_hex(&self[..]))
 	}
 }
 
 impl ToHex for Signature {
-    fn to_hex(&self) -> String {
+	fn to_hex(&self) -> String {
 		format!("0x{}", self)
 	}
 }
 
 impl ToHex for Secret {
-    fn to_hex(&self) -> String {
-		format!("0x{}", rustc_hex::ToHex::to_hex(self))
+	fn to_hex(&self) -> String {
+		format!("0x{}", self.to_hex())
 	}
 }
 
 macro_rules! impl_to_hex {
-    ($name: ident) => (
+	($name: ident) => (
 		impl ToHex for $name {
 			fn to_hex(&self) -> String {
 				format!("{:#x}", self)
@@ -92,7 +92,7 @@ macro_rules! impl_bytes {
 
 		impl Serialize for $name {
 			fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error> where S: Serializer {
-				serializer.serialize_str(self.0.to_hex().as_ref())
+				serializer.serialize_str(<$other as ToHex>::to_hex(&self.0).as_ref())
 			}
 		}
 
@@ -228,7 +228,7 @@ mod tests {
 	#[test]
 	fn serialize_and_deserialize_secret() {
 		let s = "5a39ed1020c04d4d84539975b893a4e7c53eab6c2965db8bc3468093a31bc5ae";
-		let secret = SerializableSecret(Secret::from(s));
+		let secret = SerializableSecret(Secret::from_str(s).unwrap());
 		do_test!(secret, format!("\"0x{}\"", s), SerializableSecret);
 	}
 

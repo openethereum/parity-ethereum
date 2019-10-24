@@ -21,7 +21,7 @@ use derive_more::{Display, From};
 use ethereum_types::{U256, U512};
 use ethtrie::TrieError;
 use parity_snappy::InvalidInput;
-use ethkey::Error as EthkeyError;
+use parity_crypto::publickey::{Error as EthPublicKeyCryptoError};
 
 use errors::{BlockError, EngineError, ImportError, SnapshotError};
 use transaction::Error as TransactionError;
@@ -64,7 +64,7 @@ pub enum EthcoreError {
 	Engine(EngineError),
 	/// Ethkey error."
 	#[display(fmt = "Ethkey error: {}", _0)]
-	Ethkey(EthkeyError),
+	Ethkey(EthPublicKeyCryptoError),
 	/// RLP decoding errors
 	#[display(fmt = "Decoder error: {}", _0)]
 	Decoder(rlp::DecoderError),

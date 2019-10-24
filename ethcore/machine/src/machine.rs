@@ -435,7 +435,7 @@ mod tests {
 		header.set_number(15);
 
 		let res = machine.verify_transaction_basic(&transaction, &header);
-		assert_eq!(res, Err(transaction::Error::InvalidSignature("Crypto error (Invalid EC signature)".into())));
+		assert_eq!(res, Err(transaction::Error::InvalidSignature("invalid EC signature".into())));
 	}
 
 	#[test]

@@ -472,7 +472,7 @@ impl Importer {
 		{
 			trace_time!("import_old_block");
 			// verify the block, passing the chain for updating the epoch verifier.
-			let mut rng = OsRng::new().map_err(|e| format!("{}", e))?;
+			let mut rng = OsRng;
 			self.ancient_verifier.verify(&mut rng, &unverified.header, &chain)?;
 
 			// Commit results
@@ -988,14 +988,15 @@ impl Client {
 				Some(earliest_era) if earliest_era + self.history <= latest_era => {
 					let freeze_at = self.snapshotting_at.load(Ordering::SeqCst);
 					if freeze_at > 0 && freeze_at == earliest_era {
-						trace!(target: "pruning", "Pruning is frozen at era {}; earliest era={}, latest era={}, journal_size={}, mem_used={}. Not pruning.",
-						       freeze_at, earliest_era, latest_era, state_db.journal_db().journal_size(), state_db.journal_db().mem_used());
+						// Note: journal_db().mem_used() can be used for a more accurate memory
+						// consumption measurement but it can be expensive so sticking with the
+						// faster `journal_size()` instead.
+						trace!(target: "pruning", "Pruning is paused at era {} (snapshot under way); earliest era={}, latest era={}, journal_size={} – Not pruning.",
+						       freeze_at, earliest_era, latest_era, state_db.journal_db().journal_size());
 						break;
 					}
-					trace!(target: "pruning", "Pruning state for ancient era #{}; latest era={}, journal_size={}, mem_used={}.",
-					       earliest_era, latest_era, state_db.journal_db().journal_size(), state_db.journal_db().mem_used());
-					// todo[dvdplm] reinstate this before merge, logging mem is expensive:
-					//  trace!(target: "pruning", "Pruning state for ancient era #{}", earliest_era);
+					trace!(target: "pruning", "Pruning state for ancient era #{}; latest era={}, journal_size={}",
+					       earliest_era, latest_era, state_db.journal_db().journal_size());
 					match chain.block_hash(earliest_era) {
 						Some(ancient_hash) => {
 							let mut batch = DBTransaction::new();
@@ -2053,7 +2054,7 @@ impl BlockChainClient for Client {
 			blocks
 		};
 
-		Ok(self.chain.read().logs(blocks, |entry| filter.matches(entry), filter.limit))
+		Ok(chain.logs(blocks, |entry| filter.matches(entry), filter.limit))
 	}
 
 	fn filter_traces(&self, filter: TraceFilter) -> Option<Vec<LocalizedTrace>> {
@@ -2586,7 +2587,7 @@ impl SnapshotClient for Client {
 		self.snapshotting_at.store(actual_block_nr, Ordering::SeqCst);
 		{
 			scopeguard::defer! {{
-				trace!(target: "snapshot", "(defer) Unfreezing pruning, setting snapshotting_at back to 0");
+				trace!(target: "snapshot", "Re-enabling pruning.");
 				self.snapshotting_at.store(0, Ordering::SeqCst)
 			}};
 			let chunker = snapshot::chunker(self.engine.snapshot_mode()).ok_or_else(|| SnapshotError::SnapshotsUnsupported)?;
@@ -2813,7 +2814,7 @@ mod tests {
 
 	use blockchain::{ExtrasInsert, BlockProvider};
 	use client_traits::{BlockChainClient, ChainInfo};
-	use ethkey::KeyPair;
+	use parity_crypto::publickey::KeyPair;
 	use types::{
 		encoded,
 		engines::ForkChoice,

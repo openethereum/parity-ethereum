@@ -15,7 +15,7 @@
 // along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
 use std::net;
-use ethkey::KeyPair;
+use crypto::publickey::KeyPair;
 use key_server_cluster::NodeId;
 use key_server_cluster::io::SharedTcpStream;
 

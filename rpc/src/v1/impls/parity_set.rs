@@ -23,7 +23,7 @@ use client_traits::BlockChainClient;
 use types::client_types::Mode;
 use ethcore::miner::{self, MinerService};
 use ethereum_types::{H160, H256, U256};
-use ethkey;
+use crypto::publickey::KeyPair;
 use fetch::{self, Fetch};
 use hash::keccak_buffer;
 use sync::ManageNetwork;
@@ -161,7 +161,7 @@ impl<C, M, U, F> ParitySet for ParitySetClient<C, M, U, F> where
 	}
 
 	fn set_engine_signer_secret(&self, secret: H256) -> Result<bool> {
-		let keypair = ethkey::KeyPair::from_secret(secret.into()).map_err(|e| errors::account("Invalid secret", e))?;
+		let keypair = KeyPair::from_secret(secret.into()).map_err(|e| errors::account("Invalid secret", e))?;
 		self.miner.set_author(miner::Author::Sealer(engine::signer::from_keypair(keypair)));
 		Ok(true)
 	}

@@ -160,8 +160,8 @@ impl<'de> Deserialize<'de> for FilterOptions {
                 M: MapAccess<'de>,
             {
                 let mut filter = FilterOptions::default();
-                while let Some(key) = map.next_key()? {
-                    match key {
+                while let Some(key) = map.next_key::<String>()? {
+                    match key.as_str() {
                         "from" => {
                             filter.from = map.validate_from()?;
                         },
@@ -221,8 +221,8 @@ impl<'de> Deserialize<'de> for FilterOptions {
                         let mut counter = 0;
                         let mut f_op = Wrapper::O(FilterOperator::Any);
 
-                        while let Some(key) = map.next_key()? {
-                            match key {
+                        while let Some(key) = map.next_key::<String>()? {
+                            match key.as_str() {
                                 "eq" => f_op = W::O(FilterOperator::Eq(map.next_value()?)),
                                 "gt" => f_op = W::O(FilterOperator::GreaterThan(map.next_value()?)),
                                 "lt" => f_op = W::O(FilterOperator::LessThan(map.next_value()?)),

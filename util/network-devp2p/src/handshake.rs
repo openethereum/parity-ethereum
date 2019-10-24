@@ -25,8 +25,7 @@ use rand::random;
 use rlp::{Rlp, RlpStream};
 
 use ethcore_io::{IoContext, StreamToken};
-use ethkey::{Generator, KeyPair, Public, Random, recover, Secret, sign};
-use ethkey::crypto::{ecdh, ecies};
+use parity_crypto::publickey::{Generator, KeyPair, Public, Random, recover, Secret, sign, ecdh, ecies};
 use network::Error;
 
 use crate::connection::Connection;
@@ -329,7 +328,7 @@ mod test {
 	use rustc_hex::FromHex;
 
 	use ethcore_io::*;
-	use ethkey::Public;
+	use parity_crypto::publickey::Public;
 
 	use super::*;
 

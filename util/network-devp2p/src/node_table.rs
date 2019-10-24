@@ -26,7 +26,7 @@ use std::time::{self, Duration, SystemTime};
 
 use ethereum_types::H512;
 use log::{debug, warn};
-use rand::{self, Rng};
+use rand::seq::SliceRandom;
 use rlp::{DecoderError, Rlp, RlpStream};
 use serde::{Deserialize, Serialize};
 use serde_json;
@@ -373,7 +373,8 @@ impl NodeTable {
 			a.time().cmp(&b.time())
 		});
 
-		rand::thread_rng().shuffle(&mut unknown);
+		let mut rng = rand::thread_rng();
+		unknown.shuffle(&mut rng);
 
 		success.append(&mut unknown);
 		success.append(&mut failures);

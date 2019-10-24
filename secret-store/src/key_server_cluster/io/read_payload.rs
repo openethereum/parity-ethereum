@@ -18,7 +18,7 @@ use std::io;
 use futures::{Poll, Future};
 use tokio_io::AsyncRead;
 use tokio_io::io::{read_exact, ReadExact};
-use ethkey::KeyPair;
+use crypto::publickey::KeyPair;
 use key_server_cluster::Error;
 use key_server_cluster::message::Message;
 use key_server_cluster::io::message::{MessageHeader, deserialize_message, decrypt_message};

@@ -37,7 +37,7 @@ use ethcore_io::{IoHandler, IoChannel};
 use ethcore_private_tx::{
 	Provider, ProviderConfig, NoopEncryptor, Importer, SignedPrivateTransaction, StoringKeyProvider
 };
-use ethkey::KeyPair;
+use parity_crypto::publickey::KeyPair;
 use keccak_hash::keccak;
 use machine::executive::contract_address;
 use rustc_hex::FromHex;

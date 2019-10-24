@@ -22,7 +22,6 @@ extern crate ethcore;
 extern crate ethcore_call_contract as call_contract;
 extern crate ethcore_sync as sync;
 extern crate ethereum_types;
-extern crate ethkey;
 extern crate hyper;
 extern crate keccak_hash as hash;
 extern crate kvdb;
@@ -42,7 +41,6 @@ extern crate tokio_service;
 extern crate url;
 extern crate jsonrpc_server_utils;
 
-#[macro_use]
 extern crate ethabi_derive;
 #[macro_use]
 extern crate ethabi_contract;
@@ -55,6 +53,8 @@ extern crate lazy_static;
 #[macro_use]
 extern crate log;
 
+#[cfg(test)]
+extern crate ethkey;
 #[cfg(test)]
 extern crate env_logger;
 #[cfg(test)]

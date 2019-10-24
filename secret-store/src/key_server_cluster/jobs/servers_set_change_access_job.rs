@@ -15,7 +15,7 @@
 // along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
 use std::collections::{BTreeSet, BTreeMap};
-use ethkey::{Public, Signature, recover};
+use crypto::publickey::{Public, Signature, recover};
 use tiny_keccak::Keccak;
 use key_server_cluster::{Error, NodeId, SessionId};
 use key_server_cluster::message::{InitializeConsensusSessionWithServersSet, InitializeConsensusSessionOfShareAdd};

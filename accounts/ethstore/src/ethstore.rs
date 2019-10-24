@@ -22,7 +22,8 @@ use std::time::{Instant, Duration};
 
 use crypto::KEY_ITERATIONS;
 use random::Random;
-use ethkey::{self, Signature, Password, Address, Message, Secret, Public, KeyPair, ExtendedKeyPair};
+use crypto::publickey::{Signature, Address, Message, Secret, Public, KeyPair, ExtendedKeyPair};
+use ethkey::Password;
 use accounts_dir::{KeyDirectory, VaultKeyDirectory, VaultKey, SetKeyError};
 use account::SafeAccount;
 use presale::PresaleWallet;
@@ -442,13 +443,13 @@ impl EthMultiStore {
 			Derivation::Hierarchical(path) => {
 				for path_item in path {
 					extended = extended.derive(
-						if path_item.soft { ethkey::Derivation::Soft(path_item.index) }
-						else { ethkey::Derivation::Hard(path_item.index) }
+						if path_item.soft { crypto::publickey::Derivation::Soft(path_item.index) }
+						else { crypto::publickey::Derivation::Hard(path_item.index) }
 					)?;
 				}
 			},
-			Derivation::SoftHash(h256) => { extended = extended.derive(ethkey::Derivation::Soft(h256))?; }
-			Derivation::HardHash(h256) => { extended = extended.derive(ethkey::Derivation::Hard(h256))?; }
+			Derivation::SoftHash(h256) => { extended = extended.derive(crypto::publickey::Derivation::Soft(h256))?; }
+			Derivation::HardHash(h256) => { extended = extended.derive(crypto::publickey::Derivation::Hard(h256))?; }
 		}
 		Ok(extended)
 	}
@@ -479,7 +480,7 @@ impl SimpleSecretStore for EthMultiStore {
 		let accounts = self.get_matching(&account_ref, password)?;
 		for account in accounts {
 			let extended = self.generate(account.crypto.secret(password)?, derivation)?;
-			return Ok(ethkey::public_to_address(extended.public().public()));
+			return Ok(crypto::publickey::public_to_address(extended.public().public()));
 		}
 		Err(Error::InvalidPassword)
 	}
@@ -491,7 +492,7 @@ impl SimpleSecretStore for EthMultiStore {
 		for account in accounts {
 			let extended = self.generate(account.crypto.secret(password)?, derivation)?;
 			let secret = extended.secret().as_raw();
-			return Ok(ethkey::sign(&secret, message)?)
+			return Ok(crypto::publickey::sign(&secret, message)?)
 		}
 		Err(Error::InvalidPassword)
 	}
@@ -690,7 +691,7 @@ mod tests {
 	extern crate tempdir;
 
 	use accounts_dir::{KeyDirectory, MemoryDirectory, RootDiskDirectory};
-	use ethkey::{Random, Generator, KeyPair};
+	use crypto::publickey::{Random, Generator, KeyPair};
 	use secret_store::{SimpleSecretStore, SecretStore, SecretVaultRef, StoreAccountRef, Derivation};
 	use super::{EthStore, EthMultiStore};
 	use self::tempdir::TempDir;

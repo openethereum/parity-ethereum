@@ -21,7 +21,7 @@ use std::thread;
 use client_traits::ChainNotify;
 use common_types::chain_notify::NewBlocks;
 use bytes::Bytes;
-use ethkey::{Public, public_to_address};
+use crypto::publickey::{Public, public_to_address};
 use ethereum_types::{H256, U256, Address, BigEndianHash as _};
 use key_server_set::KeyServerSet;
 use key_server_cluster::{NodeId, ClusterClient, ClusterSessionsListener, ClusterSession};
@@ -587,7 +587,7 @@ fn is_processed_by_this_key_server(key_server_set: &dyn KeyServerSet, node: &Nod
 mod tests {
 	use std::sync::Arc;
 	use std::sync::atomic::Ordering;
-	use ethkey::{Random, Generator, KeyPair};
+	use crypto::publickey::{Random, Generator, KeyPair};
 	use listener::service_contract::ServiceContract;
 	use listener::service_contract::tests::DummyServiceContract;
 	use key_server_cluster::DummyClusterClient;

@@ -18,7 +18,7 @@
 
 use std::{
 	cmp::{max, min},
-	convert::TryFrom,
+	convert::{TryFrom, TryInto},
 	io::{self, Read, Cursor},
 	mem::size_of,
 };
@@ -28,7 +28,7 @@ use byteorder::{BigEndian, LittleEndian, ReadBytesExt};
 use common_types::errors::EthcoreError;
 use ethereum_types::{H256, U256};
 use ethjson;
-use ethkey::{Signature, recover as ec_recover};
+use parity_crypto::publickey::{Signature, recover as ec_recover};
 use keccak_hash::keccak;
 use log::{warn, trace};
 use num::{BigUint, Zero, One};
@@ -37,7 +37,7 @@ use parity_crypto::digest;
 use eip_152::compress;
 
 /// Native implementation of a built-in contract.
-trait Implementation: Send + Sync {
+pub trait Implementation: Send + Sync {
 	/// execute this built-in on the given input, writing to the given output.
 	fn execute(&self, input: &[u8], output: &mut BytesRef) -> Result<(), &'static str>;
 }
@@ -56,11 +56,14 @@ pub type Blake2FPricer = u64;
 
 impl Pricer for Blake2FPricer {
 	fn cost(&self, input: &[u8], _at: u64) -> U256 {
-		use std::convert::TryInto;
-		let (rounds_bytes, _) = input.split_at(std::mem::size_of::<u32>());
+		const FOUR: usize = std::mem::size_of::<u32>();
 		// Returning zero if the conversion fails is fine because `execute()` will check the length
 		// and bail with the appropriate error.
-		let rounds = u32::from_be_bytes(rounds_bytes.try_into().unwrap_or([0u8; 4]));
+		if input.len() < FOUR {
+			return U256::zero();
+		}
+		let (rounds_bytes, _) = input.split_at(FOUR);
+		let rounds = u32::from_be_bytes(rounds_bytes.try_into().unwrap_or([0u8; FOUR]));
 		U256::from(*self as u128 * rounds as u128)
 	}
 }
@@ -302,31 +305,31 @@ fn ethereum_builtin(name: &str) -> Result<Box<dyn Implementation>, EthcoreError>
 // - blake2_f (The Blake2 compression function F, EIP-152)
 
 #[derive(Debug)]
-struct Identity;
+pub struct Identity;
 
 #[derive(Debug)]
-struct EcRecover;
+pub struct EcRecover;
 
 #[derive(Debug)]
-struct Sha256;
+pub struct Sha256;
 
 #[derive(Debug)]
-struct Ripemd160;
+pub struct Ripemd160;
 
 #[derive(Debug)]
-struct Modexp;
+pub struct Modexp;
 
 #[derive(Debug)]
-struct Bn128Add;
+pub struct Bn128Add;
 
 #[derive(Debug)]
-struct Bn128Mul;
+pub struct Bn128Mul;
 
 #[derive(Debug)]
-struct Bn128Pairing;
+pub struct Bn128Pairing;
 
 #[derive(Debug)]
-struct Blake2F;
+pub struct Blake2F;
 
 impl Implementation for Identity {
 	fn execute(&self, input: &[u8], output: &mut BytesRef) -> Result<(), &'static str> {
@@ -706,6 +709,19 @@ mod tests {
 		f.execute(&input[..], &mut BytesRef::Fixed(&mut output[..])).unwrap();
 
 		assert_eq!(f.cost(&input[..], 0), U256::from(123*5));
+	}
+
+	#[test]
+	fn blake2f_cost_on_invalid_length() {
+		let f = Builtin {
+			pricer: Box::new(123),
+			native: ethereum_builtin("blake2_f").expect("known builtin"),
+			activate_at: 0,
+		};
+		// invalid input (too short)
+		let input = hex!("00");
+
+		assert_eq!(f.cost(&input[..], 0), U256::from(0));
 	}
 
 	#[test]

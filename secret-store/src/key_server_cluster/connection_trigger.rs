@@ -19,7 +19,7 @@ use std::collections::btree_map::Entry;
 use std::net::SocketAddr;
 use std::sync::Arc;
 use ethereum_types::H256;
-use ethkey::Public;
+use crypto::publickey::Public;
 use key_server_cluster::{KeyServerSet, KeyServerSetSnapshot};
 use key_server_cluster::cluster::{ClusterConfiguration, ServersSetChangeParams};
 use key_server_cluster::cluster_sessions::AdminSession;
@@ -215,7 +215,7 @@ fn select_nodes_to_disconnect(current_set: &BTreeMap<NodeId, SocketAddr>, new_se
 mod tests {
 	use std::collections::BTreeSet;
 	use std::sync::Arc;
-	use ethkey::{Random, Generator};
+	use crypto::publickey::{Random, Generator};
 	use key_server_cluster::{MapKeyServerSet, PlainNodeKeyPair, KeyServerSetSnapshot, KeyServerSetMigration};
 	use key_server_cluster::cluster_connections_net::NetConnectionsContainer;
 	use super::{Maintain, TriggerConnections, ConnectionsAction, ConnectionTrigger, SimpleConnectionTrigger,
