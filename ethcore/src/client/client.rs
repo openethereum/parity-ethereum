@@ -20,7 +20,7 @@ use std::convert::TryFrom;
 use std::io::{BufRead, BufReader};
 use std::str::from_utf8;
 use std::sync::{Arc, Weak};
-use std::sync::atomic::{AtomicBool, AtomicI64, Ordering as AtomicOrdering};
+use std::sync::atomic::{AtomicBool, AtomicI64, Ordering as AtomicOrdering, Ordering, AtomicU64};
 use std::time::{Duration, Instant};
 
 use ansi_term::Colour;
@@ -203,6 +203,9 @@ pub struct Client {
 
 	/// Database pruning strategy to use for StateDB
 	pruning: journaldb::Algorithm,
+
+	/// Don't prune the state we're currently snapshotting
+	snapshotting_at: AtomicU64,
 
 	/// Client uses this to store blocks, traces, etc.
 	db: RwLock<Arc<dyn BlockChainDB>>,
@@ -780,6 +783,7 @@ impl Client {
 			tracedb,
 			engine,
 			pruning: config.pruning.clone(),
+			snapshotting_at: AtomicU64::new(0),
 			db: RwLock::new(db.clone()),
 			state_db: RwLock::new(state_db),
 			report: RwLock::new(Default::default()),
@@ -964,13 +968,15 @@ impl Client {
 			return Ok(())
 		}
 
-		let number = match state_db.journal_db().latest_era() {
+		let latest_era = match state_db.journal_db().latest_era() {
 			Some(n) => n,
 			None => return Ok(()),
 		};
 
-		// prune all ancient eras until we're below the memory target,
-		// but have at least the minimum number of states.
+		// Prune all ancient eras until we're below the memory target (default: 32Mb),
+		// but have at least the minimum number of states, i.e. `history`.
+		// If a snapshot is under way, no pruning happens and memory consumption is allowed to
+		// increase above the memory target until the snapshot has finished.
 		loop {
 			let needs_pruning = state_db.journal_db().journal_size() >= self.config.history_mem;
 
@@ -979,17 +985,27 @@ impl Client {
 			}
 
 			match state_db.journal_db().earliest_era() {
-				Some(era) if era + self.history <= number => {
-					trace!(target: "client", "Pruning state for ancient era {}", era);
-					match chain.block_hash(era) {
+				Some(earliest_era) if earliest_era + self.history <= latest_era => {
+					let freeze_at = self.snapshotting_at.load(Ordering::SeqCst);
+					if freeze_at > 0 && freeze_at == earliest_era {
+						// Note: journal_db().mem_used() can be used for a more accurate memory
+						// consumption measurement but it can be expensive so sticking with the
+						// faster `journal_size()` instead.
+						trace!(target: "pruning", "Pruning is paused at era {} (snapshot under way); earliest era={}, latest era={}, journal_size={} – Not pruning.",
+						       freeze_at, earliest_era, latest_era, state_db.journal_db().journal_size());
+						break;
+					}
+					trace!(target: "pruning", "Pruning state for ancient era #{}; latest era={}, journal_size={}",
+					       earliest_era, latest_era, state_db.journal_db().journal_size());
+					match chain.block_hash(earliest_era) {
 						Some(ancient_hash) => {
 							let mut batch = DBTransaction::new();
-							state_db.mark_canonical(&mut batch, era, &ancient_hash)?;
+							state_db.mark_canonical(&mut batch, earliest_era, &ancient_hash)?;
 							self.db.read().key_value().write_buffered(batch);
 							state_db.journal_db().flush();
 						}
 						None =>
-							debug!(target: "client", "Missing expected hash for block {}", era),
+							debug!(target: "pruning", "Missing expected hash for block {}", earliest_era),
 					}
 				}
 				_ => break, // means that every era is kept, no pruning necessary.
@@ -2533,48 +2549,61 @@ impl SnapshotClient for Client {
 			return Err(EthcoreError::Snapshot(SnapshotError::SnapshotsUnsupported));
 		}
 		let db = self.state_db.read().journal_db().boxed_clone();
-		let best_block_number = self.chain_info().best_block_number;
-		let block_number = self.block_number(at).ok_or_else(|| SnapshotError::InvalidStartingBlock(at))?;
 
-		if db.is_prunable() && self.pruning_info().earliest_state > block_number {
+		let block_number = self.block_number(at).ok_or_else(|| SnapshotError::InvalidStartingBlock(at))?;
+		let earliest_era = db.earliest_era().unwrap_or(0);
+		if db.is_prunable() && earliest_era > block_number {
 			return Err(SnapshotError::OldBlockPrunedDB.into());
 		}
 
-		let history = cmp::min(self.history, 1000);
 
-		let start_hash = match at {
+		let (actual_block_nr, block_hash) = match at {
 			BlockId::Latest => {
-				let start_num = match db.earliest_era() {
-					Some(era) => cmp::max(era, best_block_number.saturating_sub(history)),
-					None => best_block_number.saturating_sub(history),
-				};
+				// Start `self.history` blocks from the best block, but no further back than 1000
+				// blocks (or earliest era, whichever is greatest).
+				let history = cmp::min(self.history, 1000);
+				let best_block_number = self.chain_info().best_block_number;
+				let start_num = cmp::max(earliest_era, best_block_number.saturating_sub(history));
 
 				match self.block_hash(BlockId::Number(start_num)) {
-					Some(h) => h,
-					None => return Err(SnapshotError::InvalidStartingBlock(at).into()),
+					Some(hash) => (start_num, hash),
+					None => {
+						error!(target: "snapshot", "Can't take snapshot at {:?}: missing hash for the starting block #{}", at, start_num);
+						return Err(SnapshotError::InvalidStartingBlock(at).into())
+					},
 				}
 			}
 			_ => match self.block_hash(at) {
-				Some(hash) => hash,
+				Some(hash) => (block_number, hash),
 				None => return Err(SnapshotError::InvalidStartingBlock(at).into()),
 			},
 		};
 
 		let processing_threads = self.config.snapshot.processing_threads;
-		let chunker = snapshot::chunker(self.engine.snapshot_mode()).ok_or_else(|| SnapshotError::SnapshotsUnsupported)?;
-		snapshot::take_snapshot(
-			chunker,
-			&self.chain.read(),
-			start_hash,
-			db.as_hash_db(),
-			writer,
-			p,
-			processing_threads,
-		)?;
-		Ok(())
+		trace!(target: "snapshot", "Snapshot requested at block {:?}. Using block #{}/{:?}. Earliest block: #{}, earliest state era #{}. Using {} threads.",
+			at, actual_block_nr, block_hash, self.pruning_info().earliest_chain, earliest_era, processing_threads,
+		);
+		// Stop pruning from happening while the snapshot is under way.
+		self.snapshotting_at.store(actual_block_nr, Ordering::SeqCst);
+		{
+			scopeguard::defer! {{
+				trace!(target: "snapshot", "Re-enabling pruning.");
+				self.snapshotting_at.store(0, Ordering::SeqCst)
+			}};
+			let chunker = snapshot::chunker(self.engine.snapshot_mode()).ok_or_else(|| SnapshotError::SnapshotsUnsupported)?;
+			// Spawn threads and take snapshot
+			snapshot::take_snapshot(
+				chunker,
+				&self.chain.read(),
+				block_hash,
+				db.as_hash_db(),
+				writer,
+				p,
+				processing_threads,
+			)?;
+			Ok(())
+		}
 	}
-
-
 }
 
 impl ImportExportBlocks for Client {

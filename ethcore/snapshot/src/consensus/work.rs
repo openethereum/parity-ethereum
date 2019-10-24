@@ -178,7 +178,7 @@ impl<'a> PowWorker<'a> {
 		let parent_hash = last_header.parent_hash();
 		let parent_total_difficulty = last_details.total_difficulty - last_header.difficulty();
 
-		trace!(target: "snapshot", "parent last written block: {}", parent_hash);
+		trace!(target: "snapshot", "parent last written block: #{}/{}", parent_number, parent_hash);
 
 		let num_entries = self.rlps.len();
 		let mut rlp_stream = RlpStream::new_list(3 + num_entries);

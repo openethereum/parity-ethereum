@@ -40,6 +40,7 @@ extern crate parity_crypto;
 #[macro_use]
 extern crate derive_more;
 extern crate keccak_hash as hash;
+extern crate parking_lot;
 extern crate parity_bytes as bytes;
 extern crate patricia_trie_ethereum as ethtrie;
 extern crate rlp;

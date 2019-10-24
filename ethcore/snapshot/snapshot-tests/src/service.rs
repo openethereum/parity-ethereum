@@ -278,7 +278,7 @@ fn keep_ancient_blocks() {
 		&bc,
 		best_hash,
 		&writer,
-		&Progress::default()
+		&Progress::new()
 	).unwrap();
 	let state_db = client.state_db().journal_db().boxed_clone();
 	let start_header = bc.block_header_data(&best_hash).unwrap();
@@ -287,7 +287,7 @@ fn keep_ancient_blocks() {
 		state_db.as_hash_db(),
 		&state_root,
 		&writer,
-		&Progress::default(),
+		&Progress::new(),
 		None,
 		0
 	).unwrap();
