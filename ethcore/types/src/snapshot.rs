@@ -104,7 +104,7 @@ impl Progress {
 		self.prev_accounts = self.accounts;
 		self.prev_bytes = self.bytes;
 		self.accounts += accounts_delta;
-		self.bytes +=bytes_delta;
+		self.bytes += bytes_delta;
 	}
 }
 
