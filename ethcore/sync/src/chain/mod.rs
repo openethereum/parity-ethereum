@@ -115,7 +115,7 @@ use ethereum_types::{H256, U256};
 use fastmap::{H256FastMap, H256FastSet};
 use futures::sync::mpsc as futures_mpsc;
 use keccak_hash::keccak;
-use log::{error, trace, debug};
+use log::{error, trace, debug, warn};
 use network::client_version::ClientVersion;
 use network::{self, PeerId, PacketId};
 use parity_util_mem::{MallocSizeOfExt, malloc_size_of_is_0};
@@ -179,13 +179,18 @@ const SNAPSHOT_MIN_PEERS: usize = 3;
 // todo[dvdplm] One problem with warp-sync is when the remote peer we're downloading from goes offline. Would it make sense to increase the number of chunks here so we download as much data as we can?
 const MAX_SNAPSHOT_CHUNKS_DOWNLOAD_AHEAD: usize = 3;
 
-const WAIT_PEERS_TIMEOUT: Duration = Duration::from_secs(5);
-const STATUS_TIMEOUT: Duration = Duration::from_secs(5);
+/// Time to wait for snapshotting peers to show up with a snapshot we want to use. Beyond this time,
+/// a single peer is enough to start downloading. Beware that if WAIT_PEERS_TIMEOUT is longer than
+/// STATUS_TIMEOUT, peers will start to get disconnected.
+const WAIT_PEERS_TIMEOUT: Duration = Duration::from_secs(8);
+/// Time to wait for a peer to start being useful to us in some form. After this they are disconnected.
+const STATUS_TIMEOUT: Duration = Duration::from_secs(10);
 const HEADERS_TIMEOUT: Duration = Duration::from_secs(15);
 const BODIES_TIMEOUT: Duration = Duration::from_secs(20);
 const RECEIPTS_TIMEOUT: Duration = Duration::from_secs(10);
 const FORK_HEADER_TIMEOUT: Duration = Duration::from_secs(3);
-const SNAPSHOT_MANIFEST_TIMEOUT: Duration = Duration::from_secs(5);
+/// Max time to wait for a peer to send us a snapshot manifest.
+const SNAPSHOT_MANIFEST_TIMEOUT: Duration = Duration::from_secs(15);
 const SNAPSHOT_DATA_TIMEOUT: Duration = Duration::from_secs(120);
 const PRIVATE_STATE_TIMEOUT: Duration = Duration::from_secs(120);
 
@@ -804,13 +809,13 @@ impl ChainSync {
 		self.active_peers.remove(&peer_id);
 	}
 
-	// Called once per second.
+	/// Decide if we should start downloading a snapshot and from who. Called once per second.
 	fn maybe_start_snapshot_sync(&mut self, io: &mut dyn SyncIo) {
 		if !self.warp_sync.is_enabled() || io.snapshot_service().supported_versions().is_none() {
-//			trace!(target: "snapshot_sync", "Skipping warp sync. Disabled or not supported.");
 			return;
 		}
-		if self.state != SyncState::WaitingPeers && self.state != SyncState::Blocks && self.state != SyncState::Waiting {
+		use SyncState::*;
+		if self.state != WaitingPeers && self.state != Blocks && self.state != Waiting {
 			trace!(target: "snapshot_sync", "Skipping warp sync. State: {:?}", self.state);
 			return;
 		}
@@ -819,14 +824,14 @@ impl ChainSync {
 		let our_best_block = io.chain().chain_info().best_block_number;
 		let fork_block = self.fork_block.map_or(0, |(n, _)| n);
 
-		let (best_hash, max_peers, snapshot_peers) = {
-			let expected_warp_block = match self.warp_sync {
-				WarpSync::OnlyAndAfter(block) => block,
-				_ => 0,
-			};
+		let expected_warp_block = match self.warp_sync {
+			WarpSync::OnlyAndAfter(block) => block,
+			_ => 0,
+		};
+		let (best_snapshot_block, best_hash, max_peers, snapshot_peers) = {
 			// Collect snapshot info from peers: filter out expired peers and peers from whom we do
 			// not have fork confirmation.
-			let snapshots = self.peers.iter()
+			let mut snapshots = self.peers.iter()
 				.filter(|&(_, p)| p.is_allowed() && p.snapshot_number.map_or(false, |sn|
 					// Snapshot must be sufficiently better than what we have that it's useful to
 					// sync with it: more than 30k blocks beyond our best block
@@ -842,44 +847,71 @@ impl ChainSync {
 						highest < sn || (highest - sn) <= SNAPSHOT_RESTORE_THRESHOLD
 					})
 				))
-				.filter_map(|(p, peer)| peer.snapshot_hash.map(|hash| (p, hash.clone())))
-				.filter(|&(p, ref hash)| {
+				.filter_map(|(p, peer)| {
+					peer.snapshot_hash.map(|hash| (p, hash.clone()))
+						.and_then(|(p, hash)| peer.snapshot_number.map(|n| (*p, n, hash) ) )
+				})
+				.filter(|&(p, snapshot_block, ref hash)| {
 					if self.snapshot.is_known_bad(hash) {
-						trace!(target: "snapshot_sync", "{}: Snapshot with hash {:?} is known to have failed before; not trying again", p, hash);
+						trace!(target: "snapshot_sync", "{}: Snapshot at #{} with hash {:?} is known to have failed before; not trying again", p, snapshot_block, hash);
 						false
 					} else {
 						true
 					}
-				});
+				})
+				.collect::<Vec<(PeerId, BlockNumber, H256)>>();
 
+			// Sort collection of peers by highest block number
+			snapshots.sort_by(|&(_, ref b1, _), &(_, ref b2, _)| b2.cmp(b1) );
 			let mut snapshot_peers = HashMap::new();
 			let mut max_peers: usize = 0;
 			let mut best_hash = None;
-			for (p, hash) in snapshots {
+			let mut best_snapshot_block = None;
+			// todo[dvdplm] I don't understand what this tries to achieve. It looks like it's written expecting multiple candidates with the same snapshot and aims to pick the one with the most seeders.
+			for (p, snapshot_block, hash) in snapshots {
 				let peers = snapshot_peers.entry(hash).or_insert_with(Vec::new);
-				peers.push(*p);
+				peers.push(p);
 				if peers.len() > max_peers {
+					trace!(target: "snapshot_sync", "{} is the new best snapshotting peer, has snapshot at block #{}/{}", p, snapshot_block, hash);
 					max_peers = peers.len();
 					best_hash = Some(hash);
+					best_snapshot_block = Some(snapshot_block);
 				}
 			}
-			(best_hash, max_peers, snapshot_peers)
+			(best_snapshot_block, best_hash, max_peers, snapshot_peers)
 		};
+		// If we've waited long enough (8sec), a single peer will have to be enough for the snapshot sync to start.
+		let timeout = (self.state == WaitingPeers) &&
+			self.sync_start_time.map_or(false, |t| t.elapsed() > WAIT_PEERS_TIMEOUT);
 
-		let timeout = (self.state == SyncState::WaitingPeers) && self.sync_start_time.map_or(false, |t| t.elapsed() > WAIT_PEERS_TIMEOUT);
 
-		if let (Some(hash), Some(peers)) = (best_hash, best_hash.map_or(None, |h| snapshot_peers.get(&h))) {
+		if let (Some(block), Some(hash), Some(peers)) = (
+			best_snapshot_block,
+			best_hash,
+			best_hash.map_or(None, |h| snapshot_peers.get(&h))
+		) {
+			trace!(target: "snapshot_sync", "We can sync a snapshot at #{:?}/{:?} from {} peer(s): {:?}",
+			       best_snapshot_block, best_hash, max_peers, snapshot_peers.values());
 			if max_peers >= SNAPSHOT_MIN_PEERS {
-				debug!(target: "snapshot_sync", "Starting confirmed snapshot sync {:?} with {:?}", hash, peers);
+				debug!(target: "snapshot_sync", "Starting confirmed snapshot sync for a snapshot at #{}/{:?} with peer {:?}", block, hash, peers);
 				self.start_snapshot_sync(io, peers);
 			} else if timeout {
-				debug!(target: "snapshot_sync", "Starting unconfirmed snapshot sync {:?} with {:?}", hash, peers);
+				debug!(target: "snapshot_sync", "Starting unconfirmed snapshot sync for a snapshot at #{}/{:?} with peer {:?}", block, hash, peers);
 				self.start_snapshot_sync(io, peers);
+			} else {
+				trace!(target: "snapshot_sync", "Waiting a little more to let more snapshot peers connect.")
 			}
-		} else if timeout && !self.warp_sync.is_warp_only() {
-			debug!(target: "snapshot_sync", "No snapshots found, starting full sync");
-			self.set_state(SyncState::Idle);
-			self.continue_sync(io);
+		} else if timeout {
+			if !self.warp_sync.is_warp_only() {
+				debug!(target: "snapshot_sync", "No snapshots found, starting full sync");
+				self.set_state(SyncState::Idle);
+				self.continue_sync(io);
+			} else  {
+				warn!(target: "snapshot_sync", "No snapshots available at #{}. Try using a smaller value for --warp-barrier", expected_warp_block);
+			}
+		} else {
+			// todo[dvdplm] remove this, it's debug only
+			trace!(target: "snapshot_sync", "Time to wait for snapshot peers is NOT expired and we do NOT have a snapshot peer (best_block={:?}, best_hash={:?}, peers.len={:?}).", best_snapshot_block, best_hash, snapshot_peers.len())
 		}
 	}
 
@@ -1004,13 +1036,13 @@ impl ChainSync {
 		let higher_difficulty = peer_difficulty.map_or(true, |pd| pd > syncing_difficulty);
 		if force || higher_difficulty || self.old_blocks.is_some() {
 			match self.state {
-				SyncState::WaitingPeers => {
+				SyncState::WaitingPeers if peer_snapshot_number > 0 => {
 					trace!(
 						target: "snapshot_sync",
-						"Can we snapshot from them? Their highest block: #{} vs our highest: #{} (peer: {}, {})",
+						"{}: Potential snapshot sync peer; their highest block: #{} vs our highest: #{} (peer: {})",
+						peer_id,
 						peer_snapshot_number,
 						chain_info.best_block_number,
-						peer_id,
 						io.peer_enode(peer_id),
 					);
 					self.maybe_start_snapshot_sync(io);
@@ -1082,7 +1114,8 @@ impl ChainSync {
 				},
 				SyncState::SnapshotManifest | //already downloading from other peer
 					SyncState::Waiting |
-					SyncState::SnapshotWaiting => ()
+					SyncState::SnapshotWaiting => (),
+				_ => ()
 			}
 		} else {
 			trace!(target: "sync", "Skipping peer {}, force={}, td={:?}, our td={}, state={:?}", peer_id, force, peer_difficulty, syncing_difficulty, self.state);
