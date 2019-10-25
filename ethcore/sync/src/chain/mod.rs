@@ -182,8 +182,12 @@ const MAX_SNAPSHOT_CHUNKS_DOWNLOAD_AHEAD: usize = 3;
 /// Time to wait for snapshotting peers to show up with a snapshot we want to use. Beyond this time,
 /// a single peer is enough to start downloading. Beware that if WAIT_PEERS_TIMEOUT is longer than
 /// STATUS_TIMEOUT, peers will start to get disconnected.
-const WAIT_PEERS_TIMEOUT: Duration = Duration::from_secs(8);
-/// Time to wait for a peer to start being useful to us in some form. After this they are disconnected.
+///
+/// In general, be cautious about how these intervals interact with the timers set up in `SyncApi`
+/// (`PEERS_TIMER`, `CONTINUE_SYNC_TIMER`, `MAINTAIN_SYNC_TIMER`).
+const WAIT_PEERS_TIMEOUT: Duration = Duration::from_millis(7500); // todo[dvdplm]: have seen very unreliable behaviour, possibly related to this timer. Sometimes all peers seem gone juuuust when the peers-collection-phase is over and we're stuck believing there are no peers to snapshot from. It is not repeatable reliably but my best hypothesis is it is connected to the duration of the MAINTAIN_SYNC_TIMER set to 2.5sec. Snapshot seems to start reliably if this is set to a multiple of 2.5. But who knows, there are plenty of timers firing from several threads. Locks are involved.
+/// Time to wait for a peer to start being useful to us in some form. After this they are
+/// disconnected.
 const STATUS_TIMEOUT: Duration = Duration::from_secs(10);
 const HEADERS_TIMEOUT: Duration = Duration::from_secs(15);
 const BODIES_TIMEOUT: Duration = Duration::from_secs(20);
@@ -462,6 +466,7 @@ impl ChainSyncApi {
 	///
 	/// NOTE This method should only handle stuff that can be canceled and would reach other peers
 	/// by other means.
+	/// Called every `PRIORITY_TIMER` (0.25sec)
 	pub fn process_priority_queue(&self, io: &mut dyn SyncIo) {
 		fn check_deadline(deadline: Instant) -> Option<Duration> {
 			let now = Instant::now();
@@ -752,7 +757,7 @@ impl ChainSync {
 		receiver
 	}
 
-	/// notify all subscibers of a new SyncState
+	/// Notify all subscribers of a new SyncState
 	fn notify_sync_state(&mut self, state: SyncState) {
 		// remove any sender whose receiving end has been dropped
 		self.status_sinks.retain(|sender| {
@@ -847,10 +852,12 @@ impl ChainSync {
 						highest < sn || (highest - sn) <= SNAPSHOT_RESTORE_THRESHOLD
 					})
 				))
+//				.inspect(|(p, peer_info)| trace!(target: "dp", "{} has #{:?} (passed block height checks)", p, peer_info.snapshot_number))
 				.filter_map(|(p, peer)| {
 					peer.snapshot_hash.map(|hash| (p, hash.clone()))
 						.and_then(|(p, hash)| peer.snapshot_number.map(|n| (*p, n, hash) ) )
 				})
+//				.inspect(|(p, b, h)| trace!(target: "dp", "{} has #{} (passed transform into tuple)", p, b))
 				.filter(|&(p, snapshot_block, ref hash)| {
 					if self.snapshot.is_known_bad(hash) {
 						trace!(target: "snapshot_sync", "{}: Snapshot at #{} with hash {:?} is known to have failed before; not trying again", p, snapshot_block, hash);
@@ -859,10 +866,12 @@ impl ChainSync {
 						true
 					}
 				})
+//				.inspect(|(p, b, h)| trace!(target: "dp", "{} has #{} (passed known-bad checks)", p, b))
 				.collect::<Vec<(PeerId, BlockNumber, H256)>>();
 
 			// Sort collection of peers by highest block number
 			snapshots.sort_by(|&(_, ref b1, _), &(_, ref b2, _)| b2.cmp(b1) );
+			trace!(target:"dp", "Snapshot candidates={:?}", snapshots);
 			let mut snapshot_peers = HashMap::new();
 			let mut max_peers: usize = 0;
 			let mut best_hash = None;
@@ -908,10 +917,12 @@ impl ChainSync {
 				self.continue_sync(io);
 			} else  {
 				warn!(target: "snapshot_sync", "No snapshots available at #{}. Try using a smaller value for --warp-barrier", expected_warp_block);
+				// todo[dvdplm] remove before merge, debug only
+				trace!(target: "dp", "No snapshots available at #{}; time to wait for snapshot peers is up and we do NOT have a snapshot peer: (best_block={:?}, best_hash={:?}, peers.len={:?}, state={:?}, peers.len={}).", expected_warp_block, best_snapshot_block, best_hash, snapshot_peers.len(), self.state, self.peers.len())
 			}
 		} else {
 			// todo[dvdplm] remove this, it's debug only
-			trace!(target: "snapshot_sync", "Time to wait for snapshot peers is NOT expired and we do NOT have a snapshot peer (best_block={:?}, best_hash={:?}, peers.len={:?}).", best_snapshot_block, best_hash, snapshot_peers.len())
+			trace!(target: "snapshot_sync", "Time to wait for snapshot peers is NOT expired and we do NOT have a snapshot peer (best_block={:?}, best_hash={:?}, peers.len={:?}, state={:?}, peers.len={}).", best_snapshot_block, best_hash, snapshot_peers.len(), self.state, self.peers.len());
 		}
 	}
 
@@ -959,7 +970,8 @@ impl ChainSync {
 		}
 	}
 
-	/// Resume downloading
+	/// Resume downloading.
+	/// Called every `CONTINUE_SYNC_TIMER` (2.5sec)
 	pub fn continue_sync(&mut self, io: &mut dyn SyncIo) {
 		if self.state == SyncState::Waiting {
 			trace!(target: "sync", "Waiting for the block queue");
@@ -992,9 +1004,8 @@ impl ChainSync {
 			}
 		}
 
-		if
-			(self.state == SyncState::Blocks || self.state == SyncState::NewBlocks) &&
-			!self.peers.values().any(|p| p.asking != PeerAsking::Nothing && p.block_set != Some(BlockSet::OldBlocks) && p.can_sync())
+		if (self.state == SyncState::Blocks || self.state == SyncState::NewBlocks)
+			&& !self.peers.values().any(|p| p.asking != PeerAsking::Nothing && p.block_set != Some(BlockSet::OldBlocks) && p.can_sync())
 		{
 			self.complete_sync(io);
 		}
@@ -1243,6 +1254,9 @@ impl ChainSync {
 		io.respond(StatusPacket.id(), packet.out())
 	}
 
+	/// Check if any tasks we have on-going with a peer is taking too long (if so, disconnect them).
+	/// Also checks handshaking peers.
+	/// Called every `PEERS_TIMER` (0.7sec).
 	pub fn maintain_peers(&mut self, io: &mut dyn SyncIo) {
 		let tick = Instant::now();
 		let mut aborting = Vec::new();
@@ -1259,7 +1273,7 @@ impl ChainSync {
 				PeerAsking::PrivateState => elapsed > PRIVATE_STATE_TIMEOUT,
 			};
 			if timeout {
-				debug!(target:"sync", "Timeout {}", peer_id);
+				debug!(target:"sync", "Peer {} timeout while we were asking them for {:?}; disconnecting.", peer_id, peer.asking);
 				io.disconnect_peer(*peer_id);
 				aborting.push(*peer_id);
 			}
@@ -1375,7 +1389,8 @@ impl ChainSync {
 		).collect()
 	}
 
-	/// Maintain other peers. Send out any new blocks and transactions
+	/// Maintain other peers. Send out any new blocks and transactions. Called every
+	/// `MAINTAIN_SYNC_TIMER` (1.1sec).
 	pub fn maintain_sync(&mut self, io: &mut dyn SyncIo) {
 		self.maybe_start_snapshot_sync(io);
 		self.check_resume(io);
@@ -1422,7 +1437,8 @@ impl ChainSync {
 		SyncHandler::on_peer_connected(self, io, peer);
 	}
 
-	/// propagates new transactions to all peers
+	/// Propagates new transactions to all peers.
+	/// Called every `TX_TIMER` (1.3sec).
 	pub fn propagate_new_transactions(&mut self, io: &mut dyn SyncIo) {
 		let deadline = Instant::now() + Duration::from_millis(500);
 		SyncPropagator::propagate_new_transactions(self, io, || {
