@@ -227,8 +227,9 @@ impl Builtin {
 	///
 	/// If multiple `activation_at` has the same block number the last one is used
 	/// which follows the BTreeMap semantics
+	#[inline]
 	pub fn cost(&self, input: &[u8], at: u64) -> U256 {
-		for (&activate_at, pricer) in self.pricer.iter().rev() {
+		for (&activate_at, pricer) in self.pricer.range(0..=at).rev() {
 			if at >= activate_at {
 				return pricer.cost(input);
 			}
@@ -237,13 +238,15 @@ impl Builtin {
 	}
 
 	/// Simple forwarder for execute.
+	#[inline]
 	pub fn execute(&self, input: &[u8], output: &mut BytesRef) -> Result<(), &'static str> {
 		self.native.execute(input, output)
 	}
 
 	/// Whether the builtin is activated at the given block number.
+	#[inline]
 	pub fn is_active(&self, at: u64) -> bool {
-		self.pricer.keys().rev().any(|&other_at| at >= other_at)
+		self.pricer.range(0..=at).rev().any(|(&other_at, _)| at >= other_at)
 	}
 }
 

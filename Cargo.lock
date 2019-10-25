@@ -2563,6 +2563,7 @@ dependencies = [
  "account-state 0.1.0",
  "client-traits 0.1.0",
  "common-types 0.1.0",
+ "criterion 0.3.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "crossbeam-utils 0.6.6 (registry+https://github.com/rust-lang/crates.io-index)",
  "ethabi 9.0.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "ethabi-contract 9.0.0 (registry+https://github.com/rust-lang/crates.io-index)",

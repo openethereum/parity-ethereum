@@ -80,7 +80,11 @@ impl Machine {
 
 	/// Ethereum machine with ethash extensions.
 	// TODO: either unify or specify to mainnet specifically and include other specific-chain HFs?
-	pub fn with_ethash_extensions(params: CommonParams, builtins: BTreeMap<Address, Builtin>, extensions: EthashExtensions) -> Machine {
+	pub fn with_ethash_extensions(
+		params: CommonParams,
+		builtins: BTreeMap<Address, Builtin>,
+		extensions: EthashExtensions
+	) -> Machine {
 		let mut machine = Machine::regular(params, builtins);
 		machine.ethash_extensions = Some(extensions);
 		machine

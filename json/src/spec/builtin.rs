@@ -220,4 +220,23 @@ mod tests {
 			}
 		]);
 	}
+
+	#[test]
+	fn fooo() {
+		let s = r#"{
+			"name": "ecrecover",
+			"pricing": {
+				"1": {"price": {"linear": { "base": 1, "word": 0 }}},
+				"2": {"price": {"linear": { "base": 2, "word": 0 }}},
+				"3": {"price": {"linear": { "base": 3, "word": 0 }}},
+				"4": {"price": {"linear": { "base": 4, "word": 0 }}},
+				"5": {"price": {"linear": { "base": 5, "word": 0 }}},
+				"6": {"price": {"linear": { "base": 6, "word": 0 }}},
+				"7": {"price": {"linear": { "base": 7, "word": 0 }}},
+				"8": {"price": {"linear": { "base": 8, "word": 0 }}},
+				"9": {"price": {"linear": { "base": 9, "word": 0 }}}
+			}
+		}"#;
+		let builtin: Builtin = serde_json::from_str::<BuiltinCompat>(s).unwrap().into();
+	}
 }
