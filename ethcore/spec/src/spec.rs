@@ -252,7 +252,7 @@ impl fmt::Display for SpecHardcodedSync {
 		writeln!(f, "{{")?;
 		writeln!(f, r#"header": "{:?},"#, self.header)?;
 		writeln!(f, r#"total_difficulty": "{:?},"#, self.total_difficulty)?;
-		writeln!(f, r#"chts": {:#?}"#, self.chts.iter().map(|x| format!(r#"{}"#, x)).collect::<Vec<_>>())?;
+		writeln!(f, r#"chts": {:#?}"#, self.chts.iter().map(|x| format!(r#"{:?}"#, x)).collect::<Vec<_>>())?;
 		writeln!(f, "}}")
 	}
 }

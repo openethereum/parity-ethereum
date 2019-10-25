@@ -96,7 +96,7 @@ pub fn execute(cmd: ExportHsyncCmd) -> Result<String, String> {
 	let hs = service.client().read_hardcoded_sync()
 		.map_err(|e| format!("Error reading hardcoded sync: {}", e))?;
 	if let Some(hs) = hs {
-		Ok(format!("{}", hs))
+		Ok(hs.to_string())
 	} else {
 		Err("Error: cannot generate hardcoded sync because the database is empty.".into())
 	}
