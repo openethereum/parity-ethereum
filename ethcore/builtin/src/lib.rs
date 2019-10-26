@@ -229,12 +229,11 @@ impl Builtin {
 	/// which follows the BTreeMap semantics
 	#[inline]
 	pub fn cost(&self, input: &[u8], at: u64) -> U256 {
-		for (&activate_at, pricer) in self.pricer.range(0..=at).rev() {
-			if at >= activate_at {
-				return pricer.cost(input);
-			}
+		if let Some((_, pricer)) = self.pricer.range(0..=at).last() {
+			pricer.cost(input)
+		} else {
+			U256::zero()
 		}
-		U256::zero()
 	}
 
 	/// Simple forwarder for execute.
@@ -246,7 +245,7 @@ impl Builtin {
 	/// Whether the builtin is activated at the given block number.
 	#[inline]
 	pub fn is_active(&self, at: u64) -> bool {
-		self.pricer.range(0..=at).rev().any(|(&other_at, _)| at >= other_at)
+		self.pricer.range(0..=at).last().is_some()
 	}
 }
 
@@ -778,9 +777,8 @@ mod tests {
 	#[test]
 	fn blake2f_cost_on_invalid_length() {
 		let f = Builtin {
-			pricer: Box::new(123),
-			native: ethereum_builtin("blake2_f").expect("known builtin"),
-			activate_at: 0,
+			pricer: map![0 => Pricing::Blake2F(123)],
+			native: EthereumBuiltin::from_str("blake2_f").expect("known builtin"),
 		};
 		// invalid input (too short)
 		let input = hex!("00");

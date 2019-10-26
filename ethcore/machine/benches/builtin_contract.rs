@@ -118,7 +118,7 @@ fn fourty_multiple_activations(c: &mut Criterion) {
 	let contract = H160::from_str(SHA256).unwrap();
 	let params = builtin_params(contract, false);
 
-	let mut env_info = EnvInfo::default();
+	let env_info = EnvInfo::default();
 	let machine = multiple_builtin_pricing();
 	let schedule = Schedule::default();
 	let factory = VmFactory::default();
