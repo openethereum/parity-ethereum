@@ -253,14 +253,7 @@ impl<'a> CallCreateExecutive<'a> {
 		let static_flag = parent_static_flag || params.call_type == CallType::StaticCall;
 
 		// if destination is builtin, try to execute it
-		let kind = if let Some(builtin) = machine.builtin(&params.code_address, info.number) {
-			// Engines aren't supposed to return builtins until activation, but
-			// prefer to fail rather than silently break consensus.
-
-			if !builtin.is_active(info.number) {
-				panic!("Consensus failure: engine implementation prematurely enabled built-in at {}", params.code_address);
-			}
-
+		let kind = if machine.builtin(&params.code_address).map_or(false, |b| b.is_active(info.number)) {
 			CallCreateExecutiveKind::CallBuiltin(params)
 		} else {
 			if params.code.is_some() {
@@ -428,7 +421,7 @@ impl<'a> CallCreateExecutive<'a> {
 				assert!(!self.is_create);
 
 				let mut inner = || {
-					let builtin = self.machine.builtin(&params.code_address, self.info.number).expect("Builtin is_some is checked when creating this kind in new_call_raw; qed");
+					let builtin = self.machine.builtin(&params.code_address).expect("Builtin is_some is checked when creating this kind in new_call_raw; qed");
 
 					Self::check_static_flag(&params, self.static_flag, self.is_create)?;
 					state.checkpoint();
@@ -752,8 +745,12 @@ impl<'a> CallCreateExecutive<'a> {
 					}
 				},
 				Some((_, _, Err(TrapError::Call(subparams, resume)))) => {
-					tracer.prepare_trace_call(&subparams, resume.depth + 1, resume.machine.builtin(&subparams.address, resume.info.number).is_some());
-					vm_tracer.prepare_subtrace(subparams.code.as_ref().map_or_else(|| &[] as &[u8], |d| &*d as &[u8]));
+					let builtin_active = resume
+						.machine
+						.builtin(&subparams.address)
+						.map_or(false, |b| b.is_active(resume.info.number));
+					tracer.prepare_trace_call(&subparams, resume.depth + 1, builtin_active);
+					vm_tracer.prepare_subtrace(subparams.code.as_ref().map_or(&[], |d| &*d as &[u8]));
 
 					let sub_exec = CallCreateExecutive::new_call_raw(
 						subparams,
@@ -987,7 +984,11 @@ impl<'a, B: 'a + StateBackend> Executive<'a, B> {
 		tracer: &mut T,
 		vm_tracer: &mut V
 	) -> vm::Result<FinalizationResult> where T: Tracer, V: VMTracer {
-		tracer.prepare_trace_call(&params, self.depth, self.machine.builtin(&params.address, self.info.number).is_some());
+		let builtin_active = self
+			.machine
+			.builtin(&params.address)
+			.map_or(false, |b| b.is_active(self.info.number));
+		tracer.prepare_trace_call(&params, self.depth, builtin_active);
 		vm_tracer.prepare_subtrace(params.code.as_ref().map_or_else(|| &[] as &[u8], |d| &*d as &[u8]));
 
 		let gas = params.gas;

@@ -347,7 +347,13 @@ pub trait Engine: Sync + Send {
 	/// Attempt to get a handle to a built-in contract.
 	/// Only returns references to activated built-ins.
 	fn builtin(&self, a: &Address, block_number: BlockNumber) -> Option<&Builtin> {
-		self.machine().builtin(a, block_number)
+		self.machine().builtin(a).and_then(|b| {
+			if b.is_active(block_number) {
+				Some(b)
+			} else {
+				None
+			}
+		})
 	}
 
 	/// Some intrinsic operation parameters; by default they take their value from the `spec()`'s `engine_params`.

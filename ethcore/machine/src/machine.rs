@@ -299,13 +299,12 @@ impl Machine {
 	}
 
 	/// Attempt to get a handle to a built-in contract.
-	/// Only returns references to activated built-ins.
+	/// Doesn't check whether the contract is activated or not
+	/// For optimization i.e, don't call `Builtin::is_active` when not needed
 	// TODO: builtin contract routing - to do this properly, it will require removing the built-in configuration-reading logic
 	// from Spec into here and removing the Spec::builtins field.
-	pub fn builtin(&self, a: &Address, block_number: BlockNumber) -> Option<&Builtin> {
-		self.builtins()
-			.get(a)
-			.and_then(|b| if b.is_active(block_number) { Some(b) } else { None })
+	pub fn builtin(&self, a: &Address) -> Option<&Builtin> {
+		self.builtins().get(a)
 	}
 
 	/// Some intrinsic operation parameters; by default they take their value from the `spec()`'s `engine_params`.
