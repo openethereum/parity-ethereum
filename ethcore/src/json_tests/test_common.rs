@@ -41,7 +41,7 @@ pub fn run_test_path<H: FnMut(&str, HookType)>(
 	if !skip.is_empty() {
 		// todo[dvdplm] it's really annoying to have to use flushln here. Should be `info!(target:
 		// "json-tests", …)`. Issue https://github.com/paritytech/parity-ethereum/issues/11084
-		flushln!("[run_test_path] Skipping tests in {}: {:?}", path.display(), skip);
+		warn!(target: "json-tests", " Skipping tests in {}: {:?}", path.display(), skip);
 	}
 	let mut errors = Vec::new();
 	run_test_path_inner(path, skip, runner, start_stop_hook, &mut errors);

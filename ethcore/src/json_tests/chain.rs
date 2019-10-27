@@ -56,7 +56,7 @@ pub fn json_chain_test<H: FnMut(&str, HookType)>(path: &Path, json_data: &[u8], 
 			let mut fail_unless = |cond: bool| {
 				if !cond && !fail {
 					failed.push(name.clone());
-					flushln!("FAIL");
+					warn!(target: "json-tests", "FAIL");
 					fail = true;
 					true
 				} else {
@@ -64,7 +64,7 @@ pub fn json_chain_test<H: FnMut(&str, HookType)>(path: &Path, json_data: &[u8], 
 				}
 			};
 
-			flush!("   - {}...", name);
+			trace!(target: "json-tests", "   - {}...", name);
 
 			let spec = {
 				let mut spec = match EvmTestClient::fork_spec_from_json(&blockchain.network) {
@@ -123,9 +123,9 @@ pub fn json_chain_test<H: FnMut(&str, HookType)>(path: &Path, json_data: &[u8], 
 		}
 
 		if !fail {
-			flushln!("ok");
+			info!(target: "json-tests", "ok");
 		} else {
-			flushln!("fail");
+			warn!(target: "json-tests", "fail");
 		}
 
 		start_stop_hook(&name, HookType::OnStop);

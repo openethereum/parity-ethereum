@@ -84,25 +84,25 @@ pub fn json_chain_test<H: FnMut(&str, HookType)>(path: &Path, json_data: &[u8], 
 					match result() {
 						Err(err) => {
 							println!("{} !!! Unexpected internal error: {:?}", info, err);
-							flushln!("{} fail", info);
+							warn!(target: "json-tests", "{} fail", info);
 							failed.push(name.clone());
 						},
 						Ok(Ok(TransactSuccess { state_root, .. })) if state_root != post_root => {
 							println!("{} !!! State mismatch (got: {}, expect: {}", info, state_root, post_root);
-							flushln!("{} fail", info);
+							warn!(target: "json-tests", "{} fail", info);
 							failed.push(name.clone());
 						},
 						Ok(Err(TransactErr { state_root, ref error, .. })) if state_root != post_root => {
 							println!("{} !!! State mismatch (got: {}, expect: {}", info, state_root, post_root);
 							println!("{} !!! Execution error: {:?}", info, error);
-							flushln!("{} fail", info);
+							warn!(target: "json-tests", "{} fail", info);
 							failed.push(name.clone());
 						},
 						Ok(Err(TransactErr { error, .. })) => {
-							flushln!("{} ok ({:?})", info, error);
+							info!(target: "json-tests", "{} ok ({:?})", info, error);
 						},
 						Ok(_) => {
-							flushln!("{} ok", info);
+							info!(target: "json-tests", "{} ok", info);
 						},
 					}
 				}
