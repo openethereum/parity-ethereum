@@ -57,7 +57,7 @@ impl<F> cmp::PartialEq for Client<F> {
 
 impl<F: Fetch> Client<F> {
 	/// Creates a new instance of the `Client` given a `fetch::Client`.
-    pub fn new(fetch: F, pool: Executor, api_endpoint: String) -> Client<F> {
+	pub fn new(fetch: F, pool: Executor, api_endpoint: String) -> Client<F> {
 		Client { pool, api_endpoint, fetch }
 	}
 
