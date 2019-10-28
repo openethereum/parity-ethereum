@@ -51,8 +51,7 @@ pub trait SnapshotService : Sync + Send {
 	fn status(&self) -> RestorationStatus;
 
 	/// Begin snapshot restoration.
-	/// If a restoration is in progress, this will reset it.
-	/// From this point on, any previous snapshot may become unavailable. todo[dvdplm] what does this mean? "unavailable" how? to others?
+	/// If a restoration is in progress, this will reset it and clear all data.
 	fn begin_restore(&self, manifest: ManifestData);
 
 	/// Abort an in-progress restoration if there is one.

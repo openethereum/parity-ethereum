@@ -30,6 +30,8 @@ pub enum ChunkType {
 	State(H256),
 	/// The chunk contains block data.
 	Block(H256),
+	/// Already seen chunk
+	Dupe(H256)
 }
 
 #[derive(Default, MallocSizeOf)]
@@ -46,8 +48,8 @@ pub struct Snapshot {
 	completed_chunks: HashSet<H256>,
 	/// The hash of the the `ManifestData` RLP that we're downloading.
 	snapshot_hash: Option<H256>,
-	/// Set of chunk hashes we failed to import.
-	// todo[dvdplm]: check ^^^
+	/// Set of snapshot hashes we failed to import. We will not try to sync with
+	/// this snapshot again until restart.
 	bad_hashes: HashSet<H256>,
 	initialized: bool,
 }
@@ -108,7 +110,7 @@ impl Snapshot {
 		let hash = keccak(chunk);
 		if self.completed_chunks.contains(&hash) {
 			trace!(target: "snapshot_sync", "Already proccessed chunk {:x}. Ignoring.", hash);
-			return Err(());
+			return Ok(ChunkType::Dupe(hash));
 		}
 		self.downloading_chunks.remove(&hash);
 		if self.pending_block_chunks.iter().any(|h| h == &hash) {
@@ -124,25 +126,28 @@ impl Snapshot {
 	}
 
 	/// Find a chunk to download
-	// todo[dvdplm] plenty of iterating through the pending `Vec`s here (which are never deleted from btw)
+	// todo[dvdplm] plenty of iterating through the pending `Vec`s here (which are never deleted
+	// from btw). Why not `pop()` the chunk hash from the pending_*_chunks? Audit the usage of those
+	// fields and see if we rely on them staying their initial size for some reason.
+	// `total_chunks()` do use them, need to re-work that. Same for `is_complete()`.
 	pub fn needed_chunk(&mut self) -> Option<H256> {
 		// Find next needed chunk: first block, then state chunks
 		let chunk = {
-			let chunk_filter = |h| !self.downloading_chunks.contains(h) && !self.completed_chunks.contains(h);
+			let filter = |h| !self.downloading_chunks.contains(h) && !self.completed_chunks.contains(h);
 
-			let needed_block_chunk = self.pending_block_chunks.iter()
-				.filter(|&h| chunk_filter(h))
+			let block_chunk = self.pending_block_chunks.iter()
+				.filter(|&h| filter(h))
 				.map(|h| *h)
 				.next();
 
-			// If no block chunks to download, get the state chunks
-			if needed_block_chunk.is_none() {
+			// If there is no block chunk to download, try the state chunks.
+			if block_chunk.is_none() {
 				self.pending_state_chunks.iter()
-					.filter(|&h| chunk_filter(h))
+					.filter(|&h| filter(h))
 					.map(|h| *h)
 					.next()
 			} else {
-				needed_block_chunk
+				block_chunk
 			}
 		};
 
@@ -162,25 +167,22 @@ impl Snapshot {
 		self.bad_hashes.insert(hash);
 	}
 
-	/// Whether snapshot hash is known to be bad.
+	/// Whether a snapshot hash is known to be bad.
 	pub fn is_known_bad(&self, hash: &H256) -> bool {
 		self.bad_hashes.contains(hash)
 	}
 
 	/// Hash of the snapshot we're currently downloading/importing.
-	// todo[dvdplm]: verify ^^^
 	pub fn snapshot_hash(&self) -> Option<H256> {
 		self.snapshot_hash
 	}
 
 	/// Total number of chunks in the snapshot we're currently working on (state + block chunks).
-	// todo[dvdplm]: verify ^^^
 	pub fn total_chunks(&self) -> usize {
 		self.pending_block_chunks.len() + self.pending_state_chunks.len()
 	}
 
 	/// Number of chunks we've processed so far (state and block chunks).
-	// todo[dvdplm]: verify ^^^
 	pub fn done_chunks(&self) -> usize {
 		self.completed_chunks.len()
 	}

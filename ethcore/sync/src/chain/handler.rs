@@ -124,6 +124,7 @@ impl SyncHandler {
 					.next().is_some();
 
 				if !still_seeking_manifest {
+					warn!(target: "snapshot_sync", "The peer we were downloading a snapshot from ({}) went away. Retrying.", peer_id);
 					sync.state = ChainSync::get_init_state(sync.warp_sync, io.chain());
 				}
 			}
@@ -514,7 +515,13 @@ impl SyncHandler {
 
 				// only note bad if restoration failed.
 				if let (Some(hash), RestorationStatus::Failed) = (sync.snapshot.snapshot_hash(), status) {
-					// todo[dvdplm]: how do we know we `Failed` because of them and not because something happened on our end, say disk was full?
+					// todo[dvdplm]: how do we know we `Failed` because of them and not because
+					// something happened on our end, say disk was full?
+					// On a second look I think `feed_chunk_with_restoration()`, the
+					// `SnapshotService` implementation, is indeed tossing away some errors. I think
+					// it should be refactored to distinguish the two cases of: restoration failed
+					// because the snapshot data is bad (corrupted, partial, malicious) and errors
+					// caused by the local env (out of disk seems like the obvious one).
 					debug!(target: "snapshot_sync", "Marking snapshot manifest hash {} as bad", hash);
 					sync.snapshot.note_bad(hash);
 				}
@@ -544,6 +551,9 @@ impl SyncHandler {
 			Ok(ChunkType::State(hash)) => {
 				trace!(target: "snapshot_sync", "{}: Processing state chunk", peer_id);
 				io.snapshot_service().restore_state_chunk(hash, snapshot_data);
+			}
+			Ok(ChunkType::Dupe(hash)) => {
+				warn!(target: "snapshot_sync", "{}: Duplicate chunk (hash {:?}).", peer_id, hash);
 			}
 			Err(()) => {
 				// todo[dvdplm] this seems wrong: we'll get `Err(())` back even if we happened to

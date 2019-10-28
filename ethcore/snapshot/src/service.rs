@@ -787,6 +787,7 @@ impl<C> Service<C> where C: SnapshotClient + ChainInfo {
 								false => Ok(())
 							}
 						}
+						// todo[dvdplm] aren't we tossing away any errors from feed_state/feed_blocks here? And why the explicit `drop` here?
 						other => other.map(drop),
 					};
 					(res, db)

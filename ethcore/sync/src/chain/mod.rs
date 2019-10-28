@@ -596,6 +596,11 @@ impl ChainSync {
 		peers
 	}
 
+	/// Reset the client to its initial state:
+	///     - if warp sync is enabled, start looking for peers to sync a snapshot from
+	///     - if `--warp-barrier` is used, ensure we're not synced beyond the barrier and start
+	///       looking for peers to sync a snapshot from
+	///     - otherwise, go `Idle`.
 	fn get_init_state(warp_sync: WarpSync, chain: &dyn BlockChainClient) -> SyncState {
 		let best_block = chain.chain_info().best_block_number;
 		match warp_sync {
