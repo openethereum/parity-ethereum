@@ -91,7 +91,7 @@ impl SyncRequester {
 	pub fn request_snapshot_data(sync: &mut ChainSync, io: &mut dyn SyncIo, peer_id: PeerId) {
 		// find chunk data to download
 		if let Some(hash) = sync.snapshot.needed_chunk() {
-			if let Some(ref mut peer) = sync.peers.get_mut(&peer_id) {
+			if let Some(mut peer) = sync.peers.get_mut(&peer_id) {
 				peer.asking_snapshot_data = Some(hash.clone());
 			}
 			SyncRequester::request_snapshot_chunk(sync, io, peer_id, &hash);
@@ -101,8 +101,7 @@ impl SyncRequester {
 	/// Request snapshot manifest from a peer.
 	pub fn request_snapshot_manifest(sync: &mut ChainSync, io: &mut dyn SyncIo, peer_id: PeerId) {
 		trace!(target: "sync", "{}: requesting a snapshot manifest", peer_id);
-		let rlp = RlpStream::new_list(0); // todo[dvdplm]: make this a const
-		SyncRequester::send_request(sync, io, peer_id, PeerAsking::SnapshotManifest, GetSnapshotManifestPacket, rlp.out());
+		SyncRequester::send_request(sync, io, peer_id, PeerAsking::SnapshotManifest, GetSnapshotManifestPacket, rlp::EMPTY_LIST_RLP.to_vec());
 	}
 
 	pub fn request_private_state(sync: &mut ChainSync, io: &mut dyn SyncIo, peer_id: PeerId, hash: &H256) {
