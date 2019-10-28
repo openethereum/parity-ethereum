@@ -23,8 +23,13 @@ use std::time::Duration;
 use igd::{PortMappingProtocol, search_gateway, SearchOptions};
 use ipnetwork::IpNetwork;
 use log::debug;
+use natpmp::{Natpmp, Protocol, Response};
+use network::NatType;
 
 use crate::node_table::NodeEndpoint;
+//use crate::discovery::NodeEntry;
+
+const NAT_PMP_PORT_MAPPING_LIFETIME: u32 = 30;
 
 /// Socket address extension for rustc beta. To be replaces with now unstable API
 pub trait SocketAddrExt {
@@ -310,20 +315,20 @@ pub fn select_public_address(port: u16) -> SocketAddr {
 	SocketAddr::V4(SocketAddrV4::new(Ipv4Addr::new(127, 0, 0, 1), port))
 }
 
-pub fn map_external_address(local: &NodeEndpoint) -> Option<NodeEndpoint> {
+fn search_upnp(local: &NodeEndpoint) -> Option<NodeEndpoint> {
 	if let SocketAddr::V4(ref local_addr) = local.address {
 		let local_ip = *local_addr.ip();
 		let local_port = local_addr.port();
 		let local_udp_port = local.udp_port;
 
+		let search_options = SearchOptions {
+			timeout: Some(Duration::new(5, 0)),
+			// igd 0.7 used port 0 by default.
+			// Let's not change this behaviour
+			bind_addr: SocketAddr::V4(SocketAddrV4::new(local_ip, 0)),
+			..Default::default()
+		};
 		let search_gateway_child = ::std::thread::spawn(move || {
-			let search_options = SearchOptions {
-				timeout: Some(Duration::new(5, 0)),
-				// igd 0.7 used port 0 by default.
-				// Let's not change this behaviour
-				bind_addr: SocketAddr::V4(SocketAddrV4::new(local_ip, 0)),
-				..Default::default()
-			};
 			match search_gateway(search_options) {
 				Err(ref err) => debug!("Gateway search error: {}", err),
 				Ok(gateway) => {
@@ -358,6 +363,68 @@ pub fn map_external_address(local: &NodeEndpoint) -> Option<NodeEndpoint> {
 	None
 }
 
+fn search_natpmp(local: &NodeEndpoint) -> Option<NodeEndpoint> {
+	if let SocketAddr::V4(ref local_addr) = local.address {
+		let local_port = local_addr.port();
+		let local_udp_port = local.udp_port;
+
+		let search_gateway_child = ::std::thread::spawn(move || {
+			match Natpmp::new() {
+				Err(ref err) => debug!("Natpmp object creation error: {}", err),
+				Ok(mut natpmp) => {
+					natpmp.send_public_address_request().ok()?;
+					::std::thread::sleep(Duration::from_millis(50));
+					match natpmp.read_response_or_retry() {
+						Err(ref err) => {
+							debug!("NAT PMP Public IP request error: {}", err);
+						},
+						Ok(Response::Gateway(gw)) => {
+							natpmp.send_port_mapping_request(Protocol::TCP, local_port, local_port, NAT_PMP_PORT_MAPPING_LIFETIME).ok()?;
+							::std::thread::sleep(Duration::from_millis(50));
+							match natpmp.read_response_or_retry() {
+								Err(ref err) => {
+									debug!("NAT PMP IP TCP request error: {}", err);
+								},
+								Ok(Response::TCP(tr)) => {
+									natpmp.send_port_mapping_request(Protocol::UDP, local_udp_port, local_udp_port, NAT_PMP_PORT_MAPPING_LIFETIME).ok()?;
+									::std::thread::sleep(Duration::from_millis(50));
+									match natpmp.read_response_or_retry() {
+										Err(ref err) => {
+											debug!("NAT PMP IP UDP request error: {}", err);
+										},
+										Ok(Response::UDP(ur)) => {
+											return Some(NodeEndpoint { address: SocketAddr::V4(SocketAddrV4::new(*gw.public_address(), tr.public_port())), udp_port: ur.public_port() });
+										},
+										_ => unreachable!()
+									}
+								},
+								_ => unreachable!()
+							}
+						},
+						_ => unreachable!()
+					}
+				},
+			}
+			None
+		});
+		return search_gateway_child.join().ok()?;
+	}
+	None
+}
+
+pub fn map_external_address(local: &NodeEndpoint, nat_type: &NatType) -> Option<NodeEndpoint> {
+	if *nat_type == NatType::UPnP || *nat_type == NatType::Any {
+		search_upnp(local)
+			.map(|upnp| {
+				return upnp
+			});
+	}
+	if *nat_type == NatType::NatPMP || *nat_type == NatType::Any {
+		return search_natpmp(local)
+	}
+	None
+}
+
 #[test]
 fn can_select_public_address() {
 	let pub_address = select_public_address(40477);
@@ -368,7 +435,7 @@ fn can_select_public_address() {
 #[test]
 fn can_map_external_address_or_fail() {
 	let pub_address = select_public_address(40478);
-	let _ = map_external_address(&NodeEndpoint { address: pub_address, udp_port: 40478 });
+	let _ = map_external_address(&NodeEndpoint { address: pub_address, udp_port: 40478 }, &NatType::Any);
 }
 
 #[test]
