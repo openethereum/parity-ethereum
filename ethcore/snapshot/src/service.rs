@@ -676,7 +676,6 @@ impl<C> Service<C> where C: SnapshotClient + ChainInfo {
 		} else if manifest.state_hashes.contains(&hash) {
 			true
 		} else {
-			warn!(target: "snapshot", "Hash of the content of {:?} not present in the manifest block/state hashes.", path);
 			return Ok(false);
 		};
 

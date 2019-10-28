@@ -572,7 +572,7 @@ impl SyncHandler {
 		let warp_protocol = warp_protocol_version != 0;
 		let private_tx_protocol = warp_protocol_version >= PAR_PROTOCOL_VERSION_3.0;
 		let peer = PeerInfo {
-			protocol_version: protocol_version,
+			protocol_version,
 			network_id: r.val_at(1)?,
 			difficulty: Some(r.val_at(2)?),
 			latest_hash: r.val_at(3)?,
@@ -601,7 +601,8 @@ impl SyncHandler {
 			latest:{}, \
 			genesis:{}, \
 			snapshot:{:?}, \
-			private_tx_enabled:{})",
+			private_tx_enabled:{}, \
+			client_version: {})",
 			peer_id,
 			peer.protocol_version,
 			peer.network_id,
@@ -609,7 +610,8 @@ impl SyncHandler {
 			peer.latest_hash,
 			peer.genesis,
 			peer.snapshot_number,
-			peer.private_tx_enabled
+			peer.private_tx_enabled,
+			peer.client_version,
 		);
 		if io.is_expired() {
 			trace!(target: "sync", "Status packet from expired session {}:{}", peer_id, io.peer_version(peer_id));
