@@ -22,12 +22,21 @@ use ethkey::KeyPair;
 use hash::keccak;
 use io::IoChannel;
 use tempdir::TempDir;
-use types::transaction::{PendingTransaction, Transaction, Action, Condition};
-use types::filter::Filter;
-use types::view;
-use types::views::BlockView;
-use types::data_format::DataFormat;
-use client::{BlockChainClient, BlockChainReset, Client, ClientConfig, BlockId, ChainInfo, BlockInfo, PrepareOpenBlock, ImportSealedBlock, ImportBlock, ImportExportBlocks};
+use types::{
+	data_format::DataFormat,
+	ids::BlockId,
+	transaction::{PendingTransaction, Transaction, Action, Condition},
+	filter::Filter,
+	view,
+	views::BlockView,
+};
+use verification::queue::kind::blocks::Unverified;
+use client::{Client, ClientConfig, PrepareOpenBlock, ImportSealedBlock};
+use client::traits::{
+	BlockInfo, BlockChainClient, BlockChainReset, ChainInfo,
+	ImportExportBlocks, ImportBlock
+};
+use spec;
 use ethereum;
 use executive::{Executive, TransactOptions};
 use miner::{Miner, PendingOrdering, MinerService};
@@ -38,7 +47,6 @@ use test_helpers::{
 	generate_dummy_client, push_blocks_to_client, get_test_client_with_blocks, get_good_dummy_block_seq,
 	generate_dummy_client_with_data, get_good_dummy_block, get_bad_state_dummy_block
 };
-use verification::queue::kind::blocks::Unverified;
 use rustc_hex::ToHex;
 
 #[test]

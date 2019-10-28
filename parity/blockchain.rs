@@ -14,7 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
-use std::str::{FromStr, from_utf8};
+use std::str::from_utf8;
 use std::{io, fs};
 use std::io::{BufReader, BufRead};
 use std::time::{Instant, Duration};
@@ -29,6 +29,7 @@ use rlp::PayloadInfo;
 use ethcore::client::{
 	Mode, DatabaseCompactionProfile, VMType, Nonce, Balance, BlockChainClient, BlockId, BlockInfo, ImportBlock, BlockChainReset, ImportExportBlocks
 };
+use types::data_format::DataFormat;
 use ethcore::error::{ImportErrorKind, ErrorKind as EthcoreErrorKind, Error as EthcoreError};
 use ethcore::miner::Miner;
 use ethcore::verification::queue::VerifierSettings;
@@ -43,7 +44,6 @@ use user_defaults::UserDefaults;
 use ethcore_private_tx;
 use db;
 use ansi_term::Colour;
-use types::data_format::DataFormat;
 
 #[derive(Debug, PartialEq)]
 pub enum BlockchainCmd {
