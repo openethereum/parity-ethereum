@@ -257,18 +257,18 @@ impl SnapshotCommand {
 		let writer = PackedWriter::new(&file_path)
 			.map_err(|e| format!("Failed to open snapshot writer: {}", e))?;
 
-		let progress = Arc::new(Progress::default());
+		let progress = Arc::new(Progress::new());
 		let p = progress.clone();
 		let informant_handle = ::std::thread::spawn(move || {
 			::std::thread::sleep(Duration::from_secs(5));
 
 			let mut last_size = 0;
 			while !p.done() {
-				let cur_size = p.size();
+				let cur_size = p.bytes();
 				if cur_size != last_size {
 					last_size = cur_size;
 					let bytes = ::informant::format_bytes(cur_size as usize);
-					info!("Snapshot: {} accounts {} blocks {}", p.accounts(), p.blocks(), bytes);
+					info!("Snapshot: {} accounts (state), {} blocks, {} bytes", p.accounts(), p.blocks(), bytes);
 				}
 
 				::std::thread::sleep(Duration::from_secs(5));

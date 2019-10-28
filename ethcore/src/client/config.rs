@@ -90,7 +90,7 @@ pub struct ClientConfig {
 	pub history: u64,
 	/// Ideal memory usage for state pruning history.
 	pub history_mem: usize,
-	/// Check seal valididity on block import
+	/// Check seal validity on block import
 	pub check_seal: bool,
 	/// Maximal number of transactions queued for verification in a separate thread.
 	pub transaction_verification_queue_size: usize,

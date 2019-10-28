@@ -84,8 +84,8 @@ pub trait JournalDB: HashDB<KeccakHasher, DBValue> {
 	/// Get backing database.
 	fn backing(&self) -> &Arc<dyn kvdb::KeyValueDB>;
 
-	/// Clear internal strucutres. This should called after changes have been written
-	/// to the backing strage
+	/// Clear internal structure. This should be called after changes have been written
+	/// to the backing storage.
 	fn flush(&self) {}
 
 	/// Consolidate all the insertions and deletions in the given memory overlay.

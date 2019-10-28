@@ -41,8 +41,8 @@ impl Oracle for TestOracle {
 
 struct TestBroadcast(Option<u64>);
 impl Broadcast for TestBroadcast {
-	fn take_at(&self, num: Option<u64>) {
-		if num != self.0 {
+	fn request_snapshot_at(&self, num: u64) {
+		if Some(num) != self.0 {
 			panic!("Watcher broadcast wrong number. Expected {:?}, found {:?}", self.0, num);
 		}
 	}

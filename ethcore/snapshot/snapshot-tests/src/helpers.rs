@@ -27,7 +27,8 @@ use client_traits::ChainInfo;
 use common_types::{
 	ids::BlockId,
 	basic_account::BasicAccount,
-	errors::EthcoreError
+	errors::EthcoreError,
+	snapshot::Progress,
 };
 use engine::Engine;
 use ethcore::client::Client;
@@ -145,7 +146,7 @@ pub fn snap(client: &Client) -> (Box<dyn SnapshotReader>, TempDir) {
 	let tempdir = TempDir::new("").unwrap();
 	let path = tempdir.path().join("file");
 	let writer = PackedWriter::new(&path).unwrap();
-	let progress = Default::default();
+	let progress = Progress::new();
 
 	let hash = client.chain_info().best_block_hash;
 	client.take_snapshot(writer, BlockId::Hash(hash), &progress).unwrap();

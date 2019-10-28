@@ -270,14 +270,12 @@ where
 			ClientIoMessage::TakeSnapshot(num) => {
 				let client = self.client.clone();
 				let snapshot = self.snapshot.clone();
-
 				let res = thread::Builder::new().name("Periodic Snapshot".into()).spawn(move || {
 					if let Err(e) = snapshot.take_snapshot(&*client, num) {
 						match e {
 							EthcoreError::Snapshot(SnapshotError::SnapshotAborted) => info!("Snapshot aborted"),
 							_ => warn!("Failed to take snapshot at block #{}: {}", num, e),
 						}
-
 					}
 				});
 
