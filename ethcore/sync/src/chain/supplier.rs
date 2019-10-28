@@ -116,7 +116,7 @@ impl SyncSupplier {
 						debug!(target:"sync", "Unexpected packet {} from unregistered peer: {}:{}", packet_id, peer, io.peer_version(peer));
 						return;
 					}
-					debug!(target: "sync", "{} -> Dispatching packet: {}", peer, packet_id);
+					trace!(target: "sync", "{} -> Dispatching packet: {}", peer, packet_id);
 
 					match id {
 						ConsensusDataPacket => {
