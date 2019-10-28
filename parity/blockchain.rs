@@ -294,14 +294,13 @@ fn execute_import_light(cmd: ImportBlockchain) -> Result<(), String> {
 	}
 	client.flush_queue();
 
-	let elapsed_secs = timer.elapsed().as_secs();
-	let elapsed_millis = timer.elapsed().as_millis();
+	let elapsed = timer.elapsed();
 	let report = client.report();
 
 	info!("Import completed in {} seconds, {} headers, {} hdr/s",
-		elapsed_secs,
+		elapsed.as_secs(),
 		report.blocks_imported,
-		(report.blocks_imported as u128 * 1000) / elapsed_millis,
+		(report.blocks_imported as u128 * 1000) / elapsed.as_millis(),
 	);
 
 	Ok(())
@@ -416,16 +415,16 @@ fn execute_import(cmd: ImportBlockchain) -> Result<(), String> {
 	user_defaults.save(&user_defaults_path)?;
 
 	let report = client.report();
-	let elapsed_secs = timer.elapsed().as_secs();
-	let elapsed_millis = timer.elapsed().as_millis();
+	let elapsed = timer.elapsed();
+	let ms = timer.elapsed().as_millis();
 	info!("Import completed in {} seconds, {} blocks, {} blk/s, {} transactions, {} tx/s, {} Mgas, {} Mgas/s",
-		elapsed_secs,
+		elapsed.as_secs(),
 		report.blocks_imported,
-		(report.blocks_imported as u128 * 1000) / elapsed_millis,
+		(report.blocks_imported as u128 * 1000) / ms,
 		report.transactions_applied,
-		(report.transactions_applied as u128 * 1000) / elapsed_millis,
+		(report.transactions_applied as u128 * 1000) / ms,
 		report.gas_processed / 1_000_000,
-		report.gas_processed / (elapsed_millis * 1000),
+		report.gas_processed / (ms * 1000),
 	);
 	Ok(())
 }
