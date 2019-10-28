@@ -31,7 +31,7 @@ use snapshot::{
 	io::{PackedReader, PackedWriter, SnapshotReader, SnapshotWriter},
 	PowSnapshot,
 };
-use parking_lot::Mutex;
+use parking_lot::{Mutex, RwLock};
 use snappy;
 use keccak_hash::KECCAK_NULL_RLP;
 use kvdb::DBTransaction;
@@ -74,7 +74,7 @@ fn chunk_and_restore(amount: u64) {
 		&bc,
 		best_hash,
 		&writer,
-		&Progress::new()
+		&RwLock::new(Progress::new())
 	).unwrap();
 
 	let manifest = ManifestData {

@@ -46,7 +46,7 @@ use ethereum_types::H256;
 use parking_lot::{RwLock, Mutex};
 
 /// Format byte counts to standard denominations.
-pub fn format_bytes(b: usize) -> String {
+pub fn format_bytes(b: u64) -> String {
 	match binary_prefix(b as f64) {
 		Standalone(bytes)   => format!("{} bytes", bytes),
 		Prefixed(prefix, n) => format!("{:.0} {}B", n, prefix),
@@ -69,9 +69,8 @@ impl CacheSizes {
 		use std::fmt::Write;
 
 		let mut buf = String::new();
-		for (name, &size) in &self.sizes {
-
-			write!(buf, " {:>8} {}", paint(style, format_bytes(size)), name)
+		for (name, size) in &self.sizes {
+			write!(buf, " {:>8} {}", paint(style, format_bytes(*size as u64)), name)
 				.expect("writing to string won't fail unless OOM; qed")
 		}
 
