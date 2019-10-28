@@ -1772,8 +1772,12 @@ impl BlockChainClient for Client {
 		}
 	}
 
-	fn processing_fork(&self) -> bool {
-		self.importer.block_queue.processing_fork(&self.chain.read().best_block_hash())
+	fn process_fork(&self) {
+		if self.importer.block_queue.processing_fork(&self.chain.read().best_block_hash()) {
+			warn!("Waiting for fork processing");
+			let _import_lock = self.importer.import_lock.lock();
+			warn!("Fork processing completed");
+		}
 	}
 
 	fn block_total_difficulty(&self, id: BlockId) -> Option<U256> {
