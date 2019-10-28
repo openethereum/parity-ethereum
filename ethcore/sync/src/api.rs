@@ -529,39 +529,13 @@ impl NetworkProtocolHandler for SyncProtocolHandler {
 		trace_time!("sync::timeout");
 		let mut io = NetSyncIo::new(io, &*self.chain, &*self.snapshot_service, &self.overlay, self.private_state.clone());
 		match timer {
-			PEERS_TIMER =>{
-				trace!(target:"dp", "  PEERS_TIMER –> maintain_peers()");
-				self.sync.write().maintain_peers(&mut io)
-			},
-			MAINTAIN_SYNC_TIMER =>{
-				trace!(target:"dp", "  MAINTAIN_SYNC_TIMER -> maintain_sync");
-				self.sync.write().maintain_sync(&mut io)
-			}
-			CONTINUE_SYNC_TIMER =>{
-				trace!(target:"dp", "  CONTINUE_SYNC_TIMER -> continue_sync");
-				self.sync.write().continue_sync(&mut io)
-			}
-			TX_TIMER =>{
-				trace!(target:"dp", "  TX_TIMER -> propagate tx");
-				self.sync.write().propagate_new_transactions(&mut io)
-			}
-			PRIORITY_TIMER =>{
-				trace!(target:"dp", "  PRIORITY_TIMER -> process_priority_queue");
-				self.sync.process_priority_queue(&mut io)
-			}
-			_ =>{
-				warn!("Unknown timer {} triggered.", timer)
-			}
+			PEERS_TIMER => self.sync.write().maintain_peers(&mut io),
+			MAINTAIN_SYNC_TIMER => self.sync.write().maintain_sync(&mut io),
+			CONTINUE_SYNC_TIMER => self.sync.write().continue_sync(&mut io),
+			TX_TIMER => self.sync.write().propagate_new_transactions(&mut io),
+			PRIORITY_TIMER => self.sync.process_priority_queue(&mut io),
+			_ => warn!("Unknown timer {} triggered.", timer),
 		}
-// todo[dvdplm]: put back
-//		match timer {
-//			PEERS_TIMER => self.sync.write().maintain_peers(&mut io),
-//			MAINTAIN_SYNC_TIMER => self.sync.write().maintain_sync(&mut io),
-//			CONTINUE_SYNC_TIMER => self.sync.write().continue_sync(&mut io),
-//			TX_TIMER => self.sync.write().propagate_new_transactions(&mut io),
-//			PRIORITY_TIMER => self.sync.process_priority_queue(&mut io),
-//			_ => warn!("Unknown timer {} triggered.", timer),
-//		}
 	}
 }
 
