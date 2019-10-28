@@ -15,7 +15,6 @@ parity-bytes = "0.1"
 parity-crypto = { version = "0.4.2", features = ["publickey"] }
 parity-util-mem = "0.2.0"
 parity-snappy = "0.1"
-parking_lot = "0.9.0"
 patricia-trie-ethereum = { path = "../../util/patricia-trie-ethereum" }
 rlp = "0.4.0"
 rlp_derive = { path = "../../util/rlp-derive" }

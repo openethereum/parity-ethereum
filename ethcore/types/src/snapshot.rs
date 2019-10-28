@@ -20,7 +20,6 @@ use std::time::Instant;
 
 use bytes::Bytes;
 use ethereum_types::H256;
-use parking_lot::RwLock;
 use rlp::{Rlp, RlpStream, DecoderError};
 
 /// Modes of snapshotting

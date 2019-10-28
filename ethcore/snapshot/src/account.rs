@@ -17,7 +17,6 @@
 //! Account state encoding and decoding
 
 use std::collections::HashSet;
-use std::sync::atomic::Ordering;
 
 use account_db::{AccountDB, AccountDBMut};
 use bytes::Bytes;
