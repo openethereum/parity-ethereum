@@ -668,30 +668,29 @@ impl Configuration {
 
 		let usd_per_tx = to_price(&self.args.arg_usd_per_tx)?;
 
-		let usd_per_eth = to_price(&self.args.arg_usd_per_eth);
-		match usd_per_eth {
-			Ok(usd_per_eth_parsed) => {
-				let wei_per_gas = wei_per_gas(usd_per_tx, usd_per_eth_parsed);
+		if "auto" == self.args.arg_usd_per_eth {
+			Ok(GasPricerConfig::Calibrated {
+				usd_per_tx: usd_per_tx,
+				recalibration_period: to_duration(self.args.arg_price_update_period.as_str())?,
+				api_endpoint: ETHERSCAN_ETH_PRICE_ENDPOINT.to_string(),
+			})
+		} else if let Ok(usd_per_eth_parsed) = to_price(&self.args.arg_usd_per_eth) {
+			let wei_per_gas = wei_per_gas(usd_per_tx, usd_per_eth_parsed);
 
-				info!(
-					"Using a fixed conversion rate of Ξ1 = {} ({} wei/gas)",
-					Colour::White.bold().paint(format!("US${:.2}", usd_per_eth_parsed)),
-					Colour::Yellow.bold().paint(format!("{}", wei_per_gas))
-				);
+			info!(
+				"Using a fixed conversion rate of Ξ1 = {} ({} wei/gas)",
+				Colour::White.bold().paint(format!("US${:.2}", usd_per_eth_parsed)),
+				Colour::Yellow.bold().paint(format!("{}", wei_per_gas))
+			);
 
-				return Ok(GasPricerConfig::Fixed(wei_per_gas))
-			},
-			Err(_) => {
-				let mut arg_usd_per_eth_endpoint = self.args.arg_usd_per_eth.as_str();
-				if "auto" ==  arg_usd_per_eth_endpoint {
-					arg_usd_per_eth_endpoint = "https://api.etherscan.io/api?module=stats&action=ethprice"
-				}
-				return Ok(GasPricerConfig::Calibrated {
-					usd_per_tx: usd_per_tx,
-					recalibration_period: to_duration(self.args.arg_price_update_period.as_str())?,
-					api_endpoint: arg_usd_per_eth_endpoint.to_owned(),
-				});
-			}
+			Ok(GasPricerConfig::Fixed(wei_per_gas))
+		} else {
+			let arg_usd_per_eth_endpoint = self.args.arg_usd_per_eth.as_str();
+			Ok(GasPricerConfig::Calibrated {
+				usd_per_tx: usd_per_tx,
+				recalibration_period: to_duration(self.args.arg_price_update_period.as_str())?,
+				api_endpoint: arg_usd_per_eth_endpoint.to_owned(),
+			})
 		}
 	}
 
