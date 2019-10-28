@@ -1101,7 +1101,7 @@ impl ChainSync {
 							}
 						},
 						RestorationStatus::Initializing { state_chunks, block_chunks, chunks_done } => {
-							debug!(target: "snapshot_sync", "Snapshot is still initializing: state chunks={}, block chunks={}, chunks done={}",
+							debug!(target: "snapshot_sync", "Snapshot is initializing: state chunks={}, block chunks={}, chunks done={}",
 							       state_chunks, block_chunks, chunks_done);
 							return;
 						},
