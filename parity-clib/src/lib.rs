@@ -41,6 +41,7 @@ use parity_ethereum::{PubSubSession, RunningClient};
 use tokio_current_thread::CurrentThread;
 
 type CCallback = Option<extern "C" fn(*mut c_void, *const c_char, usize)>;
+type CDestructor = Option<extern "C" fn(*mut c_void)>;
 type CheckedQuery<'a> = (&'a RunningClient, &'static str);
 
 pub mod error {
@@ -54,6 +55,7 @@ pub struct ParityParams {
 	pub configuration: *mut c_void,
 	pub on_client_restart_cb: CCallback,
 	pub on_client_restart_cb_custom: *mut c_void,
+	pub on_client_destroy: CDestructor,
 	pub logger: *mut c_void
 }
 
@@ -66,6 +68,7 @@ pub(crate) trait Callback: Send + Sync {
 struct CallbackStr {
 	user_data: *mut c_void,
 	function: CCallback,
+	destructor: CDestructor,
 }
 
 unsafe impl Send for CallbackStr {}
@@ -75,6 +78,13 @@ impl Callback for CallbackStr {
 		if let Some(ref cb) = self.function {
 			let cstr = CString::new(msg).expect("valid string with no nul bytes in the middle; qed").into_raw();
 			cb(self.user_data, cstr, msg.len())
+		}
+	}
+}
+impl Drop for CallbackStr {
+	fn drop(&mut self) {
+		if let Some(ref cb) = self.destructor {
+			cb(self.user_data)
 		}
 	}
 }
@@ -141,6 +151,7 @@ pub unsafe extern fn parity_start(cfg: *const ParityParams, output: *mut *mut c_
 			let cb = CallbackStr {
 				user_data: cfg.on_client_restart_cb_custom,
 				function: cfg.on_client_restart_cb,
+				destructor: cfg.on_client_destroy,
 			};
 			move |new_chain: String| { cb.call(&new_chain); }
 		};
@@ -176,11 +187,12 @@ pub unsafe extern fn parity_rpc(
 	len: usize,
 	timeout_ms: usize,
 	callback: CCallback,
+	destructor: CDestructor,
 	user_data: *mut c_void,
 ) -> c_int {
 	panic::catch_unwind(|| {
 		if let Some((client, query)) = parity_rpc_query_checker(client, query, len) {
-			let callback = Arc::new(CallbackStr {user_data, function: callback} );
+			let callback = Arc::new(CallbackStr {user_data, function: callback, destructor} );
 			parity_rpc_worker(client, query, callback, timeout_ms as u64);
 			0
 		} else {
@@ -196,10 +208,11 @@ pub unsafe extern fn parity_subscribe_ws(
 	len: usize,
 	callback: CCallback,
 	user_data: *mut c_void,
+	destructor: CDestructor,
 ) -> *const c_void {
 	panic::catch_unwind(|| {
 		if let Some((client, query)) = parity_rpc_query_checker(client, query, len) {
-			let callback = Arc::new(CallbackStr { user_data, function: callback});
+			let callback = Arc::new(CallbackStr { user_data, function: callback, destructor});
 			parity_ws_worker(client, query, callback)
 		} else {
 			ptr::null()
@@ -217,7 +230,7 @@ pub unsafe extern fn parity_unsubscribe_ws(session: *const c_void) {
 
 #[no_mangle]
 pub extern fn parity_set_panic_hook(callback: CCallback, param: *mut c_void) {
-	let cb = CallbackStr {user_data: param, function: callback};
+	let cb = CallbackStr {user_data: param, function: callback, destructor: None};
 	panic_hook::set_with(move |panic_msg| {
 		cb.call(panic_msg);
 	});

@@ -14,6 +14,38 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
+/// The C interface to Parity Ethereum.
+///
+/// # Thread safety
+///
+/// The Parity Ethereum C API is thread safe. All resources can be operated on
+/// by multiple threads simultaneously.
+///
+/// Your callbacks are also expected to be thread safe. Parity Ethereum makes
+/// heavy use of background threads internally, rather than using a
+/// user-provided event loop. Therefore, your callbacks may be called
+/// from any thread, or even from multiple threads at once. They need to be
+/// prepared for that. A good way to handle this is for your callbacks to
+/// deserialize the message and then use a thread-safe queue to deliver the
+/// message to your event loop.
+///
+/// # Blocking
+///
+/// The Parity Ethereum C API generally does not block on network I/O, except
+/// when a Parity Ethereum instance is being destroyed. However, it may block on
+/// disk I/O at any time. If this presents a problem in your application, you
+/// should call the Parity Ethereum C API from a worker thread that is allowed
+/// to block.
+///
+/// Your callbacks should also not block under normal circumstances. They do not
+/// need to be real-time, but you are expected to be able to keep up with the
+/// events you have subscribed to. The blockchain won’t slow down for you, so if
+/// you cannot keep pace with incoming messages, you will fall behind.
+///
+/// # Constructing multiple Parity Ethereum instances
+///
+/// Constructing multiple instances of Parity Ethereum is discouraged. While it
+/// is expected to work, they will duplicate a large amount of state
 #ifndef PARITY_H_INCLUDED
 #define PARITY_H_INCLUDED 1
 #ifdef __cplusplus
@@ -34,10 +66,11 @@ struct parity_logger;
 /// An opaque struct that represents a Parity subscription
 struct parity_subscription;
 
-#if defined configuration || \
-    defined logger || \
-defined custom || defined new_chain || defined new_chain_len || defined on_client_restart_cb || defined args || \
-defined len || defined arg_lens || defined parity_subscription || defined parity_logger || defined parity_config
+#if defined configuration || defined logger || defined custom ||               \
+    defined new_chain || defined new_chain_len ||                              \
+    defined on_client_restart_cb || defined args || defined len ||             \
+    defined arg_lens || defined parity_subscription ||                         \
+    defined parity_logger || defined parity_config
 #error macro conflicts with Parity Ethereum C API header
 #endif
 
@@ -147,7 +180,8 @@ void parity_config_destroy(struct parity_config *cfg);
 /// `out`.
 ///
 /// Returns 0 on success, and non-zero on error.
-int parity_start(const struct ParityParams *params, struct parity_ethereum **out);
+int parity_start(const struct ParityParams *params,
+                 struct parity_ethereum **out);
 
 /// Destroys the parity client created with `parity_start`.
 ///
@@ -159,32 +193,32 @@ void parity_destroy(struct parity_ethereum *parity);
 ///
 /// @param parity Reference to the running parity client
 /// @param rpc_query JSON encoded string representing the RPC request.
+/// Parity Ethereum will make a copy of this string, so you don’t need to.
 /// @param rpc_len Length of the RPC query
 /// @param timeout_ms Maximum time that request is waiting for a response
 /// @param subscribe Callback to invoke when the query gets answered. It will be
-/// called with a JSON encoded string with the result both on success and on
-/// error.
+/// called on a background thread with a JSON encoded string with the result
+/// both on success and on error.
 /// @param ud Specific user defined data that can used in
 /// the callback
 ///
 ///	- On success	: The function returns 0
 ///	- On error		: The function returns 1
 ///
-int parity_rpc(const struct parity_ethereum *const parity, const char *rpc_query,
-               size_t rpc_len, size_t timeout_ms,
+int parity_rpc(const struct parity_ethereum *const parity,
+               const char *rpc_query, size_t rpc_len, size_t timeout_ms,
                void (*subscribe)(void *ud, const char *response, size_t len),
                void *ud);
 
 /// Subscribes to a specific websocket event that will run until it is canceled
 ///
-///	- parity		: Reference to the running parity client
-///	- ws_query		: JSON encoded string representing the websocket
-/// event to subscribe to
-///	- len			: Length of the query
-///	- response		: Callback to invoke when a websocket event
-/// occurs
-///	- ud			: Specific user defined data that can used in
-/// the callback
+/// @param parity	Reference to the running parity client
+/// @param ws_query JSON encoded string representing the websocket event to
+/// subscribe to.
+/// @param len Length of the query.
+/// @param response Callback to invoke when a websocket event occurs.
+/// @param ud Specific user defined data that can used in the callback.
+/// @param destructor Will be called when the
 ///
 ///	- On success	: The function returns an object to the current session
 ///					which can be used cancel the
@@ -192,14 +226,17 @@ int parity_rpc(const struct parity_ethereum *const parity, const char *rpc_query
 ///	- On error		: The function returns a null pointer
 ///
 struct parity_subscription *parity_subscribe_ws(
-    const struct parity_ethereum *const parity, const char *ws_query, size_t len,
-    void (*subscribe)(void *ud, const char *response, size_t len), void *ud);
+    const struct parity_ethereum *const parity, const char *ws_query,
+    size_t len, void (*subscribe)(void *ud, const char *response, size_t len),
+    void *ud);
 
 /// Unsubscribes from a websocket subscription. This function destroys the
 /// session object and must only be used exactly once per session.
 ///
-///	- session		: Pointer to the session to unsubscribe from
+/// @param session Pointer to the session to unsubscribe from
 ///
+/// FIXME: document lifetimes. Is this function synchronous? If not, when can
+/// `ud` be destroyed? Currently the C++ bindings just leak it.
 int parity_unsubscribe_ws(const struct parity_subscription *const session);
 
 /// Sets a callback to call when a panic happens in the Rust code.

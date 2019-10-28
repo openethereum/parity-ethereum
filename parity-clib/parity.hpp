@@ -45,7 +45,9 @@ class ParityLogger final {
 public:
   ParityLogger(const std::string &log_mode, const std::string &log_file)
       : logger(nullptr) {
-    if (parity_set_logger(log_mode.data(), log_mode.size(), log_file.data(),
+    if (parity_set_logger(log_mode.size() ? log_mode.data() : nullptr,
+                          log_mode.size(),
+                          log_file.size() ? log_file.data() : nullptr,
                           log_file.size(), &this->logger))
       throw std::runtime_error(std::string("Error creating logger"));
   }
@@ -64,8 +66,6 @@ public:
   }
   ~ParityLogger() {
     if (this->logger)
-      // throw std::logic_error("ParityLogger objects must be moved into a "
-      //                        "ParityParams, not destroyed");
       assert(false && "ParityLogger objects must be moved into a ParityParams, "
                       "not destroyed");
   }
@@ -77,14 +77,15 @@ class ParityConfig final {
 
 public:
   ParityConfig(const std::vector<std::string> &cli_args) : config(nullptr) {
-    std::vector<size_t> len_vecs((cli_args.size()));
-    std::vector<char const *> args((cli_args.size()));
+    size_t const size = cli_args.size();
+    std::vector<size_t> len_vecs((size));
+    std::vector<char const *> args((size));
     for (const auto &i : cli_args) {
       len_vecs.push_back(i.size());
       args.push_back(i.data());
     }
-    if (parity_config_from_cli(args.data(), len_vecs.data(), len_vecs.size(),
-                               &config))
+    if (parity_config_from_cli(size ? args.data() : nullptr,
+                               size ? len_vecs.data() : nullptr, size, &config))
       throw std::runtime_error(
           "failed to create Parity Ethereum configuration");
   }
@@ -108,6 +109,7 @@ public:
   }
 };
 
+typedef std::unique_ptr<::parity_subscription, decltype(parity_unsubscribe_ws)*> parity_subscription;
 class ParityEthereum final {
   struct ::parity_ethereum *parity_ethereum_instance;
   std::unique_ptr<std::function<void(std::string_view)>> callback;
@@ -122,8 +124,8 @@ public:
         config.config,
         [](void *custom, const char *new_chain, size_t new_chain_len) {
           auto view = std::string_view(new_chain, new_chain_len);
-          reinterpret_cast<decltype(new_chain_spec_callback) *>(custom)->
-          operator()(view);
+          static_cast<decltype(new_chain_spec_callback) *>(custom)->operator()(
+              view);
         },
         this->callback.get(),
         logger.logger,
@@ -145,6 +147,44 @@ public:
     return *this;
   }
   ~ParityEthereum() { parity_destroy(this->parity_ethereum_instance); }
+
+  /// Perform an asychronous RPC request in a background thread.
+  ///
+  /// @param callback Callback to be called on a background thread.
+  /// This must not throw an exception ― if it does, `std::terminate` is called.
+  /// The callback’s destructor not called, and sizeof(callback) heap space is
+  /// leaked.  This is a bug and will be fixed.  Note that when it is fixed, the
+  /// destructor will be called on an arbitrary thread.
+  void
+  rpc(const std::string_view rpc_query, const std::size_t timeout_ms,
+      std::function<void(std::string_view const response)> callback) const {
+    static constexpr auto raw_callback =
+        [](void *ud, const char *response, size_t len) noexcept {
+      decltype(callback) *cb_ptr = static_cast<decltype(callback) *>(ud);
+      auto ptr = std::unique_ptr<decltype(callback)>(cb_ptr);
+      (*ptr)(std::string_view(response, len));
+    };
+    if (::parity_rpc(this->parity_ethereum_instance, rpc_query.data(),
+                     rpc_query.size(), timeout_ms, raw_callback,
+                     std::make_unique<decltype(callback)>(std::move(callback))
+                         .release()))
+      throw std::runtime_error("Parity RPC failed");
+  }
+  parity_subscription subscribe(
+      const std::string_view buffer,
+      std::function<void(std::string_view const response)> callback) const {
+    static constexpr auto raw_callback =
+        [](void *ud, const char *response, size_t len) noexcept {
+      decltype(callback) *cb_ptr = static_cast<decltype(callback) *>(ud);
+      (*cb_ptr)(std::string_view(response, len));
+    };
+    if (::parity_subscription *session = ::parity_subscribe_ws(
+            this->parity_ethereum_instance, buffer.data(), buffer.size(),
+            raw_callback, std::make_unique<decltype(callback)>(std::move(callback)).release()))
+      return parity_subscription(session, &parity_unsubscribe_ws);
+    else
+      throw std::runtime_error("Failed to subscribe to websocket");
+  }
 };
 } // namespace ethereum
 } // namespace parity
