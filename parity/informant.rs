@@ -14,14 +14,12 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
-extern crate ansi_term;
-use self::ansi_term::Colour::{White, Yellow, Green, Cyan, Blue};
-use self::ansi_term::{Colour, Style};
-
-use std::sync::{Arc};
+use std::sync::Arc;
 use std::sync::atomic::{AtomicUsize, AtomicBool, Ordering as AtomicOrdering};
 use std::time::{Instant, Duration};
 
+use ansi_term::Colour::{White, Yellow, Green, Cyan, Blue};
+use ansi_term::{Colour, Style};
 use atty;
 use ethcore::client::Client;
 use client_traits::{BlockInfo, ChainInfo, BlockChainClient, ChainNotify};
@@ -52,18 +50,6 @@ pub fn format_bytes(b: usize) -> String {
 	match binary_prefix(b as f64) {
 		Standalone(bytes)   => format!("{} bytes", bytes),
 		Prefixed(prefix, n) => format!("{:.0} {}B", n, prefix),
-	}
-}
-
-/// Something that can be converted to milliseconds.
-pub trait MillisecondDuration {
-	/// Get the value in milliseconds.
-	fn as_milliseconds(&self) -> u64;
-}
-
-impl MillisecondDuration for Duration {
-	fn as_milliseconds(&self) -> u64 {
-		self.as_secs() * 1000 + self.subsec_nanos() as u64 / 1_000_000
 	}
 }
 
@@ -308,13 +294,13 @@ impl<T: InformantData> Informant<T> {
 						paint(White.bold(), format!("{}", chain_info.best_block_hash)),
 						if self.target.executes_transactions() {
 							format!("{} blk/s {} tx/s {} Mgas/s",
-								paint(Yellow.bold(), format!("{:7.2}", (client_report.blocks_imported * 1000) as f64 / elapsed.as_milliseconds() as f64)),
-								paint(Yellow.bold(), format!("{:6.1}", (client_report.transactions_applied * 1000) as f64 / elapsed.as_milliseconds() as f64)),
-								paint(Yellow.bold(), format!("{:6.1}", (client_report.gas_processed / 1000).low_u64() as f64 / elapsed.as_milliseconds() as f64))
+								paint(Yellow.bold(), format!("{:7.2}", (client_report.blocks_imported * 1000) as f64 / elapsed.as_millis() as f64)),
+								paint(Yellow.bold(), format!("{:6.1}", (client_report.transactions_applied * 1000) as f64 / elapsed.as_millis() as f64)),
+								paint(Yellow.bold(), format!("{:6.1}", (client_report.gas_processed / 1000).low_u64() as f64 / elapsed.as_millis() as f64))
 							)
 						} else {
 							format!("{} hdr/s",
-								paint(Yellow.bold(), format!("{:6.1}", (client_report.blocks_imported * 1000) as f64 / elapsed.as_milliseconds() as f64))
+								paint(Yellow.bold(), format!("{:6.1}", (client_report.blocks_imported * 1000) as f64 / elapsed.as_millis() as f64))
 							)
 						},
 						paint(Green.bold(), format!("{:5}", queue_info.unverified_queue_size)),
@@ -401,7 +387,7 @@ impl ChainNotify for Informant<FullNodeInformantData> {
 					Colour::White.bold().paint(format!("{}", header_view.hash())),
 					Colour::Yellow.bold().paint(format!("{}", block.transactions_count())),
 					Colour::Yellow.bold().paint(format!("{:.2}", header_view.gas_used().low_u64() as f32 / 1000000f32)),
-					Colour::Purple.bold().paint(format!("{}", new_blocks.duration.as_milliseconds())),
+					Colour::Purple.bold().paint(format!("{}", new_blocks.duration.as_millis())),
 					Colour::Blue.bold().paint(format!("{:.2}", size as f32 / 1024f32)),
 					if skipped > 0 {
 						format!(" + another {} block(s) containing {} tx(s)",
