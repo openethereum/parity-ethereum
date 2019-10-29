@@ -30,6 +30,8 @@ use miner::gas_price_calibrator::{GasPriceCalibratorOptions, GasPriceCalibrator}
 use parity_version::version_data;
 use user_defaults::UserDefaults;
 
+use crate::configuration;
+
 #[derive(Debug, PartialEq)]
 pub enum SpecType {
 	Foundation,
@@ -258,6 +260,7 @@ pub enum GasPricerConfig {
 	Calibrated {
 		usd_per_tx: f32,
 		recalibration_period: Duration,
+		api_endpoint: String
 	}
 }
 
@@ -266,6 +269,7 @@ impl Default for GasPricerConfig {
 		GasPricerConfig::Calibrated {
 			usd_per_tx: 0.0001f32,
 			recalibration_period: Duration::from_secs(3600),
+			api_endpoint: configuration::ETHERSCAN_ETH_PRICE_ENDPOINT.to_string(),
 		}
 	}
 }
@@ -274,7 +278,7 @@ impl GasPricerConfig {
 	pub fn to_gas_pricer(&self, fetch: FetchClient, p: Executor) -> GasPricer {
 		match *self {
 			GasPricerConfig::Fixed(u) => GasPricer::Fixed(u),
-			GasPricerConfig::Calibrated { usd_per_tx, recalibration_period, .. } => {
+			GasPricerConfig::Calibrated { usd_per_tx, recalibration_period, ref api_endpoint } => {
 				GasPricer::new_calibrated(
 					GasPriceCalibrator::new(
 						GasPriceCalibratorOptions {
@@ -283,6 +287,7 @@ impl GasPricerConfig {
 						},
 						fetch,
 						p,
+						api_endpoint.clone(),
 					)
 				)
 			}
