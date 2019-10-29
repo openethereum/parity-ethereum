@@ -685,11 +685,10 @@ impl Configuration {
 
 			Ok(GasPricerConfig::Fixed(wei_per_gas))
 		} else {
-			let arg_usd_per_eth_endpoint = self.args.arg_usd_per_eth.as_str();
 			Ok(GasPricerConfig::Calibrated {
 				usd_per_tx: usd_per_tx,
 				recalibration_period: to_duration(self.args.arg_price_update_period.as_str())?,
-				api_endpoint: arg_usd_per_eth_endpoint.to_owned(),
+				api_endpoint: self.args.arg_usd_per_eth.clone(),
 			})
 		}
 	}
