@@ -92,8 +92,7 @@ impl<F> cmp::PartialEq for Client<F> {
 
 impl<F: Fetch> Client<F> {
 	/// Creates a new instance of the `Client` given a `fetch::Client`.
-	pub fn new(fetch: F, pool: Executor) -> Client<F> {
-		let api_endpoint = "https://api.etherscan.io/api?module=stats&action=ethprice".to_owned();
+	pub fn new(fetch: F, pool: Executor, api_endpoint: String) -> Client<F> {
 		Client { pool, api_endpoint, fetch }
 	}
 
@@ -142,11 +141,11 @@ mod test {
 	use fake_fetch::FakeFetch;
 
 	fn price_info_ok(response: &str, executor: Executor) -> Client<FakeFetch<String>> {
-		Client::new(FakeFetch::new(Some(response.to_owned())), executor)
+		Client::new(FakeFetch::new(Some(response.to_owned())), executor, "fake_endpoint".to_owned())
 	}
 
 	fn price_info_not_found(executor: Executor) -> Client<FakeFetch<String>> {
-		Client::new(FakeFetch::new(None::<String>), executor)
+		Client::new(FakeFetch::new(None::<String>), executor, "fake_endpoint".to_owned())
 	}
 
 	#[test]

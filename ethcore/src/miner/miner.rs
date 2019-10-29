@@ -1758,6 +1758,7 @@ mod tests {
 				},
 				fetch,
 				p,
+				"fake_endpoint".to_owned()
 			)
 		)
 	}
