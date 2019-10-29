@@ -1446,7 +1446,6 @@ impl miner::MinerService for Miner {
 				let engine = self.engine.clone();
 				let accounts = self.accounts.clone();
 				let service_transaction_checker = self.service_transaction_checker.clone();
-				let cloned_tx_queue = self.transaction_queue.clone();
 				let cull = move |chain: &Client| {
 					let client = PoolClient::new(
 						chain,
@@ -1456,7 +1455,7 @@ impl miner::MinerService for Miner {
 						service_transaction_checker.as_ref(),
 					);
 					queue.cull(client);
-					if cloned_tx_queue.all_transaction_hashes().len() > 0 {
+					if queue.has_local_pending_transactions() {
 						if !chain.update_sealing() {
 							// TODO: call some method that waits `reseal_min_period` and re-tries
 							// `update_sealing` again
@@ -1469,7 +1468,7 @@ impl miner::MinerService for Miner {
 				}
 			} else {
 				self.transaction_queue.cull(client);
-				if self.transaction_queue.all_transaction_hashes().len() > 0 {
+				if self.transaction_queue.has_local_pending_transactions() {
 					if !self.update_sealing(chain) {
 						// TODO: call some method that waits `reseal_min_period` and tries
 						// `update_sealing` again
