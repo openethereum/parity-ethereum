@@ -452,7 +452,7 @@ impl StateRebuilder {
 		StateDB::commit_bloom(&mut batch, bloom_journal)?;
 		self.db.inject(&mut batch)?;
 		backing.write_buffered(batch);
-		trace!(target: "snapshot", "current state root: {:?}", self.state_root);
+		trace!(target: "snapshot", "Wrote {} bytes of state to db&disk. Current state root: {:?}", chunk.len(), self.state_root);
 		Ok(())
 	}
 

@@ -76,14 +76,14 @@ impl SyncHandler {
 				SignedPrivateTransactionPacket => SyncHandler::on_signed_private_transaction(sync, io, peer, &rlp),
 				PrivateStatePacket => SyncHandler::on_private_state_data(sync, io, peer, &rlp),
 				_ => {
-					debug!(target: "sync", "{}: Unknown packet {}", peer, packet_id.id());
+					trace!(target: "sync", "{}: Unknown packet {}", peer, packet_id.id());
 					Ok(())
 				}
 			};
 
 			match result {
 				Err(DownloaderImportError::Invalid) => {
-					debug!(target:"sync", "{} -> Invalid packet {}", peer, packet_id.id());
+					trace!(target:"sync", "{} -> Invalid packet {}", peer, packet_id.id());
 					io.disable_peer(peer);
 					sync.deactivate_peer(io, peer);
 				},
@@ -96,7 +96,7 @@ impl SyncHandler {
 				},
 			}
 		} else {
-			debug!(target: "sync", "{}: Unknown packet {}", peer, packet_id);
+			trace!(target: "sync", "{}: Unknown packet {}", peer, packet_id);
 		}
 	}
 
@@ -371,18 +371,18 @@ impl SyncHandler {
 		let block_set = sync.peers.get(&peer_id).and_then(|p| p.block_set).unwrap_or(BlockSet::NewBlocks);
 
 		if !sync.reset_peer_asking(peer_id, PeerAsking::BlockHeaders) {
-			debug!(target: "sync", "{}: Ignored unexpected headers", peer_id);
+			trace!(target: "sync", "{}: Ignored unexpected headers", peer_id);
 			return Ok(());
 		}
 		let expected_hash = match expected_hash {
 			Some(hash) => hash,
 			None => {
-				debug!(target: "sync", "{}: Ignored unexpected headers (expected_hash is None)", peer_id);
+				trace!(target: "sync", "{}: Ignored unexpected headers (expected_hash is None)", peer_id);
 				return Ok(());
 			}
 		};
 		if !allowed {
-			debug!(target: "sync", "{}: Ignored unexpected headers (peer not allowed)", peer_id);
+			trace!(target: "sync", "{}: Ignored unexpected headers (peer not allowed)", peer_id);
 			return Ok(());
 		}
 
@@ -556,10 +556,6 @@ impl SyncHandler {
 				warn!(target: "snapshot_sync", "{}: Duplicate chunk (hash {:?}).", peer_id, hash);
 			}
 			Err(()) => {
-				// todo[dvdplm] this seems wrong: we'll get `Err(())` back even if we happened to
-				//  have seen this chunk already. Should a peer be disconnected if they happen to
-				//  send us the same chunk twice? Can't we be downloading chunks from more than one
-				//  peer?
 				trace!(target: "snapshot_sync", "{}: Got bad snapshot chunk", peer_id);
 				io.disconnect_peer(peer_id);
 				return Ok(());

@@ -172,12 +172,17 @@ const MAX_NEW_BLOCK_AGE: BlockNumber = 20;
 // maximal packet size with transactions (cannot be greater than 16MB - protocol limitation).
 // keep it under 8MB as well, cause it seems that it may result oversized after compression.
 const MAX_TRANSACTION_PACKET_SIZE: usize = 5 * 1024 * 1024;
-// Min number of blocks to be behind for a snapshot sync
+// Min number of blocks to be behind the tip for a snapshot sync to be considered useful to us.
 const SNAPSHOT_RESTORE_THRESHOLD: BlockNumber = 30000;
+/// We prefer to sync snapshots that are available from this many peers. If we have not found a
+/// snapshot available from `SNAPSHOT_MIN_PEERS` peers within `WAIT_PEERS_TIMEOUT`, then we make do
+/// with a single peer to sync from.
 const SNAPSHOT_MIN_PEERS: usize = 3;
-
-// todo[dvdplm] One problem with warp-sync is when the remote peer we're downloading from goes offline. Would it make sense to increase the number of chunks here so we download as much data as we can?
-const MAX_SNAPSHOT_CHUNKS_DOWNLOAD_AHEAD: usize = 3;
+/// To keep memory from growing uncontrollably we restore chunks as we download them and write them
+/// to disk only after we have processed them; we also want to avoid pausing the chunk download too
+/// often, so we allow a little bit of leeway here and let the downloading be
+/// `MAX_SNAPSHOT_CHUNKS_DOWNLOAD_AHEAD` chunks ahead of the restoration.
+const MAX_SNAPSHOT_CHUNKS_DOWNLOAD_AHEAD: usize = 5;
 
 /// Time to wait for snapshotting peers to show up with a snapshot we want to use. Beyond this time,
 /// a single peer is enough to start downloading.
@@ -597,16 +602,25 @@ impl ChainSync {
 	}
 
 	/// Reset the client to its initial state:
-	///     - if warp sync is enabled, start looking for peers to sync a snapshot from
-	///     - if `--warp-barrier` is used, ensure we're not synced beyond the barrier and start
-	///       looking for peers to sync a snapshot from
-	///     - otherwise, go `Idle`.
+	///  - if warp sync is enabled, start looking for peers to sync a snapshot from
+	///  - if `--warp-barrier` is used, ensure we're not synced beyond the barrier and start
+	///    looking for peers to sync a snapshot from
+	///  - otherwise, go `Idle`.
 	fn get_init_state(warp_sync: WarpSync, chain: &dyn BlockChainClient) -> SyncState {
 		let best_block = chain.chain_info().best_block_number;
 		match warp_sync {
-			WarpSync::Enabled => SyncState::WaitingPeers,
-			WarpSync::OnlyAndAfter(block) if block > best_block => SyncState::WaitingPeers,
-			_ => SyncState::Idle,
+			WarpSync::Enabled => {
+				debug!(target: "sync", "Setting the initial state to `WaitingPeers`. Our best block: #{}; warp_sync: {:?}", best_block, warp_sync);
+				SyncState::WaitingPeers
+			},
+			WarpSync::OnlyAndAfter(block) if block > best_block => {
+				debug!(target: "sync", "Setting the initial state to `WaitingPeers`. Our best block: #{}; warp_sync: {:?}", best_block, warp_sync);
+				SyncState::WaitingPeers
+			},
+			_ => {
+				debug!(target: "sync", "Setting the initial state to `Idle`. Our best block: #{}", best_block);
+				SyncState::Idle
+			},
 		}
 	}
 }
@@ -699,7 +713,7 @@ impl ChainSync {
 		sync
 	}
 
-	/// Returns synchonization status
+	/// Returns synchronization status
 	pub fn status(&self) -> SyncStatus {
 		let last_imported_number = self.new_blocks.last_imported_block_number();
 		SyncStatus {
@@ -777,7 +791,7 @@ impl ChainSync {
 	fn reset(&mut self, io: &mut dyn SyncIo, state: Option<SyncState>) {
 		self.new_blocks.reset();
 		let chain_info = io.chain().chain_info();
-		for (_, ref mut p) in &mut self.peers {
+		for (_, mut p) in &mut self.peers {
 			if p.block_set != Some(BlockSet::OldBlocks) {
 				p.reset_asking();
 				if p.difficulty.is_none() {
@@ -803,6 +817,8 @@ impl ChainSync {
 			io.snapshot_service().abort_restore();
 		}
 		self.snapshot.clear();
+		// Passing `None` here means we'll end up in either `SnapshotWaiting` or `Idle` depending on
+		// the warp sync settings.
 		self.reset(io, None);
 		self.continue_sync(io);
 	}
@@ -829,7 +845,15 @@ impl ChainSync {
 		let fork_block = self.fork_block.map_or(0, |(n, _)| n);
 
 		let expected_warp_block = match self.warp_sync {
-			WarpSync::OnlyAndAfter(block) => block,
+			WarpSync::OnlyAndAfter(warp_block) => {
+				if our_best_block >= warp_block {
+					trace!(target: "snapshot_sync",
+					       "Our best block (#{}) is already beyond the warp barrier block (#{})",
+					       our_best_block, warp_block);
+					return;
+				}
+				warp_block
+			},
 			_ => 0,
 		};
 		// Collect snapshot info from peers and check if we can use their snapshots to sync.
@@ -844,8 +868,8 @@ impl ChainSync {
 						our_best_block < sn && (sn - our_best_block) > SNAPSHOT_RESTORE_THRESHOLD &&
 						// Snapshot must have been taken after the fork block (if any is configured)
 						sn > fork_block &&
-						// Snapshot must be greater than the warp barrier, if any
-						sn > expected_warp_block
+						// Snapshot must be greater or equal to the warp barrier, if any
+						sn >= expected_warp_block
 					)
 				)
 				.filter_map(|(p, peer)| {
@@ -1298,24 +1322,24 @@ impl ChainSync {
 			SyncState::SnapshotWaiting => {
 				match io.snapshot_service().status() {
 					RestorationStatus::Inactive => {
-						trace!(target:"sync", "Snapshot restoration is complete");
+						trace!(target:"snapshot_sync", "Snapshot restoration is complete");
 						self.restart(io);
 					},
 					RestorationStatus::Initializing { .. } => {
-						trace!(target:"sync", "Snapshot restoration is initializing");
+						trace!(target:"snapshot_sync", "Snapshot restoration is initializing");
 					},
 					RestorationStatus::Finalizing { .. } => {
-						trace!(target:"sync", "Snapshot finalizing restoration");
+						trace!(target:"snapshot_sync", "Snapshot finalizing restoration");
 					},
 					RestorationStatus::Ongoing { state_chunks_done, block_chunks_done, .. } => {
 						if !self.snapshot.is_complete() && self.snapshot.done_chunks() - (state_chunks_done + block_chunks_done) as usize <= MAX_SNAPSHOT_CHUNKS_DOWNLOAD_AHEAD {
-							trace!(target:"sync", "Resuming snapshot sync");
+							trace!(target:"snapshot_sync", "Resuming snapshot sync");
 							self.set_state(SyncState::SnapshotData);
 							self.continue_sync(io);
 						}
 					},
 					RestorationStatus::Failed => {
-						trace!(target: "sync", "Snapshot restoration aborted");
+						trace!(target: "snapshot_sync", "Snapshot restoration aborted");
 						self.set_state(SyncState::WaitingPeers);
 						self.snapshot.clear();
 						self.continue_sync(io);
