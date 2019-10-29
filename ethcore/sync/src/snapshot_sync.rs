@@ -38,16 +38,18 @@ pub enum ChunkType {
 pub struct Snapshot {
 	/// List of hashes of the state chunks we need to complete the warp sync from this snapshot.
 	/// These hashes are contained in the Manifest we downloaded from the peer(s).
-	pending_state_chunks: Vec<H256>,
+	pending_state_chunks: HashSet<H256>,
 	/// List of hashes of the block chunks we need to complete the warp sync from this snapshot.
 	/// These hashes are contained in the Manifest we downloaded from the peer(s).
-	pending_block_chunks: Vec<H256>,
+	pending_block_chunks: HashSet<H256>,
 	/// Set of hashes of chunks we are currently downloading.
 	downloading_chunks: HashSet<H256>,
 	/// The set of chunks (block or state) that we have successfully downloaded.
 	completed_chunks: HashSet<H256>,
 	/// The hash of the the `ManifestData` RLP that we're downloading.
 	snapshot_hash: Option<H256>,
+	/// Total number of chunks in the current snapshot.
+	total_chunks: Option<usize>,
 	/// Set of snapshot hashes we failed to import. We will not try to sync with
 	/// this snapshot again until restart.
 	bad_hashes: HashSet<H256>,
@@ -61,7 +63,7 @@ impl Snapshot {
 	}
 
 	/// Sync the Snapshot completed chunks with the Snapshot Service
-	pub fn initialize(&mut self, snapshot_service: &dyn SnapshotService) {
+	pub fn initialize(&mut self, snapshot_service: &dyn SnapshotService, total_chunks: usize) {
 		if self.initialized {
 			return;
 		}
@@ -72,10 +74,10 @@ impl Snapshot {
 
 		trace!(
 			target: "snapshot_sync",
-			"Snapshot is now initialized with {} completed chunks.",
-			self.completed_chunks.len(),
+			"Snapshot initialized. {}/{} completed chunks.",
+			self.completed_chunks.len(), total_chunks
 		);
-
+		self.total_chunks = Some(total_chunks);
 		self.initialized = true;
 	}
 
@@ -86,6 +88,7 @@ impl Snapshot {
 		self.downloading_chunks.clear();
 		self.completed_chunks.clear();
 		self.snapshot_hash = None;
+		self.total_chunks = None;
 		self.initialized = false;
 	}
 
@@ -98,8 +101,9 @@ impl Snapshot {
 	/// block&state chunk hashes contained in the `ManifestData`).
 	pub fn reset_to(&mut self, manifest: &ManifestData, hash: &H256) {
 		self.clear();
-		self.pending_state_chunks = manifest.state_hashes.clone();
-		self.pending_block_chunks = manifest.block_hashes.clone();
+		self.pending_state_chunks = HashSet::from_iter(manifest.state_hashes.clone());
+		self.pending_block_chunks = HashSet::from_iter(manifest.block_hashes.clone());
+		self.total_chunks = Some(self.pending_block_chunks.len() + self.pending_state_chunks.len());
 		self.snapshot_hash = Some(hash.clone());
 	}
 
@@ -113,44 +117,36 @@ impl Snapshot {
 			return Ok(ChunkType::Dupe(hash));
 		}
 		self.downloading_chunks.remove(&hash);
-		if self.pending_block_chunks.iter().any(|h| h == &hash) {
-			self.completed_chunks.insert(hash.clone());
-			return Ok(ChunkType::Block(hash));
-		}
-		if self.pending_state_chunks.iter().any(|h| h == &hash) {
-			self.completed_chunks.insert(hash.clone());
-			return Ok(ChunkType::State(hash));
-		}
-		trace!(target: "snapshot_sync", "Ignoring unknown chunk: {:x}", hash);
-		Err(())
+
+		self.pending_block_chunks.take(&hash)
+			.and_then(|h| {
+				self.completed_chunks.insert(h);
+				Some(ChunkType::Block(hash))
+			})
+			.or(
+				self.pending_state_chunks.take(&hash)
+					.and_then(|h| {
+						self.completed_chunks.insert(h);
+						Some(ChunkType::State(hash))
+					})
+			).ok_or_else(|| {
+				trace!(target: "snapshot_sync", "Ignoring unknown chunk: {:x}", hash);
+				()
+			})
 	}
 
 	/// Find a chunk to download
-	// todo[dvdplm] plenty of iterating through the pending `Vec`s here (which are never deleted
-	// from btw). Why not `pop()` the chunk hash from the pending_*_chunks? Audit the usage of those
-	// fields and see if we rely on them staying their initial size for some reason.
-	// `total_chunks()` do use them, need to re-work that. Same for `is_complete()`.
 	pub fn needed_chunk(&mut self) -> Option<H256> {
 		// Find next needed chunk: first block, then state chunks
 		let chunk = {
 			let filter = |h| !self.downloading_chunks.contains(h) && !self.completed_chunks.contains(h);
-
-			let block_chunk = self.pending_block_chunks.iter()
-				.filter(|&h| filter(h))
+			self.pending_block_chunks.iter()
+				.find(|&h| filter(h))
+				.or(self.pending_state_chunks.iter()
+					.find(|&h| filter(h))
+				)
 				.map(|h| *h)
-				.next();
-
-			// If there is no block chunk to download, try the state chunks.
-			if block_chunk.is_none() {
-				self.pending_state_chunks.iter()
-					.filter(|&h| filter(h))
-					.map(|h| *h)
-					.next()
-			} else {
-				block_chunk
-			}
 		};
-
 		if let Some(hash) = chunk {
 			self.downloading_chunks.insert(hash.clone());
 		}
@@ -179,7 +175,7 @@ impl Snapshot {
 
 	/// Total number of chunks in the snapshot we're currently working on (state + block chunks).
 	pub fn total_chunks(&self) -> usize {
-		self.pending_block_chunks.len() + self.pending_state_chunks.len()
+		self.total_chunks.unwrap_or_default()
 	}
 
 	/// Number of chunks we've processed so far (state and block chunks).
@@ -240,25 +236,30 @@ mod test {
 		let mut snapshot = Snapshot::new();
 		let (manifest, mhash, state_chunks, block_chunks) = test_manifest();
 		snapshot.reset_to(&manifest, &mhash);
-		assert_eq!(snapshot.done_chunks(), 0);
-		assert!(snapshot.validate_chunk(&H256::random().as_bytes().to_vec()).is_err());
+		assert_eq!(snapshot.done_chunks(), 0, "no chunks done at outset");
+		assert!(snapshot.validate_chunk(&H256::random().as_bytes().to_vec()).is_err(), "random chunk is invalid");
 
+		// request all 20 + 20 chunks
 		let requested: Vec<H256> = (0..40).map(|_| snapshot.needed_chunk().unwrap()).collect();
-		assert!(snapshot.needed_chunk().is_none());
+		assert!(snapshot.needed_chunk().is_none(), "no chunks left after all are drained");
 
 		let requested_all_block_chunks = manifest.block_hashes.iter()
 			.all(|h| requested.iter().any(|rh| rh == h));
-		assert!(requested_all_block_chunks);
+		assert!(requested_all_block_chunks, "all block chunks in the manifest accounted for");
 
 		let requested_all_state_chunks = manifest.state_hashes.iter()
 			.all(|h| requested.iter().any(|rh| rh == h));
-		assert!(requested_all_state_chunks);
+		assert!(requested_all_state_chunks, "all state chunks in the manifest accounted for");
 
-		assert_eq!(snapshot.downloading_chunks.len(), 40);
+		assert_eq!(snapshot.downloading_chunks.len(), 40, "all requested chunks are downloading");
 
-		assert_eq!(snapshot.validate_chunk(&state_chunks[4]), Ok(ChunkType::State(manifest.state_hashes[4].clone())));
-		assert_eq!(snapshot.completed_chunks.len(), 1);
-		assert_eq!(snapshot.downloading_chunks.len(), 39);
+		assert_eq!(
+			snapshot.validate_chunk(&state_chunks[4]),
+			Ok(ChunkType::State(manifest.state_hashes[4].clone())),
+			"4th state chunk hash validates as such"
+		);
+		assert_eq!(snapshot.completed_chunks.len(), 1, "after validating a chunk, it's in the completed set");
+		assert_eq!(snapshot.downloading_chunks.len(), 39, "after validating a chunk, there's one less in the downloading set");
 
 		assert_eq!(snapshot.validate_chunk(&block_chunks[10]), Ok(ChunkType::Block(manifest.block_hashes[10].clone())));
 		assert_eq!(snapshot.completed_chunks.len(), 2);
@@ -276,7 +277,7 @@ mod test {
 			}
 		}
 
-		assert!(snapshot.is_complete());
+		assert!(snapshot.is_complete(), "when all chunks have been validated, we're done");
 		assert_eq!(snapshot.done_chunks(), 40);
 		assert_eq!(snapshot.done_chunks(), snapshot.total_chunks());
 		assert_eq!(snapshot.snapshot_hash(), Some(keccak(manifest.into_rlp())));
