@@ -433,9 +433,16 @@ fn can_select_public_address() {
 
 #[ignore]
 #[test]
-fn can_map_external_address_or_fail() {
+fn can_map_external_address_upnp_or_fail() {
 	let pub_address = select_public_address(40478);
 	let _ = map_external_address(&NodeEndpoint { address: pub_address, udp_port: 40478 }, &NatType::Any);
+}
+
+#[ignore]
+#[test]
+fn can_map_external_address_natpmp_or_fail() {
+	let pub_address = select_public_address(40479);
+	let _ = map_external_address(&NodeEndpoint { address: pub_address, udp_port: 40479 }, &NatType::NatPMP);
 }
 
 #[test]
