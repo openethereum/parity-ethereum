@@ -27,7 +27,6 @@ use natpmp::{Natpmp, Protocol, Response};
 use network::NatType;
 
 use crate::node_table::NodeEndpoint;
-//use crate::discovery::NodeEntry;
 
 const NAT_PMP_PORT_MAPPING_LIFETIME: u32 = 30;
 
@@ -369,60 +368,73 @@ fn search_natpmp(local: &NodeEndpoint) -> Option<NodeEndpoint> {
 		let local_udp_port = local.udp_port;
 
 		let search_gateway_child = ::std::thread::spawn(move || {
+			let get_public_addr = |n: &mut Natpmp| {
+				n.send_public_address_request()?;
+				::std::thread::sleep(Duration::from_millis(50));
+				n.read_response_or_retry()
+			};
+
+			let get_mapped_port = |n: &mut Natpmp, tcp_flag: bool| {
+				if tcp_flag {
+					n.send_port_mapping_request(Protocol::TCP, local_port, local_port, NAT_PMP_PORT_MAPPING_LIFETIME)?;
+				} else {
+					n.send_port_mapping_request(Protocol::UDP, local_udp_port, local_udp_port, NAT_PMP_PORT_MAPPING_LIFETIME)?;
+				}
+				::std::thread::sleep(Duration::from_millis(50));
+				n.read_response_or_retry()
+			};
+
 			match Natpmp::new() {
-				Err(ref err) => debug!("Natpmp object creation error: {}", err),
-				Ok(mut natpmp) => {
-					natpmp.send_public_address_request().ok()?;
-					::std::thread::sleep(Duration::from_millis(50));
-					match natpmp.read_response_or_retry() {
-						Err(ref err) => {
-							debug!("NAT PMP Public IP request error: {}", err);
-						},
-						Ok(Response::Gateway(gw)) => {
-							natpmp.send_port_mapping_request(Protocol::TCP, local_port, local_port, NAT_PMP_PORT_MAPPING_LIFETIME).ok()?;
-							::std::thread::sleep(Duration::from_millis(50));
-							match natpmp.read_response_or_retry() {
-								Err(ref err) => {
-									debug!("NAT PMP IP TCP request error: {}", err);
-								},
-								Ok(Response::TCP(tr)) => {
-									natpmp.send_port_mapping_request(Protocol::UDP, local_udp_port, local_udp_port, NAT_PMP_PORT_MAPPING_LIFETIME).ok()?;
-									::std::thread::sleep(Duration::from_millis(50));
-									match natpmp.read_response_or_retry() {
-										Err(ref err) => {
-											debug!("NAT PMP IP UDP request error: {}", err);
-										},
-										Ok(Response::UDP(ur)) => {
-											return Some(NodeEndpoint { address: SocketAddr::V4(SocketAddrV4::new(*gw.public_address(), tr.public_port())), udp_port: ur.public_port() });
-										},
-										_ => unreachable!()
-									}
-								},
-								_ => unreachable!()
-							}
-						},
-						_ => unreachable!()
-					}
+				Ok(mut n) => {
+					let gw = get_public_addr(&mut n)?;
+					let tcp_r = get_mapped_port(&mut n, true)?;
+					let udp_r = get_mapped_port(&mut n, false)?;
+
+					let gw = if let Response::Gateway(gw) = gw {
+						gw
+					} else {
+						return Err(natpmp::Error::NATPMP_ERR_UNDEFINEDERROR.into())
+					};
+
+					let tcp_r = if let Response::TCP(tcp_r) = tcp_r {
+						tcp_r
+					} else {
+						return Err(natpmp::Error::NATPMP_ERR_UNDEFINEDERROR.into())
+					};
+
+					let udp_r = if let Response::UDP(udp_r) = udp_r {
+						udp_r
+					} else {
+						return Err(natpmp::Error::NATPMP_ERR_UNDEFINEDERROR.into())
+					};
+
+					Ok(NodeEndpoint { address: SocketAddr::V4(SocketAddrV4::new(*gw.public_address(), tcp_r.public_port())), udp_port: udp_r.public_port() })
 				},
+				Err(e) => Err(e)
 			}
-			None
 		});
-		return search_gateway_child.join().ok()?;
+
+		return search_gateway_child.join()
+			.map(|node| {
+				node.map_err(|e| debug!("NAT PMP error: {:?}", e)).ok()
+			}).ok()?
 	}
 	None
 }
 
+// NAT PMP has higher priority than UPnP.
 pub fn map_external_address(local: &NodeEndpoint, nat_type: &NatType) -> Option<NodeEndpoint> {
-	if *nat_type == NatType::UPnP || *nat_type == NatType::Any {
-		search_upnp(local)
-			.map(|upnp| {
-				return upnp
-			});
+	match *nat_type {
+		NatType::Any => {
+			match search_natpmp(local) {
+				Some(end_point) => Some(end_point),
+				None => search_upnp(local),
+			}
+		},
+		NatType::NatPMP => search_natpmp(local),
+		NatType::UPnP => search_upnp(local),
+		_ => None
 	}
-	if *nat_type == NatType::NatPMP || *nat_type == NatType::Any {
-		return search_natpmp(local)
-	}
-	None
 }
 
 #[test]
@@ -435,7 +447,7 @@ fn can_select_public_address() {
 #[test]
 fn can_map_external_address_upnp_or_fail() {
 	let pub_address = select_public_address(40478);
-	let _ = map_external_address(&NodeEndpoint { address: pub_address, udp_port: 40478 }, &NatType::Any);
+	let _ = map_external_address(&NodeEndpoint { address: pub_address, udp_port: 40478 }, &NatType::UPnP);
 }
 
 #[ignore]
