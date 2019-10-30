@@ -188,6 +188,11 @@ pub trait Engine: Sync + Send {
 	/// Returns the engine's current sealing state.
 	fn sealing_state(&self) -> SealingState { SealingState::External }
 
+	/// Called in `chain_new_blocks` if there are local pending txs
+	///
+	/// Does nothing by default
+	fn maybe_update_sealing(&self) {}
+
 	/// Attempt to seal the block internally.
 	///
 	/// If `Some` is returned, then you get a valid seal.

@@ -58,7 +58,7 @@ use using_queue::{UsingQueue, GetAction};
 
 use block::{ClosedBlock, SealedBlock};
 use client::{BlockProducer, SealedBlockImporter, Client};
-use client_traits::{BlockChain, ChainInfo, EngineClient, Nonce, TransactionInfo};
+use client_traits::{BlockChain, ChainInfo, Nonce, TransactionInfo};
 use engine::{Engine, signer::EngineSigner};
 use machine::executive::contract_address;
 use spec::Spec;
@@ -1456,10 +1456,7 @@ impl miner::MinerService for Miner {
 					);
 					queue.cull(client);
 					if queue.has_local_pending_transactions() {
-						if !chain.update_sealing() {
-							// TODO: call some method that waits `reseal_min_period` and re-tries
-							// `update_sealing` again
-						}
+						engine.maybe_update_sealing();
 					}
 				};
 
@@ -1469,10 +1466,7 @@ impl miner::MinerService for Miner {
 			} else {
 				self.transaction_queue.cull(client);
 				if self.transaction_queue.has_local_pending_transactions() {
-					if !self.update_sealing(chain) {
-						// TODO: call some method that waits `reseal_min_period` and tries
-						// `update_sealing` again
-					}
+					self.engine.maybe_update_sealing()
 				}
 			}
 		}

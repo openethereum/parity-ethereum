@@ -149,6 +149,7 @@ pub trait BlockChain: ChainInfo + BlockInfo + TransactionInfo {}
 /// Client facilities used by internally sealing Engines.
 pub trait EngineClient: Sync + Send + ChainInfo {
 	/// Make a new block and seal it.
+	/// returns true if a block was imported and sealed.
 	fn update_sealing(&self) -> bool;
 
 	/// Submit a seal for a block in the mining queue.
