@@ -193,7 +193,7 @@ pub type ChunkSink<'a> = dyn FnMut(&[u8]) -> std::io::Result<()> + 'a;
 /// Statuses for snapshot restoration.
 #[derive(PartialEq, Eq, Clone, Copy, Debug)]
 pub enum RestorationStatus {
-	///	No restoration activity currently.
+	/// No restoration activity currently.
 	Inactive,
 	/// Restoration is initializing.
 	Initializing {
