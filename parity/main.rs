@@ -282,6 +282,7 @@ fn main_direct(force_can_restart: bool) -> i32 {
 			ExecutionAction::Instant(None) => 0,
 			ExecutionAction::Running(client) => {
 				panic_hook::set_with({
+					warn!("Panic hook");
 					let e = exit.clone();
 					let exiting = exiting.clone();
 					move |panic_msg| {
@@ -299,6 +300,7 @@ fn main_direct(force_can_restart: bool) -> i32 {
 				});
 
 				CtrlC::set_handler({
+					warn!("Signal hook");
 					let e = exit.clone();
 					let exiting = exiting.clone();
 					move || {
