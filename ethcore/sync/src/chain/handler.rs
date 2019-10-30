@@ -545,9 +545,6 @@ impl SyncHandler {
 				trace!(target: "snapshot_sync", "{}: Processing state chunk", peer_id);
 				io.snapshot_service().restore_state_chunk(hash, snapshot_data);
 			}
-			Ok(ChunkType::Dupe(hash)) => {
-				warn!(target: "snapshot_sync", "{}: Duplicate chunk (hash {:?}).", peer_id, hash);
-			}
 			Err(()) => {
 				trace!(target: "snapshot_sync", "{}: Got bad snapshot chunk", peer_id);
 				io.disconnect_peer(peer_id);

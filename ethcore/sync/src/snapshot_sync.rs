@@ -30,8 +30,6 @@ pub enum ChunkType {
 	State(H256),
 	/// The chunk contains block data.
 	Block(H256),
-	/// Already seen chunk
-	Dupe(H256)
 }
 
 #[derive(Default, MallocSizeOf)]
@@ -114,7 +112,7 @@ impl Snapshot {
 		let hash = keccak(chunk);
 		if self.completed_chunks.contains(&hash) {
 			trace!(target: "snapshot_sync", "Already proccessed chunk {:x}. Ignoring.", hash);
-			return Ok(ChunkType::Dupe(hash));
+			return Err(());
 		}
 		self.downloading_chunks.remove(&hash);
 
