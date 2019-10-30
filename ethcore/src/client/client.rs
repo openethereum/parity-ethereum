@@ -2543,7 +2543,7 @@ impl SnapshotClient for Client {
 		&self,
 		writer: W,
 		at: BlockId,
-		p: &Progress,
+		p: &RwLock<Progress>,
 	) -> Result<(), EthcoreError> {
 		if let Snapshotting::Unsupported = self.engine.snapshot_mode() {
 			return Err(EthcoreError::Snapshot(SnapshotError::SnapshotsUnsupported));

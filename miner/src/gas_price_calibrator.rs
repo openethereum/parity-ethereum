@@ -43,11 +43,11 @@ pub struct GasPriceCalibrator {
 
 impl GasPriceCalibrator {
 	/// Create a new gas price calibrator.
-	pub fn new(options: GasPriceCalibratorOptions, fetch: FetchClient, p: Executor) -> GasPriceCalibrator {
+	pub fn new(options: GasPriceCalibratorOptions, fetch: FetchClient, p: Executor, api_endpoint: String) -> GasPriceCalibrator {
 		GasPriceCalibrator {
 			options: options,
 			next_calibration: Instant::now(),
-			price_info: PriceInfoClient::new(fetch, p),
+			price_info: PriceInfoClient::new(fetch, p, api_endpoint),
 		}
 	}
 

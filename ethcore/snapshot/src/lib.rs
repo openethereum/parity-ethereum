@@ -44,7 +44,7 @@ use ethtrie::{TrieDB, TrieDBMut};
 use hash_db::HashDB;
 use journaldb::{self, Algorithm, JournalDB};
 use keccak_hasher::KeccakHasher;
-use parking_lot::Mutex;
+use parking_lot::{Mutex, RwLock};
 use kvdb::{KeyValueDB, DBValue};
 use log::{debug, info, trace};
 use num_cpus;
@@ -121,7 +121,7 @@ pub fn take_snapshot<W: SnapshotWriter + Send>(
 	block_hash: H256,
 	state_db: &dyn HashDB<KeccakHasher, DBValue>,
 	writer: W,
-	p: &Progress,
+	p: &RwLock<Progress>,
 	processing_threads: usize,
 ) -> Result<(), Error> {
 	let start_header = chain.block_header_data(&block_hash)
@@ -168,7 +168,7 @@ pub fn take_snapshot<W: SnapshotWriter + Send>(
 			state_hashes.extend(part_state_hashes);
 		}
 
-		info!("Took a snapshot at #{} of {} accounts", block_number, p.accounts());
+		info!("Took a snapshot at #{} of {} accounts", block_number, p.read().accounts());
 
 		Ok((state_hashes, block_hashes))
 	}).expect("Sub-thread never panics; qed")?;
@@ -186,7 +186,7 @@ pub fn take_snapshot<W: SnapshotWriter + Send>(
 
 	writer.into_inner().finish(manifest_data)?;
 
-	p.done.store(true, Ordering::SeqCst);
+	p.write().done = true;
 
 	Ok(())
 }
@@ -202,7 +202,7 @@ pub fn chunk_secondary<'a>(
 	chain: &'a BlockChain,
 	start_hash: H256,
 	writer: &Mutex<dyn SnapshotWriter + 'a>,
-	progress: &'a Progress
+	progress: &'a RwLock<Progress>
 ) -> Result<Vec<H256>, Error> {
 	let mut chunk_hashes = Vec::new();
 	let mut snappy_buffer = vec![0; snappy::max_compressed_len(PREFERRED_CHUNK_SIZE)];
@@ -218,7 +218,7 @@ pub fn chunk_secondary<'a>(
 			trace!(target: "snapshot", "wrote secondary chunk. hash: {:x}, size: {}, uncompressed size: {}",
 				hash, size, raw_data.len());
 
-			progress.update(0, size);
+			progress.write().update(0, size as u64);
 			chunk_hashes.push(hash);
 			Ok(())
 		};
@@ -242,7 +242,7 @@ struct StateChunker<'a> {
 	cur_size: usize,
 	snappy_buffer: Vec<u8>,
 	writer: &'a Mutex<dyn SnapshotWriter + 'a>,
-	progress: &'a Progress,
+	progress: &'a RwLock<Progress>,
 	thread_idx: usize,
 }
 
@@ -275,7 +275,7 @@ impl<'a> StateChunker<'a> {
 		self.writer.lock().write_state_chunk(hash, compressed)?;
 		trace!(target: "snapshot", "Thread {} wrote state chunk. size: {}, uncompressed size: {}", self.thread_idx, compressed_size, raw_data.len());
 
-		self.progress.update(num_entries, compressed_size);
+		self.progress.write().update(num_entries as u64, compressed_size as u64);
 
 		self.hashes.push(hash);
 		self.cur_size = 0;
@@ -300,7 +300,7 @@ pub fn chunk_state<'a>(
 	db: &dyn HashDB<KeccakHasher, DBValue>,
 	root: &H256,
 	writer: &Mutex<dyn SnapshotWriter + 'a>,
-	progress: &'a Progress,
+	progress: &'a RwLock<Progress>,
 	part: Option<usize>,
 	thread_idx: usize,
 ) -> Result<Vec<H256>, Error> {

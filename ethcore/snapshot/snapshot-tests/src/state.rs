@@ -35,7 +35,7 @@ use rand_xorshift::XorShiftRng;
 use ethereum_types::H256;
 use journaldb::{self, Algorithm};
 use kvdb_rocksdb::{Database, DatabaseConfig};
-use parking_lot::Mutex;
+use parking_lot::{Mutex, RwLock};
 use tempdir::TempDir;
 
 use crate::helpers::StateProducer;
@@ -61,8 +61,9 @@ fn snap_and_restore() {
 	let writer = Mutex::new(PackedWriter::new(&snap_file).unwrap());
 
 	let mut state_hashes = Vec::new();
+	let progress = RwLock::new(Progress::new());
 	for part in 0..SNAPSHOT_SUBPARTS {
-		let mut hashes = chunk_state(&old_db, &state_root, &writer, &Progress::new(), Some(part), 0).unwrap();
+		let mut hashes = chunk_state(&old_db, &state_root, &writer, &progress, Some(part), 0).unwrap();
 		state_hashes.append(&mut hashes);
 	}
 
@@ -133,8 +134,16 @@ fn get_code_from_prev_chunk() {
 	let mut make_chunk = |acc, hash| {
 		let mut db = journaldb::new_memory_db();
 		AccountDBMut::from_hash(&mut db, hash).insert(EMPTY_PREFIX, &code[..]);
-		let p = Progress::new();
-		let fat_rlp = to_fat_rlps(&hash, &acc, &AccountDB::from_hash(&db, hash), &mut used_code, usize::max_value(), usize::max_value(), &p).unwrap();
+		let p = RwLock::new(Progress::new());
+		let fat_rlp = to_fat_rlps(
+			&hash,
+			&acc,
+			&AccountDB::from_hash(&db, hash),
+			&mut used_code,
+			usize::max_value(),
+			usize::max_value(),
+			&p
+		).unwrap();
 		let mut stream = RlpStream::new_list(1);
 		stream.append_raw(&fat_rlp[0], 1);
 		stream.out()
@@ -177,8 +186,9 @@ fn checks_flag() {
 
 	let state_root = producer.state_root();
 	let writer = Mutex::new(PackedWriter::new(&snap_file).unwrap());
+	let progress = RwLock::new(Progress::new());
 
-	let state_hashes = chunk_state(&old_db, &state_root, &writer, &Progress::new(), None, 0).unwrap();
+	let state_hashes = chunk_state(&old_db, &state_root, &writer, &progress, None, 0).unwrap();
 
 	writer.into_inner().finish(ManifestData {
 		version: 2,

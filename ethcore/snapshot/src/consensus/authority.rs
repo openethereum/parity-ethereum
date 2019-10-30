@@ -38,6 +38,7 @@ use ethereum_types::{H256, U256};
 use itertools::{Position, Itertools};
 use kvdb::KeyValueDB;
 use log::trace;
+use parking_lot::RwLock;
 use rlp::{RlpStream, Rlp};
 
 use crate::{SnapshotComponents, Rebuilder};
@@ -62,7 +63,7 @@ impl SnapshotComponents for PoaSnapshot {
 		chain: &BlockChain,
 		block_at: H256,
 		sink: &mut ChunkSink,
-		_progress: &Progress,
+		_progress: &RwLock<Progress>,
 		preferred_size: usize,
 	) -> Result<(), SnapshotError> {
 		let number = chain.block_number(&block_at)

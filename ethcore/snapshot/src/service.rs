@@ -259,7 +259,7 @@ pub struct Service<C: Send + Sync + 'static> {
 	state_chunks: AtomicUsize,
 	block_chunks: AtomicUsize,
 	client: Arc<C>,
-	progress: Progress,
+	progress: RwLock<Progress>,
 	taking_snapshot: AtomicBool,
 	restoring_snapshot: AtomicBool,
 }
@@ -280,7 +280,7 @@ impl<C> Service<C> where C: SnapshotClient + ChainInfo {
 			state_chunks: AtomicUsize::new(0),
 			block_chunks: AtomicUsize::new(0),
 			client: params.client,
-			progress: Progress::new(),
+			progress: RwLock::new(Progress::new()),
 			taking_snapshot: AtomicBool::new(false),
 			restoring_snapshot: AtomicBool::new(false),
 		};
@@ -483,9 +483,9 @@ impl<C> Service<C> where C: SnapshotClient + ChainInfo {
 	/// Tick the snapshot service. This will log any active snapshot
 	/// being taken.
 	pub fn tick(&self) {
-		if self.progress.done() || !self.taking_snapshot.load(Ordering::SeqCst) { return }
+		if self.progress.read().done() || !self.taking_snapshot.load(Ordering::SeqCst) { return }
 
-		let p = &self.progress;
+		let p = &self.progress.read();
 		info!("Snapshot: {} accounts, {} blocks, {} bytes", p.accounts(), p.blocks(), p.bytes());
 		let rate = p.rate();
 		debug!(target: "snapshot", "Current progress rate: {:.0} acc/s, {:.0} bytes/s (compressed)", rate.0, rate.1);
@@ -507,7 +507,7 @@ impl<C> Service<C> where C: SnapshotClient + ChainInfo {
 				self.taking_snapshot.store(false, Ordering::SeqCst);
 			}}
 			let start_time = std::time::Instant::now();
-			self.progress.reset();
+			*self.progress.write() = Progress::new();
 
 			let temp_dir = self.temp_snapshot_dir();
 			let snapshot_dir = self.snapshot_dir();
@@ -893,7 +893,7 @@ impl<C: Send + Sync> SnapshotService for Service<C> {
 	fn abort_snapshot(&self) {
 		if self.taking_snapshot.load(Ordering::SeqCst) {
 			trace!(target: "snapshot", "Aborting snapshot – Snapshot under way");
-			self.progress.abort.store(true, Ordering::SeqCst);
+			self.progress.write().abort = true;
 		}
 	}
 
