@@ -147,7 +147,7 @@ impl<'p, C> SyncIo for TestIo<'p, C> where C: FlushingBlockChainClient, C: 'p {
 			.into()
 	}
 
-	fn peer_enode(&self, _peer_id: usize) -> String {
+	fn peer_enode(&self, _peer_id: usize) -> Option<String> {
 		unimplemented!()
 	}
 
