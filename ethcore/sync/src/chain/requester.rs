@@ -87,7 +87,7 @@ impl SyncRequester {
 		SyncRequester::send_request(sync, io, peer_id, PeerAsking::ForkHeader, GetBlockHeadersPacket, rlp.out());
 	}
 
-	/// Find some headers or blocks to download for a peer.
+	/// Find some headers or blocks to download from a peer.
 	pub fn request_snapshot_data(sync: &mut ChainSync, io: &mut dyn SyncIo, peer_id: PeerId) {
 		// find chunk data to download
 		if let Some(hash) = sync.snapshot.needed_chunk() {

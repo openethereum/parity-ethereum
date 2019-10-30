@@ -115,7 +115,7 @@ use ethereum_types::{H256, U256};
 use fastmap::{H256FastMap, H256FastSet};
 use futures::sync::mpsc as futures_mpsc;
 use keccak_hash::keccak;
-use log::{error, trace, debug};
+use log::{error, trace, debug, warn};
 use network::client_version::ClientVersion;
 use network::{self, PeerId, PacketId};
 use parity_util_mem::{MallocSizeOfExt, malloc_size_of_is_0};
