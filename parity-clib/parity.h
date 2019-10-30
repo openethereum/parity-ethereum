@@ -74,6 +74,8 @@ struct parity_subscription;
 #error macro conflicts with Parity Ethereum C API header
 #endif
 
+typedef void(*parity_destructor)(void*);
+
 /// Parameters to pass to `parity_start`.
 struct ParityParams {
   /// Configuration object, as handled by the `parity_config_*` functions.
@@ -95,6 +97,10 @@ struct ParityParams {
   /// Custom parameter passed to the `on_client_restart_cb` callback as first
   /// parameter.
   void *on_client_restart_cb_custom;
+
+  /// Callback for when a client is destroyed.
+  /// If this is NULL, no callback is called.
+  parity_destructor on_client_destroy;
 
   /// Logger object which must be created by the `parity_config_logger` function
   struct parity_logger *logger;
@@ -157,9 +163,9 @@ int parity_config_from_cli(char const *const *args, size_t const *arg_lens,
 /// &cfg.logger);
 /// ```
 ///
-int parity_set_logger(const char *log_mode, size_t log_mode_len,
-                      const char *log_file, size_t log_file_len,
-                      struct parity_logger **logger);
+void parity_set_logger(const char *log_mode, size_t log_mode_len,
+                       const char *log_file, size_t log_file_len,
+                       struct parity_logger **logger);
 
 /// Destroys a configuration object created earlier.
 ///
@@ -199,6 +205,7 @@ void parity_destroy(struct parity_ethereum *parity);
 /// @param subscribe Callback to invoke when the query gets answered. It will be
 /// called on a background thread with a JSON encoded string with the result
 /// both on success and on error.
+/// @param destructor Called when `ud` is no longer in use.
 /// @param ud Specific user defined data that can used in
 /// the callback
 ///
@@ -208,6 +215,7 @@ void parity_destroy(struct parity_ethereum *parity);
 int parity_rpc(const struct parity_ethereum *const parity,
                const char *rpc_query, size_t rpc_len, size_t timeout_ms,
                void (*subscribe)(void *ud, const char *response, size_t len),
+			   parity_destructor destructor,
                void *ud);
 
 /// Subscribes to a specific websocket event that will run until it is canceled
@@ -228,6 +236,7 @@ int parity_rpc(const struct parity_ethereum *const parity,
 struct parity_subscription *parity_subscribe_ws(
     const struct parity_ethereum *const parity, const char *ws_query,
     size_t len, void (*subscribe)(void *ud, const char *response, size_t len),
+	parity_destructor destructor,
     void *ud);
 
 /// Unsubscribes from a websocket subscription. This function destroys the

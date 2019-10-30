@@ -15,7 +15,7 @@
 // along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
 #ifdef __clang__
-#pragma clang diagnostic error vexing - parse
+#pragma clang diagnostic error "-Wvexing-parse"
 #endif
 #include <chrono>
 #include <cstdint>
@@ -29,7 +29,7 @@ using namespace std::literals::string_literals;
 using parity::ethereum::ParityEthereum;
 using parity::ethereum::parity_subscription;
 
-void parity_subscribe_to_websocket(ParityEthereum &);
+void parity_subscribe_to_websocket(ParityEthereum &ethereum);
 void parity_rpc_queries(ParityEthereum &);
 parity::ethereum::ParityEthereum parity_run(const std::vector<std::string> &);
 
@@ -74,13 +74,14 @@ const std::vector<std::string> ws_subscriptions{
 };
 
 // callback that gets invoked upon an event
-void callback(std::string_view buf) {}
+void callback(std::string_view buf) { (void)buf; }
 } // namespace
 
 int main(int _argc, char **_argv) {
+  (void)_argc, (void)_argv;
   using parity::ethereum::ParityEthereum;
   // run full-client
-  {
+  if (0) {
     std::vector<std::string> cli_args{"--no-ipc"s, "--jsonrpc-apis=all"s,
                                       "--chain"s, "kovan"s};
     ParityEthereum parity = parity_run(cli_args);
@@ -95,6 +96,7 @@ int main(int _argc, char **_argv) {
     ParityEthereum parity = parity_run(light_config);
     parity_rpc_queries(parity);
     parity_subscribe_to_websocket(parity);
+    exit(1);
   }
   return 0;
 }
@@ -102,11 +104,16 @@ int main(int _argc, char **_argv) {
 namespace {
 void parity_rpc_queries(ParityEthereum &parity) {
   Callback cb{.type = CALLBACK_RPC, .counter = rpc_queries.size()};
+  auto cb_func = std::function(cb);
 
   try {
     for (const auto &query : rpc_queries)
-      parity.rpc(query, TIMEOUT_ONE_MIN_AS_MILLIS,
-                 [&](std::string_view const response) { cb(response); });
+      parity.rpc(query, TIMEOUT_ONE_MIN_AS_MILLIS, cb_func);
+  } catch (std::exception &exn) {
+    std::cerr << exn.what() << std::endl;
+    while (cb.counter != 0)
+      ;
+    throw;
   } catch (...) {
     while (cb.counter != 0)
       ;
@@ -133,7 +140,7 @@ void parity_subscribe_to_websocket(ParityEthereum &parity) {
 parity::ethereum::ParityEthereum
 parity_run(const std::vector<std::string> &cli_args) {
   parity::ethereum::ParityConfig config{cli_args};
-  parity::ethereum::ParityLogger logger{"rpc=trace"s, ""s};
+  parity::ethereum::ParityLogger logger{"rpc=trace"s, "/dev/tty"s};
   return parity::ethereum::ParityEthereum{std::move(config), std::move(logger),
                                           callback};
 }
