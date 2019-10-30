@@ -428,7 +428,7 @@ impl Importer {
 			&mut chain.ancestry_with_metadata_iter(*header.parent_hash()),
 		);
 
-		warn!("Client; check and lock for block {}, enacting finished with result {}", header.hash(), enact_result);
+		warn!("Client; check and lock for block {}, enacting finished", header.hash());
 
 		let mut locked_block = match enact_result {
 			Ok(b) => b,
