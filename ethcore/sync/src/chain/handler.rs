@@ -515,13 +515,6 @@ impl SyncHandler {
 
 				// only note bad if restoration failed.
 				if let (Some(hash), RestorationStatus::Failed) = (sync.snapshot.snapshot_hash(), status) {
-					// todo[dvdplm]: how do we know we `Failed` because of them and not because
-					// something happened on our end, say disk was full?
-					// On a second look I think `feed_chunk_with_restoration()`, the
-					// `SnapshotService` implementation, is indeed tossing away some errors. I think
-					// it should be refactored to distinguish the two cases of: restoration failed
-					// because the snapshot data is bad (corrupted, partial, malicious) and errors
-					// caused by the local env (out of disk seems like the obvious one).
 					debug!(target: "snapshot_sync", "Marking snapshot manifest hash {} as bad", hash);
 					sync.snapshot.note_bad(hash);
 				}

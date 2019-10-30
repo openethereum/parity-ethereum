@@ -51,7 +51,7 @@ pub trait SyncIo {
 		ClientVersion::from(peer_id.to_string())
 	}
 	/// Returns the peer enode string
-	fn peer_enode(&self, peer_id: PeerId) -> String;
+	fn peer_enode(&self, peer_id: PeerId) -> Option<String>;
 	/// Returns information on p2p session
 	fn peer_session_info(&self, peer_id: PeerId) -> Option<SessionInfo>;
 	/// Maximum mutually supported ETH protocol version
@@ -129,13 +129,11 @@ impl<'s> SyncIo for NetSyncIo<'s> {
 		self.network.peer_client_version(peer_id)
 	}
 
-	fn peer_enode(&self, peer_id: PeerId) -> String {
-		self.network.session_info(peer_id).map_or("enode://???".into(), |info| {
-			if let Some(id) = info.id {
-				format!("enode:://{}@{}", id, info.remote_address)
-			} else {
-				format!("enode:://???@{}", info.remote_address)
-			}
+	fn peer_enode(&self, peer_id: PeerId) -> Option<String> {
+		self.network.session_info(peer_id).and_then(|info| {
+			info.id.map(|node_id| {
+				format!("enode:://{}@{}", node_id, info.remote_address)
+			})
 		})
 	}
 

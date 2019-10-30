@@ -1070,7 +1070,7 @@ impl ChainSync {
 						peer_id,
 						peer_snapshot_number,
 						chain_info.best_block_number,
-						io.peer_enode(peer_id),
+						io.peer_enode(peer_id).unwrap_or_else(|| "enode://???".to_string()),
 					);
 					self.maybe_start_snapshot_sync(io);
 				},
