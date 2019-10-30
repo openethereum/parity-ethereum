@@ -294,13 +294,14 @@ impl Importer {
 
 				let is_invalid = invalid_blocks.contains(header.parent_hash());
 				if is_invalid {
+					warn!("Client; Block {} not valid, because of parent {}", hash, header.parent_hash());
 					invalid_blocks.insert(hash);
 					continue;
 				}
 
 				match self.check_and_lock_block(&bytes, block, client) {
 					Ok((closed_block, pending)) => {
-						warn!("Block checked and locked");
+						warn!("Client; Block {} checked and locked", hash);
 						imported_blocks.push(hash);
 						let transactions_len = closed_block.transactions.len();
 						let route = self.commit_block(closed_block, &header, encoded::Block::new(bytes), pending, client);
@@ -308,7 +309,7 @@ impl Importer {
 						client.report.write().accrue_block(&header, transactions_len);
 					},
 					Err(err) => {
-						warn!("Error occured {}", err);
+						warn!("Client; error occured {} for block {}", err, hash);
 						self.bad_blocks.report(bytes, format!("{:?}", err));
 						invalid_blocks.insert(hash);
 					},
@@ -359,6 +360,8 @@ impl Importer {
 		let engine = &*self.engine;
 		let header = block.header.clone();
 
+		warn!("Client; start check and lock for block {}", header.hash());
+
 		// Check the block isn't so old we won't be able to enact it.
 		let best_block_number = client.chain.read().best_block_number();
 		if client.pruning_info().earliest_state > header.number() {
@@ -375,6 +378,8 @@ impl Importer {
 			}
 		};
 
+		warn!("Client; check and lock for block {}, parent is in chain", header.hash());
+
 		let chain = client.chain.read();
 		// Verify Block Family
 		let verify_family_result = self.verifier.verify_block_family(
@@ -388,6 +393,8 @@ impl Importer {
 			}),
 		);
 
+		warn!("Client; check and lock for block {}, family verified", header.hash());
+
 		if let Err(e) = verify_family_result {
 			warn!(target: "client", "Stage 3 block verification failed for #{} ({})\nError: {:?}", header.number(), header.hash(), e);
 			bail!(e);
@@ -399,11 +406,15 @@ impl Importer {
 			bail!(e);
 		};
 
+		warn!("Client; check and lock for block {}, engine verified", header.hash());
+
 		// Enact Verified Block
 		let last_hashes = client.build_last_hashes(header.parent_hash());
 		let db = client.state_db.read().boxed_clone_canon(header.parent_hash());
 
 		let is_epoch_begin = chain.epoch_transition(parent.number(), *header.parent_hash()).is_some();
+
+		warn!("Client; check and lock for block {}, start enacting", header.hash());
 
 		let enact_result = enact_verified(
 			block,
@@ -416,6 +427,8 @@ impl Importer {
 			is_epoch_begin,
 			&mut chain.ancestry_with_metadata_iter(*header.parent_hash()),
 		);
+
+		warn!("Client; check and lock for block {}, enacting finished with result {}", header.hash(), enact_result);
 
 		let mut locked_block = match enact_result {
 			Ok(b) => b,
@@ -439,6 +452,8 @@ impl Importer {
 			warn!(target: "client", "Stage 5 block verification failed for #{} ({})\nError: {:?}", header.number(), header.hash(), e);
 			bail!(e);
 		}
+
+		warn!("Client; check and lock for block {}, final verification passed", header.hash());
 
 		let pending = self.check_epoch_end_signal(
 			&header,

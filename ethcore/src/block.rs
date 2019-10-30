@@ -312,6 +312,8 @@ impl<'x> OpenBlock<'x> {
 		s.engine.on_close_block(&mut s.block)?;
 		s.block.state.commit()?;
 
+		warn!("Block; closing block {}", s.block.header.hash());
+
 		s.block.header.set_transactions_root(ordered_trie_root(s.block.transactions.iter().map(|e| e.rlp_bytes())));
 		let uncle_bytes = encode_list(&s.block.uncles);
 		s.block.header.set_uncles_hash(keccak(&uncle_bytes));
@@ -322,6 +324,8 @@ impl<'x> OpenBlock<'x> {
 			b
 		}));
 		s.block.header.set_gas_used(s.block.receipts.last().map_or_else(U256::zero, |r| r.gas_used));
+
+		warn!("Block; closing finished for block {}", s.block.header.hash());
 
 		Ok(LockedBlock {
 			block: s.block,
