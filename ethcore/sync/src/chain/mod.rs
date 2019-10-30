@@ -927,15 +927,8 @@ impl ChainSync {
 				self.set_state(SyncState::Idle);
 				self.continue_sync(io);
 			} else  {
-				// warn!(target: "snapshot_sync", "No snapshots currently available at #{}. Try using a smaller value for --warp-barrier", expected_warp_block);
-				// todo[dvdplm] remove before merge, debug only, then put the `warn!` line back.
-				trace!(target: "snapshot_sync", "No snapshots currently available at #{}; time to wait for snapshot peers is up and we do NOT have a snapshot peer: \
-				(best_block={:?}, best_hash={:?}, snapshot_peers.len={:?}, state={:?}, peers.len={}).",
-				       expected_warp_block, best_snapshot_block, best_hash, snapshot_peers.len(), self.state, self.peers.len())
+				 warn!(target: "snapshot_sync", "No snapshots currently available at #{}. Try using a smaller value for --warp-barrier", expected_warp_block);
 			}
-		} else {
-			// todo[dvdplm] remove this, it's debug only
-			trace!(target: "snapshot_sync", "Time to wait for snapshot peers is NOT expired and we do NOT have a snapshot peer (best_block={:?}, best_hash={:?}, peers.len={:?}, state={:?}, peers.len={}).", best_snapshot_block, best_hash, snapshot_peers.len(), self.state, self.peers.len());
 		}
 	}
 
