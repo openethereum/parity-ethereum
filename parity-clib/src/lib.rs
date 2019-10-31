@@ -61,6 +61,9 @@ pub struct ParityParams {
 	pub logger: *mut ParityConfig,
 }
 
+impl std::panic::UnwindSafe for ParityParams {}
+impl std::panic::RefUnwindSafe for ParityParams {}
+
 /// Trait representing a callback that passes a string
 pub(crate) trait Callback: Send + Sync {
 	fn call(&self, msg: &str);
@@ -112,7 +115,7 @@ pub unsafe extern fn parity_config_from_cli(
 				let string = slice::from_raw_parts(arg as *const u8, len);
 				match String::from_utf8(string.to_owned()) {
 					Ok(a) => args.push(a),
-					Err(_) => return 1,
+					Err(_) => return true,
 				};
 			}
 			args

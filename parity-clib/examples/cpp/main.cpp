@@ -44,9 +44,11 @@ struct Callback {
   parity_callback_type type;
   std::uint64_t counter;
   void operator()(const std::string_view response) {
-    if (type == parity_callback_type::CALLBACK_RPC) {
+    switch (type) {
+    case parity_callback_type::CALLBACK_RPC:
       counter -= 1;
-    } else if (type == parity_callback_type::CALLBACK_WS) {
+      break;
+    case parity_callback_type::CALLBACK_WS:
       std::match_results<std::string_view::iterator> results;
       std::regex is_subscription(
           "\\{\"jsonrpc\":\"2.0\",\"result\":\"0[xX][a-fA-"
@@ -55,8 +57,7 @@ struct Callback {
                            is_subscription)) {
         counter -= 1;
       }
-    } else {
-      abort();
+      break;
     }
   }
 };
