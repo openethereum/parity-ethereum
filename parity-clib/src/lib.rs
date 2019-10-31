@@ -50,13 +50,15 @@ pub mod error {
 	pub const SUBSCRIBE: &str = r#"{"jsonrpc":"2.0","result":"subcribe_fail","id":1}"#;
 }
 
+type ParityLogger = parity_ethereum::RotatingLogger;
+type ParityConfig = parity_ethereum::Configuration;
 #[repr(C)]
 pub struct ParityParams {
-	pub configuration: *mut c_void,
+	pub configuration: *mut ParityLogger,
 	pub on_client_restart_cb: CCallback,
 	pub on_client_restart_cb_custom: *mut c_void,
 	pub on_client_destroy: CDestructor,
-	pub logger: *mut c_void
+	pub logger: *mut ParityConfig,
 }
 
 /// Trait representing a callback that passes a string
@@ -95,7 +97,7 @@ pub unsafe extern fn parity_config_from_cli(
 	args_lens: *const usize,
 	len: usize,
 	output: *mut *mut c_void
-) -> c_int {
+) -> bool {
 	panic::catch_unwind(|| {
 		*output = ptr::null_mut();
 
@@ -123,13 +125,13 @@ pub unsafe extern fn parity_config_from_cli(
 
 				let cfg = Box::into_raw(Box::new(cfg));
 				*output = cfg as *mut _;
-				0
+				false
 			},
 			Err(_) => {
-				1
+				true
 			},
 		}
-	}).unwrap_or(1)
+	}).unwrap_or(true)
 }
 
 #[no_mangle]
@@ -175,6 +177,7 @@ pub unsafe extern fn parity_start(cfg: *const ParityParams, output: *mut *mut c_
 #[no_mangle]
 pub unsafe extern fn parity_destroy(client: *mut c_void) {
 	let _ = panic::catch_unwind(|| {
+		if client.is_null() { return }
 		let client = Box::from_raw(client as *mut RunningClient);
 		client.shutdown();
 	});
@@ -224,6 +227,9 @@ pub unsafe extern fn parity_subscribe_ws(
 #[no_mangle]
 pub unsafe extern fn parity_unsubscribe_ws(session: *const c_void) {
 	let _ = panic::catch_unwind(|| {
+		if session.is_null() {
+			return
+		}
 		let _session = Arc::from_raw(session as *const PubSubSession);
 	});
 }
@@ -238,18 +244,20 @@ pub extern fn parity_set_panic_hook(callback: CCallback, param: *mut c_void) {
 
 #[no_mangle]
 pub unsafe extern fn parity_set_logger(
-	logger_mode: *const u8,
+	logger_mode: *const c_char,
 	logger_mode_len: usize,
-	log_file: *const u8,
+	log_file: *const c_char,
 	log_file_len: usize,
 	logger: *mut *mut c_void) {
 
 	let mut logger_cfg = parity_ethereum::LoggerConfig::default();
-	logger_cfg.mode = String::from_utf8(slice::from_raw_parts(logger_mode, logger_mode_len).to_owned()).ok();
+	if logger_mode_len != 0 && !logger_mode.is_null() {
+		logger_cfg.mode = String::from_utf8(slice::from_raw_parts(logger_mode as _, logger_mode_len).to_owned()).ok();
+	}
 
 	// Make sure an empty string is not constructed as file name (to prevent panic)
 	if log_file_len != 0 && !log_file.is_null() {
-		logger_cfg.file = String::from_utf8(slice::from_raw_parts(log_file, log_file_len).to_owned()).ok();
+		logger_cfg.file = String::from_utf8(slice::from_raw_parts(log_file as _, log_file_len).to_owned()).ok();
 	}
 
 	*logger = Arc::into_raw(parity_ethereum::setup_log(&logger_cfg).expect("Logger initialized only once; qed")) as *mut _;

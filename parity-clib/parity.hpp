@@ -184,7 +184,7 @@ public:
     }
     return *this;
   }
-  ~ParityEthereum() { parity_destroy(this->parity_ethereum_instance); }
+  ~ParityEthereum() { parity_destroy(parity_ethereum_instance); }
 
   /// Perform an asychronous RPC request in a background thread.
   ///
@@ -210,8 +210,8 @@ public:
     if (::parity_subscription *session = ::parity_subscribe_ws(
             this->parity_ethereum_instance, buffer.data(), buffer.size(),
             parity_subscription_callback,
-            parity_destructor_callback,
-            new parity_rpc_callback(callback)))
+            new parity_rpc_callback(callback),
+            parity_destructor_callback))
       return parity_subscription(session, &parity_unsubscribe_ws);
     else
       throw std::runtime_error("Failed to subscribe to websocket");

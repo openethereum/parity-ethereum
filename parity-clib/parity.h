@@ -74,7 +74,7 @@ struct parity_subscription;
 #error macro conflicts with Parity Ethereum C API header
 #endif
 
-typedef void(*parity_destructor)(void*);
+typedef void (*parity_destructor)(void *);
 
 /// Parameters to pass to `parity_start`.
 struct ParityParams {
@@ -92,7 +92,7 @@ struct ParityParams {
   /// `on_client_restart_cb_custom`. The second and third parameters of the
   /// callback are the string pointer and length.
   void (*on_client_restart_cb)(void *custom, const char *new_chain,
-                               size_t new_chain_len);
+                               uintptr_t new_chain_len);
 
   /// Custom parameter passed to the `on_client_restart_cb` callback as first
   /// parameter.
@@ -121,29 +121,28 @@ struct ParityParams {
 /// ```no_run
 /// void* cfg;
 /// const char *args[] = {"--light", "--can-restart"};
-/// size_t str_lens[] = {7, 13};
+/// uintptr_t str_lens[] = {7, 13};
 /// if (parity_config_from_cli(args, str_lens, 2, &cfg) != 0) {
 /// 		return 1;
 /// }
 /// ```
 ///
-int parity_config_from_cli(char const *const *args, size_t const *arg_lens,
-                           size_t len, struct parity_config **out);
+bool parity_config_from_cli(char const *const *args, uintptr_t const *arg_lens,
+                            uintptr_t len, struct parity_config **out);
 
 /// Builds a new logger object to be used as a member of `struct ParityParams`.
 ///
-///	- log_mode		: String representing the log mode according to
-///`Rust LOG`, or `nullptr` to disable logging.
-/// See module documentation for `ethcore-logger` for more info.
-///	- log_mode_len	: Length of the log_mode or zero to disable logging
-///	- log_file		: String respresenting the file name to write to
-///                   log to, or nullptr to disable logging to a file.
+/// @param log_mode String representing the log mode according to `RUST_LOG`, or
+/// `nullptr` to disable logging. See module documentation for `ethcore-logger`
+/// for more info.
+/// @param log_mode_len Length of `log_mode`, or zero to disable logging.
+/// @param log_file String respresenting the file name to write to log to, or
+/// nullptr to disable logging to a file.
 ///                   On Windows, this will be interpreted as UTF-8, not the
 ///                   system codepage, and is not limited to MAX_PATH.
-///	- log_mode_len	: Length of the log_file or zero to disable logging to a
-/// file
-///	- logger		: Pointer to point to the created `Logger`
-/// object
+/// @param log_mode_len Length of the log_file or zero to disable logging to a
+/// file.
+/// logger Pointer to point to the created `Logger` object
 
 /// **Important**: This function must only be called exactly once otherwise it
 /// will panic. If you want to disable a logging mode or logging to a file make
@@ -154,17 +153,17 @@ int parity_config_from_cli(char const *const *args, size_t const *arg_lens,
 /// ```no_run
 /// void* cfg;
 /// const char *args[] = {"--light", "--can-restart"};
-/// size_t str_lens[] = {7, 13};
+/// uintptr_t str_lens[] = {7, 13};
 /// if (parity_config_from_cli(args, str_lens, 2, &cfg) != 0) {
-///		return 1;
+/// 		return 1;
 /// }
 /// char[] logger_mode = "rpc=trace";
 /// parity_set_logger(logger_mode, strlen(logger_mode), nullptr, 0,
 /// &cfg.logger);
 /// ```
 ///
-void parity_set_logger(const char *log_mode, size_t log_mode_len,
-                       const char *log_file, size_t log_file_len,
+void parity_set_logger(const char *log_mode, uintptr_t log_mode_len,
+                       const char *log_file, uintptr_t log_file_len,
                        struct parity_logger **logger);
 
 /// Destroys a configuration object created earlier.
@@ -192,7 +191,7 @@ int parity_start(const struct ParityParams *params,
 /// Destroys the parity client created with `parity_start`.
 ///
 /// If `parity` is NULL, this is a harmless no-op.
-void parity_destroy(struct parity_ethereum *parity);
+void parity_destroy(struct parity_ethereum *const parity);
 
 /// Performs an asynchronous RPC request running in a background thread for at
 /// most X milliseconds
@@ -207,16 +206,12 @@ void parity_destroy(struct parity_ethereum *parity);
 /// both on success and on error.
 /// @param destructor Called when `ud` is no longer in use.
 /// @param ud Specific user defined data that can used in
-/// the callback
-///
-///	- On success	: The function returns 0
-///	- On error		: The function returns 1
-///
+/// the callback.
+/// @return false on success, true on error.
 int parity_rpc(const struct parity_ethereum *const parity,
-               const char *rpc_query, size_t rpc_len, size_t timeout_ms,
-               void (*subscribe)(void *ud, const char *response, size_t len),
-			   parity_destructor destructor,
-               void *ud);
+               const char *rpc_query, uintptr_t rpc_len, uintptr_t timeout_ms,
+               void (*subscribe)(void *ud, const char *response, uintptr_t len),
+               parity_destructor destructor, void *ud);
 
 /// Subscribes to a specific websocket event that will run until it is canceled
 ///
@@ -226,38 +221,34 @@ int parity_rpc(const struct parity_ethereum *const parity,
 /// @param len Length of the query.
 /// @param response Callback to invoke when a websocket event occurs.
 /// @param ud Specific user defined data that can used in the callback.
-/// @param destructor Will be called when the
-///
-///	- On success	: The function returns an object to the current session
-///					which can be used cancel the
-/// subscription
-///	- On error		: The function returns a null pointer
-///
+/// @param destructor Will be called when `ud` is guaranteed to not be needed
+/// again.
+/// @return A handle to the subscription on success, or NULL on error.
+/// The handle can be used to cancel the subscription.
 struct parity_subscription *parity_subscribe_ws(
     const struct parity_ethereum *const parity, const char *ws_query,
-    size_t len, void (*subscribe)(void *ud, const char *response, size_t len),
-	parity_destructor destructor,
-    void *ud);
+    uintptr_t len,
+    void (*subscribe)(void *ud, const char *response, uintptr_t len), void *ud,
+    parity_destructor destructor);
 
 /// Unsubscribes from a websocket subscription. This function destroys the
-/// session object and must only be used exactly once per session.
+/// session object, leaving `session` a dangling pointer.
 ///
-/// @param session Pointer to the session to unsubscribe from
-///
-/// FIXME: document lifetimes. Is this function synchronous? If not, when can
-/// `ud` be destroyed? Currently the C++ bindings just leak it.
-int parity_unsubscribe_ws(const struct parity_subscription *const session);
+/// @param session Pointer to the session to unsubscribe from.  If `session` is
+/// NULL, this is a harmless no-op.
+void parity_unsubscribe_ws(const struct parity_subscription *const session);
 
 /// Sets a callback to call when a panic happens in the Rust code.
 ///
-/// The callback takes as parameter the void * `param` passed to this function
+/// The callback takes as parameter the `void *param` passed to this function
 /// and the panic message. You are expected to log the panic message somehow, in
-/// order to communicate it to the user. A panic almost always indicates either
-/// a bug in Parity Etherium.  The only other possiblity is that there has been
-/// a fatal problem with the system Parity Ethereum is running on, such as
-/// errors accessing the local file system, corruption of Parity Ethereum’s
-/// database, or your code corrupting Parity’s memory. Nevertheless, a panic is
-/// still a bug in Parity Ethereum unless proven otherwise.
+/// order to communicate it to the user. A panic almost always indicates
+/// a bug in Parity Etherium, and should be presumed to be such unless proven
+/// otherwise.  Very rarely, a panic can result from a fatal problem with the
+/// system Parity Ethereum is running on, such as errors accessing the local
+/// file system, corruption of Parity Ethereum’s database, or your code
+/// corrupting Parity’s memory. Nevertheless, a panic is still a bug in Parity
+/// Ethereum unless proven otherwise.
 ///
 /// Note that this method sets the panic hook for the whole program, and not
 /// just for Parity. In other words, if you use multiple Rust libraries at once
@@ -268,9 +259,9 @@ int parity_unsubscribe_ws(const struct parity_subscription *const session);
 ///
 /// The callback can be called from any thread and multiple times
 /// simultaneously. Make sure that your code is thread safe.
-int parity_set_panic_hook(void (*cb)(void *param, const char *msg,
-                                     size_t msg_len),
-                          void *param);
+void parity_set_panic_hook(void (*cb)(void *param, const char *msg,
+                                      uintptr_t msg_len),
+                           void *param);
 #ifdef __cplusplus
 }
 #endif
