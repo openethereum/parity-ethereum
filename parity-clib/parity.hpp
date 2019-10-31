@@ -21,7 +21,7 @@
 #pragma clang diagnostic ignored "-Wc++98-compat"
 #endif
 #if __cplusplus < 201703L
-#error C++17 is required
+#error "The Parity Ethereum C++ bindings require C++17 or newer.  Please upgrade your compiler, or specify the needed flags to enable C++17 support."
 #endif
 #include <cassert>
 #include <exception>
@@ -32,6 +32,8 @@
 #include <stdexcept>
 #include <string>
 #include <vector>
+#include <type_traits>
+static_assert(std::is_same<uintptr_t, size_t>::value, "Rust requires that uintptr_t and size_t are the same type");
 
 namespace parity {
 // avoid conflict with other Parity projects

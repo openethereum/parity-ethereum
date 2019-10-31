@@ -26,30 +26,33 @@
 #include <thread>
 namespace {
 using namespace std::literals::string_literals;
-using parity::ethereum::ParityEthereum;
 using parity::ethereum::parity_subscription;
+using parity::ethereum::ParityEthereum;
 
 void parity_subscribe_to_websocket(ParityEthereum &ethereum);
 void parity_rpc_queries(ParityEthereum &);
 parity::ethereum::ParityEthereum parity_run(const std::vector<std::string> &);
 
-const int SUBSCRIPTION_ID_LEN = 18;
-const size_t TIMEOUT_ONE_MIN_AS_MILLIS = 60 * 1000;
-const unsigned int CALLBACK_RPC = 1;
-const unsigned int CALLBACK_WS = 2;
+constexpr uint32_t SUBSCRIPTION_ID_LEN = 18;
+constexpr uint32_t TIMEOUT_ONE_MIN_AS_MILLIS = 60 * 1000;
+enum class parity_callback_type : size_t {
+   CALLBACK_RPC = 1,
+   CALLBACK_WS = 2,
+};
 
 struct Callback {
-  size_t type;
+  parity_callback_type type;
   std::uint64_t counter;
   void operator()(const std::string_view response) {
-    if (type == CALLBACK_RPC) {
+    if (type == parity_callback_type::CALLBACK_RPC) {
       counter -= 1;
-    } else if (type == CALLBACK_WS) {
+    } else if (type == parity_callback_type::CALLBACK_WS) {
       std::match_results<std::string_view::iterator> results;
       std::regex is_subscription(
           "\\{\"jsonrpc\":\"2.0\",\"result\":\"0[xX][a-fA-"
           "F0-9]{16}\",\"id\":1\\}");
-      if (std::regex_match(response.begin(), response.end(), results, is_subscription)) {
+      if (std::regex_match(response.begin(), response.end(), results,
+                           is_subscription)) {
         counter -= 1;
       }
     } else {
@@ -103,7 +106,7 @@ int main(int _argc, char **_argv) {
 
 namespace {
 void parity_rpc_queries(ParityEthereum &parity) {
-  Callback cb{.type = CALLBACK_RPC, .counter = rpc_queries.size()};
+  Callback cb{.type = parity_callback_type::CALLBACK_RPC, .counter = rpc_queries.size()};
   auto cb_func = std::function(cb);
 
   try {
@@ -125,7 +128,7 @@ void parity_rpc_queries(ParityEthereum &parity) {
 
 void parity_subscribe_to_websocket(ParityEthereum &parity) {
   // MUST outlive the std::vector below
-  Callback cb{.type = CALLBACK_WS, .counter = ws_subscriptions.size()};
+  Callback cb{.type = parity_callback_type::CALLBACK_WS, .counter = ws_subscriptions.size()};
 
   std::vector<parity_subscription> sessions;
 

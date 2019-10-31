@@ -48,11 +48,21 @@
 /// is expected to work, they will duplicate a large amount of state
 #ifndef PARITY_H_INCLUDED
 #define PARITY_H_INCLUDED 1
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 #include <stddef.h>
+#include <stdint.h>
+// Rust assumes that size_t and uintptr_t are the same.  Check that that is the
+// case to avoid very obscure errors.
+#ifdef __cplusplus
+#if __cplusplus >= 201103L
+#include <type_traits>
+static_assert(std::is_same<uintptr_t, size_t>::value,
+              "Rust code requires that uintptr_t and size_t are the same");
+#endif
+extern "C" {
+#elif __STDC_VERSION__ >= 201112L
+_Static_assert(sizeof(uintptr_t) == sizeof(size_t),
+               "Rust code requires that uintptr_t and size_t are the same");
+#endif
 
 /// An opaque struct that represents a Parity configuration.
 struct parity_config;
@@ -71,7 +81,7 @@ struct parity_subscription;
     defined on_client_restart_cb || defined args || defined len ||             \
     defined arg_lens || defined parity_subscription ||                         \
     defined parity_logger || defined parity_config
-#error macro conflicts with Parity Ethereum C API header
+#error "macro conflicts with Parity Ethereum C API header"
 #endif
 
 typedef void (*parity_destructor)(void *);
@@ -114,7 +124,7 @@ struct ParityParams {
 /// On success, the produced object will be written to the `struct parity_config
 /// *` pointed by `out`.
 ///
-/// Returns 0 on success, and non-zero on error.
+/// Returns false on success, and true on error.
 ///
 /// # Example
 ///
@@ -137,16 +147,15 @@ bool parity_config_from_cli(char const *const *args, uintptr_t const *arg_lens,
 /// for more info.
 /// @param log_mode_len Length of `log_mode`, or zero to disable logging.
 /// @param log_file String respresenting the file name to write to log to, or
-/// nullptr to disable logging to a file.
-///                   On Windows, this will be interpreted as UTF-8, not the
-///                   system codepage, and is not limited to MAX_PATH.
+/// nullptr to disable logging to a file.  On Windows, this will be interpreted
+/// as UTF-8, not the system codepage, and is not limited to MAX_PATH.
 /// @param log_mode_len Length of the log_file or zero to disable logging to a
 /// file.
-/// logger Pointer to point to the created `Logger` object
+/// @param logger Pointer to point to the created `Logger` object
 
-/// **Important**: This function must only be called exactly once otherwise it
-/// will panic. If you want to disable a logging mode or logging to a file make
-/// sure that you pass the `length` as zero
+/// **Important**: This function must only be called exactly once ―  otherwise,
+/// it will panic. If you want to disable a logging mode or logging to a file,
+/// make sure that you pass the `length` as zero
 ///
 /// # Example
 ///
