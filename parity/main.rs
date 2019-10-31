@@ -285,7 +285,6 @@ fn main_direct(force_can_restart: bool) -> i32 {
 					let e = exit.clone();
 					let exiting = exiting.clone();
 					move |panic_msg| {
-						warn!("Panic hook: {}", panic_msg);
 						eprintln!("{}", panic_msg);
 						if !exiting.swap(true, Ordering::SeqCst) {
 							*e.0.lock() = ExitStatus {
@@ -303,7 +302,6 @@ fn main_direct(force_can_restart: bool) -> i32 {
 					let e = exit.clone();
 					let exiting = exiting.clone();
 					move || {
-						warn!("Signal hook");
 						if !exiting.swap(true, Ordering::SeqCst) {
 							*e.0.lock() = ExitStatus {
 								panicking: false,

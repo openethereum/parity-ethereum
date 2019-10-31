@@ -359,7 +359,6 @@ impl<K: Kind> VerificationQueue<K> {
 			};
 
 			let hash = item.hash();
-			warn!("Verifier; start block verification {}", hash);
 			let is_ready = match K::verify(item, &*engine, verification.check_seal) {
 				Ok(verified) => {
 					let mut verifying = verification.verifying.lock();
@@ -373,8 +372,6 @@ impl<K: Kind> VerificationQueue<K> {
 							break;
 						}
 					}
-
-					warn!("Verifier; block verified {}", hash);
 
 					if idx == Some(0) {
 						// we're next!
@@ -475,7 +472,6 @@ impl<K: Kind> VerificationQueue<K> {
 	/// Add a block to the queue.
 	pub fn import(&self, input: K::Input) -> Result<H256, (K::Input, Error)> {
 		let hash = input.hash();
-		warn!("Queue; import block to queue started {}", hash);
 		{
 			if self.processing.read().contains_key(&hash) {
 				bail!((input, ErrorKind::Import(ImportErrorKind::AlreadyQueued).into()));
@@ -503,7 +499,6 @@ impl<K: Kind> VerificationQueue<K> {
 				}
 				self.verification.unverified.lock().push_back(item);
 				self.more_to_verify.notify_all();
-				warn!("Queue; block added to queue {}", hash);
 				Ok(hash)
 			},
 			Err((input, err)) => {

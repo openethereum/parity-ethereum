@@ -175,7 +175,6 @@ impl<'x> OpenBlock<'x> {
 		is_epoch_begin: bool,
 		ancestry: I,
 	) -> Result<Self, Error> {
-		warn!("Block; open block creation, started");
 		let number = parent.number() + 1;
 		let state = State::from_existing(db, parent.state_root().clone(), engine.account_start_nonce(number), factories)?;
 		let mut r = OpenBlock {
@@ -183,7 +182,6 @@ impl<'x> OpenBlock<'x> {
 			engine: engine,
 		};
 
-		warn!("Block; open block creation, pushing header parameters");
 		r.block.header.set_parent_hash(parent.hash());
 		r.block.header.set_number(number);
 		r.block.header.set_author(author);
@@ -193,14 +191,12 @@ impl<'x> OpenBlock<'x> {
 		let gas_floor_target = cmp::max(gas_range_target.0, engine.params().min_gas_limit);
 		let gas_ceil_target = cmp::max(gas_range_target.1, gas_floor_target);
 
-		warn!("Block; open block creation, engine processing");
 		engine.machine().populate_from_parent(&mut r.block.header, parent, gas_floor_target, gas_ceil_target);
 		engine.populate_from_parent(&mut r.block.header, parent);
 
 		engine.machine().on_new_block(&mut r.block)?;
 		engine.on_new_block(&mut r.block, is_epoch_begin, &mut ancestry.into_iter())?;
 
-		warn!("Block; open block creation, completed");
 		Ok(r)
 	}
 
@@ -237,26 +233,19 @@ impl<'x> OpenBlock<'x> {
 	///
 	/// If valid, it will be executed, and archived together with the receipt.
 	pub fn push_transaction(&mut self, t: SignedTransaction, h: Option<H256>) -> Result<&Receipt, Error> {
-		let tx_hash = &t.hash();
-		warn!("Block; pushing transaction {}", tx_hash);
 		if self.block.transactions_set.contains(&t.hash()) {
 			return Err(TransactionError::AlreadyImported.into());
 		}
 
 		let env_info = self.block.env_info();
-		warn!("Block; pushing transaction {}, applying state", tx_hash);
 		let outcome = self.block.state.apply(&env_info, self.engine.machine(), &t, self.block.traces.is_enabled())?;
 
 		self.block.transactions_set.insert(h.unwrap_or_else(||t.hash()));
-		warn!("Block; pushing transaction {}, adding to block", tx_hash);
 		self.block.transactions.push(t.into());
-		warn!("Block; pushing transaction {}, adding to traces", tx_hash);
 		if let Tracing::Enabled(ref mut traces) = self.block.traces {
 			traces.push(outcome.trace.into());
 		}
-		warn!("Block; pushing transaction {}, adding to receipts", tx_hash);
 		self.block.receipts.push(outcome.receipt);
-		warn!("Block; pushing transaction {}, completed", tx_hash);
 		Ok(self.block.receipts.last().expect("receipt just pushed; qed"))
 	}
 
@@ -323,8 +312,6 @@ impl<'x> OpenBlock<'x> {
 		s.engine.on_close_block(&mut s.block)?;
 		s.block.state.commit()?;
 
-		warn!("Block; closing block {}", s.block.header.hash());
-
 		s.block.header.set_transactions_root(ordered_trie_root(s.block.transactions.iter().map(|e| e.rlp_bytes())));
 		let uncle_bytes = encode_list(&s.block.uncles);
 		s.block.header.set_uncles_hash(keccak(&uncle_bytes));
@@ -335,8 +322,6 @@ impl<'x> OpenBlock<'x> {
 			b
 		}));
 		s.block.header.set_gas_used(s.block.receipts.last().map_or_else(U256::zero, |r| r.gas_used));
-
-		warn!("Block; closing finished for block {}", s.block.header.hash());
 
 		Ok(LockedBlock {
 			block: s.block,
@@ -503,8 +488,6 @@ pub(crate) fn enact(
 		None
 	};
 
-	warn!("Block; enacting block started {}", header.hash());
-
 	let mut b = OpenBlock::new(
 		engine,
 		factories,
@@ -521,8 +504,6 @@ pub(crate) fn enact(
 		ancestry,
 	)?;
 
-	warn!("Block; enacting block, open block created {}", header.hash());
-
 	if let Some(ref s) = trace_state {
 		let env = b.env_info();
 		let root = s.root();
@@ -531,17 +512,13 @@ pub(crate) fn enact(
 				b.block.header.number(), root, env.author, author_balance);
 	}
 
-	warn!("Block; enacting block {}, building header", header.hash());
 	b.populate_from(&header);
-	warn!("Block; enacting block {}, pushing transactions", header.hash());
 	b.push_transactions(transactions)?;
 
-	warn!("Block; enacting block {}, pushing uncles", header.hash());
 	for u in uncles {
 		b.push_uncle(u)?;
 	}
 
-	warn!("Block; enacting block {}, closing block", header.hash());
 	b.close_and_lock()
 }
 
