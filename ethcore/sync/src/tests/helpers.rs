@@ -114,30 +114,30 @@ impl<'p, C> SyncIo for TestIo<'p, C> where C: FlushingBlockChainClient, C: 'p {
 		self.to_disconnect.insert(peer_id);
 	}
 
-	fn is_expired(&self) -> bool {
-		false
-	}
-
 	fn respond(&mut self, packet_id: PacketId, data: Vec<u8>) -> Result<(), network::Error> {
-		self.packets.push(TestPacket {
-			data: data,
-			packet_id: packet_id,
-			recipient: self.sender.unwrap()
-		});
+		self.packets.push(
+			TestPacket { data, packet_id, recipient: self.sender.unwrap() }
+		);
 		Ok(())
 	}
 
 	fn send(&mut self,peer_id: PeerId, packet_id: SyncPacket, data: Vec<u8>) -> Result<(), network::Error> {
-		self.packets.push(TestPacket {
-			data,
-			packet_id: packet_id.id(),
-			recipient: peer_id,
-		});
+		self.packets.push(
+			TestPacket { data, packet_id: packet_id.id(), recipient: peer_id }
+		);
 		Ok(())
 	}
 
 	fn chain(&self) -> &dyn BlockChainClient {
 		&*self.chain
+	}
+
+	fn snapshot_service(&self) -> &dyn SnapshotService {
+		self.snapshot_service
+	}
+
+	fn private_state(&self) -> Option<Arc<PrivateStateDB>> {
+		self.private_state_db.clone()
 	}
 
 	fn peer_version(&self, peer_id: PeerId) -> ClientVersion {
@@ -147,12 +147,8 @@ impl<'p, C> SyncIo for TestIo<'p, C> where C: FlushingBlockChainClient, C: 'p {
 			.into()
 	}
 
-	fn snapshot_service(&self) -> &dyn SnapshotService {
-		self.snapshot_service
-	}
-
-	fn private_state(&self) -> Option<Arc<PrivateStateDB>> {
-		self.private_state_db.clone()
+	fn peer_enode(&self, _peer_id: usize) -> Option<String> {
+		unimplemented!()
 	}
 
 	fn peer_session_info(&self, _peer_id: PeerId) -> Option<SessionInfo> {
@@ -165,6 +161,10 @@ impl<'p, C> SyncIo for TestIo<'p, C> where C: FlushingBlockChainClient, C: 'p {
 
 	fn protocol_version(&self, protocol: &ProtocolId, peer_id: PeerId) -> u8 {
 		if protocol == &WARP_SYNC_PROTOCOL_ID { PAR_PROTOCOL_VERSION_4.0 } else { self.eth_protocol_version(peer_id) }
+	}
+
+	fn is_expired(&self) -> bool {
+		false
 	}
 
 	fn chain_overlay(&self) -> &RwLock<HashMap<BlockNumber, Bytes>> {

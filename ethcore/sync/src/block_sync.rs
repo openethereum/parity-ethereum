@@ -309,7 +309,7 @@ impl BlockDownloader {
 				}
 			}
 		}
-
+		// Update the highest block number seen on the network from the header.
 		if let Some((number, _)) = last_header {
 			if self.highest_block.as_ref().map_or(true, |n| number > *n) {
 				self.highest_block = Some(number);

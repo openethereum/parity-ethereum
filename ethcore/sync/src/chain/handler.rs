@@ -43,7 +43,7 @@ use ethereum_types::{H256, U256};
 use keccak_hash::keccak;
 use network::PeerId;
 use network::client_version::ClientVersion;
-use log::{debug, trace, error};
+use log::{debug, trace, error, warn};
 use rlp::Rlp;
 use common_types::{
 	BlockNumber,
@@ -76,14 +76,14 @@ impl SyncHandler {
 				SignedPrivateTransactionPacket => SyncHandler::on_signed_private_transaction(sync, io, peer, &rlp),
 				PrivateStatePacket => SyncHandler::on_private_state_data(sync, io, peer, &rlp),
 				_ => {
-					debug!(target: "sync", "{}: Unknown packet {}", peer, packet_id.id());
+					trace!(target: "sync", "{}: Unknown packet {}", peer, packet_id.id());
 					Ok(())
 				}
 			};
 
 			match result {
 				Err(DownloaderImportError::Invalid) => {
-					debug!(target:"sync", "{} -> Invalid packet {}", peer, packet_id.id());
+					trace!(target:"sync", "{} -> Invalid packet {}", peer, packet_id.id());
 					io.disable_peer(peer);
 					sync.deactivate_peer(io, peer);
 				},
@@ -96,7 +96,7 @@ impl SyncHandler {
 				},
 			}
 		} else {
-			debug!(target: "sync", "{}: Unknown packet {}", peer, packet_id);
+			trace!(target: "sync", "{}: Unknown packet {}", peer, packet_id);
 		}
 	}
 
@@ -117,14 +117,14 @@ impl SyncHandler {
 			sync.active_peers.remove(&peer_id);
 
 			if sync.state == SyncState::SnapshotManifest {
-				// Check if we are asking other peers for
-				// the snapshot manifest as well.
-				// If not, return to initial state
-				let still_asking_manifest = sync.peers.iter()
+				// Check if we are asking other peers for a snapshot manifest as well. If not,
+				// set our state to initial state (`Idle` or `WaitingPeers`).
+				let still_seeking_manifest = sync.peers.iter()
 					.filter(|&(id, p)| sync.active_peers.contains(id) && p.asking == PeerAsking::SnapshotManifest)
-					.next().is_none();
+					.next().is_some();
 
-				if still_asking_manifest {
+				if !still_seeking_manifest {
+					warn!(target: "snapshot_sync", "The peer we were downloading a snapshot from ({}) went away. Retrying.", peer_id);
 					sync.state = ChainSync::get_init_state(sync.warp_sync, io.chain());
 				}
 			}
@@ -371,18 +371,18 @@ impl SyncHandler {
 		let block_set = sync.peers.get(&peer_id).and_then(|p| p.block_set).unwrap_or(BlockSet::NewBlocks);
 
 		if !sync.reset_peer_asking(peer_id, PeerAsking::BlockHeaders) {
-			debug!(target: "sync", "{}: Ignored unexpected headers", peer_id);
+			trace!(target: "sync", "{}: Ignored unexpected headers", peer_id);
 			return Ok(());
 		}
 		let expected_hash = match expected_hash {
 			Some(hash) => hash,
 			None => {
-				debug!(target: "sync", "{}: Ignored unexpected headers (expected_hash is None)", peer_id);
+				trace!(target: "sync", "{}: Ignored unexpected headers (expected_hash is None)", peer_id);
 				return Ok(());
 			}
 		};
 		if !allowed {
-			debug!(target: "sync", "{}: Ignored unexpected headers (peer not allowed)", peer_id);
+			trace!(target: "sync", "{}: Ignored unexpected headers (peer not allowed)", peer_id);
 			return Ok(());
 		}
 
@@ -466,12 +466,12 @@ impl SyncHandler {
 	/// Called when snapshot manifest is downloaded from a peer.
 	fn on_snapshot_manifest(sync: &mut ChainSync, io: &mut dyn SyncIo, peer_id: PeerId, r: &Rlp) -> Result<(), DownloaderImportError> {
 		if !sync.peers.get(&peer_id).map_or(false, |p| p.can_sync()) {
-			trace!(target: "sync", "Ignoring snapshot manifest from unconfirmed peer {}", peer_id);
+			trace!(target: "snapshot_sync", "Ignoring snapshot manifest from unconfirmed peer {}", peer_id);
 			return Ok(());
 		}
 		sync.clear_peer_download(peer_id);
 		if !sync.reset_peer_asking(peer_id, PeerAsking::SnapshotManifest) || sync.state != SyncState::SnapshotManifest {
-			trace!(target: "sync", "{}: Ignored unexpected/expired manifest", peer_id);
+			trace!(target: "snapshot_sync", "{}: Ignored unexpected/expired manifest", peer_id);
 			return Ok(());
 		}
 
@@ -482,10 +482,12 @@ impl SyncHandler {
 			.map_or(false, |(l, h)| manifest.version >= l && manifest.version <= h);
 
 		if !is_supported_version {
-			trace!(target: "sync", "{}: Snapshot manifest version not supported: {}", peer_id, manifest.version);
+			warn!(target: "snapshot_sync", "{}: Snapshot manifest version not supported: {}", peer_id, manifest.version);
 			return Err(DownloaderImportError::Invalid);
 		}
 		sync.snapshot.reset_to(&manifest, &keccak(manifest_rlp.as_raw()));
+		debug!(target: "snapshot_sync", "{}: Peer sent a snapshot manifest we can use. Block number #{}, block chunks: {}, state chunks: {}",
+			peer_id, manifest.block_number, manifest.block_hashes.len(), manifest.state_hashes.len());
 		io.snapshot_service().begin_restore(manifest);
 		sync.state = SyncState::SnapshotData;
 
@@ -495,12 +497,12 @@ impl SyncHandler {
 	/// Called when snapshot data is downloaded from a peer.
 	fn on_snapshot_data(sync: &mut ChainSync, io: &mut dyn SyncIo, peer_id: PeerId, r: &Rlp) -> Result<(), DownloaderImportError> {
 		if !sync.peers.get(&peer_id).map_or(false, |p| p.can_sync()) {
-			trace!(target: "sync", "Ignoring snapshot data from unconfirmed peer {}", peer_id);
+			trace!(target: "snapshot_sync", "Ignoring snapshot data from unconfirmed peer {}", peer_id);
 			return Ok(());
 		}
 		sync.clear_peer_download(peer_id);
 		if !sync.reset_peer_asking(peer_id, PeerAsking::SnapshotData) || (sync.state != SyncState::SnapshotData && sync.state != SyncState::SnapshotWaiting) {
-			trace!(target: "sync", "{}: Ignored unexpected snapshot data", peer_id);
+			trace!(target: "snapshot_sync", "{}: Ignored unexpected snapshot data", peer_id);
 			return Ok(());
 		}
 
@@ -508,12 +510,12 @@ impl SyncHandler {
 		let status = io.snapshot_service().status();
 		match status {
 			RestorationStatus::Inactive | RestorationStatus::Failed => {
-				trace!(target: "sync", "{}: Snapshot restoration aborted", peer_id);
+				trace!(target: "snapshot_sync", "{}: Snapshot restoration status: {:?}", peer_id, status);
 				sync.state = SyncState::WaitingPeers;
 
 				// only note bad if restoration failed.
 				if let (Some(hash), RestorationStatus::Failed) = (sync.snapshot.snapshot_hash(), status) {
-					trace!(target: "sync", "Noting snapshot hash {} as bad", hash);
+					debug!(target: "snapshot_sync", "Marking snapshot manifest hash {} as bad", hash);
 					sync.snapshot.note_bad(hash);
 				}
 
@@ -521,30 +523,30 @@ impl SyncHandler {
 				return Ok(());
 			},
 			RestorationStatus::Initializing { .. } => {
-				trace!(target: "warp", "{}: Snapshot restoration is initializing", peer_id);
+				trace!(target: "snapshot_sync", "{}: Snapshot restoration is initializing. Can't accept data right now.", peer_id);
 				return Ok(());
 			}
 			RestorationStatus::Finalizing => {
-				trace!(target: "warp", "{}: Snapshot finalizing restoration", peer_id);
+				trace!(target: "snapshot_sync", "{}: Snapshot finalizing restoration. Can't accept data right now.", peer_id);
 				return Ok(());
 			}
 			RestorationStatus::Ongoing { .. } => {
-				trace!(target: "sync", "{}: Snapshot restoration is ongoing", peer_id);
+				trace!(target: "snapshot_sync", "{}: Snapshot restoration is ongoing", peer_id);
 			},
 		}
 
 		let snapshot_data: Bytes = r.val_at(0)?;
 		match sync.snapshot.validate_chunk(&snapshot_data) {
 			Ok(ChunkType::Block(hash)) => {
-				trace!(target: "sync", "{}: Processing block chunk", peer_id);
+				trace!(target: "snapshot_sync", "{}: Processing block chunk", peer_id);
 				io.snapshot_service().restore_block_chunk(hash, snapshot_data);
 			}
 			Ok(ChunkType::State(hash)) => {
-				trace!(target: "sync", "{}: Processing state chunk", peer_id);
+				trace!(target: "snapshot_sync", "{}: Processing state chunk", peer_id);
 				io.snapshot_service().restore_state_chunk(hash, snapshot_data);
 			}
 			Err(()) => {
-				trace!(target: "sync", "{}: Got bad snapshot chunk", peer_id);
+				trace!(target: "snapshot_sync", "{}: Got bad snapshot chunk", peer_id);
 				io.disconnect_peer(peer_id);
 				return Ok(());
 			}
@@ -566,7 +568,7 @@ impl SyncHandler {
 		let warp_protocol = warp_protocol_version != 0;
 		let private_tx_protocol = warp_protocol_version >= PAR_PROTOCOL_VERSION_3.0;
 		let peer = PeerInfo {
-			protocol_version: protocol_version,
+			protocol_version,
 			network_id: r.val_at(1)?,
 			difficulty: Some(r.val_at(2)?),
 			latest_hash: r.val_at(3)?,
@@ -595,7 +597,8 @@ impl SyncHandler {
 			latest:{}, \
 			genesis:{}, \
 			snapshot:{:?}, \
-			private_tx_enabled:{})",
+			private_tx_enabled:{}, \
+			client_version: {})",
 			peer_id,
 			peer.protocol_version,
 			peer.network_id,
@@ -603,7 +606,8 @@ impl SyncHandler {
 			peer.latest_hash,
 			peer.genesis,
 			peer.snapshot_number,
-			peer.private_tx_enabled
+			peer.private_tx_enabled,
+			peer.client_version,
 		);
 		if io.is_expired() {
 			trace!(target: "sync", "Status packet from expired session {}:{}", peer_id, io.peer_version(peer_id));

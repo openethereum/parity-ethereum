@@ -37,7 +37,6 @@ use mio::{
 use parity_path::restrict_permissions_owner;
 use parking_lot::{Mutex, RwLock};
 use rlp::{Encodable, RlpStream};
-use rustc_hex::ToHex;
 
 use ethcore_io::{IoContext, IoHandler, IoManager, StreamToken, TimerToken};
 use parity_crypto::publickey::{Generator, KeyPair, Random, Secret};
