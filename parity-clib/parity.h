@@ -174,15 +174,14 @@ void parity_set_logger(const char *log_mode, uintptr_t log_mode_len,
 /// It is safe to pass NULL here, in which case this function has no effect.
 void parity_config_destroy(struct parity_config *cfg);
 
-/// Starts the parity client in a background thread. Returns a pointer to a
-/// struct that represents the running client. Can also return NULL if the
-/// execution completes instantly.
+/// Starts the parity client in a background thread.
 ///
 /// **Important**: The configuration object passed inside `cfg` is destroyed
 /// when you call `parity_start` (even on failure).
 ///
 /// On success, the produced object will be written to the `void*` pointed by
-/// `out`.
+/// `out`.  If the provided command-line arguments didn’t require starting a
+/// node, `*out` will be unchanged.
 ///
 /// Returns 0 on success, and non-zero on error.
 int parity_start(const struct ParityParams *params,
