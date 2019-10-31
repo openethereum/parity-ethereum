@@ -98,6 +98,10 @@ impl ValidatorSet for Multi {
                 })
 	}
 
+	fn on_close_block(&self, header: &Header, address: &Address) -> Result<(), EthcoreError> {
+		self.map_children(header, &mut |set: &dyn ValidatorSet, _first| set.on_close_block(header, address))
+	}
+
 	fn on_epoch_begin(&self, _first: bool, header: &Header, call: &mut SystemCall) -> Result<(), EthcoreError> {
 		self.map_children(header, &mut |set: &dyn ValidatorSet, first| set.on_epoch_begin(first, header, call))
 	}

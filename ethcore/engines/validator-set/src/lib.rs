@@ -91,10 +91,10 @@ pub trait ValidatorSet: Send + Sync + 'static {
 	///
 	/// Returns a list of contract calls to be pushed onto the new block.
 	fn generate_engine_transactions(&self, _first: bool, _header: &Header, _call: &mut SystemCall)
-		-> Result<Vec<(Address, Bytes)>, EthcoreError>
-	{
-		Ok(Vec::new())
-	}
+		-> Result<Vec<(Address, Bytes)>, EthcoreError>;
+
+	/// Called on the close of every block.
+	fn on_close_block(&self, _header: &Header, _address: &Address) -> Result<(), EthcoreError>;
 
 	/// Checks if a given address is a validator,
 	/// using underlying, default call mechanism.
