@@ -241,11 +241,7 @@ impl MinerService for TestMinerService {
 			.cloned()
 			.filter(|tx| {
 				filter.as_ref().map_or(true, |filter| {
-					let passed = filter.matches(tx.signed());
-					if !passed {
-						println!("FAILED\n\n{:?}", tx);
-					}
-					passed
+					filter.matches(tx.signed())
 				})
 			})
 			.take(max_len)
