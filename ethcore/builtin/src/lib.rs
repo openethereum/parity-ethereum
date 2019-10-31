@@ -211,8 +211,6 @@ impl ModexpPricer {
 ///
 /// Call `cost` to compute cost for the given input, `execute` to execute the contract
 /// on the given input, and `is_active` to determine whether the contract is active.
-///
-/// Unless `is_active` is true,
 pub struct Builtin {
 	pricer: BTreeMap<u64, Pricing>,
 	native: EthereumBuiltin,
@@ -226,7 +224,7 @@ impl Builtin {
 	/// If no pricer is actived `zero` is returned
 	///
 	/// If multiple `activation_at` has the same block number the last one is used
-	/// which follows the BTreeMap semantics
+	/// (follows `BTreeMap` semantics).
 	#[inline]
 	pub fn cost(&self, input: &[u8], at: u64) -> U256 {
 		if let Some((_, pricer)) = self.pricer.range(0..=at).last() {
