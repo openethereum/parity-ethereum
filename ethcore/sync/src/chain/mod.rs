@@ -923,7 +923,7 @@ impl ChainSync {
 			}
 		} else if timeout {
 			if !self.warp_sync.is_warp_only() {
-				debug!(target: "snapshot_sync", "No snapshots found, starting full sync");
+				debug!(target: "snapshot_sync", "Not syncing snapshots (or none found), proceeding with normal sync.");
 				self.set_state(SyncState::Idle);
 				self.continue_sync(io);
 			} else  {

@@ -22,6 +22,7 @@ use keccak_hash::keccak;
 use log::trace;
 use snapshot::SnapshotService;
 use common_types::snapshot::ManifestData;
+use indexmap::IndexSet;
 
 #[derive(PartialEq, Eq, Debug)]
 /// The type of data contained in a chunk: state or block.
@@ -36,10 +37,18 @@ pub enum ChunkType {
 pub struct Snapshot {
 	/// List of hashes of the state chunks we need to complete the warp sync from this snapshot.
 	/// These hashes are contained in the Manifest we downloaded from the peer(s).
-	pending_state_chunks: HashSet<H256>,
+	/// Note: this is an ordered set so that state restoration happens in order, which keeps
+	/// memory usage down.
+	// See https://github.com/paritytech/parity-common/issues/255
+	#[ignore_malloc_size_of = "no impl for IndexSet (yet)"]
+	pending_state_chunks: IndexSet<H256>,
 	/// List of hashes of the block chunks we need to complete the warp sync from this snapshot.
 	/// These hashes are contained in the Manifest we downloaded from the peer(s).
-	pending_block_chunks: HashSet<H256>,
+	/// Note: this is an ordered set so that state restoration happens in order, which keeps
+	/// memory usage down.
+	// See https://github.com/paritytech/parity-common/issues/255
+	#[ignore_malloc_size_of = "no impl for IndexSet (yet)"]
+	pending_block_chunks: IndexSet<H256>,
 	/// Set of hashes of chunks we are currently downloading.
 	downloading_chunks: HashSet<H256>,
 	/// The set of chunks (block or state) that we have successfully downloaded.
@@ -99,8 +108,8 @@ impl Snapshot {
 	/// block&state chunk hashes contained in the `ManifestData`).
 	pub fn reset_to(&mut self, manifest: &ManifestData, hash: &H256) {
 		self.clear();
-		self.pending_state_chunks = HashSet::from_iter(manifest.state_hashes.clone());
-		self.pending_block_chunks = HashSet::from_iter(manifest.block_hashes.clone());
+		self.pending_state_chunks = IndexSet::from_iter(manifest.state_hashes.clone());
+		self.pending_block_chunks = IndexSet::from_iter(manifest.block_hashes.clone());
 		self.total_chunks = Some(self.pending_block_chunks.len() + self.pending_state_chunks.len());
 		self.snapshot_hash = Some(hash.clone());
 	}
@@ -133,7 +142,12 @@ impl Snapshot {
 			})
 	}
 
-	/// Find a chunk to download
+	/// Pick a chunk to download.
+	/// Note: the order in which chunks are processed is somewhat important. The account state
+	/// sometimes spills over into more than one chunk and the parts of state that are missing
+	/// pieces are held in memory while waiting for the next chunk(s) to show up. This means that
+	/// when chunks are processed out-of-order, memory usage goes up, sometimes significantly (see
+	/// e.g. https://github.com/paritytech/parity-ethereum/issues/8825).
 	pub fn needed_chunk(&mut self) -> Option<H256> {
 		// Find next needed chunk: first block, then state chunks
 		let chunk = {
