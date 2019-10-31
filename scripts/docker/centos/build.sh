@@ -8,18 +8,18 @@ PARITY_BUILDER_IMAGE_TAG=${PARITY_BUILDER_IMAGE_TAG:-build}
 PARITY_RUNNER_IMAGE_TAG=${PARITY_RUNNER_IMAGE_TAG:-latest}
 
 echo Building $PARITY_IMAGE_REPO:$PARITY_BUILDER_IMAGE_TAG-$(git log -1 --format="%H")
-docker build --no-cache -t $PARITY_IMAGE_REPO:$PARITY_BUILDER_IMAGE_TAG-$(git log -1 --format="%H") . -f docker/centos/Dockerfile.build
+docker build --no-cache -t $PARITY_IMAGE_REPO:$PARITY_BUILDER_IMAGE_TAG-$(git log -1 --format="%H") . -f scripts/docker/centos/Dockerfile.build
 
 echo Creating $PARITY_BUILDER_IMAGE_TAG-$(git log -1 --format="%H"), extracting binary
 docker create --name extract $PARITY_IMAGE_REPO:$PARITY_BUILDER_IMAGE_TAG-$(git log -1 --format="%H") 
-mkdir docker/centos/parity
-docker cp extract:/build/parity-ethereum/target/release/parity docker/centos/parity
+mkdir scripts/docker/centos/parity
+docker cp extract:/build/parity-ethereum/target/release/parity scripts/docker/centos/parity
 
 echo Building $PARITY_IMAGE_REPO:$PARITY_RUNNER_IMAGE_TAG
-docker build --no-cache -t $PARITY_IMAGE_REPO:$PARITY_RUNNER_IMAGE_TAG docker/centos/ -f docker/centos/Dockerfile
+docker build --no-cache -t $PARITY_IMAGE_REPO:$PARITY_RUNNER_IMAGE_TAG scripts/docker/centos/ -f scripts/docker/centos/Dockerfile
 
 echo Cleaning up ...
-rm -rf docker/centos/parity
+rm -rf scripts/docker/centos/parity
 docker rm -f extract
 docker rmi -f $PARITY_IMAGE_REPO:$PARITY_BUILDER_IMAGE_TAG-$(git log -1 --format="%H")
 
