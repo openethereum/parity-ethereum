@@ -240,14 +240,21 @@ void parity_unsubscribe_ws(const struct parity_subscription *const session);
 /// Sets a callback to call when a panic happens in the Rust code.
 ///
 /// The callback takes as parameter the `void *param` passed to this function
-/// and the panic message. You are expected to log the panic message somehow, in
-/// order to communicate it to the user. A panic almost always indicates
-/// a bug in Parity Etherium, and should be presumed to be such unless proven
-/// otherwise.  Very rarely, a panic can result from a fatal problem with the
-/// system Parity Ethereum is running on, such as errors accessing the local
-/// file system, corruption of Parity Ethereum’s database, or your code
-/// corrupting Parity’s memory. Nevertheless, a panic is still a bug in Parity
-/// Ethereum unless proven otherwise.
+/// and the panic message. You are expected to log the panic message and exit.
+/// If this function returns, Parity Ethereum will exit the process itself.
+///
+/// It is not possible to recover from a panic.  Calling `longjmp` or throwing a
+/// C++ exception results in undefined behavior.  It *is* permissible to block
+/// for an arbitrary amount of time in this callback.  Due to Rust’s memory
+/// safety, it is unlikely that memory has been corrupted, so you can (and
+/// should) save data to disk before exiting.
+///
+/// A panic almost always indicates a bug in Parity Etherium, and should be
+/// presumed to be such unless proven otherwise.  Very rarely, a panic can
+/// result from a fatal problem with the system Parity Ethereum is running on,
+/// such as errors accessing the local file system, corruption of Parity
+/// Ethereum’s database, or your code corrupting Parity’s memory. Nevertheless,
+/// a panic is still a bug in Parity Ethereum unless proven otherwise.
 ///
 /// Note that this method sets the panic hook for the whole program, and not
 /// just for Parity. In other words, if you use multiple Rust libraries at once
