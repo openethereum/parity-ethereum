@@ -258,10 +258,10 @@ impl fmt::Display for SpecHardcodedSync {
 }
 
 fn convert_json_to_spec(
-	pair: (ethjson::hash::Address, ethjson::spec::Builtin),
+	(address, builtin): (ethjson::hash::Address, ethjson::spec::builtin::Builtin),
 ) -> Result<(Address, Builtin), Error> {
-	let builtin = Builtin::try_from(pair.1)?;
-	Ok((pair.0.into(), builtin))
+	let builtin = Builtin::try_from(builtin)?;
+	Ok((address.into(), builtin))
 }
 
 /// Load from JSON object.

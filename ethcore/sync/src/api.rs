@@ -295,7 +295,7 @@ pub struct EthSync {
 	light_subprotocol_name: [u8; 3],
 	/// Priority tasks notification channel
 	priority_tasks: Mutex<mpsc::Sender<PriorityTask>>,
-	/// for state tracking
+	/// Track the sync state: are we importing or verifying blocks?
 	is_major_syncing: Arc<AtomicBool>
 }
 

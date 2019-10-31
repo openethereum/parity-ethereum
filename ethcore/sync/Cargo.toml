@@ -19,6 +19,7 @@ ethcore-private-tx = { path = "../private-tx" }
 ethereum-types = "0.8.0"
 fastmap = { path = "../../util/fastmap" }
 futures = "0.1"
+indexmap = "1.3.0"
 keccak-hash = "0.4.0"
 light = { package = "ethcore-light", path = "../light" }
 log = "0.4"
