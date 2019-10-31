@@ -141,6 +141,7 @@ impl Restoration {
 
 			if let Some(ref mut writer) = self.writer.as_mut() {
 				writer.write_state_chunk(hash, chunk)?;
+				trace!(target: "snapshot", "Wrote {}/{} bytes of state to db/disk. Current state root: {:?}", len, chunk.len(), self.state.state_root());
 			}
 
 			self.state_chunks_left.remove(&hash);
@@ -767,7 +768,7 @@ impl Service {
 								false => Ok(())
 							}
 						}
-						other => other.map(drop),
+						Err(e) => Err(e)
 					};
 					(res, db)
 				}

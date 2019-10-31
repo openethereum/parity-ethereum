@@ -30,6 +30,7 @@ extern crate ethereum_types;
 extern crate ethkey;
 extern crate ethstore;
 extern crate fastmap;
+extern crate indexmap;
 extern crate keccak_hash as hash;
 extern crate parity_bytes as bytes;
 extern crate parity_runtime;
