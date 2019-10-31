@@ -16,12 +16,10 @@
 
 //! Snapshot type definitions
 
-use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 use std::time::Instant;
 
 use bytes::Bytes;
 use ethereum_types::H256;
-use parking_lot::RwLock;
 use rlp::{Rlp, RlpStream, DecoderError};
 
 /// Modes of snapshotting
@@ -44,89 +42,68 @@ pub enum Snapshotting {
 #[derive(Debug)]
 pub struct Progress {
 	/// Number of accounts processed so far
-	accounts: AtomicUsize,
+	accounts: u64,
 	// Number of accounts processed at last tick.
-	prev_accounts: AtomicUsize,
+	prev_accounts: u64,
 	/// Number of blocks processed so far
-	pub blocks: AtomicUsize,
+	pub blocks: u64,
 	/// Size in bytes of a all compressed chunks processed so far
-	bytes: AtomicUsize,
+	bytes: u64,
 	// Number of bytes processed at last tick.
-	prev_bytes: AtomicUsize,
+	prev_bytes: u64,
 	/// Signals that the snapshotting process is completed
-	pub done: AtomicBool,
+	pub done: bool,
 	/// Signal snapshotting process to abort
-	pub abort: AtomicBool,
+	pub abort: bool,
 
-	last_tick: RwLock<Instant>,
+	last_tick: Instant,
 }
 
 impl Progress {
 	/// Create a new progress tracker.
 	pub fn new() -> Progress {
 		Progress {
-			accounts: AtomicUsize::new(0),
-			prev_accounts: AtomicUsize::new(0),
-			blocks: AtomicUsize::new(0),
-			bytes: AtomicUsize::new(0),
-			prev_bytes: AtomicUsize::new(0),
-			abort: AtomicBool::new(false),
-			done: AtomicBool::new(false),
-			last_tick: RwLock::new(Instant::now()),
+			accounts: 0,
+			prev_accounts: 0,
+			blocks: 0,
+			bytes: 0,
+			prev_bytes: 0,
+			abort: false,
+			done: false,
+			last_tick: Instant::now(),
 		}
-	}
-
-	/// Reset the progress.
-	pub fn reset(&self) {
-		self.accounts.store(0, Ordering::Release);
-		self.blocks.store(0, Ordering::Release);
-		self.bytes.store(0, Ordering::Release);
-		self.abort.store(false, Ordering::Release);
-
-		// atomic fence here to ensure the others are written first?
-		// logs might very rarely get polluted if not.
-		self.done.store(false, Ordering::Release);
-
-		*self.last_tick.write() = Instant::now();
 	}
 
 	/// Get the number of accounts snapshotted thus far.
-	pub fn accounts(&self) -> usize { self.accounts.load(Ordering::Acquire) }
+	pub fn accounts(&self) -> u64 { self.accounts }
 
 	/// Get the number of blocks snapshotted thus far.
-	pub fn blocks(&self) -> usize { self.blocks.load(Ordering::Acquire) }
+	pub fn blocks(&self) -> u64 { self.blocks }
 
 	/// Get the written size of the snapshot in bytes.
-	pub fn bytes(&self) -> usize { self.bytes.load(Ordering::Acquire) }
+	pub fn bytes(&self) -> u64 { self.bytes }
 
 	/// Whether the snapshot is complete.
-	pub fn done(&self) -> bool  { self.done.load(Ordering::Acquire) }
+	pub fn done(&self) -> bool  { self.done }
 
 	/// Return the progress rate over the last tick (i.e. since last update).
 	pub fn rate(&self) -> (f64, f64) {
-		let last_tick = *self.last_tick.read();
-		let dt = last_tick.elapsed().as_secs_f64();
+		let dt = self.last_tick.elapsed().as_secs_f64();
 		if dt < 1.0 {
 			return (0f64, 0f64);
 		}
-		let delta_acc = self.accounts.load(Ordering::Relaxed)
-			.saturating_sub(self.prev_accounts.load(Ordering::Relaxed));
-		let delta_bytes = self.bytes.load(Ordering::Relaxed)
-			.saturating_sub(self.prev_bytes.load(Ordering::Relaxed));
+		let delta_acc = self.accounts.saturating_sub(self.prev_accounts);
+		let delta_bytes = self.bytes.saturating_sub(self.prev_bytes);
 		(delta_acc as f64 / dt, delta_bytes as f64 / dt)
 	}
 
 	/// Update state progress counters and set the last tick.
-	pub fn update(&self, accounts_delta: usize, bytes_delta: usize) {
-		*self.last_tick.write() = Instant::now();
-		self.prev_accounts.store(
-			self.accounts.fetch_add(accounts_delta, Ordering::SeqCst),
-			Ordering::SeqCst
-		);
-		self.prev_bytes.store(
-			self.bytes.fetch_add(bytes_delta, Ordering::SeqCst),
-			Ordering::SeqCst
-		);
+	pub fn update(&mut self, accounts_delta: u64, bytes_delta: u64) {
+		self.last_tick = Instant::now();
+		self.prev_accounts = self.accounts;
+		self.prev_bytes = self.bytes;
+		self.accounts += accounts_delta;
+		self.bytes += bytes_delta;
 	}
 }
 

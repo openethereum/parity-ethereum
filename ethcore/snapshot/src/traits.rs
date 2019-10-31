@@ -26,6 +26,7 @@ use common_types::{
 };
 use engine::Engine;
 use ethereum_types::H256;
+use parking_lot::RwLock;
 
 use crate::io::SnapshotWriter;
 
@@ -108,7 +109,7 @@ pub trait SnapshotComponents: Send {
 		chain: &BlockChain,
 		block_at: H256,
 		chunk_sink: &mut ChunkSink,
-		progress: &Progress,
+		progress: &RwLock<Progress>,
 		preferred_size: usize,
 	) -> Result<(), SnapshotError>;
 
@@ -141,7 +142,7 @@ pub trait SnapshotClient: BlockChainClient + BlockInfo + DatabaseRestore + Block
 		&self,
 		writer: W,
 		at: BlockId,
-		p: &Progress,
+		p: &RwLock<Progress>,
 	) -> Result<(), Error>;
 }
 

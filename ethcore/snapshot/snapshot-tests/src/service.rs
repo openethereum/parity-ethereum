@@ -42,7 +42,7 @@ use ethcore::{
 	test_helpers::{new_db, new_temp_db, generate_dummy_client_with_spec_and_data, restoration_db_handler}
 };
 
-use parking_lot::Mutex;
+use parking_lot::{Mutex, RwLock};
 use ethcore_io::{IoChannel, IoService};
 use kvdb_rocksdb::DatabaseConfig;
 use journaldb::Algorithm;
@@ -278,7 +278,7 @@ fn keep_ancient_blocks() {
 		&bc,
 		best_hash,
 		&writer,
-		&Progress::new()
+		&RwLock::new(Progress::new())
 	).unwrap();
 	let state_db = client.state_db().journal_db().boxed_clone();
 	let start_header = bc.block_header_data(&best_hash).unwrap();
@@ -287,7 +287,7 @@ fn keep_ancient_blocks() {
 		state_db.as_hash_db(),
 		&state_root,
 		&writer,
-		&Progress::new(),
+		&RwLock::new(Progress::new()),
 		None,
 		0
 	).unwrap();

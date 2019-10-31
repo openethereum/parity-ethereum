@@ -27,6 +27,7 @@ use snapshot::service::Service as SnapshotService;
 use ethcore::client::{Client, DatabaseCompactionProfile, VMType};
 use ethcore::miner::Miner;
 use ethcore_service::ClientService;
+use parking_lot::RwLock;
 use types::{
 	ids::BlockId,
 	snapshot::Progress,
@@ -257,20 +258,25 @@ impl SnapshotCommand {
 		let writer = PackedWriter::new(&file_path)
 			.map_err(|e| format!("Failed to open snapshot writer: {}", e))?;
 
-		let progress = Arc::new(Progress::new());
+		let progress = Arc::new(RwLock::new(Progress::new()));
 		let p = progress.clone();
 		let informant_handle = ::std::thread::spawn(move || {
 			::std::thread::sleep(Duration::from_secs(5));
-
 			let mut last_size = 0;
-			while !p.done() {
-				let cur_size = p.bytes();
-				if cur_size != last_size {
-					last_size = cur_size;
-					let bytes = ::informant::format_bytes(cur_size as usize);
-					info!("Snapshot: {} accounts (state), {} blocks, {} bytes", p.accounts(), p.blocks(), bytes);
+			loop {
+				{
+					let progress = p.read();
+					if !progress.done() {
+						let cur_size = progress.bytes();
+						if cur_size != last_size {
+							last_size = cur_size;
+							let bytes = ::informant::format_bytes(cur_size);
+							info!("Snapshot: {} accounts (state), {} blocks, {} bytes", progress.accounts(), progress.blocks(), bytes);
+						}
+					} else {
+						break;
+					}
 				}
-
 				::std::thread::sleep(Duration::from_secs(5));
 			}
  		});
@@ -282,7 +288,7 @@ impl SnapshotCommand {
 
 		info!("snapshot creation complete");
 
-		assert!(progress.done());
+		assert!(progress.read().done());
 		informant_handle.join().map_err(|_| "failed to join logger thread")?;
 
 		Ok(())

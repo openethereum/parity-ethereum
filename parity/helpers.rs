@@ -146,7 +146,7 @@ pub fn to_addresses(s: &Option<String>) -> Result<Vec<Address>, String> {
 
 /// Tries to parse string as a price.
 pub fn to_price(s: &str) -> Result<f32, String> {
-	s.parse::<f32>().map_err(|_| format!("Invalid transaciton price 's' given. Must be a decimal number."))
+	s.parse::<f32>().map_err(|_| format!("Invalid transaction price {:?} given. Must be a decimal number.", s))
 }
 
 pub fn join_set(set: Option<&HashSet<String>>) -> Option<String> {
