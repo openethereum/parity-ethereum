@@ -195,7 +195,7 @@ const BODIES_TIMEOUT: Duration = Duration::from_secs(20);
 const RECEIPTS_TIMEOUT: Duration = Duration::from_secs(10);
 const FORK_HEADER_TIMEOUT: Duration = Duration::from_secs(3);
 /// Max time to wait for the Snapshot Manifest packet to arrive from a peer after it's being asked.
-const SNAPSHOT_MANIFEST_TIMEOUT: Duration = Duration::from_secs(15);
+const SNAPSHOT_MANIFEST_TIMEOUT: Duration = Duration::from_secs(5);
 const SNAPSHOT_DATA_TIMEOUT: Duration = Duration::from_secs(120);
 const PRIVATE_STATE_TIMEOUT: Duration = Duration::from_secs(120);
 
