@@ -163,7 +163,11 @@
 		"eip658Transition": "0x42ae50",
 		"eip145Transition": "0x6f1580",
 		"eip1014Transition": "0x6f1580",
-		"eip1052Transition": "0x6f1580"
+		"eip1052Transition": "0x6f1580",
+		"eip1283Transition": "0x8a61c8",
+		"eip1706Transition": "0x8a61c8",
+		"eip1884Transition": "0x8a61c8",
+		"eip2028Transition": "0x8a61c8"
 	},
 	"genesis": {
 		"seal": {
@@ -4450,8 +4454,8 @@
 					"0x42ae50": {
 						"price": { "alt_bn128_const_operations": { "price": 500 }}
 					},
-					"0x7fffffffffffff": {
-						"info": "EIP 1108 transition",
+					"0x8a61c8": {
+						"info": "EIP 1108 transition at block 9_069_000 (0x8a61c8)",
 						"price": { "alt_bn128_const_operations": { "price": 150 }}
 					}
 				}
@@ -4464,8 +4468,8 @@
 					"0x42ae50": {
 						"price": { "alt_bn128_const_operations": { "price": 40000 }}
 					},
-					"0x7fffffffffffff": {
-						"info": "EIP 1108 transition",
+					"0x8a61c8": {
+						"info": "EIP 1108 transition at block 9_069_000 (0x8a61c8)",
 						"price": { "alt_bn128_const_operations": { "price": 6000 }}
 					}
 				}
@@ -4478,9 +4482,20 @@
 					"0x42ae50": {
 						"price": { "alt_bn128_pairing": { "base": 100000, "pair": 80000 }}
 					},
-					"0x7fffffffffffff": {
-						"info": "EIP 1108 transition",
+					"0x8a61c8": {
+						"info": "EIP 1108 transition at block 9_069_000 (0x8a61c8)",
 						"price": { "alt_bn128_pairing": { "base": 45000, "pair": 34000 }}
+					}
+				}
+			}
+		},
+		"0x0000000000000000000000000000000000000009": {
+			"builtin": {
+				"name": "blake2_f",
+				"activate_at": "0x8a61c8",
+				"pricing": {
+					"blake2_f": {
+						"gas_per_round": 1
 					}
 				}
 			}
