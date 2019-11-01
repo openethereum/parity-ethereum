@@ -18,10 +18,19 @@ use std::sync::{Arc, Weak};
 use bytes::Bytes;
 use common_types::{
 	ids::BlockId,
+	BlockNumber,
 	transaction::{Transaction, SignedTransaction, Action},
+	chain_notify::NewBlocks,
+	tree_route::TreeRoute,
+	filter::Filter,
+	log_entry::LocalizedLogEntry,
 };
-use ethereum_types::Address;
+use parking_lot::RwLock;
+use ethereum_types::{H256, Address};
 use ethcore::client::Client;
+use client_traits::BlockChainClient;
+use call_contract::CallContract;
+use client_traits::ChainNotify;
 use client_traits::{ChainInfo, Nonce};
 use ethcore::miner::{Miner, MinerService};
 use sync::SyncProvider;
@@ -29,7 +38,15 @@ use helpers::{get_confirmed_block_hash, REQUEST_CONFIRMATIONS_REQUIRED};
 use {Error, NodeKeyPair, ContractAddress};
 use registrar::RegistrarClient;
 
-#[derive(Clone)]
+/// Wrapps client ChainNotify in order to send signal about new blocks
+pub trait NewBlocksNotify: Send + Sync {
+	/// Fires when chain has new blocks.
+	/// Sends this signal only, if contracts' update required
+	fn new_blocks(&self, _new_enacted_len: usize) {
+		// does nothing by default
+	}
+}
+
 /// 'Trusted' client weak reference.
 pub struct TrustedClient {
 	/// This key server node key pair.
@@ -40,21 +57,44 @@ pub struct TrustedClient {
 	sync: Weak<dyn SyncProvider>,
 	/// Miner service.
 	miner: Weak<Miner>,
+	/// Chain new blocks listeners
+	listeners: RwLock<Vec<Weak<dyn NewBlocksNotify>>>,
 }
 
 impl TrustedClient {
 	/// Create new trusted client.
-	pub fn new(self_key_pair: Arc<dyn NodeKeyPair>, client: Arc<Client>, sync: Arc<dyn SyncProvider>, miner: Arc<Miner>) -> Self {
-		TrustedClient {
+	pub fn new(self_key_pair: Arc<dyn NodeKeyPair>, client: Arc<Client>, sync: Arc<dyn SyncProvider>, miner: Arc<Miner>) -> Arc<Self> {
+		let trusted_client = Arc::new(TrustedClient {
 			self_key_pair,
 			client: Arc::downgrade(&client),
 			sync: Arc::downgrade(&sync),
 			miner: Arc::downgrade(&miner),
+			listeners: RwLock::default(),
+		});
+		client.add_notify(trusted_client.clone());
+		trusted_client
+	}
+
+	/// Adds listener for chain's NewBlocks event
+	pub fn add_listener(&self, target: Arc<dyn NewBlocksNotify>) {
+		self.listeners.write().push(Arc::downgrade(&target));
+	}
+
+	fn notify_listeners(&self, new_enacted_len: usize) {
+		for np in self.listeners.read().iter() {
+			if let Some(n) = np.upgrade() {
+				n.new_blocks(new_enacted_len);
+			}
 		}
 	}
 
+	/// Check if the underlying client is in the trusted state
+	pub fn is_trusted(&self) -> bool {
+		self.get_trusted().is_some()
+	}
+
 	/// Get 'trusted' `Client` reference only if it is synchronized && trusted.
-	pub fn get(&self) -> Option<Arc<Client>> {
+	fn get_trusted(&self) -> Option<Arc<Client>> {
 		self.client.upgrade()
 			.and_then(|client| self.sync.upgrade().map(|sync| (client, sync)))
 			.and_then(|(client, sync)| {
@@ -65,11 +105,6 @@ impl TrustedClient {
 					false => None,
 				}
 			})
-	}
-
-	/// Get untrusted `Client` reference.
-	pub fn get_untrusted(&self) -> Option<Arc<Client>> {
-		self.client.upgrade()
 	}
 
 	/// Transact contract.
@@ -102,8 +137,8 @@ impl TrustedClient {
 	) -> Option<Address> {
 		match *address {
 			ContractAddress::Address(ref address) => Some(address.clone()),
-			ContractAddress::Registry => self.get().and_then(|client|
-				get_confirmed_block_hash(&*client, REQUEST_CONFIRMATIONS_REQUIRED)
+			ContractAddress::Registry => self.get_trusted().and_then(|client|
+				get_confirmed_block_hash(&*self, REQUEST_CONFIRMATIONS_REQUIRED)
 					.and_then(|block| {
 						client.get_address(registry_name, BlockId::Hash(block))
 							.unwrap_or(None)
@@ -111,4 +146,60 @@ impl TrustedClient {
 			),
 		}
 	}
+
+	/// Client's call_contract wrapper
+	pub fn call_contract(&self, block_id: BlockId, contract_address: Address, data: Bytes) -> Result<Bytes, String> {
+		if let Some(client) = self.get_trusted() {
+			client.call_contract(block_id, contract_address, data)
+		} else {
+			Err("Calling ACL contract without trusted blockchain client".into())
+		}
+	}
+
+	/// Client's block_hash wrapper
+	pub fn block_hash(&self, id: BlockId) -> Option<H256> {
+		if let Some(client) = self.get_trusted() {
+			client.block_hash(id)
+		} else {
+			None
+		}
+	}
+
+	/// Client's block_number wrapper
+	pub fn block_number(&self, id: BlockId) -> Option<BlockNumber> {
+		if let Some(client) = self.get_trusted() {
+			client.block_number(id)
+		} else {
+			None
+		}
+	}
+
+	/// Client's tree_route wrapper
+	pub fn tree_route(&self, from: &H256, to: &H256) -> Option<TreeRoute> {
+		if let Some(client) = self.get_trusted() {
+			client.tree_route(from, to)
+		} else {
+			None
+		}
+	}
+
+	/// Client's logs wrapper
+	pub fn logs(&self, filter: Filter) -> Option<Vec<LocalizedLogEntry>> {
+		if let Some(client) = self.get_trusted() {
+			client.logs(filter).ok()
+		} else {
+			None
+		}
+	}
 }
+
+impl ChainNotify for TrustedClient {
+	fn new_blocks(&self, new_blocks: NewBlocks) {
+		if new_blocks.has_more_blocks_to_import { return }
+		if !new_blocks.route.enacted().is_empty() || !new_blocks.route.retracted().is_empty() {
+			let enacted_len = new_blocks.route.enacted().len();
+			self.notify_listeners(enacted_len);
+		}
+	}
+}
+

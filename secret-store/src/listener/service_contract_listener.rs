@@ -18,8 +18,6 @@ use std::collections::HashSet;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::thread;
-use client_traits::ChainNotify;
-use common_types::chain_notify::NewBlocks;
 use bytes::Bytes;
 use crypto::publickey::{Public, public_to_address};
 use ethereum_types::{H256, U256, Address, BigEndianHash as _};
@@ -37,6 +35,7 @@ use acl_storage::AclStorage;
 use listener::service_contract::ServiceContract;
 use listener::tasks_queue::TasksQueue;
 use {ServerKeyId, NodeKeyPair, Error};
+use trusted_client::NewBlocksNotify;
 
 /// Retry interval (in blocks). Every RETRY_INTERVAL_BLOCKS blocks each KeyServer reads pending requests from
 /// service contract && tries to re-execute. The reason to have this mechanism is primarily because keys
@@ -434,14 +433,8 @@ impl Drop for ServiceContractListener {
 	}
 }
 
-impl ChainNotify for ServiceContractListener {
-	fn new_blocks(&self, new_blocks: NewBlocks) {
-		if new_blocks.has_more_blocks_to_import { return }
-		let enacted_len = new_blocks.route.enacted().len();
-		if enacted_len == 0 && new_blocks.route.retracted().is_empty() {
-			return;
-		}
-
+impl NewBlocksNotify for ServiceContractListener {
+	fn new_blocks(&self, new_enacted_len: usize) {
 		if !self.data.contract.update() {
 			return;
 		}
@@ -450,7 +443,7 @@ impl ChainNotify for ServiceContractListener {
 
 		// schedule retry if received enough blocks since last retry
 		// it maybe inaccurate when switching syncing/synced states, but that's ok
-		if self.data.last_retry.fetch_add(enacted_len, Ordering::Relaxed) >= RETRY_INTERVAL_BLOCKS {
+		if self.data.last_retry.fetch_add(new_enacted_len, Ordering::Relaxed) >= RETRY_INTERVAL_BLOCKS {
 			// shortcut: do not retry if we're isolated from the cluster
 			if !self.data.key_server_set.is_isolated() {
 				self.data.tasks_queue.push(ServiceTask::Retry);

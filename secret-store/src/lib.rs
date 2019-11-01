@@ -186,7 +186,7 @@ pub fn start(client: Arc<Client>, sync: Arc<dyn SyncProvider>, miner: Arc<Miner>
 					key_storage: key_storage,
 				}
 			)?;
-			client.add_notify(listener.clone());
+			trusted_client.add_listener(listener.clone());
 			listener
 		}),
 		None => None,
