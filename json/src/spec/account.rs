@@ -18,16 +18,17 @@
 
 use std::collections::BTreeMap;
 
-use crate::{bytes::Bytes, spec::builtin::Builtin, uint::Uint};
+use crate::{bytes::Bytes, spec::builtin::BuiltinCompat, uint::Uint};
 use serde::Deserialize;
 
 /// Spec account.
 #[cfg_attr(any(test, feature = "test-helpers"), derive(Clone))]
 #[derive(Debug, PartialEq, Deserialize)]
 #[serde(deny_unknown_fields)]
+#[serde(rename_all = "camelCase")]
 pub struct Account {
 	/// Builtin contract.
-	pub builtin: Option<Builtin>,
+	pub builtin: Option<BuiltinCompat>,
 	/// Balance.
 	pub balance: Option<Uint>,
 	/// Nonce.
@@ -101,7 +102,15 @@ mod tests {
 	#[test]
 	fn account_empty() {
 		let s = r#"{
-			"builtin": { "name": "ecrecover", "pricing": { "linear": { "base": 3000, "word": 0 } } }
+			"builtin": {
+				"name": "ecrecover",
+				"pricing": {
+					"linear": {
+						"base": 3000,
+						"word": 0
+					}
+				}
+			}
 		}"#;
 		let deserialized: Account = serde_json::from_str(s).unwrap();
 		assert!(deserialized.is_empty());
@@ -112,8 +121,16 @@ mod tests {
 		let s = r#"{
 			"balance": "1",
 			"nonce": "0",
-			"builtin": { "name": "ecrecover", "pricing": { "linear": { "base": 3000, "word": 0 } } },
-			"code": "1234"
+			"code": "1234",
+			"builtin": {
+				"name": "ecrecover",
+				"pricing": {
+					"linear": {
+						"base": 3000,
+						"word": 0
+					}
+				}
+			}
 		}"#;
 		let deserialized: Account = serde_json::from_str(s).unwrap();
 		assert!(!deserialized.is_empty());

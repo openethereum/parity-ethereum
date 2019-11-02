@@ -228,10 +228,10 @@ impl OverlayRecentDB {
 		JournalOverlay {
 			backing_overlay: overlay,
 			pending_overlay: HashMap::default(),
-			journal: journal,
-			latest_era: latest_era,
-			earliest_era: earliest_era,
-			cumulative_size: cumulative_size,
+			journal,
+			latest_era,
+			earliest_era,
+			cumulative_size,
 		}
 	}
 
@@ -264,7 +264,6 @@ impl JournalDB for OverlayRecentDB {
 
 	fn journal_size(&self) -> usize {
 		self.journal_overlay.read().cumulative_size
-
 	}
 
 	fn is_empty(&self) -> bool {
@@ -351,7 +350,7 @@ impl JournalDB for OverlayRecentDB {
 
 		let mut ops = 0;
 		// apply old commits' details
-		if let Some(ref mut records) = journal_overlay.journal.get_mut(&end_era) {
+		if let Some(records) = journal_overlay.journal.get_mut(&end_era) {
 			let mut canon_insertions: Vec<(H256, DBValue)> = Vec::new();
 			let mut canon_deletions: Vec<H256> = Vec::new();
 			let mut overlay_deletions: Vec<H256> = Vec::new();

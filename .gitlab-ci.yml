@@ -37,6 +37,12 @@ variables:
   before_script:
     - rustup show
     - cargo --version
+  retry:
+    max: 2
+    when: 
+      - runner_system_failure
+      - unknown_failure
+      - api_failure
   tags:
     - linux-docker
 

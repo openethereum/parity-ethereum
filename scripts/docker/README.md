@@ -8,7 +8,7 @@ Builds a lightweight non-root Parity docker image:
 ```
 git clone https://github.com/paritytech/parity-ethereum.git
 cd parity-ethereum
-./docker/centos/build.sh
+./scripts/docker/centos/build.sh
 ```
 
 Fully customised build:
@@ -16,7 +16,7 @@ Fully customised build:
 PARITY_IMAGE_REPO=my-personal/parity \
 PARITY_BUILDER_IMAGE_TAG=build-latest \
 PARITY_RUNNER_IMAGE_TAG=centos-parity-experimental \
-./docker/centos/build.sh
+./scripts/docker/centos/build.sh
 ```
 
 Default values:
