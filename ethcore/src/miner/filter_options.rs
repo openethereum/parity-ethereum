@@ -21,7 +21,8 @@ use ethereum_types::{Address, U256};
 use serde::de::{Deserialize, Deserializer, Error, MapAccess, Visitor};
 use types::transaction::SignedTransaction;
 
-/// This structure provides filtering options for the pending transactions RPC API call
+/// Filtering options for the pending transactions
+/// May be used for filtering transactions based on gas, gas price, value and/or nonce.
 #[derive(Debug, Clone, Eq, PartialEq)]
 pub struct FilterOptions {
 	/// Contains the operator to filter the from value of the transaction
@@ -43,8 +44,7 @@ impl FilterOptions {
 		match filter {
 			FilterOperator::Eq(address) => candidate == address,
 			FilterOperator::Any => true,
-			// Will always occur on `Any`, other operators
-			// get handled during deserialization
+			// Gets handled during deserialization
 			_ => unreachable!(),
 		}
 	}
@@ -53,8 +53,7 @@ impl FilterOptions {
 		match filter {
 			FilterOperator::Eq(address) => candidate == address,
 			FilterOperator::Any => true,
-			// Will always occur on `Any`, other operators
-			// get handled during deserialization
+			// Gets handled during deserialization
 			_ => unreachable!(),
 		}
 	}
@@ -67,7 +66,7 @@ impl FilterOptions {
 		}
 	}
 
-	/// Determines whether a transaction passes configured filter
+	/// Determines whether a transaction passes the configured filter
 	pub fn matches(&self, tx: &SignedTransaction) -> bool {
 		Self::sender_matcher(&self.from, &tx.sender()) &&
 		Self::receiver_matcher(&self.to, &tx.receiver()) &&
@@ -96,8 +95,10 @@ impl Default for FilterOptions {
 /// gets returned explicitly. Therefore this Wrapper will be used for
 /// deserialization, directly identifying the contract creation.
 enum Wrapper<T> {
+	/// FilterOperations
 	O(FilterOperator<T>),
-	CC, // Contract Creation
+	/// Contract Creation
+	CC,
 }
 
 /// Available operators for filtering options.
