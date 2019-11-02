@@ -31,7 +31,7 @@ use ethcore_miner::work_notify::NotifyWork;
 use ethereum_types::{H256, U256, Address};
 use futures::sync::mpsc;
 use io::IoChannel;
-use miner::filter_options::{FilterOptions, FilterOperator};
+use miner::filter_options::FilterOptions;
 use miner::pool_client::{PoolClient, CachedNonceClient, NonceCache};
 use miner::{self, MinerService};
 use parking_lot::{Mutex, RwLock};
@@ -1465,7 +1465,7 @@ mod tests {
 
 	use client_traits::ChainInfo;
 	use client::ImportSealedBlock;
-	use miner::{MinerService, PendingOrdering};
+	use miner::{MinerService, PendingOrdering, filter_options::FilterOperator};
 	use test_helpers::{
 		generate_dummy_client, generate_dummy_client_with_spec, TestBlockChainClient, EachBlockWith
 	};
@@ -1883,11 +1883,10 @@ mod tests {
 		assert!(received_error_msg == expected_error_msg);
 	}
 
-	#[test]
-	fn transaction_filtering_sealing() {
+	fn filter_tester(option: PendingSet) {
 		let client = TestBlockChainClient::default();
 		let mut miner = miner();
-		miner.options.pending_set = PendingSet::AlwaysSealing;
+		miner.options.pending_set = option;
 		let transaction = transaction();
 		let best_block = 10;
 		let mut sender = transaction.sender();
@@ -1967,85 +1966,9 @@ mod tests {
 	}
 
 	#[test]
-	fn transaction_filtering_queue() {
-		let client = TestBlockChainClient::default();
-		let mut miner = miner();
-		miner.options.pending_set = PendingSet::AlwaysQueue;
-		let transaction = transaction();
-		let best_block = 10;
-		let mut sender = transaction.sender();
-
-		miner.import_own_transaction(&client, PendingTransaction::new(transaction, None)).unwrap();
-
-		assert_eq!(miner.pending_transactions(best_block), None);
-		assert_eq!(miner.pending_receipts(best_block), None);
-		assert_eq!(
-			miner.ready_transactions_filtered(&client, 10, Some(FilterOptions::default()), PendingOrdering::Priority).len(),
-			1
-		);
-
-		// sender filter
-		{
-			// reverse address for false match
-			for byte in sender.as_bytes_mut() {
-				*byte = !*byte;
-			}
-			let mut filter = FilterOptions::default();
-			filter.from = FilterOperator::Eq(sender);
-			assert_eq!(
-				miner.ready_transactions_filtered(&client, 10, Some(filter), PendingOrdering::Priority).len(),
-				0
-			);
-		}
-
-		// receiver filter
-		{
-			let mut filter = FilterOptions::default();
-			filter.to = FilterOperator::Eq(Some(sender));
-			assert_eq!(
-				miner.ready_transactions_filtered(&client, 10, Some(filter), PendingOrdering::Priority).len(),
-				0
-			);
-		}
-
-		// gas filter
-		{
-			let mut filter = FilterOptions::default();
-			filter.gas = FilterOperator::LessThan(U256::from(100_000));
-			assert_eq!(
-				miner.ready_transactions_filtered(&client, 10, Some(filter), PendingOrdering::Priority).len(),
-				0
-			);
-		}
-
-		// gas_price filter
-		{
-			let mut filter = FilterOptions::default();
-			filter.gas_price = FilterOperator::GreaterThan(U256::from(10));
-			assert_eq!(
-				miner.ready_transactions_filtered(&client, 10, Some(filter), PendingOrdering::Priority).len(),
-				0
-			);
-		}
-
-		// value filter
-		{
-			let mut filter = FilterOptions::default();
-			filter.value = FilterOperator::Eq(U256::from(19));
-			assert_eq!(
-				miner.ready_transactions_filtered(&client, 10, Some(filter), PendingOrdering::Priority).len(),
-				0
-			);
-		}
-
-		// nonce filter
-		{
-			let mut filter = FilterOptions::default();
-			filter.nonce = FilterOperator::GreaterThan(U256::from(10));
-			assert_eq!(
-				miner.ready_transactions_filtered(&client, 10, Some(filter), PendingOrdering::Priority).len(),
-				0
-			);
-		}
+	fn transaction_filtering() {
+		filter_tester(PendingSet::AlwaysQueue);
+		filter_tester(PendingSet::AlwaysSealing);
+		filter_tester(PendingSet::SealingOrElseQueue);
 	}
 }
