@@ -138,7 +138,6 @@ pub struct PricingAt {
 #[cfg(test)]
 mod tests {
 	use serde_json;
-	use spec::builtin::{Builtin, Pricing, Linear, Modexp};
 	use uint::Uint;
 	use super::{Builtin, BuiltinCompat, BTreeMap, Pricing, PricingAt, Linear, Modexp, AltBn128ConstOperations};
 	use macros::map;

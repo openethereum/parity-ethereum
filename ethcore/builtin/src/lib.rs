@@ -58,12 +58,12 @@ pub type Blake2FPricer = u64;
 impl Pricer for Blake2FPricer {
 	fn cost(&self, input: &[u8]) -> U256 {
 		const FOUR: usize = std::mem::size_of::<u32>();
-		let (rounds_bytes, _) = input.split_at(std::mem::size_of::<u32>());
 		// Returning zero if the conversion fails is fine because `execute()` will check the length
 		// and bail with the appropriate error.
 		if input.len() < FOUR {
 			return U256::zero();
 		}
+		let (rounds_bytes, _) = input.split_at(FOUR);
 		let rounds = u32::from_be_bytes(rounds_bytes.try_into().unwrap_or([0u8; 4]));
 		U256::from(*self as u64 * rounds as u64)
 	}
@@ -743,6 +743,7 @@ impl Bn128Pairing {
 
 #[cfg(test)]
 mod tests {
+	use std::convert::TryFrom;
 	use ethereum_types::U256;
 	use ethjson::spec::builtin::{
 		Builtin as JsonBuiltin, Linear as JsonLinearPricing,
@@ -751,7 +752,6 @@ mod tests {
 	use hex_literal::hex;
 	use macros::map;
 	use num::{BigUint, Zero, One};
-	use hex_literal::hex;
 	use parity_bytes::BytesRef;
 	use super::{
 		BTreeMap, Builtin, EthereumBuiltin, FromStr, Implementation, Linear,
@@ -793,7 +793,7 @@ mod tests {
 
 		let result = blake2.execute(&input[..], &mut BytesRef::Fixed(&mut out[..]));
 		assert!(result.is_err());
-		assert_eq!(result.unwrap_err(), "input length for Blake2 F precompile should be exactly 213 bytes".into());
+		assert_eq!(result.unwrap_err(), "input length for Blake2 F precompile should be exactly 213 bytes");
 	}
 
 	#[test]
@@ -805,7 +805,7 @@ mod tests {
 
 		let result = blake2.execute(&input[..], &mut BytesRef::Fixed(&mut out[..]));
 		assert!(result.is_err());
-		assert_eq!(result.unwrap_err(), "input length for Blake2 F precompile should be exactly 213 bytes".into());
+		assert_eq!(result.unwrap_err(), "input length for Blake2 F precompile should be exactly 213 bytes");
 	}
 
 	#[test]
@@ -817,7 +817,7 @@ mod tests {
 
 		let result = blake2.execute(&input[..], &mut BytesRef::Fixed(&mut out[..]));
 		assert!(result.is_err());
-		assert_eq!(result.unwrap_err(), "incorrect final block indicator flag".into());
+		assert_eq!(result.unwrap_err(), "incorrect final block indicator flag");
 	}
 
 	#[test]
@@ -1337,7 +1337,7 @@ mod tests {
 
 	#[test]
 	fn from_json() {
-		let b = Builtin::from(ethjson::spec::Builtin {
+		let b = Builtin::try_from(ethjson::spec::Builtin {
 			name: "identity".to_owned(),
 			pricing: map![
 				0 => PricingAt {
@@ -1505,6 +1505,6 @@ mod tests {
 		}).unwrap();
 
 		assert_eq!(b.cost(&[0; 1], 0), U256::from(0), "not activated yet");
-		assert_eq!(b.cost(&[0; 1], 1), U256::from(1_337), "use price #3");
+		assert_eq!(b.cost(&[0; 1], 1), U256::from(1_337));
 	}
 }
