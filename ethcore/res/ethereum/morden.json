@@ -37,7 +37,10 @@
 		"eip140Transition": "0x4829ba",
 		"eip211Transition": "0x4829ba",
 		"eip214Transition": "0x4829ba",
-		"eip658Transition": "0x4829ba"
+		"eip658Transition": "0x4829ba",
+		"eip145Transition": "0x4c4cbd",
+		"eip1014Transition": "0x4c4cbd",
+		"eip1052Transition": "0x4c4cbd"
 	},
 	"genesis": {
 		"seal": {
