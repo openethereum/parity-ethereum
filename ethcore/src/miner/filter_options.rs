@@ -23,6 +23,7 @@ use types::transaction::SignedTransaction;
 
 /// Filtering options for the pending transactions
 /// May be used for filtering transactions based on gas, gas price, value and/or nonce.
+// NOTE: the fields are only `pub` because they are needed for tests
 #[derive(Debug, Clone, Eq, PartialEq)]
 pub struct FilterOptions {
 	/// Contains the operator to filter the from value of the transaction
