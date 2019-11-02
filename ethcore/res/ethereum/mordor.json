@@ -137,48 +137,48 @@
 						}
 					}
 				}
-			},
-			"0x0000000000000000000000000000000000000007":{
-				"builtin":{
-					"name":"alt_bn128_mul",
-					"pricing":{
-						"0x0":{
-							"price":{
-								"alt_bn128_const_operations":{
-									"price":40000
-								}
+			}
+		},
+		"0x0000000000000000000000000000000000000007":{
+			"builtin":{
+				"name":"alt_bn128_mul",
+				"pricing":{
+					"0x0":{
+						"price":{
+							"alt_bn128_const_operations":{
+								"price":40000
 							}
-						},
-						"0x7fffffffffffff":{
-							"info":"EIP 1108 transition",
-							"price":{
-								"alt_bn128_const_operations":{
-									"price":6000
-								}
+						}
+					},
+					"0x7fffffffffffff":{
+						"info":"EIP 1108 transition",
+						"price":{
+							"alt_bn128_const_operations":{
+								"price":6000
 							}
 						}
 					}
-				},
-				"0x0000000000000000000000000000000000000008":{
-					"builtin":{
-						"name":"alt_bn128_pairing",
-						"pricing":{
-							"0x0":{
-								"price":{
-									"alt_bn128_pairing":{
-										"base":100000,
-										"pair":80000
-									}
-								}
-							},
-							"0x7fffffffffffff":{
-								"info":"EIP 1108 transition",
-								"price":{
-									"alt_bn128_pairing":{
-										"base":45000,
-										"pair":34000
-									}
-								}
+				}
+			}
+		},
+		"0x0000000000000000000000000000000000000008":{
+			"builtin":{
+				"name":"alt_bn128_pairing",
+				"pricing":{
+					"0x0":{
+						"price":{
+							"alt_bn128_pairing":{
+								"base":100000,
+								"pair":80000
+							}
+						}
+					},
+					"0x7fffffffffffff":{
+						"info":"EIP 1108 transition",
+						"price":{
+							"alt_bn128_pairing":{
+								"base":45000,
+								"pair":34000
 							}
 						}
 					}
