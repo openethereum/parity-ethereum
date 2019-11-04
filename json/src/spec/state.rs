@@ -50,7 +50,7 @@ impl State {
 			HashOrMap::Hash(_) => BTreeMap::default(),
 			HashOrMap::Map(map) => {
 				map.iter().filter_map(|(add, ref acc)| {
-					acc.builtin.clone().map(|b| (add.clone(), b))
+					acc.builtin.clone().map(|b| (add.clone(), b.into()))
 				}).collect()
 			}
 

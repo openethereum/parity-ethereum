@@ -170,9 +170,9 @@ pub type ChunkSink<'a> = dyn FnMut(&[u8]) -> std::io::Result<()> + 'a;
 /// Statuses for snapshot restoration.
 #[derive(PartialEq, Eq, Clone, Copy, Debug)]
 pub enum RestorationStatus {
-	///	No restoration.
+	/// No restoration activity currently.
 	Inactive,
-	/// Restoration is initializing
+	/// Restoration is initializing.
 	Initializing {
 		/// Total number of state chunks.
 		state_chunks: u32,
@@ -192,7 +192,7 @@ pub enum RestorationStatus {
 		/// Number of block chunks completed.
 		block_chunks_done: u32,
 	},
-	/// Finalizing restoration
+	/// Finalizing restoration.
 	Finalizing,
 	/// Failed restoration.
 	Failed,

@@ -161,6 +161,7 @@ impl Restoration {
 
 			if let Some(ref mut writer) = self.writer.as_mut() {
 				writer.write_state_chunk(hash, chunk)?;
+				trace!(target: "snapshot", "Wrote {}/{} bytes of state to db/disk. Current state root: {:?}", len, chunk.len(), self.state.state_root());
 			}
 
 			self.state_chunks_left.remove(&hash);
@@ -676,7 +677,6 @@ impl<C> Service<C> where C: SnapshotClient + ChainInfo {
 		} else if manifest.state_hashes.contains(&hash) {
 			true
 		} else {
-			warn!(target: "snapshot", "Hash of the content of {:?} not present in the manifest block/state hashes.", path);
 			return Ok(false);
 		};
 
@@ -788,7 +788,7 @@ impl<C> Service<C> where C: SnapshotClient + ChainInfo {
 								false => Ok(())
 							}
 						}
-						other => other.map(drop),
+						Err(e) => Err(e)
 					};
 					(res, db)
 				}

@@ -1569,7 +1569,7 @@ mod tests {
 		// then
 		assert_eq!(conf.network_settings(), Ok(NetworkSettings {
 			name: "testname".to_owned(),
-			chain: "kovan".to_owned(),
+			chain: "goerli".to_owned(),
 			is_dev_chain: false,
 			network_port: 30303,
 			rpc_enabled: true,
