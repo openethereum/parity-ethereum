@@ -36,8 +36,8 @@ parity::ethereum::ParityEthereum parity_run(const std::vector<std::string> &);
 constexpr uint32_t SUBSCRIPTION_ID_LEN = 18;
 constexpr uint32_t TIMEOUT_ONE_MIN_AS_MILLIS = 60 * 1000;
 enum class parity_callback_type : size_t {
-   CALLBACK_RPC = 1,
-   CALLBACK_WS = 2,
+   callback_rpc = 1,
+   callback_ws = 2,
 };
 
 struct Callback {
@@ -45,10 +45,10 @@ struct Callback {
   std::uint64_t counter;
   void operator()(const std::string_view response) {
     switch (type) {
-    case parity_callback_type::CALLBACK_RPC:
+    case parity_callback_type::callback_rpc:
       counter -= 1;
       break;
-    case parity_callback_type::CALLBACK_WS:
+    case parity_callback_type::callback_ws:
       std::match_results<std::string_view::iterator> results;
       std::regex is_subscription(
           "\\{\"jsonrpc\":\"2.0\",\"result\":\"0[xX][a-fA-"
@@ -107,7 +107,7 @@ int main(int _argc, char **_argv) {
 
 namespace {
 void parity_rpc_queries(ParityEthereum &parity) {
-  Callback cb{.type = parity_callback_type::CALLBACK_RPC, .counter = rpc_queries.size()};
+  Callback cb{.type = parity_callback_type::callback_rpc, .counter = rpc_queries.size()};
   auto cb_func = std::function(cb);
 
   try {
@@ -129,7 +129,7 @@ void parity_rpc_queries(ParityEthereum &parity) {
 
 void parity_subscribe_to_websocket(ParityEthereum &parity) {
   // MUST outlive the std::vector below
-  Callback cb{.type = parity_callback_type::CALLBACK_WS, .counter = ws_subscriptions.size()};
+  Callback cb{.type = parity_callback_type::callback_ws, .counter = ws_subscriptions.size()};
 
   std::vector<parity_subscription> sessions;
 

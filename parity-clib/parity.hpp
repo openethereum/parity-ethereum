@@ -21,7 +21,8 @@
 #pragma clang diagnostic ignored "-Wc++98-compat"
 #endif
 #if __cplusplus < 201703L
-#error "The Parity Ethereum C++ bindings require C++17 or newer.  Please upgrade your compiler, or specify the needed flags to enable C++17 support."
+#error                                                                         \
+    "The Parity Ethereum C++ bindings require C++17 or newer.  Please upgrade your compiler, or specify the needed flags to enable C++17 support."
 #endif
 #include <cassert>
 #include <exception>
@@ -31,9 +32,10 @@
 #include <parity.h>
 #include <stdexcept>
 #include <string>
-#include <vector>
 #include <type_traits>
-static_assert(std::is_same<uintptr_t, size_t>::value, "Rust requires that uintptr_t and size_t are the same type");
+#include <vector>
+static_assert(std::is_same<uintptr_t, size_t>::value,
+              "Rust requires that uintptr_t and size_t are the same type");
 
 namespace parity {
 // avoid conflict with other Parity projects
@@ -47,30 +49,41 @@ class ParityLogger final {
   parity_logger *logger;
 
 public:
-  ParityLogger(const std::string &log_mode, const std::string &log_file)
+  ParityLogger() = delete;
+  explicit ParityLogger(const std::string &log_mode,
+                        const std::string &log_file) noexcept
       : logger(nullptr) {
     parity_set_logger(log_mode.size() ? log_mode.data() : nullptr,
                       log_mode.size(),
                       log_file.size() ? log_file.data() : nullptr,
                       log_file.size(), &this->logger);
   }
-  ParityLogger(const ParityLogger &other) = delete;
-  ParityLogger &operator=(const ParityLogger &other) = delete;
-  ParityLogger(ParityLogger &&other) noexcept : logger(nullptr) {
-    this->logger = other.logger;
+  explicit ParityLogger(const ParityLogger &other) noexcept
+      : logger(other.logger) {
+    parity_logger_clone(logger);
+  }
+  ParityLogger &operator=(const ParityLogger &other) noexcept {
+    if (logger != other.logger) {
+      parity_logger_destroy(logger);
+      logger = other.logger;
+      parity_logger_clone(logger);
+    }
+    return *this;
+  }
+  ParityLogger(ParityLogger &&other) noexcept : logger(other.logger) {
     other.logger = nullptr;
   }
   ParityLogger &operator=(ParityLogger &&other) noexcept {
-    if (this != &other) {
-      this->logger = other.logger;
+    if (logger != other.logger) {
+      parity_logger_destroy(logger);
+      logger = other.logger;
       other.logger = nullptr;
     }
     return *this;
   }
   ~ParityLogger() {
-    assert(nullptr == this->logger &&
-           "ParityLogger objects must be moved into a ParityParams, "
-           "not destroyed");
+    parity_logger_destroy(logger);
+    logger = nullptr;
   }
 };
 
@@ -79,9 +92,11 @@ class ParityConfig final {
   parity_config *config;
 
 public:
+  ParityConfig() = delete;
   ParityConfig(const ParityConfig &other) = delete;
   ParityConfig &operator=(const ParityConfig &other) = delete;
-  ParityConfig(const std::vector<std::string> &cli_args) : config(nullptr) {
+  explicit ParityConfig(const std::vector<std::string> &cli_args)
+      : config(nullptr) {
     size_t const size = cli_args.size();
     std::vector<size_t> len_vecs;
     std::vector<char const *> args;
@@ -96,57 +111,39 @@ public:
       throw std::runtime_error(
           "failed to create Parity Ethereum configuration");
   }
-  ParityConfig(ParityConfig &&other) noexcept : config(nullptr) {
-    this->config = other.config;
+  ParityConfig(ParityConfig &&other) noexcept : config(other.config) {
     other.config = nullptr;
   }
   ParityConfig &operator=(ParityConfig &&other) noexcept {
     if (this != &other) {
-      this->config = other.config;
+      assert((config == nullptr || config != other.config) &&
+             "Different ParityConfig objects must wrap different parity_config "
+             "pointers!");
+      parity_config_destroy(config);
+      config = other.config;
       other.config = nullptr;
     }
     return *this;
   }
-  ~ParityConfig() {
-    if (this->config)
-      assert(false && "ParityConfig objects must be moved into a "
-                      "ParityParams, not destroyed");
-  }
+  ~ParityConfig() { parity_config_destroy(config); }
 };
 
-#define PARITY_DUMMY_CALLBACKS
 using parity_rpc_callback =
     std::function<void(std::string_view const response)>;
 
-extern "C" void parity_cplusplus_callback(void *ud, const char *response,
-                                          size_t len) noexcept {
-#ifdef PARITY_DUMMY_CALLBACKS
-  (void)response, (void)len, (void)ud;
-#else
-  parity_rpc_callback *cb_ptr = static_cast<parity_rpc_callback *>(ud);
-  auto ptr = std::unique_ptr<parity_rpc_callback>(cb_ptr);
-  (*cb_ptr)(std::string_view(response, len));
-#endif
-};
-
-static inline void parity_subscription_callback(void *ud, const char *response,
-                                                size_t len) noexcept {
-#ifdef PARITY_DUMMY_CALLBACKS
-  (void)response, (void)len, (void)ud;
-#else
+namespace {
+inline void parity_internal_rpc_callback(void *ud, const char *response,
+                                         size_t len) noexcept {
+  assert(ud != nullptr && "We always pass a valid userdata pointer");
   parity_rpc_callback *cb_ptr = static_cast<parity_rpc_callback *>(ud);
   (*cb_ptr)(std::string_view(response, len));
-#endif
 };
 
-extern "C" void parity_destructor_callback(void *ud) noexcept {
-#ifdef PARITY_DUMMY_CALLBACKS
-  (void)ud;
-#else
-  if (ud)
-    delete static_cast<parity_rpc_callback *>(ud);
-#endif
+inline void parity_destructor_callback(void *ud) noexcept {
+  assert(ud != nullptr && "We always pass a valid userdata pointer");
+  delete static_cast<parity_rpc_callback *>(ud);
 };
+} // namespace
 
 typedef std::unique_ptr<::parity_subscription,
                         decltype(parity_unsubscribe_ws) *>
@@ -156,6 +153,7 @@ class ParityEthereum final {
   parity_rpc_callback *callback;
 
 public:
+  ParityEthereum() = delete;
   ParityEthereum(const ParityEthereum &other) = delete;
   ParityEthereum &operator=(const ParityEthereum &other) = delete;
   ParityEthereum(ParityConfig config, ParityLogger logger,
@@ -163,26 +161,32 @@ public:
       : parity_ethereum_instance(nullptr),
         callback(new parity_rpc_callback(new_chain_spec_callback)) {
     struct ::ParityParams params = {
-        config.config,
-        parity_subscription_callback,
-        callback,
-        parity_destructor_callback,
+        config.config, parity_internal_rpc_callback,
+        callback,      parity_destructor_callback,
         logger.logger,
     };
     logger.logger = nullptr;
     config.config = nullptr;
-    if (parity_start(&params, &this->parity_ethereum_instance))
+    if (parity_start(&params, &parity_ethereum_instance))
       throw std::runtime_error("Failed to start Parity Ethereum");
   }
   ParityEthereum(ParityEthereum &&other) noexcept
-      : parity_ethereum_instance(nullptr), callback(nullptr) {
-    this->parity_ethereum_instance = other.parity_ethereum_instance;
+      : parity_ethereum_instance(other.parity_ethereum_instance),
+        callback(other.callback) {
     other.parity_ethereum_instance = nullptr;
+    other.callback = nullptr;
   }
   ParityEthereum &operator=(ParityEthereum &&other) noexcept {
     if (this != &other) {
-      this->parity_ethereum_instance = other.parity_ethereum_instance;
+      assert((parity_ethereum_instance == nullptr ||
+              parity_ethereum_instance != other.parity_ethereum_instance) &&
+             "ParityEthereum instances must each have a unique instance of "
+             "Parity Ethereum");
+      parity_destroy(parity_ethereum_instance);
+      parity_ethereum_instance = other.parity_ethereum_instance;
+      callback = other.callback;
       other.parity_ethereum_instance = nullptr;
+      other.callback = nullptr;
     }
     return *this;
   }
@@ -195,24 +199,19 @@ public:
   /// The callback’s destructor not called, and sizeof(callback) heap space is
   /// leaked.  This is a bug and will be fixed.  Note that when it is fixed, the
   /// destructor will be called on an arbitrary thread.
-  void
-  rpc(const std::string_view rpc_query, const std::size_t timeout_ms,
-      parity_rpc_callback &callback) const {
-    typedef std::remove_reference<decltype(callback)>::type callback_ptr;
-    callback_ptr copied_callback = callback;
+  void rpc(const std::string_view rpc_query, const std::size_t timeout_ms,
+           parity_rpc_callback callback) const {
     if (::parity_rpc(this->parity_ethereum_instance, rpc_query.data(),
-                     rpc_query.size(), timeout_ms, parity_cplusplus_callback,
+                     rpc_query.size(), timeout_ms, parity_internal_rpc_callback,
                      parity_destructor_callback,
-                     new callback_ptr(copied_callback)))
+                     new parity_rpc_callback(callback)))
       throw std::runtime_error("Parity RPC failed");
   }
-  parity_subscription subscribe(
-      const std::string_view buffer,
-      parity_rpc_callback callback) const {
+  parity_subscription subscribe(const std::string_view buffer,
+                                parity_rpc_callback callback) const {
     if (::parity_subscription *session = ::parity_subscribe_ws(
             this->parity_ethereum_instance, buffer.data(), buffer.size(),
-            parity_subscription_callback,
-            new parity_rpc_callback(callback),
+            parity_internal_rpc_callback, new parity_rpc_callback(callback),
             parity_destructor_callback))
       return parity_subscription(session, &parity_unsubscribe_ws);
     else

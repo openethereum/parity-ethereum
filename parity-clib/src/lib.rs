@@ -29,6 +29,13 @@ extern crate jni;
 #[cfg(feature = "jni")]
 mod java;
 
+const PARITY_ETHEREUM_SUCCESS: c_int = 0;
+const PARITY_ETHEREUM_INTERNAL_ERROR: c_int = 1;
+const PARITY_ETHEREUM_INVALID_UTF8: c_int = 2;
+const PARITY_ETHEREUM_INVALID_CLI_ARGS: c_int = 3;
+const PARITY_ETHEREUM_CLIENT_START_FAILED: c_int = 4;
+const PARITY_ETHEREUM_RPC_START_ERROR: c_int = 4;
+
 use std::ffi::CString;
 use std::os::raw::{c_char, c_void, c_int};
 use std::{panic, ptr, slice, str, thread};
@@ -95,12 +102,12 @@ impl Drop for CallbackStr {
 }
 
 #[no_mangle]
-pub unsafe extern fn parity_config_from_cli(
+pub unsafe extern "C" fn parity_config_from_cli(
 	args: *const *const c_char,
 	args_lens: *const usize,
 	len: usize,
 	output: *mut *mut c_void
-) -> bool {
+) -> c_int {
 	panic::catch_unwind(|| {
 		*output = ptr::null_mut();
 
@@ -115,7 +122,7 @@ pub unsafe extern fn parity_config_from_cli(
 				let string = slice::from_raw_parts(arg as *const u8, len);
 				match String::from_utf8(string.to_owned()) {
 					Ok(a) => args.push(a),
-					Err(_) => return true,
+					Err(_) => return PARITY_ETHEREUM_INVALID_UTF8,
 				};
 			}
 			args
@@ -128,24 +135,45 @@ pub unsafe extern fn parity_config_from_cli(
 
 				let cfg = Box::into_raw(Box::new(cfg));
 				*output = cfg as *mut _;
-				false
+				PARITY_ETHEREUM_SUCCESS
 			},
 			Err(_) => {
-				true
+				PARITY_ETHEREUM_INVALID_CLI_ARGS
 			},
 		}
-	}).unwrap_or(true)
+	}).unwrap_or(PARITY_ETHEREUM_INTERNAL_ERROR)
 }
 
 #[no_mangle]
-pub unsafe extern fn parity_config_destroy(cfg: *mut c_void) {
+pub unsafe extern "C" fn parity_logger_clone(cfg: *mut c_void) {
 	let _ = panic::catch_unwind(|| {
+		if !cfg.is_null() {
+			let logger = Arc::from_raw(cfg as *mut parity_ethereum::RotatingLogger);
+			std::mem::forget(logger.clone());
+			std::mem::forget(logger);
+		}
+	});
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn parity_logger_destroy(cfg: *mut c_void) {
+	let _ = panic::catch_unwind(|| {
+		if !cfg.is_null() {
+			Arc::from_raw(cfg as *mut parity_ethereum::RotatingLogger);
+		}
+	});
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn parity_config_destroy(cfg: *mut c_void) {
+	let _ = panic::catch_unwind(|| {
+		if cfg.is_null() { return }
 		let _cfg = Box::from_raw(cfg as *mut parity_ethereum::Configuration);
 	});
 }
 
 #[no_mangle]
-pub unsafe extern fn parity_start(cfg: *const ParityParams, output: *mut *mut c_void) -> c_int {
+pub unsafe extern "C" fn parity_start(cfg: *const ParityParams, output: *mut *mut c_void) -> c_int {
 	panic::catch_unwind(|| {
 		*output = ptr::null_mut();
 		let cfg: &ParityParams = &*cfg;
@@ -163,7 +191,7 @@ pub unsafe extern fn parity_start(cfg: *const ParityParams, output: *mut *mut c_
 
 		let action = match parity_ethereum::start(*config, logger, on_client_restart_cb, || {}) {
 			Ok(action) => action,
-			Err(_) => return 1,
+			Err(_) => return PARITY_ETHEREUM_CLIENT_START_FAILED,
 		};
 
 		match action {
@@ -171,14 +199,14 @@ pub unsafe extern fn parity_start(cfg: *const ParityParams, output: *mut *mut c_
 			parity_ethereum::ExecutionAction::Instant(None) => 0,
 			parity_ethereum::ExecutionAction::Running(client) => {
 				*output = Box::into_raw(Box::new(client)) as *mut c_void;
-				0
+				PARITY_ETHEREUM_SUCCESS
 			}
 		}
-	}).unwrap_or(1)
+	}).unwrap_or(PARITY_ETHEREUM_INTERNAL_ERROR)
 }
 
 #[no_mangle]
-pub unsafe extern fn parity_destroy(client: *mut c_void) {
+pub unsafe extern "C" fn parity_destroy(client: *mut c_void) {
 	let _ = panic::catch_unwind(|| {
 		if client.is_null() { return }
 		let client = Box::from_raw(client as *mut RunningClient);
@@ -187,7 +215,7 @@ pub unsafe extern fn parity_destroy(client: *mut c_void) {
 }
 
 #[no_mangle]
-pub unsafe extern fn parity_rpc(
+pub unsafe extern "C" fn parity_rpc(
 	client: *const c_void,
 	query: *const c_char,
 	len: usize,
@@ -200,15 +228,15 @@ pub unsafe extern fn parity_rpc(
 		if let Some((client, query)) = parity_rpc_query_checker(client, query, len) {
 			let callback = Arc::new(CallbackStr {user_data, function: callback, destructor} );
 			parity_rpc_worker(client, query, callback, timeout_ms as u64);
-			0
+			PARITY_ETHEREUM_SUCCESS
 		} else {
-			1
+			PARITY_ETHEREUM_RPC_START_ERROR
 		}
-	}).unwrap_or(1)
+	}).unwrap_or(PARITY_ETHEREUM_INTERNAL_ERROR)
 }
 
 #[no_mangle]
-pub unsafe extern fn parity_subscribe_ws(
+pub unsafe extern "C" fn parity_subscribe_ws(
 	client: *const c_void,
 	query: *const c_char,
 	len: usize,
@@ -228,7 +256,7 @@ pub unsafe extern fn parity_subscribe_ws(
 }
 
 #[no_mangle]
-pub unsafe extern fn parity_unsubscribe_ws(session: *const c_void) {
+pub unsafe extern "C" fn parity_unsubscribe_ws(session: *const c_void) {
 	let _ = panic::catch_unwind(|| {
 		if session.is_null() {
 			return
@@ -238,7 +266,7 @@ pub unsafe extern fn parity_unsubscribe_ws(session: *const c_void) {
 }
 
 #[no_mangle]
-pub extern fn parity_set_panic_hook(callback: CCallback, param: *mut c_void) {
+pub extern "C" fn parity_set_panic_hook(callback: CCallback, param: *mut c_void) {
 	let cb = CallbackStr {user_data: param, function: callback, destructor: None};
 	panic_hook::set_with(move |panic_msg| {
 		cb.call(panic_msg);
@@ -246,7 +274,7 @@ pub extern fn parity_set_panic_hook(callback: CCallback, param: *mut c_void) {
 }
 
 #[no_mangle]
-pub unsafe extern fn parity_set_logger(
+pub unsafe extern "C" fn parity_set_logger(
 	logger_mode: *const c_char,
 	logger_mode_len: usize,
 	log_file: *const c_char,

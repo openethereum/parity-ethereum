@@ -86,6 +86,22 @@ struct parity_subscription;
 
 typedef void (*parity_destructor)(void *);
 
+/// Parity Ethereum error codes
+enum parity_ethereum_error {
+  /// Success
+  PARITY_ETHEREUM_SUCCESS = 0,
+  /// Internal error (panic) in Parity Ethereum. Should not happen.
+  PARITY_ETHEREUM_INTERNAL_ERROR = 1,
+  /// Strng passed to a Parity Ethereum API was not valid UTF-8
+  PARITY_ETHEREUM_INVALID_UTF8 = 2,
+  /// Arguments passed to the Parity Ethereum client were not valid.
+  PARITY_ETHEREUM_INVALID_CLI_ARGS = 3,
+  /// Arguments to the client were valid, but the client could not start.
+  PARITY_ETHEREUM_CLIENT_START_FAILED = 4,
+  /// RPC could not be started.
+  PARITY_ETHEREUM_RPC_START_ERROR = 5,
+};
+
 /// Parameters to pass to `parity_start`.
 struct ParityParams {
   /// Configuration object, as handled by the `parity_config_*` functions.
@@ -102,7 +118,7 @@ struct ParityParams {
   /// `on_client_restart_cb_custom`. The second and third parameters of the
   /// callback are the string pointer and length.
   void (*on_client_restart_cb)(void *custom, const char *new_chain,
-                               uintptr_t new_chain_len);
+                               size_t new_chain_len);
 
   /// Custom parameter passed to the `on_client_restart_cb` callback as first
   /// parameter.
@@ -124,21 +140,22 @@ struct ParityParams {
 /// On success, the produced object will be written to the `struct parity_config
 /// *` pointed by `out`.
 ///
-/// Returns false on success, and true on error.
+/// Returns PARITY_ETHEREUM_SUCCESS (0) on success, or a non-zero error code on
+/// failure.
 ///
 /// # Example
 ///
 /// ```no_run
 /// void* cfg;
 /// const char *args[] = {"--light", "--can-restart"};
-/// uintptr_t str_lens[] = {7, 13};
+/// size_t str_lens[] = {7, 13};
 /// if (parity_config_from_cli(args, str_lens, 2, &cfg) != 0) {
 /// 		return 1;
 /// }
 /// ```
 ///
-bool parity_config_from_cli(char const *const *args, uintptr_t const *arg_lens,
-                            uintptr_t len, struct parity_config **out);
+int parity_config_from_cli(char const *const *args, size_t const *arg_lens,
+                           size_t len, struct parity_config **out);
 
 /// Builds a new logger object to be used as a member of `struct ParityParams`.
 ///
@@ -162,7 +179,7 @@ bool parity_config_from_cli(char const *const *args, uintptr_t const *arg_lens,
 /// ```no_run
 /// void* cfg;
 /// const char *args[] = {"--light", "--can-restart"};
-/// uintptr_t str_lens[] = {7, 13};
+/// size_t str_lens[] = {7, 13};
 /// if (parity_config_from_cli(args, str_lens, 2, &cfg) != 0) {
 /// 		return 1;
 /// }
@@ -171,14 +188,29 @@ bool parity_config_from_cli(char const *const *args, uintptr_t const *arg_lens,
 /// &cfg.logger);
 /// ```
 ///
-void parity_set_logger(const char *log_mode, uintptr_t log_mode_len,
-                       const char *log_file, uintptr_t log_file_len,
+void parity_set_logger(const char *log_mode, size_t log_mode_len,
+                       const char *log_file, size_t log_file_len,
                        struct parity_logger **logger);
 
-/// Destroys a configuration object created earlier.
+/// Adds a reference to the given `parity_logger`.
+///
+/// `parity_logger` objects are reference counted, and destroyed when the
+/// reference count hits zero.
+void parity_logger_clone(struct parity_logger *logger);
+
+/// Decrements the reference count of a logger object created earlier. If
+/// the reference count hits zero, the object is destroyed.
 ///
 /// **Important**: You probably don't need to call this function. Calling
-/// `parity_start` destroys the configuration object as well (even on failure).
+/// `parity_start` also decrements the reference count (even on failure).
+///
+/// It is safe to pass NULL here, in which case this function has no effect.
+void parity_logger_destroy(struct parity_logger *cfg);
+
+/// Destroys a `parity_config` object.
+///
+/// **Important**: You probably don't need to call this function. Calling
+/// `parity_start` also destroys the configuration object (even on failure).
 ///
 /// It is safe to pass NULL here, in which case this function has no effect.
 void parity_config_destroy(struct parity_config *cfg);
@@ -217,8 +249,8 @@ void parity_destroy(struct parity_ethereum *const parity);
 /// the callback.
 /// @return false on success, true on error.
 int parity_rpc(const struct parity_ethereum *const parity,
-               const char *rpc_query, uintptr_t rpc_len, uintptr_t timeout_ms,
-               void (*subscribe)(void *ud, const char *response, uintptr_t len),
+               const char *rpc_query, size_t rpc_len, size_t timeout_ms,
+               void (*subscribe)(void *ud, const char *response, size_t len),
                parity_destructor destructor, void *ud);
 
 /// Subscribes to a specific websocket event that will run until it is canceled
@@ -235,9 +267,8 @@ int parity_rpc(const struct parity_ethereum *const parity,
 /// The handle can be used to cancel the subscription.
 struct parity_subscription *parity_subscribe_ws(
     const struct parity_ethereum *const parity, const char *ws_query,
-    uintptr_t len,
-    void (*subscribe)(void *ud, const char *response, uintptr_t len), void *ud,
-    parity_destructor destructor);
+    size_t len, void (*subscribe)(void *ud, const char *response, size_t len),
+    void *ud, parity_destructor destructor);
 
 /// Unsubscribes from a websocket subscription. This function destroys the
 /// session object, leaving `session` a dangling pointer.
@@ -254,14 +285,14 @@ void parity_unsubscribe_ws(const struct parity_subscription *const session);
 ///
 /// It is not possible to recover from a panic.  Calling `longjmp` or throwing a
 /// C++ exception results in undefined behavior.  It *is* permissible to block
-/// for an arbitrary amount of time in this callback.  Due to Rust’s memory
-/// safety, it is unlikely that memory has been corrupted, so you can (and
-/// should) save data to disk before exiting.
+/// for an arbitrary amount of time in this callback.  However, data might be in
+/// an inconsistent state, so you probably should not save data to persistent
+/// storage.
 ///
-/// A panic almost always indicates a bug in Parity Etherium, and should be
-/// presumed to be such unless proven otherwise.  Very rarely, a panic can
-/// result from a fatal problem with the system Parity Ethereum is running on,
-/// such as errors accessing the local file system, corruption of Parity
+/// A panic almost always indicates a bug in Parity Etherium, and
+/// should be presumed to be such unless proven otherwise.  Very rarely, a panic
+/// can result from a fatal problem with the system Parity Ethereum is running
+/// on, such as errors accessing the local file system, corruption of Parity
 /// Ethereum’s database, or your code corrupting Parity’s memory. Nevertheless,
 /// a panic is still a bug in Parity Ethereum unless proven otherwise.
 ///
@@ -275,7 +306,7 @@ void parity_unsubscribe_ws(const struct parity_subscription *const session);
 /// The callback can be called from any thread and multiple times
 /// simultaneously. Make sure that your code is thread safe.
 void parity_set_panic_hook(void (*cb)(void *param, const char *msg,
-                                      uintptr_t msg_len),
+                                      size_t msg_len),
                            void *param);
 #ifdef __cplusplus
 }
