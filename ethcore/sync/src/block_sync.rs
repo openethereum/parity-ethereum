@@ -558,7 +558,6 @@ impl BlockDownloader {
 			match result {
 				Err(EthcoreError(EthcoreErrorKind::Import(ImportErrorKind::AlreadyInChain), _)) => {
 					trace_sync!(self, "Block already in chain {:?}", h);
-					imported.insert(h.clone());
 					self.block_imported(&h, number, &parent);
 				},
 				Err(EthcoreError(EthcoreErrorKind::Import(ImportErrorKind::AlreadyQueued), _)) => {
