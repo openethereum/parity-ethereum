@@ -16,51 +16,38 @@
 
 //! Standard built-in contracts.
 
+#![warn(missing_docs)]
+
 use std::{
 	cmp::{max, min},
+	collections::BTreeMap,
+	convert::{TryFrom, TryInto},
 	io::{self, Read, Cursor},
 	mem::size_of,
+	str::FromStr
 };
 
-use bn;
-use byteorder::{BigEndian, LittleEndian, ByteOrder, ReadBytesExt};
+use byteorder::{BigEndian, LittleEndian, ReadBytesExt};
 use ethereum_types::{H256, U256};
 use ethjson;
 use ethkey::{Signature, recover as ec_recover};
-use hash::keccak;
+use eip_152::compress;
+use keccak_hash::keccak;
 use log::{warn, trace};
 use num::{BigUint, Zero, One};
-use bytes::BytesRef;
+use parity_bytes::BytesRef;
 use parity_crypto::digest;
-use eip_152::compress;
-
-/// Execution error.
-#[derive(Debug, PartialEq)]
-pub struct Error(pub &'static str);
-
-impl From<&'static str> for Error {
-	fn from(val: &'static str) -> Self {
-		Error(val)
-	}
-}
-
-impl Into<::vm::Error> for Error {
-	fn into(self) -> ::vm::Error {
-		::vm::Error::BuiltIn(self.0)
-	}
-}
 
 /// Native implementation of a built-in contract.
-pub trait Impl: Send + Sync {
+trait Implementation: Send + Sync {
 	/// execute this built-in on the given input, writing to the given output.
-	fn execute(&self, input: &[u8], output: &mut BytesRef) -> Result<(), Error>;
+	fn execute(&self, input: &[u8], output: &mut BytesRef) -> Result<(), &'static str>;
 }
 
 /// A gas pricing scheme for built-in contracts.
-// TODO: refactor this trait, see https://github.com/paritytech/parity-ethereum/issues/11014
 trait Pricer: Send + Sync {
 	/// The gas cost of running this built-in for the given input data at block number `at`
-	fn cost(&self, input: &[u8], at: u64) -> U256;
+	fn cost(&self, input: &[u8]) -> U256;
 }
 
 /// Pricing for the Blake2 compression function (aka "F").
@@ -69,79 +56,94 @@ trait Pricer: Send + Sync {
 pub type Blake2FPricer = u64;
 
 impl Pricer for Blake2FPricer {
-	fn cost(&self, input: &[u8], _at: u64) -> U256 {
-		use std::convert::TryInto;
-		let (rounds_bytes, _) = input.split_at(std::mem::size_of::<u32>());
+	fn cost(&self, input: &[u8]) -> U256 {
+		const FOUR: usize = std::mem::size_of::<u32>();
 		// Returning zero if the conversion fails is fine because `execute()` will check the length
 		// and bail with the appropriate error.
+		if input.len() < FOUR {
+			return U256::zero();
+		}
+		let (rounds_bytes, _) = input.split_at(FOUR);
 		let rounds = u32::from_be_bytes(rounds_bytes.try_into().unwrap_or([0u8; 4]));
-//		U256::from(*self as u128 * rounds as u128)
 		U256::from(*self as u64 * rounds as u64)
 	}
 }
 
-/// A linear pricing model. This computes a price using a base cost and a cost per-word.
-struct Linear {
-	base: usize,
-	word: usize,
+/// Pricing model
+#[derive(Debug)]
+enum Pricing {
+	AltBn128Pairing(AltBn128PairingPricer),
+	AltBn128ConstOperations(AltBn128ConstOperations),
+	Blake2F(Blake2FPricer),
+	Linear(Linear),
+	Modexp(ModexpPricer),
 }
 
-/// A special pricing model for modular exponentiation.
-struct ModexpPricer {
-	divisor: usize,
-}
-
-impl Pricer for Linear {
-	fn cost(&self, input: &[u8], _at: u64) -> U256 {
-		U256::from(self.base) + U256::from(self.word) * U256::from((input.len() + 31) / 32)
+impl Pricer for Pricing {
+	fn cost(&self, input: &[u8]) -> U256 {
+		match self {
+			Pricing::AltBn128Pairing(inner) => inner.cost(input),
+			Pricing::AltBn128ConstOperations(inner) => inner.cost(input),
+			Pricing::Blake2F(inner) => inner.cost(input),
+			Pricing::Linear(inner) => inner.cost(input),
+			Pricing::Modexp(inner) => inner.cost(input),
+		}
 	}
 }
 
-/// alt_bn128 constant operations (add and mul) pricing model.
-struct AltBn128ConstOperations {
-	price: usize,
-	eip1108_transition_at: u64,
-	eip1108_transition_price: usize,
+/// A linear pricing model. This computes a price using a base cost and a cost per-word.
+#[derive(Debug)]
+struct Linear {
+	base: u64,
+	word: u64,
 }
 
-impl Pricer for AltBn128ConstOperations {
-	fn cost(&self, _input: &[u8], at: u64) -> U256 {
-		if at >= self.eip1108_transition_at {
-			self.eip1108_transition_price.into()
-		} else {
-			self.price.into()
-		}
+/// A special pricing model for modular exponentiation.
+#[derive(Debug)]
+struct ModexpPricer {
+	divisor: u64,
+}
+
+impl Pricer for Linear {
+	fn cost(&self, input: &[u8]) -> U256 {
+		U256::from(self.base) + U256::from(self.word) * U256::from((input.len() + 31) / 32)
 	}
 }
 
 /// alt_bn128 pairing price
 #[derive(Debug, Copy, Clone)]
 struct AltBn128PairingPrice {
-	base: usize,
-	pair: usize,
+	base: u64,
+	pair: u64,
 }
 
 /// alt_bn128_pairing pricing model. This computes a price using a base cost and a cost per pair.
+#[derive(Debug)]
 struct AltBn128PairingPricer {
 	price: AltBn128PairingPrice,
-	eip1108_transition_at: u64,
-	eip1108_transition_price: AltBn128PairingPrice,
+}
+
+/// Pricing for constant alt_bn128 operations (ECADD and ECMUL)
+#[derive(Debug, Copy, Clone)]
+pub struct AltBn128ConstOperations {
+	/// Fixed price.
+	pub price: u64,
+}
+
+impl Pricer for AltBn128ConstOperations {
+	fn cost(&self, _input: &[u8]) -> U256 {
+		self.price.into()
+	}
 }
 
 impl Pricer for AltBn128PairingPricer {
-	fn cost(&self, input: &[u8], at: u64) -> U256 {
-		let price = if at >= self.eip1108_transition_at {
-			self.eip1108_transition_price
-		} else {
-			self.price
-		};
-
-		U256::from(price.base) + U256::from(price.pair) * U256::from(input.len() / 192)
+	fn cost(&self, input: &[u8]) -> U256 {
+		U256::from(self.price.base) + U256::from(self.price.pair) * U256::from(input.len() / 192)
 	}
 }
 
 impl Pricer for ModexpPricer {
-	fn cost(&self, input: &[u8], _at: u64) -> U256 {
+	fn cost(&self, input: &[u8]) -> U256 {
 		let mut reader = input.chain(io::repeat(0));
 		let mut buf = [0; 32];
 
@@ -166,8 +168,10 @@ impl Pricer for ModexpPricer {
 
 		let m = max(mod_len, base_len);
 		// read fist 32-byte word of the exponent.
-		let exp_low = if base_len + 96 >= input.len() as u64 { U256::zero() } else {
-			let mut buf = [0; 32];
+		let exp_low = if base_len + 96 >= input.len() as u64 {
+			U256::zero()
+		} else {
+			buf.iter_mut().for_each(|b| *b = 0);
 			let mut reader = input[(96 + base_len as usize)..].chain(io::repeat(0));
 			let len = min(exp_len, 32) as usize;
 			reader.read_exact(&mut buf[(32 - len)..]).expect("reading from zero-extended memory cannot fail; qed");
@@ -198,7 +202,7 @@ impl ModexpPricer {
 		match x {
 			x if x <= 64 => x * x,
 			x if x <= 1024 => (x * x) / 4 + 96 * x - 3072,
-			x => (x * x) / 16 + 480 * x - 199680,
+			x => (x * x) / 16 + 480 * x - 199_680,
 		}
 	}
 }
@@ -207,110 +211,152 @@ impl ModexpPricer {
 ///
 /// Call `cost` to compute cost for the given input, `execute` to execute the contract
 /// on the given input, and `is_active` to determine whether the contract is active.
-///
-/// Unless `is_active` is true,
 pub struct Builtin {
-	pricer: Box<dyn Pricer>,
-	native: Box<dyn Impl>,
-	activate_at: u64,
+	pricer: BTreeMap<u64, Pricing>,
+	native: EthereumBuiltin,
 }
 
 impl Builtin {
 	/// Simple forwarder for cost.
+	///
+	/// Return the cost of the most recently activated pricer at the current block number.
+	///
+	/// If no pricer is actived `zero` is returned
+	///
+	/// If multiple `activation_at` has the same block number the last one is used
+	/// (follows `BTreeMap` semantics).
+	#[inline]
 	pub fn cost(&self, input: &[u8], at: u64) -> U256 {
-		self.pricer.cost(input, at)
+		if let Some((_, pricer)) = self.pricer.range(0..=at).last() {
+			pricer.cost(input)
+		} else {
+			U256::zero()
+		}
 	}
 
 	/// Simple forwarder for execute.
-	pub fn execute(&self, input: &[u8], output: &mut BytesRef) -> Result<(), Error> {
+	#[inline]
+	pub fn execute(&self, input: &[u8], output: &mut BytesRef) -> Result<(), &'static str> {
 		self.native.execute(input, output)
 	}
 
 	/// Whether the builtin is activated at the given block number.
+	#[inline]
 	pub fn is_active(&self, at: u64) -> bool {
-		at >= self.activate_at
+		self.pricer.range(0..=at).last().is_some()
 	}
 }
 
-impl From<ethjson::spec::Builtin> for Builtin {
-	fn from(b: ethjson::spec::Builtin) -> Self {
-		let pricer: Box<dyn Pricer> = match b.pricing {
-			ethjson::spec::Pricing::Blake2F { gas_per_round } => {
-				Box::new(gas_per_round)
-			},
-			ethjson::spec::Pricing::Linear(linear) => {
-				Box::new(Linear {
+impl TryFrom<ethjson::spec::builtin::Builtin> for Builtin {
+	type Error = String;
+
+	fn try_from(b: ethjson::spec::builtin::Builtin) -> Result<Self, Self::Error> {
+		let native = EthereumBuiltin::from_str(&b.name)?;
+		let mut pricer = BTreeMap::new();
+
+		for (activate_at, p) in b.pricing {
+			pricer.insert(activate_at, p.price.into());
+		}
+
+		Ok(Self { pricer, native })
+	}
+}
+
+impl From<ethjson::spec::builtin::Pricing> for Pricing {
+	fn from(pricing: ethjson::spec::builtin::Pricing) -> Self {
+		match pricing {
+			ethjson::spec::builtin::Pricing::Blake2F { gas_per_round } => {
+				Pricing::Blake2F(gas_per_round)
+			}
+			ethjson::spec::builtin::Pricing::Linear(linear) => {
+				Pricing::Linear(Linear {
 					base: linear.base,
 					word: linear.word,
 				})
 			}
-			ethjson::spec::Pricing::Modexp(exp) => {
-				Box::new(ModexpPricer {
+			ethjson::spec::builtin::Pricing::Modexp(exp) => {
+				Pricing::Modexp(ModexpPricer {
 					divisor: if exp.divisor == 0 {
-						warn!(target: "builtin", "Zero modexp divisor specified. Falling back to default.");
+						warn!(target: "builtin", "Zero modexp divisor specified. Falling back to default: 10.");
 						10
 					} else {
 						exp.divisor
 					}
 				})
 			}
-			ethjson::spec::Pricing::AltBn128Pairing(pricer) => {
-				Box::new(AltBn128PairingPricer {
+			ethjson::spec::builtin::Pricing::AltBn128Pairing(pricer) => {
+				Pricing::AltBn128Pairing(AltBn128PairingPricer {
 					price: AltBn128PairingPrice {
 						base: pricer.base,
 						pair: pricer.pair,
 					},
-					eip1108_transition_at: b.eip1108_transition.map_or(u64::max_value(), Into::into),
-					eip1108_transition_price: AltBn128PairingPrice {
-						base: pricer.eip1108_transition_base,
-						pair: pricer.eip1108_transition_pair,
-					},
 				})
 			}
-			ethjson::spec::Pricing::AltBn128ConstOperations(pricer) => {
-				Box::new(AltBn128ConstOperations {
-						price: pricer.price,
-						eip1108_transition_price: pricer.eip1108_transition_price,
-						eip1108_transition_at: b.eip1108_transition.map_or(u64::max_value(), Into::into)
+			ethjson::spec::builtin::Pricing::AltBn128ConstOperations(pricer) => {
+				Pricing::AltBn128ConstOperations(AltBn128ConstOperations {
+					price: pricer.price
 				})
 			}
-		};
-
-		Builtin {
-			pricer,
-			native: ethereum_builtin(&b.name),
-			activate_at: b.activate_at.map_or(0, Into::into),
 		}
 	}
 }
 
-/// Ethereum built-in factory.
-pub fn ethereum_builtin(name: &str) -> Box<dyn Impl> {
-	match name {
-		"identity" => Box::new(Identity) as Box<dyn Impl>,
-		"ecrecover" => Box::new(EcRecover) as Box<dyn Impl>,
-		"sha256" => Box::new(Sha256) as Box<dyn Impl>,
-		"ripemd160" => Box::new(Ripemd160) as Box<dyn Impl>,
-		"modexp" => Box::new(ModexpImpl) as Box<dyn Impl>,
-		"alt_bn128_add" => Box::new(Bn128AddImpl) as Box<dyn Impl>,
-		"alt_bn128_mul" => Box::new(Bn128MulImpl) as Box<dyn Impl>,
-		"alt_bn128_pairing" => Box::new(Bn128PairingImpl) as Box<dyn Impl>,
-		"blake2_f" => Box::new(Blake2F) as Box<dyn Impl>,
-		_ => panic!("invalid builtin name: {}", name),
+/// Ethereum builtins:
+enum EthereumBuiltin {
+	/// The identity function
+	Identity(Identity),
+	/// ec recovery
+	EcRecover(EcRecover),
+	/// sha256
+	Sha256(Sha256),
+	/// ripemd160
+	Ripemd160(Ripemd160),
+	/// modexp (EIP 198)
+	Modexp(Modexp),
+	/// alt_bn128_add
+	Bn128Add(Bn128Add),
+	/// alt_bn128_mul
+	Bn128Mul(Bn128Mul),
+	/// alt_bn128_pairing
+	Bn128Pairing(Bn128Pairing),
+	/// blake2_f (The Blake2 compression function F, EIP-152)
+	Blake2F(Blake2F)
+}
+
+impl FromStr for EthereumBuiltin {
+	type Err = String;
+
+	fn from_str(name: &str) -> Result<EthereumBuiltin, Self::Err> {
+		match name {
+			"identity" => Ok(EthereumBuiltin::Identity(Identity)),
+			"ecrecover" => Ok(EthereumBuiltin::EcRecover(EcRecover)),
+			"sha256" => Ok(EthereumBuiltin::Sha256(Sha256)),
+			"ripemd160" => Ok(EthereumBuiltin::Ripemd160(Ripemd160)),
+			"modexp" => Ok(EthereumBuiltin::Modexp(Modexp)),
+			"alt_bn128_add" => Ok(EthereumBuiltin::Bn128Add(Bn128Add)),
+			"alt_bn128_mul" => Ok(EthereumBuiltin::Bn128Mul(Bn128Mul)),
+			"alt_bn128_pairing" => Ok(EthereumBuiltin::Bn128Pairing(Bn128Pairing)),
+			"blake2_f" => Ok(EthereumBuiltin::Blake2F(Blake2F)),
+			_ => return Err(format!("invalid builtin name: {}", name)),
+		}
 	}
 }
 
-// Ethereum builtins:
-//
-// - The identity function
-// - ec recovery
-// - sha256
-// - ripemd160
-// - modexp (EIP198)
-// - alt_bn128_add
-// - alt_bn128_mul
-// - alt_bn128_pairing
-// - blake2_f (The Blake2 compression function F, EIP-152)
+impl Implementation for EthereumBuiltin {
+	fn execute(&self, input: &[u8], output: &mut BytesRef) -> Result<(), &'static str> {
+		match self {
+			EthereumBuiltin::Identity(inner) => inner.execute(input, output),
+			EthereumBuiltin::EcRecover(inner) => inner.execute(input, output),
+			EthereumBuiltin::Sha256(inner) => inner.execute(input, output),
+			EthereumBuiltin::Ripemd160(inner) => inner.execute(input, output),
+			EthereumBuiltin::Modexp(inner) => inner.execute(input, output),
+			EthereumBuiltin::Bn128Add(inner) => inner.execute(input, output),
+			EthereumBuiltin::Bn128Mul(inner) => inner.execute(input, output),
+			EthereumBuiltin::Bn128Pairing(inner) => inner.execute(input, output),
+			EthereumBuiltin::Blake2F(inner) => inner.execute(input, output),
+		}
+	}
+}
 
 #[derive(Debug)]
 struct Identity;
@@ -325,29 +371,29 @@ struct Sha256;
 struct Ripemd160;
 
 #[derive(Debug)]
-struct ModexpImpl;
+struct Modexp;
 
 #[derive(Debug)]
-struct Bn128AddImpl;
+struct Bn128Add;
 
 #[derive(Debug)]
-struct Bn128MulImpl;
+struct Bn128Mul;
 
 #[derive(Debug)]
-struct Bn128PairingImpl;
+struct Bn128Pairing;
 
 #[derive(Debug)]
 struct Blake2F;
 
-impl Impl for Identity {
-fn execute(&self, input: &[u8], output: &mut BytesRef) -> Result<(), Error> {
+impl Implementation for Identity {
+	fn execute(&self, input: &[u8], output: &mut BytesRef) -> Result<(), &'static str> {
 		output.write(0, input);
 		Ok(())
 	}
 }
 
-impl Impl for EcRecover {
-	fn execute(&self, i: &[u8], output: &mut BytesRef) -> Result<(), Error> {
+impl Implementation for EcRecover {
+	fn execute(&self, i: &[u8], output: &mut BytesRef) -> Result<(), &'static str> {
 		let len = min(i.len(), 128);
 
 		let mut input = [0; 128];
@@ -359,7 +405,7 @@ impl Impl for EcRecover {
 		let s = H256::from_slice(&input[96..128]);
 
 		let bit = match v[31] {
-			27 | 28 if &v.0[..31] == &[0; 31] => v[31] - 27,
+			27 | 28 if v.0[..31] == [0; 31] => v[31] - 27,
 			_ => { return Ok(()); },
 		};
 
@@ -368,7 +414,7 @@ impl Impl for EcRecover {
 			if let Ok(p) = ec_recover(&s, &hash) {
 				let r = keccak(p);
 				output.write(0, &[0; 12]);
-				output.write(12, &r[12..r.len()]);
+				output.write(12, &r.as_bytes()[12..]);
 			}
 		}
 
@@ -376,18 +422,18 @@ impl Impl for EcRecover {
 	}
 }
 
-impl Impl for Sha256 {
-	fn execute(&self, input: &[u8], output: &mut BytesRef) -> Result<(), Error> {
+impl Implementation for Sha256 {
+	fn execute(&self, input: &[u8], output: &mut BytesRef) -> Result<(), &'static str> {
 		let d = digest::sha256(input);
 		output.write(0, &*d);
 		Ok(())
 	}
 }
 
-impl Impl for Blake2F {
+impl Implementation for Blake2F {
 	/// Format of `input`:
 	/// [4 bytes for rounds][64 bytes for h][128 bytes for m][8 bytes for t_0][8 bytes for t_1][1 byte for f]
-	fn execute(&self, input: &[u8], output: &mut BytesRef) -> Result<(), Error> {
+	fn execute(&self, input: &[u8], output: &mut BytesRef) -> Result<(), &'static str> {
 		const BLAKE2_F_ARG_LEN: usize = 213;
 		const PROOF: &str = "Checked the length of the input above; qed";
 
@@ -401,13 +447,13 @@ impl Impl for Blake2F {
 
 		// state vector, h
 		let mut h = [0u64; 8];
-		for state_word in h.iter_mut() {
+		for state_word in &mut h {
 			*state_word = cursor.read_u64::<LittleEndian>().expect(PROOF);
 		}
 
 		// message block vector, m
 		let mut m = [0u64; 16];
-		for msg_word in m.iter_mut() {
+		for msg_word in &mut m {
 			*msg_word = cursor.read_u64::<LittleEndian>().expect(PROOF);
 		}
 
@@ -438,8 +484,8 @@ impl Impl for Blake2F {
 	}
 }
 
-impl Impl for Ripemd160 {
-	fn execute(&self, input: &[u8], output: &mut BytesRef) -> Result<(), Error> {
+impl Implementation for Ripemd160 {
+	fn execute(&self, input: &[u8], output: &mut BytesRef) -> Result<(), &'static str> {
 		let hash = digest::ripemd160(input);
 		output.write(0, &[0; 12][..]);
 		output.write(12, &hash);
@@ -460,7 +506,7 @@ fn modexp(mut base: BigUint, exp: Vec<u8>, modulus: BigUint) -> BigUint {
 	let mut exp = exp.into_iter().skip_while(|d| *d == 0).peekable();
 
 	// n^0 % m
-	if let None = exp.peek() {
+	if exp.peek().is_none() {
 		return BigUint::one();
 	}
 
@@ -469,7 +515,7 @@ fn modexp(mut base: BigUint, exp: Vec<u8>, modulus: BigUint) -> BigUint {
 		return BigUint::zero();
 	}
 
-	base = base % &modulus;
+	base %= &modulus;
 
 	// Fast path for base divisible by modulus.
 	if base.is_zero() { return BigUint::zero() }
@@ -495,8 +541,8 @@ fn modexp(mut base: BigUint, exp: Vec<u8>, modulus: BigUint) -> BigUint {
 	result
 }
 
-impl Impl for ModexpImpl {
-	fn execute(&self, input: &[u8], output: &mut BytesRef) -> Result<(), Error> {
+impl Implementation for Modexp {
+	fn execute(&self, input: &[u8], output: &mut BytesRef) -> Result<(), &'static str> {
 		let mut reader = input.chain(io::repeat(0));
 		let mut buf = [0; 32];
 
@@ -505,7 +551,9 @@ impl Impl for ModexpImpl {
 		// but so would running out of addressable memory!
 		let mut read_len = |reader: &mut io::Chain<&[u8], io::Repeat>| {
 			reader.read_exact(&mut buf[..]).expect("reading from zero-extended memory cannot fail; qed");
-			BigEndian::read_u64(&buf[24..]) as usize
+			let mut len_bytes = [0u8; 8];
+			len_bytes.copy_from_slice(&buf[24..]);
+			u64::from_be_bytes(len_bytes) as usize
 		};
 
 		let base_len = read_len(&mut reader);
@@ -547,35 +595,35 @@ impl Impl for ModexpImpl {
 	}
 }
 
-fn read_fr(reader: &mut io::Chain<&[u8], io::Repeat>) -> Result<::bn::Fr, Error> {
+fn read_fr(reader: &mut io::Chain<&[u8], io::Repeat>) -> Result<bn::Fr, &'static str> {
 	let mut buf = [0u8; 32];
 
 	reader.read_exact(&mut buf[..]).expect("reading from zero-extended memory cannot fail; qed");
-	::bn::Fr::from_slice(&buf[0..32]).map_err(|_| Error::from("Invalid field element"))
+	bn::Fr::from_slice(&buf[0..32]).map_err(|_| "Invalid field element")
 }
 
-fn read_point(reader: &mut io::Chain<&[u8], io::Repeat>) -> Result<::bn::G1, Error> {
+fn read_point(reader: &mut io::Chain<&[u8], io::Repeat>) -> Result<bn::G1, &'static str> {
 	use bn::{Fq, AffineG1, G1, Group};
 
 	let mut buf = [0u8; 32];
 
 	reader.read_exact(&mut buf[..]).expect("reading from zero-extended memory cannot fail; qed");
-	let px = Fq::from_slice(&buf[0..32]).map_err(|_| Error::from("Invalid point x coordinate"))?;
+	let px = Fq::from_slice(&buf[0..32]).map_err(|_| "Invalid point x coordinate")?;
 
 	reader.read_exact(&mut buf[..]).expect("reading from zero-extended memory cannot fail; qed");
-	let py = Fq::from_slice(&buf[0..32]).map_err(|_| Error::from("Invalid point y coordinate"))?;
+	let py = Fq::from_slice(&buf[0..32]).map_err(|_| "Invalid point y coordinate")?;
 	Ok(
 		if px == Fq::zero() && py == Fq::zero() {
 			G1::zero()
 		} else {
-			AffineG1::new(px, py).map_err(|_| Error::from("Invalid curve point"))?.into()
+			AffineG1::new(px, py).map_err(|_| "Invalid curve point")?.into()
 		}
 	)
 }
 
-impl Impl for Bn128AddImpl {
+impl Implementation for Bn128Add {
 	// Can fail if any of the 2 points does not belong the bn128 curve
-	fn execute(&self, input: &[u8], output: &mut BytesRef) -> Result<(), Error> {
+	fn execute(&self, input: &[u8], output: &mut BytesRef) -> Result<(), &'static str> {
 		use bn::AffineG1;
 
 		let mut padded_input = input.chain(io::repeat(0));
@@ -594,9 +642,9 @@ impl Impl for Bn128AddImpl {
 	}
 }
 
-impl Impl for Bn128MulImpl {
+impl Implementation for Bn128Mul {
 	// Can fail if first paramter (bn128 curve point) does not actually belong to the curve
-	fn execute(&self, input: &[u8], output: &mut BytesRef) -> Result<(), Error> {
+	fn execute(&self, input: &[u8], output: &mut BytesRef) -> Result<(), &'static str> {
 		use bn::AffineG1;
 
 		let mut padded_input = input.chain(io::repeat(0));
@@ -614,12 +662,12 @@ impl Impl for Bn128MulImpl {
 	}
 }
 
-impl Impl for Bn128PairingImpl {
+impl Implementation for Bn128Pairing {
 	/// Can fail if:
 	///     - input length is not a multiple of 192
 	///     - any of odd points does not belong to bn128 curve
 	///     - any of even points does not belong to the twisted bn128 curve over the field F_p^2 = F_p[i] / (i^2 + 1)
-	fn execute(&self, input: &[u8], output: &mut BytesRef) -> Result<(), Error> {
+	fn execute(&self, input: &[u8], output: &mut BytesRef) -> Result<(), &'static str> {
 		if input.len() % 192 != 0 {
 			return Err("Invalid input length, must be multiple of 192 (3 * (32*2))".into())
 		}
@@ -632,45 +680,46 @@ impl Impl for Bn128PairingImpl {
 	}
 }
 
-impl Bn128PairingImpl {
-	fn execute_with_error(&self, input: &[u8], output: &mut BytesRef) -> Result<(), Error> {
+impl Bn128Pairing {
+	fn execute_with_error(&self, input: &[u8], output: &mut BytesRef) -> Result<(), &'static str> {
 		use bn::{AffineG1, AffineG2, Fq, Fq2, pairing, G1, G2, Gt, Group};
 
-		let elements = input.len() / 192; // (a, b_a, b_b - each 64-byte affine coordinates)
-		let ret_val = if input.len() == 0 {
+		let ret_val = if input.is_empty() {
 			U256::one()
 		} else {
+			// (a, b_a, b_b - each 64-byte affine coordinates)
+			let elements = input.len() / 192;
 			let mut vals = Vec::new();
 			for idx in 0..elements {
 				let a_x = Fq::from_slice(&input[idx*192..idx*192+32])
-					.map_err(|_| Error::from("Invalid a argument x coordinate"))?;
+					.map_err(|_| "Invalid a argument x coordinate")?;
 
 				let a_y = Fq::from_slice(&input[idx*192+32..idx*192+64])
-					.map_err(|_| Error::from("Invalid a argument y coordinate"))?;
+					.map_err(|_| "Invalid a argument y coordinate")?;
 
 				let b_a_y = Fq::from_slice(&input[idx*192+64..idx*192+96])
-					.map_err(|_| Error::from("Invalid b argument imaginary coeff x coordinate"))?;
+					.map_err(|_| "Invalid b argument imaginary coeff x coordinate")?;
 
 				let b_a_x = Fq::from_slice(&input[idx*192+96..idx*192+128])
-					.map_err(|_| Error::from("Invalid b argument imaginary coeff y coordinate"))?;
+					.map_err(|_| "Invalid b argument imaginary coeff y coordinate")?;
 
 				let b_b_y = Fq::from_slice(&input[idx*192+128..idx*192+160])
-					.map_err(|_| Error::from("Invalid b argument real coeff x coordinate"))?;
+					.map_err(|_| "Invalid b argument real coeff x coordinate")?;
 
 				let b_b_x = Fq::from_slice(&input[idx*192+160..idx*192+192])
-					.map_err(|_| Error::from("Invalid b argument real coeff y coordinate"))?;
+					.map_err(|_| "Invalid b argument real coeff y coordinate")?;
 
 				let b_a = Fq2::new(b_a_x, b_a_y);
 				let b_b = Fq2::new(b_b_x, b_b_y);
 				let b = if b_a.is_zero() && b_b.is_zero() {
 					G2::zero()
 				} else {
-					G2::from(AffineG2::new(b_a, b_b).map_err(|_| Error::from("Invalid b argument - not on curve"))?)
+					G2::from(AffineG2::new(b_a, b_b).map_err(|_| "Invalid b argument - not on curve")?)
 				};
 				let a = if a_x.is_zero() && a_y.is_zero() {
 					G1::zero()
 				} else {
-					G1::from(AffineG1::new(a_x, a_y).map_err(|_| Error::from("Invalid a argument - not on curve"))?)
+					G1::from(AffineG1::new(a_x, a_y).map_err(|_| "Invalid a argument - not on curve")?)
 				};
 				vals.push((a, b));
 			};
@@ -694,19 +743,26 @@ impl Bn128PairingImpl {
 
 #[cfg(test)]
 mod tests {
+	use std::convert::TryFrom;
 	use ethereum_types::U256;
-	use ethjson::uint::Uint;
+	use ethjson::spec::builtin::{
+		Builtin as JsonBuiltin, Linear as JsonLinearPricing,
+		PricingAt, AltBn128Pairing as JsonAltBn128PairingPricing, Pricing as JsonPricing,
+	};
+	use hex_literal::hex;
+	use macros::map;
 	use num::{BigUint, Zero, One};
-	use bytes::BytesRef;
-use hex_literal::hex;
-	use super::{Builtin, Linear, ethereum_builtin, Pricer, ModexpPricer, modexp as me};
+	use parity_bytes::BytesRef;
+	use super::{
+		BTreeMap, Builtin, EthereumBuiltin, FromStr, Implementation, Linear,
+		ModexpPricer, modexp as me, Pricing
+	};
 
 	#[test]
 	fn blake2f_cost() {
 		let f = Builtin {
-			pricer: Box::new(123),
-			native: ethereum_builtin("blake2_f"),
-			activate_at: 0,
+			pricer: map![0 => Pricing::Blake2F(123)],
+			native: EthereumBuiltin::from_str("blake2_f").unwrap(),
 		};
 		// 5 rounds
 		let input = hex!("0000000548c9bdf267e6096a3ba7ca8485ae67bb2bf894fe72f36e3cf1361d5f3af54fa5d182e6ad7f520e511f6c3e2b8c68059b6bbd41fbabd9831f79217e1319cde05b61626300000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000300000000000000000000000000000001");
@@ -717,44 +773,56 @@ use hex_literal::hex;
 	}
 
 	#[test]
+	fn blake2f_cost_on_invalid_length() {
+		let f = Builtin {
+			pricer: map![0 => Pricing::Blake2F(123)],
+			native: EthereumBuiltin::from_str("blake2_f").expect("known builtin"),
+		};
+		// invalid input (too short)
+		let input = hex!("00");
+
+		assert_eq!(f.cost(&input[..], 0), U256::from(0));
+	}
+
+	#[test]
 	fn blake2_f_is_err_on_invalid_length() {
-		let blake2 = ethereum_builtin("blake2_f");
+		let blake2 = EthereumBuiltin::from_str("blake2_f").unwrap();
 		// Test vector 1 and expected output from https://github.com/ethereum/EIPs/blob/master/EIPS/eip-152.md#test-vector-1
 		let input = hex!("00000c48c9bdf267e6096a3ba7ca8485ae67bb2bf894fe72f36e3cf1361d5f3af54fa5d182e6ad7f520e511f6c3e2b8c68059b6bbd41fbabd9831f79217e1319cde05b61626300000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000300000000000000000000000000000001");
 		let mut out = [0u8; 64];
 
 		let result = blake2.execute(&input[..], &mut BytesRef::Fixed(&mut out[..]));
 		assert!(result.is_err());
-		assert_eq!(result.unwrap_err(), "input length for Blake2 F precompile should be exactly 213 bytes".into());
+		assert_eq!(result.unwrap_err(), "input length for Blake2 F precompile should be exactly 213 bytes");
 	}
 
 	#[test]
 	fn blake2_f_is_err_on_invalid_length_2() {
-		let blake2 = ethereum_builtin("blake2_f");
+		let blake2 = EthereumBuiltin::from_str("blake2_f").unwrap();
 		// Test vector 2 and expected output from https://github.com/ethereum/EIPs/blob/master/EIPS/eip-152.md#test-vector-2
 		let input = hex!("000000000c48c9bdf267e6096a3ba7ca8485ae67bb2bf894fe72f36e3cf1361d5f3af54fa5d182e6ad7f520e511f6c3e2b8c68059b6bbd41fbabd9831f79217e1319cde05b61626300000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000300000000000000000000000000000001");
 		let mut out = [0u8; 64];
 
 		let result = blake2.execute(&input[..], &mut BytesRef::Fixed(&mut out[..]));
 		assert!(result.is_err());
-		assert_eq!(result.unwrap_err(), "input length for Blake2 F precompile should be exactly 213 bytes".into());
+		assert_eq!(result.unwrap_err(), "input length for Blake2 F precompile should be exactly 213 bytes");
 	}
 
 	#[test]
 	fn blake2_f_is_err_on_bad_finalization_flag() {
-		let blake2 = ethereum_builtin("blake2_f");
+		let blake2 = EthereumBuiltin::from_str("blake2_f").unwrap();
 		// Test vector 3 and expected output from https://github.com/ethereum/EIPs/blob/master/EIPS/eip-152.md#test-vector-3
 		let input = hex!("0000000c48c9bdf267e6096a3ba7ca8485ae67bb2bf894fe72f36e3cf1361d5f3af54fa5d182e6ad7f520e511f6c3e2b8c68059b6bbd41fbabd9831f79217e1319cde05b61626300000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000300000000000000000000000000000002");
 		let mut out = [0u8; 64];
 
 		let result = blake2.execute(&input[..], &mut BytesRef::Fixed(&mut out[..]));
 		assert!(result.is_err());
-		assert_eq!(result.unwrap_err(), "incorrect final block indicator flag".into());
+		assert_eq!(result.unwrap_err(), "incorrect final block indicator flag");
 	}
 
 	#[test]
 	fn blake2_f_zero_rounds_is_ok_test_vector_4() {
-		let blake2 = ethereum_builtin("blake2_f");
+		let blake2 = EthereumBuiltin::from_str("blake2_f").unwrap();
 		// Test vector 4 and expected output from https://github.com/ethereum/EIPs/blob/master/EIPS/eip-152.md#test-vector-4
 		let input = hex!("0000000048c9bdf267e6096a3ba7ca8485ae67bb2bf894fe72f36e3cf1361d5f3af54fa5d182e6ad7f520e511f6c3e2b8c68059b6bbd41fbabd9831f79217e1319cde05b61626300000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000300000000000000000000000000000001");
 		let expected = hex!("08c9bcf367e6096a3ba7ca8485ae67bb2bf894fe72f36e3cf1361d5f3af54fa5d282e6ad7f520e511f6c3e2b8c68059b9442be0454267ce079217e1319cde05b");
@@ -765,7 +833,7 @@ use hex_literal::hex;
 
 	#[test]
 	fn blake2_f_test_vector_5() {
-		let blake2 = ethereum_builtin("blake2_f");
+		let blake2 = EthereumBuiltin::from_str("blake2_f").unwrap();
 		// Test vector 5 and expected output from https://github.com/ethereum/EIPs/blob/master/EIPS/eip-152.md#test-vector-5
 		let input = hex!("0000000c48c9bdf267e6096a3ba7ca8485ae67bb2bf894fe72f36e3cf1361d5f3af54fa5d182e6ad7f520e511f6c3e2b8c68059b6bbd41fbabd9831f79217e1319cde05b61626300000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000300000000000000000000000000000001");
 		let expected = hex!("ba80a53f981c4d0d6a2797b69f12f6e94c212f14685ac4b74b12bb6fdbffa2d17d87c5392aab792dc252d5de4533cc9518d38aa8dbf1925ab92386edd4009923");
@@ -776,7 +844,7 @@ use hex_literal::hex;
 
 	#[test]
 	fn blake2_f_test_vector_6() {
-		let blake2 = ethereum_builtin("blake2_f");
+		let blake2 = EthereumBuiltin::from_str("blake2_f").unwrap();
 		// Test vector 6 and expected output from https://github.com/ethereum/EIPs/blob/master/EIPS/eip-152.md#test-vector-6
 		let input = hex!("0000000c48c9bdf267e6096a3ba7ca8485ae67bb2bf894fe72f36e3cf1361d5f3af54fa5d182e6ad7f520e511f6c3e2b8c68059b6bbd41fbabd9831f79217e1319cde05b61626300000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000300000000000000000000000000000000");
 		let expected = hex!("75ab69d3190a562c51aef8d88f1c2775876944407270c42c9844252c26d2875298743e7f6d5ea2f2d3e8d226039cd31b4e426ac4f2d3d666a610c2116fde4735");
@@ -787,7 +855,7 @@ use hex_literal::hex;
 
 	#[test]
 	fn blake2_f_test_vector_7() {
-		let blake2 = ethereum_builtin("blake2_f");
+		let blake2 = EthereumBuiltin::from_str("blake2_f").unwrap();
 		// Test vector 7 and expected output from https://github.com/ethereum/EIPs/blob/master/EIPS/eip-152.md#test-vector-7
 		let input = hex!("0000000148c9bdf267e6096a3ba7ca8485ae67bb2bf894fe72f36e3cf1361d5f3af54fa5d182e6ad7f520e511f6c3e2b8c68059b6bbd41fbabd9831f79217e1319cde05b61626300000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000300000000000000000000000000000001");
 		let expected = hex!("b63a380cb2897d521994a85234ee2c181b5f844d2c624c002677e9703449d2fba551b3a8333bcdf5f2f7e08993d53923de3d64fcc68c034e717b9293fed7a421");
@@ -799,7 +867,7 @@ use hex_literal::hex;
 	#[ignore]
 	#[test]
 	fn blake2_f_test_vector_8() {
-		let blake2 = ethereum_builtin("blake2_f");
+		let blake2 = EthereumBuiltin::from_str("blake2_f").unwrap();
 		// Test vector 8 and expected output from https://github.com/ethereum/EIPs/blob/master/EIPS/eip-152.md#test-vector-8
 		// Note this test is slow, 4294967295/0xffffffff rounds take a while.
 		let input = hex!("ffffffff48c9bdf267e6096a3ba7ca8485ae67bb2bf894fe72f36e3cf1361d5f3af54fa5d182e6ad7f520e511f6c3e2b8c68059b6bbd41fbabd9831f79217e1319cde05b61626300000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000300000000000000000000000000000001");
@@ -844,8 +912,7 @@ use hex_literal::hex;
 
 	#[test]
 	fn identity() {
-		let f = ethereum_builtin("identity");
-
+		let f = EthereumBuiltin::from_str("identity").unwrap();
 		let i = [0u8, 1, 2, 3];
 
 		let mut o2 = [255u8; 2];
@@ -864,8 +931,7 @@ use hex_literal::hex;
 
 	#[test]
 	fn sha256() {
-		let f = ethereum_builtin("sha256");
-
+		let f = EthereumBuiltin::from_str("sha256").unwrap();
 		let i = [0u8; 0];
 
 		let mut o = [255u8; 32];
@@ -887,8 +953,7 @@ use hex_literal::hex;
 
 	#[test]
 	fn ripemd160() {
-		let f = ethereum_builtin("ripemd160");
-
+		let f = EthereumBuiltin::from_str("ripemd160").unwrap();
 		let i = [0u8; 0];
 
 		let mut o = [255u8; 32];
@@ -906,7 +971,7 @@ use hex_literal::hex;
 
 	#[test]
 	fn ecrecover() {
-		let f = ethereum_builtin("ecrecover");
+		let f = EthereumBuiltin::from_str("ecrecover").unwrap();
 
 		let i = hex!("47173285a8d7341e5e972fc677286384f802f8ef42a5ec5f03bbfa254cb01fad000000000000000000000000000000000000000000000000000000000000001b650acf9d3f5f0a2c799776a1254355d5f4061762a237396a99a0e0e3fc2bcd6729514a0dacb2e623ac4abd157cb18163ff942280db4d5caad66ddf941ba12e03");
 
@@ -956,18 +1021,16 @@ use hex_literal::hex;
 
 	#[test]
 	fn modexp() {
-
 		let f = Builtin {
-			pricer: Box::new(ModexpPricer { divisor: 20 }),
-			native: ethereum_builtin("modexp"),
-			activate_at: 0,
+			pricer: map![0 => Pricing::Modexp(ModexpPricer { divisor: 20 })],
+			native: EthereumBuiltin::from_str("modexp").unwrap(),
 		};
 
 		// test for potential gas cost multiplication overflow
 		{
 			let input = hex!("0000000000000000000000000000000000000000000000000000000000000001000000000000000000000000000000000000000000000000000000003b27bafd00000000000000000000000000000000000000000000000000000000503c8ac3");
 			let expected_cost = U256::max_value();
-			assert_eq!(f.cost(&input[..], 0), expected_cost.into());
+			assert_eq!(f.cost(&input[..], 0), expected_cost);
 		}
 
 		// test for potential exp len overflow
@@ -984,7 +1047,7 @@ use hex_literal::hex;
 
 			f.execute(&input[..], &mut BytesRef::Fixed(&mut output[..])).expect("Builtin should fail");
 			assert_eq!(output, expected);
-			assert_eq!(f.cost(&input[..], 0), expected_cost.into());
+			assert_eq!(f.cost(&input[..], 0), expected_cost);
 		}
 
 		// fermat's little theorem example.
@@ -1069,9 +1132,8 @@ use hex_literal::hex;
 	fn bn128_add() {
 
 		let f = Builtin {
-			pricer: Box::new(Linear { base: 0, word: 0 }),
-			native: ethereum_builtin("alt_bn128_add"),
-			activate_at: 0,
+			pricer: map![0 => Pricing::Linear(Linear { base: 0, word: 0 })],
+			native: EthereumBuiltin::from_str("alt_bn128_add").unwrap(),
 		};
 
 		// zero-points additions
@@ -1126,11 +1188,9 @@ use hex_literal::hex;
 
 	#[test]
 	fn bn128_mul() {
-
 		let f = Builtin {
-			pricer: Box::new(Linear { base: 0, word: 0 }),
-			native: ethereum_builtin("alt_bn128_mul"),
-			activate_at: 0,
+			pricer: map![0 => Pricing::Linear(Linear { base: 0, word: 0 })],
+			native: EthereumBuiltin::from_str("alt_bn128_mul").unwrap(),
 		};
 
 		// zero-point multiplication
@@ -1168,9 +1228,8 @@ use hex_literal::hex;
 
 	fn builtin_pairing() -> Builtin {
 		Builtin {
-			pricer: Box::new(Linear { base: 0, word: 0 }),
-			native: ethereum_builtin("alt_bn128_pairing"),
-			activate_at: 0,
+			pricer: map![0 => Pricing::Linear(Linear { base: 0, word: 0 })],
+			native: EthereumBuiltin::from_str("alt_bn128_pairing").unwrap(),
 		}
 	}
 
@@ -1189,8 +1248,8 @@ use hex_literal::hex;
 		let res = f.execute(input, &mut BytesRef::Fixed(&mut output[..]));
 		if let Some(msg) = msg_contains {
 			if let Err(e) = res {
-				if !e.0.contains(msg) {
-					panic!("There should be error containing '{}' here, but got: '{}'", msg, e.0);
+				if !e.contains(msg) {
+					panic!("There should be error containing '{}' here, but got: '{}'", msg, e);
 				}
 			}
 		} else {
@@ -1241,16 +1300,15 @@ use hex_literal::hex;
 	#[test]
 	#[should_panic]
 	fn from_unknown_linear() {
-		let _ = ethereum_builtin("foo");
+		let _ = EthereumBuiltin::from_str("foo").unwrap();
 	}
 
 	#[test]
 	fn is_active() {
-		let pricer = Box::new(Linear { base: 10, word: 20} );
+		let pricer = Pricing::Linear(Linear { base: 10, word: 20 });
 		let b = Builtin {
-			pricer: pricer as Box<dyn Pricer>,
-			native: ethereum_builtin("identity"),
-			activate_at: 100_000,
+			pricer: map![100_000 => pricer],
+			native: EthereumBuiltin::from_str("identity").unwrap(),
 		};
 
 		assert!(!b.is_active(99_999));
@@ -1260,11 +1318,10 @@ use hex_literal::hex;
 
 	#[test]
 	fn from_named_linear() {
-		let pricer = Box::new(Linear { base: 10, word: 20 });
+		let pricer = Pricing::Linear(Linear { base: 10, word: 20 });
 		let b = Builtin {
-			pricer: pricer as Box<dyn Pricer>,
-			native: ethereum_builtin("identity"),
-			activate_at: 1,
+			pricer: map![0 => pricer],
+			native: EthereumBuiltin::from_str("identity").unwrap(),
 		};
 
 		assert_eq!(b.cost(&[0; 0], 0), U256::from(10));
@@ -1280,15 +1337,15 @@ use hex_literal::hex;
 
 	#[test]
 	fn from_json() {
-		let b = Builtin::from(ethjson::spec::Builtin {
+		let b = Builtin::try_from(ethjson::spec::Builtin {
 			name: "identity".to_owned(),
-			pricing: ethjson::spec::Pricing::Linear(ethjson::spec::Linear {
-				base: 10,
-				word: 20,
-			}),
-			activate_at: None,
-			eip1108_transition: None,
-		});
+			pricing: map![
+				0 => PricingAt {
+					info: None,
+					price: JsonPricing::Linear(JsonLinearPricing { base: 10, word: 20 })
+				}
+			]
+		}).expect("known builtin");
 
 		assert_eq!(b.cost(&[0; 0], 0), U256::from(10));
 		assert_eq!(b.cost(&[0; 1], 0), U256::from(30));
@@ -1303,17 +1360,25 @@ use hex_literal::hex;
 
 	#[test]
 	fn bn128_pairing_eip1108_transition() {
-		let b = Builtin::from(ethjson::spec::Builtin {
+		let b = Builtin::try_from(JsonBuiltin {
 			name: "alt_bn128_pairing".to_owned(),
-			pricing: ethjson::spec::Pricing::AltBn128Pairing(ethjson::spec::builtin::AltBn128Pairing {
-				base: 100_000,
-				pair: 80_000,
-				eip1108_transition_base: 45_000,
-				eip1108_transition_pair: 34_000,
-			}),
-			activate_at: Some(Uint(U256::from(10))),
-			eip1108_transition: Some(Uint(U256::from(20))),
-		});
+			pricing: map![
+				10 => PricingAt {
+					info: None,
+					price: JsonPricing::AltBn128Pairing(JsonAltBn128PairingPricing {
+						base: 100_000,
+						pair: 80_000,
+					}),
+				},
+				20 => PricingAt {
+					info: None,
+					price: JsonPricing::AltBn128Pairing(JsonAltBn128PairingPricing {
+						base: 45_000,
+						pair: 34_000,
+					}),
+				}
+			],
+		}).unwrap();
 
 		assert_eq!(b.cost(&[0; 192 * 3], 10), U256::from(340_000), "80 000 * 3 + 100 000 == 340 000");
 		assert_eq!(b.cost(&[0; 192 * 7], 20), U256::from(283_000), "34 000 * 7 + 45 000 == 283 000");
@@ -1321,15 +1386,25 @@ use hex_literal::hex;
 
 	#[test]
 	fn bn128_add_eip1108_transition() {
-		let b = Builtin::from(ethjson::spec::Builtin {
+		let b = Builtin::try_from(JsonBuiltin {
 			name: "alt_bn128_add".to_owned(),
-			pricing: ethjson::spec::Pricing::AltBn128ConstOperations(ethjson::spec::builtin::AltBn128ConstOperations {
-				price: 500,
-				eip1108_transition_price: 150,
-			}),
-			activate_at: Some(Uint(U256::from(10))),
-			eip1108_transition: Some(Uint(U256::from(20))),
-		});
+			pricing: map![
+				10 => PricingAt {
+					info: None,
+					price: JsonPricing::Linear(JsonLinearPricing {
+						base: 500,
+						word: 0,
+					}),
+				},
+				20 => PricingAt {
+					info: None,
+					price: JsonPricing::Linear(JsonLinearPricing {
+						base: 150,
+						word: 0,
+					}),
+				}
+			],
+		}).unwrap();
 
 		assert_eq!(b.cost(&[0; 192], 10), U256::from(500));
 		assert_eq!(b.cost(&[0; 10], 20), U256::from(150), "after istanbul hardfork gas cost for add should be 150");
@@ -1337,17 +1412,99 @@ use hex_literal::hex;
 
 	#[test]
 	fn bn128_mul_eip1108_transition() {
-		let b = Builtin::from(ethjson::spec::Builtin {
+		let b = Builtin::try_from(JsonBuiltin {
 			name: "alt_bn128_mul".to_owned(),
-			pricing: ethjson::spec::Pricing::AltBn128ConstOperations(ethjson::spec::builtin::AltBn128ConstOperations {
-				price: 40_000,
-				eip1108_transition_price: 6000,
-			}),
-			activate_at: Some(Uint(U256::from(10))),
-			eip1108_transition: Some(Uint(U256::from(20))),
-		});
+			pricing: map![
+				10 => PricingAt {
+					info: None,
+					price: JsonPricing::Linear(JsonLinearPricing {
+						base: 40_000,
+						word: 0,
+					}),
+				},
+				20 => PricingAt {
+					info: None,
+					price: JsonPricing::Linear(JsonLinearPricing {
+						base: 6_000,
+						word: 0,
+					}),
+				}
+			],
+		}).unwrap();
 
 		assert_eq!(b.cost(&[0; 192], 10), U256::from(40_000));
 		assert_eq!(b.cost(&[0; 10], 20), U256::from(6_000), "after istanbul hardfork gas cost for mul should be 6 000");
+	}
+
+
+	#[test]
+	fn multimap_use_most_recent_on_activate() {
+		let b = Builtin::try_from(JsonBuiltin {
+			name: "alt_bn128_mul".to_owned(),
+			pricing: map![
+				10 => PricingAt {
+					info: None,
+					price: JsonPricing::Linear(JsonLinearPricing {
+						base: 40_000,
+						word: 0,
+					}),
+				},
+				20 => PricingAt {
+					info: None,
+					price: JsonPricing::Linear(JsonLinearPricing {
+						base: 6_000,
+						word: 0,
+					})
+				},
+				100 => PricingAt {
+					info: None,
+					price: JsonPricing::Linear(JsonLinearPricing {
+						base: 1_337,
+						word: 0,
+					})
+				}
+			]
+		}).unwrap();
+
+		assert_eq!(b.cost(&[0; 2], 0), U256::zero(), "not activated yet; should be zero");
+		assert_eq!(b.cost(&[0; 3], 10), U256::from(40_000), "use price #1");
+		assert_eq!(b.cost(&[0; 4], 20), U256::from(6_000), "use price #2");
+		assert_eq!(b.cost(&[0; 1], 99), U256::from(6_000), "use price #2");
+		assert_eq!(b.cost(&[0; 1], 100), U256::from(1_337), "use price #3");
+		assert_eq!(b.cost(&[0; 1], u64::max_value()), U256::from(1_337), "use price #3 indefinitely");
+	}
+
+
+	#[test]
+	fn multimap_use_last_with_same_activate_at() {
+		let b = Builtin::try_from(JsonBuiltin {
+			name: "alt_bn128_mul".to_owned(),
+			pricing: map![
+				1 => PricingAt {
+					info: None,
+					price: JsonPricing::Linear(JsonLinearPricing {
+						base: 40_000,
+						word: 0,
+					}),
+				},
+				1 => PricingAt {
+					info: None,
+					price: JsonPricing::Linear(JsonLinearPricing {
+						base: 6_000,
+						word: 0,
+					}),
+				},
+				1 => PricingAt {
+					info: None,
+					price: JsonPricing::Linear(JsonLinearPricing {
+						base: 1_337,
+						word: 0,
+					}),
+				}
+			],
+		}).unwrap();
+
+		assert_eq!(b.cost(&[0; 1], 0), U256::from(0), "not activated yet");
+		assert_eq!(b.cost(&[0; 1], 1), U256::from(1_337));
 	}
 }

@@ -406,7 +406,7 @@ impl<'a> CallCreateExecutive<'a> {
 						if let Err(e) = result {
 							state.revert_to_checkpoint();
 
-							Err(e.into())
+							Err(vm::Error::BuiltIn(e))
 						} else {
 							state.discard_checkpoint();
 
