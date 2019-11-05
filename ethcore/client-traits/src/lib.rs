@@ -450,6 +450,12 @@ impl TransactionRequest {
 		self
 	}
 
+	/// Sets a gas price, or clears it. If this is `None`, a sensible default is used.
+	pub fn opt_gas_price(mut self, gas_price: Option<U256>) -> TransactionRequest {
+		self.gas_price = gas_price;
+		self
+	}
+
 	/// Sets a nonce. If this is not specified, the appropriate latest nonce for the author is used.
 	pub fn nonce(mut self, nonce: U256) -> TransactionRequest {
 		self.nonce = Some(nonce);

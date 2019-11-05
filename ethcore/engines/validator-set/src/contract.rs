@@ -21,7 +21,7 @@ use std::sync::Weak;
 
 use parity_bytes::Bytes;
 use ethabi_contract::use_contract;
-use ethereum_types::{H256, Address};
+use ethereum_types::{H256, U256, Address};
 use log::{warn, trace};
 use machine::Machine;
 use parking_lot::RwLock;
@@ -31,6 +31,7 @@ use common_types::{
 	header::Header,
 	errors::EthcoreError,
 	engines::machine::{Call, AuxiliaryData},
+	transaction,
 };
 
 use client_traits::{EngineClient, TransactionRequest};
@@ -48,6 +49,7 @@ pub struct ValidatorContract {
 	contract_address: Address,
 	validators: ValidatorSafeContract,
 	client: RwLock<Option<Weak<dyn EngineClient>>>, // TODO [keorn]: remove
+	posdao_transition: Option<BlockNumber>,
 }
 
 impl ValidatorContract {
@@ -56,23 +58,19 @@ impl ValidatorContract {
 			contract_address,
 			validators: ValidatorSafeContract::new(contract_address, posdao_transition),
 			client: RwLock::new(None),
+			posdao_transition,
 		}
 	}
 }
 
 impl ValidatorContract {
-	fn transact(&self, data: Bytes) -> Result<(), String> {
-		let client = self.client.read().as_ref()
-			.and_then(Weak::upgrade)
-			.ok_or_else(|| "No client!")?;
-
-		match client.as_full_client() {
-			Some(c) => {
-				c.transact(TransactionRequest::call(self.contract_address, data))
-					.map_err(|e| format!("Transaction import error: {}", e))?;
-				Ok(())
-			},
-			None => Err("No full client!".into()),
+	fn transact(&self, data: Bytes, gas_price: Option<U256>) -> Result<(), String> {
+		let client = self.client.read().as_ref().and_then(Weak::upgrade).ok_or("No client!")?;
+		let full_client = client.as_full_client().ok_or("No full client!")?;
+		let tx_request = TransactionRequest::call(self.contract_address, data).opt_gas_price(gas_price);
+		match full_client.transact(tx_request) {
+			Ok(()) | Err(transaction::Error::AlreadyImported) => Ok(()),
+			Err(e) => Err(e.to_string())?,
 		}
 	}
 
@@ -85,9 +83,31 @@ impl ValidatorContract {
 		}
 		let data = validator_report::functions::report_malicious::encode_input(*address, block, proof);
 		self.validators.queue_report((*address, block, data.clone()));
-		self.transact(data)?;
+		let gas_price = self.report_gas_price(latest.number());
+		self.transact(data, gas_price)?;
 		warn!(target: "engine", "Reported malicious validator {} at block {}", address, block);
 		Ok(())
+	}
+
+	fn do_report_benign(&self, address: &Address, block: BlockNumber) -> Result<(), EthcoreError> {
+		let client = self.client.read().as_ref().and_then(Weak::upgrade).ok_or("No client!")?;
+		let latest = client.block_header(BlockId::Latest).ok_or("No latest block!")?;
+		let data = validator_report::functions::report_benign::encode_input(*address, block);
+		let gas_price = self.report_gas_price(latest.number());
+		self.transact(data, gas_price)?;
+		warn!(target: "engine", "Benign report for validator {} at block {}", address, block);
+		Ok(())
+	}
+
+		/// Returns the gas price for report transactions.
+		///
+		/// After `posdaoTransition`, this is zero. Otherwise it is the default (`None`).
+	fn report_gas_price(&self, block: BlockNumber) -> Option<U256> {
+		if self.posdao_transition? <= block {
+			Some(0.into())
+		} else {
+			None
+		}
 	}
 }
 
@@ -151,10 +171,8 @@ impl ValidatorSet for ValidatorContract {
 
 	fn report_benign(&self, address: &Address, _set_block: BlockNumber, block: BlockNumber) {
 		trace!(target: "engine", "validator set recording benign misbehaviour at block #{} by {:#x}", block, address);
-		let data = validator_report::functions::report_benign::encode_input(*address, block);
-		match self.transact(data) {
-			Ok(_) => warn!(target: "engine", "Reported benign validator misbehaviour {}", address),
-			Err(s) => warn!(target: "engine", "Validator {} could not be reported {}", address, s),
+		if let Err(s) = self.do_report_benign(address, block) {
+			warn!(target: "engine", "Validator {} could not be reported ({}) on block {}", address, s, block);
 		}
 	}
 

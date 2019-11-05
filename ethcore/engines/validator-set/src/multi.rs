@@ -94,8 +94,8 @@ impl ValidatorSet for Multi {
 		-> Result<Vec<(Address, Bytes)>, EthcoreError>
 	{
 		self.map_children(header, &mut |set: &dyn ValidatorSet, first| {
-                    set.generate_engine_transactions(first, header, call)
-                })
+			set.generate_engine_transactions(first, header, call)
+		})
 	}
 
 	fn on_close_block(&self, header: &Header, address: &Address) -> Result<(), EthcoreError> {

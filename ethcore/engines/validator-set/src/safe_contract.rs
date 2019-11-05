@@ -17,7 +17,7 @@
 /// Validator set maintained in a contract, updated using `getValidators` method.
 
 use std::collections::VecDeque;
-use std::sync::{Arc, Mutex, Weak};
+use std::sync::{Arc, Weak};
 
 use client_traits::{EngineClient, TransactionRequest};
 use common_types::{
@@ -40,7 +40,7 @@ use log::{debug, info, trace, warn};
 use machine::Machine;
 use memory_cache::MemoryLruCache;
 use parity_bytes::Bytes;
-use parking_lot::RwLock;
+use parking_lot::{Mutex, RwLock};
 use rlp::{Rlp, RlpStream};
 use unexpected::Mismatch;
 
@@ -239,7 +239,7 @@ impl ValidatorSafeContract {
 			trace!(target: "engine", "Skipping queueing a malicious behavior report");
 			return;
 		}
-		self.queued_reports.lock().unwrap().push_back(data)
+		self.queued_reports.lock().push_back(data)
 	}
 
 	/// Queries the state and gets the set of validators.
@@ -322,7 +322,7 @@ impl ValidatorSafeContract {
 		let client = self.client.read().as_ref().and_then(Weak::upgrade).ok_or("No client!")?;
 		let client = client.as_full_client().ok_or("No full client!")?;
 
-		self.queued_reports.lock().unwrap().retain(|&(malicious_validator_address, block, ref _data)| {
+		self.queued_reports.lock().retain(|&(malicious_validator_address, block, ref _data)| {
 			trace!(target: "engine", "Checking if report can be removed from cache");
 			if block > latest_block {
 				return false; // Report cannot be used, as it is for a block that isn’t in the current chain
@@ -409,7 +409,7 @@ impl ValidatorSet for ValidatorSafeContract {
 
 		// Retry all pending reports.
 		self.filter_report_queue(header.author(), header.number())?;
-		let queued_reports = self.queued_reports.lock().unwrap();
+		let queued_reports = self.queued_reports.lock();
 		for (_address, _block, data) in queued_reports.iter().take(MAX_RETURNED_REPORTS) {
 			transactions.push((self.contract_address, data.clone()))
 		}
@@ -430,14 +430,14 @@ impl ValidatorSet for ValidatorSafeContract {
 		let latest_block = header.number().max(client.block_number(BlockId::Latest).unwrap_or(0)) + 1;
 		self.filter_report_queue(our_address, latest_block)?;
 
-		let mut queue = self.queued_reports.lock().unwrap();
+		let mut queue = self.queued_reports.lock();
 
 		if queue.len() > MAX_QUEUED_REPORTS {
 			warn!(target: "engine", "Removing report from report cache, even though it has not been finalized");
 			queue.truncate(MAX_QUEUED_REPORTS);
 		}
 
-		let mut resent_reports_in_block = self.resent_reports_in_block.lock().unwrap();
+		let mut resent_reports_in_block = self.resent_reports_in_block.lock();
 
 		// Skip at least one block after sending malicious reports last time.
 		if header.number() > *resent_reports_in_block + 1 {
