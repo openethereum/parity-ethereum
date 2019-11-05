@@ -38,6 +38,8 @@ use parity_bytes::BytesRef;
 use parity_crypto::digest;
 use eip_152::compress;
 
+type EthcoreError = String;
+
 /// Native implementation of a built-in contract.
 trait Implementation: Send + Sync {
 	/// execute this built-in on the given input, writing to the given output.
@@ -337,7 +339,7 @@ impl FromStr for EthereumBuiltin {
 			"alt_bn128_mul" => Ok(EthereumBuiltin::Bn128Mul(Bn128Mul)),
 			"alt_bn128_pairing" => Ok(EthereumBuiltin::Bn128Pairing(Bn128Pairing)),
 			"blake2_f" => Ok(EthereumBuiltin::Blake2F(Blake2F)),
-			_ => return Err(EthcoreError::Msg(format!("invalid builtin name: {}", name))),
+			_ => return Err(format!("invalid builtin name: {}", name)),
 		}
 	}
 }
@@ -743,6 +745,7 @@ impl Bn128Pairing {
 
 #[cfg(test)]
 mod tests {
+	use std::convert::TryFrom;
 	use ethereum_types::U256;
 	use ethjson::spec::builtin::{
 		Builtin as JsonBuiltin, Linear as JsonLinearPricing,
@@ -1337,7 +1340,7 @@ mod tests {
 
 	#[test]
 	fn from_json() {
-		let b = Builtin::from(ethjson::spec::Builtin {
+		let b = Builtin::try_from(ethjson::spec::Builtin {
 			name: "identity".to_owned(),
 			pricing: map![
 				0 => PricingAt {
@@ -1345,7 +1348,7 @@ mod tests {
 					price: JsonPricing::Linear(JsonLinearPricing { base: 10, word: 20 })
 				}
 			]
-		}).expect("known builtin");
+		}).unwrap();
 
 		assert_eq!(b.cost(&[0; 0], 0), U256::from(10));
 		assert_eq!(b.cost(&[0; 1], 0), U256::from(30));

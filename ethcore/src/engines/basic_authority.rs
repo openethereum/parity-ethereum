@@ -19,12 +19,16 @@
 use std::sync::Weak;
 use ethereum_types::{H256, H520};
 use parking_lot::RwLock;
-use engine::{Engine, ConstructedVerifier, signer::EngineSigner};
 use ethkey::{self, Signature};
-use log::trace;
-use machine::{Machine, executed_block::ExecutedBlock};
-use rlp::Rlp;
-use validator_set::{ValidatorSet, SimpleList, new_validator_set};
+use block::*;
+use engines::{Engine, Seal, SealingState, ConstructedVerifier, EngineError};
+use engines::signer::EngineSigner;
+use error::{BlockError, Error};
+use ethjson;
+use client::EngineClient;
+use machine::{AuxiliaryData, Call, Machine};
+use types::header::{Header, ExtendedHeader};
+use super::validator_set::{ValidatorSet, SimpleList, new_validator_set};
 
 /// `BasicAuthority` params.
 #[derive(Debug, PartialEq)]

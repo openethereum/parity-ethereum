@@ -17,6 +17,7 @@
 //! Parameters for a block chain.
 
 use std::collections::BTreeMap;
+use std::convert::TryFrom;
 use std::io::Read;
 use std::path::Path;
 use std::sync::Arc;
@@ -534,19 +535,28 @@ impl From<SpecHardcodedSync> for ethjson::spec::HardcodedSync {
 }
 
 fn load_machine_from(s: ethjson::spec::Spec) -> Machine {
-	let builtins = s.accounts.builtins().into_iter().map(|p| (p.0.into(), From::from(p.1))).collect();
+	let builtins = s.accounts.builtins().into_iter().map(|p| (p.0.into(), Builtin::try_from(p.1).expect("chain spec is invalid"))).collect();
 	let params = CommonParams::from(s.params);
 
 	Spec::machine(&s.engine, params, builtins)
 }
 
+fn convert_json_to_spec(
+	(address, builtin): (ethjson::hash::Address, ethjson::spec::builtin::Builtin),
+) -> Result<(Address, Builtin), Error> {
+	let builtin = Builtin::try_from(builtin)?;
+	Ok((address.into(), builtin))
+}
+
 /// Load from JSON object.
 fn load_from(spec_params: SpecParams, s: ethjson::spec::Spec) -> Result<Spec, Error> {
-	let builtins = s.accounts
+	let builtins: Result<BTreeMap<Address, Builtin>, _> = s
+		.accounts
 		.builtins()
 		.into_iter()
-		.map(|p| (p.0.into(), From::from(p.1)))
+		.map(convert_json_to_spec)
 		.collect();
+	let builtins = builtins?;
 	let g = Genesis::from(s.genesis);
 	let GenericSeal(seal_rlp) = g.seal.into();
 	let params = CommonParams::from(s.params);
