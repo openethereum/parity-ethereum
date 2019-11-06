@@ -42,7 +42,7 @@ jsonrpc-server-utils = "14.0.0"
 env_logger = "0.5"
 ethcore = { path = "../ethcore", features = ["test-helpers"] }
 tempdir = "0.3"
-kvdb-rocksdb = "0.1.3"
+kvdb-rocksdb = "0.1.5"
 
 [features]
 accounts = ["ethcore-accounts"]
