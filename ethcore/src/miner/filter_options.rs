@@ -28,7 +28,7 @@ use types::transaction::SignedTransaction;
 pub struct FilterOptions {
 	/// Contains the operator to filter on the `from` value of the transaction.
 	pub from: FilterOperator<Address>,
-	/// Contains the operator to filter the to value of the transaction
+	/// Contains the operator to filter on the `to` value of the transaction.
 	pub to: FilterOperator<Option<Address>>,
 	/// Contains the operator to filter the gas value of the transaction
 	pub gas: FilterOperator<U256>,
