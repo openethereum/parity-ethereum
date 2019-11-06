@@ -27,7 +27,7 @@ smallvec = "0.6"
 tiny-keccak = "1.4"
 time-utils = { path = "../util/time-utils" }
 
-jsonrpc-core = "12.0.0"
-jsonrpc-derive = "12.0.0"
-jsonrpc-pubsub = "12.0.0"
+jsonrpc-core = "14.0.0"
+jsonrpc-derive = "14.0.0"
+jsonrpc-pubsub = "14.0.0"
 zeroize = "0.9.1"
