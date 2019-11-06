@@ -30,7 +30,7 @@ pub struct FilterOptions {
 	pub from: FilterOperator<Address>,
 	/// Contains the operator to filter on the `to` value of the transaction.
 	pub to: FilterOperator<Option<Address>>,
-	/// Contains the operator to filter the gas value of the transaction
+	/// Contains the operator to filter the `gas` value of the transaction.
 	pub gas: FilterOperator<U256>,
 	/// Contains the operator to filter the gas price value of the transaction
 	pub gas_price: FilterOperator<U256>,
