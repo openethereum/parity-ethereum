@@ -26,7 +26,7 @@ use types::transaction::SignedTransaction;
 // NOTE: the fields are only `pub` because they are needed for tests
 #[derive(Debug, Clone, Eq, PartialEq)]
 pub struct FilterOptions {
-	/// Contains the operator to filter the from value of the transaction
+	/// Contains the operator to filter on the `from` value of the transaction.
 	pub from: FilterOperator<Address>,
 	/// Contains the operator to filter the to value of the transaction
 	pub to: FilterOperator<Option<Address>>,
