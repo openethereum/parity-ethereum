@@ -35,7 +35,7 @@ tiny-keccak = "1.4"
 tokio = "0.1.22"
 tokio-io = "0.1"
 tokio-service = "0.1"
-url = "1.0"
+url = "2.1.0"
 jsonrpc-server-utils = "14.0.0"
 
 [dev-dependencies]
