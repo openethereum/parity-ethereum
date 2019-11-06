@@ -54,7 +54,7 @@ impl FilterOptions {
 		match filter {
 			FilterOperator::Eq(address) => candidate == address,
 			FilterOperator::Any => true,
-			// Gets handled during deserialization
+			// Handled during deserialization
 			_ => unreachable!(),
 		}
 	}
