@@ -380,6 +380,9 @@ pub trait BlockChainClient : Sync + Send + AccountData + BlockChain + CallContra
 
 	/// Get the address of the registry itself.
 	fn registrar_address(&self) -> Option<Address>;
+
+	/// Process possible blocks with fork, this method will wait for its processing on mutex
+	fn process_fork(&self);
 }
 
 /// Provides `reopen_block` method
