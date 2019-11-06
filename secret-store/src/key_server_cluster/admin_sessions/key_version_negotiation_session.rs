@@ -378,8 +378,8 @@ impl<T> SessionImpl<T> where T: SessionTransport {
 					let prev_key_share = data.key_share.as_ref()
 						.expect("data.key_share.is_none() is matched by previous branch; qed");
 					if prev_key_share.threshold != key_common.threshold ||
-						prev_key_share.author.as_bytes() != key_common.author.as_bytes() ||
-						prev_key_share.public.as_bytes() != key_common.public.as_bytes()
+						prev_key_share.author[..] != key_common.author[..] ||
+						prev_key_share.public[..] != key_common.public[..]
 					{
 						return Err(Error::InvalidMessage);
 					}
@@ -864,13 +864,13 @@ mod tests {
 
 		run_test(CommonKeyData {
 			threshold: 1,
-			author: H160::from_low_u64_be(1).into(),
+			author: H160::from(1).into(),
 			public: Default::default(),
 		});
 
 		run_test(CommonKeyData {
 			threshold: 1,
-			author: H160::from_low_u64_be(2).into(),
+			author: H160::from(2).into(),
 			public: Default::default(),
 		});
 	}
@@ -895,9 +895,9 @@ mod tests {
 		let nodes = MessageLoop::prepare_nodes(2);
 		let version_id = (*math::generate_random_scalar().unwrap()).clone();
 		nodes.values().nth(0).unwrap().insert(Default::default(), DocumentKeyShare {
-			author: H160::from_low_u64_be(2),
+			author: H160::from(2),
 			threshold: 1,
-			public: H512::from_low_u64_be(3),
+			public: H512::from(3),
 			common_point: None,
 			encrypted_point: None,
 			versions: vec![DocumentKeyShareVersion {
@@ -913,9 +913,9 @@ mod tests {
 
 		// check that upon completion, commmon key data is known
 		assert_eq!(ml.session(0).common_key_data(), Ok(DocumentKeyShare {
-			author: H160::from_low_u64_be(2),
+			author: H160::from(2),
 			threshold: 1,
-			public: H512::from_low_u64_be(3),
+			public: H512::from(3),
 			..Default::default()
 		}));
 	}

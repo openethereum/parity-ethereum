@@ -20,9 +20,9 @@ use std::sync::Arc;
 use std::time::{Instant, Duration, SystemTime, UNIX_EPOCH};
 
 use accounts::AccountProvider;
-use ethcore::client::{BlockChainClient, BlockId, EachBlockWith, Executed, TestBlockChainClient, TransactionId};
+use ethcore::client::{BlockChainClient, EachBlockWith, Executed, TestBlockChainClient};
 use ethcore::miner::{self, MinerService};
-use ethereum_types::{H160, H256, U256, Address};
+use ethereum_types::{H160, H256, U256, Address, Bloom};
 use miner::external::ExternalMiner;
 use parity_runtime::Runtime;
 use parking_lot::Mutex;

@@ -25,6 +25,7 @@ use ethcore::client::{Nonce, PrepareOpenBlock, StateClient, EngineInfo};
 use ethcore::engines::{EthEngine, signer::EngineSigner};
 use ethcore::error::Error;
 use ethcore::miner::{self, MinerService, AuthoringParams};
+use ethcore::client::test_client::TestState;
 use ethereum_types::{H256, U256, Address};
 use miner::pool::local_transactions::Status as LocalTransactionStatus;
 use miner::pool::{verifier, VerifiedTransaction, QueueStatus};
@@ -87,14 +88,14 @@ impl TestMinerService {
 
 impl StateClient for TestMinerService {
 	// State will not be used by test client anyway, since all methods that accept state are mocked
-	type State = ();
+	type State = TestState;
 
 	fn latest_state_and_header(&self) -> (Self::State, Header) {
 		(TestState, Header::default())
 	}
 
 	fn state_at(&self, _id: BlockId) -> Option<Self::State> {
-		Some(())
+		Some(TestState)
 	}
 }
 
@@ -105,7 +106,7 @@ impl EngineInfo for TestMinerService {
 }
 
 impl MinerService for TestMinerService {
-	type State = ();
+	type State = TestState;
 
 	fn pending_state(&self, _latest_block_number: BlockNumber) -> Option<Self::State> {
 		None

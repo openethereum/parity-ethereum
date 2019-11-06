@@ -17,7 +17,6 @@
 use std::str::FromStr;
 use std::sync::Arc;
 
-use account_state::state::StateInfo;
 use ethereum_types::{U256, Address};
 use ethkey::KeyPair;
 use hash::keccak;
@@ -33,7 +32,7 @@ use ethereum;
 use executive::{Executive, TransactOptions};
 use miner::{Miner, PendingOrdering, MinerService};
 use spec::Spec;
-use state::{self, State, CleanupMode};
+use state::{self, State, CleanupMode, StateInfo};
 use test_helpers::{
 	self,
 	generate_dummy_client, push_blocks_to_client, get_test_client_with_blocks, get_good_dummy_block_seq,
@@ -121,7 +120,7 @@ fn query_none_block() {
 		Arc::new(Miner::new_for_tests(&spec, None)),
 		IoChannel::disconnected(),
 	).unwrap();
-    let non_existant = client.block_header(BlockId::Number(188));
+	let non_existant = client.block_header(BlockId::Number(188));
 	assert!(non_existant.is_none());
 }
 

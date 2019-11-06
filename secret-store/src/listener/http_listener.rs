@@ -28,7 +28,7 @@ use tokio;
 use tokio::net::TcpListener;
 use parity_runtime::Executor;
 use futures::{future, Future, Stream};
-use url::percent_encoding::percent_decode;
+use percent_encoding::percent_decode;
 
 use traits::KeyServer;
 use serialization::{SerializableEncryptedDocumentKeyShadow, SerializableBytes, SerializablePublic};
@@ -154,7 +154,7 @@ impl KeyServerHttpHandler {
 					}))
 			},
 			Request::GetServerKey(document, signature) => {
-				return_server_public_key(&req_uri, cors, self.handler.key_server.upgrade()
+				return_server_public_key(&req_uri, self.handler.key_server.upgrade()
 					.map(|key_server| key_server.restore_key_public(&document, &signature.into()))
 					.unwrap_or(Err(Error::Internal("KeyServer is already destroyed".into())))
 					.map_err(|err| {
@@ -424,8 +424,11 @@ fn parse_admin_request(method: &HttpMethod, path: Vec<String>, body: &[u8]) -> R
 #[cfg(test)]
 mod tests {
 	use std::sync::Arc;
+	use std::str::FromStr;
+
 	use hyper::Method as HttpMethod;
 	use ethkey::Public;
+	use ethereum_types::H256;
 	use traits::KeyServer;
 	use key_server::tests::DummyKeyServer;
 	use types::NodeAddress;

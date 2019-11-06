@@ -24,7 +24,7 @@ mod config;
 mod evm_test_client;
 mod io_message;
 #[cfg(any(test, feature = "test-helpers"))]
-mod test_client;
+pub mod test_client;
 mod trace;
 
 pub use self::client::*;
