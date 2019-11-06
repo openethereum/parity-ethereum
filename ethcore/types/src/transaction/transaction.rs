@@ -20,7 +20,7 @@ use std::ops::Deref;
 
 use ethereum_types::{H256, H160, Address, U256, BigEndianHash};
 use ethjson;
-use ethkey::{self, Signature, Secret, Public, recover, public_to_address};
+use parity_crypto::publickey::{Signature, Secret, Public, recover, public_to_address};
 use hash::keccak;
 use parity_util_mem::MallocSizeOf;
 
@@ -193,7 +193,7 @@ impl Transaction {
 
 	/// Signs the transaction as coming from `sender`.
 	pub fn sign(self, secret: &Secret, chain_id: Option<u64>) -> SignedTransaction {
-		let sig = ::ethkey::sign(secret, &self.hash(chain_id))
+		let sig = parity_crypto::publickey::sign(secret, &self.hash(chain_id))
 			.expect("data is valid and context has signing capabilities; qed");
 		SignedTransaction::new(self.with_signature(sig, chain_id))
 			.expect("secret is valid so it's recoverable")
@@ -367,9 +367,9 @@ impl UnverifiedTransaction {
 	}
 
 	/// Checks whether the signature has a low 's' value.
-	pub fn check_low_s(&self) -> Result<(), ethkey::Error> {
+	pub fn check_low_s(&self) -> Result<(), parity_crypto::publickey::Error> {
 		if !self.signature().is_low_s() {
-			Err(ethkey::Error::InvalidSignature.into())
+			Err(parity_crypto::publickey::Error::InvalidSignature.into())
 		} else {
 			Ok(())
 		}
@@ -381,7 +381,7 @@ impl UnverifiedTransaction {
 	}
 
 	/// Recovers the public key of the sender.
-	pub fn recover_public(&self) -> Result<Public, ethkey::Error> {
+	pub fn recover_public(&self) -> Result<Public, parity_crypto::publickey::Error> {
 		Ok(recover(&self.signature(), &self.unsigned.hash(self.chain_id()))?)
 	}
 
@@ -392,11 +392,11 @@ impl UnverifiedTransaction {
 		}
 		// Disallow unsigned transactions in case EIP-86 is disabled.
 		if !allow_empty_signature && self.is_unsigned() {
-			return Err(ethkey::Error::InvalidSignature.into());
+			return Err(parity_crypto::publickey::Error::InvalidSignature.into());
 		}
 		// EIP-86: Transactions of this form MUST have gasprice = 0, nonce = 0, value = 0, and do NOT increment the nonce of account 0.
 		if allow_empty_signature && self.is_unsigned() && !(self.gas_price.is_zero() && self.value.is_zero() && self.nonce.is_zero()) {
-			return Err(ethkey::Error::InvalidSignature.into())
+			return Err(parity_crypto::publickey::Error::InvalidSignature.into())
 		}
 		match (self.chain_id(), chain_id) {
 			(None, _) => {},
@@ -407,7 +407,7 @@ impl UnverifiedTransaction {
 	}
 
 	/// Try to verify transaction and recover sender.
-	pub fn verify_unordered(self) -> Result<SignedTransaction, ethkey::Error> {
+	pub fn verify_unordered(self) -> Result<SignedTransaction, parity_crypto::publickey::Error> {
 		SignedTransaction::new(self)
 	}
 }
@@ -439,7 +439,7 @@ impl From<SignedTransaction> for UnverifiedTransaction {
 
 impl SignedTransaction {
 	/// Try to verify transaction and recover sender.
-	pub fn new(transaction: UnverifiedTransaction) -> Result<Self, ethkey::Error> {
+	pub fn new(transaction: UnverifiedTransaction) -> Result<Self, parity_crypto::publickey::Error> {
 		if transaction.is_unsigned() {
 			Ok(SignedTransaction {
 				transaction: transaction,
@@ -591,7 +591,7 @@ mod tests {
 
 	#[test]
 	fn signing_eip155_zero_chainid() {
-		use ethkey::{Random, Generator};
+		use parity_crypto::publickey::{Random, Generator};
 
 		let key = Random.generate().unwrap();
 		let t = Transaction {
@@ -604,7 +604,7 @@ mod tests {
 		};
 
 		let hash = t.hash(Some(0));
-		let sig = ::ethkey::sign(&key.secret(), &hash).unwrap();
+		let sig = parity_crypto::publickey::sign(&key.secret(), &hash).unwrap();
 		let u = t.with_signature(sig, Some(0));
 
 		assert!(SignedTransaction::new(u).is_ok());
@@ -612,7 +612,7 @@ mod tests {
 
 	#[test]
 	fn signing() {
-		use ethkey::{Random, Generator};
+		use parity_crypto::publickey::{Random, Generator};
 
 		let key = Random.generate().unwrap();
 		let t = Transaction {
@@ -647,7 +647,7 @@ mod tests {
 
 	#[test]
 	fn should_recover_from_chain_specific_signing() {
-		use ethkey::{Random, Generator};
+		use parity_crypto::publickey::{Random, Generator};
 		let key = Random.generate().unwrap();
 		let t = Transaction {
 			action: Action::Create,

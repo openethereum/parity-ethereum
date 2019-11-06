@@ -17,7 +17,7 @@
 use std::sync::Arc;
 use std::collections::{BTreeMap, BTreeSet};
 use parking_lot::RwLock;
-use ethkey::{Public, Signature, Random, Generator};
+use crypto::publickey::{Public, Signature, Random, Generator};
 use ethereum_types::{Address, H256};
 use parity_runtime::Executor;
 use key_server_cluster::{Error, NodeId, SessionId, Requester, AclStorage, KeyStorage, KeyServerSet, NodeKeyPair};
@@ -655,7 +655,7 @@ pub mod tests {
 	use futures::Future;
 	use parking_lot::{Mutex, RwLock};
 	use ethereum_types::{Address, H256};
-	use ethkey::{Random, Generator, Public, Signature, sign};
+	use crypto::publickey::{Random, Generator, Public, Signature, sign};
 	use key_server_cluster::{NodeId, SessionId, Requester, Error, DummyAclStorage, DummyKeyStorage,
 		MapKeyServerSet, PlainNodeKeyPair, NodeKeyPair};
 	use key_server_cluster::message::Message;

@@ -39,7 +39,7 @@ use devp2p::NetworkService;
 use ethcore_io::TimerToken;
 use ethcore_private_tx::PrivateStateDB;
 use ethereum_types::{H256, H512, U256};
-use ethkey::Secret;
+use parity_crypto::publickey::Secret;
 use futures::sync::mpsc as futures_mpsc;
 use futures::Stream;
 use light::client::AsLightClient;
@@ -295,7 +295,7 @@ pub struct EthSync {
 	light_subprotocol_name: [u8; 3],
 	/// Priority tasks notification channel
 	priority_tasks: Mutex<mpsc::Sender<PriorityTask>>,
-	/// for state tracking
+	/// Track the sync state: are we importing or verifying blocks?
 	is_major_syncing: Arc<AtomicBool>
 }
 

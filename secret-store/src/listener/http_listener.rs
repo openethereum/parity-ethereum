@@ -452,7 +452,7 @@ mod tests {
 	use std::sync::Arc;
 	use std::str::FromStr;
 	use hyper::Method as HttpMethod;
-	use ethkey::Public;
+	use crypto::publickey::Public;
 	use traits::KeyServer;
 	use key_server::tests::DummyKeyServer;
 	use types::NodeAddress;

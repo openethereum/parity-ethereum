@@ -309,7 +309,7 @@ impl BlockDownloader {
 				}
 			}
 		}
-
+		// Update the highest block number seen on the network from the header.
 		if let Some((number, _)) = last_header {
 			if self.highest_block.as_ref().map_or(true, |n| number > *n) {
 				self.highest_block = Some(number);
@@ -647,7 +647,7 @@ mod tests {
 	use crate::tests::{helpers::TestIo, snapshot::TestSnapshotService};
 
 	use ethcore::test_helpers::TestBlockChainClient;
-	use ethkey::{Random, Generator};
+	use parity_crypto::publickey::{Random, Generator};
 	use keccak_hash::keccak;
 	use parking_lot::RwLock;
 	use rlp::{encode_list, RlpStream};

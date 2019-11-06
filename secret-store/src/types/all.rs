@@ -16,10 +16,10 @@
 
 use std::collections::BTreeMap;
 
-use {ethkey, bytes, ethereum_types};
+use {bytes, ethereum_types};
 
 /// Node id.
-pub type NodeId = ethkey::Public;
+pub type NodeId = crypto::publickey::Public;
 /// Server key id. When key is used to encrypt document, it could be document contents hash.
 pub type ServerKeyId = ethereum_types::H256;
 /// Encrypted document key type.
@@ -29,9 +29,9 @@ pub type MessageHash = ethereum_types::H256;
 /// Message signature.
 pub type EncryptedMessageSignature = bytes::Bytes;
 /// Request signature type.
-pub type RequestSignature = ethkey::Signature;
+pub type RequestSignature = crypto::publickey::Signature;
 /// Public key type.
-pub use ethkey::Public;
+pub use crypto::publickey::Public;
 
 /// Secret store configuration
 #[derive(Debug, Clone)]
@@ -48,7 +48,7 @@ pub enum ContractAddress {
 	/// Address is read from registry.
 	Registry,
 	/// Address is specified.
-	Address(ethkey::Address),
+	Address(crypto::publickey::Address),
 }
 
 /// Secret store configuration
@@ -80,7 +80,7 @@ pub struct ClusterConfiguration {
 	/// This node address.
 	pub listener_address: NodeAddress,
 	/// All cluster nodes addresses.
-	pub nodes: BTreeMap<ethkey::Public, NodeAddress>,
+	pub nodes: BTreeMap<crypto::publickey::Public, NodeAddress>,
 	/// Key Server Set contract address. If None, servers from 'nodes' map are used.
 	pub key_server_set_contract_address: Option<ContractAddress>,
 	/// Allow outbound connections to 'higher' nodes.
@@ -97,9 +97,9 @@ pub struct ClusterConfiguration {
 #[derive(Clone, Debug, PartialEq)]
 pub struct EncryptedDocumentKeyShadow {
 	/// Decrypted secret point. It is partially decrypted if shadow decryption was requested.
-	pub decrypted_secret: ethkey::Public,
+	pub decrypted_secret: crypto::publickey::Public,
 	/// Shared common point.
-	pub common_point: Option<ethkey::Public>,
+	pub common_point: Option<crypto::publickey::Public>,
 	/// If shadow decryption was requested: shadow decryption coefficients, encrypted with requestor public.
 	pub decrypt_shadows: Option<Vec<Vec<u8>>>,
 }
@@ -108,9 +108,9 @@ pub struct EncryptedDocumentKeyShadow {
 #[derive(Debug, Clone)]
 pub enum Requester {
 	/// Requested with server key id signature.
-	Signature(ethkey::Signature),
+	Signature(crypto::publickey::Signature),
 	/// Requested with public key.
-	Public(ethkey::Public),
+	Public(crypto::publickey::Public),
 	/// Requested with verified address.
 	Address(ethereum_types::Address),
 }
@@ -124,21 +124,21 @@ impl Default for Requester {
 impl Requester {
 	pub fn public(&self, server_key_id: &ServerKeyId) -> Result<Public, String> {
 		match *self {
-			Requester::Signature(ref signature) => ethkey::recover(signature, server_key_id)
+			Requester::Signature(ref signature) => crypto::publickey::recover(signature, server_key_id)
 				.map_err(|e| format!("bad signature: {}", e)),
 			Requester::Public(ref public) => Ok(public.clone()),
 			Requester::Address(_) => Err("cannot recover public from address".into()),
 		}
 	}
 
-	pub fn address(&self, server_key_id: &ServerKeyId) -> Result<ethkey::Address, String> {
+	pub fn address(&self, server_key_id: &ServerKeyId) -> Result<crypto::publickey::Address, String> {
 		self.public(server_key_id)
-			.map(|p| ethkey::public_to_address(&p))
+			.map(|p| crypto::publickey::public_to_address(&p))
 	}
 }
 
-impl From<ethkey::Signature> for Requester {
-	fn from(signature: ethkey::Signature) -> Requester {
+impl From<crypto::publickey::Signature> for Requester {
+	fn from(signature: crypto::publickey::Signature) -> Requester {
 		Requester::Signature(signature)
 	}
 }

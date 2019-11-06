@@ -12,7 +12,7 @@ common-types = { path = "../../types" }
 engine = { path = "../../engine" }
 ethereum-types = "0.8.0"
 ethjson = { path = "../../../json" }
-ethkey = { path = "../../../accounts/ethkey" }
+parity-crypto = { version = "0.4.2", features = ["publickey"] }
 log = "0.4.8"
 machine = { path = "../../machine" }
 parking_lot = "0.9"

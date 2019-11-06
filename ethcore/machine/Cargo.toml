@@ -6,6 +6,11 @@ authors = ["Parity Technologies <admin@parity.io>"]
 edition = "2018"
 license = "GPL-3.0"
 
+[[bench]]
+name = "builtin_contract"
+harness = false
+required-features = ["test-helpers"]
+
 [dependencies]
 account-state = { path = "../account-state" }
 client-traits = { path = "../client-traits" }
@@ -34,10 +39,11 @@ vm = { path = "../vm" }
 
 [dev-dependencies]
 common-types = { path = "../types", features = ["test-helpers"] }
+criterion = "0.3"
 ethcore = { path = "../", features = ["test-helpers"] }
 ethcore-io = { path = "../../util/io" }
 ethjson = { path = "../../json" }
-ethkey = { path = "../../accounts/ethkey" }
+parity-crypto = { version = "0.4.2", features = ["publickey"] }
 macros = { path = "../../util/macros" }
 rustc-hex = "1.0"
 spec = { path = "../spec" }

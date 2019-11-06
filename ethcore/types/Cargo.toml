@@ -10,9 +10,9 @@ ethbloom = "0.8.0"
 ethcore-io = { path = "../../util/io" }
 ethereum-types = "0.8.0"
 ethjson = { path = "../../json" }
-ethkey = { path = "../../accounts/ethkey" }
 keccak-hash = "0.4.0"
 parity-bytes = "0.1"
+parity-crypto = { version = "0.4.2", features = ["publickey"] }
 parity-util-mem = "0.2.0"
 parity-snappy = "0.1"
 patricia-trie-ethereum = { path = "../../util/patricia-trie-ethereum" }

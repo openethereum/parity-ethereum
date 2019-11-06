@@ -20,7 +20,7 @@ use std::collections::btree_map::Entry;
 use futures::Oneshot;
 use parking_lot::Mutex;
 use ethereum_types::H256;
-use ethkey::{Public, Signature};
+use crypto::publickey::{Public, Signature};
 use key_server_cluster::{Error, NodeId, SessionId, KeyStorage};
 use key_server_cluster::math;
 use key_server_cluster::cluster::Cluster;
@@ -1050,7 +1050,7 @@ pub mod tests {
 	use std::sync::Arc;
 	use std::collections::{VecDeque, BTreeMap, BTreeSet};
 	use ethereum_types::H256;
-	use ethkey::{Random, Generator, Public, Signature, KeyPair, sign};
+	use crypto::publickey::{Random, Generator, Public, Signature, KeyPair, sign};
 	use key_server_cluster::{NodeId, SessionId, Error, KeyStorage, NodeKeyPair, PlainNodeKeyPair};
 	use key_server_cluster::cluster_sessions::ClusterSession;
 	use key_server_cluster::cluster::tests::MessageLoop as ClusterMessageLoop;

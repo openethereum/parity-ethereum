@@ -19,7 +19,6 @@
 use std::convert::TryFrom;
 use common_types::engines::params::CommonParams;
 use ethcore_builtin::Builtin;
-use ethjson;
 use crate::Machine;
 
 pub fn load_machine(reader: &[u8]) -> Machine {
@@ -34,7 +33,6 @@ pub fn load_machine(reader: &[u8]) -> Machine {
 		Machine::regular(params, builtins)
 	}
 }
-
 
 /// Create a new Foundation Frontier-era chain spec as though it never changes to Homestead.
 pub fn new_frontier_test_machine() -> Machine { load_machine(include_bytes!("../../res/ethereum/frontier_test.json")) }

@@ -27,7 +27,8 @@ use client_traits::ChainInfo;
 use common_types::{
 	ids::BlockId,
 	basic_account::BasicAccount,
-	errors::EthcoreError
+	errors::EthcoreError,
+	snapshot::Progress,
 };
 use engine::Engine;
 use ethcore::client::Client;
@@ -39,6 +40,7 @@ use keccak_hash::{KECCAK_NULL_RLP};
 use keccak_hasher::KeccakHasher;
 use kvdb::DBValue;
 use log::trace;
+use parking_lot::RwLock;
 use rand::Rng;
 use rlp;
 use snapshot::{
@@ -145,7 +147,7 @@ pub fn snap(client: &Client) -> (Box<dyn SnapshotReader>, TempDir) {
 	let tempdir = TempDir::new("").unwrap();
 	let path = tempdir.path().join("file");
 	let writer = PackedWriter::new(&path).unwrap();
-	let progress = Default::default();
+	let progress = RwLock::new(Progress::new());
 
 	let hash = client.chain_info().best_block_hash;
 	client.take_snapshot(writer, BlockId::Hash(hash), &progress).unwrap();

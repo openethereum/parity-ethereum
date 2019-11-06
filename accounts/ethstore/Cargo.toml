@@ -17,7 +17,7 @@ tiny-keccak = "1.4"
 time = "0.1.34"
 itertools = "0.5"
 parking_lot = "0.9"
-parity-crypto = "0.4.0"
+parity-crypto = { version = "0.4.2", features = ["publickey"] }
 ethereum-types = "0.8.0"
 dir = { path = "../../util/dir" }
 smallvec = "0.6"

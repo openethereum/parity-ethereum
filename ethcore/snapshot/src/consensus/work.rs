@@ -37,6 +37,7 @@ use engine::Engine;
 use ethereum_types::{H256, U256};
 use kvdb::KeyValueDB;
 use log::trace;
+use parking_lot::RwLock;
 use rand::rngs::OsRng;
 use rlp::{RlpStream, Rlp};
 use triehash::ordered_trie_root;
@@ -72,7 +73,7 @@ impl SnapshotComponents for PowSnapshot {
 		chain: &BlockChain,
 		block_at: H256,
 		chunk_sink: &mut ChunkSink,
-		progress: &Progress,
+		progress: &RwLock<Progress>,
 		preferred_size: usize,
 	) -> Result<(), SnapshotError> {
 		PowWorker {
@@ -110,7 +111,7 @@ struct PowWorker<'a> {
 	rlps: VecDeque<Bytes>,
 	current_hash: H256,
 	writer: &'a mut ChunkSink<'a>,
-	progress: &'a Progress,
+	progress: &'a RwLock<Progress>,
 	preferred_size: usize,
 }
 
@@ -153,7 +154,7 @@ impl<'a> PowWorker<'a> {
 
 			last = self.current_hash;
 			self.current_hash = block.header_view().parent_hash();
-			self.progress.blocks.fetch_add(1, Ordering::SeqCst);
+			self.progress.write().blocks += 1;
 		}
 
 		if loaded_size != 0 {
@@ -178,7 +179,7 @@ impl<'a> PowWorker<'a> {
 		let parent_hash = last_header.parent_hash();
 		let parent_total_difficulty = last_details.total_difficulty - last_header.difficulty();
 
-		trace!(target: "snapshot", "parent last written block: {}", parent_hash);
+		trace!(target: "snapshot", "parent last written block: #{}/{}", parent_number, parent_hash);
 
 		let num_entries = self.rlps.len();
 		let mut rlp_stream = RlpStream::new_list(3 + num_entries);

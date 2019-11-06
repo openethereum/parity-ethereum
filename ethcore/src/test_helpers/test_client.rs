@@ -28,7 +28,7 @@ use bytes::Bytes;
 use db::{NUM_COLUMNS, COL_STATE};
 use ethcore_miner::pool::VerifiedTransaction;
 use ethereum_types::{H256, U256, Address};
-use ethkey::{Generator, Random};
+use parity_crypto::publickey::{Generator, Random};
 use ethtrie;
 use hash::keccak;
 use itertools::Itertools;

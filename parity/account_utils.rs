@@ -81,7 +81,7 @@ mod accounts {
 		let account_settings = AccountProviderSettings {
 			unlock_keep_secret: cfg.enable_fast_unlock,
 			blacklisted_accounts: 	match *spec {
-				SpecType::Morden | SpecType::Ropsten | SpecType::Kovan | SpecType::Sokol | SpecType::Dev => vec![],
+				SpecType::Morden | SpecType::Mordor | SpecType::Ropsten | SpecType::Kovan | SpecType::Goerli | SpecType::Kotti | SpecType::Sokol | SpecType::Dev => vec![],
 				_ => vec![
 					H160::from_str("00a329c0648769a73afac7f9381e08fb43dbea72").expect("the string is valid hex; qed"),
 				],
@@ -166,7 +166,7 @@ mod accounts {
 
 	mod private_tx {
 		use super::*;
-		use ethkey::{Signature, Message};
+		use parity_crypto::publickey::{Signature, Message};
 		use ethcore_private_tx::{Error};
 
 		pub struct AccountSigner {
@@ -211,8 +211,8 @@ mod accounts {
 	}
 
 	fn insert_dev_account(account_provider: &AccountProvider) {
-		let secret: ethkey::Secret = "4d5db4107d237df6a3d58ee5f70ae63d73d7658d4026f2eefd2f204c81682cb7".into();
-		let dev_account = ethkey::KeyPair::from_secret(secret.clone()).expect("Valid secret produces valid key;qed");
+		let secret = parity_crypto::publickey::Secret::from_str("4d5db4107d237df6a3d58ee5f70ae63d73d7658d4026f2eefd2f204c81682cb7".into()).expect("Valid account;qed");
+		let dev_account = parity_crypto::publickey::KeyPair::from_secret(secret.clone()).expect("Valid secret produces valid key;qed");
 		if !account_provider.has_account(dev_account.address()) {
 			match account_provider.insert_account(secret, &Password::from(String::new())) {
 				Err(e) => warn!("Unable to add development account: {}", e),

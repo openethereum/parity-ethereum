@@ -22,7 +22,8 @@ use std::collections::{
 };
 
 use ethereum_types::{Address, H160, H256, H520};
-use ethkey::{Brain, Generator, Secret};
+use ethkey::{Brain, Password};
+use crypto::publickey::{Generator, Secret};
 use ethstore::KeyFile;
 use accounts::AccountProvider;
 use jsonrpc_core::Result;
@@ -30,7 +31,6 @@ use v1::helpers::deprecated::{self, DeprecationNotice};
 use v1::helpers::errors;
 use v1::traits::{ParityAccounts, ParityAccountsInfo};
 use v1::types::{Derive, DeriveHierarchical, DeriveHash, ExtAccountInfo, AccountInfo};
-use ethkey::Password;
 
 /// Account management (personal) rpc implementation.
 pub struct ParityAccountsClient {
@@ -134,7 +134,7 @@ impl ParityAccounts for ParityAccountsClient {
 
 	fn new_account_from_secret(&self, secret: H256, pass: Password) -> Result<H160> {
 		self.deprecation_notice("parity_newAccountFromSecret");
-		let secret = Secret::from_unsafe_slice(&secret.0)
+		let secret = Secret::import_key(&secret.0)
 			.map_err(|e| errors::account("Could not create account.", e))?;
 		self.accounts.insert_account(secret, &pass)
 			.map(Into::into)

@@ -19,7 +19,7 @@ use std::sync::Arc;
 use serde_json;
 use tiny_keccak::Keccak;
 use ethereum_types::{H256, Address};
-use ethkey::{Secret, Public};
+use crypto::publickey::{Secret, Public};
 use kvdb::KeyValueDB;
 use types::{Error, ServerKeyId, NodeId};
 use serialization::{SerializablePublic, SerializableSecret, SerializableH256, SerializableAddress};
@@ -296,7 +296,7 @@ pub mod tests {
 	use std::sync::Arc;
 	use parking_lot::RwLock;
 	use self::tempdir::TempDir;
-	use ethkey::{Random, Generator, Public};
+	use crypto::publickey::{Random, Generator, Public};
 	use kvdb_rocksdb::Database;
 	use types::{Error, ServerKeyId};
 	use super::{KeyStorage, PersistentKeyStorage, DocumentKeyShare, DocumentKeyShareVersion};

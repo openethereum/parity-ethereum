@@ -16,11 +16,11 @@
 
 //! Snapshot type definitions
 
-use std::sync::atomic::{AtomicBool, AtomicUsize, AtomicU64, Ordering};
+use std::time::Instant;
 
+use bytes::Bytes;
 use ethereum_types::H256;
 use rlp::{Rlp, RlpStream, DecoderError};
-use bytes::Bytes;
 
 /// Modes of snapshotting
 pub enum Snapshotting {
@@ -39,55 +39,72 @@ pub enum Snapshotting {
 }
 
 /// A progress indicator for snapshots.
-#[derive(Debug, Default)]
+#[derive(Debug)]
 pub struct Progress {
 	/// Number of accounts processed so far
-	pub accounts: AtomicUsize,
+	accounts: u64,
+	// Number of accounts processed at last tick.
+	prev_accounts: u64,
 	/// Number of blocks processed so far
-	pub blocks: AtomicUsize,
+	pub blocks: u64,
 	/// Size in bytes of a all compressed chunks processed so far
-	pub size: AtomicU64,
+	bytes: u64,
+	// Number of bytes processed at last tick.
+	prev_bytes: u64,
 	/// Signals that the snapshotting process is completed
-	pub done: AtomicBool,
+	pub done: bool,
 	/// Signal snapshotting process to abort
-	pub abort: AtomicBool,
+	pub abort: bool,
+
+	last_tick: Instant,
 }
 
 impl Progress {
-	/// Instantiate a new Progress meter
-	pub fn new() -> Self {
+	/// Create a new progress tracker.
+	pub fn new() -> Progress {
 		Progress {
-			accounts: AtomicUsize::new(0),
-			blocks: AtomicUsize::new(0),
-			size: AtomicU64::new(0),
-			abort: AtomicBool::new(false),
-			done: AtomicBool::new(false),
+			accounts: 0,
+			prev_accounts: 0,
+			blocks: 0,
+			bytes: 0,
+			prev_bytes: 0,
+			abort: false,
+			done: false,
+			last_tick: Instant::now(),
 		}
 	}
 
-	/// Reset the progress.
-	pub fn reset(&self) {
-		self.accounts.store(0, Ordering::Release);
-		self.blocks.store(0, Ordering::Release);
-		self.size.store(0, Ordering::Release);
-		self.abort.store(false, Ordering::Release);
-
-		// atomic fence here to ensure the others are written first?
-		// logs might very rarely get polluted if not.
-		self.done.store(false, Ordering::Release);
-	}
-
 	/// Get the number of accounts snapshotted thus far.
-	pub fn accounts(&self) -> usize { self.accounts.load(Ordering::Acquire) }
+	pub fn accounts(&self) -> u64 { self.accounts }
 
 	/// Get the number of blocks snapshotted thus far.
-	pub fn blocks(&self) -> usize { self.blocks.load(Ordering::Acquire) }
+	pub fn blocks(&self) -> u64 { self.blocks }
 
 	/// Get the written size of the snapshot in bytes.
-	pub fn size(&self) -> u64 { self.size.load(Ordering::Acquire) }
+	pub fn bytes(&self) -> u64 { self.bytes }
 
 	/// Whether the snapshot is complete.
-	pub fn done(&self) -> bool  { self.done.load(Ordering::Acquire) }
+	pub fn done(&self) -> bool  { self.done }
+
+	/// Return the progress rate over the last tick (i.e. since last update).
+	pub fn rate(&self) -> (f64, f64) {
+		let dt = self.last_tick.elapsed().as_secs_f64();
+		if dt < 1.0 {
+			return (0f64, 0f64);
+		}
+		let delta_acc = self.accounts.saturating_sub(self.prev_accounts);
+		let delta_bytes = self.bytes.saturating_sub(self.prev_bytes);
+		(delta_acc as f64 / dt, delta_bytes as f64 / dt)
+	}
+
+	/// Update state progress counters and set the last tick.
+	pub fn update(&mut self, accounts_delta: u64, bytes_delta: u64) {
+		self.last_tick = Instant::now();
+		self.prev_accounts = self.accounts;
+		self.prev_bytes = self.bytes;
+		self.accounts += accounts_delta;
+		self.bytes += bytes_delta;
+	}
 }
 
 /// Manifest data.
@@ -153,9 +170,9 @@ pub type ChunkSink<'a> = dyn FnMut(&[u8]) -> std::io::Result<()> + 'a;
 /// Statuses for snapshot restoration.
 #[derive(PartialEq, Eq, Clone, Copy, Debug)]
 pub enum RestorationStatus {
-	///	No restoration.
+	/// No restoration activity currently.
 	Inactive,
-	/// Restoration is initializing
+	/// Restoration is initializing.
 	Initializing {
 		/// Total number of state chunks.
 		state_chunks: u32,
@@ -175,7 +192,7 @@ pub enum RestorationStatus {
 		/// Number of block chunks completed.
 		block_chunks_done: u32,
 	},
-	/// Finalizing restoration
+	/// Finalizing restoration.
 	Finalizing,
 	/// Failed restoration.
 	Failed,

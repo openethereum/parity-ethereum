@@ -21,7 +21,7 @@ use common_types::{
 	errors::{EthcoreError as Error, EngineError},
 };
 use ethereum_types::{Address, H256};
-use ethkey::{public_to_address, recover as ec_recover, Signature};
+use parity_crypto::publickey::{public_to_address, recover as ec_recover, Signature};
 use lazy_static::lazy_static;
 use lru_cache::LruCache;
 use parking_lot::RwLock;

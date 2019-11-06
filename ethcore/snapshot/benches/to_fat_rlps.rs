@@ -26,6 +26,7 @@ use common_types::{
 use criterion::{Criterion, criterion_group, criterion_main, black_box};
 use ethcore::test_helpers::new_temp_db;
 use ethereum_types::H256;
+use parking_lot::RwLock;
 use snapshot::test_helpers::to_fat_rlps;
 use tempdir::TempDir;
 use ethtrie::TrieDB;
@@ -69,7 +70,7 @@ fn fat_rlps(c: &mut Criterion) {
 		let account_hash = H256::from_slice(&account_key);
 		let basic_account: BasicAccount = rlp::decode(&*account_data).expect("rlp from disk is ok");
 		let account_db = AccountDB::from_hash(hashdb, account_hash);
-		let progress = Progress::new();
+		let progress = RwLock::new(Progress::new());
 		let mut used_code = HashSet::new();
 
 		let bench_name = format!("to_fat_rlps, {} bytes, ({})", chunks[idx].len(), account_hash);

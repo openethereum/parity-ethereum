@@ -17,7 +17,7 @@
 use std::collections::BTreeSet;
 use rand::{RngCore, rngs::OsRng};
 use ethereum_types::{H256, H512};
-use ethkey::{self, Public, Secret, Random, Generator, math};
+use crypto::publickey::{Public, Secret, Random, Generator, ec_math_utils};
 use crypto;
 use bytes::Bytes;
 use jsonrpc_core::Error;
@@ -37,7 +37,7 @@ pub fn generate_document_key(account_public: Public, server_key_public: Public) 
 	let (common_point, encrypted_point) = encrypt_secret(document_key.public(), &server_key_public)?;
 
 	// ..and now encrypt document key with account public
-	let encrypted_key = ethkey::crypto::ecies::encrypt(
+	let encrypted_key = crypto::publickey::ecies::encrypt(
 		&account_public,
 		&crypto::DEFAULT_MAC,
 		document_key.public().as_bytes(),
@@ -130,9 +130,9 @@ fn decrypt_with_shadow_coefficients(mut decrypted_shadow: Public, mut common_sha
 			.map_err(errors::encryption)?;
 	}
 
-	math::public_mul_secret(&mut common_shadow_point, &shadow_coefficients_sum)
+	ec_math_utils::public_mul_secret(&mut common_shadow_point, &shadow_coefficients_sum)
 		.map_err(errors::encryption)?;
-	math::public_add(&mut decrypted_shadow, &common_shadow_point)
+	ec_math_utils::public_add(&mut decrypted_shadow, &common_shadow_point)
 		.map_err(errors::encryption)?;
 	Ok(decrypted_shadow)
 }
@@ -145,15 +145,15 @@ fn encrypt_secret(secret: &Public, joint_public: &Public) -> Result<(Public, Pub
 		.map_err(errors::encryption)?;
 
 	// k * T
-	let mut common_point = math::generation_point();
-	math::public_mul_secret(&mut common_point, key_pair.secret())
+	let mut common_point = ec_math_utils::generation_point();
+	ec_math_utils::public_mul_secret(&mut common_point, key_pair.secret())
 		.map_err(errors::encryption)?;
 
 	// M + k * y
 	let mut encrypted_point = joint_public.clone();
-	math::public_mul_secret(&mut encrypted_point, key_pair.secret())
+	ec_math_utils::public_mul_secret(&mut encrypted_point, key_pair.secret())
 		.map_err(errors::encryption)?;
-	math::public_add(&mut encrypted_point, secret)
+	ec_math_utils::public_add(&mut encrypted_point, secret)
 		.map_err(errors::encryption)?;
 
 	Ok((common_point, encrypted_point))

@@ -27,7 +27,7 @@ use common_types::{
 	ids::BlockId,
 };
 use ethereum_types::{H256, Address};
-use ethkey::public_to_address;
+use crypto::publickey::public_to_address;
 use bytes::Bytes;
 use types::{Error, Public, NodeAddress, NodeId};
 use trusted_client::TrustedClient;
@@ -592,7 +592,7 @@ pub mod tests {
 	use std::collections::BTreeMap;
 	use std::net::SocketAddr;
 	use ethereum_types::{H256, H512};
-	use ethkey::Public;
+	use crypto::publickey::Public;
 	use super::{update_future_set, update_number_of_confirmations, FutureNewSet,
 		KeyServerSet, KeyServerSetSnapshot, MIGRATION_CONFIRMATIONS_REQUIRED};
 

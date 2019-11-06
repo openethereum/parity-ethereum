@@ -11,7 +11,7 @@ client-traits = { path = "../../client-traits" }
 common-types = { path = "../../types" }
 ethereum-types = "0.8.0"
 ethjson = { path = "../../../json" }
-ethkey = { path = "../../../accounts/ethkey" }
+parity-crypto = { version = "0.4.2", features = ["publickey"] }
 engine = { path = "../../engine" }
 keccak-hash = "0.4.0"
 lazy_static = "1.3.0"

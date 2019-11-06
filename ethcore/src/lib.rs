@@ -73,7 +73,7 @@ extern crate ethcore_stratum;
 extern crate ethash;
 
 #[cfg(any(test, feature = "test-helpers"))]
-extern crate ethkey;
+extern crate parity_crypto;
 #[cfg(any(test, feature = "test-helpers"))]
 extern crate ethjson;
 #[cfg(any(test, feature = "test-helpers"))]
