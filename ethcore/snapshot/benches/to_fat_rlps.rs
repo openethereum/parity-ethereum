@@ -70,11 +70,11 @@ fn fat_rlps(c: &mut Criterion) {
 		let basic_account: BasicAccount = rlp::decode(&*account_data).expect("rlp from disk is ok");
 		let account_db = AccountDB::from_hash(hashdb, account_hash);
 		let progress = Progress::new();
+		let mut used_code = HashSet::new();
 
 		let bench_name = format!("to_fat_rlps, {} bytes, ({})", chunks[idx].len(), account_hash);
 		c.bench_function(&bench_name, |b| {
 			b.iter(|| {
-				let mut used_code = HashSet::new();
 				let _ = to_fat_rlps(
 					black_box(&account_hash),
 					black_box(&basic_account),
