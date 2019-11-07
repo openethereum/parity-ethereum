@@ -9,7 +9,7 @@ add_executable(parity-example main.cpp)
 add_compile_options("-Wall -Wextra -Werror")
 set(parity_shared_library_path "${CMAKE_SOURCE_DIR}/../../../target/release/${CMAKE_SHARED_LIBRARY_PREFIX}parity${CMAKE_SHARED_LIBRARY_SUFFIX}")
 ExternalProject_Add(
-    libparity.so
+    libparity
     DOWNLOAD_COMMAND ""
     CONFIGURE_COMMAND ""
     BUILD_COMMAND cargo build -p parity-clib --release --verbose --color=always
@@ -21,5 +21,5 @@ ExternalProject_Add(
     LOG_BUILD ON
     VERBATIM)
 
-add_dependencies(parity-example libparity.so)
+add_dependencies(parity-example libparity)
 target_link_libraries(parity-example "${parity_shared_library_path}")
