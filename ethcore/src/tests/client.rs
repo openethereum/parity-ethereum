@@ -17,7 +17,6 @@
 use std::str::{FromStr, from_utf8};
 use std::sync::Arc;
 
-use account_state::state::StateInfo;
 use ethereum_types::{U256, Address};
 use ethkey::KeyPair;
 use hash::keccak;
@@ -38,7 +37,7 @@ use types::{
 };
 use miner::{Miner, PendingOrdering, MinerService};
 use spec::Spec;
-use state::{self, State, CleanupMode};
+use state::{self, State, StateInfo, CleanupMode};
 use test_helpers::{
 	self,
 	generate_dummy_client, push_blocks_to_client, get_test_client_with_blocks, get_good_dummy_block_seq,
