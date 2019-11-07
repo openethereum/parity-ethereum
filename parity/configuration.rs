@@ -1217,7 +1217,6 @@ mod tests {
 	use miner::pool::PrioritizationStrategy;
 	use parity_rpc::NetworkSettings;
 	use updater::{UpdatePolicy, UpdateFilter, ReleaseTrack};
-	use types::ids::BlockId;
 	use types::data_format::DataFormat;
 	use account::{AccountCmd, NewAccount, ImportAccounts, ListAccounts};
 	use blockchain::{BlockchainCmd, ImportBlockchain, ExportBlockchain, ExportState};
