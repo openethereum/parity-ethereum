@@ -114,19 +114,11 @@ impl<'p, C> SyncIo for TestIo<'p, C> where C: FlushingBlockChainClient, C: 'p {
 		self.snapshot_service
 	}
 
-	fn private_state(&self) -> Option<Arc<PrivateStateDB>> {
-		self.private_state_db.clone()
-	}
-
 	fn peer_version(&self, peer_id: PeerId) -> ClientVersion {
-		let client_id = self.peers_info.get(&peer_id)
+		self.peers_info.get(&peer_id)
 			.cloned()
 			.unwrap_or_else(|| peer_id.to_string())
 			.into()
-	}
-
-	fn snapshot_service(&self) -> &SnapshotService {
-		self.snapshot_service
 	}
 
 	fn peer_enode(&self, _peer_id: usize) -> Option<String> {
