@@ -26,17 +26,17 @@ use types::transaction::SignedTransaction;
 // NOTE: the fields are only `pub` because they are needed for tests
 #[derive(Debug, Clone, Eq, PartialEq)]
 pub struct FilterOptions {
-	/// Contains the operator to filter on the `from` value of the transaction.
+	/// Filter based on the `sender` of the transaction.
 	pub from: FilterOperator<Address>,
-	/// Contains the operator to filter on the `to` value of the transaction.
+	/// Filter based on `receiver` of the transaction.
 	pub to: FilterOperator<Option<Address>>,
-	/// Contains the operator to filter the `gas` value of the transaction.
+	/// Filter based on `gas` of the transaction.
 	pub gas: FilterOperator<U256>,
-	/// Contains the operator to filter the gas price value of the transaction
+	/// Filter based on `gas price` of the transaction.
 	pub gas_price: FilterOperator<U256>,
-	/// Contains the operator to filter the transaction value
+	/// Filter based on `value` of the transaction.
 	pub value: FilterOperator<U256>,
-	/// Contains the operator to filter the nonce value of the transaction
+	/// Filter based on `nonce` of the transaction.
 	pub nonce: FilterOperator<U256>,
 }
 
@@ -238,7 +238,6 @@ impl<'de> Deserialize<'de> for FilterOptions {
 						}
 					}
 				}
-
 				Ok(filter)
 			}
 		}
