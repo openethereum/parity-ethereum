@@ -92,6 +92,7 @@ cargo-check-benches:
   script:
     - time cargo check --all --benches --target $CARGO_TARGET --locked --verbose --color=always
     - sccache -s
+  allow_failure:                   true # temp
 
 cargo-audit:
   stage:                           test
