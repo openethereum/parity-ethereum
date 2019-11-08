@@ -24,7 +24,7 @@ use client_traits::{Nonce, StateClient};
 use engine::{Engine, signer::EngineSigner};
 use ethcore::block::SealedBlock;
 use ethcore::client::{PrepareOpenBlock, EngineInfo};
-use ethcore::miner::{self, MinerService, AuthoringParams, FilterOptions, FilterOperator};
+use ethcore::miner::{self, MinerService, AuthoringParams, FilterOptions};
 use ethcore::test_helpers::TestState;
 use ethereum_types::{H256, U256, Address};
 use miner::pool::local_transactions::Status as LocalTransactionStatus;
