@@ -16,24 +16,24 @@
 
 use std::cmp;
 use std::collections::{HashSet, BTreeMap, VecDeque};
-use std::io::{BufRead, BufReader};
-use std::str::{FromStr, from_utf8};
+use std::str::FromStr;
+use std::str::from_utf8;
 use std::convert::TryFrom;
-use std::sync::atomic::{AtomicI64, AtomicBool, Ordering as AtomicOrdering};
+use std::sync::atomic::{AtomicUsize, AtomicI64, AtomicBool, Ordering as AtomicOrdering};
 use std::sync::{Arc, Weak};
-use std::time::{Instant, Duration};
+use std::io::{BufReader, BufRead};
+use std::time::{Duration, Instant};
 
 use blockchain::{BlockReceipts, BlockChain, BlockChainDB, BlockProvider, TreeRoute, ImportRoute, TransactionAddress, ExtrasInsert, BlockNumberKey};
-use bytes::{Bytes, ToPretty};
-use call_contract::{CallContract, RegistryInfo};
-use ethcore_miner::pool::VerifiedTransaction;
-use ethereum_types::{H256, H264, Address, U256};
-use evm::Schedule;
+use bytes::Bytes;
+use bytes::ToPretty;
+use error::Error;
+use ethereum_types::{Address, H256, H264, U256};
 use hash::keccak;
-use io::IoChannel;
+use call_contract::CallContract;
+use ethcore_miner::pool::VerifiedTransaction;
 use itertools::Itertools;
-use journaldb;
-use kvdb::{DBValue, KeyValueDB, DBTransaction};
+use kvdb::{DBTransaction, DBValue, KeyValueDB};
 use parking_lot::{Mutex, RwLock};
 use rand::OsRng;
 use rlp::PayloadInfo;
@@ -46,8 +46,8 @@ use types::filter::Filter;
 use types::log_entry::LocalizedLogEntry;
 use types::receipt::{Receipt, LocalizedReceipt};
 use types::{BlockNumber, header::{Header, ExtendedHeader}};
-use types::data_format::DataFormat;
 use vm::{EnvInfo, LastHashes};
+use types::data_format::DataFormat;
 
 use block::{LockedBlock, Drain, ClosedBlock, OpenBlock, enact_verified, SealedBlock};
 use client::ancient_import::AncientVerifier;
@@ -56,7 +56,7 @@ use client::{
 	ReopenBlock, PrepareOpenBlock, ScheduleInfo, ImportSealedBlock,
 	BroadcastProposalBlock, ImportBlock, StateOrBlock, StateInfo, StateClient, Call,
 	AccountData, BlockChain as BlockChainTrait, BlockProducer, SealedBlockImporter,
-	ClientIoMessage, BlockChainReset, ImportExportBlocks,
+	ClientIoMessage, BlockChainReset, ImportExportBlocks
 };
 use client::{
 	BlockId, TransactionId, UncleId, TraceId, ClientConfig, BlockChainClient,
@@ -85,7 +85,9 @@ use verification::queue::kind::blocks::Unverified;
 use verification::{PreverifiedBlock, Verifier, BlockQueue};
 use verification;
 use ansi_term::Colour;
-
+use call_contract::RegistryInfo;
+use io::IoChannel;
+use vm::Schedule;
 // re-export
 pub use types::blockchain_info::BlockChainInfo;
 pub use types::block_status::BlockStatus;
@@ -2579,6 +2581,7 @@ impl ProvingBlockChainClient for Client {
 
 impl SnapshotClient for Client {}
 
+
 impl ImportExportBlocks for Client {
 	fn export_blocks<'a>(
 		&self,
@@ -2634,9 +2637,9 @@ impl ImportExportBlocks for Client {
 			let number = block.header.number();
 			while self.queue_info().is_full() { std::thread::sleep(Duration::from_secs(1)); }
 			match self.import_block(block) {
-				Err(EthcoreError(EthcoreErrorKind::Import(ImportErrorKind::AlreadyInChain), _)) => {
+				Err(Error(EthcoreErrorKind::Import(ImportErrorKind::AlreadyInChain), _)) => {
 					trace!("Skipping block #{}: already in chain.", number);
-				},
+				}
 				Err(e) => {
 					return Err(format!("Cannot import block #{}: {:?}", number, e));
 				},
