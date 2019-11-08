@@ -19,7 +19,7 @@ extern crate criterion;
 
 #[macro_use]
 extern crate lazy_static;
-
+extern crate ethcore_builtin;
 extern crate ethcore;
 extern crate ethereum_types;
 extern crate parity_bytes as bytes;
@@ -27,7 +27,7 @@ extern crate rustc_hex;
 
 use criterion::{Criterion, Bencher};
 use bytes::BytesRef;
-use ethcore::builtin::Builtin;
+use ethcore_builtin::Builtin;
 use ethcore::machine::EthereumMachine;
 use ethereum_types::U256;
 use ethcore::ethereum::new_byzantium_test_machine;
@@ -54,10 +54,6 @@ impl<'a> BuiltinBenchmark<'a> {
 		BuiltinBenchmark {
 			builtin, input, expected
 		}
-	}
-
-	fn gas_cost(&self) -> U256 {
-		self.builtin.cost(&self.input)
 	}
 
 	fn run(&self, b: &mut Bencher) {
