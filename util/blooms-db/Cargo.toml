@@ -11,4 +11,5 @@ parking_lot = "0.7"
 tiny-keccak = "1.4"
 
 [dev-dependencies]
+criterion = "0.3.0"
 tempdir = "0.3"

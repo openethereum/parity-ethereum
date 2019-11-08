@@ -14,21 +14,27 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
-#![feature(test)]
-
-extern crate test;
+#[macro_use]
+extern crate criterion;
 extern crate tempdir;
 extern crate blooms_db;
 extern crate ethbloom;
 
 use std::iter;
-use test::Bencher;
+use criterion::Criterion;
 use tempdir::TempDir;
 use blooms_db::Database;
 use ethbloom::Bloom;
 
-#[bench]
-fn blooms_filter_1_million_ok(b: &mut Bencher) {
+criterion_group!(
+	blooms,
+	bench_blooms_filter_1_million_ok,
+	bench_blooms_filter_1_million_miss,
+	bench_blooms_filter_1_million_miss_and_ok,
+);
+criterion_main!(blooms);
+
+fn bench_blooms_filter_1_million_ok(c: &mut Criterion) {
 	let tempdir = TempDir::new("").unwrap();
 	let database = Database::open(tempdir.path()).unwrap();
 	database.insert_blooms(999_999, iter::once(&Bloom::zero())).unwrap();
@@ -38,14 +44,15 @@ fn blooms_filter_1_million_ok(b: &mut Bencher) {
 	database.insert_blooms(600_000, iter::once(&bloom)).unwrap();
 	database.insert_blooms(800_000, iter::once(&bloom)).unwrap();
 
-	b.iter(|| {
-		let matches = database.filter(0, 999_999, Some(&bloom)).unwrap();
-		assert_eq!(matches, vec![200_000, 400_000, 600_000, 800_000]);
+	c.bench_function("blooms_filter_1_million_ok", move |b| {
+		b.iter(|| {
+			let matches = database.filter(0, 999_999, Some(&bloom)).unwrap();
+			assert_eq!(matches, vec![200_000, 400_000, 600_000, 800_000]);
+		})
 	});
 }
 
-#[bench]
-fn blooms_filter_1_million_miss(b: &mut Bencher) {
+fn bench_blooms_filter_1_million_miss(c: &mut Criterion) {
 	let tempdir = TempDir::new("").unwrap();
 	let database = Database::open(tempdir.path()).unwrap();
 	database.insert_blooms(999_999, iter::once(&Bloom::zero())).unwrap();
@@ -56,14 +63,15 @@ fn blooms_filter_1_million_miss(b: &mut Bencher) {
 	database.insert_blooms(600_000, iter::once(&bloom)).unwrap();
 	database.insert_blooms(800_000, iter::once(&bloom)).unwrap();
 
-	b.iter(|| {
-		let matches = database.filter(0, 999_999, Some(&bad_bloom)).unwrap();
-		assert_eq!(matches, vec![200_000, 400_000, 600_000, 800_000]);
+	c.bench_function("blooms_filter_1_million_miss", move |b| {
+		b.iter(|| {
+			let matches = database.filter(0, 999_999, Some(&bad_bloom)).unwrap();
+			assert_eq!(matches, vec![200_000, 400_000, 600_000, 800_000]);
+		})
 	});
 }
 
-#[bench]
-fn blooms_filter_1_million_miss_and_ok(b: &mut Bencher) {
+fn bench_blooms_filter_1_million_miss_and_ok(c: &mut Criterion) {
 	let tempdir = TempDir::new("").unwrap();
 	let database = Database::open(tempdir.path()).unwrap();
 	database.insert_blooms(999_999, iter::once(&Bloom::zero())).unwrap();
@@ -74,8 +82,10 @@ fn blooms_filter_1_million_miss_and_ok(b: &mut Bencher) {
 	database.insert_blooms(600_000, iter::once(&bloom)).unwrap();
 	database.insert_blooms(800_000, iter::once(&bloom)).unwrap();
 
-	b.iter(|| {
-		let matches = database.filter(0, 999_999, &vec![bad_bloom, bloom]).unwrap();
-		assert_eq!(matches, vec![200_000, 400_000, 600_000, 800_000]);
+	c.bench_function("blooms_filter_1_million_miss_and_ok", move |b| {
+		b.iter(|| {
+			let matches = database.filter(0, 999_999, &vec![bad_bloom, bloom]).unwrap();
+			assert_eq!(matches, vec![200_000, 400_000, 600_000, 800_000]);
+		})
 	});
 }
