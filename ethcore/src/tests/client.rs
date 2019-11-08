@@ -26,8 +26,8 @@ use types::transaction::{PendingTransaction, Transaction, Action, Condition};
 use types::filter::Filter;
 use types::view;
 use types::views::BlockView;
-
-use client::{BlockChainClient, BlockChainReset, Client, ClientConfig, BlockId, ChainInfo, BlockInfo, PrepareOpenBlock, ImportSealedBlock, ImportBlock};
+use types::data_format::DataFormat;
+use client::{BlockChainClient, BlockChainReset, Client, ClientConfig, BlockId, ChainInfo, BlockInfo, PrepareOpenBlock, ImportSealedBlock, ImportBlock, ImportExportBlocks};
 use ethereum;
 use executive::{Executive, TransactOptions};
 use miner::{Miner, PendingOrdering, MinerService};
