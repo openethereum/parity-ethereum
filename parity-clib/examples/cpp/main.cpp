@@ -64,10 +64,10 @@ struct Callback {
 
 // list of rpc queries
 const std::vector<std::string> rpc_queries{
-    "{\"method\":\"parity_versionInfo\",\"params\":[],\"id\":1,\"jsonrpc\":\"2.0\"}"s,
-    "{\"method\":\"eth_getTransactionReceipt\",\"params\":[\"0x444172bef57ad978655171a8af2cfd89baa02a97fcb773067aef7794d6913fff\"],\"id\":1,\"jsonrpc\":\"2.0\"}"s,
-    "{\"method\":\"eth_estimateGas\",\"params\":[{\"from\":\"0x0066Dc48bb833d2B59f730F33952B3c29fE926F5\"}],\"id\":1,\"jsonrpc\":\"2.0\"}"s,
-    "{\"method\":\"eth_getBalance\",\"params\":[\"0x0066Dc48bb833d2B59f730F33952B3c29fE926F5\"],\"id\":1,\"jsonrpc\":\"2.0\"}"s,
+    R"({"method":"parity_versionInfo","params":[],"id":1,"jsonrpc":"2.0"})"s,
+    R"({"method":"eth_getTransactionReceipt","params":["0x444172bef57ad978655171a8af2cfd89baa02a97fcb773067aef7794d6913fff"],"id":1,"jsonrpc":"2.0"})"s,
+    R"({"method":"eth_estimateGas","params":[{"from":"0x0066Dc48bb833d2B59f730F33952B3c29fE926F5"}],"id":1,"jsonrpc":"2.0"})"s,
+    R"({"method":"eth_getBalance","params":["0x0066Dc48bb833d2B59f730F33952B3c29fE926F5"],"id":1,"jsonrpc":"2.0"})"s,
 };
 
 // list of subscriptions
