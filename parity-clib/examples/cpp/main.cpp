@@ -81,8 +81,7 @@ const std::vector<std::string> ws_subscriptions{
 void callback(std::string_view buf) { (void)buf; }
 } // namespace
 
-int main(int _argc, char **_argv) {
-  (void)_argc, (void)_argv;
+int main() {
   using parity::ethereum::ParityEthereum;
   // run full-client
   if (0) {
@@ -129,7 +128,7 @@ void parity_rpc_queries(ParityEthereum &parity) {
 
 void parity_subscribe_to_websocket(ParityEthereum &parity) {
   // MUST outlive the std::vector below
-  Callback cb{.type = parity_callback_type::callback_ws, .counter = ws_subscriptions.size()};
+  Callback cb{parity_callback_type::callback_ws, ws_subscriptions.size()};
 
   std::vector<parity_subscription> sessions;
 
@@ -144,7 +143,7 @@ void parity_subscribe_to_websocket(ParityEthereum &parity) {
 parity::ethereum::ParityEthereum
 parity_run(const std::vector<std::string> &cli_args) {
   parity::ethereum::ParityConfig config{cli_args};
-  parity::ethereum::ParityLogger logger{"rpc=trace"s, "/dev/tty"s};
+  parity::ethereum::ParityLogger logger{"rpc=trace"s, ""s};
   return parity::ethereum::ParityEthereum{std::move(config), std::move(logger),
                                           callback};
 }
