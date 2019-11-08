@@ -941,25 +941,25 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM, T: StateInfo + 'static> Eth for EthClient<
 
 		let num = num.unwrap_or_default();
 
-		let (mut state, header) = if num == BlockNumber::Pending {
-			let info = self.client.chain_info();
-			let state = try_bf!(self.miner.pending_state(info.best_block_number).ok_or_else(errors::state_pruned));
-			let header = try_bf!(self.miner.pending_block_header(info.best_block_number).ok_or_else(errors::state_pruned));
+		let (mut state, header) =
+			if num == BlockNumber::Pending {
+				self.pending_state_and_header_with_fallback()
+			} else {
+				let id = match num {
+					BlockNumber::Num(num) => BlockId::Number(num),
+					BlockNumber::Earliest => BlockId::Earliest,
+					BlockNumber::Latest => BlockId::Latest,
+					BlockNumber::Pending => unreachable!(), // Already covered
+				};
 
-			(state, header)
-		} else {
-			let id = match num {
-				BlockNumber::Num(num) => BlockId::Number(num),
-				BlockNumber::Earliest => BlockId::Earliest,
-				BlockNumber::Latest => BlockId::Latest,
-				BlockNumber::Pending => unreachable!(), // Already covered
+				let state = try_bf!(self.client.state_at(id).ok_or_else(errors::state_pruned));
+				let header = try_bf!(
+					self.client.block_header(id).ok_or_else(errors::state_pruned)
+						.and_then(|h| h.decode().map_err(errors::decode))
+				);
+
+				(state, header)
 			};
-
-			let state = try_bf!(self.client.state_at(id).ok_or_else(errors::state_pruned));
-			let header = try_bf!(self.client.block_header(id).ok_or_else(errors::state_pruned).and_then(|h| h.decode().map_err(errors::decode)));
-
-			(state, header)
-		};
 
 		let result = self.client.call(&signed, Default::default(), &mut state, &header);
 
@@ -981,13 +981,7 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM, T: StateInfo + 'static> Eth for EthClient<
 		let num = num.unwrap_or_default();
 
 		let (state, header) = if num == BlockNumber::Pending {
-			let info = self.client.chain_info();
-			let state = try_bf!(self.miner.pending_state(info.best_block_number)
-								.ok_or_else(errors::state_pruned));
-			let header = try_bf!(self.miner.pending_block_header(info.best_block_number)
-								 .ok_or_else(errors::state_pruned));
-
-			(state, header)
+			self.pending_state_and_header_with_fallback()
 		} else {
 			let id = match num {
 				BlockNumber::Num(num) => BlockId::Number(num),
