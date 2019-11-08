@@ -12,7 +12,7 @@ eip-152 = { path = "../../util/EIP-152" }
 ethereum-types = "0.4"
 ethjson = { path = "../../json" }
 ethkey = { path = "../../accounts/ethkey" }
-keccak-hash = "0.2.0"
+keccak-hash = "0.1.0"
 log = "0.4"
 macros = { path = "../../util/macros" }
 num = { version = "0.1", default-features = false, features = ["bigint"] }

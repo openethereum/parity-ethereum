@@ -414,7 +414,7 @@ impl Implementation for EcRecover {
 			if let Ok(p) = ec_recover(&s, &hash) {
 				let r = keccak(p);
 				output.write(0, &[0; 12]);
-				output.write(12, &r.as_bytes()[12..]);
+				output.write(12, &r[12..r.len()]);
 			}
 		}
 
