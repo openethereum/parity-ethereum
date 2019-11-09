@@ -1453,6 +1453,7 @@ impl miner::MinerService for Miner {
 					);
 					queue.cull(client);
 					if engine.should_reseal_on_update() {
+						// force update_sealing here to skip `reseal_required` checks
 						chain.update_sealing(ForceUpdateSealing::Yes);
 					}
 				};
@@ -1463,6 +1464,7 @@ impl miner::MinerService for Miner {
 			} else {
 				self.transaction_queue.cull(client);
 				if self.engine.should_reseal_on_update() {
+					// force update_sealing here to skip `reseal_required` checks
 					self.update_sealing(chain, ForceUpdateSealing::Yes);
 				}
 			}
