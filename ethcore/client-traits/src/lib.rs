@@ -146,12 +146,12 @@ pub trait TransactionInfo {
 /// Provides various blockchain information, like block header, chain state etc.
 pub trait BlockChain: ChainInfo + BlockInfo + TransactionInfo {}
 
-/// do we want to force update sealing
+/// Do we want to force update sealing?
 #[derive(Debug, Copy, Clone, PartialEq)]
 pub enum ForceUpdateSealing {
-	/// Ideally
+	/// Ideally you want to use `No` at all times as `Yes` skips `reseal_required` checks.
 	Yes,
-	/// yes
+	/// Don't skip `reseal_required` checks
 	No
 }
 /// Client facilities used by internally sealing Engines.
