@@ -36,8 +36,8 @@ parity::ethereum::ParityEthereum parity_run(const std::vector<std::string> &);
 constexpr uint32_t SUBSCRIPTION_ID_LEN = 18;
 constexpr uint32_t TIMEOUT_ONE_MIN_AS_MILLIS = 60 * 1000;
 enum class parity_callback_type : size_t {
-   callback_rpc = 1,
-   callback_ws = 2,
+  callback_rpc = 1,
+  callback_ws = 2,
 };
 
 struct Callback {
@@ -51,8 +51,7 @@ struct Callback {
     case parity_callback_type::callback_ws:
       std::match_results<std::string_view::iterator> results;
       std::regex is_subscription(
-          "\\{\"jsonrpc\":\"2.0\",\"result\":\"0[xX][a-fA-"
-          "F0-9]{16}\",\"id\":1\\}");
+          R"(\{"jsonrpc":"2.0","result":"0[xX][a-fA-F0-9]{16}","id":1\})");
       if (std::regex_match(response.begin(), response.end(), results,
                            is_subscription)) {
         counter -= 1;
@@ -72,9 +71,9 @@ const std::vector<std::string> rpc_queries{
 
 // list of subscriptions
 const std::vector<std::string> ws_subscriptions{
-    "{\"method\":\"parity_subscribe\",\"params\":[\"eth_getBalance\",[\"0xcd2a3d9f938e13cd947ec05abc7fe734df8dd826\",\"latest\"]],\"id\":1,\"jsonrpc\":\"2.0\"}"s,
-    "{\"method\":\"parity_subscribe\",\"params\":[\"parity_netPeers\"],\"id\":1,\"jsonrpc\":\"2.0\"}"s,
-    "{\"method\":\"eth_subscribe\",\"params\":[\"newHeads\"],\"id\":1,\"jsonrpc\":\"2.0\"}"s,
+    R"({"method":"parity_subscribe","params":["eth_getBalance",["0xcd2a3d9f938e13cd947ec05abc7fe734df8dd826","latest"]],"id":1,"jsonrpc":"2.0"})"s,
+    R"({"method":"parity_subscribe","params":["parity_netPeers"],"id":1,"jsonrpc":"2.0"})"s,
+    R"({"method":"eth_subscribe","params":["newHeads"],"id":1,"jsonrpc":"2.0"})"s,
 };
 
 // callback that gets invoked upon an event
@@ -84,7 +83,7 @@ void callback(std::string_view buf) { (void)buf; }
 int main() {
   using parity::ethereum::ParityEthereum;
   // run full-client
-  if (0) {
+  {
     std::vector<std::string> cli_args{"--no-ipc"s, "--jsonrpc-apis=all"s,
                                       "--chain"s, "kovan"s};
     ParityEthereum parity = parity_run(cli_args);
@@ -106,7 +105,7 @@ int main() {
 
 namespace {
 void parity_rpc_queries(ParityEthereum &parity) {
-  Callback cb{.type = parity_callback_type::callback_rpc, .counter = rpc_queries.size()};
+  Callback cb{parity_callback_type::callback_rpc, rpc_queries.size()};
   auto cb_func = std::function(cb);
 
   try {
