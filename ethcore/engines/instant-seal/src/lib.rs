@@ -60,40 +60,15 @@ pub struct InstantSeal {
 	params: InstantSealParams,
 	machine: Machine,
 	last_sealed_block: AtomicU64,
-	sender: Sender<()>,
-	client: Arc<RwLock<Option<Weak<dyn EngineClient>>>>,
 }
 
 impl InstantSeal {
 	/// Returns new instance of InstantSeal over the given state machine.
 	pub fn new(params: InstantSealParams, machine: Machine) -> Self {
-		let client: Arc<RwLock<Option<Weak<dyn EngineClient>>>> = Default::default();
-		let (sender, receiver) = bounded::<()>(1);
-		let (moved_sender, moved_client) = (sender.clone(), client.clone());
-
-		thread::Builder::new().name("InstantSealService".into())
-			.spawn(move || {
-				loop {
-					// block until a message is available.
-					let _ = receiver.recv().expect("Sender is never dropped; qed");
-					// sleep for min_reseal_period
-					thread::sleep(Duration::from_secs(5));
-					// attempt to update_sealing again
-					let client = moved_client.read().as_ref().and_then(Weak::upgrade);
-					if let Some(client) = client {
-						if !client.update_sealing() {
-							let _ = moved_sender.try_send(());
-						}
-					}
-				}
-			}).expect("Failed to create thread!");
-
 		InstantSeal {
 			params,
 			machine,
 			last_sealed_block: AtomicU64::new(0),
-			sender,
-			client
 		}
 	}
 }
@@ -105,18 +80,11 @@ impl Engine for InstantSeal {
 
 	fn sealing_state(&self) -> SealingState { SealingState::Ready }
 
-	fn register_client(&self, client: Weak<dyn EngineClient>) {
-		*self.client.write() = Some(client)
-	}
-
-	fn maybe_update_sealing(&self) {
-		if let Some(client) = self.client.read().as_ref().and_then(Weak::upgrade) {
-			if !client.update_sealing() {
-				// disregarding result here because the channel can only hold one message,
-				// meaning a request to update_sealing is underway
-				let _ = self.sender.try_send(());
-			}
-		}
+	fn should_reseal_on_update(&self) -> bool {
+		// We would like for the miner to `update_sealing` if there are local_pending_transactions
+		// in the pool to prevent transactions sent in parallel from stalling in the transaction
+		// pool. (see #9660)
+		true
 	}
 
 	fn generate_seal(&self, block: &ExecutedBlock, _parent: &Header) -> Seal {

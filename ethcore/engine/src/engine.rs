@@ -45,6 +45,7 @@ use machine::{
 use vm::{EnvInfo, Schedule, CallType, ActionValue};
 
 use crate::signer::EngineSigner;
+use std::time::Duration;
 
 /// A system-calling closure. Enacts calls on a block's state from the system address.
 pub type SystemCall<'a> = dyn FnMut(Address, Vec<u8>) -> Result<Vec<u8>, String> + 'a;
@@ -188,10 +189,13 @@ pub trait Engine: Sync + Send {
 	/// Returns the engine's current sealing state.
 	fn sealing_state(&self) -> SealingState { SealingState::External }
 
-	/// Called in `chain_new_blocks` if there are local pending txs
+	/// Called in `miner.chain_new_blocks` if the engine wishes to `update_sealing`
+	/// after a block was recently sealed, and there are local pending tx in the pool.
 	///
-	/// Does nothing by default
-	fn maybe_update_sealing(&self) {}
+	/// returns false by default
+	fn should_reseal_on_update(&self) -> bool {
+		false
+	}
 
 	/// Attempt to seal the block internally.
 	///

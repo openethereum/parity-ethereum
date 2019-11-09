@@ -58,7 +58,7 @@ use using_queue::{UsingQueue, GetAction};
 
 use block::{ClosedBlock, SealedBlock};
 use client::{BlockProducer, SealedBlockImporter, Client};
-use client_traits::{BlockChain, ChainInfo, Nonce, TransactionInfo};
+use client_traits::{BlockChain, ChainInfo, Nonce, TransactionInfo, EngineClient};
 use engine::{Engine, signer::EngineSigner};
 use machine::executive::contract_address;
 use spec::Spec;
@@ -1440,6 +1440,7 @@ impl miner::MinerService for Miner {
 			// uncle rate.
 			// If the io_channel is available attempt to offload culling to a separate task
 			// to avoid blocking chain_new_blocks
+			let reseal_min_period = self.options.reseal_min_period;
 			if let Some(ref channel) = *self.io_channel.read() {
 				let queue = self.transaction_queue.clone();
 				let nonce_cache = self.nonce_cache.clone();
@@ -1455,8 +1456,10 @@ impl miner::MinerService for Miner {
 						service_transaction_checker.as_ref(),
 					);
 					queue.cull(client);
-					if queue.has_local_pending_transactions() {
-						engine.maybe_update_sealing();
+					if queue.has_local_pending_transactions() &&
+						engine.should_reseal_on_update(reseal_min_period)
+					{
+						chain.update_sealing();
 					}
 				};
 
@@ -1465,8 +1468,10 @@ impl miner::MinerService for Miner {
 				}
 			} else {
 				self.transaction_queue.cull(client);
-				if self.transaction_queue.has_local_pending_transactions() {
-					self.engine.maybe_update_sealing()
+				if self.transaction_queue.has_local_pending_transactions() &&
+					self.engine.should_reseal_on_update(reseal_min_period)
+				{
+					self.update_sealing(chain);
 				}
 			}
 		}
