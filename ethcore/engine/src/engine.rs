@@ -189,7 +189,7 @@ pub trait Engine: Sync + Send {
 	fn sealing_state(&self) -> SealingState { SealingState::External }
 
 	/// Called in `miner.chain_new_blocks` if the engine wishes to `update_sealing`
-	/// after a block was recently sealed, and there are local pending tx in the pool.
+	/// after a block was recently sealed.
 	///
 	/// returns false by default
 	fn should_reseal_on_update(&self) -> bool {

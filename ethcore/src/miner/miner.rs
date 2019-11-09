@@ -1416,13 +1416,13 @@ impl miner::MinerService for Miner {
 				});
 		}
 
-		if has_new_best_block {
+		if has_new_best_block || (imported.len() > 0 && self.options.reseal_on_uncle)  {
 			// Reset `next_allowed_reseal` in case a block is imported.
 			// Even if min_period is high, we will always attempt to create
 			// new pending block.
 			self.sealing.lock().next_allowed_reseal = Instant::now();
 
-			if !is_internal_import && imported.len() > 0 && self.options.reseal_on_uncle {
+			if !is_internal_import {
 				// --------------------------------------------------------------------------
 				// | NOTE Code below requires sealing locks.                                |
 				// | Make sure to release the locks before calling that method.             |
