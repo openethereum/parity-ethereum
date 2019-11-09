@@ -1264,7 +1264,7 @@ impl miner::MinerService for Miner {
 
 	/// Update sealing if required.
 	/// Prepare the block and work if the Engine does not seal internally.
-	fn update_sealing<C>(&self, chain: &C) -> bool where
+	fn update_sealing<C>(&self, chain: &C) where
 		C: BlockChain + CallContract + BlockProducer + SealedBlockImporter + Nonce + Sync,
 	{
 		trace!(target: "miner", "update_sealing");
@@ -1272,12 +1272,12 @@ impl miner::MinerService for Miner {
 		// Do nothing if reseal is not required,
 		// but note that `requires_reseal` updates internal state.
 		if !self.requires_reseal(chain.chain_info().best_block_number) {
-			return false;
+			return;
 		}
 
 		let sealing_state = self.engine.sealing_state();
 		if sealing_state == SealingState::NotReady {
-			return false;
+			return;
 		}
 
 		// --------------------------------------------------------------------------
@@ -1287,7 +1287,7 @@ impl miner::MinerService for Miner {
 		trace!(target: "miner", "update_sealing: preparing a block");
 		let (block, original_work_hash) = match self.prepare_block(chain) {
 			Some((block, original_work_hash)) => (block, original_work_hash),
-			None => return false,
+			None => return,
 		};
 
 		// refuse to seal the first block of the chain if it contains hard forks
@@ -1296,18 +1296,17 @@ impl miner::MinerService for Miner {
 			if let Some(name) = self.engine.params().nonzero_bugfix_hard_fork() {
 				warn!("Your chain specification contains one or more hard forks which are required to be \
 						on by default. Please remove these forks and start your chain again: {}.", name);
-				return false;
+				return;
 			}
 		}
 
 		match sealing_state {
 			SealingState::Ready => {
 				trace!(target: "miner", "update_sealing: engine indicates internal sealing");
-				let seal_and_import_block_internally = self.seal_and_import_block_internally(chain, block);
-				if seal_and_import_block_internally {
+				if self.seal_and_import_block_internally(chain, block) {
 					trace!(target: "miner", "update_sealing: imported internally sealed block");
 				}
-				return seal_and_import_block_internally
+				return
 			},
 			SealingState::NotReady => unreachable!("We returned right after sealing_state was computed. qed."),
 			SealingState::External => {
@@ -1315,8 +1314,6 @@ impl miner::MinerService for Miner {
 				self.prepare_work(block, original_work_hash);
 			},
 		};
-
-		false
 	}
 
 	fn is_currently_sealing(&self) -> bool {
@@ -1440,7 +1437,6 @@ impl miner::MinerService for Miner {
 			// uncle rate.
 			// If the io_channel is available attempt to offload culling to a separate task
 			// to avoid blocking chain_new_blocks
-			let reseal_min_period = self.options.reseal_min_period;
 			if let Some(ref channel) = *self.io_channel.read() {
 				let queue = self.transaction_queue.clone();
 				let nonce_cache = self.nonce_cache.clone();
@@ -1457,7 +1453,7 @@ impl miner::MinerService for Miner {
 					);
 					queue.cull(client);
 					if queue.has_local_pending_transactions() &&
-						engine.should_reseal_on_update(reseal_min_period)
+						engine.should_reseal_on_update()
 					{
 						chain.update_sealing();
 					}
@@ -1469,7 +1465,7 @@ impl miner::MinerService for Miner {
 			} else {
 				self.transaction_queue.cull(client);
 				if self.transaction_queue.has_local_pending_transactions() &&
-					self.engine.should_reseal_on_update(reseal_min_period)
+					self.engine.should_reseal_on_update()
 				{
 					self.update_sealing(chain);
 				}

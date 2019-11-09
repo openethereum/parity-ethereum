@@ -626,7 +626,7 @@ impl<T: ChainDataFetcher> client_traits::ChainInfo for Client<T> {
 }
 
 impl<T: ChainDataFetcher> client_traits::EngineClient for Client<T> {
-	fn update_sealing(&self) -> bool { false }
+	fn update_sealing(&self) {}
 	fn submit_seal(&self, _block_hash: H256, _seal: Vec<Vec<u8>>) { }
 	fn broadcast_consensus_message(&self, _message: Vec<u8>) { }
 

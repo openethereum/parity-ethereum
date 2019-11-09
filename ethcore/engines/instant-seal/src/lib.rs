@@ -15,8 +15,6 @@
 // along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
 use std::sync::atomic::{AtomicU64, Ordering};
-use std::sync::{Weak, Arc};
-use std::thread;
 
 use common_types::{
 	header::Header,
@@ -29,14 +27,10 @@ use common_types::{
 };
 use engine::Engine;
 use ethjson;
-use parking_lot::RwLock;
-use client_traits::EngineClient;
 use machine::{
 	ExecutedBlock,
 	Machine
 };
-use std::time::Duration;
-use crossbeam_channel::{bounded, Sender};
 
 
 /// `InstantSeal` params.

@@ -45,7 +45,6 @@ use machine::{
 use vm::{EnvInfo, Schedule, CallType, ActionValue};
 
 use crate::signer::EngineSigner;
-use std::time::Duration;
 
 /// A system-calling closure. Enacts calls on a block's state from the system address.
 pub type SystemCall<'a> = dyn FnMut(Address, Vec<u8>) -> Result<Vec<u8>, String> + 'a;

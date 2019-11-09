@@ -2457,7 +2457,7 @@ impl ::miner::TransactionVerifierClient for Client {}
 impl ::miner::BlockChainClient for Client {}
 
 impl client_traits::EngineClient for Client {
-	fn update_sealing(&self) -> bool {
+	fn update_sealing(&self) {
 		self.importer.miner.update_sealing(self)
 	}
 
