@@ -161,7 +161,7 @@ mod tests {
 		ids::BlockId,
 		verification::Unverified,
 	};
-	use client_traits::{BlockChainClient, BlockInfo, ChainInfo, ImportBlock, EngineClient};
+	use client_traits::{BlockChainClient, BlockInfo, ChainInfo, ImportBlock, EngineClient, ForceUpdateSealing};
 	use engine::EpochChange;
 	use ethcore::{
 		miner::{self, MinerService},
@@ -174,7 +174,6 @@ mod tests {
 
 	use crate::ValidatorSet;
 	use super::Multi;
-	use ethcore::miner::ForceUpdateSealing;
 
 	#[test]
 	fn uses_current_set() {
