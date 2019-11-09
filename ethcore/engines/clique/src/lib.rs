@@ -66,7 +66,7 @@ use std::{
 	time::{self, Instant, Duration, SystemTime, UNIX_EPOCH},
 };
 
-use client_traits::EngineClient;
+use client_traits::{EngineClient, ForceUpdateSealing};
 use engine::{
 	Engine,
 	signer::EngineSigner,
@@ -780,7 +780,7 @@ impl Engine for Clique {
 		if self.signer.read().is_some() {
 			if let Some(ref weak) = *self.client.read() {
 				if let Some(c) = weak.upgrade() {
-					c.update_sealing();
+					c.update_sealing(ForceUpdateSealing::No);
 				}
 			}
 		}

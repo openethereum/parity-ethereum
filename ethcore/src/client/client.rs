@@ -78,7 +78,8 @@ use client_traits::{
 	StateClient,
 	StateOrBlock,
 	Tick,
-	TransactionInfo
+	TransactionInfo,
+	ForceUpdateSealing
 };
 use db::{keys::BlockDetails, Readable, Writable};
 use engine::Engine;
@@ -2457,8 +2458,8 @@ impl ::miner::TransactionVerifierClient for Client {}
 impl ::miner::BlockChainClient for Client {}
 
 impl client_traits::EngineClient for Client {
-	fn update_sealing(&self) {
-		self.importer.miner.update_sealing(self)
+	fn update_sealing(&self, force: ForceUpdateSealing) {
+		self.importer.miner.update_sealing(self, force)
 	}
 
 	fn submit_seal(&self, block_hash: H256, seal: Vec<Bytes>) {

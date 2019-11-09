@@ -478,6 +478,7 @@ mod tests {
 
 	use super::super::ValidatorSet;
 	use super::{ValidatorSafeContract, EVENT_NAME_HASH};
+	use ethcore::miner::ForceUpdateSealing;
 
 	#[test]
 	fn fetches_validators() {
@@ -513,7 +514,7 @@ mod tests {
 			data: "bfc708a000000000000000000000000082a978b3f5962a5b0957d9ee9eef472ee55b42f1".from_hex().unwrap(),
 		}.sign(&s0, Some(chain_id));
 		client.miner().import_own_transaction(client.as_ref(), tx.into()).unwrap();
-		EngineClient::update_sealing(&*client);
+		EngineClient::update_sealing(&*client, ForceUpdateSealing::No);
 		assert_eq!(client.chain_info().best_block_number, 1);
 		// Add "1" validator back in.
 		let tx = Transaction {
@@ -525,14 +526,14 @@ mod tests {
 			data: "4d238c8e00000000000000000000000082a978b3f5962a5b0957d9ee9eef472ee55b42f1".from_hex().unwrap(),
 		}.sign(&s0, Some(chain_id));
 		client.miner().import_own_transaction(client.as_ref(), tx.into()).unwrap();
-		EngineClient::update_sealing(&*client);
+		EngineClient::update_sealing(&*client, ForceUpdateSealing::No);
 		// The transaction is not yet included so still unable to seal.
 		assert_eq!(client.chain_info().best_block_number, 1);
 
 		// Switch to the validator that is still there.
 		let signer = Box::new((tap.clone(), v0, "".into()));
 		client.miner().set_author(miner::Author::Sealer(signer));
-		EngineClient::update_sealing(&*client);
+		EngineClient::update_sealing(&*client, ForceUpdateSealing::No);
 		assert_eq!(client.chain_info().best_block_number, 2);
 		// Switch back to the added validator, since the state is updated.
 		let signer = Box::new((tap.clone(), v1, "".into()));
@@ -546,7 +547,7 @@ mod tests {
 			data: Vec::new(),
 		}.sign(&s0, Some(chain_id));
 		client.miner().import_own_transaction(client.as_ref(), tx.into()).unwrap();
-		EngineClient::update_sealing(&*client);
+		EngineClient::update_sealing(&*client, ForceUpdateSealing::No);
 		// Able to seal again.
 		assert_eq!(client.chain_info().best_block_number, 3);
 

@@ -146,10 +146,18 @@ pub trait TransactionInfo {
 /// Provides various blockchain information, like block header, chain state etc.
 pub trait BlockChain: ChainInfo + BlockInfo + TransactionInfo {}
 
+/// do we want to force update sealing
+#[derive(Debug, Copy, Clone, PartialEq)]
+pub enum ForceUpdateSealing {
+	/// Ideally
+	Yes,
+	/// yes
+	No
+}
 /// Client facilities used by internally sealing Engines.
 pub trait EngineClient: Sync + Send + ChainInfo {
 	/// Make a new block and seal it.
-	fn update_sealing(&self);
+	fn update_sealing(&self, force: ForceUpdateSealing);
 
 	/// Submit a seal for a block in the mining queue.
 	fn submit_seal(&self, block_hash: H256, seal: Vec<Bytes>);

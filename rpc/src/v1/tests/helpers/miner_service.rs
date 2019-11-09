@@ -20,7 +20,7 @@ use std::sync::Arc;
 use std::collections::{BTreeMap, BTreeSet, HashMap};
 
 use bytes::Bytes;
-use client_traits::{Nonce, StateClient};
+use client_traits::{Nonce, StateClient, ForceUpdateSealing};
 use engine::{Engine, signer::EngineSigner};
 use ethcore::block::SealedBlock;
 use ethcore::client::{PrepareOpenBlock, EngineInfo};
@@ -192,7 +192,7 @@ impl MinerService for TestMinerService {
 	}
 
 	/// New chain head event. Restart mining operation.
-	fn update_sealing<C>(&self, _chain: &C) {
+	fn update_sealing<C>(&self, _chain: &C, _force: ForceUpdateSealing) {
 		unimplemented!();
 	}
 
