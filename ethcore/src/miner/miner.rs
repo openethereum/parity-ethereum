@@ -1416,7 +1416,7 @@ impl miner::MinerService for Miner {
 				});
 		}
 
-		if has_new_best_block || (imported.len() > 0 && self.options.reseal_on_uncle)  {
+		if has_new_best_block || (imported.len() > 0 && self.options.reseal_on_uncle) {
 			// Reset `next_allowed_reseal` in case a block is imported.
 			// Even if min_period is high, we will always attempt to create
 			// new pending block.
@@ -1429,7 +1429,9 @@ impl miner::MinerService for Miner {
 				// --------------------------------------------------------------------------
 				self.update_sealing(chain, ForceUpdateSealing::No);
 			}
+		}
 
+		if has_new_best_block {
 			// Make sure to cull transactions after we update sealing.
 			// Not culling won't lead to old transactions being added to the block
 			// (thanks to Ready), but culling can take significant amount of time,
