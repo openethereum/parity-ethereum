@@ -27,7 +27,6 @@
 #include <cassert>
 #include <exception>
 #include <functional>
-#include <iostream>
 #include <memory>
 #include <parity.h>
 #include <stdexcept>
