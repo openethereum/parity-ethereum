@@ -464,7 +464,7 @@ mod tests {
 		transaction::{Transaction, Action},
 		verification::Unverified,
 	};
-	use client_traits::{BlockInfo, ChainInfo, ImportBlock, EngineClient};
+	use client_traits::{BlockInfo, ChainInfo, ImportBlock, EngineClient, ForceUpdateSealing};
 	use engine::{EpochChange, Proof};
 	use ethcore::{
 		miner::{self, MinerService},
@@ -478,7 +478,6 @@ mod tests {
 
 	use super::super::ValidatorSet;
 	use super::{ValidatorSafeContract, EVENT_NAME_HASH};
-	use ethcore::miner::ForceUpdateSealing;
 
 	#[test]
 	fn fetches_validators() {
