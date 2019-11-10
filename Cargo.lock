@@ -2156,6 +2156,7 @@ dependencies = [
 name = "instant-seal"
 version = "0.1.0"
 dependencies = [
+ "client-traits 0.1.0",
  "common-types 0.1.0",
  "engine 0.1.0",
  "ethcore 1.12.0",

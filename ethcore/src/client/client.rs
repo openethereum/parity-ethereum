@@ -78,7 +78,8 @@ use client_traits::{
 	StateClient,
 	StateOrBlock,
 	Tick,
-	TransactionInfo
+	TransactionInfo,
+	ForceUpdateSealing
 };
 use db::{keys::BlockDetails, Readable, Writable};
 use engine::Engine;
@@ -2383,7 +2384,9 @@ impl ImportSealedBlock for Client {
 		let raw = block.rlp_bytes();
 		let header = block.header.clone();
 		let hash = header.hash();
-		self.notify(|n| n.block_pre_import(&raw, &hash, header.difficulty()));
+		self.notify(|n| {
+			n.block_pre_import(&raw, &hash, header.difficulty())
+		});
 
 		let route = {
 			// Do a super duper basic verification to detect potential bugs
@@ -2471,19 +2474,22 @@ impl ::miner::TransactionVerifierClient for Client {}
 impl ::miner::BlockChainClient for Client {}
 
 impl client_traits::EngineClient for Client {
-	fn update_sealing(&self) {
-		self.importer.miner.update_sealing(self)
+	fn update_sealing(&self, force: ForceUpdateSealing) {
+		self.importer.miner.update_sealing(self, force)
 	}
 
 	fn submit_seal(&self, block_hash: H256, seal: Vec<Bytes>) {
-		let import = self.importer.miner.submit_seal(block_hash, seal).and_then(|block| self.import_sealed_block(block));
+		let import = self.importer.miner.submit_seal(block_hash, seal)
+			.and_then(|block| self.import_sealed_block(block));
 		if let Err(err) = import {
 			warn!(target: "poa", "Wrong internal seal submission! {:?}", err);
 		}
 	}
 
 	fn broadcast_consensus_message(&self, message: Bytes) {
-		self.notify(|notify| notify.broadcast(ChainMessageType::Consensus(message.clone())));
+		self.notify(|notify| {
+			notify.broadcast(ChainMessageType::Consensus(message.clone()))
+		});
 	}
 
 	fn epoch_transition_for(&self, parent_hash: H256) -> Option<EpochTransition> {
@@ -2622,13 +2628,21 @@ impl ImportExportBlocks for Client {
 			if i % 10000 == 0 {
 				info!("#{}", i);
 			}
-			let b = self.block(BlockId::Number(i)).ok_or("Error exporting incomplete chain")?.into_inner();
+			let b = self.block(BlockId::Number(i))
+				.ok_or("Error exporting incomplete chain")?
+				.into_inner();
 			match format {
 				DataFormat::Binary => {
-					out.write(&b).map_err(|e| format!("Couldn't write to stream. Cause: {}", e))?;
+					out.write(&b)
+						.map_err(|e| {
+							format!("Couldn't write to stream. Cause: {}", e)
+						})?;
 				}
 				DataFormat::Hex => {
-					out.write_fmt(format_args!("{}\n", b.pretty())).map_err(|e| format!("Couldn't write to stream. Cause: {}", e))?;
+					out.write_fmt(format_args!("{}\n", b.pretty()))
+						.map_err(|e| {
+							format!("Couldn't write to stream. Cause: {}", e)
+						})?;
 				}
 			}
 		}
@@ -2648,7 +2662,10 @@ impl ImportExportBlocks for Client {
 		let format = match format {
 			Some(format) => format,
 			None => {
-				first_read = source.read(&mut first_bytes).map_err(|_| "Error reading from the file/stream.")?;
+				first_read = source.read(&mut first_bytes)
+					.map_err(|_| {
+						"Error reading from the file/stream."
+					})?;
 				match first_bytes[0] {
 					0xf9 => DataFormat::Binary,
 					_ => DataFormat::Hex,
@@ -2659,7 +2676,9 @@ impl ImportExportBlocks for Client {
 		let do_import = |bytes: Vec<u8>| {
 			let block = Unverified::from_rlp(bytes).map_err(|_| "Invalid block rlp")?;
 			let number = block.header.number();
-			while self.queue_info().is_full() { std::thread::sleep(Duration::from_secs(1)); }
+			while self.queue_info().is_full() {
+				std::thread::sleep(Duration::from_secs(1));
+			}
 			match self.import_block(block) {
 				Err(EthcoreError::Import(ImportError::AlreadyInChain)) => {
 					trace!("Skipping block #{}: already in chain.", number);
@@ -2680,33 +2699,45 @@ impl ImportExportBlocks for Client {
 					} else {
 						let mut bytes = vec![0; READAHEAD_BYTES];
 						let n = source.read(&mut bytes)
-							.map_err(|err| format!("Error reading from the file/stream: {:?}", err))?;
+							.map_err(|err| {
+								format!("Error reading from the file/stream: {:?}", err)
+							})?;
 						(bytes, n)
 					};
 					if n == 0 { break; }
 					first_read = 0;
 					let s = PayloadInfo::from(&bytes)
-						.map_err(|e| format!("Invalid RLP in the file/stream: {:?}", e))?.total();
+						.map_err(|e| {
+							format!("Invalid RLP in the file/stream: {:?}", e)
+						})?.total();
 					bytes.resize(s, 0);
 					source.read_exact(&mut bytes[n..])
-						.map_err(|err| format!("Error reading from the file/stream: {:?}", err))?;
+						.map_err(|err| {
+							format!("Error reading from the file/stream: {:?}", err)
+						})?;
 					do_import(bytes)?;
 				}
 			}
 			DataFormat::Hex => {
 				for line in BufReader::new(source).lines() {
 					let s = line
-						.map_err(|err| format!("Error reading from the file/stream: {:?}", err))?;
+						.map_err(|err| {
+							format!("Error reading from the file/stream: {:?}", err)
+						})?;
 					let s = if first_read > 0 {
 						from_utf8(&first_bytes)
-							.map_err(|err| format!("Invalid UTF-8: {:?}", err))?
+							.map_err(|err| {
+								format!("Invalid UTF-8: {:?}", err)
+							})?
 							.to_owned() + &(s[..])
 					} else {
 						s
 					};
 					first_read = 0;
 					let bytes = s.from_hex()
-						.map_err(|err| format!("Invalid hex in file/stream: {:?}", err))?;
+						.map_err(|err| {
+							format!("Invalid hex in file/stream: {:?}", err)
+						})?;
 					do_import(bytes)?;
 				}
 			}

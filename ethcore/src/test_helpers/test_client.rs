@@ -72,7 +72,7 @@ use client::{
 use client_traits::{
 	BlockInfo, Nonce, Balance, ChainInfo, TransactionInfo, BlockChainClient, ImportBlock,
 	AccountData, BlockChain, IoClient, BadBlocks, ScheduleInfo, StateClient, ProvingBlockChainClient,
-	StateOrBlock
+	StateOrBlock, ForceUpdateSealing
 };
 use engine::Engine;
 use machine::executed::Executed;
@@ -963,8 +963,8 @@ impl ProvingBlockChainClient for TestBlockChainClient {
 }
 
 impl client_traits::EngineClient for TestBlockChainClient {
-	fn update_sealing(&self) {
-		self.miner.update_sealing(self)
+	fn update_sealing(&self, force: ForceUpdateSealing)  {
+		self.miner.update_sealing(self, force)
 	}
 
 	fn submit_seal(&self, block_hash: H256, seal: Vec<Bytes>) {
