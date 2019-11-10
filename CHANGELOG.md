@@ -1,4 +1,50 @@
-## Parity-Ethereum [v2.5.9](https://github.com/paritytech/parity-ethereum/releases/tag/v2.5.8)
+## Parity-Ethereum [v2.5.10](https://github.com/paritytech/parity-ethereum/releases/tag/2.5.10)
+
+Parity Ethereum v2.5.10-stable is a patch release that adds block numbers for
+activating the Istanbul hardfork on mainnet, as well as a large number of
+various bugfixes, QoL changes, some code cleanup/refactoring and other
+miscellaenous changes.
+
+The full list of included changes:
+
+* ropsten #6631425 foundation #8798209 (#11201)
+* [stable] builtin, istanbul and mordor testnet backports (#11234)
+  * ethcore-builtin (#10850)
+  * [builtin]: support `multiple prices and activations` in chain spec (#11039)
+  * [chain specs]: activate `Istanbul` on mainnet (#11228)
+  * ethcore/res: add mordor testnet configuration (#11200)
+* Update list of bootnodes for xDai chain (#11236)
+* ethcore: remove `test-helper feat` from build (#11047)
+* Secret store: fix Instant::now() related race in net_keep_alive (#11155) (#11159)
+* [stable]: backport #10691 and #10683 (#11143)
+  * Fix compiler warning (that will become an error) (#10683)
+  * Refactor Clique stepping (#10691)
+* Add Constantinople eips to the dev (instant_seal) config (#10809)
+* Add cargo-remote dir to .gitignore (?)
+* Insert explicit warning into the panic hook (#11225)
+* Fix docker centos build (#11226)
+* Update MIX bootnodes. (#11203)
+* Use provided usd-per-eth value if an endpoint is specified (#11209)
+* Add new line after writing block to hex file. (#10984)
+* Type annotation for next_key() matching of json filter options (#11192) (but no `FilterOption` in 2.5 so…)
+* Upgrade jsonrpc to latest (#11206)
+* [CI] check evmbin build (#11096)
+* Correct EIP-712 encoding (#11092)
+* [client]: Fix for incorrectly dropped consensus messages (#11086)
+* Fix block detail updating (#11015)
+* Switching sccache from local to Redis (#10971)
+* Made ecrecover implementation trait public (#11188)
+* [dependencies]: jsonrpc `14.0.1` (#11183)
+* [receipt]: add `sender` & `receiver` to `RichReceipts` (#11179)
+* [ethcore/builtin]: do not panic in blake2pricer on short input (#11180)
+* util Host: fix a double Read Lock bug in fn Host::session_readable() (#11175)
+* ethcore client: fix a double Read Lock bug in fn Client::logs() (#11172)
+* Change how RPCs eth_call and eth_estimateGas handle "Pending" (#11127)
+* Cleanup stratum a bit (#11161)
+* Upgrade to jsonrpc v14 (#11151)
+* SecretStore: expose restore_key_public in HTTP API (#10241)
+
+## Parity-Ethereum [v2.5.9](https://github.com/paritytech/parity-ethereum/releases/tag/v2.5.9)
 
 Parity Ethereum v2.5.9-stable is a patch release that adds the block numbers for activating the Istanbul hardfork on test networks: Ropsten, Görli, Rinkeby and Kovan.
 
