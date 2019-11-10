@@ -185,7 +185,7 @@ impl MinerService for TestMinerService {
 	}
 
 	/// New chain head event. Restart mining operation.
-	fn update_sealing<C>(&self, _chain: &C) {
+	fn update_sealing<C>(&self, _chain: &C, _force: ForceUpdateSealing) {
 		unimplemented!();
 	}
 
