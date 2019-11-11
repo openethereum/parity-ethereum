@@ -21,7 +21,7 @@ use std::collections::{BTreeMap, BTreeSet, HashMap};
 
 use bytes::Bytes;
 use ethcore::block::SealedBlock;
-use ethcore::client::{Nonce, PrepareOpenBlock, StateClient, EngineInfo, TestState};
+use ethcore::client::{Nonce, PrepareOpenBlock, StateClient, EngineInfo, TestState, ForceUpdateSealing};
 use ethcore::engines::{Engine, signer::EngineSigner};
 use ethcore::error::Error;
 use ethcore::miner::{self, MinerService, AuthoringParams, FilterOptions};
