@@ -27,13 +27,14 @@ use parking_lot::Mutex;
 use ethash::{self, SeedHashCompute};
 use ethcore::client::{BlockChainClient, BlockId, TransactionId, UncleId, StateOrBlock, StateClient, StateInfo, Call, EngineInfo, ProvingBlockChainClient};
 use ethcore::miner::{self, MinerService};
-use ethcore::snapshot::SnapshotService;
+use ethcore::snapshot::{SnapshotService, RestorationStatus};
 use hash::keccak;
 use miner::external::ExternalMinerService;
 use sync::SyncProvider;
 use types::transaction::{SignedTransaction, LocalizedTransaction};
 use types::BlockNumber as EthBlockNumber;
 use types::encoded;
+use types::header::Header;
 use types::filter::Filter as EthcoreFilter;
 
 use jsonrpc_core::{BoxFuture, Result};
@@ -175,10 +176,11 @@ pub fn base_logs<C, M, T: StateInfo + 'static> (client: &C, miner: &M, filter: F
 	Box::new(future::ok(logs))
 }
 
-impl<C, SN: ?Sized, S: ?Sized, M, EM, T: StateInfo + 'static> EthClient<C, SN, S, M, EM> where
+impl<C, SN: ?Sized, S: ?Sized, M, EM, T> EthClient<C, SN, S, M, EM> where
 	C: miner::BlockChainClient + BlockChainClient + StateClient<State=T> + Call<State=T> + EngineInfo,
 	SN: SnapshotService,
 	S: SyncProvider,
+	T: StateInfo + 'static,
 	M: MinerService<State=T>,
 	EM: ExternalMinerService {
 
@@ -241,6 +243,7 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM, T: StateInfo + 'static> EthClient<C, SN, S
 
 			BlockNumberOrId::Number(num) => {
 				let id = match num {
+					BlockNumber::Hash { hash, .. } => BlockId::Hash(hash),
 					BlockNumber::Latest => BlockId::Latest,
 					BlockNumber::Earliest => BlockId::Earliest,
 					BlockNumber::Num(n) => BlockId::Number(n),
@@ -431,20 +434,46 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM, T: StateInfo + 'static> EthClient<C, SN, S
 		Ok(Some(block))
 	}
 
+	/// Get state for the given block number. Returns either the State or a block from which state
+	/// can be retrieved.
+	/// Note: When passing `BlockNumber::Pending` we fall back to the state of the current best block
+	/// if no state found for the best pending block.
 	fn get_state(&self, number: BlockNumber) -> StateOrBlock {
 		match number {
+			BlockNumber::Hash { hash, .. } => BlockId::Hash(hash).into(),
 			BlockNumber::Num(num) => BlockId::Number(num).into(),
 			BlockNumber::Earliest => BlockId::Earliest.into(),
 			BlockNumber::Latest => BlockId::Latest.into(),
-
 			BlockNumber::Pending => {
 				let info = self.client.chain_info();
 
 				self.miner
 					.pending_state(info.best_block_number)
-					.map(|s| Box::new(s) as Box<StateInfo>)
-					.unwrap_or(Box::new(self.client.latest_state()) as Box<StateInfo>)
+					.map(|s| Box::new(s) as Box<dyn StateInfo>)
+					.unwrap_or_else(|| {
+						warn!("Asked for best pending state, but none found. Falling back to latest state");
+						let (state, _) = self.client.latest_state_and_header();
+						Box::new(state) as Box<dyn StateInfo>
+					})
 					.into()
+			}
+		}
+	}
+
+	/// Get the state and header of best pending block. On failure, fall back to the best imported
+	/// blocks state&header.
+	fn pending_state_and_header_with_fallback(&self) -> (T, Header) {
+		let best_block_number = self.client.chain_info().best_block_number;
+		let (maybe_state, maybe_header) =
+			self.miner.pending_state(best_block_number).map_or_else(|| (None, None),|s| {
+				(Some(s), self.miner.pending_block_header(best_block_number))
+			});
+
+		match (maybe_state, maybe_header) {
+			(Some(state), Some(header)) => (state, header),
+			_ => {
+				warn!("Falling back to \"Latest\"");
+				self.client.latest_state_and_header()
 			}
 		}
 	}
@@ -472,10 +501,22 @@ fn check_known<C>(client: &C, number: BlockNumber) -> Result<()> where C: BlockC
 
 	let id = match number {
 		BlockNumber::Pending => return Ok(()),
-
 		BlockNumber::Num(n) => BlockId::Number(n),
 		BlockNumber::Latest => BlockId::Latest,
 		BlockNumber::Earliest => BlockId::Earliest,
+		BlockNumber::Hash { hash, require_canonical } => {
+			// block check takes precedence over canon check.
+			match client.block_status(BlockId::Hash(hash.clone())) {
+				BlockStatus::InChain => {},
+				_ => return Err(errors::unknown_block()),
+			};
+
+			if require_canonical && !client.chain().is_canon(&hash) {
+				return Err(errors::invalid_input())
+			}
+
+			return Ok(())
+		}
 	};
 
 	match client.block_status(id) {
@@ -501,8 +542,6 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM, T: StateInfo + 'static> Eth for EthClient<
 	}
 
 	fn syncing(&self) -> Result<SyncStatus> {
-		use ethcore::snapshot::RestorationStatus;
-
 		let status = self.sync.status();
 		let client = &self.client;
 		let snapshot_status = self.snapshot.status();
@@ -589,6 +628,7 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM, T: StateInfo + 'static> Eth for EthClient<
 
 		let num = num.unwrap_or_default();
 		let id = match num {
+			BlockNumber::Hash { hash, .. } => BlockId::Hash(hash),
 			BlockNumber::Num(n) => BlockId::Number(n),
 			BlockNumber::Earliest => BlockId::Earliest,
 			BlockNumber::Latest => BlockId::Latest,
@@ -628,12 +668,13 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM, T: StateInfo + 'static> Eth for EthClient<
 		let num = num.unwrap_or_default();
 
 		try_bf!(check_known(&*self.client, num.clone()));
-		let res = match self.client.storage_at(&address, &BigEndianHash::from_uint(&position), self.get_state(num)) {
-			Some(s) => Ok(s),
-			None => Err(errors::state_pruned()),
-		};
+		let storage = self.client.storage_at(
+			&address,
+			&BigEndianHash::from_uint(&position),
+			self.get_state(num)
+		).ok_or_else(errors::state_pruned);
 
-		Box::new(future::done(res))
+		Box::new(future::done(storage))
 	}
 
 	fn transaction_count(&self, address: H160, num: Option<BlockNumber>) -> BoxFuture<U256> {
@@ -762,6 +803,7 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM, T: StateInfo + 'static> Eth for EthClient<
 
 	fn transaction_by_block_number_and_index(&self, num: BlockNumber, index: Index) -> BoxFuture<Option<Transaction>> {
 		let block_id = match num {
+			BlockNumber::Hash { hash, .. } => PendingOrBlock::Block(BlockId::Hash(hash)),
 			BlockNumber::Latest => PendingOrBlock::Block(BlockId::Latest),
 			BlockNumber::Earliest => PendingOrBlock::Block(BlockId::Earliest),
 			BlockNumber::Num(num) => PendingOrBlock::Block(BlockId::Number(num)),
@@ -798,6 +840,7 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM, T: StateInfo + 'static> Eth for EthClient<
 
 	fn uncle_by_block_number_and_index(&self, num: BlockNumber, index: Index) -> BoxFuture<Option<RichBlock>> {
 		let id = match num {
+			BlockNumber::Hash { hash, .. } => PendingUncleId { id: PendingOrBlock::Block(BlockId::Hash(hash)), position: index.value() },
 			BlockNumber::Latest => PendingUncleId { id: PendingOrBlock::Block(BlockId::Latest), position: index.value() },
 			BlockNumber::Earliest => PendingUncleId { id: PendingOrBlock::Block(BlockId::Earliest), position: index.value() },
 			BlockNumber::Num(num) => PendingUncleId { id: PendingOrBlock::Block(BlockId::Number(num)), position: index.value() },
@@ -914,26 +957,28 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM, T: StateInfo + 'static> Eth for EthClient<
 		let signed = try_bf!(fake_sign::sign_call(request));
 
 		let num = num.unwrap_or_default();
+		try_bf!(check_known(&*self.client, num.clone()));
 
-		let (mut state, header) = if num == BlockNumber::Pending {
-			let info = self.client.chain_info();
-			let state = try_bf!(self.miner.pending_state(info.best_block_number).ok_or_else(errors::state_pruned));
-			let header = try_bf!(self.miner.pending_block_header(info.best_block_number).ok_or_else(errors::state_pruned));
+		let (mut state, header) =
+			if num == BlockNumber::Pending {
+				self.pending_state_and_header_with_fallback()
+			} else {
+				let id = match num {
+					BlockNumber::Hash { hash, .. } => BlockId::Hash(hash),
+					BlockNumber::Num(num) => BlockId::Number(num),
+					BlockNumber::Earliest => BlockId::Earliest,
+					BlockNumber::Latest => BlockId::Latest,
+					BlockNumber::Pending => unreachable!(), // Already covered
+				};
 
-			(state, header)
-		} else {
-			let id = match num {
-				BlockNumber::Num(num) => BlockId::Number(num),
-				BlockNumber::Earliest => BlockId::Earliest,
-				BlockNumber::Latest => BlockId::Latest,
-				BlockNumber::Pending => unreachable!(), // Already covered
+				let state = try_bf!(self.client.state_at(id).ok_or_else(errors::state_pruned));
+				let header = try_bf!(
+					self.client.block_header(id).ok_or_else(errors::state_pruned)
+						.and_then(|h| h.decode().map_err(errors::decode))
+				);
+
+				(state, header)
 			};
-
-			let state = try_bf!(self.client.state_at(id).ok_or_else(errors::state_pruned));
-			let header = try_bf!(self.client.block_header(id).ok_or_else(errors::state_pruned).and_then(|h| h.decode().map_err(errors::decode)));
-
-			(state, header)
-		};
 
 		let result = self.client.call(&signed, Default::default(), &mut state, &header);
 
@@ -955,15 +1000,10 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM, T: StateInfo + 'static> Eth for EthClient<
 		let num = num.unwrap_or_default();
 
 		let (state, header) = if num == BlockNumber::Pending {
-			let info = self.client.chain_info();
-			let state = try_bf!(self.miner.pending_state(info.best_block_number)
-								.ok_or_else(errors::state_pruned));
-			let header = try_bf!(self.miner.pending_block_header(info.best_block_number)
-								 .ok_or_else(errors::state_pruned));
-
-			(state, header)
+			self.pending_state_and_header_with_fallback()
 		} else {
 			let id = match num {
+				BlockNumber::Hash { hash, .. } => BlockId::Hash(hash),
 				BlockNumber::Num(num) => BlockId::Number(num),
 				BlockNumber::Earliest => BlockId::Earliest,
 				BlockNumber::Latest => BlockId::Latest,

@@ -48,7 +48,8 @@ use ethcore_private_tx::{ProviderConfig, EncryptorConfig};
 use secretstore::{NodeSecretKey, Configuration as SecretStoreConfiguration, ContractAddress as SecretStoreContractAddress};
 use updater::{UpdatePolicy, UpdateFilter, ReleaseTrack};
 use run::RunCmd;
-use blockchain::{BlockchainCmd, ImportBlockchain, ExportBlockchain, KillBlockchain, ExportState, DataFormat, ResetBlockchain};
+use types::data_format::DataFormat;
+use blockchain::{BlockchainCmd, ImportBlockchain, ExportBlockchain, KillBlockchain, ExportState, ResetBlockchain};
 use export_hardcoded_sync::ExportHsyncCmd;
 use presale::ImportWallet;
 use account::{AccountCmd, NewAccount, ListAccounts, ImportAccounts, ImportFromGethAccounts};
@@ -57,6 +58,7 @@ use network::{IpFilter};
 
 const DEFAULT_MAX_PEERS: u16 = 50;
 const DEFAULT_MIN_PEERS: u16 = 25;
+pub const ETHERSCAN_ETH_PRICE_ENDPOINT: &str = "https://api.etherscan.io/api?module=stats&action=ethprice";
 
 #[derive(Debug, PartialEq)]
 pub enum Cmd {
@@ -667,23 +669,30 @@ impl Configuration {
 		}
 
 		let usd_per_tx = to_price(&self.args.arg_usd_per_tx)?;
-		if "auto" == self.args.arg_usd_per_eth.as_str() {
-			return Ok(GasPricerConfig::Calibrated {
+
+		if "auto" == self.args.arg_usd_per_eth {
+			Ok(GasPricerConfig::Calibrated {
 				usd_per_tx: usd_per_tx,
 				recalibration_period: to_duration(self.args.arg_price_update_period.as_str())?,
-			});
+				api_endpoint: ETHERSCAN_ETH_PRICE_ENDPOINT.to_string(),
+			})
+		} else if let Ok(usd_per_eth_parsed) = to_price(&self.args.arg_usd_per_eth) {
+			let wei_per_gas = wei_per_gas(usd_per_tx, usd_per_eth_parsed);
+
+			info!(
+				"Using a fixed conversion rate of Ξ1 = {} ({} wei/gas)",
+				Colour::White.bold().paint(format!("US${:.2}", usd_per_eth_parsed)),
+				Colour::Yellow.bold().paint(format!("{}", wei_per_gas))
+			);
+
+			Ok(GasPricerConfig::Fixed(wei_per_gas))
+		} else {
+			Ok(GasPricerConfig::Calibrated {
+				usd_per_tx: usd_per_tx,
+				recalibration_period: to_duration(self.args.arg_price_update_period.as_str())?,
+				api_endpoint: self.args.arg_usd_per_eth.clone(),
+			})
 		}
-
-		let usd_per_eth = to_price(&self.args.arg_usd_per_eth)?;
-		let wei_per_gas = wei_per_gas(usd_per_tx, usd_per_eth);
-
-		info!(
-			"Using a fixed conversion rate of Ξ1 = {} ({} wei/gas)",
-			Colour::White.bold().paint(format!("US${:.2}", usd_per_eth)),
-			Colour::Yellow.bold().paint(format!("{}", wei_per_gas))
-		);
-
-		Ok(GasPricerConfig::Fixed(wei_per_gas))
 	}
 
 	fn extra_data(&self) -> Result<Bytes, String> {
@@ -1208,9 +1217,9 @@ mod tests {
 	use miner::pool::PrioritizationStrategy;
 	use parity_rpc::NetworkSettings;
 	use updater::{UpdatePolicy, UpdateFilter, ReleaseTrack};
-
+	use types::data_format::DataFormat;
 	use account::{AccountCmd, NewAccount, ImportAccounts, ListAccounts};
-	use blockchain::{BlockchainCmd, ImportBlockchain, ExportBlockchain, DataFormat, ExportState};
+	use blockchain::{BlockchainCmd, ImportBlockchain, ExportBlockchain, ExportState};
 	use cli::Args;
 	use dir::{Directories, default_hypervisor_path};
 	use helpers::{default_network_config};
@@ -1568,7 +1577,7 @@ mod tests {
 		// then
 		assert_eq!(conf.network_settings(), Ok(NetworkSettings {
 			name: "testname".to_owned(),
-			chain: "kovan".to_owned(),
+			chain: "goerli".to_owned(),
 			is_dev_chain: false,
 			network_port: 30303,
 			rpc_enabled: true,

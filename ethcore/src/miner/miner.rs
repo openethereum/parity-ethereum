@@ -51,9 +51,10 @@ use using_queue::{UsingQueue, GetAction};
 
 use block::{ClosedBlock, SealedBlock};
 use client::{
-	BlockChain, ChainInfo, BlockProducer, SealedBlockImporter, Nonce, TransactionInfo, TransactionId
+	BlockChain, ChainInfo, BlockProducer, SealedBlockImporter, Nonce,
+	TransactionInfo, TransactionId, ForceUpdateSealing
 };
-use client::{BlockId, ClientIoMessage};
+use client::{Client, BlockId, ClientIoMessage};
 use client::traits::EngineClient;
 use engines::{Engine, Seal, SealingState, EngineSigner};
 use error::Error;
@@ -291,6 +292,7 @@ impl Miner {
 		let tx_queue_strategy = options.tx_queue_strategy;
 		let nonce_cache_size = cmp::max(4096, limits.max_count / 4);
 		let refuse_service_transactions = options.refuse_service_transactions;
+		let engine = spec.engine.clone();
 
 		Miner {
 			sealing: Mutex::new(SealingWork {
@@ -309,7 +311,7 @@ impl Miner {
 			options,
 			transaction_queue: Arc::new(TransactionQueue::new(limits, verifier_options, tx_queue_strategy)),
 			accounts: Arc::new(accounts),
-			engine: spec.engine.clone(),
+			engine,
 			io_channel: RwLock::new(None),
 			service_transaction_checker: if refuse_service_transactions {
 				None
@@ -862,12 +864,12 @@ impl Miner {
 		match self.engine.sealing_state() {
 			SealingState::Ready => {
 				self.maybe_enable_sealing();
-				self.update_sealing(chain)
+				self.update_sealing(chain, ForceUpdateSealing::No);
 			}
 			SealingState::External => {
 				// this calls `maybe_enable_sealing()`
 				if self.prepare_pending_block(chain) == BlockPreparationStatus::NotPrepared {
-					self.update_sealing(chain)
+					self.update_sealing(chain, ForceUpdateSealing::No);
 				}
 			}
 			SealingState::NotReady => { self.maybe_enable_sealing(); },
@@ -1216,6 +1218,11 @@ impl miner::MinerService for Miner {
 					let prev_gas = if index == 0 { Default::default() } else { receipts[index - 1].gas_used };
 					let receipt = &receipts[index];
 					RichReceipt {
+						from: tx.sender(),
+						to: match tx.action {
+							Action::Create => None,
+							Action::Call(ref address) => Some(*address),
+						},
 						transaction_hash: tx.hash(),
 						transaction_index: index,
 						cumulative_gas_used: receipt.gas_used,
@@ -1238,14 +1245,16 @@ impl miner::MinerService for Miner {
 
 	/// Update sealing if required.
 	/// Prepare the block and work if the Engine does not seal internally.
-	fn update_sealing<C>(&self, chain: &C) where
+	fn update_sealing<C>(&self, chain: &C, force: ForceUpdateSealing) where
 		C: BlockChain + CallContract + BlockProducer + SealedBlockImporter + Nonce + Sync,
 	{
 		trace!(target: "miner", "update_sealing");
 
-		// Do nothing if reseal is not required,
+		// Do nothing if we don't want to force update_sealing and reseal is not required.
 		// but note that `requires_reseal` updates internal state.
-		if !self.requires_reseal(chain.chain_info().best_block_number) {
+		if force == ForceUpdateSealing::No &&
+			!self.requires_reseal(chain.chain_info().best_block_number)
+		{
 			return;
 		}
 
@@ -1280,13 +1289,14 @@ impl miner::MinerService for Miner {
 				if self.seal_and_import_block_internally(chain, block) {
 					trace!(target: "miner", "update_sealing: imported internally sealed block");
 				}
+				return
 			},
 			SealingState::NotReady => unreachable!("We returned right after sealing_state was computed. qed."),
 			SealingState::External => {
 				trace!(target: "miner", "update_sealing: engine does not seal internally, preparing work");
-				self.prepare_work(block, original_work_hash)
+				self.prepare_work(block, original_work_hash);
 			},
-		}
+		};
 	}
 
 	fn is_currently_sealing(&self) -> bool {
@@ -1387,7 +1397,7 @@ impl miner::MinerService for Miner {
 				// | NOTE Code below requires sealing locks.                                |
 				// | Make sure to release the locks before calling that method.             |
 				// --------------------------------------------------------------------------
-				self.update_sealing(chain);
+				self.update_sealing(chain, ForceUpdateSealing::No);
 			}
 		}
 
@@ -1405,8 +1415,7 @@ impl miner::MinerService for Miner {
 				let engine = self.engine.clone();
 				let accounts = self.accounts.clone();
 				let service_transaction_checker = self.service_transaction_checker.clone();
-
-				let cull = move |chain: &::client::Client| {
+				let cull = move |chain: &Client| {
 					let client = PoolClient::new(
 						chain,
 						&nonce_cache,
@@ -1415,8 +1424,9 @@ impl miner::MinerService for Miner {
 						service_transaction_checker.as_ref(),
 					);
 					queue.cull(client);
-					if is_internal_import {
-						chain.update_sealing();
+					if engine.should_reseal_on_update() {
+						// force update_sealing here to skip `reseal_required` checks
+						chain.update_sealing(ForceUpdateSealing::Yes);
 					}
 				};
 
@@ -1425,8 +1435,9 @@ impl miner::MinerService for Miner {
 				}
 			} else {
 				self.transaction_queue.cull(client);
-				if is_internal_import {
-					self.update_sealing(chain);
+				if self.engine.should_reseal_on_update() {
+					// force update_sealing here to skip `reseal_required` checks
+					self.update_sealing(chain, ForceUpdateSealing::Yes);
 				}
 			}
 		}
@@ -1751,7 +1762,7 @@ mod tests {
 		).pop().unwrap();
 		assert_eq!(import.unwrap(), ());
 
-		miner.update_sealing(&*client);
+		miner.update_sealing(&*client, ForceUpdateSealing::No);
 		client.flush_queue();
 		assert!(miner.pending_block(0).is_none());
 		assert_eq!(client.chain_info().best_block_number, 3 as BlockNumber);
@@ -1761,7 +1772,7 @@ mod tests {
 			PendingTransaction::new(transaction_with_chain_id(spec.chain_id()).into(), None)
 		).is_ok());
 
-		miner.update_sealing(&*client);
+		miner.update_sealing(&*client, ForceUpdateSealing::No);
 		client.flush_queue();
 		assert!(miner.pending_block(0).is_none());
 		assert_eq!(client.chain_info().best_block_number, 4 as BlockNumber);
@@ -1789,7 +1800,7 @@ mod tests {
 		let miner = Miner::new_for_tests(&spec, None);
 
 		let client = generate_dummy_client(2);
-		miner.update_sealing(&*client);
+		miner.update_sealing(&*client, ForceUpdateSealing::No);
 
 		assert!(miner.is_currently_sealing());
 	}
@@ -1800,7 +1811,7 @@ mod tests {
 		let miner = Miner::new_for_tests(&spec, None);
 
 		let client = generate_dummy_client(2);
-		miner.update_sealing(&*client);
+		miner.update_sealing(&*client, ForceUpdateSealing::No);
 
 		assert!(!miner.is_currently_sealing());
 	}
@@ -1811,7 +1822,7 @@ mod tests {
 		let miner = Miner::new_for_tests(&spec, None);
 
 		let client = generate_dummy_client(2);
-		miner.update_sealing(&*client);
+		miner.update_sealing(&*client, ForceUpdateSealing::No);
 
 		assert!(!miner.is_currently_sealing());
 	}
@@ -1830,7 +1841,7 @@ mod tests {
 		miner.add_work_listener(Box::new(DummyNotifyWork));
 
 		let client = generate_dummy_client(2);
-		miner.update_sealing(&*client);
+		miner.update_sealing(&*client, ForceUpdateSealing::No);
 
 		assert!(miner.is_currently_sealing());
 	}
@@ -1868,6 +1879,7 @@ mod tests {
 				},
 				fetch,
 				p,
+				"fake_endpoint".to_owned()
 			)
 		)
 	}

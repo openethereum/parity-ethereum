@@ -3,6 +3,8 @@
 set -e # fail on any error
 set -u # treat unset variables as error
 
+export CC="sccache "$CC
+export CXX="sccache "$CXX
 echo "__________Show ENVIROMENT__________"
 echo "CI_SERVER_NAME:   " $CI_SERVER_NAME
 echo "CARGO_HOME:       " $CARGO_HOME
@@ -57,3 +59,5 @@ do
       echo "> ${binary} cannot be hashed with cross-compiled binary (keccak256)"
   fi
 done
+#show sccache statistics
+sccache --stop-server

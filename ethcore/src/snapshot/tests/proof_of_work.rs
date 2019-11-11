@@ -66,7 +66,7 @@ fn chunk_and_restore(amount: u64) {
 		&bc,
 		best_hash,
 		&writer,
-		&Progress::default()
+		&Progress::new()
 	).unwrap();
 
 	let manifest = ::snapshot::ManifestData {

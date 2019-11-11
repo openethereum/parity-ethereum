@@ -609,3 +609,13 @@ pub fn require_experimental(allow_experimental_rpcs: bool, eip: &str) -> Result<
 		})
 	}
 }
+
+/// returns an error for when require_canonical was specified and
+pub fn invalid_input() -> Error {
+	Error {
+		// UNSUPPORTED_REQUEST shares the same error code for EIP-1898
+		code: ErrorCode::ServerError(codes::UNSUPPORTED_REQUEST),
+		message: "Invalid input".into(),
+		data: None
+	}
+}

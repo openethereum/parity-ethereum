@@ -21,13 +21,14 @@ extern crate criterion;
 extern crate lazy_static;
 
 extern crate ethcore;
+extern crate ethcore_builtin as builtin;
 extern crate ethereum_types;
 extern crate parity_bytes as bytes;
 extern crate rustc_hex;
 
 use criterion::{Criterion, Bencher};
 use bytes::BytesRef;
-use ethcore::builtin::Builtin;
+use builtin::Builtin;
 use ethcore::machine::Machine;
 use ethereum_types::H160;
 use ethcore::ethereum::new_byzantium_test_machine;

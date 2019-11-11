@@ -11,11 +11,11 @@ ethereum-types = "0.6.0"
 keccak-hash = "0.2.0"
 log = "0.4"
 memmap = "0.6"
-parking_lot = "0.7"
+parking_lot = "0.9"
 primal = "0.2.3"
 
 [dev-dependencies]
-criterion = "0.2"
+criterion = "0.3"
 rustc-hex = "1.0"
 serde_json = "1.0"
 tempdir = "0.3"

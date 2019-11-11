@@ -43,3 +43,6 @@ parity-clib-examples/cpp/build/
 .vscode
 rls/
 /parity.*
+
+# cargo remote artifacts
+remote-target

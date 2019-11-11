@@ -151,7 +151,7 @@ To start Parity Ethereum as a regular user using `systemd` init:
 
 ## 4. Testing <a id="chapter-004"></a>
 
-You can run tests with the following commands:
+Download the required test files: `git submodule update --init --recursive`. You can run tests with the following commands:
 
 * **All** packages
   ```

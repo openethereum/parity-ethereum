@@ -44,6 +44,8 @@ pub trait SyncIo {
 	fn peer_version(&self, peer_id: PeerId) -> ClientVersion {
 		ClientVersion::from(peer_id.to_string())
 	}
+	/// Returns the peer enode string
+	fn peer_enode(&self, peer_id: PeerId) -> Option<String>;
 	/// Returns information on p2p session
 	fn peer_session_info(&self, peer_id: PeerId) -> Option<SessionInfo>;
 	/// Maximum mutually supported ETH protocol version
@@ -106,20 +108,24 @@ impl<'s> SyncIo for NetSyncIo<'s> {
 		self.chain
 	}
 
-	fn chain_overlay(&self) -> &RwLock<HashMap<BlockNumber, Bytes>> {
-		self.chain_overlay
+	fn snapshot_service(&self) -> &dyn SnapshotService {
+		self.snapshot_service
 	}
 
-	fn snapshot_service(&self) -> &SnapshotService {
-		self.snapshot_service
+	fn peer_version(&self, peer_id: PeerId) -> ClientVersion {
+		self.network.peer_client_version(peer_id)
+	}
+
+	fn peer_enode(&self, peer_id: PeerId) -> Option<String> {
+		self.network.session_info(peer_id).and_then(|info| {
+			info.id.map(|node_id| {
+				format!("enode:://{}@{}", node_id, info.remote_address)
+			})
+		})
 	}
 
 	fn peer_session_info(&self, peer_id: PeerId) -> Option<SessionInfo> {
 		self.network.session_info(peer_id)
-	}
-
-	fn is_expired(&self) -> bool {
-		self.network.is_expired()
 	}
 
 	fn eth_protocol_version(&self, peer_id: PeerId) -> u8 {
@@ -130,8 +136,12 @@ impl<'s> SyncIo for NetSyncIo<'s> {
 		self.network.protocol_version(*protocol, peer_id).unwrap_or(0)
 	}
 
-	fn peer_version(&self, peer_id: PeerId) -> ClientVersion {
-		self.network.peer_client_version(peer_id)
+	fn is_expired(&self) -> bool {
+		self.network.is_expired()
+	}
+
+	fn chain_overlay(&self) -> &RwLock<HashMap<BlockNumber, Bytes>> {
+		self.chain_overlay
 	}
 
 	fn payload_soft_limit(&self) -> usize {

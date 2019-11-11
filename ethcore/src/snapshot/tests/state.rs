@@ -21,11 +21,10 @@ use std::sync::atomic::AtomicBool;
 use hash::{KECCAK_NULL_RLP, keccak};
 
 use types::basic_account::BasicAccount;
-use snapshot::account;
+use snapshot::account::to_fat_rlps;
 use snapshot::{chunk_state, Error as SnapshotError, Progress, StateRebuilder, SNAPSHOT_SUBPARTS};
 use snapshot::io::{PackedReader, PackedWriter, SnapshotReader, SnapshotWriter};
 use super::helpers::StateProducer;
-
 use error::Error;
 
 use rand::SeedableRng;
@@ -58,7 +57,7 @@ fn snap_and_restore() {
 
 	let mut state_hashes = Vec::new();
 	for part in 0..SNAPSHOT_SUBPARTS {
-		let mut hashes = chunk_state(&old_db, &state_root, &writer, &Progress::default(), Some(part), 0).unwrap();
+		let mut hashes = chunk_state(&old_db, &state_root, &writer, &Progress::new(), Some(part), 0).unwrap();
 		state_hashes.append(&mut hashes);
 	}
 
@@ -129,8 +128,8 @@ fn get_code_from_prev_chunk() {
 	let mut make_chunk = |acc, hash| {
 		let mut db = journaldb::new_memory_db();
 		AccountDBMut::from_hash(&mut db, hash).insert(EMPTY_PREFIX, &code[..]);
-		let p = Progress::default();
-		let fat_rlp = account::to_fat_rlps(&hash, &acc, &AccountDB::from_hash(&db, hash), &mut used_code, usize::max_value(), usize::max_value(), &p).unwrap();
+		let p = Progress::new();
+		let fat_rlp = to_fat_rlps(&hash, &acc, &AccountDB::from_hash(&db, hash), &mut used_code, usize::max_value(), usize::max_value(), &p).unwrap();
 		let mut stream = RlpStream::new_list(1);
 		stream.append_raw(&fat_rlp[0], 1);
 		stream.out()
@@ -174,7 +173,7 @@ fn checks_flag() {
 	let state_root = producer.state_root();
 	let writer = Mutex::new(PackedWriter::new(&snap_file).unwrap());
 
-	let state_hashes = chunk_state(&old_db, &state_root, &writer, &Progress::default(), None, 0).unwrap();
+	let state_hashes = chunk_state(&old_db, &state_root, &writer, &Progress::new(), None, 0).unwrap();
 
 	writer.into_inner().finish(::snapshot::ManifestData {
 		version: 2,

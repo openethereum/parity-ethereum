@@ -43,6 +43,7 @@ pub struct TraceFilter {
 impl Into<client::TraceFilter> for TraceFilter {
 	fn into(self) -> client::TraceFilter {
 		let num_to_id = |num| match num {
+			BlockNumber::Hash { hash, .. } => BlockId::Hash(hash),
 			BlockNumber::Num(n) => BlockId::Number(n),
 			BlockNumber::Earliest => BlockId::Earliest,
 			BlockNumber::Latest => BlockId::Latest,

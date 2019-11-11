@@ -20,6 +20,7 @@ use std::str::FromStr;
 use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering as AtomicOrder};
 use std::sync::Arc;
 use std::collections::{HashMap, BTreeMap};
+use blockchain::BlockProvider;
 use std::mem;
 
 use blockchain::{TreeRoute, BlockReceipts};
@@ -57,7 +58,7 @@ use client::{
 	TransactionId, UncleId, TraceId, TraceFilter, LastHashes, CallAnalytics,
 	ProvingBlockChainClient, ScheduleInfo, ImportSealedBlock, BroadcastProposalBlock, ImportBlock, StateOrBlock,
 	Call, StateClient, EngineInfo, AccountData, BlockChain, BlockProducer, SealedBlockImporter, IoClient,
-	BadBlocks
+	BadBlocks, ForceUpdateSealing
 };
 use engines::Engine;
 use error::{Error, EthcoreResult};
@@ -586,7 +587,7 @@ impl ImportBlock for TestBlockChainClient {
 
 impl Call for TestBlockChainClient {
 	// State will not be used by test client anyway, since all methods that accept state are mocked
-	type State = ();
+	type State = TestState;
 
 	fn call(&self, _t: &SignedTransaction, _analytics: CallAnalytics, _state: &mut Self::State, _header: &Header) -> Result<Executed, CallError> {
 		self.execution_result.read().clone().unwrap()
@@ -605,24 +606,28 @@ impl Call for TestBlockChainClient {
 	}
 }
 
-impl StateInfo for () {
+impl StateClient for TestBlockChainClient {
+	// State will not be used by test client anyway, since all methods that accept state are mocked
+	type State = TestState;
+
+	fn latest_state_and_header(&self) -> (Self::State, Header) {
+		(TestState, self.best_block_header())
+	}
+
+	fn state_at(&self, _id: BlockId) -> Option<Self::State> {
+		Some(TestState)
+	}
+}
+
+/// NewType wrapper around `()` to impersonate `State` in trait impls. State will not be used by
+/// test client, since all methods that accept state are mocked.
+pub struct TestState;
+
+impl StateInfo for TestState {
 	fn nonce(&self, _address: &Address) -> ethtrie::Result<U256> { unimplemented!() }
 	fn balance(&self, _address: &Address) -> ethtrie::Result<U256> { unimplemented!() }
 	fn storage_at(&self, _address: &Address, _key: &H256) -> ethtrie::Result<H256> { unimplemented!() }
 	fn code(&self, _address: &Address) -> ethtrie::Result<Option<Arc<Bytes>>> { unimplemented!() }
-}
-
-impl StateClient for TestBlockChainClient {
-	// State will not be used by test client anyway, since all methods that accept state are mocked
-	type State = ();
-
-	fn latest_state(&self) -> Self::State {
-		()
-	}
-
-	fn state_at(&self, _id: BlockId) -> Option<Self::State> {
-		Some(())
-	}
 }
 
 impl EngineInfo for TestBlockChainClient {
@@ -697,6 +702,10 @@ impl BlockChainClient for TestBlockChainClient {
 				Some(self.storage.read().get(&(address.clone(), position.clone())).cloned().unwrap_or_default()),
 			_ => None,
 		}
+	}
+
+	fn chain(&self) -> Arc<BlockProvider> {
+		unimplemented!()
 	}
 
 	fn list_accounts(&self, _id: BlockId, _after: Option<&Address>, _count: u64) -> Option<Vec<Address>> {
@@ -933,8 +942,8 @@ impl ProvingBlockChainClient for TestBlockChainClient {
 }
 
 impl super::traits::EngineClient for TestBlockChainClient {
-	fn update_sealing(&self) {
-		self.miner.update_sealing(self)
+	fn update_sealing(&self, force: ForceUpdateSealing)  {
+		self.miner.update_sealing(self, force)
 	}
 
 	fn submit_seal(&self, block_hash: H256, seal: Vec<Bytes>) {
