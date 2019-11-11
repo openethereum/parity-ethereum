@@ -25,7 +25,7 @@ use std::sync::{Weak, Arc};
 use std::time::{UNIX_EPOCH, Duration};
 
 use block::*;
-use client::EngineClient;
+use client::{EngineClient, traits::ForceUpdateSealing};
 use engines::{Engine, Seal, EngineError, ConstructedVerifier};
 use engines::block_reward;
 use engines::block_reward::{BlockRewardContract, RewardKind};
@@ -908,7 +908,7 @@ impl IoHandler<()> for TransitionHandler {
 				self.step.can_propose.store(true, AtomicOrdering::SeqCst);
 				if let Some(ref weak) = *self.client.read() {
 					if let Some(c) = weak.upgrade() {
-						c.update_sealing();
+						c.update_sealing(ForceUpdateSealing::No);
 					}
 				}
 			}
@@ -936,7 +936,7 @@ impl Engine<EthereumMachine> for AuthorityRound {
 		self.step.can_propose.store(true, AtomicOrdering::SeqCst);
 		if let Some(ref weak) = *self.client.read() {
 			if let Some(c) = weak.upgrade() {
-				c.update_sealing();
+				c.update_sealing(ForceUpdateSealing::No);
 			}
 		}
 	}

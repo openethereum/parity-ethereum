@@ -423,10 +423,19 @@ pub trait BroadcastProposalBlock {
 /// Provides methods to import sealed block and broadcast a block proposal
 pub trait SealedBlockImporter: ImportSealedBlock + BroadcastProposalBlock {}
 
+/// Do we want to force update sealing?
+#[derive(Debug, Copy, Clone, PartialEq)]
+pub enum ForceUpdateSealing {
+	/// Ideally you want to use `No` at all times as `Yes` skips `reseal_required` checks.
+	Yes,
+	/// Don't skip `reseal_required` checks
+	No
+}
+
 /// Client facilities used by internally sealing Engines.
 pub trait EngineClient: Sync + Send + ChainInfo {
 	/// Make a new block and seal it.
-	fn update_sealing(&self);
+	fn update_sealing(&self, force: ForceUpdateSealing);
 
 	/// Submit a seal for a block in the mining queue.
 	fn submit_seal(&self, block_hash: H256, seal: Vec<Bytes>);

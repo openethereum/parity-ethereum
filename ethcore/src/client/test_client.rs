@@ -56,7 +56,7 @@ use client::{
 	TransactionId, UncleId, TraceId, TraceFilter, LastHashes, CallAnalytics,
 	ProvingBlockChainClient, ScheduleInfo, ImportSealedBlock, BroadcastProposalBlock, ImportBlock, StateOrBlock,
 	Call, StateClient, EngineInfo, AccountData, BlockChain, BlockProducer, SealedBlockImporter, IoClient,
-	BadBlocks,
+	BadBlocks, traits::ForceUpdateSealing
 };
 use engines::EthEngine;
 use error::{Error, EthcoreResult};
@@ -931,8 +931,8 @@ impl ProvingBlockChainClient for TestBlockChainClient {
 }
 
 impl super::traits::EngineClient for TestBlockChainClient {
-	fn update_sealing(&self) {
-		self.miner.update_sealing(self)
+	fn update_sealing(&self, force: ForceUpdateSealing)  {
+		self.miner.update_sealing(self, force)
 	}
 
 	fn submit_seal(&self, block_hash: H256, seal: Vec<Bytes>) {

@@ -307,6 +307,14 @@ pub trait Engine<M: Machine>: Sync + Send {
 	/// Some(false) means that the node might seal internally but is not qualified now.
 	fn seals_internally(&self) -> Option<bool> { None }
 
+	/// Called in `miner.chain_new_blocks` if the engine wishes to `update_sealing`
+	/// after a block was recently sealed.
+	///
+	/// returns false by default
+	fn should_reseal_on_update(&self) -> bool {
+		false
+	}
+
 	/// Attempt to seal the block internally.
 	///
 	/// If `Some` is returned, then you get a valid seal.

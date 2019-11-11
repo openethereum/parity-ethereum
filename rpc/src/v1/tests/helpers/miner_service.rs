@@ -21,7 +21,7 @@ use std::collections::{BTreeMap, BTreeSet, HashMap};
 
 use bytes::Bytes;
 use ethcore::block::SealedBlock;
-use ethcore::client::{Nonce, PrepareOpenBlock, StateClient, EngineInfo};
+use ethcore::client::{Nonce, PrepareOpenBlock, StateClient, EngineInfo, traits::ForceUpdateSealing};
 use ethcore::engines::{EthEngine, signer::EngineSigner};
 use ethcore::error::Error;
 use ethcore::miner::{self, MinerService, AuthoringParams};
@@ -186,7 +186,7 @@ impl MinerService for TestMinerService {
 	}
 
 	/// New chain head event. Restart mining operation.
-	fn update_sealing<C>(&self, _chain: &C) {
+	fn update_sealing<C>(&self, _chain: &C, _force: ForceUpdateSealing) {
 		unimplemented!();
 	}
 

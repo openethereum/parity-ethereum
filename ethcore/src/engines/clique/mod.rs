@@ -68,7 +68,7 @@ use std::time::{Instant, Duration, SystemTime, UNIX_EPOCH};
 
 use block::ExecutedBlock;
 use bytes::Bytes;
-use client::{BlockId, EngineClient};
+use client::{BlockId, EngineClient, traits::ForceUpdateSealing};
 use engines::clique::util::{extract_signers, recover_creator};
 use engines::{Engine, EngineError, Seal};
 use error::{BlockError, Error};
@@ -749,7 +749,7 @@ impl Engine<EthereumMachine> for Clique {
 		if self.signer.read().is_some() {
 			if let Some(ref weak) = *self.client.read() {
 				if let Some(c) = weak.upgrade() {
-					c.update_sealing();
+					c.update_sealing(ForceUpdateSealing::No);
 				}
 			}
 		}

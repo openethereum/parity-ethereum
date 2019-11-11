@@ -46,7 +46,7 @@ use call_contract::{CallContract, RegistryInfo};
 use client::{
 	ScheduleInfo,
 	BlockChain, BlockProducer, SealedBlockImporter, ChainInfo,
-	AccountData, Nonce,
+	AccountData, Nonce, traits::ForceUpdateSealing
 };
 use error::Error;
 use state::StateInfo;
@@ -83,7 +83,7 @@ pub trait MinerService : Send + Sync {
 		where C: BlockChain + CallContract + BlockProducer + SealedBlockImporter + Nonce + Sync;
 
 	/// Update current pending block
-	fn update_sealing<C>(&self, chain: &C)
+	fn update_sealing<C>(&self, chain: &C, force: ForceUpdateSealing)
 		where C: BlockChain + CallContract + BlockProducer + SealedBlockImporter + Nonce + Sync;
 
 	// Notifications

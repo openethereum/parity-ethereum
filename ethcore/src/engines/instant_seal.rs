@@ -63,6 +63,13 @@ impl<M: Machine> Engine<M> for InstantSeal<M> {
 
 	fn seals_internally(&self) -> Option<bool> { Some(true) }
 
+	fn should_reseal_on_update(&self) -> bool {
+		// We would like for the miner to `update_sealing` if there are local_pending_transactions
+		// in the pool to prevent transactions sent in parallel from stalling in the transaction
+		// pool. (see #9660)
+		true
+	}
+
 	fn generate_seal(&self, block: &ExecutedBlock, _parent: &Header) -> Seal {
 		if !block.transactions.is_empty() {
 			let block_number = block.header.number();
