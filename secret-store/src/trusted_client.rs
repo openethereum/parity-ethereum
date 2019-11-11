@@ -34,9 +34,12 @@ use client_traits::ChainNotify;
 use client_traits::{ChainInfo, Nonce};
 use ethcore::miner::{Miner, MinerService};
 use sync::SyncProvider;
-use helpers::{get_confirmed_block_hash, REQUEST_CONFIRMATIONS_REQUIRED};
 use {Error, NodeKeyPair, ContractAddress};
 use registrar::RegistrarClient;
+
+// TODO: Instead of a constant, make this based on consensus finality.
+/// Number of confirmations required before request can be processed.
+const REQUEST_CONFIRMATIONS_REQUIRED: u64 = 3;
 
 /// Wrapps client ChainNotify in order to send signal about new blocks
 pub trait NewBlocksNotify: Send + Sync {
@@ -138,7 +141,7 @@ impl TrustedClient {
 		match *address {
 			ContractAddress::Address(ref address) => Some(address.clone()),
 			ContractAddress::Registry => self.get_trusted().and_then(|client|
-				get_confirmed_block_hash(&*self, REQUEST_CONFIRMATIONS_REQUIRED)
+				self.get_confirmed_block_hash()
 					.and_then(|block| {
 						client.get_address(registry_name, BlockId::Hash(block))
 							.unwrap_or(None)
@@ -190,6 +193,13 @@ impl TrustedClient {
 		} else {
 			None
 		}
+	}
+
+	/// Get hash of the last block with at least n confirmations.
+	pub fn get_confirmed_block_hash(&self) -> Option<H256> {
+		self.block_number(BlockId::Latest)
+			.map(|b| b.saturating_sub(REQUEST_CONFIRMATIONS_REQUIRED))
+			.and_then(|b| self.block_hash(BlockId::Number(b)))
 	}
 }
 

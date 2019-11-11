@@ -27,7 +27,6 @@ use ethereum_types::{H256, U256, Address, H512};
 use listener::ApiMask;
 use listener::service_contract_listener::ServiceTask;
 use trusted_client::TrustedClient;
-use helpers::{get_confirmed_block_hash, REQUEST_CONFIRMATIONS_REQUIRED};
 use {ServerKeyId, NodeKeyPair, ContractAddress};
 
 use_contract!(service, "res/service.json");
@@ -250,7 +249,7 @@ impl ServiceContract for OnChainServiceContract {
 				Some(address) => address,
 				None => return Box::new(::std::iter::empty()), // no contract installed
 			};
-			let confirmed_block = match get_confirmed_block_hash(&*self.client, REQUEST_CONFIRMATIONS_REQUIRED) {
+			let confirmed_block = match self.client.get_confirmed_block_hash() {
 				Some(confirmed_block) => confirmed_block,
 				None => return Box::new(::std::iter::empty()), // no block with enough confirmations
 			};
@@ -308,12 +307,11 @@ impl ServiceContract for OnChainServiceContract {
 			return Box::new(::std::iter::empty())
 		}
 
-		// we only need requests that are here for more than REQUEST_CONFIRMATIONS_REQUIRED blocks
-		// => we're reading from Latest - (REQUEST_CONFIRMATIONS_REQUIRED + 1) block
+		// we only need requests that are here from the last confirm block
 		let data = self.data.read();
 		match data.contract_address {
 			None => Box::new(::std::iter::empty()),
-			Some(contract_address) => get_confirmed_block_hash(&*self.client, REQUEST_CONFIRMATIONS_REQUIRED + 1)
+			Some(contract_address) => self.client.get_confirmed_block_hash()
 				.map(|b| {
 					let block = BlockId::Hash(b);
 					let iter = match self.mask.server_key_generation_requests {
