@@ -2,7 +2,7 @@
 description = "Parity Ethereum client"
 name = "parity-ethereum"
 # NOTE Make sure to update util/version/Cargo.toml as well
-version = "2.5.9"
+version = "2.5.10"
 license = "GPL-3.0"
 authors = ["Parity Technologies <admin@parity.io>"]
 
@@ -29,7 +29,7 @@ serde_derive = "1.0"
 futures = "0.1"
 fdlimit = "0.1"
 ctrlc = { git = "https://github.com/paritytech/rust-ctrlc.git" }
-jsonrpc-core = "10.0.1"
+jsonrpc-core = "14.0.0"
 parity-bytes = "0.1"
 common-types = { path = "ethcore/types" }
 ethcore = { path = "ethcore", features = ["parity"] }

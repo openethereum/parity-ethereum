@@ -17,23 +17,27 @@
 use std::cmp;
 use std::collections::{HashSet, BTreeMap, VecDeque};
 use std::str::FromStr;
-use std::sync::atomic::{AtomicUsize, AtomicBool, Ordering as AtomicOrdering};
+use std::str::from_utf8;
+use std::convert::TryFrom;
+use std::sync::atomic::{AtomicUsize, AtomicI64, AtomicBool, Ordering as AtomicOrdering};
 use std::sync::{Arc, Weak};
-use std::time::{Instant, Duration};
+use std::io::{BufReader, BufRead};
+use std::time::{Duration, Instant};
 
 use blockchain::{BlockReceipts, BlockChain, BlockChainDB, BlockProvider, TreeRoute, ImportRoute, TransactionAddress, ExtrasInsert, BlockNumberKey};
 use bytes::Bytes;
-use call_contract::{CallContract, RegistryInfo};
-use ethcore_miner::pool::VerifiedTransaction;
-use ethereum_types::{H256, H264, Address, U256};
-use evm::Schedule;
+use bytes::ToPretty;
+use error::Error;
+use ethereum_types::{Address, H256, H264, U256};
 use hash::keccak;
-use io::IoChannel;
+use call_contract::CallContract;
+use ethcore_miner::pool::VerifiedTransaction;
 use itertools::Itertools;
-use journaldb;
-use kvdb::{DBValue, KeyValueDB, DBTransaction};
+use kvdb::{DBTransaction, DBValue, KeyValueDB};
 use parking_lot::{Mutex, RwLock};
 use rand::OsRng;
+use rlp::PayloadInfo;
+use rustc_hex::FromHex;
 use types::transaction::{self, LocalizedTransaction, UnverifiedTransaction, SignedTransaction, Action};
 use trie::{TrieSpec, TrieFactory, Trie};
 use types::ancestry_action::AncestryAction;
@@ -43,6 +47,7 @@ use types::log_entry::LocalizedLogEntry;
 use types::receipt::{Receipt, LocalizedReceipt};
 use types::{BlockNumber, header::{Header, ExtendedHeader}};
 use vm::{EnvInfo, LastHashes};
+use types::data_format::DataFormat;
 
 use block::{LockedBlock, Drain, ClosedBlock, OpenBlock, enact_verified, SealedBlock};
 use client::ancient_import::AncientVerifier;
@@ -51,19 +56,19 @@ use client::{
 	ReopenBlock, PrepareOpenBlock, ScheduleInfo, ImportSealedBlock,
 	BroadcastProposalBlock, ImportBlock, StateOrBlock, StateInfo, StateClient, Call,
 	AccountData, BlockChain as BlockChainTrait, BlockProducer, SealedBlockImporter,
-	ClientIoMessage, BlockChainReset
+	ClientIoMessage, BlockChainReset, ImportExportBlocks
 };
 use client::{
 	BlockId, TransactionId, UncleId, TraceId, ClientConfig, BlockChainClient,
 	TraceFilter, CallAnalytics, Mode,
 	ChainNotify, NewBlocks, ChainRoute, PruningInfo, ProvingBlockChainClient, EngineInfo, ChainMessageType,
-	IoClient, BadBlocks,
+	IoClient, BadBlocks, traits::ForceUpdateSealing
 };
 use client::bad_blocks;
 use engines::{MAX_UNCLE_AGE, EthEngine, EpochTransition, ForkChoice, EngineError};
 use engines::epoch::PendingTransition;
 use error::{
-	ImportErrorKind, ExecutionError, CallError, BlockError,
+	ImportErrorKind, ExecutionError, CallError, BlockError, ImportError,
 	QueueError, QueueErrorKind, Error as EthcoreError, EthcoreResult, ErrorKind as EthcoreErrorKind
 };
 use executive::{Executive, Executed, TransactOptions, contract_address};
@@ -80,7 +85,9 @@ use verification::queue::kind::blocks::Unverified;
 use verification::{PreverifiedBlock, Verifier, BlockQueue};
 use verification;
 use ansi_term::Colour;
-
+use call_contract::RegistryInfo;
+use io::IoChannel;
+use vm::Schedule;
 // re-export
 pub use types::blockchain_info::BlockChainInfo;
 pub use types::block_status::BlockStatus;
@@ -153,7 +160,7 @@ struct Importer {
 	pub import_lock: Mutex<()>, // FIXME Maybe wrap the whole `Importer` instead?
 
 	/// Used to verify blocks
-	pub verifier: Box<Verifier<Client>>,
+	pub verifier: Box<dyn Verifier<Client>>,
 
 	/// Queue containing pending blocks
 	pub block_queue: BlockQueue,
@@ -196,7 +203,7 @@ pub struct Client {
 	pruning: journaldb::Algorithm,
 
 	/// Client uses this to store blocks, traces, etc.
-	db: RwLock<Arc<BlockChainDB>>,
+	db: RwLock<Arc<dyn BlockChainDB>>,
 
 	state_db: RwLock<StateDB>,
 
@@ -210,7 +217,7 @@ pub struct Client {
 	io_channel: RwLock<IoChannel<ClientIoMessage>>,
 
 	/// List of actors to be notified on certain chain events
-	notify: RwLock<Vec<Weak<ChainNotify>>>,
+	notify: RwLock<Vec<Weak<dyn ChainNotify>>>,
 
 	/// Queued transactions from IO
 	queue_transactions: IoChannelQueue,
@@ -232,12 +239,12 @@ pub struct Client {
 	history: u64,
 
 	/// An action to be done if a mode/spec_name change happens
-	on_user_defaults_change: Mutex<Option<Box<FnMut(Option<Mode>) + 'static + Send>>>,
+	on_user_defaults_change: Mutex<Option<Box<dyn FnMut(Option<Mode>) + 'static + Send>>>,
 
 	registrar_address: Option<Address>,
 
 	/// A closure to call when we want to restart the client
-	exit_handler: Mutex<Option<Box<Fn(String) + 'static + Send>>>,
+	exit_handler: Mutex<Option<Box<dyn Fn(String) + 'static + Send>>>,
 
 	importer: Importer,
 }
@@ -248,8 +255,13 @@ impl Importer {
 		engine: Arc<EthEngine>,
 		message_channel: IoChannel<ClientIoMessage>,
 		miner: Arc<Miner>,
-	) -> Result<Importer, ::error::Error> {
-		let block_queue = BlockQueue::new(config.queue.clone(), engine.clone(), message_channel.clone(), config.verifier_type.verifying_seal());
+	) -> Result<Importer, EthcoreError> {
+		let block_queue = BlockQueue::new(
+			config.queue.clone(),
+			engine.clone(),
+			message_channel.clone(),
+			config.verifier_type.verifying_seal()
+		);
 
 		Ok(Importer {
 			import_lock: Mutex::new(()),
@@ -475,7 +487,16 @@ impl Importer {
 	//
 	// The header passed is from the original block data and is sealed.
 	// TODO: should return an error if ImportRoute is none, issue #9910
-	fn commit_block<B>(&self, block: B, header: &Header, block_data: encoded::Block, pending: Option<PendingTransition>, client: &Client) -> ImportRoute where B: Drain {
+	fn commit_block<B>(
+		&self,
+		block: B,
+		header: &Header,
+		block_data: encoded::Block,
+		pending: Option<PendingTransition>,
+		client: &Client
+	) -> ImportRoute
+		where B: Drain
+	{
 		let hash = &header.hash();
 		let number = header.number();
 		let parent = header.parent_hash();
@@ -1017,15 +1038,16 @@ impl Client {
 	}
 
 	/// Get a copy of the best block's state.
-	pub fn latest_state(&self) -> State<StateDB> {
+	pub fn latest_state_and_header(&self) -> (State<StateDB>, Header) {
 		let header = self.best_block_header();
-		State::from_existing(
+		let state = State::from_existing(
 			self.state_db.read().boxed_clone_canon(&header.hash()),
 			*header.state_root(),
 			self.engine.account_start_nonce(header.number()),
 			self.factories.clone()
 		)
-		.expect("State root of best block header always valid.")
+		.expect("State root of best block header always valid.");
+		(state, header)
 	}
 
 	/// Attempt to get a copy of a specific block's final state.
@@ -1035,9 +1057,9 @@ impl Client {
 	/// is unknown.
 	pub fn state_at(&self, id: BlockId) -> Option<State<StateDB>> {
 		// fast path for latest state.
-		match id.clone() {
-			BlockId::Latest => return Some(self.latest_state()),
-			_ => {},
+		if let BlockId::Latest = id {
+			let (state, _) = self.latest_state_and_header();
+			return Some(state)
 		}
 
 		let block_number = match self.block_number(id) {
@@ -1071,8 +1093,9 @@ impl Client {
 	}
 
 	/// Get a copy of the best block's state.
-	pub fn state(&self) -> Box<StateInfo> {
-		Box::new(self.latest_state()) as Box<_>
+	pub fn state(&self) -> impl StateInfo {
+		let (state, _) = self.latest_state_and_header();
+		state
 	}
 
 	/// Get info on the cache.
@@ -1525,8 +1548,8 @@ impl ImportBlock for Client {
 impl StateClient for Client {
 	type State = State<::state_db::StateDB>;
 
-	fn latest_state(&self) -> Self::State {
-		Client::latest_state(self)
+	fn latest_state_and_header(&self) -> (Self::State, Header) {
+		Client::latest_state_and_header(self)
 	}
 
 	fn state_at(&self, id: BlockId) -> Option<Self::State> {
@@ -2079,7 +2102,7 @@ impl BlockChainClient for Client {
 			blocks
 		};
 
-		Ok(self.chain.read().logs(blocks, |entry| filter.matches(entry), filter.limit))
+		Ok(chain.logs(blocks, |entry| filter.matches(entry), filter.limit))
 	}
 
 	fn filter_traces(&self, filter: TraceFilter) -> Option<Vec<LocalizedTrace>> {
@@ -2401,7 +2424,9 @@ impl ImportSealedBlock for Client {
 		let raw = block.rlp_bytes();
 		let header = block.header.clone();
 		let hash = header.hash();
-		self.notify(|n| n.block_pre_import(&raw, &hash, header.difficulty()));
+		self.notify(|n| {
+			n.block_pre_import(&raw, &hash, header.difficulty())
+		});
 
 		let route = {
 			// Do a super duper basic verification to detect potential bugs
@@ -2489,19 +2514,22 @@ impl ::miner::TransactionVerifierClient for Client {}
 impl ::miner::BlockChainClient for Client {}
 
 impl super::traits::EngineClient for Client {
-	fn update_sealing(&self) {
-		self.importer.miner.update_sealing(self)
+	fn update_sealing(&self, force: ForceUpdateSealing) {
+		self.importer.miner.update_sealing(self, force)
 	}
 
 	fn submit_seal(&self, block_hash: H256, seal: Vec<Bytes>) {
-		let import = self.importer.miner.submit_seal(block_hash, seal).and_then(|block| self.import_sealed_block(block));
+		let import = self.importer.miner.submit_seal(block_hash, seal)
+			.and_then(|block| self.import_sealed_block(block));
 		if let Err(err) = import {
 			warn!(target: "poa", "Wrong internal seal submission! {:?}", err);
 		}
 	}
 
 	fn broadcast_consensus_message(&self, message: Bytes) {
-		self.notify(|notify| notify.broadcast(ChainMessageType::Consensus(message.clone())));
+		self.notify(|notify| {
+			notify.broadcast(ChainMessageType::Consensus(message.clone()))
+		});
 	}
 
 	fn epoch_transition_for(&self, parent_hash: H256) -> Option<::engines::EpochTransition> {
@@ -2558,13 +2586,139 @@ impl ProvingBlockChainClient for Client {
 
 impl SnapshotClient for Client {}
 
-impl Drop for Client {
-	fn drop(&mut self) {
-		if let Some(c) = Arc::get_mut(&mut self.engine) {
-			c.stop()
-		} else {
-			warn!(target: "shutdown", "unable to get mut ref for engine for shutdown.");
+
+impl ImportExportBlocks for Client {
+	fn export_blocks<'a>(
+		&self,
+		mut out: Box<dyn std::io::Write + 'a>,
+		from: BlockId,
+		to: BlockId,
+		format: Option<DataFormat>
+	) -> Result<(), String> {
+		let from = self.block_number(from).ok_or("Starting block could not be found")?;
+		let to = self.block_number(to).ok_or("End block could not be found")?;
+		let format = format.unwrap_or_default();
+
+		for i in from..=to {
+			if i % 10000 == 0 {
+				info!("#{}", i);
+			}
+			let b = self.block(BlockId::Number(i))
+				.ok_or("Error exporting incomplete chain")?
+				.into_inner();
+			match format {
+				DataFormat::Binary => {
+					out.write(&b)
+						.map_err(|e| {
+							format!("Couldn't write to stream. Cause: {}", e)
+						})?;
+				}
+				DataFormat::Hex => {
+					out.write_fmt(format_args!("{}\n", b.pretty()))
+						.map_err(|e| {
+							format!("Couldn't write to stream. Cause: {}", e)
+						})?;
+				}
+			}
 		}
+		Ok(())
+	}
+
+	fn import_blocks<'a>(
+		&self,
+		mut source: Box<dyn std::io::Read + 'a>,
+		format: Option<DataFormat>
+	) -> Result<(), String> {
+		const READAHEAD_BYTES: usize = 8;
+
+		let mut first_bytes: Vec<u8> = vec![0; READAHEAD_BYTES];
+		let mut first_read = 0;
+
+		let format = match format {
+			Some(format) => format,
+			None => {
+				first_read = source.read(&mut first_bytes)
+					.map_err(|_| {
+						"Error reading from the file/stream."
+					})?;
+				match first_bytes[0] {
+					0xf9 => DataFormat::Binary,
+					_ => DataFormat::Hex,
+				}
+			}
+		};
+
+		let do_import = |bytes: Vec<u8>| {
+			let block = Unverified::from_rlp(bytes).map_err(|_| "Invalid block rlp")?;
+			let number = block.header.number();
+			while self.queue_info().is_full() {
+				std::thread::sleep(Duration::from_secs(1));
+			}
+			match self.import_block(block) {
+				Err(Error(EthcoreErrorKind::Import(ImportErrorKind::AlreadyInChain), _)) => {
+					trace!("Skipping block #{}: already in chain.", number);
+				}
+				Err(e) => {
+					return Err(format!("Cannot import block #{}: {:?}", number, e));
+				},
+				Ok(_) => {},
+			}
+			Ok(())
+		};
+
+		match format {
+			DataFormat::Binary => {
+				loop {
+					let (mut bytes, n) = if first_read > 0 {
+						(first_bytes.clone(), first_read)
+					} else {
+						let mut bytes = vec![0; READAHEAD_BYTES];
+						let n = source.read(&mut bytes)
+							.map_err(|err| {
+								format!("Error reading from the file/stream: {:?}", err)
+							})?;
+						(bytes, n)
+					};
+					if n == 0 { break; }
+					first_read = 0;
+					let s = PayloadInfo::from(&bytes)
+						.map_err(|e| {
+							format!("Invalid RLP in the file/stream: {:?}", e)
+						})?.total();
+					bytes.resize(s, 0);
+					source.read_exact(&mut bytes[n..])
+						.map_err(|err| {
+							format!("Error reading from the file/stream: {:?}", err)
+						})?;
+					do_import(bytes)?;
+				}
+			}
+			DataFormat::Hex => {
+				for line in BufReader::new(source).lines() {
+					let s = line
+						.map_err(|err| {
+							format!("Error reading from the file/stream: {:?}", err)
+						})?;
+					let s = if first_read > 0 {
+						from_utf8(&first_bytes)
+							.map_err(|err| {
+								format!("Invalid UTF-8: {:?}", err)
+							})?
+							.to_owned() + &(s[..])
+					} else {
+						s
+					};
+					first_read = 0;
+					let bytes = s.from_hex()
+						.map_err(|err| {
+							format!("Invalid hex in file/stream: {:?}", err)
+						})?;
+					do_import(bytes)?;
+				}
+			}
+		};
+		self.flush_queue();
+		Ok(())
 	}
 }
 
@@ -2613,8 +2767,52 @@ fn transaction_receipt(
 	}
 }
 
+/// Queue some items to be processed by IO client.
+struct IoChannelQueue {
+	/// Using a *signed* integer for counting currently queued messages since the
+	/// order in which the counter is incremented and decremented is not defined.
+	/// Using an unsigned integer can (and will) result in integer underflow,
+	/// incorrectly rejecting messages and returning a FullQueue error.
+	currently_queued: Arc<AtomicI64>,
+	limit: i64,
+}
+
+impl IoChannelQueue {
+	pub fn new(limit: usize) -> Self {
+		let limit = i64::try_from(limit).unwrap_or(i64::max_value());
+		IoChannelQueue {
+			currently_queued: Default::default(),
+			limit,
+		}
+	}
+
+	pub fn queue<F>(&self, channel: &IoChannel<ClientIoMessage>, count: usize, fun: F) -> EthcoreResult<()> where
+		F: Fn(&Client) + Send + Sync + 'static,
+	{
+		let queue_size = self.currently_queued.load(AtomicOrdering::Relaxed);
+		if queue_size >= self.limit {
+			let err_limit = usize::try_from(self.limit).unwrap_or(usize::max_value());
+			bail!("The queue is full ({})", err_limit);
+		};
+
+		let count = i64::try_from(count).unwrap_or(i64::max_value());
+
+		let currently_queued = self.currently_queued.clone();
+		let _ok = channel.send(ClientIoMessage::execute(move |client| {
+			currently_queued.fetch_sub(count, AtomicOrdering::SeqCst);
+			fun(client);
+		}))?;
+
+		self.currently_queued.fetch_add(count, AtomicOrdering::SeqCst);
+		Ok(())
+	}
+}
+
 #[cfg(test)]
 mod tests {
+	use test_helpers::{generate_dummy_client, generate_dummy_client_with_data, generate_dummy_client_with_spec_and_data, get_good_dummy_block_hash};
+	use blockchain::{BlockProvider, ExtrasInsert};
+	use spec::Spec;
 
 	#[test]
 	fn should_not_cache_details_before_commit() {
@@ -2626,7 +2824,6 @@ mod tests {
 		use std::sync::Arc;
 		use std::sync::atomic::{AtomicBool, Ordering};
 		use kvdb::DBTransaction;
-		use blockchain::ExtrasInsert;
 		use types::encoded;
 
 		let client = generate_dummy_client(0);
@@ -2768,40 +2965,23 @@ mod tests {
 			outcome: TransactionOutcome::StateRoot(state_root),
 		});
 	}
-}
 
-/// Queue some items to be processed by IO client.
-struct IoChannelQueue {
-	currently_queued: Arc<AtomicUsize>,
-	limit: usize,
-}
+	#[test]
+	fn should_mark_finalization_correctly_for_parent() {
+		let client = generate_dummy_client_with_spec_and_data(Spec::new_test_with_finality, 2, 0, &[]);
+		let chain = client.chain();
 
-impl IoChannelQueue {
-	pub fn new(limit: usize) -> Self {
-		IoChannelQueue {
-			currently_queued: Default::default(),
-			limit,
-		}
-	}
+		let block1_details = chain.block_hash(1).and_then(|h| chain.block_details(&h));
+		assert!(block1_details.is_some());
+		let block1_details = block1_details.unwrap();
+		assert_eq!(block1_details.children.len(), 1);
+		assert!(block1_details.is_finalized);
 
-	pub fn queue<F>(&self, channel: &IoChannel<ClientIoMessage>, count: usize, fun: F) -> Result<(), QueueError> where
-		F: Fn(&Client) + Send + Sync + 'static,
-	{
-		let queue_size = self.currently_queued.load(AtomicOrdering::Relaxed);
-		ensure!(queue_size < self.limit, QueueErrorKind::Full(self.limit));
-
-		let currently_queued = self.currently_queued.clone();
-		let result = channel.send(ClientIoMessage::execute(move |client| {
-			currently_queued.fetch_sub(count, AtomicOrdering::SeqCst);
-			fun(client);
-		}));
-
-		match result {
-			Ok(_) => {
-				self.currently_queued.fetch_add(count, AtomicOrdering::SeqCst);
-				Ok(())
-			},
-			Err(e) => bail!(QueueErrorKind::Channel(e)),
-		}
+		let block2_details = chain.block_hash(2).and_then(|h| chain.block_details(&h));
+		assert!(block2_details.is_some());
+		let block2_details = block2_details.unwrap();
+		assert_eq!(block2_details.children.len(), 0);
+		assert!(!block2_details.is_finalized);
 	}
 }
+

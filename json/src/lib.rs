@@ -20,6 +20,9 @@ extern crate serde_json;
 extern crate ethereum_types;
 #[macro_use] extern crate serde_derive;
 
+#[cfg(test)]
+extern crate macros;
+
 pub mod hash;
 pub mod uint;
 pub mod bytes;

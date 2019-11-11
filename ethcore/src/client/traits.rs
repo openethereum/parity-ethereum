@@ -31,6 +31,7 @@ use types::basic_account::BasicAccount;
 use types::block_status::BlockStatus;
 use types::blockchain_info::BlockChainInfo;
 use types::call_analytics::CallAnalytics;
+use types::data_format::DataFormat;
 use types::encoded;
 use types::filter::Filter;
 use types::header::Header;
@@ -144,8 +145,8 @@ pub trait StateClient {
 	/// Type representing chain state
 	type State: StateInfo;
 
-	/// Get a copy of the best block's state.
-	fn latest_state(&self) -> Self::State;
+	/// Get a copy of the best block's state and header.
+	fn latest_state_and_header(&self) -> (Self::State, Header);
 
 	/// Attempt to get a copy of a specific block's final state.
 	///
@@ -422,10 +423,19 @@ pub trait BroadcastProposalBlock {
 /// Provides methods to import sealed block and broadcast a block proposal
 pub trait SealedBlockImporter: ImportSealedBlock + BroadcastProposalBlock {}
 
+/// Do we want to force update sealing?
+#[derive(Debug, Copy, Clone, PartialEq)]
+pub enum ForceUpdateSealing {
+	/// Ideally you want to use `No` at all times as `Yes` skips `reseal_required` checks.
+	Yes,
+	/// Don't skip `reseal_required` checks
+	No
+}
+
 /// Client facilities used by internally sealing Engines.
 pub trait EngineClient: Sync + Send + ChainInfo {
 	/// Make a new block and seal it.
-	fn update_sealing(&self);
+	fn update_sealing(&self, force: ForceUpdateSealing);
 
 	/// Submit a seal for a block in the mining queue.
 	fn submit_seal(&self, block_hash: H256, seal: Vec<Bytes>);
@@ -476,4 +486,30 @@ pub trait ProvingBlockChainClient: BlockChainClient {
 pub trait BlockChainReset {
 	/// reset to best_block - n
 	fn reset(&self, num: u32) -> Result<(), String>;
+}
+
+/// Provides a method for importing/exporting blocks
+pub trait ImportExportBlocks {
+    /// Export blocks to destination, with the given from, to and format argument.
+    /// destination could be a file or stdout.
+    /// If the format is hex, each block is written on a new line.
+    /// For binary exports, all block data is written to the same line.
+	fn export_blocks<'a>(
+        &self,
+        destination: Box<dyn std::io::Write + 'a>,
+        from: BlockId,
+        to: BlockId,
+        format: Option<DataFormat>
+    ) -> Result<(), String>;
+
+	/// Import blocks from destination, with the given format argument
+	/// Source could be a file or stdout.
+	/// For hex format imports, it attempts to read the blocks on a line by line basis.
+	/// For binary format imports, reads the 8 byte RLP header in order to decode the block
+	/// length to be read.
+	fn import_blocks<'a>(
+		&self,
+		source: Box<dyn std::io::Read + 'a>,
+		format: Option<DataFormat>
+	) -> Result<(), String>;
 }

@@ -272,7 +272,7 @@ impl Provider {
 		let mut state_buf = [0u8; 64];
 		state_buf[..32].clone_from_slice(&state_hash);
 		state_buf[32..].clone_from_slice(&H256::from(nonce));
-		keccak(&state_buf.as_ref())
+		keccak(AsRef::<[u8]>::as_ref(&state_buf[..]))
 	}
 
 	fn pool_client<'a>(&'a self, nonce_cache: &'a NonceCache, local_accounts: &'a HashSet<Address>) -> miner::pool_client::PoolClient<'a, Client> {

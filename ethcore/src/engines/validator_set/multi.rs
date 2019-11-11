@@ -151,7 +151,7 @@ mod tests {
 	use std::collections::BTreeMap;
 	use hash::keccak;
 	use accounts::AccountProvider;
-	use client::{BlockChainClient, ChainInfo, BlockInfo, ImportBlock};
+	use client::{BlockChainClient, ChainInfo, BlockInfo, ImportBlock, traits::ForceUpdateSealing};
 	use engines::EpochChange;
 	use engines::validator_set::ValidatorSet;
 	use ethkey::Secret;
@@ -181,24 +181,24 @@ mod tests {
 		let signer = Box::new((tap.clone(), v1, "".into()));
 		client.miner().set_author(miner::Author::Sealer(signer));
 		client.transact_contract(Default::default(), Default::default()).unwrap();
-		::client::EngineClient::update_sealing(&*client);
+		::client::EngineClient::update_sealing(&*client, ForceUpdateSealing::No);
 		assert_eq!(client.chain_info().best_block_number, 0);
 		// Right signer for the first block.
 		let signer = Box::new((tap.clone(), v0, "".into()));
 		client.miner().set_author(miner::Author::Sealer(signer));
-		::client::EngineClient::update_sealing(&*client);
+		::client::EngineClient::update_sealing(&*client, ForceUpdateSealing::No);
 		assert_eq!(client.chain_info().best_block_number, 1);
 		// This time v0 is wrong.
 		client.transact_contract(Default::default(), Default::default()).unwrap();
-		::client::EngineClient::update_sealing(&*client);
+		::client::EngineClient::update_sealing(&*client, ForceUpdateSealing::No);
 		assert_eq!(client.chain_info().best_block_number, 1);
 		let signer = Box::new((tap.clone(), v1, "".into()));
 		client.miner().set_author(miner::Author::Sealer(signer));
-		::client::EngineClient::update_sealing(&*client);
+		::client::EngineClient::update_sealing(&*client, ForceUpdateSealing::No);
 		assert_eq!(client.chain_info().best_block_number, 2);
 		// v1 is still good.
 		client.transact_contract(Default::default(), Default::default()).unwrap();
-		::client::EngineClient::update_sealing(&*client);
+		::client::EngineClient::update_sealing(&*client, ForceUpdateSealing::No);
 		assert_eq!(client.chain_info().best_block_number, 3);
 
 		// Check syncing.

@@ -800,7 +800,7 @@ impl SessionImpl {
 			.wait()?
 			.expect("initialize_share_change_session is only called on share change master; negotiation session completes with some on master; qed");
 		let selected_version_holders = negotiation_session.version_holders(&selected_version)?;
-		let selected_version_threshold = negotiation_session.key_threshold()?;
+		let selected_version_threshold = negotiation_session.common_key_data()?.threshold;
 
 		// prepare session change plan && check if something needs to be changed
 		let old_nodes_set = selected_version_holders;

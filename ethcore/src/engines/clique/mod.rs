@@ -64,11 +64,11 @@ use std::collections::VecDeque;
 use std::sync::{Arc, Weak};
 use std::thread;
 use std::time;
-use std::time::{Duration, SystemTime, UNIX_EPOCH};
+use std::time::{Instant, Duration, SystemTime, UNIX_EPOCH};
 
 use block::ExecutedBlock;
 use bytes::Bytes;
-use client::{BlockId, EngineClient};
+use client::{BlockId, EngineClient, traits::ForceUpdateSealing};
 use engines::clique::util::{extract_signers, recover_creator};
 use engines::{Engine, EngineError, Seal};
 use error::{BlockError, Error};
@@ -88,11 +88,9 @@ use types::header::{ExtendedHeader, Header};
 
 use self::block_state::CliqueBlockState;
 use self::params::CliqueParams;
-use self::step_service::StepService;
 
 mod params;
 mod block_state;
-mod step_service;
 mod util;
 
 // TODO(niklasad1): extract tester types into a separate mod to be shared in the code base
@@ -167,7 +165,6 @@ pub struct Clique {
 	block_state_by_hash: RwLock<LruCache<H256, CliqueBlockState>>,
 	proposals: RwLock<HashMap<Address, VoteType>>,
 	signer: RwLock<Option<Box<EngineSigner>>>,
-	step_service: Option<Arc<StepService>>,
 }
 
 #[cfg(test)]
@@ -180,30 +177,45 @@ pub struct Clique {
 	pub block_state_by_hash: RwLock<LruCache<H256, CliqueBlockState>>,
 	pub proposals: RwLock<HashMap<Address, VoteType>>,
 	pub signer: RwLock<Option<Box<EngineSigner>>>,
-	pub step_service: Option<Arc<StepService>>,
 }
 
 impl Clique {
 	/// Initialize Clique engine from empty state.
-	pub fn new(our_params: CliqueParams, machine: EthereumMachine) -> Result<Arc<Self>, Error> {
-		let mut engine = Clique {
-			epoch_length: our_params.epoch,
-			period: our_params.period,
+	pub fn new(params: CliqueParams, machine: EthereumMachine) -> Result<Arc<Self>, Error> {
+		/// Step Clique at most every 2 seconds
+		const SEALING_FREQ: Duration = Duration::from_secs(2);
+
+		let engine = Clique {
+			epoch_length: params.epoch,
+			period: params.period,
 			client: Default::default(),
 			block_state_by_hash: RwLock::new(LruCache::new(STATE_CACHE_NUM)),
 			proposals: Default::default(),
 			signer: Default::default(),
 			machine,
-			step_service: None,
 		};
+		let engine = Arc::new(engine);
+		let weak_eng = Arc::downgrade(&engine);
 
-		let res = Arc::new(engine);
+		thread::Builder::new().name("StepService".into())
+			.spawn(move || {
+				loop {
+ 					let next_step_at = Instant::now() + SEALING_FREQ;
+					trace!(target: "miner", "StepService: triggering sealing");
+					if let Some(eng) = weak_eng.upgrade() {
+						eng.step()
+					} else {
+						warn!(target: "shutdown", "StepService: engine is dropped; exiting.");
+						break;
+					}
 
-		if our_params.period > 0 {
-			engine.step_service = Some(StepService::start(Arc::downgrade(&res) as Weak<Engine<_>>));
-		}
-
-		Ok(res)
+					let now = Instant::now();
+					if now < next_step_at {
+						thread::sleep(next_step_at - now);
+					}
+				}
+			})?;
+		Ok(engine)
 	}
 
 	#[cfg(test)]
@@ -221,7 +233,6 @@ impl Clique {
 			proposals: Default::default(),
 			signer: Default::default(),
 			machine: Spec::new_test_machine(),
-			step_service: None,
 		}
 	}
 
@@ -695,7 +706,7 @@ impl Engine<EthereumMachine> for Clique {
 			trace!(target: "engine", "populate_from_parent in sealing");
 
 			// It's unclear how to prevent creating new blocks unless we are authorized, the best way (and geth does this too)
-			// it's just to ignore setting an correct difficulty here, we will check authorization in next step in generate_seal anyway.
+			// it's just to ignore setting a correct difficulty here, we will check authorization in next step in generate_seal anyway.
 			if let Some(signer) = self.signer.read().as_ref() {
 				let state = match self.state(&parent) {
 					Err(e) =>  {
@@ -738,17 +749,9 @@ impl Engine<EthereumMachine> for Clique {
 		if self.signer.read().is_some() {
 			if let Some(ref weak) = *self.client.read() {
 				if let Some(c) = weak.upgrade() {
-					c.update_sealing();
+					c.update_sealing(ForceUpdateSealing::No);
 				}
 			}
-		}
-	}
-
-	fn stop(&mut self) {
-		if let Some(mut s) = self.step_service.as_mut() {
-			Arc::get_mut(&mut s).map(|x| x.stop());
-		} else {
-			warn!(target: "engine", "Stopping `CliqueStepService` failed requires mutable access");
 		}
 	}
 

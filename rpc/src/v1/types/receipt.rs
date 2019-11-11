@@ -43,12 +43,14 @@ pub struct Receipt {
 	/// Logs
 	pub logs: Vec<Log>,
 	/// State Root
-	#[serde(rename = "root")]
+	// NOTE(niklasad1): EIP98 makes this optional field, if it's missing then skip serializing it
+	#[serde(skip_serializing_if = "Option::is_none", rename = "root")]
 	pub state_root: Option<H256>,
 	/// Logs bloom
 	pub logs_bloom: H2048,
 	/// Status code
-	#[serde(rename = "status")]
+	// NOTE(niklasad1): Unknown after EIP98 rules, if it's missing then skip serializing it
+	#[serde(skip_serializing_if = "Option::is_none", rename = "status")]
 	pub status_code: Option<U64>,
 }
 
@@ -91,8 +93,8 @@ impl From<LocalizedReceipt> for Receipt {
 impl From<RichReceipt> for Receipt {
 	fn from(r: RichReceipt) -> Self {
 		Receipt {
-			from: None,
-			to: None,
+			from: Some(r.from),
+			to: r.to.map(Into::into),
 			transaction_hash: Some(r.transaction_hash),
 			transaction_index: Some(r.transaction_index.into()),
 			block_hash: None,

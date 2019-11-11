@@ -17,16 +17,18 @@
 //! Spec account deserialization.
 
 use std::collections::BTreeMap;
+
 use uint::Uint;
 use bytes::Bytes;
-use spec::builtin::Builtin;
+use spec::builtin::BuiltinCompat;
 
 /// Spec account.
 #[derive(Debug, PartialEq, Deserialize)]
 #[serde(deny_unknown_fields)]
+#[serde(rename_all = "camelCase")]
 pub struct Account {
 	/// Builtin contract.
-	pub builtin: Option<Builtin>,
+	pub builtin: Option<BuiltinCompat>,
 	/// Balance.
 	pub balance: Option<Uint>,
 	/// Nonce.
@@ -102,7 +104,15 @@ mod tests {
 	#[test]
 	fn account_empty() {
 		let s = r#"{
-			"builtin": { "name": "ecrecover", "pricing": { "linear": { "base": 3000, "word": 0 } } }
+			"builtin": {
+				"name": "ecrecover",
+				"pricing": {
+					"linear": {
+						"base": 3000,
+						"word": 0
+					}
+				}
+			}
 		}"#;
 		let deserialized: Account = serde_json::from_str(s).unwrap();
 		assert!(deserialized.is_empty());
@@ -113,8 +123,16 @@ mod tests {
 		let s = r#"{
 			"balance": "1",
 			"nonce": "0",
-			"builtin": { "name": "ecrecover", "pricing": { "linear": { "base": 3000, "word": 0 } } },
-			"code": "1234"
+			"code": "1234",
+			"builtin": {
+				"name": "ecrecover",
+				"pricing": {
+					"linear": {
+						"base": 3000,
+						"word": 0
+					}
+				}
+			}
 		}"#;
 		let deserialized: Account = serde_json::from_str(s).unwrap();
 		assert!(!deserialized.is_empty());

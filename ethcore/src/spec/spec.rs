@@ -17,6 +17,7 @@
 //! Parameters for a block chain.
 
 use std::collections::BTreeMap;
+use std::convert::TryFrom;
 use std::io::Read;
 use std::path::Path;
 use std::sync::Arc;
@@ -534,19 +535,28 @@ impl From<SpecHardcodedSync> for ethjson::spec::HardcodedSync {
 }
 
 fn load_machine_from(s: ethjson::spec::Spec) -> EthereumMachine {
-	let builtins = s.accounts.builtins().into_iter().map(|p| (p.0.into(), From::from(p.1))).collect();
+	let builtins = s.accounts.builtins().into_iter().map(|p| (p.0.into(), Builtin::try_from(p.1).expect("chain spec is invalid"))).collect();
 	let params = CommonParams::from(s.params);
 
 	Spec::machine(&s.engine, params, builtins)
 }
 
+fn convert_json_to_spec(
+	(address, builtin): (ethjson::hash::Address, ethjson::spec::builtin::Builtin),
+) -> Result<(Address, Builtin), Error> {
+	let builtin = Builtin::try_from(builtin)?;
+	Ok((address.into(), builtin))
+}
+
 /// Load from JSON object.
 fn load_from(spec_params: SpecParams, s: ethjson::spec::Spec) -> Result<Spec, Error> {
-	let builtins = s.accounts
+	let builtins: Result<BTreeMap<Address, Builtin>, _> = s
+		.accounts
 		.builtins()
 		.into_iter()
-		.map(|p| (p.0.into(), From::from(p.1)))
+		.map(convert_json_to_spec)
 		.collect();
+	let builtins = builtins?;
 	let g = Genesis::from(s.genesis);
 	let GenericSeal(seal_rlp) = g.seal.into();
 	let params = CommonParams::from(s.params);
@@ -966,6 +976,10 @@ impl Spec {
 	/// Create a new Spec which conforms to the Frontier-era Morden chain except that it's a NullEngine consensus with applying reward on block close.
 	#[cfg(any(test, feature = "test-helpers"))]
 	pub fn new_test_with_reward() -> Spec { load_bundled!("null_morden_with_reward") }
+
+	/// Create a new Spec which conforms to the Frontier-era Morden chain except that it's a NullEngine consensus with finality.
+	#[cfg(any(test, feature = "test-helpers"))]
+	pub fn new_test_with_finality() -> Spec { load_bundled!("null_morden_with_finality") }
 
 	/// Create a new Spec which is a NullEngine consensus with a premine of address whose
 	/// secret is keccak('').

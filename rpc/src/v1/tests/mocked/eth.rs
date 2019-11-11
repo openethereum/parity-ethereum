@@ -20,18 +20,21 @@ use std::sync::Arc;
 use std::time::{Instant, Duration, SystemTime, UNIX_EPOCH};
 
 use accounts::AccountProvider;
-use ethcore::client::{BlockChainClient, BlockId, EachBlockWith, Executed, TestBlockChainClient, TransactionId};
+use ethcore::client::{BlockChainClient, EachBlockWith, Executed, TestBlockChainClient};
 use ethcore::miner::{self, MinerService};
-use ethereum_types::{H160, H256, U256, Address};
+use ethereum_types::{H160, H256, U256, Address, Bloom};
 use miner::external::ExternalMiner;
 use parity_runtime::Runtime;
 use parking_lot::Mutex;
 use rlp;
 use rustc_hex::{FromHex, ToHex};
 use sync::SyncState;
-use types::transaction::{Transaction, Action};
-use types::log_entry::{LocalizedLogEntry, LogEntry};
-use types::receipt::{LocalizedReceipt, TransactionOutcome};
+use types::{
+	ids::{BlockId, TransactionId},
+	transaction::{Transaction, Action},
+	log_entry::{LocalizedLogEntry, LogEntry},
+	receipt::{LocalizedReceipt, RichReceipt, TransactionOutcome},
+};
 
 use jsonrpc_core::IoHandler;
 use v1::{Eth, EthClient, EthClientOptions, EthFilter, EthFilterClient};
@@ -100,13 +103,13 @@ impl EthTester {
 
 		EthTester {
 			runtime,
-			client: client,
-			sync: sync,
+			client,
+			sync,
 			accounts_provider: ap,
-			miner: miner,
-			snapshot: snapshot,
-			io: io,
-			hashrates: hashrates,
+			miner,
+			snapshot,
+			io,
+			hashrates,
 		}
 	}
 
@@ -654,6 +657,43 @@ fn rpc_eth_call_latest() {
 }
 
 #[test]
+fn rpc_eth_call_pending() {
+	let tester = EthTester::default();
+	tester.client.set_execution_result(Ok(Executed {
+		exception: None,
+		gas: U256::zero(),
+		gas_used: U256::from(0xff30),
+		refunded: U256::from(0x5),
+		cumulative_gas_used: U256::zero(),
+		logs: vec![],
+		contracts_created: vec![],
+		output: vec![0x12, 0x34, 0xff],
+		trace: vec![],
+		vm_trace: None,
+		state_diff: None,
+	}));
+
+	let request = r#"{
+		"jsonrpc": "2.0",
+		"method": "eth_call",
+		"params": [{
+			"from": "0xb60e8dd61c5d32be8058bb8eb970870f07233155",
+			"to": "0xd46e8dd67c5d32be8058bb8eb970870f07244567",
+			"gas": "0x76c0",
+			"gasPrice": "0x9184e72a000",
+			"value": "0x9184e72a",
+			"data": "0xd46e8dd67c5d32be8d46e8dd67c5d32be8058bb8eb970870f072445675058bb8eb970870f072445675"
+		},
+		"pending"],
+		"id": 1
+	}"#;
+	// Falls back to "Latest" and gives the same result.
+	let response = r#"{"jsonrpc":"2.0","result":"0x1234ff","id":1}"#;
+
+	assert_eq!(tester.io.handle_request_sync(request), Some(response.to_owned()));
+}
+
+#[test]
 fn rpc_eth_call() {
 	let tester = EthTester::default();
 	tester.client.set_execution_result(Ok(Executed {
@@ -755,6 +795,43 @@ fn rpc_eth_estimate_gas() {
 		"latest"],
 		"id": 1
 	}"#;
+	let response = r#"{"jsonrpc":"2.0","result":"0x5208","id":1}"#;
+
+	assert_eq!(tester.io.handle_request_sync(request), Some(response.to_owned()));
+}
+
+#[test]
+fn rpc_eth_estimate_gas_pending() {
+	let tester = EthTester::default();
+	tester.client.set_execution_result(Ok(Executed {
+		exception: None,
+		gas: U256::zero(),
+		gas_used: U256::from(0xff30),
+		refunded: U256::from(0x5),
+		cumulative_gas_used: U256::zero(),
+		logs: vec![],
+		contracts_created: vec![],
+		output: vec![0x12, 0x34, 0xff],
+		trace: vec![],
+		vm_trace: None,
+		state_diff: None,
+	}));
+
+	let request = r#"{
+		"jsonrpc": "2.0",
+		"method": "eth_estimateGas",
+		"params": [{
+			"from": "0xb60e8dd61c5d32be8058bb8eb970870f07233155",
+			"to": "0xd46e8dd67c5d32be8058bb8eb970870f07244567",
+			"gas": "0x76c0",
+			"gasPrice": "0x9184e72a000",
+			"value": "0x9184e72a",
+			"data": "0xd46e8dd67c5d32be8d46e8dd67c5d32be8058bb8eb970870f072445675058bb8eb970870f072445675"
+		},
+		"pending"],
+		"id": 1
+	}"#;
+	// Falls back to "Latest" so the result is the same
 	let response = r#"{"jsonrpc":"2.0","result":"0x5208","id":1}"#;
 
 	assert_eq!(tester.io.handle_request_sync(request), Some(response.to_owned()));
@@ -887,7 +964,7 @@ fn rpc_eth_transaction_receipt() {
 		"params": ["0xb903239f8543d04b5dc1ba6579132b143087c68db1b2168786408fcbce568238"],
 		"id": 1
 	}"#;
-	let response = r#"{"jsonrpc":"2.0","result":{"blockHash":"0xed76641c68a1c641aee09a94b3b471f4dc0316efe5ac19cf488e2674cf8d05b5","blockNumber":"0x4510c","contractAddress":null,"cumulativeGasUsed":"0x20","from":"0xb60e8dd61c5d32be8058bb8eb970870f07233155","gasUsed":"0x10","logs":[{"address":"0x33990122638b9132ca29c723bdf037f1a891a70c","blockHash":"0xed76641c68a1c641aee09a94b3b471f4dc0316efe5ac19cf488e2674cf8d05b5","blockNumber":"0x4510c","data":"0x","logIndex":"0x1","removed":false,"topics":["0xa6697e974e6a320f454390be03f74955e8978f1a6971ea6730542e37b66179bc","0x4861736852656700000000000000000000000000000000000000000000000000"],"transactionHash":"0x0000000000000000000000000000000000000000000000000000000000000000","transactionIndex":"0x0","transactionLogIndex":"0x0","type":"mined"}],"logsBloom":"0x00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000","root":"0x0000000000000000000000000000000000000000000000000000000000000000","status":null,"to":"0xd46e8dd67c5d32be8058bb8eb970870f07244567","transactionHash":"0x0000000000000000000000000000000000000000000000000000000000000000","transactionIndex":"0x0"},"id":1}"#;
+	let response = r#"{"jsonrpc":"2.0","result":{"blockHash":"0xed76641c68a1c641aee09a94b3b471f4dc0316efe5ac19cf488e2674cf8d05b5","blockNumber":"0x4510c","contractAddress":null,"cumulativeGasUsed":"0x20","from":"0xb60e8dd61c5d32be8058bb8eb970870f07233155","gasUsed":"0x10","logs":[{"address":"0x33990122638b9132ca29c723bdf037f1a891a70c","blockHash":"0xed76641c68a1c641aee09a94b3b471f4dc0316efe5ac19cf488e2674cf8d05b5","blockNumber":"0x4510c","data":"0x","logIndex":"0x1","removed":false,"topics":["0xa6697e974e6a320f454390be03f74955e8978f1a6971ea6730542e37b66179bc","0x4861736852656700000000000000000000000000000000000000000000000000"],"transactionHash":"0x0000000000000000000000000000000000000000000000000000000000000000","transactionIndex":"0x0","transactionLogIndex":"0x0","type":"mined"}],"logsBloom":"0x00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000","root":"0x0000000000000000000000000000000000000000000000000000000000000000","to":"0xd46e8dd67c5d32be8058bb8eb970870f07244567","transactionHash":"0x0000000000000000000000000000000000000000000000000000000000000000","transactionIndex":"0x0"},"id":1}"#;
 
 	assert_eq!(tester.io.handle_request_sync(request), Some(response.to_owned()));
 }
@@ -904,6 +981,34 @@ fn rpc_eth_transaction_receipt_null() {
 	}"#;
 	let response = r#"{"jsonrpc":"2.0","result":null,"id":1}"#;
 
+	assert_eq!(tester.io.handle_request_sync(request), Some(response.to_owned()));
+}
+
+#[test]
+fn rpc_eth_pending_receipt() {
+	let pending = RichReceipt {
+		from: H160::from_str("b60e8dd61c5d32be8058bb8eb970870f07233155").unwrap(),
+		to: Some(H160::from_str("d46e8dd67c5d32be8058bb8eb970870f07244567").unwrap()),
+		transaction_hash: H256::from_str("b903239f8543d04b5dc1ba6579132b143087c68db1b2168786408fcbce568238").unwrap(),
+		transaction_index: 0,
+		cumulative_gas_used: U256::from(0x20),
+		gas_used: U256::from(0x10),
+		contract_address: None,
+		logs: Vec::new(),
+		log_bloom: Bloom::zero(),
+		outcome: TransactionOutcome::Unknown,
+	};
+	let tester = EthTester::default();
+
+	tester.miner.pending_receipts.lock().push(pending);
+
+	let request = r#"{
+		"jsonrpc": "2.0",
+		"method": "eth_getTransactionReceipt",
+		"params": ["0xb903239f8543d04b5dc1ba6579132b143087c68db1b2168786408fcbce568238"],
+		"id": 1
+	}"#;
+	let response = r#"{"jsonrpc":"2.0","result":{"blockHash":null,"blockNumber":null,"contractAddress":null,"cumulativeGasUsed":"0x20","from":"0xb60e8dd61c5d32be8058bb8eb970870f07233155","gasUsed":"0x10","logs":[],"logsBloom":"0x00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000","to":"0xd46e8dd67c5d32be8058bb8eb970870f07244567","transactionHash":"0xb903239f8543d04b5dc1ba6579132b143087c68db1b2168786408fcbce568238","transactionIndex":"0x0"},"id":1}"#;
 	assert_eq!(tester.io.handle_request_sync(request), Some(response.to_owned()));
 }
 

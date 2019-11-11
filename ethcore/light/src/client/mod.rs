@@ -18,7 +18,7 @@
 
 use std::sync::{Weak, Arc};
 
-use ethcore::client::{ClientReport, EnvInfo, ClientIoMessage};
+use ethcore::client::{ClientReport, EnvInfo, ClientIoMessage, traits::ForceUpdateSealing};
 use ethcore::engines::{epoch, EthEngine, EpochChange, EpochTransition, Proof};
 use ethcore::machine::EthereumMachine;
 use ethcore::error::{Error, EthcoreResult};
@@ -620,7 +620,7 @@ impl<T: ChainDataFetcher> ::ethcore::client::ChainInfo for Client<T> {
 }
 
 impl<T: ChainDataFetcher> ::ethcore::client::EngineClient for Client<T> {
-	fn update_sealing(&self) { }
+	fn update_sealing(&self, _force: ForceUpdateSealing) {}
 	fn submit_seal(&self, _block_hash: H256, _seal: Vec<Vec<u8>>) { }
 	fn broadcast_consensus_message(&self, _message: Vec<u8>) { }
 

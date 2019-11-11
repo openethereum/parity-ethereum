@@ -24,7 +24,7 @@ mod config;
 mod evm_test_client;
 mod io_message;
 #[cfg(any(test, feature = "test-helpers"))]
-mod test_client;
+pub mod test_client;
 mod trace;
 
 pub use self::client::*;
@@ -38,7 +38,7 @@ pub use self::chain_notify::{ChainNotify, NewBlocks, ChainRoute, ChainRouteType,
 pub use self::traits::{
     Nonce, Balance, ChainInfo, BlockInfo, ReopenBlock, PrepareOpenBlock, TransactionInfo, ScheduleInfo, ImportSealedBlock, BroadcastProposalBlock, ImportBlock,
     StateOrBlock, StateClient, Call, EngineInfo, AccountData, BlockChain, BlockProducer, SealedBlockImporter, BadBlocks,
-	BlockChainReset
+	BlockChainReset, ImportExportBlocks
 };
 pub use state::StateInfo;
 pub use self::traits::{BlockChainClient, EngineClient, ProvingBlockChainClient, IoClient};

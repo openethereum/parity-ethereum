@@ -31,7 +31,7 @@ impl State {
 	pub fn builtins(&self) -> BTreeMap<Address, Builtin> {
 		self.0
 			.iter()
-			.filter_map(|(add, ref acc)| acc.builtin.clone().map(|b| (add.clone(), b)))
+			.filter_map(|(add, ref acc)| acc.builtin.clone().map(|b| (add.clone(), b.into())))
 			.collect()
 	}
 

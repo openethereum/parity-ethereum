@@ -1,0 +1,23 @@
+[package]
+description = "ethereum vm builtin"
+name = "ethcore-builtin"
+version = "0.1.0"
+authors = ["Parity Technologies <admin@parity.io>"]
+edition = "2018"
+
+[dependencies]
+bn = { git = "https://github.com/paritytech/bn", default-features = false }
+byteorder = "1.3.2"
+eip-152 = { path = "../../util/EIP-152" }
+ethereum-types = "0.4"
+ethjson = { path = "../../json" }
+ethkey = { path = "../../accounts/ethkey" }
+keccak-hash = "0.1.0"
+log = "0.4"
+macros = { path = "../../util/macros" }
+num = { version = "0.1", default-features = false, features = ["bigint"] }
+parity-bytes = "0.1"
+parity-crypto = "0.4.0"
+
+[dev-dependencies]
+hex-literal = "0.2.1"

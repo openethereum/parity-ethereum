@@ -9,7 +9,6 @@ authors = ["Parity Technologies <admin@parity.io>"]
 [dependencies]
 ansi_term = "0.10"
 blooms-db = { path = "../util/blooms-db", optional = true }
-bn = { git = "https://github.com/paritytech/bn", default-features = false }
 byteorder = "1.0"
 common-types = { path = "types" }
 crossbeam-utils = "0.6"
@@ -22,6 +21,7 @@ ethabi-derive = "6.0"
 ethash = { path = "../ethash" }
 ethcore-blockchain = { path = "./blockchain" }
 ethcore-bloom-journal = { path = "../util/bloom" }
+ethcore-builtin = { path = "./builtin" }
 ethcore-call-contract = { path = "./call-contract" }
 ethcore-db = { path = "./db" }
 ethcore-io = { path = "../util/io" }
@@ -46,11 +46,9 @@ log = "0.4"
 lru-cache = "0.1"
 macros = { path = "../util/macros" }
 memory-cache = { path = "../util/memory-cache" }
-memory-db = "0.11.0"
-num = { version = "0.1", default-features = false, features = ["bigint"] }
+memory-db = "0.11"
 num_cpus = "1.2"
 parity-bytes = "0.1"
-parity-crypto = "0.3.0"
 parity-snappy = "0.1"
 parking_lot = "0.7"
 trie-db = "0.11.0"
@@ -91,7 +89,8 @@ parity = ["work-notify", "price-info", "stratum"]
 # but might be omitted for other dependent crates.
 work-notify = ["ethcore-miner/work-notify"]
 price-info = ["ethcore-miner/price-info"]
-stratum = ["ethcore-stratum"]
+stratum = [ "ethcore-stratum" ]
+
 
 # Disables seal verification for mined blocks.
 # This allows you to submit any seal via RPC to test and benchmark
