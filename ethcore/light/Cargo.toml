@@ -43,7 +43,7 @@ stats = { path = "../../util/stats" }
 keccak-hash = "0.4.0"
 keccak-hasher = { path = "../../util/keccak-hasher" }
 triehash-ethereum = { version = "0.2",  path = "../../util/triehash-ethereum" }
-kvdb = "0.1"
+kvdb = "0.1.1"
 memory-cache = { path = "../../util/memory-cache" }
 journaldb = { path = "../../util/journaldb" }
 verification = { path = "../verification" }
