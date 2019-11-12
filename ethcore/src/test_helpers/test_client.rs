@@ -55,7 +55,7 @@ use types::{
 	view,
 	views::BlockView,
 	verification::Unverified,
-	client_types::{Mode, StateResult},
+	client_types::StateResult,
 	blockchain_info::BlockChainInfo,
 	block_status::BlockStatus,
 	verification::VerificationQueueInfo as BlockQueueInfo,
@@ -893,10 +893,6 @@ impl BlockChainClient for TestBlockChainClient {
 	}
 
 	fn signing_chain_id(&self) -> Option<u64> { None }
-
-	fn mode(&self) -> Mode { Mode::Active }
-
-	fn set_mode(&self, _: Mode) { unimplemented!(); }
 
 	fn spec_name(&self) -> String { "foundation".into() }
 

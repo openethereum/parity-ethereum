@@ -1572,7 +1572,6 @@ impl BlockChainClient for Client {
 	}
 
 	fn disable(&self) {
-		//self.set_mode(Mode::Off);
 		self.enabled.store(false, AtomicOrdering::Relaxed);
 		self.clear_queue();
 	}
@@ -2161,7 +2160,7 @@ impl IoClient for Client {
 impl Tick for Client {
 	/// Tick the client.
 	// TODO: manage by real events.
-	fn tick(&self, prevent_sleep: bool) {
+	fn tick(&self, _prevent_sleep: bool) {
 		self.check_garbage();
 	}
 }

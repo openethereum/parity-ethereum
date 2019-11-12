@@ -388,8 +388,6 @@ fn execute_impl<Cr, Rr>(cmd: RunCmd, logger: Arc<RotatingLogger>, on_client_rq: 
 	// check if fatdb is on
 	let fat_db = fatdb_switch_to_bool(cmd.fat_db, &user_defaults, algorithm)?;
 
-	// get the mode
-	// TODO: check if this is ok
 	let network_enabled = true;
 
 	// get the update policy

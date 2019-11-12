@@ -1454,7 +1454,6 @@ mod tests {
 				max_delay: 100,
 				frequency: 20,
 			},
-			mode: Default::default(),
 			tracing: Default::default(),
 			compaction: Default::default(),
 			vm_type: Default::default(),
