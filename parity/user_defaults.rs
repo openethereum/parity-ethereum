@@ -22,7 +22,6 @@ use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use serde_json::de::from_reader;
 use serde_json::ser::to_string;
 use journaldb::Algorithm;
-use types::client_types::Mode as ClientMode;
 
 #[derive(Clone)]
 pub struct Seconds(Duration);
@@ -64,45 +63,6 @@ impl<'de> Deserialize<'de> for Seconds {
 	}
 }
 
-#[derive(Clone, Serialize, Deserialize)]
-#[serde(rename_all = "lowercase", tag = "mode")]
-pub enum Mode {
-	Active,
-	Passive {
-		#[serde(rename = "mode.timeout")]
-		timeout: Seconds,
-		#[serde(rename = "mode.alarm")]
-		alarm: Seconds,
-	},
-	Dark {
-		#[serde(rename = "mode.timeout")]
-		timeout: Seconds,
-	},
-	Offline,
-}
-
-impl Into<ClientMode> for Mode {
-	fn into(self) -> ClientMode {
-		match self {
-			Mode::Active => ClientMode::Active,
-			Mode::Passive { timeout, alarm } => ClientMode::Passive(timeout.into(), alarm.into()),
-			Mode::Dark { timeout } => ClientMode::Dark(timeout.into()),
-			Mode::Offline => ClientMode::Off,
-		}
-	}
-}
-
-impl From<ClientMode> for Mode {
-	fn from(mode: ClientMode) -> Mode {
-		match mode {
-			ClientMode::Active => Mode::Active,
-			ClientMode::Passive(timeout, alarm) => Mode::Passive { timeout: timeout.into(), alarm: alarm.into() },
-			ClientMode::Dark(timeout) => Mode::Dark { timeout: timeout.into() },
-			ClientMode::Off => Mode::Offline,
-		}
-	}
-}
-
 #[derive(Serialize, Deserialize)]
 pub struct UserDefaults {
 	pub is_first_launch: bool,
@@ -110,18 +70,6 @@ pub struct UserDefaults {
 	pub pruning: Algorithm,
 	pub tracing: bool,
 	pub fat_db: bool,
-	#[serde(flatten)]
-	mode: Mode,
-}
-
-impl UserDefaults {
-	pub fn mode(&self) -> ClientMode {
-		self.mode.clone().into()
-	}
-
-	pub fn set_mode(&mut self, mode: ClientMode) {
-		self.mode = mode.into();
-	}
 }
 
 mod algorithm_serde {
@@ -148,7 +96,6 @@ impl Default for UserDefaults {
 			pruning: Algorithm::OverlayRecent,
 			tracing: false,
 			fat_db: false,
-			mode: Mode::Active,
 		}
 	}
 }

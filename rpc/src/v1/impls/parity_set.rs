@@ -17,10 +17,8 @@
 /// Parity-specific rpc interface for operations altering the settings.
 use std::io;
 use std::sync::Arc;
-use std::time::Duration;
 
 use client_traits::BlockChainClient;
-use types::client_types::Mode;
 use ethcore::miner::{self, MinerService};
 use ethereum_types::{H160, H256, U256};
 use crypto::publickey::KeyPair;
@@ -205,14 +203,7 @@ impl<C, M, U, F> ParitySet for ParitySetClient<C, M, U, F> where
 		Ok(true)
 	}
 
-	fn set_mode(&self, mode: String) -> Result<bool> {
-		self.client.set_mode(match mode.as_str() {
-			"offline" => Mode::Off,
-			"dark" => Mode::Dark(Duration::from_secs(300)),
-			"passive" => Mode::Passive(Duration::from_secs(300), Duration::from_secs(3600)),
-			"active" => Mode::Active,
-			e => { return Err(errors::invalid_params("mode", e.to_owned())); },
-		});
+	fn set_mode(&self, _mode: String) -> Result<bool> {
 		Ok(true)
 	}
 

@@ -289,10 +289,6 @@ where
 		Box::new(self.light_dispatch.next_nonce(address))
 	}
 
-	fn mode(&self) -> Result<String> {
-		Err(errors::light_unimplemented(None))
-	}
-
 	fn chain(&self) -> Result<String> {
 		Ok(self.settings.chain.clone())
 	}

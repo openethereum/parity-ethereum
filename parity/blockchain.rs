@@ -44,7 +44,7 @@ use ansi_term::Colour;
 use types::{
 	ids::BlockId,
 	errors::{ImportError, EthcoreError},
-	client_types::{Mode, StateResult},
+	client_types::StateResult,
 };
 use types::data_format::DataFormat;
 use verification::queue::VerifierSettings;
@@ -347,7 +347,6 @@ fn execute_import(cmd: ImportBlockchain) -> Result<(), String> {
 	let mut client_config = to_client_config(
 		&cmd.cache_config,
 		spec.name.to_lowercase(),
-		Mode::Active,
 		tracing,
 		fat_db,
 		cmd.compaction,
@@ -484,7 +483,6 @@ fn start_client(
 	let client_config = to_client_config(
 		&cache_config,
 		spec.name.to_lowercase(),
-		Mode::Active,
 		tracing,
 		fat_db,
 		compaction,

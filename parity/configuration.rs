@@ -38,7 +38,7 @@ use verification::queue::VerifierSettings;
 use rpc::{IpcConfiguration, HttpConfiguration, WsConfiguration};
 use parity_rpc::NetworkSettings;
 use cache::CacheConfig;
-use helpers::{to_duration, to_mode, to_block_id, to_u256, to_pending_set, to_price, geth_ipc_path, parity_ipc_path, to_bootnodes, to_addresses, to_address, to_queue_strategy, to_queue_penalization};
+use helpers::{to_duration, to_block_id, to_u256, to_pending_set, to_price, geth_ipc_path, parity_ipc_path, to_bootnodes, to_addresses, to_address, to_queue_strategy, to_queue_penalization};
 use dir::helpers::{replace_home, replace_home_and_local};
 use params::{ResealPolicy, AccountsConfig, GasPricerConfig, MinerExtras, SpecType};
 use ethcore_logger::Config as LogConfig;
@@ -122,10 +122,6 @@ impl Configuration {
 		let pruning_history = self.args.arg_pruning_history;
 		let vm_type = self.vm_type()?;
 		let spec = self.chain()?;
-		let mode = match self.args.arg_mode.as_ref() {
-			"last" => None,
-			mode => Some(to_mode(&mode, self.args.arg_mode_timeout, self.args.arg_mode_alarm)?),
-		};
 		let update_policy = self.update_policy()?;
 		let logger_config = self.logger_config();
 		let ws_conf = self.ws_config()?;
@@ -390,7 +386,6 @@ impl Configuration {
 				stratum: self.stratum_options()?,
 				update_policy: update_policy,
 				allow_missing_blocks: self.args.flag_jsonrpc_allow_missing_blocks,
-				mode: mode,
 				tracing: tracing,
 				fat_db: fat_db,
 				compaction: compaction,

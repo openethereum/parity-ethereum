@@ -36,7 +36,6 @@ use light::client::LightChainClient;
 use light::{Cache as LightDataCache, TransactionQueue as LightTransactionQueue};
 use miner::external::ExternalMiner;
 use parity_rpc::dispatch::{FullDispatcher, LightDispatcher};
-use parity_rpc::informant::{ActivityNotifier, ClientNotifier};
 use parity_rpc::{Host, Metadata, NetworkSettings};
 use parity_rpc::v1::traits::TransactionsPool;
 use parity_runtime::Executor;
@@ -220,11 +219,6 @@ macro_rules! add_signing_methods {
 
 /// RPC dependencies can be used to initialize RPC endpoints from APIs.
 pub trait Dependencies {
-	type Notifier: ActivityNotifier;
-
-	/// Create the activity notifier.
-	fn activity_notifier(&self) -> Self::Notifier;
-
 	/// Extend the given I/O handler with endpoints for each API.
 	fn extend_with_set<S>(&self, handler: &mut MetaIoHandler<Metadata, S>, apis: &HashSet<Api>)
 	where
@@ -457,27 +451,12 @@ impl FullDependencies {
 }
 
 impl Dependencies for FullDependencies {
-	type Notifier = ClientNotifier;
-
-	fn activity_notifier(&self) -> ClientNotifier {
-		ClientNotifier {
-			client: self.client.clone(),
-		}
-	}
-
 	fn extend_with_set<S>(&self, handler: &mut MetaIoHandler<Metadata, S>, apis: &HashSet<Api>)
 	where
 		S: core::Middleware<Metadata>,
 	{
 		self.extend_api(handler, apis, false)
 	}
-}
-
-/// Light client notifier. Doesn't do anything yet, but might in the future.
-pub struct LightClientNotifier;
-
-impl ActivityNotifier for LightClientNotifier {
-	fn active(&self) {}
 }
 
 /// RPC dependencies for a light client.
@@ -678,12 +657,6 @@ impl<C: LightChainClient + 'static> LightDependencies<C> {
 }
 
 impl<T: LightChainClient + 'static> Dependencies for LightDependencies<T> {
-	type Notifier = LightClientNotifier;
-
-	fn activity_notifier(&self) -> Self::Notifier {
-		LightClientNotifier
-	}
-
 	fn extend_with_set<S>(&self, handler: &mut MetaIoHandler<Metadata, S>, apis: &HashSet<Api>)
 	where
 		S: core::Middleware<Metadata>,

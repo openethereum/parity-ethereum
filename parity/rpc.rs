@@ -155,7 +155,7 @@ pub fn new_ws<D: rpc_apis::Dependencies>(
 	let handler = {
 		let mut handler = MetaIoHandler::with_middleware((
 			rpc::WsDispatcher::new(full_handler),
-			Middleware::new(deps.stats.clone(), deps.apis.activity_notifier())
+			Middleware::new(deps.stats.clone())
 		));
 		let apis = conf.apis.list_apis();
 		deps.apis.extend_with_set(&mut handler, &apis);
@@ -288,11 +288,11 @@ fn with_domain(items: Option<Vec<String>>, domain: &str, dapps_address: &Option<
 	})
 }
 
-pub fn setup_apis<D>(apis: ApiSet, deps: &Dependencies<D>) -> MetaIoHandler<Metadata, Middleware<D::Notifier>>
+pub fn setup_apis<D>(apis: ApiSet, deps: &Dependencies<D>) -> MetaIoHandler<Metadata, Middleware>
 	where D: rpc_apis::Dependencies
 {
 	let mut handler = MetaIoHandler::with_middleware(
-		Middleware::new(deps.stats.clone(), deps.apis.activity_notifier())
+		Middleware::new(deps.stats.clone())
 	);
 	let apis = apis.list_apis();
 	deps.apis.extend_with_set(&mut handler, &apis);

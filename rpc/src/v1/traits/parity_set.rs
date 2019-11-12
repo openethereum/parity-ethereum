@@ -87,17 +87,19 @@ pub trait ParitySet {
 
 	/// Start the network.
 	///
-	/// @deprecated - Use `set_mode("active")` instead.
+	/// @deprecated - Inactive
 	#[rpc(name = "parity_startNetwork")]
 	fn start_network(&self) -> Result<bool>;
 
 	/// Stop the network.
 	///
-	/// @deprecated - Use `set_mode("offline")` instead.
+	/// @deprecated - Inactive
 	#[rpc(name = "parity_stopNetwork")]
 	fn stop_network(&self) -> Result<bool>;
 
 	/// Set the mode. Argument must be one of: "active", "passive", "dark", "offline".
+	///
+	/// @deprecated - Inactive
 	#[rpc(name = "parity_setMode")]
 	fn set_mode(&self, _: String) -> Result<bool>;
 

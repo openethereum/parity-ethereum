@@ -16,41 +16,10 @@
 
 //! Client related types.
 
-use std::{
-	cmp,
-	fmt::{Display, Formatter, Error as FmtError},
-	ops,
-	time::Duration,
-};
+use std::{cmp, ops};
 
 use ethereum_types::U256;
 use crate::header::Header;
-
-/// Operating mode for the client.
-#[derive(Debug, Eq, PartialEq, Clone)]
-pub enum Mode {
-	/// Always on.
-	Active,
-	/// Goes offline after client is inactive for some (given) time, but
-	/// comes back online after a while of inactivity.
-	Passive(Duration, Duration),
-	/// Goes offline after client is inactive for some (given) time and
-	/// stays inactive.
-	Dark(Duration),
-	/// Always off.
-	Off,
-}
-
-impl Display for Mode {
-	fn fmt(&self, f: &mut Formatter) -> Result<(), FmtError> {
-		match *self {
-			Mode::Active => write!(f, "active"),
-			Mode::Passive(..) => write!(f, "passive"),
-			Mode::Dark(..) => write!(f, "dark"),
-			Mode::Off => write!(f, "offline"),
-		}
-	}
-}
 
 /// Report on the status of a client.
 #[derive(Default, Clone, Debug, Eq, PartialEq)]

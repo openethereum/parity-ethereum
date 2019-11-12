@@ -33,10 +33,7 @@ use sync::{validate_node_url, self};
 use db::migrate;
 use path;
 use ethkey::Password;
-use types::{
-	ids::BlockId,
-	client_types::Mode,
-};
+use types::ids::BlockId;
 
 pub fn to_duration(s: &str) -> Result<Duration, String> {
 	to_seconds(s).map(Duration::from_secs)
@@ -68,16 +65,6 @@ fn to_seconds(s: &str) -> Result<u64, String> {
 		x if x.ends_with("hours") => x[0..x.len() - 5].trim().parse::<u64>().map_err(bad).map(|x| x * 60 * 60),
 		x if x.ends_with("days") => x[0..x.len() - 4].trim().parse::<u64>().map_err(bad).map(|x| x * 24 * 60 * 60),
 		x => x.trim().parse().map_err(bad),
-	}
-}
-
-pub fn to_mode(s: &str, timeout: u64, alarm: u64) -> Result<Mode, String> {
-	match s {
-		"active" => Ok(Mode::Active),
-		"passive" => Ok(Mode::Passive(Duration::from_secs(timeout), Duration::from_secs(alarm))),
-		"dark" => Ok(Mode::Dark(Duration::from_secs(timeout))),
-		"offline" => Ok(Mode::Off),
-		_ => Err(format!("{}: Invalid value for --mode. Must be one of active, passive, dark or offline.", s)),
 	}
 }
 
@@ -228,7 +215,6 @@ pub fn default_network_config() -> ::sync::NetworkConfiguration {
 pub fn to_client_config(
 	cache_config: &CacheConfig,
 	spec_name: String,
-	mode: Mode,
 	tracing: bool,
 	fat_db: bool,
 	compaction: DatabaseCompactionProfile,
@@ -262,7 +248,6 @@ pub fn to_client_config(
 	// in bytes
 	client_config.history_mem = pruning_memory * mb;
 
-	client_config.mode = mode;
 	client_config.tracing.enabled = tracing;
 	client_config.fat_db = fat_db;
 	client_config.pruning = pruning;
@@ -354,11 +339,8 @@ mod tests {
 	use ethereum_types::U256;
 	use ethcore::miner::PendingSet;
 	use ethkey::Password;
-	use types::{
-		ids::BlockId,
-		client_types::Mode,
-	};
-	use super::{to_duration, to_mode, to_block_id, to_u256, to_pending_set, to_address, to_addresses, to_price, geth_ipc_path, to_bootnodes, join_set, password_from_file};
+	use types::ids::BlockId;
+	use super::{to_duration, to_block_id, to_u256, to_pending_set, to_address, to_addresses, to_price, geth_ipc_path, to_bootnodes, join_set, password_from_file};
 
 	#[test]
 	fn test_to_duration() {
@@ -380,14 +362,6 @@ mod tests {
 		assert_eq!(to_duration("15days").unwrap(), Duration::from_secs(15 * 24 * 60 * 60));
 		assert_eq!(to_duration("15 days").unwrap(), Duration::from_secs(15 * 24 * 60 * 60));
 		assert_eq!(to_duration("2  seconds").unwrap(), Duration::from_secs(2));
-	}
-
-	#[test]
-	fn test_to_mode() {
-		assert_eq!(to_mode("active", 0, 0).unwrap(), Mode::Active);
-		assert_eq!(to_mode("passive", 10, 20).unwrap(), Mode::Passive(Duration::from_secs(10), Duration::from_secs(20)));
-		assert_eq!(to_mode("dark", 20, 30).unwrap(), Mode::Dark(Duration::from_secs(20)));
-		assert!(to_mode("other", 20, 30).is_err());
 	}
 
 	#[test]

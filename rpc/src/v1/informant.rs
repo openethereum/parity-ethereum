@@ -177,29 +177,21 @@ impl RpcStats {
 	}
 }
 
-/// Notifies about RPC activity.
-pub trait ActivityNotifier: Send + Sync + 'static {
-	/// Activity on RPC interface
-	fn active(&self);
-}
-
 /// Stats-counting RPC middleware
-pub struct Middleware<T: ActivityNotifier = ClientNotifier> {
+pub struct Middleware {
 	stats: Arc<RpcStats>,
-	notifier: T,
 }
 
-impl<T: ActivityNotifier> Middleware<T> {
-	/// Create new Middleware with stats counter and activity notifier.
-	pub fn new(stats: Arc<RpcStats>, notifier: T) -> Self {
+impl Middleware {
+	/// Create new Middleware with stats counter
+	pub fn new(stats: Arc<RpcStats>) -> Self {
 		Middleware {
 			stats,
-			notifier,
 		}
 	}
 }
 
-impl<M: core::Metadata, T: ActivityNotifier> core::Middleware<M> for Middleware<T> {
+impl<M: core::Metadata> core::Middleware<M> for Middleware {
 	type Future = core::FutureResponse;
 	type CallFuture = core::middleware::NoopCallFuture;
 
@@ -209,7 +201,6 @@ impl<M: core::Metadata, T: ActivityNotifier> core::Middleware<M> for Middleware<
 	{
 		let start = time::Instant::now();
 
-		self.notifier.active();
 		self.stats.count_request();
 
 		let id = match request {
@@ -228,18 +219,6 @@ impl<M: core::Metadata, T: ActivityNotifier> core::Middleware<M> for Middleware<
 		});
 
 		Either::A(Box::new(future))
-	}
-}
-
-/// Client Notifier
-pub struct ClientNotifier {
-	/// Client
-	pub client: Arc<::ethcore::client::Client>,
-}
-
-impl ActivityNotifier for ClientNotifier {
-	fn active(&self) {
-		self.client.keep_alive()
 	}
 }
 

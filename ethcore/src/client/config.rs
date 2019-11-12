@@ -20,7 +20,6 @@ use blockchain::Config as BlockChainConfig;
 use journaldb;
 use snapshot::SnapshotConfiguration;
 use trace::Config as TraceConfig;
-use types::client_types::Mode;
 use verification::{VerifierType, QueueConfig};
 
 pub use evm::VMType;
@@ -76,8 +75,6 @@ pub struct ClientConfig {
 	pub db_cache_size: Option<usize>,
 	/// State db compaction profile
 	pub db_compaction: DatabaseCompactionProfile,
-	/// Operating mode
-	pub mode: Mode,
 	/// The chain spec name
 	pub spec_name: String,
 	/// Type of block verifier used by client.
@@ -113,7 +110,6 @@ impl Default for ClientConfig {
 			name: "default".into(),
 			db_cache_size: None,
 			db_compaction: Default::default(),
-			mode: Mode::Active,
 			spec_name: "".into(),
 			verifier_type: VerifierType::Canon,
 			state_cache_size: 1 * mb,

@@ -39,7 +39,6 @@ use node_filter::NodeFilter;
 use parity_runtime::Runtime;
 use sync::{self, SyncConfig, PrivateTxHandler};
 use types::{
-	client_types::Mode,
 	engines::OptimizeFor,
 	snapshot::Snapshotting,
 };
@@ -51,7 +50,7 @@ use parity_version::version;
 use ethcore_private_tx::{ProviderConfig, EncryptorConfig, SecretStoreEncryptor};
 use params::{
 	SpecType, Pruning, AccountsConfig, GasPricerConfig, MinerExtras, Switch,
-	tracing_switch_to_bool, fatdb_switch_to_bool, mode_switch_to_bool
+	tracing_switch_to_bool, fatdb_switch_to_bool
 };
 use account_utils;
 use helpers::{to_client_config, execute_upgrades, passwords_from_files};
@@ -109,7 +108,6 @@ pub struct RunCmd {
 	pub gas_pricer_conf: GasPricerConfig,
 	pub miner_extras: MinerExtras,
 	pub update_policy: UpdatePolicy,
-	pub mode: Option<Mode>,
 	pub tracing: Switch,
 	pub fat_db: Switch,
 	pub compaction: DatabaseCompactionProfile,
@@ -391,9 +389,8 @@ fn execute_impl<Cr, Rr>(cmd: RunCmd, logger: Arc<RotatingLogger>, on_client_rq: 
 	let fat_db = fatdb_switch_to_bool(cmd.fat_db, &user_defaults, algorithm)?;
 
 	// get the mode
-	let mode = mode_switch_to_bool(cmd.mode, &user_defaults)?;
-	trace!(target: "mode", "mode is {:?}", mode);
-	let network_enabled = match mode { Mode::Dark(_) | Mode::Off => false, _ => true, };
+	// TODO: check if this is ok
+	let network_enabled = true;
 
 	// get the update policy
 	let update_policy = cmd.update_policy;
@@ -423,7 +420,6 @@ fn execute_impl<Cr, Rr>(cmd: RunCmd, logger: Arc<RotatingLogger>, on_client_rq: 
 			false => "".to_owned(),
 		}
 	);
-	info!("Operating mode: {}", Colour::White.bold().paint(format!("{}", mode)));
 
 	// display warning about using experimental journaldb algorithm
 	if !algorithm.is_stable() {
@@ -520,7 +516,6 @@ fn execute_impl<Cr, Rr>(cmd: RunCmd, logger: Arc<RotatingLogger>, on_client_rq: 
 	let mut client_config = to_client_config(
 		&cmd.cache_config,
 		spec.name.to_lowercase(),
-		mode.clone(),
 		tracing,
 		fat_db,
 		cmd.compaction,
@@ -772,16 +767,7 @@ fn execute_impl<Cr, Rr>(cmd: RunCmd, logger: Arc<RotatingLogger>, on_client_rq: 
 	user_defaults.pruning = algorithm;
 	user_defaults.tracing = tracing;
 	user_defaults.fat_db = fat_db;
-	user_defaults.set_mode(mode);
 	user_defaults.save(&user_defaults_path)?;
-
-	// tell client how to save the default mode if it gets changed.
-	client.on_user_defaults_change(move |mode: Option<Mode>| {
-		if let Some(mode) = mode {
-			user_defaults.set_mode(mode);
-		}
-		let _ = user_defaults.save(&user_defaults_path);	// discard failures - there's nothing we can do
-	});
 
 	// the watcher must be kept alive.
 	let watcher = match cmd.snapshot_conf.no_periodic {
@@ -825,13 +811,13 @@ pub struct RunningClient {
 
 enum RunningClientInner {
 	Light {
-		rpc: jsonrpc_core::MetaIoHandler<Metadata, informant::Middleware<rpc_apis::LightClientNotifier>>,
+		rpc: jsonrpc_core::MetaIoHandler<Metadata, informant::Middleware>,
 		informant: Arc<Informant<LightNodeInformantData>>,
 		client: Arc<LightClient>,
 		keep_alive: Box<dyn Any>,
 	},
 	Full {
-		rpc: jsonrpc_core::MetaIoHandler<Metadata, informant::Middleware<informant::ClientNotifier>>,
+		rpc: jsonrpc_core::MetaIoHandler<Metadata, informant::Middleware>,
 		informant: Arc<Informant<FullNodeInformantData>>,
 		client: Arc<Client>,
 		client_service: Arc<ClientService>,

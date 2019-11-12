@@ -303,10 +303,6 @@ impl<C, M, U, S> Parity for ParityClient<C, M, U> where
 		Box::new(future::ok(self.miner.next_nonce(&*self.client, &address)))
 	}
 
-	fn mode(&self) -> Result<String> {
-		Ok(self.client.mode().to_string())
-	}
-
 	fn enode(&self) -> Result<String> {
 		self.sync.enode().ok_or_else(errors::network_disabled)
 	}

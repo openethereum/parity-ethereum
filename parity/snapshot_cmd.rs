@@ -31,7 +31,6 @@ use parking_lot::RwLock;
 use types::{
 	ids::BlockId,
 	snapshot::Progress,
-	client_types::Mode,
 	snapshot::RestorationStatus,
 };
 
@@ -176,7 +175,6 @@ impl SnapshotCommand {
 		let mut client_config = to_client_config(
 			&self.cache_config,
 			spec.name.to_lowercase(),
-			Mode::Active,
 			tracing,
 			fat_db,
 			self.compaction,

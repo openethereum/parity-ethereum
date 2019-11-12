@@ -109,7 +109,7 @@ use types::{
 	BlockNumber,
 	call_analytics::CallAnalytics,
 	chain_notify::{ChainMessageType, ChainRoute, NewBlocks},
-	client_types::{ClientReport, Mode, StateResult},
+	client_types::{ClientReport, StateResult},
 	encoded,
 	engines::{
 		epoch::{PendingTransition, Transition as EpochTransition},
@@ -141,22 +141,7 @@ use vm::{CreateContractAddress, EnvInfo, LastHashes};
 const MAX_ANCIENT_BLOCKS_QUEUE_SIZE: usize = 4096;
 // Max number of blocks imported at once.
 const MAX_ANCIENT_BLOCKS_TO_IMPORT: usize = 4;
-const MAX_QUEUE_SIZE_TO_SLEEP_ON: usize = 2;
 const MIN_HISTORY_SIZE: u64 = 8;
-
-struct SleepState {
-	last_activity: Option<Instant>,
-	last_autosleep: Option<Instant>,
-}
-
-impl SleepState {
-	fn new(awake: bool) -> Self {
-		SleepState {
-			last_activity: match awake { false => None, true => Some(Instant::now()) },
-			last_autosleep: match awake { false => Some(Instant::now()), true => None },
-		}
-	}
-}
 
 struct Importer {
 	/// Lock used during block import
@@ -192,9 +177,6 @@ pub struct Client {
 	/// knows it can't proceed further.
 	enabled: AtomicBool,
 
-	/// Operating mode for the client
-	mode: Mutex<Mode>,
-
 	chain: RwLock<Arc<BlockChain>>,
 	tracedb: RwLock<TraceDB<BlockChain>>,
 	engine: Arc<dyn Engine>,
@@ -216,10 +198,6 @@ pub struct Client {
 	/// Report on the status of client
 	report: RwLock<ClientReport>,
 
-	sleep_state: Mutex<SleepState>,
-
-	/// Flag changed by `sleep` and `wake_up` methods. Not to be confused with `enabled`.
-	liveness: AtomicBool,
 	io_channel: RwLock<IoChannel<ClientIoMessage<Self>>>,
 
 	/// List of actors to be notified on certain chain events
@@ -243,9 +221,6 @@ pub struct Client {
 
 	/// Number of eras kept in a journal before they are pruned
 	history: u64,
-
-	/// An action to be done if a mode/spec_name change happens
-	on_user_defaults_change: Mutex<Option<Box<dyn FnMut(Option<Mode>) + 'static + Send>>>,
 
 	registrar_address: Option<Address>,
 
@@ -766,8 +741,6 @@ impl Client {
 
 		let engine = spec.engine.clone();
 
-		let awake = match config.mode { Mode::Dark(..) | Mode::Off => false, _ => true };
-
 		let importer = Importer::new(&config, engine.clone(), message_channel.clone(), miner)?;
 
 		let registrar_address = engine.machine().params().registrar;
@@ -777,9 +750,6 @@ impl Client {
 
 		let client = Arc::new(Client {
 			enabled: AtomicBool::new(true),
-			sleep_state: Mutex::new(SleepState::new(awake)),
-			liveness: AtomicBool::new(awake),
-			mode: Mutex::new(config.mode.clone()),
 			chain: RwLock::new(chain),
 			tracedb,
 			engine,
@@ -798,7 +768,6 @@ impl Client {
 			last_hashes: RwLock::new(VecDeque::new()),
 			factories,
 			history,
-			on_user_defaults_change: Mutex::new(None),
 			registrar_address,
 			exit_handler: Mutex::new(None),
 			importer,
@@ -849,18 +818,6 @@ impl Client {
 		Ok(client)
 	}
 
-	/// Wakes up client if it's a sleep.
-	pub fn keep_alive(&self) {
-		let should_wake = match *self.mode.lock() {
-			Mode::Dark(..) | Mode::Passive(..) => true,
-			_ => false,
-		};
-		if should_wake {
-			self.wake_up();
-			(*self.sleep_state.lock()).last_activity = Some(Instant::now());
-		}
-	}
-
 	/// Adds an actor to be notified on certain events
 	pub fn add_notify(&self, target: Arc<dyn ChainNotify>) {
 		self.notify.write().push(Arc::downgrade(&target));
@@ -885,11 +842,6 @@ impl Client {
 				f(&*n);
 			}
 		}
-	}
-
-	/// Register an action to be done if a mode/spec_name change happens.
-	pub fn on_user_defaults_change<F>(&self, f: F) where F: 'static + FnMut(Option<Mode>) + Send {
-		*self.on_user_defaults_change.lock() = Some(Box::new(f));
 	}
 
 	/// Flush the block import queue.
@@ -1128,40 +1080,6 @@ impl Client {
 		self.tracedb.read().collect_garbage();
 	}
 
-	fn check_snooze(&self) {
-		let mode = self.mode.lock().clone();
-		match mode {
-			Mode::Dark(timeout) => {
-				let mut ss = self.sleep_state.lock();
-				if let Some(t) = ss.last_activity {
-					if Instant::now() > t + timeout {
-						self.sleep(false);
-						ss.last_activity = None;
-					}
-				}
-			}
-			Mode::Passive(timeout, wakeup_after) => {
-				let mut ss = self.sleep_state.lock();
-				let now = Instant::now();
-				if let Some(t) = ss.last_activity {
-					if now > t + timeout {
-						self.sleep(false);
-						ss.last_activity = None;
-						ss.last_autosleep = Some(now);
-					}
-				}
-				if let Some(t) = ss.last_autosleep {
-					if now > t + wakeup_after {
-						self.wake_up();
-						ss.last_activity = Some(now);
-						ss.last_autosleep = None;
-					}
-				}
-			}
-			_ => {}
-		}
-	}
-
 	fn block_hash(chain: &BlockChain, id: BlockId) -> Option<H256> {
 		match id {
 			BlockId::Hash(hash) => Some(hash),
@@ -1176,29 +1094,6 @@ impl Client {
 			TransactionId::Hash(ref hash) => self.chain.read().transaction_address(hash),
 			TransactionId::Location(id, index) => Self::block_hash(&self.chain.read(), id).map(|block_hash|
 				TransactionAddress { block_hash, index })
-		}
-	}
-
-	fn wake_up(&self) {
-		if !self.liveness.load(AtomicOrdering::Relaxed) {
-			self.liveness.store(true, AtomicOrdering::Relaxed);
-			self.notify(|n| n.start());
-			info!(target: "mode", "wake_up: Waking.");
-		}
-	}
-
-	fn sleep(&self, force: bool) {
-		if self.liveness.load(AtomicOrdering::Relaxed) {
-			// only sleep if the import queue is mostly empty.
-			if force || (self.queue_info().total_queue_size() <= MAX_QUEUE_SIZE_TO_SLEEP_ON) {
-				self.liveness.store(false, AtomicOrdering::Relaxed);
-				self.notify(|n| n.stop());
-				info!(target: "mode", "sleep: Sleeping.");
-			} else {
-				info!(target: "mode", "sleep: Cannot sleep - syncing ongoing.");
-				// TODO: Consider uncommenting.
-				//(*self.sleep_state.lock()).last_activity = Some(Instant::now());
-			}
 		}
 	}
 
@@ -1672,41 +1567,14 @@ impl BlockChainClient for Client {
 			})))
 	}
 
-	fn mode(&self) -> Mode {
-		let r = self.mode.lock().clone().into();
-		trace!(target: "mode", "Asked for mode = {:?}. returning {:?}", &*self.mode.lock(), r);
-		r
-	}
-
 	fn queue_info(&self) -> BlockQueueInfo {
 		self.importer.block_queue.queue_info()
 	}
 
 	fn disable(&self) {
-		self.set_mode(Mode::Off);
+		//self.set_mode(Mode::Off);
 		self.enabled.store(false, AtomicOrdering::Relaxed);
 		self.clear_queue();
-	}
-
-	fn set_mode(&self, new_mode: Mode) {
-		trace!(target: "mode", "Client::set_mode({:?})", new_mode);
-		if !self.enabled.load(AtomicOrdering::Relaxed) {
-			return;
-		}
-		{
-			let mut mode = self.mode.lock();
-			*mode = new_mode.clone().into();
-			trace!(target: "mode", "Mode now {:?}", &*mode);
-			if let Some(ref mut f) = *self.on_user_defaults_change.lock() {
-				trace!(target: "mode", "Making callback...");
-				f(Some((&*mode).clone()))
-			}
-		}
-		match new_mode {
-			Mode::Active => self.wake_up(),
-			Mode::Off => self.sleep(true),
-			_ => {(*self.sleep_state.lock()).last_activity = Some(Instant::now()); }
-		}
 	}
 
 	fn spec_name(&self) -> String {
@@ -2295,9 +2163,6 @@ impl Tick for Client {
 	// TODO: manage by real events.
 	fn tick(&self, prevent_sleep: bool) {
 		self.check_garbage();
-		if !prevent_sleep {
-			self.check_snooze();
-		}
 	}
 }
 

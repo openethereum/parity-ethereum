@@ -164,10 +164,6 @@ pub trait Parity {
 	#[rpc(name = "parity_nextNonce")]
 	fn next_nonce(&self, _: H160) -> BoxFuture<U256>;
 
-	/// Get the mode. Returns one of: "active", "passive", "dark", "offline".
-	#[rpc(name = "parity_mode")]
-	fn mode(&self) -> Result<String>;
-
 	/// Get the chain name. Returns one of the pre-configured chain names or a filename.
 	#[rpc(name = "parity_chain")]
 	fn chain(&self) -> Result<String>;

@@ -31,7 +31,6 @@ use common_types::{
 	BlockNumber,
 	call_analytics::CallAnalytics,
 	chain_notify::{NewBlocks, ChainMessageType},
-	client_types::Mode,
 	encoded,
 	engines::{epoch::Transition as EpochTransition, machine::Executed},
 	errors::{EthcoreError, EthcoreResult},
@@ -369,12 +368,6 @@ pub trait BlockChainClient:
 
 	/// Get the preferred chain ID to sign on
 	fn signing_chain_id(&self) -> Option<u64>;
-
-	/// Get the mode.
-	fn mode(&self) -> Mode;
-
-	/// Set the mode.
-	fn set_mode(&self, mode: Mode);
 
 	/// Get the chain spec name.
 	fn spec_name(&self) -> String;
