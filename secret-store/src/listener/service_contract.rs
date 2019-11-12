@@ -16,7 +16,6 @@
 
 use std::sync::Arc;
 use parking_lot::RwLock;
-use common_types::filter::Filter;
 use ethabi::RawLog;
 use ethabi::FunctionOutputDecoder;
 use common_types::ids::BlockId;
@@ -26,7 +25,7 @@ use bytes::Bytes;
 use ethereum_types::{H256, U256, Address, H512};
 use listener::ApiMask;
 use listener::service_contract_listener::ServiceTask;
-use trusted_client::TrustedClient;
+use trusted_client::{TrustedClient, Filter};
 use {ServerKeyId, NodeKeyPair, ContractAddress};
 
 use_contract!(service, "res/service.json");
@@ -242,54 +241,36 @@ impl ServiceContract for OnChainServiceContract {
 			return Box::new(::std::iter::empty());
 		}
 
-		// prepare range of blocks to read logs from
-		let (address, first_block, last_block) = {
-			let mut data = self.data.write();
-			let address = match data.contract_address {
-				Some(address) => address,
-				None => return Box::new(::std::iter::empty()), // no contract installed
-			};
-			let confirmed_block = match self.client.get_confirmed_block_hash() {
-				Some(confirmed_block) => confirmed_block,
-				None => return Box::new(::std::iter::empty()), // no block with enough confirmations
-			};
-			let first_block = match data.last_log_block.take().and_then(|b| self.client.tree_route(&b, &confirmed_block)) {
-				// if we have a route from last_log_block to confirmed_block => search for logs on this route
-				//
-				// potentially this could lead us to reading same logs twice when reorganizing to the fork, which
-				// already has been canonical previosuly
-				// the worst thing that can happen in this case is spending some time reading unneeded data from SS db
-				Some(ref route) if route.index < route.blocks.len() => route.blocks[route.index],
-				// else we care only about confirmed block
-				_ => confirmed_block.clone(),
-			};
-
-			data.last_log_block = Some(confirmed_block.clone());
-			(address, first_block, confirmed_block)
+		let address = match self.data.read().contract_address {
+			Some(address) => address,
+			None => return Box::new(::std::iter::empty()), // no contract installed
+		};
+		let confirmed_block = match self.client.get_confirmed_block_hash() {
+			Some(confirmed_block) => confirmed_block,
+			None => return Box::new(::std::iter::empty()), // no block with enough confirmations
 		};
 
-		// read server key generation requests
-		let request_logs = self.client.logs(Filter {
-			from_block: BlockId::Hash(first_block),
-			to_block: BlockId::Hash(last_block),
+		let request_logs = self.client.retrieve_last_logs(Filter {
+			from_block: BlockId::Hash(self.data.read().last_log_block.unwrap_or_else(|| confirmed_block)),
 			address: Some(vec![address]),
 			topics: vec![Some(mask_topics(&self.mask))],
-			limit: None,
 		}).unwrap_or_default();
+
+		let mut data = self.data.write();
+		data.last_log_block = Some(confirmed_block.clone());
 
 		Box::new(request_logs.into_iter()
 			.filter_map(|log| {
-				let raw_log: RawLog = (log.entry.topics.into_iter().map(|t| t.0.into()).collect(), log.entry.data).into();
-				if raw_log.topics[0] == *SERVER_KEY_GENERATION_REQUESTED_EVENT_NAME_HASH {
-					ServerKeyGenerationService::parse_log(&address, raw_log)
-				} else if raw_log.topics[0] == *SERVER_KEY_RETRIEVAL_REQUESTED_EVENT_NAME_HASH {
-					ServerKeyRetrievalService::parse_log(&address, raw_log)
-				} else if raw_log.topics[0] == *DOCUMENT_KEY_STORE_REQUESTED_EVENT_NAME_HASH {
-					DocumentKeyStoreService::parse_log(&address, raw_log)
-				} else if raw_log.topics[0] == *DOCUMENT_KEY_COMMON_PART_RETRIEVAL_REQUESTED_EVENT_NAME_HASH {
-					DocumentKeyShadowRetrievalService::parse_common_request_log(&address, raw_log)
-				} else if raw_log.topics[0] == *DOCUMENT_KEY_PERSONAL_PART_RETRIEVAL_REQUESTED_EVENT_NAME_HASH {
-					DocumentKeyShadowRetrievalService::parse_personal_request_log(&address, raw_log)
+				if log.topics[0] == *SERVER_KEY_GENERATION_REQUESTED_EVENT_NAME_HASH {
+					ServerKeyGenerationService::parse_log(&address, log)
+				} else if log.topics[0] == *SERVER_KEY_RETRIEVAL_REQUESTED_EVENT_NAME_HASH {
+					ServerKeyRetrievalService::parse_log(&address, log)
+				} else if log.topics[0] == *DOCUMENT_KEY_STORE_REQUESTED_EVENT_NAME_HASH {
+					DocumentKeyStoreService::parse_log(&address, log)
+				} else if log.topics[0] == *DOCUMENT_KEY_COMMON_PART_RETRIEVAL_REQUESTED_EVENT_NAME_HASH {
+					DocumentKeyShadowRetrievalService::parse_common_request_log(&address, log)
+				} else if log.topics[0] == *DOCUMENT_KEY_PERSONAL_PART_RETRIEVAL_REQUESTED_EVENT_NAME_HASH {
+					DocumentKeyShadowRetrievalService::parse_personal_request_log(&address, log)
 				} else {
 					Err("unknown type of log entry".into())
 				}

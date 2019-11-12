@@ -22,12 +22,13 @@ use common_types::{
 	transaction::{Transaction, SignedTransaction, Action},
 	chain_notify::NewBlocks,
 	tree_route::TreeRoute,
-	filter::Filter,
+	filter::Filter as BlockchainFilter,
 	log_entry::LocalizedLogEntry,
 };
 use parking_lot::RwLock;
 use ethereum_types::{H256, Address};
 use ethcore::client::Client;
+use ethabi::RawLog;
 use client_traits::BlockChainClient;
 use call_contract::CallContract;
 use client_traits::ChainNotify;
@@ -48,6 +49,25 @@ pub trait NewBlocksNotify: Send + Sync {
 	fn new_blocks(&self, _new_enacted_len: usize) {
 		// does nothing by default
 	}
+}
+
+/// Blockchain logs Filter.
+#[derive(Debug, PartialEq)]
+pub struct Filter {
+	/// Blockchain will be searched from this block.
+	pub from_block: BlockId,
+
+	/// Search addresses.
+	///
+	/// If None, match all.
+	/// If specified, log must be produced by one of these addresses.
+	pub address: Option<Vec<Address>>,
+
+	/// Search topics.
+	///
+	/// If None, match all.
+	/// If specified, log must contain one of these topics.
+	pub topics: Vec<Option<Vec<H256>>>,
 }
 
 /// 'Trusted' client weak reference.
@@ -178,7 +198,7 @@ impl TrustedClient {
 	}
 
 	/// Client's tree_route wrapper
-	pub fn tree_route(&self, from: &H256, to: &H256) -> Option<TreeRoute> {
+	fn tree_route(&self, from: &H256, to: &H256) -> Option<TreeRoute> {
 		if let Some(client) = self.get_trusted() {
 			client.tree_route(from, to)
 		} else {
@@ -187,12 +207,49 @@ impl TrustedClient {
 	}
 
 	/// Client's logs wrapper
-	pub fn logs(&self, filter: Filter) -> Option<Vec<LocalizedLogEntry>> {
+	fn logs(&self, filter: BlockchainFilter) -> Option<Vec<LocalizedLogEntry>> {
 		if let Some(client) = self.get_trusted() {
 			client.logs(filter).ok()
 		} else {
 			None
 		}
+	}
+
+	/// Retrieve last blockchain logs for the filter
+	pub fn retrieve_last_logs(&self, filter: Filter) -> Option<Vec<RawLog>> {
+		let confirmed_block = match self.get_confirmed_block_hash() {
+			Some(confirmed_block) => confirmed_block,
+			None => return None, // no block with enough confirmations
+		};
+
+		let from_block = self.block_hash(filter.from_block).unwrap_or_else(|| confirmed_block);
+		let first_block = match self.tree_route(&from_block, &confirmed_block) {
+			// if we have a route from last_log_block to confirmed_block => search for logs on this route
+			//
+			// potentially this could lead us to reading same logs twice when reorganizing to the fork, which
+			// already has been canonical previosuly
+			// the worst thing that can happen in this case is spending some time reading unneeded data from SS db
+			Some(ref route) if route.index < route.blocks.len() => route.blocks[route.index],
+			// else we care only about confirmed block
+			_ => confirmed_block.clone(),
+		};
+
+		self.logs(BlockchainFilter {
+			from_block: BlockId::Hash(first_block),
+			to_block: BlockId::Hash(confirmed_block),
+			address: filter.address,
+			topics: filter.topics,
+			limit: None,
+		})
+		.map(|blockchain_logs| {
+			blockchain_logs
+				.into_iter()
+					.map(|log| {
+						let raw_log: RawLog = (log.entry.topics.into_iter().map(|t| t.0.into()).collect(), log.entry.data).into();
+						raw_log
+					})
+				.collect::<Vec<_>>()
+		})
 	}
 
 	/// Get hash of the last block with at least n confirmations.
