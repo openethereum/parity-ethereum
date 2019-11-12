@@ -16,7 +16,7 @@
 
 use std::collections::BTreeSet;
 use futures::Future;
-use crypto::publickey::{KeyPair, Signature, Error as EthKeyError};
+use crypto::publickey::{Signature, Error as EthKeyError};
 use ethereum_types::{H256, Address};
 use types::{Error, Public, ServerKeyId, MessageHash, EncryptedMessageSignature, RequestSignature, Requester,
 	EncryptedDocumentKey, EncryptedDocumentKeyShadow, NodeId};
@@ -29,8 +29,6 @@ pub trait NodeKeyPair: Send + Sync {
 	fn address(&self) -> Address;
 	/// Sign data with node key.
 	fn sign(&self, data: &H256) -> Result<Signature, EthKeyError>;
-	/// Compute shared key to encrypt channel between two nodes.
-	fn compute_shared_key(&self, peer_public: &Public) -> Result<KeyPair, EthKeyError>;
 }
 
 /// Server key (SK) generator.

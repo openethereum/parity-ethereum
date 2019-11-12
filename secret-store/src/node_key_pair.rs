@@ -14,7 +14,6 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
-use crypto::publickey::ecdh::agree;
 use crypto::publickey::{KeyPair, Public, Signature, Error as EthKeyError, sign, public_to_address};
 use ethereum_types::{H256, Address};
 use traits::NodeKeyPair;
@@ -47,12 +46,6 @@ impl NodeKeyPair for PlainNodeKeyPair {
 
 	fn sign(&self, data: &H256) -> Result<Signature, EthKeyError> {
 		sign(self.key_pair.secret(), data)
-	}
-
-	fn compute_shared_key(&self, peer_public: &Public) -> Result<KeyPair, EthKeyError> {
-		agree(self.key_pair.secret(), peer_public)
-			.map_err(|e| EthKeyError::Custom(e.to_string()))
-			.and_then(KeyPair::from_secret)
 	}
 }
 
@@ -94,11 +87,6 @@ mod accounts {
 		fn sign(&self, data: &H256) -> Result<Signature, EthKeyError> {
 			self.account_provider.sign(self.address.clone(), Some(self.password.clone()), data.clone())
 				.map_err(|e| EthKeyError::Custom(format!("{}", e)))
-		}
-
-		fn compute_shared_key(&self, peer_public: &Public) -> Result<KeyPair, EthKeyError> {
-			KeyPair::from_secret(self.account_provider.agree(self.address.clone(), Some(self.password.clone()), peer_public)
-				.map_err(|e| EthKeyError::Custom(format!("{}", e)))?)
 		}
 	}
 }
