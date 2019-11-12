@@ -510,7 +510,7 @@ mod tests {
 			block_provider: bc as &dyn BlockProvider,
 			client: &client,
 		};
-		verify_block_family(&block.header, &parent, engine, Some(full_params))
+		verify_block_family(&block.header, &parent, engine, full_params)
 	}
 
 	fn unordered_test(bytes: &[u8], engine: &dyn Engine) -> Result<(), Error> {
