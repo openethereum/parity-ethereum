@@ -16,8 +16,6 @@
 
 //! Block verification utilities.
 
-use call_contract::CallContract;
-use client_traits::BlockInfo;
 // The MallocSizeOf derive looks for this in the root
 use parity_util_mem as malloc_size_of;
 
