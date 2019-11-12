@@ -2283,7 +2283,7 @@ dependencies = [
 [[package]]
 name = "libusb-sys"
 version = "0.2.5"
-source = "git+https://github.com/paritytech/libusb-sys#79e570b00379e1550fb728f2fbd2a083dc99bda6"
+source = "git+https://github.com/paritytech/libusb-sys#f49d8fc7ca43a465c721c8eafc37c86fd06f795f"
 dependencies = [
  "cc 1.0.47 (registry+https://github.com/rust-lang/crates.io-index)",
  "libc 0.2.65 (registry+https://github.com/rust-lang/crates.io-index)",
