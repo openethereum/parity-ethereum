@@ -25,8 +25,8 @@ use bytes::Bytes;
 use ethereum_types::{H256, U256, Address, H512};
 use listener::ApiMask;
 use listener::service_contract_listener::ServiceTask;
-use trusted_client::{TrustedClient, Filter};
-use {ServerKeyId, NodeKeyPair, ContractAddress};
+use trusted_client::{TrustedClient, Filter, SigningKeyPair};
+use {ServerKeyId, ContractAddress};
 
 use_contract!(service, "res/service.json");
 
@@ -95,7 +95,7 @@ pub struct OnChainServiceContract {
 	/// Blockchain client.
 	client: Arc<TrustedClient>,
 	/// This node key pair.
-	self_key_pair: Arc<dyn NodeKeyPair>,
+	self_key_pair: Arc<dyn SigningKeyPair>,
 	/// Contract registry name (if any).
 	name: String,
 	/// Contract address source.
@@ -133,7 +133,7 @@ struct DocumentKeyShadowRetrievalService;
 
 impl OnChainServiceContract {
 	/// Create new on-chain service contract.
-	pub fn new(mask: ApiMask, client: Arc<TrustedClient>, name: String, address_source: ContractAddress, self_key_pair: Arc<dyn NodeKeyPair>) -> Self {
+	pub fn new(mask: ApiMask, client: Arc<TrustedClient>, name: String, address_source: ContractAddress, self_key_pair: Arc<dyn SigningKeyPair>) -> Self {
 		let contract = OnChainServiceContract {
 			mask: mask,
 			client: client,
@@ -185,7 +185,7 @@ impl OnChainServiceContract {
 	/// Create task-specific pending requests iterator.
 	fn create_pending_requests_iterator<
 		C: 'static + Fn(&TrustedClient, &Address, &BlockId) -> Result<U256, String>,
-		R: 'static + Fn(&dyn NodeKeyPair, &TrustedClient, &Address, &BlockId, U256) -> Result<(bool, ServiceTask), String>
+		R: 'static + Fn(&dyn SigningKeyPair, &TrustedClient, &Address, &BlockId, U256) -> Result<(bool, ServiceTask), String>
 	>(&self, client: Arc<TrustedClient>, contract_address: &Address, block: &BlockId, get_count: C, read_item: R) -> Box<dyn Iterator<Item=(bool, ServiceTask)>> {
 		get_count(&*client, contract_address, block)
 			.map(|count| {
@@ -455,7 +455,7 @@ impl ServerKeyGenerationService {
 	}
 
 	/// Read pending request.
-	fn read_pending_request(self_key_pair: &dyn NodeKeyPair, client: &TrustedClient, contract_address: &Address, block: &BlockId, index: U256) -> Result<(bool, ServiceTask), String> {
+	fn read_pending_request(self_key_pair: &dyn SigningKeyPair, client: &TrustedClient, contract_address: &Address, block: &BlockId, index: U256) -> Result<(bool, ServiceTask), String> {
 		let self_address = public_to_address(self_key_pair.public());
 
 		let (encoded, decoder) = service::functions::get_server_key_generation_request::call(index);
@@ -515,7 +515,7 @@ impl ServerKeyRetrievalService {
 	}
 
 	/// Read pending request.
-	fn read_pending_request(self_key_pair: &dyn NodeKeyPair, client: &TrustedClient, contract_address: &Address, block: &BlockId, index: U256) -> Result<(bool, ServiceTask), String> {
+	fn read_pending_request(self_key_pair: &dyn SigningKeyPair, client: &TrustedClient, contract_address: &Address, block: &BlockId, index: U256) -> Result<(bool, ServiceTask), String> {
 		let self_address = public_to_address(self_key_pair.public());
 
 		let (encoded, decoder) = service::functions::get_server_key_retrieval_request::call(index);
@@ -578,7 +578,7 @@ impl DocumentKeyStoreService {
 	}
 
 	/// Read pending request.
-	fn read_pending_request(self_key_pair: &dyn NodeKeyPair, client: &TrustedClient, contract_address: &Address, block: &BlockId, index: U256) -> Result<(bool, ServiceTask), String> {
+	fn read_pending_request(self_key_pair: &dyn SigningKeyPair, client: &TrustedClient, contract_address: &Address, block: &BlockId, index: U256) -> Result<(bool, ServiceTask), String> {
 		let self_address = public_to_address(self_key_pair.public());
 		let (encoded, decoder) = service::functions::get_document_key_store_request::call(index);
 		let (server_key_id, author, common_point, encrypted_point) = decoder.decode(&client.call_contract(*block, *contract_address, encoded)?)
@@ -658,7 +658,7 @@ impl DocumentKeyShadowRetrievalService {
 	}
 
 	/// Read pending request.
-	fn read_pending_request(self_key_pair: &dyn NodeKeyPair, client: &TrustedClient, contract_address: &Address, block: &BlockId, index: U256) -> Result<(bool, ServiceTask), String> {
+	fn read_pending_request(self_key_pair: &dyn SigningKeyPair, client: &TrustedClient, contract_address: &Address, block: &BlockId, index: U256) -> Result<(bool, ServiceTask), String> {
 		let self_address = public_to_address(self_key_pair.public());
 
 		let (encoded, decoder) = service::functions::get_document_key_shadow_retrieval_request::call(index);

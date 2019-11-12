@@ -26,8 +26,8 @@ use ethereum_types::{H256, Address};
 use crypto::publickey::public_to_address;
 use bytes::Bytes;
 use types::{Error, Public, NodeAddress, NodeId};
-use trusted_client::{TrustedClient, NewBlocksNotify};
-use {NodeKeyPair, ContractAddress};
+use trusted_client::{TrustedClient, NewBlocksNotify, SigningKeyPair};
+use ContractAddress;
 
 use_contract!(key_server, "res/key_server_set.json");
 
@@ -117,11 +117,11 @@ struct CachedContract {
 	/// Previous confirm migration transaction.
 	confirm_migration_tx: Option<PreviousMigrationTransaction>,
 	/// This node key pair.
-	self_key_pair: Arc<dyn NodeKeyPair>,
+	self_key_pair: Arc<dyn SigningKeyPair>,
 }
 
 impl OnChainKeyServerSet {
-	pub fn new(trusted_client: Arc<TrustedClient>, contract_address_source: Option<ContractAddress>, self_key_pair: Arc<dyn NodeKeyPair>, auto_migrate_enabled: bool, key_servers: BTreeMap<Public, NodeAddress>) -> Result<Arc<Self>, Error> {
+	pub fn new(trusted_client: Arc<TrustedClient>, contract_address_source: Option<ContractAddress>, self_key_pair: Arc<dyn SigningKeyPair>, auto_migrate_enabled: bool, key_servers: BTreeMap<Public, NodeAddress>) -> Result<Arc<Self>, Error> {
 		let key_server_set = Arc::new(OnChainKeyServerSet {
 			contract: Mutex::new(CachedContract::new(trusted_client.clone(), contract_address_source, self_key_pair, auto_migrate_enabled, key_servers)?),
 		});
@@ -220,7 +220,7 @@ impl <F: Fn(Vec<u8>) -> Result<Vec<u8>, String>> KeyServerSubset<F> for NewKeySe
 }
 
 impl CachedContract {
-	pub fn new(client: Arc<TrustedClient>, contract_address_source: Option<ContractAddress>, self_key_pair: Arc<dyn NodeKeyPair>, auto_migrate_enabled: bool, key_servers: BTreeMap<Public, NodeAddress>) -> Result<Self, Error> {
+	pub fn new(client: Arc<TrustedClient>, contract_address_source: Option<ContractAddress>, self_key_pair: Arc<dyn SigningKeyPair>, auto_migrate_enabled: bool, key_servers: BTreeMap<Public, NodeAddress>) -> Result<Self, Error> {
 		let server_set = match contract_address_source.is_none() {
 			true => key_servers.into_iter()
 				.map(|(p, addr)| {

@@ -26,20 +26,31 @@ use common_types::{
 	log_entry::LocalizedLogEntry,
 };
 use parking_lot::RwLock;
-use ethereum_types::{H256, Address};
+use ethereum_types::{H256, Address, Public};
 use ethcore::client::Client;
 use ethabi::RawLog;
+use crypto::publickey::{Signature, Error as EthKeyError};
 use client_traits::BlockChainClient;
 use call_contract::CallContract;
 use client_traits::{ChainInfo, Nonce, ChainNotify};
 use ethcore::miner::{Miner, MinerService};
 use sync::SyncProvider;
-use {Error, NodeKeyPair, ContractAddress};
+use {Error, ContractAddress};
 use registrar::RegistrarClient;
 
 // TODO: Instead of a constant, make this based on consensus finality.
 /// Number of confirmations required before request can be processed.
 const REQUEST_CONFIRMATIONS_REQUIRED: u64 = 3;
+
+/// Key pair with signing ability.
+pub trait SigningKeyPair: Send + Sync {
+	/// Public portion of key.
+	fn public(&self) -> &Public;
+	/// Address of key owner.
+	fn address(&self) -> Address;
+	/// Sign data with the key.
+	fn sign(&self, data: &H256) -> Result<Signature, EthKeyError>;
+}
 
 /// Wrapps client ChainNotify in order to send signal about new blocks
 pub trait NewBlocksNotify: Send + Sync {
@@ -72,7 +83,7 @@ pub struct Filter {
 /// 'Trusted' client weak reference.
 pub struct TrustedClient {
 	/// This key server node key pair.
-	self_key_pair: Arc<dyn NodeKeyPair>,
+	self_key_pair: Arc<dyn SigningKeyPair>,
 	/// Blockchain client.
 	client: Weak<Client>,
 	/// Sync provider.
@@ -85,7 +96,7 @@ pub struct TrustedClient {
 
 impl TrustedClient {
 	/// Create new trusted client.
-	pub fn new(self_key_pair: Arc<dyn NodeKeyPair>, client: Arc<Client>, sync: Arc<dyn SyncProvider>, miner: Arc<Miner>) -> Arc<Self> {
+	pub fn new(self_key_pair: Arc<dyn SigningKeyPair>, client: Arc<Client>, sync: Arc<dyn SyncProvider>, miner: Arc<Miner>) -> Arc<Self> {
 		let trusted_client = Arc::new(TrustedClient {
 			self_key_pair,
 			client: Arc::downgrade(&client),

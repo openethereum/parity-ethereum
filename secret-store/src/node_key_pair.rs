@@ -16,7 +16,7 @@
 
 use crypto::publickey::{KeyPair, Public, Signature, Error as EthKeyError, sign, public_to_address};
 use ethereum_types::{H256, Address};
-use traits::NodeKeyPair;
+use trusted_client::SigningKeyPair;
 
 pub struct PlainNodeKeyPair {
 	key_pair: KeyPair,
@@ -35,7 +35,7 @@ impl PlainNodeKeyPair {
 	}
 }
 
-impl NodeKeyPair for PlainNodeKeyPair {
+impl SigningKeyPair for PlainNodeKeyPair {
 	fn public(&self) -> &Public {
 		self.key_pair.public()
 	}
@@ -75,7 +75,7 @@ mod accounts {
 		}
 	}
 
-	impl NodeKeyPair for KeyStoreNodeKeyPair {
+	impl SigningKeyPair for KeyStoreNodeKeyPair {
 		fn public(&self) -> &Public {
 			&self.public
 		}
