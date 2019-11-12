@@ -28,7 +28,6 @@ mod verification;
 mod verifier;
 pub mod queue;
 mod canon_verifier;
-mod noop_verifier;
 #[cfg(any(test, feature = "bench" ))]
 pub mod test_helpers;
 
@@ -37,7 +36,6 @@ pub use self::verifier::Verifier;
 pub use self::queue::{BlockQueue, Config as QueueConfig};
 
 use self::canon_verifier::CanonVerifier;
-use self::noop_verifier::NoopVerifier;
 
 /// Verifier type.
 #[derive(Debug, PartialEq, Clone)]
@@ -46,16 +44,12 @@ pub enum VerifierType {
 	Canon,
 	/// Verifies block normally, but skips seal verification.
 	CanonNoSeal,
-	/// Does not verify block at all.
-	/// Used in tests.
-	Noop,
 }
 
 /// Create a new verifier based on type.
 pub fn new<C: BlockInfo + CallContract>(v: VerifierType) -> Box<dyn Verifier<C>> {
 	match v {
 		VerifierType::Canon | VerifierType::CanonNoSeal => Box::new(CanonVerifier),
-		VerifierType::Noop => Box::new(NoopVerifier),
 	}
 }
 
@@ -64,7 +58,7 @@ impl VerifierType {
 	pub fn verifying_seal(&self) -> bool {
 		match *self {
 			VerifierType::Canon => true,
-			VerifierType::Noop | VerifierType::CanonNoSeal => false,
+			VerifierType::CanonNoSeal => false,
 		}
 	}
 }

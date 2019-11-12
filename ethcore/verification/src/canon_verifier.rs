@@ -35,9 +35,9 @@ impl<C: BlockInfo + CallContract> Verifier<C> for CanonVerifier {
 		header: &Header,
 		parent: &Header,
 		engine: &dyn Engine,
-		do_full: Option<verification::FullFamilyParams<C>>,
+		family_params: verification::FullFamilyParams<C>,
 	) -> Result<(), Error> {
-		verification::verify_block_family(header, parent, engine, do_full)
+		verification::verify_block_family(header, parent, engine, family_params)
 	}
 
 	fn verify_block_final(&self, expected: &Header, got: &Header) -> Result<(), Error> {

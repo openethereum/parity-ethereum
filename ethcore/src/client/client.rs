@@ -393,11 +393,11 @@ impl Importer {
 			&header,
 			&parent,
 			engine,
-			Some(verification::FullFamilyParams {
+			verification::FullFamilyParams {
 				block: &block,
 				block_provider: &**chain,
 				client
-			}),
+			},
 		);
 
 		if let Err(e) = verify_family_result {

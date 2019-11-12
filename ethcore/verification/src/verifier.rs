@@ -36,7 +36,7 @@ pub trait Verifier<C>: Send + Sync
 		header: &Header,
 		parent: &Header,
 		engine: &dyn Engine,
-		do_full: Option<verification::FullFamilyParams<C>>
+		family_params: verification::FullFamilyParams<C>
 	) -> Result<(), Error>;
 
 	/// Do a final verification check for an enacted header vs its expected counterpart.
