@@ -133,8 +133,7 @@ use types::{
 	verification::{Unverified, VerificationQueueInfo as BlockQueueInfo},
 };
 use types::data_format::DataFormat;
-use verification::{BlockQueue, Verifier};
-use verification;
+use verification::{self, BlockQueue};
 use verification::queue::kind::BlockLike;
 use vm::{CreateContractAddress, EnvInfo, LastHashes};
 
@@ -161,9 +160,6 @@ impl SleepState {
 struct Importer {
 	/// Lock used during block import
 	pub import_lock: Mutex<()>, // FIXME Maybe wrap the whole `Importer` instead?
-
-	/// Used to verify blocks
-	pub verifier: Box<dyn Verifier<Client>>,
 
 	/// Queue containing pending blocks
 	pub block_queue: BlockQueue<Client>,
@@ -271,7 +267,6 @@ impl Importer {
 
 		Ok(Importer {
 			import_lock: Mutex::new(()),
-			verifier: verification::new(config.verifier_type.clone()),
 			block_queue,
 			miner,
 			ancient_verifier: AncientVerifier::new(engine.clone()),
@@ -389,15 +384,15 @@ impl Importer {
 
 		let chain = client.chain.read();
 		// Verify Block Family
-		let verify_family_result = self.verifier.verify_block_family(
+		let verify_family_result = verification::verify_block_family(
 			&header,
 			&parent,
 			engine,
-			Some(verification::FullFamilyParams {
+			verification::FullFamilyParams {
 				block: &block,
 				block_provider: &**chain,
 				client
-			}),
+			},
 		);
 
 		if let Err(e) = verify_family_result {
@@ -405,7 +400,7 @@ impl Importer {
 			return Err(e);
 		};
 
-		let verify_external_result = self.verifier.verify_block_external(&header, engine);
+		let verify_external_result = engine.verify_block_external(&header);
 		if let Err(e) = verify_external_result {
 			warn!(target: "client", "Stage 4 block verification failed for #{} ({})\nError: {:?}", header.number(), header.hash(), e);
 			return Err(e.into());
@@ -446,7 +441,7 @@ impl Importer {
 		}
 
 		// Final Verification
-		if let Err(e) = self.verifier.verify_block_final(&header, &locked_block.header) {
+		if let Err(e) = verification::verify_block_final(&header, &locked_block.header) {
 			warn!(target: "client", "Stage 5 block verification failed for #{} ({})\nError: {:?}", header.number(), header.hash(), e);
 			return Err(e.into());
 		}
