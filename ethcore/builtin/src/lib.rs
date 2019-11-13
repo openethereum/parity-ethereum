@@ -359,30 +359,39 @@ impl Implementation for EthereumBuiltin {
 }
 
 #[derive(Debug)]
+/// The identity builtin
 pub struct Identity;
 
 #[derive(Debug)]
+/// The EC Recover builtin
 pub struct EcRecover;
 
 #[derive(Debug)]
+/// The Sha256 builtin
 pub struct Sha256;
 
 #[derive(Debug)]
+/// The Ripemd160 builtin
 pub struct Ripemd160;
 
 #[derive(Debug)]
+/// The Modexp builtin
 pub struct Modexp;
 
 #[derive(Debug)]
+/// The Bn128Add builtin
 pub struct Bn128Add;
 
 #[derive(Debug)]
+/// The Bn128Mul builtin
 pub struct Bn128Mul;
 
 #[derive(Debug)]
+/// The Bn128Pairing builtin
 pub struct Bn128Pairing;
 
 #[derive(Debug)]
+/// The Blake2F builtin
 pub struct Blake2F;
 
 impl Implementation for Identity {
