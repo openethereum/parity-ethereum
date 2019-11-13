@@ -419,7 +419,10 @@ fn search_natpmp(local: &NodeEndpoint) -> Option<NodeEndpoint> {
 					let tcp_r = get_mapped_tcp_port(&mut n)?;
 					let udp_r = get_mapped_udp_port(&mut n)?;
 
-					Ok(NodeEndpoint { address: SocketAddr::V4(SocketAddrV4::new(*gw.public_address(), tcp_r.public_port())), udp_port: udp_r.public_port() })
+					Ok(NodeEndpoint {
+						address: SocketAddr::V4(SocketAddrV4::new(*gw.public_address(), tcp_r.public_port())),
+						udp_port: udp_r.public_port()
+					})
 				},
 				Err(e) => Err(e)
 			}
