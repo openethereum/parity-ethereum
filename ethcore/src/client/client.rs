@@ -1207,7 +1207,7 @@ impl Client {
 			gas: U256::from(50_000_000),
 			gas_price: U256::default(),
 			value: U256::default(),
-			data: data,
+			data,
 		}.fake_sign(from)
 	}
 
