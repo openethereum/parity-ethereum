@@ -1,6 +1,6 @@
 ## Parity-Ethereum [v2.6.5](https://github.com/paritytech/parity-ethereum/releases/tag/v2.6.5)
 
-Parity Ethereum v2.6.5-stable is a patch release that adds block numbers for activating the Istanbul hardfork on mainnet, as well as a large number of various bugfixes, QoL changes, some code cleanup/refactoring and other miscellaenous changes.
+Parity Ethereum v2.6.5-beta is a patch release that adds block numbers for activating the Istanbul hardfork on mainnet, as well as a large number of various bugfixes, QoL changes, some code cleanup/refactoring and other miscellaenous changes.
 
 The full list of included changes:
 
