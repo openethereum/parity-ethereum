@@ -42,9 +42,10 @@ pub trait RegistrarClient: CallContract + Send + Sync {
 		let id = encode_input(hashed_key, DNS_A_RECORD);
 
 		let address_bytes = self.call_contract(block, registrar_address, id)?;
-
+		if address_bytes.is_empty() {
+			return Ok(None)
+		}
 		let address = decode_output(&address_bytes).map_err(|e| e.to_string())?;
-
 		if address.is_zero() {
 			Ok(None)
 		} else {
