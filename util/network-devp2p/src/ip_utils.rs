@@ -22,13 +22,16 @@ use std::time::Duration;
 
 use igd::{PortMappingProtocol, search_gateway, SearchOptions};
 use ipnetwork::IpNetwork;
-use log::debug;
+use log::{trace, debug};
 use natpmp::{Natpmp, Protocol, Response};
 use network::NatType;
 
 use crate::node_table::NodeEndpoint;
 
 const NAT_PMP_PORT_MAPPING_LIFETIME: u32 = 30;
+// Waiting duration in milliseconds for response from router after sending port mapping request.
+// 50 milliseconds might be enough for low RTT.
+const NAT_PMP_PORT_MAPPING_WAITING_DURATION: u64 = 50;
 
 /// Socket address extension for rustc beta. To be replaces with now unstable API
 pub trait SocketAddrExt {
@@ -369,44 +372,52 @@ fn search_natpmp(local: &NodeEndpoint) -> Option<NodeEndpoint> {
 
 		let search_gateway_child = ::std::thread::spawn(move || {
 			let get_public_addr = |n: &mut Natpmp| {
+				// this function call want to receive `Response::Gateway` response from router, if other then it is an Error.
 				n.send_public_address_request()?;
-				::std::thread::sleep(Duration::from_millis(50));
-				n.read_response_or_retry()
+				::std::thread::sleep(Duration::from_millis(NAT_PMP_PORT_MAPPING_WAITING_DURATION));
+				match n.read_response_or_retry() {
+					Ok(Response::Gateway(gw)) => Ok(gw),
+					Err(e) => {
+						debug!("IP request error: {}", e);
+						Err(e)
+					},
+					_ => Err(natpmp::Error::NATPMP_ERR_UNDEFINEDERROR.into())
+				}
 			};
 
-			let get_mapped_port = |n: &mut Natpmp, tcp_flag: bool| {
-				if tcp_flag {
-					n.send_port_mapping_request(Protocol::TCP, local_port, local_port, NAT_PMP_PORT_MAPPING_LIFETIME)?;
-				} else {
-					n.send_port_mapping_request(Protocol::UDP, local_udp_port, local_udp_port, NAT_PMP_PORT_MAPPING_LIFETIME)?;
+			let get_mapped_tcp_port = |n: &mut Natpmp| {
+				// this function call want to receive `Response::TCP` response from router, if other then it is an Error.
+				n.send_port_mapping_request(Protocol::TCP, local_port, local_port, NAT_PMP_PORT_MAPPING_LIFETIME)?;
+				::std::thread::sleep(Duration::from_millis(NAT_PMP_PORT_MAPPING_WAITING_DURATION));
+				match n.read_response_or_retry() {
+					Ok(Response::TCP(tcp)) => Ok(tcp),
+					Err(e) => {
+						debug!("Port mapping for TCP error: {}", e);
+						Err(e)
+					},
+					_ => Err(natpmp::Error::NATPMP_ERR_UNDEFINEDERROR.into())
 				}
-				::std::thread::sleep(Duration::from_millis(50));
-				n.read_response_or_retry()
+			};
+
+			let get_mapped_udp_port = |n: &mut Natpmp| {
+				// this function call want to receive `Response::UDP` response from router, if other then it is an Error.
+				n.send_port_mapping_request(Protocol::UDP, local_udp_port, local_udp_port, NAT_PMP_PORT_MAPPING_LIFETIME)?;
+				::std::thread::sleep(Duration::from_millis(NAT_PMP_PORT_MAPPING_WAITING_DURATION));
+				match n.read_response_or_retry() {
+					Ok(Response::UDP(udp)) => Ok(udp),
+					Err(e) => {
+						debug!("Port mapping for UDP error: {}", e);
+						Err(e)
+					},
+					_ => Err(natpmp::Error::NATPMP_ERR_UNDEFINEDERROR.into())
+				}
 			};
 
 			match Natpmp::new() {
 				Ok(mut n) => {
 					let gw = get_public_addr(&mut n)?;
-					let tcp_r = get_mapped_port(&mut n, true)?;
-					let udp_r = get_mapped_port(&mut n, false)?;
-
-					let gw = if let Response::Gateway(gw) = gw {
-						gw
-					} else {
-						return Err(natpmp::Error::NATPMP_ERR_UNDEFINEDERROR.into())
-					};
-
-					let tcp_r = if let Response::TCP(tcp_r) = tcp_r {
-						tcp_r
-					} else {
-						return Err(natpmp::Error::NATPMP_ERR_UNDEFINEDERROR.into())
-					};
-
-					let udp_r = if let Response::UDP(udp_r) = udp_r {
-						udp_r
-					} else {
-						return Err(natpmp::Error::NATPMP_ERR_UNDEFINEDERROR.into())
-					};
+					let tcp_r = get_mapped_tcp_port(&mut n)?;
+					let udp_r = get_mapped_udp_port(&mut n)?;
 
 					Ok(NodeEndpoint { address: SocketAddr::V4(SocketAddrV4::new(*gw.public_address(), tcp_r.public_port())), udp_port: udp_r.public_port() })
 				},
@@ -416,13 +427,14 @@ fn search_natpmp(local: &NodeEndpoint) -> Option<NodeEndpoint> {
 
 		return search_gateway_child.join()
 			.map(|node| {
-				node.map_err(|e| debug!("NAT PMP error: {:?}", e)).ok()
+				node.map_err(|e| debug!("NAT PMP port mapping error: {:?}", e)).ok()
 			}).ok()?
 	}
 	None
 }
 
-// NAT PMP has higher priority than UPnP.
+/// Port mapping using ether UPnP or Nat-PMP.
+/// NAT PMP has higher priority than UPnP.
 pub fn map_external_address(local: &NodeEndpoint, nat_type: &NatType) -> Option<NodeEndpoint> {
 	match *nat_type {
 		NatType::Any => {
@@ -433,7 +445,10 @@ pub fn map_external_address(local: &NodeEndpoint, nat_type: &NatType) -> Option<
 		},
 		NatType::NatPMP => search_natpmp(local),
 		NatType::UPnP => search_upnp(local),
-		_ => None
+		_ => {
+			trace!(target: "network", "Can't map external address using NAT");
+			None
+		}
 	}
 }
 
