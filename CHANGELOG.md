@@ -1,6 +1,10 @@
 ## Parity-Ethereum [v2.6.5](https://github.com/paritytech/parity-ethereum/releases/tag/v2.6.5)
 
-Parity Ethereum v2.6.5-stable is a patch release that adds block numbers for activating the Istanbul hardfork on mainnet, as well as a large number of various bugfixes, QoL changes, some code cleanup/refactoring and other miscellaenous changes.
+Parity Ethereum v2.6.5-beta is a patch release that adds block numbers for activating the Istanbul hardfork on mainnet, as well as a large number of various bugfixes, QoL changes, some code cleanup/refactoring and other miscellaneous changes.
+
+This release removes legacy aliases for the mainnet. If you specify `--chain homestead`, `--chain frontier` or `--chain byzantium`, this will need to be changed to one of: `--chain eth`, `--chain ethereum`, `--chain foundation` or `--chain mainnet`.
+
+This release includes important changes to how snapshots are produced. The size of the Ethereum account state means that producing a snapshot takes a long while; most nodes today are not able to finish before the relevant state is pruned. Starting with v2.6.5, pruning is paused while a snapshot is underway, hopefully fixing the current dearth of recent snapshots. The downside to this is that memory usage goes up while a snapshot is produced.
 
 The full list of included changes:
 
