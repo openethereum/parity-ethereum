@@ -14,7 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
-//! Provides CallContract and RegistryInfo traits
+//! Provides CallContract trait
 
 use std::fmt;
 use bytes::Bytes;
@@ -80,10 +80,4 @@ pub trait CallContract {
 	/// - A `CallError::Reverted(msg)` error in case the call was reverted with an exception and message.
 	/// - A `CallError::Other(msg)` in case the call did not succeed for other reasons.
 	fn call_contract(&self, id: BlockId, call_options: CallOptions) -> Result<Bytes, CallError>;
-}
-
-/// Provides information on a blockchain service and it's registry
-pub trait RegistryInfo {
-	/// Get the address of a particular blockchain service, if available.
-	fn registry_address(&self, name: String, block: BlockId) -> Option<Address>;
 }

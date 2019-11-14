@@ -21,6 +21,7 @@ use ethereum_types::{H64, H256, H520};
 use ethjson;
 
 /// Classic ethereum seal.
+#[derive(Debug)]
 pub struct Ethereum {
 	/// Seal nonce.
 	pub nonce: H64,
@@ -37,6 +38,7 @@ impl Into<Generic> for Ethereum {
 }
 
 /// AuthorityRound seal.
+#[derive(Debug)]
 pub struct AuthorityRound {
 	/// Seal step.
 	pub step: usize,
@@ -45,6 +47,7 @@ pub struct AuthorityRound {
 }
 
 /// Tendermint seal.
+#[derive(Debug)]
 pub struct Tendermint {
 	/// Seal round.
 	pub round: usize,
@@ -73,9 +76,11 @@ impl Into<Generic> for Tendermint {
 	}
 }
 
+#[derive(Debug)]
 pub struct Generic(pub Vec<u8>);
 
 /// Genesis seal type.
+#[derive(Debug)]
 pub enum Seal {
 	/// Classic ethereum seal.
 	Ethereum(Ethereum),

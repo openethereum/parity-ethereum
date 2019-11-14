@@ -100,7 +100,10 @@ impl CachedContract {
 	}
 
 	pub fn update_contract_address(&mut self) {
-		let contract_address = self.client.read_contract_address(ACL_CHECKER_CONTRACT_REGISTRY_NAME.into(), &self.address_source);
+		let contract_address = self.client.read_contract_address(
+			ACL_CHECKER_CONTRACT_REGISTRY_NAME,
+			&self.address_source
+		);
 		if contract_address != self.contract_address {
 			trace!(target: "secretstore", "Configuring for ACL checker contract from address {:?}",
 				contract_address);

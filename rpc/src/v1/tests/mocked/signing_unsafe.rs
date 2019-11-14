@@ -18,7 +18,7 @@ use std::str::FromStr;
 use std::sync::Arc;
 
 use accounts::AccountProvider;
-use ethcore::client::TestBlockChainClient;
+use ethcore::test_helpers::TestBlockChainClient;
 use ethereum_types::{U256, Address};
 use parity_runtime::Runtime;
 use parking_lot::Mutex;
@@ -30,7 +30,7 @@ use jsonrpc_core::IoHandler;
 use v1::{EthClientOptions, EthSigning, SigningUnsafeClient};
 use v1::helpers::nonce;
 use v1::helpers::dispatch::{self, FullDispatcher};
-use v1::tests::helpers::{TestMinerService};
+use v1::tests::helpers::TestMinerService;
 use v1::metadata::Metadata;
 
 fn blockchain_client() -> Arc<TestBlockChainClient> {

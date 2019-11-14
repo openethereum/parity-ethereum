@@ -16,6 +16,18 @@
 
 //! Set of different helpers for client tests
 
+mod test_client;
+mod evm_test_client;
+
+/// Re-export for tests only
+pub use evm::CreateContractAddress;
+/// Re-export for tests only
+pub use trie::TrieSpec;
+/// Re-export for tests only
+pub use self::test_client::{TestBlockChainClient, EachBlockWith, TestState};
+/// Re-export for tests only
+pub use self::evm_test_client::{EvmTestClient, EvmTestError, TransactErr, TransactSuccess};
+
 use std::path::Path;
 use std::sync::Arc;
 use std::{fs, io};
@@ -24,7 +36,7 @@ use blockchain::{BlockChain, BlockChainDB, BlockChainDBHandler, Config as BlockC
 use blooms_db;
 use bytes::Bytes;
 use ethereum_types::{H256, U256, Address};
-use ethkey::KeyPair;
+use parity_crypto::publickey::KeyPair;
 use evm::Factory as EvmFactory;
 use hash::keccak;
 use io::IoChannel;
@@ -52,6 +64,7 @@ use miner::Miner;
 use spec::{Spec, self};
 use account_state::*;
 use state_db::StateDB;
+
 
 /// Creates test block with corresponding header
 pub fn create_test_block(header: &Header) -> Bytes {

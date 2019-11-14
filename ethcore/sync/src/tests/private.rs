@@ -15,33 +15,38 @@
 // along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
 use std::sync::Arc;
-use hash::keccak;
-use io::{IoHandler, IoChannel};
-use types::transaction::{Transaction, Action};
-use types::{
+
+use crate::{
+	api::SyncConfig,
+	tests::helpers::{TestIoHandler, TestNet}
+};
+
+use client_traits::BlockChainClient;
+use common_types::{
 	ids::BlockId,
 	io_message::ClientIoMessage,
+	transaction::{Transaction, Action},
 };
-use client_traits::BlockChainClient;
 use engine::signer;
 use ethcore::{
 	client::Client,
-	CreateContractAddress,
 	miner::{self, MinerService},
-	test_helpers::{push_block_with_transactions, new_db},
+	test_helpers::{CreateContractAddress, push_block_with_transactions, new_db},
 };
-use ethcore_private_tx::{Provider, ProviderConfig, NoopEncryptor, Importer, SignedPrivateTransaction, StoringKeyProvider};
-use ethkey::KeyPair;
+use ethcore_io::{IoHandler, IoChannel};
+use ethcore_private_tx::{
+	Provider, ProviderConfig, NoopEncryptor, Importer, SignedPrivateTransaction, StoringKeyProvider
+};
+use parity_crypto::publickey::KeyPair;
+use keccak_hash::keccak;
 use machine::executive::contract_address;
-use tests::helpers::{TestNet, TestIoHandler};
 use rustc_hex::FromHex;
 use rlp::Rlp;
 use spec::Spec;
-use SyncConfig;
 
 fn seal_spec() -> Spec {
 	let spec_data = include_str!("../res/private_spec.json");
-	Spec::load(&::std::env::temp_dir(), spec_data.as_bytes()).unwrap()
+	Spec::load(&std::env::temp_dir(), spec_data.as_bytes()).unwrap()
 }
 
 #[test]
@@ -176,8 +181,10 @@ fn sync_private_state() {
 	let mut net = TestNet::with_spec(2, SyncConfig::default(), seal_spec);
 	let client0 = net.peer(0).chain.clone();
 	let client1 = net.peer(1).chain.clone();
-	let io_handler0: Arc<IoHandler<ClientIoMessage<Client>>> = Arc::new(TestIoHandler::new(net.peer(0).chain.clone()));
-	let io_handler1: Arc<IoHandler<ClientIoMessage<Client>>> = Arc::new(TestIoHandler::new(net.peer(1).chain.clone()));
+	let io_handler0: Arc<dyn IoHandler<ClientIoMessage<Client>>> =
+		Arc::new(TestIoHandler::new(net.peer(0).chain.clone()));
+	let io_handler1: Arc<dyn IoHandler<ClientIoMessage<Client>>> =
+		Arc::new(TestIoHandler::new(net.peer(1).chain.clone()));
 
 	net.peer(0).miner.set_author(miner::Author::Sealer(signer::from_keypair(s0.clone())));
 	net.peer(1).miner.set_author(miner::Author::Sealer(signer::from_keypair(s1.clone())));

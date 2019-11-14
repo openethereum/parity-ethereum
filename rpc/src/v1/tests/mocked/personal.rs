@@ -20,7 +20,7 @@ use std::str::FromStr;
 use bytes::ToPretty;
 use accounts::AccountProvider;
 use ethereum_types::{Address, H520, U256};
-use ethcore::client::TestBlockChainClient;
+use ethcore::test_helpers::TestBlockChainClient;
 use jsonrpc_core::IoHandler;
 use parking_lot::Mutex;
 use types::transaction::{Action, Transaction};
@@ -34,7 +34,7 @@ use v1::tests::helpers::TestMinerService;
 use v1::types::{EIP191Version, PresignedTransaction};
 use rustc_hex::ToHex;
 use serde_json::to_value;
-use ethkey::Secret;
+use crypto::publickey::Secret;
 
 struct PersonalTester {
 	_runtime: Runtime,

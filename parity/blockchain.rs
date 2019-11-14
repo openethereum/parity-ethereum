@@ -33,7 +33,7 @@ use ethcore::{
 };
 use ethcore_service::ClientService;
 use cache::CacheConfig;
-use informant::{Informant, FullNodeInformantData, MillisecondDuration};
+use informant::{Informant, FullNodeInformantData};
 use params::{SpecType, Pruning, Switch, tracing_switch_to_bool, fatdb_switch_to_bool};
 use helpers::{to_client_config, execute_upgrades};
 use dir::Directories;
@@ -44,7 +44,7 @@ use ansi_term::Colour;
 use types::{
 	ids::BlockId,
 	errors::{ImportError, EthcoreError},
-	client_types::Mode,
+	client_types::{Mode, StateResult},
 };
 use types::data_format::DataFormat;
 use verification::queue::VerifierSettings;
@@ -294,13 +294,13 @@ fn execute_import_light(cmd: ImportBlockchain) -> Result<(), String> {
 	}
 	client.flush_queue();
 
-	let ms = timer.elapsed().as_milliseconds();
+	let elapsed = timer.elapsed();
 	let report = client.report();
 
 	info!("Import completed in {} seconds, {} headers, {} hdr/s",
-		ms / 1000,
+		elapsed.as_secs(),
 		report.blocks_imported,
-		(report.blocks_imported * 1000) as u64 / ms,
+		(report.blocks_imported as u128 * 1000) / elapsed.as_millis(),
 	);
 
 	Ok(())
@@ -415,16 +415,16 @@ fn execute_import(cmd: ImportBlockchain) -> Result<(), String> {
 	user_defaults.save(&user_defaults_path)?;
 
 	let report = client.report();
-
-	let ms = timer.elapsed().as_milliseconds();
+	let elapsed = timer.elapsed();
+	let ms = timer.elapsed().as_millis();
 	info!("Import completed in {} seconds, {} blocks, {} blk/s, {} transactions, {} tx/s, {} Mgas, {} Mgas/s",
-		ms / 1000,
+		elapsed.as_secs(),
 		report.blocks_imported,
-		(report.blocks_imported * 1000) as u64 / ms,
+		(report.blocks_imported as u128 * 1000) / ms,
 		report.transactions_applied,
-		(report.transactions_applied * 1000) as u64 / ms,
+		(report.transactions_applied as u128 * 1000) / ms,
 		report.gas_processed / 1_000_000,
-		(report.gas_processed / (ms * 1000)).low_u64(),
+		report.gas_processed / (ms * 1000),
 	);
 	Ok(())
 }
@@ -592,7 +592,10 @@ fn execute_export_state(cmd: ExportState) -> Result<(), String> {
 				out.write(b",").expect("Write error");
 			}
 			out.write_fmt(format_args!("\n\"0x{:x}\": {{\"balance\": \"{:x}\", \"nonce\": \"{:x}\"", account, balance, client.nonce(&account, at).unwrap_or_else(U256::zero))).expect("Write error");
-			let code = client.code(&account, at.into()).unwrap_or(None).unwrap_or_else(Vec::new);
+			let code = match client.code(&account, at.into()) {
+				StateResult::Missing => Vec::new(),
+				StateResult::Some(t) => t.unwrap_or_else(Vec::new),
+			};
 			if !code.is_empty() {
 				out.write_fmt(format_args!(", \"code_hash\": \"0x{:x}\"", keccak(&code))).expect("Write error");
 				if cmd.code {
@@ -606,7 +609,7 @@ fn execute_export_state(cmd: ExportState) -> Result<(), String> {
 					out.write_fmt(format_args!(", \"storage\": {{")).expect("Write error");
 					let mut last_storage: Option<H256> = None;
 					loop {
-						let keys = client.list_storage(at, &account, last_storage.as_ref(), 1000).ok_or("Specified block not found")?;
+						let keys = client.list_storage(at, &account, last_storage.as_ref(), Some(1000)).ok_or("Specified block not found")?;
 						if keys.is_empty() {
 							break;
 						}

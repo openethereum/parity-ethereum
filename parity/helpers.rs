@@ -21,8 +21,9 @@ use std::fs::File;
 use std::collections::HashSet;
 use ethereum_types::{U256, Address};
 use journaldb::Algorithm;
-use ethcore::client::{VMType, DatabaseCompactionProfile, ClientConfig, VerifierType};
+use ethcore::client::{VMType, DatabaseCompactionProfile, ClientConfig};
 use ethcore::miner::{PendingSet, Penalization};
+use verification::VerifierType;
 use miner::pool::PrioritizationStrategy;
 use cache::CacheConfig;
 use dir::DatabaseDirectories;
@@ -145,7 +146,7 @@ pub fn to_addresses(s: &Option<String>) -> Result<Vec<Address>, String> {
 
 /// Tries to parse string as a price.
 pub fn to_price(s: &str) -> Result<f32, String> {
-	s.parse::<f32>().map_err(|_| format!("Invalid transaciton price 's' given. Must be a decimal number."))
+	s.parse::<f32>().map_err(|_| format!("Invalid transaction price {:?} given. Must be a decimal number.", s))
 }
 
 pub fn join_set(set: Option<&HashSet<String>>) -> Option<String> {

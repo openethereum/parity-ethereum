@@ -30,37 +30,41 @@ pub trait Traces {
 
 	/// Returns traces matching given filter.
 	#[rpc(name = "trace_filter")]
-	fn filter(&self, TraceFilter) -> Result<Option<Vec<LocalizedTrace>>>;
+	fn filter(&self, _: TraceFilter) -> Result<Option<Vec<LocalizedTrace>>>;
 
 	/// Returns transaction trace at given index.
 	#[rpc(name = "trace_get")]
-	fn trace(&self, H256, Vec<Index>) -> Result<Option<LocalizedTrace>>;
+	fn trace(&self, _: H256, _: Vec<Index>) -> Result<Option<LocalizedTrace>>;
 
 	/// Returns all traces of given transaction.
 	#[rpc(name = "trace_transaction")]
-	fn transaction_traces(&self, H256) -> Result<Option<Vec<LocalizedTrace>>>;
+	fn transaction_traces(&self, _: H256) -> Result<Option<Vec<LocalizedTrace>>>;
 
 	/// Returns all traces produced at given block.
 	#[rpc(name = "trace_block")]
-	fn block_traces(&self, BlockNumber) -> Result<Option<Vec<LocalizedTrace>>>;
+	fn block_traces(&self, _: BlockNumber) -> Result<Option<Vec<LocalizedTrace>>>;
 
 	/// Executes the given call and returns a number of possible traces for it.
 	#[rpc(name = "trace_call")]
-	fn call(&self, CallRequest, TraceOptions, Option<BlockNumber>) -> Result<TraceResults>;
+	fn call(&self, _: CallRequest, _: TraceOptions, _: Option<BlockNumber>) -> Result<TraceResults>;
 
 	/// Executes all given calls and returns a number of possible traces for each of it.
 	#[rpc(name = "trace_callMany")]
-	fn call_many(&self, Vec<(CallRequest, TraceOptions)>, Option<BlockNumber>) -> Result<Vec<TraceResults>>;
+	fn call_many(&self, _: Vec<(CallRequest, TraceOptions)>, _: Option<BlockNumber>) -> Result<Vec<TraceResults>>;
 
 	/// Executes the given raw transaction and returns a number of possible traces for it.
 	#[rpc(name = "trace_rawTransaction")]
-	fn raw_transaction(&self, Bytes, TraceOptions, Option<BlockNumber>) -> Result<TraceResults>;
+	fn raw_transaction(&self, _: Bytes, _: TraceOptions, _: Option<BlockNumber>) -> Result<TraceResults>;
 
 	/// Executes the transaction with the given hash and returns a number of possible traces for it.
 	#[rpc(name = "trace_replayTransaction")]
-	fn replay_transaction(&self, H256, TraceOptions) -> Result<TraceResults>;
+	fn replay_transaction(&self, _: H256, _: TraceOptions) -> Result<TraceResults>;
 
 	/// Executes all the transactions at the given block and returns a number of possible traces for each transaction.
 	#[rpc(name = "trace_replayBlockTransactions")]
-	fn replay_block_transactions(&self, BlockNumber, TraceOptions) ->  Result<Vec<TraceResultsWithTransactionHash>>;
+	fn replay_block_transactions(
+		&self,
+		_: BlockNumber,
+		_: TraceOptions
+	) -> Result<Vec<TraceResultsWithTransactionHash>>;
 }

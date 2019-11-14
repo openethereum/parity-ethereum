@@ -12,8 +12,8 @@ builtin = { path = "../builtin", package = "ethcore-builtin" }
 bytes = { package = "parity-bytes", version = "0.1.0" }
 client-traits = { path = "../client-traits" }
 common-types = { path = "../types" }
-ethereum-types = "0.6.0"
-ethkey = { path = "../../accounts/ethkey" }
+ethereum-types = "0.8.0"
+parity-crypto = { version = "0.4.2", features = ["publickey"] }
 machine = { path = "../machine" }
 validator-reporting-config = { path = "../engines/validator-set/reporting-config" }
 vm = { path = "../vm" }
@@ -21,10 +21,12 @@ vm = { path = "../vm" }
 # used from test-helpers
 accounts = { package = "ethcore-accounts", path = "../../accounts", optional = true }
 log = { version = "0.4.8", optional = true }
+ethkey = { path = "../../accounts/ethkey", optional = true }
 
 [dev-dependencies]
 accounts = { package = "ethcore-accounts", path = "../../accounts" }
+ethkey = { path = "../../accounts/ethkey" }
 log = "0.4.8"
 
 [features]
-test-helpers = ["accounts", "log"]
+test-helpers = ["accounts", "log", "ethkey"]

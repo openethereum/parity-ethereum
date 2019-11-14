@@ -42,7 +42,7 @@ use parity_bytes::Bytes;
 use docopt::Docopt;
 use rustc_hex::FromHex;
 use ethereum_types::{U256, Address};
-use ethcore::{json_tests, TrieSpec};
+use ethcore::{json_tests, test_helpers::TrieSpec};
 use spec;
 use serde::Deserialize;
 use vm::{ActionParams, CallType};
@@ -443,7 +443,7 @@ fn die<T: fmt::Display>(msg: T) -> ! {
 mod tests {
 	use common_types::transaction;
 	use docopt::Docopt;
-	use ethcore::TrieSpec;
+	use ethcore::test_helpers::TrieSpec;
 	use ethjson::test_helpers::state::State;
 	use serde::Deserialize;
 

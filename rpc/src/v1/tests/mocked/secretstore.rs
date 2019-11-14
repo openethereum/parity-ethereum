@@ -19,7 +19,7 @@ use std::sync::Arc;
 use crypto::DEFAULT_MAC;
 use accounts::AccountProvider;
 use ethereum_types::H256;
-use ethkey::{KeyPair, Signature, verify_public};
+use crypto::publickey::{KeyPair, Signature, verify_public};
 
 use serde_json;
 use jsonrpc_core::{IoHandler, Success};

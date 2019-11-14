@@ -20,7 +20,7 @@ use ethereum_types::{H520, U256, Address};
 use bytes::ToPretty;
 
 use accounts::AccountProvider;
-use ethcore::client::TestBlockChainClient;
+use ethcore::test_helpers::TestBlockChainClient;
 use parity_runtime::Runtime;
 use parking_lot::Mutex;
 use rlp::encode;

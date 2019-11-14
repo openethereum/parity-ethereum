@@ -7,4 +7,4 @@ version = "0.1.1"
 authors = ["Parity Technologies <admin@parity.io>"]
 
 [dependencies]
-parking_lot = "0.8"
+parking_lot = "0.9"

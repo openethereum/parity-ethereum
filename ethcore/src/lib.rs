@@ -23,7 +23,6 @@ extern crate ansi_term;
 extern crate client_traits;
 extern crate common_types as types;
 extern crate engine;
-extern crate ethabi;
 extern crate ethcore_blockchain as blockchain;
 extern crate ethcore_call_contract as call_contract;
 extern crate ethcore_db as db;
@@ -45,6 +44,7 @@ extern crate trie_db as trie;
 extern crate patricia_trie_ethereum as ethtrie;
 extern crate rand;
 extern crate rayon;
+extern crate registrar;
 extern crate rlp;
 extern crate rustc_hex;
 extern crate serde;
@@ -73,7 +73,7 @@ extern crate ethcore_stratum;
 extern crate ethash;
 
 #[cfg(any(test, feature = "test-helpers"))]
-extern crate ethkey;
+extern crate parity_crypto;
 #[cfg(any(test, feature = "test-helpers"))]
 extern crate ethjson;
 #[cfg(any(test, feature = "test-helpers"))]
@@ -98,8 +98,6 @@ extern crate serde_json;
 extern crate tempdir;
 
 #[macro_use]
-extern crate ethabi_contract;
-#[macro_use]
 extern crate log;
 #[macro_use]
 extern crate trace_time;
@@ -123,6 +121,3 @@ mod tests;
 pub mod json_tests;
 #[cfg(any(test, feature = "test-helpers"))]
 pub mod test_helpers;
-
-pub use evm::CreateContractAddress;
-pub use trie::TrieSpec;

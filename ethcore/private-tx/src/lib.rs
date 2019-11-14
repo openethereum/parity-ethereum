@@ -36,7 +36,6 @@ extern crate ethcore_io as io;
 extern crate ethcore_miner;
 extern crate ethereum_types;
 extern crate ethjson;
-extern crate ethkey;
 extern crate fetch;
 extern crate futures;
 extern crate parity_util_mem;
@@ -51,6 +50,7 @@ extern crate parity_crypto as crypto;
 extern crate parking_lot;
 extern crate trie_db as trie;
 extern crate patricia_trie_ethereum as ethtrie;
+extern crate registrar;
 extern crate rlp;
 #[macro_use]
 extern crate serde_derive;
@@ -94,7 +94,7 @@ use hash::keccak;
 use rlp::*;
 use parking_lot::RwLock;
 use bytes::Bytes;
-use ethkey::{Signature, recover, public_to_address};
+use crypto::publickey::{Signature, recover, public_to_address, Message, KeyPair};
 use io::{IoChannel, IoHandler, IoContext, TimerToken};
 use machine::{
 	executive::{Executive, TransactOptions, contract_address as ethcore_contract_address},
@@ -120,7 +120,7 @@ use ethabi::FunctionOutputDecoder;
 use vm::CreateContractAddress;
 
 // Source avaiable at https://github.com/parity-contracts/private-tx/blob/master/contracts/PrivateContract.sol
-const DEFAULT_STUB_CONTRACT: &'static str = include_str!("../res/private.evm");
+const DEFAULT_STUB_CONTRACT: &str = include_str!("../res/private.evm");
 
 use_contract!(private_contract, "res/private.json");
 
@@ -171,7 +171,7 @@ pub trait Signer: Send + Sync {
 	/// Decrypt payload using private key of given address.
 	fn decrypt(&self, account: Address, shared_mac: &[u8], payload: &[u8]) -> Result<Vec<u8>, Error>;
 	/// Sign given hash using provided account.
-	fn sign(&self, account: Address, hash: ethkey::Message) -> Result<Signature, Error>;
+	fn sign(&self, account: Address, hash: Message) -> Result<Signature, Error>;
 }
 
 /// Signer implementation that errors on any request.
@@ -181,22 +181,22 @@ impl Signer for DummySigner {
 		Err("Decrypting is not supported.".to_owned())?
 	}
 
-	fn sign(&self, _account: Address, _hash: ethkey::Message) -> Result<Signature, Error> {
+	fn sign(&self, _account: Address, _hash: Message) -> Result<Signature, Error> {
 		Err("Signing is not supported.".to_owned())?
 	}
 }
 
 /// Signer implementation using multiple keypairs
-pub struct KeyPairSigner(pub Vec<ethkey::KeyPair>);
+pub struct KeyPairSigner(pub Vec<KeyPair>);
 impl Signer for KeyPairSigner {
 	fn decrypt(&self, account: Address, shared_mac: &[u8], payload: &[u8]) -> Result<Vec<u8>, Error> {
-		let kp = self.0.iter().find(|k| k.address() == account).ok_or(ethkey::Error::InvalidAddress)?;
-		Ok(ethkey::crypto::ecies::decrypt(kp.secret(), shared_mac, payload)?)
+		let kp = self.0.iter().find(|k| k.address() == account).ok_or(crypto::publickey::Error::InvalidAddress)?;
+		Ok(crypto::publickey::ecies::decrypt(kp.secret(), shared_mac, payload)?)
 	}
 
-	fn sign(&self, account: Address, hash: ethkey::Message) -> Result<Signature, Error> {
-		let kp = self.0.iter().find(|k| k.address() == account).ok_or(ethkey::Error::InvalidAddress)?;
-		Ok(ethkey::sign(kp.secret(), &hash)?)
+	fn sign(&self, account: Address, hash: Message) -> Result<Signature, Error> {
+		let kp = self.0.iter().find(|k| k.address() == account).ok_or(crypto::publickey::Error::InvalidAddress)?;
+		Ok(crypto::publickey::sign(kp.secret(), &hash)?)
 	}
 }
 

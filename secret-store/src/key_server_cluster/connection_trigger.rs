@@ -19,7 +19,7 @@ use std::collections::btree_map::Entry;
 use std::net::SocketAddr;
 use std::sync::Arc;
 use ethereum_types::H256;
-use ethkey::Public;
+use crypto::publickey::Public;
 use key_server_cluster::{KeyServerSet, KeyServerSetSnapshot};
 use key_server_cluster::cluster::{ClusterConfiguration, ServersSetChangeParams};
 use key_server_cluster::cluster_sessions::AdminSession;
@@ -52,7 +52,7 @@ pub trait ConnectionTrigger: Send + Sync {
 	/// Maintain active connections.
 	fn maintain_connections(&mut self, connections: &mut NetConnectionsContainer);
 	/// Return connector for the servers set change session creator.
-	fn servers_set_change_creator_connector(&self) -> Arc<ServersSetChangeSessionCreatorConnector>;
+	fn servers_set_change_creator_connector(&self) -> Arc<dyn ServersSetChangeSessionCreatorConnector>;
 }
 
 /// Servers set change session creator connector.
@@ -67,11 +67,11 @@ pub trait ServersSetChangeSessionCreatorConnector: Send + Sync {
 /// Simple connection trigger, which only keeps connections to current_set.
 pub struct SimpleConnectionTrigger {
 	/// Key server set cluster.
-	key_server_set: Arc<KeyServerSet>,
+	key_server_set: Arc<dyn KeyServerSet>,
 	/// Trigger connections.
 	connections: TriggerConnections,
 	/// Servers set change session creator connector.
-	connector: Arc<ServersSetChangeSessionCreatorConnector>,
+	connector: Arc<dyn ServersSetChangeSessionCreatorConnector>,
 }
 
 /// Simple Servers set change session creator connector, which will just return
@@ -93,7 +93,7 @@ pub enum ConnectionsAction {
 /// Trigger connections.
 pub struct TriggerConnections {
 	/// This node key pair.
-	pub self_key_pair: Arc<NodeKeyPair>,
+	pub self_key_pair: Arc<dyn NodeKeyPair>,
 }
 
 impl SimpleConnectionTrigger {
@@ -103,7 +103,7 @@ impl SimpleConnectionTrigger {
 	}
 
 	/// Create new simple connection trigger.
-	pub fn new(key_server_set: Arc<KeyServerSet>, self_key_pair: Arc<NodeKeyPair>, admin_public: Option<Public>) -> Self {
+	pub fn new(key_server_set: Arc<dyn KeyServerSet>, self_key_pair: Arc<dyn NodeKeyPair>, admin_public: Option<Public>) -> Self {
 		SimpleConnectionTrigger {
 			key_server_set: key_server_set,
 			connections: TriggerConnections {
@@ -139,7 +139,7 @@ impl ConnectionTrigger for SimpleConnectionTrigger {
 		self.connections.maintain(ConnectionsAction::ConnectToCurrentSet, connections, &self.key_server_set.snapshot())
 	}
 
-	fn servers_set_change_creator_connector(&self) -> Arc<ServersSetChangeSessionCreatorConnector> {
+	fn servers_set_change_creator_connector(&self) -> Arc<dyn ServersSetChangeSessionCreatorConnector> {
 		self.connector.clone()
 	}
 }
@@ -215,7 +215,7 @@ fn select_nodes_to_disconnect(current_set: &BTreeMap<NodeId, SocketAddr>, new_se
 mod tests {
 	use std::collections::BTreeSet;
 	use std::sync::Arc;
-	use ethkey::{Random, Generator};
+	use crypto::publickey::{Random, Generator};
 	use key_server_cluster::{MapKeyServerSet, PlainNodeKeyPair, KeyServerSetSnapshot, KeyServerSetMigration};
 	use key_server_cluster::cluster_connections_net::NetConnectionsContainer;
 	use super::{Maintain, TriggerConnections, ConnectionsAction, ConnectionTrigger, SimpleConnectionTrigger,

@@ -23,7 +23,7 @@ use jsonrpc_pubsub::Session;
 use std::time::Duration;
 
 use v1::{EthPubSub, EthPubSubClient, Metadata};
-use ethcore::client::{TestBlockChainClient, EachBlockWith};
+use ethcore::test_helpers::{TestBlockChainClient, EachBlockWith};
 use parity_runtime::Runtime;
 use ethereum_types::{Address, H256};
 use client_traits::{BlockInfo, ChainNotify};
@@ -224,7 +224,6 @@ fn eth_subscribe_syncing() {
 	let (sender, _receiver) = futures::sync::mpsc::channel(8);
 	metadata.session = Some(Arc::new(Session::new(sender)));
 
-	// Subscribe
 	let response = r#"{"jsonrpc":"2.0","result":"0x43ca64edf03768e1","id":1}"#;
 	let request = r#"{"jsonrpc": "2.0", "method": "eth_subscribe", "params": ["syncing"], "id": 1}"#;
 	assert_eq!(io.handle_request_sync(request, metadata.clone()), Some(response.to_owned()));

@@ -16,37 +16,42 @@
 
 use std::collections::{VecDeque, HashSet, HashMap};
 use std::sync::Arc;
+
+use crate::{
+	api::{SyncConfig, WARP_SYNC_PROTOCOL_ID},
+	chain::{
+		sync_packet::{
+			PacketInfo,
+			SyncPacket::{self, PrivateTransactionPacket, SignedPrivateTransactionPacket}
+		},
+		ChainSync, SyncSupplier, ETH_PROTOCOL_VERSION_63, PAR_PROTOCOL_VERSION_4
+	},
+	private_tx::SimplePrivateTxHandler,
+	sync_io::SyncIo,
+	tests::snapshot::TestSnapshotService,
+};
+
+use client_traits::{BlockChainClient, ChainNotify};
+use common_types::{
+	chain_notify::{NewBlocks, ChainMessageType},
+	io_message::ClientIoMessage,
+	BlockNumber,
+};
+use ethcore::{
+	client::{Client as EthcoreClient, ClientConfig},
+	test_helpers::{self, TestBlockChainClient},
+};
+use ethcore::miner::Miner;
+use ethcore_io::{IoChannel, IoContext, IoHandler};
+use ethcore_private_tx::PrivateStateDB;
 use ethereum_types::H256;
-use parking_lot::{RwLock, Mutex};
 use bytes::Bytes;
 use network::{self, PeerId, ProtocolId, PacketId, SessionInfo};
 use network::client_version::ClientVersion;
-use tests::snapshot::*;
-use types::{
-	chain_notify::{NewBlocks, ChainMessageType},
-	io_message::ClientIoMessage,
-};
-use client_traits::{BlockChainClient, ChainNotify};
-use ethcore::client::{
-	TestBlockChainClient,
-	Client as EthcoreClient,
-	ClientConfig,
-};
+use log::trace;
 use snapshot::SnapshotService;
-use spec::{self, Spec};
-use ethcore_private_tx::PrivateStateDB;
-use ethcore::miner::Miner;
-use ethcore::test_helpers;
-use sync_io::SyncIo;
-use io::{IoChannel, IoContext, IoHandler};
-use api::WARP_SYNC_PROTOCOL_ID;
-use chain::{ChainSync, SyncSupplier, ETH_PROTOCOL_VERSION_63, PAR_PROTOCOL_VERSION_4};
-use chain::sync_packet::{PacketInfo, SyncPacket};
-use chain::sync_packet::SyncPacket::{PrivateTransactionPacket, SignedPrivateTransactionPacket};
-
-use SyncConfig;
-use private_tx::SimplePrivateTxHandler;
-use types::BlockNumber;
+use spec::Spec;
+use parking_lot::{RwLock, Mutex};
 
 pub trait FlushingBlockChainClient: BlockChainClient {
 	fn flush(&self) {}
@@ -109,38 +114,22 @@ impl<'p, C> SyncIo for TestIo<'p, C> where C: FlushingBlockChainClient, C: 'p {
 		self.to_disconnect.insert(peer_id);
 	}
 
-	fn is_expired(&self) -> bool {
-		false
-	}
-
 	fn respond(&mut self, packet_id: PacketId, data: Vec<u8>) -> Result<(), network::Error> {
-		self.packets.push(TestPacket {
-			data: data,
-			packet_id: packet_id,
-			recipient: self.sender.unwrap()
-		});
+		self.packets.push(
+			TestPacket { data, packet_id, recipient: self.sender.unwrap() }
+		);
 		Ok(())
 	}
 
 	fn send(&mut self,peer_id: PeerId, packet_id: SyncPacket, data: Vec<u8>) -> Result<(), network::Error> {
-		self.packets.push(TestPacket {
-			data: data,
-			packet_id: packet_id.id(),
-			recipient: peer_id,
-		});
+		self.packets.push(
+			TestPacket { data, packet_id: packet_id.id(), recipient: peer_id }
+		);
 		Ok(())
 	}
 
 	fn chain(&self) -> &dyn BlockChainClient {
 		&*self.chain
-	}
-
-	fn peer_version(&self, peer_id: PeerId) -> ClientVersion {
-		let client_id = self.peers_info.get(&peer_id)
-			.cloned()
-			.unwrap_or_else(|| peer_id.to_string());
-
-		ClientVersion::from(client_id)
 	}
 
 	fn snapshot_service(&self) -> &dyn SnapshotService {
@@ -149,6 +138,17 @@ impl<'p, C> SyncIo for TestIo<'p, C> where C: FlushingBlockChainClient, C: 'p {
 
 	fn private_state(&self) -> Option<Arc<PrivateStateDB>> {
 		self.private_state_db.clone()
+	}
+
+	fn peer_version(&self, peer_id: PeerId) -> ClientVersion {
+		self.peers_info.get(&peer_id)
+			.cloned()
+			.unwrap_or_else(|| peer_id.to_string())
+			.into()
+	}
+
+	fn peer_enode(&self, _peer_id: usize) -> Option<String> {
+		unimplemented!()
 	}
 
 	fn peer_session_info(&self, _peer_id: PeerId) -> Option<SessionInfo> {
@@ -161,6 +161,10 @@ impl<'p, C> SyncIo for TestIo<'p, C> where C: FlushingBlockChainClient, C: 'p {
 
 	fn protocol_version(&self, protocol: &ProtocolId, peer_id: PeerId) -> u8 {
 		if protocol == &WARP_SYNC_PROTOCOL_ID { PAR_PROTOCOL_VERSION_4.0 } else { self.eth_protocol_version(peer_id) }
+	}
+
+	fn is_expired(&self) -> bool {
+		false
 	}
 
 	fn chain_overlay(&self) -> &RwLock<HashMap<BlockNumber, Bytes>> {

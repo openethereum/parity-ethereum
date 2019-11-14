@@ -29,6 +29,8 @@ use parity_version::version_data;
 use user_defaults::UserDefaults;
 use types::client_types::Mode;
 
+use crate::configuration;
+
 #[derive(Debug, PartialEq)]
 pub enum SpecType {
 	Foundation,
@@ -42,6 +44,7 @@ pub enum SpecType {
 	Mix,
 	Callisto,
 	Morden,
+	Mordor,
 	Ropsten,
 	Kovan,
 	Rinkeby,
@@ -63,8 +66,8 @@ impl str::FromStr for SpecType {
 
 	fn from_str(s: &str) -> Result<Self, Self::Err> {
 		let spec = match s {
-			"ethereum" | "frontier" | "homestead" | "byzantium" | "foundation" | "mainnet" => SpecType::Foundation,
-			"classic" | "frontier-dogmatic" | "homestead-dogmatic" => SpecType::Classic,
+			"eth" | "ethereum"  | "foundation" | "mainnet" => SpecType::Foundation,
+			"etc" | "classic" => SpecType::Classic,
 			"poanet" | "poacore" => SpecType::Poanet,
 			"xdai" => SpecType::Xdai,
 			"volta" => SpecType::Volta,
@@ -73,11 +76,12 @@ impl str::FromStr for SpecType {
 			"ellaism" => SpecType::Ellaism,
 			"mix" => SpecType::Mix,
 			"callisto" => SpecType::Callisto,
-			"morden" | "classic-testnet" => SpecType::Morden,
+			"morden" => SpecType::Morden,
+			"mordor" | "classic-testnet" => SpecType::Mordor,
 			"ropsten" => SpecType::Ropsten,
-			"kovan" | "testnet" => SpecType::Kovan,
+			"kovan" => SpecType::Kovan,
 			"rinkeby" => SpecType::Rinkeby,
-			"goerli" | "görli" => SpecType::Goerli,
+			"goerli" | "görli" | "testnet" => SpecType::Goerli,
 			"kotti" => SpecType::Kotti,
 			"sokol" | "poasokol" => SpecType::Sokol,
 			"dev" => SpecType::Dev,
@@ -101,6 +105,7 @@ impl fmt::Display for SpecType {
 			SpecType::Mix => "mix",
 			SpecType::Callisto => "callisto",
 			SpecType::Morden => "morden",
+			SpecType::Mordor => "mordor",
 			SpecType::Ropsten => "ropsten",
 			SpecType::Kovan => "kovan",
 			SpecType::Rinkeby => "rinkeby",
@@ -128,6 +133,7 @@ impl SpecType {
 			SpecType::Mix => Ok(spec::new_mix(params)),
 			SpecType::Callisto => Ok(spec::new_callisto(params)),
 			SpecType::Morden => Ok(spec::new_morden(params)),
+			SpecType::Mordor => Ok(spec::new_mordor(params)),
 			SpecType::Ropsten => Ok(spec::new_ropsten(params)),
 			SpecType::Kovan => Ok(spec::new_kovan(params)),
 			SpecType::Rinkeby => Ok(spec::new_rinkeby(params)),
@@ -248,6 +254,7 @@ pub enum GasPricerConfig {
 	Calibrated {
 		usd_per_tx: f32,
 		recalibration_period: Duration,
+		api_endpoint: String
 	}
 }
 
@@ -256,6 +263,7 @@ impl Default for GasPricerConfig {
 		GasPricerConfig::Calibrated {
 			usd_per_tx: 0.0001f32,
 			recalibration_period: Duration::from_secs(3600),
+			api_endpoint: configuration::ETHERSCAN_ETH_PRICE_ENDPOINT.to_string(),
 		}
 	}
 }
@@ -264,7 +272,7 @@ impl GasPricerConfig {
 	pub fn to_gas_pricer(&self, fetch: FetchClient, p: Executor) -> GasPricer {
 		match *self {
 			GasPricerConfig::Fixed(u) => GasPricer::Fixed(u),
-			GasPricerConfig::Calibrated { usd_per_tx, recalibration_period, .. } => {
+			GasPricerConfig::Calibrated { usd_per_tx, recalibration_period, ref api_endpoint } => {
 				GasPricer::new_calibrated(
 					GasPriceCalibrator::new(
 						GasPriceCalibratorOptions {
@@ -273,6 +281,7 @@ impl GasPricerConfig {
 						},
 						fetch,
 						p,
+						api_endpoint.clone(),
 					)
 				)
 			}
@@ -364,15 +373,12 @@ mod tests {
 
 	#[test]
 	fn test_spec_type_parsing() {
-		assert_eq!(SpecType::Foundation, "foundation".parse().unwrap());
-		assert_eq!(SpecType::Foundation, "frontier".parse().unwrap());
-		assert_eq!(SpecType::Foundation, "homestead".parse().unwrap());
-		assert_eq!(SpecType::Foundation, "byzantium".parse().unwrap());
-		assert_eq!(SpecType::Foundation, "mainnet".parse().unwrap());
+		assert_eq!(SpecType::Foundation, "eth".parse().unwrap());
 		assert_eq!(SpecType::Foundation, "ethereum".parse().unwrap());
+		assert_eq!(SpecType::Foundation, "foundation".parse().unwrap());
+		assert_eq!(SpecType::Foundation, "mainnet".parse().unwrap());
+		assert_eq!(SpecType::Classic, "etc".parse().unwrap());
 		assert_eq!(SpecType::Classic, "classic".parse().unwrap());
-		assert_eq!(SpecType::Classic, "frontier-dogmatic".parse().unwrap());
-		assert_eq!(SpecType::Classic, "homestead-dogmatic".parse().unwrap());
 		assert_eq!(SpecType::Poanet, "poanet".parse().unwrap());
 		assert_eq!(SpecType::Poanet, "poacore".parse().unwrap());
 		assert_eq!(SpecType::Xdai, "xdai".parse().unwrap());
@@ -384,13 +390,14 @@ mod tests {
 		assert_eq!(SpecType::Mix, "mix".parse().unwrap());
 		assert_eq!(SpecType::Callisto, "callisto".parse().unwrap());
 		assert_eq!(SpecType::Morden, "morden".parse().unwrap());
-		assert_eq!(SpecType::Morden, "classic-testnet".parse().unwrap());
+		assert_eq!(SpecType::Mordor, "mordor".parse().unwrap());
+		assert_eq!(SpecType::Mordor, "classic-testnet".parse().unwrap());
 		assert_eq!(SpecType::Ropsten, "ropsten".parse().unwrap());
 		assert_eq!(SpecType::Kovan, "kovan".parse().unwrap());
-		assert_eq!(SpecType::Kovan, "testnet".parse().unwrap());
 		assert_eq!(SpecType::Rinkeby, "rinkeby".parse().unwrap());
 		assert_eq!(SpecType::Goerli, "goerli".parse().unwrap());
 		assert_eq!(SpecType::Goerli, "görli".parse().unwrap());
+		assert_eq!(SpecType::Goerli, "testnet".parse().unwrap());
 		assert_eq!(SpecType::Kotti, "kotti".parse().unwrap());
 		assert_eq!(SpecType::Sokol, "sokol".parse().unwrap());
 		assert_eq!(SpecType::Sokol, "poasokol".parse().unwrap());
@@ -414,6 +421,7 @@ mod tests {
 		assert_eq!(format!("{}", SpecType::Mix), "mix");
 		assert_eq!(format!("{}", SpecType::Callisto), "callisto");
 		assert_eq!(format!("{}", SpecType::Morden), "morden");
+		assert_eq!(format!("{}", SpecType::Mordor), "mordor");
 		assert_eq!(format!("{}", SpecType::Ropsten), "ropsten");
 		assert_eq!(format!("{}", SpecType::Kovan), "kovan");
 		assert_eq!(format!("{}", SpecType::Rinkeby), "rinkeby");

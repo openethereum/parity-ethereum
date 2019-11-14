@@ -21,7 +21,8 @@ use std::sync::atomic::{AtomicBool, Ordering as AtomicOrdering};
 use std::time::Duration;
 
 use bytes::{Buf, BufMut};
-use crypto::aes::{AesCtr256, AesEcb256};
+use parity_crypto::aes::{AesCtr256, AesEcb256};
+use parity_crypto::publickey::Secret;
 use ethereum_types::{H128, H256, H512};
 use keccak_hash::{keccak, write_keccak};
 use log::{debug, trace, warn};
@@ -33,7 +34,6 @@ use rlp::{Rlp, RlpStream};
 use tiny_keccak::Keccak;
 
 use ethcore_io::{IoContext, StreamToken};
-use ethkey::{crypto as ethcrypto, Secret};
 use network::Error;
 
 use crate::handshake::Handshake;
@@ -302,7 +302,7 @@ const NULL_IV : [u8; 16] = [0;16];
 impl EncryptedConnection {
 	/// Create an encrypted connection out of the handshake.
 	pub fn new(handshake: &mut Handshake) -> Result<EncryptedConnection, Error> {
-		let shared = ethcrypto::ecdh::agree(handshake.ecdhe.secret(), &handshake.remote_ephemeral)?;
+		let shared = parity_crypto::publickey::ecdh::agree(handshake.ecdhe.secret(), &handshake.remote_ephemeral)?;
 		let mut nonce_material = H512::default();
 		if handshake.originated {
 			(&mut nonce_material[0..32]).copy_from_slice(handshake.remote_nonce.as_bytes());
@@ -328,7 +328,7 @@ impl EncryptedConnection {
 		let decoder = AesCtr256::new(&key_material[32..64], &NULL_IV)?;
 		let key_material_keccak = keccak(&key_material);
 		(&mut key_material[32..64]).copy_from_slice(key_material_keccak.as_bytes());
-		let mac_encoder_key: Secret = Secret::from_slice(&key_material[32..64]).expect("can create Secret from 32 bytes; qed");
+		let mac_encoder_key: Secret = Secret::copy_from_slice(&key_material[32..64]).expect("can create Secret from 32 bytes; qed");
 
 		let mut egress_mac = Keccak::new_keccak256();
 		let mut mac_material = H256::from_slice(&key_material[32..64]) ^ handshake.remote_nonce;

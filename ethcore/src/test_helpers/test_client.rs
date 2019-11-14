@@ -28,7 +28,7 @@ use bytes::Bytes;
 use db::{NUM_COLUMNS, COL_STATE};
 use ethcore_miner::pool::VerifiedTransaction;
 use ethereum_types::{H256, U256, Address};
-use ethkey::{Generator, Random};
+use parity_crypto::publickey::{Generator, Random};
 use ethtrie;
 use hash::keccak;
 use itertools::Itertools;
@@ -55,7 +55,7 @@ use types::{
 	view,
 	views::BlockView,
 	verification::Unverified,
-	client_types::Mode,
+	client_types::{Mode, StateResult},
 	blockchain_info::BlockChainInfo,
 	block_status::BlockStatus,
 	verification::VerificationQueueInfo as BlockQueueInfo,
@@ -63,7 +63,8 @@ use types::{
 use vm::{Schedule, LastHashes};
 
 use block::{OpenBlock, SealedBlock, ClosedBlock};
-use call_contract::{CallContract, CallOptions, RegistryInfo, CallError as ContractCallError};
+use call_contract::{CallContract, CallOptions, CallError as ContractCallError};
+use registrar::RegistrarClient;
 use client::{
 	ReopenBlock, PrepareOpenBlock, ImportSealedBlock, BroadcastProposalBlock, Call,
 	EngineInfo, BlockProducer, SealedBlockImporter,
@@ -71,7 +72,7 @@ use client::{
 use client_traits::{
 	BlockInfo, Nonce, Balance, ChainInfo, TransactionInfo, BlockChainClient, ImportBlock,
 	AccountData, BlockChain, IoClient, BadBlocks, ScheduleInfo, StateClient, ProvingBlockChainClient,
-	StateOrBlock
+	StateOrBlock, ForceUpdateSealing
 };
 use engine::Engine;
 use machine::executed::Executed;
@@ -535,6 +536,12 @@ impl CallContract for TestBlockChainClient {
 	fn call_contract(&self, _id: BlockId, _call_options: CallOptions) -> Result<Bytes, ContractCallError> { Ok(vec![]) }
 }
 
+impl RegistrarClient for TestBlockChainClient {
+    fn registrar_address(&self) -> Option<Address> {
+        None
+    }
+}
+
 impl TransactionInfo for TestBlockChainClient {
 	fn transaction_block(&self, _id: TransactionId) -> Option<H256> {
 		None	// Simple default.
@@ -542,10 +549,6 @@ impl TransactionInfo for TestBlockChainClient {
 }
 
 impl BlockChain for TestBlockChainClient {}
-
-impl RegistryInfo for TestBlockChainClient {
-	fn registry_address(&self, _name: String, _block: BlockId) -> Option<Address> { None }
-}
 
 impl ImportBlock for TestBlockChainClient {
 	fn import_block(&self, unverified: Unverified) -> EthcoreResult<H256> {
@@ -634,8 +637,8 @@ impl StateInfo for TestState {
 impl StateClient for TestBlockChainClient {
 	type State = TestState;
 
-	fn latest_state(&self) -> Self::State {
-		TestState
+	fn latest_state_and_header(&self) -> (Self::State, Header) {
+		(TestState, self.best_block_header())
 	}
 
 	fn state_at(&self, _id: BlockId) -> Option<Self::State> {
@@ -702,10 +705,10 @@ impl BlockChainClient for TestBlockChainClient {
 		None
 	}
 
-	fn code(&self, address: &Address, state: StateOrBlock) -> Option<Option<Bytes>> {
+	fn code(&self, address: &Address, state: StateOrBlock) -> StateResult<Option<Bytes>> {
 		match state {
-			StateOrBlock::Block(BlockId::Latest) => Some(self.code.read().get(address).cloned()),
-			_ => None,
+			StateOrBlock::Block(BlockId::Latest) => StateResult::Some(self.code.read().get(address).cloned()),
+			_ => StateResult::Missing,
 		}
 	}
 
@@ -725,7 +728,7 @@ impl BlockChainClient for TestBlockChainClient {
 		None
 	}
 
-	fn list_storage(&self, _id: BlockId, _account: &Address, _after: Option<&H256>, _count: u64) -> Option<Vec<H256>> {
+	fn list_storage(&self, _id: BlockId, _account: &Address, _after: Option<&H256>, _count: Option<u64>) -> Option<Vec<H256>> {
 		None
 	}
 	fn transaction(&self, _id: TransactionId) -> Option<LocalizedTransaction> {
@@ -916,8 +919,6 @@ impl BlockChainClient for TestBlockChainClient {
 		let signed = SignedTransaction::new(transaction.with_signature(sig, chain_id)).unwrap();
 		self.miner.import_own_transaction(self, signed.into())
 	}
-
-	fn registrar_address(&self) -> Option<Address> { None }
 }
 
 impl IoClient for TestBlockChainClient {
@@ -955,8 +956,8 @@ impl ProvingBlockChainClient for TestBlockChainClient {
 }
 
 impl client_traits::EngineClient for TestBlockChainClient {
-	fn update_sealing(&self) {
-		self.miner.update_sealing(self)
+	fn update_sealing(&self, force: ForceUpdateSealing)  {
+		self.miner.update_sealing(self, force)
 	}
 
 	fn submit_seal(&self, block_hash: H256, seal: Vec<Bytes>) {

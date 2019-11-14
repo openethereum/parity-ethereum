@@ -17,7 +17,7 @@
 use std::sync::Arc;
 use std::collections::{BTreeSet, BTreeMap};
 use ethereum_types::{Address, H256};
-use ethkey::Secret;
+use crypto::publickey::Secret;
 use futures::Oneshot;
 use parking_lot::Mutex;
 use key_server_cluster::{Error, SessionId, NodeId, DocumentKeyShare};
@@ -83,7 +83,7 @@ struct SessionCore<T: SessionTransport> {
 	/// Key share.
 	pub key_share: Option<DocumentKeyShare>,
 	/// Session result computer.
-	pub result_computer: Arc<SessionResultComputer>,
+	pub result_computer: Arc<dyn SessionResultComputer>,
 	/// Session transport.
 	pub transport: T,
 	/// Session nonce.
@@ -119,7 +119,7 @@ pub struct SessionParams<T: SessionTransport> {
 	/// Key share.
 	pub key_share: Option<DocumentKeyShare>,
 	/// Session result computer.
-	pub result_computer: Arc<SessionResultComputer>,
+	pub result_computer: Arc<dyn SessionResultComputer>,
 	/// Session transport to communicate to other cluster nodes.
 	pub transport: T,
 	/// Session nonce.
@@ -140,7 +140,7 @@ enum SessionState {
 /// Isolated session transport.
 pub struct IsolatedSessionTransport {
 	/// Cluster.
-	pub cluster: Arc<Cluster>,
+	pub cluster: Arc<dyn Cluster>,
 	/// Key id.
 	pub key_id: SessionId,
 	/// Sub session id.
@@ -617,7 +617,7 @@ mod tests {
 	use std::sync::Arc;
 	use std::collections::{VecDeque, BTreeMap, BTreeSet};
 	use ethereum_types::{H512, H160, Address};
-	use ethkey::public_to_address;
+	use crypto::publickey::public_to_address;
 	use key_server_cluster::{NodeId, SessionId, Error, KeyStorage, DummyKeyStorage,
 		DocumentKeyShare, DocumentKeyShareVersion};
 	use key_server_cluster::math;
@@ -859,7 +859,7 @@ mod tests {
 				versions: vec![version_id.clone().into()]
 			})), Err(Error::InvalidMessage));
 		}
-		
+
 		run_test(CommonKeyData {
 			threshold: 2,
 			author: Default::default(),

@@ -16,14 +16,15 @@
 
 //! Provide facilities to create `Machine` instances for testing various networks.
 
+use std::convert::TryFrom;
 use common_types::engines::params::CommonParams;
-use ethjson;
+use ethcore_builtin::Builtin;
 use crate::Machine;
 
 pub fn load_machine(reader: &[u8]) -> Machine {
 	let spec = ethjson::spec::Spec::load(reader).expect("chain spec is invalid");
 
-	let builtins = spec.accounts.builtins().into_iter().map(|p| (p.0.into(), From::from(p.1))).collect();
+	let builtins = spec.accounts.builtins().into_iter().map(|p| (p.0.into(), Builtin::try_from(p.1).expect("chain spec is invalid"))).collect();
 	let params = CommonParams::from(spec.params);
 
 	if let ethjson::spec::Engine::Ethash(ref ethash) = spec.engine {
@@ -32,7 +33,6 @@ pub fn load_machine(reader: &[u8]) -> Machine {
 		Machine::regular(params, builtins)
 	}
 }
-
 
 /// Create a new Foundation Frontier-era chain spec as though it never changes to Homestead.
 pub fn new_frontier_test_machine() -> Machine { load_machine(include_bytes!("../../res/ethereum/frontier_test.json")) }

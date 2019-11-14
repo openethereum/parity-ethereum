@@ -19,16 +19,28 @@
 //! It is recommended to use the `two_thirds_majority_transition` option, to defend against the
 //! ["Attack of the Clones"](https://arxiv.org/pdf/1902.10244.pdf). Newly started networks can
 //! set this option to `0`, to use a 2/3 quorum from the beginning.
+//!
+//! To support on-chain governance, the [ValidatorSet] is pluggable: Aura supports simple
+//! constant lists of validators as well as smart contract-based dynamic validator sets.
+//! Misbehavior is reported to the [ValidatorSet] as well, so that e.g. governance contracts
+//! can penalize or ban attacker's nodes.
+//!
+//! * "Benign" misbehavior are faults that can happen in normal operation, like failing
+//!   to propose a block in your slot, which could be due to a temporary network outage, or
+//!   wrong timestamps (due to out-of-sync clocks).
+//! * "Malicious" reports are made only if the sender misbehaved deliberately (or due to a
+//!   software bug), e.g. if they proposed multiple blocks with the same step number.
 
 use std::collections::{BTreeMap, BTreeSet, HashSet};
 use std::{cmp, fmt};
-use std::iter::FromIterator;
+use std::iter::{self, FromIterator};
 use std::ops::Deref;
-use std::sync::atomic::{AtomicUsize, AtomicBool, Ordering as AtomicOrdering};
+use std::sync::atomic::{AtomicU64, AtomicBool, Ordering as AtomicOrdering};
 use std::sync::{Weak, Arc};
 use std::time::{UNIX_EPOCH, Duration};
+use std::u64;
 
-use client_traits::EngineClient;
+use client_traits::{EngineClient, ForceUpdateSealing};
 use engine::{Engine, ConstructedVerifier};
 use block_reward::{self, BlockRewardContract, RewardKind};
 use ethjson;
@@ -40,7 +52,7 @@ use macros::map;
 use keccak_hash::keccak;
 use log::{info, debug, error, trace, warn};
 use engine::signer::EngineSigner;
-use ethkey::{self, Signature};
+use parity_crypto::publickey::Signature;
 use io::{IoContext, IoHandler, TimerToken, IoService};
 use itertools::{self, Itertools};
 use rlp::{encode, Decodable, DecoderError, Encodable, RlpStream, Rlp};
@@ -74,12 +86,13 @@ use self::finality::RollingFinality;
 
 /// `AuthorityRound` params.
 pub struct AuthorityRoundParams {
-	/// Time to wait before next block or authority switching,
-	/// in seconds.
+	/// A map defining intervals of blocks with the given times (in seconds) to wait before next
+	/// block or authority switching. The keys in the map are steps of starting blocks of those
+	/// periods. The entry at `0` should be defined.
 	///
-	/// Deliberately typed as u16 as too high of a value leads
-	/// to slow block issuance.
-	pub step_duration: u16,
+	/// Wait times (durations) are additionally required to be less than 65535 since larger values
+	/// lead to slow block issuance.
+	pub step_durations: BTreeMap<u64, u64>,
 	/// Starting step,
 	pub start_step: Option<u64>,
 	/// Valid validators.
@@ -112,11 +125,27 @@ const U16_MAX: usize = ::std::u16::MAX as usize;
 
 impl From<ethjson::spec::AuthorityRoundParams> for AuthorityRoundParams {
 	fn from(p: ethjson::spec::AuthorityRoundParams) -> Self {
-		let mut step_duration_usize: usize = p.step_duration.into();
-		if step_duration_usize > U16_MAX {
-			step_duration_usize = U16_MAX;
-			warn!(target: "engine", "step_duration is too high ({}), setting it to {}", step_duration_usize, U16_MAX);
-		}
+		let map_step_duration = |u: ethjson::uint::Uint| {
+			let mut step_duration_usize: usize = u.into();
+			if step_duration_usize == 0 {
+				panic!("AuthorityRoundParams: step duration cannot be 0");
+			}
+			if step_duration_usize > U16_MAX {
+				warn!(target: "engine", "step duration is too high ({}), setting it to {}", step_duration_usize, U16_MAX);
+				step_duration_usize = U16_MAX;
+			}
+			step_duration_usize as u64
+		};
+		let step_durations: BTreeMap<_, _> = match p.step_duration {
+			ethjson::spec::StepDuration::Single(u) =>
+				iter::once((0,  map_step_duration(u))).collect(),
+			ethjson::spec::StepDuration::Transitions(tr) => {
+				if tr.is_empty() {
+					panic!("AuthorityRoundParams: step duration transitions cannot be empty");
+				}
+				tr.into_iter().map(|(timestamp, u)| (timestamp.into(), map_step_duration(u))).collect()
+			}
+		};
 		let transition_block_num = p.block_reward_contract_transition.map_or(0, Into::into);
 		let mut br_transitions: BTreeMap<_, _> = p.block_reward_contract_transitions
 			.unwrap_or_default()
@@ -142,7 +171,7 @@ impl From<ethjson::spec::AuthorityRoundParams> for AuthorityRoundParams {
 			);
 		}
 		AuthorityRoundParams {
-			step_duration: step_duration_usize as u16,
+			step_durations,
 			validators: new_validator_set(p.validators),
 			start_step: p.start_step.map(Into::into),
 			validate_score_transition: p.validate_score_transition.map_or(0, Into::into),
@@ -160,52 +189,87 @@ impl From<ethjson::spec::AuthorityRoundParams> for AuthorityRoundParams {
 	}
 }
 
-// Helper for managing the step.
+/// A triple containing the first step number and the starting timestamp of the given step duration.
+#[derive(Clone, Debug)]
+struct StepDurationInfo {
+	transition_step: u64,
+	transition_timestamp: u64,
+	step_duration: u64,
+}
+
+/// Helper for managing the step.
 #[derive(Debug)]
 struct Step {
 	calibrate: bool, // whether calibration is enabled.
-	inner: AtomicUsize,
-	duration: u16,
+	inner: AtomicU64,
+	/// Planned durations of steps.
+	durations: Vec<StepDurationInfo>,
 }
 
 impl Step {
-	fn load(&self) -> u64 { self.inner.load(AtomicOrdering::SeqCst) as u64 }
+	fn load(&self) -> u64 { self.inner.load(AtomicOrdering::SeqCst) }
+
+	/// Finds the remaining duration of the current step. Panics if there was a counter under- or
+	/// overflow.
 	fn duration_remaining(&self) -> Duration {
-		let now = unix_now();
-		let expected_seconds = self.load()
-			.checked_add(1)
-			.and_then(|ctr| ctr.checked_mul(self.duration as u64))
-			.map(Duration::from_secs);
-
-		match expected_seconds {
-			Some(step_end) if step_end > now => step_end - now,
-			Some(_) => Duration::from_secs(0),
-			None => {
-				let ctr = self.load();
-				error!(target: "engine", "Step counter is too high: {}, aborting", ctr);
-				panic!("step counter is too high: {}", ctr)
-			},
-		}
-
+		self.opt_duration_remaining().unwrap_or_else(|| {
+			let ctr = self.load();
+			error!(target: "engine", "Step counter under- or overflow: {}, aborting", ctr);
+			panic!("step counter under- or overflow: {}", ctr)
+		})
 	}
 
+	/// Finds the remaining duration of the current step. Returns `None` if there was a counter
+	/// under- or overflow.
+	fn opt_duration_remaining(&self) -> Option<Duration> {
+		let next_step = self.load().checked_add(1)?;
+		let StepDurationInfo { transition_step, transition_timestamp, step_duration } =
+			self.durations.iter()
+			.take_while(|info| info.transition_step < next_step)
+			.last()
+			.expect("durations cannot be empty")
+			.clone();
+		let next_time = transition_timestamp
+			.checked_add(next_step.checked_sub(transition_step)?.checked_mul(step_duration)?)?;
+		Some(Duration::from_secs(next_time.saturating_sub(unix_now().as_secs())))
+	}
+
+	/// Increments the step number.
+	///
+	/// Panics if the new step number is `u64::MAX`.
 	fn increment(&self) {
-		use std::usize;
 		// fetch_add won't panic on overflow but will rather wrap
 		// around, leading to zero as the step counter, which might
 		// lead to unexpected situations, so it's better to shut down.
-		if self.inner.fetch_add(1, AtomicOrdering::SeqCst) == usize::MAX {
-			error!(target: "engine", "Step counter is too high: {}, aborting", usize::MAX);
-			panic!("step counter is too high: {}", usize::MAX);
+		if self.inner.fetch_add(1, AtomicOrdering::SeqCst) == u64::MAX {
+			error!(target: "engine", "Step counter is too high: {}, aborting", u64::MAX);
+			panic!("step counter is too high: {}", u64::MAX);
 		}
-
 	}
 
 	fn calibrate(&self) {
 		if self.calibrate {
-			let new_step = unix_now().as_secs() / (self.duration as u64);
-			self.inner.store(new_step as usize, AtomicOrdering::SeqCst);
+			if self.opt_calibrate().is_none() {
+				let ctr = self.load();
+				error!(target: "engine", "Step counter under- or overflow: {}, aborting", ctr);
+				panic!("step counter under- or overflow: {}", ctr)
+			}
 		}
+	}
+
+	/// Calibrates the AuRa step number according to the current time.
+	fn opt_calibrate(&self) -> Option<()> {
+		let now = unix_now().as_secs();
+		let StepDurationInfo { transition_step, transition_timestamp, step_duration } =
+			self.durations.iter()
+			.take_while(|info| info.transition_timestamp < now)
+			.last()
+			.expect("durations cannot be empty")
+			.clone();
+		let new_step = (now.checked_sub(transition_timestamp)? / step_duration)
+			.checked_add(transition_step)?;
+		self.inner.store(new_step, AtomicOrdering::SeqCst);
+		Some(())
 	}
 
 	fn check_future(&self, given: u64) -> Result<(), Option<OutOfBounds<u64>>> {
@@ -225,7 +289,9 @@ impl Step {
 			Err(None)
 		// wait a bit for blocks in near future
 		} else if given > current {
-			let d = self.duration as u64;
+			let d = self.durations.iter().take_while(|info| info.transition_step <= current).last()
+				.expect("Duration map has at least a 0 entry.")
+				.step_duration;
 			Err(Some(OutOfBounds {
 				min: None,
 				max: Some(d * current),
@@ -376,14 +442,14 @@ impl EmptyStep {
 		let message = keccak(empty_step_rlp(self.step, &self.parent_hash));
 		let correct_proposer = step_proposer(validators, &self.parent_hash, self.step);
 
-		ethkey::verify_address(&correct_proposer, &self.signature.into(), &message)
+		parity_crypto::publickey::verify_address(&correct_proposer, &self.signature.into(), &message)
 			.map_err(|e| e.into())
 	}
 
 	fn author(&self) -> Result<Address, Error> {
 		let message = keccak(empty_step_rlp(self.step, &self.parent_hash));
-		let public = ethkey::recover(&self.signature.into(), &message)?;
-		Ok(ethkey::public_to_address(&public))
+		let public = parity_crypto::publickey::recover(&self.signature.into(), &message)?;
+		Ok(parity_crypto::publickey::public_to_address(&public))
 	}
 
 	fn sealed(&self) -> SealedEmptyStep {
@@ -484,6 +550,8 @@ pub struct AuthorityRound {
 	two_thirds_majority_transition: BlockNumber,
 	maximum_empty_steps: usize,
 	machine: Machine,
+	/// History of step hashes recently received from peers.
+	received_step_hashes: RwLock<BTreeMap<(u64, Address), H256>>,
 	benign_reporting: Mutex<ValidatorReporting>,
 	malicious_reporting: Mutex<ValidatorReporting>,
 }
@@ -576,7 +644,7 @@ fn header_expected_seal_fields(header: &Header, empty_steps_transition: u64) -> 
 
 fn header_step(header: &Header, empty_steps_transition: u64) -> Result<u64, ::rlp::DecoderError> {
 	Rlp::new(&header.seal().get(0).unwrap_or_else(||
-		panic!("was either checked with verify_block_basic or is genesis; has {} fields; qed (Make sure the spec
+		panic!("was either checked with verify_block_basic or is genesis; has {} fields; qed (Make sure the spec \
 				file has a correct genesis seal)", header_expected_seal_fields(header, empty_steps_transition))
 	))
 	.as_val()
@@ -664,7 +732,7 @@ fn verify_external(header: &Header, validators: &dyn ValidatorSet, empty_steps_t
 		};
 
 		let header_seal_hash = header_seal_hash(header, empty_steps_rlp);
-		!ethkey::verify_address(&correct_proposer, &proposer_signature, &header_seal_hash)?
+		!parity_crypto::publickey::verify_address(&correct_proposer, &proposer_signature, &header_seal_hash)?
 	};
 
 	if is_invalid_proposer {
@@ -721,23 +789,54 @@ impl<'a, A: ?Sized, B> Deref for CowLike<'a, A, B> where B: AsRef<A> {
 impl AuthorityRound {
 	/// Create a new instance of AuthorityRound engine.
 	pub fn new(our_params: AuthorityRoundParams, machine: Machine) -> Result<Arc<Self>, Error> {
-		if our_params.step_duration == 0 {
-			error!(target: "engine", "Authority Round step duration can't be zero, aborting");
-			panic!("authority_round: step duration can't be zero")
+		if !our_params.step_durations.contains_key(&0) {
+			error!(target: "engine", "Authority Round step 0 duration is undefined, aborting");
+			return Err(Error::Engine(EngineError::Custom(String::from("step 0 duration is undefined"))));
+		}
+		if our_params.step_durations.values().any(|v| *v == 0) {
+			error!(target: "engine", "Authority Round step duration cannot be 0");
+			return Err(Error::Engine(EngineError::Custom(String::from("step duration cannot be 0"))));
 		}
 		let should_timeout = our_params.start_step.is_none();
-		let initial_step = our_params.start_step.unwrap_or_else(|| (unix_now().as_secs() / (our_params.step_duration as u64)));
+		let initial_step = our_params.start_step.unwrap_or(0);
+
+		let mut durations = Vec::new();
+		let mut prev_step = 0u64;
+		let mut prev_time = 0u64;
+		let mut prev_dur = our_params.step_durations[&0];
+		durations.push(StepDurationInfo {
+			transition_step: prev_step,
+			transition_timestamp: prev_time,
+			step_duration: prev_dur
+		});
+		for (time, dur) in our_params.step_durations.iter().skip(1) {
+			let (step, time) = next_step_time_duration(
+				StepDurationInfo{
+					transition_step: prev_step,
+					transition_timestamp: prev_time,
+					step_duration: prev_dur,
+				}, *time)
+				.ok_or(BlockError::TimestampOverflow)?;
+			durations.push(StepDurationInfo {
+				transition_step: step,
+				transition_timestamp: time,
+				step_duration: *dur
+			});
+			prev_step = step;
+			prev_time = time;
+			prev_dur = *dur;
+		}
+
+		let step = Step {
+			inner: AtomicU64::new(initial_step),
+			calibrate: our_params.start_step.is_none(),
+			durations,
+		};
+		step.calibrate();
 		let engine = Arc::new(
 			AuthorityRound {
 				transition_service: IoService::<()>::start()?,
-				step: Arc::new(PermissionedStep {
-					inner: Step {
-						inner: AtomicUsize::new(initial_step as usize),
-						calibrate: our_params.start_step.is_none(),
-						duration: our_params.step_duration,
-					},
-					can_propose: AtomicBool::new(true),
-				}),
+				step: Arc::new(PermissionedStep { inner: step, can_propose: AtomicBool::new(true) }),
 				client: Arc::new(RwLock::new(None)),
 				signer: RwLock::new(None),
 				validators: our_params.validators,
@@ -755,6 +854,7 @@ impl AuthorityRound {
 				two_thirds_majority_transition: our_params.two_thirds_majority_transition,
 				strict_empty_steps_transition: our_params.strict_empty_steps_transition,
 				machine,
+				received_step_hashes: RwLock::new(Default::default()),
 				benign_reporting: Default::default(),
 				malicious_reporting: Default::default(),
 			});
@@ -987,13 +1087,15 @@ impl IoHandler<()> for TransitionHandler {
 				self.step.can_propose.store(true, AtomicOrdering::SeqCst);
 				if let Some(ref weak) = *self.client.read() {
 					if let Some(c) = weak.upgrade() {
-						c.update_sealing();
+						c.update_sealing(ForceUpdateSealing::No);
 					}
 				}
 			}
 
-			let next_run_at = AsMillis::as_millis(&self.step.inner.duration_remaining()) >> 2;
-			io.register_timer_once(ENGINE_TIMEOUT_TOKEN, Duration::from_millis(next_run_at))
+			let next_run_at = Duration::from_millis(
+				AsMillis::as_millis(&self.step.inner.duration_remaining()) >> 2
+			);
+			io.register_timer_once(ENGINE_TIMEOUT_TOKEN, next_run_at)
 				.unwrap_or_else(|e| warn!(target: "engine", "Failed to restart consensus step timer: {}.", e))
 		}
 	}
@@ -1015,7 +1117,7 @@ impl Engine for AuthorityRound {
 		self.step.can_propose.store(true, AtomicOrdering::SeqCst);
 		if let Some(ref weak) = *self.client.read() {
 			if let Some(c) = weak.upgrade() {
-				c.update_sealing();
+				c.update_sealing(ForceUpdateSealing::No);
 			}
 		}
 	}
@@ -1403,6 +1505,26 @@ impl Engine for AuthorityRound {
 			Err(EngineError::DoubleVote(*header.author()))?;
 		}
 
+		// Report malice if the validator produced other sibling blocks in the same step.
+		let received_step_key = (step, *header.author());
+		let new_hash = header.hash();
+		if self.received_step_hashes.read().get(&received_step_key).map_or(false, |h| *h != new_hash) {
+			trace!(target: "engine", "Validator {} produced sibling blocks in the same step", header.author());
+			self.validators.report_malicious(header.author(), set_number, header.number(), Default::default());
+		} else {
+			self.received_step_hashes.write().insert(received_step_key, new_hash);
+		}
+
+		// Remove hash records older than two full rounds of steps (picked as a reasonable trade-off between
+		// memory consumption and fault-tolerance).
+		let sibling_malice_detection_period = 2 * validators.count(&parent.hash()) as u64;
+		let oldest_step = parent_step.saturating_sub(sibling_malice_detection_period);
+		if oldest_step > 0 {
+			let mut rsh = self.received_step_hashes.write();
+			let new_rsh = rsh.split_off(&(oldest_step, Address::zero()));
+			*rsh = new_rsh;
+		}
+
 		// If empty step messages are enabled we will validate the messages in the seal, missing messages are not
 		// reported as there's no way to tell whether the empty step message was never sent or simply not included.
 		let empty_steps_len = if header.number() >= self.empty_steps_transition {
@@ -1662,14 +1784,14 @@ impl Engine for AuthorityRound {
 		self.validators.register_client(client);
 	}
 
-	fn set_signer(&self, signer: Box<dyn EngineSigner>) {
-		*self.signer.write() = Some(signer);
+	fn set_signer(&self, signer: Option<Box<dyn EngineSigner>>) {
+		*self.signer.write() = signer;
 	}
 
 	fn sign(&self, hash: H256) -> Result<Signature, Error> {
 		Ok(self.signer.read()
 			.as_ref()
-			.ok_or(ethkey::Error::InvalidAddress)?
+			.ok_or(parity_crypto::publickey::Error::InvalidAddress)?
 			.sign(hash)?
 		)
 	}
@@ -1706,16 +1828,31 @@ impl Engine for AuthorityRound {
 	}
 }
 
+/// A helper accumulator function mapping a step duration and a step duration transition timestamp
+/// to the corresponding step number and the correct starting second of the step.
+fn next_step_time_duration(info: StepDurationInfo, time: u64) -> Option<(u64, u64)>
+{
+	let step_diff = time.checked_add(info.step_duration)?
+		.checked_sub(1)?
+		.checked_sub(info.transition_timestamp)?
+		.checked_div(info.step_duration)?;
+	Some((
+		info.transition_step.checked_add(step_diff)?,
+		step_diff.checked_mul(info.step_duration)?.checked_add(time)?,
+	))
+}
+
 #[cfg(test)]
 mod tests {
 	use std::collections::BTreeMap;
 	use std::str::FromStr;
 	use std::sync::Arc;
-	use std::sync::atomic::{AtomicUsize, Ordering as AtomicOrdering};
+	use std::sync::atomic::{AtomicUsize, AtomicU64, Ordering as AtomicOrdering};
+	use std::time::Duration;
 	use keccak_hash::keccak;
 	use accounts::AccountProvider;
 	use ethereum_types::{Address, H520, H256, U256};
-	use ethkey::Signature;
+	use parity_crypto::publickey::Signature;
 	use common_types::{
 		header::Header,
 		engines::{Seal, params::CommonParams},
@@ -1738,13 +1875,16 @@ mod tests {
 	use ethjson;
 	use serde_json;
 
-	use super::{AuthorityRoundParams, AuthorityRound, EmptyStep, SealedEmptyStep, calculate_score};
+	use super::{
+		AuthorityRoundParams, AuthorityRound, EmptyStep, SealedEmptyStep, StepDurationInfo,
+		calculate_score,
+	};
 
 	fn build_aura<F>(f: F) -> Arc<AuthorityRound> where
 		F: FnOnce(&mut AuthorityRoundParams),
 	{
 		let mut params = AuthorityRoundParams {
-			step_duration: 1,
+			step_durations: [(0, 1)].to_vec().into_iter().collect(),
 			start_step: Some(1),
 			validators: Box::new(TestSet::default()),
 			validate_score_transition: 0,
@@ -1797,31 +1937,72 @@ mod tests {
 	fn generates_seal_and_does_not_double_propose() {
 		let tap = Arc::new(AccountProvider::transient_provider());
 		let addr1 = tap.insert_account(keccak("1").into(), &"1".into()).unwrap();
-		let addr2 = tap.insert_account(keccak("2").into(), &"2".into()).unwrap();
-
 		let spec = spec::new_test_round();
 		let engine = &*spec.engine;
 		let genesis_header = spec.genesis_header();
 		let db1 = spec.ensure_db_good(get_temp_state_db(), &Default::default()).unwrap();
-		let db2 = spec.ensure_db_good(get_temp_state_db(), &Default::default()).unwrap();
 		let last_hashes = Arc::new(vec![genesis_header.hash()]);
 		let b1 = OpenBlock::new(engine, Default::default(), false, db1, &genesis_header, last_hashes.clone(), addr1, (3141562.into(), 31415620.into()), vec![], false).unwrap();
 		let b1 = b1.close_and_lock().unwrap();
-		let b2 = OpenBlock::new(engine, Default::default(), false, db2, &genesis_header, last_hashes, addr2, (3141562.into(), 31415620.into()), vec![], false).unwrap();
-		let b2 = b2.close_and_lock().unwrap();
 
-		engine.set_signer(Box::new((tap.clone(), addr1, "1".into())));
+		engine.set_signer(Some(Box::new((tap.clone(), addr1, "1".into()))));
 		if let Seal::Regular(seal) = engine.generate_seal(&b1, &genesis_header) {
 			assert!(b1.clone().try_seal(engine, seal).is_ok());
 			// Second proposal is forbidden.
 			assert!(engine.generate_seal(&b1, &genesis_header) == Seal::None);
+		} else {
+			panic!("block 1 not sealed");
 		}
+	}
 
-		engine.set_signer(Box::new((tap, addr2, "2".into())));
-		if let Seal::Regular(seal) = engine.generate_seal(&b2, &genesis_header) {
+	#[test]
+	fn generates_seal_iff_sealer_is_set() {
+		let tap = Arc::new(AccountProvider::transient_provider());
+		let addr1 = tap.insert_account(keccak("1").into(), &"1".into()).unwrap();
+		let spec = spec::new_test_round();
+		let engine = &*spec.engine;
+		let genesis_header = spec.genesis_header();
+		let db1 = spec.ensure_db_good(get_temp_state_db(), &Default::default()).unwrap();
+		let last_hashes = Arc::new(vec![genesis_header.hash()]);
+		let b1 = OpenBlock::new(engine, Default::default(), false, db1, &genesis_header,
+								last_hashes.clone(), addr1, (3141562.into(), 31415620.into()),
+								vec![], false)
+			.unwrap().close_and_lock().unwrap();
+		// Not a signer. A seal cannot be generated.
+		assert!(engine.generate_seal(&b1, &genesis_header) == Seal::None);
+		// Become a signer.
+		engine.set_signer(Some(Box::new((tap.clone(), addr1, "1".into()))));
+		if let Seal::Regular(seal) = engine.generate_seal(&b1, &genesis_header) {
+			assert!(b1.clone().try_seal(engine, seal).is_ok());
+			// Second proposal is forbidden.
+			assert!(engine.generate_seal(&b1, &genesis_header) == Seal::None);
+		} else {
+			panic!("block 1 not sealed");
+		}
+		// Stop being a signer.
+		engine.set_signer(None);
+		// Make a step first and then create a new block in that new step.
+		engine.step();
+		let addr2 = tap.insert_account(keccak("0").into(), &"0".into()).unwrap();
+		let mut header2 = genesis_header.clone();
+		header2.set_number(2);
+		header2.set_author(addr2);
+		header2.set_parent_hash(header2.hash());
+		let db2 = spec.ensure_db_good(get_temp_state_db(), &Default::default()).unwrap();
+		let b2 = OpenBlock::new(engine, Default::default(), false, db2, &header2,
+								last_hashes, addr2, (3141562.into(), 31415620.into()),
+								vec![], false)
+			.unwrap().close_and_lock().unwrap();
+		// Not a signer. A seal cannot be generated.
+		assert!(engine.generate_seal(&b2, &header2) == Seal::None);
+		// Become a signer once more.
+		engine.set_signer(Some(Box::new((tap, addr2, "0".into()))));
+		if let Seal::Regular(seal) = engine.generate_seal(&b2, &header2) {
 			assert!(b2.clone().try_seal(engine, seal).is_ok());
 			// Second proposal is forbidden.
-			assert!(engine.generate_seal(&b2, &genesis_header) == Seal::None);
+			assert!(engine.generate_seal(&b2, &header2) == Seal::None);
+		} else {
+			panic!("block 2 not sealed");
 		}
 	}
 
@@ -1844,13 +2025,13 @@ mod tests {
 		let b2 = OpenBlock::new(engine, Default::default(), false, db2, &genesis_header, last_hashes, addr2, (3141562.into(), 31415620.into()), vec![], false).unwrap();
 		let b2 = b2.close_and_lock().unwrap();
 
-		engine.set_signer(Box::new((tap.clone(), addr1, "1".into())));
+		engine.set_signer(Some(Box::new((tap.clone(), addr1, "1".into()))));
 		match engine.generate_seal(&b1, &genesis_header) {
 			Seal::None => panic!("wrong seal"),
 			Seal::Regular(_) => {
 				engine.step();
 
-				engine.set_signer(Box::new((tap.clone(), addr2, "0".into())));
+				engine.set_signer(Some(Box::new((tap.clone(), addr2, "0".into()))));
 				match engine.generate_seal(&b2, &genesis_header) {
 					Seal::Regular(_) => panic!("sealed despite wrong difficulty"),
 					Seal::None => {}
@@ -1941,8 +2122,6 @@ mod tests {
 
 	#[test]
 	fn reports_skipped() {
-		let _ = ::env_logger::try_init();
-
 		let validator1 = Address::from_low_u64_be(1);
 		let validator2 = Address::from_low_u64_be(2);
 		let last_benign = Arc::new(AtomicUsize::new(0));
@@ -1968,11 +2147,11 @@ mod tests {
 		assert!(aura.verify_block_family(&header, &parent_header).is_ok());
 		assert_eq!(last_benign.load(AtomicOrdering::SeqCst), 0);
 
-		aura.set_signer(Box::new((
+		aura.set_signer(Some(Box::new((
 			Arc::new(AccountProvider::transient_provider()),
 			validator2,
 			"".into(),
-		)));
+		))));
 
 		// Do not report on steps skipped between genesis and first block.
 		header.set_number(1);
@@ -1983,6 +2162,38 @@ mod tests {
 		header.set_number(2);
 		assert!(aura.verify_block_family(&header, &parent_header).is_ok());
 		assert_eq!(last_benign.load(AtomicOrdering::SeqCst), 2);
+	}
+
+	#[test]
+	fn reports_multiple_blocks_per_step() {
+		let tap = AccountProvider::transient_provider();
+		let addr0 = tap.insert_account(keccak("0").into(), &"0".into()).unwrap();
+		let addr1 = tap.insert_account(keccak("1").into(), &"1".into()).unwrap();
+
+		let validator_set = TestSet::from_validators(vec![addr0, addr1]);
+		let aura = build_aura(|p| p.validators = Box::new(validator_set.clone()));
+
+		aura.set_signer(Some(Box::new((Arc::new(tap), addr0, "0".into()))));
+
+		let mut parent_header: Header = Header::default();
+		parent_header.set_number(2);
+		parent_header.set_seal(vec![encode(&1usize)]);
+		parent_header.set_gas_limit("222222".parse::<U256>().unwrap());
+		let mut header: Header = Header::default();
+		header.set_number(3);
+		header.set_difficulty(calculate_score(1, 2, 0));
+		header.set_gas_limit("222222".parse::<U256>().unwrap());
+		header.set_seal(vec![encode(&2usize)]);
+		header.set_author(addr1);
+
+		// First sibling block.
+		assert!(aura.verify_block_family(&header, &parent_header).is_ok());
+		assert_eq!(validator_set.last_malicious(), 0);
+
+		// Second sibling block: should be reported.
+		header.set_gas_limit("222223".parse::<U256>().unwrap());
+		assert!(aura.verify_block_family(&header, &parent_header).is_ok());
+		assert_eq!(validator_set.last_malicious(), 3);
 	}
 
 	#[test]
@@ -2002,29 +2213,67 @@ mod tests {
 		use super::Step;
 		let step = Step {
 			calibrate: false,
-			inner: AtomicUsize::new(::std::usize::MAX),
-			duration: 1,
+			inner: AtomicU64::new(::std::u64::MAX),
+			durations: [StepDurationInfo {
+				transition_step: 0,
+				transition_timestamp: 0,
+				step_duration: 1,
+			}].to_vec().into_iter().collect(),
 		};
 		step.increment();
 	}
 
 	#[test]
-	#[should_panic(expected="counter is too high")]
+	#[should_panic(expected="step counter under- or overflow")]
 	fn test_counter_duration_remaining_too_high() {
 		use super::Step;
 		let step = Step {
 			calibrate: false,
-			inner: AtomicUsize::new(::std::usize::MAX),
-			duration: 1,
+			inner: AtomicU64::new(::std::u64::MAX),
+			durations: [StepDurationInfo {
+				transition_step: 0,
+				transition_timestamp: 0,
+				step_duration: 1,
+			}].to_vec().into_iter().collect(),
 		};
 		step.duration_remaining();
 	}
 
 	#[test]
-	#[should_panic(expected="authority_round: step duration can't be zero")]
+	fn test_change_step_duration() {
+		use super::Step;
+		use std::thread;
+
+		let now = super::unix_now().as_secs();
+		let step = Step {
+			calibrate: true,
+			inner: AtomicU64::new(::std::u64::MAX),
+			durations: [
+				StepDurationInfo { transition_step: 0, transition_timestamp: 0, step_duration: 1 },
+				StepDurationInfo { transition_step: now, transition_timestamp: now, step_duration: 2 },
+				StepDurationInfo { transition_step: now + 1, transition_timestamp: now + 2, step_duration: 4 },
+			].to_vec().into_iter().collect(),
+		};
+		// calibrated step `now`
+		step.calibrate();
+		let duration_remaining = step.duration_remaining();
+		assert_eq!(step.inner.load(AtomicOrdering::SeqCst), now);
+		assert!(duration_remaining <= Duration::from_secs(2));
+		thread::sleep(duration_remaining);
+		step.increment();
+		// calibrated step `now + 1`
+		step.calibrate();
+		let duration_remaining = step.duration_remaining();
+		assert_eq!(step.inner.load(AtomicOrdering::SeqCst), now + 1);
+		assert!(duration_remaining > Duration::from_secs(2));
+		assert!(duration_remaining <= Duration::from_secs(4));
+	}
+
+	#[test]
+	#[should_panic(expected="called `Result::unwrap()` on an `Err` value: Engine(Custom(\"step duration cannot be 0\"))")]
 	fn test_step_duration_zero() {
 		build_aura(|params| {
-			params.step_duration = 0;
+			params.step_durations = [(0, 0)].to_vec().into_iter().collect();
 		});
 	}
 
@@ -2053,7 +2302,7 @@ mod tests {
 		SealedEmptyStep { signature, step }
 	}
 
-	fn set_empty_steps_seal(header: &mut Header, step: u64, block_signature: &ethkey::Signature, empty_steps: &[SealedEmptyStep]) {
+	fn set_empty_steps_seal(header: &mut Header, step: u64, block_signature: &Signature, empty_steps: &[SealedEmptyStep]) {
 		header.set_seal(vec![
 			encode(&(step as usize)),
 			encode(&(&**block_signature as &[u8])),
@@ -2087,7 +2336,7 @@ mod tests {
 		client.add_notify(notify.clone());
 		engine.register_client(Arc::downgrade(&client) as _);
 
-		engine.set_signer(Box::new((tap.clone(), addr1, "1".into())));
+		engine.set_signer(Some(Box::new((tap.clone(), addr1, "1".into()))));
 
 		let b1 = OpenBlock::new(engine, Default::default(), false, db1, &genesis_header, last_hashes.clone(), addr1, (3141562.into(), 31415620.into()), vec![], false).unwrap();
 		let b1 = b1.close_and_lock().unwrap();
@@ -2131,7 +2380,7 @@ mod tests {
 		let b1 = b1.close_and_lock().unwrap();
 
 		// since the block is empty it isn't sealed and we generate empty steps
-		engine.set_signer(Box::new((tap.clone(), addr1, "1".into())));
+		engine.set_signer(Some(Box::new((tap.clone(), addr1, "1".into()))));
 		assert_eq!(engine.generate_seal(&b1, &genesis_header), Seal::None);
 		engine.step();
 
@@ -2148,9 +2397,9 @@ mod tests {
 		let b2 = b2.close_and_lock().unwrap();
 
 		// we will now seal a block with 1tx and include the accumulated empty step message
-		engine.set_signer(Box::new((tap.clone(), addr2, "0".into())));
+		engine.set_signer(Some(Box::new((tap.clone(), addr2, "0".into()))));
 		if let Seal::Regular(seal) = engine.generate_seal(&b2, &genesis_header) {
-			engine.set_signer(Box::new((tap.clone(), addr1, "1".into())));
+			engine.set_signer(Some(Box::new((tap.clone(), addr1, "1".into()))));
 			let empty_step2 = sealed_empty_step(engine, 2, &genesis_header.hash());
 			let empty_steps = ::rlp::encode_list(&vec![empty_step2]);
 
@@ -2184,14 +2433,14 @@ mod tests {
 		let b1 = b1.close_and_lock().unwrap();
 
 		// since the block is empty it isn't sealed and we generate empty steps
-		engine.set_signer(Box::new((tap.clone(), addr1, "1".into())));
+		engine.set_signer(Some(Box::new((tap.clone(), addr1, "1".into()))));
 		assert_eq!(engine.generate_seal(&b1, &genesis_header), Seal::None);
 		engine.step();
 
 		// step 3
 		let b2 = OpenBlock::new(engine, Default::default(), false, db2, &genesis_header, last_hashes.clone(), addr2, (3141562.into(), 31415620.into()), vec![], false).unwrap();
 		let b2 = b2.close_and_lock().unwrap();
-		engine.set_signer(Box::new((tap.clone(), addr2, "0".into())));
+		engine.set_signer(Some(Box::new((tap.clone(), addr2, "0".into()))));
 		assert_eq!(engine.generate_seal(&b2, &genesis_header), Seal::None);
 		engine.step();
 
@@ -2200,10 +2449,10 @@ mod tests {
 		let b3 = OpenBlock::new(engine, Default::default(), false, db3, &genesis_header, last_hashes.clone(), addr1, (3141562.into(), 31415620.into()), vec![], false).unwrap();
 		let b3 = b3.close_and_lock().unwrap();
 
-		engine.set_signer(Box::new((tap.clone(), addr1, "1".into())));
+		engine.set_signer(Some(Box::new((tap.clone(), addr1, "1".into()))));
 		if let Seal::Regular(seal) = engine.generate_seal(&b3, &genesis_header) {
 			let empty_step2 = sealed_empty_step(engine, 2, &genesis_header.hash());
-			engine.set_signer(Box::new((tap.clone(), addr2, "0".into())));
+			engine.set_signer(Some(Box::new((tap.clone(), addr2, "0".into()))));
 			let empty_step3 = sealed_empty_step(engine, 3, &genesis_header.hash());
 
 			let empty_steps = ::rlp::encode_list(&vec![empty_step2, empty_step3]);
@@ -2234,7 +2483,7 @@ mod tests {
 		let b1 = b1.close_and_lock().unwrap();
 
 		// since the block is empty it isn't sealed and we generate empty steps
-		engine.set_signer(Box::new((tap.clone(), addr1, "1".into())));
+		engine.set_signer(Some(Box::new((tap.clone(), addr1, "1".into()))));
 		assert_eq!(engine.generate_seal(&b1, &genesis_header), Seal::None);
 		engine.step();
 
@@ -2288,7 +2537,7 @@ mod tests {
 		);
 
 		// empty step with valid signature from incorrect proposer for step
-		engine.set_signer(Box::new((tap.clone(), addr1, "1".into())));
+		engine.set_signer(Some(Box::new((tap.clone(), addr1, "1".into()))));
 		let empty_steps = vec![sealed_empty_step(engine, 1, &parent_header.hash())];
 		set_empty_steps_seal(&mut header, 2, &signature, &empty_steps);
 
@@ -2298,9 +2547,9 @@ mod tests {
 		);
 
 		// valid empty steps
-		engine.set_signer(Box::new((tap.clone(), addr1, "1".into())));
+		engine.set_signer(Some(Box::new((tap.clone(), addr1, "1".into()))));
 		let empty_step2 = sealed_empty_step(engine, 2, &parent_header.hash());
-		engine.set_signer(Box::new((tap.clone(), addr2, "0".into())));
+		engine.set_signer(Some(Box::new((tap.clone(), addr2, "0".into()))));
 		let empty_step3 = sealed_empty_step(engine, 3, &parent_header.hash());
 
 		let empty_steps = vec![empty_step2, empty_step3];
@@ -2344,7 +2593,7 @@ mod tests {
 		let b1 = b1.close_and_lock().unwrap();
 
 		// since the block is empty it isn't sealed and we generate empty steps
-		engine.set_signer(Box::new((tap.clone(), addr1, "1".into())));
+		engine.set_signer(Some(Box::new((tap.clone(), addr1, "1".into()))));
 		assert_eq!(engine.generate_seal(&b1, &genesis_header), Seal::None);
 		engine.step();
 
@@ -2381,7 +2630,7 @@ mod tests {
 		let engine = &*spec.engine;
 
 		let addr1 = accounts[0];
-		engine.set_signer(Box::new((tap.clone(), addr1, "1".into())));
+		engine.set_signer(Some(Box::new((tap.clone(), addr1, "1".into()))));
 
 		let mut header: Header = Header::default();
 		let empty_step = empty_step(engine, 1, &header.parent_hash());
@@ -2414,7 +2663,7 @@ mod tests {
 	#[test]
 	fn test_empty_steps() {
 		let engine = build_aura(|p| {
-			p.step_duration = 4;
+			p.step_durations = [(0, 4)].to_vec().into_iter().collect();
 			p.empty_steps_transition = 0;
 			p.maximum_empty_steps = 0;
 		});
@@ -2448,7 +2697,7 @@ mod tests {
 		let (_spec, tap, accounts) = setup_empty_steps();
 		let engine = build_aura(|p| {
 			p.validators = Box::new(SimpleList::new(accounts.clone()));
-			p.step_duration = 4;
+			p.step_durations = [(0, 4)].to_vec().into_iter().collect();
 			p.empty_steps_transition = 0;
 			p.maximum_empty_steps = 0;
 		});
@@ -2462,7 +2711,7 @@ mod tests {
 		header.set_author(accounts[0]);
 
 		// when
-		engine.set_signer(Box::new((tap.clone(), accounts[1], "0".into())));
+		engine.set_signer(Some(Box::new((tap.clone(), accounts[1], "0".into()))));
 		let empty_steps = vec![
 			sealed_empty_step(&*engine, 1, &parent.hash()),
 			sealed_empty_step(&*engine, 1, &parent.hash()),
@@ -2485,7 +2734,7 @@ mod tests {
 		let (_spec, tap, accounts) = setup_empty_steps();
 		let engine = build_aura(|p| {
 			p.validators = Box::new(SimpleList::new(accounts.clone()));
-			p.step_duration = 4;
+			p.step_durations = [(0, 4)].to_vec().into_iter().collect();
 			p.empty_steps_transition = 0;
 			p.maximum_empty_steps = 0;
 		});
@@ -2499,9 +2748,9 @@ mod tests {
 		header.set_author(accounts[0]);
 
 		// when
-		engine.set_signer(Box::new((tap.clone(), accounts[1], "0".into())));
+		engine.set_signer(Some(Box::new((tap.clone(), accounts[1], "0".into()))));
 		let es1 = sealed_empty_step(&*engine, 1, &parent.hash());
-		engine.set_signer(Box::new((tap.clone(), accounts[0], "1".into())));
+		engine.set_signer(Some(Box::new((tap.clone(), accounts[0], "1".into()))));
 		let es2 = sealed_empty_step(&*engine, 2, &parent.hash());
 
 		let mut empty_steps = vec![es2, es1];

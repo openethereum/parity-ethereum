@@ -14,7 +14,8 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
-use super::{Generator, KeyPair, Error, Brain};
+use super::Brain;
+use parity_crypto::publickey::{Generator, KeyPair, Error};
 use parity_wordlist as wordlist;
 
 /// Tries to find brain-seed keypair with address starting with given prefix.
@@ -59,7 +60,8 @@ impl Generator for BrainPrefix {
 
 #[cfg(test)]
 mod tests {
-	use {Generator, BrainPrefix};
+	use BrainPrefix;
+	use parity_crypto::publickey::Generator;
 
 	#[test]
 	fn prefix_generator() {

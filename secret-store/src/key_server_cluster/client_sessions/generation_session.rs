@@ -20,7 +20,7 @@ use std::sync::Arc;
 use futures::Oneshot;
 use parking_lot::Mutex;
 use ethereum_types::Address;
-use ethkey::{Public, Secret};
+use crypto::publickey::{Public, Secret};
 use key_server_cluster::{Error, NodeId, SessionId, KeyStorage, DocumentKeyShare, DocumentKeyShareVersion};
 use key_server_cluster::math;
 use key_server_cluster::cluster::Cluster;
@@ -42,9 +42,9 @@ pub struct SessionImpl {
 	/// Public identifier of this node.
 	self_node_id: NodeId,
 	/// Key storage.
-	key_storage: Option<Arc<KeyStorage>>,
+	key_storage: Option<Arc<dyn KeyStorage>>,
 	/// Cluster which allows this node to send messages to other nodes in the cluster.
-	cluster: Arc<Cluster>,
+	cluster: Arc<dyn Cluster>,
 	/// Session-level nonce.
 	nonce: u64,
 	/// Mutable session data.
@@ -60,9 +60,9 @@ pub struct SessionParams {
 	/// Id of node, on which this session is running.
 	pub self_node_id: Public,
 	/// Key storage.
-	pub key_storage: Option<Arc<KeyStorage>>,
+	pub key_storage: Option<Arc<dyn KeyStorage>>,
 	/// Cluster
-	pub cluster: Arc<Cluster>,
+	pub cluster: Arc<dyn Cluster>,
 	/// Session nonce.
 	pub nonce: Option<u64>,
 }
@@ -951,7 +951,7 @@ fn check_threshold(threshold: usize, nodes: &BTreeSet<NodeId>) -> Result<(), Err
 pub mod tests {
 	use std::sync::Arc;
 	use ethereum_types::H256;
-	use ethkey::{Random, Generator, KeyPair, Secret};
+	use crypto::publickey::{Random, Generator, KeyPair, Secret};
 	use key_server_cluster::{NodeId, Error, KeyStorage};
 	use key_server_cluster::message::{self, Message, GenerationMessage, KeysDissemination,
 		PublicKeyShare, ConfirmInitialization};

@@ -19,7 +19,6 @@
 extern crate parity_crypto as crypto;
 extern crate ethcore_io as io;
 extern crate ethereum_types;
-extern crate ethkey;
 extern crate rlp;
 extern crate ipnetwork;
 extern crate parity_snappy as snappy;
@@ -54,7 +53,7 @@ use std::str::{self, FromStr};
 use std::sync::Arc;
 use std::time::Duration;
 use ipnetwork::{IpNetwork, IpNetworkError};
-use ethkey::Secret;
+use crypto::publickey::Secret;
 use ethereum_types::H512;
 use rlp::{Decodable, DecoderError, Rlp};
 
@@ -69,7 +68,7 @@ pub type NodeId = H512;
 /// Local (temporary) peer session ID.
 pub type PeerId = usize;
 
-/// Messages used to communitate with the event loop from other threads.
+/// Messages used to communicate with the event loop from other threads.
 #[derive(Clone)]
 pub enum NetworkIoMessage {
 	/// Register a new protocol handler.
@@ -394,42 +393,42 @@ impl NonReservedPeerMode {
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct IpFilter {
-    pub predefined: AllowIP,
-    pub custom_allow: Vec<IpNetwork>,
-    pub custom_block: Vec<IpNetwork>,
+	pub predefined: AllowIP,
+	pub custom_allow: Vec<IpNetwork>,
+	pub custom_block: Vec<IpNetwork>,
 }
 
 impl Default for IpFilter {
-    fn default() -> Self {
-        IpFilter {
-            predefined: AllowIP::All,
-            custom_allow: vec![],
-            custom_block: vec![],
-        }
-    }
+	fn default() -> Self {
+		IpFilter {
+			predefined: AllowIP::All,
+			custom_allow: vec![],
+			custom_block: vec![],
+		}
+	}
 }
 
 impl IpFilter {
-    /// Attempt to parse the peer mode from a string.
-    pub fn parse(s: &str) -> Result<IpFilter, IpNetworkError> {
-        let mut filter = IpFilter::default();
-        for f in s.split_whitespace() {
-            match f {
-                "all" => filter.predefined = AllowIP::All,
-                "private" => filter.predefined = AllowIP::Private,
-                "public" => filter.predefined = AllowIP::Public,
-                "none" => filter.predefined = AllowIP::None,
-                custom => {
-                    if custom.starts_with("-") {
-                        filter.custom_block.push(IpNetwork::from_str(&custom.to_owned().split_off(1))?)
-                    } else {
-                        filter.custom_allow.push(IpNetwork::from_str(custom)?)
-                    }
-                }
-            }
-        }
-        Ok(filter)
-    }
+	/// Attempt to parse the peer mode from a string.
+	pub fn parse(s: &str) -> Result<IpFilter, IpNetworkError> {
+		let mut filter = IpFilter::default();
+		for f in s.split_whitespace() {
+			match f {
+				"all" => filter.predefined = AllowIP::All,
+				"private" => filter.predefined = AllowIP::Private,
+				"public" => filter.predefined = AllowIP::Public,
+				"none" => filter.predefined = AllowIP::None,
+				custom => {
+					if custom.starts_with("-") {
+						filter.custom_block.push(IpNetwork::from_str(&custom.to_owned().split_off(1))?)
+					} else {
+						filter.custom_allow.push(IpNetwork::from_str(custom)?)
+					}
+				}
+			}
+		}
+		Ok(filter)
+	}
 }
 
 /// IP fiter
@@ -441,6 +440,6 @@ pub enum AllowIP {
 	Private,
 	/// Connect to public network only
 	Public,
-    /// Block all addresses
-    None,
+	/// Block all addresses
+	None,
 }

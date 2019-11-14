@@ -18,7 +18,7 @@ use std::collections::BTreeSet;
 use std::sync::Arc;
 use futures::Oneshot;
 use parking_lot::Mutex;
-use ethkey::{Public, Secret};
+use crypto::publickey::{Public, Secret};
 use ethereum_types::H256;
 use key_server_cluster::{Error, NodeId, SessionId, Requester, SessionMeta, AclStorage, DocumentKeyShare};
 use key_server_cluster::cluster::{Cluster};
@@ -57,7 +57,7 @@ struct SessionCore {
 	/// Key share.
 	pub key_share: Option<DocumentKeyShare>,
 	/// Cluster which allows this node to send messages to other nodes in the cluster.
-	pub cluster: Arc<Cluster>,
+	pub cluster: Arc<dyn Cluster>,
 	/// Session-level nonce.
 	pub nonce: u64,
 	/// SessionImpl completion signal.
@@ -106,9 +106,9 @@ pub struct SessionParams {
 	/// Key share.
 	pub key_share: Option<DocumentKeyShare>,
 	/// ACL storage.
-	pub acl_storage: Arc<AclStorage>,
+	pub acl_storage: Arc<dyn AclStorage>,
 	/// Cluster
-	pub cluster: Arc<Cluster>,
+	pub cluster: Arc<dyn Cluster>,
 	/// Session nonce.
 	pub nonce: u64,
 }
@@ -124,7 +124,7 @@ struct SigningConsensusTransport {
 	/// Selected key version (on master node).
 	version: Option<H256>,
 	/// Cluster.
-	cluster: Arc<Cluster>,
+	cluster: Arc<dyn Cluster>,
 }
 
 /// Signing key generation transport.
@@ -132,7 +132,7 @@ struct SessionKeyGenerationTransport {
 	/// Session access key.
 	access_key: Secret,
 	/// Cluster.
-	cluster: Arc<Cluster>,
+	cluster: Arc<dyn Cluster>,
 	/// Session-level nonce.
 	nonce: u64,
 	/// Other nodes ids.
@@ -148,7 +148,7 @@ struct SigningJobTransport {
 	/// Session-level nonce.
 	nonce: u64,
 	/// Cluster.
-	cluster: Arc<Cluster>,
+	cluster: Arc<dyn Cluster>,
 }
 
 /// Session delegation status.
@@ -819,7 +819,7 @@ mod tests {
 	use std::str::FromStr;
 	use std::collections::BTreeMap;
 	use ethereum_types::{Address, H256};
-	use ethkey::{self, Random, Generator, Public, Secret, public_to_address};
+	use crypto::publickey::{Random, Generator, Public, Secret, public_to_address};
 	use acl_storage::DummyAclStorage;
 	use key_server_cluster::{SessionId, Requester, SessionMeta, Error, KeyStorage};
 	use key_server_cluster::cluster::tests::MessageLoop as ClusterMessageLoop;
@@ -842,7 +842,7 @@ mod tests {
 		}
 
 		pub fn into_session(&self, at_node: usize) -> SessionImpl {
-			let requester = Some(Requester::Signature(ethkey::sign(Random.generate().unwrap().secret(),
+			let requester = Some(Requester::Signature(crypto::publickey::sign(Random.generate().unwrap().secret(),
 				&SessionId::default()).unwrap()));
 			SessionImpl::new(SessionParams {
 				meta: SessionMeta {
@@ -864,7 +864,7 @@ mod tests {
 		pub fn init_with_version(self, key_version: Option<H256>) -> Result<(Self, Public, H256), Error> {
 			let message_hash = H256::random();
 			let requester = Random.generate().unwrap();
-			let signature = ethkey::sign(requester.secret(), &SessionId::default()).unwrap();
+			let signature = crypto::publickey::sign(requester.secret(), &SessionId::default()).unwrap();
 			self.0.cluster(0).client().new_schnorr_signing_session(
 				Default::default(),
 				signature.into(),

@@ -21,7 +21,8 @@ use std::collections::BTreeMap;
 use version::version_data;
 
 use crypto::DEFAULT_MAC;
-use ethkey::{crypto::ecies, Brain, Generator};
+use ethkey::Brain;
+use crypto::publickey::{Generator, ecies};
 use ethstore::random_phrase;
 use sync::{LightSyncInfo, LightSyncProvider, LightNetworkDispatcher, ManageNetwork};
 use updater::VersionInfo as UpdaterVersionInfo;
@@ -203,7 +204,7 @@ where
 		Err(errors::light_unimplemented(None))
 	}
 
-	fn list_storage_keys(&self, _: H160, _: u64, _: Option<H256>, _: Option<BlockNumber>) -> Result<Option<Vec<H256>>> {
+	fn list_storage_keys(&self, _: H160, _: Option<u64>, _: Option<H256>, _: Option<BlockNumber>) -> Result<Option<Vec<H256>>> {
 		Err(errors::light_unimplemented(None))
 	}
 

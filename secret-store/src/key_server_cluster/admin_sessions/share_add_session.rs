@@ -17,7 +17,7 @@
 use std::sync::Arc;
 use std::collections::{BTreeSet, BTreeMap};
 use ethereum_types::{H256, Address};
-use ethkey::{Public, Secret, Signature};
+use crypto::publickey::{Public, Secret, Signature};
 use futures::Oneshot;
 use parking_lot::Mutex;
 use key_server_cluster::{Error, SessionId, NodeId, DocumentKeyShare, DocumentKeyShareVersion, KeyStorage};
@@ -69,7 +69,7 @@ struct SessionCore<T: SessionTransport> {
 	/// Session transport to communicate to other cluster nodes.
 	pub transport: T,
 	/// Key storage.
-	pub key_storage: Arc<KeyStorage>,
+	pub key_storage: Arc<dyn KeyStorage>,
 	/// Administrator public key.
 	pub admin_public: Option<Public>,
 	/// Session completion signal.
@@ -131,7 +131,7 @@ pub struct SessionParams<T: SessionTransport> {
 	/// Session transport.
 	pub transport: T,
 	/// Key storage.
-	pub key_storage: Arc<KeyStorage>,
+	pub key_storage: Arc<dyn KeyStorage>,
 	/// Administrator public key.
 	pub admin_public: Option<Public>,
 	/// Session nonce.
@@ -154,7 +154,7 @@ pub struct IsolatedSessionTransport {
 	/// Id numbers of all new nodes.
 	id_numbers: Option<BTreeMap<NodeId, Option<Secret>>>,
 	/// Cluster.
-	cluster: Arc<Cluster>,
+	cluster: Arc<dyn Cluster>,
 }
 
 impl<T> SessionImpl<T> where T: SessionTransport {
@@ -817,7 +817,7 @@ impl<T> ClusterSession for SessionImpl<T> where T: SessionTransport {
 }
 
 impl IsolatedSessionTransport {
-	pub fn new(session_id: SessionId, version: Option<H256>, nonce: u64, cluster: Arc<Cluster>) -> Self {
+	pub fn new(session_id: SessionId, version: Option<H256>, nonce: u64, cluster: Arc<dyn Cluster>) -> Self {
 		IsolatedSessionTransport {
 			session: session_id,
 			version: version,
@@ -888,7 +888,7 @@ impl SessionTransport for IsolatedSessionTransport {
 #[cfg(test)]
 pub mod tests {
 	use std::collections::BTreeSet;
-	use ethkey::{Random, Generator, Public};
+	use crypto::publickey::{Random, Generator, Public};
 	use key_server_cluster::{NodeId, Error, KeyStorage, NodeKeyPair};
 	use key_server_cluster::cluster::tests::MessageLoop as ClusterMessageLoop;
 	use key_server_cluster::servers_set_change_session::tests::{MessageLoop, AdminSessionAdapter, generate_key};

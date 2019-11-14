@@ -19,7 +19,7 @@ use std::collections::btree_map::Entry;
 use std::sync::Arc;
 use futures::Oneshot;
 use parking_lot::Mutex;
-use ethkey::{Public, Secret, Signature, sign};
+use crypto::publickey::{Public, Secret, Signature, sign};
 use ethereum_types::H256;
 use key_server_cluster::{Error, NodeId, SessionId, SessionMeta, AclStorage, DocumentKeyShare, Requester};
 use key_server_cluster::cluster::{Cluster};
@@ -56,7 +56,7 @@ struct SessionCore {
 	/// Key share.
 	pub key_share: Option<DocumentKeyShare>,
 	/// Cluster which allows this node to send messages to other nodes in the cluster.
-	pub cluster: Arc<Cluster>,
+	pub cluster: Arc<dyn Cluster>,
 	/// Session-level nonce.
 	pub nonce: u64,
 	/// Session completion signal.
@@ -112,9 +112,9 @@ pub struct SessionParams {
 	/// Key share.
 	pub key_share: Option<DocumentKeyShare>,
 	/// ACL storage.
-	pub acl_storage: Arc<AclStorage>,
+	pub acl_storage: Arc<dyn AclStorage>,
 	/// Cluster
-	pub cluster: Arc<Cluster>,
+	pub cluster: Arc<dyn Cluster>,
 	/// Session nonce.
 	pub nonce: u64,
 }
@@ -130,7 +130,7 @@ struct SigningConsensusTransport {
 	/// Selected key version (on master node).
 	version: Option<H256>,
 	/// Cluster.
-	cluster: Arc<Cluster>,
+	cluster: Arc<dyn Cluster>,
 }
 
 /// Signing key generation transport.
@@ -142,7 +142,7 @@ struct NonceGenerationTransport<F: Fn(SessionId, Secret, u64, GenerationMessage)
 	/// Session-level nonce.
 	nonce: u64,
 	/// Cluster.
-	cluster: Arc<Cluster>,
+	cluster: Arc<dyn Cluster>,
 	/// Other nodes ids.
 	other_nodes_ids: BTreeSet<NodeId>,
 	/// Message mapping function.
@@ -158,7 +158,7 @@ struct SigningJobTransport {
 	/// Session-level nonce.
 	nonce: u64,
 	/// Cluster.
-	cluster: Arc<Cluster>,
+	cluster: Arc<dyn Cluster>,
 }
 
 /// Session delegation status.
@@ -1070,7 +1070,7 @@ impl JobTransport for SigningJobTransport {
 mod tests {
 	use std::sync::Arc;
 	use ethereum_types::H256;
-	use ethkey::{self, Random, Generator, Public, verify_public, public_to_address};
+	use crypto::publickey::{Random, Generator, Public, verify_public, public_to_address};
 	use key_server_cluster::{SessionId, Error, KeyStorage};
 	use key_server_cluster::cluster::tests::{MessageLoop as ClusterMessageLoop};
 	use key_server_cluster::signing_session_ecdsa::SessionImpl;
@@ -1090,7 +1090,7 @@ mod tests {
 		pub fn init_with_version(self, key_version: Option<H256>) -> Result<(Self, Public, H256), Error> {
 			let message_hash = H256::random();
 			let requester = Random.generate().unwrap();
-			let signature = ethkey::sign(requester.secret(), &SessionId::default()).unwrap();
+			let signature = crypto::publickey::sign(requester.secret(), &SessionId::default()).unwrap();
 			self.0.cluster(0).client()
 				.new_ecdsa_signing_session(Default::default(), signature.into(), key_version, message_hash)
 				.map(|_| (self, *requester.public(), message_hash))

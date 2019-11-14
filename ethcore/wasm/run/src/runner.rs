@@ -115,7 +115,7 @@ impl fmt::Display for Fail {
 }
 
 pub fn construct(
-	ext: &mut vm::Ext,
+	ext: &mut dyn vm::Ext,
 	source: Vec<u8>,
 	arguments: Vec<u8>,
 	sender: H160,

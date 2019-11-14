@@ -10,12 +10,12 @@ license = "GPL-3.0"
 client-traits = { path = "../../client-traits" }
 common-types = { path = "../../types" }
 engine = { path = "../../engine" }
-ethereum-types = "0.6.0"
+ethereum-types = "0.8.0"
 ethjson = { path = "../../../json" }
-ethkey = { path = "../../../accounts/ethkey" }
+parity-crypto = { version = "0.4.2", features = ["publickey"] }
 log = "0.4.8"
 machine = { path = "../../machine" }
-parking_lot = "0.8"
+parking_lot = "0.9"
 rlp = "0.4.2"
 validator-set = { path = "../validator-set" }
 
@@ -23,7 +23,7 @@ validator-set = { path = "../validator-set" }
 accounts = { package = "ethcore-accounts", path = "../../../accounts" }
 engine = { path = "../../engine", features = ["test-helpers"] }
 ethcore = { path = "../..", features = ["test-helpers"] }
-keccak-hash = "0.2.0"
+keccak-hash = "0.4.0"
 tempdir = "0.3"
 spec = { path = "../../spec" }
 

@@ -18,7 +18,7 @@ use std::collections::HashSet;
 use std::path::Path;
 use std::fs;
 
-use ethkey::Address;
+use crypto::publickey::Address;
 use accounts_dir::{KeyDirectory, RootDiskDirectory, DiskKeyFileManager, KeyFileManager};
 use dir;
 use Error;

@@ -9,6 +9,7 @@ license = "GPL-3.0"
 [[bench]]
 name = "verification"
 harness = false
+required-features = ['bench']
 
 [dependencies]
 blockchain = { package = "ethcore-blockchain", path = "../blockchain" }
@@ -17,14 +18,14 @@ client-traits = { path = "../client-traits" }
 common-types = { path = "../types" }
 engine = { path = "../engine" }
 ethcore-io = { path = "../../util/io" }
-ethereum-types = "0.6.0"
-keccak-hash = "0.2.0"
+ethereum-types = "0.8.0"
+keccak-hash = "0.4.0"
 len-caching-lock = { path = "../../util/len-caching-lock" }
 log = "0.4"
 num_cpus = "1.2"
 parity-bytes = "0.1.0"
 parity-util-mem = "0.2.0"
-parking_lot = "0.8.0"
+parking_lot = "0.9"
 rlp = "0.4.2"
 time-utils = { path = "../../util/time-utils" }
 triehash = { package = "triehash-ethereum", version = "0.2",  path = "../../util/triehash-ethereum" }
@@ -33,7 +34,7 @@ unexpected = { path = "../../util/unexpected" }
 [dev-dependencies]
 criterion = "0.3"
 ethcore = { path = "../", features = ["test-helpers"] }
-ethkey = { path = "../../accounts/ethkey" }
+parity-crypto = { version = "0.4.2", features = ["publickey"] }
 machine = { path = "../machine" }
 null-engine = { path = "../engines/null-engine" }
 spec = { path = "../spec" }

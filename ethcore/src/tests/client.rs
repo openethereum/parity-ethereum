@@ -17,8 +17,9 @@
 use std::str::{FromStr, from_utf8};
 use std::sync::Arc;
 
+use account_state::state::StateInfo;
 use ethereum_types::{U256, Address};
-use ethkey::KeyPair;
+use parity_crypto::publickey::KeyPair;
 use hash::keccak;
 use io::IoChannel;
 use tempdir::TempDir;
@@ -48,6 +49,7 @@ use test_helpers::{
 	generate_dummy_client_with_data, get_good_dummy_block, get_bad_state_dummy_block
 };
 use rustc_hex::ToHex;
+use registrar::RegistrarClient;
 
 #[test]
 fn imports_from_empty() {

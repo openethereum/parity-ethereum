@@ -9,6 +9,7 @@ docopt = "1.0"
 env_logger = "0.5"
 ethkey = { path = "../" }
 panic_hook = { path = "../../../util/panic-hook" }
+parity-crypto = { version = "0.4.2", features = ["publickey"] }
 parity-wordlist="1.2"
 rustc-hex = "1.0"
 serde = "1.0"

@@ -14,13 +14,14 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
-extern crate futures;
+extern crate call_contract;
 extern crate ethabi;
 extern crate ethabi_derive;
 extern crate keccak_hash;
+extern crate types;
 
 #[macro_use]
 extern crate ethabi_contract;
 
 mod registrar;
-pub use registrar::{Registrar, RegistrarClient, Synchronous, Asynchronous};
+pub use registrar::RegistrarClient;

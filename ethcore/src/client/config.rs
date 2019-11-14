@@ -16,14 +16,13 @@
 
 use std::str::FromStr;
 
-use verification::{VerifierType, QueueConfig};
+use blockchain::Config as BlockChainConfig;
 use journaldb;
 use snapshot::SnapshotConfiguration;
+use trace::Config as TraceConfig;
 use types::client_types::Mode;
+use verification::{VerifierType, QueueConfig};
 
-pub use std::time::Duration;
-pub use blockchain::Config as BlockChainConfig;
-pub use trace::Config as TraceConfig;
 pub use evm::VMType;
 
 /// Client state db compaction profile
@@ -91,7 +90,7 @@ pub struct ClientConfig {
 	pub history: u64,
 	/// Ideal memory usage for state pruning history.
 	pub history_mem: usize,
-	/// Check seal valididity on block import
+	/// Check seal validity on block import
 	pub check_seal: bool,
 	/// Maximal number of transactions queued for verification in a separate thread.
 	pub transaction_verification_queue_size: usize,

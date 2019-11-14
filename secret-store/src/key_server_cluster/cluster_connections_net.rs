@@ -25,7 +25,7 @@ use parking_lot::{Mutex, RwLock};
 use tokio::net::{TcpListener, TcpStream};
 use tokio::timer::{Interval, timeout::Error as TimeoutError};
 use tokio_io::IoFuture;
-use ethkey::KeyPair;
+use crypto::publickey::KeyPair;
 use parity_runtime::Executor;
 use key_server_cluster::{Error, NodeId, ClusterConfiguration, NodeKeyPair};
 use key_server_cluster::cluster_connections::{ConnectionProvider, Connection, ConnectionManager};
@@ -38,7 +38,7 @@ use key_server_cluster::net::{accept_connection as io_accept_connection,
 	connect as io_connect, Connection as IoConnection};
 
 /// Empty future.
-pub type BoxedEmptyFuture = Box<Future<Item = (), Error = ()> + Send>;
+pub type BoxedEmptyFuture = Box<dyn Future<Item = (), Error = ()> + Send>;
 
 /// Maintain interval (seconds). Every MAINTAIN_INTERVAL seconds node:
 /// 1) checks if connected nodes are responding to KeepAlive messages
@@ -79,11 +79,11 @@ struct NetConnectionsData {
 	/// Reference to tokio task executor.
 	executor: Executor,
 	/// Key pair of this node.
-	self_key_pair: Arc<NodeKeyPair>,
+	self_key_pair: Arc<dyn NodeKeyPair>,
 	/// Network messages processor.
-	message_processor: Arc<MessageProcessor>,
+	message_processor: Arc<dyn MessageProcessor>,
 	/// Connections trigger.
-	trigger: Mutex<Box<ConnectionTrigger>>,
+	trigger: Mutex<Box<dyn ConnectionTrigger>>,
 	/// Mutable connection data.
 	container: Arc<RwLock<NetConnectionsContainer>>,
 }
@@ -121,8 +121,8 @@ impl NetConnectionsManager {
 	/// Create new network connections manager.
 	pub fn new(
 		executor: Executor,
-		message_processor: Arc<MessageProcessor>,
-		trigger: Box<ConnectionTrigger>,
+		message_processor: Arc<dyn MessageProcessor>,
+		trigger: Box<dyn ConnectionTrigger>,
 		container: Arc<RwLock<NetConnectionsContainer>>,
 		config: &ClusterConfiguration,
 		net_config: NetConnectionsManagerConfig,
@@ -153,7 +153,7 @@ impl NetConnectionsManager {
 }
 
 impl ConnectionManager for NetConnectionsManager {
-	fn provider(&self) -> Arc<ConnectionProvider> {
+	fn provider(&self) -> Arc<dyn ConnectionProvider> {
 		self.data.container.clone()
 	}
 
@@ -180,7 +180,7 @@ impl ConnectionProvider for RwLock<NetConnectionsContainer> {
 			.collect()
 	}
 
-	fn connection(&self, node: &NodeId) -> Option<Arc<Connection>> {
+	fn connection(&self, node: &NodeId) -> Option<Arc<dyn Connection>> {
 		match self.read().connections.get(node).cloned() {
 			Some(connection) => Some(connection),
 			None => None,
@@ -302,7 +302,7 @@ impl NetConnectionsData {
 			trace!(target: "secretstore_net", "{}: removing connection to {} at {}",
 				self.self_key_pair.public(), node_id, entry.get().node_address());
 			entry.remove_entry();
-		
+
 			true
 		} else {
 			false
@@ -467,10 +467,13 @@ fn net_maintain(data: Arc<NetConnectionsData>) {
 
 /// Send keep alive messages to remote nodes.
 fn net_keep_alive(data: Arc<NetConnectionsData>) {
-	let now = Instant::now();
 	let active_connections = data.active_connections();
 	for connection in active_connections {
-		let last_message_diff = now - connection.last_message_time();
+		// the last_message_time could change after active_connections() call
+		// => we always need to call Instant::now() after getting last_message_time
+		let last_message_time = connection.last_message_time();
+		let now = Instant::now();
+		let last_message_diff = now - last_message_time;
 		if last_message_diff > KEEP_ALIVE_DISCONNECT_INTERVAL {
 			warn!(target: "secretstore_net", "{}: keep alive timeout for node {}",
 				data.self_key_pair.public(), connection.node_id());

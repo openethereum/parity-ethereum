@@ -22,8 +22,6 @@ extern crate parking_lot;
 extern crate primal;
 
 #[macro_use]
-extern crate crunchy;
-#[macro_use]
 extern crate log;
 #[macro_use]
 extern crate static_assertions;
@@ -44,6 +42,9 @@ mod compute;
 
 mod seed_compute;
 mod cache;
+#[cfg(feature = "bench")]
+pub mod keccak;
+#[cfg(not(feature = "bench"))]
 mod keccak;
 mod shared;
 

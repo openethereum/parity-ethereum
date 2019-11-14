@@ -78,7 +78,8 @@ use bytes::Bytes;
 use client_traits::BlockChainClient;
 use ethcore::miner::MinerService;
 use ethereum_types::{H520, H256, U256, Address};
-use ethkey::{Password, Signature};
+use ethkey::Password;
+use crypto::publickey::Signature;
 use hash::keccak;
 use types::transaction::{SignedTransaction, PendingTransaction};
 

@@ -33,7 +33,7 @@ extern crate tempdir;
 
 extern crate parity_crypto as crypto;
 extern crate ethereum_types;
-extern crate ethkey as _ethkey;
+extern crate ethkey as ethkey;
 extern crate parity_wordlist;
 
 #[macro_use]
@@ -46,7 +46,6 @@ extern crate serde_derive;
 extern crate matches;
 
 pub mod accounts_dir;
-pub mod ethkey;
 
 mod account;
 mod json;
@@ -72,4 +71,30 @@ pub use self::random::random_string;
 pub use self::parity_wordlist::random_phrase;
 
 /// An opaque wrapper for secret.
-pub struct OpaqueSecret(::ethkey::Secret);
+pub struct OpaqueSecret(crypto::publickey::Secret);
+
+// Additional converters for Address
+use crypto::publickey::Address;
+
+impl Into<json::H160> for Address {
+	fn into(self) -> json::H160 {
+		let a: [u8; 20] = self.into();
+		From::from(a)
+	}
+}
+
+impl From<json::H160> for Address {
+	fn from(json: json::H160) -> Self {
+		let a: [u8; 20] = json.into();
+		From::from(a)
+	}
+}
+
+impl<'a> From<&'a json::H160> for Address {
+	fn from(json: &'a json::H160) -> Self {
+		let mut a = [0u8; 20];
+		a.copy_from_slice(json);
+		From::from(a)
+	}
+}
+

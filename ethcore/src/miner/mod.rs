@@ -45,16 +45,20 @@ use types::{
 	receipt::RichReceipt,
 };
 
-use block::SealedBlock;
-use call_contract::{CallContract, RegistryInfo};
-use client::{BlockProducer, SealedBlockImporter};
-use client_traits::{BlockChain, ChainInfo, AccountData, Nonce, ScheduleInfo};
+use call_contract::CallContract;
+use registrar::RegistrarClient;
+use client_traits::{BlockChain, ChainInfo, AccountData, Nonce, ScheduleInfo, ForceUpdateSealing};
 use account_state::state::StateInfo;
+
+use crate::{
+	block::SealedBlock,
+	client::{BlockProducer, SealedBlockImporter},
+};
 
 /// Provides methods to verify incoming external transactions
 pub trait TransactionVerifierClient: Send + Sync
 	// Required for ServiceTransactionChecker
-	+ CallContract + RegistryInfo
+	+ CallContract + RegistrarClient
 	// Required for verifiying transactions
 	+ BlockChain + ScheduleInfo + AccountData
 {}
@@ -83,7 +87,7 @@ pub trait MinerService : Send + Sync {
 		where C: BlockChain + CallContract + BlockProducer + SealedBlockImporter + Nonce + Sync;
 
 	/// Update current pending block
-	fn update_sealing<C>(&self, chain: &C)
+	fn update_sealing<C>(&self, chain: &C, force: ForceUpdateSealing)
 		where C: BlockChain + CallContract + BlockProducer + SealedBlockImporter + Nonce + Sync;
 
 	// Notifications
@@ -131,7 +135,7 @@ pub trait MinerService : Send + Sync {
 	/// Set info necessary to sign consensus messages and block authoring.
 	///
 	/// On chains where sealing is done externally (e.g. PoW) we provide only reward beneficiary.
-	fn set_author(&self, author: Author);
+	fn set_author<T: Into<Option<Author>>>(&self, author: T);
 
 	// Transaction Pool
 

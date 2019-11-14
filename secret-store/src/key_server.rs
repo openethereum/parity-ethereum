@@ -19,7 +19,7 @@ use std::sync::Arc;
 use futures::{future::{err, result}, Future};
 use parking_lot::Mutex;
 use crypto::DEFAULT_MAC;
-use ethkey::{crypto, public_to_address};
+use crypto::publickey::public_to_address;
 use parity_runtime::Executor;
 use super::acl_storage::AclStorage;
 use super::key_storage::KeyStorage;
@@ -37,13 +37,13 @@ pub struct KeyServerImpl {
 
 /// Secret store key server data.
 pub struct KeyServerCore {
-	cluster: Arc<ClusterClient>,
+	cluster: Arc<dyn ClusterClient>,
 }
 
 impl KeyServerImpl {
 	/// Create new key server instance
-	pub fn new(config: &ClusterConfiguration, key_server_set: Arc<KeyServerSet>, self_key_pair: Arc<NodeKeyPair>,
-		acl_storage: Arc<AclStorage>, key_storage: Arc<KeyStorage>, executor: Executor) -> Result<Self, Error>
+	pub fn new(config: &ClusterConfiguration, key_server_set: Arc<dyn KeyServerSet>, self_key_pair: Arc<dyn NodeKeyPair>,
+		acl_storage: Arc<dyn AclStorage>, key_storage: Arc<dyn KeyStorage>, executor: Executor) -> Result<Self, Error>
 	{
 		Ok(KeyServerImpl {
 			data: Arc::new(Mutex::new(KeyServerCore::new(config, key_server_set, self_key_pair, acl_storage, key_storage, executor)?)),
@@ -51,7 +51,7 @@ impl KeyServerImpl {
 	}
 
 	/// Get cluster client reference.
-	pub fn cluster(&self) -> Arc<ClusterClient> {
+	pub fn cluster(&self) -> Arc<dyn ClusterClient> {
 		self.data.lock().cluster.clone()
 	}
 }
@@ -64,7 +64,7 @@ impl AdminSessionsServer for KeyServerImpl {
 		old_set_signature: RequestSignature,
 		new_set_signature: RequestSignature,
 		new_servers_set: BTreeSet<NodeId>,
-	) -> Box<Future<Item=(), Error=Error> + Send> {
+	) -> Box<dyn Future<Item=(), Error=Error> + Send> {
 		return_session(self.data.lock().cluster
 			.new_servers_set_change_session(None, None, new_servers_set, old_set_signature, new_set_signature))
 	}
@@ -76,7 +76,7 @@ impl ServerKeyGenerator for KeyServerImpl {
 		key_id: ServerKeyId,
 		author: Requester,
 		threshold: usize,
-	) -> Box<Future<Item=Public, Error=Error> + Send> {
+	) -> Box<dyn Future<Item=Public, Error=Error> + Send> {
 		// recover requestor' address key from signature
 		let address = author.address(&key_id).map_err(Error::InsufficientRequesterData);
 
@@ -89,7 +89,7 @@ impl ServerKeyGenerator for KeyServerImpl {
 		&self,
 		key_id: ServerKeyId,
 		author: Requester,
-	) -> Box<Future<Item=Public, Error=Error> + Send> {
+	) -> Box<dyn Future<Item=Public, Error=Error> + Send> {
 		// recover requestor' public key from signature
 		let session_and_address = author
 			.address(&key_id)
@@ -121,7 +121,7 @@ impl DocumentKeyServer for KeyServerImpl {
 		author: Requester,
 		common_point: Public,
 		encrypted_document_key: Public,
-	) -> Box<Future<Item=(), Error=Error> + Send> {
+	) -> Box<dyn Future<Item=(), Error=Error> + Send> {
 		// store encrypted key
 		return_session(self.data.lock().cluster.new_encryption_session(key_id,
 			author.clone(), common_point, encrypted_document_key))
@@ -132,7 +132,7 @@ impl DocumentKeyServer for KeyServerImpl {
 		key_id: ServerKeyId,
 		author: Requester,
 		threshold: usize,
-	) -> Box<Future<Item=EncryptedDocumentKey, Error=Error> + Send> {
+	) -> Box<dyn Future<Item=EncryptedDocumentKey, Error=Error> + Send> {
 		// recover requestor' public key from signature
 		let public = result(author.public(&key_id).map_err(Error::InsufficientRequesterData));
 
@@ -164,7 +164,7 @@ impl DocumentKeyServer for KeyServerImpl {
 
 		// encrypt document key with requestor public key
 		let encrypted_document_key = stored_document_key
-			.and_then(|(public, document_key)| crypto::ecies::encrypt(&public, &DEFAULT_MAC, document_key.as_bytes())
+			.and_then(|(public, document_key)| crypto::publickey::ecies::encrypt(&public, &DEFAULT_MAC, document_key.as_bytes())
 				.map_err(|err| Error::Internal(format!("Error encrypting document key: {}", err))));
 
 		Box::new(encrypted_document_key)
@@ -174,7 +174,7 @@ impl DocumentKeyServer for KeyServerImpl {
 		&self,
 		key_id: ServerKeyId,
 		requester: Requester,
-	) -> Box<Future<Item=EncryptedDocumentKey, Error=Error> + Send> {
+	) -> Box<dyn Future<Item=EncryptedDocumentKey, Error=Error> + Send> {
 		// recover requestor' public key from signature
 		let public = result(requester.public(&key_id).map_err(Error::InsufficientRequesterData));
 
@@ -190,7 +190,7 @@ impl DocumentKeyServer for KeyServerImpl {
 		// encrypt document key with requestor public key
 		let encrypted_document_key = stored_document_key
 			.and_then(|(public, document_key)|
-				crypto::ecies::encrypt(&public, &DEFAULT_MAC, document_key.decrypted_secret.as_bytes())
+				crypto::publickey::ecies::encrypt(&public, &DEFAULT_MAC, document_key.decrypted_secret.as_bytes())
 					.map_err(|err| Error::Internal(format!("Error encrypting document key: {}", err))));
 
 		Box::new(encrypted_document_key)
@@ -200,7 +200,7 @@ impl DocumentKeyServer for KeyServerImpl {
 		&self,
 		key_id: ServerKeyId,
 		requester: Requester,
-	) -> Box<Future<Item=EncryptedDocumentKeyShadow, Error=Error> + Send> {
+	) -> Box<dyn Future<Item=EncryptedDocumentKeyShadow, Error=Error> + Send> {
 		return_session(self.data.lock().cluster.new_decryption_session(key_id,
 			None, requester.clone(), None, true, false))
 	}
@@ -212,7 +212,7 @@ impl MessageSigner for KeyServerImpl {
 		key_id: ServerKeyId,
 		requester: Requester,
 		message: MessageHash,
-	) -> Box<Future<Item=EncryptedMessageSignature, Error=Error> + Send> {
+	) -> Box<dyn Future<Item=EncryptedMessageSignature, Error=Error> + Send> {
 		// recover requestor' public key from signature
 		let public = result(requester.public(&key_id).map_err(Error::InsufficientRequesterData));
 
@@ -235,7 +235,7 @@ impl MessageSigner for KeyServerImpl {
 
 		// encrypt signature with requestor public key
 		let encrypted_signature = combined_signature
-			.and_then(|(public, combined_signature)| crypto::ecies::encrypt(&public, &DEFAULT_MAC, &combined_signature)
+			.and_then(|(public, combined_signature)| crypto::publickey::ecies::encrypt(&public, &DEFAULT_MAC, &combined_signature)
 				.map_err(|err| Error::Internal(format!("Error encrypting message signature: {}", err))));
 
 		Box::new(encrypted_signature)
@@ -246,7 +246,7 @@ impl MessageSigner for KeyServerImpl {
 		key_id: ServerKeyId,
 		requester: Requester,
 		message: MessageHash,
-	) -> Box<Future<Item=EncryptedMessageSignature, Error=Error> + Send> {
+	) -> Box<dyn Future<Item=EncryptedMessageSignature, Error=Error> + Send> {
 		// recover requestor' public key from signature
 		let public = result(requester.public(&key_id).map_err(Error::InsufficientRequesterData));
 
@@ -261,7 +261,7 @@ impl MessageSigner for KeyServerImpl {
 
 		// encrypt combined signature with requestor public key
 		let encrypted_signature = signature
-			.and_then(|(public, signature)| crypto::ecies::encrypt(&public, &DEFAULT_MAC, &*signature)
+			.and_then(|(public, signature)| crypto::publickey::ecies::encrypt(&public, &DEFAULT_MAC, &*signature)
 				.map_err(|err| Error::Internal(format!("Error encrypting message signature: {}", err))));
 
 		Box::new(encrypted_signature)
@@ -269,8 +269,8 @@ impl MessageSigner for KeyServerImpl {
 }
 
 impl KeyServerCore {
-	pub fn new(config: &ClusterConfiguration, key_server_set: Arc<KeyServerSet>, self_key_pair: Arc<NodeKeyPair>,
-		acl_storage: Arc<AclStorage>, key_storage: Arc<KeyStorage>, executor: Executor) -> Result<Self, Error>
+	pub fn new(config: &ClusterConfiguration, key_server_set: Arc<dyn KeyServerSet>, self_key_pair: Arc<dyn NodeKeyPair>,
+		acl_storage: Arc<dyn AclStorage>, key_storage: Arc<dyn KeyStorage>, executor: Executor) -> Result<Self, Error>
 	{
 		let cconfig = NetClusterConfiguration {
 			self_key_pair: self_key_pair.clone(),
@@ -298,7 +298,7 @@ impl KeyServerCore {
 
 fn return_session<S: ClusterSession>(
 	session: Result<WaitableSession<S>, Error>,
-) -> Box<Future<Item=S::SuccessfulResult, Error=Error> + Send> {
+) -> Box<dyn Future<Item=S::SuccessfulResult, Error=Error> + Send> {
 	match session {
 		Ok(session) => Box::new(session.into_wait_future()),
 		Err(error) => Box::new(err(error))
@@ -314,7 +314,7 @@ pub mod tests {
 	use std::collections::BTreeMap;
 	use futures::Future;
 	use crypto::DEFAULT_MAC;
-	use ethkey::{self, crypto, Secret, Random, Generator, verify_public};
+	use crypto::publickey::{Secret, Random, Generator, verify_public};
 	use acl_storage::DummyAclStorage;
 	use key_storage::KeyStorage;
 	use key_storage::tests::DummyKeyStorage;
@@ -340,7 +340,7 @@ pub mod tests {
 			_old_set_signature: RequestSignature,
 			_new_set_signature: RequestSignature,
 			_new_servers_set: BTreeSet<NodeId>,
-		) -> Box<Future<Item=(), Error=Error> + Send> {
+		) -> Box<dyn Future<Item=(), Error=Error> + Send> {
 			unimplemented!("test-only")
 		}
 	}
@@ -351,7 +351,7 @@ pub mod tests {
 			_key_id: ServerKeyId,
 			_author: Requester,
 			_threshold: usize,
-		) -> Box<Future<Item=Public, Error=Error> + Send> {
+		) -> Box<dyn Future<Item=Public, Error=Error> + Send> {
 			unimplemented!("test-only")
 		}
 
@@ -359,7 +359,7 @@ pub mod tests {
 			&self,
 			_key_id: ServerKeyId,
 			_author: Requester,
-		) -> Box<Future<Item=Public, Error=Error> + Send> {
+		) -> Box<dyn Future<Item=Public, Error=Error> + Send> {
 			unimplemented!("test-only")
 		}
 	}
@@ -371,7 +371,7 @@ pub mod tests {
 			_author: Requester,
 			_common_point: Public,
 			_encrypted_document_key: Public,
-		) -> Box<Future<Item=(), Error=Error> + Send> {
+		) -> Box<dyn Future<Item=(), Error=Error> + Send> {
 			unimplemented!("test-only")
 		}
 
@@ -380,7 +380,7 @@ pub mod tests {
 			_key_id: ServerKeyId,
 			_author: Requester,
 			_threshold: usize,
-		) -> Box<Future<Item=EncryptedDocumentKey, Error=Error> + Send> {
+		) -> Box<dyn Future<Item=EncryptedDocumentKey, Error=Error> + Send> {
 			unimplemented!("test-only")
 		}
 
@@ -388,7 +388,7 @@ pub mod tests {
 			&self,
 			_key_id: ServerKeyId,
 			_requester: Requester,
-		) -> Box<Future<Item=EncryptedDocumentKey, Error=Error> + Send> {
+		) -> Box<dyn Future<Item=EncryptedDocumentKey, Error=Error> + Send> {
 			unimplemented!("test-only")
 		}
 
@@ -396,7 +396,7 @@ pub mod tests {
 			&self,
 			_key_id: ServerKeyId,
 			_requester: Requester,
-		) -> Box<Future<Item=EncryptedDocumentKeyShadow, Error=Error> + Send> {
+		) -> Box<dyn Future<Item=EncryptedDocumentKeyShadow, Error=Error> + Send> {
 			unimplemented!("test-only")
 		}
 	}
@@ -407,7 +407,7 @@ pub mod tests {
 			_key_id: ServerKeyId,
 			_requester: Requester,
 			_message: MessageHash,
-		) -> Box<Future<Item=EncryptedMessageSignature, Error=Error> + Send> {
+		) -> Box<dyn Future<Item=EncryptedMessageSignature, Error=Error> + Send> {
 			unimplemented!("test-only")
 		}
 
@@ -416,7 +416,7 @@ pub mod tests {
 			_key_id: ServerKeyId,
 			_requester: Requester,
 			_message: MessageHash,
-		) -> Box<Future<Item=EncryptedMessageSignature, Error=Error> + Send> {
+		) -> Box<dyn Future<Item=EncryptedMessageSignature, Error=Error> + Send> {
 			unimplemented!("test-only")
 		}
 	}
@@ -489,13 +489,13 @@ pub mod tests {
 		let threshold = 0;
 		let document = Random.generate().unwrap().secret().clone();
 		let secret = Random.generate().unwrap().secret().clone();
-		let signature: Requester = ethkey::sign(&secret, &document).unwrap().into();
+		let signature: Requester = crypto::publickey::sign(&secret, &document).unwrap().into();
 		let generated_key = key_servers[0].generate_document_key(
 			*document,
 			signature.clone(),
 			threshold,
 		).wait().unwrap();
-		let generated_key = crypto::ecies::decrypt(&secret, &DEFAULT_MAC, &generated_key).unwrap();
+		let generated_key = crypto::publickey::ecies::decrypt(&secret, &DEFAULT_MAC, &generated_key).unwrap();
 
 		// now let's try to retrieve key back
 		for key_server in key_servers.iter() {
@@ -503,7 +503,7 @@ pub mod tests {
 				*document,
 				signature.clone(),
 			).wait().unwrap();
-			let retrieved_key = crypto::ecies::decrypt(&secret, &DEFAULT_MAC, &retrieved_key).unwrap();
+			let retrieved_key = crypto::publickey::ecies::decrypt(&secret, &DEFAULT_MAC, &retrieved_key).unwrap();
 			assert_eq!(retrieved_key, generated_key);
 		}
 		drop(runtime);
@@ -519,13 +519,13 @@ pub mod tests {
 			// generate document key
 			let document = Random.generate().unwrap().secret().clone();
 			let secret = Random.generate().unwrap().secret().clone();
-			let signature: Requester = ethkey::sign(&secret, &document).unwrap().into();
+			let signature: Requester = crypto::publickey::sign(&secret, &document).unwrap().into();
 			let generated_key = key_servers[0].generate_document_key(
 				*document,
 				signature.clone(),
 				*threshold,
 			).wait().unwrap();
-			let generated_key = crypto::ecies::decrypt(&secret, &DEFAULT_MAC, &generated_key).unwrap();
+			let generated_key = crypto::publickey::ecies::decrypt(&secret, &DEFAULT_MAC, &generated_key).unwrap();
 
 			// now let's try to retrieve key back
 			for (i, key_server) in key_servers.iter().enumerate() {
@@ -533,7 +533,7 @@ pub mod tests {
 					*document,
 					signature.clone(),
 				).wait().unwrap();
-				let retrieved_key = crypto::ecies::decrypt(&secret, &DEFAULT_MAC, &retrieved_key).unwrap();
+				let retrieved_key = crypto::publickey::ecies::decrypt(&secret, &DEFAULT_MAC, &retrieved_key).unwrap();
 				assert_eq!(retrieved_key, generated_key);
 
 				let key_share = key_storages[i].get(&document).unwrap().unwrap();
@@ -554,7 +554,7 @@ pub mod tests {
 			// generate server key
 			let server_key_id = Random.generate().unwrap().secret().clone();
 			let requestor_secret = Random.generate().unwrap().secret().clone();
-			let signature: Requester = ethkey::sign(&requestor_secret, &server_key_id).unwrap().into();
+			let signature: Requester = crypto::publickey::sign(&requestor_secret, &server_key_id).unwrap().into();
 			let server_public = key_servers[0].generate_key(
 				*server_key_id,
 				signature.clone(),
@@ -572,7 +572,7 @@ pub mod tests {
 			// now let's try to retrieve key back
 			for key_server in key_servers.iter() {
 				let retrieved_key = key_server.restore_document_key(*server_key_id, signature.clone()).wait().unwrap();
-				let retrieved_key = crypto::ecies::decrypt(&requestor_secret, &DEFAULT_MAC, &retrieved_key).unwrap();
+				let retrieved_key = crypto::publickey::ecies::decrypt(&requestor_secret, &DEFAULT_MAC, &retrieved_key).unwrap();
 				let retrieved_key = Public::from_slice(&retrieved_key);
 				assert_eq!(retrieved_key, generated_key);
 			}
@@ -590,7 +590,7 @@ pub mod tests {
 			// generate server key
 			let server_key_id = Random.generate().unwrap().secret().clone();
 			let requestor_secret = Random.generate().unwrap().secret().clone();
-			let signature: Requester = ethkey::sign(&requestor_secret, &server_key_id).unwrap().into();
+			let signature: Requester = crypto::publickey::sign(&requestor_secret, &server_key_id).unwrap().into();
 			let server_public = key_servers[0].generate_key(
 				*server_key_id,
 				signature.clone(),
@@ -604,9 +604,9 @@ pub mod tests {
 				signature,
 				message_hash,
 			).wait().unwrap();
-			let combined_signature = crypto::ecies::decrypt(&requestor_secret, &DEFAULT_MAC, &combined_signature).unwrap();
-			let signature_c = Secret::from_slice(&combined_signature[..32]).unwrap();
-			let signature_s = Secret::from_slice(&combined_signature[32..]).unwrap();
+			let combined_signature = crypto::publickey::ecies::decrypt(&requestor_secret, &DEFAULT_MAC, &combined_signature).unwrap();
+			let signature_c = Secret::copy_from_slice(&combined_signature[..32]).unwrap();
+			let signature_s = Secret::copy_from_slice(&combined_signature[32..]).unwrap();
 
 			// check signature
 			assert_eq!(math::verify_schnorr_signature(&server_public, &(signature_c, signature_s), &message_hash), Ok(true));
@@ -623,20 +623,20 @@ pub mod tests {
 		let threshold = 0;
 		let document = Random.generate().unwrap().secret().clone();
 		let secret = Random.generate().unwrap().secret().clone();
-		let signature: Requester = ethkey::sign(&secret, &document).unwrap().into();
+		let signature: Requester = crypto::publickey::sign(&secret, &document).unwrap().into();
 		let generated_key = key_servers[0].generate_document_key(
 			*document,
 			signature.clone(),
 			threshold,
 		).wait().unwrap();
-		let generated_key = crypto::ecies::decrypt(&secret, &DEFAULT_MAC, &generated_key).unwrap();
+		let generated_key = crypto::publickey::ecies::decrypt(&secret, &DEFAULT_MAC, &generated_key).unwrap();
 
 		// remove key from node0
 		key_storages[0].remove(&document).unwrap();
 
 		// now let's try to retrieve key back by requesting it from node0, so that session must be delegated
 		let retrieved_key = key_servers[0].restore_document_key(*document, signature).wait().unwrap();
-		let retrieved_key = crypto::ecies::decrypt(&secret, &DEFAULT_MAC, &retrieved_key).unwrap();
+		let retrieved_key = crypto::publickey::ecies::decrypt(&secret, &DEFAULT_MAC, &retrieved_key).unwrap();
 		assert_eq!(retrieved_key, generated_key);
 		drop(runtime);
 	}
@@ -650,7 +650,7 @@ pub mod tests {
 		// generate server key
 		let server_key_id = Random.generate().unwrap().secret().clone();
 		let requestor_secret = Random.generate().unwrap().secret().clone();
-		let signature: Requester = ethkey::sign(&requestor_secret, &server_key_id).unwrap().into();
+		let signature: Requester = crypto::publickey::sign(&requestor_secret, &server_key_id).unwrap().into();
 		let server_public = key_servers[0].generate_key(*server_key_id, signature.clone(), threshold).wait().unwrap();
 
 		// remove key from node0
@@ -663,9 +663,9 @@ pub mod tests {
 			signature,
 			message_hash,
 		).wait().unwrap();
-		let combined_signature = crypto::ecies::decrypt(&requestor_secret, &DEFAULT_MAC, &combined_signature).unwrap();
-		let signature_c = Secret::from_slice(&combined_signature[..32]).unwrap();
-		let signature_s = Secret::from_slice(&combined_signature[32..]).unwrap();
+		let combined_signature = crypto::publickey::ecies::decrypt(&requestor_secret, &DEFAULT_MAC, &combined_signature).unwrap();
+		let signature_c = Secret::copy_from_slice(&combined_signature[..32]).unwrap();
+		let signature_s = Secret::copy_from_slice(&combined_signature[32..]).unwrap();
 
 		// check signature
 		assert_eq!(math::verify_schnorr_signature(&server_public, &(signature_c, signature_s), &message_hash), Ok(true));
@@ -681,7 +681,7 @@ pub mod tests {
 		// generate server key
 		let server_key_id = Random.generate().unwrap().secret().clone();
 		let requestor_secret = Random.generate().unwrap().secret().clone();
-		let signature = ethkey::sign(&requestor_secret, &server_key_id).unwrap();
+		let signature = crypto::publickey::sign(&requestor_secret, &server_key_id).unwrap();
 		let server_public = key_servers[0].generate_key(
 			*server_key_id,
 			signature.clone().into(),
@@ -698,7 +698,7 @@ pub mod tests {
 			signature.clone().into(),
 			message_hash,
 		).wait().unwrap();
-		let signature = crypto::ecies::decrypt(&requestor_secret, &DEFAULT_MAC, &signature).unwrap();
+		let signature = crypto::publickey::ecies::decrypt(&requestor_secret, &DEFAULT_MAC, &signature).unwrap();
 		let signature = H520::from_slice(&signature[0..65]);
 
 		// check signature

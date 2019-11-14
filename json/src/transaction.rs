@@ -36,11 +36,14 @@ pub struct Transaction {
 	/// Value.
 	pub value: Uint,
 	/// R.
-	pub r: Uint,
+	#[serde(default)]
+	pub r: MaybeEmpty<Uint>,
 	/// S.
-	pub s: Uint,
+	#[serde(default)]
+	pub s: MaybeEmpty<Uint>,
 	/// V.
-	pub v: Uint,
+	#[serde(default)]
+	pub v: MaybeEmpty<Uint>,
 	/// Secret
 	#[serde(rename = "secretKey")]
 	pub secret: Option<H256>,
@@ -60,21 +63,21 @@ mod tests {
 			"nonce" : "0x00",
 			"to" : "",
 			"value" : "0x00",
-			"r": 0,
-			"s": 1,
-			"v": 2,
+			"r": "0",
+			"s": "1",
+			"v": "2",
 			"secretKey": "0x0000000000000000000000000000000000000000000000000000000000000000"
 		}"#;
-		let tx: Transaction = serde_json::from_str(s).unwrap();
+		let tx: Transaction = serde_json::from_str(s).expect("JSON string is valid");
 		assert_eq!(tx.data, Bytes::new(Vec::new()));
 		assert_eq!(tx.gas_limit, Uint(U256::from(0xf388)));
 		assert_eq!(tx.gas_price, Uint(U256::from(0x09184e72a000_u64)));
 		assert_eq!(tx.nonce, Uint(U256::zero()));
 		assert_eq!(tx.to, MaybeEmpty::None);
 		assert_eq!(tx.value, Uint(U256::zero()));
-		assert_eq!(tx.r, Uint(U256::zero()));
-		assert_eq!(tx.s, Uint(U256::one()));
-		assert_eq!(tx.v, Uint(U256::from(2)));
+		assert_eq!(tx.r, Uint(U256::zero()).into());
+		assert_eq!(tx.s, Uint(U256::one()).into());
+		assert_eq!(tx.v, Uint(U256::from(2)).into());
 		assert_eq!(tx.secret, Some(H256(Eth256::zero())));
 	}
 }

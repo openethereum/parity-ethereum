@@ -37,7 +37,7 @@ use common_types::{
 use client_traits::EngineClient;
 
 use ethereum_types::{H256, U256, Address};
-use ethkey::Signature;
+use parity_crypto::publickey::Signature;
 use machine::{
 	Machine,
 	executed_block::ExecutedBlock,
@@ -189,6 +189,14 @@ pub trait Engine: Sync + Send {
 	/// Returns the engine's current sealing state.
 	fn sealing_state(&self) -> SealingState { SealingState::External }
 
+	/// Called in `miner.chain_new_blocks` if the engine wishes to `update_sealing`
+	/// after a block was recently sealed.
+	///
+	/// returns false by default
+	fn should_reseal_on_update(&self) -> bool {
+		false
+	}
+
 	/// Attempt to seal the block internally.
 	///
 	/// If `Some` is returned, then you get a valid seal.
@@ -294,7 +302,7 @@ pub trait Engine: Sync + Send {
 	fn handle_message(&self, _message: &[u8]) -> Result<(), EngineError> { Err(EngineError::UnexpectedMessage) }
 
 	/// Register a component which signs consensus messages.
-	fn set_signer(&self, _signer: Box<dyn EngineSigner>) {}
+	fn set_signer(&self, _signer: Option<Box<dyn EngineSigner>>) {}
 
 	/// Sign using the EngineSigner, to be used for consensus tx signing.
 	fn sign(&self, _hash: H256) -> Result<Signature, Error> { unimplemented!() }

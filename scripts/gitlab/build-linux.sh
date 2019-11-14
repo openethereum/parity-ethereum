@@ -3,6 +3,8 @@
 set -e # fail on any error
 set -u # treat unset variables as error
 
+export CC="sccache "$CC
+export CXX="sccache "$CXX
 echo "__________Show ENVIROMENT__________"
 echo "CI_SERVER_NAME:   " $CI_SERVER_NAME
 echo "CARGO_HOME:       " $CARGO_HOME
@@ -52,6 +54,8 @@ do
   then
       ./parity tools hash $binary > $binary.sha3
   else
-      echo "> ${binary} cannot be hashed with cross-compiled binary (keccak256)"
+      echo ">[WARN] ${binary} cannot be hashed with cross-compiled binary (keccak256)"
   fi
 done
+#show sccache statistics
+sccache --show-stats

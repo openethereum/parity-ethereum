@@ -49,16 +49,11 @@ impl<F> Oracle for StandardOracle<F>
 }
 
 impl<C: 'static> Broadcast for Mutex<IoChannel<ClientIoMessage<C>>> {
-	fn take_at(&self, num: Option<u64>) {
-		let num = match num {
-			Some(n) => n,
-			None => return,
-		};
-
-		trace!(target: "snapshot_watcher", "Snapshot requested at block #{}", num);
-
+	fn request_snapshot_at(&self, num: u64) {
 		if let Err(e) = self.lock().send(ClientIoMessage::TakeSnapshot(num)) {
-			warn!("Snapshot watcher disconnected from IoService: {}", e);
+			warn!(target: "snapshot_watcher", "Snapshot watcher disconnected from IoService: {}", e);
+		} else {
+			trace!(target: "snapshot_watcher", "Snapshot requested at block #{}", num);
 		}
 	}
 }
@@ -68,7 +63,10 @@ impl<C: 'static> Broadcast for Mutex<IoChannel<ClientIoMessage<C>>> {
 pub struct Watcher {
 	oracle: Box<dyn Oracle>,
 	broadcast: Box<dyn Broadcast>,
+	// How often we attempt to take a snapshot: only snapshot on blocknumbers that are multiples of
+	// `period`. Always set to `SNAPSHOT_PERIOD`, i.e. 5000.
 	period: u64,
+	// Start snapshots `history` blocks from the tip. Always set to `SNAPSHOT_HISTORY`, i.e. 100.
 	history: u64,
 }
 
@@ -106,18 +104,22 @@ impl ChainNotify for Watcher {
 	fn new_blocks(&self, new_blocks: NewBlocks) {
 		if self.oracle.is_major_importing() || new_blocks.has_more_blocks_to_import { return }
 
-		trace!(target: "snapshot_watcher", "{} imported", new_blocks.imported.len());
-
+		// Decide if it's time for a snapshot: the highest of the imported blocks is a multiple of 5000?
 		let highest = new_blocks.imported.into_iter()
+			// Convert block hashes to block numbers for all newly imported blocks
 			.filter_map(|h| self.oracle.to_number(h))
-			.filter(|&num| num >= self.period + self.history)
-			.map(|num| num - self.history)
-			.filter(|num| num % self.period == 0)
+			// Subtract `history` (i.e. `SNAPSHOT_HISTORY`, i.e. 100) from the block numbers to stay
+			// clear of reorgs.
+			.map(|num| num.saturating_sub(self.history) )
+			// …filter out blocks that do not fall on the a multiple of `period`. This regulates the
+			// frequency of snapshots and ensures more snapshots are produced from similar points in
+			// the chain.
+			.filter(|num| num % self.period == 0 )
+			// Pick newest of the candidates: this is where we want to snapshot from.
 			.fold(0, ::std::cmp::max);
 
-		match highest {
-			0 => self.broadcast.take_at(None),
-			_ => self.broadcast.take_at(Some(highest)),
+		if highest > 0 {
+			self.broadcast.request_snapshot_at(highest);
 		}
 	}
 }

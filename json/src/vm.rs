@@ -127,7 +127,7 @@ mod tests {
 	};
 	use super::{Address, Bytes, Call, Env, H256, MaybeEmpty, State, Transaction, Uint, Vm};
 
-	use crate::spec::Account;
+	use crate::spec::{Account, HashOrMap};
 	use ethereum_types::{U256, H160 as Hash160, H256 as Hash256};
 	use macros::map;
 	use rustc_hex::FromHex;
@@ -179,7 +179,7 @@ mod tests {
 				}
 			}
 		}"#;
-		let vm: Vm = serde_json::from_str(s).unwrap();
+		let vm: Vm = serde_json::from_str(s).expect("JSON is valid");
 		assert_eq!(vm.calls, Some(Vec::new()));
 		assert_eq!(vm.env, Env {
 			author: Address(Hash160::from_str("2adc25665018aa1fe0e6bc666dac8fc2697ff9ba").unwrap()),
@@ -205,31 +205,36 @@ mod tests {
 			Some(H256(Hash256::from_str("1dcc4de8dec75d7aab85b567b6ccd41ad312451b948a7413f0a142fd40d49347").unwrap()))
 		);
 		assert_eq!(vm.output, Some(Bytes::new(Vec::new())));
-		assert_eq!(vm.pre_state, State(map![
-			Address(Hash160::from_str("0f572e5295c57f15886f9b263e2f6d2d6c7b5ec6").unwrap()) => Account {
-				builtin: None,
-				balance: Some(Uint(0x0de0b6b3a7640000_u64.into())),
-				code: Some(Bytes::new(TEST_CODE.from_hex().unwrap())),
-				constructor: None,
-				nonce: Some(Uint(0.into())),
-				storage: Some(map![]),
-				version: None,
-			}])
-		);
-		assert_eq!(vm.post_state, Some(
-				State(map![
+		assert_eq!(vm.pre_state, State(
+			HashOrMap::Map(
+				map![
 					Address(Hash160::from_str("0f572e5295c57f15886f9b263e2f6d2d6c7b5ec6").unwrap()) => Account {
 						builtin: None,
 						balance: Some(Uint(0x0de0b6b3a7640000_u64.into())),
 						code: Some(Bytes::new(TEST_CODE.from_hex().unwrap())),
 						constructor: None,
 						nonce: Some(Uint(0.into())),
-						storage: Some(map![
-							Uint(0.into()) => Uint(U256::from_str("fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffe").unwrap())
-						]),
+						storage: Some(map![]),
 						version: None,
-				}])
-			)
+					}
+				]))
+		);
+		assert_eq!(vm.post_state, Some(
+				State(
+					HashOrMap::Map(
+						map![
+							Address(Hash160::from_str("0f572e5295c57f15886f9b263e2f6d2d6c7b5ec6").unwrap()) => Account {
+								builtin: None,
+								balance: Some(Uint(0x0de0b6b3a7640000_u64.into())),
+								code: Some(Bytes::new(TEST_CODE.from_hex().unwrap())),
+								constructor: None,
+								nonce: Some(Uint(0.into())),
+								storage: Some(map![
+									Uint(0.into()) => Uint(U256::from_str("fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffe").unwrap())
+								]),
+								version: None,
+						}]))
+				)
 		);
 	}
 

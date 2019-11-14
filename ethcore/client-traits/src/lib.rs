@@ -22,7 +22,8 @@ use std::{
 use account_state::state::StateInfo;
 use blockchain::BlockProvider;
 use bytes::Bytes;
-use call_contract::{CallContract, RegistryInfo};
+use call_contract::CallContract;
+use registrar::RegistrarClient;
 use common_types::{
 	basic_account::BasicAccount,
 	block_status::BlockStatus,
@@ -55,7 +56,10 @@ use trace::{
 	localized::LocalizedTrace,
 	VMTrace,
 };
-use common_types::data_format::DataFormat;
+use common_types::{
+	data_format::DataFormat,
+	client_types::StateResult
+};
 use vm::{LastHashes, Schedule};
 
 /// State information to be used during client query
@@ -142,10 +146,18 @@ pub trait TransactionInfo {
 /// Provides various blockchain information, like block header, chain state etc.
 pub trait BlockChain: ChainInfo + BlockInfo + TransactionInfo {}
 
+/// Do we want to force update sealing?
+#[derive(Debug, Copy, Clone, PartialEq)]
+pub enum ForceUpdateSealing {
+	/// Ideally you want to use `No` at all times as `Yes` skips `reseal_required` checks.
+	Yes,
+	/// Don't skip `reseal_required` checks
+	No
+}
 /// Client facilities used by internally sealing Engines.
 pub trait EngineClient: Sync + Send + ChainInfo {
 	/// Make a new block and seal it.
-	fn update_sealing(&self);
+	fn update_sealing(&self, force: ForceUpdateSealing);
 
 	/// Submit a seal for a block in the mining queue.
 	fn submit_seal(&self, block_hash: H256, seal: Vec<Bytes>);
@@ -208,8 +220,10 @@ pub trait BadBlocks {
 
 
 /// Blockchain database client. Owns and manages a blockchain and a block queue.
-pub trait BlockChainClient : Sync + Send + AccountData + BlockChain + CallContract + RegistryInfo + ImportBlock
-+ IoClient + BadBlocks {
+pub trait BlockChainClient:
+	Sync + Send + AccountData + BlockChain + CallContract + RegistrarClient
+	+ ImportBlock + IoClient + BadBlocks
+{
 	/// Look up the block number for the given block ID.
 	fn block_number(&self, id: BlockId) -> Option<BlockNumber>;
 
@@ -231,12 +245,14 @@ pub trait BlockChainClient : Sync + Send + AccountData + BlockChain + CallContra
 	fn block_hash(&self, id: BlockId) -> Option<H256>;
 
 	/// Get address code at given block's state.
-	fn code(&self, address: &Address, state: StateOrBlock) -> Option<Option<Bytes>>;
+	fn code(&self, address: &Address, state: StateOrBlock) -> StateResult<Option<Bytes>>;
 
 	/// Get address code at the latest block's state.
 	fn latest_code(&self, address: &Address) -> Option<Bytes> {
-		self.code(address, BlockId::Latest.into())
-			.expect("code will return Some if given BlockId::Latest; qed")
+		match self.code(address, BlockId::Latest.into()) {
+			StateResult::Missing => panic!("code will return Some if given BlockId::Latest; qed"),
+			StateResult::Some(t) => t,
+		}
 	}
 
 	/// Get a reference to the `BlockProvider`.
@@ -266,7 +282,7 @@ pub trait BlockChainClient : Sync + Send + AccountData + BlockChain + CallContra
 
 	/// Get a list of all storage keys in the block `id`, if fat DB is in operation, otherwise `None`.
 	/// If `after` is set the list starts with the following item.
-	fn list_storage(&self, id: BlockId, account: &Address, after: Option<&H256>, count: u64) -> Option<Vec<H256>>;
+	fn list_storage(&self, id: BlockId, account: &Address, after: Option<&H256>, count: Option<u64>) -> Option<Vec<H256>>;
 
 	/// Get transaction with given hash.
 	fn transaction(&self, id: TransactionId) -> Option<LocalizedTransaction>;
@@ -381,9 +397,6 @@ pub trait BlockChainClient : Sync + Send + AccountData + BlockChain + CallContra
 
 	/// Schedule state-altering transaction to be executed on the next pending block.
 	fn transact_contract(&self, address: Address, data: Bytes) -> Result<(), transaction::Error>;
-
-	/// Get the address of the registry itself.
-	fn registrar_address(&self) -> Option<Address>;
 }
 
 /// resets the blockchain
@@ -407,8 +420,8 @@ pub trait StateClient {
 	/// Type representing chain state
 	type State: StateInfo;
 
-	/// Get a copy of the best block's state.
-	fn latest_state(&self) -> Self::State;
+	/// Get a copy of the best block's state and header.
+	fn latest_state_and_header(&self) -> (Self::State, Header);
 
 	/// Attempt to get a copy of a specific block's final state.
 	///
@@ -482,17 +495,17 @@ pub trait ChainNotify: Send + Sync {
 
 /// Provides a method for importing/exporting blocks
 pub trait ImportExportBlocks {
-    /// Export blocks to destination, with the given from, to and format argument.
-    /// destination could be a file or stdout.
-    /// If the format is hex, each block is written on a new line.
-    /// For binary exports, all block data is written to the same line.
+	/// Export blocks to destination, with the given from, to and format argument.
+	/// destination could be a file or stdout.
+	/// If the format is hex, each block is written on a new line.
+	/// For binary exports, all block data is written to the same line.
 	fn export_blocks<'a>(
-        &self,
-        destination: Box<dyn std::io::Write + 'a>,
-        from: BlockId,
-        to: BlockId,
-        format: Option<DataFormat>
-    ) -> Result<(), String>;
+		&self,
+		destination: Box<dyn std::io::Write + 'a>,
+		from: BlockId,
+		to: BlockId,
+		format: Option<DataFormat>
+	) -> Result<(), String>;
 
 	/// Import blocks from destination, with the given format argument
 	/// Source could be a file or stdout.

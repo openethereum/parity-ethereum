@@ -17,7 +17,7 @@
 use std::{fmt, error};
 
 use ethereum_types::U256;
-use ethkey;
+use parity_crypto::publickey::{Error as EthPublicKeyCryptoError};
 use rlp;
 use unexpected::OutOfBounds;
 
@@ -88,8 +88,8 @@ pub enum Error {
 	InvalidRlp(String),
 }
 
-impl From<ethkey::Error> for Error {
-	fn from(err: ethkey::Error) -> Self {
+impl From<EthPublicKeyCryptoError> for Error {
+	fn from(err: EthPublicKeyCryptoError) -> Self {
 		Error::InvalidSignature(format!("{}", err))
 	}
 }

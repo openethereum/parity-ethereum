@@ -18,6 +18,7 @@
 
 use std::{
 	collections::BTreeMap,
+	convert::TryFrom,
 	fmt,
 	io::Read,
 	path::Path,
@@ -57,9 +58,6 @@ use crate::{
 	Genesis,
 	seal::Generic as GenericSeal,
 };
-
-
-
 
 /// Runtime parameters for the spec that are related to how the software should run the chain,
 /// rather than integral properties of the chain itself.
@@ -134,53 +132,56 @@ fn run_constructors<T: Backend>(
 	let start_nonce = engine.account_start_nonce(0);
 
 	let mut state = State::from_existing(db, root, start_nonce, factories.clone())?;
-
-	// Execute contract constructors.
-	let env_info = EnvInfo {
-		number: 0,
-		author,
-		timestamp,
-		difficulty,
-		last_hashes: Default::default(),
-		gas_used: U256::zero(),
-		gas_limit: U256::max_value(),
-	};
-
-	let from = Address::zero();
-	for &(ref address, ref constructor) in constructors.iter() {
-		trace!(target: "spec", "run_constructors: Creating a contract at {}.", address);
-		trace!(target: "spec", "  .. root before = {}", state.root());
-		let params = ActionParams {
-			code_address: address.clone(),
-			code_hash: Some(keccak(constructor)),
-			code_version: U256::zero(),
-			address: address.clone(),
-			sender: from.clone(),
-			origin: from.clone(),
-			gas: U256::max_value(),
-			gas_price: Default::default(),
-			value: ActionValue::Transfer(Default::default()),
-			code: Some(Arc::new(constructor.clone())),
-			data: None,
-			call_type: CallType::None,
-			params_type: ParamsType::Embedded,
+	if constructors.is_empty() {
+		state.populate_from(genesis_state.clone());
+		let _ = state.commit()?;
+	} else {
+		// Execute contract constructors.
+		let env_info = EnvInfo {
+			number: 0,
+			author,
+			timestamp,
+			difficulty,
+			last_hashes: Default::default(),
+			gas_used: U256::zero(),
+			gas_limit: U256::max_value(),
 		};
 
-		let mut substate = Substate::new();
+		let from = Address::zero();
+		for &(ref address, ref constructor) in constructors.iter() {
+			trace!(target: "spec", "run_constructors: Creating a contract at {}.", address);
+			trace!(target: "spec", "  .. root before = {}", state.root());
+			let params = ActionParams {
+				code_address: address.clone(),
+				code_hash: Some(keccak(constructor)),
+				code_version: U256::zero(),
+				address: address.clone(),
+				sender: from.clone(),
+				origin: from.clone(),
+				gas: U256::max_value(),
+				gas_price: Default::default(),
+				value: ActionValue::Transfer(Default::default()),
+				code: Some(Arc::new(constructor.clone())),
+				data: None,
+				call_type: CallType::None,
+				params_type: ParamsType::Embedded,
+			};
 
-		{
-			let machine = engine.machine();
-			let schedule = machine.schedule(env_info.number);
-			let mut exec = Executive::new(&mut state, &env_info, &machine, &schedule);
-			// failing create is not a bug
-			if let Err(e) = exec.create(params, &mut substate, &mut NoopTracer, &mut NoopVMTracer) {
-				warn!(target: "spec", "Genesis constructor execution at {} failed: {}.", address, e);
+			let mut substate = Substate::new();
+
+			{
+				let machine = engine.machine();
+				let schedule = machine.schedule(env_info.number);
+				let mut exec = Executive::new(&mut state, &env_info, &machine, &schedule);
+				// failing create is not a bug
+				if let Err(e) = exec.create(params, &mut substate, &mut NoopTracer, &mut NoopVMTracer) {
+					warn!(target: "spec", "Genesis constructor execution at {} failed: {}.", address, e);
+				}
 			}
+
+			let _ = state.commit()?;
 		}
-
-		let _ = state.commit()?;
 	}
-
 	Ok(state.drop())
 }
 
@@ -219,7 +220,7 @@ pub struct Spec {
 	pub hardcoded_sync: Option<SpecHardcodedSync>,
 	/// Contract constructors to be executed on genesis.
 	pub constructors: Vec<(Address, Bytes)>,
-	/// May be prepopulated if we know this in advance.
+	/// May be pre-populated if we know this in advance.
 	pub state_root: H256,
 	/// Genesis state as plain old data.
 	pub genesis_state: PodState,
@@ -251,18 +252,27 @@ impl fmt::Display for SpecHardcodedSync {
 		writeln!(f, "{{")?;
 		writeln!(f, r#"header": "{:?},"#, self.header)?;
 		writeln!(f, r#"total_difficulty": "{:?},"#, self.total_difficulty)?;
-		writeln!(f, r#"chts": {:#?}"#, self.chts.iter().map(|x| format!(r#"{}"#, x)).collect::<Vec<_>>())?;
+		writeln!(f, r#"chts": {:#?}"#, self.chts.iter().map(|x| format!(r#"{:?}"#, x)).collect::<Vec<_>>())?;
 		writeln!(f, "}}")
 	}
 }
 
+fn convert_json_to_spec(
+	(address, builtin): (ethjson::hash::Address, ethjson::spec::builtin::Builtin),
+) -> Result<(Address, Builtin), Error> {
+	let builtin = Builtin::try_from(builtin)?;
+	Ok((address.into(), builtin))
+}
+
 /// Load from JSON object.
 fn load_from(spec_params: SpecParams, s: ethjson::spec::Spec) -> Result<Spec, Error> {
-	let builtins = s.accounts
+	let builtins: Result<BTreeMap<Address, Builtin>, _> = s
+		.accounts
 		.builtins()
 		.into_iter()
-		.map(|p| (p.0.into(), From::from(p.1)))
+		.map(convert_json_to_spec)
 		.collect();
+	let builtins = builtins?;
 	let g = Genesis::from(s.genesis);
 	let GenericSeal(seal_rlp) = g.seal.into();
 	let params = CommonParams::from(s.params);
@@ -472,10 +482,16 @@ impl Spec {
 	pub fn load_machine<R: Read>(reader: R) -> Result<Machine, Error> {
 		ethjson::spec::Spec::load(reader)
 			.map_err(|e| Error::Msg(e.to_string()))
-			.map(|s| {
-				let builtins = s.accounts.builtins().into_iter().map(|p| (p.0.into(), From::from(p.1))).collect();
+			.and_then(|s| {
+				let builtins: Result<BTreeMap<Address, Builtin>, _> = s
+					.accounts
+					.builtins()
+					.into_iter()
+					.map(convert_json_to_spec)
+					.collect();
+				let builtins = builtins?;
 				let params = CommonParams::from(s.params);
-				Spec::machine(&s.engine, params, builtins)
+				Ok(Spec::machine(&s.engine, params, builtins))
 			})
 	}
 

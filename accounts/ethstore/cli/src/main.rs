@@ -17,9 +17,11 @@
 extern crate dir;
 extern crate docopt;
 extern crate ethstore;
+extern crate ethkey;
 extern crate num_cpus;
 extern crate panic_hook;
 extern crate parking_lot;
+extern crate parity_crypto;
 extern crate rustc_hex;
 extern crate serde;
 
@@ -34,7 +36,8 @@ use std::{env, process, fs, fmt};
 
 use docopt::Docopt;
 use ethstore::accounts_dir::{KeyDirectory, RootDiskDirectory};
-use ethstore::ethkey::{Address, Password};
+use ethkey::Password;
+use parity_crypto::publickey::Address;
 use ethstore::{EthStore, SimpleSecretStore, SecretStore, import_accounts, PresaleWallet, SecretVaultRef, StoreAccountRef};
 
 mod crack;
@@ -163,7 +166,7 @@ fn main() {
 	}
 }
 
-fn key_dir(location: &str, password: Option<Password>) -> Result<Box<KeyDirectory>, Error> {
+fn key_dir(location: &str, password: Option<Password>) -> Result<Box<dyn KeyDirectory>, Error> {
 	let dir: RootDiskDirectory = match location {
 		"geth" => RootDiskDirectory::create(dir::geth(false))?,
 		"geth-test" => RootDiskDirectory::create(dir::geth(true))?,

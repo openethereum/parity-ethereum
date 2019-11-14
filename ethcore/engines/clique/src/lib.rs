@@ -66,13 +66,13 @@ use std::{
 	time::{self, Instant, Duration, SystemTime, UNIX_EPOCH},
 };
 
-use client_traits::EngineClient;
+use client_traits::{EngineClient, ForceUpdateSealing};
 use engine::{
 	Engine,
 	signer::EngineSigner,
 };
 use ethereum_types::{Address, H64, H160, H256, U256};
-use ethkey::Signature;
+use parity_crypto::publickey::Signature;
 use keccak_hash::KECCAK_EMPTY_LIST_RLP;
 use log::{trace, warn};
 use lru_cache::LruCache;
@@ -762,9 +762,14 @@ impl Engine for Clique {
 		}
 	}
 
-	fn set_signer(&self, signer: Box<dyn EngineSigner>) {
-		trace!(target: "engine", "set_signer: {}", signer.address());
-		*self.signer.write() = Some(signer);
+	fn set_signer(&self, signer: Option<Box<dyn EngineSigner>>) {
+		let mut current_signer = self.signer.write();
+		if let Some(signer) = signer.as_ref() {
+			trace!(target: "engine", "set_signer: {:?}", signer.address());
+		} else if let Some(signer) = &*current_signer {
+			trace!(target: "engine", "set_signer: cleared; previous signer: {:?})", signer.address());
+		}
+		*current_signer = signer;
 	}
 
 	fn register_client(&self, client: Weak<dyn EngineClient>) {
@@ -775,7 +780,7 @@ impl Engine for Clique {
 		if self.signer.read().is_some() {
 			if let Some(ref weak) = *self.client.read() {
 				if let Some(c) = weak.upgrade() {
-					c.update_sealing();
+					c.update_sealing(ForceUpdateSealing::No);
 				}
 			}
 		}

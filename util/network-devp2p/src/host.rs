@@ -37,10 +37,9 @@ use mio::{
 use parity_path::restrict_permissions_owner;
 use parking_lot::{Mutex, RwLock};
 use rlp::{Encodable, RlpStream};
-use rustc_hex::ToHex;
 
 use ethcore_io::{IoContext, IoHandler, IoManager, StreamToken, TimerToken};
-use ethkey::{Generator, KeyPair, Random, Secret};
+use parity_crypto::publickey::{Generator, KeyPair, Random, Secret};
 use network::{
 	client_version::ClientVersion, ConnectionDirection, ConnectionFilter, DisconnectReason, Error,
 	NetworkConfiguration, NetworkContext as NetworkContextTrait, NetworkIoMessage, NetworkProtocolHandler,
@@ -842,6 +841,7 @@ impl Host {
 				if duplicate {
 					trace!(target: "network", "Rejected duplicate connection: {}", token);
 					session.lock().disconnect(io, DisconnectReason::DuplicatePeer);
+					drop(handlers);
 					self.kill_connection(token, io, false);
 					return;
 				}
