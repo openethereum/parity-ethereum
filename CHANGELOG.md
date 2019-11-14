@@ -3,7 +3,9 @@
 Parity Ethereum v2.5.10-stable is a patch release that adds block numbers for
 activating the Istanbul hardfork on mainnet, as well as a large number of
 various bugfixes, QoL changes, some code cleanup/refactoring and other
-miscellaenous changes.
+miscellaneous changes.
+
+This release removes legacy aliases for the mainnet. If you specify `--chain homestead`, `--chain frontier` or `--chain byzantium`, this will need to be changed to one of: `--chain eth`, `--chain ethereum`, `--chain foundation` or `--chain mainnet`.
 
 The full list of included changes:
 
