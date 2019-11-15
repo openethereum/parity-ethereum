@@ -6,6 +6,10 @@ authors = ["Parity Technologies <admin@parity.io>"]
 edition = "2018"
 license = "GPL-3.0"
 
+[[bench]]
+name = "to_fat_rlps"
+harness = false
+
 [dependencies]
 account-db = { path = "../account-db" }
 account-state = { path = "../account-state" }
@@ -41,6 +45,7 @@ triehash = { package = "triehash-ethereum", version = "0.2",  path = "../../util
 
 [dev-dependencies]
 accounts = { package = "ethcore-accounts", path = "../../accounts" }
+criterion = "0.3.0"
 engine = { path = "../engine", features = ["test-helpers"] }
 env_logger = "0.5"
 ethabi = "9.0.1"

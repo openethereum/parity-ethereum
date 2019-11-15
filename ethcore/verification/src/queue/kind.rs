@@ -152,7 +152,7 @@ pub mod headers {
 		header::Header,
 		errors::EthcoreError as Error,
 	};
-	use crate::verification::verify_header_params;
+	use crate::verification::{verify_header_params, verify_header_time};
 
 	use ethereum_types::{H256, U256};
 
@@ -171,7 +171,10 @@ pub mod headers {
 		type Verified = Header;
 
 		fn create(input: Self::Input, engine: &dyn Engine, check_seal: bool) -> Result<Self::Unverified, (Self::Input, Error)> {
-			match verify_header_params(&input, engine, true, check_seal) {
+			let res = verify_header_params(&input, engine, check_seal)
+				.and_then(|_| verify_header_time(&input));
+
+			match res {
 				Ok(_) => Ok(input),
 				Err(err) => Err((input, err))
 			}

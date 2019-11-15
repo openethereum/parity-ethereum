@@ -47,7 +47,7 @@ use types::{
 
 use call_contract::CallContract;
 use registrar::RegistrarClient;
-use client_traits::{BlockChain, ChainInfo, AccountData, Nonce, ScheduleInfo};
+use client_traits::{BlockChain, ChainInfo, AccountData, Nonce, ScheduleInfo, ForceUpdateSealing};
 use account_state::state::StateInfo;
 
 use crate::{
@@ -87,7 +87,7 @@ pub trait MinerService : Send + Sync {
 		where C: BlockChain + CallContract + BlockProducer + SealedBlockImporter + Nonce + Sync;
 
 	/// Update current pending block
-	fn update_sealing<C>(&self, chain: &C)
+	fn update_sealing<C>(&self, chain: &C, force: ForceUpdateSealing)
 		where C: BlockChain + CallContract + BlockProducer + SealedBlockImporter + Nonce + Sync;
 
 	// Notifications

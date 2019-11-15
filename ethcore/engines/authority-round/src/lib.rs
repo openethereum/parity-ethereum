@@ -40,7 +40,7 @@ use std::sync::{Weak, Arc};
 use std::time::{UNIX_EPOCH, Duration};
 use std::u64;
 
-use client_traits::EngineClient;
+use client_traits::{EngineClient, ForceUpdateSealing};
 use engine::{Engine, ConstructedVerifier};
 use block_reward::{self, BlockRewardContract, RewardKind};
 use ethjson;
@@ -1075,7 +1075,7 @@ impl IoHandler<()> for TransitionHandler {
 				self.step.can_propose.store(true, AtomicOrdering::SeqCst);
 				if let Some(ref weak) = *self.client.read() {
 					if let Some(c) = weak.upgrade() {
-						c.update_sealing();
+						c.update_sealing(ForceUpdateSealing::No);
 					}
 				}
 			}
@@ -1105,7 +1105,7 @@ impl Engine for AuthorityRound {
 		self.step.can_propose.store(true, AtomicOrdering::SeqCst);
 		if let Some(ref weak) = *self.client.read() {
 			if let Some(c) = weak.upgrade() {
-				c.update_sealing();
+				c.update_sealing(ForceUpdateSealing::No);
 			}
 		}
 	}
