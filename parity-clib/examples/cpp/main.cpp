@@ -15,15 +15,20 @@
 // along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
 #ifdef __clang__
-#pragma clang diagnostic error "-Wvexing-parse"
+#pragma clang diagnostic error "-Weverything"
+#pragma clang diagnostic ignored "-Wc++98-compat"
+#pragma clang diagnostic ignored "-Wc++98-compat-pedantic"
+#pragma clang diagnostic ignored "-Wglobal-constructors"
+#pragma clang diagnostic ignored "-Wexit-time-destructors"
 #endif
 #include <chrono>
 #include <cstdint>
-#include <parity.h>
-#include <parity.hpp>
+#include <iostream>
 #include <regex>
 #include <string>
 #include <thread>
+#include <parity.h>
+#include <parity.hpp>
 namespace {
 using namespace std::literals::string_literals;
 using parity::ethereum::parity_subscription;
@@ -31,9 +36,8 @@ using parity::ethereum::ParityEthereum;
 
 void parity_subscribe_to_websocket(ParityEthereum &ethereum);
 void parity_rpc_queries(ParityEthereum &);
-parity::ethereum::ParityEthereum parity_run(const std::vector<std::string> &);
+parity::ethereum::ParityEthereum parity_run(const std::vector<std::string_view> &);
 
-constexpr uint32_t SUBSCRIPTION_ID_LEN = 18;
 constexpr uint32_t TIMEOUT_ONE_MIN_AS_MILLIS = 60 * 1000;
 enum class parity_callback_type : size_t {
   callback_rpc = 1,
@@ -62,7 +66,7 @@ struct Callback {
 };
 
 // list of rpc queries
-const std::vector<std::string> rpc_queries{
+const std::vector<std::string_view> rpc_queries{
     R"({"method":"parity_versionInfo","params":[],"id":1,"jsonrpc":"2.0"})"s,
     R"({"method":"eth_getTransactionReceipt","params":["0x444172bef57ad978655171a8af2cfd89baa02a97fcb773067aef7794d6913fff"],"id":1,"jsonrpc":"2.0"})"s,
     R"({"method":"eth_estimateGas","params":[{"from":"0x0066Dc48bb833d2B59f730F33952B3c29fE926F5"}],"id":1,"jsonrpc":"2.0"})"s,
@@ -70,7 +74,7 @@ const std::vector<std::string> rpc_queries{
 };
 
 // list of subscriptions
-const std::vector<std::string> ws_subscriptions{
+const std::vector<std::string_view> ws_subscriptions{
     R"({"method":"parity_subscribe","params":["eth_getBalance",["0xcd2a3d9f938e13cd947ec05abc7fe734df8dd826","latest"]],"id":1,"jsonrpc":"2.0"})"s,
     R"({"method":"parity_subscribe","params":["parity_netPeers"],"id":1,"jsonrpc":"2.0"})"s,
     R"({"method":"eth_subscribe","params":["newHeads"],"id":1,"jsonrpc":"2.0"})"s,
@@ -84,7 +88,7 @@ int main() {
   using parity::ethereum::ParityEthereum;
   // run full-client
   {
-    std::vector<std::string> cli_args{"--no-ipc"s, "--jsonrpc-apis=all"s,
+    std::vector<std::string_view> cli_args{"--no-ipc"s, "--jsonrpc-apis=all"s,
                                       "--chain"s, "kovan"s};
     ParityEthereum parity = parity_run(cli_args);
     parity_rpc_queries(parity);
@@ -93,7 +97,7 @@ int main() {
 
   // run light-client
   {
-    std::vector<std::string> light_config = {
+    std::vector<std::string_view> light_config = {
         "--no-ipc"s, "--light"s, "--jsonrpc-apis=all"s, "--chain"s, "kovan"s};
     ParityEthereum parity = parity_run(light_config);
     parity_rpc_queries(parity);
@@ -140,7 +144,7 @@ void parity_subscribe_to_websocket(ParityEthereum &parity) {
 }
 
 parity::ethereum::ParityEthereum
-parity_run(const std::vector<std::string> &cli_args) {
+parity_run(const std::vector<std::string_view> &cli_args) {
   parity::ethereum::ParityConfig config{cli_args};
   parity::ethereum::ParityLogger logger{"rpc=trace"s, ""s};
   return parity::ethereum::ParityEthereum{std::move(config), std::move(logger),

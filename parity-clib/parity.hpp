@@ -94,7 +94,7 @@ public:
   ParityConfig() = delete;
   ParityConfig(const ParityConfig &other) = delete;
   ParityConfig &operator=(const ParityConfig &other) = delete;
-  explicit ParityConfig(const std::vector<std::string> &cli_args)
+  explicit ParityConfig(const std::vector<std::string_view> &cli_args)
       : config(nullptr) {
     size_t const size = cli_args.size();
     std::vector<size_t> len_vecs;
@@ -193,24 +193,24 @@ public:
 
   /// Perform an asychronous RPC request in a background thread.
   ///
-  /// @param callback Callback to be called on a background thread.
+  /// @param rpc_callback Callback to be called on a background thread.
   /// This must not throw an exception ― if it does, `std::terminate` is called.
   /// The callback’s destructor not called, and sizeof(callback) heap space is
   /// leaked.  This is a bug and will be fixed.  Note that when it is fixed, the
   /// destructor will be called on an arbitrary thread.
   void rpc(const std::string_view rpc_query, const std::size_t timeout_ms,
-           parity_rpc_callback callback) const {
+           parity_rpc_callback rpc_callback) const {
     if (::parity_rpc(this->parity_ethereum_instance, rpc_query.data(),
                      rpc_query.size(), timeout_ms, parity_internal_rpc_callback,
                      parity_destructor_callback,
-                     new parity_rpc_callback(callback)))
+                     new parity_rpc_callback(rpc_callback)))
       throw std::runtime_error("Parity RPC failed");
   }
   parity_subscription subscribe(const std::string_view buffer,
-                                parity_rpc_callback callback) const {
+                                parity_rpc_callback rpc_callback) const {
     if (::parity_subscription *session = ::parity_subscribe_ws(
             this->parity_ethereum_instance, buffer.data(), buffer.size(),
-            parity_internal_rpc_callback, new parity_rpc_callback(callback),
+            parity_internal_rpc_callback, new parity_rpc_callback(rpc_callback),
             parity_destructor_callback))
       return parity_subscription(session, &parity_unsubscribe_ws);
     else

@@ -259,7 +259,7 @@ int parity_rpc(const struct parity_ethereum *const parity,
 /// @param ws_query JSON encoded string representing the websocket event to
 /// subscribe to.
 /// @param len Length of the query.
-/// @param response Callback to invoke when a websocket event occurs.
+/// @param subscribe Callback to invoke when a websocket event occurs.
 /// @param ud Specific user defined data that can used in the callback.
 /// @param destructor Will be called when `ud` is guaranteed to not be needed
 /// again.
