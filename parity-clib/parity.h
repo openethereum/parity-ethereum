@@ -138,7 +138,7 @@ struct ParityParams {
 /// have a length equal to `len`. The strings don't need to be zero-terminated.
 ///
 /// On success, the produced object will be written to the `struct parity_config
-/// *` pointed by `out`.
+/// *` pointed to by `out`.
 ///
 /// Returns PARITY_ETHEREUM_SUCCESS (0) on success, or a non-zero error code on
 /// failure.
