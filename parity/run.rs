@@ -361,9 +361,14 @@ fn execute_light_impl<Cr>(cmd: RunCmd, logger: Arc<RotatingLogger>, on_client_rq
 	})
 }
 
-fn execute_impl<Cr, Rr>(cmd: RunCmd, logger: Arc<RotatingLogger>, on_client_rq: Cr,
-						on_updater_rq: Rr) -> Result<RunningClient, String>
-	where Cr: Fn(String) + 'static + Send,
+fn execute_impl<Cr, Rr>(
+	cmd: RunCmd,
+	logger: Arc<RotatingLogger>,
+	on_client_rq: Cr,
+	on_updater_rq: Rr
+) -> Result<RunningClient, String>
+	where
+		Cr: Fn(String) + 'static + Send,
 		Rr: Fn() + 'static + Send
 {
 	// load spec
@@ -910,9 +915,14 @@ impl RunningClient {
 /// `on_updater_rq` is the action to perform when the updater has a new binary to execute.
 ///
 /// On error, returns what to print on stderr.
-pub fn execute<Cr, Rr>(cmd: RunCmd, logger: Arc<RotatingLogger>,
-						on_client_rq: Cr, on_updater_rq: Rr) -> Result<RunningClient, String>
-	where Cr: Fn(String) + 'static + Send,
+pub fn execute<Cr, Rr>(
+	cmd: RunCmd,
+	logger: Arc<RotatingLogger>,
+	on_client_rq: Cr,
+	on_updater_rq: Rr
+) -> Result<RunningClient, String>
+	where
+		Cr: Fn(String) + 'static + Send,
 		Rr: Fn() + 'static + Send
 {
 	if cmd.light {
