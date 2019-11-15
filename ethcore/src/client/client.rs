@@ -725,7 +725,7 @@ impl Client {
 
 		let trie_factory = TrieFactory::new(trie_spec, Layout);
 		let factories = Factories {
-			vm: VmFactory::new(config.vm_type.clone(), config.jump_table_size),
+			vm: VmFactory::new(config.jump_table_size),
 			trie: trie_factory,
 			accountdb: Default::default(),
 		};

@@ -31,7 +31,7 @@ use types::{
 };
 use ethjson::spec::ForkSpec;
 use trie_vm_factories::Factories;
-use evm::{VMType, FinalizationResult};
+use evm::FinalizationResult;
 use vm::{self, ActionParams, CreateContractAddress};
 use ethtrie;
 use account_state::{CleanupMode, State};
@@ -158,7 +158,7 @@ impl<'a> EvmTestClient<'a> {
 
 	fn factories(trie_spec: trie::TrieSpec) -> Factories {
 		Factories {
-			vm: trie_vm_factories::VmFactory::new(VMType::Interpreter, 5 * 1024),
+			vm: trie_vm_factories::VmFactory::new(5 * 1024),
 			trie: trie::TrieFactory::new(trie_spec, ethtrie::Layout),
 			accountdb: Default::default(),
 		}

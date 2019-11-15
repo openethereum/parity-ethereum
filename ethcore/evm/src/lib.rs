@@ -41,7 +41,6 @@ pub mod interpreter;
 
 #[macro_use]
 pub mod factory;
-mod vmtype;
 mod instructions;
 
 #[cfg(test)]
@@ -54,5 +53,4 @@ pub use vm::{
 };
 pub use self::evm::{Finalize, FinalizationResult, CostType};
 pub use self::instructions::{InstructionInfo, Instruction};
-pub use self::vmtype::VMType;
 pub use self::factory::Factory;
