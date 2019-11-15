@@ -4259,6 +4259,7 @@ dependencies = [
  "account-state 0.1.0",
  "client-traits 0.1.0",
  "common-types 0.1.0",
+ "criterion 0.3.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "crossbeam-utils 0.6.6 (registry+https://github.com/rust-lang/crates.io-index)",
  "engine 0.1.0",
  "env_logger 0.5.13 (registry+https://github.com/rust-lang/crates.io-index)",
