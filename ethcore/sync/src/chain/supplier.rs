@@ -153,6 +153,9 @@ impl SyncSupplier {
 
 	/// Respond to GetBlockHeaders request
 	fn return_block_headers(io: &dyn SyncIo, r: &Rlp, peer_id: PeerId) -> RlpResponseResult {
+		// Wait if blocks with forks are being processed
+		// This call will be waiting on client's import mutex, if there are blocks with possible fork in queue
+		io.chain().process_fork();
 		let payload_soft_limit = io.payload_soft_limit();
 		// Packet layout:
 		// [ block: { P , B_32 }, maxHeaders: P, skip: P, reverse: P in { 0 , 1 } ]
