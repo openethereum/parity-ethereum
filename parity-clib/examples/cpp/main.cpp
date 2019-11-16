@@ -34,7 +34,7 @@ using namespace std::literals::string_literals;
 using parity::ethereum::parity_subscription;
 using parity::ethereum::ParityEthereum;
 
-void parity_subscribe_to_websocket(ParityEthereum &ethereum);
+void parity_subscribe_to_websocket(ParityEthereum &parity);
 void parity_rpc_queries(ParityEthereum &);
 
 // callback that gets invoked upon an event
@@ -122,16 +122,16 @@ void parity_rpc_queries(ParityEthereum &parity) {
       parity.rpc(query, TIMEOUT_ONE_MIN_AS_MILLIS, cb_func);
   } catch (std::exception &exn) {
     std::cerr << exn.what() << std::endl;
-    while (cb.counter != 0)
-      ;
+    while (cb.counter != 0) {
+    }
     throw;
   } catch (...) {
-    while (cb.counter != 0)
-      ;
+    while (cb.counter != 0) {
+    }
     throw;
   }
-  while (cb.counter != 0)
-    ;
+  while (cb.counter != 0) {
+  }
 }
 
 void parity_subscribe_to_websocket(ParityEthereum &parity) {
@@ -140,11 +140,11 @@ void parity_subscribe_to_websocket(ParityEthereum &parity) {
 
   std::vector<parity_subscription> sessions;
 
-  for (auto sub : ws_subscriptions)
+  for (const auto &sub : ws_subscriptions)
     sessions.push_back(parity.subscribe(sub, cb));
 
-  while (cb.counter != 0)
-    ;
+  while (cb.counter != 0) {
+  }
   std::this_thread::sleep_for(std::chrono::seconds(60));
 }
 

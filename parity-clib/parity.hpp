@@ -52,9 +52,9 @@ public:
   explicit ParityLogger(const std::string &log_mode,
                         const std::string &log_file) noexcept
       : logger(nullptr) {
-    parity_set_logger(log_mode.size() ? log_mode.data() : nullptr,
+    parity_set_logger(log_mode.empty() ? nullptr : log_mode.data(),
                       log_mode.size(),
-                      log_file.size() ? log_file.data() : nullptr,
+                      log_file.empty() ? nullptr : log_file.data(),
                       log_file.size(), &this->logger);
   }
   explicit ParityLogger(const ParityLogger &other) noexcept
@@ -102,8 +102,8 @@ public:
       len_vecs.push_back(i->size());
       args.push_back(i->data());
     }
-    if (parity_config_from_cli(args.size() ? args.data() : nullptr,
-                               args.size() ? len_vecs.data() : nullptr,
+    if (parity_config_from_cli(args.empty() ? nullptr : args.data(),
+                               args.empty() ? nullptr : len_vecs.data(),
                                args.size(), &config))
       throw std::runtime_error(
           "failed to create Parity Ethereum configuration");
@@ -201,7 +201,7 @@ public:
     if (::parity_rpc(this->parity_ethereum_instance, rpc_query.data(),
                      rpc_query.size(), timeout_ms, parity_internal_rpc_callback,
                      parity_destructor_callback,
-                     new parity_rpc_callback(rpc_callback)))
+                     new parity_rpc_callback(std::move(rpc_callback))))
       throw std::runtime_error("Parity RPC failed");
   }
   parity_subscription subscribe(const std::string_view buffer,
