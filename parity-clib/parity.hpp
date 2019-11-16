@@ -94,19 +94,17 @@ public:
   ParityConfig() = delete;
   ParityConfig(const ParityConfig &other) = delete;
   ParityConfig &operator=(const ParityConfig &other) = delete;
-  explicit ParityConfig(const std::vector<std::string_view> &cli_args)
-      : config(nullptr) {
-    size_t const size = cli_args.size();
+  template <typename t>
+  explicit ParityConfig(t begin, t end) : config(nullptr) {
     std::vector<size_t> len_vecs;
     std::vector<char const *> args;
-    len_vecs.reserve(size);
-    args.reserve(size);
-    for (const auto &i : cli_args) {
-      len_vecs.push_back(i.size());
-      args.push_back(i.data());
+    for (auto i = begin; i != end; ++i) {
+      len_vecs.push_back(i->size());
+      args.push_back(i->data());
     }
-    if (parity_config_from_cli(size ? args.data() : nullptr,
-                               size ? len_vecs.data() : nullptr, size, &config))
+    if (parity_config_from_cli(args.size() ? args.data() : nullptr,
+                               args.size() ? len_vecs.data() : nullptr,
+                               args.size(), &config))
       throw std::runtime_error(
           "failed to create Parity Ethereum configuration");
   }

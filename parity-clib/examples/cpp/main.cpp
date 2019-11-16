@@ -24,11 +24,11 @@
 #include <chrono>
 #include <cstdint>
 #include <iostream>
+#include <parity.h>
+#include <parity.hpp>
 #include <regex>
 #include <string>
 #include <thread>
-#include <parity.h>
-#include <parity.hpp>
 namespace {
 using namespace std::literals::string_literals;
 using parity::ethereum::parity_subscription;
@@ -36,8 +36,16 @@ using parity::ethereum::ParityEthereum;
 
 void parity_subscribe_to_websocket(ParityEthereum &ethereum);
 void parity_rpc_queries(ParityEthereum &);
-parity::ethereum::ParityEthereum parity_run(const std::vector<std::string_view> &);
 
+// callback that gets invoked upon an event
+void callback(std::string_view buf) { (void)buf; }
+
+template <typename t> parity::ethereum::ParityEthereum parity_run(t &cli_args) {
+  parity::ethereum::ParityConfig config(cli_args.begin(), cli_args.end());
+  parity::ethereum::ParityLogger logger{"rpc=trace"s, ""s};
+  return parity::ethereum::ParityEthereum{std::move(config), std::move(logger),
+                                          callback};
+}
 constexpr uint32_t TIMEOUT_ONE_MIN_AS_MILLIS = 60 * 1000;
 enum class parity_callback_type : size_t {
   callback_rpc = 1,
@@ -66,7 +74,7 @@ struct Callback {
 };
 
 // list of rpc queries
-const std::vector<std::string_view> rpc_queries{
+const std::vector<std::string> rpc_queries{
     R"({"method":"parity_versionInfo","params":[],"id":1,"jsonrpc":"2.0"})"s,
     R"({"method":"eth_getTransactionReceipt","params":["0x444172bef57ad978655171a8af2cfd89baa02a97fcb773067aef7794d6913fff"],"id":1,"jsonrpc":"2.0"})"s,
     R"({"method":"eth_estimateGas","params":[{"from":"0x0066Dc48bb833d2B59f730F33952B3c29fE926F5"}],"id":1,"jsonrpc":"2.0"})"s,
@@ -74,22 +82,21 @@ const std::vector<std::string_view> rpc_queries{
 };
 
 // list of subscriptions
-const std::vector<std::string_view> ws_subscriptions{
+const std::vector<std::string> ws_subscriptions{
     R"({"method":"parity_subscribe","params":["eth_getBalance",["0xcd2a3d9f938e13cd947ec05abc7fe734df8dd826","latest"]],"id":1,"jsonrpc":"2.0"})"s,
     R"({"method":"parity_subscribe","params":["parity_netPeers"],"id":1,"jsonrpc":"2.0"})"s,
     R"({"method":"eth_subscribe","params":["newHeads"],"id":1,"jsonrpc":"2.0"})"s,
 };
-
-// callback that gets invoked upon an event
-void callback(std::string_view buf) { (void)buf; }
+const std::vector<std::string> cli_args{"--no-ipc"s, "--jsonrpc-apis=all"s,
+                                        "--chain"s, "kovan"s};
+const std::vector<std::string> light_config{
+    "--no-ipc"s, "--light"s, "--jsonrpc-apis=all"s, "--chain"s, "kovan"s};
 } // namespace
 
 int main() {
   using parity::ethereum::ParityEthereum;
   // run full-client
   {
-    std::vector<std::string_view> cli_args{"--no-ipc"s, "--jsonrpc-apis=all"s,
-                                      "--chain"s, "kovan"s};
     ParityEthereum parity = parity_run(cli_args);
     parity_rpc_queries(parity);
     parity_subscribe_to_websocket(parity);
@@ -97,8 +104,6 @@ int main() {
 
   // run light-client
   {
-    std::vector<std::string_view> light_config = {
-        "--no-ipc"s, "--light"s, "--jsonrpc-apis=all"s, "--chain"s, "kovan"s};
     ParityEthereum parity = parity_run(light_config);
     parity_rpc_queries(parity);
     parity_subscribe_to_websocket(parity);
@@ -143,11 +148,4 @@ void parity_subscribe_to_websocket(ParityEthereum &parity) {
   std::this_thread::sleep_for(std::chrono::seconds(60));
 }
 
-parity::ethereum::ParityEthereum
-parity_run(const std::vector<std::string_view> &cli_args) {
-  parity::ethereum::ParityConfig config{cli_args};
-  parity::ethereum::ParityLogger logger{"rpc=trace"s, ""s};
-  return parity::ethereum::ParityEthereum{std::move(config), std::move(logger),
-                                          callback};
-}
 } // namespace

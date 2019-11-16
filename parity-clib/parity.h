@@ -47,7 +47,7 @@
 /// Constructing multiple instances of Parity Ethereum is discouraged. While it
 /// is expected to work, they will duplicate a large amount of state
 #ifndef PARITY_H_INCLUDED
-#define PARITY_H_INCLUDED 1
+#define PARITY_H_INCLUDED
 #include <stddef.h>
 #include <stdint.h>
 // Rust assumes that size_t and uintptr_t are the same.  Check that that is the
