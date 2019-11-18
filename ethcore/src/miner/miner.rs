@@ -428,7 +428,7 @@ impl Miner {
 	{
 		trace_time!("prepare_block");
 		let chain_info = chain.chain_info();
-		let engine_pending;
+		let engine_txs: Vec<SignedTransaction>;
 		let mut open_block;
 
 		// Open block
@@ -446,7 +446,7 @@ impl Miner {
 			match sealing.queue.get_pending_if(|b| b.header.parent_hash() == &best_hash) {
 				Some(old_block) => {
 					trace!(target: "miner", "prepare_block: Already have previous work; updating and returning");
-					engine_pending = Vec::new();
+					engine_txs = Vec::new();
 					// add transactions to old_block
 					open_block = chain.reopen_block(old_block);
 				}
@@ -469,7 +469,7 @@ impl Miner {
 					};
 
 					// Before adding from the queue to the new block, give the engine a chance to add transactions.
-					engine_pending = match self.engine.on_prepare_block(&open_block) {
+					engine_txs = match self.engine.on_prepare_block(&open_block) {
 						Ok(transactions) => transactions,
 						Err(err) => {
 							error!(target: "miner", "Failed to prepare engine transactions for new block: {:?}. \
@@ -511,13 +511,13 @@ impl Miner {
 			MAX_SKIPPED_TRANSACTIONS.saturating_add(cmp::min(*open_block.header.gas_limit() / min_tx_gas, u64::max_value().into()).as_u64() as usize)
 		};
 
-		let queue_pending: Vec<Arc<_>> = self.transaction_queue.pending(
+		let queue_txs: Vec<Arc<_>> = self.transaction_queue.pending(
 			client.clone(),
 			pool::PendingSettings {
 				block_number: chain_info.best_block_number,
 				current_timestamp: chain_info.best_block_timestamp,
 				nonce_cap,
-				max_len: max_transactions.saturating_sub(engine_pending.len()),
+				max_len: max_transactions.saturating_sub(engine_txs.len()),
 				ordering: miner::PendingOrdering::Priority,
 			}
 		);
@@ -527,9 +527,9 @@ impl Miner {
 		};
 
 		let block_start = Instant::now();
-		debug!(target: "miner", "Attempting to push {} transactions.", engine_pending.len() + queue_pending.len());
+		debug!(target: "miner", "Attempting to push {} transactions.", engine_txs.len() + queue_txs.len());
 
-		for transaction in engine_pending.into_iter().chain(queue_pending.into_iter().map(|tx| tx.signed().clone())) {
+		for transaction in engine_txs.into_iter().chain(queue_txs.into_iter().map(|tx| tx.signed().clone())) {
 			let start = Instant::now();
 
 			let hash = transaction.hash();

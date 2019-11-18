@@ -400,8 +400,12 @@ pub trait BlockChainClient:
 		self.transact(Action::Call(address), data, None, None, None)
 	}
 
-	/// Returns a signed transaction. If gas limit, gas price, or nonce are not
-	/// specified, the defaults are used.
+	/// Returns a signed transaction.
+	///
+	/// Gas limit, gas price, or nonce can be set explicitly, e.g. to create service
+	/// transactions with zero gas price, or sequences of transactions with consecutive nonces.
+	///
+	/// If these are `None`, the defaults are used.
 	fn create_transaction(
 		&self,
 		action: Action,
@@ -414,7 +418,7 @@ pub trait BlockChainClient:
 	/// Schedule state-altering transaction to be executed on the next pending
 	/// block with the given gas and nonce parameters.
 	///
-	/// If they are `None`, sensible values are selected automatically.
+	/// If `None` is passed for `gas`, `gas_price` or `nonce`, sensible values are selected automatically.
 	fn transact(&self, action: Action, data: Bytes, gas: Option<U256>, gas_price: Option<U256>, nonce: Option<U256>)
 		-> Result<(), transaction::Error>;
 }

@@ -1068,6 +1068,46 @@ impl AuthorityRound {
 	fn address(&self) -> Option<Address> {
 		self.signer.read().as_ref().map(|s| s.address() )
 	}
+
+	/// Make calls to the randomness contract.
+	fn run_randomness_phase(&self, block: &ExecutedBlock) -> Result<Vec<SignedTransaction>, Error> {
+		let opt_signer = self.signer.read();
+		let signer = match opt_signer.as_ref() {
+			Some(signer) => signer,
+			None => return Ok(Vec::new()), // We are not a validator, so we shouldn't call the contracts.
+		};
+		let our_addr = signer.address();
+		let client = self.client.read().as_ref().and_then(|weak| weak.upgrade()).ok_or_else(|| {
+			debug!(target: "engine", "Unable to prepare block: missing client ref.");
+			EngineError::RequiresClient
+		})?;
+		let full_client = client.as_full_client()
+			.ok_or(EngineError::FailedSystemCall("Failed to upgrade to BlockchainClient.".to_string()))?;
+
+		// Our current account nonce. The transactions must have consecutive nonces, starting with this one.
+		let mut tx_nonce = block.state.nonce(&our_addr)?;
+		let mut transactions = Vec::new();
+
+		// Creates and signs a transaction with the given contract call.
+		let mut make_transaction = |to: Address, data: Bytes| -> Result<SignedTransaction, Error> {
+			let nonce = Some(tx_nonce);
+			tx_nonce += U256::one(); // Increment the nonce for the next transaction.
+			Ok(full_client.create_transaction(Action::Call(to), data, None, Some(U256::zero()), nonce)?)
+		};
+
+		// Random number generation
+		if let Some((_, &contract_addr)) = self.randomness_contract_address.range(..=block.header.number()).last() {
+			let contract = util::BoundContract::bind(&*client, BlockId::Latest, contract_addr);
+			let phase = randomness::RandomnessPhase::load(&contract, our_addr)
+				.map_err(|err| EngineError::RandomnessLoadError(err.to_string()))?;
+			if let Some(data) = phase.advance(&contract, &mut OsRng, signer.as_ref())
+					.map_err(|err| EngineError::RandomnessAdvanceError(err.to_string()))? {
+				transactions.push(make_transaction(contract_addr, data)?);
+			}
+		}
+
+		Ok(transactions)
+	}
 }
 
 fn unix_now() -> Duration {
@@ -1452,44 +1492,8 @@ impl Engine for AuthorityRound {
 		block_reward::apply_block_rewards(&rewards, block, &self.machine)
 	}
 
-	/// Make calls to the randomness contract.
 	fn on_prepare_block(&self, block: &ExecutedBlock) -> Result<Vec<SignedTransaction>, Error> {
-		let opt_signer = self.signer.read();
-		let signer = match opt_signer.as_ref() {
-			Some(signer) => signer,
-			None => return Ok(Vec::new()), // We are not a validator, so we shouldn't call the contracts.
-		};
-		let our_addr = signer.address();
-		let client = self.client.read().as_ref().and_then(|weak| weak.upgrade()).ok_or_else(|| {
-			debug!(target: "engine", "Unable to prepare block: missing client ref.");
-			EngineError::RequiresClient
-		})?;
-		let full_client = client.as_full_client()
-			.ok_or(EngineError::FailedSystemCall("Failed to upgrade to BlockchainClient.".to_string()))?;
-
-		// Our current account nonce. The transactions must have consecutive nonces, starting with this one.
-		let mut tx_nonce = block.state.nonce(&our_addr)?;
-		let mut transactions = Vec::new();
-
-		// Creates and signs a transaction with the given contract call.
-		let mut make_transaction = |to: Address, data: Bytes| -> Result<SignedTransaction, Error> {
-			let nonce = Some(tx_nonce);
-			tx_nonce += U256::one(); // Increment the nonce for the next transaction.
-			Ok(full_client.create_transaction(Action::Call(to), data, None, Some(U256::zero()), nonce)?)
-		};
-
-		// Random number generation
-		if let Some((_, &contract_addr)) = self.randomness_contract_address.range(..=block.header.number()).last() {
-			let contract = util::BoundContract::bind(&*client, BlockId::Latest, contract_addr);
-			let phase = randomness::RandomnessPhase::load(&contract, our_addr)
-				.map_err(|err| EngineError::RandomnessLoadError(err.to_string()))?;
-			if let Some(data) = phase.advance(&contract, &mut OsRng, signer.as_ref())
-					.map_err(|err| EngineError::RandomnessAdvanceError(err.to_string()))? {
-				transactions.push(make_transaction(contract_addr, data)?);
-			}
-		}
-
-		Ok(transactions)
+		self.run_randomness_phase(block)
 	}
 
 	/// Check the number of seal fields.
