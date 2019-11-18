@@ -506,7 +506,7 @@ usage! {
 			"--jsonrpc-hosts=[HOSTS]",
 			"List of allowed Host header values. This option will validate the Host header sent by the browser, it is additional security against some attack vectors. Special options: \"all\", \"none\",.",
 
-			ARG arg_jsonrpc_threads: (usize) = 0usize, or |_| None,
+			ARG arg_jsonrpc_threads: (Option<usize>) = None, or |_| None,
 			"--jsonrpc-threads=[NUM]",
 			"DEPRECATED, DOES NOTHING",
 
