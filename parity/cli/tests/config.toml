@@ -32,7 +32,6 @@ origins = ["none"]
 disable = true
 port = 8180
 server_threads = 13
-processing_threads = 14
 
 [ipc]
 apis = ["rpc", "eth"]

@@ -1816,7 +1816,7 @@ mod tests {
 			arg_jsonrpc_apis: "web3,eth,net,parity,traces,rpc,secretstore".into(),
 			arg_jsonrpc_hosts: "none".into(),
 			arg_jsonrpc_server_threads: Some(4),
-			arg_jsonrpc_threads: Some(0), // DEPRECATED, does nothing
+			arg_jsonrpc_threads: None, // DEPRECATED, does nothing
 			arg_jsonrpc_max_payload: None,
 			arg_poll_lifetime: 60u32,
 			flag_jsonrpc_allow_missing_blocks: false,
