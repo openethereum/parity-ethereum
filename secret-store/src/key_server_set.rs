@@ -19,14 +19,11 @@ use std::net::SocketAddr;
 use std::collections::{BTreeMap, HashSet};
 use parking_lot::Mutex;
 use ethabi::FunctionOutputDecoder;
-use common_types::{
-	ids::BlockId,
-};
 use ethereum_types::{H256, Address};
 use crypto::publickey::public_to_address;
 use bytes::Bytes;
 use types::{Error, Public, NodeAddress, NodeId};
-use trusted_client::{TrustedClient, NewBlocksNotify, SigningKeyPair, ContractAddress};
+use trusted_client::{TrustedClient, NewBlocksNotify, SigningKeyPair, ContractAddress, BlockId};
 
 use_contract!(key_server, "res/key_server_set.json");
 

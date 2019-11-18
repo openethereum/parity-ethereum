@@ -17,8 +17,7 @@
 use std::sync::{Arc, Weak};
 use bytes::Bytes;
 use common_types::{
-	ids::BlockId,
-	BlockNumber,
+	ids::BlockId as EthcoreBlockId,
 	transaction::{Transaction, SignedTransaction, Action},
 	chain_notify::NewBlocks,
 	tree_route::TreeRoute,
@@ -40,6 +39,36 @@ use registrar::RegistrarClient;
 // TODO: Instead of a constant, make this based on consensus finality.
 /// Number of confirmations required before request can be processed.
 const REQUEST_CONFIRMATIONS_REQUIRED: u64 = 3;
+
+/// Type for block number.
+/// Duplicated from ethcore types
+pub type BlockNumber = u64;
+
+/// Uniquely identifies block.
+/// Duplicated from ethcore types
+#[derive(Debug, PartialEq, Copy, Clone, Hash, Eq)]
+pub enum BlockId {
+	/// Block's sha3.
+	/// Querying by hash is always faster.
+	Hash(H256),
+	/// Block number within canon blockchain.
+	Number(BlockNumber),
+	/// Earliest block (genesis).
+	Earliest,
+	/// Latest mined block.
+	Latest,
+}
+
+impl From<BlockId> for EthcoreBlockId {
+	fn from(id: BlockId) -> Self {
+		match id {
+			BlockId::Hash(hash) => EthcoreBlockId::Hash(hash),
+			BlockId::Number(number) => EthcoreBlockId::Number(number),
+			BlockId::Earliest => EthcoreBlockId::Earliest,
+			BlockId::Latest => EthcoreBlockId::Latest,
+		}
+	}
+}
 
 /// Contract address.
 #[derive(Debug, Clone)]
@@ -181,7 +210,7 @@ impl TrustedClient {
 			ContractAddress::Registry => self.get_trusted().and_then(|client|
 				self.get_confirmed_block_hash()
 					.and_then(|block| {
-						client.get_address(registry_name, BlockId::Hash(block))
+						client.get_address(registry_name, EthcoreBlockId::Hash(block))
 							.unwrap_or(None)
 					})
 			),
@@ -191,7 +220,7 @@ impl TrustedClient {
 	/// Client's call_contract wrapper
 	pub fn call_contract(&self, block_id: BlockId, contract_address: Address, data: Bytes) -> Result<Bytes, String> {
 		if let Some(client) = self.get_trusted() {
-			client.call_contract(block_id, contract_address, data)
+			client.call_contract(EthcoreBlockId::from(block_id), contract_address, data)
 		} else {
 			Err("Calling ACL contract without trusted blockchain client".into())
 		}
@@ -200,7 +229,7 @@ impl TrustedClient {
 	/// Client's block_hash wrapper
 	pub fn block_hash(&self, id: BlockId) -> Option<H256> {
 		if let Some(client) = self.get_trusted() {
-			client.block_hash(id)
+			client.block_hash(EthcoreBlockId::from(id))
 		} else {
 			None
 		}
@@ -209,7 +238,7 @@ impl TrustedClient {
 	/// Client's block_number wrapper
 	pub fn block_number(&self, id: BlockId) -> Option<BlockNumber> {
 		if let Some(client) = self.get_trusted() {
-			client.block_number(id)
+			client.block_number(EthcoreBlockId::from(id))
 		} else {
 			None
 		}
@@ -253,8 +282,8 @@ impl TrustedClient {
 		};
 
 		self.logs(BlockchainFilter {
-			from_block: BlockId::Hash(first_block),
-			to_block: BlockId::Hash(confirmed_block),
+			from_block: EthcoreBlockId::Hash(first_block),
+			to_block: EthcoreBlockId::Hash(confirmed_block),
 			address: filter.address,
 			topics: filter.topics,
 			limit: None,

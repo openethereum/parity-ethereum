@@ -18,14 +18,13 @@ use std::sync::Arc;
 use parking_lot::RwLock;
 use ethabi::RawLog;
 use ethabi::FunctionOutputDecoder;
-use common_types::ids::BlockId;
 use crypto::publickey::{Public, public_to_address};
 use hash::keccak;
 use bytes::Bytes;
 use ethereum_types::{H256, U256, Address, H512};
 use listener::ApiMask;
 use listener::service_contract_listener::ServiceTask;
-use trusted_client::{TrustedClient, Filter, SigningKeyPair, ContractAddress};
+use trusted_client::{TrustedClient, Filter, SigningKeyPair, ContractAddress, BlockId};
 use ServerKeyId;
 
 use_contract!(service, "res/service.json");
