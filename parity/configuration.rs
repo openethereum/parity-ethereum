@@ -426,7 +426,7 @@ impl Configuration {
 
 		Ok(Execute {
 			logger: logger_config,
-			cmd: cmd,
+			cmd,
 		})
 	}
 
@@ -894,9 +894,6 @@ impl Configuration {
 		conf.cors = self.rpc_cors();
 		if let Some(threads) = self.args.arg_jsonrpc_server_threads {
 			conf.server_threads = std::cmp::max(1, threads);
-		}
-		if let Some(threads) = self.args.arg_jsonrpc_threads {
-			conf.processing_threads = std::cmp::max(1, threads);
 		}
 		if let Some(max_payload) = self.args.arg_jsonrpc_max_payload {
 			conf.max_payload = std::cmp::max(1, max_payload);
@@ -1630,14 +1627,12 @@ mod tests {
 		// given incorrect settings
 		let conf = parse(&["parity",
 			"--jsonrpc-server-threads=0",
-			"--jsonrpc-threads=0",
 			"--jsonrpc-max-payload=0",
 		]);
 
 		// then things are adjusted to Just Work.
 		let http_conf = conf.http_config().unwrap();
 		assert_eq!(http_conf.server_threads, 1);
-		assert_eq!(http_conf.processing_threads, 1);
 		assert_eq!(http_conf.max_payload, 1);
 	}
 
@@ -1646,7 +1641,6 @@ mod tests {
 		let conf = parse(&["parity"]);
 		let http_conf = conf.http_config().unwrap();
 		assert_eq!(http_conf.server_threads, 4);
-		assert_eq!(http_conf.processing_threads, 4);
 		assert_eq!(http_conf.max_payload, 5);
 	}
 

@@ -49,10 +49,6 @@ pub struct HttpConfiguration {
 	pub hosts: Option<Vec<String>>,
 	/// Number of HTTP server threads to use to handle incoming requests (default is 4).
 	pub server_threads: usize,
-	/// Number of threads to use in a shared pool (between all transports) to process deserialized RPC requests.
-	/// 
-    /// This allows for concurrent RPC processing, while allowing the transport (server) to handle incoming connections or requests in it's own threads.
-	pub processing_threads: usize,
 	/// Sets the maximum size of a request body in megabytes (default is 5 MiB).
 	pub max_payload: usize,
 	/// Use keepalive messages on the underlying socket: SO_KEEPALIVE as well as the TCP_KEEPALIVE
@@ -70,7 +66,6 @@ impl Default for HttpConfiguration {
 			cors: Some(vec![]),
 			hosts: Some(vec![]),
 			server_threads: 4,
-			processing_threads: 4,
 			max_payload: 5,
 			keep_alive: true,
 		}
