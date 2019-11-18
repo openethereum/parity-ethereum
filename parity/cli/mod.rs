@@ -507,11 +507,11 @@ usage! {
 			"List of allowed Host header values. This option will validate the Host header sent by the browser, it is additional security against some attack vectors. Special options: \"all\", \"none\",.",
 
 			ARG arg_jsonrpc_threads: (usize) = 0usize, or |_| None,
-			"--jsonrpc-threads=[THREADS]",
+			"--jsonrpc-threads=[NUM]",
 			"DEPRECATED, DOES NOTHING",
 
 			ARG arg_jsonrpc_server_threads: (Option<usize>) = Some(4), or |c: &Config| c.rpc.as_ref()?.server_threads,
-			"--jsonrpc-server-threads=[THREADS]",
+			"--jsonrpc-server-threads=[NUM]",
 			"Enables multiple threads handling incoming connections for HTTP JSON-RPC server.",
 
 			ARG arg_jsonrpc_cors: (String) = "none", or |c: &Config| c.rpc.as_ref()?.cors.as_ref().map(|vec| vec.join(",")),
