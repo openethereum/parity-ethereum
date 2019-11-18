@@ -35,7 +35,7 @@ use call_contract::CallContract;
 use client_traits::{ChainInfo, Nonce, ChainNotify};
 use ethcore::miner::{Miner, MinerService};
 use sync::SyncProvider;
-use {Error, ContractAddress};
+use ContractAddress;
 use registrar::RegistrarClient;
 
 // TODO: Instead of a constant, make this based on consensus finality.
@@ -141,9 +141,9 @@ impl TrustedClient {
 	}
 
 	/// Transact contract.
-	pub fn transact_contract(&self, contract: Address, tx_data: Bytes) -> Result<(), Error> {
-		let client = self.client.upgrade().ok_or_else(|| Error::Internal("cannot submit tx when client is offline".into()))?;
-		let miner = self.miner.upgrade().ok_or_else(|| Error::Internal("cannot submit tx when miner is offline".into()))?;
+	pub fn transact_contract(&self, contract: Address, tx_data: Bytes) -> Result<(), EthKeyError> {
+		let client = self.client.upgrade().ok_or_else(|| EthKeyError::Custom("cannot submit tx when client is offline".into()))?;
+		let miner = self.miner.upgrade().ok_or_else(|| EthKeyError::Custom("cannot submit tx when miner is offline".into()))?;
 		let engine = client.engine();
 		let transaction = Transaction {
 			nonce: client.latest_nonce(&self.self_key_pair.address()),
@@ -157,7 +157,7 @@ impl TrustedClient {
 		let signature = self.self_key_pair.sign(&transaction.hash(chain_id))?;
 		let signed = SignedTransaction::new(transaction.with_signature(signature, chain_id))?;
 		miner.import_own_transaction(&*client, signed.into())
-			.map_err(|e| Error::Internal(format!("failed to import tx: {}", e)))
+			.map_err(|e| EthKeyError::Custom(format!("failed to import tx: {}", e)))
 	}
 
 	/// Read contract address. If address source is registry, address only returned if current client state is
