@@ -35,12 +35,20 @@ use call_contract::CallContract;
 use client_traits::{ChainInfo, Nonce, ChainNotify};
 use ethcore::miner::{Miner, MinerService};
 use sync::SyncProvider;
-use ContractAddress;
 use registrar::RegistrarClient;
 
 // TODO: Instead of a constant, make this based on consensus finality.
 /// Number of confirmations required before request can be processed.
 const REQUEST_CONFIRMATIONS_REQUIRED: u64 = 3;
+
+/// Contract address.
+#[derive(Debug, Clone)]
+pub enum ContractAddress {
+	/// Address is read from registry.
+	Registry,
+	/// Address is specified.
+	Address(ethereum_types::Address),
+}
 
 /// Key pair with signing ability.
 pub trait SigningKeyPair: Send + Sync {

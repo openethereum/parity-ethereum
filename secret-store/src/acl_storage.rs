@@ -22,8 +22,8 @@ use common_types::{
 use parking_lot::{Mutex, RwLock};
 use ethereum_types::Address;
 use ethabi::FunctionOutputDecoder;
-use trusted_client::{TrustedClient, NewBlocksNotify};
-use types::{Error, ServerKeyId, ContractAddress};
+use trusted_client::{TrustedClient, NewBlocksNotify, ContractAddress};
+use types::{Error, ServerKeyId};
 
 use_contract!(acl_storage, "res/acl_storage.json");
 

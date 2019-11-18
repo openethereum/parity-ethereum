@@ -87,9 +87,9 @@ use sync::SyncProvider;
 use parity_runtime::Executor;
 
 pub use types::{ServerKeyId, EncryptedDocumentKey, RequestSignature, Public,
-	Error, NodeAddress, ContractAddress, ServiceConfiguration, ClusterConfiguration};
+	Error, NodeAddress, ServiceConfiguration, ClusterConfiguration};
 pub use traits::KeyServer;
-pub use trusted_client::SigningKeyPair;
+pub use trusted_client::{SigningKeyPair, ContractAddress};
 pub use self::node_key_pair::PlainNodeKeyPair;
 #[cfg(feature = "accounts")]
 pub use self::node_key_pair::KeyStoreNodeKeyPair;
