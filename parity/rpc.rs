@@ -49,7 +49,9 @@ pub struct HttpConfiguration {
 	pub hosts: Option<Vec<String>>,
 	/// Number of threads to use to handle incoming requests (default is 4).
 	pub server_threads: usize,
-	/// Number of threads to use to process HTTP requests (default is 4).
+	/// Number of threads to use in a shared pool (between all transports) to process deserialized RPC requests.
+	/// 
+    /// This allows for concurrent RPC processing, while allowing the transport (server) to handle incoming connections or requests in it's own threads.
 	pub processing_threads: usize,
 	/// Sets the maximum size of a request body in megabytes (default is 5 MiB).
 	pub max_payload: usize,
