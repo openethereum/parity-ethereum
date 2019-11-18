@@ -240,7 +240,7 @@ pub fn find_deprecated(args: &Args) -> Vec<Deprecated> {
 	}
 
 	if args.arg_jsonrpc_threads.is_some() {
-		result.push( Deprecated::Removed("--jsonrpc--threads (aka processing_threads)"));
+		result.push(Deprecated::Removed("--jsonrpc--threads (aka processing_threads)"));
 	}
 
 	result
