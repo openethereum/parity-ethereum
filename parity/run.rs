@@ -284,7 +284,8 @@ fn execute_light_impl<Cr>(cmd: RunCmd, logger: Arc<RotatingLogger>, on_client_rq
 	let light_sync = Arc::new(light_sync);
 	*sync_handle.write() = Arc::downgrade(&light_sync);
 
-	// spin up event loop
+	// Spin up the Tokio event loop with core_threads = number of logical cores on the machine.
+	// This runtime is shared among many subsystems: sync, rpc processing, tx broadcasting, price fetcher etc
 	let runtime = Runtime::with_default_thread_count();
 
 	// start the network.
@@ -361,9 +362,14 @@ fn execute_light_impl<Cr>(cmd: RunCmd, logger: Arc<RotatingLogger>, on_client_rq
 	})
 }
 
-fn execute_impl<Cr, Rr>(cmd: RunCmd, logger: Arc<RotatingLogger>, on_client_rq: Cr,
-						on_updater_rq: Rr) -> Result<RunningClient, String>
-	where Cr: Fn(String) + 'static + Send,
+fn execute_impl<Cr, Rr>(
+	cmd: RunCmd,
+	logger: Arc<RotatingLogger>,
+	on_client_rq: Cr,
+	on_updater_rq: Rr
+) -> Result<RunningClient, String>
+	where
+		Cr: Fn(String) + 'static + Send,
 		Rr: Fn() + 'static + Send
 {
 	// load spec
@@ -477,7 +483,8 @@ fn execute_impl<Cr, Rr>(cmd: RunCmd, logger: Arc<RotatingLogger>, on_client_rq: 
 	// prepare account provider
 	let account_provider = Arc::new(account_utils::prepare_account_provider(&cmd.spec, &cmd.dirs, &spec.data_dir, cmd.acc_conf, &passwords)?);
 
-	// spin up event loop
+	// Spin up the Tokio event loop with core_threads = number of logical cores on the machine.
+	// This runtime is shared among many subsystems: sync, rpc processing, tx broadcasting, price fetcher etc
 	let runtime = Runtime::with_default_thread_count();
 
 	// fetch service
@@ -910,9 +917,14 @@ impl RunningClient {
 /// `on_updater_rq` is the action to perform when the updater has a new binary to execute.
 ///
 /// On error, returns what to print on stderr.
-pub fn execute<Cr, Rr>(cmd: RunCmd, logger: Arc<RotatingLogger>,
-						on_client_rq: Cr, on_updater_rq: Rr) -> Result<RunningClient, String>
-	where Cr: Fn(String) + 'static + Send,
+pub fn execute<Cr, Rr>(
+	cmd: RunCmd,
+	logger: Arc<RotatingLogger>,
+	on_client_rq: Cr,
+	on_updater_rq: Rr
+) -> Result<RunningClient, String>
+	where
+		Cr: Fn(String) + 'static + Send,
 		Rr: Fn() + 'static + Send
 {
 	if cmd.light {

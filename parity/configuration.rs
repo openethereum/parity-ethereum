@@ -367,49 +367,49 @@ impl Configuration {
 			let (private_provider_conf, private_enc_conf, private_tx_enabled) = self.private_provider_config()?;
 
 			let run_cmd = RunCmd {
-				cache_config: cache_config,
-				dirs: dirs,
-				spec: spec,
-				pruning: pruning,
-				pruning_history: pruning_history,
+				cache_config,
+				dirs,
+				spec,
+				pruning,
+				pruning_history,
 				pruning_memory: self.args.arg_pruning_memory,
-				daemon: daemon,
+				daemon,
 				logger_config: logger_config.clone(),
 				miner_options: self.miner_options()?,
 				gas_price_percentile: self.args.arg_gas_price_percentile,
 				poll_lifetime: self.args.arg_poll_lifetime,
-				ws_conf: ws_conf,
-				snapshot_conf: snapshot_conf,
-				http_conf: http_conf,
-				ipc_conf: ipc_conf,
-				net_conf: net_conf,
-				network_id: network_id,
+				ws_conf,
+				snapshot_conf,
+				http_conf,
+				ipc_conf,
+				net_conf,
+				network_id,
 				acc_conf: self.accounts_config()?,
 				gas_pricer_conf: self.gas_pricer_config()?,
 				miner_extras: self.miner_extras()?,
 				stratum: self.stratum_options()?,
-				update_policy: update_policy,
+				update_policy,
 				allow_missing_blocks: self.args.flag_jsonrpc_allow_missing_blocks,
-				mode: mode,
-				tracing: tracing,
-				fat_db: fat_db,
-				compaction: compaction,
-				vm_type: vm_type,
-				warp_sync: warp_sync,
+				mode,
+				tracing,
+				fat_db,
+				compaction,
+				vm_type,
+				warp_sync,
 				warp_barrier: self.args.arg_warp_barrier,
-				geth_compatibility: geth_compatibility,
+				geth_compatibility,
 				experimental_rpcs,
 				net_settings: self.network_settings()?,
-				ipfs_conf: ipfs_conf,
-				secretstore_conf: secretstore_conf,
-				private_provider_conf: private_provider_conf,
+				ipfs_conf,
+				secretstore_conf,
+				private_provider_conf,
 				private_encryptor_conf: private_enc_conf,
 				private_tx_enabled,
 				name: self.args.arg_identity,
 				custom_bootnodes: self.args.arg_bootnodes.is_some(),
 				check_seal: !self.args.flag_no_seal_check,
 				download_old_blocks: !self.args.flag_no_ancient_blocks,
-				verifier_settings: verifier_settings,
+				verifier_settings,
 				serve_light: !self.args.flag_no_serve_light,
 				light: self.args.flag_light,
 				no_persistent_txqueue: self.args.flag_no_persistent_txqueue,
@@ -426,7 +426,7 @@ impl Configuration {
 
 		Ok(Execute {
 			logger: logger_config,
-			cmd: cmd,
+			cmd,
 		})
 	}
 
@@ -885,24 +885,20 @@ impl Configuration {
 	}
 
 	fn http_config(&self) -> Result<HttpConfiguration, String> {
-		let conf = HttpConfiguration {
-			enabled: self.rpc_enabled(),
-			interface: self.rpc_interface(),
-			port: self.args.arg_ports_shift + self.args.arg_rpcport.unwrap_or(self.args.arg_jsonrpc_port),
-			apis: self.rpc_apis().parse()?,
-			hosts: self.rpc_hosts(),
-			cors: self.rpc_cors(),
-			server_threads: match self.args.arg_jsonrpc_server_threads {
-				Some(threads) if threads > 0 => threads,
-				_ => 1,
-			},
-			processing_threads: self.args.arg_jsonrpc_threads,
-			max_payload: match self.args.arg_jsonrpc_max_payload {
-				Some(max) if max > 0 => max as usize,
-				_ => 5usize,
-			},
-			keep_alive: !self.args.flag_jsonrpc_no_keep_alive,
-		};
+		let mut conf = HttpConfiguration::default();
+		conf.enabled = self.rpc_enabled();
+		conf.interface = self.rpc_interface();
+		conf.port = self.args.arg_ports_shift + self.args.arg_rpcport.unwrap_or(self.args.arg_jsonrpc_port);
+		conf.apis = self.rpc_apis().parse()?;
+		conf.hosts = self.rpc_hosts();
+		conf.cors = self.rpc_cors();
+		if let Some(threads) = self.args.arg_jsonrpc_server_threads {
+			conf.server_threads = std::cmp::max(1, threads);
+		}
+		if let Some(max_payload) = self.args.arg_jsonrpc_max_payload {
+			conf.max_payload = std::cmp::max(1, max_payload);
+		}
+		conf.keep_alive = !self.args.flag_jsonrpc_no_keep_alive;
 
 		Ok(conf)
 	}
@@ -1624,6 +1620,28 @@ mod tests {
 		assert_eq!(conf1.rpc_hosts(), Some(Vec::new()));
 		assert_eq!(conf2.rpc_hosts(), None);
 		assert_eq!(conf3.rpc_hosts(), Some(vec!["parity.io".into(), "something.io".into()]));
+	}
+
+	#[test]
+	fn ensures_sane_http_settings() {
+		// given incorrect settings
+		let conf = parse(&["parity",
+			"--jsonrpc-server-threads=0",
+			"--jsonrpc-max-payload=0",
+		]);
+
+		// then things are adjusted to Just Work.
+		let http_conf = conf.http_config().unwrap();
+		assert_eq!(http_conf.server_threads, 1);
+		assert_eq!(http_conf.max_payload, 1);
+	}
+
+	#[test]
+	fn jsonrpc_threading_defaults() {
+		let conf = parse(&["parity"]);
+		let http_conf = conf.http_config().unwrap();
+		assert_eq!(http_conf.server_threads, 4);
+		assert_eq!(http_conf.max_payload, 5);
 	}
 
 	#[test]
