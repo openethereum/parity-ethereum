@@ -244,9 +244,9 @@ impl Manager {
 		trace!(target: "migration", "Expecting database to contain {:?} columns", columns);
 		let mut db_config = DatabaseConfig {
 			max_open_files: 64,
-			memory_budget: None,
 			compaction: config.compaction_profile,
-			columns: columns,
+			columns,
+			..Default::default()
 		};
 
 		let db_root = database_path(old_path);
