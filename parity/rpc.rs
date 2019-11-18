@@ -47,7 +47,7 @@ pub struct HttpConfiguration {
 	pub cors: Option<Vec<String>>,
 	/// Specify a list of valid hosts we accept requests from.
 	pub hosts: Option<Vec<String>>,
-	/// Number of threads to use to handle incoming requests (default is 4).
+	/// Number of HTTP server threads to use to handle incoming requests (default is 4).
 	pub server_threads: usize,
 	/// Number of threads to use in a shared pool (between all transports) to process deserialized RPC requests.
 	/// 
