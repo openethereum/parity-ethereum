@@ -35,15 +35,24 @@ pub const DAPPS_DOMAIN: &'static str = "web3.site";
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct HttpConfiguration {
+	/// Is RPC over HTTP enabled (default is true)?
 	pub enabled: bool,
+	/// The IP of the network interface used (default is 127.0.0.1).
 	pub interface: String,
+	/// The network port (default is 8545).
 	pub port: u16,
+	/// The categories of RPC calls enabled.
 	pub apis: ApiSet,
+	/// CORS headers
 	pub cors: Option<Vec<String>>,
+	/// Specify a list of valid hosts we accept requests from.
 	pub hosts: Option<Vec<String>>,
+	/// Number of HTTP server threads to use to handle incoming requests (default is 4).
 	pub server_threads: usize,
-	pub processing_threads: usize,
+	/// Sets the maximum size of a request body in megabytes (default is 5 MiB).
 	pub max_payload: usize,
+	/// Use keepalive messages on the underlying socket: SO_KEEPALIVE as well as the TCP_KEEPALIVE
+	/// or TCP_KEEPIDLE options depending on your platform (default is true).
 	pub keep_alive: bool,
 }
 
@@ -56,8 +65,7 @@ impl Default for HttpConfiguration {
 			apis: ApiSet::UnsafeContext,
 			cors: Some(vec![]),
 			hosts: Some(vec![]),
-			server_threads: 1,
-			processing_threads: 4,
+			server_threads: 4,
 			max_payload: 5,
 			keep_alive: true,
 		}
