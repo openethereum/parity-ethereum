@@ -34,7 +34,7 @@ use types::{
 use v1::types::BlockNumber;
 use v1::impls::EthClientOptions;
 
-mod codes {
+pub mod codes {
 	// NOTE [ToDr] Codes from [-32099, -32000]
 	pub const UNSUPPORTED_REQUEST: i64 = -32000;
 	pub const NO_WORK: i64 = -32001;

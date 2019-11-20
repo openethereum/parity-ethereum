@@ -22,7 +22,7 @@ use parking_lot::Mutex;
 
 use ethereum_types::{H160, H256, H520, U256};
 
-use jsonrpc_core::{BoxFuture, Result, Error};
+use jsonrpc_core::{BoxFuture, Result, Error, ErrorCode};
 use jsonrpc_core::futures::{future, Future, Poll, Async};
 use jsonrpc_core::futures::future::Either;
 
@@ -125,11 +125,24 @@ impl<D: Dispatcher + 'static> SigningQueueClient<D> {
 						.map(dispatch::WithToken::into_value)
 						.map(DispatchResult::Value))
 				} else {
-					Either::B(future::done(
-						signer.add_request(payload, origin)
-							.map(|(id, future)| DispatchResult::Future(id, future))
-							.map_err(|_| errors::request_rejected_limit())
-					))
+					if signer.is_enabled() {
+						Either::B(future::done(
+							signer.add_request(payload, origin)
+								.map(|(id, future)| {
+									DispatchResult::Future(id, future)
+								})
+								.map_err(|_| errors::request_rejected_limit())
+						))
+					} else {
+						Either::B(
+							future::done(
+								Err(Error {
+									code: ErrorCode::ServerError(errors::codes::UNSUPPORTED_REQUEST),
+									message: "Account is locked!".into(),
+									data: None })
+							)
+						)
+					}
 				}
 			}))
 	}
