@@ -21,11 +21,11 @@ mod server;
 #[cfg(feature = "secretstore")]
 mod blockchain;
 
-#[cfg(feature = "accounts")]
+#[cfg(all(feature = "accounts", feature = "secretstore"))]
 mod nodekeypair;
 
 pub use self::server::{Configuration, NodeSecretKey, ContractAddress, Dependencies, start};
 #[cfg(feature = "secretstore")]
 use self::blockchain::TrustedClient;
-#[cfg(feature = "accounts")]
+#[cfg(all(feature = "accounts", feature = "secretstore"))]
 use self::nodekeypair::KeyStoreNodeKeyPair;
