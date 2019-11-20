@@ -29,7 +29,6 @@ use bytes::Bytes;
 use ansi_term::Colour;
 use sync::{NetworkConfiguration, validate_node_url, self};
 use parity_crypto::publickey::{Secret, Public};
-use ethcore::client::VMType;
 use ethcore::miner::{stratum, MinerOptions};
 use snapshot::SnapshotConfiguration;
 use miner::pool;
@@ -120,7 +119,6 @@ impl Configuration {
 		let dirs = self.directories();
 		let pruning = self.args.arg_pruning.parse()?;
 		let pruning_history = self.args.arg_pruning_history;
-		let vm_type = self.vm_type()?;
 		let spec = self.chain()?;
 		let mode = match self.args.arg_mode.as_ref() {
 			"last" => None,
@@ -259,7 +257,6 @@ impl Configuration {
 				compaction: compaction,
 				tracing: tracing,
 				fat_db: fat_db,
-				vm_type: vm_type,
 				check_seal: !self.args.flag_no_seal_check,
 				with_color: logger_config.color,
 				verifier_settings: self.verifier_settings(),
@@ -394,7 +391,6 @@ impl Configuration {
 				tracing,
 				fat_db,
 				compaction,
-				vm_type,
 				warp_sync,
 				warp_barrier: self.args.arg_warp_barrier,
 				geth_compatibility,
@@ -428,10 +424,6 @@ impl Configuration {
 			logger: logger_config,
 			cmd,
 		})
-	}
-
-	fn vm_type(&self) -> Result<VMType, String> {
-		Ok(VMType::Interpreter)
 	}
 
 	fn miner_extras(&self) -> Result<MinerExtras, String> {
@@ -1200,7 +1192,6 @@ mod tests {
 	use std::str::FromStr;
 
 	use tempdir::TempDir;
-	use ethcore::client::VMType;
 	use ethcore::miner::MinerOptions;
 	use miner::pool::PrioritizationStrategy;
 	use parity_rpc::NetworkSettings;
@@ -1305,7 +1296,6 @@ mod tests {
 			compaction: Default::default(),
 			tracing: Default::default(),
 			fat_db: Default::default(),
-			vm_type: VMType::Interpreter,
 			check_seal: true,
 			with_color: !cfg!(windows),
 			verifier_settings: Default::default(),
@@ -1458,7 +1448,6 @@ mod tests {
 			mode: Default::default(),
 			tracing: Default::default(),
 			compaction: Default::default(),
-			vm_type: Default::default(),
 			geth_compatibility: false,
 			experimental_rpcs: false,
 			net_settings: Default::default(),

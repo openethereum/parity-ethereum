@@ -21,7 +21,7 @@ use std::thread;
 
 use ansi_term::Colour;
 use client_traits::{BlockInfo, BlockChainClient};
-use ethcore::client::{Client, DatabaseCompactionProfile, VMType};
+use ethcore::client::{Client, DatabaseCompactionProfile};
 use ethcore::miner::{self, stratum, Miner, MinerService, MinerOptions};
 use snapshot::{self, SnapshotConfiguration};
 use spec::SpecParams;
@@ -113,7 +113,6 @@ pub struct RunCmd {
 	pub tracing: Switch,
 	pub fat_db: Switch,
 	pub compaction: DatabaseCompactionProfile,
-	pub vm_type: VMType,
 	pub geth_compatibility: bool,
 	pub experimental_rpcs: bool,
 	pub net_settings: NetworkSettings,
@@ -531,7 +530,6 @@ fn execute_impl<Cr, Rr>(
 		tracing,
 		fat_db,
 		cmd.compaction,
-		cmd.vm_type,
 		cmd.name,
 		algorithm,
 		cmd.pruning_history,

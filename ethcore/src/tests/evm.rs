@@ -19,7 +19,7 @@
 use std::sync::Arc;
 use hash::keccak;
 use vm::{EnvInfo, ActionParams, ActionValue, CallType, ParamsType};
-use evm::{Factory, VMType};
+use evm::Factory;
 use machine::{
 	executive::Executive,
 	substate::Substate,

@@ -21,7 +21,7 @@ use std::fs::File;
 use std::collections::HashSet;
 use ethereum_types::{U256, Address};
 use journaldb::Algorithm;
-use ethcore::client::{VMType, DatabaseCompactionProfile, ClientConfig};
+use ethcore::client::{DatabaseCompactionProfile, ClientConfig};
 use ethcore::miner::{PendingSet, Penalization};
 use verification::VerifierType;
 use miner::pool::PrioritizationStrategy;
@@ -232,7 +232,6 @@ pub fn to_client_config(
 	tracing: bool,
 	fat_db: bool,
 	compaction: DatabaseCompactionProfile,
-	vm_type: VMType,
 	name: String,
 	pruning: Algorithm,
 	pruning_history: u64,
@@ -268,7 +267,6 @@ pub fn to_client_config(
 	client_config.pruning = pruning;
 	client_config.history = pruning_history;
 	client_config.db_compaction = compaction;
-	client_config.vm_type = vm_type;
 	client_config.name = name;
 	client_config.verifier_type = if check_seal { VerifierType::Canon } else { VerifierType::CanonNoSeal };
 	client_config.spec_name = spec_name;

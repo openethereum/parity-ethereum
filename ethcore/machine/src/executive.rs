@@ -1234,7 +1234,7 @@ mod tests {
 		transaction::{Action, Transaction},
 	};
 	use parity_crypto::publickey::{Generator, Random};
-	use evm::{Factory, VMType, evm_test, evm_test_ignore};
+	use evm::{Factory, evm_test, evm_test_ignore};
 	use macros::vec_into;
 	use vm::{ActionParams, ActionValue, CallType, EnvInfo, CreateContractAddress};
 	use ::trace::{
