@@ -114,6 +114,19 @@ impl<D: Dispatcher + 'static> SigningQueueClient<D> {
 
 	fn dispatch(&self, payload: RpcConfirmationPayload, origin: Origin) -> BoxFuture<DispatchResult> {
 		let default_account = self.accounts.default_account();
+		let from = &payload.sender().unwrap_or(&default_account);
+		// bail early if the account isn't unlocked
+		if !self.accounts.is_unlocked(from) && !self.signer.is_enabled() {
+			return Box::new(future::done(Err(
+				Error {
+					code: ErrorCode::ServerError(errors::codes::ACCOUNT_LOCKED),
+					message: "Your account is locked. Unlock the account via CLI, \
+									personal_unlockAccount or use Trusted Signer.".into(),
+					data: None
+				}
+			)))
+		}
+
 		let accounts = self.accounts.clone();
 		let dispatcher = self.dispatcher.clone();
 		let signer = self.signer.clone();
@@ -125,25 +138,13 @@ impl<D: Dispatcher + 'static> SigningQueueClient<D> {
 						.map(dispatch::WithToken::into_value)
 						.map(DispatchResult::Value))
 				} else {
-					if signer.is_enabled() {
-						Either::B(future::done(
-							signer.add_request(payload, origin)
-								.map(|(id, future)| {
-									DispatchResult::Future(id, future)
-								})
-								.map_err(|_| errors::request_rejected_limit())
-						))
-					} else {
-						Either::B(
-							future::done(
-								Err(Error {
-									code: ErrorCode::ServerError(errors::codes::ACCOUNT_LOCKED),
-									message: "Your account is locked. Unlock the account via CLI, \
-									personal_unlockAccount or use Trusted Signer.".into(),
-									data: None })
-							)
-						)
-					}
+					Either::B(future::done(
+						signer.add_request(payload, origin)
+							.map(|(id, future)| {
+								DispatchResult::Future(id, future)
+							})
+							.map_err(|_| errors::request_rejected_limit())
+					))
 				}
 			}))
 	}
