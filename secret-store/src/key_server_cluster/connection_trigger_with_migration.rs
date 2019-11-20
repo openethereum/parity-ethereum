@@ -28,7 +28,7 @@ use key_server_cluster::jobs::servers_set_change_access_job::ordered_nodes_hash;
 use key_server_cluster::connection_trigger::{Maintain, ConnectionsAction, ConnectionTrigger,
 	ServersSetChangeSessionCreatorConnector, TriggerConnections};
 use types::{Error, NodeId};
-use trusted_client::SigningKeyPair;
+use blockchain::SigningKeyPair;
 
 /// Key servers set change trigger with automated migration procedure.
 pub struct ConnectionTriggerWithMigration {

@@ -35,7 +35,7 @@ use acl_storage::AclStorage;
 use listener::service_contract::ServiceContract;
 use listener::tasks_queue::TasksQueue;
 use {ServerKeyId, Error};
-use trusted_client::{NewBlocksNotify, SigningKeyPair};
+use blockchain::{NewBlocksNotify, SigningKeyPair};
 
 /// Retry interval (in blocks). Every RETRY_INTERVAL_BLOCKS blocks each KeyServer reads pending requests from
 /// service contract && tries to re-execute. The reason to have this mechanism is primarily because keys
@@ -589,7 +589,7 @@ mod tests {
 	use key_storage::tests::DummyKeyStorage;
 	use key_server_set::KeyServerSet;
 	use key_server_set::tests::MapKeyServerSet;
-	use trusted_client::SigningKeyPair;
+	use blockchain::SigningKeyPair;
 	use {PlainNodeKeyPair, ServerKeyId};
 	use super::{ServiceTask, ServiceContractListener, ServiceContractListenerParams, is_processed_by_this_key_server};
 	use ethereum_types::Address;

@@ -26,7 +26,7 @@ use key_server_cluster::cluster_sessions::AdminSession;
 use key_server_cluster::cluster_connections::{Connection};
 use key_server_cluster::cluster_connections_net::{NetConnectionsContainer};
 use types::{Error, NodeId};
-use trusted_client::SigningKeyPair;
+use blockchain::SigningKeyPair;
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 /// Describes which maintain() call is required.

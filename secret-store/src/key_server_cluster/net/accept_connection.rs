@@ -20,7 +20,7 @@ use std::net::SocketAddr;
 use std::time::Duration;
 use futures::{Future, Poll};
 use tokio::net::TcpStream;
-use trusted_client::SigningKeyPair;
+use blockchain::SigningKeyPair;
 use key_server_cluster::Error;
 use key_server_cluster::io::{accept_handshake, Handshake, Deadline, deadline};
 use key_server_cluster::net::Connection;

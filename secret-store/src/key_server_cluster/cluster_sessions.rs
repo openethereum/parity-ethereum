@@ -22,7 +22,7 @@ use futures::{oneshot, Oneshot, Complete, Future};
 use parking_lot::{Mutex, RwLock, Condvar};
 use ethereum_types::H256;
 use crypto::publickey::Secret;
-use trusted_client::SigningKeyPair;
+use blockchain::SigningKeyPair;
 use key_server_cluster::{Error, NodeId, SessionId};
 use key_server_cluster::cluster::{Cluster, ClusterConfiguration, ClusterView};
 use key_server_cluster::cluster_connections::ConnectionProvider;

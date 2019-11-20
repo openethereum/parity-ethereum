@@ -889,7 +889,7 @@ impl SessionTransport for IsolatedSessionTransport {
 pub mod tests {
 	use std::collections::BTreeSet;
 	use crypto::publickey::{Random, Generator, Public};
-	use trusted_client::SigningKeyPair;
+	use blockchain::SigningKeyPair;
 	use key_server_cluster::{NodeId, Error, KeyStorage};
 	use key_server_cluster::cluster::tests::MessageLoop as ClusterMessageLoop;
 	use key_server_cluster::servers_set_change_session::tests::{MessageLoop, AdminSessionAdapter, generate_key};

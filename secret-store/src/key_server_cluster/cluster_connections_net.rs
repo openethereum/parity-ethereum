@@ -27,7 +27,7 @@ use tokio::timer::{Interval, timeout::Error as TimeoutError};
 use tokio_io::IoFuture;
 use crypto::publickey::KeyPair;
 use parity_runtime::Executor;
-use trusted_client::SigningKeyPair;
+use blockchain::SigningKeyPair;
 use key_server_cluster::{Error, NodeId, ClusterConfiguration};
 use key_server_cluster::cluster_connections::{ConnectionProvider, Connection, ConnectionManager};
 use key_server_cluster::connection_trigger::{Maintain, ConnectionTrigger};

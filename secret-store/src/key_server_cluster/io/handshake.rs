@@ -40,7 +40,7 @@ use tokio_io::{AsyncRead, AsyncWrite};
 use crypto::publickey::ecdh::agree;
 use crypto::publickey::{Random, Generator, KeyPair, Public, Signature, verify_public, sign, recover};
 use ethereum_types::H256;
-use trusted_client::SigningKeyPair;
+use blockchain::SigningKeyPair;
 use key_server_cluster::{NodeId, Error};
 use key_server_cluster::message::{Message, ClusterMessage, NodePublicKey, NodePrivateKeySignature};
 use key_server_cluster::io::{write_message, write_encrypted_message, WriteMessage, ReadMessage,

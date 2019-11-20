@@ -19,7 +19,7 @@ use std::collections::{HashMap, HashSet};
 use parking_lot::{Mutex, RwLock};
 use ethereum_types::Address;
 use ethabi::FunctionOutputDecoder;
-use trusted_client::{TrustedClient, NewBlocksNotify, ContractAddress, BlockId};
+use blockchain::{Blockchain, NewBlocksNotify, ContractAddress, BlockId};
 use types::{Error, ServerKeyId};
 
 use_contract!(acl_storage, "res/acl_storage.json");
@@ -41,7 +41,7 @@ pub struct OnChainAclStorage {
 /// Cached on-chain ACL storage contract.
 struct CachedContract {
 	/// Blockchain client.
-	client: Arc<TrustedClient>,
+	client: Arc<Blockchain>,
 	/// Contract address source.
 	address_source: ContractAddress,
 	/// Current contract address.
@@ -55,7 +55,7 @@ pub struct DummyAclStorage {
 }
 
 impl OnChainAclStorage {
-	pub fn new(trusted_client: Arc<TrustedClient>, address_source: ContractAddress) -> Result<Arc<Self>, Error> {
+	pub fn new(trusted_client: Arc<Blockchain>, address_source: ContractAddress) -> Result<Arc<Self>, Error> {
 		let acl_storage = Arc::new(OnChainAclStorage {
 			contract: Mutex::new(CachedContract::new(trusted_client.clone(), address_source)),
 		});
@@ -77,7 +77,7 @@ impl NewBlocksNotify for OnChainAclStorage {
 }
 
 impl CachedContract {
-	pub fn new(client: Arc<TrustedClient>, address_source: ContractAddress) -> Self {
+	pub fn new(client: Arc<Blockchain>, address_source: ContractAddress) -> Self {
 		let mut contract = CachedContract {
 			client,
 			address_source,

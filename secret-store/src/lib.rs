@@ -75,7 +75,7 @@ mod serialization;
 mod key_server_set;
 mod node_key_pair;
 mod listener;
-mod trusted_client;
+mod blockchain;
 mod migration;
 
 use std::sync::Arc;
@@ -89,7 +89,7 @@ use parity_runtime::Executor;
 pub use types::{ServerKeyId, EncryptedDocumentKey, RequestSignature, Public,
 	Error, NodeAddress, ServiceConfiguration, ClusterConfiguration};
 pub use traits::KeyServer;
-pub use trusted_client::{SigningKeyPair, ContractAddress};
+pub use blockchain::{SigningKeyPair, ContractAddress};
 pub use self::node_key_pair::PlainNodeKeyPair;
 #[cfg(feature = "accounts")]
 pub use self::node_key_pair::KeyStoreNodeKeyPair;
@@ -112,7 +112,7 @@ pub fn open_secretstore_db(data_path: &str) -> Result<Arc<dyn KeyValueDB>, Strin
 pub fn start(client: Arc<Client>, sync: Arc<dyn SyncProvider>, miner: Arc<Miner>, self_key_pair: Arc<dyn SigningKeyPair>, mut config: ServiceConfiguration,
 	db: Arc<dyn KeyValueDB>, executor: Executor) -> Result<Box<dyn KeyServer>, Error>
 {
-	let trusted_client = trusted_client::TrustedClient::new(self_key_pair.clone(), client.clone(), sync, miner);
+	let trusted_client = blockchain::Blockchain::new(self_key_pair.clone(), client.clone(), sync, miner);
 	let acl_storage: Arc<dyn acl_storage::AclStorage> = match config.acl_check_contract_address.take() {
 		Some(acl_check_contract_address) => acl_storage::OnChainAclStorage::new(trusted_client.clone(), acl_check_contract_address)?,
 		None => Arc::new(acl_storage::DummyAclStorage::default()),

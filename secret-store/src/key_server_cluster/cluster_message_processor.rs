@@ -15,7 +15,7 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 use std::sync::Arc;
-use trusted_client::SigningKeyPair;
+use blockchain::SigningKeyPair;
 use key_server_cluster::{Error, NodeId};
 use key_server_cluster::cluster::{ServersSetChangeParams, new_servers_set_change_session};
 use key_server_cluster::cluster_sessions::{AdminSession};

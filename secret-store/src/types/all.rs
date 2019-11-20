@@ -16,7 +16,7 @@
 
 use std::collections::BTreeMap;
 
-use trusted_client::ContractAddress;
+use blockchain::ContractAddress;
 use {bytes, ethereum_types};
 
 /// Node id.

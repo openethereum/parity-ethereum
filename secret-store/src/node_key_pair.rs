@@ -16,7 +16,7 @@
 
 use crypto::publickey::{KeyPair, Public, Signature, Error as EthKeyError, sign, public_to_address};
 use ethereum_types::{H256, Address};
-use trusted_client::SigningKeyPair;
+use blockchain::SigningKeyPair;
 
 pub struct PlainNodeKeyPair {
 	key_pair: KeyPair,

@@ -118,7 +118,7 @@ pub struct Filter {
 }
 
 /// 'Trusted' client weak reference.
-pub struct TrustedClient {
+pub struct Blockchain {
 	/// This key server node key pair.
 	self_key_pair: Arc<dyn SigningKeyPair>,
 	/// Blockchain client.
@@ -131,10 +131,10 @@ pub struct TrustedClient {
 	listeners: RwLock<Vec<Weak<dyn NewBlocksNotify>>>,
 }
 
-impl TrustedClient {
+impl Blockchain {
 	/// Create new trusted client.
 	pub fn new(self_key_pair: Arc<dyn SigningKeyPair>, client: Arc<Client>, sync: Arc<dyn SyncProvider>, miner: Arc<Miner>) -> Arc<Self> {
-		let trusted_client = Arc::new(TrustedClient {
+		let trusted_client = Arc::new(Blockchain {
 			self_key_pair,
 			client: Arc::downgrade(&client),
 			sync: Arc::downgrade(&sync),
@@ -307,7 +307,7 @@ impl TrustedClient {
 	}
 }
 
-impl ChainNotify for TrustedClient {
+impl ChainNotify for Blockchain {
 	fn new_blocks(&self, new_blocks: NewBlocks) {
 		if new_blocks.has_more_blocks_to_import { return }
 		if !new_blocks.route.enacted().is_empty() || !new_blocks.route.retracted().is_empty() {
