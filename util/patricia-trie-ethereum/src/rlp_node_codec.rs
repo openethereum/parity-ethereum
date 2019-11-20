@@ -139,12 +139,12 @@ impl NodeCodec for RlpNodeCodec<KeccakHasher> {
 					None, None, None, None, None, None, None, None,
 					None, None, None, None, None, None, None, None,
 				];
-				for i in 0..16 {
+				for (i, child) in children.iter_mut().enumerate() {
 					let (child_rlp, child_offset) = r.at_with_offset(i)?;
-					children[i] = if child_rlp.is_empty() {
-						None
-					} else {
-						Some(decode_child_handle_plan::<KeccakHasher>(child_rlp, child_offset)?)
+					if !child_rlp.is_empty() {
+						*child = Some(
+							decode_child_handle_plan::<KeccakHasher>(child_rlp, child_offset)?
+						);
 					}
 				}
 				let (value_rlp, value_offset) = r.at_with_offset(16)?;
