@@ -97,7 +97,7 @@ struct PreviousMigrationTransaction {
 /// Cached on-chain Key Server set contract.
 struct CachedContract {
 	/// Blockchain client.
-	client: Arc<Blockchain>,
+	client: Arc<dyn Blockchain>,
 	/// Contract address source.
 	contract_address_source: Option<ContractAddress>,
 	/// Current contract address.
@@ -117,7 +117,7 @@ struct CachedContract {
 }
 
 impl OnChainKeyServerSet {
-	pub fn new(trusted_client: Arc<Blockchain>, contract_address_source: Option<ContractAddress>, self_key_pair: Arc<dyn SigningKeyPair>, auto_migrate_enabled: bool, key_servers: BTreeMap<Public, NodeAddress>) -> Result<Arc<Self>, Error> {
+	pub fn new(trusted_client: Arc<dyn Blockchain>, contract_address_source: Option<ContractAddress>, self_key_pair: Arc<dyn SigningKeyPair>, auto_migrate_enabled: bool, key_servers: BTreeMap<Public, NodeAddress>) -> Result<Arc<Self>, Error> {
 		let key_server_set = Arc::new(OnChainKeyServerSet {
 			contract: Mutex::new(CachedContract::new(trusted_client.clone(), contract_address_source, self_key_pair, auto_migrate_enabled, key_servers)?),
 		});
@@ -216,7 +216,7 @@ impl <F: Fn(Vec<u8>) -> Result<Vec<u8>, String>> KeyServerSubset<F> for NewKeySe
 }
 
 impl CachedContract {
-	pub fn new(client: Arc<Blockchain>, contract_address_source: Option<ContractAddress>, self_key_pair: Arc<dyn SigningKeyPair>, auto_migrate_enabled: bool, key_servers: BTreeMap<Public, NodeAddress>) -> Result<Self, Error> {
+	pub fn new(client: Arc<dyn Blockchain>, contract_address_source: Option<ContractAddress>, self_key_pair: Arc<dyn SigningKeyPair>, auto_migrate_enabled: bool, key_servers: BTreeMap<Public, NodeAddress>) -> Result<Self, Error> {
 		let server_set = match contract_address_source.is_none() {
 			true => key_servers.into_iter()
 				.map(|(p, addr)| {
@@ -531,7 +531,7 @@ fn update_number_of_confirmations<F1: Fn() -> H256, F2: Fn(H256) -> Option<u64>>
 	snapshot.new_set = future_new_set.new_set;
 }
 
-fn update_last_transaction_block(client: &Blockchain, migration_id: &H256, previous_transaction: &mut Option<PreviousMigrationTransaction>) -> bool {
+fn update_last_transaction_block(client: &dyn Blockchain, migration_id: &H256, previous_transaction: &mut Option<PreviousMigrationTransaction>) -> bool {
 	let last_block = client.block_number(BlockId::Latest).unwrap_or_default();
 	match previous_transaction.as_ref() {
 		// no previous transaction => send immediately
@@ -559,11 +559,11 @@ fn update_last_transaction_block(client: &Blockchain, migration_id: &H256, previ
 	true
 }
 
-fn latest_block_hash(client: &Blockchain) -> H256 {
+fn latest_block_hash(client: &dyn Blockchain) -> H256 {
 	client.block_hash(BlockId::Latest).unwrap_or_default()
 }
 
-fn block_confirmations(client: &Blockchain, block: H256) -> Option<u64> {
+fn block_confirmations(client: &dyn Blockchain, block: H256) -> Option<u64> {
 	client.block_number(BlockId::Hash(block))
 		.and_then(|block| client.block_number(BlockId::Latest).map(|last_block| (block, last_block)))
 		.map(|(block, last_block)| last_block - block)

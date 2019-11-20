@@ -14,37 +14,18 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
-use crypto::publickey::{KeyPair, Public, Signature, Error as EthKeyError, sign, public_to_address};
-use ethereum_types::{H256, Address};
-use blockchain::SigningKeyPair;
+//! Secret store related components.
 
-pub struct PlainNodeKeyPair {
-	key_pair: KeyPair,
-}
+mod server;
 
-impl PlainNodeKeyPair {
-	pub fn new(key_pair: KeyPair) -> Self {
-		PlainNodeKeyPair {
-			key_pair: key_pair,
-		}
-	}
+#[cfg(feature = "secretstore")]
+mod blockchain;
 
-	#[cfg(test)]
-	pub fn key_pair(&self) -> &KeyPair {
-		&self.key_pair
-	}
-}
+#[cfg(feature = "accounts")]
+mod nodekeypair;
 
-impl SigningKeyPair for PlainNodeKeyPair {
-	fn public(&self) -> &Public {
-		self.key_pair.public()
-	}
-
-	fn address(&self) -> Address {
-		public_to_address(self.key_pair.public())
-	}
-
-	fn sign(&self, data: &H256) -> Result<Signature, EthKeyError> {
-		sign(self.key_pair.secret(), data)
-	}
-}
+pub use self::server::{Configuration, NodeSecretKey, ContractAddress, Dependencies, start};
+#[cfg(feature = "secretstore")]
+use self::blockchain::TrustedClient;
+#[cfg(feature = "accounts")]
+use self::nodekeypair::KeyStoreNodeKeyPair;

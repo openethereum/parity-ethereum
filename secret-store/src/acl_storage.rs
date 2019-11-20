@@ -41,7 +41,7 @@ pub struct OnChainAclStorage {
 /// Cached on-chain ACL storage contract.
 struct CachedContract {
 	/// Blockchain client.
-	client: Arc<Blockchain>,
+	client: Arc<dyn Blockchain>,
 	/// Contract address source.
 	address_source: ContractAddress,
 	/// Current contract address.
@@ -55,7 +55,7 @@ pub struct DummyAclStorage {
 }
 
 impl OnChainAclStorage {
-	pub fn new(trusted_client: Arc<Blockchain>, address_source: ContractAddress) -> Result<Arc<Self>, Error> {
+	pub fn new(trusted_client: Arc<dyn Blockchain>, address_source: ContractAddress) -> Result<Arc<Self>, Error> {
 		let acl_storage = Arc::new(OnChainAclStorage {
 			contract: Mutex::new(CachedContract::new(trusted_client.clone(), address_source)),
 		});
@@ -77,7 +77,7 @@ impl NewBlocksNotify for OnChainAclStorage {
 }
 
 impl CachedContract {
-	pub fn new(client: Arc<Blockchain>, address_source: ContractAddress) -> Self {
+	pub fn new(client: Arc<dyn Blockchain>, address_source: ContractAddress) -> Self {
 		let mut contract = CachedContract {
 			client,
 			address_source,

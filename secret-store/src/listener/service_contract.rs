@@ -92,7 +92,7 @@ pub struct OnChainServiceContract {
 	/// Requests mask.
 	mask: ApiMask,
 	/// Blockchain client.
-	client: Arc<Blockchain>,
+	client: Arc<dyn Blockchain>,
 	/// This node key pair.
 	self_key_pair: Arc<dyn SigningKeyPair>,
 	/// Contract registry name (if any).
@@ -132,7 +132,7 @@ struct DocumentKeyShadowRetrievalService;
 
 impl OnChainServiceContract {
 	/// Create new on-chain service contract.
-	pub fn new(mask: ApiMask, client: Arc<Blockchain>, name: String, address_source: ContractAddress, self_key_pair: Arc<dyn SigningKeyPair>) -> Self {
+	pub fn new(mask: ApiMask, client: Arc<dyn Blockchain>, name: String, address_source: ContractAddress, self_key_pair: Arc<dyn SigningKeyPair>) -> Self {
 		let contract = OnChainServiceContract {
 			mask: mask,
 			client: client,
@@ -151,8 +151,8 @@ impl OnChainServiceContract {
 
 	/// Send transaction to the service contract.
 	fn send_contract_transaction<C, P>(&self, tx_name: &str, origin: &Address, server_key_id: &ServerKeyId, is_response_required: C, prepare_tx: P) -> Result<(), String>
-		where C: FnOnce(&Blockchain, &Address, &ServerKeyId, &Address) -> bool,
-			P: FnOnce(&Blockchain, &Address) -> Result<Bytes, String> {
+		where C: FnOnce(&dyn Blockchain, &Address, &ServerKeyId, &Address) -> bool,
+			P: FnOnce(&dyn Blockchain, &Address) -> Result<Bytes, String> {
 		// only publish if contract address is set && client is online
 		if !self.client.is_trusted() {
 			return Err("trusted client is required to publish key".into())
@@ -183,9 +183,9 @@ impl OnChainServiceContract {
 
 	/// Create task-specific pending requests iterator.
 	fn create_pending_requests_iterator<
-		C: 'static + Fn(&Blockchain, &Address, &BlockId) -> Result<U256, String>,
-		R: 'static + Fn(&dyn SigningKeyPair, &Blockchain, &Address, &BlockId, U256) -> Result<(bool, ServiceTask), String>
-	>(&self, client: Arc<Blockchain>, contract_address: &Address, block: &BlockId, get_count: C, read_item: R) -> Box<dyn Iterator<Item=(bool, ServiceTask)>> {
+		C: 'static + Fn(&dyn Blockchain, &Address, &BlockId) -> Result<U256, String>,
+		R: 'static + Fn(&dyn SigningKeyPair, &dyn Blockchain, &Address, &BlockId, U256) -> Result<(bool, ServiceTask), String>
+	>(&self, client: Arc<dyn Blockchain>, contract_address: &Address, block: &BlockId, get_count: C, read_item: R) -> Box<dyn Iterator<Item=(bool, ServiceTask)>> {
 		get_count(&*client, contract_address, block)
 			.map(|count| {
 				let client = client.clone();
@@ -427,7 +427,7 @@ impl ServerKeyGenerationService {
 	}
 
 	/// Check if response from key server is required.
-	pub fn is_response_required(client: &Blockchain, contract_address: &Address, server_key_id: &ServerKeyId, key_server: &Address) -> bool {
+	pub fn is_response_required(client: &dyn Blockchain, contract_address: &Address, server_key_id: &ServerKeyId, key_server: &Address) -> bool {
 		// we're checking confirmation in Latest block, because we're interested in latest contract state here
 		let (encoded, decoder) = service::functions::is_server_key_generation_response_required::call(*server_key_id, *key_server);
 		match client.call_contract(BlockId::Latest, *contract_address, encoded) {
@@ -447,14 +447,14 @@ impl ServerKeyGenerationService {
 	}
 
 	/// Read pending requests count.
-	fn read_pending_requests_count(client: &Blockchain, contract_address: &Address, block: &BlockId) -> Result<U256, String> {
+	fn read_pending_requests_count(client: &dyn Blockchain, contract_address: &Address, block: &BlockId) -> Result<U256, String> {
 		let (encoded, decoder) = service::functions::server_key_generation_requests_count::call();
 		decoder.decode(&client.call_contract(*block, *contract_address, encoded)?)
 			.map_err(|e| e.to_string())
 	}
 
 	/// Read pending request.
-	fn read_pending_request(self_key_pair: &dyn SigningKeyPair, client: &Blockchain, contract_address: &Address, block: &BlockId, index: U256) -> Result<(bool, ServiceTask), String> {
+	fn read_pending_request(self_key_pair: &dyn SigningKeyPair, client: &dyn Blockchain, contract_address: &Address, block: &BlockId, index: U256) -> Result<(bool, ServiceTask), String> {
 		let self_address = public_to_address(self_key_pair.public());
 
 		let (encoded, decoder) = service::functions::get_server_key_generation_request::call(index);
@@ -487,7 +487,7 @@ impl ServerKeyRetrievalService {
 	}
 
 	/// Check if response from key server is required.
-	pub fn is_response_required(client: &Blockchain, contract_address: &Address, server_key_id: &ServerKeyId, key_server: &Address) -> bool {
+	pub fn is_response_required(client: &dyn Blockchain, contract_address: &Address, server_key_id: &ServerKeyId, key_server: &Address) -> bool {
 		// we're checking confirmation in Latest block, because we're interested in latest contract state here
 		let (encoded, decoder) = service::functions::is_server_key_retrieval_response_required::call(*server_key_id, *key_server);
 		match client.call_contract(BlockId::Latest, *contract_address, encoded) {
@@ -507,14 +507,14 @@ impl ServerKeyRetrievalService {
 	}
 
 	/// Read pending requests count.
-	fn read_pending_requests_count(client: &Blockchain, contract_address: &Address, block: &BlockId) -> Result<U256, String> {
+	fn read_pending_requests_count(client: &dyn Blockchain, contract_address: &Address, block: &BlockId) -> Result<U256, String> {
 		let (encoded, decoder) = service::functions::server_key_retrieval_requests_count::call();
 		decoder.decode(&client.call_contract(*block, *contract_address, encoded)?)
 			.map_err(|e| e.to_string())
 	}
 
 	/// Read pending request.
-	fn read_pending_request(self_key_pair: &dyn SigningKeyPair, client: &Blockchain, contract_address: &Address, block: &BlockId, index: U256) -> Result<(bool, ServiceTask), String> {
+	fn read_pending_request(self_key_pair: &dyn SigningKeyPair, client: &dyn Blockchain, contract_address: &Address, block: &BlockId, index: U256) -> Result<(bool, ServiceTask), String> {
 		let self_address = public_to_address(self_key_pair.public());
 
 		let (encoded, decoder) = service::functions::get_server_key_retrieval_request::call(index);
@@ -550,7 +550,7 @@ impl DocumentKeyStoreService {
 	}
 
 	/// Check if response from key server is required.
-	pub fn is_response_required(client: &Blockchain, contract_address: &Address, server_key_id: &ServerKeyId, key_server: &Address) -> bool {
+	pub fn is_response_required(client: &dyn Blockchain, contract_address: &Address, server_key_id: &ServerKeyId, key_server: &Address) -> bool {
 		// we're checking confirmation in Latest block, because we're interested in latest contract state here
 		let (encoded, decoder) = service::functions::is_document_key_store_response_required::call(*server_key_id, *key_server);
 		match client.call_contract(BlockId::Latest, *contract_address, encoded) {
@@ -570,14 +570,14 @@ impl DocumentKeyStoreService {
 	}
 
 	/// Read pending requests count.
-	fn read_pending_requests_count(client: &Blockchain, contract_address: &Address, block: &BlockId) -> Result<U256, String> {
+	fn read_pending_requests_count(client: &dyn Blockchain, contract_address: &Address, block: &BlockId) -> Result<U256, String> {
 		let (encoded, decoder) = service::functions::document_key_store_requests_count::call();
 		decoder.decode(&client.call_contract(*block, *contract_address, encoded)?)
 			.map_err(|e| e.to_string())
 	}
 
 	/// Read pending request.
-	fn read_pending_request(self_key_pair: &dyn SigningKeyPair, client: &Blockchain, contract_address: &Address, block: &BlockId, index: U256) -> Result<(bool, ServiceTask), String> {
+	fn read_pending_request(self_key_pair: &dyn SigningKeyPair, client: &dyn Blockchain, contract_address: &Address, block: &BlockId, index: U256) -> Result<(bool, ServiceTask), String> {
 		let self_address = public_to_address(self_key_pair.public());
 		let (encoded, decoder) = service::functions::get_document_key_store_request::call(index);
 		let (server_key_id, author, common_point, encrypted_point) = decoder.decode(&client.call_contract(*block, *contract_address, encoded)?)
@@ -617,7 +617,7 @@ impl DocumentKeyShadowRetrievalService {
 	}
 
 	/// Check if response from key server is required.
-	pub fn is_response_required(client: &Blockchain, contract_address: &Address, server_key_id: &ServerKeyId, requester: &Address, key_server: &Address) -> bool {
+	pub fn is_response_required(client: &dyn Blockchain, contract_address: &Address, server_key_id: &ServerKeyId, requester: &Address, key_server: &Address) -> bool {
 		// we're checking confirmation in Latest block, because we're interested in latest contract state here
 		let (encoded, decoder) = service::functions::is_document_key_shadow_retrieval_response_required::call(*server_key_id, *requester, *key_server);
 		match client.call_contract(BlockId::Latest, *contract_address, encoded) {
@@ -632,7 +632,7 @@ impl DocumentKeyShadowRetrievalService {
 	}
 
 	/// Prepare publish personal key transaction data.
-	pub fn prepare_pubish_personal_tx_data(client: &Blockchain, contract_address: &Address, server_key_id: &ServerKeyId, requester: &Address, participants: &[Address], decrypted_secret: Public, shadow: Bytes) -> Result<Bytes, String> {
+	pub fn prepare_pubish_personal_tx_data(client: &dyn Blockchain, contract_address: &Address, server_key_id: &ServerKeyId, requester: &Address, participants: &[Address], decrypted_secret: Public, shadow: Bytes) -> Result<Bytes, String> {
 		let mut participants_mask = U256::default();
 		for participant in participants {
 			let participant_index = Self::map_key_server_address(client, contract_address, participant.clone())
@@ -650,14 +650,14 @@ impl DocumentKeyShadowRetrievalService {
 	}
 
 	/// Read pending requests count.
-	fn read_pending_requests_count(client: &Blockchain, contract_address: &Address, block: &BlockId) -> Result<U256, String> {
+	fn read_pending_requests_count(client: &dyn Blockchain, contract_address: &Address, block: &BlockId) -> Result<U256, String> {
 		let (encoded, decoder) = service::functions::document_key_shadow_retrieval_requests_count::call();
 		decoder.decode(&client.call_contract(*block, *contract_address, encoded)?)
 			.map_err(|e| e.to_string())
 	}
 
 	/// Read pending request.
-	fn read_pending_request(self_key_pair: &dyn SigningKeyPair, client: &Blockchain, contract_address: &Address, block: &BlockId, index: U256) -> Result<(bool, ServiceTask), String> {
+	fn read_pending_request(self_key_pair: &dyn SigningKeyPair, client: &dyn Blockchain, contract_address: &Address, block: &BlockId, index: U256) -> Result<(bool, ServiceTask), String> {
 		let self_address = public_to_address(self_key_pair.public());
 
 		let (encoded, decoder) = service::functions::get_document_key_shadow_retrieval_request::call(index);
@@ -687,7 +687,7 @@ impl DocumentKeyShadowRetrievalService {
 	}
 
 	/// Map from key server address to key server index.
-	fn map_key_server_address(client: &Blockchain, contract_address: &Address, key_server: Address) -> Result<u8, String> {
+	fn map_key_server_address(client: &dyn Blockchain, contract_address: &Address, key_server: Address) -> Result<u8, String> {
 		// we're checking confirmation in Latest block, because tx ,ust be appended to the latest state
 		let (encoded, decoder) = service::functions::require_key_server::call(key_server);
 		let index = decoder.decode(&client.call_contract(BlockId::Latest, *contract_address, encoded)?)

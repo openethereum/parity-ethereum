@@ -15,12 +15,7 @@
 // along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
 extern crate byteorder;
-extern crate client_traits;
-extern crate common_types;
 extern crate ethabi;
-extern crate ethcore;
-extern crate ethcore_call_contract as call_contract;
-extern crate ethcore_sync as sync;
 extern crate ethereum_types;
 extern crate hyper;
 extern crate keccak_hash as hash;
@@ -54,15 +49,10 @@ extern crate lazy_static;
 #[macro_use]
 extern crate log;
 
-#[cfg(any(test, feature = "accounts"))]
-extern crate ethkey;
 #[cfg(test)]
 extern crate env_logger;
 #[cfg(test)]
 extern crate tempdir;
-
-#[cfg(feature = "accounts")]
-extern crate ethcore_accounts as accounts;
 
 mod key_server_cluster;
 mod types;
@@ -81,18 +71,13 @@ mod migration;
 use std::sync::Arc;
 use kvdb::KeyValueDB;
 use kvdb_rocksdb::{Database, DatabaseConfig};
-use ethcore::client::Client;
-use ethcore::miner::Miner;
-use sync::SyncProvider;
 use parity_runtime::Executor;
 
 pub use types::{ServerKeyId, EncryptedDocumentKey, RequestSignature, Public,
 	Error, NodeAddress, ServiceConfiguration, ClusterConfiguration};
 pub use traits::KeyServer;
-pub use blockchain::{SigningKeyPair, ContractAddress};
+pub use blockchain::{Blockchain, SigningKeyPair, ContractAddress, BlockId, BlockNumber, NewBlocksNotify, Filter};
 pub use self::node_key_pair::PlainNodeKeyPair;
-#[cfg(feature = "accounts")]
-pub use self::node_key_pair::KeyStoreNodeKeyPair;
 
 /// Open a secret store DB using the given secret store data path. The DB path is one level beneath the data path.
 pub fn open_secretstore_db(data_path: &str) -> Result<Arc<dyn KeyValueDB>, String> {
@@ -109,10 +94,9 @@ pub fn open_secretstore_db(data_path: &str) -> Result<Arc<dyn KeyValueDB>, Strin
 }
 
 /// Start new key server instance
-pub fn start(client: Arc<Client>, sync: Arc<dyn SyncProvider>, miner: Arc<Miner>, self_key_pair: Arc<dyn SigningKeyPair>, mut config: ServiceConfiguration,
+pub fn start(trusted_client: Arc<dyn Blockchain>, self_key_pair: Arc<dyn SigningKeyPair>, mut config: ServiceConfiguration,
 	db: Arc<dyn KeyValueDB>, executor: Executor) -> Result<Box<dyn KeyServer>, Error>
 {
-	let trusted_client = blockchain::Blockchain::new(self_key_pair.clone(), client.clone(), sync, miner);
 	let acl_storage: Arc<dyn acl_storage::AclStorage> = match config.acl_check_contract_address.take() {
 		Some(acl_check_contract_address) => acl_storage::OnChainAclStorage::new(trusted_client.clone(), acl_check_contract_address)?,
 		None => Arc::new(acl_storage::DummyAclStorage::default()),
