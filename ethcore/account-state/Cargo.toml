@@ -27,7 +27,7 @@ pod = { path = "../pod" }
 rlp = "0.4.0"
 serde = { version = "1.0", features = ["derive"] }
 trace = { path = "../trace" }
-trie-db = "0.15.0"
+trie-db = "0.16.0"
 
 [dev-dependencies]
 account-db = { path = "../account-db" }
