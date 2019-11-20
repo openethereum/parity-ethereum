@@ -137,8 +137,9 @@ impl<D: Dispatcher + 'static> SigningQueueClient<D> {
 						Either::B(
 							future::done(
 								Err(Error {
-									code: ErrorCode::ServerError(errors::codes::UNSUPPORTED_REQUEST),
-									message: "Account is locked!".into(),
+									code: ErrorCode::ServerError(errors::codes::ACCOUNT_LOCKED),
+									message: "Your account is locked. Unlock the account via CLI, \
+									personal_unlockAccount or use Trusted Signer.".into(),
 									data: None })
 							)
 						)
