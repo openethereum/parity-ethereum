@@ -16,8 +16,6 @@
 
 //! Block verification utilities.
 
-use call_contract::CallContract;
-use client_traits::BlockInfo;
 // The MallocSizeOf derive looks for this in the root
 use parity_util_mem as malloc_size_of;
 
@@ -25,19 +23,12 @@ use parity_util_mem as malloc_size_of;
 pub mod verification;
 #[cfg(not(feature = "bench" ))]
 mod verification;
-mod verifier;
 pub mod queue;
-mod canon_verifier;
-mod noop_verifier;
 #[cfg(any(test, feature = "bench" ))]
 pub mod test_helpers;
 
-pub use self::verification::FullFamilyParams;
-pub use self::verifier::Verifier;
+pub use self::verification::{FullFamilyParams, verify_block_family, verify_block_final};
 pub use self::queue::{BlockQueue, Config as QueueConfig};
-
-use self::canon_verifier::CanonVerifier;
-use self::noop_verifier::NoopVerifier;
 
 /// Verifier type.
 #[derive(Debug, PartialEq, Clone)]
@@ -46,17 +37,6 @@ pub enum VerifierType {
 	Canon,
 	/// Verifies block normally, but skips seal verification.
 	CanonNoSeal,
-	/// Does not verify block at all.
-	/// Used in tests.
-	Noop,
-}
-
-/// Create a new verifier based on type.
-pub fn new<C: BlockInfo + CallContract>(v: VerifierType) -> Box<dyn Verifier<C>> {
-	match v {
-		VerifierType::Canon | VerifierType::CanonNoSeal => Box::new(CanonVerifier),
-		VerifierType::Noop => Box::new(NoopVerifier),
-	}
 }
 
 impl VerifierType {
@@ -64,7 +44,7 @@ impl VerifierType {
 	pub fn verifying_seal(&self) -> bool {
 		match *self {
 			VerifierType::Canon => true,
-			VerifierType::Noop | VerifierType::CanonNoSeal => false,
+			VerifierType::CanonNoSeal => false,
 		}
 	}
 }

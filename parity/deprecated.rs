@@ -239,6 +239,10 @@ pub fn find_deprecated(args: &Args) -> Vec<Deprecated> {
 		result.push(Deprecated::Removed("--whisper-pool-size"));
 	}
 
+	if args.arg_jsonrpc_threads.is_some() {
+		result.push(Deprecated::Removed("--jsonrpc--threads (aka processing_threads)"));
+	}
+
 	result
 }
 

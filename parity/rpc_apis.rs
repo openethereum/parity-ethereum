@@ -708,7 +708,7 @@ impl ApiSet {
 			Api::Rpc,
 			Api::Private,
 		]
-			.into_iter()
+			.iter()
 			.cloned()
 			.collect();
 
@@ -750,7 +750,7 @@ impl ApiSet {
 				Api::Traces,
 				Api::ParityTransactionsPool,
 			]
-				.into_iter()
+				.iter()
 				.cloned()
 				.collect(),
 		}

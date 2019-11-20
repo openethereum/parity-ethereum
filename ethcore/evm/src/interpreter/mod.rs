@@ -1213,14 +1213,13 @@ fn address_to_u256(value: Address) -> U256 {
 mod tests {
 	use std::sync::Arc;
 	use rustc_hex::FromHex;
-	use vmtype::VMType;
 	use factory::Factory;
 	use vm::{self, Exec, ActionParams, ActionValue};
 	use vm::tests::{FakeExt, test_finalize};
 	use ethereum_types::Address;
 
 	fn interpreter(params: ActionParams, ext: &dyn vm::Ext) -> Box<dyn Exec> {
-		Factory::new(VMType::Interpreter, 1).create(params, ext.schedule(), ext.depth())
+		Factory::new(1).create(params, ext.schedule(), ext.depth())
 	}
 
 	#[test]

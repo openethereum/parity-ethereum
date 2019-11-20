@@ -223,8 +223,9 @@ pub struct BlockChain {
 	// Stores best block of the first uninterrupted sequence of blocks. `None` if there are no gaps.
 	// Only updated with `insert_unordered_block`.
 	best_ancient_block: RwLock<Option<BestAncientBlock>>,
-	// Stores the last block of the last sequence of blocks. `None` if there are no gaps.
-	// This is calculated on start and does not get updated.
+	// Stores the hash of the first block of the last sequence of blocks. `None` means that there
+	// are no gaps in the chain; `Some(hash)` means that the database was warp-synced.
+	// This is calculated on start and is not updated.
 	first_block: Option<H256>,
 
 	// block cache
@@ -640,12 +641,12 @@ impl BlockChain {
 				best_ancient_number = best_ancient.as_ref().and_then(|h| bc.block_number(h));
 			}
 
-			// binary search for the first block.
+			// binary search for the first block (unless they warp synced their db we'll search back to genesis).
 			match raw_first {
 				None => {
 					let (mut f, mut hash) = (best_block_number, best_block_hash);
 					let mut l = best_ancient_number.unwrap_or(0);
-
+					trace!(target: "blockchain", "Looking for first block. Starting binary search between f={} and l={}", f, l);
 					loop {
 						if l >= f { break; }
 
@@ -659,7 +660,7 @@ impl BlockChain {
 					}
 
 					if hash != bc.genesis_hash() {
-						trace!("First block calculated: {:?}", hash);
+						trace!(target:"blockchain", "First block calculated: #{}/{:?}; writing to disk", f, hash);
 						let mut batch = db.key_value().transaction();
 						batch.put(db::COL_EXTRA, b"first", hash.as_bytes());
 						db.key_value().write(batch).expect("Low level database error when writing 'first' block. Some issue with disk?");
@@ -1598,7 +1599,7 @@ impl BlockChain {
 		let first_block_number = self.first_block_number().into();
 		let genesis_hash = self.genesis_hash();
 
-		// ensure data consistencly by locking everything first
+		// ensure data consistency by locking everything first
 		let best_block = self.best_block.read();
 		let best_ancient_block = self.best_ancient_block.read();
 		BlockChainInfo {

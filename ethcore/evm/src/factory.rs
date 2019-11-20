@@ -21,12 +21,10 @@ use vm::{Exec, Schedule};
 use ethereum_types::U256;
 use super::vm::ActionParams;
 use super::interpreter::SharedCache;
-use super::vmtype::VMType;
 
 /// Evm factory. Creates appropriate Evm.
 #[derive(Clone)]
 pub struct Factory {
-	evm: VMType,
 	evm_cache: Arc<SharedCache>,
 }
 
@@ -34,20 +32,17 @@ impl Factory {
 	/// Create fresh instance of VM
 	/// Might choose implementation depending on supplied gas.
 	pub fn create(&self, params: ActionParams, schedule: &Schedule, depth: usize) -> Box<dyn Exec> {
-		match self.evm {
-			VMType::Interpreter => if Self::can_fit_in_usize(&params.gas) {
-				Box::new(super::interpreter::Interpreter::<usize>::new(params, self.evm_cache.clone(), schedule, depth))
-			} else {
-				Box::new(super::interpreter::Interpreter::<U256>::new(params, self.evm_cache.clone(), schedule, depth))
-			}
+		if Self::can_fit_in_usize(&params.gas) {
+			Box::new(super::interpreter::Interpreter::<usize>::new(params, self.evm_cache.clone(), schedule, depth))
+		} else {
+			Box::new(super::interpreter::Interpreter::<U256>::new(params, self.evm_cache.clone(), schedule, depth))
 		}
 	}
 
-	/// Create new instance of specific `VMType` factory, with a size in bytes
+	/// Create new instance of a factory, with a size in bytes
 	/// for caching jump destinations.
-	pub fn new(evm: VMType, cache_size: usize) -> Self {
+	pub fn new(cache_size: usize) -> Self {
 		Factory {
-			evm,
 			evm_cache: Arc::new(SharedCache::new(cache_size)),
 		}
 	}
@@ -61,7 +56,6 @@ impl Default for Factory {
 	/// Returns native rust evm factory
 	fn default() -> Factory {
 		Factory {
-			evm: VMType::Interpreter,
 			evm_cache: Arc::new(SharedCache::default()),
 		}
 	}
@@ -85,7 +79,7 @@ macro_rules! evm_test(
 	($name_test: ident: $name_int: ident) => {
 		#[test]
 		fn $name_int() {
-			$name_test(Factory::new(VMType::Interpreter, 1024 * 32));
+			$name_test(Factory::new(1024 * 32));
 		}
 	}
 );
@@ -98,7 +92,7 @@ macro_rules! evm_test_ignore(
 		#[ignore]
 		#[cfg(feature = "ignored-tests")]
 		fn $name_int() {
-			$name_test(Factory::new(VMType::Interpreter, 1024 * 32));
+			$name_test(Factory::new(1024 * 32));
 		}
 	}
 );

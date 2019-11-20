@@ -44,12 +44,12 @@ impl ServiceTransactionChecker {
 		client: &C,
 		tx: &SignedTransaction
 	) -> Result<bool, String> {
-		let sender = tx.sender();
 		// Skip checking the contract if the transaction does not have zero gas price
 		if !tx.gas_price.is_zero() {
 			return Ok(false)
 		}
 
+		let sender = tx.sender();
 		self.check_address(client, sender)
 	}
 

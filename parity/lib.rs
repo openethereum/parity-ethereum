@@ -193,9 +193,12 @@ pub enum ExecutionAction {
 fn execute<Cr, Rr>(
 	command: Execute,
 	logger: Arc<RotatingLogger>,
-	on_client_rq: Cr, on_updater_rq: Rr) -> Result<ExecutionAction, String>
-	where Cr: Fn(String) + 'static + Send,
-		  Rr: Fn() + 'static + Send
+	on_client_rq: Cr,
+	on_updater_rq: Rr
+) -> Result<ExecutionAction, String>
+	where
+		Cr: Fn(String) + 'static + Send,
+		Rr: Fn() + 'static + Send
 {
 	#[cfg(feature = "deadlock_detection")]
 	run_deadlock_detection_thread();
