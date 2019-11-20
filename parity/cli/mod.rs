@@ -564,6 +564,10 @@ usage! {
 			"--ipc-path=[PATH]",
 			"Specify custom path for JSON-RPC over IPC service.",
 
+			ARG arg_ipc_chmod: (u16) = 0o666u16, or |c: &Config| c.ipc.as_ref()?.chmod.clone(),
+			"--ipc-chmod=[NUM]",
+			"Specify octal value for ipc socket permissions (unix only)",
+
 			ARG arg_ipc_apis: (String) = "web3,eth,pubsub,net,parity,parity_pubsub,parity_accounts,private,traces,rpc,parity_transactions_pool", or |c: &Config| c.ipc.as_ref()?.apis.as_ref().map(|vec| vec.join(",")),
 			"--ipc-apis=[APIS]",
 			"Specify custom API set available via JSON-RPC over IPC using a comma-delimited list of API names. Possible names are: all, safe, web3, net, eth, pubsub, personal, signer, parity, parity_pubsub, parity_accounts, parity_set, traces, rpc, secretstore. You can also disable a specific API by putting '-' in the front, example: all,-personal. 'safe' enables the following APIs: web3, net, eth, pubsub, parity, parity_pubsub, traces, rpc",
@@ -1284,6 +1288,7 @@ struct Ws {
 #[derive(Default, Debug, PartialEq, Deserialize)]
 #[serde(deny_unknown_fields)]
 struct Ipc {
+	chmod: Option<u16>,
 	disable: Option<bool>,
 	path: Option<String>,
 	apis: Option<Vec<String>>,

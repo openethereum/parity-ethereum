@@ -143,7 +143,12 @@ pub mod tests;
 
 pub use jsonrpc_core::{FutureOutput, FutureResult, FutureResponse, FutureRpcResult};
 pub use jsonrpc_pubsub::Session as PubSubSession;
-pub use ipc::{Server as IpcServer, MetaExtractor as IpcMetaExtractor, RequestContext as IpcRequestContext};
+pub use ipc::{
+	Server as IpcServer,
+	MetaExtractor as IpcMetaExtractor,
+	RequestContext as IpcRequestContext,
+	SecurityAttributes
+};
 pub use http::{
 	hyper,
 	RequestMiddleware, RequestMiddlewareAction,
@@ -226,13 +231,18 @@ pub fn start_ipc<M, S, H, T>(
 	addr: &str,
 	handler: H,
 	extractor: T,
+	chmod: u16
 ) -> ::std::io::Result<ipc::Server> where
 	M: jsonrpc_core::Metadata,
 	S: jsonrpc_core::Middleware<M>,
 	H: Into<jsonrpc_core::MetaIoHandler<M, S>>,
 	T: IpcMetaExtractor<M>,
 {
+	let chmod = format!("{:o}", chmod);
 	ipc::ServerBuilder::with_meta_extractor(handler, extractor)
+		.set_security_attributes(
+			SecurityAttributes::empty().set_mode(chmod.parse::<_>())?
+		)
 		.start(addr)
 }
 
