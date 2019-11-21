@@ -24,7 +24,6 @@ parity-crypto = { version = "0.4.2", features = ["publickey"] }
 parity-runtime = { path = "../util/runtime" }
 parking_lot = "0.9"
 percent-encoding = "2.1.0"
-registrar = { path = "../util/registrar" }
 rustc-hex = "1.0"
 serde = "1.0"
 serde_derive = "1.0"
@@ -38,7 +37,6 @@ jsonrpc-server-utils = "14.0.3"
 
 [dev-dependencies]
 env_logger = "0.5"
-ethcore = { path = "../ethcore", features = ["test-helpers"] }
 tempdir = "0.3"
 kvdb-rocksdb = "0.3.0"
 

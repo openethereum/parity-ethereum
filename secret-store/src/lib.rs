@@ -26,7 +26,6 @@ extern crate parity_crypto as crypto;
 extern crate parity_runtime;
 extern crate parking_lot;
 extern crate percent_encoding;
-extern crate registrar;
 extern crate rustc_hex;
 extern crate serde;
 extern crate serde_json;
