@@ -147,7 +147,7 @@ pub fn to_fat_rlps(
 						stream.drain()
 					};
 					if !account_stream.append_raw_checked(&pair, 1, target_chunk_size) {
-						account_stream.complete_unbounded_list();
+						account_stream.finalize_unbounded_list();
 						let stream = ::std::mem::replace(&mut account_stream, RlpStream::new_list(2));
 						chunks.push(stream.out());
 						target_chunk_size = max_chunk_size;
@@ -159,7 +159,7 @@ pub fn to_fat_rlps(
 					return Err(e.into());
 				},
 				None => {
-					account_stream.complete_unbounded_list();
+					account_stream.finalize_unbounded_list();
 					let stream = ::std::mem::replace(&mut account_stream, RlpStream::new_list(2));
 					chunks.push(stream.out());
 					return Ok(chunks);
