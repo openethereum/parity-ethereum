@@ -92,7 +92,7 @@ pub enum SealingState {
 }
 
 /// The number of generations back that uncles can be.
-pub const MAX_UNCLE_AGE: usize = 6;
+pub const MAX_UNCLE_AGE: u64 = 6;
 
 /// Default EIP-210 contract code.
 /// As defined in https://github.com/ethereum/EIPs/pull/210

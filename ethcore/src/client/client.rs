@@ -1938,7 +1938,7 @@ impl BlockChainClient for Client {
 	}
 
 	fn find_uncles(&self, hash: &H256) -> Option<Vec<H256>> {
-		self.chain.read().find_uncle_hashes(hash, MAX_UNCLE_AGE)
+		self.chain.read().find_uncle_hashes(hash, MAX_UNCLE_AGE as usize)
 	}
 
 	fn state_data(&self, hash: &H256) -> Option<Bytes> {
@@ -2306,7 +2306,7 @@ impl ReopenBlock for Client {
 			let h = chain.best_block_hash();
 			// Add new uncles
 			let uncles = chain
-				.find_uncle_hashes(&h, MAX_UNCLE_AGE)
+				.find_uncle_hashes(&h, MAX_UNCLE_AGE as usize)
 				.unwrap_or_else(Vec::new);
 
 			for h in uncles {
@@ -2349,7 +2349,7 @@ impl PrepareOpenBlock for Client {
 
 		// Add uncles
 		chain
-			.find_uncle_headers(&h, MAX_UNCLE_AGE)
+			.find_uncle_headers(&h, MAX_UNCLE_AGE as usize)
 			.unwrap_or_else(Vec::new)
 			.into_iter()
 			.take(engine.maximum_uncle_count(open_block.header.number()))

@@ -187,18 +187,19 @@ fn verify_uncles(block: &PreverifiedBlock, bc: &dyn BlockProvider, engine: &dyn 
 			// 5
 			// 6											7
 			//												(8 Invalid)
-
-			let depth = if header.number() > uncle.number() { header.number() - uncle.number() } else { 0 };
-			if depth > MAX_UNCLE_AGE as u64 {
-				return Err(From::from(BlockError::UncleTooOld(OutOfBounds {
-					min: Some(header.number() - depth),
+			let depth = if header.number() > uncle.number() {
+				header.number() - uncle.number()
+			} else {
+				return Err(From::from(BlockError::UncleIsBrother(OutOfBounds {
+					min: Some(header.number() - MAX_UNCLE_AGE ),
 					max: Some(header.number() - 1),
 					found: uncle.number()
 				})));
-			}
-			else if depth < 1 {
-				return Err(From::from(BlockError::UncleIsBrother(OutOfBounds {
-					min: Some(header.number() - depth),
+			};
+
+			if depth > MAX_UNCLE_AGE {
+				return Err(From::from(BlockError::UncleTooOld(OutOfBounds {
+					min: Some(header.number() - MAX_UNCLE_AGE),
 					max: Some(header.number() - 1),
 					found: uncle.number()
 				})));
@@ -215,7 +216,7 @@ fn verify_uncles(block: &PreverifiedBlock, bc: &dyn BlockProvider, engine: &dyn 
 			// cB.p^8
 			let mut expected_uncle_parent = header.parent_hash().clone();
 			let uncle_parent = bc.block_header_data(&uncle.parent_hash())
-				.ok_or_else(|| Error::from(BlockError::UnknownUncleParent(*uncle.parent_hash())))?;
+				.ok_or_else(|| BlockError::UnknownUncleParent(*uncle.parent_hash()))?;
 			for _ in 0..depth {
 				match bc.block_details(&expected_uncle_parent) {
 					Some(details) => {
