@@ -20,6 +20,7 @@ use std::sync::Arc;
 use transient_hashmap::TransientHashMap;
 use parking_lot::Mutex;
 
+use accounts::SignError;
 use ethereum_types::{H160, H256, H520, U256};
 
 use jsonrpc_core::{BoxFuture, Result, Error, ErrorCode};
@@ -117,14 +118,7 @@ impl<D: Dispatcher + 'static> SigningQueueClient<D> {
 		let from = &payload.sender().unwrap_or(&default_account);
 		// bail early if the account isn't unlocked
 		if !self.accounts.is_unlocked(from) && !self.signer.is_enabled() {
-			return Box::new(future::done(Err(
-				Error {
-					code: ErrorCode::ServerError(errors::codes::ACCOUNT_LOCKED),
-					message: "Your account is locked. Unlock the account via CLI, \
-									personal_unlockAccount or use Trusted Signer.".into(),
-					data: None
-				}
-			)))
+			return Box::new(future::done(Err(errors::signing(SignError::NotUnlocked))))
 		}
 
 		let accounts = self.accounts.clone();
