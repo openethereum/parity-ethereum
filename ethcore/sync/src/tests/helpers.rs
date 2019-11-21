@@ -24,7 +24,7 @@ use crate::{
 			PacketInfo,
 			SyncPacket::{self, PrivateTransactionPacket, SignedPrivateTransactionPacket}
 		},
-		ChainSync, SyncSupplier, ETH_PROTOCOL_VERSION_63, PAR_PROTOCOL_VERSION_4
+		ChainSync, SyncSupplier, ETH_PROTOCOL_VERSION_64, PAR_PROTOCOL_VERSION_4
 	},
 	private_tx::SimplePrivateTxHandler,
 	sync_io::SyncIo,
@@ -156,7 +156,7 @@ impl<'p, C> SyncIo for TestIo<'p, C> where C: FlushingBlockChainClient, C: 'p {
 	}
 
 	fn eth_protocol_version(&self, _peer: PeerId) -> u8 {
-		ETH_PROTOCOL_VERSION_63.0
+		ETH_PROTOCOL_VERSION_64.0
 	}
 
 	fn protocol_version(&self, protocol: &ProtocolId, peer_id: PeerId) -> u8 {

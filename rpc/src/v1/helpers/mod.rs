@@ -40,6 +40,7 @@ mod subscribers;
 mod subscription_manager;
 mod work;
 mod signature;
+mod fork_id;
 
 pub use self::dispatch::{Dispatcher, FullDispatcher, LightDispatcher};
 pub use self::signature::verify_signature;
@@ -52,6 +53,7 @@ pub use self::requests::{
 pub use self::subscribers::Subscribers;
 pub use self::subscription_manager::GenericPollManager;
 pub use self::work::submit_work_detail;
+pub use self::fork_id::subscribe_header;
 
 pub fn to_url(address: &Option<::Host>) -> Option<String> {
 	address.as_ref().map(|host| (**host).to_owned())

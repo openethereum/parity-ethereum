@@ -45,6 +45,7 @@ ethcore-light = { path = "../ethcore/light" }
 ethcore-logger = { path = "../parity/logger" }
 ethcore-miner = { path = "../miner" }
 ethcore-network = { path = "../util/network" }
+ethcore-network-devp2p = { path = "../util/network-devp2p" }
 ethcore-private-tx = { path = "../ethcore/private-tx" }
 ethcore-sync = { path = "../ethcore/sync" }
 ethereum-types = "0.8.0"

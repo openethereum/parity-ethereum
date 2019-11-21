@@ -28,8 +28,8 @@ use crate::light_sync::{self, SyncInfo};
 use crate::private_tx::PrivateTxHandler;
 use crate::chain::{
 	sync_packet::SyncPacket::{PrivateTransactionPacket, SignedPrivateTransactionPacket},
-	ChainSyncApi, SyncState, SyncStatus as EthSyncStatus, ETH_PROTOCOL_VERSION_62,
-	ETH_PROTOCOL_VERSION_63, PAR_PROTOCOL_VERSION_1, PAR_PROTOCOL_VERSION_2,
+	ChainSyncApi, SyncState, SyncStatus as EthSyncStatus, ETH_PROTOCOL_VERSION_63,
+	ETH_PROTOCOL_VERSION_64, PAR_PROTOCOL_VERSION_1, PAR_PROTOCOL_VERSION_2,
 	PAR_PROTOCOL_VERSION_3, PAR_PROTOCOL_VERSION_4,
 };
 
@@ -606,7 +606,7 @@ impl ChainNotify for EthSync {
 			_ => {},
 		}
 
-		self.network.register_protocol(self.eth_handler.clone(), self.subprotocol_name, &[ETH_PROTOCOL_VERSION_62, ETH_PROTOCOL_VERSION_63])
+		self.network.register_protocol(self.eth_handler.clone(), self.subprotocol_name, &[ETH_PROTOCOL_VERSION_63, ETH_PROTOCOL_VERSION_64])
 			.unwrap_or_else(|e| warn!("Error registering ethereum protocol: {:?}", e));
 		// register the warp sync subprotocol
 		self.network.register_protocol(self.eth_handler.clone(), WARP_SYNC_PROTOCOL_ID, &[PAR_PROTOCOL_VERSION_1, PAR_PROTOCOL_VERSION_2, PAR_PROTOCOL_VERSION_3, PAR_PROTOCOL_VERSION_4])

@@ -329,6 +329,9 @@ impl FullDependencies {
 							EthPubSubClient::new(self.client.clone(), self.executor.clone(), pool_receiver);
 						let weak_client = Arc::downgrade(&self.client);
 
+						// Start subscribing new block heads.
+						parity_rpc::v1::subscribe_header(&client);
+
 						client.add_sync_notifier(self.sync.sync_notification(), move |state| {
 							let client = weak_client.upgrade()?;
 							let queue_info = client.queue_info();
@@ -566,6 +569,9 @@ impl<C: LightChainClient + 'static> LightDependencies<C> {
 						self.gas_price_percentile,
 						receiver
 					);
+
+					// Start subscribing new block heads.
+					parity_rpc::v1::subscribe_header(&client);
 
 					let weak_client = Arc::downgrade(&self.client);
 

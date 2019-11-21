@@ -43,7 +43,7 @@ pub mod traits;
 
 pub use self::traits::{Debug, Eth, EthFilter, EthPubSub, EthSigning, Net, Parity, ParityAccountsInfo, ParityAccounts, ParitySet, ParitySetAccounts, ParitySigning, Personal, PubSub, Private, Rpc, SecretStore, Signer, Traces, Web3};
 pub use self::impls::*;
-pub use self::helpers::{NetworkSettings, block_import, dispatch};
+pub use self::helpers::{NetworkSettings, block_import, dispatch, subscribe_header};
 pub use self::metadata::Metadata;
 pub use self::types::Origin;
 pub use self::types::pubsub::PubSubSyncStatus;
