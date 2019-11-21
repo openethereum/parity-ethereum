@@ -19,7 +19,7 @@ ethereum-types = "0.8.0"
 executive-state = { path = "../executive-state" }
 machine = { path = "../machine" }
 memory-db = "0.15.0"
-trie-db = "0.15.0"
+trie-db = "0.16.0"
 patricia-trie-ethereum = { path = "../../util/patricia-trie-ethereum" }
 ethcore-network = { path = "../../util/network" }
 ethcore-miner = { path = "../../miner" }

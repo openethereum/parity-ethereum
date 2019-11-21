@@ -35,7 +35,7 @@ snappy = { package = "parity-snappy", version ="0.1.0" }
 snapshot = { path = "../../snapshot", features = ["test-helpers"] }
 spec = { path = "../../spec" }
 tempdir = "0.3"
-trie-db = "0.15.0"
+trie-db = "0.16.0"
 trie-standardmap = "0.15.0"
 ethabi = "9.0.1"
 ethabi-contract = "9.0.0"
