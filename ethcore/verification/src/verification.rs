@@ -182,7 +182,7 @@ fn verify_uncles(block: &PreverifiedBlock, bc: &dyn BlockProvider, engine: &dyn 
 			// uncle.number() needs to be within specific number range which is
 			// [header.number() - MAX_UNCLE_AGE, header.number() - 1]
 			//
-			// depth is a difference between uncle.number() and header.number()
+			// depth is the difference between uncle.number() and header.number()
 			// and the previous condition implies that it is always in range
 			// [1, MAX_UNCLE_AGE]
 			let depth = if header.number() > uncle.number() &&
