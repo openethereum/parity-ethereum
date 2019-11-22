@@ -179,31 +179,22 @@ fn verify_uncles(block: &PreverifiedBlock, bc: &dyn BlockProvider, engine: &dyn 
 				return Err(From::from(BlockError::DuplicateUncle(uncle.hash())))
 			}
 
-			// m_currentBlock.number() - uncle.number()		m_cB.n - uP.n()
-			// 1											2
-			// 2
-			// 3
-			// 4
-			// 5
-			// 6											7
-			//												(8 Invalid)
-			let depth = if header.number() > uncle.number() {
+			// uncle.number() needs to be within specific number range which is
+			// [header.number() - MAX_UNCLE_AGE, header.number() - 1]
+			//
+			// depth is a difference between uncle.number() and header.number()
+			// and the previous condition implies that it is always in range
+			// [1, MAX_UNCLE_AGE]
+			let depth = if header.number() > uncle.number() &&
+				uncle.number() + MAX_UNCLE_AGE >= header.number() {
 				header.number() - uncle.number()
 			} else {
-				return Err(From::from(BlockError::UncleIsBrother(OutOfBounds {
-					min: Some(header.number() - MAX_UNCLE_AGE ),
-					max: Some(header.number() - 1),
-					found: uncle.number()
-				})));
-			};
-
-			if depth > MAX_UNCLE_AGE {
-				return Err(From::from(BlockError::UncleTooOld(OutOfBounds {
+				return Err(BlockError::UncleOutOfBounds(OutOfBounds {
 					min: Some(header.number() - MAX_UNCLE_AGE),
 					max: Some(header.number() - 1),
 					found: uncle.number()
-				})));
-			}
+				}).into());
+			};
 
 			// cB
 			// cB.p^1	    1 depth, valid uncle
