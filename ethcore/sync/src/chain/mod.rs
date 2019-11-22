@@ -1258,7 +1258,7 @@ impl ChainSync {
 				packet.append(&self.private_tx_handler.is_some());
 			}
 		}
-		packet.complete_unbounded_list();
+		packet.finalize_unbounded_list();
 		io.respond(StatusPacket.id(), packet.out())
 	}
 

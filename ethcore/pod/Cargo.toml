@@ -21,7 +21,7 @@ parity-bytes = "0.1.0"
 rlp = "0.4"
 rustc-hex = "1"
 serde = { version = "1.0", features = ["derive"] }
-trie-db = "0.15.0"
+trie-db = "0.16.0"
 triehash = { package = "triehash-ethereum", version = "0.2",  path = "../../util/triehash-ethereum" }
 
 [dev-dependencies]

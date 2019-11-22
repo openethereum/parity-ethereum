@@ -28,7 +28,7 @@ use bytes::ToPretty;
 use rlp::PayloadInfo;
 use client_traits::{BlockChainReset, Nonce, Balance, BlockChainClient, ImportExportBlocks};
 use ethcore::{
-	client::{DatabaseCompactionProfile, VMType},
+	client::{DatabaseCompactionProfile},
 	miner::Miner,
 };
 use ethcore_service::ClientService;
@@ -92,7 +92,6 @@ pub struct ImportBlockchain {
 	pub compaction: DatabaseCompactionProfile,
 	pub tracing: Switch,
 	pub fat_db: Switch,
-	pub vm_type: VMType,
 	pub check_seal: bool,
 	pub with_color: bool,
 	pub verifier_settings: VerifierSettings,
@@ -351,7 +350,6 @@ fn execute_import(cmd: ImportBlockchain) -> Result<(), String> {
 		tracing,
 		fat_db,
 		cmd.compaction,
-		cmd.vm_type,
 		"".into(),
 		algorithm,
 		cmd.pruning_history,
@@ -488,7 +486,6 @@ fn start_client(
 		tracing,
 		fat_db,
 		compaction,
-		VMType::default(),
 		"".into(),
 		algorithm,
 		pruning_history,

@@ -23,7 +23,7 @@ mod config;
 mod traits;
 
 pub use self::client::Client;
-pub use self::config::{ClientConfig, DatabaseCompactionProfile, VMType};
+pub use self::config::{ClientConfig, DatabaseCompactionProfile};
 pub use self::traits::{
     ReopenBlock, PrepareOpenBlock, ImportSealedBlock, BroadcastProposalBlock,
     Call, EngineInfo, BlockProducer, SealedBlockImporter,

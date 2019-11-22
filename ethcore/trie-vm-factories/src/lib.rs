@@ -17,7 +17,7 @@
 use trie_db::TrieFactory;
 use ethtrie::Layout;
 use account_db::Factory as AccountFactory;
-use evm::{Factory as EvmFactory, VMType};
+use evm::{Factory as EvmFactory};
 use vm::{Exec, ActionParams, VersionedSchedule, Schedule};
 use wasm::WasmInterpreter;
 
@@ -49,14 +49,14 @@ impl VmFactory {
 		}
 	}
 
-	pub fn new(evm: VMType, cache_size: usize) -> Self {
-		VmFactory { evm: EvmFactory::new(evm, cache_size) }
+	pub fn new(cache_size: usize) -> Self {
+		VmFactory { evm: EvmFactory::new(cache_size) }
 	}
 }
 
 impl From<EvmFactory> for VmFactory {
 	fn from(evm: EvmFactory) -> Self {
-		VmFactory { evm: evm }
+		VmFactory { evm }
 	}
 }
 

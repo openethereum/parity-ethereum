@@ -506,17 +506,17 @@ usage! {
 			"--jsonrpc-hosts=[HOSTS]",
 			"List of allowed Host header values. This option will validate the Host header sent by the browser, it is additional security against some attack vectors. Special options: \"all\", \"none\",.",
 
-			ARG arg_jsonrpc_threads: (usize) = 4usize, or |c: &Config| c.rpc.as_ref()?.processing_threads,
-			"--jsonrpc-threads=[THREADS]",
-			"Turn on additional processing threads for JSON-RPC servers (all transports). Setting this to a non-zero value allows parallel execution of cpu-heavy queries.",
+			ARG arg_jsonrpc_threads: (Option<usize>) = None, or |_| None,
+			"--jsonrpc-threads=[NUM]",
+			"DEPRECATED, DOES NOTHING",
+
+			ARG arg_jsonrpc_server_threads: (Option<usize>) = Some(4), or |c: &Config| c.rpc.as_ref()?.server_threads,
+			"--jsonrpc-server-threads=[NUM]",
+			"Enables multiple threads handling incoming connections for HTTP JSON-RPC server.",
 
 			ARG arg_jsonrpc_cors: (String) = "none", or |c: &Config| c.rpc.as_ref()?.cors.as_ref().map(|vec| vec.join(",")),
 			"--jsonrpc-cors=[URL]",
 			"Specify CORS header for HTTP JSON-RPC API responses. Special options: \"all\", \"none\".",
-
-			ARG arg_jsonrpc_server_threads: (Option<usize>) = None, or |c: &Config| c.rpc.as_ref()?.server_threads,
-			"--jsonrpc-server-threads=[NUM]",
-			"Enables multiple threads handling incoming connections for HTTP JSON-RPC server.",
 
 			ARG arg_jsonrpc_max_payload: (Option<usize>) = None, or |c: &Config| c.rpc.as_ref()?.max_payload,
 			"--jsonrpc-max-payload=[MB]",
@@ -1262,7 +1262,6 @@ struct Rpc {
 	apis: Option<Vec<String>>,
 	hosts: Option<Vec<String>>,
 	server_threads: Option<usize>,
-	processing_threads: Option<usize>,
 	max_payload: Option<usize>,
 	keep_alive: Option<bool>,
 	experimental_rpcs: Option<bool>,
@@ -1816,8 +1815,8 @@ mod tests {
 			arg_jsonrpc_cors: "null".into(),
 			arg_jsonrpc_apis: "web3,eth,net,parity,traces,rpc,secretstore".into(),
 			arg_jsonrpc_hosts: "none".into(),
-			arg_jsonrpc_server_threads: None,
-			arg_jsonrpc_threads: 4,
+			arg_jsonrpc_server_threads: Some(4),
+			arg_jsonrpc_threads: None, // DEPRECATED, does nothing
 			arg_jsonrpc_max_payload: None,
 			arg_poll_lifetime: 60u32,
 			flag_jsonrpc_allow_missing_blocks: false,
@@ -2095,8 +2094,7 @@ mod tests {
 				cors: None,
 				apis: None,
 				hosts: None,
-				server_threads: None,
-				processing_threads: None,
+				server_threads: Some(13),
 				max_payload: None,
 				keep_alive: None,
 				experimental_rpcs: None,

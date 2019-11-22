@@ -222,7 +222,7 @@ impl SyncPropagator {
 						pushed += 1;
 					}
 				}
-				packet.complete_unbounded_list();
+				packet.finalize_unbounded_list();
 				(packet, to_send)
 			};
 

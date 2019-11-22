@@ -23,7 +23,6 @@ use ethereum_types::{U256, H256, Address};
 use vm::{self, ActionParams, ActionValue, Ext};
 use vm::tests::{FakeExt, FakeCall, FakeCallType, test_finalize};
 use factory::Factory;
-use vmtype::VMType;
 use hex_literal::hex;
 
 evm_test!{test_add: test_add_int}
@@ -705,7 +704,7 @@ fn test_signextend(factory: super::Factory) {
 
 #[test] // JIT just returns out of gas
 fn test_badinstruction_int() {
-	let factory = super::Factory::new(VMType::Interpreter, 1024 * 32);
+	let factory = super::Factory::new(1024 * 32);
 	let code = hex!("af").to_vec();
 
 	let mut params = ActionParams::default();

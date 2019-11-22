@@ -24,7 +24,7 @@ use hash::keccak;
 use snapshot::{SnapshotConfiguration, SnapshotService as SS, SnapshotClient};
 use snapshot::io::{SnapshotReader, PackedReader, PackedWriter};
 use snapshot::service::Service as SnapshotService;
-use ethcore::client::{Client, DatabaseCompactionProfile, VMType};
+use ethcore::client::{Client, DatabaseCompactionProfile};
 use ethcore::miner::Miner;
 use ethcore_service::ClientService;
 use parking_lot::RwLock;
@@ -180,7 +180,6 @@ impl SnapshotCommand {
 			tracing,
 			fat_db,
 			self.compaction,
-			VMType::default(),
 			"".into(),
 			algorithm,
 			self.pruning_history,
