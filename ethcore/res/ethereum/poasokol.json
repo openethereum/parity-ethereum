@@ -42,7 +42,12 @@
 		"eip1014Transition": 6464300,
 		"eip1052Transition": 6464300,
 		"eip1283Transition": 6464300,
-		"eip1283DisableTransition": 7026400
+		"eip1283DisableTransition": 7026400,
+		"eip1283ReenableTransition": 12095200,
+		"eip1344Transition": 12095200,
+		"eip1706Transition": 12095200,
+		"eip1884Transition": 12095200,
+		"eip2028Transition": 12095200
 	},
 	"genesis": {
 		"seal": {
@@ -5303,6 +5308,7 @@
 		]
 	},
 	"nodes": [
+		"enode://bdcd6f875583df2bd8094f08ae58c7c2db6ed67795ca8c0e6415a30721d3657291aec9b933d15e17e0b36ad7a76424a1447ddbfc75809a04f7a0ffef5617dd56@3.91.206.172:30303",
 		"enode://8e0af07c86ec36590bb6368e7ad0c45b6dc658f5fb66ec68889a614affddda5e021bd513bcf4fb2fae4a3bbe08cf0de84f037cd58478a89665dfce1ded2595c7@34.236.37.74:30303",
 		"enode://f1a5100a81cb73163ae450c584d06b1f644aa4fad4486c6aeb4c384b343c54bb66c744aa5f133af66ea1b25f0f4a454f04878f3e96ee4cd2390c047396d6357b@209.97.158.4:30303",
 		"enode://0d1e0372f63a3f0b82d66635ea101ecc0f6797788a078805cc933dd93e6a22f7c9fa51ab4e2d21da02d04480ef19f3bbb9a2b41dd1c262085d295a354bb8b0f9@18.217.47.209:30303",
@@ -5312,7 +5318,20 @@
 		"enode://b022ff70b5fcaf9596ae5efed99a8198b4ae0578ee9d17b733609d803a75cef95d3a2a18e50dca9a7c3b26139f158c59eaf8b5fb8d1d331c9a46934a78acabe8@206.189.76.128:30303"
 	],
 	"accounts": {
-		"0000000000000000000000000000000000000005": { "builtin": { "name": "modexp", "activate_at": "0x0", "pricing": { "modexp": { "divisor": 20 } } } },
+		"0000000000000000000000000000000000000005": {
+			"builtin": {
+				"name": "modexp",
+				"pricing": {
+					"0": {
+						"price": {
+							"modexp": {
+								"divisor": 20
+							}
+						}
+					}
+				}
+			}
+		},
 		"0000000000000000000000000000000000000006": {
 			"builtin": {
 				"name": "alt_bn128_add",
@@ -5320,7 +5339,7 @@
 					"0": {
 						"price": { "alt_bn128_const_operations": { "price": 500 }}
 					},
-					"0x7fffffffffffff": {
+					"12095200": {
 						"info": "EIP 1108 transition",
 						"price": { "alt_bn128_const_operations": { "price": 150 }}
 					}
@@ -5334,7 +5353,7 @@
 					"0": {
 						"price": { "alt_bn128_const_operations": { "price": 40000 }}
 					},
-					"0x7fffffffffffff": {
+					"12095200": {
 						"info": "EIP 1108 transition",
 						"price": { "alt_bn128_const_operations": { "price": 6000 }}
 					}
@@ -5348,9 +5367,24 @@
 					"0": {
 						"price": { "alt_bn128_pairing": { "base": 100000, "pair": 80000 }}
 					},
-					"0x7fffffffffffff": {
+					"12095200": {
 						"info": "EIP 1108 transition",
 						"price": { "alt_bn128_pairing": { "base": 45000, "pair": 34000 }}
+					}
+				}
+			}
+		},
+		"0x0000000000000000000000000000000000000009": {
+			"builtin": {
+				"name": "blake2_f",
+				"pricing": {
+					"12095200": {
+						"info": "EIP 1108 transition",
+						"price": {
+							"blake2_f": {
+								"gas_per_round": 1
+							}
+						}
 					}
 				}
 			}
@@ -5360,9 +5394,13 @@
 			"builtin": {
 				"name": "ecrecover",
 				"pricing": {
-					"linear": {
-						"base": 3000,
-						"word": 0
+					"0": {
+						"price": {
+							"linear": {
+								"base": 3000,
+								"word": 0
+							}
+						}
 					}
 				}
 			}
@@ -5372,9 +5410,13 @@
 			"builtin": {
 				"name": "sha256",
 				"pricing": {
-					"linear": {
-						"base": 60,
-						"word": 12
+					"0": {
+						"price": {
+							"linear": {
+								"base": 60,
+								"word": 12
+							}
+						}
 					}
 				}
 			}
@@ -5384,9 +5426,13 @@
 			"builtin": {
 				"name": "ripemd160",
 				"pricing": {
-					"linear": {
-						"base": 600,
-						"word": 120
+					"0": {
+						"price": {
+							"linear": {
+								"base": 600,
+								"word": 120
+							}
+						}
 					}
 				}
 			}
@@ -5396,9 +5442,13 @@
 			"builtin": {
 				"name": "identity",
 				"pricing": {
-					"linear": {
-						"base": 15,
-						"word": 3
+					"0": {
+						"price": {
+							"linear": {
+								"base": 15,
+								"word": 3
+							}
+						}
 					}
 				}
 			}
