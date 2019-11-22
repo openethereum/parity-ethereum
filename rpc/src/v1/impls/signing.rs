@@ -23,7 +23,7 @@ use parking_lot::Mutex;
 use accounts::SignError;
 use ethereum_types::{H160, H256, H520, U256};
 
-use jsonrpc_core::{BoxFuture, Result, Error, ErrorCode};
+use jsonrpc_core::{BoxFuture, Result, Error};
 use jsonrpc_core::futures::{future, Future, Poll, Async};
 use jsonrpc_core::futures::future::Either;
 

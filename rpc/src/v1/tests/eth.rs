@@ -423,6 +423,62 @@ fn eth_transaction_count() {
 	assert_eq!(&tester.handler.handle_request_sync(&req_after_pending).unwrap(), res_after_pending);
 }
 
+#[test]
+fn eth_sign_locked_account() {
+	let secret = "8a283037bb19c4fed7b1c569e40c7dcff366165eb869110a1b11532963eb9cb2".parse().unwrap();
+	let tester = EthTester::from_spec(
+		Spec::load(&env::temp_dir(),TRANSACTION_COUNT_SPEC)
+			.expect("invalid chain spec")
+	);
+	let address = tester.accounts.insert_account(secret, &"".into()).unwrap();
+
+	let req_send_trans = r#"{
+		"jsonrpc": "2.0",
+		"method": "eth_sendTransaction",
+		"params": [{
+			"from": ""#.to_owned() + format!("0x{:x}", address).as_ref() + r#"",
+			"to": "0xd46e8dd67c5d32be8058bb8eb970870f07244567",
+			"gas": "0x30000",
+			"gasPrice": "0x1",
+			"value": "0x9184e72a"
+		}],
+		"id": 16
+	}"#;
+
+	// expected error response
+	let error_res = r#"{
+		"jsonrpc":"2.0",
+		"error":
+			{
+				"code":-32020,
+				"message":"Your account is locked. Unlock the account via CLI, 
+					personal_unlockAccount or use Trusted Signer.",
+				"data":"NotUnlocked"
+			},
+		"id":16
+	}"#;
+	// dispatch the transaction, without unlocking the account.
+	assert_eq!(error_res.replace("\t", "").replace("\n", ""), tester.handler.handle_request_sync(&req_send_trans).unwrap());
+	// unlock the account
+	tester.accounts.unlock_account_permanently(address, "".into()).unwrap();
+
+	// try again, this time account is unlocked.
+	tester.handler.handle_request_sync(&req_send_trans).unwrap();
+
+	// the pending transactions should have been updated.
+	let req_after_pending = r#"{
+		"jsonrpc": "2.0",
+		"method": "eth_getTransactionCount",
+		"params": [""#.to_owned() + format!("0x{:x}", address).as_ref() + r#"", "pending"],
+		"id": 18
+	}"#;
+
+	let res_after_pending = r#"{"jsonrpc":"2.0","result":"0x1","id":18}"#;
+
+	assert_eq!(&tester.handler.handle_request_sync(&req_after_pending).unwrap(), res_after_pending);
+}
+
+
 fn verify_transaction_counts(name: String, chain: BlockChain) {
 	struct PanicHandler(String);
 	impl Drop for PanicHandler {
