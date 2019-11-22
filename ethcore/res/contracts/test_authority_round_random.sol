@@ -25,7 +25,7 @@ contract Random {
     /// @dev Called by the validator's node to XOR its secret with the current random seed.
     /// The validator's node must use its mining address to call this function.
     /// This function can only be called once per collection round (during the `reveals phase`).
-    /// @param _secret The validator's secret.
+    /// @param _number The validator's secret.
     function revealNumber(uint256 _number) external {
         require(block.coinbase == msg.sender);
         require(_isRevealPhase(block.number - 1));
@@ -91,15 +91,15 @@ contract Random {
     function getValue() public view returns(uint256) {
         return value;
     }
-    
+
     function _collectRound(uint256 blockNumber) private pure returns(uint256) {
         return blockNumber / 6;
     }
-    
+
     function _isCommitPhase(uint256 blockNumber) private pure returns(bool) {
         return blockNumber % 6 < 3;
     }
-    
+
     function _isRevealPhase(uint256 blockNumber) private pure returns(bool) {
         return blockNumber % 6 >= 3;
     }
