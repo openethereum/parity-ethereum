@@ -1323,13 +1323,14 @@ impl BlockChain {
 	}
 
 	/// Given a block's `parent`, find every block header which represents a valid possible uncle.
-	pub fn find_uncle_headers(&self, parent: &H256, uncle_generations: usize) -> Option<Vec<encoded::Header>> {
+	pub fn find_uncle_headers(&self, parent: &H256, uncle_generations: u64) -> Option<Vec<encoded::Header>> {
 		self.find_uncle_hashes(parent, uncle_generations)
 			.map(|v| v.into_iter().filter_map(|h| self.block_header_data(&h)).collect())
 	}
 
 	/// Given a block's `parent`, find every block hash which represents a valid possible uncle.
-	pub fn find_uncle_hashes(&self, parent: &H256, uncle_generations: usize) -> Option<Vec<H256>> {
+	pub fn find_uncle_hashes(&self, parent: &H256, uncle_generations: u64) -> Option<Vec<H256>> {
+		let uncle_generations = uncle_generations as usize;
 		if !self.is_known(parent) {
 			return None;
 		}
