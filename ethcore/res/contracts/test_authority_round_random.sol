@@ -26,14 +26,14 @@ contract Random {
     /// The validator's node must use its mining address to call this function.
     /// This function can only be called once per collection round (during the `reveals phase`).
     /// @param _secret The validator's secret.
-    function revealSecret(uint256 _secret) external {
+    function revealNumber(uint256 _number) external {
         require(block.coinbase == msg.sender);
         require(_isRevealPhase(block.number - 1));
         uint256 round = _collectRound(block.number - 1);
         require(!sentReveal(round, msg.sender));
-        require(hashes[round][msg.sender] == keccak256(abi.encodePacked(_secret)));
-        secrets[round][msg.sender] = _secret;
-        value ^= _secret;
+        require(hashes[round][msg.sender] == keccak256(abi.encodePacked(_number)));
+        secrets[round][msg.sender] = _number;
+        value ^= _number;
     }
 
     /// @dev Returns the cipher of the validator's secret for the specified collection round and the specified validator

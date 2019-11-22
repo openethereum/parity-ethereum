@@ -18,10 +18,10 @@
 	{
 		"constant": false,
 		"inputs": [{
-			"name": "_secret",
+			"name": "_number",
 			"type": "uint256"
 		}],
-		"name": "revealSecret",
+		"name": "revealNumber",
 		"outputs": [],
 		"payable": false,
 		"stateMutability": "nonpayable",

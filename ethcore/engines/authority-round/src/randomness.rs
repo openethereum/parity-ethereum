@@ -38,7 +38,7 @@
 //!        |                                              |
 //!        |  call                                        |
 //!        |  `commitHash()`                              |  call
-//!        |                                              |  `revealSecret`
+//!        |                                              |  `revealNumber`
 //!        |                                              |
 //! +------v-------+                              +-------+-------+
 //! |              |                              |               |
@@ -261,7 +261,7 @@ impl RandomnessPhase {
 				debug!(target: "engine", "Randomness contract: scheduling tx to reveal our randomness contribution {} (round={}, our_address={}).", secret_hash, round, our_address);
 				// We are now sure that we have the correct secret and can reveal it. So we return the call data for the
 				// transaction that stores the revealed random bytes on the contract.
-				let (data, _decoder) = aura_random::functions::reveal_secret::call(secret);
+				let (data, _decoder) = aura_random::functions::reveal_number::call(secret);
 				Ok(Some(data))
 			}
 		}
