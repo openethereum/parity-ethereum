@@ -5,7 +5,7 @@ set -u # treat unset variables as error
 #use nproc `linux only
 THREADS=$(nproc)
 export CC="sccache gcc"
-export CXX="sccache g++"
+export CXX="sccache clang++"
 
 echo "________Running the C++ example________"
 DIR=parity-clib/examples/cpp/build
