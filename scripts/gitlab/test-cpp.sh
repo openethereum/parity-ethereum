@@ -6,8 +6,7 @@ set -B # enable brace expansion
 #use nproc `linux only
 THREADS=$(nproc)
 export CC="sccache gcc"
-ls /usr/bin{,/local}/clang*
-export CXX="sccache clang++-8"
+export CXX="sccache /usr/bin/clang++-8"
 
 echo "________Running the C++ example________"
 DIR=parity-clib/examples/cpp/build
