@@ -1,0 +1,16 @@
+[package]
+name = "eip-1024"
+version = "0.1.1"
+repository = "https://github.com/hskang9/eip-1024"
+documentation = "https://docs.rs/eip-1024"
+readme = "README.md"
+description = "EIP-1024 encryption"
+keywords = ["eip-1024", "eip1024", "eip"]
+license = "GPL-3.0"
+authors = ["hskang9 <hskang9@gmail.com>"]
+edition = "2018"
+
+[dependencies]
+saltbabe = "0.1.0"
+arrayref = "0.3.5"
+hex = "0.4.0"
