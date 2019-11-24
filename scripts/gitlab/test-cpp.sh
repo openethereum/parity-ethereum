@@ -2,9 +2,11 @@
 echo "________Running test-cpp.sh________"
 set -e # fail on any error
 set -u # treat unset variables as error
+set -B # enable brace expansion
 #use nproc `linux only
 THREADS=$(nproc)
 export CC="sccache gcc"
+ls /usr/bin{,local/}/clang*
 export CXX="sccache clang++-8"
 
 echo "________Running the C++ example________"
