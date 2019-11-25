@@ -224,9 +224,9 @@ pub fn migrate(path: &Path, compaction_profile: &DatabaseCompactionProfile) -> R
 			println!("Migrating blooms to blooms-db...");
 			let db_config = DatabaseConfig {
 				max_open_files: 64,
-				memory_budget: None,
 				compaction: compaction_profile,
 				columns: ethcore_db::NUM_COLUMNS,
+				..Default::default()
 			};
 
 			migrate_blooms(&db_path, &db_config).map_err(Error::BloomsDB)?;

@@ -138,3 +138,5 @@ members = [
 
 [patch.crates-io]
 kvdb-rocksdb = { git = "https://github.com/paritytech/parity-common", branch = "ao-rocksdb-switch-to-upstream2" }
+kvdb = { git = "https://github.com/paritytech/parity-common", branch = "ao-rocksdb-switch-to-upstream2" }
+kvdb-memorydb = { git = "https://github.com/paritytech/parity-common", branch = "ao-rocksdb-switch-to-upstream2" }
