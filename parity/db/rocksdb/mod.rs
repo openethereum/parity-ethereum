@@ -95,7 +95,7 @@ pub fn open_db(
 	let path = Path::new(client_path);
 
 	let db_config = DatabaseConfig {
-		memory_budget: helpers::memory_per_column(Some(cache_config.blockchain() as usize)),
+		memory_budget: helpers::memory_per_column_light(cache_config.blockchain() as usize),
 		compaction: helpers::compaction_profile(&compaction, path),
 		.. DatabaseConfig::with_columns(NUM_COLUMNS)
 	};
