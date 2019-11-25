@@ -800,13 +800,6 @@ impl Client {
 			config,
 		});
 
-		// prune old states.
-		{
-			let state_db = client.state_db.read().boxed_clone();
-			let chain = client.chain.read();
-			client.prune_ancient(state_db, &chain)?;
-		}
-
 		// ensure genesis epoch proof in the DB.
 		{
 			let chain = client.chain.read();

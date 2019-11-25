@@ -44,12 +44,9 @@ pub enum BlockError {
 	/// Uncles hash in header is invalid.
 	#[display(fmt = "Block has invalid uncles hash: {}", _0)]
 	InvalidUnclesHash(Mismatch<H256>),
-	/// An uncle is from a generation too old.
+	/// An uncle is from a wrong generation.
 	#[display(fmt = "Uncle block is too old. {}", _0)]
-	UncleTooOld(OutOfBounds<BlockNumber>),
-	/// An uncle is from the same generation as the block.
-	#[display(fmt = "Uncle from same generation as block. {}", _0)]
-	UncleIsBrother(OutOfBounds<BlockNumber>),
+	UncleOutOfBounds(OutOfBounds<BlockNumber>),
 	/// An uncle is already in the chain.
 	#[display(fmt = "Uncle {} already in chain", _0)]
 	UncleInChain(H256),

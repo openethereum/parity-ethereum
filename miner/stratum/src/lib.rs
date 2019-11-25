@@ -221,7 +221,7 @@ impl StratumImpl {
 			let workers_msg = format!("{{ \"id\": {}, \"method\": \"mining.notify\", \"params\": {} }}", next_request_id, payload);
 			trace!(target: "stratum", "pushing work for {} workers (payload: '{}')", workers.len(), &workers_msg);
 			for (addr, _) in workers.iter() {
-				trace!(target: "stratum", "pusing work to {}", addr);
+				trace!(target: "stratum", "pushing work to {}", addr);
 				match tcp_dispatcher.push_message(addr, workers_msg.clone()) {
 					Err(PushMessageError::NoSuchPeer) => {
 						trace!(target: "stratum", "Worker no longer connected: {}", addr);
