@@ -41,6 +41,7 @@ The full list of included changes:
 * Fix block detail updating (#11015)
 * Make InstantSeal Instant again #11186
 * Filter out some bad ropsten warp snapshots (#11247)
+* Allow default block parameter to be blockHash (#10932)
 
 ## Parity-Ethereum [v2.6.4](https://github.com/paritytech/parity-ethereum/releases/tag/v2.6.4)
 
@@ -78,7 +79,7 @@ The full list of included changes:
 * Better error message for rpc gas price errors (#10931)
 * Fix fork choice (#10837)
 * Fix compilation on recent nightlies (#10991)
-* Don't build rpc with ethcore test-helpers (#11048) 
+* Don't build rpc with ethcore test-helpers (#11048)
 * EIP 1884 Re-pricing of trie-size dependent operations  (#10992)
 * Implement EIP-1283 reenable transition, EIP-1706 and EIP-2200  (#10191)
 
