@@ -86,8 +86,8 @@ pub fn restoration_db_handler(client_path: &Path, client_config: &ClientConfig) 
 	})
 }
 
-/// Open a new main DB.
-pub fn open_db(
+/// Open a new light client DB.
+pub fn open_db_light(
 	client_path: &str,
 	cache_config: &CacheConfig,
 	compaction: &DatabaseCompactionProfile
