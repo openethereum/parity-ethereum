@@ -117,7 +117,7 @@ impl fmt::Display for SpecType {
 			SpecType::Kotti => "kotti",
 			SpecType::Sokol => "sokol",
 			SpecType::Evantestcore => "evantestcore",
-			SpecType:Evancore => "evancore",
+			SpecType::Evancore => "evancore",
 			SpecType::Dev => "dev",
 			SpecType::Custom(ref custom) => custom,
 		})
