@@ -2445,7 +2445,7 @@ dependencies = [
 [[package]]
 name = "kvdb"
 version = "0.1.1"
-source = "git+https://github.com/paritytech/parity-common?branch=ao-rocksdb-switch-to-upstream2#03a2ba08f47f4af4219280e660a1ea92cb8896bd"
+source = "git+https://github.com/paritytech/parity-common?branch=ao-rocksdb-switch-to-upstream2#1739d8a43336121df0e62cfd6d9bed9ecd32cb9e"
 dependencies = [
  "elastic-array 0.10.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "parity-bytes 0.1.1 (git+https://github.com/paritytech/parity-common?branch=ao-rocksdb-switch-to-upstream2)",
@@ -2454,7 +2454,7 @@ dependencies = [
 [[package]]
 name = "kvdb-memorydb"
 version = "0.1.2"
-source = "git+https://github.com/paritytech/parity-common?branch=ao-rocksdb-switch-to-upstream2#03a2ba08f47f4af4219280e660a1ea92cb8896bd"
+source = "git+https://github.com/paritytech/parity-common?branch=ao-rocksdb-switch-to-upstream2#1739d8a43336121df0e62cfd6d9bed9ecd32cb9e"
 dependencies = [
  "kvdb 0.1.1 (git+https://github.com/paritytech/parity-common?branch=ao-rocksdb-switch-to-upstream2)",
  "parking_lot 0.9.0 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -2463,7 +2463,7 @@ dependencies = [
 [[package]]
 name = "kvdb-rocksdb"
 version = "0.1.6"
-source = "git+https://github.com/paritytech/parity-common?branch=ao-rocksdb-switch-to-upstream2#03a2ba08f47f4af4219280e660a1ea92cb8896bd"
+source = "git+https://github.com/paritytech/parity-common?branch=ao-rocksdb-switch-to-upstream2#1739d8a43336121df0e62cfd6d9bed9ecd32cb9e"
 dependencies = [
  "elastic-array 0.10.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "fs-swap 0.2.4 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -2992,7 +2992,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 [[package]]
 name = "parity-bytes"
 version = "0.1.1"
-source = "git+https://github.com/paritytech/parity-common?branch=ao-rocksdb-switch-to-upstream2#03a2ba08f47f4af4219280e660a1ea92cb8896bd"
+source = "git+https://github.com/paritytech/parity-common?branch=ao-rocksdb-switch-to-upstream2#1739d8a43336121df0e62cfd6d9bed9ecd32cb9e"
 
 [[package]]
 name = "parity-clib"
