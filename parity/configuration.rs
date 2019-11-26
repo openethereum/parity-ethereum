@@ -898,7 +898,7 @@ impl Configuration {
 	fn ws_config(&self) -> Result<WsConfiguration, String> {
 		let support_token_api =
 			// enabled when not unlocking
-			self.args.arg_unlock.is_none();
+			self.args.arg_unlock.is_none() && self.args.arg_enable_signing_queue;
 
 		let conf = WsConfiguration {
 			enabled: self.ws_enabled(),

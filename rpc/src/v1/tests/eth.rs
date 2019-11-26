@@ -451,14 +451,17 @@ fn eth_sign_locked_account() {
 		"error":
 			{
 				"code":-32020,
-				"message":"Your account is locked. Unlock the account via CLI, 
+				"message":"Your account is locked. Unlock the account via CLI,
 					personal_unlockAccount or use Trusted Signer.",
 				"data":"NotUnlocked"
 			},
 		"id":16
 	}"#;
 	// dispatch the transaction, without unlocking the account.
-	assert_eq!(error_res.replace("\t", "").replace("\n", ""), tester.handler.handle_request_sync(&req_send_trans).unwrap());
+	assert_eq!(
+		error_res.replace("\t", "").replace("\n", ""),
+		tester.handler.handle_request_sync(&req_send_trans).unwrap()
+	);
 	// unlock the account
 	tester.accounts.unlock_account_permanently(address, "".into()).unwrap();
 

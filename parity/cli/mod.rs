@@ -348,6 +348,10 @@ usage! {
 			"--unlock=[ACCOUNTS]",
 			"Unlock ACCOUNTS for the duration of the execution. ACCOUNTS is a comma-delimited list of addresses.",
 
+			ARG arg_enable_signing_queue: (bool) = false, or |c: &Config| c.account.as_ref()?.enable_signing_queue,
+			"--enable-signing-queue=[BOOLEAN]",
+			"Enables the signing queue for external transaction signing either via CLI or personal_unlockAccount, turned off by default.",
+
 			ARG arg_password: (Vec<String>) = Vec::new(), or |c: &Config| c.account.as_ref()?.password.clone(),
 			"--password=[FILE]...",
 			"Provide a file containing a password for unlocking an account. Leading and trailing whitespace is trimmed.",
@@ -1194,6 +1198,7 @@ struct Operating {
 #[serde(deny_unknown_fields)]
 struct Account {
 	unlock: Option<Vec<String>>,
+	enable_signing_queue: Option<bool>,
 	password: Option<Vec<String>>,
 	keys_iterations: Option<u32>,
 	refresh_time: Option<u64>,
@@ -1728,6 +1733,7 @@ mod tests {
 			arg_restore_file: None,
 			arg_tools_hash_file: None,
 
+			arg_enable_signing_queue: false,
 			arg_signer_sign_id: None,
 			arg_signer_reject_id: None,
 			arg_dapp_path: None,
@@ -2045,6 +2051,7 @@ mod tests {
 				_legacy_public_node: None,
 			}),
 			account: Some(Account {
+				enable_signing_queue: None,
 				unlock: Some(vec!["0x1".into(), "0x2".into(), "0x3".into()]),
 				password: Some(vec!["passwdfile path".into()]),
 				keys_iterations: None,
