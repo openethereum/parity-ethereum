@@ -60,7 +60,7 @@
 use derive_more::Display;
 use ethabi::Hash;
 use ethabi_contract::use_contract;
-use ethereum_types::{Address, U256};
+use ethereum_types::{Address, H256, U256};
 use keccak_hash::keccak;
 use log::{debug, error};
 use parity_crypto::publickey::{ecies, Error as CryptoError};
@@ -70,10 +70,9 @@ use engine::signer::EngineSigner;
 
 use crate::util::{BoundContract, CallError};
 
-/// Secret type expected by the contract.
-// Note: Conversion from `U256` back into `[u8; 32]` is cumbersome (missing implementations), for
-//       this reason we store the raw buffers.
-pub type Secret = [u8; 32];
+/// Random number type expected by the contract: This is generated locally, kept secret during the commit phase, and
+/// published in the reveal phase.
+pub type RandNumber = H256;
 
 use_contract!(aura_random, "../../res/contracts/authority_round_random.json");
 
@@ -100,8 +99,7 @@ pub enum RandomnessPhase {
 /// This error usually indicates a bug in either the smart contract, the phase loading function or
 /// some state being lost.
 ///
-/// The `LostSecret` and `StaleSecret` will usually result in punishment by the contract or the
-/// other validators.
+/// `BadRandNumber` will usually result in punishment by the contract or the other validators.
 #[derive(Debug, Display)]
 pub enum PhaseError {
 	/// The smart contract reported a phase as both commitment and reveal phase.
@@ -114,11 +112,11 @@ pub enum PhaseError {
 	/// Failed to load contract information.
 	#[display(fmt = "Error loading randomness contract information: {:?}", _0)]
 	LoadFailed(CallError),
-	/// Failed to load the stored secret.
-	#[display(fmt = "Failed to load secret from the randomness contract")]
-	StaleSecret,
-	/// Failed to encrypt stored secret.
-	#[display(fmt = "Failed to encrypt stored randomness secret: {}", _0)]
+	/// Failed to load the stored encrypted random number.
+	#[display(fmt = "Failed to load random number from the randomness contract")]
+	BadRandNumber,
+	/// Failed to encrypt random number.
+	#[display(fmt = "Failed to encrypt random number: {}", _0)]
 	Crypto(CryptoError),
 	/// Failed to get the engine signer's public key.
 	#[display(fmt = "Failed to get the engine signer's public key")]
@@ -136,7 +134,7 @@ impl RandomnessPhase {
 	///
 	/// Calls various constant contract functions to determine the precise state that needs to be
 	/// handled (that is, the phase and whether or not the current validator still needs to send
-	/// commitments or reveal secrets).
+	/// commitments or reveal random numbers).
 	pub fn load(
 		contract: &BoundContract,
 		our_address: Address,
@@ -210,7 +208,7 @@ impl RandomnessPhase {
 		match self {
 			RandomnessPhase::Waiting | RandomnessPhase::Committed => Ok(None),
 			RandomnessPhase::BeforeCommit { round, our_address } => {
-				// Check whether a secret has already been committed in this round.
+				// Check whether a random number has already been committed in this round.
 				let committed_hash: Hash = contract
 					.call_const(aura_random::functions::get_commit::call(round, our_address))
 					.map_err(PhaseError::LoadFailed)?;
@@ -218,21 +216,21 @@ impl RandomnessPhase {
 					return Ok(None); // Already committed.
 				}
 
-				// Generate a new random contribution, but don't reveal it yet. Instead, we publish its hash to the
-				// randomness contract, together with the contribution encrypted to ourselves. That way we will later be
+				// Generate a new random number, but don't reveal it yet. Instead, we publish its hash to the
+				// randomness contract, together with the number encrypted to ourselves. That way we will later be
 				// able to decrypt and reveal it, and other parties are able to verify it against the hash.
-				let secret: Secret = rng.gen();
-				let secret_hash: Hash = keccak(secret.as_ref());
+				let number: RandNumber = rng.gen();
+				let number_hash: Hash = keccak(number.as_bytes());
 				let public = signer.public().ok_or(PhaseError::MissingPublicKey)?;
-				let cipher = ecies::encrypt(&public, &secret_hash.0, &secret)?;
+				let cipher = ecies::encrypt(&public, &number_hash.0, number.as_bytes())?;
 
-				debug!(target: "engine", "Randomness contract: committing {}.", secret_hash);
-				// Return the call data for the transaction that commits the hash and the encrypted secret.
-				let (data, _decoder) = aura_random::functions::commit_hash::call(secret_hash, cipher);
+				debug!(target: "engine", "Randomness contract: committing {}.", number_hash);
+				// Return the call data for the transaction that commits the hash and the encrypted number.
+				let (data, _decoder) = aura_random::functions::commit_hash::call(number_hash, cipher);
 				Ok(Some(data))
 			}
 			RandomnessPhase::Reveal { round, our_address } => {
-				// Load the hash and encrypted secret that we stored in the commit phase.
+				// Load the hash and encrypted number that we stored in the commit phase.
 				let committed_hash: Hash = contract
 					.call_const(aura_random::functions::get_commit::call(round, our_address))
 					.map_err(PhaseError::LoadFailed)?;
@@ -240,28 +238,26 @@ impl RandomnessPhase {
 					.call_const(aura_random::functions::get_cipher::call(round, our_address))
 					.map_err(PhaseError::LoadFailed)?;
 
-				// Decrypt the secret and check against the hash.
-				let secret_vec = signer.decrypt(&committed_hash.0, &cipher)?;
-				let secret = if secret_vec.len() == 32 {
-					let mut buf = [0u8; 32];
-					buf.copy_from_slice(&secret_vec);
-					buf
+				// Decrypt the number and check against the hash.
+				let number_bytes = signer.decrypt(&committed_hash.0, &cipher)?;
+				let number = if number_bytes.len() == 32 {
+					RandNumber::from_slice(&number_bytes)
 				} else {
 					// This can only happen if there is a bug in the smart contract,
 					// or if the entire network goes awry.
-					error!(target: "engine", "Decrypted randomness secret has the wrong length.");
-					return Err(PhaseError::StaleSecret);
+					error!(target: "engine", "Decrypted random number has the wrong length.");
+					return Err(PhaseError::BadRandNumber);
 				};
-				let secret_hash: Hash = keccak(secret.as_ref());
-				if secret_hash != committed_hash {
-					error!(target: "engine", "Decrypted randomness secret doesn't agree with the hash.");
-					return Err(PhaseError::StaleSecret);
+				let number_hash: Hash = keccak(number.as_bytes());
+				if number_hash != committed_hash {
+					error!(target: "engine", "Decrypted random number doesn't agree with the hash.");
+					return Err(PhaseError::BadRandNumber);
 				}
 
-				debug!(target: "engine", "Randomness contract: scheduling tx to reveal our randomness contribution {} (round={}, our_address={}).", secret_hash, round, our_address);
+				debug!(target: "engine", "Randomness contract: scheduling tx to reveal our random number {} (round={}, our_address={}).", number_hash, round, our_address);
 				// We are now sure that we have the correct secret and can reveal it. So we return the call data for the
 				// transaction that stores the revealed random bytes on the contract.
-				let (data, _decoder) = aura_random::functions::reveal_number::call(secret);
+				let (data, _decoder) = aura_random::functions::reveal_number::call(number.as_bytes());
 				Ok(Some(data))
 			}
 		}
