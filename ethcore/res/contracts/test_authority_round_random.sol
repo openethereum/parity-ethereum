@@ -36,20 +36,15 @@ contract Random {
         value ^= _number;
     }
 
-    /// @dev Returns the cipher of the validator's secret for the specified collection round and the specified validator
-    /// stored by the validator through the `commitHash` function.
-    /// @param _collectRound The serial number of the collection round for which the cipher should be retrieved.
+	/// @dev Returns the Keccak-256 hash and cipher of the validator's secret for the specified collection round
+    /// and the specified validator stored by the validator through the `commitHash` function.
+    /// @param _collectRound The serial number of the collection round for which hash and cipher should be retrieved.
     /// @param _miningAddress The mining address of validator.
-    function getCipher(uint256 _collectRound, address _miningAddress) public view returns(bytes memory) {
-        return ciphers[_collectRound][_miningAddress];
-    }
-
-    /// @dev Returns the Keccak-256 hash of the validator's secret for the specified collection round and the specified
-    /// validator stored by the validator through the `commitHash` function.
-    /// @param _collectRound The serial number of the collection round for which the hash should be retrieved.
-    /// @param _miningAddress The mining address of validator.
-    function getCommit(uint256 _collectRound, address _miningAddress) public view returns(bytes32) {
-        return hashes[_collectRound][_miningAddress];
+    function getCommitAndCipher(
+        uint256 _collectRound,
+        address _miningAddress
+    ) public view returns(bytes32, bytes memory) {
+        return (hashes[_collectRound][_miningAddress], ciphers[_collectRound][_miningAddress]);
     }
 
     /// @dev Returns a boolean flag indicating whether the specified validator has committed their secret's hash for the
@@ -57,7 +52,7 @@ contract Random {
     /// @param _collectRound The serial number of the collection round for which the checkup should be done.
     /// @param _miningAddress The mining address of the validator.
     function isCommitted(uint256 _collectRound, address _miningAddress) public view returns(bool) {
-        return getCommit(_collectRound, _miningAddress) != bytes32(0);
+        return hashes[_collectRound][_miningAddress] != bytes32(0);
     }
 
     /// @dev Returns a boolean flag indicating whether the current phase of the current collection round

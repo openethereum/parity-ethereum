@@ -87,7 +87,7 @@ pub enum RandomnessPhase {
 	/// window to make a commitment.
 	Waiting,
 	/// Indicates a commitment is possible, but still missing.
-	BeforeCommit { our_address: Address, round: U256 },
+	BeforeCommit,
 	/// Indicates a successful commitment, waiting for the commit phase to end.
 	Committed,
 	/// Indicates revealing is expected as the next step.
@@ -175,7 +175,7 @@ impl RandomnessPhase {
 			}
 
 			if !committed {
-				Ok(RandomnessPhase::BeforeCommit { our_address, round })
+				Ok(RandomnessPhase::BeforeCommit)
 			} else {
 				Ok(RandomnessPhase::Committed)
 			}
@@ -207,15 +207,7 @@ impl RandomnessPhase {
 	) -> Result<Option<Bytes>, PhaseError> {
 		match self {
 			RandomnessPhase::Waiting | RandomnessPhase::Committed => Ok(None),
-			RandomnessPhase::BeforeCommit { round, our_address } => {
-				// Check whether a random number has already been committed in this round.
-				let committed_hash: Hash = contract
-					.call_const(aura_random::functions::get_commit::call(round, our_address))
-					.map_err(PhaseError::LoadFailed)?;
-				if !committed_hash.is_zero() {
-					return Ok(None); // Already committed.
-				}
-
+			RandomnessPhase::BeforeCommit => {
 				// Generate a new random number, but don't reveal it yet. Instead, we publish its hash to the
 				// randomness contract, together with the number encrypted to ourselves. That way we will later be
 				// able to decrypt and reveal it, and other parties are able to verify it against the hash.
@@ -231,11 +223,9 @@ impl RandomnessPhase {
 			}
 			RandomnessPhase::Reveal { round, our_address } => {
 				// Load the hash and encrypted number that we stored in the commit phase.
-				let committed_hash: Hash = contract
-					.call_const(aura_random::functions::get_commit::call(round, our_address))
-					.map_err(PhaseError::LoadFailed)?;
-				let cipher = contract
-					.call_const(aura_random::functions::get_cipher::call(round, our_address))
+				let call = aura_random::functions::get_commit_and_cipher::call(round, our_address);
+				let (committed_hash, cipher) = contract
+					.call_const(call)
 					.map_err(PhaseError::LoadFailed)?;
 
 				// Decrypt the number and check against the hash.

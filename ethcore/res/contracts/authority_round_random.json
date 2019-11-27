@@ -41,40 +41,27 @@
 	},
 	{
 		"constant": true,
-		"inputs": [{
+		"inputs": [
+			{
 				"name": "_collectRound",
 				"type": "uint256"
 			},
 			{
-				"name": "_validator",
+				"name": "_miningAddress",
 				"type": "address"
 			}
 		],
-		"name": "getCipher",
-		"outputs": [{
-			"name": "",
-			"type": "bytes"
-		}],
-		"payable": false,
-		"stateMutability": "view",
-		"type": "function"
-	},
-	{
-		"constant": true,
-		"inputs": [{
-				"name": "_collectRound",
-				"type": "uint256"
+		"name": "getCommitAndCipher",
+		"outputs": [
+			{
+				"name": "",
+				"type": "bytes32"
 			},
 			{
-				"name": "_validator",
-				"type": "address"
+				"name": "",
+				"type": "bytes"
 			}
 		],
-		"name": "getCommit",
-		"outputs": [{
-			"name": "",
-			"type": "bytes32"
-		}],
 		"payable": false,
 		"stateMutability": "view",
 		"type": "function"
