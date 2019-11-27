@@ -39,6 +39,3 @@ jsonrpc-server-utils = "14.0.3"
 env_logger = "0.5"
 tempdir = "0.3"
 kvdb-rocksdb = "0.3.0"
-
-[features]
-accounts = []
