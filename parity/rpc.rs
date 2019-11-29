@@ -90,7 +90,7 @@ impl Default for IpcConfiguration {
 				let data_dir = ::dir::default_data_path();
 				parity_ipc_path(&data_dir, "$BASE/jsonrpc.ipc", 0)
 			},
-			chmod: 0o666,
+			chmod: 660,
 			apis: ApiSet::IpcContext,
 		}
 	}

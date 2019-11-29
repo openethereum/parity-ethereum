@@ -144,10 +144,10 @@ pub mod tests;
 pub use jsonrpc_core::{FutureOutput, FutureResult, FutureResponse, FutureRpcResult};
 pub use jsonrpc_pubsub::Session as PubSubSession;
 pub use ipc::{
-	Server as IpcServer,
 	MetaExtractor as IpcMetaExtractor,
 	RequestContext as IpcRequestContext,
-	SecurityAttributes
+	SecurityAttributes,
+	Server as IpcServer,
 };
 pub use http::{
 	hyper,
@@ -238,15 +238,10 @@ pub fn start_ipc<M, S, H, T>(
 	H: Into<jsonrpc_core::MetaIoHandler<M, S>>,
 	T: IpcMetaExtractor<M>,
 {
-	#[cfg(target_os = "macos")]
 	let chmod = u16::from_str_radix(&format!("{}", chmod), 8)
 		.expect("chmod is a u16; qed");
-	#[cfg(not(target_os = "macos"))]
-	let chmod = u32::from_str_radix(&format!("{}", chmod), 8)
-		.expect("chmod is a u16; qed");
-
 	let attr = SecurityAttributes::empty()
-		.set_mode(chmod)?;
+		.set_mode(chmod as _)?;
 
 	ipc::ServerBuilder::with_meta_extractor(handler, extractor)
 		.set_security_attributes(attr)
