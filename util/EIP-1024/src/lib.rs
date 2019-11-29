@@ -1,15 +1,20 @@
 extern crate saltbabe;
-#[macro_use]
-extern crate arrayref;
+extern crate rustc_hex;
 extern crate hex;
+#[macro_use]
+extern crate serde_derive;
 use std::str;
-pub use saltbabe::{KeyPair,Public, Secret, Error};
+use saltbabe::Error;
+pub use saltbabe::{KeyPair, Public, Secret};
 pub use saltbabe::traits::FromUnsafeSlice;
 
 const VERSION: &str =  "x25519-xsalsa20-poly1305";
 
-#[derive(Debug, Clone)]
-pub struct EncryptedData {
+/// EIP-1024 struct
+#[serde(rename_all = "camelCase")]
+#[serde(deny_unknown_fields)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct EIP1024 {
     version: String,    
     nonce: String,
     ephem_public: String,
@@ -17,47 +22,43 @@ pub struct EncryptedData {
 }
 
 pub fn get_encryption_keypair(sk: [u8; 32]) -> KeyPair<Secret, Public> {
-    let keypair = saltbabe::crypto_box::gen_keypair_from_secret(&sk);
-    return keypair;
+    saltbabe::crypto_box::gen_keypair_from_secret(&sk)
 }
 
-pub fn to_byte32(bytes: &[u8]) -> [u8; 32] {
-    array_ref!(bytes, 0, 32).clone()
-}
-
-
-pub fn encrypt(data: &[u8], version: Option<String>, send_pk: [u8; 32], ephermal_sk: [u8; 32]) -> Result<EncryptedData, Error> {
+pub fn encrypt(data: &[u8], version: Option<String>, send_pk: [u8; 32], ephermal_sk: [u8; 32]) -> Result<EIP1024, Error> {
     let version = match version {
         Some(s) => s,
         None => VERSION.to_string()
     };
     let nonce = saltbabe::gen_nonce();
-    let send_public = Public::from_unsafe_slice(&send_pk).unwrap();
+    let send_public = Public::from_unsafe_slice(&send_pk)?;
     // Generate another ephemeral keypair from the key input
     let ephemeral_keypair = saltbabe::crypto_box::gen_keypair_from_secret(&ephermal_sk);
-    let result = saltbabe::crypto_box::seal(&data, &nonce, &send_public, ephemeral_keypair.clone().secret()).unwrap();
+    let result = saltbabe::crypto_box::seal(&data, &nonce, &send_public, ephemeral_keypair.clone().secret())?;
     let result_hex = hex::encode(&result);
-    let blob = EncryptedData {
-        version: version,
+    let blob = EIP1024 {
+        version,
         nonce: hex::encode(nonce),
         ephem_public: hex::encode(**ephemeral_keypair.public()),
         ciphertext: result_hex
     };
-    return Ok(blob);
+    Ok(blob)
 }
 
 
-pub fn decrypt(encrypted_data: EncryptedData, recv_sk: [u8; 32]) -> Result<String, Error> {
+pub fn decrypt(encrypted_data: EIP1024, recv_sk: [u8; 32]) -> Result<String, Error> {
     
-    let recv_sk = KeyPair::<Secret, Public>::from_secret_slice(&recv_sk).unwrap();
-    let pk_byte32 = to_byte32(&hex::decode(&encrypted_data.ephem_public).unwrap()); 
-    let send_pk = Public::from_unsafe_slice(&pk_byte32).unwrap();
-    let cipher_bytes = hex::decode(encrypted_data.ciphertext).unwrap();
-    let nonce_bytes = hex::decode(encrypted_data.nonce).unwrap();
-    let nonce = array_ref!(nonce_bytes, 0, 24).clone();
-    println!("cipher_bytes: {:?}\n nonce: {:?}\n send_pk: {:?}\n recv_sk: {:?}\n", cipher_bytes, nonce, hex::encode(*send_pk), hex::encode(recv_sk.secret()) );
+    let recv_sk = KeyPair::<Secret, Public>::from_secret_slice(&recv_sk)?;
+    let mut pk_byte32 = [0u8; 32];
+    let pk_bytes = hex::decode(encrypted_data.ephem_public)?;
+    pk_byte32.copy_from_slice(&pk_bytes[..]); 
+    let send_pk = Public::from_unsafe_slice(&pk_byte32)?;
+    let cipher_bytes = hex::decode(encrypted_data.ciphertext)?;
+    let mut nonce = [0u8; 24];
+    let nonce_bytes: Vec<u8> = hex::decode(encrypted_data.nonce)?;
+    nonce.copy_from_slice(&nonce_bytes);
     let result = saltbabe::crypto_box::open(&cipher_bytes, &nonce, &send_pk, &recv_sk.secret()).unwrap();
-    return Ok(str::from_utf8(&result.clone()).unwrap().to_string());
+    Ok(str::from_utf8(&result.clone()).unwrap().to_string())
 }
 
 pub fn gen_keypair() -> KeyPair<Secret, Public> {
@@ -71,7 +72,7 @@ pub fn gen_keypair() -> KeyPair<Secret, Public> {
 #[cfg(test)]
 mod tests {
     extern crate saltbabe;
-    extern crate hex;
+    extern crate rustc_hex;
  
 
     #[test]

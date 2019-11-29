@@ -11,6 +11,10 @@ authors = ["hskang9 <hskang9@gmail.com>"]
 edition = "2018"
 
 [dependencies]
-saltbabe = "0.1.0"
 arrayref = "0.3.5"
+rustc-hex = "^1.0"
 hex = "0.4.0"
+serde_derive = "1.0"
+serde = "1.0"
+serde_json = "1.0"
+saltbabe = "0.1.4"

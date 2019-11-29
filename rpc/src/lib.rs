@@ -83,6 +83,7 @@ extern crate parity_runtime;
 extern crate parity_updater as updater;
 extern crate parity_version as version;
 extern crate eip_712;
+extern crate eip_1024;
 extern crate rlp;
 extern crate account_state;
 
