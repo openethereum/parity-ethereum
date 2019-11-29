@@ -564,7 +564,7 @@ usage! {
 			"--ipc-path=[PATH]",
 			"Specify custom path for JSON-RPC over IPC service.",
 
-			ARG arg_ipc_chmod: (u16) = 0o666u16, or |c: &Config| c.ipc.as_ref()?.chmod.clone(),
+			ARG arg_ipc_chmod: (u16) = 666u16, or |c: &Config| c.ipc.as_ref()?.chmod.clone(),
 			"--ipc-chmod=[NUM]",
 			"Specify octal value for ipc socket permissions (unix only)",
 

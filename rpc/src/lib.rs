@@ -238,11 +238,18 @@ pub fn start_ipc<M, S, H, T>(
 	H: Into<jsonrpc_core::MetaIoHandler<M, S>>,
 	T: IpcMetaExtractor<M>,
 {
-	let chmod = format!("{:o}", chmod);
+	#[cfg(target_os = "macos")]
+	let chmod = u16::from_str_radix(&format!("{}", chmod), 8)
+		.expect("chmod is a u16; qed");
+	#[cfg(not(target_os = "macos"))]
+	let chmod = u32::from_str_radix(&format!("{}", chmod), 8)
+		.expect("chmod is a u16; qed");
+
+	let attr = SecurityAttributes::empty()
+		.set_mode(chmod)?;
+
 	ipc::ServerBuilder::with_meta_extractor(handler, extractor)
-		.set_security_attributes(
-			SecurityAttributes::empty().set_mode(chmod.parse::<_>())?
-		)
+		.set_security_attributes(attr)
 		.start(addr)
 }
 
