@@ -566,7 +566,7 @@ usage! {
 
 			ARG arg_ipc_chmod: (u16) = 660u16, or |c: &Config| c.ipc.as_ref()?.chmod.clone(),
 			"--ipc-chmod=[NUM]",
-			"Specify octal value for ipc socket permissions (unix only)",
+			"Specify octal value for ipc socket permissions (unix/bsd only)",
 
 			ARG arg_ipc_apis: (String) = "web3,eth,pubsub,net,parity,parity_pubsub,parity_accounts,private,traces,rpc,parity_transactions_pool", or |c: &Config| c.ipc.as_ref()?.apis.as_ref().map(|vec| vec.join(",")),
 			"--ipc-apis=[APIS]",
