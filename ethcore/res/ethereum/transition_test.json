@@ -57,6 +57,7 @@
 		"0000000000000000000000000000000000000002": { "balance": "1", "builtin": { "name": "sha256", "pricing": { "linear": { "base": 60, "word": 12 } } } },
 		"0000000000000000000000000000000000000003": { "balance": "1", "builtin": { "name": "ripemd160", "pricing": { "linear": { "base": 600, "word": 120 } } } },
 		"0000000000000000000000000000000000000004": { "balance": "1", "builtin": { "name": "identity", "pricing": { "linear": { "base": 15, "word": 3 } } } },
+		"0000000000000000000000000000000000000005": { "builtin": { "name": "modexp", "activate_at": "0x5", "pricing": { "modexp": { "divisor": 20 } } } },
 		"0000000000000000000000000000000000000006": {
 			"builtin": {
 				"name": "alt_bn128_add",
