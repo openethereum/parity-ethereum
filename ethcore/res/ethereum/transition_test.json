@@ -28,6 +28,7 @@
 		"maxCodeSize": 24576,
 		"maxCodeSizeTransition": "0",
 		"eip150Transition": "0",
+		"eip155Transition": "0",
 		"eip160Transition": "0",
 		"eip161abcTransition": "0",
 		"eip161dTransition": "0",
@@ -35,7 +36,6 @@
 		"eip140Transition": "5",
 		"eip211Transition": "5",
 		"eip214Transition": "5",
-		"eip155Transition": "5",
 		"eip658Transition": "5"
 	},
 	"genesis": {
