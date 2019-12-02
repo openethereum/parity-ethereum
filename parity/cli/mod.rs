@@ -564,7 +564,7 @@ usage! {
 			"--ipc-path=[PATH]",
 			"Specify custom path for JSON-RPC over IPC service.",
 
-			ARG arg_ipc_chmod: (u16) = 660u16, or |c: &Config| c.ipc.as_ref()?.chmod.clone(),
+			ARG arg_ipc_chmod: (String) = "660", or |c: &Config| c.ipc.as_ref()?.chmod.clone(),
 			"--ipc-chmod=[NUM]",
 			"Specify octal value for ipc socket permissions (unix/bsd only)",
 
@@ -1288,7 +1288,7 @@ struct Ws {
 #[derive(Default, Debug, PartialEq, Deserialize)]
 #[serde(deny_unknown_fields)]
 struct Ipc {
-	chmod: Option<u16>,
+	chmod: Option<String>,
 	disable: Option<bool>,
 	path: Option<String>,
 	apis: Option<Vec<String>>,

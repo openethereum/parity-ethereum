@@ -231,15 +231,18 @@ pub fn start_ipc<M, S, H, T>(
 	addr: &str,
 	handler: H,
 	extractor: T,
-	chmod: u16
+	chmod: String
 ) -> ::std::io::Result<ipc::Server> where
 	M: jsonrpc_core::Metadata,
 	S: jsonrpc_core::Middleware<M>,
 	H: Into<jsonrpc_core::MetaIoHandler<M, S>>,
 	T: IpcMetaExtractor<M>,
 {
-	let chmod = u16::from_str_radix(&format!("{}", chmod), 8)
-		.expect("chmod is a u16; qed");
+	if chmod.len() != 3 || chmod.len() != 4 {
+		return Err(std::io::ErrorKind::InvalidInput.into())
+	}
+	let chmod = u16::from_str_radix(&chmod, 8)
+		.expect("4 digits fit into a u16; qed");
 	let attr = SecurityAttributes::empty()
 		.set_mode(chmod as _)?;
 

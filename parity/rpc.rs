@@ -76,7 +76,7 @@ impl Default for HttpConfiguration {
 pub struct IpcConfiguration {
 	pub enabled: bool,
 	pub socket_addr: String,
-	pub chmod: u16,
+	pub chmod: String,
 	pub apis: ApiSet,
 }
 
@@ -90,7 +90,7 @@ impl Default for IpcConfiguration {
 				let data_dir = ::dir::default_data_path();
 				parity_ipc_path(&data_dir, "$BASE/jsonrpc.ipc", 0)
 			},
-			chmod: 660,
+			chmod: "660".into(),
 			apis: ApiSet::IpcContext,
 		}
 	}
