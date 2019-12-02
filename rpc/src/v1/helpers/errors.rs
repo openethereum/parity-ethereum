@@ -380,9 +380,9 @@ pub fn invalid_call_data<T: fmt::Display>(error: T) -> Error {
 	}
 }
 
-pub fn siginig_queue_disabled() -> Error {
+pub fn signing_queue_disabled() -> Error {
 	Error {
-		code: ErrorCode::ServerError(codes::ACCOUNT_LOCKED),
+		code: ErrorCode::ServerError(-32020),
 		message: "Your account is locked and the signing queue is disabled. \
 		You can either Unlock the account via CLI, personal_unlockAccount or \
 		enable the signing queue to use Trusted Signer.".into(),

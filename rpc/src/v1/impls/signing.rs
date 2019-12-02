@@ -117,7 +117,7 @@ impl<D: Dispatcher + 'static> SigningQueueClient<D> {
 		let from = &payload.sender().unwrap_or(&default_account);
 		// bail early if the account isn't unlocked
 		if !self.accounts.is_unlocked(from) && !self.signer.is_enabled() {
-			return Box::new(future::done(Err(errors::siginig_queue_disabled())))
+			return Box::new(future::done(Err(errors::signing_queue_disabled())))
 		}
 
 		let accounts = self.accounts.clone();
