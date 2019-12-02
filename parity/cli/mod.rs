@@ -1839,7 +1839,7 @@ mod tests {
 			flag_no_ipc: false,
 			arg_ipc_path: "$HOME/.parity/jsonrpc.ipc".into(),
 			arg_ipc_apis: "web3,eth,net,parity,parity_accounts,personal,traces,rpc,secretstore".into(),
-
+			arg_ipc_chmod: "660".into(),
 			// DAPPS
 			arg_dapps_path: Some("$HOME/.parity/dapps".into()),
 			flag_no_dapps: false,
@@ -2109,6 +2109,7 @@ mod tests {
 			ipc: Some(Ipc {
 				disable: None,
 				path: None,
+				chmod: None,
 				apis: Some(vec!["rpc".into(), "eth".into()]),
 			}),
 			dapps: Some(Dapps {
