@@ -1388,7 +1388,7 @@ mod tests {
 			origins: Some(vec!["parity://*".into(),"chrome-extension://*".into(), "moz-extension://*".into()]),
 			hosts: Some(vec![]),
 			signer_path: expected.into(),
-			support_token_api: true,
+			support_token_api: false,
 			max_connections: 100,
 		}, LogConfig {
 			color: !cfg!(windows),
