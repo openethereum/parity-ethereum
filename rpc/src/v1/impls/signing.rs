@@ -20,7 +20,6 @@ use std::sync::Arc;
 use transient_hashmap::TransientHashMap;
 use parking_lot::Mutex;
 
-use accounts::SignError;
 use ethereum_types::{H160, H256, H520, U256};
 
 use jsonrpc_core::{BoxFuture, Result, Error};
@@ -118,7 +117,7 @@ impl<D: Dispatcher + 'static> SigningQueueClient<D> {
 		let from = &payload.sender().unwrap_or(&default_account);
 		// bail early if the account isn't unlocked
 		if !self.accounts.is_unlocked(from) && !self.signer.is_enabled() {
-			return Box::new(future::done(Err(errors::signing(SignError::NotUnlocked))))
+			return Box::new(future::done(Err(errors::siginig_queue_disabled())))
 		}
 
 		let accounts = self.accounts.clone();
