@@ -38,9 +38,7 @@ const THIS_TRACK: &'static str = "unstable";
 
 /// Get the platform identifier.
 pub fn platform() -> String {
-	let env = Target::env();
-	let env_dash = if env.is_empty() { "" } else { "-" };
-	format!("{}-{}{}{}", Target::arch(), Target::os(), env_dash, env)
+	format!("{}", env!("VERGEN_TARGET_TRIPLE"))
 }
 
 /// Get the standard version string for this software.

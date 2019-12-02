@@ -30,6 +30,7 @@ fn main() {
 	let vergen_flags = ConstantsFlags::COMMIT_DATE |
 		ConstantsFlags::SHA |
 		ConstantsFlags::SHA_SHORT |
+		ConstantsFlags::TARGET_TRIPLE |
 		ConstantsFlags::REBUILD_ON_HEAD_CHANGE;
 	generate_cargo_keys(vergen_flags).expect(ERROR_MSG);
 
