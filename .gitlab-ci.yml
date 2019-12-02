@@ -9,6 +9,7 @@ image:                             ${REGISTRY}/parity-ci-linux:latest
 variables:
   GIT_STRATEGY:                    fetch
   GIT_SUBMODULE_STRATEGY:          recursive
+  GIT_DEPTH:                       3
   CI_SERVER_NAME:                  "GitLab CI"
   CARGO_HOME:                      "/ci-cache/${CI_PROJECT_NAME}/cargo/${CI_JOB_NAME}"
   CARGO_TARGET:                    x86_64-unknown-linux-gnu
@@ -31,9 +32,8 @@ variables:
       - tools/
 
 .docker-cache-status:              &docker-cache-status
-  variables:
-    CARGO_HOME:                    "/ci-cache/parity-ethereum/cargo/${CI_JOB_NAME}"
   dependencies:                    []
+  interruptible:                   true
   before_script:
     - rustup show
     - cargo --version
