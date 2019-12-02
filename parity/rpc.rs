@@ -263,7 +263,15 @@ pub fn new_ipc<D: rpc_apis::Dependencies>(
 		}
 	}
 
-	match rpc::start_ipc(&conf.socket_addr, handler, rpc::RpcExtractor, conf.chmod) {
+	// some validations ..
+	let chmod = conf.chmod;
+	if chmod.len() != 3 && chmod.len() != 4 {
+		return Err("valid octal permission are either 3 or 4 digits long.".into())
+	}
+	let chmod = u16::from_str_radix(&chmod, 8)
+		.map_err(|e| format!("Invalid octal value: {}", e))?;
+
+	match rpc::start_ipc(&conf.socket_addr, handler, rpc::RpcExtractor, chmod) {
 		Ok(server) => Ok(Some(server)),
 		Err(io_error) => Err(format!("IPC error: {}", io_error)),
 	}
