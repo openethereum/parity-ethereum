@@ -51,6 +51,8 @@ pub enum SpecType {
 	Goerli,
 	Kotti,
 	Sokol,
+	Evantestcore,
+	Evancore,
 	Dev,
 	Custom(String),
 }
@@ -84,6 +86,8 @@ impl str::FromStr for SpecType {
 			"goerli" | "görli" | "testnet" => SpecType::Goerli,
 			"kotti" => SpecType::Kotti,
 			"sokol" | "poasokol" => SpecType::Sokol,
+			"evantestcore" => SpecType::Evantestcore,
+			"evancore" => SpecType::Evancore,
 			"dev" => SpecType::Dev,
 			other => SpecType::Custom(other.into()),
 		};
@@ -112,6 +116,8 @@ impl fmt::Display for SpecType {
 			SpecType::Goerli => "goerli",
 			SpecType::Kotti => "kotti",
 			SpecType::Sokol => "sokol",
+			SpecType::Evantestcore => "evantestcore",
+			SpecType::Evancore => "evancore",
 			SpecType::Dev => "dev",
 			SpecType::Custom(ref custom) => custom,
 		})
@@ -140,6 +146,8 @@ impl SpecType {
 			SpecType::Goerli => Ok(spec::new_goerli(params)),
 			SpecType::Kotti => Ok(spec::new_kotti(params)),
 			SpecType::Sokol => Ok(spec::new_sokol(params)),
+			SpecType::Evantestcore => Ok(spec::new_evantestcore(params)),
+			SpecType::Evancore => Ok(spec::new_evancore(params)),
 			SpecType::Dev => Ok(spec::new_instant()),
 			SpecType::Custom(ref filename) => {
 				let file = fs::File::open(filename).map_err(|e| format!("Could not load specification file at {}: {}", filename, e))?;
@@ -401,6 +409,8 @@ mod tests {
 		assert_eq!(SpecType::Kotti, "kotti".parse().unwrap());
 		assert_eq!(SpecType::Sokol, "sokol".parse().unwrap());
 		assert_eq!(SpecType::Sokol, "poasokol".parse().unwrap());
+		assert_eq!(SpecType::Evantestcore, "evantestcore".parse().unwrap());
+		assert_eq!(SpecType::Evancore, "evancore".parse().unwrap());
 	}
 
 	#[test]
@@ -428,6 +438,8 @@ mod tests {
 		assert_eq!(format!("{}", SpecType::Goerli), "goerli");
 		assert_eq!(format!("{}", SpecType::Kotti), "kotti");
 		assert_eq!(format!("{}", SpecType::Sokol), "sokol");
+		assert_eq!(format!("{}", SpecType::Evantestcore), "evantestcore");
+		assert_eq!(format!("{}", SpecType::Evancore), "evancore");
 		assert_eq!(format!("{}", SpecType::Dev), "dev");
 		assert_eq!(format!("{}", SpecType::Custom("foo/bar".into())), "foo/bar");
 	}
