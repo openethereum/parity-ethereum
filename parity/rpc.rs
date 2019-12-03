@@ -268,8 +268,8 @@ pub fn new_ipc<D: rpc_apis::Dependencies>(
 	let chmod = u16::from_str_radix(&chmod, 8)
 		.map_err(|e| format!("Invalid octal value: {}", e))?;
 
-	if chmod == 0 || chmod > 4095 {
-		return Err("Valid octal permissions are within the range 0 to 7777".into())
+	if chmod == 0 || chmod > 0o7777 {
+		return Err("Valid octal permissions are within the range 1 to 7777".into())
 	}
 
 	match rpc::start_ipc(&conf.socket_addr, handler, rpc::RpcExtractor, chmod) {
