@@ -134,12 +134,7 @@ impl<T: SimpleMigration> Migration for T {
 		let migration_needed = col == SimpleMigration::migrated_column_index(self);
 		let mut batch = Batch::new(config, col);
 
-		let iter = match source.iter(col) {
-			Some(iter) => iter,
-			None => return Ok(()),
-		};
-
-		for (key, value) in iter {
+		for (key, value) in source.iter(col) {
 			if migration_needed {
 				if let Some((key, value)) = self.simple_migrate(key.into_vec(), value.into_vec()) {
 					batch.insert(key, value, dest)?;
@@ -249,9 +244,9 @@ impl Manager {
 		trace!(target: "migration", "Expecting database to contain {:?} columns", columns);
 		let mut db_config = DatabaseConfig {
 			max_open_files: 64,
-			memory_budget: None,
 			compaction: config.compaction_profile,
-			columns: columns,
+			columns,
+			..Default::default()
 		};
 
 		let db_root = database_path(old_path);

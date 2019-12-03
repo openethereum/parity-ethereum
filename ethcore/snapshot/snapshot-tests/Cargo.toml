@@ -24,7 +24,7 @@ journaldb = { path = "../../../util/journaldb" }
 keccak-hash = "0.4.0"
 keccak-hasher = { path = "../../../util/keccak-hasher" }
 kvdb = "0.1"
-kvdb-rocksdb = { version = "0.1.5" }
+kvdb-rocksdb = "0.2.0"
 log = "0.4.8"
 parking_lot = "0.9"
 parity-crypto = { version = "0.4.2", features = ["publickey"] }

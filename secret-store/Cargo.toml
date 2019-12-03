@@ -45,7 +45,7 @@ env_logger = "0.5"
 ethkey = { path = "../accounts/ethkey" }
 ethcore = { path = "../ethcore", features = ["test-helpers"] }
 tempdir = "0.3"
-kvdb-rocksdb = "0.1.5"
+kvdb-rocksdb = "0.2.0"
 
 [features]
 accounts = ["ethcore-accounts"]

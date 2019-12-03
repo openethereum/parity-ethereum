@@ -86,8 +86,8 @@ pub fn restoration_db_handler(client_path: &Path, client_config: &ClientConfig) 
 	})
 }
 
-/// Open a new main DB.
-pub fn open_db(
+/// Open a new light client DB.
+pub fn open_db_light(
 	client_path: &str,
 	cache_config: &CacheConfig,
 	compaction: &DatabaseCompactionProfile
@@ -95,7 +95,7 @@ pub fn open_db(
 	let path = Path::new(client_path);
 
 	let db_config = DatabaseConfig {
-		memory_budget: Some(cache_config.blockchain() as usize * 1024 * 1024),
+		memory_budget: helpers::memory_per_column_light(cache_config.blockchain() as usize),
 		compaction: helpers::compaction_profile(&compaction, path),
 		.. DatabaseConfig::with_columns(NUM_COLUMNS)
 	};
