@@ -47,7 +47,7 @@ pub fn memory_per_column_light(total: usize) -> HashMap<Option<u32>, usize> {
 	let mut memory_per_column = HashMap::new();
 	let num_columns = ethcore_db::NUM_COLUMNS.expect("NUM_COLUMNS is Some; qed");
 	// spread the memory budget evenly across columns
-	let per_column = total / (num_columns as usize);
+	let per_column = total / (num_columns as usize - 1);
 	for i in 1..num_columns {
 		// but at least 4 MiB for each column
 		memory_per_column.insert(Some(i), std::cmp::max(per_column, 4));
