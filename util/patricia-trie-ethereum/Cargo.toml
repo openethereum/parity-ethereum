@@ -18,3 +18,8 @@ elastic-array = "0.10"
 memory-db = "0.15.0"
 keccak-hash = "0.4.0"
 journaldb = { path = "../journaldb" }
+criterion = "0.3"
+
+[[bench]]
+name = "rlp_node_codec"
+harness = false
