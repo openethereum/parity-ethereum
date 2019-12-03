@@ -24,10 +24,9 @@ use std::marker::PhantomData;
 use std::borrow::Borrow;
 use std::ops::Range;
 use trie::{
-	NodeCodec, ChildReference, Partial, node::{NibbleSlicePlan, NodePlan, NodeHandlePlan},
+	NodeCodec, ChildReference, Partial,
+	node::{NibbleSlicePlan, NodePlan, NodeHandlePlan},
 };
-
-
 
 /// Concrete implementation of a `NodeCodec` with Rlp encoding, generic over the `Hasher`
 #[derive(Default, Clone)]
@@ -98,7 +97,7 @@ impl NodeCodec for RlpNodeCodec<KeccakHasher> {
 		HASHED_NULL_NODE
 	}
 
-	fn decode_plan(data: &[u8]) -> ::std::result::Result<NodePlan, Self::Error> {
+	fn decode_plan(data: &[u8]) -> Result<NodePlan, Self::Error> {
 		let r = Rlp::new(data);
 		match r.prototype()? {
 			// either leaf or extension - decode first item with NibbleSlice::???
@@ -229,4 +228,52 @@ impl NodeCodec for RlpNodeCodec<KeccakHasher> {
 		unreachable!("This codec is only used with a trie Layout that uses extension node.")
 	}
 
+}
+
+#[cfg(test)]
+mod tests {
+	use trie::{NodeCodec, node::{Node, NodeHandle}, NibbleSlice};
+	use rlp::RlpStream;
+	use RlpNodeCodec;
+
+	#[test]
+	fn decode_leaf() {
+		let mut stream = RlpStream::new_list(2);
+		stream.append(&"cat").append(&"dog");
+		let data = stream.out();
+		let r = RlpNodeCodec::decode(&data);
+		assert!(r.is_ok());
+		// "c" & 16 != 16 => `start` == 1
+		let cat_nib = NibbleSlice::new(&b"at"[..]);
+		assert_eq!(r.unwrap(), Node::Leaf(cat_nib, &b"dog"[..]));
+	}
+
+	#[test]
+	fn decode_ext() {
+		let mut stream = RlpStream::new_list(2);
+		let payload = vec![0x1, 0x2, 0x3u8];
+		stream.append(&"").append(&payload);
+		let data = stream.out();
+		let decoded = RlpNodeCodec::decode(&data);
+
+		assert!(decoded.is_ok());
+		assert_eq!(
+			decoded.unwrap(),
+			Node::Extension(
+				NibbleSlice::new(&[]),
+				NodeHandle::Inline(&[0x80 + 0x3, 0x1, 0x2, 0x3])
+			)
+		);
+	}
+
+	#[test]
+	fn decode_empty_data() {
+		let mut stream = RlpStream::new();
+		stream.append_empty_data();
+		let data = stream.out();
+		assert_eq!(
+			RlpNodeCodec::decode(&data),
+			Ok(Node::Empty),
+		);
+	}
 }
