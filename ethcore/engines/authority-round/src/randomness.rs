@@ -143,9 +143,6 @@ impl RandomnessPhase {
 		let round = contract
 			.call_const(aura_random::functions::current_collect_round::call())
 			.map_err(PhaseError::LoadFailed)?;
-		let is_reveal_phase = contract
-			.call_const(aura_random::functions::is_reveal_phase::call())
-			.map_err(PhaseError::LoadFailed)?;
 		let is_commit_phase = contract
 			.call_const(aura_random::functions::is_commit_phase::call())
 			.map_err(PhaseError::LoadFailed)?;
@@ -165,10 +162,6 @@ impl RandomnessPhase {
 			.map_err(PhaseError::LoadFailed)?;
 
 		// With all the information known, we can determine the actual state we are in.
-		if is_reveal_phase && is_commit_phase {
-			return Err(PhaseError::PhaseConflict);
-		}
-
 		if is_commit_phase {
 			if revealed {
 				return Err(PhaseError::RevealedInCommit);
