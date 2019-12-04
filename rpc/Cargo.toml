@@ -32,7 +32,7 @@ jsonrpc-core = "14.0.5"
 jsonrpc-derive = "14.0.5"
 jsonrpc-http-server = "14.0.5"
 jsonrpc-ws-server = "14.0.5"
-jsonrpc-ipc-server = "14.0.5"
+jsonrpc-ipc-server = "14.0.6"
 jsonrpc-pubsub = "14.0.5"
 
 client-traits = { path = "../ethcore/client-traits" }
@@ -85,6 +85,3 @@ verification = { path = "../ethcore/verification" }
 
 [features]
 accounts = ["ethcore-accounts"]
-
-[patch.crates-io]
-parity-tokio-ipc = { git = 'https://github.com/nikvolf/parity-tokio-ipc' }

@@ -2337,13 +2337,13 @@ dependencies = [
 
 [[package]]
 name = "jsonrpc-ipc-server"
-version = "14.0.5"
+version = "14.0.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 dependencies = [
  "jsonrpc-core 14.0.5 (registry+https://github.com/rust-lang/crates.io-index)",
  "jsonrpc-server-utils 14.0.3 (registry+https://github.com/rust-lang/crates.io-index)",
  "log 0.4.8 (registry+https://github.com/rust-lang/crates.io-index)",
- "parity-tokio-ipc 0.3.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "parity-tokio-ipc 0.4.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "parking_lot 0.9.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "tokio-service 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
@@ -3230,7 +3230,7 @@ dependencies = [
  "jsonrpc-core 14.0.5 (registry+https://github.com/rust-lang/crates.io-index)",
  "jsonrpc-derive 14.0.5 (registry+https://github.com/rust-lang/crates.io-index)",
  "jsonrpc-http-server 14.0.5 (registry+https://github.com/rust-lang/crates.io-index)",
- "jsonrpc-ipc-server 14.0.5 (registry+https://github.com/rust-lang/crates.io-index)",
+ "jsonrpc-ipc-server 14.0.6 (registry+https://github.com/rust-lang/crates.io-index)",
  "jsonrpc-pubsub 14.0.5 (registry+https://github.com/rust-lang/crates.io-index)",
  "jsonrpc-ws-server 14.0.5 (registry+https://github.com/rust-lang/crates.io-index)",
  "keccak-hash 0.4.0 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -3335,7 +3335,7 @@ dependencies = [
 
 [[package]]
 name = "parity-tokio-ipc"
-version = "0.3.0"
+version = "0.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 dependencies = [
  "bytes 0.4.12 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -5584,7 +5584,7 @@ dependencies = [
 "checksum jsonrpc-core 14.0.5 (registry+https://github.com/rust-lang/crates.io-index)" = "fe3b688648f1ef5d5072229e2d672ecb92cbff7d1c79bcf3fd5898f3f3df0970"
 "checksum jsonrpc-derive 14.0.5 (registry+https://github.com/rust-lang/crates.io-index)" = "8609af8f63b626e8e211f52441fcdb6ec54f1a446606b10d5c89ae9bf8a20058"
 "checksum jsonrpc-http-server 14.0.5 (registry+https://github.com/rust-lang/crates.io-index)" = "2d83d348120edee487c560b7cdd2565055d61cda053aa0d0ef0f8b6a18429048"
-"checksum jsonrpc-ipc-server 14.0.5 (registry+https://github.com/rust-lang/crates.io-index)" = "5bba39d0b373211b2adb049dde44129bb6c5ca440d5e8ff5907b335166b2d108"
+"checksum jsonrpc-ipc-server 14.0.6 (registry+https://github.com/rust-lang/crates.io-index)" = "8a2f793f6eddff0c96a96f3e144efc74930fd1343c1cc0f6302796b2d33bc35f"
 "checksum jsonrpc-pubsub 14.0.5 (registry+https://github.com/rust-lang/crates.io-index)" = "3453625f0f0f5cd6d6776d389d73b7d70fcc98620b7cbb1cbbb1f6a36e95f39a"
 "checksum jsonrpc-server-utils 14.0.3 (registry+https://github.com/rust-lang/crates.io-index)" = "87bc3c0a9a282211b2ec14abb3e977de33016bbec495332e9f7be858de7c5117"
 "checksum jsonrpc-tcp-server 14.0.3 (registry+https://github.com/rust-lang/crates.io-index)" = "9c7807563cd721401285b59b54358f5b2325b4de6ff6f1de5494a5879e890fc1"
@@ -5651,7 +5651,7 @@ dependencies = [
 "checksum parity-secp256k1 0.7.0 (registry+https://github.com/rust-lang/crates.io-index)" = "4fca4f82fccae37e8bbdaeb949a4a218a1bbc485d11598f193d2a908042e5fc1"
 "checksum parity-snappy 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)" = "e2c5f9d149b13134b8b354d93a92830efcbee6fe5b73a2e6e540fe70d4dd8a63"
 "checksum parity-snappy-sys 0.1.2 (registry+https://github.com/rust-lang/crates.io-index)" = "1a413d51e5e1927320c9de992998e4a279dffb8c8a7363570198bd8383e66f1b"
-"checksum parity-tokio-ipc 0.3.0 (registry+https://github.com/rust-lang/crates.io-index)" = "24b58ea271db50fe120df78fd95dfea5337e86f659f97e90211962b21b83c297"
+"checksum parity-tokio-ipc 0.4.0 (registry+https://github.com/rust-lang/crates.io-index)" = "1e57fea504fea33f9fbb5f49f378359030e7e026a6ab849bb9e8f0787376f1bf"
 "checksum parity-util-mem 0.2.0 (registry+https://github.com/rust-lang/crates.io-index)" = "e2005637ccf93dbb60c85081ccaaf3f945f573da48dcc79f27f9646caa3ec1dc"
 "checksum parity-wasm 0.31.3 (registry+https://github.com/rust-lang/crates.io-index)" = "511379a8194230c2395d2f5fa627a5a7e108a9f976656ce723ae68fca4097bfc"
 "checksum parity-wordlist 1.3.0 (registry+https://github.com/rust-lang/crates.io-index)" = "573d08f0d3bc8a6ffcdac1de2725b5daeed8db26345a9c12d91648e2d6457f3e"
