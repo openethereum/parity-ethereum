@@ -85,3 +85,6 @@ verification = { path = "../ethcore/verification" }
 
 [features]
 accounts = ["ethcore-accounts"]
+
+[patch.crates-io]
+parity-tokio-ipc = { git = 'https://github.com/nikvolf/parity-tokio-ipc' }
