@@ -167,7 +167,8 @@
 		"eip1283Transition": "0x8a61c8",
 		"eip1706Transition": "0x8a61c8",
 		"eip1884Transition": "0x8a61c8",
-		"eip2028Transition": "0x8a61c8"
+		"eip2028Transition": "0x8a61c8",
+		"eip1344Transition": "0x8a61c8"
 	},
 	"genesis": {
 		"seal": {
