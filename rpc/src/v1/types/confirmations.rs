@@ -229,6 +229,18 @@ impl From<helpers::ConfirmationPayload> for ConfirmationPayload {
 	}
 }
 
+impl ConfirmationPayload {
+	pub fn sender(&self) -> Option<&H160> {
+		match *self {
+			ConfirmationPayload::SendTransaction(ref request) => request.from.as_ref(),
+			ConfirmationPayload::SignTransaction(ref request) => request.from.as_ref(),
+			ConfirmationPayload::EthSignMessage(ref request) => Some(&request.address),
+			ConfirmationPayload::EIP191SignMessage(ref request) => Some(&request.address),
+			ConfirmationPayload::Decrypt(ref request) => Some(&request.address),
+		}
+	}
+}
+
 /// Possible modifications to the confirmed transaction sent by `Trusted Signer`
 #[derive(Debug, PartialEq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]

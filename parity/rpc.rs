@@ -119,7 +119,7 @@ impl Default for WsConfiguration {
 			origins: Some(vec!["parity://*".into(),"chrome-extension://*".into(), "moz-extension://*".into()]),
 			hosts: Some(Vec::new()),
 			signer_path: replace_home(&data_dir, "$BASE/signer").into(),
-			support_token_api: true,
+			support_token_api: false,
 		}
 	}
 }
