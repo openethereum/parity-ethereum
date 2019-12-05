@@ -1,3 +1,12 @@
+## Parity-Ethereum [v2.5.11](https://github.com/paritytech/parity-ethereum/releases/tag/v2.5.11)
+
+Parity Ethereum v2.5.11-stable is an emergency patch release that adds the missing
+eip1344_transition for mainnet - Users are advised to update as soon as possible
+to prevent any issues with the imminent Istanbul hardfork
+
+The full list of included changes:
+- [chainspec]: add `eip1344_transition` for istanbul (#11301)
+
 ## Parity-Ethereum [v2.5.10](https://github.com/paritytech/parity-ethereum/releases/tag/2.5.10)
 
 Parity Ethereum v2.5.10-stable is a patch release that adds block numbers for
