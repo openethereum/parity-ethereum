@@ -78,7 +78,7 @@ impl<'a> Visitor<'a> for UintVisitor {
 			2 if value.starts_with("0x") => U256::from(0),
 			_ if value.starts_with("0x") => {
 				if value.len() > 66 {
-					return Err(Error::custom(format!("Invalid hex value {}", value).as_str()));
+					return Err(Error::custom(format!("Invalid hex value {}: value too big", value).as_str()));
 				}
 				U256::from_str(&value[2..]).map_err(|e| {
 					Error::custom(format!("Invalid hex value {}: {}", value, e).as_str())
