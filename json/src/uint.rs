@@ -76,9 +76,14 @@ impl<'a> Visitor<'a> for UintVisitor {
 		let value = match value.len() {
 			0 => U256::from(0),
 			2 if value.starts_with("0x") => U256::from(0),
-			_ if value.starts_with("0x") => U256::from_str(&value[2..]).map_err(|e| {
-				Error::custom(format!("Invalid hex value {}: {}", value, e).as_str())
-			})?,
+			_ if value.starts_with("0x") => {
+				if value.len() > 66 {
+					return Err(Error::custom(format!("Invalid hex value {}", value).as_str()));
+				}
+				U256::from_str(&value[2..]).map_err(|e| {
+					Error::custom(format!("Invalid hex value {}: {}", value, e).as_str())
+				})?
+			},
 			_ => U256::from_dec_str(value).map_err(|e| {
 				Error::custom(format!("Invalid decimal value {}: {:?}", value, e).as_str())
 			})?
