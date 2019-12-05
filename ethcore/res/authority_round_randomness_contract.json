@@ -12,7 +12,9 @@
 				},
 				"immediateTransitions": true,
 				"maximumEmptySteps": "2",
-				"randomnessContractAddress": "0x0000000000000000000000000000000000000042"
+				"randomnessContractAddress": {
+					"0": "0x0000000000000000000000000000000000000042"
+				}
 			}
 		}
 	},

@@ -96,7 +96,7 @@ pub struct AuthorityRoundParams {
 	/// First block for which a 2/3 quorum (instead of 1/2) is required.
 	pub two_thirds_majority_transition: Option<Uint>,
 	/// The random number contract's address, or a map of contract transitions.
-	pub randomness_contract_address: Option<TransitionMap<Address>>,
+	pub randomness_contract_address: Option<BTreeMap<Uint, Address>>,
 }
 
 /// Authority engine deserialization.
@@ -105,17 +105,6 @@ pub struct AuthorityRoundParams {
 pub struct AuthorityRound {
 	/// Ethash params.
 	pub params: AuthorityRoundParams,
-}
-
-/// Either a single `T` value, or a map assigning block numbers to transitions to different values of type `T`.
-#[derive(Debug, PartialEq, Deserialize)]
-#[serde(deny_unknown_fields)]
-#[serde(untagged)]
-pub enum TransitionMap<T> {
-	/// A single value for all block numbers.
-	Single(Address),
-	/// A map of transition block numbers to new values.
-	Transitions(BTreeMap<Uint, T>),
 }
 
 #[cfg(test)]
@@ -156,9 +145,9 @@ mod tests {
 		assert_eq!(deserialized.params.maximum_uncle_count_transition, Some(Uint(10_000_000.into())));
 		assert_eq!(deserialized.params.maximum_uncle_count, Some(Uint(5.into())));
 		assert_eq!(deserialized.params.randomness_contract_address.unwrap(),
-			super::TransitionMap::Transitions(vec![
+			vec![
 				(Uint(10.into()), Address(H160::from_str("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa").unwrap())),
 				(Uint(20.into()), Address(H160::from_str("bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb").unwrap())),
-			].into_iter().collect()));
+			].into_iter().collect());
 	}
 }

@@ -38,7 +38,7 @@
 //!        |                                              |
 //!        |  call                                        |
 //!        |  `commitHash()`                              |  call
-//!        |                                              |  `revealNumber`
+//!        |                                              |  `revealNumber()`
 //!        |                                              |
 //! +------v-------+                              +-------+-------+
 //! |              |                              |               |
@@ -48,6 +48,18 @@
 //! ```
 //!
 //! Phase transitions are performed by the smart contract and simply queried by the engine.
+//!
+//! Randomness generation works as follows:
+//! * During the commit phase, all validators locally generate a random number, and commit that number's hash to the
+//!   contract.
+//! * During the reveal phase, all validators reveal their local random number to the contract. The contract should
+//!   verify that it matches the committed hash.
+//! * Finally, the XOR of all revealed numbers is used as an on-chain random number.
+//!
+//! An adversary can only influence that number by either controlling _all_ validators who committed, or, to a lesser
+//! extent, by not revealing committed numbers.
+//! The length of the commit and reveal phases, as well as any penalties for failure to reveal, are defined by the
+//! contract.
 //!
 //! A typical case of using `RandomnessPhase` is:
 //!
@@ -84,7 +96,7 @@ pub enum RandomnessPhase {
 	/// Waiting for the next phase.
 	///
 	/// This state indicates either the successful revelation in this round or having missed the
-	/// window to make a commitment.
+	/// window to make a commitment, i.e. having failed to commit during the commit phase.
 	Waiting,
 	/// Indicates a commitment is possible, but still missing.
 	BeforeCommit,
@@ -102,9 +114,6 @@ pub enum RandomnessPhase {
 /// `BadRandNumber` will usually result in punishment by the contract or the other validators.
 #[derive(Debug, Display)]
 pub enum PhaseError {
-	/// The smart contract reported a phase as both commitment and reveal phase.
-	#[display(fmt = "Inconsistent randomness phase information")]
-	PhaseConflict,
 	/// The smart contract reported that we already revealed something while still being in the
 	/// commit phase.
 	#[display(fmt = "Revealed during commit phase")]
@@ -190,8 +199,8 @@ impl RandomnessPhase {
 	///
 	/// Returns the encoded contract call necessary to advance the randomness contract's state.
 	///
-	/// **Warning**: The `advance()` function should be called only once per block state; otherwise
-	///              spurious transactions resulting in punishments might be executed.
+	/// **Warning**: After calling the `advance()` function, wait until the returned transaction has been included in
+	/// a block before calling it again; otherwise spurious transactions resulting in punishments might be executed.
 	pub fn advance<R: Rng>(
 		self,
 		contract: &BoundContract,

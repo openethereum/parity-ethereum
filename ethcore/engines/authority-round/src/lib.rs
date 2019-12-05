@@ -176,17 +176,11 @@ impl From<ethjson::spec::AuthorityRoundParams> for AuthorityRoundParams {
 				BlockRewardContract::new_from_address(address.into())
 			);
 		}
-		let randomness_contract_address = match p.randomness_contract_address {
-			None => BTreeMap::new(),
-			Some(ethjson::spec::authority_round::TransitionMap::Single(addr)) => {
-				iter::once((0, addr.into())).collect()
-			}
-			Some(ethjson::spec::authority_round::TransitionMap::Transitions(transitions)) => {
-				transitions.into_iter().map(|(ethjson::uint::Uint(block), addr)| {
-					(block.as_u64(), addr.into())
-				}).collect()
-			}
-		};
+		let randomness_contract_address = p.randomness_contract_address.map_or_else(BTreeMap::new, |transitions| {
+			transitions.into_iter().map(|(ethjson::uint::Uint(block), addr)| {
+				(block.as_u64(), addr.into())
+			}).collect()
+		});
 		AuthorityRoundParams {
 			step_durations,
 			validators: new_validator_set(p.validators),
