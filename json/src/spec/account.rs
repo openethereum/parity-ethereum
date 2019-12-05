@@ -103,7 +103,7 @@ mod tests {
 	#[should_panic]
 	fn account_balance_panics_over_u256_limit() {
 		let s = r#"{
-			"nonce": "0x10000000000000000000000000000000000000000000000000000000000000000"
+			"balance": "0x10000000000000000000000000000000000000000000000000000000000000000"
 		}"#;
 		let _: Account = serde_json::from_str(s).unwrap();
 	}
