@@ -1,3 +1,12 @@
+## Parity-Ethereum [v2.6.6](https://github.com/paritytech/parity-ethereum/releases/tag/v2.6.6)
+
+Parity Ethereum v2.6.6-beta is an emergency patch release that adds the missing
+eip1344_transition for mainnet - Users are advised to update as soon as possible
+to prevent any issues with the imminent Istanbul hardfork
+
+The full list of included changes:
+* [chainspec]: add `eip1344_transition` for istanbul (#11301)
+
 ## Parity-Ethereum [v2.6.5](https://github.com/paritytech/parity-ethereum/releases/tag/v2.6.5)
 
 Parity Ethereum v2.6.5-beta is a patch release that adds block numbers for activating the Istanbul hardfork on mainnet, as well as a large number of various bugfixes, QoL changes, some code cleanup/refactoring and other miscellaneous changes.
