@@ -147,7 +147,7 @@ mod test {
 		let err = result.unwrap_err();
 		assert!(err.is_data());
 		assert_eq!(
-			format!("{}", err),
+			err.to_string(),
 			format!("Invalid hex value {}: value too big at line 1 column 69", hex)
 		);
 	}
