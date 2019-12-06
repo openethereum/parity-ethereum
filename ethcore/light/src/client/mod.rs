@@ -61,7 +61,7 @@ pub struct Config {
 	/// Verification queue config.
 	pub queue: queue::Config,
 	/// Chain column in database.
-	pub chain_column: Option<u32>,
+	pub chain_column: u32,
 	/// Should it do full verification of blocks?
 	pub verify_full: bool,
 	/// Should it check the seal of blocks?
@@ -74,7 +74,7 @@ impl Default for Config {
 	fn default() -> Config {
 		Config {
 			queue: Default::default(),
-			chain_column: None,
+			chain_column: 0,
 			verify_full: true,
 			check_seal: true,
 			no_hardcoded_sync: false,
@@ -182,7 +182,7 @@ impl<T: ChainDataFetcher> Client<T> {
 	pub fn new(
 		config: Config,
 		db: Arc<dyn KeyValueDB>,
-		chain_col: Option<u32>,
+		chain_col: u32,
 		spec: &Spec,
 		fetcher: T,
 		io_channel: IoChannel<ClientIoMessage<()>>,

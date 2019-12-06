@@ -220,7 +220,7 @@ pub struct HeaderChain {
 	#[ignore_malloc_size_of = "ignored for performance reason"]
 	db: Arc<dyn KeyValueDB>,
 	#[ignore_malloc_size_of = "ignored for performance reason"]
-	col: Option<u32>,
+	col: u32,
 	#[ignore_malloc_size_of = "ignored for performance reason"]
 	cache: Arc<Mutex<Cache>>,
 }
@@ -229,7 +229,7 @@ impl HeaderChain {
 	/// Create a new header chain given this genesis block and database to read from.
 	pub fn new(
 		db: Arc<dyn KeyValueDB>,
-		col: Option<u32>,
+		col: u32,
 		spec: &Spec,
 		cache: Arc<Mutex<Cache>>,
 		allow_hs: HardcodedSync,
@@ -886,7 +886,7 @@ mod tests {
 	use parking_lot::Mutex;
 
 	fn make_db() -> Arc<dyn KeyValueDB> {
-		Arc::new(kvdb_memorydb::create(0))
+		Arc::new(kvdb_memorydb::create(1))
 	}
 
 	#[test]
@@ -897,7 +897,7 @@ mod tests {
 
 		let cache = Arc::new(Mutex::new(Cache::new(Default::default(), Duration::from_secs(6 * 3600))));
 
-		let chain = HeaderChain::new(db.clone(), None, &spec, cache, HardcodedSync::Allow).unwrap();
+		let chain = HeaderChain::new(db.clone(), 0, &spec, cache, HardcodedSync::Allow).unwrap();
 
 		let mut parent_hash = genesis_header.hash();
 		let mut rolling_timestamp = genesis_header.timestamp();
@@ -930,7 +930,7 @@ mod tests {
 		let db = make_db();
 		let cache = Arc::new(Mutex::new(Cache::new(Default::default(), Duration::from_secs(6 * 3600))));
 
-		let chain = HeaderChain::new(db.clone(), None, &spec, cache, HardcodedSync::Allow).unwrap();
+		let chain = HeaderChain::new(db.clone(), 0, &spec, cache, HardcodedSync::Allow).unwrap();
 
 		let mut parent_hash = genesis_header.hash();
 		let mut rolling_timestamp = genesis_header.timestamp();
@@ -1012,7 +1012,7 @@ mod tests {
 		let db = make_db();
 		let cache = Arc::new(Mutex::new(Cache::new(Default::default(), Duration::from_secs(6 * 3600))));
 
-		let chain = HeaderChain::new(db.clone(), None, &spec, cache, HardcodedSync::Allow).unwrap();
+		let chain = HeaderChain::new(db.clone(), 0, &spec, cache, HardcodedSync::Allow).unwrap();
 
 		assert!(chain.block_header(BlockId::Earliest).is_some());
 		assert!(chain.block_header(BlockId::Latest).is_some());
@@ -1026,7 +1026,7 @@ mod tests {
 		let cache = Arc::new(Mutex::new(Cache::new(Default::default(), Duration::from_secs(6 * 3600))));
 
 		{
-			let chain = HeaderChain::new(db.clone(), None, &spec, cache.clone(),
+			let chain = HeaderChain::new(db.clone(), 0, &spec, cache.clone(),
 										HardcodedSync::Allow).unwrap();
 			let mut parent_hash = genesis_header.hash();
 			let mut rolling_timestamp = genesis_header.timestamp();
@@ -1047,7 +1047,7 @@ mod tests {
 			}
 		}
 
-		let chain = HeaderChain::new(db.clone(), None, &spec, cache.clone(),
+		let chain = HeaderChain::new(db.clone(), 0, &spec, cache.clone(),
 									HardcodedSync::Allow).unwrap();
 		assert!(chain.block_header(BlockId::Number(10)).is_none());
 		assert!(chain.block_header(BlockId::Number(9000)).is_some());
@@ -1064,7 +1064,7 @@ mod tests {
 		let cache = Arc::new(Mutex::new(Cache::new(Default::default(), Duration::from_secs(6 * 3600))));
 
 		{
-			let chain = HeaderChain::new(db.clone(), None, &spec, cache.clone(),
+			let chain = HeaderChain::new(db.clone(), 0, &spec, cache.clone(),
 										HardcodedSync::Allow).unwrap();
 			let mut parent_hash = genesis_header.hash();
 			let mut rolling_timestamp = genesis_header.timestamp();
@@ -1107,7 +1107,7 @@ mod tests {
 		}
 
 		// after restoration, non-canonical eras should still be loaded.
-		let chain = HeaderChain::new(db.clone(), None, &spec, cache.clone(),
+		let chain = HeaderChain::new(db.clone(), 0, &spec, cache.clone(),
 									HardcodedSync::Allow).unwrap();
 		assert_eq!(chain.block_header(BlockId::Latest).unwrap().number(), 10);
 		assert!(chain.candidates.read().get(&100).is_some())
@@ -1120,7 +1120,7 @@ mod tests {
 		let db = make_db();
 		let cache = Arc::new(Mutex::new(Cache::new(Default::default(), Duration::from_secs(6 * 3600))));
 
-		let chain = HeaderChain::new(db.clone(), None, &spec, cache.clone(),
+		let chain = HeaderChain::new(db.clone(), 0, &spec, cache.clone(),
 									HardcodedSync::Allow).unwrap();
 
 		assert!(chain.block_header(BlockId::Earliest).is_some());
@@ -1135,7 +1135,7 @@ mod tests {
 		let db = make_db();
 		let cache = Arc::new(Mutex::new(Cache::new(Default::default(), Duration::from_secs(6 * 3600))));
 
-		let chain = HeaderChain::new(db.clone(), None, &spec, cache, HardcodedSync::Allow).unwrap();
+		let chain = HeaderChain::new(db.clone(), 0, &spec, cache, HardcodedSync::Allow).unwrap();
 
 		let mut parent_hash = genesis_header.hash();
 		let mut rolling_timestamp = genesis_header.timestamp();
@@ -1202,7 +1202,7 @@ mod tests {
 
 		let cache = Arc::new(Mutex::new(Cache::new(Default::default(), Duration::from_secs(6 * 3600))));
 
-		let chain = HeaderChain::new(db.clone(), None, &spec, cache, HardcodedSync::Allow).expect("failed to instantiate a new HeaderChain");
+		let chain = HeaderChain::new(db.clone(), 0, &spec, cache, HardcodedSync::Allow).expect("failed to instantiate a new HeaderChain");
 
 		let mut parent_hash = genesis_header.hash();
 		let mut rolling_timestamp = genesis_header.timestamp();

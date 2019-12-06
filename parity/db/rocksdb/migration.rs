@@ -29,24 +29,24 @@ use super::blooms::migrate_blooms;
 /// The migration from v10 to v11.
 /// Adds a column for node info.
 pub const TO_V11: ChangeColumns = ChangeColumns {
-	pre_columns: Some(6),
-	post_columns: Some(7),
+	pre_columns: 6,
+	post_columns: 7,
 	version: 11,
 };
 
 /// The migration from v11 to v12.
 /// Adds a column for light chain storage.
 pub const TO_V12: ChangeColumns = ChangeColumns {
-	pre_columns: Some(7),
-	post_columns: Some(8),
+	pre_columns: 7,
+	post_columns: 8,
 	version: 12,
 };
 
 /// The migration from v12 to v14.
 /// Adds a column for private transactions state storage.
 pub const TO_V14: ChangeColumns = ChangeColumns {
-	pre_columns: Some(8),
-	post_columns: Some(9),
+	pre_columns: 8,
+	post_columns: 9,
 	version: 14,
 };
 

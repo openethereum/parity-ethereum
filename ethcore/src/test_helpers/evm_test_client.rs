@@ -165,7 +165,7 @@ impl<'a> EvmTestClient<'a> {
 	}
 
 	fn state_from_spec(spec: &'a spec::Spec, factories: &Factories) -> Result<State<state_db::StateDB>, EvmTestError> {
-		let db = Arc::new(kvdb_memorydb::create(db::NUM_COLUMNS.expect("We use column-based DB; qed")));
+		let db = Arc::new(kvdb_memorydb::create(db::NUM_COLUMNS));
 		let journal_db = journaldb::new(db.clone(), journaldb::Algorithm::EarlyMerge, db::COL_STATE);
 		let mut state_db = state_db::StateDB::new(journal_db, 5 * 1024 * 1024);
 		state_db = spec.ensure_db_good(state_db, factories)?;
@@ -187,7 +187,7 @@ impl<'a> EvmTestClient<'a> {
 	}
 
 	fn state_from_pod(spec: &'a spec::Spec, factories: &Factories, pod_state: PodState) -> Result<State<state_db::StateDB>, EvmTestError> {
-		let db = Arc::new(kvdb_memorydb::create(db::NUM_COLUMNS.expect("We use column-based DB; qed")));
+		let db = Arc::new(kvdb_memorydb::create(db::NUM_COLUMNS));
 		let journal_db = journaldb::new(db.clone(), journaldb::Algorithm::EarlyMerge, db::COL_STATE);
 		let state_db = state_db::StateDB::new(journal_db, 5 * 1024 * 1024);
 		let mut state = State::new(

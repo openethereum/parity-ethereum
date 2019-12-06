@@ -510,9 +510,9 @@ impl Spec {
 
 		let factories = Default::default();
 		let mut db = journaldb::new(
-			Arc::new(kvdb_memorydb::create(0)),
+			Arc::new(kvdb_memorydb::create(1)),
 			journaldb::Algorithm::Archive,
-			None,
+			0,
 		);
 
 		self.ensure_db_good(BasicBackend(db.as_hash_db_mut()), &factories)

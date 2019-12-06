@@ -136,3 +136,11 @@ members = [
 	"parity-clib",
 ]
 
+# todo[dvdplm] remove before merge
+[patch.crates-io]
+kvdb = { git = "https://github.com/zrzka/parity-common", branch = "zrzka/kvdb-column-type-u32" }
+kvdb-rocksdb = { git = "https://github.com/zrzka/parity-common", branch = "zrzka/kvdb-column-type-u32" }
+kvdb-memorydb = { git = "https://github.com/zrzka/parity-common", branch = "zrzka/kvdb-column-type-u32" }
+#kvdb = { path = "../parity-common/kvdb" }
+#kvdb-rocksdb = { path = "../parity-common/kvdb-rocksdb" }
+#kvdb-memorydb = { path = "../parity-common/kvdb-memorydb" }

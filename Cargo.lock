@@ -8,7 +8,7 @@ dependencies = [
  "hash-db 0.15.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "keccak-hash 0.4.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "keccak-hasher 0.1.1",
- "kvdb 0.1.1 (registry+https://github.com/rust-lang/crates.io-index)",
+ "kvdb 0.1.1 (git+https://github.com/zrzka/parity-common?branch=zrzka/kvdb-column-type-u32)",
  "rlp 0.4.4 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
@@ -24,7 +24,7 @@ dependencies = [
  "journaldb 0.2.0",
  "keccak-hash 0.4.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "keccak-hasher 0.1.1",
- "kvdb 0.1.1 (registry+https://github.com/rust-lang/crates.io-index)",
+ "kvdb 0.1.1 (git+https://github.com/zrzka/parity-common?branch=zrzka/kvdb-column-type-u32)",
  "log 0.4.8 (registry+https://github.com/rust-lang/crates.io-index)",
  "lru-cache 0.1.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "memory-db 0.15.0 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -561,7 +561,7 @@ dependencies = [
  "ethcore-db 0.1.0",
  "ethcore-miner 1.12.0",
  "ethereum-types 0.8.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "kvdb 0.1.1 (registry+https://github.com/rust-lang/crates.io-index)",
+ "kvdb 0.1.1 (git+https://github.com/zrzka/parity-common?branch=zrzka/kvdb-column-type-u32)",
  "parity-bytes 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "registrar 0.0.1",
  "stats 0.1.0",
@@ -1086,9 +1086,9 @@ dependencies = [
  "itertools 0.5.10 (registry+https://github.com/rust-lang/crates.io-index)",
  "journaldb 0.2.0",
  "keccak-hash 0.4.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "kvdb 0.1.1 (registry+https://github.com/rust-lang/crates.io-index)",
- "kvdb-memorydb 0.1.2 (registry+https://github.com/rust-lang/crates.io-index)",
- "kvdb-rocksdb 0.2.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "kvdb 0.1.1 (git+https://github.com/zrzka/parity-common?branch=zrzka/kvdb-column-type-u32)",
+ "kvdb-memorydb 0.1.2 (git+https://github.com/zrzka/parity-common?branch=zrzka/kvdb-column-type-u32)",
+ "kvdb-rocksdb 0.2.0 (git+https://github.com/zrzka/parity-common?branch=zrzka/kvdb-column-type-u32)",
  "lazy_static 1.4.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "log 0.4.8 (registry+https://github.com/rust-lang/crates.io-index)",
  "machine 0.1.0",
@@ -1155,8 +1155,8 @@ dependencies = [
  "ethereum-types 0.8.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "itertools 0.5.10 (registry+https://github.com/rust-lang/crates.io-index)",
  "keccak-hash 0.4.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "kvdb 0.1.1 (registry+https://github.com/rust-lang/crates.io-index)",
- "kvdb-memorydb 0.1.2 (registry+https://github.com/rust-lang/crates.io-index)",
+ "kvdb 0.1.1 (git+https://github.com/zrzka/parity-common?branch=zrzka/kvdb-column-type-u32)",
+ "kvdb-memorydb 0.1.2 (git+https://github.com/zrzka/parity-common?branch=zrzka/kvdb-column-type-u32)",
  "log 0.4.8 (registry+https://github.com/rust-lang/crates.io-index)",
  "parity-bytes 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "parity-crypto 0.4.2 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -1213,7 +1213,7 @@ version = "0.1.0"
 dependencies = [
  "common-types 0.1.0",
  "ethereum-types 0.8.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "kvdb 0.1.1 (registry+https://github.com/rust-lang/crates.io-index)",
+ "kvdb 0.1.1 (git+https://github.com/zrzka/parity-common?branch=zrzka/kvdb-column-type-u32)",
  "parity-util-mem 0.2.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "parking_lot 0.9.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "rlp 0.4.4 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -1261,8 +1261,8 @@ dependencies = [
  "journaldb 0.2.0",
  "keccak-hash 0.4.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "keccak-hasher 0.1.1",
- "kvdb 0.1.1 (registry+https://github.com/rust-lang/crates.io-index)",
- "kvdb-memorydb 0.1.2 (registry+https://github.com/rust-lang/crates.io-index)",
+ "kvdb 0.1.1 (git+https://github.com/zrzka/parity-common?branch=zrzka/kvdb-column-type-u32)",
+ "kvdb-memorydb 0.1.2 (git+https://github.com/zrzka/parity-common?branch=zrzka/kvdb-column-type-u32)",
  "log 0.4.8 (registry+https://github.com/rust-lang/crates.io-index)",
  "machine 0.1.0",
  "memory-cache 0.1.0",
@@ -1413,7 +1413,7 @@ dependencies = [
  "journaldb 0.2.0",
  "keccak-hash 0.4.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "keccak-hasher 0.1.1",
- "kvdb 0.1.1 (registry+https://github.com/rust-lang/crates.io-index)",
+ "kvdb 0.1.1 (git+https://github.com/zrzka/parity-common?branch=zrzka/kvdb-column-type-u32)",
  "log 0.4.8 (registry+https://github.com/rust-lang/crates.io-index)",
  "machine 0.1.0",
  "parity-bytes 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -1460,8 +1460,8 @@ dependencies = [
  "hyper 0.12.19 (registry+https://github.com/rust-lang/crates.io-index)",
  "jsonrpc-server-utils 14.0.3 (registry+https://github.com/rust-lang/crates.io-index)",
  "keccak-hash 0.4.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "kvdb 0.1.1 (registry+https://github.com/rust-lang/crates.io-index)",
- "kvdb-rocksdb 0.2.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "kvdb 0.1.1 (git+https://github.com/zrzka/parity-common?branch=zrzka/kvdb-column-type-u32)",
+ "kvdb-rocksdb 0.2.0 (git+https://github.com/zrzka/parity-common?branch=zrzka/kvdb-column-type-u32)",
  "lazy_static 1.4.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "log 0.4.8 (registry+https://github.com/rust-lang/crates.io-index)",
  "parity-bytes 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -1496,8 +1496,8 @@ dependencies = [
  "ethcore-private-tx 1.0.0",
  "ethcore-sync 1.12.0",
  "ethereum-types 0.8.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "kvdb 0.1.1 (registry+https://github.com/rust-lang/crates.io-index)",
- "kvdb-rocksdb 0.2.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "kvdb 0.1.1 (git+https://github.com/zrzka/parity-common?branch=zrzka/kvdb-column-type-u32)",
+ "kvdb-rocksdb 0.2.0 (git+https://github.com/zrzka/parity-common?branch=zrzka/kvdb-column-type-u32)",
  "log 0.4.8 (registry+https://github.com/rust-lang/crates.io-index)",
  "snapshot 0.1.0",
  "spec 0.1.0",
@@ -1540,7 +1540,7 @@ dependencies = [
  "futures 0.1.29 (registry+https://github.com/rust-lang/crates.io-index)",
  "indexmap 1.3.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "keccak-hash 0.4.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "kvdb-memorydb 0.1.2 (registry+https://github.com/rust-lang/crates.io-index)",
+ "kvdb-memorydb 0.1.2 (git+https://github.com/zrzka/parity-common?branch=zrzka/kvdb-column-type-u32)",
  "log 0.4.8 (registry+https://github.com/rust-lang/crates.io-index)",
  "machine 0.1.0",
  "macros 0.1.0",
@@ -1713,7 +1713,7 @@ dependencies = [
  "hash-db 0.15.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "keccak-hash 0.4.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "keccak-hasher 0.1.1",
- "kvdb 0.1.1 (registry+https://github.com/rust-lang/crates.io-index)",
+ "kvdb 0.1.1 (git+https://github.com/zrzka/parity-common?branch=zrzka/kvdb-column-type-u32)",
  "log 0.4.8 (registry+https://github.com/rust-lang/crates.io-index)",
  "machine 0.1.0",
  "parity-bytes 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -2288,8 +2288,8 @@ dependencies = [
  "hash-db 0.15.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "keccak-hash 0.4.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "keccak-hasher 0.1.1",
- "kvdb 0.1.1 (registry+https://github.com/rust-lang/crates.io-index)",
- "kvdb-memorydb 0.1.2 (registry+https://github.com/rust-lang/crates.io-index)",
+ "kvdb 0.1.1 (git+https://github.com/zrzka/parity-common?branch=zrzka/kvdb-column-type-u32)",
+ "kvdb-memorydb 0.1.2 (git+https://github.com/zrzka/parity-common?branch=zrzka/kvdb-column-type-u32)",
  "log 0.4.8 (registry+https://github.com/rust-lang/crates.io-index)",
  "memory-db 0.15.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "parity-bytes 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -2440,30 +2440,30 @@ dependencies = [
 [[package]]
 name = "kvdb"
 version = "0.1.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
+source = "git+https://github.com/zrzka/parity-common?branch=zrzka/kvdb-column-type-u32#9235c0d0ea3a77f124436b2f53b2adea79ecbf20"
 dependencies = [
  "elastic-array 0.10.2 (registry+https://github.com/rust-lang/crates.io-index)",
- "parity-bytes 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "parity-bytes 0.1.1 (git+https://github.com/zrzka/parity-common?branch=zrzka/kvdb-column-type-u32)",
 ]
 
 [[package]]
 name = "kvdb-memorydb"
 version = "0.1.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
+source = "git+https://github.com/zrzka/parity-common?branch=zrzka/kvdb-column-type-u32#9235c0d0ea3a77f124436b2f53b2adea79ecbf20"
 dependencies = [
- "kvdb 0.1.1 (registry+https://github.com/rust-lang/crates.io-index)",
+ "kvdb 0.1.1 (git+https://github.com/zrzka/parity-common?branch=zrzka/kvdb-column-type-u32)",
  "parking_lot 0.9.0 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]
 name = "kvdb-rocksdb"
 version = "0.2.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
+source = "git+https://github.com/zrzka/parity-common?branch=zrzka/kvdb-column-type-u32#9235c0d0ea3a77f124436b2f53b2adea79ecbf20"
 dependencies = [
  "elastic-array 0.10.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "fs-swap 0.2.4 (registry+https://github.com/rust-lang/crates.io-index)",
  "interleaved-ordered 0.1.1 (registry+https://github.com/rust-lang/crates.io-index)",
- "kvdb 0.1.1 (registry+https://github.com/rust-lang/crates.io-index)",
+ "kvdb 0.1.1 (git+https://github.com/zrzka/parity-common?branch=zrzka/kvdb-column-type-u32)",
  "log 0.4.8 (registry+https://github.com/rust-lang/crates.io-index)",
  "num_cpus 1.10.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "owning_ref 0.4.0 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -2688,8 +2688,8 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 name = "migration-rocksdb"
 version = "0.1.0"
 dependencies = [
- "kvdb 0.1.1 (registry+https://github.com/rust-lang/crates.io-index)",
- "kvdb-rocksdb 0.2.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "kvdb 0.1.1 (git+https://github.com/zrzka/parity-common?branch=zrzka/kvdb-column-type-u32)",
+ "kvdb-rocksdb 0.2.0 (git+https://github.com/zrzka/parity-common?branch=zrzka/kvdb-column-type-u32)",
  "log 0.4.8 (registry+https://github.com/rust-lang/crates.io-index)",
  "macros 0.1.0",
  "tempdir 0.3.7 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -2830,7 +2830,7 @@ dependencies = [
  "ethcore-network 1.12.0",
  "ethcore-network-devp2p 1.12.0",
  "ethereum-types 0.8.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "kvdb-memorydb 0.1.2 (registry+https://github.com/rust-lang/crates.io-index)",
+ "kvdb-memorydb 0.1.2 (git+https://github.com/zrzka/parity-common?branch=zrzka/kvdb-column-type-u32)",
  "log 0.4.8 (registry+https://github.com/rust-lang/crates.io-index)",
  "lru-cache 0.1.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "parking_lot 0.9.0 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -2985,6 +2985,11 @@ version = "0.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 
 [[package]]
+name = "parity-bytes"
+version = "0.1.1"
+source = "git+https://github.com/zrzka/parity-common?branch=zrzka/kvdb-column-type-u32#9235c0d0ea3a77f124436b2f53b2adea79ecbf20"
+
+[[package]]
 name = "parity-clib"
 version = "1.12.0"
 dependencies = [
@@ -3070,8 +3075,8 @@ dependencies = [
  "journaldb 0.2.0",
  "jsonrpc-core 14.0.3 (registry+https://github.com/rust-lang/crates.io-index)",
  "keccak-hash 0.4.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "kvdb 0.1.1 (registry+https://github.com/rust-lang/crates.io-index)",
- "kvdb-rocksdb 0.2.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "kvdb 0.1.1 (git+https://github.com/zrzka/parity-common?branch=zrzka/kvdb-column-type-u32)",
+ "kvdb-rocksdb 0.2.0 (git+https://github.com/zrzka/parity-common?branch=zrzka/kvdb-column-type-u32)",
  "log 0.4.8 (registry+https://github.com/rust-lang/crates.io-index)",
  "migration-rocksdb 0.1.0",
  "node-filter 1.12.0",
@@ -3161,8 +3166,8 @@ dependencies = [
  "common-types 0.1.0",
  "ethcore-io 1.12.0",
  "ethkey 0.4.0",
- "kvdb 0.1.1 (registry+https://github.com/rust-lang/crates.io-index)",
- "kvdb-memorydb 0.1.2 (registry+https://github.com/rust-lang/crates.io-index)",
+ "kvdb 0.1.1 (git+https://github.com/zrzka/parity-common?branch=zrzka/kvdb-column-type-u32)",
+ "kvdb-memorydb 0.1.2 (git+https://github.com/zrzka/parity-common?branch=zrzka/kvdb-column-type-u32)",
  "log 0.4.8 (registry+https://github.com/rust-lang/crates.io-index)",
  "parity-crypto 0.4.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "rlp 0.4.4 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -3556,7 +3561,7 @@ dependencies = [
  "itertools 0.8.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "keccak-hash 0.4.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "keccak-hasher 0.1.1",
- "kvdb 0.1.1 (registry+https://github.com/rust-lang/crates.io-index)",
+ "kvdb 0.1.1 (git+https://github.com/zrzka/parity-common?branch=zrzka/kvdb-column-type-u32)",
  "log 0.4.8 (registry+https://github.com/rust-lang/crates.io-index)",
  "macros 0.1.0",
  "parity-bytes 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -4299,8 +4304,8 @@ dependencies = [
  "journaldb 0.2.0",
  "keccak-hash 0.4.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "keccak-hasher 0.1.1",
- "kvdb 0.1.1 (registry+https://github.com/rust-lang/crates.io-index)",
- "kvdb-rocksdb 0.2.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "kvdb 0.1.1 (git+https://github.com/zrzka/parity-common?branch=zrzka/kvdb-column-type-u32)",
+ "kvdb-rocksdb 0.2.0 (git+https://github.com/zrzka/parity-common?branch=zrzka/kvdb-column-type-u32)",
  "lazy_static 1.4.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "log 0.4.8 (registry+https://github.com/rust-lang/crates.io-index)",
  "num_cpus 1.10.1 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -4345,8 +4350,8 @@ dependencies = [
  "journaldb 0.2.0",
  "keccak-hash 0.4.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "keccak-hasher 0.1.1",
- "kvdb 0.1.1 (registry+https://github.com/rust-lang/crates.io-index)",
- "kvdb-rocksdb 0.2.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "kvdb 0.1.1 (git+https://github.com/zrzka/parity-common?branch=zrzka/kvdb-column-type-u32)",
+ "kvdb-rocksdb 0.2.0 (git+https://github.com/zrzka/parity-common?branch=zrzka/kvdb-column-type-u32)",
  "lazy_static 1.4.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "log 0.4.8 (registry+https://github.com/rust-lang/crates.io-index)",
  "parity-bytes 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -4399,7 +4404,7 @@ dependencies = [
  "instant-seal 0.1.0",
  "journaldb 0.2.0",
  "keccak-hash 0.4.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "kvdb-memorydb 0.1.2 (registry+https://github.com/rust-lang/crates.io-index)",
+ "kvdb-memorydb 0.1.2 (git+https://github.com/zrzka/parity-common?branch=zrzka/kvdb-column-type-u32)",
  "log 0.4.8 (registry+https://github.com/rust-lang/crates.io-index)",
  "machine 0.1.0",
  "null-engine 0.1.0",
@@ -4437,7 +4442,7 @@ dependencies = [
  "journaldb 0.2.0",
  "keccak-hash 0.4.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "keccak-hasher 0.1.1",
- "kvdb 0.1.1 (registry+https://github.com/rust-lang/crates.io-index)",
+ "kvdb 0.1.1 (git+https://github.com/zrzka/parity-common?branch=zrzka/kvdb-column-type-u32)",
  "log 0.4.8 (registry+https://github.com/rust-lang/crates.io-index)",
  "lru-cache 0.1.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "memory-cache 0.1.0",
@@ -4892,7 +4897,7 @@ dependencies = [
  "ethcore-db 0.1.0",
  "ethereum-types 0.8.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "evm 0.1.0",
- "kvdb 0.1.1 (registry+https://github.com/rust-lang/crates.io-index)",
+ "kvdb 0.1.1 (git+https://github.com/zrzka/parity-common?branch=zrzka/kvdb-column-type-u32)",
  "log 0.4.8 (registry+https://github.com/rust-lang/crates.io-index)",
  "parity-bytes 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "parity-util-mem 0.2.0 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -5124,7 +5129,7 @@ dependencies = [
  "ethjson 0.1.0",
  "executive-state 0.1.0",
  "keccak-hash 0.4.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "kvdb 0.1.1 (registry+https://github.com/rust-lang/crates.io-index)",
+ "kvdb 0.1.1 (git+https://github.com/zrzka/parity-common?branch=zrzka/kvdb-column-type-u32)",
  "lazy_static 1.4.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "log 0.4.8 (registry+https://github.com/rust-lang/crates.io-index)",
  "machine 0.1.0",
@@ -5571,9 +5576,9 @@ dependencies = [
 "checksum keccak-hash 0.4.0 (registry+https://github.com/rust-lang/crates.io-index)" = "e563fa6fe52b2686094846118bf2cb2e6f75e6b8cec6c3aba09be8e835c7f998"
 "checksum keccak-hasher 0.15.0 (registry+https://github.com/rust-lang/crates.io-index)" = "3bf18164fd7ce989041f8fc4a1ae72a8bd1bec3575f2aeaf1d4968fc053aabef"
 "checksum kernel32-sys 0.2.2 (registry+https://github.com/rust-lang/crates.io-index)" = "7507624b29483431c0ba2d82aece8ca6cdba9382bff4ddd0f7490560c056098d"
-"checksum kvdb 0.1.1 (registry+https://github.com/rust-lang/crates.io-index)" = "c1b2f251f01a7224426abdb2563707d856f7de995d821744fd8fa8e2874f69e3"
-"checksum kvdb-memorydb 0.1.2 (registry+https://github.com/rust-lang/crates.io-index)" = "296c12309ed36cb74d59206406adbf1971c3baa56d5410efdb508d8f1c60a351"
-"checksum kvdb-rocksdb 0.2.0 (registry+https://github.com/rust-lang/crates.io-index)" = "d3f82177237c1ae67d6ab208a6f790cab569a1d81c1ba02348e0736a99510be3"
+"checksum kvdb 0.1.1 (git+https://github.com/zrzka/parity-common?branch=zrzka/kvdb-column-type-u32)" = "<none>"
+"checksum kvdb-memorydb 0.1.2 (git+https://github.com/zrzka/parity-common?branch=zrzka/kvdb-column-type-u32)" = "<none>"
+"checksum kvdb-rocksdb 0.2.0 (git+https://github.com/zrzka/parity-common?branch=zrzka/kvdb-column-type-u32)" = "<none>"
 "checksum lazy_static 1.4.0 (registry+https://github.com/rust-lang/crates.io-index)" = "e2abad23fbc42b3700f2f279844dc832adb2b2eb069b2df918f455c4e18cc646"
 "checksum lazycell 1.2.0 (registry+https://github.com/rust-lang/crates.io-index)" = "ddba4c30a78328befecec92fc94970e53b3ae385827d28620f0f5bb2493081e0"
 "checksum libc 0.2.62 (registry+https://github.com/rust-lang/crates.io-index)" = "34fcd2c08d2f832f376f4173a231990fa5aef4e99fb569867318a227ef4c06ba"
@@ -5623,6 +5628,7 @@ dependencies = [
 "checksum owning_ref 0.3.3 (registry+https://github.com/rust-lang/crates.io-index)" = "cdf84f41639e037b484f93433aa3897863b561ed65c6e59c7073d7c561710f37"
 "checksum owning_ref 0.4.0 (registry+https://github.com/rust-lang/crates.io-index)" = "49a4b8ea2179e6a2e27411d3bca09ca6dd630821cf6894c6c7c8467a8ee7ef13"
 "checksum parity-bytes 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)" = "fa5168b4cf41f3835e4bc6ffb32f51bc9365dc50cb351904595b3931d917fd0c"
+"checksum parity-bytes 0.1.1 (git+https://github.com/zrzka/parity-common?branch=zrzka/kvdb-column-type-u32)" = "<none>"
 "checksum parity-crypto 0.4.2 (registry+https://github.com/rust-lang/crates.io-index)" = "27a9c2b525c93d717a234eb220c26474f8d97b08ac50d79faeac4cb6c74bf0b9"
 "checksum parity-daemonize 0.3.0 (registry+https://github.com/rust-lang/crates.io-index)" = "69b1910b2793ff52713fca0a4ee92544ebec59ccd218ea74560be6f947b4ca77"
 "checksum parity-path 0.1.1 (registry+https://github.com/rust-lang/crates.io-index)" = "5962540f99d3895d9addf535f37ab1397886bc2c68e59efd040ef458e5f8c3f7"

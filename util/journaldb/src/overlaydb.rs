@@ -43,7 +43,7 @@ use crate::{error_negatively_reference_hash, new_memory_db};
 pub struct OverlayDB {
 	overlay: super::MemoryDB,
 	backing: Arc<dyn KeyValueDB>,
-	column: Option<u32>,
+	column: u32,
 }
 
 struct Payload {
@@ -81,7 +81,7 @@ impl Decodable for Payload {
 
 impl OverlayDB {
 	/// Create a new instance of OverlayDB given a `backing` database.
-	pub fn new(backing: Arc<dyn KeyValueDB>, column: Option<u32>) -> OverlayDB {
+	pub fn new(backing: Arc<dyn KeyValueDB>, column: u32) -> OverlayDB {
 		OverlayDB {
 			overlay: new_memory_db(),
 			backing,
@@ -92,8 +92,8 @@ impl OverlayDB {
 	/// Create a new instance of OverlayDB with an anonymous temporary database.
 	#[cfg(test)]
 	pub fn new_temp() -> OverlayDB {
-		let backing = Arc::new(::kvdb_memorydb::create(0));
-		Self::new(backing, None)
+		let backing = Arc::new(::kvdb_memorydb::create(1));
+		Self::new(backing, 0)
 	}
 
 	/// Commit all operations in a single batch.
