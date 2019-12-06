@@ -60,7 +60,7 @@ impl<'a> fmt::Debug for BoundContract<'a> {
 impl<'a> BoundContract<'a> {
 	/// Create a new `BoundContract`.
 	#[inline]
-	pub fn bind(client: &dyn EngineClient, block_id: BlockId, contract_addr: Address) -> BoundContract {
+	pub fn new(client: &dyn EngineClient, block_id: BlockId, contract_addr: Address) -> BoundContract {
 		BoundContract {
 			client,
 			block_id,

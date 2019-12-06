@@ -434,6 +434,7 @@ impl Miner {
 		let best_hash = chain_info.best_block_hash;
 		let original_work_hash = sealing.queue.peek_last_ref().map(|pb| pb.header.hash());
 
+		// Some engines add transactions to the block for their own purposes, e.g. AuthorityRound RANDAO.
 		let engine_txs: Vec<SignedTransaction>;
 		let mut open_block;
 

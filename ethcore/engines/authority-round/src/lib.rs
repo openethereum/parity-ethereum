@@ -1065,6 +1065,11 @@ impl AuthorityRound {
 
 	/// Make calls to the randomness contract.
 	fn run_randomness_phase(&self, block: &ExecutedBlock) -> Result<Vec<SignedTransaction>, Error> {
+		let contract_addr = match self.randomness_contract_address.range(..=block.header.number()).last() {
+			Some((_, &contract_addr)) => contract_addr,
+			None => return Ok(Vec::new()), // No randomness contract.
+		};
+
 		let opt_signer = self.signer.read();
 		let signer = match opt_signer.as_ref() {
 			Some(signer) => signer,
@@ -1078,29 +1083,19 @@ impl AuthorityRound {
 		let full_client = client.as_full_client()
 			.ok_or(EngineError::FailedSystemCall("Failed to upgrade to BlockchainClient.".to_string()))?;
 
-		// Our current account nonce. The transactions must have consecutive nonces, starting with this one.
-		let mut tx_nonce = block.state.nonce(&our_addr)?;
-		let mut transactions = Vec::new();
-
-		// Creates and signs a transaction with the given contract call.
-		let mut make_transaction = |to: Address, data: Bytes| -> Result<SignedTransaction, Error> {
-			let nonce = Some(tx_nonce);
-			tx_nonce += U256::one(); // Increment the nonce for the next transaction.
-			Ok(full_client.create_transaction(Action::Call(to), data, None, Some(U256::zero()), nonce)?)
+		// Random number generation
+		let contract = util::BoundContract::new(&*client, BlockId::Latest, contract_addr);
+		let phase = randomness::RandomnessPhase::load(&contract, our_addr)
+			.map_err(|err| EngineError::RandomnessLoadError(err.to_string()))?;
+		let data = match phase.advance(&contract, &mut OsRng, signer.as_ref())
+				.map_err(|err| EngineError::RandomnessAdvanceError(err.to_string()))? {
+			Some(data) => data,
+			None => return Ok(Vec::new()), // Nothing to commit or reveal at the moment.
 		};
 
-		// Random number generation
-		if let Some((_, &contract_addr)) = self.randomness_contract_address.range(..=block.header.number()).last() {
-			let contract = util::BoundContract::bind(&*client, BlockId::Latest, contract_addr);
-			let phase = randomness::RandomnessPhase::load(&contract, our_addr)
-				.map_err(|err| EngineError::RandomnessLoadError(err.to_string()))?;
-			if let Some(data) = phase.advance(&contract, &mut OsRng, signer.as_ref())
-					.map_err(|err| EngineError::RandomnessAdvanceError(err.to_string()))? {
-				transactions.push(make_transaction(contract_addr, data)?);
-			}
-		}
-
-		Ok(transactions)
+		let nonce = block.state.nonce(&our_addr)?;
+		let action = Action::Call(contract_addr);
+		Ok(vec![full_client.create_transaction(action, data, None, Some(U256::zero()), Some(nonce))?])
 	}
 }
 
@@ -2666,7 +2661,7 @@ mod tests {
 		let engine = client.engine();
 		engine.set_signer(Some(signer));
 		engine.register_client(Arc::downgrade(&client) as _);
-		let bc = BoundContract::bind(&*client, BlockId::Latest, contract_addr);
+		let bc = BoundContract::new(&*client, BlockId::Latest, contract_addr);
 
 		// First the contract is in the commit phase, and we haven't committed yet.
 		assert!(bc.call_const(rand_contract::functions::is_commit_phase::call())?);
