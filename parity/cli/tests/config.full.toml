@@ -75,6 +75,7 @@ apis = ["web3", "eth", "net", "parity", "traces", "rpc", "secretstore"]
 hosts = ["none"]
 
 [ipc]
+chmod = "660"
 disable = false
 path = "$HOME/.parity/jsonrpc.ipc"
 apis = ["web3", "eth", "net", "parity", "parity_accounts", "personal", "traces", "rpc", "secretstore"]

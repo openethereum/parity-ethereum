@@ -568,6 +568,10 @@ usage! {
 			"--ipc-path=[PATH]",
 			"Specify custom path for JSON-RPC over IPC service.",
 
+			ARG arg_ipc_chmod: (String) = "660", or |c: &Config| c.ipc.as_ref()?.chmod.clone(),
+			"--ipc-chmod=[NUM]",
+			"Specify octal value for ipc socket permissions (unix/bsd only)",
+
 			ARG arg_ipc_apis: (String) = "web3,eth,pubsub,net,parity,parity_pubsub,parity_accounts,private,traces,rpc,parity_transactions_pool", or |c: &Config| c.ipc.as_ref()?.apis.as_ref().map(|vec| vec.join(",")),
 			"--ipc-apis=[APIS]",
 			"Specify custom API set available via JSON-RPC over IPC using a comma-delimited list of API names. Possible names are: all, safe, web3, net, eth, pubsub, personal, signer, parity, parity_pubsub, parity_accounts, parity_set, traces, rpc, secretstore. You can also disable a specific API by putting '-' in the front, example: all,-personal. 'safe' enables the following APIs: web3, net, eth, pubsub, parity, parity_pubsub, traces, rpc",
@@ -1289,6 +1293,7 @@ struct Ws {
 #[derive(Default, Debug, PartialEq, Deserialize)]
 #[serde(deny_unknown_fields)]
 struct Ipc {
+	chmod: Option<String>,
 	disable: Option<bool>,
 	path: Option<String>,
 	apis: Option<Vec<String>>,
@@ -1840,7 +1845,7 @@ mod tests {
 			flag_no_ipc: false,
 			arg_ipc_path: "$HOME/.parity/jsonrpc.ipc".into(),
 			arg_ipc_apis: "web3,eth,net,parity,parity_accounts,personal,traces,rpc,secretstore".into(),
-
+			arg_ipc_chmod: "660".into(),
 			// DAPPS
 			arg_dapps_path: Some("$HOME/.parity/dapps".into()),
 			flag_no_dapps: false,
@@ -2111,6 +2116,7 @@ mod tests {
 			ipc: Some(Ipc {
 				disable: None,
 				path: None,
+				chmod: None,
 				apis: Some(vec!["rpc".into(), "eth".into()]),
 			}),
 			dapps: Some(Dapps {
