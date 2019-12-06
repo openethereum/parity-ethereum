@@ -76,9 +76,14 @@ impl<'a> Visitor<'a> for UintVisitor {
 		let value = match value.len() {
 			0 => U256::from(0),
 			2 if value.starts_with("0x") => U256::from(0),
-			_ if value.starts_with("0x") => U256::from_str(&value[2..]).map_err(|e| {
-				Error::custom(format!("Invalid hex value {}: {}", value, e).as_str())
-			})?,
+			_ if value.starts_with("0x") => {
+				if value.len() > 66 {
+					return Err(Error::custom(format!("Invalid hex value {}: value too big", value).as_str()));
+				}
+				U256::from_str(&value[2..]).map_err(|e| {
+					Error::custom(format!("Invalid hex value {}: {}", value, e).as_str())
+				})?
+			},
 			_ => U256::from_dec_str(value).map_err(|e| {
 				Error::custom(format!("Invalid decimal value {}: {:?}", value, e).as_str())
 			})?
@@ -120,6 +125,7 @@ pub fn validate_optional_non_zero<'de, D>(d: D) -> Result<Option<Uint>, D::Error
 mod test {
 	use super::Uint;
 	use ethereum_types::U256;
+	use serde_json::error::Category;
 
 	#[test]
 	fn uint_deserialization() {
@@ -132,6 +138,18 @@ mod test {
 				   Uint(U256::from(0)),
 				   Uint(U256::from(0))
 		]);
+	}
+
+	#[test]
+	fn uint_deserialization_error_for_hex_too_large() {
+		let hex = format!("0x{}", "1".repeat(65));
+		let result: Result<Uint, _> = serde_json::from_str(&format!(r#""{}""#, hex));
+		let err = result.unwrap_err();
+		assert!(err.is_data());
+		assert_eq!(
+			err.to_string(),
+			format!("Invalid hex value {}: value too big at line 1 column 69", hex)
+		);
 	}
 
 	#[test]
