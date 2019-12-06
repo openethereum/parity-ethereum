@@ -14,11 +14,11 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
-//! EVM call types.
+//! EVM action types.
 
 use rlp::{Encodable, Decodable, DecoderError, RlpStream, Rlp};
 
-/// The type of the call-like instruction.
+/// The type of the instruction.
 #[derive(Debug, PartialEq, Clone)]
 pub enum ActionType {
 	/// CREATE.
