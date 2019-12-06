@@ -223,6 +223,8 @@ pub struct Create {
 	gas: U256,
 	/// Initialization code
 	init: Bytes,
+	// Create Type
+	create_type: CreateType,
 }
 
 impl From<trace::Create> for Create {
@@ -232,6 +234,7 @@ impl From<trace::Create> for Create {
 			value: c.value,
 			gas: c.gas,
 			init: Bytes::new(c.init),
+			create_type: c.create_type.into(),
 		}
 	}
 }
@@ -255,11 +258,37 @@ pub enum CallType {
 impl From<vm::CallType> for CallType {
 	fn from(c: vm::CallType) -> Self {
 		match c {
-			vm::CallType::None => CallType::None,
 			vm::CallType::Call => CallType::Call,
 			vm::CallType::CallCode => CallType::CallCode,
 			vm::CallType::DelegateCall => CallType::DelegateCall,
 			vm::CallType::StaticCall => CallType::StaticCall,
+			vm::CallType::Create => CallType::None,
+			vm::CallType::Create2 => CallType::None,
+		}
+	}
+}
+
+/// Create type.
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "lowercase")]
+pub enum CreateType {
+	/// None
+	None,
+	/// Create
+	Create,
+	/// Create2
+	Create2,
+}
+
+impl From<vm::CallType> for CreateType {
+	fn from(c: vm::CallType) -> Self {
+		match c {
+			vm::CallType::Call => CreateType::None,
+			vm::CallType::CallCode => CreateType::None,
+			vm::CallType::DelegateCall => CreateType::None,
+			vm::CallType::StaticCall => CreateType::None,
+			vm::CallType::Create => CreateType::Create,
+			vm::CallType::Create2 => CreateType::Create2,
 		}
 	}
 }

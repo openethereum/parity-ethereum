@@ -109,7 +109,7 @@ impl Default for ActionParams {
 			code: None,
 			code_version: U256::zero(),
 			data: None,
-			call_type: CallType::None,
+			call_type: CallType::Create,
 			params_type: ParamsType::Separate,
 		}
 	}
@@ -130,7 +130,7 @@ impl From<ethjson::vm::Transaction> for ActionParams {
 			gas: t.gas.into(),
 			gas_price: t.gas_price.into(),
 			value: ActionValue::Transfer(t.value.into()),
-			call_type: match address.is_zero() { true => CallType::None, false => CallType::Call },	// TODO @debris is this correct?
+			call_type: if address.is_zero() { CallType::Create } else { CallType::Call },
 			params_type: ParamsType::Separate,
 		}
 	}

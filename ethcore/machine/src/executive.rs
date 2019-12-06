@@ -909,7 +909,7 @@ impl<'a, B: 'a + StateBackend> Executive<'a, B> {
 					code: Some(Arc::new(t.data.clone())),
 					code_version: schedule.latest_version,
 					data: None,
-					call_type: CallType::None,
+					call_type: CallType::Create,
 					params_type: vm::ParamsType::Embedded,
 				};
 				let res = self.create(params, &mut substate, &mut tracer, &mut vm_tracer);

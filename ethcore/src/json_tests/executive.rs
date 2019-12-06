@@ -152,6 +152,7 @@ impl<'a, T: 'a, V: 'a, B: 'a> Ext for TestExt<'a, T, V, B>
 		code: &[u8],
 		_code_version: &U256,
 		address: CreateContractAddress,
+		_create_type: CallType,
 		_trap: bool
 	) -> Result<ContractCreateResult, vm::TrapKind> {
 		self.callcreates.push(CallCreate {

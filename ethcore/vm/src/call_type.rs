@@ -21,26 +21,29 @@ use rlp::{Encodable, Decodable, DecoderError, RlpStream, Rlp};
 /// The type of the call-like instruction.
 #[derive(Debug, PartialEq, Clone)]
 pub enum CallType {
-	/// Not a CALL.
-	None,
+	/// CREATE.
+	Create,
 	/// CALL.
 	Call,
 	/// CALLCODE.
 	CallCode,
 	/// DELEGATECALL.
 	DelegateCall,
-	/// STATICCALL
+	/// STATICCALL.
 	StaticCall,
+	/// CREATE2.
+	Create2
 }
 
 impl Encodable for CallType {
 	fn rlp_append(&self, s: &mut RlpStream) {
 		let v = match *self {
-			CallType::None => 0u32,
+			CallType::Create => 0u32,
 			CallType::Call => 1,
 			CallType::CallCode => 2,
 			CallType::DelegateCall => 3,
 			CallType::StaticCall => 4,
+			CallType::Create2 => 5,
 		};
 		Encodable::rlp_append(&v, s);
 	}
@@ -49,11 +52,12 @@ impl Encodable for CallType {
 impl Decodable for CallType {
 	fn decode(rlp: &Rlp) -> Result<Self, DecoderError> {
 		rlp.as_val().and_then(|v| Ok(match v {
-			0u32 => CallType::None,
+			0u32 => CallType::Create,
 			1 => CallType::Call,
 			2 => CallType::CallCode,
 			3 => CallType::DelegateCall,
 			4 => CallType::StaticCall,
+			5 => CallType::Create2,
 			_ => return Err(DecoderError::Custom("Invalid value of CallType item")),
 		}))
 	}

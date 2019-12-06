@@ -230,6 +230,7 @@ impl<'a, T: 'a, V: 'a, B: 'a> Ext for Externalities<'a, T, V, B>
 		code: &[u8],
 		parent_version: &U256,
 		address_scheme: CreateContractAddress,
+		create_type: CallType,
 		trap: bool,
 	) -> ::std::result::Result<ContractCreateResult, TrapKind> {
 		// create new contract address
@@ -254,7 +255,7 @@ impl<'a, T: 'a, V: 'a, B: 'a> Ext for Externalities<'a, T, V, B>
 			code_hash,
 			code_version: *parent_version,
 			data: None,
-			call_type: CallType::None,
+			call_type: create_type,
 			params_type: vm::ParamsType::Embedded,
 		};
 

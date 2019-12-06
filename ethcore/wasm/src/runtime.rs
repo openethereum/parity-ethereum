@@ -530,7 +530,13 @@ impl<'a> Runtime<'a> {
 			* U256::from(self.ext.schedule().wasm().opcodes_mul)
 			/ U256::from(self.ext.schedule().wasm().opcodes_div);
 
-		match self.ext.create(&gas_left, &endowment, &code, &self.context.code_version, scheme, false).ok().expect("Trap is false; trap error will not happen; qed") {
+		let create_type = match scheme {
+			vm::CreateContractAddress::FromSenderAndNonce => CallType::Create,
+			vm::CreateContractAddress::FromSenderSaltAndCodeHash(_) => CallType::Create2,
+			vm::CreateContractAddress::FromSenderAndCodeHash => CallType::Create,
+		};
+
+		match self.ext.create(&gas_left, &endowment, &code, &self.context.code_version, scheme, create_type, false).ok().expect("Trap is false; trap error will not happen; qed") {
 			vm::ContractCreateResult::Created(address, gas_left) => {
 				self.memory.set(result_ptr, address.as_bytes())?;
 				self.gas_counter = self.gas_limit -
