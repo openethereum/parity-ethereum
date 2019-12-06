@@ -145,7 +145,7 @@ mod test {
 		let hex = format!("0x{}", "1".repeat(65));
 		let result: Result<Uint, _> = serde_json::from_str(&format!(r#""{}""#, hex));
 		let err = result.unwrap_err();
-		assert_eq!(err.classify(), Category::Data);
+		assert!(err.is_data());
 		assert_eq!(
 			format!("{}", err),
 			format!("Invalid hex value {}: value too big at line 1 column 69", hex)
