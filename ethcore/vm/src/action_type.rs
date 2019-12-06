@@ -20,7 +20,7 @@ use rlp::{Encodable, Decodable, DecoderError, RlpStream, Rlp};
 
 /// The type of the call-like instruction.
 #[derive(Debug, PartialEq, Clone)]
-pub enum CallType {
+pub enum ActionType {
 	/// CREATE.
 	Create,
 	/// CALL.
@@ -35,30 +35,30 @@ pub enum CallType {
 	Create2
 }
 
-impl Encodable for CallType {
+impl Encodable for ActionType {
 	fn rlp_append(&self, s: &mut RlpStream) {
 		let v = match *self {
-			CallType::Create => 0u32,
-			CallType::Call => 1,
-			CallType::CallCode => 2,
-			CallType::DelegateCall => 3,
-			CallType::StaticCall => 4,
-			CallType::Create2 => 5,
+			ActionType::Create => 0u32,
+			ActionType::Call => 1,
+			ActionType::CallCode => 2,
+			ActionType::DelegateCall => 3,
+			ActionType::StaticCall => 4,
+			ActionType::Create2 => 5,
 		};
 		Encodable::rlp_append(&v, s);
 	}
 }
 
-impl Decodable for CallType {
+impl Decodable for ActionType {
 	fn decode(rlp: &Rlp) -> Result<Self, DecoderError> {
 		rlp.as_val().and_then(|v| Ok(match v {
-			0u32 => CallType::Create,
-			1 => CallType::Call,
-			2 => CallType::CallCode,
-			3 => CallType::DelegateCall,
-			4 => CallType::StaticCall,
-			5 => CallType::Create2,
-			_ => return Err(DecoderError::Custom("Invalid value of CallType item")),
+			0u32 => ActionType::Create,
+			1 => ActionType::Call,
+			2 => ActionType::CallCode,
+			3 => ActionType::DelegateCall,
+			4 => ActionType::StaticCall,
+			5 => ActionType::Create2,
+			_ => return Err(DecoderError::Custom("Invalid value of ActionType item")),
 		}))
 	}
 }
@@ -66,11 +66,11 @@ impl Decodable for CallType {
 #[cfg(test)]
 mod tests {
 	use rlp::*;
-	use super::CallType;
+	use super::ActionType;
 
 	#[test]
 	fn encode_call_type() {
-		let ct = CallType::Call;
+		let ct = ActionType::Call;
 
 		let mut s = RlpStream::new_list(2);
 		s.append(&ct);
@@ -82,9 +82,9 @@ mod tests {
 
 	#[test]
 	fn should_encode_and_decode_call_type() {
-		let original = CallType::Call;
+		let original = ActionType::Call;
 		let encoded = encode(&original);
-		let decoded = decode(&encoded).expect("failure decoding CallType");
+		let decoded = decode(&encoded).expect("failure decoding ActionType");
 		assert_eq!(original, decoded);
 	}
 }

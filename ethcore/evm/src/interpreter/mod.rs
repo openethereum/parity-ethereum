@@ -33,7 +33,7 @@ use ethereum_types::{U256, U512, H256, Address, BigEndianHash};
 
 
 use vm::{
-	self, ActionParams, ParamsType, ActionValue, CallType, MessageCallResult,
+	self, ActionParams, ParamsType, ActionValue, ActionType, MessageCallResult,
 	ContractCreateResult, CreateContractAddress, ReturnData, GasLeft, Schedule,
 	TrapKind, TrapError
 };
@@ -134,7 +134,7 @@ struct InterpreterParams {
 	/// Input data.
 	pub data: Option<Bytes>,
 	/// Type of call
-	pub call_type: CallType,
+	pub call_type: ActionType,
 	/// Param types encoding
 	pub params_type: ParamsType,
 }
@@ -531,10 +531,10 @@ impl<Cost: CostType> Interpreter<Cost> {
 				let init_off = self.stack.pop_back();
 				let init_size = self.stack.pop_back();
 				let (address_scheme, create_type) = match instruction {
-					instructions::CREATE => (CreateContractAddress::FromSenderAndNonce, CallType::Create),
+					instructions::CREATE => (CreateContractAddress::FromSenderAndNonce, ActionType::Create),
 					instructions::CREATE2 => (
 						CreateContractAddress::FromSenderSaltAndCodeHash(BigEndianHash::from_uint(&self.stack.pop_back())),
-						CallType::Create2
+						ActionType::Create2
 					),
 					_ => unreachable!("instruction can only be CREATE/CREATE2 checked above; qed"),
 				};
@@ -610,14 +610,14 @@ impl<Cost: CostType> Interpreter<Cost> {
 							return Err(vm::Error::MutableCallInStaticContext);
 						}
 						let has_balance = ext.balance(&self.params.address)? >= value.expect("value set for all but delegate call; qed");
-						(&self.params.address, &code_address, has_balance, CallType::Call)
+						(&self.params.address, &code_address, has_balance, ActionType::Call)
 					},
 					instructions::CALLCODE => {
 						let has_balance = ext.balance(&self.params.address)? >= value.expect("value set for all but delegate call; qed");
-						(&self.params.address, &self.params.address, has_balance, CallType::CallCode)
+						(&self.params.address, &self.params.address, has_balance, ActionType::CallCode)
 					},
-					instructions::DELEGATECALL => (&self.params.sender, &self.params.address, true, CallType::DelegateCall),
-					instructions::STATICCALL => (&self.params.address, &code_address, true, CallType::StaticCall),
+					instructions::DELEGATECALL => (&self.params.sender, &self.params.address, true, ActionType::DelegateCall),
+					instructions::STATICCALL => (&self.params.address, &code_address, true, ActionType::StaticCall),
 					_ => panic!(format!("Unexpected instruction {:?} in CALL branch.", instruction))
 				};
 

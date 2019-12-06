@@ -23,7 +23,7 @@ use ethcore::test_helpers::TestBlockChainClient;
 use ethereum_types::{Address, H256};
 
 use types::transaction::CallError;
-use vm::CallType;
+use vm::ActionType;
 
 use jsonrpc_core::IoHandler;
 use v1::tests::helpers::{TestMinerService};
@@ -44,7 +44,7 @@ fn io() -> Tester {
 			value: 0x1.into(),
 			gas: 0x100.into(),
 			input: vec![1, 2, 3],
-			call_type: CallType::Call,
+			call_type: ActionType::Call,
 		}),
 		result: Res::None,
 		subtraces: 0,

@@ -255,15 +255,15 @@ pub enum CallType {
 	StaticCall,
 }
 
-impl From<vm::CallType> for CallType {
-	fn from(c: vm::CallType) -> Self {
+impl From<vm::ActionType> for CallType {
+	fn from(c: vm::ActionType) -> Self {
 		match c {
-			vm::CallType::Call => CallType::Call,
-			vm::CallType::CallCode => CallType::CallCode,
-			vm::CallType::DelegateCall => CallType::DelegateCall,
-			vm::CallType::StaticCall => CallType::StaticCall,
-			vm::CallType::Create => CallType::None,
-			vm::CallType::Create2 => CallType::None,
+			vm::ActionType::Call => CallType::Call,
+			vm::ActionType::CallCode => CallType::CallCode,
+			vm::ActionType::DelegateCall => CallType::DelegateCall,
+			vm::ActionType::StaticCall => CallType::StaticCall,
+			vm::ActionType::Create => CallType::None,
+			vm::ActionType::Create2 => CallType::None,
 		}
 	}
 }
@@ -280,15 +280,15 @@ pub enum CreateType {
 	Create2,
 }
 
-impl From<vm::CallType> for CreateType {
-	fn from(c: vm::CallType) -> Self {
+impl From<vm::ActionType> for CreateType {
+	fn from(c: vm::ActionType) -> Self {
 		match c {
-			vm::CallType::Call => CreateType::None,
-			vm::CallType::CallCode => CreateType::None,
-			vm::CallType::DelegateCall => CreateType::None,
-			vm::CallType::StaticCall => CreateType::None,
-			vm::CallType::Create => CreateType::Create,
-			vm::CallType::Create2 => CreateType::Create2,
+			vm::ActionType::Call => CreateType::None,
+			vm::ActionType::CallCode => CreateType::None,
+			vm::ActionType::DelegateCall => CreateType::None,
+			vm::ActionType::StaticCall => CreateType::None,
+			vm::ActionType::Create => CreateType::Create,
+			vm::ActionType::Create2 => CreateType::Create2,
 		}
 	}
 }
@@ -758,6 +758,7 @@ mod tests {
 				value: 6.into(),
 				gas: 7.into(),
 				init: Bytes::new(vec![0x12, 0x34]),
+				create_type: CreateType::Create,
 			}),
 			result: Res::Create(CreateResult {
 				gas_used: 8.into(),
@@ -772,7 +773,7 @@ mod tests {
 			block_hash: H256::from_low_u64_be(14),
 		};
 		let serialized = serde_json::to_string(&t).unwrap();
-		assert_eq!(serialized, r#"{"type":"create","action":{"from":"0x0000000000000000000000000000000000000004","value":"0x6","gas":"0x7","init":"0x1234"},"result":{"gasUsed":"0x8","code":"0x5678","address":"0x00000000000000000000000000000000000000ff"},"traceAddress":[10],"subtraces":1,"transactionPosition":11,"transactionHash":"0x000000000000000000000000000000000000000000000000000000000000000c","blockNumber":13,"blockHash":"0x000000000000000000000000000000000000000000000000000000000000000e"}"#);
+		assert_eq!(serialized, r#"{"type":"create","action":{"from":"0x0000000000000000000000000000000000000004","value":"0x6","gas":"0x7","init":"0x1234","create_type":"create"},"result":{"gasUsed":"0x8","code":"0x5678","address":"0x00000000000000000000000000000000000000ff"},"traceAddress":[10],"subtraces":1,"transactionPosition":11,"transactionHash":"0x000000000000000000000000000000000000000000000000000000000000000c","blockNumber":13,"blockHash":"0x000000000000000000000000000000000000000000000000000000000000000e"}"#);
 	}
 
 	#[test]
@@ -783,6 +784,7 @@ mod tests {
 				value: 6.into(),
 				gas: 7.into(),
 				init: Bytes::new(vec![0x12, 0x34]),
+				create_type: CreateType::Create,
 			}),
 			result: Res::FailedCreate(TraceError::OutOfGas),
 			trace_address: vec![10],
@@ -793,7 +795,7 @@ mod tests {
 			block_hash: H256::from_low_u64_be(14),
 		};
 		let serialized = serde_json::to_string(&t).unwrap();
-		assert_eq!(serialized, r#"{"type":"create","action":{"from":"0x0000000000000000000000000000000000000004","value":"0x6","gas":"0x7","init":"0x1234"},"error":"Out of gas","traceAddress":[10],"subtraces":1,"transactionPosition":11,"transactionHash":"0x000000000000000000000000000000000000000000000000000000000000000c","blockNumber":13,"blockHash":"0x000000000000000000000000000000000000000000000000000000000000000e"}"#);
+		assert_eq!(serialized, r#"{"type":"create","action":{"from":"0x0000000000000000000000000000000000000004","value":"0x6","gas":"0x7","init":"0x1234","create_type":"create"},"error":"Out of gas","traceAddress":[10],"subtraces":1,"transactionPosition":11,"transactionHash":"0x000000000000000000000000000000000000000000000000000000000000000c","blockNumber":13,"blockHash":"0x000000000000000000000000000000000000000000000000000000000000000e"}"#);
 	}
 
 	#[test]

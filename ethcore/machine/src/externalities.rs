@@ -29,7 +29,7 @@ use common_types::{
 };
 use trace::{Tracer, VMTracer};
 use vm::{
-	self, ActionParams, ActionValue, EnvInfo, CallType, Schedule,
+	self, ActionParams, ActionValue, EnvInfo, ActionType, Schedule,
 	Ext, ContractCreateResult, MessageCallResult, CreateContractAddress,
 	ReturnData, TrapKind
 };
@@ -193,7 +193,7 @@ impl<'a, T: 'a, V: 'a, B: 'a> Ext for Externalities<'a, T, V, B>
 				code_hash,
 				code_version,
 				data: Some(data.as_bytes().to_vec()),
-				call_type: CallType::Call,
+				call_type: ActionType::Call,
 				params_type: vm::ParamsType::Separate,
 			};
 
@@ -230,7 +230,7 @@ impl<'a, T: 'a, V: 'a, B: 'a> Ext for Externalities<'a, T, V, B>
 		code: &[u8],
 		parent_version: &U256,
 		address_scheme: CreateContractAddress,
-		create_type: CallType,
+		create_type: ActionType,
 		trap: bool,
 	) -> ::std::result::Result<ContractCreateResult, TrapKind> {
 		// create new contract address
@@ -286,7 +286,7 @@ impl<'a, T: 'a, V: 'a, B: 'a> Ext for Externalities<'a, T, V, B>
 		value: Option<U256>,
 		data: &[u8],
 		code_address: &Address,
-		call_type: CallType,
+		call_type: ActionType,
 		trap: bool,
 	) -> ::std::result::Result<MessageCallResult, TrapKind> {
 		trace!(target: "externalities", "call");
@@ -458,7 +458,7 @@ impl<'a, T: 'a, V: 'a, B: 'a> Ext for Externalities<'a, T, V, B>
 mod tests {
 	use std::str::FromStr;
 	use ethereum_types::{U256, Address};
-	use evm::{EnvInfo, Ext, CallType};
+	use evm::{EnvInfo, Ext, ActionType};
 	use account_state::State;
 	use ethcore::test_helpers::get_temp_state;
 	use trace::{NoopTracer, NoopVMTracer};
@@ -592,7 +592,7 @@ mod tests {
 			Some("0000000000000000000000000000000000000000000000000000000000150000".parse::<U256>().unwrap()),
 			&[],
 			&Address::zero(),
-			CallType::Call,
+			ActionType::Call,
 			false,
 		).ok().unwrap();
 	}

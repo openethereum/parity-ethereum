@@ -21,7 +21,7 @@ use parity_bytes::Bytes;
 use rlp::{Rlp, RlpStream, Encodable, DecoderError, Decodable};
 use rlp_derive::{RlpEncodable, RlpDecodable};
 use vm::ActionParams;
-use evm::CallType;
+use evm::ActionType;
 use super::error::Error;
 
 /// `Call` result.
@@ -65,13 +65,13 @@ pub struct Call {
 	/// The input data provided to the call.
 	pub input: Bytes,
 	/// The type of the call.
-	pub call_type: CallType,
+	pub call_type: ActionType,
 }
 
 impl From<ActionParams> for Call {
 	fn from(p: ActionParams) -> Self {
 		match p.call_type {
-			CallType::DelegateCall | CallType::CallCode => Call {
+			ActionType::DelegateCall | ActionType::CallCode => Call {
 				from: p.address,
 				to: p.code_address,
 				value: p.value.value(),
@@ -114,7 +114,7 @@ pub struct Create {
 	/// The init code.
 	pub init: Bytes,
 	/// Creation method (CREATE vs CREATE2).
-	pub create_type: CallType,
+	pub create_type: ActionType,
 }
 
 impl From<ActionParams> for Create {

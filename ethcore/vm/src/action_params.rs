@@ -20,7 +20,7 @@ use bytes::Bytes;
 use hash::{keccak, KECCAK_EMPTY};
 use ethjson;
 
-use call_type::CallType;
+use action_type::ActionType;
 
 use std::sync::Arc;
 
@@ -89,7 +89,7 @@ pub struct ActionParams {
 	/// Input data.
 	pub data: Option<Bytes>,
 	/// Type of call
-	pub call_type: CallType,
+	pub call_type: ActionType,
 	/// Param types encoding
 	pub params_type: ParamsType,
 }
@@ -109,7 +109,7 @@ impl Default for ActionParams {
 			code: None,
 			code_version: U256::zero(),
 			data: None,
-			call_type: CallType::Create,
+			call_type: ActionType::Create,
 			params_type: ParamsType::Separate,
 		}
 	}
@@ -130,7 +130,7 @@ impl From<ethjson::vm::Transaction> for ActionParams {
 			gas: t.gas.into(),
 			gas_price: t.gas_price.into(),
 			value: ActionValue::Transfer(t.value.into()),
-			call_type: if address.is_zero() { CallType::Create } else { CallType::Call },
+			call_type: if address.is_zero() { ActionType::Create } else { ActionType::Call },
 			params_type: ParamsType::Separate,
 		}
 	}
