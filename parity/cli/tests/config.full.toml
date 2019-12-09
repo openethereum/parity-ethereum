@@ -177,3 +177,8 @@ color = true
 [whisper]
 enabled = false
 pool_size = 20
+
+[reporting]
+benign_reporting = "call"
+malicious_reporting = "force"
+cache_call_every = 100

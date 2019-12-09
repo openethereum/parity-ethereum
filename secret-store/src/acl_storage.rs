@@ -21,7 +21,7 @@ use common_types::{
 	ids::BlockId
 };
 use parking_lot::{Mutex, RwLock};
-use call_contract::CallContract;
+use call_contract::{CallContract, CallOptions};
 use client_traits::ChainNotify;
 use ethereum_types::Address;
 use ethabi::FunctionOutputDecoder;
@@ -118,7 +118,7 @@ impl CachedContract {
 			match self.contract_address {
 				Some(contract_address) => {
 					let (encoded, decoder) = acl_storage::functions::check_permissions::call(requester, document.clone());
-					let d = client.call_contract(BlockId::Latest, contract_address, encoded)
+					let d = client.call_contract(BlockId::Latest, CallOptions::new(contract_address, encoded))
 						.map_err(|e| Error::Internal(format!("ACL checker call error: {}", e.to_string())))?;
 					decoder.decode(&d)
 						.map_err(|e| Error::Internal(format!("ACL checker call error: {}", e.to_string())))

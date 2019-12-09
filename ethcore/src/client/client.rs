@@ -51,7 +51,7 @@ use blockchain::{
 	TransactionAddress,
 	TreeRoute
 };
-use call_contract::CallContract;
+use call_contract::{CallContract, CallError as ContractCallError, CallOptions};
 use client::{
 	bad_blocks, BlockProducer, BroadcastProposalBlock, Call,
 	ClientConfig, EngineInfo, ImportSealedBlock, PrepareOpenBlock,
@@ -135,7 +135,7 @@ use types::{
 use types::data_format::DataFormat;
 use verification::{self, BlockQueue};
 use verification::queue::kind::BlockLike;
-use vm::{CreateContractAddress, EnvInfo, LastHashes};
+use vm::{CreateContractAddress, EnvInfo, Error as VmError, LastHashes};
 
 const MAX_ANCIENT_BLOCKS_QUEUE_SIZE: usize = 4096;
 // Max number of blocks imported at once.
@@ -631,7 +631,7 @@ impl Importer {
 							let backend = account_state::backend::Proving::new(state_db.as_hash_db_mut());
 
 							let transaction =
-								client.contract_call_tx(BlockId::Hash(*header.parent_hash()), addr, data);
+								client.contract_call_tx(BlockId::Hash(*header.parent_hash()), CallOptions::new(addr, data));
 
 							let mut state = State::from_existing(
 								backend,
@@ -940,7 +940,7 @@ impl Client {
 		where F: FnOnce(&MachineCall) -> T
 	{
 		let call = |a, d| {
-			let tx = self.contract_call_tx(id, a, d);
+			let tx = self.contract_call_tx(id, CallOptions::new(a, d));
 			let (result, items) = self.prove_transaction(tx, id)
 				.ok_or_else(|| format!("Unable to make call. State unavailable?"))?;
 
@@ -1191,16 +1191,15 @@ impl Client {
 	}
 
 	// transaction for calling contracts from services like engine.
-	// from the null sender, with 50M gas.
-	fn contract_call_tx(&self, block_id: BlockId, address: Address, data: Bytes) -> SignedTransaction {
-		let from = Address::zero();
+	fn contract_call_tx(&self, block_id: BlockId, call_options: CallOptions) -> SignedTransaction {
+		let from = call_options.sender;
 		transaction::Transaction {
 			nonce: self.nonce(&from, block_id).unwrap_or_else(|| self.engine.account_start_nonce(0)),
-			action: Action::Call(address),
-			gas: U256::from(50_000_000),
-			gas_price: U256::default(),
-			value: U256::default(),
-			data,
+			action: Action::Call(call_options.contract_address),
+			gas: call_options.gas,
+			gas_price: call_options.gas_price,
+			value: call_options.value,
+			data: call_options.data,
 		}.fake_sign(from)
 	}
 
@@ -1419,17 +1418,45 @@ impl TransactionInfo for Client {
 
 impl BlockChainTrait for Client {}
 
+const SOLIDITY_ERROR_SELECTOR: [u8; 4] = [0x08, 0xc3, 0x79, 0xa0];
+
+/// Try to decode Solidity revert string
+fn try_decode_solidity_revert_msg(data: &Bytes) -> Option<String> {
+    use ethabi::{decode, ParamType, Token};
+    let mut result = None;
+    if data.len() > 4 {
+        let (fn_selector, enc_string) = data.split_at(4);
+        // Error(string) selector. Details: https://solidity.readthedocs.io/en/v0.5.8/control-structures.html#error-handling-assert-require-revert-and-exceptions
+        if fn_selector == SOLIDITY_ERROR_SELECTOR {
+            result = decode(&[ParamType::String], enc_string)
+                .as_ref()
+                .map(|d| if let Token::String(str) = &d[0] { Some(str.as_str().to_string()) } else { None })
+                .unwrap_or_else(|_| None);
+        }
+    }
+    result
+}
+
 impl CallContract for Client {
-	fn call_contract(&self, block_id: BlockId, address: Address, data: Bytes) -> Result<Bytes, String> {
-		let state_pruned = || CallError::StatePruned.to_string();
+	fn call_contract(&self, block_id: BlockId, call_options: CallOptions) -> Result<Bytes, ContractCallError> {
+        use ethabi::Token;
+		let state_pruned = || ContractCallError::Other(CallError::StatePruned.to_string());
 		let state = &mut self.state_at(block_id).ok_or_else(&state_pruned)?;
 		let header = self.block_header_decoded(block_id).ok_or_else(&state_pruned)?;
 
-		let transaction = self.contract_call_tx(block_id, address, data);
-
-		self.call(&transaction, Default::default(), state, &header)
-			.map_err(|e| format!("{:?}", e))
-			.map(|executed| executed.output)
+		let transaction = self.contract_call_tx(block_id, call_options);
+		let executed = self.call(&transaction, Default::default(), state, &header).map_err(|e| ContractCallError::Other(format!("{:?}", e)))?;
+		if let Some(exception) = executed.exception {
+            if exception == VmError::Reverted {
+                let output = executed.output.clone();
+                let msg = try_decode_solidity_revert_msg(&output).unwrap_or_else(|| format!("{}", Token::Bytes(output)));
+                Err(ContractCallError::Reverted(msg))
+            } else {
+                Err(ContractCallError::Other(format!("{:?}", exception)))
+            }
+		} else {
+			Ok(executed.output)
+		}
 	}
 }
 

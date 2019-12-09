@@ -27,6 +27,7 @@ rlp = "0.4.0"
 time-utils = { path = "../../../util/time-utils" }
 unexpected = { path = "../../../util/unexpected" }
 validator-set = { path = "../validator-set" }
+validator-reporting-config = { path = "../validator-set/reporting-config" }
 
 [dev-dependencies]
 accounts = { package = "ethcore-accounts", path = "../../../accounts" }

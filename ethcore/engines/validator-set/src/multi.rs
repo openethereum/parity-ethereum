@@ -33,7 +33,7 @@ use parity_bytes::Bytes;
 use parking_lot::RwLock;
 use machine::Machine;
 
-use super::{SystemCall, ValidatorSet};
+use super::{SystemCall, ValidatorSet, ValidatorReporting};
 
 type BlockNumberLookup = Box<dyn Fn(BlockId) -> Result<BlockNumber, String> + Send + Sync + 'static>;
 
@@ -131,12 +131,12 @@ impl ValidatorSet for Multi {
 			.map_or_else(usize::max_value, |set| set.count_with_caller(bh, caller))
 	}
 
-	fn report_malicious(&self, validator: &Address, set_block: BlockNumber, block: BlockNumber, proof: Bytes) {
-		self.correct_set_by_number(set_block).1.report_malicious(validator, set_block, block, proof);
+	fn report_malicious(&self, validator: &Address, set_block: BlockNumber, block: BlockNumber, proof: Bytes, reporting: &mut ValidatorReporting, sender: Address) {
+		self.correct_set_by_number(set_block).1.report_malicious(validator, set_block, block, proof, reporting, sender);
 	}
 
-	fn report_benign(&self, validator: &Address, set_block: BlockNumber, block: BlockNumber) {
-		self.correct_set_by_number(set_block).1.report_benign(validator, set_block, block);
+	fn report_benign(&self, validator: &Address, set_block: BlockNumber, block: BlockNumber, reporting: &mut ValidatorReporting, sender: Address) {
+		self.correct_set_by_number(set_block).1.report_benign(validator, set_block, block, reporting, sender);
 	}
 
 	fn register_client(&self, client: Weak<dyn EngineClient>) {

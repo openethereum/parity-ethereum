@@ -25,6 +25,7 @@ use ethereum_types::{H256, Address};
 use log::{warn, trace};
 use machine::Machine;
 use parking_lot::RwLock;
+use call_contract::CallOptionsBuilder;
 use common_types::{
 	BlockNumber,
 	ids::BlockId,
@@ -36,9 +37,12 @@ use common_types::{
 use client_traits::EngineClient;
 use engine::SystemCall;
 
+use validator_reporting_config::ReportingConfig;
+
 use crate::{
 	ValidatorSet, SimpleList,
-	safe_contract::ValidatorSafeContract
+	safe_contract::ValidatorSafeContract,
+	ValidatorReporting
 };
 
 use_contract!(validator_report, "res/validator_report.json");
@@ -61,13 +65,34 @@ impl ValidatorContract {
 }
 
 impl ValidatorContract {
-	fn transact(&self, data: Bytes) -> Result<(), String> {
+	fn transact(&self, data: Bytes, reporting: &mut ValidatorReporting, sender: Address) -> Result<(), String> {
 		let client = self.client.read().as_ref()
 			.and_then(Weak::upgrade)
 			.ok_or_else(|| "No client!")?;
 
 		match client.as_full_client() {
 			Some(c) => {
+				let latest_block_num = c.block_number(BlockId::Latest).expect("Latest block is never None");
+				match reporting.config {
+					ReportingConfig::Disable => return Err("Reporting is disabled.".into()),
+					ReportingConfig::Force => {},
+					ReportingConfig::Call(blk_num) => {
+						let checked_last_block = reporting.checked_last_block;
+						if checked_last_block.is_none() || (latest_block_num - checked_last_block.expect("checked for None before")) >= blk_num {
+							reporting.update_cache(latest_block_num, false);
+                            let call_options = CallOptionsBuilder::default()
+                                .contract_address(self.contract_address)
+                                .data(data.clone())
+                                .sender(sender)
+                                .build().unwrap();
+							c.call_contract(BlockId::Latest, call_options).map_err(|e| e.to_string())?;
+							reporting.update_cache(latest_block_num, true);
+						}
+						if !reporting.cached_result {
+							return Err("Reporting is skipped due to cached failed call check.".into());
+						}
+					}
+				}
 				c.transact_contract(self.contract_address, data)
 					.map_err(|e| format!("Transaction import error: {}", e))?;
 				Ok(())
@@ -119,18 +144,18 @@ impl ValidatorSet for ValidatorContract {
 		self.validators.count_with_caller(bh, caller)
 	}
 
-	fn report_malicious(&self, address: &Address, _set_block: BlockNumber, block: BlockNumber, proof: Bytes) {
+	fn report_malicious(&self, address: &Address, _set_block: BlockNumber, block: BlockNumber, proof: Bytes, reporting: &mut ValidatorReporting, sender: Address) {
 		let data = validator_report::functions::report_malicious::encode_input(*address, block, proof);
-		match self.transact(data) {
+		match self.transact(data, reporting, sender) {
 			Ok(_) => warn!(target: "engine", "Reported malicious validator {}", address),
 			Err(s) => warn!(target: "engine", "Validator {} could not be reported {}", address, s),
 		}
 	}
 
-	fn report_benign(&self, address: &Address, _set_block: BlockNumber, block: BlockNumber) {
+	fn report_benign(&self, address: &Address, _set_block: BlockNumber, block: BlockNumber, reporting: &mut ValidatorReporting, sender: Address) {
 		trace!(target: "engine", "validator set recording benign misbehaviour at block #{} by {:#x}", block, address);
 		let data = validator_report::functions::report_benign::encode_input(*address, block);
-		match self.transact(data) {
+		match self.transact(data, reporting, sender) {
 			Ok(_) => warn!(target: "engine", "Reported benign validator misbehaviour {}", address),
 			Err(s) => warn!(target: "engine", "Validator {} could not be reported {}", address, s),
 		}
@@ -147,7 +172,7 @@ mod tests {
 	use std::sync::Arc;
 
 	use accounts::AccountProvider;
-	use call_contract::CallContract;
+	use call_contract::{CallContract, CallOptions};
 	use common_types::{header::Header, ids::BlockId};
 	use client_traits::{BlockChainClient, ChainInfo, BlockInfo};
 	use ethcore::{
@@ -213,7 +238,7 @@ mod tests {
 		assert_eq!(client.chain_info().best_block_number, 1);
 		// Check if the unresponsive validator is `disliked`.
 		assert_eq!(
-			client.call_contract(BlockId::Latest, validator_contract, "d8f2e0bf".from_hex().unwrap()).unwrap().to_hex(),
+			client.call_contract(BlockId::Latest, CallOptions::new(validator_contract, "d8f2e0bf".from_hex().unwrap())).unwrap().to_hex(),
 			"0000000000000000000000007d577a597b2742b498cb5cf0c26cdcd726d39e6e"
 		);
 		// Simulate a misbehaving validator by handling a double proposal.

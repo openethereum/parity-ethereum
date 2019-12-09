@@ -18,6 +18,7 @@
 
 #![warn(missing_docs)]
 
+extern crate call_contract;
 extern crate client_traits;
 extern crate common_types;
 extern crate ethabi;

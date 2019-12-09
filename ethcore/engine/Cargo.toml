@@ -15,6 +15,7 @@ common-types = { path = "../types" }
 ethereum-types = "0.8.0"
 parity-crypto = { version = "0.4.2", features = ["publickey"] }
 machine = { path = "../machine" }
+validator-reporting-config = { path = "../engines/validator-set/reporting-config" }
 vm = { path = "../vm" }
 
 # used from test-helpers

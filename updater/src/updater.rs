@@ -25,6 +25,7 @@ use parking_lot::{Mutex, MutexGuard};
 use rand::{self, Rng};
 use target_info::Target;
 
+use call_contract::CallOptions;
 use common_types::{
 	BlockNumber,
 	ids::BlockId,
@@ -254,7 +255,7 @@ impl OperationsClient for OperationsContractClient {
 		let address = client.get_address("operations", BlockId::Latest)?
 			.ok_or_else(|| "Cannot get operations contract address")?;
 		let do_call = |data| {
-			client.call_contract(BlockId::Latest, address, data).map_err(|e| format!("{:?}", e))
+			client.call_contract(BlockId::Latest, CallOptions::new(address, data)).map_err(|e| format!("{:?}", e))
 		};
 
 		trace!(target: "updater", "Looking up this_fork for our release: {}/{:?}", CLIENT_ID, this.hash);

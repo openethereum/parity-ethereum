@@ -20,6 +20,8 @@ use std::time::{Duration, Instant};
 use std::thread;
 
 use ansi_term::Colour;
+use bytes::Bytes;
+use call_contract::CallOptions;
 use client_traits::{BlockInfo, BlockChainClient};
 use ethcore::client::{Client, DatabaseCompactionProfile};
 use ethcore::miner::{self, stratum, Miner, MinerService, MinerOptions};
@@ -67,6 +69,7 @@ use secretstore;
 use signer;
 use db;
 use registrar::RegistrarClient;
+use validator_reporting_config::ReportingConfig;
 
 // How often we attempt to take a snapshot: only snapshot on blocknumbers that are multiples of this.
 const SNAPSHOT_PERIOD: u64 = 5000;
@@ -139,6 +142,8 @@ pub struct RunCmd {
 	pub on_demand_request_backoff_max: Option<u64>,
 	pub on_demand_request_backoff_rounds_max: Option<usize>,
 	pub on_demand_request_consecutive_failures: Option<usize>,
+	pub benign_reporting: ReportingConfig,
+	pub malicious_reporting: ReportingConfig,
 }
 
 // node info fetcher for the local store.
@@ -492,6 +497,9 @@ fn execute_impl<Cr, Rr>(
 	let fetch = fetch::Client::new(FETCH_FULL_NUM_DNS_THREADS).map_err(|e| format!("Error starting fetch client: {:?}", e))?;
 
 	let txpool_size = cmd.miner_options.pool_limits.max_count;
+
+	spec.engine.set_reporting(cmd.benign_reporting, cmd.malicious_reporting);
+
 	// create miner
 	let miner = Arc::new(Miner::new(
 		cmd.miner_options,

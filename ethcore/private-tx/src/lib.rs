@@ -113,7 +113,7 @@ use ethcore::miner::{self, Miner, MinerService, pool_client::NonceCache};
 use state_db::StateDB;
 use account_state::State;
 use trace::{Tracer, VMTracer};
-use call_contract::CallContract;
+use call_contract::{CallContract, CallOptions};
 use kvdb::KeyValueDB;
 use rustc_hex::FromHex;
 use ethabi::FunctionOutputDecoder;
@@ -640,7 +640,7 @@ impl Provider {
 
 	fn get_decrypted_state_from_contract(&self, address: &Address, block: BlockId) -> Result<Bytes, Error> {
 		let (data, decoder) = private_contract::functions::state::call();
-		let value = self.client.call_contract(block, *address, data)?;
+		let value = self.client.call_contract(block, CallOptions::new(*address, data)).map_err(|e| e.to_string())?;
 		let state = decoder.decode(&value).map_err(|e| Error::Call(format!("Contract call failed {:?}", e)))?;
 		match self.use_offchain_storage {
 			true => Ok(state),
@@ -650,14 +650,14 @@ impl Provider {
 
 	fn get_decrypted_code(&self, address: &Address, block: BlockId) -> Result<Bytes, Error> {
 		let (data, decoder) = private_contract::functions::code::call();
-		let value = self.client.call_contract(block, *address, data)?;
+		let value = self.client.call_contract(block, CallOptions::new(*address, data)).map_err(|e| e.to_string())?;
 		let state = decoder.decode(&value).map_err(|e| Error::Call(format!("Contract call failed {:?}", e)))?;
 		self.decrypt(address, &state)
 	}
 
 	pub fn get_contract_nonce(&self, address: &Address, block: BlockId) -> Result<U256, Error> {
 		let (data, decoder) = private_contract::functions::nonce::call();
-		let value = self.client.call_contract(block, *address, data)?;
+		let value = self.client.call_contract(block, CallOptions::new(*address, data)).map_err(|e| e.to_string())?;
 		decoder.decode(&value).map_err(|e| Error::Call(format!("Contract call failed {:?}", e)).into())
 	}
 
@@ -854,13 +854,14 @@ impl Provider {
 	/// Returns private validators for a contract.
 	pub fn get_validators(&self, block: BlockId, address: &Address) -> Result<Vec<Address>, Error> {
 		let (data, decoder) = private_contract::functions::get_validators::call();
-		let value = self.client.call_contract(block, *address, data)?;
+		let value = self.client.call_contract(block, CallOptions::new(*address, data)).map_err(|e| e.to_string())?;
 		decoder.decode(&value).map_err(|e| Error::Call(format!("Contract call failed {:?}", e)).into())
 	}
 
 	fn get_contract_version(&self, block: BlockId, address: &Address) -> usize {
 		let (data, decoder) = private_contract::functions::get_version::call();
-		match self.client.call_contract(block, *address, data)
+		match self.client.call_contract(block, CallOptions::new(*address, data))
+			.map_err(|e| e.to_string())
 			.and_then(|value| decoder.decode(&value).map_err(|e| e.to_string())) {
 			Ok(version) => version.low_u64() as usize,
 			Err(_) => INITIAL_PRIVATE_CONTRACT_VER,
@@ -869,7 +870,7 @@ impl Provider {
 
 	fn state_changes_notify(&self, block: BlockId, address: &Address, originator: &Address, transaction_hash: H256) -> Result<(), Error> {
 		let (data, _) = private_contract::functions::notify_changes::call(*originator, transaction_hash.0.to_vec());
-		let _value = self.client.call_contract(block, *address, data)?;
+		let _value = self.client.call_contract(block, CallOptions::new(*address, data)).map_err(|e| e.to_string())?;
 		Ok(())
 	}
 }
