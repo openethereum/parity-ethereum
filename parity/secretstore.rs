@@ -136,13 +136,13 @@ mod server {
 
 	/// Key server
 	pub struct KeyServer {
-		_key_server: Box<ethcore_secretstore::KeyServer>,
+		_key_server: Box<dyn ethcore_secretstore::KeyServer>,
 	}
 
 	impl KeyServer {
 		/// Create new key server
 		pub fn new(mut conf: Configuration, deps: Dependencies, executor: Executor) -> Result<Self, String> {
-			let self_secret: Arc<ethcore_secretstore::NodeKeyPair> = match conf.self_secret.take() {
+			let self_secret: Arc<dyn ethcore_secretstore::NodeKeyPair> = match conf.self_secret.take() {
 				Some(NodeSecretKey::Plain(secret)) => Arc::new(ethcore_secretstore::PlainNodeKeyPair::new(
 					KeyPair::from_secret(secret).map_err(|e| format!("invalid secret: {}", e))?)),
 				#[cfg(feature = "accounts")]
