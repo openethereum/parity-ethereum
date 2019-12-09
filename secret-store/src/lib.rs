@@ -53,7 +53,7 @@ extern crate lazy_static;
 #[macro_use]
 extern crate log;
 
-#[cfg(test)]
+#[cfg(any(test, feature = "accounts"))]
 extern crate ethkey;
 #[cfg(test)]
 extern crate env_logger;
