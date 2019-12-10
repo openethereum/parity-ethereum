@@ -114,7 +114,7 @@ fn take_spec_name_override() -> Option<String> {
 
 #[cfg(windows)]
 fn global_cleanup() {
-	// We need to cleanup all sockets before spawning another Parity process. This makes sure everything is cleaned up.
+	// We need to clean up all sockets before spawning another Parity process. This makes sure everything is cleaned up.
 	// The loop is required because of internal reference counter for winsock dll. We don't know how many crates we use do
 	// initialize it. There's at least 2 now.
 	for _ in 0.. 10 {

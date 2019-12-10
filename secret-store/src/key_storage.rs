@@ -118,9 +118,7 @@ impl PersistentKeyStorage {
 	pub fn new(db: Arc<dyn KeyValueDB>) -> Result<Self, Error> {
 		let db = upgrade_db(db)?;
 
-		Ok(PersistentKeyStorage {
-			db: db,
-		})
+		Ok(PersistentKeyStorage { db })
 	}
 }
 
