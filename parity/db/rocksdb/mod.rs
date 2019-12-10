@@ -63,7 +63,7 @@ impl BlockChainDB for AppDB {
 pub fn open_secretstore_db(data_path: &str) -> Result<Arc<dyn KeyValueDB>, String> {
 	use std::path::PathBuf;
 
-	upgrade_db(data_path).map_err(|e| e.to_string())?;
+	migration_secretstore::upgrade_db(data_path).map_err(|e| e.to_string())?;
 
 	let mut db_path = PathBuf::from(data_path);
 	db_path.push("db");

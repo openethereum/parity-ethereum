@@ -17,13 +17,13 @@
 //! Secret Store DB migration module.
 
 
-use std::fmt::Display;
+use std::fmt::{Display, Error as FmtError, Formatter};
+use std::fs;
+use std::io::{Error as IoError, ErrorKind as IoErrorKind, Read as _, Write as _};
 use std::path::PathBuf;
-use std::sync::Arc;
-use std::io::Error as IoError;
 
-use kvdb::{KeyValueDB, DBTransaction};
-use kvdb_rocksdb::{Database, DatabaseConfig};
+use kvdb::DBTransaction;
+use super::kvdb_rocksdb::{Database, DatabaseConfig};
 
 /// We used to store the version in the database (until version 4).
 const LEGACY_DB_META_KEY_VERSION: &'static [u8; 7] = b"version";
@@ -41,8 +41,6 @@ pub enum Error {
 	UnknownDatabaseVersion,
 	/// Existing DB is newer than the known one.
 	FutureDBVersion,
-	/// Migration is not possible.
-	MigrationImpossible,
 	/// Migration was completed succesfully,
 	/// but there was a problem with io.
 	Io(IoError),
@@ -56,8 +54,6 @@ impl Display for Error {
 			Error::FutureDBVersion =>
 				"Secret Store database was created with newer client version.\
 				Upgrade your client or delete DB and resync.".into(),
-			Error::MigrationImpossible =>
-				format!("Secret Store database migration to version {} is not possible.", CURRENT_VERSION),
 			Error::Io(ref err) =>
 				format!("Unexpected io error on Secret Store database migration: {}.", err),
 		};
@@ -86,7 +82,14 @@ fn migrate_to_v4(parent_dir: &str) -> Result<(), Error> {
 	const BATCH_SIZE: usize = 1024;
 	let new_dir = migration_dir(parent_dir);
 	let old_db = Database::open(&old_db_config, &db_dir(parent_dir))?;
-	let new_db = Database::open(&db_config, &new_dir)?;
+	let new_db = Database::open(&new_db_config, &new_dir)?;
+
+	// remove legacy version key
+	{
+		let mut batch = DBTransaction::with_capacity(1);
+		batch.delete(None, LEGACY_DB_META_KEY_VERSION);
+		old_db.write(batch)?;
+	}
 
 	let mut batch = DBTransaction::with_capacity(BATCH_SIZE);
 	for (i, (key, value)) in old_db.iter(None).enumerate() {
@@ -97,15 +100,17 @@ fn migrate_to_v4(parent_dir: &str) -> Result<(), Error> {
 		}
 	}
 	new_db.write(batch)?;
-	db.restore(&new_dir)
+	drop(new_db);
+	old_db.restore(&new_dir)?;
+	Ok(())
 }
 
 /// Apply all migrations if possible.
 pub fn upgrade_db(db_path: &str) -> Result<(), Error> {
-	match current_version(db_path) {
+	match current_version(db_path)? {
 		old_version if old_version < CURRENT_VERSION => {
 			migrate_to_v4(db_path)?;
-			update_version(&db_path, CURRENT_VERSION)?;
+			update_version(db_path)?;
 			Ok(())
 		},
 		CURRENT_VERSION => Ok(()),
@@ -136,8 +141,8 @@ fn version_file_path(path: &str) -> PathBuf {
 /// If the file does not exist returns `DEFAULT_VERSION`.
 fn current_version(path: &str) -> Result<u8, Error> {
 	match fs::File::open(version_file_path(path)) {
-		Err(ref err) if err.kind() == ErrorKind::NotFound => Ok(DEFAULT_VERSION),
-		Err(ref err) => Err(err.into()),
+		Err(ref err) if err.kind() == IoErrorKind::NotFound => Ok(DEFAULT_VERSION),
+		Err(err) => Err(err.into()),
 		Ok(mut file) => {
 			let mut s = String::new();
 			file.read_to_string(&mut s)?;
