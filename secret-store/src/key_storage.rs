@@ -125,12 +125,12 @@ impl PersistentKeyStorage {
 }
 
 fn upgrade_db(db: Arc<dyn KeyValueDB>) -> Result<Arc<dyn KeyValueDB>, Error> {
-	let version = db.get(None, DB_META_KEY_VERSION)?;
+	let version = db.get(Some(0), DB_META_KEY_VERSION)?;
 	let version = version.and_then(|v| v.get(0).cloned());
 	match version {
 		None => {
 			let mut batch = db.transaction();
-			batch.put(None, DB_META_KEY_VERSION, &[CURRENT_VERSION]);
+			batch.put(Some(0), DB_META_KEY_VERSION, &[CURRENT_VERSION]);
 			db.write(batch)?;
 			Ok(db)
 		},
@@ -144,7 +144,7 @@ impl KeyStorage for PersistentKeyStorage {
 		let key: SerializableDocumentKeyShareV3 = key.into();
 		let key = serde_json::to_vec(&key).map_err(|e| Error::Database(e.to_string()))?;
 		let mut batch = self.db.transaction();
-		batch.put(None, document.as_bytes(), &key);
+		batch.put(Some(0), document.as_bytes(), &key);
 		self.db.write(batch).map_err(Into::into)
 	}
 
@@ -153,7 +153,7 @@ impl KeyStorage for PersistentKeyStorage {
 	}
 
 	fn get(&self, document: &ServerKeyId) -> Result<Option<DocumentKeyShare>, Error> {
-		self.db.get(None, document.as_bytes())
+		self.db.get(Some(0), document.as_bytes())
 			.map_err(|e| Error::Database(e.to_string()))
 			.and_then(|key| match key {
 				None => Ok(None),
@@ -166,28 +166,28 @@ impl KeyStorage for PersistentKeyStorage {
 
 	fn remove(&self, document: &ServerKeyId) -> Result<(), Error> {
 		let mut batch = self.db.transaction();
-		batch.delete(None, document.as_bytes());
+		batch.delete(Some(0), document.as_bytes());
 		self.db.write(batch).map_err(Into::into)
 	}
 
 	fn clear(&self) -> Result<(), Error> {
 		let mut batch = self.db.transaction();
 		for (key, _) in self.iter() {
-			batch.delete(None, key.as_bytes());
+			batch.delete(Some(0), key.as_bytes());
 		}
 		self.db.write(batch)
 			.map_err(|e| Error::Database(e.to_string()))
 	}
 
 	fn contains(&self, document: &ServerKeyId) -> bool {
-		self.db.get(None, document.as_bytes())
+		self.db.get(Some(0), document.as_bytes())
 			.map(|k| k.is_some())
 			.unwrap_or(false)
 	}
 
 	fn iter<'a>(&'a self) -> Box<dyn Iterator<Item=(ServerKeyId, DocumentKeyShare)> + 'a> {
 		Box::new(PersistentKeyStorageIterator {
-			iter: self.db.iter(None),
+			iter: self.db.iter(Some(0)),
 		})
 	}
 }
