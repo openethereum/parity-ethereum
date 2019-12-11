@@ -136,7 +136,8 @@
 				"eip100bTransition": "0x42ae50",
 				"difficultyBombDelays": {
 					"0x42ae50": "0x2dc6c0",
-					"0x6f1580": "0x1e8480"
+					"0x6f1580": "0x1e8480",
+					"0x8c6180": "0x3d0900"
 				}
 			}
 		}
