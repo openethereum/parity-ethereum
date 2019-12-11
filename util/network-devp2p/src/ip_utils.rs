@@ -371,67 +371,53 @@ fn search_natpmp(local: &NodeEndpoint) -> Option<NodeEndpoint> {
 		let local_udp_port = local.udp_port;
 
 		let search_gateway_child = ::std::thread::spawn(move || {
-			let get_public_addr = |n: &mut Natpmp| {
-				// this function call want to receive `Response::Gateway` response from router, if other then it is an Error.
-				n.send_public_address_request()?;
-				::std::thread::sleep(Duration::from_millis(NAT_PMP_PORT_MAPPING_WAITING_DURATION));
-				match n.read_response_or_retry() {
-					Ok(Response::Gateway(gw)) => Ok(gw),
-					Err(e) => {
-						debug!("IP request error: {}", e);
-						Err(e)
-					},
-					_ => Err(natpmp::Error::NATPMP_ERR_UNDEFINEDERROR.into())
-				}
-			};
+			let mut n = Natpmp::new()?;
 
-			let get_mapped_tcp_port = |n: &mut Natpmp| {
-				// this function call want to receive `Response::TCP` response from router, if other then it is an Error.
-				n.send_port_mapping_request(Protocol::TCP, local_port, local_port, NAT_PMP_PORT_MAPPING_LIFETIME)?;
-				::std::thread::sleep(Duration::from_millis(NAT_PMP_PORT_MAPPING_WAITING_DURATION));
-				match n.read_response_or_retry() {
-					Ok(Response::TCP(tcp)) => Ok(tcp),
-					Err(e) => {
-						debug!("Port mapping for TCP error: {}", e);
-						Err(e)
-					},
-					_ => Err(natpmp::Error::NATPMP_ERR_UNDEFINEDERROR.into())
-				}
-			};
-
-			let get_mapped_udp_port = |n: &mut Natpmp| {
-				// this function call want to receive `Response::UDP` response from router, if other then it is an Error.
-				n.send_port_mapping_request(Protocol::UDP, local_udp_port, local_udp_port, NAT_PMP_PORT_MAPPING_LIFETIME)?;
-				::std::thread::sleep(Duration::from_millis(NAT_PMP_PORT_MAPPING_WAITING_DURATION));
-				match n.read_response_or_retry() {
-					Ok(Response::UDP(udp)) => Ok(udp),
-					Err(e) => {
-						debug!("Port mapping for UDP error: {}", e);
-						Err(e)
-					},
-					_ => Err(natpmp::Error::NATPMP_ERR_UNDEFINEDERROR.into())
-				}
-			};
-
-			match Natpmp::new() {
-				Ok(mut n) => {
-					let gw = get_public_addr(&mut n)?;
-					let tcp_r = get_mapped_tcp_port(&mut n)?;
-					let udp_r = get_mapped_udp_port(&mut n)?;
-
-					Ok(NodeEndpoint {
-						address: SocketAddr::V4(SocketAddrV4::new(*gw.public_address(), tcp_r.public_port())),
-						udp_port: udp_r.public_port()
-					})
+			// this function call want to receive `Response::Gateway` response from router, if other then it is an Error.
+			n.send_public_address_request()?;
+			::std::thread::sleep(Duration::from_millis(NAT_PMP_PORT_MAPPING_WAITING_DURATION));
+			let gw = match n.read_response_or_retry() {
+				Ok(Response::Gateway(gw)) => Ok(gw),
+				Err(e) => {
+					debug!(target: "network", "IP request error: {}", e);
+					Err(e)
 				},
-				Err(e) => Err(e)
-			}
+				_ => Err(natpmp::Error::NATPMP_ERR_UNDEFINEDERROR.into())
+			}?;
+
+			// this function call want to receive `Response::TCP` response from router, if other then it is an Error.
+			n.send_port_mapping_request(Protocol::TCP, local_port, local_port, NAT_PMP_PORT_MAPPING_LIFETIME)?;
+			::std::thread::sleep(Duration::from_millis(NAT_PMP_PORT_MAPPING_WAITING_DURATION));
+			let tcp_r = match n.read_response_or_retry() {
+				Ok(Response::TCP(tcp)) => Ok(tcp),
+				Err(e) => {
+					debug!(target: "network", "Port mapping for TCP error: {}", e);
+					Err(e)
+				},
+				_ => Err(natpmp::Error::NATPMP_ERR_UNDEFINEDERROR.into())
+			}?;
+
+			// this function call want to receive `Response::UDP` response from router, if other then it is an Error.
+			n.send_port_mapping_request(Protocol::UDP, local_udp_port, local_udp_port, NAT_PMP_PORT_MAPPING_LIFETIME)?;
+			::std::thread::sleep(Duration::from_millis(NAT_PMP_PORT_MAPPING_WAITING_DURATION));
+			let udp_r = match n.read_response_or_retry() {
+				Ok(Response::UDP(udp)) => Ok(udp),
+				Err(e) => {
+					debug!(target: "network", "Port mapping for UDP error: {}", e);
+					Err(e)
+				},
+				_ => Err(natpmp::Error::NATPMP_ERR_UNDEFINEDERROR.into())
+			}?;
+
+			Ok(NodeEndpoint {
+				address: SocketAddr::V4(SocketAddrV4::new(*gw.public_address(), tcp_r.public_port())),
+				udp_port: udp_r.public_port()
+			})
 		});
 
-		return search_gateway_child.join()
-			.map(|node| {
-				node.map_err(|e| debug!("NAT PMP port mapping error: {:?}", e)).ok()
-			}).ok()?
+		return search_gateway_child.join().ok()?
+			.map_err(|e: natpmp::Error| debug!(target: "network", "NAT PMP port mapping error: {:?}", e))
+			.ok();
 	}
 	None
 }
