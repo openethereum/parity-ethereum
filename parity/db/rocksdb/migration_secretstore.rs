@@ -71,37 +71,43 @@ impl From<IoError> for Error {
 fn migrate_to_v4(parent_dir: &str) -> Result<(), Error> {
 	// Naïve implementation until
 	// https://github.com/facebook/rocksdb/issues/6130 is resolved
-	let old_db_config = DatabaseConfig {
-		columns: None,
-		..Default::default()
-	};
-	let new_db_config = DatabaseConfig {
-		columns: Some(1),
-		..Default::default()
-	};
+	let old_db_config = DatabaseConfig::with_columns(Some(1));
+	let new_db_config = DatabaseConfig::with_columns(Some(1));
 	const BATCH_SIZE: usize = 1024;
+
+	let old_dir = db_dir(parent_dir);
 	let new_dir = migration_dir(parent_dir);
-	let old_db = Database::open(&old_db_config, &db_dir(parent_dir))?;
+	let old_db = Database::open(&old_db_config, &old_dir)?;
 	let new_db = Database::open(&new_db_config, &new_dir)?;
+
+	const OLD_COLUMN: Option<u32> = None;
+	const NEW_COLUMN: Option<u32> = Some(0);
 
 	// remove legacy version key
 	{
 		let mut batch = DBTransaction::with_capacity(1);
-		batch.delete(None, LEGACY_DB_META_KEY_VERSION);
-		old_db.write(batch)?;
+		batch.delete(OLD_COLUMN, LEGACY_DB_META_KEY_VERSION);
+		if let Err(err) = old_db.write(batch) {
+			error!(target: "migration", "Failed to delete db version {}", &err);
+			return Err(err.into());
+		}
 	}
 
 	let mut batch = DBTransaction::with_capacity(BATCH_SIZE);
-	for (i, (key, value)) in old_db.iter(None).enumerate() {
-		batch.put(Some(0), &key, &value);
+	for (i, (key, value)) in old_db.iter(OLD_COLUMN).enumerate() {
+		batch.put(NEW_COLUMN, &key, &value);
 		if i % BATCH_SIZE == 0 {
 			new_db.write(batch)?;
 			batch = DBTransaction::with_capacity(BATCH_SIZE);
+			info!(target: "migration", "Migrating Secret Store DB: {} keys written", i);
 		}
 	}
 	new_db.write(batch)?;
 	drop(new_db);
 	old_db.restore(&new_dir)?;
+
+	info!(target: "migration", "Secret Store migration finished");
+
 	Ok(())
 }
 
@@ -157,4 +163,36 @@ fn update_version(path: &str) -> Result<(), Error> {
 	let mut file = fs::File::create(version_file_path(path))?;
 	file.write_all(format!("{}", CURRENT_VERSION).as_bytes())?;
 	Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+	use super::*;
+	use tempdir::TempDir;
+
+	#[test]
+	fn migration_works() -> Result<(), Error> {
+		let parent = TempDir::new("secret_store_migration")?.into_path();
+
+		let mut db_path = parent.clone();
+		db_path.push("db");
+		let db_path = db_path.to_str().unwrap();
+		let parent_path = parent.to_str().unwrap();
+
+		let old_db = Database::open(&DatabaseConfig::with_columns(None), db_path)?;
+
+		let mut batch = old_db.transaction();
+		batch.put(None, b"key1", b"value1");
+		batch.put(None, b"key2", b"value2");
+		old_db.write(batch)?;
+		drop(old_db);
+
+		upgrade_db(parent_path)?;
+		let migrated = Database::open(&DatabaseConfig::with_columns(Some(1)), db_path)?;
+
+		assert_eq!(migrated.get(Some(0), b"key1")?.expect("key1"), b"value1".to_vec());
+		assert_eq!(migrated.get(Some(0), b"key2")?.expect("key2"), b"value2".to_vec());
+
+		Ok(())
+	}
 }

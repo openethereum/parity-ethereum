@@ -217,11 +217,11 @@ pub fn migrate(path: &Path, compaction_profile: &DatabaseCompactionProfile) -> R
 
 	// Further migrations
 	if version < CURRENT_VERSION && exists(&db_path) {
-		println!("Migrating database from version {} to {}", version, CURRENT_VERSION);
+		info!(target: "migration", "Migrating database from version {} to {}", version, CURRENT_VERSION);
 		migrate_database(version, &db_path, consolidated_database_migrations(&compaction_profile)?)?;
 
 		if version < BLOOMS_DB_VERSION {
-			println!("Migrating blooms to blooms-db...");
+			info!(target: "migration", "Migrating blooms to blooms-db...");
 			let db_config = DatabaseConfig {
 				max_open_files: 64,
 				compaction: compaction_profile,
@@ -232,7 +232,7 @@ pub fn migrate(path: &Path, compaction_profile: &DatabaseCompactionProfile) -> R
 			migrate_blooms(&db_path, &db_config).map_err(Error::BloomsDB)?;
 		}
 
-		println!("Migration finished");
+		info!(target: "migration", "Migration finished");
 	}
 
 	// update version file.

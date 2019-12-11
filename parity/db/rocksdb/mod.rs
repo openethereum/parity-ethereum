@@ -18,6 +18,9 @@ extern crate kvdb_rocksdb;
 extern crate migration_rocksdb;
 extern crate ethcore_blockchain;
 
+#[cfg(test)]
+extern crate tempdir;
+
 use std::{io, fs};
 use std::sync::Arc;
 use std::path::Path;
