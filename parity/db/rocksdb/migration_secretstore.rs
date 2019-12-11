@@ -67,7 +67,7 @@ impl From<IoError> for Error {
 	}
 }
 
-// Moved "default" column to column 0 in preparation for a kvdb-rocksdb 0.3 migration.
+// Moves "default" column to column 0 in preparation for a kvdb-rocksdb 0.3 migration.
 fn migrate_to_v4(parent_dir: &str) -> Result<(), Error> {
 	// Naïve implementation until
 	// https://github.com/facebook/rocksdb/issues/6130 is resolved
