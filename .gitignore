@@ -43,3 +43,6 @@ parity-clib-examples/cpp/build/
 .vscode
 rls/
 /parity.*
+
+# Merge artifacts
+*.orig
