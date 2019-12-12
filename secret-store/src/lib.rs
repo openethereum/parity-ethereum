@@ -25,6 +25,7 @@ extern crate ethkey;
 extern crate hyper;
 extern crate keccak_hash as hash;
 extern crate kvdb;
+extern crate kvdb_rocksdb;
 extern crate parity_bytes as bytes;
 extern crate parity_crypto as crypto;
 extern crate parity_runtime;
@@ -56,7 +57,7 @@ extern crate log;
 #[cfg(test)]
 extern crate env_logger;
 #[cfg(test)]
-extern crate kvdb_rocksdb;
+extern crate tempdir;
 
 #[cfg(feature = "accounts")]
 extern crate ethcore_accounts as accounts;
@@ -74,9 +75,11 @@ mod key_server_set;
 mod node_key_pair;
 mod listener;
 mod trusted_client;
+mod migration;
 
 use std::sync::Arc;
 use kvdb::KeyValueDB;
+use kvdb_rocksdb::{Database, DatabaseConfig};
 use ethcore::client::Client;
 use ethcore::miner::Miner;
 use sync::SyncProvider;
@@ -89,12 +92,26 @@ pub use self::node_key_pair::PlainNodeKeyPair;
 #[cfg(feature = "accounts")]
 pub use self::node_key_pair::KeyStoreNodeKeyPair;
 
+/// Open a secret store DB using the given secret store data path. The DB path is one level beneath the data path.
+pub fn open_secretstore_db(data_path: &str) -> Result<Arc<dyn KeyValueDB>, String> {
+	use std::path::PathBuf;
+
+	migration::upgrade_db(data_path).map_err(|e| e.to_string())?;
+
+	let mut db_path = PathBuf::from(data_path);
+	db_path.push("db");
+	let db_path = db_path.to_str().ok_or_else(|| "Invalid secretstore path".to_string())?;
+
+	let config = DatabaseConfig::with_columns(Some(1));
+	Ok(Arc::new(Database::open(&config, &db_path).map_err(|e| format!("Error opening database: {:?}", e))?))
+}
+
 /// Start new key server instance
-pub fn start(client: Arc<Client>, sync: Arc<SyncProvider>, miner: Arc<Miner>, self_key_pair: Arc<NodeKeyPair>, mut config: ServiceConfiguration,
-	db: Arc<KeyValueDB>, executor: Executor) -> Result<Box<KeyServer>, Error>
+pub fn start(client: Arc<Client>, sync: Arc<dyn SyncProvider>, miner: Arc<Miner>, self_key_pair: Arc<dyn NodeKeyPair>, mut config: ServiceConfiguration,
+	db: Arc<dyn KeyValueDB>, executor: Executor) -> Result<Box<dyn KeyServer>, Error>
 {
 	let trusted_client = trusted_client::TrustedClient::new(self_key_pair.clone(), client.clone(), sync, miner);
-	let acl_storage: Arc<acl_storage::AclStorage> = match config.acl_check_contract_address.take() {
+	let acl_storage: Arc<dyn acl_storage::AclStorage> = match config.acl_check_contract_address.take() {
 		Some(acl_check_contract_address) => acl_storage::OnChainAclStorage::new(trusted_client.clone(), acl_check_contract_address)?,
 		None => Arc::new(acl_storage::DummyAclStorage::default()),
 	};
@@ -105,7 +122,7 @@ pub fn start(client: Arc<Client>, sync: Arc<SyncProvider>, miner: Arc<Miner>, se
 	let key_server = Arc::new(key_server::KeyServerImpl::new(&config.cluster_config, key_server_set.clone(), self_key_pair.clone(),
 		acl_storage.clone(), key_storage.clone(), executor.clone())?);
 	let cluster = key_server.cluster();
-	let key_server: Arc<KeyServer> = key_server;
+	let key_server: Arc<dyn KeyServer> = key_server;
 
 	// prepare HTTP listener
 	let http_listener = match config.listener_address {
@@ -122,7 +139,7 @@ pub fn start(client: Arc<Client>, sync: Arc<SyncProvider>, miner: Arc<Miner>, se
 			address,
 			self_key_pair.clone()));
 
-	let mut contracts: Vec<Arc<listener::service_contract::ServiceContract>> = Vec::new();
+	let mut contracts: Vec<Arc<dyn listener::service_contract::ServiceContract>> = Vec::new();
 	config.service_contract_address.map(|address|
 		create_service_contract(address,
 			listener::service_contract::SERVICE_CONTRACT_REGISTRY_NAME.to_owned(),
@@ -149,7 +166,7 @@ pub fn start(client: Arc<Client>, sync: Arc<SyncProvider>, miner: Arc<Miner>, se
 			listener::ApiMask { document_key_shadow_retrieval_requests: true, ..Default::default() }))
 		.map(|l| contracts.push(l));
 
-	let contract: Option<Arc<listener::service_contract::ServiceContract>> = match contracts.len() {
+	let contract: Option<Arc<dyn listener::service_contract::ServiceContract>> = match contracts.len() {
 		0 => None,
 		1 => Some(contracts.pop().expect("contract.len() is 1; qed")),
 		_ => Some(Arc::new(listener::service_contract_aggregate::OnChainServiceContractAggregate::new(contracts))),
