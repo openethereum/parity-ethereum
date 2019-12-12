@@ -155,9 +155,8 @@ fn check_first_proof(machine: &Machine, contract_address: Address, old_header: H
 fn decode_first_proof(rlp: &Rlp) -> Result<(Header, Vec<DBValue>), EthcoreError> {
 	let header = rlp.val_at(0)?;
 	let state_items = rlp.at(1)?.iter().map(|x| {
-		let mut val = DBValue::new();
-		val.append_slice(x.data()?);
-		Ok(val)
+		// todo[dvdplm] can avoid copy with `from_buf()` here?
+		Ok(DBValue::from_slice(x.data()?))
 	}).collect::<Result<_, EthcoreError>>()?;
 
 	Ok((header, state_items))

@@ -136,6 +136,7 @@ members = [
 	"parity-clib",
 ]
 
+# todo[dvdplm]: remove before merge
 [patch.crates-io]
 kvdb = { path = "../parity-common/kvdb" }
 kvdb-memorydb = { path = "../parity-common/kvdb-memorydb" }
@@ -147,3 +148,5 @@ rlp = { path = "../parity-common/rlp" }
 ethbloom = { path = "../parity-common/ethbloom" }
 triehash = { path = "../parity-common/triehash" }
 fixed-hash = { path = "../parity-common/fixed-hash" }
+trie-db = { path = "../trie/trie-db" }
+hash-db = { path = "../trie/hash-db" }

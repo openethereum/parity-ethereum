@@ -1507,9 +1507,8 @@ pub mod execution {
 		fn decode(rlp: &Rlp) -> Result<Self, DecoderError> {
 			let mut items = Vec::new();
 			for raw_item in rlp.iter() {
-				let mut item = DBValue::new();
-				item.append_slice(raw_item.data()?);
-				items.push(item);
+				// todo[dvdplm] can avoid copy with `from_buf()` here?
+				items.push(DBValue::from_slice(raw_item.data()?))
 			}
 
 			Ok(Response { items })
@@ -1854,9 +1853,8 @@ mod tests {
 		let full_req = Request::Execution(req.clone());
 		let res = ExecutionResponse {
 			items: vec![DBValue::new(), {
-				let mut value = DBValue::new();
-				value.append_slice(&[1, 1, 1, 2, 3]);
-				value
+				// todo[dvdplm] can avoid copy with `from_buf()` here?
+				DBValue::from_slice(&[1, 1, 1, 2, 3])
 			}],
 		};
 		let full_res = Response::Execution(res.clone());

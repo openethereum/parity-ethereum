@@ -17,7 +17,7 @@
 //! Façade crate for `patricia_trie` for Ethereum specific impls
 
 pub extern crate trie_db as trie; // `pub` because we need to import this crate for the tests in `patricia_trie` and there were issues: https://gist.github.com/dvdplm/869251ee557a1b4bd53adc7c971979aa
-extern crate elastic_array;
+extern crate smallvec;
 extern crate parity_bytes;
 extern crate ethereum_types;
 extern crate hash_db;
@@ -59,7 +59,7 @@ impl trie_db::TrieLayout for Layout {
 /// extern crate keccak_hasher;
 /// extern crate memory_db;
 /// extern crate ethereum_types;
-/// extern crate elastic_array;
+/// extern crate smallvec;
 /// extern crate journaldb;
 ///
 /// use trie::*;
@@ -68,9 +68,8 @@ impl trie_db::TrieLayout for Layout {
 /// use memory_db::*;
 /// use ethereum_types::H256;
 /// use ethtrie::{TrieDB, TrieDBMut};
-/// use elastic_array::ElasticArray128;
 ///
-/// type DBValue = ElasticArray128<u8>;
+/// type DBValue = smallvec::SmallVec<[u8; 128]>;
 ///
 /// fn main() {
 ///   let mut memdb = journaldb::new_memory_db();
@@ -104,7 +103,7 @@ pub type FatDB<'db> = trie::FatDB<'db, Layout>;
 /// extern crate keccak_hasher;
 /// extern crate memory_db;
 /// extern crate ethereum_types;
-/// extern crate elastic_array;
+/// extern crate smallvec;
 /// extern crate journaldb;
 ///
 /// use keccak_hash::KECCAK_NULL_RLP;
@@ -112,10 +111,9 @@ pub type FatDB<'db> = trie::FatDB<'db, Layout>;
 /// use keccak_hasher::KeccakHasher;
 /// use memory_db::*;
 /// use ethereum_types::H256;
-/// use elastic_array::ElasticArray128;
 /// use trie::Trie;
 ///
-/// type DBValue = ElasticArray128<u8>;
+/// type DBValue = smallvec::SmallVec<[u8; 128]>;
 ///
 /// fn main() {
 ///   let mut memdb = journaldb::new_memory_db();
@@ -166,9 +164,9 @@ mod tests {
 		let t = TrieDB::new(&memdb, &root).unwrap();
 		assert!(t.contains(b"foo").unwrap());
 		assert!(t.contains(b"fog").unwrap());
-		assert_eq!(t.get(b"foo").unwrap().unwrap(), b"bar".to_vec());
-		assert_eq!(t.get(b"fog").unwrap().unwrap(), b"b".to_vec());
-		assert_eq!(t.get(b"fot").unwrap().unwrap(), vec![0u8;33]);
+		assert_eq!(t.get(b"foo").unwrap().unwrap().to_vec(), b"bar".to_vec());
+		assert_eq!(t.get(b"fog").unwrap().unwrap().to_vec(), b"b".to_vec());
+		assert_eq!(t.get(b"fot").unwrap().unwrap().to_vec(), vec![0u8;33]);
 	}
 
 	#[test]
@@ -183,8 +181,8 @@ mod tests {
 		let t = TrieDB::new(&memdb, &root).unwrap();
 		assert!(t.contains(b"foo").unwrap());
 		assert!(t.contains(b"fog").unwrap());
-		assert_eq!(t.get(b"foo").unwrap().unwrap(), b"b".to_vec());
-		assert_eq!(t.get(b"fog").unwrap().unwrap(), b"a".to_vec());
+		assert_eq!(t.get(b"foo").unwrap().unwrap().to_vec(), b"b".to_vec());
+		assert_eq!(t.get(b"fog").unwrap().unwrap().to_vec(), b"a".to_vec());
 	}
 
 }
