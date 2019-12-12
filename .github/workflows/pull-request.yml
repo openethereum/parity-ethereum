@@ -1,0 +1,42 @@
+name: Pull Requests
+on: pull_request
+
+jobs:
+  build-linux:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout Action
+      uses: actions/checkout@v1
+    - name: Install Dependencies
+      run: |
+        git status
+        sudo apt update
+        sudo apt install -y build-essential cmake pkg-config clang file cmake
+        rustup update stable
+        export RUST_LOG=debug
+        export RUST_BACKTRACE=1
+        rustc --version
+        cargo --version
+        rustup --version
+    - name: Test Linux
+      run: |
+        ./.github/workflows/scripts/test-linux.sh
+  test-linux:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout Action
+      uses: actions/checkout@v1
+    - name: Install Dependencies
+      run: |
+        git status
+        sudo apt update
+        sudo apt install -y build-essential cmake pkg-config clang file cmake
+        rustup update stable
+        export RUST_LOG=debug
+        export RUST_BACKTRACE=1
+        rustc --version
+        cargo --version
+        rustup --version
+    - name: Test Linux
+      run: |
+        ./.github/workflows/scripts/test-linux.sh
