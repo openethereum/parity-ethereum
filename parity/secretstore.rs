@@ -124,7 +124,6 @@ mod server {
 	use ethcore_secretstore;
 	use parity_crypto::publickey::KeyPair;
 	use ansi_term::Colour::{Red, White};
-	use db;
 	use super::{Configuration, Dependencies, NodeSecretKey, ContractAddress, Executor};
 
 	fn into_service_contract_address(address: ContractAddress) -> ethcore_secretstore::ContractAddress {
@@ -203,7 +202,7 @@ mod server {
 
 			cconf.cluster_config.nodes.insert(self_secret.public().clone(), cconf.cluster_config.listener_address.clone());
 
-			let db = db::open_secretstore_db(&conf.data_path)?;
+			let db = ethcore_secretstore::open_secretstore_db(&conf.data_path)?;
 			let key_server = ethcore_secretstore::start(deps.client, deps.sync, deps.miner, self_secret, cconf, db, executor)
 				.map_err(|e| format!("Error starting KeyServer {}: {}", key_server_name, e))?;
 

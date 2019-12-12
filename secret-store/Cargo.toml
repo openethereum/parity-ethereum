@@ -22,6 +22,7 @@ futures = "0.1"
 hyper = { version = "0.12", default-features = false }
 keccak-hash = "0.4.0"
 kvdb = "0.1"
+kvdb-rocksdb = "0.2.0"
 lazy_static = "1.0"
 log = "0.4"
 parity-bytes = "0.1"

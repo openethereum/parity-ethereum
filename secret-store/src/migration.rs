@@ -23,7 +23,7 @@ use std::io::{Error as IoError, ErrorKind as IoErrorKind, Read as _, Write as _}
 use std::path::PathBuf;
 
 use kvdb::DBTransaction;
-use super::kvdb_rocksdb::{Database, DatabaseConfig};
+use kvdb_rocksdb::{Database, DatabaseConfig};
 
 /// We used to store the version in the database (until version 4).
 const LEGACY_DB_META_KEY_VERSION: &[u8; 7] = b"version";

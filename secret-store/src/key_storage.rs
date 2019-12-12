@@ -266,12 +266,10 @@ impl From<SerializableDocumentKeyShareV3> for DocumentKeyShare {
 
 #[cfg(test)]
 pub mod tests {
-	extern crate tempdir;
-
 	use std::collections::HashMap;
 	use std::sync::Arc;
 	use parking_lot::RwLock;
-	use self::tempdir::TempDir;
+	use tempdir::TempDir;
 	use crypto::publickey::{Random, Generator, Public};
 	use kvdb_rocksdb::{Database, DatabaseConfig};
 	use types::{Error, ServerKeyId};
