@@ -189,7 +189,9 @@ pub trait Engine: Sync + Send {
 	///
 	/// This is called when the miner prepares a new block that this node will author and seal. It returns a list of
 	/// transactions that will be added to the block before any other transactions from the queue.
-	fn on_prepare_block(&self, _block: &ExecutedBlock) -> Result<Vec<SignedTransaction>, Error> { Ok(Vec::new()) }
+	fn generate_engine_transactions(&self, _block: &ExecutedBlock) -> Result<Vec<SignedTransaction>, Error> {
+		Ok(Vec::new())
+	}
 
 	/// Returns the engine's current sealing state.
 	fn sealing_state(&self) -> SealingState { SealingState::External }

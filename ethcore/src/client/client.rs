@@ -79,6 +79,7 @@ use client_traits::{
 	StateOrBlock,
 	Tick,
 	TransactionInfo,
+	TransactionRequest,
 	ForceUpdateSealing
 };
 use db::{keys::BlockDetails, Readable, Writable};
@@ -2154,14 +2155,9 @@ impl BlockChainClient for Client {
 		}
 	}
 
-	fn create_transaction(
-		&self,
-		action: Action,
-		data: Bytes,
-		gas: Option<U256>,
-		gas_price: Option<U256>,
-		nonce: Option<U256>
-	) -> Result<SignedTransaction, transaction::Error> {
+	fn create_transaction(&self, TransactionRequest { action, data, gas, gas_price, nonce }: TransactionRequest)
+		-> Result<SignedTransaction, transaction::Error>
+	{
 		let authoring_params = self.importer.miner.authoring_params();
 		let service_transaction_checker = self.importer.miner.service_transaction_checker();
 		let gas_price = if let Some(checker) = service_transaction_checker {
@@ -2186,10 +2182,8 @@ impl BlockChainClient for Client {
 		Ok(SignedTransaction::new(transaction.with_signature(signature, chain_id))?)
 	}
 
-	fn transact(&self, action: Action, data: Bytes, gas: Option<U256>, gas_price: Option<U256>, nonce: Option<U256>)
-		-> Result<(), transaction::Error>
-	{
-		let signed = self.create_transaction(action, data, gas, gas_price, nonce)?;
+	fn transact(&self, tx_request: TransactionRequest) -> Result<(), transaction::Error> {
+		let signed = self.create_transaction(tx_request)?;
 		self.importer.miner.import_own_transaction(self, signed.into())
 	}
 }

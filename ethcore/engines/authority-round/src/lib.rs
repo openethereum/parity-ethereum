@@ -40,7 +40,7 @@ use std::sync::{Weak, Arc};
 use std::time::{UNIX_EPOCH, Duration};
 use std::u64;
 
-use client_traits::{EngineClient, ForceUpdateSealing};
+use client_traits::{EngineClient, ForceUpdateSealing, TransactionRequest};
 use engine::{Engine, ConstructedVerifier};
 use block_reward::{self, BlockRewardContract, RewardKind};
 use ethjson;
@@ -59,7 +59,6 @@ use rand::rngs::OsRng;
 use rlp::{encode, Decodable, DecoderError, Encodable, RlpStream, Rlp};
 use ethereum_types::{H256, H520, Address, U128, U256};
 use parking_lot::{Mutex, RwLock};
-use parity_bytes::Bytes;
 use time_utils::CheckedSystemTime;
 use common_types::{
 	ancestry_action::AncestryAction,
@@ -76,7 +75,7 @@ use common_types::{
 	errors::{BlockError, EthcoreError as Error, EngineError},
 	ids::BlockId,
 	snapshot::Snapshotting,
-    transaction::{Action, SignedTransaction},
+	transaction::SignedTransaction,
 };
 use unexpected::{Mismatch, OutOfBounds};
 
@@ -1081,21 +1080,21 @@ impl AuthorityRound {
 			EngineError::RequiresClient
 		})?;
 		let full_client = client.as_full_client()
-			.ok_or(EngineError::FailedSystemCall("Failed to upgrade to BlockchainClient.".to_string()))?;
+			.ok_or_else(|| EngineError::FailedSystemCall("Failed to upgrade to BlockchainClient.".to_string()))?;
 
 		// Random number generation
 		let contract = util::BoundContract::new(&*client, BlockId::Latest, contract_addr);
 		let phase = randomness::RandomnessPhase::load(&contract, our_addr)
-			.map_err(|err| EngineError::RandomnessLoadError(err.to_string()))?;
+			.map_err(|err| EngineError::Custom(format!("Randomness error in load(): {:?}", err)))?;
 		let data = match phase.advance(&contract, &mut OsRng, signer.as_ref())
-				.map_err(|err| EngineError::RandomnessAdvanceError(err.to_string()))? {
+				.map_err(|err| EngineError::Custom(format!("Randomness error in advance(): {:?}", err)))? {
 			Some(data) => data,
 			None => return Ok(Vec::new()), // Nothing to commit or reveal at the moment.
 		};
 
 		let nonce = block.state.nonce(&our_addr)?;
-		let action = Action::Call(contract_addr);
-		Ok(vec![full_client.create_transaction(action, data, None, Some(U256::zero()), Some(nonce))?])
+		let tx_request = TransactionRequest::call(contract_addr, data).gas_price(U256::zero()).nonce(nonce);
+		Ok(vec![full_client.create_transaction(tx_request)?])
 	}
 }
 
@@ -1481,7 +1480,7 @@ impl Engine for AuthorityRound {
 		block_reward::apply_block_rewards(&rewards, block, &self.machine)
 	}
 
-	fn on_prepare_block(&self, block: &ExecutedBlock) -> Result<Vec<SignedTransaction>, Error> {
+	fn generate_engine_transactions(&self, block: &ExecutedBlock) -> Result<Vec<SignedTransaction>, Error> {
 		self.run_randomness_phase(block)
 	}
 
@@ -2841,7 +2840,7 @@ mod tests {
 				"validators": {
 					"list" : ["0x1000000000000000000000000000000000000001"]
 				},
-                "blockRewardContractTransition": "0",
+	            "blockRewardContractTransition": "0",
 				"blockRewardContractAddress": "0x2000000000000000000000000000000000000002",
 				"blockRewardContractTransitions": {
 					"7": "0x3000000000000000000000000000000000000003",
@@ -2872,7 +2871,7 @@ mod tests {
 				"validators": {
 					"list" : ["0x1000000000000000000000000000000000000001"]
 				},
-                "blockRewardContractTransition": "7",
+	            "blockRewardContractTransition": "7",
 				"blockRewardContractAddress": "0x2000000000000000000000000000000000000002",
 				"blockRewardContractTransitions": {
 					"0": "0x3000000000000000000000000000000000000003",

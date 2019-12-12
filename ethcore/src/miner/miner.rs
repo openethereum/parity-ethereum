@@ -430,57 +430,55 @@ impl Miner {
 		let chain_info = chain.chain_info();
 
 		// Open block
-		let mut sealing = self.sealing.lock();
-		let best_hash = chain_info.best_block_hash;
-		let original_work_hash = sealing.queue.peek_last_ref().map(|pb| pb.header.hash());
-
 		// Some engines add transactions to the block for their own purposes, e.g. AuthorityRound RANDAO.
-		let engine_txs: Vec<SignedTransaction>;
-		let mut open_block;
+		let (mut open_block, original_work_hash, engine_txs) = {
+			let mut sealing = self.sealing.lock();
+			let last_work_hash = sealing.queue.peek_last_ref().map(|pb| pb.header.hash());
+			let best_hash = chain_info.best_block_hash;
 
-		// check to see if last ClosedBlock in would_seals is actually same parent block.
-		// if so
-		//   duplicate, re-open and push any new transactions.
-		//   if at least one was pushed successfully, close and enqueue new ClosedBlock;
-		//   otherwise, leave everything alone.
-		// otherwise, author a fresh block.
-		match sealing.queue.get_pending_if(|b| b.header.parent_hash() == &best_hash) {
-			Some(old_block) => {
-				trace!(target: "miner", "prepare_block: Already have previous work; updating and returning");
-				engine_txs = Vec::new();
-				// add transactions to old_block
-				open_block = chain.reopen_block(old_block);
-			}
-			None => {
-				// block not found - create it.
-				trace!(target: "miner", "prepare_block: No existing work - making new block");
-				let params = self.params.read().clone();
+			// check to see if last ClosedBlock in would_seals is actually same parent block.
+			// if so
+			//   duplicate, re-open and push any new transactions.
+			//   if at least one was pushed successfully, close and enqueue new ClosedBlock;
+			//   otherwise, leave everything alone.
+			// otherwise, author a fresh block.
+			match sealing.queue.get_pending_if(|b| b.header.parent_hash() == &best_hash) {
+				Some(old_block) => {
+					trace!(target: "miner", "prepare_block: Already have previous work; updating and returning");
+					// add transactions to old_block
+					(chain.reopen_block(old_block), last_work_hash, Vec::new())
+				}
+				None => {
+					// block not found - create it.
+					trace!(target: "miner", "prepare_block: No existing work - making new block");
+					let params = self.params.read().clone();
 
-				open_block = match chain.prepare_open_block(
-					params.author,
-					params.gas_range_target,
-					params.extra_data,
-				) {
-					Ok(block) => block,
-					Err(err) => {
-						warn!(target: "miner", "Open new block failed with error {:?}. This is likely an error in \
-							  chain specification or on-chain consensus smart contracts.", err);
-						return None;
+					let block = match chain.prepare_open_block(
+						params.author,
+						params.gas_range_target,
+						params.extra_data,
+					) {
+						Ok(block) => block,
+						Err(err) => {
+							warn!(target: "miner", "Open new block failed with error {:?}. This is likely an error in \
+								  chain specification or on-chain consensus smart contracts.", err);
+							return None;
+						}
+					};
+
+					// Before adding from the queue to the new block, give the engine a chance to add transactions.
+					match self.engine.generate_engine_transactions(&block) {
+						Ok(transactions) => (block, last_work_hash, transactions),
+						Err(err) => {
+							error!(target: "miner", "Failed to prepare engine transactions for new block: {:?}. \
+								   This is likely an error in chain specification or on-chain consensus smart \
+								   contracts.", err);
+							return None;
+						}
 					}
-				};
-
-				// Before adding from the queue to the new block, give the engine a chance to add transactions.
-				engine_txs = match self.engine.on_prepare_block(&open_block) {
-					Ok(transactions) => transactions,
-					Err(err) => {
-						error!(target: "miner", "Failed to prepare engine transactions for new block: {:?}. \
-							   This is likely an error in chain specification or on-chain consensus smart \
-							   contracts.", err);
-						return None;
-					}
-				};
+				}
 			}
-		}
+		};
 
 		if self.options.infinite_pending_block {
 			open_block.remove_gas_limit();
