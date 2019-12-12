@@ -296,7 +296,7 @@ impl Manager {
 				}
 
 				while cur_db.num_columns() > goal_columns {
-					cur_db.drop_column().map_err(other_io_err)?;
+					cur_db.remove_last_column().map_err(other_io_err)?;
 				}
 			}
 		}

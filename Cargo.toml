@@ -57,7 +57,7 @@ parity-path = "0.1"
 parity-rpc = { path = "rpc" }
 parity-runtime = { path = "util/runtime" }
 parity-updater = { path = "updater" }
-parity-util-mem = { version = "0.2.0", features = ["jemalloc-global"] }
+parity-util-mem = { version = "0.2.1", features = ["jemalloc-global"] }
 parity-version = { path = "util/version" }
 parking_lot = "0.9"
 regex = "1.0"
@@ -136,3 +136,14 @@ members = [
 	"parity-clib",
 ]
 
+[patch.crates-io]
+kvdb = { path = "../parity-common/kvdb" }
+kvdb-memorydb = { path = "../parity-common/kvdb-memorydb" }
+kvdb-rocksdb = { path = "../parity-common/kvdb-rocksdb" }
+parity-util-mem = { path = "../parity-common/parity-util-mem" }
+ethereum-types = { path = "../parity-common/ethereum-types" }
+primitive-types = { path = "../parity-common/primitive-types" }
+rlp = { path = "../parity-common/rlp" }
+ethbloom = { path = "../parity-common/ethbloom" }
+triehash = { path = "../parity-common/triehash" }
+fixed-hash = { path = "../parity-common/fixed-hash" }
