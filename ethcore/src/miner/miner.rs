@@ -1705,7 +1705,7 @@ mod tests {
 		// chain_id + 100500 is invalid
 		let import = miner.import_claimed_local_transaction(
 			&client,
-			PendingTransaction::new(transaction_with_chain_id(chain_id + 10500), None), 
+			PendingTransaction::new(transaction_with_chain_id(chain_id + 10500), None),
 			false,
 		);
 		assert!(import.is_err());
@@ -1713,7 +1713,7 @@ mod tests {
 		// chain_id is valid
 		let import = miner.import_claimed_local_transaction(
 			&client,
-			PendingTransaction::new(transaction_with_chain_id(chain_id), None), 
+			PendingTransaction::new(transaction_with_chain_id(chain_id), None),
 			false,
 		);
 		assert_eq!(import, Ok(()));
