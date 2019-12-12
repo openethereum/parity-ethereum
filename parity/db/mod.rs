@@ -20,6 +20,3 @@
 mod impls;
 
 pub use self::impls::{open_db_light, restoration_db_handler, migrate};
-
-#[cfg(feature = "secretstore")]
-pub use self::impls::open_secretstore_db;
