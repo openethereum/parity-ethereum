@@ -26,13 +26,13 @@ use kvdb::DBTransaction;
 use super::kvdb_rocksdb::{Database, DatabaseConfig};
 
 /// We used to store the version in the database (until version 4).
-const LEGACY_DB_META_KEY_VERSION: &'static [u8; 7] = b"version";
+const LEGACY_DB_META_KEY_VERSION: &[u8; 7] = b"version";
 /// Current db version.
 const CURRENT_VERSION: u8 = 4;
 /// Database is assumed to be at the default version, when no version file is found.
 const DEFAULT_VERSION: u8 = 3;
 /// Version file name.
-const VERSION_FILE_NAME: &'static str = "db_version";
+const VERSION_FILE_NAME: &str = "db_version";
 
 /// Migration related erorrs.
 #[derive(Debug)]
