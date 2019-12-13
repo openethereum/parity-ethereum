@@ -1,3 +1,16 @@
+## Parity-Ethereum [v2.6.7](https://github.com/paritytech/parity-ethereum/releases/tag/v2.6.7)
+
+Parity Ethereum v2.6.7-beta is a patch release that adds Istanbul hardfork
+block numbers for POA and xDai networks, implements ECIP-1056 and implements
+EIP-2384/2387 - Muir Glacier.
+
+The full list of included changes:
+* ethcore/res: activate agharta on classic 9573000 (#11331)
+* Istanbul HF in xDai (2019-12-12) (#11299)
+* Istanbul HF in POA Core (2019-12-19) (#11298)
+* Istanbul HF in POA Sokol (2019-12-05) (#11282)
+* Enable EIP-2384 for ice age hard fork (#11281)
+
 ## Parity-Ethereum [v2.6.6](https://github.com/paritytech/parity-ethereum/releases/tag/v2.6.6)
 
 Parity Ethereum v2.6.6-beta is an emergency patch release that adds the missing
