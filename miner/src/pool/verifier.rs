@@ -253,7 +253,7 @@ impl<C: Client> txpool::Verifier<Transaction> for Verifier<C, ::pool::scoring::N
 			Transaction::Local(tx) => match self.client.verify_transaction_basic(&**tx) {
 				Ok(()) => tx,
 				Err(err) => {
-					info!(target: "txqueue", "[{:?}] Rejected local tx {:?}", hash, err);
+					warn!(target: "txqueue", "[{:?}] Rejected local tx {:?}", hash, err);
 					return Err(err)
 				}
 			},
