@@ -1708,7 +1708,7 @@ mod tests {
 			PendingTransaction::new(transaction_with_chain_id(chain_id + 10500), None),
 			false,
 		);
-		assert!(import.is_err());
+		assert_eq!(import, Err(transaction::Error::InvalidChainId));
 
 		// chain_id is valid
 		let import = miner.import_claimed_local_transaction(
