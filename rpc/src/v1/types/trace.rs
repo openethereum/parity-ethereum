@@ -214,6 +214,7 @@ impl From<state_diff::StateDiff> for StateDiff {
 
 /// Create response
 #[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct Create {
 	/// Sender
 	from: H160,
@@ -224,7 +225,7 @@ pub struct Create {
 	/// Initialization code
 	init: Bytes,
 	// Create Type
-	create_type: CreateType,
+	create_type: Option<CreateType>,
 }
 
 impl From<trace::Create> for Create {
@@ -234,7 +235,7 @@ impl From<trace::Create> for Create {
 			value: c.value,
 			gas: c.gas,
 			init: Bytes::new(c.init),
-			create_type: c.create_type.into(),
+			create_type: CreateType::maybe_new(c.create_type),
 		}
 	}
 }
@@ -243,8 +244,6 @@ impl From<trace::Create> for Create {
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "lowercase")]
 pub enum CallType {
-	/// None
-	None,
 	/// Call
 	Call,
 	/// Call code
@@ -255,15 +254,15 @@ pub enum CallType {
 	StaticCall,
 }
 
-impl From<vm::ActionType> for CallType {
-	fn from(c: vm::ActionType) -> Self {
+impl CallType {
+	fn maybe_new(c: vm::ActionType) -> Option<Self> {
 		match c {
-			vm::ActionType::Call => CallType::Call,
-			vm::ActionType::CallCode => CallType::CallCode,
-			vm::ActionType::DelegateCall => CallType::DelegateCall,
-			vm::ActionType::StaticCall => CallType::StaticCall,
-			vm::ActionType::Create => CallType::None,
-			vm::ActionType::Create2 => CallType::None,
+			vm::ActionType::Call => Some(CallType::Call),
+			vm::ActionType::CallCode => Some(CallType::CallCode),
+			vm::ActionType::DelegateCall => Some(CallType::DelegateCall),
+			vm::ActionType::StaticCall => Some(CallType::StaticCall),
+			vm::ActionType::Create => None,
+			vm::ActionType::Create2 => None,
 		}
 	}
 }
@@ -272,23 +271,21 @@ impl From<vm::ActionType> for CallType {
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "lowercase")]
 pub enum CreateType {
-	/// None
-	None,
 	/// Create
 	Create,
 	/// Create2
 	Create2,
 }
 
-impl From<vm::ActionType> for CreateType {
-	fn from(c: vm::ActionType) -> Self {
+impl CreateType {
+	fn maybe_new(c: vm::ActionType) -> Option<Self> {
 		match c {
-			vm::ActionType::Call => CreateType::None,
-			vm::ActionType::CallCode => CreateType::None,
-			vm::ActionType::DelegateCall => CreateType::None,
-			vm::ActionType::StaticCall => CreateType::None,
-			vm::ActionType::Create => CreateType::Create,
-			vm::ActionType::Create2 => CreateType::Create2,
+			vm::ActionType::Call => None,
+			vm::ActionType::CallCode => None,
+			vm::ActionType::DelegateCall => None,
+			vm::ActionType::StaticCall => None,
+			vm::ActionType::Create => Some(CreateType::Create),
+			vm::ActionType::Create2 => Some(CreateType::Create2),
 		}
 	}
 }
@@ -308,7 +305,7 @@ pub struct Call {
 	/// Input data
 	input: Bytes,
 	/// The type of the call.
-	call_type: CallType,
+	call_type: Option<CallType>,
 }
 
 impl From<trace::Call> for Call {
@@ -319,7 +316,7 @@ impl From<trace::Call> for Call {
 			value: c.value,
 			gas: c.gas,
 			input: c.input.into(),
-			call_type: c.call_type.into(),
+			call_type: CallType::maybe_new(c.call_type),
 		}
 	}
 }
@@ -773,7 +770,7 @@ mod tests {
 			block_hash: H256::from_low_u64_be(14),
 		};
 		let serialized = serde_json::to_string(&t).unwrap();
-		assert_eq!(serialized, r#"{"type":"create","action":{"from":"0x0000000000000000000000000000000000000004","value":"0x6","gas":"0x7","init":"0x1234","create_type":"create"},"result":{"gasUsed":"0x8","code":"0x5678","address":"0x00000000000000000000000000000000000000ff"},"traceAddress":[10],"subtraces":1,"transactionPosition":11,"transactionHash":"0x000000000000000000000000000000000000000000000000000000000000000c","blockNumber":13,"blockHash":"0x000000000000000000000000000000000000000000000000000000000000000e"}"#);
+		assert_eq!(serialized, r#"{"type":"create","action":{"from":"0x0000000000000000000000000000000000000004","value":"0x6","gas":"0x7","init":"0x1234","createType":"create"},"result":{"gasUsed":"0x8","code":"0x5678","address":"0x00000000000000000000000000000000000000ff"},"traceAddress":[10],"subtraces":1,"transactionPosition":11,"transactionHash":"0x000000000000000000000000000000000000000000000000000000000000000c","blockNumber":13,"blockHash":"0x000000000000000000000000000000000000000000000000000000000000000e"}"#);
 	}
 
 	#[test]
@@ -795,7 +792,7 @@ mod tests {
 			block_hash: H256::from_low_u64_be(14),
 		};
 		let serialized = serde_json::to_string(&t).unwrap();
-		assert_eq!(serialized, r#"{"type":"create","action":{"from":"0x0000000000000000000000000000000000000004","value":"0x6","gas":"0x7","init":"0x1234","create_type":"create"},"error":"Out of gas","traceAddress":[10],"subtraces":1,"transactionPosition":11,"transactionHash":"0x000000000000000000000000000000000000000000000000000000000000000c","blockNumber":13,"blockHash":"0x000000000000000000000000000000000000000000000000000000000000000e"}"#);
+		assert_eq!(serialized, r#"{"type":"create","action":{"from":"0x0000000000000000000000000000000000000004","value":"0x6","gas":"0x7","init":"0x1234","createType":"create"},"error":"Out of gas","traceAddress":[10],"subtraces":1,"transactionPosition":11,"transactionHash":"0x000000000000000000000000000000000000000000000000000000000000000c","blockNumber":13,"blockHash":"0x000000000000000000000000000000000000000000000000000000000000000e"}"#);
 	}
 
 	#[test]
