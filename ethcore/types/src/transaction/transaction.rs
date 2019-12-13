@@ -138,10 +138,11 @@ impl Transaction {
 	}
 }
 
+#[cfg(any(test, feature = "test-helpers"))]
 impl From<ethjson::transaction::Transaction> for SignedTransaction {
 	fn from(t: ethjson::transaction::Transaction) -> Self {
 		let to: Option<ethjson::hash::Address> = t.to.into();
-		let secret = Secret::from(t.secret.0);
+		let secret = t.secret.map(|s| Secret::from(s.0));
 		let tx = Transaction {
 			nonce: t.nonce.into(),
 			gas_price: t.gas_price.into(),
@@ -153,7 +154,10 @@ impl From<ethjson::transaction::Transaction> for SignedTransaction {
 			value: t.value.into(),
 			data: t.data.into(),
 		};
-		tx.sign(&secret, None)
+		match secret {
+			Some(s) => tx.sign(&s, None),
+			None => tx.null_sign(1),
+		}
 	}
 }
 
@@ -235,7 +239,7 @@ impl Transaction {
 	}
 
 	/// Legacy EIP-86 compatible empty signature.
-	/// Used only for tests.
+	#[cfg(any(test, feature = "test-helpers"))]
 	pub fn null_sign(self, chain_id: u64) -> SignedTransaction {
 		SignedTransaction {
 			transaction: UnverifiedTransaction {

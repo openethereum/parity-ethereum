@@ -46,7 +46,7 @@ pub struct Transaction {
 	pub v: MaybeEmpty<Uint>,
 	/// Secret
 	#[serde(rename = "secretKey")]
-	pub secret: H256,
+	pub secret: Option<H256>,
 }
 
 #[cfg(test)]
@@ -78,6 +78,6 @@ mod tests {
 		assert_eq!(tx.r, Uint(U256::zero()).into());
 		assert_eq!(tx.s, Uint(U256::one()).into());
 		assert_eq!(tx.v, Uint(U256::from(2)).into());
-		assert_eq!(tx.secret, H256(Eth256::zero()));
+		assert_eq!(tx.secret, Some(H256(Eth256::zero())));
 	}
 }
