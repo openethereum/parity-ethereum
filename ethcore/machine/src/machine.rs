@@ -141,7 +141,7 @@ impl Machine {
 		value: Option<ActionValue>,
 		gas: U256,
 		data: Option<Vec<u8>>,
-		call_type: Option<ActionType>,
+		action_type: Option<ActionType>,
 	) -> Result<Vec<u8>, Error> {
 		let env_info = {
 			let mut env_info = block.env_info();
@@ -163,7 +163,7 @@ impl Machine {
 			code_hash,
 			code_version: 0.into(),
 			data,
-			call_type: call_type.unwrap_or(ActionType::Call),
+			action_type: action_type.unwrap_or(ActionType::Call),
 			params_type: ParamsType::Separate,
 		};
 		let schedule = self.schedule(env_info.number);

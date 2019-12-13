@@ -133,8 +133,8 @@ struct InterpreterParams {
 	pub value: ActionValue,
 	/// Input data.
 	pub data: Option<Bytes>,
-	/// Type of call
-	pub call_type: ActionType,
+	/// Type of action
+	pub action_type: ActionType,
 	/// Param types encoding
 	pub params_type: ParamsType,
 }
@@ -152,7 +152,7 @@ impl From<ActionParams> for InterpreterParams {
 			gas_price: params.gas_price,
 			value: params.value,
 			data: params.data,
-			call_type: params.call_type,
+			action_type: params.action_type,
 			params_type: params.params_type,
 		}
 	}

@@ -533,7 +533,7 @@ impl<'a> Runtime<'a> {
 		let create_type = match scheme {
 			vm::CreateContractAddress::FromSenderAndNonce => ActionType::Create,
 			vm::CreateContractAddress::FromSenderSaltAndCodeHash(_) => ActionType::Create2,
-			vm::CreateContractAddress::FromSenderAndCodeHash => ActionType::Create,
+			vm::CreateContractAddress::FromSenderAndCodeHash => ActionType::Create2,
 		};
 
 		match self.ext.create(&gas_left, &endowment, &code, &self.context.code_version, scheme, create_type, false).ok().expect("Trap is false; trap error will not happen; qed") {

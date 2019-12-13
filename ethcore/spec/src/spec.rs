@@ -163,7 +163,7 @@ fn run_constructors<T: Backend>(
 				value: ActionValue::Transfer(Default::default()),
 				code: Some(Arc::new(constructor.clone())),
 				data: None,
-				call_type: ActionType::Create,
+				action_type: ActionType::Create,
 				params_type: ParamsType::Embedded,
 			};
 

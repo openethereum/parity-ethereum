@@ -241,7 +241,7 @@ impl<'a> CallCreateExecutive<'a> {
 		trace!("Executive::call(params={:?}) self.env_info={:?}, parent_static={}", params, info, parent_static_flag);
 
 		let gas = params.gas;
-		let static_flag = parent_static_flag || params.call_type == ActionType::StaticCall;
+		let static_flag = parent_static_flag || params.action_type == ActionType::StaticCall;
 
 		// if destination is builtin, try to execute it
 		let kind = if let Some(builtin) = machine.builtin(&params.code_address, info.number) {
@@ -298,7 +298,7 @@ impl<'a> CallCreateExecutive<'a> {
 			}
 		} else {
 			if (static_flag &&
-				(params.call_type == ActionType::StaticCall || params.call_type == ActionType::Call)) &&
+				(params.action_type == ActionType::StaticCall || params.action_type == ActionType::Call)) &&
 				params.value.value() > U256::zero()
 			{
 				return Err(vm::Error::MutableCallInStaticContext);
@@ -909,7 +909,7 @@ impl<'a, B: 'a + StateBackend> Executive<'a, B> {
 					code: Some(Arc::new(t.data.clone())),
 					code_version: schedule.latest_version,
 					data: None,
-					call_type: ActionType::Create,
+					action_type: ActionType::Create,
 					params_type: vm::ParamsType::Embedded,
 				};
 				let res = self.create(params, &mut substate, &mut tracer, &mut vm_tracer);
@@ -932,7 +932,7 @@ impl<'a, B: 'a + StateBackend> Executive<'a, B> {
 					code_hash: self.state.code_hash(address)?,
 					code_version: self.state.code_version(address)?,
 					data: Some(t.data.clone()),
-					call_type: ActionType::Call,
+					action_type: ActionType::Call,
 					params_type: vm::ParamsType::Separate,
 				};
 				let res = self.call(params, &mut substate, &mut tracer, &mut vm_tracer);
@@ -1414,7 +1414,7 @@ mod tests {
 		params.gas = U256::from(100_000);
 		params.code = Some(Arc::new(code));
 		params.value = ActionValue::Transfer(U256::from(100));
-		params.call_type = ActionType::Call;
+		params.action_type = ActionType::Call;
 		let mut state = get_temp_state();
 		state.add_balance(&sender, &U256::from(100), CleanupMode::NoEmpty).unwrap();
 		let info = EnvInfo::default();
@@ -1498,7 +1498,7 @@ mod tests {
 		params.gas = U256::from(100_000);
 		params.code = Some(Arc::new(code));
 		params.value = ActionValue::Transfer(U256::from(100));
-		params.call_type = ActionType::Call;
+		params.action_type = ActionType::Call;
 		let mut state = get_temp_state();
 		state.add_balance(&sender, &U256::from(100), CleanupMode::NoEmpty).unwrap();
 		let info = EnvInfo::default();
@@ -1614,7 +1614,7 @@ mod tests {
 		params.gas = U256::from(100_000);
 		params.code = Some(Arc::new(code));
 		params.value = ActionValue::Transfer(U256::from(100));
-		params.call_type = ActionType::Call;
+		params.action_type = ActionType::Call;
 		let mut state = get_temp_state();
 		state.add_balance(&sender, &U256::from(100), CleanupMode::NoEmpty).unwrap();
 		let info = EnvInfo::default();

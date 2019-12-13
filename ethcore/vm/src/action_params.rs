@@ -88,8 +88,8 @@ pub struct ActionParams {
 	pub code_version: U256,
 	/// Input data.
 	pub data: Option<Bytes>,
-	/// Type of call
-	pub call_type: ActionType,
+	/// Type of action (e.g. CALL, DELEGATECALL, CREATE, etc.)
+	pub action_type: ActionType,
 	/// Param types encoding
 	pub params_type: ParamsType,
 }
@@ -109,7 +109,7 @@ impl Default for ActionParams {
 			code: None,
 			code_version: U256::zero(),
 			data: None,
-			call_type: ActionType::Create,
+			action_type: ActionType::Create,
 			params_type: ParamsType::Separate,
 		}
 	}
@@ -130,7 +130,7 @@ impl From<ethjson::vm::Transaction> for ActionParams {
 			gas: t.gas.into(),
 			gas_price: t.gas_price.into(),
 			value: ActionValue::Transfer(t.value.into()),
-			call_type: if address.is_zero() { ActionType::Create } else { ActionType::Call },
+			action_type: if address.is_zero() { ActionType::Create } else { ActionType::Call },
 			params_type: ParamsType::Separate,
 		}
 	}

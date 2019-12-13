@@ -193,7 +193,7 @@ impl<'a, T: 'a, V: 'a, B: 'a> Ext for Externalities<'a, T, V, B>
 				code_hash,
 				code_version,
 				data: Some(data.as_bytes().to_vec()),
-				call_type: ActionType::Call,
+				action_type: ActionType::Call,
 				params_type: vm::ParamsType::Separate,
 			};
 
@@ -255,7 +255,7 @@ impl<'a, T: 'a, V: 'a, B: 'a> Ext for Externalities<'a, T, V, B>
 			code_hash,
 			code_version: *parent_version,
 			data: None,
-			call_type: create_type,
+			action_type: create_type,
 			params_type: vm::ParamsType::Embedded,
 		};
 
@@ -312,7 +312,7 @@ impl<'a, T: 'a, V: 'a, B: 'a> Ext for Externalities<'a, T, V, B>
 			code_hash,
 			code_version,
 			data: Some(data.to_vec()),
-			call_type,
+			action_type: call_type,
 			params_type: vm::ParamsType::Separate,
 		};
 

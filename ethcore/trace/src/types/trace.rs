@@ -70,14 +70,14 @@ pub struct Call {
 
 impl From<ActionParams> for Call {
 	fn from(p: ActionParams) -> Self {
-		match p.call_type {
+		match p.action_type {
 			ActionType::DelegateCall | ActionType::CallCode => Call {
 				from: p.address,
 				to: p.code_address,
 				value: p.value.value(),
 				gas: p.gas,
 				input: p.data.unwrap_or_else(Vec::new),
-				call_type: p.call_type,
+				call_type: p.action_type,
 			},
 			_ => Call {
 				from: p.sender,
@@ -85,7 +85,7 @@ impl From<ActionParams> for Call {
 				value: p.value.value(),
 				gas: p.gas,
 				input: p.data.unwrap_or_else(Vec::new),
-				call_type: p.call_type,
+				call_type: p.action_type,
 			},
 		}
 	}
@@ -124,7 +124,7 @@ impl From<ActionParams> for Create {
 			value: p.value.value(),
 			gas: p.gas,
 			init: p.code.map_or_else(Vec::new, |c| (*c).clone()),
-			create_type: p.call_type,
+			create_type: p.action_type,
 		}
 	}
 }
