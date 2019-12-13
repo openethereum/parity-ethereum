@@ -24,12 +24,6 @@ use kvdb::KeyValueDB;
 use types::{Error, ServerKeyId, NodeId};
 use serialization::{SerializablePublic, SerializableSecret, SerializableH256, SerializableAddress};
 
-//todo - check this
-///// Key of version value.
-//const DB_META_KEY_VERSION: &'static [u8; 7] = b"version";
-///// Current db version.
-//const CURRENT_VERSION: u8 = 3;
-
 /// Encrypted key share, stored by key storage on the single key server.
 #[derive(Debug, Default, Clone, PartialEq)]
 pub struct DocumentKeyShare {
