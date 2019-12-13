@@ -389,7 +389,6 @@ impl UnverifiedTransaction {
 
 	/// Verify basic signature params. Does not attempt sender recovery.
 	pub fn verify_basic(&self, check_low_s: bool, chain_id: Option<u64>) -> Result<(), error::Error> {
-		// Disallow unsigned transactions.
 		if self.is_unsigned() {
 			return Err(parity_crypto::publickey::Error::InvalidSignature.into());
 		}
