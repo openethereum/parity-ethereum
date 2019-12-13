@@ -31,8 +31,7 @@ use transaction::error;
 type Bytes = Vec<u8>;
 type BlockNumber = u64;
 
-/// Fake address for unsigned transactions as defined by Legacy EIP-86.
-#[cfg(any(test, feature = "test-helpers"))]
+/// Fake address for unsigned transactions as defined by EIP-86.
 pub const UNSIGNED_SENDER: Address = H160([0xff; 20]);
 
 /// System sender address for internal state updates.
