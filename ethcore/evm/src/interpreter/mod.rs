@@ -530,16 +530,10 @@ impl<Cost: CostType> Interpreter<Cost> {
 				let endowment = self.stack.pop_back();
 				let init_off = self.stack.pop_back();
 				let init_size = self.stack.pop_back();
-				let (address_scheme, create_type) = match instruction {
-					instructions::CREATE => (
-						CreateContractAddress::FromSenderAndNonce, 
-						ActionType::Create
-					),
-					instructions::CREATE2 => (
-						CreateContractAddress::FromSenderSaltAndCodeHash(
-							BigEndianHash::from_uint(&self.stack.pop_back())
-						), 
-						ActionType::Create2
+				let address_scheme = match instruction {
+					instructions::CREATE => CreateContractAddress::FromSenderAndNonce,
+					instructions::CREATE2 => CreateContractAddress::FromSenderSaltAndCodeHash(
+						BigEndianHash::from_uint(&self.stack.pop_back())
 					),
 					_ => unreachable!("instruction can only be CREATE/CREATE2 checked above; qed"),
 				};
@@ -567,7 +561,6 @@ impl<Cost: CostType> Interpreter<Cost> {
 					contract_code, 
 					&self.params.code_version, 
 					address_scheme, 
-					create_type, 
 					true,
 				);
 				return match create_result {

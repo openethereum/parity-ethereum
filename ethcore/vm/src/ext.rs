@@ -99,7 +99,6 @@ pub trait Ext {
 		code: &[u8],
 		parent_version: &U256,
 		address: CreateContractAddress,
-		create_type: ActionType,
 		trap: bool,
 	) -> ::std::result::Result<ContractCreateResult, TrapKind>;
 

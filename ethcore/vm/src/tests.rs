@@ -161,7 +161,6 @@ impl Ext for FakeExt {
 		code: &[u8],
 		_parent_version: &U256,
 		address: CreateContractAddress,
-		_create_type: ActionType,
 		_trap: bool,
 	) -> ::std::result::Result<ContractCreateResult, TrapKind> {
 		self.calls.insert(FakeCall {

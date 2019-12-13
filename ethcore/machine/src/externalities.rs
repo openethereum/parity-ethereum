@@ -230,7 +230,6 @@ impl<'a, T: 'a, V: 'a, B: 'a> Ext for Externalities<'a, T, V, B>
 		code: &[u8],
 		parent_version: &U256,
 		address_scheme: CreateContractAddress,
-		create_type: ActionType,
 		trap: bool,
 	) -> ::std::result::Result<ContractCreateResult, TrapKind> {
 		// create new contract address
@@ -240,6 +239,12 @@ impl<'a, T: 'a, V: 'a, B: 'a> Ext for Externalities<'a, T, V, B>
 				debug!(target: "ext", "Database corruption encountered: {:?}", e);
 				return Ok(ContractCreateResult::Failed)
 			}
+		};
+
+		let create_type = match address_scheme {
+			CreateContractAddress::FromSenderAndNonce => ActionType::Create,
+			CreateContractAddress::FromSenderSaltAndCodeHash(_) => ActionType::Create2,
+			CreateContractAddress::FromSenderAndCodeHash => ActionType::Create2,
 		};
 
 		// prepare the params
@@ -646,7 +651,7 @@ mod tests {
 
 		let address = {
 			let mut ext = Externalities::new(state, &setup.env_info, &setup.machine, &setup.schedule, 0, 0, &origin_info, &mut setup.sub_state, OutputPolicy::InitContract, &mut tracer, &mut vm_tracer, false);
-			match ext.create(&U256::max_value(), &U256::zero(), &[], &U256::zero(), CreateContractAddress::FromSenderAndNonce, ActionType::Create, false) {
+			match ext.create(&U256::max_value(), &U256::zero(), &[], &U256::zero(), CreateContractAddress::FromSenderAndNonce, false) {
 				Ok(ContractCreateResult::Created(address, _)) => address,
 				_ => panic!("Test create failed; expected Created, got Failed/Reverted."),
 			}
@@ -668,7 +673,7 @@ mod tests {
 		let address = {
 			let mut ext = Externalities::new(state, &setup.env_info, &setup.machine, &setup.schedule, 0, 0, &origin_info, &mut setup.sub_state, OutputPolicy::InitContract, &mut tracer, &mut vm_tracer, false);
 
-			match ext.create(&U256::max_value(), &U256::zero(), &[], &U256::zero(), CreateContractAddress::FromSenderSaltAndCodeHash(H256::zero()), ActionType::Create2, false) {
+			match ext.create(&U256::max_value(), &U256::zero(), &[], &U256::zero(), CreateContractAddress::FromSenderSaltAndCodeHash(H256::zero()), false) {
 				Ok(ContractCreateResult::Created(address, _)) => address,
 				_ => panic!("Test create failed; expected Created, got Failed/Reverted."),
 			}
