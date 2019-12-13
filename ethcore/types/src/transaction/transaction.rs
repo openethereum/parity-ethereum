@@ -642,6 +642,7 @@ mod tests {
 
 	#[test]
 	fn should_reject_null_signature() {
+		use std::str::FromStr;
 		let t = Transaction {
 			nonce: U256::zero(),
 			gas_price: U256::from(10000000000u64),
@@ -653,7 +654,7 @@ mod tests {
 
 		let res = SignedTransaction::new(t.transaction);
 		match res {
-			Err(parity_crypto::publickey::Error::InvalidSignature) => {}
+			Err(ethkey::Error::InvalidSignature) => {}
 			_ => panic!("null signature should be rejected"),
 		}
 	}
