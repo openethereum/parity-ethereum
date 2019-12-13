@@ -1,6 +1,6 @@
 ## Parity-Ethereum [v2.5.12](https://github.com/paritytech/parity-ethereum/releases/tag/v2.5.12)
 
-Parity Ethereum v2.5.12-stable is a patch releases that adds Istanbul hardfork
+Parity Ethereum v2.5.12-stable is a patch release that adds Istanbul hardfork
 block numbers for POA and xDai networks, implements ECIP-1056 and implements
 EIP-2384/2387 - Muir Glacier.
 
