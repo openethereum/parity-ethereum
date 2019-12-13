@@ -259,9 +259,9 @@ impl<'a, T: 'a, V: 'a, B: 'a> Ext for Externalities<'a, T, V, B>
 		};
 
 		if !self.static_flag {
-			if !self.schedule.keep_unsigned_nonce || params.sender != UNSIGNED_SENDER {
+			if params.sender != UNSIGNED_SENDER {
 				if let Err(e) = self.state.inc_nonce(&self.origin_info.address) {
-					debug!(target: "ext", "Database corruption encountered: {:?}", e);
+					warn!(target: "ext", "Database corruption encountered: {:?}", e);
 					return Ok(ContractCreateResult::Failed)
 				}
 			}
