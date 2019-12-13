@@ -134,6 +134,8 @@ pub struct Schedule {
 	pub eip1283: bool,
 	/// Enable EIP-1706 rules
 	pub eip1706: bool,
+	/// VM execution does not increase null signed address nonce if this field is true.
+	pub keep_unsigned_nonce: bool,
 	/// Latest VM version for contract creation transaction.
 	pub latest_version: U256,
 	/// All supported non-legacy VM versions.
@@ -274,6 +276,7 @@ impl Schedule {
 			kill_dust: CleanDustMode::Off,
 			eip1283: false,
 			eip1706: false,
+			keep_unsigned_nonce: false,
 			latest_version: U256::zero(),
 			versions: HashMap::new(),
 			wasm: None,
@@ -364,6 +367,7 @@ impl Schedule {
 			kill_dust: CleanDustMode::Off,
 			eip1283: false,
 			eip1706: false,
+			keep_unsigned_nonce: false,
 			latest_version: U256::zero(),
 			versions: HashMap::new(),
 			wasm: None,
