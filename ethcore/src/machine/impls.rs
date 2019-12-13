@@ -367,7 +367,7 @@ impl EthereumMachine {
 		} else {
 			None
 		};
-		t.verify_basic(check_low_s, chain_id, false)?;
+		t.verify_basic(check_low_s, chain_id)?;
 
 		Ok(())
 	}
