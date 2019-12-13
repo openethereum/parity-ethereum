@@ -367,7 +367,7 @@ impl UnverifiedTransaction {
 	/// Checks whether the signature has a low 's' value.
 	pub fn check_low_s(&self) -> Result<(), parity_crypto::publickey::Error> {
 		if !self.signature().is_low_s() {
-			Err(parity_crypto::publickey::Error::InvalidSignature.into())
+			Err(parity_crypto::publickey::Error::InvalidSignature)
 		} else {
 			Ok(())
 		}
@@ -435,7 +435,7 @@ impl SignedTransaction {
 	/// Try to verify transaction and recover sender.
 	pub fn new(transaction: UnverifiedTransaction) -> Result<Self, parity_crypto::publickey::Error> {
 		if transaction.is_unsigned() {
-			return Err(parity_crypto::publickey::Error::InvalidSignature.into());
+			return Err(parity_crypto::publickey::Error::InvalidSignature);
 		}
 		let public = transaction.recover_public()?;
 		let sender = public_to_address(&public);
@@ -632,6 +632,24 @@ mod tests {
 		let t = t.clone();
 		assert_eq!(Address::from_low_u64_be(0x69), t.sender());
 		assert_eq!(t.chain_id(), None);
+	}
+
+	#[test]
+	fn should_reject_null_signature() {
+		let t = Transaction {
+			nonce: U256::zero(),
+			gas_price: U256::from(10000000000u64),
+			gas: U256::from(21000),
+			action: Action::Call(Address::from_str("d46e8dd67c5d32be8058bb8eb970870f07244567").unwrap()),
+			value: U256::from(1),
+			data: vec![]
+		}.null_sign(1);
+
+		let res = SignedTransaction::new(t.transaction);
+		match res {
+			Err(parity_crypto::publickey::Error::InvalidSignature) => {}
+			_ => panic!("null signature should be rejected"),
+		}
 	}
 
 	#[test]
