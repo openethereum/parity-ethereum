@@ -1236,7 +1236,7 @@ mod tests {
 	use parity_crypto::publickey::{Generator, Random};
 	use evm::{Factory, evm_test, evm_test_ignore};
 	use macros::vec_into;
-	use vm::{ActionParams, ActionValue, ActionType, EnvInfo, CreateContractAddress};
+	use vm::{ActionParams, ActionValue, EnvInfo, CreateContractAddress};
 	use ::trace::{
 		trace,
 		FlatTrace, Tracer, NoopTracer, ExecutiveTracer,
@@ -1434,7 +1434,7 @@ mod tests {
 				value: 100.into(),
 				gas: 100_000.into(),
 				input: vec![],
-				call_type: ActionType::Call
+				call_type: Some(trace::CallType::Call)
 			}),
 			result: trace::Res::Call(trace::CallResult {
 				gas_used: 33021.into(),
@@ -1449,7 +1449,7 @@ mod tests {
 				value: 1.into(),
 				gas: 66560.into(),
 				input: vec![],
-				call_type: ActionType::Call
+				call_type: Some(trace::CallType::Call)
 			}), result: trace::Res::Call(trace::CallResult {
 				gas_used: 600.into(),
 				output: vec![0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 156, 17, 133, 165, 197, 233, 252, 84, 97, 40, 8, 151, 126, 232, 245, 72, 178, 37, 141, 49]
@@ -1524,7 +1524,7 @@ mod tests {
 				value: 100.into(),
 				gas: 100000.into(),
 				input: vec![],
-				call_type: ActionType::Call,
+				call_type: Some(trace::CallType::Call),
 			}),
 			result: trace::Res::Call(trace::CallResult {
 				gas_used: U256::from(55_248),
@@ -1537,7 +1537,8 @@ mod tests {
 				from: Address::from_str("b010143a42d5980c7e5ef0e4a4416dc098a4fed3").unwrap(),
 				value: 23.into(),
 				gas: 67979.into(),
-				init: vec![96, 16, 128, 96, 12, 96, 0, 57, 96, 0, 243, 0, 96, 0, 53, 84, 21, 96, 9, 87, 0, 91, 96, 32, 53, 96, 0, 53, 85]
+				init: vec![96, 16, 128, 96, 12, 96, 0, 57, 96, 0, 243, 0, 96, 0, 53, 84, 21, 96, 9, 87, 0, 91, 96, 32, 53, 96, 0, 53, 85],
+				creation_method: Some(trace::CreationMethod::Create),
 			}),
 			result: trace::Res::Create(trace::CreateResult {
 				gas_used: U256::from(3224),
@@ -1640,7 +1641,7 @@ mod tests {
 				value: 100.into(),
 				gas: 100_000.into(),
 				input: vec![],
-				call_type: ActionType::Call,
+				call_type: Some(trace::CallType::Call),
 			}),
 			result: trace::Res::Call(trace::CallResult {
 				gas_used: U256::from(37_033),
@@ -1653,7 +1654,8 @@ mod tests {
 				from: Address::from_str("b010143a42d5980c7e5ef0e4a4416dc098a4fed3").unwrap(),
 				value: 23.into(),
 				gas: 66_917.into(),
-				init: vec![0x60, 0x01, 0x60, 0x00, 0xfd]
+				init: vec![0x60, 0x01, 0x60, 0x00, 0xfd],
+				creation_method: Some(trace::CreationMethod::Create),
 			}),
 			result: trace::Res::FailedCreate(vm::Error::Reverted.into()),
 		}];
@@ -1711,6 +1713,7 @@ mod tests {
 				value: 100.into(),
 				gas: params.gas,
 				init: vec![96, 16, 128, 96, 12, 96, 0, 57, 96, 0, 243, 0, 96, 0, 53, 84, 21, 96, 9, 87, 0, 91, 96, 32, 53, 96, 0, 53, 85],
+				creation_method: Some(trace::CreationMethod::Create),
 			}),
 			result: trace::Res::Create(trace::CreateResult {
 				gas_used: U256::from(3224),

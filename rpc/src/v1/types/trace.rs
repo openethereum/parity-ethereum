@@ -234,7 +234,7 @@ impl From<trace::Create> for Create {
 			value: c.value,
 			gas: c.gas,
 			init: Bytes::new(c.init),
-			creation_method: c.create_type.map(|c| c.into()),
+			creation_method: c.creation_method.map(|c| c.into()),
 		}
 	}
 }

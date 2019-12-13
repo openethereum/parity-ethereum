@@ -206,7 +206,7 @@ pub struct Create {
 	/// The init code.
 	pub init: Bytes,
 	/// Creation method (CREATE vs CREATE2).
-	pub create_type: Option<CreationMethod>,
+	pub creation_method: Option<CreationMethod>,
 }
 
 impl From<ActionParams> for Create {
@@ -216,7 +216,7 @@ impl From<ActionParams> for Create {
 			value: p.value.value(),
 			gas: p.gas,
 			init: p.code.map_or_else(Vec::new, |c| (*c).clone()),
-			create_type: CreationMethod::maybe_new(p.action_type),
+			creation_method: CreationMethod::maybe_new(p.action_type),
 		}
 	}
 }

@@ -276,7 +276,6 @@ mod tests {
 		test_helpers::{get_temp_state, get_temp_state_db}
 	};
 	use ethtrie;
-	use evm::CallType;
 	use machine::Machine;
 	use pod::{self, PodAccount, PodState};
 	use rustc_hex::FromHex;
@@ -324,6 +323,7 @@ mod tests {
 				value: 100.into(),
 				gas: 77412.into(),
 				init: vec![96, 16, 128, 96, 12, 96, 0, 57, 96, 0, 243, 0, 96, 0, 53, 84, 21, 96, 9, 87, 0, 91, 96, 32, 53, 96, 0, 53, 85],
+				creation_method: Some(trace::CreationMethod::Create),
 			}),
 			result: trace::Res::Create(trace::CreateResult {
 				gas_used: U256::from(3224),
@@ -381,6 +381,7 @@ mod tests {
 				value: 100.into(),
 				gas: 78792.into(),
 				init: vec![91, 96, 0, 86],
+				creation_method: Some(trace::CreationMethod::Create),
 			}),
 			result: trace::Res::FailedCreate(TraceError::OutOfGas),
 			subtraces: 0
@@ -419,7 +420,7 @@ mod tests {
 				value: 100.into(),
 				gas: 79000.into(),
 				input: vec![],
-				call_type: CallType::Call,
+				call_type: Some(trace::CallType::Call),
 			}),
 			result: trace::Res::Call(trace::CallResult {
 				gas_used: U256::from(3),
@@ -460,7 +461,7 @@ mod tests {
 				value: 100.into(),
 				gas: 79000.into(),
 				input: vec![],
-				call_type: CallType::Call,
+				call_type: Some(trace::CallType::Call),
 			}),
 			result: trace::Res::Call(trace::CallResult {
 				gas_used: U256::from(0),
@@ -501,7 +502,7 @@ mod tests {
 				value: 0.into(),
 				gas: 79_000.into(),
 				input: vec![],
-				call_type: CallType::Call,
+				call_type: Some(trace::CallType::Call),
 			}),
 			result: trace::Res::Call(trace::CallResult {
 				gas_used: U256::from(3000),
@@ -543,7 +544,7 @@ mod tests {
 				value: 0.into(),
 				gas: 79000.into(),
 				input: vec![],
-				call_type: CallType::Call,
+				call_type: Some(trace::CallType::Call),
 			}),
 			result: trace::Res::Call(trace::CallResult {
 				gas_used: U256::from(3_721), // in post-eip150
@@ -587,7 +588,7 @@ mod tests {
 				value: 0.into(),
 				gas: 79000.into(),
 				input: vec![],
-				call_type: CallType::Call,
+				call_type: Some(trace::CallType::Call),
 			}),
 			result: trace::Res::Call(trace::CallResult {
 				gas_used: 724.into(), // in post-eip150
@@ -602,7 +603,7 @@ mod tests {
 				value: 0.into(),
 				gas: 4096.into(),
 				input: vec![],
-				call_type: CallType::CallCode,
+				call_type: Some(trace::CallType::CallCode),
 			}),
 			result: trace::Res::Call(trace::CallResult {
 				gas_used: 3.into(),
@@ -646,7 +647,7 @@ mod tests {
 				value: 0.into(),
 				gas: 79000.into(),
 				input: vec![],
-				call_type: CallType::Call,
+				call_type: Some(trace::CallType::Call),
 			}),
 			result: trace::Res::Call(trace::CallResult {
 				gas_used: U256::from(736), // in post-eip150
@@ -661,7 +662,7 @@ mod tests {
 				value: 0.into(),
 				gas: 32768.into(),
 				input: vec![],
-				call_type: CallType::DelegateCall,
+				call_type: Some(trace::CallType::DelegateCall),
 			}),
 			result: trace::Res::Call(trace::CallResult {
 				gas_used: 18.into(),
@@ -702,7 +703,7 @@ mod tests {
 				value: 100.into(),
 				gas: 79000.into(),
 				input: vec![],
-				call_type: CallType::Call,
+				call_type: Some(trace::CallType::Call),
 			}),
 			result: trace::Res::FailedCall(TraceError::OutOfGas),
 			subtraces: 0,
@@ -744,7 +745,7 @@ mod tests {
 				value: 100.into(),
 				gas: 79000.into(),
 				input: vec![],
-				call_type: CallType::Call,
+				call_type: Some(trace::CallType::Call),
 			}),
 			result: trace::Res::Call(trace::CallResult {
 				gas_used: U256::from(69),
@@ -759,7 +760,7 @@ mod tests {
 				value: 0.into(),
 				gas: 78934.into(),
 				input: vec![],
-				call_type: CallType::Call,
+				call_type: Some(trace::CallType::Call),
 			}),
 			result: trace::Res::Call(trace::CallResult {
 				gas_used: U256::from(3),
@@ -801,7 +802,7 @@ mod tests {
 				value: 100.into(),
 				gas: 79000.into(),
 				input: vec![],
-				call_type: CallType::Call,
+				call_type: Some(trace::CallType::Call),
 			}),
 			result: trace::Res::Call(trace::CallResult {
 				gas_used: U256::from(31761),
@@ -816,7 +817,7 @@ mod tests {
 				value: 69.into(),
 				gas: 2300.into(),
 				input: vec![],
-				call_type: CallType::Call,
+				call_type: Some(trace::CallType::Call),
 			}),
 			result: trace::Res::Call(trace::CallResult::default()),
 		}];
@@ -855,7 +856,7 @@ mod tests {
 				value: 100.into(),
 				gas: 79000.into(),
 				input: vec![],
-				call_type: CallType::Call,
+				call_type: Some(trace::CallType::Call),
 			}),
 			result: trace::Res::Call(trace::CallResult {
 				gas_used: U256::from(31761),
@@ -898,7 +899,7 @@ mod tests {
 				value: 100.into(),
 				gas: 79000.into(),
 				input: vec![],
-				call_type: CallType::Call,
+				call_type: Some(trace::CallType::Call),
 			}),
 			result: trace::Res::Call(trace::CallResult {
 				gas_used: U256::from(79_000),
@@ -913,7 +914,7 @@ mod tests {
 				value: 0.into(),
 				gas: 78934.into(),
 				input: vec![],
-				call_type: CallType::Call,
+				call_type: Some(trace::CallType::Call),
 			}),
 			result: trace::Res::FailedCall(TraceError::OutOfGas),
 		}];
@@ -954,7 +955,7 @@ mod tests {
 				value: 100.into(),
 				gas: 79000.into(),
 				input: vec![],
-				call_type: CallType::Call,
+				call_type: Some(trace::CallType::Call),
 			}),
 			result: trace::Res::Call(trace::CallResult {
 				gas_used: U256::from(135),
@@ -969,7 +970,7 @@ mod tests {
 				value: 0.into(),
 				gas: 78934.into(),
 				input: vec![],
-				call_type: CallType::Call,
+				call_type: Some(trace::CallType::Call),
 			}),
 			result: trace::Res::Call(trace::CallResult {
 				gas_used: U256::from(69),
@@ -984,7 +985,7 @@ mod tests {
 				value: 0.into(),
 				gas: 78868.into(),
 				input: vec![],
-				call_type: CallType::Call,
+				call_type: Some(trace::CallType::Call),
 			}),
 			result: trace::Res::Call(trace::CallResult {
 				gas_used: U256::from(3),
@@ -1029,7 +1030,7 @@ mod tests {
 				value: 100.into(),
 				gas: 79000.into(),
 				input: vec![],
-				call_type: CallType::Call,
+				call_type: Some(trace::CallType::Call),
 			}),
 			result: trace::Res::Call(trace::CallResult {
 				gas_used: U256::from(79_000),
@@ -1044,7 +1045,7 @@ mod tests {
 				value: 0.into(),
 				gas: 78934.into(),
 				input: vec![],
-				call_type: CallType::Call,
+				call_type: Some(trace::CallType::Call),
 			}),
 			result: trace::Res::FailedCall(TraceError::OutOfGas),
 		}, FlatTrace {
@@ -1055,7 +1056,7 @@ mod tests {
 				to: Address::from_low_u64_be(0xc),
 				value: 0.into(),
 				gas: 78868.into(),
-				call_type: CallType::Call,
+				call_type: Some(trace::CallType::Call),
 				input: vec![],
 			}),
 			result: trace::Res::Call(trace::CallResult {
@@ -1099,7 +1100,7 @@ mod tests {
 				value: 100.into(),
 				gas: 79000.into(),
 				input: vec![],
-				call_type: CallType::Call,
+				call_type: Some(trace::CallType::Call),
 			}),
 			result: trace::Res::Call(trace::CallResult {
 				gas_used: 3.into(),
