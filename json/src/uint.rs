@@ -125,7 +125,6 @@ pub fn validate_optional_non_zero<'de, D>(d: D) -> Result<Option<Uint>, D::Error
 mod test {
 	use super::Uint;
 	use ethereum_types::U256;
-	use serde_json::error::Category;
 
 	#[test]
 	fn uint_deserialization() {

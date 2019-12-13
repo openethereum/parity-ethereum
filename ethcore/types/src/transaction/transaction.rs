@@ -141,7 +141,7 @@ impl Transaction {
 impl From<ethjson::transaction::Transaction> for SignedTransaction {
 	fn from(t: ethjson::transaction::Transaction) -> Self {
 		let to: Option<ethjson::hash::Address> = t.to.into();
-		let secret = t.secret.map(|s| Secret::from(s.0));
+		let secret = Secret::from(t.secret.0);
 		let tx = Transaction {
 			nonce: t.nonce.into(),
 			gas_price: t.gas_price.into(),
@@ -153,10 +153,7 @@ impl From<ethjson::transaction::Transaction> for SignedTransaction {
 			value: t.value.into(),
 			data: t.data.into(),
 		};
-		match secret {
-			Some(s) => tx.sign(&s, None),
-			None => tx.null_sign(1),
-		}
+		tx.sign(&secret, None)
 	}
 }
 
@@ -237,7 +234,8 @@ impl Transaction {
 		}
 	}
 
-	/// Add EIP-86 compatible empty signature.
+	/// Legacy EIP-86 compatible empty signature.
+	/// Used only for tests.
 	pub fn null_sign(self, chain_id: u64) -> SignedTransaction {
 		SignedTransaction {
 			transaction: UnverifiedTransaction {
@@ -295,7 +293,7 @@ impl rlp::Decodable for UnverifiedTransaction {
 			v: d.val_at(6)?,
 			r: d.val_at(7)?,
 			s: d.val_at(8)?,
-			hash: hash,
+			hash,
 		})
 	}
 }
@@ -386,17 +384,13 @@ impl UnverifiedTransaction {
 	}
 
 	/// Verify basic signature params. Does not attempt sender recovery.
-	pub fn verify_basic(&self, check_low_s: bool, chain_id: Option<u64>, allow_empty_signature: bool) -> Result<(), error::Error> {
-		if check_low_s && !(allow_empty_signature && self.is_unsigned()) {
-			self.check_low_s()?;
-		}
-		// Disallow unsigned transactions in case EIP-86 is disabled.
-		if !allow_empty_signature && self.is_unsigned() {
+	pub fn verify_basic(&self, check_low_s: bool, chain_id: Option<u64>) -> Result<(), error::Error> {
+		// Disallow unsigned transactions.
+		if self.is_unsigned() {
 			return Err(parity_crypto::publickey::Error::InvalidSignature.into());
 		}
-		// EIP-86: Transactions of this form MUST have gasprice = 0, nonce = 0, value = 0, and do NOT increment the nonce of account 0.
-		if allow_empty_signature && self.is_unsigned() && !(self.gas_price.is_zero() && self.value.is_zero() && self.nonce.is_zero()) {
-			return Err(parity_crypto::publickey::Error::InvalidSignature.into())
+		if check_low_s {
+			self.check_low_s()?;
 		}
 		match (self.chain_id(), chain_id) {
 			(None, _) => {},
@@ -441,20 +435,15 @@ impl SignedTransaction {
 	/// Try to verify transaction and recover sender.
 	pub fn new(transaction: UnverifiedTransaction) -> Result<Self, parity_crypto::publickey::Error> {
 		if transaction.is_unsigned() {
-			Ok(SignedTransaction {
-				transaction: transaction,
-				sender: UNSIGNED_SENDER,
-				public: None,
-			})
-		} else {
-			let public = transaction.recover_public()?;
-			let sender = public_to_address(&public);
-			Ok(SignedTransaction {
-				transaction: transaction,
-				sender: sender,
-				public: Some(public),
-			})
+			return Err(parity_crypto::publickey::Error::InvalidSignature.into());
 		}
+		let public = transaction.recover_public()?;
+		let sender = public_to_address(&public);
+		Ok(SignedTransaction {
+			transaction,
+			sender,
+			public: Some(public),
+		})
 	}
 
 	/// Returns transaction sender.
