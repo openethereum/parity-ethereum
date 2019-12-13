@@ -1696,6 +1696,30 @@ mod tests {
 	}
 
 	#[test]
+	fn should_reject_local_transaction_with_invalid_chain_id() {
+		let spec = spec::new_test();
+		let miner = Miner::new_for_tests(&spec, None);
+		let client = TestBlockChainClient::default();
+		let chain_id = spec.chain_id();
+
+		// chain_id + 100500 is invalid
+		let import = miner.import_claimed_local_transaction(
+			&client,
+			PendingTransaction::new(transaction_with_chain_id(chain_id + 10500), None),
+			false,
+		);
+		assert_eq!(import, Err(transaction::Error::InvalidChainId));
+
+		// chain_id is valid
+		let import = miner.import_claimed_local_transaction(
+			&client,
+			PendingTransaction::new(transaction_with_chain_id(chain_id), None),
+			false,
+		);
+		assert_eq!(import, Ok(()));
+	}
+
+	#[test]
 	fn should_prioritize_locals() {
 		let client = TestBlockChainClient::default();
 		let transaction = transaction();
