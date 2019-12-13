@@ -103,6 +103,12 @@ impl pool::client::Client for TestClient {
 		false
 	}
 
+	fn verify_transaction_basic(&self, _tx: &UnverifiedTransaction)
+		-> Result<(), transaction::Error>
+	{
+		Ok(())
+	}
+
 	fn verify_transaction(&self, tx: UnverifiedTransaction)
 		-> Result<SignedTransaction, transaction::Error>
 	{
