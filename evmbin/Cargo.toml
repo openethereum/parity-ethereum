@@ -11,7 +11,7 @@ path = "./src/main.rs"
 
 [dependencies]
 account-state = { path = "../ethcore/account-state" }
-common-types = { path = "../ethcore/types" }
+common-types = { path = "../ethcore/types", features = ["test-helpers"] }
 docopt = "1.0"
 env_logger = "0.5"
 ethcore = { path = "../ethcore", features = ["test-helpers", "json-tests"] }
