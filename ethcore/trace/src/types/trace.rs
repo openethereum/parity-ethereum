@@ -33,6 +33,56 @@ pub struct CallResult {
 	pub output: Bytes,
 }
 
+/// `Call` type
+#[derive(Debug, Clone, PartialEq)]
+pub enum CallType {
+	/// Call
+	Call,
+	/// Call code
+	CallCode,
+	/// Delegate call
+	DelegateCall,
+	/// Static call
+	StaticCall,
+}
+
+impl CallType {
+	fn maybe_new(action_type: ActionType) -> Option<Self> {
+		match action_type {
+			ActionType::Call => Some(CallType::Call),
+			ActionType::CallCode => Some(CallType::CallCode),
+			ActionType::DelegateCall => Some(CallType::DelegateCall),
+			ActionType::StaticCall => Some(CallType::StaticCall),
+			ActionType::Create => None,
+			ActionType::Create2 => None,
+		}
+	}
+}
+
+impl Encodable for CallType {
+	fn rlp_append(&self, s: &mut RlpStream) {
+		let v = match *self {
+			CallType::Call => 0u32,
+			CallType::CallCode => 1,
+			CallType::DelegateCall => 2,
+			CallType::StaticCall => 3,
+		};
+		Encodable::rlp_append(&v, s);
+	}
+}
+
+impl Decodable for CallType {
+	fn decode(rlp: &Rlp) -> Result<Self, DecoderError> {
+		rlp.as_val().and_then(|v| Ok(match v {
+			0u32 => CallType::Call,
+			1 => CallType::CallCode,
+			2 => CallType::DelegateCall,
+			3 => CallType::StaticCall,
+			_ => return Err(DecoderError::Custom("Invalid value of RewardType item")),
+		}))
+	}
+}
+
 /// `Create` result.
 #[derive(Debug, Clone, PartialEq, RlpEncodable, RlpDecodable)]
 pub struct CreateResult {
@@ -51,6 +101,48 @@ impl CreateResult {
 	}
 }
 
+/// `Create` method
+#[derive(Debug, Clone, PartialEq)]
+pub enum CreationMethod {
+	/// Create
+	Create,
+	/// Create2
+	Create2,
+}
+
+impl CreationMethod {
+	fn maybe_new(action_type: ActionType) -> Option<Self> {
+		match action_type {
+			ActionType::Call => None,
+			ActionType::CallCode => None,
+			ActionType::DelegateCall => None,
+			ActionType::StaticCall => None,
+			ActionType::Create => Some(CreationMethod::Create),
+			ActionType::Create2 => Some(CreationMethod::Create2),
+		}
+	}
+}
+
+impl Encodable for CreationMethod {
+	fn rlp_append(&self, s: &mut RlpStream) {
+		let v = match *self {
+			CreationMethod::Create => 0u32,
+			CreationMethod::Create2 => 1,
+		};
+		Encodable::rlp_append(&v, s);
+	}
+}
+
+impl Decodable for CreationMethod {
+	fn decode(rlp: &Rlp) -> Result<Self, DecoderError> {
+		rlp.as_val().and_then(|v| Ok(match v {
+			0u32 => CreationMethod::Create,
+			1 => CreationMethod::Create2,
+			_ => return Err(DecoderError::Custom("Invalid value of RewardType item")),
+		}))
+	}
+}
+
 /// Description of a _call_ action, either a `CALL` operation or a message transaction.
 #[derive(Debug, Clone, PartialEq, RlpEncodable, RlpDecodable)]
 pub struct Call {
@@ -65,7 +157,7 @@ pub struct Call {
 	/// The input data provided to the call.
 	pub input: Bytes,
 	/// The type of the call.
-	pub call_type: ActionType,
+	pub call_type: Option<CallType>,
 }
 
 impl From<ActionParams> for Call {
@@ -77,7 +169,7 @@ impl From<ActionParams> for Call {
 				value: p.value.value(),
 				gas: p.gas,
 				input: p.data.unwrap_or_else(Vec::new),
-				call_type: p.action_type,
+				call_type: CallType::maybe_new(p.action_type),
 			},
 			_ => Call {
 				from: p.sender,
@@ -85,7 +177,7 @@ impl From<ActionParams> for Call {
 				value: p.value.value(),
 				gas: p.gas,
 				input: p.data.unwrap_or_else(Vec::new),
-				call_type: p.action_type,
+				call_type: CallType::maybe_new(p.action_type),
 			},
 		}
 	}
@@ -114,7 +206,7 @@ pub struct Create {
 	/// The init code.
 	pub init: Bytes,
 	/// Creation method (CREATE vs CREATE2).
-	pub create_type: ActionType,
+	pub create_type: Option<CreationMethod>,
 }
 
 impl From<ActionParams> for Create {
@@ -124,7 +216,7 @@ impl From<ActionParams> for Create {
 			value: p.value.value(),
 			gas: p.gas,
 			init: p.code.map_or_else(Vec::new, |c| (*c).clone()),
-			create_type: p.action_type,
+			create_type: CreationMethod::maybe_new(p.action_type),
 		}
 	}
 }

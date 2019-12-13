@@ -24,7 +24,6 @@ use serde::ser::SerializeStruct;
 use serde::{Serialize, Serializer};
 use types::account_diff;
 use types::state_diff;
-use vm;
 
 use v1::types::Bytes;
 
@@ -225,7 +224,7 @@ pub struct Create {
 	/// Initialization code
 	init: Bytes,
 	// Create Type
-	create_type: Option<CreateType>,
+	creation_method: Option<CreationMethod>,
 }
 
 impl From<trace::Create> for Create {
@@ -235,7 +234,7 @@ impl From<trace::Create> for Create {
 			value: c.value,
 			gas: c.gas,
 			init: Bytes::new(c.init),
-			create_type: CreateType::maybe_new(c.create_type),
+			creation_method: c.create_type.map(|c| c.into()),
 		}
 	}
 }
@@ -254,15 +253,13 @@ pub enum CallType {
 	StaticCall,
 }
 
-impl CallType {
-	fn maybe_new(c: vm::ActionType) -> Option<Self> {
+impl From<trace::CallType> for CallType {
+	fn from(c: trace::CallType) -> Self {
 		match c {
-			vm::ActionType::Call => Some(CallType::Call),
-			vm::ActionType::CallCode => Some(CallType::CallCode),
-			vm::ActionType::DelegateCall => Some(CallType::DelegateCall),
-			vm::ActionType::StaticCall => Some(CallType::StaticCall),
-			vm::ActionType::Create => None,
-			vm::ActionType::Create2 => None,
+			trace::CallType::Call => CallType::Call,
+			trace::CallType::CallCode => CallType::CallCode,
+			trace::CallType::DelegateCall => CallType::DelegateCall,
+			trace::CallType::StaticCall => CallType::StaticCall,
 		}
 	}
 }
@@ -270,22 +267,18 @@ impl CallType {
 /// Create type.
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "lowercase")]
-pub enum CreateType {
+pub enum CreationMethod {
 	/// Create
 	Create,
 	/// Create2
 	Create2,
 }
 
-impl CreateType {
-	fn maybe_new(c: vm::ActionType) -> Option<Self> {
+impl From<trace::CreationMethod> for CreationMethod {
+	fn from(c: trace::CreationMethod) -> Self {
 		match c {
-			vm::ActionType::Call => None,
-			vm::ActionType::CallCode => None,
-			vm::ActionType::DelegateCall => None,
-			vm::ActionType::StaticCall => None,
-			vm::ActionType::Create => Some(CreateType::Create),
-			vm::ActionType::Create2 => Some(CreateType::Create2),
+			trace::CreationMethod::Create => CreationMethod::Create,
+			trace::CreationMethod::Create2 => CreationMethod::Create2,
 		}
 	}
 }
@@ -316,7 +309,7 @@ impl From<trace::Call> for Call {
 			value: c.value,
 			gas: c.gas,
 			input: c.input.into(),
-			call_type: CallType::maybe_new(c.call_type),
+			call_type: c.call_type.map(|c| c.into()),
 		}
 	}
 }
@@ -707,7 +700,7 @@ mod tests {
 				value: 6.into(),
 				gas: 7.into(),
 				input: Bytes::new(vec![0x12, 0x34]),
-				call_type: CallType::Call,
+				call_type: Some(CallType::Call),
 			}),
 			result: Res::Call(CallResult {
 				gas_used: 8.into(),
@@ -733,7 +726,7 @@ mod tests {
 				value: 6.into(),
 				gas: 7.into(),
 				input: Bytes::new(vec![0x12, 0x34]),
-				call_type: CallType::Call,
+				call_type: Some(CallType::Call),
 			}),
 			result: Res::FailedCall(TraceError::OutOfGas),
 			trace_address: vec![10],
@@ -755,7 +748,7 @@ mod tests {
 				value: 6.into(),
 				gas: 7.into(),
 				init: Bytes::new(vec![0x12, 0x34]),
-				create_type: CreateType::Create,
+				creation_method: Some(CreationMethod::Create),
 			}),
 			result: Res::Create(CreateResult {
 				gas_used: 8.into(),
@@ -770,7 +763,7 @@ mod tests {
 			block_hash: H256::from_low_u64_be(14),
 		};
 		let serialized = serde_json::to_string(&t).unwrap();
-		assert_eq!(serialized, r#"{"type":"create","action":{"from":"0x0000000000000000000000000000000000000004","value":"0x6","gas":"0x7","init":"0x1234","createType":"create"},"result":{"gasUsed":"0x8","code":"0x5678","address":"0x00000000000000000000000000000000000000ff"},"traceAddress":[10],"subtraces":1,"transactionPosition":11,"transactionHash":"0x000000000000000000000000000000000000000000000000000000000000000c","blockNumber":13,"blockHash":"0x000000000000000000000000000000000000000000000000000000000000000e"}"#);
+		assert_eq!(serialized, r#"{"type":"create","action":{"from":"0x0000000000000000000000000000000000000004","value":"0x6","gas":"0x7","init":"0x1234","creationMethod":"create"},"result":{"gasUsed":"0x8","code":"0x5678","address":"0x00000000000000000000000000000000000000ff"},"traceAddress":[10],"subtraces":1,"transactionPosition":11,"transactionHash":"0x000000000000000000000000000000000000000000000000000000000000000c","blockNumber":13,"blockHash":"0x000000000000000000000000000000000000000000000000000000000000000e"}"#);
 	}
 
 	#[test]
@@ -781,7 +774,7 @@ mod tests {
 				value: 6.into(),
 				gas: 7.into(),
 				init: Bytes::new(vec![0x12, 0x34]),
-				create_type: CreateType::Create,
+				creation_method: Some(CreationMethod::Create),
 			}),
 			result: Res::FailedCreate(TraceError::OutOfGas),
 			trace_address: vec![10],
@@ -792,7 +785,7 @@ mod tests {
 			block_hash: H256::from_low_u64_be(14),
 		};
 		let serialized = serde_json::to_string(&t).unwrap();
-		assert_eq!(serialized, r#"{"type":"create","action":{"from":"0x0000000000000000000000000000000000000004","value":"0x6","gas":"0x7","init":"0x1234","createType":"create"},"error":"Out of gas","traceAddress":[10],"subtraces":1,"transactionPosition":11,"transactionHash":"0x000000000000000000000000000000000000000000000000000000000000000c","blockNumber":13,"blockHash":"0x000000000000000000000000000000000000000000000000000000000000000e"}"#);
+		assert_eq!(serialized, r#"{"type":"create","action":{"from":"0x0000000000000000000000000000000000000004","value":"0x6","gas":"0x7","init":"0x1234","creationMethod":"create"},"error":"Out of gas","traceAddress":[10],"subtraces":1,"transactionPosition":11,"transactionHash":"0x000000000000000000000000000000000000000000000000000000000000000c","blockNumber":13,"blockHash":"0x000000000000000000000000000000000000000000000000000000000000000e"}"#);
 	}
 
 	#[test]
