@@ -273,7 +273,7 @@ pub mod tests {
 	use parking_lot::RwLock;
 	use self::tempdir::TempDir;
 	use ethkey::{Random, Generator, Public};
-use kvdb_rocksdb::{Database, DatabaseConfig};
+	use kvdb_rocksdb::{Database, DatabaseConfig};
 	use types::{Error, ServerKeyId};
 	use super::{KeyStorage, PersistentKeyStorage, DocumentKeyShare, DocumentKeyShareVersion};
 
