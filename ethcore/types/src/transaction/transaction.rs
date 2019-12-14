@@ -647,7 +647,7 @@ mod tests {
 
 		let res = SignedTransaction::new(t.transaction);
 		match res {
-			Err(parity_crypto::publickey::Error::InvalidSignature) => {}
+			Err(ethkey::Error::InvalidSignature) => {}
 			_ => panic!("null signature should be rejected"),
 		}
 	}
