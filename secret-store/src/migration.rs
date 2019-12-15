@@ -36,7 +36,7 @@ pub enum Error {
 	UnknownDatabaseVersion,
 	/// Existing DB is newer than the known one.
 	FutureDBVersion,
-	/// Migration using parity-ethereum 2.6 is required.
+	/// Migration using parity-ethereum 2.6.7 is required.
 	MigrationWithLegacyVersionRequired,
 	/// Migration was completed successfully,
 	/// but there was a problem with io.
@@ -53,7 +53,7 @@ impl Display for Error {
 				Upgrade your client or delete DB and resync.".into(),
 			Error::MigrationWithLegacyVersionRequired =>
 				"Secret Store database was created with an older client version.\
-				To migrate, use parity-ethereum v2.6, then retry using the latest.".into(),
+				To migrate, use parity-ethereum v2.6.7, then retry using the latest.".into(),
 			Error::Io(ref err) =>
 				format!("Unexpected io error on Secret Store database migration: {}.", err),
 		};
