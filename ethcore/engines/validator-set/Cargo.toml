@@ -23,7 +23,7 @@ log = "0.4.8"
 machine = { path = "../../machine" }
 memory-cache = { path = "../../../util/memory-cache" }
 parity-bytes = "0.1.0"
-parity-util-mem = "0.2.0"
+parity-util-mem = "0.2.1"
 parking_lot = "0.9"
 rlp = "0.4.2"
 triehash = { package = "triehash-ethereum", version = "0.2",  path = "../../../util/triehash-ethereum" }

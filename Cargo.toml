@@ -57,7 +57,7 @@ parity-path = "0.1"
 parity-rpc = { path = "rpc" }
 parity-runtime = { path = "util/runtime" }
 parity-updater = { path = "updater" }
-parity-util-mem = { version = "0.2.0", features = ["jemalloc-global"] }
+parity-util-mem = { version = "0.2.1", features = ["jemalloc-global"] }
 parity-version = { path = "util/version" }
 parking_lot = "0.9"
 regex = "1.0"
@@ -138,9 +138,13 @@ members = [
 
 # todo[dvdplm] remove before merge
 [patch.crates-io]
-kvdb = { git = "https://github.com/zrzka/parity-common", branch = "zrzka/kvdb-column-type-u32" }
-kvdb-rocksdb = { git = "https://github.com/zrzka/parity-common", branch = "zrzka/kvdb-column-type-u32" }
-kvdb-memorydb = { git = "https://github.com/zrzka/parity-common", branch = "zrzka/kvdb-column-type-u32" }
-#kvdb = { path = "../parity-common/kvdb" }
-#kvdb-rocksdb = { path = "../parity-common/kvdb-rocksdb" }
-#kvdb-memorydb = { path = "../parity-common/kvdb-memorydb" }
+kvdb = { git = "https://github.com/paritytech/parity-common", rev = "83c9ccdaa7c598a8afb2fe0baa76f6270e2b4637" }
+kvdb-rocksdb = { git = "https://github.com/paritytech/parity-common", rev = "83c9ccdaa7c598a8afb2fe0baa76f6270e2b4637" }
+kvdb-memorydb = { git = "https://github.com/paritytech/parity-common", rev = "83c9ccdaa7c598a8afb2fe0baa76f6270e2b4637" }
+parity-util-mem = { git = "https://github.com/paritytech/parity-common", rev = "83c9ccdaa7c598a8afb2fe0baa76f6270e2b4637" }
+ethereum-types = { git = "https://github.com/paritytech/parity-common", rev = "83c9ccdaa7c598a8afb2fe0baa76f6270e2b4637" }
+primitive-types = { git = "https://github.com/paritytech/parity-common", rev = "83c9ccdaa7c598a8afb2fe0baa76f6270e2b4637" }
+rlp = { git = "https://github.com/paritytech/parity-common", rev = "83c9ccdaa7c598a8afb2fe0baa76f6270e2b4637" }
+ethbloom = { git = "https://github.com/paritytech/parity-common", rev = "83c9ccdaa7c598a8afb2fe0baa76f6270e2b4637" }
+triehash = { git = "https://github.com/paritytech/parity-common", rev = "83c9ccdaa7c598a8afb2fe0baa76f6270e2b4637" }
+fixed-hash = { git = "https://github.com/paritytech/parity-common", rev = "83c9ccdaa7c598a8afb2fe0baa76f6270e2b4637" }
