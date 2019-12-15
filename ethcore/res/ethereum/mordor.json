@@ -37,7 +37,11 @@
 		"eip658Transition":"0x0",
 		"eip145Transition":"0x498bb",
 		"eip1014Transition":"0x498bb",
-		"eip1052Transition":"0x498bb"
+		"eip1052Transition":"0x498bb",
+		"eip1283Transition": "0xbe10b",
+		"eip1344Transition": "0xbe10b",
+		"eip1706Transition": "0xbe10b",
+		"eip2028Transition": "0xbe10b"
 	},
 	"genesis":{
 		"seal":{
@@ -128,7 +132,7 @@
 							}
 						}
 					},
-					"0x7fffffffffffff":{
+					"0xbe10b":{
 						"info":"EIP 1108 transition",
 						"price":{
 							"alt_bn128_const_operations":{
@@ -150,7 +154,7 @@
 							}
 						}
 					},
-					"0x7fffffffffffff":{
+					"0xbe10b":{
 						"info":"EIP 1108 transition",
 						"price":{
 							"alt_bn128_const_operations":{
@@ -173,7 +177,7 @@
 							}
 						}
 					},
-					"0x7fffffffffffff":{
+					"0xbe10b":{
 						"info":"EIP 1108 transition",
 						"price":{
 							"alt_bn128_pairing":{
@@ -181,6 +185,17 @@
 								"pair":34000
 							}
 						}
+					}
+				}
+			}
+		},
+		"0x0000000000000000000000000000000000000009": {
+			"builtin": {
+				"name": "blake2_f",
+				"activate_at": "0xbe10b",
+				"pricing": {
+					"blake2_f": {
+						"gas_per_round": 1
 					}
 				}
 			}
