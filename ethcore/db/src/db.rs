@@ -24,8 +24,7 @@ use kvdb::{DBTransaction, KeyValueDB};
 
 use rlp;
 
-// todo[dvdplm] why isn't this an enum?
-// database columns
+// Database column indexes.
 /// Column for State
 pub const COL_STATE: u32 = 0;
 /// Column for Block headers

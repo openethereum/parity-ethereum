@@ -24,11 +24,6 @@ use kvdb::KeyValueDB;
 use types::{Error, ServerKeyId, NodeId};
 use serialization::{SerializablePublic, SerializableSecret, SerializableH256, SerializableAddress};
 
-/// Key of version value.
-const DB_META_KEY_VERSION: &'static [u8; 7] = b"version";
-/// Current db version.
-const CURRENT_VERSION: u8 = 3;
-
 /// Encrypted key share, stored by key storage on the single key server.
 #[derive(Debug, Default, Clone, PartialEq)]
 pub struct DocumentKeyShare {
@@ -116,24 +111,7 @@ struct SerializableDocumentKeyShareVersionV3 {
 impl PersistentKeyStorage {
 	/// Create new persistent document encryption keys storage
 	pub fn new(db: Arc<dyn KeyValueDB>) -> Result<Self, Error> {
-		let db = upgrade_db(db)?;
-
-		Ok(PersistentKeyStorage { db })
-	}
-}
-
-fn upgrade_db(db: Arc<dyn KeyValueDB>) -> Result<Arc<dyn KeyValueDB>, Error> {
-	let version = db.get(0, DB_META_KEY_VERSION)?;
-	let version = version.and_then(|v| v.get(0).cloned());
-	match version {
-		None => {
-			let mut batch = db.transaction();
-			batch.put(0, DB_META_KEY_VERSION, &[CURRENT_VERSION]);
-			db.write(batch)?;
-			Ok(db)
-		},
-		Some(CURRENT_VERSION) => Ok(db),
-		_ => Err(Error::Database(format!("unsupported SecretStore database version: {:?}", version))),
+		Ok(Self { db })
 	}
 }
 
@@ -288,12 +266,10 @@ impl From<SerializableDocumentKeyShareV3> for DocumentKeyShare {
 
 #[cfg(test)]
 pub mod tests {
-	extern crate tempdir;
-
 	use std::collections::HashMap;
 	use std::sync::Arc;
 	use parking_lot::RwLock;
-	use self::tempdir::TempDir;
+	use tempdir::TempDir;
 	use crypto::publickey::{Random, Generator, Public};
 	use kvdb_rocksdb::{Database, DatabaseConfig};
 	use types::{Error, ServerKeyId};
@@ -374,7 +350,8 @@ pub mod tests {
 		};
 		let key3 = ServerKeyId::from_low_u64_be(3);
 
-		let db = Database::open(&DatabaseConfig::default(),&tempdir.path().display().to_string()).unwrap();
+		let db_config = DatabaseConfig::with_columns(1);
+		let db = Database::open(&db_config, &tempdir.path().display().to_string()).unwrap();
 
 		let key_storage = PersistentKeyStorage::new(Arc::new(db)).unwrap();
 		key_storage.insert(key1.clone(), value1.clone()).unwrap();
@@ -384,7 +361,7 @@ pub mod tests {
 		assert_eq!(key_storage.get(&key3), Ok(None));
 		drop(key_storage);
 
-		let db = Database::open(&DatabaseConfig::default(),&tempdir.path().display().to_string()).unwrap();
+		let db = Database::open(&db_config, &tempdir.path().display().to_string()).unwrap();
 
 		let key_storage = PersistentKeyStorage::new(Arc::new(db)).unwrap();
 		assert_eq!(key_storage.get(&key1), Ok(Some(value1)));
