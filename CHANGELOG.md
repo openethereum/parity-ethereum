@@ -5,11 +5,15 @@ block numbers for POA and xDai networks, implements ECIP-1056 and implements
 EIP-2384/2387 - Muir Glacier.
 
 The full list of included changes:
+* Enable EIP-2384 for ice age hard fork (#11281)
 * ethcore/res: activate agharta on classic 9573000 (#11331)
 * Istanbul HF in xDai (2019-12-12) (#11299)
 * Istanbul HF in POA Core (2019-12-19) (#11298)
 * Istanbul HF in POA Sokol (2019-12-05) (#11282)
-* Enable EIP-2384 for ice age hard fork (#11281)
+* Activate ecip-1061 on kotti and mordor (#11338)
+* Enable basic verification of local transactions (#11332)
+* Disallow EIP-86 style null signatures for transactions outside tests (#11335)
+* SecretStore database migration to v4 (#11322) 
 
 ## Parity-Ethereum [v2.6.6](https://github.com/paritytech/parity-ethereum/releases/tag/v2.6.6)
 
