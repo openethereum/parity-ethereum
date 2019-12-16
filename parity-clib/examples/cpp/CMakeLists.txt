@@ -1,4 +1,5 @@
 cmake_minimum_required(VERSION 3.5)
+project("Parity Ethereum C API example")
 include(ExternalProject)
 include_directories("${CMAKE_SOURCE_DIR}/../..")
 set (CMAKE_CXX_STANDARD 17) # Enforce C++17
