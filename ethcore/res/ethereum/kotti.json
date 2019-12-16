@@ -24,6 +24,10 @@
 		"eip658Transition": "0xaef49",
 		"eip1014Transition": "0x1a064d",
 		"eip1052Transition": "0x1a064d",
+		"eip1283Transition": "0x1f67cf",
+		"eip1344Transition": "0x1f67cf",
+		"eip1706Transition": "0x1f67cf",
+		"eip2028Transition": "0x1f67cf",
 		"gasLimitBoundDivisor": "0x400",
 		"maxCodeSize": "0x6000",
 		"maxCodeSizeTransition": "0xaef49",
@@ -123,7 +127,7 @@
 					"0xaef49": {
 						"price": { "alt_bn128_const_operations": { "price": 500 }}
 					},
-					"0x7fffffffffffff": {
+					"0x1f67cf": {
 						"info": "EIP 1108 transition",
 						"price": { "alt_bn128_const_operations": { "price": 150 }}
 					}
@@ -138,7 +142,7 @@
 					"0xaef49": {
 						"price": { "alt_bn128_const_operations": { "price": 40000 }}
 					},
-					"0x7fffffffffffff": {
+					"0x1f67cf": {
 						"info": "EIP 1108 transition",
 						"price": { "alt_bn128_const_operations": { "price": 6000 }}
 					}
@@ -153,7 +157,7 @@
 					"0xaef49": {
 						"price": { "alt_bn128_pairing": { "base": 100000, "pair": 80000 }}
 					},
-					"0x7fffffffffffff": {
+					"0x1f67cf": {
 						"info": "EIP 1108 transition",
 						"price": { "alt_bn128_pairing": { "base": 45000, "pair": 34000 }}
 					}
@@ -161,7 +165,16 @@
 			}
 		},
 		"0x0000000000000000000000000000000000000009": {
-			"balance": "0x1"
+			"balance": "0x1",
+			"builtin": {
+				"name": "blake2_f",
+				"activate_at": "0x1f67cf",
+				"pricing": {
+					"blake2_f": {
+						"gas_per_round": 1
+					}
+				}
+			}
 		},
 		"0x000000000000000000000000000000000000000a": {
 			"balance": "0x1"
